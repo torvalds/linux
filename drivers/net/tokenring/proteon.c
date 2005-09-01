@@ -62,8 +62,7 @@ static int dmalist[] __initdata = {
 };
 
 static char cardname[] = "Proteon 1392\0";
-
-struct net_device *proteon_probe(int unit);
+static u64 dma_mask = ISA_MAX_ADDRESS;
 static int proteon_open(struct net_device *dev);
 static void proteon_read_eeprom(struct net_device *dev);
 static unsigned short proteon_setnselout_pins(struct net_device *dev);
@@ -116,7 +115,7 @@ nodev:
 	return -ENODEV;
 }
 
-static int __init setup_card(struct net_device *dev)
+static int __init setup_card(struct net_device *dev, struct device *pdev)
 {
 	struct net_local *tp;
         static int versionprinted;
@@ -137,7 +136,7 @@ static int __init setup_card(struct net_device *dev)
 		}
 	}
 	if (err)
-		goto out4;
+		goto out5;
 
 	/* At this point we have found a valid card. */
 
@@ -145,14 +144,15 @@ static int __init setup_card(struct net_device *dev)
 		printk(KERN_DEBUG "%s", version);
 
 	err = -EIO;
-	if (tmsdev_init(dev, ISA_MAX_ADDRESS, NULL))
+	pdev->dma_mask = &dma_mask;
+	if (tmsdev_init(dev, pdev))
 		goto out4;
 
 	dev->base_addr &= ~3; 
 		
 	proteon_read_eeprom(dev);
 
-	printk(KERN_DEBUG "%s:    Ring Station Address: ", dev->name);
+	printk(KERN_DEBUG "proteon.c:    Ring Station Address: ");
 	printk("%2.2x", dev->dev_addr[0]);
 	for (j = 1; j < 6; j++)
 		printk(":%2.2x", dev->dev_addr[j]);
@@ -185,7 +185,7 @@ static int __init setup_card(struct net_device *dev)
 		
                 if(irqlist[j] == 0)
                 {
-                        printk(KERN_INFO "%s: AutoSelect no IRQ available\n", dev->name);
+                        printk(KERN_INFO "proteon.c: AutoSelect no IRQ available\n");
 			goto out3;
 		}
 	}
@@ -196,15 +196,15 @@ static int __init setup_card(struct net_device *dev)
 				break;
 		if (irqlist[j] == 0)
 		{
-			printk(KERN_INFO "%s: Illegal IRQ %d specified\n",
-				dev->name, dev->irq);
+			printk(KERN_INFO "proteon.c: Illegal IRQ %d specified\n",
+				dev->irq);
 			goto out3;
 		}
 		if (request_irq(dev->irq, tms380tr_interrupt, 0, 
 			cardname, dev))
 		{
-                        printk(KERN_INFO "%s: Selected IRQ %d not available\n", 
-				dev->name, dev->irq);
+                        printk(KERN_INFO "proteon.c: Selected IRQ %d not available\n",
+				dev->irq);
 			goto out3;
 		}
 	}
@@ -220,7 +220,7 @@ static int __init setup_card(struct net_device *dev)
 
 		if(dmalist[j] == 0)
 		{
-			printk(KERN_INFO "%s: AutoSelect no DMA available\n", dev->name);
+			printk(KERN_INFO "proteon.c: AutoSelect no DMA available\n");
 			goto out2;
 		}
 	}
@@ -231,24 +231,24 @@ static int __init setup_card(struct net_device *dev)
 				break;
 		if (dmalist[j] == 0)
 		{
-                        printk(KERN_INFO "%s: Illegal DMA %d specified\n", 
-				dev->name, dev->dma);
+                        printk(KERN_INFO "proteon.c: Illegal DMA %d specified\n",
+				dev->dma);
 			goto out2;
 		}
 		if (request_dma(dev->dma, cardname))
 		{
-                        printk(KERN_INFO "%s: Selected DMA %d not available\n", 
-				dev->name, dev->dma);
+                        printk(KERN_INFO "proteon.c: Selected DMA %d not available\n",
+				dev->dma);
 			goto out2;
 		}
 	}
 
-	printk(KERN_DEBUG "%s:    IO: %#4lx  IRQ: %d  DMA: %d\n",
-	       dev->name, dev->base_addr, dev->irq, dev->dma);
-		
 	err = register_netdev(dev);
 	if (err)
 		goto out;
+
+	printk(KERN_DEBUG "%s:    IO: %#4lx  IRQ: %d  DMA: %d\n",
+	       dev->name, dev->base_addr, dev->irq, dev->dma);
 
 	return 0;
 out:
@@ -258,32 +258,9 @@ out2:
 out3:
 	tmsdev_term(dev);
 out4:
-	release_region(dev->base_addr, PROTEON_IO_EXTENT); 
+	release_region(dev->base_addr, PROTEON_IO_EXTENT);
+out5:
 	return err;
-}
-
-struct net_device * __init proteon_probe(int unit)
-{
-	struct net_device *dev = alloc_trdev(sizeof(struct net_local));
-	int err = 0;
-
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	if (unit >= 0) {
-		sprintf(dev->name, "tr%d", unit);
-		netdev_boot_setup_check(dev);
-	}
-
-	err = setup_card(dev);
-	if (err)
-		goto out;
-
-	return dev;
-
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
 }
 
 /*
@@ -352,8 +329,6 @@ static int proteon_open(struct net_device *dev)
 	return tms380tr_open(dev);
 }
 
-#ifdef MODULE
-
 #define ISATR_MAX_ADAPTERS 3
 
 static int io[ISATR_MAX_ADAPTERS];
@@ -366,12 +341,22 @@ module_param_array(io, int, NULL, 0);
 module_param_array(irq, int, NULL, 0);
 module_param_array(dma, int, NULL, 0);
 
-static struct net_device *proteon_dev[ISATR_MAX_ADAPTERS];
+static struct platform_device *proteon_dev[ISATR_MAX_ADAPTERS];
 
-int init_module(void)
+static struct device_driver proteon_driver = {
+	.name		= "proteon",
+	.bus		= &platform_bus_type,
+};
+
+static int __init proteon_init(void)
 {
 	struct net_device *dev;
+	struct platform_device *pdev;
 	int i, num = 0, err = 0;
+
+	err = driver_register(&proteon_driver);
+	if (err)
+		return err;
 
 	for (i = 0; i < ISATR_MAX_ADAPTERS ; i++) {
 		dev = alloc_trdev(sizeof(struct net_local));
@@ -381,11 +366,15 @@ int init_module(void)
 		dev->base_addr = io[i];
 		dev->irq = irq[i];
 		dev->dma = dma[i];
-		err = setup_card(dev);
+		pdev = platform_device_register_simple("proteon",
+			i, NULL, 0);
+		err = setup_card(dev, &pdev->dev);
 		if (!err) {
-			proteon_dev[i] = dev;
+			proteon_dev[i] = pdev;
+			dev_set_drvdata(&pdev->dev, dev);
 			++num;
 		} else {
+			platform_device_unregister(pdev);
 			free_netdev(dev);
 		}
 	}
@@ -399,23 +388,28 @@ int init_module(void)
 	return (0);
 }
 
-void cleanup_module(void)
+static void __exit proteon_cleanup(void)
 {
+	struct net_device *dev;
 	int i;
 
 	for (i = 0; i < ISATR_MAX_ADAPTERS ; i++) {
-		struct net_device *dev = proteon_dev[i];
+		struct platform_device *pdev = proteon_dev[i];
 		
-		if (!dev) 
+		if (!pdev)
 			continue;
-		
+		dev = dev_get_drvdata(&pdev->dev);
 		unregister_netdev(dev);
 		release_region(dev->base_addr, PROTEON_IO_EXTENT);
 		free_irq(dev->irq, dev);
 		free_dma(dev->dma);
 		tmsdev_term(dev);
 		free_netdev(dev);
+		dev_set_drvdata(&pdev->dev, NULL);
+		platform_device_unregister(pdev);
 	}
+	driver_unregister(&proteon_driver);
 }
-#endif /* MODULE */
 
+module_init(proteon_init);
+module_exit(proteon_cleanup);

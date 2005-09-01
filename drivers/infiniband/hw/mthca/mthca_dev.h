@@ -2,6 +2,8 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -64,6 +66,10 @@ enum {
 
 enum {
 	MTHCA_MAX_PORTS = 2
+};
+
+enum {
+	MTHCA_BOARD_ID_LEN = 64
 };
 
 enum {
@@ -142,6 +148,7 @@ struct mthca_limits {
 	int      reserved_mcgs;
 	int      num_pds;
 	int      reserved_pds;
+	u8       port_width_cap;
 };
 
 struct mthca_alloc {
@@ -211,6 +218,13 @@ struct mthca_cq_table {
 	struct mthca_icm_table *table;
 };
 
+struct mthca_srq_table {
+	struct mthca_alloc 	alloc;
+	spinlock_t         	lock;
+	struct mthca_array      srq;
+	struct mthca_icm_table *table;
+};
+
 struct mthca_qp_table {
 	struct mthca_alloc     	alloc;
 	u32                    	rdb_base;
@@ -246,6 +260,7 @@ struct mthca_dev {
 	unsigned long    device_cap_flags;
 
 	u32              rev_id;
+	char             board_id[MTHCA_BOARD_ID_LEN];
 
 	/* firmware info */
 	u64              fw_ver;
@@ -291,6 +306,7 @@ struct mthca_dev {
 	struct mthca_mr_table  mr_table;
 	struct mthca_eq_table  eq_table;
 	struct mthca_cq_table  cq_table;
+	struct mthca_srq_table srq_table;
 	struct mthca_qp_table  qp_table;
 	struct mthca_av_table  av_table;
 	struct mthca_mcg_table mcg_table;
@@ -331,14 +347,13 @@ extern void __buggy_use_of_MTHCA_PUT(void);
 
 #define MTHCA_PUT(dest, source, offset)                               \
 	do {                                                          \
-		__typeof__(source) *__p =                             \
-			(__typeof__(source) *) ((char *) (dest) + (offset)); \
+		void *__d = ((char *) (dest) + (offset));	      \
 		switch (sizeof(source)) {                             \
-			case 1: *__p = (source);            break;    \
-			case 2: *__p = cpu_to_be16(source); break;    \
-			case 4: *__p = cpu_to_be32(source); break;    \
-			case 8: *__p = cpu_to_be64(source); break;    \
-			default: __buggy_use_of_MTHCA_PUT();          \
+		case 1: *(u8 *) __d = (source);                break; \
+		case 2:	*(__be16 *) __d = cpu_to_be16(source); break; \
+		case 4:	*(__be32 *) __d = cpu_to_be32(source); break; \
+		case 8:	*(__be64 *) __d = cpu_to_be64(source); break; \
+		default: __buggy_use_of_MTHCA_PUT();		      \
 		}                                                     \
 	} while (0)
 
@@ -354,12 +369,18 @@ int mthca_array_set(struct mthca_array *array, int index, void *value);
 void mthca_array_clear(struct mthca_array *array, int index);
 int mthca_array_init(struct mthca_array *array, int nent);
 void mthca_array_cleanup(struct mthca_array *array, int nent);
+int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
+		    union mthca_buf *buf, int *is_direct, struct mthca_pd *pd,
+		    int hca_write, struct mthca_mr *mr);
+void mthca_buf_free(struct mthca_dev *dev, int size, union mthca_buf *buf,
+		    int is_direct, struct mthca_mr *mr);
 
 int mthca_init_uar_table(struct mthca_dev *dev);
 int mthca_init_pd_table(struct mthca_dev *dev);
 int mthca_init_mr_table(struct mthca_dev *dev);
 int mthca_init_eq_table(struct mthca_dev *dev);
 int mthca_init_cq_table(struct mthca_dev *dev);
+int mthca_init_srq_table(struct mthca_dev *dev);
 int mthca_init_qp_table(struct mthca_dev *dev);
 int mthca_init_av_table(struct mthca_dev *dev);
 int mthca_init_mcg_table(struct mthca_dev *dev);
@@ -369,6 +390,7 @@ void mthca_cleanup_pd_table(struct mthca_dev *dev);
 void mthca_cleanup_mr_table(struct mthca_dev *dev);
 void mthca_cleanup_eq_table(struct mthca_dev *dev);
 void mthca_cleanup_cq_table(struct mthca_dev *dev);
+void mthca_cleanup_srq_table(struct mthca_dev *dev);
 void mthca_cleanup_qp_table(struct mthca_dev *dev);
 void mthca_cleanup_av_table(struct mthca_dev *dev);
 void mthca_cleanup_mcg_table(struct mthca_dev *dev);
@@ -419,7 +441,19 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq);
 void mthca_cq_event(struct mthca_dev *dev, u32 cqn);
-void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn);
+void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
+		    struct mthca_srq *srq);
+
+int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
+		    struct ib_srq_attr *attr, struct mthca_srq *srq);
+void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
+void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
+		     enum ib_event_type event_type);
+void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
+int mthca_tavor_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
+			      struct ib_recv_wr **bad_wr);
+int mthca_arbel_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
+			      struct ib_recv_wr **bad_wr);
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 		    enum ib_event_type event_type);
@@ -433,7 +467,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			     struct ib_recv_wr **bad_wr);
 int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
-		       int index, int *dbd, u32 *new_wqe);
+		       int index, int *dbd, __be32 *new_wqe);
 int mthca_alloc_qp(struct mthca_dev *dev,
 		   struct mthca_pd *pd,
 		   struct mthca_cq *send_cq,

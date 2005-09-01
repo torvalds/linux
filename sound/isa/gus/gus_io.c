@@ -269,8 +269,9 @@ void snd_gf1_i_write_addr(snd_gus_card_t * gus, unsigned char reg,
 
 #endif  /*  0  */
 
-unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus,
-				 unsigned char reg, short w_16bit)
+#ifdef CONFIG_SND_DEBUG
+static unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus,
+					unsigned char reg, short w_16bit)
 {
 	unsigned int res;
 	unsigned long flags;
@@ -280,6 +281,7 @@ unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus,
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 	return res;
 }
+#endif
 
 /*
 

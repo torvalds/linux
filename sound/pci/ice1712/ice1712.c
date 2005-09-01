@@ -1422,7 +1422,7 @@ static snd_kcontrol_new_t snd_ice1712_multi_capture_analog_switch __devinitdata 
 
 static snd_kcontrol_new_t snd_ice1712_multi_capture_spdif_switch __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Multi Capture Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Multi ",CAPTURE,SWITCH),
 	.info = snd_ice1712_pro_mixer_switch_info,
 	.get = snd_ice1712_pro_mixer_switch_get,
 	.put = snd_ice1712_pro_mixer_switch_put,
@@ -1441,7 +1441,7 @@ static snd_kcontrol_new_t snd_ice1712_multi_capture_analog_volume __devinitdata 
 
 static snd_kcontrol_new_t snd_ice1712_multi_capture_spdif_volume __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Multi Capture Volume",
+	.name = SNDRV_CTL_NAME_IEC958("Multi ",CAPTURE,VOLUME),
 	.info = snd_ice1712_pro_mixer_volume_info,
 	.get = snd_ice1712_pro_mixer_volume_get,
 	.put = snd_ice1712_pro_mixer_volume_put,
@@ -1715,7 +1715,7 @@ static int snd_ice1712_spdif_maskp_get(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_ice1712_spdif_maskc __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_ice1712_spdif_info,
 	.get =		snd_ice1712_spdif_maskc_get,
@@ -1724,7 +1724,7 @@ static snd_kcontrol_new_t snd_ice1712_spdif_maskc __devinitdata =
 static snd_kcontrol_new_t snd_ice1712_spdif_maskp __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_ice1712_spdif_info,
 	.get =		snd_ice1712_spdif_maskp_get,
@@ -2203,7 +2203,7 @@ static snd_kcontrol_new_t snd_ice1712_mixer_pro_analog_route __devinitdata = {
 
 static snd_kcontrol_new_t snd_ice1712_mixer_pro_spdif_route __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Playback Route",
+	.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
 	.info = snd_ice1712_pro_route_info,
 	.get = snd_ice1712_pro_route_spdif_get,
 	.put = snd_ice1712_pro_route_spdif_put,

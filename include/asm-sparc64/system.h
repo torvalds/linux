@@ -28,6 +28,14 @@ enum sparc_cpu {
 #define ARCH_SUN4C_SUN4 0
 #define ARCH_SUN4 0
 
+extern void mb(void);
+extern void rmb(void);
+extern void wmb(void);
+extern void membar_storeload(void);
+extern void membar_storeload_storestore(void);
+extern void membar_storeload_loadload(void);
+extern void membar_storestore_loadstore(void);
+
 #endif
 
 #define setipl(__new_ipl) \
@@ -78,16 +86,11 @@ enum sparc_cpu {
 
 #define nop() 		__asm__ __volatile__ ("nop")
 
-#define membar(type)	__asm__ __volatile__ ("membar " type : : : "memory")
-#define mb()		\
-	membar("#LoadLoad | #LoadStore | #StoreStore | #StoreLoad")
-#define rmb()		membar("#LoadLoad")
-#define wmb()		membar("#StoreStore")
 #define read_barrier_depends()		do { } while(0)
 #define set_mb(__var, __value) \
-	do { __var = __value; membar("#StoreLoad | #StoreStore"); } while(0)
+	do { __var = __value; membar_storeload_storestore(); } while(0)
 #define set_wmb(__var, __value) \
-	do { __var = __value; membar("#StoreStore"); } while(0)
+	do { __var = __value; wmb(); } while(0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()

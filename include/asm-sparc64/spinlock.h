@@ -43,7 +43,7 @@ typedef struct {
 #define spin_is_locked(lp)  ((lp)->lock != 0)
 
 #define spin_unlock_wait(lp)	\
-do {	membar("#LoadLoad");	\
+do {	rmb();			\
 } while((lp)->lock)
 
 static inline void _raw_spin_lock(spinlock_t *lock)
@@ -129,15 +129,18 @@ typedef struct {
 #define spin_is_locked(__lock)	((__lock)->lock != 0)
 #define spin_unlock_wait(__lock)	\
 do { \
-	membar("#LoadLoad"); \
+	rmb(); \
 } while((__lock)->lock)
 
-extern void _do_spin_lock (spinlock_t *lock, char *str);
-extern void _do_spin_unlock (spinlock_t *lock);
-extern int _do_spin_trylock (spinlock_t *lock);
+extern void _do_spin_lock(spinlock_t *lock, char *str, unsigned long caller);
+extern void _do_spin_unlock(spinlock_t *lock);
+extern int _do_spin_trylock(spinlock_t *lock, unsigned long caller);
 
-#define _raw_spin_trylock(lp)	_do_spin_trylock(lp)
-#define _raw_spin_lock(lock)	_do_spin_lock(lock, "spin_lock")
+#define _raw_spin_trylock(lp)	\
+	_do_spin_trylock(lp, (unsigned long) __builtin_return_address(0))
+#define _raw_spin_lock(lock)	\
+	_do_spin_lock(lock, "spin_lock", \
+		      (unsigned long) __builtin_return_address(0))
 #define _raw_spin_unlock(lock)	_do_spin_unlock(lock)
 #define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
 
@@ -279,37 +282,41 @@ typedef struct {
 #define RW_LOCK_UNLOCKED	(rwlock_t) { 0, 0, 0xff, { } }
 #define rwlock_init(lp) do { *(lp) = RW_LOCK_UNLOCKED; } while(0)
 
-extern void _do_read_lock(rwlock_t *rw, char *str);
-extern void _do_read_unlock(rwlock_t *rw, char *str);
-extern void _do_write_lock(rwlock_t *rw, char *str);
-extern void _do_write_unlock(rwlock_t *rw);
-extern int _do_write_trylock(rwlock_t *rw, char *str);
+extern void _do_read_lock(rwlock_t *rw, char *str, unsigned long caller);
+extern void _do_read_unlock(rwlock_t *rw, char *str, unsigned long caller);
+extern void _do_write_lock(rwlock_t *rw, char *str, unsigned long caller);
+extern void _do_write_unlock(rwlock_t *rw, unsigned long caller);
+extern int _do_write_trylock(rwlock_t *rw, char *str, unsigned long caller);
 
 #define _raw_read_lock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	_do_read_lock(lock, "read_lock"); \
+	_do_read_lock(lock, "read_lock", \
+		      (unsigned long) __builtin_return_address(0)); \
 	local_irq_restore(flags); \
 } while(0)
 
 #define _raw_read_unlock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	_do_read_unlock(lock, "read_unlock"); \
+	_do_read_unlock(lock, "read_unlock", \
+		      (unsigned long) __builtin_return_address(0)); \
 	local_irq_restore(flags); \
 } while(0)
 
 #define _raw_write_lock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	_do_write_lock(lock, "write_lock"); \
+	_do_write_lock(lock, "write_lock", \
+		      (unsigned long) __builtin_return_address(0)); \
 	local_irq_restore(flags); \
 } while(0)
 
 #define _raw_write_unlock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	_do_write_unlock(lock); \
+	_do_write_unlock(lock, \
+		      (unsigned long) __builtin_return_address(0)); \
 	local_irq_restore(flags); \
 } while(0)
 
@@ -317,7 +324,8 @@ do {	unsigned long flags; \
 ({	unsigned long flags; \
 	int val; \
 	local_irq_save(flags); \
-	val = _do_write_trylock(lock, "write_trylock"); \
+	val = _do_write_trylock(lock, "write_trylock", \
+				(unsigned long) __builtin_return_address(0)); \
 	local_irq_restore(flags); \
 	val; \
 })

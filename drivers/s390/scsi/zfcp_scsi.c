@@ -389,7 +389,7 @@ zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id,
 	struct zfcp_unit *unit, *retval = NULL;
 
 	list_for_each_entry(port, &adapter->port_list_head, list) {
-		if (id != port->scsi_id)
+		if (!port->rport || (id != port->rport->scsi_target_id))
 			continue;
 		list_for_each_entry(unit, &port->unit_list_head, list) {
 			if (lun == unit->scsi_lun) {
@@ -408,7 +408,7 @@ zfcp_port_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id)
 	struct zfcp_port *port;
 
 	list_for_each_entry(port, &adapter->port_list_head, list) {
-		if (id == port->scsi_id)
+		if (port->rport && (id == port->rport->scsi_target_id))
 			return port;
 	}
 	return (struct zfcp_port *) NULL;
@@ -634,7 +634,6 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
 	int retval;
 	struct zfcp_unit *unit = (struct zfcp_unit *) scpnt->device->hostdata;
-	struct Scsi_Host *scsi_host = scpnt->device->host;
 
 	if (!unit) {
 		ZFCP_LOG_NORMAL("bug: Tried reset for nonexistent unit\n");
@@ -729,7 +728,6 @@ zfcp_scsi_eh_bus_reset_handler(struct scsi_cmnd *scpnt)
 {
 	int retval = 0;
 	struct zfcp_unit *unit;
-	struct Scsi_Host *scsi_host = scpnt->device->host;
 
 	unit = (struct zfcp_unit *) scpnt->device->hostdata;
 	ZFCP_LOG_NORMAL("bus reset because of problems with "
@@ -753,7 +751,6 @@ zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
 	int retval = 0;
 	struct zfcp_unit *unit;
-	struct Scsi_Host *scsi_host = scpnt->device->host;
 
 	unit = (struct zfcp_unit *) scpnt->device->hostdata;
 	ZFCP_LOG_NORMAL("host reset because of problems with "
@@ -833,6 +830,7 @@ zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	shost = adapter->scsi_host;
 	if (!shost)
 		return;
+	fc_remove_host(shost);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
@@ -906,6 +904,18 @@ zfcp_get_node_name(struct scsi_target *starget)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
+void
+zfcp_set_fc_host_attrs(struct zfcp_adapter *adapter)
+{
+	struct Scsi_Host *shost = adapter->scsi_host;
+
+	fc_host_node_name(shost) = adapter->wwnn;
+	fc_host_port_name(shost) = adapter->wwpn;
+	strncpy(fc_host_serial_number(shost), adapter->serial_number,
+                min(FC_SERIAL_NUMBER_SIZE, 32));
+	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
+}
+
 struct fc_function_template zfcp_transport_functions = {
 	.get_starget_port_id = zfcp_get_port_id,
 	.get_starget_port_name = zfcp_get_port_name,
@@ -913,6 +923,11 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
 	.show_starget_node_name = 1,
+	.show_rport_supported_classes = 1,
+	.show_host_node_name = 1,
+	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+	.show_host_serial_number = 1,
 };
 
 /**

@@ -55,18 +55,21 @@ static inline void htcp_reset(struct htcp *ca)
 	ca->snd_cwnd_cnt2 = 0;
 }
 
-static u32 htcp_cwnd_undo(struct tcp_sock *tp)
+static u32 htcp_cwnd_undo(struct sock *sk)
 {
-	struct htcp *ca = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct htcp *ca = inet_csk_ca(sk);
 	ca->ccount = ca->undo_ccount;
 	ca->maxRTT = ca->undo_maxRTT;
 	ca->old_maxB = ca->undo_old_maxB;
 	return max(tp->snd_cwnd, (tp->snd_ssthresh<<7)/ca->beta);
 }
 
-static inline void measure_rtt(struct tcp_sock *tp)
+static inline void measure_rtt(struct sock *sk)
 {
-	struct htcp *ca = tcp_ca(tp);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct htcp *ca = inet_csk_ca(sk);
 	u32 srtt = tp->srtt>>3;
 
 	/* keep track of minimum RTT seen so far, minRTT is zero at first */
@@ -74,7 +77,7 @@ static inline void measure_rtt(struct tcp_sock *tp)
 		ca->minRTT = srtt;
 
 	/* max RTT */
-	if (tp->ca_state == TCP_CA_Open && tp->snd_ssthresh < 0xFFFF && ca->ccount > 3) {
+	if (icsk->icsk_ca_state == TCP_CA_Open && tp->snd_ssthresh < 0xFFFF && ca->ccount > 3) {
 		if (ca->maxRTT < ca->minRTT)
 			ca->maxRTT = ca->minRTT;
 		if (ca->maxRTT < srtt && srtt <= ca->maxRTT+HZ/50)
@@ -82,13 +85,16 @@ static inline void measure_rtt(struct tcp_sock *tp)
 	}
 }
 
-static void measure_achieved_throughput(struct tcp_sock *tp, u32 pkts_acked)
+static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked)
 {
-	struct htcp *ca = tcp_ca(tp);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct htcp *ca = inet_csk_ca(sk);
 	u32 now = tcp_time_stamp;
 
 	/* achieved throughput calculations */
-	if (tp->ca_state != TCP_CA_Open && tp->ca_state != TCP_CA_Disorder) {
+	if (icsk->icsk_ca_state != TCP_CA_Open &&
+	    icsk->icsk_ca_state != TCP_CA_Disorder) {
 		ca->packetcount = 0;
 		ca->lasttime = now;
 		return;
@@ -173,9 +179,9 @@ static inline void htcp_alpha_update(struct htcp *ca)
  * that point do we really have a real sense of maxRTT (the queues en route
  * were getting just too full now).
  */
-static void htcp_param_update(struct tcp_sock *tp)
+static void htcp_param_update(struct sock *sk)
 {
-	struct htcp *ca = tcp_ca(tp);
+	struct htcp *ca = inet_csk_ca(sk);
 	u32 minRTT = ca->minRTT;
 	u32 maxRTT = ca->maxRTT;
 
@@ -187,17 +193,19 @@ static void htcp_param_update(struct tcp_sock *tp)
 		ca->maxRTT = minRTT + ((maxRTT-minRTT)*95)/100;
 }
 
-static u32 htcp_recalc_ssthresh(struct tcp_sock *tp)
+static u32 htcp_recalc_ssthresh(struct sock *sk)
 {
-	struct htcp *ca = tcp_ca(tp);
-	htcp_param_update(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	const struct htcp *ca = inet_csk_ca(sk);
+	htcp_param_update(sk);
 	return max((tp->snd_cwnd * ca->beta) >> 7, 2U);
 }
 
-static void htcp_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt,
+static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 			    u32 in_flight, int data_acked)
 {
-	struct htcp *ca = tcp_ca(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct htcp *ca = inet_csk_ca(sk);
 
 	if (in_flight < tp->snd_cwnd)
 		return;
@@ -207,7 +215,7 @@ static void htcp_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt,
 		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 			tp->snd_cwnd++;
 	} else {
-		measure_rtt(tp);
+		measure_rtt(sk);
 
 		/* keep track of number of round-trip times since last backoff event */
 		if (ca->snd_cwnd_cnt2++ > tp->snd_cwnd) {
@@ -229,28 +237,29 @@ static void htcp_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt,
 }
 
 /* Lower bound on congestion window. */
-static u32 htcp_min_cwnd(struct tcp_sock *tp)
+static u32 htcp_min_cwnd(struct sock *sk)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
 	return tp->snd_ssthresh;
 }
 
 
-static void htcp_init(struct tcp_sock *tp)
+static void htcp_init(struct sock *sk)
 {
-	struct htcp *ca = tcp_ca(tp);
+	struct htcp *ca = inet_csk_ca(sk);
 
 	memset(ca, 0, sizeof(struct htcp));
 	ca->alpha = ALPHA_BASE;
 	ca->beta = BETA_MIN;
 }
 
-static void htcp_state(struct tcp_sock *tp, u8 new_state)
+static void htcp_state(struct sock *sk, u8 new_state)
 {
 	switch (new_state) {
 	case TCP_CA_CWR:
 	case TCP_CA_Recovery:
 	case TCP_CA_Loss:
-		htcp_reset(tcp_ca(tp));
+		htcp_reset(inet_csk_ca(sk));
 		break;
 	}
 }
@@ -269,7 +278,7 @@ static struct tcp_congestion_ops htcp = {
 
 static int __init htcp_register(void)
 {
-	BUG_ON(sizeof(struct htcp) > TCP_CA_PRIV_SIZE);
+	BUG_ON(sizeof(struct htcp) > ICSK_CA_PRIV_SIZE);
 	BUILD_BUG_ON(BETA_MIN >= BETA_MAX);
 	if (!use_bandwidth_switch)
 		htcp.pkts_acked = NULL;

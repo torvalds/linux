@@ -404,7 +404,7 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 	bt_cb(skb)->incoming = 1;
 
 	/* Time stamp */
-	do_gettimeofday(&skb->stamp);
+	__net_timestamp(skb);
 
 	/* Queue frame for rx task */
 	skb_queue_tail(&hdev->rx_q, skb);

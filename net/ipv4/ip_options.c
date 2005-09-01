@@ -489,23 +489,18 @@ void ip_options_undo(struct ip_options * opt)
 	}
 }
 
-int ip_options_get(struct ip_options **optp, unsigned char *data, int optlen, int user)
+static struct ip_options *ip_options_get_alloc(const int optlen)
 {
-	struct ip_options *opt;
+	struct ip_options *opt = kmalloc(sizeof(*opt) + ((optlen + 3) & ~3),
+					 GFP_KERNEL);
+	if (opt)
+		memset(opt, 0, sizeof(*opt));
+	return opt;
+}
 
-	opt = kmalloc(sizeof(struct ip_options)+((optlen+3)&~3), GFP_KERNEL);
-	if (!opt)
-		return -ENOMEM;
-	memset(opt, 0, sizeof(struct ip_options));
-	if (optlen) {
-		if (user) {
-			if (copy_from_user(opt->__data, data, optlen)) {
-				kfree(opt);
-				return -EFAULT;
-			}
-		} else
-			memcpy(opt->__data, data, optlen);
-	}
+static int ip_options_get_finish(struct ip_options **optp,
+				 struct ip_options *opt, int optlen)
+{
 	while (optlen & 3)
 		opt->__data[optlen++] = IPOPT_END;
 	opt->optlen = optlen;
@@ -519,6 +514,30 @@ int ip_options_get(struct ip_options **optp, unsigned char *data, int optlen, in
 		kfree(*optp);
 	*optp = opt;
 	return 0;
+}
+
+int ip_options_get_from_user(struct ip_options **optp, unsigned char __user *data, int optlen)
+{
+	struct ip_options *opt = ip_options_get_alloc(optlen);
+
+	if (!opt)
+		return -ENOMEM;
+	if (optlen && copy_from_user(opt->__data, data, optlen)) {
+		kfree(opt);
+		return -EFAULT;
+	}
+	return ip_options_get_finish(optp, opt, optlen);
+}
+
+int ip_options_get(struct ip_options **optp, unsigned char *data, int optlen)
+{
+	struct ip_options *opt = ip_options_get_alloc(optlen);
+
+	if (!opt)
+		return -ENOMEM;
+	if (optlen)
+		memcpy(opt->__data, data, optlen);
+	return ip_options_get_finish(optp, opt, optlen);
 }
 
 void ip_forward_options(struct sk_buff *skb)
@@ -620,6 +639,3 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(ip_options_compile);
-EXPORT_SYMBOL(ip_options_undo);

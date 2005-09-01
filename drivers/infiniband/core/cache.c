@@ -1,5 +1,8 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Intel Corporation. All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,12 +35,11 @@
  * $Id: cache.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-#include <ib_cache.h>
+#include <rdma/ib_cache.h>
 
 #include "core_priv.h"
 

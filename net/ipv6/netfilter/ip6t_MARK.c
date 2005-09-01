@@ -28,10 +28,9 @@ target(struct sk_buff **pskb,
 {
 	const struct ip6t_mark_target_info *markinfo = targinfo;
 
-	if((*pskb)->nfmark != markinfo->mark) {
+	if((*pskb)->nfmark != markinfo->mark)
 		(*pskb)->nfmark = markinfo->mark;
-		(*pskb)->nfcache |= NFC_ALTERED;
-	}
+
 	return IP6T_CONTINUE;
 }
 

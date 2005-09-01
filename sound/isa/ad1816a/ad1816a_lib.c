@@ -234,7 +234,7 @@ static int snd_ad1816a_playback_prepare(snd_pcm_substream_t *substream)
 	ad1816a_t *chip = snd_pcm_substream_chip(substream);
 	unsigned long flags;
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	unsigned int size;
+	unsigned int size, rate;
 
 	spin_lock_irqsave(&chip->lock, flags);
 
@@ -245,7 +245,10 @@ static int snd_ad1816a_playback_prepare(snd_pcm_substream_t *substream)
 	snd_dma_program(chip->dma1, runtime->dma_addr, size,
 			DMA_MODE_WRITE | DMA_AUTOINIT);
 
-	snd_ad1816a_write(chip, AD1816A_PLAYBACK_SAMPLE_RATE, runtime->rate);
+	rate = runtime->rate;
+	if (chip->clock_freq)
+		rate = (rate * 33000) / chip->clock_freq;
+	snd_ad1816a_write(chip, AD1816A_PLAYBACK_SAMPLE_RATE, rate);
 	snd_ad1816a_out_mask(chip, AD1816A_PLAYBACK_CONFIG,
 		AD1816A_FMT_ALL | AD1816A_FMT_STEREO,
 		snd_ad1816a_get_format(chip, runtime->format,
@@ -263,7 +266,7 @@ static int snd_ad1816a_capture_prepare(snd_pcm_substream_t *substream)
 	ad1816a_t *chip = snd_pcm_substream_chip(substream);
 	unsigned long flags;
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	unsigned int size;
+	unsigned int size, rate;
 
 	spin_lock_irqsave(&chip->lock, flags);
 
@@ -274,7 +277,10 @@ static int snd_ad1816a_capture_prepare(snd_pcm_substream_t *substream)
 	snd_dma_program(chip->dma2, runtime->dma_addr, size,
 			DMA_MODE_READ | DMA_AUTOINIT);
 
-	snd_ad1816a_write(chip, AD1816A_CAPTURE_SAMPLE_RATE, runtime->rate);
+	rate = runtime->rate;
+	if (chip->clock_freq)
+		rate = (rate * 33000) / chip->clock_freq;
+	snd_ad1816a_write(chip, AD1816A_CAPTURE_SAMPLE_RATE, rate);
 	snd_ad1816a_out_mask(chip, AD1816A_CAPTURE_CONFIG,
 		AD1816A_FMT_ALL | AD1816A_FMT_STEREO,
 		snd_ad1816a_get_format(chip, runtime->format,

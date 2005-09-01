@@ -687,6 +687,12 @@ static snd_kcontrol_new_t alc880_asus_w1v_mixer[] = {
 	{ } /* end */
 };
 
+/* additional mixers to alc880_asus_mixer */
+static snd_kcontrol_new_t alc880_pcbeep_mixer[] = {
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	{ } /* end */
+};
 
 /*
  * build control elements
@@ -1524,6 +1530,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack */
 	{ .modelname = "3stack-digout", .config = ALC880_3ST_DIG },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe308, .config = ALC880_3ST_DIG },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0070, .config = ALC880_3ST_DIG },
 
 	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack (Internal add Aux-In)*/
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe305, .config = ALC880_3ST_DIG },
@@ -1734,7 +1741,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_UNIWILL_DIG] = {
-		.mixers = { alc880_asus_mixer },
+		.mixers = { alc880_asus_mixer, alc880_pcbeep_mixer },
 		.init_verbs = { alc880_volume_init_verbs, alc880_pin_asus_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,

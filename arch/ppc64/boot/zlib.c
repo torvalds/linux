@@ -107,7 +107,7 @@ extern void *memcpy(void *, const void *, unsigned long);
 
 /* Diagnostic functions */
 #ifdef DEBUG_ZLIB
-#  include <stdio.h>
+#  include "stdio.h"
 #  ifndef verbose
 #    define verbose 0
 #  endif

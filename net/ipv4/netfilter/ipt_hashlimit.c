@@ -94,7 +94,7 @@ struct ipt_hashlimit_htable {
 static DEFINE_SPINLOCK(hashlimit_lock);	/* protects htables list */
 static DECLARE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
 static HLIST_HEAD(hashlimit_htables);
-static kmem_cache_t *hashlimit_cachep;
+static kmem_cache_t *hashlimit_cachep __read_mostly;
 
 static inline int dst_cmp(const struct dsthash_ent *ent, struct dsthash_dst *b)
 {

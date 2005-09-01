@@ -32,7 +32,6 @@
 #include <linux/profile.h>
 
 #include <asm/oplib.h>
-#include <asm/segment.h>
 #include <asm/timer.h>
 #include <asm/mostek.h>
 #include <asm/system.h>

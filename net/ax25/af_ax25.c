@@ -45,7 +45,7 @@
 #include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/ip.h>
 #include <net/arp.h>
 

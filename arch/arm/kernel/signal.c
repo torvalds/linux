@@ -658,11 +658,12 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	/*
 	 * Block the signal if we were unsuccessful.
 	 */
-	if (ret != 0 || !(ka->sa.sa_flags & SA_NODEFER)) {
+	if (ret != 0) {
 		spin_lock_irq(&tsk->sighand->siglock);
 		sigorsets(&tsk->blocked, &tsk->blocked,
 			  &ka->sa.sa_mask);
-		sigaddset(&tsk->blocked, sig);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&tsk->blocked, sig);
 		recalc_sigpending();
 		spin_unlock_irq(&tsk->sighand->siglock);
 	}

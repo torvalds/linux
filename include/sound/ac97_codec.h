@@ -26,6 +26,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/device.h>
 #include "pcm.h"
 #include "control.h"
 #include "info.h"
@@ -374,6 +375,9 @@
 #define AC97_HAS_NO_PC_BEEP	(1<<12) /* no PC Beep volume */
 #define AC97_HAS_NO_VIDEO	(1<<13) /* no Video volume */
 #define AC97_HAS_NO_CD		(1<<14) /* no CD volume */
+#define AC97_HAS_NO_MIC	(1<<15) /* no MIC volume */
+#define AC97_HAS_NO_TONE	(1<<16) /* no Tone volume */
+#define AC97_HAS_NO_STD_PCM	(1<<17)	/* no standard AC97 PCM volume and mute */
 
 /* rates indexes */
 #define AC97_RATES_FRONT_DAC	0
@@ -520,6 +524,7 @@ struct _snd_ac97 {
 	/* jack-sharing info */
 	unsigned char indep_surround;
 	unsigned char channel_mode;
+	struct device dev;
 };
 
 /* conditions */
@@ -599,4 +604,8 @@ struct ac97_enum {
 	unsigned short mask;
 	const char **texts;
 };
+
+/* ad hoc AC97 device driver access */
+extern struct bus_type ac97_bus_type;
+
 #endif /* __SOUND_AC97_CODEC_H */

@@ -6,7 +6,12 @@
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 
-extern kmem_cache_t *zero_cache;
+extern kmem_cache_t *pgtable_cache[];
+
+#define PTE_CACHE_NUM	0
+#define PMD_CACHE_NUM	1
+#define PUD_CACHE_NUM	1
+#define PGD_CACHE_NUM	0
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -15,30 +20,40 @@ extern kmem_cache_t *zero_cache;
  * 2 of the License, or (at your option) any later version.
  */
 
-static inline pgd_t *
-pgd_alloc(struct mm_struct *mm)
+static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	return kmem_cache_alloc(zero_cache, GFP_KERNEL);
+	return kmem_cache_alloc(pgtable_cache[PGD_CACHE_NUM], GFP_KERNEL);
 }
 
-static inline void
-pgd_free(pgd_t *pgd)
+static inline void pgd_free(pgd_t *pgd)
 {
-	kmem_cache_free(zero_cache, pgd);
+	kmem_cache_free(pgtable_cache[PGD_CACHE_NUM], pgd);
+}
+
+#define pgd_populate(MM, PGD, PUD)	pgd_set(PGD, PUD)
+
+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	return kmem_cache_alloc(pgtable_cache[PUD_CACHE_NUM],
+				GFP_KERNEL|__GFP_REPEAT);
+}
+
+static inline void pud_free(pud_t *pud)
+{
+	kmem_cache_free(pgtable_cache[PUD_CACHE_NUM], pud);
 }
 
 #define pud_populate(MM, PUD, PMD)	pud_set(PUD, PMD)
 
-static inline pmd_t *
-pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return kmem_cache_alloc(zero_cache, GFP_KERNEL|__GFP_REPEAT);
+	return kmem_cache_alloc(pgtable_cache[PMD_CACHE_NUM],
+				GFP_KERNEL|__GFP_REPEAT);
 }
 
-static inline void
-pmd_free(pmd_t *pmd)
+static inline void pmd_free(pmd_t *pmd)
 {
-	kmem_cache_free(zero_cache, pmd);
+	kmem_cache_free(pgtable_cache[PMD_CACHE_NUM], pmd);
 }
 
 #define pmd_populate_kernel(mm, pmd, pte) pmd_set(pmd, pte)
@@ -47,44 +62,58 @@ pmd_free(pmd_t *pmd)
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
-	return kmem_cache_alloc(zero_cache, GFP_KERNEL|__GFP_REPEAT);
+	return kmem_cache_alloc(pgtable_cache[PTE_CACHE_NUM],
+				GFP_KERNEL|__GFP_REPEAT);
 }
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	pte_t *pte = kmem_cache_alloc(zero_cache, GFP_KERNEL|__GFP_REPEAT);
-	if (pte)
-		return virt_to_page(pte);
-	return NULL;
+	return virt_to_page(pte_alloc_one_kernel(mm, address));
 }
 		
 static inline void pte_free_kernel(pte_t *pte)
 {
-	kmem_cache_free(zero_cache, pte);
+	kmem_cache_free(pgtable_cache[PTE_CACHE_NUM], pte);
 }
 
 static inline void pte_free(struct page *ptepage)
 {
-	kmem_cache_free(zero_cache, page_address(ptepage));
+	pte_free_kernel(page_address(ptepage));
 }
 
-struct pte_freelist_batch
+#define PGF_CACHENUM_MASK	0xf
+
+typedef struct pgtable_free {
+	unsigned long val;
+} pgtable_free_t;
+
+static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
+						unsigned long mask)
 {
-	struct rcu_head	rcu;
-	unsigned int	index;
-	struct page *	pages[0];
-};
+	BUG_ON(cachenum > PGF_CACHENUM_MASK);
 
-#define PTE_FREELIST_SIZE	((PAGE_SIZE - sizeof(struct pte_freelist_batch)) / \
-				  sizeof(struct page *))
+	return (pgtable_free_t){.val = ((unsigned long) p & ~mask) | cachenum};
+}
 
-extern void pte_free_now(struct page *ptepage);
-extern void pte_free_submit(struct pte_freelist_batch *batch);
+static inline void pgtable_free(pgtable_free_t pgf)
+{
+	void *p = (void *)(pgf.val & ~PGF_CACHENUM_MASK);
+	int cachenum = pgf.val & PGF_CACHENUM_MASK;
 
-DECLARE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
+	kmem_cache_free(pgtable_cache[cachenum], p);
+}
 
-void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage);
-#define __pmd_free_tlb(tlb, pmd)	__pte_free_tlb(tlb, virt_to_page(pmd))
+void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
+
+#define __pte_free_tlb(tlb, ptepage)	\
+	pgtable_free_tlb(tlb, pgtable_free_cache(page_address(ptepage), \
+		PTE_CACHE_NUM, PTE_TABLE_SIZE-1))
+#define __pmd_free_tlb(tlb, pmd) 	\
+	pgtable_free_tlb(tlb, pgtable_free_cache(pmd, \
+		PMD_CACHE_NUM, PMD_TABLE_SIZE-1))
+#define __pud_free_tlb(tlb, pmd)	\
+	pgtable_free_tlb(tlb, pgtable_free_cache(pud, \
+		PUD_CACHE_NUM, PUD_TABLE_SIZE-1))
 
 #define check_pgt_cache()	do { } while (0)
 

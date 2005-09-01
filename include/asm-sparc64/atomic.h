@@ -72,10 +72,10 @@ extern int atomic64_sub_ret(int, atomic64_t *);
 
 /* Atomic operations are already serializing */
 #ifdef CONFIG_SMP
-#define smp_mb__before_atomic_dec()	membar("#StoreLoad | #LoadLoad")
-#define smp_mb__after_atomic_dec()	membar("#StoreLoad | #StoreStore")
-#define smp_mb__before_atomic_inc()	membar("#StoreLoad | #LoadLoad")
-#define smp_mb__after_atomic_inc()	membar("#StoreLoad | #StoreStore")
+#define smp_mb__before_atomic_dec()	membar_storeload_loadload();
+#define smp_mb__after_atomic_dec()	membar_storeload_storestore();
+#define smp_mb__before_atomic_inc()	membar_storeload_loadload();
+#define smp_mb__after_atomic_inc()	membar_storeload_storestore();
 #else
 #define smp_mb__before_atomic_dec()	barrier()
 #define smp_mb__after_atomic_dec()	barrier()

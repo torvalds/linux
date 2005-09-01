@@ -41,7 +41,7 @@
 #include <net/rose.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/ip.h>
 #include <net/arp.h>
 
