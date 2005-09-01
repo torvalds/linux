@@ -159,7 +159,6 @@ struct veth_port {
 
 	rwlock_t mcast_gate;
 	int promiscuous;
-	int all_mcast;
 	int num_mcast;
 	u64 mcast_addr[VETH_MAX_MCAST];
 };
@@ -756,16 +755,14 @@ static void veth_set_multicast_list(struct net_device *dev)
 
 	write_lock_irqsave(&port->mcast_gate, flags);
 
-	if (dev->flags & IFF_PROMISC) {	/* set promiscuous mode */
-		printk(KERN_INFO "%s: Promiscuous mode enabled.\n",
-		       dev->name);
+	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI) ||
+			(dev->mc_count > VETH_MAX_MCAST)) {
 		port->promiscuous = 1;
-	} else if ( (dev->flags & IFF_ALLMULTI)
-		    || (dev->mc_count > VETH_MAX_MCAST) ) {
-		port->all_mcast = 1;
 	} else {
 		struct dev_mc_list *dmi = dev->mc_list;
 		int i;
+
+		port->promiscuous = 0;
 
 		/* Update table */
 		port->num_mcast = 0;
@@ -1145,12 +1142,9 @@ static inline int veth_frame_wanted(struct veth_port *port, u64 mac_addr)
 	if ( (mac_addr == port->mac_addr) || (mac_addr == 0xffffffffffff0000) )
 		return 1;
 
-	if (! (((char *) &mac_addr)[0] & 0x01))
-		return 0;
-
 	read_lock_irqsave(&port->mcast_gate, flags);
 
-	if (port->promiscuous || port->all_mcast) {
+	if (port->promiscuous) {
 		wanted = 1;
 		goto out;
 	}
