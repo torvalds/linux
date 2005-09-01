@@ -295,14 +295,10 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 	pte_t *ptep;
 
 	if (pmd_none(*pmdp)) {
-		unsigned long pmdval;
 		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
 					       sizeof(pte_t));
 
-		pmdval = __pa(ptep) | prot_l1;
-		pmdp[0] = __pmd(pmdval);
-		pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
-		flush_pmd_entry(pmdp);
+		__pmd_populate(pmdp, __pa(ptep) | prot_l1);
 	}
 	ptep = pte_offset_kernel(pmdp, virt);
 
