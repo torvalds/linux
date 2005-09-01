@@ -1,20 +1,15 @@
 /*
- *	i6300esb 0.03:	Watchdog timer driver for Intel 6300ESB chipset
+ *	i6300esb:	Watchdog timer driver for Intel 6300ESB chipset
  *
  *	(c) Copyright 2004 Google Inc.
+ *	(c) Copyright 2005 David Härdeman <david@2gen.com>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *      based on i810-tco.c which is
- *
- *	(c) Copyright 2000	kernel concepts <nils@kernelconcepts.de>
- *				developed for
- *                              Jentro AG, Haar/Munich (Germany)
- *
- * 	which is in turn based on softdog.c by Alan Cox <alan@redhat.com>
+ *      based on i810-tco.c which is in turn based on softdog.c
  *
  * 	The timer is implemented in the following I/O controller hubs:
  * 	(See the intel documentation on http://developer.intel.com.)
@@ -47,13 +42,38 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include "i6300esb.h"
-
 /* Module and version information */
 #define ESB_VERSION "0.03"
 #define ESB_MODULE_NAME "i6300ESB timer"
 #define ESB_DRIVER_NAME ESB_MODULE_NAME ", v" ESB_VERSION
 #define PFX ESB_MODULE_NAME ": "
+
+/* PCI configuration registers */
+#define ESB_CONFIG_REG  0x60            /* Config register                   */
+#define ESB_LOCK_REG    0x68            /* WDT lock register                 */
+
+/* Memory mapped registers */
+#define ESB_TIMER1_REG  BASEADDR + 0x00 /* Timer1 value after each reset     */
+#define ESB_TIMER2_REG  BASEADDR + 0x04 /* Timer2 value after each reset     */
+#define ESB_GINTSR_REG  BASEADDR + 0x08 /* General Interrupt Status Register */
+#define ESB_RELOAD_REG  BASEADDR + 0x0c /* Reload register                   */
+
+/* Lock register bits */
+#define ESB_WDT_FUNC    ( 0x01 << 2 )   /* Watchdog functionality            */
+#define ESB_WDT_ENABLE  ( 0x01 << 1 )   /* Enable WDT                        */
+#define ESB_WDT_LOCK    ( 0x01 << 0 )   /* Lock (nowayout)                   */
+
+/* Config register bits */
+#define ESB_WDT_REBOOT  ( 0x01 << 5 )   /* Enable reboot on timeout          */
+#define ESB_WDT_FREQ    ( 0x01 << 2 )   /* Decrement frequency               */
+#define ESB_WDT_INTTYPE ( 0x11 << 0 )   /* Interrupt type on timer1 timeout  */
+
+/* Reload register bits */
+#define ESB_WDT_RELOAD ( 0x01 << 8 )    /* prevent timeout                   */
+
+/* Magic constants */
+#define ESB_UNLOCK1     0x80            /* Step 1 to unlock reset registers  */
+#define ESB_UNLOCK2     0x86            /* Step 2 to unlock reset registers  */
 
 /* internal variables */
 static void __iomem *BASEADDR;
