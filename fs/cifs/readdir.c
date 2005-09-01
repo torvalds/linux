@@ -200,7 +200,10 @@ static void fill_in_inode(struct inode *tmp_inode,
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			tmp_inode->i_fop->lock = NULL;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
-
+		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		   (cifs_sb->tcon->ses->server->maxBuf <
+			4096 + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops->readpages = NULL;
 		if(isNewInode)
 			return; /* No sense invalidating pages for new inode
 				   since have not started caching readahead file
@@ -306,6 +309,10 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			tmp_inode->i_fop->lock = NULL;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
+		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		   (cifs_sb->tcon->ses->server->maxBuf < 
+			4096 + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops->readpages = NULL;
 
 		if(isNewInode)
 			return; /* No sense invalidating pages for new inode since we

@@ -923,81 +923,6 @@ openRetry:
 	return rc;
 }
 
-int
-SMBLegacyRead(const int xid, struct cifsTconInfo *tcon,
-            const int netfid, unsigned int count,
-            const __u64 lseek, unsigned int *nbytes, char **buf)
-{
-	int rc = -EACCES;
-	READX_REQ *pSMB = NULL;
-	READ_RSP *pSMBr = NULL;
-	char *pReadData = NULL;
-	int bytes_returned;
-
-	cFYI(1,("Legacy read %d bytes fid %d",count,netfid));
-
-	/* field is shorter in legacy read, only 16 bits */
-	if(count > 2048)
-		count = 2048;  /* BB FIXME make this configurable */
-
-	if(lseek > 0xFFFFFFFF)
-		return -EIO; /* can not read that far into file on old server */
-
-	*nbytes = 0;
-	rc = smb_init(SMB_COM_READ_ANDX, 10, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
-	if (rc)
-		return rc;
-
-	/* tcon and ses pointer are checked in smb_init */
-	if (tcon->ses->server == NULL)
-		return -ECONNABORTED;
-
-	pSMB->AndXCommand = 0xFF;       /* none */
-	pSMB->Fid = netfid;
-	pSMB->OffsetLow = cpu_to_le32(lseek & 0xFFFFFFFF);
-	pSMB->Remaining = 0;
-	pSMB->MaxCount = cpu_to_le16(count);
-	pSMB->Reserved = 0; /* Must Be Zero */
-	pSMB->ByteCount = 0;  /* no need to do le conversion since it is 0 */
-
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-	cifs_stats_inc(&tcon->num_reads);
-	if (rc) {
-		cERROR(1, ("Send error in legacy read = %d", rc));
-	} else {
-		int data_length = le16_to_cpu(pSMBr->DataLengthHigh);
-		data_length = data_length << 16;
-		data_length += le16_to_cpu(pSMBr->DataLength);
-		*nbytes = data_length;
-
-		/*check that DataLength would not go beyond end of SMB */
-		if ((data_length > CIFSMaxBufSize) || (data_length > count)) {
-			cFYI(1,("bad length %d for count %d",data_length,count));
-			rc = -EIO;
-			*nbytes = 0;
-		} else {
-			pReadData = (char *) (&pSMBr->hdr.Protocol) +
-						le16_to_cpu(pSMBr->DataOffset);
-/*                      if(rc = copy_to_user(buf, pReadData, data_length)) {
-			 	cERROR(1,("Faulting on read rc = %d",rc));
-				rc = -EFAULT;
-			}*/ /* can not use copy_to_user when using page cache*/
-			if(*buf)
-				memcpy(*buf,pReadData,data_length);
-		}
-	}
-	if(*buf)
-		cifs_buf_release(pSMB);
-	else
-		*buf = (char *)pSMB;
-
-	/* Note: On -EAGAIN error only caller can retry on handle based calls
-		since file handle passed in no longer valid */
-	return rc;
-}
-
 /* If no buffer passed in, then caller wants to do the copy
 	as in the case of readpages so the SMB buffer must be
 	freed by the caller */
@@ -1012,11 +937,16 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 	READ_RSP *pSMBr = NULL;
 	char *pReadData = NULL;
 	int bytes_returned;
+	int wct;
 
 	cFYI(1,("Reading %d bytes on fid %d",count,netfid));
+	if(tcon->ses->capabilities & CAP_LARGE_FILES)
+		wct = 12;
+	else
+		wct = 10; /* old style read */
 
 	*nbytes = 0;
-	rc = smb_init(SMB_COM_READ_ANDX, 12, tcon, (void **) &pSMB,
+	rc = smb_init(SMB_COM_READ_ANDX, wct, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
 		return rc;
@@ -1028,12 +958,23 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 	pSMB->AndXCommand = 0xFF;	/* none */
 	pSMB->Fid = netfid;
 	pSMB->OffsetLow = cpu_to_le32(lseek & 0xFFFFFFFF);
-	pSMB->OffsetHigh = cpu_to_le32(lseek >> 32);
+	if(wct == 12)
+		pSMB->OffsetHigh = cpu_to_le32(lseek >> 32);
+        else if((lseek >> 32) > 0) /* can not handle this big offset for old */
+                return -EIO;
+
 	pSMB->Remaining = 0;
 	pSMB->MaxCount = cpu_to_le16(count & 0xFFFF);
 	pSMB->MaxCountHigh = cpu_to_le32(count >> 16);
-	pSMB->ByteCount = 0;  /* no need to do le conversion since it is 0 */
-
+	if(wct == 12)
+		pSMB->ByteCount = 0;  /* no need to do le conversion since 0 */
+	else {
+		/* old style read */
+		struct smb_com_readx_req * pSMBW = 
+			(struct smb_com_readx_req *)pSMB;
+		pSMBW->ByteCount = 0;	
+	}
+	
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->num_reads);

@@ -169,6 +169,10 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				inode->i_fop->lock = NULL;
 			inode->i_data.a_ops = &cifs_addr_ops;
+			/* check if server can support readpages */
+			if(pTcon->ses->server->maxBuf < 
+			    4096 + MAX_CIFS_HDR_SIZE)
+				inode->i_data.a_ops->readpages = NULL;
 		} else if (S_ISDIR(inode->i_mode)) {
 			cFYI(1, (" Directory inode"));
 			inode->i_op = &cifs_dir_inode_ops;
@@ -384,6 +388,9 @@ int cifs_get_inode_info(struct inode **pinode,
 			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				inode->i_fop->lock = NULL;
 			inode->i_data.a_ops = &cifs_addr_ops;
+			if(pTcon->ses->server->maxBuf < 
+			     4096 + MAX_CIFS_HDR_SIZE)
+				inode->i_data.a_ops->readpages = NULL;
 		} else if (S_ISDIR(inode->i_mode)) {
 			cFYI(1, (" Directory inode "));
 			inode->i_op = &cifs_dir_inode_ops;
