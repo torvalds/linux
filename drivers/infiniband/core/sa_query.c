@@ -431,8 +431,8 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 	    event->event == IB_EVENT_LID_CHANGE  ||
 	    event->event == IB_EVENT_PKEY_CHANGE ||
 	    event->event == IB_EVENT_SM_CHANGE) {
-		struct ib_sa_device *sa_dev =
-			ib_get_client_data(event->device, &sa_client);
+		struct ib_sa_device *sa_dev;
+		sa_dev = container_of(handler, typeof(*sa_dev), event_handler);
 
 		schedule_work(&sa_dev->port[event->element.port_num -
 					    sa_dev->start_port].update_task);
