@@ -143,7 +143,6 @@ struct veth_lpar_connection {
 	struct VethCapData remote_caps;
 	u32 ack_timeout;
 
-	spinlock_t msg_stack_lock;
 	struct veth_msg *msg_stack_head;
 };
 
@@ -190,27 +189,23 @@ static void veth_timed_ack(unsigned long connectionPtr);
 #define veth_debug(fmt, args...) do {} while (0)
 #endif
 
+/* You must hold the connection's lock when you call this function. */
 static inline void veth_stack_push(struct veth_lpar_connection *cnx,
 				   struct veth_msg *msg)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&cnx->msg_stack_lock, flags);
 	msg->next = cnx->msg_stack_head;
 	cnx->msg_stack_head = msg;
-	spin_unlock_irqrestore(&cnx->msg_stack_lock, flags);
 }
 
+/* You must hold the connection's lock when you call this function. */
 static inline struct veth_msg *veth_stack_pop(struct veth_lpar_connection *cnx)
 {
-	unsigned long flags;
 	struct veth_msg *msg;
 
-	spin_lock_irqsave(&cnx->msg_stack_lock, flags);
 	msg = cnx->msg_stack_head;
 	if (msg)
 		cnx->msg_stack_head = cnx->msg_stack_head->next;
-	spin_unlock_irqrestore(&cnx->msg_stack_lock, flags);
+
 	return msg;
 }
 
@@ -645,7 +640,6 @@ static int veth_init_connection(u8 rlp)
 
 	cnx->msgs = msgs;
 	memset(msgs, 0, VETH_NUMBUFFERS * sizeof(struct veth_msg));
-	spin_lock_init(&cnx->msg_stack_lock);
 
 	for (i = 0; i < VETH_NUMBUFFERS; i++) {
 		msgs[i].token = i;
