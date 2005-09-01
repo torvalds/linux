@@ -26,6 +26,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/protocol.h>
+#include <net/tcp.h>
 #include <asm/system.h>
 #include <linux/stat.h>
 #include <linux/proc_fs.h>

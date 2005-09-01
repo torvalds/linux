@@ -8,36 +8,28 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include "ppc32-types.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include "elf.h"
+#include "page.h"
+#include "string.h"
+#include "stdio.h"
+#include "prom.h"
 #include "zlib.h"
-#include <linux/elf.h>
-#include <linux/string.h>
-#include <asm/processor.h>
-#include <asm/page.h>
 
-extern void *finddevice(const char *);
-extern int getprop(void *, const char *, void *, int);
-extern void printf(const char *fmt, ...);
-extern int sprintf(char *buf, const char *fmt, ...);
-void gunzip(void *, int, unsigned char *, int *);
-void *claim(unsigned int, unsigned int, unsigned int);
-void flush_cache(void *, unsigned long);
-void pause(void);
-extern void exit(void);
+static void gunzip(void *, int, unsigned char *, int *);
+extern void flush_cache(void *, unsigned long);
 
-unsigned long strlen(const char *s);
-void *memmove(void *dest, const void *src, unsigned long n);
-void *memcpy(void *dest, const void *src, unsigned long n);
 
 /* Value picked to match that used by yaboot */
 #define PROG_START	0x01400000
 #define RAM_END		(256<<20) // Fixme: use OF */
 
-char *avail_ram;
-char *begin_avail, *end_avail;
-char *avail_high;
-unsigned int heap_use;
-unsigned int heap_max;
+static char *avail_ram;
+static char *begin_avail, *end_avail;
+static char *avail_high;
+static unsigned int heap_use;
+static unsigned int heap_max;
 
 extern char _start[];
 extern char _vmlinux_start[];
@@ -52,9 +44,9 @@ struct addr_range {
 	unsigned long size;
 	unsigned long memsize;
 };
-struct addr_range vmlinux = {0, 0, 0};
-struct addr_range vmlinuz = {0, 0, 0};
-struct addr_range initrd  = {0, 0, 0};
+static struct addr_range vmlinux = {0, 0, 0};
+static struct addr_range vmlinuz = {0, 0, 0};
+static struct addr_range initrd  = {0, 0, 0};
 
 static char scratch[128<<10];	/* 128kB of scratch space for gunzip */
 
@@ -63,13 +55,6 @@ typedef void (*kernel_entry_t)( unsigned long,
                                 void *,
 				void *);
 
-
-int (*prom)(void *);
-
-void *chosen_handle;
-void *stdin;
-void *stdout;
-void *stderr;
 
 #undef DEBUG
 
@@ -277,7 +262,7 @@ void zfree(void *x, void *addr, unsigned nb)
 
 #define DEFLATED	8
 
-void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
+static void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 {
 	z_stream s;
 	int r, i, flags;

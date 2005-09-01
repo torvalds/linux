@@ -643,7 +643,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			 netfid, length,
 			 pfLock->fl_start, numUnlock, numLock, lockType,
 			 wait_flag);
-	if (rc == 0 && (pfLock->fl_flags & FL_POSIX))
+	if (pfLock->fl_flags & FL_POSIX)
 		posix_lock_file_wait(file, pfLock);
 	FreeXid(xid);
 	return rc;

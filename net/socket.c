@@ -70,6 +70,8 @@
 #include <linux/seq_file.h>
 #include <linux/wanrouter.h>
 #include <linux/if_bridge.h>
+#include <linux/if_frad.h>
+#include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/cache.h>
@@ -272,7 +274,7 @@ int move_addr_to_user(void *kaddr, int klen, void __user *uaddr, int __user *ule
 
 #define SOCKFS_MAGIC 0x534F434B
 
-static kmem_cache_t * sock_inode_cachep;
+static kmem_cache_t * sock_inode_cachep __read_mostly;
 
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
@@ -331,7 +333,7 @@ static struct super_block *sockfs_get_sb(struct file_system_type *fs_type,
 	return get_sb_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC);
 }
 
-static struct vfsmount *sock_mnt;
+static struct vfsmount *sock_mnt __read_mostly;
 
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",
@@ -404,6 +406,7 @@ int sock_map_fd(struct socket *sock)
 		file->f_mode = FMODE_READ | FMODE_WRITE;
 		file->f_flags = O_RDWR;
 		file->f_pos = 0;
+		file->private_data = sock;
 		fd_install(fd, file);
 	}
 
@@ -435,6 +438,9 @@ struct socket *sockfd_lookup(int fd, int *err)
 		*err = -EBADF;
 		return NULL;
 	}
+
+	if (file->f_op == &socket_file_ops)
+		return file->private_data;	/* set in sock_map_fd */
 
 	inode = file->f_dentry->d_inode;
 	if (!S_ISSOCK(inode->i_mode)) {
@@ -720,8 +726,8 @@ static ssize_t sock_aio_write(struct kiocb *iocb, const char __user *ubuf,
 	return __sock_sendmsg(iocb, sock, &x->async_msg, size);
 }
 
-ssize_t sock_sendpage(struct file *file, struct page *page,
-		      int offset, size_t size, loff_t *ppos, int more)
+static ssize_t sock_sendpage(struct file *file, struct page *page,
+			     int offset, size_t size, loff_t *ppos, int more)
 {
 	struct socket *sock;
 	int flags;
@@ -944,7 +950,7 @@ static int sock_mmap(struct file * file, struct vm_area_struct * vma)
 	return sock->ops->mmap(file, sock, vma);
 }
 
-int sock_close(struct inode *inode, struct file *filp)
+static int sock_close(struct inode *inode, struct file *filp)
 {
 	/*
 	 *	It was possible the inode is NULL we were 
@@ -2022,9 +2028,6 @@ int sock_unregister(int family)
 	       family);
 	return 0;
 }
-
-
-extern void sk_init(void);
 
 void __init sock_init(void)
 {

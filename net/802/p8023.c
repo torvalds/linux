@@ -20,6 +20,7 @@
 #include <linux/skbuff.h>
 
 #include <net/datalink.h>
+#include <net/p8022.h>
 
 /*
  *	Place an 802.3 header on a packet. The driver will do the mac

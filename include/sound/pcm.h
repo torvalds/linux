@@ -379,7 +379,6 @@ struct _snd_pcm_substream {
 	unsigned int dma_buf_id;
 	size_t dma_max;
 	/* -- hardware operations -- */
-	unsigned int open_flag: 1;	/* lowlevel device has been opened */
 	snd_pcm_ops_t *ops;
 	/* -- runtime information -- */
 	snd_pcm_runtime_t *runtime;

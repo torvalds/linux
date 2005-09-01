@@ -432,22 +432,26 @@ void snd_hda_get_codec_name(struct hda_codec *codec,
 }
 
 /*
- * look for an AFG node
- *
- * return 0 if not found
+ * look for an AFG and MFG nodes
  */
-static int look_for_afg_node(struct hda_codec *codec)
+static void setup_fg_nodes(struct hda_codec *codec)
 {
 	int i, total_nodes;
 	hda_nid_t nid;
 
 	total_nodes = snd_hda_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
 	for (i = 0; i < total_nodes; i++, nid++) {
-		if ((snd_hda_param_read(codec, nid, AC_PAR_FUNCTION_TYPE) & 0xff) ==
-		    AC_GRP_AUDIO_FUNCTION)
-			return nid;
+		switch((snd_hda_param_read(codec, nid, AC_PAR_FUNCTION_TYPE) & 0xff)) {
+		case AC_GRP_AUDIO_FUNCTION:
+			codec->afg = nid;
+			break;
+		case AC_GRP_MODEM_FUNCTION:
+			codec->mfg = nid;
+			break;
+		default:
+			break;
+		}
 	}
-	return 0;
 }
 
 /*
@@ -507,10 +511,9 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	codec->subsystem_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_SUBSYSTEM_ID);
 	codec->revision_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_REV_ID);
 
-	/* FIXME: support for multiple AFGs? */
-	codec->afg = look_for_afg_node(codec);
-	if (! codec->afg) {
-		snd_printdd("hda_codec: no AFG node found\n");
+	setup_fg_nodes(codec);
+	if (! codec->afg && ! codec->mfg) {
+		snd_printdd("hda_codec: no AFG or MFG node found\n");
 		snd_hda_codec_free(codec);
 		return -ENODEV;
 	}
@@ -749,12 +752,14 @@ int snd_hda_mixer_amp_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	if (chs & 1)
+	if (chs & 1) {
 		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
 						  0x7f, *valp);
+		valp++;
+	}
 	if (chs & 2)
 		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   0x7f, valp[1]);
+						   0x7f, *valp);
 	return change;
 }
 
@@ -796,12 +801,15 @@ int snd_hda_mixer_amp_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	if (chs & 1)
+	if (chs & 1) {
 		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
 						  0x80, *valp ? 0 : 0x80);
+		valp++;
+	}
 	if (chs & 2)
 		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   0x80, valp[1] ? 0 : 0x80);
+						   0x80, *valp ? 0 : 0x80);
+	
 	return change;
 }
 
@@ -1155,8 +1163,16 @@ int snd_hda_build_controls(struct hda_bus *bus)
 /*
  * stream formats
  */
-static unsigned int rate_bits[][3] = {
+struct hda_rate_tbl {
+	unsigned int hz;
+	unsigned int alsa_bits;
+	unsigned int hda_fmt;
+};
+
+static struct hda_rate_tbl rate_bits[] = {
 	/* rate in Hz, ALSA rate bitmask, HDA format value */
+
+	/* autodetected value used in snd_hda_query_supported_pcm */
 	{ 8000, SNDRV_PCM_RATE_8000, 0x0500 }, /* 1/6 x 48 */
 	{ 11025, SNDRV_PCM_RATE_11025, 0x4300 }, /* 1/4 x 44 */
 	{ 16000, SNDRV_PCM_RATE_16000, 0x0200 }, /* 1/3 x 48 */
@@ -1168,7 +1184,11 @@ static unsigned int rate_bits[][3] = {
 	{ 96000, SNDRV_PCM_RATE_96000, 0x0800 }, /* 2 x 48 */
 	{ 176400, SNDRV_PCM_RATE_176400, 0x5800 },/* 4 x 44 */
 	{ 192000, SNDRV_PCM_RATE_192000, 0x1800 }, /* 4 x 48 */
-	{ 0 }
+
+	/* not autodetected value */
+	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
+
+	{ 0 } /* terminator */
 };
 
 /**
@@ -1190,12 +1210,12 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 	int i;
 	unsigned int val = 0;
 
-	for (i = 0; rate_bits[i][0]; i++)
-		if (rate_bits[i][0] == rate) {
-			val = rate_bits[i][2];
+	for (i = 0; rate_bits[i].hz; i++)
+		if (rate_bits[i].hz == rate) {
+			val = rate_bits[i].hda_fmt;
 			break;
 		}
-	if (! rate_bits[i][0]) {
+	if (! rate_bits[i].hz) {
 		snd_printdd("invalid rate %d\n", rate);
 		return 0;
 	}
@@ -1258,9 +1278,9 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 
 	if (ratesp) {
 		u32 rates = 0;
-		for (i = 0; rate_bits[i][0]; i++) {
+		for (i = 0; rate_bits[i].hz; i++) {
 			if (val & (1 << i))
-				rates |= rate_bits[i][1];
+				rates |= rate_bits[i].alsa_bits;
 		}
 		*ratesp = rates;
 	}
@@ -1352,13 +1372,13 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 	}
 
 	rate = format & 0xff00;
-	for (i = 0; rate_bits[i][0]; i++)
-		if (rate_bits[i][2] == rate) {
+	for (i = 0; rate_bits[i].hz; i++)
+		if (rate_bits[i].hda_fmt == rate) {
 			if (val & (1 << i))
 				break;
 			return 0;
 		}
-	if (! rate_bits[i][0])
+	if (! rate_bits[i].hz)
 		return 0;
 
 	stream = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
@@ -1541,8 +1561,11 @@ int snd_hda_check_board_config(struct hda_codec *codec, const struct hda_board_c
 		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
 			if (c->pci_subvendor == subsystem_vendor &&
 			    (! c->pci_subdevice /* all match */||
-			     (c->pci_subdevice == subsystem_device)))
+			     (c->pci_subdevice == subsystem_device))) {
+				snd_printdd(KERN_INFO "hda_codec: PCI %x:%x, codec config %d is selected\n",
+					    subsystem_vendor, subsystem_device, c->config);
 				return c->config;
+			}
 		}
 	}
 	return -1;
@@ -1803,11 +1826,25 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 				cfg->line_out_pins[j] = nid;
 			}
 
-	/* Swap surround and CLFE: the association order is front/CLFE/surr/back */
-	if (cfg->line_outs >= 3) {
+	/* Reorder the surround channels
+	 * ALSA sequence is front/surr/clfe/side
+	 * HDA sequence is:
+	 *    4-ch: front/surr  =>  OK as it is
+	 *    6-ch: front/clfe/surr
+	 *    8-ch: front/clfe/side/surr
+	 */
+	switch (cfg->line_outs) {
+	case 3:
 		nid = cfg->line_out_pins[1];
 		cfg->line_out_pins[1] = cfg->line_out_pins[2];
 		cfg->line_out_pins[2] = nid;
+		break;
+	case 4:
+		nid = cfg->line_out_pins[1];
+		cfg->line_out_pins[1] = cfg->line_out_pins[3];
+		cfg->line_out_pins[3] = cfg->line_out_pins[2];
+		cfg->line_out_pins[2] = nid;
+		break;
 	}
 
 	return 0;

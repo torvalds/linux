@@ -15,12 +15,12 @@
 #include <linux/file.h>
 #include <linux/in.h>
 #include <linux/net.h>
-#include <linux/tcp.h>
 #include <linux/mm.h>
 #include <linux/netdevice.h>
 #include <linux/smp_lock.h>
 #include <linux/workqueue.h>
 #include <net/scm.h>
+#include <net/tcp_states.h>
 #include <net/ip.h>
 
 #include <linux/smb_fs.h>

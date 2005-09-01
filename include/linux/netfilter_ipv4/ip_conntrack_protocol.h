@@ -2,6 +2,7 @@
 #ifndef _IP_CONNTRACK_PROTOCOL_H
 #define _IP_CONNTRACK_PROTOCOL_H
 #include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 
 struct seq_file;
 
@@ -47,22 +48,22 @@ struct ip_conntrack_protocol
 	int (*error)(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 		     unsigned int hooknum);
 
+	/* convert protoinfo to nfnetink attributes */
+	int (*to_nfattr)(struct sk_buff *skb, struct nfattr *nfa,
+			 const struct ip_conntrack *ct);
+
+	int (*tuple_to_nfattr)(struct sk_buff *skb,
+			       const struct ip_conntrack_tuple *t);
+	int (*nfattr_to_tuple)(struct nfattr *tb[],
+			       struct ip_conntrack_tuple *t);
+
 	/* Module (if any) which this is connected to. */
 	struct module *me;
 };
 
-#define MAX_IP_CT_PROTO 256
-extern struct ip_conntrack_protocol *ip_ct_protos[MAX_IP_CT_PROTO];
-
 /* Protocol registration. */
 extern int ip_conntrack_protocol_register(struct ip_conntrack_protocol *proto);
 extern void ip_conntrack_protocol_unregister(struct ip_conntrack_protocol *proto);
-
-static inline struct ip_conntrack_protocol *ip_ct_find_proto(u_int8_t protocol)
-{
-	return ip_ct_protos[protocol];
-}
-
 /* Existing built-in protocols */
 extern struct ip_conntrack_protocol ip_conntrack_protocol_tcp;
 extern struct ip_conntrack_protocol ip_conntrack_protocol_udp;
@@ -72,6 +73,11 @@ extern int ip_conntrack_protocol_tcp_init(void);
 
 /* Log invalid packets */
 extern unsigned int ip_ct_log_invalid;
+
+extern int ip_ct_port_tuple_to_nfattr(struct sk_buff *,
+				      const struct ip_conntrack_tuple *);
+extern int ip_ct_port_nfattr_to_tuple(struct nfattr *tb[],
+				      struct ip_conntrack_tuple *);
 
 #ifdef CONFIG_SYSCTL
 #ifdef DEBUG_INVALID_PACKETS

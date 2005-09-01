@@ -3360,13 +3360,32 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		if ((result == ZFCP_ERP_SUCCEEDED)
 		    && (!atomic_test_mask(ZFCP_STATUS_UNIT_TEMPORARY,
 					  &unit->status))
-		    && (!unit->device))
- 			scsi_add_device(unit->port->adapter->scsi_host, 0,
- 					unit->port->scsi_id, unit->scsi_lun);
+		    && !unit->device
+		    && port->rport)
+ 			scsi_add_device(port->adapter->scsi_host, 0,
+ 					port->rport->scsi_target_id,
+					unit->scsi_lun);
 		zfcp_unit_put(unit);
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
+		if ((result == ZFCP_ERP_SUCCEEDED)
+		    && !atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN,
+					 &port->status)
+		    && !port->rport) {
+			struct fc_rport_identifiers ids;
+			ids.node_name = port->wwnn;
+			ids.port_name = port->wwpn;
+			ids.port_id = port->d_id;
+			ids.roles = FC_RPORT_ROLE_FCP_TARGET;
+			port->rport =
+				fc_remote_port_add(adapter->scsi_host, 0, &ids);
+			if (!port->rport)
+				ZFCP_LOG_NORMAL("failed registration of rport"
+						"(adapter %s, wwpn=0x%016Lx)\n",
+						zfcp_get_busid_by_port(port),
+						port->wwpn);
+		}
 		zfcp_port_put(port);
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:

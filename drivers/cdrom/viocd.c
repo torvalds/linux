@@ -734,7 +734,7 @@ static int viocd_remove(struct vio_dev *vdev)
  */
 static struct vio_device_id viocd_device_table[] __devinitdata = {
 	{ "viocd", "" },
-	{ 0, }
+	{ "", "" }
 };
 
 MODULE_DEVICE_TABLE(vio, viocd_device_table);

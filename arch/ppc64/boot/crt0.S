@@ -9,7 +9,7 @@
  * NOTE: this code runs in 32 bit mode and is packaged as ELF32.
  */
 
-#include <asm/ppc_asm.h>
+#include "ppc_asm.h"
 
 	.text
 	.globl	_start

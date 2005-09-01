@@ -189,6 +189,7 @@ struct snd_nm256_stream {
 	nm256_t *chip;
 	snd_pcm_substream_t *substream;
 	int running;
+	int suspended;
 	
 	u32 buf;	/* offset from chip->buffer */
 	int bufsize;	/* buffer size in bytes */
@@ -231,8 +232,10 @@ struct snd_nm256 {
 	int mixer_status_mask;		/* bit mask to test the mixer status */
 
 	int irq;
+	int irq_acks;
 	irqreturn_t (*interrupt)(int, void *, struct pt_regs *);
 	int badintrcount;		/* counter to check bogus interrupts */
+	struct semaphore irq_mutex;
 
 	nm256_stream_t streams[2];
 
@@ -464,6 +467,37 @@ snd_nm256_set_format(nm256_t *chip, nm256_stream_t *s, snd_pcm_substream_t *subs
 	}
 }
 
+/* acquire interrupt */
+static int snd_nm256_acquire_irq(nm256_t *chip)
+{
+	down(&chip->irq_mutex);
+	if (chip->irq < 0) {
+		if (request_irq(chip->pci->irq, chip->interrupt, SA_INTERRUPT|SA_SHIRQ,
+				chip->card->driver, (void*)chip)) {
+			snd_printk("unable to grab IRQ %d\n", chip->pci->irq);
+			up(&chip->irq_mutex);
+			return -EBUSY;
+		}
+		chip->irq = chip->pci->irq;
+	}
+	chip->irq_acks++;
+	up(&chip->irq_mutex);
+	return 0;
+}
+
+/* release interrupt */
+static void snd_nm256_release_irq(nm256_t *chip)
+{
+	down(&chip->irq_mutex);
+	if (chip->irq_acks > 0)
+		chip->irq_acks--;
+	if (chip->irq_acks == 0 && chip->irq >= 0) {
+		free_irq(chip->irq, (void*)chip);
+		chip->irq = -1;
+	}
+	up(&chip->irq_mutex);
+}
+
 /*
  * start / stop
  */
@@ -538,15 +572,19 @@ snd_nm256_playback_trigger(snd_pcm_substream_t *substream, int cmd)
 
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		s->suspended = 0;
+		/* fallthru */
+	case SNDRV_PCM_TRIGGER_START:
 		if (! s->running) {
 			snd_nm256_playback_start(chip, s, substream);
 			s->running = 1;
 		}
 		break;
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		s->suspended = 1;
+		/* fallthru */
+	case SNDRV_PCM_TRIGGER_STOP:
 		if (s->running) {
 			snd_nm256_playback_stop(chip);
 			s->running = 0;
@@ -818,6 +856,8 @@ snd_nm256_playback_open(snd_pcm_substream_t *substream)
 {
 	nm256_t *chip = snd_pcm_substream_chip(substream);
 
+	if (snd_nm256_acquire_irq(chip) < 0)
+		return -EBUSY;
 	snd_nm256_setup_stream(chip, &chip->streams[SNDRV_PCM_STREAM_PLAYBACK],
 			       substream, &snd_nm256_playback);
 	return 0;
@@ -828,6 +868,8 @@ snd_nm256_capture_open(snd_pcm_substream_t *substream)
 {
 	nm256_t *chip = snd_pcm_substream_chip(substream);
 
+	if (snd_nm256_acquire_irq(chip) < 0)
+		return -EBUSY;
 	snd_nm256_setup_stream(chip, &chip->streams[SNDRV_PCM_STREAM_CAPTURE],
 			       substream, &snd_nm256_capture);
 	return 0;
@@ -839,6 +881,9 @@ snd_nm256_capture_open(snd_pcm_substream_t *substream)
 static int
 snd_nm256_playback_close(snd_pcm_substream_t *substream)
 {
+	nm256_t *chip = snd_pcm_substream_chip(substream);
+
+	snd_nm256_release_irq(chip);
 	return 0;
 }
 
@@ -846,6 +891,9 @@ snd_nm256_playback_close(snd_pcm_substream_t *substream)
 static int
 snd_nm256_capture_close(snd_pcm_substream_t *substream)
 {
+	nm256_t *chip = snd_pcm_substream_chip(substream);
+
+	snd_nm256_release_irq(chip);
 	return 0;
 }
 
@@ -915,18 +963,16 @@ snd_nm256_pcm(nm256_t *chip, int device)
 static void
 snd_nm256_init_chip(nm256_t *chip)
 {
-	spin_lock_irq(&chip->reg_lock);
 	/* Reset everything. */
 	snd_nm256_writeb(chip, 0x0, 0x11);
 	snd_nm256_writew(chip, 0x214, 0);
 	/* stop sounds.. */
 	//snd_nm256_playback_stop(chip);
 	//snd_nm256_capture_stop(chip);
-	spin_unlock_irq(&chip->reg_lock);
 }
 
 
-static inline void
+static irqreturn_t
 snd_nm256_intr_check(nm256_t *chip)
 {
 	if (chip->badintrcount++ > 1000) {
@@ -947,7 +993,9 @@ snd_nm256_intr_check(nm256_t *chip)
 		if (chip->streams[SNDRV_PCM_STREAM_CAPTURE].running)
 			snd_nm256_capture_stop(chip);
 		chip->badintrcount = 0;
+		return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
 /* 
@@ -969,10 +1017,8 @@ snd_nm256_interrupt(int irq, void *dev_id, struct pt_regs *dummy)
 	status = snd_nm256_readw(chip, NM_INT_REG);
 
 	/* Not ours. */
-	if (status == 0) {
-		snd_nm256_intr_check(chip);
-		return IRQ_NONE;
-	}
+	if (status == 0)
+		return snd_nm256_intr_check(chip);
 
 	chip->badintrcount = 0;
 
@@ -1036,10 +1082,8 @@ snd_nm256_interrupt_zx(int irq, void *dev_id, struct pt_regs *dummy)
 	status = snd_nm256_readl(chip, NM_INT_REG);
 
 	/* Not ours. */
-	if (status == 0) {
-		snd_nm256_intr_check(chip);
-		return IRQ_NONE;
-	}
+	if (status == 0)
+		return snd_nm256_intr_check(chip);
 
 	chip->badintrcount = 0;
 
@@ -1192,7 +1236,7 @@ snd_nm256_mixer(nm256_t *chip)
 		AC97_PC_BEEP, AC97_PHONE, AC97_MIC, AC97_LINE, AC97_CD,
 		AC97_VIDEO, AC97_AUX, AC97_PCM, AC97_REC_SEL,
 		AC97_REC_GAIN, AC97_GENERAL_PURPOSE, AC97_3D_CONTROL,
-		AC97_EXTENDED_ID,
+		/*AC97_EXTENDED_ID,*/
 		AC97_VENDOR_ID1, AC97_VENDOR_ID2,
 		-1
 	};
@@ -1206,6 +1250,7 @@ snd_nm256_mixer(nm256_t *chip)
 	for (i = 0; mixer_regs[i] >= 0; i++)
 		set_bit(mixer_regs[i], ac97.reg_accessed);
 	ac97.private_data = chip;
+	pbus->no_vra = 1;
 	err = snd_ac97_mixer(pbus, &ac97, &chip->ac97);
 	if (err < 0)
 		return err;
@@ -1281,6 +1326,7 @@ static int nm256_suspend(snd_card_t *card, pm_message_t state)
 static int nm256_resume(snd_card_t *card)
 {
 	nm256_t *chip = card->pm_private_data;
+	int i;
 
 	/* Perform a full reset on the hardware */
 	pci_enable_device(chip->pci);
@@ -1288,6 +1334,15 @@ static int nm256_resume(snd_card_t *card)
 
 	/* restore ac97 */
 	snd_ac97_resume(chip->ac97);
+
+	for (i = 0; i < 2; i++) {
+		nm256_stream_t *s = &chip->streams[i];
+		if (s->substream && s->suspended) {
+			spin_lock_irq(&chip->reg_lock);
+			snd_nm256_set_format(chip, s, s->substream);
+			spin_unlock_irq(&chip->reg_lock);
+		}
+	}
 
 	return 0;
 }
@@ -1360,6 +1415,7 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 	chip->use_cache = usecache;
 	spin_lock_init(&chip->reg_lock);
 	chip->irq = -1;
+	init_MUTEX(&chip->irq_mutex);
 
 	chip->streams[SNDRV_PCM_STREAM_PLAYBACK].bufsize = play_bufsize;
 	chip->streams[SNDRV_PCM_STREAM_CAPTURE].bufsize = capt_bufsize;
@@ -1469,15 +1525,6 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 		addr += NM_MAX_PLAYBACK_COEF_SIZE;
 		chip->coeff_buf[SNDRV_PCM_STREAM_CAPTURE] = addr;
 	}
-
-	/* acquire interrupt */
-	if (request_irq(pci->irq, chip->interrupt, SA_INTERRUPT|SA_SHIRQ,
-			card->driver, (void*)chip)) {
-		err = -EBUSY;
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
-		goto __error;
-	}
-	chip->irq = pci->irq;
 
 	/* Fixed setting. */
 	chip->mixer_base = NM_MIXER_OFFSET;

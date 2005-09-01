@@ -32,6 +32,7 @@ enum {
   IPPROTO_PUP = 12,		/* PUP protocol				*/
   IPPROTO_UDP = 17,		/* User Datagram Protocol		*/
   IPPROTO_IDP = 22,		/* XNS IDP protocol			*/
+  IPPROTO_DCCP = 33,		/* Datagram Congestion Control Protocol */
   IPPROTO_RSVP = 46,		/* RSVP protocol			*/
   IPPROTO_GRE = 47,		/* Cisco GRE tunnels (rfc 1701,1702)	*/
 

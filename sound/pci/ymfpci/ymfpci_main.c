@@ -321,6 +321,26 @@ static void snd_ymfpci_pcm_interrupt(ymfpci_t *chip, ymfpci_voice_t *voice)
 			snd_pcm_period_elapsed(ypcm->substream);
 			spin_lock(&chip->reg_lock);
 		}
+
+		if (unlikely(ypcm->update_pcm_vol)) {
+			unsigned int subs = ypcm->substream->number;
+			unsigned int next_bank = 1 - chip->active_bank;
+			snd_ymfpci_playback_bank_t *bank;
+			u32 volume;
+			
+			bank = &voice->bank[next_bank];
+			volume = cpu_to_le32(chip->pcm_mixer[subs].left << 15);
+			bank->left_gain_end = volume;
+			if (ypcm->output_rear)
+				bank->eff2_gain_end = volume;
+			if (ypcm->voices[1])
+				bank = &ypcm->voices[1]->bank[next_bank];
+			volume = cpu_to_le32(chip->pcm_mixer[subs].right << 15);
+			bank->right_gain_end = volume;
+			if (ypcm->output_rear)
+				bank->eff3_gain_end = volume;
+			ypcm->update_pcm_vol--;
+		}
 	}
 	spin_unlock(&chip->reg_lock);
 }
@@ -451,87 +471,74 @@ static int snd_ymfpci_pcm_voice_alloc(ymfpci_pcm_t *ypcm, int voices)
 	return 0;
 }
 
-static void snd_ymfpci_pcm_init_voice(ymfpci_voice_t *voice, int stereo,
-				      int rate, int w_16, unsigned long addr,
-				      unsigned int end,
-				      int output_front, int output_rear)
+static void snd_ymfpci_pcm_init_voice(ymfpci_pcm_t *ypcm, unsigned int voiceidx,
+				      snd_pcm_runtime_t *runtime,
+				      int has_pcm_volume)
 {
+	ymfpci_voice_t *voice = ypcm->voices[voiceidx];
 	u32 format;
-	u32 delta = snd_ymfpci_calc_delta(rate);
-	u32 lpfQ = snd_ymfpci_calc_lpfQ(rate);
-	u32 lpfK = snd_ymfpci_calc_lpfK(rate);
+	u32 delta = snd_ymfpci_calc_delta(runtime->rate);
+	u32 lpfQ = snd_ymfpci_calc_lpfQ(runtime->rate);
+	u32 lpfK = snd_ymfpci_calc_lpfK(runtime->rate);
 	snd_ymfpci_playback_bank_t *bank;
 	unsigned int nbank;
+	u32 vol_left, vol_right;
+	u8 use_left, use_right;
 
 	snd_assert(voice != NULL, return);
-	format = (stereo ? 0x00010000 : 0) | (w_16 ? 0 : 0x80000000);
+	if (runtime->channels == 1) {
+		use_left = 1;
+		use_right = 1;
+	} else {
+		use_left = (voiceidx & 1) == 0;
+		use_right = !use_left;
+	}
+	if (has_pcm_volume) {
+		vol_left = cpu_to_le32(ypcm->chip->pcm_mixer
+				       [ypcm->substream->number].left << 15);
+		vol_right = cpu_to_le32(ypcm->chip->pcm_mixer
+					[ypcm->substream->number].right << 15);
+	} else {
+		vol_left = cpu_to_le32(0x40000000);
+		vol_right = cpu_to_le32(0x40000000);
+	}
+	format = runtime->channels == 2 ? 0x00010000 : 0;
+	if (snd_pcm_format_width(runtime->format) == 8)
+		format |= 0x80000000;
+	if (runtime->channels == 2 && (voiceidx & 1) != 0)
+		format |= 1;
 	for (nbank = 0; nbank < 2; nbank++) {
 		bank = &voice->bank[nbank];
+		memset(bank, 0, sizeof(*bank));
 		bank->format = cpu_to_le32(format);
-		bank->loop_default = 0;
-		bank->base = cpu_to_le32(addr);
-		bank->loop_start = 0;
-		bank->loop_end = cpu_to_le32(end);
-		bank->loop_frac = 0;
-		bank->eg_gain_end = cpu_to_le32(0x40000000);
+		bank->base = cpu_to_le32(runtime->dma_addr);
+		bank->loop_end = cpu_to_le32(ypcm->buffer_size);
 		bank->lpfQ = cpu_to_le32(lpfQ);
-		bank->status = 0;
-		bank->num_of_frames = 0;
-		bank->loop_count = 0;
-		bank->start = 0;
-		bank->start_frac = 0;
 		bank->delta =
 		bank->delta_end = cpu_to_le32(delta);
 		bank->lpfK =
 		bank->lpfK_end = cpu_to_le32(lpfK);
-		bank->eg_gain = cpu_to_le32(0x40000000);
-		bank->lpfD1 =
-		bank->lpfD2 = 0;
+		bank->eg_gain =
+		bank->eg_gain_end = cpu_to_le32(0x40000000);
 
-		bank->left_gain = 
-		bank->right_gain =
-		bank->left_gain_end =
-		bank->right_gain_end =
-		bank->eff1_gain =
-		bank->eff2_gain =
-		bank->eff3_gain =
-		bank->eff1_gain_end =
-		bank->eff2_gain_end =
-		bank->eff3_gain_end = 0;
-
-		if (!stereo) {
-			if (output_front) {
-				bank->left_gain = 
+		if (ypcm->output_front) {
+			if (use_left) {
+				bank->left_gain =
+				bank->left_gain_end = vol_left;
+			}
+			if (use_right) {
 				bank->right_gain =
-				bank->left_gain_end =
-				bank->right_gain_end = cpu_to_le32(0x40000000);
+				bank->right_gain_end = vol_right;
 			}
-			if (output_rear) {
+		}
+		if (ypcm->output_rear) {
+			if (use_left) {
 				bank->eff2_gain =
-				bank->eff2_gain_end =
+				bank->eff2_gain_end = vol_left;
+			}
+			if (use_right) {
 				bank->eff3_gain =
-				bank->eff3_gain_end = cpu_to_le32(0x40000000);
-			}
-		} else {
-			if (output_front) {
-				if ((voice->number & 1) == 0) {
-					bank->left_gain =
-					bank->left_gain_end = cpu_to_le32(0x40000000);
-				} else {
-					bank->format |= cpu_to_le32(1);
-					bank->right_gain =
-					bank->right_gain_end = cpu_to_le32(0x40000000);
-				}
-			}
-			if (output_rear) {
-				if ((voice->number & 1) == 0) {
-					bank->eff3_gain =
-					bank->eff3_gain_end = cpu_to_le32(0x40000000);
-				} else {
-					bank->format |= cpu_to_le32(1);
-					bank->eff2_gain =
-					bank->eff2_gain_end = cpu_to_le32(0x40000000);
-				}
+				bank->eff3_gain_end = vol_right;
 			}
 		}
 	}
@@ -613,7 +620,7 @@ static int snd_ymfpci_playback_hw_free(snd_pcm_substream_t * substream)
 
 static int snd_ymfpci_playback_prepare(snd_pcm_substream_t * substream)
 {
-	// ymfpci_t *chip = snd_pcm_substream_chip(substream);
+	ymfpci_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	ymfpci_pcm_t *ypcm = runtime->private_data;
 	unsigned int nvoice;
@@ -623,14 +630,8 @@ static int snd_ymfpci_playback_prepare(snd_pcm_substream_t * substream)
 	ypcm->period_pos = 0;
 	ypcm->last_pos = 0;
 	for (nvoice = 0; nvoice < runtime->channels; nvoice++)
-		snd_ymfpci_pcm_init_voice(ypcm->voices[nvoice],
-					  runtime->channels == 2,
-					  runtime->rate,
-					  snd_pcm_format_width(runtime->format) == 16,
-					  runtime->dma_addr,
-					  ypcm->buffer_size,
-					  ypcm->output_front,
-					  ypcm->output_rear);
+		snd_ymfpci_pcm_init_voice(ypcm, nvoice, runtime,
+					  substream->pcm == chip->pcm);
 	return 0;
 }
 
@@ -882,6 +883,7 @@ static int snd_ymfpci_playback_open(snd_pcm_substream_t * substream)
 	ymfpci_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	ymfpci_pcm_t *ypcm;
+	snd_kcontrol_t *kctl;
 	int err;
 	
 	if ((err = snd_ymfpci_playback_open_1(substream)) < 0)
@@ -895,6 +897,10 @@ static int snd_ymfpci_playback_open(snd_pcm_substream_t * substream)
 		chip->rear_opened++;
 	}
 	spin_unlock_irq(&chip->reg_lock);
+
+	kctl = chip->pcm_mixer[substream->number].ctl;
+	kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+	snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 	return 0;
 }
 
@@ -987,6 +993,7 @@ static int snd_ymfpci_playback_close(snd_pcm_substream_t * substream)
 {
 	ymfpci_t *chip = snd_pcm_substream_chip(substream);
 	ymfpci_pcm_t *ypcm = substream->runtime->private_data;
+	snd_kcontrol_t *kctl;
 
 	spin_lock_irq(&chip->reg_lock);
 	if (ypcm->output_rear && chip->rear_opened > 0) {
@@ -994,6 +1001,9 @@ static int snd_ymfpci_playback_close(snd_pcm_substream_t * substream)
 		ymfpci_close_extension(chip);
 	}
 	spin_unlock_irq(&chip->reg_lock);
+	kctl = chip->pcm_mixer[substream->number].ctl;
+	kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+	snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 	return snd_ymfpci_playback_close_1(substream);
 }
 
@@ -1665,6 +1675,66 @@ static snd_kcontrol_new_t snd_ymfpci_rear_shared __devinitdata = {
 	.private_value = 2,
 };
 
+/*
+ * PCM voice volume
+ */
+
+static int snd_ymfpci_pcm_vol_info(snd_kcontrol_t *kcontrol,
+				   snd_ctl_elem_info_t *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 0x8000;
+	return 0;
+}
+
+static int snd_ymfpci_pcm_vol_get(snd_kcontrol_t *kcontrol,
+				  snd_ctl_elem_value_t *ucontrol)
+{
+	ymfpci_t *chip = snd_kcontrol_chip(kcontrol);
+	unsigned int subs = kcontrol->id.subdevice;
+
+	ucontrol->value.integer.value[0] = chip->pcm_mixer[subs].left;
+	ucontrol->value.integer.value[1] = chip->pcm_mixer[subs].right;
+	return 0;
+}
+
+static int snd_ymfpci_pcm_vol_put(snd_kcontrol_t *kcontrol,
+				  snd_ctl_elem_value_t *ucontrol)
+{
+	ymfpci_t *chip = snd_kcontrol_chip(kcontrol);
+	unsigned int subs = kcontrol->id.subdevice;
+	snd_pcm_substream_t *substream;
+	unsigned long flags;
+
+	if (ucontrol->value.integer.value[0] != chip->pcm_mixer[subs].left ||
+	    ucontrol->value.integer.value[1] != chip->pcm_mixer[subs].right) {
+		chip->pcm_mixer[subs].left = ucontrol->value.integer.value[0];
+		chip->pcm_mixer[subs].right = ucontrol->value.integer.value[1];
+
+		substream = (snd_pcm_substream_t *)kcontrol->private_value;
+		spin_lock_irqsave(&chip->voice_lock, flags);
+		if (substream->runtime && substream->runtime->private_data) {
+			ymfpci_pcm_t *ypcm = substream->runtime->private_data;
+			ypcm->update_pcm_vol = 2;
+		}
+		spin_unlock_irqrestore(&chip->voice_lock, flags);
+		return 1;
+	}
+	return 0;
+}
+
+static snd_kcontrol_new_t snd_ymfpci_pcm_volume __devinitdata = {
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.name = "PCM Playback Volume",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		SNDRV_CTL_ELEM_ACCESS_INACTIVE,
+	.info = snd_ymfpci_pcm_vol_info,
+	.get = snd_ymfpci_pcm_vol_get,
+	.put = snd_ymfpci_pcm_vol_put,
+};
+
 
 /*
  *  Mixer routines
@@ -1686,6 +1756,7 @@ int __devinit snd_ymfpci_mixer(ymfpci_t *chip, int rear_switch)
 {
 	ac97_template_t ac97;
 	snd_kcontrol_t *kctl;
+	snd_pcm_substream_t *substream;
 	unsigned int idx;
 	int err;
 	static ac97_bus_ops_t ops = {
@@ -1737,6 +1808,23 @@ int __devinit snd_ymfpci_mixer(ymfpci_t *chip, int rear_switch)
 	if (rear_switch) {
 		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_ymfpci_rear_shared, chip))) < 0)
 			return err;
+	}
+
+	/* per-voice volume */
+	substream = chip->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	for (idx = 0; idx < 32; ++idx) {
+		kctl = snd_ctl_new1(&snd_ymfpci_pcm_volume, chip);
+		if (!kctl)
+			return -ENOMEM;
+		kctl->id.device = chip->pcm->device;
+		kctl->id.subdevice = idx;
+		kctl->private_value = (unsigned long)substream;
+		if ((err = snd_ctl_add(chip->card, kctl)) < 0)
+			return err;
+		chip->pcm_mixer[idx].left = 0x8000;
+		chip->pcm_mixer[idx].right = 0x8000;
+		chip->pcm_mixer[idx].ctl = kctl;
+		substream = substream->next;
 	}
 
 	return 0;

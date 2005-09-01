@@ -268,6 +268,7 @@
 #define PV_970FX	0x003C
 #define	PV_630        	0x0040
 #define	PV_630p	        0x0041
+#define	PV_970MP	0x0044
 #define	PV_BE		0x0070
 
 /* Platforms supported by PPC64 */
@@ -382,8 +383,8 @@ extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 extern struct task_struct *last_task_used_math;
 extern struct task_struct *last_task_used_altivec;
 
-/* 64-bit user address space is 41-bits (2TBs user VM) */
-#define TASK_SIZE_USER64 (0x0000020000000000UL)
+/* 64-bit user address space is 44-bits (16TB user VM) */
+#define TASK_SIZE_USER64 (0x0000100000000000UL)
 
 /* 
  * 32-bit user address space is 4GB - 1 page 

@@ -1584,8 +1584,8 @@ int snd_pcm_hw_param_set(snd_pcm_t *pcm, snd_pcm_hw_params_t *params,
 	return snd_pcm_hw_param_value(params, var, NULL);
 }
 
-int _snd_pcm_hw_param_mask(snd_pcm_hw_params_t *params,
-			   snd_pcm_hw_param_t var, const snd_mask_t *val)
+static int _snd_pcm_hw_param_mask(snd_pcm_hw_params_t *params,
+				  snd_pcm_hw_param_t var, const snd_mask_t *val)
 {
 	int changed;
 	assert(hw_is_mask(var));
@@ -2063,7 +2063,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(snd_pcm_substream_t *substream,
 		if (((avail < runtime->control->avail_min && size > avail) ||
 		   (size >= runtime->xfer_align && avail < runtime->xfer_align))) {
 			wait_queue_t wait;
-			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED } state;
+			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
 			long tout;
 
 			if (nonblock) {
@@ -2097,6 +2097,9 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(snd_pcm_substream_t *substream,
 				case SNDRV_PCM_STATE_SUSPENDED:
 					state = SUSPENDED;
 					goto _end_loop;
+				case SNDRV_PCM_STATE_SETUP:
+					state = DROPPED;
+					goto _end_loop;
 				default:
 					break;
 				}
@@ -2122,6 +2125,9 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(snd_pcm_substream_t *substream,
 			case EXPIRED:
 				snd_printd("playback write error (DMA or IRQ trouble?)\n");
 				err = -EIO;
+				goto _end_unlock;
+			case DROPPED:
+				err = -EBADFD;
 				goto _end_unlock;
 			default:
 				break;
@@ -2359,7 +2365,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(snd_pcm_substream_t *substream,
 		} else if ((avail < runtime->control->avail_min && size > avail) ||
 			   (size >= runtime->xfer_align && avail < runtime->xfer_align)) {
 			wait_queue_t wait;
-			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED } state;
+			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
 			long tout;
 
 			if (nonblock) {
@@ -2394,6 +2400,9 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(snd_pcm_substream_t *substream,
 					goto _end_loop;
 				case SNDRV_PCM_STATE_DRAINING:
 					goto __draining;
+				case SNDRV_PCM_STATE_SETUP:
+					state = DROPPED;
+					goto _end_loop;
 				default:
 					break;
 				}
@@ -2419,6 +2428,9 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(snd_pcm_substream_t *substream,
 			case EXPIRED:
 				snd_printd("capture read error (DMA or IRQ trouble?)\n");
 				err = -EIO;
+				goto _end_unlock;
+			case DROPPED:
+				err = -EBADFD;
 				goto _end_unlock;
 			default:
 				break;

@@ -466,7 +466,7 @@ do_flush_sync:
 		if (!limit)
 			break;
 		udelay(1);
-		membar("#LoadLoad");
+		rmb();
 	}
 	if (!limit)
 		printk(KERN_WARNING "pci_strbuf_flush: flushflag timeout "

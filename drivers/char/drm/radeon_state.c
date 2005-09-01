@@ -1493,7 +1493,7 @@ static void radeon_cp_dispatch_indices( drm_device_t *dev,
 
 }
 
-#define RADEON_MAX_TEXTURE_SIZE (RADEON_BUFFER_SIZE - 8 * sizeof(u32))
+#define RADEON_MAX_TEXTURE_SIZE RADEON_BUFFER_SIZE
 
 static int radeon_cp_dispatch_texture( DRMFILE filp,
 				       drm_device_t *dev,
@@ -1506,10 +1506,11 @@ static int radeon_cp_dispatch_texture( DRMFILE filp,
 	u32 format;
 	u32 *buffer;
 	const u8 __user *data;
-	int size, dwords, tex_width, blit_width;
+	int size, dwords, tex_width, blit_width, spitch;
 	u32 height;
 	int i;
 	u32 texpitch, microtile;
+	u32 offset;
 	RING_LOCALS;
 
 	DRM_GET_PRIV_WITH_RETURN( filp_priv, filp );
@@ -1529,17 +1530,6 @@ static int radeon_cp_dispatch_texture( DRMFILE filp,
 	RADEON_FLUSH_CACHE();
 	RADEON_WAIT_UNTIL_IDLE();
 	ADVANCE_RING();
-
-#ifdef __BIG_ENDIAN
-	/* The Mesa texture functions provide the data in little endian as the
-	 * chip wants it, but we need to compensate for the fact that the CP
-	 * ring gets byte-swapped
-	 */
-	BEGIN_RING( 2 );
-	OUT_RING_REG( RADEON_RBBM_GUICNTL, RADEON_HOST_DATA_SWAP_32BIT );
-	ADVANCE_RING();
-#endif
-
 
 	/* The compiler won't optimize away a division by a variable,
 	 * even if the only legal values are powers of two.  Thus, we'll
@@ -1572,6 +1562,10 @@ static int radeon_cp_dispatch_texture( DRMFILE filp,
 		DRM_ERROR( "invalid texture format %d\n", tex->format );
 		return DRM_ERR(EINVAL);
 	}
+	spitch = blit_width >> 6;
+	if (spitch == 0 && image->height > 1)
+		return DRM_ERR(EINVAL);
+
 	texpitch = tex->pitch;
 	if ((texpitch << 22) & RADEON_DST_TILE_MICRO) {
 		microtile = 1;
@@ -1624,25 +1618,6 @@ static int radeon_cp_dispatch_texture( DRMFILE filp,
 		 */
 		buffer = (u32*)((char*)dev->agp_buffer_map->handle + buf->offset);
 		dwords = size / 4;
-		buffer[0] = CP_PACKET3( RADEON_CNTL_HOSTDATA_BLT, dwords + 6 );
-		buffer[1] = (RADEON_GMC_DST_PITCH_OFFSET_CNTL |
-			     RADEON_GMC_BRUSH_NONE |
-			     (format << 8) |
-			     RADEON_GMC_SRC_DATATYPE_COLOR |
-			     RADEON_ROP3_S |
-			     RADEON_DP_SRC_SOURCE_HOST_DATA |
-			     RADEON_GMC_CLR_CMP_CNTL_DIS |
-			     RADEON_GMC_WR_MSK_DIS);
-		
-		buffer[2] = (texpitch << 22) | (tex->offset >> 10);
-		buffer[3] = 0xffffffff;
-		buffer[4] = 0xffffffff;
-		buffer[5] = (image->y << 16) | image->x;
-		buffer[6] = (height << 16) | image->width;
-		buffer[7] = dwords;
-		buffer += 8;
-
-		
 
 		if (microtile) {
 			/* texture micro tiling in use, minimum texture width is thus 16 bytes.
@@ -1750,9 +1725,28 @@ static int radeon_cp_dispatch_texture( DRMFILE filp,
 		}
 
 		buf->filp = filp;
-		buf->used = (dwords + 8) * sizeof(u32);
-		radeon_cp_dispatch_indirect( dev, buf, 0, buf->used );
-		radeon_cp_discard_buffer( dev, buf );
+		buf->used = size;
+		offset = dev_priv->gart_buffers_offset + buf->offset;
+		BEGIN_RING(9);
+		OUT_RING(CP_PACKET3(RADEON_CNTL_BITBLT_MULTI, 5));
+		OUT_RING(RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
+			 RADEON_GMC_DST_PITCH_OFFSET_CNTL |
+			 RADEON_GMC_BRUSH_NONE |
+			 (format << 8) |
+			 RADEON_GMC_SRC_DATATYPE_COLOR |
+			 RADEON_ROP3_S |
+			 RADEON_DP_SRC_SOURCE_MEMORY |
+			 RADEON_GMC_CLR_CMP_CNTL_DIS |
+			 RADEON_GMC_WR_MSK_DIS );
+		OUT_RING((spitch << 22) | (offset >> 10));
+		OUT_RING((texpitch << 22) | (tex->offset >> 10));
+		OUT_RING(0);
+		OUT_RING((image->x << 16) | image->y);
+		OUT_RING((image->width << 16) | height);
+		RADEON_WAIT_UNTIL_2D_IDLE();
+		ADVANCE_RING();
+
+		radeon_cp_discard_buffer(dev, buf);
 
 		/* Update the input parameters for next time */
 		image->y += height;
@@ -2797,6 +2791,17 @@ static int radeon_cp_cmdbuf( DRM_IOCTL_ARGS )
 
 	orig_nbox = cmdbuf.nbox;
 
+	if(dev_priv->microcode_version == UCODE_R300) {
+		int temp;
+		temp=r300_do_cp_cmdbuf(dev, filp, filp_priv, &cmdbuf);
+	
+		if (orig_bufsz != 0)
+			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+	
+		return temp;
+	}
+
+	/* microcode_version != r300 */
 	while ( cmdbuf.bufsz >= sizeof(header) ) {
 
 		header.i = *(int *)cmdbuf.buf;

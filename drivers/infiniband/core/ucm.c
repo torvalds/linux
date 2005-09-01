@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -73,14 +74,18 @@ static struct semaphore ctx_id_mutex;
 static struct idr       ctx_id_table;
 static int              ctx_id_rover = 0;
 
-static struct ib_ucm_context *ib_ucm_ctx_get(int id)
+static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
 {
 	struct ib_ucm_context *ctx;
 
 	down(&ctx_id_mutex);
 	ctx = idr_find(&ctx_id_table, id);
-	if (ctx)
-		ctx->ref++;
+	if (!ctx)
+		ctx = ERR_PTR(-ENOENT);
+	else if (ctx->file != file)
+		ctx = ERR_PTR(-EINVAL);
+	else
+		atomic_inc(&ctx->ref);
 	up(&ctx_id_mutex);
 
 	return ctx;
@@ -88,21 +93,37 @@ static struct ib_ucm_context *ib_ucm_ctx_get(int id)
 
 static void ib_ucm_ctx_put(struct ib_ucm_context *ctx)
 {
+	if (atomic_dec_and_test(&ctx->ref))
+		wake_up(&ctx->wait);
+}
+
+static ssize_t ib_ucm_destroy_ctx(struct ib_ucm_file *file, int id)
+{
+	struct ib_ucm_context *ctx;
 	struct ib_ucm_event *uevent;
 
 	down(&ctx_id_mutex);
-
-	ctx->ref--;
-	if (!ctx->ref)
+	ctx = idr_find(&ctx_id_table, id);
+	if (!ctx)
+		ctx = ERR_PTR(-ENOENT);
+	else if (ctx->file != file)
+		ctx = ERR_PTR(-EINVAL);
+	else
 		idr_remove(&ctx_id_table, ctx->id);
-
 	up(&ctx_id_mutex);
 
-	if (ctx->ref)
-		return;
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
-	down(&ctx->file->mutex);
+	atomic_dec(&ctx->ref);
+	wait_event(ctx->wait, !atomic_read(&ctx->ref));
 
+	/* No new events will be generated after destroying the cm_id. */
+	if (!IS_ERR(ctx->cm_id))
+		ib_destroy_cm_id(ctx->cm_id);
+
+	/* Cleanup events not yet reported to the user. */
+	down(&file->mutex);
 	list_del(&ctx->file_list);
 	while (!list_empty(&ctx->events)) {
 
@@ -117,13 +138,10 @@ static void ib_ucm_ctx_put(struct ib_ucm_context *ctx)
 
 		kfree(uevent);
 	}
+	up(&file->mutex);
 
-	up(&ctx->file->mutex);
-
-	ucm_dbg("Destroyed CM ID <%d>\n", ctx->id);
-
-	ib_destroy_cm_id(ctx->cm_id);
 	kfree(ctx);
+	return 0;
 }
 
 static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
@@ -135,11 +153,11 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 	if (!ctx)
 		return NULL;
 
-	ctx->ref  = 1; /* user reference */
+	atomic_set(&ctx->ref, 1);
+	init_waitqueue_head(&ctx->wait);
 	ctx->file = file;
 
 	INIT_LIST_HEAD(&ctx->events);
-	init_MUTEX(&ctx->mutex);
 
 	list_add_tail(&ctx->file_list, &file->ctxs);
 
@@ -177,8 +195,8 @@ static void ib_ucm_event_path_get(struct ib_ucm_path_rec *upath,
 	if (!kpath || !upath)
 		return;
 
-	memcpy(upath->dgid, kpath->dgid.raw, sizeof(union ib_gid));
-	memcpy(upath->sgid, kpath->sgid.raw, sizeof(union ib_gid));
+	memcpy(upath->dgid, kpath->dgid.raw, sizeof *upath->dgid);
+	memcpy(upath->sgid, kpath->sgid.raw, sizeof *upath->sgid);
 
 	upath->dlid             = kpath->dlid;
 	upath->slid             = kpath->slid;
@@ -201,10 +219,11 @@ static void ib_ucm_event_path_get(struct ib_ucm_path_rec *upath,
 		kpath->packet_life_time_selector;
 }
 
-static void ib_ucm_event_req_get(struct ib_ucm_req_event_resp *ureq,
+static void ib_ucm_event_req_get(struct ib_ucm_context *ctx,
+				 struct ib_ucm_req_event_resp *ureq,
 				 struct ib_cm_req_event_param *kreq)
 {
-	ureq->listen_id = (long)kreq->listen_id->context;
+	ureq->listen_id = ctx->id;
 
 	ureq->remote_ca_guid             = kreq->remote_ca_guid;
 	ureq->remote_qkey                = kreq->remote_qkey;
@@ -240,34 +259,11 @@ static void ib_ucm_event_rep_get(struct ib_ucm_rep_event_resp *urep,
 	urep->srq                 = krep->srq;
 }
 
-static void ib_ucm_event_rej_get(struct ib_ucm_rej_event_resp *urej,
-				 struct ib_cm_rej_event_param *krej)
-{
-	urej->reason = krej->reason;
-}
-
-static void ib_ucm_event_mra_get(struct ib_ucm_mra_event_resp *umra,
-				 struct ib_cm_mra_event_param *kmra)
-{
-	umra->timeout = kmra->service_timeout;
-}
-
-static void ib_ucm_event_lap_get(struct ib_ucm_lap_event_resp *ulap,
-				 struct ib_cm_lap_event_param *klap)
-{
-	ib_ucm_event_path_get(&ulap->path, klap->alternate_path);
-}
-
-static void ib_ucm_event_apr_get(struct ib_ucm_apr_event_resp *uapr,
-				 struct ib_cm_apr_event_param *kapr)
-{
-	uapr->status = kapr->ap_status;
-}
-
-static void ib_ucm_event_sidr_req_get(struct ib_ucm_sidr_req_event_resp *ureq,
+static void ib_ucm_event_sidr_req_get(struct ib_ucm_context *ctx,
+				      struct ib_ucm_sidr_req_event_resp *ureq,
 				      struct ib_cm_sidr_req_event_param *kreq)
 {
-	ureq->listen_id = (long)kreq->listen_id->context;
+	ureq->listen_id = ctx->id;
 	ureq->pkey      = kreq->pkey;
 }
 
@@ -279,19 +275,18 @@ static void ib_ucm_event_sidr_rep_get(struct ib_ucm_sidr_rep_event_resp *urep,
 	urep->qpn    = krep->qpn;
 };
 
-static int ib_ucm_event_process(struct ib_cm_event *evt,
+static int ib_ucm_event_process(struct ib_ucm_context *ctx,
+				struct ib_cm_event *evt,
 				struct ib_ucm_event *uvt)
 {
 	void *info = NULL;
-	int result;
 
 	switch (evt->event) {
 	case IB_CM_REQ_RECEIVED:
-		ib_ucm_event_req_get(&uvt->resp.u.req_resp,
+		ib_ucm_event_req_get(ctx, &uvt->resp.u.req_resp,
 				     &evt->param.req_rcvd);
 		uvt->data_len      = IB_CM_REQ_PRIVATE_DATA_SIZE;
-		uvt->resp.present |= (evt->param.req_rcvd.primary_path ?
-				      IB_UCM_PRES_PRIMARY : 0);
+		uvt->resp.present  = IB_UCM_PRES_PRIMARY;
 		uvt->resp.present |= (evt->param.req_rcvd.alternate_path ?
 				      IB_UCM_PRES_ALTERNATE : 0);
 		break;
@@ -299,57 +294,46 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 		ib_ucm_event_rep_get(&uvt->resp.u.rep_resp,
 				     &evt->param.rep_rcvd);
 		uvt->data_len = IB_CM_REP_PRIVATE_DATA_SIZE;
-
 		break;
 	case IB_CM_RTU_RECEIVED:
 		uvt->data_len = IB_CM_RTU_PRIVATE_DATA_SIZE;
 		uvt->resp.u.send_status = evt->param.send_status;
-
 		break;
 	case IB_CM_DREQ_RECEIVED:
 		uvt->data_len = IB_CM_DREQ_PRIVATE_DATA_SIZE;
 		uvt->resp.u.send_status = evt->param.send_status;
-
 		break;
 	case IB_CM_DREP_RECEIVED:
 		uvt->data_len = IB_CM_DREP_PRIVATE_DATA_SIZE;
 		uvt->resp.u.send_status = evt->param.send_status;
-
 		break;
 	case IB_CM_MRA_RECEIVED:
-		ib_ucm_event_mra_get(&uvt->resp.u.mra_resp,
-				     &evt->param.mra_rcvd);
+		uvt->resp.u.mra_resp.timeout =
+					evt->param.mra_rcvd.service_timeout;
 		uvt->data_len = IB_CM_MRA_PRIVATE_DATA_SIZE;
-
 		break;
 	case IB_CM_REJ_RECEIVED:
-		ib_ucm_event_rej_get(&uvt->resp.u.rej_resp,
-				     &evt->param.rej_rcvd);
+		uvt->resp.u.rej_resp.reason = evt->param.rej_rcvd.reason;
 		uvt->data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
 		uvt->info_len = evt->param.rej_rcvd.ari_length;
 		info	      = evt->param.rej_rcvd.ari;
-
 		break;
 	case IB_CM_LAP_RECEIVED:
-		ib_ucm_event_lap_get(&uvt->resp.u.lap_resp,
-				     &evt->param.lap_rcvd);
+		ib_ucm_event_path_get(&uvt->resp.u.lap_resp.path,
+				      evt->param.lap_rcvd.alternate_path);
 		uvt->data_len = IB_CM_LAP_PRIVATE_DATA_SIZE;
-		uvt->resp.present |= (evt->param.lap_rcvd.alternate_path ?
-				      IB_UCM_PRES_ALTERNATE : 0);
+		uvt->resp.present = IB_UCM_PRES_ALTERNATE;
 		break;
 	case IB_CM_APR_RECEIVED:
-		ib_ucm_event_apr_get(&uvt->resp.u.apr_resp,
-				     &evt->param.apr_rcvd);
+		uvt->resp.u.apr_resp.status = evt->param.apr_rcvd.ap_status;
 		uvt->data_len = IB_CM_APR_PRIVATE_DATA_SIZE;
 		uvt->info_len = evt->param.apr_rcvd.info_len;
 		info	      = evt->param.apr_rcvd.apr_info;
-
 		break;
 	case IB_CM_SIDR_REQ_RECEIVED:
-		ib_ucm_event_sidr_req_get(&uvt->resp.u.sidr_req_resp,
+		ib_ucm_event_sidr_req_get(ctx, &uvt->resp.u.sidr_req_resp,
 					  &evt->param.sidr_req_rcvd);
 		uvt->data_len = IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE;
-
 		break;
 	case IB_CM_SIDR_REP_RECEIVED:
 		ib_ucm_event_sidr_rep_get(&uvt->resp.u.sidr_rep_resp,
@@ -357,43 +341,35 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 		uvt->data_len = IB_CM_SIDR_REP_PRIVATE_DATA_SIZE;
 		uvt->info_len = evt->param.sidr_rep_rcvd.info_len;
 		info	      = evt->param.sidr_rep_rcvd.info;
-
 		break;
 	default:
 		uvt->resp.u.send_status = evt->param.send_status;
-
 		break;
 	}
 
-	if (uvt->data_len && evt->private_data) {
-
+	if (uvt->data_len) {
 		uvt->data = kmalloc(uvt->data_len, GFP_KERNEL);
-		if (!uvt->data) {
-			result = -ENOMEM;
-			goto error;
-		}
+		if (!uvt->data)
+			goto err1;
 
 		memcpy(uvt->data, evt->private_data, uvt->data_len);
 		uvt->resp.present |= IB_UCM_PRES_DATA;
 	}
 
-	if (uvt->info_len && info) {
-
+	if (uvt->info_len) {
 		uvt->info = kmalloc(uvt->info_len, GFP_KERNEL);
-		if (!uvt->info) {
-			result = -ENOMEM;
-			goto error;
-		}
+		if (!uvt->info)
+			goto err2;
 
 		memcpy(uvt->info, info, uvt->info_len);
 		uvt->resp.present |= IB_UCM_PRES_INFO;
 	}
-
 	return 0;
-error:
-	kfree(uvt->info);
+
+err2:
 	kfree(uvt->data);
-	return result;
+err1:
+	return -ENOMEM;
 }
 
 static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
@@ -403,63 +379,42 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 	struct ib_ucm_context *ctx;
 	int result = 0;
 	int id;
-	/*
-	 * lookup correct context based on event type.
-	 */
-	switch (event->event) {
-	case IB_CM_REQ_RECEIVED:
-		id = (long)event->param.req_rcvd.listen_id->context;
-		break;
-	case IB_CM_SIDR_REQ_RECEIVED:
-		id = (long)event->param.sidr_req_rcvd.listen_id->context;
-		break;
-	default:
-		id = (long)cm_id->context;
-		break;
-	}
 
-	ucm_dbg("Event. CM ID <%d> event <%d>\n", id, event->event);
-
-	ctx = ib_ucm_ctx_get(id);
-	if (!ctx)
-		return -ENOENT;
+	ctx = cm_id->context;
 
 	if (event->event == IB_CM_REQ_RECEIVED ||
 	    event->event == IB_CM_SIDR_REQ_RECEIVED)
 		id = IB_UCM_CM_ID_INVALID;
+	else
+		id = ctx->id;
 
 	uevent = kmalloc(sizeof(*uevent), GFP_KERNEL);
-	if (!uevent) {
-		result = -ENOMEM;
-		goto done;
-	}
+	if (!uevent)
+		goto err1;
 
 	memset(uevent, 0, sizeof(*uevent));
-
 	uevent->resp.id    = id;
 	uevent->resp.event = event->event;
 
-	result = ib_ucm_event_process(event, uevent);
+	result = ib_ucm_event_process(ctx, event, uevent);
 	if (result)
-		goto done;
+		goto err2;
 
 	uevent->ctx   = ctx;
-	uevent->cm_id = ((event->event == IB_CM_REQ_RECEIVED ||
-			  event->event == IB_CM_SIDR_REQ_RECEIVED ) ?
-			 cm_id : NULL);
+	uevent->cm_id = (id == IB_UCM_CM_ID_INVALID) ? cm_id : NULL;
 
 	down(&ctx->file->mutex);
-
 	list_add_tail(&uevent->file_list, &ctx->file->events);
 	list_add_tail(&uevent->ctx_list, &ctx->events);
-
 	wake_up_interruptible(&ctx->file->poll_wait);
-
 	up(&ctx->file->mutex);
-done:
-	ctx->error = result;
-	ib_ucm_ctx_put(ctx); /* func reference */
-	return result;
+	return 0;
+
+err2:
+	kfree(uevent);
+err1:
+	/* Destroy new cm_id's */
+	return (id == IB_UCM_CM_ID_INVALID);
 }
 
 static ssize_t ib_ucm_event(struct ib_ucm_file *file,
@@ -517,9 +472,8 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 		goto done;
 	}
 
-	ctx->cm_id             = uevent->cm_id;
-	ctx->cm_id->cm_handler = ib_ucm_event_handler;
-	ctx->cm_id->context    = (void *)(unsigned long)ctx->id;
+	ctx->cm_id          = uevent->cm_id;
+	ctx->cm_id->context = ctx;
 
 	uevent->resp.id = ctx->id;
 
@@ -585,30 +539,29 @@ static ssize_t ib_ucm_create_id(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
+	down(&file->mutex);
 	ctx = ib_ucm_ctx_alloc(file);
+	up(&file->mutex);
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->cm_id = ib_create_cm_id(ib_ucm_event_handler,
-				     (void *)(unsigned long)ctx->id);
-	if (!ctx->cm_id) {
-		result = -ENOMEM;
-		goto err_cm;
+	ctx->cm_id = ib_create_cm_id(ib_ucm_event_handler, ctx);
+	if (IS_ERR(ctx->cm_id)) {
+		result = PTR_ERR(ctx->cm_id);
+		goto err;
 	}
 
 	resp.id = ctx->id;
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp))) {
 		result = -EFAULT;
-		goto err_ret;
+		goto err;
 	}
 
 	return 0;
-err_ret:
-	ib_destroy_cm_id(ctx->cm_id);
-err_cm:
-	ib_ucm_ctx_put(ctx); /* user reference */
 
+err:
+	ib_ucm_destroy_ctx(file, ctx->id);
 	return result;
 }
 
@@ -617,19 +570,11 @@ static ssize_t ib_ucm_destroy_id(struct ib_ucm_file *file,
 				 int in_len, int out_len)
 {
 	struct ib_ucm_destroy_id cmd;
-	struct ib_ucm_context *ctx;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx)
-		return -ENOENT;
-
-	ib_ucm_ctx_put(ctx); /* user reference */
-	ib_ucm_ctx_put(ctx); /* func reference */
-
-	return 0;
+	return ib_ucm_destroy_ctx(file, cmd.id);
 }
 
 static ssize_t ib_ucm_attr_id(struct ib_ucm_file *file,
@@ -647,15 +592,9 @@ static ssize_t ib_ucm_attr_id(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx)
-		return -ENOENT;
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file) {
-		result = -EINVAL;
-		goto done;
-	}
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	resp.service_id   = ctx->cm_id->service_id;
 	resp.service_mask = ctx->cm_id->service_mask;
@@ -666,9 +605,7 @@ static ssize_t ib_ucm_attr_id(struct ib_ucm_file *file,
 			 &resp, sizeof(resp)))
 		result = -EFAULT;
 
-done:
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
+	ib_ucm_ctx_put(ctx);
 	return result;
 }
 
@@ -683,19 +620,12 @@ static ssize_t ib_ucm_listen(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx)
-		return -ENOENT;
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
-		result = ib_cm_listen(ctx->cm_id, cmd.service_id,
-				      cmd.service_mask);
-
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
+	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask);
+	ib_ucm_ctx_put(ctx);
 	return result;
 }
 
@@ -710,18 +640,12 @@ static ssize_t ib_ucm_establish(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx)
-		return -ENOENT;
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
-		result = ib_cm_establish(ctx->cm_id);
-
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
+	result = ib_cm_establish(ctx->cm_id);
+	ib_ucm_ctx_put(ctx);
 	return result;
 }
 
@@ -768,8 +692,8 @@ static int ib_ucm_path_get(struct ib_sa_path_rec **path, u64 src)
 		return -EFAULT;
 	}
 
-	memcpy(sa_path->dgid.raw, ucm_path.dgid, sizeof(union ib_gid));
-	memcpy(sa_path->sgid.raw, ucm_path.sgid, sizeof(union ib_gid));
+	memcpy(sa_path->dgid.raw, ucm_path.dgid, sizeof sa_path->dgid);
+	memcpy(sa_path->sgid.raw, ucm_path.sgid, sizeof sa_path->sgid);
 
 	sa_path->dlid	          = ucm_path.dlid;
 	sa_path->slid	          = ucm_path.slid;
@@ -839,25 +763,17 @@ static ssize_t ib_ucm_send_req(struct ib_ucm_file *file,
 	param.max_cm_retries             = cmd.max_cm_retries;
 	param.srq                        = cmd.srq;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
 		result = ib_send_cm_req(ctx->cm_id, &param);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
 done:
 	kfree(param.private_data);
 	kfree(param.primary_path);
 	kfree(param.alternate_path);
-
 	return result;
 }
 
@@ -890,23 +806,14 @@ static ssize_t ib_ucm_send_rep(struct ib_ucm_file *file,
 	param.rnr_retry_count     = cmd.rnr_retry_count;
 	param.srq                 = cmd.srq;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
 		result = ib_send_cm_rep(ctx->cm_id, &param);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
-done:
 	kfree(param.private_data);
-
 	return result;
 }
 
@@ -928,23 +835,14 @@ static ssize_t ib_ucm_send_private_data(struct ib_ucm_file *file,
 	if (result)
 		return result;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
 		result = func(ctx->cm_id, private_data, cmd.len);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
-done:
 	kfree(private_data);
-
 	return result;
 }
 
@@ -995,26 +893,17 @@ static ssize_t ib_ucm_send_info(struct ib_ucm_file *file,
 	if (result)
 		goto done;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
-		result = func(ctx->cm_id, cmd.status,
-			      info, cmd.info_len,
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
+		result = func(ctx->cm_id, cmd.status, info, cmd.info_len,
 			      data, cmd.data_len);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
 done:
 	kfree(data);
 	kfree(info);
-
 	return result;
 }
 
@@ -1048,24 +937,14 @@ static ssize_t ib_ucm_send_mra(struct ib_ucm_file *file,
 	if (result)
 		return result;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
+		result = ib_send_cm_mra(ctx->cm_id, cmd.timeout, data, cmd.len);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
-		result = ib_send_cm_mra(ctx->cm_id, cmd.timeout,
-					data, cmd.len);
-
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
-done:
 	kfree(data);
-
 	return result;
 }
 
@@ -1090,24 +969,16 @@ static ssize_t ib_ucm_send_lap(struct ib_ucm_file *file,
 	if (result)
 		goto done;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
 		result = ib_send_cm_lap(ctx->cm_id, path, data, cmd.len);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
 done:
 	kfree(data);
 	kfree(path);
-
 	return result;
 }
 
@@ -1140,24 +1011,16 @@ static ssize_t ib_ucm_send_sidr_req(struct ib_ucm_file *file,
 	param.max_cm_retries   = cmd.max_cm_retries;
 	param.pkey             = cmd.pkey;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
 		result = ib_send_cm_sidr_req(ctx->cm_id, &param);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
 done:
 	kfree(param.private_data);
 	kfree(param.path);
-
 	return result;
 }
 
@@ -1184,30 +1047,22 @@ static ssize_t ib_ucm_send_sidr_rep(struct ib_ucm_file *file,
 	if (result)
 		goto done;
 
-	param.qp_num	   = cmd.qpn;
-	param.qkey	     = cmd.qkey;
-	param.status	   = cmd.status;
-	param.info_length      = cmd.info_len;
-	param.private_data_len = cmd.data_len;
+	param.qp_num		= cmd.qpn;
+	param.qkey		= cmd.qkey;
+	param.status		= cmd.status;
+	param.info_length	= cmd.info_len;
+	param.private_data_len	= cmd.data_len;
 
-	ctx = ib_ucm_ctx_get(cmd.id);
-	if (!ctx) {
-		result = -ENOENT;
-		goto done;
-	}
-
- 	down(&ctx->file->mutex);
-	if (ctx->file != file)
-		result = -EINVAL;
-	else
+	ctx = ib_ucm_ctx_get(file, cmd.id);
+	if (!IS_ERR(ctx)) {
 		result = ib_send_cm_sidr_rep(ctx->cm_id, &param);
+		ib_ucm_ctx_put(ctx);
+	} else
+		result = PTR_ERR(ctx);
 
-	up(&ctx->file->mutex);
-	ib_ucm_ctx_put(ctx); /* func reference */
 done:
 	kfree(param.private_data);
 	kfree(param.info);
-
 	return result;
 }
 
@@ -1305,22 +1160,17 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	struct ib_ucm_context *ctx;
 
 	down(&file->mutex);
-
 	while (!list_empty(&file->ctxs)) {
 
 		ctx = list_entry(file->ctxs.next,
 				 struct ib_ucm_context, file_list);
 
-		up(&ctx->file->mutex);
-		ib_ucm_ctx_put(ctx); /* user reference */
+		up(&file->mutex);
+		ib_ucm_destroy_ctx(file, ctx->id);
 		down(&file->mutex);
 	}
-
 	up(&file->mutex);
-
 	kfree(file);
-
-	ucm_dbg("Deleted struct\n");
 	return 0;
 }
 

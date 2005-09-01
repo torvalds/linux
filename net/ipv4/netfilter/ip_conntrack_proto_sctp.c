@@ -404,6 +404,8 @@ static int sctp_packet(struct ip_conntrack *conntrack,
 		}
 
 		conntrack->proto.sctp.state = newconntrack;
+		if (oldsctpstate != newconntrack)
+			ip_conntrack_event_cache(IPCT_PROTOINFO, skb);
 		write_unlock_bh(&sctp_lock);
 	}
 
@@ -503,7 +505,12 @@ static struct ip_conntrack_protocol ip_conntrack_protocol_sctp = {
 	.packet 	 = sctp_packet, 
 	.new 		 = sctp_new, 
 	.destroy 	 = NULL, 
-	.me 		 = THIS_MODULE 
+	.me 		 = THIS_MODULE,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.tuple_to_nfattr = ip_ct_port_tuple_to_nfattr,
+	.nfattr_to_tuple = ip_ct_port_nfattr_to_tuple,
+#endif
 };
 
 #ifdef CONFIG_SYSCTL

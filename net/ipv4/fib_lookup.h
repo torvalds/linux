@@ -7,6 +7,7 @@
 
 struct fib_alias {
 	struct list_head	fa_list;
+	struct rcu_head rcu;
 	struct fib_info		*fa_info;
 	u8			fa_tos;
 	u8			fa_type;

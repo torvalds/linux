@@ -140,6 +140,9 @@ struct machdep_calls {
 
 	/* Idle loop for this platform, leave empty for default idle loop */
 	int		(*idle_loop)(void);
+
+	/* Function to enable pmcs for this platform, called once per cpu. */
+	void		(*enable_pmcs)(void);
 };
 
 extern int default_idle(void);

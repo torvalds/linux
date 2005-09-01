@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/tcp.h>
 #include <asm/errno.h>
 #include <net/llc_if.h>
 #include <net/llc_sap.h>
@@ -25,6 +24,7 @@
 #include <net/llc_c_ev.h>
 #include <net/llc_c_ac.h>
 #include <net/llc_c_st.h>
+#include <net/tcp_states.h>
 
 u8 llc_mac_null_var[IFHWADDRLEN];
 

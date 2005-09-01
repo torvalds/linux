@@ -131,7 +131,7 @@ static ctl_table vs_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table ipv4_table[] = {
+static ctl_table ipvs_ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4,
 		.procname	= "ipv4", 
@@ -146,7 +146,7 @@ static ctl_table lblc_root_table[] = {
 		.ctl_name	= CTL_NET,
 		.procname	= "net", 
 		.mode		= 0555, 
-		.child		= ipv4_table
+		.child		= ipvs_ipv4_table
 	},
 	{ .ctl_name = 0 }
 };

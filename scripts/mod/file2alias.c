@@ -341,6 +341,22 @@ static int do_of_entry (const char *filename, struct of_device_id *of, char *ali
     return 1;
 }
 
+static int do_vio_entry(const char *filename, struct vio_device_id *vio,
+		char *alias)
+{
+	char *tmp;
+
+	sprintf(alias, "vio:T%sS%s", vio->type[0] ? vio->type : "*",
+			vio->compat[0] ? vio->compat : "*");
+
+	/* Replace all whitespace with underscores */
+	for (tmp = alias; tmp && *tmp; tmp++)
+		if (isspace (*tmp))
+			*tmp = '_';
+
+	return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -422,6 +438,9 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
         else if (sym_is(symname, "__mod_of_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct of_device_id),
 			 do_of_entry, mod);
+        else if (sym_is(symname, "__mod_vio_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct vio_device_id),
+			 do_vio_entry, mod);
 
 }
 

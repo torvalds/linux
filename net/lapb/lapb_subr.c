@@ -78,7 +78,7 @@ void lapb_requeue_frames(struct lapb_cb *lapb)
 		if (!skb_prev)
 			skb_queue_head(&lapb->write_queue, skb);
 		else
-			skb_append(skb_prev, skb);
+			skb_append(skb_prev, skb, &lapb->write_queue);
 		skb_prev = skb;
 	}
 }
