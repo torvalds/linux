@@ -938,31 +938,25 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 	struct veth_port *port = (struct veth_port *) dev->priv;
 	HvLpEvent_Rc rc;
 	struct veth_msg *msg = NULL;
-	int err = 0;
 	unsigned long flags;
 
-	if (! cnx) {
-		port->stats.tx_errors++;
-		dev_kfree_skb(skb);
+	if (! cnx)
 		return 0;
-	}
 
 	spin_lock_irqsave(&cnx->lock, flags);
 
 	if (! (cnx->state & VETH_STATE_READY))
-		goto drop;
+		goto no_error;
 
-	if ((skb->len - 14) > VETH_MAX_MTU)
+	if ((skb->len - ETH_HLEN) > VETH_MAX_MTU)
 		goto drop;
 
 	msg = veth_stack_pop(cnx);
-
-	if (! msg) {
-		err = 1;
+	if (! msg)
 		goto drop;
-	}
 
 	msg->in_use = 1;
+	msg->skb = skb_get(skb);
 
 	msg->data.addr[0] = dma_map_single(port->dev, skb->data,
 				skb->len, DMA_TO_DEVICE);
@@ -970,9 +964,6 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 	if (dma_mapping_error(msg->data.addr[0]))
 		goto recycle_and_drop;
 
-	/* Is it really necessary to check the length and address
-	 * fields of the first entry here? */
-	msg->skb = skb;
 	msg->dev = port->dev;
 	msg->data.len[0] = skb->len;
 	msg->data.eofmask = 1 << VETH_EOF_SHIFT;
@@ -992,43 +983,43 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 	if (veth_stack_is_empty(cnx))
 		veth_stop_queues(cnx);
 
+ no_error:
 	spin_unlock_irqrestore(&cnx->lock, flags);
 	return 0;
 
  recycle_and_drop:
-	/* we free the skb below, so tell veth_recycle_msg() not to. */
-	msg->skb = NULL;
 	veth_recycle_msg(cnx, msg);
  drop:
-	port->stats.tx_errors++;
-	dev_kfree_skb(skb);
 	spin_unlock_irqrestore(&cnx->lock, flags);
-	return err;
+	return 1;
 }
 
-static HvLpIndexMap veth_transmit_to_many(struct sk_buff *skb,
+static void veth_transmit_to_many(struct sk_buff *skb,
 					  HvLpIndexMap lpmask,
 					  struct net_device *dev)
 {
 	struct veth_port *port = (struct veth_port *) dev->priv;
-	int i;
-	int rc;
+	int i, success, error;
+
+	success = error = 0;
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; i++) {
 		if ((lpmask & (1 << i)) == 0)
 			continue;
 
-		rc = veth_transmit_to_one(skb_get(skb), i, dev);
-		if (! rc)
-			lpmask &= ~(1<<i);
+		if (veth_transmit_to_one(skb, i, dev))
+			error = 1;
+		else
+			success = 1;
 	}
 
-	if (! lpmask) {
+	if (error)
+		port->stats.tx_errors++;
+
+	if (success) {
 		port->stats.tx_packets++;
 		port->stats.tx_bytes += skb->len;
 	}
-
-	return lpmask;
 }
 
 static int veth_start_xmit(struct sk_buff *skb, struct net_device *dev)
