@@ -3179,28 +3179,56 @@ xlog_ticket_get(xlog_t		*log,
 	 * and their unit amount is the total amount of space required.
 	 *
 	 * The following lines of code account for non-transaction data
-	 * which occupy space in the on-disk log. 
+	 * which occupy space in the on-disk log.
+	 *
+	 * Normal form of a transaction is:
+	 * <oph><trans-hdr><start-oph><reg1-oph><reg1><reg2-oph>...<commit-oph>
+	 * and then there are LR hdrs, split-recs and roundoff at end of syncs.
+	 *
+	 * We need to account for all the leadup data and trailer data
+	 * around the transaction data.
+	 * And then we need to account for the worst case in terms of using
+	 * more space.
+	 * The worst case will happen if:
+	 * - the placement of the transaction happens to be such that the
+	 *   roundoff is at its maximum
+	 * - the transaction data is synced before the commit record is synced
+	 *   i.e. <transaction-data><roundoff> | <commit-rec><roundoff>
+	 *   Therefore the commit record is in its own Log Record.
+	 *   This can happen as the commit record is called with its
+	 *   own region to xlog_write().
+	 *   This then means that in the worst case, roundoff can happen for
+	 *   the commit-rec as well.
+	 *   The commit-rec is smaller than padding in this scenario and so it is
+	 *   not added separately.
 	 */
 
-	/* for start-rec */
-	unit_bytes += sizeof(xlog_op_header_t); 
-
-	/* for padding */
-	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) &&
-		log->l_mp->m_sb.sb_logsunit > 1) {
-		/* log su roundoff */
-		unit_bytes += log->l_mp->m_sb.sb_logsunit;  
-	} else {
-		/* BB roundoff */
-		unit_bytes += BBSIZE;
-        }
-
-	/* for commit-rec */
+	/* for trans header */
 	unit_bytes += sizeof(xlog_op_header_t);
- 
+	unit_bytes += sizeof(xfs_trans_header_t);
+
+	/* for start-rec */
+	unit_bytes += sizeof(xlog_op_header_t);
+
 	/* for LR headers */
 	num_headers = ((unit_bytes + log->l_iclog_size-1) >> log->l_iclog_size_log);
 	unit_bytes += log->l_iclog_hsize * num_headers;
+
+	/* for commit-rec LR header - note: padding will subsume the ophdr */
+	unit_bytes += log->l_iclog_hsize;
+
+	/* for split-recs - ophdrs added when data split over LRs */
+	unit_bytes += sizeof(xlog_op_header_t) * num_headers;
+
+	/* for roundoff padding for transaction data and one for commit record */
+	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) &&
+	    log->l_mp->m_sb.sb_logsunit > 1) {
+		/* log su roundoff */
+		unit_bytes += 2*log->l_mp->m_sb.sb_logsunit;
+	} else {
+		/* BB roundoff */
+		unit_bytes += 2*BBSIZE;
+        }
 
 	tic->t_unit_res		= unit_bytes;
 	tic->t_curr_res		= unit_bytes;
