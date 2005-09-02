@@ -309,6 +309,15 @@ config TMD_HERMES
 	  PCI <-> PCMCIA bridge.  Several vendors sell such adaptors so that
 	  802.11b PCMCIA cards can be used in desktop machines.
 
+config NORTEL_HERMES
+	tristate "Nortel emobility PCI adaptor support"
+	depends on PCI && HERMES
+	help
+	  Enable support for PCMCIA cards supported by the "Hermes" (aka
+	  orinoco) driver when used in Nortel emobility PCI adaptors.  These
+	  adaptors are not full PCMCIA controllers, but act as a more limited
+	  PCI <-> PCMCIA bridge.
+
 config PCI_HERMES
 	tristate "Prism 2.5 PCI 802.11b adaptor support"
 	depends on PCI && HERMES
