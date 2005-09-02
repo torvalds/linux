@@ -375,6 +375,19 @@ config PCMCIA_HERMES
 	  configure your card and that /etc/pcmcia/wireless.opts works:
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
 
+config PCMCIA_SPECTRUM
+	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"
+	depends on NET_RADIO && PCMCIA && HERMES
+	---help---
+
+	  This is a driver for 802.11b cards using RAM-loadable Symbol
+	  firmware, such as Symbol Wireless Networker LA4100, CompactFlash
+	  cards by Socket Communications and Intel PRO/Wireless 2011B.
+
+	  This driver requires firmware download on startup.  Utilities
+	  for downloading Symbol firmware are available at
+	  <http://sourceforge.net/projects/orinoco/>
+
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
 	depends on NET_RADIO && PCMCIA && (BROKEN || !M32R)
