@@ -1621,6 +1621,10 @@ xfs_vget(
 #define MNTOPT_SWIDTH	"swidth"	/* data volume stripe width */
 #define MNTOPT_NOUUID	"nouuid"	/* ignore filesystem UUID */
 #define MNTOPT_MTPT	"mtpt"		/* filesystem mount point */
+#define MNTOPT_GRPID	"grpid"		/* group-ID from parent directory */
+#define MNTOPT_NOGRPID	"nogrpid"	/* group-ID from current process */
+#define MNTOPT_BSDGROUPS    "bsdgroups"    /* group-ID from parent directory */
+#define MNTOPT_SYSVGROUPS   "sysvgroups"   /* group-ID from current process */
 #define MNTOPT_ALLOCSIZE    "allocsize"    /* preferred allocation size */
 #define MNTOPT_IHASHSIZE    "ihashsize"    /* size of inode hash table */
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
@@ -1741,6 +1745,12 @@ xfs_parseargs(
 			}
 			args->flags |= XFSMNT_IHASHSIZE;
 			args->ihashsize = simple_strtoul(value, &eov, 10);
+		} else if (!strcmp(this_char, MNTOPT_GRPID) ||
+			   !strcmp(this_char, MNTOPT_BSDGROUPS)) {
+			vfsp->vfs_flag |= VFS_GRPID;
+		} else if (!strcmp(this_char, MNTOPT_NOGRPID) ||
+			   !strcmp(this_char, MNTOPT_SYSVGROUPS)) {
+			vfsp->vfs_flag &= ~VFS_GRPID;
 		} else if (!strcmp(this_char, MNTOPT_WSYNC)) {
 			args->flags |= XFSMNT_WSYNC;
 		} else if (!strcmp(this_char, MNTOPT_OSYNCISOSYNC)) {
@@ -1862,6 +1872,7 @@ xfs_showargs(
 	};
 	struct proc_xfs_info	*xfs_infop;
 	struct xfs_mount	*mp = XFS_BHVTOM(bhv);
+	struct vfs		*vfsp = XFS_MTOVFS(mp);
 
 	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
 		if (mp->m_flags & xfs_infop->flag)
@@ -1898,7 +1909,10 @@ xfs_showargs(
 
 	if (!(mp->m_flags & XFS_MOUNT_32BITINOOPT))
 		seq_printf(m, "," MNTOPT_64BITINODE);
-	
+
+	if (vfsp->vfs_flag & VFS_GRPID)
+		seq_printf(m, "," MNTOPT_GRPID);
+
 	return 0;
 }
 
