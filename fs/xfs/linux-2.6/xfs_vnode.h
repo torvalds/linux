@@ -135,9 +135,6 @@ typedef enum {
 /*
  * Vnode flags.
  */
-#define VINACT		       0x1	/* vnode is being inactivated	*/
-#define VRECLM		       0x2	/* vnode is being reclaimed	*/
-#define VWAIT		       0x4	/* waiting for VINACT/VRECLM to end */
 #define VMODIFIED	       0x8	/* XFS inode state possibly differs */
 					/* to the Linux inode state.	*/
 
@@ -489,7 +486,6 @@ typedef struct vattr {
 	(VN_ISREG(vp) && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
 
 extern void	vn_init(void);
-extern int	vn_wait(struct vnode *);
 extern vnode_t	*vn_initialize(struct inode *);
 
 /*

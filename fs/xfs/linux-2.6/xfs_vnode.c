@@ -78,10 +78,6 @@ vn_reclaim(
 	}
 	ASSERT(vp->v_fbhv == NULL);
 
-	VN_LOCK(vp);
-	vp->v_flag &= (VRECLM|VWAIT);
-	VN_UNLOCK(vp, 0);
-
 	vp->v_fbhv = NULL;
 
 #ifdef XFS_VNODE_TRACE
@@ -89,31 +85,6 @@ vn_reclaim(
 	vp->v_trace = NULL;
 #endif
 
-	return 0;
-}
-
-STATIC void
-vn_wakeup(
-	struct vnode	*vp)
-{
-	VN_LOCK(vp);
-	if (vp->v_flag & VWAIT)
-		sv_broadcast(vptosync(vp));
-	vp->v_flag &= ~(VRECLM|VWAIT|VMODIFIED);
-	VN_UNLOCK(vp, 0);
-}
-
-int
-vn_wait(
-	struct vnode	*vp)
-{
-	VN_LOCK(vp);
-	if (vp->v_flag & (VINACT | VRECLM)) {
-		vp->v_flag |= VWAIT;
-		sv_wait(vptosync(vp), PINOD, &vp->v_lock, 0);
-		return 1;
-	}
-	VN_UNLOCK(vp, 0);
 	return 0;
 }
 
@@ -221,7 +192,6 @@ vn_purge(
 {
 	vn_trace_entry(vp, "vn_purge", (inst_t *)__return_address);
 
-again:
 	/*
 	 * Check whether vp has already been reclaimed since our caller
 	 * sampled its version while holding a filesystem cache lock that
@@ -234,19 +204,6 @@ again:
 	}
 
 	/*
-	 * If vp is being reclaimed or inactivated, wait until it is inert,
-	 * then proceed.  Can't assume that vnode is actually reclaimed
-	 * just because the reclaimed flag is asserted -- a vn_alloc
-	 * reclaim can fail.
-	 */
-	if (vp->v_flag & (VINACT | VRECLM)) {
-		ASSERT(vn_count(vp) == 0);
-		vp->v_flag |= VWAIT;
-		sv_wait(vptosync(vp), PINOD, &vp->v_lock, 0);
-		goto again;
-	}
-
-	/*
 	 * Another process could have raced in and gotten this vnode...
 	 */
 	if (vn_count(vp) > 0) {
@@ -255,7 +212,6 @@ again:
 	}
 
 	XFS_STATS_DEC(vn_active);
-	vp->v_flag |= VRECLM;
 	VN_UNLOCK(vp, 0);
 
 	/*
@@ -266,11 +222,6 @@ again:
 	 */
 	if (vn_reclaim(vp) != 0)
 		panic("vn_purge: cannot reclaim");
-
-	/*
-	 * Wakeup anyone waiting for vp to be reclaimed.
-	 */
-	vn_wakeup(vp);
 }
 
 /*
@@ -315,11 +266,6 @@ vn_rele(
 	 * return.
 	 */
 	if (!vcnt) {
-		/*
-		 * As soon as we turn this on, noone can find us in vn_get
-		 * until we turn off VINACT or VRECLM
-		 */
-		vp->v_flag |= VINACT;
 		VN_UNLOCK(vp, 0);
 
 		/*
@@ -330,10 +276,7 @@ vn_rele(
 			VOP_INACTIVE(vp, NULL, cache);
 
 		VN_LOCK(vp);
-		if (vp->v_flag & VWAIT)
-			sv_broadcast(vptosync(vp));
-
-		vp->v_flag &= ~(VINACT|VWAIT|VRECLM|VMODIFIED);
+		vp->v_flag &= ~VMODIFIED;
 	}
 
 	VN_UNLOCK(vp, 0);

@@ -505,7 +505,6 @@ xfs_iget(
 	vnode_t		*vp = NULL;
 	int		error;
 
-retry:
 	XFS_STATS_INC(xs_ig_attempts);
 
 	if ((inode = iget_locked(XFS_MTOVFS(mp)->vfs_super, ino))) {
@@ -526,16 +525,6 @@ inode_allocate:
 				iput(inode);
 			}
 		} else {
-			/* These are true if the inode is in inactive or
-			 * reclaim. The linux inode is about to go away,
-			 * wait for that path to finish, and try again.
-			 */
-			if (vp->v_flag & (VINACT | VRECLM)) {
-				vn_wait(vp);
-				iput(inode);
-				goto retry;
-			}
-
 			if (is_bad_inode(inode)) {
 				iput(inode);
 				return EIO;
