@@ -1301,7 +1301,7 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-	        ai->tfm = crypto_alloc_tfm("aes", 0);
+	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
 
         if (ai->tfm == NULL) {
                 printk(KERN_ERR "airo: failed to load transform for AES\n");
