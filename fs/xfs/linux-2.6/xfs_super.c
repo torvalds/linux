@@ -138,24 +138,25 @@ STATIC __inline__ void
 xfs_set_inodeops(
 	struct inode		*inode)
 {
-	vnode_t			*vp = LINVFS_GET_VP(inode);
-
-	if (vp->v_type == VNON) {
-		vn_mark_bad(vp);
-	} else if (S_ISREG(inode->i_mode)) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
 		inode->i_op = &linvfs_file_inode_operations;
 		inode->i_fop = &linvfs_file_operations;
 		inode->i_mapping->a_ops = &linvfs_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
+		break;
+	case S_IFDIR:
 		inode->i_op = &linvfs_dir_inode_operations;
 		inode->i_fop = &linvfs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
+		break;
+	case S_IFLNK:
 		inode->i_op = &linvfs_symlink_inode_operations;
 		if (inode->i_blocks)
 			inode->i_mapping->a_ops = &linvfs_aops;
-	} else {
+		break;
+	default:
 		inode->i_op = &linvfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
 	}
 }
 
@@ -167,16 +168,23 @@ xfs_revalidate_inode(
 {
 	struct inode		*inode = LINVFS_GET_IP(vp);
 
-	inode->i_mode	= (ip->i_d.di_mode & MODEMASK) | VTTOIF(vp->v_type);
+	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;
 	inode->i_uid	= ip->i_d.di_uid;
 	inode->i_gid	= ip->i_d.di_gid;
-	if (((1 << vp->v_type) & ((1<<VBLK) | (1<<VCHR))) == 0) {
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		inode->i_rdev =
+			MKDEV(sysv_major(ip->i_df.if_u2.if_rdev) & 0x1ff,
+			      sysv_minor(ip->i_df.if_u2.if_rdev));
+		break;
+	default:
 		inode->i_rdev = 0;
-	} else {
-		xfs_dev_t dev = ip->i_df.if_u2.if_rdev;
-		inode->i_rdev = MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+		break;
 	}
+
 	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
@@ -231,7 +239,6 @@ xfs_initialize_vnode(
 	 * finish our work.
 	 */
 	if (ip->i_d.di_mode != 0 && unlock && (inode->i_state & I_NEW)) {
-		vp->v_type = IFTOVT(ip->i_d.di_mode);
 		xfs_revalidate_inode(XFS_BHVTOM(bdp), vp, ip);
 		xfs_set_inodeops(inode);
 	

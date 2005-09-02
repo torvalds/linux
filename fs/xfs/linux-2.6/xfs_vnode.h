@@ -65,10 +65,6 @@ struct vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 
-/*
- * Vnode types.  VNON means no type.
- */
-enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VFIFO, VBAD, VSOCK };
 
 typedef xfs_ino_t vnumber_t;
 typedef struct dentry vname_t;
@@ -77,11 +73,9 @@ typedef bhv_head_t vn_bhv_head_t;
 /*
  * MP locking protocols:
  *	v_flag, v_vfsp				VN_LOCK/VN_UNLOCK
- *	v_type					read-only or fs-dependent
  */
 typedef struct vnode {
 	__u32		v_flag;			/* vnode flags (see below) */
-	enum vtype	v_type;			/* vnode type */
 	struct vfs	*v_vfsp;		/* ptr to containing VFS */
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
@@ -92,6 +86,12 @@ typedef struct vnode {
 	struct inode	v_inode;		/* Linux inode */
 	/* inode MUST be last */
 } vnode_t;
+
+#define VN_ISLNK(vp)	S_ISLNK((vp)->v_inode.i_mode)
+#define VN_ISREG(vp)	S_ISREG((vp)->v_inode.i_mode)
+#define VN_ISDIR(vp)	S_ISDIR((vp)->v_inode.i_mode)
+#define VN_ISCHR(vp)	S_ISCHR((vp)->v_inode.i_mode)
+#define VN_ISBLK(vp)	S_ISBLK((vp)->v_inode.i_mode)
 
 #define v_fbhv			v_bh.bh_first	       /* first behavior */
 #define v_fops			v_bh.bh_first->bd_ops  /* first behavior ops */
@@ -131,17 +131,6 @@ typedef enum {
  */
 #define LINVFS_GET_VP(inode)	((vnode_t *)list_entry(inode, vnode_t, v_inode))
 #define LINVFS_GET_IP(vp)	(&(vp)->v_inode)
-
-/*
- * Convert between vnode types and inode formats (since POSIX.1
- * defines mode word of stat structure in terms of inode formats).
- */
-extern enum vtype	iftovt_tab[];
-extern u_short		vttoif_tab[];
-#define IFTOVT(mode)	(iftovt_tab[((mode) & S_IFMT) >> 12])
-#define VTTOIF(indx)	(vttoif_tab[(int)(indx)])
-#define MAKEIMODE(indx, mode)	(int)(VTTOIF(indx) | (mode))
-
 
 /*
  * Vnode flags.
@@ -408,7 +397,6 @@ typedef struct vnodeops {
  */
 typedef struct vattr {
 	int		va_mask;	/* bit-mask of attributes present */
-	enum vtype	va_type;	/* vnode type (for create) */
 	mode_t		va_mode;	/* file access mode and type */
 	xfs_nlink_t	va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
@@ -498,7 +486,7 @@ typedef struct vattr {
  * Check whether mandatory file locking is enabled.
  */
 #define MANDLOCK(vp, mode)	\
-	((vp)->v_type == VREG && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
+	(VN_ISREG(vp) && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
 
 extern void	vn_init(void);
 extern int	vn_wait(struct vnode *);

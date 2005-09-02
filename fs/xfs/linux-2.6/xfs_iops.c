@@ -140,7 +140,6 @@ linvfs_mknod(
 
 	memset(&va, 0, sizeof(va));
 	va.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
-	va.va_type = IFTOVT(mode);
 	va.va_mode = mode;
 
 	switch (mode & S_IFMT) {
@@ -308,14 +307,13 @@ linvfs_symlink(
 	cvp = NULL;
 
 	memset(&va, 0, sizeof(va));
-	va.va_type = VLNK;
-	va.va_mode = irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO;
+	va.va_mode = S_IFLNK |
+		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
 	va.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
 
 	error = 0;
 	VOP_SYMLINK(dvp, dentry, &va, (char *)symname, &cvp, NULL, error);
 	if (!error && cvp) {
-		ASSERT(cvp->v_type == VLNK);
 		ip = LINVFS_GET_IP(cvp);
 		d_instantiate(dentry, ip);
 		validate_fields(dir);

@@ -44,19 +44,6 @@ DEFINE_SPINLOCK(vnumber_lock);
 #define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
 sv_t vsync[NVSYNC];
 
-/*
- * Translate stat(2) file types to vnode types and vice versa.
- * Aware of numeric order of S_IFMT and vnode type values.
- */
-enum vtype iftovt_tab[] = {
-	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
-	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VNON
-};
-
-u_short vttoif_tab[] = {
-	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK, S_IFIFO, 0, S_IFSOCK
-};
-
 
 void
 vn_init(void)
@@ -95,7 +82,6 @@ vn_reclaim(
 	vp->v_flag &= (VRECLM|VWAIT);
 	VN_UNLOCK(vp, 0);
 
-	vp->v_type = VNON;
 	vp->v_fbhv = NULL;
 
 #ifdef XFS_VNODE_TRACE
@@ -174,7 +160,7 @@ vn_revalidate_core(
 {
 	struct inode	*inode = LINVFS_GET_IP(vp);
 
-	inode->i_mode	    = VTTOIF(vap->va_type) | vap->va_mode;
+	inode->i_mode	    = vap->va_mode;
 	inode->i_nlink	    = vap->va_nlink;
 	inode->i_uid	    = vap->va_uid;
 	inode->i_gid	    = vap->va_gid;
