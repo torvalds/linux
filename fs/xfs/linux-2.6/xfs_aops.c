@@ -1202,6 +1202,16 @@ out_unlock:
 	return error;
 }
 
+STATIC int
+linvfs_invalidate_page(
+	struct page		*page,
+	unsigned long		offset)
+{
+	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
+			page->mapping->host, page, offset);
+	return block_invalidatepage(page, offset);
+}
+
 /*
  * Called to move a page into cleanable state - and from there
  * to be released. Possibly the page is already clean. We always
@@ -1279,6 +1289,7 @@ struct address_space_operations linvfs_aops = {
 	.writepage		= linvfs_writepage,
 	.sync_page		= block_sync_page,
 	.releasepage		= linvfs_release_page,
+	.invalidatepage		= linvfs_invalidate_page,
 	.prepare_write		= linvfs_prepare_write,
 	.commit_write		= generic_commit_write,
 	.bmap			= linvfs_bmap,
