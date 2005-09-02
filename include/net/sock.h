@@ -1232,9 +1232,8 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 {
 	struct page *page = NULL;
 
-	if (sk_stream_wmem_schedule(sk, PAGE_SIZE))
-		page = alloc_pages(sk->sk_allocation, 0);
-	else {
+	page = alloc_pages(sk->sk_allocation, 0);
+	if (!page) {
 		sk->sk_prot->enter_memory_pressure();
 		sk_stream_moderate_sndbuf(sk);
 	}

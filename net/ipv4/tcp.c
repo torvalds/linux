@@ -769,18 +769,22 @@ new_segment:
 					if (off == PAGE_SIZE) {
 						put_page(page);
 						TCP_PAGE(sk) = page = NULL;
+						TCP_OFF(sk) = off = 0;
 					}
-				}
+				} else
+					BUG_ON(off);
+
+				if (copy > PAGE_SIZE - off)
+					copy = PAGE_SIZE - off;
+
+				if (!sk_stream_wmem_schedule(sk, copy))
+					goto wait_for_memory;
 
 				if (!page) {
 					/* Allocate new cache page. */
 					if (!(page = sk_stream_alloc_page(sk)))
 						goto wait_for_memory;
-					off = 0;
 				}
-
-				if (copy > PAGE_SIZE - off)
-					copy = PAGE_SIZE - off;
 
 				/* Time to copy data. We are close to
 				 * the end! */
