@@ -112,6 +112,7 @@ typedef struct xfs_trans_header {
 #define	XFS_TRANS_GROWFSRT_ZERO		38
 #define	XFS_TRANS_GROWFSRT_FREE		39
 #define	XFS_TRANS_SWAPEXT		40
+#define	XFS_TRANS_TYPE_MAX		40
 /* new transaction types need to be reflected in xfs_logprint(8) */
 
 

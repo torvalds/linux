@@ -159,11 +159,15 @@ xfs_buftarg_t *xlog_target;
 void
 xlog_trace_loggrant(xlog_t *log, xlog_ticket_t *tic, xfs_caddr_t string)
 {
-	if (! log->l_grant_trace) {
-		log->l_grant_trace = ktrace_alloc(1024, KM_NOSLEEP);
-		if (! log->l_grant_trace)
+	unsigned long cnts;
+
+	if (!log->l_grant_trace) {
+		log->l_grant_trace = ktrace_alloc(2048, KM_NOSLEEP);
+		if (!log->l_grant_trace)
 			return;
 	}
+	/* ticket counts are 1 byte each */
+	cnts = ((unsigned long)tic->t_ocnt) | ((unsigned long)tic->t_cnt) << 8;
 
 	ktrace_enter(log->l_grant_trace,
 		     (void *)tic,
@@ -178,10 +182,10 @@ xlog_trace_loggrant(xlog_t *log, xlog_ticket_t *tic, xfs_caddr_t string)
 		     (void *)((unsigned long)CYCLE_LSN(log->l_tail_lsn)),
 		     (void *)((unsigned long)BLOCK_LSN(log->l_tail_lsn)),
 		     (void *)string,
-		     (void *)((unsigned long)13),
-		     (void *)((unsigned long)14),
-		     (void *)((unsigned long)15),
-		     (void *)((unsigned long)16));
+		     (void *)((unsigned long)tic->t_trans_type),
+		     (void *)cnts,
+		     (void *)((unsigned long)tic->t_curr_res),
+		     (void *)((unsigned long)tic->t_unit_res));
 }
 
 void
@@ -274,9 +278,11 @@ xfs_log_done(xfs_mount_t	*mp,
 		 * Release ticket if not permanent reservation or a specifc
 		 * request has been made to release a permanent reservation.
 		 */
+		xlog_trace_loggrant(log, ticket, "xfs_log_done: (non-permanent)");
 		xlog_ungrant_log_space(log, ticket);
 		xlog_state_put_ticket(log, ticket);
 	} else {
+		xlog_trace_loggrant(log, ticket, "xfs_log_done: (permanent)");
 		xlog_regrant_reserve_log_space(log, ticket);
 	}
 
@@ -399,7 +405,8 @@ xfs_log_reserve(xfs_mount_t	 *mp,
 		int		 cnt,
 		xfs_log_ticket_t *ticket,
 		__uint8_t	 client,
-		uint		 flags)
+		uint		 flags,
+		uint		 t_type)
 {
 	xlog_t		*log = mp->m_log;
 	xlog_ticket_t	*internal_ticket;
@@ -421,13 +428,19 @@ xfs_log_reserve(xfs_mount_t	 *mp,
 	if (*ticket != NULL) {
 		ASSERT(flags & XFS_LOG_PERM_RESERV);
 		internal_ticket = (xlog_ticket_t *)*ticket;
+		xlog_trace_loggrant(log, internal_ticket, "xfs_log_reserve: existing ticket (permanent trans)");
 		xlog_grant_push_ail(mp, internal_ticket->t_unit_res);
 		retval = xlog_regrant_write_log_space(log, internal_ticket);
 	} else {
 		/* may sleep if need to allocate more tickets */
 		internal_ticket = xlog_ticket_get(log, unit_bytes, cnt,
 						  client, flags);
+		internal_ticket->t_trans_type = t_type;
 		*ticket = internal_ticket;
+		xlog_trace_loggrant(log, internal_ticket, 
+			(internal_ticket->t_flags & XLOG_TIC_PERM_RESERV) ?
+			"xfs_log_reserve: create new ticket (permanent trans)" :
+			"xfs_log_reserve: create new ticket");
 		xlog_grant_push_ail(mp,
 				    (internal_ticket->t_unit_res *
 				     internal_ticket->t_cnt));
@@ -601,8 +614,9 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	if (! (XLOG_FORCED_SHUTDOWN(log))) {
 		reg[0].i_addr = (void*)&magic;
 		reg[0].i_len  = sizeof(magic);
+		XLOG_VEC_SET_TYPE(&reg[0], XLOG_REG_TYPE_UNMOUNT);
 
-		error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
+		error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0, 0);
 		if (!error) {
 			/* remove inited flag */
 			((xlog_ticket_t *)tic)->t_flags = 0;
@@ -1272,6 +1286,7 @@ xlog_commit_record(xfs_mount_t  *mp,
 
 	reg[0].i_addr = NULL;
 	reg[0].i_len = 0;
+	XLOG_VEC_SET_TYPE(&reg[0], XLOG_REG_TYPE_COMMIT);
 
 	ASSERT_ALWAYS(iclog);
 	if ((error = xlog_write(mp, reg, 1, ticket, commitlsnp,
@@ -1605,6 +1620,117 @@ xlog_state_finish_copy(xlog_t		*log,
 
 
 /*
+ * print out info relating to regions written which consume
+ * the reservation
+ */
+#if defined(XFS_LOG_RES_DEBUG)
+STATIC void
+xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
+{
+	uint i;
+	uint ophdr_spc = ticket->t_res_num_ophdrs * (uint)sizeof(xlog_op_header_t);
+
+	/* match with XLOG_REG_TYPE_* in xfs_log.h */
+	static char *res_type_str[XLOG_REG_TYPE_MAX] = {
+	    "bformat",
+	    "bchunk",
+	    "efi_format",
+	    "efd_format",
+	    "iformat",
+	    "icore",
+	    "iext",
+	    "ibroot",
+	    "ilocal",
+	    "iattr_ext",
+	    "iattr_broot",
+	    "iattr_local",
+	    "qformat",
+	    "dquot",
+	    "quotaoff",
+	    "LR header",
+	    "unmount",
+	    "commit",
+	    "trans header"
+	};
+	static char *trans_type_str[XFS_TRANS_TYPE_MAX] = {
+	    "SETATTR_NOT_SIZE",
+	    "SETATTR_SIZE",
+	    "INACTIVE",
+	    "CREATE",
+	    "CREATE_TRUNC",
+	    "TRUNCATE_FILE",
+	    "REMOVE",
+	    "LINK",
+	    "RENAME",
+	    "MKDIR",
+	    "RMDIR",
+	    "SYMLINK",
+	    "SET_DMATTRS",
+	    "GROWFS",
+	    "STRAT_WRITE",
+	    "DIOSTRAT",
+	    "WRITE_SYNC",
+	    "WRITEID",
+	    "ADDAFORK",
+	    "ATTRINVAL",
+	    "ATRUNCATE",
+	    "ATTR_SET",
+	    "ATTR_RM",
+	    "ATTR_FLAG",
+	    "CLEAR_AGI_BUCKET",
+	    "QM_SBCHANGE",
+	    "DUMMY1",
+	    "DUMMY2",
+	    "QM_QUOTAOFF",
+	    "QM_DQALLOC",
+	    "QM_SETQLIM",
+	    "QM_DQCLUSTER",
+	    "QM_QINOCREATE",
+	    "QM_QUOTAOFF_END",
+	    "SB_UNIT",
+	    "FSYNC_TS",
+	    "GROWFSRT_ALLOC",
+	    "GROWFSRT_ZERO",
+	    "GROWFSRT_FREE",
+	    "SWAPEXT"
+	};
+
+	xfs_fs_cmn_err(CE_WARN, mp,
+			"xfs_log_write: reservation summary:\n"
+			"  trans type  = %s (%u)\n"
+			"  unit res    = %d bytes\n"
+			"  current res = %d bytes\n"
+			"  total reg   = %u bytes (o/flow = %u bytes)\n"
+			"  ophdrs      = %u (ophdr space = %u bytes)\n"
+			"  ophdr + reg = %u bytes\n"
+			"  num regions = %u\n",
+			((ticket->t_trans_type <= 0 ||
+			  ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
+			  "bad-trans-type" : trans_type_str[ticket->t_trans_type-1]),
+			ticket->t_trans_type,
+			ticket->t_unit_res,
+			ticket->t_curr_res,
+			ticket->t_res_arr_sum, ticket->t_res_o_flow,
+			ticket->t_res_num_ophdrs, ophdr_spc,
+			ticket->t_res_arr_sum + 
+			  ticket->t_res_o_flow + ophdr_spc,
+			ticket->t_res_num);
+
+	for (i = 0; i < ticket->t_res_num; i++) {
+	   	uint r_type = ticket->t_res_arr[i].r_type; 
+		cmn_err(CE_WARN,
+			    "region[%u]: %s - %u bytes\n",
+			    i, 
+			    ((r_type <= 0 || r_type > XLOG_REG_TYPE_MAX) ?
+			    "bad-rtype" : res_type_str[r_type-1]),
+			    ticket->t_res_arr[i].r_len);
+	}
+}
+#else
+#define xlog_print_tic_res(mp, ticket)
+#endif
+
+/*
  * Write some region out to in-core log
  *
  * This will be called when writing externally provided regions or when
@@ -1677,16 +1803,21 @@ xlog_write(xfs_mount_t *	mp,
      * xlog_op_header_t and may need to be double word aligned.
      */
     len = 0;
-    if (ticket->t_flags & XLOG_TIC_INITED)     /* acct for start rec of xact */
+    if (ticket->t_flags & XLOG_TIC_INITED) {    /* acct for start rec of xact */
 	len += sizeof(xlog_op_header_t);
+	XLOG_TIC_ADD_OPHDR(ticket);
+    }
 
     for (index = 0; index < nentries; index++) {
 	len += sizeof(xlog_op_header_t);	    /* each region gets >= 1 */
+	XLOG_TIC_ADD_OPHDR(ticket);
 	len += reg[index].i_len;
+	XLOG_TIC_ADD_REGION(ticket, reg[index].i_len, reg[index].i_type);
     }
     contwr = *start_lsn = 0;
 
     if (ticket->t_curr_res < len) {
+	xlog_print_tic_res(mp, ticket);
 #ifdef DEBUG
 	xlog_panic(
 		"xfs_log_write: reservation ran out. Need to up reservation");
@@ -1790,6 +1921,7 @@ xlog_write(xfs_mount_t *	mp,
 		len += sizeof(xlog_op_header_t); /* from splitting of region */
 		/* account for new log op header */
 		ticket->t_curr_res -= sizeof(xlog_op_header_t);
+		XLOG_TIC_ADD_OPHDR(ticket);
 	    }
 	    xlog_verify_dest_ptr(log, ptr);
 
@@ -2282,6 +2414,9 @@ restart:
 	 */
 	if (log_offset == 0) {
 		ticket->t_curr_res -= log->l_iclog_hsize;
+		XLOG_TIC_ADD_REGION(ticket,
+				    log->l_iclog_hsize,
+				    XLOG_REG_TYPE_LRHEADER);
 		INT_SET(head->h_cycle, ARCH_CONVERT, log->l_curr_cycle);
 		ASSIGN_LSN(head->h_lsn, log);
 		ASSERT(log->l_curr_block >= 0);
@@ -2468,6 +2603,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 #endif
 
 	tic->t_curr_res = tic->t_unit_res;
+	XLOG_TIC_RESET_RES(tic);
 
 	if (tic->t_cnt > 0)
 		return (0);
@@ -2608,6 +2744,7 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 	XLOG_GRANT_SUB_SPACE(log, ticket->t_curr_res, 'w');
 	XLOG_GRANT_SUB_SPACE(log, ticket->t_curr_res, 'r');
 	ticket->t_curr_res = ticket->t_unit_res;
+	XLOG_TIC_RESET_RES(ticket);
 	xlog_trace_loggrant(log, ticket,
 			    "xlog_regrant_reserve_log_space: sub current res");
 	xlog_verify_grant_head(log, 1);
@@ -2624,6 +2761,7 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 	xlog_verify_grant_head(log, 0);
 	GRANT_UNLOCK(log, s);
 	ticket->t_curr_res = ticket->t_unit_res;
+	XLOG_TIC_RESET_RES(ticket);
 }	/* xlog_regrant_reserve_log_space */
 
 
@@ -3237,9 +3375,12 @@ xlog_ticket_get(xlog_t		*log,
 	tic->t_tid		= (xlog_tid_t)((__psint_t)tic & 0xffffffff);
 	tic->t_clientid		= client;
 	tic->t_flags		= XLOG_TIC_INITED;
+	tic->t_trans_type	= 0;
 	if (xflags & XFS_LOG_PERM_RESERV)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 	sv_init(&(tic->t_sema), SV_DEFAULT, "logtick");
+
+	XLOG_TIC_RESET_RES(tic);
 
 	return tic;
 }	/* xlog_ticket_get */
