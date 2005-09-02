@@ -1866,6 +1866,9 @@ static void eth_port_start(struct mv643xx_private *mp)
 	/* Enable port Rx. */
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
 						mp->port_rx_queue_command);
+
+	/* Disable port bandwidth limits by clearing MTU register */
+	mv_write(MV643XX_ETH_MAXIMUM_TRANSMIT_UNIT(port_num), 0);
 }
 
 /*
