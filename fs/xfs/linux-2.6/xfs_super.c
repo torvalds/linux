@@ -70,11 +70,14 @@
 #include <linux/namei.h>
 #include <linux/init.h>
 #include <linux/mount.h>
+#include <linux/mempool.h>
 #include <linux/writeback.h>
 
 STATIC struct quotactl_ops linvfs_qops;
 STATIC struct super_operations linvfs_sops;
-STATIC kmem_zone_t *linvfs_inode_zone;
+STATIC kmem_zone_t *xfs_vnode_zone;
+STATIC kmem_zone_t *xfs_ioend_zone;
+mempool_t *xfs_ioend_pool;
 
 STATIC struct xfs_mount_args *
 xfs_args_allocate(
@@ -281,8 +284,7 @@ linvfs_alloc_inode(
 {
 	vnode_t			*vp;
 
-	vp = (vnode_t *)kmem_cache_alloc(linvfs_inode_zone, 
-                kmem_flags_convert(KM_SLEEP));
+	vp = kmem_cache_alloc(xfs_vnode_zone, kmem_flags_convert(KM_SLEEP));
 	if (!vp)
 		return NULL;
 	return LINVFS_GET_IP(vp);
@@ -292,11 +294,11 @@ STATIC void
 linvfs_destroy_inode(
 	struct inode		*inode)
 {
-	kmem_cache_free(linvfs_inode_zone, LINVFS_GET_VP(inode));
+	kmem_zone_free(xfs_vnode_zone, LINVFS_GET_VP(inode));
 }
 
 STATIC void
-init_once(
+linvfs_inode_init_once(
 	void			*data,
 	kmem_cache_t		*cachep,
 	unsigned long		flags)
@@ -309,21 +311,41 @@ init_once(
 }
 
 STATIC int
-init_inodecache( void )
+linvfs_init_zones(void)
 {
-	linvfs_inode_zone = kmem_cache_create("linvfs_icache",
+	xfs_vnode_zone = kmem_cache_create("xfs_vnode",
 				sizeof(vnode_t), 0, SLAB_RECLAIM_ACCOUNT,
-				init_once, NULL);
-	if (linvfs_inode_zone == NULL)
-		return -ENOMEM;
+				linvfs_inode_init_once, NULL);
+	if (!xfs_vnode_zone)
+		goto out;
+
+	xfs_ioend_zone = kmem_zone_init(sizeof(xfs_ioend_t), "xfs_ioend");
+	if (!xfs_ioend_zone)
+		goto out_destroy_vnode_zone;
+
+	xfs_ioend_pool = mempool_create(4 * MAX_BUF_PER_PAGE,
+			mempool_alloc_slab, mempool_free_slab,
+			xfs_ioend_zone);
+	if (!xfs_ioend_pool)
+		goto out_free_ioend_zone;
+
 	return 0;
+
+
+ out_free_ioend_zone:
+	kmem_zone_destroy(xfs_ioend_zone);
+ out_destroy_vnode_zone:
+	kmem_zone_destroy(xfs_vnode_zone);
+ out:
+	return -ENOMEM;
 }
 
 STATIC void
-destroy_inodecache( void )
+linvfs_destroy_zones(void)
 {
-	if (kmem_cache_destroy(linvfs_inode_zone))
-		printk(KERN_WARNING "%s: cache still in use!\n", __FUNCTION__);
+	mempool_destroy(xfs_ioend_pool);
+	kmem_zone_destroy(xfs_vnode_zone);
+	kmem_zone_destroy(xfs_ioend_zone);
 }
 
 /*
@@ -873,9 +895,9 @@ init_xfs_fs( void )
 
 	ktrace_init(64);
 
-	error = init_inodecache();
+	error = linvfs_init_zones();
 	if (error < 0)
-		goto undo_inodecache;
+		goto undo_zones;
 
 	error = pagebuf_init();
 	if (error < 0)
@@ -896,9 +918,9 @@ undo_register:
 	pagebuf_terminate();
 
 undo_pagebuf:
-	destroy_inodecache();
+	linvfs_destroy_zones();
 
-undo_inodecache:
+undo_zones:
 	return error;
 }
 
@@ -910,7 +932,7 @@ exit_xfs_fs( void )
 	unregister_filesystem(&xfs_fs_type);
 	xfs_cleanup();
 	pagebuf_terminate();
-	destroy_inodecache();
+	linvfs_destroy_zones();
 	ktrace_uninit();
 }
 

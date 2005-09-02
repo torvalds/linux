@@ -67,7 +67,7 @@ STATIC int xfsbufd_wakeup(int, unsigned int);
 STATIC void pagebuf_delwri_queue(xfs_buf_t *, int);
 
 STATIC struct workqueue_struct *xfslogd_workqueue;
-STATIC struct workqueue_struct *xfsdatad_workqueue;
+struct workqueue_struct *xfsdatad_workqueue;
 
 /*
  * Pagebuf debugging

@@ -104,6 +104,7 @@
 #include <xfs_stats.h>
 #include <xfs_sysctl.h>
 #include <xfs_iops.h>
+#include <xfs_aops.h>
 #include <xfs_super.h>
 #include <xfs_globals.h>
 #include <xfs_fs_subr.h>

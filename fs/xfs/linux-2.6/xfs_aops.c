@@ -104,22 +104,24 @@ xfs_page_trace(
 #define xfs_page_trace(tag, inode, page, mask)
 #endif
 
-void
-linvfs_unwritten_done(
-	struct buffer_head	*bh,
-	int			uptodate)
+/*
+ * Schedule IO completion handling on a xfsdatad if this was
+ * the final hold on this ioend.
+ */
+STATIC void
+xfs_finish_ioend(
+	xfs_ioend_t		*ioend)
 {
-	xfs_buf_t		*pb = (xfs_buf_t *)bh->b_private;
+	if (atomic_dec_and_test(&ioend->io_remaining))
+		queue_work(xfsdatad_workqueue, &ioend->io_work);
+}
 
-	ASSERT(buffer_unwritten(bh));
-	bh->b_end_io = NULL;
-	clear_buffer_unwritten(bh);
-	if (!uptodate)
-		pagebuf_ioerror(pb, EIO);
-	if (atomic_dec_and_test(&pb->pb_io_remaining) == 1) {
-		pagebuf_iodone(pb, 1, 1);
-	}
-	end_buffer_async_write(bh, uptodate);
+STATIC void
+xfs_destroy_ioend(
+	xfs_ioend_t		*ioend)
+{
+	vn_iowake(ioend->io_vnode);
+	mempool_free(ioend, xfs_ioend_pool);
 }
 
 /*
@@ -127,20 +129,66 @@ linvfs_unwritten_done(
  * to written extents (buffered IO).
  */
 STATIC void
-linvfs_unwritten_convert(
-	xfs_buf_t	*bp)
+xfs_end_bio_unwritten(
+	void			*data)
 {
-	vnode_t		*vp = XFS_BUF_FSPRIVATE(bp, vnode_t *);
-	int		error;
+	xfs_ioend_t		*ioend = data;
+	vnode_t			*vp = ioend->io_vnode;
+	xfs_off_t		offset = ioend->io_offset;
+	size_t			size = ioend->io_size;
+	int			error;
 
-	BUG_ON(atomic_read(&bp->pb_hold) < 1);
-	VOP_BMAP(vp, XFS_BUF_OFFSET(bp), XFS_BUF_SIZE(bp),
-			BMAPI_UNWRITTEN, NULL, NULL, error);
-	XFS_BUF_SET_FSPRIVATE(bp, NULL);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_UNDATAIO(bp);
-	vn_iowake(vp);
-	pagebuf_iodone(bp, 0, 0);
+	if (ioend->io_uptodate)
+		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
+	xfs_destroy_ioend(ioend);
+}
+
+/*
+ * Allocate and initialise an IO completion structure.
+ * We need to track unwritten extent write completion here initially.
+ * We'll need to extend this for updating the ondisk inode size later
+ * (vs. incore size).
+ */
+STATIC xfs_ioend_t *
+xfs_alloc_ioend(
+	struct inode		*inode)
+{
+	xfs_ioend_t		*ioend;
+
+	ioend = mempool_alloc(xfs_ioend_pool, GFP_NOFS);
+
+	/*
+	 * Set the count to 1 initially, which will prevent an I/O
+	 * completion callback from happening before we have started
+	 * all the I/O from calling the completion routine too early.
+	 */
+	atomic_set(&ioend->io_remaining, 1);
+	ioend->io_uptodate = 1; /* cleared if any I/O fails */
+	ioend->io_vnode = LINVFS_GET_VP(inode);
+	atomic_inc(&ioend->io_vnode->v_iocount);
+	ioend->io_offset = 0;
+	ioend->io_size = 0;
+
+	INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten, ioend);
+
+	return ioend;
+}
+
+void
+linvfs_unwritten_done(
+	struct buffer_head	*bh,
+	int			uptodate)
+{
+	xfs_ioend_t		*ioend = bh->b_private;
+
+	ASSERT(buffer_unwritten(bh));
+	bh->b_end_io = NULL;
+	clear_buffer_unwritten(bh);
+	if (!uptodate)
+		ioend->io_uptodate = 0;
+
+	xfs_finish_ioend(ioend);
+	end_buffer_async_write(bh, uptodate);
 }
 
 /*
@@ -255,7 +303,7 @@ xfs_probe_unwritten_page(
 	struct address_space	*mapping,
 	pgoff_t			index,
 	xfs_iomap_t		*iomapp,
-	xfs_buf_t		*pb,
+	xfs_ioend_t		*ioend,
 	unsigned long		max_offset,
 	unsigned long		*fsbs,
 	unsigned int            bbits)
@@ -283,7 +331,7 @@ xfs_probe_unwritten_page(
 				break;
 			xfs_map_at_offset(page, bh, p_offset, bbits, iomapp);
 			set_buffer_unwritten_io(bh);
-			bh->b_private = pb;
+			bh->b_private = ioend;
 			p_offset += bh->b_size;
 			(*fsbs)++;
 		} while ((bh = bh->b_this_page) != head);
@@ -434,27 +482,15 @@ xfs_map_unwritten(
 {
 	struct buffer_head	*bh = curr;
 	xfs_iomap_t		*tmp;
-	xfs_buf_t		*pb;
-	loff_t			offset, size;
+	xfs_ioend_t		*ioend;
+	loff_t			offset;
 	unsigned long		nblocks = 0;
 
 	offset = start_page->index;
 	offset <<= PAGE_CACHE_SHIFT;
 	offset += p_offset;
 
-	/* get an "empty" pagebuf to manage IO completion
-	 * Proper values will be set before returning */
-	pb = pagebuf_lookup(iomapp->iomap_target, 0, 0, 0);
-	if (!pb)
-		return -EAGAIN;
-
-	atomic_inc(&LINVFS_GET_VP(inode)->v_iocount);
-
-	/* Set the count to 1 initially, this will stop an I/O
-	 * completion callout which happens before we have started
-	 * all the I/O from calling pagebuf_iodone too early.
-	 */
-	atomic_set(&pb->pb_io_remaining, 1);
+	ioend = xfs_alloc_ioend(inode);
 
 	/* First map forwards in the page consecutive buffers
 	 * covering this unwritten extent
@@ -467,12 +503,12 @@ xfs_map_unwritten(
 			break;
 		xfs_map_at_offset(start_page, bh, p_offset, block_bits, iomapp);
 		set_buffer_unwritten_io(bh);
-		bh->b_private = pb;
+		bh->b_private = ioend;
 		p_offset += bh->b_size;
 		nblocks++;
 	} while ((bh = bh->b_this_page) != head);
 
-	atomic_add(nblocks, &pb->pb_io_remaining);
+	atomic_add(nblocks, &ioend->io_remaining);
 
 	/* If we reached the end of the page, map forwards in any
 	 * following pages which are also covered by this extent.
@@ -489,13 +525,13 @@ xfs_map_unwritten(
 		tloff = min(tlast, tloff);
 		for (tindex = start_page->index + 1; tindex < tloff; tindex++) {
 			page = xfs_probe_unwritten_page(mapping,
-						tindex, iomapp, pb,
+						tindex, iomapp, ioend,
 						PAGE_CACHE_SIZE, &bs, bbits);
 			if (!page)
 				break;
 			nblocks += bs;
-			atomic_add(bs, &pb->pb_io_remaining);
-			xfs_convert_page(inode, page, iomapp, wbc, pb,
+			atomic_add(bs, &ioend->io_remaining);
+			xfs_convert_page(inode, page, iomapp, wbc, ioend,
 							startio, all_bh);
 			/* stop if converting the next page might add
 			 * enough blocks that the corresponding byte
@@ -507,12 +543,12 @@ xfs_map_unwritten(
 		if (tindex == tlast &&
 		    (pg_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1)))) {
 			page = xfs_probe_unwritten_page(mapping,
-							tindex, iomapp, pb,
+							tindex, iomapp, ioend,
 							pg_offset, &bs, bbits);
 			if (page) {
 				nblocks += bs;
-				atomic_add(bs, &pb->pb_io_remaining);
-				xfs_convert_page(inode, page, iomapp, wbc, pb,
+				atomic_add(bs, &ioend->io_remaining);
+				xfs_convert_page(inode, page, iomapp, wbc, ioend,
 							startio, all_bh);
 				if (nblocks >= ((ULONG_MAX - PAGE_SIZE) >> block_bits))
 					goto enough;
@@ -521,21 +557,9 @@ xfs_map_unwritten(
 	}
 
 enough:
-	size = nblocks;		/* NB: using 64bit number here */
-	size <<= block_bits;	/* convert fsb's to byte range */
-
-	XFS_BUF_DATAIO(pb);
-	XFS_BUF_ASYNC(pb);
-	XFS_BUF_SET_SIZE(pb, size);
-	XFS_BUF_SET_COUNT(pb, size);
-	XFS_BUF_SET_OFFSET(pb, offset);
-	XFS_BUF_SET_FSPRIVATE(pb, LINVFS_GET_VP(inode));
-	XFS_BUF_SET_IODONE_FUNC(pb, linvfs_unwritten_convert);
-
-	if (atomic_dec_and_test(&pb->pb_io_remaining) == 1) {
-		pagebuf_iodone(pb, 1, 1);
-	}
-
+	ioend->io_size = (xfs_off_t)nblocks << block_bits;
+	ioend->io_offset = offset;
+	xfs_finish_ioend(ioend);
 	return 0;
 }
 
