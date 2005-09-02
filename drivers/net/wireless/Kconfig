@@ -289,8 +289,8 @@ config APPLE_AIRPORT
 	  a non-standard interface
 
 config PLX_HERMES
-	tristate "Hermes in PLX9052 based PCI adaptor support (Netgear MA301 etc.) (EXPERIMENTAL)"
-	depends on PCI && HERMES && EXPERIMENTAL
+	tristate "Hermes in PLX9052 based PCI adaptor support (Netgear MA301 etc.)"
+	depends on PCI && HERMES
 	help
 	  Enable support for PCMCIA cards supported by the "Hermes" (aka
 	  orinoco) driver when used in PLX9052 based PCI adaptors.  These
@@ -299,12 +299,9 @@ config PLX_HERMES
 	  802.11b PCMCIA cards can be used in desktop machines.  The Netgear
 	  MA301 is such an adaptor.
 
-	  Support for these adaptors is so far still incomplete and buggy.
-	  You have been warned.
-
 config TMD_HERMES
-	tristate "Hermes in TMD7160 based PCI adaptor support (EXPERIMENTAL)"
-	depends on PCI && HERMES && EXPERIMENTAL
+	tristate "Hermes in TMD7160 based PCI adaptor support"
+	depends on PCI && HERMES
 	help
 	  Enable support for PCMCIA cards supported by the "Hermes" (aka
 	  orinoco) driver when used in TMD7160 based PCI adaptors.  These
@@ -312,12 +309,9 @@ config TMD_HERMES
 	  PCI <-> PCMCIA bridge.  Several vendors sell such adaptors so that
 	  802.11b PCMCIA cards can be used in desktop machines.
 
-	  Support for these adaptors is so far still incomplete and buggy.
-	  You have been warned.
-
 config PCI_HERMES
-	tristate "Prism 2.5 PCI 802.11b adaptor support (EXPERIMENTAL)"
-	depends on PCI && HERMES && EXPERIMENTAL
+	tristate "Prism 2.5 PCI 802.11b adaptor support"
+	depends on PCI && HERMES
 	help
 	  Enable support for PCI and mini-PCI 802.11b wireless NICs based on
 	  the Prism 2.5 chipset.  These are true PCI cards, not the 802.11b
