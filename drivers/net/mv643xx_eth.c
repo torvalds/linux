@@ -369,15 +369,6 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 
 			dev_kfree_skb_irq(pkt_info.return_info);
 			released = 0;
-
-			/*
-			 * Decrement the number of outstanding skbs counter on
-			 * the TX queue.
-			 */
-			if (mp->tx_ring_skbs == 0)
-				panic("ERROR - TX outstanding SKBs"
-						" counter is corrupted");
-			mp->tx_ring_skbs--;
 		} else
 			dma_unmap_page(NULL, pkt_info.buf_ptr,
 					pkt_info.byte_cnt, DMA_TO_DEVICE);
@@ -1042,9 +1033,6 @@ static void mv643xx_tx(struct net_device *dev)
 						DMA_TO_DEVICE);
 
 			dev_kfree_skb_irq(pkt_info.return_info);
-
-			if (mp->tx_ring_skbs)
-				mp->tx_ring_skbs--;
 		} else
 			dma_unmap_page(NULL, pkt_info.buf_ptr,
 					pkt_info.byte_cnt, DMA_TO_DEVICE);
@@ -1187,7 +1175,6 @@ linear:
 		pkt_info.buf_ptr = dma_map_single(NULL, skb->data, skb->len,
 							DMA_TO_DEVICE);
 		pkt_info.return_info = skb;
-		mp->tx_ring_skbs++;
 		status = eth_port_send(mp, &pkt_info);
 		if ((status == ETH_ERROR) || (status == ETH_QUEUE_FULL))
 			printk(KERN_ERR "%s: Error on transmitting packet\n",
@@ -1272,7 +1259,6 @@ linear:
 				pkt_info.cmd_sts |= ETH_TX_ENABLE_INTERRUPT |
 							ETH_TX_LAST_DESC;
 				pkt_info.return_info = skb;
-				mp->tx_ring_skbs++;
 			} else {
 				pkt_info.return_info = 0;
 			}
@@ -1309,7 +1295,6 @@ linear:
 	pkt_info.buf_ptr = dma_map_single(NULL, skb->data, skb->len,
 								DMA_TO_DEVICE);
 	pkt_info.return_info = skb;
-	mp->tx_ring_skbs++;
 	status = eth_port_send(mp, &pkt_info);
 	if ((status == ETH_ERROR) || (status == ETH_QUEUE_FULL))
 		printk(KERN_ERR "%s: Error on transmitting packet\n",
@@ -2526,6 +2511,9 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		return ETH_ERROR;
 	}
 
+	mp->tx_ring_skbs++;
+	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
+
 	/* Get the Tx Desc ring indexes */
 	tx_desc_curr = mp->tx_curr_desc_q;
 	tx_desc_used = mp->tx_used_desc_q;
@@ -2591,6 +2579,9 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
 		return ETH_QUEUE_FULL;
+
+	mp->tx_ring_skbs++;
+	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_curr = mp->tx_curr_desc_q;
@@ -2691,6 +2682,9 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 
 	/* Any Tx return cancels the Tx resource error status */
 	mp->tx_resource_err = 0;
+
+	BUG_ON(mp->tx_ring_skbs == 0);
+	mp->tx_ring_skbs--;
 
 	return ETH_OK;
 }
