@@ -80,7 +80,7 @@ static void serial_pxa_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-static void serial_pxa_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial_pxa_stop_tx(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 
@@ -185,7 +185,7 @@ static void transmit_chars(struct uart_pxa_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial_pxa_stop_tx(&up->port, 0);
+		serial_pxa_stop_tx(&up->port);
 		return;
 	}
 
@@ -203,10 +203,10 @@ static void transmit_chars(struct uart_pxa_port *up)
 
 
 	if (uart_circ_empty(xmit))
-		serial_pxa_stop_tx(&up->port, 0);
+		serial_pxa_stop_tx(&up->port);
 }
 
-static void serial_pxa_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial_pxa_start_tx(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 

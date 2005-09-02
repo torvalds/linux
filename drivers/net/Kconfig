@@ -447,7 +447,7 @@ config NET_SB1250_MAC
 
 config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
-	depends on NET_ETHERNET && PCI && SGI_IP27
+	depends on NET_ETHERNET && PCI && SGI_IP27 && BROKEN
 	select CRC32
 	select MII
 	help

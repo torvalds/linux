@@ -253,7 +253,7 @@ sio_quot_set(struct uart_txx9_port *up, int quot)
 		sio_out(up, TXX9_SIBGR, 0xff | TXX9_SIBGR_BCLK_T6);
 }
 
-static void serial_txx9_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial_txx9_stop_tx(struct uart_port *port)
 {
 	struct uart_txx9_port *up = (struct uart_txx9_port *)port;
 	unsigned long flags;
@@ -263,7 +263,7 @@ static void serial_txx9_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-static void serial_txx9_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial_txx9_start_tx(struct uart_port *port)
 {
 	struct uart_txx9_port *up = (struct uart_txx9_port *)port;
 	unsigned long flags;
@@ -372,7 +372,7 @@ static inline void transmit_chars(struct uart_txx9_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial_txx9_stop_tx(&up->port, 0);
+		serial_txx9_stop_tx(&up->port);
 		return;
 	}
 
@@ -389,7 +389,7 @@ static inline void transmit_chars(struct uart_txx9_port *up)
 		uart_write_wakeup(&up->port);
 
 	if (uart_circ_empty(xmit))
-		serial_txx9_stop_tx(&up->port, 0);
+		serial_txx9_stop_tx(&up->port);
 }
 
 static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id, struct pt_regs *regs)

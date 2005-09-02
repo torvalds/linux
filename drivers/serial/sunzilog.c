@@ -684,7 +684,7 @@ static void sunzilog_set_mctrl(struct uart_port *port, unsigned int mctrl)
 }
 
 /* The port lock is held and interrupts are disabled.  */
-static void sunzilog_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void sunzilog_stop_tx(struct uart_port *port)
 {
 	struct uart_sunzilog_port *up = (struct uart_sunzilog_port *) port;
 
@@ -692,7 +692,7 @@ static void sunzilog_stop_tx(struct uart_port *port, unsigned int tty_stop)
 }
 
 /* The port lock is held and interrupts are disabled.  */
-static void sunzilog_start_tx(struct uart_port *port, unsigned int tty_start)
+static void sunzilog_start_tx(struct uart_port *port)
 {
 	struct uart_sunzilog_port *up = (struct uart_sunzilog_port *) port;
 	struct zilog_channel __iomem *channel = ZILOG_CHANNEL_FROM_PORT(port);

@@ -2373,10 +2373,9 @@ static unsigned int ic4_tx_empty(struct uart_port *the_port)
 /**
  * ic4_stop_tx - stop the transmitter
  * @port: Port to operate on
- * @tty_stop: Set to 1 if called via uart_stop
  *
  */
-static void ic4_stop_tx(struct uart_port *the_port, unsigned int tty_stop)
+static void ic4_stop_tx(struct uart_port *the_port)
 {
 }
 
@@ -2471,10 +2470,9 @@ static unsigned int ic4_get_mctrl(struct uart_port *the_port)
 /**
  * ic4_start_tx - Start transmitter, flush any output
  * @port: Port to operate on
- * @tty_stop: Set to 1 if called via uart_start
  *
  */
-static void ic4_start_tx(struct uart_port *the_port, unsigned int tty_stop)
+static void ic4_start_tx(struct uart_port *the_port)
 {
 	struct ioc4_port *port = get_ioc4_port(the_port);
 	unsigned long flags;
