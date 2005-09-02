@@ -199,8 +199,7 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	crypto_digest_final(tfm, cksum->data);
 	code = 0;
 out:
-	if (tfm)
-		crypto_free_tfm(tfm);
+	crypto_free_tfm(tfm);
 	return code;
 }
 

@@ -114,8 +114,7 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 	kfree(cksum.data);
 	status = nfs_ok;
 out:
-	if (tfm)
-		crypto_free_tfm(tfm);
+	crypto_free_tfm(tfm);
 	return status;
 }
 
