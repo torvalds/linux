@@ -279,6 +279,11 @@ enum sis190_eeprom_address {
 	EEPROMMACAddr	= 0x03
 };
 
+enum sis190_feature {
+	F_HAS_RGMII	= 1,
+	F_PHY_88E1111	= 2
+};
+
 struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
@@ -300,6 +305,7 @@ struct sis190_private {
 	u32 msg_enable;
 	struct mii_if_info mii_if;
 	struct list_head first_phy;
+	u32 features;
 };
 
 struct sis190_phy {
@@ -321,11 +327,12 @@ static struct mii_chip_info {
         const char *name;
         u16 id[2];
         unsigned int type;
+	u32 feature;
 } mii_chip_table[] = {
-	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN },
-	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN },
-	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN },
-	{ "Realtek PHY RTL8201",  { 0x0000, 0x8200 }, LAN },
+	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN, 0 },
+	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN, 0 },
+	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN, F_PHY_88E1111 },
+	{ "Realtek PHY RTL8201",  { 0x0000, 0x8200 }, LAN, 0 },
 	{ NULL, }
 };
 
@@ -1309,12 +1316,32 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 		phy->type = (p->type == MIX) ?
 			((mii_status & (BMSR_100FULL | BMSR_100HALF)) ?
 				LAN : HOME) : p->type;
+		tp->features |= p->feature;
 	} else
 		phy->type = UNKNOWN;
 
 	net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
 		  pci_name(tp->pci_dev),
 		  (phy->type == UNKNOWN) ? "Unknown PHY" : p->name, phy_id);
+}
+
+static void sis190_mii_probe_88e1111_fixup(struct sis190_private *tp)
+{
+	if (tp->features & F_PHY_88E1111) {
+		void __iomem *ioaddr = tp->mmio_addr;
+		int phy_id = tp->mii_if.phy_id;
+		u16 reg[2][2] = {
+			{ 0x808b, 0x0ce1 },
+			{ 0x808f, 0x0c60 }
+		}, *p;
+
+		p = (tp->features & F_HAS_RGMII) ? reg[0] : reg[1];
+
+		mdio_write(ioaddr, phy_id, 0x1b, p[0]);
+		udelay(200);
+		mdio_write(ioaddr, phy_id, 0x14, p[1]);
+		udelay(200);
+	}
 }
 
 /**
@@ -1366,6 +1393,8 @@ static int __devinit sis190_mii_probe(struct net_device *dev)
 
 	/* Select default PHY for mac */
 	sis190_default_phy(dev);
+
+	sis190_mii_probe_88e1111_fixup(tp);
 
 	mii_if->dev = dev;
 	mii_if->mdio_read = __mdio_read;
@@ -1506,6 +1535,11 @@ static void sis190_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
+static void sis190_set_rgmii(struct sis190_private *tp, u8 reg)
+{
+	tp->features |= (reg & 0x80) ? F_HAS_RGMII : 0;
+}
+
 static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 						     struct net_device *dev)
 {
@@ -1532,6 +1566,8 @@ static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 
 		((u16 *)dev->dev_addr)[0] = le16_to_cpu(w);
 	}
+
+	sis190_set_rgmii(tp, sis190_read_eeprom(ioaddr, EEPROMInfo));
 
 	return 0;
 }
@@ -1577,6 +1613,8 @@ static int __devinit sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
 
 	outb(0x12, 0x78);
 	reg = inb(0x79);
+
+	sis190_set_rgmii(tp, reg);
 
 	/* Restore the value to ISA Bridge */
 	pci_write_config_byte(isa_bridge, 0x48, tmp8);
@@ -1799,6 +1837,9 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	       dev->dev_addr[0], dev->dev_addr[1],
 	       dev->dev_addr[2], dev->dev_addr[3],
 	       dev->dev_addr[4], dev->dev_addr[5]);
+
+	net_probe(tp, KERN_INFO "%s: %s mode.\n", dev->name,
+		  (tp->features & F_HAS_RGMII) ? "RGMII" : "GMII");
 
 	netif_carrier_off(dev);
 
