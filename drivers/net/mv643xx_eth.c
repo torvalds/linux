@@ -58,11 +58,10 @@
 
 #define INT_CAUSE_UNMASK_ALL		0x0007ffff
 #define INT_CAUSE_UNMASK_ALL_EXT	0x0011ffff
-#ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
 #define INT_CAUSE_MASK_ALL		0x00000000
+#define INT_CAUSE_MASK_ALL_EXT		0x00000000
 #define INT_CAUSE_CHECK_BITS		INT_CAUSE_UNMASK_ALL
 #define INT_CAUSE_CHECK_BITS_EXT	INT_CAUSE_UNMASK_ALL_EXT
-#endif
 
 #ifdef MV643XX_CHECKSUM_OFFLOAD_TX
 #define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
@@ -1338,6 +1337,43 @@ static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 	return &mp->stats;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static inline void mv643xx_enable_irq(struct mv643xx_private *mp)
+{
+	int port_num = mp->port_num;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+					INT_CAUSE_UNMASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
+					INT_CAUSE_UNMASK_ALL_EXT);
+	spin_unlock_irqrestore(&mp->lock, flags);
+}
+
+static inline void mv643xx_disable_irq(struct mv643xx_private *mp)
+{
+	int port_num = mp->port_num;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+					INT_CAUSE_MASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
+					INT_CAUSE_MASK_ALL_EXT);
+	spin_unlock_irqrestore(&mp->lock, flags);
+}
+
+static void mv643xx_netpoll(struct net_device *netdev)
+{
+	struct mv643xx_private *mp = netdev_priv(netdev);
+
+	mv643xx_disable_irq(mp);
+	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
+	mv643xx_enable_irq(mp);
+}
+#endif
+
 /*/
  * mv643xx_eth_probe
  *
@@ -1386,6 +1422,10 @@ static int mv643xx_eth_probe(struct device *ddev)
 #ifdef MV643XX_NAPI
 	dev->poll = mv643xx_poll;
 	dev->weight = 64;
+#endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = mv643xx_netpoll;
 #endif
 
 	dev->watchdog_timeo = 2 * HZ;
