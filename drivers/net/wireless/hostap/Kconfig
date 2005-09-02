@@ -1,6 +1,8 @@
 config HOSTAP
 	tristate "IEEE 802.11 for Host AP (Prism2/2.5/3 and WEP/TKIP/CCMP)"
 	depends on NET_RADIO
+	select IEEE80211
+	select IEEE80211_CRYPT_WEP
 	---help---
 	Shared driver code for IEEE 802.11b wireless cards based on
 	Intersil Prism2/2.5/3 chipset. This driver supports so called
