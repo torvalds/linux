@@ -377,11 +377,7 @@ static int nocrypt_iv(struct crypto_tfm *tfm,
 int crypto_init_cipher_flags(struct crypto_tfm *tfm, u32 flags)
 {
 	u32 mode = flags & CRYPTO_TFM_MODE_MASK;
-	
 	tfm->crt_cipher.cit_mode = mode ? mode : CRYPTO_TFM_MODE_ECB;
-	if (flags & CRYPTO_TFM_REQ_WEAK_KEY)
-		tfm->crt_flags = CRYPTO_TFM_REQ_WEAK_KEY;
-	
 	return 0;
 }
 
