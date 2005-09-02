@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -1249,8 +1249,8 @@ bio_end_io_pagebuf(
 	int			error)
 {
 	xfs_buf_t		*pb = (xfs_buf_t *)bio->bi_private;
-	unsigned int		i, blocksize = pb->pb_target->pbr_bsize;
-	struct bio_vec		*bvec = bio->bi_io_vec;
+	unsigned int		blocksize = pb->pb_target->pbr_bsize;
+	struct bio_vec		*bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 
 	if (bio->bi_size)
 		return 1;
@@ -1258,10 +1258,12 @@ bio_end_io_pagebuf(
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
 		pb->pb_error = EIO;
 
-	for (i = 0; i < bio->bi_vcnt; i++, bvec++) {
+	do {
 		struct page	*page = bvec->bv_page;
 
-		if (pb->pb_error) {
+		if (unlikely(pb->pb_error)) {
+			if (pb->pb_flags & PBF_READ)
+				ClearPageUptodate(page);
 			SetPageError(page);
 		} else if (blocksize == PAGE_CACHE_SIZE) {
 			SetPageUptodate(page);
@@ -1270,10 +1272,13 @@ bio_end_io_pagebuf(
 			set_page_region(page, bvec->bv_offset, bvec->bv_len);
 		}
 
+		if (--bvec >= bio->bi_io_vec)
+			prefetchw(&bvec->bv_page->flags);
+
 		if (_pagebuf_iolocked(pb)) {
 			unlock_page(page);
 		}
-	}
+	} while (bvec >= bio->bi_io_vec);
 
 	_pagebuf_iodone(pb, 1);
 	bio_put(bio);
