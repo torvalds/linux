@@ -773,6 +773,7 @@ static inline void rm7k_erratum31(void)
 
 	for (addr = INDEX_BASE; addr <= INDEX_BASE + 4096; addr += ic_lsize) {
 		__asm__ __volatile__ (
+			".set push\n\t"
 			".set noreorder\n\t"
 			".set mips3\n\t"
 			"cache\t%1, 0(%0)\n\t"
@@ -787,8 +788,7 @@ static inline void rm7k_erratum31(void)
 			"cache\t%1, 0x1000(%0)\n\t"
 			"cache\t%1, 0x2000(%0)\n\t"
 			"cache\t%1, 0x3000(%0)\n\t"
-			".set\tmips0\n\t"
-			".set\treorder\n\t"
+			".set pop\n"
 			:
 			: "r" (addr), "i" (Index_Store_Tag_I), "i" (Fill));
 	}
