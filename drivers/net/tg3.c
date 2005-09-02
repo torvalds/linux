@@ -121,12 +121,9 @@
 			           TG3_RX_RCB_RING_SIZE(tp))
 #define TG3_TX_RING_BYTES	(sizeof(struct tg3_tx_buffer_desc) * \
 				 TG3_TX_RING_SIZE)
-#define TX_RING_GAP(TP)	\
-	(TG3_TX_RING_SIZE - (TP)->tx_pending)
 #define TX_BUFFS_AVAIL(TP)						\
-	(((TP)->tx_cons <= (TP)->tx_prod) ?				\
-	  (TP)->tx_cons + (TP)->tx_pending - (TP)->tx_prod :		\
-	  (TP)->tx_cons - (TP)->tx_prod - TX_RING_GAP(TP))
+	((TP)->tx_pending -						\
+	 (((TP)->tx_prod - (TP)->tx_cons) & (TG3_TX_RING_SIZE - 1)))
 #define NEXT_TX(N)		(((N) + 1) & (TG3_TX_RING_SIZE - 1))
 
 #define RX_PKT_BUF_SZ		(1536 + tp->rx_offset + 64)
@@ -2880,9 +2877,13 @@ static void tg3_tx(struct tg3 *tp)
 
 	tp->tx_cons = sw_idx;
 
-	if (netif_queue_stopped(tp->dev) &&
-	    (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH))
-		netif_wake_queue(tp->dev);
+	if (unlikely(netif_queue_stopped(tp->dev))) {
+		spin_lock(&tp->tx_lock);
+		if (netif_queue_stopped(tp->dev) &&
+		    (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH))
+			netif_wake_queue(tp->dev);
+		spin_unlock(&tp->tx_lock);
+	}
 }
 
 /* Returns size of skb allocated or < 0 on error.
@@ -3198,9 +3199,7 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 
 	/* run TX completion thread */
 	if (sblk->idx[0].tx_consumer != tp->tx_cons) {
-		spin_lock(&tp->tx_lock);
 		tg3_tx(tp);
-		spin_unlock(&tp->tx_lock);
 	}
 
 	/* run RX thread, within the bounds set by NAPI.
@@ -3716,8 +3715,11 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))
+	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1)) {
 		netif_stop_queue(dev);
+		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
+			netif_wake_queue(tp->dev);
+	}
 
 out_unlock:
     	mmiowb();
