@@ -4899,6 +4899,7 @@ static int snd_hdsp_create_alsa_devices(snd_card_t *card, hdsp_t *hdsp)
 	}
 	
 	if (!(hdsp->state & HDSP_InitializationComplete)) {
+		strcpy(card->shortname, "Hammerfall DSP");
 		sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name, 
 			hdsp->port, hdsp->irq);
 	    
