@@ -290,7 +290,7 @@ acpi_rs_extended_irq_resource(u8 * byte_stream_buffer,
 
 	ACPI_FUNCTION_TRACE("rs_extended_irq_resource");
 
-	/* Point past the Descriptor to get the number of bytes consumed */
+	/* Get the Descriptor Length field */
 
 	buffer += 1;
 	ACPI_MOVE_16_TO_16(&temp16, buffer);
@@ -398,7 +398,7 @@ acpi_rs_extended_irq_resource(u8 * byte_stream_buffer,
 		/* Copy the string into the buffer */
 
 		index = 0;
-		while (0x00 != *buffer) {
+		while (*buffer) {
 			*temp_ptr = *buffer;
 
 			temp_ptr += 1;
@@ -408,7 +408,7 @@ acpi_rs_extended_irq_resource(u8 * byte_stream_buffer,
 
 		/* Add the terminating null */
 
-		*temp_ptr = 0x00;
+		*temp_ptr = 0;
 		output_struct->data.extended_irq.resource_source.string_length =
 		    index + 1;
 
@@ -420,7 +420,7 @@ acpi_rs_extended_irq_resource(u8 * byte_stream_buffer,
 		temp8 = (u8) (index + 1);
 		struct_size += ACPI_ROUND_UP_to_32_bITS(temp8);
 	} else {
-		output_struct->data.extended_irq.resource_source.index = 0x00;
+		output_struct->data.extended_irq.resource_source.index = 0;
 		output_struct->data.extended_irq.resource_source.string_length =
 		    0;
 		output_struct->data.extended_irq.resource_source.string_ptr =
@@ -461,16 +461,15 @@ acpi_rs_extended_irq_stream(struct acpi_resource *linked_list,
 	u16 *length_field;
 	u8 temp8 = 0;
 	u8 index;
-	char *temp_pointer = NULL;
 
 	ACPI_FUNCTION_TRACE("rs_extended_irq_stream");
 
-	/* The descriptor field is static */
+	/* Set the Descriptor Type field */
 
-	*buffer = 0x89;
+	*buffer = ACPI_RDESC_TYPE_EXTENDED_XRUPT;
 	buffer += 1;
 
-	/* Set a pointer to the Length field - to be filled in later */
+	/* Save a pointer to the Length field - to be filled in later */
 
 	length_field = ACPI_CAST_PTR(u16, buffer);
 	buffer += 2;
@@ -524,16 +523,14 @@ acpi_rs_extended_irq_stream(struct acpi_resource *linked_list,
 		    (u8) linked_list->data.extended_irq.resource_source.index;
 		buffer += 1;
 
-		temp_pointer = (char *)buffer;
-
 		/* Copy the string */
 
-		ACPI_STRCPY(temp_pointer,
+		ACPI_STRCPY((char *)buffer,
 			    linked_list->data.extended_irq.resource_source.
 			    string_ptr);
 
 		/*
-		 * Buffer needs to be set to the length of the sting + one for the
+		 * Buffer needs to be set to the length of the string + one for the
 		 * terminating null
 		 */
 		buffer +=

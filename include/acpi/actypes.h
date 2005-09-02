@@ -1074,14 +1074,21 @@ struct acpi_resource_source {
 	char *string_ptr;
 };
 
+/* Fields common to all address descriptors, 16/32/64 bit */
+
+#define ACPI_RESOURCE_ADDRESS_COMMON \
+	u32                                 resource_type; \
+	u32                                 producer_consumer; \
+	u32                                 decode; \
+	u32                                 min_address_fixed; \
+	u32                                 max_address_fixed; \
+	union acpi_resource_attribute       attribute;
+
+struct acpi_resource_address {
+ACPI_RESOURCE_ADDRESS_COMMON};
+
 struct acpi_resource_address16 {
-	u32 resource_type;
-	u32 producer_consumer;
-	u32 decode;
-	u32 min_address_fixed;
-	u32 max_address_fixed;
-	union acpi_resource_attribute attribute;
-	u32 granularity;
+	ACPI_RESOURCE_ADDRESS_COMMON u32 granularity;
 	u32 min_address_range;
 	u32 max_address_range;
 	u32 address_translation_offset;
@@ -1090,13 +1097,7 @@ struct acpi_resource_address16 {
 };
 
 struct acpi_resource_address32 {
-	u32 resource_type;
-	u32 producer_consumer;
-	u32 decode;
-	u32 min_address_fixed;
-	u32 max_address_fixed;
-	union acpi_resource_attribute attribute;
-	u32 granularity;
+	ACPI_RESOURCE_ADDRESS_COMMON u32 granularity;
 	u32 min_address_range;
 	u32 max_address_range;
 	u32 address_translation_offset;
@@ -1105,13 +1106,7 @@ struct acpi_resource_address32 {
 };
 
 struct acpi_resource_address64 {
-	u32 resource_type;
-	u32 producer_consumer;
-	u32 decode;
-	u32 min_address_fixed;
-	u32 max_address_fixed;
-	union acpi_resource_attribute attribute;
-	u64 granularity;
+	ACPI_RESOURCE_ADDRESS_COMMON u64 granularity;
 	u64 min_address_range;
 	u64 max_address_range;
 	u64 address_translation_offset;
@@ -1161,6 +1156,7 @@ union acpi_resource_data {
 	struct acpi_resource_mem24 memory24;
 	struct acpi_resource_mem32 memory32;
 	struct acpi_resource_fixed_mem32 fixed_memory32;
+	struct acpi_resource_address address;	/* Common 16/32/64 address fields */
 	struct acpi_resource_address16 address16;
 	struct acpi_resource_address32 address32;
 	struct acpi_resource_address64 address64;

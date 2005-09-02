@@ -99,16 +99,6 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 	}
 
 	/*
-	 * Get a new owner_id for objects created by this method. Namespace
-	 * objects (such as Operation Regions) can be created during the
-	 * first pass parse.
-	 */
-	status = acpi_ut_allocate_owner_id(&info->obj_desc->method.owner_id);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/*
 	 * The caller "owns" the parameters, so give each one an extra
 	 * reference
 	 */
@@ -139,10 +129,6 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 	status = acpi_ps_execute_pass(info);
 
       cleanup:
-	if (info->obj_desc->method.owner_id) {
-		acpi_ut_release_owner_id(&info->obj_desc->method.owner_id);
-	}
-
 	/* Take away the extra reference that we gave the parameters above */
 
 	acpi_ps_update_parameter_list(info, REF_DECREMENT);

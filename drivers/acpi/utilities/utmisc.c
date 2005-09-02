@@ -67,6 +67,14 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 	ACPI_FUNCTION_TRACE("ut_allocate_owner_id");
 
+	/* Guard against multiple allocations of ID to the same location */
+
+	if (*owner_id) {
+		ACPI_REPORT_ERROR(("Owner ID [%2.2X] already exists\n",
+				   *owner_id));
+		return_ACPI_STATUS(AE_ALREADY_EXISTS);
+	}
+
 	/* Mutex for the global ID mask */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_CACHES);
@@ -80,7 +88,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 		if (!(acpi_gbl_owner_id_mask & (1 << i))) {
 			ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
 					  "Current owner_id mask: %8.8X New ID: %2.2X\n",
-					  acpi_gbl_owner_id_mask, (i + 1)));
+					  acpi_gbl_owner_id_mask,
+					  (unsigned int)(i + 1)));
 
 			acpi_gbl_owner_id_mask |= (1 << i);
 			*owner_id = (acpi_owner_id) (i + 1);
@@ -143,7 +152,9 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 		return_VOID;
 	}
 
-	owner_id--;		/* Normalize to zero */
+	/* Normalize the ID to zero */
+
+	owner_id--;
 
 	/* Free the owner ID only if it is valid */
 

@@ -486,8 +486,10 @@ acpi_ds_load2_begin_op(struct acpi_walk_state * walk_state,
 		if ((!(walk_state->op_info->flags & AML_NSOPCODE) &&
 		     (walk_state->opcode != AML_INT_NAMEPATH_OP)) ||
 		    (!(walk_state->op_info->flags & AML_NAMED))) {
+#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
 			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
 			    (walk_state->op_info->class == AML_CLASS_CONTROL)) {
+
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 						  "Begin/EXEC: %s (fl %8.8X)\n",
 						  walk_state->op_info->name,
@@ -499,6 +501,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state * walk_state,
 				    acpi_ds_exec_begin_op(walk_state, out_op);
 				return_ACPI_STATUS(status);
 			}
+#endif
 			return_ACPI_STATUS(AE_OK);
 		}
 
@@ -731,6 +734,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 
 	if (!(walk_state->op_info->flags & AML_NSOBJECT)) {
 #ifndef ACPI_NO_METHOD_EXECUTION
+#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
 		/* No namespace object. Executable opcode? */
 
 		if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
@@ -745,6 +749,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			status = acpi_ds_exec_end_op(walk_state);
 			return_ACPI_STATUS(status);
 		}
+#endif
 #endif
 		return_ACPI_STATUS(AE_OK);
 	}
