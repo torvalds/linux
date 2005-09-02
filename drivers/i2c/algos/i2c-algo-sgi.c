@@ -149,7 +149,7 @@ static int sgi_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 			err = i2c_write(adap, p->buf, p->len);
 	}
 
-	return err;
+	return (err < 0) ? err : i;
 }
 
 static u32 sgi_func(struct i2c_adapter *adap)
