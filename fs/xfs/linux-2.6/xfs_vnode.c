@@ -42,17 +42,33 @@ DEFINE_SPINLOCK(vnumber_lock);
  */
 #define NVSYNC                  37
 #define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
-sv_t vsync[NVSYNC];
+STATIC wait_queue_head_t vsync[NVSYNC];
 
 
 void
 vn_init(void)
 {
-	register sv_t *svp;
-	register int i;
+	int i;
 
-	for (svp = vsync, i = 0; i < NVSYNC; i++, svp++)
-		init_sv(svp, SV_DEFAULT, "vsy", i);
+	for (i = 0; i < NVSYNC; i++)
+		init_waitqueue_head(&vsync[i]);
+}
+
+void
+vn_iowait(
+	struct vnode	*vp)
+{
+	wait_queue_head_t *wq = vptosync(vp);
+
+	wait_event(*wq, (atomic_read(&vp->v_iocount) == 0));
+}
+
+void
+vn_iowake(
+	struct vnode	*vp)
+{
+	if (atomic_dec_and_test(&vp->v_iocount))
+		wake_up(vptosync(vp));
 }
 
 /*
@@ -110,6 +126,8 @@ vn_initialize(
 
 	/* Initialize the first behavior and the behavior chain head. */
 	vn_bhv_head_init(VN_BHV_HEAD(vp), "vnode");
+
+	atomic_set(&vp->v_iocount, 0);
 
 #ifdef	XFS_VNODE_TRACE
 	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);

@@ -139,7 +139,7 @@ linvfs_unwritten_convert(
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	XFS_BUF_UNDATAIO(bp);
-	iput(LINVFS_GET_IP(vp));
+	vn_iowake(vp);
 	pagebuf_iodone(bp, 0, 0);
 }
 
@@ -448,14 +448,7 @@ xfs_map_unwritten(
 	if (!pb)
 		return -EAGAIN;
 
-	/* Take a reference to the inode to prevent it from
-	 * being reclaimed while we have outstanding unwritten
-	 * extent IO on it.
-	 */
-	if ((igrab(inode)) != inode) {
-		pagebuf_free(pb);
-		return -EAGAIN;
-	}
+	atomic_inc(&LINVFS_GET_VP(inode)->v_iocount);
 
 	/* Set the count to 1 initially, this will stop an I/O
 	 * completion callout which happens before we have started

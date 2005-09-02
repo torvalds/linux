@@ -3846,51 +3846,10 @@ xfs_reclaim(
 		return 0;
 	}
 
-	if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
-		if (ip->i_d.di_size > 0) {
-			/*
-			 * Flush and invalidate any data left around that is
-			 * a part of this file.
-			 *
-			 * Get the inode's i/o lock so that buffers are pushed
-			 * out while holding the proper lock.  We can't hold
-			 * the inode lock here since flushing out buffers may
-			 * cause us to try to get the lock in xfs_strategy().
-			 *
-			 * We don't have to call remapf() here, because there
-			 * cannot be any mapped file references to this vnode
-			 * since it is being reclaimed.
-			 */
-			xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	vn_iowait(vp);
 
-			/*
-			 * If we hit an IO error, we need to make sure that the
-			 * buffer and page caches of file data for
-			 * the file are tossed away. We don't want to use
-			 * VOP_FLUSHINVAL_PAGES here because we don't want dirty
-			 * pages to stay attached to the vnode, but be
-			 * marked P_BAD. pdflush/vnode_pagebad
-			 * hates that.
-			 */
-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				VOP_FLUSHINVAL_PAGES(vp, 0, -1, FI_NONE);
-			} else {
-				VOP_TOSS_PAGES(vp, 0, -1, FI_NONE);
-			}
-
-			ASSERT(VN_CACHED(vp) == 0);
-			ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) ||
-			       ip->i_delayed_blks == 0);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		} else if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-			/*
-			 * di_size field may not be quite accurate if we're
-			 * shutting down.
-			 */
-			VOP_TOSS_PAGES(vp, 0, -1, FI_NONE);
-			ASSERT(VN_CACHED(vp) == 0);
-		}
-	}
+	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
+	ASSERT(VN_CACHED(vp) == 0);
 
 	/* If we have nothing to flush with this inode then complete the
 	 * teardown now, otherwise break the link between the xfs inode

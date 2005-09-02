@@ -80,6 +80,7 @@ typedef struct vnode {
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
+	atomic_t	v_iocount;		/* outstanding I/O count */
 #ifdef XFS_VNODE_TRACE
 	struct ktrace	*v_trace;		/* trace header structure    */
 #endif
@@ -505,6 +506,9 @@ extern void	vn_purge(struct vnode *, vmap_t *);
 extern int	vn_revalidate(struct vnode *);
 extern void	vn_revalidate_core(struct vnode *, vattr_t *);
 extern void	vn_remove(struct vnode *);
+
+extern void	vn_iowait(struct vnode *vp);
+extern void	vn_iowake(struct vnode *vp);
 
 static inline int vn_count(struct vnode *vp)
 {
