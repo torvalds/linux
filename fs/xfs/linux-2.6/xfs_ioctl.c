@@ -982,7 +982,7 @@ xfs_ioc_space(
 	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
 		return -XFS_ERROR(EPERM);
 
-	if (!(filp->f_flags & FMODE_WRITE))
+	if (!(filp->f_mode & FMODE_WRITE))
 		return -XFS_ERROR(EBADF);
 
 	if (vp->v_type != VREG)
