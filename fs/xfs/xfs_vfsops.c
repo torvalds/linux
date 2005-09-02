@@ -906,7 +906,6 @@ xfs_sync_inodes(
 	xfs_inode_t	*ip_next;
 	xfs_buf_t	*bp;
 	vnode_t		*vp = NULL;
-	vmap_t		vmap;
 	int		error;
 	int		last_error;
 	uint64_t	fflag;
@@ -1101,48 +1100,21 @@ xfs_sync_inodes(
 		 * lock in xfs_ireclaim() after the inode is pulled from
 		 * the mount list will sleep until we release it here.
 		 * This keeps the vnode from being freed while we reference
-		 * it.  It is also cheaper and simpler than actually doing
-		 * a vn_get() for every inode we touch here.
+		 * it.
 		 */
 		if (xfs_ilock_nowait(ip, lock_flags) == 0) {
-
 			if ((flags & SYNC_BDFLUSH) || (vp == NULL)) {
 				ip = ip->i_mnext;
 				continue;
 			}
 
-			/*
-			 * We need to unlock the inode list lock in order
-			 * to lock the inode. Insert a marker record into
-			 * the inode list to remember our position, dropping
-			 * the lock is now done inside the IPOINTER_INSERT
-			 * macro.
-			 *
-			 * We also use the inode list lock to protect us
-			 * in taking a snapshot of the vnode version number
-			 * for use in calling vn_get().
-			 */
-			VMAP(vp, vmap);
-			IPOINTER_INSERT(ip, mp);
-
-			vp = vn_get(vp, &vmap);
+			vp = vn_grab(vp);
 			if (vp == NULL) {
-				/*
-				 * The vnode was reclaimed once we let go
-				 * of the inode list lock.  Skip to the
-				 * next list entry. Remove the marker.
-				 */
-
-				XFS_MOUNT_ILOCK(mp);
-
-				mount_locked = B_TRUE;
-				vnode_refed  = B_FALSE;
-
-				IPOINTER_REMOVE(ip, mp);
-
+				ip = ip->i_mnext;
 				continue;
 			}
 
+			IPOINTER_INSERT(ip, mp);
 			xfs_ilock(ip, lock_flags);
 
 			ASSERT(vp == XFS_ITOV(ip));

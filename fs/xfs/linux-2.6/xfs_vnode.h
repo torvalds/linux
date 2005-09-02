@@ -505,20 +505,6 @@ extern int	vn_wait(struct vnode *);
 extern vnode_t	*vn_initialize(struct inode *);
 
 /*
- * Acquiring and invalidating vnodes:
- *
- *	if (vn_get(vp, version, 0))
- *		...;
- *	vn_purge(vp, version);
- *
- * vn_get and vn_purge must be called with vmap_t arguments, sampled
- * while a lock that the vnode's VOP_RECLAIM function acquires is
- * held, to ensure that the vnode sampled with the lock held isn't
- * recycled (VOP_RECLAIMed) or deallocated between the release of the lock
- * and the subsequent vn_get or vn_purge.
- */
-
-/*
  * vnode_map structures _must_ match vn_epoch and vnode structure sizes.
  */
 typedef struct vnode_map {
@@ -532,7 +518,6 @@ typedef struct vnode_map {
 			 (vmap).v_ino	 = (vp)->v_inode.i_ino; }
 
 extern void	vn_purge(struct vnode *, vmap_t *);
-extern vnode_t	*vn_get(struct vnode *, vmap_t *);
 extern int	vn_revalidate(struct vnode *);
 extern void	vn_revalidate_core(struct vnode *, vattr_t *);
 extern void	vn_remove(struct vnode *);
@@ -559,6 +544,12 @@ extern void	vn_rele(struct vnode *);
 #define VN_HOLD(vp)		((void)vn_hold(vp))
 #define VN_RELE(vp)		(iput(LINVFS_GET_IP(vp)))
 #endif
+
+static inline struct vnode *vn_grab(struct vnode *vp)
+{
+	struct inode *inode = igrab(LINVFS_GET_IP(vp));
+	return inode ? LINVFS_GET_VP(inode) : NULL;
+}
 
 /*
  * Vname handling macros.

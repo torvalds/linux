@@ -163,30 +163,6 @@ vn_initialize(
 }
 
 /*
- * Get a reference on a vnode.
- */
-vnode_t *
-vn_get(
-	struct vnode	*vp,
-	vmap_t		*vmap)
-{
-	struct inode	*inode;
-
-	XFS_STATS_INC(vn_get);
-	inode = LINVFS_GET_IP(vp);
-	if (inode->i_state & I_FREEING)
-		return NULL;
-
-	inode = ilookup(vmap->v_vfsp->vfs_super, vmap->v_ino);
-	if (!inode)	/* Inode not present */
-		return NULL;
-
-	vn_trace_exit(vp, "vn_get", (inst_t *)__return_address);
-
-	return vp;
-}
-
-/*
  * Revalidate the Linux inode from the vattr.
  * Note: i_size _not_ updated; we must hold the inode
  * semaphore when doing that - callers responsibility.
