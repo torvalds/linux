@@ -1,8 +1,8 @@
 /*
  * arch/v850/kernel/setup.c -- Arch-dependent initialization functions
  *
- *  Copyright (C) 2001,02,03  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,05  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -98,10 +98,20 @@ void __init trap_init (void)
 }
 
 #ifdef CONFIG_MTD
+
+/* From drivers/mtd/devices/slram.c */
+#define SLRAM_BLK_SZ 0x4000
+
 /* Set the root filesystem to be the given memory region.
    Some parameter may be appended to CMD_LINE.  */
 void set_mem_root (void *addr, size_t len, char *cmd_line)
 {
+	/* Some sort of idiocy in MTD means we must supply a length that's
+	   a multiple of SLRAM_BLK_SZ.  We just round up the real length,
+	   as the file system shouldn't attempt to access anything beyond
+	   the end of the image anyway.  */
+	len = (((len - 1) + SLRAM_BLK_SZ) / SLRAM_BLK_SZ) * SLRAM_BLK_SZ;
+
 	/* The only way to pass info to the MTD slram driver is via
 	   the command line.  */
 	if (*cmd_line) {
