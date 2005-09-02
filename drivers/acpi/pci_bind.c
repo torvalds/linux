@@ -44,7 +44,8 @@ struct acpi_pci_data {
 	struct pci_dev *dev;
 };
 
-void acpi_pci_data_handler(acpi_handle handle, u32 function, void *context)
+static void acpi_pci_data_handler(acpi_handle handle, u32 function,
+				  void *context)
 {
 	ACPI_FUNCTION_TRACE("acpi_pci_data_handler");
 

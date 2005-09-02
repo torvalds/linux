@@ -527,7 +527,7 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 	return_VALUE(0);
 }
 
-int acpi_start_single_object(struct acpi_device *device)
+static int acpi_start_single_object(struct acpi_device *device)
 {
 	int result = 0;
 	struct acpi_driver *driver;

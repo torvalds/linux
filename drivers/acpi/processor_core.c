@@ -221,7 +221,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 	return_VALUE(0);
 }
 
-int acpi_processor_errata(struct acpi_processor *pr)
+static int acpi_processor_errata(struct acpi_processor *pr)
 {
 	int result = 0;
 	struct pci_dev *dev = NULL;

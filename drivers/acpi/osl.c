@@ -1040,7 +1040,7 @@ static int __init acpi_wake_gpes_always_on_setup(char *str)
 
 __setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
 
-int __init acpi_hotkey_setup(char *str)
+static int __init acpi_hotkey_setup(char *str)
 {
 	acpi_specific_hotkey_enabled = FALSE;
 	return 1;
