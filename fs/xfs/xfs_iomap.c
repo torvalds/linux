@@ -391,9 +391,9 @@ xfs_iomap_write_direct(
 	xfs_bmbt_irec_t imap[XFS_WRITE_IMAPS], *imapp;
 	xfs_bmap_free_t free_list;
 	int		aeof;
-	xfs_filblks_t	datablocks, qblocks, resblks;
+	xfs_filblks_t	qblocks, resblks;
 	int		committed;
-	int		numrtextents;
+	int		resrtextents;
 
 	/*
 	 * Make sure that the dquots are there. This doesn't hold
@@ -434,14 +434,14 @@ xfs_iomap_write_direct(
 
 		if (!(extsz = ip->i_d.di_extsize))
 			extsz = mp->m_sb.sb_rextsize;
-		numrtextents = qblocks = (count_fsb + extsz - 1);
-		do_div(numrtextents, mp->m_sb.sb_rextsize);
+		resrtextents = qblocks = (count_fsb + extsz - 1);
+		do_div(resrtextents, mp->m_sb.sb_rextsize);
+		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 		quota_flag = XFS_QMOPT_RES_RTBLKS;
-		datablocks = 0;
 	} else {
-		datablocks = qblocks = count_fsb;
+		resrtextents = 0;
+		resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, count_fsb);
 		quota_flag = XFS_QMOPT_RES_REGBLKS;
-		numrtextents = 0;
 	}
 
 	/*
@@ -449,9 +449,8 @@ xfs_iomap_write_direct(
 	 */
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-	resblks = XFS_DIOSTRAT_SPACE_RES(mp, datablocks);
 	error = xfs_trans_reserve(tp, resblks,
-			XFS_WRITE_LOG_RES(mp), numrtextents,
+			XFS_WRITE_LOG_RES(mp), resrtextents,
 			XFS_TRANS_PERM_LOG_RES,
 			XFS_WRITE_LOG_COUNT);
 
