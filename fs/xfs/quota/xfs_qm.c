@@ -388,11 +388,8 @@ xfs_qm_mount_quotas(
 		goto write_changes;
 	}
 
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-	cmn_err(CE_NOTE, "Attempting to turn on disk quotas.");
-#endif
-
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
+
 	/*
 	 * Allocate the quotainfo structure inside the mount struct, and
 	 * create quotainode(s), and change/rev superblock if necessary.
@@ -410,19 +407,14 @@ xfs_qm_mount_quotas(
 	 */
 	if (XFS_QM_NEED_QUOTACHECK(mp) &&
 		!(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
-#ifdef DEBUG
-		cmn_err(CE_NOTE, "Doing a quotacheck. Please wait.");
-#endif
 		if ((error = xfs_qm_quotacheck(mp))) {
 			/* Quotacheck has failed and quotas have
 			 * been disabled.
 			 */
 			return XFS_ERROR(error);
 		}
-#ifdef DEBUG
-		cmn_err(CE_NOTE, "Done quotacheck.");
-#endif
 	}
+
  write_changes:
 	/*
 	 * We actually don't have to acquire the SB_LOCK at all.
