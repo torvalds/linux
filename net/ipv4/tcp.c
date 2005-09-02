@@ -552,8 +552,7 @@ new_segment:
 			tcp_mark_push(tp, skb);
 			goto new_segment;
 		}
-		if (sk->sk_forward_alloc < copy &&
-		    !sk_stream_mem_schedule(sk, copy, 0))
+		if (!sk_stream_wmem_schedule(sk, copy))
 			goto wait_for_memory;
 		
 		if (can_coalesce) {
