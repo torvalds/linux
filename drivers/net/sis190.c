@@ -331,14 +331,14 @@ static struct mii_chip_info {
 
 const static struct {
 	const char *name;
-	u8 version;		/* depend on docs */
-	u32 RxConfigMask;	/* clear the bits supported by this chip */
 } sis_chip_info[] = {
-	{ DRV_NAME, 0x00, 0xff7e1880, },
+	{ "SiS 190 PCI Fast Ethernet adapter" },
+	{ "SiS 191 PCI Gigabit Ethernet adapter" },
 };
 
 static struct pci_device_id sis190_pci_tbl[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0190), 0, 0, 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0191), 0, 0, 1 },
 	{ 0, },
 };
 
