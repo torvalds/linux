@@ -360,7 +360,7 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
 static const u32 sis190_intr_mask =
-	RxQEmpty | RxQInt | TxQ1Int | TxQ0Int | RxHalt | TxHalt;
+	RxQEmpty | RxQInt | TxQ1Int | TxQ0Int | RxHalt | TxHalt | LinkChange;
 
 /*
  * Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
@@ -923,6 +923,7 @@ static void sis190_phy_task(void * data)
 		     BMSR_ANEGCOMPLETE)) {
 		net_link(tp, KERN_WARNING "%s: PHY reset until link up.\n",
 			 dev->name);
+		netif_carrier_off(dev);
 		mdio_write(ioaddr, phy_id, MII_BMCR, val | BMCR_RESET);
 		mod_timer(&tp->timer, jiffies + SIS190_PHY_TIMEOUT);
 	} else {
