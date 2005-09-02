@@ -259,14 +259,13 @@ static void mv643xx_eth_update_mac_address(struct net_device *dev)
 static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
-	u32 config_reg;
 
-	config_reg = ethernet_get_config_reg(mp->port_num);
 	if (dev->flags & IFF_PROMISC)
-		config_reg |= (u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
+		mp->port_config |= (u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
 	else
-		config_reg &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
-	ethernet_set_config_reg(mp->port_num, config_reg);
+		mp->port_config &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
+
+	mv_write(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num), mp->port_config);
 }
 
 /*
@@ -2278,34 +2277,6 @@ static void eth_port_reset(unsigned int port_num)
 	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), reg_data);
 }
 
-/*
- * ethernet_set_config_reg - Set specified bits in configuration register.
- *
- * DESCRIPTION:
- *	This function sets specified bits in the given ethernet
- *	configuration register.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Ethernet Port number.
- *	unsigned int	value		32 bit value.
- *
- * OUTPUT:
- *	The set bits in the value parameter are set in the configuration
- *	register.
- *
- * RETURN:
- *	None.
- *
- */
-static void ethernet_set_config_reg(unsigned int eth_port_num,
-							unsigned int value)
-{
-	unsigned int eth_config_reg;
-
-	eth_config_reg = mv_read(MV643XX_ETH_PORT_CONFIG_REG(eth_port_num));
-	eth_config_reg |= value;
-	mv_write(MV643XX_ETH_PORT_CONFIG_REG(eth_port_num), eth_config_reg);
-}
 
 static int eth_port_autoneg_supported(unsigned int eth_port_num)
 {
@@ -2329,31 +2300,6 @@ static int eth_port_link_is_up(unsigned int eth_port_num)
 		return 1;
 
 	return 0;
-}
-
-/*
- * ethernet_get_config_reg - Get the port configuration register
- *
- * DESCRIPTION:
- *	This function returns the configuration register value of the given
- *	ethernet port.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Ethernet Port number.
- *
- * OUTPUT:
- *	None.
- *
- * RETURN:
- *	Port configuration register value.
- */
-static unsigned int ethernet_get_config_reg(unsigned int eth_port_num)
-{
-	unsigned int eth_config_reg;
-
-	eth_config_reg = mv_read(MV643XX_ETH_PORT_CONFIG_EXTEND_REG
-								(eth_port_num));
-	return eth_config_reg;
 }
 
 /*
