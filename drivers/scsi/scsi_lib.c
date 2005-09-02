@@ -339,7 +339,7 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 	int result;
 	
 	if (sshdr) {
-		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
+		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
 		if (!sense)
 			return DRIVER_ERROR << 24;
 		memset(sense, 0, SCSI_SENSE_BUFFERSIZE);
