@@ -23,6 +23,7 @@
 
 #include <asm/reg_booke.h>
 #include <asm/uaccess.h>
+#include <asm/system.h>
 
 /* If the kernel parameter wdt_enable=1, the watchdog will be enabled at boot.
  * Also, the wdt_period sets the watchdog timer period timeout.
@@ -38,8 +39,8 @@
 #define WDT_PERIOD_DEFAULT 4	/* Refer to the PPC40x and PPC4xx manuals */
 #endif				/* for timing information */
 
-u32 wdt_enable = 0;
-u32 wdt_period = WDT_PERIOD_DEFAULT;
+u32 booke_wdt_enabled = 0;
+u32 booke_wdt_period = WDT_PERIOD_DEFAULT;
 
 #ifdef	CONFIG_FSL_BOOKE
 #define WDTP(x)		((((63-x)&0x3)<<30)|(((63-x)&0x3c)<<15))
@@ -55,7 +56,7 @@ static __inline__ void booke_wdt_enable(void)
 	u32 val;
 
 	val = mfspr(SPRN_TCR);
-	val |= (TCR_WIE|TCR_WRC(WRC_CHIP)|WDTP(wdt_period));
+	val |= (TCR_WIE|TCR_WRC(WRC_CHIP)|WDTP(booke_wdt_period));
 
 	mtspr(SPRN_TCR, val);
 }
@@ -108,12 +109,12 @@ static int booke_wdt_ioctl (struct inode *inode, struct file *file,
 		booke_wdt_ping();
 		return 0;
 	case WDIOC_SETTIMEOUT:
-		if (get_user(wdt_period, (u32 *) arg))
+		if (get_user(booke_wdt_period, (u32 *) arg))
 			return -EFAULT;
-		mtspr(SPRN_TCR, (mfspr(SPRN_TCR)&~WDTP(0))|WDTP(wdt_period));
+		mtspr(SPRN_TCR, (mfspr(SPRN_TCR)&~WDTP(0))|WDTP(booke_wdt_period));
 		return 0;
 	case WDIOC_GETTIMEOUT:
-		return put_user(wdt_period, (u32 *) arg);
+		return put_user(booke_wdt_period, (u32 *) arg);
 	case WDIOC_SETOPTIONS:
 		if (get_user(tmp, (u32 *) arg))
 			return -EINVAL;
@@ -134,11 +135,11 @@ static int booke_wdt_ioctl (struct inode *inode, struct file *file,
  */
 static int booke_wdt_open (struct inode *inode, struct file *file)
 {
-	if (wdt_enable == 0) {
-		wdt_enable = 1;
+	if (booke_wdt_enabled == 0) {
+		booke_wdt_enabled = 1;
 		booke_wdt_enable();
 		printk (KERN_INFO "PowerPC Book-E Watchdog Timer Enabled (wdt_period=%d)\n",
-				wdt_period);
+				booke_wdt_period);
 	}
 
 	return 0;
@@ -180,9 +181,9 @@ static int __init booke_wdt_init(void)
 		return ret;
 	}
 
-	if (wdt_enable == 1) {
+	if (booke_wdt_enabled == 1) {
 		printk (KERN_INFO "PowerPC Book-E Watchdog Timer Enabled (wdt_period=%d)\n",
-				wdt_period);
+				booke_wdt_period);
 		booke_wdt_enable();
 	}
 

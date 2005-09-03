@@ -623,10 +623,8 @@ machine_init(unsigned long r3, unsigned long r4, unsigned long r5,
 /* Checks wdt=x and wdt_period=xx command-line option */
 int __init early_parse_wdt(char *p)
 {
-	extern u32 wdt_enable;
-
 	if (p && strncmp(p, "0", 1) != 0)
-	       wdt_enable = 1;
+	       booke_wdt_enabled = 1;
 
 	return 0;
 }
@@ -634,10 +632,8 @@ early_param("wdt", early_parse_wdt);
 
 int __init early_parse_wdt_period (char *p)
 {
-	extern u32 wdt_period;
-
 	if (p)
-		wdt_period = simple_strtoul(p, NULL, 0);
+		booke_wdt_period = simple_strtoul(p, NULL, 0);
 
 	return 0;
 }

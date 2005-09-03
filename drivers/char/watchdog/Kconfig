@@ -349,6 +349,9 @@ config 8xx_WDT
 config BOOKE_WDT
 	tristate "PowerPC Book-E Watchdog Timer"
 	depends on WATCHDOG && (BOOKE || 4xx)
+	---help---
+	  Please see Documentation/watchdog/watchdog-api.txt for
+	  more information.
 
 # MIPS Architecture
 
