@@ -38,9 +38,9 @@ extern void mprotect_kernel_vm(int w);
 extern void force_flush_all(void);
 extern void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                              unsigned long end_addr, int force,
-			     void *(*do_ops)(union mm_context *,
-					     struct host_vm_op *, int, int,
-					     void *));
+			     int (*do_ops)(union mm_context *,
+					   struct host_vm_op *, int, int,
+					   void **));
 extern int flush_tlb_kernel_range_common(unsigned long start,
 					 unsigned long end);
 

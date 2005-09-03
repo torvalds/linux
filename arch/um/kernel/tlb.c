@@ -16,115 +16,117 @@
 #include "os.h"
 
 static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
-		    int r, int w, int x, struct host_vm_op *ops, int index,
+ 		    int r, int w, int x, struct host_vm_op *ops, int *index,
 		    int last_filled, union mm_context *mmu, void **flush,
-		    void *(*do_ops)(union mm_context *, struct host_vm_op *,
-				    int, int, void *))
+		    int (*do_ops)(union mm_context *, struct host_vm_op *,
+				  int, int, void **))
 {
         __u64 offset;
 	struct host_vm_op *last;
-	int fd;
+	int fd, ret = 0;
 
 	fd = phys_mapping(phys, &offset);
-	if(index != -1){
-		last = &ops[index];
+	if(*index != -1){
+		last = &ops[*index];
 		if((last->type == MMAP) &&
 		   (last->u.mmap.addr + last->u.mmap.len == virt) &&
 		   (last->u.mmap.r == r) && (last->u.mmap.w == w) &&
 		   (last->u.mmap.x == x) && (last->u.mmap.fd == fd) &&
 		   (last->u.mmap.offset + last->u.mmap.len == offset)){
 			last->u.mmap.len += len;
-			return index;
+			return 0;
 		}
 	}
 
-	if(index == last_filled){
-		*flush = (*do_ops)(mmu, ops, last_filled, 0, *flush);
-		index = -1;
+	if(*index == last_filled){
+		ret = (*do_ops)(mmu, ops, last_filled, 0, flush);
+		*index = -1;
 	}
 
-	ops[++index] = ((struct host_vm_op) { .type	= MMAP,
-					      .u = { .mmap = {
-						      .addr	= virt,
-						      .len	= len,
-						      .r	= r,
-						      .w	= w,
-						      .x	= x,
-						      .fd	= fd,
-						      .offset	= offset }
-					      } });
-	return index;
+	ops[++*index] = ((struct host_vm_op) { .type	= MMAP,
+			     			.u = { .mmap = {
+						       .addr	= virt,
+						       .len	= len,
+						       .r	= r,
+						       .w	= w,
+						       .x	= x,
+						       .fd	= fd,
+						       .offset	= offset }
+			   } });
+	return ret;
 }
 
 static int add_munmap(unsigned long addr, unsigned long len,
-		      struct host_vm_op *ops, int index, int last_filled,
+		      struct host_vm_op *ops, int *index, int last_filled,
 		      union mm_context *mmu, void **flush,
-		      void *(*do_ops)(union mm_context *, struct host_vm_op *,
-				      int, int, void *))
+		      int (*do_ops)(union mm_context *, struct host_vm_op *,
+				    int, int, void **))
 {
 	struct host_vm_op *last;
+	int ret = 0;
 
-	if(index != -1){
-		last = &ops[index];
+	if(*index != -1){
+		last = &ops[*index];
 		if((last->type == MUNMAP) &&
 		   (last->u.munmap.addr + last->u.mmap.len == addr)){
 			last->u.munmap.len += len;
-			return index;
+			return 0;
 		}
 	}
 
-	if(index == last_filled){
-		*flush = (*do_ops)(mmu, ops, last_filled, 0, *flush);
-		index = -1;
+	if(*index == last_filled){
+		ret = (*do_ops)(mmu, ops, last_filled, 0, flush);
+		*index = -1;
 	}
 
-	ops[++index] = ((struct host_vm_op) { .type	= MUNMAP,
-					      .u = { .munmap = {
-						      .addr	= addr,
-						      .len	= len } } });
-	return index;
+	ops[++*index] = ((struct host_vm_op) { .type	= MUNMAP,
+			     		       .u = { .munmap = {
+						        .addr	= addr,
+							.len	= len } } });
+	return ret;
 }
 
 static int add_mprotect(unsigned long addr, unsigned long len, int r, int w,
-			int x, struct host_vm_op *ops, int index,
+			int x, struct host_vm_op *ops, int *index,
 			int last_filled, union mm_context *mmu, void **flush,
-			void *(*do_ops)(union mm_context *,
-				       struct host_vm_op *, int, int, void *))
+ 			int (*do_ops)(union mm_context *, struct host_vm_op *,
+				      int, int, void **))
 {
 	struct host_vm_op *last;
+	int ret = 0;
 
-	if(index != -1){
-		last = &ops[index];
+	if(*index != -1){
+		last = &ops[*index];
 		if((last->type == MPROTECT) &&
 		   (last->u.mprotect.addr + last->u.mprotect.len == addr) &&
 		   (last->u.mprotect.r == r) && (last->u.mprotect.w == w) &&
 		   (last->u.mprotect.x == x)){
 			last->u.mprotect.len += len;
-			return index;
+			return 0;
 		}
 	}
 
-	if(index == last_filled){
-		*flush = (*do_ops)(mmu, ops, last_filled, 0, *flush);
-		index = -1;
+	if(*index == last_filled){
+		ret = (*do_ops)(mmu, ops, last_filled, 0, flush);
+		*index = -1;
 	}
 
-	ops[++index] = ((struct host_vm_op) { .type	= MPROTECT,
-					      .u = { .mprotect = {
-						      .addr	= addr,
-						      .len	= len,
-						      .r	= r,
-						      .w	= w,
-						      .x	= x } } });
-	return index;
+	ops[++*index] = ((struct host_vm_op) { .type	= MPROTECT,
+			     		       .u = { .mprotect = {
+						       .addr	= addr,
+						       .len	= len,
+						       .r	= r,
+						       .w	= w,
+						       .x	= x } } });
+	return ret;
 }
 
 #define ADD_ROUND(n, inc) (((n) + (inc)) & ~((inc) - 1))
 
 void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                       unsigned long end_addr, int force,
-		      void *(*do_ops)(union mm_context *, struct host_vm_op *,
-				      int, int, void *))
+		      int (*do_ops)(union mm_context *, struct host_vm_op *,
+				    int, int, void **))
 {
         pgd_t *npgd;
         pud_t *npud;
@@ -136,20 +138,21 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
         struct host_vm_op ops[1];
         void *flush = NULL;
         int op_index = -1, last_op = sizeof(ops) / sizeof(ops[0]) - 1;
+        int ret = 0;
 
         if(mm == NULL) return;
 
         ops[0].type = NONE;
-        for(addr = start_addr; addr < end_addr;){
+        for(addr = start_addr; addr < end_addr && !ret;){
                 npgd = pgd_offset(mm, addr);
                 if(!pgd_present(*npgd)){
                         end = ADD_ROUND(addr, PGDIR_SIZE);
                         if(end > end_addr)
                                 end = end_addr;
                         if(force || pgd_newpage(*npgd)){
-                                op_index = add_munmap(addr, end - addr, ops,
-                                                      op_index, last_op, mmu,
-                                                      &flush, do_ops);
+                                ret = add_munmap(addr, end - addr, ops,
+                                                 &op_index, last_op, mmu,
+                                                 &flush, do_ops);
                                 pgd_mkuptodate(*npgd);
                         }
                         addr = end;
@@ -162,9 +165,9 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                         if(end > end_addr)
                                 end = end_addr;
                         if(force || pud_newpage(*npud)){
-                                op_index = add_munmap(addr, end - addr, ops,
-                                                      op_index, last_op, mmu,
-                                                      &flush, do_ops);
+                                ret = add_munmap(addr, end - addr, ops,
+                                                 &op_index, last_op, mmu,
+                                                 &flush, do_ops);
                                 pud_mkuptodate(*npud);
                         }
                         addr = end;
@@ -177,9 +180,9 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                         if(end > end_addr)
                                 end = end_addr;
                         if(force || pmd_newpage(*npmd)){
-                                op_index = add_munmap(addr, end - addr, ops,
-                                                      op_index, last_op, mmu,
-                                                      &flush, do_ops);
+                                ret = add_munmap(addr, end - addr, ops,
+                                                 &op_index, last_op, mmu,
+                                                 &flush, do_ops);
                                 pmd_mkuptodate(*npmd);
                         }
                         addr = end;
@@ -198,24 +201,32 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                 }
                 if(force || pte_newpage(*npte)){
                         if(pte_present(*npte))
-                                op_index = add_mmap(addr,
-                                                    pte_val(*npte) & PAGE_MASK,
-                                                    PAGE_SIZE, r, w, x, ops,
-                                                    op_index, last_op, mmu,
-                                                    &flush, do_ops);
-                        else op_index = add_munmap(addr, PAGE_SIZE, ops,
-                                                   op_index, last_op, mmu,
-                                                   &flush, do_ops);
+			  ret = add_mmap(addr,
+					 pte_val(*npte) & PAGE_MASK,
+					 PAGE_SIZE, r, w, x, ops,
+					 &op_index, last_op, mmu,
+					 &flush, do_ops);
+			else ret = add_munmap(addr, PAGE_SIZE, ops,
+					      &op_index, last_op, mmu,
+					      &flush, do_ops);
                 }
                 else if(pte_newprot(*npte))
-                        op_index = add_mprotect(addr, PAGE_SIZE, r, w, x, ops,
-                                                op_index, last_op, mmu,
-                                                &flush, do_ops);
+			ret = add_mprotect(addr, PAGE_SIZE, r, w, x, ops,
+					   &op_index, last_op, mmu,
+					   &flush, do_ops);
 
                 *npte = pte_mkuptodate(*npte);
                 addr += PAGE_SIZE;
         }
-	flush = (*do_ops)(mmu, ops, op_index, 1, flush);
+
+	if(!ret)
+		ret = (*do_ops)(mmu, ops, op_index, 1, &flush);
+
+	/* This is not an else because ret is modified above */
+	if(ret) {
+		printk("fix_range_common: failed, killing current process\n");
+		force_sig(SIGKILL, current);
+	}
 }
 
 int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
