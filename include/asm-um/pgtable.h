@@ -16,13 +16,15 @@
 
 #define _PAGE_PRESENT	0x001
 #define _PAGE_NEWPAGE	0x002
-#define _PAGE_NEWPROT   0x004
-#define _PAGE_FILE	0x008   /* set:pagecache unset:swap */
-#define _PAGE_PROTNONE	0x010	/* If not present */
+#define _PAGE_NEWPROT	0x004
 #define _PAGE_RW	0x020
 #define _PAGE_USER	0x040
 #define _PAGE_ACCESSED	0x080
 #define _PAGE_DIRTY	0x100
+/* If _PAGE_PRESENT is clear, we use these: */
+#define _PAGE_FILE	0x008	/* nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_PROTNONE	0x010	/* if the user mapped it with PROT_NONE;
+				   pte_present gives true */
 
 #ifdef CONFIG_3_LEVEL_PGTABLES
 #include "asm/pgtable-3level.h"

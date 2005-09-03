@@ -86,9 +86,7 @@ void paging_init(void);
 #endif
 
 /*
- * The 4MB page is guessing..  Detailed in the infamous "Chapter H"
- * of the Pentium details, but assuming intel did the straightforward
- * thing, this bit set in the page directory entry just means that
+ * _PAGE_PSE set in the page directory entry just means that
  * the page directory entry points directly to a 4MB-aligned block of
  * memory. 
  */
@@ -119,8 +117,10 @@ void paging_init(void);
 #define _PAGE_UNUSED2	0x400
 #define _PAGE_UNUSED3	0x800
 
-#define _PAGE_FILE	0x040	/* set:pagecache unset:swap */
-#define _PAGE_PROTNONE	0x080	/* If not present */
+/* If _PAGE_PRESENT is clear, we use these: */
+#define _PAGE_FILE	0x040	/* nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_PROTNONE	0x080	/* if the user mapped it with PROT_NONE;
+				   pte_present gives true */
 #ifdef CONFIG_X86_PAE
 #define _PAGE_NX	(1ULL<<_PAGE_BIT_NX)
 #else
