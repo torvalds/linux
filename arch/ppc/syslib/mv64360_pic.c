@@ -366,10 +366,16 @@ mv64360_pci_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+/*
+ * Bit 0 of MV64x60_PCIx_ERR_MASK does not exist on the 64360 and because of
+ * errata FEr-#11 and FEr-##16 for the 64460, it should be 0 on that chip as
+ * well.  IOW, don't set bit 0.
+ */
+#define MV64360_PCI0_ERR_MASK_VAL	0x00a50c24
+
 static int __init
 mv64360_register_hdlrs(void)
 {
-	u32	mask;
 	int	rc;
 
 	/* Clear old errors and register CPU interface error intr handler */
@@ -387,17 +393,6 @@ mv64360_register_hdlrs(void)
 		mv64360_sram_error_int_handler,SA_INTERRUPT,SRAM_INTR_STR, 0)))
 		printk(KERN_WARNING "Can't register SRAM error handler: %d",rc);
 
-	/*
-	 * Bit 0 reserved on 64360 and erratum FEr PCI-#11 (PCI internal
-	 * data parity error set incorrectly) on rev 0 & 1 of 64460 requires
-	 * bit 0 to be cleared.
-	 */
-	mask = 0x00a50c24;
-
-	if ((mv64x60_get_bridge_type() == MV64x60_TYPE_MV64460) &&
-		(mv64x60_get_bridge_rev() > 1))
-		mask |= 0x1;	/* enable DPErr on 64460 */
-
 	/* Clear old errors and register PCI 0 error intr handler */
 	mv64x60_write(&bh, MV64x60_PCI0_ERR_CAUSE, 0);
 	if ((rc = request_irq(MV64360_IRQ_PCI0 + mv64360_irq_base,
@@ -407,7 +402,11 @@ mv64360_register_hdlrs(void)
 			rc);
 
 	mv64x60_write(&bh, MV64x60_PCI0_ERR_MASK, 0);
-	mv64x60_write(&bh, MV64x60_PCI0_ERR_MASK, mask);
+	mv64x60_write(&bh, MV64x60_PCI0_ERR_MASK, MV64360_PCI0_ERR_MASK_VAL);
+
+	/* Erratum FEr PCI-#16 says to clear bit 0 of PCI SERRn Mask reg. */
+	mv64x60_write(&bh, MV64x60_PCI0_ERR_SERR_MASK,
+		mv64x60_read(&bh, MV64x60_PCI0_ERR_SERR_MASK) & ~0x1UL);
 
 	/* Clear old errors and register PCI 1 error intr handler */
 	mv64x60_write(&bh, MV64x60_PCI1_ERR_CAUSE, 0);
@@ -418,7 +417,11 @@ mv64360_register_hdlrs(void)
 			rc);
 
 	mv64x60_write(&bh, MV64x60_PCI1_ERR_MASK, 0);
-	mv64x60_write(&bh, MV64x60_PCI1_ERR_MASK, mask);
+	mv64x60_write(&bh, MV64x60_PCI1_ERR_MASK, MV64360_PCI0_ERR_MASK_VAL);
+
+	/* Erratum FEr PCI-#16 says to clear bit 0 of PCI Intr Mask reg. */
+	mv64x60_write(&bh, MV64x60_PCI1_ERR_SERR_MASK,
+		mv64x60_read(&bh, MV64x60_PCI1_ERR_SERR_MASK) & ~0x1UL);
 
 	return 0;
 }
