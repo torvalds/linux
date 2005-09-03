@@ -26,6 +26,7 @@
 #include "mem.h"
 #include "mem_kern.h"
 
+/* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
 int handle_page_fault(unsigned long address, unsigned long ip, 
 		      int is_write, int is_user, int *code_out)
 {
@@ -35,7 +36,6 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	unsigned long page;
 	int err = -EFAULT;
 
 	*code_out = SEGV_MAPERR;
@@ -52,7 +52,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	else if(expand_stack(vma, address)) 
 		goto out;
 
- good_area:
+good_area:
 	*code_out = SEGV_ACCERR;
 	if(is_write && !(vma->vm_flags & VM_WRITE)) 
 		goto out;
@@ -60,9 +60,8 @@ int handle_page_fault(unsigned long address, unsigned long ip,
         if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
                 goto out;
 
-	page = address & PAGE_MASK;
 	do {
- survive:
+survive:
 		switch (handle_mm_fault(mm, vma, address, is_write)){
 		case VM_FAULT_MINOR:
 			current->min_flt++;
@@ -79,16 +78,16 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 		default:
 			BUG();
 		}
-		pgd = pgd_offset(mm, page);
-		pud = pud_offset(pgd, page);
-		pmd = pmd_offset(pud, page);
-		pte = pte_offset_kernel(pmd, page);
+		pgd = pgd_offset(mm, address);
+		pud = pud_offset(pgd, address);
+		pmd = pmd_offset(pud, address);
+		pte = pte_offset_kernel(pmd, address);
 	} while(!pte_present(*pte));
 	err = 0;
 	*pte = pte_mkyoung(*pte);
 	if(pte_write(*pte)) *pte = pte_mkdirty(*pte);
-	flush_tlb_page(vma, page);
- out:
+	flush_tlb_page(vma, address);
+out:
 	up_read(&mm->mmap_sem);
 	return(err);
 
@@ -144,19 +143,18 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx", 
 		      address, ip);
 
-	if(err == -EACCES){
+	if (err == -EACCES) {
 		si.si_signo = SIGBUS;
 		si.si_errno = 0;
 		si.si_code = BUS_ADRERR;
 		si.si_addr = (void *)address;
                 current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
-	}
-	else if(err == -ENOMEM){
+	} else if (err == -ENOMEM) {
 		printk("VM: killing process %s\n", current->comm);
 		do_exit(SIGKILL);
-	}
-	else {
+	} else {
+		BUG_ON(err != -EFAULT);
 		si.si_signo = SIGSEGV;
 		si.si_addr = (void *) address;
                 current->thread.arch.faultinfo = fi;
