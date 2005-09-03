@@ -527,6 +527,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	 * If the page is mlock()d, we cannot swap it out.
 	 * If it's recently referenced (perhaps page_referenced
 	 * skipped over this mm) then we should reactivate it.
+	 *
+	 * Pages belonging to VM_RESERVED regions should not happen here.
 	 */
 	if ((vma->vm_flags & (VM_LOCKED|VM_RESERVED)) ||
 			ptep_clear_flush_young(vma, address, pte)) {
