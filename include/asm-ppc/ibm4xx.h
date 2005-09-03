@@ -19,10 +19,6 @@
 
 #ifdef CONFIG_40x
 
-#if defined(CONFIG_ASH)
-#include <platforms/4xx/ash.h>
-#endif
-
 #if defined(CONFIG_BUBINGA)
 #include <platforms/4xx/bubinga.h>
 #endif

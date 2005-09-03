@@ -1,7 +1,6 @@
 #
 # Makefile for the PowerPC 4xx linux kernel.
 
-obj-$(CONFIG_ASH)		+= ash.o
 obj-$(CONFIG_BAMBOO)		+= bamboo.o
 obj-$(CONFIG_CPCI405)		+= cpci405.o
 obj-$(CONFIG_EBONY)		+= ebony.o

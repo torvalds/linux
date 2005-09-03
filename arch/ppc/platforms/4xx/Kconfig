@@ -16,11 +16,6 @@ choice
 	depends on 40x
 	default WALNUT
 
-config ASH
-	bool "Ash"
-	help
-	  This option enables support for the IBM NP405H evaluation board.
-
 config BUBINGA
 	bool "Bubinga"
 	select WANT_EARLY_SERIAL

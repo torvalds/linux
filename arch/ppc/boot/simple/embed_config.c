@@ -784,7 +784,7 @@ embed_config(bd_t ** bdp)
 #ifdef CONFIG_IBM_OPENBIOS
 /* This could possibly work for all treeboot roms.
 */
-#if defined(CONFIG_ASH) || defined(CONFIG_BEECH) || defined(CONFIG_BUBINGA)
+#if defined(CONFIG_BEECH) || defined(CONFIG_BUBINGA)
 #define BOARD_INFO_VECTOR       0xFFF80B50 /* openbios 1.19 moved this vector down  - armin */
 #else
 #define BOARD_INFO_VECTOR	0xFFFE0B50

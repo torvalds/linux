@@ -171,7 +171,7 @@ ppc4xx_calibrate_decr(void)
 	unsigned int freq;
 	bd_t *bip = &__res;
 
-#if defined(CONFIG_WALNUT) || defined(CONFIG_ASH) || defined(CONFIG_SYCAMORE)
+#if defined(CONFIG_WALNUT) || defined(CONFIG_SYCAMORE)
 	/* Walnut boot rom sets DCR CHCR1 (aka CPC0_CR1) bit CETE to 1 */
 	mtdcr(DCRN_CHCR1, mfdcr(DCRN_CHCR1) & ~CHR1_CETE);
 #endif
