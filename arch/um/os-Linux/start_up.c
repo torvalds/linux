@@ -275,6 +275,30 @@ void os_early_checks(void)
 	check_ptrace();
 }
 
+static int __init noprocmm_cmd_param(char *str, int* add)
+{
+	proc_mm = 0;
+	return 0;
+}
+
+__uml_setup("noprocmm", noprocmm_cmd_param,
+"noprocmm\n"
+"    Turns off usage of /proc/mm, even if host supports it.\n"
+"    To support /proc/mm, the host needs to be patched using\n"
+"    the current skas3 patch.\n\n");
+
+static int __init noptracefaultinfo_cmd_param(char *str, int* add)
+{
+	ptrace_faultinfo = 0;
+	return 0;
+}
+
+__uml_setup("noptracefaultinfo", noptracefaultinfo_cmd_param,
+"noptracefaultinfo\n"
+"    Turns off usage of PTRACE_FAULTINFO, even if host supports\n"
+"    it. To support PTRACE_FAULTINFO, the host needs to be patched\n"
+"    using the current skas3 patch.\n\n");
+
 #ifdef UML_CONFIG_MODE_SKAS
 static inline void check_skas3_ptrace_support(void)
 {
