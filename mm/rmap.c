@@ -439,22 +439,23 @@ int page_referenced(struct page *page, int is_locked, int ignore_token)
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
-	struct anon_vma *anon_vma = vma->anon_vma;
-	pgoff_t index;
-
 	BUG_ON(PageReserved(page));
-	BUG_ON(!anon_vma);
 
 	inc_mm_counter(vma->vm_mm, anon_rss);
 
-	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-	index = (address - vma->vm_start) >> PAGE_SHIFT;
-	index += vma->vm_pgoff;
-	index >>= PAGE_CACHE_SHIFT - PAGE_SHIFT;
-
 	if (atomic_inc_and_test(&page->_mapcount)) {
-		page->index = index;
+		struct anon_vma *anon_vma = vma->anon_vma;
+		pgoff_t index;
+
+		BUG_ON(!anon_vma);
+		anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 		page->mapping = (struct address_space *) anon_vma;
+
+		index = (address - vma->vm_start) >> PAGE_SHIFT;
+		index += vma->vm_pgoff;
+		index >>= PAGE_CACHE_SHIFT - PAGE_SHIFT;
+		page->index = index;
+
 		inc_page_state(nr_mapped);
 	}
 	/* else checking page index and mapping is racy */
