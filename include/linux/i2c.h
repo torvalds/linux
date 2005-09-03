@@ -508,9 +508,6 @@ union i2c_smbus_data {
 #define I2C_FUNCS	0x0705	/* Get the adapter functionality */
 #define I2C_RDWR	0x0707	/* Combined R/W transfer (one stop only)*/
 #define I2C_PEC		0x0708	/* != 0 for SMBus PEC                   */
-#if 0
-#define I2C_ACK_TEST	0x0710	/* See if a slave is at a specific address */
-#endif
 
 #define I2C_SMBUS	0x0720	/* SMBus-level access */
 
