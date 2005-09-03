@@ -27,8 +27,20 @@ update-po-config: $(obj)/kxgettext
 	xgettext --default-domain=linux \
           --add-comments --keyword=_ --keyword=N_ \
           --files-from=scripts/kconfig/POTFILES.in \
-	-o scripts/kconfig/linux.pot
-	scripts/kconfig/kxgettext arch/$(ARCH)/Kconfig >> scripts/kconfig/linux.pot
+          --output scripts/kconfig/config.pot
+	$(Q)ln -fs Kconfig_i386 arch/um/Kconfig_arch
+	$(Q)for i in `ls arch/`; \
+	do \
+	  scripts/kconfig/kxgettext arch/$$i/Kconfig \
+	    | msguniq -o scripts/kconfig/linux_$${i}.pot; \
+	done
+	$(Q)msgcat scripts/kconfig/config.pot \
+	  `find scripts/kconfig/ -type f -name linux_*.pot` \
+	  --output scripts/kconfig/linux_raw.pot
+	$(Q)msguniq --sort-by-file scripts/kconfig/linux_raw.pot \
+	    --output scripts/kconfig/linux.pot
+	$(Q)rm -f arch/um/Kconfig_arch
+	$(Q)rm -f scripts/kconfig/linux_*.pot scripts/kconfig/config.pot
 
 .PHONY: randconfig allyesconfig allnoconfig allmodconfig defconfig
 
