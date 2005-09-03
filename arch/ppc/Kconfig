@@ -330,14 +330,6 @@ config RPXLITE
 	  End of life: end 2000 ?
 	  URL: see TQM850L
 
-	  SPD823TS:
-	  MPC823 based board used in the "Tele Server" product
-	  Manufacturer: Speech Design, <http://www.speech-design.de/>
-	  Date of Release: Mid 2000 (?)
-	  End of life: -
-	  URL: <http://www.speech-design.de/>
-	  select "English", then "Teleteam Solutions", then "TeleServer"
-
 	  IVMS8:
 	  MPC860 based board used in the "Integrated Voice Mail System",
 	  Small Version (8 voice channels)
@@ -456,13 +448,6 @@ config TQM860L
 
 config FPS850L
 	bool "FPS850L"
-
-config SPD823TS
-	bool "SPD823TS"
-	help
-	  Say Y here to support the Speech Design 823 Tele-Server from Speech
-	  Design, released in 2000.  The manufacturer's website is at
-	  <http://www.speech-design.de/>.
 
 config IVMS8
 	bool "IVMS8"
