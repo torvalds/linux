@@ -177,7 +177,7 @@ cflags-$(CONFIG_CPU_MIPS64)	+= \
 
 cflags-$(CONFIG_CPU_R5000)	+= \
 			$(call set_gccflags,r5000,mips4,r5000,mips4,mips2) \
-			-Wa,--trap 
+			-Wa,--trap
 
 cflags-$(CONFIG_CPU_R5432)	+= \
 			$(call set_gccflags,r5400,mips4,r5000,mips4,mips2) \
@@ -720,7 +720,7 @@ archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
 	@$(MAKE) $(clean)=arch/mips/lasat
 
-# Generate <asm/offset.h 
+# Generate <asm/offset.h
 #
 # The default rule is suffering from funny problems on MIPS so we using our
 # own ...

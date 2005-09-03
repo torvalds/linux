@@ -33,11 +33,11 @@
 #define PCI_BOARD_REG             0xAE000010
 #define PCMCIA_BOARD_REG          0xAE000010
   #define PC_DEASSERT_RST               0x80
-  #define PC_DRV_EN                     0x10 
+  #define PC_DRV_EN                     0x10
 #define PB1500_G_CONTROL          0xAE000014
 #define PB1500_RST_VDDI           0xAE00001C
 #define PB1500_LEDS               0xAE000018
-  
+
 #define PB1500_HEX_LED            0xAF000004
 #define PB1500_HEX_LED_BLANK      0xAF000008
 

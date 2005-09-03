@@ -198,7 +198,7 @@ static inline void copy_page_cpu(void *to, void *from)
 
 /*
  * Pad descriptors to cacheline, since each is exclusively owned by a
- * particular CPU. 
+ * particular CPU.
  */
 typedef struct dmadscr_s {
 	u64 dscr_a;

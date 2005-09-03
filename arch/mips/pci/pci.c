@@ -132,7 +132,7 @@ static int __init pcibios_init(void)
 		hose->need_domain_info = need_domain_info;
 		next_busno = bus->subordinate + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
-		   reserve some space for bridges. */ 
+		   reserve some space for bridges. */
 		if (next_busno > 224) {
 			next_busno = 0;
 			need_domain_info = 1;
@@ -260,7 +260,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		pci_read_bridge_bases(bus);
 		pcibios_fixup_device_resources(dev, bus);
-	} 
+	}
 
 	for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
 		struct pci_dev *dev = pci_dev_b(ln);

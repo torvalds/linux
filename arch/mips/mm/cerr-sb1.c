@@ -25,7 +25,7 @@
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_scd.h>
 #endif
- 
+
 /* SB1 definitions */
 
 /* XXX should come from config1 XXX */
@@ -136,14 +136,14 @@ static inline void breakout_cerrd(unsigned int val)
 
 #ifndef CONFIG_SIBYTE_BUS_WATCHER
 
-static void check_bus_watcher(void)              
-{                               
+static void check_bus_watcher(void)
+{
 	uint32_t status, l2_err, memio_err;
 
 	/* Destructive read, clears register and interrupt */
 	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS));
 	/* Bit 31 is always on, but there's no #define for that */
-	if (status & ~(1UL << 31)) {  
+	if (status & ~(1UL << 31)) {
 		l2_err = csr_in32(IOADDR(A_BUS_L2_ERRORS));
 		memio_err = csr_in32(IOADDR(A_BUS_MEM_IO_ERRORS));
 		prom_printf("Bus watcher error counters: %08x %08x\n", l2_err, memio_err);
@@ -153,14 +153,14 @@ static void check_bus_watcher(void)
 		       (int)(G_SCD_BERR_TID(status) >> 6),
 		       (int)G_SCD_BERR_RID(status),
 		       (int)G_SCD_BERR_DCODE(status));
-	} else {		
-		prom_printf("Bus watcher indicates no error\n"); 
-	}			
-}                                       
-#else                                                    
-extern void check_bus_watcher(void);    
-#endif                                          
-                                
+	} else {
+		prom_printf("Bus watcher indicates no error\n");
+	}
+}
+#else
+extern void check_bus_watcher(void);
+#endif
+
 asmlinkage void sb1_cache_error(void)
 {
 	uint64_t cerr_dpa;

@@ -82,7 +82,7 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
  * @SOCK_STREAM - stream (connection) socket
  * @SOCK_RAW - raw socket
  * @SOCK_RDM - reliably-delivered message
- * @SOCK_SEQPACKET - sequential packet socket 
+ * @SOCK_SEQPACKET - sequential packet socket
  * @SOCK_PACKET - linux specific way of getting packets at the dev level.
  *		  For writing rarp and other similar things on the user level.
  */

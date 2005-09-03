@@ -89,7 +89,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 	 * really calculate the timer frequency
 	 * For now we hardwire the SEAD board frequency to 12MHz.
 	 */
-	
+
 	if ((prid == (PRID_COMP_MIPS | PRID_IMP_20KC)) ||
 	    (prid == (PRID_COMP_MIPS | PRID_IMP_25KF)))
 		count = 12000000;

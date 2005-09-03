@@ -101,7 +101,7 @@
 #define NBYTES 8
 #define LOG_NBYTES 3
 
-/* 
+/*
  * As we are sharing code base with the mips32 tree (which use the o32 ABI
  * register definitions). We need to redefine the register definitions from
  * the n64 ABI register naming to the o32 ABI register naming.
@@ -118,7 +118,7 @@
 #define t5	$13
 #define t6	$14
 #define t7	$15
-	
+
 #else
 
 #define LOAD   lw

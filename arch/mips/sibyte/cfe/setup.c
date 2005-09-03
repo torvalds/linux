@@ -285,7 +285,7 @@ void __init prom_init(void)
 		while (1) ;
 	}
 	cfe_init(cfe_handle, cfe_ept);
-	/* 
+	/*
 	 * Get the handle for (at least) prom_putchar, possibly for
 	 * boot console
 	 */

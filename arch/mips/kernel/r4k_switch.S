@@ -33,7 +33,7 @@
 /*
  * FPU context is saved iff the process has used it's FPU in the current
  * time slice as indicated by _TIF_USEDFPU.  In any case, the CU1 bit for user
- * space STATUS register should be 0, so that a process *always* starts its 
+ * space STATUS register should be 0, so that a process *always* starts its
  * userland with FPU disabled after each context switch.
  *
  * FPU will be enabled as soon as the process accesses FPU again, through
@@ -164,7 +164,7 @@ LEAF(_init_fpu)
 	dmtc1	t1, $f31
 1:
 #endif
-	
+
 #ifdef CONFIG_CPU_MIPS32
 	mtc1	t1, $f0
 	mtc1	t1, $f1

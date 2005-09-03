@@ -103,7 +103,7 @@ static unsigned int ls1bit8(unsigned int x)
 
 /*
  * hwint 1 deals with EISA and SCSI interrupts,
- * 
+ *
  * The EISA_INT bit in CSITPEND is high active, all others are low active.
  */
 void pciasic_hwint1(struct pt_regs *regs)

@@ -67,7 +67,7 @@ static u8 exchange_bit(u8 val, u8 cs)
 
 	/* turn the clock off and read-strobe */
 	OCELOT_FPGA_WRITE((val << 2) | cs | 0x10, EEPROM_MODE);
-	
+
 	/* return the data */
 	return ((OCELOT_FPGA_READ(EEPROM_MODE) >> 3) & 0x1);
 }
