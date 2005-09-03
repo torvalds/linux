@@ -17,13 +17,7 @@
 #include <asm/apic.h>
 #include <asm/cpufeature.h>
 #include <asm/desc.h>
-
-static inline unsigned long read_cr3(void)
-{
-	unsigned long cr3;
-	asm volatile("movl %%cr3,%0": "=r"(cr3));
-	return cr3;
-}
+#include <asm/system.h>
 
 #define PAGE_ALIGNED __attribute__ ((__aligned__(PAGE_SIZE)))
 

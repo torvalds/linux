@@ -118,7 +118,10 @@ static void __init check_hlt(void)
 		printk("disabled\n");
 		return;
 	}
-	__asm__ __volatile__("hlt ; hlt ; hlt ; hlt");
+	halt();
+	halt();
+	halt();
+	halt();
 	printk("OK.\n");
 }
 

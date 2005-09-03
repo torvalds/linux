@@ -62,7 +62,7 @@ static void flush_kernel_map(void *dummy)
 { 
 	/* Could use CLFLUSH here if the CPU supports it (Hammer,P4) */
 	if (boot_cpu_data.x86_model >= 4) 
-		asm volatile("wbinvd":::"memory"); 
+		wbinvd();
 	/* Flush all to work around Errata in early athlons regarding 
 	 * large page flushing. 
 	 */

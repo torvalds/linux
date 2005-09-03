@@ -203,9 +203,7 @@ static inline unsigned int cpuid_edx(unsigned int op)
 	return edx;
 }
 
-#define load_cr3(pgdir) \
-	asm volatile("movl %0,%%cr3": :"r" (__pa(pgdir)))
-
+#define load_cr3(pgdir) write_cr3(__pa(pgdir))
 
 /*
  * Intel CPU features in CR4
@@ -232,22 +230,20 @@ extern unsigned long mmu_cr4_features;
 
 static inline void set_in_cr4 (unsigned long mask)
 {
+	unsigned cr4;
 	mmu_cr4_features |= mask;
-	__asm__("movl %%cr4,%%eax\n\t"
-		"orl %0,%%eax\n\t"
-		"movl %%eax,%%cr4\n"
-		: : "irg" (mask)
-		:"ax");
+	cr4 = read_cr4();
+	cr4 |= mask;
+	write_cr4(cr4);
 }
 
 static inline void clear_in_cr4 (unsigned long mask)
 {
+	unsigned cr4;
 	mmu_cr4_features &= ~mask;
-	__asm__("movl %%cr4,%%eax\n\t"
-		"andl %0,%%eax\n\t"
-		"movl %%eax,%%cr4\n"
-		: : "irg" (~mask)
-		:"ax");
+	cr4 = read_cr4();
+	cr4 &= ~mask;
+	write_cr4(cr4);
 }
 
 /*

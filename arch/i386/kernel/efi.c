@@ -79,7 +79,7 @@ static void efi_call_phys_prelog(void)
 	 * directory. If I have PSE, I just need to duplicate one entry in
 	 * page directory.
 	 */
-	__asm__ __volatile__("movl %%cr4, %0":"=r"(cr4));
+	cr4 = read_cr4();
 
 	if (cr4 & X86_CR4_PSE) {
 		efi_bak_pg_dir_pointer[0].pgd =
@@ -115,7 +115,7 @@ static void efi_call_phys_epilog(void)
 	cpu_gdt_descr[0].address =
 		(unsigned long) __va(cpu_gdt_descr[0].address);
 	__asm__ __volatile__("lgdt %0":"=m"(cpu_gdt_descr));
-	__asm__ __volatile__("movl %%cr4, %0":"=r"(cr4));
+	cr4 = read_cr4();
 
 	if (cr4 & X86_CR4_PSE) {
 		swapper_pg_dir[pgd_index(0)].pgd =

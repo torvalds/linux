@@ -19,7 +19,7 @@ int unmap_page_from_agp(struct page *page);
 /* Could use CLFLUSH here if the cpu supports it. But then it would
    need to be called for each cacheline of the whole page so it may not be 
    worth it. Would need a page for it. */
-#define flush_agp_cache() asm volatile("wbinvd":::"memory")
+#define flush_agp_cache() wbinvd()
 
 /* Convert a physical address to an address suitable for the GART. */
 #define phys_to_gart(x) (x)

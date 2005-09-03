@@ -233,7 +233,7 @@ fastcall void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	int write, si_code;
 
 	/* get the address */
-	__asm__("movl %%cr2,%0":"=r" (address));
+        address = read_cr2();
 
 	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
 					SIGSEGV) == NOTIFY_STOP)
@@ -453,7 +453,7 @@ no_context:
 	printk(" at virtual address %08lx\n",address);
 	printk(KERN_ALERT " printing eip:\n");
 	printk("%08lx\n", regs->eip);
-	asm("movl %%cr3,%0":"=r" (page));
+	page = read_cr3();
 	page = ((unsigned long *) __va(page))[address >> 22];
 	printk(KERN_ALERT "*pde = %08lx\n", page);
 	/*
@@ -526,7 +526,7 @@ vmalloc_fault:
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
 
-		asm("movl %%cr3,%0":"=r" (pgd_paddr));
+		pgd_paddr = read_cr3();
 		pgd = index + (pgd_t *)__va(pgd_paddr);
 		pgd_k = init_mm.pgd + index;
 
