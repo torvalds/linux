@@ -1130,19 +1130,20 @@ EXPORT_SYMBOL(nr_pagecache);
 DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
 #endif
 
-void __get_page_state(struct page_state *ret, int nr)
+void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
 	int cpu = 0;
 
 	memset(ret, 0, sizeof(*ret));
+	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
-	cpu = first_cpu(cpu_online_map);
+	cpu = first_cpu(*cpumask);
 	while (cpu < NR_CPUS) {
 		unsigned long *in, *out, off;
 
 		in = (unsigned long *)&per_cpu(page_states, cpu);
 
-		cpu = next_cpu(cpu, cpu_online_map);
+		cpu = next_cpu(cpu, *cpumask);
 
 		if (cpu < NR_CPUS)
 			prefetch(&per_cpu(page_states, cpu));
@@ -1153,19 +1154,33 @@ void __get_page_state(struct page_state *ret, int nr)
 	}
 }
 
-void get_page_state(struct page_state *ret)
+void get_page_state_node(struct page_state *ret, int node)
 {
 	int nr;
+	cpumask_t mask = node_to_cpumask(node);
 
 	nr = offsetof(struct page_state, GET_PAGE_STATE_LAST);
 	nr /= sizeof(unsigned long);
 
-	__get_page_state(ret, nr + 1);
+	__get_page_state(ret, nr+1, &mask);
+}
+
+void get_page_state(struct page_state *ret)
+{
+	int nr;
+	cpumask_t mask = CPU_MASK_ALL;
+
+	nr = offsetof(struct page_state, GET_PAGE_STATE_LAST);
+	nr /= sizeof(unsigned long);
+
+	__get_page_state(ret, nr + 1, &mask);
 }
 
 void get_full_page_state(struct page_state *ret)
 {
-	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long));
+	cpumask_t mask = CPU_MASK_ALL;
+
+	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long), &mask);
 }
 
 unsigned long __read_page_state(unsigned long offset)
