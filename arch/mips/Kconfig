@@ -80,8 +80,6 @@ config NEC_CMBVR4133
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
-	select PCI
-	select PCI_VR41XX
 
 config ROCKHOPPER
 	bool "Support for Rockhopper baseboard"
@@ -122,8 +120,6 @@ config TANBAC_TB022X
 config TANBAC_TB0226
 	bool "Support for TANBAC Mbase(TB0226)"
 	depends on TANBAC_TB022X
-	select PCI
-	select PCI_VR41XX
 	select GPIO_VR41XX
 	help
 	  The TANBAC Mbase(TB0226) is a MIPS-based platform manufactured by TANBAC.
@@ -136,8 +132,6 @@ config VICTOR_MPC30X
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
-	select PCI
-	select PCI_VR41XX
 
 config ZAO_CAPCELLA
 	bool "Support for ZAO Networks Capcella"
@@ -146,12 +140,12 @@ config ZAO_CAPCELLA
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
-	select PCI
-	select PCI_VR41XX
 
 config PCI_VR41XX
 	bool "Add PCI control unit support of NEC VR4100 series"
-	depends on MACH_VR41XX && PCI
+	depends on MACH_VR41XX && HW_HAS_PCI
+	default y
+	select PCI
 
 config VRC4171
 	tristate "Add NEC VRC4171 companion chip support"
