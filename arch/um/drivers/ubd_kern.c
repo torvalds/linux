@@ -668,21 +668,22 @@ static int ubd_add(int n)
 	struct ubd *dev = &ubd_dev[n];
 	int err;
 
+	err = -ENODEV;
 	if(dev->file == NULL)
-		return(-ENODEV);
+		goto out;
 
 	if (ubd_open_dev(dev))
-		return(-ENODEV);
+		goto out;
 
 	err = ubd_file_size(dev, &dev->size);
 	if(err < 0)
-		return(err);
+		goto out_close;
 
 	dev->size = ROUND_BLOCK(dev->size);
 
 	err = ubd_new_disk(MAJOR_NR, dev->size, n, &ubd_gendisk[n]);
 	if(err) 
-		return(err);
+		goto out_close;
  
 	if(fake_major != MAJOR_NR)
 		ubd_new_disk(fake_major, dev->size, n, 
@@ -693,8 +694,11 @@ static int ubd_add(int n)
 	if (fake_ide)
 		make_ide_entries(ubd_gendisk[n]->disk_name);
 
+	err = 0;
+out_close:
 	ubd_close(dev);
-	return 0;
+out:
+	return err;
 }
 
 static int ubd_config(char *str)
