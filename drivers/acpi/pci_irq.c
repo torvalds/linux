@@ -500,16 +500,13 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 
 	ACPI_FUNCTION_TRACE("acpi_pci_irq_disable");
 
-	if (!dev)
+	if (!dev || !dev->bus)
 		return_VOID;
 
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	if (!pin)
 		return_VOID;
 	pin--;
-
-	if (!dev->bus)
-		return_VOID;
 
 	/*
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.
