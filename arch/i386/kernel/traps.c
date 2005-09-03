@@ -1008,7 +1008,7 @@ void __init trap_init_f00f_bug(void)
 	 * it uses the read-only mapped virtual address.
 	 */
 	idt_descr.address = fix_to_virt(FIX_F00F_IDT);
-	__asm__ __volatile__("lidt %0" : : "m" (idt_descr));
+	load_idt(&idt_descr);
 }
 #endif
 

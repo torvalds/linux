@@ -613,8 +613,8 @@ void __devinit cpu_init(void)
 	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
 		GDT_ENTRY_TLS_ENTRIES * 8);
 
-	__asm__ __volatile__("lgdt %0" : : "m" (cpu_gdt_descr[cpu]));
-	__asm__ __volatile__("lidt %0" : : "m" (idt_descr));
+	load_gdt(&cpu_gdt_descr[cpu]);
+	load_idt(&idt_descr);
 
 	/*
 	 * Delete NT
