@@ -719,13 +719,10 @@ out:
  * onenand_verify_page - [GENERIC] verify the chip contents after a write
  * @param mtd		MTD device structure
  * @param buf		the databuffer to verify
- * @param block		block address
- * @param page		page address
  *
  * Check DataRAM area directly
  */
-static int onenand_verify_page(struct mtd_info *mtd, u_char *buf,
-	loff_t addr, int block, int page)
+static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 {
 	struct onenand_chip *this = mtd->priv;
 	void __iomem *dataram0, *dataram1;
@@ -816,7 +813,7 @@ static int onenand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		written += thislen;
 
 		/* Only check verify write turn on */
-		ret = onenand_verify_page(mtd, (u_char *) buf, to, block, page);
+		ret = onenand_verify_page(mtd, (u_char *) buf, to);
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_ecc: verify failed %d\n", ret);
 			goto out;
@@ -940,7 +937,7 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 	u_char *eccbuf, struct nand_oobinfo *oobsel)
 {
 	struct onenand_chip *this = mtd->priv;
-	unsigned char buffer[mtd->oobblock], *pbuf;
+	unsigned char buffer[MAX_ONENAND_PAGESIZE], *pbuf;
 	size_t total_len, len;
 	int i, written = 0;
 	int ret = 0;
@@ -1025,7 +1022,7 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 
 
 		/* Only check verify write turn on */
-		ret = onenand_verify_page(mtd, (u_char *) pbuf, to, block, page);
+		ret = onenand_verify_page(mtd, (u_char *) pbuf, to);
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_writev_ecc: verify failed %d\n", ret);
 			goto out;

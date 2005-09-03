@@ -17,6 +17,7 @@
 #include <linux/mtd/bbm.h>
 
 #define MAX_BUFFERRAM		2
+#define MAX_ONENAND_PAGESIZE	(2048 + 64)
 
 /* Scan and identify a OneNAND device */
 extern int onenand_scan(struct mtd_info *mtd, int max_chips);
