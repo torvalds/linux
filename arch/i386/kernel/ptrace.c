@@ -509,15 +509,27 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		  }
 		  break;
 
+	case PTRACE_SYSEMU: /* continue and stop at next syscall, which will not be executed */
 	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:	/* restart after signal. */
 		ret = -EIO;
 		if (!valid_signal(data))
 			break;
+		/* If we came here with PTRACE_SYSEMU and now continue with
+		 * PTRACE_SYSCALL, entry.S used to intercept the syscall return.
+		 * But it shouldn't!
+		 * So we don't clear TIF_SYSCALL_EMU, which is always unused in
+		 * this special case, to remember, we came from SYSEMU. That
+		 * flag will be cleared by do_syscall_trace().
+		 */
+		if (request == PTRACE_SYSEMU) {
+			set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+		} else if (request == PTRACE_CONT) {
+			clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+		}
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		}
-		else {
+		} else {
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		}
 		child->exit_code = data;
@@ -546,6 +558,8 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		ret = -EIO;
 		if (!valid_signal(data))
 			break;
+		/*See do_syscall_trace to know why we don't clear
+		 * TIF_SYSCALL_EMU.*/
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		set_singlestep(child);
 		child->exit_code = data;
@@ -678,37 +692,43 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
  * - triggered by current->work.syscall_trace
  */
 __attribute__((regparm(3)))
-void do_syscall_trace(struct pt_regs *regs, int entryexit)
+int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
+	int is_sysemu, is_systrace, is_singlestep, ret = 0;
 	/* do the secure computing check first */
 	secure_computing(regs->orig_eax);
 
-	if (unlikely(current->audit_context)) {
-		if (entryexit)
-			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
-
-		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
-		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
-		 * not used, entry.S will call us only on syscall exit, not
-		 * entry ; so when TIF_SYSCALL_AUDIT is used we must avoid
-		 * calling send_sigtrap() on syscall entry.
-		 */
-		else if (is_singlestep)
-			goto out;
-	}
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
 
 	if (!(current->ptrace & PT_PTRACED))
 		goto out;
+
+	is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);
+	is_systrace = test_thread_flag(TIF_SYSCALL_TRACE);
+	is_singlestep = test_thread_flag(TIF_SINGLESTEP);
+
+	/* We can detect the case of coming from PTRACE_SYSEMU and now running
+	 * with PTRACE_SYSCALL or PTRACE_SINGLESTEP, by TIF_SYSCALL_EMU being
+	 * set additionally.
+	 * If so let's reset the flag and return without action (no singlestep
+	 * nor syscall tracing, since no actual step has been executed).
+	 */
+	if (is_sysemu && (is_systrace || is_singlestep)) {
+		clear_thread_flag(TIF_SYSCALL_EMU);
+		goto out;
+	}
 
 	/* Fake a debug trap */
 	if (test_thread_flag(TIF_SINGLESTEP))
 		send_sigtrap(current, regs, 0);
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+	if (!is_systrace && !is_sysemu)
 		goto out;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
+	/* Note that the debugger could change the result of test_thread_flag!*/
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
 
 	/*
@@ -720,9 +740,10 @@ void do_syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+	ret = is_sysemu;
  out:
 	if (unlikely(current->audit_context) && !entryexit)
 		audit_syscall_entry(current, AUDIT_ARCH_I386, regs->orig_eax,
 				    regs->ebx, regs->ecx, regs->edx, regs->esi);
-
+	return ret;
 }
