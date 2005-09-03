@@ -1015,7 +1015,7 @@ smp_stop_cpu_function(void *dummy)
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	local_irq_disable();
 	for(;;)
-	       __asm__("hlt");
+		halt();
 }
 
 static DEFINE_SPINLOCK(call_lock);

@@ -93,10 +93,7 @@ static void set_idt(void *newidt, __u16 limit)
 	curidt.size    = limit;
 	curidt.address = (unsigned long)newidt;
 
-	__asm__ __volatile__ (
-		"lidtl %0\n"
-		: : "m" (curidt)
-		);
+	load_idt(&curidt);
 };
 
 
@@ -108,10 +105,7 @@ static void set_gdt(void *newgdt, __u16 limit)
 	curgdt.size    = limit;
 	curgdt.address = (unsigned long)newgdt;
 
-	__asm__ __volatile__ (
-		"lgdtl %0\n"
-		: : "m" (curgdt)
-		);
+	load_gdt(&curgdt);
 };
 
 static void load_segments(void)

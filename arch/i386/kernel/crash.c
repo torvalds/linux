@@ -153,7 +153,7 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 	disable_local_APIC();
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
-	__asm__("hlt");
+	halt();
 	for(;;);
 
 	return 1;

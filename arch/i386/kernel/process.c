@@ -164,7 +164,7 @@ static inline void play_dead(void)
 	 */
 	local_irq_disable();
 	while (1)
-		__asm__ __volatile__("hlt":::"memory");
+		halt();
 }
 #else
 static inline void play_dead(void)
