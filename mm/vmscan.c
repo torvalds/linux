@@ -1375,6 +1375,9 @@ asmlinkage long sys_set_zone_reclaim(unsigned int node, unsigned int zone,
 	struct zone *z;
 	int i;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	if (node >= MAX_NUMNODES || !node_online(node))
 		return -EINVAL;
 
