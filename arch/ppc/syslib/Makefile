@@ -43,8 +43,6 @@ obj-$(CONFIG_PPC_PMAC)		+= open_pic.o indirect_pci.o
 obj-$(CONFIG_POWER4)		+= open_pic2.o
 obj-$(CONFIG_PPC_CHRP)		+= open_pic.o indirect_pci.o i8259.o
 obj-$(CONFIG_PPC_PREP)		+= open_pic.o indirect_pci.o i8259.o todc_time.o
-obj-$(CONFIG_ADIR)		+= i8259.o indirect_pci.o pci_auto.o \
-					todc_time.o
 obj-$(CONFIG_BAMBOO)		+= indirect_pci.o pci_auto.o todc_time.o
 obj-$(CONFIG_CPCI690)		+= todc_time.o pci_auto.o
 obj-$(CONFIG_EBONY)		+= indirect_pci.o pci_auto.o todc_time.o

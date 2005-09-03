@@ -637,9 +637,6 @@ config SANDPOINT
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
 
-config ADIR
-	bool "SBS-Adirondack"
-
 config K2
 	bool "SBS-K2"
 
