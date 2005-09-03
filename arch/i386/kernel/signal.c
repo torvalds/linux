@@ -604,7 +604,9 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * We want the common case to go fast, which
 	 * is why we may in certain cases get here from
 	 * kernel mode. Just return without doing anything
-	 * if so.
+ 	 * if so.  vm86 regs switched out by assembly code
+ 	 * before reaching here, so testing against kernel
+ 	 * CS suffices.
 	 */
 	if (!user_mode(regs))
 		return 1;

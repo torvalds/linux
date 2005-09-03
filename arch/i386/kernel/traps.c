@@ -210,7 +210,7 @@ void show_registers(struct pt_regs *regs)
 	unsigned short ss;
 
 	esp = (unsigned long) (&regs->esp);
-	ss = __KERNEL_DS;
+	savesegment(ss, ss);
 	if (user_mode(regs)) {
 		in_kernel = 0;
 		esp = regs->esp;
@@ -266,9 +266,6 @@ static void handle_BUG(struct pt_regs *regs)
 	char *file;
 	char c;
 	unsigned long eip;
-
-	if (user_mode(regs))
-		goto no_bug;		/* Not in kernel */
 
 	eip = regs->eip;
 
