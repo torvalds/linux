@@ -70,12 +70,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 void hugetlb_prefault_arch_hook(struct mm_struct *mm);
 #endif
 
-#ifndef ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
-#define hugetlb_clean_stale_pgtable(pte)	BUG()
-#else
-void hugetlb_clean_stale_pgtable(pte_t *pte);
-#endif
-
 #else /* !CONFIG_HUGETLB_PAGE */
 
 static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
