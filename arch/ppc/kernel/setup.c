@@ -615,6 +615,30 @@ machine_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (ppc_md.progress)
 		ppc_md.progress("id mach(): done", 0x200);
 }
+#ifdef CONFIG_BOOKE_WDT
+/* Checks wdt=x and wdt_period=xx command-line option */
+int __init early_parse_wdt(char *p)
+{
+	extern u32 wdt_enable;
+
+	if (p && strncmp(p, "0", 1) != 0)
+	       wdt_enable = 1;
+
+	return 0;
+}
+early_param("wdt", early_parse_wdt);
+
+int __init early_parse_wdt_period (char *p)
+{
+	extern u32 wdt_period;
+
+	if (p)
+		wdt_period = simple_strtoul(p, NULL, 0);
+
+	return 0;
+}
+early_param("wdt_period", early_parse_wdt_period);
+#endif	/* CONFIG_BOOKE_WDT */
 
 /* Checks "l2cr=xxxx" command-line option */
 int __init ppc_setup_l2cr(char *str)

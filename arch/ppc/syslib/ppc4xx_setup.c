@@ -48,10 +48,6 @@
 extern void abort(void);
 extern void ppc4xx_find_bridges(void);
 
-extern void ppc4xx_wdt_heartbeat(void);
-extern int wdt_enable;
-extern unsigned long wdt_period;
-
 /* Global Variables */
 bd_t __res;
 
@@ -257,22 +253,6 @@ ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		*(char *) (r7 + KERNELBASE) = 0;
 		strcpy(cmd_line, (char *) (r6 + KERNELBASE));
 	}
-#if defined(CONFIG_PPC405_WDT)
-/* Look for wdt= option on command line */
-	if (strstr(cmd_line, "wdt=")) {
-		int valid_wdt = 0;
-		char *p, *q;
-		for (q = cmd_line; (p = strstr(q, "wdt=")) != 0;) {
-			q = p + 4;
-			if (p > cmd_line && p[-1] != ' ')
-				continue;
-			wdt_period = simple_strtoul(q, &q, 0);
-			valid_wdt = 1;
-			++q;
-		}
-		wdt_enable = valid_wdt;
-	}
-#endif
 
 	/* Initialize machine-dependent vectors */
 
@@ -286,11 +266,6 @@ ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.halt = ppc4xx_halt;
 
 	ppc_md.calibrate_decr = ppc4xx_calibrate_decr;
-
-#ifdef CONFIG_PPC405_WDT
-	ppc_md.heartbeat = ppc4xx_wdt_heartbeat;
-#endif
-	ppc_md.heartbeat_count = 0;
 
 	ppc_md.find_end_of_memory = ppc4xx_find_end_of_memory;
 	ppc_md.setup_io_mappings = ppc4xx_map_io;
