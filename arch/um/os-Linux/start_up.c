@@ -161,7 +161,7 @@ __uml_setup("nosysemu", nosysemu_cmd_param,
 static void __init check_sysemu(void)
 {
 	void *stack;
-	int pid, syscall, n, status, count=0;
+ 	int pid, n, status, count=0;
 
 	printk("Checking syscall emulation patch for ptrace...");
 	sysemu_supported = 0;
@@ -192,6 +192,12 @@ static void __init check_sysemu(void)
 
 	printk("Checking advanced syscall emulation patch for ptrace...");
 	pid = start_ptraced_child(&stack);
+
+	if(ptrace(PTRACE_OLDSETOPTIONS, pid, 0,
+		  (void *) PTRACE_O_TRACESYSGOOD) < 0)
+		panic("check_ptrace: PTRACE_OLDSETOPTIONS failed, errno = %d",
+		      errno);
+
 	while(1){
 		count++;
 		if(ptrace(PTRACE_SYSEMU_SINGLESTEP, pid, 0, 0) < 0)
@@ -199,15 +205,10 @@ static void __init check_sysemu(void)
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 		if(n < 0)
 			panic("check_ptrace : wait failed, errno = %d", errno);
-		if(!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGTRAP))
-			panic("check_ptrace : expected (SIGTRAP|SYSCALL_TRAP), "
-			      "got status = %d", status);
-
-		syscall = ptrace(PTRACE_PEEKUSR, pid, PT_SYSCALL_NR_OFFSET,
-				 0);
-		if(syscall == __NR_getpid){
+		if(WIFSTOPPED(status) && (WSTOPSIG(status) == (SIGTRAP|0x80))){
 			if (!count)
-				panic("check_ptrace : SYSEMU_SINGLESTEP doesn't singlestep");
+				panic("check_ptrace : SYSEMU_SINGLESTEP "
+				      "doesn't singlestep");
 			n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_RET_OFFSET,
 				   os_getpid());
 			if(n < 0)
@@ -215,6 +216,11 @@ static void __init check_sysemu(void)
 				      "call return, errno = %d", errno);
 			break;
 		}
+		else if(WIFSTOPPED(status) && (WSTOPSIG(status) == SIGTRAP))
+			count++;
+		else
+			panic("check_ptrace : expected SIGTRAP or "
+			      "(SIGTRAP|0x80), got status = %d", status);
 	}
 	if (stop_ptraced_child(pid, stack, 0, 0) < 0)
 		goto fail_stopped;
@@ -250,8 +256,8 @@ static void __init check_ptrace(void)
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 		if(n < 0)
 			panic("check_ptrace : wait failed, errno = %d", errno);
-		if(!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGTRAP + 0x80))
-			panic("check_ptrace : expected SIGTRAP + 0x80, "
+		if(!WIFSTOPPED(status) || (WSTOPSIG(status) != (SIGTRAP|0x80)))
+			panic("check_ptrace : expected (SIGTRAP|0x80), "
 			      "got status = %d", status);
 
 		syscall = ptrace(PTRACE_PEEKUSR, pid, PT_SYSCALL_NR_OFFSET,
