@@ -14,6 +14,10 @@ config X86
 	  486, 586, Pentiums, and various instruction-set-compatible chips by
 	  AMD, Cyrix, and others.
 
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
 config MMU
 	bool
 	default y

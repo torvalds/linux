@@ -1,5 +1,5 @@
 /*
- * x86_64 semaphore implementation.
+ * i386 and x86-64 semaphore implementation.
  *
  * (C) Copyright 1999 Linus Torvalds
  *
@@ -14,9 +14,8 @@
  */
 #include <linux/config.h>
 #include <linux/sched.h>
+#include <linux/err.h>
 #include <linux/init.h>
-#include <asm/errno.h>
-
 #include <asm/semaphore.h>
 
 /*
@@ -50,12 +49,12 @@
  *    we cannot lose wakeup events.
  */
 
-void __up(struct semaphore *sem)
+fastcall void __up(struct semaphore *sem)
 {
 	wake_up(&sem->wait);
 }
 
-void __sched __down(struct semaphore * sem)
+fastcall void __sched __down(struct semaphore * sem)
 {
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
@@ -92,7 +91,7 @@ void __sched __down(struct semaphore * sem)
 	tsk->state = TASK_RUNNING;
 }
 
-int __sched __down_interruptible(struct semaphore * sem)
+fastcall int __sched __down_interruptible(struct semaphore * sem)
 {
 	int retval = 0;
 	struct task_struct *tsk = current;
@@ -155,7 +154,7 @@ int __sched __down_interruptible(struct semaphore * sem)
  * single "cmpxchg" without failure cases,
  * but then it wouldn't work on a 386.
  */
-int __down_trylock(struct semaphore * sem)
+fastcall int __down_trylock(struct semaphore * sem)
 {
 	int sleepers;
 	unsigned long flags;
@@ -176,5 +175,3 @@ int __down_trylock(struct semaphore * sem)
 	spin_unlock_irqrestore(&sem->wait.lock, flags);
 	return 1;
 }
-
-
