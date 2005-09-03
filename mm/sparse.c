@@ -6,6 +6,7 @@
 #include <linux/mmzone.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include <asm/dma.h>
 
 /*
@@ -22,27 +23,55 @@ struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
 #endif
 EXPORT_SYMBOL(mem_section);
 
-static void sparse_alloc_root(unsigned long root, int nid)
-{
 #ifdef CONFIG_SPARSEMEM_EXTREME
-	mem_section[root] = alloc_bootmem_node(NODE_DATA(nid), PAGE_SIZE);
-#endif
-}
-
-static void sparse_index_init(unsigned long section, int nid)
+static struct mem_section *sparse_index_alloc(int nid)
 {
-	unsigned long root = SECTION_NR_TO_ROOT(section);
+	struct mem_section *section = NULL;
+	unsigned long array_size = SECTIONS_PER_ROOT *
+				   sizeof(struct mem_section);
 
-	if (mem_section[root])
-		return;
+	section = alloc_bootmem_node(NODE_DATA(nid), array_size);
 
-	sparse_alloc_root(root, nid);
+	if (section)
+		memset(section, 0, array_size);
 
-	if (mem_section[root])
-		memset(mem_section[root], 0, PAGE_SIZE);
-	else
-		panic("memory_present: NO MEMORY\n");
+	return section;
 }
+
+static int sparse_index_init(unsigned long section_nr, int nid)
+{
+	static spinlock_t index_init_lock = SPIN_LOCK_UNLOCKED;
+	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
+	struct mem_section *section;
+	int ret = 0;
+
+	if (mem_section[root])
+		return -EEXIST;
+
+	section = sparse_index_alloc(nid);
+	/*
+	 * This lock keeps two different sections from
+	 * reallocating for the same index
+	 */
+	spin_lock(&index_init_lock);
+
+	if (mem_section[root]) {
+		ret = -EEXIST;
+		goto out;
+	}
+
+	mem_section[root] = section;
+out:
+	spin_unlock(&index_init_lock);
+	return ret;
+}
+#else /* !SPARSEMEM_EXTREME */
+static inline int sparse_index_init(unsigned long section_nr, int nid)
+{
+	return 0;
+}
+#endif
+
 /* Record a memory area against a node. */
 void memory_present(int nid, unsigned long start, unsigned long end)
 {

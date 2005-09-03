@@ -588,6 +588,7 @@ static inline int pfn_valid(unsigned long pfn)
 void sparse_init(void);
 #else
 #define sparse_init()	do {} while (0)
+#define sparse_index_init(_sec, _nid)  do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
 
 #ifdef CONFIG_NODES_SPAN_OTHER_NODES
