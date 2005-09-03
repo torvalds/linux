@@ -1,7 +1,7 @@
 /*
- *  setup.c, Setup for the ZAO Networks Capcella.
+ *  type.c, System type for NEC VR4100 series.
  *
- *  Copyright (C) 2002-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,5 +20,5 @@
 
 const char *get_system_type(void)
 {
-	return "ZAO Networks Capcella";
+	return "NEC VR4100 series";
 }

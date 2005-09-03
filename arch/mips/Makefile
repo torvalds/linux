@@ -490,13 +490,11 @@ load-$(CONFIG_NEC_CMBVR4133)	+= 0xffffffff80100000
 #
 # ZAO Networks Capcella (VR4131)
 #
-core-$(CONFIG_ZAO_CAPCELLA)	+= arch/mips/vr41xx/zao-capcella/
 load-$(CONFIG_ZAO_CAPCELLA)	+= 0xffffffff80000000
 
 #
 # Victor MP-C303/304 (VR4122)
 #
-core-$(CONFIG_VICTOR_MPC30X)	+= arch/mips/vr41xx/victor-mpc30x/
 load-$(CONFIG_VICTOR_MPC30X)	+= 0xffffffff80001000
 
 #
@@ -514,13 +512,11 @@ load-$(CONFIG_CASIO_E55)	+= 0xffffffff80004000
 #
 # TANBAC TB0226 Mbase (VR4131)
 #
-core-$(CONFIG_TANBAC_TB0226)	+= arch/mips/vr41xx/tanbac-tb0226/
 load-$(CONFIG_TANBAC_TB0226)	+= 0xffffffff80000000
 
 #
 # TANBAC TB0229 VR4131DIMM (VR4131)
 #
-core-$(CONFIG_TANBAC_TB0229)	+= arch/mips/vr41xx/tanbac-tb0229/
 load-$(CONFIG_TANBAC_TB0229)	+= 0xffffffff80000000
 
 #
