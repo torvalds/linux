@@ -311,19 +311,21 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	ctrl = this->read_word(this->base + ONENAND_REG_CTRL_STATUS);
 
 	if (ctrl & ONENAND_CTRL_ERROR) {
-		DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: controller error = 0x%04x", ctrl);
-		return -EIO;
+		/* It maybe occur at initial bad block */
+		DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: controller error = 0x%04x\n", ctrl);
+		/* Clear other interrupt bits for preventing ECC error */
+		interrupt &= ONENAND_INT_MASTER;
 	}
 
 	if (ctrl & ONENAND_CTRL_LOCK) {
-		DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: it's locked error = 0x%04x", ctrl);
-		return -EIO;
+		DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: it's locked error = 0x%04x\n", ctrl);
+		return -EACCES;
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
 		ecc = this->read_word(this->base + ONENAND_REG_ECC_STATUS);
 		if (ecc & ONENAND_ECC_2BIT_ALL) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: ECC error = 0x%04x", ecc);
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: ECC error = 0x%04x\n", ecc);
 			return -EBADMSG;
 		}
 	}
@@ -1060,6 +1062,25 @@ static int onenand_writev(struct mtd_info *mtd, const struct kvec *vecs,
 }
 
 /**
+ * onenand_block_checkbad - [GENERIC] Check if a block is marked bad
+ * @param mtd		MTD device structure
+ * @param ofs		offset from device start
+ * @param getchip	0, if the chip is already selected
+ * @param allowbbt	1, if its allowed to access the bbt area
+ *
+ * Check, if the block is bad. Either by reading the bad block table or
+ * calling of the scan function.
+ */
+static int onenand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip, int allowbbt)
+{
+	struct onenand_chip *this = mtd->priv;
+	struct bbm_info *bbm = this->bbm;
+
+	/* Return info from the table */
+	return bbm->isbad_bbt(mtd, ofs, allowbbt);
+}
+
+/**
  * onenand_erase - [MTD Interface] erase block(s)
  * @param mtd		MTD device structure
  * @param instr		erase instruction
@@ -1109,7 +1130,12 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	while (len) {
 
-		/* TODO Check badblock */
+		/* Check if we have a bad block, we do not erase bad blocks */
+		if (onenand_block_checkbad(mtd, addr, 0, 0)) {
+			printk (KERN_WARNING "onenand_erase: attempt to erase a bad block at addr 0x%08x\n", (unsigned int) addr);
+			instr->state = MTD_ERASE_FAILED;
+			goto erase_exit;
+		}
 
 		this->command(mtd, ONENAND_CMD_ERASE, addr, block_size);
 
@@ -1161,34 +1187,70 @@ static void onenand_sync(struct mtd_info *mtd)
 	onenand_release_device(mtd);
 }
 
+
 /**
  * onenand_block_isbad - [MTD Interface] Check whether the block at the given offset is bad
  * @param mtd		MTD device structure
  * @param ofs		offset relative to mtd start
+ *
+ * Check whether the block is bad
  */
 static int onenand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
-	/*
-	 * TODO 
-	 * 1. Bad block table (BBT)
-	 *   -> using NAND BBT to support JFFS2
-	 * 2. Bad block management (BBM)
-	 *   -> bad block replace scheme
-	 *
-	 * Currently we do nothing
-	 */
-	return 0;
+	/* Check for invalid offset */
+	if (ofs > mtd->size)
+		return -EINVAL;
+
+	return onenand_block_checkbad(mtd, ofs, 1, 0);
+}
+
+/**
+ * onenand_default_block_markbad - [DEFAULT] mark a block bad
+ * @param mtd		MTD device structure
+ * @param ofs		offset from device start
+ *
+ * This is the default implementation, which can be overridden by
+ * a hardware specific driver.
+ */
+static int onenand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
+{
+	struct onenand_chip *this = mtd->priv;
+	struct bbm_info *bbm = this->bbm;
+	u_char buf[2] = {0, 0};
+	size_t retlen;
+	int block;
+
+	/* Get block number */
+	block = ((int) ofs) >> bbm->bbt_erase_shift;
+        if (bbm->bbt)
+                bbm->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
+
+        /* We write two bytes, so we dont have to mess with 16 bit access */
+        ofs += mtd->oobsize + (bbm->badblockpos & ~0x01);
+        return mtd->write_oob(mtd, ofs , 2, &retlen, buf);
 }
 
 /**
  * onenand_block_markbad - [MTD Interface] Mark the block at the given offset as bad
  * @param mtd		MTD device structure
  * @param ofs		offset relative to mtd start
+ *
+ * Mark the block as bad
  */
 static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
-	/* see above */
-	return 0;
+	struct onenand_chip *this = mtd->priv;
+	int ret;
+
+	ret = onenand_block_isbad(mtd, ofs);
+	if (ret) {
+		/* If it was bad already, return success and do nothing */
+		if (ret > 0)
+			return 0;
+		return ret;
+	}
+
+	return this->block_markbad(mtd, ofs);
 }
 
 /**
@@ -1411,6 +1473,11 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	if (!this->write_bufferram)
 		this->write_bufferram = onenand_write_bufferram;
 
+	if (!this->block_markbad)
+		this->block_markbad = onenand_default_block_markbad;
+	if (!this->scan_bbt)
+		this->scan_bbt = onenand_default_bbt;
+
 	if (onenand_probe(mtd))
 		return -ENXIO;
 
@@ -1472,7 +1539,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Unlock whole block */
 	mtd->unlock(mtd, 0x0, this->chipsize);
 
-	return 0;
+	return this->scan_bbt(mtd);
 }
 
 /**

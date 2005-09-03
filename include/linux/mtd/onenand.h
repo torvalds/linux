@@ -14,6 +14,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/mtd/onenand_regs.h>
+#include <linux/mtd/bbm.h>
 
 #define MAX_BUFFERRAM		2
 
@@ -67,10 +68,14 @@ struct onenand_bufferram {
  * @param wait		[REPLACEABLE] hardware specific function for wait on ready
  * @param read_bufferram	[REPLACEABLE] hardware specific function for BufferRAM Area
  * @param write_bufferram	[REPLACEABLE] hardware specific function for BufferRAM Area
+ * @param read_word	[REPLACEABLE] hardware specific function for read register of OneNAND
+ * @param write_word	[REPLACEABLE] hardware specific function for write register of OneNAND
+ * @param scan_bbt	[REPLACEALBE] hardware specific function for scaning Bad block Table
  * @param chip_lock	[INTERN] spinlock used to protect access to this structure and the chip
  * @param wq		[INTERN] wait queue to sleep on if a OneNAND operation is in progress
  * @param state		[INTERN] the current state of the OneNAND device
  * @param autooob	[REPLACEABLE] the default (auto)placement scheme
+ * @param bbm		[REPLACEABLE] pointer to Bad Block Management 
  * @param priv		[OPTIONAL] pointer to private chip date
  */
 struct onenand_chip {
@@ -96,12 +101,16 @@ struct onenand_chip {
 	unsigned short (*read_word)(void __iomem *addr);
 	void (*write_word)(unsigned short value, void __iomem *addr);
 	void (*mmcontrol)(struct mtd_info *mtd, int sync_read);
+	int (*block_markbad)(struct mtd_info *mtd, loff_t ofs);
+	int (*scan_bbt)(struct mtd_info *mtd);
 
 	spinlock_t		chip_lock;
 	wait_queue_head_t	wq;
 	onenand_state_t		state;
 
 	struct nand_oobinfo	*autooob;
+
+	void 			*bbm;
 
 	void			*priv;
 };
