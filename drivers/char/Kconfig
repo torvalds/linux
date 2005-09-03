@@ -842,8 +842,9 @@ config SONYPI
 
 config TANBAC_TB0219
 	tristate "TANBAC TB0219 base board support"
-	depends TANBAC_TB0229
-
+	depends TANBAC_TB022X
+	select PCI
+	select PCI_VR41XX
 
 menu "Ftape, the floppy tape device driver"
 

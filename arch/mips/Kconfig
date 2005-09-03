@@ -102,25 +102,29 @@ config IBM_WORKPAD
 	select IRQ_CPU
 	select ISA
 
-config TANBAC_TB0226
-	bool "Support for TANBAC TB0226 (Mbase)"
+config TANBAC_TB022X
+	bool "Support for TANBAC VR4131 multichip module and TANBAC VR4131DIMM"
 	depends on MACH_VR41XX
+	select CPU_LITTLE_ENDIAN
 	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	select IRQ_CPU
+	select HW_HAS_PCI
 	help
-	  The TANBAC TB0226 (Mbase) is a MIPS-based platform manufactured by TANBAC.
-	  Please refer to <http://www.tanbac.co.jp/> about Mbase.
+	  The TANBAC VR4131 multichip module(TB0225) and
+	  the TANBAC VR4131DIMM(TB0229) are MIPS-based platforms
+	  manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/>
+	  about VR4131 multichip module and VR4131DIMM.
 
-config TANBAC_TB0229
-	bool "Support for TANBAC TB0229 (VR4131DIMM)"
-	depends on MACH_VR41XX
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
+config TANBAC_TB0226
+	bool "Support for TANBAC Mbase(TB0226)"
+	depends on TANBAC_TB022X
+	select PCI
+	select PCI_VR41XX
+	select GPIO_VR41XX
 	help
-	  The TANBAC TB0229 (VR4131DIMM) is a MIPS-based platform manufactured by TANBAC.
-	  Please refer to <http://www.tanbac.co.jp/> about VR4131DIMM.
+	  The TANBAC Mbase(TB0226) is a MIPS-based platform manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/> about Mbase.
 
 config VICTOR_MPC30X
 	bool "Support for Victor MP-C303/304"
