@@ -678,21 +678,26 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	__unlazy_fpu(prev_p);
 
 	/*
-	 * Reload esp0, LDT and the page table pointer:
+	 * Reload esp0.
 	 */
 	load_esp0(tss, next);
+
+	/*
+	 * Save away %fs and %gs. No need to save %es and %ds, as
+	 * those are always kernel segments while inside the kernel.
+	 * Doing this before setting the new TLS descriptors avoids
+	 * the situation where we temporarily have non-reloadable
+	 * segments in %fs and %gs.  This could be an issue if the
+	 * NMI handler ever used %fs or %gs (it does not today), or
+	 * if the kernel is running inside of a hypervisor layer.
+	 */
+	savesegment(fs, prev->fs);
+	savesegment(gs, prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
 	 */
 	load_TLS(next, cpu);
-
-	/*
-	 * Save away %fs and %gs. No need to save %es and %ds, as
-	 * those are always kernel segments while inside the kernel.
-	 */
-	asm volatile("mov %%fs,%0":"=m" (prev->fs));
-	asm volatile("mov %%gs,%0":"=m" (prev->gs));
 
 	/*
 	 * Restore %fs and %gs if needed.
