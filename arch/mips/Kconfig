@@ -71,7 +71,7 @@ config OLIVETTI_M700
 	  <http://www.linux-mips.org/>.
 
 config MACH_VR41XX
-	bool "Support for NEC VR41XX-based machines"
+	bool "Support for NEC VR4100 series based machines"
 
 config NEC_CMBVR4133
 	bool "Support for NEC CMB-VR4133"
