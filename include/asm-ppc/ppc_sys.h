@@ -52,6 +52,7 @@ extern struct ppc_sys_spec *cur_ppc_sys_spec;
 /* determine which specific SOC we are */
 extern void identify_ppc_sys_by_id(u32 id) __init;
 extern void identify_ppc_sys_by_name(char *name) __init;
+extern void identify_ppc_sys_by_name_and_id(char *name, u32 id) __init;
 
 /* describes all devices that may exist in a given family of processors */
 extern struct platform_device ppc_sys_platform_devices[];
