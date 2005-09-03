@@ -2166,7 +2166,9 @@ static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast fl
 		objp = cache_alloc_refill(cachep, flags);
 	}
 	local_irq_restore(save_flags);
-	objp = cache_alloc_debugcheck_after(cachep, flags, objp, __builtin_return_address(0));
+	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
+					__builtin_return_address(0));
+	prefetchw(objp);
 	return objp;
 }
 
