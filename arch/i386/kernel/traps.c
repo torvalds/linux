@@ -565,6 +565,10 @@ static DEFINE_SPINLOCK(nmi_print_lock);
 
 void die_nmi (struct pt_regs *regs, const char *msg)
 {
+	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 0, SIGINT) ==
+	    NOTIFY_STOP)
+		return;
+
 	spin_lock(&nmi_print_lock);
 	/*
 	* We are in trouble anyway, lets at least try
