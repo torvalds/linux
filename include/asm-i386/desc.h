@@ -27,8 +27,8 @@ struct Xgt_desc_struct {
 
 extern struct Xgt_desc_struct idt_descr, cpu_gdt_descr[NR_CPUS];
 
-#define load_TR_desc() __asm__ __volatile__("ltr %%ax"::"a" (GDT_ENTRY_TSS*8))
-#define load_LDT_desc() __asm__ __volatile__("lldt %%ax"::"a" (GDT_ENTRY_LDT*8))
+#define load_TR_desc() __asm__ __volatile__("ltr %w0"::"q" (GDT_ENTRY_TSS*8))
+#define load_LDT_desc() __asm__ __volatile__("lldt %w0"::"q" (GDT_ENTRY_LDT*8))
 
 #define load_gdt(dtr) __asm__ __volatile("lgdt %0"::"m" (*dtr))
 #define load_idt(dtr) __asm__ __volatile("lidt %0"::"m" (*dtr))
@@ -49,14 +49,14 @@ extern void set_intr_gate(unsigned int irq, void * addr);
 
 #define _set_tssldt_desc(n,addr,limit,type) \
 __asm__ __volatile__ ("movw %w3,0(%2)\n\t" \
-	"movw %%ax,2(%2)\n\t" \
-	"rorl $16,%%eax\n\t" \
-	"movb %%al,4(%2)\n\t" \
+	"movw %w1,2(%2)\n\t" \
+	"rorl $16,%1\n\t" \
+	"movb %b1,4(%2)\n\t" \
 	"movb %4,5(%2)\n\t" \
 	"movb $0,6(%2)\n\t" \
-	"movb %%ah,7(%2)\n\t" \
-	"rorl $16,%%eax" \
-	: "=m"(*(n)) : "a" (addr), "r"(n), "ir"(limit), "i"(type))
+	"movb %h1,7(%2)\n\t" \
+	"rorl $16,%1" \
+	: "=m"(*(n)) : "q" (addr), "r"(n), "ir"(limit), "i"(type))
 
 static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, void *addr)
 {
