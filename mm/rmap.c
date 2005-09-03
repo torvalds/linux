@@ -34,9 +34,8 @@
  *       anon_vma->lock
  *         mm->page_table_lock
  *           zone->lru_lock (in mark_page_accessed)
- *           swap_list_lock (in swap_free etc's swap_info_get)
+ *           swap_lock (in swap_duplicate, swap_info_get)
  *             mmlist_lock (in mmput, drain_mmlist and others)
- *             swap_device_lock (in swap_duplicate, swap_info_get)
  *             mapping->private_lock (in __set_page_dirty_buffers)
  *             inode_lock (in set_page_dirty's __mark_inode_dirty)
  *               sb_lock (within inode_lock in fs/fs-writeback.c)

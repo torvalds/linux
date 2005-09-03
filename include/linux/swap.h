@@ -121,7 +121,7 @@ enum {
  */
 struct swap_info_struct {
 	unsigned int flags;
-	spinlock_t sdev_lock;
+	int prio;			/* swap priority */
 	struct file *swap_file;
 	struct block_device *bdev;
 	struct list_head extent_list;
@@ -135,7 +135,6 @@ struct swap_info_struct {
 	unsigned int pages;
 	unsigned int max;
 	unsigned int inuse_pages;
-	int prio;			/* swap priority */
 	int next;			/* next entry on swap list */
 };
 
@@ -221,13 +220,7 @@ extern int can_share_swap_page(struct page *);
 extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
 
-extern struct swap_list_t swap_list;
-extern spinlock_t swaplock;
-
-#define swap_list_lock()	spin_lock(&swaplock)
-#define swap_list_unlock()	spin_unlock(&swaplock)
-#define swap_device_lock(p)	spin_lock(&p->sdev_lock)
-#define swap_device_unlock(p)	spin_unlock(&p->sdev_lock)
+extern spinlock_t swap_lock;
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;
