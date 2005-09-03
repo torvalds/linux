@@ -240,6 +240,20 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 4,
 		.cpu_setup		= __setup_cpu_750cx
 	},
+	{	/* 750CXe "Gekko" (83214) */
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x00083214,
+		.cpu_name		= "750CXe",
+		.cpu_features		= CPU_FTR_COMMON |
+			CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_MAYBE_CAN_DOZE |
+			CPU_FTR_USE_TB | CPU_FTR_L2CR | CPU_FTR_TAU |
+			CPU_FTR_HPTE_TABLE | CPU_FTR_MAYBE_CAN_NAP,
+		.cpu_user_features	= COMMON_PPC,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.num_pmcs		= 4,
+		.cpu_setup		= __setup_cpu_750cx
+	},
 	{	/* 745/755 */
 		.pvr_mask		= 0xfffff000,
 		.pvr_value		= 0x00083000,
