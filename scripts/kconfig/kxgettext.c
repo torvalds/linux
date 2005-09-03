@@ -179,16 +179,17 @@ static void message__print_file_lineno(struct message *self)
 {
 	struct file_line *fl = self->files;
 
-	printf("\n#: %s:%d", fl->file, fl->lineno);
+	putchar('\n');
+	if (self->option != NULL)
+		printf("# %s:00000\n", self->option);
+
+	printf("#: %s:%d", fl->file, fl->lineno);
 	fl = fl->next;
 
 	while (fl != NULL) {
 		printf(", %s:%d", fl->file, fl->lineno);
 		fl = fl->next;
 	}
-
-	if (self->option != NULL)
-		printf(", %s:00000", self->option);
 
 	putchar('\n');
 }
