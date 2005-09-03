@@ -737,18 +737,7 @@ static void copy_data_pages(void)
 
 static int calc_nr(int nr_copy)
 {
-	int extra = 0;
-	int mod = !!(nr_copy % PBES_PER_PAGE);
-	int diff = (nr_copy / PBES_PER_PAGE) + mod;
-
-	do {
-		extra += diff;
-		nr_copy += diff;
-		mod = !!(nr_copy % PBES_PER_PAGE);
-		diff = (nr_copy / PBES_PER_PAGE) + mod - extra;
-	} while (diff > 0);
-
-	return nr_copy;
+	return nr_copy + (nr_copy+PBES_PER_PAGE-2)/(PBES_PER_PAGE-1);
 }
 
 /**
