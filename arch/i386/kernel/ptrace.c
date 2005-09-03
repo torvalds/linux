@@ -683,8 +683,19 @@ void do_syscall_trace(struct pt_regs *regs, int entryexit)
 	/* do the secure computing check first */
 	secure_computing(regs->orig_eax);
 
-	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+	if (unlikely(current->audit_context)) {
+		if (entryexit)
+			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+
+		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
+		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
+		 * not used, entry.S will call us only on syscall exit, not
+		 * entry ; so when TIF_SYSCALL_AUDIT is used we must avoid
+		 * calling send_sigtrap() on syscall entry.
+		 */
+		else if (is_singlestep)
+			goto out;
+	}
 
 	if (!(current->ptrace & PT_PTRACED))
 		goto out;
