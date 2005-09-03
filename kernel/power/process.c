@@ -38,7 +38,6 @@ void refrigerator(void)
 	   processes around? */
 	long save;
 	save = current->state;
-	current->state = TASK_UNINTERRUPTIBLE;
 	pr_debug("%s entered refrigerator\n", current->comm);
 	printk("=");
 
@@ -47,8 +46,10 @@ void refrigerator(void)
 	recalc_sigpending(); /* We sent fake signal, clean it up */
 	spin_unlock_irq(&current->sighand->siglock);
 
-	while (frozen(current))
+	while (frozen(current)) {
+		current->state = TASK_UNINTERRUPTIBLE;
 		schedule();
+	}
 	pr_debug("%s left refrigerator\n", current->comm);
 	current->state = save;
 }
