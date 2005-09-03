@@ -115,9 +115,17 @@ struct onenand_chip {
 	void			*priv;
 };
 
+/*
+ * Helper macros
+ */
 #define ONENAND_CURRENT_BUFFERRAM(this)		(this->bufferram_index)
 #define ONENAND_NEXT_BUFFERRAM(this)		(this->bufferram_index ^ 1)
 #define ONENAND_SET_NEXT_BUFFERRAM(this)	(this->bufferram_index ^= 1)
+
+#define ONENAND_GET_SYS_CFG1(this)					\
+	(this->read_word(this->base + ONENAND_REG_SYS_CFG1))
+#define ONENAND_SET_SYS_CFG1(v, this)					\
+	(this->write_word(v, this->base + ONENAND_REG_SYS_CFG1))
 
 /*
  * Options bits
