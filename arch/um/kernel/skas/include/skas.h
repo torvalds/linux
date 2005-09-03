@@ -24,11 +24,14 @@ extern void new_thread_proc(void *stack, void (*handler)(int sig));
 extern void remove_sigstack(void);
 extern void new_thread_handler(int sig);
 extern void handle_syscall(union uml_pt_regs *regs);
-extern int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
-               int r, int w, int x, int phys_fd, unsigned long long offset);
-extern int unmap(struct mm_id * mm_idp, void *addr, unsigned long len);
-extern int protect(struct mm_id * mm_idp, unsigned long addr,
-		   unsigned long len, int r, int w, int x);
+extern void *map(struct mm_id * mm_idp, unsigned long virt,
+		 unsigned long len, int r, int w, int x, int phys_fd,
+		 unsigned long long offset, int done, void *data);
+extern void *unmap(struct mm_id * mm_idp, void *addr,
+		   unsigned long len, int done, void *data);
+extern void *protect(struct mm_id * mm_idp, unsigned long addr,
+		     unsigned long len, int r, int w, int x, int done,
+		     void *data);
 extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 extern int new_mm(int from);
 extern int start_userspace(unsigned long stub_stack);

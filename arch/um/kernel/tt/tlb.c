@@ -17,7 +17,8 @@
 #include "os.h"
 #include "tlb.h"
 
-static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
+static void *do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
+		    int finished, void *flush)
 {
 	struct host_vm_op *op;
 	int i;
@@ -45,6 +46,8 @@ static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
 			break;
 		}
 	}
+
+	return NULL;
 }
 
 static void fix_range(struct mm_struct *mm, unsigned long start_addr, 
