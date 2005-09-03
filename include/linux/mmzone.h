@@ -487,38 +487,28 @@ struct mem_section {
 	unsigned long section_mem_map;
 };
 
-#ifdef CONFIG_ARCH_SPARSEMEM_EXTREME
-/*
- * Should we ever require GCC 4 or later then the flat array scheme
- * can be eliminated and a uniform solution for EXTREME and !EXTREME can
- * be arrived at.
- */
-#define SECTION_ROOT_SHIFT	(PAGE_SHIFT-3)
-#define SECTION_ROOT_MASK	((1UL<<SECTION_ROOT_SHIFT) - 1)
-#define SECTION_TO_ROOT(_sec)	((_sec) >> SECTION_ROOT_SHIFT)
-#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS >>  SECTION_ROOT_SHIFT)
-
-extern struct mem_section *mem_section[NR_SECTION_ROOTS];
-
-static inline struct mem_section *__nr_to_section(unsigned long nr)
-{
-	if (!mem_section[SECTION_TO_ROOT(nr)])
-		return NULL;
-	return &mem_section[SECTION_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
-}
-
+#ifdef CONFIG_SPARSEMEM_EXTREME
+#define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
 #else
+#define SECTIONS_PER_ROOT	1
+#endif
 
-extern struct mem_section mem_section[NR_MEM_SECTIONS];
+#define SECTION_NR_TO_ROOT(sec)	((sec) / SECTIONS_PER_ROOT)
+#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
+#define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+
+#ifdef CONFIG_SPARSEMEM_EXTREME
+extern struct mem_section *mem_section[NR_SECTION_ROOTS];
+#else
+extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+#endif
 
 static inline struct mem_section *__nr_to_section(unsigned long nr)
 {
-	return &mem_section[nr];
+	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+		return NULL;
+	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
 }
-
-#define sparse_index_init(_sec, _nid)  do {} while (0)
-
-#endif
 
 /*
  * We use the lower bits of the mem_map pointer to store

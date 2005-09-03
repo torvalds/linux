@@ -13,28 +13,36 @@
  *
  * 1) mem_section	- memory sections, mem_map's for valid memory
  */
-#ifdef CONFIG_ARCH_SPARSEMEM_EXTREME
+#ifdef CONFIG_SPARSEMEM_EXTREME
 struct mem_section *mem_section[NR_SECTION_ROOTS]
 	____cacheline_maxaligned_in_smp;
+#else
+struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
+	____cacheline_maxaligned_in_smp;
+#endif
+EXPORT_SYMBOL(mem_section);
+
+static void sparse_alloc_root(unsigned long root, int nid)
+{
+#ifdef CONFIG_SPARSEMEM_EXTREME
+	mem_section[root] = alloc_bootmem_node(NODE_DATA(nid), PAGE_SIZE);
+#endif
+}
 
 static void sparse_index_init(unsigned long section, int nid)
 {
-	unsigned long root = SECTION_TO_ROOT(section);
+	unsigned long root = SECTION_NR_TO_ROOT(section);
 
 	if (mem_section[root])
 		return;
-	mem_section[root] = alloc_bootmem_node(NODE_DATA(nid), PAGE_SIZE);
+
+	sparse_alloc_root(root, nid);
+
 	if (mem_section[root])
 		memset(mem_section[root], 0, PAGE_SIZE);
 	else
 		panic("memory_present: NO MEMORY\n");
 }
-#else
-struct mem_section mem_section[NR_MEM_SECTIONS]
-	____cacheline_maxaligned_in_smp;
-#endif
-EXPORT_SYMBOL(mem_section);
-
 /* Record a memory area against a node. */
 void memory_present(int nid, unsigned long start, unsigned long end)
 {
