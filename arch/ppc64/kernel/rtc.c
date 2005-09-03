@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/bcd.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -351,8 +352,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 				return;	/* delay not allowed */
 			}
 			wait_time = rtas_extended_busy_delay_time(error);
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(wait_time);
+			msleep_interruptible(wait_time);
 			error = RTAS_CLOCK_BUSY;
 		}
 	} while (error == RTAS_CLOCK_BUSY && (__get_tb() < max_wait_tb));
@@ -386,8 +386,7 @@ int rtas_set_rtc_time(struct rtc_time *tm)
 			if (in_interrupt())
 				return 1;	/* probably decrementer */
 			wait_time = rtas_extended_busy_delay_time(error);
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(wait_time);
+			msleep_interruptible(wait_time);
 			error = RTAS_CLOCK_BUSY;
 		}
 	} while (error == RTAS_CLOCK_BUSY && (__get_tb() < max_wait_tb));
