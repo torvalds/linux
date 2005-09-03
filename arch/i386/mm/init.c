@@ -198,9 +198,10 @@ int page_is_ram(unsigned long pagenr)
 
 	if (efi_enabled) {
 		efi_memory_desc_t *md;
+		void *p;
 
-		for (i = 0; i < memmap.nr_map; i++) {
-			md = &memmap.map[i];
+		for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+			md = p;
 			if (!is_available_memory(md))
 				continue;
 			addr = (md->phys_addr+PAGE_SIZE-1) >> PAGE_SHIFT;

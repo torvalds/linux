@@ -370,12 +370,16 @@ static void __init limit_regions(unsigned long long size)
 	int i;
 
 	if (efi_enabled) {
-		for (i = 0; i < memmap.nr_map; i++) {
-			current_addr = memmap.map[i].phys_addr +
-				       (memmap.map[i].num_pages << 12);
-			if (memmap.map[i].type == EFI_CONVENTIONAL_MEMORY) {
+		efi_memory_desc_t *md;
+		void *p;
+
+		for (p = memmap.map, i = 0; p < memmap.map_end;
+			p += memmap.desc_size, i++) {
+			md = p;
+			current_addr = md->phys_addr + (md->num_pages << 12);
+			if (md->type == EFI_CONVENTIONAL_MEMORY) {
 				if (current_addr >= size) {
-					memmap.map[i].num_pages -=
+					md->num_pages -=
 						(((current_addr-size) + PAGE_SIZE-1) >> PAGE_SHIFT);
 					memmap.nr_map = i + 1;
 					return;
