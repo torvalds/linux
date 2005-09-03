@@ -562,7 +562,8 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 				     page->index > details->last_index))
 					continue;
 			}
-			ptent = ptep_get_and_clear(tlb->mm, addr, pte);
+			ptent = ptep_get_and_clear_full(tlb->mm, addr, pte,
+							tlb->fullmm);
 			tlb_remove_tlb_entry(tlb, pte, addr);
 			if (unlikely(!page))
 				continue;
@@ -590,7 +591,7 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 			continue;
 		if (!pte_file(ptent))
 			free_swap_and_cache(pte_to_swp_entry(ptent));
-		pte_clear(tlb->mm, addr, pte);
+		pte_clear_full(tlb->mm, addr, pte, tlb->fullmm);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(pte - 1);
 }
