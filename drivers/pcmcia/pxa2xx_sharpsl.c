@@ -257,7 +257,7 @@ static void __exit sharpsl_pcmcia_exit(void)
 	platform_device_unregister(sharpsl_pcmcia_device);
 }
 
-module_init(sharpsl_pcmcia_init);
+fs_initcall(sharpsl_pcmcia_init);
 module_exit(sharpsl_pcmcia_exit);
 
 MODULE_DESCRIPTION("Sharp SL Series PCMCIA Support");
