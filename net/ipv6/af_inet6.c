@@ -44,6 +44,7 @@
 #include <linux/netdevice.h>
 #include <linux/icmpv6.h>
 #include <linux/smp_lock.h>
+#include <linux/netfilter_ipv6.h>
 
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -66,44 +67,13 @@ MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
 MODULE_LICENSE("GPL");
 
-/* IPv6 procfs goodies... */
-
-#ifdef CONFIG_PROC_FS
-extern int raw6_proc_init(void);
-extern void raw6_proc_exit(void);
-extern int tcp6_proc_init(void);
-extern void tcp6_proc_exit(void);
-extern int udp6_proc_init(void);
-extern void udp6_proc_exit(void);
-extern int ipv6_misc_proc_init(void);
-extern void ipv6_misc_proc_exit(void);
-extern int ac6_proc_init(void);
-extern void ac6_proc_exit(void);
-extern int if6_proc_init(void);
-extern void if6_proc_exit(void);
-#endif
-
 int sysctl_ipv6_bindv6only;
-
-#ifdef INET_REFCNT_DEBUG
-atomic_t inet6_sock_nr;
-EXPORT_SYMBOL(inet6_sock_nr);
-#endif
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
  */
 static struct list_head inetsw6[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw6_lock);
-
-static void inet6_sock_destruct(struct sock *sk)
-{
-	inet_sock_destruct(sk);
-
-#ifdef INET_REFCNT_DEBUG
-	atomic_dec(&inet6_sock_nr);
-#endif
-}
 
 static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
@@ -185,7 +155,7 @@ static int inet6_create(struct socket *sock, int protocol)
 			inet->hdrincl = 1;
 	}
 
-	sk->sk_destruct		= inet6_sock_destruct;
+	sk->sk_destruct		= inet_sock_destruct;
 	sk->sk_family		= PF_INET6;
 	sk->sk_protocol		= protocol;
 
@@ -212,12 +182,17 @@ static int inet6_create(struct socket *sock, int protocol)
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
+	/* 
+	 * Increment only the relevant sk_prot->socks debug field, this changes
+	 * the previous behaviour of incrementing both the equivalent to
+	 * answer->prot->socks (inet6_sock_nr) and inet_sock_nr.
+	 *
+	 * This allows better debug granularity as we'll know exactly how many
+	 * UDPv6, TCPv6, etc socks were allocated, not the sum of all IPv6
+	 * transport protocol socks. -acme
+	 */
+	sk_refcnt_debug_inc(sk);
 
-
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet6_sock_nr);
-	atomic_inc(&inet_sock_nr);
-#endif
 	if (inet->num) {
 		/* It assumes that any protocol which allows
 		 * the user to assign a number at socket
@@ -513,11 +488,6 @@ static struct net_proto_family inet6_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-#ifdef CONFIG_SYSCTL
-extern void ipv6_sysctl_register(void);
-extern void ipv6_sysctl_unregister(void);
-#endif
-
 /* Same as inet6_dgram_ops, sans udp_poll.  */
 static struct proto_ops inet6_sockraw_ops = {
 	.family =	PF_INET6,
@@ -684,8 +654,6 @@ static void cleanup_ipv6_mibs(void)
 	snmp6_mib_free((void **)udp_stats_in6);
 }
 
-extern int ipv6_misc_proc_init(void);
-
 static int __init inet6_init(void)
 {
 	struct sk_buff *dummy_skb;
@@ -757,6 +725,9 @@ static int __init inet6_init(void)
 	err = igmp6_init(&inet6_family_ops);
 	if (err)
 		goto igmp_fail;
+	err = ipv6_netfilter_init();
+	if (err)
+		goto netfilter_fail;
 	/* Create /proc/foo6 entries. */
 #ifdef CONFIG_PROC_FS
 	err = -ENOMEM;
@@ -813,6 +784,8 @@ proc_tcp6_fail:
 	raw6_proc_exit();
 proc_raw6_fail:
 #endif
+	ipv6_netfilter_fini();
+netfilter_fail:
 	igmp6_cleanup();
 igmp_fail:
 	ndisc_cleanup();
@@ -852,6 +825,7 @@ static void __exit inet6_exit(void)
 	ip6_route_cleanup();
 	ipv6_packet_cleanup();
 	igmp6_cleanup();
+	ipv6_netfilter_fini();
 	ndisc_cleanup();
 	icmpv6_cleanup();
 #ifdef CONFIG_SYSCTL

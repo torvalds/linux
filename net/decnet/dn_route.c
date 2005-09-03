@@ -572,7 +572,7 @@ static int dn_route_ptp_hello(struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct dn_skb_cb *cb;
 	unsigned char flags = 0;

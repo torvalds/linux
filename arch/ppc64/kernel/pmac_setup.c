@@ -71,6 +71,7 @@
 #include <asm/of_device.h>
 #include <asm/lmb.h>
 #include <asm/smu.h>
+#include <asm/pmc.h>
 
 #include "pmac.h"
 #include "mpic.h"
@@ -511,4 +512,5 @@ struct machdep_calls __initdata pmac_md = {
 	.progress		= pmac_progress,
 	.check_legacy_ioport	= pmac_check_legacy_ioport,
 	.idle_loop		= native_idle,
+	.enable_pmcs		= power4_enable_pmcs,
 };

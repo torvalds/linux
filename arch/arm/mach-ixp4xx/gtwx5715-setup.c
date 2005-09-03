@@ -101,12 +101,6 @@ static struct platform_device gtwx5715_uart_device = {
 	.resource	= gtwx5715_uart_resources,
 };
 
-
-void __init gtwx5715_map_io(void)
-{
-	ixp4xx_map_io();
-}
-
 static struct flash_platform_data gtwx5715_flash_data = {
 	.map_name	= "cfi_probe",
 	.width		= 2,
@@ -144,7 +138,7 @@ MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_UART2_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= gtwx5715_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,

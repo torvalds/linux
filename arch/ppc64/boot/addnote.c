@@ -157,7 +157,7 @@ main(int ac, char **av)
 	PUT_32BE(ns, strlen(arch) + 1);
 	PUT_32BE(ns + 4, N_DESCR * 4);
 	PUT_32BE(ns + 8, 0x1275);
-	strcpy(&buf[ns + 12], arch);
+	strcpy((char *) &buf[ns + 12], arch);
 	ns += 12 + strlen(arch) + 1;
 	for (i = 0; i < N_DESCR; ++i, ns += 4)
 		PUT_32BE(ns, descr[i]);
@@ -172,7 +172,7 @@ main(int ac, char **av)
 	PUT_32BE(ns, strlen(rpaname) + 1);
 	PUT_32BE(ns + 4, sizeof(rpanote));
 	PUT_32BE(ns + 8, 0x12759999);
-	strcpy(&buf[ns + 12], rpaname);
+	strcpy((char *) &buf[ns + 12], rpaname);
 	ns += 12 + ROUNDUP(strlen(rpaname) + 1);
 	for (i = 0; i < N_RPA_DESCR; ++i, ns += 4)
 		PUT_32BE(ns, rpanote[i]);

@@ -246,8 +246,7 @@ static void s3c24xx_serial_rx_disable(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void
-s3c24xx_serial_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void s3c24xx_serial_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
 		disable_irq(TX_IRQ(port));
@@ -257,8 +256,7 @@ s3c24xx_serial_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void
-s3c24xx_serial_start_tx(struct uart_port *port, unsigned int tty_start)
+static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
 	if (!tx_enabled(port)) {
 		if (port->flags & UPF_CONS_FLOW)
@@ -424,7 +422,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id, struct pt_regs *re
 	*/
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		s3c24xx_serial_stop_tx(port, 0);
+		s3c24xx_serial_stop_tx(port);
 		goto out;
 	}
 
@@ -443,7 +441,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id, struct pt_regs *re
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		s3c24xx_serial_stop_tx(port, 0);
+		s3c24xx_serial_stop_tx(port);
 
  out:
 	return IRQ_HANDLED;

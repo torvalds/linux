@@ -1390,6 +1390,8 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 
 	jfs_info("jfs_lookup: name = %s", name);
 
+	if (JFS_SBI(dip->i_sb)->mntflag & JFS_OS2)
+		dentry->d_op = &jfs_ci_dentry_operations;
 
 	if ((name[0] == '.') && (len == 1))
 		inum = dip->i_ino;
@@ -1416,9 +1418,6 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 			iput(ip);
 		return ERR_PTR(-EACCES);
 	}
-
-	if (JFS_SBI(dip->i_sb)->mntflag & JFS_OS2)
-		dentry->d_op = &jfs_ci_dentry_operations;
 
 	dentry = d_splice_alias(ip, dentry);
 

@@ -275,11 +275,9 @@ alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
 	int i;
 
 	for (i = 0; i < 16; i += 1) {
-		alloc_init_section(virt, phys & SUPERSECTION_MASK,
-				   prot | PMD_SECT_SUPER);
+		alloc_init_section(virt, phys, prot | PMD_SECT_SUPER);
 
 		virt += (PGDIR_SIZE / 2);
-		phys += (PGDIR_SIZE / 2);
 	}
 }
 
@@ -297,14 +295,10 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 	pte_t *ptep;
 
 	if (pmd_none(*pmdp)) {
-		unsigned long pmdval;
 		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
 					       sizeof(pte_t));
 
-		pmdval = __pa(ptep) | prot_l1;
-		pmdp[0] = __pmd(pmdval);
-		pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
-		flush_pmd_entry(pmdp);
+		__pmd_populate(pmdp, __pa(ptep) | prot_l1);
 	}
 	ptep = pte_offset_kernel(pmdp, virt);
 
@@ -459,7 +453,7 @@ static void __init build_mem_type_table(void)
 
 	for (i = 0; i < 16; i++) {
 		unsigned long v = pgprot_val(protection_map[i]);
-		v &= (~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
+		v = (v & ~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
 		protection_map[i] = __pgprot(v);
 	}
 
@@ -583,23 +577,23 @@ static void __init create_mapping(struct map_desc *md)
  */
 void setup_mm_for_reboot(char mode)
 {
-	unsigned long pmdval;
+	unsigned long base_pmdval;
 	pgd_t *pgd;
-	pmd_t *pmd;
 	int i;
-	int cpu_arch = cpu_architecture();
 
 	if (current->mm && current->mm->pgd)
 		pgd = current->mm->pgd;
 	else
 		pgd = init_mm.pgd;
 
-	for (i = 0; i < FIRST_USER_PGD_NR + USER_PTRS_PER_PGD; i++) {
-		pmdval = (i << PGDIR_SHIFT) |
-			 PMD_SECT_AP_WRITE | PMD_SECT_AP_READ |
-			 PMD_TYPE_SECT;
-		if (cpu_arch <= CPU_ARCH_ARMv5TEJ)
-			pmdval |= PMD_BIT4;
+	base_pmdval = PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_TYPE_SECT;
+	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ)
+		base_pmdval |= PMD_BIT4;
+
+	for (i = 0; i < FIRST_USER_PGD_NR + USER_PTRS_PER_PGD; i++, pgd++) {
+		unsigned long pmdval = (i << PGDIR_SHIFT) | base_pmdval;
+		pmd_t *pmd;
+
 		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
 		pmd[0] = __pmd(pmdval);
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));

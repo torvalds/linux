@@ -39,6 +39,7 @@
 #include <asm/cputable.h>
 #include <asm/sections.h>
 #include <asm/iommu.h>
+#include <asm/firmware.h>
 
 #include <asm/time.h>
 #include "iSeries_setup.h"
@@ -314,6 +315,8 @@ static void __init iSeries_init_early(void)
 
 	DBG(" -> iSeries_init_early()\n");
 
+	ppc64_firmware_features = FW_FEATURE_ISERIES;
+
 	ppcdbg_initialize();
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -412,6 +415,22 @@ static void __init iSeries_init_early(void)
 	DBG(" <- iSeries_init_early()\n");
 }
 
+struct mschunks_map mschunks_map = {
+	/* XXX We don't use these, but Piranha might need them. */
+	.chunk_size  = MSCHUNKS_CHUNK_SIZE,
+	.chunk_shift = MSCHUNKS_CHUNK_SHIFT,
+	.chunk_mask  = MSCHUNKS_OFFSET_MASK,
+};
+EXPORT_SYMBOL(mschunks_map);
+
+void mschunks_alloc(unsigned long num_chunks)
+{
+	klimit = _ALIGN(klimit, sizeof(u32));
+	mschunks_map.mapping = (u32 *)klimit;
+	klimit += num_chunks * sizeof(u32);
+	mschunks_map.num_chunks = num_chunks;
+}
+
 /*
  * The iSeries may have very large memories ( > 128 GB ) and a partition
  * may get memory in "chunks" that may be anywhere in the 2**52 real
@@ -449,7 +468,7 @@ static void __init build_iSeries_Memory_Map(void)
 
 	/* Chunk size on iSeries is 256K bytes */
 	totalChunks = (u32)HvLpConfig_getMsChunks();
-	klimit = msChunks_alloc(klimit, totalChunks, 1UL << 18);
+	mschunks_alloc(totalChunks);
 
 	/*
 	 * Get absolute address of our load area
@@ -486,7 +505,7 @@ static void __init build_iSeries_Memory_Map(void)
 	printk("Load area size %dK\n", loadAreaSize * 256);
 
 	for (nextPhysChunk = 0; nextPhysChunk < loadAreaSize; ++nextPhysChunk)
-		msChunks.abs[nextPhysChunk] =
+		mschunks_map.mapping[nextPhysChunk] =
 			loadAreaFirstChunk + nextPhysChunk;
 
 	/*
@@ -495,7 +514,7 @@ static void __init build_iSeries_Memory_Map(void)
 	 */
 	hptFirstChunk = (u32)addr_to_chunk(HvCallHpt_getHptAddress());
 	hptSizePages = (u32)HvCallHpt_getHptPages();
-	hptSizeChunks = hptSizePages >> (msChunks.chunk_shift - PAGE_SHIFT);
+	hptSizeChunks = hptSizePages >> (MSCHUNKS_CHUNK_SHIFT - PAGE_SHIFT);
 	hptLastChunk = hptFirstChunk + hptSizeChunks - 1;
 
 	printk("HPT absolute addr = %016lx, size = %dK\n",
@@ -552,7 +571,8 @@ static void __init build_iSeries_Memory_Map(void)
 				     (absChunk > hptLastChunk)) &&
 				    ((absChunk < loadAreaFirstChunk) ||
 				     (absChunk > loadAreaLastChunk))) {
-					msChunks.abs[nextPhysChunk] = absChunk;
+					mschunks_map.mapping[nextPhysChunk] =
+						absChunk;
 					++nextPhysChunk;
 				}
 			}
@@ -943,6 +963,8 @@ void __init iSeries_early_setup(void)
 	ppc_md.get_rtc_time = iSeries_get_rtc_time;
 	ppc_md.calibrate_decr = iSeries_calibrate_decr;
 	ppc_md.progress = iSeries_progress;
+
+	/* XXX Implement enable_pmcs for iSeries */
 
 	if (get_paca()->lppaca.shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;

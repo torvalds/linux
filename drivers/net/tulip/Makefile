@@ -9,6 +9,7 @@ obj-$(CONFIG_WINBOND_840)	+= winbond-840.o
 obj-$(CONFIG_DE2104X)		+= de2104x.o
 obj-$(CONFIG_TULIP)		+= tulip.o
 obj-$(CONFIG_DE4X5)		+= de4x5.o
+obj-$(CONFIG_ULI526X)		+= uli526x.o
 
 # Declare multi-part drivers.
 

@@ -99,17 +99,6 @@ extern int __ashrdi3(int, int);
 extern void dump_thread(struct pt_regs *, struct user *);
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
 
-#if defined(CONFIG_SMP) && defined(CONFIG_DEBUG_SPINLOCK)
-extern void _do_spin_lock (spinlock_t *lock, char *str);
-extern void _do_spin_unlock (spinlock_t *lock);
-extern int _spin_trylock (spinlock_t *lock);
-extern void _do_read_lock(rwlock_t *rw, char *str);
-extern void _do_read_unlock(rwlock_t *rw, char *str);
-extern void _do_write_lock(rwlock_t *rw, char *str);
-extern void _do_write_unlock(rwlock_t *rw);
-extern int _do_write_trylock(rwlock_t *rw, char *str);
-#endif
-
 extern unsigned long phys_base;
 extern unsigned long pfn_base;
 
@@ -151,18 +140,6 @@ EXPORT_SYMBOL(_mcount);
 /* CPU online map and active count.  */
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(phys_cpu_present_map);
-
-/* Spinlock debugging library, optional. */
-#ifdef CONFIG_DEBUG_SPINLOCK
-EXPORT_SYMBOL(_do_spin_lock);
-EXPORT_SYMBOL(_do_spin_unlock);
-EXPORT_SYMBOL(_spin_trylock);
-EXPORT_SYMBOL(_do_read_lock);
-EXPORT_SYMBOL(_do_read_unlock);
-EXPORT_SYMBOL(_do_write_lock);
-EXPORT_SYMBOL(_do_write_unlock);
-EXPORT_SYMBOL(_do_write_trylock);
-#endif
 
 EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
@@ -429,3 +406,12 @@ EXPORT_SYMBOL(xor_vis_4);
 EXPORT_SYMBOL(xor_vis_5);
 
 EXPORT_SYMBOL(prom_palette);
+
+/* memory barriers */
+EXPORT_SYMBOL(mb);
+EXPORT_SYMBOL(rmb);
+EXPORT_SYMBOL(wmb);
+EXPORT_SYMBOL(membar_storeload);
+EXPORT_SYMBOL(membar_storeload_storestore);
+EXPORT_SYMBOL(membar_storeload_loadload);
+EXPORT_SYMBOL(membar_storestore_loadstore);

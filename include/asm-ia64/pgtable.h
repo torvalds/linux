@@ -204,21 +204,18 @@ ia64_phys_addr_valid (unsigned long addr)
 #define set_pte(ptep, pteval)	(*(ptep) = (pteval))
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-#define RGN_SIZE	(1UL << 61)
-#define RGN_KERNEL	7
-
-#define VMALLOC_START		0xa000000200000000UL
+#define VMALLOC_START		(RGN_BASE(RGN_GATE) + 0x200000000UL)
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-# define VMALLOC_END_INIT	(0xa000000000000000UL + (1UL << (4*PAGE_SHIFT - 9)))
+# define VMALLOC_END_INIT	(RGN_BASE(RGN_GATE) + (1UL << (4*PAGE_SHIFT - 9)))
 # define VMALLOC_END		vmalloc_end
   extern unsigned long vmalloc_end;
 #else
-# define VMALLOC_END		(0xa000000000000000UL + (1UL << (4*PAGE_SHIFT - 9)))
+# define VMALLOC_END		(RGN_BASE(RGN_GATE) + (1UL << (4*PAGE_SHIFT - 9)))
 #endif
 
 /* fs/proc/kcore.c */
-#define	kc_vaddr_to_offset(v) ((v) - 0xa000000000000000UL)
-#define	kc_offset_to_vaddr(o) ((o) + 0xa000000000000000UL)
+#define	kc_vaddr_to_offset(v) ((v) - RGN_BASE(RGN_GATE))
+#define	kc_offset_to_vaddr(o) ((o) + RGN_BASE(RGN_GATE))
 
 /*
  * Conversion functions: convert page frame number (pfn) and a protection value to a page

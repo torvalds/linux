@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/root_dev.h>
 
-#include <asm/segment.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>

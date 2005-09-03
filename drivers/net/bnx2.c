@@ -14,8 +14,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.2.19"
-#define DRV_MODULE_RELDATE	"May 23, 2005"
+#define DRV_MODULE_VERSION	"1.2.20"
+#define DRV_MODULE_RELDATE	"August 22, 2005"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -52,7 +52,6 @@ static struct {
 	{ "HP NC370i Multifunction Gigabit Server Adapter" },
 	{ "Broadcom NetXtreme II BCM5706 1000Base-SX" },
 	{ "HP NC370F Multifunction Gigabit Server Adapter" },
-	{ 0 },
 	};
 
 static struct pci_device_id bnx2_pci_tbl[] = {
@@ -107,6 +106,15 @@ static struct flash_spec flash_table[] =
 };
 
 MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
+
+static inline u32 bnx2_tx_avail(struct bnx2 *bp)
+{
+	u32 diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
+
+	if (diff > MAX_TX_DESC_CNT)
+		diff = (diff & MAX_TX_DESC_CNT) - 1;
+	return (bp->tx_ring_size - diff);
+}
 
 static u32
 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset)
@@ -807,7 +815,19 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 		bnx2_write_phy(bp, MII_ADVERTISE, new_adv);
 		bnx2_write_phy(bp, MII_BMCR, bmcr | BMCR_ANRESTART |
 			BMCR_ANENABLE);
-		bp->serdes_an_pending = SERDES_AN_TIMEOUT / bp->timer_interval;
+		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
+			/* Speed up link-up time when the link partner
+			 * does not autonegotiate which is very common
+			 * in blade servers. Some blade servers use
+			 * IPMI for kerboard input and it's important
+			 * to minimize link disruptions. Autoneg. involves
+			 * exchanging base pages plus 3 next pages and
+			 * normally completes in about 120 msec.
+			 */
+			bp->current_interval = SERDES_AN_TIMEOUT;
+			bp->serdes_an_pending = 1;
+			mod_timer(&bp->timer, jiffies + bp->current_interval);
+		}
 	}
 
 	return 0;
@@ -1327,22 +1347,17 @@ bnx2_tx_int(struct bnx2 *bp)
 		}
 	}
 
-	atomic_add(tx_free_bd, &bp->tx_avail_bd);
+	bp->tx_cons = sw_cons;
 
 	if (unlikely(netif_queue_stopped(bp->dev))) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&bp->tx_lock, flags);
+		spin_lock(&bp->tx_lock);
 		if ((netif_queue_stopped(bp->dev)) &&
-			(atomic_read(&bp->tx_avail_bd) > MAX_SKB_FRAGS)) {
+		    (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)) {
 
 			netif_wake_queue(bp->dev);
 		}
-		spin_unlock_irqrestore(&bp->tx_lock, flags);
+		spin_unlock(&bp->tx_lock);
 	}
-
-	bp->tx_cons = sw_cons;
-
 }
 
 static inline void
@@ -1523,15 +1538,12 @@ bnx2_msi(int irq, void *dev_instance, struct pt_regs *regs)
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
 
 	/* Return here if interrupt is disabled. */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		return IRQ_RETVAL(1);
-	}
+	if (unlikely(atomic_read(&bp->intr_sem) != 0))
+		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev)) {
-		__netif_rx_schedule(dev);
-	}
+	netif_rx_schedule(dev);
 
-	return IRQ_RETVAL(1);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t
@@ -1549,22 +1561,19 @@ bnx2_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	if ((bp->status_blk->status_idx == bp->last_status_idx) ||
 	    (REG_RD(bp, BNX2_PCICFG_MISC_STATUS) &
 	     BNX2_PCICFG_MISC_STATUS_INTA_VALUE))
-		return IRQ_RETVAL(0);
+		return IRQ_NONE;
 
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 		BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
 
 	/* Return here if interrupt is shared and is disabled. */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		return IRQ_RETVAL(1);
-	}
+	if (unlikely(atomic_read(&bp->intr_sem) != 0))
+		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev)) {
-		__netif_rx_schedule(dev);
-	}
+	netif_rx_schedule(dev);
 
-	return IRQ_RETVAL(1);
+	return IRQ_HANDLED;
 }
 
 static int
@@ -1581,11 +1590,9 @@ bnx2_poll(struct net_device *dev, int *budget)
 		(bp->status_blk->status_attn_bits_ack &
 		STATUS_ATTN_BITS_LINK_STATE)) {
 
-		unsigned long flags;
-
-		spin_lock_irqsave(&bp->phy_lock, flags);
+		spin_lock(&bp->phy_lock);
 		bnx2_phy_int(bp);
-		spin_unlock_irqrestore(&bp->phy_lock, flags);
+		spin_unlock(&bp->phy_lock);
 	}
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->tx_cons) {
@@ -1628,9 +1635,8 @@ bnx2_set_rx_mode(struct net_device *dev)
 	struct bnx2 *bp = dev->priv;
 	u32 rx_mode, sort_mode;
 	int i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bp->phy_lock, flags);
+	spin_lock_bh(&bp->phy_lock);
 
 	rx_mode = bp->rx_mode & ~(BNX2_EMAC_RX_MODE_PROMISCUOUS |
 				  BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG);
@@ -1691,7 +1697,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 	REG_WR(bp, BNX2_RPM_SORT_USER0, sort_mode);
 	REG_WR(bp, BNX2_RPM_SORT_USER0, sort_mode | BNX2_RPM_SORT_USER0_ENA);
 
-	spin_unlock_irqrestore(&bp->phy_lock, flags);
+	spin_unlock_bh(&bp->phy_lock);
 }
 
 static void
@@ -2960,7 +2966,6 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	bp->tx_prod = 0;
 	bp->tx_cons = 0;
 	bp->tx_prod_bseq = 0;
-	atomic_set(&bp->tx_avail_bd, bp->tx_ring_size);
 	
 	val = BNX2_L2CTX_TYPE_TYPE_L2;
 	val |= BNX2_L2CTX_TYPE_SIZE_L2;
@@ -3507,11 +3512,11 @@ bnx2_test_registers(struct bnx2 *bp)
 		rw_mask = reg_tbl[i].rw_mask;
 		ro_mask = reg_tbl[i].ro_mask;
 
-		save_val = readl((u8 *) bp->regview + offset);
+		save_val = readl(bp->regview + offset);
 
-		writel(0, (u8 *) bp->regview + offset);
+		writel(0, bp->regview + offset);
 
-		val = readl((u8 *) bp->regview + offset);
+		val = readl(bp->regview + offset);
 		if ((val & rw_mask) != 0) {
 			goto reg_test_err;
 		}
@@ -3520,9 +3525,9 @@ bnx2_test_registers(struct bnx2 *bp)
 			goto reg_test_err;
 		}
 
-		writel(0xffffffff, (u8 *) bp->regview + offset);
+		writel(0xffffffff, bp->regview + offset);
 
-		val = readl((u8 *) bp->regview + offset);
+		val = readl(bp->regview + offset);
 		if ((val & rw_mask) != rw_mask) {
 			goto reg_test_err;
 		}
@@ -3531,11 +3536,11 @@ bnx2_test_registers(struct bnx2 *bp)
 			goto reg_test_err;
 		}
 
-		writel(save_val, (u8 *) bp->regview + offset);
+		writel(save_val, bp->regview + offset);
 		continue;
 
 reg_test_err:
-		writel(save_val, (u8 *) bp->regview + offset);
+		writel(save_val, bp->regview + offset);
 		ret = -ENODEV;
 		break;
 	}
@@ -3752,10 +3757,10 @@ bnx2_test_link(struct bnx2 *bp)
 {
 	u32 bmsr;
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 	bnx2_read_phy(bp, MII_BMSR, &bmsr);
 	bnx2_read_phy(bp, MII_BMSR, &bmsr);
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 		
 	if (bmsr & BMSR_LSTATUS) {
 		return 0;
@@ -3801,6 +3806,9 @@ bnx2_timer(unsigned long data)
 	struct bnx2 *bp = (struct bnx2 *) data;
 	u32 msg;
 
+	if (!netif_running(bp->dev))
+		return;
+
 	if (atomic_read(&bp->intr_sem) != 0)
 		goto bnx2_restart_timer;
 
@@ -3809,14 +3817,15 @@ bnx2_timer(unsigned long data)
 
 	if ((bp->phy_flags & PHY_SERDES_FLAG) &&
 	    (CHIP_NUM(bp) == CHIP_NUM_5706)) {
-		unsigned long flags;
 
-		spin_lock_irqsave(&bp->phy_lock, flags);
+		spin_lock(&bp->phy_lock);
 		if (bp->serdes_an_pending) {
 			bp->serdes_an_pending--;
 		}
 		else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
 			u32 bmcr;
+
+			bp->current_interval = bp->timer_interval;
 
 			bnx2_read_phy(bp, MII_BMCR, &bmcr);
 
@@ -3860,14 +3869,14 @@ bnx2_timer(unsigned long data)
 
 			}
 		}
+		else
+			bp->current_interval = bp->timer_interval;
 
-		spin_unlock_irqrestore(&bp->phy_lock, flags);
+		spin_unlock(&bp->phy_lock);
 	}
 
 bnx2_restart_timer:
-	bp->timer.expires = RUN_AT(bp->timer_interval);
-
-	add_timer(&bp->timer);
+	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
 /* Called with rtnl_lock */
@@ -3920,12 +3929,7 @@ bnx2_open(struct net_device *dev)
 		return rc;
 	}
 	
-	init_timer(&bp->timer);
-
-	bp->timer.expires = RUN_AT(bp->timer_interval);
-	bp->timer.data = (unsigned long) bp;
-	bp->timer.function = bnx2_timer;
-	add_timer(&bp->timer);
+	mod_timer(&bp->timer, jiffies + bp->current_interval);
 
 	atomic_set(&bp->intr_sem, 0);
 
@@ -3976,12 +3980,17 @@ bnx2_reset_task(void *data)
 {
 	struct bnx2 *bp = data;
 
+	if (!netif_running(bp->dev))
+		return;
+
+	bp->in_reset_task = 1;
 	bnx2_netif_stop(bp);
 
 	bnx2_init_nic(bp);
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp);
+	bp->in_reset_task = 0;
 }
 
 static void
@@ -4041,9 +4050,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 prod, ring_prod;
 	int i;
 
-	if (unlikely(atomic_read(&bp->tx_avail_bd) <
-		(skb_shinfo(skb)->nr_frags + 1))) {
-
+	if (unlikely(bnx2_tx_avail(bp) < (skb_shinfo(skb)->nr_frags + 1))) {
 		netif_stop_queue(dev);
 		printk(KERN_ERR PFX "%s: BUG! Tx ring full when queue awake!\n",
 			dev->name);
@@ -4140,8 +4147,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	prod = NEXT_TX_BD(prod);
 	bp->tx_prod_bseq += skb->len;
 
-	atomic_sub(last_frag + 1, &bp->tx_avail_bd);
-
 	REG_WR16(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BIDX, prod);
 	REG_WR(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BSEQ, bp->tx_prod_bseq);
 
@@ -4150,17 +4155,13 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bp->tx_prod = prod;
 	dev->trans_start = jiffies;
 
-	if (unlikely(atomic_read(&bp->tx_avail_bd) <= MAX_SKB_FRAGS)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&bp->tx_lock, flags);
-		if (atomic_read(&bp->tx_avail_bd) <= MAX_SKB_FRAGS) {
-			netif_stop_queue(dev);
-
-			if (atomic_read(&bp->tx_avail_bd) > MAX_SKB_FRAGS)
-				netif_wake_queue(dev);
-		}
-		spin_unlock_irqrestore(&bp->tx_lock, flags);
+	if (unlikely(bnx2_tx_avail(bp) <= MAX_SKB_FRAGS)) {
+		spin_lock(&bp->tx_lock);
+		netif_stop_queue(dev);
+		
+		if (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)
+			netif_wake_queue(dev);
+		spin_unlock(&bp->tx_lock);
 	}
 
 	return NETDEV_TX_OK;
@@ -4173,7 +4174,13 @@ bnx2_close(struct net_device *dev)
 	struct bnx2 *bp = dev->priv;
 	u32 reset_code;
 
-	flush_scheduled_work();
+	/* Calling flush_scheduled_work() may deadlock because
+	 * linkwatch_event() may be on the workqueue and it will try to get
+	 * the rtnl_lock which we are holding.
+	 */
+	while (bp->in_reset_task)
+		msleep(1);
+
 	bnx2_netif_stop(bp);
 	del_timer_sync(&bp->timer);
 	if (bp->wol)
@@ -4390,11 +4397,11 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bp->req_line_speed = req_line_speed;
 	bp->req_duplex = req_duplex;
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 
 	bnx2_setup_phy(bp);
 
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 
 	return 0;
 }
@@ -4464,19 +4471,20 @@ bnx2_nway_reset(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 
 	/* Force a link down visible on the other side */
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK);
-		spin_unlock_irq(&bp->phy_lock);
+		spin_unlock_bh(&bp->phy_lock);
 
 		msleep(20);
 
-		spin_lock_irq(&bp->phy_lock);
+		spin_lock_bh(&bp->phy_lock);
 		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-			bp->serdes_an_pending = SERDES_AN_TIMEOUT /
-				bp->timer_interval;
+			bp->current_interval = SERDES_AN_TIMEOUT;
+			bp->serdes_an_pending = 1;
+			mod_timer(&bp->timer, jiffies + bp->current_interval);
 		}
 	}
 
@@ -4484,7 +4492,7 @@ bnx2_nway_reset(struct net_device *dev)
 	bmcr &= ~BMCR_LOOPBACK;
 	bnx2_write_phy(bp, MII_BMCR, bmcr | BMCR_ANRESTART | BMCR_ANENABLE);
 
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 
 	return 0;
 }
@@ -4670,11 +4678,11 @@ bnx2_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 		bp->autoneg &= ~AUTONEG_FLOW_CTRL;
 	}
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 
 	bnx2_setup_phy(bp);
 
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 
 	return 0;
 }
@@ -4698,7 +4706,7 @@ bnx2_set_rx_csum(struct net_device *dev, u32 data)
 
 #define BNX2_NUM_STATS 45
 
-struct {
+static struct {
 	char string[ETH_GSTRING_LEN];
 } bnx2_stats_str_arr[BNX2_NUM_STATS] = {
 	{ "rx_bytes" },
@@ -4750,7 +4758,7 @@ struct {
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
 
-unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
+static unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_IfHCInOctets_hi),
     STATS_OFFSET32(stat_IfHCInBadOctets_hi),
     STATS_OFFSET32(stat_IfHCOutOctets_hi),
@@ -4801,7 +4809,7 @@ unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
 /* stat_IfHCInBadOctets and stat_Dot3StatsCarrierSenseErrors are
  * skipped because of errata.
  */               
-u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
+static u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 	8,0,8,8,8,8,8,8,8,8,
 	4,0,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
@@ -4811,7 +4819,7 @@ u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 
 #define BNX2_NUM_TESTS 6
 
-struct {
+static struct {
 	char string[ETH_GSTRING_LEN];
 } bnx2_tests_str_arr[BNX2_NUM_TESTS] = {
 	{ "register_test (offline)" },
@@ -4910,7 +4918,7 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 	struct bnx2 *bp = dev->priv;
 	int i;
 	u32 *hw_stats = (u32 *) bp->stats_blk;
-	u8 *stats_len_arr = 0;
+	u8 *stats_len_arr = NULL;
 
 	if (hw_stats == NULL) {
 		memset(buf, 0, sizeof(u64) * BNX2_NUM_STATS);
@@ -5012,7 +5020,7 @@ static struct ethtool_ops bnx2_ethtool_ops = {
 static int
 bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr->ifr_data;
+	struct mii_ioctl_data *data = if_mii(ifr);
 	struct bnx2 *bp = dev->priv;
 	int err;
 
@@ -5024,9 +5032,9 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG: {
 		u32 mii_regval;
 
-		spin_lock_irq(&bp->phy_lock);
+		spin_lock_bh(&bp->phy_lock);
 		err = bnx2_read_phy(bp, data->reg_num & 0x1f, &mii_regval);
-		spin_unlock_irq(&bp->phy_lock);
+		spin_unlock_bh(&bp->phy_lock);
 
 		data->val_out = mii_regval;
 
@@ -5037,9 +5045,9 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		spin_lock_irq(&bp->phy_lock);
+		spin_lock_bh(&bp->phy_lock);
 		err = bnx2_write_phy(bp, data->reg_num & 0x1f, data->val_in);
-		spin_unlock_irq(&bp->phy_lock);
+		spin_unlock_bh(&bp->phy_lock);
 
 		return err;
 
@@ -5056,6 +5064,9 @@ bnx2_change_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 	struct bnx2 *bp = dev->priv;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	if (netif_running(dev))
@@ -5305,6 +5316,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->stats_ticks = 1000000 & 0xffff00;
 
 	bp->timer_interval =  HZ;
+	bp->current_interval =  HZ;
 
 	/* Disable WOL support if we are running on a SERDES chip. */
 	if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT) {
@@ -5328,6 +5340,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->req_line_speed = 0;
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bp->advertising = ETHTOOL_ALL_FIBRE_SPEED | ADVERTISED_Autoneg;
+
+		reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE +
+				 BNX2_PORT_HW_CFG_CONFIG);
+		reg &= BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK;
+		if (reg == BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G) {
+			bp->autoneg = 0;
+			bp->req_line_speed = bp->line_speed = SPEED_1000;
+			bp->req_duplex = DUPLEX_FULL;
+		}
 	}
 	else {
 		bp->advertising = ETHTOOL_ALL_COPPER_SPEED | ADVERTISED_Autoneg;
@@ -5335,11 +5356,17 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->req_flow_ctrl = FLOW_CTRL_RX | FLOW_CTRL_TX;
 
+	init_timer(&bp->timer);
+	bp->timer.expires = RUN_AT(bp->timer_interval);
+	bp->timer.data = (unsigned long) bp;
+	bp->timer.function = bnx2_timer;
+
 	return 0;
 
 err_out_unmap:
 	if (bp->regview) {
 		iounmap(bp->regview);
+		bp->regview = NULL;
 	}
 
 err_out_release:
@@ -5454,6 +5481,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = dev->priv;
 
+	flush_scheduled_work();
+
 	unregister_netdev(dev);
 
 	if (bp->regview)
@@ -5505,12 +5534,12 @@ bnx2_resume(struct pci_dev *pdev)
 }
 
 static struct pci_driver bnx2_pci_driver = {
-	name:		DRV_MODULE_NAME,
-	id_table:	bnx2_pci_tbl,
-	probe:		bnx2_init_one,
-	remove:		__devexit_p(bnx2_remove_one),
-	suspend:	bnx2_suspend,
-	resume:		bnx2_resume,
+	.name		= DRV_MODULE_NAME,
+	.id_table	= bnx2_pci_tbl,
+	.probe		= bnx2_init_one,
+	.remove		= __devexit_p(bnx2_remove_one),
+	.suspend	= bnx2_suspend,
+	.resume		= bnx2_resume,
 };
 
 static int __init bnx2_init(void)

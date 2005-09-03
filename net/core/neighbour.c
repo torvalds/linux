@@ -1217,7 +1217,7 @@ static void neigh_proxy_process(unsigned long arg)
 
 	while (skb != (struct sk_buff *)&tbl->proxy_queue) {
 		struct sk_buff *back = skb;
-		long tdif = back->stamp.tv_usec - now;
+		long tdif = NEIGH_CB(back)->sched_next - now;
 
 		skb = skb->next;
 		if (tdif <= 0) {
@@ -1248,8 +1248,9 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		kfree_skb(skb);
 		return;
 	}
-	skb->stamp.tv_sec  = LOCALLY_ENQUEUED;
-	skb->stamp.tv_usec = sched_next;
+
+	NEIGH_CB(skb)->sched_next = sched_next;
+	NEIGH_CB(skb)->flags |= LOCALLY_ENQUEUED;
 
 	spin_lock(&tbl->proxy_queue.lock);
 	if (del_timer(&tbl->proxy_timer)) {
@@ -2342,8 +2343,8 @@ void neigh_app_ns(struct neighbour *n)
 	}
 	nlh			   = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_flags	   = NLM_F_REQUEST;
-	NETLINK_CB(skb).dst_groups = RTMGRP_NEIGH;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_NEIGH, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group  = RTNLGRP_NEIGH;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_NEIGH, GFP_ATOMIC);
 }
 
 static void neigh_app_notify(struct neighbour *n)
@@ -2360,8 +2361,8 @@ static void neigh_app_notify(struct neighbour *n)
 		return;
 	}
 	nlh			   = (struct nlmsghdr *)skb->data;
-	NETLINK_CB(skb).dst_groups = RTMGRP_NEIGH;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_NEIGH, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group  = RTNLGRP_NEIGH;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_NEIGH, GFP_ATOMIC);
 }
 
 #endif /* CONFIG_ARPD */

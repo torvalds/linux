@@ -830,7 +830,7 @@ config SERIAL_M32R_PLDSIO
 
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
-	depends HAS_TXX9_SERIAL
+	depends HAS_TXX9_SERIAL && BROKEN
 	select SERIAL_CORE
 	default y
 

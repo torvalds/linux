@@ -251,7 +251,7 @@ static void dtl1_receive(dtl1_info_t *info)
 				info->rx_count = nsh->len + (nsh->len & 0x0001);
 				break;
 			case RECV_WAIT_DATA:
-				info->rx_skb->pkt_type = nsh->type;
+				bt_cb(info->rx_skb)->pkt_type = nsh->type;
 
 				/* remove PAD byte if it exists */
 				if (nsh->len & 0x0001) {
@@ -262,7 +262,7 @@ static void dtl1_receive(dtl1_info_t *info)
 				/* remove NSH */
 				skb_pull(info->rx_skb, NSHL);
 
-				switch (info->rx_skb->pkt_type) {
+				switch (bt_cb(info->rx_skb)->pkt_type) {
 				case 0x80:
 					/* control data for the Nokia Card */
 					dtl1_control(info, info->rx_skb);
@@ -272,12 +272,12 @@ static void dtl1_receive(dtl1_info_t *info)
 				case 0x84:
 					/* send frame to the HCI layer */
 					info->rx_skb->dev = (void *) info->hdev;
-					info->rx_skb->pkt_type &= 0x0f;
+					bt_cb(info->rx_skb)->pkt_type &= 0x0f;
 					hci_recv_frame(info->rx_skb);
 					break;
 				default:
 					/* unknown packet */
-					BT_ERR("Unknown HCI packet with type 0x%02x received", info->rx_skb->pkt_type);
+					BT_ERR("Unknown HCI packet with type 0x%02x received", bt_cb(info->rx_skb)->pkt_type);
 					kfree_skb(info->rx_skb);
 					break;
 				}
@@ -410,7 +410,7 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 
 	info = (dtl1_info_t *)(hdev->driver_data);
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		nsh.type = 0x81;

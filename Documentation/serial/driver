@@ -111,24 +111,17 @@ hardware.
 	Interrupts: locally disabled.
 	This call must not sleep
 
-  stop_tx(port,tty_stop)
+  stop_tx(port)
 	Stop transmitting characters.  This might be due to the CTS
 	line becoming inactive or the tty layer indicating we want
-	to stop transmission.
-
-	tty_stop: 1 if this call is due to the TTY layer issuing a
-	          TTY stop to the driver (equiv to rs_stop).
+	to stop transmission due to an XOFF character.
 
 	Locking: port->lock taken.
 	Interrupts: locally disabled.
 	This call must not sleep
 
-  start_tx(port,tty_start)
-	start transmitting characters.  (incidentally, nonempty will
-	always be nonzero, and shouldn't be used - it will be dropped).
-
-	tty_start: 1 if this call was due to the TTY layer issuing
-	           a TTY start to the driver (equiv to rs_start)
+  start_tx(port)
+	start transmitting characters.
 
 	Locking: port->lock taken.
 	Interrupts: locally disabled.

@@ -357,6 +357,12 @@ source "kernel/power/Kconfig"
 
 source "drivers/acpi/Kconfig"
 
+if PM
+
+source "arch/ia64/kernel/cpufreq/Kconfig"
+
+endif
+
 endmenu
 
 if !IA64_HP_SIM

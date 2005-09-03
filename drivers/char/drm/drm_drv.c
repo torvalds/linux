@@ -70,8 +70,8 @@ static drm_ioctl_desc_t		  drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_UNBLOCK)]       = { drm_noop,        1, 1 },
 	[DRM_IOCTL_NR(DRM_IOCTL_AUTH_MAGIC)]    = { drm_authmagic,   1, 1 },
 
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP)]       = { drm_addmap,      1, 1 },
-	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP)]        = { drm_rmmap,       1, 0 },
+	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP)]       = { drm_addmap_ioctl,1, 1 },
+	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP)]        = { drm_rmmap_ioctl, 1, 0 },
 
 	[DRM_IOCTL_NR(DRM_IOCTL_SET_SAREA_CTX)] = { drm_setsareactx, 1, 1 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_SAREA_CTX)] = { drm_getsareactx, 1, 0 },
@@ -102,10 +102,10 @@ static drm_ioctl_desc_t		  drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_CONTROL)]       = { drm_control,     1, 1 },
 
 #if __OS_HAS_AGP
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ACQUIRE)]   = { drm_agp_acquire, 1, 1 },
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_RELEASE)]   = { drm_agp_release, 1, 1 },
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE)]    = { drm_agp_enable,  1, 1 },
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO)]      = { drm_agp_info,    1, 0 },
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ACQUIRE)]   = { drm_agp_acquire_ioctl, 1, 1 },
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_RELEASE)]   = { drm_agp_release_ioctl, 1, 1 },
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE)]    = { drm_agp_enable_ioctl, 1, 1 },
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO)]      = { drm_agp_info_ioctl, 1, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ALLOC)]     = { drm_agp_alloc,   1, 1 },
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_FREE)]      = { drm_agp_free,    1, 1 },
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_BIND)]      = { drm_agp_bind,    1, 1 },
@@ -127,14 +127,12 @@ static drm_ioctl_desc_t		  drm_ioctls[] = {
  *
  * Frees every resource in \p dev.
  *
- * \sa drm_device and setup().
+ * \sa drm_device
  */
 int drm_takedown( drm_device_t *dev )
 {
 	drm_magic_entry_t *pt, *next;
-	drm_map_t *map;
 	drm_map_list_t *r_list;
-	struct list_head *list, *list_next;
 	drm_vma_entry_t *vma, *vma_next;
 	int i;
 
@@ -142,6 +140,7 @@ int drm_takedown( drm_device_t *dev )
 
 	if (dev->driver->pretakedown)
 	  dev->driver->pretakedown(dev);
+	DRM_DEBUG("driver pretakedown completed\n");
 
 	if (dev->unique) {
 		drm_free(dev->unique, strlen(dev->unique) + 1, DRM_MEM_DRIVER);
@@ -178,10 +177,15 @@ int drm_takedown( drm_device_t *dev )
 		}
 		dev->agp->memory = NULL;
 
-		if ( dev->agp->acquired ) drm_agp_do_release(dev);
+		if (dev->agp->acquired)
+		  drm_agp_release(dev);
 
 		dev->agp->acquired = 0;
 		dev->agp->enabled  = 0;
+	}
+	if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg) {
+		drm_sg_cleanup(dev->sg);
+		dev->sg = NULL;
 	}
 
 				/* Clear vma list (only built for debugging) */
@@ -194,48 +198,11 @@ int drm_takedown( drm_device_t *dev )
 	}
 
 	if( dev->maplist ) {
-		list_for_each_safe( list, list_next, &dev->maplist->head ) {
-			r_list = (drm_map_list_t *)list;
-
-			if ( ( map = r_list->map ) ) {
-				switch ( map->type ) {
-				case _DRM_REGISTERS:
-				case _DRM_FRAME_BUFFER:
-					if (drm_core_has_MTRR(dev)) {
-						if ( map->mtrr >= 0 ) {
-							int retcode;
-							retcode = mtrr_del( map->mtrr,
-									    map->offset,
-									    map->size );
-							DRM_DEBUG( "mtrr_del=%d\n", retcode );
-						}
-					}
-					drm_ioremapfree( map->handle, map->size, dev );
-					break;
-				case _DRM_SHM:
-					vfree(map->handle);
-					break;
-
-				case _DRM_AGP:
-					/* Do nothing here, because this is all
-					 * handled in the AGP/GART driver.
-					 */
-					break;
-				case _DRM_SCATTER_GATHER:
-					/* Handle it */
-					if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg) {
-						drm_sg_cleanup(dev->sg);
-						dev->sg = NULL;
-					}
-					break;
-				}
-				drm_free(map, sizeof(*map), DRM_MEM_MAPS);
-			}
-			list_del( list );
-			drm_free(r_list, sizeof(*r_list), DRM_MEM_MAPS);
- 		}
-		drm_free(dev->maplist, sizeof(*dev->maplist), DRM_MEM_MAPS);
-		dev->maplist = NULL;
+		while (!list_empty(&dev->maplist->head)) {
+			struct list_head *list = dev->maplist->head.next;
+			r_list = list_entry(list, drm_map_list_t, head);
+			drm_rmmap_locked(dev, r_list->map);
+		}
  	}
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist ) {
@@ -264,6 +231,7 @@ int drm_takedown( drm_device_t *dev )
 	}
 	up( &dev->struct_sem );
 
+	DRM_DEBUG("takedown completed\n");
 	return 0;
 }
 
@@ -312,7 +280,7 @@ EXPORT_SYMBOL(drm_init);
  *
  * Cleans up all DRM device, calling takedown().
  * 
- * \sa drm_init().
+ * \sa drm_init
  */
 static void drm_cleanup( drm_device_t *dev )
 {
@@ -324,6 +292,11 @@ static void drm_cleanup( drm_device_t *dev )
 	}
 
 	drm_takedown( dev );	
+
+	if (dev->maplist) {
+		drm_free(dev->maplist, sizeof(*dev->maplist), DRM_MEM_MAPS);
+		dev->maplist = NULL;
+	}
 
 	drm_ctxbitmap_cleanup( dev );
 	

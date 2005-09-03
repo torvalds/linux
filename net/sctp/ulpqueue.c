@@ -50,9 +50,9 @@
 
 /* Forward declarations for internal helpers.  */
 static struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
-						struct sctp_ulpevent *);
+					      struct sctp_ulpevent *);
 static struct sctp_ulpevent * sctp_ulpq_order(struct sctp_ulpq *,
-						struct sctp_ulpevent *);
+					      struct sctp_ulpevent *);
 
 /* 1st Level Abstractions */
 
@@ -125,7 +125,9 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		event = sctp_ulpq_order(ulpq, event);
 	}
 
-	/* Send event to the ULP.  */
+	/* Send event to the ULP.  'event' is the sctp_ulpevent for
+	 * very first SKB on the 'temp' list.
+	 */
 	if (event)
 		sctp_ulpq_tail_event(ulpq, event);
 
@@ -158,13 +160,17 @@ static int sctp_ulpq_clear_pd(struct sctp_ulpq *ulpq)
 	return sctp_clear_pd(ulpq->asoc->base.sk);
 }
 
-
-
+/* If the SKB of 'event' is on a list, it is the first such member
+ * of that list.
+ */
 int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 {
 	struct sock *sk = ulpq->asoc->base.sk;
-	struct sk_buff_head *queue;
+	struct sk_buff_head *queue, *skb_list;
+	struct sk_buff *skb = sctp_event2skb(event);
 	int clear_pd = 0;
+
+	skb_list = (struct sk_buff_head *) skb->prev;
 
 	/* If the socket is just going to throw this away, do not
 	 * even try to deliver it.
@@ -197,10 +203,10 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	/* If we are harvesting multiple skbs they will be
 	 * collected on a list.
 	 */
-	if (sctp_event2skb(event)->list)
-		sctp_skb_list_tail(sctp_event2skb(event)->list, queue);
+	if (skb_list)
+		sctp_skb_list_tail(skb_list, queue);
 	else
-		__skb_queue_tail(queue, sctp_event2skb(event));
+		__skb_queue_tail(queue, skb);
 
 	/* Did we just complete partial delivery and need to get
 	 * rolling again?  Move pending data to the receive
@@ -214,10 +220,11 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	return 1;
 
 out_free:
-	if (sctp_event2skb(event)->list)
-		sctp_queue_purge_ulpevents(sctp_event2skb(event)->list);
+	if (skb_list)
+		sctp_queue_purge_ulpevents(skb_list);
 	else
 		sctp_ulpevent_free(event);
+
 	return 0;
 }
 
@@ -269,7 +276,7 @@ static inline void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
  * payload was fragmented on the way and ip had to reassemble them.
  * We add the rest of skb's to the first skb's fraglist.
  */
-static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff *f_frag, struct sk_buff *l_frag)
+static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *queue, struct sk_buff *f_frag, struct sk_buff *l_frag)
 {
 	struct sk_buff *pos;
 	struct sctp_ulpevent *event;
@@ -294,7 +301,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff *f_frag,
 		skb_shinfo(f_frag)->frag_list = pos;
 
 	/* Remove the first fragment from the reassembly queue.  */
-	__skb_unlink(f_frag, f_frag->list);
+	__skb_unlink(f_frag, queue);
 	while (pos) {
 
 		pnext = pos->next;
@@ -304,7 +311,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff *f_frag,
 		f_frag->data_len += pos->len;
 
 		/* Remove the fragment from the reassembly queue.  */
-		__skb_unlink(pos, pos->list);
+		__skb_unlink(pos, queue);
 	
 		/* Break if we have reached the last fragment.  */
 		if (pos == l_frag)
@@ -375,7 +382,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 done:
 	return retval;
 found:
-	retval = sctp_make_reassembled_event(first_frag, pos);
+	retval = sctp_make_reassembled_event(&ulpq->reasm, first_frag, pos);
 	if (retval)
 		retval->msg_flags |= MSG_EOR;
 	goto done;
@@ -435,7 +442,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq 
 	 * further.
 	 */
 done:
-	retval = sctp_make_reassembled_event(first_frag, last_frag);
+	retval = sctp_make_reassembled_event(&ulpq->reasm, first_frag, last_frag);
 	if (retval && is_last)
 		retval->msg_flags |= MSG_EOR;
 
@@ -527,7 +534,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *u
 	 * further.
 	 */
 done:
-	retval = sctp_make_reassembled_event(first_frag, last_frag);
+	retval = sctp_make_reassembled_event(&ulpq->reasm, first_frag, last_frag);
 	return retval;
 }
 
@@ -537,6 +544,7 @@ done:
 static inline void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *event)
 {
+	struct sk_buff_head *event_list;
 	struct sk_buff *pos, *tmp;
 	struct sctp_ulpevent *cevent;
 	struct sctp_stream *in;
@@ -546,6 +554,8 @@ static inline void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 	sid = event->stream;
 	ssn = event->ssn;
 	in  = &ulpq->asoc->ssnmap->in;
+
+	event_list = (struct sk_buff_head *) sctp_event2skb(event)->prev;
 
 	/* We are holding the chunks by stream, by SSN.  */
 	sctp_skb_for_each(pos, &ulpq->lobby, tmp) {
@@ -567,10 +577,10 @@ static inline void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 		/* Found it, so mark in the ssnmap. */
 		sctp_ssn_next(in, sid);
 
-		__skb_unlink(pos, pos->list);
+		__skb_unlink(pos, &ulpq->lobby);
 
 		/* Attach all gathered skbs to the event.  */
-		__skb_queue_tail(sctp_event2skb(event)->list, pos);
+		__skb_queue_tail(event_list, pos);
 	}
 }
 
@@ -626,7 +636,7 @@ static inline void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 }
 
 static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
-						struct sctp_ulpevent *event)
+					     struct sctp_ulpevent *event)
 {
 	__u16 sid, ssn;
 	struct sctp_stream *in;
@@ -667,7 +677,7 @@ static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
 {
 	struct sk_buff *pos, *tmp;
 	struct sctp_ulpevent *cevent;
-	struct sctp_ulpevent *event = NULL;
+	struct sctp_ulpevent *event;
 	struct sctp_stream *in;
 	struct sk_buff_head temp;
 	__u16 csid, cssn;
@@ -675,6 +685,8 @@ static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
 	in  = &ulpq->asoc->ssnmap->in;
 
 	/* We are holding the chunks by stream, by SSN.  */
+	skb_queue_head_init(&temp);
+	event = NULL;
 	sctp_skb_for_each(pos, &ulpq->lobby, tmp) {
 		cevent = (struct sctp_ulpevent *) pos->cb;
 		csid = cevent->stream;
@@ -686,19 +698,20 @@ static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
 		/* Found it, so mark in the ssnmap. */	       
 		sctp_ssn_next(in, csid);
 
-		__skb_unlink(pos, pos->list);
+		__skb_unlink(pos, &ulpq->lobby);
 		if (!event) {						
 			/* Create a temporary list to collect chunks on.  */
 			event = sctp_skb2event(pos);
-			skb_queue_head_init(&temp);
 			__skb_queue_tail(&temp, sctp_event2skb(event));
 		} else {
 			/* Attach all gathered skbs to the event.  */
-			__skb_queue_tail(sctp_event2skb(event)->list, pos);
+			__skb_queue_tail(&temp, pos);
 		}
 	}
 
-	/* Send event to the ULP.  */
+	/* Send event to the ULP.  'event' is the sctp_ulpevent for
+	 * very first SKB on the 'temp' list.
+	 */
 	if (event)
 		sctp_ulpq_tail_event(ulpq, event);
 }

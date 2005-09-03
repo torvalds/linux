@@ -1025,7 +1025,7 @@ static void snd_pcm_post_suspend(snd_pcm_substream_t *substream, int state)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MPAUSE, &runtime->trigger_tstamp);
+		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSUSPEND, &runtime->trigger_tstamp);
 	runtime->status->suspended_state = runtime->status->state;
 	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
 	snd_pcm_tick_set(substream, 0);
@@ -1115,7 +1115,7 @@ static void snd_pcm_post_resume(snd_pcm_substream_t *substream, int state)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MCONTINUE, &runtime->trigger_tstamp);
+		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MRESUME, &runtime->trigger_tstamp);
 	runtime->status->state = runtime->status->suspended_state;
 	if (runtime->sleep_min)
 		snd_pcm_tick_prepare(substream);
@@ -1967,13 +1967,12 @@ static int snd_pcm_release_file(snd_pcm_file_t * pcm_file)
 	runtime = substream->runtime;
 	str = substream->pstr;
 	snd_pcm_unlink(substream);
-	if (substream->open_flag) {
+	if (substream->ffile != NULL) {
 		if (substream->ops->hw_free != NULL)
 			substream->ops->hw_free(substream);
 		substream->ops->close(substream);
-		substream->open_flag = 0;
+		substream->ffile = NULL;
 	}
-	substream->ffile = NULL;
 	snd_pcm_remove_file(str, pcm_file);
 	snd_pcm_release_substream(substream);
 	kfree(pcm_file);
@@ -2022,17 +2021,14 @@ static int snd_pcm_open_file(struct file *file,
 		snd_pcm_release_file(pcm_file);
 		return err;
 	}
-	substream->open_flag = 1;
+	substream->ffile = file;
 
 	err = snd_pcm_hw_constraints_complete(substream);
 	if (err < 0) {
 		snd_printd("snd_pcm_hw_constraints_complete failed\n");
-		substream->ops->close(substream);
 		snd_pcm_release_file(pcm_file);
 		return err;
 	}
-
-	substream->ffile = file;
 
 	file->private_data = pcm_file;
 	*rpcm_file = pcm_file;

@@ -1144,7 +1144,7 @@ static void ibmveth_proc_unregister_driver(void)
 
 static struct vio_device_id ibmveth_device_table[] __devinitdata= {
 	{ "network", "IBM,l-lan"},
-	{ 0,}
+	{ "", "" }
 };
 
 MODULE_DEVICE_TABLE(vio, ibmveth_device_table);
