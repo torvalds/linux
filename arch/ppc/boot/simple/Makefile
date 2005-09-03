@@ -109,7 +109,6 @@ zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
 motorola := $(CONFIG_MVME5100)$(CONFIG_PRPMC750) \
 $(CONFIG_PRPMC800)$(CONFIG_LOPEC)$(CONFIG_PPLUS)
 motorola := $(strip $(motorola))
-pcore := $(CONFIG_PCORE)$(CONFIG_POWERPMC250)
 
       zimage-$(motorola)		:= zImage-PPLUS
 zimageinitrd-$(motorola)		:= zImage.initrd-PPLUS
@@ -118,12 +117,6 @@ zimageinitrd-$(motorola)		:= zImage.initrd-PPLUS
 # Overrides previous assingment
      extra.o-$(CONFIG_PPLUS)		:= prepmap.o
      extra.o-$(CONFIG_LOPEC)		:= mpc10x_memory.o
-
-      zimage-$(pcore)			:= zImage-STRIPELF
-zimageinitrd-$(pcore)			:= zImage.initrd-STRIPELF
-     extra.o-$(pcore)			:= chrpmap.o
-         end-$(pcore)			:= pcore
-   cacheflag-$(pcore)			:= -include $(clear_L2_L3)
 
 # Really only valid if CONFIG_6xx=y
       zimage-$(CONFIG_PPC_PREP)		:= zImage-PPLUS

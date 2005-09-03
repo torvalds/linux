@@ -548,9 +548,6 @@ config CPCI690
 	help
 	  Select CPCI690 if configuring a Force CPCI690 cPCI board.
 
-config PCORE
-	bool "Force-PowerCore"
-
 config POWERPMC250
 	bool "Force-PowerPMC250"
 
@@ -757,7 +754,7 @@ config PPC_OF
 
 config PPC_GEN550
 	bool
-	depends on SANDPOINT || SPRUCE || PPLUS || PCORE || \
+	depends on SANDPOINT || SPRUCE || PPLUS || \
 		PRPMC750 || PRPMC800 || LOPEC || \
 		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
 		83xx
@@ -765,7 +762,7 @@ config PPC_GEN550
 
 config FORCE
 	bool
-	depends on 6xx && (PCORE || POWERPMC250)
+	depends on 6xx && POWERPMC250
 	default y
 
 config GT64260
@@ -828,7 +825,7 @@ config EPIC_SERIAL_MODE
 
 config MPC10X_BRIDGE
 	bool
-	depends on PCORE || POWERPMC250 || LOPEC || SANDPOINT
+	depends on POWERPMC250 || LOPEC || SANDPOINT
 	default y
 
 config MPC10X_OPENPIC

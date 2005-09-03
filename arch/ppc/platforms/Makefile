@@ -32,7 +32,6 @@ obj-$(CONFIG_KATANA)		+= katana.o
 obj-$(CONFIG_HDPU)		+= hdpu.o
 obj-$(CONFIG_MVME5100)		+= mvme5100.o
 obj-$(CONFIG_PAL4)		+= pal4_setup.o pal4_pci.o
-obj-$(CONFIG_PCORE)		+= pcore.o
 obj-$(CONFIG_POWERPMC250)	+= powerpmc250.o
 obj-$(CONFIG_PPLUS)		+= pplus.o
 obj-$(CONFIG_PRPMC750)		+= prpmc750.o
