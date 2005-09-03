@@ -951,13 +951,21 @@ config ARC
 	depends on SNI_RM200_PCI || SGI_IP32 || SGI_IP27 || SGI_IP22 || MIPS_MAGNUM_4000 || OLIVETTI_M700 || ACER_PICA_61
 	default y
 
-config	DMA_COHERENT
+config DMA_COHERENT
 	bool
 
-config	DMA_IP27
+config DMA_IP27
 	bool
 
-config	DMA_NONCOHERENT
+config DMA_IP32
+	bool
+	select DMA_NEED_PCI_MAP_STATE
+
+config DMA_NONCOHERENT
+	bool
+	select DMA_NEED_PCI_MAP_STATE
+
+config DMA_NEED_PCI_MAP_STATE
 	bool
 
 config EARLY_PRINTK
