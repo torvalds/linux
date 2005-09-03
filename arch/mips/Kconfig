@@ -80,6 +80,7 @@ config NEC_CMBVR4133
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
+	select PCI
 	select PCI_VR41XX
 
 config ROCKHOPPER
@@ -91,6 +92,7 @@ config ROCKHOPPER
 config CASIO_E55
 	bool "Support for CASIO CASSIOPEIA E-10/15/55/65"
 	depends on MACH_VR41XX
+	select CPU_LITTLE_ENDIAN
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select ISA
@@ -98,6 +100,7 @@ config CASIO_E55
 config IBM_WORKPAD
 	bool "Support for IBM WorkPad z50"
 	depends on MACH_VR41XX
+	select CPU_LITTLE_ENDIAN
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select ISA
@@ -128,17 +131,23 @@ config TANBAC_TB0226
 
 config VICTOR_MPC30X
 	bool "Support for Victor MP-C303/304"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
 	depends on MACH_VR41XX
+	select CPU_LITTLE_ENDIAN
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select HW_HAS_PCI
+	select PCI
+	select PCI_VR41XX
 
 config ZAO_CAPCELLA
 	bool "Support for ZAO Networks Capcella"
 	depends on MACH_VR41XX
+	select CPU_LITTLE_ENDIAN
 	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	select IRQ_CPU
+	select HW_HAS_PCI
+	select PCI
+	select PCI_VR41XX
 
 config PCI_VR41XX
 	bool "Add PCI control unit support of NEC VR4100 series"
