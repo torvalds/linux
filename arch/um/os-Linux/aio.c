@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
 #include <errno.h>
 #include <sched.h>
 #include <sys/syscall.h>
@@ -16,17 +17,30 @@
 #include "user.h"
 #include "mode.h"
 
-struct aio_thread_req {
-        enum aio_type type;
-        int io_fd;
-        unsigned long long offset;
-        char *buf;
-        int len;
-        struct aio_context *aio;
-};
-
 static int aio_req_fd_r = -1;
 static int aio_req_fd_w = -1;
+
+static int update_aio(struct aio_context *aio, int res)
+{
+        if(res < 0)
+                aio->len = res;
+        else if((res == 0) && (aio->type == AIO_READ)){
+                /* This is the EOF case - we have hit the end of the file
+                 * and it ends in a partial block, so we fill the end of
+                 * the block with zeros and claim success.
+                 */
+                memset(aio->data, 0, aio->len);
+                aio->len = 0;
+        }
+        else if(res > 0){
+                aio->len -= res;
+                aio->data += res;
+                aio->offset += res;
+                return aio->len;
+        }
+
+        return 0;
+}
 
 #if defined(HAVE_AIO_ABI)
 #include <linux/aio_abi.h>
@@ -66,8 +80,7 @@ static long io_getevents(aio_context_t ctx_id, long min_nr, long nr,
  * that it now backs the mmapped area.
  */
 
-static int do_aio(aio_context_t ctx, enum aio_type type, int fd, char *buf,
-                  int len, unsigned long long offset, struct aio_context *aio)
+static int do_aio(aio_context_t ctx, struct aio_context *aio)
 {
         struct iocb iocb, *iocbp = &iocb;
         char c;
@@ -75,37 +88,37 @@ static int do_aio(aio_context_t ctx, enum aio_type type, int fd, char *buf,
 
         iocb = ((struct iocb) { .aio_data 	= (unsigned long) aio,
                                 .aio_reqprio	= 0,
-                                .aio_fildes	= fd,
-                                .aio_buf	= (unsigned long) buf,
-                                .aio_nbytes	= len,
-                                .aio_offset	= offset,
+                                .aio_fildes	= aio->fd,
+                                .aio_buf	= (unsigned long) aio->data,
+                                .aio_nbytes	= aio->len,
+                                .aio_offset	= aio->offset,
                                 .aio_reserved1	= 0,
                                 .aio_reserved2	= 0,
                                 .aio_reserved3	= 0 });
 
-        switch(type){
+        switch(aio->type){
         case AIO_READ:
                 iocb.aio_lio_opcode = IOCB_CMD_PREAD;
-                err = io_submit(ctx, 1, &iocbp);
                 break;
         case AIO_WRITE:
                 iocb.aio_lio_opcode = IOCB_CMD_PWRITE;
-                err = io_submit(ctx, 1, &iocbp);
                 break;
         case AIO_MMAP:
                 iocb.aio_lio_opcode = IOCB_CMD_PREAD;
                 iocb.aio_buf = (unsigned long) &c;
                 iocb.aio_nbytes = sizeof(c);
-                err = io_submit(ctx, 1, &iocbp);
                 break;
         default:
-                printk("Bogus op in do_aio - %d\n", type);
+                printk("Bogus op in do_aio - %d\n", aio->type);
                 err = -EINVAL;
-                break;
+                goto out;
         }
+
+        err = io_submit(ctx, 1, &iocbp);
         if(err > 0)
                 err = 0;
 
+ out:
         return err;
 }
 
@@ -114,8 +127,9 @@ static aio_context_t ctx = 0;
 static int aio_thread(void *arg)
 {
         struct aio_thread_reply reply;
+        struct aio_context *aio;
         struct io_event event;
-        int err, n, reply_fd;
+        int err, n;
 
         signal(SIGWINCH, SIG_IGN);
 
@@ -128,15 +142,21 @@ static int aio_thread(void *arg)
                                "errno = %d\n", errno);
                 }
                 else {
+			aio = (struct aio_context *) event.data;
+			if(update_aio(aio, event.res)){
+				do_aio(ctx, aio);
+				continue;
+			}
+
                         reply = ((struct aio_thread_reply)
-                                { .data = (void *) (long) event.data,
-                                  .err	= event.res });
-                        reply_fd = ((struct aio_context *) reply.data)->reply_fd;
-                        err = os_write_file(reply_fd, &reply, sizeof(reply));
+				{ .data = aio,
+				  .err	= aio->len });
+			err = os_write_file(aio->reply_fd, &reply,
+					    sizeof(reply));
                         if(err != sizeof(reply))
-                                printk("not_aio_thread - write failed, "
-                                       "fd = %d, err = %d\n",
-                                       aio_req_fd_r, -err);
+				printk("aio_thread - write failed, "
+				       "fd = %d, err = %d\n", aio->reply_fd,
+				       -err);
                 }
         }
         return 0;
@@ -144,35 +164,35 @@ static int aio_thread(void *arg)
 
 #endif
 
-static int do_not_aio(struct aio_thread_req *req)
+static int do_not_aio(struct aio_context *aio)
 {
         char c;
         int err;
 
-        switch(req->type){
+        switch(aio->type){
         case AIO_READ:
-                err = os_seek_file(req->io_fd, req->offset);
+                err = os_seek_file(aio->fd, aio->offset);
                 if(err)
                         goto out;
 
-                err = os_read_file(req->io_fd, req->buf, req->len);
+                err = os_read_file(aio->fd, aio->data, aio->len);
                 break;
         case AIO_WRITE:
-                err = os_seek_file(req->io_fd, req->offset);
+                err = os_seek_file(aio->fd, aio->offset);
                 if(err)
                         goto out;
 
-                err = os_write_file(req->io_fd, req->buf, req->len);
+                err = os_write_file(aio->fd, aio->data, aio->len);
                 break;
         case AIO_MMAP:
-                err = os_seek_file(req->io_fd, req->offset);
+                err = os_seek_file(aio->fd, aio->offset);
                 if(err)
                         goto out;
 
-                err = os_read_file(req->io_fd, &c, sizeof(c));
+                err = os_read_file(aio->fd, &c, sizeof(c));
                 break;
         default:
-                printk("do_not_aio - bad request type : %d\n", req->type);
+                printk("do_not_aio - bad request type : %d\n", aio->type);
                 err = -EINVAL;
                 break;
         }
@@ -183,14 +203,14 @@ static int do_not_aio(struct aio_thread_req *req)
 
 static int not_aio_thread(void *arg)
 {
-        struct aio_thread_req req;
+        struct aio_context *aio;
         struct aio_thread_reply reply;
         int err;
 
         signal(SIGWINCH, SIG_IGN);
         while(1){
-                err = os_read_file(aio_req_fd_r, &req, sizeof(req));
-                if(err != sizeof(req)){
+                err = os_read_file(aio_req_fd_r, &aio, sizeof(aio));
+                if(err != sizeof(aio)){
                         if(err < 0)
                                 printk("not_aio_thread - read failed, "
                                        "fd = %d, err = %d\n", aio_req_fd_r,
@@ -201,17 +221,34 @@ static int not_aio_thread(void *arg)
                         }
                         continue;
                 }
-                err = do_not_aio(&req);
-                reply = ((struct aio_thread_reply) { .data 	= req.aio,
-                                                     .err	= err });
-                err = os_write_file(req.aio->reply_fd, &reply, sizeof(reply));
+ again:
+                err = do_not_aio(aio);
+
+                if(update_aio(aio, err))
+                        goto again;
+
+                reply = ((struct aio_thread_reply) { .data 	= aio,
+                                                     .err	= aio->len });
+                err = os_write_file(aio->reply_fd, &reply, sizeof(reply));
                 if(err != sizeof(reply))
                         printk("not_aio_thread - write failed, fd = %d, "
                                "err = %d\n", aio_req_fd_r, -err);
         }
 }
 
+static int submit_aio_24(struct aio_context *aio)
+{
+        int err;
+
+        err = os_write_file(aio_req_fd_w, &aio, sizeof(aio));
+        if(err == sizeof(aio))
+                err = 0;
+
+        return err;
+}
+
 static int aio_pid = -1;
+static int (*submit_proc)(struct aio_context *aio);
 
 static int init_aio_24(void)
 {
@@ -243,11 +280,33 @@ static int init_aio_24(void)
 #endif
 	printk("2.6 host AIO support not used - falling back to I/O "
 	       "thread\n");
+
+	submit_proc = submit_aio_24;
+
         return 0;
 }
 
 #ifdef HAVE_AIO_ABI
 #define DEFAULT_24_AIO 0
+static int submit_aio_26(struct aio_context *aio)
+{
+	struct aio_thread_reply reply;
+	int err;
+
+	err = do_aio(ctx, aio);
+	if(err){
+		reply = ((struct aio_thread_reply) { .data = aio,
+					             .err  = err });
+		err = os_write_file(aio->reply_fd, &reply, sizeof(reply));
+		if(err != sizeof(reply))
+			printk("submit_aio_26 - write failed, "
+			       "fd = %d, err = %d\n", aio->reply_fd, -err);
+		else err = 0;
+	}
+
+	return err;
+}
+
 static int init_aio_26(void)
 {
         unsigned long stack;
@@ -267,39 +326,22 @@ static int init_aio_26(void)
         aio_pid = err;
 
 	printk("Using 2.6 host AIO\n");
+
+	submit_proc = submit_aio_26;
+
         return 0;
-}
-
-static int submit_aio_26(enum aio_type type, int io_fd, char *buf, int len,
-			 unsigned long long offset, struct aio_context *aio)
-{
-        struct aio_thread_reply reply;
-        int err;
-
-        err = do_aio(ctx, type, io_fd, buf, len, offset, aio);
-        if(err){
-                reply = ((struct aio_thread_reply) { .data = aio,
-                                                     .err  = err });
-                err = os_write_file(aio->reply_fd, &reply, sizeof(reply));
-                if(err != sizeof(reply))
-                        printk("submit_aio_26 - write failed, "
-                               "fd = %d, err = %d\n", aio->reply_fd, -err);
-                else err = 0;
-        }
-
-        return err;
 }
 
 #else
 #define DEFAULT_24_AIO 1
-static int init_aio_26(void)
+static int submit_aio_26(struct aio_context *aio)
 {
         return -ENOSYS;
 }
 
-static int submit_aio_26(enum aio_type type, int io_fd, char *buf, int len,
-			 unsigned long long offset, struct aio_context *aio)
+static int init_aio_26(void)
 {
+	submit_proc = submit_aio_26;
         return -ENOSYS;
 }
 #endif
@@ -366,33 +408,7 @@ static void exit_aio(void)
 
 __uml_exitcall(exit_aio);
 
-static int submit_aio_24(enum aio_type type, int io_fd, char *buf, int len,
-			 unsigned long long offset, struct aio_context *aio)
+int submit_aio(struct aio_context *aio)
 {
-        struct aio_thread_req req = { .type 		= type,
-                                      .io_fd		= io_fd,
-                                      .offset		= offset,
-                                      .buf		= buf,
-                                      .len		= len,
-                                      .aio		= aio,
-        };
-        int err;
-
-        err = os_write_file(aio_req_fd_w, &req, sizeof(req));
-        if(err == sizeof(req))
-                err = 0;
-
-        return err;
-}
-
-int submit_aio(enum aio_type type, int io_fd, char *buf, int len,
-               unsigned long long offset, int reply_fd,
-               struct aio_context *aio)
-{
-        aio->reply_fd = reply_fd;
-        if(aio_24)
-                return submit_aio_24(type, io_fd, buf, len, offset, aio);
-        else {
-                return submit_aio_26(type, io_fd, buf, len, offset, aio);
-        }
+	return (*submit_proc)(aio);
 }
