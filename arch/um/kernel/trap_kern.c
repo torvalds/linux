@@ -200,30 +200,3 @@ void winch(int sig, union uml_pt_regs *regs)
 void trap_init(void)
 {
 }
-
-DEFINE_SPINLOCK(trap_lock);
-
-static int trap_index = 0;
-
-int next_trap_index(int limit)
-{
-	int ret;
-
-	spin_lock(&trap_lock);
-	ret = trap_index;
-	if(++trap_index == limit)
-		trap_index = 0;
-	spin_unlock(&trap_lock);
-	return(ret);
-}
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
