@@ -123,7 +123,6 @@ struct swap_info_struct {
 	struct file *swap_file;
 	struct block_device *bdev;
 	struct list_head extent_list;
-	int nr_extents;
 	struct swap_extent *curr_swap_extent;
 	unsigned old_block_size;
 	unsigned short * swap_map;

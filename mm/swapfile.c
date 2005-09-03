@@ -854,7 +854,6 @@ static void destroy_swap_extents(struct swap_info_struct *sis)
 		list_del(&se->list);
 		kfree(se);
 	}
-	sis->nr_extents = 0;
 }
 
 /*
@@ -893,8 +892,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	new_se->start_block = start_block;
 
 	list_add_tail(&new_se->list, &sis->extent_list);
-	sis->nr_extents++;
-	return 0;
+	return 1;
 }
 
 /*
@@ -928,7 +926,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
  * This is extremely effective.  The average number of iterations in
  * map_swap_page() has been measured at about 0.3 per page.  - akpm.
  */
-static int setup_swap_extents(struct swap_info_struct *sis)
+static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
 {
 	struct inode *inode;
 	unsigned blocks_per_page;
@@ -936,11 +934,15 @@ static int setup_swap_extents(struct swap_info_struct *sis)
 	unsigned blkbits;
 	sector_t probe_block;
 	sector_t last_block;
+	sector_t lowest_block = -1;
+	sector_t highest_block = 0;
+	int nr_extents = 0;
 	int ret;
 
 	inode = sis->swap_file->f_mapping->host;
 	if (S_ISBLK(inode->i_mode)) {
 		ret = add_swap_extent(sis, 0, sis->max, 0);
+		*span = sis->pages;
 		goto done;
 	}
 
@@ -985,19 +987,28 @@ static int setup_swap_extents(struct swap_info_struct *sis)
 			}
 		}
 
+		first_block >>= (PAGE_SHIFT - blkbits);
+		if (page_no) {	/* exclude the header page */
+			if (first_block < lowest_block)
+				lowest_block = first_block;
+			if (first_block > highest_block)
+				highest_block = first_block;
+		}
+
 		/*
 		 * We found a PAGE_SIZE-length, PAGE_SIZE-aligned run of blocks
 		 */
-		ret = add_swap_extent(sis, page_no, 1,
-				first_block >> (PAGE_SHIFT - blkbits));
-		if (ret)
+		ret = add_swap_extent(sis, page_no, 1, first_block);
+		if (ret < 0)
 			goto out;
+		nr_extents += ret;
 		page_no++;
 		probe_block += blocks_per_page;
 reprobe:
 		continue;
 	}
-	ret = 0;
+	ret = nr_extents;
+	*span = 1 + highest_block - lowest_block;
 	if (page_no == 0)
 		page_no = 1;	/* force Empty message */
 	sis->max = page_no;
@@ -1265,6 +1276,8 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	union swap_header *swap_header = NULL;
 	int swap_header_version;
 	int nr_good_pages = 0;
+	int nr_extents;
+	sector_t span;
 	unsigned long maxpages = 1;
 	int swapfilesize;
 	unsigned short *swap_map;
@@ -1300,7 +1313,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		nr_swapfiles = type+1;
 	INIT_LIST_HEAD(&p->extent_list);
 	p->flags = SWP_USED;
-	p->nr_extents = 0;
 	p->swap_file = NULL;
 	p->old_block_size = 0;
 	p->swap_map = NULL;
@@ -1477,9 +1489,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		p->swap_map[0] = SWAP_MAP_BAD;
 		p->max = maxpages;
 		p->pages = nr_good_pages;
-		error = setup_swap_extents(p);
-		if (error)
+		nr_extents = setup_swap_extents(p, &span);
+		if (nr_extents < 0) {
+			error = nr_extents;
 			goto bad_swap;
+		}
 		nr_good_pages = p->pages;
 	}
 	if (!nr_good_pages) {
@@ -1494,9 +1508,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	p->flags = SWP_ACTIVE;
 	nr_swap_pages += nr_good_pages;
 	total_swap_pages += nr_good_pages;
-	printk(KERN_INFO "Adding %dk swap on %s.  Priority:%d extents:%d\n",
-		nr_good_pages<<(PAGE_SHIFT-10), name,
-		p->prio, p->nr_extents);
+
+	printk(KERN_INFO "Adding %dk swap on %s.  "
+			"Priority:%d extents:%d across:%lluk\n",
+		nr_good_pages<<(PAGE_SHIFT-10), name, p->prio,
+		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10));
 
 	/* insert swap space into swap_list: */
 	prev = -1;
