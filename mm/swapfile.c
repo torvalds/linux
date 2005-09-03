@@ -215,8 +215,6 @@ static struct swap_info_struct * swap_info_get(swp_entry_t entry)
 	if (!p->swap_map[offset])
 		goto bad_free;
 	swap_list_lock();
-	if (p->prio > swap_info[swap_list.next].prio)
-		swap_list.next = type;
 	swap_device_lock(p);
 	return p;
 
@@ -253,6 +251,8 @@ static int swap_entry_free(struct swap_info_struct *p, unsigned long offset)
 				p->lowest_bit = offset;
 			if (offset > p->highest_bit)
 				p->highest_bit = offset;
+			if (p->prio > swap_info[swap_list.next].prio)
+				swap_list.next = p - swap_info;
 			nr_swap_pages++;
 			p->inuse_pages--;
 		}
