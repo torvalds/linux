@@ -926,7 +926,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
  * requirements, they are simply tossed out - we will never use those blocks
  * for swapping.
  *
- * For S_ISREG swapfiles we hold i_sem across the life of the swapon.  This
+ * For S_ISREG swapfiles we set S_SWAPFILE across the life of the swapon.  This
  * prevents root from shooting her foot off by ftruncating an in-use swapfile,
  * which will scribble on the fs.
  *
