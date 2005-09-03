@@ -153,9 +153,23 @@ extern unsigned long pg0[1024];
 
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
 
+#define pte_page(x) pfn_to_page(pte_pfn(x))
 #define pte_address(x) (__va(pte_val(x) & PAGE_MASK))
 #define mk_phys(a, r) ((a) + (((unsigned long) r) << REGION_SHIFT))
 #define phys_addr(p) ((p) & ~REGION_MASK)
+
+#define pte_present(x)	pte_get_bits(x, (_PAGE_PRESENT | _PAGE_PROTNONE))
+
+/*
+ * =================================
+ * Flags checking section.
+ * =================================
+ */
+
+static inline int pte_none(pte_t pte)
+{
+	return pte_is_zero(pte);
+}
 
 /*
  * The following only work if pte_present() is true.
@@ -210,6 +224,18 @@ static inline int pte_newpage(pte_t pte)
 static inline int pte_newprot(pte_t pte)
 { 
 	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
+}
+
+/*
+ * =================================
+ * Flags setting section.
+ * =================================
+ */
+
+static inline pte_t pte_mknewprot(pte_t pte)
+{
+	pte_set_bits(pte, _PAGE_NEWPROT);
+	return(pte);
 }
 
 static inline pte_t pte_rdprotect(pte_t pte)
@@ -279,6 +305,26 @@ static inline pte_t pte_mkuptodate(pte_t pte)
 		pte_clear_bits(pte, _PAGE_NEWPROT);
 	return(pte); 
 }
+
+static inline pte_t pte_mknewpage(pte_t pte)
+{
+	pte_set_bits(pte, _PAGE_NEWPAGE);
+	return(pte);
+}
+
+static inline void set_pte(pte_t *pteptr, pte_t pteval)
+{
+	pte_copy(*pteptr, pteval);
+
+	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
+	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
+	 * mapped pages.
+	 */
+
+	*pteptr = pte_mknewpage(*pteptr);
+	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
+}
+#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 extern phys_t page_to_phys(struct page *page);
 
