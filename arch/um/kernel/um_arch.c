@@ -126,7 +126,7 @@ unsigned long start_vm;
 unsigned long end_vm;
 int ncpus = 1;
 
-#ifdef CONFIG_MODE_TT
+#ifdef CONFIG_CMDLINE_ON_HOST
 /* Pointer set in linux_main, the array itself is private to each thread,
  * and changed at address space creation time so this poses no concurrency
  * problems.
@@ -141,7 +141,7 @@ long physmem_size = 32 * 1024 * 1024;
 
 void set_cmdline(char *cmd)
 {
-#ifdef CONFIG_MODE_TT
+#ifdef CONFIG_CMDLINE_ON_HOST
 	char *umid, *ptr;
 
 	if(CHOOSE_MODE(honeypot, 0)) return;
@@ -385,7 +385,7 @@ int linux_main(int argc, char **argv)
 
 	setup_machinename(system_utsname.machine);
 
-#ifdef CONFIG_MODE_TT
+#ifdef CONFIG_CMDLINE_ON_HOST
 	argv1_begin = argv[1];
 	argv1_end = &argv[1][strlen(argv[1])];
 #endif
