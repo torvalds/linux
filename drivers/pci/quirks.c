@@ -422,6 +422,25 @@ static void __devinit quirk_via_ioapic(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686,	quirk_via_ioapic );
 
 /*
+ * VIA 8237: Some BIOSs don't set the 'Bypass APIC De-Assert Message' Bit.
+ * This leads to doubled level interrupt rates.
+ * Set this bit to get rid of cycle wastage.
+ * Otherwise uncritical.
+ */
+static void __devinit quirk_via_vt8237_bypass_apic_deassert(struct pci_dev *dev)
+{
+	u8 misc_control2;
+#define BYPASS_APIC_DEASSERT 8
+
+	pci_read_config_byte(dev, 0x5B, &misc_control2);
+	if (!(misc_control2 & BYPASS_APIC_DEASSERT)) {
+		printk(KERN_INFO "PCI: Bypassing VIA 8237 APIC De-Assert Message\n");
+		pci_write_config_byte(dev, 0x5B, misc_control2|BYPASS_APIC_DEASSERT);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_vt8237_bypass_apic_deassert);
+
+/*
  * The AMD io apic can hang the box when an apic irq is masked.
  * We check all revs >= B0 (yet not in the pre production!) as the bug
  * is currently marked NoFix
