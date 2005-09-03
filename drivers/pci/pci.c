@@ -333,13 +333,17 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 	if (platform_pci_choose_state) {
 		ret = platform_pci_choose_state(dev, state);
 		if (ret >= 0)
-			state = ret;
+			state.event = ret;
 	}
- 	switch (state) {
-	case 0: return PCI_D0;
-	case 3: return PCI_D3hot;
+
+	switch (state.event) {
+	case PM_EVENT_ON:
+		return PCI_D0;
+	case PM_EVENT_FREEZE:
+	case PM_EVENT_SUSPEND:
+		return PCI_D3hot;
 	default:
-		printk("They asked me for state %d\n", state);
+		printk("They asked me for state %d\n", state.event);
 		BUG();
 	}
 	return PCI_D0;

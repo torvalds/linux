@@ -1600,7 +1600,7 @@ static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 		return 0;
 	}
 
-	if (pm_state == mdev->ofdev.dev.power.power_state || pm_state < 2)
+	if (pm_state.event == mdev->ofdev.dev.power.power_state.event)
 		return 0;
 
 	pmz_debug("suspend, switching to state %d\n", pm_state);
@@ -1660,7 +1660,7 @@ static int pmz_resume(struct macio_dev *mdev)
 	if (uap == NULL)
 		return 0;
 
-	if (mdev->ofdev.dev.power.power_state == 0)
+	if (mdev->ofdev.dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 	
 	pmz_debug("resume, switching to state 0\n");
@@ -1713,7 +1713,7 @@ static int pmz_resume(struct macio_dev *mdev)
 
 	pmz_debug("resume, switching complete\n");
 
-	mdev->ofdev.dev.power.power_state = 0;
+	mdev->ofdev.dev.power.power_state.event = PM_EVENT_ON;
 
 	return 0;
 }

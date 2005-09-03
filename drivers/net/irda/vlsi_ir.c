@@ -1757,12 +1757,12 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 	idev = ndev->priv;	
 	down(&idev->sem);
 	if (pdev->current_state != 0) {			/* already suspended */
-		if (state > pdev->current_state) {	/* simply go deeper */
-			pci_set_power_state(pdev,state);
-			pdev->current_state = state;
+		if (state.event > pdev->current_state) {	/* simply go deeper */
+			pci_set_power_state(pdev, pci_choose_state(pdev, state));
+			pdev->current_state = state.event;
 		}
 		else
-			IRDA_ERROR("%s - %s: invalid suspend request %u -> %u\n", __FUNCTION__, PCIDEV_NAME(pdev), pdev->current_state, state);
+			IRDA_ERROR("%s - %s: invalid suspend request %u -> %u\n", __FUNCTION__, PCIDEV_NAME(pdev), pdev->current_state, state.event);
 		up(&idev->sem);
 		return 0;
 	}
@@ -1777,7 +1777,7 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	pdev->current_state = state;
+	pdev->current_state = state.event;
 	idev->resume_ok = 1;
 	up(&idev->sem);
 	return 0;

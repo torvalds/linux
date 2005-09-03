@@ -105,7 +105,7 @@ static int of_device_remove(struct device *dev)
 	return 0;
 }
 
-static int of_device_suspend(struct device *dev, u32 state)
+static int of_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct of_device * of_dev = to_of_device(dev);
 	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
