@@ -437,6 +437,11 @@ static inline void prefetchw(void *x)
 	outb((data), 0x23); \
 } while (0)
 
+static inline void serialize_cpu(void)
+{
+	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+}
+
 static inline void __monitor(const void *eax, unsigned long ecx,
 		unsigned long edx)
 {
