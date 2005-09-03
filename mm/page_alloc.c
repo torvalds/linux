@@ -329,7 +329,7 @@ static inline void free_pages_check(const char *function, struct page *page)
 			1 << PG_writeback )))
 		bad_page(function, page);
 	if (PageDirty(page))
-		ClearPageDirty(page);
+		__ClearPageDirty(page);
 }
 
 /*
