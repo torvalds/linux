@@ -55,7 +55,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * Pure 2^n version of get_order
  */
 
-extern __inline__ int get_order(unsigned long size)
+static inline int get_order(unsigned long size)
 {
 	int order;
 #ifndef XCHAL_HAVE_NSU

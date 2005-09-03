@@ -66,7 +66,7 @@ typedef struct { volatile int counter; } atomic_t;
  *
  * Atomically adds @i to @v.
  */
-extern __inline__ void atomic_add(int i, atomic_t * v)
+static inline void atomic_add(int i, atomic_t * v)
 {
     unsigned int vval;
 
@@ -90,7 +90,7 @@ extern __inline__ void atomic_add(int i, atomic_t * v)
  *
  * Atomically subtracts @i from @v.
  */
-extern __inline__ void atomic_sub(int i, atomic_t *v)
+static inline void atomic_sub(int i, atomic_t *v)
 {
     unsigned int vval;
 
@@ -111,7 +111,7 @@ extern __inline__ void atomic_sub(int i, atomic_t *v)
  * We use atomic_{add|sub}_return to define other functions.
  */
 
-extern __inline__ int atomic_add_return(int i, atomic_t * v)
+static inline int atomic_add_return(int i, atomic_t * v)
 {
      unsigned int vval;
 
@@ -130,7 +130,7 @@ extern __inline__ int atomic_add_return(int i, atomic_t * v)
     return vval;
 }
 
-extern __inline__ int atomic_sub_return(int i, atomic_t * v)
+static inline int atomic_sub_return(int i, atomic_t * v)
 {
     unsigned int vval;
 
@@ -224,7 +224,7 @@ extern __inline__ int atomic_sub_return(int i, atomic_t * v)
 #define atomic_add_negative(i,v) (atomic_add_return((i),(v)) < 0)
 
 
-extern __inline__ void atomic_clear_mask(unsigned int mask, atomic_t *v)
+static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
     unsigned int all_f = -1;
     unsigned int vval;
@@ -243,7 +243,7 @@ extern __inline__ void atomic_clear_mask(unsigned int mask, atomic_t *v)
 	);
 }
 
-extern __inline__ void atomic_set_mask(unsigned int mask, atomic_t *v)
+static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 {
     unsigned int vval;
 
