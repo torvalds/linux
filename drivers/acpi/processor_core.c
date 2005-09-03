@@ -400,7 +400,7 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 
 /* Use the acpiid in MADT to map cpus in case of SMP */
 #ifndef CONFIG_SMP
-#define convert_acpiid_to_cpu(acpi_id, cpu_indexp) (0xff)
+#define convert_acpiid_to_cpu(acpi_id) (0xff)
 #else
 
 #ifdef CONFIG_IA64
@@ -413,20 +413,18 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 #define ARCH_BAD_APICID		(0xff)
 #endif
 
-static int convert_acpiid_to_cpu(u8 acpi_id, unsigned int *cpu_index)
+static u8 convert_acpiid_to_cpu(u8 acpi_id)
 {
 	u16 apic_id;
-	unsigned int i;
+	int i;
 
 	apic_id = arch_acpiid_to_apicid[acpi_id];
 	if (apic_id == ARCH_BAD_APICID)
 		return -1;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (arch_cpu_to_apicid[i] == apic_id) {
-			*cpu_index = i;
-			return 0;
-		}
+		if (arch_cpu_to_apicid[i] == apic_id)
+			return i;
 	}
 	return -1;
 }
@@ -441,8 +439,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	acpi_status status = 0;
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
-	unsigned int  cpu_index;
-	int retval;
+	u8 cpu_index;
 	static int cpu0_initialized;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_get_info");
@@ -485,10 +482,10 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 */
 	pr->acpi_id = object.processor.proc_id;
 
-	retval = convert_acpiid_to_cpu(pr->acpi_id, &cpu_index);
+	cpu_index = convert_acpiid_to_cpu(pr->acpi_id);
 
 	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
-	if (!cpu0_initialized && retval &&
+	if (!cpu0_initialized && (cpu_index == 0xff) &&
 	    (num_online_cpus() == 1)) {
 		cpu_index = 0;
 	}
@@ -502,10 +499,10 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
 	 */
-	if (retval) {
+	if (cpu_index >= NR_CPUS) {
 		if (ACPI_FAILURE
 		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					  "Error getting cpuindex for acpiid 0x%x\n",
 					  pr->acpi_id));
 			return_VALUE(-ENODEV);
