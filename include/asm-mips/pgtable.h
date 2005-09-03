@@ -11,10 +11,10 @@
 #include <asm-generic/4level-fixup.h>
 
 #include <linux/config.h>
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #include <asm/pgtable-32.h>
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #include <asm/pgtable-64.h>
 #endif
 

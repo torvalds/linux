@@ -79,7 +79,7 @@
 /*
  * Only on the 64-bit kernel we can made use of 64-bit registers.
  */
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define USE_DOUBLE
 #endif
 

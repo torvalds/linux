@@ -106,7 +106,7 @@
 #define PLAT_TRAMPOLINE_STUFF_LINE	0UL
 #endif
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 # ifndef cpu_has_nofpuex
 # define cpu_has_nofpuex	(cpu_data[0].options & MIPS_CPU_NOFPUEX)
 # endif
@@ -124,7 +124,7 @@
 # endif
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 # ifndef cpu_has_nofpuex
 # define cpu_has_nofpuex		0
 # endif

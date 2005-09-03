@@ -22,7 +22,7 @@
  *
  * For historical reasons, these macros are grossly misnamed.
  */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #define __UA_LIMIT	0x80000000UL
 
@@ -32,9 +32,9 @@
 #define __UA_t0		"$8"
 #define __UA_t1		"$9"
 
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 #define __UA_LIMIT	(- TASK_SIZE)
 
@@ -44,7 +44,7 @@
 #define __UA_t0		"$12"
 #define __UA_t1		"$13"
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 /*
  * USER_DS is a bitmask that has the bits set that may not be set in a valid

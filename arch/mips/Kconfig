@@ -4,26 +4,37 @@ config MIPS
 	# Horrible source of confusion.  Die, die, die ...
 	select EMBEDDED
 
-config MIPS64
-	bool "64-bit kernel"
-	help
-	  Select this option if you want to build a 64-bit kernel.  You should
-	  only select this option if you have hardware that actually has a
-	  64-bit processor and if your application will actually benefit from
-	  64-bit processing, otherwise say N.  You must say Y for kernels for
-	  SGI IP27 (Origin 200 and 2000) and SGI IP32 (O2).  If in doubt say N.
-
-config 64BIT
-	def_bool MIPS64
-
-config MIPS32
-	bool
-	depends on MIPS64 = 'n'
-	default y
-
 mainmenu "Linux/MIPS Kernel Configuration"
 
 source "init/Kconfig"
+
+menu "Kernel type"
+
+choice
+
+	prompt "Kernel code model"
+	help
+	  You should only select this option if you have a workload that
+	  actually benefits from 64-bit processing or if your machine has
+	  large memory.  You will only be presented a single option in this
+	  menu if your system does not support both 32-bit and 64-bit kernels.
+
+config 32BIT
+	bool "32-bit kernel"
+	depends on CPU_SUPPORTS_32BIT_KERNEL && SYS_SUPPORTS_32BIT_KERNEL
+	select TRAD_SIGNALS
+	help
+	  Select this option if you want to build a 32-bit kernel.
+
+config 64BIT
+	bool "64-bit kernel"
+	depends on CPU_SUPPORTS_64BIT_KERNEL && SYS_SUPPORTS_64BIT_KERNEL
+	help
+	  Select this option if you want to build a 64-bit kernel.
+
+endchoice
+
+endmenu
 
 menu "Machine selection"
 
@@ -155,7 +166,7 @@ config VRC4173
 
 config TOSHIBA_JMR3927
 	bool "Support for Toshiba JMR-TX3927 board"
-	depends on MIPS32
+	depends on 32BIT
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select SWAP_IO_SPACE
@@ -173,7 +184,7 @@ config MACH_DECSTATION
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select IRQ_CPU
-	depends on MIPS32 || EXPERIMENTAL
+	depends on 32BIT || EXPERIMENTAL
 	---help---
 	  This enables support for DEC's MIPS based workstations.  For details
 	  see the Linux/MIPS FAQ on <http://www.linux-mips.org/> and the
@@ -480,7 +491,7 @@ config SGI_IP22
 
 config SGI_IP27
 	bool "Support for SGI IP27 (Origin200/2000)"
-	depends on MIPS64
+	depends on 64BIT
 	select ARC
 	select ARC64
 	select DMA_IP27
@@ -548,7 +559,7 @@ config REPLICATE_EXHANDLERS
 
 config SGI_IP32
 	bool "Support for SGI IP32 (O2) (EXPERIMENTAL)"
-	depends on MIPS64 && EXPERIMENTAL
+	depends on 64BIT && EXPERIMENTAL
 	select ARC
 	select ARC32
 	select BOOT_ELF32
@@ -562,7 +573,7 @@ config SGI_IP32
 	  If you want this kernel to run on SGI O2 workstation, say Y here.
 
 config SOC_AU1X00
-	depends on MIPS32
+	depends on 32BIT
 	bool "Support for AMD/Alchemy Au1X00 SOCs"
 
 choice
@@ -902,7 +913,7 @@ config SNI_RM200_PCI
 
 config TOSHIBA_RBTX4927
 	bool "Support for Toshiba TBTX49[23]7 board"
-	depends on MIPS32
+	depends on 32BIT
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
@@ -1171,7 +1182,7 @@ config CPU_R3000
 
 config CPU_TX39XX
 	bool "R39XX"
-	depends on MIPS32
+	depends on 32BIT
 
 config CPU_VR41XX
 	bool "R41xx"
@@ -1205,7 +1216,7 @@ config CPU_R5432
 
 config CPU_R6000
 	bool "R6000"
-	depends on MIPS32 && EXPERIMENTAL
+	depends on 32BIT && EXPERIMENTAL
 	help
 	  MIPS Technologies R6000 and R6000A series processors.  Note these
 	  processors are extremly rare and the support for them is incomplete.
@@ -1217,7 +1228,7 @@ config CPU_NEVADA
 
 config CPU_R8000
 	bool "R8000"
-	depends on MIPS64 && EXPERIMENTAL
+	depends on 64BIT && EXPERIMENTAL
 	help
 	  MIPS Technologies R8000 processors.  Note these processors are
 	  uncommon and the support for them is incomplete.
@@ -1330,11 +1341,11 @@ config SB1_PASS_2_1_WORKAROUNDS
 
 config 64BIT_PHYS_ADDR
 	bool "Support for 64-bit physical address space"
-	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && MIPS32
+	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && 32BIT
 
 config CPU_ADVANCED
 	bool "Override CPU Options"
-	depends on MIPS32
+	depends on 32BIT
 	help
 	  Saying yes here allows you to select support for various features
 	  your CPU may or may not have.  Most people should say N here.
@@ -1388,7 +1399,7 @@ config CPU_HAS_SYNC
 #
 config HIGHMEM
 	bool "High Memory Support"
-	depends on MIPS32 && (CPU_R3000 || CPU_SB1 || CPU_R7000 || CPU_RM9000 || CPU_R10000) && !(MACH_DECSTATION || MOMENCO_JAGUAR_ATX)
+	depends on 32BIT && (CPU_R3000 || CPU_SB1 || CPU_R7000 || CPU_RM9000 || CPU_R10000) && !(MACH_DECSTATION || MOMENCO_JAGUAR_ATX)
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -1448,7 +1459,7 @@ config RTC_DS1742
 
 config MIPS_INSANE_LARGE
 	bool "Support for large 64-bit configurations"
-	depends on CPU_R10000 && MIPS64
+	depends on CPU_R10000 && 64BIT
 	help
 	  MIPS R10000 does support a 44 bit / 16TB address space as opposed to
 	  previous 64-bit processors which only supported 40 bit / 1TB. If you
@@ -1549,11 +1560,11 @@ source "fs/Kconfig.binfmt"
 
 config TRAD_SIGNALS
 	bool
-	default y if MIPS32
+	default y if 32BIT
 
 config BUILD_ELF64
 	bool "Use 64-bit ELF format for building"
-	depends on MIPS64
+	depends on 64BIT
 	help
 	  A 64-bit kernel is usually built using the 64-bit ELF binary object
 	  format as it's one that allows arbitrary 64-bit constructs.  For
@@ -1568,11 +1579,11 @@ config BUILD_ELF64
 
 config BINFMT_IRIX
 	bool "Include IRIX binary compatibility"
-	depends on !CPU_LITTLE_ENDIAN && MIPS32 && BROKEN
+	depends on !CPU_LITTLE_ENDIAN && 32BIT && BROKEN
 
 config MIPS32_COMPAT
 	bool "Kernel support for Linux/MIPS 32-bit binary compatibility"
-	depends on MIPS64
+	depends on 64BIT
 	help
 	  Select this option if you want Linux/MIPS 32-bit binary
 	  compatibility. Since all software available for Linux/MIPS is

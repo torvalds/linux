@@ -334,7 +334,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
  */
 #define atomic_add_negative(i,v) (atomic_add_return(i, (v)) < 0)
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 typedef struct { volatile __s64 counter; } atomic64_t;
 
@@ -639,7 +639,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
  */
 #define atomic64_add_negative(i,v) (atomic64_add_return(i, (v)) < 0)
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 /*
  * atomic*_return operations are serializing but not the non-*_return

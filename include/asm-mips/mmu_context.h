@@ -28,17 +28,17 @@ extern unsigned long pgd_current[];
 #define TLBMISS_HANDLER_SETUP_PGD(pgd) \
 	pgd_current[smp_processor_id()] = (unsigned long)(pgd)
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) smp_processor_id() << 23);	\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
-#if defined(CONFIG_MIPS64) && !defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 #define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) &pgd_current[smp_processor_id()] << 23); \
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
-#if defined(CONFIG_MIPS64) && defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
 #define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) smp_processor_id() << 23);	\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)

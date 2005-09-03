@@ -73,7 +73,7 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 {
 	if (!is_fixup && (regs->cp0_cause & 4)) {
 		/* Data bus error - print PA */
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		printk("DBE physical address: %010lx\n",
 		       __read_64bit_c0_register($26, 1));
 #else

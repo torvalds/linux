@@ -105,7 +105,7 @@
  * Save a thread's fp context.
  */
 LEAF(_save_fp)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	mfc0	t1, CP0_STATUS
 #endif
 	fpu_save_double a0 t1 t0 t2		# clobbers t1
@@ -142,7 +142,7 @@ LEAF(_init_fpu)
 
 	li	t1, -1				# SNaN
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	sll	t0, t0, 5
 	bgez	t0, 1f				# 16 / 32 register mode?
 

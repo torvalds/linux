@@ -105,7 +105,7 @@ void __init bus_error_init(void) { /* nothing */ }
 
 static __init void wire_stupidity_into_tlb(void)
 {
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	write_c0_wired(0);
 	local_flush_tlb_all();
 

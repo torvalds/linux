@@ -723,10 +723,10 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 			".set push\n\t"
 			".set noat\n\t"
 			".set mips3\n\t"
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 			"la	$at,1f\n\t"
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 			"dla	$at,1f\n\t"
 #endif
 			"cache	%0,($at)\n\t"

@@ -107,7 +107,7 @@
 	.endm
 
 	.macro	setup_c0_status_pri
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	setup_c0_status ST0_KX 0
 #else
 	setup_c0_status 0 0
@@ -115,7 +115,7 @@
 	.endm
 
 	.macro	setup_c0_status_sec
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	setup_c0_status ST0_KX ST0_BEV
 #else
 	setup_c0_status 0 ST0_BEV
@@ -215,7 +215,7 @@ NESTED(smp_bootstrap, 16, sp)
 	 * slightly different layout ...
 	 */
 	page	swapper_pg_dir, _PGD_ORDER
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	page	invalid_pmd_table, _PMD_ORDER
 #endif
 	page	invalid_pte_table, _PTE_ORDER
