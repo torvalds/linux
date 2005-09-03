@@ -2,8 +2,8 @@
 # linux/drivers/mtd/onenand/Kconfig
 #
 
-menu "OneNAND Flash Device Drivers (EXPERIMENTAL)"
-	depends on MTD != n && EXPERIMENTAL
+menu "OneNAND Flash Device Drivers"
+	depends on MTD != n
 
 config MTD_ONENAND
 	tristate "OneNAND Device Support"
