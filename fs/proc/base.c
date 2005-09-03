@@ -65,6 +65,7 @@ enum pid_directory_inos {
 	PROC_TGID_STAT,
 	PROC_TGID_STATM,
 	PROC_TGID_MAPS,
+	PROC_TGID_NUMA_MAPS,
 	PROC_TGID_MOUNTS,
 	PROC_TGID_WCHAN,
 #ifdef CONFIG_SCHEDSTATS
@@ -102,6 +103,7 @@ enum pid_directory_inos {
 	PROC_TID_STAT,
 	PROC_TID_STATM,
 	PROC_TID_MAPS,
+	PROC_TID_NUMA_MAPS,
 	PROC_TID_MOUNTS,
 	PROC_TID_WCHAN,
 #ifdef CONFIG_SCHEDSTATS
@@ -144,6 +146,9 @@ static struct pid_entry tgid_base_stuff[] = {
 	E(PROC_TGID_STAT,      "stat",    S_IFREG|S_IRUGO),
 	E(PROC_TGID_STATM,     "statm",   S_IFREG|S_IRUGO),
 	E(PROC_TGID_MAPS,      "maps",    S_IFREG|S_IRUGO),
+#ifdef CONFIG_NUMA
+	E(PROC_TGID_NUMA_MAPS, "numa_maps", S_IFREG|S_IRUGO),
+#endif
 	E(PROC_TGID_MEM,       "mem",     S_IFREG|S_IRUSR|S_IWUSR),
 #ifdef CONFIG_SECCOMP
 	E(PROC_TGID_SECCOMP,   "seccomp", S_IFREG|S_IRUSR|S_IWUSR),
@@ -180,6 +185,9 @@ static struct pid_entry tid_base_stuff[] = {
 	E(PROC_TID_STAT,       "stat",    S_IFREG|S_IRUGO),
 	E(PROC_TID_STATM,      "statm",   S_IFREG|S_IRUGO),
 	E(PROC_TID_MAPS,       "maps",    S_IFREG|S_IRUGO),
+#ifdef CONFIG_NUMA
+	E(PROC_TID_NUMA_MAPS,  "numa_maps",    S_IFREG|S_IRUGO),
+#endif
 	E(PROC_TID_MEM,        "mem",     S_IFREG|S_IRUSR|S_IWUSR),
 #ifdef CONFIG_SECCOMP
 	E(PROC_TID_SECCOMP,    "seccomp", S_IFREG|S_IRUSR|S_IWUSR),
@@ -514,6 +522,27 @@ static struct file_operations proc_maps_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+
+#ifdef CONFIG_NUMA
+extern struct seq_operations proc_pid_numa_maps_op;
+static int numa_maps_open(struct inode *inode, struct file *file)
+{
+	struct task_struct *task = proc_task(inode);
+	int ret = seq_open(file, &proc_pid_numa_maps_op);
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+		m->private = task;
+	}
+	return ret;
+}
+
+static struct file_operations proc_numa_maps_operations = {
+	.open		= numa_maps_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+#endif
 
 extern struct seq_operations mounts_op;
 static int mounts_open(struct inode *inode, struct file *file)
@@ -1524,6 +1553,12 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 		case PROC_TGID_MAPS:
 			inode->i_fop = &proc_maps_operations;
 			break;
+#ifdef CONFIG_NUMA
+		case PROC_TID_NUMA_MAPS:
+		case PROC_TGID_NUMA_MAPS:
+			inode->i_fop = &proc_numa_maps_operations;
+			break;
+#endif
 		case PROC_TID_MEM:
 		case PROC_TGID_MEM:
 			inode->i_op = &proc_mem_inode_operations;
