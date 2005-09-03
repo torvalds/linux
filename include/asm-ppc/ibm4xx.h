@@ -31,10 +31,6 @@
 #include <platforms/4xx/ep405.h>
 #endif
 
-#if defined(CONFIG_REDWOOD_4)
-#include <platforms/4xx/redwood.h>
-#endif
-
 #if defined(CONFIG_REDWOOD_5)
 #include <platforms/4xx/redwood5.h>
 #endif

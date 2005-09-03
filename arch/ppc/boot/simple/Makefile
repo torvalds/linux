@@ -154,8 +154,6 @@ zimageinitrd-$(CONFIG_LITE5200)		:= zImage.initrd-STRIPELF
 
 # This is a treeboot that needs init functions until the
 # boot rom is sorted out (i.e. this is short lived)
-extra-aflags-$(CONFIG_REDWOOD_4)	:= -Wa,-m405
-extra.o-$(CONFIG_REDWOOD_4)		:= rw4/rw4_init.o rw4/rw4_init_brd.o
 EXTRA_AFLAGS := $(extra-aflags-y)
 # head.o needs to get the cacheflags defined.
 AFLAGS_head.o				+= $(cacheflag-y)
