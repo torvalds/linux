@@ -926,39 +926,3 @@ embed_config(bd_t **bdp)
 #endif
 }
 #endif
-
-#ifdef CONFIG_RAINIER
-/* Rainier uses vxworks bootrom */
-void
-embed_config(bd_t **bdp)
-{
-	u_char	*cp;
-	int	i;
-	bd_t	*bd;
-	
-	bd = &bdinfo;
-	*bdp = bd;
-	
-	for(i=0;i<8192;i+=32) {
-		__asm__("dccci 0,%0" :: "r" (i));
-	}
-	__asm__("iccci 0,0");
-	__asm__("sync;isync");
-
-	/* init ram for parity */
-	memset(0, 0,0x400000);  /* Lo memory */
-
-
-	bd->bi_memsize   = (32 * 1024 * 1024) ;
-	bd->bi_intfreq = 133000000; //the internal clock is 133 MHz
-	bd->bi_busfreq   = 100000000;
-	bd->bi_pci_busfreq= 33000000;
-
-	cp = (u_char *)def_enet_addr;
-	for (i=0; i<6; i++) {
-		bd->bi_enetaddr[i] = *cp++;
-	}
-
-}
-#endif
-
