@@ -712,6 +712,12 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 		loadsegment(gs, next->gs);
 
 	/*
+	 * Restore IOPL if needed.
+	 */
+	if (unlikely(prev->iopl != next->iopl))
+		set_iopl_mask(next->iopl);
+
+	/*
 	 * Now maybe reload the debug registers
 	 */
 	if (unlikely(next->debugreg[7])) {

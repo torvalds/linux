@@ -14,8 +14,7 @@ extern struct task_struct * FASTCALL(__switch_to(struct task_struct *prev, struc
 
 #define switch_to(prev,next,last) do {					\
 	unsigned long esi,edi;						\
-	asm volatile("pushfl\n\t"					\
-		     "pushl %%ebp\n\t"					\
+	asm volatile("pushl %%ebp\n\t"					\
 		     "movl %%esp,%0\n\t"	/* save ESP */		\
 		     "movl %5,%%esp\n\t"	/* restore ESP */	\
 		     "movl $1f,%1\n\t"		/* save EIP */		\
@@ -23,7 +22,6 @@ extern struct task_struct * FASTCALL(__switch_to(struct task_struct *prev, struc
 		     "jmp __switch_to\n"				\
 		     "1:\t"						\
 		     "popl %%ebp\n\t"					\
-		     "popfl"						\
 		     :"=m" (prev->thread.esp),"=m" (prev->thread.eip),	\
 		      "=a" (last),"=S" (esi),"=D" (edi)			\
 		     :"m" (next->thread.esp),"m" (next->thread.eip),	\
