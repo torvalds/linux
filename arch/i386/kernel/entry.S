@@ -339,18 +339,12 @@ syscall_trace_entry:
 	xorl %edx,%edx
 	call do_syscall_trace
 	cmpl $0, %eax
-	jne syscall_skip		# ret != 0 -> running under PTRACE_SYSEMU,
+	jne resume_userspace		# ret != 0 -> running under PTRACE_SYSEMU,
 					# so must skip actual syscall
 	movl ORIG_EAX(%esp), %eax
 	cmpl $(nr_syscalls), %eax
 	jnae syscall_call
 	jmp syscall_exit
-syscall_skip:
-	cli				# make sure we don't miss an interrupt
-					# setting need_resched or sigpending
-					# between sampling and the iret
-	movl TI_flags(%ebp), %ecx
-	jmp work_pending
 
 	# perform syscall exit tracing
 	ALIGN
