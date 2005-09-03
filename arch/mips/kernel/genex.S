@@ -244,10 +244,10 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	   start with an n and gas will believe \n is ok ...  */
 	.macro	__BUILD_verbose	nexception
 	LONG_L	a1, PT_EPC(sp)
-#if CONFIG_32BIT
+#ifdef CONFIG_32BIT
 	PRINT("Got \nexception at %08lx\012")
 #endif
-#if CONFIG_64BIT
+#ifdef CONFIG_64BIT
 	PRINT("Got \nexception at %016lx\012")
 #endif
 	.endm

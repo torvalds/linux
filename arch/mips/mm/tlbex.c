@@ -516,7 +516,7 @@ static __init int rel_lo(long val)
 
 static __init void i_LA_mostly(u32 **buf, unsigned int rs, long addr)
 {
-#if CONFIG_64BIT
+#ifdef CONFIG_64BIT
 	if (!in_compat_space_p(addr)) {
 		i_lui(buf, rs, rel_highest(addr));
 		if (rel_higher(addr))

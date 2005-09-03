@@ -70,7 +70,7 @@
 
 #endif
 
-#if CONFIG_64BIT
+#ifdef CONFIG_64BIT
 
 #define EF_R0			 0
 #define EF_R1			 1
