@@ -289,8 +289,6 @@ static int page_referenced_one(struct page *page,
 	pte_t *pte;
 	int referenced = 0;
 
-	if (!get_mm_counter(mm, rss))
-		goto out;
 	address = vma_address(page, vma);
 	if (address == -EFAULT)
 		goto out;
@@ -517,8 +515,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	pte_t pteval;
 	int ret = SWAP_AGAIN;
 
-	if (!get_mm_counter(mm, rss))
-		goto out;
 	address = vma_address(page, vma);
 	if (address == -EFAULT)
 		goto out;
@@ -766,8 +762,7 @@ static int try_to_unmap_file(struct page *page)
 			if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
 				continue;
 			cursor = (unsigned long) vma->vm_private_data;
-			while (get_mm_counter(vma->vm_mm, rss) &&
-				cursor < max_nl_cursor &&
+			while ( cursor < max_nl_cursor &&
 				cursor < vma->vm_end - vma->vm_start) {
 				try_to_unmap_cluster(cursor, &mapcount, vma);
 				cursor += CLUSTER_SIZE;
