@@ -445,16 +445,12 @@ void page_add_anon_rmap(struct page *page,
 
 	if (atomic_inc_and_test(&page->_mapcount)) {
 		struct anon_vma *anon_vma = vma->anon_vma;
-		pgoff_t index;
 
 		BUG_ON(!anon_vma);
 		anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 		page->mapping = (struct address_space *) anon_vma;
 
-		index = (address - vma->vm_start) >> PAGE_SHIFT;
-		index += vma->vm_pgoff;
-		index >>= PAGE_CACHE_SHIFT - PAGE_SHIFT;
-		page->index = index;
+		page->index = linear_page_index(vma, address);
 
 		inc_page_state(nr_mapped);
 	}
