@@ -91,6 +91,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num        = SYM_NUM,
 		.ocon_num       = OCON_NUM,
 	},
+	{
+		.version        = POLICYDB_VERSION_AVTAB,
+		.sym_num        = SYM_NUM,
+		.ocon_num       = OCON_NUM,
+	},
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -584,6 +589,9 @@ void policydb_destroy(struct policydb *p)
 	struct ocontext *c, *ctmp;
 	struct genfs *g, *gtmp;
 	int i;
+	struct role_allow *ra, *lra = NULL;
+	struct role_trans *tr, *ltr = NULL;
+	struct range_trans *rt, *lrt = NULL;
 
 	for (i = 0; i < SYM_NUM; i++) {
 		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
@@ -623,6 +631,28 @@ void policydb_destroy(struct policydb *p)
 	}
 
 	cond_policydb_destroy(p);
+
+	for (tr = p->role_tr; tr; tr = tr->next) {
+		if (ltr) kfree(ltr);
+		ltr = tr;
+	}
+	if (ltr) kfree(ltr);
+
+	for (ra = p->role_allow; ra; ra = ra -> next) {
+		if (lra) kfree(lra);
+		lra = ra;
+	}
+	if (lra) kfree(lra);
+
+	for (rt = p->range_tr; rt; rt = rt -> next) {
+		if (lrt) kfree(lrt);
+		lrt = rt;
+	}
+	if (lrt) kfree(lrt);
+
+	for (i = 0; i < p->p_types.nprim; i++)
+		ebitmap_destroy(&p->type_attr_map[i]);
+	kfree(p->type_attr_map);
 
 	return;
 }
@@ -1511,7 +1541,7 @@ int policydb_read(struct policydb *p, void *fp)
 		p->symtab[i].nprim = nprim;
 	}
 
-	rc = avtab_read(&p->te_avtab, fp, config);
+	rc = avtab_read(&p->te_avtab, fp, p->policyvers);
 	if (rc)
 		goto bad;
 
@@ -1823,6 +1853,21 @@ int policydb_read(struct policydb *p, void *fp)
 				goto bad;
 			lrt = rt;
 		}
+	}
+
+	p->type_attr_map = kmalloc(p->p_types.nprim*sizeof(struct ebitmap), GFP_KERNEL);
+	if (!p->type_attr_map)
+		goto bad;
+
+	for (i = 0; i < p->p_types.nprim; i++) {
+		ebitmap_init(&p->type_attr_map[i]);
+		if (p->policyvers >= POLICYDB_VERSION_AVTAB) {
+			if (ebitmap_read(&p->type_attr_map[i], fp))
+				goto bad;
+		}
+		/* add the type itself as the degenerate case */
+		if (ebitmap_set_bit(&p->type_attr_map[i], i, 1))
+				goto bad;
 	}
 
 	rc = 0;

@@ -32,10 +32,40 @@ struct ebitmap {
 #define ebitmap_length(e) ((e)->highbit)
 #define ebitmap_startbit(e) ((e)->node ? (e)->node->startbit : 0)
 
+static inline unsigned int ebitmap_start(struct ebitmap *e,
+					 struct ebitmap_node **n)
+{
+	*n = e->node;
+	return ebitmap_startbit(e);
+}
+
 static inline void ebitmap_init(struct ebitmap *e)
 {
 	memset(e, 0, sizeof(*e));
 }
+
+static inline unsigned int ebitmap_next(struct ebitmap_node **n,
+					unsigned int bit)
+{
+	if ((bit == ((*n)->startbit + MAPSIZE - 1)) &&
+	    (*n)->next) {
+		*n = (*n)->next;
+		return (*n)->startbit;
+	}
+
+	return (bit+1);
+}
+
+static inline int ebitmap_node_get_bit(struct ebitmap_node * n,
+				       unsigned int bit)
+{
+	if (n->map & (MAPBIT << (bit - n->startbit)))
+		return 1;
+	return 0;
+}
+
+#define ebitmap_for_each_bit(e, n, bit) \
+	for (bit = ebitmap_start(e, &n); bit < ebitmap_length(e); bit = ebitmap_next(&n, bit)) \
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src);
