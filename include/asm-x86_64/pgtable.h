@@ -104,6 +104,19 @@ extern inline void pgd_clear (pgd_t * pgd)
 ((unsigned long) __va(pud_val(pud) & PHYSICAL_PAGE_MASK))
 
 #define ptep_get_and_clear(mm,addr,xp)	__pte(xchg(&(xp)->pte, 0))
+
+static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
+{
+	pte_t pte;
+	if (full) {
+		pte = *ptep;
+		*ptep = __pte(0);
+	} else {
+		pte = ptep_get_and_clear(mm, addr, ptep);
+	}
+	return pte;
+}
+
 #define pte_same(a, b)		((a).pte == (b).pte)
 
 #define PMD_SIZE	(1UL << PMD_SHIFT)
@@ -434,6 +447,7 @@ extern int kern_addr_valid(unsigned long addr);
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
 #include <asm-generic/pgtable.h>
