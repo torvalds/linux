@@ -297,8 +297,10 @@ int avtab_read_item(void *fp, u32 vers, struct avtab *a,
 				   struct avtab_datum *d, void *p),
 		    void *p)
 {
-	u16 buf16[4], enabled;
-	u32 buf32[7], items, items2, val;
+	__le16 buf16[4];
+	u16 enabled;
+	__le32 buf32[7];
+	u32 items, items2, val;
 	struct avtab_key key;
 	struct avtab_datum datum;
 	int i, rc;
@@ -403,7 +405,7 @@ static int avtab_insertf(struct avtab *a, struct avtab_key *k,
 int avtab_read(struct avtab *a, void *fp, u32 vers)
 {
 	int rc;
-	u32 buf[1];
+	__le32 buf[1];
 	u32 nel, i;
 
 

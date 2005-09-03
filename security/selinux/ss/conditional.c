@@ -216,7 +216,8 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 {
 	char *key = NULL;
 	struct cond_bool_datum *booldatum;
-	u32 buf[3], len;
+	__le32 buf[3];
+	u32 len;
 	int rc;
 
 	booldatum = kmalloc(sizeof(struct cond_bool_datum), GFP_KERNEL);
@@ -342,7 +343,8 @@ err:
 static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list **ret_list, struct cond_av_list *other)
 {
 	int i, rc;
-	u32 buf[1], len;
+	__le32 buf[1];
+	u32 len;
 	struct cond_insertf_data data;
 
 	*ret_list = NULL;
@@ -388,7 +390,8 @@ static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
 
 static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 {
-	u32 buf[2], len, i;
+	__le32 buf[2];
+	u32 len, i;
 	int rc;
 	struct cond_expr *expr = NULL, *last = NULL;
 
@@ -446,7 +449,8 @@ err:
 int cond_read_list(struct policydb *p, void *fp)
 {
 	struct cond_node *node, *last = NULL;
-	u32 buf[1], i, len;
+	__le32 buf[1];
+	u32 i, len;
 	int rc;
 
 	rc = next_entry(buf, fp, sizeof buf);
