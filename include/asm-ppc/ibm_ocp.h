@@ -147,6 +147,7 @@ struct ocp_func_mal_data {
 	int	txde_irq;	/* TX Descriptor Error IRQ */
 	int	rxde_irq;	/* RX Descriptor Error IRQ */
 	int	serr_irq;	/* MAL System Error IRQ    */
+	int	dcr_base;	/* MALx_CFG DCR number   */
 };
 
 #define OCP_SYSFS_MAL_DATA()						\
@@ -157,6 +158,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, rxeob_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, txde_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, rxde_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, serr_irq)	\
+OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, dcr_base)	\
 									\
 void ocp_show_mal_data(struct device *dev)				\
 {									\
@@ -167,6 +169,7 @@ void ocp_show_mal_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_mal_txde_irq);		\
 	device_create_file(dev, &dev_attr_mal_rxde_irq);		\
 	device_create_file(dev, &dev_attr_mal_serr_irq);		\
+	device_create_file(dev, &dev_attr_mal_dcr_base);		\
 }
 
 /*

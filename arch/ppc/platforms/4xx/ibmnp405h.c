@@ -73,6 +73,7 @@ static struct ocp_func_mal_data ibmnp405h_mal0_def = {
 	.txde_irq	= 46,		/* TX Descriptor Error IRQ */
 	.rxde_irq	= 47,		/* RX Descriptor Error IRQ */
 	.serr_irq	= 45,		/* MAL System Error IRQ    */
+	.dcr_base	= DCRN_MAL_BASE /* MAL0_CFG DCR number */
 };
 OCP_SYSFS_MAL_DATA()
 
