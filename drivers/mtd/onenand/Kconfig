@@ -35,4 +35,11 @@ config MTD_ONENAND_SYNC_READ
 	help
 	  This enables support for Sync. Burst Read.
 
+config MTD_ONENAND_SIM
+	tristate "Support for OneNAND flash simulator"
+	depends on MTD_ONENAND
+	help
+	  The simulator may simulate verious OneNAND flash chips for the
+          MTD onenand layer.
+
 endmenu
