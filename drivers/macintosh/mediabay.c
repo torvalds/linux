@@ -724,7 +724,7 @@ static int __pmac media_bay_resume(struct macio_dev *mdev)
 	struct media_bay_info	*bay = macio_get_drvdata(mdev);
 
 	if (mdev->ofdev.dev.power.power_state != 0) {
-		mdev->ofdev.dev.power.power_state = 0;
+		mdev->ofdev.dev.power.power_state = PMSG_ON;
 
 	       	/* We re-enable the bay using it's previous content
 	       	   only if it did not change. Note those bozo timings,

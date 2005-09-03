@@ -760,7 +760,7 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int tda9887_suspend(struct device * dev, u32 state, u32 level)
+static int tda9887_suspend(struct device * dev, pm_message_t state, u32 level)
 {
 	dprintk("tda9887: suspend\n");
 	return 0;
