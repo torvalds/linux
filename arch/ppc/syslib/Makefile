@@ -50,8 +50,6 @@ obj-$(CONFIG_EV64260)		+= todc_time.o pci_auto.o
 obj-$(CONFIG_CHESTNUT)		+= mv64360_pic.o pci_auto.o
 obj-$(CONFIG_GEMINI)		+= open_pic.o indirect_pci.o
 obj-$(CONFIG_GT64260)		+= gt64260_pic.o
-obj-$(CONFIG_K2)		+= i8259.o indirect_pci.o todc_time.o \
-					pci_auto.o
 obj-$(CONFIG_LOPEC)		+= i8259.o pci_auto.o todc_time.o
 obj-$(CONFIG_HDPU)		+= pci_auto.o
 obj-$(CONFIG_LUAN)		+= indirect_pci.o pci_auto.o todc_time.o

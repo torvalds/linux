@@ -637,9 +637,6 @@ config SANDPOINT
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
 
-config K2
-	bool "SBS-K2"
-
 config PAL4
 	bool "SBS-Palomar4"
 
@@ -794,7 +791,7 @@ config PPC_OF
 config PPC_GEN550
 	bool
 	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || \
-		PRPMC750 || K2 || PRPMC800 || LOPEC || \
+		PRPMC750 || PRPMC800 || LOPEC || \
 		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
 		83xx
 	default y
@@ -882,10 +879,6 @@ config SANDPOINT_ENABLE_UART1
 	help
 	  If this option is enabled then the MPC824x processor will run
 	  in DUART mode instead of UART mode.
-
-config CPC710_DATA_GATHERING
-	bool "Enable CPC710 data gathering"
-	depends on K2
 
 config HARRIER_STORE_GATHERING
 	bool "Enable Harrier store gathering"

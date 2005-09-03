@@ -96,10 +96,6 @@ zimageinitrd-$(CONFIG_OCOTEA)		:= zImage.initrd-TREE
 zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
          end-$(CONFIG_GEMINI)		:= gemini
 
-     extra.o-$(CONFIG_K2)		:= prepmap.o
-         end-$(CONFIG_K2)		:= k2
-   cacheflag-$(CONFIG_K2)		:= -include $(clear_L2_L3)
-
      extra.o-$(CONFIG_KATANA)		:= misc-katana.o
          end-$(CONFIG_KATANA)		:= katana
    cacheflag-$(CONFIG_KATANA)		:= -include $(clear_L2_L3)

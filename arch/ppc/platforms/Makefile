@@ -27,7 +27,6 @@ obj-$(CONFIG_CPCI690)		+= cpci690.o
 obj-$(CONFIG_EV64260)		+= ev64260.o
 obj-$(CONFIG_CHESTNUT)		+= chestnut.o
 obj-$(CONFIG_GEMINI)		+= gemini_pci.o gemini_setup.o gemini_prom.o
-obj-$(CONFIG_K2)		+= k2.o
 obj-$(CONFIG_LOPEC)		+= lopec.o
 obj-$(CONFIG_KATANA)		+= katana.o
 obj-$(CONFIG_HDPU)		+= hdpu.o
