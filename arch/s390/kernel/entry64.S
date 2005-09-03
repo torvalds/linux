@@ -214,8 +214,8 @@ sysc_nr_ok:
 sysc_do_restart:
 	larl    %r10,sys_call_table
 #ifdef CONFIG_S390_SUPPORT
-        tm      SP_PSW+3(%r15),0x01  # are we running in 31 bit mode ?
-        jo      sysc_noemu
+	tm	__TI_flags+5(%r9),(_TIF_31BIT>>16)  # running in 31 bit mode ?
+	jno	sysc_noemu
 	larl    %r10,sys_call_table_emu  # use 31 bit emulation system calls
 sysc_noemu:
 #endif
