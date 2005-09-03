@@ -14,6 +14,11 @@ static char *escape(const char* text, char *bf, int len)
 {
 	char *bfp = bf;
 	int multiline = strchr(text, '\n') != NULL;
+	int eol = 0;
+	int textlen = strlen(text);
+
+	if ((textlen > 0) && (text[textlen-1] == '\n'))
+		eol = 1;
 
 	*bfp++ = '"';
 	--len;
@@ -43,7 +48,7 @@ next:
 		--len;
 	}
 
-	if (multiline)
+	if (multiline && eol)
 		bfp -= 3;
 
 	*bfp++ = '"';
