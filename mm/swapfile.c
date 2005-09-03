@@ -56,8 +56,6 @@ static DECLARE_MUTEX(swapon_sem);
  */
 static DECLARE_RWSEM(swap_unplug_sem);
 
-#define SWAPFILE_CLUSTER 256
-
 void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 {
 	swp_entry_t entry;
@@ -84,9 +82,13 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 	up_read(&swap_unplug_sem);
 }
 
+#define SWAPFILE_CLUSTER	256
+#define LATENCY_LIMIT		256
+
 static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 {
 	unsigned long offset, last_in_cluster;
+	int latency_ration = LATENCY_LIMIT;
 
 	/* 
 	 * We try to cluster swap pages by allocating them sequentially
@@ -116,6 +118,10 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 				swap_device_lock(si);
 				si->cluster_next = offset-SWAPFILE_CLUSTER-1;
 				goto cluster;
+			}
+			if (unlikely(--latency_ration < 0)) {
+				cond_resched();
+				latency_ration = LATENCY_LIMIT;
 			}
 		}
 		swap_device_lock(si);
@@ -152,6 +158,10 @@ checks:	if (!(si->flags & SWP_WRITEOK))
 		if (!si->swap_map[offset]) {
 			swap_device_lock(si);
 			goto checks;
+		}
+		if (unlikely(--latency_ration < 0)) {
+			cond_resched();
+			latency_ration = LATENCY_LIMIT;
 		}
 	}
 	swap_device_lock(si);
