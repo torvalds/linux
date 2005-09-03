@@ -1008,8 +1008,9 @@ reprobe:
 	}
 	ret = 0;
 	if (page_no == 0)
-		ret = -EINVAL;
+		page_no = 1;	/* force Empty message */
 	sis->max = page_no;
+	sis->pages = page_no - 1;
 	sis->highest_bit = page_no - 1;
 done:
 	sis->curr_swap_extent = list_entry(sis->extent_list.prev,
@@ -1446,6 +1447,10 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		p->highest_bit = maxpages - 1;
 
 		error = -EINVAL;
+		if (!maxpages)
+			goto bad_swap;
+		if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
+			goto bad_swap;
 		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
 			goto bad_swap;
 		
@@ -1470,25 +1475,27 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		if (error) 
 			goto bad_swap;
 	}
-	
+
 	if (swapfilesize && maxpages > swapfilesize) {
 		printk(KERN_WARNING
 		       "Swap area shorter than signature indicates\n");
 		error = -EINVAL;
 		goto bad_swap;
 	}
+	if (nr_good_pages) {
+		p->swap_map[0] = SWAP_MAP_BAD;
+		p->max = maxpages;
+		p->pages = nr_good_pages;
+		error = setup_swap_extents(p);
+		if (error)
+			goto bad_swap;
+		nr_good_pages = p->pages;
+	}
 	if (!nr_good_pages) {
 		printk(KERN_WARNING "Empty swap-file\n");
 		error = -EINVAL;
 		goto bad_swap;
 	}
-	p->swap_map[0] = SWAP_MAP_BAD;
-	p->max = maxpages;
-	p->pages = nr_good_pages;
-
-	error = setup_swap_extents(p);
-	if (error)
-		goto bad_swap;
 
 	down(&swapon_sem);
 	swap_list_lock();
