@@ -400,7 +400,7 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 
 /* Use the acpiid in MADT to map cpus in case of SMP */
 #ifndef CONFIG_SMP
-#define convert_acpiid_to_cpu(acpi_id) (0xff)
+#define convert_acpiid_to_cpu(acpi_id, cpu_indexp) (0xff)
 #else
 
 #ifdef CONFIG_IA64
