@@ -22,12 +22,21 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
-	pmd_t *pmd = NULL;
+	pmd_t *pmd;
+	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
 	pmd = pmd_alloc(mm, pud, addr);
-	return (pte_t *) pmd;
+
+	if (!pmd)
+		goto out;
+
+	pte = (pte_t *) pmd;
+	if (!pte_none(*pte) && !pte_huge(*pte))
+		hugetlb_clean_stale_pgtable(pte);
+out:
+	return pte;
 }
 
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
