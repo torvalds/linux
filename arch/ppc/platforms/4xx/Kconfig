@@ -142,13 +142,13 @@ config IBM440EP_ERR42
 # All 405-based cores up until the 405GPR and 405EP have this errata.
 config IBM405_ERR77
 	bool
-	depends on 40x && !403GCX && !405GPR
+	depends on 40x && !403GCX && !405GPR && !405EP
 	default y
 
 # All 40x-based cores, up until the 405GPR and 405EP have this errata.
 config IBM405_ERR51
 	bool
-	depends on 40x && !405GPR
+	depends on 40x && !405GPR && !405EP
 	default y
 
 config BOOKE
