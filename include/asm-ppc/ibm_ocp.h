@@ -67,6 +67,7 @@ struct ocp_func_emac_data {
 	int	phy_mode;	/* PHY type or configurable mode */
 	u8	mac_addr[6];	/* EMAC mac address */
 	u32	phy_map;	/* EMAC phy map */
+	u32	phy_feat_exc;	/* Excluded PHY features */
 };
 
 /* Sysfs support */
