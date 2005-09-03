@@ -266,6 +266,10 @@ void vpa_init(int cpu)
 
 	/* Register the Virtual Processor Area (VPA) */
 	flags = 1UL << (63 - 18);
+
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		paca[cpu].lppaca.vmxregs_in_use = 1;
+
 	ret = register_vpa(flags, hwcpu, __pa(vpa));
 
 	if (ret)
