@@ -101,6 +101,19 @@ void ocp_show_emac_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_emac_phy_map);		\
 }
 
+/*
+ * PHY mode settings (EMAC <-> ZMII/RGMII bridge <-> PHY)
+ */
+#define PHY_MODE_NA	0
+#define PHY_MODE_MII	1
+#define PHY_MODE_RMII	2
+#define PHY_MODE_SMII	3
+#define PHY_MODE_RGMII	4
+#define PHY_MODE_TBI	5
+#define PHY_MODE_GMII	6
+#define PHY_MODE_RTBI	7
+#define PHY_MODE_SGMII	8
+
 #ifdef CONFIG_40x
 /*
  * Helper function to copy MAC addresses from the bd_t to OCP EMAC
