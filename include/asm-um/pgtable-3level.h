@@ -69,13 +69,10 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
         return pmd;
 }
 
-static inline void pmd_free(pmd_t *pmd){
-	free_page((unsigned long) pmd);
+extern inline void pud_clear (pud_t *pud)
+{
+        set_pud(pud, __pud(0));
 }
-
-#define __pmd_free_tlb(tlb,x)   do { } while (0)
-
-static inline void pud_clear (pud_t * pud) { }
 
 #define pud_page(pud) \
 	((struct page *) __va(pud_val(pud) & PAGE_MASK))
