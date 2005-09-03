@@ -530,7 +530,6 @@ static int write_pagedir(void)
  *	write_suspend_image - Write entire image and metadata.
  *
  */
-
 static int write_suspend_image(void)
 {
 	int error;
@@ -1021,20 +1020,21 @@ int swsusp_suspend(void)
 	 * at resume time, and evil weirdness ensues.
 	 */
 	if ((error = device_power_down(PMSG_FREEZE))) {
+		printk(KERN_ERR "Some devices failed to power down, aborting suspend\n");
 		local_irq_enable();
 		return error;
 	}
 
 	if ((error = swsusp_swap_check())) {
-		printk(KERN_ERR "swsusp: FATAL: cannot find swap device, try "
-				"swapon -a!\n");
+		printk(KERN_ERR "swsusp: cannot find swap device, try swapon -a.\n");
+		device_power_up();
 		local_irq_enable();
 		return error;
 	}
 
 	save_processor_state();
 	if ((error = swsusp_arch_suspend()))
-		printk("Error %d suspending\n", error);
+		printk(KERN_ERR "Error %d suspending\n", error);
 	/* Restore control flow magically appears here */
 	restore_processor_state();
 	BUG_ON (nr_copy_pages_check != nr_copy_pages);
@@ -1314,7 +1314,8 @@ static const char * sanity_check(void)
 	if (strcmp(swsusp_info.uts.machine,system_utsname.machine))
 		return "machine";
 #if 0
-	if(swsusp_info.cpus != num_online_cpus())
+	/* We can't use number of online CPUs when we use hotplug to remove them ;-))) */
+	if (swsusp_info.cpus != num_possible_cpus())
 		return "number of cpus";
 #endif
 	return NULL;
@@ -1355,7 +1356,6 @@ static int check_sig(void)
 		 */
 		error = bio_write_page(0, &swsusp_header);
 	} else { 
-		printk(KERN_ERR "swsusp: Suspend partition has wrong signature?\n");
 		return -EINVAL;
 	}
 	if (!error)
