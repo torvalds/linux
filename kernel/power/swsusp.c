@@ -179,9 +179,9 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 	len=strlen(resume_file);
 	root_swap = 0xFFFF;
 
-	swap_list_lock();
+	spin_lock(&swap_lock);
 	for (i=0; i<MAX_SWAPFILES; i++) {
-		if (swap_info[i].flags == 0) {
+		if (!(swap_info[i].flags & SWP_WRITEOK)) {
 			swapfile_used[i]=SWAPFILE_UNUSED;
 		} else {
 			if (!len) {
@@ -202,7 +202,7 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 			}
 		}
 	}
-	swap_list_unlock();
+	spin_unlock(&swap_lock);
 	return (root_swap != 0xffff) ? 0 : -ENODEV;
 }
 
@@ -216,12 +216,12 @@ static void lock_swapdevices(void)
 {
 	int i;
 
-	swap_list_lock();
+	spin_lock(&swap_lock);
 	for (i = 0; i< MAX_SWAPFILES; i++)
 		if (swapfile_used[i] == SWAPFILE_IGNORED) {
-			swap_info[i].flags ^= 0xFF;
+			swap_info[i].flags ^= SWP_WRITEOK;
 		}
-	swap_list_unlock();
+	spin_unlock(&swap_lock);
 }
 
 /**
