@@ -333,6 +333,7 @@ int linux_main(int argc, char **argv)
 	if(have_root == 0)
 		add_arg(DEFAULT_COMMAND_LINE);
 
+	os_early_checks();
 	mode_tt = force_tt ? 1 : !can_do_skas();
 #ifndef CONFIG_MODE_TT
 	if (mode_tt) {
@@ -470,7 +471,6 @@ void __init setup_arch(char **cmdline_p)
 void __init check_bugs(void)
 {
 	arch_check_bugs();
-	check_ptrace();
 	check_sigio();
 	check_devanon();
 }
