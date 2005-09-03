@@ -122,7 +122,7 @@ static int MP_valid_apicid(int apicid, int version)
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
- 	int ver, apicid;
+ 	int ver, apicid, cpu, found_bsp = 0;
 	physid_mask_t tmp;
  	
 	if (!(m->mpc_cpuflag & CPU_ENABLED))
@@ -181,6 +181,7 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		Dprintk("    Bootup CPU\n");
 		boot_cpu_physical_apicid = m->mpc_apicid;
+		found_bsp = 1;
 	}
 
 	if (num_processors >= NR_CPUS) {
@@ -204,6 +205,11 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 
+	if (found_bsp)
+		cpu = 0;
+	else
+		cpu = num_processors - 1;
+	cpu_set(cpu, cpu_possible_map);
 	tmp = apicid_to_cpu_present(apicid);
 	physids_or(phys_cpu_present_map, phys_cpu_present_map, tmp);
 	
