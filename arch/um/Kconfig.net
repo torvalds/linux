@@ -34,7 +34,7 @@ config UML_NET_ETHERTAP
         link with the host.
 
         To use this, your host kernel must have support for Ethertap
-        devices.  Also, if your host kernel is 2.4.x, it must have 
+        devices.  Also, if your host kernel is 2.4.x, it must have
         CONFIG_NETLINK_DEV configured as Y or M.
 
         For more information, see
@@ -43,7 +43,7 @@ config UML_NET_ETHERTAP
         networking.
 
         If you'd like to set up an IP network with the host and/or the
-        outside world, say Y to this, the Daemon Transport and/or the 
+        outside world, say Y to this, the Daemon Transport and/or the
         Slip Transport.  You'll need at least one of them, but may choose
         more than one without conflict.  If you don't need UML networking,
         say N.
@@ -78,7 +78,7 @@ config UML_NET_SLIP
 
         The Ethertap Transport is preferred over slip because of its
         limitations.  If you prefer slip, however, say Y here.  Otherwise
-        choose the Multicast transport (to network multiple UMLs on 
+        choose the Multicast transport (to network multiple UMLs on
         multiple hosts), Ethertap (to network with the host and the
         outside world), and/or the Daemon transport (to network multiple
         UMLs on a single host).  You may choose more than one without
@@ -138,7 +138,7 @@ config UML_NET_PCAP
 	depends on UML_NET && EXPERIMENTAL
 	help
 	The pcap transport makes a pcap packet stream on the host look
-	like an ethernet device inside UML.  This is useful for making 
+	like an ethernet device inside UML.  This is useful for making
 	UML act as a network monitor for the host.  You must have libcap
 	installed in order to build the pcap transport into UML.
 
@@ -169,11 +169,11 @@ config UML_NET_SLIRP
         setup string.  The effect of this transport on the UML is similar
         that of a host behind a firewall that masquerades all network
         connections passing through it (but is less secure).
-	
+
         To use this you should first have slirp compiled somewhere
         accessible on the host, and have read its documentation.  If you
         don't need UML networking, say N.
-	
+
         Startup example: "eth0=slirp,FE:FD:01:02:03:04,/usr/local/bin/slirp"
 
 endmenu

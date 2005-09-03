@@ -101,10 +101,10 @@ define archhelp
 endef
 
 ifneq ($(KBUILD_SRC),)
-$(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig_$(SUBARCH) $(ARCH_DIR)/Kconfig_arch)
-CLEAN_FILES += $(ARCH_DIR)/Kconfig_arch
+$(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig.$(SUBARCH) $(ARCH_DIR)/Kconfig.arch)
+CLEAN_FILES += $(ARCH_DIR)/Kconfig.arch
 else
-$(shell cd $(ARCH_DIR) && ln -sf Kconfig_$(SUBARCH) Kconfig_arch)
+$(shell cd $(ARCH_DIR) && ln -sf Kconfig.$(SUBARCH) Kconfig.arch)
 endif
 
 prepare: $(ARCH_SYMLINKS) $(SYS_HEADERS) $(GEN_HEADERS)
@@ -147,7 +147,7 @@ CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/uml-config.h \
 
 MRPROPER_FILES += $(SYMLINK_HEADERS) $(ARCH_SYMLINKS) \
 	$(addprefix $(ARCH_DIR)/kernel/,$(KERN_SYMLINKS)) $(ARCH_DIR)/os \
-	$(ARCH_DIR)/Kconfig_arch
+	$(ARCH_DIR)/Kconfig.arch
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(ARCH_DIR)/util
