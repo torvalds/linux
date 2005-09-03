@@ -445,6 +445,24 @@ config DDB5477_BUS_FREQUENCY
 	depends on DDB5477
 	default 0
 
+config QEMU
+	bool "Support for Qemu"
+	select DMA_COHERENT
+	select GENERIC_ISA_DMA
+	select HAVE_STD_PC_SERIAL_PORT
+	select I8259
+	select ISA
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	 Qemu is a software emulator which among other architectures also
+	 can simulate a MIPS32 4Kc system.  This patch adds support for the
+	 system architecture that currently is being simulated by Qemu.  It
+	 will eventually be removed again when Qemu has the capability to
+	 simulate actual MIPS hardware platforms.  More information on Qemu
+	 can be found at http://www.linux-mips.org/wiki/Qemu.
+
 config SGI_IP22
 	bool "Support for SGI IP22 (Indy/Indigo2)"
 	select ARC
