@@ -136,6 +136,8 @@ static void delay_hpet(unsigned long loops)
 	} while ((hpet_end - hpet_start) < (loops));
 }
 
+static struct timer_opts timer_hpet;
+
 static int __init init_hpet(char* override)
 {
 	unsigned long result, remain;
@@ -163,6 +165,8 @@ static int __init init_hpet(char* override)
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
 		}
+		/* set this only when cpu_has_tsc */
+		timer_hpet.read_timer = read_timer_tsc;
 	}
 
 	/*
@@ -186,7 +190,6 @@ static struct timer_opts timer_hpet __read_mostly = {
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
-	.read_timer = 		read_timer_tsc,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {
