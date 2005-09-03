@@ -7225,7 +7225,7 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 
 
 #ifdef CONFIG_PM
-static int ipw_pci_suspend(struct pci_dev *pdev, u32 state)
+static int ipw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct ipw_priv *priv = pci_get_drvdata(pdev);
 	struct net_device *dev = priv->net_dev;
@@ -7240,7 +7240,7 @@ static int ipw_pci_suspend(struct pci_dev *pdev, u32 state)
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, state);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
 }
