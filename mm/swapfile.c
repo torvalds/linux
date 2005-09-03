@@ -86,64 +86,67 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 
 static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 {
-	unsigned long offset;
-	/* 
-	 * We try to cluster swap pages by allocating them
-	 * sequentially in swap.  Once we've allocated
-	 * SWAPFILE_CLUSTER pages this way, however, we resort to
-	 * first-free allocation, starting a new cluster.  This
-	 * prevents us from scattering swap pages all over the entire
-	 * swap partition, so that we reduce overall disk seek times
-	 * between swap pages.  -- sct */
-	if (si->cluster_nr) {
-		while (si->cluster_next <= si->highest_bit) {
-			offset = si->cluster_next++;
-			if (si->swap_map[offset])
-				continue;
-			si->cluster_nr--;
-			goto got_page;
-		}
-	}
-	si->cluster_nr = SWAPFILE_CLUSTER;
+	unsigned long offset, last_in_cluster;
 
-	/* try to find an empty (even not aligned) cluster. */
-	offset = si->lowest_bit;
- check_next_cluster:
-	if (offset+SWAPFILE_CLUSTER-1 <= si->highest_bit)
-	{
-		unsigned long nr;
-		for (nr = offset; nr < offset+SWAPFILE_CLUSTER; nr++)
-			if (si->swap_map[nr])
-			{
-				offset = nr+1;
-				goto check_next_cluster;
+	/* 
+	 * We try to cluster swap pages by allocating them sequentially
+	 * in swap.  Once we've allocated SWAPFILE_CLUSTER pages this
+	 * way, however, we resort to first-free allocation, starting
+	 * a new cluster.  This prevents us from scattering swap pages
+	 * all over the entire swap partition, so that we reduce
+	 * overall disk seek times between swap pages.  -- sct
+	 * But we do now try to find an empty cluster.  -Andrea
+	 */
+
+	if (unlikely(!si->cluster_nr)) {
+		si->cluster_nr = SWAPFILE_CLUSTER - 1;
+		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER)
+			goto lowest;
+
+		offset = si->lowest_bit;
+		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
+
+		/* Locate the first empty (unaligned) cluster */
+		for (; last_in_cluster <= si->highest_bit; offset++) {
+			if (si->swap_map[offset])
+				last_in_cluster = offset + SWAPFILE_CLUSTER;
+			else if (offset == last_in_cluster) {
+				si->cluster_next = offset-SWAPFILE_CLUSTER-1;
+				goto cluster;
 			}
-		/* We found a completly empty cluster, so start
-		 * using it.
-		 */
-		goto got_page;
+		}
+		goto lowest;
 	}
-	/* No luck, so now go finegrined as usual. -Andrea */
-	for (offset = si->lowest_bit; offset <= si->highest_bit ; offset++) {
-		if (si->swap_map[offset])
-			continue;
-		si->lowest_bit = offset+1;
-	got_page:
-		if (offset == si->lowest_bit)
+
+	si->cluster_nr--;
+cluster:
+	offset = si->cluster_next;
+	if (offset > si->highest_bit)
+lowest:		offset = si->lowest_bit;
+	if (!si->highest_bit)
+		goto no_page;
+	if (!si->swap_map[offset]) {
+got_page:	if (offset == si->lowest_bit)
 			si->lowest_bit++;
 		if (offset == si->highest_bit)
 			si->highest_bit--;
-		if (si->lowest_bit > si->highest_bit) {
+		si->inuse_pages++;
+		if (si->inuse_pages == si->pages) {
 			si->lowest_bit = si->max;
 			si->highest_bit = 0;
 		}
 		si->swap_map[offset] = 1;
-		si->inuse_pages++;
-		si->cluster_next = offset+1;
+		si->cluster_next = offset + 1;
 		return offset;
 	}
-	si->lowest_bit = si->max;
-	si->highest_bit = 0;
+
+	while (++offset <= si->highest_bit) {
+		if (!si->swap_map[offset])
+			goto got_page;
+	}
+	goto lowest;
+
+no_page:
 	return 0;
 }
 
