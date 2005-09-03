@@ -266,6 +266,7 @@ int cpm_uart_init_portdesc(void)
 	cpm_uart_ports[UART_SMC1].smcp = (smc_t *) & cpm2_immr->im_smc[0];
 	cpm_uart_ports[UART_SMC1].smcup =
 	    (smc_uart_t *) & cpm2_immr->im_dprambase[PROFF_SMC1];
+	*(u16 *)(&cpm2_immr->im_dprambase[PROFF_SMC1_BASE]) = PROFF_SMC1;
 	cpm_uart_ports[UART_SMC1].port.mapbase =
 	    (unsigned long)&cpm2_immr->im_smc[0];
 	cpm_uart_ports[UART_SMC1].smcp->smc_smcm |= (SMCM_RX | SMCM_TX);
@@ -278,6 +279,7 @@ int cpm_uart_init_portdesc(void)
 	cpm_uart_ports[UART_SMC2].smcp = (smc_t *) & cpm2_immr->im_smc[1];
 	cpm_uart_ports[UART_SMC2].smcup =
 	    (smc_uart_t *) & cpm2_immr->im_dprambase[PROFF_SMC2];
+	*(u16 *)(&cpm2_immr->im_dprambase[PROFF_SMC2_BASE]) = PROFF_SMC2;
 	cpm_uart_ports[UART_SMC2].port.mapbase =
 	    (unsigned long)&cpm2_immr->im_smc[1];
 	cpm_uart_ports[UART_SMC2].smcp->smc_smcm |= (SMCM_RX | SMCM_TX);
