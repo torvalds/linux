@@ -194,7 +194,7 @@ acpi_status
 acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 			       union acpi_operand_object *return_desc);
 
-void
+acpi_status
 acpi_ds_terminate_control_method(struct acpi_walk_state *walk_state);
 
 acpi_status

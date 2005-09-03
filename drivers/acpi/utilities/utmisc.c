@@ -67,8 +67,6 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 	ACPI_FUNCTION_TRACE("ut_allocate_owner_id");
 
-	WARN_ON(*owner_id);
-
 	/* Mutex for the global ID mask */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_CACHES);
