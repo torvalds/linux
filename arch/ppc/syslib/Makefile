@@ -73,7 +73,8 @@ obj-$(CONFIG_SANDPOINT)		+= i8259.o pci_auto.o todc_time.o
 obj-$(CONFIG_SBC82xx)		+= todc_time.o
 obj-$(CONFIG_SPRUCE)		+= cpc700_pic.o indirect_pci.o pci_auto.o \
 				   todc_time.o
-obj-$(CONFIG_8260)		+= m8260_setup.o
+obj-$(CONFIG_8260)		+= m8260_setup.o pq2_devices.o pq2_sys.o \
+				   ppc_sys.o
 obj-$(CONFIG_PCI_8260)		+= m82xx_pci.o indirect_pci.o pci_auto.o
 obj-$(CONFIG_8260_PCI9)		+= m8260_pci_erratum9.o
 obj-$(CONFIG_CPM2)		+= cpm2_common.o cpm2_pic.o

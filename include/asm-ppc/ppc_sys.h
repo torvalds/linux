@@ -21,7 +21,9 @@
 #include <linux/device.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_83xx)
+#if defined(CONFIG_8260)
+#include <asm/mpc8260.h>
+#elif defined(CONFIG_83xx)
 #include <asm/mpc83xx.h>
 #elif defined(CONFIG_85xx)
 #include <asm/mpc85xx.h>
