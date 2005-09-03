@@ -130,10 +130,10 @@ struct swap_info_struct {
 	unsigned int highest_bit;
 	unsigned int cluster_next;
 	unsigned int cluster_nr;
+	unsigned int pages;
+	unsigned int max;
+	unsigned int inuse_pages;
 	int prio;			/* swap priority */
-	int pages;
-	unsigned long max;
-	unsigned long inuse_pages;
 	int next;			/* next entry on swap list */
 };
 

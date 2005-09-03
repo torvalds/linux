@@ -84,7 +84,7 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 	up_read(&swap_unplug_sem);
 }
 
-static inline int scan_swap_map(struct swap_info_struct *si)
+static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 {
 	unsigned long offset;
 	/* 
@@ -531,10 +531,11 @@ static int unuse_mm(struct mm_struct *mm,
  * Scan swap_map from current position to next entry still in use.
  * Recycle to start on reaching the end, returning 0 when empty.
  */
-static int find_next_to_unuse(struct swap_info_struct *si, int prev)
+static unsigned int find_next_to_unuse(struct swap_info_struct *si,
+					unsigned int prev)
 {
-	int max = si->max;
-	int i = prev;
+	unsigned int max = si->max;
+	unsigned int i = prev;
 	int count;
 
 	/*
@@ -577,7 +578,7 @@ static int try_to_unuse(unsigned int type)
 	unsigned short swcount;
 	struct page *page;
 	swp_entry_t entry;
-	int i = 0;
+	unsigned int i = 0;
 	int retval = 0;
 	int reset_overflow = 0;
 	int shmem;
@@ -1216,7 +1217,7 @@ static int swap_show(struct seq_file *swap, void *v)
 
 	file = ptr->swap_file;
 	len = seq_path(swap, file->f_vfsmnt, file->f_dentry, " \t\n\\");
-	seq_printf(swap, "%*s%s\t%d\t%ld\t%d\n",
+	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
 		       len < 40 ? 40 - len : 1, " ",
 		       S_ISBLK(file->f_dentry->d_inode->i_mode) ?
 				"partition" : "file\t",
@@ -1275,8 +1276,8 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	static int least_priority;
 	union swap_header *swap_header = NULL;
 	int swap_header_version;
-	int nr_good_pages = 0;
-	int nr_extents;
+	unsigned int nr_good_pages = 0;
+	int nr_extents = 0;
 	sector_t span;
 	unsigned long maxpages = 1;
 	int swapfilesize;
@@ -1509,7 +1510,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	nr_swap_pages += nr_good_pages;
 	total_swap_pages += nr_good_pages;
 
-	printk(KERN_INFO "Adding %dk swap on %s.  "
+	printk(KERN_INFO "Adding %uk swap on %s.  "
 			"Priority:%d extents:%d across:%lluk\n",
 		nr_good_pages<<(PAGE_SHIFT-10), name, p->prio,
 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10));
