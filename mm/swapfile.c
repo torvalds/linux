@@ -1129,6 +1129,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 		swap_list_unlock();
 		goto out_dput;
 	}
+	destroy_swap_extents(p);
 	down(&swapon_sem);
 	swap_list_lock();
 	drain_mmlist();
@@ -1139,7 +1140,6 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	swap_map = p->swap_map;
 	p->swap_map = NULL;
 	p->flags = 0;
-	destroy_swap_extents(p);
 	swap_device_unlock(p);
 	swap_list_unlock();
 	up(&swapon_sem);
@@ -1531,6 +1531,7 @@ bad_swap:
 		set_blocksize(bdev, p->old_block_size);
 		bd_release(bdev);
 	}
+	destroy_swap_extents(p);
 bad_swap_2:
 	swap_list_lock();
 	swap_map = p->swap_map;
@@ -1540,7 +1541,6 @@ bad_swap_2:
 	if (!(swap_flags & SWAP_FLAG_PREFER))
 		++least_priority;
 	swap_list_unlock();
-	destroy_swap_extents(p);
 	vfree(swap_map);
 	if (swap_file)
 		filp_close(swap_file, NULL);
