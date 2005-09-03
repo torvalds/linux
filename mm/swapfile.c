@@ -832,9 +832,9 @@ sector_t map_swap_page(struct swap_info_struct *sis, pgoff_t offset)
 				offset < (se->start_page + se->nr_pages)) {
 			return se->start_block + (offset - se->start_page);
 		}
-		lh = se->list.prev;
+		lh = se->list.next;
 		if (lh == &sis->extent_list)
-			lh = lh->prev;
+			lh = lh->next;
 		se = list_entry(lh, struct swap_extent, list);
 		sis->curr_swap_extent = se;
 		BUG_ON(se == start_se);		/* It *must* be present */
@@ -859,10 +859,9 @@ static void destroy_swap_extents(struct swap_info_struct *sis)
 
 /*
  * Add a block range (and the corresponding page range) into this swapdev's
- * extent list.  The extent list is kept sorted in block order.
+ * extent list.  The extent list is kept sorted in page order.
  *
- * This function rather assumes that it is called in ascending sector_t order.
- * It doesn't look for extent coalescing opportunities.
+ * This function rather assumes that it is called in ascending page order.
  */
 static int
 add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
@@ -872,16 +871,15 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	struct swap_extent *new_se;
 	struct list_head *lh;
 
-	lh = sis->extent_list.next;	/* The highest-addressed block */
-	while (lh != &sis->extent_list) {
+	lh = sis->extent_list.prev;	/* The highest page extent */
+	if (lh != &sis->extent_list) {
 		se = list_entry(lh, struct swap_extent, list);
-		if (se->start_block + se->nr_pages == start_block &&
-		    se->start_page  + se->nr_pages == start_page) {
+		BUG_ON(se->start_page + se->nr_pages != start_page);
+		if (se->start_block + se->nr_pages == start_block) {
 			/* Merge it */
 			se->nr_pages += nr_pages;
 			return 0;
 		}
-		lh = lh->next;
 	}
 
 	/*
@@ -894,14 +892,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	new_se->nr_pages = nr_pages;
 	new_se->start_block = start_block;
 
-	lh = sis->extent_list.prev;	/* The lowest block */
-	while (lh != &sis->extent_list) {
-		se = list_entry(lh, struct swap_extent, list);
-		if (se->start_block > start_block)
-			break;
-		lh = lh->prev;
-	}
-	list_add_tail(&new_se->list, lh);
+	list_add_tail(&new_se->list, &sis->extent_list);
 	sis->nr_extents++;
 	return 0;
 }

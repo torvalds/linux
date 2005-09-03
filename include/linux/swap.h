@@ -116,8 +116,6 @@ enum {
 
 /*
  * The in-memory structure used to track swap areas.
- * extent_list.prev points at the lowest-index extent.  That list is
- * sorted.
  */
 struct swap_info_struct {
 	unsigned int flags;
