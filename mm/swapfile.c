@@ -98,10 +98,12 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 	 * But we do now try to find an empty cluster.  -Andrea
 	 */
 
+	si->flags += SWP_SCANNING;
 	if (unlikely(!si->cluster_nr)) {
 		si->cluster_nr = SWAPFILE_CLUSTER - 1;
 		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER)
 			goto lowest;
+		swap_device_unlock(si);
 
 		offset = si->lowest_bit;
 		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
@@ -111,10 +113,12 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 			if (si->swap_map[offset])
 				last_in_cluster = offset + SWAPFILE_CLUSTER;
 			else if (offset == last_in_cluster) {
+				swap_device_lock(si);
 				si->cluster_next = offset-SWAPFILE_CLUSTER-1;
 				goto cluster;
 			}
 		}
+		swap_device_lock(si);
 		goto lowest;
 	}
 
@@ -123,10 +127,12 @@ cluster:
 	offset = si->cluster_next;
 	if (offset > si->highest_bit)
 lowest:		offset = si->lowest_bit;
+checks:	if (!(si->flags & SWP_WRITEOK))
+		goto no_page;
 	if (!si->highest_bit)
 		goto no_page;
 	if (!si->swap_map[offset]) {
-got_page:	if (offset == si->lowest_bit)
+		if (offset == si->lowest_bit)
 			si->lowest_bit++;
 		if (offset == si->highest_bit)
 			si->highest_bit--;
@@ -137,16 +143,22 @@ got_page:	if (offset == si->lowest_bit)
 		}
 		si->swap_map[offset] = 1;
 		si->cluster_next = offset + 1;
+		si->flags -= SWP_SCANNING;
 		return offset;
 	}
 
+	swap_device_unlock(si);
 	while (++offset <= si->highest_bit) {
-		if (!si->swap_map[offset])
-			goto got_page;
+		if (!si->swap_map[offset]) {
+			swap_device_lock(si);
+			goto checks;
+		}
 	}
+	swap_device_lock(si);
 	goto lowest;
 
 no_page:
+	si->flags -= SWP_SCANNING;
 	return 0;
 }
 
@@ -1111,10 +1123,6 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	err = try_to_unuse(type);
 	current->flags &= ~PF_SWAPOFF;
 
-	/* wait for any unplug function to finish */
-	down_write(&swap_unplug_sem);
-	up_write(&swap_unplug_sem);
-
 	if (err) {
 		/* re-insert swap space back into swap_list */
 		swap_list_lock();
@@ -1128,10 +1136,28 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 			swap_info[prev].next = p - swap_info;
 		nr_swap_pages += p->pages;
 		total_swap_pages += p->pages;
+		swap_device_lock(p);
 		p->flags |= SWP_WRITEOK;
+		swap_device_unlock(p);
 		swap_list_unlock();
 		goto out_dput;
 	}
+
+	/* wait for any unplug function to finish */
+	down_write(&swap_unplug_sem);
+	up_write(&swap_unplug_sem);
+
+	/* wait for anyone still in scan_swap_map */
+	swap_device_lock(p);
+	p->highest_bit = 0;		/* cuts scans short */
+	while (p->flags >= SWP_SCANNING) {
+		swap_device_unlock(p);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1);
+		swap_device_lock(p);
+	}
+	swap_device_unlock(p);
+
 	destroy_swap_extents(p);
 	down(&swapon_sem);
 	swap_list_lock();
@@ -1431,6 +1457,8 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		}
 
 		p->lowest_bit  = 1;
+		p->cluster_next = 1;
+
 		/*
 		 * Find out how many pages are allowed for a single swap
 		 * device. There are two limiting factors: 1) the number of
