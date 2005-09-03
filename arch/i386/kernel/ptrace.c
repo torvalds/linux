@@ -547,11 +547,17 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		wake_up_process(child);
 		break;
 
+	case PTRACE_SYSEMU_SINGLESTEP: /* Same as SYSEMU, but singlestep if not syscall */
 	case PTRACE_SINGLESTEP:	/* set the trap flag. */
 		ret = -EIO;
 		if (!valid_signal(data))
 			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+
+		if (request == PTRACE_SYSEMU_SINGLESTEP)
+			set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+		else
+			clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		set_singlestep(child);
 		child->exit_code = data;
@@ -686,7 +692,10 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 __attribute__((regparm(3)))
 int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	int is_sysemu, is_singlestep, ret = 0;
+	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU), ret = 0;
+	/* With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP */
+	int is_singlestep = !is_sysemu && test_thread_flag(TIF_SINGLESTEP);
+
 	/* do the secure computing check first */
 	secure_computing(regs->orig_eax);
 
@@ -696,8 +705,11 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 	if (!(current->ptrace & PT_PTRACED))
 		goto out;
 
-	is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);
-	is_singlestep = test_thread_flag(TIF_SINGLESTEP);
+	/* If a process stops on the 1st tracepoint with SYSCALL_TRACE
+	 * and then is resumed with SYSEMU_SINGLESTEP, it will come in
+	 * here. We have to check this and return */
+	if (is_sysemu && entryexit)
+		return 0;
 
 	/* Fake a debug trap */
 	if (is_singlestep)
@@ -728,6 +740,7 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 	if (ret == 0)
 		return 0;
 
+	regs->orig_eax = -1; /* force skip of syscall restarting */
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
 	return 1;
