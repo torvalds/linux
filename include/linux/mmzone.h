@@ -487,12 +487,38 @@ struct mem_section {
 	unsigned long section_mem_map;
 };
 
+#ifdef CONFIG_ARCH_SPARSEMEM_EXTREME
+/*
+ * Should we ever require GCC 4 or later then the flat array scheme
+ * can be eliminated and a uniform solution for EXTREME and !EXTREME can
+ * be arrived at.
+ */
+#define SECTION_ROOT_SHIFT	(PAGE_SHIFT-3)
+#define SECTION_ROOT_MASK	((1UL<<SECTION_ROOT_SHIFT) - 1)
+#define SECTION_TO_ROOT(_sec)	((_sec) >> SECTION_ROOT_SHIFT)
+#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS >>  SECTION_ROOT_SHIFT)
+
+extern struct mem_section *mem_section[NR_SECTION_ROOTS];
+
+static inline struct mem_section *__nr_to_section(unsigned long nr)
+{
+	if (!mem_section[SECTION_TO_ROOT(nr)])
+		return NULL;
+	return &mem_section[SECTION_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
+}
+
+#else
+
 extern struct mem_section mem_section[NR_MEM_SECTIONS];
 
 static inline struct mem_section *__nr_to_section(unsigned long nr)
 {
 	return &mem_section[nr];
 }
+
+#define sparse_index_init(_sec, _nid)  do {} while (0)
+
+#endif
 
 /*
  * We use the lower bits of the mem_map pointer to store
@@ -513,12 +539,12 @@ static inline struct page *__section_mem_map_addr(struct mem_section *section)
 
 static inline int valid_section(struct mem_section *section)
 {
-	return (section->section_mem_map & SECTION_MARKED_PRESENT);
+	return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
 }
 
 static inline int section_has_mem_map(struct mem_section *section)
 {
-	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
+	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
 }
 
 static inline int valid_section_nr(unsigned long nr)

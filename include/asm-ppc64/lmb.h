@@ -56,4 +56,26 @@ extern void lmb_dump_all(void);
 
 extern unsigned long io_hole_start;
 
+static inline unsigned long
+lmb_size_bytes(struct lmb_region *type, unsigned long region_nr)
+{
+	return type->region[region_nr].size;
+}
+static inline unsigned long
+lmb_size_pages(struct lmb_region *type, unsigned long region_nr)
+{
+	return lmb_size_bytes(type, region_nr) >> PAGE_SHIFT;
+}
+static inline unsigned long
+lmb_start_pfn(struct lmb_region *type, unsigned long region_nr)
+{
+	return type->region[region_nr].base >> PAGE_SHIFT;
+}
+static inline unsigned long
+lmb_end_pfn(struct lmb_region *type, unsigned long region_nr)
+{
+	return lmb_start_pfn(type, region_nr) +
+	       lmb_size_pages(type, region_nr);
+}
+
 #endif /* _PPC64_LMB_H */

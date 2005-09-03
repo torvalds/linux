@@ -13,7 +13,26 @@
  *
  * 1) mem_section	- memory sections, mem_map's for valid memory
  */
-struct mem_section mem_section[NR_MEM_SECTIONS];
+#ifdef CONFIG_ARCH_SPARSEMEM_EXTREME
+struct mem_section *mem_section[NR_SECTION_ROOTS]
+	____cacheline_maxaligned_in_smp;
+
+static void sparse_index_init(unsigned long section, int nid)
+{
+	unsigned long root = SECTION_TO_ROOT(section);
+
+	if (mem_section[root])
+		return;
+	mem_section[root] = alloc_bootmem_node(NODE_DATA(nid), PAGE_SIZE);
+	if (mem_section[root])
+		memset(mem_section[root], 0, PAGE_SIZE);
+	else
+		panic("memory_present: NO MEMORY\n");
+}
+#else
+struct mem_section mem_section[NR_MEM_SECTIONS]
+	____cacheline_maxaligned_in_smp;
+#endif
 EXPORT_SYMBOL(mem_section);
 
 /* Record a memory area against a node. */
@@ -24,8 +43,13 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 	start &= PAGE_SECTION_MASK;
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
 		unsigned long section = pfn_to_section_nr(pfn);
-		if (!mem_section[section].section_mem_map)
-			mem_section[section].section_mem_map = SECTION_MARKED_PRESENT;
+		struct mem_section *ms;
+
+		sparse_index_init(section, nid);
+
+		ms = __nr_to_section(section);
+		if (!ms->section_mem_map)
+			ms->section_mem_map = SECTION_MARKED_PRESENT;
 	}
 }
 
@@ -85,6 +109,7 @@ static struct page *sparse_early_mem_map_alloc(unsigned long pnum)
 {
 	struct page *map;
 	int nid = early_pfn_to_nid(section_nr_to_pfn(pnum));
+	struct mem_section *ms = __nr_to_section(pnum);
 
 	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
 	if (map)
@@ -96,7 +121,7 @@ static struct page *sparse_early_mem_map_alloc(unsigned long pnum)
 		return map;
 
 	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
-	mem_section[pnum].section_mem_map = 0;
+	ms->section_mem_map = 0;
 	return NULL;
 }
 
@@ -114,8 +139,9 @@ void sparse_init(void)
 			continue;
 
 		map = sparse_early_mem_map_alloc(pnum);
-		if (map)
-			sparse_init_one_section(&mem_section[pnum], pnum, map);
+		if (!map)
+			continue;
+		sparse_init_one_section(__nr_to_section(pnum), pnum, map);
 	}
 }
 

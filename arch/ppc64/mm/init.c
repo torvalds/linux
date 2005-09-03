@@ -552,27 +552,18 @@ void __init do_init_bootmem(void)
 	/* Add all physical memory to the bootmem map, mark each area
 	 * present.
 	 */
-	for (i=0; i < lmb.memory.cnt; i++) {
-		unsigned long base, size;
-		unsigned long start_pfn, end_pfn;
-
-		base = lmb.memory.region[i].base;
-		size = lmb.memory.region[i].size;
-
-		start_pfn = base >> PAGE_SHIFT;
-		end_pfn = start_pfn + (size >> PAGE_SHIFT);
-		memory_present(0, start_pfn, end_pfn);
-
-		free_bootmem(base, size);
-	}
+	for (i=0; i < lmb.memory.cnt; i++)
+		free_bootmem(lmb_start_pfn(&lmb.memory, i),
+			     lmb_size_bytes(&lmb.memory, i));
 
 	/* reserve the sections we're already using */
-	for (i=0; i < lmb.reserved.cnt; i++) {
-		unsigned long base = lmb.reserved.region[i].base;
-		unsigned long size = lmb.reserved.region[i].size;
+	for (i=0; i < lmb.reserved.cnt; i++)
+		reserve_bootmem(lmb_start_pfn(&lmb.reserved, i),
+				lmb_size_bytes(&lmb.reserved, i));
 
-		reserve_bootmem(base, size);
-	}
+	for (i=0; i < lmb.memory.cnt; i++)
+		memory_present(0, lmb_start_pfn(&lmb.memory, i),
+			       lmb_end_pfn(&lmb.memory, i));
 }
 
 /*

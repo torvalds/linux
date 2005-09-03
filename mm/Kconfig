@@ -89,3 +89,12 @@ config NEED_MULTIPLE_NODES
 config HAVE_MEMORY_PRESENT
 	def_bool y
 	depends on ARCH_HAVE_MEMORY_PRESENT || SPARSEMEM
+
+#
+# Architectecture platforms which require a two level mem_section in SPARSEMEM
+# must select this option. This is usually for architecture platforms with
+# an extremely sparse physical address space.
+#
+config ARCH_SPARSEMEM_EXTREME
+	def_bool n
+	depends on SPARSEMEM && 64BIT
