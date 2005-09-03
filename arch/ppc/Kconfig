@@ -671,6 +671,11 @@ config MPC834x_SYS
 	help
 	  This option enables support for the MPC 834x SYS evaluation board.
 
+config EV64360
+	bool "Marvell-EV64360BP"
+	help
+	  Select EV64360 if configuring a Marvell EV64360BP Evaluation
+	  platform.
 endchoice
 
 config PQ2ADS
@@ -772,7 +777,7 @@ config GT64260
 
 config MV64360		# Really MV64360 & MV64460
 	bool
-	depends on CHESTNUT || KATANA || RADSTONE_PPC7D || HDPU
+	depends on CHESTNUT || KATANA || RADSTONE_PPC7D || HDPU || EV64360
 	default y
 
 config MV64X60

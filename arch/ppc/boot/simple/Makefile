@@ -104,6 +104,10 @@ zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
          end-$(CONFIG_RADSTONE_PPC7D)	:= radstone_ppc7d
    cacheflag-$(CONFIG_RADSTONE_PPC7D)	:= -include $(clear_L2_L3)
 
+     extra.o-$(CONFIG_EV64360)          := misc-ev64360.o
+         end-$(CONFIG_EV64360)          := ev64360
+   cacheflag-$(CONFIG_EV64360)          := -include $(clear_L2_L3)
+
 # kconfig 'feature', only one of these will ever be 'y' at a time.
 # The rest will be unset.
 motorola := $(CONFIG_MVME5100)$(CONFIG_PRPMC750) \
