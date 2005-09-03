@@ -400,6 +400,23 @@ static int ehci_hc_reset (struct usb_hcd *hcd)
 				return -EIO;
 			}
 			break;
+		case PCI_VENDOR_ID_NVIDIA:
+			/* NVidia reports that certain chips don't handle
+			 * QH, ITD, or SITD addresses above 2GB.  (But TD,
+			 * data buffer, and periodic schedule are normal.)
+			 */
+			switch (pdev->device) {
+			case 0x003c:	/* MCP04 */
+			case 0x005b:	/* CK804 */
+			case 0x00d8:	/* CK8 */
+			case 0x00e8:	/* CK8S */
+				if (pci_set_consistent_dma_mask(pdev,
+							DMA_31BIT_MASK) < 0)
+					ehci_warn (ehci, "can't enable NVidia "
+						"workaround for >2GB RAM\n");
+				break;
+			}
+			break;
 		}
 
 		/* optional debug port, normally in the first BAR */
