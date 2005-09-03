@@ -495,6 +495,11 @@ config WINCEPT
 	  MPC821 PowerPC, introduced in 1998 and designed to be used in
 	  thin-client machines.  Say Y to support it directly.
 
+	  Be aware that PCI buses can only function when SYS board is plugged
+	  into the PIB (Platform IO Board) board from Freescale which provide
+	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
+	  responsiblilty.
+
 endchoice
 
 choice
@@ -1152,6 +1157,11 @@ config PCI
 config PCI_DOMAINS
 	bool
 	default PCI
+
+config MPC83xx_PCI2
+	bool "  Supprt for 2nd PCI host controller"
+	depends on PCI && MPC834x
+	default y if MPC834x_SYS
 
 config PCI_QSPAN
 	bool "QSpan PCI"
