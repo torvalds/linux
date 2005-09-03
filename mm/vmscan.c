@@ -822,6 +822,8 @@ shrink_zone(struct zone *zone, struct scan_control *sc)
 	unsigned long nr_active;
 	unsigned long nr_inactive;
 
+	atomic_inc(&zone->reclaim_in_progress);
+
 	/*
 	 * Add one to `nr_to_scan' just to make sure that the kernel will
 	 * slowly sift through the active list.
@@ -861,6 +863,8 @@ shrink_zone(struct zone *zone, struct scan_control *sc)
 	}
 
 	throttle_vm_writeout();
+
+	atomic_dec(&zone->reclaim_in_progress);
 }
 
 /*
@@ -900,9 +904,7 @@ shrink_caches(struct zone **zones, struct scan_control *sc)
 		if (zone->all_unreclaimable && sc->priority != DEF_PRIORITY)
 			continue;	/* Let kswapd poll it */
 
-		atomic_inc(&zone->reclaim_in_progress);
 		shrink_zone(zone, sc);
-		atomic_dec(&zone->reclaim_in_progress);
 	}
 }
  
@@ -1358,14 +1360,13 @@ int zone_reclaim(struct zone *zone, unsigned int gfp_mask, unsigned int order)
 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
 
 	/* Don't reclaim the zone if there are other reclaimers active */
-	if (!atomic_inc_and_test(&zone->reclaim_in_progress))
+	if (atomic_read(&zone->reclaim_in_progress) > 0)
 		goto out;
 
 	shrink_zone(zone, &sc);
 	total_reclaimed = sc.nr_reclaimed;
 
  out:
-	atomic_dec(&zone->reclaim_in_progress);
 	return total_reclaimed;
 }
 
