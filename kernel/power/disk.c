@@ -233,9 +233,12 @@ static int software_resume(void)
 {
 	int error;
 
+	down(&pm_sem);
 	if (!swsusp_resume_device) {
-		if (!strlen(resume_file))
+		if (!strlen(resume_file)) {
+			up(&pm_sem);
 			return -ENOENT;
+		}
 		swsusp_resume_device = name_to_dev_t(resume_file);
 		pr_debug("swsusp: Resume From Partition %s\n", resume_file);
 	} else {
@@ -248,6 +251,7 @@ static int software_resume(void)
 		 * FIXME: If noresume is specified, we need to find the partition
 		 * and reset it back to normal swap space.
 		 */
+		up(&pm_sem);
 		return 0;
 	}
 
@@ -284,6 +288,8 @@ static int software_resume(void)
  Cleanup:
 	unprepare_processes();
  Done:
+	/* For success case, the suspend path will release the lock */
+	up(&pm_sem);
 	pr_debug("PM: Resume from disk failed.\n");
 	return 0;
 }
@@ -390,7 +396,9 @@ static ssize_t resume_store(struct subsystem * subsys, const char * buf, size_t 
 	if (sscanf(buf, "%u:%u", &maj, &min) == 2) {
 		res = MKDEV(maj,min);
 		if (maj == MAJOR(res) && min == MINOR(res)) {
+			down(&pm_sem);
 			swsusp_resume_device = res;
+			up(&pm_sem);
 			printk("Attempting manual resume\n");
 			noresume = 0;
 			software_resume();
