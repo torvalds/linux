@@ -613,9 +613,6 @@ config EV64260
 config LOPEC
 	bool "Motorola-LoPEC"
 
-config MCPN765
-	bool "Motorola-MCPN765"
-
 config MVME5100
 	bool "Motorola-MVME5100"
 
@@ -790,7 +787,7 @@ config PPC_OF
 
 config PPC_GEN550
 	bool
-	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || \
+	depends on SANDPOINT || SPRUCE || PPLUS || PCORE || \
 		PRPMC750 || PRPMC800 || LOPEC || \
 		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
 		83xx

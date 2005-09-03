@@ -30,7 +30,6 @@ obj-$(CONFIG_GEMINI)		+= gemini_pci.o gemini_setup.o gemini_prom.o
 obj-$(CONFIG_LOPEC)		+= lopec.o
 obj-$(CONFIG_KATANA)		+= katana.o
 obj-$(CONFIG_HDPU)		+= hdpu.o
-obj-$(CONFIG_MCPN765)		+= mcpn765.o
 obj-$(CONFIG_MENF1)		+= menf1_setup.o menf1_pci.o
 obj-$(CONFIG_MVME5100)		+= mvme5100.o
 obj-$(CONFIG_PAL4)		+= pal4_setup.o pal4_pci.o

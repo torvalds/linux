@@ -106,7 +106,7 @@ zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
 
 # kconfig 'feature', only one of these will ever be 'y' at a time.
 # The rest will be unset.
-motorola := $(CONFIG_MCPN765)$(CONFIG_MVME5100)$(CONFIG_PRPMC750) \
+motorola := $(CONFIG_MVME5100)$(CONFIG_PRPMC750) \
 $(CONFIG_PRPMC800)$(CONFIG_LOPEC)$(CONFIG_PPLUS)
 motorola := $(strip $(motorola))
 pcore := $(CONFIG_PCORE)$(CONFIG_POWERPMC250)
