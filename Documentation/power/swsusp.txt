@@ -311,3 +311,10 @@ As a rule of thumb use encrypted swap to protect your data while your
 system is shut down or suspended. Additionally use the encrypted
 suspend image to prevent sensitive data from being stolen after
 resume.
+
+Q: Why we cannot suspend to a swap file?
+
+A: Because accessing swap file needs the filesystem mounted, and
+filesystem might do something wrong (like replaying the journal)
+during mount. [Probably could be solved by modifying every filesystem
+to support some kind of "really read-only!" option. Patches welcome.]
