@@ -600,7 +600,7 @@ static inline kmem_cache_t *__find_general_cachep(size_t size,
 		csizep++;
 
 	/*
-	 * Really subtile: The last entry with cs->cs_size==ULONG_MAX
+	 * Really subtle: The last entry with cs->cs_size==ULONG_MAX
 	 * has cs_{dma,}cachep==NULL. Thus no special case
 	 * for large kmalloc calls required.
 	 */
