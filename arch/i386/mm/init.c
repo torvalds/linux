@@ -349,7 +349,7 @@ static void __init pagetable_init (void)
 	 * All user-space mappings are explicitly cleared after
 	 * SMP startup.
 	 */
-	pgd_base[0] = pgd_base[USER_PTRS_PER_PGD];
+	set_pgd(&pgd_base[0], pgd_base[USER_PTRS_PER_PGD]);
 #endif
 }
 
