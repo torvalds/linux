@@ -3,11 +3,15 @@
 # Licensed under the GPL
 #
 
-obj-y = elf_aux.o file.o process.o signal.o time.o tty.o user_syms.o drivers/ \
-	sys-$(SUBARCH)/
+obj-y = aio.o elf_aux.o file.o process.o signal.o time.o tty.o user_syms.o \
+	drivers/ sys-$(SUBARCH)/
 
-USER_OBJS := elf_aux.o file.o process.o signal.o time.o tty.o
+USER_OBJS := aio.o elf_aux.o file.o process.o signal.o time.o tty.o
 
 CFLAGS_user_syms.o += -DSUBARCH_$(SUBARCH)
+
+HAVE_AIO_ABI := $(shell [ -r /usr/include/linux/aio_abi.h ] && \
+	echo -DHAVE_AIO_ABI )
+CFLAGS_aio.o += $(HAVE_AIO_ABI)
 
 include arch/um/scripts/Makefile.rules
