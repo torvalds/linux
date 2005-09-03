@@ -1017,8 +1017,8 @@ int __devinit smp_prepare_cpu(int cpu)
 	tsc_sync_disabled = 1;
 
 	/* init low mem mapping */
-	memcpy(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			sizeof(swapper_pg_dir[0]) * KERNEL_PGD_PTRS);
+	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
+			KERNEL_PGD_PTRS);
 	flush_tlb_all();
 	schedule_work(&task);
 	wait_for_completion(&done);
