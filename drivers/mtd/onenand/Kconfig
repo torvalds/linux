@@ -29,4 +29,10 @@ config MTD_ONENAND_OMAP
 	help
 	  Support for OneNAND flash on TI OMAP board.
 
+config MTD_ONENAND_SYNC_READ
+	bool "OneNAND Sync. Burst Read Support"
+	depends on ARCH_OMAP
+	help
+	  This enables support for Sync. Burst Read.
+
 endmenu

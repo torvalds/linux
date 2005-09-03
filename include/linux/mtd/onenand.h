@@ -95,6 +95,7 @@ struct onenand_chip {
 			const unsigned char *buffer, int offset, size_t count);
 	unsigned short (*read_word)(void __iomem *addr);
 	void (*write_word)(unsigned short value, void __iomem *addr);
+	void (*mmcontrol)(struct mtd_info *mtd, int sync_read);
 
 	spinlock_t		chip_lock;
 	wait_queue_head_t	wq;

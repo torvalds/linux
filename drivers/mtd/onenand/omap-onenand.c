@@ -25,9 +25,10 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/tc.h>
 #include <asm/sizes.h>
+#include <asm/mach-types.h>
 
 #define OMAP_ONENAND_FLASH_START1	OMAP_CS2A_PHYS
-#define OMAP_ONENAND_FLASH_START2	OMAP_CS0_PHYS
+#define OMAP_ONENAND_FLASH_START2	omap_cs3_phys()
 /*
  * MTD structure for OMAP board
  */
@@ -68,9 +69,65 @@ static struct mtd_partition static_partition[] = {
 	},
 };
 
-const char *part_probes[] = { "cmdlinepart", NULL,  };
+static const char *part_probes[] = { "cmdlinepart", NULL,  };
 
 #endif
+
+#ifdef CONFIG_MTD_ONENAND_SYNC_READ
+static unsigned int omap_emifs_cs;
+
+static void omap_find_emifs_cs(unsigned int addr)
+{
+	/* Check CS3 */
+	if (OMAP_EMIFS_CONFIG_REG & OMAP_EMIFS_CONFIG_BM && addr == 0x0) {
+		omap_emifs_cs = 3;
+	} else {
+		omap_emifs_cs = (addr >> 26);
+	}
+}
+
+/**
+ * omap_onenand_mmcontrol - Control OMAP EMIFS
+ */
+static void omap_onenand_mmcontrol(struct mtd_info *mtd, int sync_read)
+{
+	struct onenand_chip *this = mtd->priv;
+	static unsigned long omap_emifs_ccs, omap_emifs_acs;
+	static unsigned long onenand_sys_cfg1;
+	int config, emifs_ccs, emifs_acs;
+
+	if (sync_read) {
+		/*
+		 * Note: BRL and RDWST is equal
+		 */
+		omap_emifs_ccs = EMIFS_CCS(omap_emifs_cs);
+		omap_emifs_acs = EMIFS_ACS(omap_emifs_cs);
+		
+		emifs_ccs = 0x41141;
+		emifs_acs = 0x1;
+
+		/* OneNAND System Configuration 1 */
+		onenand_sys_cfg1 = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
+		config = (onenand_sys_cfg1
+			& ~(0x3f << ONENAND_SYS_CFG1_BL_SHIFT))
+			| ONENAND_SYS_CFG1_SYNC_READ
+			| ONENAND_SYS_CFG1_BRL_4
+			| ONENAND_SYS_CFG1_BL_8;
+	} else {
+		emifs_ccs = omap_emifs_ccs;
+		emifs_acs = omap_emifs_acs;
+		config = onenand_sys_cfg1;
+	}
+
+	this->write_word(config, this->base + ONENAND_REG_SYS_CFG1);
+	EMIFS_CCS(omap_emifs_cs) = emifs_ccs;
+	EMIFS_ACS(omap_emifs_cs) = emifs_acs;
+}
+#else
+#define omap_find_emifs_cs(x)		do { } while (0)
+#define omap_onenand_mmcontrol		NULL
+#endif
+
 
 /* Scan to find existance of the device at base.
    This also allocates oob and data internal buffers */
@@ -102,14 +159,19 @@ static int __init omap_onenand_init (void)
 
 	/* Link the private data with the MTD structure */
 	omap_onenand_mtd->priv = this;
+	this->mmcontrol = omap_onenand_mmcontrol;
 
         /* try the first address */
 	this->base = ioremap(OMAP_ONENAND_FLASH_START1, SZ_128K);
+	omap_find_emifs_cs(OMAP_ONENAND_FLASH_START1);
+
 	omap_onenand_mtd->name = onenand_name;
 	if (onenand_scan(omap_onenand_mtd, 1)){
 		/* try the second address */
 		iounmap(this->base);
 		this->base = ioremap(OMAP_ONENAND_FLASH_START2, SZ_128K);
+		omap_find_emifs_cs(OMAP_ONENAND_FLASH_START2);
+
 		if (onenand_scan(omap_onenand_mtd, 1)) {
 			iounmap(this->base);
                         err = -ENXIO;

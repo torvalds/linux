@@ -379,6 +379,35 @@ static int onenand_read_bufferram(struct mtd_info *mtd, int area,
 }
 
 /**
+ * onenand_sync_read_bufferram - [OneNAND Interface] Read the bufferram area with Sync. Burst mode
+ * @param mtd		MTD data structure
+ * @param area		BufferRAM area
+ * @param buffer	the databuffer to put/get data
+ * @param offset	offset to read from or write to
+ * @param count		number of bytes to read/write
+ *
+ * Read the BufferRAM area with Sync. Burst Mode
+ */
+static int onenand_sync_read_bufferram(struct mtd_info *mtd, int area,
+		unsigned char *buffer, int offset, size_t count)
+{
+	struct onenand_chip *this = mtd->priv;
+	void __iomem *bufferram;
+
+	bufferram = this->base + area;
+
+	bufferram += onenand_bufferram_offset(mtd, area);
+
+	this->mmcontrol(mtd, ONENAND_SYS_CFG1_SYNC_READ);
+
+	memcpy(buffer, bufferram + offset, count);
+
+	this->mmcontrol(mtd, 0);
+
+	return 0;
+}
+
+/**
  * onenand_write_bufferram - [OneNAND Interface] Write the bufferram area
  * @param mtd		MTD data structure
  * @param area		BufferRAM area
@@ -1273,8 +1302,8 @@ static int onenand_check_maf(int manuf)
                         break;
         }
 
-        printk(KERN_DEBUG "OneNAND Manufacturer: %s\n",
-                onenand_manuf_ids[i].name);
+        printk(KERN_DEBUG "OneNAND Manufacturer: %s (0x%0x)\n",
+                onenand_manuf_ids[i].name, manuf);
 
         return (i != ONENAND_MFR_UNKNOWN);
 }
@@ -1384,6 +1413,12 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 
 	if (onenand_probe(mtd))
 		return -ENXIO;
+
+	/* Set Sync. Burst Read after probing */
+	if (this->mmcontrol) {
+		printk(KERN_INFO "OneNAND Sync. Burst Read support\n");
+		this->read_bufferram = onenand_sync_read_bufferram;
+	}
 
 	this->state = FL_READY;
 	init_waitqueue_head(&this->wq);
