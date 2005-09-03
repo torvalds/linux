@@ -33,8 +33,6 @@ STUB_CFLAGS = -Wp,-MD,$(depfile) $(call unprofile,$(USER_CFLAGS))
 # why ask why?
 $(obj)/stub_segv.o : c_flags = $(STUB_CFLAGS)
 
-$(obj)/stub.o : a_flags = $(STUB_CFLAGS)
-
 subdir- := util
 
 include arch/um/scripts/Makefile.unmap
