@@ -403,10 +403,8 @@ static int cpm_uart_startup(struct uart_port *port)
 
 inline void cpm_uart_wait_until_send(struct uart_cpm_port *pinfo)
 {
-	unsigned long target_jiffies = jiffies + pinfo->wait_closing;
-
-	while (!time_after(jiffies, target_jiffies))
-   		schedule();
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(pinfo->wait_closing);
 }
 
 /*
@@ -425,9 +423,12 @@ static void cpm_uart_shutdown(struct uart_port *port)
 	/* If the port is not the console, disable Rx and Tx. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
 		/* Wait for all the BDs marked sent */
-		while(!cpm_uart_tx_empty(port))
+		while(!cpm_uart_tx_empty(port)) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(2);
-		if(pinfo->wait_closing)
+		}
+
+		if (pinfo->wait_closing)
 			cpm_uart_wait_until_send(pinfo);
 
 		/* Stop uarts */
