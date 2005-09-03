@@ -271,6 +271,8 @@ static void clear_singlestep(struct task_struct *child)
 void ptrace_disable(struct task_struct *child)
 { 
 	clear_singlestep(child);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
 
 /*
@@ -693,14 +695,29 @@ __attribute__((regparm(3)))
 int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU), ret = 0;
-	/* With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP */
+	/* With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP for syscall
+	 * interception. */
 	int is_singlestep = !is_sysemu && test_thread_flag(TIF_SINGLESTEP);
 
 	/* do the secure computing check first */
 	secure_computing(regs->orig_eax);
 
-	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+	if (unlikely(current->audit_context)) {
+		if (entryexit)
+			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
+		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
+		 * not used, entry.S will call us only on syscall exit, not
+		 * entry; so when TIF_SYSCALL_AUDIT is used we must avoid
+		 * calling send_sigtrap() on syscall entry.
+		 *
+		 * Note that when PTRACE_SYSEMU_SINGLESTEP is used,
+		 * is_singlestep is false, despite his name, so we will still do
+		 * the correct thing.
+		 */
+		else if (is_singlestep)
+			goto out;
+	}
 
 	if (!(current->ptrace & PT_PTRACED))
 		goto out;
