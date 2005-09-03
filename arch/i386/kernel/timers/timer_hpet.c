@@ -181,6 +181,19 @@ static int __init init_hpet(char* override)
 	return 0;
 }
 
+static int hpet_resume(void)
+{
+	write_seqlock(&monotonic_lock);
+	/* Assume this is the last mark offset time */
+	rdtsc(last_tsc_low, last_tsc_high);
+
+	if (hpet_use_timer)
+		hpet_last = hpet_readl(HPET_T0_CMP) - hpet_tick;
+	else
+		hpet_last = hpet_readl(HPET_COUNTER);
+	write_sequnlock(&monotonic_lock);
+	return 0;
+}
 /************************************************************/
 
 /* tsc timer_opts struct */
@@ -190,6 +203,7 @@ static struct timer_opts timer_hpet __read_mostly = {
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
+	.resume	=		hpet_resume,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {

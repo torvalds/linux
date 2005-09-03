@@ -383,6 +383,7 @@ void notify_arch_cmos_timer(void)
 
 static long clock_cmos_diff, sleep_start;
 
+static struct timer_opts *last_timer;
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
@@ -391,6 +392,10 @@ static int timer_suspend(struct sys_device *dev, pm_message_t state)
 	clock_cmos_diff = -get_cmos_time();
 	clock_cmos_diff += get_seconds();
 	sleep_start = get_cmos_time();
+	last_timer = cur_timer;
+	cur_timer = &timer_none;
+	if (last_timer->suspend)
+		last_timer->suspend(state);
 	return 0;
 }
 
@@ -404,6 +409,7 @@ static int timer_resume(struct sys_device *dev)
 	if (is_hpet_enabled())
 		hpet_reenable();
 #endif
+	setup_pit_timer();
 	sec = get_cmos_time() + clock_cmos_diff;
 	sleep_length = (get_cmos_time() - sleep_start) * HZ;
 	write_seqlock_irqsave(&xtime_lock, flags);
@@ -412,6 +418,10 @@ static int timer_resume(struct sys_device *dev)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	jiffies += sleep_length;
 	wall_jiffies += sleep_length;
+	if (last_timer->resume)
+		last_timer->resume();
+	cur_timer = last_timer;
+	last_timer = NULL;
 	return 0;
 }
 

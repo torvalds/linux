@@ -543,6 +543,19 @@ static int __init init_tsc(char* override)
 	return -ENODEV;
 }
 
+static int tsc_resume(void)
+{
+	write_seqlock(&monotonic_lock);
+	/* Assume this is the last mark offset time */
+	rdtsc(last_tsc_low, last_tsc_high);
+#ifdef CONFIG_HPET_TIMER
+	if (is_hpet_enabled() && hpet_use_timer)
+		hpet_last = hpet_readl(HPET_COUNTER);
+#endif
+	write_sequnlock(&monotonic_lock);
+	return 0;
+}
+
 #ifndef CONFIG_X86_TSC
 /* disable flag for tsc.  Takes effect by clearing the TSC cpu flag
  * in cpu/common.c */
@@ -573,6 +586,7 @@ static struct timer_opts timer_tsc = {
 	.monotonic_clock = monotonic_clock_tsc,
 	.delay = delay_tsc,
 	.read_timer = read_timer_tsc,
+	.resume	= tsc_resume,
 };
 
 struct init_timer_opts __initdata timer_tsc_init = {
