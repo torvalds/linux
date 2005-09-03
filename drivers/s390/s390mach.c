@@ -240,7 +240,7 @@ s390_revalidate_registers(struct mci *mci)
 			 * Floating point control register can't be restored.
 			 * Task will be terminated.
 			 */
-			asm volatile ("lfpc 0(%0)" : : "a" (&zero));
+			asm volatile ("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
 			kill_task = 1;
 
 		}
