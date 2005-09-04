@@ -206,13 +206,6 @@ extern xfs_buf_t *xfs_buf_read_flags(	/* allocate and read a buffer	*/
 #define xfs_buf_read(target, blkno, len, flags) \
 	xfs_buf_read_flags((target), (blkno), (len), PBF_LOCK | PBF_MAPPED)
 
-extern xfs_buf_t *pagebuf_lookup(
-		xfs_buftarg_t *,
-		loff_t,			/* starting offset of range	*/
-		size_t,			/* length of range		*/
-		page_buf_flags_t);	/* PBF_READ, PBF_WRITE,		*/
-					/* PBF_FORCEIO, 		*/
-
 extern xfs_buf_t *pagebuf_get_empty(	/* allocate pagebuf struct with	*/
 					/*  no memory or disk address	*/
 		size_t len,

@@ -700,25 +700,6 @@ xfs_buf_read_flags(
 }
 
 /*
- * Create a skeletal pagebuf (no pages associated with it).
- */
-xfs_buf_t *
-pagebuf_lookup(
-	xfs_buftarg_t		*target,
-	loff_t			ioff,
-	size_t			isize,
-	page_buf_flags_t	flags)
-{
-	xfs_buf_t		*pb;
-
-	pb = pagebuf_allocate(flags);
-	if (pb) {
-		_pagebuf_initialize(pb, target, ioff, isize, flags);
-	}
-	return pb;
-}
-
-/*
  * If we are not low on memory then do the readahead in a deadlock
  * safe manner.
  */
@@ -890,17 +871,6 @@ pagebuf_rele(
 	xfs_bufhash_t		*hash = pb->pb_hash;
 
 	PB_TRACE(pb, "rele", pb->pb_relse);
-
-	/*
-	 * pagebuf_lookup buffers are not hashed, not delayed write,
-	 * and don't have their own release routines.  Special case.
-	 */
-	if (unlikely(!hash)) {
-		ASSERT(!pb->pb_relse);
-		if (atomic_dec_and_test(&pb->pb_hold))
-			xfs_buf_free(pb);
-		return;
-	}
 
 	if (atomic_dec_and_lock(&pb->pb_hold, &hash->bh_lock)) {
 		int		do_free = 1;
