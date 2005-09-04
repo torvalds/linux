@@ -64,6 +64,10 @@ static unsigned short address;
 /* Insmod parameters */
 enum chips { any_chip, w83627hf, w83627thf, w83697hf, w83637hf };
 
+static int reset;
+module_param(reset, bool, 0);
+MODULE_PARM_DESC(reset, "Set to one to reset chip on load");
+
 static int init = 1;
 module_param(init, bool, 0);
 MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
@@ -1279,7 +1283,15 @@ static void w83627hf_init_client(struct i2c_client *client)
 	int type = data->type;
 	u8 tmp;
 
-	if(init) {
+	if (reset) {
+		/* Resetting the chip has been the default for a long time,
+		   but repeatedly caused problems (fans going to full
+		   speed...) so it is now optional. It might even go away if
+		   nobody reports it as being useful, as I see very little
+		   reason why this would be needed at all. */
+		dev_info(&client->dev, "If reset=1 solved a problem you were "
+			 "having, please report!\n");
+
 		/* save this register */
 		i = w83627hf_read_value(client, W83781D_REG_BEEP_CONFIG);
 		/* Reset all except Watchdog values and last conversion values
