@@ -400,9 +400,11 @@ linvfs_clear_inode(
 	vp->v_flag &= ~VMODIFIED;
 	VN_UNLOCK(vp, 0);
 
-	VOP_RECLAIM(vp, error);
-	if (error)
-		panic("vn_purge: cannot reclaim");
+	if (vp->v_fbhv) {
+		VOP_RECLAIM(vp, error);
+		if (error)
+			panic("vn_purge: cannot reclaim");
+	}
 
 	ASSERT(vp->v_fbhv == NULL);
 
