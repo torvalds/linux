@@ -258,7 +258,8 @@ static void i8042_pnp_exit(void)
 
 static int __init i8042_pnp_init(void)
 {
-	int result_kbd, result_aux;
+	int result_kbd = 0, result_aux = 0;
+	char kbd_irq_str[4] = { 0 }, aux_irq_str[4] = { 0 };
 
 	if (i8042_nopnp) {
 		printk(KERN_INFO "i8042: PNP detection disabled\n");
@@ -267,6 +268,7 @@ static int __init i8042_pnp_init(void)
 
 	if ((result_kbd = pnp_register_driver(&i8042_pnp_kbd_driver)) >= 0)
 		i8042_pnp_kbd_registered = 1;
+
 	if ((result_aux = pnp_register_driver(&i8042_pnp_aux_driver)) >= 0)
 		i8042_pnp_aux_registered = 1;
 
@@ -279,6 +281,25 @@ static int __init i8042_pnp_init(void)
 		return 0;
 #endif
 	}
+
+	if (result_kbd > 0)
+		snprintf(kbd_irq_str, sizeof(kbd_irq_str),
+			"%d", i8042_pnp_kbd_irq);
+	if (result_aux > 0)
+		snprintf(aux_irq_str, sizeof(aux_irq_str),
+			"%d", i8042_pnp_aux_irq);
+
+	printk(KERN_INFO "PNP: PS/2 Controller [%s%s%s] at %#x,%#x irq %s%s%s\n",
+		i8042_pnp_kbd_name, (result_kbd > 0 && result_aux > 0) ? "," : "",
+		i8042_pnp_aux_name,
+		i8042_pnp_data_reg, i8042_pnp_command_reg,
+		kbd_irq_str, (result_kbd > 0 && result_aux > 0) ? "," : "",
+		aux_irq_str);
+
+#if defined(__ia64__)
+	if (result_aux <= 0)
+		i8042_noaux = 1;
+#endif
 
 	if (((i8042_pnp_data_reg & ~0xf) == (i8042_data_reg & ~0xf) &&
 	      i8042_pnp_data_reg != i8042_data_reg) || !i8042_pnp_data_reg) {
@@ -295,29 +316,19 @@ static int __init i8042_pnp_init(void)
 	}
 
 	if (!i8042_pnp_kbd_irq) {
-		printk(KERN_WARNING "PNP: PS/2 controller doesn't have KBD irq; using default %#x\n", i8042_kbd_irq);
+		printk(KERN_WARNING "PNP: PS/2 controller doesn't have KBD irq; using default %d\n", i8042_kbd_irq);
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
 	}
 
-	if (!i8042_pnp_aux_irq) {
-		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %#x\n", i8042_aux_irq);
+	if (!i8042_noaux && !i8042_pnp_aux_irq) {
+		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %d\n", i8042_aux_irq);
 		i8042_pnp_aux_irq = i8042_aux_irq;
 	}
-
-#if defined(__ia64__)
-	if (result_aux <= 0)
-		i8042_noaux = 1;
-#endif
 
 	i8042_data_reg = i8042_pnp_data_reg;
 	i8042_command_reg = i8042_pnp_command_reg;
 	i8042_kbd_irq = i8042_pnp_kbd_irq;
 	i8042_aux_irq = i8042_pnp_aux_irq;
-
-	printk(KERN_INFO "PNP: PS/2 Controller [%s%s%s] at %#x,%#x irq %d%s%d\n",
-		i8042_pnp_kbd_name, (result_kbd > 0 && result_aux > 0) ? "," : "", i8042_pnp_aux_name,
-		i8042_data_reg, i8042_command_reg, i8042_kbd_irq,
-		(result_aux > 0) ? "," : "", i8042_aux_irq);
 
 	return 0;
 }
