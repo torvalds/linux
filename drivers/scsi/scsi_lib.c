@@ -315,7 +315,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	req->sense = sense;
 	req->sense_len = 0;
 	req->timeout = timeout;
-	req->flags |= flags | REQ_BLOCK_PC | REQ_SPECIAL;
+	req->flags |= flags | REQ_BLOCK_PC | REQ_SPECIAL | REQ_QUIET;
 
 	/*
 	 * head injection *required* here otherwise quiesce won't work
@@ -927,17 +927,20 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				scsi_requeue_command(q, cmd);
 				return;
 			}
-			printk(KERN_INFO "Device %s not ready.\n",
-			       req->rq_disk ? req->rq_disk->disk_name : "");
+			if (!(req->flags & REQ_QUIET))
+				dev_printk(KERN_INFO,
+					   &cmd->device->sdev_gendev,
+					   "Device not ready.\n");
 			cmd = scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:
-			printk(KERN_INFO "Volume overflow <%d %d %d %d> CDB: ",
-			       cmd->device->host->host_no,
-			       (int)cmd->device->channel,
-			       (int)cmd->device->id, (int)cmd->device->lun);
-			__scsi_print_command(cmd->data_cmnd);
-			scsi_print_sense("", cmd);
+			if (!(req->flags & REQ_QUIET)) {
+				dev_printk(KERN_INFO,
+					   &cmd->device->sdev_gendev,
+					   "Volume overflow, CDB: ");
+				__scsi_print_command(cmd->data_cmnd);
+				scsi_print_sense("", cmd);
+			}
 			cmd = scsi_end_request(cmd, 0, block_bytes, 1);
 			return;
 		default:
@@ -954,15 +957,13 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 		return;
 	}
 	if (result) {
-		if (!(req->flags & REQ_SPECIAL))
-			printk(KERN_INFO "SCSI error : <%d %d %d %d> return code "
-			       "= 0x%x\n", cmd->device->host->host_no,
-			       cmd->device->channel,
-			       cmd->device->id,
-			       cmd->device->lun, result);
+		if (!(req->flags & REQ_QUIET)) {
+			dev_printk(KERN_INFO, &cmd->device->sdev_gendev,
+				   "SCSI error: return code = 0x%x\n", result);
 
-		if (driver_byte(result) & DRIVER_SENSE)
-			scsi_print_sense("", cmd);
+			if (driver_byte(result) & DRIVER_SENSE)
+				scsi_print_sense("", cmd);
+		}
 		/*
 		 * Mark a single buffer as not uptodate.  Queue the remainder.
 		 * We sometimes get this cruft in the event that a medium error
