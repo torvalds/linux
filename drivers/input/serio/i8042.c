@@ -1066,8 +1066,9 @@ static int __init i8042_init(void)
 	init_timer(&i8042_timer);
 	i8042_timer.function = i8042_timer_func;
 
-	if (i8042_platform_init())
-		return -EBUSY;
+	err = i8042_platform_init();
+	if (err)
+		return err;
 
 	i8042_ports[I8042_AUX_PORT_NO].irq = I8042_AUX_IRQ;
 	i8042_ports[I8042_KBD_PORT_NO].irq = I8042_KBD_IRQ;

@@ -256,7 +256,7 @@ static void i8042_pnp_exit(void)
 	}
 }
 
-static int i8042_pnp_init(void)
+static int __init i8042_pnp_init(void)
 {
 	int result_kbd, result_aux;
 
@@ -322,25 +322,29 @@ static int i8042_pnp_init(void)
 	return 0;
 }
 
+#else
+static inline int i8042_pnp_init(void) { return 0; }
+static inline void i8042_pnp_exit(void) { }
 #endif
 
-static inline int i8042_platform_init(void)
+static int __init i8042_platform_init(void)
 {
+	int retval;
+
 /*
  * On ix86 platforms touching the i8042 data register region can do really
  * bad things. Because of this the region is always reserved on ix86 boxes.
  *
  *	if (!request_region(I8042_DATA_REG, 16, "i8042"))
- *		return -1;
+ *		return -EBUSY;
  */
 
 	i8042_kbd_irq = I8042_MAP_IRQ(1);
 	i8042_aux_irq = I8042_MAP_IRQ(12);
 
-#ifdef CONFIG_PNP
-	if (i8042_pnp_init())
-		return -1;
-#endif
+	retval = i8042_pnp_init();
+	if (retval)
+		return retval;
 
 #if defined(__ia64__)
         i8042_reset = 1;
@@ -354,14 +358,12 @@ static inline int i8042_platform_init(void)
 		i8042_nomux = 1;
 #endif
 
-	return 0;
+	return retval;
 }
 
 static inline void i8042_platform_exit(void)
 {
-#ifdef CONFIG_PNP
 	i8042_pnp_exit();
-#endif
 }
 
 #endif /* _I8042_X86IA64IO_H */
