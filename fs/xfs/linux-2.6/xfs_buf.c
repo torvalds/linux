@@ -590,8 +590,10 @@ found:
 		PB_SET_OWNER(pb);
 	}
 
-	if (pb->pb_flags & PBF_STALE)
+	if (pb->pb_flags & PBF_STALE) {
+		ASSERT((pb->pb_flags & _PBF_DELWRI_Q) == 0);
 		pb->pb_flags &= PBF_MAPPED;
+	}
 	PB_TRACE(pb, "got_lock", 0);
 	XFS_STATS_INC(pb_get_locked);
 	return (pb);
@@ -872,6 +874,17 @@ pagebuf_rele(
 
 	PB_TRACE(pb, "rele", pb->pb_relse);
 
+	/*
+	 * pagebuf_lookup buffers are not hashed, not delayed write,
+	 * and don't have their own release routines.  Special case.
+	 */
+	if (unlikely(!hash)) {
+		ASSERT(!pb->pb_relse);
+		if (atomic_dec_and_test(&pb->pb_hold))
+			xfs_buf_free(pb);
+		return;
+	}
+
 	if (atomic_dec_and_lock(&pb->pb_hold, &hash->bh_lock)) {
 		int		do_free = 1;
 
@@ -883,22 +896,23 @@ pagebuf_rele(
 			do_free = 0;
 		}
 
-		if (pb->pb_flags & PBF_DELWRI) {
-			pb->pb_flags |= PBF_ASYNC;
-			atomic_inc(&pb->pb_hold);
-			pagebuf_delwri_queue(pb, 0);
-			do_free = 0;
-		} else if (pb->pb_flags & PBF_FS_MANAGED) {
+		if (pb->pb_flags & PBF_FS_MANAGED) {
 			do_free = 0;
 		}
 
 		if (do_free) {
+			ASSERT((pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q)) == 0);
 			list_del_init(&pb->pb_hash_list);
 			spin_unlock(&hash->bh_lock);
 			pagebuf_free(pb);
 		} else {
 			spin_unlock(&hash->bh_lock);
 		}
+	} else {
+		/*
+		 * Catch reference count leaks
+		 */
+		ASSERT(atomic_read(&pb->pb_hold) >= 0);
 	}
 }
 
@@ -976,13 +990,24 @@ pagebuf_lock(
  *	pagebuf_unlock
  *
  *	pagebuf_unlock releases the lock on the buffer object created by
- *	pagebuf_lock or pagebuf_cond_lock (not any
- *	pinning of underlying pages created by pagebuf_pin).
+ *	pagebuf_lock or pagebuf_cond_lock (not any pinning of underlying pages
+ *	created by pagebuf_pin).
+ *
+ *	If the buffer is marked delwri but is not queued, do so before we
+ *	unlock the buffer as we need to set flags correctly. We also need to
+ *	take a reference for the delwri queue because the unlocker is going to
+ *	drop their's and they don't know we just queued it.
  */
 void
 pagebuf_unlock(				/* unlock buffer		*/
 	xfs_buf_t		*pb)	/* buffer to unlock		*/
 {
+	if ((pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q)) == PBF_DELWRI) {
+		atomic_inc(&pb->pb_hold);
+		pb->pb_flags |= PBF_ASYNC;
+		pagebuf_delwri_queue(pb, 0);
+	}
+
 	PB_CLEAR_OWNER(pb);
 	up(&pb->pb_sema);
 	PB_TRACE(pb, "unlock", 0);
@@ -1486,6 +1511,11 @@ again:
 			ASSERT(btp == bp->pb_target);
 			if (!(bp->pb_flags & PBF_FS_MANAGED)) {
 				spin_unlock(&hash->bh_lock);
+				/*
+				 * Catch superblock reference count leaks
+				 * immediately
+				 */
+				BUG_ON(bp->pb_bn == 0);
 				delay(100);
 				goto again;
 			}
@@ -1661,17 +1691,20 @@ pagebuf_delwri_queue(
 	int			unlock)
 {
 	PB_TRACE(pb, "delwri_q", (long)unlock);
-	ASSERT(pb->pb_flags & PBF_DELWRI);
+	ASSERT((pb->pb_flags & (PBF_DELWRI|PBF_ASYNC)) ==
+					(PBF_DELWRI|PBF_ASYNC));
 
 	spin_lock(&pbd_delwrite_lock);
 	/* If already in the queue, dequeue and place at tail */
 	if (!list_empty(&pb->pb_list)) {
+		ASSERT(pb->pb_flags & _PBF_DELWRI_Q);
 		if (unlock) {
 			atomic_dec(&pb->pb_hold);
 		}
 		list_del(&pb->pb_list);
 	}
 
+	pb->pb_flags |= _PBF_DELWRI_Q;
 	list_add_tail(&pb->pb_list, &pbd_delwrite_queue);
 	pb->pb_queuetime = jiffies;
 	spin_unlock(&pbd_delwrite_lock);
@@ -1688,10 +1721,11 @@ pagebuf_delwri_dequeue(
 
 	spin_lock(&pbd_delwrite_lock);
 	if ((pb->pb_flags & PBF_DELWRI) && !list_empty(&pb->pb_list)) {
+		ASSERT(pb->pb_flags & _PBF_DELWRI_Q);
 		list_del_init(&pb->pb_list);
 		dequeued = 1;
 	}
-	pb->pb_flags &= ~PBF_DELWRI;
+	pb->pb_flags &= ~(PBF_DELWRI|_PBF_DELWRI_Q);
 	spin_unlock(&pbd_delwrite_lock);
 
 	if (dequeued)
@@ -1770,7 +1804,7 @@ xfsbufd(
 					break;
 				}
 
-				pb->pb_flags &= ~PBF_DELWRI;
+				pb->pb_flags &= ~(PBF_DELWRI|_PBF_DELWRI_Q);
 				pb->pb_flags |= PBF_WRITE;
 				list_move(&pb->pb_list, &tmp);
 			}
@@ -1820,15 +1854,13 @@ xfs_flush_buftarg(
 		if (pb->pb_target != target)
 			continue;
 
-		ASSERT(pb->pb_flags & PBF_DELWRI);
+		ASSERT(pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q));
 		PB_TRACE(pb, "walkq2", (long)pagebuf_ispin(pb));
 		if (pagebuf_ispin(pb)) {
 			pincount++;
 			continue;
 		}
 
-		pb->pb_flags &= ~PBF_DELWRI;
-		pb->pb_flags |= PBF_WRITE;
 		list_move(&pb->pb_list, &tmp);
 	}
 	spin_unlock(&pbd_delwrite_lock);
@@ -1837,12 +1869,14 @@ xfs_flush_buftarg(
 	 * Dropped the delayed write list lock, now walk the temporary list
 	 */
 	list_for_each_entry_safe(pb, n, &tmp, pb_list) {
+		pagebuf_lock(pb);
+		pb->pb_flags &= ~(PBF_DELWRI|_PBF_DELWRI_Q);
+		pb->pb_flags |= PBF_WRITE;
 		if (wait)
 			pb->pb_flags &= ~PBF_ASYNC;
 		else
 			list_del_init(&pb->pb_list);
 
-		pagebuf_lock(pb);
 		pagebuf_iostrategy(pb);
 	}
 

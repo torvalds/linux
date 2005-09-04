@@ -89,6 +89,7 @@ typedef enum page_buf_flags_e {		/* pb_flags values */
 	_PBF_PAGE_CACHE = (1 << 17),/* backed by pagecache		   */
 	_PBF_KMEM_ALLOC = (1 << 18),/* backed by kmem_alloc()		   */
 	_PBF_RUN_QUEUES = (1 << 19),/* run block device task queue	   */
+	_PBF_DELWRI_Q = (1 << 21),   /* buffer on delwri queue		   */
 } page_buf_flags_t;
 
 #define PBF_UPDATE (PBF_READ | PBF_WRITE)
@@ -334,8 +335,6 @@ extern void pagebuf_trace(
 
 #define pagebuf_target_name(target)	\
 	({ char __b[BDEVNAME_SIZE]; bdevname((target)->pbr_bdev, __b); __b; })
-
-
 
 
 
