@@ -1,5 +1,12 @@
-#ifndef _PPC_TERMBITS_H
-#define _PPC_TERMBITS_H
+#ifndef _POWERPC_TERMBITS_H
+#define _POWERPC_TERMBITS_H
+
+/*
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ */
 
 typedef unsigned char	cc_t;
 typedef unsigned int	speed_t;
@@ -24,17 +31,16 @@ struct termios {
 };
 
 /* c_cc characters */
-#define VINTR 	0
-#define VQUIT 	1
-#define VERASE 	2
-#define VKILL	3
-#define VEOF	4
-#define VMIN	5
-#define VEOL	6
-#define VTIME	7
-#define VEOL2	8
-#define VSWTC	9
-
+#define VINTR 	         0
+#define VQUIT 	         1
+#define VERASE 	         2
+#define VKILL	         3
+#define VEOF	         4
+#define VMIN	         5
+#define VEOL	         6
+#define VTIME	         7
+#define VEOL2	         8
+#define VSWTC	         9
 #define VWERASE 	10
 #define VREPRINT	11
 #define VSUSP 		12
@@ -55,10 +61,10 @@ struct termios {
 #define ICRNL	0000400
 #define IXON	0001000
 #define IXOFF	0002000
-#define IXANY		0004000
-#define IUCLC		0010000
+#define IXANY	0004000
+#define IUCLC	0010000
 #define IMAXBEL	0020000
-#define IUTF8	0040000
+#define	IUTF8	0040000
 
 /* c_oflag bits */
 #define OPOST	0000001
@@ -115,9 +121,9 @@ struct termios {
 #define  B9600	0000015
 #define  B19200	0000016
 #define  B38400	0000017
-#define EXTA B19200
-#define EXTB B38400
-#define CBAUDEX 0000000
+#define  EXTA   B19200
+#define  EXTB   B38400
+#define  CBAUDEX 0000000
 #define  B57600   00020
 #define  B115200  00021
 #define  B230400  00022
@@ -182,4 +188,4 @@ struct termios {
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 
-#endif /* _PPC_TERMBITS_H */
+#endif /* _POWERPC_TERMBITS_H */
