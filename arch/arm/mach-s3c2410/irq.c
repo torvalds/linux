@@ -184,14 +184,14 @@ struct irqchip s3c_irq_level_chip = {
 	.ack	   = s3c_irq_maskack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.wake	   = s3c_irq_wake
+	.set_wake	   = s3c_irq_wake
 };
 
 static struct irqchip s3c_irq_chip = {
 	.ack	   = s3c_irq_ack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.wake	   = s3c_irq_wake
+	.set_wake	   = s3c_irq_wake
 };
 
 /* S3C2410_EINTMASK
@@ -350,16 +350,16 @@ static struct irqchip s3c_irqext_chip = {
 	.mask	    = s3c_irqext_mask,
 	.unmask	    = s3c_irqext_unmask,
 	.ack	    = s3c_irqext_ack,
-	.type	    = s3c_irqext_type,
-	.wake	    = s3c_irqext_wake
+	.set_type    = s3c_irqext_type,
+	.set_wake    = s3c_irqext_wake
 };
 
 static struct irqchip s3c_irq_eint0t4 = {
 	.ack	   = s3c_irq_ack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.wake	   = s3c_irq_wake,
-	.type	   = s3c_irqext_type,
+	.set_wake  = s3c_irq_wake,
+	.set_type  = s3c_irqext_type,
 };
 
 /* mask values for the parent registers for each of the interrupt types */

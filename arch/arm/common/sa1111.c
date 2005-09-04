@@ -268,8 +268,8 @@ static struct irqchip sa1111_low_chip = {
 	.mask		= sa1111_mask_lowirq,
 	.unmask		= sa1111_unmask_lowirq,
 	.retrigger	= sa1111_retrigger_lowirq,
-	.type		= sa1111_type_lowirq,
-	.wake		= sa1111_wake_lowirq,
+	.set_type	= sa1111_type_lowirq,
+	.set_wake	= sa1111_wake_lowirq,
 };
 
 static void sa1111_mask_highirq(unsigned int irq)
@@ -364,8 +364,8 @@ static struct irqchip sa1111_high_chip = {
 	.mask		= sa1111_mask_highirq,
 	.unmask		= sa1111_unmask_highirq,
 	.retrigger	= sa1111_retrigger_highirq,
-	.type		= sa1111_type_highirq,
-	.wake		= sa1111_wake_highirq,
+	.set_type	= sa1111_type_highirq,
+	.set_wake	= sa1111_wake_highirq,
 };
 
 static void sa1111_setup_irq(struct sa1111 *sachip)

@@ -98,8 +98,8 @@ static struct irqchip sa1100_low_gpio_chip = {
 	.ack		= sa1100_low_gpio_ack,
 	.mask		= sa1100_low_gpio_mask,
 	.unmask		= sa1100_low_gpio_unmask,
-	.type		= sa1100_gpio_type,
-	.wake		= sa1100_low_gpio_wake,
+	.set_type	= sa1100_gpio_type,
+	.set_wake	= sa1100_low_gpio_wake,
 };
 
 /*
@@ -181,8 +181,8 @@ static struct irqchip sa1100_high_gpio_chip = {
 	.ack		= sa1100_high_gpio_ack,
 	.mask		= sa1100_high_gpio_mask,
 	.unmask		= sa1100_high_gpio_unmask,
-	.type		= sa1100_gpio_type,
-	.wake		= sa1100_high_gpio_wake,
+	.set_type	= sa1100_gpio_type,
+	.set_wake	= sa1100_high_gpio_wake,
 };
 
 /*

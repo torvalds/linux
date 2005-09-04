@@ -214,7 +214,7 @@ static struct irqchip imx_gpio_chip = {
 	.ack = imx_gpio_ack_irq,
 	.mask = imx_gpio_mask_irq,
 	.unmask = imx_gpio_unmask_irq,
-	.type = imx_gpio_irq_type,
+	.set_type = imx_gpio_irq_type,
 };
 
 void __init

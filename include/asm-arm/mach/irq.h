@@ -42,11 +42,11 @@ struct irqchip {
 	/*
 	 * Set the type of the IRQ.
 	 */
-	int (*type)(unsigned int, unsigned int);
+	int (*set_type)(unsigned int, unsigned int);
 	/*
 	 * Set wakeup-enable on the selected IRQ
 	 */
-	int (*wake)(unsigned int, unsigned int);
+	int (*set_wake)(unsigned int, unsigned int);
 
 #ifdef CONFIG_SMP
 	/*

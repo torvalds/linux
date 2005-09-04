@@ -133,7 +133,7 @@ static struct irqchip pxa_low_gpio_chip = {
 	.ack		= pxa_ack_low_gpio,
 	.mask		= pxa_mask_low_irq,
 	.unmask		= pxa_unmask_low_irq,
-	.type		= pxa_gpio_irq_type,
+	.set_type	= pxa_gpio_irq_type,
 };
 
 /*
@@ -241,7 +241,7 @@ static struct irqchip pxa_muxed_gpio_chip = {
 	.ack		= pxa_ack_muxed_gpio,
 	.mask		= pxa_mask_muxed_gpio,
 	.unmask		= pxa_unmask_muxed_gpio,
-	.type		= pxa_gpio_irq_type,
+	.set_type	= pxa_gpio_irq_type,
 };
 
 
