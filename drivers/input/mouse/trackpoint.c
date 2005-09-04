@@ -19,54 +19,6 @@
 #include "psmouse.h"
 #include "trackpoint.h"
 
-PSMOUSE_DEFINE_ATTR(sensitivity);
-PSMOUSE_DEFINE_ATTR(speed);
-PSMOUSE_DEFINE_ATTR(inertia);
-PSMOUSE_DEFINE_ATTR(reach);
-PSMOUSE_DEFINE_ATTR(draghys);
-PSMOUSE_DEFINE_ATTR(mindrag);
-PSMOUSE_DEFINE_ATTR(thresh);
-PSMOUSE_DEFINE_ATTR(upthresh);
-PSMOUSE_DEFINE_ATTR(ztime);
-PSMOUSE_DEFINE_ATTR(jenks);
-PSMOUSE_DEFINE_ATTR(press_to_select);
-PSMOUSE_DEFINE_ATTR(skipback);
-PSMOUSE_DEFINE_ATTR(ext_dev);
-
-#define MAKE_ATTR_READ(_item) \
-	static ssize_t psmouse_attr_show_##_item(struct psmouse *psmouse, char *buf) \
-	{ \
-		struct trackpoint_data *tp = psmouse->private; \
-		return sprintf(buf, "%lu\n", (unsigned long)tp->_item); \
-	}
-
-#define MAKE_ATTR_WRITE(_item, command) \
-	static ssize_t psmouse_attr_set_##_item(struct psmouse *psmouse, const char *buf, size_t count) \
-	{ \
-		char *rest; \
-		unsigned long value; \
-		struct trackpoint_data *tp = psmouse->private; \
-		value = simple_strtoul(buf, &rest, 10); \
-		if (*rest) \
-			return -EINVAL; \
-		tp->_item = value; \
-		trackpoint_write(&psmouse->ps2dev, command, tp->_item); \
-		return count; \
-	}
-
-#define MAKE_ATTR_TOGGLE(_item, command, mask) \
-	static ssize_t psmouse_attr_set_##_item(struct psmouse *psmouse, const char *buf, size_t count) \
-	{ \
-		unsigned char toggle; \
-		struct trackpoint_data *tp = psmouse->private; \
-		toggle = (buf[0] == '1') ? 1 : 0; \
-		if (toggle != tp->_item) { \
-			tp->_item = toggle; \
-			trackpoint_toggle_bit(&psmouse->ps2dev, command, mask); \
-		} \
-		return count; \
-	}
-
 /*
  * Device IO: read, write and toggle bit
  */
@@ -108,59 +60,114 @@ static int trackpoint_toggle_bit(struct ps2dev *ps2dev, unsigned char loc, unsig
 	return 0;
 }
 
-MAKE_ATTR_WRITE(sensitivity, TP_SENS);
-MAKE_ATTR_READ(sensitivity);
 
-MAKE_ATTR_WRITE(speed, TP_SPEED);
-MAKE_ATTR_READ(speed);
+/*
+ * Trackpoint-specific attributes
+ */
+struct trackpoint_attr_data {
+	size_t field_offset;
+	unsigned char command;
+	unsigned char mask;
+};
 
-MAKE_ATTR_WRITE(inertia, TP_INERTIA);
-MAKE_ATTR_READ(inertia);
+static ssize_t trackpoint_show_int_attr(struct psmouse *psmouse, void *data, char *buf)
+{
+	struct trackpoint_data *tp = psmouse->private;
+	struct trackpoint_attr_data *attr = data;
+	unsigned char *field = (unsigned char *)((char *)tp + attr->field_offset);
 
-MAKE_ATTR_WRITE(reach, TP_REACH);
-MAKE_ATTR_READ(reach);
+	return sprintf(buf, "%u\n", *field);
+}
 
-MAKE_ATTR_WRITE(draghys, TP_DRAGHYS);
-MAKE_ATTR_READ(draghys);
+static ssize_t trackpoint_set_int_attr(struct psmouse *psmouse, void *data,
+					const char *buf, size_t count)
+{
+	struct trackpoint_data *tp = psmouse->private;
+	struct trackpoint_attr_data *attr = data;
+	unsigned char *field = (unsigned char *)((char *)tp + attr->field_offset);
+	unsigned long value;
+	char *rest;
 
-MAKE_ATTR_WRITE(mindrag, TP_MINDRAG);
-MAKE_ATTR_READ(mindrag);
+	value = simple_strtoul(buf, &rest, 10);
+	if (*rest || value > 255)
+		return -EINVAL;
 
-MAKE_ATTR_WRITE(thresh, TP_THRESH);
-MAKE_ATTR_READ(thresh);
+	*field = value;
+	trackpoint_write(&psmouse->ps2dev, attr->command, value);
 
-MAKE_ATTR_WRITE(upthresh, TP_UP_THRESH);
-MAKE_ATTR_READ(upthresh);
+	return count;
+}
 
-MAKE_ATTR_WRITE(ztime, TP_Z_TIME);
-MAKE_ATTR_READ(ztime);
+#define TRACKPOINT_INT_ATTR(_name, _command)					\
+	static struct trackpoint_attr_data trackpoint_attr_##_name = {		\
+		.field_offset = offsetof(struct trackpoint_data, _name),	\
+		.command = _command,						\
+	};									\
+	PSMOUSE_DEFINE_ATTR(_name, S_IWUSR | S_IRUGO,				\
+			    &trackpoint_attr_##_name,				\
+			    trackpoint_show_int_attr, trackpoint_set_int_attr)
 
-MAKE_ATTR_WRITE(jenks, TP_JENKS_CURV);
-MAKE_ATTR_READ(jenks);
+static ssize_t trackpoint_set_bit_attr(struct psmouse *psmouse, void *data,
+					const char *buf, size_t count)
+{
+	struct trackpoint_data *tp = psmouse->private;
+	struct trackpoint_attr_data *attr = data;
+	unsigned char *field = (unsigned char *)((char *)tp + attr->field_offset);
+	unsigned long value;
+	char *rest;
 
-MAKE_ATTR_TOGGLE(press_to_select, TP_TOGGLE_PTSON, TP_MASK_PTSON);
-MAKE_ATTR_READ(press_to_select);
+	value = simple_strtoul(buf, &rest, 10);
+	if (*rest || value > 1)
+		return -EINVAL;
 
-MAKE_ATTR_TOGGLE(skipback, TP_TOGGLE_SKIPBACK, TP_MASK_SKIPBACK);
-MAKE_ATTR_READ(skipback);
+	if (*field != value) {
+		*field = value;
+		trackpoint_toggle_bit(&psmouse->ps2dev, attr->command, attr->mask);
+	}
 
-MAKE_ATTR_TOGGLE(ext_dev, TP_TOGGLE_EXT_DEV, TP_MASK_EXT_DEV);
-MAKE_ATTR_READ(ext_dev);
+	return count;
+}
+
+
+#define TRACKPOINT_BIT_ATTR(_name, _command, _mask)				\
+	static struct trackpoint_attr_data trackpoint_attr_##_name = {		\
+		.field_offset	= offsetof(struct trackpoint_data, _name),	\
+		.command	= _command,					\
+		.mask		= _mask,					\
+	};									\
+	PSMOUSE_DEFINE_ATTR(_name, S_IWUSR | S_IRUGO,				\
+			    &trackpoint_attr_##_name,				\
+			    trackpoint_show_int_attr, trackpoint_set_bit_attr)
+
+TRACKPOINT_INT_ATTR(sensitivity, TP_SENS);
+TRACKPOINT_INT_ATTR(speed, TP_SPEED);
+TRACKPOINT_INT_ATTR(inertia, TP_INERTIA);
+TRACKPOINT_INT_ATTR(reach, TP_REACH);
+TRACKPOINT_INT_ATTR(draghys, TP_DRAGHYS);
+TRACKPOINT_INT_ATTR(mindrag, TP_MINDRAG);
+TRACKPOINT_INT_ATTR(thresh, TP_THRESH);
+TRACKPOINT_INT_ATTR(upthresh, TP_UP_THRESH);
+TRACKPOINT_INT_ATTR(ztime, TP_Z_TIME);
+TRACKPOINT_INT_ATTR(jenks, TP_JENKS_CURV);
+
+TRACKPOINT_BIT_ATTR(press_to_select, TP_TOGGLE_PTSON, TP_MASK_PTSON);
+TRACKPOINT_BIT_ATTR(skipback, TP_TOGGLE_SKIPBACK, TP_MASK_SKIPBACK);
+TRACKPOINT_BIT_ATTR(ext_dev, TP_TOGGLE_EXT_DEV, TP_MASK_EXT_DEV);
 
 static struct attribute *trackpoint_attrs[] = {
-	&psmouse_attr_sensitivity.attr,
-	&psmouse_attr_speed.attr,
-	&psmouse_attr_inertia.attr,
-	&psmouse_attr_reach.attr,
-	&psmouse_attr_draghys.attr,
-	&psmouse_attr_mindrag.attr,
-	&psmouse_attr_thresh.attr,
-	&psmouse_attr_upthresh.attr,
-	&psmouse_attr_ztime.attr,
-	&psmouse_attr_jenks.attr,
-	&psmouse_attr_press_to_select.attr,
-	&psmouse_attr_skipback.attr,
-	&psmouse_attr_ext_dev.attr,
+	&psmouse_attr_sensitivity.dattr.attr,
+	&psmouse_attr_speed.dattr.attr,
+	&psmouse_attr_inertia.dattr.attr,
+	&psmouse_attr_reach.dattr.attr,
+	&psmouse_attr_draghys.dattr.attr,
+	&psmouse_attr_mindrag.dattr.attr,
+	&psmouse_attr_thresh.dattr.attr,
+	&psmouse_attr_upthresh.dattr.attr,
+	&psmouse_attr_ztime.dattr.attr,
+	&psmouse_attr_jenks.dattr.attr,
+	&psmouse_attr_press_to_select.dattr.attr,
+	&psmouse_attr_skipback.dattr.attr,
+	&psmouse_attr_ext_dev.dattr.attr,
 	NULL
 };
 

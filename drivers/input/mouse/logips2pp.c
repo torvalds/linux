@@ -150,12 +150,12 @@ static void ps2pp_set_smartscroll(struct psmouse *psmouse, unsigned int smartscr
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
 }
 
-static ssize_t psmouse_attr_show_smartscroll(struct psmouse *psmouse, char *buf)
+static ssize_t ps2pp_attr_show_smartscroll(struct psmouse *psmouse, void *data, char *buf)
 {
 	return sprintf(buf, "%d\n", psmouse->smartscroll ? 1 : 0);
 }
 
-static ssize_t psmouse_attr_set_smartscroll(struct psmouse *psmouse, const char *buf, size_t count)
+static ssize_t ps2pp_attr_set_smartscroll(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
 	char *rest;
@@ -169,7 +169,8 @@ static ssize_t psmouse_attr_set_smartscroll(struct psmouse *psmouse, const char 
 	return count;
 }
 
-PSMOUSE_DEFINE_ATTR(smartscroll);
+PSMOUSE_DEFINE_ATTR(smartscroll, S_IWUSR | S_IRUGO, NULL,
+			ps2pp_attr_show_smartscroll, ps2pp_attr_set_smartscroll);
 
 /*
  * Support 800 dpi resolution _only_ if the user wants it (there are good
@@ -194,7 +195,7 @@ static void ps2pp_set_resolution(struct psmouse *psmouse, unsigned int resolutio
 
 static void ps2pp_disconnect(struct psmouse *psmouse)
 {
-	device_remove_file(&psmouse->ps2dev.serio->dev, &psmouse_attr_smartscroll);
+	device_remove_file(&psmouse->ps2dev.serio->dev, &psmouse_attr_smartscroll.dattr);
 }
 
 static struct ps2pp_info *get_model_info(unsigned char model)
@@ -379,7 +380,8 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 				psmouse->set_resolution = ps2pp_set_resolution;
 				psmouse->disconnect = ps2pp_disconnect;
 
-				device_create_file(&psmouse->ps2dev.serio->dev, &psmouse_attr_smartscroll);
+				device_create_file(&psmouse->ps2dev.serio->dev,
+						   &psmouse_attr_smartscroll.dattr);
 			}
 		}
 
