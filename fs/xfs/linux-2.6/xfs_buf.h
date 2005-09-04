@@ -444,7 +444,7 @@ extern void pagebuf_trace(
 
 #define XFS_BUF_PTR(bp)		(xfs_caddr_t)((bp)->pb_addr)
 
-extern inline xfs_caddr_t xfs_buf_offset(xfs_buf_t *bp, size_t offset)
+static inline xfs_caddr_t xfs_buf_offset(xfs_buf_t *bp, size_t offset)
 {
 	if (bp->pb_flags & PBF_MAPPED)
 		return XFS_BUF_PTR(bp) + offset;
