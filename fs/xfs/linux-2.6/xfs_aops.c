@@ -136,10 +136,21 @@ xfs_end_bio_unwritten(
 	vnode_t			*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
+	struct buffer_head	*bh, *next;
 	int			error;
 
 	if (ioend->io_uptodate)
 		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
+
+	/* ioend->io_buffer_head is only non-NULL for buffered I/O */
+	for (bh = ioend->io_buffer_head; bh; bh = next) {
+		next = bh->b_private;
+
+		bh->b_end_io = NULL;
+		clear_buffer_unwritten(bh);
+		end_buffer_async_write(bh, ioend->io_uptodate);
+	}
+
 	xfs_destroy_ioend(ioend);
 }
 
@@ -165,6 +176,7 @@ xfs_alloc_ioend(
 	atomic_set(&ioend->io_remaining, 1);
 	ioend->io_uptodate = 1; /* cleared if any I/O fails */
 	ioend->io_vnode = LINVFS_GET_VP(inode);
+	ioend->io_buffer_head = NULL;
 	atomic_inc(&ioend->io_vnode->v_iocount);
 	ioend->io_offset = 0;
 	ioend->io_size = 0;
@@ -180,15 +192,26 @@ linvfs_unwritten_done(
 	int			uptodate)
 {
 	xfs_ioend_t		*ioend = bh->b_private;
+	static spinlock_t	unwritten_done_lock = SPIN_LOCK_UNLOCKED;
+	unsigned long		flags;
 
 	ASSERT(buffer_unwritten(bh));
 	bh->b_end_io = NULL;
-	clear_buffer_unwritten(bh);
+
 	if (!uptodate)
 		ioend->io_uptodate = 0;
 
+	/*
+	 * Deep magic here.  We reuse b_private in the buffer_heads to build
+	 * a chain for completing the I/O from user context after we've issued
+	 * a transaction to convert the unwritten extent.
+	 */
+	spin_lock_irqsave(&unwritten_done_lock, flags);
+	bh->b_private = ioend->io_buffer_head;
+	ioend->io_buffer_head = bh;
+	spin_unlock_irqrestore(&unwritten_done_lock, flags);
+
 	xfs_finish_ioend(ioend);
-	end_buffer_async_write(bh, uptodate);
 }
 
 STATIC int

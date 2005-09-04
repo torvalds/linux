@@ -41,6 +41,7 @@ typedef struct xfs_ioend {
 	unsigned int		io_uptodate;	/* I/O status register */
 	atomic_t		io_remaining;	/* hold count */
 	struct vnode		*io_vnode;	/* file being written to */
+	struct buffer_head	*io_buffer_head;/* buffer linked list head */
 	size_t			io_size;	/* size of the extent */
 	xfs_off_t		io_offset;	/* offset in the file */
 	struct work_struct	io_work;	/* xfsdatad work queue */
