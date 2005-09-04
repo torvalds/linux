@@ -714,6 +714,29 @@ xfs_trans_bhold(xfs_trans_t	*tp,
 }
 
 /*
+ * Cancel the previous buffer hold request made on this buffer
+ * for this transaction.
+ */
+void
+xfs_trans_bhold_release(xfs_trans_t	*tp,
+			xfs_buf_t	*bp)
+{
+	xfs_buf_log_item_t	*bip;
+
+	ASSERT(XFS_BUF_ISBUSY(bp));
+	ASSERT(XFS_BUF_FSPRIVATE2(bp, xfs_trans_t *) == tp);
+	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
+
+	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
+	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
+	ASSERT(!(bip->bli_format.blf_flags & XFS_BLI_CANCEL));
+	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(bip->bli_flags & XFS_BLI_HOLD);
+	bip->bli_flags &= ~XFS_BLI_HOLD;
+	xfs_buf_item_trace("BHOLD RELEASE", bip);
+}
+
+/*
  * This is called to mark bytes first through last inclusive of the given
  * buffer as needing to be logged when the transaction is committed.
  * The buffer must already be associated with the given transaction.
