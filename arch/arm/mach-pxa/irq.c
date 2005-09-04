@@ -157,7 +157,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			mask >>= 2;
 			do {
 				if (mask & 1)
-					desc->handle(irq, desc, regs);
+					desc_handle_irq(irq, desc, regs);
 				irq++;
 				desc++;
 				mask >>= 1;
@@ -172,7 +172,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			desc = irq_desc + irq;
 			do {
 				if (mask & 1)
-					desc->handle(irq, desc, regs);
+					desc_handle_irq(irq, desc, regs);
 				irq++;
 				desc++;
 				mask >>= 1;
@@ -187,7 +187,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			desc = irq_desc + irq;
 			do {
 				if (mask & 1)
-					desc->handle(irq, desc, regs);
+					desc_handle_irq(irq, desc, regs);
 				irq++;
 				desc++;
 				mask >>= 1;
@@ -203,7 +203,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			desc = irq_desc + irq;
 			do {
 				if (mask & 1)
-					desc->handle(irq, desc, regs);
+					desc_handle_irq(irq, desc, regs);
 				irq++;
 				desc++;
 				mask >>= 1;

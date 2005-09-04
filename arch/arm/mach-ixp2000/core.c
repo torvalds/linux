@@ -317,7 +317,7 @@ static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irqdesc *desc, str
 	for (i = 0; i <= 7; i++) {
 		if (status & (1<<i)) {
 			desc = irq_desc + i + IRQ_IXP2000_GPIO0;
-			desc->handle(i + IRQ_IXP2000_GPIO0, desc, regs);
+			desc_handle_irq(i + IRQ_IXP2000_GPIO0, desc, regs);
 		}
 	}
 }

@@ -517,7 +517,7 @@ static void do_pending_irqs(struct pt_regs *regs)
 		list_for_each_safe(l, n, &head) {
 			desc = list_entry(l, struct irqdesc, pend);
 			list_del_init(&desc->pend);
-			desc->handle(desc - irq_desc, desc, regs);
+			desc_handle_irq(desc - irq_desc, desc, regs);
 		}
 
 		/*
@@ -545,7 +545,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_enter();
 	spin_lock(&irq_controller_lock);
-	desc->handle(irq, desc, regs);
+	desc_handle_irq(irq, desc, regs);
 
 	/*
 	 * Now re-run any pending interrupts.

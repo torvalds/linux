@@ -152,7 +152,7 @@ imx_gpio_handler(unsigned int mask, unsigned int irq,
 	while (mask) {
 		if (mask & 1) {
 			DEBUG_IRQ("handling irq %d\n", irq);
-			desc->handle(irq, desc, regs);
+			desc_handle_irq(irq, desc, regs);
 		}
 		irq++;
 		desc++;

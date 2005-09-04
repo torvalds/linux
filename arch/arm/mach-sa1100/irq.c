@@ -126,7 +126,7 @@ sa1100_high_gpio_handler(unsigned int irq, struct irqdesc *desc,
 		mask >>= 11;
 		do {
 			if (mask & 1)
-				desc->handle(irq, desc, regs);
+				desc_handle_irq(irq, desc, regs);
 			mask >>= 1;
 			irq++;
 			desc++;

@@ -177,7 +177,7 @@ static void locomo_handler(unsigned int irq, struct irqdesc *desc,
 		d = irq_desc + irq;
 		for (i = 0; i <= 3; i++, d++, irq++) {
 			if (req & (0x0100 << i)) {
-				d->handle(irq, d, regs);
+				desc_handle_irq(irq, d, regs);
 			}
 
 		}
@@ -220,7 +220,7 @@ static void locomo_key_handler(unsigned int irq, struct irqdesc *desc,
 
 	if (locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC) & 0x0001) {
 		d = irq_desc + LOCOMO_IRQ_KEY_START;
-		d->handle(LOCOMO_IRQ_KEY_START, d, regs);
+		desc_handle_irq(LOCOMO_IRQ_KEY_START, d, regs);
 	}
 }
 
@@ -273,7 +273,7 @@ static void locomo_gpio_handler(unsigned int irq, struct irqdesc *desc,
 		d = irq_desc + LOCOMO_IRQ_GPIO_START;
 		for (i = 0; i <= 15; i++, irq++, d++) {
 			if (req & (0x0001 << i)) {
-				d->handle(irq, d, regs);
+				desc_handle_irq(irq, d, regs);
 			}
 		}
 	}
@@ -328,7 +328,7 @@ static void locomo_lt_handler(unsigned int irq, struct irqdesc *desc,
 
 	if (locomo_readl(mapbase + LOCOMO_LTINT) & 0x0001) {
 		d = irq_desc + LOCOMO_IRQ_LT_START;
-		d->handle(LOCOMO_IRQ_LT_START, d, regs);
+		desc_handle_irq(LOCOMO_IRQ_LT_START, d, regs);
 	}
 }
 
@@ -379,7 +379,7 @@ static void locomo_spi_handler(unsigned int irq, struct irqdesc *desc,
 
 		for (i = 0; i <= 3; i++, irq++, d++) {
 			if (req & (0x0001 << i)) {
-				d->handle(irq, d, regs);
+				desc_handle_irq(irq, d, regs);
 			}
 		}
 	}
