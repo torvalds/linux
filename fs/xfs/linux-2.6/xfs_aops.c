@@ -126,7 +126,7 @@ xfs_destroy_ioend(
 
 /*
  * Issue transactions to convert a buffer range from unwritten
- * to written extents (buffered IO).
+ * to written extents.
  */
 STATIC void
 xfs_end_bio_unwritten(
@@ -189,29 +189,6 @@ linvfs_unwritten_done(
 
 	xfs_finish_ioend(ioend);
 	end_buffer_async_write(bh, uptodate);
-}
-
-/*
- * Issue transactions to convert a buffer range from unwritten
- * to written extents (direct IO).
- */
-STATIC void
-linvfs_unwritten_convert_direct(
-	struct kiocb	*iocb,
-	loff_t		offset,
-	ssize_t		size,
-	void		*private)
-{
-	struct inode	*inode = iocb->ki_filp->f_dentry->d_inode;
-	ASSERT(!private || inode == (struct inode *)private);
-
-	/* private indicates an unwritten extent lay beneath this IO */
-	if (private && size > 0) {
-		vnode_t	*vp = LINVFS_GET_VP(inode);
-		int	error;
-
-		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
-	}
 }
 
 STATIC int
@@ -1045,6 +1022,44 @@ linvfs_get_blocks_direct(
 					create, 1, BMAPI_WRITE|BMAPI_DIRECT);
 }
 
+STATIC void
+linvfs_end_io_direct(
+	struct kiocb	*iocb,
+	loff_t		offset,
+	ssize_t		size,
+	void		*private)
+{
+	xfs_ioend_t	*ioend = iocb->private;
+
+	/*
+	 * Non-NULL private data means we need to issue a transaction to
+	 * convert a range from unwritten to written extents.  This needs
+	 * to happen from process contect but aio+dio I/O completion
+	 * happens from irq context so we need to defer it to a workqueue.
+	 * This is not nessecary for synchronous direct I/O, but we do
+	 * it anyway to keep the code uniform and simpler.
+	 *
+	 * The core direct I/O code might be changed to always call the
+	 * completion handler in the future, in which case all this can
+	 * go away.
+	 */
+	if (private && size > 0) {
+		ioend->io_offset = offset;
+		ioend->io_size = size;
+		xfs_finish_ioend(ioend);
+	} else {
+		ASSERT(size >= 0);
+		xfs_destroy_ioend(ioend);
+	}
+
+	/*
+	 * blockdev_direct_IO can return an error even afer the I/O
+	 * completion handler was called.  Thus we need to protect
+	 * against double-freeing.
+	 */
+	iocb->private = NULL;
+}
+
 STATIC ssize_t
 linvfs_direct_IO(
 	int			rw,
@@ -1059,16 +1074,23 @@ linvfs_direct_IO(
 	xfs_iomap_t	iomap;
 	int		maps = 1;
 	int		error;
+	ssize_t		ret;
 
 	VOP_BMAP(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps, error);
 	if (error)
 		return -error;
 
-	return blockdev_direct_IO_own_locking(rw, iocb, inode,
+	iocb->private = xfs_alloc_ioend(inode);
+
+	ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
 		iomap.iomap_target->pbr_bdev,
 		iov, offset, nr_segs,
 		linvfs_get_blocks_direct,
-		linvfs_unwritten_convert_direct);
+		linvfs_end_io_direct);
+
+	if (unlikely(ret <= 0 && iocb->private))
+		xfs_destroy_ioend(iocb->private);
+	return ret;
 }
 
 
