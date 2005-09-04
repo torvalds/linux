@@ -296,7 +296,8 @@ static int wl3501_get_flash_mac_addr(struct wl3501_card *this)
  *
  * Move 'size' bytes from PC to card. (Shouldn't be interrupted)
  */
-void wl3501_set_to_wla(struct wl3501_card *this, u16 dest, void *src, int size)
+static void wl3501_set_to_wla(struct wl3501_card *this, u16 dest, void *src,
+			      int size)
 {
 	/* switch to SRAM Page 0 */
 	wl3501_switch_page(this, (dest & 0x8000) ? WL3501_BSS_SPAGE1 :
@@ -317,8 +318,8 @@ void wl3501_set_to_wla(struct wl3501_card *this, u16 dest, void *src, int size)
  *
  * Move 'size' bytes from card to PC. (Shouldn't be interrupted)
  */
-void wl3501_get_from_wla(struct wl3501_card *this, u16 src, void *dest,
-			 int size)
+static void wl3501_get_from_wla(struct wl3501_card *this, u16 src, void *dest,
+				int size)
 {
 	/* switch to SRAM Page 0 */
 	wl3501_switch_page(this, (src & 0x8000) ? WL3501_BSS_SPAGE1 :
@@ -1438,14 +1439,14 @@ fail:
 	goto out;
 }
 
-struct net_device_stats *wl3501_get_stats(struct net_device *dev)
+static struct net_device_stats *wl3501_get_stats(struct net_device *dev)
 {
 	struct wl3501_card *this = dev->priv;
 
 	return &this->stats;
 }
 
-struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
+static struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 {
 	struct wl3501_card *this = dev->priv;
 	struct iw_statistics *wstats = &this->wstats;

@@ -75,6 +75,11 @@ static int drm_fill_in_dev(drm_device_t *dev, struct pci_dev *pdev, const struct
 	dev->pci_func = PCI_FUNC(pdev->devfn);
 	dev->irq = pdev->irq;
 
+	dev->maplist = drm_calloc(1, sizeof(*dev->maplist), DRM_MEM_MAPS);
+	if (dev->maplist == NULL)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&dev->maplist->head);
+
 	/* the DRM has 6 basic counters */
 	dev->counters = 6;
 	dev->types[0]  = _DRM_STAT_LOCK;
@@ -91,7 +96,8 @@ static int drm_fill_in_dev(drm_device_t *dev, struct pci_dev *pdev, const struct
 			goto error_out_unreg;
 
 	if (drm_core_has_AGP(dev)) {
-		dev->agp = drm_agp_init(dev);
+		if (drm_device_is_agp(dev))
+			dev->agp = drm_agp_init(dev);
 		if (drm_core_check_feature(dev, DRIVER_REQUIRE_AGP) && (dev->agp == NULL)) {
 			DRM_ERROR( "Cannot initialize the agpgart module.\n" );
 			retcode = -EINVAL;

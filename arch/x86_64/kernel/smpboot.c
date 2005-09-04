@@ -334,7 +334,7 @@ static void __cpuinit tsc_sync_wait(void)
 {
 	if (notscsync || !cpu_has_tsc)
 		return;
-	sync_tsc(boot_cpu_id);
+	sync_tsc(0);
 }
 
 static __init int notscsync_setup(char *s)
@@ -492,6 +492,14 @@ void __cpuinit start_secondary(void)
 	 */
 	set_cpu_sibling_map(smp_processor_id());
 
+	/* 
+  	 * Wait for TSC sync to not schedule things before.
+	 * We still process interrupts, which could see an inconsistent
+	 * time in that window unfortunately. 
+	 * Do this here because TSC sync has global unprotected state.
+ 	 */
+	tsc_sync_wait();
+
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
 	 * between the time smp_call_function() determines number of
@@ -508,13 +516,6 @@ void __cpuinit start_secondary(void)
 	cpu_set(smp_processor_id(), cpu_online_map);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 	unlock_ipi_call_lock();
-
-	mb();
-
-	/* Wait for TSC sync to not schedule things before.
-	   We still process interrupts, which could see an inconsistent
-	   time in that window unfortunately. */
-	tsc_sync_wait();
 
 	cpu_idle();
 }

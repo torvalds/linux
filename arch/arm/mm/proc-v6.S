@@ -105,17 +105,11 @@ ENTRY(cpu_v6_dcache_clean_area)
 ENTRY(cpu_v6_switch_mm)
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-	mcr     p15, 0, r2, c7, c5, 6           @ flush BTAC/BTB
+	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
 	mov	pc, lr
-
-#define nG	(1 << 11)
-#define APX	(1 << 9)
-#define AP1	(1 << 5)
-#define AP0	(1 << 4)
-#define XN	(1 << 0)
 
 /*
  *	cpu_v6_set_pte(ptep, pte)
@@ -139,24 +133,24 @@ ENTRY(cpu_v6_switch_mm)
 ENTRY(cpu_v6_set_pte)
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r2, r1, #0x00000ff0
+	bic	r2, r1, #0x000007f0
 	bic	r2, r2, #0x00000003
-	orr	r2, r2, #AP0 | 2
+	orr	r2, r2, #PTE_EXT_AP0 | 2
 
 	tst	r1, #L_PTE_WRITE
 	tstne	r1, #L_PTE_DIRTY
-	orreq	r2, r2, #APX
+	orreq	r2, r2, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
-	orrne	r2, r2, #AP1 | nG
-	tstne	r2, #APX
-	bicne	r2, r2, #APX | AP0
+	orrne	r2, r2, #PTE_EXT_AP1
+	tstne	r2, #PTE_EXT_APX
+	bicne	r2, r2, #PTE_EXT_APX | PTE_EXT_AP0
 
 	tst	r1, #L_PTE_YOUNG
-	biceq	r2, r2, #APX | AP1 | AP0
+	biceq	r2, r2, #PTE_EXT_APX | PTE_EXT_AP_MASK
 
 @	tst	r1, #L_PTE_EXEC
-@	orreq	r2, r2, #XN
+@	orreq	r2, r2, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_PRESENT
 	moveq	r2, #0

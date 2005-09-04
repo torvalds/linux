@@ -924,6 +924,7 @@ static int ntfs_write_mst_block(struct page *page,
 			LCN lcn;
 			unsigned int vcn_ofs;
 
+			bh->b_bdev = vol->sb->s_bdev;
 			/* Obtain the vcn and offset of the current block. */
 			vcn = (VCN)block << bh_size_bits;
 			vcn_ofs = vcn & vol->cluster_size_mask;

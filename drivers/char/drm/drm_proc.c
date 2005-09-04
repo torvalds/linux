@@ -210,8 +210,8 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 
 				/* Hardcoded from _DRM_FRAME_BUFFER,
                                    _DRM_REGISTERS, _DRM_SHM, _DRM_AGP, and
-                                   _DRM_SCATTER_GATHER. */
-	const char   *types[] = { "FB", "REG", "SHM", "AGP", "SG" };
+                                   _DRM_SCATTER_GATHER and _DRM_CONSISTENT */
+	const char   *types[] = { "FB", "REG", "SHM", "AGP", "SG", "PCI" };
 	const char   *type;
 	int	     i;
 
@@ -229,16 +229,19 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 	if (dev->maplist != NULL) list_for_each(list, &dev->maplist->head) {
 		r_list = list_entry(list, drm_map_list_t, head);
 		map = r_list->map;
-		if(!map) continue;
-		if (map->type < 0 || map->type > 4) type = "??";
-		else				    type = types[map->type];
-		DRM_PROC_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08lx ",
+		if(!map)
+			continue;
+		if (map->type < 0 || map->type > 5)
+			type = "??";
+		else	
+			type = types[map->type];
+		DRM_PROC_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08x ",
 			       i,
 			       map->offset,
 			       map->size,
 			       type,
 			       map->flags,
-			       (unsigned long)map->handle);
+			       r_list->user_token);
 		if (map->mtrr < 0) {
 			DRM_PROC_PRINT("none\n");
 		} else {

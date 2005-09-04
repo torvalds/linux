@@ -97,7 +97,7 @@ extern int adfs_dir_update(struct super_block *sb, struct object_info *obj);
 extern struct inode_operations adfs_file_inode_operations;
 extern struct file_operations adfs_file_operations;
 
-extern inline __u32 signed_asl(__u32 val, signed int shift)
+static inline __u32 signed_asl(__u32 val, signed int shift)
 {
 	if (shift >= 0)
 		val <<= shift;
@@ -112,7 +112,7 @@ extern inline __u32 signed_asl(__u32 val, signed int shift)
  *
  * The root directory ID should always be looked up in the map [3.4]
  */
-extern inline int
+static inline int
 __adfs_block_map(struct super_block *sb, unsigned int object_id,
 		 unsigned int block)
 {

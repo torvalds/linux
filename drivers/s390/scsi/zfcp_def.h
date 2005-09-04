@@ -906,6 +906,7 @@ struct zfcp_adapter {
  */
 struct zfcp_port {
 	struct device          sysfs_device;   /* sysfs device */
+	struct fc_rport        *rport;         /* rport of fc transport class */
 	struct list_head       list;	       /* list of remote ports */
 	atomic_t               refcount;       /* reference count */
 	wait_queue_head_t      remove_wq;      /* can be used to wait for
@@ -916,7 +917,6 @@ struct zfcp_port {
 						  list */
 	u32		       units;	       /* # of logical units in list */
 	atomic_t	       status;	       /* status of this remote port */
-	scsi_id_t	       scsi_id;	       /* own SCSI ID */
 	wwn_t		       wwnn;	       /* WWNN if known */
 	wwn_t		       wwpn;	       /* WWPN */
 	fc_id_t		       d_id;	       /* D_ID */

@@ -24,7 +24,7 @@
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/fcntl.h>
@@ -994,8 +994,10 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	 *	1. The frame isn't for us,
 	 *	2. It isn't "owned" by any existing route.
 	 */
-	if (frametype != ROSE_CALL_REQUEST)	/* XXX */
-		return 0;
+	if (frametype != ROSE_CALL_REQUEST) {	/* XXX */
+		res = 0;
+		goto out;
+	}
 
 	len  = (((skb->data[3] >> 4) & 0x0F) + 1) / 2;
 	len += (((skb->data[3] >> 0) & 0x0F) + 1) / 2;

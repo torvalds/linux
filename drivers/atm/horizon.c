@@ -1034,7 +1034,7 @@ static void rx_schedule (hrz_dev * dev, int irq) {
 	  struct atm_vcc * vcc = ATM_SKB(skb)->vcc;
 	  // VC layer stats
 	  atomic_inc(&vcc->stats->rx);
-	  do_gettimeofday(&skb->stamp);
+	  __net_timestamp(skb);
 	  // end of our responsability
 	  vcc->push (vcc, skb);
 	}

@@ -15,19 +15,24 @@
 #include <asm/tlbflush.h>
 #endif /* __ASSEMBLY__ */
 
-#include <asm-generic/pgtable-nopud.h>
-
 /*
  * Entries per page directory level.  The PTE level must use a 64b record
  * for each page table entry.  The PMD and PGD level use a 32b record for 
  * each entry by assuming that each entry is page aligned.
  */
 #define PTE_INDEX_SIZE  9
-#define PMD_INDEX_SIZE  10
-#define PGD_INDEX_SIZE  10
+#define PMD_INDEX_SIZE  7
+#define PUD_INDEX_SIZE  7
+#define PGD_INDEX_SIZE  9
+
+#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)
+#define PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
+#define PUD_TABLE_SIZE	(sizeof(pud_t) << PUD_INDEX_SIZE)
+#define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
+#define PTRS_PER_PUD	(1 << PMD_INDEX_SIZE)
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
 
 /* PMD_SHIFT determines what a second-level page table entry can map */
@@ -35,8 +40,13 @@
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
-/* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define PGDIR_SHIFT	(PMD_SHIFT + PMD_INDEX_SIZE)
+/* PUD_SHIFT determines what a third-level page table entry can map */
+#define PUD_SHIFT	(PMD_SHIFT + PMD_INDEX_SIZE)
+#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
+
+/* PGDIR_SHIFT determines what a fourth-level page table entry can map */
+#define PGDIR_SHIFT	(PUD_SHIFT + PUD_INDEX_SIZE)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -45,15 +55,23 @@
 /*
  * Size of EA range mapped by our pagetables.
  */
-#define EADDR_SIZE (PTE_INDEX_SIZE + PMD_INDEX_SIZE + \
-                    PGD_INDEX_SIZE + PAGE_SHIFT)
-#define EADDR_MASK ((1UL << EADDR_SIZE) - 1)
+#define PGTABLE_EADDR_SIZE (PTE_INDEX_SIZE + PMD_INDEX_SIZE + \
+                	    PUD_INDEX_SIZE + PGD_INDEX_SIZE + PAGE_SHIFT)
+#define PGTABLE_RANGE (1UL << PGTABLE_EADDR_SIZE)
+
+#if TASK_SIZE_USER64 > PGTABLE_RANGE
+#error TASK_SIZE_USER64 exceeds pagetable range
+#endif
+
+#if TASK_SIZE_USER64 > (1UL << (USER_ESID_BITS + SID_SHIFT))
+#error TASK_SIZE_USER64 exceeds user VSID range
+#endif
 
 /*
  * Define the address range of the vmalloc VM area.
  */
 #define VMALLOC_START (0xD000000000000000ul)
-#define VMALLOC_SIZE  (0x10000000000UL)
+#define VMALLOC_SIZE  (0x80000000000UL)
 #define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
 
 /*
@@ -154,8 +172,6 @@ extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
 #ifndef __ASSEMBLY__
 int hash_huge_page(struct mm_struct *mm, unsigned long access,
 		   unsigned long ea, unsigned long vsid, int local);
-
-void hugetlb_mm_free_pgd(struct mm_struct *mm);
 #endif /* __ASSEMBLY__ */
 
 #define HAVE_ARCH_UNMAPPED_AREA
@@ -163,7 +179,6 @@ void hugetlb_mm_free_pgd(struct mm_struct *mm);
 #else
 
 #define hash_huge_page(mm,a,ea,vsid,local)	-1
-#define hugetlb_mm_free_pgd(mm)			do {} while (0)
 
 #endif
 
@@ -197,39 +212,45 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 #define pte_pfn(x)		((unsigned long)((pte_val(x) >> PTE_SHIFT)))
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 
-#define pmd_set(pmdp, ptep) 	\
-	(pmd_val(*(pmdp)) = __ba_to_bpn(ptep))
+#define pmd_set(pmdp, ptep) 	({BUG_ON((u64)ptep < KERNELBASE); pmd_val(*(pmdp)) = (unsigned long)(ptep);})
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) == 0)
 #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
 #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
-#define pmd_page_kernel(pmd)	(__bpn_to_ba(pmd_val(pmd)))
+#define pmd_page_kernel(pmd)	(pmd_val(pmd))
 #define pmd_page(pmd)		virt_to_page(pmd_page_kernel(pmd))
 
-#define pud_set(pudp, pmdp)	(pud_val(*(pudp)) = (__ba_to_bpn(pmdp)))
+#define pud_set(pudp, pmdp)	(pud_val(*(pudp)) = (unsigned long)(pmdp))
 #define pud_none(pud)		(!pud_val(pud))
-#define pud_bad(pud)		((pud_val(pud)) == 0UL)
-#define pud_present(pud)	(pud_val(pud) != 0UL)
-#define pud_clear(pudp)		(pud_val(*(pudp)) = 0UL)
-#define pud_page(pud)		(__bpn_to_ba(pud_val(pud)))
+#define pud_bad(pud)		((pud_val(pud)) == 0)
+#define pud_present(pud)	(pud_val(pud) != 0)
+#define pud_clear(pudp)		(pud_val(*(pudp)) = 0)
+#define pud_page(pud)		(pud_val(pud))
+
+#define pgd_set(pgdp, pudp)	({pgd_val(*(pgdp)) = (unsigned long)(pudp);})
+#define pgd_none(pgd)		(!pgd_val(pgd))
+#define pgd_bad(pgd)		(pgd_val(pgd) == 0)
+#define pgd_present(pgd)	(pgd_val(pgd) != 0)
+#define pgd_clear(pgdp)		(pgd_val(*(pgdp)) = 0)
+#define pgd_page(pgd)		(pgd_val(pgd))
 
 /* 
  * Find an entry in a page-table-directory.  We combine the address region 
  * (the high order N bits) and the pgd portion of the address.
  */
 /* to avoid overflow in free_pgtables we don't use PTRS_PER_PGD here */
-#define pgd_index(address) (((address) >> (PGDIR_SHIFT)) & 0x7ff)
+#define pgd_index(address) (((address) >> (PGDIR_SHIFT)) & 0x1ff)
 
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
 
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(pudp,addr) \
-  ((pmd_t *) pud_page(*(pudp)) + (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1)))
+#define pud_offset(pgdp, addr)	\
+  (((pud_t *) pgd_page(*(pgdp))) + (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
 
-/* Find an entry in the third-level page table.. */
+#define pmd_offset(pudp,addr) \
+  (((pmd_t *) pud_page(*(pudp))) + (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1)))
+
 #define pte_offset_kernel(dir,addr) \
-  ((pte_t *) pmd_page_kernel(*(dir)) \
- + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
+  (((pte_t *) pmd_page_kernel(*(dir))) + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
 #define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))
@@ -458,23 +479,20 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)
 
 #define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %08x.\n", __FILE__, __LINE__, pmd_val(e))
+	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
+#define pud_ERROR(e) \
+	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pud_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08x.\n", __FILE__, __LINE__, pgd_val(e))
+	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
 
-/*
- * Because the huge pgtables are only 2 level, they can take
- * at most around 4M, much less than one hugepage which the
- * process is presumably entitled to use.  So we don't bother
- * freeing up the pagetables on unmap, and wait until
- * destroy_context() to clean up the lot.
- */
+#ifdef CONFIG_HUGETLB_PAGE
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-						do { } while (0)
+	free_pgd_range(tlb, addr, end, floor, ceiling)
+#endif
 
 /*
  * This gets called at the end of handling a page fault, when

@@ -717,6 +717,9 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	DPRINTK("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
 	DPRINTK("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
+	/* enable LCD controller clock */
+	pxa_set_cken(CKEN16_LCD, 1);
+
 	/* Sequence from 11.7.10 */
 	LCCR3 = fbi->reg_lccr3;
 	LCCR2 = fbi->reg_lccr2;
@@ -750,6 +753,9 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 
 	schedule_timeout(20 * HZ / 1000);
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
+
+	/* disable LCD controller clock */
+	pxa_set_cken(CKEN16_LCD, 0);
 }
 
 /*
@@ -1299,8 +1305,6 @@ int __init pxafb_probe(struct device *dev)
 		ret = -ENOMEM;
 		goto failed;
 	}
-	/* enable LCD controller clock */
-	pxa_set_cken(CKEN16_LCD, 1);
 
 	ret = request_irq(IRQ_LCD, pxafb_handle_irq, SA_INTERRUPT, "LCD", fbi);
 	if (ret) {

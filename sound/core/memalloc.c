@@ -512,7 +512,7 @@ static void free_all_reserved_pages(void)
  * proc file interface
  */
 #define SND_MEM_PROC_FILE	"driver/snd-page-alloc"
-struct proc_dir_entry *snd_mem_proc;
+static struct proc_dir_entry *snd_mem_proc;
 
 static int snd_mem_proc_read(char *page, char **start, off_t off,
 			     int count, int *eof, void *data)
@@ -655,8 +655,7 @@ static int __init snd_mem_init(void)
 
 static void __exit snd_mem_exit(void)
 {
-	if (snd_mem_proc)
-		remove_proc_entry(SND_MEM_PROC_FILE, NULL);
+	remove_proc_entry(SND_MEM_PROC_FILE, NULL);
 	free_all_reserved_pages();
 	if (snd_allocated_pages > 0)
 		printk(KERN_ERR "snd-malloc: Memory leak?  pages not freed = %li\n", snd_allocated_pages);

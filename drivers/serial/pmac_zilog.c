@@ -630,11 +630,10 @@ static unsigned int pmz_get_mctrl(struct uart_port *port)
 
 /* 
  * Stop TX side. Dealt like sunzilog at next Tx interrupt,
- * though for DMA, we will have to do a bit more. What is
- * the meaning of the tty_stop bit ? XXX
+ * though for DMA, we will have to do a bit more.
  * The port lock is held and interrupts are disabled.
  */
-static void pmz_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void pmz_stop_tx(struct uart_port *port)
 {
 	to_pmz(port)->flags |= PMACZILOG_FLAG_TX_STOPPED;
 }
@@ -643,7 +642,7 @@ static void pmz_stop_tx(struct uart_port *port, unsigned int tty_stop)
  * Kick the Tx side.
  * The port lock is held and interrupts are disabled.
  */
-static void pmz_start_tx(struct uart_port *port, unsigned int tty_start)
+static void pmz_start_tx(struct uart_port *port)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned char status;

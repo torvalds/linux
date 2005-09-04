@@ -1,0 +1,24 @@
+config NETFILTER_NETLINK
+       tristate "Netfilter netlink interface"
+       help
+         If this option is enabled, the kernel will include support
+         for the new netfilter netlink interface.
+
+config NETFILTER_NETLINK_QUEUE
+	tristate "Netfilter NFQUEUE over NFNETLINK interface"
+	depends on NETFILTER_NETLINK
+	help
+	  If this option isenabled, the kernel will include support
+	  for queueing packets via NFNETLINK.
+	  
+config NETFILTER_NETLINK_LOG
+	tristate "Netfilter LOG over NFNETLINK interface"
+	depends on NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  for logging packets via NFNETLINK.
+
+	  This obsoletes the existing ipt_ULOG and ebg_ulog mechanisms,
+	  and is also scheduled to replace the old syslog-based ipt_LOG
+	  and ip6t_LOG modules.
+

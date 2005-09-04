@@ -419,6 +419,20 @@ static inline void list_splice_init(struct list_head *list,
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
 /**
+ * list_for_each_entry_safe_continue -	iterate over list of given type
+ *			continuing after existing point safe against removal of list entry
+ * @pos:	the type * to use as a loop counter.
+ * @n:		another type * to use as temporary storage
+ * @head:	the head for your list.
+ * @member:	the name of the list_struct within the struct.
+ */
+#define list_for_each_entry_safe_continue(pos, n, head, member) 		\
+	for (pos = list_entry(pos->member.next, typeof(*pos), member), 		\
+		n = list_entry(pos->member.next, typeof(*pos), member);		\
+	     &pos->member != (head);						\
+	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
+
+/**
  * list_for_each_rcu	-	iterate over an rcu-protected list
  * @pos:	the &struct list_head to use as a loop counter.
  * @head:	the head for your list.
@@ -618,6 +632,57 @@ static inline void hlist_add_after(struct hlist_node *n,
 
 	if(next->next)
 		next->next->pprev  = &next->next;
+}
+
+/**
+ * hlist_add_before_rcu - adds the specified element to the specified hlist
+ * before the specified node while permitting racing traversals.
+ * @n: the new element to add to the hash list.
+ * @next: the existing element to add the new element before.
+ *
+ * The caller must take whatever precautions are necessary
+ * (such as holding appropriate locks) to avoid racing
+ * with another list-mutation primitive, such as hlist_add_head_rcu()
+ * or hlist_del_rcu(), running on this same list.
+ * However, it is perfectly legal to run concurrently with
+ * the _rcu list-traversal primitives, such as
+ * hlist_for_each_rcu(), used to prevent memory-consistency
+ * problems on Alpha CPUs.
+ */
+static inline void hlist_add_before_rcu(struct hlist_node *n,
+					struct hlist_node *next)
+{
+	n->pprev = next->pprev;
+	n->next = next;
+	smp_wmb();
+	next->pprev = &n->next;
+	*(n->pprev) = n;
+}
+
+/**
+ * hlist_add_after_rcu - adds the specified element to the specified hlist
+ * after the specified node while permitting racing traversals.
+ * @prev: the existing element to add the new element after.
+ * @n: the new element to add to the hash list.
+ *
+ * The caller must take whatever precautions are necessary
+ * (such as holding appropriate locks) to avoid racing
+ * with another list-mutation primitive, such as hlist_add_head_rcu()
+ * or hlist_del_rcu(), running on this same list.
+ * However, it is perfectly legal to run concurrently with
+ * the _rcu list-traversal primitives, such as
+ * hlist_for_each_rcu(), used to prevent memory-consistency
+ * problems on Alpha CPUs.
+ */
+static inline void hlist_add_after_rcu(struct hlist_node *prev,
+				       struct hlist_node *n)
+{
+	n->next = prev->next;
+	n->pprev = &prev->next;
+	smp_wmb();
+	prev->next = n;
+	if (n->next)
+		n->next->pprev = &n->next;
 }
 
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)

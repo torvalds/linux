@@ -118,7 +118,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/flow.h>
 #include <asm/system.h>
 #include <asm/ioctls.h>
@@ -1763,7 +1763,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		nskb = skb->next;
 
 		if (skb->len == 0) {
-			skb_unlink(skb);
+			skb_unlink(skb, queue);
 			kfree_skb(skb);
 			/* 
 			 * N.B. Don't refer to skb or cb after this point
@@ -1874,15 +1874,6 @@ static inline unsigned int dn_current_mss(struct sock *sk, int flags)
 	}
 
 	return mss_now;
-}
-
-static int dn_error(struct sock *sk, int flags, int err)
-{
-	if (err == -EPIPE)
-		err = sock_error(sk) ? : -EPIPE;
-	if (err == -EPIPE && !(flags & MSG_NOSIGNAL))
-		send_sig(SIGPIPE, current, 0);
-	return err;
 }
 
 static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
@@ -2045,7 +2036,7 @@ out:
 	return sent ? sent : err;
 
 out_err:
-	err = dn_error(sk, flags, err);
+	err = sk_stream_error(sk, flags, err);
 	release_sock(sk);
 	return err;
 }
@@ -2073,7 +2064,7 @@ static struct notifier_block dn_dev_notifier = {
 	.notifier_call = dn_device_event,
 };
 
-extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *);
+extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
 static struct packet_type dn_dix_packet_type = {
 	.type =		__constant_htons(ETH_P_DNA_RT),

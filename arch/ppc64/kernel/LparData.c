@@ -32,32 +32,12 @@
 /* The HvReleaseData is the root of the information shared between 
  * the hypervisor and Linux.  
  */
-
-/*
- * WARNING - magic here
- *
- * Ok, this is a horrid hack below, but marginally better than the
- * alternatives.  What we really want is just to initialize
- * hvReleaseData in C as in the #if 0 section here.  However, gcc
- * refuses to believe that (u32)&x is a constant expression, so will
- * not allow the xMsNucDataOffset field to be properly initialized.
- * So, we declare hvReleaseData in inline asm instead.  We use inline
- * asm, rather than a .S file, because the assembler won't generate
- * the necessary relocation for the LparMap either, unless that symbol
- * is declared in the same source file.  Finally, we put the asm in a
- * dummy, attribute-used function, instead of at file scope, because
- * file scope asms don't allow contraints.  We want to use the "i"
- * constraints to put sizeof() and offsetof() expressions in there,
- * because including asm/offsets.h in C code then stringifying causes
- * all manner of warnings.
- */
-#if 0
 struct HvReleaseData hvReleaseData = {
 	.xDesc = 0xc8a5d9c4,	/* "HvRD" ebcdic */
 	.xSize = sizeof(struct HvReleaseData),
 	.xVpdAreasPtrOffset = offsetof(struct naca_struct, xItVpdAreas),
 	.xSlicNacaAddr = &naca,		/* 64-bit Naca address */
-	.xMsNucDataOffset = (u32)((unsigned long)&xLparMap - KERNELBASE),
+	.xMsNucDataOffset = LPARMAP_PHYS,
 	.xFlags = HVREL_TAGSINACTIVE	/* tags inactive       */
 					/* 64 bit              */
 					/* shared processors   */
@@ -70,62 +50,16 @@ struct HvReleaseData hvReleaseData = {
 		0xa7, 0x40, 0xf2, 0x4b,
 		0xf4, 0x4b, 0xf6, 0xf4 },
 };
-#endif
 
-
-extern struct HvReleaseData hvReleaseData;
-
-static void __attribute_used__ hvReleaseData_wrapper(void)
-{
-	/* This doesn't appear to need any alignment (even 4 byte) */
-	asm volatile (
-		"	lparMapPhys = xLparMap - %3\n"
-		"	.data\n"
-		"	.globl	hvReleaseData\n"
-		"hvReleaseData:\n"
-		"	.long	0xc8a5d9c4\n"	/* xDesc */
-						/* "HvRD" in ebcdic */
-		"	.short	%0\n"		/* xSize */
-		"	.short	%1\n"		/* xVpdAreasPtrOffset */
-		"	.llong	naca\n"		/* xSlicNacaAddr */
-		"	.long	lparMapPhys\n"	/* xMsNucDataOffset */
-		"	.long	0\n"		/* xRsvd1 */
-		"	.short	%2\n"		/* xFlags */
-		"	.short	4\n"	/* xVrmIndex  - v5r2m0 */
-		"	.short	3\n"	/* xMinSupportedPlicVrmIndex - v5r1m0 */
-		"	.short	3\n"	/* xMinCompatablePlicVrmIndex - v5r1m0 */
-		"	.long	0xd38995a4\n"	/* xVrmName */
-		"	.long	0xa740f24b\n"	/*   "Linux 2.4.64" ebcdic */
-		"	.long	0xf44bf6f4\n"
-		"	. = hvReleaseData + %0\n"
-		"	.previous\n"
-		: : "i"(sizeof(hvReleaseData)),
-		"i"(offsetof(struct naca_struct, xItVpdAreas)),
-		"i"(HVREL_TAGSINACTIVE /* tags inactive, 64 bit, */
-				       /* shared processors, HMT allowed */
-		    | 6), /* TEMP: This allows non-GA drivers */
-		"i"(KERNELBASE)
-		);
-}
-
-struct LparMap __attribute__((aligned (16))) xLparMap = {
-	.xNumberEsids = HvEsidsToMap,
-	.xNumberRanges = HvRangesToMap,
-	.xSegmentTableOffs = STAB0_PAGE,
-
-	.xEsids = {
-		{ .xKernelEsid = GET_ESID(KERNELBASE),
-		  .xKernelVsid = KERNEL_VSID(KERNELBASE), },
-		{ .xKernelEsid = GET_ESID(VMALLOCBASE),
-		  .xKernelVsid = KERNEL_VSID(VMALLOCBASE), },
-	},
-
-	.xRanges = {
-		{ .xPages = HvPagesToMap,
-		  .xOffset = 0,
-		  .xVPN = KERNEL_VSID(KERNELBASE) << (SID_SHIFT - PAGE_SHIFT),
-		},
-	},
+/*
+ * The NACA.  The first dword of the naca is required by the iSeries
+ * hypervisor to point to itVpdAreas.  The hypervisor finds the NACA
+ * through the pointer in hvReleaseData.
+ */
+struct naca_struct naca = {
+	.xItVpdAreas = &itVpdAreas,
+	.xRamDisk = 0,
+	.xRamDiskSize = 0,
 };
 
 extern void system_reset_iSeries(void);
@@ -291,29 +225,3 @@ struct ItVpdAreas itVpdAreas = {
 		0,0
 	}
 };
-
-struct msChunks msChunks;
-EXPORT_SYMBOL(msChunks);
-
-/* Depending on whether this is called from iSeries or pSeries setup
- * code, the location of the msChunks struct may or may not have
- * to be reloc'd, so we force the caller to do that for us by passing
- * in a pointer to the structure.
- */
-unsigned long
-msChunks_alloc(unsigned long mem, unsigned long num_chunks, unsigned long chunk_size)
-{
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	_msChunks->num_chunks  = num_chunks;
-	_msChunks->chunk_size  = chunk_size;
-	_msChunks->chunk_shift = __ilog2(chunk_size);
-	_msChunks->chunk_mask  = (1UL<<_msChunks->chunk_shift)-1;
-
-	mem = _ALIGN(mem, sizeof(msChunks_entry));
-	_msChunks->abs = (msChunks_entry *)(mem + offset);
-	mem += num_chunks * sizeof(msChunks_entry);
-
-	return mem;
-}

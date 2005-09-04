@@ -512,13 +512,13 @@ extern void snd_gf1_ctrl_stop(snd_gus_card_t * gus, unsigned char reg);
 
 extern void snd_gf1_write8(snd_gus_card_t * gus, unsigned char reg, unsigned char data);
 extern unsigned char snd_gf1_look8(snd_gus_card_t * gus, unsigned char reg);
-extern inline unsigned char snd_gf1_read8(snd_gus_card_t * gus, unsigned char reg)
+static inline unsigned char snd_gf1_read8(snd_gus_card_t * gus, unsigned char reg)
 {
 	return snd_gf1_look8(gus, reg | 0x80);
 }
 extern void snd_gf1_write16(snd_gus_card_t * gus, unsigned char reg, unsigned int data);
 extern unsigned short snd_gf1_look16(snd_gus_card_t * gus, unsigned char reg);
-extern inline unsigned short snd_gf1_read16(snd_gus_card_t * gus, unsigned char reg)
+static inline unsigned short snd_gf1_read16(snd_gus_card_t * gus, unsigned char reg)
 {
 	return snd_gf1_look16(gus, reg | 0x80);
 }
@@ -532,12 +532,12 @@ extern void snd_gf1_i_ctrl_stop(snd_gus_card_t * gus, unsigned char reg);
 extern void snd_gf1_i_write8(snd_gus_card_t * gus, unsigned char reg, unsigned char data);
 extern unsigned char snd_gf1_i_look8(snd_gus_card_t * gus, unsigned char reg);
 extern void snd_gf1_i_write16(snd_gus_card_t * gus, unsigned char reg, unsigned int data);
-extern inline unsigned char snd_gf1_i_read8(snd_gus_card_t * gus, unsigned char reg)
+static inline unsigned char snd_gf1_i_read8(snd_gus_card_t * gus, unsigned char reg)
 {
 	return snd_gf1_i_look8(gus, reg | 0x80);
 }
 extern unsigned short snd_gf1_i_look16(snd_gus_card_t * gus, unsigned char reg);
-extern inline unsigned short snd_gf1_i_read16(snd_gus_card_t * gus, unsigned char reg)
+static inline unsigned short snd_gf1_i_read16(snd_gus_card_t * gus, unsigned char reg)
 {
 	return snd_gf1_i_look16(gus, reg | 0x80);
 }

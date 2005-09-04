@@ -1501,4 +1501,10 @@ extern struct bus_type ide_bus_type;
 #define ide_id_has_flush_cache_ext(id)	\
 	(((id)->cfs_enable_2 & 0x2400) == 0x2400)
 
+static inline int hwif_to_node(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = hwif->pci_dev;
+	return dev ? pcibus_to_node(dev->bus) : -1;
+}
+
 #endif /* _IDE_H */

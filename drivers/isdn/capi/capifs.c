@@ -191,8 +191,10 @@ static int __init capifs_init(void)
 	err = register_filesystem(&capifs_fs_type);
 	if (!err) {
 		capifs_mnt = kern_mount(&capifs_fs_type);
-		if (IS_ERR(capifs_mnt))
+		if (IS_ERR(capifs_mnt)) {
 			err = PTR_ERR(capifs_mnt);
+			unregister_filesystem(&capifs_fs_type);
+		}
 	}
 	if (!err)
 		printk(KERN_NOTICE "capifs: Rev %s\n", rev);

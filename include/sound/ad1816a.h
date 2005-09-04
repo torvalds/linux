@@ -138,6 +138,7 @@ struct _snd_ad1816a {
 	spinlock_t lock;
 
 	unsigned short mode;
+	unsigned int clock_freq;
 
 	snd_card_t *card;
 	snd_pcm_t *pcm;

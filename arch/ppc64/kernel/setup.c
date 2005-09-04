@@ -536,15 +536,19 @@ static void __init check_for_initrd(void)
 
 	DBG(" -> check_for_initrd()\n");
 
-	prop = (u64 *)get_property(of_chosen, "linux,initrd-start", NULL);
-	if (prop != NULL) {
-		initrd_start = (unsigned long)__va(*prop);
-		prop = (u64 *)get_property(of_chosen, "linux,initrd-end", NULL);
+	if (of_chosen) {
+		prop = (u64 *)get_property(of_chosen,
+				"linux,initrd-start", NULL);
 		if (prop != NULL) {
-			initrd_end = (unsigned long)__va(*prop);
-			initrd_below_start_ok = 1;
-		} else
-			initrd_start = 0;
+			initrd_start = (unsigned long)__va(*prop);
+			prop = (u64 *)get_property(of_chosen,
+					"linux,initrd-end", NULL);
+			if (prop != NULL) {
+				initrd_end = (unsigned long)__va(*prop);
+				initrd_below_start_ok = 1;
+			} else
+				initrd_start = 0;
+		}
 	}
 
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
@@ -627,7 +631,7 @@ void __init setup_system(void)
 	 * Initialize xmon
 	 */
 #ifdef CONFIG_XMON_DEFAULT
-	xmon_init();
+	xmon_init(1);
 #endif
 	/*
 	 * Register early console
@@ -706,6 +710,8 @@ void machine_power_off(void)
 	local_irq_disable();
 	while (1) ;
 }
+/* Used by the G5 thermal driver */
+EXPORT_SYMBOL_GPL(machine_power_off);
 
 void machine_halt(void)
 {
@@ -1341,11 +1347,13 @@ static int __init early_xmon(char *p)
 	/* ensure xmon is enabled */
 	if (p) {
 		if (strncmp(p, "on", 2) == 0)
-			xmon_init();
+			xmon_init(1);
+		if (strncmp(p, "off", 3) == 0)
+			xmon_init(0);
 		if (strncmp(p, "early", 5) != 0)
 			return 0;
 	}
-	xmon_init();
+	xmon_init(1);
 	debugger(NULL);
 
 	return 0;

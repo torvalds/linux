@@ -24,7 +24,6 @@
 
 #include <asm/machvec.h>
 #include <asm/page.h>
-#include <asm/segment.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/sal.h>
@@ -380,6 +379,7 @@ void pcibios_bus_to_resource(struct pci_dev *dev,
 	res->start = region->start + offset;
 	res->end = region->end + offset;
 }
+EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 {

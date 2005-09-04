@@ -79,9 +79,10 @@ typedef struct drm_i915_private {
 	drm_i915_sarea_t *sarea_priv;
 	drm_i915_ring_buffer_t ring;
 
+	drm_dma_handle_t *status_page_dmah;
 	void *hw_status_page;
-	unsigned long counter;
 	dma_addr_t dma_status_page;
+	unsigned long counter;
 
 	int back_offset;
 	int front_offset;
@@ -102,6 +103,7 @@ typedef struct drm_i915_private {
 extern void i915_kernel_lost_context(drm_device_t * dev);
 extern void i915_driver_pretakedown(drm_device_t *dev);
 extern void i915_driver_prerelease(drm_device_t *dev, DRMFILE filp);
+extern int i915_driver_device_is_agp(drm_device_t *dev);
 
 /* i915_irq.c */
 extern int i915_irq_emit(DRM_IOCTL_ARGS);

@@ -1372,7 +1372,7 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
  *	Drop the packet on the floor
  */
 
-int ip6_pkt_discard(struct sk_buff *skb)
+static int ip6_pkt_discard(struct sk_buff *skb)
 {
 	IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_NOROUTE, 0, skb->dev);
@@ -1380,7 +1380,7 @@ int ip6_pkt_discard(struct sk_buff *skb)
 	return 0;
 }
 
-int ip6_pkt_discard_out(struct sk_buff *skb)
+static int ip6_pkt_discard_out(struct sk_buff *skb)
 {
 	skb->dev = skb->dst->dev;
 	return ip6_pkt_discard(skb);
@@ -1850,16 +1850,16 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nlmsghdr *nlh,
 	
 	skb = alloc_skb(size, gfp_any());
 	if (!skb) {
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_ROUTE, ENOBUFS);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_ROUTE, ENOBUFS);
 		return;
 	}
 	if (rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0) < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_ROUTE, EINVAL);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_ROUTE, EINVAL);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV6_ROUTE;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_IPV6_ROUTE, gfp_any());
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_ROUTE;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_ROUTE, gfp_any());
 }
 
 /*
@@ -1959,8 +1959,6 @@ static int rt6_proc_info(char *buffer, char **start, off_t offset, int length)
 
 	return arg.len;
 }
-
-extern struct rt6_statistics rt6_stats;
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 {

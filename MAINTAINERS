@@ -784,7 +784,7 @@ DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
 M: 	linux-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
-W:	http://linuxtv.org/developer/dvb.xml
+W:	http://linuxtv.org/
 S:	Supported
 
 EATA-DMA SCSI DRIVER
@@ -991,6 +991,13 @@ M:	mike.miller@hp.com
 L:	iss_storagedev@hp.com
 S:	Supported
  
+HOST AP DRIVER
+P:	Jouni Malinen
+M:	jkmaline@cc.hut.fi
+L:	hostap@shmoo.com
+W:	http://hostap.epitest.fi/
+S:	Maintained
+
 HP100:	Driver for HP 10/100 Mbit/s Voice Grade Network Adapter Series
 P:	Jaroslav Kysela
 M:	perex@suse.cz
@@ -1658,7 +1665,7 @@ M:	kuznet@ms2.inr.ac.ru
 P:	Pekka Savola (ipv6)
 M:	pekkas@netcore.fi
 P:	James Morris
-M:	jmorris@redhat.com
+M:	jmorris@namei.org
 P:	Hideaki YOSHIFUJI
 M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
@@ -1739,7 +1746,7 @@ S:	Maintained
 
 OPL3-SA2, SA3, and SAx DRIVER
 P:	Zwane Mwaikambo
-M:	zwane@commfireservices.com
+M:	zwane@arm.linux.org.uk
 L:	linux-sound@vger.kernel.org
 S:	Maintained
 
@@ -1823,6 +1830,12 @@ S:	Supported
 PCI HOTPLUG COMPAQ DRIVER
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
+S:	Maintained
+
+PCIE HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 PCMCIA SUBSYSTEM
@@ -1989,7 +2002,7 @@ S:	Maintained
 
 SC1200 WDT DRIVER
 P:	Zwane Mwaikambo
-M:	zwane@commfireservices.com
+M:	zwane@arm.linux.org.uk
 S:	Maintained
 
 SCHEDULER
@@ -2047,7 +2060,7 @@ SELINUX SECURITY MODULE
 P:	Stephen Smalley
 M:	sds@epoch.ncsc.mil
 P:	James Morris
-M:	jmorris@redhat.com
+M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org (kernel issues)
 L: 	selinux@tycho.nsa.gov (general discussion)
 W:	http://www.nsa.gov/selinux
@@ -2085,6 +2098,12 @@ P:	Vincent Sanders
 M:	support@simtec.co.uk
 W:	http://www.simtec.co.uk/products/EB2410ITX/
 S:	Supported
+
+SIS 190 ETHERNET DRIVER
+P:	Francois Romieu
+M:	romieu@fr.zoreil.com
+L:	netdev@vger.kernel.org
+S:	Maintained
 
 SIS 5513 IDE CONTROLLER DRIVER
 P:	Lionel Bouton
@@ -2199,6 +2218,12 @@ P:	Marc Singer
 M:	elf@buici.com
 W:	http://projects.buici.com/arm
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+S:	Maintained
+
+SHPC HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 SPARC (sparc32):
@@ -2625,11 +2650,6 @@ S:	Maintained
 UCLINUX (AND M68KNOMMU)
 P:	Greg Ungerer
 M:	gerg@uclinux.org
-M:	gerg@snapgear.com
-P:	David McCullough
-M:	davidm@snapgear.com
-P:	D. Jeff Dionne (created first uClinux port)
-M:	jeff@uclinux.org
 W:	http://www.uclinux.org/
 L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained

@@ -1696,7 +1696,7 @@ config TT_DMA_EMUL
 
 config MAC_SCSI
 	bool "Macintosh NCR5380 SCSI"
-	depends on MAC && SCSI
+	depends on MAC && SCSI=y
 	help
 	  This is the NCR 5380 SCSI controller included on most of the 68030
 	  based Macintoshes.  If you have one of these say Y and read the
@@ -1717,7 +1717,7 @@ config SCSI_MAC_ESP
 
 config MVME147_SCSI
 	bool "WD33C93 SCSI driver for MVME147"
-	depends on MVME147 && SCSI
+	depends on MVME147 && SCSI=y
 	help
 	  Support for the on-board SCSI controller on the Motorola MVME147
 	  single-board computer.
@@ -1758,7 +1758,7 @@ config SUN3_SCSI
 
 config SUN3X_ESP
 	bool "Sun3x ESP SCSI"
-	depends on SUN3X && SCSI
+	depends on SUN3X && SCSI=y
 	help
 	  The ESP was an on-board SCSI controller used on Sun 3/80
 	  machines.  Say Y here to compile in support for it.

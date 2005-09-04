@@ -222,37 +222,6 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
 }
 
 /**
- * pci_restore_bars - restore a devices BAR values (e.g. after wake-up)
- * @dev: PCI device to have its BARs restored
- *
- * Restore the BAR values for a given device, so as to make it
- * accessible by its driver.
- */
-void
-pci_restore_bars(struct pci_dev *dev)
-{
-	int i, numres;
-
-	switch (dev->hdr_type) {
-	case PCI_HEADER_TYPE_NORMAL:
-		numres = 6;
-		break;
-	case PCI_HEADER_TYPE_BRIDGE:
-		numres = 2;
-		break;
-	case PCI_HEADER_TYPE_CARDBUS:
-		numres = 1;
-		break;
-	default:
-		/* Should never get here, but just in case... */
-		return;
-	}
-
-	for (i = 0; i < numres; i ++)
-		pci_update_resource(dev, &dev->resource[i], i);
-}
-
-/**
  * pci_set_power_state - Set the power state of a PCI device
  * @dev: PCI device to be suspended
  * @state: PCI power state (D0, D1, D2, D3hot, D3cold) we're entering
@@ -270,7 +239,7 @@ int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
 int
 pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
-	int pm, need_restore = 0;
+	int pm;
 	u16 pmcsr, pmc;
 
 	/* bound the state we're entering */
@@ -309,17 +278,14 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			return -EIO;
 	}
 
-	pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
-
 	/* If we're in D3, force entire word to 0.
 	 * This doesn't affect PME_Status, disables PME_En, and
 	 * sets PowerState to 0.
 	 */
-	if (dev->current_state >= PCI_D3hot) {
-		if (!(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
-			need_restore = 1;
+	if (dev->current_state >= PCI_D3hot)
 		pmcsr = 0;
-	} else {
+	else {
+		pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		pmcsr |= state;
 	}
@@ -342,22 +308,6 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		platform_pci_set_power_state(dev, state);
 
 	dev->current_state = state;
-
-	/* According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
-	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
-	 * from D3hot to D0 _may_ perform an internal reset, thereby
-	 * going to "D0 Uninitialized" rather than "D0 Initialized".
-	 * For example, at least some versions of the 3c905B and the
-	 * 3c556B exhibit this behaviour.
-	 *
-	 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
-	 * devices in a D3hot state at boot.  Consequently, we need to
-	 * restore at least the BARs so that the device will be
-	 * accessible to its driver.
-	 */
-	if (need_restore)
-		pci_restore_bars(dev);
-
 	return 0;
 }
 
@@ -855,7 +805,6 @@ struct pci_dev *isa_bridge;
 EXPORT_SYMBOL(isa_bridge);
 #endif
 
-EXPORT_SYMBOL_GPL(pci_restore_bars);
 EXPORT_SYMBOL(pci_enable_device_bars);
 EXPORT_SYMBOL(pci_enable_device);
 EXPORT_SYMBOL(pci_disable_device);

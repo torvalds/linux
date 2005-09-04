@@ -176,10 +176,6 @@ struct serial_icounter_struct {
 #ifdef __KERNEL__
 #include <linux/compiler.h>
 
-/* Export to allow PCMCIA to use this - Dave Hinds */
-extern int __deprecated register_serial(struct serial_struct *req);
-extern void __deprecated unregister_serial(int line);
-
 /* Allow architectures to override entries in serial8250_ports[] at run time: */
 struct uart_port;	/* forward declaration */
 extern int early_serial_setup(struct uart_port *port);

@@ -145,6 +145,14 @@ static snd_card_t *snd_opl3sa2_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
+static struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
+	{ .id = "YMH0021" },
+	{ .id = "NMX2210" },	/* Gateway Solo 2500 */
+	{ .id = "" }		/* end */
+};
+
+MODULE_DEVICE_TABLE(pnp, snd_opl3sa2_pnpbiosids);
+
 static struct pnp_card_device_id snd_opl3sa2_pnpids[] = {
 	/* Yamaha YMF719E-S (Genius Sound Maker 3DX) */
 	{ .id = "YMH0020", .devs = { { "YMH0021" } } },
@@ -568,20 +576,18 @@ static int snd_opl3sa2_resume(snd_card_t *card)
 
 #ifdef CONFIG_PNP
 static int __init snd_opl3sa2_pnp(int dev, opl3sa2_t *chip,
-				  struct pnp_card_link *card,
-				  const struct pnp_card_device_id *id)
+				  struct pnp_dev *pdev,
+				  int isapnp)
 {
-	struct pnp_dev *pdev;
-	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
+	struct pnp_resource_table * cfg;
 	int err;
 
+	if (!isapnp && pnp_device_is_isapnp(pdev))
+		return -ENOENT;	/* we have another procedure - card */
+
+	cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	if (!cfg)
 		return -ENOMEM;
-	pdev = chip->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (chip->dev == NULL) {
-		kfree(cfg);
-		return -EBUSY;
-	}
 	/* PnP initialization */
 	pnp_init_resource_table(cfg);
 	if (sb_port[dev] != SNDRV_AUTO_PORT)
@@ -601,7 +607,7 @@ static int __init snd_opl3sa2_pnp(int dev, opl3sa2_t *chip,
 	if (irq[dev] != SNDRV_AUTO_IRQ)
 		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
 	err = pnp_manual_config_dev(pdev, cfg, 0);
-	if (err < 0)
+	if (err < 0 && isapnp)
 		snd_printk(KERN_ERR "PnP manual resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
@@ -617,12 +623,30 @@ static int __init snd_opl3sa2_pnp(int dev, opl3sa2_t *chip,
 	dma1[dev] = pnp_dma(pdev, 0);
 	dma2[dev] = pnp_dma(pdev, 1);
 	irq[dev] = pnp_irq(pdev, 0);
-	snd_printdd("PnP OPL3-SA: sb port=0x%lx, wss port=0x%lx, fm port=0x%lx, midi port=0x%lx\n",
-		sb_port[dev], wss_port[dev], fm_port[dev], midi_port[dev]);
-	snd_printdd("PnP OPL3-SA: control port=0x%lx, dma1=%i, dma2=%i, irq=%i\n",
-		port[dev], dma1[dev], dma2[dev], irq[dev]);
+	snd_printdd("%sPnP OPL3-SA: sb port=0x%lx, wss port=0x%lx, fm port=0x%lx, midi port=0x%lx\n",
+		pnp_device_is_pnpbios(pdev) ? "BIOS" : "ISA", sb_port[dev], wss_port[dev], fm_port[dev], midi_port[dev]);
+	snd_printdd("%sPnP OPL3-SA: control port=0x%lx, dma1=%i, dma2=%i, irq=%i\n",
+		pnp_device_is_pnpbios(pdev) ? "BIOS" : "ISA", port[dev], dma1[dev], dma2[dev], irq[dev]);
 	kfree(cfg);
+	chip->dev = pdev;
 	return 0;
+}
+
+static int __init snd_opl3sa2_cpnp(int dev, opl3sa2_t *chip,
+				   struct pnp_card_link *card,
+				   const struct pnp_card_device_id *id)
+{
+	struct pnp_dev *pdev;
+	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
+
+	if (!cfg)
+		return -ENOMEM;
+	pdev = pnp_request_card_device(card, id->devs[0].id, NULL);
+	if (pdev == NULL) {
+		kfree(cfg);
+		return -EBUSY;
+	}
+	return snd_opl3sa2_pnp(dev, chip, pdev, 1);
 }
 #endif /* CONFIG_PNP */
 
@@ -645,6 +669,7 @@ static int snd_opl3sa2_dev_free(snd_device_t *device)
 }
 
 static int __devinit snd_opl3sa2_probe(int dev,
+				       struct pnp_dev *pdev,
 				       struct pnp_card_link *pcard,
 				       const struct pnp_card_device_id *pid)
 {
@@ -695,8 +720,13 @@ static int __devinit snd_opl3sa2_probe(int dev,
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0)
 		goto __error;
 #ifdef CONFIG_PNP
-	if (isapnp[dev]) {
-		if ((err = snd_opl3sa2_pnp(dev, chip, pcard, pid)) < 0)
+	if (pdev) {
+		if ((err = snd_opl3sa2_pnp(dev, chip, pdev, 0)) < 0)
+			goto __error;
+		snd_card_set_dev(card, &pdev->dev);
+	}
+	if (pcard) {
+		if ((err = snd_opl3sa2_cpnp(dev, chip, pcard, pid)) < 0)
 			goto __error;
 		snd_card_set_dev(card, &pcard->card->dev);
 	}
@@ -768,7 +798,9 @@ static int __devinit snd_opl3sa2_probe(int dev,
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;
 
-	if (pcard)
+	if (pdev)
+		pnp_set_drvdata(pdev, card);
+	else if (pcard)
 		pnp_set_card_drvdata(pcard, card);
 	else
 		snd_opl3sa2_legacy[dev] = card;
@@ -780,8 +812,8 @@ static int __devinit snd_opl3sa2_probe(int dev,
 }
 
 #ifdef CONFIG_PNP
-static int __devinit snd_opl3sa2_pnp_detect(struct pnp_card_link *card,
-					    const struct pnp_card_device_id *id)
+static int __devinit snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
+					    const struct pnp_device_id *id)
 {
         static int dev;
         int res;
@@ -789,7 +821,7 @@ static int __devinit snd_opl3sa2_pnp_detect(struct pnp_card_link *card,
         for ( ; dev < SNDRV_CARDS; dev++) {
                 if (!enable[dev] || !isapnp[dev])
                         continue;
-                res = snd_opl3sa2_probe(dev, card, id);
+                res = snd_opl3sa2_probe(dev, pdev, NULL, NULL);
                 if (res < 0)
                         return res;
                 dev++;
@@ -798,7 +830,40 @@ static int __devinit snd_opl3sa2_pnp_detect(struct pnp_card_link *card,
         return -ENODEV;
 }
 
-static void __devexit snd_opl3sa2_pnp_remove(struct pnp_card_link * pcard)
+static void __devexit snd_opl3sa2_pnp_remove(struct pnp_dev * pdev)
+{
+	snd_card_t *card = (snd_card_t *) pnp_get_drvdata(pdev);
+        
+	snd_card_disconnect(card);
+	snd_card_free_in_thread(card);
+}
+
+static struct pnp_driver opl3sa2_pnp_driver = {
+	.name = "opl3sa2-pnpbios",
+	.id_table = snd_opl3sa2_pnpbiosids,
+	.probe = snd_opl3sa2_pnp_detect,
+	.remove = __devexit_p(snd_opl3sa2_pnp_remove),
+};
+
+static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *card,
+					     const struct pnp_card_device_id *id)
+{
+        static int dev;
+        int res;
+
+        for ( ; dev < SNDRV_CARDS; dev++) {
+                if (!enable[dev] || !isapnp[dev])
+                        continue;
+                res = snd_opl3sa2_probe(dev, NULL, card, id);
+                if (res < 0)
+                        return res;
+                dev++;
+                return 0;
+        }
+        return -ENODEV;
+}
+
+static void __devexit snd_opl3sa2_pnp_cremove(struct pnp_card_link * pcard)
 {
 	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
         
@@ -810,8 +875,8 @@ static struct pnp_card_driver opl3sa2_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
 	.name = "opl3sa2",
 	.id_table = snd_opl3sa2_pnpids,
-	.probe = snd_opl3sa2_pnp_detect,
-	.remove = __devexit_p(snd_opl3sa2_pnp_remove),
+	.probe = snd_opl3sa2_pnp_cdetect,
+	.remove = __devexit_p(snd_opl3sa2_pnp_cremove),
 };
 #endif /* CONFIG_PNP */
 
@@ -826,10 +891,11 @@ static int __init alsa_card_opl3sa2_init(void)
 		if (isapnp[dev])
 			continue;
 #endif
-		if (snd_opl3sa2_probe(dev, NULL, NULL) >= 0)
+		if (snd_opl3sa2_probe(dev, NULL, NULL, NULL) >= 0)
 			cards++;
 	}
 #ifdef CONFIG_PNP
+	cards += pnp_register_driver(&opl3sa2_pnp_driver);
 	cards += pnp_register_card_driver(&opl3sa2_pnpc_driver);
 #endif
 	if (!cards) {

@@ -9,23 +9,18 @@
 #include <linux/sysctl.h>
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/socket.h>
+#include <net/sock.h>
 
 #ifdef CONFIG_SYSCTL
 
 extern int netdev_max_backlog;
-extern int netdev_budget;
 extern int weight_p;
-extern int net_msg_cost;
-extern int net_msg_burst;
 
 extern __u32 sysctl_wmem_max;
 extern __u32 sysctl_rmem_max;
-extern __u32 sysctl_wmem_default;
-extern __u32 sysctl_rmem_default;
 
 extern int sysctl_core_destroy_delay;
-extern int sysctl_optmem_max;
-extern int sysctl_somaxconn;
 
 #ifdef CONFIG_NET_DIVERT
 extern char sysctl_divert_version[];

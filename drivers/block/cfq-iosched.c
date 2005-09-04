@@ -47,7 +47,7 @@ static int cfq_slice_idle = HZ / 100;
 /*
  * disable queueing at the driver/hardware level
  */
-static int cfq_max_depth = 1;
+static int cfq_max_depth = 2;
 
 /*
  * for the hash of cfqq inside the cfqd
@@ -385,9 +385,15 @@ cfq_choose_req(struct cfq_data *cfqd, struct cfq_rq *crq1, struct cfq_rq *crq2)
 		return crq2;
 	if (crq2 == NULL)
 		return crq1;
-	if (cfq_crq_requeued(crq1))
+
+	if (cfq_crq_requeued(crq1) && !cfq_crq_requeued(crq2))
 		return crq1;
-	if (cfq_crq_requeued(crq2))
+	else if (cfq_crq_requeued(crq2) && !cfq_crq_requeued(crq1))
+		return crq2;
+
+	if (cfq_crq_is_sync(crq1) && !cfq_crq_is_sync(crq2))
+		return crq1;
+	else if (cfq_crq_is_sync(crq2) && !cfq_crq_is_sync(crq1))
 		return crq2;
 
 	s1 = crq1->request->sector;
@@ -1769,18 +1775,23 @@ static void
 cfq_crq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 struct cfq_rq *crq)
 {
-	const int sync = cfq_crq_is_sync(crq);
+	struct cfq_io_context *cic;
 
 	cfqq->next_crq = cfq_choose_req(cfqd, cfqq->next_crq, crq);
 
-	if (sync) {
-		struct cfq_io_context *cic = crq->io_context;
+	/*
+	 * we never wait for an async request and we don't allow preemption
+	 * of an async request. so just return early
+	 */
+	if (!cfq_crq_is_sync(crq))
+		return;
 
-		cfq_update_io_thinktime(cfqd, cic);
-		cfq_update_idle_window(cfqd, cfqq, cic);
+	cic = crq->io_context;
 
-		cic->last_queue = jiffies;
-	}
+	cfq_update_io_thinktime(cfqd, cic);
+	cfq_update_idle_window(cfqd, cfqq, cic);
+
+	cic->last_queue = jiffies;
 
 	if (cfqq == cfqd->active_queue) {
 		/*

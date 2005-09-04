@@ -25,7 +25,6 @@
 #include <linux/bootmem.h>
 
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <asm/vac-ops.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>

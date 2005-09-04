@@ -5,7 +5,7 @@
  *
  *  Modifications for ppc64:
  *      Copyright (C) 2003 Dave Engebretsen <engebret@us.ibm.com>
- * 
+ *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation; either version
@@ -60,7 +60,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power3+ */
 		.pvr_mask		= 0xffff0000,
@@ -73,7 +72,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Northstar */
 		.pvr_mask		= 0xffff0000,
@@ -86,7 +84,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Pulsar */
 		.pvr_mask		= 0xffff0000,
@@ -99,7 +96,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* I-star */
 		.pvr_mask		= 0xffff0000,
@@ -112,7 +108,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* S-star */
 		.pvr_mask		= 0xffff0000,
@@ -125,7 +120,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power4 */
 		.pvr_mask		= 0xffff0000,
@@ -138,7 +132,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power4+ */
 		.pvr_mask		= 0xffff0000,
@@ -151,7 +144,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* PPC970 */
 		.pvr_mask		= 0xffff0000,
@@ -166,7 +158,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* PPC970FX */
 		.pvr_mask		= 0xffff0000,
@@ -181,7 +172,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* PPC970MP */
 		.pvr_mask		= 0xffff0000,
@@ -196,7 +186,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -211,7 +200,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -226,7 +214,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* BE DD1.x */
 		.pvr_mask		= 0xffff0000,
@@ -241,7 +228,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_be,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
@@ -254,29 +240,5 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	}
-};
-
-firmware_feature_t firmware_features_table[FIRMWARE_MAX_FEATURES] = {
-	{FW_FEATURE_PFT,		"hcall-pft"},
-	{FW_FEATURE_TCE,		"hcall-tce"},
-	{FW_FEATURE_SPRG0,		"hcall-sprg0"},
-	{FW_FEATURE_DABR,		"hcall-dabr"},
-	{FW_FEATURE_COPY,		"hcall-copy"},
-	{FW_FEATURE_ASR,		"hcall-asr"},
-	{FW_FEATURE_DEBUG,		"hcall-debug"},
-	{FW_FEATURE_PERF,		"hcall-perf"},
-	{FW_FEATURE_DUMP,		"hcall-dump"},
-	{FW_FEATURE_INTERRUPT,		"hcall-interrupt"},
-	{FW_FEATURE_MIGRATE,		"hcall-migrate"},
-	{FW_FEATURE_PERFMON,		"hcall-perfmon"},
-	{FW_FEATURE_CRQ,		"hcall-crq"},
-	{FW_FEATURE_VIO,		"hcall-vio"},
-	{FW_FEATURE_RDMA,		"hcall-rdma"},
-	{FW_FEATURE_LLAN,		"hcall-lLAN"},
-	{FW_FEATURE_BULK,		"hcall-bulk"},
-	{FW_FEATURE_XDABR,		"hcall-xdabr"},
-	{FW_FEATURE_MULTITCE,		"hcall-multi-tce"},
-	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
 };

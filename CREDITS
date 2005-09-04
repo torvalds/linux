@@ -2380,8 +2380,8 @@ E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
 N: James Morris
-E: jmorris@redhat.com
-W: http://www.intercode.com.au/jmorris/
+E: jmorris@namei.org
+W: http://namei.org/
 D: Netfilter, Linux Security Modules (LSM), SELinux, IPSec,
 D: Crypto API, general networking, miscellaneous.
 S: PO Box 707
@@ -2423,8 +2423,7 @@ S: Toronto, Ontario
 S: Canada
 
 N: Zwane Mwaikambo
-E: zwane@linuxpower.ca
-W: http://function.linuxpower.ca
+E: zwane@arm.linux.org.uk
 D: Various driver hacking
 D: Lowlevel x86 kernel hacking
 D: General debugging

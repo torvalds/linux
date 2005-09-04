@@ -562,7 +562,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if (skb->dev)
 		fq->iif = skb->dev->ifindex;
 	skb->dev = NULL;
-	fq->stamp = skb->stamp;
+	skb_get_timestamp(skb, &fq->stamp);
 	fq->meat += skb->len;
 	atomic_add(skb->truesize, &ip6_frag_mem);
 
@@ -664,7 +664,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 
 	head->next = NULL;
 	head->dev = dev;
-	head->stamp = fq->stamp;
+	skb_set_timestamp(head, &fq->stamp);
 	head->nh.ipv6h->payload_len = htons(payload_len);
 
 	*skb_in = head;

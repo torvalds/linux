@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.54 2005/07/25 05:13:50 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.58 2005/08/07 09:24:08 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -208,14 +208,26 @@ static struct or51132_config pchdtv_hd3000 = {
 
 #ifdef HAVE_LGDT330X
 static int lgdt330x_pll_set(struct dvb_frontend* fe,
-			    struct dvb_frontend_parameters* params,
-			    u8* pllbuf)
+			    struct dvb_frontend_parameters* params)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
+	u8 buf[4];
+	struct i2c_msg msg =
+		{ .addr = dev->core->pll_addr, .flags = 0, .buf = buf, .len = 4 };
+	int err;
 
-	pllbuf[0] = dev->core->pll_addr;
-	dvb_pll_configure(dev->core->pll_desc, &pllbuf[1],
-			  params->frequency, 0);
+	dvb_pll_configure(dev->core->pll_desc, buf, params->frequency, 0);
+	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
+			__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
+	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
+		printk(KERN_WARNING "cx88-dvb: %s error "
+			   "(addr %02x <- %02x, err = %i)\n",
+			   __FUNCTION__, buf[0], buf[1], err);
+		if (err < 0)
+			return err;
+		else
+			return -EREMOTEIO;
+	}
 	return 0;
 }
 
@@ -244,6 +256,8 @@ static int lgdt330x_set_ts_param(struct dvb_frontend* fe, int is_punctured)
 
 static struct lgdt330x_config fusionhdtv_3_gold = {
 	.demod_address    = 0x0e,
+	.demod_chip       = LGDT3302,
+	.serial_mpeg      = 0x04, /* TPSERIAL for 3302 in TOP_CONTROL */
 	.pll_set          = lgdt330x_pll_set,
 	.set_ts_params    = lgdt330x_set_ts_param,
 };

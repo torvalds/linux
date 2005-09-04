@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -67,6 +69,7 @@ DEFINE_IDR(ib_uverbs_mw_idr);
 DEFINE_IDR(ib_uverbs_ah_idr);
 DEFINE_IDR(ib_uverbs_cq_idr);
 DEFINE_IDR(ib_uverbs_qp_idr);
+DEFINE_IDR(ib_uverbs_srq_idr);
 
 static spinlock_t map_lock;
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -91,6 +94,9 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_DESTROY_QP]    = ib_uverbs_destroy_qp,
 	[IB_USER_VERBS_CMD_ATTACH_MCAST]  = ib_uverbs_attach_mcast,
 	[IB_USER_VERBS_CMD_DETACH_MCAST]  = ib_uverbs_detach_mcast,
+	[IB_USER_VERBS_CMD_CREATE_SRQ]    = ib_uverbs_create_srq,
+	[IB_USER_VERBS_CMD_MODIFY_SRQ]    = ib_uverbs_modify_srq,
+	[IB_USER_VERBS_CMD_DESTROY_SRQ]   = ib_uverbs_destroy_srq,
 };
 
 static struct vfsmount *uverbs_event_mnt;
@@ -125,18 +131,26 @@ static int ib_dealloc_ucontext(struct ib_ucontext *context)
 		kfree(uobj);
 	}
 
-	/* XXX Free SRQs */
+	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
+		struct ib_srq *srq = idr_find(&ib_uverbs_srq_idr, uobj->id);
+		idr_remove(&ib_uverbs_srq_idr, uobj->id);
+		ib_destroy_srq(srq);
+		list_del(&uobj->list);
+		kfree(uobj);
+	}
+
 	/* XXX Free MWs */
 
 	list_for_each_entry_safe(uobj, tmp, &context->mr_list, list) {
 		struct ib_mr *mr = idr_find(&ib_uverbs_mr_idr, uobj->id);
+		struct ib_device *mrdev = mr->device;
 		struct ib_umem_object *memobj;
 
 		idr_remove(&ib_uverbs_mr_idr, uobj->id);
 		ib_dereg_mr(mr);
 
 		memobj = container_of(uobj, struct ib_umem_object, uobject);
-		ib_umem_release_on_close(mr->device, &memobj->umem);
+		ib_umem_release_on_close(mrdev, &memobj->umem);
 
 		list_del(&uobj->list);
 		kfree(memobj);
@@ -340,6 +354,13 @@ void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)
 {
 	ib_uverbs_async_handler(context_ptr,
 				event->element.qp->uobject->user_handle,
+				event->event);
+}
+
+void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr)
+{
+	ib_uverbs_async_handler(context_ptr,
+				event->element.srq->uobject->user_handle,
 				event->event);
 }
 
