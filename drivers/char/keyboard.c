@@ -200,7 +200,7 @@ int setkeycode(unsigned int scancode, unsigned int keycode)
 		return -EINVAL;
 	if (keycode < 0 || keycode > KEY_MAX)
 		return -EINVAL;
-	if (keycode >> (dev->keycodesize * 8))
+	if (dev->keycodesize < sizeof(keycode) && (keycode >> (dev->keycodesize * 8)))
 		return -EINVAL;
 
 	oldkey = SET_INPUT_KEYCODE(dev, scancode, keycode);
