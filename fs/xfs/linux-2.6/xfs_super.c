@@ -387,14 +387,17 @@ linvfs_clear_inode(
 
 	vn_trace_entry(vp, "clear_inode", (inst_t *)__return_address);
 
-	ASSERT(vp->v_fbhv != NULL);
-
 	XFS_STATS_INC(vn_rele);
 	XFS_STATS_INC(vn_remove);
 	XFS_STATS_INC(vn_reclaim);
 	XFS_STATS_DEC(vn_active);
 
-	VOP_INACTIVE(vp, NULL, cache);
+	/*
+	 * This can happen because xfs_iget_core calls xfs_idestroy if we
+	 * find an inode with di_mode == 0 but without IGET_CREATE set.
+	 */
+	if (vp->v_fbhv)
+		VOP_INACTIVE(vp, NULL, cache);
 
 	VN_LOCK(vp);
 	vp->v_flag &= ~VMODIFIED;
