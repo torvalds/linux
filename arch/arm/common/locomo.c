@@ -651,15 +651,15 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	return ret;
 }
 
+static int locomo_remove_child(struct device *dev, void *data)
+{
+	device_unregister(dev);
+	return 0;
+} 
+
 static void __locomo_remove(struct locomo *lchip)
 {
-	struct list_head *l, *n;
-
-	list_for_each_safe(l, n, &lchip->dev->children) {
-		struct device *d = list_to_dev(l);
-
-		device_unregister(d);
-	}
+	device_for_each_child(lchip->dev, NULL, locomo_remove_child);
 
 	if (lchip->irq != NO_IRQ) {
 		set_irq_chained_handler(lchip->irq, NULL);
