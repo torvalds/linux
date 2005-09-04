@@ -502,10 +502,8 @@ typedef struct vnode_map {
 			 (vmap).v_number = (vp)->v_number,	\
 			 (vmap).v_ino	 = (vp)->v_inode.i_ino; }
 
-extern void	vn_purge(struct vnode *, vmap_t *);
 extern int	vn_revalidate(struct vnode *);
 extern void	vn_revalidate_core(struct vnode *, vattr_t *);
-extern void	vn_remove(struct vnode *);
 
 extern void	vn_iowait(struct vnode *vp);
 extern void	vn_iowake(struct vnode *vp);
@@ -519,7 +517,6 @@ static inline int vn_count(struct vnode *vp)
  * Vnode reference counting functions (and macros for compatibility).
  */
 extern vnode_t	*vn_hold(struct vnode *);
-extern void	vn_rele(struct vnode *);
 
 #if defined(XFS_VNODE_TRACE)
 #define VN_HOLD(vp)		\

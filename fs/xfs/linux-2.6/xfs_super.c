@@ -383,17 +383,33 @@ linvfs_clear_inode(
 	struct inode		*inode)
 {
 	vnode_t			*vp = LINVFS_GET_VP(inode);
+	int			error, cache;
 
-	if (vp) {
-		vn_rele(vp);
-		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-		/*
-		 * Do all our cleanup, and remove this vnode.
-		 */
-		vn_remove(vp);
-	}
+	vn_trace_entry(vp, "clear_inode", (inst_t *)__return_address);
+
+	ASSERT(vp->v_fbhv != NULL);
+
+	XFS_STATS_INC(vn_rele);
+	XFS_STATS_INC(vn_remove);
+	XFS_STATS_INC(vn_reclaim);
+	XFS_STATS_DEC(vn_active);
+
+	VOP_INACTIVE(vp, NULL, cache);
+
+	VN_LOCK(vp);
+	vp->v_flag &= ~VMODIFIED;
+	VN_UNLOCK(vp, 0);
+
+	VOP_RECLAIM(vp, error);
+	if (error)
+		panic("vn_purge: cannot reclaim");
+
+	ASSERT(vp->v_fbhv == NULL);
+
+#ifdef XFS_VNODE_TRACE
+	ktrace_free(vp->v_trace);
+#endif
 }
-
 
 /*
  * Enqueue a work item to be picked up by the vfs xfssyncd thread.
