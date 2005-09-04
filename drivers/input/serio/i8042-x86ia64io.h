@@ -297,6 +297,8 @@ static int __init i8042_pnp_init(void)
 		aux_irq_str);
 
 #if defined(__ia64__)
+	if (result_kbd <= 0)
+		i8042_nokbd = 1;
 	if (result_aux <= 0)
 		i8042_noaux = 1;
 #endif
@@ -315,7 +317,7 @@ static int __init i8042_pnp_init(void)
 		i8042_pnp_command_reg = i8042_command_reg;
 	}
 
-	if (!i8042_pnp_kbd_irq) {
+	if (!i8042_nokbd && !i8042_pnp_kbd_irq) {
 		printk(KERN_WARNING "PNP: PS/2 controller doesn't have KBD irq; using default %d\n", i8042_kbd_irq);
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
 	}

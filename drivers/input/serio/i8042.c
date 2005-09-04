@@ -27,6 +27,10 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("i8042 keyboard and mouse controller driver");
 MODULE_LICENSE("GPL");
 
+static unsigned int i8042_nokbd;
+module_param_named(nokbd, i8042_nokbd, bool, 0);
+MODULE_PARM_DESC(nokbd, "Do not probe or use KBD port.");
+
 static unsigned int i8042_noaux;
 module_param_named(noaux, i8042_noaux, bool, 0);
 MODULE_PARM_DESC(noaux, "Do not probe or use AUX (mouse) port.");
@@ -1058,7 +1062,7 @@ static int __init i8042_create_mux_port(int index)
 
 static int __init i8042_init(void)
 {
-	int i;
+	int i, have_ports = 0;
 	int err;
 
 	dbg_init();
@@ -1100,11 +1104,20 @@ static int __init i8042_init(void)
 			if (err)
 				goto err_unregister_ports;
 		}
+		have_ports = 1;
 	}
 
-	err = i8042_create_kbd_port();
-	if (err)
-		goto err_unregister_ports;
+	if (!i8042_nokbd) {
+		err = i8042_create_kbd_port();
+		if (err)
+			goto err_unregister_ports;
+		have_ports = 1;
+	}
+
+	if (!have_ports) {
+		err = -ENODEV;
+		goto err_unregister_device;
+	}
 
 	mod_timer(&i8042_timer, jiffies + I8042_POLL_PERIOD);
 
@@ -1114,6 +1127,7 @@ static int __init i8042_init(void)
 	for (i = 0; i < I8042_NUM_PORTS; i++)
 		if (i8042_ports[i].serio)
 			serio_unregister_port(i8042_ports[i].serio);
+ err_unregister_device:
 	platform_device_unregister(i8042_platform_device);
  err_unregister_driver:
 	driver_unregister(&i8042_driver);
