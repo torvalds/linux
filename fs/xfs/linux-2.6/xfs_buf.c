@@ -54,6 +54,7 @@
 #include <linux/percpu.h>
 #include <linux/blkdev.h>
 #include <linux/hash.h>
+#include <linux/kthread.h>
 
 #include "xfs_linux.h"
 
@@ -1742,9 +1743,7 @@ pagebuf_runall_queues(
 }
 
 /* Defines for pagebuf daemon */
-STATIC DECLARE_COMPLETION(xfsbufd_done);
 STATIC struct task_struct *xfsbufd_task;
-STATIC int xfsbufd_active;
 STATIC int xfsbufd_force_flush;
 STATIC int xfsbufd_force_sleep;
 
@@ -1770,13 +1769,7 @@ xfsbufd(
 	xfs_buftarg_t		*target;
 	xfs_buf_t		*pb, *n;
 
-	/*  Set up the thread  */
-	daemonize("xfsbufd");
 	current->flags |= PF_MEMALLOC;
-
-	xfsbufd_task = current;
-	xfsbufd_active = 1;
-	barrier();
 
 	INIT_LIST_HEAD(&tmp);
 	do {
@@ -1825,9 +1818,9 @@ xfsbufd(
 			purge_addresses();
 
 		xfsbufd_force_flush = 0;
-	} while (xfsbufd_active);
+	} while (!kthread_should_stop());
 
-	complete_and_exit(&xfsbufd_done, 0);
+	return 0;
 }
 
 /*
@@ -1910,9 +1903,11 @@ xfs_buf_daemons_start(void)
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
-	error = kernel_thread(xfsbufd, NULL, CLONE_FS|CLONE_FILES);
-	if (error < 0)
+	xfsbufd_task = kthread_run(xfsbufd, NULL, "xfsbufd");
+	if (IS_ERR(xfsbufd_task)) {
+		error = PTR_ERR(xfsbufd_task);
 		goto out_destroy_xfsdatad_workqueue;
+	}
 	return 0;
 
  out_destroy_xfsdatad_workqueue:
@@ -1929,10 +1924,7 @@ xfs_buf_daemons_start(void)
 STATIC void
 xfs_buf_daemons_stop(void)
 {
-	xfsbufd_active = 0;
-	barrier();
-	wait_for_completion(&xfsbufd_done);
-
+	kthread_stop(xfsbufd_task);
 	destroy_workqueue(xfslogd_workqueue);
 	destroy_workqueue(xfsdatad_workqueue);
 }

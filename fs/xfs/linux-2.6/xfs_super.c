@@ -72,6 +72,7 @@
 #include <linux/mount.h>
 #include <linux/mempool.h>
 #include <linux/writeback.h>
+#include <linux/kthread.h>
 
 STATIC struct quotactl_ops linvfs_qops;
 STATIC struct super_operations linvfs_sops;
@@ -516,25 +517,16 @@ xfssyncd(
 {
 	long			timeleft;
 	vfs_t			*vfsp = (vfs_t *) arg;
-	struct list_head	tmp;
 	struct vfs_sync_work	*work, *n;
+	LIST_HEAD		(tmp);
 
-	daemonize("xfssyncd");
-
-	vfsp->vfs_sync_work.w_vfs = vfsp;
-	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
-	vfsp->vfs_sync_task = current;
-	wmb();
-	wake_up(&vfsp->vfs_wait_sync_task);
-
-	INIT_LIST_HEAD(&tmp);
 	timeleft = (xfs_syncd_centisecs * HZ) / 100;
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		timeleft = schedule_timeout(timeleft);
 		/* swsusp */
 		try_to_freeze();
-		if (vfsp->vfs_flag & VFS_UMOUNT)
+		if (kthread_should_stop())
 			break;
 
 		spin_lock(&vfsp->vfs_sync_lock);
@@ -563,10 +555,6 @@ xfssyncd(
 		}
 	}
 
-	vfsp->vfs_sync_task = NULL;
-	wmb();
-	wake_up(&vfsp->vfs_wait_sync_task);
-
 	return 0;
 }
 
@@ -574,13 +562,11 @@ STATIC int
 linvfs_start_syncd(
 	vfs_t			*vfsp)
 {
-	int			pid;
-
-	pid = kernel_thread(xfssyncd, (void *) vfsp,
-			CLONE_VM | CLONE_FS | CLONE_FILES);
-	if (pid < 0)
-		return -pid;
-	wait_event(vfsp->vfs_wait_sync_task, vfsp->vfs_sync_task);
+	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
+	vfsp->vfs_sync_work.w_vfs = vfsp;
+	vfsp->vfs_sync_task = kthread_run(xfssyncd, vfsp, "xfssyncd");
+	if (IS_ERR(vfsp->vfs_sync_task))
+		return -PTR_ERR(vfsp->vfs_sync_task);
 	return 0;
 }
 
@@ -588,11 +574,7 @@ STATIC void
 linvfs_stop_syncd(
 	vfs_t			*vfsp)
 {
-	vfsp->vfs_flag |= VFS_UMOUNT;
-	wmb();
-
-	wake_up_process(vfsp->vfs_sync_task);
-	wait_event(vfsp->vfs_wait_sync_task, !vfsp->vfs_sync_task);
+	kthread_stop(vfsp->vfs_sync_task);
 }
 
 STATIC void
