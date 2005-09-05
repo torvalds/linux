@@ -795,7 +795,6 @@ xfs_statvfs(
 	xfs_mount_t	*mp;
 	xfs_sb_t	*sbp;
 	unsigned long	s;
-	u64 id;
 
 	mp = XFS_BHVTOM(bdp);
 	sbp = &(mp->m_sb);
@@ -823,9 +822,7 @@ xfs_statvfs(
 	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
 	XFS_SB_UNLOCK(mp, s);
 
-	id = huge_encode_dev(mp->m_dev);
-	statp->f_fsid.val[0] = (u32)id;
-	statp->f_fsid.val[1] = (u32)(id >> 32);
+	xfs_statvfs_fsid(statp, mp);
 	statp->f_namelen = MAXNAMELEN - 1;
 
 	return 0;
@@ -1505,7 +1502,10 @@ xfs_syncsub(
 	 * eventually kicked out of the cache.
 	 */
 	if (flags & SYNC_REFCACHE) {
-		xfs_refcache_purge_some(mp);
+		if (flags & SYNC_WAIT)
+			xfs_refcache_purge_mp(mp);
+		else
+			xfs_refcache_purge_some(mp);
 	}
 
 	/*

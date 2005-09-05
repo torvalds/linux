@@ -423,9 +423,14 @@ linvfs_follow_link(
 	return NULL;
 }
 
-static void linvfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
+STATIC void
+linvfs_put_link(
+	struct dentry	*dentry,
+	struct nameidata *nd,
+	void		*p)
 {
-	char *s = nd_get_link(nd);
+	char		*s = nd_get_link(nd);
+
 	if (!IS_ERR(s))
 		kfree(s);
 }
