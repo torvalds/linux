@@ -840,7 +840,7 @@ static void snd_nm256_setup_stream(nm256_t *chip, nm256_stream_t *s,
 	runtime->hw = *hw_ptr;
 	runtime->hw.buffer_bytes_max = s->bufsize;
 	runtime->hw.period_bytes_max = s->bufsize / 2;
-	runtime->dma_area = (void*) s->bufptr;
+	runtime->dma_area = (void __force *) s->bufptr;
 	runtime->dma_addr = s->bufptr_addr;
 	runtime->dma_bytes = s->bufsize;
 	runtime->private_data = s;

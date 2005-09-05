@@ -984,7 +984,9 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
 			spin_lock_irq(&runtime->lock);
 		}
 		spin_unlock_irq(&runtime->lock);
-		count1 = snd_rawmidi_kernel_read1(substream, (unsigned char *)buf, count, 0);
+		count1 = snd_rawmidi_kernel_read1(substream,
+						  (unsigned char __force *)buf,
+						  count, 0);
 		if (count1 < 0)
 			return result > 0 ? result : count1;
 		result += count1;
@@ -1213,7 +1215,9 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf, size
 			spin_lock_irq(&runtime->lock);
 		}
 		spin_unlock_irq(&runtime->lock);
-		count1 = snd_rawmidi_kernel_write1(substream, (unsigned char *)buf, count, 0);
+		count1 = snd_rawmidi_kernel_write1(substream,
+						   (unsigned char __force *)buf,
+						   count, 0);
 		if (count1 < 0)
 			return result > 0 ? result : count1;
 		result += count1;

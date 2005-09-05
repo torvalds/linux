@@ -985,7 +985,8 @@ snd_rme96_playback_hw_params(snd_pcm_substream_t *substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err, rate, dummy;
 
-	runtime->dma_area = (void *)(rme96->iobase + RME96_IO_PLAY_BUFFER);
+	runtime->dma_area = (void __force *)(rme96->iobase +
+					     RME96_IO_PLAY_BUFFER);
 	runtime->dma_addr = rme96->port + RME96_IO_PLAY_BUFFER;
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
@@ -1037,7 +1038,8 @@ snd_rme96_capture_hw_params(snd_pcm_substream_t *substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err, isadat, rate;
 	
-	runtime->dma_area = (void *)(rme96->iobase + RME96_IO_REC_BUFFER);
+	runtime->dma_area = (void __force *)(rme96->iobase +
+					     RME96_IO_REC_BUFFER);
 	runtime->dma_addr = rme96->port + RME96_IO_REC_BUFFER;
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 

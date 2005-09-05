@@ -413,7 +413,9 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count, l
 			}
 			count -= sizeof(snd_seq_event_t);
 			buf += sizeof(snd_seq_event_t);
-			err = snd_seq_expand_var_event(&cell->event, count, (char *)buf, 0, sizeof(snd_seq_event_t));
+			err = snd_seq_expand_var_event(&cell->event, count,
+						       (char __force *)buf, 0,
+						       sizeof(snd_seq_event_t));
 			if (err < 0)
 				break;
 			result += err;
@@ -1009,7 +1011,8 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf, size_t c
 			}
 			/* set user space pointer */
 			event.data.ext.len = extlen | SNDRV_SEQ_EXT_USRPTR;
-			event.data.ext.ptr = (char*)buf + sizeof(snd_seq_event_t);
+			event.data.ext.ptr = (char __force *)buf
+						+ sizeof(snd_seq_event_t);
 			len += extlen; /* increment data length */
 		} else {
 #ifdef CONFIG_COMPAT

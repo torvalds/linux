@@ -692,7 +692,8 @@ snd_rme32_playback_hw_params(snd_pcm_substream_t * substream,
 		if (err < 0)
 			return err;
 	} else {
-		runtime->dma_area = (void *)(rme32->iobase + RME32_IO_DATA_BUFFER);
+		runtime->dma_area = (void __force *)(rme32->iobase +
+						     RME32_IO_DATA_BUFFER);
 		runtime->dma_addr = rme32->port + RME32_IO_DATA_BUFFER;
 		runtime->dma_bytes = RME32_BUFFER_SIZE;
 	}
@@ -746,7 +747,8 @@ snd_rme32_capture_hw_params(snd_pcm_substream_t * substream,
 		if (err < 0)
 			return err;
 	} else {
-		runtime->dma_area = (void *)rme32->iobase + RME32_IO_DATA_BUFFER;
+		runtime->dma_area = (void __force *)rme32->iobase +
+					RME32_IO_DATA_BUFFER;
 		runtime->dma_addr = rme32->port + RME32_IO_DATA_BUFFER;
 		runtime->dma_bytes = RME32_BUFFER_SIZE;
 	}
