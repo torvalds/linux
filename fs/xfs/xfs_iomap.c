@@ -226,13 +226,12 @@ xfs_iomap(
 		xfs_iomap_enter_trace(XFS_IOMAP_READ_ENTER, io, offset, count);
 		lockmode = XFS_LCK_MAP_SHARED(mp, io);
 		bmapi_flags = XFS_BMAPI_ENTIRE;
-		if (flags & BMAPI_IGNSTATE)
-			bmapi_flags |= XFS_BMAPI_IGSTATE;
 		break;
 	case BMAPI_WRITE:
 		xfs_iomap_enter_trace(XFS_IOMAP_WRITE_ENTER, io, offset, count);
 		lockmode = XFS_ILOCK_EXCL|XFS_EXTSIZE_WR;
-		bmapi_flags = 0;
+		if (flags & BMAPI_IGNSTATE)
+			bmapi_flags |= XFS_BMAPI_IGSTATE|XFS_BMAPI_ENTIRE;
 		XFS_ILOCK(mp, io, lockmode);
 		break;
 	case BMAPI_ALLOCATE:

@@ -804,7 +804,7 @@ xfs_page_state_convert(
 				continue;
 			if (!iomp) {
 				err = xfs_map_blocks(inode, offset, len, &iomap,
-						BMAPI_READ|BMAPI_IGNSTATE);
+						BMAPI_WRITE|BMAPI_IGNSTATE);
 				if (err) {
 					goto error;
 				}
