@@ -5041,17 +5041,3 @@ rs_init(void)
 /* this makes sure that rs_init is called during kernel boot */
 
 module_init(rs_init);
-
-/*
- * register_serial and unregister_serial allows for serial ports to be
- * configured at run-time, to support PCMCIA modems.
- */
-int
-register_serial(struct serial_struct *req)
-{
-	return -1;
-}
-
-void unregister_serial(int line)
-{
-}
