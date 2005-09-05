@@ -318,10 +318,18 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_MSVENDOR:
-		case HID_UP_LOGIVENDOR:
 			goto ignore;
 
-		case HID_UP_LOGIVENDOR2: /* Reported on Logitech Ultra X Media Remote */
+		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
+
+			set_bit(EV_REP, input->evbit);
+			switch(usage->hid & HID_USAGE) {
+				case 0x003: map_key_clear(KEY_FN);		break;
+				default:    goto ignore;
+			}
+			break;
+
+		case HID_UP_LOGIVENDOR: /* Reported on Logitech Ultra X Media Remote */
 
 			set_bit(EV_REP, input->evbit);
 			switch(usage->hid & HID_USAGE) {
