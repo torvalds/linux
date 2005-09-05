@@ -70,6 +70,7 @@ MODULE_PARM_DESC(dma8, "8-bit DMA # for ESx688 driver.");
 
 static snd_card_t *snd_audiodrive_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
+#define PFX	"es1688: "
 
 static int __init snd_audiodrive_probe(int dev)
 {
@@ -89,47 +90,41 @@ static int __init snd_audiodrive_probe(int dev)
 	xirq = irq[dev];
 	if (xirq == SNDRV_AUTO_IRQ) {
 		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free IRQ\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 	xmpu_irq = mpu_irq[dev];
 	xdma = dma8[dev];
 	if (xdma == SNDRV_AUTO_DMA) {
 		if ((xdma = snd_legacy_find_free_dma(possible_dmas)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free DMA\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free DMA\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 
 	if ((err = snd_es1688_create(card, port[dev], mpu_port[dev],
 				     xirq, xmpu_irq, xdma,
-				     ES1688_HW_AUTO, &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_es1688_pcm(chip, 0, &pcm)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_es1688_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     ES1688_HW_AUTO, &chip)) < 0)
+		goto _err;
+
+	if ((err = snd_es1688_pcm(chip, 0, &pcm)) < 0)
+		goto _err;
+
+	if ((err = snd_es1688_mixer(chip)) < 0)
+		goto _err;
 
 	strcpy(card->driver, "ES1688");
 	strcpy(card->shortname, pcm->name);
 	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name, chip->port, xirq, xdma);
 
 	if ((snd_opl3_create(card, chip->port, chip->port + 2, OPL3_HW_OPL3, 0, &opl3)) < 0) {
-		printk(KERN_ERR "es1688: opl3 not detected at 0x%lx\n", chip->port);
+		printk(KERN_WARNING PFX "opl3 not detected at 0x%lx\n", chip->port);
 	} else {
-		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+			goto _err;
 	}
 
 	if (xmpu_irq >= 0 && xmpu_irq != SNDRV_AUTO_IRQ && chip->mpu_port > 0) {
@@ -137,18 +132,22 @@ static int __init snd_audiodrive_probe(int dev)
 					       chip->mpu_port, 0,
 					       xmpu_irq,
 					       SA_INTERRUPT,
-					       NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
+					       NULL)) < 0)
+			goto _err;
 	}
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	snd_audiodrive_cards[dev] = card;
 	return 0;
 
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init snd_audiodrive_legacy_auto_probe(unsigned long xport)

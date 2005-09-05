@@ -1894,8 +1894,8 @@ static void snd_card_opti9xx_free(snd_card_t *card)
 	}
 }
 
-static int __devinit snd_card_opti9xx_probe(struct pnp_card_link *pcard,
-					    const struct pnp_card_device_id *pid)
+static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,
+				  const struct pnp_card_device_id *pid)
 {
 	static long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
 	static long possible_mpu_ports[] = {0x300, 0x310, 0x320, 0x330, -1};
@@ -1962,6 +1962,10 @@ static int __devinit snd_card_opti9xx_probe(struct pnp_card_link *pcard,
 	} else {
 #endif	/* CONFIG_PNP */
 		if ((error = snd_card_opti9xx_detect(card, chip)) < 0) {
+			snd_card_free(card);
+			return error;
+		}
+		if ((error = snd_card_set_generic_dev(card)) < 0) {
 			snd_card_free(card);
 			return error;
 		}
