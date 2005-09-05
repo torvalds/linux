@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -34,6 +33,7 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/processor.h>
 #include <asm/bitops.h>
