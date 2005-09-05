@@ -1041,7 +1041,7 @@ static int drm_addbufs_sg(drm_device_t *dev, drm_buf_desc_t *request)
 	return 0;
 }
 
-int drm_addbufs_fb(drm_device_t *dev, drm_buf_desc_t *request)
+static int drm_addbufs_fb(drm_device_t *dev, drm_buf_desc_t *request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
