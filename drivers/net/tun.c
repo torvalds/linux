@@ -18,6 +18,9 @@
 /*
  *  Changes:
  *
+ *  Mike Kershaw <dragorn@kismetwireless.net> 2005/08/14
+ *    Add TUNSETLINK ioctl to set the link encapsulation
+ *
  *  Mark Smith <markzzzsmith@yahoo.com.au>
  *   Use random_ether_addr() for tap MAC address.
  *
@@ -610,6 +613,18 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		tun->owner = (uid_t) arg;
 
 		DBG(KERN_INFO "%s: owner set to %d\n", tun->dev->name, tun->owner);
+		break;
+
+	case TUNSETLINK:
+		/* Only allow setting the type when the interface is down */
+		if (tun->dev->flags & IFF_UP) {
+			DBG(KERN_INFO "%s: Linktype set failed because interface is up\n",
+				tun->dev->name);
+			return -EBUSY;
+		} else {
+			tun->dev->type = (int) arg;
+			DBG(KERN_INFO "%s: linktype set to %d\n", tun->dev->name, tun->dev->type);
+		}
 		break;
 
 #ifdef TUN_DEBUG

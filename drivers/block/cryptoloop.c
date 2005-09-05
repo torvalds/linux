@@ -57,9 +57,11 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	mode = strsep(&cmsp, "-");
 
 	if (mode == NULL || strcmp(mode, "cbc") == 0)
-		tfm = crypto_alloc_tfm(cipher, CRYPTO_TFM_MODE_CBC);
+		tfm = crypto_alloc_tfm(cipher, CRYPTO_TFM_MODE_CBC |
+					       CRYPTO_TFM_REQ_MAY_SLEEP);
 	else if (strcmp(mode, "ecb") == 0)
-		tfm = crypto_alloc_tfm(cipher, CRYPTO_TFM_MODE_ECB);
+		tfm = crypto_alloc_tfm(cipher, CRYPTO_TFM_MODE_ECB |
+					       CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (tfm == NULL)
 		return -EINVAL;
 

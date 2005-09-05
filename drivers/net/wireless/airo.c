@@ -1308,7 +1308,7 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-	        ai->tfm = crypto_alloc_tfm("aes", 0);
+	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
 
         if (ai->tfm == NULL) {
                 printk(KERN_ERR "airo: failed to load transform for AES\n");
@@ -2410,8 +2410,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 		}
         }
 #ifdef MICSUPPORT
-	if (ai->tfm)
-		crypto_free_tfm(ai->tfm);
+	crypto_free_tfm(ai->tfm);
 #endif
 	del_airo_dev( dev );
 	free_netdev( dev );

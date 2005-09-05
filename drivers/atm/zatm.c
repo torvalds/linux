@@ -417,9 +417,9 @@ printk("dummy: 0x%08lx, 0x%08lx\n",dummy[0],dummy[1]);
 		chan = (here[3] & uPD98401_AAL5_CHAN) >>
 		    uPD98401_AAL5_CHAN_SHIFT;
 		if (chan < zatm_dev->chans && zatm_dev->rx_map[chan]) {
-			int pos = ZATM_VCC(vcc)->pool;
-
+			int pos;
 			vcc = zatm_dev->rx_map[chan];
+			pos = ZATM_VCC(vcc)->pool;
 			if (skb == zatm_dev->last_free[pos])
 				zatm_dev->last_free[pos] = NULL;
 			skb_unlink(skb, zatm_dev->pool + pos);
