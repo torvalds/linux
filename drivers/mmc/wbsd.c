@@ -42,7 +42,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.3"
+#define DRIVER_VERSION "1.4"
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
@@ -960,8 +960,9 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	struct wbsd_host* host = mmc_priv(mmc);
 	u8 clk, setup, pwr;
 	
-	DBGF("clock %uHz busmode %u powermode %u Vdd %u\n",
-		ios->clock, ios->bus_mode, ios->power_mode, ios->vdd);
+	DBGF("clock %uHz busmode %u powermode %u cs %u Vdd %u\n",
+		ios->clock, ios->bus_mode, ios->power_mode, ios->chip_select,
+		ios->vdd);
 
 	spin_lock_bh(&host->lock);
 
@@ -1003,13 +1004,11 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 
 	/*
 	 * MMC cards need to have pin 1 high during init.
-	 * Init time corresponds rather nicely with the bus mode.
 	 * It wreaks havoc with the card detection though so
-	 * that needs to be disabed.
+	 * that needs to be disabled.
 	 */
 	setup = wbsd_read_index(host, WBSD_IDX_SETUP);
-	if ((ios->power_mode == MMC_POWER_ON) &&
-		(ios->bus_mode == MMC_BUSMODE_OPENDRAIN))
+	if (ios->chip_select == MMC_CS_HIGH)
 	{
 		setup |= WBSD_DAT3_H;
 		host->flags |= WBSD_FIGNORE_DETECT;
@@ -1017,7 +1016,12 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	else
 	{
 		setup &= ~WBSD_DAT3_H;
-		host->flags &= ~WBSD_FIGNORE_DETECT;
+
+		/*
+		 * We cannot resume card detection immediatly
+		 * because of capacitance and delays in the chip.
+		 */
+		mod_timer(&host->ignore_timer, jiffies + HZ/100);
 	}
 	wbsd_write_index(host, WBSD_IDX_SETUP, setup);
 	
@@ -1034,6 +1038,31 @@ static struct mmc_host_ops wbsd_ops = {
  * Interrupt handling                                                        *
  *                                                                           *
 \*****************************************************************************/
+
+/*
+ * Helper function to reset detection ignore
+ */
+
+static void wbsd_reset_ignore(unsigned long data)
+{
+	struct wbsd_host *host = (struct wbsd_host*)data;
+
+	BUG_ON(host == NULL);
+
+	DBG("Resetting card detection ignore\n");
+
+	spin_lock_bh(&host->lock);
+
+	host->flags &= ~WBSD_FIGNORE_DETECT;
+
+	/*
+	 * Card status might have changed during the
+	 * blackout.
+	 */
+	tasklet_schedule(&host->card_tasklet);
+
+	spin_unlock_bh(&host->lock);
+}
 
 /*
  * Helper function for card detection
@@ -1097,7 +1126,7 @@ static void wbsd_tasklet_card(unsigned long param)
 			 * Delay card detection to allow electrical connections
 			 * to stabilise.
 			 */
-			mod_timer(&host->timer, jiffies + HZ/2);
+			mod_timer(&host->detect_timer, jiffies + HZ/2);
 		}
 		
 		spin_unlock(&host->lock);
@@ -1124,6 +1153,8 @@ static void wbsd_tasklet_card(unsigned long param)
 
 		mmc_detect_change(host->mmc);
 	}
+	else
+		spin_unlock(&host->lock);
 }
 
 static void wbsd_tasklet_fifo(unsigned long param)
@@ -1328,11 +1359,15 @@ static int __devinit wbsd_alloc_mmc(struct device* dev)
 	spin_lock_init(&host->lock);
 	
 	/*
-	 * Set up detection timer
+	 * Set up timers
 	 */
-	init_timer(&host->timer);
-	host->timer.data = (unsigned long)host;
-	host->timer.function = wbsd_detect_card;
+	init_timer(&host->detect_timer);
+	host->detect_timer.data = (unsigned long)host;
+	host->detect_timer.function = wbsd_detect_card;
+
+	init_timer(&host->ignore_timer);
+	host->ignore_timer.data = (unsigned long)host;
+	host->ignore_timer.function = wbsd_reset_ignore;
 	
 	/*
 	 * Maximum number of segments. Worst case is one sector per segment
@@ -1370,7 +1405,8 @@ static void __devexit wbsd_free_mmc(struct device* dev)
 	host = mmc_priv(mmc);
 	BUG_ON(host == NULL);
 	
-	del_timer_sync(&host->timer);
+	del_timer_sync(&host->ignore_timer);
+	del_timer_sync(&host->detect_timer);
 	
 	mmc_free_host(mmc);
 	
