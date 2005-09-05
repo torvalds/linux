@@ -247,6 +247,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x000: goto ignore;
 				case 0x034: map_key_clear(KEY_SLEEP);		break;
 				case 0x036: map_key_clear(BTN_MISC);		break;
+				case 0x045: map_key_clear(KEY_RADIO);		break;
 				case 0x08a: map_key_clear(KEY_WWW);		break;
 				case 0x08d: map_key_clear(KEY_PROGRAM);		break;
 				case 0x095: map_key_clear(KEY_HELP);		break;
@@ -318,9 +319,32 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_UP_MSVENDOR:
 		case HID_UP_LOGIVENDOR:
-		case HID_UP_LOGIVENDOR2:
-
 			goto ignore;
+
+		case HID_UP_LOGIVENDOR2: /* Reported on Logitech Ultra X Media Remote */
+
+			set_bit(EV_REP, input->evbit);
+			switch(usage->hid & HID_USAGE) {
+				case 0x004: map_key_clear(KEY_AGAIN);		break;
+				case 0x00d: map_key_clear(KEY_HOME);		break;
+				case 0x024: map_key_clear(KEY_SHUFFLE);		break;
+				case 0x025: map_key_clear(KEY_TV);		break;
+				case 0x026: map_key_clear(KEY_MENU);		break;
+				case 0x031: map_key_clear(KEY_AUDIO);		break;
+				case 0x032: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x033: map_key_clear(KEY_LAST);		break;
+				case 0x047: map_key_clear(KEY_MP3);		break;
+				case 0x048: map_key_clear(KEY_DVD);		break;
+				case 0x049: map_key_clear(KEY_MEDIA);		break;
+				case 0x04a: map_key_clear(KEY_VIDEO);		break;
+				case 0x04b: map_key_clear(KEY_ANGLE);		break;
+				case 0x04c: map_key_clear(KEY_LANGUAGE);	break;
+				case 0x04d: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x051: map_key_clear(KEY_RED);		break;
+				case 0x052: map_key_clear(KEY_CLOSE);		break;
+				default:    goto ignore;
+			}
+			break;
 
 		case HID_UP_PID:
 
