@@ -60,6 +60,15 @@ static struct scoop_config corgi_scoop_setup = {
 	.io_out		= CORGI_SCOOP_IO_OUT,
 };
 
+static struct scoop_pcmcia_dev corgi_pcmcia_scoop[] = {
+{
+	.dev        = &corgiscoop_device.dev,
+	.irq        = CORGI_IRQ_GPIO_CF_IRQ,
+	.cd_irq     = CORGI_IRQ_GPIO_CF_CD,
+	.cd_irq_str = "PCMCIA0 CD",
+},
+};
+
 struct platform_device corgiscoop_device = {
 	.name		= "sharp-scoop",
 	.id		= -1,
@@ -240,6 +249,9 @@ static void __init corgi_init(void)
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
+
+	scoop_num = 1;
+	scoop_devs = &corgi_pcmcia_scoop[0];
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
