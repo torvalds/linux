@@ -1439,9 +1439,11 @@ static int snd_usb_pcm_prepare(snd_pcm_substream_t *substream)
 
 static snd_pcm_hardware_t snd_usb_playback =
 {
-	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_BATCH |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER,
 	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
@@ -1451,9 +1453,11 @@ static snd_pcm_hardware_t snd_usb_playback =
 
 static snd_pcm_hardware_t snd_usb_capture =
 {
-	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_BATCH |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER,
 	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
