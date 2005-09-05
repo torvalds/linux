@@ -102,7 +102,7 @@ void innovator_fpga_IRQ_demux(unsigned int irq, struct irqdesc *desc,
 	     fpga_irq++, stat >>= 1) {
 		if (stat & 1) {
 			d = irq_desc + fpga_irq;
-			d->handle(fpga_irq, d, regs);
+			desc_handle_irq(fpga_irq, d, regs);
 		}
 	}
 }

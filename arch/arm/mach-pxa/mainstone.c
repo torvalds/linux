@@ -72,7 +72,7 @@ static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc->handle(irq, desc, regs);
+			desc_handle_irq(irq, desc, regs);
 		}
 		pending = MST_INTSETCLR & mainstone_irq_enabled;
 	} while (pending);
