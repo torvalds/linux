@@ -1470,10 +1470,10 @@ ata_scsi_find_dev(struct ata_port *ap, struct scsi_device *scsidev)
 	if (unlikely(!ata_dev_present(dev)))
 		return NULL;
 
-#ifndef ATA_ENABLE_ATAPI
-	if (unlikely(dev->class == ATA_DEV_ATAPI))
-		return NULL;
-#endif
+	if (!atapi_enabled) {
+		if (unlikely(dev->class == ATA_DEV_ATAPI))
+			return NULL;
+	}
 
 	return dev;
 }
