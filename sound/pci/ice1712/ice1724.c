@@ -1414,7 +1414,7 @@ static int snd_vt1724_spdif_maskp_get(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_vt1724_spdif_maskc __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_vt1724_spdif_info,
 	.get =		snd_vt1724_spdif_maskc_get,
@@ -1423,7 +1423,7 @@ static snd_kcontrol_new_t snd_vt1724_spdif_maskc __devinitdata =
 static snd_kcontrol_new_t snd_vt1724_spdif_maskp __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_vt1724_spdif_info,
 	.get =		snd_vt1724_spdif_maskp_get,
@@ -1466,7 +1466,7 @@ static snd_kcontrol_new_t snd_vt1724_spdif_switch __devinitdata =
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	/* FIXME: the following conflict with IEC958 Playback Route */
 	// .name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH),
-	.name =         "IEC958 Output Switch",
+	.name =         SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.info =		snd_vt1724_spdif_sw_info,
 	.get =		snd_vt1724_spdif_sw_get,
 	.put =		snd_vt1724_spdif_sw_put

@@ -32,6 +32,7 @@
 #include "drm.h"
 #include "radeon_drm.h"
 #include "radeon_drv.h"
+#include "r300_reg.h"
 
 #define RADEON_FIFO_DEBUG	0
 
@@ -1151,6 +1152,8 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 
 #if __OS_HAS_AGP
 	if ( !dev_priv->is_pci ) {
+		/* set RADEON_AGP_BASE here instead of relying on X from user space */
+		RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev->agp->base);
 		RADEON_WRITE( RADEON_CP_RB_RPTR_ADDR,
 			      dev_priv->ring_rptr->offset
 			      - dev->agp->base
@@ -1407,6 +1410,7 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 		radeon_do_cleanup_cp(dev);
 		return DRM_ERR(EINVAL);
 	}
+	dev->agp_buffer_token = init->buffers_offset;
 	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
 	if(!dev->agp_buffer_map) {
 		DRM_ERROR("could not find dma buffer region!\n");
@@ -1624,6 +1628,9 @@ int radeon_cp_init( DRM_IOCTL_ARGS )
 	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( init, (drm_radeon_init_t __user *)data, sizeof(init) );
+
+	if(init.func == RADEON_INIT_R300_CP)
+		r300_init_reg_flags();
 
 	switch ( init.func ) {
 	case RADEON_INIT_CP:
@@ -2039,13 +2046,41 @@ int radeon_driver_preinit(struct drm_device *dev, unsigned long flags)
 	case CHIP_RV200:
 	case CHIP_R200:
 	case CHIP_R300:
+	case CHIP_R420:
 		dev_priv->flags |= CHIP_HAS_HIERZ;
 		break;
 	default:
 	/* all other chips have no hierarchical z buffer */
 		break;
 	}
+
+	if (drm_device_is_agp(dev))
+		dev_priv->flags |= CHIP_IS_AGP;
+	
+	DRM_DEBUG("%s card detected\n",
+		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : "PCI"));
 	return ret;
+}
+
+int radeon_presetup(struct drm_device *dev)
+{
+	int ret;
+	drm_local_map_t *map;
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	ret = drm_addmap(dev, drm_get_resource_start(dev, 2),
+			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
+			 _DRM_READ_ONLY, &dev_priv->mmio);
+	if (ret != 0)
+		return ret;
+
+	ret = drm_addmap(dev, drm_get_resource_start(dev, 0),
+			 drm_get_resource_len(dev, 0), _DRM_FRAME_BUFFER,
+			 _DRM_WRITE_COMBINING, &map);
+	if (ret != 0)
+		return ret;
+
+	return 0;
 }
 
 int radeon_driver_postcleanup(struct drm_device *dev)
