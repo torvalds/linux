@@ -351,7 +351,8 @@ struct hid_report_enum {
 
 #define HID_REPORT_TYPES 3
 
-#define HID_BUFFER_SIZE		64		/* use 64 for compatibility with all possible packetlen */
+#define HID_MIN_BUFFER_SIZE	64		/* make sure there is at least a packet size of space */
+#define HID_MAX_BUFFER_SIZE	4096		/* 4kb */
 #define HID_CONTROL_FIFO_SIZE	256		/* to init devices with >100 reports */
 #define HID_OUTPUT_FIFO_SIZE	64
 
@@ -388,6 +389,8 @@ struct hid_device {							/* device report descriptor */
 	int ifnum;							/* USB interface number */
 
 	unsigned long iofl;						/* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
+
+	unsigned int bufsize;						/* URB buffer size */
 
 	struct urb *urbin;						/* Input URB */
 	char *inbuf;							/* Input buffer */

@@ -2,7 +2,8 @@
  *  USB HID support for Linux
  *
  *  Copyright (c) 1999 Andreas Gal
- *  Copyright (c) 2000-2001 Vojtech Pavlik <vojtech@suse.cz>
+ *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
+ *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  */
 
 /*
@@ -38,7 +39,7 @@
  * Version Information
  */
 
-#define DRIVER_VERSION "v2.01"
+#define DRIVER_VERSION "v2.6"
 #define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik"
 #define DRIVER_DESC "USB HID core driver"
 #define DRIVER_LICENSE "GPL"
@@ -1058,8 +1059,8 @@ static int hid_submit_ctrl(struct hid_device *hid)
 		if (maxpacket > 0) {
 			padlen = (len + maxpacket - 1) / maxpacket;
 			padlen *= maxpacket;
-			if (padlen > HID_BUFFER_SIZE)
-				padlen = HID_BUFFER_SIZE;
+			if (padlen > hid->bufsize)
+				padlen = hid->bufsize;
 		} else
 			padlen = 0;
 		hid->urbctrl->transfer_buffer_length = padlen;
@@ -1284,13 +1285,8 @@ void hid_init_reports(struct hid_device *hid)
 	struct hid_report *report;
 	int err, ret;
 
-	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list) {
-		int size = ((report->size - 1) >> 3) + 1 + hid->report_enum[HID_INPUT_REPORT].numbered;
-		if (size > HID_BUFFER_SIZE) size = HID_BUFFER_SIZE;
-		if (size > hid->urbin->transfer_buffer_length)
-			hid->urbin->transfer_buffer_length = size;
+	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list)
 		hid_submit_report(hid, report, USB_DIR_IN);
-	}
 
 	list_for_each_entry(report, &hid->report_enum[HID_FEATURE_REPORT].report_list, list)
 		hid_submit_report(hid, report, USB_DIR_IN);
@@ -1564,15 +1560,32 @@ static struct hid_blacklist {
 	{ 0, 0 }
 };
 
+/*
+ * Traverse the supplied list of reports and find the longest
+ */
+static void hid_find_max_report(struct hid_device *hid, unsigned int type, int *max)
+{
+	struct hid_report *report;
+	int size;
+
+	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
+		size = ((report->size - 1) >> 3) + 1;
+		if (type == HID_INPUT_REPORT && hid->report_enum[type].numbered)
+			size++;
+		if (*max < size)
+			*max = size;
+	}
+}
+
 static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 {
-	if (!(hid->inbuf = usb_buffer_alloc(dev, HID_BUFFER_SIZE, SLAB_ATOMIC, &hid->inbuf_dma)))
+	if (!(hid->inbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->inbuf_dma)))
 		return -1;
-	if (!(hid->outbuf = usb_buffer_alloc(dev, HID_BUFFER_SIZE, SLAB_ATOMIC, &hid->outbuf_dma)))
+	if (!(hid->outbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->outbuf_dma)))
 		return -1;
 	if (!(hid->cr = usb_buffer_alloc(dev, sizeof(*(hid->cr)), SLAB_ATOMIC, &hid->cr_dma)))
 		return -1;
-	if (!(hid->ctrlbuf = usb_buffer_alloc(dev, HID_BUFFER_SIZE, SLAB_ATOMIC, &hid->ctrlbuf_dma)))
+	if (!(hid->ctrlbuf = usb_buffer_alloc(dev, hid->bufsize, SLAB_ATOMIC, &hid->ctrlbuf_dma)))
 		return -1;
 
 	return 0;
@@ -1581,13 +1594,13 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 {
 	if (hid->inbuf)
-		usb_buffer_free(dev, HID_BUFFER_SIZE, hid->inbuf, hid->inbuf_dma);
+		usb_buffer_free(dev, hid->bufsize, hid->inbuf, hid->inbuf_dma);
 	if (hid->outbuf)
-		usb_buffer_free(dev, HID_BUFFER_SIZE, hid->outbuf, hid->outbuf_dma);
+		usb_buffer_free(dev, hid->bufsize, hid->outbuf, hid->outbuf_dma);
 	if (hid->cr)
 		usb_buffer_free(dev, sizeof(*(hid->cr)), hid->cr, hid->cr_dma);
 	if (hid->ctrlbuf)
-		usb_buffer_free(dev, HID_BUFFER_SIZE, hid->ctrlbuf, hid->ctrlbuf_dma);
+		usb_buffer_free(dev, hid->bufsize, hid->ctrlbuf, hid->ctrlbuf_dma);
 }
 
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
@@ -1598,7 +1611,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	struct hid_device *hid;
 	unsigned quirks = 0, rsize = 0;
 	char *buf, *rdesc;
-	int n;
+	int n, insize = 0;
 
 	for (n = 0; hid_blacklist[n].idVendor; n++)
 		if ((hid_blacklist[n].idVendor == le16_to_cpu(dev->descriptor.idVendor)) &&
@@ -1652,6 +1665,19 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	kfree(rdesc);
 	hid->quirks = quirks;
 
+	hid->bufsize = HID_MIN_BUFFER_SIZE;
+	hid_find_max_report(hid, HID_INPUT_REPORT, &hid->bufsize);
+	hid_find_max_report(hid, HID_OUTPUT_REPORT, &hid->bufsize);
+	hid_find_max_report(hid, HID_FEATURE_REPORT, &hid->bufsize);
+
+	if (hid->bufsize > HID_MAX_BUFFER_SIZE)
+		hid->bufsize = HID_MAX_BUFFER_SIZE;
+
+	hid_find_max_report(hid, HID_INPUT_REPORT, &insize);
+
+	if (insize > HID_MAX_BUFFER_SIZE)
+		insize = HID_MAX_BUFFER_SIZE;
+
 	if (hid_alloc_buffers(dev, hid)) {
 		hid_free_buffers(dev, hid);
 		goto fail;
@@ -1682,7 +1708,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			if (!(hid->urbin = usb_alloc_urb(0, GFP_KERNEL)))
 				goto fail;
 			pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
-			usb_fill_int_urb(hid->urbin, dev, pipe, hid->inbuf, 0,
+			usb_fill_int_urb(hid->urbin, dev, pipe, hid->inbuf, insize,
 					 hid_irq_in, hid, interval);
 			hid->urbin->transfer_dma = hid->inbuf_dma;
 			hid->urbin->transfer_flags |=(URB_NO_TRANSFER_DMA_MAP | URB_ASYNC_UNLINK);
