@@ -600,6 +600,10 @@ static int __init snd_card_dummy_probe(int dev)
 	strcpy(card->driver, "Dummy");
 	strcpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto __nodev;
+
 	if ((err = snd_card_register(card)) == 0) {
 		snd_dummy_cards[dev] = card;
 		return 0;

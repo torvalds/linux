@@ -757,6 +757,9 @@ static int __init alsa_card_mtpav_init(void)
 	if (err < 0)
 		goto __error;
 
+	if ((err = snd_card_set_generic_dev(mtp_card->card)) < 0)
+		goto __error;
+
 	err = snd_card_register(mtp_card->card);	// don't snd_card_register until AFTER all cards reources done!
 
 	//printk("snd_card_register returned %d\n", err);
