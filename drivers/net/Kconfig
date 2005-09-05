@@ -2058,6 +2058,13 @@ config BNX2
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2.  This is recommended.
 
+config SPIDER_NET
+	tristate "Spider Gigabit Ethernet driver"
+	depends on PCI && PPC_BPA
+	help
+	  This driver supports the Gigabit Ethernet chips present on the
+	  Cell Processor-Based Blades from IBM.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx
