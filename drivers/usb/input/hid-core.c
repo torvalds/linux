@@ -1097,6 +1097,7 @@ static void hid_irq_out(struct urb *urb, struct pt_regs *regs)
 
 	switch (urb->status) {
 		case 0:			/* success */
+			break;
 		case -ESHUTDOWN:	/* unplug */
 		case -EILSEQ:		/* unplug timeout on uhci */
 			unplug = 1;
@@ -1144,6 +1145,7 @@ static void hid_ctrl(struct urb *urb, struct pt_regs *regs)
 		case 0:			/* success */
 			if (hid->ctrl[hid->ctrltail].dir == USB_DIR_IN)
 				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, 0, regs);
+			break;
 		case -ESHUTDOWN:	/* unplug */
 		case -EILSEQ:		/* unplug timectrl on uhci */
 			unplug = 1;
