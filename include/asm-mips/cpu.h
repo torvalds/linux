@@ -67,6 +67,13 @@
 #define PRID_IMP_RM9000		0x3400
 #define PRID_IMP_R5432		0x5400
 #define PRID_IMP_R5500		0x5500
+
+#define PRID_IMP_UNKNOWN	0xff00
+
+/*
+ * These are the PRID's for when 23:16 == PRID_COMP_MIPS
+ */
+
 #define PRID_IMP_4KC		0x8000
 #define PRID_IMP_5KC		0x8100
 #define PRID_IMP_20KC		0x8200
@@ -80,8 +87,6 @@
 #define PRID_IMP_24K		0x9300
 #define PRID_IMP_34K		0x9500
 #define PRID_IMP_24KE		0x9600
-
-#define PRID_IMP_UNKNOWN	0xff00
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
