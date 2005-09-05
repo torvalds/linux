@@ -73,12 +73,13 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 		r_list = list_entry(list, drm_map_list_t, head);
 		map = r_list->map;
 		if (!map) continue;
-		if (map->offset == VM_OFFSET(vma)) break;
+		if (r_list->user_token == VM_OFFSET(vma))
+			break;
 	}
 
 	if (map && map->type == _DRM_AGP) {
 		unsigned long offset = address - vma->vm_start;
-		unsigned long baddr = VM_OFFSET(vma) + offset;
+		unsigned long baddr = map->offset + offset;
 		struct drm_agp_mem *agpmem;
 		struct page *page;
 
@@ -210,6 +211,8 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 		}
 
 		if(!found_maps) {
+			drm_dma_handle_t dmah;
+
 			switch (map->type) {
 			case _DRM_REGISTERS:
 			case _DRM_FRAME_BUFFER:
@@ -227,6 +230,12 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				break;
 			case _DRM_AGP:
 			case _DRM_SCATTER_GATHER:
+				break;
+			case _DRM_CONSISTENT:
+				dmah.vaddr = map->handle;
+				dmah.busaddr = map->offset;
+				dmah.size = map->size;
+				__drm_pci_free(dev, &dmah);
 				break;
 			}
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
@@ -296,7 +305,7 @@ static __inline__ struct page *drm_do_vm_sg_nopage(struct vm_area_struct *vma,
 
 
 	offset = address - vma->vm_start;
-	map_offset = map->offset - dev->sg->handle;
+	map_offset = map->offset - (unsigned long)dev->sg->virtual;
 	page_offset = (offset >> PAGE_SHIFT) + (map_offset >> PAGE_SHIFT);
 	page = entry->pagelist[page_offset];
 	get_page(page);
@@ -304,8 +313,6 @@ static __inline__ struct page *drm_do_vm_sg_nopage(struct vm_area_struct *vma,
 	return page;
 }
 
-
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
 
 static struct page *drm_vm_nopage(struct vm_area_struct *vma,
 				   unsigned long address,
@@ -334,35 +341,6 @@ static struct page *drm_vm_sg_nopage(struct vm_area_struct *vma,
 	if (type) *type = VM_FAULT_MINOR;
 	return drm_do_vm_sg_nopage(vma, address);
 }
-
-#else	/* LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0) */
-
-static struct page *drm_vm_nopage(struct vm_area_struct *vma,
-				   unsigned long address,
-				   int unused) {
-	return drm_do_vm_nopage(vma, address);
-}
-
-static struct page *drm_vm_shm_nopage(struct vm_area_struct *vma,
-				       unsigned long address,
-				       int unused) {
-	return drm_do_vm_shm_nopage(vma, address);
-}
-
-static struct page *drm_vm_dma_nopage(struct vm_area_struct *vma,
-				       unsigned long address,
-				       int unused) {
-	return drm_do_vm_dma_nopage(vma, address);
-}
-
-static struct page *drm_vm_sg_nopage(struct vm_area_struct *vma,
-				      unsigned long address,
-				      int unused) {
-	return drm_do_vm_sg_nopage(vma, address);
-}
-
-#endif
-
 
 /** AGP virtual memory operations */
 static struct vm_operations_struct   drm_vm_ops = {
@@ -487,11 +465,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 
 	vma->vm_ops   = &drm_vm_dma_ops;
 
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-	vma->vm_flags |= VM_LOCKED | VM_SHM; /* Don't swap */
-#else
 	vma->vm_flags |= VM_RESERVED; /* Don't swap */
-#endif
 
 	vma->vm_file  =	 filp;	/* Needed for drm_vm_open() */
 	drm_vm_open(vma);
@@ -560,13 +534,12 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 				   for performance, even if the list was a
 				   bit longer. */
 	list_for_each(list, &dev->maplist->head) {
-		unsigned long off;
 
 		r_list = list_entry(list, drm_map_list_t, head);
 		map = r_list->map;
 		if (!map) continue;
-		off = dev->driver->get_map_ofs(map);
-		if (off == VM_OFFSET(vma)) break;
+		if (r_list->user_token == VM_OFFSET(vma))
+			break;
 	}
 
 	if (!map || ((map->flags&_DRM_RESTRICTED) && !capable(CAP_SYS_ADMIN)))
@@ -605,17 +578,17 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
                 /* fall through to _DRM_FRAME_BUFFER... */        
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
-		if (VM_OFFSET(vma) >= __pa(high_memory)) {
 #if defined(__i386__) || defined(__x86_64__)
-			if (boot_cpu_data.x86 > 3 && map->type != _DRM_AGP) {
-				pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-				pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-			}
-#elif defined(__powerpc__)
-			pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE | _PAGE_GUARDED;
-#endif
-			vma->vm_flags |= VM_IO;	/* not in core dump */
+		if (boot_cpu_data.x86 > 3 && map->type != _DRM_AGP) {
+			pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
+			pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
 		}
+#elif defined(__powerpc__)
+		pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+		if (map->type == _DRM_REGISTERS)
+			pgprot_val(vma->vm_page_prot) |= _PAGE_GUARDED;
+#endif
+		vma->vm_flags |= VM_IO;	/* not in core dump */
 #if defined(__ia64__)
 		if (efi_range_is_wc(vma->vm_start, vma->vm_end -
 				    vma->vm_start))
@@ -628,12 +601,12 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		offset = dev->driver->get_reg_ofs(dev);
 #ifdef __sparc__
 		if (io_remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
-					(VM_OFFSET(vma) + offset) >> PAGE_SHIFT,
+					(map->offset + offset) >> PAGE_SHIFT,
 					vma->vm_end - vma->vm_start,
 					vma->vm_page_prot))
 #else
 		if (io_remap_pfn_range(vma, vma->vm_start,
-				     (VM_OFFSET(vma) + offset) >> PAGE_SHIFT,
+				     (map->offset + offset) >> PAGE_SHIFT,
 				     vma->vm_end - vma->vm_start,
 				     vma->vm_page_prot))
 #endif
@@ -641,37 +614,28 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
 			  " offset = 0x%lx\n",
 			  map->type,
-			  vma->vm_start, vma->vm_end, VM_OFFSET(vma) + offset);
+			  vma->vm_start, vma->vm_end, map->offset + offset);
 		vma->vm_ops = &drm_vm_ops;
 		break;
 	case _DRM_SHM:
+	case _DRM_CONSISTENT:
+		/* Consistent memory is really like shared memory. It's only
+		 * allocate in a different way */
 		vma->vm_ops = &drm_vm_shm_ops;
 		vma->vm_private_data = (void *)map;
 				/* Don't let this area swap.  Change when
 				   DRM_KERNEL advisory is supported. */
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-		vma->vm_flags |= VM_LOCKED;
-#else
 		vma->vm_flags |= VM_RESERVED;
-#endif
 		break;
 	case _DRM_SCATTER_GATHER:
 		vma->vm_ops = &drm_vm_sg_ops;
 		vma->vm_private_data = (void *)map;
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-		vma->vm_flags |= VM_LOCKED;
-#else
 		vma->vm_flags |= VM_RESERVED;
-#endif
                 break;
 	default:
 		return -EINVAL;	/* This should never happen. */
 	}
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-	vma->vm_flags |= VM_LOCKED | VM_SHM; /* Don't swap */
-#else
 	vma->vm_flags |= VM_RESERVED; /* Don't swap */
-#endif
 
 	vma->vm_file  =	 filp;	/* Needed for drm_vm_open() */
 	drm_vm_open(vma);

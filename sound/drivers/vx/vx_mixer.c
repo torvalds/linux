@@ -796,14 +796,14 @@ static int vx_iec958_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontro
 
 static snd_kcontrol_new_t vx_control_iec958_mask = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
 	.info =		vx_iec958_info,	/* shared */
 	.get =		vx_iec958_mask_get,
 };
 
 static snd_kcontrol_new_t vx_control_iec958 = {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.info =         vx_iec958_info,
 	.get =          vx_iec958_get,

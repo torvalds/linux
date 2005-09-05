@@ -514,6 +514,7 @@ struct hda_codec {
 	struct list_head list;	/* list point */
 
 	hda_nid_t afg;	/* AFG node id */
+	hda_nid_t mfg;	/* MFG node id */
 
 	/* ids */
 	u32 vendor_id;

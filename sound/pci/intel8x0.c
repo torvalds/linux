@@ -389,6 +389,7 @@ typedef struct {
 	struct ac97_pcm *pcm;
 	int pcm_open_flag;
 	unsigned int page_attr_changed: 1;
+	unsigned int suspended: 1;
 } ichdev_t;
 
 typedef struct _snd_intel8x0 intel8x0_t;
@@ -862,12 +863,16 @@ static int snd_intel8x0_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 	unsigned long port = ichdev->reg_offset;
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		ichdev->suspended = 0;
+		/* fallthru */
+	case SNDRV_PCM_TRIGGER_START:
 		val = ICH_IOCE | ICH_STARTBM;
 		break;
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		ichdev->suspended = 1;
+		/* fallthru */
+	case SNDRV_PCM_TRIGGER_STOP:
 		val = 0;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -899,9 +904,11 @@ static int snd_intel8x0_ali_trigger(snd_pcm_substream_t *substream, int cmd)
 
 	val = igetdword(chip, ICHREG(ALI_DMACR));
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_RESUME:
+		ichdev->suspended = 0;
+		/* fallthru */
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	case SNDRV_PCM_TRIGGER_RESUME:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/* clear FIFO for synchronization of channels */
 			fifo = igetdword(chip, fiforeg[ichdev->ali_slot / 4]);
@@ -913,9 +920,11 @@ static int snd_intel8x0_ali_trigger(snd_pcm_substream_t *substream, int cmd)
 		val &= ~(1 << (ichdev->ali_slot + 16)); /* clear PAUSE flag */
 		iputdword(chip, ICHREG(ALI_DMACR), val | (1 << ichdev->ali_slot)); /* start DMA */
 		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		ichdev->suspended = 1;
+		/* fallthru */
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
 		iputdword(chip, ICHREG(ALI_DMACR), val | (1 << (ichdev->ali_slot + 16))); /* pause */
 		iputbyte(chip, port + ICH_REG_OFF_CR, 0);
 		while (igetbyte(chip, port + ICH_REG_OFF_CR))
@@ -994,6 +1003,8 @@ static void snd_intel8x0_setup_pcm_out(intel8x0_t *chip,
 {
 	unsigned int cnt;
 	int dbl = runtime->rate > 48000;
+
+	spin_lock_irq(&chip->reg_lock);
 	switch (chip->device_type) {
 	case DEVICE_ALI:
 		cnt = igetdword(chip, ICHREG(ALI_SCR));
@@ -1037,6 +1048,7 @@ static void snd_intel8x0_setup_pcm_out(intel8x0_t *chip,
 		iputdword(chip, ICHREG(GLOB_CNT), cnt);
 		break;
 	}
+	spin_unlock_irq(&chip->reg_lock);
 }
 
 static int snd_intel8x0_pcm_prepare(snd_pcm_substream_t * substream)
@@ -1048,15 +1060,12 @@ static int snd_intel8x0_pcm_prepare(snd_pcm_substream_t * substream)
 	ichdev->physbuf = runtime->dma_addr;
 	ichdev->size = snd_pcm_lib_buffer_bytes(substream);
 	ichdev->fragsize = snd_pcm_lib_period_bytes(substream);
-	spin_lock_irq(&chip->reg_lock);
 	if (ichdev->ichd == ICHD_PCMOUT) {
 		snd_intel8x0_setup_pcm_out(chip, runtime);
-		if (chip->device_type == DEVICE_INTEL_ICH4) {
+		if (chip->device_type == DEVICE_INTEL_ICH4)
 			ichdev->pos_shift = (runtime->sample_bits > 16) ? 2 : 1;
-		}
 	}
 	snd_intel8x0_setup_periods(chip, ichdev);
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -1817,6 +1826,18 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x103c,
+		.subdevice = 0x0934,
+		.name = "HP nx8220",
+		.type = AC97_TUNE_MUTE_LED
+	},
+	{
+		.subvendor = 0x103c,
+		.subdevice = 0x099c,
+		.name = "HP nx6110",	/* AD1981B */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x103c,
 		.subdevice = 0x129d,
 		.name = "HP xw8000",
 		.type = AC97_TUNE_HP_ONLY
@@ -1867,6 +1888,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x10cf,
 		.subdevice = 0x1253,
 		.name = "Fujitsu S6210",	/* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10cf,
+		.subdevice = 0x12ec,
+		.name = "Fujitsu-Siemens 4010",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
@@ -2422,6 +2449,20 @@ static int intel8x0_resume(snd_card_t *card)
 					fill_nocache(runtime->dma_area, runtime->dma_bytes, 1);
 			}
 		}
+	}
+
+	/* resume status */
+	for (i = 0; i < chip->bdbars_count; i++) {
+		ichdev_t *ichdev = &chip->ichd[i];
+		unsigned long port = ichdev->reg_offset;
+		if (! ichdev->substream || ! ichdev->suspended)
+			continue;
+		if (ichdev->ichd == ICHD_PCMOUT)
+			snd_intel8x0_setup_pcm_out(chip, ichdev->substream->runtime);
+		iputdword(chip, port + ICH_REG_OFF_BDBAR, ichdev->bdbar_addr);
+		iputbyte(chip, port + ICH_REG_OFF_LVI, ichdev->lvi);
+		iputbyte(chip, port + ICH_REG_OFF_CIV, ichdev->civ);
+		iputbyte(chip, port + ichdev->roff_sr, ICH_FIFOE | ICH_BCIS | ICH_LVBCI);
 	}
 
 	return 0;
