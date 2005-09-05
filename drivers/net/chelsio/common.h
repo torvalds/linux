@@ -88,7 +88,7 @@ struct t1_rx_mode {
 
 static inline u8 *t1_get_next_mcaddr(struct t1_rx_mode *rm)
 {
-	u8 *addr = 0;
+	u8 *addr = NULL;
 
 	if (rm->idx++ < rm->dev->mc_count) {
 		addr = rm->list->dmi_addr;
@@ -190,7 +190,7 @@ struct sge;
 struct peespi;
 
 struct adapter {
-	u8 *regs;
+	u8 __iomem *regs;
 	struct pci_dev *pdev;
 	unsigned long registered_device_map;
 	unsigned long open_device_map;
