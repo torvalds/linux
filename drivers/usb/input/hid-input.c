@@ -296,6 +296,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_MSVENDOR:
+		case HID_UP_LOGIVENDOR:
 
 			goto ignore;
 
