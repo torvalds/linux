@@ -184,6 +184,7 @@ struct hid_item {
 #define HID_UP_HPVENDOR         0xff7f0000
 #define HID_UP_MSVENDOR		0xff000000
 #define HID_UP_LOGIVENDOR	0x00ff0000
+#define HID_UP_LOGIVENDOR2	0xffbc0000
 
 #define HID_USAGE		0x0000ffff
 
