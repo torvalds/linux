@@ -82,9 +82,10 @@
  *     - Add support for r100 cube maps
  * 1.16- Add R200_EMIT_PP_TRI_PERF_CNTL packet to support brilinear
  *       texture filtering on r200
+ * 1.17- Add initial support for R300 (3D).
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		16
+#define DRIVER_MINOR		17
 #define DRIVER_PATCHLEVEL	0
 
 #define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
@@ -106,7 +107,9 @@ enum radeon_family {
 	CHIP_RV280,
 	CHIP_R300,
 	CHIP_RS300,
+	CHIP_R350,
 	CHIP_RV350,
+	CHIP_R420,
 	CHIP_LAST,
 };
 
@@ -290,6 +293,7 @@ extern int radeon_wait_ring( drm_radeon_private_t *dev_priv, int n );
 extern int radeon_do_cp_idle( drm_radeon_private_t *dev_priv );
 
 extern int radeon_driver_preinit(struct drm_device *dev, unsigned long flags);
+extern int radeon_presetup(struct drm_device *dev);
 extern int radeon_driver_postcleanup(struct drm_device *dev);
 
 extern int radeon_mem_alloc( DRM_IOCTL_ARGS );
@@ -319,6 +323,14 @@ extern int radeon_postcleanup( struct drm_device *dev );
 
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
+
+
+/* r300_cmdbuf.c */
+extern void r300_init_reg_flags(void);
+
+extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
+			     drm_file_t* filp_priv,
+			     drm_radeon_cmd_buffer_t* cmdbuf);
 
 /* Flags for stats.boxes
  */
@@ -356,6 +368,11 @@ extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 #	define RADEON_CRTC_OFFSET_FLIP_CNTL	(1 << 16)
 #define RADEON_CRTC2_OFFSET		0x0324
 #define RADEON_CRTC2_OFFSET_CNTL	0x0328
+
+#define RADEON_MPP_TB_CONFIG		0x01c0
+#define RADEON_MEM_CNTL			0x0140
+#define RADEON_MEM_SDRAM_MODE_REG	0x0158
+#define RADEON_AGP_BASE			0x0170
 
 #define RADEON_RB3D_COLOROFFSET		0x1c40
 #define RADEON_RB3D_COLORPITCH		0x1c48
@@ -651,16 +668,27 @@ extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 #define RADEON_CP_PACKET1		0x40000000
 #define RADEON_CP_PACKET2		0x80000000
 #define RADEON_CP_PACKET3		0xC0000000
+#       define RADEON_CP_NOP                    0x00001000
+#       define RADEON_CP_NEXT_CHAR              0x00001900
+#       define RADEON_CP_PLY_NEXTSCAN           0x00001D00
+#       define RADEON_CP_SET_SCISSORS           0x00001E00
+             /* GEN_INDX_PRIM is unsupported starting with R300 */
 #	define RADEON_3D_RNDR_GEN_INDX_PRIM	0x00002300
 #	define RADEON_WAIT_FOR_IDLE		0x00002600
 #	define RADEON_3D_DRAW_VBUF		0x00002800
 #	define RADEON_3D_DRAW_IMMD		0x00002900
 #	define RADEON_3D_DRAW_INDX		0x00002A00
+#       define RADEON_CP_LOAD_PALETTE           0x00002C00
 #	define RADEON_3D_LOAD_VBPNTR		0x00002F00
 #	define RADEON_MPEG_IDCT_MACROBLOCK	0x00003000
 #	define RADEON_MPEG_IDCT_MACROBLOCK_REV	0x00003100
 #	define RADEON_3D_CLEAR_ZMASK		0x00003200
+#	define RADEON_CP_INDX_BUFFER		0x00003300
+#       define RADEON_CP_3D_DRAW_VBUF_2         0x00003400
+#       define RADEON_CP_3D_DRAW_IMMD_2         0x00003500
+#       define RADEON_CP_3D_DRAW_INDX_2         0x00003600
 #	define RADEON_3D_CLEAR_HIZ		0x00003700
+#       define RADEON_CP_3D_CLEAR_CMASK         0x00003802
 #	define RADEON_CNTL_HOSTDATA_BLT		0x00009400
 #	define RADEON_CNTL_PAINT_MULTI		0x00009A00
 #	define RADEON_CNTL_BITBLT_MULTI		0x00009B00

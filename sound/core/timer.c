@@ -799,13 +799,13 @@ static int snd_timer_free(snd_timer_t *timer)
 	return 0;
 }
 
-int snd_timer_dev_free(snd_device_t *device)
+static int snd_timer_dev_free(snd_device_t *device)
 {
 	snd_timer_t *timer = device->device_data;
 	return snd_timer_free(timer);
 }
 
-int snd_timer_dev_register(snd_device_t *dev)
+static int snd_timer_dev_register(snd_device_t *dev)
 {
 	snd_timer_t *timer = dev->device_data;
 	snd_timer_t *timer1;
@@ -880,9 +880,11 @@ void snd_timer_notify(snd_timer_t *timer, enum sndrv_timer_event event, struct t
 	struct list_head *p, *n;
 
 	snd_runtime_check(timer->hw.flags & SNDRV_TIMER_HW_SLAVE, return);	
-	snd_assert(event >= SNDRV_TIMER_EVENT_MSTART && event <= SNDRV_TIMER_EVENT_MPAUSE, return);
+	snd_assert(event >= SNDRV_TIMER_EVENT_MSTART && event <= SNDRV_TIMER_EVENT_MRESUME, return);
 	spin_lock_irqsave(&timer->lock, flags);
-	if (event == SNDRV_TIMER_EVENT_MSTART || event == SNDRV_TIMER_EVENT_MCONTINUE) {
+	if (event == SNDRV_TIMER_EVENT_MSTART ||
+	    event == SNDRV_TIMER_EVENT_MCONTINUE ||
+	    event == SNDRV_TIMER_EVENT_MRESUME) {
 		if (timer->hw.c_resolution)
 			resolution = timer->hw.c_resolution(timer);
 		else
@@ -1555,10 +1557,14 @@ static int snd_timer_user_params(struct file *file, snd_timer_params_t __user *_
 			      (1<<SNDRV_TIMER_EVENT_STOP)|
 			      (1<<SNDRV_TIMER_EVENT_CONTINUE)|
 			      (1<<SNDRV_TIMER_EVENT_PAUSE)|
+			      (1<<SNDRV_TIMER_EVENT_SUSPEND)|
+			      (1<<SNDRV_TIMER_EVENT_RESUME)|
 			      (1<<SNDRV_TIMER_EVENT_MSTART)|
 			      (1<<SNDRV_TIMER_EVENT_MSTOP)|
 			      (1<<SNDRV_TIMER_EVENT_MCONTINUE)|
-			      (1<<SNDRV_TIMER_EVENT_MPAUSE))) {
+			      (1<<SNDRV_TIMER_EVENT_MPAUSE)|
+			      (1<<SNDRV_TIMER_EVENT_MSUSPEND)|
+			      (1<<SNDRV_TIMER_EVENT_MRESUME))) {
 		err = -EINVAL;
 		goto _end;
 	}

@@ -2067,7 +2067,7 @@ static int snd_korg1212_control_sync_put(snd_kcontrol_t * kcontrol, snd_ctl_elem
         },                                                                                      \
         {											\
                 .access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_WRITE,	\
-                .iface =        SNDRV_CTL_ELEM_IFACE_PCM,					\
+                .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,					\
                 .name =		c_name " Monitor Phase Invert",					\
                 .info =		snd_korg1212_control_phase_info,				\
                 .get =		snd_korg1212_control_phase_get,					\
@@ -2082,7 +2082,7 @@ static snd_kcontrol_new_t snd_korg1212_controls[] = {
         MON_MIXER(4, "ADAT-5"), MON_MIXER(5, "ADAT-6"), MON_MIXER(6, "ADAT-7"), MON_MIXER(7, "ADAT-8"),
 	{
                 .access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_WRITE,
-                .iface =        SNDRV_CTL_ELEM_IFACE_PCM,
+                .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
                 .name =		"Sync Source",
                 .info =		snd_korg1212_control_sync_info,
                 .get =		snd_korg1212_control_sync_get,

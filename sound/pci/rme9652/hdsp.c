@@ -1524,7 +1524,7 @@ static int snd_hdsp_control_spdif_mask_get(snd_kcontrol_t * kcontrol, snd_ctl_el
 }
 
 #define HDSP_SPDIF_IN(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_PCM,  \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_spdif_in, \
@@ -1584,7 +1584,7 @@ static int snd_hdsp_put_spdif_in(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 }
 
 #define HDSP_SPDIF_OUT(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, .name = xname, .index = xindex, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_hdsp_info_spdif_bits, \
   .get = snd_hdsp_get_spdif_out, .put = snd_hdsp_put_spdif_out }
 
@@ -1638,7 +1638,7 @@ static int snd_hdsp_put_spdif_out(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 }
 
 #define HDSP_SPDIF_PROFESSIONAL(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, .name = xname, .index = xindex, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_hdsp_info_spdif_bits, \
   .get = snd_hdsp_get_spdif_professional, .put = snd_hdsp_put_spdif_professional }
 
@@ -1683,7 +1683,7 @@ static int snd_hdsp_put_spdif_professional(snd_kcontrol_t * kcontrol, snd_ctl_el
 }
 
 #define HDSP_SPDIF_EMPHASIS(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, .name = xname, .index = xindex, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_hdsp_info_spdif_bits, \
   .get = snd_hdsp_get_spdif_emphasis, .put = snd_hdsp_put_spdif_emphasis }
 
@@ -1728,7 +1728,7 @@ static int snd_hdsp_put_spdif_emphasis(snd_kcontrol_t * kcontrol, snd_ctl_elem_v
 }
 
 #define HDSP_SPDIF_NON_AUDIO(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, .name = xname, .index = xindex, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_hdsp_info_spdif_bits, \
   .get = snd_hdsp_get_spdif_nonaudio, .put = snd_hdsp_put_spdif_nonaudio }
 
@@ -1773,7 +1773,7 @@ static int snd_hdsp_put_spdif_nonaudio(snd_kcontrol_t * kcontrol, snd_ctl_elem_v
 }
 
 #define HDSP_SPDIF_SAMPLE_RATE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1834,7 +1834,7 @@ static int snd_hdsp_get_spdif_sample_rate(snd_kcontrol_t * kcontrol, snd_ctl_ele
 }
 
 #define HDSP_SYSTEM_SAMPLE_RATE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1858,7 +1858,7 @@ static int snd_hdsp_get_system_sample_rate(snd_kcontrol_t * kcontrol, snd_ctl_el
 }
 
 #define HDSP_AUTOSYNC_SAMPLE_RATE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_PCM, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1918,7 +1918,7 @@ static int snd_hdsp_get_autosync_sample_rate(snd_kcontrol_t * kcontrol, snd_ctl_
 }
 
 #define HDSP_SYSTEM_CLOCK_MODE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1958,7 +1958,7 @@ static int snd_hdsp_get_system_clock_mode(snd_kcontrol_t * kcontrol, snd_ctl_ele
 }
 
 #define HDSP_CLOCK_SOURCE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_PCM, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_clock_source, \
@@ -2124,7 +2124,7 @@ static int snd_hdsp_put_clock_source_lock(snd_kcontrol_t * kcontrol, snd_ctl_ele
 }
 
 #define HDSP_DA_GAIN(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_da_gain, \
@@ -2210,7 +2210,7 @@ static int snd_hdsp_put_da_gain(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 }
 
 #define HDSP_AD_GAIN(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_ad_gain, \
@@ -2296,7 +2296,7 @@ static int snd_hdsp_put_ad_gain(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 }
 
 #define HDSP_PHONE_GAIN(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_phone_gain, \
@@ -2382,7 +2382,7 @@ static int snd_hdsp_put_phone_gain(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 }
 
 #define HDSP_XLR_BREAKOUT_CABLE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_xlr_breakout_cable, \
@@ -2447,7 +2447,7 @@ static int snd_hdsp_put_xlr_breakout_cable(snd_kcontrol_t * kcontrol, snd_ctl_el
    Switching this on desactivates external ADAT
 */
 #define HDSP_AEB(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_aeb, \
@@ -2508,7 +2508,7 @@ static int snd_hdsp_put_aeb(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * uc
 }
 
 #define HDSP_PREF_SYNC_REF(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_pref_sync_ref, \
@@ -2641,7 +2641,7 @@ static int snd_hdsp_put_pref_sync_ref(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 }
 
 #define HDSP_AUTOSYNC_REF(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -2697,7 +2697,7 @@ static int snd_hdsp_get_autosync_ref(snd_kcontrol_t * kcontrol, snd_ctl_elem_val
 }
 
 #define HDSP_LINE_OUT(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_line_out, \
@@ -2757,7 +2757,7 @@ static int snd_hdsp_put_line_out(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 }
 
 #define HDSP_PRECISE_POINTER(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_CARD, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_precise_pointer, \
@@ -2811,7 +2811,7 @@ static int snd_hdsp_put_precise_pointer(snd_kcontrol_t * kcontrol, snd_ctl_elem_
 }
 
 #define HDSP_USE_MIDI_TASKLET(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_CARD, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdsp_info_use_midi_tasklet, \
@@ -2868,6 +2868,7 @@ static int snd_hdsp_put_use_midi_tasklet(snd_kcontrol_t * kcontrol, snd_ctl_elem
 { .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
   .name = xname, \
   .index = xindex, \
+  .device = 0, \
   .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
 		 SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
   .info = snd_hdsp_info_mixer, \
@@ -2939,7 +2940,7 @@ static int snd_hdsp_put_mixer(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * 
 }
 
 #define HDSP_WC_SYNC_CHECK(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
@@ -2983,7 +2984,7 @@ static int snd_hdsp_get_wc_sync_check(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 }
 
 #define HDSP_SPDIF_SYNC_CHECK(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
@@ -3015,7 +3016,7 @@ static int snd_hdsp_get_spdif_sync_check(snd_kcontrol_t * kcontrol, snd_ctl_elem
 }
 
 #define HDSP_ADATSYNC_SYNC_CHECK(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
@@ -3046,7 +3047,7 @@ static int snd_hdsp_get_adatsync_sync_check(snd_kcontrol_t * kcontrol, snd_ctl_e
 }
 
 #define HDSP_ADAT_SYNC_CHECK \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
   .info = snd_hdsp_info_sync_check, \
   .get = snd_hdsp_get_adat_sync_check \
@@ -3119,7 +3120,7 @@ static snd_kcontrol_new_t snd_hdsp_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_hdsp_control_spdif_mask_info,
 	.get =		snd_hdsp_control_spdif_mask_get,
@@ -3129,7 +3130,7 @@ static snd_kcontrol_new_t snd_hdsp_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_hdsp_control_spdif_mask_info,
 	.get =		snd_hdsp_control_spdif_mask_get,
@@ -3146,8 +3147,6 @@ HDSP_SPDIF_NON_AUDIO("IEC958 Non-audio Bit", 0),
 /* 'Sample Clock Source' complies with the alsa control naming scheme */ 
 HDSP_CLOCK_SOURCE("Sample Clock Source", 0),
 {
-	/* FIXME: should be PCM or MIXER? */
-	/* .iface = SNDRV_CTL_ELEM_IFACE_PCM, */
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Sample Clock Source Locking",
 	.info = snd_hdsp_info_clock_source_lock,

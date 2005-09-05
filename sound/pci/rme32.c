@@ -1900,7 +1900,7 @@ static snd_kcontrol_new_t snd_rme32_controls[] = {
 	},
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =	SNDRV_CTL_NAME_IEC958("", PLAYBACK, CON_MASK),
 		.info =	snd_rme32_control_spdif_mask_info,
 		.get =	snd_rme32_control_spdif_mask_get,
@@ -1908,7 +1908,7 @@ static snd_kcontrol_new_t snd_rme32_controls[] = {
 	},
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =	SNDRV_CTL_NAME_IEC958("", PLAYBACK, PRO_MASK),
 		.info =	snd_rme32_control_spdif_mask_info,
 		.get =	snd_rme32_control_spdif_mask_get,

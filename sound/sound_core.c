@@ -153,7 +153,7 @@ static DEFINE_SPINLOCK(sound_loader_lock);
  *	list. Acquires locks as needed
  */
 
-static int sound_insert_unit(struct sound_unit **list, struct file_operations *fops, int index, int low, int top, const char *name, umode_t mode)
+static int sound_insert_unit(struct sound_unit **list, struct file_operations *fops, int index, int low, int top, const char *name, umode_t mode, struct device *dev)
 {
 	struct sound_unit *s = kmalloc(sizeof(*s), GFP_KERNEL);
 	int r;
@@ -175,7 +175,7 @@ static int sound_insert_unit(struct sound_unit **list, struct file_operations *f
 	devfs_mk_cdev(MKDEV(SOUND_MAJOR, s->unit_minor),
 			S_IFCHR | mode, s->name);
 	class_device_create(sound_class, MKDEV(SOUND_MAJOR, s->unit_minor),
-				NULL, s->name+6);
+			    dev, s->name+6);
 	return r;
 
  fail:
@@ -227,16 +227,18 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 static struct sound_unit *chains[SOUND_STEP];
 
 /**
- *	register_sound_special - register a special sound node
+ *	register_sound_special_device - register a special sound node
  *	@fops: File operations for the driver
  *	@unit: Unit number to allocate
+ *      @dev: device pointer
  *
  *	Allocate a special sound device by minor number from the sound
  *	subsystem. The allocated number is returned on succes. On failure
  *	a negative error code is returned.
  */
  
-int register_sound_special(struct file_operations *fops, int unit)
+int register_sound_special_device(struct file_operations *fops, int unit,
+				  struct device *dev)
 {
 	const int chain = unit % SOUND_STEP;
 	int max_unit = 128 + chain;
@@ -294,9 +296,16 @@ int register_sound_special(struct file_operations *fops, int unit)
 		break;
 	}
 	return sound_insert_unit(&chains[chain], fops, -1, unit, max_unit,
-				 name, S_IRUSR | S_IWUSR);
+				 name, S_IRUSR | S_IWUSR, dev);
 }
  
+EXPORT_SYMBOL(register_sound_special_device);
+
+int register_sound_special(struct file_operations *fops, int unit)
+{
+	return register_sound_special_device(fops, unit, NULL);
+}
+
 EXPORT_SYMBOL(register_sound_special);
 
 /**
@@ -312,7 +321,7 @@ EXPORT_SYMBOL(register_sound_special);
 int register_sound_mixer(struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[0], fops, dev, 0, 128,
-				 "mixer", S_IRUSR | S_IWUSR);
+				 "mixer", S_IRUSR | S_IWUSR, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_mixer);
@@ -330,7 +339,7 @@ EXPORT_SYMBOL(register_sound_mixer);
 int register_sound_midi(struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[2], fops, dev, 2, 130,
-				 "midi", S_IRUSR | S_IWUSR);
+				 "midi", S_IRUSR | S_IWUSR, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_midi);
@@ -356,7 +365,7 @@ EXPORT_SYMBOL(register_sound_midi);
 int register_sound_dsp(struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[3], fops, dev, 3, 131,
-				 "dsp", S_IWUSR | S_IRUSR);
+				 "dsp", S_IWUSR | S_IRUSR, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_dsp);
@@ -375,7 +384,7 @@ EXPORT_SYMBOL(register_sound_dsp);
 int register_sound_synth(struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[9], fops, dev, 9, 137,
-				 "synth", S_IRUSR | S_IWUSR);
+				 "synth", S_IRUSR | S_IWUSR, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_synth);

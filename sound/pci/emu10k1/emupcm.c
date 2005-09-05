@@ -1682,6 +1682,7 @@ static void snd_emu10k1_pcm_efx_free(snd_pcm_t *pcm)
 int __devinit snd_emu10k1_pcm_efx(emu10k1_t * emu, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
+	snd_kcontrol_t *kctl;
 	int err;
 
 	if (rpcm)
@@ -1714,7 +1715,11 @@ int __devinit snd_emu10k1_pcm_efx(emu10k1_t * emu, int device, snd_pcm_t ** rpcm
 		emu->efx_voices_mask[0] = 0xffff0000;
 		emu->efx_voices_mask[1] = 0;
 	}
-	snd_ctl_add(emu->card, snd_ctl_new1(&snd_emu10k1_pcm_efx_voices_mask, emu));
+	kctl = snd_ctl_new1(&snd_emu10k1_pcm_efx_voices_mask, emu);
+	if (!kctl)
+		return -ENOMEM;
+	kctl->id.device = device;
+	snd_ctl_add(emu->card, kctl);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(emu->pci), 64*1024, 64*1024);
 

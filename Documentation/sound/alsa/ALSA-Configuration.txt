@@ -132,6 +132,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 UART (PnP setup)
     dma1	- first DMA # for AD1816A chip (PnP setup)
     dma2	- second DMA # for AD1816A chip (PnP setup)
+    clockfreq   - Clock frequency for AD1816A chip (default = 0, 33000Hz)
     
     Module supports up to 8 cards, autoprobe and PnP.
     
