@@ -153,11 +153,14 @@ __handle_signal:
 rtrap_irq:
 rtrap_clr_l6:	clr			%l6
 rtrap:
-		ldub			[%g6 + TI_CPU], %l0
-		sethi			%hi(irq_stat), %l2	! &softirq_active
-		or			%l2, %lo(irq_stat), %l2	! &softirq_active
-irqsz_patchme:	sllx			%l0, 0, %l0
-		lduw			[%l2 + %l0], %l1	! softirq_pending
+#ifndef CONFIG_SMP
+		sethi			%hi(per_cpu____cpu_data), %l0
+		lduw			[%l0 + %lo(per_cpu____cpu_data)], %l1
+#else
+		sethi			%hi(per_cpu____cpu_data), %l0
+		or			%l0, %lo(per_cpu____cpu_data), %l0
+		lduw			[%l0 + %g5], %l1
+#endif
 		cmp			%l1, 0
 
 		/* mm/ultra.S:xcall_report_regs KNOWS about this load. */

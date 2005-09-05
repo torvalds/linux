@@ -16,31 +16,6 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-static inline void forget_pte(pte_t page)
-{
-#if 0 /* old 2.4 code */
-	if (pte_none(page))
-		return;
-	if (pte_present(page)) {
-		unsigned long pfn = pte_pfn(page);
-		struct page *ptpage;
-		if (!pfn_valid(pfn))
-			return;
-		ptpage = pfn_to_page(pfn);
-		if (PageReserved(ptpage))
-			return;
-		page_cache_release(ptpage);
-		return;
-	}
-	swap_free(pte_to_swp_entry(page));
-#else
-	if (!pte_none(page)) {
-		printk("forget_pte: old mapping existed!\n");
-		BUG();
-	}
-#endif
-}
-
 /* Remap IO memory, the same way as remap_pfn_range(), but use
  * the obio memory space.
  *
@@ -60,7 +35,6 @@ static inline void io_remap_pte_range(struct mm_struct *mm, pte_t * pte, unsigne
 		pte_t oldpage = *pte;
 		pte_clear(mm, address, pte);
 		set_pte(pte, mk_pte_io(offset, prot, space));
-		forget_pte(oldpage);
 		address += PAGE_SIZE;
 		offset += PAGE_SIZE;
 		pte++;
@@ -86,37 +60,6 @@ static inline int io_remap_pmd_range(struct mm_struct *mm, pmd_t * pmd, unsigned
 		pmd++;
 	} while (address < end);
 	return 0;
-}
-
-int io_remap_page_range(struct vm_area_struct *vma, unsigned long from, unsigned long offset, unsigned long size, pgprot_t prot, int space)
-{
-	int error = 0;
-	pgd_t * dir;
-	unsigned long beg = from;
-	unsigned long end = from + size;
-	struct mm_struct *mm = vma->vm_mm;
-
-	prot = __pgprot(pg_iobits);
-	offset -= from;
-	dir = pgd_offset(mm, from);
-	flush_cache_range(vma, beg, end);
-
-	spin_lock(&mm->page_table_lock);
-	while (from < end) {
-		pmd_t *pmd = pmd_alloc(current->mm, dir, from);
-		error = -ENOMEM;
-		if (!pmd)
-			break;
-		error = io_remap_pmd_range(mm, pmd, from, end - from, offset + from, prot, space);
-		if (error)
-			break;
-		from = (from + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	}
-	spin_unlock(&mm->page_table_lock);
-
-	flush_tlb_range(vma, beg, end);
-	return error;
 }
 
 int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
