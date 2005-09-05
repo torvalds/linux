@@ -351,6 +351,7 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 static void nv_host_stop (struct ata_host_set *host_set)
 {
 	struct nv_host *host = host_set->private_data;
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 
 	// Disable hotplug event interrupts.
 	if (host->host_desc->disable_hotplug)
@@ -358,7 +359,8 @@ static void nv_host_stop (struct ata_host_set *host_set)
 
 	kfree(host);
 
-	ata_host_stop(host_set);
+	if (host_set->mmio_base)
+		pci_iounmap(pdev, host_set->mmio_base);
 }
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -420,8 +422,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO) {
 		unsigned long base;
 
-		probe_ent->mmio_base = ioremap(pci_resource_start(pdev, 5),
-				pci_resource_len(pdev, 5));
+		probe_ent->mmio_base = pci_iomap(pdev, 5, 0);
 		if (probe_ent->mmio_base == NULL) {
 			rc = -EIO;
 			goto err_out_free_host;
@@ -457,7 +458,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_iounmap:
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		iounmap(probe_ent->mmio_base);
+		pci_iounmap(pdev, probe_ent->mmio_base);
 err_out_free_host:
 	kfree(host);
 err_out_free_ent:
