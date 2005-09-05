@@ -1038,8 +1038,7 @@ static int snd_opti93x_capture_prepare(snd_pcm_substream_t *substream)
 
 	chip->c_dma_size = size;
 	snd_opti93x_out_mask(chip, OPTi93X_IFACE_CONF,
-		OPTi93X_CAPTURE_ENABLE | OPTi93X_CAPTURE_PIO,
-		(unsigned char)~(OPTi93X_CAPTURE_ENABLE | OPTi93X_CAPTURE_PIO));
+		OPTi93X_CAPTURE_ENABLE | OPTi93X_CAPTURE_PIO, 0);
 
 	snd_dma_program(chip->dma2, runtime->dma_addr, size,
 		DMA_MODE_READ | DMA_AUTOINIT);
