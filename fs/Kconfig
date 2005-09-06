@@ -382,10 +382,8 @@ config QUOTA
 	  usage (also called disk quotas). Currently, it works for the
 	  ext2, ext3, and reiserfs file system. ext3 also supports journalled
 	  quotas for which you don't need to run quotacheck(8) after an unclean
-	  shutdown. You need additional software in order to use quota support
-	  (you can download sources from
-	  <http://www.sf.net/projects/linuxquota/>). For further details, read
-	  the Quota mini-HOWTO, available from
+	  shutdown.
+	  For further details, read the Quota mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, or the documentation provided
 	  with the quota tools. Probably the quota support is only useful for
 	  multi user systems. If unsure, say N.
@@ -403,8 +401,7 @@ config QFMT_V2
 	depends on QUOTA
 	help
 	  This quota format allows using quotas with 32-bit UIDs/GIDs. If you
-	  need this functionality say Y here. Note that you will need recent
-	  quota utilities (>= 3.01) for new quota format with this kernel.
+	  need this functionality say Y here.
 
 config QUOTACTL
 	bool
