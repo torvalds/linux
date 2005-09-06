@@ -4970,10 +4970,10 @@ static int cpu_to_phys_group(int cpu)
  * gets dynamically allocated.
  */
 static DEFINE_PER_CPU(struct sched_domain, node_domains);
-static struct sched_group *sched_group_nodes[MAX_NUMNODES];
+static struct sched_group **sched_group_nodes_bycpu[NR_CPUS];
 
 static DEFINE_PER_CPU(struct sched_domain, allnodes_domains);
-static struct sched_group sched_group_allnodes[MAX_NUMNODES];
+static struct sched_group *sched_group_allnodes_bycpu[NR_CPUS];
 
 static int cpu_to_allnodes_group(int cpu)
 {
@@ -4988,6 +4988,21 @@ static int cpu_to_allnodes_group(int cpu)
 void build_sched_domains(const cpumask_t *cpu_map)
 {
 	int i;
+#ifdef CONFIG_NUMA
+	struct sched_group **sched_group_nodes = NULL;
+	struct sched_group *sched_group_allnodes = NULL;
+
+	/*
+	 * Allocate the per-node list of sched groups
+	 */
+	sched_group_nodes = kmalloc(sizeof(struct sched_group*)*MAX_NUMNODES,
+					   GFP_ATOMIC);
+	if (!sched_group_nodes) {
+		printk(KERN_WARNING "Can not alloc sched group node list\n");
+		return;
+	}
+	sched_group_nodes_bycpu[first_cpu(*cpu_map)] = sched_group_nodes;
+#endif
 
 	/*
 	 * Set up domains for cpus specified by the cpu_map.
@@ -5000,8 +5015,21 @@ void build_sched_domains(const cpumask_t *cpu_map)
 		cpus_and(nodemask, nodemask, *cpu_map);
 
 #ifdef CONFIG_NUMA
-		if (num_online_cpus()
+		if (cpus_weight(*cpu_map)
 				> SD_NODES_PER_DOMAIN*cpus_weight(nodemask)) {
+			if (!sched_group_allnodes) {
+				sched_group_allnodes
+					= kmalloc(sizeof(struct sched_group)
+							* MAX_NUMNODES,
+						  GFP_KERNEL);
+				if (!sched_group_allnodes) {
+					printk(KERN_WARNING
+					"Can not alloc allnodes sched group\n");
+					break;
+				}
+				sched_group_allnodes_bycpu[i]
+						= sched_group_allnodes;
+			}
 			sd = &per_cpu(allnodes_domains, i);
 			*sd = SD_ALLNODES_INIT;
 			sd->span = *cpu_map;
@@ -5065,8 +5093,9 @@ void build_sched_domains(const cpumask_t *cpu_map)
 
 #ifdef CONFIG_NUMA
 	/* Set up node groups */
-	init_sched_build_groups(sched_group_allnodes, *cpu_map,
-				&cpu_to_allnodes_group);
+	if (sched_group_allnodes)
+		init_sched_build_groups(sched_group_allnodes, *cpu_map,
+					&cpu_to_allnodes_group);
 
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		/* Set up node groups */
@@ -5077,8 +5106,10 @@ void build_sched_domains(const cpumask_t *cpu_map)
 		int j;
 
 		cpus_and(nodemask, nodemask, *cpu_map);
-		if (cpus_empty(nodemask))
+		if (cpus_empty(nodemask)) {
+			sched_group_nodes[i] = NULL;
 			continue;
+		}
 
 		domainspan = sched_domain_node_span(i);
 		cpus_and(domainspan, domainspan, *cpu_map);
@@ -5223,24 +5254,42 @@ static void arch_destroy_sched_domains(const cpumask_t *cpu_map)
 {
 #ifdef CONFIG_NUMA
 	int i;
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		cpumask_t nodemask = node_to_cpumask(i);
-		struct sched_group *oldsg, *sg = sched_group_nodes[i];
+	int cpu;
 
-		cpus_and(nodemask, nodemask, *cpu_map);
-		if (cpus_empty(nodemask))
+	for_each_cpu_mask(cpu, *cpu_map) {
+		struct sched_group *sched_group_allnodes
+			= sched_group_allnodes_bycpu[cpu];
+		struct sched_group **sched_group_nodes
+			= sched_group_nodes_bycpu[cpu];
+
+		if (sched_group_allnodes) {
+			kfree(sched_group_allnodes);
+			sched_group_allnodes_bycpu[cpu] = NULL;
+		}
+
+		if (!sched_group_nodes)
 			continue;
 
-		if (sg == NULL)
-			continue;
-		sg = sg->next;
+		for (i = 0; i < MAX_NUMNODES; i++) {
+			cpumask_t nodemask = node_to_cpumask(i);
+			struct sched_group *oldsg, *sg = sched_group_nodes[i];
+
+			cpus_and(nodemask, nodemask, *cpu_map);
+			if (cpus_empty(nodemask))
+				continue;
+
+			if (sg == NULL)
+				continue;
+			sg = sg->next;
 next_sg:
-		oldsg = sg;
-		sg = sg->next;
-		kfree(oldsg);
-		if (oldsg != sched_group_nodes[i])
-			goto next_sg;
-		sched_group_nodes[i] = NULL;
+			oldsg = sg;
+			sg = sg->next;
+			kfree(oldsg);
+			if (oldsg != sched_group_nodes[i])
+				goto next_sg;
+		}
+		kfree(sched_group_nodes);
+		sched_group_nodes_bycpu[cpu] = NULL;
 	}
 #endif
 }
