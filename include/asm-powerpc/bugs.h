@@ -1,5 +1,5 @@
-#ifndef _PPC64_SIGINFO_H
-#define _PPC64_SIGINFO_H
+#ifndef _POWERPC_BUGS_H
+#define _POWERPC_BUGS_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -8,9 +8,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
-#define SI_PAD_SIZE32		((SI_MAX_SIZE/sizeof(int)) - 3)
+/*
+ * This file is included by 'init/main.c' to check for
+ * architecture-dependent bugs.
+ */
 
-#include <asm-generic/siginfo.h>
+extern void check_bugs(void);
 
-#endif /* _PPC64_SIGINFO_H */
+#endif /* _POWERPC_BUGS_H */

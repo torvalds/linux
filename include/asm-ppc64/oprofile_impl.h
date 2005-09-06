@@ -49,6 +49,9 @@ struct op_ppc64_model {
 	int num_counters;
 };
 
+extern struct op_ppc64_model op_model_rs64;
+extern struct op_ppc64_model op_model_power4;
+
 static inline unsigned int ctr_read(unsigned int i)
 {
 	switch(i) {

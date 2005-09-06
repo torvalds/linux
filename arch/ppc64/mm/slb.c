@@ -87,8 +87,8 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		int i;
 		asm volatile("isync" : : : "memory");
 		for (i = 0; i < offset; i++) {
-			esid_data = (unsigned long)get_paca()->slb_cache[i]
-				<< SID_SHIFT;
+			esid_data = ((unsigned long)get_paca()->slb_cache[i]
+				<< SID_SHIFT) | SLBIE_C;
 			asm volatile("slbie %0" : : "r" (esid_data));
 		}
 		asm volatile("isync" : : : "memory");

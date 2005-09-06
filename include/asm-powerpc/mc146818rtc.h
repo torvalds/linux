@@ -1,9 +1,16 @@
+#ifndef _POWERPC_MC146818RTC_H
+#define _POWERPC_MC146818RTC_H
+
 /*
  * Machine dependent access functions for RTC registers.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
+
 #ifdef __KERNEL__
-#ifndef __ASM_PPC_MC146818RTC_H
-#define __ASM_PPC_MC146818RTC_H
 
 #include <asm/io.h>
 
@@ -25,7 +32,5 @@ outb_p((addr),RTC_PORT(0)); \
 outb_p((val),RTC_PORT(1)); \
 })
 
-#define RTC_IRQ 8
-
-#endif /* __ASM_PPC_MC146818RTC_H */
-#endif /* __KERNEL__ */
+#endif	/* __KERNEL__ */
+#endif	/* _POWERPC_MC146818RTC_H */

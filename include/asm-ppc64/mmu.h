@@ -54,8 +54,10 @@ extern char initial_stab[];
 #define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
 #define SLB_VSID_LS		ASM_CONST(0x0000000000000070) /* size of largepage */
  
-#define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
-#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
+#define SLB_VSID_KERNEL		(SLB_VSID_KP)
+#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS|SLB_VSID_C)
+
+#define SLBIE_C			(0x08000000)
 
 /*
  * Hash table

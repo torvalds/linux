@@ -1,5 +1,5 @@
-#ifndef _PPC64_TERMIOS_H
-#define _PPC64_TERMIOS_H
+#ifndef _POWERPC_TERMIOS_H
+#define _POWERPC_TERMIOS_H
 
 /*
  * Liberally adapted from alpha/termios.h.  In particular, the c_cc[]
@@ -87,6 +87,7 @@ struct termio {
 #define N_SMSBLOCK	12	/* SMS block mode - for talking to GSM data cards about SMS messages */
 #define N_HDLC		13	/* synchronous HDLC */
 #define N_SYNC_PPP	14
+#define N_HCI		15  /* Bluetooth HCI UART */
 
 #ifdef __KERNEL__
 /*                   ^C  ^\ del  ^U  ^D   1   0   0   0   0  ^W  ^R  ^Z  ^Q  ^S  ^V  ^U  */
@@ -232,4 +233,4 @@ struct termio {
 
 #endif	/* __KERNEL__ */
 
-#endif	/* _PPC64_TERMIOS_H */
+#endif	/* _POWERPC_TERMIOS_H */
