@@ -190,6 +190,11 @@ static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
 	}
 }
 
+static int corgi_mci_get_ro(struct device *dev)
+{
+	return GPLR(CORGI_GPIO_nSD_WP) & GPIO_bit(CORGI_GPIO_nSD_WP);
+}
+
 static void corgi_mci_exit(struct device *dev, void *data)
 {
 	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
@@ -199,6 +204,7 @@ static void corgi_mci_exit(struct device *dev, void *data)
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 		= corgi_mci_init,
+	.get_ro		= corgi_mci_get_ro,
 	.setpower 	= corgi_mci_setpower,
 	.exit		= corgi_mci_exit,
 };
