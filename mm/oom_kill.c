@@ -20,6 +20,7 @@
 #include <linux/swap.h>
 #include <linux/timex.h>
 #include <linux/jiffies.h>
+#include <linux/cpuset.h>
 
 /* #define DEBUG */
 
@@ -152,6 +153,10 @@ static struct task_struct * select_bad_process(void)
 			continue;
 		if (p->oomkilladj == OOM_DISABLE)
 			continue;
+		/* If p's nodes don't overlap ours, it won't help to kill p. */
+		if (!cpuset_excl_nodes_overlap(p))
+			continue;
+
 		/*
 		 * This is in the process of releasing memory so for wait it
 		 * to finish before killing some other task by mistake.

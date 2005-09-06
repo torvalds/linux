@@ -1688,6 +1688,39 @@ done:
 	return allowed;
 }
 
+/**
+ * cpuset_excl_nodes_overlap - Do we overlap @p's mem_exclusive ancestors?
+ * @p: pointer to task_struct of some other task.
+ *
+ * Description: Return true if the nearest mem_exclusive ancestor
+ * cpusets of tasks @p and current overlap.  Used by oom killer to
+ * determine if task @p's memory usage might impact the memory
+ * available to the current task.
+ *
+ * Acquires cpuset_sem - not suitable for calling from a fast path.
+ **/
+
+int cpuset_excl_nodes_overlap(const struct task_struct *p)
+{
+	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
+	int overlap = 0;		/* do cpusets overlap? */
+
+	down(&cpuset_sem);
+	cs1 = current->cpuset;
+	if (!cs1)
+		goto done;		/* current task exiting */
+	cs2 = p->cpuset;
+	if (!cs2)
+		goto done;		/* task p is exiting */
+	cs1 = nearest_exclusive_ancestor(cs1);
+	cs2 = nearest_exclusive_ancestor(cs2);
+	overlap = nodes_intersects(cs1->mems_allowed, cs2->mems_allowed);
+done:
+	up(&cpuset_sem);
+
+	return overlap;
+}
+
 /*
  * proc_cpuset_show()
  *  - Print tasks cpuset path into seq_file.
