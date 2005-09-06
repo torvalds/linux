@@ -310,6 +310,7 @@ void __show_regs(struct pt_regs * regs)
 
 void show_regs(struct pt_regs *regs)
 {
+	printk("CPU %d:", smp_processor_id());
 	__show_regs(regs);
 	show_trace(&regs->rsp);
 }
