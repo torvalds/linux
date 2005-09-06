@@ -249,9 +249,8 @@ static void corgikbd_hinge_timer(unsigned long data)
 		if (hinge_count >= HINGE_STABLE_COUNT) {
 			spin_lock_irqsave(&corgikbd_data->lock, flags);
 
-			input_report_key(&corgikbd_data->input, corgikbd_data->keycode[125], (sharpsl_hinge_state == 0x00));
-			input_report_key(&corgikbd_data->input, corgikbd_data->keycode[126], (sharpsl_hinge_state == 0x08));
-			input_report_key(&corgikbd_data->input, corgikbd_data->keycode[127], (sharpsl_hinge_state == 0x0c));
+			input_report_switch(&corgikbd_data->input, SW_0, ((sharpsl_hinge_state & CORGI_SCP_SWA) != 0));
+			input_report_switch(&corgikbd_data->input, SW_1, ((sharpsl_hinge_state & CORGI_SCP_SWB) != 0));
 			input_sync(&corgikbd_data->input);
 
 			spin_unlock_irqrestore(&corgikbd_data->lock, flags);
@@ -321,7 +320,7 @@ static int __init corgikbd_probe(struct device *dev)
 	corgikbd->input.id.vendor = 0x0001;
 	corgikbd->input.id.product = 0x0001;
 	corgikbd->input.id.version = 0x0100;
-	corgikbd->input.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR);
+	corgikbd->input.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
 	corgikbd->input.keycode = corgikbd->keycode;
 	corgikbd->input.keycodesize = sizeof(unsigned char);
 	corgikbd->input.keycodemax = ARRAY_SIZE(corgikbd_keycode);
@@ -330,6 +329,8 @@ static int __init corgikbd_probe(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(corgikbd_keycode); i++)
 		set_bit(corgikbd->keycode[i], corgikbd->input.keybit);
 	clear_bit(0, corgikbd->input.keybit);
+	set_bit(SW_0, corgikbd->input.swbit);
+	set_bit(SW_1, corgikbd->input.swbit);
 
 	input_register_device(&corgikbd->input);
 	mod_timer(&corgikbd->htimer, jiffies + HINGE_SCAN_INTERVAL);
