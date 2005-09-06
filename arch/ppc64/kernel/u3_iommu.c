@@ -276,7 +276,7 @@ static void iommu_dev_setup_u3(struct pci_dev *dev)
 	dn = pci_device_to_OF_node(dev);
 
 	if (dn)
-		dn->iommu_table = &iommu_table_u3;
+		PCI_DN(dn)->iommu_table = &iommu_table_u3;
 }
 
 static void iommu_bus_setup_u3(struct pci_bus *bus)
@@ -291,7 +291,7 @@ static void iommu_bus_setup_u3(struct pci_bus *bus)
 	dn = pci_bus_to_OF_node(bus);
 
 	if (dn)
-		dn->iommu_table = &iommu_table_u3;
+		PCI_DN(dn)->iommu_table = &iommu_table_u3;
 }
 
 static void iommu_dev_setup_null(struct pci_dev *dev) { }

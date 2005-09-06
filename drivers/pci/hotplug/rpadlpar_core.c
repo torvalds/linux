@@ -134,7 +134,8 @@ static void rpadlpar_claim_one_bus(struct pci_bus *b)
 static int pci_add_secondary_bus(struct device_node *dn,
 		struct pci_dev *bridge_dev)
 {
-	struct pci_controller *hose = dn->phb;
+	struct pci_dn *pdn = dn->data;
+	struct pci_controller *hose = pdn->phb;
 	struct pci_bus *child;
 	u8 sec_busno;
 
@@ -159,7 +160,7 @@ static int pci_add_secondary_bus(struct device_node *dn,
 	if (hose->last_busno < child->number)
 		hose->last_busno = child->number;
 
-	dn->bussubno = child->number;
+	pdn->bussubno = child->number;
 
 	/* ioremap() for child bus, which may or may not succeed */
 	remap_bus_range(child);
@@ -183,11 +184,12 @@ static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
 
 static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 {
-	struct pci_controller *hose = dn->phb;
+	struct pci_dn *pdn = dn->data;
+	struct pci_controller *hose = pdn->phb;
 	struct pci_dev *dev = NULL;
 
 	/* Scan phb bus for EADS device, adding new one to bus->devices */
-	if (!pci_scan_single_device(hose->bus, dn->devfn)) {
+	if (!pci_scan_single_device(hose->bus, pdn->devfn)) {
 		printk(KERN_ERR "%s: found no device on bus\n", __FUNCTION__);
 		return NULL;
 	}
@@ -269,6 +271,7 @@ static int dlpar_remove_root_bus(struct pci_controller *phb)
 static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 {
 	struct slot *slot;
+	struct pci_dn *pdn;
 	int rc = 0;
 
 	if (!rpaphp_find_pci_bus(dn))
@@ -285,12 +288,13 @@ static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 		}
 	}
 
-	BUG_ON(!dn->phb);
-	rc = dlpar_remove_root_bus(dn->phb);
+	pdn = dn->data;
+	BUG_ON(!pdn || !pdn->phb);
+	rc = dlpar_remove_root_bus(pdn->phb);
 	if (rc < 0)
 		return rc;
 
-	dn->phb = NULL;
+	pdn->phb = NULL;
 
 	return 0;
 }
@@ -299,7 +303,7 @@ static int dlpar_add_phb(char *drc_name, struct device_node *dn)
 {
 	struct pci_controller *phb;
 
-	if (dn->phb) {
+	if (PCI_DN(dn)->phb) {
 		/* PHB already exists */
 		return -EINVAL;
 	}

@@ -837,9 +837,11 @@ int pcibios_scan_all_fns(struct pci_bus *bus, int devfn)
         * device tree.  If they are then we need to scan all the
         * functions of this slot.
         */
-       for (dn = busdn->child; dn; dn = dn->sibling)
-               if ((dn->devfn >> 3) == (devfn >> 3))
+       for (dn = busdn->child; dn; dn = dn->sibling) {
+	       struct pci_dn *pdn = dn->data;
+	       if (pdn && (pdn->devfn >> 3) == (devfn >> 3))
                        return 1;
+       }
 
        return 0;
 }

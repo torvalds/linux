@@ -747,8 +747,8 @@ asmlinkage int sys32_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
 	if (bus == NULL || bus->sysdata == NULL)
 		return -ENODEV;
 
-	hose_node = (struct device_node *)bus->sysdata;
-	hose = hose_node->phb;
+	hose_node = bus->sysdata;
+	hose = PCI_DN(hose_node)->phb;
 
 	switch (which) {
 	case IOBASE_BRIDGE_NUMBER:
