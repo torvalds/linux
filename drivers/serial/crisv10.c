@@ -446,7 +446,6 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <asm/bitops.h>
 #include <linux/delay.h>
 
