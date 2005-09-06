@@ -628,13 +628,6 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
  * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
  */
 
-/*
- * Hack to avoid 2.6.13 partial node dynamic sched domain bug.
- * Disable letting 'cpu_exclusive' cpusets define dynamic sched
- * domains, until the sched domain can handle partial nodes.
- * Remove this #if hackery when sched domains fixed.
- */
-#if 0
 static void update_cpu_domains(struct cpuset *cur)
 {
 	struct cpuset *c, *par = cur->parent;
@@ -675,11 +668,6 @@ static void update_cpu_domains(struct cpuset *cur)
 	partition_sched_domains(&pspan, &cspan);
 	unlock_cpu_hotplug();
 }
-#else
-static void update_cpu_domains(struct cpuset *cur)
-{
-}
-#endif
 
 static int update_cpumask(struct cpuset *cs, char *buf)
 {
