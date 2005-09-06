@@ -27,9 +27,11 @@
 #define F_SETSIG	10	/*  for sockets. */
 #define F_GETSIG	11	/*  for sockets. */
 
+#ifndef __powerpc64__
 #define F_GETLK64	12	/*  using 'struct flock64' */
 #define F_SETLK64	13
 #define F_SETLKW64	14
+#endif
 
 /* for posix fcntl() and lockf() */
 #define F_RDLCK		0
@@ -43,12 +45,6 @@
 /* for leases */
 #define F_INPROGRESS	16
 
-#ifdef __KERNEL__
-#define F_POSIX		1
-#define F_FLOCK		2
-#define F_BROKEN	4	/* broken flock() emulation */
-#endif /* __KERNEL__ */
-
 struct flock {
 	short l_type;
 	short l_whence;
@@ -57,6 +53,7 @@ struct flock {
 	pid_t l_pid;
 };
 
+#ifndef __powerpc64__
 struct flock64 {
 	short  l_type;
 	short  l_whence;
@@ -64,7 +61,8 @@ struct flock64 {
 	loff_t l_len;
 	pid_t  l_pid;
 };
+#endif
 
 #include <asm-generic/fcntl.h>
 
-#endif
+#endif /* _PPC_FCNTL_H */
