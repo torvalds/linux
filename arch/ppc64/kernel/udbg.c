@@ -14,6 +14,7 @@
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/console.h>
 #include <asm/ppcdebug.h>
 #include <asm/processor.h>
 
@@ -21,6 +22,7 @@ void (*udbg_putc)(unsigned char c);
 unsigned char (*udbg_getc)(void);
 int (*udbg_getc_poll)(void);
 
+/* udbg library, used by xmon et al */
 void udbg_puts(const char *s)
 {
 	if (udbg_putc) {
@@ -75,11 +77,6 @@ int udbg_read(char *buf, int buflen)
 	return i;
 }
 
-void udbg_console_write(struct console *con, const char *s, unsigned int n)
-{
-	udbg_write(s, n);
-}
-
 #define UDBG_BUFSIZE 256
 void udbg_printf(const char *fmt, ...)
 {
@@ -91,6 +88,10 @@ void udbg_printf(const char *fmt, ...)
 	udbg_puts(buf);
 	va_end(args);
 }
+
+/* PPCDBG stuff */
+
+u64 ppc64_debug_switch;
 
 /* Special print used by PPCDBG() macro */
 void udbg_ppcdbg(unsigned long debug_flags, const char *fmt, ...)
@@ -131,3 +132,43 @@ unsigned long udbg_ifdebug(unsigned long flags)
 {
 	return (flags & ppc64_debug_switch);
 }
+
+/*
+ * Initialize the PPCDBG state.  Called before relocation has been enabled.
+ */
+void __init ppcdbg_initialize(void)
+{
+	ppc64_debug_switch = PPC_DEBUG_DEFAULT; /* | PPCDBG_BUSWALK | */
+	/* PPCDBG_PHBINIT | PPCDBG_MM | PPCDBG_MMINIT | PPCDBG_TCEINIT | PPCDBG_TCE */;
+}
+
+/*
+ * Early boot console based on udbg
+ */
+static void udbg_console_write(struct console *con, const char *s,
+		unsigned int n)
+{
+	udbg_write(s, n);
+}
+
+static struct console udbg_console = {
+	.name	= "udbg",
+	.write	= udbg_console_write,
+	.flags	= CON_PRINTBUFFER,
+	.index	= -1,
+};
+
+void __init disable_early_printk(void)
+{
+	unregister_console(&udbg_console);
+}
+
+/* called by setup_system */
+void register_early_udbg_console(void)
+{
+	register_console(&udbg_console);
+}
+
+#if 0   /* if you want to use this as a regular output console */
+console_initcall(register_udbg_console);
+#endif
