@@ -182,11 +182,11 @@ tioca_tlbflush(struct tioca_kernel *tioca_kernel)
 			 * touch every CL aligned GART entry.
 			 */
 
-			ca_base->ca_control2 &= ~(CA_GART_MEM_PARAM);
-			ca_base->ca_control2 |= CA_GART_FLUSH_TLB;
-			ca_base->ca_control2 |=
-			    (0x2ull << CA_GART_MEM_PARAM_SHFT);
-			tmp = ca_base->ca_control2;
+			__sn_clrq_relaxed(&ca_base->ca_control2, CA_GART_MEM_PARAM);
+			__sn_setq_relaxed(&ca_base->ca_control2, CA_GART_FLUSH_TLB);
+			__sn_setq_relaxed(&ca_base->ca_control2,
+			    (0x2ull << CA_GART_MEM_PARAM_SHFT));
+			tmp = __sn_readq_relaxed(&ca_base->ca_control2);
 		}
 
 		return;
@@ -196,8 +196,8 @@ tioca_tlbflush(struct tioca_kernel *tioca_kernel)
 	 * Gart in uncached mode ... need an explicit flush.
 	 */
 
-	ca_base->ca_control2 |= CA_GART_FLUSH_TLB;
-	tmp = ca_base->ca_control2;
+	__sn_setq_relaxed(&ca_base->ca_control2, CA_GART_FLUSH_TLB);
+	tmp = __sn_readq_relaxed(&ca_base->ca_control2);
 }
 
 extern uint32_t	tioca_gart_found;
