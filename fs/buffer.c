@@ -3046,10 +3046,9 @@ struct buffer_head *alloc_buffer_head(unsigned int __nocast gfp_flags)
 {
 	struct buffer_head *ret = kmem_cache_alloc(bh_cachep, gfp_flags);
 	if (ret) {
-		preempt_disable();
-		__get_cpu_var(bh_accounting).nr++;
+		get_cpu_var(bh_accounting).nr++;
 		recalc_bh_state();
-		preempt_enable();
+		put_cpu_var(bh_accounting);
 	}
 	return ret;
 }
@@ -3059,10 +3058,9 @@ void free_buffer_head(struct buffer_head *bh)
 {
 	BUG_ON(!list_empty(&bh->b_assoc_buffers));
 	kmem_cache_free(bh_cachep, bh);
-	preempt_disable();
-	__get_cpu_var(bh_accounting).nr--;
+	get_cpu_var(bh_accounting).nr--;
 	recalc_bh_state();
-	preempt_enable();
+	put_cpu_var(bh_accounting);
 }
 EXPORT_SYMBOL(free_buffer_head);
 
