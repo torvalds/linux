@@ -1334,8 +1334,12 @@ asmlinkage long sys_pivot_root(const char __user *new_root, const char __user *p
 	error = -EINVAL;
 	if (user_nd.mnt->mnt_root != user_nd.dentry)
 		goto out2; /* not a mountpoint */
+	if (user_nd.mnt->mnt_parent == user_nd.mnt)
+		goto out2; /* not attached */
 	if (new_nd.mnt->mnt_root != new_nd.dentry)
 		goto out2; /* not a mountpoint */
+	if (new_nd.mnt->mnt_parent == new_nd.mnt)
+		goto out2; /* not attached */
 	tmp = old_nd.mnt; /* make sure we can reach put_old from new_root */
 	spin_lock(&vfsmount_lock);
 	if (tmp != new_nd.mnt) {
