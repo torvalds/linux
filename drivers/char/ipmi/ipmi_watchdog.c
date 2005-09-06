@@ -259,7 +259,7 @@ static int i_ipmi_set_timeout(struct ipmi_smi_msg  *smi_msg,
 
 	data[1] = 0;
 	WDOG_SET_TIMEOUT_ACT(data[1], ipmi_watchdog_state);
-	if (pretimeout > 0) {
+	if ((pretimeout > 0) && (ipmi_watchdog_state != WDOG_TIMEOUT_NONE)) {
 	    WDOG_SET_PRETIMEOUT_ACT(data[1], preaction_val);
 	    data[2] = pretimeout;
 	} else {
@@ -817,15 +817,19 @@ static void ipmi_register_watchdog(int ipmi_intf)
 static int
 ipmi_nmi(void *dev_id, struct pt_regs *regs, int cpu, int handled)
 {
+        /* If we are not expecting a timeout, ignore it. */
+	if (ipmi_watchdog_state == WDOG_TIMEOUT_NONE)
+		return NOTIFY_DONE;
+
 	/* If no one else handled the NMI, we assume it was the IPMI
            watchdog. */
-	if ((!handled) && (preop_val == WDOG_PREOP_PANIC))
+	if ((!handled) && (preop_val == WDOG_PREOP_PANIC)) {
+		/* On some machines, the heartbeat will give
+		   an error and not work unless we re-enable
+		   the timer.   So do so. */
+		pretimeout_since_last_heartbeat = 1;
 		panic(PFX "pre-timeout");
-
-	/* On some machines, the heartbeat will give
-	   an error and not work unless we re-enable
-	   the timer.   So do so. */
-	pretimeout_since_last_heartbeat = 1;
+	}
 
 	return NOTIFY_DONE;
 }
