@@ -2028,9 +2028,40 @@ static struct acpi_driver acpi_sba_ioc_driver = {
 static int __init
 sba_init(void)
 {
-	acpi_bus_register_driver(&acpi_sba_ioc_driver);
-	if (!ioc_list)
+	if (!ia64_platform_is("hpzx1") && !ia64_platform_is("hpzx1_swiotlb"))
 		return 0;
+
+	acpi_bus_register_driver(&acpi_sba_ioc_driver);
+	if (!ioc_list) {
+#ifdef CONFIG_IA64_GENERIC
+		extern int swiotlb_late_init_with_default_size (size_t size);
+
+		/*
+		 * If we didn't find something sba_iommu can claim, we
+		 * need to setup the swiotlb and switch to the dig machvec.
+		 */
+		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
+			panic("Unable to find SBA IOMMU or initialize "
+			      "software I/O TLB: Try machvec=dig boot option");
+		machvec_init("dig");
+#else
+		panic("Unable to find SBA IOMMU: Try a generic or DIG kernel");
+#endif
+		return 0;
+	}
+
+#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_HP_ZX1_SWIOTLB)
+	/*
+	 * hpzx1_swiotlb needs to have a fairly small swiotlb bounce
+	 * buffer setup to support devices with smaller DMA masks than
+	 * sba_iommu can handle.
+	 */
+	if (ia64_platform_is("hpzx1_swiotlb")) {
+		extern void hwsw_init(void);
+
+		hwsw_init();
+	}
+#endif
 
 #ifdef CONFIG_PCI
 	{
@@ -2047,18 +2078,6 @@ sba_init(void)
 }
 
 subsys_initcall(sba_init); /* must be initialized after ACPI etc., but before any drivers... */
-
-extern void dig_setup(char**);
-/*
- * MAX_DMA_ADDRESS needs to be setup prior to paging_init to do any good,
- * so we use the platform_setup hook to fix it up.
- */
-void __init
-sba_setup(char **cmdline_p)
-{
-	MAX_DMA_ADDRESS = ~0UL;
-	dig_setup(cmdline_p);
-}
 
 static int __init
 nosbagart(char *str)

@@ -17,7 +17,7 @@
 #include <asm/machvec.h>
 
 /* swiotlb declarations & definitions: */
-extern void swiotlb_init_with_default_size (size_t size);
+extern int swiotlb_late_init_with_default_size (size_t size);
 extern ia64_mv_dma_alloc_coherent	swiotlb_alloc_coherent;
 extern ia64_mv_dma_free_coherent	swiotlb_free_coherent;
 extern ia64_mv_dma_map_single		swiotlb_map_single;
@@ -67,7 +67,16 @@ void
 hwsw_init (void)
 {
 	/* default to a smallish 2MB sw I/O TLB */
-	swiotlb_init_with_default_size (2 * (1<<20));
+	if (swiotlb_late_init_with_default_size (2 * (1<<20)) != 0) {
+#ifdef CONFIG_IA64_GENERIC
+		/* Better to have normal DMA than panic */
+		printk(KERN_WARNING "%s: Failed to initialize software I/O TLB,"
+		       " reverting to hpzx1 platform vector\n", __FUNCTION__);
+		machvec_init("hpzx1");
+#else
+		panic("Unable to initialize software I/O TLB services");
+#endif
+	}
 }
 
 void *
