@@ -19,9 +19,6 @@
 #define O_NOFOLLOW	00000200 /* don't follow links */
 #define O_INVISIBLE	04000000 /* invisible I/O, for DMAPI/XDSM */
 
-#define F_GETLK		5
-#define F_SETLK		6
-#define F_SETLKW	7
 #define F_GETLK64	8
 #define F_SETLK64	9
 #define F_SETLKW64	10
@@ -35,13 +32,6 @@
 #define F_RDLCK		01
 #define F_WRLCK		02
 #define F_UNLCK		03
-
-/* for old implementation of bsd flock () */
-#define F_EXLCK		4	/* or 3 */
-#define F_SHLCK		8	/* or 4 */
-
-/* for leases */
-#define F_INPROGRESS	16
 
 struct flock {
 	short l_type;

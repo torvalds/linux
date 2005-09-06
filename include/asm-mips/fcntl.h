@@ -33,18 +33,6 @@
 #define F_SETLKW64	35
 #endif
 
-/* for posix fcntl() and lockf() */
-#define F_RDLCK		0
-#define F_WRLCK		1
-#define F_UNLCK		2
-
-/* for old implementation of bsd flock () */
-#define F_EXLCK		4	/* or 3 */
-#define F_SHLCK		8	/* or 4 */
-
-/* for leases */
-#define F_INPROGRESS	16
-
 /*
  * The flavours of struct flock.  "struct flock" is the ABI compliant
  * variant.  Finally struct flock64 is the LFS variant of struct flock.  As

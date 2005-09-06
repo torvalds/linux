@@ -55,9 +55,40 @@
 #define F_SETFD		2	/* set/clear close_on_exec */
 #define F_GETFL		3	/* get file->f_flags */
 #define F_SETFL		4	/* set file->f_flags */
+#ifndef F_GETLK
+#define F_GETLK		5
+#define F_SETLK		6
+#define F_SETLKW	7
+#endif
+#ifndef F_SETOWN
+#define F_SETOWN	8	/* for sockets. */
+#define F_GETOWN	9	/* for sockets. */
+#endif
+#ifndef F_SETSIG
+#define F_SETSIG	10	/* for sockets. */
+#define F_GETSIG	11	/* for sockets. */
+#endif
 
 /* for F_[GET|SET]FL */
 #define FD_CLOEXEC	1	/* actually anything with low bit set goes */
+
+/* for posix fcntl() and lockf() */
+#ifndef F_RDLCK
+#define F_RDLCK		0
+#define F_WRLCK		1
+#define F_UNLCK		2
+#endif
+
+/* for old implementation of bsd flock () */
+#ifndef F_EXLCK
+#define F_EXLCK		4	/* or 3 */
+#define F_SHLCK		8	/* or 4 */
+#endif
+
+/* for leases */
+#ifndef F_INPROGRESS
+#define F_INPROGRESS	16
+#endif
 
 /* operations for bsd flock(), also used by the kernel implementation */
 #define LOCK_SH		1	/* shared lock */

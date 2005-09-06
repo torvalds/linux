@@ -22,8 +22,6 @@
 #define F_GETLK		7
 #define F_SETLK		8
 #define F_SETLKW	9
-#define F_SETSIG	10	/*  for sockets. */
-#define F_GETSIG	11	/*  for sockets. */
 
 #define F_GETLK64	12	/*  using 'struct flock64' */
 #define F_SETLK64	13
@@ -33,13 +31,6 @@
 #define F_RDLCK		1
 #define F_WRLCK		2
 #define F_UNLCK		3
-
-/* for old implementation of bsd flock () */
-#define F_EXLCK		4	/* or 3 */
-#define F_SHLCK		8	/* or 4 */
-
-/* for leases */
-#define F_INPROGRESS	16
 
 struct flock {
 	short l_type;
