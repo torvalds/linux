@@ -221,7 +221,10 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 * either a probepoint or a debugger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
+			 * Back up over the (now missing) int3 and run
+			 * the original instruction.
 			 */
+			regs->eip -= sizeof(kprobe_opcode_t);
 			ret = 1;
 		}
 		/* Not one of ours: let kernel handle it */
