@@ -169,12 +169,8 @@ void udbg_maple_real_putc(unsigned char c)
 		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
 			/* wait for idle */;
 		real_writeb(c, &udbg_comport->thr); eieio();
-		if (c == '\n') {
-			/* Also put a CR.  This is for convenience. */
-			while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-				/* wait for idle */;
-			real_writeb('\r', &udbg_comport->thr); eieio();
-		}
+		if (c == '\n')
+			udbg_maple_real_putc('\r');
 	}
 }
 
@@ -194,12 +190,8 @@ void udbg_putc(unsigned char c)
 		while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
 			/* wait for idle */;
 		out_8(&udbg_comport->thr, c);
-		if (c == '\n') {
-			/* Also put a CR.  This is for convenience. */
-			while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
-				/* wait for idle */; 
-			out_8(&udbg_comport->thr, '\r');
-		}
+		if (c == '\n')
+			udbg_putc('\r');
 	}
 #ifdef CONFIG_PPC_PMAC
 	else if (sccc) {
