@@ -16,15 +16,25 @@ struct dmi_header {
 static char * __init dmi_string(struct dmi_header *dm, u8 s)
 {
 	u8 *bp = ((u8 *) dm) + dm->length;
+	char *str = "";
 
-	if (!s)
-		return "";
-	s--;
-	while (s > 0 && *bp) {
-		bp += strlen(bp) + 1;
+	if (s) {
 		s--;
-	}
-	return bp;
+		while (s > 0 && *bp) {
+			bp += strlen(bp) + 1;
+			s--;
+		}
+
+		if (*bp != 0) {
+			str = alloc_bootmem(strlen(bp) + 1);
+			if (str != NULL)
+				strcpy(str, bp);
+			else
+				printk(KERN_ERR "dmi_string: out of memory.\n");
+		}
+ 	}
+
+	return str;
 }
 
 /*
@@ -84,19 +94,16 @@ static char *dmi_ident[DMI_STRING_MAX];
  */
 static void __init dmi_save_ident(struct dmi_header *dm, int slot, int string)
 {
-	char *d = (char*)dm;
-	char *p = dmi_string(dm, d[string]);
+	char *p, *d = (char*) dm;
 
-	if (p == NULL || *p == 0)
-		return;
 	if (dmi_ident[slot])
 		return;
 
-	dmi_ident[slot] = alloc_bootmem(strlen(p) + 1);
-	if(dmi_ident[slot])
-		strcpy(dmi_ident[slot], p);
-	else
-		printk(KERN_ERR "dmi_save_ident: out of memory.\n");
+	p = dmi_string(dm, d[string]);
+	if (p == NULL)
+		return;
+
+	dmi_ident[slot] = p;
 }
 
 /*
