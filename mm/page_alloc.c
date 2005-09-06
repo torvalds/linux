@@ -42,11 +42,11 @@
  * MCD - HACK: Find somewhere to initialize this EARLY, or make this
  * initializer cleaner
  */
-nodemask_t node_online_map = { { [0] = 1UL } };
+nodemask_t node_online_map __read_mostly = { { [0] = 1UL } };
 EXPORT_SYMBOL(node_online_map);
-nodemask_t node_possible_map = NODE_MASK_ALL;
+nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
 EXPORT_SYMBOL(node_possible_map);
-struct pglist_data *pgdat_list;
+struct pglist_data *pgdat_list __read_mostly;
 unsigned long totalram_pages;
 unsigned long totalhigh_pages;
 long nr_swap_pages;
@@ -68,7 +68,7 @@ EXPORT_SYMBOL(nr_swap_pages);
  * Used by page_zone() to look up the address of the struct zone whose
  * id is encoded in the upper bits of page->flags
  */
-struct zone *zone_table[1 << ZONETABLE_SHIFT];
+struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
 EXPORT_SYMBOL(zone_table);
 
 static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };

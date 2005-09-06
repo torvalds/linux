@@ -61,7 +61,7 @@ pgprot_t protection_map[16] = {
 
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS;  /* heuristic overcommit */
 int sysctl_overcommit_ratio = 50;	/* default is 50% */
-int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
+int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 atomic_t vm_committed_space = ATOMIC_INIT(0);
 
 /*
