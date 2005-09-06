@@ -76,7 +76,7 @@ typedef int (*nfqnl_cmpfn)(struct nfqnl_queue_entry *, unsigned long);
 
 static DEFINE_RWLOCK(instances_lock);
 
-u_int64_t htonll(u_int64_t in)
+static u_int64_t htonll(u_int64_t in)
 {
 	u_int64_t out;
 	int i;
