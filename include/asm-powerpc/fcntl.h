@@ -1,5 +1,5 @@
-#ifndef _PPC_FCNTL_H
-#define _PPC_FCNTL_H
+#ifndef _ASM_FCNTL_H
+#define _ASM_FCNTL_H
 
 #define O_DIRECTORY      040000	/* must be a directory */
 #define O_NOFOLLOW      0100000	/* don't follow links */
@@ -8,4 +8,4 @@
 
 #include <asm-generic/fcntl.h>
 
-#endif /* _PPC_FCNTL_H */
+#endif /* _ASM_FCNTL_H */
