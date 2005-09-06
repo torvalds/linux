@@ -219,7 +219,7 @@ struct ipmi_smi
 	   interface comes in with a NULL user, call this routine with
 	   it.  Note that the message will still be freed by the
 	   caller.  This only works on the system interface. */
-	void (*null_user_handler)(ipmi_smi_t intf, struct ipmi_smi_msg *msg);
+	void (*null_user_handler)(ipmi_smi_t intf, struct ipmi_recv_msg *msg);
 
 	/* When we are scanning the channels for an SMI, this will
 	   tell which channel we are scanning. */
@@ -459,7 +459,27 @@ unsigned int ipmi_addr_length(int addr_type)
 
 static void deliver_response(struct ipmi_recv_msg *msg)
 {
-	msg->user->handler->ipmi_recv_hndl(msg, msg->user->handler_data);
+	if (! msg->user) {
+		ipmi_smi_t    intf = msg->user_msg_data;
+		unsigned long flags;
+
+		/* Special handling for NULL users. */
+		if (intf->null_user_handler) {
+			intf->null_user_handler(intf, msg);
+			spin_lock_irqsave(&intf->counter_lock, flags);
+			intf->handled_local_responses++;
+			spin_unlock_irqrestore(&intf->counter_lock, flags);
+		} else {
+			/* No handler, so give up. */
+			spin_lock_irqsave(&intf->counter_lock, flags);
+			intf->unhandled_local_responses++;
+			spin_unlock_irqrestore(&intf->counter_lock, flags);
+		}
+		ipmi_free_recv_msg(msg);
+	} else {
+		msg->user->handler->ipmi_recv_hndl(msg,
+						   msg->user->handler_data);
+	}
 }
 
 /* Find the next sequence number not being used and add the given
@@ -1389,6 +1409,8 @@ int ipmi_request_settime(ipmi_user_t      user,
 	unsigned char saddr, lun;
 	int           rv;
 
+	if (! user)
+		return -EINVAL;
 	rv = check_addr(user->intf, addr, &saddr, &lun);
 	if (rv)
 		return rv;
@@ -1418,6 +1440,8 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 	unsigned char saddr, lun;
 	int           rv;
 
+	if (! user)
+		return -EINVAL;
 	rv = check_addr(user->intf, addr, &saddr, &lun);
 	if (rv)
 		return rv;
@@ -1638,7 +1662,7 @@ send_channel_info_cmd(ipmi_smi_t intf, int chan)
 			      (struct ipmi_addr *) &si,
 			      0,
 			      &msg,
-			      NULL,
+			      intf,
 			      NULL,
 			      NULL,
 			      0,
@@ -1648,19 +1672,20 @@ send_channel_info_cmd(ipmi_smi_t intf, int chan)
 }
 
 static void
-channel_handler(ipmi_smi_t intf, struct ipmi_smi_msg *msg)
+channel_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 {
 	int rv = 0;
 	int chan;
 
-	if ((msg->rsp[0] == (IPMI_NETFN_APP_RESPONSE << 2))
-	    && (msg->rsp[1] == IPMI_GET_CHANNEL_INFO_CMD))
+	if ((msg->addr.addr_type == IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
+	    && (msg->msg.netfn == IPMI_NETFN_APP_RESPONSE)
+	    && (msg->msg.cmd == IPMI_GET_CHANNEL_INFO_CMD))
 	{
 		/* It's the one we want */
-		if (msg->rsp[2] != 0) {
+		if (msg->msg.data[0] != 0) {
 			/* Got an error from the channel, just go on. */
 
-			if (msg->rsp[2] == IPMI_INVALID_COMMAND_ERR) {
+			if (msg->msg.data[0] == IPMI_INVALID_COMMAND_ERR) {
 				/* If the MC does not support this
 				   command, that is legal.  We just
 				   assume it has one IPMB at channel
@@ -1677,13 +1702,13 @@ channel_handler(ipmi_smi_t intf, struct ipmi_smi_msg *msg)
 			}
 			goto next_channel;
 		}
-		if (msg->rsp_size < 6) {
+		if (msg->msg.data_len < 4) {
 			/* Message not big enough, just go on. */
 			goto next_channel;
 		}
 		chan = intf->curr_channel;
-		intf->channels[chan].medium = msg->rsp[4] & 0x7f;
-		intf->channels[chan].protocol = msg->rsp[5] & 0x1f;
+		intf->channels[chan].medium = msg->msg.data[2] & 0x7f;
+		intf->channels[chan].protocol = msg->msg.data[3] & 0x1f;
 
 	next_channel:
 		intf->curr_channel++;
@@ -2382,6 +2407,14 @@ static int handle_bmc_rsp(ipmi_smi_t          intf,
 	unsigned long        flags;
 
 	recv_msg = (struct ipmi_recv_msg *) msg->user_data;
+	if (recv_msg == NULL)
+	{
+		printk(KERN_WARNING"IPMI message received with no owner. This\n"
+			"could be because of a malformed message, or\n"
+			"because of a hardware error.  Contact your\n"
+			"hardware vender for assistance\n");
+		return 0;
+	}
 
 	/* Make sure the user still exists. */
 	list_for_each_entry(user, &(intf->users), link) {
@@ -2392,19 +2425,11 @@ static int handle_bmc_rsp(ipmi_smi_t          intf,
 		}
 	}
 
-	if (!found) {
-		/* Special handling for NULL users. */
-		if (!recv_msg->user && intf->null_user_handler){
-			intf->null_user_handler(intf, msg);
-			spin_lock_irqsave(&intf->counter_lock, flags);
-			intf->handled_local_responses++;
-			spin_unlock_irqrestore(&intf->counter_lock, flags);
-		}else{
-			/* The user for the message went away, so give up. */
-			spin_lock_irqsave(&intf->counter_lock, flags);
-			intf->unhandled_local_responses++;
-			spin_unlock_irqrestore(&intf->counter_lock, flags);
-		}
+	if ((! found) && recv_msg->user) {
+		/* The user for the message went away, so give up. */
+		spin_lock_irqsave(&intf->counter_lock, flags);
+		intf->unhandled_local_responses++;
+		spin_unlock_irqrestore(&intf->counter_lock, flags);
 		ipmi_free_recv_msg(recv_msg);
 	} else {
 		struct ipmi_system_interface_addr *smi_addr;
@@ -2890,28 +2915,30 @@ static void dummy_recv_done_handler(struct ipmi_recv_msg *msg)
 }
 
 #ifdef CONFIG_IPMI_PANIC_STRING
-static void event_receiver_fetcher(ipmi_smi_t intf, struct ipmi_smi_msg *msg)
+static void event_receiver_fetcher(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 {
-	if ((msg->rsp[0] == (IPMI_NETFN_SENSOR_EVENT_RESPONSE << 2))
-	    && (msg->rsp[1] == IPMI_GET_EVENT_RECEIVER_CMD)
-	    && (msg->rsp[2] == IPMI_CC_NO_ERROR))
+	if ((msg->addr.addr_type == IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
+	    && (msg->msg.netfn == IPMI_NETFN_SENSOR_EVENT_RESPONSE)
+	    && (msg->msg.cmd == IPMI_GET_EVENT_RECEIVER_CMD)
+	    && (msg->msg.data[0] == IPMI_CC_NO_ERROR))
 	{
 		/* A get event receiver command, save it. */
-		intf->event_receiver = msg->rsp[3];
-		intf->event_receiver_lun = msg->rsp[4] & 0x3;
+		intf->event_receiver = msg->msg.data[1];
+		intf->event_receiver_lun = msg->msg.data[2] & 0x3;
 	}
 }
 
-static void device_id_fetcher(ipmi_smi_t intf, struct ipmi_smi_msg *msg)
+static void device_id_fetcher(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 {
-	if ((msg->rsp[0] == (IPMI_NETFN_APP_RESPONSE << 2))
-	    && (msg->rsp[1] == IPMI_GET_DEVICE_ID_CMD)
-	    && (msg->rsp[2] == IPMI_CC_NO_ERROR))
+	if ((msg->addr.addr_type == IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
+	    && (msg->msg.netfn == IPMI_NETFN_APP_RESPONSE)
+	    && (msg->msg.cmd == IPMI_GET_DEVICE_ID_CMD)
+	    && (msg->msg.data[0] == IPMI_CC_NO_ERROR))
 	{
 		/* A get device id command, save if we are an event
 		   receiver or generator. */
-		intf->local_sel_device = (msg->rsp[8] >> 2) & 1;
-		intf->local_event_generator = (msg->rsp[8] >> 5) & 1;
+		intf->local_sel_device = (msg->msg.data[6] >> 2) & 1;
+		intf->local_event_generator = (msg->msg.data[6] >> 5) & 1;
 	}
 }
 #endif
@@ -2967,7 +2994,7 @@ static void send_panic_events(char *str)
 			       &addr,
 			       0,
 			       &msg,
-			       NULL,
+			       intf,
 			       &smi_msg,
 			       &recv_msg,
 			       0,
@@ -3013,7 +3040,7 @@ static void send_panic_events(char *str)
 			       &addr,
 			       0,
 			       &msg,
-			       NULL,
+			       intf,
 			       &smi_msg,
 			       &recv_msg,
 			       0,
@@ -3033,7 +3060,7 @@ static void send_panic_events(char *str)
 				       &addr,
 				       0,
 				       &msg,
-				       NULL,
+				       intf,
 				       &smi_msg,
 				       &recv_msg,
 				       0,
@@ -3095,7 +3122,7 @@ static void send_panic_events(char *str)
 				       &addr,
 				       0,
 				       &msg,
-				       NULL,
+				       intf,
 				       &smi_msg,
 				       &recv_msg,
 				       0,

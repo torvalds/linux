@@ -242,7 +242,8 @@ struct ipmi_recv_msg
 	/* The user_msg_data is the data supplied when a message was
 	   sent, if this is a response to a sent message.  If this is
 	   not a response to a sent message, then user_msg_data will
-	   be NULL. */
+	   be NULL.  If the user above is NULL, then this will be the
+	   intf. */
 	void             *user_msg_data;
 
 	/* Call this when done with the message.  It will presumably free
