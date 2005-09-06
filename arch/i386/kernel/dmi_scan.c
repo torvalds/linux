@@ -248,9 +248,9 @@ int dmi_check_system(struct dmi_system_id *list)
 			/* No match */
 			goto fail;
 		}
+		count++;
 		if (d->callback && d->callback(d))
 			break;
-		count++;
 fail:		d++;
 	}
 
