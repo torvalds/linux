@@ -806,11 +806,14 @@ __alloc_pages(unsigned int __nocast gfp_mask, unsigned int order,
 	classzone_idx = zone_idx(zones[0]);
 
 restart:
-	/* Go through the zonelist once, looking for a zone with enough free */
+	/*
+	 * Go through the zonelist once, looking for a zone with enough free.
+	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+	 */
 	for (i = 0; (z = zones[i]) != NULL; i++) {
 		int do_reclaim = should_reclaim_zone(z, gfp_mask);
 
-		if (!cpuset_zone_allowed(z))
+		if (!cpuset_zone_allowed(z, __GFP_HARDWALL))
 			continue;
 
 		/*
@@ -845,6 +848,7 @@ zone_reclaim_retry:
 	 *
 	 * This is the last chance, in general, before the goto nopage.
 	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
 	for (i = 0; (z = zones[i]) != NULL; i++) {
 		if (!zone_watermark_ok(z, order, z->pages_min,
@@ -852,7 +856,7 @@ zone_reclaim_retry:
 				       gfp_mask & __GFP_HIGH))
 			continue;
 
-		if (wait && !cpuset_zone_allowed(z))
+		if (wait && !cpuset_zone_allowed(z, gfp_mask))
 			continue;
 
 		page = buffered_rmqueue(z, order, gfp_mask);
@@ -867,7 +871,7 @@ zone_reclaim_retry:
 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
 			/* go through the zonelist yet again, ignoring mins */
 			for (i = 0; (z = zones[i]) != NULL; i++) {
-				if (!cpuset_zone_allowed(z))
+				if (!cpuset_zone_allowed(z, gfp_mask))
 					continue;
 				page = buffered_rmqueue(z, order, gfp_mask);
 				if (page)
@@ -903,7 +907,7 @@ rebalance:
 					       gfp_mask & __GFP_HIGH))
 				continue;
 
-			if (!cpuset_zone_allowed(z))
+			if (!cpuset_zone_allowed(z, gfp_mask))
 				continue;
 
 			page = buffered_rmqueue(z, order, gfp_mask);
@@ -922,7 +926,7 @@ rebalance:
 					       classzone_idx, 0, 0))
 				continue;
 
-			if (!cpuset_zone_allowed(z))
+			if (!cpuset_zone_allowed(z, __GFP_HARDWALL))
 				continue;
 
 			page = buffered_rmqueue(z, order, gfp_mask);

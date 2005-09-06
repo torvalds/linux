@@ -894,7 +894,7 @@ shrink_caches(struct zone **zones, struct scan_control *sc)
 		if (zone->present_pages == 0)
 			continue;
 
-		if (!cpuset_zone_allowed(zone))
+		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
 			continue;
 
 		zone->temp_priority = sc->priority;
@@ -940,7 +940,7 @@ int try_to_free_pages(struct zone **zones, unsigned int gfp_mask)
 	for (i = 0; zones[i] != NULL; i++) {
 		struct zone *zone = zones[i];
 
-		if (!cpuset_zone_allowed(zone))
+		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
 			continue;
 
 		zone->temp_priority = DEF_PRIORITY;
@@ -986,7 +986,7 @@ out:
 	for (i = 0; zones[i] != 0; i++) {
 		struct zone *zone = zones[i];
 
-		if (!cpuset_zone_allowed(zone))
+		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
 			continue;
 
 		zone->prev_priority = zone->temp_priority;
@@ -1256,7 +1256,7 @@ void wakeup_kswapd(struct zone *zone, int order)
 		return;
 	if (pgdat->kswapd_max_order < order)
 		pgdat->kswapd_max_order = order;
-	if (!cpuset_zone_allowed(zone))
+	if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
 		return;
 	if (!waitqueue_active(&zone->zone_pgdat->kswapd_wait))
 		return;
