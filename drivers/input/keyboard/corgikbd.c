@@ -235,7 +235,7 @@ static void corgikbd_hinge_timer(unsigned long data)
 	unsigned long gprr;
 	unsigned long flags;
 
-	gprr = read_scoop_reg(SCOOP_GPRR) & (CORGI_SCP_SWA | CORGI_SCP_SWB);
+	gprr = read_scoop_reg(&corgiscoop_device.dev, SCOOP_GPRR) & (CORGI_SCP_SWA | CORGI_SCP_SWB);
 	if (gprr != sharpsl_hinge_state) {
 		hinge_count = 0;
 		sharpsl_hinge_state = gprr;
@@ -267,7 +267,7 @@ static int __init corgikbd_probe(struct device *dev)
 	dev_set_drvdata(dev,corgikbd);
 	strcpy(corgikbd->phys, "corgikbd/input0");
 
-	spin_lock_init(corgikbd->lock);
+	spin_lock_init(&corgikbd->lock);
 
 	/* Init Keyboard rescan timer */
 	init_timer(&corgikbd->timer);
