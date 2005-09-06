@@ -540,6 +540,7 @@ void handle_ra_miss(struct address_space *mapping,
 {
 	ra->flags |= RA_FLAG_MISS;
 	ra->flags &= ~RA_FLAG_INCACHE;
+	ra->cache_hit = 0;
 }
 
 /*
