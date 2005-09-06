@@ -488,7 +488,8 @@ static void tg3_disable_ints(struct tg3 *tp)
 
 static inline void tg3_cond_int(struct tg3 *tp)
 {
-	if (tp->hw_status->status & SD_STATUS_UPDATED)
+	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) &&
+	    (tp->hw_status->status & SD_STATUS_UPDATED))
 		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl | GRC_LCLCTRL_SETINT);
 }
 
@@ -3220,18 +3221,17 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 		netdev->quota -= work_done;
 	}
 
-	if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
+	if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) {
 		tp->last_tag = sblk->status_tag;
-	rmb();
-	sblk->status &= ~SD_STATUS_UPDATED;
+		rmb();
+	} else
+		sblk->status &= ~SD_STATUS_UPDATED;
 
 	/* if no more work, tell net stack and NIC we're done */
 	done = !tg3_has_work(tp);
 	if (done) {
-		spin_lock(&tp->lock);
 		netif_rx_complete(netdev);
 		tg3_restart_ints(tp);
-		spin_unlock(&tp->lock);
 	}
 
 	return (done ? 0 : 1);
@@ -3351,7 +3351,7 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status & SD_STATUS_UPDATED) ||
+	if ((sblk->status_tag != tp->last_tag) ||
 	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
 		/*
 		 * writing any value to intr-mbox-0 clears PCI INTA# and
@@ -3362,20 +3362,17 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 		 */
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     0x00000001);
-		tp->last_tag = sblk->status_tag;
-		rmb();
 		if (tg3_irq_sync(tp))
 			goto out;
-		sblk->status &= ~SD_STATUS_UPDATED;
-		if (likely(tg3_has_work(tp))) {
+		if (netif_rx_schedule_prep(dev)) {
 			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			netif_rx_schedule(dev);		/* schedule NAPI poll */
-		} else {
-			/* no work, shared interrupt perhaps?  re-enable
-			 * interrupts, and flush that PCI write
+			/* Update last_tag to mark that this status has been
+			 * seen. Because interrupt may be shared, we may be
+			 * racing with tg3_poll(), so only update last_tag
+			 * if tg3_poll() is not scheduled.
 			 */
-			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-				       tp->last_tag << 24);
+			tp->last_tag = sblk->status_tag;
+			__netif_rx_schedule(dev);
 		}
 	} else {	/* shared interrupt */
 		handled = 0;
@@ -6238,6 +6235,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	if (err)
 		return err;
 
+	tp->hw_status->status &= ~SD_STATUS_UPDATED;
 	tg3_enable_ints(tp);
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
