@@ -61,8 +61,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/power3",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Power3+ */
 		.pvr_mask		= 0xffff0000,
@@ -75,8 +77,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/power3",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Northstar */
 		.pvr_mask		= 0xffff0000,
@@ -90,8 +94,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Pulsar */
 		.pvr_mask		= 0xffff0000,
@@ -105,8 +111,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* I-star */
 		.pvr_mask		= 0xffff0000,
@@ -120,8 +128,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* S-star */
 		.pvr_mask		= 0xffff0000,
@@ -135,8 +145,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Power4 */
 		.pvr_mask		= 0xffff0000,
@@ -150,8 +162,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/power4",
 		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Power4+ */
 		.pvr_mask		= 0xffff0000,
@@ -165,8 +179,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/power4",
 		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* PPC970 */
 		.pvr_mask		= 0xffff0000,
@@ -182,8 +198,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/970",
 		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* PPC970FX */
 		.pvr_mask		= 0xffff0000,
@@ -199,8 +217,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/970",
 		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* PPC970MP */
 		.pvr_mask		= 0xffff0000,
@@ -215,8 +235,10 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/970",
 		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -232,8 +254,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/power5",
 		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -249,8 +273,10 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
+#ifdef CONFIG_OPROFILE
 		.oprofile_cpu_type	= "ppc64/power5",
 		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* BE DD1.x */
 		.pvr_mask		= 0xffff0000,
