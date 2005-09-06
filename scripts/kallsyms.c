@@ -116,6 +116,9 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	else if (toupper(stype) == 'U' ||
 		 is_arm_mapping_symbol(sym))
 		return -1;
+	/* exclude also MIPS ELF local symbols ($L123 instead of .L123) */
+	else if (str[0] == '$')
+		return -1;
 
 	/* include the type field in the symbol name, so that it gets
 	 * compressed together */
