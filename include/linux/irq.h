@@ -32,7 +32,12 @@
 #define IRQ_WAITING	32	/* IRQ not yet seen - for autodetection */
 #define IRQ_LEVEL	64	/* IRQ level triggered */
 #define IRQ_MASKED	128	/* IRQ masked - shouldn't be seen again */
-#define IRQ_PER_CPU	256	/* IRQ is per CPU */
+#if defined(ARCH_HAS_IRQ_PER_CPU)
+# define IRQ_PER_CPU	256	/* IRQ is per CPU */
+# define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
+#else
+# define CHECK_IRQ_PER_CPU(var) 0
+#endif
 
 /*
  * Interrupt controller descriptor. This is all we need
