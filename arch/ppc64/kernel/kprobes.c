@@ -102,7 +102,7 @@ static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	regs->msr |= MSR_SE;
 
 	/* single step inline if it is a trap variant */
-	if (IS_TW(insn) || IS_TD(insn) || IS_TWI(insn) || IS_TDI(insn))
+	if (is_trap(insn))
 		regs->nip = (unsigned long)p->addr;
 	else
 		regs->nip = (unsigned long)p->ainsn.insn;
@@ -152,7 +152,9 @@ static inline int kprobe_handler(struct pt_regs *regs)
 		   Disarm the probe we just hit, and ignore it. */
 		p = get_kprobe(addr);
 		if (p) {
-			if (kprobe_status == KPROBE_HIT_SS) {
+			kprobe_opcode_t insn = *p->ainsn.insn;
+			if (kprobe_status == KPROBE_HIT_SS &&
+					is_trap(insn)) {
 				regs->msr &= ~MSR_SE;
 				regs->msr |= kprobe_saved_msr;
 				unlock_kprobes();
@@ -192,8 +194,7 @@ static inline int kprobe_handler(struct pt_regs *regs)
 			 * trap variant, it could belong to someone else
 			 */
 			kprobe_opcode_t cur_insn = *addr;
-			if (IS_TW(cur_insn) || IS_TD(cur_insn) ||
-					IS_TWI(cur_insn) || IS_TDI(cur_insn))
+			if (is_trap(cur_insn))
 		       		goto no_kprobe;
 			/*
 			 * The breakpoint instruction was removed right
@@ -403,7 +404,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	default:
 		break;
 	}
-	preempt_enable();
+	preempt_enable_no_resched();
 	return ret;
 }
 

@@ -155,14 +155,36 @@ void __kprobes free_insn_slot(kprobe_opcode_t *slot)
 /* Locks kprobe: irqs must be disabled */
 void __kprobes lock_kprobes(void)
 {
+	unsigned long flags = 0;
+
+	/* Avoiding local interrupts to happen right after we take the kprobe_lock
+	 * and before we get a chance to update kprobe_cpu, this to prevent
+	 * deadlock when we have a kprobe on ISR routine and a kprobe on task
+	 * routine
+	 */
+	local_irq_save(flags);
+
 	spin_lock(&kprobe_lock);
 	kprobe_cpu = smp_processor_id();
+
+ 	local_irq_restore(flags);
 }
 
 void __kprobes unlock_kprobes(void)
 {
+	unsigned long flags = 0;
+
+	/* Avoiding local interrupts to happen right after we update
+	 * kprobe_cpu and before we get a a chance to release kprobe_lock,
+	 * this to prevent deadlock when we have a kprobe on ISR routine and
+	 * a kprobe on task routine
+	 */
+	local_irq_save(flags);
+
 	kprobe_cpu = NR_CPUS;
 	spin_unlock(&kprobe_lock);
+
+ 	local_irq_restore(flags);
 }
 
 /* You have to be holding the kprobe_lock */
