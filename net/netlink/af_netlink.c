@@ -398,24 +398,13 @@ static int netlink_create(struct socket *sock, int protocol)
 	if (nl_table[protocol].registered &&
 	    try_module_get(nl_table[protocol].module))
 		module = nl_table[protocol].module;
-	else
-		err = -EPROTONOSUPPORT;
 	groups = nl_table[protocol].groups;
 	netlink_unlock_table();
 
-	if (err || (err = __netlink_create(sock, protocol) < 0))
+	if ((err = __netlink_create(sock, protocol) < 0))
 		goto out_module;
 
 	nlk = nlk_sk(sock->sk);
-
-	nlk->groups = kmalloc(NLGRPSZ(groups), GFP_KERNEL);
-	if (nlk->groups == NULL) {
-		err = -ENOMEM;
-		goto out_module;
-	}
-	memset(nlk->groups, 0, NLGRPSZ(groups));
-	nlk->ngroups = groups;
-
 	nlk->module = module;
 out:
 	return err;
@@ -534,6 +523,29 @@ netlink_update_subscriptions(struct sock *sk, unsigned int subscriptions)
 	nlk->subscriptions = subscriptions;
 }
 
+static int netlink_alloc_groups(struct sock *sk)
+{
+	struct netlink_sock *nlk = nlk_sk(sk);
+	unsigned int groups;
+	int err = 0;
+
+	netlink_lock_table();
+	groups = nl_table[sk->sk_protocol].groups;
+	if (!nl_table[sk->sk_protocol].registered)
+		err = -ENOENT;
+	netlink_unlock_table();
+
+	if (err)
+		return err;
+
+	nlk->groups = kmalloc(NLGRPSZ(groups), GFP_KERNEL);
+	if (nlk->groups == NULL)
+		return -ENOMEM;
+	memset(nlk->groups, 0, NLGRPSZ(groups));
+	nlk->ngroups = groups;
+	return 0;
+}
+
 static int netlink_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 {
 	struct sock *sk = sock->sk;
@@ -545,8 +557,15 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr, int addr_len
 		return -EINVAL;
 
 	/* Only superuser is allowed to listen multicasts */
-	if (nladdr->nl_groups && !netlink_capable(sock, NL_NONROOT_RECV))
-		return -EPERM;
+	if (nladdr->nl_groups) {
+		if (!netlink_capable(sock, NL_NONROOT_RECV))
+			return -EPERM;
+		if (nlk->groups == NULL) {
+			err = netlink_alloc_groups(sk);
+			if (err)
+				return err;
+		}
+	}
 
 	if (nlk->pid) {
 		if (nladdr->nl_pid != nlk->pid)
@@ -559,7 +578,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr, int addr_len
 			return err;
 	}
 
-	if (!nladdr->nl_groups && !(u32)nlk->groups[0])
+	if (!nladdr->nl_groups && (nlk->groups == NULL || !(u32)nlk->groups[0]))
 		return 0;
 
 	netlink_table_grab();
@@ -620,7 +639,7 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr, int *addr
 		nladdr->nl_groups = netlink_group_mask(nlk->dst_group);
 	} else {
 		nladdr->nl_pid = nlk->pid;
-		nladdr->nl_groups = nlk->groups[0];
+		nladdr->nl_groups = nlk->groups ? nlk->groups[0] : 0;
 	}
 	return 0;
 }
@@ -976,6 +995,11 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 
 		if (!netlink_capable(sock, NL_NONROOT_RECV))
 			return -EPERM;
+		if (nlk->groups == NULL) {
+			err = netlink_alloc_groups(sk);
+			if (err)
+				return err;
+		}
 		if (!val || val - 1 >= nlk->ngroups)
 			return -EINVAL;
 		netlink_table_grab();
@@ -1483,8 +1507,7 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 			   s,
 			   s->sk_protocol,
 			   nlk->pid,
-			   nlk->flags & NETLINK_KERNEL_SOCKET ?
-				0 : (unsigned int)nlk->groups[0],
+			   nlk->groups ? (u32)nlk->groups[0] : 0,
 			   atomic_read(&s->sk_rmem_alloc),
 			   atomic_read(&s->sk_wmem_alloc),
 			   nlk->cb,
