@@ -9,6 +9,9 @@
     Thanks to Leon Moonen, Steve Cliffe and Grant Coady for their help
     in testing and debugging this driver.
 
+    This driver also supports the W83627EHG, which is the lead-free
+    version of the W83627EHF.
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -37,17 +40,14 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/i2c-isa.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
 
-/* Addresses to scan
-   The actual ISA address is read from Super-I/O configuration space */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0, I2C_CLIENT_ISA_END };
-
-/* Insmod parameters */
-SENSORS_INSMOD_1(w83627ehf);
+/* The actual ISA address is read from Super-I/O configuration space */
+static unsigned short address;
 
 /*
  * Super-I/O constants and functions
@@ -174,6 +174,7 @@ temp1_to_reg(int temp)
 
 struct w83627ehf_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 
 	struct semaphore update_lock;
@@ -666,14 +667,11 @@ static void w83627ehf_init_client(struct i2c_client *client)
 	}
 }
 
-static int w83627ehf_detect(struct i2c_adapter *adapter, int address, int kind)
+static int w83627ehf_detect(struct i2c_adapter *adapter)
 {
 	struct i2c_client *client;
 	struct w83627ehf_data *data;
 	int i, err = 0;
-
-	if (!i2c_is_isa_adapter(adapter))
-		return 0;
 
 	if (!request_region(address, REGION_LENGTH, w83627ehf_driver.name)) {
 		err = -EBUSY;
@@ -720,6 +718,12 @@ static int w83627ehf_detect(struct i2c_adapter *adapter, int address, int kind)
 		data->has_fan |= (1 << 4);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&client->dev, &dev_attr_fan1_input);
 	device_create_file(&client->dev, &dev_attr_fan1_min);
 	device_create_file(&client->dev, &dev_attr_fan1_div);
@@ -753,6 +757,8 @@ static int w83627ehf_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(client);
 exit_free:
 	kfree(data);
 exit_release:
@@ -761,24 +767,17 @@ exit:
 	return err;
 }
 
-static int w83627ehf_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_detect(adapter, &addr_data, w83627ehf_detect);
-}
-
 static int w83627ehf_detach_client(struct i2c_client *client)
 {
+	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
+	hwmon_device_unregister(data->class_dev);
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 	release_region(client->addr, REGION_LENGTH);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }
@@ -786,12 +785,11 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 static struct i2c_driver w83627ehf_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "w83627ehf",
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= w83627ehf_attach_adapter,
+	.attach_adapter	= w83627ehf_detect,
 	.detach_client	= w83627ehf_detach_client,
 };
 
-static int __init w83627ehf_find(int sioaddr, int *address)
+static int __init w83627ehf_find(int sioaddr, unsigned short *addr)
 {
 	u16 val;
 
@@ -809,8 +807,8 @@ static int __init w83627ehf_find(int sioaddr, int *address)
 	superio_select(W83627EHF_LD_HWM);
 	val = (superio_inb(SIO_REG_ADDR) << 8)
 	    | superio_inb(SIO_REG_ADDR + 1);
-	*address = val & ~(REGION_LENGTH - 1);
-	if (*address == 0) {
+	*addr = val & ~(REGION_LENGTH - 1);
+	if (*addr == 0) {
 		superio_exit();
 		return -ENODEV;
 	}
@@ -826,16 +824,16 @@ static int __init w83627ehf_find(int sioaddr, int *address)
 
 static int __init sensors_w83627ehf_init(void)
 {
-	if (w83627ehf_find(0x2e, &normal_isa[0])
-	 && w83627ehf_find(0x4e, &normal_isa[0]))
+	if (w83627ehf_find(0x2e, &address)
+	 && w83627ehf_find(0x4e, &address))
 		return -ENODEV;
 
-	return i2c_add_driver(&w83627ehf_driver);
+	return i2c_isa_add_driver(&w83627ehf_driver);
 }
 
 static void __exit sensors_w83627ehf_exit(void)
 {
-	i2c_del_driver(&w83627ehf_driver);
+	i2c_isa_del_driver(&w83627ehf_driver);
 }
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");

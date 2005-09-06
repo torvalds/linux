@@ -399,8 +399,6 @@ iop3xx_i2c_func(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm iop3xx_i2c_algo = {
-	.name		= "IOP3xx I2C algorithm",
-	.id		= I2C_ALGO_IOP3XX,
 	.master_xfer	= iop3xx_i2c_master_xfer,
 	.algo_control	= iop3xx_i2c_algo_control,
 	.functionality	= iop3xx_i2c_func,

@@ -109,7 +109,7 @@ static struct i2c_adapter bttv_i2c_adap_sw_template = {
 #ifdef I2C_CLASS_TV_ANALOG
 	.class             = I2C_CLASS_TV_ANALOG,
 #endif
-	I2C_DEVNAME("bt848"),
+	.name              = "bt848",
 	.id                = I2C_HW_B_BT848,
 	.client_register   = attach_inform,
 };
@@ -270,8 +270,6 @@ static int bttv_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int
 }
 
 static struct i2c_algorithm bttv_algo = {
-	.name          = "bt878",
-	.id            = I2C_ALGO_BIT | I2C_HW_B_BT848 /* FIXME */,
 	.master_xfer   = bttv_i2c_xfer,
 	.algo_control  = algo_control,
 	.functionality = functionality,
@@ -282,8 +280,8 @@ static struct i2c_adapter bttv_i2c_adap_hw_template = {
 #ifdef I2C_CLASS_TV_ANALOG
 	.class         = I2C_CLASS_TV_ANALOG,
 #endif
-	I2C_DEVNAME("bt878"),
-	.id            = I2C_ALGO_BIT | I2C_HW_B_BT848 /* FIXME */,
+	.name          = "bt878",
+	.id            = I2C_HW_B_BT848 /* FIXME */,
 	.algo          = &bttv_algo,
 	.client_register = attach_inform,
 };
@@ -298,7 +296,7 @@ static int attach_inform(struct i2c_client *client)
 	if (bttv_debug)
 		printk(KERN_DEBUG "bttv%d: %s i2c attach [addr=0x%x,client=%s]\n",
 			btv->c.nr,client->driver->name,client->addr,
-			i2c_clientname(client));
+			client->name);
 	if (!client->driver->command)
 		return 0;
 
@@ -326,7 +324,7 @@ void bttv_call_i2c_clients(struct bttv *btv, unsigned int cmd, void *arg)
 }
 
 static struct i2c_client bttv_i2c_client_template = {
-	I2C_DEVNAME("bttv internal"),
+	.name	= "bttv internal",
 };
 
 
