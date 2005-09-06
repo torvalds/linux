@@ -418,15 +418,16 @@ EXPORT_SYMBOL(radix_tree_tag_clear);
 
 #ifndef __KERNEL__	/* Only the test harness uses this at present */
 /**
- *	radix_tree_tag_get - get a tag on a radix tree node
- *	@root:		radix tree root
- *	@index:		index key
- *	@tag: 		tag index
+ * radix_tree_tag_get - get a tag on a radix tree node
+ * @root:		radix tree root
+ * @index:		index key
+ * @tag: 		tag index
  *
- *	Return the search tag corresponging to @index in the radix tree.
+ * Return values:
  *
- *	Returns zero if the tag is unset, or if there is no corresponding item
- *	in the tree.
+ *  0: tag not present
+ *  1: tag present, set
+ * -1: tag present, unset
  */
 int radix_tree_tag_get(struct radix_tree_root *root,
 			unsigned long index, int tag)
@@ -460,7 +461,7 @@ int radix_tree_tag_get(struct radix_tree_root *root,
 			int ret = tag_get(slot, tag, offset);
 
 			BUG_ON(ret && saw_unset_tag);
-			return ret;
+			return ret ? 1 : -1;
 		}
 		slot = slot->slots[offset];
 		shift -= RADIX_TREE_MAP_SHIFT;
