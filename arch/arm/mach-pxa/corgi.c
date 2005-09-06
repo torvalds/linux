@@ -108,6 +108,27 @@ static struct platform_device corgibl_device = {
 
 
 /*
+ * Corgi Keyboard Device
+ */
+static struct platform_device corgikbd_device = {
+	.name		= "corgi-keyboard",
+	.id		= -1,
+};
+
+
+/*
+ * Corgi Touch Screen Device
+ */
+static struct platform_device corgits_device = {
+	.name		= "corgi-ts",
+	.dev		= {
+ 		.parent = &corgissp_device.dev,
+	},
+	.id		= -1,
+};
+
+
+/*
  * MMC/SD Device
  *
  * The card detect interrupt isn't debounced so we delay it by HZ/4
@@ -183,6 +204,7 @@ static struct pxamci_platform_data corgi_mci_platform_data = {
 };
 
 
+
 /*
  * USB Device Controller
  */
@@ -208,7 +230,9 @@ static struct platform_device *devices[] __initdata = {
 	&corgiscoop_device,
 	&corgissp_device,
 	&corgifb_device,
+	&corgikbd_device,
 	&corgibl_device,
+	&corgits_device,
 };
 
 static void __init corgi_init(void)
