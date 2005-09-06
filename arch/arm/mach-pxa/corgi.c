@@ -39,7 +39,6 @@
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
-#include <video/w100fb.h>
 
 #include "generic.h"
 
@@ -87,41 +86,12 @@ struct platform_device corgiscoop_device = {
  * also use scoop functions and this makes the power up/down order
  * work correctly.
  */
-static struct platform_device corgissp_device = {
+struct platform_device corgissp_device = {
 	.name		= "corgi-ssp",
 	.dev		= {
  		.parent = &corgiscoop_device.dev,
 	},
 	.id		= -1,
-};
-
-
-/*
- * Corgi w100 Frame Buffer Device
- */
-static struct w100fb_mach_info corgi_fb_info = {
-	.w100fb_ssp_send 	= corgi_ssp_lcdtg_send,
-	.comadj 			= -1,
-	.phadadj 			= -1,
-};
-
-static struct resource corgi_fb_resources[] = {
-	[0] = {
-		.start		= 0x08000000,
-		.end		= 0x08ffffff,
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device corgifb_device = {
-	.name		= "w100fb",
-	.id		= -1,
-	.dev		= {
- 		.platform_data	= &corgi_fb_info,
- 		.parent = &corgissp_device.dev,
-	},
-	.num_resources	= ARRAY_SIZE(corgi_fb_resources),
-	.resource	= corgi_fb_resources,
 };
 
 
@@ -243,9 +213,6 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init corgi_init(void)
 {
-	corgi_fb_info.comadj=sharpsl_param.comadj;
-	corgi_fb_info.phadadj=sharpsl_param.phadadj;
-
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);

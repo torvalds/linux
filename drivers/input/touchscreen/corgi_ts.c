@@ -56,9 +56,6 @@ struct corgi_ts {
 #define PMNC_GET(x)	asm volatile ("mrc p14, 0, %0, C0, C0, 0" : "=r"(x))
 #define PMNC_SET(x)	asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(x))
 
-#define WAIT_HS_400_VGA		7013U	// 17.615us
-#define WAIT_HS_400_QVGA	16622U	// 41.750us
-
 
 /* ADS7846 Touch Screen Controller bit definitions */
 #define ADSCTRL_PD0		(1u << 0)	/* PD0 */
@@ -69,32 +66,17 @@ struct corgi_ts {
 #define ADSCTRL_STS		(1u << 7)	/* Start Bit */
 
 /* External Functions */
-extern int w100fb_get_xres(void);
-extern int w100fb_get_blanking(void);
-extern int w100fb_get_fastsysclk(void);
+extern unsigned long w100fb_get_hsynclen(struct device *dev);
 extern unsigned int get_clk_frequency_khz(int info);
 
 static unsigned long calc_waittime(void)
 {
-	int w100fb_xres = w100fb_get_xres();
-	unsigned int waittime = 0;
+	unsigned long hsync_len = w100fb_get_hsynclen(&corgifb_device.dev);
 
-	if (w100fb_get_blanking())
+	if (hsync_len)
+		return get_clk_frequency_khz(0)*1000/hsync_len;
+	else
 		return 0;
-
-	if (w100fb_xres == 480 || w100fb_xres == 640) {
-		waittime = WAIT_HS_400_VGA * get_clk_frequency_khz(0) / 398131U;
-
-		if (w100fb_get_fastsysclk() == 100)
-			waittime = waittime * 75 / 100;
-
-		if (w100fb_xres == 640)
-			waittime *= 3;
-
-		return waittime;
-	}
-
-	return WAIT_HS_400_QVGA * get_clk_frequency_khz(0) / 398131U;
 }
 
 static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int address, unsigned long wait_time)
