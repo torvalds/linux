@@ -52,15 +52,6 @@ struct flock {
 	long	pad[4];
 };
 
-typedef struct flock64 {
-	short	l_type;
-	short	l_whence;
-	loff_t	l_start;
-	loff_t	l_len;
-	pid_t	l_pid;
-} flock64_t;
-
-
 #define HAVE_ARCH_STRUCT_FLOCK
 
 #endif
@@ -68,5 +59,8 @@ typedef struct flock64 {
 #include <asm-generic/fcntl.h>
 
 typedef struct flock flock_t;
+#ifndef __mips64
+typedef struct flock64 flock64_t;
+#endif
 
 #endif /* _ASM_FCNTL_H */

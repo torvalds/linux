@@ -54,6 +54,7 @@ struct flock64 {
 };
 
 #define HAVE_ARCH_STRUCT_FLOCK
+#define HAVE_ARCH_STRUCT_FLOCK64
 
 #include <asm-generic/fcntl.h>
 

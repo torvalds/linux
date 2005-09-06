@@ -33,14 +33,6 @@
 #define F_WRLCK		02
 #define F_UNLCK		03
 
-struct flock64 {
-	short l_type;
-	short l_whence;
-	loff_t l_start;
-	loff_t l_len;
-	pid_t l_pid;
-};
-
 #include <asm-generic/fcntl.h>
 
 #endif

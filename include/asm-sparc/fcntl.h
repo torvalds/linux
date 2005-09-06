@@ -23,25 +23,13 @@
 #define F_SETLK		8
 #define F_SETLKW	9
 
-#define F_GETLK64	12	/*  using 'struct flock64' */
-#define F_SETLK64	13
-#define F_SETLKW64	14
-
 /* for posix fcntl() and lockf() */
 #define F_RDLCK		1
 #define F_WRLCK		2
 #define F_UNLCK		3
 
-struct flock64 {
-	short l_type;
-	short l_whence;
-	loff_t l_start;
-	loff_t l_len;
-	pid_t l_pid;
-	short __unused;
-};
-
 #define __ARCH_FLOCK_PAD	short __unused;
+#define __ARCH_FLOCK64_PAD	short __unused;
 
 #include <asm-generic/fcntl.h>
 
