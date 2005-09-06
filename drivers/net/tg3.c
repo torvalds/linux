@@ -7559,6 +7559,38 @@ static void tg3_get_strings (struct net_device *dev, u32 stringset, u8 *buf)
 	}
 }
 
+static int tg3_phys_id(struct net_device *dev, u32 data)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	int i;
+
+	if (!netif_running(tp->dev))
+		return -EAGAIN;
+
+	if (data == 0)
+		data = 2;
+
+	for (i = 0; i < (data * 2); i++) {
+		if ((i % 2) == 0)
+			tw32(MAC_LED_CTRL, LED_CTRL_LNKLED_OVERRIDE |
+					   LED_CTRL_1000MBPS_ON |
+					   LED_CTRL_100MBPS_ON |
+					   LED_CTRL_10MBPS_ON |
+					   LED_CTRL_TRAFFIC_OVERRIDE |
+					   LED_CTRL_TRAFFIC_BLINK |
+					   LED_CTRL_TRAFFIC_LED);
+	
+		else
+			tw32(MAC_LED_CTRL, LED_CTRL_LNKLED_OVERRIDE |
+					   LED_CTRL_TRAFFIC_OVERRIDE);
+
+		if (msleep_interruptible(500))
+			break;
+	}
+	tw32(MAC_LED_CTRL, tp->led_ctrl);
+	return 0;
+}
+
 static void tg3_get_ethtool_stats (struct net_device *dev,
 				   struct ethtool_stats *estats, u64 *tmp_stats)
 {
@@ -8241,6 +8273,7 @@ static struct ethtool_ops tg3_ethtool_ops = {
 	.self_test_count	= tg3_get_test_count,
 	.self_test		= tg3_self_test,
 	.get_strings		= tg3_get_strings,
+	.phys_id		= tg3_phys_id,
 	.get_stats_count	= tg3_get_stats_count,
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
 	.get_coalesce		= tg3_get_coalesce,
