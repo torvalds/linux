@@ -21,6 +21,7 @@ obj-$(CONFIG_IP_NF_AMANDA) += ip_conntrack_amanda.o
 obj-$(CONFIG_IP_NF_TFTP) += ip_conntrack_tftp.o
 obj-$(CONFIG_IP_NF_FTP) += ip_conntrack_ftp.o
 obj-$(CONFIG_IP_NF_IRC) += ip_conntrack_irc.o
+obj-$(CONFIG_IP_NF_NETBIOS_NS) += ip_conntrack_netbios_ns.o
 
 # NAT helpers 
 obj-$(CONFIG_IP_NF_NAT_AMANDA) += ip_nat_amanda.o
