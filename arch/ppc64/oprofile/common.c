@@ -132,7 +132,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		case PV_630:
 		case PV_630p:
 			model = &op_model_rs64;
-			ops->cpu_type = "ppc64/power3";
 			break;
 
 		case PV_NORTHSTAR:
@@ -140,32 +139,29 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		case PV_ICESTAR:
 		case PV_SSTAR:
 			model = &op_model_rs64;
-			ops->cpu_type = "ppc64/rs64";
 			break;
 
 		case PV_POWER4:
 		case PV_POWER4p:
 			model = &op_model_power4;
-			ops->cpu_type = "ppc64/power4";
 			break;
 
 		case PV_970:
 		case PV_970FX:
 		case PV_970MP:
 			model = &op_model_power4;
-			ops->cpu_type = "ppc64/970";
 			break;
 
 		case PV_POWER5:
 		case PV_POWER5p:
 			model = &op_model_power4;
-			ops->cpu_type = "ppc64/power5";
 			break;
 
 		default:
 			return -ENODEV;
 	}
 
+	ops->cpu_type = cur_cpu_spec->oprofile_cpu_type;
 	model->num_counters = cur_cpu_spec->num_pmcs;
 	ops->create_files = op_ppc64_create_files;
 	ops->setup = op_ppc64_setup;

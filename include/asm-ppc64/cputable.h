@@ -59,6 +59,9 @@ struct cpu_spec {
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
 	cpu_setup_t	cpu_setup;
+
+	/* Used by oprofile userspace to select the right counters */
+	char		*oprofile_cpu_type;
 };
 
 extern struct cpu_spec		cpu_specs[];
