@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <asm/ocp.h>
+#include <asm/ppc4xx_pic.h>
 #include <platforms/4xx/ibmstb4.h>
 
 static struct ocp_func_iic_data ibmstb4_iic0_def = {
@@ -72,12 +73,51 @@ struct ocp_def core_ocp[] __initdata = {
 	  .irq		= IDE0_IRQ,
 	  .pm		= OCP_CPM_NA,
 	},
-	{ .vendor	= OCP_VENDOR_IBM,
-	  .function	= OCP_FUNC_USB,
-	  .paddr	= USB0_BASE,
-	  .irq		= USB0_IRQ,
-	  .pm		= OCP_CPM_NA,
-	},
 	{ .vendor	= OCP_VENDOR_INVALID,
 	}
 };
+
+/* Polarity and triggering settings for internal interrupt sources */
+struct ppc4xx_uic_settings ppc4xx_core_uic_cfg[] __initdata = {
+	{ .polarity 	= 0x7fffff01,
+	  .triggering	= 0x00000000,
+	  .ext_irq_mask	= 0x0000007e,	/* IRQ0 - IRQ5 */
+	}
+};
+
+static struct resource ohci_usb_resources[] = {
+	[0] = {
+		.start	= USB0_BASE,
+		.end	= USB0_BASE + USB0_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= USB0_IRQ,
+		.end	= USB0_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 dma_mask = 0xffffffffULL;
+
+static struct platform_device ohci_usb_device = {
+	.name		= "ppc-soc-ohci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(ohci_usb_resources),
+	.resource	= ohci_usb_resources,
+	.dev		= {
+		.dma_mask = &dma_mask,
+		.coherent_dma_mask = 0xffffffffULL,
+	}
+};
+
+static struct platform_device *ibmstb4_devs[] __initdata = {
+	&ohci_usb_device,
+};
+
+static int __init
+ibmstb4_platform_add_devices(void)
+{
+	return platform_add_devices(ibmstb4_devs, ARRAY_SIZE(ibmstb4_devs));
+}
+arch_initcall(ibmstb4_platform_add_devices);

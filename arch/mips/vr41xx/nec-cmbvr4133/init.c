@@ -16,11 +16,6 @@
  * Manish Lachwani (mlachwani@mvista.com)
  */
 #include <linux/config.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-
-#include <asm/bootinfo.h>
 
 #ifdef CONFIG_ROCKHOPPER
 #include <asm/io.h>
@@ -28,14 +23,7 @@
 
 #define PCICONFDREG	0xaf000c14
 #define PCICONFAREG	0xaf000c18
-#endif
 
-const char *get_system_type(void)
-{
-	return "NEC CMB-VR4133";
-}
-
-#ifdef CONFIG_ROCKHOPPER
 void disable_pcnet(void)
 {
 	u32 data;

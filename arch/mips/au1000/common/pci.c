@@ -40,14 +40,14 @@
 
 /* TBD */
 static struct resource pci_io_resource = {
-	"pci IO space", 
+	"pci IO space",
 	(u32)PCI_IO_START,
 	(u32)PCI_IO_END,
 	IORESOURCE_IO
 };
 
 static struct resource pci_mem_resource = {
-	"pci memory space", 
+	"pci memory space",
 	(u32)PCI_MEM_START,
 	(u32)PCI_MEM_END,
 	IORESOURCE_MEM
@@ -68,7 +68,7 @@ static unsigned long virt_io_addr;
 static int __init au1x_pci_setup(void)
 {
 #if defined(CONFIG_SOC_AU1500) || defined(CONFIG_SOC_AU1550)
-	virt_io_addr = (unsigned long)ioremap(Au1500_PCI_IO_START, 
+	virt_io_addr = (unsigned long)ioremap(Au1500_PCI_IO_START,
 			Au1500_PCI_IO_END - Au1500_PCI_IO_START + 1);
 
 	if (!virt_io_addr) {
@@ -77,7 +77,7 @@ static int __init au1x_pci_setup(void)
 	}
 
 #ifdef CONFIG_DMA_NONCOHERENT
-	/* 
+	/*
          *  Set the NC bit in controller for Au1500 pre-AC silicon
 	 */
 	u32 prid = read_c0_prid();

@@ -395,7 +395,7 @@ static int __init tx4927_pcibios_init(void)
 			/* enable secondary ide */
 			v08_43 |= 0x80;
 
-			/* 
+			/*
 			 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
 			 *
 			 * This line of code is intended to provide the user with a work

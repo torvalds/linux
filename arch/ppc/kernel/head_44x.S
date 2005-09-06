@@ -462,7 +462,11 @@ interrupt_base:
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
+#ifdef CONFIG_BOOKE_WDT
+	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, WatchdogException)
+#else
 	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, UnknownException)
+#endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)

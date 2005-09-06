@@ -457,11 +457,21 @@ static void mmc_idle_cards(struct mmc_host *host)
 {
 	struct mmc_command cmd;
 
+	host->ios.chip_select = MMC_CS_HIGH;
+	host->ops->set_ios(host, &host->ios);
+
+	mmc_delay(1);
+
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_NONE;
 
 	mmc_wait_for_cmd(host, &cmd, 0);
+
+	mmc_delay(1);
+
+	host->ios.chip_select = MMC_CS_DONTCARE;
+	host->ops->set_ios(host, &host->ios);
 
 	mmc_delay(1);
 }
@@ -475,6 +485,7 @@ static void mmc_power_up(struct mmc_host *host)
 
 	host->ios.vdd = bit;
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
+	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_UP;
 	host->ops->set_ios(host, &host->ios);
 
@@ -492,6 +503,7 @@ static void mmc_power_off(struct mmc_host *host)
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
+	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_OFF;
 	host->ops->set_ios(host, &host->ios);
 }

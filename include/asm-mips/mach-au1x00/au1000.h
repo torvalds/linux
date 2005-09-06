@@ -1383,7 +1383,7 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
 #define PCI_IO_START    0
 #define PCI_IO_END      0
 #define PCI_MEM_START   0
-#define PCI_MEM_END     0 
+#define PCI_MEM_END     0
 #define PCI_FIRST_DEVFN 0
 #define PCI_LAST_DEVFN  0
 #endif

@@ -122,9 +122,9 @@ int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext *from,
 	int err;
 
 	to_fp = to->fpstate;
-	from_fp = from->fpstate;
 	sigs = to->oldmask;
 	err = copy_from_user(to, from, sizeof(*to));
+	from_fp = to->fpstate;
 	to->oldmask = sigs;
 	to->fpstate = to_fp;
 	if(to_fp != NULL)

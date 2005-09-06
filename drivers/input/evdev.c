@@ -160,6 +160,8 @@ struct input_event_compat {
 #  define COMPAT_TEST IS_IA32_PROCESS(ia64_task_regs(current))
 #elif defined(CONFIG_ARCH_S390)
 #  define COMPAT_TEST test_thread_flag(TIF_31BIT)
+#elif defined(CONFIG_MIPS)
+#  define COMPAT_TEST (current->thread.mflags & MF_32BIT_ADDR)
 #else
 #  define COMPAT_TEST test_thread_flag(TIF_32BIT)
 #endif

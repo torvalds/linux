@@ -1766,7 +1766,7 @@ static int mesh_suspend(struct macio_dev *mdev, pm_message_t state)
 	struct mesh_state *ms = (struct mesh_state *)macio_get_drvdata(mdev);
 	unsigned long flags;
 
-	if (state == mdev->ofdev.dev.power.power_state || state < 2)
+	if (state.event == mdev->ofdev.dev.power.power_state.event || state.event < 2)
 		return 0;
 
 	scsi_block_requests(ms->host);
@@ -1791,7 +1791,7 @@ static int mesh_resume(struct macio_dev *mdev)
 	struct mesh_state *ms = (struct mesh_state *)macio_get_drvdata(mdev);
 	unsigned long flags;
 
-	if (mdev->ofdev.dev.power.power_state == 0)
+	if (mdev->ofdev.dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	set_mesh_power(ms, 1);
@@ -1802,7 +1802,7 @@ static int mesh_resume(struct macio_dev *mdev)
 	enable_irq(ms->meshintr);
 	scsi_unblock_requests(ms->host);
 
-	mdev->ofdev.dev.power.power_state = 0;
+	mdev->ofdev.dev.power.power_state.event = PM_EVENT_ON;
 
 	return 0;
 }

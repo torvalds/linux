@@ -39,8 +39,9 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
-#include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include "lm75.h"
@@ -54,11 +55,8 @@
 /* I2C addresses to scan */
 static unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
 
-/* ISA addresses to scan (none) */
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
-
 /* Insmod parameters */
-SENSORS_INSMOD_1(asb100);
+I2C_CLIENT_INSMOD_1(asb100);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
 	"{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
@@ -183,6 +181,7 @@ static u8 DIV_TO_REG(long val)
    dynamically allocated, at the same time the client itself is allocated. */
 struct asb100_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -621,7 +620,7 @@ static int asb100_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, asb100_detect);
+	return i2c_probe(adapter, &addr_data, asb100_detect);
 }
 
 static int asb100_detect_subclients(struct i2c_adapter *adapter, int address,
@@ -713,14 +712,6 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	int err;
 	struct i2c_client *new_client;
 	struct asb100_data *data;
-
-	/* asb100 is SMBus only */
-	if (i2c_is_isa_adapter(adapter)) {
-		pr_debug("asb100.o: detect failed, "
-				"cannot attach to legacy adapter!\n");
-		err = -ENODEV;
-		goto ERROR0;
-	}
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("asb100.o: detect failed, "
@@ -821,6 +812,12 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	data->fan_min[2] = asb100_read_value(new_client, ASB100_REG_FAN_MIN(2));
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	device_create_file_in(new_client, 0);
 	device_create_file_in(new_client, 1);
 	device_create_file_in(new_client, 2);
@@ -847,6 +844,11 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR3:
+	i2c_detach_client(data->lm75[1]);
+	i2c_detach_client(data->lm75[0]);
+	kfree(data->lm75[1]);
+	kfree(data->lm75[0]);
 ERROR2:
 	i2c_detach_client(new_client);
 ERROR1:
@@ -857,21 +859,23 @@ ERROR0:
 
 static int asb100_detach_client(struct i2c_client *client)
 {
+	struct asb100_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "client deregistration failed; "
-			"client not detached.\n");
-		return err;
-	}
+	/* main client */
+	if (data)
+		hwmon_device_unregister(data->class_dev);
 
-	if (i2c_get_clientdata(client)==NULL) {
-		/* subclients */
+	if ((err = i2c_detach_client(client)))
+		return err;
+
+	/* main client */
+	if (data)
+		kfree(data);
+
+	/* subclient */
+	else
 		kfree(client);
-	} else {
-		/* main client */
-		kfree(i2c_get_clientdata(client));
-	}
 
 	return 0;
 }
@@ -969,7 +973,7 @@ static void asb100_init_client(struct i2c_client *client)
 
 	vid = asb100_read_value(client, ASB100_REG_VID_FANDIV) & 0x0f;
 	vid |= (asb100_read_value(client, ASB100_REG_CHIPID) & 0x01) << 4;
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 	vid = vid_from_reg(vid, data->vrm);
 
 	/* Start monitoring */

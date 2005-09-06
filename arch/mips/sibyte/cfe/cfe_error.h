@@ -17,15 +17,15 @@
  */
 
 /*  *********************************************************************
-    *  
+    *
     *  Broadcom Common Firmware Environment (CFE)
-    *  
+    *
     *  Error codes				File: cfe_error.h
-    *  
+    *
     *  CFE's global error code list is here.
-    *  
+    *
     *  Author:  Mitch Lichtenberg
-    *  
+    *
     ********************************************************************* */
 
 

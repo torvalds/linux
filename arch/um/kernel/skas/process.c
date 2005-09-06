@@ -138,6 +138,8 @@ static void handle_trap(int pid, union uml_pt_regs *regs, int local_using_sysemu
 }
 
 extern int __syscall_stub_start;
+int stub_code_fd = -1;
+__u64 stub_code_offset;
 
 static int userspace_tramp(void *stack)
 {
@@ -152,31 +154,31 @@ static int userspace_tramp(void *stack)
 		/* This has a pte, but it can't be mapped in with the usual
 		 * tlb_flush mechanism because this is part of that mechanism
 		 */
-		int fd;
-		__u64 offset;
-
-		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
 		addr = mmap64((void *) UML_CONFIG_STUB_CODE, page_size(),
-			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
+			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE,
+			      stub_code_fd, stub_code_offset);
 		if(addr == MAP_FAILED){
-			printk("mapping mmap stub failed, errno = %d\n",
+			printk("mapping stub code failed, errno = %d\n",
 			       errno);
 			exit(1);
 		}
 
 		if(stack != NULL){
+			int fd;
+			__u64 offset;
+
 			fd = phys_mapping(to_phys(stack), &offset);
 			addr = mmap((void *) UML_CONFIG_STUB_DATA, page_size(),
 				    PROT_READ | PROT_WRITE,
 				    MAP_FIXED | MAP_SHARED, fd, offset);
 			if(addr == MAP_FAILED){
-				printk("mapping segfault stack failed, "
+				printk("mapping stub stack failed, "
 				       "errno = %d\n", errno);
 				exit(1);
 			}
 		}
 	}
-	if(!ptrace_faultinfo && (stack != NULL)){
+	if(!ptrace_faultinfo){
 		unsigned long v = UML_CONFIG_STUB_CODE +
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
@@ -201,6 +203,10 @@ int start_userspace(unsigned long stub_stack)
 	void *stack;
 	unsigned long sp;
 	int pid, status, n, flags;
+
+	if ( stub_code_fd == -1 )
+		stub_code_fd = phys_mapping(to_phys(&__syscall_stub_start),
+					    &stub_code_offset);
 
 	stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -361,6 +367,53 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 		      "errno = %d\n", errno);
 
 	return pid;
+}
+
+/*
+ * This is used only, if proc_mm is available, while PTRACE_FAULTINFO
+ * isn't. Opening /proc/mm creates a new mm_context, which lacks the stub-pages
+ * Thus, we map them using /proc/mm-fd
+ */
+void map_stub_pages(int fd, unsigned long code,
+		    unsigned long data, unsigned long stack)
+{
+	struct proc_mm_op mmop;
+	int n;
+
+	mmop = ((struct proc_mm_op) { .op        = MM_MMAP,
+				      .u         =
+				      { .mmap    =
+					{ .addr    = code,
+					  .len     = PAGE_SIZE,
+					  .prot    = PROT_EXEC,
+					  .flags   = MAP_FIXED | MAP_PRIVATE,
+					  .fd      = stub_code_fd,
+					  .offset  = stub_code_offset
+	} } });
+	n = os_write_file(fd, &mmop, sizeof(mmop));
+	if(n != sizeof(mmop))
+		panic("map_stub_pages : /proc/mm map for code failed, "
+		      "err = %d\n", -n);
+
+	if ( stack ) {
+		__u64 map_offset;
+		int map_fd = phys_mapping(to_phys((void *)stack), &map_offset);
+		mmop = ((struct proc_mm_op)
+				{ .op        = MM_MMAP,
+				  .u         =
+				  { .mmap    =
+				    { .addr    = data,
+				      .len     = PAGE_SIZE,
+				      .prot    = PROT_READ | PROT_WRITE,
+				      .flags   = MAP_FIXED | MAP_SHARED,
+				      .fd      = map_fd,
+				      .offset  = map_offset
+		} } });
+		n = os_write_file(fd, &mmop, sizeof(mmop));
+		if(n != sizeof(mmop))
+			panic("map_stub_pages : /proc/mm map for data failed, "
+			      "err = %d\n", -n);
+	}
 }
 
 void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,

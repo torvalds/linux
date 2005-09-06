@@ -1,6 +1,6 @@
 /* cpudata.h: Per-cpu parameters.
  *
- * Copyright (C) 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2003, 2005 David S. Miller (davem@redhat.com)
  */
 
 #ifndef _SPARC64_CPUDATA_H
@@ -10,7 +10,7 @@
 
 typedef struct {
 	/* Dcache line 1 */
-	unsigned int	__pad0;		/* bh_count moved to irq_stat for consistency. KAO */
+	unsigned int	__softirq_pending; /* must be 1st, see rtrap.S */
 	unsigned int	multiplier;
 	unsigned int	counter;
 	unsigned int	idle_volume;

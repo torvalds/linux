@@ -172,8 +172,6 @@ static u32 flexcop_i2c_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm flexcop_algo = {
-	.name			= "FlexCop I2C algorithm",
-	.id				= I2C_ALGO_BIT,
 	.master_xfer	= flexcop_master_xfer,
 	.functionality	= flexcop_i2c_func,
 };
@@ -192,7 +190,6 @@ int flexcop_i2c_init(struct flexcop_device *fc)
 	fc->i2c_adap.class	    = I2C_CLASS_TV_DIGITAL;
 	fc->i2c_adap.algo       = &flexcop_algo;
 	fc->i2c_adap.algo_data  = NULL;
-	fc->i2c_adap.id         = I2C_ALGO_BIT;
 
 	if ((ret = i2c_add_adapter(&fc->i2c_adap)) < 0)
 		return ret;

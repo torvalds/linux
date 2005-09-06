@@ -129,7 +129,7 @@ static void __init it8172_setup(void)
 
 	/*
 	 * IO/MEM resources.
-	 * 
+	 *
 	 * revisit this area.
 	 */
 	set_io_port_base(KSEG1);

@@ -37,7 +37,7 @@ static long madvise_behavior(struct vm_area_struct * vma,
 
 	if (new_flags == vma->vm_flags) {
 		*prev = vma;
-		goto success;
+		goto out;
 	}
 
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
@@ -62,6 +62,7 @@ static long madvise_behavior(struct vm_area_struct * vma,
 			goto out;
 	}
 
+success:
 	/*
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 */
@@ -70,7 +71,6 @@ static long madvise_behavior(struct vm_area_struct * vma,
 out:
 	if (error == -ENOMEM)
 		error = -EAGAIN;
-success:
 	return error;
 }
 
@@ -237,8 +237,9 @@ asmlinkage long sys_madvise(unsigned long start, size_t len_in, int behavior)
 	 * - different from the way of handling in mlock etc.
 	 */
 	vma = find_vma_prev(current->mm, start, &prev);
-	if (!vma && prev)
-		vma = prev->vm_next;
+	if (vma && start > vma->vm_start)
+		prev = vma;
+
 	for (;;) {
 		/* Still start < end. */
 		error = -ENOMEM;

@@ -63,8 +63,6 @@ typedef u64 sector_t;
 #define HAVE_SECTOR_T
 #endif
 
-typedef unsigned short kmem_bufctl_t;
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

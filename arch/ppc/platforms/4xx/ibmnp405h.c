@@ -34,7 +34,7 @@ static struct ocp_func_emac_data ibmnp405h_emac1_def = {
 	.zmii_mux	= 1,		/* ZMII input of this EMAC */
 	.mal_idx	= 0,		/* MAL device index */
 	.mal_rx_chan	= 1,		/* MAL rx channel number */
-	.mal_tx_chan	= 1,		/* MAL tx channel number */
+	.mal_tx_chan	= 2,		/* MAL tx channel number */
 	.wol_irq	= 41,		/* WOL interrupt number */
 	.mdio_idx	= -1,		/* No shared MDIO */
 	.tah_idx	= -1,		/* No TAH */
@@ -46,7 +46,7 @@ static struct ocp_func_emac_data ibmnp405h_emac2_def = {
 	.zmii_mux	= 2,		/* ZMII input of this EMAC */
 	.mal_idx	= 0,		/* MAL device index */
 	.mal_rx_chan	= 2,		/* MAL rx channel number */
-	.mal_tx_chan	= 2,		/* MAL tx channel number */
+	.mal_tx_chan	= 4,		/* MAL tx channel number */
 	.wol_irq	= 41,		/* WOL interrupt number */
 	.mdio_idx	= -1,		/* No shared MDIO */
 	.tah_idx	= -1,		/* No TAH */
@@ -58,7 +58,7 @@ static struct ocp_func_emac_data ibmnp405h_emac3_def = {
 	.zmii_mux	= 3,		/* ZMII input of this EMAC */
 	.mal_idx	= 0,		/* MAL device index */
 	.mal_rx_chan	= 3,		/* MAL rx channel number */
-	.mal_tx_chan	= 3,		/* MAL tx channel number */
+	.mal_tx_chan	= 6,		/* MAL tx channel number */
 	.wol_irq	= 41,		/* WOL interrupt number */
 	.mdio_idx	= -1,		/* No shared MDIO */
 	.tah_idx	= -1,		/* No TAH */
@@ -73,6 +73,7 @@ static struct ocp_func_mal_data ibmnp405h_mal0_def = {
 	.txde_irq	= 46,		/* TX Descriptor Error IRQ */
 	.rxde_irq	= 47,		/* RX Descriptor Error IRQ */
 	.serr_irq	= 45,		/* MAL System Error IRQ    */
+	.dcr_base	= DCRN_MAL_BASE /* MAL0_CFG DCR number */
 };
 OCP_SYSFS_MAL_DATA()
 

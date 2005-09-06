@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/string.h>
 #include <linux/rtc.h>		/* get the user-level API */
 #include <linux/bcd.h>
@@ -39,9 +38,8 @@
  * Functions declaration
  */
 static unsigned short normal_i2c[] = { 0x68, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
-SENSORS_INSMOD_1(ds1337);
+I2C_CLIENT_INSMOD_1(ds1337);
 
 static int ds1337_attach_adapter(struct i2c_adapter *adapter);
 static int ds1337_detect(struct i2c_adapter *adapter, int address, int kind);
@@ -227,7 +225,7 @@ int ds1337_do_command(int bus, int cmd, void *arg)
 
 static int ds1337_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, ds1337_detect);
+	return i2c_probe(adapter, &addr_data, ds1337_detect);
 }
 
 /*
@@ -354,11 +352,8 @@ static int ds1337_detach_client(struct i2c_client *client)
 	int err;
 	struct ds1337_data *data = i2c_get_clientdata(client);
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	list_del(&data->list);
 	kfree(data);

@@ -558,7 +558,7 @@ static inline int setup_sigcontext32(struct pt_regs *regs,
 	if (!used_math())
 		goto out;
 
-	/* 
+	/*
 	 * Save FPU state to signal context.  Signal handler will "inherit"
 	 * current FPU state.
 	 */

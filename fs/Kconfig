@@ -783,28 +783,6 @@ config SYSFS
 
 	Designers of embedded systems may wish to say N here to conserve space.
 
-config DEVPTS_FS_XATTR
-	bool "/dev/pts Extended Attributes"
-	depends on UNIX98_PTYS
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-config DEVPTS_FS_SECURITY
-	bool "/dev/pts Security Labels"
-	depends on DEVPTS_FS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the /dev/pts filesystem.
-
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
-
 config TMPFS
 	bool "Virtual memory file system support (former shm fs)"
 	help
@@ -816,27 +794,6 @@ config TMPFS
 	  lost.
 
 	  See <file:Documentation/filesystems/tmpfs.txt> for details.
-
-config TMPFS_XATTR
-	bool "tmpfs Extended Attributes"
-	depends on TMPFS
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-config TMPFS_SECURITY
-	bool "tmpfs Security Labels"
-	depends on TMPFS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the tmpfs filesystem.
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"

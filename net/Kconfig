@@ -215,6 +215,7 @@ endmenu
 source "net/ax25/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
+source "net/ieee80211/Kconfig"
 
 endif   # if NET
 endmenu # Networking

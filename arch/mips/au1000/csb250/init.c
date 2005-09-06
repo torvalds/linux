@@ -81,7 +81,7 @@ int __init prom_init(int argc, char **argv, char **envp, int *prom_vec)
 	csb_env[0] = env1;
 
 	mips_machgroup = MACH_GROUP_ALCHEMY;
-	mips_machtype = MACH_CSB250;  
+	mips_machtype = MACH_CSB250;
 
 	prom_init_cmdline();
 	memsize_str = prom_getenv("memsize");

@@ -36,19 +36,21 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
-#include <linux/i2c-vid.h>
+#include <linux/i2c-isa.h>
+#include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 #include <asm/io.h>
 
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 					0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
+static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
-SENSORS_INSMOD_2(it87, it8712);
+I2C_CLIENT_INSMOD_2(it87, it8712);
 
 #define	REG	0x2e	/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */
@@ -192,6 +194,7 @@ static int DIV_TO_REG(int val)
    allocated. */
 struct it87_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -218,7 +221,7 @@ struct it87_data {
 
 
 static int it87_attach_adapter(struct i2c_adapter *adapter);
-static int it87_find(int *address);
+static int it87_isa_attach_adapter(struct i2c_adapter *adapter);
 static int it87_detect(struct i2c_adapter *adapter, int address, int kind);
 static int it87_detach_client(struct i2c_client *client);
 
@@ -238,6 +241,14 @@ static struct i2c_driver it87_driver = {
 	.attach_adapter	= it87_attach_adapter,
 	.detach_client	= it87_detach_client,
 };
+
+static struct i2c_driver it87_isa_driver = {
+	.owner		= THIS_MODULE,
+	.name		= "it87-isa",
+	.attach_adapter	= it87_isa_attach_adapter,
+	.detach_client	= it87_detach_client,
+};
+
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -686,11 +697,16 @@ static int it87_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, it87_detect);
+	return i2c_probe(adapter, &addr_data, it87_detect);
 }
 
-/* SuperIO detection - will change normal_isa[0] if a chip is found */
-static int it87_find(int *address)
+static int it87_isa_attach_adapter(struct i2c_adapter *adapter)
+{
+	return it87_detect(adapter, isa_address, -1);
+}
+
+/* SuperIO detection - will change isa_address if a chip is found */
+static int __init it87_find(int *address)
 {
 	int err = -ENODEV;
 
@@ -721,7 +737,7 @@ exit:
 	return err;
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i;
@@ -738,7 +754,7 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Reserve the ISA region */
 	if (is_isa)
-		if (!request_region(address, IT87_EXTENT, it87_driver.name))
+		if (!request_region(address, IT87_EXTENT, it87_isa_driver.name))
 			goto ERROR0;
 
 	/* Probe whether there is anything available on this address. Already
@@ -784,7 +800,7 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
-	new_client->driver = &it87_driver;
+	new_client->driver = is_isa ? &it87_isa_driver : &it87_driver;
 	new_client->flags = 0;
 
 	/* Now, we do the remaining detection. */
@@ -840,6 +856,12 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	it87_init_client(new_client, data);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_input.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in1_input.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in2_input.dev_attr);
@@ -897,13 +919,15 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	if (data->type == it8712) {
-		data->vrm = i2c_which_vrm();
+		data->vrm = vid_which_vrm();
 		device_create_file_vrm(new_client);
 		device_create_file_vid(new_client);
 	}
 
 	return 0;
 
+ERROR3:
+	i2c_detach_client(new_client);
 ERROR2:
 	kfree(data);
 ERROR1:
@@ -915,17 +939,17 @@ ERROR0:
 
 static int it87_detach_client(struct i2c_client *client)
 {
+	struct it87_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-			"Client deregistration failed, client not detached.\n");
+	hwmon_device_unregister(data->class_dev);
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	if(i2c_is_isa_client(client))
 		release_region(client->addr, IT87_EXTENT);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }
@@ -1158,16 +1182,28 @@ static struct it87_data *it87_update_device(struct device *dev)
 
 static int __init sm_it87_init(void)
 {
-	int addr;
+	int addr, res;
 
 	if (!it87_find(&addr)) {
-		normal_isa[0] = addr;
+		isa_address = addr;
 	}
-	return i2c_add_driver(&it87_driver);
+
+	res = i2c_add_driver(&it87_driver);
+	if (res)
+		return res;
+
+	res = i2c_isa_add_driver(&it87_isa_driver);
+	if (res) {
+		i2c_del_driver(&it87_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit sm_it87_exit(void)
 {
+	i2c_isa_del_driver(&it87_isa_driver);
 	i2c_del_driver(&it87_driver);
 }
 

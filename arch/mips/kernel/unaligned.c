@@ -240,7 +240,7 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case lwu_op:
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		/*
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
@@ -278,13 +278,13 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 		*newvalue = value;
 		*regptr = &regs->regs[insn.i_format.rt];
 		break;
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 		/* Cannot handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
 
 	case ld_op:
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		/*
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
@@ -320,7 +320,7 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 		*newvalue = value;
 		*regptr = &regs->regs[insn.i_format.rt];
 		break;
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 		/* Cannot handle 64-bit instructions in 32-bit kernel */
 		goto sigill;
@@ -392,7 +392,7 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case sd_op:
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		/*
 		 * A 32-bit kernel might be running on a 64-bit processor.  But
 		 * if we're on a 32-bit processor and an i-cache incoherency
@@ -428,7 +428,7 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 		if (res)
 			goto fault;
 		break;
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 		/* Cannot handle 64-bit instructions in 32-bit kernel */
 		goto sigill;

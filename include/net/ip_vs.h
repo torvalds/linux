@@ -958,7 +958,7 @@ static __inline__ int ip_vs_todrop(void)
  */
 #define IP_VS_FWD_METHOD(cp)  (cp->flags & IP_VS_CONN_F_FWD_MASK)
 
-extern __inline__ char ip_vs_fwd_tag(struct ip_vs_conn *cp)
+static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 {
 	char fwd;
 

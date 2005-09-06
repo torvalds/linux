@@ -10,6 +10,7 @@
 #include <asm/page.h>
 #include <asm/spitfire.h>
 #include <asm/mmu_context.h>
+#include <asm/mmu.h>
 #include <asm/pil.h>
 #include <asm/head.h>
 #include <asm/thread_info.h>
@@ -45,6 +46,8 @@ __flush_tlb_mm: /* %o0=(ctx & TAG_CONTEXT_BITS), %o1=SECONDARY_CONTEXT */
 	nop
 	nop
 	nop
+	nop
+	nop
 
 	.align		32
 	.globl		__flush_tlb_pending
@@ -72,6 +75,9 @@ __flush_tlb_pending:
 	flush		%g6
 	retl
 	 wrpr		%g7, 0x0, %pstate
+	nop
+	nop
+	nop
 	nop
 
 	.align		32
@@ -224,16 +230,8 @@ __update_mmu_cache:	/* %o0=hw_context, %o1=address, %o2=pte, %o3=fault_code */
 	 or		%o5, %o0, %o5
 	ba,a,pt		%xcc, __prefill_itlb
 
-	/* Cheetah specific versions, patched at boot time.
-	 *
-	 * This writes of the PRIMARY_CONTEXT register in this file are
-	 * safe even on Cheetah+ and later wrt. the page size fields.
-	 * The nucleus page size fields do not matter because we make
-	 * no data references, and these instructions execute out of a
-	 * locked I-TLB entry sitting in the fully assosciative I-TLB.
-	 * This sequence should also never trap.
-	 */
-__cheetah_flush_tlb_mm: /* 15 insns */
+	/* Cheetah specific versions, patched at boot time. */
+__cheetah_flush_tlb_mm: /* 18 insns */
 	rdpr		%pstate, %g7
 	andn		%g7, PSTATE_IE, %g2
 	wrpr		%g2, 0x0, %pstate
@@ -241,6 +239,9 @@ __cheetah_flush_tlb_mm: /* 15 insns */
 	mov		PRIMARY_CONTEXT, %o2
 	mov		0x40, %g3
 	ldxa		[%o2] ASI_DMMU, %g2
+	srlx		%g2, CTX_PGSZ1_NUC_SHIFT, %o1
+	sllx		%o1, CTX_PGSZ1_NUC_SHIFT, %o1
+	or		%o0, %o1, %o0	/* Preserve nucleus page size fields */
 	stxa		%o0, [%o2] ASI_DMMU
 	stxa		%g0, [%g3] ASI_DMMU_DEMAP
 	stxa		%g0, [%g3] ASI_IMMU_DEMAP
@@ -250,7 +251,7 @@ __cheetah_flush_tlb_mm: /* 15 insns */
 	retl
 	 wrpr		%g7, 0x0, %pstate
 
-__cheetah_flush_tlb_pending:	/* 23 insns */
+__cheetah_flush_tlb_pending:	/* 26 insns */
 	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
 	rdpr		%pstate, %g7
 	sllx		%o1, 3, %o1
@@ -259,6 +260,9 @@ __cheetah_flush_tlb_pending:	/* 23 insns */
 	wrpr		%g0, 1, %tl
 	mov		PRIMARY_CONTEXT, %o4
 	ldxa		[%o4] ASI_DMMU, %g2
+	srlx		%g2, CTX_PGSZ1_NUC_SHIFT, %o3
+	sllx		%o3, CTX_PGSZ1_NUC_SHIFT, %o3
+	or		%o0, %o3, %o0	/* Preserve nucleus page size fields */
 	stxa		%o0, [%o4] ASI_DMMU
 1:	sub		%o1, (1 << 3), %o1
 	ldx		[%o2 + %o1], %o3
@@ -311,14 +315,14 @@ cheetah_patch_cachetlbops:
 	sethi		%hi(__cheetah_flush_tlb_mm), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_mm), %o1
 	call		cheetah_patch_one
-	 mov		15, %o2
+	 mov		18, %o2
 
 	sethi		%hi(__flush_tlb_pending), %o0
 	or		%o0, %lo(__flush_tlb_pending), %o0
 	sethi		%hi(__cheetah_flush_tlb_pending), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_pending), %o1
 	call		cheetah_patch_one
-	 mov		23, %o2
+	 mov		26, %o2
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	sethi		%hi(__flush_dcache_page), %o0
@@ -352,9 +356,12 @@ cheetah_patch_cachetlbops:
 	.globl		xcall_flush_tlb_mm
 xcall_flush_tlb_mm:
 	mov		PRIMARY_CONTEXT, %g2
-	mov		0x40, %g4
 	ldxa		[%g2] ASI_DMMU, %g3
+	srlx		%g3, CTX_PGSZ1_NUC_SHIFT, %g4
+	sllx		%g4, CTX_PGSZ1_NUC_SHIFT, %g4
+	or		%g5, %g4, %g5	/* Preserve nucleus page size fields */
 	stxa		%g5, [%g2] ASI_DMMU
+	mov		0x40, %g4
 	stxa		%g0, [%g4] ASI_DMMU_DEMAP
 	stxa		%g0, [%g4] ASI_IMMU_DEMAP
 	stxa		%g3, [%g2] ASI_DMMU
@@ -366,6 +373,10 @@ xcall_flush_tlb_pending:
 	sllx		%g1, 3, %g1
 	mov		PRIMARY_CONTEXT, %g4
 	ldxa		[%g4] ASI_DMMU, %g2
+	srlx		%g2, CTX_PGSZ1_NUC_SHIFT, %g4
+	sllx		%g4, CTX_PGSZ1_NUC_SHIFT, %g4
+	or		%g5, %g4, %g5
+	mov		PRIMARY_CONTEXT, %g4
 	stxa		%g5, [%g4] ASI_DMMU
 1:	sub		%g1, (1 << 3), %g1
 	ldx		[%g7 + %g1], %g5

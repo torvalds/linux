@@ -160,7 +160,7 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 				" unsupported checksum %d", cksumtype);
 			goto out;
 	}
-	if (!(tfm = crypto_alloc_tfm(cksumname, 0)))
+	if (!(tfm = crypto_alloc_tfm(cksumname, CRYPTO_TFM_REQ_MAY_SLEEP)))
 		goto out;
 	cksum->len = crypto_tfm_alg_digestsize(tfm);
 	if ((cksum->data = kmalloc(cksum->len, GFP_KERNEL)) == NULL)
@@ -199,8 +199,7 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	crypto_digest_final(tfm, cksum->data);
 	code = 0;
 out:
-	if (tfm)
-		crypto_free_tfm(tfm);
+	crypto_free_tfm(tfm);
 	return code;
 }
 

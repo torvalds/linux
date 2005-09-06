@@ -46,6 +46,12 @@ struct mmc_ios {
 #define MMC_BUSMODE_OPENDRAIN	1
 #define MMC_BUSMODE_PUSHPULL	2
 
+	unsigned char	chip_select;		/* SPI chip select */
+
+#define MMC_CS_DONTCARE		0
+#define MMC_CS_HIGH		1
+#define MMC_CS_LOW		2
+
 	unsigned char	power_mode;		/* power supply mode */
 
 #define MMC_POWER_OFF		0

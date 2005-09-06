@@ -210,7 +210,7 @@ void show_registers(struct pt_regs *regs)
 	unsigned short ss;
 
 	esp = (unsigned long) (&regs->esp);
-	ss = __KERNEL_DS;
+	savesegment(ss, ss);
 	if (user_mode(regs)) {
 		in_kernel = 0;
 		esp = regs->esp;
@@ -266,9 +266,6 @@ static void handle_BUG(struct pt_regs *regs)
 	char *file;
 	char c;
 	unsigned long eip;
-
-	if (user_mode(regs))
-		goto no_bug;		/* Not in kernel */
 
 	eip = regs->eip;
 
@@ -568,6 +565,10 @@ static DEFINE_SPINLOCK(nmi_print_lock);
 
 void die_nmi (struct pt_regs *regs, const char *msg)
 {
+	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 0, SIGINT) ==
+	    NOTIFY_STOP)
+		return;
+
 	spin_lock(&nmi_print_lock);
 	/*
 	* We are in trouble anyway, lets at least try
@@ -1008,7 +1009,7 @@ void __init trap_init_f00f_bug(void)
 	 * it uses the read-only mapped virtual address.
 	 */
 	idt_descr.address = fix_to_virt(FIX_F00F_IDT);
-	__asm__ __volatile__("lidt %0" : : "m" (idt_descr));
+	load_idt(&idt_descr);
 }
 #endif
 

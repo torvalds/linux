@@ -433,10 +433,12 @@ void timer_dyn_reprogram(void)
 {
 	struct dyn_tick_timer *dyn_tick = system_timer->dyn_tick;
 
-	write_seqlock(&xtime_lock);
-	if (dyn_tick->state & DYN_TICK_ENABLED)
-		dyn_tick->reprogram(next_timer_interrupt() - jiffies);
-	write_sequnlock(&xtime_lock);
+	if (dyn_tick) {
+		write_seqlock(&xtime_lock);
+		if (dyn_tick->state & DYN_TICK_ENABLED)
+			dyn_tick->reprogram(next_timer_interrupt() - jiffies);
+		write_sequnlock(&xtime_lock);
+	}
 }
 
 static ssize_t timer_show_dyn_tick(struct sys_device *dev, char *buf)

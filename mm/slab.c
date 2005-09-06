@@ -189,6 +189,7 @@
  * is less than 512 (PAGE_SIZE<<3), but greater than 256.
  */
 
+typedef unsigned int kmem_bufctl_t;
 #define BUFCTL_END	(((kmem_bufctl_t)(~0U))-0)
 #define BUFCTL_FREE	(((kmem_bufctl_t)(~0U))-1)
 #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-2)
@@ -600,7 +601,7 @@ static inline kmem_cache_t *__find_general_cachep(size_t size,
 		csizep++;
 
 	/*
-	 * Really subtile: The last entry with cs->cs_size==ULONG_MAX
+	 * Really subtle: The last entry with cs->cs_size==ULONG_MAX
 	 * has cs_{dma,}cachep==NULL. Thus no special case
 	 * for large kmalloc calls required.
 	 */
@@ -2165,7 +2166,9 @@ static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast fl
 		objp = cache_alloc_refill(cachep, flags);
 	}
 	local_irq_restore(save_flags);
-	objp = cache_alloc_debugcheck_after(cachep, flags, objp, __builtin_return_address(0));
+	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
+					__builtin_return_address(0));
+	prefetchw(objp);
 	return objp;
 }
 
@@ -3073,20 +3076,24 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 }
 #endif
 
+/**
+ * ksize - get the actual amount of memory allocated for a given object
+ * @objp: Pointer to the object
+ *
+ * kmalloc may internally round up allocations and return more memory
+ * than requested. ksize() can be used to determine the actual amount of
+ * memory allocated. The caller may use this additional memory, even though
+ * a smaller amount of memory was initially specified with the kmalloc call.
+ * The caller must guarantee that objp points to a valid object previously
+ * allocated with either kmalloc() or kmem_cache_alloc(). The object
+ * must not be freed during the duration of the call.
+ */
 unsigned int ksize(const void *objp)
 {
-	kmem_cache_t *c;
-	unsigned long flags;
-	unsigned int size = 0;
+	if (unlikely(objp == NULL))
+		return 0;
 
-	if (likely(objp != NULL)) {
-		local_irq_save(flags);
-		c = GET_PAGE_CACHE(virt_to_page(objp));
-		size = kmem_cache_size(c);
-		local_irq_restore(flags);
-	}
-
-	return size;
+	return obj_reallen(GET_PAGE_CACHE(virt_to_page(objp)));
 }
 
 

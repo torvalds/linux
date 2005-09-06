@@ -48,15 +48,15 @@
  */
 #define REX_PROM_MAGIC		0x30464354
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 #define prom_is_rex(magic)	1	/* KN04 and KN05 are REX PROMs.  */
 
-#else /* !CONFIG_MIPS64 */
+#else /* !CONFIG_64BIT */
 
 #define prom_is_rex(magic)	((magic) == REX_PROM_MAGIC)
 
-#endif /* !CONFIG_MIPS64 */
+#endif /* !CONFIG_64BIT */
 
 
 /*
@@ -105,7 +105,7 @@ extern int (*__pmax_read)(int, void *, int);
 extern int (*__pmax_close)(int);
 
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 /*
  * On MIPS64 we have to call PROM functions via a helper
@@ -138,7 +138,7 @@ int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
 #define prom_getenv(x)		_prom_getenv(__prom_getenv, x)
 #define prom_printf(x...)	_prom_printf(__prom_printf, x)
 
-#else /* !CONFIG_MIPS64 */
+#else /* !CONFIG_64BIT */
 
 /*
  * On plain MIPS we just call PROM functions directly.
@@ -160,7 +160,7 @@ int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
 #define pmax_read		__pmax_read
 #define pmax_close		__pmax_close
 
-#endif /* !CONFIG_MIPS64 */
+#endif /* !CONFIG_64BIT */
 
 
 extern void prom_meminit(u32);

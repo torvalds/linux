@@ -7,14 +7,14 @@
  */
 #ifndef _ASM_ASMMACRO_H
 #define _ASM_ASMMACRO_H
- 
+
 #include <linux/config.h>
 #include <asm/hazards.h>
- 
-#ifdef CONFIG_MIPS32
+
+#ifdef CONFIG_32BIT
 #include <asm/asmmacro-32.h>
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #include <asm/asmmacro-64.h>
 #endif
 

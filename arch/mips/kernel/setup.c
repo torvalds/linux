@@ -241,7 +241,7 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 	if (*tmp)
 		strcat(command_line, tmp);
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	/* HACK: Guess if the sign extension was forgotten */
 	if (start > 0x0000000080000000 && start < 0x00000000ffffffff)
 		start |= 0xffffffff00000000;
@@ -446,7 +446,7 @@ static inline void resource_init(void)
 {
 	int i;
 
-#if defined(CONFIG_MIPS64) && !defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 	/*
 	 * The 64bit code in 32bit object format trick can't represent
 	 * 64bit wide relocations for linker script symbols.

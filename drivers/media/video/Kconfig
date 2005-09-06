@@ -254,6 +254,7 @@ config VIDEO_SAA7134_DVB
 	select VIDEO_BUF_DVB
 	select DVB_MT352
 	select DVB_CX22702
+	select DVB_TDA1004X
 	---help---
 	  This adds support for DVB cards based on the
 	  Philips saa7134 chip.

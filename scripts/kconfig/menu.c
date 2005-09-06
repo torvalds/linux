@@ -136,9 +136,9 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 	return prop;
 }
 
-void menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep)
+struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep)
 {
-	menu_add_prop(type, prompt, NULL, dep);
+	return menu_add_prop(type, prompt, NULL, dep);
 }
 
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep)

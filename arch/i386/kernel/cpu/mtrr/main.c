@@ -561,7 +561,7 @@ struct mtrr_value {
 
 static struct mtrr_value * mtrr_state;
 
-static int mtrr_save(struct sys_device * sysdev, u32 state)
+static int mtrr_save(struct sys_device * sysdev, pm_message_t state)
 {
 	int i;
 	int size = num_var_ranges * sizeof(struct mtrr_value);

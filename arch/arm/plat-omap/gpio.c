@@ -590,7 +590,7 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (!(isr & 1))
 			continue;
 		d = irq_desc + gpio_irq;
-		d->handle(gpio_irq, d, regs);
+		desc_handle_irq(gpio_irq, d, regs);
 	}
 }
 

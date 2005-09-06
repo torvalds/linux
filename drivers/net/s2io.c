@@ -686,7 +686,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 
 static int s2io_verify_pci_mode(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	register u64 val64 = 0;
 	int     mode;
 
@@ -704,7 +704,7 @@ static int s2io_verify_pci_mode(nic_t *nic)
  */
 static int s2io_print_pci_mode(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	register u64 val64 = 0;
 	int	mode;
 	struct config_param *config = &nic->config;
@@ -1403,7 +1403,7 @@ static int init_nic(struct s2io_nic *nic)
 	writeq(0xffbbffbbffbbffbbULL, &bar0->mc_pause_thresh_q4q7);
 
 	/* Disable RMAC PAD STRIPPING */
-	add = (void *) &bar0->mac_cfg;
+	add = &bar0->mac_cfg;
 	val64 = readq(&bar0->mac_cfg);
 	val64 &= ~(MAC_CFG_RMAC_STRIP_PAD);
 	writeq(RMAC_CFG_KEY(0x4C0D), &bar0->rmac_cfg_key);
@@ -1934,7 +1934,7 @@ static int start_nic(struct s2io_nic *nic)
 		val64 |= 0x0000800000000000ULL;
 		writeq(val64, &bar0->gpio_control);
 		val64 = 0x0411040400000000ULL;
-		writeq(val64, (void __iomem *) ((u8 *) bar0 + 0x2700));
+		writeq(val64, (void __iomem *)bar0 + 0x2700);
 	}
 
 	/*
@@ -2395,7 +2395,7 @@ static int s2io_poll(struct net_device *dev, int *budget)
 	int pkt_cnt = 0, org_pkts_to_process;
 	mac_info_t *mac_control;
 	struct config_param *config;
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 val64;
 	int i;
 
@@ -2831,7 +2831,7 @@ void s2io_reset(nic_t * sp)
 		val64 |= 0x0000800000000000ULL;
 		writeq(val64, &bar0->gpio_control);
 		val64 = 0x0411040400000000ULL;
-		writeq(val64, (void __iomem *) ((u8 *) bar0 + 0x2700));
+		writeq(val64, (void __iomem *)bar0 + 0x2700);
 	}
 
 	/*
@@ -3234,7 +3234,7 @@ s2io_alarm_handle(unsigned long data)
 
 static void s2io_txpic_intr_handle(nic_t *sp)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) sp->bar0;
+	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	u64 val64;
 
 	val64 = readq(&bar0->pic_int_status);

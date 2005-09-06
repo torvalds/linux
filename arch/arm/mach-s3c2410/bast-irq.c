@@ -124,7 +124,7 @@ bast_irq_pc104_demux(unsigned int irq,
 			irqno = bast_pc104_irqs[i];
 			desc = irq_desc + irqno;
 
-			desc->handle(irqno, desc, regs);
+			desc_handle_irq(irqno, desc, regs);
 		}
 
 		stat >>= 1;

@@ -72,7 +72,6 @@ typedef struct {
 	unsigned long env;
 } func_descr_t;
 
-typedef unsigned int kmem_bufctl_t;
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

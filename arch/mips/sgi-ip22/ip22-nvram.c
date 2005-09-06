@@ -39,7 +39,7 @@
 	*ptr |= EEPROM_CSEL;	\
 	*ptr |= EEPROM_ECLK; })
 
-		
+
 #define eeprom_cs_off(ptr) ({	\
 	*ptr &= ~EEPROM_ECLK;	\
 	*ptr &= ~EEPROM_CSEL;	\
@@ -50,7 +50,7 @@
 /*
  * clock in the nvram command and the register number. For the
  * national semiconductor nv ram chip the op code is 3 bits and
- * the address is 6/8 bits. 
+ * the address is 6/8 bits.
  */
 static inline void eeprom_cmd(volatile unsigned int *ctrl, unsigned cmd,
 			      unsigned reg)
@@ -90,7 +90,7 @@ unsigned short ip22_eeprom_read(volatile unsigned int *ctrl, int reg)
 		if (*ctrl & EEPROM_DATI)
 			res |= 1;
 	}
-		
+
 	eeprom_cs_off(ctrl);
 
 	return res;
@@ -113,7 +113,7 @@ unsigned short ip22_nvram_read(int reg)
 		reg <<= 1;
 		tmp = hpc3c0->bbram[reg++] & 0xff;
 		return (tmp << 8) | (hpc3c0->bbram[reg] & 0xff);
-	}		
+	}
 }
 
 EXPORT_SYMBOL(ip22_nvram_read);

@@ -67,6 +67,24 @@
 #define IO_VIRT_ADDR	IO_PHYS_ADDR
 #endif
 
+enum ppc_sys_devices {
+	MPC82xx_CPM_FCC1,
+	MPC82xx_CPM_FCC2,
+	MPC82xx_CPM_FCC3,
+	MPC82xx_CPM_I2C,
+	MPC82xx_CPM_SCC1,
+	MPC82xx_CPM_SCC2,
+	MPC82xx_CPM_SCC3,
+	MPC82xx_CPM_SCC4,
+	MPC82xx_CPM_SPI,
+	MPC82xx_CPM_MCC1,
+	MPC82xx_CPM_MCC2,
+	MPC82xx_CPM_SMC1,
+	MPC82xx_CPM_SMC2,
+	MPC82xx_CPM_USB,
+	MPC82xx_SEC1,
+};
+
 #ifndef __ASSEMBLY__
 /* The "residual" data board information structure the boot loader
  * hands to us.

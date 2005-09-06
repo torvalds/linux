@@ -12,6 +12,7 @@
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 
 static DEFINE_SPINLOCK(cpa_lock);
 static struct list_head df_list = LIST_HEAD_INIT(df_list);
@@ -52,8 +53,8 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot)
 	addr = address & LARGE_PAGE_MASK; 
 	pbase = (pte_t *)page_address(base);
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
-		pbase[i] = pfn_pte(addr >> PAGE_SHIFT, 
-				   addr == address ? prot : PAGE_KERNEL);
+               set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
+                                          addr == address ? prot : PAGE_KERNEL));
 	}
 	return base;
 } 
@@ -62,7 +63,7 @@ static void flush_kernel_map(void *dummy)
 { 
 	/* Could use CLFLUSH here if the CPU supports it (Hammer,P4) */
 	if (boot_cpu_data.x86_model >= 4) 
-		asm volatile("wbinvd":::"memory"); 
+		wbinvd();
 	/* Flush all to work around Errata in early athlons regarding 
 	 * large page flushing. 
 	 */

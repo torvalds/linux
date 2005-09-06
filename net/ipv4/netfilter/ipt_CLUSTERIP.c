@@ -144,7 +144,7 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
 	memcpy(&c->clustermac, &i->clustermac, ETH_ALEN);
 	c->num_total_nodes = i->num_total_nodes;
 	c->num_local_nodes = i->num_local_nodes;
-	memcpy(&c->local_nodes, &i->local_nodes, sizeof(&c->local_nodes));
+	memcpy(&c->local_nodes, &i->local_nodes, sizeof(c->local_nodes));
 	c->hash_mode = i->hash_mode;
 	c->hash_initval = i->hash_initval;
 	atomic_set(&c->refcount, 1);

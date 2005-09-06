@@ -1,7 +1,7 @@
-/* 
+/*
  * Picvue PVC160206 display driver
  *
- * Brian Murphy <brian.murphy@eicon.com> 
+ * Brian Murphy <brian.murphy@eicon.com>
  *
  */
 #include <linux/kernel.h>
@@ -51,10 +51,10 @@ static int pvc_proc_read_line(char *page, char **start,
         page += sprintf(page, "%s\n", pvc_lines[lineno]);
 	up(&pvc_sem);
 
-        return page - origpage; 
+        return page - origpage;
 }
 
-static int pvc_proc_write_line(struct file *file, const char *buffer,            
+static int pvc_proc_write_line(struct file *file, const char *buffer,
                            unsigned long count, void *data)
 {
         int origcount = count;
@@ -119,7 +119,7 @@ static int pvc_proc_read_scroll(char *page, char **start,
         page += sprintf(page, "%d\n", scroll_dir * scroll_interval);
 	up(&pvc_sem);
 
-        return page - origpage; 
+        return page - origpage;
 }
 
 

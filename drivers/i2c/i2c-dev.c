@@ -434,7 +434,8 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 
 	devfs_mk_cdev(MKDEV(I2C_MAJOR, i2c_dev->minor),
 			S_IFCHR|S_IRUSR|S_IWUSR, "i2c/%d", i2c_dev->minor);
-	dev_dbg(&adap->dev, "Registered as minor %d\n", i2c_dev->minor);
+	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
+		 adap->name, i2c_dev->minor);
 
 	/* register this i2c device with the driver core */
 	i2c_dev->adap = adap;
@@ -471,7 +472,7 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	wait_for_completion(&i2c_dev->released);
 	kfree(i2c_dev);
 
-	dev_dbg(&adap->dev, "Adapter unregistered\n");
+	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
 	return 0;
 }
 

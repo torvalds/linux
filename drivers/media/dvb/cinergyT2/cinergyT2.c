@@ -888,7 +888,7 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	if (down_interruptible(&cinergyt2->sem))
 		return -ERESTARTSYS;
 
-	if (state > 0) {	/* state 0 seems to mean DEVICE_PM_ON */
+	if (state.event > PM_EVENT_ON) {
 		struct cinergyt2 *cinergyt2 = usb_get_intfdata (intf);
 #ifdef ENABLE_RC
 		cancel_delayed_work(&cinergyt2->rc_query_work);

@@ -115,7 +115,7 @@ CHECKING THROUGH /DEV
 If you try to access an adapter from a userspace program, you will have
 to use the /dev interface. You will still have to check whether the
 functionality you need is supported, of course. This is done using
-the I2C_FUNCS ioctl. An example, adapted from the lm_sensors i2c_detect
+the I2C_FUNCS ioctl. An example, adapted from the lm_sensors i2cdetect
 program, is below:
 
   int file;

@@ -98,25 +98,6 @@ typedef unsigned long pgprot_t;
 #define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
 
 
-#ifndef __ASSEMBLY__
-
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order (unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
-#endif /* !__ASSEMBLY__ */
-
-
 /* No current v850 processor has virtual memory.  */
 #define __virt_to_phys(addr)	(addr)
 #define __phys_to_virt(addr)	(addr)
@@ -143,5 +124,7 @@ extern __inline__ int get_order (unsigned long size)
 
 
 #endif /* KERNEL */
+
+#include <asm-generic/page.h>
 
 #endif /* __V850_PAGE_H__ */

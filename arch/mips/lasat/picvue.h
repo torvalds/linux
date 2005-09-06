@@ -1,7 +1,7 @@
-/* 
+/*
  * Picvue PVC160206 display driver
  *
- * Brian Murphy <brian.murphy@eicon.com> 
+ * Brian Murphy <brian.murphy@eicon.com>
  *
  */
 #include <asm/semaphore.h>

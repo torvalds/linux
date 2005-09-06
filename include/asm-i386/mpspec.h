@@ -11,6 +11,7 @@ extern int mp_bus_id_to_local [MAX_MP_BUSSES];
 extern int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 extern int mp_bus_id_to_pci_bus [MAX_MP_BUSSES];
 
+extern unsigned int def_to_bigsmp;
 extern unsigned int boot_cpu_physical_apicid;
 extern int smp_found_config;
 extern void find_smp_config (void);

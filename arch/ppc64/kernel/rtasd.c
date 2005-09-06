@@ -19,6 +19,7 @@
 #include <linux/vmalloc.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -412,8 +413,7 @@ static void do_event_scan_all_cpus(long delay)
 
 		/* Drop hotplug lock, and sleep for the specified delay */
 		unlock_cpu_hotplug();
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(delay);
+		msleep_interruptible(delay);
 		lock_cpu_hotplug();
 
 		cpu = next_cpu(cpu, cpu_online_map);
@@ -442,7 +442,7 @@ static int rtasd(void *unused)
 
 	printk(KERN_INFO "RTAS daemon started\n");
 
-	DEBUG("will sleep for %d jiffies\n", (HZ*60/rtas_event_scan_rate) / 2);
+	DEBUG("will sleep for %d milliseconds\n", (30000/rtas_event_scan_rate));
 
 	/* See if we have any error stored in NVRAM */
 	memset(logdata, 0, rtas_error_log_max);
@@ -459,7 +459,7 @@ static int rtasd(void *unused)
 	}
 
 	/* First pass. */
-	do_event_scan_all_cpus(HZ);
+	do_event_scan_all_cpus(1000);
 
 	if (surveillance_timeout != -1) {
 		DEBUG("enabling surveillance\n");
@@ -471,7 +471,7 @@ static int rtasd(void *unused)
 	 * machines have problems if we call event-scan too
 	 * quickly. */
 	for (;;)
-		do_event_scan_all_cpus((HZ*60/rtas_event_scan_rate) / 2);
+		do_event_scan_all_cpus(30000/rtas_event_scan_rate);
 
 error:
 	/* Should delete proc entries */

@@ -124,7 +124,7 @@ static unsigned int cpm_uart_get_mctrl(struct uart_port *port)
 /*
  * Stop transmitter
  */
-static void cpm_uart_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void cpm_uart_stop_tx(struct uart_port *port)
 {
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	volatile smc_t *smcp = pinfo->smcp;
@@ -141,7 +141,7 @@ static void cpm_uart_stop_tx(struct uart_port *port, unsigned int tty_stop)
 /*
  * Start transmitter
  */
-static void cpm_uart_start_tx(struct uart_port *port, unsigned int tty_start)
+static void cpm_uart_start_tx(struct uart_port *port)
 {
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	volatile smc_t *smcp = pinfo->smcp;
@@ -403,10 +403,8 @@ static int cpm_uart_startup(struct uart_port *port)
 
 inline void cpm_uart_wait_until_send(struct uart_cpm_port *pinfo)
 {
-	unsigned long target_jiffies = jiffies + pinfo->wait_closing;
-
-	while (!time_after(jiffies, target_jiffies))
-   		schedule();
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(pinfo->wait_closing);
 }
 
 /*
@@ -425,9 +423,12 @@ static void cpm_uart_shutdown(struct uart_port *port)
 	/* If the port is not the console, disable Rx and Tx. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
 		/* Wait for all the BDs marked sent */
-		while(!cpm_uart_tx_empty(port))
+		while(!cpm_uart_tx_empty(port)) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(2);
-		if(pinfo->wait_closing)
+		}
+
+		if (pinfo->wait_closing)
 			cpm_uart_wait_until_send(pinfo);
 
 		/* Stop uarts */
@@ -623,7 +624,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		cpm_uart_stop_tx(port, 0);
+		cpm_uart_stop_tx(port);
 		return 0;
 	}
 
@@ -656,7 +657,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit)) {
-		cpm_uart_stop_tx(port, 0);
+		cpm_uart_stop_tx(port);
 		return 0;
 	}
 

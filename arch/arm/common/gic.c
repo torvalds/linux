@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/smp.h>
+#include <linux/cpumask.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>

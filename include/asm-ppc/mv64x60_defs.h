@@ -333,7 +333,7 @@
 /*
  *****************************************************************************
  *
- *	SRAM Cotnroller Registers
+ *	SRAM Controller Registers
  *
  *****************************************************************************
  */
@@ -352,7 +352,7 @@
 /*
  *****************************************************************************
  *
- *	SDRAM/MEM Cotnroller Registers
+ *	SDRAM/MEM Controller Registers
  *
  *****************************************************************************
  */
@@ -375,6 +375,7 @@
 /* SDRAM Control Registers */
 #define MV64360_D_UNIT_CONTROL_LOW		0x1404
 #define MV64360_D_UNIT_CONTROL_HIGH		0x1424
+#define MV64460_D_UNIT_MMASK			0x14b0
 
 /* SDRAM Error Report Registers (64360) */
 #define	MV64360_SDRAM_ERR_DATA_LO		0x1444
@@ -388,7 +389,7 @@
 /*
  *****************************************************************************
  *
- *	Device/BOOT Cotnroller Registers
+ *	Device/BOOT Controller Registers
  *
  *****************************************************************************
  */
@@ -679,6 +680,8 @@
 #define	MV64x60_PCI1_SLAVE_P2P_MEM_1_REMAP_HI	0x0de8
 #define	MV64x60_PCI1_SLAVE_P2P_IO_REMAP		0x0dec
 #define	MV64x60_PCI1_SLAVE_CPU_REMAP		0x0df0
+
+#define	MV64360_PCICFG_CPCI_HOTSWAP		0x68
 
 /*
  *****************************************************************************

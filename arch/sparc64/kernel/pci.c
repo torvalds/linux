@@ -736,8 +736,7 @@ static void __pci_mmap_set_flags(struct pci_dev *dev, struct vm_area_struct *vma
 static void __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
 					     enum pci_mmap_state mmap_state)
 {
-	/* Our io_remap_page_range/io_remap_pfn_range takes care of this,
-	   do nothing. */
+	/* Our io_remap_pfn_range takes care of this, do nothing.  */
 }
 
 /* Perform the actual remap of the pages for a PCI device mapping, as appropriate

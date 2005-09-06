@@ -24,6 +24,10 @@ config X86
 	bool
 	default y
 
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
 config MMU
 	bool
 	default y

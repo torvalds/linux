@@ -187,12 +187,14 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	int numbytes = 0;
 	int state;
 	int ret;
+	int timeout = 100;
 
-	state = pca_status(adap);
-	if ( state != 0xF8 ) {
-		dev_dbg(&i2c_adap->dev, "bus is not idle. status is %#04x\n", state );
-		/* FIXME: what to do. Force stop ? */
-		return -EREMOTEIO;
+	while ((state = pca_status(adap)) != 0xf8 && timeout--) {
+		msleep(10);
+	}
+	if (state != 0xf8) {
+		dev_dbg(&i2c_adap->dev, "bus is not idle. status is %#04x\n", state);
+		return -EIO;
 	}
 
 	DEB1("{{{ XFER %d messages\n", num);
@@ -354,8 +356,6 @@ static int pca_init(struct i2c_algo_pca_data *adap)
 }
 
 static struct i2c_algorithm pca_algo = {
-	.name		= "PCA9564 algorithm",
-	.id		= I2C_ALGO_PCA,
 	.master_xfer	= pca_xfer,
 	.functionality	= pca_func,
 };
@@ -369,8 +369,6 @@ int i2c_pca_add_bus(struct i2c_adapter *adap)
 	int rval;
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= pca_algo.id;
 	adap->algo = &pca_algo;
 
 	adap->timeout = 100;		/* default values, should	*/

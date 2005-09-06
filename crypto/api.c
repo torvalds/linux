@@ -66,7 +66,8 @@ static inline struct crypto_alg *crypto_alg_mod_lookup(const char *name)
 
 static int crypto_init_flags(struct crypto_tfm *tfm, u32 flags)
 {
-	tfm->crt_flags = 0;
+	tfm->crt_flags = flags & CRYPTO_TFM_REQ_MASK;
+	flags &= ~CRYPTO_TFM_REQ_MASK;
 	
 	switch (crypto_tfm_alg_type(tfm)) {
 	case CRYPTO_ALG_TYPE_CIPHER:

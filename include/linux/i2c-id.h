@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------------- */
 /* 									     */
-/* i2c.h - definitions for the i2c-bus interface			     */
+/* i2c-id.h - identifier values for i2c drivers and adapters		     */
 /* 									     */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-1999 Simon G. Vogl
@@ -22,16 +22,6 @@
 
 #ifndef LINUX_I2C_ID_H
 #define LINUX_I2C_ID_H
-
-/*
- * This file is part of the i2c-bus package and contains the identifier
- * values for drivers, adapters and other folk populating these serial
- * worlds. 
- *
- * These will change often (i.e. additions) , therefore this has been 
- * separated from the functional interface definitions of the i2c api.
- *
- */
 
 /*
  * ---- Driver types -----------------------------------------------------
@@ -170,151 +160,113 @@
 
 /*
  * ---- Adapter types ----------------------------------------------------
- *
- * First, we distinguish between several algorithms to access the hardware
- * interface types, as a PCF 8584 needs other care than a bit adapter.
- */
-
-#define I2C_ALGO_NONE	0x000000
-#define I2C_ALGO_BIT	0x010000	/* bit style adapters		*/
-#define I2C_ALGO_PCF	0x020000	/* PCF 8584 style adapters	*/
-#define I2C_ALGO_ATI	0x030000	/* ATI video card		*/
-#define I2C_ALGO_SMBUS	0x040000
-#define I2C_ALGO_ISA 	0x050000	/* lm_sensors ISA pseudo-adapter */
-#define I2C_ALGO_SAA7146 0x060000	/* SAA 7146 video decoder bus	*/
-#define I2C_ALGO_ACB 	0x070000	/* ACCESS.bus algorithm         */
-#define I2C_ALGO_IIC    0x080000 	/* ITE IIC bus */
-#define I2C_ALGO_SAA7134 0x090000
-#define I2C_ALGO_MPC824X 0x0a0000	/* Motorola 8240 / 8245         */
-#define I2C_ALGO_IPMI 	0x0b0000	/* IPMI dummy adapter */
-#define I2C_ALGO_IPMB 	0x0c0000	/* IPMB adapter */
-#define I2C_ALGO_MPC107 0x0d0000
-#define I2C_ALGO_EC     0x100000        /* ACPI embedded controller     */
-
-#define I2C_ALGO_MPC8XX 0x110000	/* MPC8xx PowerPC I2C algorithm */
-#define I2C_ALGO_OCP    0x120000	/* IBM or otherwise On-chip I2C algorithm */
-#define I2C_ALGO_BITHS	0x130000	/* enhanced bit style adapters	*/
-#define I2C_ALGO_IOP3XX	0x140000	/* XSCALE IOP3XX On-chip I2C alg */
-#define I2C_ALGO_SIBYTE 0x150000	/* Broadcom SiByte SOCs		*/
-#define I2C_ALGO_SGI	0x160000	/* SGI algorithm		*/
-
-#define I2C_ALGO_USB	0x170000	/* USB algorithm		*/
-#define I2C_ALGO_VIRT	0x180000	/* Virtual bus adapter		*/
-
-#define I2C_ALGO_MV64XXX 0x190000	/* Marvell mv64xxx i2c ctlr	*/
-#define I2C_ALGO_PCA	0x1a0000	/* PCA 9564 style adapters	*/
-#define I2C_ALGO_AU1550	0x1b0000        /* Au1550 PSC algorithm		*/
-
-#define I2C_ALGO_EXP	0x800000	/* experimental			*/
-
-#define I2C_ALGO_MASK	0xff0000	/* Mask for algorithms		*/
-#define I2C_ALGO_SHIFT	0x10	/* right shift to get index values 	*/
-
-#define I2C_HW_ADAPS	0x10000		/* # adapter types		*/
-#define I2C_HW_MASK	0xffff		
-
-
-/* hw specific modules that are defined per algorithm layer
  */
 
 /* --- Bit algorithm adapters 						*/
-#define I2C_HW_B_LP	0x00	/* Parallel port Philips style adapter	*/
-#define I2C_HW_B_LPC	0x01	/* Parallel port, over control reg.	*/
-#define I2C_HW_B_SER	0x02	/* Serial line interface		*/
-#define I2C_HW_B_ELV	0x03	/* ELV Card				*/
-#define I2C_HW_B_VELLE	0x04	/* Vellemann K8000			*/
-#define I2C_HW_B_BT848	0x05	/* BT848 video boards			*/
-#define I2C_HW_B_WNV	0x06	/* Winnov Videums			*/
-#define I2C_HW_B_VIA	0x07	/* Via vt82c586b			*/
-#define I2C_HW_B_HYDRA	0x08	/* Apple Hydra Mac I/O			*/
-#define I2C_HW_B_G400	0x09	/* Matrox G400				*/
-#define I2C_HW_B_I810	0x0a	/* Intel I810 				*/
-#define I2C_HW_B_VOO	0x0b	/* 3dfx Voodoo 3 / Banshee      	*/
-#define I2C_HW_B_PPORT  0x0c	/* Primitive parallel port adapter	*/
-#define I2C_HW_B_SAVG	0x0d	/* Savage 4                     	*/
-#define I2C_HW_B_SCX200	0x0e	/* Nat'l Semi SCx200 I2C        	*/
-#define I2C_HW_B_RIVA	0x10	/* Riva based graphics cards		*/
-#define I2C_HW_B_IOC	0x11	/* IOC bit-wiggling			*/
-#define I2C_HW_B_TSUNA  0x12	/* DEC Tsunami chipset			*/
-#define I2C_HW_B_FRODO  0x13    /* 2d3D, Inc. SA-1110 Development Board */
-#define I2C_HW_B_OMAHA  0x14    /* Omaha I2C interface (ARM)		*/
-#define I2C_HW_B_GUIDE  0x15    /* Guide bit-basher			*/
-#define I2C_HW_B_IXP2000 0x16	/* GPIO on IXP2000 systems              */
-#define I2C_HW_B_IXP4XX 0x17	/* GPIO on IXP4XX systems		*/
-#define I2C_HW_B_S3VIA	0x18	/* S3Via ProSavage adapter		*/
-#define I2C_HW_B_ZR36067 0x19	/* Zoran-36057/36067 based boards	*/
-#define I2C_HW_B_PCILYNX 0x1a	/* TI PCILynx I2C adapter		*/
-#define I2C_HW_B_CX2388x 0x1b	/* connexant 2388x based tv cards	*/
+#define I2C_HW_B_LP		0x010000 /* Parallel port Philips style */
+#define I2C_HW_B_LPC		0x010001 /* Parallel port control reg. */
+#define I2C_HW_B_SER		0x010002 /* Serial line interface */
+#define I2C_HW_B_ELV		0x010003 /* ELV Card */
+#define I2C_HW_B_VELLE		0x010004 /* Vellemann K8000 */
+#define I2C_HW_B_BT848		0x010005 /* BT848 video boards */
+#define I2C_HW_B_WNV		0x010006 /* Winnov Videums */
+#define I2C_HW_B_VIA		0x010007 /* Via vt82c586b */
+#define I2C_HW_B_HYDRA		0x010008 /* Apple Hydra Mac I/O */
+#define I2C_HW_B_G400		0x010009 /* Matrox G400 */
+#define I2C_HW_B_I810		0x01000a /* Intel I810 */
+#define I2C_HW_B_VOO		0x01000b /* 3dfx Voodoo 3 / Banshee */
+#define I2C_HW_B_PPORT		0x01000c /* Primitive parallel port adapter */
+#define I2C_HW_B_SAVG		0x01000d /* Savage 4 */
+#define I2C_HW_B_SCX200		0x01000e /* Nat'l Semi SCx200 I2C */
+#define I2C_HW_B_RIVA		0x010010 /* Riva based graphics cards */
+#define I2C_HW_B_IOC		0x010011 /* IOC bit-wiggling */
+#define I2C_HW_B_TSUNA		0x010012 /* DEC Tsunami chipset */
+#define I2C_HW_B_FRODO		0x010013 /* 2d3D SA-1110 Development Board */
+#define I2C_HW_B_OMAHA		0x010014 /* Omaha I2C interface (ARM) */
+#define I2C_HW_B_GUIDE		0x010015 /* Guide bit-basher */
+#define I2C_HW_B_IXP2000	0x010016 /* GPIO on IXP2000 systems */
+#define I2C_HW_B_IXP4XX		0x010017 /* GPIO on IXP4XX systems */
+#define I2C_HW_B_S3VIA		0x010018 /* S3Via ProSavage adapter */
+#define I2C_HW_B_ZR36067	0x010019 /* Zoran-36057/36067 based boards */
+#define I2C_HW_B_PCILYNX	0x01001a /* TI PCILynx I2C adapter */
+#define I2C_HW_B_CX2388x	0x01001b /* connexant 2388x based tv cards */
+#define I2C_HW_B_NVIDIA		0x01001c /* nvidia framebuffer driver */
+#define I2C_HW_B_SAVAGE		0x01001d /* savage framebuffer driver */
+#define I2C_HW_B_RADEON		0x01001e /* radeon framebuffer driver */
 
 /* --- PCF 8584 based algorithms					*/
-#define I2C_HW_P_LP	0x00	/* Parallel port interface		*/
-#define I2C_HW_P_ISA	0x01	/* generic ISA Bus inteface card	*/
-#define I2C_HW_P_ELEK	0x02	/* Elektor ISA Bus inteface card	*/
+#define I2C_HW_P_LP		0x020000 /* Parallel port interface */
+#define I2C_HW_P_ISA		0x020001 /* generic ISA Bus inteface card */
+#define I2C_HW_P_ELEK		0x020002 /* Elektor ISA Bus inteface card */
 
 /* --- PCA 9564 based algorithms */
-#define I2C_HW_A_ISA	0x00	/* generic ISA Bus interface card	*/
+#define I2C_HW_A_ISA		0x1a0000 /* generic ISA Bus interface card */
 
 /* --- ACPI Embedded controller algorithms                              */
-#define I2C_HW_ACPI_EC          0x00
+#define I2C_HW_ACPI_EC          0x1f0000
 
 /* --- MPC824x PowerPC adapters						*/
-#define I2C_HW_MPC824X 0x00	/* Motorola 8240 / 8245                 */
+#define I2C_HW_MPC824X		0x100001 /* Motorola 8240 / 8245 */
 
 /* --- MPC8xx PowerPC adapters						*/
-#define I2C_HW_MPC8XX_EPON 0x00	/* Eponymous MPC8xx I2C adapter 	*/
+#define I2C_HW_MPC8XX_EPON	0x110000 /* Eponymous MPC8xx I2C adapter */
 
 /* --- ITE based algorithms						*/
-#define I2C_HW_I_IIC	0x00	/* controller on the ITE */
+#define I2C_HW_I_IIC		0x080000 /* controller on the ITE */
 
 /* --- PowerPC on-chip adapters						*/
-#define I2C_HW_OCP 0x00	/* IBM on-chip I2C adapter 	*/
+#define I2C_HW_OCP		0x120000 /* IBM on-chip I2C adapter */
 
 /* --- Broadcom SiByte adapters						*/
-#define I2C_HW_SIBYTE	0x00
+#define I2C_HW_SIBYTE		0x150000
 
 /* --- SGI adapters							*/
-#define I2C_HW_SGI_VINO	0x00
-#define I2C_HW_SGI_MACE	0x01
+#define I2C_HW_SGI_VINO		0x160000
+#define I2C_HW_SGI_MACE		0x160001
 
 /* --- XSCALE on-chip adapters                          */
-#define I2C_HW_IOP3XX 0x00
+#define I2C_HW_IOP3XX		0x140000
 
 /* --- Au1550 PSC adapters adapters					*/
-#define I2C_HW_AU1550_PSC	0x00
+#define I2C_HW_AU1550_PSC	0x1b0000
 
 /* --- SMBus only adapters						*/
-#define I2C_HW_SMBUS_PIIX4	0x00
-#define I2C_HW_SMBUS_ALI15X3	0x01
-#define I2C_HW_SMBUS_VIA2	0x02
-#define I2C_HW_SMBUS_VOODOO3	0x03
-#define I2C_HW_SMBUS_I801	0x04
-#define I2C_HW_SMBUS_AMD756	0x05
-#define I2C_HW_SMBUS_SIS5595	0x06
-#define I2C_HW_SMBUS_ALI1535	0x07
-#define I2C_HW_SMBUS_SIS630	0x08
-#define I2C_HW_SMBUS_SIS96X	0x09
-#define I2C_HW_SMBUS_AMD8111	0x0a
-#define I2C_HW_SMBUS_SCX200	0x0b
-#define I2C_HW_SMBUS_NFORCE2	0x0c
-#define I2C_HW_SMBUS_W9968CF	0x0d
-#define I2C_HW_SMBUS_OV511	0x0e	/* OV511(+) USB 1.1 webcam ICs	*/
-#define I2C_HW_SMBUS_OV518	0x0f	/* OV518(+) USB 1.1 webcam ICs	*/
-#define I2C_HW_SMBUS_OV519	0x10	/* OV519 USB 1.1 webcam IC	*/
-#define I2C_HW_SMBUS_OVFX2	0x11	/* Cypress/OmniVision FX2 webcam */
+#define I2C_HW_SMBUS_PIIX4	0x040000
+#define I2C_HW_SMBUS_ALI15X3	0x040001
+#define I2C_HW_SMBUS_VIA2	0x040002
+#define I2C_HW_SMBUS_VOODOO3	0x040003
+#define I2C_HW_SMBUS_I801	0x040004
+#define I2C_HW_SMBUS_AMD756	0x040005
+#define I2C_HW_SMBUS_SIS5595	0x040006
+#define I2C_HW_SMBUS_ALI1535	0x040007
+#define I2C_HW_SMBUS_SIS630	0x040008
+#define I2C_HW_SMBUS_SIS96X	0x040009
+#define I2C_HW_SMBUS_AMD8111	0x04000a
+#define I2C_HW_SMBUS_SCX200	0x04000b
+#define I2C_HW_SMBUS_NFORCE2	0x04000c
+#define I2C_HW_SMBUS_W9968CF	0x04000d
+#define I2C_HW_SMBUS_OV511	0x04000e /* OV511(+) USB 1.1 webcam ICs */
+#define I2C_HW_SMBUS_OV518	0x04000f /* OV518(+) USB 1.1 webcam ICs */
+#define I2C_HW_SMBUS_OV519	0x040010 /* OV519 USB 1.1 webcam IC */
+#define I2C_HW_SMBUS_OVFX2	0x040011 /* Cypress/OmniVision FX2 webcam */
 
 /* --- ISA pseudo-adapter						*/
-#define I2C_HW_ISA 0x00
+#define I2C_HW_ISA		0x050000
 
 /* --- IPMI pseudo-adapter						*/
-#define I2C_HW_IPMI 0x00
+#define I2C_HW_IPMI		0x0b0000
 
 /* --- IPMB adapter						*/
-#define I2C_HW_IPMB 0x00
+#define I2C_HW_IPMB		0x0c0000
 
 /* --- MCP107 adapter */
-#define I2C_HW_MPC107 0x00
+#define I2C_HW_MPC107		0x0d0000
 
 /* --- Marvell mv64xxx i2c adapter */
-#define I2C_HW_MV64XXX 0x00
+#define I2C_HW_MV64XXX		0x190000
+
+/* --- Miscellaneous adapters */
+#define I2C_HW_SAA7146		0x060000 /* SAA7146 video decoder bus */
+#define I2C_HW_SAA7134		0x090000 /* SAA7134 video decoder bus */
 
 #endif /* LINUX_I2C_ID_H */

@@ -152,7 +152,7 @@ dump_cp0(char *key)
 	print_cp0(key, 16, "CONFIG  ", read_c0_config());
 	return;
 }
-	
+
 void print_pic(char *key, u32 reg, char *name)
 {
 	printk("%s pic:0x%08x:%s=0x%08x\n", key, reg, name,
