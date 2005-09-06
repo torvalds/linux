@@ -1275,6 +1275,16 @@ out:
 }
 
 /*
+ * Exactly like fs/open.c:sys_open(), except that it doesn't set the
+ * O_LARGEFILE flag.
+ */
+asmlinkage long
+compat_sys_open(const char __user *filename, int flags, int mode)
+{
+	return do_sys_open(filename, flags, mode);
+}
+
+/*
  * compat_count() counts the number of arguments/envelopes. It is basically
  * a copy of count() from fs/exec.c, except that it works with 32 bit argv
  * and envp pointers.

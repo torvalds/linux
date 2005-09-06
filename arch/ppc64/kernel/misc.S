@@ -957,7 +957,7 @@ _GLOBAL(sys_call_table32)
 	.llong .ppc_fork
 	.llong .sys_read
 	.llong .sys_write
-	.llong .sys32_open		/* 5 */
+	.llong .compat_sys_open		/* 5 */
 	.llong .sys_close
 	.llong .sys32_waitpid
 	.llong .sys32_creat

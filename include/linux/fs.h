@@ -1280,6 +1280,7 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 /* fs/open.c */
 
 extern int do_truncate(struct dentry *, loff_t start);
+extern long do_sys_open(const char __user *filename, int flags, int mode);
 extern struct file *filp_open(const char *, int, int);
 extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);
 extern int filp_close(struct file *, fl_owner_t id);
