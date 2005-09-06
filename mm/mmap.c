@@ -203,13 +203,6 @@ static void remove_vm_struct(struct vm_area_struct *vma)
 	kmem_cache_free(vm_area_cachep, vma);
 }
 
-/*
- *  sys_brk() for the most part doesn't need the global kernel
- *  lock, except when an application is doing something nasty
- *  like trying to un-brk an area that has already been mapped
- *  to a regular file.  in this case, the unmapping will need
- *  to invoke file system routines that need the global lock.
- */
 asmlinkage unsigned long sys_brk(unsigned long brk)
 {
 	unsigned long rlim, retval;
