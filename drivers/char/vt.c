@@ -434,21 +434,25 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 /* used by selection: complement pointer position */
 void complement_pos(struct vc_data *vc, int offset)
 {
-	static unsigned short *p;
+	static int old_offset = -1;
 	static unsigned short old;
 	static unsigned short oldx, oldy;
 
 	WARN_CONSOLE_UNLOCKED();
 
-	if (p) {
-		scr_writew(old, p);
+	if (old_offset != -1 && old_offset >= 0 &&
+	    old_offset < vc->vc_screenbuf_size) {
+		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (DO_UPDATE(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
 	}
-	if (offset == -1)
-		p = NULL;
-	else {
+
+	old_offset = offset;
+
+	if (offset != -1 && offset >= 0 &&
+	    offset < vc->vc_screenbuf_size) {
 		unsigned short new;
+		unsigned short *p;
 		p = screenpos(vc, offset, 1);
 		old = scr_readw(p);
 		new = old ^ vc->vc_complement_mask;
@@ -459,6 +463,7 @@ void complement_pos(struct vc_data *vc, int offset)
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
 		}
 	}
+
 }
 
 static void insert_char(struct vc_data *vc, unsigned int nr)
