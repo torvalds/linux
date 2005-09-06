@@ -325,6 +325,8 @@ removexattr(struct dentry *d, char __user *name)
 		down(&d->d_inode->i_sem);
 		error = d->d_inode->i_op->removexattr(d, kname);
 		up(&d->d_inode->i_sem);
+		if (!error)
+			fsnotify_xattr(d);
 	}
 out:
 	return error;
