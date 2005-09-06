@@ -931,6 +931,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	struct nameidata nd;
 	struct file *filp;
 	int ret, fput_needed;
+	int mask_add = 0;
 
 	filp = fget_light(fd, &fput_needed);
 	if (unlikely(!filp))
@@ -953,6 +954,9 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	down(&inode->inotify_sem);
 	down(&dev->sem);
 
+	if (mask & IN_MASK_ADD)
+		mask_add = 1;
+
 	/* don't let user-space set invalid bits: we don't want flags set */
 	mask &= IN_ALL_EVENTS;
 	if (unlikely(!mask)) {
@@ -966,7 +970,10 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	 */
 	old = inode_find_dev(inode, dev);
 	if (unlikely(old)) {
-		old->mask = mask;
+		if (mask_add)
+			old->mask |= mask;
+		else
+			old->mask = mask;
 		ret = old->wd;
 		goto out;
 	}
