@@ -105,17 +105,6 @@ struct smsc_transceiver {
 	void (*set_for_speed)(int fir_base, u32 speed);
 	int  (*probe)(int fir_base);
 };
-typedef struct smsc_transceiver smsc_transceiver_t;
-
-#if 0
-struct smc_chip {
-	char *name;
-	u16 flags;
-	u8 devid;
-	u8 rev;
-};
-typedef struct smc_chip smc_chip_t;
-#endif
 
 struct smsc_chip {
 	char *name;
@@ -126,13 +115,11 @@ struct smsc_chip {
 	u8 devid;
 	u8 rev;
 };
-typedef struct smsc_chip smsc_chip_t;
 
 struct smsc_chip_address {
 	unsigned int cfg_base;
 	unsigned int type;
 };
-typedef struct smsc_chip_address smsc_chip_address_t;
 
 /* Private data for each instance */
 struct smsc_ircc_cb {
@@ -208,9 +195,9 @@ static void smsc_ircc_sir_wait_hw_transmitter_finish(struct smsc_ircc_cb *self);
 
 /* Probing */
 static int __init smsc_ircc_look_for_chips(void);
-static const smsc_chip_t * __init smsc_ircc_probe(unsigned short cfg_base, u8 reg, const smsc_chip_t *chip, char *type);
-static int __init smsc_superio_flat(const smsc_chip_t *chips, unsigned short cfg_base, char *type);
-static int __init smsc_superio_paged(const smsc_chip_t *chips, unsigned short cfg_base, char *type);
+static const struct smsc_chip * __init smsc_ircc_probe(unsigned short cfg_base, u8 reg, const struct smsc_chip *chip, char *type);
+static int __init smsc_superio_flat(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
+static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
 static int __init smsc_superio_fdc(unsigned short cfg_base);
 static int __init smsc_superio_lpc(unsigned short cfg_base);
 
@@ -232,7 +219,7 @@ static int smsc_ircc_pmproc(struct pm_dev *dev, pm_request_t rqst, void *data);
 
 /* Transceivers for SMSC-ircc */
 
-static smsc_transceiver_t smsc_transceivers[] =
+static struct smsc_transceiver smsc_transceivers[] =
 {
 	{ "Toshiba Satellite 1800 (GP data pin select)", smsc_ircc_set_transceiver_toshiba_sat1800, smsc_ircc_probe_transceiver_toshiba_sat1800 },
 	{ "Fast pin select", smsc_ircc_set_transceiver_smsc_ircc_fast_pin_select, smsc_ircc_probe_transceiver_smsc_ircc_fast_pin_select },
@@ -250,7 +237,7 @@ static smsc_transceiver_t smsc_transceivers[] =
 #define	FIR	4	/* SuperIO Chip has fast IRDA */
 #define	SERx4	8	/* SuperIO Chip supports 115,2 KBaud * 4=460,8 KBaud */
 
-static smsc_chip_t __initdata fdc_chips_flat[] =
+static struct smsc_chip __initdata fdc_chips_flat[] =
 {
 	/* Base address 0x3f0 or 0x370 */
 	{ "37C44",	KEY55_1|NoIRDA,		0x00, 0x00 }, /* This chip cannot be detected */
@@ -264,7 +251,7 @@ static smsc_chip_t __initdata fdc_chips_flat[] =
 	{ NULL }
 };
 
-static smsc_chip_t __initdata fdc_chips_paged[] =
+static struct smsc_chip __initdata fdc_chips_paged[] =
 {
 	/* Base address 0x3f0 or 0x370 */
 	{ "37B72X",	KEY55_1|SIR|SERx4,	0x4c, 0x00 },
@@ -283,7 +270,7 @@ static smsc_chip_t __initdata fdc_chips_paged[] =
 	{ NULL }
 };
 
-static smsc_chip_t __initdata lpc_chips_flat[] =
+static struct smsc_chip __initdata lpc_chips_flat[] =
 {
 	/* Base address 0x2E or 0x4E */
 	{ "47N227",	KEY55_1|FIR|SERx4,	0x5a, 0x00 },
@@ -291,7 +278,7 @@ static smsc_chip_t __initdata lpc_chips_flat[] =
 	{ NULL }
 };
 
-static smsc_chip_t __initdata lpc_chips_paged[] =
+static struct smsc_chip __initdata lpc_chips_paged[] =
 {
 	/* Base address 0x2E or 0x4E */
 	{ "47B27X",	KEY55_1|SIR|SERx4,	0x51, 0x00 },
@@ -310,7 +297,7 @@ static smsc_chip_t __initdata lpc_chips_paged[] =
 #define SMSCSIO_TYPE_FLAT	4
 #define SMSCSIO_TYPE_PAGED	8
 
-static smsc_chip_address_t __initdata possible_addresses[] =
+static struct smsc_chip_address __initdata possible_addresses[] =
 {
 	{ 0x3f0, SMSCSIO_TYPE_FDC|SMSCSIO_TYPE_FLAT|SMSCSIO_TYPE_PAGED },
 	{ 0x370, SMSCSIO_TYPE_FDC|SMSCSIO_TYPE_FLAT|SMSCSIO_TYPE_PAGED },
@@ -2010,7 +1997,7 @@ static void smsc_ircc_sir_wait_hw_transmitter_finish(struct smsc_ircc_cb *self)
 
 static int __init smsc_ircc_look_for_chips(void)
 {
-	smsc_chip_address_t *address;
+	struct smsc_chip_address *address;
 	char *type;
 	unsigned int cfg_base, found;
 
@@ -2053,7 +2040,7 @@ static int __init smsc_ircc_look_for_chips(void)
  *    Try to get configuration of a smc SuperIO chip with flat register model
  *
  */
-static int __init smsc_superio_flat(const smsc_chip_t *chips, unsigned short cfgbase, char *type)
+static int __init smsc_superio_flat(const struct smsc_chip *chips, unsigned short cfgbase, char *type)
 {
 	unsigned short firbase, sirbase;
 	u8 mode, dma, irq;
@@ -2104,7 +2091,7 @@ static int __init smsc_superio_flat(const smsc_chip_t *chips, unsigned short cfg
  *    Try  to get configuration of a smc SuperIO chip with paged register model
  *
  */
-static int __init smsc_superio_paged(const smsc_chip_t *chips, unsigned short cfg_base, char *type)
+static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned short cfg_base, char *type)
 {
 	unsigned short fir_io, sir_io;
 	int ret = -ENODEV;
@@ -2149,7 +2136,7 @@ static int __init smsc_access(unsigned short cfg_base, unsigned char reg)
 	return inb(cfg_base) != reg ? -1 : 0;
 }
 
-static const smsc_chip_t * __init smsc_ircc_probe(unsigned short cfg_base, u8 reg, const smsc_chip_t *chip, char *type)
+static const struct smsc_chip * __init smsc_ircc_probe(unsigned short cfg_base, u8 reg, const struct smsc_chip *chip, char *type)
 {
 	u8 devid, xdevid, rev;
 
