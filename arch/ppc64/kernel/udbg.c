@@ -70,6 +70,9 @@ void udbg_init_uart(void __iomem *comport, unsigned int speed)
 		out_8(&udbg_comport->lcr, 0x03);	/* 8 data, 1 stop, no parity */
 		out_8(&udbg_comport->mcr, 0x03);	/* RTS/DTR */
 		out_8(&udbg_comport->fcr ,0x07);	/* Clear & enable FIFOs */
+		ppc_md.udbg_putc = udbg_putc;		/* set access methods */
+		ppc_md.udbg_getc = udbg_getc;
+		ppc_md.udbg_getc_poll = udbg_getc_poll;
 	}
 }
 
