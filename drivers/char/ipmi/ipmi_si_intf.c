@@ -75,6 +75,7 @@ static inline void add_usec_to_timer(struct timer_list *t, long v)
 #include <asm/io.h>
 #include "ipmi_si_sm.h"
 #include <linux/init.h>
+#include <linux/dmi.h>
 
 #define IPMI_SI_VERSION "v33"
 
@@ -1610,22 +1611,15 @@ typedef struct dmi_ipmi_data
 static dmi_ipmi_data_t dmi_data[SI_MAX_DRIVERS];
 static int dmi_data_entries;
 
-typedef struct dmi_header
+static int __init decode_dmi(struct dmi_header *dm, int intf_num)
 {
-	u8	type;
-	u8	length;
-	u16	handle;
-} dmi_header_t;
-
-static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
-{
-	u8		__iomem *data = (u8 __iomem *)dm;
+	u8 *data = (u8 *)dm;
 	unsigned long  	base_addr;
 	u8		reg_spacing;
-	u8              len = readb(&dm->length);
+	u8              len = dm->length;
 	dmi_ipmi_data_t *ipmi_data = dmi_data+intf_num;
 
-	ipmi_data->type = readb(&data[4]);
+	ipmi_data->type = data[4];
 
 	memcpy(&base_addr, data+8, sizeof(unsigned long));
 	if (len >= 0x11) {
@@ -1640,12 +1634,12 @@ static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 		}
 		/* If bit 4 of byte 0x10 is set, then the lsb for the address
 		   is odd. */
-		ipmi_data->base_addr = base_addr | ((readb(&data[0x10]) & 0x10) >> 4);
+		ipmi_data->base_addr = base_addr | ((data[0x10] & 0x10) >> 4);
 
-		ipmi_data->irq = readb(&data[0x11]);
+		ipmi_data->irq = data[0x11];
 
 		/* The top two bits of byte 0x10 hold the register spacing. */
-		reg_spacing = (readb(&data[0x10]) & 0xC0) >> 6;
+		reg_spacing = (data[0x10] & 0xC0) >> 6;
 		switch(reg_spacing){
 		case 0x00: /* Byte boundaries */
 		    ipmi_data->offset = 1;
@@ -1673,7 +1667,7 @@ static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 		ipmi_data->offset = 1;
 	}
 
-	ipmi_data->slave_addr = readb(&data[6]);
+	ipmi_data->slave_addr = data[6];
 
 	if (is_new_interface(-1, ipmi_data->addr_space,ipmi_data->base_addr)) {
 		dmi_data_entries++;
@@ -1685,82 +1679,17 @@ static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 	return -1;
 }
 
-static int dmi_table(u32 base, int len, int num)
+static void __init dmi_find_bmc(void)
 {
-	u8 		  __iomem *buf;
-	struct dmi_header __iomem *dm;
-	u8 		  __iomem *data;
-	int 		  i=1;
-	int		  status=-1;
-	int               intf_num = 0;
+	struct dmi_device *dev = NULL;
+	int intf_num = 0;
 
-	buf = ioremap(base, len);
-	if(buf==NULL)
-		return -1;
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_IPMI, NULL, dev))) {
+		if (intf_num >= SI_MAX_DRIVERS)
+			break;
 
-	data = buf;
-
-	while(i<num && (data - buf) < len)
-	{
-		dm=(dmi_header_t __iomem *)data;
-
-		if((data-buf+readb(&dm->length)) >= len)
-        		break;
-
-		if (readb(&dm->type) == 38) {
-			if (decode_dmi(dm, intf_num) == 0) {
-				intf_num++;
-				if (intf_num >= SI_MAX_DRIVERS)
-					break;
-			}
-		}
-
-	        data+=readb(&dm->length);
-		while((data-buf) < len && (readb(data)||readb(data+1)))
-			data++;
-		data+=2;
-		i++;
+		decode_dmi((struct dmi_header *) dev->device_data, intf_num++);
 	}
-	iounmap(buf);
-
-	return status;
-}
-
-static inline int dmi_checksum(u8 *buf)
-{
-	u8   sum=0;
-	int  a;
-
-	for(a=0; a<15; a++)
-		sum+=buf[a];
-	return (sum==0);
-}
-
-static int dmi_decode(void)
-{
-	u8   buf[15];
-	u32  fp=0xF0000;
-
-#ifdef CONFIG_SIMNOW
-	return -1;
-#endif
-
-	while(fp < 0xFFFFF)
-	{
-		isa_memcpy_fromio(buf, fp, 15);
-		if(memcmp(buf, "_DMI_", 5)==0 && dmi_checksum(buf))
-		{
-			u16 num=buf[13]<<8|buf[12];
-			u16 len=buf[7]<<8|buf[6];
-			u32 base=buf[11]<<24|buf[10]<<16|buf[9]<<8|buf[8];
-
-			if(dmi_table(base, len, num) == 0)
-				return 0;
-		}
-		fp+=16;
-	}
-
-	return -1;
 }
 
 static int try_init_smbios(int intf_num, struct smi_info **new_info)
@@ -2293,7 +2222,7 @@ static __init int init_ipmi_si(void)
 	printk("\n");
 
 #ifdef CONFIG_X86
-	dmi_decode();
+	dmi_find_bmc();
 #endif
 
 	rv = init_one_smi(0, &(smi_infos[pos]));
