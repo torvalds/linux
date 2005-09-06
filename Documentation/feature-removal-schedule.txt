@@ -51,14 +51,6 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	register_ioctl32_conversion() / unregister_ioctl32_conversion()
-When:	April 2005
-Why:	Replaced by ->compat_ioctl in file_operations and other method
-	vecors.
-Who:	Andi Kleen <ak@muc.de>, Christoph Hellwig <hch@lst.de>
-
----------------------------
-
 What:	RCU API moves to EXPORT_SYMBOL_GPL
 When:	April 2006
 Files:	include/linux/rcupdate.h, kernel/rcupdate.c
