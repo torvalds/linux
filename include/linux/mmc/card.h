@@ -33,6 +33,13 @@ struct mmc_csd {
 	unsigned int		capacity;
 };
 
+struct sd_scr {
+	unsigned char		sda_vsn;
+	unsigned char		bus_widths;
+#define SD_SCR_BUS_WIDTH_1	(1<<0)
+#define SD_SCR_BUS_WIDTH_4	(1<<2)
+};
+
 struct mmc_host;
 
 /*
@@ -51,8 +58,10 @@ struct mmc_card {
 #define MMC_STATE_READONLY	(1<<4)		/* card is read-only */
 	u32			raw_cid[4];	/* raw card CID */
 	u32			raw_csd[4];	/* raw card CSD */
+	u32			raw_scr[2];	/* raw card SCR */
 	struct mmc_cid		cid;		/* card identification */
 	struct mmc_csd		csd;		/* card specific */
+	struct sd_scr		scr;		/* extra SD information */
 };
 
 #define mmc_card_present(c)	((c)->state & MMC_STATE_PRESENT)

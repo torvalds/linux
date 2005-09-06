@@ -16,6 +16,8 @@
 #include <linux/delay.h>
 #include <linux/pagemap.h>
 #include <linux/err.h>
+#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -246,6 +248,8 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, unsigned int rca,
 
 EXPORT_SYMBOL(mmc_wait_for_app_cmd);
 
+static int mmc_select_card(struct mmc_host *host, struct mmc_card *card);
+
 /**
  *	__mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
@@ -278,16 +282,10 @@ int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card)
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
 
-	if (card != (void *)-1 && host->card_selected != card) {
-		struct mmc_command cmd;
-
-		host->card_selected = card;
-
-		cmd.opcode = MMC_SELECT_CARD;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	if (card != (void *)-1) {
+		err = mmc_select_card(host, card);
+		if (err != MMC_ERR_NONE)
+			return err;
 	}
 
 	return err;
@@ -316,6 +314,29 @@ void mmc_release_host(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_release_host);
+
+static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
+{
+	int err;
+	struct mmc_command cmd;
+
+	BUG_ON(host->card_busy == NULL);
+
+	if (host->card_selected == card)
+		return MMC_ERR_NONE;
+
+	host->card_selected = card;
+
+	cmd.opcode = MMC_SELECT_CARD;
+	cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_R1;
+
+	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	if (err != MMC_ERR_NONE)
+		return err;
+
+	return MMC_ERR_NONE;
+}
 
 /*
  * Ensure that no card is selected.
@@ -523,6 +544,32 @@ static void mmc_decode_csd(struct mmc_card *card)
 
 		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
 	}
+}
+
+/*
+ * Given a 64-bit response, decode to our card SCR structure.
+ */
+static void mmc_decode_scr(struct mmc_card *card)
+{
+	struct sd_scr *scr = &card->scr;
+	unsigned int scr_struct;
+	u32 resp[4];
+
+	BUG_ON(!mmc_card_sd(card));
+
+	resp[3] = card->raw_scr[1];
+	resp[2] = card->raw_scr[0];
+
+	scr_struct = UNSTUFF_BITS(resp, 60, 4);
+	if (scr_struct != 0) {
+		printk("%s: unrecognised SCR structure version %d\n",
+			mmc_hostname(card->host), scr_struct);
+		mmc_card_set_bad(card);
+		return;
+	}
+
+	scr->sda_vsn = UNSTUFF_BITS(resp, 56, 4);
+	scr->bus_widths = UNSTUFF_BITS(resp, 48, 4);
 }
 
 /*
@@ -789,6 +836,79 @@ static void mmc_read_csds(struct mmc_host *host)
 	}
 }
 
+static void mmc_read_scrs(struct mmc_host *host)
+{
+	int err;
+	struct mmc_card *card;
+
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+
+	struct scatterlist sg;
+
+	list_for_each_entry(card, &host->cards, node) {
+		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
+			continue;
+		if (!mmc_card_sd(card))
+			continue;
+
+		err = mmc_select_card(host, card);
+		if (err != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = MMC_APP_CMD;
+		cmd.arg = card->rca << 16;
+		cmd.flags = MMC_RSP_R1;
+
+		err = mmc_wait_for_cmd(host, &cmd, 0);
+		if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD)) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = SD_APP_SEND_SCR;
+		cmd.arg = 0;
+		cmd.flags = MMC_RSP_R1;
+
+		memset(&data, 0, sizeof(struct mmc_data));
+
+		data.timeout_ns = card->csd.tacc_ns * 10;
+		data.timeout_clks = card->csd.tacc_clks * 10;
+		data.blksz_bits = 3;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		mrq.cmd = &cmd;
+		mrq.data = &data;
+
+		sg_init_one(&sg, (u8*)card->raw_scr, 8);
+
+		err = mmc_wait_for_req(host, &mrq);
+		if (err != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		card->raw_scr[0] = ntohl(card->raw_scr[0]);
+		card->raw_scr[1] = ntohl(card->raw_scr[1]);
+
+		mmc_decode_scr(card);
+	}
+
+	mmc_deselect_cards(host);
+}
+
 static unsigned int mmc_calculate_clock(struct mmc_host *host)
 {
 	struct mmc_card *card;
@@ -912,6 +1032,9 @@ static void mmc_setup(struct mmc_host *host)
 	host->ops->set_ios(host, &host->ios);
 
 	mmc_read_csds(host);
+
+	if (host->mode == MMC_MODE_SD)
+		mmc_read_scrs(host);
 }
 
 
