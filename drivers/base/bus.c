@@ -156,7 +156,9 @@ static ssize_t driver_unbind(struct device_driver *drv,
 		device_release_driver(dev);
 		err = count;
 	}
-	return err;
+	if (err)
+		return err;
+	return count;
 }
 static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
 
@@ -358,7 +360,7 @@ int bus_add_device(struct device * dev)
 	if (bus) {
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
 		device_attach(dev);
-		klist_add_tail(&bus->klist_devices, &dev->knode_bus);
+		klist_add_tail(&dev->knode_bus, &bus->klist_devices);
 		error = device_add_attrs(bus, dev);
 		if (!error) {
 			sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
@@ -446,7 +448,7 @@ int bus_add_driver(struct device_driver * drv)
 		}
 
 		driver_attach(drv);
-		klist_add_tail(&bus->klist_drivers, &drv->knode_bus);
+		klist_add_tail(&drv->knode_bus, &bus->klist_drivers);
 		module_add_driver(drv->owner, drv);
 
 		driver_add_attrs(bus, drv);

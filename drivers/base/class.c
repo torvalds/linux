@@ -299,10 +299,8 @@ static void class_dev_release(struct kobject * kobj)
 
 	pr_debug("device class '%s': release.\n", cd->class_id);
 
-	if (cd->devt_attr) {
-		kfree(cd->devt_attr);
-		cd->devt_attr = NULL;
-	}
+	kfree(cd->devt_attr);
+	cd->devt_attr = NULL;
 
 	if (cls->release)
 		cls->release(cd);
@@ -452,10 +450,29 @@ void class_device_initialize(struct class_device *class_dev)
 	INIT_LIST_HEAD(&class_dev->node);
 }
 
+static char *make_class_name(struct class_device *class_dev)
+{
+	char *name;
+	int size;
+
+	size = strlen(class_dev->class->name) +
+		strlen(kobject_name(&class_dev->kobj)) + 2;
+
+	name = kmalloc(size, GFP_KERNEL);
+	if (!name)
+		return ERR_PTR(-ENOMEM);
+
+	strcpy(name, class_dev->class->name);
+	strcat(name, ":");
+	strcat(name, kobject_name(&class_dev->kobj));
+	return name;
+}
+
 int class_device_add(struct class_device *class_dev)
 {
 	struct class * parent = NULL;
 	struct class_interface * class_intf;
+	char *class_name = NULL;
 	int error;
 
 	class_dev = class_device_get(class_dev);
@@ -500,9 +517,13 @@ int class_device_add(struct class_device *class_dev)
 	}
 
 	class_device_add_attrs(class_dev);
-	if (class_dev->dev)
+	if (class_dev->dev) {
+		class_name = make_class_name(class_dev);
 		sysfs_create_link(&class_dev->kobj,
 				  &class_dev->dev->kobj, "device");
+		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
+				  class_name);
+	}
 
 	/* notify any interfaces this device is now here */
 	if (parent) {
@@ -519,6 +540,7 @@ int class_device_add(struct class_device *class_dev)
 	if (error && parent)
 		class_put(parent);
 	class_device_put(class_dev);
+	kfree(class_name);
 	return error;
 }
 
@@ -584,6 +606,7 @@ void class_device_del(struct class_device *class_dev)
 {
 	struct class * parent = class_dev->class;
 	struct class_interface * class_intf;
+	char *class_name = NULL;
 
 	if (parent) {
 		down(&parent->sem);
@@ -594,8 +617,11 @@ void class_device_del(struct class_device *class_dev)
 		up(&parent->sem);
 	}
 
-	if (class_dev->dev)
+	if (class_dev->dev) {
+		class_name = make_class_name(class_dev);
 		sysfs_remove_link(&class_dev->kobj, "device");
+		sysfs_remove_link(&class_dev->dev->kobj, class_name);
+	}
 	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
 	class_device_remove_attrs(class_dev);
@@ -605,6 +631,7 @@ void class_device_del(struct class_device *class_dev)
 
 	if (parent)
 		class_put(parent);
+	kfree(class_name);
 }
 
 void class_device_unregister(struct class_device *class_dev)
