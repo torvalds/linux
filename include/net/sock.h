@@ -1377,8 +1377,9 @@ extern void sk_init(void);
 
 #ifdef CONFIG_SYSCTL
 extern struct ctl_table core_table[];
-extern int sysctl_optmem_max;
 #endif
+
+extern int sysctl_optmem_max;
 
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;
