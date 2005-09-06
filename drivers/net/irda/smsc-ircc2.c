@@ -163,13 +163,13 @@ static void smsc_ircc_setup_io(struct smsc_ircc_cb *self, unsigned int fir_base,
 static void smsc_ircc_setup_qos(struct smsc_ircc_cb *self);
 static void smsc_ircc_init_chip(struct smsc_ircc_cb *self);
 static int __exit smsc_ircc_close(struct smsc_ircc_cb *self);
-static int  smsc_ircc_dma_receive(struct smsc_ircc_cb *self, int iobase);
-static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self, int iobase);
+static int  smsc_ircc_dma_receive(struct smsc_ircc_cb *self);
+static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_sir_receive(struct smsc_ircc_cb *self);
 static int  smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev);
 static int  smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev);
-static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int iobase, int bofs);
-static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self, int iobase);
+static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs);
+static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_change_speed(void *priv, u32 speed);
 static void smsc_ircc_set_sir_speed(void *priv, u32 speed);
 static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
@@ -758,7 +758,6 @@ int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	unsigned long flags;
-	int iobase;
 	s32 speed;
 
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
@@ -767,8 +766,6 @@ int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 
 	self = (struct smsc_ircc_cb *) dev->priv;
 	IRDA_ASSERT(self != NULL, return 0;);
-
-	iobase = self->io.sir_base;
 
 	netif_stop_queue(dev);
 
@@ -808,7 +805,7 @@ int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 	self->stats.tx_bytes += self->tx_buff.len;
 
 	/* Turn on transmit finished interrupt. Will fire immediately!  */
-	outb(UART_IER_THRI, iobase + UART_IER);
+	outb(UART_IER_THRI, self->io.sir_base + UART_IER);
 
 	spin_unlock_irqrestore(&self->lock, flags);
 
@@ -951,14 +948,12 @@ static void smsc_ircc_change_speed(void *priv, u32 speed)
 {
 	struct smsc_ircc_cb *self = (struct smsc_ircc_cb *) priv;
 	struct net_device *dev;
-	int iobase;
 	int last_speed_was_sir;
 
 	IRDA_DEBUG(0, "%s() changing speed to: %d\n", __FUNCTION__, speed);
 
 	IRDA_ASSERT(self != NULL, return;);
 	dev = self->netdev;
-	iobase = self->io.fir_base;
 
 	last_speed_was_sir = self->io.speed <= SMSC_IRCC2_MAX_SIR_SPEED;
 
@@ -1001,10 +996,10 @@ static void smsc_ircc_change_speed(void *priv, u32 speed)
 		self->tx_buff.len = 10;
 		self->tx_buff.data = self->tx_buff.head;
 
-		smsc_ircc_dma_xmit(self, iobase, 4000);
+		smsc_ircc_dma_xmit(self, 4000);
 		#endif
 		/* Be ready for incoming frames */
-		smsc_ircc_dma_receive(self, iobase);
+		smsc_ircc_dma_receive(self);
 	}
 
 	netif_wake_queue(dev);
@@ -1074,14 +1069,11 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 	struct smsc_ircc_cb *self;
 	unsigned long flags;
 	s32 speed;
-	int iobase;
 	int mtt;
 
 	IRDA_ASSERT(dev != NULL, return 0;);
 	self = (struct smsc_ircc_cb *) dev->priv;
 	IRDA_ASSERT(self != NULL, return 0;);
-
-	iobase = self->io.fir_base;
 
 	netif_stop_queue(dev);
 
@@ -1122,10 +1114,10 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 		if (bofs > 4095)
 			bofs = 4095;
 
-		smsc_ircc_dma_xmit(self, iobase, bofs);
+		smsc_ircc_dma_xmit(self, bofs);
 	} else {
 		/* Transmit frame */
-		smsc_ircc_dma_xmit(self, iobase, 0);
+		smsc_ircc_dma_xmit(self, 0);
 	}
 
 	spin_unlock_irqrestore(&self->lock, flags);
@@ -1135,13 +1127,14 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 }
 
 /*
- * Function smsc_ircc_dma_xmit (self, iobase)
+ * Function smsc_ircc_dma_xmit (self, bofs)
  *
  *    Transmit data using DMA
  *
  */
-static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int iobase, int bofs)
+static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs)
 {
+	int iobase = self->io.fir_base;
 	u8 ctrl;
 
 	IRDA_DEBUG(3, "%s\n", __FUNCTION__);
@@ -1194,17 +1187,19 @@ static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int iobase, int bofs)
  *    by the interrupt handler
  *
  */
-static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self, int iobase)
+static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self)
 {
+	int iobase = self->io.fir_base;
+
 	IRDA_DEBUG(3, "%s\n", __FUNCTION__);
 #if 0
 	/* Disable Tx */
 	register_bank(iobase, 0);
 	outb(0x00, iobase + IRCC_LCR_B);
 #endif
-	register_bank(self->io.fir_base, 1);
-	outb(inb(self->io.fir_base + IRCC_SCE_CFGB) & ~IRCC_CFGB_DMA_ENABLE,
-	     self->io.fir_base + IRCC_SCE_CFGB);
+	register_bank(iobase, 1);
+	outb(inb(iobase + IRCC_SCE_CFGB) & ~IRCC_CFGB_DMA_ENABLE,
+	     iobase + IRCC_SCE_CFGB);
 
 	/* Check for underrun! */
 	register_bank(iobase, 0);
@@ -1237,8 +1232,9 @@ static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self, int iobase)
  *    if it starts to receive a frame.
  *
  */
-static int smsc_ircc_dma_receive(struct smsc_ircc_cb *self, int iobase)
+static int smsc_ircc_dma_receive(struct smsc_ircc_cb *self)
 {
+	int iobase = self->io.fir_base;
 #if 0
 	/* Turn off chip DMA */
 	register_bank(iobase, 1);
@@ -1286,15 +1282,16 @@ static int smsc_ircc_dma_receive(struct smsc_ircc_cb *self, int iobase)
 }
 
 /*
- * Function smsc_ircc_dma_receive_complete(self, iobase)
+ * Function smsc_ircc_dma_receive_complete(self)
  *
  *    Finished with receiving frames
  *
  */
-static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self, int iobase)
+static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self)
 {
 	struct sk_buff *skb;
 	int len, msgcnt, lsr;
+	int iobase = self->io.fir_base;
 
 	register_bank(iobase, 0);
 
@@ -1435,11 +1432,11 @@ static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *re
 
 	if (iir & IRCC_IIR_EOM) {
 		if (self->io.direction == IO_RECV)
-			smsc_ircc_dma_receive_complete(self, iobase);
+			smsc_ircc_dma_receive_complete(self);
 		else
-			smsc_ircc_dma_xmit_complete(self, iobase);
+			smsc_ircc_dma_xmit_complete(self);
 
-		smsc_ircc_dma_receive(self, iobase);
+		smsc_ircc_dma_receive(self);
 	}
 
 	if (iir & IRCC_IIR_ACTIVE_FRAME) {
@@ -1549,7 +1546,6 @@ static int ircc_is_receiving(struct smsc_ircc_cb *self)
 static int smsc_ircc_net_open(struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
-	int iobase;
 	char hwname[16];
 	unsigned long flags;
 
@@ -1558,8 +1554,6 @@ static int smsc_ircc_net_open(struct net_device *dev)
 	IRDA_ASSERT(dev != NULL, return -1;);
 	self = (struct smsc_ircc_cb *) dev->priv;
 	IRDA_ASSERT(self != NULL, return 0;);
-
-	iobase = self->io.fir_base;
 
 	if (request_irq(self->io.irq, smsc_ircc_interrupt, 0, dev->name,
 			(void *) dev)) {
@@ -1610,15 +1604,12 @@ static int smsc_ircc_net_open(struct net_device *dev)
 static int smsc_ircc_net_close(struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
-	int iobase;
 
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 	self = (struct smsc_ircc_cb *) dev->priv;
 	IRDA_ASSERT(self != NULL, return 0;);
-
-	iobase = self->io.fir_base;
 
 	/* Stop device */
 	netif_stop_queue(dev);
