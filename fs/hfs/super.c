@@ -15,8 +15,10 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/parser.h>
+#include <linux/seq_file.h>
 #include <linux/vfs.h>
 
 #include "hfs_fs.h"
@@ -111,6 +113,28 @@ static int hfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+static int hfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
+{
+	struct hfs_sb_info *sbi = HFS_SB(mnt->mnt_sb);
+
+	if (sbi->s_creator != cpu_to_be32(0x3f3f3f3f))
+		seq_printf(seq, ",creator=%.4s", (char *)&sbi->s_creator);
+	if (sbi->s_type != cpu_to_be32(0x3f3f3f3f))
+		seq_printf(seq, ",type=%.4s", (char *)&sbi->s_type);
+	seq_printf(seq, ",uid=%u,gid=%u", sbi->s_uid, sbi->s_gid);
+	if (sbi->s_file_umask != 0133)
+		seq_printf(seq, ",file_umask=%o", sbi->s_file_umask);
+	if (sbi->s_dir_umask != 0022)
+		seq_printf(seq, ",dir_umask=%o", sbi->s_dir_umask);
+	if (sbi->part >= 0)
+		seq_printf(seq, ",part=%u", sbi->part);
+	if (sbi->session >= 0)
+		seq_printf(seq, ",session=%u", sbi->session);
+	if (sbi->s_quiet)
+		seq_printf(seq, ",quiet");
+	return 0;
+}
+
 static struct inode *hfs_alloc_inode(struct super_block *sb)
 {
 	struct hfs_inode_info *i;
@@ -133,6 +157,7 @@ static struct super_operations hfs_super_operations = {
 	.write_super	= hfs_write_super,
 	.statfs		= hfs_statfs,
 	.remount_fs     = hfs_remount,
+	.show_options	= hfs_show_options,
 };
 
 enum {

@@ -277,6 +277,7 @@ static struct super_operations hfsplus_sops = {
 	.write_super	= hfsplus_write_super,
 	.statfs		= hfsplus_statfs,
 	.remount_fs	= hfsplus_remount,
+	.show_options	= hfsplus_show_options,
 };
 
 static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
@@ -297,8 +298,8 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	memset(sbi, 0, sizeof(HFSPLUS_SB(sb)));
 	sb->s_fs_info = sbi;
 	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
-	fill_defaults(sbi);
-	if (!parse_options(data, sbi)) {
+	hfsplus_fill_defaults(sbi);
+	if (!hfsplus_parse_options(data, sbi)) {
 		if (!silent)
 			printk("HFS+-fs: unable to parse mount options\n");
 		err = -EINVAL;
