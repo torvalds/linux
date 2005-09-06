@@ -12,13 +12,6 @@ struct dmi_header {
 	u16 handle;
 };
 
-#undef DMI_DEBUG
-
-#ifdef DMI_DEBUG
-#define dmi_printk(x) printk x
-#else
-#define dmi_printk(x)
-#endif
 
 static char * __init dmi_string(struct dmi_header *dm, u8 s)
 {
@@ -117,29 +110,19 @@ static void __init dmi_decode(struct dmi_header *dm)
 	
 	switch(dm->type) {
 	case  0:
-		dmi_printk(("BIOS Vendor: %s\n", dmi_string(dm, data[4])));
 		dmi_save_ident(dm, DMI_BIOS_VENDOR, 4);
-		dmi_printk(("BIOS Version: %s\n", dmi_string(dm, data[5])));
 		dmi_save_ident(dm, DMI_BIOS_VERSION, 5);
-		dmi_printk(("BIOS Release: %s\n", dmi_string(dm, data[8])));
 		dmi_save_ident(dm, DMI_BIOS_DATE, 8);
 		break;
 	case 1:
-		dmi_printk(("System Vendor: %s\n", dmi_string(dm, data[4])));
 		dmi_save_ident(dm, DMI_SYS_VENDOR, 4);
-		dmi_printk(("Product Name: %s\n", dmi_string(dm, data[5])));
 		dmi_save_ident(dm, DMI_PRODUCT_NAME, 5);
-		dmi_printk(("Version: %s\n", dmi_string(dm, data[6])));
 		dmi_save_ident(dm, DMI_PRODUCT_VERSION, 6);
-		dmi_printk(("Serial Number: %s\n", dmi_string(dm, data[7])));
 		dmi_save_ident(dm, DMI_PRODUCT_SERIAL, 7);
 		break;
 	case 2:
-		dmi_printk(("Board Vendor: %s\n", dmi_string(dm, data[4])));
 		dmi_save_ident(dm, DMI_BOARD_VENDOR, 4);
-		dmi_printk(("Board Name: %s\n", dmi_string(dm, data[5])));
 		dmi_save_ident(dm, DMI_BOARD_NAME, 5);
-		dmi_printk(("Board Version: %s\n", dmi_string(dm, data[6])));
 		dmi_save_ident(dm, DMI_BOARD_VERSION, 6);
 		break;
 	}
@@ -176,10 +159,6 @@ void __init dmi_scan_machine(void)
 					buf[14] >> 4, buf[14] & 0xF);
 			else
 				printk(KERN_INFO "DMI present.\n");
-
-			dmi_printk((KERN_INFO "%d structures occupying %d bytes.\n",
-				num, len));
-			dmi_printk((KERN_INFO "DMI table at 0x%08X.\n", base));
 
 			if (dmi_table(base,len, num, dmi_decode) == 0)
 				return;
