@@ -42,6 +42,7 @@
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/random.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/firmware.h>
 #include <linux/wireless.h>

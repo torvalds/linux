@@ -170,7 +170,7 @@ int __init mdio_bus_init(void)
 	return bus_register(&mdio_bus_type);
 }
 
-void __exit mdio_bus_exit(void)
+void mdio_bus_exit(void)
 {
 	bus_unregister(&mdio_bus_type);
 }

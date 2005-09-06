@@ -408,10 +408,6 @@ static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
 static void eth_port_start(struct mv643xx_private *mp);
 
-static void ethernet_set_config_reg(unsigned int eth_port_num,
-				    unsigned int value);
-static unsigned int ethernet_get_config_reg(unsigned int eth_port_num);
-
 /* Port MAC address routines */
 static void eth_port_uc_addr_set(unsigned int eth_port_num,
 				 unsigned char *p_addr);
