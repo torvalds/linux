@@ -6,13 +6,6 @@
 #include <linux/bootmem.h>
 
 
-struct dmi_header {
-	u8 type;
-	u8 length;
-	u16 handle;
-};
-
-
 static char * __init dmi_string(struct dmi_header *dm, u8 s)
 {
 	u8 *bp = ((u8 *) dm) + dm->length;
@@ -88,6 +81,7 @@ static int __init dmi_checksum(u8 *buf)
 }
 
 static char *dmi_ident[DMI_STRING_MAX];
+static LIST_HEAD(dmi_devices);
 
 /*
  *	Save a DMI string
@@ -106,6 +100,58 @@ static void __init dmi_save_ident(struct dmi_header *dm, int slot, int string)
 	dmi_ident[slot] = p;
 }
 
+static void __init dmi_save_devices(struct dmi_header *dm)
+{
+	int i, count = (dm->length - sizeof(struct dmi_header)) / 2;
+	struct dmi_device *dev;
+
+	for (i = 0; i < count; i++) {
+		char *d = ((char *) dm) + (i * 2);
+
+		/* Skip disabled device */
+		if ((*d & 0x80) == 0)
+			continue;
+
+		dev = alloc_bootmem(sizeof(*dev));
+		if (!dev) {
+			printk(KERN_ERR "dmi_save_devices: out of memory.\n");
+			break;
+		}
+
+		dev->type = *d++ & 0x7f;
+		dev->name = dmi_string(dm, *d);
+		dev->device_data = NULL;
+
+		list_add(&dev->list, &dmi_devices);
+	}
+}
+
+static void __init dmi_save_ipmi_device(struct dmi_header *dm)
+{
+	struct dmi_device *dev;
+	void * data;
+
+	data = alloc_bootmem(dm->length);
+	if (data == NULL) {
+		printk(KERN_ERR "dmi_save_ipmi_device: out of memory.\n");
+		return;
+	}
+
+	memcpy(data, dm, dm->length);
+
+	dev = alloc_bootmem(sizeof(*dev));
+	if (!dev) {
+		printk(KERN_ERR "dmi_save_ipmi_device: out of memory.\n");
+		return;
+	}
+
+	dev->type = DMI_DEV_TYPE_IPMI;
+	dev->name = "IPMI controller";
+	dev->device_data = data;
+
+	list_add(&dev->list, &dmi_devices);
+}
+
 /*
  *	Process a DMI table entry. Right now all we care about are the BIOS
  *	and machine entries. For 2.5 we should pull the smbus controller info
@@ -113,25 +159,28 @@ static void __init dmi_save_ident(struct dmi_header *dm, int slot, int string)
  */
 static void __init dmi_decode(struct dmi_header *dm)
 {
-	u8 *data __attribute__((__unused__)) = (u8 *)dm;
-	
 	switch(dm->type) {
-	case  0:
+	case 0:		/* BIOS Information */
 		dmi_save_ident(dm, DMI_BIOS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BIOS_VERSION, 5);
 		dmi_save_ident(dm, DMI_BIOS_DATE, 8);
 		break;
-	case 1:
+	case 1:		/* System Information */
 		dmi_save_ident(dm, DMI_SYS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_PRODUCT_NAME, 5);
 		dmi_save_ident(dm, DMI_PRODUCT_VERSION, 6);
 		dmi_save_ident(dm, DMI_PRODUCT_SERIAL, 7);
 		break;
-	case 2:
+	case 2:		/* Base Board Information */
 		dmi_save_ident(dm, DMI_BOARD_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BOARD_NAME, 5);
 		dmi_save_ident(dm, DMI_BOARD_VERSION, 6);
 		break;
+	case 10:	/* Onboard Devices Information */
+		dmi_save_devices(dm);
+		break;
+	case 38:	/* IPMI Device Information */
+		dmi_save_ipmi_device(dm);
 	}
 }
 
@@ -221,3 +270,32 @@ char *dmi_get_system_info(int field)
 	return dmi_ident[field];
 }
 EXPORT_SYMBOL(dmi_get_system_info);
+
+/**
+ *	dmi_find_device - find onboard device by type/name
+ *	@type: device type or %DMI_DEV_TYPE_ANY to match all device types
+ *	@desc: device name string or %NULL to match all
+ *	@from: previous device found in search, or %NULL for new search.
+ *
+ *	Iterates through the list of known onboard devices. If a device is
+ *	found with a matching @vendor and @device, a pointer to its device
+ *	structure is returned.  Otherwise, %NULL is returned.
+ *	A new search is initiated by passing %NULL to the @from argument.
+ *	If @from is not %NULL, searches continue from next device.
+ */
+struct dmi_device * dmi_find_device(int type, const char *name,
+				    struct dmi_device *from)
+{
+	struct list_head *d, *head = from ? &from->list : &dmi_devices;
+
+	for(d = head->next; d != &dmi_devices; d = d->next) {
+		struct dmi_device *dev = list_entry(d, struct dmi_device, list);
+
+		if (((type == DMI_DEV_TYPE_ANY) || (dev->type == type)) &&
+		    ((name == NULL) || (strcmp(dev->name, name) == 0)))
+			return dev;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(dmi_find_device);
