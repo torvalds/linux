@@ -77,8 +77,6 @@ static inline void add_usec_to_timer(struct timer_list *t, long v)
 #include <linux/init.h>
 #include <linux/dmi.h>
 
-#define IPMI_SI_VERSION "v33"
-
 /* Measure times between events in the driver. */
 #undef DEBUG_TIMING
 
@@ -2310,15 +2308,7 @@ static __init int init_ipmi_si(void)
 		}
 	}
 
-	printk(KERN_INFO "IPMI System Interface driver version "
-	       IPMI_SI_VERSION);
-	if (kcs_smi_handlers.version)
-		printk(", KCS version %s", kcs_smi_handlers.version);
-	if (smic_smi_handlers.version)
-		printk(", SMIC version %s", smic_smi_handlers.version);
-	if (bt_smi_handlers.version)
-   	        printk(", BT version %s", bt_smi_handlers.version);
-	printk("\n");
+	printk(KERN_INFO "IPMI System Interface driver.\n");
 
 #ifdef CONFIG_X86
 	dmi_find_bmc();
@@ -2430,3 +2420,5 @@ static __exit void cleanup_ipmi_si(void)
 module_exit(cleanup_ipmi_si);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("Interface to the IPMI driver for the KCS, SMIC, and BT system interfaces.");

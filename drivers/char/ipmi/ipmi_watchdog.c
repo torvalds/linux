@@ -53,8 +53,6 @@
 
 #define	PFX "IPMI Watchdog: "
 
-#define IPMI_WATCHDOG_VERSION "v33"
-
 /*
  * The IPMI command/response information for the watchdog timer.
  */
@@ -928,9 +926,6 @@ static int __init ipmi_wdog_init(void)
 {
 	int rv;
 
-	printk(KERN_INFO PFX "driver version "
-	       IPMI_WATCHDOG_VERSION "\n");
-
 	if (strcmp(action, "reset") == 0) {
 		action_val = WDOG_TIMEOUT_RESET;
 	} else if (strcmp(action, "none") == 0) {
@@ -1015,6 +1010,8 @@ static int __init ipmi_wdog_init(void)
 	register_reboot_notifier(&wdog_reboot_notifier);
 	notifier_chain_register(&panic_notifier_list, &wdog_panic_notifier);
 
+	printk(KERN_INFO PFX "driver initialized\n");
+
 	return 0;
 }
 
@@ -1066,3 +1063,5 @@ static void __exit ipmi_wdog_exit(void)
 module_exit(ipmi_wdog_exit);
 module_init(ipmi_wdog_init);
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("watchdog timer based upon the IPMI interface.");

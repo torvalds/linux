@@ -31,8 +31,6 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-#define IPMI_BT_VERSION "v33"
-
 static int bt_debug = 0x00;	/* Production value 0, see following flags */
 
 #define	BT_DEBUG_ENABLE	1
@@ -501,7 +499,6 @@ static int bt_size(void)
 
 struct si_sm_handlers bt_smi_handlers =
 {
-	.version           = IPMI_BT_VERSION,
 	.init_data         = bt_init_data,
 	.start_transaction = bt_start_transaction,
 	.get_result        = bt_get_result,

@@ -42,7 +42,6 @@
 #include <linux/ipmi_smi.h>
 
 #define PFX "IPMI poweroff: "
-#define IPMI_POWEROFF_VERSION	"v33"
 
 /* Where to we insert our poweroff function? */
 extern void (*pm_power_off)(void);
@@ -582,8 +581,7 @@ static int ipmi_poweroff_init (void)
 	struct proc_dir_entry *file;
 
 	printk ("Copyright (C) 2004 MontaVista Software -"
-		" IPMI Powerdown via sys_reboot version "
-		IPMI_POWEROFF_VERSION ".\n");
+		" IPMI Powerdown via sys_reboot.\n");
 
 	switch (poweroff_control) {
 		case IPMI_CHASSIS_POWER_CYCLE:
@@ -642,3 +640,5 @@ module_exit(ipmi_poweroff_cleanup);
 
 module_init(ipmi_poweroff_init);
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("IPMI Poweroff extension to sys_reboot");

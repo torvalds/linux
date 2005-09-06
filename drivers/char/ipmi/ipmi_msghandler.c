@@ -47,7 +47,8 @@
 #include <linux/proc_fs.h>
 
 #define PFX "IPMI message handler: "
-#define IPMI_MSGHANDLER_VERSION "v33"
+
+#define IPMI_DRIVER_VERSION "36.0"
 
 static struct ipmi_recv_msg *ipmi_alloc_recv_msg(void);
 static int ipmi_init_msghandler(void);
@@ -3150,7 +3151,7 @@ static int ipmi_init_msghandler(void)
 		return 0;
 
 	printk(KERN_INFO "ipmi message handler version "
-	       IPMI_MSGHANDLER_VERSION "\n");
+	       IPMI_DRIVER_VERSION "\n");
 
 	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
 		ipmi_interfaces[i] = NULL;
@@ -3222,6 +3223,9 @@ module_exit(cleanup_ipmi);
 
 module_init(ipmi_init_msghandler_mod);
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("Incoming and outgoing message routing for an IPMI interface.");
+MODULE_VERSION(IPMI_DRIVER_VERSION);
 
 EXPORT_SYMBOL(ipmi_create_user);
 EXPORT_SYMBOL(ipmi_destroy_user);

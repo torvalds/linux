@@ -47,8 +47,6 @@
 #include <linux/device.h>
 #include <linux/compat.h>
 
-#define IPMI_DEVINTF_VERSION "v33"
-
 struct ipmi_file_private
 {
 	ipmi_user_t          user;
@@ -822,8 +820,7 @@ static __init int init_ipmi_devintf(void)
 	if (ipmi_major < 0)
 		return -EINVAL;
 
-	printk(KERN_INFO "ipmi device interface version "
-	       IPMI_DEVINTF_VERSION "\n");
+	printk(KERN_INFO "ipmi device interface\n");
 
 	ipmi_class = class_create(THIS_MODULE, "ipmi");
 	if (IS_ERR(ipmi_class)) {
@@ -866,3 +863,5 @@ static __exit void cleanup_ipmi(void)
 module_exit(cleanup_ipmi);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("Linux device interface for the IPMI message handler.");
