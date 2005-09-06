@@ -297,15 +297,21 @@ static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsm
 	return -ENOENT;
 }
 
-static int proc_cwd_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+static struct fs_struct *get_fs_struct(struct task_struct *task)
 {
 	struct fs_struct *fs;
-	int result = -ENOENT;
-	task_lock(proc_task(inode));
-	fs = proc_task(inode)->fs;
+	task_lock(task);
+	fs = task->fs;
 	if(fs)
 		atomic_inc(&fs->count);
-	task_unlock(proc_task(inode));
+	task_unlock(task);
+	return fs;
+}
+
+static int proc_cwd_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+{
+	struct fs_struct *fs = get_fs_struct(proc_task(inode));
+	int result = -ENOENT;
 	if (fs) {
 		read_lock(&fs->lock);
 		*mnt = mntget(fs->pwdmnt);
@@ -319,13 +325,8 @@ static int proc_cwd_link(struct inode *inode, struct dentry **dentry, struct vfs
 
 static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
 {
-	struct fs_struct *fs;
+	struct fs_struct *fs = get_fs_struct(proc_task(inode));
 	int result = -ENOENT;
-	task_lock(proc_task(inode));
-	fs = proc_task(inode)->fs;
-	if(fs)
-		atomic_inc(&fs->count);
-	task_unlock(proc_task(inode));
 	if (fs) {
 		read_lock(&fs->lock);
 		*mnt = mntget(fs->rootmnt);
