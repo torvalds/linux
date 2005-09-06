@@ -44,7 +44,7 @@
 /*
  * The High Precision Event Timer driver.
  * This driver is closely modelled after the rtc.c driver.
- * http://www.intel.com/labs/platcomp/hpet/hpetspec.htm
+ * http://www.intel.com/hardwaredesign/hpetspec.htm
  */
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)
@@ -712,7 +712,7 @@ static void hpet_register_interpolator(struct hpets *hpetp)
 	ti->shift = 10;
 	ti->addr = &hpetp->hp_hpet->hpet_mc;
 	ti->frequency = hpet_time_div(hpets->hp_period);
-	ti->drift = ti->frequency * HPET_DRIFT / 1000000;
+	ti->drift = HPET_DRIFT;
 	ti->mask = -1;
 
 	hpetp->hp_interpolator = ti;
