@@ -35,6 +35,7 @@
 #define __LINUX_IPMI_H
 
 #include <linux/ipmi_msgdefs.h>
+#include <linux/compiler.h>
 
 /*
  * This file describes an interface to an IPMI driver.  You have to
