@@ -62,6 +62,7 @@ MODULE_PARM_DESC(poweroff_control, " Set to 2 to enable power cycle instead of p
 static unsigned int mfg_id;
 static unsigned int prod_id;
 static unsigned char capabilities;
+static unsigned char ipmi_version;
 
 /* We use our own messages for this operation, we don't let the system
    allocate them, since we may be in a panic situation.  The whole
@@ -337,6 +338,25 @@ static void ipmi_poweroff_cpi1 (ipmi_user_t user)
 }
 
 /*
+ * ipmi_dell_chassis_detect()
+ * Dell systems with IPMI < 1.5 don't set the chassis capability bit
+ * but they can handle a chassis poweroff or powercycle command.
+ */
+
+#define DELL_IANA_MFR_ID {0xA2, 0x02, 0x00}
+static int ipmi_dell_chassis_detect (ipmi_user_t user)
+{
+	const char ipmi_version_major = ipmi_version & 0xF;
+	const char ipmi_version_minor = (ipmi_version >> 4) & 0xF;
+	const char mfr[3]=DELL_IANA_MFR_ID;
+	if (!memcmp(mfr, &mfg_id, sizeof(mfr)) &&
+	    ipmi_version_major <= 1 &&
+	    ipmi_version_minor < 5)
+		return 1;
+	return 0;
+}
+
+/*
  * Standard chassis support
  */
 
@@ -413,6 +433,9 @@ static struct poweroff_function poweroff_functions[] = {
 	{ .platform_type	= "CPI1",
 	  .detect		= ipmi_cpi1_detect,
 	  .poweroff_func	= ipmi_poweroff_cpi1 },
+	{ .platform_type	= "chassis",
+	  .detect		= ipmi_dell_chassis_detect,
+	  .poweroff_func	= ipmi_poweroff_chassis },
 	/* Chassis should generally be last, other things should override
 	   it. */
 	{ .platform_type	= "chassis",
@@ -498,6 +521,7 @@ static void ipmi_po_new_smi(int if_num)
 	prod_id = (halt_recv_msg.msg.data[10]
 		   | (halt_recv_msg.msg.data[11] << 8));
 	capabilities = halt_recv_msg.msg.data[6];
+	ipmi_version = halt_recv_msg.msg.data[5];
 
 
 	/* Scan for a poweroff method */
