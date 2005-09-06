@@ -13,12 +13,9 @@
 #define WANT_PPCDBG_TAB /* Only defined here */
 #include <linux/config.h>
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <asm/ppcdebug.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
-#include <asm/machdep.h>
-#include <asm/io.h>
-#include <asm/prom.h>
 
 void (*udbg_putc)(unsigned char c);
 unsigned char (*udbg_getc)(void);

@@ -10,13 +10,8 @@
  */
 #include <linux/config.h>
 #include <linux/types.h>
-#include <asm/ppcdebug.h>
-#include <asm/processor.h>
-#include <asm/naca.h>
-#include <asm/uaccess.h>
-#include <asm/machdep.h>
+#include <asm/udbg.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 
 extern u8 real_readb(volatile u8 __iomem  *addr);
 extern void real_writeb(u8 data, volatile u8 __iomem *addr);

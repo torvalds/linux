@@ -10,11 +10,9 @@
  */
 #include <linux/config.h>
 #include <linux/types.h>
-#include <asm/ppcdebug.h>
+#include <asm/udbg.h>
 #include <asm/processor.h>
 #include <asm/naca.h>
-#include <asm/uaccess.h>
-#include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pmac_feature.h>
