@@ -36,6 +36,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/workqueue.h>
+#include <linux/prefetch.h>
 
 #include <net/checksum.h>
 
@@ -3278,8 +3279,9 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
-	struct tg3_hw_status *sblk = tp->hw_status;
 
+	prefetch(tp->hw_status);
+	prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
 	/*
 	 * Writing any value to intr-mbox-0 clears PCI INTA# and
 	 * chip-internal interrupt pending events.
@@ -3288,19 +3290,9 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 	 * event coalescing.
 	 */
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
-	tp->last_tag = sblk->status_tag;
-	rmb();
-	if (tg3_irq_sync(tp))
-		goto out;
-	sblk->status &= ~SD_STATUS_UPDATED;
-	if (likely(tg3_has_work(tp)))
+	if (likely(!tg3_irq_sync(tp)))
 		netif_rx_schedule(dev);		/* schedule NAPI poll */
-	else {
-		/* No work, re-enable interrupts.  */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     tp->last_tag << 24);
-	}
-out:
+
 	return IRQ_RETVAL(1);
 }
 
@@ -3330,9 +3322,10 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (tg3_irq_sync(tp))
 			goto out;
 		sblk->status &= ~SD_STATUS_UPDATED;
-		if (likely(tg3_has_work(tp)))
+		if (likely(tg3_has_work(tp))) {
+			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
 			netif_rx_schedule(dev);		/* schedule NAPI poll */
-		else {
+		} else {
 			/* No work, shared interrupt perhaps?  re-enable
 			 * interrupts, and flush that PCI write
 			 */
@@ -3374,9 +3367,10 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 		if (tg3_irq_sync(tp))
 			goto out;
 		sblk->status &= ~SD_STATUS_UPDATED;
-		if (likely(tg3_has_work(tp)))
+		if (likely(tg3_has_work(tp))) {
+			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
 			netif_rx_schedule(dev);		/* schedule NAPI poll */
-		else {
+		} else {
 			/* no work, shared interrupt perhaps?  re-enable
 			 * interrupts, and flush that PCI write
 			 */
