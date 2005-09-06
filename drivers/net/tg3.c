@@ -5962,7 +5962,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32(MAC_LED_CTRL, tp->led_ctrl);
 
 	tw32(MAC_MI_STAT, MAC_MI_STAT_LNKSTAT_ATTN_ENAB);
-	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
+	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) {
 		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
 		udelay(10);
 	}
@@ -7618,7 +7618,7 @@ static int tg3_test_link(struct tg3 *tp)
 	if (!netif_running(tp->dev))
 		return -ENODEV;
 
-	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES)
 		max = TG3_SERDES_TIMEOUT_SEC;
 	else
 		max = TG3_COPPER_TIMEOUT_SEC;
@@ -8305,7 +8305,8 @@ static void __devinit tg3_get_nvram_info(struct tg3 *tp)
 		tw32(NVRAM_CFG1, nvcfg1);
 	}
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) {
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)) {
 		switch (nvcfg1 & NVRAM_CFG1_VENDOR_MASK) {
 			case FLASH_VENDOR_ATMEL_FLASH_BUFFERED:
 				tp->nvram_jedecnum = JEDEC_ATMEL;
@@ -8719,8 +8720,9 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 		if (i == (len - 4))
 			nvram_cmd |= NVRAM_CMD_LAST;
 
-		if ((tp->nvram_jedecnum == JEDEC_ST) &&
-			(nvram_cmd & NVRAM_CMD_FIRST)) {
+		if ((GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752) &&
+		    (tp->nvram_jedecnum == JEDEC_ST) &&
+		    (nvram_cmd & NVRAM_CMD_FIRST)) {
 
 			if ((ret = tg3_nvram_exec_cmd(tp,
 				NVRAM_CMD_WREN | NVRAM_CMD_GO |
