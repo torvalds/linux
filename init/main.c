@@ -708,10 +708,11 @@ static int init(void * unused)
 	 * The Bourne shell can be used instead of init if we are 
 	 * trying to recover a really broken machine.
 	 */
-
-	if (execute_command)
+	if (execute_command) {
 		run_init_process(execute_command);
-
+		printk(KERN_WARNING "Failed to execute %s.  Attempting "
+					"defaults...\n", execute_command);
+	}
 	run_init_process("/sbin/init");
 	run_init_process("/etc/init");
 	run_init_process("/bin/init");
