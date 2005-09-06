@@ -31,7 +31,7 @@ obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o prom.o
 
 obj-$(CONFIG_PPC_PSERIES) += pSeries_pci.o pSeries_lpar.o pSeries_hvCall.o \
 			     pSeries_nvram.o rtasd.o ras.o pSeries_reconfig.o \
-			     pSeries_setup.o pSeries_iommu.o
+			     pSeries_setup.o pSeries_iommu.o udbg_16550.o
 
 obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
 			 bpa_iic.o spider-pic.o
@@ -58,9 +58,11 @@ obj-$(CONFIG_XICS)		+= xics.o
 obj-$(CONFIG_MPIC)		+= mpic.o
 
 obj-$(CONFIG_PPC_PMAC)		+= pmac_setup.o pmac_feature.o pmac_pci.o \
-				   pmac_time.o pmac_nvram.o pmac_low_i2c.o
+				   pmac_time.o pmac_nvram.o pmac_low_i2c.o \
+				   udbg_scc.o
 
-obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o
+obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o \
+				   udbg_16550.o
 
 obj-$(CONFIG_U3_DART)		+= u3_iommu.o
 
