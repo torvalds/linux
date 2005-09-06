@@ -117,7 +117,7 @@ struct seq_table
 	do {								\
 		seq = ((msgid >> 26) & 0x3f);				\
 		seqid = (msgid & 0x3fffff);				\
-        } while(0)
+        } while (0)
 
 #define NEXT_SEQID(seqid) (((seqid) + 1) & 0x3fffff)
 
@@ -326,7 +326,7 @@ int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 	down_read(&interfaces_sem);
 	down_write(&smi_watchers_sem);
 	list_add(&(watcher->link), &smi_watchers);
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		if (ipmi_interfaces[i] != NULL) {
 			watcher->new_smi(i);
 		}
@@ -496,9 +496,9 @@ static int intf_next_seq(ipmi_smi_t           intf,
 	int          rv = 0;
 	unsigned int i;
 
-	for (i=intf->curr_seq;
+	for (i = intf->curr_seq;
 	     (i+1)%IPMI_IPMB_NUM_SEQ != intf->curr_seq;
-	     i=(i+1)%IPMI_IPMB_NUM_SEQ)
+	     i = (i+1)%IPMI_IPMB_NUM_SEQ)
 	{
 		if (! intf->seq_table[i].inuse)
 			break;
@@ -733,7 +733,7 @@ static int ipmi_destroy_user_nolock(ipmi_user_t user)
 
 	/* Remove the user from the interfaces sequence table. */
 	spin_lock_irqsave(&(user->intf->seq_lock), flags);
-	for (i=0; i<IPMI_IPMB_NUM_SEQ; i++) {
+	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++) {
 		if (user->intf->seq_table[i].inuse
 		    && (user->intf->seq_table[i].recv_msg->user == user))
 		{
@@ -1370,7 +1370,7 @@ static inline int i_ipmi_request(ipmi_user_t          user,
 #ifdef DEBUG_MSGING
 	{
 		int m;
-		for (m=0; m<smi_msg->data_size; m++)
+		for (m = 0; m < smi_msg->data_size; m++)
 			printk(" %2.2x", smi_msg->data[m]);
 		printk("\n");
 	}
@@ -1467,7 +1467,7 @@ static int ipmb_file_read_proc(char *page, char **start, off_t off,
 	int        i;
 	int        rv= 0;
 
-	for (i=0; i<IPMI_MAX_CHANNELS; i++)
+	for (i = 0; i < IPMI_MAX_CHANNELS; i++)
 		rv += sprintf(out+rv, "%x ", intf->channels[i].address);
 	out[rv-1] = '\n'; /* Replace the final space with a newline */
 	out[rv] = '\0';
@@ -1766,12 +1766,12 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 	rv = -ENOMEM;
 
 	down_write(&interfaces_sem);
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		if (ipmi_interfaces[i] == NULL) {
 			new_intf->intf_num = i;
 			new_intf->version_major = version_major;
 			new_intf->version_minor = version_minor;
-			for (j=0; j<IPMI_MAX_CHANNELS; j++) {
+			for (j = 0; j < IPMI_MAX_CHANNELS; j++) {
 				new_intf->channels[j].address
 					= IPMI_BMC_SLAVE_ADDR;
 				new_intf->channels[j].lun = 2;
@@ -1783,7 +1783,7 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 			new_intf->handlers = handlers;
 			new_intf->send_info = send_info;
 			spin_lock_init(&(new_intf->seq_lock));
-			for (j=0; j<IPMI_IPMB_NUM_SEQ; j++) {
+			for (j = 0; j < IPMI_IPMB_NUM_SEQ; j++) {
 				new_intf->seq_table[j].inuse = 0;
 				new_intf->seq_table[j].seqid = 0;
 			}
@@ -1891,7 +1891,7 @@ static void clean_up_interface_data(ipmi_smi_t intf)
 	free_recv_msg_list(&(intf->waiting_events));
 	free_cmd_rcvr_list(&(intf->cmd_rcvrs));
 
-	for (i=0; i<IPMI_IPMB_NUM_SEQ; i++) {
+	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++) {
 		if ((intf->seq_table[i].inuse)
 		    && (intf->seq_table[i].recv_msg))
 		{
@@ -1910,7 +1910,7 @@ int ipmi_unregister_smi(ipmi_smi_t intf)
 	down_write(&interfaces_sem);
 	if (list_empty(&(intf->users)))
 	{
-		for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+		for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 			if (ipmi_interfaces[i] == intf) {
 				remove_proc_entries(intf);
 				spin_lock_irqsave(&interfaces_lock, flags);
@@ -2074,7 +2074,7 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 	{
 		int m;
 		printk("Invalid command:");
-		for (m=0; m<msg->data_size; m++)
+		for (m = 0; m < msg->data_size; m++)
 			printk(" %2.2x", msg->data[m]);
 		printk("\n");
 	}
@@ -2469,7 +2469,7 @@ static int handle_new_recv_msg(ipmi_smi_t          intf,
 #ifdef DEBUG_MSGING
 	int m;
 	printk("Recv:");
-	for (m=0; m<msg->rsp_size; m++)
+	for (m = 0; m < msg->rsp_size; m++)
 		printk(" %2.2x", msg->rsp[m]);
 	printk("\n");
 #endif
@@ -2703,7 +2703,7 @@ smi_from_recv_msg(ipmi_smi_t intf, struct ipmi_recv_msg *recv_msg,
 	{
 		int m;
 		printk("Resend: ");
-		for (m=0; m<smi_msg->data_size; m++)
+		for (m = 0; m < smi_msg->data_size; m++)
 			printk(" %2.2x", smi_msg->data[m]);
 		printk("\n");
 	}
@@ -2724,7 +2724,7 @@ ipmi_timeout_handler(long timeout_period)
 	INIT_LIST_HEAD(&timeouts);
 
 	spin_lock(&interfaces_lock);
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		intf = ipmi_interfaces[i];
 		if (intf == NULL)
 			continue;
@@ -2749,7 +2749,7 @@ ipmi_timeout_handler(long timeout_period)
 		   have timed out, putting them in the timeouts
 		   list. */
 		spin_lock_irqsave(&(intf->seq_lock), flags);
-		for (j=0; j<IPMI_IPMB_NUM_SEQ; j++) {
+		for (j = 0; j < IPMI_IPMB_NUM_SEQ; j++) {
 			struct seq_table *ent = &(intf->seq_table[j]);
 			if (!ent->inuse)
 				continue;
@@ -2789,7 +2789,7 @@ ipmi_timeout_handler(long timeout_period)
 				spin_unlock(&intf->counter_lock);
 				smi_msg = smi_from_recv_msg(intf,
 						ent->recv_msg, j, ent->seqid);
-				if(!smi_msg)
+				if (! smi_msg)
 					continue;
 
 				spin_unlock_irqrestore(&(intf->seq_lock),flags);
@@ -2820,7 +2820,7 @@ static void ipmi_request_event(void)
 	int        i;
 
 	spin_lock(&interfaces_lock);
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		intf = ipmi_interfaces[i];
 		if (intf == NULL)
 			continue;
@@ -2982,7 +2982,7 @@ static void send_panic_events(char *str)
 	recv_msg.done = dummy_recv_done_handler;
 
 	/* For every registered interface, send the event. */
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		intf = ipmi_interfaces[i];
 		if (intf == NULL)
 			continue;
@@ -3009,7 +3009,7 @@ static void send_panic_events(char *str)
 	if (!str) 
 		return;
 
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		char                  *p = str;
 		struct ipmi_ipmb_addr *ipmb;
 		int                   j;
@@ -3149,7 +3149,7 @@ static int panic_event(struct notifier_block *this,
 	has_paniced = 1;
 
 	/* For every registered interface, set it to run to completion. */
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		intf = ipmi_interfaces[i];
 		if (intf == NULL)
 			continue;
@@ -3180,7 +3180,7 @@ static int ipmi_init_msghandler(void)
 	printk(KERN_INFO "ipmi message handler version "
 	       IPMI_DRIVER_VERSION "\n");
 
-	for (i=0; i<MAX_IPMI_INTERFACES; i++) {
+	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {
 		ipmi_interfaces[i] = NULL;
 	}
 

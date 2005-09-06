@@ -657,19 +657,18 @@ static ssize_t ipmi_read(struct file *file,
 
 static int ipmi_open(struct inode *ino, struct file *filep)
 {
-        switch (iminor(ino))
-        {
-                case WATCHDOG_MINOR:
-		    if(test_and_set_bit(0, &ipmi_wdog_open))
+        switch (iminor(ino)) {
+        case WATCHDOG_MINOR:
+		if (test_and_set_bit(0, &ipmi_wdog_open))
                         return -EBUSY;
 
-		    /* Don't start the timer now, let it start on the
-		       first heartbeat. */
-		    ipmi_start_timer_on_heartbeat = 1;
-                    return nonseekable_open(ino, filep);
+		/* Don't start the timer now, let it start on the
+		   first heartbeat. */
+		ipmi_start_timer_on_heartbeat = 1;
+		return nonseekable_open(ino, filep);
 
-                default:
-                    return (-ENODEV);
+	default:
+		return (-ENODEV);
         }
 }
 

@@ -525,7 +525,7 @@ static void ipmi_po_new_smi(int if_num)
 
 
 	/* Scan for a poweroff method */
-	for (i=0; i<NUM_PO_FUNCS; i++) {
+	for (i = 0; i < NUM_PO_FUNCS; i++) {
 		if (poweroff_functions[i].detect(ipmi_user))
 			goto found;
 	}
