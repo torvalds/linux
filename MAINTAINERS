@@ -696,6 +696,11 @@ M:	dz@debian.org
 W:	http://www.debian.org/~dz/i8k/
 S:	Maintained
 
+DELL SYSTEMS MANAGEMENT BASE DRIVER (dcdbas)
+P:	Doug Warzecha
+M:	Douglas_Warzecha@dell.com
+S:	Maintained
+
 DEVICE-MAPPER
 P:	Alasdair Kergon
 L:	dm-devel@redhat.com
