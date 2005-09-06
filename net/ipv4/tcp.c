@@ -769,10 +769,10 @@ new_segment:
 					if (off == PAGE_SIZE) {
 						put_page(page);
 						TCP_PAGE(sk) = page = NULL;
-						TCP_OFF(sk) = off = 0;
+						off = 0;
 					}
 				} else
-					BUG_ON(off);
+					off = 0;
 
 				if (copy > PAGE_SIZE - off)
 					copy = PAGE_SIZE - off;
