@@ -938,6 +938,9 @@ void ip_conntrack_unexpect_related(struct ip_conntrack_expect *exp)
 	write_unlock_bh(&ip_conntrack_lock);
 }
 
+/* We don't increase the master conntrack refcount for non-fulfilled
+ * conntracks. During the conntrack destruction, the expectations are 
+ * always killed before the conntrack itself */
 struct ip_conntrack_expect *ip_conntrack_expect_alloc(struct ip_conntrack *me)
 {
 	struct ip_conntrack_expect *new;
@@ -948,17 +951,14 @@ struct ip_conntrack_expect *ip_conntrack_expect_alloc(struct ip_conntrack *me)
 		return NULL;
 	}
 	new->master = me;
-	atomic_inc(&new->master->ct_general.use);
 	atomic_set(&new->use, 1);
 	return new;
 }
 
 void ip_conntrack_expect_put(struct ip_conntrack_expect *exp)
 {
-	if (atomic_dec_and_test(&exp->use)) {
-		ip_conntrack_put(exp->master);
+	if (atomic_dec_and_test(&exp->use))
 		kmem_cache_free(ip_conntrack_expect_cachep, exp);
-	}
 }
 
 static void ip_conntrack_expect_insert(struct ip_conntrack_expect *exp)
