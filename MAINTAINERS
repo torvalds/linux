@@ -877,7 +877,7 @@ S:	Maintained
 
 FILESYSTEMS (VFS and infrastructure)
 P:	Alexander Viro
-M:	viro@parcelfarce.linux.theplanet.co.uk
+M:	viro@zeniv.linux.org.uk
 S:	Maintained
 
 FIRMWARE LOADER (request_firmware)
