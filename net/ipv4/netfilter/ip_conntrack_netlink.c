@@ -1413,6 +1413,7 @@ ctnetlink_create_expect(struct nfattr *cda[])
 	}
 	
 	exp->expectfn = NULL;
+	exp->flags = 0;
 	exp->master = ct;
 	memcpy(&exp->tuple, &tuple, sizeof(struct ip_conntrack_tuple));
 	memcpy(&exp->mask, &mask, sizeof(struct ip_conntrack_tuple));

@@ -264,10 +264,14 @@ find_expectation(const struct ip_conntrack_tuple *tuple)
 		   master ct never got confirmed, we'd hold a reference to it
 		   and weird things would happen to future packets). */
 		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)
-		    && is_confirmed(i->master)
-		    && del_timer(&i->timeout)) {
-			unlink_expect(i);
-			return i;
+		    && is_confirmed(i->master)) {
+			if (i->flags & IP_CT_EXPECT_PERMANENT) {
+				atomic_inc(&i->use);
+				return i;
+			} else if (del_timer(&i->timeout)) {
+				unlink_expect(i);
+				return i;
+			}
 		}
 	}
 	return NULL;
