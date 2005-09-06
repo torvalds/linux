@@ -341,11 +341,11 @@ set_rcvbuf:
 				sock_reset_flag(sk, SOCK_LINGER);
 			else {
 #if (BITS_PER_LONG == 32)
-				if (ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
+				if ((unsigned int)ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
 					sk->sk_lingertime = MAX_SCHEDULE_TIMEOUT;
 				else
 #endif
-					sk->sk_lingertime = ling.l_linger * HZ;
+					sk->sk_lingertime = (unsigned int)ling.l_linger * HZ;
 				sock_set_flag(sk, SOCK_LINGER);
 			}
 			break;
