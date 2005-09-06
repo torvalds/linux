@@ -163,7 +163,6 @@ struct smsc_ircc_cb {
 /* Constants */
 
 static const char *driver_name = "smsc-ircc2";
-#define	DIM(x)	(sizeof(x)/(sizeof(*(x))))
 #define SMSC_IRCC2_C_IRDA_FALLBACK_SPEED	9600
 #define SMSC_IRCC2_C_DEFAULT_TRANSCEIVER	1
 #define SMSC_IRCC2_C_NET_TIMEOUT		0
@@ -240,7 +239,7 @@ static smsc_transceiver_t smsc_transceivers[] =
 	{ "ATC IRMode", smsc_ircc_set_transceiver_smsc_ircc_atc, smsc_ircc_probe_transceiver_smsc_ircc_atc },
 	{ NULL, NULL }
 };
-#define SMSC_IRCC2_C_NUMBER_OF_TRANSCEIVERS (DIM(smsc_transceivers)-1)
+#define SMSC_IRCC2_C_NUMBER_OF_TRANSCEIVERS (ARRAY_SIZE(smsc_transceivers) - 1)
 
 /*  SMC SuperIO chipsets definitions */
 
@@ -400,7 +399,7 @@ static int __init smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u
 		goto err_out;
 
 	err = -ENOMEM;
-	if (dev_count > DIM(dev_self)) {
+	if (dev_count >= ARRAY_SIZE(dev_self)) {
 	        IRDA_WARNING("%s(), too many devices!\n", __FUNCTION__);
 		goto err_out1;
 	}
