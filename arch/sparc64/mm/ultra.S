@@ -119,7 +119,7 @@ __spitfire_flush_tlb_mm_slow:
 #else
 #error unsupported PAGE_SIZE
 #endif
-	.section .kprobes.text
+	.section .kprobes.text, "ax"
 	.align		32
 	.globl		__flush_icache_page
 __flush_icache_page:	/* %o0 = phys_page */
