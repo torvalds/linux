@@ -335,6 +335,40 @@ static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 	if (err != MMC_ERR_NONE)
 		return err;
 
+	/*
+	 * Default bus width is 1 bit.
+	 */
+	host->ios.bus_width = MMC_BUS_WIDTH_1;
+
+	/*
+	 * We can only change the bus width of the selected
+	 * card so therefore we have to put the handling
+	 * here.
+	 */
+	if (host->caps & MMC_CAP_4_BIT_DATA) {
+		/*
+		 * The card is in 1 bit mode by default so
+		 * we only need to change if it supports the
+		 * wider version.
+		 */
+		if (mmc_card_sd(card) &&
+			(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+			struct mmc_command cmd;
+			cmd.opcode = SD_APP_SET_BUS_WIDTH;
+			cmd.arg = SD_BUS_WIDTH_4;
+			cmd.flags = MMC_RSP_R1;
+
+			err = mmc_wait_for_app_cmd(host, card->rca, &cmd,
+				CMD_RETRIES);
+			if (err != MMC_ERR_NONE)
+				return err;
+
+			host->ios.bus_width = MMC_BUS_WIDTH_4;
+		}
+	}
+
+	host->ops->set_ios(host, &host->ios);
+
 	return MMC_ERR_NONE;
 }
 
@@ -653,6 +687,7 @@ static void mmc_power_up(struct mmc_host *host)
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_UP;
+	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ops->set_ios(host, &host->ios);
 
 	mmc_delay(1);
@@ -671,6 +706,7 @@ static void mmc_power_off(struct mmc_host *host)
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_OFF;
+	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ops->set_ios(host, &host->ios);
 }
 
