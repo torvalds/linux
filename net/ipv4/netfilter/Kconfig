@@ -34,6 +34,7 @@ config IP_NF_CT_ACCT
 
 config IP_NF_CONNTRACK_MARK
 	bool  'Connection mark tracking support'
+	depends on IP_NF_CONNTRACK
 	help
 	  This option enables support for connection marks, used by the
 	  `CONNMARK' target and `connmark' match. Similar to the mark value
