@@ -47,8 +47,8 @@ EXPORT_SYMBOL(node_online_map);
 nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
 EXPORT_SYMBOL(node_possible_map);
 struct pglist_data *pgdat_list __read_mostly;
-unsigned long totalram_pages;
-unsigned long totalhigh_pages;
+unsigned long totalram_pages __read_mostly;
+unsigned long totalhigh_pages __read_mostly;
 long nr_swap_pages;
 
 /*

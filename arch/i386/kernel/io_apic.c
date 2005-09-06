@@ -78,7 +78,7 @@ static struct irq_pin_list {
 	int apic, pin, next;
 } irq_2_pin[PIN_MAP_SIZE];
 
-int vector_irq[NR_VECTORS] = { [0 ... NR_VECTORS - 1] = -1};
+int vector_irq[NR_VECTORS] __read_mostly = { [0 ... NR_VECTORS - 1] = -1};
 #ifdef CONFIG_PCI_MSI
 #define vector_to_irq(vector) 	\
 	(platform_legacy_irq(vector) ? vector : vector_irq[vector])
@@ -1119,7 +1119,7 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 
 /* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
-u8 irq_vector[NR_IRQ_VECTORS] = { FIRST_DEVICE_VECTOR , 0 };
+u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
 
 int assign_irq_vector(int irq)
 {
@@ -1990,7 +1990,7 @@ static void set_ioapic_affinity_vector (unsigned int vector,
  * edge-triggered handler, without risking IRQ storms and other ugly
  * races.
  */
-static struct hw_interrupt_type ioapic_edge_type = {
+static struct hw_interrupt_type ioapic_edge_type __read_mostly = {
 	.typename 	= "IO-APIC-edge",
 	.startup 	= startup_edge_ioapic,
 	.shutdown 	= shutdown_edge_ioapic,
@@ -2003,7 +2003,7 @@ static struct hw_interrupt_type ioapic_edge_type = {
 #endif
 };
 
-static struct hw_interrupt_type ioapic_level_type = {
+static struct hw_interrupt_type ioapic_level_type __read_mostly = {
 	.typename 	= "IO-APIC-level",
 	.startup 	= startup_level_ioapic,
 	.shutdown 	= shutdown_level_ioapic,
@@ -2076,7 +2076,7 @@ static void ack_lapic_irq (unsigned int irq)
 
 static void end_lapic_irq (unsigned int i) { /* nothing */ }
 
-static struct hw_interrupt_type lapic_irq_type = {
+static struct hw_interrupt_type lapic_irq_type __read_mostly = {
 	.typename 	= "local-APIC-edge",
 	.startup 	= NULL, /* startup_irq() not used for IRQ0 */
 	.shutdown 	= NULL, /* shutdown_irq() not used for IRQ0 */

@@ -40,7 +40,7 @@ static inline int sysfs_init(void)
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
 
 static struct list_head *mount_hashtable;
-static int hash_mask, hash_bits;
+static int hash_mask __read_mostly, hash_bits __read_mostly;
 static kmem_cache_t *mnt_cache; 
 
 static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
