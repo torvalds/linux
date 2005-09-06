@@ -358,7 +358,7 @@ write_out_data:
 					jbd_debug(2, "submit %d writes\n",
 							bufs);
 					spin_unlock(&journal->j_list_lock);
-					ll_rw_block(WRITE, bufs, wbuf);
+					ll_rw_block(SWRITE, bufs, wbuf);
 					journal_brelse_array(wbuf, bufs);
 					bufs = 0;
 					goto write_out_data;
@@ -381,7 +381,7 @@ write_out_data:
 
 	if (bufs) {
 		spin_unlock(&journal->j_list_lock);
-		ll_rw_block(WRITE, bufs, wbuf);
+		ll_rw_block(SWRITE, bufs, wbuf);
 		journal_brelse_array(wbuf, bufs);
 		spin_lock(&journal->j_list_lock);
 	}

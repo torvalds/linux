@@ -614,7 +614,7 @@ static void flush_descriptor(journal_t *journal,
 	set_buffer_jwrite(bh);
 	BUFFER_TRACE(bh, "write");
 	set_buffer_dirty(bh);
-	ll_rw_block(WRITE, 1, &bh);
+	ll_rw_block(SWRITE, 1, &bh);
 }
 #endif
 

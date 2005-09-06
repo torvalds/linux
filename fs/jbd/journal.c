@@ -957,7 +957,7 @@ void journal_update_superblock(journal_t *journal, int wait)
 	if (wait)
 		sync_dirty_buffer(bh);
 	else
-		ll_rw_block(WRITE, 1, &bh);
+		ll_rw_block(SWRITE, 1, &bh);
 
 out:
 	/* If we have just flushed the log (by marking s_start==0), then
