@@ -61,7 +61,7 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20050328";
+static char *sg_version_date = "20050901";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -1794,11 +1794,11 @@ st_map_user_pages(struct scatterlist *sgl, const unsigned int max_pages,
 	          unsigned long uaddr, size_t count, int rw,
 	          unsigned long max_pfn)
 {
+	unsigned long end = (uaddr + count + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned long start = uaddr >> PAGE_SHIFT;
+	const int nr_pages = end - start;
 	int res, i, j;
-	unsigned int nr_pages;
 	struct page **pages;
-
-	nr_pages = ((uaddr & ~PAGE_MASK) + count + ~PAGE_MASK) >> PAGE_SHIFT;
 
 	/* User attempted Overflow! */
 	if ((uaddr + count) < uaddr)

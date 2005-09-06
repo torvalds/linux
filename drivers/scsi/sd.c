@@ -972,7 +972,7 @@ static void
 sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 {
 	unsigned char cmd[10];
-	unsigned long spintime_value = 0;
+	unsigned long spintime_expire = 0;
 	int retries, spintime;
 	unsigned int the_result;
 	struct scsi_sense_hdr sshdr;
@@ -1049,12 +1049,27 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 				scsi_execute_req(sdkp->device, cmd, DMA_NONE,
 						 NULL, 0, &sshdr,
 						 SD_TIMEOUT, SD_MAX_RETRIES);
-				spintime_value = jiffies;
+				spintime_expire = jiffies + 100 * HZ;
+				spintime = 1;
 			}
-			spintime = 1;
 			/* Wait 1 second for next try */
 			msleep(1000);
 			printk(".");
+
+		/*
+		 * Wait for USB flash devices with slow firmware.
+		 * Yes, this sense key/ASC combination shouldn't
+		 * occur here.  It's characteristic of these devices.
+		 */
+		} else if (sense_valid &&
+				sshdr.sense_key == UNIT_ATTENTION &&
+				sshdr.asc == 0x28) {
+			if (!spintime) {
+				spintime_expire = jiffies + 5 * HZ;
+				spintime = 1;
+			}
+			/* Wait 1 second for next try */
+			msleep(1000);
 		} else {
 			/* we don't understand the sense code, so it's
 			 * probably pointless to loop */
@@ -1066,8 +1081,7 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 			break;
 		}
 				
-	} while (spintime &&
-		 time_after(spintime_value + 100 * HZ, jiffies));
+	} while (spintime && time_before_eq(jiffies, spintime_expire));
 
 	if (spintime) {
 		if (scsi_status_is_good(the_result))

@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -225,15 +226,8 @@ static void scsi_host_dev_release(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct device *parent = dev->parent;
 
-	if (shost->ehandler) {
-		DECLARE_COMPLETION(sem);
-		shost->eh_notify = &sem;
-		shost->eh_kill = 1;
-		up(shost->eh_wait);
-		wait_for_completion(&sem);
-		shost->eh_notify = NULL;
-	}
-
+	if (shost->ehandler)
+		kthread_stop(shost->ehandler);
 	if (shost->work_q)
 		destroy_workqueue(shost->work_q);
 
@@ -263,7 +257,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 {
 	struct Scsi_Host *shost;
 	int gfp_mask = GFP_KERNEL, rval;
-	DECLARE_COMPLETION(complete);
 
 	if (sht->unchecked_isa_dma && privsize)
 		gfp_mask |= __GFP_DMA;
@@ -369,12 +362,12 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	snprintf(shost->shost_classdev.class_id, BUS_ID_SIZE, "host%d",
 		  shost->host_no);
 
-	shost->eh_notify = &complete;
-	rval = kernel_thread(scsi_error_handler, shost, 0);
-	if (rval < 0)
+	shost->ehandler = kthread_run(scsi_error_handler, shost,
+			"scsi_eh_%d", shost->host_no);
+	if (IS_ERR(shost->ehandler)) {
+		rval = PTR_ERR(shost->ehandler);
 		goto fail_destroy_freelist;
-	wait_for_completion(&complete);
-	shost->eh_notify = NULL;
+	}
 
 	scsi_proc_hostdir_add(shost->hostt);
 	return shost;

@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -115,7 +116,6 @@ void scsi_add_timer(struct scsi_cmnd *scmd, int timeout,
 
 	add_timer(&scmd->eh_timeout);
 }
-EXPORT_SYMBOL(scsi_add_timer);
 
 /**
  * scsi_delete_timer - Delete/cancel timer for a given function.
@@ -143,7 +143,6 @@ int scsi_delete_timer(struct scsi_cmnd *scmd)
 
 	return rtn;
 }
-EXPORT_SYMBOL(scsi_delete_timer);
 
 /**
  * scsi_times_out - Timeout function for normal scsi commands.
@@ -776,9 +775,11 @@ retry_tur:
 		__FUNCTION__, scmd, rtn));
 	if (rtn == SUCCESS)
 		return 0;
-	else if (rtn == NEEDS_RETRY)
+	else if (rtn == NEEDS_RETRY) {
 		if (retry_cnt--)
 			goto retry_tur;
+		return 0;
+	}
 	return 1;
 }
 
@@ -1583,24 +1584,14 @@ int scsi_error_handler(void *data)
 	int rtn;
 	DECLARE_MUTEX_LOCKED(sem);
 
-	/*
-	 *    Flush resources
-	 */
-
-	daemonize("scsi_eh_%d", shost->host_no);
-
 	current->flags |= PF_NOFREEZE;
-
 	shost->eh_wait = &sem;
-	shost->ehandler = current;
 
 	/*
 	 * Wake up the thread that created us.
 	 */
 	SCSI_LOG_ERROR_RECOVERY(3, printk("Wake up parent of"
 					  " scsi_eh_%d\n",shost->host_no));
-
-	complete(shost->eh_notify);
 
 	while (1) {
 		/*
@@ -1622,7 +1613,7 @@ int scsi_error_handler(void *data)
 		 * semaphores isn't unreasonable.
 		 */
 		down_interruptible(&sem);
-		if (shost->eh_kill)
+		if (kthread_should_stop())
 			break;
 
 		SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
@@ -1661,22 +1652,6 @@ int scsi_error_handler(void *data)
 	 * Make sure that nobody tries to wake us up again.
 	 */
 	shost->eh_wait = NULL;
-
-	/*
-	 * Knock this down too.  From this point on, the host is flying
-	 * without a pilot.  If this is because the module is being unloaded,
-	 * that's fine.  If the user sent a signal to this thing, we are
-	 * potentially in real danger.
-	 */
-	shost->eh_active = 0;
-	shost->ehandler = NULL;
-
-	/*
-	 * If anyone is waiting for us to exit (i.e. someone trying to unload
-	 * a driver), then wake up that process to let them know we are on
-	 * the way out the door.
-	 */
-	complete_and_exit(shost->eh_notify, 0);
 	return 0;
 }
 

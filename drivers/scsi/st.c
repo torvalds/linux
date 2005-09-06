@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static char *verstr = "20050802";
+static char *verstr = "20050830";
 
 #include <linux/module.h>
 
@@ -4440,11 +4440,11 @@ static int st_map_user_pages(struct scatterlist *sgl, const unsigned int max_pag
 static int sgl_map_user_pages(struct scatterlist *sgl, const unsigned int max_pages, 
 			      unsigned long uaddr, size_t count, int rw)
 {
+	unsigned long end = (uaddr + count + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned long start = uaddr >> PAGE_SHIFT;
+	const int nr_pages = end - start;
 	int res, i, j;
-	unsigned int nr_pages;
 	struct page **pages;
-
-	nr_pages = ((uaddr & ~PAGE_MASK) + count + ~PAGE_MASK) >> PAGE_SHIFT;
 
 	/* User attempted Overflow! */
 	if ((uaddr + count) < uaddr)

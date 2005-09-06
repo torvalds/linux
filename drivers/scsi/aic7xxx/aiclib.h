@@ -141,28 +141,6 @@ aic_sector_div(sector_t capacity, int heads, int sectors)
 	return (int)capacity;
 }
 
-/**************************** Module Library Hack *****************************/
-/*
- * What we'd like to do is have a single "scsi library" module that both the
- * aic7xxx and aic79xx drivers could load and depend on.  A cursory examination
- * of implementing module dependencies in Linux (handling the install and
- * initrd cases) does not look promissing.  For now, we just duplicate this
- * code in both drivers using a simple symbol renaming scheme that hides this
- * hack from the drivers.
- */
-#define AIC_LIB_ENTRY_CONCAT(x, prefix)	prefix ## x
-#define	AIC_LIB_ENTRY_EXPAND(x, prefix) AIC_LIB_ENTRY_CONCAT(x, prefix)
-#define AIC_LIB_ENTRY(x)		AIC_LIB_ENTRY_EXPAND(x, AIC_LIB_PREFIX)
-
-#define aic_calc_syncsrate		AIC_LIB_ENTRY(_calc_syncrate)
-
-u_int		aic_calc_syncsrate(u_int /*period_factor*/);
-
-typedef void aic_option_callback_t(u_long, int, int, int32_t);
-char *		aic_parse_brace_option(char *opt_name, char *opt_arg,
-				       char *end, int depth,
-				       aic_option_callback_t *, u_long);
-
 static __inline uint32_t
 scsi_4btoul(uint8_t *bytes)
 {

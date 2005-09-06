@@ -451,6 +451,8 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		ha->flags.management_server_logged_in = 0;
 		ha->link_data_rate = 0;
+		if (ql2xfdmienable)
+			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 
 		/* Update AEN queue. */
 		qla2x00_enqueue_aen(ha, MBA_LOOP_DOWN, NULL);
