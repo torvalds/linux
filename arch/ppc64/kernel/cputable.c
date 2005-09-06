@@ -54,8 +54,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00400000,
 		.cpu_name		= "POWER3 (630)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8,
+			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR,
 		.cpu_user_features = COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -67,8 +66,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00410000,
 		.cpu_name		= "POWER3 (630+)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8,
+			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -81,7 +79,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-II (northstar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -94,7 +92,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-III (pulsar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -107,7 +105,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-III (icestar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -120,7 +118,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-IV (sstar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -133,7 +131,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "POWER4 (gp)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -146,7 +144,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "POWER4+ (gq)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -160,7 +158,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
 			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -175,7 +173,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
 			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -190,7 +188,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
 			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
