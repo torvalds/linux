@@ -34,6 +34,7 @@ MMC_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
 MMC_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
 	card->raw_csd[2], card->raw_csd[3]);
+MMC_ATTR(scr, "%08x%08x\n", card->raw_scr[0], card->raw_scr[1]);
 MMC_ATTR(date, "%02d/%04d\n", card->cid.month, card->cid.year);
 MMC_ATTR(fwrev, "0x%x\n", card->cid.fwrev);
 MMC_ATTR(hwrev, "0x%x\n", card->cid.hwrev);
@@ -47,6 +48,7 @@ MMC_ATTR(serial, "0x%08x\n", card->cid.serial);
 static struct device_attribute mmc_dev_attrs[] = {
 	MMC_ATTR_RO(cid),
 	MMC_ATTR_RO(csd),
+	MMC_ATTR_RO(scr),
 	MMC_ATTR_RO(date),
 	MMC_ATTR_RO(fwrev),
 	MMC_ATTR_RO(hwrev),
