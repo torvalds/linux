@@ -176,10 +176,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
@@ -471,7 +468,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  * off) isn't likely to go away much sooner anyway.
  */
 
-	if ((~time_status & STA_UNSYNC) && xtime.tv_sec > rtc_update &&
+	if (ntp_synced() && xtime.tv_sec > rtc_update &&
 		abs(xtime.tv_nsec - 500000000) <= tick_nsec / 2) {
 		set_rtc_mmss(xtime.tv_sec);
 		rtc_update = xtime.tv_sec + 660;

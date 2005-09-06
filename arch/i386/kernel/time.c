@@ -194,10 +194,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 	return 0;
@@ -347,7 +344,7 @@ static void sync_cmos_clock(unsigned long dummy)
 	 * This code is run on a timer.  If the clock is set, that timer
 	 * may not expire at the correct time.  Thus, we adjust...
 	 */
-	if ((time_status & STA_UNSYNC) != 0)
+	if (!ntp_synced())
 		/*
 		 * Not synced, exit, do not restart a timer (if one is
 		 * running, let it run out).
