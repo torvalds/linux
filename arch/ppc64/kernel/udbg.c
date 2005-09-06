@@ -20,14 +20,18 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 
+void (*udbg_putc)(unsigned char c);
+unsigned char (*udbg_getc)(void);
+int (*udbg_getc_poll)(void);
+
 void udbg_puts(const char *s)
 {
-	if (ppc_md.udbg_putc) {
+	if (udbg_putc) {
 		char c;
 
 		if (s && *s != '\0') {
 			while ((c = *s++) != '\0')
-				ppc_md.udbg_putc(c);
+				udbg_putc(c);
 		}
 	}
 #if 0
@@ -42,12 +46,12 @@ int udbg_write(const char *s, int n)
 	int remain = n;
 	char c;
 
-	if (!ppc_md.udbg_putc)
+	if (!udbg_putc)
 		return 0;
 
 	if (s && *s != '\0') {
 		while (((c = *s++) != '\0') && (remain-- > 0)) {
-			ppc_md.udbg_putc(c);
+			udbg_putc(c);
 		}
 	}
 
@@ -59,12 +63,12 @@ int udbg_read(char *buf, int buflen)
 	char c, *p = buf;
 	int i;
 
-	if (!ppc_md.udbg_getc)
+	if (!udbg_getc)
 		return 0;
 
 	for (i = 0; i < buflen; ++i) {
 		do {
-			c = ppc_md.udbg_getc();
+			c = udbg_getc();
 		} while (c == 0x11 || c == 0x13);
 		if (c == 0)
 			break;

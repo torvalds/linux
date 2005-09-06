@@ -99,9 +99,9 @@ void udbg_init_uart(void __iomem *comport, unsigned int speed)
 		out_8(&udbg_comport->lcr, 0x03);	/* 8 data, 1 stop, no parity */
 		out_8(&udbg_comport->mcr, 0x03);	/* RTS/DTR */
 		out_8(&udbg_comport->fcr ,0x07);	/* Clear & enable FIFOs */
-		ppc_md.udbg_putc = udbg_550_putc;
-		ppc_md.udbg_getc = udbg_550_getc;
-		ppc_md.udbg_getc_poll = udbg_550_getc_poll;
+		udbg_putc = udbg_550_putc;
+		udbg_getc = udbg_550_getc;
+		udbg_getc_poll = udbg_550_getc_poll;
 	}
 }
 
@@ -121,8 +121,8 @@ void udbg_init_maple_realmode(void)
 {
 	udbg_comport = (volatile struct NS16550 __iomem *)0xf40003f8;
 
-	ppc_md.udbg_putc = udbg_maple_real_putc;
-	ppc_md.udbg_getc = NULL;
-	ppc_md.udbg_getc_poll = NULL;
+	udbg_putc = udbg_maple_real_putc;
+	udbg_getc = NULL;
+	udbg_getc_poll = NULL;
 }
 #endif /* CONFIG_PPC_MAPLE */

@@ -61,8 +61,8 @@ xmon_read(void *handle, void *ptr, int nb)
 int
 xmon_read_poll(void)
 {
-	if (ppc_md.udbg_getc_poll)
-		return ppc_md.udbg_getc_poll();
+	if (udbg_getc_poll)
+		return udbg_getc_poll();
 	return -1;
 }
  

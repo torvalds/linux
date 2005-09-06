@@ -89,7 +89,7 @@ extern void udbg_init_maple_realmode(void);
 #define EARLY_DEBUG_INIT() udbg_init_maple_realmode()
 #define EARLY_DEBUG_INIT() udbg_init_pmac_realmode()
 #define EARLY_DEBUG_INIT()						\
-	do { ppc_md.udbg_putc = call_rtas_display_status_delay; } while(0)
+	do { udbg_putc = call_rtas_display_status_delay; } while(0)
 #endif
 
 /* extern void *stab; */
@@ -424,12 +424,6 @@ void __init early_setup(unsigned long dt_ptr)
 		for (;;);
 	}
 	ppc_md = **mach;
-
-	/* our udbg callbacks got overriden by the above, let's put them
-	 * back in. Ultimately, I want those things to be split from the
-	 * main ppc_md
-	 */
-	EARLY_DEBUG_INIT();
 
 	DBG("Found, Initializing memory management...\n");
 

@@ -111,9 +111,9 @@ void udbg_init_scc(struct device_node *np)
 	for (i = 0; i < sizeof(scc_inittab); ++i)
 		out_8(sccc, scc_inittab[i]);
 
-	ppc_md.udbg_putc = udbg_scc_putc;
-	ppc_md.udbg_getc = udbg_scc_getc;
-	ppc_md.udbg_getc_poll = udbg_scc_getc_poll;
+	udbg_putc = udbg_scc_putc;
+	udbg_getc = udbg_scc_getc;
+	udbg_getc_poll = udbg_scc_getc_poll;
 
 	udbg_puts("Hello World !\n");
 }
@@ -132,7 +132,7 @@ void udbg_init_pmac_realmode(void)
 	sccc = (volatile u8 __iomem *)0x80013020ul;
 	sccd = (volatile u8 __iomem *)0x80013030ul;
 
-	ppc_md.udbg_putc = udbg_real_scc_putc;
-	ppc_md.udbg_getc = NULL;
-	ppc_md.udbg_getc_poll = NULL;
+	udbg_putc = udbg_real_scc_putc;
+	udbg_getc = NULL;
+	udbg_getc_poll = NULL;
 }
