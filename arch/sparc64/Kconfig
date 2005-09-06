@@ -178,8 +178,6 @@ endchoice
 
 endmenu
 
-source "drivers/firmware/Kconfig"
-
 source "mm/Kconfig"
 
 config GENERIC_ISA_DMA
