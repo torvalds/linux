@@ -202,12 +202,6 @@ struct ipmi_smi
 	struct list_head waiting_events;
 	unsigned int     waiting_events_count; /* How many events in queue? */
 
-	/* This will be non-null if someone registers to receive all
-	   IPMI commands (this is for interface emulation).  There
-	   may not be any things in the cmd_rcvrs list above when
-	   this is registered. */
-	ipmi_user_t all_cmd_rcvr;
-
 	/* The event receiver for my BMC, only really used at panic
 	   shutdown as a place to store this. */
 	unsigned char event_receiver;
@@ -867,11 +861,6 @@ int ipmi_register_for_cmd(ipmi_user_t   user,
 
 	read_lock(&(user->intf->users_lock));
 	write_lock_irqsave(&(user->intf->cmd_rcvr_lock), flags);
-	if (user->intf->all_cmd_rcvr != NULL) {
-		rv = -EBUSY;
-		goto out_unlock;
-	}
-
 	/* Make sure the command/netfn is not already registered. */
 	list_for_each_entry(cmp, &(user->intf->cmd_rcvrs), link) {
 		if ((cmp->netfn == netfn) && (cmp->cmd == cmd)) {
@@ -886,7 +875,7 @@ int ipmi_register_for_cmd(ipmi_user_t   user,
 		rcvr->user = user;
 		list_add_tail(&(rcvr->link), &(user->intf->cmd_rcvrs));
 	}
- out_unlock:
+
 	write_unlock_irqrestore(&(user->intf->cmd_rcvr_lock), flags);
 	read_unlock(&(user->intf->users_lock));
 
@@ -1799,7 +1788,6 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 			rwlock_init(&(new_intf->cmd_rcvr_lock));
 			init_waitqueue_head(&new_intf->waitq);
 			INIT_LIST_HEAD(&(new_intf->cmd_rcvrs));
-			new_intf->all_cmd_rcvr = NULL;
 
 			spin_lock_init(&(new_intf->counter_lock));
 
@@ -2037,15 +2025,11 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 
 	read_lock(&(intf->cmd_rcvr_lock));
 	
-	if (intf->all_cmd_rcvr) {
-		user = intf->all_cmd_rcvr;
-	} else {
-		/* Find the command/netfn. */
-		list_for_each_entry(rcvr, &(intf->cmd_rcvrs), link) {
-			if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd)) {
-				user = rcvr->user;
-				break;
-			}
+	/* Find the command/netfn. */
+	list_for_each_entry(rcvr, &(intf->cmd_rcvrs), link) {
+		if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd)) {
+			user = rcvr->user;
+			break;
 		}
 	}
 	read_unlock(&(intf->cmd_rcvr_lock));
@@ -2222,15 +2206,11 @@ static int handle_lan_get_msg_cmd(ipmi_smi_t          intf,
 
 	read_lock(&(intf->cmd_rcvr_lock));
 
-	if (intf->all_cmd_rcvr) {
-		user = intf->all_cmd_rcvr;
-	} else {
-		/* Find the command/netfn. */
-		list_for_each_entry(rcvr, &(intf->cmd_rcvrs), link) {
-			if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd)) {
-				user = rcvr->user;
-				break;
-			}
+	/* Find the command/netfn. */
+	list_for_each_entry(rcvr, &(intf->cmd_rcvrs), link) {
+		if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd)) {
+			user = rcvr->user;
+			break;
 		}
 	}
 	read_unlock(&(intf->cmd_rcvr_lock));
