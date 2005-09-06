@@ -235,8 +235,8 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	 * set defaults
 	 */
 	q->nr_requests = BLKDEV_MAX_RQ;
-	q->max_phys_segments = MAX_PHYS_SEGMENTS;
-	q->max_hw_segments = MAX_HW_SEGMENTS;
+	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
+	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
 	q->make_request_fn = mfn;
 	q->backing_dev_info.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	q->backing_dev_info.state = 0;
