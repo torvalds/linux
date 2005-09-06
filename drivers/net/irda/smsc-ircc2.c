@@ -360,6 +360,7 @@ static int __init smsc_ircc_init(void)
 		if (smsc_ircc_open(ircc_fir, ircc_sir, ircc_dma, ircc_irq))
 			ret = -ENODEV;
 	} else {
+		ret = -ENODEV;
 
 		/* try user provided configuration register base address */
 		if (ircc_cfg > 0) {
