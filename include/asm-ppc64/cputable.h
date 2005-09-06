@@ -36,6 +36,7 @@
  * via the mkdefs mechanism.
  */
 struct cpu_spec;
+struct op_ppc64_model;
 
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
 
@@ -62,6 +63,9 @@ struct cpu_spec {
 
 	/* Used by oprofile userspace to select the right counters */
 	char		*oprofile_cpu_type;
+
+	/* Processor specific oprofile operations */
+	struct op_ppc64_model *oprofile_model;
 };
 
 extern struct cpu_spec		cpu_specs[];
