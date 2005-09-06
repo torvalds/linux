@@ -79,6 +79,9 @@ static unsigned long calc_waittime(void)
 	int w100fb_xres = w100fb_get_xres();
 	unsigned int waittime = 0;
 
+	if (w100fb_get_blanking())
+		return 0;
+
 	if (w100fb_xres == 480 || w100fb_xres == 640) {
 		waittime = WAIT_HS_400_VGA * get_clk_frequency_khz(0) / 398131U;
 
@@ -98,11 +101,8 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 {
 	unsigned long timer1 = 0, timer2, pmnc = 0;
 	int pos = 0;
-	int dosleep;
 
-	dosleep = !w100fb_get_blanking();
-
-	if (dosleep && doSend) {
+	if (wait_time && doSend) {
 		PMNC_GET(pmnc);
 		if (!(pmnc & 0x01))
 			PMNC_SET(pmnc | 0x01);
@@ -122,11 +122,11 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 		corgi_ssp_ads7846_put(cmd);
 		corgi_ssp_ads7846_get();
 
-		if (dosleep) {
+		if (wait_time) {
 			/* Wait after HSync */
 			CCNT(timer2);
 			if (timer2-timer1 > wait_time) {
-				/* timeout */
+				/* too slow - timeout, try again */
 				SyncHS();
 				/* get OSCR */
 				CCNT(timer1);
@@ -137,7 +137,7 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 				CCNT(timer2);
 		}
 		corgi_ssp_ads7846_put(cmd);
-		if (dosleep && !(pmnc & 0x01))
+		if (wait_time && !(pmnc & 0x01))
 			PMNC_SET(pmnc);
 	}
 	return pos;
@@ -247,7 +247,7 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PM
-static int corgits_suspend(struct device *dev, uint32_t state, uint32_t level)
+static int corgits_suspend(struct device *dev, pm_message_t state, uint32_t level)
 {
 	if (level == SUSPEND_POWER_DOWN) {
 		struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
