@@ -183,7 +183,7 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_GLOBAL(__flush_icache_range)
+_KPROBE(__flush_icache_range)
 
 /*
  * Flush the data cache to memory 
@@ -223,7 +223,7 @@ _GLOBAL(__flush_icache_range)
 	bdnz	2b
 	isync
 	blr
-	
+	.previous .text
 /*
  * Like above, but only do the D-cache.
  *

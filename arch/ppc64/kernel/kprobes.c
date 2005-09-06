@@ -44,7 +44,7 @@ static struct kprobe *kprobe_prev;
 static unsigned long kprobe_status_prev, kprobe_saved_msr_prev;
 static struct pt_regs jprobe_saved_regs;
 
-int arch_prepare_kprobe(struct kprobe *p)
+int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret = 0;
 	kprobe_opcode_t insn = *p->addr;
@@ -68,27 +68,27 @@ int arch_prepare_kprobe(struct kprobe *p)
 	return ret;
 }
 
-void arch_copy_kprobe(struct kprobe *p)
+void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
 	p->opcode = *p->addr;
 }
 
-void arch_arm_kprobe(struct kprobe *p)
+void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
 	*p->addr = BREAKPOINT_INSTRUCTION;
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void arch_disarm_kprobe(struct kprobe *p)
+void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	*p->addr = p->opcode;
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void arch_remove_kprobe(struct kprobe *p)
+void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	up(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
@@ -122,7 +122,8 @@ static inline void restore_previous_kprobe(void)
 	kprobe_saved_msr = kprobe_saved_msr_prev;
 }
 
-void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+				      struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri;
 
@@ -244,7 +245,7 @@ void kretprobe_trampoline_holder(void)
 /*
  * Called when the probe at kretprobe trampoline is hit
  */
-int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
         struct kretprobe_instance *ri = NULL;
         struct hlist_head *head;
@@ -308,7 +309,7 @@ int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
  * single-stepped a copy of the instruction.  The address of this
  * copy is p->ainsn.insn.
  */
-static void resume_execution(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
 	unsigned int insn = *p->ainsn.insn;
@@ -373,8 +374,8 @@ static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine to for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
-			     void *data)
+int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
@@ -406,7 +407,7 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	return ret;
 }
 
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 
@@ -419,16 +420,16 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
-void jprobe_return(void)
+void __kprobes jprobe_return(void)
 {
 	asm volatile("trap" ::: "memory");
 }
 
-void jprobe_return_end(void)
+void __kprobes jprobe_return_end(void)
 {
 };
 
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	/*
 	 * FIXME - we should ideally be validating that we got here 'cos
