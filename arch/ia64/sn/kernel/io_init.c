@@ -431,7 +431,7 @@ void sn_bus_store_sysdata(struct pci_dev *dev)
 {
 	struct sysdata_el *element;
 
-	element = kcalloc(1, sizeof(struct sysdata_el), GFP_KERNEL);
+	element = kzalloc(sizeof(struct sysdata_el), GFP_KERNEL);
 	if (!element) {
 		dev_dbg(dev, "%s: out of memory!\n", __FUNCTION__);
 		return;
