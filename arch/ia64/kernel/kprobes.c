@@ -554,6 +554,38 @@ static void __kprobes prepare_ss(struct kprobe *p, struct pt_regs *regs)
 	ia64_psr(regs)->ss = 1;
 }
 
+static int __kprobes is_ia64_break_inst(struct pt_regs *regs)
+{
+	unsigned int slot = ia64_psr(regs)->ri;
+	unsigned int template, major_opcode;
+	unsigned long kprobe_inst;
+	unsigned long *kprobe_addr = (unsigned long *)regs->cr_iip;
+	bundle_t bundle;
+
+	memcpy(&bundle, kprobe_addr, sizeof(bundle_t));
+	template = bundle.quad0.template;
+
+	/* Move to slot 2, if bundle is MLX type and kprobe slot is 1 */
+	if (slot == 1 && bundle_encoding[template][1] == L)
+  		slot++;
+
+	/* Get Kprobe probe instruction at given slot*/
+	get_kprobe_inst(&bundle, slot, &kprobe_inst, &major_opcode);
+
+	/* For break instruction,
+	 * Bits 37:40 Major opcode to be zero
+	 * Bits 27:32 X6 to be zero
+	 * Bits 32:35 X3 to be zero
+	 */
+	if (major_opcode || ((kprobe_inst >> 27) & 0x1FF) ) {
+		/* Not a break instruction */
+		return 0;
+	}
+
+	/* Is a break instruction */
+	return 1;
+}
+
 static int __kprobes pre_kprobes_handler(struct die_args *args)
 {
 	struct kprobe *p;
@@ -601,6 +633,19 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 	p = get_kprobe(addr);
 	if (!p) {
 		unlock_kprobes();
+		if (!is_ia64_break_inst(regs)) {
+			/*
+			 * The breakpoint instruction was removed right
+			 * after we hit it.  Another cpu has removed
+			 * either a probepoint or a debugger breakpoint
+			 * at this address.  In either case, no further
+			 * handling of this interrupt is appropriate.
+			 */
+			ret = 1;
+
+		}
+
+		/* Not one of our break, let kernel handle it */
 		goto no_kprobe;
 	}
 
