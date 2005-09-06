@@ -17,6 +17,7 @@
 #include <linux/blkdev.h>
 #include <linux/mount.h>
 #include <linux/init.h>
+#include <linux/nls.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 #include <linux/vfs.h>
@@ -130,6 +131,10 @@ static int hfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",part=%u", sbi->part);
 	if (sbi->session >= 0)
 		seq_printf(seq, ",session=%u", sbi->session);
+	if (sbi->nls_disk)
+		seq_printf(seq, ",codepage=%s", sbi->nls_disk->charset);
+	if (sbi->nls_io)
+		seq_printf(seq, ",iocharset=%s", sbi->nls_io->charset);
 	if (sbi->s_quiet)
 		seq_printf(seq, ",quiet");
 	return 0;
@@ -163,6 +168,7 @@ static struct super_operations hfs_super_operations = {
 enum {
 	opt_uid, opt_gid, opt_umask, opt_file_umask, opt_dir_umask,
 	opt_part, opt_session, opt_type, opt_creator, opt_quiet,
+	opt_codepage, opt_iocharset,
 	opt_err
 };
 
@@ -177,6 +183,8 @@ static match_table_t tokens = {
 	{ opt_type, "type=%s" },
 	{ opt_creator, "creator=%s" },
 	{ opt_quiet, "quiet" },
+	{ opt_codepage, "codepage=%s" },
+	{ opt_iocharset, "iocharset=%s" },
 	{ opt_err, NULL }
 };
 
@@ -282,11 +290,46 @@ static int parse_options(char *options, struct hfs_sb_info *hsb)
 		case opt_quiet:
 			hsb->s_quiet = 1;
 			break;
+		case opt_codepage:
+			if (hsb->nls_disk) {
+				printk("HFS+-fs: unable to change codepage\n");
+				return 0;
+			}
+			p = match_strdup(&args[0]);
+			hsb->nls_disk = load_nls(p);
+			if (!hsb->nls_disk) {
+				printk("HFS+-fs: unable to load codepage \"%s\"\n", p);
+				kfree(p);
+				return 0;
+			}
+			kfree(p);
+			break;
+		case opt_iocharset:
+			if (hsb->nls_io) {
+				printk("HFS: unable to change iocharset\n");
+				return 0;
+			}
+			p = match_strdup(&args[0]);
+			hsb->nls_io = load_nls(p);
+			if (!hsb->nls_io) {
+				printk("HFS: unable to load iocharset \"%s\"\n", p);
+				kfree(p);
+				return 0;
+			}
+			kfree(p);
+			break;
 		default:
 			return 0;
 		}
 	}
 
+	if (hsb->nls_disk && !hsb->nls_io) {
+		hsb->nls_io = load_nls_default();
+		if (!hsb->nls_io) {
+			printk("HFS: unable to load default iocharset\n");
+			return 0;
+		}
+	}
 	hsb->s_dir_umask &= 0777;
 	hsb->s_file_umask &= 0577;
 

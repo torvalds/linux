@@ -28,7 +28,7 @@ static struct dentry *hfs_lookup(struct inode *dir, struct dentry *dentry,
 	dentry->d_op = &hfs_dentry_operations;
 
 	hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
-	hfs_cat_build_key(fd.search_key, dir->i_ino, &dentry->d_name);
+	hfs_cat_build_key(dir->i_sb, fd.search_key, dir->i_ino, &dentry->d_name);
 	res = hfs_brec_read(&fd, &rec, sizeof(rec));
 	if (res) {
 		hfs_find_exit(&fd);
@@ -56,7 +56,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	int len, err;
-	char strbuf[HFS_NAMELEN + 1];
+	char strbuf[HFS_MAX_NAMELEN];
 	union hfs_cat_rec entry;
 	struct hfs_find_data fd;
 	struct hfs_readdir_data *rd;
@@ -66,7 +66,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		return 0;
 
 	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
-	hfs_cat_build_key(fd.search_key, inode->i_ino, NULL);
+	hfs_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
 	err = hfs_brec_find(&fd);
 	if (err)
 		goto out;
@@ -111,7 +111,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		}
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
 		type = entry.type;
-		len = hfs_mac2triv(strbuf, &fd.key->cat.CName);
+		len = hfs_mac2asc(sb, strbuf, &fd.key->cat.CName);
 		if (type == HFS_CDR_DIR) {
 			if (fd.entrylength < sizeof(struct hfs_cat_dir)) {
 				printk("HFS: small dir entry\n");
@@ -307,7 +307,8 @@ static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   old_dir, &old_dentry->d_name,
 			   new_dir, &new_dentry->d_name);
 	if (!res)
-		hfs_cat_build_key((btree_key *)&HFS_I(old_dentry->d_inode)->cat_key,
+		hfs_cat_build_key(old_dir->i_sb,
+				  (btree_key *)&HFS_I(old_dentry->d_inode)->cat_key,
 				  new_dir->i_ino, &new_dentry->d_name);
 	return res;
 }
