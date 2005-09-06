@@ -35,10 +35,6 @@
 # include <linux/efi.h>
 #endif
 
-#if defined(CONFIG_S390_TAPE) && defined(CONFIG_S390_TAPE_CHAR)
-extern void tapechar_init(void);
-#endif
-
 /*
  * Architectures vary in how they handle caching for addresses
  * outside of main memory.
