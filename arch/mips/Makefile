@@ -673,7 +673,7 @@ drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
 ifdef CONFIG_LASAT
 rom.bin rom.sw: vmlinux
-	$(call descend,arch/mips/lasat/image,$@)
+	$(Q)$(MAKE) $(build)=arch/mips/lasat/image $@
 endif
 
 #

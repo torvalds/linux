@@ -98,6 +98,7 @@ foreach $object (sort(keys(%object))) {
 		     $from !~ /\.pdr$/ &&
 		     $from !~ /\__param$/ &&
 		     $from !~ /\.altinstructions/ &&
+		     $from !~ /\.eh_frame/ &&
 		     $from !~ /\.debug_/)) {
 			printf("Error: %s %s refers to %s\n", $object, $from, $line);
 		}

@@ -114,7 +114,7 @@ libs-y	+= arch/m68knommu/lib/
 prepare: include/asm-$(ARCH)/asm-offsets.h
 
 archclean:
-	$(call descend arch/$(ARCH)/boot, subdirclean)
+	$(Q)$(MAKE) $(clean)=arch/m68knommu/boot
 
 include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
 				   include/asm include/linux/version.h \
