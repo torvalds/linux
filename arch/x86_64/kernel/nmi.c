@@ -463,6 +463,8 @@ void touch_nmi_watchdog (void)
 	 */
 	for (i = 0; i < NR_CPUS; i++)
 		per_cpu(nmi_touch, i) = 1;
+
+ 	touch_softlockup_watchdog();
 }
 
 void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)

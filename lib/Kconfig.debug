@@ -46,6 +46,25 @@ config LOG_BUF_SHIFT
 		     13 =>  8 KB
 		     12 =>  4 KB
 
+config DETECT_SOFTLOCKUP
+	bool "Detect Soft Lockups"
+	depends on DEBUG_KERNEL
+	default y
+	help
+	  Say Y here to enable the kernel to detect "soft lockups",
+	  which are bugs that cause the kernel to loop in kernel
+	  mode for more than 10 seconds, without giving other tasks a
+	  chance to run.
+
+	  When a soft-lockup is detected, the kernel will print the
+	  current stack trace (which you should report), but the
+	  system will stay locked up. This feature has negligible
+	  overhead.
+
+	  (Note that "hard lockups" are separate type of bugs that
+	   can be detected via the NMI-watchdog, on platforms that
+	   support it.)
+
 config SCHEDSTATS
 	bool "Collect scheduler statistics"
 	depends on DEBUG_KERNEL && PROC_FS

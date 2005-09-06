@@ -422,6 +422,7 @@ static int timer_resume(struct sys_device *dev)
 		last_timer->resume();
 	cur_timer = last_timer;
 	last_timer = NULL;
+	touch_softlockup_watchdog();
 	return 0;
 }
 

@@ -950,6 +950,7 @@ void do_timer(struct pt_regs *regs)
 {
 	jiffies_64++;
 	update_times();
+	softlockup_tick(regs);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM

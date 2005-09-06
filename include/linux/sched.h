@@ -176,6 +176,23 @@ extern void trap_init(void);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
 
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+extern void softlockup_tick(struct pt_regs *regs);
+extern void spawn_softlockup_task(void);
+extern void touch_softlockup_watchdog(void);
+#else
+static inline void softlockup_tick(struct pt_regs *regs)
+{
+}
+static inline void spawn_softlockup_task(void)
+{
+}
+static inline void touch_softlockup_watchdog(void)
+{
+}
+#endif
+
+
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
 /* Is this address in the __sched functions? */

@@ -1041,6 +1041,7 @@ static int timer_resume(struct sys_device *dev)
 	write_sequnlock_irqrestore(&xtime_lock,flags);
 	jiffies += sleep_length;
 	wall_jiffies += sleep_length;
+	touch_softlockup_watchdog();
 	return 0;
 }
 

@@ -614,6 +614,7 @@ static void do_pre_smp_initcalls(void)
 	migration_init();
 #endif
 	spawn_ksoftirqd();
+	spawn_softlockup_task();
 }
 
 static void run_init_process(char *init_filename)
