@@ -720,14 +720,14 @@ compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
 struct compat_ncp_mount_data {
 	compat_int_t version;
 	compat_uint_t ncp_fd;
-	compat_uid_t mounted_uid;
+	__compat_uid_t mounted_uid;
 	compat_pid_t wdog_pid;
 	unsigned char mounted_vol[NCP_VOLNAME_LEN + 1];
 	compat_uint_t time_out;
 	compat_uint_t retry_count;
 	compat_uint_t flags;
-	compat_uid_t uid;
-	compat_gid_t gid;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
 	compat_mode_t file_mode;
 	compat_mode_t dir_mode;
 };
@@ -784,9 +784,9 @@ static void *do_ncp_super_data_conv(void *raw_data)
 
 struct compat_smb_mount_data {
 	compat_int_t version;
-	compat_uid_t mounted_uid;
-	compat_uid_t uid;
-	compat_gid_t gid;
+	__compat_uid_t mounted_uid;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
 	compat_mode_t file_mode;
 	compat_mode_t dir_mode;
 };
@@ -1808,8 +1808,8 @@ struct compat_nfsctl_export {
 	compat_dev_t	ex32_dev;
 	compat_ino_t	ex32_ino;
 	compat_int_t	ex32_flags;
-	compat_uid_t	ex32_anon_uid;
-	compat_gid_t	ex32_anon_gid;
+	__compat_uid_t	ex32_anon_uid;
+	__compat_gid_t	ex32_anon_gid;
 };
 
 struct compat_nfsctl_fdparm {
