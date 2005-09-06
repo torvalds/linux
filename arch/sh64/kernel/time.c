@@ -303,7 +303,7 @@ static long last_rtc_update = 0;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static inline void do_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
 {
 	unsigned long long current_ctc;
 	asm ("getcon cr62, %0" : "=r" (current_ctc));
@@ -361,7 +361,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * locally disabled. -arca
 	 */
 	write_lock(&xtime_lock);
-	do_timer_interrupt(irq, NULL, regs);
+	do_timer_interrupt(irq, regs);
 	write_unlock(&xtime_lock);
 
 	return IRQ_HANDLED;
