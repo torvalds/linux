@@ -30,20 +30,20 @@
 
 #define MAX_BUF PAGE_SIZE
 
-/*
- * If we are told to probe a host, we will return 0 if  the host is not
- * present, 1 if the host is present, and will return an identifying
- * string at *arg, if arg is non null, filling to the length stored at
- * (int *) arg
+/**
+ * ioctl_probe  --  return host identification
+ * @host:	host to identify
+ * @buffer:	userspace buffer for identification
+ *
+ * Return an identifying string at @buffer, if @buffer is non-NULL, filling
+ * to the length stored at * (int *) @buffer.
  */
-
 static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 {
 	unsigned int len, slen;
 	const char *string;
-	int temp = host->hostt->present;
 
-	if (temp && buffer) {
+	if (buffer) {
 		if (get_user(len, (unsigned int __user *) buffer))
 			return -EFAULT;
 
@@ -59,7 +59,7 @@ static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 				return -EFAULT;
 		}
 	}
-	return temp;
+	return 1;
 }
 
 /*
