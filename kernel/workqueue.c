@@ -308,10 +308,9 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	struct workqueue_struct *wq;
 	struct task_struct *p;
 
-	wq = kmalloc(sizeof(*wq), GFP_KERNEL);
+	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
 		return NULL;
-	memset(wq, 0, sizeof(*wq));
 
 	wq->name = name;
 	/* We don't need the distraction of CPUs appearing and vanishing. */
