@@ -172,8 +172,8 @@ static int  smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 static int  smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev);
 static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs);
 static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self);
-static void smsc_ircc_change_speed(void *priv, u32 speed);
-static void smsc_ircc_set_sir_speed(void *priv, u32 speed);
+static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed);
+static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, u32 speed);
 static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev);
 static void smsc_ircc_sir_start(struct smsc_ircc_cb *self);
@@ -964,9 +964,8 @@ static void smsc_ircc_fir_stop(struct smsc_ircc_cb *self)
  * This function *must* be called with spinlock held, because it may
  * be called from the irq handler. - Jean II
  */
-static void smsc_ircc_change_speed(void *priv, u32 speed)
+static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed)
 {
-	struct smsc_ircc_cb *self = (struct smsc_ircc_cb *) priv;
 	struct net_device *dev;
 	int last_speed_was_sir;
 
@@ -1031,9 +1030,8 @@ static void smsc_ircc_change_speed(void *priv, u32 speed)
  *    Set speed of IrDA port to specified baudrate
  *
  */
-void smsc_ircc_set_sir_speed(void *priv, __u32 speed)
+void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
 {
-	struct smsc_ircc_cb *self = (struct smsc_ircc_cb *) priv;
 	int iobase;
 	int fcr;    /* FIFO control reg */
 	int lcr;    /* Line control reg */
