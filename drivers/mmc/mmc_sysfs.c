@@ -48,7 +48,6 @@ MMC_ATTR(serial, "0x%08x\n", card->cid.serial);
 static struct device_attribute mmc_dev_attrs[] = {
 	MMC_ATTR_RO(cid),
 	MMC_ATTR_RO(csd),
-	MMC_ATTR_RO(scr),
 	MMC_ATTR_RO(date),
 	MMC_ATTR_RO(fwrev),
 	MMC_ATTR_RO(hwrev),
@@ -58,6 +57,8 @@ static struct device_attribute mmc_dev_attrs[] = {
 	MMC_ATTR_RO(serial),
 	__ATTR_NULL
 };
+
+static struct device_attribute mmc_dev_attr_scr = MMC_ATTR_RO(scr);
 
 
 static void mmc_release_card(struct device *dev)
@@ -209,10 +210,20 @@ void mmc_init_card(struct mmc_card *card, struct mmc_host *host)
  */
 int mmc_register_card(struct mmc_card *card)
 {
+	int ret;
+
 	snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
 		 "%s:%04x", mmc_hostname(card->host), card->rca);
 
-	return device_add(&card->dev);
+	ret = device_add(&card->dev);
+	if (ret == 0) {
+		if (mmc_card_sd(card)) {
+			ret = device_create_file(&card->dev, &mmc_dev_attr_scr);
+			if (ret)
+				device_del(&card->dev);
+		}
+	}
+	return ret;
 }
 
 /*
@@ -221,8 +232,12 @@ int mmc_register_card(struct mmc_card *card)
  */
 void mmc_remove_card(struct mmc_card *card)
 {
-	if (mmc_card_present(card))
+	if (mmc_card_present(card)) {
+		if (mmc_card_sd(card))
+			device_remove_file(&card->dev, &mmc_dev_attr_scr);
+
 		device_del(&card->dev);
+	}
 
 	put_device(&card->dev);
 }
