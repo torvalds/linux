@@ -1366,16 +1366,16 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	unsigned long flags;
 	int ret = 0;
 
-	/*
-	 * We need the tasklist lock even for the specific
-	 * thread case (when we don't need to follow the group
-	 * lists) in order to avoid races with "p->sighand"
-	 * going away or changing from under us.
-	 */
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
-	read_lock(&tasklist_lock);  
+	read_lock(&tasklist_lock);
+
+	if (unlikely(p->flags & PF_EXITING)) {
+		ret = -1;
+		goto out_err;
+	}
+
 	spin_lock_irqsave(&p->sighand->siglock, flags);
-	
+
 	if (unlikely(!list_empty(&q->list))) {
 		/*
 		 * If an SI_TIMER entry is already queue just increment
@@ -1385,7 +1385,7 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 			BUG();
 		q->info.si_overrun++;
 		goto out;
-	} 
+	}
 	/* Short-circuit ignored signals.  */
 	if (sig_ignored(p, sig)) {
 		ret = 1;
@@ -1400,8 +1400,10 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 
 out:
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
+out_err:
 	read_unlock(&tasklist_lock);
-	return(ret);
+
+	return ret;
 }
 
 int
