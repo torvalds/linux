@@ -184,22 +184,52 @@ static int yenta_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	return 0;
 }
 
-static int yenta_Vcc_power(u32 control)
+static void yenta_get_power(struct yenta_socket *socket, socket_state_t *state)
 {
-	switch (control & CB_SC_VCC_MASK) {
-	case CB_SC_VCC_5V: return 50;
-	case CB_SC_VCC_3V: return 33;
-	default: return 0;
-	}
-}
+	if (!(cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) &&
+	    (socket->flags & YENTA_16BIT_POWER_EXCA)) {
+		u8 reg, vcc, vpp;
 
-static int yenta_Vpp_power(u32 control)
-{
-	switch (control & CB_SC_VPP_MASK) {
-	case CB_SC_VPP_12V: return 120;
-	case CB_SC_VPP_5V: return 50;
-	case CB_SC_VPP_3V: return 33;
-	default: return 0;
+		reg = exca_readb(socket, I365_POWER);
+		vcc = reg & I365_VCC_MASK;
+		vpp = reg & I365_VPP1_MASK;
+		state->Vcc = state->Vpp = 0;
+
+		if (socket->flags & YENTA_16BIT_POWER_DF) {
+			if (vcc == I365_VCC_3V)
+				state->Vcc = 33;
+			if (vcc == I365_VCC_5V)
+				state->Vcc = 50;
+			if (vpp == I365_VPP1_5V)
+				state->Vpp = state->Vcc;
+			if (vpp == I365_VPP1_12V)
+				state->Vpp = 120;
+		} else {
+			if (reg & I365_VCC_5V) {
+				state->Vcc = 50;
+				if (vpp == I365_VPP1_5V)
+					state->Vpp = 50;
+				if (vpp == I365_VPP1_12V)
+					state->Vpp = 120;
+			}
+		}
+	} else {
+		u32 control;
+
+		control = cb_readl(socket, CB_SOCKET_CONTROL);
+
+		switch (control & CB_SC_VCC_MASK) {
+		case CB_SC_VCC_5V: state->Vcc = 50; break;
+		case CB_SC_VCC_3V: state->Vcc = 33; break;
+		default: state->Vcc = 0;
+		}
+
+		switch (control & CB_SC_VPP_MASK) {
+		case CB_SC_VPP_12V: state->Vpp = 120; break;
+		case CB_SC_VPP_5V: state->Vpp = 50; break;
+		case CB_SC_VPP_3V: state->Vpp = 33; break;
+		default: state->Vpp = 0;
+		}
 	}
 }
 
@@ -211,8 +241,7 @@ static int yenta_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
 
 	control = cb_readl(socket, CB_SOCKET_CONTROL);
 
-	state->Vcc = yenta_Vcc_power(control);
-	state->Vpp = yenta_Vpp_power(control);
+	yenta_get_power(socket, state);
 	state->io_irq = socket->io_irq;
 
 	if (cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) {
@@ -246,19 +275,54 @@ static int yenta_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
 
 static void yenta_set_power(struct yenta_socket *socket, socket_state_t *state)
 {
-	u32 reg = 0;	/* CB_SC_STPCLK? */
-	switch (state->Vcc) {
-	case 33: reg = CB_SC_VCC_3V; break;
-	case 50: reg = CB_SC_VCC_5V; break;
-	default: reg = 0; break;
+	/* some birdges require to use the ExCA registers to power 16bit cards */
+	if (!(cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) &&
+	    (socket->flags & YENTA_16BIT_POWER_EXCA)) {
+		u8 reg, old;
+		reg = old = exca_readb(socket, I365_POWER);
+		reg &= ~(I365_VCC_MASK | I365_VPP1_MASK | I365_VPP2_MASK);
+
+		/* i82365SL-DF style */
+		if (socket->flags & YENTA_16BIT_POWER_DF) {
+			switch (state->Vcc) {
+			case 33: reg |= I365_VCC_3V; break;
+			case 50: reg |= I365_VCC_5V; break;
+			default: reg = 0; break;
+			}
+			switch (state->Vpp) {
+			case 33:
+			case 50: reg |= I365_VPP1_5V; break;
+			case 120: reg |= I365_VPP1_12V; break;
+			}
+		} else {
+			/* i82365SL-B style */
+			switch (state->Vcc) {
+			case 50: reg |= I365_VCC_5V; break;
+			default: reg = 0; break;
+			}
+			switch (state->Vpp) {
+			case 50: reg |= I365_VPP1_5V | I365_VPP2_5V; break;
+			case 120: reg |= I365_VPP1_12V | I365_VPP2_12V; break;
+			}
+		}
+
+		if (reg != old)
+			exca_writeb(socket, I365_POWER, reg);
+	} else {
+		u32 reg = 0;	/* CB_SC_STPCLK? */
+		switch (state->Vcc) {
+		case 33: reg = CB_SC_VCC_3V; break;
+		case 50: reg = CB_SC_VCC_5V; break;
+		default: reg = 0; break;
+		}
+		switch (state->Vpp) {
+		case 33:  reg |= CB_SC_VPP_3V; break;
+		case 50:  reg |= CB_SC_VPP_5V; break;
+		case 120: reg |= CB_SC_VPP_12V; break;
+		}
+		if (reg != cb_readl(socket, CB_SOCKET_CONTROL))
+			cb_writel(socket, CB_SOCKET_CONTROL, reg);
 	}
-	switch (state->Vpp) {
-	case 33:  reg |= CB_SC_VPP_3V; break;
-	case 50:  reg |= CB_SC_VPP_5V; break;
-	case 120: reg |= CB_SC_VPP_12V; break;
-	}
-	if (reg != cb_readl(socket, CB_SOCKET_CONTROL))
-		cb_writel(socket, CB_SOCKET_CONTROL, reg);
 }
 
 static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
@@ -751,6 +815,7 @@ enum {
 	CARDBUS_TYPE_TI12XX,
 	CARDBUS_TYPE_TI1250,
 	CARDBUS_TYPE_RICOH,
+	CARDBUS_TYPE_TOPIC95,
 	CARDBUS_TYPE_TOPIC97,
 	CARDBUS_TYPE_O2MICRO,
 };
@@ -788,6 +853,9 @@ static struct cardbus_type cardbus_type[] = {
 		.override	= ricoh_override,
 		.save_state	= ricoh_save_state,
 		.restore_state	= ricoh_restore_state,
+	},
+	[CARDBUS_TYPE_TOPIC95]	= {
+		.override	= topic95_override,
 	},
 	[CARDBUS_TYPE_TOPIC97]	= {
 		.override	= topic97_override,
@@ -1196,6 +1264,7 @@ static struct pci_device_id yenta_table [] = {
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C478, RICOH),
 
+	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95, TOPIC95),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC97, TOPIC97),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC100, TOPIC97),
 
