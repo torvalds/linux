@@ -119,6 +119,7 @@ __spitfire_flush_tlb_mm_slow:
 #else
 #error unsupported PAGE_SIZE
 #endif
+	.section .kprobes.text
 	.align		32
 	.globl		__flush_icache_page
 __flush_icache_page:	/* %o0 = phys_page */
@@ -201,6 +202,7 @@ dflush4:stxa		%g0, [%o4] ASI_DCACHE_TAG
 	 nop
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
+	.previous .text
 	.align		32
 __prefill_dtlb:
 	rdpr		%pstate, %g7
