@@ -62,6 +62,7 @@ struct mmc_ios {
 struct mmc_host_ops {
 	void	(*request)(struct mmc_host *host, struct mmc_request *req);
 	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
+	int	(*get_ro)(struct mmc_host *host);
 };
 
 struct mmc_card;

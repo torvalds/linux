@@ -413,8 +413,7 @@ static void mmc_decode_cid(struct mmc_card *card)
 		card->cid.month			= UNSTUFF_BITS(resp, 8, 4);
 
 		card->cid.year += 2000; /* SD cards year offset */
-	}
-	else {
+	} else {
 		/*
 		 * The selection of the format here is based upon published
 		 * specs from sandisk and from what people have reported.
@@ -494,8 +493,7 @@ static void mmc_decode_csd(struct mmc_card *card)
 		csd->capacity	  = (1 + m) << (e + 2);
 
 		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
-	}
-	else {
+	} else {
 		/*
 		 * We only understand CSD structure v1.1 and v1.2.
 		 * v1.2 has extra information in bits 15, 11 and 10.
@@ -738,10 +736,20 @@ static void mmc_discover_cards(struct mmc_host *host)
 			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
 			if (err != MMC_ERR_NONE)
 				mmc_card_set_dead(card);
-			else
+			else {
 				card->rca = cmd.resp[0] >> 16;
-		}
-		else {
+
+				if (!host->ops->get_ro) {
+					printk(KERN_WARNING "%s: host does not "
+						"support reading read-only "
+						"switch. assuming write-enable.\n",
+						mmc_hostname(host));
+				} else {
+					if (host->ops->get_ro(host))
+						mmc_card_set_readonly(card);
+				}
+			}
+		} else {
 			cmd.opcode = MMC_SET_RELATIVE_ADDR;
 			cmd.arg = card->rca << 16;
 			cmd.flags = MMC_RSP_R1;
@@ -833,24 +841,23 @@ static void mmc_setup(struct mmc_host *host)
 		int err;
 		u32 ocr;
 
-		host->mode = MMC_MODE_MMC;
+		host->mode = MMC_MODE_SD;
 
 		mmc_power_up(host);
 		mmc_idle_cards(host);
 
-		err = mmc_send_op_cond(host, 0, &ocr);
+		err = mmc_send_app_op_cond(host, 0, &ocr);
 
 		/*
-		 * If we fail to detect any cards then try
-		 * searching for SD cards.
+		 * If we fail to detect any SD cards then try
+		 * searching for MMC cards.
 		 */
-		if (err != MMC_ERR_NONE)
-		{
-			err = mmc_send_app_op_cond(host, 0, &ocr);
+		if (err != MMC_ERR_NONE) {
+			host->mode = MMC_MODE_MMC;
+
+			err = mmc_send_op_cond(host, 0, &ocr);
 			if (err != MMC_ERR_NONE)
 				return;
-
-			host->mode = MMC_MODE_SD;
 		}
 
 		host->ocr = mmc_select_voltage(host, ocr);
