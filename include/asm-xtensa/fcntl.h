@@ -53,6 +53,8 @@ struct flock64 {
 	pid_t  l_pid;
 };
 
+#define HAVE_ARCH_STRUCT_FLOCK
+
 #include <asm-generic/fcntl.h>
 
 #endif /* _XTENSA_FCNTL_H */

@@ -50,7 +50,7 @@ struct flock {
 	long	l_sysid;
 	__kernel_pid_t l_pid;
 	long	pad[4];
-} flock_t;
+};
 
 typedef struct flock64 {
 	short	l_type;
@@ -60,22 +60,13 @@ typedef struct flock64 {
 	pid_t	l_pid;
 } flock64_t;
 
-#else /* 64-bit definitions */
 
-typedef struct flock {
-	short	l_type;
-	short	l_whence;
-	__kernel_off_t l_start;
-	__kernel_off_t l_len;
-	__kernel_pid_t l_pid;
-} flock_t;
-
-#ifdef __KERNEL__
-#define flock64		flock
-#endif
+#define HAVE_ARCH_STRUCT_FLOCK
 
 #endif
 
 #include <asm-generic/fcntl.h>
+
+typedef struct flock flock_t;
 
 #endif /* _ASM_FCNTL_H */

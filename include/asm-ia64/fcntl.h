@@ -5,14 +5,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co.
  */
 
-struct flock {
-	short l_type;
-	short l_whence;
-	off_t l_start;
-	off_t l_len;
-	pid_t l_pid;
-};
-
 #define force_o_largefile()	\
 		(personality(current->personality) != PER_LINUX32)
 

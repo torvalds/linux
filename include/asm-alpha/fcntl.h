@@ -37,14 +37,6 @@
 
 #define F_INPROGRESS	64
 
-struct flock {
-	short l_type;
-	short l_whence;
-	__kernel_off_t l_start;
-	__kernel_off_t l_len;
-	__kernel_pid_t l_pid;
-};
-
 #include <asm-generic/fcntl.h>
 
 #endif

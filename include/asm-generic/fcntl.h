@@ -1,6 +1,8 @@
 #ifndef _ASM_GENERIC_FCNTL_H
 #define _ASM_GENERIC_FCNTL_H
 
+#include <linux/types.h>
+
 /* open/fcntl - O_SYNC is only implemented on blocks devices and on files
    located on an ext2 file system */
 #define O_ACCMODE	00000003
@@ -103,5 +105,20 @@
 #define LOCK_RW		192	/* which allows concurrent read & write ops */
 
 #define F_LINUX_SPECIFIC_BASE	1024
+
+#ifndef HAVE_ARCH_STRUCT_FLOCK
+#ifndef __ARCH_FLOCK_PAD
+#define __ARCH_FLOCK_PAD
+#endif
+
+struct flock {
+	short	l_type;
+	short	l_whence;
+	off_t	l_start;
+	off_t	l_len;
+	pid_t	l_pid;
+	__ARCH_FLOCK_PAD
+};
+#endif
 
 #endif /* _ASM_GENERIC_FCNTL_H */

@@ -33,14 +33,6 @@
 #define F_WRLCK		02
 #define F_UNLCK		03
 
-struct flock {
-	short l_type;
-	short l_whence;
-	off_t l_start;
-	off_t l_len;
-	pid_t l_pid;
-};
-
 struct flock64 {
 	short l_type;
 	short l_whence;
