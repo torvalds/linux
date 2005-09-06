@@ -917,8 +917,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				 * contents - it is a noop if I/O is still in
 				 * flight on potentially older contents.
 				 */
-				wait_on_buffer(bh);
-				ll_rw_block(WRITE, 1, &bh);
+				ll_rw_block(SWRITE, 1, &bh);
 				brelse(bh);
 				spin_lock(lock);
 			}
@@ -2793,21 +2792,22 @@ int submit_bh(int rw, struct buffer_head * bh)
 
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
- * @rw: whether to %READ or %WRITE or maybe %READA (readahead)
+ * @rw: whether to %READ or %WRITE or %SWRITE or maybe %READA (readahead)
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
- * ll_rw_block() takes an array of pointers to &struct buffer_heads,
- * and requests an I/O operation on them, either a %READ or a %WRITE.
- * The third %READA option is described in the documentation for
- * generic_make_request() which ll_rw_block() calls.
+ * ll_rw_block() takes an array of pointers to &struct buffer_heads, and
+ * requests an I/O operation on them, either a %READ or a %WRITE.  The third
+ * %SWRITE is like %WRITE only we make sure that the *current* data in buffers
+ * are sent to disk. The fourth %READA option is described in the documentation
+ * for generic_make_request() which ll_rw_block() calls.
  *
  * This function drops any buffer that it cannot get a lock on (with the
- * BH_Lock state bit), any buffer that appears to be clean when doing a
- * write request, and any buffer that appears to be up-to-date when doing
- * read request.  Further it marks as clean buffers that are processed for
- * writing (the buffer cache won't assume that they are actually clean until
- * the buffer gets unlocked).
+ * BH_Lock state bit) unless SWRITE is required, any buffer that appears to be
+ * clean when doing a write request, and any buffer that appears to be
+ * up-to-date when doing read request.  Further it marks as clean buffers that
+ * are processed for writing (the buffer cache won't assume that they are
+ * actually clean until the buffer gets unlocked).
  *
  * ll_rw_block sets b_end_io to simple completion handler that marks
  * the buffer up-to-date (if approriate), unlocks the buffer and wakes
@@ -2823,11 +2823,13 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 	for (i = 0; i < nr; i++) {
 		struct buffer_head *bh = bhs[i];
 
-		if (test_set_buffer_locked(bh))
+		if (rw == SWRITE)
+			lock_buffer(bh);
+		else if (test_set_buffer_locked(bh))
 			continue;
 
 		get_bh(bh);
-		if (rw == WRITE) {
+		if (rw == WRITE || rw == SWRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				submit_bh(WRITE, bh);
