@@ -282,6 +282,7 @@ _GLOBAL(ppc32_rt_sigsuspend)
 	bne	syscall_exit
 	/* If sigsuspend() returns zero, we are going into a signal handler. We
 	   may need to call audit_syscall_exit() to mark the exit from sigsuspend() */
+#ifdef CONFIG_AUDIT
 	ld	r3,PACACURRENT(r13)
 	ld	r4,AUDITCONTEXT(r3)
 	cmpdi	0,r4,0
@@ -289,6 +290,7 @@ _GLOBAL(ppc32_rt_sigsuspend)
 	li	r4, 2			/* AUDITSC_FAILURE */
 	li	r5,-4			/* It's always -EINTR */
 	bl	.audit_syscall_exit
+#endif
 	b	.ret_from_except
 
 _GLOBAL(ppc_fork)
