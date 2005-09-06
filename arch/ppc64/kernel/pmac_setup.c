@@ -274,16 +274,6 @@ static void __pmac pmac_halt(void)
 }
 
 #ifdef CONFIG_BOOTX_TEXT
-static int dummy_getc_poll(void)
-{
-	return -1;
-}
-
-static unsigned char dummy_getc(void)
-{
-	return 0;
-}
-
 static void btext_putc(unsigned char c)
 {
 	btext_drawchar(c);
@@ -348,8 +338,8 @@ static void __init pmac_init_early(void)
 		init_boot_display();
 
 		ppc_md.udbg_putc = btext_putc;
-		ppc_md.udbg_getc = dummy_getc;
-		ppc_md.udbg_getc_poll = dummy_getc_poll;
+		ppc_md.udbg_getc = NULL;
+		ppc_md.udbg_getc_poll = NULL;
 #endif /* CONFIG_BOOTX_TEXT */
 	}
 
