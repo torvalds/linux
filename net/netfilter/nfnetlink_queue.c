@@ -76,17 +76,6 @@ typedef int (*nfqnl_cmpfn)(struct nfqnl_queue_entry *, unsigned long);
 
 static DEFINE_RWLOCK(instances_lock);
 
-static u_int64_t htonll(u_int64_t in)
-{
-	u_int64_t out;
-	int i;
-
-	for (i = 0; i < sizeof(u_int64_t); i++)
-		((u_int8_t *)&out)[sizeof(u_int64_t)-1] = ((u_int8_t *)&in)[i];
-
-	return out;
-}
-
 #define INSTANCE_BUCKETS	16
 static struct hlist_head instance_table[INSTANCE_BUCKETS];
 
@@ -497,8 +486,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (entry->skb->tstamp.off_sec) {
 		struct nfqnl_msg_packet_timestamp ts;
 
-		ts.sec = htonll(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
-		ts.usec = htonll(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
+		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
 
 		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
