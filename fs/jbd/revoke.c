@@ -116,7 +116,8 @@ static inline int hash(journal_t *journal, unsigned long block)
 		(block << (hash_shift - 12))) & (table->hash_size - 1);
 }
 
-int insert_revoke_hash(journal_t *journal, unsigned long blocknr, tid_t seq)
+static int insert_revoke_hash(journal_t *journal, unsigned long blocknr,
+			      tid_t seq)
 {
 	struct list_head *hash_list;
 	struct jbd_revoke_record_s *record;
