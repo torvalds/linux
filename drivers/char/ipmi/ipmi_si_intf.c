@@ -110,6 +110,21 @@ enum si_type {
     SI_KCS, SI_SMIC, SI_BT
 };
 
+struct ipmi_device_id {
+	unsigned char device_id;
+	unsigned char device_revision;
+	unsigned char firmware_revision_1;
+	unsigned char firmware_revision_2;
+	unsigned char ipmi_version;
+	unsigned char additional_device_support;
+	unsigned char manufacturer_id[3];
+	unsigned char product_id[2];
+	unsigned char aux_firmware_revision[4];
+} __attribute__((packed));
+
+#define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
+#define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
+
 struct smi_info
 {
 	ipmi_smi_t             intf;
@@ -132,12 +147,24 @@ struct smi_info
 	void (*irq_cleanup)(struct smi_info *info);
 	unsigned int io_size;
 
+	/* Per-OEM handler, called from handle_flags().
+	   Returns 1 when handle_flags() needs to be re-run
+	   or 0 indicating it set si_state itself.
+	*/
+	int (*oem_data_avail_handler)(struct smi_info *smi_info);
+
 	/* Flags from the last GET_MSG_FLAGS command, used when an ATTN
 	   is set to hold the flags until we are done handling everything
 	   from the flags. */
 #define RECEIVE_MSG_AVAIL	0x01
 #define EVENT_MSG_BUFFER_FULL	0x02
 #define WDT_PRE_TIMEOUT_INT	0x08
+#define OEM0_DATA_AVAIL     0x20
+#define OEM1_DATA_AVAIL     0x40
+#define OEM2_DATA_AVAIL     0x80
+#define OEM_DATA_AVAIL      (OEM0_DATA_AVAIL | \
+                             OEM1_DATA_AVAIL | \
+                             OEM2_DATA_AVAIL)
 	unsigned char       msg_flags;
 
 	/* If set to true, this will request events the next time the
@@ -176,11 +203,7 @@ struct smi_info
 	   interrupts. */
 	int interrupt_disabled;
 
-	unsigned char ipmi_si_dev_rev;
-	unsigned char ipmi_si_fw_rev_major;
-	unsigned char ipmi_si_fw_rev_minor;
-	unsigned char ipmi_version_major;
-	unsigned char ipmi_version_minor;
+	struct ipmi_device_id device_id;
 
 	/* Slave address, could be reported from DMI. */
 	unsigned char slave_addr;
@@ -323,6 +346,7 @@ static inline void enable_si_irq(struct smi_info *smi_info)
 
 static void handle_flags(struct smi_info *smi_info)
 {
+ retry:
 	if (smi_info->msg_flags & WDT_PRE_TIMEOUT_INT) {
 		/* Watchdog pre-timeout */
 		spin_lock(&smi_info->count_lock);
@@ -372,6 +396,10 @@ static void handle_flags(struct smi_info *smi_info)
 			smi_info->curr_msg->data,
 			smi_info->curr_msg->data_size);
 		smi_info->si_state = SI_GETTING_EVENTS;
+	} else if (smi_info->msg_flags & OEM_DATA_AVAIL) {
+		if (smi_info->oem_data_avail_handler)
+			if (smi_info->oem_data_avail_handler(smi_info))
+				goto retry;
 	} else {
 		smi_info->si_state = SI_NORMAL;
 	}
@@ -1927,11 +1955,8 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	}
 
 	/* Record info from the get device id, in case we need it. */
-	smi_info->ipmi_si_dev_rev = resp[4] & 0xf;
-	smi_info->ipmi_si_fw_rev_major = resp[5] & 0x7f;
-	smi_info->ipmi_si_fw_rev_minor = resp[6];
-	smi_info->ipmi_version_major = resp[7] & 0xf;
-	smi_info->ipmi_version_minor = resp[7] >> 4;
+	memcpy(&smi_info->device_id, &resp[3],
+	       min_t(unsigned long, resp_len-3, sizeof(smi_info->device_id)));
 
  out:
 	kfree(resp);
@@ -1990,6 +2015,72 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 		       smi->incoming_messages);
 
 	return (out - ((char *) page));
+}
+
+/*
+ * oem_data_avail_to_receive_msg_avail
+ * @info - smi_info structure with msg_flags set
+ *
+ * Converts flags from OEM_DATA_AVAIL to RECEIVE_MSG_AVAIL
+ * Returns 1 indicating need to re-run handle_flags().
+ */
+static int oem_data_avail_to_receive_msg_avail(struct smi_info *smi_info)
+{
+	smi_info->msg_flags = (smi_info->msg_flags & ~OEM_DATA_AVAIL) |
+		RECEIVE_MSG_AVAIL;
+	return 1;
+}
+
+/*
+ * setup_dell_poweredge_oem_data_handler
+ * @info - smi_info.device_id must be populated
+ *
+ * Systems that match, but have firmware version < 1.40 may assert
+ * OEM0_DATA_AVAIL on their own, without being told via Set Flags that
+ * it's safe to do so.  Such systems will de-assert OEM1_DATA_AVAIL
+ * upon receipt of IPMI_GET_MSG_CMD, so we should treat these flags
+ * as RECEIVE_MSG_AVAIL instead.
+ *
+ * As Dell has no plans to release IPMI 1.5 firmware that *ever*
+ * assert the OEM[012] bits, and if it did, the driver would have to
+ * change to handle that properly, we don't actually check for the
+ * firmware version.
+ * Device ID = 0x20                BMC on PowerEdge 8G servers
+ * Device Revision = 0x80
+ * Firmware Revision1 = 0x01       BMC version 1.40
+ * Firmware Revision2 = 0x40       BCD encoded
+ * IPMI Version = 0x51             IPMI 1.5
+ * Manufacturer ID = A2 02 00      Dell IANA
+ *
+ */
+#define DELL_POWEREDGE_8G_BMC_DEVICE_ID  0x20
+#define DELL_POWEREDGE_8G_BMC_DEVICE_REV 0x80
+#define DELL_POWEREDGE_8G_BMC_IPMI_VERSION 0x51
+#define DELL_IANA_MFR_ID {0xA2, 0x02, 0x00}
+static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
+{
+	struct ipmi_device_id *id = &smi_info->device_id;
+	const char mfr[3]=DELL_IANA_MFR_ID;
+	if (!memcmp(mfr, id->manufacturer_id, sizeof(mfr)) &&
+	    id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID &&
+	    id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV &&
+	    id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION) {
+		smi_info->oem_data_avail_handler =
+			oem_data_avail_to_receive_msg_avail;
+	}
+}
+
+/*
+ * setup_oem_data_handler
+ * @info - smi_info.device_id must be filled in already
+ *
+ * Fills in smi_info.device_id.oem_data_available_handler
+ * when we know what function to use there.
+ */
+
+static void setup_oem_data_handler(struct smi_info *smi_info)
+{
+	setup_dell_poweredge_oem_data_handler(smi_info);
 }
 
 /* Returns 0 if initialized, or negative on an error. */
@@ -2090,6 +2181,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	if (rv)
 		goto out_err;
 
+	setup_oem_data_handler(new_smi);
+
 	/* Try to claim any interrupts. */
 	new_smi->irq_setup(new_smi);
 
@@ -2123,8 +2216,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
-			       new_smi->ipmi_version_major,
-			       new_smi->ipmi_version_minor,
+			       ipmi_version_major(&new_smi->device_id),
+			       ipmi_version_minor(&new_smi->device_id),
 			       new_smi->slave_addr,
 			       &(new_smi->intf));
 	if (rv) {
