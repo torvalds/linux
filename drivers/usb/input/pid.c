@@ -263,7 +263,7 @@ int hid_pid_init(struct hid_device *hid)
 	struct hid_ff_pid *private;
 	struct hid_input *hidinput = list_entry(&hid->inputs, struct hid_input, list);
 
-	private = hid->ff_private = kcalloc(1, sizeof(struct hid_ff_pid), GFP_KERNEL);
+	private = hid->ff_private = kzalloc(sizeof(struct hid_ff_pid), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
 
