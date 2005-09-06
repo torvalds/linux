@@ -657,7 +657,7 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 	++nmi_count(cpu);
 
-	if (!nmi_callback(regs, cpu))
+	if (!rcu_dereference(nmi_callback)(regs, cpu))
 		default_do_nmi(regs);
 
 	nmi_exit();
@@ -665,7 +665,7 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 void set_nmi_callback(nmi_callback_t callback)
 {
-	nmi_callback = callback;
+	rcu_assign_pointer(nmi_callback, callback);
 }
 EXPORT_SYMBOL_GPL(set_nmi_callback);
 
