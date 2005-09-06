@@ -87,6 +87,10 @@ struct mmc_host {
 	struct mmc_ios		ios;		/* current io bus settings */
 	u32			ocr;		/* the current OCR setting */
 
+	unsigned int		mode;		/* current card mode of host */
+#define MMC_MODE_MMC		0
+#define MMC_MODE_SD		1
+
 	struct list_head	cards;		/* devices attached to this host */
 
 	wait_queue_head_t	wq;
