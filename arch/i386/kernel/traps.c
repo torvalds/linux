@@ -363,8 +363,9 @@ static inline void die_if_kernel(const char * str, struct pt_regs * regs, long e
 		die(str, regs, err);
 }
 
-static void do_trap(int trapnr, int signr, char *str, int vm86,
-			   struct pt_regs * regs, long error_code, siginfo_t *info)
+static void __kprobes do_trap(int trapnr, int signr, char *str, int vm86,
+			      struct pt_regs * regs, long error_code,
+			      siginfo_t *info)
 {
 	struct task_struct *tsk = current;
 	tsk->thread.error_code = error_code;
@@ -460,7 +461,8 @@ DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 DO_ERROR_INFO(32, SIGSEGV, "iret exception", iret_error, ILL_BADSTK, 0)
 
-fastcall void do_general_protection(struct pt_regs * regs, long error_code)
+fastcall void __kprobes do_general_protection(struct pt_regs * regs,
+					      long error_code)
 {
 	int cpu = get_cpu();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
@@ -676,7 +678,7 @@ void unset_nmi_callback(void)
 EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
 #ifdef CONFIG_KPROBES
-fastcall void do_int3(struct pt_regs *regs, long error_code)
+fastcall void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
 			== NOTIFY_STOP)
@@ -710,7 +712,7 @@ fastcall void do_int3(struct pt_regs *regs, long error_code)
  * find every occurrence of the TF bit that could be saved away even
  * by user code)
  */
-fastcall void do_debug(struct pt_regs * regs, long error_code)
+fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 {
 	unsigned int condition;
 	struct task_struct *tsk = current;
