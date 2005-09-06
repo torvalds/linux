@@ -104,18 +104,22 @@ static inline struct bio_vec *bvec_alloc_bs(unsigned int __nocast gfp_mask, int 
 	return bvl;
 }
 
-/*
- * default destructor for a bio allocated with bio_alloc_bioset()
- */
-static void bio_destructor(struct bio *bio)
+void bio_free(struct bio *bio, struct bio_set *bio_set)
 {
 	const int pool_idx = BIO_POOL_IDX(bio);
-	struct bio_set *bs = bio->bi_set;
 
 	BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
 
-	mempool_free(bio->bi_io_vec, bs->bvec_pools[pool_idx]);
-	mempool_free(bio, bs->bio_pool);
+	mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
+	mempool_free(bio, bio_set->bio_pool);
+}
+
+/*
+ * default destructor for a bio allocated with bio_alloc_bioset()
+ */
+static void bio_fs_destructor(struct bio *bio)
+{
+	bio_free(bio, fs_bio_set);
 }
 
 inline void bio_init(struct bio *bio)
@@ -171,8 +175,6 @@ struct bio *bio_alloc_bioset(unsigned int __nocast gfp_mask, int nr_iovecs, stru
 			bio->bi_max_vecs = bvec_slabs[idx].nr_vecs;
 		}
 		bio->bi_io_vec = bvl;
-		bio->bi_destructor = bio_destructor;
-		bio->bi_set = bs;
 	}
 out:
 	return bio;
@@ -180,7 +182,12 @@ out:
 
 struct bio *bio_alloc(unsigned int __nocast gfp_mask, int nr_iovecs)
 {
-	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+
+	if (bio)
+		bio->bi_destructor = bio_fs_destructor;
+
+	return bio;
 }
 
 void zero_fill_bio(struct bio *bio)
@@ -273,8 +280,10 @@ struct bio *bio_clone(struct bio *bio, unsigned int __nocast gfp_mask)
 {
 	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
 
-	if (b)
+	if (b) {
+		b->bi_destructor = bio_fs_destructor;
 		__bio_clone(b, bio);
+	}
 
 	return b;
 }
@@ -1075,6 +1084,7 @@ subsys_initcall(init_bio);
 
 EXPORT_SYMBOL(bio_alloc);
 EXPORT_SYMBOL(bio_put);
+EXPORT_SYMBOL(bio_free);
 EXPORT_SYMBOL(bio_endio);
 EXPORT_SYMBOL(bio_init);
 EXPORT_SYMBOL(__bio_clone);

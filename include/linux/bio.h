@@ -111,7 +111,6 @@ struct bio {
 	void			*bi_private;
 
 	bio_destructor_t	*bi_destructor;	/* destructor */
-	struct bio_set		*bi_set;	/* memory pools set */
 };
 
 /*
@@ -280,6 +279,7 @@ extern void bioset_free(struct bio_set *);
 extern struct bio *bio_alloc(unsigned int __nocast, int);
 extern struct bio *bio_alloc_bioset(unsigned int __nocast, int, struct bio_set *);
 extern void bio_put(struct bio *);
+extern void bio_free(struct bio *, struct bio_set *);
 
 extern void bio_endio(struct bio *, unsigned int, int);
 struct request_queue;
