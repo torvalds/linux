@@ -112,29 +112,6 @@
 	likely(__access_ok((unsigned long)(addr), (size),__access_mask))
 
 /*
- * verify_area: - Obsolete/deprecated and will go away soon,
- * use access_ok() instead.
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE
- * @addr: User space pointer to start of block to check
- * @size: Size of block to check
- *
- * Context: User context only.  This function may sleep.
- *
- * This function has been replaced by access_ok().
- *
- * Checks if a pointer to a block of memory in user space is valid.
- *
- * Returns zero if the memory block may be valid, -EFAULT
- * if it is definitely invalid.
- *
- * See access_ok() for more details.
- */
-static inline int __deprecated verify_area(int type, const void * addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
-/*
  * put_user: - Write a simple value into user space.
  * @x:   Value to copy to user space.
  * @ptr: Destination address, in user space.
