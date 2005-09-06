@@ -1349,8 +1349,10 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list,
 					 list) {
 			if (exp->master->helper == h 
-			    && del_timer(&exp->timeout))
-				__ip_ct_expect_unlink_destroy(exp);
+			    && del_timer(&exp->timeout)) {
+				ip_ct_unlink_expect(exp);
+				ip_conntrack_expect_put(exp);
+			}
 		}
 		write_unlock(&ip_conntrack_lock);
 	} else {
@@ -1358,8 +1360,10 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		write_lock_bh(&ip_conntrack_lock);
 		list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list,
 					 list) {
-			if (del_timer(&exp->timeout))
-				__ip_ct_expect_unlink_destroy(exp);
+			if (del_timer(&exp->timeout)) {
+				ip_ct_unlink_expect(exp);
+				ip_conntrack_expect_put(exp);
+			}
 		}
 		write_unlock_bh(&ip_conntrack_lock);
 	}

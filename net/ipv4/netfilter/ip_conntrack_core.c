@@ -197,7 +197,7 @@ ip_ct_invert_tuple(struct ip_conntrack_tuple *inverse,
 
 
 /* ip_conntrack_expect helper functions */
-static void unlink_expect(struct ip_conntrack_expect *exp)
+void ip_ct_unlink_expect(struct ip_conntrack_expect *exp)
 {
 	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
 	IP_NF_ASSERT(!timer_pending(&exp->timeout));
@@ -207,18 +207,12 @@ static void unlink_expect(struct ip_conntrack_expect *exp)
 	ip_conntrack_expect_put(exp);
 }
 
-void __ip_ct_expect_unlink_destroy(struct ip_conntrack_expect *exp)
-{
-	unlink_expect(exp);
-	ip_conntrack_expect_put(exp);
-}
-
 static void expectation_timed_out(unsigned long ul_expect)
 {
 	struct ip_conntrack_expect *exp = (void *)ul_expect;
 
 	write_lock_bh(&ip_conntrack_lock);
-	unlink_expect(exp);
+	ip_ct_unlink_expect(exp);
 	write_unlock_bh(&ip_conntrack_lock);
 	ip_conntrack_expect_put(exp);
 }
@@ -269,7 +263,7 @@ find_expectation(const struct ip_conntrack_tuple *tuple)
 				atomic_inc(&i->use);
 				return i;
 			} else if (del_timer(&i->timeout)) {
-				unlink_expect(i);
+				ip_ct_unlink_expect(i);
 				return i;
 			}
 		}
@@ -288,7 +282,7 @@ void ip_ct_remove_expectations(struct ip_conntrack *ct)
 
 	list_for_each_entry_safe(i, tmp, &ip_conntrack_expect_list, list) {
 		if (i->master == ct && del_timer(&i->timeout)) {
-			unlink_expect(i);
+			ip_ct_unlink_expect(i);
 			ip_conntrack_expect_put(i);
 		}
 	}
@@ -929,7 +923,7 @@ void ip_conntrack_unexpect_related(struct ip_conntrack_expect *exp)
 	/* choose the the oldest expectation to evict */
 	list_for_each_entry_reverse(i, &ip_conntrack_expect_list, list) {
 		if (expect_matches(i, exp) && del_timer(&i->timeout)) {
-			unlink_expect(i);
+			ip_ct_unlink_expect(i);
 			write_unlock_bh(&ip_conntrack_lock);
 			ip_conntrack_expect_put(i);
 			return;
@@ -986,7 +980,7 @@ static void evict_oldest_expect(struct ip_conntrack *master)
 	list_for_each_entry_reverse(i, &ip_conntrack_expect_list, list) {
 		if (i->master == master) {
 			if (del_timer(&i->timeout)) {
-				unlink_expect(i);
+				ip_ct_unlink_expect(i);
 				ip_conntrack_expect_put(i);
 			}
 			break;
@@ -1103,7 +1097,7 @@ void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 	/* Get rid of expectations */
 	list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list, list) {
 		if (exp->master->helper == me && del_timer(&exp->timeout)) {
-			unlink_expect(exp);
+			ip_ct_unlink_expect(exp);
 			ip_conntrack_expect_put(exp);
 		}
 	}
