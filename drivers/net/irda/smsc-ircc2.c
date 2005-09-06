@@ -426,7 +426,7 @@ static int __init smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u
 	dev->do_ioctl        = smsc_ircc_net_ioctl;
 	dev->get_stats	     = smsc_ircc_net_get_stats;
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 	self->netdev = dev;
 
 	/* Make ifconfig display some details */
@@ -691,7 +691,7 @@ static int smsc_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -738,7 +738,7 @@ static int smsc_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd
 
 static struct net_device_stats *smsc_ircc_net_get_stats(struct net_device *dev)
 {
-	struct smsc_ircc_cb *self = (struct smsc_ircc_cb *) dev->priv;
+	struct smsc_ircc_cb *self = netdev_priv(dev);
 
 	return &self->stats;
 }
@@ -753,10 +753,8 @@ static struct net_device_stats *smsc_ircc_net_get_stats(struct net_device *dev)
 
 static void smsc_ircc_timeout(struct net_device *dev)
 {
-	struct smsc_ircc_cb *self;
+	struct smsc_ircc_cb *self = netdev_priv(dev);
 	unsigned long flags;
-
-	self = (struct smsc_ircc_cb *) dev->priv;
 
 	IRDA_WARNING("%s: transmit timed out, changing speed to: %d\n",
 		     dev->name, self->io.speed);
@@ -786,7 +784,7 @@ int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 
 	IRDA_ASSERT(dev != NULL, return 0;);
 
-	self = (struct smsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	netif_stop_queue(dev);
@@ -1094,7 +1092,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 	int mtt;
 
 	IRDA_ASSERT(dev != NULL, return 0;);
-	self = (struct smsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	netif_stop_queue(dev);
@@ -1425,7 +1423,8 @@ static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *re
 		       driver_name, irq);
 		goto irq_ret;
 	}
-	self = (struct smsc_ircc_cb *) dev->priv;
+
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return IRQ_NONE;);
 
 	/* Serialise the interrupt handler in various CPUs, stop Tx path */
@@ -1483,7 +1482,7 @@ static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *re
  */
 static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev)
 {
-	struct smsc_ircc_cb *self = dev->priv;
+	struct smsc_ircc_cb *self = netdev_priv(dev);
 	int boguscount = 0;
 	int iobase;
 	int iir, lsr;
@@ -1574,7 +1573,7 @@ static int smsc_ircc_net_open(struct net_device *dev)
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
 
 	IRDA_ASSERT(dev != NULL, return -1;);
-	self = (struct smsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	if (request_irq(self->io.irq, smsc_ircc_interrupt, 0, dev->name,
@@ -1630,7 +1629,7 @@ static int smsc_ircc_net_close(struct net_device *dev)
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
 
 	IRDA_ASSERT(dev != NULL, return -1;);
-	self = (struct smsc_ircc_cb *) dev->priv;
+	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	/* Stop device */
