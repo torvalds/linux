@@ -61,11 +61,11 @@
 # endif
 static inline void add_usec_to_timer(struct timer_list *t, long v)
 {
-	t->sub_expires += nsec_to_arch_cycle(v * 1000);
-	while (t->sub_expires >= arch_cycles_per_jiffy)
+	t->arch_cycle_expires += nsec_to_arch_cycle(v * 1000);
+	while (t->arch_cycle_expires >= arch_cycles_per_jiffy)
 	{
 		t->expires++;
-		t->sub_expires -= arch_cycles_per_jiffy;
+		t->arch_cycle_expires -= arch_cycles_per_jiffy;
 	}
 }
 #endif
@@ -762,18 +762,20 @@ static void si_restart_short_timer(struct smi_info *smi_info)
 #if defined(CONFIG_HIGH_RES_TIMERS)
 	unsigned long flags;
 	unsigned long jiffies_now;
+	unsigned long seq;
 
 	if (del_timer(&(smi_info->si_timer))) {
 		/* If we don't delete the timer, then it will go off
 		   immediately, anyway.  So we only process if we
 		   actually delete the timer. */
 
-		/* We already have irqsave on, so no need for it
-                   here. */
-		read_lock(&xtime_lock);
-		jiffies_now = jiffies;
-		smi_info->si_timer.expires = jiffies_now;
-		smi_info->si_timer.sub_expires = get_arch_cycles(jiffies_now);
+		do {
+			seq = read_seqbegin_irqsave(&xtime_lock, flags);
+			jiffies_now = jiffies;
+			smi_info->si_timer.expires = jiffies_now;
+			smi_info->si_timer.arch_cycle_expires
+				= get_arch_cycles(jiffies_now);
+		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
 		add_usec_to_timer(&smi_info->si_timer, SI_SHORT_TIMEOUT_USEC);
 
@@ -827,15 +829,19 @@ static void smi_timeout(unsigned long data)
 	/* If the state machine asks for a short delay, then shorten
            the timer timeout. */
 	if (smi_result == SI_SM_CALL_WITH_DELAY) {
+#if defined(CONFIG_HIGH_RES_TIMERS)
+		unsigned long seq;
+#endif
 		spin_lock_irqsave(&smi_info->count_lock, flags);
 		smi_info->short_timeouts++;
 		spin_unlock_irqrestore(&smi_info->count_lock, flags);
 #if defined(CONFIG_HIGH_RES_TIMERS)
-		read_lock(&xtime_lock);
-                smi_info->si_timer.expires = jiffies;
-                smi_info->si_timer.sub_expires
-                        = get_arch_cycles(smi_info->si_timer.expires);
-                read_unlock(&xtime_lock);
+		do {
+			seq = read_seqbegin_irqsave(&xtime_lock, flags);
+			smi_info->si_timer.expires = jiffies;
+			smi_info->si_timer.arch_cycle_expires
+				= get_arch_cycles(smi_info->si_timer.expires);
+		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 		add_usec_to_timer(&smi_info->si_timer, SI_SHORT_TIMEOUT_USEC);
 #else
 		smi_info->si_timer.expires = jiffies + 1;
@@ -846,7 +852,7 @@ static void smi_timeout(unsigned long data)
 		spin_unlock_irqrestore(&smi_info->count_lock, flags);
 		smi_info->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
 #if defined(CONFIG_HIGH_RES_TIMERS)
-		smi_info->si_timer.sub_expires = 0;
+		smi_info->si_timer.arch_cycle_expires = 0;
 #endif
 	}
 
