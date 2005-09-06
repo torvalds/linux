@@ -105,7 +105,7 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 	if (wait_time && doSend) {
 		PMNC_GET(pmnc);
 		if (!(pmnc & 0x01))
-			PMNC_SET(pmnc | 0x01);
+			PMNC_SET(0x01);
 
 		/* polling HSync */
 		SyncHS();
