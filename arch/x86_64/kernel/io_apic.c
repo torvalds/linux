@@ -78,6 +78,54 @@ int vector_irq[NR_VECTORS] = { [0 ... NR_VECTORS - 1] = -1};
 #define vector_to_irq(vector)	(vector)
 #endif
 
+#define __DO_ACTION(R, ACTION, FINAL)					\
+									\
+{									\
+	int pin;							\
+	struct irq_pin_list *entry = irq_2_pin + irq;			\
+									\
+	for (;;) {							\
+		unsigned int reg;					\
+		pin = entry->pin;					\
+		if (pin == -1)						\
+			break;						\
+		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
+		reg ACTION;						\
+		io_apic_modify(entry->apic, reg);			\
+		if (!entry->next)					\
+			break;						\
+		entry = irq_2_pin + entry->next;			\
+	}								\
+	FINAL;								\
+}
+
+#ifdef CONFIG_SMP
+static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
+{
+	unsigned long flags;
+	unsigned int dest;
+	cpumask_t tmp;
+
+	cpus_and(tmp, mask, cpu_online_map);
+	if (cpus_empty(tmp))
+		tmp = TARGET_CPUS;
+
+	cpus_and(mask, tmp, CPU_MASK_ALL);
+
+	dest = cpu_mask_to_apicid(mask);
+
+	/*
+	 * Only the high 8 bits are valid.
+	 */
+	dest = SET_APIC_LOGICAL_ID(dest);
+
+	spin_lock_irqsave(&ioapic_lock, flags);
+	__DO_ACTION(1, = dest, )
+	set_irq_info(irq, mask);
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+}
+#endif
+
 /*
  * The common case is 1:1 IRQ<->pin mappings. Sometimes there are
  * shared ISA-space IRQs, so we have to support them. We are super
@@ -101,26 +149,6 @@ static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 	entry->pin = pin;
 }
 
-#define __DO_ACTION(R, ACTION, FINAL)					\
-									\
-{									\
-	int pin;							\
-	struct irq_pin_list *entry = irq_2_pin + irq;			\
-									\
-	for (;;) {							\
-		unsigned int reg;					\
-		pin = entry->pin;					\
-		if (pin == -1)						\
-			break;						\
-		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
-		reg ACTION;						\
-		io_apic_modify(entry->apic, reg);			\
-		if (!entry->next)					\
-			break;						\
-		entry = irq_2_pin + entry->next;			\
-	}								\
-	FINAL;								\
-}
 
 #define DO_ACTION(name,R,ACTION, FINAL)					\
 									\
@@ -767,6 +795,7 @@ static void __init setup_IO_APIC_irqs(void)
 		spin_lock_irqsave(&ioapic_lock, flags);
 		io_apic_write(apic, 0x11+2*pin, *(((int *)&entry)+1));
 		io_apic_write(apic, 0x10+2*pin, *(((int *)&entry)+0));
+		set_native_irq_info(irq, TARGET_CPUS);
 		spin_unlock_irqrestore(&ioapic_lock, flags);
 	}
 	}
@@ -1314,6 +1343,7 @@ static unsigned int startup_edge_ioapic_irq(unsigned int irq)
  */
 static void ack_edge_ioapic_irq(unsigned int irq)
 {
+	move_irq(irq);
 	if ((irq_desc[irq].status & (IRQ_PENDING | IRQ_DISABLED))
 					== (IRQ_PENDING | IRQ_DISABLED))
 		mask_IO_APIC_irq(irq);
@@ -1343,24 +1373,8 @@ static unsigned int startup_level_ioapic_irq (unsigned int irq)
 
 static void end_level_ioapic_irq (unsigned int irq)
 {
+	move_irq(irq);
 	ack_APIC_irq();
-}
-
-static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
-{
-	unsigned long flags;
-	unsigned int dest;
-
-	dest = cpu_mask_to_apicid(mask);
-
-	/*
-	 * Only the high 8 bits are valid.
-	 */
-	dest = SET_APIC_LOGICAL_ID(dest);
-
-	spin_lock_irqsave(&ioapic_lock, flags);
-	__DO_ACTION(1, = dest, )
-	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
 #ifdef CONFIG_PCI_MSI
@@ -1375,6 +1389,7 @@ static void ack_edge_ioapic_vector(unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
+	move_native_irq(vector);
 	ack_edge_ioapic_irq(irq);
 }
 
@@ -1389,6 +1404,7 @@ static void end_level_ioapic_vector (unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
+	move_native_irq(vector);
 	end_level_ioapic_irq(irq);
 }
 
@@ -1406,14 +1422,17 @@ static void unmask_IO_APIC_vector (unsigned int vector)
 	unmask_IO_APIC_irq(irq);
 }
 
+#ifdef CONFIG_SMP
 static void set_ioapic_affinity_vector (unsigned int vector,
 					cpumask_t cpu_mask)
 {
 	int irq = vector_to_irq(vector);
 
+	set_native_irq_info(vector, cpu_mask);
 	set_ioapic_affinity_irq(irq, cpu_mask);
 }
-#endif
+#endif // CONFIG_SMP
+#endif // CONFIG_PCI_MSI
 
 /*
  * Level and edge triggered IO-APIC interrupts need different handling,
@@ -1432,7 +1451,9 @@ static struct hw_interrupt_type ioapic_edge_type = {
 	.disable 	= disable_edge_ioapic,
 	.ack 		= ack_edge_ioapic,
 	.end 		= end_edge_ioapic,
+#ifdef CONFIG_SMP
 	.set_affinity = set_ioapic_affinity,
+#endif
 };
 
 static struct hw_interrupt_type ioapic_level_type = {
@@ -1443,7 +1464,9 @@ static struct hw_interrupt_type ioapic_level_type = {
 	.disable 	= disable_level_ioapic,
 	.ack 		= mask_and_ack_level_ioapic,
 	.end 		= end_level_ioapic,
+#ifdef CONFIG_SMP
 	.set_affinity = set_ioapic_affinity,
+#endif
 };
 
 static inline void init_IO_APIC_traps(void)
@@ -1918,6 +1941,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	spin_lock_irqsave(&ioapic_lock, flags);
 	io_apic_write(ioapic, 0x11+2*pin, *(((int *)&entry)+1));
 	io_apic_write(ioapic, 0x10+2*pin, *(((int *)&entry)+0));
+	set_native_irq_info(use_pci_vector() ?  entry.vector : irq, TARGET_CPUS);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	return 0;
@@ -1931,6 +1955,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
  * we need to reprogram the ioredtbls to cater for the cpus which have come online
  * so mask in all cases should simply be TARGET_CPUS
  */
+#ifdef CONFIG_SMP
 void __init setup_ioapic_dest(void)
 {
 	int pin, ioapic, irq, irq_entry;
@@ -1949,3 +1974,4 @@ void __init setup_ioapic_dest(void)
 
 	}
 }
+#endif

@@ -441,6 +441,11 @@ config ISA_DMA_API
 	bool
 	default y
 
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
 menu "Power management options"
 
 source kernel/power/Kconfig

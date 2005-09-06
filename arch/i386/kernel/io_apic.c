@@ -33,6 +33,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/sysdev.h>
+
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/desc.h>
@@ -222,13 +223,21 @@ static void clear_IO_APIC (void)
 			clear_IO_APIC_pin(apic, pin);
 }
 
+#ifdef CONFIG_SMP
 static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 {
 	unsigned long flags;
 	int pin;
 	struct irq_pin_list *entry = irq_2_pin + irq;
 	unsigned int apicid_value;
+	cpumask_t tmp;
 	
+	cpus_and(tmp, cpumask, cpu_online_map);
+	if (cpus_empty(tmp))
+		tmp = TARGET_CPUS;
+
+	cpus_and(cpumask, tmp, CPU_MASK_ALL);
+
 	apicid_value = cpu_mask_to_apicid(cpumask);
 	/* Prepare to do the io_apic_write */
 	apicid_value = apicid_value << 24;
@@ -242,6 +251,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 			break;
 		entry = irq_2_pin + entry->next;
 	}
+	set_irq_info(irq, cpumask);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -259,7 +269,6 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 #  define Dprintk(x...) 
 # endif
 
-cpumask_t __cacheline_aligned pending_irq_balance_cpumask[NR_IRQS];
 
 #define IRQBALANCE_CHECK_ARCH -999
 static int irqbalance_disabled = IRQBALANCE_CHECK_ARCH;
@@ -328,12 +337,7 @@ static inline void balance_irq(int cpu, int irq)
 	cpus_and(allowed_mask, cpu_online_map, irq_affinity[irq]);
 	new_cpu = move(cpu, allowed_mask, now, 1);
 	if (cpu != new_cpu) {
-		irq_desc_t *desc = irq_desc + irq;
-		unsigned long flags;
-
-		spin_lock_irqsave(&desc->lock, flags);
-		pending_irq_balance_cpumask[irq] = cpumask_of_cpu(new_cpu);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		set_pending_irq(irq, cpumask_of_cpu(new_cpu));
 	}
 }
 
@@ -528,16 +532,12 @@ tryanotherirq:
 	cpus_and(tmp, target_cpu_mask, allowed_mask);
 
 	if (!cpus_empty(tmp)) {
-		irq_desc_t *desc = irq_desc + selected_irq;
-		unsigned long flags;
 
 		Dprintk("irq = %d moved to cpu = %d\n",
 				selected_irq, min_loaded);
 		/* mark for change destination */
-		spin_lock_irqsave(&desc->lock, flags);
-		pending_irq_balance_cpumask[selected_irq] =
-					cpumask_of_cpu(min_loaded);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		set_pending_irq(selected_irq, cpumask_of_cpu(min_loaded));
+
 		/* Since we made a change, come back sooner to 
 		 * check for more variation.
 		 */
@@ -568,7 +568,8 @@ static int balanced_irq(void *unused)
 	
 	/* push everything to CPU 0 to give us a starting point.  */
 	for (i = 0 ; i < NR_IRQS ; i++) {
-		pending_irq_balance_cpumask[i] = cpumask_of_cpu(0);
+		pending_irq_cpumask[i] = cpumask_of_cpu(0);
+		set_pending_irq(i, cpumask_of_cpu(0));
 	}
 
 	for ( ; ; ) {
@@ -647,20 +648,9 @@ int __init irqbalance_disable(char *str)
 
 __setup("noirqbalance", irqbalance_disable);
 
-static inline void move_irq(int irq)
-{
-	/* note - we hold the desc->lock */
-	if (unlikely(!cpus_empty(pending_irq_balance_cpumask[irq]))) {
-		set_ioapic_affinity_irq(irq, pending_irq_balance_cpumask[irq]);
-		cpus_clear(pending_irq_balance_cpumask[irq]);
-	}
-}
-
 late_initcall(balanced_irq_init);
-
-#else /* !CONFIG_IRQBALANCE */
-static inline void move_irq(int irq) { }
 #endif /* CONFIG_IRQBALANCE */
+#endif /* CONFIG_SMP */
 
 #ifndef CONFIG_SMP
 void fastcall send_IPI_self(int vector)
@@ -820,6 +810,7 @@ EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
  * we need to reprogram the ioredtbls to cater for the cpus which have come online
  * so mask in all cases should simply be TARGET_CPUS
  */
+#ifdef CONFIG_SMP
 void __init setup_ioapic_dest(void)
 {
 	int pin, ioapic, irq, irq_entry;
@@ -838,6 +829,7 @@ void __init setup_ioapic_dest(void)
 
 	}
 }
+#endif
 
 /*
  * EISA Edge/Level control register, ELCR
@@ -1249,6 +1241,7 @@ static void __init setup_IO_APIC_irqs(void)
 		spin_lock_irqsave(&ioapic_lock, flags);
 		io_apic_write(apic, 0x11+2*pin, *(((int *)&entry)+1));
 		io_apic_write(apic, 0x10+2*pin, *(((int *)&entry)+0));
+		set_native_irq_info(irq, TARGET_CPUS);
 		spin_unlock_irqrestore(&ioapic_lock, flags);
 	}
 	}
@@ -1944,6 +1937,7 @@ static void ack_edge_ioapic_vector(unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
+	move_irq(vector);
 	ack_edge_ioapic_irq(irq);
 }
 
@@ -1958,6 +1952,7 @@ static void end_level_ioapic_vector (unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
+	move_irq(vector);
 	end_level_ioapic_irq(irq);
 }
 
@@ -1975,13 +1970,16 @@ static void unmask_IO_APIC_vector (unsigned int vector)
 	unmask_IO_APIC_irq(irq);
 }
 
+#ifdef CONFIG_SMP
 static void set_ioapic_affinity_vector (unsigned int vector,
 					cpumask_t cpu_mask)
 {
 	int irq = vector_to_irq(vector);
 
+	set_native_irq_info(vector, cpu_mask);
 	set_ioapic_affinity_irq(irq, cpu_mask);
 }
+#endif
 #endif
 
 /*
@@ -2000,7 +1998,9 @@ static struct hw_interrupt_type ioapic_edge_type = {
 	.disable 	= disable_edge_ioapic,
 	.ack 		= ack_edge_ioapic,
 	.end 		= end_edge_ioapic,
+#ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity,
+#endif
 };
 
 static struct hw_interrupt_type ioapic_level_type = {
@@ -2011,7 +2011,9 @@ static struct hw_interrupt_type ioapic_level_type = {
 	.disable 	= disable_level_ioapic,
 	.ack 		= mask_and_ack_level_ioapic,
 	.end 		= end_level_ioapic,
+#ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity,
+#endif
 };
 
 static inline void init_IO_APIC_traps(void)
@@ -2569,6 +2571,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	spin_lock_irqsave(&ioapic_lock, flags);
 	io_apic_write(ioapic, 0x11+2*pin, *(((int *)&entry)+1));
 	io_apic_write(ioapic, 0x10+2*pin, *(((int *)&entry)+0));
+	set_native_irq_info(use_pci_vector() ? entry.vector : irq, TARGET_CPUS);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	return 0;

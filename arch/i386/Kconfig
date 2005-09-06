@@ -1318,6 +1318,11 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
 config X86_SMP
 	bool
 	depends on SMP && !X86_VOYAGER
