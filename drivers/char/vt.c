@@ -2272,7 +2272,9 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = paste_selection(tty);
 			break;
 		case TIOCL_UNBLANKSCREEN:
+			acquire_console_sem();
 			unblank_screen();
+			release_console_sem();
 			break;
 		case TIOCL_SELLOADLUT:
 			ret = sel_loadlut(p);
@@ -2317,8 +2319,10 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			}
 			break;
 		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
+			acquire_console_sem();
 			ignore_poke = 1;
 			do_blank_screen(0);
+			release_console_sem();
 			break;
 		case TIOCL_BLANKEDSCREEN:
 			ret = console_blanked;
