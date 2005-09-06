@@ -260,7 +260,7 @@ static int __init corgikbd_probe(struct device *dev)
 	int i;
 	struct corgikbd *corgikbd;
 
-	corgikbd = kcalloc(1, sizeof(struct corgikbd), GFP_KERNEL);
+	corgikbd = kzalloc(sizeof(struct corgikbd), GFP_KERNEL);
 	if (!corgikbd)
 		return -ENOMEM;
 

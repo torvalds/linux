@@ -183,7 +183,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	int i, t;
 	int err;
 
-	if (!(guillemot = kcalloc(1, sizeof(struct guillemot), GFP_KERNEL)))
+	if (!(guillemot = kzalloc(sizeof(struct guillemot), GFP_KERNEL)))
 		return -ENOMEM;
 
 	guillemot->gameport = gameport;
