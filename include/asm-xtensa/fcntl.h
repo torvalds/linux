@@ -18,17 +18,12 @@
 #define O_SYNC		0x0010
 #define O_NONBLOCK	0x0080
 #define O_CREAT         0x0100	/* not fcntl */
-#define O_TRUNC		0x0200	/* not fcntl */
 #define O_EXCL		0x0400	/* not fcntl */
 #define O_NOCTTY	0x0800	/* not fcntl */
 #define FASYNC		0x1000	/* fcntl, for BSD compatibility */
 #define O_LARGEFILE	0x2000	/* allow large file opens - currently ignored */
 #define O_DIRECT	0x8000	/* direct disk access hint - currently ignored*/
-#define O_DIRECTORY	0x10000	/* must be a directory */
-#define O_NOFOLLOW	0x20000	/* don't follow links */
 #define O_NOATIME	0x100000
-
-#define O_NDELAY	O_NONBLOCK
 
 #define F_GETLK		14
 #define F_GETLK64       15

@@ -6,19 +6,15 @@
 #define O_APPEND	00000010
 #define O_BLKSEEK	00000100 /* HPUX only */
 #define O_CREAT		00000400 /* not fcntl */
-#define O_TRUNC		00001000 /* not fcntl */
 #define O_EXCL		00002000 /* not fcntl */
 #define O_LARGEFILE	00004000
 #define O_SYNC		00100000
 #define O_NONBLOCK	00200004 /* HPUX has separate NDELAY & NONBLOCK */
-#define O_NDELAY	O_NONBLOCK
 #define O_NOCTTY	00400000 /* not fcntl */
 #define O_DSYNC		01000000 /* HPUX only */
 #define O_RSYNC		02000000 /* HPUX only */
 #define O_NOATIME	04000000
 
-#define FASYNC		00020000 /* fcntl, for BSD compatibility */
-#define O_DIRECT	00040000 /* direct disk access hint - currently ignored */
 #define O_DIRECTORY	00010000 /* must be a directory */
 #define O_NOFOLLOW	00000200 /* don't follow links */
 #define O_INVISIBLE	04000000 /* invisible I/O, for DMAPI/XDSM */

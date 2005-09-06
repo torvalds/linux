@@ -10,9 +10,7 @@
 
 #define O_NONBLOCK	 00004
 #define O_APPEND	 00010
-#define O_NDELAY	O_NONBLOCK
 #define O_SYNC		040000
-#define FASYNC		020000	/* fcntl, for BSD compatibility */
 #define O_DIRECTORY	0100000	/* must be a directory */
 #define O_NOFOLLOW	0200000 /* don't follow links */
 #define O_LARGEFILE	0400000 /* will be set by the kernel on every open */
