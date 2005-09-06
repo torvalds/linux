@@ -59,6 +59,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features = COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 	},
 	{	/* Power3+ */
@@ -71,6 +72,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 	},
 	{	/* Northstar */
@@ -83,6 +85,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 	},
 	{	/* Pulsar */
@@ -95,6 +98,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 	},
 	{	/* I-star */
@@ -107,6 +111,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 	},
 	{	/* S-star */
@@ -119,6 +124,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 	},
 	{	/* Power4 */
@@ -131,6 +137,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
 	},
 	{	/* Power4+ */
@@ -143,6 +150,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
 	},
 	{	/* PPC970 */
@@ -157,6 +165,7 @@ struct cpu_spec	cpu_specs[] = {
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
 	},
 	{	/* PPC970FX */
@@ -171,6 +180,7 @@ struct cpu_spec	cpu_specs[] = {
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
 	},
 	{	/* PPC970MP */
@@ -199,6 +209,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
 	},
 	{	/* Power5 */
@@ -213,6 +224,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
 	},
 	{	/* BE DD1.x */
@@ -239,6 +251,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
 	}
 };

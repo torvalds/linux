@@ -52,6 +52,9 @@ struct cpu_spec {
 	unsigned int	icache_bsize;
 	unsigned int	dcache_bsize;
 
+	/* number of performance monitor counters */
+	unsigned int	num_pmcs;
+
 	/* this is called to initialize various CPU bits like L1 cache,
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
