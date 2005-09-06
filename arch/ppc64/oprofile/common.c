@@ -17,11 +17,8 @@
 #include <asm/system.h>
 #include <asm/pmc.h>
 #include <asm/cputable.h>
+#include <asm/oprofile_impl.h>
 
-#include "op_impl.h"
-
-extern struct op_ppc64_model op_model_rs64;
-extern struct op_ppc64_model op_model_power4;
 static struct op_ppc64_model *model;
 
 static struct op_counter_config ctr[OP_MAX_COUNTER];

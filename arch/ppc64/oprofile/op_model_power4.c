@@ -16,10 +16,9 @@
 #include <asm/cputable.h>
 #include <asm/systemcfg.h>
 #include <asm/rtas.h>
+#include <asm/oprofile_impl.h>
 
 #define dbg(args...)
-
-#include "op_impl.h"
 
 static unsigned long reset_value[OP_MAX_COUNTER];
 

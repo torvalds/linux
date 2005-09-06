@@ -14,10 +14,9 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
+#include <asm/oprofile_impl.h>
 
 #define dbg(args...)
-
-#include "op_impl.h"
 
 static void ctrl_write(unsigned int i, unsigned int val)
 {
