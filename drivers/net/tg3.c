@@ -7935,9 +7935,12 @@ static int tg3_test_memory(struct tg3 *tp)
 	return err;
 }
 
-static int tg3_test_loopback(struct tg3 *tp)
+#define TG3_MAC_LOOPBACK	0
+#define TG3_PHY_LOOPBACK	1
+
+static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 {
-	u32 mac_mode, send_idx, rx_start_idx, rx_idx, tx_idx, opaque_key;
+	u32 mac_mode, rx_start_idx, rx_idx, tx_idx, opaque_key;
 	u32 desc_idx;
 	struct sk_buff *skb, *rx_skb;
 	u8 *tx_data;
@@ -7945,17 +7948,25 @@ static int tg3_test_loopback(struct tg3 *tp)
 	int num_pkts, tx_len, rx_len, i, err;
 	struct tg3_rx_buffer_desc *desc;
 
-	if (!netif_running(tp->dev))
-		return -ENODEV;
+	if (loopback_mode == TG3_MAC_LOOPBACK) {
+		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
+			   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY |
+			   MAC_MODE_PORT_MODE_GMII;
+		tw32(MAC_MODE, mac_mode);
+	} else if (loopback_mode == TG3_PHY_LOOPBACK) {
+		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
+			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
+		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
+			mac_mode &= ~MAC_MODE_LINK_POLARITY;
+		tw32(MAC_MODE, mac_mode);
+
+		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
+					   BMCR_SPEED1000);
+	}
+	else
+		return -EINVAL;
 
 	err = -EIO;
-
-	tg3_reset_hw(tp);
-
-	mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
-		   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY |
-		   MAC_MODE_PORT_MODE_GMII;
-	tw32(MAC_MODE, mac_mode);
 
 	tx_len = 1514;
 	skb = dev_alloc_skb(tx_len);
@@ -7977,15 +7988,15 @@ static int tg3_test_loopback(struct tg3 *tp)
 
 	rx_start_idx = tp->hw_status->idx[0].rx_producer;
 
-	send_idx = 0;
 	num_pkts = 0;
 
-	tg3_set_txd(tp, send_idx, map, tx_len, 0, 1);
+	tg3_set_txd(tp, tp->tx_prod, map, tx_len, 0, 1);
 
-	send_idx++;
+	tp->tx_prod++;
 	num_pkts++;
 
-	tw32_tx_mbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW, send_idx);
+	tw32_tx_mbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW,
+		     tp->tx_prod);
 	tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW);
 
 	udelay(10);
@@ -7998,7 +8009,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 
 		tx_idx = tp->hw_status->idx[0].tx_consumer;
 		rx_idx = tp->hw_status->idx[0].rx_producer;
-		if ((tx_idx == send_idx) &&
+		if ((tx_idx == tp->tx_prod) &&
 		    (rx_idx == (rx_start_idx + num_pkts)))
 			break;
 	}
@@ -8006,7 +8017,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 	pci_unmap_single(tp->pdev, map, tx_len, PCI_DMA_TODEVICE);
 	dev_kfree_skb(skb);
 
-	if (tx_idx != send_idx)
+	if (tx_idx != tp->tx_prod)
 		goto out;
 
 	if (rx_idx != rx_start_idx + num_pkts)
@@ -8039,6 +8050,30 @@ static int tg3_test_loopback(struct tg3 *tp)
 	
 	/* tg3_free_rings will unmap and free the rx_skb */
 out:
+	return err;
+}
+
+#define TG3_MAC_LOOPBACK_FAILED		1
+#define TG3_PHY_LOOPBACK_FAILED		2
+#define TG3_LOOPBACK_FAILED		(TG3_MAC_LOOPBACK_FAILED |	\
+					 TG3_PHY_LOOPBACK_FAILED)
+
+static int tg3_test_loopback(struct tg3 *tp)
+{
+	int err = 0;
+
+	if (!netif_running(tp->dev))
+		return TG3_LOOPBACK_FAILED;
+
+	tg3_reset_hw(tp);
+
+	if (tg3_run_loopback(tp, TG3_MAC_LOOPBACK))
+		err |= TG3_MAC_LOOPBACK_FAILED;
+	if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)) {
+		if (tg3_run_loopback(tp, TG3_PHY_LOOPBACK))
+			err |= TG3_PHY_LOOPBACK_FAILED;
+	}
+
 	return err;
 }
 
@@ -8082,10 +8117,8 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			etest->flags |= ETH_TEST_FL_FAILED;
 			data[3] = 1;
 		}
-		if (tg3_test_loopback(tp) != 0) {
+		if ((data[4] = tg3_test_loopback(tp)) != 0)
 			etest->flags |= ETH_TEST_FL_FAILED;
-			data[4] = 1;
-		}
 
 		tg3_full_unlock(tp);
 
