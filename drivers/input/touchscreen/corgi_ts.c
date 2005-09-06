@@ -53,8 +53,8 @@ struct corgi_ts {
 
 #define SyncHS()	while((STATUS_HSYNC) == 0); while((STATUS_HSYNC) != 0);
 #define CCNT(a)		asm volatile ("mrc p14, 0, %0, C1, C0, 0" : "=r"(a))
-#define CCNT_ON()	{int pmnc = 1; asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(pmnc));}
-#define CCNT_OFF()	{int pmnc = 0; asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(pmnc));}
+#define PMNC_GET(x)	asm volatile ("mrc p14, 0, %0, C0, C0, 0" : "=r"(x))
+#define PMNC_SET(x)	asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(x))
 
 #define WAIT_HS_400_VGA		7013U	// 17.615us
 #define WAIT_HS_400_QVGA	16622U	// 41.750us
@@ -96,14 +96,17 @@ static unsigned long calc_waittime(void)
 
 static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int address, unsigned long wait_time)
 {
+	unsigned long timer1 = 0, timer2, pmnc = 0;
 	int pos = 0;
-	unsigned long timer1 = 0, timer2;
 	int dosleep;
 
 	dosleep = !w100fb_get_blanking();
 
 	if (dosleep && doSend) {
-		CCNT_ON();
+		PMNC_GET(pmnc);
+		if (!(pmnc & 0x01))
+			PMNC_SET(pmnc | 0x01);
+
 		/* polling HSync */
 		SyncHS();
 		/* get CCNT */
@@ -134,8 +137,8 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 				CCNT(timer2);
 		}
 		corgi_ssp_ads7846_put(cmd);
-		if (dosleep)
-			CCNT_OFF();
+		if (dosleep && !(pmnc & 0x01))
+			PMNC_SET(pmnc);
 	}
 	return pos;
 }
