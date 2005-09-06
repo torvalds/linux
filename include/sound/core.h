@@ -291,12 +291,14 @@ void snd_memory_done(void);
 int snd_memory_info_init(void);
 int snd_memory_info_done(void);
 void *snd_hidden_kmalloc(size_t size, unsigned int __nocast flags);
+void *snd_hidden_kzalloc(size_t size, unsigned int __nocast flags);
 void *snd_hidden_kcalloc(size_t n, size_t size, unsigned int __nocast flags);
 void snd_hidden_kfree(const void *obj);
 void *snd_hidden_vmalloc(unsigned long size);
 void snd_hidden_vfree(void *obj);
 char *snd_hidden_kstrdup(const char *s, unsigned int __nocast flags);
 #define kmalloc(size, flags) snd_hidden_kmalloc(size, flags)
+#define kzalloc(size, flags) snd_hidden_kzalloc(size, flags)
 #define kcalloc(n, size, flags) snd_hidden_kcalloc(n, size, flags)
 #define kfree(obj) snd_hidden_kfree(obj)
 #define vmalloc(size) snd_hidden_vmalloc(size)
