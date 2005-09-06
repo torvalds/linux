@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/irq.h>
@@ -78,6 +79,9 @@ struct corgikbd {
 
 	struct timer_list timer;
 	struct timer_list htimer;
+
+	unsigned int suspended;
+	unsigned long suspend_jiffies;
 };
 
 static void handle_scancode(unsigned int pressed,unsigned int scancode, struct corgikbd *corgikbd_data)
@@ -85,8 +89,11 @@ static void handle_scancode(unsigned int pressed,unsigned int scancode, struct c
 	if (pressed && !(corgikbd_data->state[scancode] & CORGIKBD_PRESSED)) {
 		corgikbd_data->state[scancode] |= CORGIKBD_PRESSED;
 		input_report_key(&corgikbd_data->input, corgikbd_data->keycode[scancode], 1);
-		if (corgikbd_data->keycode[scancode] == CORGI_KEY_OFF)
+		if ((corgikbd_data->keycode[scancode] == CORGI_KEY_OFF)
+				&& time_after(jiffies, corgikbd_data->suspend_jiffies + HZ)) {
 			input_event(&corgikbd_data->input, EV_PWR, CORGI_KEY_OFF, 1);
+			corgikbd_data->suspend_jiffies=jiffies;
+		}
 	} else if (!pressed && corgikbd_data->state[scancode] & CORGIKBD_PRESSED) {
 		corgikbd_data->state[scancode] &= ~CORGIKBD_PRESSED;
 		input_report_key(&corgikbd_data->input, corgikbd_data->keycode[scancode], 0);
@@ -152,6 +159,9 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 	unsigned int row, col, rowd, scancode;
 	unsigned long flags;
 	unsigned int num_pressed;
+
+	if (corgikbd_data->suspended)
+		return;
 
 	spin_lock_irqsave(&corgikbd_data->lock, flags);
 
@@ -255,6 +265,32 @@ static void corgikbd_hinge_timer(unsigned long data)
 	mod_timer(&corgikbd_data->htimer, jiffies + HINGE_SCAN_INTERVAL);
 }
 
+#ifdef CONFIG_PM
+static int corgikbd_suspend(struct device *dev, pm_message_t state, uint32_t level)
+{
+	if (level == SUSPEND_POWER_DOWN) {
+		struct corgikbd *corgikbd = dev_get_drvdata(dev);
+		corgikbd->suspended = 1;
+	}
+	return 0;
+}
+
+static int corgikbd_resume(struct device *dev, uint32_t level)
+{
+	if (level == RESUME_POWER_ON) {
+		struct corgikbd *corgikbd = dev_get_drvdata(dev);
+
+		/* Upon resume, ignore the suspend key for a short while */
+		corgikbd->suspend_jiffies=jiffies;
+		corgikbd->suspended = 0;
+	}
+	return 0;
+}
+#else
+#define corgikbd_suspend	NULL
+#define corgikbd_resume		NULL
+#endif
+
 static int __init corgikbd_probe(struct device *dev)
 {
 	int i;
@@ -278,6 +314,8 @@ static int __init corgikbd_probe(struct device *dev)
 	init_timer(&corgikbd->htimer);
 	corgikbd->htimer.function = corgikbd_hinge_timer;
 	corgikbd->htimer.data = (unsigned long) corgikbd;
+
+	corgikbd->suspend_jiffies=jiffies;
 
 	init_input_dev(&corgikbd->input);
 	corgikbd->input.private = corgikbd;
@@ -343,6 +381,8 @@ static struct device_driver corgikbd_driver = {
 	.bus		= &platform_bus_type,
 	.probe		= corgikbd_probe,
 	.remove		= corgikbd_remove,
+	.suspend	= corgikbd_suspend,
+	.resume		= corgikbd_resume,
 };
 
 static int __devinit corgikbd_init(void)
