@@ -281,17 +281,7 @@ struct iattr {
 	struct timespec	ia_atime;
 	struct timespec	ia_mtime;
 	struct timespec	ia_ctime;
-	unsigned int	ia_attr_flags;
 };
-
-/*
- * This is the inode attributes flag definitions
- */
-#define ATTR_FLAG_SYNCRONOUS	1 	/* Syncronous write */
-#define ATTR_FLAG_NOATIME	2 	/* Don't update atime */
-#define ATTR_FLAG_APPEND	4 	/* Append-only file */
-#define ATTR_FLAG_IMMUTABLE	8 	/* Immutable file */
-#define ATTR_FLAG_NODIRATIME	16 	/* Don't update atime for directory */
 
 /*
  * Includes for diskquotas.
