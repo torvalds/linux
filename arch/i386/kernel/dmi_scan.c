@@ -84,49 +84,6 @@ static int __init dmi_checksum(u8 *buf)
 	return sum == 0;
 }
 
-static int __init dmi_iterate(void (*decode)(struct dmi_header *))
-{
-	u8 buf[15];
-	char __iomem *p, *q;
-
-	/*
-	 * no iounmap() for that ioremap(); it would be a no-op, but it's
-	 * so early in setup that sucker gets confused into doing what
-	 * it shouldn't if we actually call it.
-	 */
-	p = ioremap(0xF0000, 0x10000);
-	if (p == NULL)
-		return -1;
-
-	for (q = p; q < p + 0x10000; q += 16) {
-		memcpy_fromio(buf, q, 15);
-		if ((memcmp(buf, "_DMI_", 5) == 0) && dmi_checksum(buf)) {
-			u16 num = (buf[13] << 8) | buf[12];
-			u16 len = (buf[7] << 8) | buf[6];
-			u32 base = (buf[11] << 24) | (buf[10] << 16) |
-				   (buf[9] << 8) | buf[8];
-
-			/*
-			 * DMI version 0.0 means that the real version is taken from
-			 * the SMBIOS version, which we don't know at this point.
-			 */
-			if (buf[14] != 0)
-				printk(KERN_INFO "DMI %d.%d present.\n",
-					buf[14] >> 4, buf[14] & 0xF);
-			else
-				printk(KERN_INFO "DMI present.\n");
-
-			dmi_printk((KERN_INFO "%d structures occupying %d bytes.\n",
-				num, len));
-			dmi_printk((KERN_INFO "DMI table at 0x%08X.\n", base));
-
-			if (dmi_table(base,len, num, decode) == 0)
-				return 0;
-		}
-	}
-	return -1;
-}
-
 static char *dmi_ident[DMI_STRING_MAX];
 
 /*
@@ -190,8 +147,46 @@ static void __init dmi_decode(struct dmi_header *dm)
 
 void __init dmi_scan_machine(void)
 {
-	if (dmi_iterate(dmi_decode))
-		printk(KERN_INFO "DMI not present.\n");
+	u8 buf[15];
+	char __iomem *p, *q;
+
+	/*
+	 * no iounmap() for that ioremap(); it would be a no-op, but it's
+	 * so early in setup that sucker gets confused into doing what
+	 * it shouldn't if we actually call it.
+	 */
+	p = ioremap(0xF0000, 0x10000);
+	if (p == NULL)
+		goto out;
+
+	for (q = p; q < p + 0x10000; q += 16) {
+		memcpy_fromio(buf, q, 15);
+		if ((memcmp(buf, "_DMI_", 5) == 0) && dmi_checksum(buf)) {
+			u16 num = (buf[13] << 8) | buf[12];
+			u16 len = (buf[7] << 8) | buf[6];
+			u32 base = (buf[11] << 24) | (buf[10] << 16) |
+				   (buf[9] << 8) | buf[8];
+
+			/*
+			 * DMI version 0.0 means that the real version is taken from
+			 * the SMBIOS version, which we don't know at this point.
+			 */
+			if (buf[14] != 0)
+				printk(KERN_INFO "DMI %d.%d present.\n",
+					buf[14] >> 4, buf[14] & 0xF);
+			else
+				printk(KERN_INFO "DMI present.\n");
+
+			dmi_printk((KERN_INFO "%d structures occupying %d bytes.\n",
+				num, len));
+			dmi_printk((KERN_INFO "DMI table at 0x%08X.\n", base));
+
+			if (dmi_table(base,len, num, dmi_decode) == 0)
+				return;
+		}
+	}
+
+out:	printk(KERN_INFO "DMI not present.\n");
 }
 
 
