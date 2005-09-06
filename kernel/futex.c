@@ -786,23 +786,17 @@ static int futex_fd(unsigned long uaddr, int signal)
 	filp->f_mapping = filp->f_dentry->d_inode->i_mapping;
 
 	if (signal) {
-		int err;
 		err = f_setown(filp, current->pid, 1);
 		if (err < 0) {
-			put_unused_fd(ret);
-			put_filp(filp);
-			ret = err;
-			goto out;
+			goto error;
 		}
 		filp->f_owner.signum = signal;
 	}
 
 	q = kmalloc(sizeof(*q), GFP_KERNEL);
 	if (!q) {
-		put_unused_fd(ret);
-		put_filp(filp);
-		ret = -ENOMEM;
-		goto out;
+		err = -ENOMEM;
+		goto error;
 	}
 
 	down_read(&current->mm->mmap_sem);
@@ -810,10 +804,8 @@ static int futex_fd(unsigned long uaddr, int signal)
 
 	if (unlikely(err != 0)) {
 		up_read(&current->mm->mmap_sem);
-		put_unused_fd(ret);
-		put_filp(filp);
 		kfree(q);
-		return err;
+		goto error;
 	}
 
 	/*
@@ -829,6 +821,11 @@ static int futex_fd(unsigned long uaddr, int signal)
 	fd_install(ret, filp);
 out:
 	return ret;
+error:
+	put_unused_fd(ret);
+	put_filp(filp);
+	ret = err;
+	goto out;
 }
 
 long do_futex(unsigned long uaddr, int op, int val, unsigned long timeout,
