@@ -58,4 +58,13 @@ config EFI_PCDP
 
 	  See <http://www.dig64.org/specifications/DIG64_HCDPv20_042804.pdf>
 
+config DELL_RBU
+	tristate "BIOS update support for DELL systems via sysfs"
+	select FW_LOADER
+	help
+	 Say m if you want to have the option of updating the BIOS for your
+	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
+	 supporting application to comunicate with the BIOS regarding the new
+	 image for the image update to take effect.
+	 See <file:Documentation/dell_rbu.txt> for more details on the driver.
 endmenu
