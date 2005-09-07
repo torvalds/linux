@@ -1241,6 +1241,8 @@ struct IsdnCardState {
 
 #ifdef CONFIG_HISAX_ENTERNOW_PCI
 #define CARD_FN_ENTERNOW_PCI 1
+#else
+#define CARD_FN_ENTERNOW_PCI 0
 #endif
 
 #define TEI_PER_CARD 1
