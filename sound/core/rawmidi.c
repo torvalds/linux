@@ -1109,7 +1109,7 @@ int snd_rawmidi_transmit_ack(snd_rawmidi_substream_t * substream, int count)
 /**
  * snd_rawmidi_transmit - copy from the buffer to the device
  * @substream: the rawmidi substream
- * @buf: the buffer pointer
+ * @buffer: the buffer pointer
  * @count: the data size to transfer
  * 
  * Copies data from the buffer to the device and advances the pointer.

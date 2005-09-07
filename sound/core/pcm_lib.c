@@ -524,6 +524,9 @@ void snd_interval_mul(const snd_interval_t *a, const snd_interval_t *b, snd_inte
 
 /**
  * snd_interval_div - refine the interval value with division
+ * @a: dividend
+ * @b: divisor
+ * @c: quotient
  *
  * c = a / b
  *
@@ -555,7 +558,11 @@ void snd_interval_div(const snd_interval_t *a, const snd_interval_t *b, snd_inte
 
 /**
  * snd_interval_muldivk - refine the interval value
- *
+ * @a: dividend 1
+ * @b: dividend 2
+ * @k: divisor (as integer)
+ * @c: result
+  *
  * c = a * b / k
  *
  * Returns non-zero if the value is changed, zero if not changed.
@@ -582,6 +589,10 @@ void snd_interval_muldivk(const snd_interval_t *a, const snd_interval_t *b,
 
 /**
  * snd_interval_mulkdiv - refine the interval value
+ * @a: dividend 1
+ * @k: dividend 2 (as integer)
+ * @b: divisor
+ * @c: result
  *
  * c = a * k / b
  *
@@ -618,6 +629,11 @@ void snd_interval_mulkdiv(const snd_interval_t *a, unsigned int k,
 
 /**
  * snd_interval_ratnum - refine the interval value
+ * @i: interval to refine
+ * @rats_count: number of ratnum_t 
+ * @rats: ratnum_t array
+ * @nump: pointer to store the resultant numerator
+ * @denp: pointer to store the resultant denominator
  *
  * Returns non-zero if the value is changed, zero if not changed.
  */
@@ -715,6 +731,11 @@ int snd_interval_ratnum(snd_interval_t *i,
 
 /**
  * snd_interval_ratden - refine the interval value
+ * @i: interval to refine
+ * @rats_count: number of ratden_t
+ * @rats: ratden_t array
+ * @nump: pointer to store the resultant numerator
+ * @denp: pointer to store the resultant denominator
  *
  * Returns non-zero if the value is changed, zero if not changed.
  */
@@ -936,6 +957,11 @@ int snd_pcm_hw_rule_add(snd_pcm_runtime_t *runtime, unsigned int cond,
 
 /**
  * snd_pcm_hw_constraint_mask
+ * @runtime: PCM runtime instance
+ * @var: hw_params variable to apply the mask
+ * @mask: the bitmap mask
+ *
+ * Apply the constraint of the given bitmap mask to a mask parameter.
  */
 int snd_pcm_hw_constraint_mask(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t var,
 			       u_int32_t mask)
@@ -951,6 +977,11 @@ int snd_pcm_hw_constraint_mask(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t va
 
 /**
  * snd_pcm_hw_constraint_mask64
+ * @runtime: PCM runtime instance
+ * @var: hw_params variable to apply the mask
+ * @mask: the 64bit bitmap mask
+ *
+ * Apply the constraint of the given bitmap mask to a mask parameter.
  */
 int snd_pcm_hw_constraint_mask64(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t var,
 				 u_int64_t mask)
@@ -967,6 +998,10 @@ int snd_pcm_hw_constraint_mask64(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t 
 
 /**
  * snd_pcm_hw_constraint_integer
+ * @runtime: PCM runtime instance
+ * @var: hw_params variable to apply the integer constraint
+ *
+ * Apply the constraint of integer to an interval parameter.
  */
 int snd_pcm_hw_constraint_integer(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t var)
 {
@@ -976,6 +1011,12 @@ int snd_pcm_hw_constraint_integer(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t
 
 /**
  * snd_pcm_hw_constraint_minmax
+ * @runtime: PCM runtime instance
+ * @var: hw_params variable to apply the range
+ * @min: the minimal value
+ * @max: the maximal value
+ * 
+ * Apply the min/max range constraint to an interval parameter.
  */
 int snd_pcm_hw_constraint_minmax(snd_pcm_runtime_t *runtime, snd_pcm_hw_param_t var,
 				 unsigned int min, unsigned int max)
@@ -999,6 +1040,12 @@ static int snd_pcm_hw_rule_list(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_constraint_list
+ * @runtime: PCM runtime instance
+ * @cond: condition bits
+ * @var: hw_params variable to apply the list constraint
+ * @l: list
+ * 
+ * Apply the list of constraints to an interval parameter.
  */
 int snd_pcm_hw_constraint_list(snd_pcm_runtime_t *runtime,
 			       unsigned int cond,
@@ -1027,6 +1074,10 @@ static int snd_pcm_hw_rule_ratnums(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_constraint_ratnums
+ * @runtime: PCM runtime instance
+ * @cond: condition bits
+ * @var: hw_params variable to apply the ratnums constraint
+ * @r: ratnums_t constriants
  */
 int snd_pcm_hw_constraint_ratnums(snd_pcm_runtime_t *runtime, 
 				  unsigned int cond,
@@ -1054,6 +1105,10 @@ static int snd_pcm_hw_rule_ratdens(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_constraint_ratdens
+ * @runtime: PCM runtime instance
+ * @cond: condition bits
+ * @var: hw_params variable to apply the ratdens constraint
+ * @r: ratdens_t constriants
  */
 int snd_pcm_hw_constraint_ratdens(snd_pcm_runtime_t *runtime, 
 				  unsigned int cond,
@@ -1079,6 +1134,10 @@ static int snd_pcm_hw_rule_msbits(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_constraint_msbits
+ * @runtime: PCM runtime instance
+ * @cond: condition bits
+ * @width: sample bits width
+ * @msbits: msbits width
  */
 int snd_pcm_hw_constraint_msbits(snd_pcm_runtime_t *runtime, 
 				 unsigned int cond,
@@ -1101,6 +1160,10 @@ static int snd_pcm_hw_rule_step(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_constraint_step
+ * @runtime: PCM runtime instance
+ * @cond: condition bits
+ * @var: hw_params variable to apply the step constraint
+ * @step: step size
  */
 int snd_pcm_hw_constraint_step(snd_pcm_runtime_t *runtime,
 			       unsigned int cond,
@@ -1126,6 +1189,9 @@ static int snd_pcm_hw_rule_pow2(snd_pcm_hw_params_t *params, snd_pcm_hw_rule_t *
 
 /**
  * snd_pcm_hw_constraint_pow2
+ * @runtime: PCM runtime instance
+ * @cond: condition bits
+ * @var: hw_params variable to apply the power-of-2 constraint
  */
 int snd_pcm_hw_constraint_pow2(snd_pcm_runtime_t *runtime,
 			       unsigned int cond,
@@ -1162,7 +1228,7 @@ static void _snd_pcm_hw_param_any(snd_pcm_hw_params_t *params,
 }
 
 #if 0
-/**
+/*
  * snd_pcm_hw_param_any
  */
 int snd_pcm_hw_param_any(snd_pcm_t *pcm, snd_pcm_hw_params_t *params,
@@ -1185,7 +1251,7 @@ void _snd_pcm_hw_params_any(snd_pcm_hw_params_t *params)
 }
 
 #if 0
-/**
+/*
  * snd_pcm_hw_params_any
  *
  * Fill PARAMS with full configuration space boundaries
@@ -1199,6 +1265,9 @@ int snd_pcm_hw_params_any(snd_pcm_t *pcm, snd_pcm_hw_params_t *params)
 
 /**
  * snd_pcm_hw_param_value
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Return the value for field PAR if it's fixed in configuration space 
  *  defined by PARAMS. Return -EINVAL otherwise
@@ -1228,6 +1297,9 @@ static int snd_pcm_hw_param_value(const snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_value_min
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Return the minimum value for field PAR.
  */
@@ -1251,6 +1323,9 @@ unsigned int snd_pcm_hw_param_value_min(const snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_value_max
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Return the maximum value for field PAR.
  */
@@ -1302,7 +1377,7 @@ int _snd_pcm_hw_param_setinteger(snd_pcm_hw_params_t *params,
 }
 	
 #if 0
-/**
+/*
  * snd_pcm_hw_param_setinteger
  *
  * Inside configuration space defined by PARAMS remove from PAR all 
@@ -1347,6 +1422,10 @@ static int _snd_pcm_hw_param_first(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_first
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Inside configuration space defined by PARAMS remove from PAR all 
  * values > minimum. Reduce configuration space accordingly.
@@ -1388,6 +1467,10 @@ static int _snd_pcm_hw_param_last(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_last
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Inside configuration space defined by PARAMS remove from PAR all 
  * values < maximum. Reduce configuration space accordingly.
@@ -1439,6 +1522,11 @@ int _snd_pcm_hw_param_min(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_min
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: minimal value
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Inside configuration space defined by PARAMS remove from PAR all 
  * values < VAL. Reduce configuration space accordingly.
@@ -1494,6 +1582,11 @@ static int _snd_pcm_hw_param_max(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_max
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: maximal value
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Inside configuration space defined by PARAMS remove from PAR all 
  *  values >= VAL + 1. Reduce configuration space accordingly.
@@ -1565,6 +1658,11 @@ int _snd_pcm_hw_param_set(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_set
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: value to set
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Inside configuration space defined by PARAMS remove from PAR all 
  * values != VAL. Reduce configuration space accordingly.
@@ -1599,6 +1697,10 @@ static int _snd_pcm_hw_param_mask(snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_mask
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: mask to apply
  *
  * Inside configuration space defined by PARAMS remove from PAR all values
  * not contained in MASK. Reduce configuration space accordingly.
@@ -1671,6 +1773,11 @@ static int boundary_nearer(int min, int mindir,
 
 /**
  * snd_pcm_hw_param_near
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @best: value to set
+ * @dir: pointer to the direction (-1,0,1) or NULL
  *
  * Inside configuration space defined by PARAMS set PAR to the available value
  * nearest to VAL. Reduce configuration space accordingly.
@@ -1747,6 +1854,8 @@ int snd_pcm_hw_param_near(snd_pcm_t *pcm, snd_pcm_hw_params_t *params,
 
 /**
  * snd_pcm_hw_param_choose
+ * @pcm: PCM instance
+ * @params: the hw_params instance
  *
  * Choose one configuration from configuration space defined by PARAMS
  * The configuration chosen is that obtained fixing in this order:

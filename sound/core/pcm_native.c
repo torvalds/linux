@@ -859,6 +859,7 @@ static struct action_ops snd_pcm_action_start = {
 
 /**
  * snd_pcm_start
+ * @substream: the PCM substream instance
  *
  * Start all linked streams.
  */
@@ -908,6 +909,8 @@ static struct action_ops snd_pcm_action_stop = {
 
 /**
  * snd_pcm_stop
+ * @substream: the PCM substream instance
+ * @state: PCM state after stopping the stream
  *
  * Try to stop all running streams in the substream group.
  * The state of each stream is changed to the given value after that unconditionally.
@@ -919,6 +922,7 @@ int snd_pcm_stop(snd_pcm_substream_t *substream, int state)
 
 /**
  * snd_pcm_drain_done
+ * @substream: the PCM substream
  *
  * Stop the DMA only when the given stream is playback.
  * The state is changed to SETUP.
@@ -1040,6 +1044,7 @@ static struct action_ops snd_pcm_action_suspend = {
 
 /**
  * snd_pcm_suspend
+ * @substream: the PCM substream
  *
  * Trigger SUSPEND to all linked streams.
  * After this call, all streams are changed to SUSPENDED state.
@@ -1057,6 +1062,7 @@ int snd_pcm_suspend(snd_pcm_substream_t *substream)
 
 /**
  * snd_pcm_suspend_all
+ * @pcm: the PCM instance
  *
  * Trigger SUSPEND to all substreams in the given pcm.
  * After this call, all streams are changed to SUSPENDED state.
@@ -1272,6 +1278,9 @@ static struct action_ops snd_pcm_action_prepare = {
 
 /**
  * snd_pcm_prepare
+ * @substream: the PCM substream instance
+ *
+ * Prepare the PCM substream to be triggerable.
  */
 int snd_pcm_prepare(snd_pcm_substream_t *substream)
 {
