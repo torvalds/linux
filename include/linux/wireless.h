@@ -69,12 +69,9 @@
 
 /***************************** INCLUDES *****************************/
 
-/* Do not put any header in this file, this creates a mess when
- * exported to user space. Most users have included all the
- * relevant headers anyway... Jean II */
-/*#include <linux/types.h>*/		/* for "caddr_t" et al		*/
-/*#include <linux/socket.h>*/		/* for "struct sockaddr" et al	*/
-/*#include <linux/if.h>*/		/* for IFNAMSIZ and co... */
+#include <linux/types.h>		/* for "caddr_t" et al		*/
+#include <linux/socket.h>		/* for "struct sockaddr" et al	*/
+#include <linux/if.h>			/* for IFNAMSIZ and co... */
 
 /***************************** VERSION *****************************/
 /*

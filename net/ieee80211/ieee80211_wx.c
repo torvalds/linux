@@ -29,12 +29,13 @@
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
-#include <linux/wireless.h>
-#include <linux/version.h>
+
 #include <linux/kmod.h>
 #include <linux/module.h>
 
 #include <net/ieee80211.h>
+#include <linux/wireless.h>
+
 static const char *ieee80211_modes[] = {
 	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
 };

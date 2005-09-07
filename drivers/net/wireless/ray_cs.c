@@ -53,6 +53,7 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
+#include <net/ieee80211.h>
 #include <linux/wireless.h>
 
 #include <asm/io.h>

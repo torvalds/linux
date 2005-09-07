@@ -6867,7 +6867,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	} else {
 		iwe.u.qual.level = (bss->dBm + 321) / 2;
 		iwe.u.qual.qual = 0;
-		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID;
+		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID
 				| IW_QUAL_LEVEL_UPDATED
 				| IW_QUAL_DBM;
 	}
