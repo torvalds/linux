@@ -26,6 +26,10 @@ obj-$(CONFIG_CPU_S3C2440)  += s3c2440.o s3c2440-dsc.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-irq.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-clock.o
 
+# bast extras
+
+obj-$(CONFIG_BAST_PC104_IRQ)	+= bast-irq.o
+
 # machine specific support
 
 obj-$(CONFIG_MACH_ANUBIS)	+= mach-anubis.o

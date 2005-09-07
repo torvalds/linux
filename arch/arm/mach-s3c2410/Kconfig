@@ -18,6 +18,14 @@ config ARCH_BAST
 
 	  Product page: <http://www.simtec.co.uk/products/EB2410ITX/>.
 
+config BAST_PC104_IRQ
+	bool "BAST PC104 IRQ support"
+	depends on ARCH_BAST
+	default y
+	help
+	  Say Y	here to enable the PC104 IRQ routing on the
+	  Simtec BAST (EB2410ITX)
+
 config ARCH_H1940
 	bool "IPAQ H1940"
 	select CPU_S3C2410
