@@ -49,7 +49,7 @@ NM		:= $(NM) --synthetic
 
 endif
 
-CHECKFLAGS	+= -m64 -D__powerpc__
+CHECKFLAGS	+= -m64 -D__powerpc__ -D__powerpc64__
 
 LDFLAGS		:= -m elf64ppc
 LDFLAGS_vmlinux	:= -Bstatic -e $(KERNELLOAD) -Ttext $(KERNELLOAD)
