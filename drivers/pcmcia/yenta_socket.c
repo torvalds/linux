@@ -987,11 +987,12 @@ static void yenta_config_init(struct yenta_socket *socket)
 {
 	u16 bridge;
 	struct pci_dev *dev = socket->dev;
+	struct pci_bus_region region;
 
-	pci_set_power_state(socket->dev, 0);
+	pcibios_resource_to_bus(socket->dev, &region, &dev->resource[0]);
 
 	config_writel(socket, CB_LEGACY_MODE_BASE, 0);
-	config_writel(socket, PCI_BASE_ADDRESS_0, dev->resource[0].start);
+	config_writel(socket, PCI_BASE_ADDRESS_0, region.start);
 	config_writew(socket, PCI_COMMAND,
 			PCI_COMMAND_IO |
 			PCI_COMMAND_MEMORY |
