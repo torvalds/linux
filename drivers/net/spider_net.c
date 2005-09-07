@@ -1292,22 +1292,28 @@ static int
 spider_net_set_mac(struct net_device *netdev, void *p)
 {
 	struct spider_net_card *card = netdev_priv(netdev);
-	u32 macl, macu;
+	u32 macl, macu, regvalue;
 	struct sockaddr *addr = p;
-
-	/* GMACTPE and GMACRPE must be off, so we only allow this, if
-	 * the device is down */
-	if (netdev->flags & IFF_UP)
-		return -EBUSY;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	/* switch off GMACTPE and GMACRPE */
+	regvalue = spider_net_read_reg(card, SPIDER_NET_GMACOPEMD);
+	regvalue &= ~((1 << 5) | (1 << 6));
+	spider_net_write_reg(card, SPIDER_NET_GMACOPEMD, regvalue);
+
+	/* write mac */
 	macu = (addr->sa_data[0]<<24) + (addr->sa_data[1]<<16) +
 		(addr->sa_data[2]<<8) + (addr->sa_data[3]);
 	macl = (addr->sa_data[4]<<8) + (addr->sa_data[5]);
 	spider_net_write_reg(card, SPIDER_NET_GMACUNIMACU, macu);
 	spider_net_write_reg(card, SPIDER_NET_GMACUNIMACL, macl);
+
+	/* switch GMACTPE and GMACRPE back on */
+	regvalue = spider_net_read_reg(card, SPIDER_NET_GMACOPEMD);
+	regvalue |= ((1 << 5) | (1 << 6));
+	spider_net_write_reg(card, SPIDER_NET_GMACOPEMD, regvalue);
 
 	spider_net_set_promisc(card);
 

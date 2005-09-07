@@ -27,6 +27,24 @@
 
 #include "spider_net.h"
 
+static int
+spider_net_ethtool_get_settings(struct net_device *netdev,
+			       struct ethtool_cmd *cmd)
+{
+	struct spider_net_card *card;
+	card = netdev_priv(netdev);
+
+	cmd->supported   = (SUPPORTED_1000baseT_Full |
+			     SUPPORTED_FIBRE);
+	cmd->advertising = (ADVERTISED_1000baseT_Full |
+			     ADVERTISED_FIBRE);
+	cmd->port = PORT_FIBRE;
+	cmd->speed = card->phy.speed;
+	cmd->duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
 static void
 spider_net_ethtool_get_drvinfo(struct net_device *netdev,
 			       struct ethtool_drvinfo *drvinfo)
@@ -96,6 +114,7 @@ spider_net_ethtool_set_rx_csum(struct net_device *netdev, u32 n)
 }
 
 struct ethtool_ops spider_net_ethtool_ops = {
+	.get_settings		= spider_net_ethtool_get_settings,
 	.get_drvinfo		= spider_net_ethtool_get_drvinfo,
 	.get_wol		= spider_net_ethtool_get_wol,
 	.get_msglevel		= spider_net_ethtool_get_msglevel,
