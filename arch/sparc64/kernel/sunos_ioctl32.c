@@ -152,11 +152,12 @@ asmlinkage int sunos_ioctl (int fd, u32 cmd, u32 arg)
 		ret = compat_sys_ioctl(fd, SIOCGIFCONF, arg);
 		goto out;
 
-	case _IOW('i', 21, struct ifreq): /* SIOCSIFMTU */
-		ret = sys_ioctl(fd, SIOCSIFMTU, arg);
+	case _IOW('i', 21, struct ifreq32):
+		ret = compat_sys_ioctl(fd, SIOCSIFMTU, arg);
 		goto out;
-	case _IOWR('i', 22, struct ifreq): /* SIOCGIFMTU */
-		ret = sys_ioctl(fd, SIOCGIFMTU, arg);
+
+	case _IOWR('i', 22, struct ifreq32):
+		ret = compat_sys_ioctl(fd, SIOCGIFMTU, arg);
 		goto out;
 
 	case _IOWR('i', 23, struct ifreq32):
