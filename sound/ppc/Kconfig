@@ -20,5 +20,17 @@ config SND_POWERMAC
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-powermac.
 
-endmenu
+config SND_POWERMAC_AUTO_DRC
+	bool "Toggle DRC automatically at headphone/line plug-in"
+	depends on SND_POWERMAC
+	default y
+	help
+	  Say Y here to enable the automatic toggle of DRC (dynamic
+	  range compression) on Tumbler/Snapper.
+	  If this feature is enabled, DRC is turned off when the
+	  headphone/line jack is plugged, and turned on when unplugged.
 
+	  Note that you can turn on/off DRC manually even without this
+	  option.
+
+endmenu
