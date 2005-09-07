@@ -83,9 +83,7 @@ extern int gsi_to_irq (unsigned int gsi);
 extern void iosapic_enable_intr (unsigned int vector);
 extern int iosapic_register_intr (unsigned int gsi, unsigned long polarity,
 				  unsigned long trigger);
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 extern void iosapic_unregister_intr (unsigned int irq);
-#endif
 extern void __init iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 				      unsigned long polarity,
 				      unsigned long trigger);

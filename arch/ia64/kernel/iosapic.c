@@ -776,7 +776,6 @@ again:
 	return vector;
 }
 
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void
 iosapic_unregister_intr (unsigned int gsi)
 {
@@ -859,7 +858,6 @@ iosapic_unregister_intr (unsigned int gsi)
 	spin_unlock(&iosapic_lock);
 	spin_unlock_irqrestore(&idesc->lock, flags);
 }
-#endif /* CONFIG_ACPI_DEALLOCATE_IRQ */
 
 /*
  * ACPI calls this when it finds an entry for a platform interrupt.

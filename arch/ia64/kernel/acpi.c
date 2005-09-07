@@ -575,14 +575,12 @@ acpi_register_gsi (u32 gsi, int edge_level, int active_high_low)
 }
 EXPORT_SYMBOL(acpi_register_gsi);
 
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void
 acpi_unregister_gsi (u32 gsi)
 {
 	iosapic_unregister_intr(gsi);
 }
 EXPORT_SYMBOL(acpi_unregister_gsi);
-#endif /* CONFIG_ACPI_DEALLOCATE_IRQ */
 
 static int __init
 acpi_parse_fadt (unsigned long phys_addr, unsigned long size)
