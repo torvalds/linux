@@ -1529,6 +1529,8 @@ EXPORT_SYMBOL(proto_register);
 void proto_unregister(struct proto *prot)
 {
 	write_lock(&proto_list_lock);
+	list_del(&prot->node);
+	write_unlock(&proto_list_lock);
 
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
@@ -1550,9 +1552,6 @@ void proto_unregister(struct proto *prot)
 		kfree(name);
 		prot->twsk_slab = NULL;
 	}
-
-	list_del(&prot->node);
-	write_unlock(&proto_list_lock);
 }
 
 EXPORT_SYMBOL(proto_unregister);
