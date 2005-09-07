@@ -185,6 +185,7 @@ typedef enum {
 
 	/* MPUIO */
 	MPUIO2,
+	N15_1610_MPUIO2,
 	MPUIO4,
 	MPUIO5,
 	T20_1610_MPUIO5,
@@ -210,6 +211,7 @@ typedef enum {
 
 	/* Misc ballouts */
 	BALLOUT_V8_ARMIO3,
+	N20_HDQ,
 
 	/* OMAP-1610 MMC2 */
 	W8_1610_MMC2_DAT0,
@@ -235,6 +237,7 @@ typedef enum {
 	P20_1610_GPIO4,
 	V9_1610_GPIO7,
 	W8_1610_GPIO9,
+	N20_1610_GPIO11,
 	N19_1610_GPIO13,
 	P10_1610_GPIO22,
 	V5_1610_GPIO24,
@@ -250,7 +253,7 @@ typedef enum {
 	U18_1610_UWIRE_SDI,
 	W21_1610_UWIRE_SDO,
 	N14_1610_UWIRE_CS0,
-	P15_1610_UWIRE_CS0,
+	P15_1610_UWIRE_CS3,
 	N15_1610_UWIRE_CS1,
 
 	/* OMAP-1610 Flash */
@@ -411,7 +414,8 @@ MUX_CFG("N21_1710_GPIO14",       6,    9,    0,   1,   1,   1,    1,     1,  1)
 MUX_CFG("W15_1710_GPIO40",       9,   27,    7,   2,   5,   1,    2,     1,  1)
 
 /* MPUIO */
-MUX_CFG("MPUIO2",		 7,   18,    0,	  1,   1,   1,	 NA,	 0,  1)
+MUX_CFG("MPUIO2",		 7,   18,    0,	  1,  14,   1,	 NA,	 0,  1)
+MUX_CFG("N15_1610_MPUIO2",	 7,   18,    0,	  1,  14,   1,	  1,	 0,  1)
 MUX_CFG("MPUIO4",		 7,   15,    0,	  1,  13,   1,	 NA,	 0,  1)
 MUX_CFG("MPUIO5",		 7,   12,    0,	  1,  12,   1,	 NA,	 0,  1)
 
@@ -438,6 +442,7 @@ MUX_CFG("MCBSP3_CLKX",		 9,    3,    1,	  1,  29,   0,	 NA,	 0,  1)
 
 /* Misc ballouts */
 MUX_CFG("BALLOUT_V8_ARMIO3",	 B,   18,    0,	  2,  25,   1,	 NA,	 0,  1)
+MUX_CFG("N20_HDQ",	       6,   18,    1,   1,   4,   0,    1,     4,  0)
 
 /* OMAP-1610 MMC2 */
 MUX_CFG("W8_1610_MMC2_DAT0",	 B,   21,    6,	  2,  23,   1,	  2,	 1,  1)
@@ -463,6 +468,7 @@ MUX_CFG("J18_1610_ETM_D7",	 5,   27,    1,	  0,  19,   0,	  0,	 0,  1)
 MUX_CFG("P20_1610_GPIO4",	 6,   27,    0,	  1,   7,   0,	  1,	 1,  1)
 MUX_CFG("V9_1610_GPIO7",	 B,   12,    1,	  2,  20,   0,	  2,	 1,  1)
 MUX_CFG("W8_1610_GPIO9",	 B,   21,    0,	  2,  23,   0,	  2,	 1,  1)
+MUX_CFG("N20_1610_GPIO11",       6,   18,    0,   1,   4,   0,    1,     1,  1)
 MUX_CFG("N19_1610_GPIO13",	 6,   12,    0,	  1,   2,   0,	  1,	 1,  1)
 MUX_CFG("P10_1610_GPIO22",	 C,    0,    7,	  2,  26,   0,	  2,	 1,  1)
 MUX_CFG("V5_1610_GPIO24",	 B,   15,    7,	  2,  21,   0,	  2,	 1,  1)
