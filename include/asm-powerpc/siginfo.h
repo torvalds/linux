@@ -1,5 +1,5 @@
-#ifndef _POWERPC_SIGINFO_H
-#define _POWERPC_SIGINFO_H
+#ifndef _ASM_POWERPC_SIGINFO_H
+#define _ASM_POWERPC_SIGINFO_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -15,4 +15,4 @@
 
 #include <asm-generic/siginfo.h>
 
-#endif /* _POWERPC_SIGINFO_H */
+#endif	/* _ASM_POWERPC_SIGINFO_H */

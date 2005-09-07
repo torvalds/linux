@@ -1,5 +1,5 @@
-#ifndef _POWERPC_SHMBUF_H
-#define _POWERPC_SHMBUF_H
+#ifndef _ASM_POWERPC_SHMBUF_H
+#define _ASM_POWERPC_SHMBUF_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -56,4 +56,4 @@ struct shminfo64 {
 	unsigned long	__unused4;
 };
 
-#endif /* _POWERPC_SHMBUF_H */
+#endif	/* _ASM_POWERPC_SHMBUF_H */

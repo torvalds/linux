@@ -1,9 +1,7 @@
-#ifndef AGP_H
-#define AGP_H 1
+#ifndef _ASM_POWERPC_AGP_H
+#define _ASM_POWERPC_AGP_H
 
 #include <asm/io.h>
-
-/* nothing much needed here */
 
 #define map_page_into_agp(page)
 #define unmap_page_from_agp(page)
@@ -20,4 +18,4 @@
 #define free_gatt_pages(table, order)	\
 	free_pages((unsigned long)(table), (order))
 
-#endif
+#endif	/* _ASM_POWERPC_AGP_H */
