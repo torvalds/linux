@@ -1702,7 +1702,6 @@ struct _snd_cs46xx {
 	void (*active_ctrl)(cs46xx_t *, int);
   	void (*mixer_init)(cs46xx_t *);
 
-	struct pci_dev *acpi_dev;
 	int acpi_port;
 	snd_kcontrol_t *eapd_switch; /* for amplifier hack */
 	int accept_valid;	/* accept mmap valid (for OSS) */
