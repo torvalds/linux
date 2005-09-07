@@ -1044,6 +1044,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	int i;
 
 	atomic_set(&qp->refcount, 1);
+	init_waitqueue_head(&qp->wait);
 	qp->state    	 = IB_QPS_RESET;
 	qp->atomic_rd_en = 0;
 	qp->resp_depth   = 0;
