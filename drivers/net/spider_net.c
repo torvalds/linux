@@ -109,6 +109,23 @@ spider_net_write_reg(struct spider_net_card *card, u32 reg, u32 value)
 }
 
 /**
+ * spider_net_write_reg_sync - writes to an SMMIO register of a card
+ * @card: device structure
+ * @reg: register to write to
+ * @value: value to write into the specified SMMIO register
+ *
+ * Unlike spider_net_write_reg, this will also make sure the
+ * data arrives on the card by reading the reg again.
+ */
+static void
+spider_net_write_reg_sync(struct spider_net_card *card, u32 reg, u32 value)
+{
+	value = cpu_to_le32(value);
+	writel(value, card->regs + reg);
+	(void)readl(card->regs + reg);
+}
+
+/**
  * spider_net_rx_irq_off - switch off rx irq on this spider card
  * @card: device structure
  *
@@ -123,7 +140,7 @@ spider_net_rx_irq_off(struct spider_net_card *card)
 	spin_lock_irqsave(&card->intmask_lock, flags);
 	regvalue = spider_net_read_reg(card, SPIDER_NET_GHIINT0MSK);
 	regvalue &= ~SPIDER_NET_RXINT;
-	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, regvalue);
+	spider_net_write_reg_sync(card, SPIDER_NET_GHIINT0MSK, regvalue);
 	spin_unlock_irqrestore(&card->intmask_lock, flags);
 }
 
@@ -196,7 +213,7 @@ spider_net_rx_irq_on(struct spider_net_card *card)
 	spin_lock_irqsave(&card->intmask_lock, flags);
 	regvalue = spider_net_read_reg(card, SPIDER_NET_GHIINT0MSK);
 	regvalue |= SPIDER_NET_RXINT;
-	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, regvalue);
+	spider_net_write_reg_sync(card, SPIDER_NET_GHIINT0MSK, regvalue);
 	spin_unlock_irqrestore(&card->intmask_lock, flags);
 }
 
@@ -215,7 +232,7 @@ spider_net_tx_irq_off(struct spider_net_card *card)
 	spin_lock_irqsave(&card->intmask_lock, flags);
 	regvalue = spider_net_read_reg(card, SPIDER_NET_GHIINT0MSK);
 	regvalue &= ~SPIDER_NET_TXINT;
-	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, regvalue);
+	spider_net_write_reg_sync(card, SPIDER_NET_GHIINT0MSK, regvalue);
 	spin_unlock_irqrestore(&card->intmask_lock, flags);
 }
 
@@ -234,7 +251,7 @@ spider_net_tx_irq_on(struct spider_net_card *card)
 	spin_lock_irqsave(&card->intmask_lock, flags);
 	regvalue = spider_net_read_reg(card, SPIDER_NET_GHIINT0MSK);
 	regvalue |= SPIDER_NET_TXINT;
-	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, regvalue);
+	spider_net_write_reg_sync(card, SPIDER_NET_GHIINT0MSK, regvalue);
 	spin_unlock_irqrestore(&card->intmask_lock, flags);
 }
 
@@ -813,6 +830,9 @@ spider_net_stop(struct net_device *netdev)
 	spider_net_write_reg(card, SPIDER_NET_GHIINT1MSK, 0);
 	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK, 0);
 
+	/* free_irq(netdev->irq, netdev);*/
+	free_irq(to_pci_dev(netdev->class_dev.dev)->irq, netdev);
+
 	spider_net_write_reg(card, SPIDER_NET_GDTDMACCNTR,
 			     SPIDER_NET_DMA_TX_FEND_VALUE);
 
@@ -821,10 +841,6 @@ spider_net_stop(struct net_device *netdev)
 
 	/* release chains */
 	spider_net_release_tx_chain(card, 1);
-
-	/* switch off card */
-	spider_net_write_reg(card, SPIDER_NET_CKRCTRL,
-			     SPIDER_NET_CKRCTRL_STOP_VALUE);
 
 	spider_net_free_chain(card, &card->tx_chain);
 	spider_net_free_chain(card, &card->rx_chain);
@@ -1745,6 +1761,10 @@ spider_net_open(struct net_device *netdev)
 
 	spider_net_enable_card(card);
 
+	netif_start_queue(netdev);
+	netif_carrier_on(netdev);
+	netif_poll_enable(netdev);
+
 	return 0;
 
 register_int_failed:
@@ -2045,7 +2065,12 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	netdev->irq = card->pdev->irq;
 
 	dn = pci_device_to_OF_node(card->pdev);
+	if (!dn)
+		return -EIO;
+
 	mac = (u8 *)get_property(dn, "local-mac-address", NULL);
+	if (!mac)
+		return -EIO;
 	memcpy(addr.sa_data, mac, ETH_ALEN);
 
 	result = spider_net_set_mac(netdev, &addr);
@@ -2243,10 +2268,15 @@ spider_net_remove(struct pci_dev *pdev)
 		   atomic_read(&card->tx_timeout_task_counter) == 0);
 
 	unregister_netdev(netdev);
+
+	/* switch off card */
+	spider_net_write_reg(card, SPIDER_NET_CKRCTRL,
+			     SPIDER_NET_CKRCTRL_STOP_VALUE);
+	spider_net_write_reg(card, SPIDER_NET_CKRCTRL,
+			     SPIDER_NET_CKRCTRL_RUN_VALUE);
+
 	spider_net_undo_pci_setup(card);
 	free_netdev(netdev);
-
-	free_irq(to_pci_dev(netdev->class_dev.dev)->irq, netdev);
 }
 
 static struct pci_driver spider_net_driver = {
