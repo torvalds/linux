@@ -6433,11 +6433,8 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	INIT_LIST_HEAD(&priv->fw_pend_list);
 	INIT_STAT(&priv->fw_pend_stat);
 
-#ifdef PF_SYNCTHREAD
-	priv->workqueue = create_workqueue(DRV_NAME, 0);
-#else
 	priv->workqueue = create_workqueue(DRV_NAME);
-#endif
+
 	INIT_WORK(&priv->reset_work,
 		  (void (*)(void *))ipw2100_reset_adapter, priv);
 	INIT_WORK(&priv->security_work,
