@@ -196,7 +196,7 @@ static void init_highmem(void)
 
 static void __init fixaddr_user_init( void)
 {
-#if CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
+#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 	long size = FIXADDR_USER_END - FIXADDR_USER_START;
 	pgd_t *pgd;
 	pud_t *pud;
