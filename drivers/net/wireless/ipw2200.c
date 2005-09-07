@@ -1809,7 +1809,6 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-#ifdef CONFIG_IPW_DEBUG
 #define IPW_CMD(x) case IPW_CMD_ ## x : return #x
 static char *get_cmd_string(u8 cmd)
 {
@@ -1868,7 +1867,6 @@ static char *get_cmd_string(u8 cmd)
 		return "UNKNOWN";
 	}
 }
-#endif
 
 #define HOST_COMPLETE_TIMEOUT HZ
 static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
