@@ -1252,7 +1252,7 @@ static int __devinit azx_pcm_create(azx_t *chip)
 		for (c = 0; c < codec->num_pcms; c++) {
 			if (! codec->pcm_info[c].is_modem)
 				continue; /* already created */
-			if (pcm_dev >= AZX_MAX_MODEM_PCMS) {
+			if (pcm_dev >= AZX_MAX_PCMS) {
 				snd_printk(KERN_ERR SFX "Too many modem PCMs\n");
 				return -EINVAL;
 			}
