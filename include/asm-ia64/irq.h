@@ -36,8 +36,4 @@ extern void move_irq(int irq);
 #define move_irq(irq)
 #endif
 
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif /* _ASM_IA64_IRQ_H */
