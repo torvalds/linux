@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.60 2005/08/06 04:51:30 nico Exp $
+ * $Id: os-linux.h,v 1.61 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -67,12 +67,18 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 #define SECTOR_ADDR(x) ( ((unsigned long)(x) & ~(c->sector_size-1)) )
+
+#ifdef CONFIG_JFFS2_SUMMARY
+#define jffs2_can_mark_obsolete(c) (0)
+#else
 #define jffs2_can_mark_obsolete(c) (1)
+#endif
+
 #define jffs2_is_writebuffered(c) (0)
 #define jffs2_cleanmarker_oob(c) (0)
 #define jffs2_write_nand_cleanmarker(c,jeb) (-EIO)
 
-#define jffs2_flash_write(c, ofs, len, retlen, buf) ((c)->mtd->write((c)->mtd, ofs, len, retlen, buf))
+#define jffs2_flash_write(c, ofs, len, retlen, buf) jffs2_flash_direct_write(c, ofs, len, retlen, buf)
 #define jffs2_flash_read(c, ofs, len, retlen, buf) ((c)->mtd->read((c)->mtd, ofs, len, retlen, buf))
 #define jffs2_flush_wbuf_pad(c) ({ (void)(c), 0; })
 #define jffs2_flush_wbuf_gc(c, i) ({ (void)(c), (void) i, 0; })
@@ -97,9 +103,15 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 
 #define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 #define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
+
+#ifdef CONFIG_JFFS2_SUMMARY
+#define jffs2_can_mark_obsolete(c) (0)
+#else
 #define jffs2_can_mark_obsolete(c) \
   ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & (MTD_ECC|MTD_PROGRAM_REGIONS))) || \
    c->mtd->type == MTD_RAM)
+#endif
+
 #define jffs2_cleanmarker_oob(c) (c->mtd->type == MTD_NANDFLASH)
 
 #define jffs2_flash_write_oob(c, ofs, len, retlen, buf) ((c)->mtd->write_oob((c)->mtd, ofs, len, retlen, buf))
@@ -192,7 +204,8 @@ void jffs2_flash_cleanup(struct jffs2_sb_info *c);
 /* writev.c */
 int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs, 
 		       unsigned long count, loff_t to, size_t *retlen);
-
+int jffs2_flash_direct_write(struct jffs2_sb_info *c, loff_t ofs, size_t len,
+			size_t *retlen, const u_char *buf);
 
 #endif /* __JFFS2_OS_LINUX_H__ */
 

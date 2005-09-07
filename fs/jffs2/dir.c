@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: dir.c,v 1.88 2005/08/17 13:46:22 dedekind Exp $
+ * $Id: dir.c,v 1.89 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -310,7 +310,8 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	 * Just the node will do for now, though 
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri) + targetlen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*ri) + targetlen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
@@ -370,7 +371,8 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	up(&f->sem);
 
 	jffs2_complete_reservation(c);
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		/* Eep. */
 		jffs2_clear_inode(inode);
@@ -455,7 +457,8 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	 * Just the node will do for now, though 
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri), &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*ri), &phys_ofs, &alloclen, ALLOC_NORMAL,
+				JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
@@ -498,7 +501,8 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	up(&f->sem);
 
 	jffs2_complete_reservation(c);
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		/* Eep. */
 		jffs2_clear_inode(inode);
@@ -607,7 +611,8 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	 * Just the node will do for now, though 
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri) + devlen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*ri) + devlen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
@@ -652,7 +657,8 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	up(&f->sem);
 
 	jffs2_complete_reservation(c);
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		/* Eep. */
 		jffs2_clear_inode(inode);

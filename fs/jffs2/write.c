@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.95 2005/08/17 13:46:23 dedekind Exp $
+ * $Id: write.c,v 1.96 2005/09/07 08:34:55 havasi Exp $
  *
  */
 
@@ -153,13 +153,15 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 			jffs2_dbg_acct_paranoia_check(c, jeb);
 
 			if (alloc_mode == ALLOC_GC) {
-				ret = jffs2_reserve_space_gc(c, sizeof(*ri) + datalen, &flash_ofs, &dummy);
+				ret = jffs2_reserve_space_gc(c, sizeof(*ri) + datalen, &flash_ofs,
+							&dummy, JFFS2_SUMMARY_INODE_SIZE);
 			} else {
 				/* Locking pain */
 				up(&f->sem);
 				jffs2_complete_reservation(c);
 			
-				ret = jffs2_reserve_space(c, sizeof(*ri) + datalen, &flash_ofs, &dummy, alloc_mode);
+				ret = jffs2_reserve_space(c, sizeof(*ri) + datalen, &flash_ofs,
+							&dummy, alloc_mode, JFFS2_SUMMARY_INODE_SIZE);
 				down(&f->sem);
 			}
 
@@ -299,13 +301,15 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 			jffs2_dbg_acct_paranoia_check(c, jeb);
 
 			if (alloc_mode == ALLOC_GC) {
-				ret = jffs2_reserve_space_gc(c, sizeof(*rd) + namelen, &flash_ofs, &dummy);
+				ret = jffs2_reserve_space_gc(c, sizeof(*rd) + namelen, &flash_ofs,
+							&dummy, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 			} else {
 				/* Locking pain */
 				up(&f->sem);
 				jffs2_complete_reservation(c);
 			
-				ret = jffs2_reserve_space(c, sizeof(*rd) + namelen, &flash_ofs, &dummy, alloc_mode);
+				ret = jffs2_reserve_space(c, sizeof(*rd) + namelen, &flash_ofs,
+							&dummy, alloc_mode, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 				down(&f->sem);
 			}
 
@@ -362,7 +366,8 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	retry:
 		D2(printk(KERN_DEBUG "jffs2_commit_write() loop: 0x%x to write to 0x%x\n", writelen, offset));
 
-		ret = jffs2_reserve_space(c, sizeof(*ri) + JFFS2_MIN_DATA_LEN, &phys_ofs, &alloclen, ALLOC_NORMAL);
+		ret = jffs2_reserve_space(c, sizeof(*ri) + JFFS2_MIN_DATA_LEN, &phys_ofs,
+					&alloclen, ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 		if (ret) {
 			D1(printk(KERN_DEBUG "jffs2_reserve_space returned %d\n", ret));
 			break;
@@ -449,7 +454,8 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 	/* Try to reserve enough space for both node and dirent. 
 	 * Just the node will do for now, though 
 	 */
-	ret = jffs2_reserve_space(c, sizeof(*ri), &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*ri), &phys_ofs, &alloclen, ALLOC_NORMAL,
+				JFFS2_SUMMARY_INODE_SIZE);
 	D1(printk(KERN_DEBUG "jffs2_do_create(): reserved 0x%x bytes\n", alloclen));
 	if (ret) {
 		up(&f->sem);
@@ -478,7 +484,8 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 
 	up(&f->sem);
 	jffs2_complete_reservation(c);
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 		
 	if (ret) {
 		/* Eep. */
@@ -549,7 +556,8 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 		if (!rd)
 			return -ENOMEM;
 
-		ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen, ALLOC_DELETION);
+		ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
+					ALLOC_DELETION, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 		if (ret) {
 			jffs2_free_raw_dirent(rd);
 			return ret;
@@ -658,7 +666,8 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 	if (!rd)
 		return -ENOMEM;
 
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		jffs2_free_raw_dirent(rd);
 		return ret;

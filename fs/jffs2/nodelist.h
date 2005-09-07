@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.139 2005/08/31 13:51:00 havasi Exp $
+ * $Id: nodelist.h,v 1.140 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -20,6 +20,7 @@
 #include <linux/jffs2.h>
 #include <linux/jffs2_fs_sb.h>
 #include <linux/jffs2_fs_i.h>
+#include "summary.h"
 
 #ifdef __ECOS
 #include "os-ecos.h"
@@ -326,8 +327,10 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 
 /* nodemgmt.c */
 int jffs2_thread_should_wake(struct jffs2_sb_info *c);
-int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs, uint32_t *len, int prio);
-int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs, uint32_t *len);
+int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+			uint32_t *len, int prio, uint32_t sumsize);
+int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+			uint32_t *len, uint32_t sumsize);
 int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new);
 void jffs2_complete_reservation(struct jffs2_sb_info *c);
 void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *raw);
@@ -386,6 +389,10 @@ char *jffs2_getlink(struct jffs2_sb_info *c, struct jffs2_inode_info *f);
 /* scan.c */
 int jffs2_scan_medium(struct jffs2_sb_info *c);
 void jffs2_rotate_lists(struct jffs2_sb_info *c);
+int jffs2_fill_scan_buf(struct jffs2_sb_info *c, void *buf,
+				uint32_t ofs, uint32_t len);
+struct jffs2_inode_cache *jffs2_scan_make_ino_cache(struct jffs2_sb_info *c, uint32_t ino);
+int jffs2_scan_classify_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 
 /* build.c */
 int jffs2_do_mount_fs(struct jffs2_sb_info *c);

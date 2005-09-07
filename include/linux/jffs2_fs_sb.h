@@ -1,4 +1,4 @@
-/* $Id: jffs2_fs_sb.h,v 1.52 2005/05/19 16:12:17 gleixner Exp $ */
+/* $Id: jffs2_fs_sb.h,v 1.53 2005/09/07 08:34:56 havasi Exp $ */
 
 #ifndef _JFFS2_FS_SB
 #define _JFFS2_FS_SB
@@ -111,6 +111,8 @@ struct jffs2_sb_info {
 	uint32_t fsdata_pos;
 	uint32_t fsdata_len;
 #endif
+
+	struct jffs2_summary *summary;		/* Summary information */
 
 	/* OS-private pointer for getting back to master superblock info */
 	void *os_priv;

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.64 2005/09/01 08:42:31 havasi Exp $
+ * $Id: fs.c,v 1.65 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -74,7 +74,8 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		return -ENOMEM;
 	}
 		
-	ret = jffs2_reserve_space(c, sizeof(*ri) + mdatalen, &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*ri) + mdatalen, &phys_ofs, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		jffs2_free_raw_inode(ri);
 		if (S_ISLNK(inode->i_mode & S_IFMT))

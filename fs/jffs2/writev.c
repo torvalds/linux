@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: writev.c,v 1.6 2004/11/16 20:36:12 dwmw2 Exp $
+ * $Id: writev.c,v 1.7 2005/09/07 08:34:55 havasi Exp $
  *
  */
 
@@ -44,7 +44,37 @@ int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs,
 {
 	if (c->mtd->writev)
 		return c->mtd->writev(c->mtd, vecs, count, to, retlen);
-	else
+	else {
+		if (jffs2_sum_active()) {
+			int res;
+
+			res = jffs2_sum_add_kvec(c, vecs, count, (uint32_t) to);
+			if (res) {
+				return res;
+			}
+		}
+
 		return mtd_fake_writev(c->mtd, vecs, count, to, retlen);
+	}
 }
 
+int jffs2_flash_direct_write(struct jffs2_sb_info *c, loff_t ofs, size_t len,
+			size_t *retlen, const u_char *buf)
+{
+	int ret;
+	ret = c->mtd->write(c->mtd, ofs, len, retlen, buf);
+
+	if (jffs2_sum_active()) {
+		struct kvec vecs[1];
+		int res;
+
+		vecs[0].iov_base = (unsigned char *) buf;
+		vecs[0].iov_len = len;
+
+		res = jffs2_sum_add_kvec(c, vecs, 1, (uint32_t) ofs);
+		if (res) {
+			return res;
+		}
+	}
+	return ret;
+}

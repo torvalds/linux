@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: file.c,v 1.102 2005/07/06 12:13:09 dwmw2 Exp $
+ * $Id: file.c,v 1.103 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -134,7 +134,8 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		D1(printk(KERN_DEBUG "Writing new hole frag 0x%x-0x%x between current EOF and new page\n",
 			  (unsigned int)inode->i_size, pageofs));
 
-		ret = jffs2_reserve_space(c, sizeof(ri), &phys_ofs, &alloc_len, ALLOC_NORMAL);
+		ret = jffs2_reserve_space(c, sizeof(ri), &phys_ofs, &alloc_len,
+					ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 		if (ret)
 			return ret;
 

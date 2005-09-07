@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.153 2005/08/17 13:46:22 dedekind Exp $
+ * $Id: gc.c,v 1.154 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -513,8 +513,11 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 	/* Ask for a small amount of space (or the totlen if smaller) because we
 	   don't want to force wastage of the end of a block if splitting would
 	   work. */
-	ret = jffs2_reserve_space_gc(c, min_t(uint32_t, sizeof(struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN, 
-					      rawlen), &phys_ofs, &alloclen);
+	ret = jffs2_reserve_space_gc(c, min_t(uint32_t, sizeof(struct jffs2_raw_inode) +
+				JFFS2_MIN_DATA_LEN, rawlen), &phys_ofs, &alloclen, rawlen);
+				/* this is not the exact summary size of it,
+					it is only an upper estimation */
+
 	if (ret)
 		return ret;
 
@@ -622,7 +625,9 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 			jffs2_dbg_acct_sanity_check(c,jeb);
 			jffs2_dbg_acct_paranoia_check(c, jeb);
 
-			ret = jffs2_reserve_space_gc(c, rawlen, &phys_ofs, &dummy);
+			ret = jffs2_reserve_space_gc(c, rawlen, &phys_ofs, &dummy, rawlen);
+						/* this is not the exact summary size of it,
+							it is only an upper estimation */
 
 			if (!ret) {
 				D1(printk(KERN_DEBUG "Allocated space at 0x%08x to retry failed write.\n", phys_ofs));
@@ -701,7 +706,8 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 
 	}
 	
-	ret = jffs2_reserve_space_gc(c, sizeof(ri) + mdatalen, &phys_ofs, &alloclen);
+	ret = jffs2_reserve_space_gc(c, sizeof(ri) + mdatalen, &phys_ofs, &alloclen,
+				JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_metadata failed: %d\n",
 		       sizeof(ri)+ mdatalen, ret);
@@ -781,7 +787,8 @@ static int jffs2_garbage_collect_dirent(struct jffs2_sb_info *c, struct jffs2_er
 	rd.node_crc = cpu_to_je32(crc32(0, &rd, sizeof(rd)-8));
 	rd.name_crc = cpu_to_je32(crc32(0, fd->name, rd.nsize));
 	
-	ret = jffs2_reserve_space_gc(c, sizeof(rd)+rd.nsize, &phys_ofs, &alloclen);
+	ret = jffs2_reserve_space_gc(c, sizeof(rd)+rd.nsize, &phys_ofs, &alloclen,
+				JFFS2_SUMMARY_DIRENT_SIZE(rd.nsize));
 	if (ret) {
 		printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_dirent failed: %d\n",
 		       sizeof(rd)+rd.nsize, ret);
@@ -994,7 +1001,8 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	ri.data_crc = cpu_to_je32(0);
 	ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 
-	ret = jffs2_reserve_space_gc(c, sizeof(ri), &phys_ofs, &alloclen);
+	ret = jffs2_reserve_space_gc(c, sizeof(ri), &phys_ofs, &alloclen,
+				JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_hole failed: %d\n",
 		       sizeof(ri), ret);
@@ -1219,7 +1227,8 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		uint32_t cdatalen;
 		uint16_t comprtype = JFFS2_COMPR_NONE;
 
-		ret = jffs2_reserve_space_gc(c, sizeof(ri) + JFFS2_MIN_DATA_LEN, &phys_ofs, &alloclen);
+		ret = jffs2_reserve_space_gc(c, sizeof(ri) + JFFS2_MIN_DATA_LEN, &phys_ofs,
+					&alloclen, JFFS2_SUMMARY_INODE_SIZE);
 
 		if (ret) {
 			printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_dnode failed: %d\n",
@@ -1276,4 +1285,3 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 	jffs2_gc_release_page(c, pg_ptr, &pg);
 	return ret;
 }
-

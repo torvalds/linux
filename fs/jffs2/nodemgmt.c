@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.124 2005/07/20 15:32:28 dedekind Exp $
+ * $Id: nodemgmt.c,v 1.125 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -17,6 +17,7 @@
 #include <linux/compiler.h>
 #include <linux/sched.h> /* For cond_resched() */
 #include "nodelist.h"
+#include "debug.h"
 
 /**
  *	jffs2_reserve_space - request physical space to write nodes to flash
@@ -38,9 +39,11 @@
  *	for the requested allocation.
  */
 
-static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize, uint32_t *ofs, uint32_t *len);
+static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize,
+					uint32_t *ofs, uint32_t *len, uint32_t sumsize);
 
-int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs, uint32_t *len, int prio)
+int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+			uint32_t *len, int prio, uint32_t sumsize)
 {
 	int ret = -EAGAIN;
 	int blocksneeded = c->resv_blocks_write;
@@ -129,7 +132,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			spin_lock(&c->erase_completion_lock);
 		}
 
-		ret = jffs2_do_reserve_space(c, minsize, ofs, len);
+		ret = jffs2_do_reserve_space(c, minsize, ofs, len, sumsize);
 		if (ret) {
 			D1(printk(KERN_DEBUG "jffs2_reserve_space: ret is %d\n", ret));
 		}
@@ -140,7 +143,8 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 	return ret;
 }
 
-int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs, uint32_t *len)
+int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+			uint32_t *len, uint32_t sumsize)
 {
 	int ret = -EAGAIN;
 	minsize = PAD(minsize);
@@ -149,7 +153,7 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *
 
 	spin_lock(&c->erase_completion_lock);
 	while(ret == -EAGAIN) {
-		ret = jffs2_do_reserve_space(c, minsize, ofs, len);
+		ret = jffs2_do_reserve_space(c, minsize, ofs, len, sumsize);
 		if (ret) {
 		        D1(printk(KERN_DEBUG "jffs2_reserve_space_gc: looping, ret is %d\n", ret));
 		}
@@ -158,105 +162,183 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *
 	return ret;
 }
 
-/* Called with alloc sem _and_ erase_completion_lock */
-static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize, uint32_t *ofs, uint32_t *len)
+
+/* Classify nextblock (clean, dirty of verydirty) and force to select an other one */
+
+static void jffs2_close_nextblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
-	struct jffs2_eraseblock *jeb = c->nextblock;
+
+	/* Check, if we have a dirty block now, or if it was dirty already */
+	if (ISDIRTY (jeb->wasted_size + jeb->dirty_size)) {
+		c->dirty_size += jeb->wasted_size;
+		c->wasted_size -= jeb->wasted_size;
+		jeb->dirty_size += jeb->wasted_size;
+		jeb->wasted_size = 0;
+		if (VERYDIRTY(c, jeb->dirty_size)) {
+			D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to very_dirty_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
+			  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
+			list_add_tail(&jeb->list, &c->very_dirty_list);
+		} else {
+			D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to dirty_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
+			  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
+			list_add_tail(&jeb->list, &c->dirty_list);
+		}
+	} else { 
+		D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to clean_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
+		  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
+		list_add_tail(&jeb->list, &c->clean_list);
+	}
+	c->nextblock = NULL;
+
+}
+
+/* Select a new jeb for nextblock */
+
+static int jffs2_find_nextblock(struct jffs2_sb_info *c)
+{
+	struct list_head *next;
 	
- restart:
-	if (jeb && minsize > jeb->free_size) {
-		/* Skip the end of this block and file it as having some dirty space */
-		/* If there's a pending write to it, flush now */
-		if (jffs2_wbuf_dirty(c)) {
+	/* Take the next block off the 'free' list */
+
+	if (list_empty(&c->free_list)) {
+
+		if (!c->nr_erasing_blocks &&
+			!list_empty(&c->erasable_list)) {
+			struct jffs2_eraseblock *ejeb;
+
+			ejeb = list_entry(c->erasable_list.next, struct jffs2_eraseblock, list);
+			list_del(&ejeb->list);
+			list_add_tail(&ejeb->list, &c->erase_pending_list);
+			c->nr_erasing_blocks++;
+			jffs2_erase_pending_trigger(c);
+			D1(printk(KERN_DEBUG "jffs2_find_nextblock: Triggering erase of erasable block at 0x%08x\n",
+				  ejeb->offset));
+		}
+
+		if (!c->nr_erasing_blocks &&
+			!list_empty(&c->erasable_pending_wbuf_list)) {
+			D1(printk(KERN_DEBUG "jffs2_find_nextblock: Flushing write buffer\n"));
+			/* c->nextblock is NULL, no update to c->nextblock allowed */
 			spin_unlock(&c->erase_completion_lock);
-			D1(printk(KERN_DEBUG "jffs2_do_reserve_space: Flushing write buffer\n"));			    
 			jffs2_flush_wbuf_pad(c);
 			spin_lock(&c->erase_completion_lock);
-			jeb = c->nextblock;
-			goto restart;
-		}
-		c->wasted_size += jeb->free_size;
-		c->free_size -= jeb->free_size;
-		jeb->wasted_size += jeb->free_size;
-		jeb->free_size = 0;
-		
-		/* Check, if we have a dirty block now, or if it was dirty already */
-		if (ISDIRTY (jeb->wasted_size + jeb->dirty_size)) {
-			c->dirty_size += jeb->wasted_size;
-			c->wasted_size -= jeb->wasted_size;
-			jeb->dirty_size += jeb->wasted_size;
-			jeb->wasted_size = 0;
-			if (VERYDIRTY(c, jeb->dirty_size)) {
-				D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to very_dirty_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
-				  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
-				list_add_tail(&jeb->list, &c->very_dirty_list);
-			} else {
-				D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to dirty_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
-				  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
-				list_add_tail(&jeb->list, &c->dirty_list);
-			}
-		} else { 
-			D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to clean_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
-			  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
-			list_add_tail(&jeb->list, &c->clean_list);
-		}
-		c->nextblock = jeb = NULL;
-	}
-	
-	if (!jeb) {
-		struct list_head *next;
-		/* Take the next block off the 'free' list */
-
-		if (list_empty(&c->free_list)) {
-
-			if (!c->nr_erasing_blocks && 
-			    !list_empty(&c->erasable_list)) {
-				struct jffs2_eraseblock *ejeb;
-
-				ejeb = list_entry(c->erasable_list.next, struct jffs2_eraseblock, list);
-				list_del(&ejeb->list);
-				list_add_tail(&ejeb->list, &c->erase_pending_list);
-				c->nr_erasing_blocks++;
-				jffs2_erase_pending_trigger(c);
-				D1(printk(KERN_DEBUG "jffs2_do_reserve_space: Triggering erase of erasable block at 0x%08x\n",
-					  ejeb->offset));
-			}
-
-			if (!c->nr_erasing_blocks && 
-			    !list_empty(&c->erasable_pending_wbuf_list)) {
-				D1(printk(KERN_DEBUG "jffs2_do_reserve_space: Flushing write buffer\n"));
-				/* c->nextblock is NULL, no update to c->nextblock allowed */			    
-				spin_unlock(&c->erase_completion_lock);
-				jffs2_flush_wbuf_pad(c);
-				spin_lock(&c->erase_completion_lock);
-				/* Have another go. It'll be on the erasable_list now */
-				return -EAGAIN;
-			}
-
-			if (!c->nr_erasing_blocks) {
-				/* Ouch. We're in GC, or we wouldn't have got here.
-				   And there's no space left. At all. */
-				printk(KERN_CRIT "Argh. No free space left for GC. nr_erasing_blocks is %d. nr_free_blocks is %d. (erasableempty: %s, erasingempty: %s, erasependingempty: %s)\n", 
-				       c->nr_erasing_blocks, c->nr_free_blocks, list_empty(&c->erasable_list)?"yes":"no", 
-				       list_empty(&c->erasing_list)?"yes":"no", list_empty(&c->erase_pending_list)?"yes":"no");
-				return -ENOSPC;
-			}
-
-			spin_unlock(&c->erase_completion_lock);
-			/* Don't wait for it; just erase one right now */
-			jffs2_erase_pending_blocks(c, 1);
-			spin_lock(&c->erase_completion_lock);
-
-			/* An erase may have failed, decreasing the
-			   amount of free space available. So we must
-			   restart from the beginning */
+			/* Have another go. It'll be on the erasable_list now */
 			return -EAGAIN;
 		}
 
-		next = c->free_list.next;
-		list_del(next);
-		c->nextblock = jeb = list_entry(next, struct jffs2_eraseblock, list);
-		c->nr_free_blocks--;
+		if (!c->nr_erasing_blocks) {
+			/* Ouch. We're in GC, or we wouldn't have got here.
+			   And there's no space left. At all. */
+			printk(KERN_CRIT "Argh. No free space left for GC. nr_erasing_blocks is %d. nr_free_blocks is %d. (erasableempty: %s, erasingempty: %s, erasependingempty: %s)\n", 
+				   c->nr_erasing_blocks, c->nr_free_blocks, list_empty(&c->erasable_list)?"yes":"no", 
+				   list_empty(&c->erasing_list)?"yes":"no", list_empty(&c->erase_pending_list)?"yes":"no");
+			return -ENOSPC;
+		}
+
+		spin_unlock(&c->erase_completion_lock);
+		/* Don't wait for it; just erase one right now */
+		jffs2_erase_pending_blocks(c, 1);
+		spin_lock(&c->erase_completion_lock);
+
+		/* An erase may have failed, decreasing the
+		   amount of free space available. So we must
+		   restart from the beginning */
+		return -EAGAIN;
+	}
+
+	next = c->free_list.next;
+	list_del(next);
+	c->nextblock = list_entry(next, struct jffs2_eraseblock, list);
+	c->nr_free_blocks--;
+	
+	jffs2_sum_reset_collected(c->summary); /* reset collected summary */
+
+	D1(printk(KERN_DEBUG "jffs2_find_nextblock(): new nextblock = 0x%08x\n", c->nextblock->offset));
+
+	return 0;
+}
+
+/* Called with alloc sem _and_ erase_completion_lock */
+static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs, uint32_t *len, uint32_t sumsize)
+{
+	struct jffs2_eraseblock *jeb = c->nextblock;
+	uint32_t reserved_size; 			/* for summary information at the end of the jeb */
+	int ret;
+
+ restart:
+	reserved_size = 0;
+
+	if (jffs2_sum_active() && (sumsize != JFFS2_SUMMARY_NOSUM_SIZE)) {
+							/* NOSUM_SIZE means not to generate summary */
+
+		if (jeb) {
+			reserved_size = PAD(sumsize + c->summary->sum_size + JFFS2_SUMMARY_FRAME_SIZE);
+			JFFS2_DBG_SUMMARY("minsize=%d , jeb->free=%d ,"
+						"summary->size=%d , sumsize=%d\n",
+						minsize, jeb->free_size,
+						c->summary->sum_size, sumsize);
+		}
+
+		/* Is there enough space for writing out the current node, or we have to
+		   write out summary information now, close this jeb and select new nextblock? */
+		if (jeb && (PAD(minsize) + PAD(c->summary->sum_size + sumsize +
+					JFFS2_SUMMARY_FRAME_SIZE) > jeb->free_size)) {
+
+			/* Has summary been disabled for this jeb? */
+			if (jffs2_sum_is_disabled(c->summary)) {
+				sumsize = JFFS2_SUMMARY_NOSUM_SIZE;
+				goto restart;
+			}
+
+			/* Writing out the collected summary information */
+			JFFS2_DBG_SUMMARY("generating summary for 0x%08x.\n", jeb->offset);
+			ret = jffs2_sum_write_sumnode(c);
+
+			if (ret)
+				return ret;
+
+			if (jffs2_sum_is_disabled(c->summary)) {
+				/* jffs2_write_sumnode() couldn't write out the summary information
+				   diabling summary for this jeb and free the collected information
+				 */
+				sumsize = JFFS2_SUMMARY_NOSUM_SIZE;
+				goto restart;
+			}
+
+			jffs2_close_nextblock(c, jeb);
+			jeb = NULL;
+		}
+	} else {
+		if (jeb && minsize > jeb->free_size) {
+			/* Skip the end of this block and file it as having some dirty space */
+			/* If there's a pending write to it, flush now */
+
+			if (jffs2_wbuf_dirty(c)) {
+				spin_unlock(&c->erase_completion_lock);
+				D1(printk(KERN_DEBUG "jffs2_do_reserve_space: Flushing write buffer\n"));
+				jffs2_flush_wbuf_pad(c);
+				spin_lock(&c->erase_completion_lock);
+				jeb = c->nextblock;
+				goto restart;
+			}
+
+			c->wasted_size += jeb->free_size;
+			c->free_size -= jeb->free_size;
+			jeb->wasted_size += jeb->free_size;
+			jeb->free_size = 0;
+
+			jffs2_close_nextblock(c, jeb);
+			jeb = NULL;
+		}
+	}
+
+	if (!jeb) {
+
+		ret = jffs2_find_nextblock(c);
+		if (ret)
+			return ret;
+
+		jeb = c->nextblock;
 
 		if (jeb->free_size != c->sector_size - c->cleanmarker_size) {
 			printk(KERN_WARNING "Eep. Block 0x%08x taken from free_list had free_size of 0x%08x!!\n", jeb->offset, jeb->free_size);
@@ -266,7 +348,7 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize, ui
 	/* OK, jeb (==c->nextblock) is now pointing at a block which definitely has
 	   enough space */
 	*ofs = jeb->offset + (c->sector_size - jeb->free_size);
-	*len = jeb->free_size;
+	*len = jeb->free_size - reserved_size;
 
 	if (c->cleanmarker_size && jeb->used_size == c->cleanmarker_size &&
 	    !jeb->first_node->next_in_ino) {

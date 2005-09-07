@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.97 2005/08/06 04:51:30 nico Exp $
+ * $Id: wbuf.c,v 1.98 2005/09/07 08:34:55 havasi Exp $
  *
  */
 
@@ -265,7 +265,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 
 	/* ... and get an allocation of space from a shiny new block instead */
-	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len);
+	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len, JFFS2_SUMMARY_NOSUM_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate space for wbuf recovery. Data loss ensues.\n");
 		kfree(buf);
@@ -836,6 +836,12 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 alldone:
 	*retlen = donelen;
 
+	if (jffs2_sum_active()) {
+		int res = jffs2_sum_add_kvec(c, invecs, count, (uint32_t) to);
+		if (res)
+			return res;
+	}
+
 	if (c->wbuf_len && ino)
 		jffs2_wbuf_dirties_inode(c, ino);
 
@@ -855,7 +861,7 @@ int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *r
 	struct kvec vecs[1];
 
 	if (!jffs2_is_writebuffered(c))
-		return c->mtd->write(c->mtd, ofs, len, retlen, buf);
+		return jffs2_flash_direct_write(c, ofs, len, retlen, buf);
 
 	vecs[0].iov_base = (unsigned char *) buf;
 	vecs[0].iov_len = len;

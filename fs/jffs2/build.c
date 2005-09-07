@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.77 2005/08/31 13:51:00 havasi Exp $
+ * $Id: build.c,v 1.78 2005/09/07 08:34:54 havasi Exp $
  *
  */
 
@@ -350,6 +350,10 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 	INIT_LIST_HEAD(&c->bad_list);
 	INIT_LIST_HEAD(&c->bad_used_list);
 	c->highest_ino = 1;
+	c->summary = NULL;
+
+	if (jffs2_sum_init(c))
+		return -ENOMEM;
 
 	if (jffs2_build_filesystem(c)) {
 		D1(printk(KERN_DEBUG "build_fs failed\n"));
@@ -357,11 +361,11 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 		jffs2_free_raw_node_refs(c);
 #ifndef __ECOS
 		if (jffs2_blocks_use_vmalloc(c))
-                    vfree(c->blocks);
+			vfree(c->blocks);
 		else 
 #endif
-                    kfree(c->blocks);
-		
+			kfree(c->blocks);
+
 		return -EIO;
 	}
 

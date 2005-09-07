@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.14 2005/08/17 13:48:59 dedekind Exp $
+ * $Id: debug.h,v 1.15 2005/09/07 08:34:54 havasi Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -28,6 +28,7 @@
 #define JFFS2_DBG_DENTLIST_MESSAGES
 #define JFFS2_DBG_NODEREF_MESSAGES
 #define JFFS2_DBG_INOCACHE_MESSAGES
+#define JFFS2_DBG_SUMMARY_MESSAGES
 #endif
 
 #if CONFIG_JFFS2_FS_DEBUG == 2
@@ -135,6 +136,13 @@
 #define JFFS2_DBG_INOCACHE(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
 #define JFFS2_DBG_INOCACHE(fmt, ...)
+#endif
+
+/* Summary debugging messages */
+#ifdef JFFS2_DBG_SUMMARY_MESSAGES
+#define JFFS2_DBG_SUMMARY(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#else
+#define JFFS2_DBG_SUMMARY(fmt, ...)
 #endif
 
 /* Watch the object allocations */

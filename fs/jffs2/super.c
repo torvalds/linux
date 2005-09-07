@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: super.c,v 1.108 2005/08/31 13:51:00 havasi Exp $
+ * $Id: super.c,v 1.109 2005/09/07 08:34:55 havasi Exp $
  *
  */
 
@@ -282,6 +282,9 @@ static void jffs2_put_super (struct super_block *sb)
 	down(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
 	up(&c->alloc_sem);
+
+	jffs2_sum_exit(c);
+
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
 	if (jffs2_blocks_use_vmalloc(c))
@@ -320,6 +323,9 @@ static int __init init_jffs2_fs(void)
 	printk(KERN_INFO "JFFS2 version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
+#endif
+#ifdef CONFIG_JFFS2_SUMMARY
+	       " (SUMMARY) "
 #endif
 	       " (C) 2001-2003 Red Hat, Inc.\n");
 
