@@ -214,6 +214,7 @@ static int si3054_build_pcms(struct hda_codec *codec)
 	info->name = "Si3054 Modem";
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
+	info->is_modem = 1;
 	return 0;
 }
 

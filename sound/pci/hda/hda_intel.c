@@ -164,7 +164,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* max buffer size - no h/w limit, you can increase as you like */
 #define AZX_MAX_BUF_SIZE	(1024*1024*1024)
 /* max number of PCM devics per card */
-#define AZX_MAX_PCMS		8
+#define AZX_MAX_AUDIO_PCMS	6
+#define AZX_MAX_MODEM_PCMS	2
+#define AZX_MAX_PCMS		(AZX_MAX_AUDIO_PCMS + AZX_MAX_MODEM_PCMS)
 
 /* RIRB int mask: overrun[2], response[0] */
 #define RIRB_INT_RESPONSE	0x01
@@ -1225,12 +1227,33 @@ static int __devinit azx_pcm_create(azx_t *chip)
 	if ((err = snd_hda_build_pcms(chip->bus)) < 0)
 		return err;
 
+	/* create audio PCMs */
 	pcm_dev = 0;
 	list_for_each(p, &chip->bus->codec_list) {
 		codec = list_entry(p, struct hda_codec, list);
 		for (c = 0; c < codec->num_pcms; c++) {
-			if (pcm_dev >= AZX_MAX_PCMS) {
-				snd_printk(KERN_ERR SFX "Too many PCMs\n");
+			if (codec->pcm_info[c].is_modem)
+				continue; /* create later */
+			if (pcm_dev >= AZX_MAX_AUDIO_PCMS) {
+				snd_printk(KERN_ERR SFX "Too many audio PCMs\n");
+				return -EINVAL;
+			}
+			err = create_codec_pcm(chip, codec, &codec->pcm_info[c], pcm_dev);
+			if (err < 0)
+				return err;
+			pcm_dev++;
+		}
+	}
+
+	/* create modem PCMs */
+	pcm_dev = AZX_MAX_AUDIO_PCMS;
+	list_for_each(p, &chip->bus->codec_list) {
+		codec = list_entry(p, struct hda_codec, list);
+		for (c = 0; c < codec->num_pcms; c++) {
+			if (! codec->pcm_info[c].is_modem)
+				continue; /* already created */
+			if (pcm_dev >= AZX_MAX_MODEM_PCMS) {
+				snd_printk(KERN_ERR SFX "Too many modem PCMs\n");
 				return -EINVAL;
 			}
 			err = create_codec_pcm(chip, codec, &codec->pcm_info[c], pcm_dev);
