@@ -1478,6 +1478,7 @@ static inline void prepare_task_switch(runqueue_t *rq, task_t *next)
 
 /**
  * finish_task_switch - clean up after a task-switch
+ * @rq: runqueue associated with task-switch
  * @prev: the thread we just switched away from.
  *
  * finish_task_switch must be called after the context switch, paired
