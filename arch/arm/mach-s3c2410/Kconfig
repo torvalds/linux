@@ -2,6 +2,13 @@ if ARCH_S3C2410
 
 menu "S3C24XX Implementations"
 
+config MACH_ANUBIS
+	bool "Simtec Electronics ANUBIS"
+	select CPU_S3C2440
+	help
+	  Say Y gere if you are using the Simtec Electronics ANUBIS
+	  development system
+
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
