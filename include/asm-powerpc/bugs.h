@@ -13,6 +13,6 @@
  * architecture-dependent bugs.
  */
 
-extern void check_bugs(void);
+static inline void check_bugs(void) { }
 
 #endif	/* _ASM_POWERPC_BUGS_H */

@@ -46,10 +46,6 @@
 
 extern unsigned long wall_jiffies;
 
-void
-check_bugs(void)
-{
-}
 
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls..
