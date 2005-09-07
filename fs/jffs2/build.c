@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.78 2005/09/07 08:34:54 havasi Exp $
+ * $Id: build.c,v 1.79 2005/09/07 11:21:57 havasi Exp $
  *
  */
 
@@ -313,6 +313,7 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 
 int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 {
+	int ret;
 	int i;
 
 	c->free_size = c->flash_size;
@@ -352,8 +353,9 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 	c->highest_ino = 1;
 	c->summary = NULL;
 
-	if (jffs2_sum_init(c))
-		return -ENOMEM;
+	ret = jffs2_sum_init(c);
+	if (ret)
+		return ret;
 
 	if (jffs2_build_filesystem(c)) {
 		D1(printk(KERN_DEBUG "build_fs failed\n"));
