@@ -60,9 +60,9 @@ static const u_int exponent[] = {
 
 /* Parameters that can be set with 'insmod' */
 
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0444)
-
-INT_MODULE_PARM(cis_width,	0);		/* 16-bit CIS? */
+/* 16-bit CIS? */
+static int cis_width;
+module_param(cis_width, int, 0444);
 
 void release_cis_mem(struct pcmcia_socket *s)
 {
