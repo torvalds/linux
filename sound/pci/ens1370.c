@@ -100,13 +100,6 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif
 #endif /* SUPPORT_JOYSTICK */
 
-#ifndef PCI_DEVICE_ID_ENSONIQ_CT5880
-#define PCI_DEVICE_ID_ENSONIQ_CT5880    0x5880
-#endif
-#ifndef PCI_DEVICE_ID_ENSONIQ_ES1371
-#define PCI_DEVICE_ID_ENSONIQ_ES1371	0x1371
-#endif
-
 /* ES1371 chip ID */
 /* This is a little confusing because all ES1371 compatible chips have the
    same DEVICE_ID, the only thing differentiating them is the REV_ID field.

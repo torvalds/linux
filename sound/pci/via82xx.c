@@ -104,14 +104,6 @@ module_param_array(dxs_support, int, NULL, 0444);
 MODULE_PARM_DESC(dxs_support, "Support for DXS channels (0 = auto, 1 = enable, 2 = disable, 3 = 48k only, 4 = no VRA, 5 = enable any sample rate)");
 
 
-/* pci ids */
-#ifndef PCI_DEVICE_ID_VIA_82C686_5
-#define PCI_DEVICE_ID_VIA_82C686_5	0x3058
-#endif
-#ifndef PCI_DEVICE_ID_VIA_8233_5
-#define PCI_DEVICE_ID_VIA_8233_5	0x3059
-#endif
-
 /* revision numbers for via686 */
 #define VIA_REV_686_A		0x10
 #define VIA_REV_686_B		0x11

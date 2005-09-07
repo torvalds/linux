@@ -59,16 +59,6 @@ module_param(load_all, bool, 0444);
 MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
 
 
-#ifndef PCI_VENDOR_ID_BROOKTREE
-#define PCI_VENDOR_ID_BROOKTREE 0x109e
-#endif
-#ifndef PCI_DEVICE_ID_BROOKTREE_878
-#define PCI_DEVICE_ID_BROOKTREE_878 0x0878
-#endif
-#ifndef PCI_DEVICE_ID_BROOKTREE_879
-#define PCI_DEVICE_ID_BROOKTREE_879 0x0879
-#endif
-
 /* register offsets */
 #define REG_INT_STAT		0x100	/* interrupt status */
 #define REG_INT_MASK		0x104	/* interrupt mask */

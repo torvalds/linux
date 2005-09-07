@@ -192,20 +192,6 @@ MODULE_SUPPORTED_DEVICE("{{RME,Digi32}," "{RME,Digi32/8}," "{RME,Digi32 PRO}}");
 #define RME32_PRO_REVISION_WITH_8414 150
 
 
-/* PCI vendor/device ID's */
-#ifndef PCI_VENDOR_ID_XILINX_RME
-# define PCI_VENDOR_ID_XILINX_RME 0xea60
-#endif
-#ifndef PCI_DEVICE_ID_DIGI32
-# define PCI_DEVICE_ID_DIGI32 0x9896
-#endif
-#ifndef PCI_DEVICE_ID_DIGI32_PRO
-# define PCI_DEVICE_ID_DIGI32_PRO 0x9897
-#endif
-#ifndef PCI_DEVICE_ID_DIGI32_8
-# define PCI_DEVICE_ID_DIGI32_8 0x9898
-#endif
-
 typedef struct snd_rme32 {
 	spinlock_t lock;
 	int irq;

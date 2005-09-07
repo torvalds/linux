@@ -370,13 +370,6 @@ MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
 #define UNITY_GAIN                       32768
 #define MINUS_INFINITY_GAIN              0
 
-#ifndef PCI_VENDOR_ID_XILINX
-#define PCI_VENDOR_ID_XILINX		0x10ee
-#endif
-#ifndef PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP
-#define PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP 0x3fc5
-#endif
-
 /* the size of a substream (1 mono data stream) */
 
 #define HDSP_CHANNEL_BUFFER_SAMPLES  (16*1024)

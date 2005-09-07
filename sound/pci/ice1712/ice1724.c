@@ -83,12 +83,6 @@ MODULE_PARM_DESC(enable, "Enable ICE1724 soundcard.");
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 
-#ifndef PCI_VENDOR_ID_ICE
-#define PCI_VENDOR_ID_ICE		0x1412
-#endif
-#ifndef PCI_DEVICE_ID_VT1724
-#define PCI_DEVICE_ID_VT1724		0x1724
-#endif
 
 /* Both VT1720 and VT1724 have the same PCI IDs */
 static struct pci_device_id snd_vt1724_ids[] = {

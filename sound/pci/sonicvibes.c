@@ -50,13 +50,6 @@ MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 #define SUPPORT_JOYSTICK 1
 #endif
 
-#ifndef PCI_VENDOR_ID_S3
-#define PCI_VENDOR_ID_S3             0x5333
-#endif
-#ifndef PCI_DEVICE_ID_S3_SONICVIBES
-#define PCI_DEVICE_ID_S3_SONICVIBES  0xca00
-#endif
-
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */

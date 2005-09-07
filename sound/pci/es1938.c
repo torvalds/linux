@@ -76,13 +76,6 @@ MODULE_SUPPORTED_DEVICE("{{ESS,ES1938},"
 #define SUPPORT_JOYSTICK 1
 #endif
 
-#ifndef PCI_VENDOR_ID_ESS
-#define PCI_VENDOR_ID_ESS		0x125d
-#endif
-#ifndef PCI_DEVICE_ID_ESS_ES1938
-#define PCI_DEVICE_ID_ESS_ES1938	0x1969
-#endif
-
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */

@@ -78,15 +78,7 @@ MODULE_PARM_DESC(spdif, "Support SPDIF I/O");
  *  Constants definition
  */
 
-#ifndef PCI_VENDOR_ID_ALI
-#define PCI_VENDOR_ID_ALI	0x10b9
-#endif
-
-#ifndef PCI_DEVICE_ID_ALI_5451
-#define PCI_DEVICE_ID_ALI_5451	0x5451
-#endif
-
-#define DEVICE_ID_ALI5451	((PCI_VENDOR_ID_ALI<<16)|PCI_DEVICE_ID_ALI_5451)
+#define DEVICE_ID_ALI5451	((PCI_VENDOR_ID_AL<<16)|PCI_DEVICE_ID_AL_M5451)
 
 
 #define ALI_CHANNELS		32

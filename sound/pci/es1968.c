@@ -160,25 +160,6 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif
 
 
-/* PCI Dev ID's */
-
-#ifndef PCI_VENDOR_ID_ESS
-#define PCI_VENDOR_ID_ESS	0x125D
-#endif
-
-#define PCI_VENDOR_ID_ESS_OLD	0x1285	/* Platform Tech, the people the ESS
-					   was bought form */
-
-#ifndef PCI_DEVICE_ID_ESS_M2E
-#define PCI_DEVICE_ID_ESS_M2E	0x1978
-#endif
-#ifndef PCI_DEVICE_ID_ESS_M2
-#define PCI_DEVICE_ID_ESS_M2	0x1968
-#endif
-#ifndef PCI_DEVICE_ID_ESS_M1
-#define PCI_DEVICE_ID_ESS_M1	0x0100
-#endif
-
 #define NR_APUS			64
 #define NR_APU_REGS		16
 

@@ -79,13 +79,6 @@ module_param_array(joystick_port, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #endif
 
-#ifndef PCI_DEVICE_ID_CMEDIA_CM8738
-#define PCI_DEVICE_ID_CMEDIA_CM8738	0x0111
-#endif
-#ifndef PCI_DEVICE_ID_CMEDIA_CM8738B
-#define PCI_DEVICE_ID_CMEDIA_CM8738B	0x0112
-#endif
-
 /*
  * CM8x38 registers definition
  */
@@ -346,25 +339,6 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_EXTENT_MIDI	  0x2
 #define CM_EXTENT_SYNTH	  0x4
 
-
-/*
- * pci ids
- */
-#ifndef PCI_VENDOR_ID_CMEDIA
-#define PCI_VENDOR_ID_CMEDIA         0x13F6
-#endif
-#ifndef PCI_DEVICE_ID_CMEDIA_CM8338A
-#define PCI_DEVICE_ID_CMEDIA_CM8338A 0x0100
-#endif
-#ifndef PCI_DEVICE_ID_CMEDIA_CM8338B
-#define PCI_DEVICE_ID_CMEDIA_CM8338B 0x0101
-#endif
-#ifndef PCI_DEVICE_ID_CMEDIA_CM8738
-#define PCI_DEVICE_ID_CMEDIA_CM8738  0x0111
-#endif
-#ifndef PCI_DEVICE_ID_CMEDIA_CM8738B
-#define PCI_DEVICE_ID_CMEDIA_CM8738B 0x0112
-#endif
 
 /*
  * channels for playback / capture

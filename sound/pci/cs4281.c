@@ -57,17 +57,6 @@ module_param_array(dual_codec, bool, NULL, 0444);
 MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 
 /*
- *
- */
-
-#ifndef PCI_VENDOR_ID_CIRRUS
-#define PCI_VENDOR_ID_CIRRUS            0x1013
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_4281
-#define PCI_DEVICE_ID_CIRRUS_4281	0x6005
-#endif
-
-/*
  *  Direct registers
  */
 

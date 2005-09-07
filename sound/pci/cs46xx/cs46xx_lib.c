@@ -3525,17 +3525,6 @@ static void amp_voyetra_4294(cs46xx_t *chip, int change)
 
 
 /*
- * piix4 pci ids
- */
-#ifndef PCI_VENDOR_ID_INTEL
-#define PCI_VENDOR_ID_INTEL 0x8086
-#endif /* PCI_VENDOR_ID_INTEL */
-
-#ifndef PCI_DEVICE_ID_INTEL_82371AB_3
-#define PCI_DEVICE_ID_INTEL_82371AB_3 0x7113
-#endif /* PCI_DEVICE_ID_INTEL_82371AB_3 */
-
-/*
  *	Handle the CLKRUN on a thinkpad. We must disable CLKRUN support
  *	whenever we need to beat on the chip.
  *

@@ -29,19 +29,6 @@
 #include "ac97_codec.h"
 #include "cs46xx_dsp_spos.h"
 
-#ifndef PCI_VENDOR_ID_CIRRUS
-#define PCI_VENDOR_ID_CIRRUS            0x1013
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_4610
-#define PCI_DEVICE_ID_CIRRUS_4610       0x6001
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_4612
-#define PCI_DEVICE_ID_CIRRUS_4612       0x6003
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_4615
-#define PCI_DEVICE_ID_CIRRUS_4615       0x6004
-#endif
-
 /*
  *  Direct registers
  */
