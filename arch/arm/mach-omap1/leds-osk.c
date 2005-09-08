@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/leds-osk.c
+ * linux/arch/arm/mach-omap1/leds-osk.c
  *
  * LED driver for OSK, and optionally Mistral QVGA, boards
  */
@@ -64,7 +64,7 @@ static void tps_work(void *unused)
 
 static DECLARE_WORK(work, tps_work, NULL);
 
-#ifdef	CONFIG_FB_OMAP
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 /* For now, all system indicators require the Mistral board, since that
  * LED can be manipulated without a task context.  This LED is either red,
@@ -127,7 +127,7 @@ void osk_leds_event(led_event_t evt)
 		hw_led_state = 0;
 		break;
 
-#ifdef	CONFIG_FB_OMAP
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 	case led_timer:
 		hw_led_state ^= TIMER_LED;
@@ -144,7 +144,7 @@ void osk_leds_event(led_event_t evt)
 		mistral_setled();
 		break;
 
-#endif	/* CONFIG_FB_OMAP */
+#endif	/* CONFIG_OMAP_OSK_MISTRAL */
 
 	/* "green" == tps LED1 (leftmost, normally power-good)
 	 * works only with DC adapter, not on battery power!

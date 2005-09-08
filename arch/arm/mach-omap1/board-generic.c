@@ -48,19 +48,43 @@ static struct omap_usb_config generic1510_usb_config __initdata = {
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 static struct omap_usb_config generic1610_usb_config __initdata = {
+#ifdef CONFIG_USB_OTG
+	.otg		= 1,
+#endif
 	.register_host	= 1,
 	.register_dev	= 1,
 	.hmc_mode	= 16,
 	.pins[0]	= 6,
 };
+
+static struct omap_mmc_config generic_mmc_config __initdata = {
+	.mmc [0] = {
+		.enabled 	= 0,
+		.wire4		= 0,
+		.wp_pin		= -1,
+		.power_pin	= -1,
+		.switch_pin	= -1,
+	},
+	.mmc [1] = {
+		.enabled 	= 0,
+		.wire4		= 0,
+		.wp_pin		= -1,
+		.power_pin	= -1,
+		.switch_pin	= -1,
+	},
+};
+
 #endif
 
 static struct omap_board_config_kernel generic_config[] = {
 	{ OMAP_TAG_USB,           NULL },
+	{ OMAP_TAG_MMC,           &generic_mmc_config },
 };
 
 static void __init omap_generic_init(void)
 {
+	const struct omap_uart_config *uart_conf;
+
 	/*
 	 * Make sure the serial ports are muxed on at this point.
 	 * You have to mux them off in device drivers later on
@@ -76,6 +100,18 @@ static void __init omap_generic_init(void)
 		generic_config[0].data = &generic1610_usb_config;
 	}
 #endif
+
+	uart_conf = omap_get_config(OMAP_TAG_UART, struct omap_uart_config);
+	if (uart_conf != NULL) {
+		unsigned int enabled_ports, i;
+
+		enabled_ports = uart_conf->enabled_uarts;
+		for (i = 0; i < 3; i++) {
+			if (!(enabled_ports & (1 << i)))
+				generic_serial_ports[i] = 0;
+		}
+	}
+
 	omap_board_config = generic_config;
 	omap_board_config_size = ARRAY_SIZE(generic_config);
 	omap_serial_init(generic_serial_ports);
@@ -83,7 +119,7 @@ static void __init omap_generic_init(void)
 
 static void __init omap_generic_map_io(void)
 {
-	omap_map_common_io()
+	omap_map_common_io();
 }
 
 MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")

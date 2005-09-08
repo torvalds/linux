@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/leds-innovator.c
+ * linux/arch/arm/mach-omap1/leds-innovator.c
  */
 #include <linux/config.h>
 #include <linux/init.h>

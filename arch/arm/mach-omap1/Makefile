@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := io.o id.o irq.o time.o serial.o
+obj-y := io.o id.o irq.o time.o serial.o devices.o
 led-y := leds.o
 
 # Specific board support
@@ -23,6 +23,7 @@ endif
 
 # LEDs support
 led-$(CONFIG_MACH_OMAP_H2)		+= leds-h2p2-debug.o
+led-$(CONFIG_MACH_OMAP_H3)		+= leds-h2p2-debug.o
 led-$(CONFIG_MACH_OMAP_INNOVATOR)	+= leds-innovator.o
 led-$(CONFIG_MACH_OMAP_PERSEUS2)	+= leds-h2p2-debug.o
 led-$(CONFIG_MACH_OMAP_OSK)		+= leds-osk.o

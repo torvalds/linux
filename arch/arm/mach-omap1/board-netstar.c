@@ -75,16 +75,15 @@ static void __init netstar_init(void)
 	mdelay(50);	/* 50ms until PHY ready */
 	/* smc91x interrupt pin */
 	omap_request_gpio(8);
-	omap_set_gpio_edge_ctrl(8, OMAP_GPIO_RISING_EDGE);
 
 	omap_request_gpio(12);
 	omap_request_gpio(13);
 	omap_request_gpio(14);
 	omap_request_gpio(15);
-	omap_set_gpio_edge_ctrl(12, OMAP_GPIO_FALLING_EDGE);
-	omap_set_gpio_edge_ctrl(13, OMAP_GPIO_FALLING_EDGE);
-	omap_set_gpio_edge_ctrl(14, OMAP_GPIO_FALLING_EDGE);
-	omap_set_gpio_edge_ctrl(15, OMAP_GPIO_FALLING_EDGE);
+	set_irq_type(OMAP_GPIO_IRQ(12), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(14), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(15), IRQT_FALLING);
 
 	platform_add_devices(netstar_devices, ARRAY_SIZE(netstar_devices));
 
