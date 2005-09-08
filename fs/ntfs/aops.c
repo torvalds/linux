@@ -670,6 +670,27 @@ lock_retry_remap:
 		}
 		/* It is a hole, need to instantiate it. */
 		if (lcn == LCN_HOLE) {
+			u8 *kaddr;
+			unsigned long *bpos, *bend;
+
+			/* Check if the buffer is zero. */
+			kaddr = kmap_atomic(page, KM_USER0);
+			bpos = (unsigned long *)(kaddr + bh_offset(bh));
+			bend = (unsigned long *)((u8*)bpos + blocksize);
+			do {
+				if (unlikely(*bpos))
+					break;
+			} while (likely(++bpos < bend));
+			kunmap_atomic(kaddr, KM_USER0);
+			if (bpos == bend) {
+				/*
+				 * Buffer is zero and sparse, no need to write
+				 * it.
+				 */
+				bh->b_blocknr = -1;
+				clear_buffer_dirty(bh);
+				continue;
+			}
 			// TODO: Instantiate the hole.
 			// clear_buffer_new(bh);
 			// unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
