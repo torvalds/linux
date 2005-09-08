@@ -286,3 +286,23 @@ config USB_KEYSPAN_REMOTE
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called keyspan_remote.
+
+config USB_APPLETOUCH
+	tristate "Apple USB Touchpad support"
+	depends on USB && INPUT
+	---help---
+	  Say Y here if you want to use an Apple USB Touchpad.
+
+	  These are the touchpads that can be found on post-February 2005
+	  Apple Powerbooks (prior models have a Synaptics touchpad connected
+	  to the ADB bus).
+
+	  This driver provides a basic mouse driver but can be interfaced
+	  with the synaptics X11 driver to provide acceleration and
+	  scrolling in X11.
+
+	  For further information, see
+	  <file:Documentation/input/appletouch.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called appletouch.
