@@ -379,31 +379,38 @@ retry_readpage:
 		return 0;
 	}
 	ni = NTFS_I(page->mapping->host);
-
+	/*
+	 * Only $DATA attributes can be encrypted and only unnamed $DATA
+	 * attributes can be compressed.  Index root can have the flags set but
+	 * this means to create compressed/encrypted files, not that the
+	 * attribute is compressed/encrypted.
+	 */
+	if (ni->type != AT_INDEX_ROOT) {
+		/* If attribute is encrypted, deny access, just like NT4. */
+		if (NInoEncrypted(ni)) {
+			BUG_ON(ni->type != AT_DATA);
+			err = -EACCES;
+			goto err_out;
+		}
+		/* Compressed data streams are handled in compress.c. */
+		if (NInoNonResident(ni) && NInoCompressed(ni)) {
+			BUG_ON(ni->type != AT_DATA);
+			BUG_ON(ni->name_len);
+			return ntfs_read_compressed_block(page);
+		}
+	}
 	/* NInoNonResident() == NInoIndexAllocPresent() */
 	if (NInoNonResident(ni)) {
-		/*
-		 * Only unnamed $DATA attributes can be compressed or
-		 * encrypted.
-		 */
-		if (ni->type == AT_DATA && !ni->name_len) {
-			/* If file is encrypted, deny access, just like NT4. */
-			if (NInoEncrypted(ni)) {
-				err = -EACCES;
-				goto err_out;
-			}
-			/* Compressed data streams are handled in compress.c. */
-			if (NInoCompressed(ni))
-				return ntfs_read_compressed_block(page);
-		}
-		/* Normal data stream. */
+		/* Normal, non-resident data stream. */
 		return ntfs_read_block(page);
 	}
 	/*
 	 * Attribute is resident, implying it is not compressed or encrypted.
 	 * This also means the attribute is smaller than an mft record and
 	 * hence smaller than a page, so can simply zero out any pages with
-	 * index above 0.
+	 * index above 0.  Note the attribute can actually be marked compressed
+	 * but if it is resident the actual data is not compressed so we are
+	 * ok to ignore the compressed flag here.
 	 */
 	if (unlikely(page->index > 0)) {
 		kaddr = kmap_atomic(page, KM_USER0);

@@ -76,11 +76,10 @@ ToDo/Notes:
 	- Truncate {a,c,m}time to the ntfs supported time granularity when
 	  updating the times in the inode in ntfs_setattr().
 	- Fixup handling of sparse, compressed, and encrypted attributes in
-	  fs/ntfs/inode.c::ntfs_read_locked_{,attr_,index_}inode().
+	  fs/ntfs/inode.c::ntfs_read_locked_{,attr_,index_}inode(),
+	  fs/ntfs/aops.c::ntfs_{read,write}page().
 	- Make ntfs_write_block() not instantiate sparse blocks if they contain
 	  only zeroes.
-	- Fixup handling of sparse, compressed, and encrypted attributes in
-	  fs/ntfs/aops.c::ntfs_writepage().
 	- Optimize fs/ntfs/aops.c::ntfs_write_block() by extending the page
 	  lock protection over the buffer submission for i/o which allows the
 	  removal of the get_bh()/put_bh() pairs for each buffer.
