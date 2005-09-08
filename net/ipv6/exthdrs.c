@@ -164,6 +164,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
 		return -1;
 	}
 
+	opt->lastopt = skb->h.raw - skb->nh.raw;
 	opt->dst1 = skb->h.raw - skb->nh.raw;
 
 	if (ip6_parse_tlv(tlvprocdestopt_lst, skb)) {
@@ -243,6 +244,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
 
 looped_back:
 	if (hdr->segments_left == 0) {
+		opt->lastopt = skb->h.raw - skb->nh.raw;
 		opt->srcrt = skb->h.raw - skb->nh.raw;
 		skb->h.raw += (hdr->hdrlen + 1) << 3;
 		opt->dst0 = opt->dst1;
@@ -538,10 +540,15 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 			  u8 *proto,
 			  struct in6_addr **daddr)
 {
-	if (opt->srcrt)
+	if (opt->srcrt) {
 		ipv6_push_rthdr(skb, proto, opt->srcrt, daddr);
-	if (opt->dst0opt)
-		ipv6_push_exthdr(skb, proto, NEXTHDR_DEST, opt->dst0opt);
+		/*
+		 * IPV6_RTHDRDSTOPTS is ignored
+		 * unless IPV6_RTHDR is set (RFC3542).
+		 */
+		if (opt->dst0opt)
+			ipv6_push_exthdr(skb, proto, NEXTHDR_DEST, opt->dst0opt);
+	}
 	if (opt->hopopt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_HOP, opt->hopopt);
 }
@@ -572,3 +579,97 @@ ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
 	}
 	return opt2;
 }
+
+static int ipv6_renew_option(void *ohdr,
+			     struct ipv6_opt_hdr __user *newopt, int newoptlen,
+			     int inherit,
+			     struct ipv6_opt_hdr **hdr,
+			     char **p)
+{
+	if (inherit) {
+		if (ohdr) {
+			memcpy(*p, ohdr, ipv6_optlen((struct ipv6_opt_hdr *)ohdr));
+			*hdr = (struct ipv6_opt_hdr *)*p;
+			*p += CMSG_ALIGN(ipv6_optlen(*(struct ipv6_opt_hdr **)hdr));
+		}
+	} else {
+		if (newopt) {
+			if (copy_from_user(*p, newopt, newoptlen))
+				return -EFAULT;
+			*hdr = (struct ipv6_opt_hdr *)*p;
+			if (ipv6_optlen(*(struct ipv6_opt_hdr **)hdr) > newoptlen)
+				return -EINVAL;
+			*p += CMSG_ALIGN(newoptlen);
+		}
+	}
+	return 0;
+}
+
+struct ipv6_txoptions *
+ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
+		   int newtype,
+		   struct ipv6_opt_hdr __user *newopt, int newoptlen)
+{
+	int tot_len = 0;
+	char *p;
+	struct ipv6_txoptions *opt2;
+	int err;
+
+	if (newtype != IPV6_HOPOPTS && opt->hopopt)
+		tot_len += CMSG_ALIGN(ipv6_optlen(opt->hopopt));
+	if (newtype != IPV6_RTHDRDSTOPTS && opt->dst0opt)
+		tot_len += CMSG_ALIGN(ipv6_optlen(opt->dst0opt));
+	if (newtype != IPV6_RTHDR && opt->srcrt)
+		tot_len += CMSG_ALIGN(ipv6_optlen(opt->srcrt));
+	if (newtype != IPV6_DSTOPTS && opt->dst1opt)
+		tot_len += CMSG_ALIGN(ipv6_optlen(opt->dst1opt));
+	if (newopt && newoptlen)
+		tot_len += CMSG_ALIGN(newoptlen);
+
+	if (!tot_len)
+		return NULL;
+
+	opt2 = sock_kmalloc(sk, tot_len, GFP_ATOMIC);
+	if (!opt2)
+		return ERR_PTR(-ENOBUFS);
+
+	memset(opt2, 0, tot_len);
+
+	opt2->tot_len = tot_len;
+	p = (char *)(opt2 + 1);
+
+	err = ipv6_renew_option(opt->hopopt, newopt, newoptlen,
+				newtype != IPV6_HOPOPTS,
+				&opt2->hopopt, &p);
+	if (err)
+		goto out;
+
+	err = ipv6_renew_option(opt->dst0opt, newopt, newoptlen,
+				newtype != IPV6_RTHDRDSTOPTS,
+				&opt2->dst0opt, &p);
+	if (err)
+		goto out;
+
+	err = ipv6_renew_option(opt->srcrt, newopt, newoptlen,
+				newtype != IPV6_RTHDR,
+				(struct ipv6_opt_hdr **)opt2->srcrt, &p);
+	if (err)
+		goto out;
+
+	err = ipv6_renew_option(opt->dst1opt, newopt, newoptlen,
+				newtype != IPV6_DSTOPTS,
+				&opt2->dst1opt, &p);
+	if (err)
+		goto out;
+
+	opt2->opt_nflen = (opt2->hopopt ? ipv6_optlen(opt2->hopopt) : 0) +
+			  (opt2->dst0opt ? ipv6_optlen(opt2->dst0opt) : 0) +
+			  (opt2->srcrt ? ipv6_optlen(opt2->srcrt) : 0);
+	opt2->opt_flen = (opt2->dst1opt ? ipv6_optlen(opt2->dst1opt) : 0);
+
+	return opt2;
+out:
+	sock_kfree_s(sk, p, tot_len);
+	return ERR_PTR(err);
+}
+
