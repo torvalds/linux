@@ -511,7 +511,6 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 		} while (bh);
 		tail->b_this_page = head;
 		attach_page_buffers(page, head);
-		BUG_ON(!page_has_buffers(page));
 	}
 	bh = head = page_buffers(page);
 	BUG_ON(!bh);
@@ -692,7 +691,6 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	 */
 	if (!NInoTestClearDirty(ni))
 		goto done;
-	BUG_ON(!page_has_buffers(page));
 	bh = head = page_buffers(page);
 	BUG_ON(!bh);
 	rl = NULL;
