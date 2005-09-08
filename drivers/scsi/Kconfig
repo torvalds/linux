@@ -235,12 +235,18 @@ config SCSI_ISCSI_ATTRS
 	  each attached iSCSI device to sysfs, say Y.
 	  Otherwise, say N.
 
+endmenu
+
+menu "SCSI low-level drivers"
+	depends on SCSI!=n
+
 config ISCSI_TCP
 	tristate "iSCSI Initiator over TCP/IP"
-	depends on SCSI && INET && SCSI_ISCSI_ATTRS
+	depends on SCSI && INET
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_CRC32C
+	select SCSI_ISCSI_ATTRS
 	help
 	 The iSCSI Driver provides a host with the ability to access storage
 	 through an IP network. The driver uses the iSCSI protocol to transport
@@ -257,11 +263,6 @@ config ISCSI_TCP
 	 and sample configuration files can be found here:
 
 	 http://linux-iscsi.sf.net
-
-endmenu
-
-menu "SCSI low-level drivers"
-	depends on SCSI!=n
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
