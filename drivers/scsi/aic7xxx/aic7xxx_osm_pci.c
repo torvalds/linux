@@ -149,6 +149,27 @@ ahc_linux_pci_dev_remove(struct pci_dev *pdev)
 	ahc_free(ahc);
 }
 
+static void
+ahc_linux_pci_inherit_flags(struct ahc_softc *ahc)
+{
+	struct pci_dev *pdev = ahc->dev_softc, *master_pdev;
+	unsigned int master_devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
+
+	master_pdev = pci_get_slot(pdev->bus, master_devfn);
+	if (master_pdev) {
+		struct ahc_softc *master = pci_get_drvdata(master_pdev);
+		if (master) {
+			ahc->flags &= ~AHC_BIOS_ENABLED; 
+			ahc->flags |= master->flags & AHC_BIOS_ENABLED;
+
+			ahc->flags &= ~AHC_PRIMARY_CHANNEL; 
+			ahc->flags |= master->flags & AHC_PRIMARY_CHANNEL;
+		} else
+			printk(KERN_ERR "aic7xxx: no multichannel peer found!\n");
+		pci_dev_put(master_pdev);
+	} 
+}
+
 static int
 ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -203,6 +224,14 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahc_free(ahc);
 		return (-error);
 	}
+
+	/*
+	 * Second Function PCI devices need to inherit some
+	 * settings from function 0.
+	 */
+	if ((ahc->features & AHC_MULTI_FUNC) && PCI_FUNC(pdev->devfn) != 0)
+		ahc_linux_pci_inherit_flags(ahc);
+
 	pci_set_drvdata(pdev, ahc);
 	ahc_linux_register_host(ahc, &aic7xxx_driver_template);
 	return (0);

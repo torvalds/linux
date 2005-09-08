@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -75,7 +76,7 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 
 	scmd->eh_eflags |= eh_flag;
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
-	set_bit(SHOST_RECOVERY, &shost->shost_state);
+	scsi_host_set_state(shost, SHOST_RECOVERY);
 	shost->host_failed++;
 	scsi_eh_wakeup(shost);
 	spin_unlock_irqrestore(shost->host_lock, flags);
@@ -115,7 +116,6 @@ void scsi_add_timer(struct scsi_cmnd *scmd, int timeout,
 
 	add_timer(&scmd->eh_timeout);
 }
-EXPORT_SYMBOL(scsi_add_timer);
 
 /**
  * scsi_delete_timer - Delete/cancel timer for a given function.
@@ -143,7 +143,6 @@ int scsi_delete_timer(struct scsi_cmnd *scmd)
 
 	return rtn;
 }
-EXPORT_SYMBOL(scsi_delete_timer);
 
 /**
  * scsi_times_out - Timeout function for normal scsi commands.
@@ -197,7 +196,8 @@ int scsi_block_when_processing_errors(struct scsi_device *sdev)
 {
 	int online;
 
-	wait_event(sdev->host->host_wait, (!test_bit(SHOST_RECOVERY, &sdev->host->shost_state)));
+	wait_event(sdev->host->host_wait, (sdev->host->shost_state !=
+					   SHOST_RECOVERY));
 
 	online = scsi_device_online(sdev);
 
@@ -775,9 +775,11 @@ retry_tur:
 		__FUNCTION__, scmd, rtn));
 	if (rtn == SUCCESS)
 		return 0;
-	else if (rtn == NEEDS_RETRY)
+	else if (rtn == NEEDS_RETRY) {
 		if (retry_cnt--)
 			goto retry_tur;
+		return 0;
+	}
 	return 1;
 }
 
@@ -1458,7 +1460,7 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: waking up host to restart\n",
 					  __FUNCTION__));
 
-	clear_bit(SHOST_RECOVERY, &shost->shost_state);
+	scsi_host_set_state(shost, SHOST_RUNNING);
 
 	wake_up(&shost->host_wait);
 
@@ -1582,24 +1584,14 @@ int scsi_error_handler(void *data)
 	int rtn;
 	DECLARE_MUTEX_LOCKED(sem);
 
-	/*
-	 *    Flush resources
-	 */
-
-	daemonize("scsi_eh_%d", shost->host_no);
-
 	current->flags |= PF_NOFREEZE;
-
 	shost->eh_wait = &sem;
-	shost->ehandler = current;
 
 	/*
 	 * Wake up the thread that created us.
 	 */
 	SCSI_LOG_ERROR_RECOVERY(3, printk("Wake up parent of"
 					  " scsi_eh_%d\n",shost->host_no));
-
-	complete(shost->eh_notify);
 
 	while (1) {
 		/*
@@ -1621,7 +1613,7 @@ int scsi_error_handler(void *data)
 		 * semaphores isn't unreasonable.
 		 */
 		down_interruptible(&sem);
-		if (shost->eh_kill)
+		if (kthread_should_stop())
 			break;
 
 		SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
@@ -1660,22 +1652,6 @@ int scsi_error_handler(void *data)
 	 * Make sure that nobody tries to wake us up again.
 	 */
 	shost->eh_wait = NULL;
-
-	/*
-	 * Knock this down too.  From this point on, the host is flying
-	 * without a pilot.  If this is because the module is being unloaded,
-	 * that's fine.  If the user sent a signal to this thing, we are
-	 * potentially in real danger.
-	 */
-	shost->eh_active = 0;
-	shost->ehandler = NULL;
-
-	/*
-	 * If anyone is waiting for us to exit (i.e. someone trying to unload
-	 * a driver), then wake up that process to let them know we are on
-	 * the way out the door.
-	 */
-	complete_and_exit(shost->eh_notify, 0);
 	return 0;
 }
 
@@ -1846,12 +1822,16 @@ EXPORT_SYMBOL(scsi_reset_provider);
 int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
                          struct scsi_sense_hdr *sshdr)
 {
-	if (!sense_buffer || !sb_len || (sense_buffer[0] & 0x70) != 0x70)
+	if (!sense_buffer || !sb_len)
 		return 0;
 
 	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
 
 	sshdr->response_code = (sense_buffer[0] & 0x7f);
+
+	if (!scsi_sense_valid(sshdr))
+		return 0;
+
 	if (sshdr->response_code >= 0x72) {
 		/*
 		 * descriptor format

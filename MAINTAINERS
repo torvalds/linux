@@ -822,6 +822,13 @@ L:	emu10k1-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/emu10k1/
 S:	Maintained
 
+EMULEX LPFC FC SCSI DRIVER
+P:      James Smart
+M:      james.smart@emulex.com
+L:      linux-scsi@vger.kernel.org
+W:      http://sourceforge.net/projects/lpfcxxxx
+S:      Supported
+
 EPSON 1355 FRAMEBUFFER DRIVER
 P:	Christopher Hoover
 M:	ch@murgatroid.com, ch@hpl.hp.com

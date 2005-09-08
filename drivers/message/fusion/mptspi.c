@@ -162,15 +162,15 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u8			*mem;
 	int			error=0;
 	int			r;
-	
+
 	if ((r = mpt_attach(pdev,id)) != 0)
 		return r;
-	
+
 	ioc = pci_get_drvdata(pdev);
 	ioc->DoneCtx = mptspiDoneCtx;
 	ioc->TaskCtx = mptspiTaskCtx;
 	ioc->InternalCtx = mptspiInternalCtx;
-	
+
 	/*  Added sanity check on readiness of the MPT adapter.
 	 */
 	if (ioc->last_state != MPI_IOC_STATE_OPERATIONAL) {
