@@ -374,7 +374,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (err)
 		goto out;
 	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
-		goto out_dst_release;
+		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
 		hlimit = np->mcast_hops;
@@ -469,7 +469,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (err)
 		goto out;
 	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
-		goto out_dst_release;
+		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
 		hlimit = np->mcast_hops;
@@ -505,7 +505,6 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 out_put: 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
-out_dst_release:
 	dst_release(dst);
 out: 
 	icmpv6_xmit_unlock();

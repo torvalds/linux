@@ -175,10 +175,8 @@ ipv4_connected:
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
-		dst_release(dst);
+	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
 		goto out;
-	}
 
 	/* source address lookup done in ip6_dst_lookup */
 

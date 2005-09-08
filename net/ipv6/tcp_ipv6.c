@@ -632,10 +632,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
-		dst_release(dst);
+	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
 		goto failure;
-	}
 
 	if (saddr == NULL) {
 		saddr = &fl.fl6_src;
@@ -888,7 +886,6 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	}
 
 done:
-	dst_release(dst);
         if (opt && opt != np->opt)
 		sock_kfree_s(sk, opt, opt->tot_len);
 	return err;
@@ -1000,10 +997,8 @@ static void tcp_v6_send_reset(struct sk_buff *skb)
 	/* sk = NULL, but it is safe for now. RST socket required. */
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
 
-		if ((xfrm_lookup(&buff->dst, &fl, NULL, 0)) < 0) {
-			dst_release(buff->dst);
+		if ((xfrm_lookup(&buff->dst, &fl, NULL, 0)) < 0)
 			return;
-		}
 
 		ip6_xmit(NULL, buff, &fl, NULL, 0);
 		TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
@@ -1067,10 +1062,8 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 	fl.fl_ip_sport = t1->source;
 
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
-		if ((xfrm_lookup(&buff->dst, &fl, NULL, 0)) < 0) {
-			dst_release(buff->dst);
+		if ((xfrm_lookup(&buff->dst, &fl, NULL, 0)) < 0)
 			return;
-		}
 		ip6_xmit(NULL, buff, &fl, NULL, 0);
 		TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 		return;
@@ -1733,7 +1726,6 @@ static int tcp_v6_rebuild_header(struct sock *sk)
 
 		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
 			sk->sk_err_soft = -err;
-			dst_release(dst);
 			return err;
 		}
 
@@ -1786,7 +1778,6 @@ static int tcp_v6_xmit(struct sk_buff *skb, int ipfragok)
 
 		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
 			sk->sk_route_caps = 0;
-			dst_release(dst);
 			return err;
 		}
 

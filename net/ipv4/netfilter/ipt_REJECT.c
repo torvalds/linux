@@ -92,10 +92,7 @@ static inline struct rtable *route_reverse(struct sk_buff *skb,
 	fl.fl_ip_sport = tcph->dest;
 	fl.fl_ip_dport = tcph->source;
 
-	if (xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0)) {
-		dst_release(&rt->u.dst);
-		rt = NULL;
-	}
+	xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
 
 	return rt;
 }
