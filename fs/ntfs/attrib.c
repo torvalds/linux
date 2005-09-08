@@ -1247,6 +1247,46 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
 }
 
 /**
+ * ntfs_resident_attr_value_resize - resize the value of a resident attribute
+ * @m:		mft record containing attribute record
+ * @a:		attribute record whose value to resize
+ * @new_size:	new size in bytes to which to resize the attribute value of @a
+ *
+ * Resize the value of the attribute @a in the mft record @m to @new_size bytes.
+ * If the value is made bigger, the newly allocated space is cleared.
+ *
+ * Return 0 on success and -errno on error.  The following error codes are
+ * defined:
+ *	-ENOSPC	- Not enough space in the mft record @m to perform the resize.
+ *
+ * Note: On error, no modifications have been performed whatsoever.
+ *
+ * Warning: If you make a record smaller without having copied all the data you
+ *	    are interested in the data may be overwritten.
+ */
+int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
+		const u32 new_size)
+{
+	u32 old_size;
+
+	/* Resize the resident part of the attribute record. */
+	if (ntfs_attr_record_resize(m, a,
+			le16_to_cpu(a->data.resident.value_offset) + new_size))
+		return -ENOSPC;
+	/*
+	 * The resize succeeded!  If we made the attribute value bigger, clear
+	 * the area between the old size and @new_size.
+	 */
+	old_size = le32_to_cpu(a->data.resident.value_length);
+	if (new_size > old_size)
+		memset((u8*)a + le16_to_cpu(a->data.resident.value_offset) +
+				old_size, 0, new_size - old_size);
+	/* Finally update the length of the attribute value. */
+	a->data.resident.value_length = cpu_to_le32(new_size);
+	return 0;
+}
+
+/**
  * ntfs_attr_make_non_resident - convert a resident to a non-resident attribute
  * @ni:		ntfs inode describing the attribute to convert
  *
