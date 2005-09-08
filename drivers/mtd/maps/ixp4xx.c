@@ -1,5 +1,5 @@
 /*
- * $Id: ixp4xx.c,v 1.7 2004/11/04 13:24:15 gleixner Exp $
+ * $Id: ixp4xx.c,v 1.8 2005/09/08 10:32:20 dvrabel Exp $
  *
  * drivers/mtd/maps/ixp4xx.c
  *
@@ -111,12 +111,6 @@ static int ixp4xx_flash_remove(struct device *_dev)
 	if(!info)
 		return 0;
 
-	/*
-	 * This is required for a soft reboot to work.
-	 */
-	d.x[0] = 0xff;
-	ixp4xx_write16(&info->map, d, 0x55 * 0x2);
-
 	if (info->mtd) {
 		del_mtd_partitions(info->mtd);
 		map_destroy(info->mtd);
@@ -134,9 +128,6 @@ static int ixp4xx_flash_remove(struct device *_dev)
 
 	if (plat->exit)
 		plat->exit();
-
-	/* Disable flash write */
-	*IXP4XX_EXP_CS0 &= ~IXP4XX_FLASH_WRITABLE;
 
 	return 0;
 }
@@ -165,12 +156,6 @@ static int ixp4xx_flash_probe(struct device *_dev)
 	memzero(info, sizeof(struct ixp4xx_flash_info));
 
 	dev_set_drvdata(&dev->dev, info);
-
-	/* 
-	 * Enable flash write 
-	 * TODO: Move this out to board specific code
-	 */
-	*IXP4XX_EXP_CS0 |= IXP4XX_FLASH_WRITABLE;
 
 	/*
 	 * Tell the MTD layer we're not 1:1 mapped so that it does
