@@ -483,7 +483,7 @@ static int udpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	}
 
 	if (ulen < skb->len) {
-		if (__pskb_trim(skb, ulen))
+		if (pskb_trim_rcsum(skb, ulen))
 			goto discard;
 		saddr = &skb->nh.ipv6h->saddr;
 		daddr = &skb->nh.ipv6h->daddr;

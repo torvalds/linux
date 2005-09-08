@@ -459,11 +459,10 @@ static int ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
 		IP6_INC_STATS_BH(IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
 	}
-	if (pkt_len + sizeof(struct ipv6hdr) < skb->len) {
-		__pskb_trim(skb, pkt_len + sizeof(struct ipv6hdr));
-		if (skb->ip_summed == CHECKSUM_HW)
-			skb->ip_summed = CHECKSUM_NONE;
-	}
+
+	if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
+		goto drop;
+
 	return 1;
 
 drop:
