@@ -87,14 +87,14 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-#ifdef	CONFIG_ACPI_INTERPRETER
+#ifdef	CONFIG_ACPI
 	int acpi_disabled = 0;
 #else
 	int acpi_disabled = 1;
 #endif
 EXPORT_SYMBOL(acpi_disabled);
 
-#ifdef	CONFIG_ACPI_BOOT
+#ifdef	CONFIG_ACPI
 int __initdata acpi_force = 0;
 extern acpi_interrupt_flags	acpi_sci_flags;
 #endif
@@ -798,7 +798,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		}
 #endif
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter */
 		else if (!memcmp(from, "acpi=off", 8)) {
 			disable_acpi();
@@ -854,7 +854,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		else if (!memcmp(from, "noapic", 6))
 			disable_ioapic_setup();
 #endif /* CONFIG_X86_LOCAL_APIC */
-#endif /* CONFIG_ACPI_BOOT */
+#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_X86_LOCAL_APIC
 		/* enable local APIC */
@@ -1579,7 +1579,7 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_map_memmap();
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */

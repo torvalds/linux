@@ -62,7 +62,7 @@ typedef struct xfs_bmdr_block
  *  l1:0-20 are blockcount.
  */
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifndef XFS_NATIVE_HOST
 
 #define BMBT_TOTAL_BITLEN	128	/* 128 bits, 16 bytes */
 #define BMBT_EXNTFLAG_BITOFF	0
@@ -87,7 +87,7 @@ typedef struct xfs_bmdr_block
 #define BMBT_BLOCKCOUNT_BITOFF	64 /* Start of second 64 bit container */
 #define BMBT_BLOCKCOUNT_BITLEN	21
 
-#endif
+#endif /* XFS_NATIVE_HOST */
 
 
 #define BMBT_USE_64	1
@@ -505,7 +505,7 @@ xfs_exntst_t
 xfs_bmbt_get_state(
 	xfs_bmbt_rec_t	*r);
 
-#if __BYTE_ORDER != __BIG_ENDIAN
+#ifndef XFS_NATIVE_HOST
 void
 xfs_bmbt_disk_get_all(
 	xfs_bmbt_rec_t	*r,
@@ -538,7 +538,7 @@ xfs_bmbt_disk_get_startoff(
 	xfs_bmbt_get_blockcount(r)
 #define xfs_bmbt_disk_get_startoff(r) \
 	xfs_bmbt_get_startoff(r)
-#endif
+#endif /* XFS_NATIVE_HOST */
 
 int
 xfs_bmbt_increment(
@@ -623,7 +623,7 @@ xfs_bmbt_set_state(
 	xfs_bmbt_rec_t	*r,
 	xfs_exntst_t	v);
 
-#if __BYTE_ORDER != __BIG_ENDIAN
+#ifndef XFS_NATIVE_HOST
 void
 xfs_bmbt_disk_set_all(
 	xfs_bmbt_rec_t	*r,
@@ -641,7 +641,7 @@ xfs_bmbt_disk_set_allf(
 	xfs_bmbt_set_all(r, s)
 #define xfs_bmbt_disk_set_allf(r, o, b, c, v) \
 	xfs_bmbt_set_allf(r, o, b, c, v)
-#endif
+#endif /* XFS_NATIVE_HOST */
 
 void
 xfs_bmbt_to_bmdr(

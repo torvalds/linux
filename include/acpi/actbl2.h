@@ -64,61 +64,55 @@
 #define FADT2_REVISION_ID               3
 #define FADT2_MINUS_REVISION_ID         2
 
-
 #pragma pack(1)
 
 /*
  * ACPI 2.0 Root System Description Table (RSDT)
  */
-struct rsdt_descriptor_rev2
-{
-	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
-	u32                             table_offset_entry [1]; /* Array of pointers to  */
-			 /* ACPI table headers */
+struct rsdt_descriptor_rev2 {
+	ACPI_TABLE_HEADER_DEF	/* ACPI common table header */
+	u32 table_offset_entry[1];	/* Array of pointers to ACPI tables */
 };
-
 
 /*
  * ACPI 2.0 Extended System Description Table (XSDT)
  */
-struct xsdt_descriptor_rev2
-{
-	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
-	u64                             table_offset_entry [1]; /* Array of pointers to  */
-			 /* ACPI table headers */
+struct xsdt_descriptor_rev2 {
+	ACPI_TABLE_HEADER_DEF	/* ACPI common table header */
+	u64 table_offset_entry[1];	/* Array of pointers to ACPI tables */
 };
-
 
 /*
  * ACPI 2.0 Firmware ACPI Control Structure (FACS)
  */
-struct facs_descriptor_rev2
-{
-	char                            signature[4];           /* ACPI signature */
-	u32                             length;                 /* Length of structure, in bytes */
-	u32                             hardware_signature;     /* Hardware configuration signature */
-	u32                             firmware_waking_vector; /* 32bit physical address of the Firmware Waking Vector. */
-	u32                             global_lock;            /* Global Lock used to synchronize access to shared hardware resources */
-	u32                             S4bios_f        : 1;    /* S4Bios_f - Indicates if S4BIOS support is present */
-	u32                             reserved1       : 31;   /* Must be 0 */
-	u64                             xfirmware_waking_vector; /* 64bit physical address of the Firmware Waking Vector. */
-	u8                              version;                /* Version of this table */
-	u8                              reserved3 [31];         /* Reserved - must be zero */
-};
+struct facs_descriptor_rev2 {
+	char signature[4];	/* ASCII table signature */
+	u32 length;		/* Length of structure, in bytes */
+	u32 hardware_signature;	/* Hardware configuration signature */
+	u32 firmware_waking_vector;	/* 32-bit physical address of the Firmware Waking Vector. */
+	u32 global_lock;	/* Global Lock used to synchronize access to shared hardware resources */
 
+	/* Flags (32 bits) */
+
+	u8 S4bios_f:1;		/* 00:    S4BIOS support is present */
+	 u8:7;			/* 01-07: Reserved, must be zero */
+	u8 reserved1[3];	/* 08-31: Reserved, must be zero */
+
+	u64 xfirmware_waking_vector;	/* 64-bit physical address of the Firmware Waking Vector. */
+	u8 version;		/* Version of this table */
+	u8 reserved3[31];	/* Reserved, must be zero */
+};
 
 /*
  * ACPI 2.0+ Generic Address Structure (GAS)
  */
-struct acpi_generic_address
-{
-	u8                              address_space_id;       /* Address space where struct or register exists. */
-	u8                              register_bit_width;     /* Size in bits of given register */
-	u8                              register_bit_offset;    /* Bit offset within the register */
-	u8                              access_width;           /* Minimum Access size (ACPI 3.0) */
-	u64                             address;                /* 64-bit address of struct or register */
+struct acpi_generic_address {
+	u8 address_space_id;	/* Address space where struct or register exists. */
+	u8 register_bit_width;	/* Size in bits of given register */
+	u8 register_bit_offset;	/* Bit offset within the register */
+	u8 access_width;	/* Minimum Access size (ACPI 3.0) */
+	u64 address;		/* 64-bit address of struct or register */
 };
-
 
 #define FADT_REV2_COMMON \
 	u32                             V1_firmware_ctrl;   /* 32-bit physical address of FACS */ \
@@ -161,129 +155,123 @@ struct acpi_generic_address
 /*
  * ACPI 2.0+ Fixed ACPI Description Table (FADT)
  */
-struct fadt_descriptor_rev2
-{
-	ACPI_TABLE_HEADER_DEF                       /* ACPI common table header */
-	FADT_REV2_COMMON
-	u8                              reserved2;          /* Reserved */
-	u32                             wb_invd     : 1;    /* The wbinvd instruction works properly */
-	u32                             wb_invd_flush : 1;  /* The wbinvd flushes but does not invalidate */
-	u32                             proc_c1     : 1;    /* All processors support C1 state */
-	u32                             plvl2_up    : 1;    /* C2 state works on MP system */
-	u32                             pwr_button  : 1;    /* Power button is handled as a generic feature */
-	u32                             sleep_button : 1;   /* Sleep button is handled as a generic feature, or not present */
-	u32                             fixed_rTC   : 1;    /* RTC wakeup stat not in fixed register space */
-	u32                             rtcs4       : 1;    /* RTC wakeup stat not possible from S4 */
-	u32                             tmr_val_ext : 1;    /* Indicates tmr_val is 32 bits 0=24-bits */
-	u32                             dock_cap    : 1;    /* Supports Docking */
-	u32                             reset_reg_sup : 1;  /* Indicates system supports system reset via the FADT RESET_REG */
-	u32                             sealed_case : 1;    /* Indicates system has no internal expansion capabilities and case is sealed */
-	u32                             headless    : 1;    /* Indicates system does not have local video capabilities or local input devices */
-	u32                             cpu_sw_sleep : 1;   /* Indicates to OSPM that a processor native instruction */
-			   /* must be executed after writing the SLP_TYPx register */
-	/* ACPI 3.0 flag bits */
+struct fadt_descriptor_rev2 {
+	ACPI_TABLE_HEADER_DEF	/* ACPI common table header */
+	FADT_REV2_COMMON u8 reserved2;	/* Reserved, must be zero */
 
-	u32                             pci_exp_wak                         : 1; /* System supports PCIEXP_WAKE (STS/EN) bits */
-	u32                             use_platform_clock                  : 1; /* OSPM should use platform-provided timer */
-	u32                             S4rtc_sts_valid                     : 1; /* Contents of RTC_STS valid after S4 wake */
-	u32                             remote_power_on_capable             : 1; /* System is compatible with remote power on */
-	u32                             force_apic_cluster_model            : 1; /* All local APICs must use cluster model */
-	u32                             force_apic_physical_destination_mode : 1; /* all local x_aPICs must use physical dest mode */
-	u32                             reserved6                           : 12;/* Reserved - must be zero */
+	/* Flags (32 bits) */
 
-	struct acpi_generic_address     reset_register;     /* Reset register address in GAS format */
-	u8                              reset_value;        /* Value to write to the reset_register port to reset the system */
-	u8                              reserved7[3];       /* These three bytes must be zero */
-	u64                             xfirmware_ctrl;     /* 64-bit physical address of FACS */
-	u64                             Xdsdt;              /* 64-bit physical address of DSDT */
-	struct acpi_generic_address     xpm1a_evt_blk;      /* Extended Power Mgt 1a acpi_event Reg Blk address */
-	struct acpi_generic_address     xpm1b_evt_blk;      /* Extended Power Mgt 1b acpi_event Reg Blk address */
-	struct acpi_generic_address     xpm1a_cnt_blk;      /* Extended Power Mgt 1a Control Reg Blk address */
-	struct acpi_generic_address     xpm1b_cnt_blk;      /* Extended Power Mgt 1b Control Reg Blk address */
-	struct acpi_generic_address     xpm2_cnt_blk;       /* Extended Power Mgt 2 Control Reg Blk address */
-	struct acpi_generic_address     xpm_tmr_blk;        /* Extended Power Mgt Timer Ctrl Reg Blk address */
-	struct acpi_generic_address     xgpe0_blk;          /* Extended General Purpose acpi_event 0 Reg Blk address */
-	struct acpi_generic_address     xgpe1_blk;          /* Extended General Purpose acpi_event 1 Reg Blk address */
+	u8 wb_invd:1;		/* 00:    The wbinvd instruction works properly */
+	u8 wb_invd_flush:1;	/* 01:    The wbinvd flushes but does not invalidate */
+	u8 proc_c1:1;		/* 02:    All processors support C1 state */
+	u8 plvl2_up:1;		/* 03:    C2 state works on MP system */
+	u8 pwr_button:1;	/* 04:    Power button is handled as a generic feature */
+	u8 sleep_button:1;	/* 05:    Sleep button is handled as a generic feature, or not present */
+	u8 fixed_rTC:1;		/* 06:    RTC wakeup stat not in fixed register space */
+	u8 rtcs4:1;		/* 07:    RTC wakeup stat not possible from S4 */
+	u8 tmr_val_ext:1;	/* 08:    tmr_val is 32 bits 0=24-bits */
+	u8 dock_cap:1;		/* 09:    Docking supported */
+	u8 reset_reg_sup:1;	/* 10:    System reset via the FADT RESET_REG supported */
+	u8 sealed_case:1;	/* 11:    No internal expansion capabilities and case is sealed */
+	u8 headless:1;		/* 12:    No local video capabilities or local input devices */
+	u8 cpu_sw_sleep:1;	/* 13:    Must execute native instruction after writing SLP_TYPx register */
+
+	u8 pci_exp_wak:1;	/* 14:    System supports PCIEXP_WAKE (STS/EN) bits (ACPI 3.0) */
+	u8 use_platform_clock:1;	/* 15:    OSPM should use platform-provided timer (ACPI 3.0) */
+	u8 S4rtc_sts_valid:1;	/* 16:    Contents of RTC_STS valid after S4 wake (ACPI 3.0) */
+	u8 remote_power_on_capable:1;	/* 17:    System is compatible with remote power on (ACPI 3.0) */
+	u8 force_apic_cluster_model:1;	/* 18:    All local APICs must use cluster model (ACPI 3.0) */
+	u8 force_apic_physical_destination_mode:1;	/* 19:   all local x_aPICs must use physical dest mode (ACPI 3.0) */
+	 u8:4;			/* 20-23: Reserved, must be zero */
+	u8 reserved3;		/* 24-31: Reserved, must be zero */
+
+	struct acpi_generic_address reset_register;	/* Reset register address in GAS format */
+	u8 reset_value;		/* Value to write to the reset_register port to reset the system */
+	u8 reserved4[3];	/* These three bytes must be zero */
+	u64 xfirmware_ctrl;	/* 64-bit physical address of FACS */
+	u64 Xdsdt;		/* 64-bit physical address of DSDT */
+	struct acpi_generic_address xpm1a_evt_blk;	/* Extended Power Mgt 1a acpi_event Reg Blk address */
+	struct acpi_generic_address xpm1b_evt_blk;	/* Extended Power Mgt 1b acpi_event Reg Blk address */
+	struct acpi_generic_address xpm1a_cnt_blk;	/* Extended Power Mgt 1a Control Reg Blk address */
+	struct acpi_generic_address xpm1b_cnt_blk;	/* Extended Power Mgt 1b Control Reg Blk address */
+	struct acpi_generic_address xpm2_cnt_blk;	/* Extended Power Mgt 2 Control Reg Blk address */
+	struct acpi_generic_address xpm_tmr_blk;	/* Extended Power Mgt Timer Ctrl Reg Blk address */
+	struct acpi_generic_address xgpe0_blk;	/* Extended General Purpose acpi_event 0 Reg Blk address */
+	struct acpi_generic_address xgpe1_blk;	/* Extended General Purpose acpi_event 1 Reg Blk address */
 };
-
 
 /* "Down-revved" ACPI 2.0 FADT descriptor */
 
-struct fadt_descriptor_rev2_minus
-{
-	ACPI_TABLE_HEADER_DEF                       /* ACPI common table header */
-	FADT_REV2_COMMON
-	u8                              reserved2;          /* Reserved */
-	u32                             flags;
-	struct acpi_generic_address     reset_register;     /* Reset register address in GAS format */
-	u8                              reset_value;        /* Value to write to the reset_register port to reset the system. */
-	u8                              reserved7[3];       /* These three bytes must be zero */
+struct fadt_descriptor_rev2_minus {
+	ACPI_TABLE_HEADER_DEF	/* ACPI common table header */
+	FADT_REV2_COMMON u8 reserved2;	/* Reserved, must be zero */
+	u32 flags;
+	struct acpi_generic_address reset_register;	/* Reset register address in GAS format */
+	u8 reset_value;		/* Value to write to the reset_register port to reset the system. */
+	u8 reserved7[3];	/* Reserved, must be zero */
 };
-
 
 /* ECDT - Embedded Controller Boot Resources Table */
 
-struct ec_boot_resources
-{
-	ACPI_TABLE_HEADER_DEF
-	struct acpi_generic_address     ec_control;         /* Address of EC command/status register */
-	struct acpi_generic_address     ec_data;            /* Address of EC data register */
-	u32                             uid;                /* Unique ID - must be same as the EC _UID method */
-	u8                              gpe_bit;            /* The GPE for the EC */
-	u8                              ec_id[1];           /* Full namepath of the EC in the ACPI namespace */
+struct ec_boot_resources {
+	ACPI_TABLE_HEADER_DEF struct acpi_generic_address ec_control;	/* Address of EC command/status register */
+	struct acpi_generic_address ec_data;	/* Address of EC data register */
+	u32 uid;		/* Unique ID - must be same as the EC _UID method */
+	u8 gpe_bit;		/* The GPE for the EC */
+	u8 ec_id[1];		/* Full namepath of the EC in the ACPI namespace */
 };
-
 
 /* SRAT - System Resource Affinity Table */
 
-struct static_resource_alloc
-{
-	u8                              type;
-	u8                              length;
-	u8                              proximity_domain_lo;
-	u8                              apic_id;
-	u32                             enabled         :1;
-	u32                             reserved3       :31;
-	u8                              local_sapic_eid;
-	u8                              proximity_domain_hi[3];
-	u32                             reserved4;
+struct static_resource_alloc {
+	u8 type;
+	u8 length;
+	u8 proximity_domain_lo;
+	u8 apic_id;
+
+	/* Flags (32 bits) */
+
+	u8 enabled:1;		/* 00:    Use affinity structure */
+	 u8:7;			/* 01-07: Reserved, must be zero */
+	u8 reserved3[3];	/* 08-31: Reserved, must be zero */
+
+	u8 local_sapic_eid;
+	u8 proximity_domain_hi[3];
+	u32 reserved4;		/* Reserved, must be zero */
 };
 
-struct memory_affinity
-{
-	u8                              type;
-	u8                              length;
-	u32                             proximity_domain;
-	u16                             reserved3;
-	u64                             base_address;
-	u64                             address_length;
-	u32                             reserved4;
-	u32                             enabled         :1;
-	u32                             hot_pluggable   :1;
-	u32                             non_volatile    :1;
-	u32                             reserved5       :29;
-	u64                             reserved6;
+struct memory_affinity {
+	u8 type;
+	u8 length;
+	u32 proximity_domain;
+	u16 reserved3;
+	u64 base_address;
+	u64 address_length;
+	u32 reserved4;
+
+	/* Flags (32 bits) */
+
+	u8 enabled:1;		/* 00:    Use affinity structure */
+	u8 hot_pluggable:1;	/* 01:    Memory region is hot pluggable */
+	u8 non_volatile:1;	/* 02:    Memory is non-volatile */
+	 u8:5;			/* 03-07: Reserved, must be zero */
+	u8 reserved5[3];	/* 08-31: Reserved, must be zero */
+
+	u64 reserved6;		/* Reserved, must be zero */
 };
 
-struct system_resource_affinity
-{
-	ACPI_TABLE_HEADER_DEF
-	u32                             reserved1;          /* Must be value '1' */
-	u64                             reserved2;
+struct system_resource_affinity {
+	ACPI_TABLE_HEADER_DEF u32 reserved1;	/* Must be value '1' */
+	u64 reserved2;		/* Reserved, must be zero */
 };
-
 
 /* SLIT - System Locality Distance Information Table */
 
-struct system_locality_info
-{
-	ACPI_TABLE_HEADER_DEF
-	u64                             locality_count;
-	u8                              entry[1][1];
+struct system_locality_info {
+	ACPI_TABLE_HEADER_DEF u64 locality_count;
+	u8 entry[1][1];
 };
-
 
 #pragma pack()
 
-#endif /* __ACTBL2_H__ */
-
+#endif				/* __ACTBL2_H__ */

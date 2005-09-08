@@ -1019,7 +1019,7 @@ MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 #define IPMI_MEM_ADDR_SPACE 1
 #define IPMI_IO_ADDR_SPACE  2
 
-#if defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_X86) || defined(CONFIG_PCI)
+#if defined(CONFIG_ACPI) || defined(CONFIG_X86) || defined(CONFIG_PCI)
 static int is_new_interface(int intf, u8 addr_space, unsigned long base_addr)
 {
 	int i;
@@ -1395,7 +1395,7 @@ static int try_init_mem(int intf_num, struct smi_info **new_info)
 }
 
 
-#ifdef CONFIG_ACPI_INTERPRETER
+#ifdef CONFIG_ACPI
 
 #include <linux/acpi.h>
 
@@ -1516,6 +1516,9 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 	struct SPMITable *spmi;
 	char             *io_type;
 	u8 		 addr_space;
+
+	if (acpi_disabled)
+		return -ENODEV;
 
 	if (acpi_failure)
 		return -ENODEV;
@@ -2092,7 +2095,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	rv = try_init_mem(intf_num, &new_smi);
 	if (rv)
 		rv = try_init_port(intf_num, &new_smi);
-#ifdef CONFIG_ACPI_INTERPRETER
+#ifdef CONFIG_ACPI
 	if (rv && si_trydefaults)
 		rv = try_init_acpi(intf_num, &new_smi);
 #endif

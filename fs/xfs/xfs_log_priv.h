@@ -112,7 +112,7 @@ struct xfs_mount;
  * this has endian issues, of course.
  */
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifndef XFS_NATIVE_HOST
 #define GET_CLIENT_ID(i,arch) \
     ((i) & 0xff)
 #else
@@ -414,14 +414,10 @@ typedef struct xlog_op_header {
 #define XLOG_FMT_IRIX_BE  3
 
 /* our fmt */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define XLOG_FMT XLOG_FMT_LINUX_LE
-#else
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef XFS_NATIVE_HOST
 #define XLOG_FMT XLOG_FMT_LINUX_BE
 #else
-#error unknown byte order
-#endif
+#define XLOG_FMT XLOG_FMT_LINUX_LE
 #endif
 
 typedef struct xlog_rec_header {

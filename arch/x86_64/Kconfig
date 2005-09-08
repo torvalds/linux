@@ -152,7 +152,6 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-# disable it for opteron optimized builds because it pulls in ACPI_BOOT
 config X86_HT
 	bool
 	depends on SMP && !MK8
@@ -474,7 +473,6 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
-	select ACPI_BOOT
 
 config UNORDERED_IO
        bool "Unordered IO mapping access"

@@ -62,7 +62,6 @@
 #define _NAM                        0x6C
 #define _PFX                        0x6D
 
-
 /*
  * All AML opcodes and the parse-time arguments for each.  Used by the AML
  * parser  Each list is compressed into a 32-bit number and stored in the
@@ -191,7 +190,6 @@
 #define ARGP_WORD_OP                    ARGP_LIST1 (ARGP_WORDDATA)
 #define ARGP_ZERO_OP                    ARG_NONE
 
-
 /*
  * All AML opcodes and the runtime arguments for each.  Used by the AML
  * interpreter  Each list is compressed into a 32-bit number and stored
@@ -246,7 +244,7 @@
 #define ARGI_FIELD_OP                   ARGI_INVALID_OPCODE
 #define ARGI_FIND_SET_LEFT_BIT_OP       ARGI_LIST2 (ARGI_INTEGER,    ARGI_TARGETREF)
 #define ARGI_FIND_SET_RIGHT_BIT_OP      ARGI_LIST2 (ARGI_INTEGER,    ARGI_TARGETREF)
-#define ARGI_FROM_BCD_OP                ARGI_LIST2 (ARGI_INTEGER,    ARGI_TARGETREF)
+#define ARGI_FROM_BCD_OP                ARGI_LIST2 (ARGI_INTEGER,    ARGI_FIXED_TARGET)
 #define ARGI_IF_OP                      ARGI_INVALID_OPCODE
 #define ARGI_INCREMENT_OP               ARGI_LIST1 (ARGI_INTEGER_REF)
 #define ARGI_INDEX_FIELD_OP             ARGI_INVALID_OPCODE
@@ -322,4 +320,4 @@
 #define ARGI_WORD_OP                    ARGI_INVALID_OPCODE
 #define ARGI_ZERO_OP                    ARG_NONE
 
-#endif /* __ACOPCODE_H__ */
+#endif				/* __ACOPCODE_H__ */

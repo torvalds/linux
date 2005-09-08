@@ -341,7 +341,7 @@ xfs_inode_item_format(
 			nrecs = ip->i_df.if_bytes /
 				(uint)sizeof(xfs_bmbt_rec_t);
 			ASSERT(nrecs > 0);
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef XFS_NATIVE_HOST
 			if (nrecs == ip->i_d.di_nextents) {
 				/*
 				 * There are no delayed allocation
@@ -473,7 +473,7 @@ xfs_inode_item_format(
 #endif
 			ASSERT(nrecs > 0);
 			ASSERT(nrecs == ip->i_d.di_anextents);
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef XFS_NATIVE_HOST
 			/*
 			 * There are not delayed allocation extents
 			 * for attributes, so just point at the array.

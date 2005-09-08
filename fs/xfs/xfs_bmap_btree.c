@@ -2017,7 +2017,7 @@ xfs_bmbt_get_state(
 				ext_flag);
 }
 
-#if __BYTE_ORDER != __BIG_ENDIAN
+#ifndef XFS_NATIVE_HOST
 /* Endian flipping versions of the bmbt extraction functions */
 void
 xfs_bmbt_disk_get_all(
@@ -2087,7 +2087,7 @@ xfs_bmbt_disk_get_state(
 	return xfs_extent_state(xfs_bmbt_disk_get_blockcount(r),
 				ext_flag);
 }
-#endif
+#endif /* XFS_NATIVE_HOST */
 
 
 /*
@@ -2531,7 +2531,7 @@ xfs_bmbt_set_allf(
 #endif	/* XFS_BIG_BLKNOS */
 }
 
-#if __BYTE_ORDER != __BIG_ENDIAN
+#ifndef XFS_NATIVE_HOST
 /*
  * Set all the fields in a bmap extent record from the uncompressed form.
  */
@@ -2617,7 +2617,7 @@ xfs_bmbt_disk_set_allf(
 	}
 #endif	/* XFS_BIG_BLKNOS */
 }
-#endif
+#endif /* XFS_NATIVE_HOST */
 
 /*
  * Set the blockcount field in a bmap extent record.

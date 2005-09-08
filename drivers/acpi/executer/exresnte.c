@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
@@ -50,10 +49,8 @@
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
 
-
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("exresnte")
-
+ACPI_MODULE_NAME("exresnte")
 
 /*******************************************************************************
  *
@@ -80,41 +77,37 @@
  *      ACPI_TYPE_PACKAGE
  *
  ******************************************************************************/
-
 acpi_status
-acpi_ex_resolve_node_to_value (
-	struct acpi_namespace_node      **object_ptr,
-	struct acpi_walk_state          *walk_state)
-
+acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
+			      struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status = AE_OK;
-	union acpi_operand_object       *source_desc;
-	union acpi_operand_object       *obj_desc = NULL;
-	struct acpi_namespace_node      *node;
-	acpi_object_type                entry_type;
+	acpi_status status = AE_OK;
+	union acpi_operand_object *source_desc;
+	union acpi_operand_object *obj_desc = NULL;
+	struct acpi_namespace_node *node;
+	acpi_object_type entry_type;
 
-
-	ACPI_FUNCTION_TRACE ("ex_resolve_node_to_value");
-
+	ACPI_FUNCTION_TRACE("ex_resolve_node_to_value");
 
 	/*
 	 * The stack pointer points to a struct acpi_namespace_node (Node).  Get the
 	 * object that is attached to the Node.
 	 */
-	node       = *object_ptr;
-	source_desc = acpi_ns_get_attached_object (node);
-	entry_type = acpi_ns_get_type ((acpi_handle) node);
+	node = *object_ptr;
+	source_desc = acpi_ns_get_attached_object(node);
+	entry_type = acpi_ns_get_type((acpi_handle) node);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Entry=%p source_desc=%p [%s]\n",
-		 node, source_desc, acpi_ut_get_type_name (entry_type)));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p source_desc=%p [%s]\n",
+			  node, source_desc,
+			  acpi_ut_get_type_name(entry_type)));
 
 	if ((entry_type == ACPI_TYPE_LOCAL_ALIAS) ||
-		(entry_type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+	    (entry_type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
 		/* There is always exactly one level of indirection */
 
-		node       = ACPI_CAST_PTR (struct acpi_namespace_node, node->object);
-		source_desc = acpi_ns_get_attached_object (node);
-		entry_type = acpi_ns_get_type ((acpi_handle) node);
+		node = ACPI_CAST_PTR(struct acpi_namespace_node, node->object);
+		source_desc = acpi_ns_get_attached_object(node);
+		entry_type = acpi_ns_get_type((acpi_handle) node);
 		*object_ptr = node;
 	}
 
@@ -124,14 +117,14 @@ acpi_ex_resolve_node_to_value (
 	 * 2) Method locals and arguments have a pseudo-Node
 	 */
 	if (entry_type == ACPI_TYPE_DEVICE ||
-		(node->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
-		return_ACPI_STATUS (AE_OK);
+	    (node->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	if (!source_desc) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No object attached to node %p\n",
-			node));
-		return_ACPI_STATUS (AE_AML_NO_OPERAND);
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "No object attached to node %p\n", node));
+		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
 	/*
@@ -141,83 +134,89 @@ acpi_ex_resolve_node_to_value (
 	switch (entry_type) {
 	case ACPI_TYPE_PACKAGE:
 
-		if (ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_PACKAGE) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Package, type %s\n",
-				acpi_ut_get_object_type_name (source_desc)));
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_PACKAGE) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Object not a Package, type %s\n",
+					  acpi_ut_get_object_type_name
+					  (source_desc)));
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
-		status = acpi_ds_get_package_arguments (source_desc);
-		if (ACPI_SUCCESS (status)) {
+		status = acpi_ds_get_package_arguments(source_desc);
+		if (ACPI_SUCCESS(status)) {
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
-			acpi_ut_add_reference (obj_desc);
+			acpi_ut_add_reference(obj_desc);
 		}
 		break;
-
 
 	case ACPI_TYPE_BUFFER:
 
-		if (ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_BUFFER) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Buffer, type %s\n",
-				acpi_ut_get_object_type_name (source_desc)));
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_BUFFER) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Object not a Buffer, type %s\n",
+					  acpi_ut_get_object_type_name
+					  (source_desc)));
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
-		status = acpi_ds_get_buffer_arguments (source_desc);
-		if (ACPI_SUCCESS (status)) {
+		status = acpi_ds_get_buffer_arguments(source_desc);
+		if (ACPI_SUCCESS(status)) {
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
-			acpi_ut_add_reference (obj_desc);
+			acpi_ut_add_reference(obj_desc);
 		}
 		break;
-
 
 	case ACPI_TYPE_STRING:
 
-		if (ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_STRING) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a String, type %s\n",
-				acpi_ut_get_object_type_name (source_desc)));
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_STRING) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Object not a String, type %s\n",
+					  acpi_ut_get_object_type_name
+					  (source_desc)));
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		/* Return an additional reference to the object */
 
 		obj_desc = source_desc;
-		acpi_ut_add_reference (obj_desc);
+		acpi_ut_add_reference(obj_desc);
 		break;
-
 
 	case ACPI_TYPE_INTEGER:
 
-		if (ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_INTEGER) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Integer, type %s\n",
-				acpi_ut_get_object_type_name (source_desc)));
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_INTEGER) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Object not a Integer, type %s\n",
+					  acpi_ut_get_object_type_name
+					  (source_desc)));
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		/* Return an additional reference to the object */
 
 		obj_desc = source_desc;
-		acpi_ut_add_reference (obj_desc);
+		acpi_ut_add_reference(obj_desc);
 		break;
-
 
 	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"field_read Node=%p source_desc=%p Type=%X\n",
-			node, source_desc, entry_type));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "field_read Node=%p source_desc=%p Type=%X\n",
+				  node, source_desc, entry_type));
 
-		status = acpi_ex_read_data_from_field (walk_state, source_desc, &obj_desc);
+		status =
+		    acpi_ex_read_data_from_field(walk_state, source_desc,
+						 &obj_desc);
 		break;
 
-	/* For these objects, just return the object attached to the Node */
+		/* For these objects, just return the object attached to the Node */
 
 	case ACPI_TYPE_MUTEX:
 	case ACPI_TYPE_METHOD:
@@ -230,19 +229,18 @@ acpi_ex_resolve_node_to_value (
 		/* Return an additional reference to the object */
 
 		obj_desc = source_desc;
-		acpi_ut_add_reference (obj_desc);
+		acpi_ut_add_reference(obj_desc);
 		break;
 
-	/* TYPE_ANY is untyped, and thus there is no object associated with it */
+		/* TYPE_ANY is untyped, and thus there is no object associated with it */
 
 	case ACPI_TYPE_ANY:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Untyped entry %p, no attached object!\n",
-			node));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Untyped entry %p, no attached object!\n",
+				  node));
 
-		return_ACPI_STATUS (AE_AML_OPERAND_TYPE);  /* Cannot be AE_TYPE */
-
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);	/* Cannot be AE_TYPE */
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
@@ -253,39 +251,37 @@ acpi_ex_resolve_node_to_value (
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
-			acpi_ut_add_reference (obj_desc);
+			acpi_ut_add_reference(obj_desc);
 			break;
 
 		default:
 			/* No named references are allowed here */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Unsupported Reference opcode %X (%s)\n",
-				source_desc->reference.opcode,
-				acpi_ps_get_opcode_name (source_desc->reference.opcode)));
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Unsupported Reference opcode %X (%s)\n",
+					  source_desc->reference.opcode,
+					  acpi_ps_get_opcode_name(source_desc->
+								  reference.
+								  opcode)));
 
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 		break;
-
 
 	default:
 
 		/* Default case is for unknown types */
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Node %p - Unknown object type %X\n",
-			node, entry_type));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Node %p - Unknown object type %X\n",
+				  node, entry_type));
 
-		return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 
-	} /* switch (entry_type) */
-
+	}			/* switch (entry_type) */
 
 	/* Return the object descriptor */
 
-	*object_ptr = (void *) obj_desc;
-	return_ACPI_STATUS (status);
+	*object_ptr = (void *)obj_desc;
+	return_ACPI_STATUS(status);
 }
-
-

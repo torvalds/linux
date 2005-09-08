@@ -41,27 +41,21 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
-
 #define _COMPONENT          ACPI_TABLES
-	 ACPI_MODULE_NAME    ("tbget")
+ACPI_MODULE_NAME("tbget")
 
 /* Local prototypes */
+static acpi_status
+acpi_tb_get_this_table(struct acpi_pointer *address,
+		       struct acpi_table_header *header,
+		       struct acpi_table_desc *table_info);
 
 static acpi_status
-acpi_tb_get_this_table (
-	struct acpi_pointer             *address,
-	struct acpi_table_header        *header,
-	struct acpi_table_desc          *table_info);
-
-static acpi_status
-acpi_tb_table_override (
-	struct acpi_table_header        *header,
-	struct acpi_table_desc          *table_info);
-
+acpi_tb_table_override(struct acpi_table_header *header,
+		       struct acpi_table_desc *table_info);
 
 /*******************************************************************************
  *
@@ -78,36 +72,33 @@ acpi_tb_table_override (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_get_table (
-	struct acpi_pointer             *address,
-	struct acpi_table_desc          *table_info)
+acpi_tb_get_table(struct acpi_pointer *address,
+		  struct acpi_table_desc *table_info)
 {
-	acpi_status                     status;
-	struct acpi_table_header        header;
+	acpi_status status;
+	struct acpi_table_header header;
 
-
-	ACPI_FUNCTION_TRACE ("tb_get_table");
-
+	ACPI_FUNCTION_TRACE("tb_get_table");
 
 	/* Get the header in order to get signature and table size */
 
-	status = acpi_tb_get_table_header (address, &header);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_get_table_header(address, &header);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Get the entire table */
 
-	status = acpi_tb_get_table_body (address, &header, table_info);
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not get ACPI table (size %X), %s\n",
-			header.length, acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+	status = acpi_tb_get_table_body(address, &header, table_info);
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("Could not get ACPI table (size %X), %s\n",
+				   header.length,
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -127,16 +118,13 @@ acpi_tb_get_table (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_get_table_header (
-	struct acpi_pointer             *address,
-	struct acpi_table_header        *return_header)
+acpi_tb_get_table_header(struct acpi_pointer *address,
+			 struct acpi_table_header *return_header)
 {
-	acpi_status                     status = AE_OK;
-	struct acpi_table_header        *header = NULL;
+	acpi_status status = AE_OK;
+	struct acpi_table_header *header = NULL;
 
-
-	ACPI_FUNCTION_TRACE ("tb_get_table_header");
-
+	ACPI_FUNCTION_TRACE("tb_get_table_header");
 
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
@@ -148,45 +136,41 @@ acpi_tb_get_table_header (
 
 		/* Pointer matches processor mode, copy the header */
 
-		ACPI_MEMCPY (return_header, address->pointer.logical,
-			sizeof (struct acpi_table_header));
+		ACPI_MEMCPY(return_header, address->pointer.logical,
+			    sizeof(struct acpi_table_header));
 		break;
-
 
 	case ACPI_LOGMODE_PHYSPTR:
 
-		/* Create a logical address for the physical pointer*/
+		/* Create a logical address for the physical pointer */
 
-		status = acpi_os_map_memory (address->pointer.physical,
-				 sizeof (struct acpi_table_header), (void *) &header);
-		if (ACPI_FAILURE (status)) {
-			ACPI_REPORT_ERROR ((
-				"Could not map memory at %8.8X%8.8X for length %X\n",
-				ACPI_FORMAT_UINT64 (address->pointer.physical),
-				sizeof (struct acpi_table_header)));
-			return_ACPI_STATUS (status);
+		status = acpi_os_map_memory(address->pointer.physical,
+					    sizeof(struct acpi_table_header),
+					    (void *)&header);
+		if (ACPI_FAILURE(status)) {
+			ACPI_REPORT_ERROR(("Could not map memory at %8.8X%8.8X for length %X\n", ACPI_FORMAT_UINT64(address->pointer.physical), sizeof(struct acpi_table_header)));
+			return_ACPI_STATUS(status);
 		}
 
 		/* Copy header and delete mapping */
 
-		ACPI_MEMCPY (return_header, header, sizeof (struct acpi_table_header));
-		acpi_os_unmap_memory (header, sizeof (struct acpi_table_header));
+		ACPI_MEMCPY(return_header, header,
+			    sizeof(struct acpi_table_header));
+		acpi_os_unmap_memory(header, sizeof(struct acpi_table_header));
 		break;
-
 
 	default:
 
-		ACPI_REPORT_ERROR (("Invalid address flags %X\n",
-			address->pointer_type));
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		ACPI_REPORT_ERROR(("Invalid address flags %X\n",
+				   address->pointer_type));
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Table Signature: [%4.4s]\n",
-		return_header->signature));
+	ACPI_DEBUG_PRINT((ACPI_DB_TABLES, "Table Signature: [%4.4s]\n",
+			  return_header->signature));
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -209,36 +193,32 @@ acpi_tb_get_table_header (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_get_table_body (
-	struct acpi_pointer             *address,
-	struct acpi_table_header        *header,
-	struct acpi_table_desc          *table_info)
+acpi_tb_get_table_body(struct acpi_pointer *address,
+		       struct acpi_table_header *header,
+		       struct acpi_table_desc *table_info)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("tb_get_table_body");
-
+	ACPI_FUNCTION_TRACE("tb_get_table_body");
 
 	if (!table_info || !address) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Attempt table override. */
 
-	status = acpi_tb_table_override (header, table_info);
-	if (ACPI_SUCCESS (status)) {
+	status = acpi_tb_table_override(header, table_info);
+	if (ACPI_SUCCESS(status)) {
 		/* Table was overridden by the host OS */
 
-		return_ACPI_STATUS (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/* No override, get the original table */
 
-	status = acpi_tb_get_this_table (address, header, table_info);
-	return_ACPI_STATUS (status);
+	status = acpi_tb_get_this_table(address, header, table_info);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -255,60 +235,56 @@ acpi_tb_get_table_body (
  ******************************************************************************/
 
 static acpi_status
-acpi_tb_table_override (
-	struct acpi_table_header        *header,
-	struct acpi_table_desc          *table_info)
+acpi_tb_table_override(struct acpi_table_header *header,
+		       struct acpi_table_desc *table_info)
 {
-	struct acpi_table_header        *new_table;
-	acpi_status                     status;
-	struct acpi_pointer             address;
+	struct acpi_table_header *new_table;
+	acpi_status status;
+	struct acpi_pointer address;
 
-
-	ACPI_FUNCTION_TRACE ("tb_table_override");
-
+	ACPI_FUNCTION_TRACE("tb_table_override");
 
 	/*
 	 * The OSL will examine the header and decide whether to override this
 	 * table.  If it decides to override, a table will be returned in new_table,
 	 * which we will then copy.
 	 */
-	status = acpi_os_table_override (header, &new_table);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_os_table_override(header, &new_table);
+	if (ACPI_FAILURE(status)) {
 		/* Some severe error from the OSL, but we basically ignore it */
 
-		ACPI_REPORT_ERROR (("Could not override ACPI table, %s\n",
-			acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+		ACPI_REPORT_ERROR(("Could not override ACPI table, %s\n",
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
 
 	if (!new_table) {
 		/* No table override */
 
-		return_ACPI_STATUS (AE_NO_ACPI_TABLES);
+		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
 	/*
 	 * We have a new table to override the old one.  Get a copy of
 	 * the new one.  We know that the new table has a logical pointer.
 	 */
-	address.pointer_type    = ACPI_LOGICAL_POINTER | ACPI_LOGICAL_ADDRESSING;
+	address.pointer_type = ACPI_LOGICAL_POINTER | ACPI_LOGICAL_ADDRESSING;
 	address.pointer.logical = new_table;
 
-	status = acpi_tb_get_this_table (&address, new_table, table_info);
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not copy override ACPI table, %s\n",
-			acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+	status = acpi_tb_get_this_table(&address, new_table, table_info);
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("Could not copy override ACPI table, %s\n",
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
 
 	/* Copy the table info */
 
-	ACPI_REPORT_INFO (("Table [%4.4s] replaced by host OS\n",
-		table_info->pointer->signature));
+	ACPI_REPORT_INFO(("Table [%4.4s] replaced by host OS\n",
+			  table_info->pointer->signature));
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -329,18 +305,15 @@ acpi_tb_table_override (
  ******************************************************************************/
 
 static acpi_status
-acpi_tb_get_this_table (
-	struct acpi_pointer             *address,
-	struct acpi_table_header        *header,
-	struct acpi_table_desc          *table_info)
+acpi_tb_get_this_table(struct acpi_pointer *address,
+		       struct acpi_table_header *header,
+		       struct acpi_table_desc *table_info)
 {
-	struct acpi_table_header        *full_table = NULL;
-	u8                              allocation;
-	acpi_status                     status = AE_OK;
+	struct acpi_table_header *full_table = NULL;
+	u8 allocation;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("tb_get_this_table");
-
+	ACPI_FUNCTION_TRACE("tb_get_this_table");
 
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
@@ -352,23 +325,21 @@ acpi_tb_get_this_table (
 
 		/* Pointer matches processor mode, copy the table to a new buffer */
 
-		full_table = ACPI_MEM_ALLOCATE (header->length);
+		full_table = ACPI_MEM_ALLOCATE(header->length);
 		if (!full_table) {
-			ACPI_REPORT_ERROR ((
-				"Could not allocate table memory for [%4.4s] length %X\n",
-				header->signature, header->length));
-			return_ACPI_STATUS (AE_NO_MEMORY);
+			ACPI_REPORT_ERROR(("Could not allocate table memory for [%4.4s] length %X\n", header->signature, header->length));
+			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
 		/* Copy the entire table (including header) to the local buffer */
 
-		ACPI_MEMCPY (full_table, address->pointer.logical, header->length);
+		ACPI_MEMCPY(full_table, address->pointer.logical,
+			    header->length);
 
 		/* Save allocation type */
 
 		allocation = ACPI_MEM_ALLOCATED;
 		break;
-
 
 	case ACPI_LOGMODE_PHYSPTR:
 
@@ -376,14 +347,11 @@ acpi_tb_get_this_table (
 		 * Just map the table's physical memory
 		 * into our address space.
 		 */
-		status = acpi_os_map_memory (address->pointer.physical,
-				 (acpi_size) header->length, (void *) &full_table);
-		if (ACPI_FAILURE (status)) {
-			ACPI_REPORT_ERROR ((
-				"Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
-				header->signature,
-				ACPI_FORMAT_UINT64 (address->pointer.physical),
-				header->length));
+		status = acpi_os_map_memory(address->pointer.physical,
+					    (acpi_size) header->length,
+					    (void *)&full_table);
+		if (ACPI_FAILURE(status)) {
+			ACPI_REPORT_ERROR(("Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n", header->signature, ACPI_FORMAT_UINT64(address->pointer.physical), header->length));
 			return (status);
 		}
 
@@ -392,12 +360,11 @@ acpi_tb_get_this_table (
 		allocation = ACPI_MEM_MAPPED;
 		break;
 
-
 	default:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid address flags %X\n",
-			address->pointer_type));
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid address flags %X\n",
+				  address->pointer_type));
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/*
@@ -405,10 +372,10 @@ acpi_tb_get_this_table (
 	 * even the ones whose signature we don't recognize
 	 */
 	if (table_info->type != ACPI_TABLE_FACS) {
-		status = acpi_tb_verify_table_checksum (full_table);
+		status = acpi_tb_verify_table_checksum(full_table);
 
 #if (!ACPI_CHECKSUM_ABORT)
-		if (ACPI_FAILURE (status)) {
+		if (ACPI_FAILURE(status)) {
 			/* Ignore the error if configuration says so */
 
 			status = AE_OK;
@@ -418,18 +385,18 @@ acpi_tb_get_this_table (
 
 	/* Return values */
 
-	table_info->pointer     = full_table;
-	table_info->length      = (acpi_size) header->length;
-	table_info->allocation  = allocation;
+	table_info->pointer = full_table;
+	table_info->length = (acpi_size) header->length;
+	table_info->allocation = allocation;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-		"Found table [%4.4s] at %8.8X%8.8X, mapped/copied to %p\n",
-		full_table->signature,
-		ACPI_FORMAT_UINT64 (address->pointer.physical), full_table));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "Found table [%4.4s] at %8.8X%8.8X, mapped/copied to %p\n",
+			  full_table->signature,
+			  ACPI_FORMAT_UINT64(address->pointer.physical),
+			  full_table));
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -447,24 +414,20 @@ acpi_tb_get_this_table (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_get_table_ptr (
-	acpi_table_type                 table_type,
-	u32                             instance,
-	struct acpi_table_header        **table_ptr_loc)
+acpi_tb_get_table_ptr(acpi_table_type table_type,
+		      u32 instance, struct acpi_table_header **table_ptr_loc)
 {
-	struct acpi_table_desc          *table_desc;
-	u32                             i;
+	struct acpi_table_desc *table_desc;
+	u32 i;
 
-
-	ACPI_FUNCTION_TRACE ("tb_get_table_ptr");
-
+	ACPI_FUNCTION_TRACE("tb_get_table_ptr");
 
 	if (!acpi_gbl_DSDT) {
-		return_ACPI_STATUS (AE_NO_ACPI_TABLES);
+		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
 	if (table_type > ACPI_TABLE_MAX) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/*
@@ -476,15 +439,16 @@ acpi_tb_get_table_ptr (
 
 		*table_ptr_loc = NULL;
 		if (acpi_gbl_table_lists[table_type].next) {
-			*table_ptr_loc = acpi_gbl_table_lists[table_type].next->pointer;
+			*table_ptr_loc =
+			    acpi_gbl_table_lists[table_type].next->pointer;
 		}
-		return_ACPI_STATUS (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Check for instance out of range */
 
 	if (instance > acpi_gbl_table_lists[table_type].count) {
-		return_ACPI_STATUS (AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
 	/* Walk the list to get the desired table
@@ -503,6 +467,5 @@ acpi_tb_get_table_ptr (
 
 	*table_ptr_loc = table_desc->pointer;
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
