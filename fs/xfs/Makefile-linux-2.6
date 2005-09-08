@@ -55,7 +55,7 @@ ifeq ($(CONFIG_XFS_TRACE),y)
 endif
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
-obj-$(CONFIG_XFS_QUOTA)		+= quota/
+xfs-$(CONFIG_XFS_QUOTA)		+= quota/
 
 xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
