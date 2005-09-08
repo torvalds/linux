@@ -49,23 +49,9 @@
    ( (((x)&0x00ffffff) | (((x)&(0x30000000>>VIO_SHIFT))<<VIO_SHIFT)) + PIO_START )
 
 #ifndef __ASSEMBLY__
-#include <asm/types.h>
 
-#if 0
-# define __REG(x)	(*((volatile u32 *)io_p2v(x)))
-#else
-/*
- * This __REG() version gives the same results as the one above,  except
- * that we are fooling gcc somehow so it generates far better and smaller
- * assembly code for access to contigous registers.  It's a shame that gcc
- * doesn't guess this by itself.
- */
-typedef struct { volatile u32 offset[4096]; } __regbase;
-# define __REGP(x)	((__regbase *)((x)&~4095))->offset[((x)&4095)>>2]
-# define __REG(x)	__REGP(io_p2v(x))
-#endif
-
-# define __PREG(x)	(io_v2p((u32)&(x)))
+# define __REG(x)	(*((volatile unsigned long *)io_p2v(x)))
+# define __PREG(x)	(io_v2p((unsigned long)&(x)))
 
 #else
 
