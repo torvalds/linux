@@ -27,21 +27,6 @@ struct internal_container {
 	struct class_device classdev;
 };
 
-static void internal_container_klist_get(struct klist_node *n)
-{
-	struct internal_container *ic =
-		container_of(n, struct internal_container, node);
-	class_device_get(&ic->classdev);
-}
-
-static void internal_container_klist_put(struct klist_node *n)
-{
-	struct internal_container *ic =
-		container_of(n, struct internal_container, node);
-	class_device_put(&ic->classdev);
-}
-
-
 /**
  * attribute_container_classdev_to_container - given a classdev, return the container
  *
@@ -72,8 +57,7 @@ int
 attribute_container_register(struct attribute_container *cont)
 {
 	INIT_LIST_HEAD(&cont->node);
-	klist_init(&cont->containers,internal_container_klist_get,
-		   internal_container_klist_put);
+	klist_init(&cont->containers);
 		
 	down(&attribute_container_mutex);
 	list_add_tail(&cont->node, &attribute_container_list);
@@ -179,8 +163,8 @@ attribute_container_add_device(struct device *dev,
 #define klist_for_each_entry(pos, head, member, iter) \
 	for (klist_iter_init(head, iter); (pos = ({ \
 		struct klist_node *n = klist_next(iter); \
-		n ? container_of(n, typeof(*pos), member) : \
-			({ klist_iter_exit(iter) ; NULL; }); \
+		n ? ({ klist_iter_exit(iter) ; NULL; }) : \
+			container_of(n, typeof(*pos), member);\
 	}) ) != NULL; )
 			
 
@@ -222,7 +206,7 @@ attribute_container_remove_device(struct device *dev,
 		klist_for_each_entry(ic, &cont->containers, node, &iter) {
 			if (dev != ic->classdev.dev)
 				continue;
-			klist_del(&ic->node);
+			klist_remove(&ic->node);
 			if (fn)
 				fn(cont, dev, &ic->classdev);
 			else {
