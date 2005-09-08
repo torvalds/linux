@@ -1455,6 +1455,7 @@ err_out:
 
 /**
  * ntfs_rl_truncate_nolock - truncate a runlist starting at a specified vcn
+ * @vol:	ntfs volume (needed for error output)
  * @runlist:	runlist to truncate
  * @new_length:	the new length of the runlist in VCNs
  *
@@ -1462,11 +1463,15 @@ err_out:
  * holding the runlist elements to a length of @new_length VCNs.
  *
  * If @new_length lies within the runlist, the runlist elements with VCNs of
- * @new_length and above are discarded.
+ * @new_length and above are discarded.  As a special case if @new_length is
+ * zero, the runlist is discarded and set to NULL.
  *
  * If @new_length lies beyond the runlist, a sparse runlist element is added to
  * the end of the runlist @runlist or if the last runlist element is a sparse
  * one already, this is extended.
+ *
+ * Note, no checking is done for unmapped runlist elements.  It is assumed that
+ * the caller has mapped any elements that need to be mapped already.
  *
  * Return 0 on success and -errno on error.
  *
@@ -1482,6 +1487,13 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 	BUG_ON(!runlist);
 	BUG_ON(new_length < 0);
 	rl = runlist->rl;
+	if (!new_length) {
+		ntfs_debug("Freeing runlist.");
+		runlist->rl = NULL;
+		if (rl)
+			ntfs_free(rl);
+		return 0;
+	}
 	if (unlikely(!rl)) {
 		/*
 		 * Create a runlist consisting of a sparse runlist element of
