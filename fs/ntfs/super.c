@@ -1133,7 +1133,8 @@ mft_unmap_out:
  *
  * Return TRUE on success or FALSE on error.
  */
-static BOOL load_and_check_logfile(ntfs_volume *vol)
+static BOOL load_and_check_logfile(ntfs_volume *vol,
+		RESTART_PAGE_HEADER **rp)
 {
 	struct inode *tmp_ino;
 
@@ -1145,7 +1146,7 @@ static BOOL load_and_check_logfile(ntfs_volume *vol)
 		/* Caller will display error message. */
 		return FALSE;
 	}
-	if (!ntfs_check_logfile(tmp_ino)) {
+	if (!ntfs_check_logfile(tmp_ino, rp)) {
 		iput(tmp_ino);
 		/* ntfs_check_logfile() will have displayed error output. */
 		return FALSE;
@@ -1687,6 +1688,7 @@ static BOOL load_system_files(ntfs_volume *vol)
 	struct super_block *sb = vol->sb;
 	MFT_RECORD *m;
 	VOLUME_INFORMATION *vi;
+	RESTART_PAGE_HEADER *rp;
 	ntfs_attr_search_ctx *ctx;
 #ifdef NTFS_RW
 	int err;
@@ -1841,8 +1843,9 @@ get_ctx_vol_failed:
 	 * Get the inode for the logfile, check it and determine if the volume
 	 * was shutdown cleanly.
 	 */
-	if (!load_and_check_logfile(vol) ||
-			!ntfs_is_logfile_clean(vol->logfile_ino)) {
+	rp = NULL;
+	if (!load_and_check_logfile(vol, &rp) ||
+			!ntfs_is_logfile_clean(vol->logfile_ino, rp)) {
 		static const char *es1a = "Failed to load $LogFile";
 		static const char *es1b = "$LogFile is not clean";
 		static const char *es2 = ".  Mount in Windows.";
@@ -1857,6 +1860,10 @@ get_ctx_vol_failed:
 						"continue nor on_errors="
 						"remount-ro was specified%s",
 						es1, es2);
+				if (vol->logfile_ino) {
+					BUG_ON(!rp);
+					ntfs_free(rp);
+				}
 				goto iput_logfile_err_out;
 			}
 			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
@@ -1867,6 +1874,7 @@ get_ctx_vol_failed:
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
 	}
+	ntfs_free(rp);
 #endif /* NTFS_RW */
 	/* Get the root directory inode so we can do path lookups. */
 	vol->root_ino = ntfs_iget(sb, FILE_root);
