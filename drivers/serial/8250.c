@@ -2536,7 +2536,7 @@ static int __init serial8250_init(void)
 		goto out;
 
 	serial8250_isa_devs = platform_device_register_simple("serial8250",
-							      -1, NULL, 0);
+					 PLAT8250_DEV_LEGACY, NULL, 0);
 	if (IS_ERR(serial8250_isa_devs)) {
 		ret = PTR_ERR(serial8250_isa_devs);
 		goto unreg;

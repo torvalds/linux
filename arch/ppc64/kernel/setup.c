@@ -1283,7 +1283,7 @@ void __init generic_find_legacy_serial_ports(u64 *physport,
 
 static struct platform_device serial_device = {
 	.name	= "serial8250",
-	.id	= 0,
+	.id	= PLAT8250_DEV_PLATFORM,
 	.dev	= {
 		.platform_data = serial_ports,
 	},

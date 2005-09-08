@@ -74,7 +74,7 @@ static struct plat_serial8250_port voiceblue_ports[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
 		.platform_data	= voiceblue_ports,
 	},

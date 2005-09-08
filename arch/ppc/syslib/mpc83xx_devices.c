@@ -165,7 +165,7 @@ struct platform_device ppc_sys_platform_devices[] = {
 	},
 	[MPC83xx_DUART] = {
 		.name = "serial8250",
-		.id	= 0,
+		.id	= PLAT8250_DEV_PLATFORM,
 		.dev.platform_data = serial_platform_data,
 	},
 	[MPC83xx_SEC2] = {
