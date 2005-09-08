@@ -835,7 +835,7 @@ static int sl811h_urb_enqueue(
 
 	/* avoid all allocations within spinlocks */
 	if (!hep->hcpriv)
-		ep = kcalloc(1, sizeof *ep, mem_flags);
+		ep = kzalloc(sizeof *ep, mem_flags);
 
 	spin_lock_irqsave(&sl811->lock, flags);
 

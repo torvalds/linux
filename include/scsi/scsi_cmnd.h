@@ -51,12 +51,16 @@ struct scsi_cmnd {
 	 * printk's to use ->pid, so that we can kill this field.
 	 */
 	unsigned long serial_number;
+	/*
+	 * This is set to jiffies as it was when the command was first
+	 * allocated.  It is used to time how long the command has
+	 * been outstanding
+	 */
+	unsigned long jiffies_at_alloc;
 
 	int retries;
 	int allowed;
 	int timeout_per_command;
-	int timeout_total;
-	int timeout;
 
 	unsigned char cmd_len;
 	unsigned char old_cmd_len;

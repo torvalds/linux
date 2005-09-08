@@ -415,15 +415,16 @@ pipe_poll(struct file *filp, poll_table *wait)
 
 	if (filp->f_mode & FMODE_WRITE) {
 		mask |= (nrbufs < PIPE_BUFFERS) ? POLLOUT | POLLWRNORM : 0;
+		/*
+		 * Most Unices do not set POLLERR for FIFOs but on Linux they
+		 * behave exactly like pipes for poll().
+		 */
 		if (!PIPE_READERS(*inode))
 			mask |= POLLERR;
 	}
 
 	return mask;
 }
-
-/* FIXME: most Unices do not set POLLERR for fifos */
-#define fifo_poll pipe_poll
 
 static int
 pipe_release(struct inode *inode, int decr, int decw)
@@ -568,7 +569,7 @@ struct file_operations read_fifo_fops = {
 	.read		= pipe_read,
 	.readv		= pipe_readv,
 	.write		= bad_pipe_w,
-	.poll		= fifo_poll,
+	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_read_open,
 	.release	= pipe_read_release,
@@ -580,7 +581,7 @@ struct file_operations write_fifo_fops = {
 	.read		= bad_pipe_r,
 	.write		= pipe_write,
 	.writev		= pipe_writev,
-	.poll		= fifo_poll,
+	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_write_open,
 	.release	= pipe_write_release,
@@ -593,7 +594,7 @@ struct file_operations rdwr_fifo_fops = {
 	.readv		= pipe_readv,
 	.write		= pipe_write,
 	.writev		= pipe_writev,
-	.poll		= fifo_poll,
+	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_rdwr_open,
 	.release	= pipe_rdwr_release,

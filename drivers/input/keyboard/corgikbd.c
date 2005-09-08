@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/irq.h>
@@ -32,7 +33,6 @@
 /* zero code, 124 scancodes + 3 hinge combinations */
 #define	NR_SCANCODES		( SCANCODE(KB_ROWS-1,KB_COLS-1) +1 +1 +3 )
 #define SCAN_INTERVAL		(HZ/10)
-#define CORGIKBD_PRESSED	1
 
 #define HINGE_SCAN_INTERVAL		(HZ/4)
 
@@ -73,25 +73,13 @@ struct corgikbd {
 	struct input_dev input;
 	char phys[32];
 
-	unsigned char state[ARRAY_SIZE(corgikbd_keycode)];
 	spinlock_t lock;
-
 	struct timer_list timer;
 	struct timer_list htimer;
-};
 
-static void handle_scancode(unsigned int pressed,unsigned int scancode, struct corgikbd *corgikbd_data)
-{
-	if (pressed && !(corgikbd_data->state[scancode] & CORGIKBD_PRESSED)) {
-		corgikbd_data->state[scancode] |= CORGIKBD_PRESSED;
-		input_report_key(&corgikbd_data->input, corgikbd_data->keycode[scancode], 1);
-		if (corgikbd_data->keycode[scancode] == CORGI_KEY_OFF)
-			input_event(&corgikbd_data->input, EV_PWR, CORGI_KEY_OFF, 1);
-	} else if (!pressed && corgikbd_data->state[scancode] & CORGIKBD_PRESSED) {
-		corgikbd_data->state[scancode] &= ~CORGIKBD_PRESSED;
-		input_report_key(&corgikbd_data->input, corgikbd_data->keycode[scancode], 0);
-	}
-}
+	unsigned int suspended;
+	unsigned long suspend_jiffies;
+};
 
 #define KB_DISCHARGE_DELAY	10
 #define KB_ACTIVATE_DELAY	10
@@ -105,36 +93,36 @@ static void handle_scancode(unsigned int pressed,unsigned int scancode, struct c
  */
 static inline void corgikbd_discharge_all(void)
 {
-	// STROBE All HiZ
+	/* STROBE All HiZ */
 	GPCR2  = CORGI_GPIO_ALL_STROBE_BIT;
 	GPDR2 &= ~CORGI_GPIO_ALL_STROBE_BIT;
 }
 
 static inline void corgikbd_activate_all(void)
 {
-	// STROBE ALL -> High
+	/* STROBE ALL -> High */
 	GPSR2  = CORGI_GPIO_ALL_STROBE_BIT;
 	GPDR2 |= CORGI_GPIO_ALL_STROBE_BIT;
 
 	udelay(KB_DISCHARGE_DELAY);
 
-	// Clear any interrupts we may have triggered when altering the GPIO lines
+	/* Clear any interrupts we may have triggered when altering the GPIO lines */
 	GEDR1 = CORGI_GPIO_HIGH_SENSE_BIT;
 	GEDR2 = CORGI_GPIO_LOW_SENSE_BIT;
 }
 
 static inline void corgikbd_activate_col(int col)
 {
-	// STROBE col -> High, not col -> HiZ
+	/* STROBE col -> High, not col -> HiZ */
 	GPSR2 = CORGI_GPIO_STROBE_BIT(col);
 	GPDR2 = (GPDR2 & ~CORGI_GPIO_ALL_STROBE_BIT) | CORGI_GPIO_STROBE_BIT(col);
 }
 
 static inline void corgikbd_reset_col(int col)
 {
-	// STROBE col -> Low
+	/* STROBE col -> Low */
 	GPCR2 = CORGI_GPIO_STROBE_BIT(col);
-	// STROBE col -> out, not col -> HiZ
+	/* STROBE col -> out, not col -> HiZ */
 	GPDR2 = (GPDR2 & ~CORGI_GPIO_ALL_STROBE_BIT) | CORGI_GPIO_STROBE_BIT(col);
 }
 
@@ -149,9 +137,12 @@ static inline void corgikbd_reset_col(int col)
 /* Scan the hardware keyboard and push any changes up through the input layer */
 static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs *regs)
 {
-	unsigned int row, col, rowd, scancode;
+	unsigned int row, col, rowd;
 	unsigned long flags;
 	unsigned int num_pressed;
+
+	if (corgikbd_data->suspended)
+		return;
 
 	spin_lock_irqsave(&corgikbd_data->lock, flags);
 
@@ -173,10 +164,21 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 
 		rowd = GET_ROWS_STATUS(col);
 		for (row = 0; row < KB_ROWS; row++) {
+			unsigned int scancode, pressed;
+
 			scancode = SCANCODE(row, col);
-			handle_scancode((rowd & KB_ROWMASK(row)), scancode, corgikbd_data);
-			if (rowd & KB_ROWMASK(row))
+			pressed = rowd & KB_ROWMASK(row);
+
+			input_report_key(&corgikbd_data->input, corgikbd_data->keycode[scancode], pressed);
+
+			if (pressed)
 				num_pressed++;
+
+			if (pressed && (corgikbd_data->keycode[scancode] == CORGI_KEY_OFF)
+					&& time_after(jiffies, corgikbd_data->suspend_jiffies + HZ)) {
+				input_event(&corgikbd_data->input, EV_PWR, CORGI_KEY_OFF, 1);
+				corgikbd_data->suspend_jiffies=jiffies;
+			}
 		}
 		corgikbd_reset_col(col);
 	}
@@ -221,8 +223,11 @@ static void corgikbd_timer_callback(unsigned long data)
  * The hinge switches generate no interrupt so they need to be
  * monitored by a timer.
  *
- * When we detect changes, we debounce it and then pass the three
- * positions the system can take as keypresses to the input system.
+ * We debounce the switches and pass them to the input system.
+ *
+ *  gprr == 0x00 - Keyboard with Landscape Screen
+ *          0x08 - No Keyboard with Portrait Screen
+ *          0x0c - Keyboard and Screen Closed
  */
 
 #define HINGE_STABLE_COUNT 2
@@ -235,7 +240,7 @@ static void corgikbd_hinge_timer(unsigned long data)
 	unsigned long gprr;
 	unsigned long flags;
 
-	gprr = read_scoop_reg(SCOOP_GPRR) & (CORGI_SCP_SWA | CORGI_SCP_SWB);
+	gprr = read_scoop_reg(&corgiscoop_device.dev, SCOOP_GPRR) & (CORGI_SCP_SWA | CORGI_SCP_SWB);
 	if (gprr != sharpsl_hinge_state) {
 		hinge_count = 0;
 		sharpsl_hinge_state = gprr;
@@ -244,9 +249,8 @@ static void corgikbd_hinge_timer(unsigned long data)
 		if (hinge_count >= HINGE_STABLE_COUNT) {
 			spin_lock_irqsave(&corgikbd_data->lock, flags);
 
-			handle_scancode((sharpsl_hinge_state == 0x00), 125, corgikbd_data); /* Keyboard with Landscape Screen */
-			handle_scancode((sharpsl_hinge_state == 0x08), 126, corgikbd_data); /* No Keyboard with Portrait Screen */
-			handle_scancode((sharpsl_hinge_state == 0x0c), 127, corgikbd_data); /* Keyboard and Screen Closed  */
+			input_report_switch(&corgikbd_data->input, SW_0, ((sharpsl_hinge_state & CORGI_SCP_SWA) != 0));
+			input_report_switch(&corgikbd_data->input, SW_1, ((sharpsl_hinge_state & CORGI_SCP_SWB) != 0));
 			input_sync(&corgikbd_data->input);
 
 			spin_unlock_irqrestore(&corgikbd_data->lock, flags);
@@ -255,19 +259,45 @@ static void corgikbd_hinge_timer(unsigned long data)
 	mod_timer(&corgikbd_data->htimer, jiffies + HINGE_SCAN_INTERVAL);
 }
 
+#ifdef CONFIG_PM
+static int corgikbd_suspend(struct device *dev, pm_message_t state, uint32_t level)
+{
+	if (level == SUSPEND_POWER_DOWN) {
+		struct corgikbd *corgikbd = dev_get_drvdata(dev);
+		corgikbd->suspended = 1;
+	}
+	return 0;
+}
+
+static int corgikbd_resume(struct device *dev, uint32_t level)
+{
+	if (level == RESUME_POWER_ON) {
+		struct corgikbd *corgikbd = dev_get_drvdata(dev);
+
+		/* Upon resume, ignore the suspend key for a short while */
+		corgikbd->suspend_jiffies=jiffies;
+		corgikbd->suspended = 0;
+	}
+	return 0;
+}
+#else
+#define corgikbd_suspend	NULL
+#define corgikbd_resume		NULL
+#endif
+
 static int __init corgikbd_probe(struct device *dev)
 {
 	int i;
 	struct corgikbd *corgikbd;
 
-	corgikbd = kcalloc(1, sizeof(struct corgikbd), GFP_KERNEL);
+	corgikbd = kzalloc(sizeof(struct corgikbd), GFP_KERNEL);
 	if (!corgikbd)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev,corgikbd);
 	strcpy(corgikbd->phys, "corgikbd/input0");
 
-	spin_lock_init(corgikbd->lock);
+	spin_lock_init(&corgikbd->lock);
 
 	/* Init Keyboard rescan timer */
 	init_timer(&corgikbd->timer);
@@ -279,6 +309,8 @@ static int __init corgikbd_probe(struct device *dev)
 	corgikbd->htimer.function = corgikbd_hinge_timer;
 	corgikbd->htimer.data = (unsigned long) corgikbd;
 
+	corgikbd->suspend_jiffies=jiffies;
+
 	init_input_dev(&corgikbd->input);
 	corgikbd->input.private = corgikbd;
 	corgikbd->input.name = "Corgi Keyboard";
@@ -288,7 +320,7 @@ static int __init corgikbd_probe(struct device *dev)
 	corgikbd->input.id.vendor = 0x0001;
 	corgikbd->input.id.product = 0x0001;
 	corgikbd->input.id.version = 0x0100;
-	corgikbd->input.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR);
+	corgikbd->input.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
 	corgikbd->input.keycode = corgikbd->keycode;
 	corgikbd->input.keycodesize = sizeof(unsigned char);
 	corgikbd->input.keycodemax = ARRAY_SIZE(corgikbd_keycode);
@@ -297,6 +329,8 @@ static int __init corgikbd_probe(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(corgikbd_keycode); i++)
 		set_bit(corgikbd->keycode[i], corgikbd->input.keybit);
 	clear_bit(0, corgikbd->input.keybit);
+	set_bit(SW_0, corgikbd->input.swbit);
+	set_bit(SW_1, corgikbd->input.swbit);
 
 	input_register_device(&corgikbd->input);
 	mod_timer(&corgikbd->htimer, jiffies + HINGE_SCAN_INTERVAL);
@@ -343,6 +377,8 @@ static struct device_driver corgikbd_driver = {
 	.bus		= &platform_bus_type,
 	.probe		= corgikbd_probe,
 	.remove		= corgikbd_remove,
+	.suspend	= corgikbd_suspend,
+	.resume		= corgikbd_resume,
 };
 
 static int __devinit corgikbd_init(void)

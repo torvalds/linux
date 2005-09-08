@@ -67,12 +67,6 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 #define access_ok(type,addr,size) (__range_ok((addr), (size)) == 0)
 #define __access_ok(addr,size) (__range_ok((addr), (size)) == 0)
 
-/* this function will go away soon - use access_ok() / __range_ok() instead */
-static inline int __deprecated verify_area(int type, const void * addr, unsigned long size)
-{
-	return __range_ok(addr, size);
-}
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is

@@ -51,14 +51,6 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	register_ioctl32_conversion() / unregister_ioctl32_conversion()
-When:	April 2005
-Why:	Replaced by ->compat_ioctl in file_operations and other method
-	vecors.
-Who:	Andi Kleen <ak@muc.de>, Christoph Hellwig <hch@lst.de>
-
----------------------------
-
 What:	RCU API moves to EXPORT_SYMBOL_GPL
 When:	April 2006
 Files:	include/linux/rcupdate.h, kernel/rcupdate.c
@@ -71,14 +63,6 @@ Why:	Outside of Linux, the only implementations of anything even
 	people, who might be using implementations that I am not aware
 	of, to adjust to this upcoming change.
 Who:	Paul E. McKenney <paulmck@us.ibm.com>
-
----------------------------
-
-What:	remove verify_area()
-When:	July 2006
-Files:	Various uaccess.h headers.
-Why:	Deprecated and redundant. access_ok() should be used instead.
-Who:	Jesper Juhl <juhl-lkml@dif.dk>
 
 ---------------------------
 

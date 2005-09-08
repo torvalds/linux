@@ -494,7 +494,7 @@ static int qs_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 	qs_enter_reg_mode(ap);
-	pp = kcalloc(1, sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp) {
 		rc = -ENOMEM;
 		goto err_out;

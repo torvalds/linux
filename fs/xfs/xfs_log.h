@@ -114,9 +114,44 @@ xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XFS_VOLUME		0x2
 #define XFS_LOG			0xaa
 
+
+/* Region types for iovec's i_type */
+#if defined(XFS_LOG_RES_DEBUG)
+#define XLOG_REG_TYPE_BFORMAT		1
+#define XLOG_REG_TYPE_BCHUNK		2
+#define XLOG_REG_TYPE_EFI_FORMAT	3
+#define XLOG_REG_TYPE_EFD_FORMAT	4
+#define XLOG_REG_TYPE_IFORMAT		5
+#define XLOG_REG_TYPE_ICORE		6
+#define XLOG_REG_TYPE_IEXT		7
+#define XLOG_REG_TYPE_IBROOT		8
+#define XLOG_REG_TYPE_ILOCAL		9
+#define XLOG_REG_TYPE_IATTR_EXT		10
+#define XLOG_REG_TYPE_IATTR_BROOT	11
+#define XLOG_REG_TYPE_IATTR_LOCAL	12
+#define XLOG_REG_TYPE_QFORMAT		13
+#define XLOG_REG_TYPE_DQUOT		14
+#define XLOG_REG_TYPE_QUOTAOFF		15
+#define XLOG_REG_TYPE_LRHEADER		16
+#define XLOG_REG_TYPE_UNMOUNT		17
+#define XLOG_REG_TYPE_COMMIT		18
+#define XLOG_REG_TYPE_TRANSHDR		19
+#define XLOG_REG_TYPE_MAX		19
+#endif
+
+#if defined(XFS_LOG_RES_DEBUG)
+#define XLOG_VEC_SET_TYPE(vecp, t) ((vecp)->i_type = (t))
+#else
+#define XLOG_VEC_SET_TYPE(vecp, t)
+#endif
+
+
 typedef struct xfs_log_iovec {
 	xfs_caddr_t		i_addr;		/* beginning address of region */
 	int		i_len;		/* length in bytes of region */
+#if defined(XFS_LOG_RES_DEBUG)
+ 	uint		i_type;		/* type of region */
+#endif
 } xfs_log_iovec_t;
 
 typedef void* xfs_log_ticket_t;
@@ -159,7 +194,8 @@ int	  xfs_log_reserve(struct xfs_mount *mp,
 			  int		   count,
 			  xfs_log_ticket_t *ticket,
 			  __uint8_t	   clientid,
-			  uint		   flags);
+			  uint		   flags,
+			  uint		   t_type);
 int	  xfs_log_write(struct xfs_mount *mp,
 			xfs_log_iovec_t  region[],
 			int		 nentries,

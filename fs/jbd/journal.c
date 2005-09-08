@@ -65,7 +65,6 @@ EXPORT_SYMBOL(journal_set_features);
 EXPORT_SYMBOL(journal_create);
 EXPORT_SYMBOL(journal_load);
 EXPORT_SYMBOL(journal_destroy);
-EXPORT_SYMBOL(journal_recover);
 EXPORT_SYMBOL(journal_update_superblock);
 EXPORT_SYMBOL(journal_abort);
 EXPORT_SYMBOL(journal_errno);
@@ -81,6 +80,7 @@ EXPORT_SYMBOL(journal_try_to_free_buffers);
 EXPORT_SYMBOL(journal_force_commit);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
+static void __journal_abort_soft (journal_t *journal, int errno);
 
 /*
  * Helper function used to manage commit timeouts
@@ -91,16 +91,6 @@ static void commit_timeout(unsigned long __data)
 	struct task_struct * p = (struct task_struct *) __data;
 
 	wake_up_process(p);
-}
-
-/* Static check for data structure consistency.  There's no code
- * invoked --- we'll just get a linker failure if things aren't right.
- */
-void __journal_internal_check(void)
-{
-	extern void journal_bad_superblock_size(void);
-	if (sizeof(struct journal_superblock_s) != 1024)
-		journal_bad_superblock_size();
 }
 
 /*
@@ -119,15 +109,11 @@ void __journal_internal_check(void)
  *    known as checkpointing, and this thread is responsible for that job.
  */
 
-journal_t *current_journal;		// AKPM: debug
-
-int kjournald(void *arg)
+static int kjournald(void *arg)
 {
 	journal_t *journal = (journal_t *) arg;
 	transaction_t *transaction;
 	struct timer_list timer;
-
-	current_journal = journal;
 
 	daemonize("kjournald");
 
@@ -193,6 +179,8 @@ loop:
 		if (transaction && time_after_eq(jiffies,
 						transaction->t_expires))
 			should_sleep = 0;
+		if (journal->j_flags & JFS_UNMOUNT)
+ 			should_sleep = 0;
 		if (should_sleep) {
 			spin_unlock(&journal->j_state_lock);
 			schedule();
@@ -969,7 +957,7 @@ void journal_update_superblock(journal_t *journal, int wait)
 	if (wait)
 		sync_dirty_buffer(bh);
 	else
-		ll_rw_block(WRITE, 1, &bh);
+		ll_rw_block(SWRITE, 1, &bh);
 
 out:
 	/* If we have just flushed the log (by marking s_start==0), then
@@ -1439,7 +1427,7 @@ int journal_wipe(journal_t *journal, int write)
  * device this journal is present.
  */
 
-const char *journal_dev_name(journal_t *journal, char *buffer)
+static const char *journal_dev_name(journal_t *journal, char *buffer)
 {
 	struct block_device *bdev;
 
@@ -1485,7 +1473,7 @@ void __journal_abort_hard(journal_t *journal)
 
 /* Soft abort: record the abort error status in the journal superblock,
  * but don't do any other IO. */
-void __journal_abort_soft (journal_t *journal, int errno)
+static void __journal_abort_soft (journal_t *journal, int errno)
 {
 	if (journal->j_flags & JFS_ABORT)
 		return;
@@ -1880,7 +1868,7 @@ EXPORT_SYMBOL(journal_enable_debug);
 
 static struct proc_dir_entry *proc_jbd_debug;
 
-int read_jbd_debug(char *page, char **start, off_t off,
+static int read_jbd_debug(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
 {
 	int ret;
@@ -1890,7 +1878,7 @@ int read_jbd_debug(char *page, char **start, off_t off,
 	return ret;
 }
 
-int write_jbd_debug(struct file *file, const char __user *buffer,
+static int write_jbd_debug(struct file *file, const char __user *buffer,
 			   unsigned long count, void *data)
 {
 	char buf[32];
@@ -1978,6 +1966,14 @@ static void journal_destroy_caches(void)
 static int __init journal_init(void)
 {
 	int ret;
+
+/* Static check for data structure consistency.  There's no code
+ * invoked --- we'll just get a linker failure if things aren't right.
+ */
+	extern void journal_bad_superblock_size(void);
+	if (sizeof(struct journal_superblock_s) != 1024)
+		journal_bad_superblock_size();
+
 
 	ret = journal_init_caches();
 	if (ret != 0)

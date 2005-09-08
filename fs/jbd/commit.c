@@ -358,7 +358,7 @@ write_out_data:
 					jbd_debug(2, "submit %d writes\n",
 							bufs);
 					spin_unlock(&journal->j_list_lock);
-					ll_rw_block(WRITE, bufs, wbuf);
+					ll_rw_block(SWRITE, bufs, wbuf);
 					journal_brelse_array(wbuf, bufs);
 					bufs = 0;
 					goto write_out_data;
@@ -381,7 +381,7 @@ write_out_data:
 
 	if (bufs) {
 		spin_unlock(&journal->j_list_lock);
-		ll_rw_block(WRITE, bufs, wbuf);
+		ll_rw_block(SWRITE, bufs, wbuf);
 		journal_brelse_array(wbuf, bufs);
 		spin_lock(&journal->j_list_lock);
 	}
@@ -720,11 +720,17 @@ wait_for_iobuf:
 	J_ASSERT(commit_transaction->t_log_list == NULL);
 
 restart_loop:
+	/*
+	 * As there are other places (journal_unmap_buffer()) adding buffers
+	 * to this list we have to be careful and hold the j_list_lock.
+	 */
+	spin_lock(&journal->j_list_lock);
 	while (commit_transaction->t_forget) {
 		transaction_t *cp_transaction;
 		struct buffer_head *bh;
 
 		jh = commit_transaction->t_forget;
+		spin_unlock(&journal->j_list_lock);
 		bh = jh2bh(jh);
 		jbd_lock_bh_state(bh);
 		J_ASSERT_JH(jh,	jh->b_transaction == commit_transaction ||
@@ -792,9 +798,25 @@ restart_loop:
 			journal_remove_journal_head(bh);  /* needs a brelse */
 			release_buffer_page(bh);
 		}
+		cond_resched_lock(&journal->j_list_lock);
+	}
+	spin_unlock(&journal->j_list_lock);
+	/*
+	 * This is a bit sleazy.  We borrow j_list_lock to protect
+	 * journal->j_committing_transaction in __journal_remove_checkpoint.
+	 * Really, __journal_remove_checkpoint should be using j_state_lock but
+	 * it's a bit hassle to hold that across __journal_remove_checkpoint
+	 */
+	spin_lock(&journal->j_state_lock);
+	spin_lock(&journal->j_list_lock);
+	/*
+	 * Now recheck if some buffers did not get attached to the transaction
+	 * while the lock was dropped...
+	 */
+	if (commit_transaction->t_forget) {
 		spin_unlock(&journal->j_list_lock);
-		if (cond_resched())
-			goto restart_loop;
+		spin_unlock(&journal->j_state_lock);
+		goto restart_loop;
 	}
 
 	/* Done with this transaction! */
@@ -803,14 +825,6 @@ restart_loop:
 
 	J_ASSERT(commit_transaction->t_state == T_COMMIT);
 
-	/*
-	 * This is a bit sleazy.  We borrow j_list_lock to protect
-	 * journal->j_committing_transaction in __journal_remove_checkpoint.
-	 * Really, __jornal_remove_checkpoint should be using j_state_lock but
-	 * it's a bit hassle to hold that across __journal_remove_checkpoint
-	 */
-	spin_lock(&journal->j_state_lock);
-	spin_lock(&journal->j_list_lock);
 	commit_transaction->t_state = T_FINISHED;
 	J_ASSERT(commit_transaction == journal->j_committing_transaction);
 	journal->j_commit_sequence = commit_transaction->t_tid;

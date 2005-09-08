@@ -19,6 +19,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <scsi/scsi_transport_fc.h>
 
 static void
 qla2x00_mbx_sem_timeout(unsigned long data)
@@ -251,7 +252,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *ha, mbx_cmd_t *mcp)
 			mb0 = RD_REG_WORD(&reg->isp24.mailbox0);
 			ictrl = RD_REG_DWORD(&reg->isp24.ictrl);
 		} else {
-			mb0 = RD_MAILBOX_REG(ha, reg->isp, 0);
+			mb0 = RD_MAILBOX_REG(ha, &reg->isp, 0);
 			ictrl = RD_REG_WORD(&reg->isp.ictrl);
 		}
 		printk("%s(%ld): **** MB Command Timeout for cmd %x ****\n",
@@ -983,58 +984,6 @@ qla2x00_abort_target(fc_port_t *fcport)
 #endif
 
 /*
- * qla2x00_target_reset
- *	Issue target reset mailbox command.
- *
- * Input:
- *	ha = adapter block pointer.
- *	TARGET_QUEUE_LOCK must be released.
- *	ADAPTER_STATE_LOCK must be released.
- *
- * Returns:
- *	qla2x00 local function return status code.
- *
- * Context:
- *	Kernel context.
- */
-int
-qla2x00_target_reset(scsi_qla_host_t *ha, struct fc_port *fcport)
-{
-	int rval;
-	mbx_cmd_t mc;
-	mbx_cmd_t *mcp = &mc;
-
-	DEBUG11(printk("qla2x00_target_reset(%ld): entered.\n", ha->host_no);)
-
-	if (atomic_read(&fcport->state) != FCS_ONLINE)
-		return 0;
-
-	mcp->mb[0] = MBC_TARGET_RESET;
-	if (HAS_EXTENDED_IDS(ha))
-		mcp->mb[1] = fcport->loop_id;
-	else
-		mcp->mb[1] = fcport->loop_id << 8;
-	mcp->mb[2] = ha->loop_reset_delay;
-	mcp->out_mb = MBX_2|MBX_1|MBX_0;
-	mcp->in_mb = MBX_0;
-	mcp->tov = 30;
-	mcp->flags = 0;
-	rval = qla2x00_mailbox_command(ha, mcp);
-
-	if (rval != QLA_SUCCESS) {
-		/*EMPTY*/
-		DEBUG2_3_11(printk("qla2x00_target_reset(%ld): failed=%x.\n",
-		    ha->host_no, rval);)
-	} else {
-		/*EMPTY*/
-		DEBUG11(printk("qla2x00_target_reset(%ld): done.\n",
-		    ha->host_no);)
-	}
-
-	return rval;
-}
-
-/*
  * qla2x00_get_adapter_id
  *	Get adapter ID and topology.
  *
@@ -1326,6 +1275,10 @@ qla2x00_get_port_database(scsi_qla_host_t *ha, fc_port_t *fcport, uint8_t opt)
 			fcport->port_type = FCT_INITIATOR;
 		else
 			fcport->port_type = FCT_TARGET;
+
+		/* Passback COS information. */
+		fcport->supported_classes = (pd->options & BIT_4) ?
+		    FC_COS_CLASS2: FC_COS_CLASS3;
 	}
 
 gpd_error_out:
@@ -1661,6 +1614,13 @@ qla24xx_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 				mb[1] |= BIT_1;
 		} else
 			mb[1] = BIT_0;
+
+		/* Passback COS information. */
+		mb[10] = 0;
+		if (lg->io_parameter[7] || lg->io_parameter[8])
+			mb[10] |= BIT_0;	/* Class 2. */
+		if (lg->io_parameter[9] || lg->io_parameter[10])
+			mb[10] |= BIT_1;	/* Class 3. */
 	}
 
 	dma_pool_free(ha->s_dma_pool, lg, lg_dma);
@@ -1723,6 +1683,8 @@ qla2x00_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 		mb[2] = mcp->mb[2];
 		mb[6] = mcp->mb[6];
 		mb[7] = mcp->mb[7];
+		/* COS retrieved from Get-Port-Database mailbox command. */
+		mb[10] = 0;
 	}
 
 	if (rval != QLA_SUCCESS) {
@@ -2460,6 +2422,35 @@ qla2x00_set_serdes_params(scsi_qla_host_t *ha, uint16_t sw_em_1g,
 		    ha->host_no, rval, mcp->mb[0]));
 	} else {
 		/*EMPTY*/
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
+
+	return rval;
+}
+
+int
+qla2x00_stop_firmware(scsi_qla_host_t *ha)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	mcp->mb[0] = MBC_STOP_FIRMWARE;
+	mcp->out_mb = MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = 5;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
+		    ha->host_no, rval));
+	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
 	}
 

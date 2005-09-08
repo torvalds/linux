@@ -37,6 +37,10 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Processor type and features"
@@ -1316,6 +1320,11 @@ config GENERIC_HARDIRQS
 
 config GENERIC_IRQ_PROBE
 	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
 	default y
 
 config X86_SMP

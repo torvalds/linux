@@ -471,12 +471,12 @@ static dev_link_t *netwave_attach(void)
     dev->get_stats  = &netwave_get_stats;
     dev->set_multicast_list = &set_multicast_list;
     /* wireless extensions */
-#ifdef WIRELESS_EXT
+#if WIRELESS_EXT <= 16
     dev->get_wireless_stats = &netwave_get_wireless_stats;
+#endif /* WIRELESS_EXT <= 16 */
 #if WIRELESS_EXT > 12
     dev->wireless_handlers = (struct iw_handler_def *)&netwave_handler_def;
 #endif /* WIRELESS_EXT > 12 */
-#endif /* WIRELESS_EXT */
     dev->do_ioctl = &netwave_ioctl;
 
     dev->tx_timeout = &netwave_watchdog;
@@ -839,6 +839,9 @@ static const struct iw_handler_def	netwave_handler_def =
 	.standard	= (iw_handler *) netwave_handler,
 	.private	= (iw_handler *) netwave_private_handler,
 	.private_args	= (struct iw_priv_args *) netwave_private_args,
+#if WIRELESS_EXT > 16
+	.get_wireless_stats = netwave_get_wireless_stats,
+#endif /* WIRELESS_EXT > 16 */
 };
 #endif /* WIRELESS_EXT > 12 */
 

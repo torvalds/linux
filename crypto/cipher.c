@@ -191,6 +191,8 @@ static unsigned int cbc_process_encrypt(const struct cipher_desc *desc,
 	u8 *iv = desc->info;
 	unsigned int done = 0;
 
+	nbytes -= bsize;
+
 	do {
 		xor(iv, src);
 		fn(crypto_tfm_ctx(tfm), dst, iv);
@@ -198,7 +200,7 @@ static unsigned int cbc_process_encrypt(const struct cipher_desc *desc,
 
 		src += bsize;
 		dst += bsize;
-	} while ((done += bsize) < nbytes);
+	} while ((done += bsize) <= nbytes);
 
 	return done;
 }
@@ -219,6 +221,8 @@ static unsigned int cbc_process_decrypt(const struct cipher_desc *desc,
 	u8 *iv = desc->info;
 	unsigned int done = 0;
 
+	nbytes -= bsize;
+
 	do {
 		u8 *tmp_dst = *dst_p;
 
@@ -230,7 +234,7 @@ static unsigned int cbc_process_decrypt(const struct cipher_desc *desc,
 
 		src += bsize;
 		dst += bsize;
-	} while ((done += bsize) < nbytes);
+	} while ((done += bsize) <= nbytes);
 
 	return done;
 }
@@ -243,12 +247,14 @@ static unsigned int ecb_process(const struct cipher_desc *desc, u8 *dst,
 	void (*fn)(void *, u8 *, const u8 *) = desc->crfn;
 	unsigned int done = 0;
 
+	nbytes -= bsize;
+
 	do {
 		fn(crypto_tfm_ctx(tfm), dst, src);
 
 		src += bsize;
 		dst += bsize;
-	} while ((done += bsize) < nbytes);
+	} while ((done += bsize) <= nbytes);
 
 	return done;
 }

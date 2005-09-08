@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#39 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#40 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -1306,7 +1306,6 @@ scratch_ram {
 	 */
 	MWI_RESIDUAL {
 		size		1
-		alias	TARG_IMMEDIATE_SCB
 	}
 	/*
 	 * SCBID of the next SCB to be started by the controller.
@@ -1461,6 +1460,7 @@ scratch_ram {
 	 */
 	LAST_MSG {
 		size		1
+		alias	TARG_IMMEDIATE_SCB
 	}
 
 	/*

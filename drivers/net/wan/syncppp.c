@@ -1440,6 +1440,7 @@ static void sppp_print_bytes (u_char *p, u16 len)
  *	@skb:	The buffer to process
  *	@dev:	The device it arrived on
  *	@p: Unused
+ *	@orig_dev: Unused
  *
  *	Protocol glue. This drives the deferred processing mode the poorer
  *	cards use. This can be called directly by cards that do not have

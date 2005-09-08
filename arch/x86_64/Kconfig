@@ -65,6 +65,10 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
 source "init/Kconfig"
 
 
@@ -439,6 +443,11 @@ config GENERIC_IRQ_PROBE
 # we have no ISA slots, but we do have ISA-style DMA.
 config ISA_DMA_API
 	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
 	default y
 
 menu "Power management options"

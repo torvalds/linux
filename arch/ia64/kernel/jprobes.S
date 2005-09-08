@@ -49,6 +49,7 @@
 	/*
 	 * void jprobe_break(void)
 	 */
+	.section .kprobes.text, "ax"
 ENTRY(jprobe_break)
 	break.m 0x80300
 END(jprobe_break)

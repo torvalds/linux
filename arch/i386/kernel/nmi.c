@@ -478,6 +478,11 @@ void touch_nmi_watchdog (void)
 	 */
 	for (i = 0; i < NR_CPUS; i++)
 		alert_counter[i] = 0;
+
+	/*
+	 * Tickle the softlockup detector too:
+	 */
+	touch_softlockup_watchdog();
 }
 
 extern void die_nmi(struct pt_regs *, const char *msg);

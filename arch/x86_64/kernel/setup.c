@@ -65,7 +65,7 @@
  * Machine setup..
  */
 
-struct cpuinfo_x86 boot_cpu_data;
+struct cpuinfo_x86 boot_cpu_data __read_mostly;
 
 unsigned long mmu_cr4_features;
 

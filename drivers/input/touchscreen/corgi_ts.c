@@ -53,11 +53,8 @@ struct corgi_ts {
 
 #define SyncHS()	while((STATUS_HSYNC) == 0); while((STATUS_HSYNC) != 0);
 #define CCNT(a)		asm volatile ("mrc p14, 0, %0, C1, C0, 0" : "=r"(a))
-#define CCNT_ON()	{int pmnc = 1; asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(pmnc));}
-#define CCNT_OFF()	{int pmnc = 0; asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(pmnc));}
-
-#define WAIT_HS_400_VGA		7013U	// 17.615us
-#define WAIT_HS_400_QVGA	16622U	// 41.750us
+#define PMNC_GET(x)	asm volatile ("mrc p14, 0, %0, C0, C0, 0" : "=r"(x))
+#define PMNC_SET(x)	asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(x))
 
 
 /* ADS7846 Touch Screen Controller bit definitions */
@@ -69,41 +66,29 @@ struct corgi_ts {
 #define ADSCTRL_STS		(1u << 7)	/* Start Bit */
 
 /* External Functions */
-extern int w100fb_get_xres(void);
-extern int w100fb_get_blanking(void);
-extern int w100fb_get_fastsysclk(void);
+extern unsigned long w100fb_get_hsynclen(struct device *dev);
 extern unsigned int get_clk_frequency_khz(int info);
 
 static unsigned long calc_waittime(void)
 {
-	int w100fb_xres = w100fb_get_xres();
-	unsigned int waittime = 0;
+	unsigned long hsync_len = w100fb_get_hsynclen(&corgifb_device.dev);
 
-	if (w100fb_xres == 480 || w100fb_xres == 640) {
-		waittime = WAIT_HS_400_VGA * get_clk_frequency_khz(0) / 398131U;
-
-		if (w100fb_get_fastsysclk() == 100)
-			waittime = waittime * 75 / 100;
-
-		if (w100fb_xres == 640)
-			waittime *= 3;
-
-		return waittime;
-	}
-
-	return WAIT_HS_400_QVGA * get_clk_frequency_khz(0) / 398131U;
+	if (hsync_len)
+		return get_clk_frequency_khz(0)*1000/hsync_len;
+	else
+		return 0;
 }
 
 static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int address, unsigned long wait_time)
 {
+	unsigned long timer1 = 0, timer2, pmnc = 0;
 	int pos = 0;
-	unsigned long timer1 = 0, timer2;
-	int dosleep;
 
-	dosleep = !w100fb_get_blanking();
+	if (wait_time && doSend) {
+		PMNC_GET(pmnc);
+		if (!(pmnc & 0x01))
+			PMNC_SET(0x01);
 
-	if (dosleep && doSend) {
-		CCNT_ON();
 		/* polling HSync */
 		SyncHS();
 		/* get CCNT */
@@ -119,11 +104,11 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 		corgi_ssp_ads7846_put(cmd);
 		corgi_ssp_ads7846_get();
 
-		if (dosleep) {
+		if (wait_time) {
 			/* Wait after HSync */
 			CCNT(timer2);
 			if (timer2-timer1 > wait_time) {
-				/* timeout */
+				/* too slow - timeout, try again */
 				SyncHS();
 				/* get OSCR */
 				CCNT(timer1);
@@ -134,8 +119,8 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 				CCNT(timer2);
 		}
 		corgi_ssp_ads7846_put(cmd);
-		if (dosleep)
-			CCNT_OFF();
+		if (wait_time && !(pmnc & 0x01))
+			PMNC_SET(pmnc);
 	}
 	return pos;
 }
@@ -244,7 +229,7 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PM
-static int corgits_suspend(struct device *dev, uint32_t state, uint32_t level)
+static int corgits_suspend(struct device *dev, pm_message_t state, uint32_t level)
 {
 	if (level == SUSPEND_POWER_DOWN) {
 		struct corgi_ts *corgi_ts = dev_get_drvdata(dev);

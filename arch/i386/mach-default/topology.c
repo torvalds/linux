@@ -76,7 +76,7 @@ static int __init topology_init(void)
 	for_each_online_node(i)
 		arch_register_node(i);
 
-	for_each_cpu(i)
+	for_each_present_cpu(i)
 		arch_register_cpu(i);
 	return 0;
 }
@@ -87,7 +87,7 @@ static int __init topology_init(void)
 {
 	int i;
 
-	for_each_cpu(i)
+	for_each_present_cpu(i)
 		arch_register_cpu(i);
 	return 0;
 }

@@ -9,6 +9,9 @@ obj-y = aio.o elf_aux.o file.o process.o signal.o start_up.o time.o tt.o \
 USER_OBJS := aio.o elf_aux.o file.o process.o signal.o start_up.o time.o tt.o \
 	tty.o
 
+elf_aux.o: $(ARCH_DIR)/kernel-offsets.h
+CFLAGS_elf_aux.o += -I$(objtree)/arch/um
+
 CFLAGS_user_syms.o += -DSUBARCH_$(SUBARCH)
 
 HAVE_AIO_ABI := $(shell [ -r /usr/include/linux/aio_abi.h ] && \

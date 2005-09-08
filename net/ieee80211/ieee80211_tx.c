@@ -45,9 +45,7 @@
 
 #include <net/ieee80211.h>
 
-
 /*
-
 
 802.11 Data Frame
 
@@ -81,7 +79,6 @@ Desc. | IV  | Encrypted | ICV |
       |     | IP Packet |     |
       `-----------------------'
 Total: 8 non-data bytes
-
 
 802.3 Ethernet Data Frame
 
@@ -131,7 +128,7 @@ payload of each frame is reduced to 492 bytes.
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-static inline int ieee80211_put_snap(u8 *data, u16 h_proto)
+static inline int ieee80211_put_snap(u8 * data, u16 h_proto)
 {
 	struct ieee80211_snap_hdr *snap;
 	u8 *oui;
@@ -149,17 +146,15 @@ static inline int ieee80211_put_snap(u8 *data, u16 h_proto)
 	snap->oui[1] = oui[1];
 	snap->oui[2] = oui[2];
 
-	*(u16 *)(data + SNAP_SIZE) = htons(h_proto);
+	*(u16 *) (data + SNAP_SIZE) = htons(h_proto);
 
 	return SNAP_SIZE + sizeof(u16);
 }
 
-static inline int ieee80211_encrypt_fragment(
-	struct ieee80211_device *ieee,
-	struct sk_buff *frag,
-	int hdr_len)
+static inline int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
+					     struct sk_buff *frag, int hdr_len)
 {
-	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
+	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP
@@ -167,7 +162,7 @@ static inline int ieee80211_encrypt_fragment(
 
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct ieee80211_hdr *) frag->data;
+		header = (struct ieee80211_hdr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to " MAC_FMT "\n",
@@ -200,8 +195,8 @@ static inline int ieee80211_encrypt_fragment(
 	return 0;
 }
 
-
-void ieee80211_txb_free(struct ieee80211_txb *txb) {
+void ieee80211_txb_free(struct ieee80211_txb *txb)
+{
 	int i;
 	if (unlikely(!txb))
 		return;
@@ -216,9 +211,8 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 {
 	struct ieee80211_txb *txb;
 	int i;
-	txb = kmalloc(
-		sizeof(struct ieee80211_txb) + (sizeof(u8*) * nr_frags),
-		gfp_mask);
+	txb = kmalloc(sizeof(struct ieee80211_txb) + (sizeof(u8 *) * nr_frags),
+		      gfp_mask);
 	if (!txb)
 		return NULL;
 
@@ -243,8 +237,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 }
 
 /* SKBs are added to the ieee->tx_queue. */
-int ieee80211_xmit(struct sk_buff *skb,
-		   struct net_device *dev)
+int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
@@ -255,21 +248,20 @@ int ieee80211_xmit(struct sk_buff *skb,
 	int ether_type, encrypt;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
-	struct ieee80211_hdr header = { /* Ensure zero initialized */
+	struct ieee80211_hdr header = {	/* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	/* If there is no driver handler to take the TXB, dont' bother
 	 * creating it... */
 	if (!ieee->hard_start_xmit) {
-		printk(KERN_WARNING "%s: No xmit handler.\n",
-		       ieee->dev->name);
+		printk(KERN_WARNING "%s: No xmit handler.\n", ieee->dev->name);
 		goto success;
 	}
 
@@ -284,7 +276,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 	crypt = ieee->crypt[ieee->tx_keyidx];
 
 	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
-		ieee->host_encrypt && crypt && crypt->ops;
+	    ieee->host_encrypt && crypt && crypt->ops;
 
 	if (!encrypt && ieee->ieee802_1x &&
 	    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
@@ -294,7 +286,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 
 	/* Save source and destination addresses */
 	memcpy(&dest, skb->data, ETH_ALEN);
-	memcpy(&src, skb->data+ETH_ALEN, ETH_ALEN);
+	memcpy(&src, skb->data + ETH_ALEN, ETH_ALEN);
 
 	/* Advance the SKB to the start of the payload */
 	skb_pull(skb, sizeof(struct ethhdr));
@@ -304,7 +296,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 
 	if (encrypt)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
-			IEEE80211_FCTL_PROTECTED;
+		    IEEE80211_FCTL_PROTECTED;
 	else
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
 
@@ -327,8 +319,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 
 	/* Determine fragmentation size based on destination (multicast
 	 * and broadcast are not fragmented) */
-	if (is_multicast_ether_addr(dest) ||
-	    is_broadcast_ether_addr(dest))
+	if (is_multicast_ether_addr(dest) || is_broadcast_ether_addr(dest))
 		frag_size = MAX_FRAG_THRESHOLD;
 	else
 		frag_size = ieee->fts;
@@ -345,7 +336,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 	/* Each fragment may need to have room for encryptiong pre/postfix */
 	if (encrypt)
 		bytes_per_frag -= crypt->ops->extra_prefix_len +
-			crypt->ops->extra_postfix_len;
+		    crypt->ops->extra_postfix_len;
 
 	/* Number of fragments is the total bytes_per_frag /
 	 * payload_per_fragment */
@@ -380,19 +371,19 @@ int ieee80211_xmit(struct sk_buff *skb,
 		/* If this is not the last fragment, then add the MOREFRAGS
 		 * bit to the frame control */
 		if (i != nr_frags - 1) {
-			frag_hdr->frame_ctl = cpu_to_le16(
-				fc | IEEE80211_FCTL_MOREFRAGS);
+			frag_hdr->frame_ctl =
+			    cpu_to_le16(fc | IEEE80211_FCTL_MOREFRAGS);
 			bytes = bytes_per_frag;
 		} else {
 			/* The last fragment takes the remaining length */
 			bytes = bytes_last_frag;
 		}
 
-	       	/* Put a SNAP header on the first fragment */
+		/* Put a SNAP header on the first fragment */
 		if (i == 0) {
-			ieee80211_put_snap(
-				skb_put(skb_frag, SNAP_SIZE + sizeof(u16)),
-				ether_type);
+			ieee80211_put_snap(skb_put
+					   (skb_frag, SNAP_SIZE + sizeof(u16)),
+					   ether_type);
 			bytes -= SNAP_SIZE + sizeof(u16);
 		}
 
@@ -410,14 +401,13 @@ int ieee80211_xmit(struct sk_buff *skb,
 			skb_put(skb_frag, 4);
 	}
 
-
- success:
+      success:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
 	dev_kfree_skb_any(skb);
 
 	if (txb) {
-		if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
+		if ((*ieee->hard_start_xmit) (txb, dev) == 0) {
 			stats->tx_packets++;
 			stats->tx_bytes += txb->payload_size;
 			return 0;
@@ -427,7 +417,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 
 	return 0;
 
- failed:
+      failed:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	netif_stop_queue(dev);
 	stats->tx_errors++;

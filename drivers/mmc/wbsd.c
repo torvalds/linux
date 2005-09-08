@@ -720,11 +720,28 @@ static void wbsd_prepare_data(struct wbsd_host* host, struct mmc_data* data)
 	 * calculate CRC.
 	 *
 	 * Space for CRC must be included in the size.
+	 * Two bytes are needed for each data line.
 	 */
-	blksize = (1 << data->blksz_bits) + 2;
+	if (host->bus_width == MMC_BUS_WIDTH_1)
+	{
+		blksize = (1 << data->blksz_bits) + 2;
+
+		wbsd_write_index(host, WBSD_IDX_PBSMSB, (blksize >> 4) & 0xF0);
+		wbsd_write_index(host, WBSD_IDX_PBSLSB, blksize & 0xFF);
+	}
+	else if (host->bus_width == MMC_BUS_WIDTH_4)
+	{
+		blksize = (1 << data->blksz_bits) + 2 * 4;
 	
-	wbsd_write_index(host, WBSD_IDX_PBSMSB, (blksize >> 4) & 0xF0);
-	wbsd_write_index(host, WBSD_IDX_PBSLSB, blksize & 0xFF);
+		wbsd_write_index(host, WBSD_IDX_PBSMSB, ((blksize >> 4) & 0xF0)
+			| WBSD_DATA_WIDTH);
+		wbsd_write_index(host, WBSD_IDX_PBSLSB, blksize & 0xFF);
+	}
+	else
+	{
+		data->error = MMC_ERR_INVALID;
+		return;
+	}
 
 	/*
 	 * Clear the FIFO. This is needed even for DMA
@@ -960,9 +977,9 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	struct wbsd_host* host = mmc_priv(mmc);
 	u8 clk, setup, pwr;
 	
-	DBGF("clock %uHz busmode %u powermode %u cs %u Vdd %u\n",
-		ios->clock, ios->bus_mode, ios->power_mode, ios->chip_select,
-		ios->vdd);
+	DBGF("clock %uHz busmode %u powermode %u cs %u Vdd %u width %u\n",
+	     ios->clock, ios->bus_mode, ios->power_mode, ios->chip_select,
+	     ios->vdd, ios->bus_width);
 
 	spin_lock_bh(&host->lock);
 
@@ -1010,6 +1027,7 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	setup = wbsd_read_index(host, WBSD_IDX_SETUP);
 	if (ios->chip_select == MMC_CS_HIGH)
 	{
+		BUG_ON(ios->bus_width != MMC_BUS_WIDTH_1);
 		setup |= WBSD_DAT3_H;
 		host->flags |= WBSD_FIGNORE_DETECT;
 	}
@@ -1025,12 +1043,41 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	}
 	wbsd_write_index(host, WBSD_IDX_SETUP, setup);
 	
+	/*
+	 * Store bus width for later. Will be used when
+	 * setting up the data transfer.
+	 */
+	host->bus_width = ios->bus_width;
+
 	spin_unlock_bh(&host->lock);
+}
+
+static int wbsd_get_ro(struct mmc_host* mmc)
+{
+	struct wbsd_host* host = mmc_priv(mmc);
+	u8 csr;
+
+	spin_lock_bh(&host->lock);
+
+	csr = inb(host->base + WBSD_CSR);
+	csr |= WBSD_MSLED;
+	outb(csr, host->base + WBSD_CSR);
+
+	mdelay(1);
+
+	csr = inb(host->base + WBSD_CSR);
+	csr &= ~WBSD_MSLED;
+	outb(csr, host->base + WBSD_CSR);
+
+	spin_unlock_bh(&host->lock);
+
+	return csr & WBSD_WRPT;
 }
 
 static struct mmc_host_ops wbsd_ops = {
 	.request	= wbsd_request,
 	.set_ios	= wbsd_set_ios,
+	.get_ro		= wbsd_get_ro,
 };
 
 /*****************************************************************************\
@@ -1355,6 +1402,7 @@ static int __devinit wbsd_alloc_mmc(struct device* dev)
 	mmc->f_min = 375000;
 	mmc->f_max = 24000000;
 	mmc->ocr_avail = MMC_VDD_32_33|MMC_VDD_33_34;
+	mmc->caps = MMC_CAP_4_BIT_DATA;
 	
 	spin_lock_init(&host->lock);
 	

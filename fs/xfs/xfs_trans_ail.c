@@ -379,8 +379,8 @@ xfs_trans_delete_ail(
 		else {
 			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
 				"xfs_trans_delete_ail: attempting to delete a log item that is not in the AIL");
-			xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
 			AIL_UNLOCK(mp, s);
+			xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
 		}
 	}
 }

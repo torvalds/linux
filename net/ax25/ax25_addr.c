@@ -36,9 +36,8 @@ ax25_address null_ax25_address = {{0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x00}};
 /*
  *	ax25 -> ascii conversion
  */
-char *ax2asc(ax25_address *a)
+char *ax2asc(char *buf, ax25_address *a)
 {
-	static char buf[11];
 	char c, *s;
 	int n;
 

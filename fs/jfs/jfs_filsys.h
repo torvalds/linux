@@ -37,6 +37,9 @@
 #define JFS_ERR_CONTINUE   0x00000004   /* continue */
 #define JFS_ERR_PANIC      0x00000008   /* panic */
 
+#define	JFS_USRQUOTA	0x00000010
+#define	JFS_GRPQUOTA	0x00000020
+
 /* platform option (conditional compilation) */
 #define JFS_AIX		0x80000000	/* AIX support */
 /*	POSIX name/directory  support */

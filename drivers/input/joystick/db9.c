@@ -572,7 +572,7 @@ static struct db9 __init *db9_probe(int *config, int nargs)
 		}
 	}
 
-	if (!(db9 = kcalloc(1, sizeof(struct db9), GFP_KERNEL))) {
+	if (!(db9 = kzalloc(sizeof(struct db9), GFP_KERNEL))) {
 		parport_put_port(pp);
 		return NULL;
 	}
