@@ -12,6 +12,7 @@
 
 #include <asm/fpu.h>
 #include <asm/page.h>
+#include <asm/auxvec.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -176,13 +177,6 @@ extern void ia64_elf_core_copy_regs (struct pt_regs *src, elf_gregset_t dst);
    implementation specific libraries for optimization.  Not terribly
    relevant until we have real hardware to play with... */
 #define ELF_PLATFORM	NULL
-
-/*
- * Architecture-neutral AT_ values are in the range 0-17.  Leave some room for more of
- * them, start the architecture-specific ones at 32.
- */
-#define AT_SYSINFO	32
-#define AT_SYSINFO_EHDR	33
 
 #ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2)	set_personality(PER_LINUX)

@@ -711,6 +711,7 @@ enum {
 	DEV_RAID=4,
 	DEV_MAC_HID=5,
 	DEV_SCSI=6,
+	DEV_IPMI=7,
 };
 
 /* /proc/sys/dev/cdrom */
@@ -774,6 +775,11 @@ enum {
 /* /proc/sys/dev/scsi */
 enum {
 	DEV_SCSI_LOGGING_LEVEL=1,
+};
+
+/* /proc/sys/dev/ipmi */
+enum {
+	DEV_IPMI_POWEROFF_POWERCYCLE=1,
 };
 
 /* /proc/sys/abi */

@@ -17,10 +17,6 @@ ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS		+=-fno-omit-frame-pointer -mno-sched-prolog
 endif
 
-ifeq ($(CONFIG_DEBUG_INFO),y)
-CFLAGS		+=-g
-endif
-
 CFLAGS_BOOT	:=-mapcs-26 -mcpu=arm3 -msoft-float -Uarm
 CFLAGS		+=-mapcs-26 -mcpu=arm3 -msoft-float -Uarm
 AFLAGS		+=-mapcs-26 -mcpu=arm3 -msoft-float

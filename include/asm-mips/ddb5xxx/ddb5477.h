@@ -247,7 +247,7 @@ extern void ll_vrc5477_irq_disable(int vrc5477_irq);
  *  All PCI irq but INTC are active low.
  */
 
-/* 
+/*
  * irq number block assignment
  */
 
@@ -285,7 +285,7 @@ extern void ll_vrc5477_irq_disable(int vrc5477_irq);
 #define VRC5477_IRQ_IOPCI_INTB	(17 + VRC5477_IRQ_BASE)      /* USB-P */
 #define VRC5477_IRQ_IOPCI_INTC	(18 + VRC5477_IRQ_BASE)      /* AC97 */
 #define VRC5477_IRQ_IOPCI_INTD	(19 + VRC5477_IRQ_BASE)      /* Reserved */
-#define VRC5477_IRQ_UART1	(20 + VRC5477_IRQ_BASE)     
+#define VRC5477_IRQ_UART1	(20 + VRC5477_IRQ_BASE)
 #define VRC5477_IRQ_SPT0	(21 + VRC5477_IRQ_BASE)      /* special purpose timer 0 */
 #define VRC5477_IRQ_GPT0	(22 + VRC5477_IRQ_BASE)      /* general purpose timer 0 */
 #define VRC5477_IRQ_GPT1	(23 + VRC5477_IRQ_BASE)      /* general purpose timer 1 */
@@ -301,7 +301,7 @@ extern void ll_vrc5477_irq_disable(int vrc5477_irq);
 /*
  * i2859 irq assignment
  */
-#define I8259_IRQ_RESERVED_0	(0 + I8259_IRQ_BASE)	
+#define I8259_IRQ_RESERVED_0	(0 + I8259_IRQ_BASE)
 #define I8259_IRQ_KEYBOARD	(1 + I8259_IRQ_BASE)	/* M1543 default */
 #define I8259_IRQ_CASCADE	(2 + I8259_IRQ_BASE)
 #define I8259_IRQ_UART_B	(3 + I8259_IRQ_BASE)	/* M1543 default, may conflict with RTC according to schematic diagram  */

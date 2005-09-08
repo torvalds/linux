@@ -79,8 +79,8 @@ static struct sci_port *serial_console_port = 0;
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
 /* Function prototypes */
-static void sci_stop_tx(struct uart_port *port, unsigned int tty_stop);
-static void sci_start_tx(struct uart_port *port, unsigned int tty_start);
+static void sci_stop_tx(struct uart_port *port);
+static void sci_start_tx(struct uart_port *port);
 static void sci_start_rx(struct uart_port *port, unsigned int tty_start);
 static void sci_stop_rx(struct uart_port *port);
 static int sci_request_irq(struct sci_port *port);
@@ -455,7 +455,7 @@ static void sci_transmit_chars(struct uart_port *port)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 	if (uart_circ_empty(xmit)) {
-		sci_stop_tx(port, 0);
+		sci_stop_tx(port);
 	} else {
 		local_irq_save(flags);
 		ctrl = sci_in(port, SCSCR);
@@ -900,7 +900,7 @@ static unsigned int sci_get_mctrl(struct uart_port *port)
 	return TIOCM_DTR | TIOCM_RTS | TIOCM_DSR;
 }
 
-static void sci_start_tx(struct uart_port *port, unsigned int tty_start)
+static void sci_start_tx(struct uart_port *port)
 {
 	struct sci_port *s = &sci_ports[port->line];
 
@@ -909,7 +909,7 @@ static void sci_start_tx(struct uart_port *port, unsigned int tty_start)
 	enable_irq(s->irqs[SCIx_TXI_IRQ]);
 }
 
-static void sci_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void sci_stop_tx(struct uart_port *port)
 {
 	unsigned long flags;
 	unsigned short ctrl;
@@ -978,7 +978,7 @@ static void sci_shutdown(struct uart_port *port)
 	struct sci_port *s = &sci_ports[port->line];
 
 	sci_stop_rx(port);
-	sci_stop_tx(port, 1);
+	sci_stop_tx(port);
 	sci_free_irq(s);
 
 #if defined(__H8300S__)

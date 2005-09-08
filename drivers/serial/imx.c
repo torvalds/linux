@@ -124,7 +124,7 @@ static void imx_timeout(unsigned long data)
 /*
  * interrupts disabled on entry
  */
-static void imx_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void imx_stop_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	UCR1((u32)sport->port.membase) &= ~UCR1_TXMPTYEN;
@@ -165,13 +165,13 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	} while (!(UTS((u32)sport->port.membase) & UTS_TXFULL));
 
 	if (uart_circ_empty(xmit))
-		imx_stop_tx(&sport->port, 0);
+		imx_stop_tx(&sport->port);
 }
 
 /*
  * interrupts disabled on entry
  */
-static void imx_start_tx(struct uart_port *port, unsigned int tty_start)
+static void imx_start_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 
@@ -196,7 +196,7 @@ static irqreturn_t imx_txint(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
-		imx_stop_tx(&sport->port, 0);
+		imx_stop_tx(&sport->port);
 		goto out;
 	}
 
@@ -291,13 +291,31 @@ static unsigned int imx_tx_empty(struct uart_port *port)
 	return USR2((u32)sport->port.membase) & USR2_TXDC ?  TIOCSER_TEMT : 0;
 }
 
+/*
+ * We have a modem side uart, so the meanings of RTS and CTS are inverted.
+ */
 static unsigned int imx_get_mctrl(struct uart_port *port)
 {
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+        struct imx_port *sport = (struct imx_port *)port;
+        unsigned int tmp = TIOCM_DSR | TIOCM_CAR;
+
+        if (USR1((u32)sport->port.membase) & USR1_RTSS)
+                tmp |= TIOCM_CTS;
+
+        if (UCR2((u32)sport->port.membase) & UCR2_CTS)
+                tmp |= TIOCM_RTS;
+
+        return tmp;
 }
 
 static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+        struct imx_port *sport = (struct imx_port *)port;
+
+        if (mctrl & TIOCM_RTS)
+                UCR2((u32)sport->port.membase) |= UCR2_CTS;
+        else
+                UCR2((u32)sport->port.membase) &= ~UCR2_CTS;
 }
 
 /*

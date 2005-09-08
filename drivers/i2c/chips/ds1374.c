@@ -53,7 +53,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c = normal_addr,
 	.probe = ignore,
 	.ignore = ignore,
-	.force = ignore,
 };
 
 static ulong ds1374_read_rtc(void)
@@ -166,7 +165,7 @@ static void ds1374_set_tlet(ulong arg)
 			 "can't confirm time set from rtc chip\n");
 }
 
-ulong new_time;
+static ulong new_time;
 
 DECLARE_TASKLET_DISABLED(ds1374_tasklet, ds1374_set_tlet, (ulong) & new_time);
 

@@ -198,9 +198,10 @@ int page_is_ram(unsigned long pagenr)
 
 	if (efi_enabled) {
 		efi_memory_desc_t *md;
+		void *p;
 
-		for (i = 0; i < memmap.nr_map; i++) {
-			md = &memmap.map[i];
+		for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+			md = p;
 			if (!is_available_memory(md))
 				continue;
 			addr = (md->phys_addr+PAGE_SIZE-1) >> PAGE_SHIFT;
@@ -348,7 +349,7 @@ static void __init pagetable_init (void)
 	 * All user-space mappings are explicitly cleared after
 	 * SMP startup.
 	 */
-	pgd_base[0] = pgd_base[USER_PTRS_PER_PGD];
+	set_pgd(&pgd_base[0], pgd_base[USER_PTRS_PER_PGD]);
 #endif
 }
 
@@ -392,7 +393,7 @@ void zap_low_mappings (void)
 }
 
 static int disable_nx __initdata = 0;
-u64 __supported_pte_mask = ~_PAGE_NX;
+u64 __supported_pte_mask __read_mostly = ~_PAGE_NX;
 
 /*
  * noexec = on|off

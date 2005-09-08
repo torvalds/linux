@@ -986,7 +986,7 @@ static const char * chip_ids[ 16 ] =  {
 	})
 #endif
 
-#if SMC_CAN_USE_DATACS
+#ifdef SMC_CAN_USE_DATACS
 #define SMC_PUSH_DATA(p, l)						\
 	if ( lp->datacs ) {						\
 		unsigned char *__ptr = (p);				\

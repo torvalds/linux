@@ -109,7 +109,7 @@ void PMON_v2_setup(void)
 	*/
   printk("PMON_v2_setup\n");
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	/* marvell and extra space */
 	add_wired_entry(ENTRYLO(0xf4000000), ENTRYLO(0xf4010000), 0xfffffffff4000000, PM_64K);
 	/* fpga, rtc, and uart */
@@ -134,7 +134,7 @@ void PMON_v2_setup(void)
 
 unsigned long m48t37y_get_time(void)
 {
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	unsigned char *rtc_base = (unsigned char*)0xfffffffffc800000;
 #else
 	unsigned char* rtc_base = (unsigned char*)0xfc800000;
@@ -163,7 +163,7 @@ unsigned long m48t37y_get_time(void)
 
 int m48t37y_set_time(unsigned long sec)
 {
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	unsigned char* rtc_base = (unsigned char*)0xfffffffffc800000;
 #else
 	unsigned char* rtc_base = (unsigned char*)0xfc800000;
@@ -342,7 +342,7 @@ static void __init momenco_ocelot_c_setup(void)
 
 early_initcall(momenco_ocelot_c_setup);
 
-#ifndef CONFIG_MIPS64
+#ifndef CONFIG_64BIT
 /* This needs to be one of the first initcalls, because no I/O port access
    can work before this */
 static int io_base_ioremap(void)

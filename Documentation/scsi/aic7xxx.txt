@@ -1,5 +1,5 @@
 ====================================================================
-=    Adaptec Aic7xxx Fast -> Ultra160 Family Manager Set v6.2.28   =
+=    Adaptec Aic7xxx Fast -> Ultra160 Family Manager Set v7.0      =
 =                            README for                            =
 =                     The Linux Operating System                   =
 ====================================================================
@@ -131,6 +131,10 @@ The following information is available in this file:
       SCSI "stub" effects.
 
 2. Version History
+   7.0	  (4th August, 2005)
+	- Updated driver to use SCSI transport class infrastructure
+	- Upported sequencer and core fixes from last adaptec released
+	  version of the driver.
    6.2.36 (June 3rd, 2003)
         - Correct code that disables PCI parity error checking.
         - Correct and simplify handling of the ignore wide residue

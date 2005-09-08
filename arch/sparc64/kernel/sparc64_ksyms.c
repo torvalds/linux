@@ -88,8 +88,6 @@ extern int svr4_setcontext(svr4_ucontext_t *uc, struct pt_regs *regs);
 extern int compat_sys_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
 extern int (*handle_mathemu)(struct pt_regs *, struct fpustate *);
 extern long sparc32_open(const char __user * filename, int flags, int mode);
-extern int io_remap_page_range(struct vm_area_struct *vma, unsigned long from,
-	unsigned long offset, unsigned long size, pgprot_t prot, int space);
 extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	unsigned long pfn, unsigned long size, pgprot_t prot);
 extern void (*prom_palette)(int);
@@ -245,7 +243,6 @@ EXPORT_SYMBOL(pci_dma_supported);
 #endif
 
 /* I/O device mmaping on Sparc64. */
-EXPORT_SYMBOL(io_remap_page_range);
 EXPORT_SYMBOL(io_remap_pfn_range);
 
 /* Solaris/SunOS binary compatibility */

@@ -170,7 +170,7 @@ sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 		irq += IRQ_SIC_START;
 
 		desc = irq_desc + irq;
-		desc->handle(irq, desc, regs);
+		desc_handle_irq(irq, desc, regs);
 	} while (status);
 }
 

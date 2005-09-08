@@ -23,7 +23,8 @@ void cpuset_init_current_mems_allowed(void);
 void cpuset_update_current_mems_allowed(void);
 void cpuset_restrict_to_mems_allowed(unsigned long *nodes);
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl);
-int cpuset_zone_allowed(struct zone *z);
+extern int cpuset_zone_allowed(struct zone *z, unsigned int __nocast gfp_mask);
+extern int cpuset_excl_nodes_overlap(const struct task_struct *p);
 extern struct file_operations proc_cpuset_operations;
 extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
 
@@ -48,7 +49,13 @@ static inline int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	return 1;
 }
 
-static inline int cpuset_zone_allowed(struct zone *z)
+static inline int cpuset_zone_allowed(struct zone *z,
+					unsigned int __nocast gfp_mask)
+{
+	return 1;
+}
+
+static inline int cpuset_excl_nodes_overlap(const struct task_struct *p)
 {
 	return 1;
 }

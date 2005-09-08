@@ -2,6 +2,10 @@
 # Makefile for the Linux Wireless network device drivers.
 #
 
+obj-$(CONFIG_IPW2100) += ipw2100.o
+
+obj-$(CONFIG_IPW2200) += ipw2200.o
+
 obj-$(CONFIG_STRIP) += strip.o
 obj-$(CONFIG_ARLAN) += arlan.o 
 
@@ -18,6 +22,8 @@ obj-$(CONFIG_APPLE_AIRPORT)	+= airport.o
 obj-$(CONFIG_PLX_HERMES)	+= orinoco_plx.o
 obj-$(CONFIG_PCI_HERMES)	+= orinoco_pci.o
 obj-$(CONFIG_TMD_HERMES)	+= orinoco_tmd.o
+obj-$(CONFIG_NORTEL_HERMES)	+= orinoco_nortel.o
+obj-$(CONFIG_PCMCIA_SPECTRUM)	+= spectrum_cs.o
 
 obj-$(CONFIG_AIRO)		+= airo.o
 obj-$(CONFIG_AIRO_CS)		+= airo_cs.o airo.o
@@ -27,6 +33,8 @@ obj-$(CONFIG_PCI_ATMEL)         += atmel_pci.o
 obj-$(CONFIG_PCMCIA_ATMEL)      += atmel_cs.o
 
 obj-$(CONFIG_PRISM54)		+= prism54/
+
+obj-$(CONFIG_HOSTAP)		+= hostap/
 
 # 16-bit wireless PCMCIA client drivers
 obj-$(CONFIG_PCMCIA_RAYCS)	+= ray_cs.o

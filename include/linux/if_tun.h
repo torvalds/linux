@@ -77,6 +77,7 @@ struct tun_struct {
 #define TUNSETIFF     _IOW('T', 202, int) 
 #define TUNSETPERSIST _IOW('T', 203, int) 
 #define TUNSETOWNER   _IOW('T', 204, int)
+#define TUNSETLINK    _IOW('T', 205, int)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001

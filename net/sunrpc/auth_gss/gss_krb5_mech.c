@@ -185,12 +185,9 @@ static void
 gss_delete_sec_context_kerberos(void *internal_ctx) {
 	struct krb5_ctx *kctx = internal_ctx;
 
-	if (kctx->seq)
-		crypto_free_tfm(kctx->seq);
-	if (kctx->enc)
-		crypto_free_tfm(kctx->enc);
-	if (kctx->mech_used.data)
-		kfree(kctx->mech_used.data);
+	crypto_free_tfm(kctx->seq);
+	crypto_free_tfm(kctx->enc);
+	kfree(kctx->mech_used.data);
 	kfree(kctx);
 }
 

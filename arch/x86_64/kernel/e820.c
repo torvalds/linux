@@ -85,7 +85,7 @@ int __init e820_mapped(unsigned long start, unsigned long end, unsigned type)
 		struct e820entry *ei = &e820.map[i]; 
 		if (type && ei->type != type) 
 			continue;
-		if (ei->addr >= end || ei->addr + ei->size < start) 
+		if (ei->addr >= end || ei->addr + ei->size <= start)
 			continue; 
 		return 1; 
 	} 

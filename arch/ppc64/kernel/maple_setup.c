@@ -207,9 +207,6 @@ static void __init maple_init_early(void)
 		comport = (void *)ioremap(physport, 16);
 		udbg_init_uart(comport, default_speed);
 
-		ppc_md.udbg_putc = udbg_putc;
-		ppc_md.udbg_getc = udbg_getc;
-		ppc_md.udbg_getc_poll = udbg_getc_poll;
 		DBG("Hello World !\n");
 	}
 

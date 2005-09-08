@@ -1533,7 +1533,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	if (down_interruptible (&dev->sem))
 		return -ERESTARTSYS;
 
-	if (intf->dev.power.power_state != PMSG_ON) {
+	if (intf->dev.power.power_state.event != PM_EVENT_ON) {
 		up (&dev->sem);
 		return -EHOSTUNREACH;
 	}

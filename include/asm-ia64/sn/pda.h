@@ -39,7 +39,6 @@ typedef struct pda_s {
 	unsigned long pio_write_status_val;
 	volatile unsigned long *pio_shub_war_cam_addr;
 
-	unsigned long	sn_soft_irr[4];
 	unsigned long	sn_in_service_ivecs[4];
 	int		sn_lb_int_war_ticks;
 	int		sn_last_irq;

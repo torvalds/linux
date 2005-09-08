@@ -33,7 +33,7 @@
 #include "cfe_error.h"
 
 /* Max ram addressable in 32-bit segments */
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define MAX_RAM_SIZE (~0ULL)
 #else
 #ifdef CONFIG_HIGHMEM
@@ -285,7 +285,7 @@ void __init prom_init(void)
 		while (1) ;
 	}
 	cfe_init(cfe_handle, cfe_ept);
-	/* 
+	/*
 	 * Get the handle for (at least) prom_putchar, possibly for
 	 * boot console
 	 */

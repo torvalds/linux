@@ -321,7 +321,7 @@ plaintext_to_sha1(unsigned char *hash, const char *plaintext, int len)
 			      "bytes.\n", len, PAGE_SIZE);
 		return -ENOMEM;
 	}
-	tfm = crypto_alloc_tfm("sha1", 0);
+	tfm = crypto_alloc_tfm("sha1", CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (tfm == NULL) {
 		seclvl_printk(0, KERN_ERR,
 			      "Failed to load transform for SHA1\n");

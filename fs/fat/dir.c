@@ -30,6 +30,29 @@ static inline loff_t fat_make_i_pos(struct super_block *sb,
 		| (de - (struct msdos_dir_entry *)bh->b_data);
 }
 
+static inline void fat_dir_readahead(struct inode *dir, sector_t iblock,
+				     sector_t phys)
+{
+	struct super_block *sb = dir->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct buffer_head *bh;
+	int sec;
+
+	/* This is not a first sector of cluster, or sec_per_clus == 1 */
+	if ((iblock & (sbi->sec_per_clus - 1)) || sbi->sec_per_clus == 1)
+		return;
+	/* root dir of FAT12/FAT16 */
+	if ((sbi->fat_bits != 32) && (dir->i_ino == MSDOS_ROOT_INO))
+		return;
+
+	bh = sb_getblk(sb, phys);
+	if (bh && !buffer_uptodate(bh)) {
+		for (sec = 0; sec < sbi->sec_per_clus; sec++)
+			sb_breadahead(sb, phys + sec);
+	}
+	brelse(bh);
+}
+
 /* Returns the inode number of the directory entry at offset pos. If bh is
    non-NULL, it is brelse'd before. Pos is incremented. The buffer header is
    returned in bh.
@@ -57,6 +80,8 @@ next:
 	err = fat_bmap(dir, iblock, &phys);
 	if (err || !phys)
 		return -1;	/* beyond EOF or error */
+
+	fat_dir_readahead(dir, iblock, phys);
 
 	*bh = sb_bread(sb, phys);
 	if (*bh == NULL) {
@@ -635,8 +660,7 @@ RecEnd:
 EODir:
 	filp->f_pos = cpos;
 FillFailed:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 	if (unicode)
 		free_page((unsigned long)unicode);
 out:

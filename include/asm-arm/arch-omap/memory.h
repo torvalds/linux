@@ -36,12 +36,11 @@
 /*
  * Physical DRAM offset.
  */
+#if defined(CONFIG_ARCH_OMAP1)
 #define PHYS_OFFSET		(0x10000000UL)
-
-/*
- * OMAP-1510 Local Bus address offset
- */
-#define OMAP1510_LB_OFFSET	(0x30000000UL)
+#elif defined(CONFIG_ARCH_OMAP2)
+#define PHYS_OFFSET		(0x80000000UL)
+#endif
 
 /*
  * Conversion between SDRAM and fake PCI bus, used by USB
@@ -63,6 +62,11 @@
  * because of the strncmp().
  */
 #ifdef CONFIG_ARCH_OMAP1510
+
+/*
+ * OMAP-1510 Local Bus address offset
+ */
+#define OMAP1510_LB_OFFSET	(0x30000000UL)
 
 #define virt_to_lbus(x)		((x) - PAGE_OFFSET + OMAP1510_LB_OFFSET)
 #define lbus_to_virt(x)		((x) - OMAP1510_LB_OFFSET + PAGE_OFFSET)

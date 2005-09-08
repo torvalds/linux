@@ -560,9 +560,10 @@ void flush_dcache_page(struct page *page)
 void flush_dcache_icache_page(struct page *page)
 {
 #ifdef CONFIG_BOOKE
-	__flush_dcache_icache(kmap(page));
-	kunmap(page);
-#elif CONFIG_8xx
+	void *start = kmap_atomic(page, KM_PPC_SYNC_ICACHE);
+	__flush_dcache_icache(start);
+	kunmap_atomic(start, KM_PPC_SYNC_ICACHE);
+#elif defined(CONFIG_8xx)
 	/* On 8xx there is no need to kmap since highmem is not supported */
 	__flush_dcache_icache(page_address(page)); 
 #else

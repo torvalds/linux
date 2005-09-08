@@ -27,5 +27,5 @@ reldate:
 	.word	TIMESTAMP
 
 	.org	0x50
-release:	
+release:
 	.string VERSION

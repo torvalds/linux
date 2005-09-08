@@ -423,18 +423,16 @@ static int
 mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct mv64xxx_i2c_data *drv_data = i2c_get_adapdata(adap);
-	int	i, rc = 0;
+	int	i, rc;
 
 	for (i=0; i<num; i++)
-		if ((rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i])) != 0)
-			break;
+		if ((rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i])) < 0)
+			return rc;
 
-	return rc;
+	return num;
 }
 
 static struct i2c_algorithm mv64xxx_i2c_algo = {
-	.name = MV64XXX_I2C_CTLR_NAME " algorithm",
-	.id = I2C_ALGO_MV64XXX,
 	.master_xfer = mv64xxx_i2c_xfer,
 	.functionality = mv64xxx_i2c_functionality,
 };
@@ -523,7 +521,7 @@ mv64xxx_i2c_probe(struct device *dev)
 	drv_data->freq_m = pdata->freq_m;
 	drv_data->freq_n = pdata->freq_n;
 	drv_data->irq = platform_get_irq(pd, 0);
-	drv_data->adapter.id = I2C_ALGO_MV64XXX | I2C_HW_MV64XXX;
+	drv_data->adapter.id = I2C_HW_MV64XXX;
 	drv_data->adapter.algo = &mv64xxx_i2c_algo;
 	drv_data->adapter.owner = THIS_MODULE;
 	drv_data->adapter.class = I2C_CLASS_HWMON;

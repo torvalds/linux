@@ -93,6 +93,12 @@ w83627hf_init(void)
 
 	w83627hf_select_wd_register();
 
+	outb_p(0xF6, WDT_EFER); /* Select CRF6 */
+	t=inb_p(WDT_EFDR);      /* read CRF6 */
+	if (t != 0) {
+		printk (KERN_INFO PFX "Watchdog already running. Resetting timeout to %d sec\n", timeout);
+		outb_p(timeout, WDT_EFDR);    /* Write back to CRF6 */
+	}
 	outb_p(0xF5, WDT_EFER); /* Select CRF5 */
 	t=inb_p(WDT_EFDR);      /* read CRF5 */
 	t&=~0x0C;               /* set second mode & disable keyboard turning off watchdog */

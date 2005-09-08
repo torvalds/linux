@@ -13,7 +13,7 @@
 #define _ASM_FPREGDEF_H
 
 #include <asm/sgidefs.h>
-                                                                                
+
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 /*
@@ -56,7 +56,7 @@
 #define fcr31	$31      /* FPU status register */
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
-                                                                                
+
 #if _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32
 
 #define fv0	$f0	/* return value */

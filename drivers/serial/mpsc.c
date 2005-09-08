@@ -1072,18 +1072,18 @@ mpsc_get_mctrl(struct uart_port *port)
 }
 
 static void
-mpsc_stop_tx(struct uart_port *port, uint tty_start)
+mpsc_stop_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
-	pr_debug("mpsc_stop_tx[%d]: tty_start: %d\n", port->line, tty_start);
+	pr_debug("mpsc_stop_tx[%d]\n", port->line);
 
 	mpsc_freeze(pi);
 	return;
 }
 
 static void
-mpsc_start_tx(struct uart_port *port, uint tty_start)
+mpsc_start_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
@@ -1091,7 +1091,7 @@ mpsc_start_tx(struct uart_port *port, uint tty_start)
 	mpsc_copy_tx_data(pi);
 	mpsc_sdma_start_tx(pi);
 
-	pr_debug("mpsc_start_tx[%d]: tty_start: %d\n", port->line, tty_start);
+	pr_debug("mpsc_start_tx[%d]\n", port->line);
 	return;
 }
 

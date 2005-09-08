@@ -248,6 +248,7 @@ xfs_inode_item_format(
 
 	vecp->i_addr = (xfs_caddr_t)&iip->ili_format;
 	vecp->i_len  = sizeof(xfs_inode_log_format_t);
+	XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IFORMAT);
 	vecp++;
 	nvecs	     = 1;
 
@@ -292,6 +293,7 @@ xfs_inode_item_format(
 
 	vecp->i_addr = (xfs_caddr_t)&ip->i_d;
 	vecp->i_len  = sizeof(xfs_dinode_core_t);
+	XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_ICORE);
 	vecp++;
 	nvecs++;
 	iip->ili_format.ilf_fields |= XFS_ILOG_CORE;
@@ -349,6 +351,7 @@ xfs_inode_item_format(
 				vecp->i_addr =
 					(char *)(ip->i_df.if_u1.if_extents);
 				vecp->i_len = ip->i_df.if_bytes;
+				XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IEXT);
 			} else
 #endif
 			{
@@ -367,6 +370,7 @@ xfs_inode_item_format(
 				vecp->i_addr = (xfs_caddr_t)ext_buffer;
 				vecp->i_len = xfs_iextents_copy(ip, ext_buffer,
 						XFS_DATA_FORK);
+				XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IEXT);
 			}
 			ASSERT(vecp->i_len <= ip->i_df.if_bytes);
 			iip->ili_format.ilf_dsize = vecp->i_len;
@@ -384,6 +388,7 @@ xfs_inode_item_format(
 			ASSERT(ip->i_df.if_broot != NULL);
 			vecp->i_addr = (xfs_caddr_t)ip->i_df.if_broot;
 			vecp->i_len = ip->i_df.if_broot_bytes;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IBROOT);
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_dsize = ip->i_df.if_broot_bytes;
@@ -409,6 +414,7 @@ xfs_inode_item_format(
 			ASSERT((ip->i_df.if_real_bytes == 0) ||
 			       (ip->i_df.if_real_bytes == data_bytes));
 			vecp->i_len = (int)data_bytes;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_ILOCAL);
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_dsize = (unsigned)data_bytes;
@@ -486,6 +492,7 @@ xfs_inode_item_format(
 			vecp->i_len = xfs_iextents_copy(ip, ext_buffer,
 					XFS_ATTR_FORK);
 #endif
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IATTR_EXT);
 			iip->ili_format.ilf_asize = vecp->i_len;
 			vecp++;
 			nvecs++;
@@ -500,6 +507,7 @@ xfs_inode_item_format(
 			ASSERT(ip->i_afp->if_broot != NULL);
 			vecp->i_addr = (xfs_caddr_t)ip->i_afp->if_broot;
 			vecp->i_len = ip->i_afp->if_broot_bytes;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IATTR_BROOT);
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_asize = ip->i_afp->if_broot_bytes;
@@ -523,6 +531,7 @@ xfs_inode_item_format(
 			ASSERT((ip->i_afp->if_real_bytes == 0) ||
 			       (ip->i_afp->if_real_bytes == data_bytes));
 			vecp->i_len = (int)data_bytes;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_IATTR_LOCAL);
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_asize = (unsigned)data_bytes;

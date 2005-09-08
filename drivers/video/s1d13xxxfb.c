@@ -655,7 +655,7 @@ bail:
 }
 
 #ifdef CONFIG_PM
-static int s1d13xxxfb_suspend(struct device *dev, u32 state, u32 level)
+static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct s1d13xxxfb_par *s1dfb = info->par;

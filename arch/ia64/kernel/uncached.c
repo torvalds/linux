@@ -184,7 +184,7 @@ uncached_free_page(unsigned long maddr)
 {
 	int node;
 
-	node = nasid_to_cnodeid(NASID_GET(maddr));
+	node = paddr_to_nid(maddr - __IA64_UNCACHED_OFFSET);
 
 	dprintk(KERN_DEBUG "uncached_free_page(%lx) on node %i\n", maddr, node);
 
@@ -217,7 +217,7 @@ uncached_build_memmap(unsigned long start, unsigned long end, void *arg)
 
 	memset((char *)vstart, 0, length);
 
-	node = nasid_to_cnodeid(NASID_GET(start));
+	node = paddr_to_nid(start);
 
 	for (; vstart < vend ; vstart += PAGE_SIZE) {
 		dprintk(KERN_INFO "sticking %lx into the pool!\n", vstart);

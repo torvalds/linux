@@ -317,7 +317,7 @@ static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irqdesc *desc, str
 	for (i = 0; i <= 7; i++) {
 		if (status & (1<<i)) {
 			desc = irq_desc + i + IRQ_IXP2000_GPIO0;
-			desc->handle(i + IRQ_IXP2000_GPIO0, desc, regs);
+			desc_handle_irq(i + IRQ_IXP2000_GPIO0, desc, regs);
 		}
 	}
 }
@@ -380,10 +380,10 @@ static void ixp2000_GPIO_irq_unmask(unsigned int irq)
 }
 
 static struct irqchip ixp2000_GPIO_irq_chip = {
-	.type	= ixp2000_GPIO_irq_type,
-	.ack	= ixp2000_GPIO_irq_mask_ack,
-	.mask	= ixp2000_GPIO_irq_mask,
-	.unmask	= ixp2000_GPIO_irq_unmask
+	.ack		= ixp2000_GPIO_irq_mask_ack,
+	.mask		= ixp2000_GPIO_irq_mask,
+	.unmask		= ixp2000_GPIO_irq_unmask,
+	.set_type	= ixp2000_GPIO_irq_type,
 };
 
 static void ixp2000_pci_irq_mask(unsigned int irq)

@@ -113,7 +113,7 @@ static void jsm_tty_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	udelay(10);
 }
 
-static void jsm_tty_start_tx(struct uart_port *port, unsigned int tty_start)
+static void jsm_tty_start_tx(struct uart_port *port)
 {
 	struct jsm_channel *channel = (struct jsm_channel *)port;
 
@@ -125,7 +125,7 @@ static void jsm_tty_start_tx(struct uart_port *port, unsigned int tty_start)
 	jsm_printk(IOCTL, INFO, &channel->ch_bd->pci_dev, "finish\n");
 }
 
-static void jsm_tty_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void jsm_tty_stop_tx(struct uart_port *port)
 {
 	struct jsm_channel *channel = (struct jsm_channel *)port;
 

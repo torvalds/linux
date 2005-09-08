@@ -96,6 +96,7 @@ foreach $object (keys(%object)) {
 		     $from !~ /\.debug_ranges$/ &&
 		     $from !~ /\.debug_line$/ &&
 		     $from !~ /\.debug_frame$/ &&
+		     $from !~ /\.debug_loc$/ &&
 		     $from !~ /\.exitcall\.exit$/ &&
 		     $from !~ /\.eh_frame$/ &&
 		     $from !~ /\.stab$/)) {

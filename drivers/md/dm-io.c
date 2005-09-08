@@ -239,6 +239,11 @@ static void vm_dp_init(struct dpages *dp, void *data)
 	dp->context_ptr = data;
 }
 
+static void dm_bio_destructor(struct bio *bio)
+{
+	bio_free(bio, _bios);
+}
+
 /*-----------------------------------------------------------------
  * IO routines that accept a list of pages.
  *---------------------------------------------------------------*/
@@ -263,6 +268,7 @@ static void do_region(int rw, unsigned int region, struct io_region *where,
 		bio->bi_bdev = where->bdev;
 		bio->bi_end_io = endio;
 		bio->bi_private = io;
+		bio->bi_destructor = dm_bio_destructor;
 		bio_set_region(bio, region);
 
 		/*

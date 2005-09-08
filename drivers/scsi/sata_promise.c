@@ -92,6 +92,7 @@ static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf);
 static void pdc_irq_clear(struct ata_port *ap);
 static int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
 
+
 static Scsi_Host_Template pdc_ata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -132,7 +133,7 @@ static struct ata_port_operations pdc_sata_ops = {
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_port_start,
 	.port_stop		= pdc_port_stop,
-	.host_stop		= ata_host_stop,
+	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_operations pdc_pata_ops = {
@@ -153,7 +154,7 @@ static struct ata_port_operations pdc_pata_ops = {
 
 	.port_start		= pdc_port_start,
 	.port_stop		= pdc_port_stop,
-	.host_stop		= ata_host_stop,
+	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_info pdc_port_info[] = {
@@ -282,7 +283,7 @@ static void pdc_port_stop(struct ata_port *ap)
 
 static void pdc_reset_port(struct ata_port *ap)
 {
-	void *mmio = (void *) ap->ioaddr.cmd_addr + PDC_CTLSTAT;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_CTLSTAT;
 	unsigned int i;
 	u32 tmp;
 
@@ -418,7 +419,7 @@ static inline unsigned int pdc_host_intr( struct ata_port *ap,
 	u8 status;
 	unsigned int handled = 0, have_err = 0;
 	u32 tmp;
-	void *mmio = (void *) ap->ioaddr.cmd_addr + PDC_GLOBAL_CTL;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_GLOBAL_CTL;
 
 	tmp = readl(mmio);
 	if (tmp & PDC_ERR_MASK) {
@@ -447,7 +448,7 @@ static inline unsigned int pdc_host_intr( struct ata_port *ap,
 static void pdc_irq_clear(struct ata_port *ap)
 {
 	struct ata_host_set *host_set = ap->host_set;
-	void *mmio = host_set->mmio_base;
+	void __iomem *mmio = host_set->mmio_base;
 
 	readl(mmio + PDC_INT_SEQMASK);
 }
@@ -459,7 +460,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 	u32 mask = 0;
 	unsigned int i, tmp;
 	unsigned int handled = 0;
-	void *mmio_base;
+	void __iomem *mmio_base;
 
 	VPRINTK("ENTER\n");
 
@@ -581,7 +582,7 @@ static void pdc_ata_setup_port(struct ata_ioports *port, unsigned long base)
 
 static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 {
-	void *mmio = pe->mmio_base;
+	void __iomem *mmio = pe->mmio_base;
 	u32 tmp;
 
 	/*
@@ -624,7 +625,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	int pci_dev_busy = 0;
 	int rc;
@@ -663,8 +664,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = ioremap(pci_resource_start(pdev, 3),
-		            pci_resource_len(pdev, 3));
+	mmio_base = pci_iomap(pdev, 3, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_free_ent;

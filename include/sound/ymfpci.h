@@ -295,6 +295,7 @@ struct _snd_ymfpci_pcm {
 	unsigned int running: 1;
 	unsigned int output_front: 1;
 	unsigned int output_rear: 1;
+	unsigned int update_pcm_vol;
 	u32 period_size;		/* cached from runtime->period_size */
 	u32 buffer_size;		/* cached from runtime->buffer_size */
 	u32 period_pos;
@@ -367,6 +368,11 @@ struct _snd_ymfpci {
 	int mode_dup4ch;
 	int rear_opened;
 	int spdif_opened;
+	struct {
+		u16 left;
+		u16 right;
+		snd_kcontrol_t *ctl;
+	} pcm_mixer[32];
 
 	spinlock_t reg_lock;
 	spinlock_t voice_lock;

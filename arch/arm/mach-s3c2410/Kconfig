@@ -2,6 +2,13 @@ if ARCH_S3C2410
 
 menu "S3C24XX Implementations"
 
+config MACH_ANUBIS
+	bool "Simtec Electronics ANUBIS"
+	select CPU_S3C2440
+	help
+	  Say Y gere if you are using the Simtec Electronics ANUBIS
+	  development system
+
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
@@ -10,6 +17,14 @@ config ARCH_BAST
 	  development board (also known as BAST)
 
 	  Product page: <http://www.simtec.co.uk/products/EB2410ITX/>.
+
+config BAST_PC104_IRQ
+	bool "BAST PC104 IRQ support"
+	depends on ARCH_BAST
+	default y
+	help
+	  Say Y	here to enable the PC104 IRQ routing on the
+	  Simtec BAST (EB2410ITX)
 
 config ARCH_H1940
 	bool "IPAQ H1940"

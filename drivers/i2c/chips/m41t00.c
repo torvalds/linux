@@ -42,7 +42,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_addr,
 	.probe			= ignore,
 	.ignore			= ignore,
-	.force			= ignore,
 };
 
 ulong
@@ -145,7 +144,7 @@ m41t00_set_tlet(ulong arg)
 	return;
 }
 
-ulong	new_time;
+static ulong	new_time;
 
 DECLARE_TASKLET_DISABLED(m41t00_tasklet, m41t00_set_tlet, (ulong)&new_time);
 

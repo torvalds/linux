@@ -37,7 +37,7 @@
 #include <asm/mmzone.h>
 #include <bios_ebda.h>
 
-struct pglist_data *node_data[MAX_NUMNODES];
+struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 bootmem_data_t node0_bdata;
 
@@ -49,8 +49,8 @@ bootmem_data_t node0_bdata;
  * 2) node_start_pfn   - the starting page frame number for a node
  * 3) node_end_pfn     - the ending page fram number for a node
  */
-unsigned long node_start_pfn[MAX_NUMNODES];
-unsigned long node_end_pfn[MAX_NUMNODES];
+unsigned long node_start_pfn[MAX_NUMNODES] __read_mostly;
+unsigned long node_end_pfn[MAX_NUMNODES] __read_mostly;
 
 
 #ifdef CONFIG_DISCONTIGMEM
@@ -66,7 +66,7 @@ unsigned long node_end_pfn[MAX_NUMNODES];
  *     physnode_map[4-7] = 1;
  *     physnode_map[8- ] = -1;
  */
-s8 physnode_map[MAX_ELEMENTS] = { [0 ... (MAX_ELEMENTS - 1)] = -1};
+s8 physnode_map[MAX_ELEMENTS] __read_mostly = { [0 ... (MAX_ELEMENTS - 1)] = -1};
 EXPORT_SYMBOL(physnode_map);
 
 void memory_present(int nid, unsigned long start, unsigned long end)

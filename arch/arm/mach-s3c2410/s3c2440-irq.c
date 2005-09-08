@@ -64,11 +64,11 @@ static void s3c_irq_demux_wdtac97(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_S3C2440_WDT;
-			mydesc->handle( IRQ_S3C2440_WDT, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_WDT, mydesc, regs);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_S3C2440_AC97;
-			mydesc->handle(IRQ_S3C2440_AC97, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_AC97, mydesc, regs);
 		}
 	}
 }
@@ -122,11 +122,11 @@ static void s3c_irq_demux_cam(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_S3C2440_CAM_C;
-			mydesc->handle( IRQ_S3C2440_WDT, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc, regs);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_S3C2440_CAM_P;
-			mydesc->handle(IRQ_S3C2440_AC97, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc, regs);
 		}
 	}
 }

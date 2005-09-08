@@ -12,6 +12,14 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the  GNU General Public License along
+ * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __PPC_SYSLIB_PPC83XX_SETUP_H
@@ -19,7 +27,6 @@
 
 #include <linux/config.h>
 #include <linux/init.h>
-#include <asm/ppcboot.h>
 
 extern unsigned long mpc83xx_find_end_of_memory(void) __init;
 extern long mpc83xx_time_init(void) __init;
@@ -31,13 +38,11 @@ extern void mpc83xx_halt(void);
 extern void mpc83xx_setup_hose(void) __init;
 
 /* PCI config */
-#if 0
-#define PCI1_CFG_ADDR_OFFSET	(FIXME)
-#define PCI1_CFG_DATA_OFFSET	(FIXME)
+#define PCI1_CFG_ADDR_OFFSET (0x8300)
+#define PCI1_CFG_DATA_OFFSET (0x8304)
 
-#define PCI2_CFG_ADDR_OFFSET	(FIXME)
-#define PCI2_CFG_DATA_OFFSET	(FIXME)
-#endif
+#define PCI2_CFG_ADDR_OFFSET (0x8380)
+#define PCI2_CFG_DATA_OFFSET (0x8384)
 
 /* Serial Config */
 #ifdef CONFIG_SERIAL_MANY_PORTS

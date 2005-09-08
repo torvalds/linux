@@ -103,10 +103,24 @@ struct sndrv_pcm_sw_params32 {
 	unsigned char reserved[64];
 };
 
+/* recalcuate the boundary within 32bit */
+static snd_pcm_uframes_t recalculate_boundary(snd_pcm_runtime_t *runtime)
+{
+	snd_pcm_uframes_t boundary;
+
+	if (! runtime->buffer_size)
+		return 0;
+	boundary = runtime->buffer_size;
+	while (boundary * 2 <= 0x7fffffffUL - runtime->buffer_size)
+		boundary *= 2;
+	return boundary;
+}
+
 static int snd_pcm_ioctl_sw_params_compat(snd_pcm_substream_t *substream,
 					  struct sndrv_pcm_sw_params32 __user *src)
 {
 	snd_pcm_sw_params_t params;
+	snd_pcm_uframes_t boundary;
 	int err;
 
 	memset(&params, 0, sizeof(params));
@@ -120,10 +134,17 @@ static int snd_pcm_ioctl_sw_params_compat(snd_pcm_substream_t *substream,
 	    get_user(params.silence_threshold, &src->silence_threshold) ||
 	    get_user(params.silence_size, &src->silence_size))
 		return -EFAULT;
+	/*
+	 * Check silent_size parameter.  Since we have 64bit boundary,
+	 * silence_size must be compared with the 32bit boundary.
+	 */
+	boundary = recalculate_boundary(substream->runtime);
+	if (boundary && params.silence_size >= boundary)
+		params.silence_size = substream->runtime->boundary;
 	err = snd_pcm_sw_params(substream, &params);
 	if (err < 0)
 		return err;
-	if (put_user(params.boundary, &src->boundary))
+	if (boundary && put_user(boundary, &src->boundary))
 		return -EFAULT;
 	return err;
 }
@@ -199,16 +220,6 @@ static int snd_pcm_status_user_compat(snd_pcm_substream_t *substream,
 	return err;
 }
 
-/* recalcuate the boundary within 32bit */
-static void recalculate_boundary(snd_pcm_runtime_t *runtime)
-{
-	if (! runtime->buffer_size)
-		return;
-	runtime->boundary = runtime->buffer_size;
-	while (runtime->boundary * 2 <= 0x7fffffffUL - runtime->buffer_size)
-		runtime->boundary *= 2;
-}
-
 /* both for HW_PARAMS and HW_REFINE */
 static int snd_pcm_ioctl_hw_params_compat(snd_pcm_substream_t *substream,
 					  int refine, 
@@ -241,8 +252,11 @@ static int snd_pcm_ioctl_hw_params_compat(snd_pcm_substream_t *substream,
 		goto error;
 	}
 
-	if (! refine)
-		recalculate_boundary(runtime);
+	if (! refine) {
+		unsigned int new_boundary = recalculate_boundary(runtime);
+		if (new_boundary)
+			runtime->boundary = new_boundary;
+	}
  error:
 	kfree(data);
 	return err;
@@ -380,6 +394,7 @@ static int snd_pcm_ioctl_sync_ptr_compat(snd_pcm_substream_t *substream,
 	u32 sflags;
 	struct sndrv_pcm_mmap_control scontrol;
 	struct sndrv_pcm_mmap_status sstatus;
+	snd_pcm_uframes_t boundary;
 	int err;
 
 	snd_assert(runtime, return -EINVAL);
@@ -395,17 +410,21 @@ static int snd_pcm_ioctl_sync_ptr_compat(snd_pcm_substream_t *substream,
 	}
 	status = runtime->status;
 	control = runtime->control;
+	boundary = recalculate_boundary(runtime);
+	if (! boundary)
+		boundary = 0x7fffffff;
 	snd_pcm_stream_lock_irq(substream);
+	/* FIXME: we should consider the boundary for the sync from app */
 	if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL))
 		control->appl_ptr = scontrol.appl_ptr;
 	else
-		scontrol.appl_ptr = control->appl_ptr;
+		scontrol.appl_ptr = control->appl_ptr % boundary;
 	if (!(sflags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
 		control->avail_min = scontrol.avail_min;
 	else
 		scontrol.avail_min = control->avail_min;
 	sstatus.state = status->state;
-	sstatus.hw_ptr = status->hw_ptr;
+	sstatus.hw_ptr = status->hw_ptr % boundary;
 	sstatus.tstamp = status->tstamp;
 	sstatus.suspended_state = status->suspended_state;
 	snd_pcm_stream_unlock_irq(substream);

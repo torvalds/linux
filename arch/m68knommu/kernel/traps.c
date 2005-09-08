@@ -21,6 +21,7 @@
 #include <linux/signal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/a.out.h>
 #include <linux/user.h>
@@ -38,7 +39,7 @@
 #include <asm/machdep.h>
 #include <asm/siginfo.h>
 
-static char *vec_names[] = {
+static char const * const vec_names[] = {
 	"RESET SP", "RESET PC", "BUS ERROR", "ADDRESS ERROR",
 	"ILLEGAL INSTRUCTION", "ZERO DIVIDE", "CHK", "TRAPcc",
 	"PRIVILEGE VIOLATION", "TRACE", "LINE 1010", "LINE 1111",
@@ -106,17 +107,20 @@ asmlinkage void buserr_c(struct frame *fp)
 
 int kstack_depth_to_print = 48;
 
-void show_stack(struct task_struct *task, unsigned long *esp)
+void show_stack(struct task_struct *task, unsigned long *stack)
 {
-	unsigned long *stack, *endstack, addr;
+	unsigned long *endstack, addr;
 	extern char _start, _etext;
 	int i;
 
-	if (esp == NULL)
-		esp = (unsigned long *) &esp;
+	if (!stack) {
+		if (task)
+			stack = (unsigned long *)task->thread.ksp;
+		else
+			stack = (unsigned long *)&stack;
+	}
 
-	stack = esp;
-	addr = (unsigned long) esp;
+	addr = (unsigned long) stack;
 	endstack = (unsigned long *) PAGE_ALIGN(addr);
 
 	printk(KERN_EMERG "Stack from %08lx:", (unsigned long)stack);
@@ -305,6 +309,8 @@ void dump_stack(void)
 
 	show_stack(current, &stack);
 }
+
+EXPORT_SYMBOL(dump_stack);
 
 #ifdef CONFIG_M68KFPU_EMU
 asmlinkage void fpemu_signal(int signal, int code, void *addr)

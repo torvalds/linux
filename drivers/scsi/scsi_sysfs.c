@@ -48,6 +48,30 @@ const char *scsi_device_state_name(enum scsi_device_state state)
 	return name;
 }
 
+static struct {
+	enum scsi_host_state	value;
+	char			*name;
+} shost_states[] = {
+	{ SHOST_CREATED, "created" },
+	{ SHOST_RUNNING, "running" },
+	{ SHOST_CANCEL, "cancel" },
+	{ SHOST_DEL, "deleted" },
+	{ SHOST_RECOVERY, "recovery" },
+};
+const char *scsi_host_state_name(enum scsi_host_state state)
+{
+	int i;
+	char *name = NULL;
+
+	for (i = 0; i < sizeof(shost_states)/sizeof(shost_states[0]); i++) {
+		if (shost_states[i].value == state) {
+			name = shost_states[i].name;
+			break;
+		}
+	}
+	return name;
+}
+
 static int check_set(unsigned int *val, char *src)
 {
 	char *last;
@@ -124,6 +148,43 @@ static ssize_t store_scan(struct class_device *class_dev, const char *buf,
 };
 static CLASS_DEVICE_ATTR(scan, S_IWUSR, NULL, store_scan);
 
+static ssize_t
+store_shost_state(struct class_device *class_dev, const char *buf, size_t count)
+{
+	int i;
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+	enum scsi_host_state state = 0;
+
+	for (i = 0; i < sizeof(shost_states)/sizeof(shost_states[0]); i++) {
+		const int len = strlen(shost_states[i].name);
+		if (strncmp(shost_states[i].name, buf, len) == 0 &&
+		   buf[len] == '\n') {
+			state = shost_states[i].value;
+			break;
+		}
+	}
+	if (!state)
+		return -EINVAL;
+
+	if (scsi_host_set_state(shost, state))
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t
+show_shost_state(struct class_device *class_dev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+	const char *name = scsi_host_state_name(shost->shost_state);
+
+	if (!name)
+		return -EINVAL;
+
+	return snprintf(buf, 20, "%s\n", name);
+}
+
+static CLASS_DEVICE_ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost_state);
+
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
@@ -139,6 +200,7 @@ static struct class_device_attribute *scsi_sysfs_shost_attrs[] = {
 	&class_device_attr_unchecked_isa_dma,
 	&class_device_attr_proc_name,
 	&class_device_attr_scan,
+	&class_device_attr_state,
 	NULL
 };
 

@@ -1472,8 +1472,6 @@ static void frontend_init(struct ttusb* ttusb)
 
 
 static struct i2c_algorithm ttusb_dec_algo = {
-	.name		= "ttusb dec i2c algorithm",
-	.id		= I2C_ALGO_BIT,
 	.master_xfer	= master_xfer,
 	.functionality	= functionality,
 };
@@ -1525,7 +1523,6 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 #endif
 	ttusb->i2c_adap.algo              = &ttusb_dec_algo;
 	ttusb->i2c_adap.algo_data         = NULL;
-	ttusb->i2c_adap.id                = I2C_ALGO_BIT;
 
 	result = i2c_add_adapter(&ttusb->i2c_adap);
 	if (result) {

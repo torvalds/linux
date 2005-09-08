@@ -69,8 +69,8 @@ struct lgdt330x_state
 };
 
 static int i2c_write_demod_bytes (struct lgdt330x_state* state,
-			   u8 *buf, /* data bytes to send */
-			   int len  /* number of bytes to send */ )
+				  u8 *buf, /* data bytes to send */
+				  int len  /* number of bytes to send */ )
 {
 	struct i2c_msg msg =
 		{ .addr = state->config->demod_address,
@@ -129,13 +129,13 @@ static int lgdt3302_SwReset(struct lgdt330x_state* state)
 	};
 
 	ret = i2c_write_demod_bytes(state,
-			     reset, sizeof(reset));
+				    reset, sizeof(reset));
 	if (ret == 0) {
 
 		/* force reset high (inactive) and unmask interrupts */
 		reset[1] = 0x7f;
 		ret = i2c_write_demod_bytes(state,
-				     reset, sizeof(reset));
+					    reset, sizeof(reset));
 	}
 	return ret;
 }
@@ -149,13 +149,13 @@ static int lgdt3303_SwReset(struct lgdt330x_state* state)
 	};
 
 	ret = i2c_write_demod_bytes(state,
-			     reset, sizeof(reset));
+				    reset, sizeof(reset));
 	if (ret == 0) {
 
 		/* force reset high (inactive) */
 		reset[1] = 0x01;
 		ret = i2c_write_demod_bytes(state,
-				     reset, sizeof(reset));
+					    reset, sizeof(reset));
 	}
 	return ret;
 }
@@ -171,7 +171,6 @@ static int lgdt330x_SwReset(struct lgdt330x_state* state)
 		return -ENODEV;
 	}
 }
-
 
 static int lgdt330x_init(struct dvb_frontend* fe)
 {
@@ -229,13 +228,13 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 	case LGDT3302:
 		chip_name = "LGDT3302";
 		err = i2c_write_demod_bytes(state, lgdt3302_init_data,
-									sizeof(lgdt3302_init_data));
-  		break;
+					    sizeof(lgdt3302_init_data));
+		break;
 	case LGDT3303:
 		chip_name = "LGDT3303";
 		err = i2c_write_demod_bytes(state, lgdt3303_init_data,
-									sizeof(lgdt3303_init_data));
-  		break;
+					    sizeof(lgdt3303_init_data));
+		break;
 	default:
 		chip_name = "undefined";
 		printk (KERN_WARNING "Only LGDT3302 and LGDT3303 are supported chips.\n");
@@ -262,15 +261,15 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	switch (state->config->demod_chip) {
 	case LGDT3302:
 		err = i2c_read_demod_bytes(state, LGDT3302_PACKET_ERR_COUNTER1,
-								  buf, sizeof(buf));
-  		break;
+					   buf, sizeof(buf));
+		break;
 	case LGDT3303:
 		err = i2c_read_demod_bytes(state, LGDT3303_PACKET_ERR_COUNTER1,
-								  buf, sizeof(buf));
-  		break;
+					   buf, sizeof(buf));
+		break;
 	default:
 		printk(KERN_WARNING
-			   "Only LGDT3302 and LGDT3303 are supported chips.\n");
+		       "Only LGDT3302 and LGDT3303 are supported chips.\n");
 		err = -ENODEV;
 	}
 
@@ -330,7 +329,7 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 
 			if (state->config->demod_chip == LGDT3303) {
 				err = i2c_write_demod_bytes(state, lgdt3303_8vsb_44_data,
-											sizeof(lgdt3303_8vsb_44_data));
+							    sizeof(lgdt3303_8vsb_44_data));
 			}
 			break;
 
@@ -378,18 +377,19 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 
 		/* Select the requested mode */
 		i2c_write_demod_bytes(state, top_ctrl_cfg,
-							  sizeof(top_ctrl_cfg));
-		state->config->set_ts_params(fe, 0);
+				      sizeof(top_ctrl_cfg));
+		if (state->config->set_ts_params)
+			state->config->set_ts_params(fe, 0);
 		state->current_modulation = param->u.vsb.modulation;
 	}
 
-	/* Change only if we are actually changing the channel */
-	if (state->current_frequency != param->frequency) {
-		/* Tune to the new frequency */
+	/* Tune to the specified frequency */
+	if (state->config->pll_set)
 		state->config->pll_set(fe, param);
-		/* Keep track of the new frequency */
-		state->current_frequency = param->frequency;
-	}
+
+	/* Keep track of the new frequency */
+	state->current_frequency = param->frequency;
+
 	lgdt330x_SwReset(state);
 	return 0;
 }

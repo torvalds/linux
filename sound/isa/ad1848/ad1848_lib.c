@@ -1196,6 +1196,7 @@ int snd_ad1848_add_ctl(ad1848_t *chip, const char *name, int index, int type, un
 			.put = snd_ad1848_put_double,
 		},
 		[AD1848_MIX_CAPTURE] = {
+			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.info = snd_ad1848_info_mux,
 			.get = snd_ad1848_get_mux,
 			.put = snd_ad1848_put_mux,

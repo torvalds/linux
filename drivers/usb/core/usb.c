@@ -1400,7 +1400,7 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 	driver = to_usb_driver(dev->driver);
 
 	/* there's only one USB suspend state */
-	if (intf->dev.power.power_state)
+	if (intf->dev.power.power_state.event)
 		return 0;
 
 	if (driver->suspend)

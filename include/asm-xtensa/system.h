@@ -56,7 +56,7 @@ static inline int irqs_disabled(void)
 
 #define clear_cpenable() __clear_cpenable()
 
-extern __inline__ void __clear_cpenable(void)
+static inline void __clear_cpenable(void)
 {
 #if XCHAL_HAVE_CP
 	unsigned long i = 0;
@@ -64,7 +64,7 @@ extern __inline__ void __clear_cpenable(void)
 #endif
 }
 
-extern __inline__ void enable_coprocessor(int i)
+static inline void enable_coprocessor(int i)
 {
 #if XCHAL_HAVE_CP
 	int cp;
@@ -74,7 +74,7 @@ extern __inline__ void enable_coprocessor(int i)
 #endif
 }
 
-extern __inline__ void disable_coprocessor(int i)
+static inline void disable_coprocessor(int i)
 {
 #if XCHAL_HAVE_CP
 	int cp;
@@ -123,7 +123,7 @@ do {						\
  * cmpxchg
  */
 
-extern __inline__ unsigned long
+static inline unsigned long
 __cmpxchg_u32(volatile int *p, int old, int new)
 {
   __asm__ __volatile__("rsil    a15, "__stringify(LOCKLEVEL)"\n\t"
@@ -173,7 +173,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
  * where no register reference will cause an overflow.
  */
 
-extern __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
+static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 {
   unsigned long tmp;
   __asm__ __volatile__("rsil    a15, "__stringify(LOCKLEVEL)"\n\t"

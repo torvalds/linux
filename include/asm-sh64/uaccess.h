@@ -60,12 +60,6 @@
 #define access_ok(type,addr,size) (__range_ok(addr,size) == 0)
 #define __access_ok(addr,size) (__range_ok(addr,size) == 0)
 
-/* this function will go away soon - use access_ok() instead */
-extern inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
-{
-	return access_ok(type,addr,size) ? 0 : -EFAULT;
-}
-
 /*
  * Uh, these should become the main single-value transfer routines ...
  * They automatically use the right size if we just have the right

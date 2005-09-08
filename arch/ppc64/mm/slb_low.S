@@ -97,25 +97,21 @@ BEGIN_FTR_SECTION
 	lhz	r9,PACAHIGHHTLBAREAS(r13)
 	srdi	r11,r3,(HTLB_AREA_SHIFT-SID_SHIFT)
 	srd	r9,r9,r11
-	andi.	r9,r9,1
-	bne	5f
-
-	li	r11,SLB_VSID_USER
-
-	cmpldi	r3,16
-	bge	6f
-
-	lhz	r9,PACALOWHTLBAREAS(r13)
-	srd	r9,r9,r3
-	andi.	r9,r9,1
-
-	beq	6f
-
-5:	li	r11,SLB_VSID_USER|SLB_VSID_L
+	lhz	r11,PACALOWHTLBAREAS(r13)
+	srd	r11,r11,r3
+	or	r9,r9,r11
 END_FTR_SECTION_IFSET(CPU_FTR_16M_PAGE)
 #endif /* CONFIG_HUGETLB_PAGE */
 
-6:	ld	r9,PACACONTEXTID(r13)
+	li	r11,SLB_VSID_USER
+
+#ifdef CONFIG_HUGETLB_PAGE
+BEGIN_FTR_SECTION
+	rldimi	r11,r9,8,55		/* shift masked bit into SLB_VSID_L */
+END_FTR_SECTION_IFSET(CPU_FTR_16M_PAGE)
+#endif /* CONFIG_HUGETLB_PAGE */
+
+	ld	r9,PACACONTEXTID(r13)
 	rldimi	r3,r9,USER_ESID_BITS,0
 
 9:	/* r3 = protovsid, r11 = flags, r10 = esid_data, cr7 = <>KERNELBASE */

@@ -62,13 +62,13 @@
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 /* Package ID of each logical CPU */
-u8 phys_proc_id[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
-u8 cpu_core_id[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+u8 phys_proc_id[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
+u8 cpu_core_id[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
 EXPORT_SYMBOL(phys_proc_id);
 EXPORT_SYMBOL(cpu_core_id);
 
 /* Bitmask of currently online CPUs */
-cpumask_t cpu_online_map;
+cpumask_t cpu_online_map __read_mostly;
 
 EXPORT_SYMBOL(cpu_online_map);
 
@@ -88,8 +88,8 @@ struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 /* Set when the idlers are all forked */
 int smp_threads_ready;
 
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
-cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
+cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
 
 /*

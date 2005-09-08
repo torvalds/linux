@@ -75,6 +75,10 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc);
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
 
+int atapi_enabled = 0;
+module_param(atapi_enabled, int, 0444);
+MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -2527,7 +2531,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	@ap: port to read/write
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@do_write: read/write
+ *	@write_data: read/write
  *
  *	Transfer data from/to the device data register by MMIO.
  *
@@ -2573,7 +2577,7 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *	@ap: port to read/write
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@do_write: read/write
+ *	@write_data: read/write
  *
  *	Transfer data from/to the device data register by PIO.
  *
@@ -4200,6 +4204,15 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
 
 
 
+#ifdef CONFIG_PCI
+
+void ata_pci_host_stop (struct ata_host_set *host_set)
+{
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+
+	pci_iounmap(pdev, host_set->mmio_base);
+}
+
 /**
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
@@ -4212,7 +4225,6 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
  *	ata_probe_ent structure should then be freed with kfree().
  */
 
-#ifdef CONFIG_PCI
 struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port)
 {
@@ -4595,6 +4607,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
+EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);

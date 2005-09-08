@@ -534,7 +534,7 @@ static int
 tveeprom_attach_adapter (struct i2c_adapter *adapter)
 {
 	dprintk(1,"%s: id 0x%x\n",__FUNCTION__,adapter->id);
-	if (adapter->id != (I2C_ALGO_BIT | I2C_HW_B_BT848))
+	if (adapter->id != I2C_HW_B_BT848)
 		return 0;
 	return i2c_probe(adapter, &addr_data, tveeprom_detect_client);
 }

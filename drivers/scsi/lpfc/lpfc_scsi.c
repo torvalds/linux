@@ -40,11 +40,6 @@
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
 
-static inline void lpfc_put_lun(struct fcp_cmnd *fcmd, unsigned int lun)
-{
-	fcmd->fcpLunLsl = 0;
-	fcmd->fcpLunMsl = swab16((uint16_t)lun);
-}
 
 /*
  * This routine allocates a scsi buffer, which contains all the necessary
@@ -238,6 +233,8 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 		bpl->tus.f.bdeSize = scsi_cmnd->request_bufflen;
 		if (datadir == DMA_TO_DEVICE)
 			bpl->tus.f.bdeFlags = 0;
+		else
+			bpl->tus.f.bdeFlags = BUFF_USE_RCV;
 		bpl->tus.w = le32_to_cpu(bpl->tus.w);
 		num_bde = 1;
 		bpl++;
@@ -245,8 +242,11 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 
 	/*
 	 * Finish initializing those IOCB fields that are dependent on the
-	 * scsi_cmnd request_buffer
+	 * scsi_cmnd request_buffer.  Note that the bdeSize is explicitly
+	 * reinitialized since all iocb memory resources are used many times
+	 * for transmit, receive, and continuation bpl's.
 	 */
+	iocb_cmd->un.fcpi64.bdl.bdeSize = (2 * sizeof (struct ulp_bde64));
 	iocb_cmd->un.fcpi64.bdl.bdeSize +=
 		(num_bde * sizeof (struct ulp_bde64));
 	iocb_cmd->ulpBdeCount = 1;
@@ -445,8 +445,11 @@ lpfc_scsi_prep_cmnd(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd,
 	int datadir = scsi_cmnd->sc_data_direction;
 
 	lpfc_cmd->fcp_rsp->rspSnsLen = 0;
+	/* clear task management bits */
+	lpfc_cmd->fcp_cmnd->fcpCntl2 = 0;
 
-	lpfc_put_lun(lpfc_cmd->fcp_cmnd, lpfc_cmd->pCmd->device->lun);
+	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
+			&lpfc_cmd->fcp_cmnd->fcp_lun);
 
 	memcpy(&fcp_cmnd->fcpCdb[0], scsi_cmnd->cmnd, 16);
 
@@ -545,7 +548,8 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 	piocb = &piocbq->iocb;
 
 	fcp_cmnd = lpfc_cmd->fcp_cmnd;
-	lpfc_put_lun(lpfc_cmd->fcp_cmnd, lpfc_cmd->pCmd->device->lun);
+	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
+			&lpfc_cmd->fcp_cmnd->fcp_lun);
 	fcp_cmnd->fcpCntl2 = task_mgmt_cmd;
 
 	piocb->ulpCommand = CMD_FCP_ICMND64_CR;
@@ -744,6 +748,10 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) ||
 		    (ndlp->nlp_state == NLP_STE_UNUSED_NODE)) {
 			cmnd->result = ScsiResult(DID_NO_CONNECT, 0);
+			goto out_fail_command;
+		}
+		else if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
+			cmnd->result = ScsiResult(DID_BUS_BUSY, 0);
 			goto out_fail_command;
 		}
 		/*

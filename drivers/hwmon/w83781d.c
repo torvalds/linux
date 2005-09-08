@@ -38,8 +38,10 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
-#include <linux/i2c-vid.h>
+#include <linux/i2c-isa.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -47,10 +49,10 @@
 static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
 					0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
 					0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
+static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
-SENSORS_INSMOD_5(w83781d, w83782d, w83783s, w83627hf, as99127f);
+I2C_CLIENT_INSMOD_5(w83781d, w83782d, w83783s, w83627hf, as99127f);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
 		    "{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
@@ -218,6 +220,7 @@ DIV_TO_REG(long val, enum chips type)
    allocated. */
 struct w83781d_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -255,6 +258,7 @@ struct w83781d_data {
 };
 
 static int w83781d_attach_adapter(struct i2c_adapter *adapter);
+static int w83781d_isa_attach_adapter(struct i2c_adapter *adapter);
 static int w83781d_detect(struct i2c_adapter *adapter, int address, int kind);
 static int w83781d_detach_client(struct i2c_client *client);
 
@@ -272,6 +276,14 @@ static struct i2c_driver w83781d_driver = {
 	.attach_adapter = w83781d_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
+
+static struct i2c_driver w83781d_isa_driver = {
+	.owner = THIS_MODULE,
+	.name = "w83781d-isa",
+	.attach_adapter = w83781d_isa_attach_adapter,
+	.detach_client = w83781d_detach_client,
+};
+
 
 /* following are the sysfs callback functions */
 #define show_in_reg(reg) \
@@ -856,7 +868,13 @@ w83781d_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, w83781d_detect);
+	return i2c_probe(adapter, &addr_data, w83781d_detect);
+}
+
+static int
+w83781d_isa_attach_adapter(struct i2c_adapter *adapter)
+{
+	return w83781d_detect(adapter, isa_address, -1);
 }
 
 /* Assumes that adapter is of I2C, not ISA variety.
@@ -961,10 +979,10 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 ERROR_SC_3:
 	i2c_detach_client(data->lm75[0]);
 ERROR_SC_2:
-	if (NULL != data->lm75[1])
+	if (data->lm75[1])
 		kfree(data->lm75[1]);
 ERROR_SC_1:
-	if (NULL != data->lm75[0])
+	if (data->lm75[0])
 		kfree(data->lm75[0]);
 ERROR_SC_0:
 	return err;
@@ -999,7 +1017,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	
 	if (is_isa)
 		if (!request_region(address, W83781D_EXTENT,
-				    w83781d_driver.name)) {
+				    w83781d_isa_driver.name)) {
 			dev_dbg(&adapter->dev, "Request of region "
 				"0x%x-0x%x for w83781d failed\n", address,
 				address + W83781D_EXTENT - 1);
@@ -1057,7 +1075,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->addr = address;
 	init_MUTEX(&data->lock);
 	new_client->adapter = adapter;
-	new_client->driver = &w83781d_driver;
+	new_client->driver = is_isa ? &w83781d_isa_driver : &w83781d_driver;
 	new_client->flags = 0;
 
 	/* Now, we do the remaining detection. */
@@ -1189,6 +1207,12 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 			data->pwmenable[i] = 1;
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR4;
+	}
+
 	device_create_file_in(new_client, 0);
 	if (kind != w83783s)
 		device_create_file_in(new_client, 1);
@@ -1241,6 +1265,15 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR4:
+	if (data->lm75[1]) {
+		i2c_detach_client(data->lm75[1]);
+		kfree(data->lm75[1]);
+	}
+	if (data->lm75[0]) {
+		i2c_detach_client(data->lm75[0]);
+		kfree(data->lm75[0]);
+	}
 ERROR3:
 	i2c_detach_client(new_client);
 ERROR2:
@@ -1255,24 +1288,26 @@ ERROR0:
 static int
 w83781d_detach_client(struct i2c_client *client)
 {
+	struct w83781d_data *data = i2c_get_clientdata(client);
 	int err;
+
+	/* main client */
+	if (data)
+		hwmon_device_unregister(data->class_dev);
 
 	if (i2c_is_isa_client(client))
 		release_region(client->addr, W83781D_EXTENT);
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-		       "Client deregistration failed, client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
-	if (i2c_get_clientdata(client)==NULL) {
-		/* subclients */
+	/* main client */
+	if (data)
+		kfree(data);
+
+	/* subclient */
+	else
 		kfree(client);
-	} else {
-		/* main client */
-		kfree(i2c_get_clientdata(client));
-	}
 
 	return 0;
 }
@@ -1443,7 +1478,7 @@ w83781d_init_client(struct i2c_client *client)
 		w83781d_write_value(client, W83781D_REG_BEEP_INTS2, 0);
 	}
 
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	if ((type != w83781d) && (type != as99127f)) {
 		tmp = w83781d_read_value(client, W83781D_REG_SCFG1);
@@ -1613,12 +1648,25 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 static int __init
 sensors_w83781d_init(void)
 {
-	return i2c_add_driver(&w83781d_driver);
+	int res;
+
+	res = i2c_add_driver(&w83781d_driver);
+	if (res)
+		return res;
+
+	res = i2c_isa_add_driver(&w83781d_isa_driver);
+	if (res) {
+		i2c_del_driver(&w83781d_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit
 sensors_w83781d_exit(void)
 {
+	i2c_isa_del_driver(&w83781d_isa_driver);
 	i2c_del_driver(&w83781d_driver);
 }
 

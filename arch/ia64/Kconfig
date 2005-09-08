@@ -383,6 +383,12 @@ source "drivers/acpi/Kconfig"
 
 endif
 
+if PM
+
+source "arch/ia64/kernel/cpufreq/Kconfig"
+
+endif
+
 endmenu
 
 if !IA64_HP_SIM
@@ -426,6 +432,11 @@ config GENERIC_HARDIRQS
 
 config GENERIC_IRQ_PROBE
 	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
 	default y
 
 source "arch/ia64/hp/sim/Kconfig"

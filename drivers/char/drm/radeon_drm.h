@@ -195,6 +195,52 @@ typedef union {
 #define RADEON_WAIT_2D  0x1
 #define RADEON_WAIT_3D  0x2
 
+/* Allowed parameters for R300_CMD_PACKET3
+ */
+#define R300_CMD_PACKET3_CLEAR		0
+#define R300_CMD_PACKET3_RAW		1
+
+/* Commands understood by cmd_buffer ioctl for R300.
+ * The interface has not been stabilized, so some of these may be removed
+ * and eventually reordered before stabilization.
+ */
+#define R300_CMD_PACKET0		1 
+#define R300_CMD_VPU			2 /* emit vertex program upload */
+#define R300_CMD_PACKET3		3 /* emit a packet3 */
+#define R300_CMD_END3D			4 /* emit sequence ending 3d rendering */
+#define R300_CMD_CP_DELAY		5
+#define R300_CMD_DMA_DISCARD		6
+#define R300_CMD_WAIT			7
+#	define R300_WAIT_2D  		0x1
+#	define R300_WAIT_3D  		0x2
+#	define R300_WAIT_2D_CLEAN  	0x3
+#	define R300_WAIT_3D_CLEAN  	0x4
+
+typedef union {
+	unsigned int u;
+	struct {
+		unsigned char cmd_type, pad0, pad1, pad2;
+	} header;
+	struct {
+		unsigned char cmd_type, count, reglo, reghi;
+	} packet0;
+	struct {
+		unsigned char cmd_type, count, adrlo, adrhi;
+	} vpu;
+	struct {
+		unsigned char cmd_type, packet, pad0, pad1;
+	} packet3;
+	struct {
+		unsigned char cmd_type, packet;
+		unsigned short count; /* amount of packet2 to emit */
+	} delay;
+	struct {
+		unsigned char cmd_type, buf_idx, pad0, pad1;
+	} dma;
+	struct {
+		unsigned char cmd_type, flags, pad0, pad1;	
+	} wait;
+} drm_r300_cmd_header_t;
 
 #define RADEON_FRONT			0x1
 #define RADEON_BACK			0x2

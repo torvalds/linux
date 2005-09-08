@@ -564,8 +564,11 @@ interrupt_base:
 	EXCEPTION(0x3100, FixedIntervalTimer, UnknownException, EXC_XFER_EE)
 
 	/* Watchdog Timer Interrupt */
-	/* TODO: Add watchdog support */
+#ifdef CONFIG_BOOKE_WDT
+	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, WatchdogException)
+#else
 	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, UnknownException)
+#endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)

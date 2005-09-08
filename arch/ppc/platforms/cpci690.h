@@ -73,6 +73,4 @@ typedef struct board_info {
 #define	CPCI690_MPSC_BAUD			9600
 #define	CPCI690_MPSC_CLK_SRC			8 /* TCLK */
 
-#define	CPCI690_BUS_FREQ			133333333
-
 #endif /* __PPC_PLATFORMS_CPCI690_H */

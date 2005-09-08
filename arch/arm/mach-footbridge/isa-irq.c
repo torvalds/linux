@@ -95,7 +95,7 @@ isa_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 	}
 
 	desc = irq_desc + isa_irq;
-	desc->handle(isa_irq, desc, regs);
+	desc_handle_irq(isa_irq, desc, regs);
 }
 
 static struct irqaction irq_cascade = { .handler = no_action, .name = "cascade", };

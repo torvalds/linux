@@ -86,6 +86,7 @@ static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void sil_post_set_mode (struct ata_port *ap);
 
+
 static struct pci_device_id sil_pci_tbl[] = {
 	{ 0x1095, 0x3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
 	{ 0x1095, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
@@ -172,7 +173,7 @@ static struct ata_port_operations sil_ops = {
 	.scr_write		= sil_scr_write,
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
+	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_info sil_port_info[] = {
@@ -231,6 +232,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sil_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
+
 static unsigned char sil_get_device_cache_line(struct pci_dev *pdev)
 {
 	u8 cache_line = 0;
@@ -242,7 +244,8 @@ static void sil_post_set_mode (struct ata_port *ap)
 {
 	struct ata_host_set *host_set = ap->host_set;
 	struct ata_device *dev;
-	void *addr = host_set->mmio_base + sil_port[ap->port_no].xfer_mode;
+	void __iomem *addr =
+		host_set->mmio_base + sil_port[ap->port_no].xfer_mode;
 	u32 tmp, dev_mode[2];
 	unsigned int i;
 
@@ -375,7 +378,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	int rc;
 	unsigned int i;
 	int pci_dev_busy = 0;
@@ -425,8 +428,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
        	probe_ent->irq_flags = SA_SHIRQ;
 	probe_ent->host_flags = sil_port_info[ent->driver_data].host_flags;
 
-	mmio_base = ioremap(pci_resource_start(pdev, 5),
-		            pci_resource_len(pdev, 5));
+	mmio_base = pci_iomap(pdev, 5, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_free_ent;

@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/byteorder/generic.h>
 #include <asm/sn/sn_sal.h>
+#include <asm/unaligned.h>
 #include "snsc.h"
 
 static struct subch_data_s *event_sd;
@@ -62,13 +63,16 @@ static int
 scdrv_parse_event(char *event, int *src, int *code, int *esp_code, char *desc)
 {
 	char *desc_end;
+	__be32 from_buf;
 
 	/* record event source address */
-	*src = be32_to_cpup((__be32 *)event);
+	from_buf = get_unaligned((__be32 *)event);
+	*src = be32_to_cpup(&from_buf);
 	event += 4; 			/* move on to event code */
 
 	/* record the system controller's event code */
-	*code = be32_to_cpup((__be32 *)event);
+	from_buf = get_unaligned((__be32 *)event);
+	*code = be32_to_cpup(&from_buf);
 	event += 4;			/* move on to event arguments */
 
 	/* how many arguments are in the packet? */
@@ -82,7 +86,8 @@ scdrv_parse_event(char *event, int *src, int *code, int *esp_code, char *desc)
 		/* not an integer argument, so give up */
 		return -1;
 	}
-	*esp_code = be32_to_cpup((__be32 *)event);
+	from_buf = get_unaligned((__be32 *)event);
+	*esp_code = be32_to_cpup(&from_buf);
 	event += 4;
 
 	/* parse out the event description */

@@ -73,7 +73,8 @@
 
 #define MGA_CARD_TYPE_G200	1
 #define MGA_CARD_TYPE_G400	2
-
+#define MGA_CARD_TYPE_G450	3       /* not currently used */
+#define MGA_CARD_TYPE_G550	4
 
 #define MGA_FRONT		0x1
 #define MGA_BACK		0x2
@@ -225,10 +226,6 @@ typedef struct _drm_mga_sarea {
 } drm_mga_sarea_t;
 
 
-/* WARNING: If you change any of these defines, make sure to change the
- * defines in the Xserver file (xf86drmMga.h)
- */
-
 /* MGA specific ioctls
  * The device specific ioctl range is 0x40 to 0x79.
  */
@@ -243,6 +240,14 @@ typedef struct _drm_mga_sarea {
 #define DRM_MGA_BLIT     0x08
 #define DRM_MGA_GETPARAM 0x09
 
+/* 3.2:
+ * ioctls for operating on fences.
+ */
+#define DRM_MGA_SET_FENCE      0x0a
+#define DRM_MGA_WAIT_FENCE     0x0b
+#define DRM_MGA_DMA_BOOTSTRAP  0x0c
+
+
 #define DRM_IOCTL_MGA_INIT     DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_INIT, drm_mga_init_t)
 #define DRM_IOCTL_MGA_FLUSH    DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_FLUSH, drm_lock_t)
 #define DRM_IOCTL_MGA_RESET    DRM_IO(  DRM_COMMAND_BASE + DRM_MGA_RESET)
@@ -253,6 +258,9 @@ typedef struct _drm_mga_sarea {
 #define DRM_IOCTL_MGA_ILOAD    DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_ILOAD, drm_mga_iload_t)
 #define DRM_IOCTL_MGA_BLIT     DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_BLIT, drm_mga_blit_t)
 #define DRM_IOCTL_MGA_GETPARAM DRM_IOWR(DRM_COMMAND_BASE + DRM_MGA_GETPARAM, drm_mga_getparam_t)
+#define DRM_IOCTL_MGA_SET_FENCE     DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_SET_FENCE, uint32_t)
+#define DRM_IOCTL_MGA_WAIT_FENCE    DRM_IOWR(DRM_COMMAND_BASE + DRM_MGA_WAIT_FENCE, uint32_t)
+#define DRM_IOCTL_MGA_DMA_BOOTSTRAP DRM_IOWR(DRM_COMMAND_BASE + DRM_MGA_DMA_BOOTSTRAP, drm_mga_dma_bootstrap_t)
 
 typedef struct _drm_mga_warp_index {
    	int installed;
@@ -291,12 +299,72 @@ typedef struct drm_mga_init {
 	unsigned long buffers_offset;
 } drm_mga_init_t;
 
-typedef struct drm_mga_fullscreen {
-	enum {
-		MGA_INIT_FULLSCREEN    = 0x01,
-		MGA_CLEANUP_FULLSCREEN = 0x02
-	} func;
-} drm_mga_fullscreen_t;
+typedef struct drm_mga_dma_bootstrap {
+	/**
+	 * \name AGP texture region
+	 * 
+	 * On return from the DRM_MGA_DMA_BOOTSTRAP ioctl, these fields will
+	 * be filled in with the actual AGP texture settings.
+	 * 
+	 * \warning
+	 * If these fields are non-zero, but dma_mga_dma_bootstrap::agp_mode
+	 * is zero, it means that PCI memory (most likely through the use of
+	 * an IOMMU) is being used for "AGP" textures.
+	 */
+	/*@{*/
+	unsigned long texture_handle; /**< Handle used to map AGP textures. */
+	uint32_t     texture_size;    /**< Size of the AGP texture region. */
+	/*@}*/
+
+
+	/**
+	 * Requested size of the primary DMA region.
+	 * 
+	 * On return from the DRM_MGA_DMA_BOOTSTRAP ioctl, this field will be
+	 * filled in with the actual AGP mode.  If AGP was not available
+	 */
+	uint32_t primary_size;
+
+
+	/**
+	 * Requested number of secondary DMA buffers.
+	 * 
+	 * On return from the DRM_MGA_DMA_BOOTSTRAP ioctl, this field will be
+	 * filled in with the actual number of secondary DMA buffers
+	 * allocated.  Particularly when PCI DMA is used, this may be
+	 * (subtantially) less than the number requested.
+	 */
+	uint32_t secondary_bin_count;
+	
+	
+	/**
+	 * Requested size of each secondary DMA buffer.
+	 * 
+	 * While the kernel \b is free to reduce
+	 * dma_mga_dma_bootstrap::secondary_bin_count, it is \b not allowed
+	 * to reduce dma_mga_dma_bootstrap::secondary_bin_size.
+	 */
+	uint32_t secondary_bin_size;
+
+
+	/**
+	 * Bit-wise mask of AGPSTAT2_* values.  Currently only \c AGPSTAT2_1X,
+	 * \c AGPSTAT2_2X, and \c AGPSTAT2_4X are supported.  If this value is
+	 * zero, it means that PCI DMA should be used, even if AGP is
+	 * possible.
+	 * 
+	 * On return from the DRM_MGA_DMA_BOOTSTRAP ioctl, this field will be
+	 * filled in with the actual AGP mode.  If AGP was not available
+	 * (i.e., PCI DMA was used), this value will be zero.
+	 */
+	uint32_t agp_mode;
+
+
+	/**
+	 * Desired AGP GART size, measured in megabytes.
+	 */
+	uint8_t agp_size;
+} drm_mga_dma_bootstrap_t;
 
 typedef struct drm_mga_clear {
 	unsigned int flags;
@@ -340,6 +408,14 @@ typedef struct _drm_mga_blit {
  * client any other way.  
  */
 #define MGA_PARAM_IRQ_NR            1
+
+/* 3.2: Query the actual card type.  The DDX only distinguishes between
+ * G200 chips and non-G200 chips, which it calls G400.  It turns out that
+ * there are some very sublte differences between the G4x0 chips and the G550
+ * chips.  Using this parameter query, a client-side driver can detect the
+ * difference between a G4x0 and a G550.
+ */
+#define MGA_PARAM_CARD_TYPE         2
 
 typedef struct drm_mga_getparam {
 	int param;

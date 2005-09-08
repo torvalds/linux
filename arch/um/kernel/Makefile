@@ -8,25 +8,24 @@ clean-files :=
 
 obj-y = config.o exec_kern.o exitcode.o \
 	helper.o init_task.o irq.o irq_user.o ksyms.o main.o mem.o mem_user.o \
-	physmem.o process.o process_kern.o ptrace.o reboot.o resource.o \
-	sigio_user.o sigio_kern.o signal_kern.o signal_user.o smp.o \
-	syscall_kern.o sysrq.o tempfile.o time.o time_kern.o \
-	tlb.o trap_kern.o trap_user.o uaccess_user.o um_arch.o umid.o \
-	user_util.o
+	physmem.o process_kern.o ptrace.o reboot.o resource.o sigio_user.o \
+	sigio_kern.o signal_kern.o signal_user.o smp.o syscall_kern.o sysrq.o \
+	tempfile.o time.o time_kern.o tlb.o trap_kern.o trap_user.o \
+	uaccess_user.o um_arch.o umid.o user_util.o
 
 obj-$(CONFIG_BLK_DEV_INITRD) += initrd.o
 obj-$(CONFIG_GPROF)	+= gprof_syms.o
 obj-$(CONFIG_GCOV)	+= gmon_syms.o
 obj-$(CONFIG_TTY_LOG)	+= tty_log.o
-obj-$(CONFIG_SYSCALL_DEBUG) += syscall_user.o
+obj-$(CONFIG_SYSCALL_DEBUG) += syscall.o
 
 obj-$(CONFIG_MODE_TT) += tt/
 obj-$(CONFIG_MODE_SKAS) += skas/
 
 user-objs-$(CONFIG_TTY_LOG) += tty_log.o
 
-USER_OBJS := $(user-objs-y) config.o helper.o main.o process.o tempfile.o \
-	time.o tty_log.o umid.o user_util.o
+USER_OBJS := $(user-objs-y) config.o helper.o main.o tempfile.o time.o \
+	tty_log.o umid.o user_util.o
 
 include arch/um/scripts/Makefile.rules
 

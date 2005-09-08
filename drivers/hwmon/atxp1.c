@@ -23,8 +23,9 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
-#include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("System voltages control via Attansic ATXP1");
@@ -40,9 +41,8 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 #define ATXP1_GPIO1MASK	0x0f
 
 static unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
-SENSORS_INSMOD_1(atxp1);
+I2C_CLIENT_INSMOD_1(atxp1);
 
 static int atxp1_attach_adapter(struct i2c_adapter * adapter);
 static int atxp1_detach_client(struct i2c_client * client);
@@ -59,6 +59,7 @@ static struct i2c_driver atxp1_driver = {
 
 struct atxp1_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	unsigned long last_updated;
 	u8 valid;
@@ -252,7 +253,7 @@ static DEVICE_ATTR(gpio2, S_IRUGO | S_IWUSR, atxp1_showgpio2, atxp1_storegpio2);
 
 static int atxp1_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, &atxp1_detect);
+	return i2c_probe(adapter, &addr_data, &atxp1_detect);
 };
 
 static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
@@ -295,7 +296,7 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Get VRM */
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	if ((data->vrm != 90) && (data->vrm != 91)) {
 		dev_err(&new_client->dev, "Not supporting VRM %d.%d\n",
@@ -317,6 +318,12 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_free;
 	}
 
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_gpio1);
 	device_create_file(&new_client->dev, &dev_attr_gpio2);
 	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
@@ -326,6 +333,8 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -334,14 +343,17 @@ exit:
 
 static int atxp1_detach_client(struct i2c_client * client)
 {
+	struct atxp1_data * data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	err = i2c_detach_client(client);
 
 	if (err)
 		dev_err(&client->dev, "Failed to detach client.\n");
 	else
-		kfree(i2c_get_clientdata(client));
+		kfree(data);
 
 	return err;
 };

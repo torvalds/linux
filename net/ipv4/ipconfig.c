@@ -54,6 +54,7 @@
 #include <linux/major.h>
 #include <linux/root_dev.h>
 #include <linux/delay.h>
+#include <linux/nfs_fs.h>
 #include <net/arp.h>
 #include <net/ip.h>
 #include <net/ipconfig.h>

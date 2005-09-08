@@ -10,6 +10,14 @@
 #define VM_MAP		0x00000004	/* vmap()ed pages */
 /* bits [20..32] reserved for arch specific ioremap internals */
 
+/*
+ * Maximum alignment for ioremap() regions.
+ * Can be overriden by arch-specific value.
+ */
+#ifndef IOREMAP_MAX_ORDER
+#define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
+#endif
+
 struct vm_struct {
 	void			*addr;
 	unsigned long		size;

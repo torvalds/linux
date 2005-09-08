@@ -114,7 +114,7 @@ static inline void copy_page_cpu(void *to, void *from)
 	"	pref	" SB1_PREF_STORE_STREAMED_HINT ",  -64(%1)\n"
 	"	pref	" SB1_PREF_LOAD_STREAMED_HINT  ",  -32(%0)\n"
 	"1:	pref	" SB1_PREF_STORE_STREAMED_HINT ",  -32(%1)\n"
-# ifdef CONFIG_MIPS64
+# ifdef CONFIG_64BIT
 	"	ld	$8, -128(%0)	\n"  /* Block copy a cacheline */
 	"	ld	$9, -120(%0)	\n"
 	"	ld	$10, -112(%0)	\n"
@@ -148,7 +148,7 @@ static inline void copy_page_cpu(void *to, void *from)
 	"	daddiu	%0, %0, -128	\n"
 	"	daddiu	%1, %1, -128	\n"
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	"	ld	$8, 0(%0)	\n"  /* Block copy a cacheline */
 	"1:	ld	$9, 8(%0)	\n"
 	"	ld	$10, 16(%0)	\n"
@@ -178,7 +178,7 @@ static inline void copy_page_cpu(void *to, void *from)
 	"	daddiu	%0, %0, 32	\n"
 	"	daddiu	%1, %1, 32	\n"
 	"	bnel	%0, %2, 1b	\n"
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	"	 ld	$8, 0(%0)	\n"
 #else
 	"	 lw	$2, 0(%0)	\n"
@@ -186,7 +186,7 @@ static inline void copy_page_cpu(void *to, void *from)
 	"	.set	pop		\n"
 	: "+r" (src), "+r" (dst)
 	: "r" (end)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	: "$8","$9","$10","$11","memory");
 #else
 	: "$2","$3","$6","$7","$8","$9","$10","$11","memory");
@@ -198,7 +198,7 @@ static inline void copy_page_cpu(void *to, void *from)
 
 /*
  * Pad descriptors to cacheline, since each is exclusively owned by a
- * particular CPU. 
+ * particular CPU.
  */
 typedef struct dmadscr_s {
 	u64 dscr_a;

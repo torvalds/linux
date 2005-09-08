@@ -108,7 +108,7 @@ struct lppaca
 	volatile u32 virtual_decr;	// Virtual DECR for shared procsx78-x7B
 	u16	slb_count;		// # of SLBs to maintain        x7C-x7D
 	u8	idle;			// Indicate OS is idle          x7E
-	u8	reserved5;		// Reserved                     x7F
+	u8	vmxregs_in_use;		// VMX registers in use         x7F
 
 
 //=============================================================================

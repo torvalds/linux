@@ -128,7 +128,7 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 /* Suspend and resume.  Copied from platform_suspend and
  * platform_resume
  */
-static int mdio_bus_suspend(struct device * dev, u32 state)
+static int mdio_bus_suspend(struct device * dev, pm_message_t state)
 {
 	int ret = 0;
 	struct device_driver *drv = dev->driver;
@@ -170,7 +170,7 @@ int __init mdio_bus_init(void)
 	return bus_register(&mdio_bus_type);
 }
 
-void __exit mdio_bus_exit(void)
+void mdio_bus_exit(void)
 {
 	bus_unregister(&mdio_bus_type);
 }

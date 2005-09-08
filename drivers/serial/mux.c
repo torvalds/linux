@@ -111,22 +111,20 @@ static unsigned int mux_get_mctrl(struct uart_port *port)
 /**
  * mux_stop_tx - Stop transmitting characters.
  * @port: Ptr to the uart_port.
- * @tty_stop: tty layer issue this command?
  *
  * The Serial MUX does not support this function.
  */
-static void mux_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void mux_stop_tx(struct uart_port *port)
 {
 }
 
 /**
  * mux_start_tx - Start transmitting characters.
  * @port: Ptr to the uart_port.
- * @tty_start: tty layer issue this command?
  *
  * The Serial Mux does not support this function.
  */
-static void mux_start_tx(struct uart_port *port, unsigned int tty_start)
+static void mux_start_tx(struct uart_port *port)
 {
 }
 
@@ -181,7 +179,7 @@ static void mux_write(struct uart_port *port)
 	}
 
 	if(uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		mux_stop_tx(port, 0);
+		mux_stop_tx(port);
 		return;
 	}
 
@@ -202,7 +200,7 @@ static void mux_write(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		mux_stop_tx(port, 0);
+		mux_stop_tx(port);
 }
 
 /**

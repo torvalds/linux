@@ -248,6 +248,7 @@ struct snd_atiixp_dma {
 	unsigned int period_bytes, periods;
 	int opened;
 	int running;
+	int suspended;
 	int pcm_open_flag;
 	int ac97_pcm_type;	/* index # of ac97_pcm to access, -1 = not used */
 	unsigned int saved_curptr;
@@ -699,12 +700,18 @@ static int snd_atiixp_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		dma->ops->enable_transfer(chip, 1);
 		dma->running = 1;
+		dma->suspended = 0;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		dma->ops->enable_transfer(chip, 0);
 		dma->running = 0;
+		dma->suspended = cmd == SNDRV_PCM_TRIGGER_SUSPEND;
 		break;
 	default:
 		err = -EINVAL;
@@ -975,6 +982,7 @@ static snd_pcm_hardware_t snd_atiixp_pcm_hw =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_PAUSE |
 				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
@@ -1419,7 +1427,7 @@ static int snd_atiixp_suspend(snd_card_t *card, pm_message_t state)
 	snd_atiixp_aclink_down(chip);
 	snd_atiixp_chip_stop(chip);
 
-	pci_set_power_state(chip->pci, 3);
+	pci_set_power_state(chip->pci, PCI_D3hot);
 	pci_disable_device(chip->pci);
 	return 0;
 }
@@ -1430,7 +1438,7 @@ static int snd_atiixp_resume(snd_card_t *card)
 	int i;
 
 	pci_enable_device(chip->pci);
-	pci_set_power_state(chip->pci, 0);
+	pci_set_power_state(chip->pci, PCI_D0);
 	pci_set_master(chip->pci);
 
 	snd_atiixp_aclink_reset(chip);
@@ -1443,7 +1451,7 @@ static int snd_atiixp_resume(snd_card_t *card)
 	for (i = 0; i < NUM_ATI_PCMDEVS; i++)
 		if (chip->pcmdevs[i]) {
 			atiixp_dma_t *dma = &chip->dmas[i];
-			if (dma->substream && dma->running) {
+			if (dma->substream && dma->suspended) {
 				dma->ops->enable_dma(chip, 1);
 				writel((u32)dma->desc_buf.addr | ATI_REG_LINKPTR_EN,
 				       chip->remap_addr + dma->ops->llp_offset);

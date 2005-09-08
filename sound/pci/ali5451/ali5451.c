@@ -1842,7 +1842,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 	return 0;
 }
 
-struct ali_pcm_description ali_pcms[] = {
+static struct ali_pcm_description ali_pcms[] = {
 	{ "ALI 5451", ALI_CHANNELS, 1, &snd_ali_playback_ops, &snd_ali_capture_ops },
 	{ "ALI 5451 modem", 1, 1, &snd_ali_modem_playback_ops, &snd_ali_modem_capture_ops }
 };
@@ -1959,9 +1959,9 @@ static int snd_ali5451_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 static snd_kcontrol_new_t snd_ali5451_mixer_spdif[] __devinitdata = {
 	/* spdif aplayback switch */
 	/* FIXME: "IEC958 Playback Switch" may conflict with one on ac97_codec */
-	ALI5451_SPDIF("IEC958 Output switch", 0, 0),
+	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH), 0, 0),
 	/* spdif out to spdif channel */
-	ALI5451_SPDIF("IEC958 Channel Output Switch", 0, 1),
+	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Channel Output ",NONE,SWITCH), 0, 1),
 	/* spdif in from spdif channel */
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, 2)
 };
@@ -2249,7 +2249,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	if ((codec = kcalloc(1, sizeof(*codec), GFP_KERNEL)) == NULL) {
+	if ((codec = kzalloc(sizeof(*codec), GFP_KERNEL)) == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}

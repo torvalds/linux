@@ -93,7 +93,15 @@ _raw_spin_lock_flags (spinlock_t *lock, unsigned long flags)
 # endif /* CONFIG_MCKINLEY */
 #endif
 }
+
 #define _raw_spin_lock(lock) _raw_spin_lock_flags(lock, 0)
+
+/* Unlock by doing an ordered store and releasing the cacheline with nta */
+static inline void _raw_spin_unlock(spinlock_t *x) {
+	barrier();
+	asm volatile ("st4.rel.nta [%0] = r0\n\t" :: "r"(x));
+}
+
 #else /* !ASM_SUPPORTED */
 #define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
 # define _raw_spin_lock(x)								\
@@ -109,16 +117,16 @@ do {											\
 		} while (ia64_spinlock_val);						\
 	}										\
 } while (0)
+#define _raw_spin_unlock(x)	do { barrier(); ((spinlock_t *) x)->lock = 0; } while (0)
 #endif /* !ASM_SUPPORTED */
 
 #define spin_is_locked(x)	((x)->lock != 0)
-#define _raw_spin_unlock(x)	do { barrier(); ((spinlock_t *) x)->lock = 0; } while (0)
 #define _raw_spin_trylock(x)	(cmpxchg_acq(&(x)->lock, 0, 1) == 0)
 #define spin_unlock_wait(x)	do { barrier(); } while ((x)->lock)
 
 typedef struct {
-	volatile unsigned int read_counter	: 31;
-	volatile unsigned int write_lock	:  1;
+	volatile unsigned int read_counter	: 24;
+	volatile unsigned int write_lock	:  8;
 #ifdef CONFIG_PREEMPT
 	unsigned int break_lock;
 #endif
@@ -174,6 +182,13 @@ do {										\
 	(result == 0);								\
 })
 
+static inline void _raw_write_unlock(rwlock_t *x)
+{
+	u8 *y = (u8 *)x;
+	barrier();
+	asm volatile ("st1.rel.nta [%0] = r0\n\t" :: "r"(y+3) : "memory" );
+}
+
 #else /* !ASM_SUPPORTED */
 
 #define _raw_write_lock(l)								\
@@ -195,14 +210,14 @@ do {										\
 	(ia64_val == 0);						\
 })
 
+static inline void _raw_write_unlock(rwlock_t *x)
+{
+	barrier();
+	x->write_lock = 0;
+}
+
 #endif /* !ASM_SUPPORTED */
 
 #define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
-
-#define _raw_write_unlock(x)								\
-({											\
-	smp_mb__before_clear_bit();	/* need barrier before releasing lock... */	\
-	clear_bit(31, (x));								\
-})
 
 #endif /*  _ASM_IA64_SPINLOCK_H */

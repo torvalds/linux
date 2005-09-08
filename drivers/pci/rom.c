@@ -21,13 +21,21 @@
  * between the ROM and other resources, so enabling it may disable access
  * to MMIO registers or other card memory.
  */
-static void pci_enable_rom(struct pci_dev *pdev)
+static int pci_enable_rom(struct pci_dev *pdev)
 {
+	struct resource *res = pdev->resource + PCI_ROM_RESOURCE;
+	struct pci_bus_region region;
 	u32 rom_addr;
 
+	if (!res->flags)
+		return -1;
+
+	pcibios_resource_to_bus(pdev, &region, res);
 	pci_read_config_dword(pdev, pdev->rom_base_reg, &rom_addr);
-	rom_addr |= PCI_ROM_ADDRESS_ENABLE;
+	rom_addr &= ~PCI_ROM_ADDRESS_MASK;
+	rom_addr |= region.start | PCI_ROM_ADDRESS_ENABLE;
 	pci_write_config_dword(pdev, pdev->rom_base_reg, rom_addr);
+	return 0;
 }
 
 /**
@@ -71,19 +79,21 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	} else {
 		if (res->flags & IORESOURCE_ROM_COPY) {
 			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			return (void __iomem *)pci_resource_start(pdev, PCI_ROM_RESOURCE);
+			return (void __iomem *)pci_resource_start(pdev,
+							     PCI_ROM_RESOURCE);
 		} else {
 			/* assign the ROM an address if it doesn't have one */
-			if (res->parent == NULL)
-				pci_assign_resource(pdev, PCI_ROM_RESOURCE);
-
+			if (res->parent == NULL &&
+			    pci_assign_resource(pdev,PCI_ROM_RESOURCE))
+				return NULL;
 			start = pci_resource_start(pdev, PCI_ROM_RESOURCE);
 			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
 			if (*size == 0)
 				return NULL;
 
 			/* Enable ROM space decodes */
-			pci_enable_rom(pdev);
+			if (pci_enable_rom(pdev))
+				return NULL;
 		}
 	}
 
