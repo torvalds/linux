@@ -22,7 +22,7 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
-2.1.24-WIP
+2.1.24 - Lots of bug fixes and support more clean journal states.
 
 	- Support journals ($LogFile) which have been modified by chkdsk.  This
 	  means users can boot into Windows after we marked the volume dirty.
@@ -89,6 +89,8 @@ ToDo/Notes:
 	- In fs/ntfs/aops.c::ntfs_end_buffer_async_read(), use a bit spin lock
 	  in the first buffer head instead of a driver global spin lock to
 	  improve scalability.
+	- Minor fix to error handling and error message display in
+	  fs/ntfs/aops.c::ntfs_prepare_nonresident_write(). 
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...

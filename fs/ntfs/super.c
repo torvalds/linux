@@ -1688,9 +1688,9 @@ static BOOL load_system_files(ntfs_volume *vol)
 	struct super_block *sb = vol->sb;
 	MFT_RECORD *m;
 	VOLUME_INFORMATION *vi;
-	RESTART_PAGE_HEADER *rp;
 	ntfs_attr_search_ctx *ctx;
 #ifdef NTFS_RW
+	RESTART_PAGE_HEADER *rp;
 	int err;
 #endif /* NTFS_RW */
 

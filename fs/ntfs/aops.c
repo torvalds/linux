@@ -1727,27 +1727,25 @@ lock_retry_remap:
 					if (likely(!err))
 						goto lock_retry_remap;
 					rl = NULL;
-					lcn = err;
 				} else if (!rl)
 					up_read(&ni->runlist.lock);
 				/*
 				 * Failed to map the buffer, even after
 				 * retrying.
 				 */
+				if (!err)
+					err = -EIO;
 				bh->b_blocknr = -1;
 				ntfs_error(vol->sb, "Failed to write to inode "
 						"0x%lx, attribute type 0x%x, "
 						"vcn 0x%llx, offset 0x%x "
 						"because its location on disk "
 						"could not be determined%s "
-						"(error code %lli).",
+						"(error code %i).",
 						ni->mft_no, ni->type,
 						(unsigned long long)vcn,
 						vcn_ofs, is_retry ? " even "
-						"after retrying" : "",
-						(long long)lcn);
-				if (!err)
-					err = -EIO;
+						"after retrying" : "", err);
 				goto err_out;
 			}
 			/* We now have a successful remap, i.e. lcn >= 0. */
