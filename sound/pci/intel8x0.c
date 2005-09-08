@@ -69,6 +69,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
 static char *ac97_quirk[SNDRV_CARDS];
+static int buggy_semaphore[SNDRV_CARDS];
 static int buggy_irq[SNDRV_CARDS];
 static int xbox[SNDRV_CARDS];
 
@@ -86,6 +87,8 @@ module_param_array(ac97_clock, int, NULL, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
 module_param_array(ac97_quirk, charp, NULL, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
+module_param_array(buggy_semaphore, bool, NULL, 0444);
+MODULE_PARM_DESC(buggy_semaphore, "Enable workaround for hardwares with problematic codec semaphores.");
 module_param_array(buggy_irq, bool, NULL, 0444);
 MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
 module_param_array(xbox, bool, NULL, 0444);
@@ -367,6 +370,7 @@ struct _snd_intel8x0 {
 	unsigned fix_nocache: 1; 	/* workaround for 440MX */
 	unsigned buggy_irq: 1;		/* workaround for buggy mobos */
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
+	unsigned buggy_semaphore: 1;	/* workaround for buggy codec semaphore */
 
 	int spdif_idx;	/* SPDIF BAR index; *_SPBAR or -1 if use PCMOUT */
 	unsigned int sdm_saved;	/* SDM reg value */
@@ -520,6 +524,9 @@ static int snd_intel8x0_codec_semaphore(intel8x0_t *chip, unsigned int codec)
 	/* codec ready ? */
 	if ((igetdword(chip, ICHREG(GLOB_STA)) & codec) == 0)
 		return -EIO;
+
+	if (chip->buggy_semaphore)
+		return 0; /* just ignore ... */
 
 	/* Anyone holding a semaphore for 1 msec should be shot... */
 	time = 100;
@@ -2549,6 +2556,7 @@ struct ich_reg_info {
 static int __devinit snd_intel8x0_create(snd_card_t * card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
+					 int buggy_sem,
 					 intel8x0_t ** r_intel8x0)
 {
 	intel8x0_t *chip;
@@ -2606,6 +2614,7 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
+	chip->buggy_semaphore = buggy_sem;
 
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
@@ -2810,7 +2819,8 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		}
 	}
 
-	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data, &chip)) < 0) {
+	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
+				       buggy_semaphore[dev], &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

@@ -805,7 +805,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     ac97_quirk    - AC'97 workaround for strange hardware
 		    See "AC97 Quirk Option" section below.
     buggy_irq     - Enable workaround for buggy interrupts on some
-                    motherboards (default off)
+                    motherboards (default yes on nForce chips,
+		    otherwise off)
+    buggy_semaphore - Enable workaround for hardwares with buggy
+		    semaphores (e.g. on some ASUS laptops)
+		    (default off)
 
     Module supports autoprobe and multiple bus-master chips (max 8).
 
