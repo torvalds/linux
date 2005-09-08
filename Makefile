@@ -641,8 +641,13 @@ quiet_cmd_vmlinux__ ?= LD      $@
 # Generate new vmlinux version
 quiet_cmd_vmlinux_version = GEN     .version
       cmd_vmlinux_version = set -e;                     \
-	. $(srctree)/scripts/mkversion > .tmp_version;	\
-	mv -f .tmp_version .version;			\
+	if [ ! -r .version ]; then			\
+	  rm -f .version;				\
+	  echo 1 >.version;				\
+	else						\
+	  mv .version .old_version;			\
+	  expr 0$$(cat .old_version) + 1 >.version;	\
+	fi;						\
 	$(MAKE) $(build)=init
 
 # Generate System.map
@@ -756,6 +761,7 @@ endif # ifdef CONFIG_KALLSYMS
 # vmlinux image - including updated kernel symbols
 vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
 	$(call if_changed_rule,vmlinux__)
+	$(Q)rm -f .old_version
 
 # The actual objects are generated when descending, 
 # make sure no implicit rule kicks in
