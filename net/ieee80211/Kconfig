@@ -1,6 +1,5 @@
 config IEEE80211
 	tristate "Generic IEEE 802.11 Networking Stack"
-	select NET_RADIO
 	---help---
 	This option enables the hardware independent IEEE 802.11
 	networking stack.
