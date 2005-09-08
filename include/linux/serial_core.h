@@ -401,6 +401,9 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 #endif
 	return 0;
 }
+#ifndef SUPPORT_SYSRQ
+#define uart_handle_sysrq_char(port,ch,regs) uart_handle_sysrq_char(port, 0, NULL)
+#endif
 
 /*
  * We do the SysRQ and SAK checking like this...
