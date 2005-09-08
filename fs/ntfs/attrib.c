@@ -43,6 +43,9 @@
  * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
  * of bounds of the runlist.
  *
+ * Note the runlist can be NULL after this function returns if @vcn is zero and
+ * the attribute has zero allocated size, i.e. there simply is no runlist.
+ *
  * Locking: - The runlist must be locked for writing.
  *	    - This function modifies the runlist.
  */
@@ -54,6 +57,7 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 	ATTR_RECORD *a;
 	ntfs_attr_search_ctx *ctx;
 	runlist_element *rl;
+	unsigned long flags;
 	int err = 0;
 
 	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
@@ -85,8 +89,11 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 	 * ntfs_mapping_pairs_decompress() fails.
 	 */
 	end_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn) + 1;
-	if (unlikely(!a->data.non_resident.lowest_vcn && end_vcn <= 1))
+	if (unlikely(!a->data.non_resident.lowest_vcn && end_vcn <= 1)) {
+		read_lock_irqsave(&ni->size_lock, flags);
 		end_vcn = ni->allocated_size >> ni->vol->cluster_size_bits;
+		read_unlock_irqrestore(&ni->size_lock, flags);
+	}
 	if (unlikely(vcn >= end_vcn)) {
 		err = -ENOENT;
 		goto err_out;
@@ -165,6 +172,7 @@ LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked)
 {
 	LCN lcn;
+	unsigned long flags;
 	BOOL is_retry = FALSE;
 
 	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
@@ -173,6 +181,14 @@ LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
+	if (!ni->runlist.rl) {
+		read_lock_irqsave(&ni->size_lock, flags);
+		if (!ni->allocated_size) {
+			read_unlock_irqrestore(&ni->size_lock, flags);
+			return LCN_ENOENT;
+		}
+		read_unlock_irqrestore(&ni->size_lock, flags);
+	}
 retry_remap:
 	/* Convert vcn to lcn.  If that fails map the runlist and retry once. */
 	lcn = ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn);
@@ -255,6 +271,7 @@ retry_remap:
 runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked)
 {
+	unsigned long flags;
 	runlist_element *rl;
 	int err = 0;
 	BOOL is_retry = FALSE;
@@ -265,6 +282,14 @@ runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
+	if (!ni->runlist.rl) {
+		read_lock_irqsave(&ni->size_lock, flags);
+		if (!ni->allocated_size) {
+			read_unlock_irqrestore(&ni->size_lock, flags);
+			return ERR_PTR(-ENOENT);
+		}
+		read_unlock_irqrestore(&ni->size_lock, flags);
+	}
 retry_remap:
 	rl = ni->runlist.rl;
 	if (likely(rl && vcn >= rl[0].vcn)) {
@@ -528,6 +553,11 @@ int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 	block_size_bits = sb->s_blocksize_bits;
 	down_read(&runlist->lock);
 	rl = runlist->rl;
+	if (!rl) {
+		ntfs_error(sb, "Cannot read attribute list since runlist is "
+				"missing.");
+		goto err_out;	
+	}
 	/* Read all clusters specified by the runlist one run at a time. */
 	while (rl->length) {
 		lcn = ntfs_rl_vcn_to_lcn(rl, rl->vcn);

@@ -60,6 +60,12 @@ ToDo/Notes:
 	  the index context.  Thanks to Yura Pakhuchiy for finding this bug.
 	- Remove bogus setting of PageError in ntfs_read_compressed_block().
 	- Add fs/ntfs/attrib.[hc]::ntfs_resident_attr_value_resize().
+	- Fix a bug in ntfs_map_runlist_nolock() where we forgot to protect
+	  access to the allocated size in the ntfs inode with the size lock.
+	- Fix ntfs_attr_vcn_to_lcn_nolock() and ntfs_attr_find_vcn_nolock() to
+	  return LCN_ENOENT when there is no runlist and the allocated size is
+	  zero.
+	- Fix load_attribute_list() to handle the case of a NULL runlist.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
