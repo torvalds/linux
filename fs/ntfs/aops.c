@@ -55,9 +55,8 @@
  */
 static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 {
-	static DEFINE_SPINLOCK(page_uptodate_lock);
 	unsigned long flags;
-	struct buffer_head *tmp;
+	struct buffer_head *first, *tmp;
 	struct page *page;
 	ntfs_inode *ni;
 	int page_uptodate = 1;
@@ -89,11 +88,13 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		}
 	} else {
 		clear_buffer_uptodate(bh);
+		SetPageError(page);
 		ntfs_error(ni->vol->sb, "Buffer I/O error, logical block %llu.",
 				(unsigned long long)bh->b_blocknr);
-		SetPageError(page);
 	}
-	spin_lock_irqsave(&page_uptodate_lock, flags);
+	first = page_buffers(page);
+	local_irq_save(flags);
+	bit_spin_lock(BH_Uptodate_Lock, &first->b_state);
 	clear_buffer_async_read(bh);
 	unlock_buffer(bh);
 	tmp = bh;
@@ -108,7 +109,8 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		}
 		tmp = tmp->b_this_page;
 	} while (tmp != bh);
-	spin_unlock_irqrestore(&page_uptodate_lock, flags);
+	bit_spin_unlock(BH_Uptodate_Lock, &first->b_state);
+	local_irq_restore(flags);
 	/*
 	 * If none of the buffers had errors then we can set the page uptodate,
 	 * but we first have to perform the post read mst fixups, if the
@@ -141,7 +143,8 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	unlock_page(page);
 	return;
 still_busy:
-	spin_unlock_irqrestore(&page_uptodate_lock, flags);
+	bit_spin_unlock(BH_Uptodate_Lock, &first->b_state);
+	local_irq_restore(flags);
 	return;
 }
 
