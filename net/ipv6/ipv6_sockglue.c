@@ -264,6 +264,18 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 		retv = 0;
 		break;
 
+	case IPV6_TCLASS:
+		if (val < 0 || val > 0xff)
+			goto e_inval;
+		np->tclass = val;
+		retv = 0;
+		break;
+		
+	case IPV6_RECVTCLASS:
+		np->rxopt.bits.rxtclass = valbool;
+		retv = 0;
+		break;
+
 	case IPV6_FLOWINFO:
 		np->rxopt.bits.rxflow = valbool;
 		retv = 0;
@@ -364,7 +376,7 @@ sticky_done:
 		msg.msg_controllen = optlen;
 		msg.msg_control = (void*)(opt+1);
 
-		retv = datagram_send_ctl(&msg, &fl, opt, &junk);
+		retv = datagram_send_ctl(&msg, &fl, opt, &junk, &junk);
 		if (retv)
 			goto done;
 update:
@@ -785,6 +797,14 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_2292DSTOPTS:
 		val = np->rxopt.bits.odstopts;
+		break;
+
+	case IPV6_TCLASS:
+		val = np->tclass;
+		break;
+
+	case IPV6_RECVTCLASS:
+		val = np->rxopt.bits.rxtclass;
 		break;
 
 	case IPV6_FLOWINFO:

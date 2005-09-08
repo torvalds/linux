@@ -637,6 +637,7 @@ static int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int addr_len = msg->msg_namelen;
 	int ulen = len;
 	int hlimit = -1;
+	int tclass = -1;
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int err;
 
@@ -758,7 +759,7 @@ do_udp_sendmsg:
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(*opt);
 
-		err = datagram_send_ctl(msg, fl, opt, &hlimit);
+		err = datagram_send_ctl(msg, fl, opt, &hlimit, &tclass);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -814,6 +815,12 @@ do_udp_sendmsg:
 			hlimit = ipv6_get_hoplimit(dst->dev);
 	}
 
+	if (tclass < 0) {
+		tclass = np->tclass;
+		if (tclass < 0)
+			tclass = 0;
+	}
+
 	if (msg->msg_flags&MSG_CONFIRM)
 		goto do_confirm;
 back_from_confirm:
@@ -833,9 +840,10 @@ back_from_confirm:
 
 do_append_data:
 	up->len += ulen;
-	err = ip6_append_data(sk, ip_generic_getfrag, msg->msg_iov, ulen, sizeof(struct udphdr),
-			      hlimit, opt, fl, (struct rt6_info*)dst,
-			      corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
+	err = ip6_append_data(sk, ip_generic_getfrag, msg->msg_iov, ulen,
+		sizeof(struct udphdr), hlimit, tclass, opt, fl,
+		(struct rt6_info*)dst,
+		corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
 	if (err)
 		udp_v6_flush_pending_frames(sk);
 	else if (!corkreq)

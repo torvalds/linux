@@ -245,7 +245,8 @@ struct ipv6_pinfo {
 				ohopopts:1,
 				dstopts:1,
 				odstopts:1,
-                                rxflow:1;
+                                rxflow:1,
+				rxtclass:1;
 		} bits;
 		__u16		all;
 	} rxopt;
@@ -256,6 +257,7 @@ struct ipv6_pinfo {
 	                        sndflow:1,
 				pmtudisc:2,
 				ipv6only:1;
+	__u8			tclass;
 
 	__u32			dst_cookie;
 
@@ -269,6 +271,7 @@ struct ipv6_pinfo {
 		struct ipv6_txoptions *opt;
 		struct rt6_info	*rt;
 		int hop_limit;
+		int tclass;
 	} cork;
 };
 

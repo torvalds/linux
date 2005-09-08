@@ -219,9 +219,7 @@ struct in6_flowlabel_req
 #define IPV6_DSTOPTS		63
 #define IPV6_RECVHOPLIMIT	64
 #define IPV6_HOPLIMIT		65
-#if 0
 #define IPV6_RECVTCLASS		66
 #define IPV6_TCLASS		67
-#endif
 
 #endif

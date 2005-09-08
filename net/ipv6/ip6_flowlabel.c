@@ -314,7 +314,7 @@ fl_create(struct in6_flowlabel_req *freq, char __user *optval, int optlen, int *
 		msg.msg_control = (void*)(fl->opt+1);
 		flowi.oif = 0;
 
-		err = datagram_send_ctl(&msg, &flowi, fl->opt, &junk);
+		err = datagram_send_ctl(&msg, &flowi, fl->opt, &junk, &junk);
 		if (err)
 			goto done;
 		err = -EINVAL;
