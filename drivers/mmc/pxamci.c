@@ -423,7 +423,7 @@ static void pxamci_dma_irq(int dma, void *devid, struct pt_regs *regs)
 
 static irqreturn_t pxamci_detect_irq(int irq, void *devid, struct pt_regs *regs)
 {
-	mmc_detect_change(devid);
+	mmc_detect_change(devid, 0);
 	return IRQ_HANDLED;
 }
 

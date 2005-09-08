@@ -123,7 +123,7 @@ extern void mmc_free_host(struct mmc_host *);
 extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);
 
-extern void mmc_detect_change(struct mmc_host *);
+extern void mmc_detect_change(struct mmc_host *, unsigned long delay);
 extern void mmc_request_done(struct mmc_host *, struct mmc_request *);
 
 #endif
