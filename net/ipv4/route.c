@@ -1760,6 +1760,7 @@ static inline int __mkroute_input(struct sk_buff *skb,
 		goto cleanup;
 	}
 
+	atomic_set(&rth->u.dst.__refcnt, 1);
 	rth->u.dst.flags= DST_HOST;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
 	if (res->fi->fib_nhs > 1)
@@ -1820,7 +1821,6 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 	err = __mkroute_input(skb, res, in_dev, daddr, saddr, tos, &rth);
 	if (err)
 		return err;
-	atomic_set(&rth->u.dst.__refcnt, 1);
 
 	/* put it into the cache */
 	hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5), tos);
@@ -1834,8 +1834,8 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 				   u32 daddr, u32 saddr, u32 tos)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	struct rtable* rth = NULL;
-	unsigned char hop, hopcount, lasthop;
+	struct rtable* rth = NULL, *rtres;
+	unsigned char hop, hopcount;
 	int err = -EINVAL;
 	unsigned int hash;
 
@@ -1843,8 +1843,6 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 		hopcount = res->fi->fib_nhs;
 	else
 		hopcount = 1;
-
-	lasthop = hopcount - 1;
 
 	/* distinguish between multipath and singlepath */
 	if (hopcount < 2)
@@ -1855,6 +1853,10 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 	for (hop = 0; hop < hopcount; hop++) {
 		res->nh_sel = hop;
 
+		/* put reference to previous result */
+		if (hop)
+			ip_rt_put(rtres);
+
 		/* create a routing cache entry */
 		err = __mkroute_input(skb, res, in_dev, daddr, saddr, tos,
 				      &rth);
@@ -1863,7 +1865,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 
 		/* put it into the cache */
 		hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5), tos);
-		err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
+		err = rt_intern_hash(hash, rth, &rtres);
 		if (err)
 			return err;
 
@@ -1873,13 +1875,8 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 				     FIB_RES_NETMASK(*res),
 				     res->prefixlen,
 				     &FIB_RES_NH(*res));
-
-		/* only for the last hop the reference count is handled
-		 * outside
-		 */
-		if (hop == lasthop)
-			atomic_set(&(skb->dst->__refcnt), 1);
 	}
+	skb->dst = &rtres->u.dst;
 	return err;
 #else /* CONFIG_IP_ROUTE_MULTIPATH_CACHED  */
 	return ip_mkroute_input_def(skb, res, fl, in_dev, daddr, saddr, tos);
@@ -2208,6 +2205,7 @@ static inline int __mkroute_output(struct rtable **result,
 		goto cleanup;
 	}		
 
+	atomic_set(&rth->u.dst.__refcnt, 1);
 	rth->u.dst.flags= DST_HOST;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
 	if (res->fi) {
@@ -2290,8 +2288,6 @@ static inline int ip_mkroute_output_def(struct rtable **rp,
 	if (err == 0) {
 		u32 tos = RT_FL_TOS(oldflp);
 
-		atomic_set(&rth->u.dst.__refcnt, 1);
-		
 		hash = rt_hash_code(oldflp->fl4_dst, 
 				    oldflp->fl4_src ^ (oldflp->oif << 5), tos);
 		err = rt_intern_hash(hash, rth, rp);
@@ -2326,6 +2322,10 @@ static inline int ip_mkroute_output(struct rtable** rp,
 			dev2nexthop = FIB_RES_DEV(*res);
 			dev_hold(dev2nexthop);
 
+			/* put reference to previous result */
+			if (hop)
+				ip_rt_put(*rp);
+
 			err = __mkroute_output(&rth, res, fl, oldflp,
 					       dev2nexthop, flags);
 
@@ -2350,7 +2350,6 @@ static inline int ip_mkroute_output(struct rtable** rp,
 			if (err != 0)
 				return err;
 		}
-		atomic_set(&(*rp)->u.dst.__refcnt, 1);
 		return err;
 	} else {
 		return ip_mkroute_output_def(rp, res, fl, oldflp, dev_out,
