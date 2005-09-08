@@ -760,6 +760,9 @@ runlist_element *ntfs_mapping_pairs_decompress(const ntfs_volume *vol,
 		ntfs_error(vol->sb, "Corrupt attribute.");
 		return ERR_PTR(-EIO);
 	}
+	/* If the mapping pairs array is valid but empty, nothing to do. */
+	if (!vcn && !*buf)
+		return old_rl;
 	/* Current position in runlist array. */
 	rlpos = 0;
 	/* Allocate first page and set current runlist size to one page. */
