@@ -1543,7 +1543,11 @@ static int snd_pcm_oss_get_ptr(snd_pcm_oss_file_t *pcm_oss_file, int stream, str
 	} else {
 		delay = snd_pcm_oss_bytes(substream, delay);
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			info.blocks = (runtime->oss.buffer_bytes - delay - fixup) / runtime->oss.period_bytes;
+			snd_pcm_oss_setup_t *setup = substream->oss.setup;
+			if (setup && setup->buggyptr)
+				info.blocks = (runtime->oss.buffer_bytes - delay - fixup) / runtime->oss.period_bytes;
+			else
+				info.blocks = (delay + fixup) / runtime->oss.period_bytes;
 			info.bytes = (runtime->oss.bytes - delay) & INT_MAX;
 		} else {
 			delay += fixup;
@@ -2350,6 +2354,8 @@ static void snd_pcm_oss_proc_write(snd_info_entry_t *entry,
 				template.partialfrag = 1;
 			} else if (!strcmp(str, "no-silence")) {
 				template.nosilence = 1;
+			} else if (!strcmp(str, "buggy-ptr")) {
+				template.buggyptr = 1;
 			}
 		} while (*str);
 		if (setup == NULL) {

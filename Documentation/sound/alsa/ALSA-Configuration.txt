@@ -1592,6 +1592,8 @@ Proc interfaces (/proc/asound)
 	  - whole-frag  write only whole fragments (optimization affecting
 			playback only)
 	  - no-silence  do not fill silence ahead to avoid clicks
+	  - buggy-ptr	Returns the whitespace blocks in GETOPTR ioctl
+			instead of filled blocks
 
   Example: echo "x11amp 128 16384" > /proc/asound/card0/pcm0p/oss
            echo "squake 0 0 disable" > /proc/asound/card0/pcm0c/oss
