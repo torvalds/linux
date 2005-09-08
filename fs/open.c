@@ -933,16 +933,11 @@ void fastcall fd_install(unsigned int fd, struct file * file)
 
 EXPORT_SYMBOL(fd_install);
 
-asmlinkage long sys_open(const char __user * filename, int flags, int mode)
+long do_sys_open(const char __user *filename, int flags, int mode)
 {
-	char * tmp;
-	int fd;
+	char *tmp = getname(filename);
+	int fd = PTR_ERR(tmp);
 
-	if (force_o_largefile())
-		flags |= O_LARGEFILE;
-
-	tmp = getname(filename);
-	fd = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd();
 		if (fd >= 0) {
@@ -958,6 +953,14 @@ asmlinkage long sys_open(const char __user * filename, int flags, int mode)
 		putname(tmp);
 	}
 	return fd;
+}
+
+asmlinkage long sys_open(const char __user *filename, int flags, int mode)
+{
+	if (force_o_largefile())
+		flags |= O_LARGEFILE;
+
+	return do_sys_open(filename, flags, mode);
 }
 EXPORT_SYMBOL_GPL(sys_open);
 

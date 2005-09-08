@@ -235,7 +235,7 @@ struct lance_private {
 #define	MEM		lp->mem
 #define	DREG	IO->data
 #define	AREG	IO->addr
-#define	REGA(a)	( AREG = (a), DREG )
+#define	REGA(a)	(*( AREG = (a), &DREG ))
 
 /* Definitions for packet buffer access: */
 #define PKT_BUF_SZ		1544

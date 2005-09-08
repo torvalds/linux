@@ -638,7 +638,7 @@ iso_stream_alloc (unsigned mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
-	stream = kcalloc(1, sizeof *stream, mem_flags);
+	stream = kzalloc(sizeof *stream, mem_flags);
 	if (likely (stream != NULL)) {
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);

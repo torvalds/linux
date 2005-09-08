@@ -2558,24 +2558,18 @@ void kmem_cache_free(kmem_cache_t *cachep, void *objp)
 EXPORT_SYMBOL(kmem_cache_free);
 
 /**
- * kcalloc - allocate memory for an array. The memory is set to zero.
- * @n: number of elements.
- * @size: element size.
+ * kzalloc - allocate memory. The memory is set to zero.
+ * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
  */
-void *kcalloc(size_t n, size_t size, unsigned int __nocast flags)
+void *kzalloc(size_t size, unsigned int __nocast flags)
 {
-	void *ret = NULL;
-
-	if (n != 0 && size > INT_MAX / n)
-		return ret;
-
-	ret = kmalloc(n * size, flags);
+	void *ret = kmalloc(size, flags);
 	if (ret)
-		memset(ret, 0, n * size);
+		memset(ret, 0, size);
 	return ret;
 }
-EXPORT_SYMBOL(kcalloc);
+EXPORT_SYMBOL(kzalloc);
 
 /**
  * kfree - free previously allocated memory

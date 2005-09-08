@@ -507,7 +507,7 @@ label:						\
 	pushl $__KERNEL_CS;			\
 	pushl $sysenter_past_esp
 
-ENTRY(debug)
+KPROBE_ENTRY(debug)
 	cmpl $sysenter_entry,(%esp)
 	jne debug_stack_correct
 	FIX_STACK(12, debug_stack_correct, debug_esp_fix_insn)
@@ -518,7 +518,7 @@ debug_stack_correct:
 	movl %esp,%eax			# pt_regs pointer
 	call do_debug
 	jmp ret_from_exception
-
+	.previous .text
 /*
  * NMI is doubly nasty. It can happen _while_ we're handling
  * a debug fault, and the debug fault hasn't yet been able to
@@ -591,13 +591,14 @@ nmi_16bit_stack:
 	.long 1b,iret_exc
 .previous
 
-ENTRY(int3)
+KPROBE_ENTRY(int3)
 	pushl $-1			# mark this as an int
 	SAVE_ALL
 	xorl %edx,%edx		# zero error code
 	movl %esp,%eax		# pt_regs pointer
 	call do_int3
 	jmp ret_from_exception
+	.previous .text
 
 ENTRY(overflow)
 	pushl $0
@@ -631,17 +632,19 @@ ENTRY(stack_segment)
 	pushl $do_stack_segment
 	jmp error_code
 
-ENTRY(general_protection)
+KPROBE_ENTRY(general_protection)
 	pushl $do_general_protection
 	jmp error_code
+	.previous .text
 
 ENTRY(alignment_check)
 	pushl $do_alignment_check
 	jmp error_code
 
-ENTRY(page_fault)
+KPROBE_ENTRY(page_fault)
 	pushl $do_page_fault
 	jmp error_code
+	.previous .text
 
 #ifdef CONFIG_X86_MCE
 ENTRY(machine_check)

@@ -58,6 +58,13 @@
  *	o Add wmb() in iw_handler_set_spy() for non-coherent archs/cpus
  * Based on patch from Pavel Roskin <proski@gnu.org> :
  *	o Fix kernel data leak to user space in private handler handling
+ *
+ * v7 - 18.3.05 - Jean II
+ *	o Remove (struct iw_point *)->pointer from events and streams
+ *	o Remove spy_offset from struct iw_handler_def
+ *	o Start deprecating dev->get_wireless_stats, output a warning
+ *	o If IW_QUAL_DBM is set, show dBm values in /proc/net/wireless
+ *	o Don't loose INVALID/DBM flags when clearing UPDATED flags (iwstats)
  */
 
 /***************************** INCLUDES *****************************/
@@ -446,10 +453,14 @@ static inline struct iw_statistics *get_wireless_stats(struct net_device *dev)
 	   (dev->wireless_handlers->get_wireless_stats != NULL))
 		return dev->wireless_handlers->get_wireless_stats(dev);
 
-	/* Old location, will be phased out in next WE */
-	return (dev->get_wireless_stats ?
-		dev->get_wireless_stats(dev) :
-		(struct iw_statistics *) NULL);
+	/* Old location, field to be removed in next WE */
+	if(dev->get_wireless_stats) {
+		printk(KERN_DEBUG "%s (WE) : Driver using old /proc/net/wireless support, please fix driver !\n",
+		       dev->name);
+		return dev->get_wireless_stats(dev);
+	}
+	/* Not found */
+	return (struct iw_statistics *) NULL;
 }
 
 /* ---------------------------------------------------------------- */
@@ -541,16 +552,18 @@ static __inline__ void wireless_seq_printf_stats(struct seq_file *seq,
 			   dev->name, stats->status, stats->qual.qual,
 			   stats->qual.updated & IW_QUAL_QUAL_UPDATED
 			   ? '.' : ' ',
-			   ((__u8) stats->qual.level),
+			   ((__s32) stats->qual.level) - 
+			   ((stats->qual.updated & IW_QUAL_DBM) ? 0x100 : 0),
 			   stats->qual.updated & IW_QUAL_LEVEL_UPDATED
 			   ? '.' : ' ',
-			   ((__u8) stats->qual.noise),
+			   ((__s32) stats->qual.noise) - 
+			   ((stats->qual.updated & IW_QUAL_DBM) ? 0x100 : 0),
 			   stats->qual.updated & IW_QUAL_NOISE_UPDATED
 			   ? '.' : ' ',
 			   stats->discard.nwid, stats->discard.code,
 			   stats->discard.fragment, stats->discard.retries,
 			   stats->discard.misc, stats->miss.beacon);
-		stats->qual.updated = 0;
+		stats->qual.updated &= ~IW_QUAL_ALL_UPDATED;
 	}
 }
 
@@ -593,6 +606,7 @@ static struct file_operations wireless_seq_fops = {
 
 int __init wireless_proc_init(void)
 {
+	/* Create /proc/net/wireless entry */
 	if (!proc_net_fops_create("wireless", S_IRUGO, &wireless_seq_fops))
 		return -ENOMEM;
 
@@ -627,9 +641,9 @@ static inline int dev_iwstats(struct net_device *dev, struct ifreq *ifr)
 				sizeof(struct iw_statistics)))
 			return -EFAULT;
 
-		/* Check if we need to clear the update flag */
+		/* Check if we need to clear the updated flag */
 		if(wrq->u.data.flags != 0)
-			stats->qual.updated = 0;
+			stats->qual.updated &= ~IW_QUAL_ALL_UPDATED;
 		return 0;
 	} else
 		return -EOPNOTSUPP;
@@ -1161,10 +1175,11 @@ void wireless_send_event(struct net_device *	dev,
 	struct iw_event  *event;		/* Mallocated whole event */
 	int event_len;				/* Its size */
 	int hdr_len;				/* Size of the event header */
+	int wrqu_off = 0;			/* Offset in wrqu */
 	/* Don't "optimise" the following variable, it will crash */
 	unsigned	cmd_index;		/* *MUST* be unsigned */
 
-	/* Get the description of the IOCTL */
+	/* Get the description of the Event */
 	if(cmd <= SIOCIWLAST) {
 		cmd_index = cmd - SIOCIWFIRST;
 		if(cmd_index < standard_ioctl_num)
@@ -1207,6 +1222,8 @@ void wireless_send_event(struct net_device *	dev,
 		/* Calculate extra_len - extra is NULL for restricted events */
 		if(extra != NULL)
 			extra_len = wrqu->data.length * descr->token_size;
+		/* Always at an offset in wrqu */
+		wrqu_off = IW_EV_POINT_OFF;
 #ifdef WE_EVENT_DEBUG
 		printk(KERN_DEBUG "%s (WE) : Event 0x%04X, tokens %d, extra_len %d\n", dev->name, cmd, wrqu->data.length, extra_len);
 #endif	/* WE_EVENT_DEBUG */
@@ -1217,7 +1234,7 @@ void wireless_send_event(struct net_device *	dev,
 	event_len = hdr_len + extra_len;
 
 #ifdef WE_EVENT_DEBUG
-	printk(KERN_DEBUG "%s (WE) : Event 0x%04X, hdr_len %d, event_len %d\n", dev->name, cmd, hdr_len, event_len);
+	printk(KERN_DEBUG "%s (WE) : Event 0x%04X, hdr_len %d, wrqu_off %d, event_len %d\n", dev->name, cmd, hdr_len, wrqu_off, event_len);
 #endif	/* WE_EVENT_DEBUG */
 
 	/* Create temporary buffer to hold the event */
@@ -1228,7 +1245,7 @@ void wireless_send_event(struct net_device *	dev,
 	/* Fill event */
 	event->len = event_len;
 	event->cmd = cmd;
-	memcpy(&event->u, wrqu, hdr_len - IW_EV_LCP_LEN);
+	memcpy(&event->u, ((char *) wrqu) + wrqu_off, hdr_len - IW_EV_LCP_LEN);
 	if(extra != NULL)
 		memcpy(((char *) event) + hdr_len, extra, extra_len);
 
@@ -1249,7 +1266,7 @@ void wireless_send_event(struct net_device *	dev,
  * Now, the driver can delegate this task to Wireless Extensions.
  * It needs to use those standard spy iw_handler in struct iw_handler_def,
  * push data to us via wireless_spy_update() and include struct iw_spy_data
- * in its private part (and advertise it in iw_handler_def->spy_offset).
+ * in its private part (and export it in net_device->wireless_data->spy_data).
  * One of the main advantage of centralising spy support here is that
  * it becomes much easier to improve and extend it without having to touch
  * the drivers. One example is the addition of the Spy-Threshold events.
@@ -1266,10 +1283,7 @@ static inline struct iw_spy_data * get_spydata(struct net_device *dev)
 	/* This is the new way */
 	if(dev->wireless_data)
 		return(dev->wireless_data->spy_data);
-
-	/* This is the old way. Doesn't work for multi-headed drivers.
-	 * It will be removed in the next version of WE. */
-	return (dev->priv + dev->wireless_handlers->spy_offset);
+	return NULL;
 }
 
 /*------------------------------------------------------------------*/
@@ -1284,10 +1298,6 @@ int iw_handler_set_spy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct sockaddr *	address = (struct sockaddr *) extra;
 
-	if(!dev->wireless_data)
-		/* Help user know that driver needs updating */
-		printk(KERN_DEBUG "%s (WE) : Driver using old/buggy spy support, please fix driver !\n",
-		       dev->name);
 	/* Make sure driver is not buggy or using the old API */
 	if(!spydata)
 		return -EOPNOTSUPP;
@@ -1318,7 +1328,7 @@ int iw_handler_set_spy(struct net_device *	dev,
 		       sizeof(struct iw_quality) * IW_MAX_SPY);
 
 #ifdef WE_SPY_DEBUG
-		printk(KERN_DEBUG "iw_handler_set_spy() :  offset %ld, spydata %p, num %d\n", dev->wireless_handlers->spy_offset, spydata, wrqu->data.length);
+		printk(KERN_DEBUG "iw_handler_set_spy() :  wireless_data %p, spydata %p, num %d\n", dev->wireless_data, spydata, wrqu->data.length);
 		for (i = 0; i < wrqu->data.length; i++)
 			printk(KERN_DEBUG
 			       "%02X:%02X:%02X:%02X:%02X:%02X \n",
@@ -1371,7 +1381,7 @@ int iw_handler_get_spy(struct net_device *	dev,
 		       sizeof(struct iw_quality) * spydata->spy_number);
 	/* Reset updated flags. */
 	for(i = 0; i < spydata->spy_number; i++)
-		spydata->spy_stat[i].updated = 0;
+		spydata->spy_stat[i].updated &= ~IW_QUAL_ALL_UPDATED;
 	return 0;
 }
 
@@ -1486,7 +1496,7 @@ void wireless_spy_update(struct net_device *	dev,
 		return;
 
 #ifdef WE_SPY_DEBUG
-	printk(KERN_DEBUG "wireless_spy_update() :  offset %ld, spydata %p, address %02X:%02X:%02X:%02X:%02X:%02X\n", dev->wireless_handlers->spy_offset, spydata, address[0], address[1], address[2], address[3], address[4], address[5]);
+	printk(KERN_DEBUG "wireless_spy_update() :  wireless_data %p, spydata %p, address %02X:%02X:%02X:%02X:%02X:%02X\n", dev->wireless_data, spydata, address[0], address[1], address[2], address[3], address[4], address[5]);
 #endif	/* WE_SPY_DEBUG */
 
 	/* Update all records that match */

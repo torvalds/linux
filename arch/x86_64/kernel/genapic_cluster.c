@@ -72,10 +72,14 @@ static void cluster_send_IPI_mask(cpumask_t mask, int vector)
 static void cluster_send_IPI_allbutself(int vector)
 {
 	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
+	int me = get_cpu(); /* Ensure we are not preempted when we clear */
+
+	cpu_clear(me, mask);
 
 	if (!cpus_empty(mask))
 		cluster_send_IPI_mask(mask, vector);
+
+	put_cpu();
 }
 
 static void cluster_send_IPI_all(int vector)

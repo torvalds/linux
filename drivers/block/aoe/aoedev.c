@@ -35,7 +35,7 @@ aoedev_newdev(ulong nframes)
 	struct aoedev *d;
 	struct frame *f, *e;
 
-	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
+	d = kzalloc(sizeof *d, GFP_ATOMIC);
 	if (d == NULL)
 		return NULL;
 	f = kcalloc(nframes, sizeof *f, GFP_ATOMIC);

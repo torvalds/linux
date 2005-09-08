@@ -463,6 +463,8 @@ void touch_nmi_watchdog (void)
 	 */
 	for (i = 0; i < NR_CPUS; i++)
 		per_cpu(nmi_touch, i) = 1;
+
+ 	touch_softlockup_watchdog();
 }
 
 void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
@@ -522,14 +524,14 @@ asmlinkage void do_nmi(struct pt_regs * regs, long error_code)
 
 	nmi_enter();
 	add_pda(__nmi_count,1);
-	if (!nmi_callback(regs, cpu))
+	if (!rcu_dereference(nmi_callback)(regs, cpu))
 		default_do_nmi(regs);
 	nmi_exit();
 }
 
 void set_nmi_callback(nmi_callback_t callback)
 {
-	nmi_callback = callback;
+	rcu_assign_pointer(nmi_callback, callback);
 }
 
 void unset_nmi_callback(void)

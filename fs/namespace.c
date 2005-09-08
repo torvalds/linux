@@ -40,7 +40,7 @@ static inline int sysfs_init(void)
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
 
 static struct list_head *mount_hashtable;
-static int hash_mask, hash_bits;
+static int hash_mask __read_mostly, hash_bits __read_mostly;
 static kmem_cache_t *mnt_cache; 
 
 static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
@@ -1334,8 +1334,12 @@ asmlinkage long sys_pivot_root(const char __user *new_root, const char __user *p
 	error = -EINVAL;
 	if (user_nd.mnt->mnt_root != user_nd.dentry)
 		goto out2; /* not a mountpoint */
+	if (user_nd.mnt->mnt_parent == user_nd.mnt)
+		goto out2; /* not attached */
 	if (new_nd.mnt->mnt_root != new_nd.dentry)
 		goto out2; /* not a mountpoint */
+	if (new_nd.mnt->mnt_parent == new_nd.mnt)
+		goto out2; /* not attached */
 	tmp = old_nd.mnt; /* make sure we can reach put_old from new_root */
 	spin_lock(&vfsmount_lock);
 	if (tmp != new_nd.mnt) {

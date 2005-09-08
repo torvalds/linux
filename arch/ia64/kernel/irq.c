@@ -91,22 +91,7 @@ skip:
 }
 
 #ifdef CONFIG_SMP
-/*
- * This is updated when the user sets irq affinity via /proc
- */
-static cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
-static unsigned long pending_irq_redir[BITS_TO_LONGS(NR_IRQS)];
-
 static char irq_redir [NR_IRQS]; // = { [0 ... NR_IRQS-1] = 1 };
-
-/*
- * Arch specific routine for deferred write to iosapic rte to reprogram
- * intr destination.
- */
-void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
-{
-	pending_irq_cpumask[irq] = mask_val;
-}
 
 void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 {
@@ -116,32 +101,10 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 
 	if (irq < NR_IRQS) {
 		irq_affinity[irq] = mask;
+		set_irq_info(irq, mask);
 		irq_redir[irq] = (char) (redir & 0xff);
 	}
 }
-
-
-void move_irq(int irq)
-{
-	/* note - we hold desc->lock */
-	cpumask_t tmp;
-	irq_desc_t *desc = irq_descp(irq);
-	int redir = test_bit(irq, pending_irq_redir);
-
-	if (unlikely(!desc->handler->set_affinity))
-		return;
-
-	if (!cpus_empty(pending_irq_cpumask[irq])) {
-		cpus_and(tmp, pending_irq_cpumask[irq], cpu_online_map);
-		if (unlikely(!cpus_empty(tmp))) {
-			desc->handler->set_affinity(irq | (redir ? IA64_IRQ_REDIRECTED : 0),
-						    pending_irq_cpumask[irq]);
-		}
-		cpus_clear(pending_irq_cpumask[irq]);
-	}
-}
-
-
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_HOTPLUG_CPU

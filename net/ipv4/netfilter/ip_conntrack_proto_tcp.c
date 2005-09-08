@@ -349,6 +349,7 @@ static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
 	return 0;
 
 nfattr_failure:
+	read_unlock_bh(&tcp_lock);
 	return -1;
 }
 #endif

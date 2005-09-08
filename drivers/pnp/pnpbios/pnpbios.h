@@ -26,7 +26,6 @@ union pnp_bios_install_struct {
 
 extern int pnp_bios_present(void);
 extern int  pnpbios_dont_use_current_config;
-extern void *pnpbios_kmalloc(size_t size, int f);
 
 extern int pnpbios_parse_data_stream(struct pnp_dev *dev, struct pnp_bios_node * node);
 extern int pnpbios_read_resources_from_node(struct pnp_resource_table *res, struct pnp_bios_node * node);

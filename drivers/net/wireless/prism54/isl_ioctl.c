@@ -2727,6 +2727,9 @@ const struct iw_handler_def prism54_handler_def = {
 	.standard = (iw_handler *) prism54_handler,
 	.private = (iw_handler *) prism54_private_handler,
 	.private_args = (struct iw_priv_args *) prism54_private_args,
+#if WIRELESS_EXT > 16
+	.get_wireless_stats = prism54_get_wireless_stats,
+#endif /* WIRELESS_EXT > 16 */
 #if WIRELESS_EXT == 16
 	.spy_offset = offsetof(islpci_private, spy_data),
 #endif /* WIRELESS_EXT == 16 */

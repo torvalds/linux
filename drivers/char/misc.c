@@ -63,8 +63,6 @@ static DECLARE_MUTEX(misc_sem);
 #define DYNAMIC_MINORS 64 /* like dynamic majors */
 static unsigned char misc_minors[DYNAMIC_MINORS / 8];
 
-extern int rtc_DP8570A_init(void);
-extern int rtc_MK48T08_init(void);
 extern int pmu_device_init(void);
 
 #ifdef CONFIG_PROC_FS
@@ -303,12 +301,7 @@ static int __init misc_init(void)
 	misc_class = class_create(THIS_MODULE, "misc");
 	if (IS_ERR(misc_class))
 		return PTR_ERR(misc_class);
-#ifdef CONFIG_MVME16x
-	rtc_MK48T08_init();
-#endif
-#ifdef CONFIG_BVME6000
-	rtc_DP8570A_init();
-#endif
+
 	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops)) {
 		printk("unable to get major %d for misc devices\n",
 		       MISC_MAJOR);

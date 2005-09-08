@@ -1059,6 +1059,7 @@ int swsusp_resume(void)
 	BUG_ON(!error);
 	restore_processor_state();
 	restore_highmem();
+	touch_softlockup_watchdog();
 	device_power_up();
 	local_irq_enable();
 	return error;

@@ -546,20 +546,20 @@ struct msgbuf32 { s32 mtype; char mtext[1]; };
 struct ipc_perm32
 {
 	key_t    	  key;
-        compat_uid_t  uid;
-        compat_gid_t  gid;
-        compat_uid_t  cuid;
-        compat_gid_t  cgid;
+        __compat_uid_t  uid;
+        __compat_gid_t  gid;
+        __compat_uid_t  cuid;
+        __compat_gid_t  cgid;
         compat_mode_t	mode;
         unsigned short  seq;
 };
 
 struct ipc64_perm32 {
 	key_t key;
-	compat_uid_t uid;
-	compat_gid_t gid;
-	compat_uid_t cuid;
-	compat_gid_t cgid;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
 	compat_mode_t	mode;
 	unsigned short	seq;
 	unsigned short __pad1;

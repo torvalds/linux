@@ -85,7 +85,7 @@ xfs_acl_vhasacl_default(
 {
 	int		error;
 
-	if (vp->v_type != VDIR)
+	if (!VN_ISDIR(vp))
 		return 0;
 	xfs_acl_get_attr(vp, NULL, _ACL_TYPE_DEFAULT, ATTR_KERNOVAL, &error);
 	return (error == 0);
@@ -389,7 +389,7 @@ xfs_acl_allow_set(
 
 	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
 		return EPERM;
-	if (kind == _ACL_TYPE_DEFAULT && vp->v_type != VDIR)
+	if (kind == _ACL_TYPE_DEFAULT && !VN_ISDIR(vp))
 		return ENOTDIR;
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
 		return EROFS;
@@ -750,7 +750,7 @@ xfs_acl_inherit(
 	 * If the new file is a directory, its default ACL is a copy of
 	 * the containing directory's default ACL.
 	 */
-	if (vp->v_type == VDIR)
+	if (VN_ISDIR(vp))
 		xfs_acl_set_attr(vp, pdaclp, _ACL_TYPE_DEFAULT, &error);
 	if (!error && !basicperms)
 		xfs_acl_set_attr(vp, cacl, _ACL_TYPE_ACCESS, &error);

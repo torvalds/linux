@@ -2531,7 +2531,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	@ap: port to read/write
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@do_write: read/write
+ *	@write_data: read/write
  *
  *	Transfer data from/to the device data register by MMIO.
  *
@@ -2577,7 +2577,7 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *	@ap: port to read/write
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@do_write: read/write
+ *	@write_data: read/write
  *
  *	Transfer data from/to the device data register by PIO.
  *

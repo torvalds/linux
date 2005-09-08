@@ -24,7 +24,6 @@
 
 #include <net/ieee80211.h>
 
-
 #include <linux/crypto.h>
 #include <asm/scatterlist.h>
 
@@ -55,7 +54,7 @@ struct ieee80211_ccmp_data {
 
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 tx_b0[AES_BLOCK_LEN], tx_b[AES_BLOCK_LEN],
-		tx_e[AES_BLOCK_LEN], tx_s0[AES_BLOCK_LEN];
+	    tx_e[AES_BLOCK_LEN], tx_s0[AES_BLOCK_LEN];
 	u8 rx_b0[AES_BLOCK_LEN], rx_b[AES_BLOCK_LEN], rx_a[AES_BLOCK_LEN];
 };
 
@@ -75,7 +74,7 @@ static void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 	crypto_cipher_encrypt(tfm, &dst, &src, AES_BLOCK_LEN);
 }
 
-static void * ieee80211_ccmp_init(int key_idx)
+static void *ieee80211_ccmp_init(int key_idx)
 {
 	struct ieee80211_ccmp_data *priv;
 
@@ -94,7 +93,7 @@ static void * ieee80211_ccmp_init(int key_idx)
 
 	return priv;
 
-fail:
+      fail:
 	if (priv) {
 		if (priv->tfm)
 			crypto_free_tfm(priv->tfm);
@@ -104,7 +103,6 @@ fail:
 	return NULL;
 }
 
-
 static void ieee80211_ccmp_deinit(void *priv)
 {
 	struct ieee80211_ccmp_data *_priv = priv;
@@ -113,19 +111,16 @@ static void ieee80211_ccmp_deinit(void *priv)
 	kfree(priv);
 }
 
-
-static inline void xor_block(u8 *b, u8 *a, size_t len)
+static inline void xor_block(u8 * b, u8 * a, size_t len)
 {
 	int i;
 	for (i = 0; i < len; i++)
 		b[i] ^= a[i];
 }
 
-
 static void ccmp_init_blocks(struct crypto_tfm *tfm,
 			     struct ieee80211_hdr *hdr,
-			     u8 *pn, size_t dlen, u8 *b0, u8 *auth,
-			     u8 *s0)
+			     u8 * pn, size_t dlen, u8 * b0, u8 * auth, u8 * s0)
 {
 	u8 *pos, qc = 0;
 	size_t aad_len;
@@ -142,7 +137,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	if (a4_included)
 		aad_len += 6;
 	if (qc_included) {
-		pos = (u8 *) &hdr->addr4;
+		pos = (u8 *) & hdr->addr4;
 		if (a4_included)
 			pos += 6;
 		qc = *pos & 0x0f;
@@ -169,14 +164,14 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	 * QC (if present)
 	 */
 	pos = (u8 *) hdr;
-	aad[0] = 0; /* aad_len >> 8 */
+	aad[0] = 0;		/* aad_len >> 8 */
 	aad[1] = aad_len & 0xff;
 	aad[2] = pos[0] & 0x8f;
 	aad[3] = pos[1] & 0xc7;
 	memcpy(aad + 4, hdr->addr1, 3 * ETH_ALEN);
-	pos = (u8 *) &hdr->seq_ctl;
+	pos = (u8 *) & hdr->seq_ctl;
 	aad[22] = pos[0] & 0x0f;
-	aad[23] = 0; /* all bits masked */
+	aad[23] = 0;		/* all bits masked */
 	memset(aad + 24, 0, 8);
 	if (a4_included)
 		memcpy(aad + 24, hdr->addr4, ETH_ALEN);
@@ -196,7 +191,6 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	ieee80211_ccmp_aes_encrypt(tfm, b0, s0);
 }
 
-
 static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
@@ -209,8 +203,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 *s0 = key->tx_s0;
 
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
-	    skb_tailroom(skb) < CCMP_MIC_LEN ||
-	    skb->len < hdr_len)
+	    skb_tailroom(skb) < CCMP_MIC_LEN || skb->len < hdr_len)
 		return -1;
 
 	data_len = skb->len - hdr_len;
@@ -230,13 +223,13 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[5];
 	*pos++ = key->tx_pn[4];
 	*pos++ = 0;
-	*pos++ = (key->key_idx << 6) | (1 << 5) /* Ext IV included */;
+	*pos++ = (key->key_idx << 6) | (1 << 5) /* Ext IV included */ ;
 	*pos++ = key->tx_pn[3];
 	*pos++ = key->tx_pn[2];
 	*pos++ = key->tx_pn[1];
 	*pos++ = key->tx_pn[0];
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr *)skb->data;
 	ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
 
 	blocks = (data_len + AES_BLOCK_LEN - 1) / AES_BLOCK_LEN;
@@ -261,7 +254,6 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
-
 static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
@@ -280,7 +272,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
@@ -364,8 +356,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return keyidx;
 }
 
-
-static int ieee80211_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
+static int ieee80211_ccmp_set_key(void *key, int len, u8 * seq, void *priv)
 {
 	struct ieee80211_ccmp_data *data = priv;
 	int keyidx;
@@ -395,8 +386,7 @@ static int ieee80211_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 	return 0;
 }
 
-
-static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
+static int ieee80211_ccmp_get_key(void *key, int len, u8 * seq, void *priv)
 {
 	struct ieee80211_ccmp_data *data = priv;
 
@@ -419,8 +409,7 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 	return CCMP_TK_LEN;
 }
 
-
-static char * ieee80211_ccmp_print_stats(char *p, void *priv)
+static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 {
 	struct ieee80211_ccmp_data *ccmp = priv;
 	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "
@@ -435,7 +424,6 @@ static char * ieee80211_ccmp_print_stats(char *p, void *priv)
 
 	return p;
 }
-
 
 static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {
 	.name			= "CCMP",
@@ -453,18 +441,15 @@ static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {
 	.owner			= THIS_MODULE,
 };
 
-
 static int __init ieee80211_crypto_ccmp_init(void)
 {
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_ccmp);
 }
 
-
 static void __exit ieee80211_crypto_ccmp_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_ccmp);
 }
-
 
 module_init(ieee80211_crypto_ccmp_init);
 module_exit(ieee80211_crypto_ccmp_exit);

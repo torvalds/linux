@@ -1363,6 +1363,8 @@ static void rose_info_stop(struct seq_file *seq, void *v)
 
 static int rose_info_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
+
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, 
 			 "dest_addr  dest_call src_addr   src_call  dev   lci neigh st vs vr va   t  t1  t2  t3  hb    idle Snd-Q Rcv-Q inode\n");
@@ -1380,12 +1382,12 @@ static int rose_info_show(struct seq_file *seq, void *v)
 		
 		seq_printf(seq, "%-10s %-9s ",
 			rose2asc(&rose->dest_addr),
-			ax2asc(&rose->dest_call));
+			ax2asc(buf, &rose->dest_call));
 
 		if (ax25cmp(&rose->source_call, &null_ax25_address) == 0)
 			callsign = "??????-?";
 		else
-			callsign = ax2asc(&rose->source_call);
+			callsign = ax2asc(buf, &rose->source_call);
 
 		seq_printf(seq,
 			   "%-10s %-9s %-5s %3.3X %05d  %d  %d  %d  %d %3lu %3lu %3lu %3lu %3lu %3lu/%03lu %5d %5d %ld\n",

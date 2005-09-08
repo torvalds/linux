@@ -4,6 +4,11 @@ config MIPS
 	# Horrible source of confusion.  Die, die, die ...
 	select EMBEDDED
 
+# shouldn't it be per-subarchitecture?
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
 mainmenu "Linux/MIPS Kernel Configuration"
 
 source "init/Kconfig"

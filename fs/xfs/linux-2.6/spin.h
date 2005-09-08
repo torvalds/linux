@@ -45,6 +45,9 @@
 typedef spinlock_t lock_t;
 
 #define SPLDECL(s)			unsigned long s
+#ifndef DEFINE_SPINLOCK
+#define DEFINE_SPINLOCK(s)		spinlock_t s = SPIN_LOCK_UNLOCKED
+#endif
 
 #define spinlock_init(lock, name)	spin_lock_init(lock)
 #define	spinlock_destroy(lock)

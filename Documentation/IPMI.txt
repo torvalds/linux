@@ -605,12 +605,13 @@ is in the ipmi_poweroff module.  When the system requests a powerdown,
 it will send the proper IPMI commands to do this.  This is supported on
 several platforms.
 
-There is a module parameter named "poweroff_control" that may either be zero
-(do a power down) or 2 (do a power cycle, power the system off, then power
-it on in a few seconds).  Setting ipmi_poweroff.poweroff_control=x will do
-the same thing on the kernel command line.  The parameter is also available
-via the proc filesystem in /proc/ipmi/poweroff_control.  Note that if the
-system does not support power cycling, it will always to the power off.
+There is a module parameter named "poweroff_powercycle" that may
+either be zero (do a power down) or non-zero (do a power cycle, power
+the system off, then power it on in a few seconds).  Setting
+ipmi_poweroff.poweroff_control=x will do the same thing on the kernel
+command line.  The parameter is also available via the proc filesystem
+in /proc/sys/dev/ipmi/poweroff_powercycle.  Note that if the system
+does not support power cycling, it will always do the power off.
 
 Note that if you have ACPI enabled, the system will prefer using ACPI to
 power off.

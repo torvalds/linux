@@ -40,6 +40,7 @@
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
+#include <asm/futex.h>
 
 #define FUTEX_HASHBITS (CONFIG_BASE_SMALL ? 4 : 8)
 
@@ -321,6 +322,118 @@ static int futex_wake(unsigned long uaddr, int nr_wake)
 	}
 
 	spin_unlock(&bh->lock);
+out:
+	up_read(&current->mm->mmap_sem);
+	return ret;
+}
+
+/*
+ * Wake up all waiters hashed on the physical page that is mapped
+ * to this virtual address:
+ */
+static int futex_wake_op(unsigned long uaddr1, unsigned long uaddr2, int nr_wake, int nr_wake2, int op)
+{
+	union futex_key key1, key2;
+	struct futex_hash_bucket *bh1, *bh2;
+	struct list_head *head;
+	struct futex_q *this, *next;
+	int ret, op_ret, attempt = 0;
+
+retryfull:
+	down_read(&current->mm->mmap_sem);
+
+	ret = get_futex_key(uaddr1, &key1);
+	if (unlikely(ret != 0))
+		goto out;
+	ret = get_futex_key(uaddr2, &key2);
+	if (unlikely(ret != 0))
+		goto out;
+
+	bh1 = hash_futex(&key1);
+	bh2 = hash_futex(&key2);
+
+retry:
+	if (bh1 < bh2)
+		spin_lock(&bh1->lock);
+	spin_lock(&bh2->lock);
+	if (bh1 > bh2)
+		spin_lock(&bh1->lock);
+
+	op_ret = futex_atomic_op_inuser(op, (int __user *)uaddr2);
+	if (unlikely(op_ret < 0)) {
+		int dummy;
+
+		spin_unlock(&bh1->lock);
+		if (bh1 != bh2)
+			spin_unlock(&bh2->lock);
+
+		/* futex_atomic_op_inuser needs to both read and write
+		 * *(int __user *)uaddr2, but we can't modify it
+		 * non-atomically.  Therefore, if get_user below is not
+		 * enough, we need to handle the fault ourselves, while
+		 * still holding the mmap_sem.  */
+		if (attempt++) {
+			struct vm_area_struct * vma;
+			struct mm_struct *mm = current->mm;
+
+			ret = -EFAULT;
+			if (attempt >= 2 ||
+			    !(vma = find_vma(mm, uaddr2)) ||
+			    vma->vm_start > uaddr2 ||
+			    !(vma->vm_flags & VM_WRITE))
+				goto out;
+
+			switch (handle_mm_fault(mm, vma, uaddr2, 1)) {
+			case VM_FAULT_MINOR:
+				current->min_flt++;
+				break;
+			case VM_FAULT_MAJOR:
+				current->maj_flt++;
+				break;
+			default:
+				goto out;
+			}
+			goto retry;
+		}
+
+		/* If we would have faulted, release mmap_sem,
+		 * fault it in and start all over again.  */
+		up_read(&current->mm->mmap_sem);
+
+		ret = get_user(dummy, (int __user *)uaddr2);
+		if (ret)
+			return ret;
+
+		goto retryfull;
+	}
+
+	head = &bh1->chain;
+
+	list_for_each_entry_safe(this, next, head, list) {
+		if (match_futex (&this->key, &key1)) {
+			wake_futex(this);
+			if (++ret >= nr_wake)
+				break;
+		}
+	}
+
+	if (op_ret > 0) {
+		head = &bh2->chain;
+
+		op_ret = 0;
+		list_for_each_entry_safe(this, next, head, list) {
+			if (match_futex (&this->key, &key2)) {
+				wake_futex(this);
+				if (++op_ret >= nr_wake2)
+					break;
+			}
+		}
+		ret += op_ret;
+	}
+
+	spin_unlock(&bh1->lock);
+	if (bh1 != bh2)
+		spin_unlock(&bh2->lock);
 out:
 	up_read(&current->mm->mmap_sem);
 	return ret;
@@ -673,23 +786,17 @@ static int futex_fd(unsigned long uaddr, int signal)
 	filp->f_mapping = filp->f_dentry->d_inode->i_mapping;
 
 	if (signal) {
-		int err;
 		err = f_setown(filp, current->pid, 1);
 		if (err < 0) {
-			put_unused_fd(ret);
-			put_filp(filp);
-			ret = err;
-			goto out;
+			goto error;
 		}
 		filp->f_owner.signum = signal;
 	}
 
 	q = kmalloc(sizeof(*q), GFP_KERNEL);
 	if (!q) {
-		put_unused_fd(ret);
-		put_filp(filp);
-		ret = -ENOMEM;
-		goto out;
+		err = -ENOMEM;
+		goto error;
 	}
 
 	down_read(&current->mm->mmap_sem);
@@ -697,10 +804,8 @@ static int futex_fd(unsigned long uaddr, int signal)
 
 	if (unlikely(err != 0)) {
 		up_read(&current->mm->mmap_sem);
-		put_unused_fd(ret);
-		put_filp(filp);
 		kfree(q);
-		return err;
+		goto error;
 	}
 
 	/*
@@ -716,6 +821,11 @@ static int futex_fd(unsigned long uaddr, int signal)
 	fd_install(ret, filp);
 out:
 	return ret;
+error:
+	put_unused_fd(ret);
+	put_filp(filp);
+	ret = err;
+	goto out;
 }
 
 long do_futex(unsigned long uaddr, int op, int val, unsigned long timeout,
@@ -739,6 +849,9 @@ long do_futex(unsigned long uaddr, int op, int val, unsigned long timeout,
 		break;
 	case FUTEX_CMP_REQUEUE:
 		ret = futex_requeue(uaddr, uaddr2, val, val2, &val3);
+		break;
+	case FUTEX_WAKE_OP:
+		ret = futex_wake_op(uaddr, uaddr2, val, val2, val3);
 		break;
 	default:
 		ret = -ENOSYS;

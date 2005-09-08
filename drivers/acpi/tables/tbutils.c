@@ -41,23 +41,84 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
-
 #define _COMPONENT          ACPI_TABLES
-	 ACPI_MODULE_NAME    ("tbutils")
+ACPI_MODULE_NAME("tbutils")
 
 /* Local prototypes */
-
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 acpi_status
-acpi_tb_handle_to_object (
-	u16                             table_id,
-	struct acpi_table_desc          **table_desc);
+acpi_tb_handle_to_object(u16 table_id, struct acpi_table_desc **table_desc);
 #endif
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_is_table_installed
+ *
+ * PARAMETERS:  new_table_desc      - Descriptor for new table being installed
+ *
+ * RETURN:      Status - AE_ALREADY_EXISTS if the table is already installed
+ *
+ * DESCRIPTION: Determine if an ACPI table is already installed
+ *
+ * MUTEX:       Table data structures should be locked
+ *
+ ******************************************************************************/
+
+acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
+{
+	struct acpi_table_desc *table_desc;
+
+	ACPI_FUNCTION_TRACE("tb_is_table_installed");
+
+	/* Get the list descriptor and first table descriptor */
+
+	table_desc = acpi_gbl_table_lists[new_table_desc->type].next;
+
+	/* Examine all installed tables of this type */
+
+	while (table_desc) {
+		/*
+		 * If the table lengths match, perform a full bytewise compare. This
+		 * means that we will allow tables with duplicate oem_table_id(s), as
+		 * long as the tables are different in some way.
+		 *
+		 * Checking if the table has been loaded into the namespace means that
+		 * we don't check for duplicate tables during the initial installation
+		 * of tables within the RSDT/XSDT.
+		 */
+		if ((table_desc->loaded_into_namespace) &&
+		    (table_desc->pointer->length ==
+		     new_table_desc->pointer->length)
+		    &&
+		    (!ACPI_MEMCMP
+		     ((const char *)table_desc->pointer,
+		      (const char *)new_table_desc->pointer,
+		      (acpi_size) new_table_desc->pointer->length))) {
+			/* Match: this table is already installed */
+
+			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+					  "Table [%4.4s] already installed: Rev %X oem_table_id [%8.8s]\n",
+					  new_table_desc->pointer->signature,
+					  new_table_desc->pointer->revision,
+					  new_table_desc->pointer->
+					  oem_table_id));
+
+			new_table_desc->owner_id = table_desc->owner_id;
+			new_table_desc->installed_desc = table_desc;
+
+			return_ACPI_STATUS(AE_ALREADY_EXISTS);
+		}
+
+		/* Get next table on the list */
+
+		table_desc = table_desc->next;
+	}
+
+	return_ACPI_STATUS(AE_OK);
+}
 
 /*******************************************************************************
  *
@@ -80,56 +141,54 @@ acpi_tb_handle_to_object (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_validate_table_header (
-	struct acpi_table_header        *table_header)
+acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 {
-	acpi_name                       signature;
+	acpi_name signature;
 
-
-	ACPI_FUNCTION_NAME ("tb_validate_table_header");
-
+	ACPI_FUNCTION_NAME("tb_validate_table_header");
 
 	/* Verify that this is a valid address */
 
-	if (!acpi_os_readable (table_header, sizeof (struct acpi_table_header))) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Cannot read table header at %p\n", table_header));
+	if (!acpi_os_readable(table_header, sizeof(struct acpi_table_header))) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Cannot read table header at %p\n",
+				  table_header));
 
 		return (AE_BAD_ADDRESS);
 	}
 
 	/* Ensure that the signature is 4 ASCII characters */
 
-	ACPI_MOVE_32_TO_32 (&signature, table_header->signature);
-	if (!acpi_ut_valid_acpi_name (signature)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Table signature at %p [%p] has invalid characters\n",
-			table_header, &signature));
+	ACPI_MOVE_32_TO_32(&signature, table_header->signature);
+	if (!acpi_ut_valid_acpi_name(signature)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Table signature at %p [%p] has invalid characters\n",
+				  table_header, &signature));
 
-		ACPI_REPORT_WARNING (("Invalid table signature found: [%4.4s]\n",
-			(char *) &signature));
+		ACPI_REPORT_WARNING(("Invalid table signature found: [%4.4s]\n",
+				     (char *)&signature));
 
-		ACPI_DUMP_BUFFER (table_header, sizeof (struct acpi_table_header));
+		ACPI_DUMP_BUFFER(table_header,
+				 sizeof(struct acpi_table_header));
 		return (AE_BAD_SIGNATURE);
 	}
 
 	/* Validate the table length */
 
-	if (table_header->length < sizeof (struct acpi_table_header)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Invalid length in table header %p name %4.4s\n",
-			table_header, (char *) &signature));
+	if (table_header->length < sizeof(struct acpi_table_header)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Invalid length in table header %p name %4.4s\n",
+				  table_header, (char *)&signature));
 
-		ACPI_REPORT_WARNING (("Invalid table header length (0x%X) found\n",
-			(u32) table_header->length));
+		ACPI_REPORT_WARNING(("Invalid table header length (0x%X) found\n", (u32) table_header->length));
 
-		ACPI_DUMP_BUFFER (table_header, sizeof (struct acpi_table_header));
+		ACPI_DUMP_BUFFER(table_header,
+				 sizeof(struct acpi_table_header));
 		return (AE_BAD_HEADER);
 	}
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -145,37 +204,31 @@ acpi_tb_validate_table_header (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_verify_table_checksum (
-	struct acpi_table_header        *table_header)
+acpi_tb_verify_table_checksum(struct acpi_table_header * table_header)
 {
-	u8                              checksum;
-	acpi_status                     status = AE_OK;
+	u8 checksum;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("tb_verify_table_checksum");
-
+	ACPI_FUNCTION_TRACE("tb_verify_table_checksum");
 
 	/* Compute the checksum on the table */
 
-	checksum = acpi_tb_checksum (table_header, table_header->length);
+	checksum =
+	    acpi_tb_generate_checksum(table_header, table_header->length);
 
 	/* Return the appropriate exception */
 
 	if (checksum) {
-		ACPI_REPORT_WARNING ((
-			"Invalid checksum in table [%4.4s] (%02X, sum %02X is not zero)\n",
-			table_header->signature, (u32) table_header->checksum,
-			(u32) checksum));
+		ACPI_REPORT_WARNING(("Invalid checksum in table [%4.4s] (%02X, sum %02X is not zero)\n", table_header->signature, (u32) table_header->checksum, (u32) checksum));
 
 		status = AE_BAD_CHECKSUM;
 	}
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_checksum
+ * FUNCTION:    acpi_tb_generate_checksum
  *
  * PARAMETERS:  Buffer              - Buffer to checksum
  *              Length              - Size of the buffer
@@ -186,15 +239,11 @@ acpi_tb_verify_table_checksum (
  *
  ******************************************************************************/
 
-u8
-acpi_tb_checksum (
-	void                            *buffer,
-	u32                             length)
+u8 acpi_tb_generate_checksum(void *buffer, u32 length)
 {
-	const u8                        *limit;
-	const u8                        *rover;
-	u8                              sum = 0;
-
+	const u8 *limit;
+	const u8 *rover;
+	u8 sum = 0;
 
 	if (buffer && length) {
 		/*  Buffer and Length are valid   */
@@ -207,7 +256,6 @@ acpi_tb_checksum (
 	}
 	return (sum);
 }
-
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 /*******************************************************************************
@@ -224,16 +272,13 @@ acpi_tb_checksum (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_handle_to_object (
-	u16                             table_id,
-	struct acpi_table_desc          **return_table_desc)
+acpi_tb_handle_to_object(u16 table_id,
+			 struct acpi_table_desc ** return_table_desc)
 {
-	u32                             i;
-	struct acpi_table_desc          *table_desc;
+	u32 i;
+	struct acpi_table_desc *table_desc;
 
-
-	ACPI_FUNCTION_NAME ("tb_handle_to_object");
-
+	ACPI_FUNCTION_NAME("tb_handle_to_object");
 
 	for (i = 0; i < ACPI_TABLE_MAX; i++) {
 		table_desc = acpi_gbl_table_lists[i].next;
@@ -247,9 +292,8 @@ acpi_tb_handle_to_object (
 		}
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "table_id=%X does not exist\n", table_id));
+	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "table_id=%X does not exist\n",
+			  table_id));
 	return (AE_BAD_PARAMETER);
 }
 #endif
-
-

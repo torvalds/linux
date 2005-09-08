@@ -883,7 +883,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		psmouse_deactivate(parent);
 	}
 
-	if (!(psmouse = kcalloc(1, sizeof(struct psmouse), GFP_KERNEL))) {
+	if (!(psmouse = kzalloc(sizeof(struct psmouse), GFP_KERNEL))) {
 		retval = -ENOMEM;
 		goto out;
 	}

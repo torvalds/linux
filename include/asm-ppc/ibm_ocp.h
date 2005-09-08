@@ -84,6 +84,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mdio_idx)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, tah_idx)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, phy_mode)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_map)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_feat_exc)\
 									\
 void ocp_show_emac_data(struct device *dev)				\
 {									\
@@ -99,6 +100,7 @@ void ocp_show_emac_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_emac_tah_idx);		\
 	device_create_file(dev, &dev_attr_emac_phy_mode);		\
 	device_create_file(dev, &dev_attr_emac_phy_map);		\
+	device_create_file(dev, &dev_attr_emac_phy_feat_exc);		\
 }
 
 /*

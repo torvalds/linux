@@ -18,9 +18,11 @@
 #ifdef CONFIG_SMP
 #define EIEIO_ON_SMP	"eieio\n"
 #define ISYNC_ON_SMP	"\n\tisync"
+#define SYNC_ON_SMP	"lwsync\n\t"
 #else
 #define EIEIO_ON_SMP
 #define ISYNC_ON_SMP
+#define SYNC_ON_SMP
 #endif
 
 static inline void eieio(void)

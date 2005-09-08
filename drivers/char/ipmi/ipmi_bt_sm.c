@@ -31,8 +31,6 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-#define IPMI_BT_VERSION "v33"
-
 static int bt_debug = 0x00;	/* Production value 0, see following flags */
 
 #define	BT_DEBUG_ENABLE	1
@@ -163,7 +161,8 @@ static int bt_start_transaction(struct si_sm_data *bt,
 {
 	unsigned int i;
 
-	if ((size < 2) || (size > IPMI_MAX_MSG_LENGTH)) return -1;
+	if ((size < 2) || (size > IPMI_MAX_MSG_LENGTH))
+	       return -1;
 
 	if ((bt->state != BT_STATE_IDLE) && (bt->state != BT_STATE_HOSED))
 		return -2;
@@ -171,7 +170,8 @@ static int bt_start_transaction(struct si_sm_data *bt,
 	if (bt_debug & BT_DEBUG_MSG) {
     		printk(KERN_WARNING "+++++++++++++++++++++++++++++++++++++\n");
 		printk(KERN_WARNING "BT: write seq=0x%02X:", bt->seq);
-		for (i = 0; i < size; i ++) printk (" %02x", data[i]);
+		for (i = 0; i < size; i ++)
+		       printk (" %02x", data[i]);
 		printk("\n");
 	}
 	bt->write_data[0] = size + 1;	/* all data plus seq byte */
@@ -210,15 +210,18 @@ static int bt_get_result(struct si_sm_data *bt,
 	} else {
 		data[0] = bt->read_data[1];
 		data[1] = bt->read_data[3];
-		if (length < msg_len) bt->truncated = 1;
+		if (length < msg_len)
+		       bt->truncated = 1;
 		if (bt->truncated) {	/* can be set in read_all_bytes() */
 			data[2] = IPMI_ERR_MSG_TRUNCATED;
 			msg_len = 3;
-		} else memcpy(data + 2, bt->read_data + 4, msg_len - 2);
+		} else
+		       memcpy(data + 2, bt->read_data + 4, msg_len - 2);
 
 		if (bt_debug & BT_DEBUG_MSG) {
 			printk (KERN_WARNING "BT: res (raw)");
-			for (i = 0; i < msg_len; i++) printk(" %02x", data[i]);
+			for (i = 0; i < msg_len; i++)
+			       printk(" %02x", data[i]);
 			printk ("\n");
 		}
 	}
@@ -231,8 +234,10 @@ static int bt_get_result(struct si_sm_data *bt,
 
 static void reset_flags(struct si_sm_data *bt)
 {
-	if (BT_STATUS & BT_H_BUSY) BT_CONTROL(BT_H_BUSY);
-	if (BT_STATUS & BT_B_BUSY) BT_CONTROL(BT_B_BUSY);
+	if (BT_STATUS & BT_H_BUSY)
+	       BT_CONTROL(BT_H_BUSY);
+	if (BT_STATUS & BT_B_BUSY)
+	       BT_CONTROL(BT_B_BUSY);
 	BT_CONTROL(BT_CLR_WR_PTR);
 	BT_CONTROL(BT_SMS_ATN);
 #ifdef DEVELOPMENT_ONLY_NOT_FOR_PRODUCTION
@@ -241,7 +246,8 @@ static void reset_flags(struct si_sm_data *bt)
 		BT_CONTROL(BT_H_BUSY);
 		BT_CONTROL(BT_B2H_ATN);
 		BT_CONTROL(BT_CLR_RD_PTR);
-		for (i = 0; i < IPMI_MAX_MSG_LENGTH + 2; i++) BMC2HOST;
+		for (i = 0; i < IPMI_MAX_MSG_LENGTH + 2; i++)
+		       BMC2HOST;
 		BT_CONTROL(BT_H_BUSY);
 	}
 #endif
@@ -258,7 +264,8 @@ static inline void write_all_bytes(struct si_sm_data *bt)
 			printk (" %02x", bt->write_data[i]);
 		printk ("\n");
 	}
-	for (i = 0; i < bt->write_count; i++) HOST2BMC(bt->write_data[i]);
+	for (i = 0; i < bt->write_count; i++)
+	       HOST2BMC(bt->write_data[i]);
 }
 
 static inline int read_all_bytes(struct si_sm_data *bt)
@@ -278,7 +285,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 		bt->truncated = 1;
 		return 1;	/* let next XACTION START clean it up */
 	}
-	for (i = 1; i <= bt->read_count; i++) bt->read_data[i] = BMC2HOST;
+	for (i = 1; i <= bt->read_count; i++)
+	       bt->read_data[i] = BMC2HOST;
 	bt->read_count++;	/* account for the length byte */
 
 	if (bt_debug & BT_DEBUG_MSG) {
@@ -295,7 +303,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
         	((bt->read_data[1] & 0xF8) == (bt->write_data[1] & 0xF8)))
 			return 1;
 
-	if (bt_debug & BT_DEBUG_MSG) printk(KERN_WARNING "BT: bad packet: "
+	if (bt_debug & BT_DEBUG_MSG)
+	       printk(KERN_WARNING "BT: bad packet: "
 		"want 0x(%02X, %02X, %02X) got (%02X, %02X, %02X)\n",
 		bt->write_data[1], bt->write_data[2], bt->write_data[3],
 		bt->read_data[1],  bt->read_data[2],  bt->read_data[3]);
@@ -359,7 +368,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 			time);
 	bt->last_state = bt->state;
 
-	if (bt->state == BT_STATE_HOSED) return SI_SM_HOSED;
+	if (bt->state == BT_STATE_HOSED)
+	       return SI_SM_HOSED;
 
 	if (bt->state != BT_STATE_IDLE) {	/* do timeout test */
 
@@ -371,7 +381,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
     	/* FIXME: bt_event is sometimes called with time > BT_NORMAL_TIMEOUT
               (noticed in ipmi_smic_sm.c January 2004) */
 
-		if ((time <= 0) || (time >= BT_NORMAL_TIMEOUT)) time = 100;
+		if ((time <= 0) || (time >= BT_NORMAL_TIMEOUT))
+		       time = 100;
 		bt->timeout -= time;
 		if ((bt->timeout < 0) && (bt->state < BT_STATE_RESET1)) {
 			error_recovery(bt, "timed out");
@@ -393,12 +404,14 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 			BT_CONTROL(BT_H_BUSY);
 			break;
 		}
-    		if (status & BT_B2H_ATN) break;
+    		if (status & BT_B2H_ATN)
+		       break;
 		bt->state = BT_STATE_WRITE_BYTES;
 		return SI_SM_CALL_WITHOUT_DELAY;	/* for logging */
 
 	case BT_STATE_WRITE_BYTES:
-		if (status & (BT_B_BUSY | BT_H2B_ATN)) break;
+		if (status & (BT_B_BUSY | BT_H2B_ATN))
+		       break;
 		BT_CONTROL(BT_CLR_WR_PTR);
 		write_all_bytes(bt);
 		BT_CONTROL(BT_H2B_ATN);	/* clears too fast to catch? */
@@ -406,7 +419,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		return SI_SM_CALL_WITHOUT_DELAY; /* it MIGHT sail through */
 
 	case BT_STATE_WRITE_CONSUME: /* BMCs usually blow right thru here */
-        	if (status & (BT_H2B_ATN | BT_B_BUSY)) break;
+        	if (status & (BT_H2B_ATN | BT_B_BUSY))
+		       break;
 		bt->state = BT_STATE_B2H_WAIT;
 		/* fall through with status */
 
@@ -415,15 +429,18 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	   generation of B2H_ATN so ALWAYS return CALL_WITH_DELAY. */
 
 	case BT_STATE_B2H_WAIT:
-    		if (!(status & BT_B2H_ATN)) break;
+    		if (!(status & BT_B2H_ATN))
+		       break;
 
 		/* Assume ordered, uncached writes: no need to wait */
-		if (!(status & BT_H_BUSY)) BT_CONTROL(BT_H_BUSY); /* set */
+		if (!(status & BT_H_BUSY))
+		       BT_CONTROL(BT_H_BUSY); /* set */
 		BT_CONTROL(BT_B2H_ATN);		/* clear it, ACK to the BMC */
 		BT_CONTROL(BT_CLR_RD_PTR);	/* reset the queue */
 		i = read_all_bytes(bt);
 		BT_CONTROL(BT_H_BUSY);		/* clear */
-		if (!i) break;			/* Try this state again */
+		if (!i)				/* Try this state again */
+		       break;
 		bt->state = BT_STATE_READ_END;
 		return SI_SM_CALL_WITHOUT_DELAY;	/* for logging */
 
@@ -436,7 +453,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 #ifdef MAKE_THIS_TRUE_IF_NECESSARY
 
-		if (status & BT_H_BUSY) break;
+		if (status & BT_H_BUSY)
+		       break;
 #endif
 		bt->seq++;
 		bt->state = BT_STATE_IDLE;
@@ -459,7 +477,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		break;
 
 	case BT_STATE_RESET3:
-		if (bt->timeout > 0) return SI_SM_CALL_WITH_DELAY;
+		if (bt->timeout > 0)
+		       return SI_SM_CALL_WITH_DELAY;
 		bt->state = BT_STATE_RESTART;	/* printk in debug modes */
 		break;
 
@@ -485,7 +504,8 @@ static int bt_detect(struct si_sm_data *bt)
 	   but that's what you get from reading a bogus address, so we
 	   test that first.  The calling routine uses negative logic. */
 
-	if ((BT_STATUS == 0xFF) && (BT_INTMASK_R == 0xFF)) return 1;
+	if ((BT_STATUS == 0xFF) && (BT_INTMASK_R == 0xFF))
+	       return 1;
 	reset_flags(bt);
 	return 0;
 }
@@ -501,7 +521,6 @@ static int bt_size(void)
 
 struct si_sm_handlers bt_smi_handlers =
 {
-	.version           = IPMI_BT_VERSION,
 	.init_data         = bt_init_data,
 	.start_transaction = bt_start_transaction,
 	.get_result        = bt_get_result,

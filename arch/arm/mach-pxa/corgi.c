@@ -39,7 +39,6 @@
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
-#include <video/w100fb.h>
 
 #include "generic.h"
 
@@ -87,41 +86,12 @@ struct platform_device corgiscoop_device = {
  * also use scoop functions and this makes the power up/down order
  * work correctly.
  */
-static struct platform_device corgissp_device = {
+struct platform_device corgissp_device = {
 	.name		= "corgi-ssp",
 	.dev		= {
  		.parent = &corgiscoop_device.dev,
 	},
 	.id		= -1,
-};
-
-
-/*
- * Corgi w100 Frame Buffer Device
- */
-static struct w100fb_mach_info corgi_fb_info = {
-	.w100fb_ssp_send 	= corgi_ssp_lcdtg_send,
-	.comadj 			= -1,
-	.phadadj 			= -1,
-};
-
-static struct resource corgi_fb_resources[] = {
-	[0] = {
-		.start		= 0x08000000,
-		.end		= 0x08ffffff,
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device corgifb_device = {
-	.name		= "w100fb",
-	.id		= -1,
-	.dev		= {
- 		.platform_data	= &corgi_fb_info,
- 		.parent = &corgissp_device.dev,
-	},
-	.num_resources	= ARRAY_SIZE(corgi_fb_resources),
-	.resource	= corgi_fb_resources,
 };
 
 
@@ -132,6 +102,27 @@ static struct platform_device corgibl_device = {
 	.name		= "corgi-bl",
 	.dev		= {
  		.parent = &corgifb_device.dev,
+	},
+	.id		= -1,
+};
+
+
+/*
+ * Corgi Keyboard Device
+ */
+static struct platform_device corgikbd_device = {
+	.name		= "corgi-keyboard",
+	.id		= -1,
+};
+
+
+/*
+ * Corgi Touch Screen Device
+ */
+static struct platform_device corgits_device = {
+	.name		= "corgi-ts",
+	.dev		= {
+ 		.parent = &corgissp_device.dev,
 	},
 	.id		= -1,
 };
@@ -199,6 +190,11 @@ static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
 	}
 }
 
+static int corgi_mci_get_ro(struct device *dev)
+{
+	return GPLR(CORGI_GPIO_nSD_WP) & GPIO_bit(CORGI_GPIO_nSD_WP);
+}
+
 static void corgi_mci_exit(struct device *dev, void *data)
 {
 	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
@@ -208,9 +204,11 @@ static void corgi_mci_exit(struct device *dev, void *data)
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 		= corgi_mci_init,
+	.get_ro		= corgi_mci_get_ro,
 	.setpower 	= corgi_mci_setpower,
 	.exit		= corgi_mci_exit,
 };
+
 
 
 /*
@@ -238,14 +236,13 @@ static struct platform_device *devices[] __initdata = {
 	&corgiscoop_device,
 	&corgissp_device,
 	&corgifb_device,
+	&corgikbd_device,
 	&corgibl_device,
+	&corgits_device,
 };
 
 static void __init corgi_init(void)
 {
-	corgi_fb_info.comadj=sharpsl_param.comadj;
-	corgi_fb_info.phadadj=sharpsl_param.phadadj;
-
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);

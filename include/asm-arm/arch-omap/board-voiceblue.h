@@ -11,11 +11,6 @@
 #ifndef __ASM_ARCH_VOICEBLUE_H
 #define __ASM_ARCH_VOICEBLUE_H
 
-#if (EXTERNAL_MAX_NR_PORTS < 4)
-#undef EXTERNAL_MAX_NR_PORTS
-#define EXTERNAL_MAX_NR_PORTS	4
-#endif
-
 extern void voiceblue_wdt_enable(void);
 extern void voiceblue_wdt_disable(void);
 extern void voiceblue_wdt_ping(void);

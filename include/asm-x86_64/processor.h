@@ -398,7 +398,7 @@ static inline void prefetch(void *x)
 #define ARCH_HAS_PREFETCHW 1
 static inline void prefetchw(void *x) 
 { 
-	alternative_input(ASM_NOP5,
+	alternative_input("prefetcht0 (%1)",
 			  "prefetchw (%1)",
 			  X86_FEATURE_3DNOW,
 			  "r" (x));

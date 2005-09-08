@@ -18,8 +18,8 @@
 #include "mach_timer.h"
 #include <asm/hpet.h>
 
-static unsigned long __read_mostly hpet_usec_quotient;	/* convert hpet clks to usec */
-static unsigned long tsc_hpet_quotient;		/* convert tsc to hpet clks */
+static unsigned long hpet_usec_quotient __read_mostly;	/* convert hpet clks to usec */
+static unsigned long tsc_hpet_quotient __read_mostly;	/* convert tsc to hpet clks */
 static unsigned long hpet_last; 	/* hpet counter value at last tick*/
 static unsigned long last_tsc_low;	/* lsb 32 bits of Time Stamp Counter */
 static unsigned long last_tsc_high; 	/* msb 32 bits of Time Stamp Counter */

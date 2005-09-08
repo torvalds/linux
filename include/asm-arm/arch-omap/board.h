@@ -30,10 +30,23 @@ struct omap_clock_config {
 	u8 system_clock_type;
 };
 
+struct omap_mmc_conf {
+	unsigned enabled:1;
+	/* nomux means "standard" muxing is wrong on this board, and that
+	 * board-specific code handled it before common init logic.
+	 */
+	unsigned nomux:1;
+	/* switch pin can be for card detect (default) or card cover */
+	unsigned cover:1;
+	/* 4 wire signaling is optional, and is only used for SD/SDIO */
+	unsigned wire4:1;
+	s16 power_pin;
+	s16 switch_pin;
+	s16 wp_pin;
+};
+
 struct omap_mmc_config {
-	u8 mmc_blocks;
-	s16 mmc1_power_pin, mmc2_power_pin;
-	s16 mmc1_switch_pin, mmc2_switch_pin;
+	struct omap_mmc_conf mmc[2];
 };
 
 struct omap_serial_console_config {

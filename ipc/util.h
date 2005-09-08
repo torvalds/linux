@@ -30,7 +30,15 @@ struct ipc_ids {
 	struct ipc_id_ary* entries;
 };
 
+struct seq_file;
 void __init ipc_init_ids(struct ipc_ids* ids, int size);
+#ifdef CONFIG_PROC_FS
+void __init ipc_init_proc_interface(const char *path, const char *header,
+				    struct ipc_ids *ids,
+				    int (*show)(struct seq_file *, void *));
+#else
+#define ipc_init_proc_interface(path, header, ids, show) do {} while (0)
+#endif
 
 /* must be called with ids->sem acquired.*/
 int ipc_findkey(struct ipc_ids* ids, key_t key);

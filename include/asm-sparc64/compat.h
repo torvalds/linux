@@ -12,8 +12,10 @@ typedef s32		compat_ssize_t;
 typedef s32		compat_time_t;
 typedef s32		compat_clock_t;
 typedef s32		compat_pid_t;
-typedef u16		compat_uid_t;
-typedef u16		compat_gid_t;
+typedef u16		__compat_uid_t;
+typedef u16		__compat_gid_t;
+typedef u32		__compat_uid32_t;
+typedef u32		__compat_gid32_t;
 typedef u16		compat_mode_t;
 typedef u32		compat_ino_t;
 typedef u16		compat_dev_t;
@@ -47,8 +49,8 @@ struct compat_stat {
 	compat_ino_t	st_ino;
 	compat_mode_t	st_mode;
 	compat_nlink_t	st_nlink;
-	compat_uid_t	st_uid;
-	compat_gid_t	st_gid;
+	__compat_uid_t	st_uid;
+	__compat_gid_t	st_gid;
 	compat_dev_t	st_rdev;
 	compat_off_t	st_size;
 	compat_time_t	st_atime;
@@ -177,10 +179,10 @@ static __inline__ void __user *compat_alloc_user_space(long len)
 
 struct compat_ipc64_perm {
 	compat_key_t key;
-	__kernel_uid_t uid;
-	__kernel_gid_t gid;
-	__kernel_uid_t cuid;
-	__kernel_gid_t cgid;
+	__compat_uid32_t uid;
+	__compat_gid32_t gid;
+	__compat_uid32_t cuid;
+	__compat_gid32_t cgid;
 	unsigned short __pad1;
 	compat_mode_t mode;
 	unsigned short __pad2;

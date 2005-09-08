@@ -73,6 +73,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/seq_file.h>
 #include <asm/uaccess.h>
 #include "util.h"
 
@@ -89,7 +90,7 @@ static struct ipc_ids sem_ids;
 static int newary (key_t, int, int);
 static void freeary (struct sem_array *sma, int id);
 #ifdef CONFIG_PROC_FS
-static int sysvipc_sem_read_proc(char *buffer, char **start, off_t offset, int length, int *eof, void *data);
+static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
 #endif
 
 #define SEMMSL_FAST	256 /* 512 bytes on stack */
@@ -116,10 +117,10 @@ void __init sem_init (void)
 {
 	used_sems = 0;
 	ipc_init_ids(&sem_ids,sc_semmni);
-
-#ifdef CONFIG_PROC_FS
-	create_proc_read_entry("sysvipc/sem", 0, NULL, sysvipc_sem_read_proc, NULL);
-#endif
+	ipc_init_proc_interface("sysvipc/sem",
+				"       key      semid perms      nsems   uid   gid  cuid  cgid      otime      ctime\n",
+				&sem_ids,
+				sysvipc_sem_proc_show);
 }
 
 /*
@@ -193,6 +194,7 @@ static int newary (key_t key, int nsems, int semflg)
 	}
 	used_sems += nsems;
 
+	sma->sem_id = sem_buildid(id, sma->sem_perm.seq);
 	sma->sem_base = (struct sem *) &sma[1];
 	/* sma->sem_pending = NULL; */
 	sma->sem_pending_last = &sma->sem_pending;
@@ -201,7 +203,7 @@ static int newary (key_t key, int nsems, int semflg)
 	sma->sem_ctime = get_seconds();
 	sem_unlock(sma);
 
-	return sem_buildid(id, sma->sem_perm.seq);
+	return sma->sem_id;
 }
 
 asmlinkage long sys_semget (key_t key, int nsems, int semflg)
@@ -1328,50 +1330,21 @@ next_entry:
 }
 
 #ifdef CONFIG_PROC_FS
-static int sysvipc_sem_read_proc(char *buffer, char **start, off_t offset, int length, int *eof, void *data)
+static int sysvipc_sem_proc_show(struct seq_file *s, void *it)
 {
-	off_t pos = 0;
-	off_t begin = 0;
-	int i, len = 0;
+	struct sem_array *sma = it;
 
-	len += sprintf(buffer, "       key      semid perms      nsems   uid   gid  cuid  cgid      otime      ctime\n");
-	down(&sem_ids.sem);
-
-	for(i = 0; i <= sem_ids.max_id; i++) {
-		struct sem_array *sma;
-		sma = sem_lock(i);
-		if(sma) {
-			len += sprintf(buffer + len, "%10d %10d  %4o %10lu %5u %5u %5u %5u %10lu %10lu\n",
-				sma->sem_perm.key,
-				sem_buildid(i,sma->sem_perm.seq),
-				sma->sem_perm.mode,
-				sma->sem_nsems,
-				sma->sem_perm.uid,
-				sma->sem_perm.gid,
-				sma->sem_perm.cuid,
-				sma->sem_perm.cgid,
-				sma->sem_otime,
-				sma->sem_ctime);
-			sem_unlock(sma);
-
-			pos += len;
-			if(pos < offset) {
-				len = 0;
-	    			begin = pos;
-			}
-			if(pos > offset + length)
-				goto done;
-		}
-	}
-	*eof = 1;
-done:
-	up(&sem_ids.sem);
-	*start = buffer + (offset - begin);
-	len -= (offset - begin);
-	if(len > length)
-		len = length;
-	if(len < 0)
-		len = 0;
-	return len;
+	return seq_printf(s,
+			  "%10d %10d  %4o %10lu %5u %5u %5u %5u %10lu %10lu\n",
+			  sma->sem_perm.key,
+			  sma->sem_id,
+			  sma->sem_perm.mode,
+			  sma->sem_nsems,
+			  sma->sem_perm.uid,
+			  sma->sem_perm.gid,
+			  sma->sem_perm.cuid,
+			  sma->sem_perm.cgid,
+			  sma->sem_otime,
+			  sma->sem_ctime);
 }
 #endif

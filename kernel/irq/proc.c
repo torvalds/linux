@@ -19,12 +19,22 @@ static struct proc_dir_entry *root_irq_dir, *irq_dir[NR_IRQS];
  */
 static struct proc_dir_entry *smp_affinity_entry[NR_IRQS];
 
-void __attribute__((weak))
-proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
+{
+	/*
+	 * Save these away for later use. Re-progam when the
+	 * interrupt is pending
+	 */
+	set_pending_irq(irq, mask_val);
+}
+#else
+void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 {
 	irq_affinity[irq] = mask_val;
 	irq_desc[irq].handler->set_affinity(irq, mask_val);
 }
+#endif
 
 static int irq_affinity_read_proc(char *page, char **start, off_t off,
 				  int count, int *eof, void *data)

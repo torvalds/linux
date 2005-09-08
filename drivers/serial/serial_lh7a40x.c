@@ -207,7 +207,7 @@ static void lh7a40xuart_tx_chars (struct uart_port* port)
 		return;
 	}
 	if (uart_circ_empty (xmit) || uart_tx_stopped (port)) {
-		lh7a40xuart_stop_tx (port, 0);
+		lh7a40xuart_stop_tx (port);
 		return;
 	}
 
@@ -229,7 +229,7 @@ static void lh7a40xuart_tx_chars (struct uart_port* port)
 		uart_write_wakeup (port);
 
 	if (uart_circ_empty (xmit))
-		lh7a40xuart_stop_tx (port, 0);
+		lh7a40xuart_stop_tx (port);
 }
 
 static void lh7a40xuart_modem_status (struct uart_port* port)

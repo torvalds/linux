@@ -1,5 +1,11 @@
 menu "SCSI device support"
 
+config RAID_ATTRS
+	tristate "RAID Transport Class"
+	default n
+	---help---
+	  Provides RAID
+
 config SCSI
 	tristate "SCSI device support"
 	---help---
@@ -456,6 +462,15 @@ config SCSI_ATA_PIIX
 	  This option enables support for ICH5 Serial ATA.
 	  If PATA support was enabled previously, this enables
 	  support for select Intel PIIX/ICH PATA host controllers.
+
+	  If unsure, say N.
+
+config SCSI_SATA_MV
+	tristate "Marvell SATA support"
+	depends on SCSI_SATA && PCI && EXPERIMENTAL
+	help
+	  This option enables support for the Marvell Serial ATA family.
+	  Currently supports 88SX[56]0[48][01] chips.
 
 	  If unsure, say N.
 

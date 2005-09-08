@@ -881,6 +881,7 @@ static void nr_node_stop(struct seq_file *seq, void *v)
 
 static int nr_node_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
 	int i;
 
 	if (v == SEQ_START_TOKEN)
@@ -890,7 +891,7 @@ static int nr_node_show(struct seq_file *seq, void *v)
 		struct nr_node *nr_node = v;
 		nr_node_lock(nr_node);
 		seq_printf(seq, "%-9s %-7s  %d %d",
-			ax2asc(&nr_node->callsign),
+			ax2asc(buf, &nr_node->callsign),
 			(nr_node->mnemonic[0] == '\0') ? "*" : nr_node->mnemonic,
 			nr_node->which + 1,
 			nr_node->count);
@@ -964,6 +965,7 @@ static void nr_neigh_stop(struct seq_file *seq, void *v)
 
 static int nr_neigh_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
 	int i;
 
 	if (v == SEQ_START_TOKEN)
@@ -973,7 +975,7 @@ static int nr_neigh_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%05d %-9s %-4s  %3d    %d   %3d    %3d",
 			nr_neigh->number,
-			ax2asc(&nr_neigh->callsign),
+			ax2asc(buf, &nr_neigh->callsign),
 			nr_neigh->dev ? nr_neigh->dev->name : "???",
 			nr_neigh->quality,
 			nr_neigh->locked,
@@ -983,7 +985,7 @@ static int nr_neigh_show(struct seq_file *seq, void *v)
 		if (nr_neigh->digipeat != NULL) {
 			for (i = 0; i < nr_neigh->digipeat->ndigi; i++)
 				seq_printf(seq, " %s", 
-					   ax2asc(&nr_neigh->digipeat->calls[i]));
+					   ax2asc(buf, &nr_neigh->digipeat->calls[i]));
 		}
 
 		seq_puts(seq, "\n");
