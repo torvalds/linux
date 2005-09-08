@@ -55,6 +55,9 @@ ToDo/Notes:
 	  length is zero.
 	- Add runlist.[hc]::ntfs_rl_punch_nolock() which punches a caller
 	  specified hole into a runlist.
+	- Fix a bug in fs/ntfs/index.c::ntfs_index_lookup().  When the returned
+	  index entry is in the index root, we forgot to set the @ir pointer in
+	  the index context.  Thanks to Yura Pakhuchiy for finding this bug.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
