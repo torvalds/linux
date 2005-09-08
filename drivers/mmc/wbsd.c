@@ -1122,7 +1122,7 @@ static void wbsd_detect_card(unsigned long data)
 	
 	DBG("Executing card detection\n");
 	
-	mmc_detect_change(host->mmc);	
+	mmc_detect_change(host->mmc, 0);	
 }
 
 /*
@@ -1198,7 +1198,7 @@ static void wbsd_tasklet_card(unsigned long param)
 		 */
 		spin_unlock(&host->lock);
 
-		mmc_detect_change(host->mmc);
+		mmc_detect_change(host->mmc, 0);
 	}
 	else
 		spin_unlock(&host->lock);
