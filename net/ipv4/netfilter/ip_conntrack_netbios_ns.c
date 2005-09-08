@@ -104,12 +104,28 @@ out:
 static struct ip_conntrack_helper helper = {
 	.name			= "netbios-ns",
 	.tuple = {
-		.src.u.udp.port	= __constant_htons(137),
-		.dst.protonum	= IPPROTO_UDP,
+		.src = {
+			.u = {
+				.udp = {
+					.port	= __constant_htons(137),
+				}
+			}
+		},
+		.dst = {
+			.protonum	= IPPROTO_UDP,
+		},
 	},
 	.mask = {
-		.src.u.udp.port	= 0xFFFF,
-		.dst.protonum	= 0xFF,
+		.src = {
+			.u = {
+				.udp = {
+					.port	= 0xFFFF,
+				}
+			}
+		},
+		.dst = {
+			.protonum	= 0xFF,
+		},
 	},
 	.max_expected		= 1,
 	.me			= THIS_MODULE,

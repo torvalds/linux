@@ -100,11 +100,8 @@ static void send_reset(struct sk_buff *oldskb)
 	dst = ip6_route_output(NULL, &fl);
 	if (dst == NULL)
 		return;
-	if (dst->error ||
-	    xfrm_lookup(&dst, &fl, NULL, 0)) {
-		dst_release(dst);
+	if (dst->error || xfrm_lookup(&dst, &fl, NULL, 0))
 		return;
-	}
 
 	hh_len = (dst->dev->hard_header_len + 15)&~15;
 	nskb = alloc_skb(hh_len + 15 + dst->header_len + sizeof(struct ipv6hdr)

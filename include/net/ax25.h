@@ -258,7 +258,7 @@ extern struct sock *ax25_make_new(struct sock *, struct ax25_dev *);
 /* ax25_addr.c */
 extern ax25_address null_ax25_address;
 extern char *ax2asc(char *buf, ax25_address *);
-extern ax25_address *asc2ax(char *);
+extern void asc2ax(ax25_address *addr, char *callsign);
 extern int  ax25cmp(ax25_address *, ax25_address *);
 extern int  ax25digicmp(ax25_digi *, ax25_digi *);
 extern unsigned char *ax25_addr_parse(unsigned char *, int, ax25_address *, ax25_address *, ax25_digi *, int *, int *);
