@@ -66,6 +66,10 @@ ToDo/Notes:
 	  return LCN_ENOENT when there is no runlist and the allocated size is
 	  zero.
 	- Fix load_attribute_list() to handle the case of a NULL runlist.
+	- Fix handling of sparse attributes in ntfs_attr_make_non_resident().
+	- Add BUG() checks to ntfs_attr_make_non_resident() and ntfs_attr_set()
+	  to ensure that these functions are never called for compressed or
+	  encrypted attributes.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...

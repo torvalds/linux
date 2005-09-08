@@ -1372,6 +1372,12 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		return err;
 	}
 	/*
+	 * FIXME: Compressed and encrypted attributes are not supported when
+	 * writing and we should never have gotten here for them.
+	 */
+	BUG_ON(NInoCompressed(ni));
+	BUG_ON(NInoEncrypted(ni));
+	/*
 	 * The size needs to be aligned to a cluster boundary for allocation
 	 * purposes.
 	 */
@@ -1447,10 +1453,15 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	BUG_ON(a->non_resident);
 	/*
 	 * Calculate new offsets for the name and the mapping pairs array.
-	 * We assume the attribute is not compressed or sparse.
 	 */
-	name_ofs = (offsetof(ATTR_REC,
-			data.non_resident.compressed_size) + 7) & ~7;
+	if (NInoSparse(ni) || NInoCompressed(ni))
+		name_ofs = (offsetof(ATTR_REC,
+				data.non_resident.compressed_size) +
+				sizeof(a->data.non_resident.compressed_size) +
+				7) & ~7;
+	else
+		name_ofs = (offsetof(ATTR_REC,
+				data.non_resident.compressed_size) + 7) & ~7;
 	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
 	/*
 	 * Determine the size of the resident part of the now non-resident
@@ -1489,24 +1500,23 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
 				a->name_length * sizeof(ntfschar));
 	a->name_offset = cpu_to_le16(name_ofs);
-	/*
-	 * FIXME: For now just clear all of these as we do not support them
-	 * when writing.
-	 */
-	a->flags &= cpu_to_le16(0xffff & ~le16_to_cpu(ATTR_IS_SPARSE |
-			ATTR_IS_ENCRYPTED | ATTR_COMPRESSION_MASK));
 	/* Setup the fields specific to non-resident attributes. */
 	a->data.non_resident.lowest_vcn = 0;
 	a->data.non_resident.highest_vcn = cpu_to_sle64((new_size - 1) >>
 			vol->cluster_size_bits);
 	a->data.non_resident.mapping_pairs_offset = cpu_to_le16(mp_ofs);
-	a->data.non_resident.compression_unit = 0;
 	memset(&a->data.non_resident.reserved, 0,
 			sizeof(a->data.non_resident.reserved));
 	a->data.non_resident.allocated_size = cpu_to_sle64(new_size);
 	a->data.non_resident.data_size =
 			a->data.non_resident.initialized_size =
 			cpu_to_sle64(attr_size);
+	if (NInoSparse(ni) || NInoCompressed(ni)) {
+		a->data.non_resident.compression_unit = 4;
+		a->data.non_resident.compressed_size =
+				a->data.non_resident.allocated_size;
+	} else
+		a->data.non_resident.compression_unit = 0;
 	/* Generate the mapping pairs array into the attribute record. */
 	err = ntfs_mapping_pairs_build(vol, (u8*)a + mp_ofs,
 			arec_size - mp_ofs, rl, 0, -1, NULL);
@@ -1516,16 +1526,19 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		goto undo_err_out;
 	}
 	/* Setup the in-memory attribute structure to be non-resident. */
-	/*
-	 * FIXME: For now just clear all of these as we do not support them
-	 * when writing.
-	 */
-	NInoClearSparse(ni);
-	NInoClearEncrypted(ni);
-	NInoClearCompressed(ni);
 	ni->runlist.rl = rl;
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = new_size;
+	if (NInoSparse(ni) || NInoCompressed(ni)) {
+		ni->itype.compressed.size = ni->allocated_size;
+		ni->itype.compressed.block_size = 1U <<
+				(a->data.non_resident.compression_unit +
+				vol->cluster_size_bits);
+		ni->itype.compressed.block_size_bits =
+				ffs(ni->itype.compressed.block_size) - 1;
+		ni->itype.compressed.block_clusters = 1U <<
+				a->data.non_resident.compression_unit;
+	}
 	write_unlock_irqrestore(&ni->size_lock, flags);
 	/*
 	 * This needs to be last since the address space operations ->readpage
@@ -1673,6 +1686,12 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	BUG_ON(cnt < 0);
 	if (!cnt)
 		goto done;
+	/*
+	 * FIXME: Compressed and encrypted attributes are not supported when
+	 * writing and we should never have gotten here for them.
+	 */
+	BUG_ON(NInoCompressed(ni));
+	BUG_ON(NInoEncrypted(ni));
 	mapping = VFS_I(ni)->i_mapping;
 	/* Work out the starting index and page offset. */
 	idx = ofs >> PAGE_CACHE_SHIFT;
