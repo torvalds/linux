@@ -35,7 +35,7 @@ static inline void ntfs_rl_mm(runlist_element *base, int dst, int src,
 		int size)
 {
 	if (likely((dst != src) && (size > 0)))
-		memmove(base + dst, base + src, size * sizeof (*base));
+		memmove(base + dst, base + src, size * sizeof(*base));
 }
 
 /**
@@ -84,6 +84,51 @@ static inline runlist_element *ntfs_rl_realloc(runlist_element *rl,
 	new_rl = ntfs_malloc_nofs(new_size);
 	if (unlikely(!new_rl))
 		return ERR_PTR(-ENOMEM);
+
+	if (likely(rl != NULL)) {
+		if (unlikely(old_size > new_size))
+			old_size = new_size;
+		memcpy(new_rl, rl, old_size);
+		ntfs_free(rl);
+	}
+	return new_rl;
+}
+
+/**
+ * ntfs_rl_realloc_nofail - Reallocate memory for runlists
+ * @rl:		original runlist
+ * @old_size:	number of runlist elements in the original runlist @rl
+ * @new_size:	number of runlist elements we need space for
+ *
+ * As the runlists grow, more memory will be required.  To prevent the
+ * kernel having to allocate and reallocate large numbers of small bits of
+ * memory, this function returns an entire page of memory.
+ *
+ * This function guarantees that the allocation will succeed.  It will sleep
+ * for as long as it takes to complete the allocation.
+ *
+ * It is up to the caller to serialize access to the runlist @rl.
+ *
+ * N.B.  If the new allocation doesn't require a different number of pages in
+ *       memory, the function will return the original pointer.
+ *
+ * On success, return a pointer to the newly allocated, or recycled, memory.
+ * On error, return -errno. The following error codes are defined:
+ *	-ENOMEM	- Not enough memory to allocate runlist array.
+ *	-EINVAL	- Invalid parameters were passed in.
+ */
+static inline runlist_element *ntfs_rl_realloc_nofail(runlist_element *rl,
+		int old_size, int new_size)
+{
+	runlist_element *new_rl;
+
+	old_size = PAGE_ALIGN(old_size * sizeof(*rl));
+	new_size = PAGE_ALIGN(new_size * sizeof(*rl));
+	if (old_size == new_size)
+		return rl;
+
+	new_rl = ntfs_malloc_nofs_nofail(new_size);
+	BUG_ON(!new_rl);
 
 	if (likely(rl != NULL)) {
 		if (unlikely(old_size > new_size))
@@ -621,11 +666,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 			if (drl[ds].lcn != LCN_RL_NOT_MAPPED) {
 				/* Add an unmapped runlist element. */
 				if (!slots) {
-					/* FIXME/TODO: We need to have the
-					 * extra memory already! (AIA) */
-					drl = ntfs_rl_realloc(drl, ds, ds + 2);
-					if (!drl)
-						goto critical_error;
+					drl = ntfs_rl_realloc_nofail(drl, ds,
+							ds + 2);
 					slots = 2;
 				}
 				ds++;
@@ -640,13 +682,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 			drl[ds].length = marker_vcn - drl[ds].vcn;
 			/* Finally add the ENOENT terminator. */
 			ds++;
-			if (!slots) {
-				/* FIXME/TODO: We need to have the extra
-				 * memory already! (AIA) */
-				drl = ntfs_rl_realloc(drl, ds, ds + 1);
-				if (!drl)
-					goto critical_error;
-			}
+			if (!slots)
+				drl = ntfs_rl_realloc_nofail(drl, ds, ds + 1);
 			drl[ds].vcn = marker_vcn;
 			drl[ds].lcn = LCN_ENOENT;
 			drl[ds].length = (s64)0;
@@ -659,11 +696,6 @@ finished:
 	ntfs_debug("Merged runlist:");
 	ntfs_debug_dump_runlist(drl);
 	return drl;
-
-critical_error:
-	/* Critical error! We cannot afford to fail here. */
-	ntfs_error(NULL, "Critical error! Not enough memory.");
-	panic("NTFS: Cannot continue.");
 }
 
 /**
