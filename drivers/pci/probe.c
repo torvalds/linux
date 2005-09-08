@@ -584,7 +584,7 @@ static int pci_setup_device(struct pci_dev * dev)
 		 dev->vendor, dev->device, class, dev->hdr_type);
 
 	/* "Unknown power state" */
-	dev->current_state = 4;
+	dev->current_state = PCI_UNKNOWN;
 
 	/* Early fixups, before probing the BARs */
 	pci_fixup_device(pci_fixup_early, dev);
@@ -756,8 +756,6 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 	device_initialize(&dev->dev);
 	dev->dev.release = pci_release_dev;
 	pci_dev_get(dev);
-
-	pci_name_device(dev);
 
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.coherent_dma_mask = 0xffffffffull;

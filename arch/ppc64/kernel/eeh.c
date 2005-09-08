@@ -202,10 +202,9 @@ static void pci_addr_cache_print(struct pci_io_addr_cache *cache)
 	while (n) {
 		struct pci_io_addr_range *piar;
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
-		printk(KERN_DEBUG "PCI: %s addr range %d [%lx-%lx]: %s %s\n",
+		printk(KERN_DEBUG "PCI: %s addr range %d [%lx-%lx]: %s\n",
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem", cnt,
-		       piar->addr_lo, piar->addr_hi, pci_name(piar->pcidev),
-		       pci_pretty_name(piar->pcidev));
+		       piar->addr_lo, piar->addr_hi, pci_name(piar->pcidev));
 		cnt++;
 		n = rb_next(n);
 	}
@@ -260,8 +259,8 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 
 	dn = pci_device_to_OF_node(dev);
 	if (!dn) {
-		printk(KERN_WARNING "PCI: no pci dn found for dev=%s %s\n",
-			pci_name(dev), pci_pretty_name(dev));
+		printk(KERN_WARNING "PCI: no pci dn found for dev=%s\n",
+			pci_name(dev));
 		return;
 	}
 
@@ -269,8 +268,8 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 	if (!(dn->eeh_mode & EEH_MODE_SUPPORTED) ||
 	    dn->eeh_mode & EEH_MODE_NOCHECK) {
 #ifdef DEBUG
-		printk(KERN_INFO "PCI: skip building address cache for=%s %s\n",
-		       pci_name(dev), pci_pretty_name(dev));
+		printk(KERN_INFO "PCI: skip building address cache for=%s\n",
+		       pci_name(dev));
 #endif
 		return;
 	}
@@ -447,12 +446,12 @@ static void eeh_panic(struct pci_dev *dev, int reset_state)
 	 * in light of potential corruption, we can use it here.
 	 */
 	if (panic_on_oops)
-		panic("EEH: MMIO failure (%d) on device:%s %s\n", reset_state,
-		      pci_name(dev), pci_pretty_name(dev));
+		panic("EEH: MMIO failure (%d) on device:%s\n", reset_state,
+		      pci_name(dev));
 	else {
 		__get_cpu_var(ignored_failures)++;
-		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s %s\n",
-		       reset_state, pci_name(dev), pci_pretty_name(dev));
+		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s\n",
+		       reset_state, pci_name(dev));
 	}
 }
 
@@ -482,8 +481,8 @@ static void eeh_event_handler(void *dummy)
 			break;
 
 		printk(KERN_INFO "EEH: MMIO failure (%d), notifiying device "
-		       "%s %s\n", event->reset_state,
-		       pci_name(event->dev), pci_pretty_name(event->dev));
+		       "%s\n", event->reset_state,
+		       pci_name(event->dev));
 
 		atomic_set(&eeh_fail_count, 0);
 		notifier_call_chain (&eeh_notifier_chain,
@@ -851,8 +850,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 		return;
 
 #ifdef DEBUG
-	printk(KERN_DEBUG "EEH: adding device %s %s\n", pci_name(dev),
-	       pci_pretty_name(dev));
+	printk(KERN_DEBUG "EEH: adding device %s\n", pci_name(dev));
 #endif
 
 	pci_addr_cache_insert_device (dev);
@@ -873,8 +871,7 @@ void eeh_remove_device(struct pci_dev *dev)
 
 	/* Unregister the device with the EEH/PCI address search system */
 #ifdef DEBUG
-	printk(KERN_DEBUG "EEH: remove device %s %s\n", pci_name(dev),
-	       pci_pretty_name(dev));
+	printk(KERN_DEBUG "EEH: remove device %s\n", pci_name(dev));
 #endif
 	pci_addr_cache_remove_device(dev);
 }
