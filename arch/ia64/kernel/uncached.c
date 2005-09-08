@@ -205,23 +205,18 @@ EXPORT_SYMBOL(uncached_free_page);
 static int __init
 uncached_build_memmap(unsigned long start, unsigned long end, void *arg)
 {
-	long length;
-	unsigned long vstart, vend;
+	long length = end - start;
 	int node;
-
-	length = end - start;
-	vstart = start + __IA64_UNCACHED_OFFSET;
-	vend = end + __IA64_UNCACHED_OFFSET;
 
 	dprintk(KERN_ERR "uncached_build_memmap(%lx %lx)\n", start, end);
 
-	memset((char *)vstart, 0, length);
+	memset((char *)start, 0, length);
 
-	node = paddr_to_nid(start);
+	node = paddr_to_nid(start - __IA64_UNCACHED_OFFSET);
 
-	for (; vstart < vend ; vstart += PAGE_SIZE) {
-		dprintk(KERN_INFO "sticking %lx into the pool!\n", vstart);
-		gen_pool_free(uncached_pool[node], vstart, PAGE_SIZE);
+	for (; start < end ; start += PAGE_SIZE) {
+		dprintk(KERN_INFO "sticking %lx into the pool!\n", start);
+		gen_pool_free(uncached_pool[node], start, PAGE_SIZE);
 	}
 
 	return 0;

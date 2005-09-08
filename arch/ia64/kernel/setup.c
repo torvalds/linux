@@ -211,6 +211,9 @@ reserve_memory (void)
 	}
 #endif
 
+	efi_memmap_init(&rsvd_region[n].start, &rsvd_region[n].end);
+	n++;
+
 	/* end of memory marker */
 	rsvd_region[n].start = ~0UL;
 	rsvd_region[n].end   = ~0UL;
