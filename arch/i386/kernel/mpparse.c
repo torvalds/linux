@@ -668,8 +668,6 @@ void __init get_smp_config (void)
 	struct intel_mp_floating *mpf = mpf_found;
 
 	/*
-	 * ACPI may be used to obtain the entire SMP configuration or just to 
-	 * enumerate/configure processors (CONFIG_ACPI_BOOT).  Note that 
 	 * ACPI supports both logical (e.g. Hyper-Threading) and physical 
 	 * processors, where MPS only supports physical.
 	 */
@@ -825,7 +823,7 @@ void __init find_smp_config (void)
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 void __init mp_register_lapic_address (
 	u64			address)
@@ -871,7 +869,7 @@ void __init mp_register_lapic (
 	MP_processor_info(&processor);
 }
 
-#if defined(CONFIG_X86_IO_APIC) && (defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_ACPI_BOOT))
+#ifdef	CONFIG_X86_IO_APIC
 
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
@@ -1086,11 +1084,9 @@ int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 	 */
 	static int		gsi_to_irq[MAX_GSI_NUM];
 
-#ifdef CONFIG_ACPI_BUS
 	/* Don't set up the ACPI SCI because it's already set up */
 	if (acpi_fadt.sci_int == gsi)
 		return gsi;
-#endif
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0) {
@@ -1133,13 +1129,11 @@ int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 		if (gsi < MAX_GSI_NUM) {
 			if (gsi > 15)
 				gsi = pci_irq++;
-#ifdef CONFIG_ACPI_BUS
 			/*
 			 * Don't assign IRQ used by ACPI SCI
 			 */
 			if (gsi == acpi_fadt.sci_int)
 				gsi = pci_irq++;
-#endif
 			gsi_to_irq[irq] = gsi;
 		} else {
 			printk(KERN_ERR "GSI %u is too high\n", gsi);
@@ -1153,5 +1147,5 @@ int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 	return gsi;
 }
 
-#endif /*CONFIG_X86_IO_APIC && (CONFIG_ACPI_INTERPRETER || CONFIG_ACPI_BOOT)*/
-#endif /*CONFIG_ACPI_BOOT*/
+#endif /* CONFIG_X86_IO_APIC */
+#endif /* CONFIG_ACPI */

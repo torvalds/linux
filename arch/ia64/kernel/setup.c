@@ -384,7 +384,7 @@ setup_arch (char **cmdline_p)
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
 # ifdef CONFIG_ACPI_NUMA
@@ -420,7 +420,7 @@ setup_arch (char **cmdline_p)
 
 	cpu_init();	/* initialize the bootstrap CPU */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	acpi_boot_init();
 #endif
 
