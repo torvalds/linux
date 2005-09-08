@@ -417,6 +417,7 @@ int mga_driver_preinit(drm_device_t *dev, unsigned long flags)
 	return 0;
 }
 
+#if __OS_HAS_AGP
 /**
  * Bootstrap the driver for AGP DMA.
  * 
@@ -560,6 +561,13 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 	DRM_INFO("Initialized card for AGP DMA.\n");
 	return 0;
 }
+#else
+static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
+				    drm_mga_dma_bootstrap_t * dma_bs)
+{
+	return -EINVAL;
+}
+#endif
 
 /**
  * Bootstrap the driver for PCI DMA.
@@ -697,7 +705,6 @@ static int mga_do_dma_bootstrap(drm_device_t * dev,
 	 * carve off portions of it for internal uses.  The remaining memory
 	 * is returned to user-mode to be used for AGP textures.
 	 */
-
 	if (is_agp) {
 		err = mga_do_agp_dma_bootstrap(dev, dma_bs);
 	}
@@ -932,6 +939,7 @@ static int mga_do_cleanup_dma( drm_device_t *dev )
 			drm_core_ioremapfree(dev->agp_buffer_map, dev);
 
 		if (dev_priv->used_new_dma_init) {
+#if __OS_HAS_AGP
 			if (dev_priv->agp_mem != NULL) {
 				dev_priv->agp_textures = NULL;
 				drm_unbind_agp(dev_priv->agp_mem);
@@ -944,7 +952,7 @@ static int mga_do_cleanup_dma( drm_device_t *dev )
 			if ((dev->agp != NULL) && dev->agp->acquired) {
 				err = drm_agp_release(dev);
 			}
-
+#endif
 			dev_priv->used_new_dma_init = 0;
 		}
 
@@ -965,7 +973,7 @@ static int mga_do_cleanup_dma( drm_device_t *dev )
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 int mga_dma_init( DRM_IOCTL_ARGS )
