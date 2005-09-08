@@ -539,7 +539,6 @@ int ntfs_read_compressed_block(struct page *page)
 	if (unlikely(!pages || !bhs)) {
 		kfree(bhs);
 		kfree(pages);
-		SetPageError(page);
 		unlock_page(page);
 		ntfs_error(vol->sb, "Failed to allocate internal buffers.");
 		return -ENOMEM;
@@ -871,9 +870,6 @@ lock_retry_remap:
 			for (; prev_cur_page < cur_page; prev_cur_page++) {
 				page = pages[prev_cur_page];
 				if (page) {
-					if (prev_cur_page == xpage &&
-							!xpage_done)
-						SetPageError(page);
 					flush_dcache_page(page);
 					kunmap(page);
 					unlock_page(page);
@@ -904,8 +900,6 @@ lock_retry_remap:
 					"Terminating them with extreme "
 					"prejudice.  Inode 0x%lx, page index "
 					"0x%lx.", ni->mft_no, page->index);
-			if (cur_page == xpage && !xpage_done)
-				SetPageError(page);
 			flush_dcache_page(page);
 			kunmap(page);
 			unlock_page(page);
@@ -953,8 +947,6 @@ err_out:
 	for (i = cur_page; i < max_page; i++) {
 		page = pages[i];
 		if (page) {
-			if (i == xpage && !xpage_done)
-				SetPageError(page);
 			flush_dcache_page(page);
 			kunmap(page);
 			unlock_page(page);
