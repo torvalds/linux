@@ -542,6 +542,7 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 			/* Scan to the end of the source runlist. */
 			for (dend = 0; likely(drl[dend].length); dend++)
 				;
+			dend++;
 			drl = ntfs_rl_realloc(drl, dend, dend + 1);
 			if (IS_ERR(drl))
 				return drl;
@@ -611,8 +612,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 		 ((drl[dins].vcn + drl[dins].length) <=      /* End of hole   */
 		  (srl[send - 1].vcn + srl[send - 1].length)));
 
-	/* Or we'll lose an end marker */
-	if (start && finish && (drl[dins].length == 0))
+	/* Or we will lose an end marker. */
+	if (finish && !drl[dins].length)
 		ss++;
 	if (marker && (drl[dins].vcn + drl[dins].length > srl[send - 1].vcn))
 		finish = FALSE;
