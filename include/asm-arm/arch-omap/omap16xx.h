@@ -36,11 +36,6 @@
 
 /* Syntax: XX_BASE = Virtual base address, XX_START = Physical base address */
 
-#define OMAP16XX_SRAM_BASE	0xD0000000
-#define OMAP1610_SRAM_SIZE	(SZ_16K)
-#define OMAP5912_SRAM_SIZE	0x3E800
-#define OMAP16XX_SRAM_START	0x20000000
-
 #define OMAP16XX_DSP_BASE	0xE0000000
 #define OMAP16XX_DSP_SIZE	0x28000
 #define OMAP16XX_DSP_START	0xE0000000
@@ -48,17 +43,6 @@
 #define OMAP16XX_DSPREG_BASE	0xE1000000
 #define OMAP16XX_DSPREG_SIZE	SZ_128K
 #define OMAP16XX_DSPREG_START	0xE1000000
-
-/*
- * ----------------------------------------------------------------------------
- * Memory used by power management
- * ----------------------------------------------------------------------------
- */
-
-#define OMAP1610_SRAM_IDLE_SUSPEND	(OMAP16XX_SRAM_BASE + OMAP1610_SRAM_SIZE - 0x200)
-#define OMAP1610_SRAM_API_SUSPEND	(OMAP1610_SRAM_IDLE_SUSPEND + 0x100)
-#define OMAP5912_SRAM_IDLE_SUSPEND	(OMAP16XX_SRAM_BASE + OMAP5912_SRAM_SIZE - 0x200)
-#define OMAP5912_SRAM_API_SUSPEND	(OMAP5912_SRAM_IDLE_SUSPEND + 0x100)
 
 /*
  * ---------------------------------------------------------------------------
