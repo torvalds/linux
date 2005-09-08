@@ -459,6 +459,15 @@ config SCSI_ATA_PIIX
 
 	  If unsure, say N.
 
+config SCSI_SATA_MV
+	tristate "Marvell SATA support"
+	depends on SCSI_SATA && PCI && EXPERIMENTAL
+	help
+	  This option enables support for the Marvell Serial ATA family.
+	  Currently supports 88SX[56]0[48][01] chips.
+
+	  If unsure, say N.
+
 config SCSI_SATA_NV
 	tristate "NVIDIA SATA support"
 	depends on SCSI_SATA && PCI && EXPERIMENTAL
