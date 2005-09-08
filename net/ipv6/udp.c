@@ -773,8 +773,7 @@ do_udp_sendmsg:
 	}
 	if (opt == NULL)
 		opt = np->opt;
-	if (flowlabel)
-		opt = fl6_merge_options(&opt_space, flowlabel, opt);
+	opt = fl6_merge_options(&opt_space, flowlabel, opt);
 
 	fl->proto = IPPROTO_UDP;
 	ipv6_addr_copy(&fl->fl6_dst, daddr);

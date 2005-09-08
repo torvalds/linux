@@ -148,13 +148,13 @@ struct in6_flowlabel_req
  */
 
 #define IPV6_ADDRFORM		1
-#define IPV6_PKTINFO		2
-#define IPV6_HOPOPTS		3
-#define IPV6_DSTOPTS		4
-#define IPV6_RTHDR		5
-#define IPV6_PKTOPTIONS		6
+#define IPV6_2292PKTINFO	2
+#define IPV6_2292HOPOPTS	3
+#define IPV6_2292DSTOPTS	4
+#define IPV6_2292RTHDR		5
+#define IPV6_2292PKTOPTIONS	6
 #define IPV6_CHECKSUM		7
-#define IPV6_HOPLIMIT		8
+#define IPV6_2292HOPLIMIT	8
 #define IPV6_NEXTHOP		9
 #define IPV6_AUTHHDR		10	/* obsolete */
 #define IPV6_FLOWINFO		11
@@ -197,5 +197,31 @@ struct in6_flowlabel_req
  * MCAST_LEAVE_SOURCE_GROUP	47
  * MCAST_MSFILTER		48
  */
+
+/* RFC3542 advanced socket options (50-67) */
+#define IPV6_RECVPKTINFO	50
+#define IPV6_PKTINFO		51
+#if 0
+#define IPV6_RECVPATHMTU	52
+#define IPV6_PATHMTU		53
+#define IPV6_DONTFRAG		54
+#define IPV6_USE_MIN_MTU	55
+#endif
+#define IPV6_RECVHOPOPTS	56
+#define IPV6_HOPOPTS		57
+#if 0
+#define IPV6_RECVRTHDRDSTOPTS	58	/* Unused, see net/ipv6/datagram.c */
+#endif
+#define IPV6_RTHDRDSTOPTS	59
+#define IPV6_RECVRTHDR		60
+#define IPV6_RTHDR		61
+#define IPV6_RECVDSTOPTS	62
+#define IPV6_DSTOPTS		63
+#define IPV6_RECVHOPLIMIT	64
+#define IPV6_HOPLIMIT		65
+#if 0
+#define IPV6_RECVTCLASS		66
+#define IPV6_TCLASS		67
+#endif
 
 #endif

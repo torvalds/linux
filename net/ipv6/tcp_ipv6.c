@@ -849,7 +849,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	if (dst == NULL) {
 		opt = np->opt;
 		if (opt == NULL &&
-		    np->rxopt.bits.srcrt == 2 &&
+		    np->rxopt.bits.osrcrt == 2 &&
 		    treq->pktopts) {
 			struct sk_buff *pktopts = treq->pktopts;
 			struct inet6_skb_parm *rxopt = IP6CB(pktopts);
@@ -915,11 +915,10 @@ static int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
 	struct inet6_skb_parm *opt = IP6CB(skb);
 
 	if (np->rxopt.all) {
-		if ((opt->hop && np->rxopt.bits.hopopts) ||
-		    ((IPV6_FLOWINFO_MASK&*(u32*)skb->nh.raw) &&
-		     np->rxopt.bits.rxflow) ||
-		    (opt->srcrt && np->rxopt.bits.srcrt) ||
-		    ((opt->dst1 || opt->dst0) && np->rxopt.bits.dstopts))
+		if ((opt->hop && (np->rxopt.bits.hopopts || np->rxopt.bits.ohopopts)) ||
+		    ((IPV6_FLOWINFO_MASK & *(u32*)skb->nh.raw) && np->rxopt.bits.rxflow) ||
+		    (opt->srcrt && (np->rxopt.bits.srcrt || np->rxopt.bits.osrcrt)) ||
+		    ((opt->dst1 || opt->dst0) && (np->rxopt.bits.dstopts || np->rxopt.bits.odstopts)))
 			return 1;
 	}
 	return 0;
@@ -1190,8 +1189,8 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	TCP_ECN_create_request(req, skb->h.th);
 	treq->pktopts = NULL;
 	if (ipv6_opt_accepted(sk, skb) ||
-	    np->rxopt.bits.rxinfo ||
-	    np->rxopt.bits.rxhlim) {
+	    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
+	    np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim) {
 		atomic_inc(&skb->users);
 		treq->pktopts = skb;
 	}
@@ -1288,7 +1287,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	if (sk_acceptq_is_full(sk))
 		goto out_overflow;
 
-	if (np->rxopt.bits.srcrt == 2 &&
+	if (np->rxopt.bits.osrcrt == 2 &&
 	    opt == NULL && treq->pktopts) {
 		struct inet6_skb_parm *rxopt = IP6CB(treq->pktopts);
 		if (rxopt->srcrt)
@@ -1544,9 +1543,9 @@ ipv6_pktoptions:
 	tp = tcp_sk(sk);
 	if (TCP_SKB_CB(opt_skb)->end_seq == tp->rcv_nxt &&
 	    !((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))) {
-		if (np->rxopt.bits.rxinfo)
+		if (np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo)
 			np->mcast_oif = inet6_iif(opt_skb);
-		if (np->rxopt.bits.rxhlim)
+		if (np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim)
 			np->mcast_hops = opt_skb->nh.ipv6h->hop_limit;
 		if (ipv6_opt_accepted(sk, opt_skb)) {
 			skb_set_owner_r(opt_skb, sk);

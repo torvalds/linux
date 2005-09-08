@@ -189,6 +189,7 @@ struct inet6_skb_parm {
 	__u16			dst0;
 	__u16			srcrt;
 	__u16			dst1;
+	__u16			lastopt;
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
@@ -234,14 +235,19 @@ struct ipv6_pinfo {
 	/* pktoption flags */
 	union {
 		struct {
-			__u8	srcrt:2,
+			__u16	srcrt:2,
+				osrcrt:2,
 			        rxinfo:1,
+			        rxoinfo:1,
 				rxhlim:1,
+				rxohlim:1,
 				hopopts:1,
+				ohopopts:1,
 				dstopts:1,
+				odstopts:1,
                                 rxflow:1;
 		} bits;
-		__u8		all;
+		__u16		all;
 	} rxopt;
 
 	/* sockopt flags */

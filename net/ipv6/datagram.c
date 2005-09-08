@@ -394,21 +394,85 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		u32 flowinfo = *(u32*)skb->nh.raw & IPV6_FLOWINFO_MASK;
 		put_cmsg(msg, SOL_IPV6, IPV6_FLOWINFO, sizeof(flowinfo), &flowinfo);
 	}
+
+	/* HbH is allowed only once */
 	if (np->rxopt.bits.hopopts && opt->hop) {
 		u8 *ptr = skb->nh.raw + opt->hop;
 		put_cmsg(msg, SOL_IPV6, IPV6_HOPOPTS, (ptr[1]+1)<<3, ptr);
 	}
-	if (np->rxopt.bits.dstopts && opt->dst0) {
+
+	if (opt->lastopt &&
+	    (np->rxopt.bits.dstopts || np->rxopt.bits.srcrt)) {
+		/*
+		 * Silly enough, but we need to reparse in order to
+		 * report extension headers (except for HbH)
+		 * in order.
+		 *
+		 * Also note that IPV6_RECVRTHDRDSTOPTS is NOT 
+		 * (and WILL NOT be) defined because
+		 * IPV6_RECVDSTOPTS is more generic. --yoshfuji
+		 */
+		unsigned int off = sizeof(struct ipv6hdr);
+		u8 nexthdr = skb->nh.ipv6h->nexthdr;
+
+		while (off <= opt->lastopt) {
+			unsigned len;
+			u8 *ptr = skb->nh.raw + off;
+
+			switch(nexthdr) {
+			case IPPROTO_DSTOPTS:
+				nexthdr = ptr[0];
+				len = (ptr[1] + 1) << 3;
+				if (np->rxopt.bits.dstopts)
+					put_cmsg(msg, SOL_IPV6, IPV6_DSTOPTS, len, ptr);
+				break;
+			case IPPROTO_ROUTING:
+				nexthdr = ptr[0];
+				len = (ptr[1] + 1) << 3;
+				if (np->rxopt.bits.srcrt)
+					put_cmsg(msg, SOL_IPV6, IPV6_RTHDR, len, ptr);
+				break;
+			case IPPROTO_AH:
+				nexthdr = ptr[0];
+				len = (ptr[1] + 1) << 2;
+				break;
+			default:
+				nexthdr = ptr[0];
+				len = (ptr[1] + 1) << 3;
+				break;
+			}
+
+			off += len;
+		}
+	}
+
+	/* socket options in old style */
+	if (np->rxopt.bits.rxoinfo) {
+		struct in6_pktinfo src_info;
+
+		src_info.ipi6_ifindex = opt->iif;
+		ipv6_addr_copy(&src_info.ipi6_addr, &skb->nh.ipv6h->daddr);
+		put_cmsg(msg, SOL_IPV6, IPV6_2292PKTINFO, sizeof(src_info), &src_info);
+	}
+	if (np->rxopt.bits.rxohlim) {
+		int hlim = skb->nh.ipv6h->hop_limit;
+		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
+	}
+	if (np->rxopt.bits.ohopopts && opt->hop) {
+		u8 *ptr = skb->nh.raw + opt->hop;
+		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPOPTS, (ptr[1]+1)<<3, ptr);
+	}
+	if (np->rxopt.bits.odstopts && opt->dst0) {
 		u8 *ptr = skb->nh.raw + opt->dst0;
-		put_cmsg(msg, SOL_IPV6, IPV6_DSTOPTS, (ptr[1]+1)<<3, ptr);
+		put_cmsg(msg, SOL_IPV6, IPV6_2292DSTOPTS, (ptr[1]+1)<<3, ptr);
 	}
-	if (np->rxopt.bits.srcrt && opt->srcrt) {
+	if (np->rxopt.bits.osrcrt && opt->srcrt) {
 		struct ipv6_rt_hdr *rthdr = (struct ipv6_rt_hdr *)(skb->nh.raw + opt->srcrt);
-		put_cmsg(msg, SOL_IPV6, IPV6_RTHDR, (rthdr->hdrlen+1) << 3, rthdr);
+		put_cmsg(msg, SOL_IPV6, IPV6_2292RTHDR, (rthdr->hdrlen+1) << 3, rthdr);
 	}
-	if (np->rxopt.bits.dstopts && opt->dst1) {
+	if (np->rxopt.bits.odstopts && opt->dst1) {
 		u8 *ptr = skb->nh.raw + opt->dst1;
-		put_cmsg(msg, SOL_IPV6, IPV6_DSTOPTS, (ptr[1]+1)<<3, ptr);
+		put_cmsg(msg, SOL_IPV6, IPV6_2292DSTOPTS, (ptr[1]+1)<<3, ptr);
 	}
 	return 0;
 }
@@ -438,6 +502,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 		switch (cmsg->cmsg_type) {
  		case IPV6_PKTINFO:
+ 		case IPV6_2292PKTINFO:
  			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct in6_pktinfo))) {
 				err = -EINVAL;
 				goto exit_f;
@@ -492,6 +557,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			fl->fl6_flowlabel = IPV6_FLOWINFO_MASK & *(u32 *)CMSG_DATA(cmsg);
 			break;
 
+		case IPV6_2292HOPOPTS:
 		case IPV6_HOPOPTS:
                         if (opt->hopopt || cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
 				err = -EINVAL;
@@ -512,7 +578,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			opt->hopopt = hdr;
 			break;
 
-		case IPV6_DSTOPTS:
+		case IPV6_2292DSTOPTS:
                         if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
 				err = -EINVAL;
 				goto exit_f;
@@ -536,6 +602,33 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			opt->dst1opt = hdr;
 			break;
 
+		case IPV6_DSTOPTS:
+		case IPV6_RTHDRDSTOPTS:
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
+				err = -EINVAL;
+				goto exit_f;
+			}
+
+			hdr = (struct ipv6_opt_hdr *)CMSG_DATA(cmsg);
+			len = ((hdr->hdrlen + 1) << 3);
+			if (cmsg->cmsg_len < CMSG_LEN(len)) {
+				err = -EINVAL;
+				goto exit_f;
+			}
+			if (!capable(CAP_NET_RAW)) {
+				err = -EPERM;
+				goto exit_f;
+			}
+			if (cmsg->cmsg_type == IPV6_DSTOPTS) {
+				opt->opt_flen += len;
+				opt->dst1opt = hdr;
+			} else {
+				opt->opt_nflen += len;
+				opt->dst0opt = hdr;
+			}
+			break;
+
+		case IPV6_2292RTHDR:
 		case IPV6_RTHDR:
                         if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_rt_hdr))) {
 				err = -EINVAL;
@@ -568,7 +661,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			opt->opt_nflen += len;
 			opt->srcrt = rthdr;
 
-			if (opt->dst1opt) {
+			if (cmsg->cmsg_type == IPV6_2292RTHDR && opt->dst1opt) {
 				int dsthdrlen = ((opt->dst1opt->hdrlen+1)<<3);
 
 				opt->opt_nflen += dsthdrlen;
@@ -579,6 +672,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 			break;
 
+		case IPV6_2292HOPLIMIT:
 		case IPV6_HOPLIMIT:
 			if (cmsg->cmsg_len != CMSG_LEN(sizeof(int))) {
 				err = -EINVAL;
