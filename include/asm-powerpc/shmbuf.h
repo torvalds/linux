@@ -21,19 +21,19 @@
 
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
-#ifndef __power64__
+#ifndef __powerpc64__
 	unsigned long		__unused1;
 #endif
 	__kernel_time_t		shm_atime;	/* last attach time */
-#ifndef __power64__
+#ifndef __powerpc64__
 	unsigned long		__unused2;
 #endif
 	__kernel_time_t		shm_dtime;	/* last detach time */
-#ifndef __power64__
+#ifndef __powerpc64__
 	unsigned long		__unused3;
 #endif
 	__kernel_time_t		shm_ctime;	/* last change time */
-#ifndef __power64__
+#ifndef __powerpc64__
 	unsigned long		__unused4;
 #endif
 	size_t			shm_segsz;	/* size of segment (bytes) */
