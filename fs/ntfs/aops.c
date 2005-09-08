@@ -185,13 +185,15 @@ static int ntfs_read_block(struct page *page)
 	blocksize_bits = VFS_I(ni)->i_blkbits;
 	blocksize = 1 << blocksize_bits;
 
-	if (!page_has_buffers(page))
+	if (!page_has_buffers(page)) {
 		create_empty_buffers(page, blocksize, 0);
-	bh = head = page_buffers(page);
-	if (unlikely(!bh)) {
-		unlock_page(page);
-		return -ENOMEM;
+		if (unlikely(!page_has_buffers(page))) {
+			unlock_page(page);
+			return -ENOMEM;
+		}
 	}
+	bh = head = page_buffers(page);
+	BUG_ON(!bh);
 
 	iblock = (s64)page->index << (PAGE_CACHE_SHIFT - blocksize_bits);
 	read_lock_irqsave(&ni->size_lock, flags);
@@ -530,19 +532,21 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 		BUG_ON(!PageUptodate(page));
 		create_empty_buffers(page, blocksize,
 				(1 << BH_Uptodate) | (1 << BH_Dirty));
+		if (unlikely(!page_has_buffers(page))) {
+			ntfs_warning(vol->sb, "Error allocating page "
+					"buffers.  Redirtying page so we try "
+					"again later.");
+			/*
+			 * Put the page back on mapping->dirty_pages, but leave
+			 * its buffers' dirty state as-is.
+			 */
+			redirty_page_for_writepage(wbc, page);
+			unlock_page(page);
+			return 0;
+		}
 	}
 	bh = head = page_buffers(page);
-	if (unlikely(!bh)) {
-		ntfs_warning(vol->sb, "Error allocating page buffers. "
-				"Redirtying page so we try again later.");
-		/*
-		 * Put the page back on mapping->dirty_pages, but leave its
-		 * buffer's dirty state as-is.
-		 */
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
-	}
+	BUG_ON(!bh);
 
 	/* NOTE: Different naming scheme to ntfs_read_block()! */
 
@@ -910,7 +914,6 @@ static int ntfs_write_mst_block(struct page *page,
 	sync = (wbc->sync_mode == WB_SYNC_ALL);
 
 	/* Make sure we have mapped buffers. */
-	BUG_ON(!page_has_buffers(page));
 	bh = head = page_buffers(page);
 	BUG_ON(!bh);
 
@@ -2397,6 +2400,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 			buffers_to_free = bh;
 	}
 	bh = head = page_buffers(page);
+	BUG_ON(!bh);
 	do {
 		bh_ofs = bh_offset(bh);
 		if (bh_ofs + bh_size <= ofs)

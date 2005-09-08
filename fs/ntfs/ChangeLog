@@ -85,6 +85,7 @@ ToDo/Notes:
 	  removal of the get_bh()/put_bh() pairs for each buffer.
 	- Fix fs/ntfs/aops.c::ntfs_{read,write}_block() to handle the case
 	  where a concurrent truncate has truncated the runlist under our feet.
+	- Fix page_has_buffers()/page_buffers() handling in fs/ntfs/aops.c.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
