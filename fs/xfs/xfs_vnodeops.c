@@ -104,7 +104,7 @@ xfs_open(
 	 * If it's a directory with any blocks, read-ahead block 0
 	 * as we're almost certain to have the next operation be a read there.
 	 */
-	if (vp->v_type == VDIR && ip->i_d.di_nextents > 0) {
+	if (VN_ISDIR(vp) && ip->i_d.di_nextents > 0) {
 		mode = xfs_ilock_map_shared(ip);
 		if (ip->i_d.di_nextents > 0)
 			(void)xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK);
@@ -163,18 +163,21 @@ xfs_getattr(
 	/*
 	 * Copy from in-core inode.
 	 */
-	vap->va_type = vp->v_type;
-	vap->va_mode = ip->i_d.di_mode & MODEMASK;
+	vap->va_mode = ip->i_d.di_mode;
 	vap->va_uid = ip->i_d.di_uid;
 	vap->va_gid = ip->i_d.di_gid;
 	vap->va_projid = ip->i_d.di_projid;
 
 	/*
 	 * Check vnode type block/char vs. everything else.
-	 * Do it with bitmask because that's faster than looking
-	 * for multiple values individually.
 	 */
-	if (((1 << vp->v_type) & ((1<<VBLK) | (1<<VCHR))) == 0) {
+	switch (ip->i_d.di_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		vap->va_rdev = ip->i_df.if_u2.if_rdev;
+		vap->va_blocksize = BLKDEV_IOSIZE;
+		break;
+	default:
 		vap->va_rdev = 0;
 
 		if (!(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
@@ -224,9 +227,7 @@ xfs_getattr(
 				(ip->i_d.di_extsize << mp->m_sb.sb_blocklog) :
 				(mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog);
 		}
-	} else {
-		vap->va_rdev = ip->i_df.if_u2.if_rdev;
-		vap->va_blocksize = BLKDEV_IOSIZE;
+		break;
 	}
 
 	vap->va_atime.tv_sec = ip->i_d.di_atime.t_sec;
@@ -468,7 +469,7 @@ xfs_setattr(
 				m |= S_ISGID;
 #if 0
 			/* Linux allows this, Irix doesn't. */
-			if ((vap->va_mode & S_ISVTX) && vp->v_type != VDIR)
+			if ((vap->va_mode & S_ISVTX) && !VN_ISDIR(vp))
 				m |= S_ISVTX;
 #endif
 			if (m && !capable(CAP_FSETID))
@@ -546,10 +547,10 @@ xfs_setattr(
 			goto error_return;
 		}
 
-		if (vp->v_type == VDIR) {
+		if (VN_ISDIR(vp)) {
 			code = XFS_ERROR(EISDIR);
 			goto error_return;
-		} else if (vp->v_type != VREG) {
+		} else if (!VN_ISREG(vp)) {
 			code = XFS_ERROR(EINVAL);
 			goto error_return;
 		}
@@ -1567,7 +1568,7 @@ xfs_release(
 	vp = BHV_TO_VNODE(bdp);
 	ip = XFS_BHVTOI(bdp);
 
-	if ((vp->v_type != VREG) || (ip->i_d.di_mode == 0)) {
+	if (!VN_ISREG(vp) || (ip->i_d.di_mode == 0)) {
 		return 0;
 	}
 
@@ -1895,7 +1896,7 @@ xfs_create(
 	dp = XFS_BHVTOI(dir_bdp);
 	mp = dp->i_mount;
 
-	dm_di_mode = vap->va_mode|VTTOIF(vap->va_type);
+	dm_di_mode = vap->va_mode;
 	namelen = VNAMELEN(dentry);
 
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_CREATE)) {
@@ -1973,8 +1974,7 @@ xfs_create(
 	    (error = XFS_DIR_CANENTER(mp, tp, dp, name, namelen)))
 		goto error_return;
 	rdev = (vap->va_mask & XFS_AT_RDEV) ? vap->va_rdev : 0;
-	error = xfs_dir_ialloc(&tp, dp,
-			MAKEIMODE(vap->va_type,vap->va_mode), 1,
+	error = xfs_dir_ialloc(&tp, dp, vap->va_mode, 1,
 			rdev, credp, prid, resblks > 0,
 			&ip, &committed);
 	if (error) {
@@ -2620,7 +2620,7 @@ xfs_link(
 	vn_trace_entry(src_vp, __FUNCTION__, (inst_t *)__return_address);
 
 	target_namelen = VNAMELEN(dentry);
-	if (src_vp->v_type == VDIR)
+	if (VN_ISDIR(src_vp))
 		return XFS_ERROR(EPERM);
 
 	src_bdp = vn_bhv_lookup_unlocked(VN_BHV_HEAD(src_vp), &xfs_vnodeops);
@@ -2805,7 +2805,7 @@ xfs_mkdir(
 
 	tp = NULL;
 	dp_joined_to_trans = B_FALSE;
-	dm_di_mode = vap->va_mode|VTTOIF(vap->va_type);
+	dm_di_mode = vap->va_mode;
 
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_CREATE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_CREATE,
@@ -2879,8 +2879,7 @@ xfs_mkdir(
 	/*
 	 * create the directory inode.
 	 */
-	error = xfs_dir_ialloc(&tp, dp,
-			MAKEIMODE(vap->va_type,vap->va_mode), 2,
+	error = xfs_dir_ialloc(&tp, dp, vap->va_mode, 2,
 			0, credp, prid, resblks > 0,
 		&cdp, NULL);
 	if (error) {
@@ -3650,7 +3649,7 @@ xfs_rwlock(
 	vnode_t		*vp;
 
 	vp = BHV_TO_VNODE(bdp);
-	if (vp->v_type == VDIR)
+	if (VN_ISDIR(vp))
 		return 1;
 	ip = XFS_BHVTOI(bdp);
 	if (locktype == VRWLOCK_WRITE) {
@@ -3681,7 +3680,7 @@ xfs_rwunlock(
 	vnode_t		*vp;
 
 	vp = BHV_TO_VNODE(bdp);
-	if (vp->v_type == VDIR)
+	if (VN_ISDIR(vp))
 		return;
 	ip = XFS_BHVTOI(bdp);
 	if (locktype == VRWLOCK_WRITE) {
@@ -3847,51 +3846,10 @@ xfs_reclaim(
 		return 0;
 	}
 
-	if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
-		if (ip->i_d.di_size > 0) {
-			/*
-			 * Flush and invalidate any data left around that is
-			 * a part of this file.
-			 *
-			 * Get the inode's i/o lock so that buffers are pushed
-			 * out while holding the proper lock.  We can't hold
-			 * the inode lock here since flushing out buffers may
-			 * cause us to try to get the lock in xfs_strategy().
-			 *
-			 * We don't have to call remapf() here, because there
-			 * cannot be any mapped file references to this vnode
-			 * since it is being reclaimed.
-			 */
-			xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	vn_iowait(vp);
 
-			/*
-			 * If we hit an IO error, we need to make sure that the
-			 * buffer and page caches of file data for
-			 * the file are tossed away. We don't want to use
-			 * VOP_FLUSHINVAL_PAGES here because we don't want dirty
-			 * pages to stay attached to the vnode, but be
-			 * marked P_BAD. pdflush/vnode_pagebad
-			 * hates that.
-			 */
-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				VOP_FLUSHINVAL_PAGES(vp, 0, -1, FI_NONE);
-			} else {
-				VOP_TOSS_PAGES(vp, 0, -1, FI_NONE);
-			}
-
-			ASSERT(VN_CACHED(vp) == 0);
-			ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) ||
-			       ip->i_delayed_blks == 0);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		} else if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-			/*
-			 * di_size field may not be quite accurate if we're
-			 * shutting down.
-			 */
-			VOP_TOSS_PAGES(vp, 0, -1, FI_NONE);
-			ASSERT(VN_CACHED(vp) == 0);
-		}
-	}
+	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
+	ASSERT(VN_CACHED(vp) == 0);
 
 	/* If we have nothing to flush with this inode then complete the
 	 * teardown now, otherwise break the link between the xfs inode
@@ -4567,7 +4525,7 @@ xfs_change_file_space(
 	/*
 	 * must be a regular file and have write permission
 	 */
-	if (vp->v_type != VREG)
+	if (!VN_ISREG(vp))
 		return XFS_ERROR(EINVAL);
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);

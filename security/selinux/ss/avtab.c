@@ -58,6 +58,7 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 {
 	int hvalue;
 	struct avtab_node *prev, *cur, *newnode;
+	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
 		return -EINVAL;
@@ -69,7 +70,7 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
 		    key->target_class == cur->key.target_class &&
-		    (datum->specified & cur->datum.specified))
+		    (specified & cur->key.specified))
 			return -EEXIST;
 		if (key->source_type < cur->key.source_type)
 			break;
@@ -98,6 +99,7 @@ avtab_insert_nonunique(struct avtab * h, struct avtab_key * key, struct avtab_da
 {
 	int hvalue;
 	struct avtab_node *prev, *cur, *newnode;
+	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
 		return NULL;
@@ -108,7 +110,7 @@ avtab_insert_nonunique(struct avtab * h, struct avtab_key * key, struct avtab_da
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
 		    key->target_class == cur->key.target_class &&
-		    (datum->specified & cur->datum.specified))
+		    (specified & cur->key.specified))
 			break;
 		if (key->source_type < cur->key.source_type)
 			break;
@@ -125,10 +127,11 @@ avtab_insert_nonunique(struct avtab * h, struct avtab_key * key, struct avtab_da
 	return newnode;
 }
 
-struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key, int specified)
+struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 {
 	int hvalue;
 	struct avtab_node *cur;
+	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
 		return NULL;
@@ -138,7 +141,7 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key, int spe
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
 		    key->target_class == cur->key.target_class &&
-		    (specified & cur->datum.specified))
+		    (specified & cur->key.specified))
 			return &cur->datum;
 
 		if (key->source_type < cur->key.source_type)
@@ -159,10 +162,11 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key, int spe
  * conjunction with avtab_search_next_node()
  */
 struct avtab_node*
-avtab_search_node(struct avtab *h, struct avtab_key *key, int specified)
+avtab_search_node(struct avtab *h, struct avtab_key *key)
 {
 	int hvalue;
 	struct avtab_node *cur;
+	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
 		return NULL;
@@ -172,7 +176,7 @@ avtab_search_node(struct avtab *h, struct avtab_key *key, int specified)
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
 		    key->target_class == cur->key.target_class &&
-		    (specified & cur->datum.specified))
+		    (specified & cur->key.specified))
 			return cur;
 
 		if (key->source_type < cur->key.source_type)
@@ -196,11 +200,12 @@ avtab_search_node_next(struct avtab_node *node, int specified)
 	if (!node)
 		return NULL;
 
+	specified &= ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 	for (cur = node->next; cur; cur = cur->next) {
 		if (node->key.source_type == cur->key.source_type &&
 		    node->key.target_type == cur->key.target_type &&
 		    node->key.target_class == cur->key.target_class &&
-		    (specified & cur->datum.specified))
+		    (specified & cur->key.specified))
 			return cur;
 
 		if (node->key.source_type < cur->key.source_type)
@@ -278,76 +283,129 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 	       max_chain_len);
 }
 
-int avtab_read_item(void *fp, struct avtab_datum *avdatum, struct avtab_key *avkey)
+static uint16_t spec_order[] = {
+	AVTAB_ALLOWED,
+	AVTAB_AUDITDENY,
+	AVTAB_AUDITALLOW,
+	AVTAB_TRANSITION,
+	AVTAB_CHANGE,
+	AVTAB_MEMBER
+};
+
+int avtab_read_item(void *fp, u32 vers, struct avtab *a,
+	            int (*insertf)(struct avtab *a, struct avtab_key *k,
+				   struct avtab_datum *d, void *p),
+		    void *p)
 {
-	u32 buf[7];
-	u32 items, items2;
-	int rc;
+	__le16 buf16[4];
+	u16 enabled;
+	__le32 buf32[7];
+	u32 items, items2, val;
+	struct avtab_key key;
+	struct avtab_datum datum;
+	int i, rc;
 
-	memset(avkey, 0, sizeof(struct avtab_key));
-	memset(avdatum, 0, sizeof(struct avtab_datum));
+	memset(&key, 0, sizeof(struct avtab_key));
+	memset(&datum, 0, sizeof(struct avtab_datum));
 
-	rc = next_entry(buf, fp, sizeof(u32));
+	if (vers < POLICYDB_VERSION_AVTAB) {
+		rc = next_entry(buf32, fp, sizeof(u32));
+		if (rc < 0) {
+			printk(KERN_ERR "security: avtab: truncated entry\n");
+			return -1;
+		}
+		items2 = le32_to_cpu(buf32[0]);
+		if (items2 > ARRAY_SIZE(buf32)) {
+			printk(KERN_ERR "security: avtab: entry overflow\n");
+			return -1;
+
+		}
+		rc = next_entry(buf32, fp, sizeof(u32)*items2);
+		if (rc < 0) {
+			printk(KERN_ERR "security: avtab: truncated entry\n");
+			return -1;
+		}
+		items = 0;
+
+		val = le32_to_cpu(buf32[items++]);
+		key.source_type = (u16)val;
+		if (key.source_type != val) {
+			printk("security: avtab: truncated source type\n");
+			return -1;
+		}
+		val = le32_to_cpu(buf32[items++]);
+		key.target_type = (u16)val;
+		if (key.target_type != val) {
+			printk("security: avtab: truncated target type\n");
+			return -1;
+		}
+		val = le32_to_cpu(buf32[items++]);
+		key.target_class = (u16)val;
+		if (key.target_class != val) {
+			printk("security: avtab: truncated target class\n");
+			return -1;
+		}
+
+		val = le32_to_cpu(buf32[items++]);
+		enabled = (val & AVTAB_ENABLED_OLD) ? AVTAB_ENABLED : 0;
+
+		if (!(val & (AVTAB_AV | AVTAB_TYPE))) {
+			printk("security: avtab: null entry\n");
+			return -1;
+		}
+		if ((val & AVTAB_AV) &&
+		    (val & AVTAB_TYPE)) {
+			printk("security: avtab: entry has both access vectors and types\n");
+			return -1;
+		}
+
+		for (i = 0; i < sizeof(spec_order)/sizeof(u16); i++) {
+			if (val & spec_order[i]) {
+				key.specified = spec_order[i] | enabled;
+				datum.data = le32_to_cpu(buf32[items++]);
+				rc = insertf(a, &key, &datum, p);
+				if (rc) return rc;
+			}
+		}
+
+		if (items != items2) {
+			printk("security: avtab: entry only had %d items, expected %d\n", items2, items);
+			return -1;
+		}
+		return 0;
+	}
+
+	rc = next_entry(buf16, fp, sizeof(u16)*4);
 	if (rc < 0) {
-		printk(KERN_ERR "security: avtab: truncated entry\n");
-		goto bad;
+		printk("security: avtab: truncated entry\n");
+		return -1;
 	}
-	items2 = le32_to_cpu(buf[0]);
-	if (items2 > ARRAY_SIZE(buf)) {
-		printk(KERN_ERR "security: avtab: entry overflow\n");
-		goto bad;
-	}
-	rc = next_entry(buf, fp, sizeof(u32)*items2);
-	if (rc < 0) {
-		printk(KERN_ERR "security: avtab: truncated entry\n");
-		goto bad;
-	}
+
 	items = 0;
-	avkey->source_type = le32_to_cpu(buf[items++]);
-	avkey->target_type = le32_to_cpu(buf[items++]);
-	avkey->target_class = le32_to_cpu(buf[items++]);
-	avdatum->specified = le32_to_cpu(buf[items++]);
-	if (!(avdatum->specified & (AVTAB_AV | AVTAB_TYPE))) {
-		printk(KERN_ERR "security: avtab: null entry\n");
-		goto bad;
-	}
-	if ((avdatum->specified & AVTAB_AV) &&
-	    (avdatum->specified & AVTAB_TYPE)) {
-		printk(KERN_ERR "security: avtab: entry has both access vectors and types\n");
-		goto bad;
-	}
-	if (avdatum->specified & AVTAB_AV) {
-		if (avdatum->specified & AVTAB_ALLOWED)
-			avtab_allowed(avdatum) = le32_to_cpu(buf[items++]);
-		if (avdatum->specified & AVTAB_AUDITDENY)
-			avtab_auditdeny(avdatum) = le32_to_cpu(buf[items++]);
-		if (avdatum->specified & AVTAB_AUDITALLOW)
-			avtab_auditallow(avdatum) = le32_to_cpu(buf[items++]);
-	} else {
-		if (avdatum->specified & AVTAB_TRANSITION)
-			avtab_transition(avdatum) = le32_to_cpu(buf[items++]);
-		if (avdatum->specified & AVTAB_CHANGE)
-			avtab_change(avdatum) = le32_to_cpu(buf[items++]);
-		if (avdatum->specified & AVTAB_MEMBER)
-			avtab_member(avdatum) = le32_to_cpu(buf[items++]);
-	}
-	if (items != items2) {
-		printk(KERN_ERR "security: avtab: entry only had %d items, expected %d\n",
-		       items2, items);
-		goto bad;
-	}
+	key.source_type = le16_to_cpu(buf16[items++]);
+	key.target_type = le16_to_cpu(buf16[items++]);
+	key.target_class = le16_to_cpu(buf16[items++]);
+	key.specified = le16_to_cpu(buf16[items++]);
 
-	return 0;
-bad:
-	return -1;
+	rc = next_entry(buf32, fp, sizeof(u32));
+	if (rc < 0) {
+		printk("security: avtab: truncated entry\n");
+		return -1;
+	}
+	datum.data = le32_to_cpu(*buf32);
+	return insertf(a, &key, &datum, p);
 }
 
-int avtab_read(struct avtab *a, void *fp, u32 config)
+static int avtab_insertf(struct avtab *a, struct avtab_key *k,
+			 struct avtab_datum *d, void *p)
+{
+	return avtab_insert(a, k, d);
+}
+
+int avtab_read(struct avtab *a, void *fp, u32 vers)
 {
 	int rc;
-	struct avtab_key avkey;
-	struct avtab_datum avdatum;
-	u32 buf[1];
+	__le32 buf[1];
 	u32 nel, i;
 
 
@@ -363,16 +421,14 @@ int avtab_read(struct avtab *a, void *fp, u32 config)
 		goto bad;
 	}
 	for (i = 0; i < nel; i++) {
-		if (avtab_read_item(fp, &avdatum, &avkey)) {
-			rc = -EINVAL;
-			goto bad;
-		}
-		rc = avtab_insert(a, &avkey, &avdatum);
+		rc = avtab_read_item(fp,vers, a, avtab_insertf, NULL);
 		if (rc) {
 			if (rc == -ENOMEM)
 				printk(KERN_ERR "security: avtab: out of memory\n");
-			if (rc == -EEXIST)
+			else if (rc == -EEXIST)
 				printk(KERN_ERR "security: avtab: duplicate entry\n");
+			else
+				rc = -EINVAL;
 			goto bad;
 		}
 	}

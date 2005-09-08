@@ -65,7 +65,7 @@ static void ddb5477_amd_lance_fixup(struct pci_dev *dev)
 	ioaddr = pci_resource_start(dev, 0);
 
 	inw(ioaddr + PCNET32_WIO_RESET);	/* reset chip */
-                                                                                
+
 	/* bcr_18 |= 0x0800 */
 	outw(18, ioaddr + PCNET32_WIO_RAP);
 	temp = inw(ioaddr + PCNET32_WIO_BDP);

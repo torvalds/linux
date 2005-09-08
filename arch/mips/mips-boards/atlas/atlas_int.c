@@ -122,7 +122,7 @@ void __init arch_init_irq(void)
 	int i;
 
 	atlas_hw0_icregs = (struct atlas_ictrl_regs *)ioremap (ATLAS_ICTRL_REGS_BASE, sizeof(struct atlas_ictrl_regs *));
-	
+
 	/*
 	 * Mask out all interrupt by writing "1" to all bit position in
 	 * the interrupt reset reg.

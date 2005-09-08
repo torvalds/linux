@@ -320,7 +320,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 	case cop1_op:
 		switch (MIPSInst_RS(ir)) {
 
-#if __mips64 && !defined(SINGLE_ONLY_FPU)
+#if defined(__mips64) && !defined(SINGLE_ONLY_FPU)
 		case dmfc_op:
 			/* copregister fs -> gpr[rt] */
 			if (MIPSInst_RT(ir) != 0) {
@@ -805,7 +805,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 		ieee754dp d;
 		ieee754sp s;
 		int w;
-#if __mips64
+#ifdef __mips64
 		s64 l;
 #endif
 	} rv;			/* resulting value */
@@ -950,7 +950,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 		}
 #endif /* __mips >= 2 */
 
-#if __mips64 && !defined(SINGLE_ONLY_FPU)
+#if defined(__mips64) && !defined(SINGLE_ONLY_FPU)
 		case fcvtl_op:{
 			ieee754sp fs;
 
@@ -1125,7 +1125,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 		}
 #endif
 
-#if __mips64 && !defined(SINGLE_ONLY_FPU)
+#if defined(__mips64) && !defined(SINGLE_ONLY_FPU)
 		case fcvtl_op:{
 			ieee754dp fs;
 
@@ -1203,7 +1203,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 		break;
 	}
 
-#if __mips64 && !defined(SINGLE_ONLY_FPU)
+#if defined(__mips64) && !defined(SINGLE_ONLY_FPU)
 	case l_fmt:{
 		switch (MIPSInst_FUNC(ir)) {
 		case fcvts_op:
@@ -1267,7 +1267,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 	case w_fmt:
 		SITOREG(rv.w, MIPSInst_FD(ir));
 		break;
-#if __mips64 && !defined(SINGLE_ONLY_FPU)
+#if defined(__mips64) && !defined(SINGLE_ONLY_FPU)
 	case l_fmt:
 		DITOREG(rv.l, MIPSInst_FD(ir));
 		break;

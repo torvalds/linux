@@ -835,7 +835,7 @@ static int sl811h_urb_enqueue(
 
 	/* avoid all allocations within spinlocks */
 	if (!hep->hcpriv)
-		ep = kcalloc(1, sizeof *ep, mem_flags);
+		ep = kzalloc(sizeof *ep, mem_flags);
 
 	spin_lock_irqsave(&sl811->lock, flags);
 
@@ -1781,9 +1781,9 @@ sl811h_suspend(struct device *dev, pm_message_t state, u32 phase)
 	if (phase != SUSPEND_POWER_DOWN)
 		return retval;
 
-	if (state <= PM_SUSPEND_MEM)
+	if (state.event == PM_EVENT_FREEZE)
 		retval = sl811h_hub_suspend(hcd);
-	else
+	else if (state.event == PM_EVENT_SUSPEND)
 		port_power(sl811, 0);
 	if (retval == 0)
 		dev->power.power_state = state;
@@ -1802,7 +1802,7 @@ sl811h_resume(struct device *dev, u32 phase)
 	/* with no "check to see if VBUS is still powered" board hook,
 	 * let's assume it'd only be powered to enable remote wakeup.
 	 */
-	if (dev->power.power_state > PM_SUSPEND_MEM
+	if (dev->power.power_state.event == PM_EVENT_SUSPEND
 			|| !hcd->can_wakeup) {
 		sl811->port1 = 0;
 		port_power(sl811, 1);

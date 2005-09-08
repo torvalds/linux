@@ -242,6 +242,7 @@ static int ip_map_show(struct seq_file *m,
 	
 
 struct cache_detail ip_map_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= IP_HASHMAX,
 	.hash_table	= ip_table,
 	.name		= "auth.unix.ip",

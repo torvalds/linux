@@ -166,7 +166,7 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	if (sk == NULL)
 		goto out;
 
-	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr, skb->dev->ifindex);
+	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr, IP6CB(skb)->iif);
 
 	while (sk) {
 		delivered = 1;
@@ -178,7 +178,7 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 				rawv6_rcv(sk, clone);
 		}
 		sk = __raw_v6_lookup(sk_next(sk), nexthdr, daddr, saddr,
-				     skb->dev->ifindex);
+				     IP6CB(skb)->iif);
 	}
 out:
 	read_unlock(&raw_v6_lock);

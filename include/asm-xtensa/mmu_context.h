@@ -199,13 +199,13 @@ extern pgd_t *current_pgd;
 #define ASID_FIRST_VERSION						\
 	((unsigned long)(~ASID_VERSION_MASK) + 1 + ASID_FIRST_NONRESERVED)
 
-extern inline void set_rasid_register (unsigned long val)
+static inline void set_rasid_register (unsigned long val)
 {
 	__asm__ __volatile__ (" wsr %0, "__stringify(RASID)"\n\t"
 			      " isync\n" : : "a" (val));
 }
 
-extern inline unsigned long get_rasid_register (void)
+static inline unsigned long get_rasid_register (void)
 {
 	unsigned long tmp;
 	__asm__ __volatile__ (" rsr %0, "__stringify(RASID)"\n\t" : "=a" (tmp));
@@ -215,7 +215,7 @@ extern inline unsigned long get_rasid_register (void)
 
 #if ((XCHAL_MMU_ASID_INVALID == 0) && (XCHAL_MMU_ASID_KERNEL == 1))
 
-extern inline void
+static inline void
 get_new_mmu_context(struct mm_struct *mm, unsigned long asid)
 {
 	extern void flush_tlb_all(void);
@@ -234,7 +234,7 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long asid)
 /* XCHAL_MMU_ASID_INVALID == 0 and XCHAL_MMU_ASID_KERNEL ==1 are
    really the best, but if you insist... */
 
-extern inline int validate_asid (unsigned long asid)
+static inline int validate_asid (unsigned long asid)
 {
 	switch (asid) {
 	case XCHAL_MMU_ASID_INVALID:
@@ -247,7 +247,7 @@ extern inline int validate_asid (unsigned long asid)
 	return 1; /* valid */
 }
 
-extern inline void
+static inline void
 get_new_mmu_context(struct mm_struct *mm, unsigned long asid)
 {
 	extern void flush_tlb_all(void);
@@ -274,14 +274,14 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long asid)
  * instance.
  */
 
-extern inline int
+static inline int
 init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	mm->context = NO_CONTEXT;
 	return 0;
 }
 
-extern inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
                              struct task_struct *tsk)
 {
 	unsigned long asid = asid_cache;
@@ -301,7 +301,7 @@ extern inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * Destroy context related info for an mm_struct that is about
  * to be put to rest.
  */
-extern inline void destroy_context(struct mm_struct *mm)
+static inline void destroy_context(struct mm_struct *mm)
 {
 	/* Nothing to do. */
 }
@@ -310,7 +310,7 @@ extern inline void destroy_context(struct mm_struct *mm)
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
-extern inline void
+static inline void
 activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
 	/* Unconditionally get a new ASID.  */

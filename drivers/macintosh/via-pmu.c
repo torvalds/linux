@@ -3065,7 +3065,7 @@ static int pmu_sys_suspended = 0;
 
 static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 {
-	if (state != PM_SUSPEND_DISK || pmu_sys_suspended)
+	if (state.event != PM_EVENT_SUSPEND || pmu_sys_suspended)
 		return 0;
 
 	/* Suspend PMU event interrupts */

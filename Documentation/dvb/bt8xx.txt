@@ -16,7 +16,7 @@ Enable the following options:
 "Device drivers" => "Multimedia devices"
  => "Video For Linux" => "BT848 Video For Linux"
 "Device drivers" => "Multimedia devices" => "Digital Video Broadcasting Devices"
- => "DVB for Linux" "DVB Core Support" "Nebula/Pinnacle PCTV/TwinHan PCI Cards"
+ => "DVB for Linux" "DVB Core Support" "BT8xx based PCI cards"
 
 3) Loading Modules, described by two approaches
 ===============================================

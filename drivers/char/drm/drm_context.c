@@ -308,7 +308,7 @@ found:
  *
  * Attempt to set drm_device::context_flag.
  */
-int drm_context_switch( drm_device_t *dev, int old, int new )
+static int drm_context_switch( drm_device_t *dev, int old, int new )
 {
         if ( test_and_set_bit( 0, &dev->context_flag ) ) {
                 DRM_ERROR( "Reentering -- FIXME\n" );

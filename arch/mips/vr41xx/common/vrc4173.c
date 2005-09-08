@@ -476,7 +476,7 @@ static inline int vrc4173_icu_init(int cascade_irq)
 
 	if (cascade_irq < GIU_IRQ(0) || cascade_irq > GIU_IRQ(15))
 		return -EINVAL;
-	
+
 	vrc4173_outw(0, VRC4173_MSYSINT1REG);
 
 	vr41xx_set_irq_trigger(GIU_IRQ_TO_PIN(cascade_irq), TRIGGER_LEVEL, SIGNAL_THROUGH);

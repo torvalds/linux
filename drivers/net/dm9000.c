@@ -1140,7 +1140,7 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 }
 
 static int
-dm9000_drv_suspend(struct device *dev, u32 state, u32 level)
+dm9000_drv_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 

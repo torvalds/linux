@@ -514,6 +514,9 @@ asmlinkage int printk(const char *fmt, ...)
 	return r;
 }
 
+/* cpu currently holding logbuf_lock */
+static volatile unsigned int printk_cpu = UINT_MAX;
+
 asmlinkage int vprintk(const char *fmt, va_list args)
 {
 	unsigned long flags;
@@ -522,11 +525,15 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	static char printk_buf[1024];
 	static int log_level_unknown = 1;
 
-	if (unlikely(oops_in_progress))
+	preempt_disable();
+	if (unlikely(oops_in_progress) && printk_cpu == smp_processor_id())
+		/* If a crash is occurring during printk() on this CPU,
+		 * make sure we can't deadlock */
 		zap_locks();
 
 	/* This stops the holder of console_sem just where we want him */
 	spin_lock_irqsave(&logbuf_lock, flags);
+	printk_cpu = smp_processor_id();
 
 	/* Emit the output into the temporary buffer */
 	printed_len = vscnprintf(printk_buf, sizeof(printk_buf), fmt, args);
@@ -595,6 +602,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		 * CPU until it is officially up.  We shouldn't be calling into
 		 * random console drivers on a CPU which doesn't exist yet..
 		 */
+		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 		goto out;
 	}
@@ -604,6 +612,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		 * We own the drivers.  We can drop the spinlock and let
 		 * release_console_sem() print the text
 		 */
+		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 		console_may_schedule = 0;
 		release_console_sem();
@@ -613,9 +622,11 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		 * allows the semaphore holder to proceed and to call the
 		 * console drivers with the output which we just produced.
 		 */
+		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
 out:
+	preempt_enable();
 	return printed_len;
 }
 EXPORT_SYMBOL(printk);

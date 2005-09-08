@@ -135,7 +135,6 @@
 /*
  * OMAP-1510 specific IRQ numbers for interrupt handler 2
  */
-#define INT_1510_OS_32kHz_TIMER (22 + IH2_BASE)
 #define INT_1510_COM_SPI_RO	(31 + IH2_BASE)
 
 /*
@@ -231,6 +230,11 @@
 #define INT_730_DMA_CH14	(61 + IH2_BASE)
 #define INT_730_DMA_CH15	(62 + IH2_BASE)
 #define INT_730_NAND		(63 + IH2_BASE)
+
+#define INT_24XX_GPIO_BANK1	29
+#define INT_24XX_GPIO_BANK2	30
+#define INT_24XX_GPIO_BANK3	31
+#define INT_24XX_GPIO_BANK4	32
 
 /* Max. 128 level 2 IRQs (OMAP1610), 192 GPIOs (OMAP730) and
  * 16 MPUIO lines */

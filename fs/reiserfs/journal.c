@@ -1034,7 +1034,7 @@ static int flush_commit_list(struct super_block *s,
 		    SB_ONDISK_JOURNAL_SIZE(s);
 		tbh = journal_find_get_block(s, bn);
 		if (buffer_dirty(tbh))	/* redundant, ll_rw_block() checks */
-			ll_rw_block(WRITE, 1, &tbh);
+			ll_rw_block(SWRITE, 1, &tbh);
 		put_bh(tbh);
 	}
 	atomic_dec(&journal->j_async_throttle);
@@ -2172,7 +2172,7 @@ static int journal_read_transaction(struct super_block *p_s_sb,
 	/* flush out the real blocks */
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 		set_buffer_dirty(real_blocks[i]);
-		ll_rw_block(WRITE, 1, real_blocks + i);
+		ll_rw_block(SWRITE, 1, real_blocks + i);
 	}
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 		wait_on_buffer(real_blocks[i]);

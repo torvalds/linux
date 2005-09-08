@@ -4047,7 +4047,6 @@ static int bttv_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	struct bttv_buffer_set idle;
 	unsigned long flags;
 
-	dprintk("bttv%d: suspend %d\n", btv->c.nr, state);
 
 	/* stop dma + irqs */
 	spin_lock_irqsave(&btv->s_lock,flags);

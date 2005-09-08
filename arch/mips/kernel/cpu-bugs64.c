@@ -137,7 +137,7 @@ static inline void check_mult_sh(void)
 	for (i = 0; i < 8; i++)
 		if (v1[i] != w[i])
 			bug = 1;
-		
+
 	if (bug == 0) {
 		printk("no.\n");
 		return;
@@ -149,7 +149,7 @@ static inline void check_mult_sh(void)
 	for (i = 0; i < 8; i++)
 		if (v2[i] != w[i])
 			fix = 0;
-		
+
 	if (fix == 1) {
 		printk("yes.\n");
 		return;

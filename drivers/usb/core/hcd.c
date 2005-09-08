@@ -782,7 +782,7 @@ static int usb_register_bus(struct usb_bus *bus)
 		return -E2BIG;
 	}
 
-	bus->class_dev = class_device_create(usb_host_class, MKDEV(0,0), bus->controller, "usb%d", busnum);
+	bus->class_dev = class_device_create(usb_host_class, MKDEV(0,0), bus->controller, "usb_host%d", busnum);
 	if (IS_ERR(bus->class_dev)) {
 		clear_bit(busnum, busmap.busmap);
 		up(&usb_bus_list_lock);
@@ -1669,7 +1669,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 {
 	struct usb_hcd *hcd;
 
-	hcd = kcalloc(1, sizeof(*hcd) + driver->hcd_priv_size, GFP_KERNEL);
+	hcd = kzalloc(sizeof(*hcd) + driver->hcd_priv_size, GFP_KERNEL);
 	if (!hcd) {
 		dev_dbg (dev, "hcd alloc failed\n");
 		return NULL;

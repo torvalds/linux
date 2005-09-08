@@ -294,8 +294,8 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
  */
 	info->regs32->eax = 0;
 	tsk->thread.saved_esp0 = tsk->thread.esp0;
-	asm volatile("mov %%fs,%0":"=m" (tsk->thread.saved_fs));
-	asm volatile("mov %%gs,%0":"=m" (tsk->thread.saved_gs));
+	savesegment(fs, tsk->thread.saved_fs);
+	savesegment(gs, tsk->thread.saved_gs);
 
 	tss = &per_cpu(init_tss, get_cpu());
 	tsk->thread.esp0 = (unsigned long) &info->VM86_TSS_ESP0;
@@ -542,7 +542,7 @@ void handle_vm86_fault(struct kernel_vm86_regs * regs, long error_code)
 	unsigned char opcode;
 	unsigned char __user *csp;
 	unsigned char __user *ssp;
-	unsigned short ip, sp;
+	unsigned short ip, sp, orig_flags;
 	int data32, pref_done;
 
 #define CHECK_IF_IN_TRAP \
@@ -551,7 +551,11 @@ void handle_vm86_fault(struct kernel_vm86_regs * regs, long error_code)
 #define VM86_FAULT_RETURN do { \
 	if (VMPI.force_return_for_pic  && (VEFLAGS & (IF_MASK | VIF_MASK))) \
 		return_to_32bit(regs, VM86_PICRETURN); \
+	if (orig_flags & TF_MASK) \
+		handle_vm86_trap(regs, 0, 1); \
 	return; } while (0)
+
+	orig_flags = *(unsigned short *)&regs->eflags;
 
 	csp = (unsigned char __user *) (regs->cs << 4);
 	ssp = (unsigned char __user *) (regs->ss << 4);

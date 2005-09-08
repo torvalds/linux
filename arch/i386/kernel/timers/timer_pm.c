@@ -186,6 +186,14 @@ static void mark_offset_pmtmr(void)
 	}
 }
 
+static int pmtmr_resume(void)
+{
+	write_seqlock(&monotonic_lock);
+	/* Assume this is the last mark offset time */
+	offset_tick = read_pmtmr();
+	write_sequnlock(&monotonic_lock);
+	return 0;
+}
 
 static unsigned long long monotonic_clock_pmtmr(void)
 {
@@ -247,6 +255,7 @@ static struct timer_opts timer_pmtmr = {
 	.monotonic_clock 	= monotonic_clock_pmtmr,
 	.delay 			= delay_pmtmr,
 	.read_timer 		= read_timer_tsc,
+	.resume			= pmtmr_resume,
 };
 
 struct init_timer_opts __initdata timer_pmtmr_init = {

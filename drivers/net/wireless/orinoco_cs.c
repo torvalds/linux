@@ -604,7 +604,6 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 
 static struct pcmcia_device_id orinoco_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x000b, 0x7300),
-	PCMCIA_DEVICE_MANF_CARD(0x0089, 0x0001),
 	PCMCIA_DEVICE_MANF_CARD(0x0138, 0x0002),
 	PCMCIA_DEVICE_MANF_CARD(0x0156, 0x0002),
 	PCMCIA_DEVICE_MANF_CARD(0x01eb, 0x080a),

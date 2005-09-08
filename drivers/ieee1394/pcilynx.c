@@ -1464,26 +1464,6 @@ static int __devinit add_card(struct pci_dev *dev,
                                                   { 0x50, I2C_M_RD, 20, (unsigned char*) lynx->bus_info_block }
                                                 };
 
-
-#ifdef CONFIG_IEEE1394_VERBOSEDEBUG
-                        union i2c_smbus_data data;
-
-                        if (i2c_smbus_xfer(i2c_ad, 80, 0, I2C_SMBUS_WRITE, 0, I2C_SMBUS_BYTE,NULL))
-                                PRINT(KERN_ERR, lynx->id,"eeprom read start has failed");
-                        else
-                        {
-                                u16 addr;
-                                for (addr=0x00; addr < 0x100; addr++) {
-                                        if (i2c_smbus_xfer(i2c_ad, 80, 0, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE,& data)) {
-                                                PRINT(KERN_ERR, lynx->id, "unable to read i2c %x", addr);
-                                                break;
-                                        }
-                                        else
-                                                PRINT(KERN_DEBUG, lynx->id,"got serial eeprom data at %x: %x",addr, data.byte);
-                                }
-                        }
-#endif
-
                         /* we use i2c_transfer, because i2c_smbus_read_block_data does not work properly and we
                            do it more efficiently in one transaction rather then using several reads */
                         if (i2c_transfer(i2c_ad, msg, 2) < 0) {

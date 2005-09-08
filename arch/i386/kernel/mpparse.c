@@ -65,6 +65,8 @@ int nr_ioapics;
 int pic_mode;
 unsigned long mp_lapic_addr;
 
+unsigned int def_to_bigsmp = 0;
+
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
 /* Internal processor count */
@@ -120,7 +122,7 @@ static int MP_valid_apicid(int apicid, int version)
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
- 	int ver, apicid;
+ 	int ver, apicid, cpu, found_bsp = 0;
 	physid_mask_t tmp;
  	
 	if (!(m->mpc_cpuflag & CPU_ENABLED))
@@ -179,6 +181,7 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		Dprintk("    Bootup CPU\n");
 		boot_cpu_physical_apicid = m->mpc_apicid;
+		found_bsp = 1;
 	}
 
 	if (num_processors >= NR_CPUS) {
@@ -202,6 +205,11 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 
+	if (found_bsp)
+		cpu = 0;
+	else
+		cpu = num_processors - 1;
+	cpu_set(cpu, cpu_possible_map);
 	tmp = apicid_to_cpu_present(apicid);
 	physids_or(phys_cpu_present_map, phys_cpu_present_map, tmp);
 	
@@ -213,6 +221,13 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		ver = 0x10;
 	}
 	apic_version[m->mpc_apicid] = ver;
+	if ((num_processors > 8) &&
+	    APIC_XAPIC(ver) &&
+	    (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL))
+		def_to_bigsmp = 1;
+	else
+		def_to_bigsmp = 0;
+
 	bios_cpu_apicid[num_processors - 1] = m->mpc_apicid;
 }
 

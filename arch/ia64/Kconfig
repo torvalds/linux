@@ -408,6 +408,11 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
 source "arch/ia64/hp/sim/Kconfig"
 
 source "arch/ia64/oprofile/Kconfig"

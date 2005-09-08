@@ -111,15 +111,14 @@ MODULE_PARM_DESC(inq_timeout,
 
 /**
  * scsi_unlock_floptical - unlock device via a special MODE SENSE command
- * @sreq:	used to send the command
+ * @sdev:	scsi device to send command to
  * @result:	area to store the result of the MODE SENSE
  *
  * Description:
- *     Send a vendor specific MODE SENSE (not a MODE SELECT) command using
- *     @sreq to unlock a device, storing the (unused) results into result.
+ *     Send a vendor specific MODE SENSE (not a MODE SELECT) command.
  *     Called for BLIST_KEY devices.
  **/
-static void scsi_unlock_floptical(struct scsi_request *sreq,
+static void scsi_unlock_floptical(struct scsi_device *sdev,
 				  unsigned char *result)
 {
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
@@ -129,11 +128,10 @@ static void scsi_unlock_floptical(struct scsi_request *sreq,
 	scsi_cmd[1] = 0;
 	scsi_cmd[2] = 0x2e;
 	scsi_cmd[3] = 0;
-	scsi_cmd[4] = 0x2a;	/* size */
+	scsi_cmd[4] = 0x2a;     /* size */
 	scsi_cmd[5] = 0;
-	sreq->sr_cmd_len = 0;
-	sreq->sr_data_direction = DMA_FROM_DEVICE;
-	scsi_wait_req(sreq, scsi_cmd, result, 0x2a /* size */, SCSI_TIMEOUT, 3);
+	scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE, result, 0x2a, NULL,
+			 SCSI_TIMEOUT, 3);
 }
 
 /**
@@ -433,26 +431,25 @@ void scsi_target_reap(struct scsi_target *starget)
 
 /**
  * scsi_probe_lun - probe a single LUN using a SCSI INQUIRY
- * @sreq:	used to send the INQUIRY
+ * @sdev:	scsi_device to probe
  * @inq_result:	area to store the INQUIRY result
+ * @result_len: len of inq_result
  * @bflags:	store any bflags found here
  *
  * Description:
- *     Probe the lun associated with @sreq using a standard SCSI INQUIRY;
+ *     Probe the lun associated with @req using a standard SCSI INQUIRY;
  *
- *     If the INQUIRY is successful, sreq->sr_result is zero and: the
+ *     If the INQUIRY is successful, zero is returned and the
  *     INQUIRY data is in @inq_result; the scsi_level and INQUIRY length
- *     are copied to the Scsi_Device at @sreq->sr_device (sdev);
- *     any flags value is stored in *@bflags.
+ *     are copied to the Scsi_Device any flags value is stored in *@bflags.
  **/
-static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
-			   int *bflags)
+static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
+			  int result_len, int *bflags)
 {
-	struct scsi_device *sdev = sreq->sr_device;	/* a bit ugly */
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
 	int first_inquiry_len, try_inquiry_len, next_inquiry_len;
 	int response_len = 0;
-	int pass, count;
+	int pass, count, result;
 	struct scsi_sense_hdr sshdr;
 
 	*bflags = 0;
@@ -475,28 +472,26 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 		memset(scsi_cmd, 0, 6);
 		scsi_cmd[0] = INQUIRY;
 		scsi_cmd[4] = (unsigned char) try_inquiry_len;
-		sreq->sr_cmd_len = 0;
-		sreq->sr_data_direction = DMA_FROM_DEVICE;
 
 		memset(inq_result, 0, try_inquiry_len);
-		scsi_wait_req(sreq, (void *) scsi_cmd, (void *) inq_result,
-				try_inquiry_len,
-				HZ/2 + HZ*scsi_inq_timeout, 3);
+
+		result = scsi_execute_req(sdev,  scsi_cmd, DMA_FROM_DEVICE,
+					  inq_result, try_inquiry_len, &sshdr,
+					  HZ / 2 + HZ * scsi_inq_timeout, 3);
 
 		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY %s "
 				"with code 0x%x\n",
-				sreq->sr_result ? "failed" : "successful",
-				sreq->sr_result));
+				result ? "failed" : "successful", result));
 
-		if (sreq->sr_result) {
+		if (result) {
 			/*
 			 * not-ready to ready transition [asc/ascq=0x28/0x0]
 			 * or power-on, reset [asc/ascq=0x29/0x0], continue.
 			 * INQUIRY should not yield UNIT_ATTENTION
 			 * but many buggy devices do so anyway. 
 			 */
-			if ((driver_byte(sreq->sr_result) & DRIVER_SENSE) &&
-			    scsi_request_normalize_sense(sreq, &sshdr)) {
+			if ((driver_byte(result) & DRIVER_SENSE) &&
+			    scsi_sense_valid(&sshdr)) {
 				if ((sshdr.sense_key == UNIT_ATTENTION) &&
 				    ((sshdr.asc == 0x28) ||
 				     (sshdr.asc == 0x29)) &&
@@ -507,7 +502,7 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 		break;
 	}
 
-	if (sreq->sr_result == 0) {
+	if (result == 0) {
 		response_len = (unsigned char) inq_result[4] + 5;
 		if (response_len > 255)
 			response_len = first_inquiry_len;	/* sanity */
@@ -556,8 +551,8 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 
 	/* If the last transfer attempt got an error, assume the
 	 * peripheral doesn't exist or is dead. */
-	if (sreq->sr_result)
-		return;
+	if (result)
+		return -EIO;
 
 	/* Don't report any more data than the device says is valid */
 	sdev->inquiry_len = min(try_inquiry_len, response_len);
@@ -593,7 +588,7 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 	    (sdev->scsi_level == 1 && (inq_result[3] & 0x0f) == 1))
 		sdev->scsi_level++;
 
-	return;
+	return 0;
 }
 
 /**
@@ -800,9 +795,8 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 				  void *hostdata)
 {
 	struct scsi_device *sdev;
-	struct scsi_request *sreq;
 	unsigned char *result;
-	int bflags, res = SCSI_SCAN_NO_RESPONSE;
+	int bflags, res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
 	/*
@@ -831,16 +825,13 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	sdev = scsi_alloc_sdev(starget, lun, hostdata);
 	if (!sdev)
 		goto out;
-	sreq = scsi_allocate_request(sdev, GFP_ATOMIC);
-	if (!sreq)
-		goto out_free_sdev;
-	result = kmalloc(256, GFP_ATOMIC |
+
+	result = kmalloc(result_len, GFP_ATOMIC |
 			((shost->unchecked_isa_dma) ? __GFP_DMA : 0));
 	if (!result)
-		goto out_free_sreq;
+		goto out_free_sdev;
 
-	scsi_probe_lun(sreq, result, &bflags);
-	if (sreq->sr_result)
+	if (scsi_probe_lun(sdev, result, result_len, &bflags))
 		goto out_free_result;
 
 	/*
@@ -868,7 +859,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {
 			sdev->lockable = 0;
-			scsi_unlock_floptical(sreq, result);
+			scsi_unlock_floptical(sdev, result);
 		}
 		if (bflagsp)
 			*bflagsp = bflags;
@@ -876,8 +867,6 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 
  out_free_result:
 	kfree(result);
- out_free_sreq:
-	scsi_release_request(sreq);
  out_free_sdev:
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (sdevp) {
@@ -1070,8 +1059,8 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	unsigned int lun;
 	unsigned int num_luns;
 	unsigned int retries;
+	int result;
 	struct scsi_lun *lunp, *lun_data;
-	struct scsi_request *sreq;
 	u8 *data;
 	struct scsi_sense_hdr sshdr;
 	struct scsi_target *starget = scsi_target(sdev);
@@ -1088,10 +1077,6 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 		return 1;
 	if (bflags & BLIST_NOLUN)
 		return 0;
-
-	sreq = scsi_allocate_request(sdev, GFP_ATOMIC);
-	if (!sreq)
-		goto out;
 
 	sprintf(devname, "host %d channel %d id %d",
 		sdev->host->host_no, sdev->channel, sdev->id);
@@ -1110,7 +1095,7 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	lun_data = kmalloc(length, GFP_ATOMIC |
 			   (sdev->host->unchecked_isa_dma ? __GFP_DMA : 0));
 	if (!lun_data)
-		goto out_release_request;
+		goto out;
 
 	scsi_cmd[0] = REPORT_LUNS;
 
@@ -1129,8 +1114,6 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 
 	scsi_cmd[10] = 0;	/* reserved */
 	scsi_cmd[11] = 0;	/* control */
-	sreq->sr_cmd_len = 0;
-	sreq->sr_data_direction = DMA_FROM_DEVICE;
 
 	/*
 	 * We can get a UNIT ATTENTION, for example a power on/reset, so
@@ -1146,29 +1129,29 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 		SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "scsi scan: Sending"
 				" REPORT LUNS to %s (try %d)\n", devname,
 				retries));
-		scsi_wait_req(sreq, scsi_cmd, lun_data, length,
-				SCSI_TIMEOUT + 4*HZ, 3);
+
+		result = scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE,
+					  lun_data, length, &sshdr,
+					  SCSI_TIMEOUT + 4 * HZ, 3);
+
 		SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "scsi scan: REPORT LUNS"
-				" %s (try %d) result 0x%x\n", sreq->sr_result
-				?  "failed" : "successful", retries,
-				sreq->sr_result));
-		if (sreq->sr_result == 0)
+				" %s (try %d) result 0x%x\n", result
+				?  "failed" : "successful", retries, result));
+		if (result == 0)
 			break;
-		else if (scsi_request_normalize_sense(sreq, &sshdr)) {
+		else if (scsi_sense_valid(&sshdr)) {
 			if (sshdr.sense_key != UNIT_ATTENTION)
 				break;
 		}
 	}
 
-	if (sreq->sr_result) {
+	if (result) {
 		/*
 		 * The device probably does not support a REPORT LUN command
 		 */
 		kfree(lun_data);
-		scsi_release_request(sreq);
 		return 1;
 	}
-	scsi_release_request(sreq);
 
 	/*
 	 * Get the length from the first four bytes of lun_data.
@@ -1242,8 +1225,6 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	kfree(lun_data);
 	return 0;
 
- out_release_request:
-	scsi_release_request(sreq);
  out:
 	/*
 	 * We are out of memory, don't try scanning any further.
@@ -1265,9 +1246,12 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 
 	get_device(&starget->dev);
 	down(&shost->scan_mutex);
-	res = scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
-	if (res != SCSI_SCAN_LUN_PRESENT)
-		sdev = ERR_PTR(-ENODEV);
+	if (scsi_host_scan_allowed(shost)) {
+		res = scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1,
+					     hostdata);
+		if (res != SCSI_SCAN_LUN_PRESENT)
+			sdev = ERR_PTR(-ENODEV);
+	}
 	up(&shost->scan_mutex);
 	scsi_target_reap(starget);
 	put_device(&starget->dev);
@@ -1417,11 +1401,15 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 		return -EINVAL;
 
 	down(&shost->scan_mutex);
-	if (channel == SCAN_WILD_CARD) 
-		for (channel = 0; channel <= shost->max_channel; channel++)
+	if (scsi_host_scan_allowed(shost)) {
+		if (channel == SCAN_WILD_CARD)
+			for (channel = 0; channel <= shost->max_channel;
+			     channel++)
+				scsi_scan_channel(shost, channel, id, lun,
+						  rescan);
+		else
 			scsi_scan_channel(shost, channel, id, lun, rescan);
-	else
-		scsi_scan_channel(shost, channel, id, lun, rescan);
+	}
 	up(&shost->scan_mutex);
 
 	return 0;

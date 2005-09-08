@@ -448,7 +448,9 @@ label:
 
 /* 0x1020 - Watchdog Timer (WDT) Exception
 */
-
+#ifdef CONFIG_BOOKE_WDT
+	CRITICAL_EXCEPTION(0x1020, WDTException, WatchdogException)
+#else
 	CRITICAL_EXCEPTION(0x1020, WDTException, UnknownException)
 #endif
 

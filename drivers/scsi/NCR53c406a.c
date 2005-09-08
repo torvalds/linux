@@ -62,7 +62,7 @@
 
 #define SYNC_MODE 0		/* Synchronous transfer mode */
 
-#if DEBUG
+#ifdef DEBUG
 #undef NCR53C406A_DEBUG
 #define NCR53C406A_DEBUG 1
 #endif

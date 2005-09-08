@@ -341,11 +341,11 @@ set_rcvbuf:
 				sock_reset_flag(sk, SOCK_LINGER);
 			else {
 #if (BITS_PER_LONG == 32)
-				if (ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
+				if ((unsigned int)ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
 					sk->sk_lingertime = MAX_SCHEDULE_TIMEOUT;
 				else
 #endif
-					sk->sk_lingertime = ling.l_linger * HZ;
+					sk->sk_lingertime = (unsigned int)ling.l_linger * HZ;
 				sock_set_flag(sk, SOCK_LINGER);
 			}
 			break;
@@ -1529,6 +1529,8 @@ EXPORT_SYMBOL(proto_register);
 void proto_unregister(struct proto *prot)
 {
 	write_lock(&proto_list_lock);
+	list_del(&prot->node);
+	write_unlock(&proto_list_lock);
 
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
@@ -1550,9 +1552,6 @@ void proto_unregister(struct proto *prot)
 		kfree(name);
 		prot->twsk_slab = NULL;
 	}
-
-	list_del(&prot->node);
-	write_unlock(&proto_list_lock);
 }
 
 EXPORT_SYMBOL(proto_unregister);
@@ -1719,8 +1718,8 @@ EXPORT_SYMBOL(sock_wfree);
 EXPORT_SYMBOL(sock_wmalloc);
 EXPORT_SYMBOL(sock_i_uid);
 EXPORT_SYMBOL(sock_i_ino);
-#ifdef CONFIG_SYSCTL
 EXPORT_SYMBOL(sysctl_optmem_max);
+#ifdef CONFIG_SYSCTL
 EXPORT_SYMBOL(sysctl_rmem_max);
 EXPORT_SYMBOL(sysctl_wmem_max);
 #endif

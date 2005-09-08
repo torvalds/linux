@@ -84,7 +84,7 @@ static void lubbock_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc->handle(irq, desc, regs);
+			desc_handle_irq(irq, desc, regs);
 		}
 		pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	} while (pending);

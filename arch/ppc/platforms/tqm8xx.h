@@ -147,29 +147,6 @@ static __inline__ void ide_led(int on)
 #define SICR_ENET_CLKRT	((uint)0x00002600)
 #endif	/* CONFIG_FPS850L */
 
-/***  SM850  *********************************************************/
-
-/* The SM850 Service Module uses SCC2 for IrDA and SCC3 for Ethernet */
-
-#ifdef CONFIG_SM850
-#define PB_ENET_RXD	((uint)0x00000004)	/* PB 29 */
-#define PB_ENET_TXD	((uint)0x00000002)	/* PB 30 */
-#define PA_ENET_RCLK	((ushort)0x0100)	/* PA  7 */
-#define PA_ENET_TCLK	((ushort)0x0400)	/* PA  5 */
-
-#define PC_ENET_LBK	((ushort)0x0008)	/* PC 12 */
-#define PC_ENET_TENA	((ushort)0x0004)	/* PC 13 */
-
-#define PC_ENET_RENA	((ushort)0x0800)	/* PC  4 */
-#define PC_ENET_CLSN	((ushort)0x0400)	/* PC  5 */
-
-/* Control bits in the SICR to route TCLK (CLK3) and RCLK (CLK1) to
- * SCC3.  Also, make sure GR3 (bit 8) and SC3 (bit 9) are zero.
- */
-#define SICR_ENET_MASK	((uint)0x00FF0000)
-#define SICR_ENET_CLKRT	((uint)0x00260000)
-#endif	/* CONFIG_SM850 */
-
 /* We don't use the 8259.
 */
 #define NR_8259_INTS	0

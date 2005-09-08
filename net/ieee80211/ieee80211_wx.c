@@ -29,19 +29,20 @@
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
-#include <linux/wireless.h>
-#include <linux/version.h>
+
 #include <linux/kmod.h>
 #include <linux/module.h>
 
 #include <net/ieee80211.h>
+#include <linux/wireless.h>
+
 static const char *ieee80211_modes[] = {
 	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
 };
 
 #define MAX_CUSTOM_LEN 64
 static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
- 					   char *start, char *stop,
+					   char *start, char *stop,
 					   struct ieee80211_network *network)
 {
 	char custom[MAX_CUSTOM_LEN];
@@ -65,29 +66,28 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.data.length = sizeof("<hidden>");
 		start = iwe_stream_add_point(start, stop, &iwe, "<hidden>");
 	} else {
-		iwe.u.data.length = min(network->ssid_len, (u8)32);
+		iwe.u.data.length = min(network->ssid_len, (u8) 32);
 		start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
 	}
 
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11%s", ieee80211_modes[network->mode]);
+	snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11%s",
+		 ieee80211_modes[network->mode]);
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_CHAR_LEN);
 
-        /* Add mode */
-        iwe.cmd = SIOCGIWMODE;
-        if (network->capability &
-	    (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
+	/* Add mode */
+	iwe.cmd = SIOCGIWMODE;
+	if (network->capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
 		if (network->capability & WLAN_CAPABILITY_ESS)
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
 
-		start = iwe_stream_add_event(start, stop, &iwe,
-					     IW_EV_UINT_LEN);
+		start = iwe_stream_add_event(start, stop, &iwe, IW_EV_UINT_LEN);
 	}
 
-        /* Add frequency/channel */
+	/* Add frequency/channel */
 	iwe.cmd = SIOCGIWFREQ;
 /*	iwe.u.freq.m = ieee80211_frequency(network->channel, network->mode);
 	iwe.u.freq.e = 3; */
@@ -109,7 +109,7 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	max_rate = 0;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
-	for (i = 0, j = 0; i < network->rates_len; ) {
+	for (i = 0, j = 0; i < network->rates_len;) {
 		if (j < network->rates_ex_len &&
 		    ((network->rates_ex[j] & 0x7F) <
 		     (network->rates[i] & 0x7F)))
@@ -132,8 +132,7 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = SIOCGIWRATE;
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = max_rate * 500000;
-	start = iwe_stream_add_event(start, stop, &iwe,
-				     IW_EV_PARAM_LEN);
+	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_PARAM_LEN);
 
 	iwe.cmd = IWEVCUSTOM;
 	iwe.u.data.length = p - custom;
@@ -163,7 +162,7 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
 
-	if (ieee->wpa_enabled && network->wpa_ie_len){
+	if (ieee->wpa_enabled && network->wpa_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 		u8 *p = buf;
@@ -178,7 +177,7 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		start = iwe_stream_add_point(start, stop, &iwe, buf);
 	}
 
-	if (ieee->wpa_enabled && network->rsn_ie_len){
+	if (ieee->wpa_enabled && network->rsn_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 		u8 *p = buf;
@@ -198,11 +197,11 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
-		      " Last beacon: %lums ago", (jiffies - network->last_scanned) / (HZ / 100));
+		      " Last beacon: %lums ago",
+		      (jiffies - network->last_scanned) / (HZ / 100));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
-
 
 	return start;
 }
@@ -228,18 +227,19 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
 			ev = ipw2100_translate_scan(ieee, ev, stop, network);
 		else
-			IEEE80211_DEBUG_SCAN(
-				"Not showing network '%s ("
-				MAC_FMT ")' due to age (%lums).\n",
-				escape_essid(network->ssid,
-					     network->ssid_len),
-				MAC_ARG(network->bssid),
-				(jiffies - network->last_scanned) / (HZ / 100));
+			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
+					     MAC_FMT ")' due to age (%lums).\n",
+					     escape_essid(network->ssid,
+							  network->ssid_len),
+					     MAC_ARG(network->bssid),
+					     (jiffies -
+					      network->last_scanned) / (HZ /
+									100));
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
-	wrqu->data.length = ev -  extra;
+	wrqu->data.length = ev - extra;
 	wrqu->data.flags = 0;
 
 	IEEE80211_DEBUG_WX("exit: %d networks returned.\n", i);
@@ -291,8 +291,8 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			if (ieee->crypt[i] != NULL) {
 				if (key_provided)
 					break;
-				ieee80211_crypt_delayed_deinit(
-					ieee, &ieee->crypt[i]);
+				ieee80211_crypt_delayed_deinit(ieee,
+							       &ieee->crypt[i]);
 			}
 		}
 
@@ -304,8 +304,6 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 
 		goto done;
 	}
-
-
 
 	sec.enabled = 1;
 	sec.flags |= SEC_ENABLED;
@@ -340,8 +338,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			new_crypt = NULL;
 
 			printk(KERN_WARNING "%s: could not initialize WEP: "
-			       "load module ieee80211_crypt_wep\n",
-			       dev->name);
+			       "load module ieee80211_crypt_wep\n", dev->name);
 			return -EOPNOTSUPP;
 		}
 		*crypt = new_crypt;
@@ -358,7 +355,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 				   key, escape_essid(sec.keys[key], len),
 				   erq->length, len);
 		sec.key_sizes[key] = len;
- 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
+		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
@@ -381,15 +378,15 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			IEEE80211_DEBUG_WX(
-				"Setting key %d to default Tx key.\n", key);
+			IEEE80211_DEBUG_WX
+			    ("Setting key %d to default Tx key.\n", key);
 			ieee->tx_keyidx = key;
 			sec.active_key = key;
 			sec.flags |= SEC_ACTIVE_KEY;
 		}
 	}
 
- done:
+      done:
 	ieee->open_wep = !(erq->flags & IW_ENCODE_RESTRICTED);
 	sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN : WLAN_AUTH_SHARED_KEY;
 	sec.flags |= SEC_AUTH_MODE;
@@ -399,7 +396,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	/* For now we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change */
 	sec.flags |= SEC_LEVEL;
-	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
+	sec.level = SEC_LEVEL_1;	/* 40 and 104 bit WEP */
 
 	if (ieee->set_security)
 		ieee->set_security(dev, &sec);

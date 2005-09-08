@@ -1128,7 +1128,6 @@ xfs_ialloc(
 	ASSERT(ip != NULL);
 
 	vp = XFS_ITOV(ip);
-	vp->v_type = IFTOVT(mode);
 	ip->i_d.di_mode = (__uint16_t)mode;
 	ip->i_d.di_onlink = 0;
 	ip->i_d.di_nlink = nlink;
@@ -1250,7 +1249,7 @@ xfs_ialloc(
 	 */
 	xfs_trans_log_inode(tp, ip, flags);
 
-	/* now that we have a v_type we can set Linux inode ops (& unlock) */
+	/* now that we have an i_mode  we can set Linux inode ops (& unlock) */
 	VFS_INIT_VNODE(XFS_MTOVFS(tp->t_mountp), vp, XFS_ITOBHV(ip), 1);
 
 	*ipp = ip;

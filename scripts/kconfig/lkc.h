@@ -59,7 +59,7 @@ void menu_add_entry(struct symbol *sym);
 void menu_end_entry(void);
 void menu_add_dep(struct expr *dep);
 struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *expr, struct expr *dep);
-void menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
+struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
 void menu_finalize(struct menu *parent);

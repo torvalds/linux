@@ -82,7 +82,7 @@ EXPORT_SYMBOL(efi_enabled);
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __initdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 /* common cpu data for all cpus */
-struct cpuinfo_x86 boot_cpu_data = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
+struct cpuinfo_x86 boot_cpu_data __read_mostly = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
@@ -370,12 +370,16 @@ static void __init limit_regions(unsigned long long size)
 	int i;
 
 	if (efi_enabled) {
-		for (i = 0; i < memmap.nr_map; i++) {
-			current_addr = memmap.map[i].phys_addr +
-				       (memmap.map[i].num_pages << 12);
-			if (memmap.map[i].type == EFI_CONVENTIONAL_MEMORY) {
+		efi_memory_desc_t *md;
+		void *p;
+
+		for (p = memmap.map, i = 0; p < memmap.map_end;
+			p += memmap.desc_size, i++) {
+			md = p;
+			current_addr = md->phys_addr + (md->num_pages << 12);
+			if (md->type == EFI_CONVENTIONAL_MEMORY) {
 				if (current_addr >= size) {
-					memmap.map[i].num_pages -=
+					md->num_pages -=
 						(((current_addr-size) + PAGE_SIZE-1) >> PAGE_SHIFT);
 					memmap.nr_map = i + 1;
 					return;
@@ -1581,8 +1585,14 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_boot_table_init();
 	acpi_boot_init();
-#endif
 
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_PC)
+	if (def_to_bigsmp)
+		printk(KERN_WARNING "More than 8 CPUs detected and "
+			"CONFIG_X86_PC cannot handle it.\nUse "
+			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
+#endif
+#endif
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (smp_found_config)
 		get_smp_config();

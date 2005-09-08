@@ -2004,14 +2004,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 }
 
 static int
-bnx2_set_power_state(struct bnx2 *bp, int state)
+bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 {
 	u16 pmcsr;
 
 	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmcsr);
 
 	switch (state) {
-	case 0: {
+	case PCI_D0: {
 		u32 val;
 
 		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL,
@@ -2032,7 +2032,7 @@ bnx2_set_power_state(struct bnx2 *bp, int state)
 		REG_WR(bp, BNX2_RPM_CONFIG, val);
 		break;
 	}
-	case 3: {
+	case PCI_D3hot: {
 		int i;
 		u32 val, wol_msg;
 
@@ -3886,7 +3886,7 @@ bnx2_open(struct net_device *dev)
 	struct bnx2 *bp = dev->priv;
 	int rc;
 
-	bnx2_set_power_state(bp, 0);
+	bnx2_set_power_state(bp, PCI_D0);
 	bnx2_disable_int(bp);
 
 	rc = bnx2_alloc_mem(bp);
@@ -4197,7 +4197,7 @@ bnx2_close(struct net_device *dev)
 	bnx2_free_mem(bp);
 	bp->link_up = 0;
 	netif_carrier_off(bp->dev);
-	bnx2_set_power_state(bp, 3);
+	bnx2_set_power_state(bp, PCI_D3hot);
 	return 0;
 }
 
@@ -5203,7 +5203,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			       BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
 			       BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP);
 
-	bnx2_set_power_state(bp, 0);
+	bnx2_set_power_state(bp, PCI_D0);
 
 	bp->chip_id = REG_RD(bp, BNX2_MISC_ID);
 
@@ -5495,7 +5495,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 }
 
 static int
-bnx2_suspend(struct pci_dev *pdev, u32 state)
+bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = dev->priv;
@@ -5513,7 +5513,7 @@ bnx2_suspend(struct pci_dev *pdev, u32 state)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 	bnx2_reset_chip(bp, reset_code);
 	bnx2_free_skbs(bp);
-	bnx2_set_power_state(bp, state);
+	bnx2_set_power_state(bp, pci_choose_state(pdev, state));
 	return 0;
 }
 
@@ -5526,7 +5526,7 @@ bnx2_resume(struct pci_dev *pdev)
 	if (!netif_running(dev))
 		return 0;
 
-	bnx2_set_power_state(bp, 0);
+	bnx2_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 	bnx2_init_nic(bp);
 	bnx2_netif_start(bp);

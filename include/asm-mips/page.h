@@ -103,20 +103,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __pgd(x)	((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
-/* Pure 2^n version of get_order */
-static __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 #endif /* !__ASSEMBLY__ */
 
 /* to align the pointer to the (next) page boundary */
@@ -147,5 +133,7 @@ static __inline__ int get_order(unsigned long size)
 #ifdef CONFIG_LIMITED_DMA
 #define WANT_PAGE_VIRTUAL
 #endif
+
+#include <asm-generic/page.h>
 
 #endif /* _ASM_PAGE_H */

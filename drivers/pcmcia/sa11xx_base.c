@@ -189,7 +189,7 @@ static int __init sa11xx_pcmcia_init(void)
 {
 	return 0;
 }
-module_init(sa11xx_pcmcia_init);
+fs_initcall(sa11xx_pcmcia_init);
 
 static void __exit sa11xx_pcmcia_exit(void) {}
 

@@ -30,7 +30,6 @@ struct ieee80211_crypto_alg {
 	struct ieee80211_crypto_ops *ops;
 };
 
-
 struct ieee80211_crypto {
 	struct list_head algs;
 	spinlock_t lock;
@@ -38,8 +37,7 @@ struct ieee80211_crypto {
 
 static struct ieee80211_crypto *hcrypt;
 
-void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee,
-					   int force)
+void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 {
 	struct list_head *ptr, *n;
 	struct ieee80211_crypt_data *entry;
@@ -140,7 +138,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	spin_lock_irqsave(&hcrypt->lock, flags);
 	for (ptr = hcrypt->algs.next; ptr != &hcrypt->algs; ptr = ptr->next) {
 		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
+		    (struct ieee80211_crypto_alg *)ptr;
 		if (alg->ops == ops) {
 			list_del(&alg->list);
 			del_alg = alg;
@@ -158,8 +156,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	return del_alg ? 0 : -1;
 }
 
-
-struct ieee80211_crypto_ops * ieee80211_get_crypto_ops(const char *name)
+struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -171,7 +168,7 @@ struct ieee80211_crypto_ops * ieee80211_get_crypto_ops(const char *name)
 	spin_lock_irqsave(&hcrypt->lock, flags);
 	for (ptr = hcrypt->algs.next; ptr != &hcrypt->algs; ptr = ptr->next) {
 		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
+		    (struct ieee80211_crypto_alg *)ptr;
 		if (strcmp(alg->ops->name, name) == 0) {
 			found_alg = alg;
 			break;
@@ -185,9 +182,13 @@ struct ieee80211_crypto_ops * ieee80211_get_crypto_ops(const char *name)
 		return NULL;
 }
 
-
-static void * ieee80211_crypt_null_init(int keyidx) { return (void *) 1; }
-static void ieee80211_crypt_null_deinit(void *priv) {}
+static void *ieee80211_crypt_null_init(int keyidx)
+{
+	return (void *)1;
+}
+static void ieee80211_crypt_null_deinit(void *priv)
+{
+}
 
 static struct ieee80211_crypto_ops ieee80211_crypt_null = {
 	.name			= "NULL",
@@ -203,7 +204,6 @@ static struct ieee80211_crypto_ops ieee80211_crypt_null = {
 	.extra_postfix_len	= 0,
 	.owner			= THIS_MODULE,
 };
-
 
 static int __init ieee80211_crypto_init(void)
 {
@@ -222,10 +222,9 @@ static int __init ieee80211_crypto_init(void)
 		kfree(hcrypt);
 		hcrypt = NULL;
 	}
-out:
+      out:
 	return ret;
 }
-
 
 static void __exit ieee80211_crypto_deinit(void)
 {
@@ -237,7 +236,7 @@ static void __exit ieee80211_crypto_deinit(void)
 	for (ptr = hcrypt->algs.next, n = ptr->next; ptr != &hcrypt->algs;
 	     ptr = n, n = ptr->next) {
 		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
+		    (struct ieee80211_crypto_alg *)ptr;
 		list_del(ptr);
 		printk(KERN_DEBUG "ieee80211_crypt: unregistered algorithm "
 		       "'%s' (deinit)\n", alg->ops->name);

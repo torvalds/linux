@@ -42,25 +42,25 @@ void __save_processor_state(struct saved_context *ctxt)
 	/*
 	 * descriptor tables
 	 */
-	asm volatile ("sgdt %0" : "=m" (ctxt->gdt_limit));
-	asm volatile ("sidt %0" : "=m" (ctxt->idt_limit));
-	asm volatile ("str %0"  : "=m" (ctxt->tr));
+ 	store_gdt(&ctxt->gdt_limit);
+ 	store_idt(&ctxt->idt_limit);
+ 	store_tr(ctxt->tr);
 
 	/*
 	 * segment registers
 	 */
-	asm volatile ("movw %%es, %0" : "=m" (ctxt->es));
-	asm volatile ("movw %%fs, %0" : "=m" (ctxt->fs));
-	asm volatile ("movw %%gs, %0" : "=m" (ctxt->gs));
-	asm volatile ("movw %%ss, %0" : "=m" (ctxt->ss));
+ 	savesegment(es, ctxt->es);
+ 	savesegment(fs, ctxt->fs);
+ 	savesegment(gs, ctxt->gs);
+ 	savesegment(ss, ctxt->ss);
 
 	/*
 	 * control registers 
 	 */
-	asm volatile ("movl %%cr0, %0" : "=r" (ctxt->cr0));
-	asm volatile ("movl %%cr2, %0" : "=r" (ctxt->cr2));
-	asm volatile ("movl %%cr3, %0" : "=r" (ctxt->cr3));
-	asm volatile ("movl %%cr4, %0" : "=r" (ctxt->cr4));
+	ctxt->cr0 = read_cr0();
+	ctxt->cr2 = read_cr2();
+	ctxt->cr3 = read_cr3();
+	ctxt->cr4 = read_cr4();
 }
 
 void save_processor_state(void)
@@ -84,7 +84,6 @@ static void fix_processor_context(void)
 	struct tss_struct * t = &per_cpu(init_tss, cpu);
 
 	set_tss_desc(cpu,t);	/* This just modifies memory; should not be necessary. But... This is necessary, because 386 hardware has concept of busy TSS or some similar stupidity. */
-        per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_TSS].b &= 0xfffffdff;
 
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
@@ -109,25 +108,25 @@ void __restore_processor_state(struct saved_context *ctxt)
 	/*
 	 * control registers
 	 */
-	asm volatile ("movl %0, %%cr4" :: "r" (ctxt->cr4));
-	asm volatile ("movl %0, %%cr3" :: "r" (ctxt->cr3));
-	asm volatile ("movl %0, %%cr2" :: "r" (ctxt->cr2));
-	asm volatile ("movl %0, %%cr0" :: "r" (ctxt->cr0));
+	write_cr4(ctxt->cr4);
+	write_cr3(ctxt->cr3);
+	write_cr2(ctxt->cr2);
+	write_cr2(ctxt->cr0);
 
 	/*
 	 * now restore the descriptor tables to their proper values
 	 * ltr is done i fix_processor_context().
 	 */
-	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
-	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
+ 	load_gdt(&ctxt->gdt_limit);
+ 	load_idt(&ctxt->idt_limit);
 
 	/*
 	 * segment registers
 	 */
-	asm volatile ("movw %0, %%es" :: "r" (ctxt->es));
-	asm volatile ("movw %0, %%fs" :: "r" (ctxt->fs));
-	asm volatile ("movw %0, %%gs" :: "r" (ctxt->gs));
-	asm volatile ("movw %0, %%ss" :: "r" (ctxt->ss));
+ 	loadsegment(es, ctxt->es);
+ 	loadsegment(fs, ctxt->fs);
+ 	loadsegment(gs, ctxt->gs);
+ 	loadsegment(ss, ctxt->ss);
 
 	/*
 	 * sysenter MSRs

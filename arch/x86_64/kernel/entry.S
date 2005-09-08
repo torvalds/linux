@@ -784,8 +784,9 @@ ENTRY(execve)
 	ret
 	CFI_ENDPROC
 
-ENTRY(page_fault)
+KPROBE_ENTRY(page_fault)
 	errorentry do_page_fault
+	.previous .text
 
 ENTRY(coprocessor_error)
 	zeroentry do_coprocessor_error
@@ -797,13 +798,14 @@ ENTRY(device_not_available)
 	zeroentry math_state_restore
 
 	/* runs on exception stack */
-ENTRY(debug)
+KPROBE_ENTRY(debug)
 	CFI_STARTPROC
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8		
 	paranoidentry do_debug
 	jmp paranoid_exit
 	CFI_ENDPROC
+	.previous .text
 
 	/* runs on exception stack */	
 ENTRY(nmi)
@@ -854,8 +856,9 @@ paranoid_schedule:
 	jmp paranoid_userspace
 	CFI_ENDPROC
 
-ENTRY(int3)
+KPROBE_ENTRY(int3)
 	zeroentry do_int3	
+	.previous .text
 
 ENTRY(overflow)
 	zeroentry do_overflow
@@ -892,8 +895,9 @@ ENTRY(stack_segment)
 	jmp paranoid_exit
 	CFI_ENDPROC
 
-ENTRY(general_protection)
+KPROBE_ENTRY(general_protection)
 	errorentry do_general_protection
+	.previous .text
 
 ENTRY(alignment_check)
 	errorentry do_alignment_check

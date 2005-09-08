@@ -814,6 +814,9 @@ static void __init acpi_process_madt(void)
 		if (!error) {
 			acpi_lapic = 1;
 
+#ifdef CONFIG_X86_GENERICARCH
+			generic_bigsmp_probe();
+#endif
 			/*
 			 * Parse MADT IO-APIC entries
 			 */

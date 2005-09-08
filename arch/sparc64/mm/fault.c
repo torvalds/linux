@@ -18,6 +18,7 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/kprobes.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -117,8 +118,9 @@ unsigned long __init prom_probe_memory (void)
 	return tally;
 }
 
-static void unhandled_fault(unsigned long address, struct task_struct *tsk,
-			    struct pt_regs *regs)
+static void __kprobes unhandled_fault(unsigned long address,
+				      struct task_struct *tsk,
+				      struct pt_regs *regs)
 {
 	if ((unsigned long) address < PAGE_SIZE) {
 		printk(KERN_ALERT "Unable to handle kernel NULL "
@@ -304,7 +306,7 @@ cannot_handle:
 	unhandled_fault (address, current, regs);
 }
 
-asmlinkage void do_sparc64_fault(struct pt_regs *regs)
+asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;

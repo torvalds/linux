@@ -97,7 +97,6 @@ extern int do_settimeofday(struct timespec *tv);
 extern int do_sys_settimeofday(struct timespec *tv, struct timezone *tz);
 extern void clock_was_set(void); // call when ever the clock is set
 extern int do_posix_clock_monotonic_gettime(struct timespec *tp);
-extern long do_nanosleep(struct timespec *t);
 extern long do_utimes(char __user * filename, struct timeval * times);
 struct itimerval;
 extern int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue);

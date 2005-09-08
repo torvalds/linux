@@ -2249,7 +2249,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	if ((codec = kcalloc(1, sizeof(*codec), GFP_KERNEL)) == NULL) {
+	if ((codec = kzalloc(sizeof(*codec), GFP_KERNEL)) == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}

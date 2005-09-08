@@ -519,8 +519,6 @@ static u32 bit_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm i2c_bit_algo = {
-	.name		= "Bit-shift algorithm",
-	.id		= I2C_ALGO_BIT,
 	.master_xfer	= bit_xfer,
 	.functionality	= bit_func,
 };
@@ -541,8 +539,6 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 	DEB2(dev_dbg(&adap->dev, "hw routines registered.\n"));
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= i2c_bit_algo.id;
 	adap->algo = &i2c_bit_algo;
 
 	adap->timeout = 100;	/* default values, should	*/

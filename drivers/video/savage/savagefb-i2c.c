@@ -137,7 +137,6 @@ static int prosavage_gpio_getsda(void* data)
 	return (0 != (GET_CR_DATA(chan->ioaddr) & PROSAVAGE_I2C_SDA_IN));
 }
 
-#define I2C_ALGO_SAVAGE   0x0f0000
 static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 				const char *name)
 {
@@ -147,7 +146,7 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 	if (add_bus && chan->par) {
 		strcpy(chan->adapter.name, name);
 		chan->adapter.owner		= THIS_MODULE;
-		chan->adapter.id		= I2C_ALGO_SAVAGE;
+		chan->adapter.id		= I2C_HW_B_SAVAGE;
 		chan->adapter.algo_data		= &chan->algo;
 		chan->adapter.dev.parent	= &chan->par->pcidev->dev;
 		chan->algo.udelay		= 40;

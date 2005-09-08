@@ -162,7 +162,7 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 	for (i = 0; i < nents; i++, sg++) {
 		unsigned long addr;
- 
+
 		addr = (unsigned long) page_address(sg->page);
 		if (addr)
 			__dma_sync(addr + sg->offset, sg->length, direction);
@@ -230,9 +230,9 @@ void dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 	size_t size, enum dma_data_direction direction)
 {
 	unsigned long addr;
- 
+
 	BUG_ON(direction == DMA_NONE);
- 
+
 	addr = dma_handle + PAGE_OFFSET;
 	__dma_sync(addr, size, direction);
 }
@@ -282,9 +282,9 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 	enum dma_data_direction direction)
 {
 	int i;
- 
+
 	BUG_ON(direction == DMA_NONE);
- 
+
 	/* Make sure that gcc doesn't leave the empty loop body.  */
 	for (i = 0; i < nelems; i++, sg++)
 		__dma_sync((unsigned long)page_address(sg->page),

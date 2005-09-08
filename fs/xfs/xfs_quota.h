@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -158,6 +158,20 @@ typedef struct xfs_qoff_logformat {
 #define XFS_OQUOTA_ENFD	0x0010  /* other (grp/prj) quota limits enforced */
 #define XFS_OQUOTA_CHKD	0x0020  /* quotacheck run on other (grp/prj) quotas */
 #define XFS_GQUOTA_ACCT	0x0040  /* group quota accounting ON */
+
+/*
+ * Quota Accounting/Enforcement flags
+ */
+#define XFS_ALL_QUOTA_ACCT	\
+		(XFS_UQUOTA_ACCT | XFS_GQUOTA_ACCT | XFS_PQUOTA_ACCT)
+#define XFS_ALL_QUOTA_ENFD	(XFS_UQUOTA_ENFD | XFS_OQUOTA_ENFD)
+#define XFS_ALL_QUOTA_CHKD	(XFS_UQUOTA_CHKD | XFS_OQUOTA_CHKD)
+
+#define XFS_IS_QUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_ALL_QUOTA_ACCT)
+#define XFS_IS_QUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_ALL_QUOTA_ENFD)
+#define XFS_IS_UQUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_UQUOTA_ACCT)
+#define XFS_IS_PQUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_PQUOTA_ACCT)
+#define XFS_IS_GQUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_GQUOTA_ACCT)
 
 /*
  * Incore only flags for quotaoff - these bits get cleared when quota(s)
@@ -362,6 +376,7 @@ typedef struct xfs_dqtrxops {
 				f | XFS_QMOPT_RES_REGBLKS)
 
 extern int xfs_qm_dqcheck(xfs_disk_dquot_t *, xfs_dqid_t, uint, uint, char *);
+extern int xfs_mount_reset_sbqflags(struct xfs_mount *);
 
 extern struct bhv_vfsops xfs_qmops;
 

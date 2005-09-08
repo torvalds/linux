@@ -26,7 +26,7 @@
 #define VIRT_IMMRBAR		((uint)0xfe000000)
 
 #define BCSR_PHYS_ADDR		((uint)0xf8000000)
-#define BCSR_SIZE		((uint)(32 * 1024))
+#define BCSR_SIZE		((uint)(128 * 1024))
 
 #define BCSR_MISC_REG2_OFF	0x07
 #define BCSR_MISC_REG2_PORESET	0x01
@@ -34,23 +34,25 @@
 #define BCSR_MISC_REG3_OFF	0x08
 #define BCSR_MISC_REG3_CNFLOCK	0x80
 
-#ifdef CONFIG_PCI
-/* PCI interrupt controller */
-#define PIRQA        MPC83xx_IRQ_IRQ4
-#define PIRQB        MPC83xx_IRQ_IRQ5
-#define PIRQC        MPC83xx_IRQ_IRQ6
-#define PIRQD        MPC83xx_IRQ_IRQ7
+#define PIRQA	MPC83xx_IRQ_EXT4
+#define PIRQB	MPC83xx_IRQ_EXT5
+#define PIRQC	MPC83xx_IRQ_EXT6
+#define PIRQD	MPC83xx_IRQ_EXT7
 
-#define MPC834x_SYS_PCI1_LOWER_IO        0x00000000
-#define MPC834x_SYS_PCI1_UPPER_IO        0x00ffffff
+#define MPC83xx_PCI1_LOWER_IO	0x00000000
+#define MPC83xx_PCI1_UPPER_IO	0x00ffffff
+#define MPC83xx_PCI1_LOWER_MEM	0x80000000
+#define MPC83xx_PCI1_UPPER_MEM	0x9fffffff
+#define MPC83xx_PCI1_IO_BASE	0xe2000000
+#define MPC83xx_PCI1_MEM_OFFSET	0x00000000
+#define MPC83xx_PCI1_IO_SIZE	0x01000000
 
-#define MPC834x_SYS_PCI1_LOWER_MEM       0x80000000
-#define MPC834x_SYS_PCI1_UPPER_MEM       0x9fffffff
-
-#define MPC834x_SYS_PCI1_IO_BASE         0xe2000000
-#define MPC834x_SYS_PCI1_MEM_OFFSET      0x00000000
-
-#define MPC834x_SYS_PCI1_IO_SIZE         0x01000000
-#endif /* CONFIG_PCI */
+#define MPC83xx_PCI2_LOWER_IO	0x00000000
+#define MPC83xx_PCI2_UPPER_IO	0x00ffffff
+#define MPC83xx_PCI2_LOWER_MEM	0xa0000000
+#define MPC83xx_PCI2_UPPER_MEM	0xbfffffff
+#define MPC83xx_PCI2_IO_BASE	0xe3000000
+#define MPC83xx_PCI2_MEM_OFFSET	0x00000000
+#define MPC83xx_PCI2_IO_SIZE	0x01000000
 
 #endif                /* __MACH_MPC83XX_SYS_H__ */

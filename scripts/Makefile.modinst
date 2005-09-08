@@ -5,7 +5,7 @@
 .PHONY: __modinst
 __modinst:
 
-include scripts/Makefile.lib
+include scripts/Kbuild.include
 
 #
 

@@ -116,13 +116,6 @@ __ia64_local_vector_to_irq (ia64_vector vec)
  * and to obtain the irq descriptor for a given irq number.
  */
 
-/* Return a pointer to the irq descriptor for IRQ.  */
-static inline irq_desc_t *
-irq_descp (int irq)
-{
-	return irq_desc + irq;
-}
-
 /* Extract the IA-64 vector that corresponds to IRQ.  */
 static inline ia64_vector
 irq_to_vector (int irq)

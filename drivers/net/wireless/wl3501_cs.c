@@ -1944,7 +1944,7 @@ static const iw_handler	wl3501_handler[] = {
 static const struct iw_handler_def wl3501_handler_def = {
 	.num_standard	= sizeof(wl3501_handler) / sizeof(iw_handler),
 	.standard	= (iw_handler *)wl3501_handler,
-	.spy_offset	= offsetof(struct wl3501_card, spy_data),
+	.get_wireless_stats = wl3501_get_wireless_stats,
 };
 
 /**
@@ -1961,6 +1961,7 @@ static dev_link_t *wl3501_attach(void)
 	client_reg_t client_reg;
 	dev_link_t *link;
 	struct net_device *dev;
+	struct wl3501_card *this;
 	int ret;
 
 	/* Initialize the dev_link_t structure */
@@ -1995,7 +1996,9 @@ static dev_link_t *wl3501_attach(void)
 	dev->tx_timeout		= wl3501_tx_timeout;
 	dev->watchdog_timeo	= 5 * HZ;
 	dev->get_stats		= wl3501_get_stats;
-	dev->get_wireless_stats = wl3501_get_wireless_stats;
+	this = dev->priv;
+	this->wireless_data.spy_data = &this->spy_data;
+	dev->wireless_data	= &this->wireless_data;
 	dev->wireless_handlers	= (struct iw_handler_def *)&wl3501_handler_def;
 	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);

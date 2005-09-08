@@ -1,0 +1,43 @@
+config UML_X86
+	bool
+	default y
+
+config 64BIT
+	bool
+	default y
+
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
+config TOP_ADDR
+ 	hex
+	default 0x80000000
+
+config 3_LEVEL_PGTABLES
+       bool
+       default y
+
+config STUB_CODE
+	hex
+	default 0x7fbfffe000
+
+config STUB_DATA
+	hex
+	default 0x7fbffff000
+
+config STUB_START
+	hex
+	default STUB_CODE
+
+config ARCH_HAS_SC_SIGNALS
+	bool
+	default n
+
+config ARCH_REUSE_HOST_VSYSCALL_AREA
+	bool
+	default n
+
+config SMP_BROKEN
+	bool
+	default y

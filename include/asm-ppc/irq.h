@@ -19,6 +19,11 @@
 #define IRQ_POLARITY_POSITIVE	0x2	/* high level or low->high edge */
 #define IRQ_POLARITY_NEGATIVE	0x0	/* low level or high->low edge */
 
+/*
+ * IRQ line status macro IRQ_PER_CPU is used
+ */
+#define ARCH_HAS_IRQ_PER_CPU
+
 #if defined(CONFIG_40x)
 #include <asm/ibm4xx.h>
 
@@ -337,6 +342,7 @@ static __inline__ int irq_canonicalize(int irq)
 #define	SIU_INT_IDMA3		((uint)0x08 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IDMA4		((uint)0x09 + CPM_IRQ_OFFSET)
 #define	SIU_INT_SDMA		((uint)0x0a + CPM_IRQ_OFFSET)
+#define	SIU_INT_USB		((uint)0x0b + CPM_IRQ_OFFSET)
 #define	SIU_INT_TIMER1		((uint)0x0c + CPM_IRQ_OFFSET)
 #define	SIU_INT_TIMER2		((uint)0x0d + CPM_IRQ_OFFSET)
 #define	SIU_INT_TIMER3		((uint)0x0e + CPM_IRQ_OFFSET)

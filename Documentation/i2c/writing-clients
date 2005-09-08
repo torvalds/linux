@@ -148,15 +148,15 @@ are defined in i2c.h to help you support them, as well as a generic
 detection algorithm.
 
 You do not have to use this parameter interface; but don't try to use
-function i2c_probe() (or i2c_detect()) if you don't.
+function i2c_probe() if you don't.
 
 NOTE: If you want to write a `sensors' driver, the interface is slightly
       different! See below.
 
 
 
-Probing classes (i2c)
----------------------
+Probing classes
+---------------
 
 All parameters are given as lists of unsigned 16-bit integers. Lists are
 terminated by I2C_CLIENT_END.
@@ -171,11 +171,17 @@ The following lists are used internally:
    ignore: insmod parameter.
      A list of pairs. The first value is a bus number (-1 for any I2C bus), 
      the second is the I2C address. These addresses are never probed. 
-     This parameter overrules 'normal' and 'probe', but not the 'force' lists.
+     This parameter overrules the 'normal_i2c' list only.
    force: insmod parameter. 
      A list of pairs. The first value is a bus number (-1 for any I2C bus),
      the second is the I2C address. A device is blindly assumed to be on
      the given address, no probing is done. 
+
+Additionally, kind-specific force lists may optionally be defined if
+the driver supports several chip kinds. They are grouped in a
+NULL-terminated list of pointers named forces, those first element if the
+generic force list mentioned above. Each additional list correspond to an
+insmod parameter of the form force_<kind>.
 
 Fortunately, as a module writer, you just have to define the `normal_i2c' 
 parameter. The complete declaration could look like this:
@@ -186,64 +192,15 @@ parameter. The complete declaration could look like this:
 
   /* Magic definition of all other variables and things */
   I2C_CLIENT_INSMOD;
+  /* Or, if your driver supports, say, 2 kind of devices: */
+  I2C_CLIENT_INSMOD_2(foo, bar);
+
+If you use the multi-kind form, an enum will be defined for you:
+  enum chips { any_chip, foo, bar, ... }
+You can then (and certainly should) use it in the driver code.
 
 Note that you *have* to call the defined variable `normal_i2c',
 without any prefix!
-
-
-Probing classes (sensors)
--------------------------
-
-If you write a `sensors' driver, you use a slightly different interface.
-As well as I2C addresses, we have to cope with ISA addresses. Also, we
-use a enum of chip types. Don't forget to include `sensors.h'.
-
-The following lists are used internally. They are all lists of integers.
-
-   normal_i2c: filled in by the module writer. Terminated by SENSORS_I2C_END.
-     A list of I2C addresses which should normally be examined.
-   normal_isa: filled in by the module writer. Terminated by SENSORS_ISA_END.
-     A list of ISA addresses which should normally be examined.
-   probe: insmod parameter. Initialize this list with SENSORS_I2C_END values.
-     A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the address. These
-     addresses are also probed, as if they were in the 'normal' list.
-   ignore: insmod parameter. Initialize this list with SENSORS_I2C_END values.
-     A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the I2C address. These
-     addresses are never probed. This parameter overrules 'normal' and 
-     'probe', but not the 'force' lists.
-
-Also used is a list of pointers to sensors_force_data structures:
-   force_data: insmod parameters. A list, ending with an element of which
-     the force field is NULL.
-     Each element contains the type of chip and a list of pairs.
-     The first value is a bus number (SENSORS_ISA_BUS for the ISA bus, 
-     -1 for any I2C bus), the second is the address. 
-     These are automatically translated to insmod variables of the form
-     force_foo.
-
-So we have a generic insmod variabled `force', and chip-specific variables
-`force_CHIPNAME'.
-
-Fortunately, as a module writer, you just have to define the `normal_i2c' 
-and `normal_isa' parameters, and define what chip names are used. 
-The complete declaration could look like this:
-  /* Scan i2c addresses 0x37, and 0x48 to 0x4f */
-  static unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
-                                         0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
-  /* Scan ISA address 0x290 */
-  static unsigned int normal_isa[] = {0x0290,SENSORS_ISA_END};
-
-  /* Define chips foo and bar, as well as all module parameters and things */
-  SENSORS_INSMOD_2(foo,bar);
-
-If you have one chip, you use macro SENSORS_INSMOD_1(chip), if you have 2
-you use macro SENSORS_INSMOD_2(chip1,chip2), etc. If you do not want to
-bother with chip types, you can use SENSORS_INSMOD_0.
-
-A enum is automatically defined as follows:
-  enum chips { any_chip, chip1, chip2, ... }
 
 
 Attaching to an adapter
@@ -264,17 +221,10 @@ detected at a specific address, another callback is called.
     return i2c_probe(adapter,&addr_data,&foo_detect_client);
   }
 
-For `sensors' drivers, use the i2c_detect function instead:
-  
-  int foo_attach_adapter(struct i2c_adapter *adapter)
-  { 
-    return i2c_detect(adapter,&addr_data,&foo_detect_client);
-  }
-
 Remember, structure `addr_data' is defined by the macros explained above,
 so you do not have to define it yourself.
 
-The i2c_probe or i2c_detect function will call the foo_detect_client
+The i2c_probe function will call the foo_detect_client
 function only for those i2c addresses that actually have a device on
 them (unless a `force' parameter was used). In addition, addresses that
 are already in use (by some other registered client) are skipped.
@@ -283,19 +233,18 @@ are already in use (by some other registered client) are skipped.
 The detect client function
 --------------------------
 
-The detect client function is called by i2c_probe or i2c_detect.
-The `kind' parameter contains 0 if this call is due to a `force'
-parameter, and -1 otherwise (for i2c_detect, it contains 0 if
-this call is due to the generic `force' parameter, and the chip type
-number if it is due to a specific `force' parameter).
+The detect client function is called by i2c_probe. The `kind' parameter
+contains -1 for a probed detection, 0 for a forced detection, or a positive
+number for a forced detection with a chip type forced.
 
 Below, some things are only needed if this is a `sensors' driver. Those
 parts are between /* SENSORS ONLY START */ and /* SENSORS ONLY END */
 markers. 
 
-This function should only return an error (any value != 0) if there is
-some reason why no more detection should be done anymore. If the
-detection just fails for this address, return 0.
+Returning an error different from -ENODEV in a detect function will cause
+the detection to stop: other addresses and adapters won't be scanned.
+This should only be done on fatal or internal errors, such as a memory
+shortage or i2c_attach_client failing.
 
 For now, you can ignore the `flags' parameter. It is there for future use.
 
@@ -320,11 +269,10 @@ For now, you can ignore the `flags' parameter. It is there for future use.
     const char *type_name = "";
     int is_isa = i2c_is_isa_adapter(adapter);
 
-    if (is_isa) {
+    /* Do this only if the chip can additionally be found on the ISA bus
+       (hybrid chip). */
 
-      /* If this client can't be on the ISA bus at all, we can stop now
-         (call `goto ERROR0'). But for kicks, we will assume it is all
-         right. */
+    if (is_isa) {
 
       /* Discard immediately if this ISA range is already used */
       if (check_region(address,FOO_EXTENT))
@@ -495,15 +443,13 @@ much simpler than the attachment code, fortunately!
     /* SENSORS ONLY END */
 
     /* Try to detach the client from i2c space */
-    if ((err = i2c_detach_client(client))) {
-      printk("foo.o: Client deregistration failed, client not detached.\n");
+    if ((err = i2c_detach_client(client)))
       return err;
-    }
 
-    /* SENSORS ONLY START */
+    /* HYBRID SENSORS CHIP ONLY START */
     if i2c_is_isa_client(client)
       release_region(client->addr,LM78_EXTENT);
-    /* SENSORS ONLY END */
+    /* HYBRID SENSORS CHIP ONLY END */
 
     kfree(client); /* Frees client data too, if allocated at the same time */
     return 0;

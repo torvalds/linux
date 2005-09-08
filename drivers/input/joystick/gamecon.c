@@ -554,7 +554,7 @@ static struct gc __init *gc_probe(int *config, int nargs)
 		return NULL;
 	}
 
-	if (!(gc = kcalloc(1, sizeof(struct gc), GFP_KERNEL))) {
+	if (!(gc = kzalloc(sizeof(struct gc), GFP_KERNEL))) {
 		parport_put_port(pp);
 		return NULL;
 	}

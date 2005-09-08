@@ -387,8 +387,6 @@ static int saa7146_i2c_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, in
 
 /* exported algorithm data */
 static struct i2c_algorithm saa7146_algo = {
-	.name		= "saa7146 i2c algorithm",
-	.id		= I2C_ALGO_SAA7146,
 	.master_xfer	= saa7146_i2c_xfer,
 	.functionality	= saa7146_i2c_func,
 };
@@ -412,7 +410,7 @@ int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c
 #endif
 		i2c_adapter->algo	   = &saa7146_algo;
 		i2c_adapter->algo_data     = NULL;
-		i2c_adapter->id		   = I2C_ALGO_SAA7146;
+		i2c_adapter->id		   = I2C_HW_SAA7146;
 		i2c_adapter->timeout = SAA7146_I2C_TIMEOUT;
 		i2c_adapter->retries = SAA7146_I2C_RETRIES;
 	}

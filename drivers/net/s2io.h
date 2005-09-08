@@ -1,5 +1,5 @@
 /************************************************************************
- * s2io.h: A Linux PCI-X Ethernet driver for S2IO 10GbE Server NIC
+ * s2io.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
  * Copyright(c) 2002-2005 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
@@ -621,6 +621,9 @@ typedef struct mac_info {
 
 	/* Fifo specific structure */
 	fifo_info_t fifos[MAX_TX_FIFOS];
+
+	/* Save virtual address of TxD page with zero DMA addr(if any) */
+	void *zerodma_virt_addr;
 
 /* rx side stuff */
 	/* Ring specific structure */

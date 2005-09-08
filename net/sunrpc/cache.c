@@ -177,7 +177,7 @@ void cache_register(struct cache_detail *cd)
 	cd->proc_ent = proc_mkdir(cd->name, proc_net_rpc);
 	if (cd->proc_ent) {
 		struct proc_dir_entry *p;
-		cd->proc_ent->owner = THIS_MODULE;
+		cd->proc_ent->owner = cd->owner;
 		cd->channel_ent = cd->content_ent = NULL;
 		
  		p = create_proc_entry("flush", S_IFREG|S_IRUSR|S_IWUSR,
@@ -185,7 +185,7 @@ void cache_register(struct cache_detail *cd)
 		cd->flush_ent =  p;
  		if (p) {
  			p->proc_fops = &cache_flush_operations;
- 			p->owner = THIS_MODULE;
+ 			p->owner = cd->owner;
  			p->data = cd;
  		}
  
@@ -195,7 +195,7 @@ void cache_register(struct cache_detail *cd)
 			cd->channel_ent = p;
 			if (p) {
 				p->proc_fops = &cache_file_operations;
-				p->owner = THIS_MODULE;
+				p->owner = cd->owner;
 				p->data = cd;
 			}
 		}
@@ -205,7 +205,7 @@ void cache_register(struct cache_detail *cd)
 			cd->content_ent = p;
  			if (p) {
  				p->proc_fops = &content_file_operations;
- 				p->owner = THIS_MODULE;
+ 				p->owner = cd->owner;
  				p->data = cd;
  			}
  		}

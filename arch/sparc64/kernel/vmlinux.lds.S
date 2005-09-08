@@ -17,6 +17,7 @@ SECTIONS
     *(.text)
     SCHED_TEXT
     LOCK_TEXT
+    KPROBES_TEXT
     *(.gnu.warning)
   } =0
   _etext = .;

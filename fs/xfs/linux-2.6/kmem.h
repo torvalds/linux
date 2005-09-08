@@ -39,10 +39,10 @@
 /*
  * memory management routines
  */
-#define KM_SLEEP	0x0001
-#define KM_NOSLEEP	0x0002
-#define KM_NOFS		0x0004
-#define KM_MAYFAIL	0x0008
+#define KM_SLEEP	0x0001u
+#define KM_NOSLEEP	0x0002u
+#define KM_NOFS		0x0004u
+#define KM_MAYFAIL	0x0008u
 
 #define	kmem_zone	kmem_cache_s
 #define kmem_zone_t	kmem_cache_t
@@ -81,9 +81,9 @@ typedef unsigned long xfs_pflags_t;
 	*(NSTATEP) = *(OSTATEP);	\
 } while (0)
 
-static __inline unsigned int kmem_flags_convert(int flags)
+static __inline unsigned int kmem_flags_convert(unsigned int __nocast flags)
 {
-	int	lflags = __GFP_NOWARN;	/* we'll report problems, if need be */
+	unsigned int	lflags = __GFP_NOWARN;	/* we'll report problems, if need be */
 
 #ifdef DEBUG
 	if (unlikely(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL))) {
@@ -125,12 +125,13 @@ kmem_zone_destroy(kmem_zone_t *zone)
 		BUG();
 }
 
-extern void	    *kmem_zone_zalloc(kmem_zone_t *, int);
-extern void	    *kmem_zone_alloc(kmem_zone_t *, int);
+extern void	    *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
+extern void	    *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
 
-extern void	    *kmem_alloc(size_t, int);
-extern void	    *kmem_realloc(void *, size_t, size_t, int);
-extern void	    *kmem_zalloc(size_t, int);
+extern void	    *kmem_alloc(size_t, unsigned int __nocast);
+extern void	    *kmem_realloc(void *, size_t, size_t,
+				  unsigned int __nocast);
+extern void	    *kmem_zalloc(size_t, unsigned int __nocast);
 extern void         kmem_free(void *, size_t);
 
 typedef struct shrinker *kmem_shaker_t;

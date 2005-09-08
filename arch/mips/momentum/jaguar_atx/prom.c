@@ -64,7 +64,7 @@ static u8 exchange_bit(u8 val, u8 cs)
 
 	/* turn the clock off and read-strobe */
 	JAGUAR_FPGA_WRITE((val << 2) | cs | 0x10, EEPROM_MODE);
-	
+
 	/* return the data */
 	return ((JAGUAR_FPGA_READ(EEPROM_MODE) >> 3) & 0x1);
 }
@@ -90,7 +90,7 @@ void get_mac(char dest[6])
 }
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 unsigned long signext(unsigned long addr)
 {
@@ -143,7 +143,7 @@ char *arg64(unsigned long addrin, int arg_index)
 
 	return p;
 }
-#endif  /* CONFIG_MIPS64 */
+#endif  /* CONFIG_64BIT */
 
 /* PMON passes arguments in C main() style */
 void __init prom_init(void)
@@ -158,7 +158,7 @@ void __init prom_init(void)
 //	ja_setup_console();	/* The very first thing.  */
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	char *ptr;
 
 	printk("Mips64 Jaguar-ATX\n");
@@ -201,7 +201,7 @@ void __init prom_init(void)
 	}
 	printk("arcs_cmdline: %s\n", arcs_cmdline);
 
-#else   /* CONFIG_MIPS64 */
+#else   /* CONFIG_64BIT */
 	/* save the PROM vectors for debugging use */
 	debug_vectors = cv;
 
@@ -226,7 +226,7 @@ void __init prom_init(void)
 		}
 		env++;
 	}
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 	mips_machgroup = MACH_GROUP_MOMENCO;
 	mips_machtype = MACH_MOMENCO_JAGUAR_ATX;
 

@@ -233,6 +233,7 @@ typedef __u32 kernel_cap_t;
 /* Allow enabling/disabling tagged queuing on SCSI controllers and sending
    arbitrary SCSI commands */
 /* Allow setting encryption key on loopback filesystem */
+/* Allow setting zone reclaim policy */
 
 #define CAP_SYS_ADMIN        21
 

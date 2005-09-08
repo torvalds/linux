@@ -143,11 +143,12 @@ static void suspend_finish(suspend_state_t state)
 
 
 
-static char * pm_states[] = {
+static char *pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
+#ifdef CONFIG_SOFTWARE_SUSPEND
 	[PM_SUSPEND_DISK]	= "disk",
-	NULL,
+#endif
 };
 
 

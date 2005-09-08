@@ -8,6 +8,7 @@
 #include <linux/kprobes.h>
 #include <asm/kdebug.h>
 #include <asm/signal.h>
+#include <asm/cacheflush.h>
 
 /* We do not have hardware single-stepping on sparc64.
  * So we implement software single-stepping with breakpoint
@@ -37,31 +38,31 @@
  * - Mark that we are no longer actively in a kprobe.
  */
 
-int arch_prepare_kprobe(struct kprobe *p)
+int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	return 0;
 }
 
-void arch_copy_kprobe(struct kprobe *p)
+void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
 	p->ainsn.insn[0] = *p->addr;
 	p->ainsn.insn[1] = BREAKPOINT_INSTRUCTION_2;
 	p->opcode = *p->addr;
 }
 
-void arch_arm_kprobe(struct kprobe *p)
+void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
 	*p->addr = BREAKPOINT_INSTRUCTION;
 	flushi(p->addr);
 }
 
-void arch_disarm_kprobe(struct kprobe *p)
+void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	*p->addr = p->opcode;
 	flushi(p->addr);
 }
 
-void arch_remove_kprobe(struct kprobe *p)
+void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 }
 
@@ -111,7 +112,7 @@ static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
-static int kprobe_handler(struct pt_regs *regs)
+static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
 	void *addr = (void *) regs->tpc;
@@ -191,8 +192,9 @@ no_kprobe:
  * The original INSN location was REAL_PC, it actually
  * executed at PC and produced destination address NPC.
  */
-static unsigned long relbranch_fixup(u32 insn, unsigned long real_pc,
-				     unsigned long pc, unsigned long npc)
+static unsigned long __kprobes relbranch_fixup(u32 insn, unsigned long real_pc,
+					       unsigned long pc,
+					       unsigned long npc)
 {
 	/* Branch not taken, no mods necessary.  */
 	if (npc == pc + 0x4UL)
@@ -217,7 +219,8 @@ static unsigned long relbranch_fixup(u32 insn, unsigned long real_pc,
 /* If INSN is an instruction which writes it's PC location
  * into a destination register, fix that up.
  */
-static void retpc_fixup(struct pt_regs *regs, u32 insn, unsigned long real_pc)
+static void __kprobes retpc_fixup(struct pt_regs *regs, u32 insn,
+				  unsigned long real_pc)
 {
 	unsigned long *slot = NULL;
 
@@ -257,7 +260,7 @@ static void retpc_fixup(struct pt_regs *regs, u32 insn, unsigned long real_pc)
  * This function prepares to return from the post-single-step
  * breakpoint trap.
  */
-static void resume_execution(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	u32 insn = p->ainsn.insn[0];
 
@@ -315,8 +318,8 @@ static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine to for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
-			     void *data)
+int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	switch (val) {
@@ -344,7 +347,8 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-asmlinkage void kprobe_trap(unsigned long trap_level, struct pt_regs *regs)
+asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
+				      struct pt_regs *regs)
 {
 	BUG_ON(trap_level != 0x170 && trap_level != 0x171);
 
@@ -368,7 +372,7 @@ static struct pt_regs jprobe_saved_regs;
 static struct pt_regs *jprobe_saved_regs_location;
 static struct sparc_stackf jprobe_saved_stack;
 
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 
@@ -390,7 +394,7 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
-void jprobe_return(void)
+void __kprobes jprobe_return(void)
 {
 	preempt_enable_no_resched();
 	__asm__ __volatile__(
@@ -403,7 +407,7 @@ extern void jprobe_return_trap_instruction(void);
 
 extern void __show_regs(struct pt_regs * regs);
 
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	u32 *addr = (u32 *) regs->tpc;
 

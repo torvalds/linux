@@ -56,13 +56,6 @@
 #define access_ok(type,addr,size) \
 	__access_ok(((__force unsigned long)(addr)),(size),get_fs())
 
-/* this function will go away soon - use access_ok() instead */
-static inline int __deprecated verify_area(int type, const void __user *addr, unsigned long size)
-{
-	return access_ok(type,addr,size) ? 0 : -EFAULT;
-}
-
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is
