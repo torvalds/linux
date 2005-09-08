@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -227,48 +227,6 @@ xfs_qm_syncall(
 	}
 	PVFS_SYNC(BHV_NEXT(bhv), flags, credp, error);
 	return error;
-}
-
-/*
- * Clear the quotaflags in memory and in the superblock.
- */
-void
-xfs_mount_reset_sbqflags(
-	xfs_mount_t		*mp)
-{
-	xfs_trans_t		*tp;
-	unsigned long		s;
-
-	mp->m_qflags = 0;
-	/*
-	 * It is OK to look at sb_qflags here in mount path,
-	 * without SB_LOCK.
-	 */
-	if (mp->m_sb.sb_qflags == 0)
-		return;
-	s = XFS_SB_LOCK(mp);
-	mp->m_sb.sb_qflags = 0;
-	XFS_SB_UNLOCK(mp, s);
-
-	/*
-	 * if the fs is readonly, let the incore superblock run
-	 * with quotas off but don't flush the update out to disk
-	 */
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
-		return;
-#ifdef QUOTADEBUG
-	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");
-#endif
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	if (xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
-				      XFS_DEFAULT_LOG_COUNT)) {
-		xfs_trans_cancel(tp, 0);
-		xfs_fs_cmn_err(CE_ALERT, mp,
-			"xfs_mount_reset_sbqflags: Superblock update failed!");
-		return;
-	}
-	xfs_mod_sb(tp, XFS_SB_QFLAGS);
-	xfs_trans_commit(tp, 0, NULL);
 }
 
 STATIC int

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -29,31 +29,22 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  */
-#ifndef __XFS_SUPPORT_SPIN_H__
-#define __XFS_SUPPORT_SPIN_H__
+#ifndef __XFS_AOPS_H__
+#define __XFS_AOPS_H__
 
-#include <linux/sched.h>	/* preempt needs this */
-#include <linux/spinlock.h>
+extern struct workqueue_struct *xfsdatad_workqueue;
+extern mempool_t *xfs_ioend_pool;
 
-/*
- * Map lock_t from IRIX to Linux spinlocks.
- *
- * We do not make use of lock_t from interrupt context, so we do not
- * have to worry about disabling interrupts at all (unlike IRIX).
- */
+typedef void (*xfs_ioend_func_t)(void *);
 
-typedef spinlock_t lock_t;
+typedef struct xfs_ioend {
+	unsigned int		io_uptodate;	/* I/O status register */
+	atomic_t		io_remaining;	/* hold count */
+	struct vnode		*io_vnode;	/* file being written to */
+	struct buffer_head	*io_buffer_head;/* buffer linked list head */
+	size_t			io_size;	/* size of the extent */
+	xfs_off_t		io_offset;	/* offset in the file */
+	struct work_struct	io_work;	/* xfsdatad work queue */
+} xfs_ioend_t;
 
-#define SPLDECL(s)			unsigned long s
-#ifndef DEFINE_SPINLOCK
-#define DEFINE_SPINLOCK(s)		spinlock_t s = SPIN_LOCK_UNLOCKED
-#endif
-
-#define spinlock_init(lock, name)	spin_lock_init(lock)
-#define	spinlock_destroy(lock)
-#define mutex_spinlock(lock)		({ spin_lock(lock); 0; })
-#define mutex_spinunlock(lock, s)	do { spin_unlock(lock); (void)s; } while (0)
-#define nested_spinlock(lock)		spin_lock(lock)
-#define nested_spinunlock(lock)		spin_unlock(lock)
-
-#endif /* __XFS_SUPPORT_SPIN_H__ */
+#endif /* __XFS_IOPS_H__ */

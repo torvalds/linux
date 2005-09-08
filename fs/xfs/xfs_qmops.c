@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -42,7 +42,8 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-
+#include "xfs_quota.h"
+#include "xfs_error.h"
 
 STATIC struct xfs_dquot *
 xfs_dqvopchown_default(
@@ -54,8 +55,79 @@ xfs_dqvopchown_default(
 	return NULL;
 }
 
+/*
+ * Clear the quotaflags in memory and in the superblock.
+ */
+int
+xfs_mount_reset_sbqflags(xfs_mount_t *mp)
+{
+	int			error;
+	xfs_trans_t		*tp;
+	unsigned long		s;
+
+	mp->m_qflags = 0;
+	/*
+	 * It is OK to look at sb_qflags here in mount path,
+	 * without SB_LOCK.
+	 */
+	if (mp->m_sb.sb_qflags == 0)
+		return 0;
+	s = XFS_SB_LOCK(mp);
+	mp->m_sb.sb_qflags = 0;
+	XFS_SB_UNLOCK(mp, s);
+
+	/*
+	 * if the fs is readonly, let the incore superblock run
+	 * with quotas off but don't flush the update out to disk
+	 */
+	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+		return 0;
+#ifdef QUOTADEBUG
+	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");
+#endif
+	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
+	if ((error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
+				      XFS_DEFAULT_LOG_COUNT))) {
+		xfs_trans_cancel(tp, 0);
+		xfs_fs_cmn_err(CE_ALERT, mp,
+			"xfs_mount_reset_sbqflags: Superblock update failed!");
+		return error;
+	}
+	xfs_mod_sb(tp, XFS_SB_QFLAGS);
+	error = xfs_trans_commit(tp, 0, NULL);
+	return error;
+}
+
+STATIC int
+xfs_noquota_init(
+	xfs_mount_t	*mp,
+	uint		*needquotamount,
+	uint		*quotaflags)
+{
+	int		error = 0;
+
+	*quotaflags = 0;
+	*needquotamount = B_FALSE;
+
+	ASSERT(!XFS_IS_QUOTA_ON(mp));
+
+	/*
+	 * If a file system had quotas running earlier, but decided to
+	 * mount without -o uquota/pquota/gquota options, revoke the
+	 * quotachecked license.
+	 */
+	if (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT) {
+		cmn_err(CE_NOTE,
+                        "XFS resetting qflags for filesystem %s",
+                        mp->m_fsname);
+
+		error = xfs_mount_reset_sbqflags(mp);
+	}
+	return error;
+}
+
 xfs_qmops_t	xfs_qmcore_stub = {
-	.xfs_qminit		= (xfs_qminit_t) fs_noerr,
+	.xfs_qminit		= (xfs_qminit_t) xfs_noquota_init,
 	.xfs_qmdone		= (xfs_qmdone_t) fs_noerr,
 	.xfs_qmmount		= (xfs_qmmount_t) fs_noerr,
 	.xfs_qmunmount		= (xfs_qmunmount_t) fs_noerr,

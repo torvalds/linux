@@ -104,66 +104,114 @@ xfs_page_trace(
 #define xfs_page_trace(tag, inode, page, mask)
 #endif
 
+/*
+ * Schedule IO completion handling on a xfsdatad if this was
+ * the final hold on this ioend.
+ */
+STATIC void
+xfs_finish_ioend(
+	xfs_ioend_t		*ioend)
+{
+	if (atomic_dec_and_test(&ioend->io_remaining))
+		queue_work(xfsdatad_workqueue, &ioend->io_work);
+}
+
+STATIC void
+xfs_destroy_ioend(
+	xfs_ioend_t		*ioend)
+{
+	vn_iowake(ioend->io_vnode);
+	mempool_free(ioend, xfs_ioend_pool);
+}
+
+/*
+ * Issue transactions to convert a buffer range from unwritten
+ * to written extents.
+ */
+STATIC void
+xfs_end_bio_unwritten(
+	void			*data)
+{
+	xfs_ioend_t		*ioend = data;
+	vnode_t			*vp = ioend->io_vnode;
+	xfs_off_t		offset = ioend->io_offset;
+	size_t			size = ioend->io_size;
+	struct buffer_head	*bh, *next;
+	int			error;
+
+	if (ioend->io_uptodate)
+		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
+
+	/* ioend->io_buffer_head is only non-NULL for buffered I/O */
+	for (bh = ioend->io_buffer_head; bh; bh = next) {
+		next = bh->b_private;
+
+		bh->b_end_io = NULL;
+		clear_buffer_unwritten(bh);
+		end_buffer_async_write(bh, ioend->io_uptodate);
+	}
+
+	xfs_destroy_ioend(ioend);
+}
+
+/*
+ * Allocate and initialise an IO completion structure.
+ * We need to track unwritten extent write completion here initially.
+ * We'll need to extend this for updating the ondisk inode size later
+ * (vs. incore size).
+ */
+STATIC xfs_ioend_t *
+xfs_alloc_ioend(
+	struct inode		*inode)
+{
+	xfs_ioend_t		*ioend;
+
+	ioend = mempool_alloc(xfs_ioend_pool, GFP_NOFS);
+
+	/*
+	 * Set the count to 1 initially, which will prevent an I/O
+	 * completion callback from happening before we have started
+	 * all the I/O from calling the completion routine too early.
+	 */
+	atomic_set(&ioend->io_remaining, 1);
+	ioend->io_uptodate = 1; /* cleared if any I/O fails */
+	ioend->io_vnode = LINVFS_GET_VP(inode);
+	ioend->io_buffer_head = NULL;
+	atomic_inc(&ioend->io_vnode->v_iocount);
+	ioend->io_offset = 0;
+	ioend->io_size = 0;
+
+	INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten, ioend);
+
+	return ioend;
+}
+
 void
 linvfs_unwritten_done(
 	struct buffer_head	*bh,
 	int			uptodate)
 {
-	xfs_buf_t		*pb = (xfs_buf_t *)bh->b_private;
+	xfs_ioend_t		*ioend = bh->b_private;
+	static spinlock_t	unwritten_done_lock = SPIN_LOCK_UNLOCKED;
+	unsigned long		flags;
 
 	ASSERT(buffer_unwritten(bh));
 	bh->b_end_io = NULL;
-	clear_buffer_unwritten(bh);
+
 	if (!uptodate)
-		pagebuf_ioerror(pb, EIO);
-	if (atomic_dec_and_test(&pb->pb_io_remaining) == 1) {
-		pagebuf_iodone(pb, 1, 1);
-	}
-	end_buffer_async_write(bh, uptodate);
-}
+		ioend->io_uptodate = 0;
 
-/*
- * Issue transactions to convert a buffer range from unwritten
- * to written extents (buffered IO).
- */
-STATIC void
-linvfs_unwritten_convert(
-	xfs_buf_t	*bp)
-{
-	vnode_t		*vp = XFS_BUF_FSPRIVATE(bp, vnode_t *);
-	int		error;
+	/*
+	 * Deep magic here.  We reuse b_private in the buffer_heads to build
+	 * a chain for completing the I/O from user context after we've issued
+	 * a transaction to convert the unwritten extent.
+	 */
+	spin_lock_irqsave(&unwritten_done_lock, flags);
+	bh->b_private = ioend->io_buffer_head;
+	ioend->io_buffer_head = bh;
+	spin_unlock_irqrestore(&unwritten_done_lock, flags);
 
-	BUG_ON(atomic_read(&bp->pb_hold) < 1);
-	VOP_BMAP(vp, XFS_BUF_OFFSET(bp), XFS_BUF_SIZE(bp),
-			BMAPI_UNWRITTEN, NULL, NULL, error);
-	XFS_BUF_SET_FSPRIVATE(bp, NULL);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_UNDATAIO(bp);
-	iput(LINVFS_GET_IP(vp));
-	pagebuf_iodone(bp, 0, 0);
-}
-
-/*
- * Issue transactions to convert a buffer range from unwritten
- * to written extents (direct IO).
- */
-STATIC void
-linvfs_unwritten_convert_direct(
-	struct kiocb	*iocb,
-	loff_t		offset,
-	ssize_t		size,
-	void		*private)
-{
-	struct inode	*inode = iocb->ki_filp->f_dentry->d_inode;
-	ASSERT(!private || inode == (struct inode *)private);
-
-	/* private indicates an unwritten extent lay beneath this IO */
-	if (private && size > 0) {
-		vnode_t	*vp = LINVFS_GET_VP(inode);
-		int	error;
-
-		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
-	}
+	xfs_finish_ioend(ioend);
 }
 
 STATIC int
@@ -255,7 +303,7 @@ xfs_probe_unwritten_page(
 	struct address_space	*mapping,
 	pgoff_t			index,
 	xfs_iomap_t		*iomapp,
-	xfs_buf_t		*pb,
+	xfs_ioend_t		*ioend,
 	unsigned long		max_offset,
 	unsigned long		*fsbs,
 	unsigned int            bbits)
@@ -283,7 +331,7 @@ xfs_probe_unwritten_page(
 				break;
 			xfs_map_at_offset(page, bh, p_offset, bbits, iomapp);
 			set_buffer_unwritten_io(bh);
-			bh->b_private = pb;
+			bh->b_private = ioend;
 			p_offset += bh->b_size;
 			(*fsbs)++;
 		} while ((bh = bh->b_this_page) != head);
@@ -434,34 +482,15 @@ xfs_map_unwritten(
 {
 	struct buffer_head	*bh = curr;
 	xfs_iomap_t		*tmp;
-	xfs_buf_t		*pb;
-	loff_t			offset, size;
+	xfs_ioend_t		*ioend;
+	loff_t			offset;
 	unsigned long		nblocks = 0;
 
 	offset = start_page->index;
 	offset <<= PAGE_CACHE_SHIFT;
 	offset += p_offset;
 
-	/* get an "empty" pagebuf to manage IO completion
-	 * Proper values will be set before returning */
-	pb = pagebuf_lookup(iomapp->iomap_target, 0, 0, 0);
-	if (!pb)
-		return -EAGAIN;
-
-	/* Take a reference to the inode to prevent it from
-	 * being reclaimed while we have outstanding unwritten
-	 * extent IO on it.
-	 */
-	if ((igrab(inode)) != inode) {
-		pagebuf_free(pb);
-		return -EAGAIN;
-	}
-
-	/* Set the count to 1 initially, this will stop an I/O
-	 * completion callout which happens before we have started
-	 * all the I/O from calling pagebuf_iodone too early.
-	 */
-	atomic_set(&pb->pb_io_remaining, 1);
+	ioend = xfs_alloc_ioend(inode);
 
 	/* First map forwards in the page consecutive buffers
 	 * covering this unwritten extent
@@ -474,12 +503,12 @@ xfs_map_unwritten(
 			break;
 		xfs_map_at_offset(start_page, bh, p_offset, block_bits, iomapp);
 		set_buffer_unwritten_io(bh);
-		bh->b_private = pb;
+		bh->b_private = ioend;
 		p_offset += bh->b_size;
 		nblocks++;
 	} while ((bh = bh->b_this_page) != head);
 
-	atomic_add(nblocks, &pb->pb_io_remaining);
+	atomic_add(nblocks, &ioend->io_remaining);
 
 	/* If we reached the end of the page, map forwards in any
 	 * following pages which are also covered by this extent.
@@ -496,13 +525,13 @@ xfs_map_unwritten(
 		tloff = min(tlast, tloff);
 		for (tindex = start_page->index + 1; tindex < tloff; tindex++) {
 			page = xfs_probe_unwritten_page(mapping,
-						tindex, iomapp, pb,
+						tindex, iomapp, ioend,
 						PAGE_CACHE_SIZE, &bs, bbits);
 			if (!page)
 				break;
 			nblocks += bs;
-			atomic_add(bs, &pb->pb_io_remaining);
-			xfs_convert_page(inode, page, iomapp, wbc, pb,
+			atomic_add(bs, &ioend->io_remaining);
+			xfs_convert_page(inode, page, iomapp, wbc, ioend,
 							startio, all_bh);
 			/* stop if converting the next page might add
 			 * enough blocks that the corresponding byte
@@ -514,12 +543,12 @@ xfs_map_unwritten(
 		if (tindex == tlast &&
 		    (pg_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1)))) {
 			page = xfs_probe_unwritten_page(mapping,
-							tindex, iomapp, pb,
+							tindex, iomapp, ioend,
 							pg_offset, &bs, bbits);
 			if (page) {
 				nblocks += bs;
-				atomic_add(bs, &pb->pb_io_remaining);
-				xfs_convert_page(inode, page, iomapp, wbc, pb,
+				atomic_add(bs, &ioend->io_remaining);
+				xfs_convert_page(inode, page, iomapp, wbc, ioend,
 							startio, all_bh);
 				if (nblocks >= ((ULONG_MAX - PAGE_SIZE) >> block_bits))
 					goto enough;
@@ -528,21 +557,9 @@ xfs_map_unwritten(
 	}
 
 enough:
-	size = nblocks;		/* NB: using 64bit number here */
-	size <<= block_bits;	/* convert fsb's to byte range */
-
-	XFS_BUF_DATAIO(pb);
-	XFS_BUF_ASYNC(pb);
-	XFS_BUF_SET_SIZE(pb, size);
-	XFS_BUF_SET_COUNT(pb, size);
-	XFS_BUF_SET_OFFSET(pb, offset);
-	XFS_BUF_SET_FSPRIVATE(pb, LINVFS_GET_VP(inode));
-	XFS_BUF_SET_IODONE_FUNC(pb, linvfs_unwritten_convert);
-
-	if (atomic_dec_and_test(&pb->pb_io_remaining) == 1) {
-		pagebuf_iodone(pb, 1, 1);
-	}
-
+	ioend->io_size = (xfs_off_t)nblocks << block_bits;
+	ioend->io_offset = offset;
+	xfs_finish_ioend(ioend);
 	return 0;
 }
 
@@ -787,7 +804,7 @@ xfs_page_state_convert(
 				continue;
 			if (!iomp) {
 				err = xfs_map_blocks(inode, offset, len, &iomap,
-						BMAPI_READ|BMAPI_IGNSTATE);
+						BMAPI_WRITE|BMAPI_IGNSTATE);
 				if (err) {
 					goto error;
 				}
@@ -1028,6 +1045,44 @@ linvfs_get_blocks_direct(
 					create, 1, BMAPI_WRITE|BMAPI_DIRECT);
 }
 
+STATIC void
+linvfs_end_io_direct(
+	struct kiocb	*iocb,
+	loff_t		offset,
+	ssize_t		size,
+	void		*private)
+{
+	xfs_ioend_t	*ioend = iocb->private;
+
+	/*
+	 * Non-NULL private data means we need to issue a transaction to
+	 * convert a range from unwritten to written extents.  This needs
+	 * to happen from process contect but aio+dio I/O completion
+	 * happens from irq context so we need to defer it to a workqueue.
+	 * This is not nessecary for synchronous direct I/O, but we do
+	 * it anyway to keep the code uniform and simpler.
+	 *
+	 * The core direct I/O code might be changed to always call the
+	 * completion handler in the future, in which case all this can
+	 * go away.
+	 */
+	if (private && size > 0) {
+		ioend->io_offset = offset;
+		ioend->io_size = size;
+		xfs_finish_ioend(ioend);
+	} else {
+		ASSERT(size >= 0);
+		xfs_destroy_ioend(ioend);
+	}
+
+	/*
+	 * blockdev_direct_IO can return an error even afer the I/O
+	 * completion handler was called.  Thus we need to protect
+	 * against double-freeing.
+	 */
+	iocb->private = NULL;
+}
+
 STATIC ssize_t
 linvfs_direct_IO(
 	int			rw,
@@ -1042,16 +1097,23 @@ linvfs_direct_IO(
 	xfs_iomap_t	iomap;
 	int		maps = 1;
 	int		error;
+	ssize_t		ret;
 
 	VOP_BMAP(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps, error);
 	if (error)
 		return -error;
 
-	return blockdev_direct_IO_own_locking(rw, iocb, inode,
+	iocb->private = xfs_alloc_ioend(inode);
+
+	ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
 		iomap.iomap_target->pbr_bdev,
 		iov, offset, nr_segs,
 		linvfs_get_blocks_direct,
-		linvfs_unwritten_convert_direct);
+		linvfs_end_io_direct);
+
+	if (unlikely(ret <= 0 && iocb->private))
+		xfs_destroy_ioend(iocb->private);
+	return ret;
 }
 
 
@@ -1202,6 +1264,16 @@ out_unlock:
 	return error;
 }
 
+STATIC int
+linvfs_invalidate_page(
+	struct page		*page,
+	unsigned long		offset)
+{
+	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
+			page->mapping->host, page, offset);
+	return block_invalidatepage(page, offset);
+}
+
 /*
  * Called to move a page into cleanable state - and from there
  * to be released. Possibly the page is already clean. We always
@@ -1279,6 +1351,7 @@ struct address_space_operations linvfs_aops = {
 	.writepage		= linvfs_writepage,
 	.sync_page		= block_sync_page,
 	.releasepage		= linvfs_release_page,
+	.invalidatepage		= linvfs_invalidate_page,
 	.prepare_write		= linvfs_prepare_write,
 	.commit_write		= generic_commit_write,
 	.bmap			= linvfs_bmap,
