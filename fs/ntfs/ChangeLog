@@ -70,6 +70,9 @@ ToDo/Notes:
 	- Add BUG() checks to ntfs_attr_make_non_resident() and ntfs_attr_set()
 	  to ensure that these functions are never called for compressed or
 	  encrypted attributes.
+	- Fix cluster (de)allocators to work when the runlist is NULL and more
+	  importantly to take a locked runlist rather than them locking it
+	  which leads to lock reversal.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
