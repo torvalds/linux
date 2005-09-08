@@ -51,6 +51,17 @@ struct HvReleaseData hvReleaseData = {
 		0xf4, 0x4b, 0xf6, 0xf4 },
 };
 
+/*
+ * The NACA.  The first dword of the naca is required by the iSeries
+ * hypervisor to point to itVpdAreas.  The hypervisor finds the NACA
+ * through the pointer in hvReleaseData.
+ */
+struct naca_struct naca = {
+	.xItVpdAreas = &itVpdAreas,
+	.xRamDisk = 0,
+	.xRamDiskSize = 0,
+};
+
 extern void system_reset_iSeries(void);
 extern void machine_check_iSeries(void);
 extern void data_access_iSeries(void);
@@ -214,29 +225,3 @@ struct ItVpdAreas itVpdAreas = {
 		0,0
 	}
 };
-
-struct msChunks msChunks;
-EXPORT_SYMBOL(msChunks);
-
-/* Depending on whether this is called from iSeries or pSeries setup
- * code, the location of the msChunks struct may or may not have
- * to be reloc'd, so we force the caller to do that for us by passing
- * in a pointer to the structure.
- */
-unsigned long
-msChunks_alloc(unsigned long mem, unsigned long num_chunks, unsigned long chunk_size)
-{
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	_msChunks->num_chunks  = num_chunks;
-	_msChunks->chunk_size  = chunk_size;
-	_msChunks->chunk_shift = __ilog2(chunk_size);
-	_msChunks->chunk_mask  = (1UL<<_msChunks->chunk_shift)-1;
-
-	mem = _ALIGN(mem, sizeof(msChunks_entry));
-	_msChunks->abs = (msChunks_entry *)(mem + offset);
-	mem += num_chunks * sizeof(msChunks_entry);
-
-	return mem;
-}

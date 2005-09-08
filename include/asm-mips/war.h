@@ -113,7 +113,7 @@
  */
 #define BCM1250_M3_WAR 1
 
-/* 
+/*
  * This is a DUART workaround related to glitches around register accesses
  */
 #define SIBYTE_1956_WAR 1
@@ -122,7 +122,7 @@
 
 /*
  * Fill buffers not flushed on CACHE instructions
- * 
+ *
  * Hit_Invalidate_I cacheops invalidate an icache line but the refill
  * for that line can get stale data from the fill buffer instead of
  * accessing memory if the previous icache miss was also to that line.

@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/kprobes.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -84,8 +85,8 @@ static int store_updates_sp(struct pt_regs *regs)
  * The return value is 0 if the fault was handled, or the signal
  * number if this is a kernel fault that can't be handled here.
  */
-int do_page_fault(struct pt_regs *regs, unsigned long address,
-		  unsigned long error_code)
+int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
+			    unsigned long error_code)
 {
 	struct vm_area_struct * vma;
 	struct mm_struct *mm = current->mm;

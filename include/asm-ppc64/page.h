@@ -37,39 +37,45 @@
 
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
-/* For 64-bit processes the hugepage range is 1T-1.5T */
-#define TASK_HPAGE_BASE ASM_CONST(0x0000010000000000)
-#define TASK_HPAGE_END 	ASM_CONST(0x0000018000000000)
+#define HTLB_AREA_SHIFT		40
+#define HTLB_AREA_SIZE		(1UL << HTLB_AREA_SHIFT)
+#define GET_HTLB_AREA(x)	((x) >> HTLB_AREA_SHIFT)
 
 #define LOW_ESID_MASK(addr, len)	(((1U << (GET_ESID(addr+len-1)+1)) \
 	   	                	- (1U << GET_ESID(addr))) & 0xffff)
+#define HTLB_AREA_MASK(addr, len)	(((1U << (GET_HTLB_AREA(addr+len-1)+1)) \
+	   	                	- (1U << GET_HTLB_AREA(addr))) & 0xffff)
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define ARCH_HAS_PREPARE_HUGEPAGE_RANGE
+#define ARCH_HAS_SETCLEAR_HUGE_PTE
 
 #define touches_hugepage_low_range(mm, addr, len) \
-	(LOW_ESID_MASK((addr), (len)) & mm->context.htlb_segs)
-#define touches_hugepage_high_range(addr, len) \
-	(((addr) > (TASK_HPAGE_BASE-(len))) && ((addr) < TASK_HPAGE_END))
+	(LOW_ESID_MASK((addr), (len)) & (mm)->context.low_htlb_areas)
+#define touches_hugepage_high_range(mm, addr, len) \
+	(HTLB_AREA_MASK((addr), (len)) & (mm)->context.high_htlb_areas)
 
 #define __within_hugepage_low_range(addr, len, segmask) \
 	((LOW_ESID_MASK((addr), (len)) | (segmask)) == (segmask))
 #define within_hugepage_low_range(addr, len) \
 	__within_hugepage_low_range((addr), (len), \
-				    current->mm->context.htlb_segs)
-#define within_hugepage_high_range(addr, len) (((addr) >= TASK_HPAGE_BASE) \
-	  && ((addr)+(len) <= TASK_HPAGE_END) && ((addr)+(len) >= (addr)))
+				    current->mm->context.low_htlb_areas)
+#define __within_hugepage_high_range(addr, len, zonemask) \
+	((HTLB_AREA_MASK((addr), (len)) | (zonemask)) == (zonemask))
+#define within_hugepage_high_range(addr, len) \
+	__within_hugepage_high_range((addr), (len), \
+				    current->mm->context.high_htlb_areas)
 
 #define is_hugepage_only_range(mm, addr, len) \
-	(touches_hugepage_high_range((addr), (len)) || \
+	(touches_hugepage_high_range((mm), (addr), (len)) || \
 	  touches_hugepage_low_range((mm), (addr), (len)))
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 
 #define in_hugepage_area(context, addr) \
 	(cpu_has_feature(CPU_FTR_16M_PAGE) && \
-	 ( (((addr) >= TASK_HPAGE_BASE) && ((addr) < TASK_HPAGE_END)) || \
+	 ( ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) || \
 	   ( ((addr) < 0x100000000L) && \
-	     ((1 << GET_ESID(addr)) & (context).htlb_segs) ) ) )
+	     ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) ) )
 
 #else /* !CONFIG_HUGETLB_PAGE */
 
@@ -125,54 +131,46 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct pag
  * Entries in the pte table are 64b, while entries in the pgd & pmd are 32b.
  */
 typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned int  pmd; } pmd_t;
-typedef struct { unsigned int  pgd; } pgd_t;
+typedef struct { unsigned long pmd; } pmd_t;
+typedef struct { unsigned long pud; } pud_t;
+typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).pmd)
+#define pud_val(x)	((x).pud)
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
-#define __pte(x)	((pte_t) { (x) } )
-#define __pmd(x)	((pmd_t) { (x) } )
-#define __pgd(x)	((pgd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
+#define __pte(x)	((pte_t) { (x) })
+#define __pmd(x)	((pmd_t) { (x) })
+#define __pud(x)	((pud_t) { (x) })
+#define __pgd(x)	((pgd_t) { (x) })
+#define __pgprot(x)	((pgprot_t) { (x) })
 
 #else
 /*
  * .. while these make it easier on the compiler
  */
 typedef unsigned long pte_t;
-typedef unsigned int  pmd_t;
-typedef unsigned int  pgd_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pud_t;
+typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define pte_val(x)	(x)
 #define pmd_val(x)	(x)
+#define pud_val(x)	(x)
 #define pgd_val(x)	(x)
 #define pgprot_val(x)	(x)
 
 #define __pte(x)	(x)
 #define __pmd(x)	(x)
+#define __pud(x)	(x)
 #define __pgd(x)	(x)
 #define __pgprot(x)	(x)
 
 #endif
-
-/* Pure 2^n version of get_order */
-static inline int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
 
 #define __pa(x) ((unsigned long)(x)-PAGE_OFFSET)
 
@@ -207,9 +205,6 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 #define KERNEL_REGION_ID   (KERNELBASE >> REGION_SHIFT)
 #define USER_REGION_ID     (0UL)
 #define REGION_ID(ea)	   (((unsigned long)(ea)) >> REGION_SHIFT)
-
-#define __bpn_to_ba(x) ((((unsigned long)(x)) << PAGE_SHIFT) + KERNELBASE)
-#define __ba_to_bpn(x) ((((unsigned long)(x)) & ~REGION_MASK) >> PAGE_SHIFT)
 
 #define __va(x) ((void *)((unsigned long)(x) + KERNELBASE))
 
@@ -261,4 +256,7 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 	 VM_STACK_DEFAULT_FLAGS32 : VM_STACK_DEFAULT_FLAGS64)
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
+
 #endif /* _PPC64_PAGE_H */

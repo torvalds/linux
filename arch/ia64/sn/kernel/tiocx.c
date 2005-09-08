@@ -191,7 +191,7 @@ cx_device_register(nasid_t nasid, int part_num, int mfg_num,
 {
 	struct cx_dev *cx_dev;
 
-	cx_dev = kcalloc(1, sizeof(struct cx_dev), GFP_KERNEL);
+	cx_dev = kzalloc(sizeof(struct cx_dev), GFP_KERNEL);
 	DBG("cx_dev= 0x%p\n", cx_dev);
 	if (cx_dev == NULL)
 		return -ENOMEM;

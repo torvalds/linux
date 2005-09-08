@@ -4,7 +4,7 @@
  * the low-order bits.
  *
  * We arrange the `type' and `offset' fields so that `type' is at the five
- * high-order bits of the smp_entry_t and `offset' is right-aligned in the
+ * high-order bits of the swp_entry_t and `offset' is right-aligned in the
  * remaining bits.
  *
  * swp_entry_t's are *never* stored anywhere in their arch-dependent format.

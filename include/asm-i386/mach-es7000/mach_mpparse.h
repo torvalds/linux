@@ -1,6 +1,8 @@
 #ifndef __ASM_MACH_MPPARSE_H
 #define __ASM_MACH_MPPARSE_H
 
+#include <linux/acpi.h>
+
 static inline void mpc_oem_bus_info(struct mpc_config_bus *m, char *name, 
 				struct mpc_config_translation *translation)
 {
@@ -12,8 +14,9 @@ static inline void mpc_oem_pci_bus(struct mpc_config_bus *m,
 {
 }
 
-extern int parse_unisys_oem (char *oemptr, int oem_entries);
-extern int find_unisys_acpi_oem_table(unsigned long *oem_addr, int *length);
+extern int parse_unisys_oem (char *oemptr);
+extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
+extern void setup_unisys();
 
 static inline int mps_oem_check(struct mp_config_table *mpc, char *oem,
 		char *productid)
@@ -22,8 +25,18 @@ static inline int mps_oem_check(struct mp_config_table *mpc, char *oem,
 		struct mp_config_oemtable *oem_table = 
 			(struct mp_config_oemtable *)mpc->mpc_oemptr;
 		if (!strncmp(oem, "UNISYS", 6))
-			return parse_unisys_oem((char *)oem_table, oem_table->oem_length);
+			return parse_unisys_oem((char *)oem_table);
 	}
+	return 0;
+}
+
+static inline int es7000_check_dsdt()
+{
+	struct acpi_table_header *header = NULL;
+	if(!acpi_get_table_header_early(ACPI_DSDT, &header))
+		acpi_table_print(header, 0);
+	if (!strncmp(header->oem_id, "UNISYS", 6))
+		return 1;
 	return 0;
 }
 
@@ -31,9 +44,14 @@ static inline int mps_oem_check(struct mp_config_table *mpc, char *oem,
 static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	unsigned long oem_addr; 
-	int oem_entries;
-	if (!find_unisys_acpi_oem_table(&oem_addr, &oem_entries))
-		return parse_unisys_oem((char *)oem_addr, oem_entries);
+	if (!find_unisys_acpi_oem_table(&oem_addr)) {
+		if (es7000_check_dsdt())
+			return parse_unisys_oem((char *)oem_addr);
+		else {
+			setup_unisys();
+			return 1;
+		}
+	}
 	return 0;
 }
 

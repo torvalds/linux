@@ -5,8 +5,8 @@
 obj-y				+= cache.o extable.o fault.o init.o pgtable.o \
 				   tlbex.o tlbex-fault.o
 
-obj-$(CONFIG_MIPS32)		+= ioremap.o pgtable-32.o
-obj-$(CONFIG_MIPS64)		+= pgtable-64.o
+obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
+obj-$(CONFIG_64BIT)		+= pgtable-64.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 
 obj-$(CONFIG_CPU_MIPS32)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o

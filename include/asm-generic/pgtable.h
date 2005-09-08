@@ -101,6 +101,22 @@ do {				  					  \
 })
 #endif
 
+#ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+#define ptep_get_and_clear_full(__mm, __address, __ptep, __full)	\
+({									\
+	pte_t __pte;							\
+	__pte = ptep_get_and_clear((__mm), (__address), (__ptep));	\
+	__pte;								\
+})
+#endif
+
+#ifndef __HAVE_ARCH_PTE_CLEAR_FULL
+#define pte_clear_full(__mm, __address, __ptep, __full)			\
+do {									\
+	pte_clear((__mm), (__address), (__ptep));			\
+} while (0)
+#endif
+
 #ifndef __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define ptep_clear_flush(__vma, __address, __ptep)			\
 ({									\

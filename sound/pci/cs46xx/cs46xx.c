@@ -113,7 +113,7 @@ static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
 		return err;
 	}
 #endif
-	if ((err = snd_cs46xx_mixer(chip)) < 0) {
+	if ((err = snd_cs46xx_mixer(chip, 2)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

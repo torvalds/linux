@@ -51,7 +51,6 @@ long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			unsigned long prpn, unsigned long vflags,
 			unsigned long rflags)
 {
-	unsigned long arpn = physRpn_to_absRpn(prpn);
 	hpte_t *hptep = htab_address + hpte_group;
 	unsigned long hpte_v, hpte_r;
 	int i;
@@ -74,7 +73,7 @@ long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 	hpte_v = (va >> 23) << HPTE_V_AVPN_SHIFT | vflags | HPTE_V_VALID;
 	if (vflags & HPTE_V_LARGE)
 		va &= ~(1UL << HPTE_V_AVPN_SHIFT);
-	hpte_r = (arpn << HPTE_R_RPN_SHIFT) | rflags;
+	hpte_r = (prpn << HPTE_R_RPN_SHIFT) | rflags;
 
 	hptep->r = hpte_r;
 	/* Guarantee the second dword is visible before the valid bit */

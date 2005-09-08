@@ -15,6 +15,7 @@ SECTIONS
 	*(.text .text.*)
 	SCHED_TEXT
 	LOCK_TEXT
+	KPROBES_TEXT
 	*(.fixup)
 	. = ALIGN(4096);
 	_etext = .;

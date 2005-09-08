@@ -242,6 +242,8 @@ static cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 cpumask_t cpu_callin_map = CPU_MASK_NONE;
 cpumask_t cpu_callout_map = CPU_MASK_NONE;
 EXPORT_SYMBOL(cpu_callout_map);
+cpumask_t cpu_possible_map = CPU_MASK_ALL;
+EXPORT_SYMBOL(cpu_possible_map);
 
 /* The per processor IRQ masks (these are usually kept in sync) */
 static __u16 vic_irq_mask[NR_CPUS] __cacheline_aligned;
@@ -1015,7 +1017,7 @@ smp_stop_cpu_function(void *dummy)
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	local_irq_disable();
 	for(;;)
-	       __asm__("hlt");
+		halt();
 }
 
 static DEFINE_SPINLOCK(call_lock);
@@ -1910,6 +1912,7 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callout_map);
+	cpu_set(smp_processor_id(), cpu_possible_map);
 }
 
 int __devinit

@@ -576,7 +576,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,
 	.ignore			= &ignore,
-	.force			= &ignore,
 };
 
 static struct i2c_driver vpx3220_i2c_driver;

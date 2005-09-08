@@ -38,90 +38,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
-enum ixp4xx_irq_type {
-	IXP4XX_IRQ_LEVEL, IXP4XX_IRQ_EDGE
-};
-static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
-
-/*************************************************************************
- * GPIO acces functions
- *************************************************************************/
-
-/*
- * Configure GPIO line for input, interrupt, or output operation
- *
- * TODO: Enable/disable the irq_desc based on interrupt or output mode.
- * TODO: Should these be named ixp4xx_gpio_?
- */
-void gpio_line_config(u8 line, u32 style)
-{
-	static const int gpio2irq[] = {
-		6, 7, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29
-	};
-	u32 enable;
-	volatile u32 *int_reg;
-	u32 int_style;
-	enum ixp4xx_irq_type irq_type;
-
-	enable = *IXP4XX_GPIO_GPOER;
-
-	if (style & IXP4XX_GPIO_OUT) {
-		enable &= ~((1) << line);
-	} else if (style & IXP4XX_GPIO_IN) {
-		enable |= ((1) << line);
-
-		switch (style & IXP4XX_GPIO_INTSTYLE_MASK)
-		{
-		case (IXP4XX_GPIO_ACTIVE_HIGH):
-			int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
-			irq_type = IXP4XX_IRQ_LEVEL;
-			break;
-		case (IXP4XX_GPIO_ACTIVE_LOW):
-			int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
-			irq_type = IXP4XX_IRQ_LEVEL;
-			break;
-		case (IXP4XX_GPIO_RISING_EDGE):
-			int_style = IXP4XX_GPIO_STYLE_RISING_EDGE;
-			irq_type = IXP4XX_IRQ_EDGE;
-			break;
-		case (IXP4XX_GPIO_FALLING_EDGE):
-			int_style = IXP4XX_GPIO_STYLE_FALLING_EDGE;
-			irq_type = IXP4XX_IRQ_EDGE;
-			break;
-		case (IXP4XX_GPIO_TRANSITIONAL):
-			int_style = IXP4XX_GPIO_STYLE_TRANSITIONAL;
-			irq_type = IXP4XX_IRQ_EDGE;
-			break;
-		default:
-			int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
-			irq_type = IXP4XX_IRQ_LEVEL;
-			break;
-		}
-
-		if (style & IXP4XX_GPIO_INTSTYLE_MASK)
-			ixp4xx_config_irq(gpio2irq[line], irq_type);
-
-		if (line >= 8) {	/* pins 8-15 */ 
-			line -= 8;
-			int_reg = IXP4XX_GPIO_GPIT2R;
-		}
-		else {			/* pins 0-7 */
-			int_reg = IXP4XX_GPIO_GPIT1R;
-		}
-
-		/* Clear the style for the appropriate pin */
-		*int_reg &= ~(IXP4XX_GPIO_STYLE_CLEAR << 
-		    		(line * IXP4XX_GPIO_STYLE_SIZE));
-
-		/* Set the new style */
-		*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
-	}
-
-	*IXP4XX_GPIO_GPOER = enable;
-}
-
-EXPORT_SYMBOL(gpio_line_config);
-
 /*************************************************************************
  * IXP4xx chipset I/O mapping
  *************************************************************************/
@@ -165,6 +81,69 @@ void __init ixp4xx_map_io(void)
  *       (be it PCI or something else) configures that GPIO line
  *       as an IRQ.
  **************************************************************************/
+enum ixp4xx_irq_type {
+	IXP4XX_IRQ_LEVEL, IXP4XX_IRQ_EDGE
+};
+
+static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
+
+/*
+ * IRQ -> GPIO mapping table
+ */
+static int irq2gpio[32] = {
+	-1, -1, -1, -1, -1, -1,  0,  1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1,  2,  3,  4,  5,  6,
+	 7,  8,  9, 10, 11, 12, -1, -1,
+};
+
+static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
+{
+	int line = irq2gpio[irq];
+	u32 int_style;
+	enum ixp4xx_irq_type irq_type;
+	volatile u32 *int_reg;
+
+	/*
+	 * Only for GPIO IRQs
+	 */
+	if (line < 0)
+		return -EINVAL;
+
+	if (type & IRQT_BOTHEDGE) {
+		int_style = IXP4XX_GPIO_STYLE_TRANSITIONAL;
+		irq_type = IXP4XX_IRQ_EDGE;
+	} else  if (type & IRQT_RISING) {
+		int_style = IXP4XX_GPIO_STYLE_RISING_EDGE;
+		irq_type = IXP4XX_IRQ_EDGE;
+	} else if (type & IRQT_FALLING) {
+		int_style = IXP4XX_GPIO_STYLE_FALLING_EDGE;
+		irq_type = IXP4XX_IRQ_EDGE;
+	} else if (type & IRQT_HIGH) {
+		int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
+		irq_type = IXP4XX_IRQ_LEVEL;
+	} else if (type & IRQT_LOW) {
+		int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
+		irq_type = IXP4XX_IRQ_LEVEL;
+	}
+
+	ixp4xx_config_irq(irq, irq_type);
+
+	if (line >= 8) {	/* pins 8-15 */
+		line -= 8;
+		int_reg = IXP4XX_GPIO_GPIT2R;
+	} else {		/* pins 0-7 */
+		int_reg = IXP4XX_GPIO_GPIT1R;
+	}
+
+	/* Clear the style for the appropriate pin */
+	*int_reg &= ~(IXP4XX_GPIO_STYLE_CLEAR <<
+	    		(line * IXP4XX_GPIO_STYLE_SIZE));
+
+	/* Set the new style */
+	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
+}
+
 static void ixp4xx_irq_mask(unsigned int irq)
 {
 	if (cpu_is_ixp46x() && irq >= 32)
@@ -183,12 +162,6 @@ static void ixp4xx_irq_unmask(unsigned int irq)
 
 static void ixp4xx_irq_ack(unsigned int irq)
 {
-	static int irq2gpio[32] = {
-		-1, -1, -1, -1, -1, -1,  0,  1,
-		-1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1,  2,  3,  4,  5,  6,
-		 7,  8,  9, 10, 11, 12, -1, -1,
-	};
 	int line = (irq < 32) ? irq2gpio[irq] : -1;
 
 	if (line >= 0)
@@ -206,15 +179,17 @@ static void ixp4xx_irq_level_unmask(unsigned int irq)
 }
 
 static struct irqchip ixp4xx_irq_level_chip = {
-	.ack	= ixp4xx_irq_mask,
-	.mask	= ixp4xx_irq_mask,
-	.unmask	= ixp4xx_irq_level_unmask,
+	.ack		= ixp4xx_irq_mask,
+	.mask		= ixp4xx_irq_mask,
+	.unmask		= ixp4xx_irq_level_unmask,
+	.set_type	= ixp4xx_set_irq_type,
 };
 
 static struct irqchip ixp4xx_irq_edge_chip = {
-	.ack	= ixp4xx_irq_ack,
-	.mask	= ixp4xx_irq_mask,
-	.unmask	= ixp4xx_irq_unmask,
+	.ack		= ixp4xx_irq_ack,
+	.mask		= ixp4xx_irq_mask,
+	.unmask		= ixp4xx_irq_unmask,
+	.set_type	= ixp4xx_set_irq_type,
 };
 
 static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type)

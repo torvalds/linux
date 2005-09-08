@@ -36,7 +36,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /* How many retries on register read error */
 #define MAX_RETRIES	5
@@ -47,13 +48,12 @@
  */
 
 static unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /*
  * Insmod parameters
  */
 
-SENSORS_INSMOD_1(w83l785ts);
+I2C_CLIENT_INSMOD_1(w83l785ts);
 
 /*
  * The W83L785TS-S registers
@@ -105,6 +105,7 @@ static struct i2c_driver w83l785ts_driver = {
 
 struct w83l785ts_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -140,7 +141,7 @@ static int w83l785ts_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, w83l785ts_detect);
+	return i2c_probe(adapter, &addr_data, w83l785ts_detect);
 }
 
 /*
@@ -239,11 +240,19 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 	 */
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 	device_create_file(&new_client->dev, &dev_attr_temp1_max);
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -252,15 +261,15 @@ exit:
 
 static int w83l785ts_detach_client(struct i2c_client *client)
 {
+	struct w83l785ts_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
-		return err;
-	}
+	hwmon_device_unregister(data->class_dev);
 
-	kfree(i2c_get_clientdata(client));
+	if ((err = i2c_detach_client(client)))
+		return err;
+
+	kfree(data);
 	return 0;
 }
 

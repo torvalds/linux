@@ -49,16 +49,24 @@
  * I/O mapping
  * ----------------------------------------------------------------------------
  */
-#define IO_PHYS			0xFFFB0000
-#define IO_OFFSET		0x01000000	/* Virtual IO = 0xfefb0000 */
-#define IO_VIRT			(IO_PHYS - IO_OFFSET)
-#define IO_SIZE			0x40000
-#define IO_ADDRESS(x)		((x) - IO_OFFSET)
 
-#define PCIO_BASE		0
+#if defined(CONFIG_ARCH_OMAP1)
+#define IO_PHYS		0xFFFB0000
+#define IO_OFFSET      -0x01000000	/* Virtual IO = 0xfefb0000 */
+#define IO_SIZE		0x40000
 
-#define io_p2v(x)               ((x) - IO_OFFSET)
-#define io_v2p(x)               ((x) + IO_OFFSET)
+#elif defined(CONFIG_ARCH_OMAP2)
+#define IO_PHYS		0x48000000	/* L4 peripherals; other stuff has to be mapped *
+					 * manually. */
+#define IO_OFFSET	0x90000000	/* Virtual IO = 0xd8000000 */
+#define IO_SIZE		0x08000000
+#endif
+
+#define IO_VIRT		(IO_PHYS + IO_OFFSET)
+#define IO_ADDRESS(x)	((x) + IO_OFFSET)
+#define PCIO_BASE	0
+#define io_p2v(x)	((x) + IO_OFFSET)
+#define io_v2p(x)	((x) - IO_OFFSET)
 
 #ifndef __ASSEMBLER__
 
@@ -95,6 +103,8 @@ typedef struct { volatile u32 offset[4096]; } __regbase32;
 #define __REGV32(vaddr)		((__regbase32 *)((vaddr)&~4095)) \
 					->offset[((vaddr)&4095)>>2]
 #define __REG32(paddr)		__REGV32(io_p2v(paddr))
+
+extern void omap_map_common_io(void);
 
 #else
 

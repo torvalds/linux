@@ -2903,19 +2903,18 @@ static struct net_device_stats *usbnet_get_stats (struct net_device *net)
  * completion callbacks.  2.5 should have fixed those bugs...
  */
 
-static void defer_bh (struct usbnet *dev, struct sk_buff *skb)
+static void defer_bh(struct usbnet *dev, struct sk_buff *skb, struct sk_buff_head *list)
 {
-	struct sk_buff_head	*list = skb->list;
 	unsigned long		flags;
 
-	spin_lock_irqsave (&list->lock, flags);
-	__skb_unlink (skb, list);
-	spin_unlock (&list->lock);
-	spin_lock (&dev->done.lock);
-	__skb_queue_tail (&dev->done, skb);
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_unlink(skb, list);
+	spin_unlock(&list->lock);
+	spin_lock(&dev->done.lock);
+	__skb_queue_tail(&dev->done, skb);
 	if (dev->done.qlen == 1)
-		tasklet_schedule (&dev->bh);
-	spin_unlock_irqrestore (&dev->done.lock, flags);
+		tasklet_schedule(&dev->bh);
+	spin_unlock_irqrestore(&dev->done.lock, flags);
 }
 
 /* some work can't be done in tasklets, so we use keventd
@@ -3120,7 +3119,7 @@ block:
 		break;
 	}
 
-	defer_bh (dev, skb);
+	defer_bh(dev, skb, &dev->rxq);
 
 	if (urb) {
 		if (netif_running (dev->net)
@@ -3490,7 +3489,7 @@ static void tx_complete (struct urb *urb, struct pt_regs *regs)
 
 	urb->dev = NULL;
 	entry->state = tx_done;
-	defer_bh (dev, skb);
+	defer_bh(dev, skb, &dev->txq);
 }
 
 /*-------------------------------------------------------------------------*/

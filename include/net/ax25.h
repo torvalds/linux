@@ -257,7 +257,7 @@ extern struct sock *ax25_make_new(struct sock *, struct ax25_dev *);
 
 /* ax25_addr.c */
 extern ax25_address null_ax25_address;
-extern char *ax2asc(ax25_address *);
+extern char *ax2asc(char *buf, ax25_address *);
 extern ax25_address *asc2ax(char *);
 extern int  ax25cmp(ax25_address *, ax25_address *);
 extern int  ax25digicmp(ax25_digi *, ax25_digi *);
@@ -316,7 +316,7 @@ extern int  ax25_protocol_is_registered(unsigned int);
 
 /* ax25_in.c */
 extern int  ax25_rx_iframe(ax25_cb *, struct sk_buff *);
-extern int  ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *);
+extern int  ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
 /* ax25_ip.c */
 extern int  ax25_encapsulate(struct sk_buff *, struct net_device *, unsigned short, void *, void *, unsigned int);

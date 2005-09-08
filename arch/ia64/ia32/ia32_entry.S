@@ -215,7 +215,7 @@ ia32_syscall_table:
 	data8 sys32_fork
 	data8 sys_read
 	data8 sys_write
-	data8 sys32_open	  /* 5 */
+	data8 compat_sys_open	  /* 5 */
 	data8 sys_close
 	data8 sys32_waitpid
 	data8 sys_creat

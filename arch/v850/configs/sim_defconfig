@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.12-uc0
-# Thu Jul 21 11:29:27 2005
+# Linux kernel version: 2.6.13-uc0
+# Fri Sep  2 13:36:43 2005
 #
 # CONFIG_MMU is not set
 # CONFIG_UID16 is not set
@@ -36,6 +36,8 @@ CONFIG_NO_CACHE=y
 CONFIG_ZERO_BSS=y
 # CONFIG_RESET_GUARD is not set
 CONFIG_LARGE_ALLOCS=y
+CONFIG_FLATMEM=y
+CONFIG_FLAT_NODE_MEM_MAP=y
 
 #
 # Code maturity level options
@@ -51,7 +53,6 @@ CONFIG_INIT_ENV_ARG_LIMIT=32
 CONFIG_LOCALVERSION=""
 # CONFIG_BSD_PROCESS_ACCT is not set
 # CONFIG_SYSCTL is not set
-# CONFIG_AUDIT is not set
 # CONFIG_HOTPLUG is not set
 # CONFIG_IKCONFIG is not set
 CONFIG_EMBEDDED=y
@@ -97,6 +98,11 @@ CONFIG_BINFMT_FLAT=y
 # CONFIG_BINFMT_ZFLAT is not set
 # CONFIG_BINFMT_SHARED_FLAT is not set
 # CONFIG_BINFMT_MISC is not set
+
+#
+# Networking
+#
+# CONFIG_NET is not set
 
 #
 # Generic Driver Options
@@ -146,6 +152,7 @@ CONFIG_MTD_CFI_I2=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
+# CONFIG_MTD_PLATRAM is not set
 
 #
 # Self-contained MTD device drivers
@@ -213,6 +220,7 @@ CONFIG_IOSCHED_NOOP=y
 #
 # Fusion MPT device support
 #
+# CONFIG_FUSION is not set
 
 #
 # IEEE 1394 (FireWire) support
@@ -223,9 +231,8 @@ CONFIG_IOSCHED_NOOP=y
 #
 
 #
-# Networking support
+# Network device support
 #
-# CONFIG_NET is not set
 # CONFIG_NETPOLL is not set
 # CONFIG_NET_POLL_CONTROLLER is not set
 
@@ -300,7 +307,6 @@ CONFIG_SERIO=y
 #
 # Ftape, the floppy tape device driver
 #
-# CONFIG_DRM is not set
 # CONFIG_RAW_DRIVER is not set
 
 #
@@ -324,6 +330,7 @@ CONFIG_SERIO=y
 # CONFIG_JBD is not set
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
+# CONFIG_FS_POSIX_ACL is not set
 
 #
 # XFS support
@@ -331,6 +338,8 @@ CONFIG_SERIO=y
 # CONFIG_XFS_FS is not set
 # CONFIG_MINIX_FS is not set
 CONFIG_ROMFS_FS=y
+# CONFIG_MAGIC_ROM_PTR is not set
+CONFIG_INOTIFY=y
 # CONFIG_QUOTA is not set
 CONFIG_DNOTIFY=y
 # CONFIG_AUTOFS_FS is not set

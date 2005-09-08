@@ -79,6 +79,7 @@ extern int ql2xplogiabsentdevice;
 extern int ql2xenablezio;
 extern int ql2xintrdelaytimer;
 extern int ql2xloginretrycount;
+extern int ql2xfdmienable;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
@@ -147,9 +148,6 @@ qla2x00_abort_target(fc_port_t *);
 #endif
 
 extern int
-qla2x00_target_reset(scsi_qla_host_t *, struct fc_port *);
-
-extern int
 qla2x00_get_adapter_id(scsi_qla_host_t *, uint16_t *, uint8_t *, uint8_t *,
     uint8_t *, uint16_t *);
 
@@ -215,6 +213,9 @@ qla2x00_get_serdes_params(scsi_qla_host_t *, uint16_t *, uint16_t *,
 extern int
 qla2x00_set_serdes_params(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);
 
+extern int
+qla2x00_stop_firmware(scsi_qla_host_t *);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */
@@ -269,6 +270,9 @@ extern int qla2x00_rft_id(scsi_qla_host_t *);
 extern int qla2x00_rff_id(scsi_qla_host_t *);
 extern int qla2x00_rnn_id(scsi_qla_host_t *);
 extern int qla2x00_rsnn_nn(scsi_qla_host_t *);
+extern void *qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
+extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
+extern int qla2x00_fdmi_register(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_rscn.c source file.
@@ -289,6 +293,8 @@ extern void qla2x00_cancel_io_descriptors(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_attr.c source file.
  */
+struct class_device_attribute;
+extern struct class_device_attribute *qla2x00_host_attrs[];
 struct fc_function_template;
 extern struct fc_function_template qla2xxx_transport_functions;
 extern void qla2x00_alloc_sysfs_attr(scsi_qla_host_t *);

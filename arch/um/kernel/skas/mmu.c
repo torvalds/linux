@@ -56,6 +56,9 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	 */
 
         mm->context.skas.last_page_table = pmd_page_kernel(*pmd);
+#ifdef CONFIG_3_LEVEL_PGTABLES
+        mm->context.skas.last_pmd = (unsigned long) __va(pud_val(*pud));
+#endif
 
 	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
 	*pte = pte_mkexec(*pte);
@@ -77,23 +80,14 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 	struct mm_struct *cur_mm = current->mm;
 	struct mm_id *cur_mm_id = &cur_mm->context.skas.id;
 	struct mm_id *mm_id = &mm->context.skas.id;
-	unsigned long stack;
-	int from, ret;
+	unsigned long stack = 0;
+	int from, ret = -ENOMEM;
 
-	if(proc_mm){
-		if((cur_mm != NULL) && (cur_mm != &init_mm))
-			from = cur_mm->context.skas.id.u.mm_fd;
-		else from = -1;
+	if(!proc_mm || !ptrace_faultinfo){
+		stack = get_zeroed_page(GFP_KERNEL);
+		if(stack == 0)
+			goto out;
 
-		ret = new_mm(from);
-		if(ret < 0){
-			printk("init_new_context_skas - new_mm failed, "
-			       "errno = %d\n", ret);
-			return ret;
-		}
-		mm_id->u.mm_fd = ret;
-	}
-	else {
 		/* This zeros the entry that pgd_alloc didn't, needed since
 		 * we are about to reinitialize it, and want mm.nr_ptes to
 		 * be accurate.
@@ -103,20 +97,30 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 		ret = init_stub_pte(mm, CONFIG_STUB_CODE,
 				    (unsigned long) &__syscall_stub_start);
 		if(ret)
-			goto out;
-
-		ret = -ENOMEM;
-		stack = get_zeroed_page(GFP_KERNEL);
-		if(stack == 0)
-			goto out;
-		mm_id->stack = stack;
+			goto out_free;
 
 		ret = init_stub_pte(mm, CONFIG_STUB_DATA, stack);
 		if(ret)
 			goto out_free;
 
 		mm->nr_ptes--;
+	}
+	mm_id->stack = stack;
 
+	if(proc_mm){
+		if((cur_mm != NULL) && (cur_mm != &init_mm))
+			from = cur_mm_id->u.mm_fd;
+		else from = -1;
+
+		ret = new_mm(from, stack);
+		if(ret < 0){
+			printk("init_new_context_skas - new_mm failed, "
+			       "errno = %d\n", ret);
+			goto out_free;
+		}
+		mm_id->u.mm_fd = ret;
+	}
+	else {
 		if((cur_mm != NULL) && (cur_mm != &init_mm))
 			mm_id->u.pid = copy_context_skas0(stack,
 							  cur_mm_id->u.pid);
@@ -126,7 +130,8 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 	return 0;
 
  out_free:
-	free_page(mm_id->stack);
+	if(mm_id->stack != 0)
+		free_page(mm_id->stack);
  out:
 	return ret;
 }
@@ -137,9 +142,15 @@ void destroy_context_skas(struct mm_struct *mm)
 
 	if(proc_mm)
 		os_close_file(mmu->id.u.mm_fd);
-	else {
+	else
 		os_kill_ptraced_process(mmu->id.u.pid, 1);
+
+	if(!proc_mm || !ptrace_faultinfo){
 		free_page(mmu->id.stack);
-		free_page(mmu->last_page_table);
+		pte_free_kernel((pte_t *) mmu->last_page_table);
+                dec_page_state(nr_page_table_pages);
+#ifdef CONFIG_3_LEVEL_PGTABLES
+		pmd_free((pmd_t *) mmu->last_pmd);
+#endif
 	}
 }

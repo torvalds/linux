@@ -21,6 +21,7 @@
 
 #include "resources.h"
 #include "signaling.h"		/* for WAITING and sigd_attach */
+#include "common.h"
 
 
 static DECLARE_MUTEX(ioctl_mutex);

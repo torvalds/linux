@@ -87,11 +87,24 @@ static enum instruction_type bundle_encoding[32][3] = {
  * is IP relative instruction and update the kprobe
  * inst flag accordingly
  */
-static void update_kprobe_inst_flag(uint template, uint  slot, uint major_opcode,
-	unsigned long kprobe_inst, struct kprobe *p)
+static void __kprobes update_kprobe_inst_flag(uint template, uint  slot,
+					      uint major_opcode,
+					      unsigned long kprobe_inst,
+					      struct kprobe *p)
 {
 	p->ainsn.inst_flag = 0;
 	p->ainsn.target_br_reg = 0;
+
+	/* Check for Break instruction
+ 	 * Bits 37:40 Major opcode to be zero
+	 * Bits 27:32 X6 to be zero
+	 * Bits 32:35 X3 to be zero
+	 */
+	if ((!major_opcode) && (!((kprobe_inst >> 27) & 0x1FF)) ) {
+		/* is a break instruction */
+	 	p->ainsn.inst_flag |= INST_FLAG_BREAK_INST;
+		return;
+	}
 
 	if (bundle_encoding[template][slot] == B) {
 		switch (major_opcode) {
@@ -126,8 +139,10 @@ static void update_kprobe_inst_flag(uint template, uint  slot, uint major_opcode
  * Returns 0 if supported
  * Returns -EINVAL if unsupported
  */
-static int unsupported_inst(uint template, uint  slot, uint major_opcode,
-	unsigned long kprobe_inst, struct kprobe *p)
+static int __kprobes unsupported_inst(uint template, uint  slot,
+				      uint major_opcode,
+				      unsigned long kprobe_inst,
+				      struct kprobe *p)
 {
 	unsigned long addr = (unsigned long)p->addr;
 
@@ -168,8 +183,9 @@ static int unsupported_inst(uint template, uint  slot, uint major_opcode,
  * on which we are inserting kprobe is cmp instruction
  * with ctype as unc.
  */
-static uint is_cmp_ctype_unc_inst(uint template, uint slot, uint major_opcode,
-unsigned long kprobe_inst)
+static uint __kprobes is_cmp_ctype_unc_inst(uint template, uint slot,
+					    uint major_opcode,
+					    unsigned long kprobe_inst)
 {
 	cmp_inst_t cmp_inst;
 	uint ctype_unc = 0;
@@ -201,8 +217,10 @@ out:
  * In this function we override the bundle with
  * the break instruction at the given slot.
  */
-static void prepare_break_inst(uint template, uint  slot, uint major_opcode,
-	unsigned long kprobe_inst, struct kprobe *p)
+static void __kprobes prepare_break_inst(uint template, uint  slot,
+					 uint major_opcode,
+					 unsigned long kprobe_inst,
+					 struct kprobe *p)
 {
 	unsigned long break_inst = BREAK_INST;
 	bundle_t *bundle = &p->ainsn.insn.bundle;
@@ -271,7 +289,8 @@ static inline int in_ivt_functions(unsigned long addr)
 		&& addr < (unsigned long)__end_ivt_text);
 }
 
-static int valid_kprobe_addr(int template, int slot, unsigned long addr)
+static int __kprobes valid_kprobe_addr(int template, int slot,
+				       unsigned long addr)
 {
 	if ((slot > 2) || ((bundle_encoding[template][1] == L) && slot > 1)) {
 		printk(KERN_WARNING "Attempting to insert unaligned kprobe "
@@ -323,7 +342,7 @@ static void kretprobe_trampoline(void)
  *    - cleanup by marking the instance as unused
  *    - long jump back to the original return address
  */
-int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head;
@@ -381,7 +400,8 @@ int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
         return 1;
 }
 
-void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+				      struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri;
 
@@ -399,7 +419,7 @@ void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
 	}
 }
 
-int arch_prepare_kprobe(struct kprobe *p)
+int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	unsigned long addr = (unsigned long) p->addr;
 	unsigned long *kprobe_addr = (unsigned long *)(addr & ~0xFULL);
@@ -430,7 +450,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	return 0;
 }
 
-void arch_arm_kprobe(struct kprobe *p)
+void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
 	unsigned long addr = (unsigned long)p->addr;
 	unsigned long arm_addr = addr & ~0xFULL;
@@ -439,7 +459,7 @@ void arch_arm_kprobe(struct kprobe *p)
 	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
 }
 
-void arch_disarm_kprobe(struct kprobe *p)
+void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	unsigned long addr = (unsigned long)p->addr;
 	unsigned long arm_addr = addr & ~0xFULL;
@@ -449,7 +469,7 @@ void arch_disarm_kprobe(struct kprobe *p)
 	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
 }
 
-void arch_remove_kprobe(struct kprobe *p)
+void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 }
 
@@ -461,7 +481,7 @@ void arch_remove_kprobe(struct kprobe *p)
  * to original stack address, handle the case where we need to fixup the
  * relative IP address and/or fixup branch register.
  */
-static void resume_execution(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
   	unsigned long bundle_addr = ((unsigned long) (&p->opcode.bundle)) & ~0xFULL;
   	unsigned long resume_addr = (unsigned long)p->addr & ~0xFULL;
@@ -528,13 +548,16 @@ turn_ss_off:
   	ia64_psr(regs)->ss = 0;
 }
 
-static void prepare_ss(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes prepare_ss(struct kprobe *p, struct pt_regs *regs)
 {
 	unsigned long bundle_addr = (unsigned long) &p->opcode.bundle;
 	unsigned long slot = (unsigned long)p->addr & 0xf;
 
-	/* Update instruction pointer (IIP) and slot number (IPSR.ri) */
-	regs->cr_iip = bundle_addr & ~0xFULL;
+	/* single step inline if break instruction */
+	if (p->ainsn.inst_flag == INST_FLAG_BREAK_INST)
+		regs->cr_iip = (unsigned long)p->addr & ~0xFULL;
+	else
+		regs->cr_iip = bundle_addr & ~0xFULL;
 
 	if (slot > 2)
 		slot = 0;
@@ -545,7 +568,39 @@ static void prepare_ss(struct kprobe *p, struct pt_regs *regs)
 	ia64_psr(regs)->ss = 1;
 }
 
-static int pre_kprobes_handler(struct die_args *args)
+static int __kprobes is_ia64_break_inst(struct pt_regs *regs)
+{
+	unsigned int slot = ia64_psr(regs)->ri;
+	unsigned int template, major_opcode;
+	unsigned long kprobe_inst;
+	unsigned long *kprobe_addr = (unsigned long *)regs->cr_iip;
+	bundle_t bundle;
+
+	memcpy(&bundle, kprobe_addr, sizeof(bundle_t));
+	template = bundle.quad0.template;
+
+	/* Move to slot 2, if bundle is MLX type and kprobe slot is 1 */
+	if (slot == 1 && bundle_encoding[template][1] == L)
+  		slot++;
+
+	/* Get Kprobe probe instruction at given slot*/
+	get_kprobe_inst(&bundle, slot, &kprobe_inst, &major_opcode);
+
+	/* For break instruction,
+	 * Bits 37:40 Major opcode to be zero
+	 * Bits 27:32 X6 to be zero
+	 * Bits 32:35 X3 to be zero
+	 */
+	if (major_opcode || ((kprobe_inst >> 27) & 0x1FF) ) {
+		/* Not a break instruction */
+		return 0;
+	}
+
+	/* Is a break instruction */
+	return 1;
+}
+
+static int __kprobes pre_kprobes_handler(struct die_args *args)
 {
 	struct kprobe *p;
 	int ret = 0;
@@ -558,7 +613,9 @@ static int pre_kprobes_handler(struct die_args *args)
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
-			if (kprobe_status == KPROBE_HIT_SS) {
+			if ( (kprobe_status == KPROBE_HIT_SS) &&
+	 		     (p->ainsn.inst_flag == INST_FLAG_BREAK_INST)) {
+  				ia64_psr(regs)->ss = 0;
 				unlock_kprobes();
 				goto no_kprobe;
 			}
@@ -592,6 +649,19 @@ static int pre_kprobes_handler(struct die_args *args)
 	p = get_kprobe(addr);
 	if (!p) {
 		unlock_kprobes();
+		if (!is_ia64_break_inst(regs)) {
+			/*
+			 * The breakpoint instruction was removed right
+			 * after we hit it.  Another cpu has removed
+			 * either a probepoint or a debugger breakpoint
+			 * at this address.  In either case, no further
+			 * handling of this interrupt is appropriate.
+			 */
+			ret = 1;
+
+		}
+
+		/* Not one of our break, let kernel handle it */
 		goto no_kprobe;
 	}
 
@@ -616,7 +686,7 @@ no_kprobe:
 	return ret;
 }
 
-static int post_kprobes_handler(struct pt_regs *regs)
+static int __kprobes post_kprobes_handler(struct pt_regs *regs)
 {
 	if (!kprobe_running())
 		return 0;
@@ -641,7 +711,7 @@ out:
 	return 1;
 }
 
-static int kprobes_fault_handler(struct pt_regs *regs, int trapnr)
+static int __kprobes kprobes_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	if (!kprobe_running())
 		return 0;
@@ -659,8 +729,8 @@ static int kprobes_fault_handler(struct pt_regs *regs, int trapnr)
 	return 0;
 }
 
-int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
-			     void *data)
+int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	switch(val) {
@@ -681,7 +751,7 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 	unsigned long addr = ((struct fnptr *)(jp->entry))->ip;
@@ -703,7 +773,7 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	*regs = jprobe_saved_regs;
 	return 1;

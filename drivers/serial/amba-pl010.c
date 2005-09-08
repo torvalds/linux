@@ -105,7 +105,7 @@ struct uart_amba_port {
 	unsigned int		old_status;
 };
 
-static void pl010_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void pl010_stop_tx(struct uart_port *port)
 {
 	unsigned int cr;
 
@@ -114,7 +114,7 @@ static void pl010_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	UART_PUT_CR(port, cr);
 }
 
-static void pl010_start_tx(struct uart_port *port, unsigned int tty_start)
+static void pl010_start_tx(struct uart_port *port)
 {
 	unsigned int cr;
 
@@ -219,7 +219,7 @@ static void pl010_tx_chars(struct uart_port *port)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		pl010_stop_tx(port, 0);
+		pl010_stop_tx(port);
 		return;
 	}
 
@@ -236,7 +236,7 @@ static void pl010_tx_chars(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		pl010_stop_tx(port, 0);
+		pl010_stop_tx(port);
 }
 
 static void pl010_modem_status(struct uart_port *port)

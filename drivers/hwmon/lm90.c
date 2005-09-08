@@ -75,8 +75,9 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /*
  * Addresses to scan
@@ -89,13 +90,12 @@
  */
 
 static unsigned short normal_i2c[] = { 0x4c, 0x4d, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /*
  * Insmod parameters
  */
 
-SENSORS_INSMOD_6(lm90, adm1032, lm99, lm86, max6657, adt7461);
+I2C_CLIENT_INSMOD_6(lm90, adm1032, lm99, lm86, max6657, adt7461);
 
 /*
  * The LM90 registers
@@ -200,6 +200,7 @@ static struct i2c_driver lm90_driver = {
 
 struct lm90_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -352,7 +353,7 @@ static int lm90_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, lm90_detect);
+	return i2c_probe(adapter, &addr_data, lm90_detect);
 }
 
 /*
@@ -500,6 +501,12 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 	lm90_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_create_file(&new_client->dev,
@@ -524,6 +531,8 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -547,15 +556,15 @@ static void lm90_init_client(struct i2c_client *client)
 
 static int lm90_detach_client(struct i2c_client *client)
 {
+	struct lm90_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
-		return err;
-	}
+	hwmon_device_unregister(data->class_dev);
 
-	kfree(i2c_get_clientdata(client));
+	if ((err = i2c_detach_client(client)))
+		return err;
+
+	kfree(data);
 	return 0;
 }
 

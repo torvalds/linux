@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -892,7 +891,10 @@ static void __init prom_init_mem(void)
 	if ( RELOC(of_platform) == PLATFORM_PSERIES_LPAR )
 		RELOC(alloc_top) = RELOC(rmo_top);
 	else
-		RELOC(alloc_top) = RELOC(rmo_top) = min(0x40000000ul, RELOC(ram_top));
+		/* Some RS64 machines have buggy firmware where claims up at 1GB
+		 * fails. Cap at 768MB as a workaround. Still plenty of room.
+		 */
+		RELOC(alloc_top) = RELOC(rmo_top) = min(0x30000000ul, RELOC(ram_top));
 
 	prom_printf("memory layout at init:\n");
 	prom_printf("  memory_limit : %x (16 MB aligned)\n", RELOC(prom_memory_limit));
@@ -1534,7 +1536,8 @@ static unsigned long __init dt_find_string(char *str)
  */
 #define MAX_PROPERTY_NAME 64
 
-static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
+static void __init scan_dt_build_strings(phandle node,
+					 unsigned long *mem_start,
 					 unsigned long *mem_end)
 {
 	unsigned long offset = reloc_offset();
@@ -1547,16 +1550,21 @@ static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 	/* get and store all property names */
 	prev_name = RELOC("");
 	for (;;) {
-		int rc;
-
 		/* 64 is max len of name including nul. */
 		namep = make_room(mem_start, mem_end, MAX_PROPERTY_NAME, 1);
-		rc = call_prom("nextprop", 3, 1, node, prev_name, namep);
-		if (rc != 1) {
+		if (call_prom("nextprop", 3, 1, node, prev_name, namep) != 1) {
 			/* No more nodes: unwind alloc */
 			*mem_start = (unsigned long)namep;
 			break;
 		}
+
+ 		/* skip "name" */
+ 		if (strcmp(namep, RELOC("name")) == 0) {
+ 			*mem_start = (unsigned long)namep;
+ 			prev_name = RELOC("name");
+ 			continue;
+ 		}
+		/* get/create string entry */
 		soff = dt_find_string(namep);
 		if (soff != 0) {
 			*mem_start = (unsigned long)namep;
@@ -1571,7 +1579,7 @@ static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 
 	/* do all our children */
 	child = call_prom("child", 1, 1, node);
-	while (child != (phandle)0) {
+	while (child != 0) {
 		scan_dt_build_strings(child, mem_start, mem_end);
 		child = call_prom("peer", 1, 1, child);
 	}
@@ -1580,16 +1588,13 @@ static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 					unsigned long *mem_end)
 {
-	int l, align;
 	phandle child;
-	char *namep, *prev_name, *sstart, *p, *ep;
+	char *namep, *prev_name, *sstart, *p, *ep, *lp, *path;
 	unsigned long soff;
 	unsigned char *valp;
 	unsigned long offset = reloc_offset();
-	char pname[MAX_PROPERTY_NAME];
-	char *path;
-
-	path = RELOC(prom_scratch);
+	static char pname[MAX_PROPERTY_NAME];
+	int l;
 
 	dt_push_token(OF_DT_BEGIN_NODE, mem_start, mem_end);
 
@@ -1599,23 +1604,33 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 		      namep, *mem_end - *mem_start);
 	if (l >= 0) {
 		/* Didn't fit?  Get more room. */
-		if (l+1 > *mem_end - *mem_start) {
+		if ((l+1) > (*mem_end - *mem_start)) {
 			namep = make_room(mem_start, mem_end, l+1, 1);
 			call_prom("package-to-path", 3, 1, node, namep, l);
 		}
 		namep[l] = '\0';
+
 		/* Fixup an Apple bug where they have bogus \0 chars in the
 		 * middle of the path in some properties
 		 */
 		for (p = namep, ep = namep + l; p < ep; p++)
 			if (*p == '\0') {
 				memmove(p, p+1, ep - p);
-				ep--; l--;
+				ep--; l--; p--;
 			}
-		*mem_start = _ALIGN(((unsigned long) namep) + strlen(namep) + 1, 4);
+
+		/* now try to extract the unit name in that mess */
+		for (p = namep, lp = NULL; *p; p++)
+			if (*p == '/')
+				lp = p + 1;
+		if (lp != NULL)
+			memmove(namep, lp, strlen(lp) + 1);
+		*mem_start = _ALIGN(((unsigned long) namep) +
+				    strlen(namep) + 1, 4);
 	}
 
 	/* get it again for debugging */
+	path = RELOC(prom_scratch);
 	memset(path, 0, PROM_SCRATCH_SIZE);
 	call_prom("package-to-path", 3, 1, node, path, PROM_SCRATCH_SIZE-1);
 
@@ -1623,23 +1638,27 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 	prev_name = RELOC("");
 	sstart = (char *)RELOC(dt_string_start);
 	for (;;) {
-		int rc;
-
-		rc = call_prom("nextprop", 3, 1, node, prev_name, pname);
-		if (rc != 1)
+		if (call_prom("nextprop", 3, 1, node, prev_name,
+			      RELOC(pname)) != 1)
 			break;
 
+ 		/* skip "name" */
+ 		if (strcmp(RELOC(pname), RELOC("name")) == 0) {
+ 			prev_name = RELOC("name");
+ 			continue;
+ 		}
+
 		/* find string offset */
-		soff = dt_find_string(pname);
+		soff = dt_find_string(RELOC(pname));
 		if (soff == 0) {
-			prom_printf("WARNING: Can't find string index for <%s>, node %s\n",
-				    pname, path);
+			prom_printf("WARNING: Can't find string index for"
+				    " <%s>, node %s\n", RELOC(pname), path);
 			break;
 		}
 		prev_name = sstart + soff;
 
 		/* get length */
-		l = call_prom("getproplen", 2, 1, node, pname);
+		l = call_prom("getproplen", 2, 1, node, RELOC(pname));
 
 		/* sanity checks */
 		if (l == PROM_ERROR)
@@ -1648,7 +1667,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 			prom_printf("WARNING: ignoring large property ");
 			/* It seems OF doesn't null-terminate the path :-( */
 			prom_printf("[%s] ", path);
-			prom_printf("%s length 0x%x\n", pname, l);
+			prom_printf("%s length 0x%x\n", RELOC(pname), l);
 			continue;
 		}
 
@@ -1658,17 +1677,16 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 		dt_push_token(soff, mem_start, mem_end);
 
 		/* push property content */
-		align = (l >= 8) ? 8 : 4;
-		valp = make_room(mem_start, mem_end, l, align);
-		call_prom("getprop", 4, 1, node, pname, valp, l);
+		valp = make_room(mem_start, mem_end, l, 4);
+		call_prom("getprop", 4, 1, node, RELOC(pname), valp, l);
 		*mem_start = _ALIGN(*mem_start, 4);
 	}
 
 	/* Add a "linux,phandle" property. */
 	soff = dt_find_string(RELOC("linux,phandle"));
 	if (soff == 0)
-		prom_printf("WARNING: Can't find string index for <linux-phandle>"
-			    " node %s\n", path);
+		prom_printf("WARNING: Can't find string index for"
+			    " <linux-phandle> node %s\n", path);
 	else {
 		dt_push_token(OF_DT_PROP, mem_start, mem_end);
 		dt_push_token(4, mem_start, mem_end);
@@ -1679,7 +1697,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 
 	/* do all our children */
 	child = call_prom("child", 1, 1, node);
-	while (child != (phandle)0) {
+	while (child != 0) {
 		scan_dt_build_struct(child, mem_start, mem_end);
 		child = call_prom("peer", 1, 1, child);
 	}
@@ -1718,7 +1736,8 @@ static void __init flatten_device_tree(void)
 
 	/* Build header and make room for mem rsv map */ 
 	mem_start = _ALIGN(mem_start, 4);
-	hdr = make_room(&mem_start, &mem_end, sizeof(struct boot_param_header), 4);
+	hdr = make_room(&mem_start, &mem_end,
+			sizeof(struct boot_param_header), 4);
 	RELOC(dt_header_start) = (unsigned long)hdr;
 	rsvmap = make_room(&mem_start, &mem_end, sizeof(mem_reserve_map), 8);
 
@@ -1731,11 +1750,11 @@ static void __init flatten_device_tree(void)
 	namep = make_room(&mem_start, &mem_end, 16, 1);
 	strcpy(namep, RELOC("linux,phandle"));
 	mem_start = (unsigned long)namep + strlen(namep) + 1;
-	RELOC(dt_string_end) = mem_start;
 
 	/* Build string array */
 	prom_printf("Building dt strings...\n"); 
 	scan_dt_build_strings(root, &mem_start, &mem_end);
+	RELOC(dt_string_end) = mem_start;
 
 	/* Build structure */
 	mem_start = PAGE_ALIGN(mem_start);
@@ -1750,9 +1769,11 @@ static void __init flatten_device_tree(void)
 	hdr->totalsize = RELOC(dt_struct_end) - RELOC(dt_header_start);
 	hdr->off_dt_struct = RELOC(dt_struct_start) - RELOC(dt_header_start);
 	hdr->off_dt_strings = RELOC(dt_string_start) - RELOC(dt_header_start);
+	hdr->dt_strings_size = RELOC(dt_string_end) - RELOC(dt_string_start);
 	hdr->off_mem_rsvmap = ((unsigned long)rsvmap) - RELOC(dt_header_start);
 	hdr->version = OF_DT_VERSION;
-	hdr->last_comp_version = 1;
+	/* Version 16 is not backward compatible */
+	hdr->last_comp_version = 0x10;
 
 	/* Reserve the whole thing and copy the reserve map in, we
 	 * also bump mem_reserve_cnt to cause further reservations to
@@ -1808,6 +1829,9 @@ static void __init fixup_device_tree(void)
 	/* does it need fixup ? */
 	if (prom_getproplen(i2c, "interrupts") > 0)
 		return;
+
+	prom_printf("fixing up bogus interrupts for u3 i2c...\n");
+
 	/* interrupt on this revision of u3 is number 0 and level */
 	interrupts[0] = 0;
 	interrupts[1] = 1;

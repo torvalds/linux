@@ -153,7 +153,6 @@ static int tty_release(struct inode *, struct file *);
 int tty_ioctl(struct inode * inode, struct file * file,
 	      unsigned int cmd, unsigned long arg);
 static int tty_fasync(int fd, struct file * filp, int on);
-extern void rs_360_init(void);
 static void release_mem(struct tty_struct *tty, int idx);
 
 
@@ -2910,11 +2909,6 @@ void __init console_init(void)
 	 */
 #ifdef CONFIG_EARLY_PRINTK
 	disable_early_printk();
-#endif
-#ifdef CONFIG_SERIAL_68360
- 	/* This is not a console initcall. I know not what it's doing here.
-	   So I haven't moved it. dwmw2 */
-        rs_360_init();
 #endif
 	call = __con_initcall_start;
 	while (call < __con_initcall_end) {

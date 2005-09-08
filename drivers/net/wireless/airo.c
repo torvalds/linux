@@ -1040,7 +1040,7 @@ typedef struct {
 	u16 status;
 } WifiCtlHdr;
 
-WifiCtlHdr wifictlhdr8023 = {
+static WifiCtlHdr wifictlhdr8023 = {
 	.ctlhdr = {
 		.ctl	= HOST_DONT_RLSE,
 	}
@@ -1111,13 +1111,13 @@ static int airo_thread(void *data);
 static void timer_func( struct net_device *dev );
 static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #ifdef WIRELESS_EXT
-struct iw_statistics *airo_get_wireless_stats (struct net_device *dev);
+static struct iw_statistics *airo_get_wireless_stats (struct net_device *dev);
 static void airo_read_wireless_stats (struct airo_info *local);
 #endif /* WIRELESS_EXT */
 #ifdef CISCO_EXT
 static int readrids(struct net_device *dev, aironet_ioctl *comp);
 static int writerids(struct net_device *dev, aironet_ioctl *comp);
-int flashcard(struct net_device *dev, aironet_ioctl *comp);
+static int flashcard(struct net_device *dev, aironet_ioctl *comp);
 #endif /* CISCO_EXT */
 #ifdef MICSUPPORT
 static void micinit(struct airo_info *ai);
@@ -1226,6 +1226,12 @@ static int setup_proc_entry( struct net_device *dev,
 static int takedown_proc_entry( struct net_device *dev,
 				struct airo_info *apriv );
 
+static int cmdreset(struct airo_info *ai);
+static int setflashmode (struct airo_info *ai);
+static int flashgchar(struct airo_info *ai,int matchbyte,int dwelltime);
+static int flashputbuf(struct airo_info *ai);
+static int flashrestart(struct airo_info *ai,struct net_device *dev);
+
 #ifdef MICSUPPORT
 /***********************************************************************
  *                              MIC ROUTINES                           *
@@ -1234,10 +1240,11 @@ static int takedown_proc_entry( struct net_device *dev,
 
 static int RxSeqValid (struct airo_info *ai,miccntx *context,int mcast,u32 micSeq);
 static void MoveWindow(miccntx *context, u32 micSeq);
-void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *);
-void emmh32_init(emmh32_context *context);
-void emmh32_update(emmh32_context *context, u8 *pOctets, int len);
-void emmh32_final(emmh32_context *context, u8 digest[4]);
+static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *);
+static void emmh32_init(emmh32_context *context);
+static void emmh32_update(emmh32_context *context, u8 *pOctets, int len);
+static void emmh32_final(emmh32_context *context, u8 digest[4]);
+static int flashpchar(struct airo_info *ai,int byte,int dwelltime);
 
 /* micinit - Initialize mic seed */
 
@@ -1301,7 +1308,7 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-	        ai->tfm = crypto_alloc_tfm("aes", 0);
+	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
 
         if (ai->tfm == NULL) {
                 printk(KERN_ERR "airo: failed to load transform for AES\n");
@@ -1315,7 +1322,7 @@ static int micsetup(struct airo_info *ai) {
 	return SUCCESS;
 }
 
-char micsnap[]= {0xAA,0xAA,0x03,0x00,0x40,0x96,0x00,0x02};
+static char micsnap[] = {0xAA,0xAA,0x03,0x00,0x40,0x96,0x00,0x02};
 
 /*===========================================================================
  * Description: Mic a packet
@@ -1570,7 +1577,7 @@ static void MoveWindow(miccntx *context, u32 micSeq)
 static unsigned char aes_counter[16];
 
 /* expand the key to fill the MMH coefficient array */
-void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *tfm)
+static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *tfm)
 {
   /* take the keying material, expand if necessary, truncate at 16-bytes */
   /* run through AES counter mode to generate context->coeff[] */
@@ -1602,7 +1609,7 @@ void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto
 }
 
 /* prepare for calculation of a new mic */
-void emmh32_init(emmh32_context *context)
+static void emmh32_init(emmh32_context *context)
 {
 	/* prepare for new mic calculation */
 	context->accum = 0;
@@ -1610,7 +1617,7 @@ void emmh32_init(emmh32_context *context)
 }
 
 /* add some bytes to the mic calculation */
-void emmh32_update(emmh32_context *context, u8 *pOctets, int len)
+static void emmh32_update(emmh32_context *context, u8 *pOctets, int len)
 {
 	int	coeff_position, byte_position;
   
@@ -1652,7 +1659,7 @@ void emmh32_update(emmh32_context *context, u8 *pOctets, int len)
 static u32 mask32[4] = { 0x00000000L, 0xFF000000L, 0xFFFF0000L, 0xFFFFFF00L };
 
 /* calculate the mic */
-void emmh32_final(emmh32_context *context, u8 digest[4])
+static void emmh32_final(emmh32_context *context, u8 digest[4])
 {
 	int	coeff_position, byte_position;
 	u32	val;
@@ -2232,7 +2239,7 @@ static void airo_read_stats(struct airo_info *ai) {
 	u32 *vals = stats_rid.vals;
 
 	clear_bit(JOB_STATS, &ai->flags);
-	if (ai->power) {
+	if (ai->power.event) {
 		up(&ai->sem);
 		return;
 	}
@@ -2255,7 +2262,7 @@ static void airo_read_stats(struct airo_info *ai) {
 	ai->stats.rx_fifo_errors = vals[0];
 }
 
-struct net_device_stats *airo_get_stats(struct net_device *dev)
+static struct net_device_stats *airo_get_stats(struct net_device *dev)
 {
 	struct airo_info *local =  dev->priv;
 
@@ -2403,8 +2410,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 		}
         }
 #ifdef MICSUPPORT
-	if (ai->tfm)
-		crypto_free_tfm(ai->tfm);
+	crypto_free_tfm(ai->tfm);
 #endif
 	del_airo_dev( dev );
 	free_netdev( dev );
@@ -2414,7 +2420,7 @@ EXPORT_SYMBOL(stop_airo_card);
 
 static int add_airo_dev( struct net_device *dev );
 
-int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
+static int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
 {
 	memcpy(haddr, skb->mac.raw + 10, ETH_ALEN);
 	return ETH_ALEN;
@@ -2681,7 +2687,7 @@ static struct net_device *init_wifidev(struct airo_info *ai,
 	return dev;
 }
 
-int reset_card( struct net_device *dev , int lock) {
+static int reset_card( struct net_device *dev , int lock) {
 	struct airo_info *ai = dev->priv;
 
 	if (lock && down_interruptible(&ai->sem))
@@ -2696,9 +2702,9 @@ int reset_card( struct net_device *dev , int lock) {
 	return 0;
 }
 
-struct net_device *_init_airo_card( unsigned short irq, int port,
-				    int is_pcmcia, struct pci_dev *pci,
-				    struct device *dmdev )
+static struct net_device *_init_airo_card( unsigned short irq, int port,
+					   int is_pcmcia, struct pci_dev *pci,
+					   struct device *dmdev )
 {
 	struct net_device *dev;
 	struct airo_info *ai;
@@ -2962,7 +2968,7 @@ static int airo_thread(void *data) {
 			break;
 		}
 
-		if (ai->power || test_bit(FLAG_FLASHING, &ai->flags)) {
+		if (ai->power.event || test_bit(FLAG_FLASHING, &ai->flags)) {
 			up(&ai->sem);
 			continue;
 		}
@@ -3252,7 +3258,7 @@ badrx:
 				wstats.noise = apriv->wstats.qual.noise;
 				wstats.updated = IW_QUAL_LEVEL_UPDATED
 					| IW_QUAL_QUAL_UPDATED
-					| IW_QUAL_NOISE_UPDATED;
+					| IW_QUAL_DBM;
 				/* Update spy records */
 				wireless_spy_update(dev, sa, &wstats);
 			}
@@ -3598,7 +3604,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 		wstats.noise = ai->wstats.qual.noise;
 		wstats.updated = IW_QUAL_QUAL_UPDATED
 			| IW_QUAL_LEVEL_UPDATED
-			| IW_QUAL_NOISE_UPDATED;
+			| IW_QUAL_DBM;
 		/* Update spy records */
 		wireless_spy_update(ai->dev, sa, &wstats);
 	}
@@ -5514,7 +5520,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, ai->power), 0);
 
-	if (ai->power > 1) {
+	if (ai->power.event > 1) {
 		reset_card(dev, 0);
 		mpi_init_descriptors(ai);
 		setup_card(ai, dev->dev_addr, 0);
@@ -6483,22 +6489,20 @@ static int airo_get_range(struct net_device *dev,
 		range->max_qual.qual = 100;	/* % */
 	else
 		range->max_qual.qual = airo_get_max_quality(&cap_rid);
-	range->max_qual.level = 0;	/* 0 means we use dBm  */
-	range->max_qual.noise = 0;
-	range->max_qual.updated = 0;
+	range->max_qual.level = 0x100 - 120;	/* -120 dBm */
+	range->max_qual.noise = 0x100 - 120;	/* -120 dBm */
 
 	/* Experimental measurements - boundary 11/5.5 Mb/s */
 	/* Note : with or without the (local->rssi), results
 	 * are somewhat different. - Jean II */
 	if (local->rssi) {
-		range->avg_qual.qual = 50;	/* % */
-		range->avg_qual.level = 186;	/* -70 dBm */
+		range->avg_qual.qual = 50;		/* % */
+		range->avg_qual.level = 0x100 - 70;	/* -70 dBm */
 	} else {
 		range->avg_qual.qual = airo_get_avg_quality(&cap_rid);
-		range->avg_qual.level = 176;	/* -80 dBm */
+		range->avg_qual.level = 0x100 - 80;	/* -80 dBm */
 	}
-	range->avg_qual.noise = 0;
-	range->avg_qual.updated = 0;
+	range->avg_qual.noise = 0x100 - 85;		/* -85 dBm */
 
 	for(i = 0 ; i < 8 ; i++) {
 		range->bitrate[i] = cap_rid.supportedRates[i] * 500000;
@@ -6721,15 +6725,17 @@ static int airo_get_aplist(struct net_device *dev,
 		if (local->rssi) {
 			qual[i].level = 0x100 - BSSList.dBm;
 			qual[i].qual = airo_dbm_to_pct( local->rssi, BSSList.dBm );
-			qual[i].updated = IW_QUAL_QUAL_UPDATED;
+			qual[i].updated = IW_QUAL_QUAL_UPDATED
+					| IW_QUAL_LEVEL_UPDATED
+					| IW_QUAL_DBM;
 		} else {
 			qual[i].level = (BSSList.dBm + 321) / 2;
 			qual[i].qual = 0;
-			qual[i].updated = IW_QUAL_QUAL_INVALID;
+			qual[i].updated = IW_QUAL_QUAL_INVALID
+					| IW_QUAL_LEVEL_UPDATED
+					| IW_QUAL_DBM;
 		}
 		qual[i].noise = local->wstats.qual.noise;
-		qual[i].updated = IW_QUAL_LEVEL_UPDATED
-				| IW_QUAL_NOISE_UPDATED;
 		if (BSSList.index == 0xffff)
 			break;
 	}
@@ -6855,15 +6861,17 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	if (ai->rssi) {
 		iwe.u.qual.level = 0x100 - bss->dBm;
 		iwe.u.qual.qual = airo_dbm_to_pct( ai->rssi, bss->dBm );
-		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED;
+		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED
+				| IW_QUAL_LEVEL_UPDATED
+				| IW_QUAL_DBM;
 	} else {
 		iwe.u.qual.level = (bss->dBm + 321) / 2;
 		iwe.u.qual.qual = 0;
-		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID;
+		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID
+				| IW_QUAL_LEVEL_UPDATED
+				| IW_QUAL_DBM;
 	}
 	iwe.u.qual.noise = ai->wstats.qual.noise;
-	iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED
-			| IW_QUAL_NOISE_UPDATED;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
@@ -7116,7 +7124,7 @@ static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	int rc = 0;
 	struct airo_info *ai = (struct airo_info *)dev->priv;
 
-	if (ai->power)
+	if (ai->power.event)
 		return 0;
 
 	switch (cmd) {
@@ -7195,7 +7203,7 @@ static void airo_read_wireless_stats(struct airo_info *local)
 
 	/* Get stats out of the card */
 	clear_bit(JOB_WSTATS, &local->flags);
-	if (local->power) {
+	if (local->power.event) {
 		up(&local->sem);
 		return;
 	}
@@ -7216,13 +7224,12 @@ static void airo_read_wireless_stats(struct airo_info *local)
 		local->wstats.qual.level = (status_rid.normalizedSignalStrength + 321) / 2;
 		local->wstats.qual.qual = airo_get_quality(&status_rid, &cap_rid);
 	}
-	local->wstats.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED;
 	if (status_rid.len >= 124) {
 		local->wstats.qual.noise = 0x100 - status_rid.noisedBm;
-		local->wstats.qual.updated |= IW_QUAL_NOISE_UPDATED;
+		local->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	} else {
 		local->wstats.qual.noise = 0;
-		local->wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
+		local->wstats.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED | IW_QUAL_NOISE_INVALID | IW_QUAL_DBM;
 	}
 
 	/* Packets discarded in the wireless adapter due to wireless
@@ -7235,7 +7242,7 @@ static void airo_read_wireless_stats(struct airo_info *local)
 	local->wstats.miss.beacon = vals[34];
 }
 
-struct iw_statistics *airo_get_wireless_stats(struct net_device *dev)
+static struct iw_statistics *airo_get_wireless_stats(struct net_device *dev)
 {
 	struct airo_info *local =  dev->priv;
 
@@ -7450,14 +7457,8 @@ static int writerids(struct net_device *dev, aironet_ioctl *comp) {
  * Flash command switch table
  */
 
-int flashcard(struct net_device *dev, aironet_ioctl *comp) {
+static int flashcard(struct net_device *dev, aironet_ioctl *comp) {
 	int z;
-	int cmdreset(struct airo_info *);
-	int setflashmode(struct airo_info *);
-	int flashgchar(struct airo_info *,int,int);
-	int flashpchar(struct airo_info *,int,int);
-	int flashputbuf(struct airo_info *);
-	int flashrestart(struct airo_info *,struct net_device *);
 
 	/* Only super-user can modify flash */
 	if (!capable(CAP_NET_ADMIN))
@@ -7515,7 +7516,7 @@ int flashcard(struct net_device *dev, aironet_ioctl *comp) {
  * card.
  */
 
-int cmdreset(struct airo_info *ai) {
+static int cmdreset(struct airo_info *ai) {
 	disable_MAC(ai, 1);
 
 	if(!waitbusy (ai)){
@@ -7539,7 +7540,7 @@ int cmdreset(struct airo_info *ai) {
  * mode
  */
 
-int setflashmode (struct airo_info *ai) {
+static int setflashmode (struct airo_info *ai) {
 	set_bit (FLAG_FLASHING, &ai->flags);
 
 	OUT4500(ai, SWS0, FLASH_COMMAND);
@@ -7566,7 +7567,7 @@ int setflashmode (struct airo_info *ai) {
  * x 50us for  echo .
  */
 
-int flashpchar(struct airo_info *ai,int byte,int dwelltime) {
+static int flashpchar(struct airo_info *ai,int byte,int dwelltime) {
 	int echo;
 	int waittime;
 
@@ -7606,7 +7607,7 @@ int flashpchar(struct airo_info *ai,int byte,int dwelltime) {
  * Get a character from the card matching matchbyte
  * Step 3)
  */
-int flashgchar(struct airo_info *ai,int matchbyte,int dwelltime){
+static int flashgchar(struct airo_info *ai,int matchbyte,int dwelltime){
 	int           rchar;
 	unsigned char rbyte=0;
 
@@ -7637,7 +7638,7 @@ int flashgchar(struct airo_info *ai,int matchbyte,int dwelltime){
  * send to the card
  */
 
-int flashputbuf(struct airo_info *ai){
+static int flashputbuf(struct airo_info *ai){
 	int            nwords;
 
 	/* Write stuff */
@@ -7659,7 +7660,7 @@ int flashputbuf(struct airo_info *ai){
 /*
  *
  */
-int flashrestart(struct airo_info *ai,struct net_device *dev){
+static int flashrestart(struct airo_info *ai,struct net_device *dev){
 	int    i,status;
 
 	ssleep(1);			/* Added 12/7/00 */

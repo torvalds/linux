@@ -127,7 +127,7 @@ static inline void ddb_close_config_base(struct pci_config_swap *swap)
 }
 
 static int read_config_dword(struct pci_config_swap *swap,
-			     struct pci_bus *bus, u32 devfn, u32 where, 
+			     struct pci_bus *bus, u32 devfn, u32 where,
 			     u32 * val)
 {
 	u32 bus_num, slot_num, func_num;
@@ -153,7 +153,7 @@ static int read_config_dword(struct pci_config_swap *swap,
 }
 
 static int read_config_word(struct pci_config_swap *swap,
-			    struct pci_bus *bus, u32 devfn, u32 where, 
+			    struct pci_bus *bus, u32 devfn, u32 where,
 			    u16 * val)
 {
 	int status;

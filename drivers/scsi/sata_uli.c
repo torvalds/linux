@@ -125,8 +125,8 @@ static struct ata_port_info uli_port_info = {
 	.sht            = &uli_sht,
 	.host_flags     = ATA_FLAG_SATA | ATA_FLAG_SATA_RESET |
 			  ATA_FLAG_NO_LEGACY,
-	.pio_mask       = 0x03,		//support pio mode 4 (FIXME)
-	.udma_mask      = 0x7f,		//support udma mode 6
+	.pio_mask       = 0x1f,		/* pio0-4 */
+	.udma_mask      = 0x7f,		/* udma0-6 */
 	.port_ops       = &uli_ops,
 };
 

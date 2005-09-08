@@ -27,7 +27,7 @@ static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
 			      struct tty_struct *tty) 
 {
 	/* ensure xmon is enabled */
-	xmon_init();
+	xmon_init(1);
 	debugger(pt_regs);
 }
 
@@ -61,7 +61,9 @@ xmon_read(void *handle, void *ptr, int nb)
 int
 xmon_read_poll(void)
 {
-	return udbg_getc_poll();
+	if (udbg_getc_poll)
+		return udbg_getc_poll();
+	return -1;
 }
  
 FILE *xmon_stdin;

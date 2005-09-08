@@ -2,6 +2,7 @@
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/elf.h>
 #include <asm/page.h>
 
 #define DEFINE(sym, val) \

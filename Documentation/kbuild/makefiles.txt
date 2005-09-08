@@ -872,7 +872,13 @@ When kbuild executes the following steps are followed (roughly):
 	Assignments to $(targets) are without $(obj)/ prefix.
 	if_changed may be used in conjunction with custom commands as
 	defined in 6.7 "Custom kbuild commands".
+
 	Note: It is a typical mistake to forget the FORCE prerequisite.
+	Another common pitfall is that whitespace is sometimes
+	significant; for instance, the below will fail (note the extra space
+	after the comma):
+		target: source(s) FORCE
+	#WRONG!#	$(call if_changed, ld/objcopy/gzip)
 
     ld
 	Link target. Often LDFLAGS_$@ is used to set specific options to ld.

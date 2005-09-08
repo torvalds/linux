@@ -448,7 +448,7 @@ L_LA(_r3000_write_probe_fail)
 L_LA(_r3000_write_probe_ok)
 
 /* convenience macros for instructions */
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 # define i_LW(buf, rs, rt, off) i_ld(buf, rs, rt, off)
 # define i_SW(buf, rs, rt, off) i_sd(buf, rs, rt, off)
 # define i_SLL(buf, rs, rt, sh) i_dsll(buf, rs, rt, sh)
@@ -486,7 +486,7 @@ L_LA(_r3000_write_probe_ok)
 #define i_ssnop(buf) i_sll(buf, 0, 0, 1)
 #define i_ehb(buf) i_sll(buf, 0, 0, 3)
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 static __init int __attribute__((unused)) in_compat_space_p(long addr)
 {
 	/* Is this address in 32bit compat space? */
@@ -516,7 +516,7 @@ static __init int rel_lo(long val)
 
 static __init void i_LA_mostly(u32 **buf, unsigned int rs, long addr)
 {
-#if CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	if (!in_compat_space_p(addr)) {
 		i_lui(buf, rs, rel_highest(addr));
 		if (rel_higher(addr))
@@ -682,7 +682,7 @@ static void il_bgezl(u32 **p, struct reloc **r, unsigned int reg,
 #define C0_EPC		14
 #define C0_XCONTEXT	20
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 # define GET_CONTEXT(buf, reg) i_MFC0(buf, reg, C0_XCONTEXT)
 #else
 # define GET_CONTEXT(buf, reg) i_MFC0(buf, reg, C0_CONTEXT)
@@ -923,7 +923,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	}
 }
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 /*
  * TMP and PTR are scratch.
  * TMP will be clobbered, PTR will hold the pmd entry.
@@ -1010,7 +1010,7 @@ build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
 	}
 }
 
-#else /* !CONFIG_MIPS64 */
+#else /* !CONFIG_64BIT */
 
 /*
  * TMP and PTR are scratch.
@@ -1038,7 +1038,7 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 	i_addu(p, ptr, ptr, tmp); /* add in pgd offset */
 }
 
-#endif /* !CONFIG_MIPS64 */
+#endif /* !CONFIG_64BIT */
 
 static __init void build_adjust_context(u32 **p, unsigned int ctx)
 {
@@ -1159,7 +1159,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 		/* No need for i_nop */
 	}
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	build_get_pmde64(&p, &l, &r, K0, K1); /* get pmd in K1 */
 #else
 	build_get_pgde32(&p, K0, K1); /* get pgd in K1 */
@@ -1171,7 +1171,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 	l_leave(&l, p);
 	i_eret(&p); /* return from trap */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	build_get_pgd_vmalloc64(&p, &l, &r, K0, K1);
 #endif
 
@@ -1182,7 +1182,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 	 * need three, with the the second nop'ed and the third being
 	 * unused.
 	 */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	if ((p - tlb_handler) > 64)
 		panic("TLB refill handler space exceeded");
 #else
@@ -1195,12 +1195,12 @@ static void __init build_r4000_tlb_refill_handler(void)
 	/*
 	 * Now fold the handler in the TLB refill handler space.
 	 */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	f = final_handler;
 	/* Simplest case, just copy the handler. */
 	copy_handler(relocs, labels, tlb_handler, p, f);
 	final_len = p - tlb_handler;
-#else /* CONFIG_MIPS64 */
+#else /* CONFIG_64BIT */
 	f = final_handler + 32;
 	if ((p - tlb_handler) <= 32) {
 		/* Just copy the handler. */
@@ -1235,7 +1235,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 		copy_handler(relocs, labels, split, p, final_handler);
 		final_len = (f - (final_handler + 32)) + (p - split);
 	}
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 	resolve_relocs(relocs, labels);
 	printk("Synthesized TLB refill handler (%u instructions).\n",
@@ -1605,7 +1605,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct label **l,
 				   struct reloc **r, unsigned int pte,
 				   unsigned int ptr)
 {
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	build_get_pmde64(p, l, r, pte, ptr); /* get pmd in ptr */
 #else
 	build_get_pgde32(p, pte, ptr); /* get pgd in ptr */
@@ -1636,7 +1636,7 @@ build_r4000_tlbchange_handler_tail(u32 **p, struct label **l,
 	l_leave(l, *p);
 	i_eret(p); /* return from trap */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	build_get_pgd_vmalloc64(p, l, r, tmp, ptr);
 #endif
 }

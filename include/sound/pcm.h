@@ -379,7 +379,6 @@ struct _snd_pcm_substream {
 	unsigned int dma_buf_id;
 	size_t dma_max;
 	/* -- hardware operations -- */
-	unsigned int open_flag: 1;	/* lowlevel device has been opened */
 	snd_pcm_ops_t *ops;
 	/* -- runtime information -- */
 	snd_pcm_runtime_t *runtime;
@@ -904,7 +903,7 @@ int snd_pcm_format_unsigned(snd_pcm_format_t format);
 int snd_pcm_format_linear(snd_pcm_format_t format);
 int snd_pcm_format_little_endian(snd_pcm_format_t format);
 int snd_pcm_format_big_endian(snd_pcm_format_t format);
-/**
+/*
  * snd_pcm_format_cpu_endian - Check the PCM format is CPU-endian
  * @format: the format to check
  *

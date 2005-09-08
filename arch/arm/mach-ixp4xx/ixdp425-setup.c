@@ -24,11 +24,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-void __init ixdp425_map_io(void) 
-{
-	ixp4xx_map_io();
-}
-
 static struct flash_platform_data ixdp425_flash_data = {
 	.map_name	= "cfi_probe",
 	.width		= 2,
@@ -133,7 +128,7 @@ MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= ixdp425_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
@@ -145,7 +140,7 @@ MACHINE_START(IXDP465, "Intel IXDP465 Development Platform")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= ixdp425_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
@@ -157,7 +152,7 @@ MACHINE_START(IXCDP1100, "Intel IXCDP1100 Development Platform")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= ixdp425_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
@@ -176,7 +171,7 @@ MACHINE_START(AVILA, "Gateworks Avila Network Platform")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= ixdp425_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,

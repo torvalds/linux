@@ -330,7 +330,7 @@ static int rxrpc_incoming_msg(struct rxrpc_transport *trans,
 
 	msg->trans = trans;
 	msg->state = RXRPC_MSG_RECEIVED;
-	msg->stamp = pkt->stamp;
+	skb_get_timestamp(pkt, &msg->stamp);
 	if (msg->stamp.tv_sec == 0) {
 		do_gettimeofday(&msg->stamp); 
 		if (pkt->sk) 

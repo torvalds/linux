@@ -440,8 +440,6 @@ new_range:
 		for (i = start ; i < (start+size); i += MEMORY_INCREMENT)
 			numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] =
 				numa_domain;
-		memory_present(numa_domain, start >> PAGE_SHIFT,
-						(start + size) >> PAGE_SHIFT);
 
 		if (--ranges)
 			goto new_range;
@@ -483,7 +481,6 @@ static void __init setup_nonnuma(void)
 
 	for (i = 0 ; i < top_of_ram; i += MEMORY_INCREMENT)
 		numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] = 0;
-	memory_present(0, 0, init_node_data[0].node_end_pfn);
 }
 
 static void __init dump_numa_topology(void)
@@ -671,7 +668,7 @@ new_range:
 		 * Mark reserved regions on this node
 		 */
 		for (i = 0; i < lmb.reserved.cnt; i++) {
-			unsigned long physbase = lmb.reserved.region[i].physbase;
+			unsigned long physbase = lmb.reserved.region[i].base;
 			unsigned long size = lmb.reserved.region[i].size;
 
 			if (pa_to_nid(physbase) != nid &&
@@ -695,6 +692,46 @@ new_range:
 						     size);
 			}
 		}
+		/*
+		 * This loop may look famaliar, but we have to do it again
+		 * after marking our reserved memory to mark memory present
+		 * for sparsemem.
+		 */
+		addr_cells = get_mem_addr_cells();
+		size_cells = get_mem_size_cells();
+		memory = NULL;
+		while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+			unsigned long mem_start, mem_size;
+			int numa_domain, ranges;
+			unsigned int *memcell_buf;
+			unsigned int len;
+
+			memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
+			if (!memcell_buf || len <= 0)
+				continue;
+
+			ranges = memory->n_addrs;	/* ranges in cell */
+new_range2:
+			mem_start = read_n_cells(addr_cells, &memcell_buf);
+			mem_size = read_n_cells(size_cells, &memcell_buf);
+			if (numa_enabled) {
+				numa_domain = of_node_numa_domain(memory);
+				if (numa_domain  >= MAX_NUMNODES)
+					numa_domain = 0;
+			} else
+				numa_domain =  0;
+
+			if (numa_domain != nid)
+				continue;
+
+			mem_size = numa_enforce_memory_limit(mem_start, mem_size);
+			memory_present(numa_domain, mem_start >> PAGE_SHIFT,
+				       (mem_start + mem_size) >> PAGE_SHIFT);
+
+			if (--ranges)		/* process all ranges in cell */
+				goto new_range2;
+		}
+
 	}
 }
 

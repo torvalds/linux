@@ -152,7 +152,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
-	acecad = kcalloc(1, sizeof(struct usb_acecad), GFP_KERNEL);
+	acecad = kzalloc(sizeof(struct usb_acecad), GFP_KERNEL);
 	if (!acecad)
 		return -ENOMEM;
 

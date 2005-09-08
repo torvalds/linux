@@ -23,7 +23,7 @@
 #define __SLOW_DOWN_IO	do { } while (0)
 #define SLOW_DOWN_IO	do { } while (0)
 
-#define __IA64_UNCACHED_OFFSET	0xc000000000000000UL	/* region 6 */
+#define __IA64_UNCACHED_OFFSET	RGN_BASE(RGN_UNCACHED)
 
 /*
  * The legacy I/O space defined by the ia64 architecture supports only 65536 ports, but
@@ -41,7 +41,7 @@
 #define IO_SPACE_BASE(space)		((space) << IO_SPACE_BITS)
 #define IO_SPACE_PORT(port)		((port) & (IO_SPACE_SIZE - 1))
 
-#define IO_SPACE_SPARSE_ENCODING(p)	((((p) >> 2) << 12) | (p & 0xfff))
+#define IO_SPACE_SPARSE_ENCODING(p)	((((p) >> 2) << 12) | ((p) & 0xfff))
 
 struct io_space {
 	unsigned long mmio_base;	/* base in MMIO space */

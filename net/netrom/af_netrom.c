@@ -39,7 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/ip.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/arp.h>
 #include <linux/init.h>
 
@@ -858,17 +858,16 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	frametype          = skb->data[19] & 0x0F;
 	flags              = skb->data[19] & 0xF0;
 
-#ifdef CONFIG_INET
 	/*
 	 * Check for an incoming IP over NET/ROM frame.
 	 */
-	if (frametype == NR_PROTOEXT && circuit_index == NR_PROTO_IP && circuit_id == NR_PROTO_IP) {
+	if (frametype == NR_PROTOEXT &&
+	    circuit_index == NR_PROTO_IP && circuit_id == NR_PROTO_IP) {
 		skb_pull(skb, NR_NETWORK_LEN + NR_TRANSPORT_LEN);
 		skb->h.raw = skb->data;
 
 		return nr_rx_ip(skb, dev);
 	}
-#endif
 
 	/*
 	 * Find an existing socket connection, based on circuit ID, if it's
@@ -1262,6 +1261,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 	struct net_device *dev;
 	struct nr_sock *nr;
 	const char *devname;
+	char buf[11];
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
@@ -1277,11 +1277,11 @@ static int nr_info_show(struct seq_file *seq, void *v)
 		else
 			devname = dev->name;
 
-		seq_printf(seq, "%-9s ", ax2asc(&nr->user_addr));
-		seq_printf(seq, "%-9s ", ax2asc(&nr->dest_addr));
+		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->user_addr));
+		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->dest_addr));
 		seq_printf(seq, 
 "%-9s %-3s  %02X/%02X %02X/%02X %2d %3d %3d %3d %3lu/%03lu %2lu/%02lu %3lu/%03lu %3lu/%03lu %2d/%02d %3d %5d %5d %ld\n",
-			ax2asc(&nr->source_addr),
+			ax2asc(buf, &nr->source_addr),
 			devname,
 			nr->my_index,
 			nr->my_id,

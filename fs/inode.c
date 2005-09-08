@@ -1195,9 +1195,6 @@ void update_atime(struct inode *inode)
 	if (!timespec_equal(&inode->i_atime, &now)) {
 		inode->i_atime = now;
 		mark_inode_dirty_sync(inode);
-	} else {
-		if (!timespec_equal(&inode->i_atime, &now))
-			inode->i_atime = now;
 	}
 }
 

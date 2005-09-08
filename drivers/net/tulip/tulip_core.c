@@ -199,9 +199,6 @@ struct tulip_chip_table tulip_tbl[] = {
   { "Conexant LANfinity", 256, 0x0001ebef,
 	HAS_MII | HAS_ACPI, tulip_timer },
 
-   /* ULi526X */
-   { "ULi M5261/M5263", 128, 0x0001ebef,
-        HAS_MII | HAS_MEDIA_TABLE | CSR12_IN_SROM | HAS_ACPI, tulip_timer },
 };
 
 
@@ -239,10 +236,9 @@ static struct pci_device_id tulip_pci_tbl[] = {
 	{ 0x1737, 0xAB09, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
 	{ 0x1737, 0xAB08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
 	{ 0x17B3, 0xAB08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
- 	{ 0x10b9, 0x5261, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ULI526X },	/* ALi 1563 integrated ethernet */
- 	{ 0x10b9, 0x5263, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ULI526X },	/* ALi 1563 integrated ethernet */
 	{ 0x10b7, 0x9300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET }, /* 3Com 3CSOHO100B-TX */
 	{ 0x14ea, 0xab08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET }, /* Planex FNW-3602-TX */
+	{ 0x1414, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
 	{ } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, tulip_pci_tbl);
@@ -522,7 +518,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 				   dev->name);
 	} else if (tp->chip_id == DC21140 || tp->chip_id == DC21142
 			   || tp->chip_id == MX98713 || tp->chip_id == COMPEX9881
-			   || tp->chip_id == DM910X || tp->chip_id == ULI526X) {
+			   || tp->chip_id == DM910X) {
 		printk(KERN_WARNING "%s: 21140 transmit timed out, status %8.8x, "
 			   "SIA %8.8x %8.8x %8.8x %8.8x, resetting...\n",
 			   dev->name, ioread32(ioaddr + CSR5), ioread32(ioaddr + CSR12),
@@ -1103,18 +1099,16 @@ static void set_rx_mode(struct net_device *dev)
 			entry = tp->cur_tx++ % TX_RING_SIZE;
 
 			if (entry != 0) {
-				/* Avoid a chip errata by prefixing a dummy entry. Don't do
-				   this on the ULI526X as it triggers a different problem */
-				if (!(tp->chip_id == ULI526X && (tp->revision == 0x40 || tp->revision == 0x50))) {
-					tp->tx_buffers[entry].skb = NULL;
-					tp->tx_buffers[entry].mapping = 0;
-					tp->tx_ring[entry].length =
-						(entry == TX_RING_SIZE-1) ? cpu_to_le32(DESC_RING_WRAP) : 0;
-					tp->tx_ring[entry].buffer1 = 0;
-					/* Must set DescOwned later to avoid race with chip */
-					dummy = entry;
-					entry = tp->cur_tx++ % TX_RING_SIZE;
-				}
+				/* Avoid a chip errata by prefixing a dummy entry. */
+				tp->tx_buffers[entry].skb = NULL;
+				tp->tx_buffers[entry].mapping = 0;
+				tp->tx_ring[entry].length =
+					(entry == TX_RING_SIZE-1) ? cpu_to_le32(DESC_RING_WRAP) : 0;
+				tp->tx_ring[entry].buffer1 = 0;
+				/* Must set DescOwned later to avoid race with chip */
+				dummy = entry;
+				entry = tp->cur_tx++ % TX_RING_SIZE;
+
 			}
 
 			tp->tx_buffers[entry].skb = NULL;
@@ -1234,10 +1228,6 @@ out:
 static int tulip_uli_dm_quirk(struct pci_dev *pdev)
 {
 	if (pdev->vendor == 0x1282 && pdev->device == 0x9102)
-		return 1;
-	if (pdev->vendor == 0x10b9 && pdev->device == 0x5261)
-		return 1;
-	if (pdev->vendor == 0x10b9 && pdev->device == 0x5263)
 		return 1;
 	return 0;
 }
@@ -1680,7 +1670,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	switch (chip_idx) {
 	case DC21140:
 	case DM910X:
-	case ULI526X:
 	default:
 		if (tp->mtable)
 			iowrite32(tp->mtable->csr12dir | 0x100, ioaddr + CSR12);

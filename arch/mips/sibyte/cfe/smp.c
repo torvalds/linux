@@ -57,7 +57,7 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
 void prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int retval;
-	
+
 	retval = cfe_cpu_start(cpu_logical_map(cpu), &smp_bootstrap,
 			       __KSTK_TOS(idle),
 			       (unsigned long)idle->thread_info, 0);

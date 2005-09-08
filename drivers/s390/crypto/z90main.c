@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>   // for tasklets
 #include <linux/ioctl32.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kobject_uevent.h>
@@ -39,19 +40,8 @@
 #include <linux/version.h>
 #include "z90crypt.h"
 #include "z90common.h"
-#ifndef Z90CRYPT_USE_HOTPLUG
-#include <linux/miscdevice.h>
-#endif
 
-#define VERSION_CODE(vers, rel, seq) (((vers)<<16) | ((rel)<<8) | (seq))
-#if LINUX_VERSION_CODE < VERSION_CODE(2,4,0) /* version < 2.4 */
-#  error "This kernel is too old: not supported"
-#endif
-#if LINUX_VERSION_CODE > VERSION_CODE(2,7,0) /* version > 2.6 */
-#  error "This kernel is too recent: not supported by this file"
-#endif
-
-#define VERSION_Z90MAIN_C "$Revision: 1.57 $"
+#define VERSION_Z90MAIN_C "$Revision: 1.62 $"
 
 static char z90main_version[] __initdata =
 	"z90main.o (" VERSION_Z90MAIN_C "/"
@@ -63,20 +53,11 @@ extern char z90hardware_version[];
  * Defaults that may be modified.
  */
 
-#ifndef Z90CRYPT_USE_HOTPLUG
 /**
  * You can specify a different minor at compile time.
  */
 #ifndef Z90CRYPT_MINOR
 #define Z90CRYPT_MINOR	MISC_DYNAMIC_MINOR
-#endif
-#else
-/**
- * You can specify a different major at compile time.
- */
-#ifndef Z90CRYPT_MAJOR
-#define Z90CRYPT_MAJOR	0
-#endif
 #endif
 
 /**
@@ -97,7 +78,7 @@ extern char z90hardware_version[];
  * older than CLEANUPTIME seconds in the past.
  */
 #ifndef CLEANUPTIME
-#define CLEANUPTIME 20
+#define CLEANUPTIME 15
 #endif
 
 /**
@@ -298,6 +279,10 @@ struct z90crypt {
  * it contains the request; at READ, the response. The function
  * send_to_crypto_device converts the request to device-dependent
  * form and use the caller's OPEN-allocated buffer for the response.
+ *
+ * For the contents of caller_dev_dep_req and caller_dev_dep_req_p
+ * because that points to it, see the discussion in z90hardware.c.
+ * Search for "extended request message block".
  */
 struct caller {
 	int		 caller_buf_l;		 // length of original request
@@ -398,24 +383,9 @@ static int z90crypt_status_write(struct file *, const char __user *,
 				 unsigned long, void *);
 
 /**
- * Hotplug support
- */
-
-#ifdef Z90CRYPT_USE_HOTPLUG
-#define Z90CRYPT_HOTPLUG_ADD	 1
-#define Z90CRYPT_HOTPLUG_REMOVE	 2
-
-static void z90crypt_hotplug_event(int, int, int);
-#endif
-
-/**
  * Storage allocated at initialization and used throughout the life of
  * this insmod
  */
-#ifdef Z90CRYPT_USE_HOTPLUG
-static int z90crypt_major = Z90CRYPT_MAJOR;
-#endif
-
 static int domain = DOMAIN_INDEX;
 static struct z90crypt z90crypt;
 static int quiesce_z90crypt;
@@ -444,14 +414,12 @@ static struct file_operations z90crypt_fops = {
 	.release	= z90crypt_release
 };
 
-#ifndef Z90CRYPT_USE_HOTPLUG
 static struct miscdevice z90crypt_misc_device = {
 	.minor	    = Z90CRYPT_MINOR,
 	.name	    = DEV_NAME,
 	.fops	    = &z90crypt_fops,
 	.devfs_name = DEV_NAME
 };
-#endif
 
 /**
  * Documentation values.
@@ -603,7 +571,6 @@ z90crypt_init_module(void)
 		return -EINVAL;
 	}
 
-#ifndef Z90CRYPT_USE_HOTPLUG
 	/* Register as misc device with given minor (or get a dynamic one). */
 	result = misc_register(&z90crypt_misc_device);
 	if (result < 0) {
@@ -611,18 +578,6 @@ z90crypt_init_module(void)
 			z90crypt_misc_device.minor, result);
 		return result;
 	}
-#else
-	/* Register the major (or get a dynamic one). */
-	result = register_chrdev(z90crypt_major, REG_NAME, &z90crypt_fops);
-	if (result < 0) {
-		PRINTKW("register_chrdev (major %d) failed with %d.\n",
-			z90crypt_major, result);
-		return result;
-	}
-
-	if (z90crypt_major == 0)
-		z90crypt_major = result;
-#endif
 
 	PDEBUG("Registered " DEV_NAME " with result %d\n", result);
 
@@ -644,11 +599,6 @@ z90crypt_init_module(void)
 		       domain);
 	} else
 		PRINTK("No devices at startup\n");
-
-#ifdef Z90CRYPT_USE_HOTPLUG
-	/* generate hotplug event for device node generation */
-	z90crypt_hotplug_event(z90crypt_major, 0, Z90CRYPT_HOTPLUG_ADD);
-#endif
 
 	/* Initialize globals. */
 	spin_lock_init(&queuespinlock);
@@ -701,17 +651,10 @@ z90crypt_init_module(void)
 	return 0; // success
 
 init_module_cleanup:
-#ifndef Z90CRYPT_USE_HOTPLUG
 	if ((nresult = misc_deregister(&z90crypt_misc_device)))
 		PRINTK("misc_deregister failed with %d.\n", nresult);
 	else
 		PDEBUG("misc_deregister successful.\n");
-#else
-	if ((nresult = unregister_chrdev(z90crypt_major, REG_NAME)))
-		PRINTK("unregister_chrdev failed with %d.\n", nresult);
-	else
-		PDEBUG("unregister_chrdev successful.\n");
-#endif
 
 	return result; // failure
 }
@@ -728,25 +671,19 @@ z90crypt_cleanup_module(void)
 
 	remove_proc_entry("driver/z90crypt", 0);
 
-#ifndef Z90CRYPT_USE_HOTPLUG
 	if ((nresult = misc_deregister(&z90crypt_misc_device)))
 		PRINTK("misc_deregister failed with %d.\n", nresult);
 	else
 		PDEBUG("misc_deregister successful.\n");
-#else
-	z90crypt_hotplug_event(z90crypt_major, 0, Z90CRYPT_HOTPLUG_REMOVE);
-
-	if ((nresult = unregister_chrdev(z90crypt_major, REG_NAME)))
-		PRINTK("unregister_chrdev failed with %d.\n", nresult);
-	else
-		PDEBUG("unregister_chrdev successful.\n");
-#endif
 
 	/* Remove the tasks */
 	tasklet_kill(&reader_tasklet);
 	del_timer(&reader_timer);
 	del_timer(&config_timer);
 	del_timer(&cleanup_timer);
+
+	if (z90_device_work)
+		destroy_workqueue(z90_device_work);
 
 	destroy_z90crypt();
 
@@ -766,8 +703,6 @@ z90crypt_cleanup_module(void)
  *     z90crypt_status_write
  *	 disable_card
  *	 enable_card
- *	 scan_char
- *	 scan_string
  *
  * Helper functions:
  *     z90crypt_rsa
@@ -1057,9 +992,10 @@ remove_device(struct device *device_p)
  * The MCL must be applied and the newer bitlengths enabled for these to work.
  *
  * Card Type    Old limit    New limit
+ * PCICA          ??-2048     same (the lower limit is less than 128 bit...)
  * PCICC         512-1024     512-2048
- * PCIXCC_MCL2   512-2048     no change (applying this MCL == card is MCL3+)
- * PCIXCC_MCL3   512-2048     128-2048
+ * PCIXCC_MCL2   512-2048     ----- (applying any GA LIC will make an MCL3 card)
+ * PCIXCC_MCL3   -----        128-2048
  * CEX2C         512-2048     128-2048
  *
  * ext_bitlens (extended bitlengths) is a global, since you should not apply an
@@ -1104,7 +1040,7 @@ select_device_type(int *dev_type_p, int bytelength)
 	if (PCICA_avail || PCIXCC_MCL3_avail || CEX2C_avail) {
 		/**
 		 * bitlength is a factor, PCICA is the most capable, even with
-		 * the new MCL.
+		 * the new MCL for PCIXCC.
 		 */
 		if ((bytelength < PCIXCC_MIN_MOD_SIZE) ||
 		    (!ext_bitlens && (bytelength < OLD_PCIXCC_MIN_MOD_SIZE))) {
@@ -2144,73 +2080,15 @@ enable_card(int card_index)
 	z90crypt.hdware_info->type_mask[devp->dev_type].user_disabled_count--;
 }
 
-static inline int
-scan_char(unsigned char *bf, unsigned int len,
-	  unsigned int *offs, unsigned int *p_eof, unsigned char c)
-{
-	unsigned int i, found;
-
-	found = 0;
-	for (i = 0; i < len; i++) {
-		if (bf[i] == c) {
-			found = 1;
-			break;
-		}
-		if (bf[i] == '\0') {
-			*p_eof = 1;
-			break;
-		}
-		if (bf[i] == '\n') {
-			break;
-		}
-	}
-	*offs = i+1;
-	return found;
-}
-
-static inline int
-scan_string(unsigned char *bf, unsigned int len,
-	    unsigned int *offs, unsigned int *p_eof, unsigned char *s)
-{
-	unsigned int temp_len, temp_offs, found, eof;
-
-	temp_len = temp_offs = found = eof = 0;
-	while (!eof && !found) {
-		found = scan_char(bf+temp_len, len-temp_len,
-				  &temp_offs, &eof, *s);
-
-		temp_len += temp_offs;
-		if (eof) {
-			found = 0;
-			break;
-		}
-
-		if (found) {
-			if (len >= temp_offs+strlen(s)) {
-				found = !strncmp(bf+temp_len-1, s, strlen(s));
-				if (found) {
-					*offs = temp_len+strlen(s)-1;
-					break;
-				}
-			} else {
-				found = 0;
-				*p_eof = 1;
-				break;
-			}
-		}
-	}
-	return found;
-}
-
 static int
 z90crypt_status_write(struct file *file, const char __user *buffer,
 		      unsigned long count, void *data)
 {
-	int i, j, len, offs, found, eof;
-	unsigned char *lbuf;
+	int j, eol;
+	unsigned char *lbuf, *ptr;
 	unsigned int local_count;
 
-#define LBUFSIZE 600
+#define LBUFSIZE 1200
 	lbuf = kmalloc(LBUFSIZE, GFP_KERNEL);
 	if (!lbuf) {
 		PRINTK("kmalloc failed!\n");
@@ -2227,49 +2105,46 @@ z90crypt_status_write(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 
-	lbuf[local_count-1] = '\0';
+	lbuf[local_count] = '\0';
 
-	len = 0;
-	eof = 0;
-	found = 0;
-	while (!eof) {
-		found = scan_string(lbuf+len, local_count-len, &offs, &eof,
-				    "Online devices");
-		len += offs;
-		if (found == 1)
-			break;
-	}
-
-	if (eof) {
+	ptr = strstr(lbuf, "Online devices");
+	if (ptr == 0) {
+		PRINTK("Unable to parse data (missing \"Online devices\")\n");
 		kfree(lbuf);
 		return count;
 	}
 
-	if (found)
-		found = scan_char(lbuf+len, local_count-len, &offs, &eof, '\n');
+	ptr = strstr(ptr, "\n");
+	if (ptr == 0) {
+		PRINTK("Unable to parse data (missing newline after \"Online devices\")\n");
+		kfree(lbuf);
+		return count;
+	}
+	ptr++;
 
-	if (!found || eof) {
+	if (strstr(ptr, "Waiting work element counts") == NULL) {
+		PRINTK("Unable to parse data (missing \"Waiting work element counts\")\n");
 		kfree(lbuf);
 		return count;
 	}
 
-	len += offs;
 	j = 0;
-	for (i = 0; i < 80; i++) {
-		switch (*(lbuf+len+i)) {
+	eol = 0;
+	while ((j < 64) && (*ptr != '\0')) {
+		switch (*ptr) {
 		case '\t':
 		case ' ':
 			break;
 		case '\n':
 		default:
-			eof = 1;
+			eol = 1;
 			break;
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
+		case '0':	// no device
+		case '1':	// PCICA
+		case '2':	// PCICC
+		case '3':	// PCIXCC_MCL2
+		case '4':	// PCIXCC_MCL3
+		case '5':	// CEX2C
 			j++;
 			break;
 		case 'd':
@@ -2283,8 +2158,9 @@ z90crypt_status_write(struct file *file, const char __user *buffer,
 			j++;
 			break;
 		}
-		if (eof)
+		if (eol)
 			break;
+		ptr++;
 	}
 
 	kfree(lbuf);
@@ -3478,46 +3354,6 @@ probe_PCIXCC_type(struct device *devPtr)
 	/* In a general error case, the card is not marked online */
 	return rv;
 }
-
-#ifdef Z90CRYPT_USE_HOTPLUG
-static void
-z90crypt_hotplug_event(int dev_major, int dev_minor, int action)
-{
-#ifdef CONFIG_HOTPLUG
-	char *argv[3];
-	char *envp[6];
-	char  major[20];
-	char  minor[20];
-
-	sprintf(major, "MAJOR=%d", dev_major);
-	sprintf(minor, "MINOR=%d", dev_minor);
-
-	argv[0] = hotplug_path;
-	argv[1] = "z90crypt";
-	argv[2] = 0;
-
-	envp[0] = "HOME=/";
-	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-
-	switch (action) {
-	case Z90CRYPT_HOTPLUG_ADD:
-		envp[2] = "ACTION=add";
-		break;
-	case Z90CRYPT_HOTPLUG_REMOVE:
-		envp[2] = "ACTION=remove";
-		break;
-	default:
-		BUG();
-		break;
-	}
-	envp[3] = major;
-	envp[4] = minor;
-	envp[5] = 0;
-
-	call_usermodehelper(argv[0], argv, envp, 0);
-#endif
-}
-#endif
 
 module_init(z90crypt_init_module);
 module_exit(z90crypt_cleanup_module);

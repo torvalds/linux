@@ -36,10 +36,6 @@
 #include <platforms/tqm8xx.h>
 #endif
 
-#if defined(CONFIG_SPD823TS)
-#include <platforms/spd8xx.h>
-#endif
-
 #if defined(CONFIG_IVMS8) || defined(CONFIG_IVML24)
 #include <platforms/ivms8.h>
 #endif

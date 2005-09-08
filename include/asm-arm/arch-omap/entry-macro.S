@@ -8,6 +8,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#if defined(CONFIG_ARCH_OMAP1)
+
  		.macro	disable_fiq
 		.endm
 
@@ -30,3 +32,29 @@
 1510:
 		.endm
 
+#elif defined(CONFIG_ARCH_OMAP24XX)
+
+#include <asm/arch/omap24xx.h>
+
+		.macro	disable_fiq
+		.endm
+
+		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
+		ldr	\base, =VA_IC_BASE
+		ldr	\irqnr, [\base, #0x98] /* IRQ pending reg 1 */
+		cmp	\irqnr, #0x0
+		bne	2222f
+		ldr	\irqnr, [\base, #0xb8] /* IRQ pending reg 2 */
+		cmp	\irqnr, #0x0
+		bne	2222f
+		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
+		cmp	\irqnr, #0x0
+2222:
+		ldrne	\irqnr, [\base, #IRQ_SIR_IRQ]
+
+		.endm
+
+		.macro	irq_prio_table
+		.endm
+
+#endif

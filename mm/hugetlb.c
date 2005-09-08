@@ -360,8 +360,6 @@ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
 			ret = -ENOMEM;
 			goto out;
 		}
-		if (! pte_none(*pte))
-			hugetlb_clean_stale_pgtable(pte);
 
 		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
 			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));

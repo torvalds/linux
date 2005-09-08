@@ -184,14 +184,14 @@ struct irqchip s3c_irq_level_chip = {
 	.ack	   = s3c_irq_maskack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.wake	   = s3c_irq_wake
+	.set_wake	   = s3c_irq_wake
 };
 
 static struct irqchip s3c_irq_chip = {
 	.ack	   = s3c_irq_ack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.wake	   = s3c_irq_wake
+	.set_wake	   = s3c_irq_wake
 };
 
 /* S3C2410_EINTMASK
@@ -350,16 +350,16 @@ static struct irqchip s3c_irqext_chip = {
 	.mask	    = s3c_irqext_mask,
 	.unmask	    = s3c_irqext_unmask,
 	.ack	    = s3c_irqext_ack,
-	.type	    = s3c_irqext_type,
-	.wake	    = s3c_irqext_wake
+	.set_type    = s3c_irqext_type,
+	.set_wake    = s3c_irqext_wake
 };
 
 static struct irqchip s3c_irq_eint0t4 = {
 	.ack	   = s3c_irq_ack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.wake	   = s3c_irq_wake,
-	.type	   = s3c_irqext_type,
+	.set_wake  = s3c_irq_wake,
+	.set_type  = s3c_irqext_type,
 };
 
 /* mask values for the parent registers for each of the interrupt types */
@@ -496,11 +496,11 @@ static void s3c_irq_demux_adc(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_TC;
-			mydesc->handle( IRQ_TC, mydesc, regs);
+			desc_handle_irq(IRQ_TC, mydesc, regs);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_ADC;
-			mydesc->handle(IRQ_ADC, mydesc, regs);
+			desc_handle_irq(IRQ_ADC, mydesc, regs);
 		}
 	}
 }
@@ -529,17 +529,17 @@ static void s3c_irq_demux_uart(unsigned int start,
 		desc = irq_desc + start;
 
 		if (subsrc & 1)
-			desc->handle(start, desc, regs);
+			desc_handle_irq(start, desc, regs);
 
 		desc++;
 
 		if (subsrc & 2)
-			desc->handle(start+1, desc, regs);
+			desc_handle_irq(start+1, desc, regs);
 
 		desc++;
 
 		if (subsrc & 4)
-			desc->handle(start+2, desc, regs);
+			desc_handle_irq(start+2, desc, regs);
 	}
 }
 

@@ -255,21 +255,30 @@ static void disable_rsa(struct uart_sunsu_port *up)
 }
 #endif /* CONFIG_SERIAL_8250_RSA */
 
-static void sunsu_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static inline void __stop_tx(struct uart_sunsu_port *p)
+{
+	if (p->ier & UART_IER_THRI) {
+		p->ier &= ~UART_IER_THRI;
+		serial_out(p, UART_IER, p->ier);
+	}
+}
+
+static void sunsu_stop_tx(struct uart_port *port)
 {
 	struct uart_sunsu_port *up = (struct uart_sunsu_port *) port;
 
-	if (up->ier & UART_IER_THRI) {
-		up->ier &= ~UART_IER_THRI;
-		serial_out(up, UART_IER, up->ier);
-	}
-	if (up->port.type == PORT_16C950 && tty_stop) {
+	__stop_tx(up);
+
+	/*
+	 * We really want to stop the transmitter from sending.
+	 */
+	if (up->port.type == PORT_16C950) {
 		up->acr |= UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}
 }
 
-static void sunsu_start_tx(struct uart_port *port, unsigned int tty_start)
+static void sunsu_start_tx(struct uart_port *port)
 {
 	struct uart_sunsu_port *up = (struct uart_sunsu_port *) port;
 
@@ -277,10 +286,11 @@ static void sunsu_start_tx(struct uart_port *port, unsigned int tty_start)
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
 	}
+
 	/*
-	 * We only do this from uart_start
+	 * Re-enable the transmitter if we disabled it.
 	 */
-	if (tty_start && up->port.type == PORT_16C950) {
+	if (up->port.type == PORT_16C950 && up->acr & UART_ACR_TXDIS) {
 		up->acr &= ~UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}
@@ -413,8 +423,12 @@ static _INLINE_ void transmit_chars(struct uart_sunsu_port *up)
 		up->port.x_char = 0;
 		return;
 	}
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		sunsu_stop_tx(&up->port, 0);
+	if (uart_tx_stopped(&up->port)) {
+		sunsu_stop_tx(&up->port);
+		return;
+	}
+	if (uart_circ_empty(xmit)) {
+		__stop_tx(up);
 		return;
 	}
 
@@ -431,7 +445,7 @@ static _INLINE_ void transmit_chars(struct uart_sunsu_port *up)
 		uart_write_wakeup(&up->port);
 
 	if (uart_circ_empty(xmit))
-		sunsu_stop_tx(&up->port, 0);
+		__stop_tx(up);
 }
 
 static _INLINE_ void check_modem_status(struct uart_sunsu_port *up)

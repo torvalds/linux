@@ -178,7 +178,7 @@ static struct tgfx __init *tgfx_probe(int *config, int nargs)
 		return NULL;
 	}
 
-	if (!(tgfx = kcalloc(1, sizeof(struct tgfx), GFP_KERNEL))) {
+	if (!(tgfx = kzalloc(sizeof(struct tgfx), GFP_KERNEL))) {
 		parport_put_port(pp);
 		return NULL;
 	}

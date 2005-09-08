@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/nmi.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -419,8 +420,9 @@ void die_nmi(char *str, struct pt_regs *regs)
 	do_exit(SIGSEGV);
 }
 
-static void do_trap(int trapnr, int signr, char *str, 
-			   struct pt_regs * regs, long error_code, siginfo_t *info)
+static void __kprobes do_trap(int trapnr, int signr, char *str,
+			      struct pt_regs * regs, long error_code,
+			      siginfo_t *info)
 {
 	conditional_sti(regs);
 
@@ -504,7 +506,8 @@ DO_ERROR(18, SIGSEGV, "reserved", reserved)
 DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
 DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
 
-asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
+asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
+						long error_code)
 {
 	conditional_sti(regs);
 
@@ -622,7 +625,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		io_check_error(reason, regs);
 }
 
-asmlinkage void do_int3(struct pt_regs * regs, long error_code)
+asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
 		return;
@@ -653,7 +656,8 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
 }
 
 /* runs on IST stack. */
-asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
+asmlinkage void __kprobes do_debug(struct pt_regs * regs,
+				   unsigned long error_code)
 {
 	unsigned long condition;
 	struct task_struct *tsk = current;

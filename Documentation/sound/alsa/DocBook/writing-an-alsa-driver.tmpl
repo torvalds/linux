@@ -3422,10 +3422,17 @@ struct _snd_pcm_runtime {
 
       <para>
         The <structfield>iface</structfield> field specifies the type of
-      the control,
-      <constant>SNDRV_CTL_ELEM_IFACE_XXX</constant>. There are
-      <constant>MIXER</constant>, <constant>PCM</constant>,
-      <constant>CARD</constant>, etc.
+      the control, <constant>SNDRV_CTL_ELEM_IFACE_XXX</constant>, which
+      is usually <constant>MIXER</constant>.
+      Use <constant>CARD</constant> for global controls that are not
+      logically part of the mixer.
+      If the control is closely associated with some specific device on
+      the sound card, use <constant>HWDEP</constant>,
+      <constant>PCM</constant>, <constant>RAWMIDI</constant>,
+      <constant>TIMER</constant>, or <constant>SEQUENCER</constant>, and
+      specify the device number with the
+      <structfield>device</structfield> and
+      <structfield>subdevice</structfield> fields.
       </para>
 
       <para>

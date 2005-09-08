@@ -93,7 +93,7 @@ void get_mac(char dest[6])
 #endif
 
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 unsigned long signext(unsigned long addr)
 {
@@ -145,7 +145,7 @@ char *arg64(unsigned long addrin, int arg_index)
 
 	return p;
 }
-#endif  /* CONFIG_MIPS64 */
+#endif  /* CONFIG_64BIT */
 
 void __init prom_init(void)
 {
@@ -155,7 +155,7 @@ void __init prom_init(void)
 	struct callvectors *cv = (struct callvectors *) fw_arg3;
 	int i;
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	char *ptr;
 	printk("prom_init - MIPS64\n");
 
@@ -198,7 +198,7 @@ void __init prom_init(void)
 	}
 	printk("arcs_cmdline: %s\n", arcs_cmdline);
 
-#else   /* CONFIG_MIPS64 */
+#else   /* CONFIG_64BIT */
 
 	/* save the PROM vectors for debugging use */
 	debug_vectors = cv;
@@ -224,7 +224,7 @@ void __init prom_init(void)
 		}
 		env++;
 	}
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 	mips_machgroup = MACH_GROUP_MOMENCO;
 	mips_machtype = MACH_MOMENCO_OCELOT_3;
@@ -234,7 +234,7 @@ void __init prom_init(void)
 	get_mac(prom_mac_addr_base);
 #endif
 
-#ifndef CONFIG_MIPS64
+#ifndef CONFIG_64BIT
 	debug_vectors->printf("Booting Linux kernel...\n");
 #endif
 }

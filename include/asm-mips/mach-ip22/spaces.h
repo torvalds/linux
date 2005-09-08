@@ -12,7 +12,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #define CAC_BASE		0x80000000
 #define IO_BASE			0xa0000000
@@ -32,9 +32,9 @@
 #define HIGHMEM_START		0x20000000UL
 #endif
 
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define PAGE_OFFSET		0xffffffff80000000UL
 
 #ifndef HIGHMEM_START
@@ -50,6 +50,6 @@
 #define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
 #define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 #endif /* __ASM_MACH_IP22_SPACES_H */

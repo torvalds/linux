@@ -47,7 +47,7 @@ struct semaphore {
 #define DECLARE_MUTEX(name) __DECLARE_SEMAPHORE_GENERIC(name,1)
 #define DECLARE_MUTEX_LOCKED(name) __DECLARE_SEMAPHORE_GENERIC(name,0)
 
-extern inline void sema_init (struct semaphore *sem, int val)
+static inline void sema_init (struct semaphore *sem, int val)
 {
 /*
  *	*sem = (struct semaphore)__SEMAPHORE_INITIALIZER((*sem),val);
@@ -79,7 +79,7 @@ asmlinkage void __up(struct semaphore * sem);
 
 extern spinlock_t semaphore_wake_lock;
 
-extern __inline__ void down(struct semaphore * sem)
+static inline void down(struct semaphore * sem)
 {
 #if WAITQUEUE_DEBUG
 	CHECK_MAGIC(sem->__magic);
@@ -89,7 +89,7 @@ extern __inline__ void down(struct semaphore * sem)
 		__down(sem);
 }
 
-extern __inline__ int down_interruptible(struct semaphore * sem)
+static inline int down_interruptible(struct semaphore * sem)
 {
 	int ret = 0;
 #if WAITQUEUE_DEBUG
@@ -101,7 +101,7 @@ extern __inline__ int down_interruptible(struct semaphore * sem)
 	return ret;
 }
 
-extern __inline__ int down_trylock(struct semaphore * sem)
+static inline int down_trylock(struct semaphore * sem)
 {
 	int ret = 0;
 #if WAITQUEUE_DEBUG
@@ -117,7 +117,7 @@ extern __inline__ int down_trylock(struct semaphore * sem)
  * Note! This is subtle. We jump to wake people up only if
  * the semaphore was negative (== somebody was waiting on it).
  */
-extern __inline__ void up(struct semaphore * sem)
+static inline void up(struct semaphore * sem)
 {
 #if WAITQUEUE_DEBUG
 	CHECK_MAGIC(sem->__magic);

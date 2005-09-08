@@ -132,9 +132,9 @@ static void pxa2xx_ac97_reset(ac97_t *ac97)
 		udelay(10);
 		GCR |= GCR_WARM_RST;
 		pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
-		udelay(50);
+		udelay(500);
 #else
-		GCR |= GCR_WARM_RST|GCR_PRIRDY_IEN|GCR_SECRDY_IEN;;
+		GCR |= GCR_WARM_RST|GCR_PRIRDY_IEN|GCR_SECRDY_IEN;
 		wait_event_timeout(gsr_wq, gsr_bits & (GSR_PCR | GSR_SCR), 1);
 #endif			
 
@@ -261,7 +261,7 @@ static int pxa2xx_ac97_do_suspend(snd_card_t *card, unsigned int state)
 	return 0;
 }
 
-static int pxa2xx_ac97_do_resume(snd_card_t *card, unsigned int state)
+static int pxa2xx_ac97_do_resume(snd_card_t *card)
 {
 	if (card->power_state != SNDRV_CTL_POWER_D0) {
 		pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
@@ -275,13 +275,13 @@ static int pxa2xx_ac97_do_resume(snd_card_t *card, unsigned int state)
 	return 0;
 }
 
-static int pxa2xx_ac97_suspend(struct device *_dev, u32 state, u32 level)
+static int pxa2xx_ac97_suspend(struct device *_dev, pm_message_t state, u32 level)
 {
 	snd_card_t *card = dev_get_drvdata(_dev);
 	int ret = 0;
 
 	if (card && level == SUSPEND_DISABLE)
-		ret = pxa2xx_ac97_do_suspend(card, SNDRV_CTL_POWER_D3cold);
+		ret = pxa2xx_ac97_do_suspend(card, PMSG_SUSPEND);
 
 	return ret;
 }
@@ -292,7 +292,7 @@ static int pxa2xx_ac97_resume(struct device *_dev, u32 level)
 	int ret = 0;
 
 	if (card && level == RESUME_ENABLE)
-		ret = pxa2xx_ac97_do_resume(card, SNDRV_CTL_POWER_D0);
+		ret = pxa2xx_ac97_do_resume(card);
 
 	return ret;
 }

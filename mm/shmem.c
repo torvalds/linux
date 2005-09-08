@@ -45,7 +45,6 @@
 #include <linux/swapops.h>
 #include <linux/mempolicy.h>
 #include <linux/namei.h>
-#include <linux/xattr.h>
 #include <asm/uaccess.h>
 #include <asm/div64.h>
 #include <asm/pgtable.h>
@@ -179,10 +178,9 @@ static struct address_space_operations shmem_aops;
 static struct file_operations shmem_file_operations;
 static struct inode_operations shmem_inode_operations;
 static struct inode_operations shmem_dir_inode_operations;
-static struct inode_operations shmem_special_inode_operations;
 static struct vm_operations_struct shmem_vm_ops;
 
-static struct backing_dev_info shmem_backing_dev_info = {
+static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
 	.ra_pages	= 0,	/* No readahead */
 	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
 	.unplug_io_fn	= default_unplug_io_fn,
@@ -1195,6 +1193,7 @@ static int shmem_populate(struct vm_area_struct *vma,
 		err = shmem_getpage(inode, pgoff, &page, sgp, NULL);
 		if (err)
 			return err;
+		/* Page may still be null, but only if nonblock was set. */
 		if (page) {
 			mark_page_accessed(page);
 			err = install_page(mm, vma, addr, page, prot);
@@ -1202,7 +1201,10 @@ static int shmem_populate(struct vm_area_struct *vma,
 				page_cache_release(page);
 				return err;
 			}
-		} else if (nonblock) {
+		} else {
+			/* No page was found just because we can't read it in
+			 * now (being here implies nonblock != 0), but the page
+			 * may exist, so set the PTE to fault it in later. */
     			err = install_file_pte(mm, vma, addr, pgoff, prot);
 			if (err)
 	    			return err;
@@ -1296,7 +1298,6 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 
 		switch (mode & S_IFMT) {
 		default:
-			inode->i_op = &shmem_special_inode_operations;
 			init_special_inode(inode, mode, dev);
 			break;
 		case S_IFREG:
@@ -1800,12 +1801,6 @@ static void shmem_put_link(struct dentry *dentry, struct nameidata *nd, void *co
 static struct inode_operations shmem_symlink_inline_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link_inline,
-#ifdef CONFIG_TMPFS_XATTR
-	.setxattr       = generic_setxattr,
-	.getxattr       = generic_getxattr,
-	.listxattr      = generic_listxattr,
-	.removexattr    = generic_removexattr,
-#endif
 };
 
 static struct inode_operations shmem_symlink_inode_operations = {
@@ -1813,12 +1808,6 @@ static struct inode_operations shmem_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link,
 	.put_link	= shmem_put_link,
-#ifdef CONFIG_TMPFS_XATTR
-	.setxattr       = generic_setxattr,
-	.getxattr       = generic_getxattr,
-	.listxattr      = generic_listxattr,
-	.removexattr    = generic_removexattr,
-#endif
 };
 
 static int shmem_parse_options(char *options, int *mode, uid_t *uid, gid_t *gid, unsigned long *blocks, unsigned long *inodes)
@@ -1938,12 +1927,6 @@ static void shmem_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-#ifdef CONFIG_TMPFS_XATTR
-static struct xattr_handler *shmem_xattr_handlers[];
-#else
-#define shmem_xattr_handlers NULL
-#endif
-
 static int shmem_fill_super(struct super_block *sb,
 			    void *data, int silent)
 {
@@ -1994,7 +1977,6 @@ static int shmem_fill_super(struct super_block *sb,
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = TMPFS_MAGIC;
 	sb->s_op = &shmem_ops;
-	sb->s_xattr = shmem_xattr_handlers;
 
 	inode = shmem_get_inode(sb, S_IFDIR | mode, 0);
 	if (!inode)
@@ -2083,12 +2065,6 @@ static struct file_operations shmem_file_operations = {
 static struct inode_operations shmem_inode_operations = {
 	.truncate	= shmem_truncate,
 	.setattr	= shmem_notify_change,
-#ifdef CONFIG_TMPFS_XATTR
-	.setxattr       = generic_setxattr,
-	.getxattr       = generic_getxattr,
-	.listxattr      = generic_listxattr,
-	.removexattr    = generic_removexattr,
-#endif
 };
 
 static struct inode_operations shmem_dir_inode_operations = {
@@ -2102,21 +2078,6 @@ static struct inode_operations shmem_dir_inode_operations = {
 	.rmdir		= shmem_rmdir,
 	.mknod		= shmem_mknod,
 	.rename		= shmem_rename,
-#ifdef CONFIG_TMPFS_XATTR
-	.setxattr       = generic_setxattr,
-	.getxattr       = generic_getxattr,
-	.listxattr      = generic_listxattr,
-	.removexattr    = generic_removexattr,
-#endif
-#endif
-};
-
-static struct inode_operations shmem_special_inode_operations = {
-#ifdef CONFIG_TMPFS_XATTR
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
-	.listxattr	= generic_listxattr,
-	.removexattr	= generic_removexattr,
 #endif
 };
 
@@ -2141,48 +2102,6 @@ static struct vm_operations_struct shmem_vm_ops = {
 #endif
 };
 
-
-#ifdef CONFIG_TMPFS_SECURITY
-
-static size_t shmem_xattr_security_list(struct inode *inode, char *list, size_t list_len,
-					const char *name, size_t name_len)
-{
-	return security_inode_listsecurity(inode, list, list_len);
-}
-
-static int shmem_xattr_security_get(struct inode *inode, const char *name, void *buffer, size_t size)
-{
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-	return security_inode_getsecurity(inode, name, buffer, size);
-}
-
-static int shmem_xattr_security_set(struct inode *inode, const char *name, const void *value, size_t size, int flags)
-{
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-	return security_inode_setsecurity(inode, name, value, size, flags);
-}
-
-static struct xattr_handler shmem_xattr_security_handler = {
-	.prefix	= XATTR_SECURITY_PREFIX,
-	.list	= shmem_xattr_security_list,
-	.get	= shmem_xattr_security_get,
-	.set	= shmem_xattr_security_set,
-};
-
-#endif	/* CONFIG_TMPFS_SECURITY */
-
-#ifdef CONFIG_TMPFS_XATTR
-
-static struct xattr_handler *shmem_xattr_handlers[] = {
-#ifdef CONFIG_TMPFS_SECURITY
-	&shmem_xattr_security_handler,
-#endif
-	NULL
-};
-
-#endif	/* CONFIG_TMPFS_XATTR */
 
 static struct super_block *shmem_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)

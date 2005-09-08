@@ -700,7 +700,7 @@ void arp_send(int type, int ptype, u32 dest_ip,
 static void parp_redo(struct sk_buff *skb)
 {
 	nf_reset(skb);
-	arp_rcv(skb, skb->dev, NULL);
+	arp_rcv(skb, skb->dev, NULL, skb->dev);
 }
 
 /*
@@ -865,7 +865,7 @@ static int arp_process(struct sk_buff *skb)
 				if (n)
 					neigh_release(n);
 
-				if (skb->stamp.tv_sec == LOCALLY_ENQUEUED || 
+				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED || 
 				    skb->pkt_type == PACKET_HOST ||
 				    in_dev->arp_parms->proxy_delay == 0) {
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
@@ -927,7 +927,7 @@ out:
  *	Receive an arp request from the device layer.
  */
 
-int arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct arphdr *arp;
 
@@ -947,6 +947,8 @@ int arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		goto out_of_mem;
+
+	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
 	return NF_HOOK(NF_ARP, NF_ARP_IN, skb, dev, NULL, arp_process);
 

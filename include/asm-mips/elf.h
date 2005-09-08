@@ -125,7 +125,7 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -153,9 +153,9 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  */
 #define ELF_CLASS	ELFCLASS32
 
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -177,7 +177,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  */
 #define ELF_CLASS	ELFCLASS64
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 /*
  * These are used to set parameters in the core dumps.
@@ -193,7 +193,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #define SET_PERSONALITY(ex, ibcs2)			\
 do {							\
@@ -202,9 +202,9 @@ do {							\
 	set_personality(PER_LINUX);			\
 } while (0)
 
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 #define SET_PERSONALITY(ex, ibcs2)				\
 do {	current->thread.mflags &= ~MF_ABI_MASK;			\
@@ -222,7 +222,7 @@ do {	current->thread.mflags &= ~MF_ABI_MASK;			\
 		set_personality(PER_LINUX);			\
 } while (0)
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 extern void dump_regs(elf_greg_t *, struct pt_regs *regs);
 extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);

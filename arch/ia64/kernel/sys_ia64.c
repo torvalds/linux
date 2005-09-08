@@ -35,7 +35,7 @@ arch_get_unmapped_area (struct file *filp, unsigned long addr, unsigned long len
 		return -ENOMEM;
 
 #ifdef CONFIG_HUGETLB_PAGE
-	if (REGION_NUMBER(addr) == REGION_HPAGE)
+	if (REGION_NUMBER(addr) == RGN_HPAGE)
 		addr = 0;
 #endif
 	if (!addr)

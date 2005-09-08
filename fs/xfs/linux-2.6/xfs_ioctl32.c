@@ -47,8 +47,52 @@
 #include "xfs_vnode.h"
 #include "xfs_dfrag.h"
 
+#define  _NATIVE_IOC(cmd, type) \
+	  _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(type))
+
 #if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
 #define BROKEN_X86_ALIGNMENT
+/* on ia32 l_start is on a 32-bit boundary */
+typedef struct xfs_flock64_32 {
+	__s16		l_type;
+	__s16		l_whence;
+	__s64		l_start	__attribute__((packed));
+			/* len == 0 means until end of file */
+	__s64		l_len __attribute__((packed));
+	__s32		l_sysid;
+	__u32		l_pid;
+	__s32		l_pad[4];	/* reserve area */
+} xfs_flock64_32_t;
+
+#define XFS_IOC_ALLOCSP_32	_IOW ('X', 10, struct xfs_flock64_32)
+#define XFS_IOC_FREESP_32	_IOW ('X', 11, struct xfs_flock64_32)
+#define XFS_IOC_ALLOCSP64_32	_IOW ('X', 36, struct xfs_flock64_32)
+#define XFS_IOC_FREESP64_32	_IOW ('X', 37, struct xfs_flock64_32)
+#define XFS_IOC_RESVSP_32	_IOW ('X', 40, struct xfs_flock64_32)
+#define XFS_IOC_UNRESVSP_32	_IOW ('X', 41, struct xfs_flock64_32)
+#define XFS_IOC_RESVSP64_32	_IOW ('X', 42, struct xfs_flock64_32)
+#define XFS_IOC_UNRESVSP64_32	_IOW ('X', 43, struct xfs_flock64_32)
+
+/* just account for different alignment */
+STATIC unsigned long
+xfs_ioctl32_flock(
+	unsigned long		arg)
+{
+	xfs_flock64_32_t	__user *p32 = (void __user *)arg;
+	xfs_flock64_t		__user *p = compat_alloc_user_space(sizeof(*p));
+
+	if (copy_in_user(&p->l_type,	&p32->l_type,	sizeof(s16)) ||
+	    copy_in_user(&p->l_whence,	&p32->l_whence, sizeof(s16)) ||
+	    copy_in_user(&p->l_start,	&p32->l_start,	sizeof(s64)) ||
+	    copy_in_user(&p->l_len,	&p32->l_len,	sizeof(s64)) ||
+	    copy_in_user(&p->l_sysid,	&p32->l_sysid,	sizeof(s32)) ||
+	    copy_in_user(&p->l_pid,	&p32->l_pid,	sizeof(u32)) ||
+	    copy_in_user(&p->l_pad,	&p32->l_pad,	4*sizeof(u32)))
+		return -EFAULT;
+	
+	return (unsigned long)p;
+}
+
 #else
 
 typedef struct xfs_fsop_bulkreq32 {
@@ -103,7 +147,6 @@ __linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 /* not handled
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
-	case XFS_IOC_PATH_TO_HANDLE:
 	case XFS_IOC_PATH_TO_FSHANDLE:
 	case XFS_IOC_OPEN_BY_HANDLE:
 	case XFS_IOC_FSSETDM_BY_HANDLE:
@@ -124,8 +167,21 @@ __linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 	case XFS_IOC_ERROR_CLEARALL:
 		break;
 
-#ifndef BROKEN_X86_ALIGNMENT
-	/* xfs_flock_t and xfs_bstat_t have wrong u32 vs u64 alignment */
+#ifdef BROKEN_X86_ALIGNMENT
+	/* xfs_flock_t has wrong u32 vs u64 alignment */
+	case XFS_IOC_ALLOCSP_32:
+	case XFS_IOC_FREESP_32:
+	case XFS_IOC_ALLOCSP64_32:
+	case XFS_IOC_FREESP64_32:
+	case XFS_IOC_RESVSP_32:
+	case XFS_IOC_UNRESVSP_32:
+	case XFS_IOC_RESVSP64_32:
+	case XFS_IOC_UNRESVSP64_32:
+		arg = xfs_ioctl32_flock(arg);
+		cmd = _NATIVE_IOC(cmd, struct xfs_flock64);
+		break;
+
+#else /* These are handled fine if no alignment issues */
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_RESVSP:
@@ -134,6 +190,9 @@ __linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 	case XFS_IOC_FREESP64:
 	case XFS_IOC_RESVSP64:
 	case XFS_IOC_UNRESVSP64:
+		break;
+
+	/* xfs_bstat_t still has wrong u32 vs u64 alignment */
 	case XFS_IOC_SWAPEXT:
 		break;
 

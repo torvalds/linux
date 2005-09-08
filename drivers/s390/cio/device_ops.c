@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/device_ops.c
  *
- *   $Revision: 1.56 $
+ *   $Revision: 1.57 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -19,14 +19,12 @@
 
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
-#include <asm/qdio.h>
 
 #include "cio.h"
 #include "cio_debug.h"
 #include "css.h"
 #include "chsc.h"
 #include "device.h"
-#include "qdio.h"
 
 int
 ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)

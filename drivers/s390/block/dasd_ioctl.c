@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.45 $
+ * $Revision: 1.47 $
  *
  * i/o controls for the dasd driver.
  */
@@ -296,7 +296,6 @@ dasd_ioctl_format(struct block_device *bdev, int no, long args)
 {
 	struct dasd_device *device;
 	struct format_data_t fdata;
-	int feature_ro;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -308,10 +307,7 @@ dasd_ioctl_format(struct block_device *bdev, int no, long args)
 	if (device == NULL)
 		return -ENODEV;
 
-	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
-	if (feature_ro < 0)
-		return feature_ro;
-	if (feature_ro)
+	if (device->features & DASD_FEATURE_READONLY)
 		return -EROFS;
 	if (copy_from_user(&fdata, (void __user *) args,
 			   sizeof (struct format_data_t)))
@@ -384,7 +380,7 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 	struct dasd_device *device;
 	struct dasd_information2_t *dasd_info;
 	unsigned long flags;
-	int rc, feature_ro;
+	int rc;
 	struct ccw_device *cdev;
 
 	device = bdev->bd_disk->private_data;
@@ -393,10 +389,6 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 
 	if (!device->discipline->fill_info)
 		return -EINVAL;
-
-	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
-	if (feature_ro < 0)
-		return feature_ro;
 
 	dasd_info = kmalloc(sizeof(struct dasd_information2_t), GFP_KERNEL);
 	if (dasd_info == NULL)
@@ -427,7 +419,8 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 	    (dasd_check_blocksize(device->bp_block)))
 		dasd_info->format = DASD_FORMAT_NONE;
 
-	dasd_info->features |= feature_ro;
+	dasd_info->features |=
+		((device->features & DASD_FEATURE_READONLY) != 0);
 
 	if (device->discipline)
 		memcpy(dasd_info->type, device->discipline->name, 4);

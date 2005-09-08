@@ -58,6 +58,21 @@ static int config_access_valid(struct device_node *dn, int where)
 	return 0;
 }
 
+static int of_device_available(struct device_node * dn)
+{
+        char * status;
+
+        status = get_property(dn, "status", NULL);
+
+        if (!status)
+                return 1;
+
+        if (!strcmp(status, "okay"))
+                return 1;
+
+        return 0;
+}
+
 static int rtas_read_config(struct device_node *dn, int where, int size, u32 *val)
 {
 	int returnval = -1;
@@ -103,7 +118,7 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 
 	/* Search only direct children of the bus */
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->devfn == devfn)
+		if (dn->devfn == devfn && of_device_available(dn))
 			return rtas_read_config(dn, where, size, val);
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }
@@ -146,7 +161,7 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 
 	/* Search only direct children of the bus */
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->devfn == devfn)
+		if (dn->devfn == devfn && of_device_available(dn))
 			return rtas_write_config(dn, where, size, val);
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }

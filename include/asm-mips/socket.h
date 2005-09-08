@@ -37,6 +37,8 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 #define SO_ERROR	0x1007	/* get error status and clear */
 #define SO_SNDBUF	0x1001	/* Send buffer size. */
 #define SO_RCVBUF	0x1002	/* Receive buffer. */
+#define SO_SNDBUFFORCE	0x100a
+#define SO_RCVBUFFORCE	0x100b
 #define SO_SNDLOWAT	0x1003	/* send low-water mark */
 #define SO_RCVLOWAT	0x1004	/* receive low-water mark */
 #define SO_SNDTIMEO	0x1005	/* send timeout */
@@ -80,7 +82,7 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
  * @SOCK_STREAM - stream (connection) socket
  * @SOCK_RAW - raw socket
  * @SOCK_RDM - reliably-delivered message
- * @SOCK_SEQPACKET - sequential packet socket 
+ * @SOCK_SEQPACKET - sequential packet socket
  * @SOCK_PACKET - linux specific way of getting packets at the dev level.
  *		  For writing rarp and other similar things on the user level.
  */

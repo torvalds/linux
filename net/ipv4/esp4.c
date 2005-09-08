@@ -331,8 +331,8 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET);
 	if (!x)
 		return;
-	NETDEBUG(printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",
-			ntohl(esph->spi), ntohl(iph->daddr)));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",
+		 ntohl(esph->spi), ntohl(iph->daddr));
 	xfrm_state_put(x);
 }
 
@@ -343,22 +343,14 @@ static void esp_destroy(struct xfrm_state *x)
 	if (!esp)
 		return;
 
-	if (esp->conf.tfm) {
-		crypto_free_tfm(esp->conf.tfm);
-		esp->conf.tfm = NULL;
-	}
-	if (esp->conf.ivec) {
-		kfree(esp->conf.ivec);
-		esp->conf.ivec = NULL;
-	}
-	if (esp->auth.tfm) {
-		crypto_free_tfm(esp->auth.tfm);
-		esp->auth.tfm = NULL;
-	}
-	if (esp->auth.work_icv) {
-		kfree(esp->auth.work_icv);
-		esp->auth.work_icv = NULL;
-	}
+	crypto_free_tfm(esp->conf.tfm);
+	esp->conf.tfm = NULL;
+	kfree(esp->conf.ivec);
+	esp->conf.ivec = NULL;
+	crypto_free_tfm(esp->auth.tfm);
+	esp->auth.tfm = NULL;
+	kfree(esp->auth.work_icv);
+	esp->auth.work_icv = NULL;
 	kfree(esp);
 }
 
@@ -395,10 +387,10 @@ static int esp_init_state(struct xfrm_state *x)
 
 		if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
 		    crypto_tfm_alg_digestsize(esp->auth.tfm)) {
-			NETDEBUG(printk(KERN_INFO "ESP: %s digestsize %u != %hu\n",
-			       x->aalg->alg_name,
-			       crypto_tfm_alg_digestsize(esp->auth.tfm),
-			       aalg_desc->uinfo.auth.icv_fullbits/8));
+			NETDEBUG(KERN_INFO "ESP: %s digestsize %u != %hu\n",
+				 x->aalg->alg_name,
+				 crypto_tfm_alg_digestsize(esp->auth.tfm),
+				 aalg_desc->uinfo.auth.icv_fullbits/8);
 			goto error;
 		}
 

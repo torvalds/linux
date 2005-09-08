@@ -509,6 +509,7 @@ xfs_qm_qoff_logitem_format(xfs_qoff_logitem_t	*qf,
 
 	log_vector->i_addr = (xfs_caddr_t)&(qf->qql_format);
 	log_vector->i_len = sizeof(xfs_qoff_logitem_t);
+	XLOG_VEC_SET_TYPE(log_vector, XLOG_REG_TYPE_QUOTAOFF);
 	qf->qql_format.qf_size = 1;
 }
 

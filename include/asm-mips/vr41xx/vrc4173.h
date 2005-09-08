@@ -21,8 +21,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __NEC_VRC4173_H 
-#define __NEC_VRC4173_H 
+#ifndef __NEC_VRC4173_H
+#define __NEC_VRC4173_H
 
 #include <linux/config.h>
 #include <asm/io.h>

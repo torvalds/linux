@@ -119,7 +119,7 @@ mpc52xx_uart_get_mctrl(struct uart_port *port)
 }
 
 static void 
-mpc52xx_uart_stop_tx(struct uart_port *port, unsigned int tty_stop)
+mpc52xx_uart_stop_tx(struct uart_port *port)
 {
 	/* port->lock taken by caller */
 	port->read_status_mask &= ~MPC52xx_PSC_IMR_TXRDY;
@@ -127,7 +127,7 @@ mpc52xx_uart_stop_tx(struct uart_port *port, unsigned int tty_stop)
 }
 
 static void 
-mpc52xx_uart_start_tx(struct uart_port *port, unsigned int tty_start)
+mpc52xx_uart_start_tx(struct uart_port *port)
 {
 	/* port->lock taken by caller */
 	port->read_status_mask |= MPC52xx_PSC_IMR_TXRDY;
@@ -485,7 +485,7 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 
 	/* Nothing to do ? */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		mpc52xx_uart_stop_tx(port,0);
+		mpc52xx_uart_stop_tx(port);
 		return 0;
 	}
 
@@ -504,7 +504,7 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 
 	/* Maybe we're done after all */
 	if (uart_circ_empty(xmit)) {
-		mpc52xx_uart_stop_tx(port,0);
+		mpc52xx_uart_stop_tx(port);
 		return 0;
 	}
 

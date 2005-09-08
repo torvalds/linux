@@ -18,8 +18,8 @@
 #include "mach_timer.h"
 #include <asm/hpet.h>
 
-static unsigned long __read_mostly hpet_usec_quotient;	/* convert hpet clks to usec */
-static unsigned long tsc_hpet_quotient;		/* convert tsc to hpet clks */
+static unsigned long hpet_usec_quotient __read_mostly;	/* convert hpet clks to usec */
+static unsigned long tsc_hpet_quotient __read_mostly;	/* convert tsc to hpet clks */
 static unsigned long hpet_last; 	/* hpet counter value at last tick*/
 static unsigned long last_tsc_low;	/* lsb 32 bits of Time Stamp Counter */
 static unsigned long last_tsc_high; 	/* msb 32 bits of Time Stamp Counter */
@@ -136,6 +136,8 @@ static void delay_hpet(unsigned long loops)
 	} while ((hpet_end - hpet_start) < (loops));
 }
 
+static struct timer_opts timer_hpet;
+
 static int __init init_hpet(char* override)
 {
 	unsigned long result, remain;
@@ -163,6 +165,8 @@ static int __init init_hpet(char* override)
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
 		}
+		/* set this only when cpu_has_tsc */
+		timer_hpet.read_timer = read_timer_tsc;
 	}
 
 	/*
@@ -177,6 +181,19 @@ static int __init init_hpet(char* override)
 	return 0;
 }
 
+static int hpet_resume(void)
+{
+	write_seqlock(&monotonic_lock);
+	/* Assume this is the last mark offset time */
+	rdtsc(last_tsc_low, last_tsc_high);
+
+	if (hpet_use_timer)
+		hpet_last = hpet_readl(HPET_T0_CMP) - hpet_tick;
+	else
+		hpet_last = hpet_readl(HPET_COUNTER);
+	write_sequnlock(&monotonic_lock);
+	return 0;
+}
 /************************************************************/
 
 /* tsc timer_opts struct */
@@ -186,7 +203,7 @@ static struct timer_opts timer_hpet __read_mostly = {
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
-	.read_timer = 		read_timer_tsc,
+	.resume	=		hpet_resume,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {

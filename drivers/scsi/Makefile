@@ -22,6 +22,8 @@ subdir-$(CONFIG_PCMCIA)		+= pcmcia
 
 obj-$(CONFIG_SCSI)		+= scsi_mod.o
 
+obj-$(CONFIG_RAID_ATTRS)	+= raid_class.o
+
 # --- NOTE ORDERING HERE ---
 # For kernel non-modular link, transport attributes need to
 # be initialised before drivers
@@ -133,6 +135,7 @@ obj-$(CONFIG_SCSI_SATA_SIS)	+= libata.o sata_sis.o
 obj-$(CONFIG_SCSI_SATA_SX4)	+= libata.o sata_sx4.o
 obj-$(CONFIG_SCSI_SATA_NV)	+= libata.o sata_nv.o
 obj-$(CONFIG_SCSI_SATA_ULI)	+= libata.o sata_uli.o
+obj-$(CONFIG_SCSI_SATA_MV)	+= libata.o sata_mv.o
 
 obj-$(CONFIG_ARM)		+= arm/
 

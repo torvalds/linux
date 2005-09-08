@@ -58,7 +58,7 @@ static unsigned long iop331_gettimeoffset(void)
 	/*
 	 * Now convert them to usec.
 	 */
-	usec = (unsigned long)(elapsed * (tick_nsec / 1000)) / LATCH;
+	usec = (unsigned long)(elapsed / (CLOCK_TICK_RATE/1000000));
 
 	return usec;
 }

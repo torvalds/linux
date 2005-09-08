@@ -713,8 +713,6 @@ static u32 iic_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm iic_algo = {
-	.name		= "ITE IIC algorithm",
-	.id		= I2C_ALGO_IIC,
 	.master_xfer	= iic_xfer,
 	.algo_control	= algo_control, /* ioctl */
 	.functionality	= iic_func,
@@ -738,8 +736,6 @@ int i2c_iic_add_bus(struct i2c_adapter *adap)
 	            adap->name));
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= iic_algo.id;
 	adap->algo = &iic_algo;
 
 	adap->timeout = 100;	/* default values, should	*/

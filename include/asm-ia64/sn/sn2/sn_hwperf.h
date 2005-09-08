@@ -43,6 +43,7 @@ struct sn_hwperf_object_info {
 
 /* macros for object classification */
 #define SN_HWPERF_IS_NODE(x)		((x) && strstr((x)->name, "SHub"))
+#define SN_HWPERF_IS_NODE_SHUB2(x)	((x) && strstr((x)->name, "SHub 2."))
 #define SN_HWPERF_IS_IONODE(x)		((x) && strstr((x)->name, "TIO"))
 #define SN_HWPERF_IS_ROUTER(x)		((x) && strstr((x)->name, "Router"))
 #define SN_HWPERF_IS_NL3ROUTER(x)	((x) && strstr((x)->name, "NL3Router"))
@@ -213,6 +214,15 @@ struct sn_hwperf_ioctl_args {
  * p	pointer to u64 integer
  */
 #define SN_HWPERF_GET_NODE_NASID	(102|SN_HWPERF_OP_MEM_COPYOUT)
+
+/*
+ * Given a node id, determine the id of the nearest node with CPUs
+ * and the id of the nearest node that has memory. The argument
+ * node would normally be a "headless" node, e.g. an "IO node".
+ * Return 0 on success.
+ */
+extern int sn_hwperf_get_nearest_node(cnodeid_t node,
+	cnodeid_t *near_mem, cnodeid_t *near_cpu);
 
 /* return codes */
 #define SN_HWPERF_OP_OK			0

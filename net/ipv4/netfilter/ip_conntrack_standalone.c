@@ -5,7 +5,7 @@
 */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2002-2005 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -147,8 +147,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (DIRECTION(hash))
 		return 0;
 
-	proto = ip_ct_find_proto(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
-			       .tuple.dst.protonum);
+	proto = __ip_conntrack_proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
 	IP_NF_ASSERT(proto);
 
 	if (seq_printf(s, "%-8s %u %ld ",
@@ -185,7 +184,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			return -ENOSPC;
 
 #if defined(CONFIG_IP_NF_CONNTRACK_MARK)
-	if (seq_printf(s, "mark=%lu ", conntrack->mark))
+	if (seq_printf(s, "mark=%u ", conntrack->mark))
 		return -ENOSPC;
 #endif
 
@@ -283,7 +282,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, "proto=%u ", expect->tuple.dst.protonum);
 
 	print_tuple(s, &expect->tuple,
-		    ip_ct_find_proto(expect->tuple.dst.protonum));
+		    __ip_conntrack_proto_find(expect->tuple.dst.protonum));
 	return seq_putc(s, '\n');
 }
 
@@ -889,6 +888,7 @@ static int init_or_cleanup(int init)
 	return ret;
 
  cleanup:
+	synchronize_net();
 #ifdef CONFIG_SYSCTL
  	unregister_sysctl_table(ip_ct_sysctl_header);
  cleanup_localinops:
@@ -971,6 +971,14 @@ void need_ip_conntrack(void)
 {
 }
 
+#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+EXPORT_SYMBOL_GPL(ip_conntrack_chain);
+EXPORT_SYMBOL_GPL(ip_conntrack_expect_chain);
+EXPORT_SYMBOL_GPL(ip_conntrack_register_notifier);
+EXPORT_SYMBOL_GPL(ip_conntrack_unregister_notifier);
+EXPORT_SYMBOL_GPL(__ip_ct_event_cache_init);
+EXPORT_PER_CPU_SYMBOL_GPL(ip_conntrack_ecache);
+#endif
 EXPORT_SYMBOL(ip_conntrack_protocol_register);
 EXPORT_SYMBOL(ip_conntrack_protocol_unregister);
 EXPORT_SYMBOL(ip_ct_get_tuple);
@@ -982,12 +990,16 @@ EXPORT_SYMBOL(ip_conntrack_helper_register);
 EXPORT_SYMBOL(ip_conntrack_helper_unregister);
 EXPORT_SYMBOL(ip_ct_iterate_cleanup);
 EXPORT_SYMBOL(ip_ct_refresh_acct);
-EXPORT_SYMBOL(ip_ct_protos);
-EXPORT_SYMBOL(ip_ct_find_proto);
+
 EXPORT_SYMBOL(ip_conntrack_expect_alloc);
 EXPORT_SYMBOL(ip_conntrack_expect_put);
+EXPORT_SYMBOL_GPL(ip_conntrack_expect_find_get);
 EXPORT_SYMBOL(ip_conntrack_expect_related);
 EXPORT_SYMBOL(ip_conntrack_unexpect_related);
+EXPORT_SYMBOL_GPL(ip_conntrack_expect_list);
+EXPORT_SYMBOL_GPL(__ip_conntrack_expect_find);
+EXPORT_SYMBOL_GPL(ip_ct_unlink_expect);
+
 EXPORT_SYMBOL(ip_conntrack_tuple_taken);
 EXPORT_SYMBOL(ip_ct_gather_frags);
 EXPORT_SYMBOL(ip_conntrack_htable_size);
@@ -995,7 +1007,28 @@ EXPORT_SYMBOL(ip_conntrack_lock);
 EXPORT_SYMBOL(ip_conntrack_hash);
 EXPORT_SYMBOL(ip_conntrack_untracked);
 EXPORT_SYMBOL_GPL(ip_conntrack_find_get);
-EXPORT_SYMBOL_GPL(ip_conntrack_put);
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 EXPORT_SYMBOL(ip_conntrack_tcp_update);
+#endif
+
+EXPORT_SYMBOL_GPL(ip_conntrack_flush);
+EXPORT_SYMBOL_GPL(__ip_conntrack_find);
+
+EXPORT_SYMBOL_GPL(ip_conntrack_alloc);
+EXPORT_SYMBOL_GPL(ip_conntrack_free);
+EXPORT_SYMBOL_GPL(ip_conntrack_hash_insert);
+
+EXPORT_SYMBOL_GPL(ip_ct_remove_expectations);
+
+EXPORT_SYMBOL_GPL(ip_conntrack_helper_find_get);
+EXPORT_SYMBOL_GPL(ip_conntrack_helper_put);
+EXPORT_SYMBOL_GPL(__ip_conntrack_helper_find_byname);
+
+EXPORT_SYMBOL_GPL(ip_conntrack_proto_find_get);
+EXPORT_SYMBOL_GPL(ip_conntrack_proto_put);
+EXPORT_SYMBOL_GPL(__ip_conntrack_proto_find);
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+EXPORT_SYMBOL_GPL(ip_ct_port_tuple_to_nfattr);
+EXPORT_SYMBOL_GPL(ip_ct_port_nfattr_to_tuple);
 #endif

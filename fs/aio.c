@@ -567,6 +567,10 @@ static void use_mm(struct mm_struct *mm)
 	atomic_inc(&mm->mm_count);
 	tsk->mm = mm;
 	tsk->active_mm = mm;
+	/*
+	 * Note that on UML this *requires* PF_BORROWED_MM to be set, otherwise
+	 * it won't work. Update it accordingly if you change it here
+	 */
 	activate_mm(active_mm, mm);
 	task_unlock(tsk);
 

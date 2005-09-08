@@ -208,7 +208,7 @@ int drm_getmap( struct inode *inode, struct file *filp,
 	map.size   = r_list->map->size;
 	map.type   = r_list->map->type;
 	map.flags  = r_list->map->flags;
-	map.handle = r_list->map->handle;
+	map.handle = (void *)(unsigned long) r_list->user_token;
 	map.mtrr   = r_list->map->mtrr;
 	up(&dev->struct_sem);
 

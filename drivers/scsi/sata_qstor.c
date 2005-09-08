@@ -494,7 +494,7 @@ static int qs_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 	qs_enter_reg_mode(ap);
-	pp = kcalloc(1, sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -538,11 +538,12 @@ static void qs_port_stop(struct ata_port *ap)
 static void qs_host_stop(struct ata_host_set *host_set)
 {
 	void __iomem *mmio_base = host_set->mmio_base;
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 
 	writeb(0, mmio_base + QS_HCT_CTRL); /* disable host interrupts */
 	writeb(QS_CNFG3_GSRST, mmio_base + QS_HCF_CNFG3); /* global reset */
 
-	ata_host_stop(host_set);
+	pci_iounmap(pdev, mmio_base);
 }
 
 static void qs_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
@@ -646,8 +647,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 		goto err_out_regions;
 	}
 
-	mmio_base = ioremap(pci_resource_start(pdev, 4),
-		            pci_resource_len(pdev, 4));
+	mmio_base = pci_iomap(pdev, 4, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_regions;
@@ -697,7 +697,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out_iounmap:
-	iounmap(mmio_base);
+	pci_iounmap(pdev, mmio_base);
 err_out_regions:
 	pci_release_regions(pdev);
 err_out:

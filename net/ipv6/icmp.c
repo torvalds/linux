@@ -67,7 +67,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics);
+DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics) __read_mostly;
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -332,8 +332,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	 *	for now we don't know that.
 	 */
 	if ((addr_type == IPV6_ADDR_ANY) || (addr_type & IPV6_ADDR_MULTICAST)) {
-		LIMIT_NETDEBUG(
-			printk(KERN_DEBUG "icmpv6_send: addr_any/mcast source\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: addr_any/mcast source\n");
 		return;
 	}
 
@@ -341,8 +340,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	 *	Never answer to a ICMP packet.
 	 */
 	if (is_ineligible(skb)) {
-		LIMIT_NETDEBUG(
-			printk(KERN_DEBUG "icmpv6_send: no reply to icmp error\n")); 
+		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: no reply to icmp error\n");
 		return;
 	}
 
@@ -393,8 +391,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	len = skb->len - msg.offset;
 	len = min_t(unsigned int, len, IPV6_MIN_MTU - sizeof(struct ipv6hdr) -sizeof(struct icmp6hdr));
 	if (len < 0) {
-		LIMIT_NETDEBUG(
-			printk(KERN_DEBUG "icmp: len problem\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "icmp: len problem\n");
 		goto out_dst_release;
 	}
 
@@ -551,7 +548,8 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, u32 info)
 
 	read_lock(&raw_v6_lock);
 	if ((sk = sk_head(&raw_v6_htable[hash])) != NULL) {
-		while((sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr))) {
+		while((sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr,
+					    IP6CB(skb)->iif))) {
 			rawv6_err(sk, skb, NULL, type, code, inner_offset, info);
 			sk = sk_next(sk);
 		}
@@ -583,17 +581,15 @@ static int icmpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
 				    skb->csum)) {
-			LIMIT_NETDEBUG(
-				printk(KERN_DEBUG "ICMPv6 hw checksum failed\n"));
+			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 hw checksum failed\n");
 			skb->ip_summed = CHECKSUM_NONE;
 		}
 	}
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
 				    skb_checksum(skb, 0, skb->len, 0))) {
-			LIMIT_NETDEBUG(
-				printk(KERN_DEBUG "ICMPv6 checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
-				       NIP6(*saddr), NIP6(*daddr)));
+			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
+				       NIP6(*saddr), NIP6(*daddr));
 			goto discard_it;
 		}
 	}
@@ -669,8 +665,7 @@ static int icmpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		break;
 
 	default:
-		LIMIT_NETDEBUG(
-			printk(KERN_DEBUG "icmpv6: msg of unknown type\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6: msg of unknown type\n");
 
 		/* informational */
 		if (type & ICMPV6_INFOMSG_MASK)

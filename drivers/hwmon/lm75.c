@@ -23,17 +23,17 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include "lm75.h"
 
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(lm75);
+I2C_CLIENT_INSMOD_1(lm75);
 
 /* Many LM75 constants specified below */
 
@@ -46,6 +46,7 @@ SENSORS_INSMOD_1(lm75);
 /* Each client has this additional data */
 struct lm75_data {
 	struct i2c_client	client;
+	struct class_device *class_dev;
 	struct semaphore	update_lock;
 	char			valid;		/* !=0 if following fields are valid */
 	unsigned long		last_updated;	/* In jiffies */
@@ -107,10 +108,10 @@ static int lm75_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, lm75_detect);
+	return i2c_probe(adapter, &addr_data, lm75_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i;
@@ -118,16 +119,6 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct lm75_data *data;
 	int err = 0;
 	const char *name = "";
-
-	/* Make sure we aren't probing the ISA bus!! This is just a safety check
-	   at this moment; i2c_detect really won't call us. */
-#ifdef DEBUG
-	if (i2c_is_isa_adapter(adapter)) {
-		dev_dbg(&adapter->dev,
-			"lm75_detect called for an ISA bus adapter?!?\n");
-		goto exit;
-	}
-#endif
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
@@ -208,12 +199,20 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 	lm75_init_client(new_client);
 	
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_max);
 	device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -222,8 +221,10 @@ exit:
 
 static int lm75_detach_client(struct i2c_client *client)
 {
+	struct lm75_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->class_dev);
 	i2c_detach_client(client);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 
@@ -251,8 +252,12 @@ static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
 
 static void lm75_init_client(struct i2c_client *client)
 {
-	/* Initialize the LM75 chip */
-	lm75_write_value(client, LM75_REG_CONF, 0);
+	int reg;
+
+	/* Enable if in shutdown mode */
+	reg = lm75_read_value(client, LM75_REG_CONF);
+	if (reg >= 0 && (reg & 0x01))
+		lm75_write_value(client, LM75_REG_CONF, reg & 0xfe);
 }
 
 static struct lm75_data *lm75_update_device(struct device *dev)

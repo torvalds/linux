@@ -168,12 +168,14 @@ static void ax25_uid_seq_stop(struct seq_file *seq, void *v)
 
 static int ax25_uid_seq_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
+
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "Policy: %d\n", ax25_uid_policy);
 	else {
 		struct ax25_uid_assoc *pt = v;
 
-		seq_printf(seq, "%6d %s\n", pt->uid, ax2asc(&pt->call));
+		seq_printf(seq, "%6d %s\n", pt->uid, ax2asc(buf, &pt->call));
 	}
 	return 0;
 }

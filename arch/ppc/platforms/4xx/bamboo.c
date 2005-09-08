@@ -52,13 +52,6 @@
 #include <syslib/gen550.h>
 #include <syslib/ibm440gx_common.h>
 
-/*
- * This is a horrible kludge, we eventually need to abstract this
- * generic PHY stuff, so the  standard phy mode defines can be
- * easily used from arch code.
- */
-#include "../../../../drivers/net/ibm_emac/ibm_emac_phy.h"
-
 bd_t __res;
 
 static struct ibm44x_clocks clocks __initdata;
@@ -123,33 +116,69 @@ bamboo_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 
 static void __init bamboo_set_emacdata(void)
 {
-	unsigned char * selection1_base;
+	u8 * base_addr;
 	struct ocp_def *def;
 	struct ocp_func_emac_data *emacdata;
-	u8 selection1_val;
+	u8 val;
 	int mode;
+	u32 excluded = 0;
 
-	selection1_base = ioremap64(BAMBOO_FPGA_SELECTION1_REG_ADDR, 16);
-	selection1_val = readb(selection1_base);
-	iounmap((void *) selection1_base);
-	if (BAMBOO_SEL_MII(selection1_val))
+	base_addr = ioremap64(BAMBOO_FPGA_SELECTION1_REG_ADDR, 16);
+	val = readb(base_addr);
+	iounmap((void *) base_addr);
+	if (BAMBOO_SEL_MII(val))
 		mode = PHY_MODE_MII;
-	else if (BAMBOO_SEL_RMII(selection1_val))
+	else if (BAMBOO_SEL_RMII(val))
 		mode = PHY_MODE_RMII;
 	else
 		mode = PHY_MODE_SMII;
 
-	/* Set mac_addr and phy mode for each EMAC */
+	/*
+	 * SW2 on the Bamboo is used for ethernet configuration and is accessed
+	 * via the CONFIG2 register in the FPGA.  If the ANEG pin is set,
+	 * overwrite the supported features with the settings in SW2.
+	 *
+	 * This is used as a workaround for the improperly biased RJ-45 sockets
+	 * on the Rev. 0 Bamboo.  By default only 10baseT is functional.
+	 * Removing inductors L17 and L18 from the board allows 100baseT, but
+	 * disables 10baseT.  The Rev. 1 has no such limitations.
+	 */
+
+	base_addr = ioremap64(BAMBOO_FPGA_CONFIG2_REG_ADDR, 8);
+	val = readb(base_addr);
+	iounmap((void *) base_addr);
+	if (!BAMBOO_AUTONEGOTIATE(val)) {
+		excluded |= SUPPORTED_Autoneg;
+		if (BAMBOO_FORCE_100Mbps(val)) {
+			excluded |= SUPPORTED_10baseT_Full;
+			excluded |= SUPPORTED_10baseT_Half;
+			if (BAMBOO_FULL_DUPLEX_EN(val))
+				excluded |= SUPPORTED_100baseT_Half;
+			else
+				excluded |= SUPPORTED_100baseT_Full;
+		} else {
+			excluded |= SUPPORTED_100baseT_Full;
+			excluded |= SUPPORTED_100baseT_Half;
+			if (BAMBOO_FULL_DUPLEX_EN(val))
+				excluded |= SUPPORTED_10baseT_Half;
+			else
+				excluded |= SUPPORTED_10baseT_Full;
+		}
+	}
+
+	/* Set mac_addr, phy mode and unsupported phy features for each EMAC */
 
 	def = ocp_get_one_device(OCP_VENDOR_IBM, OCP_FUNC_EMAC, 0);
 	emacdata = def->additions;
 	memcpy(emacdata->mac_addr, __res.bi_enetaddr, 6);
 	emacdata->phy_mode = mode;
+	emacdata->phy_feat_exc = excluded;
 
 	def = ocp_get_one_device(OCP_VENDOR_IBM, OCP_FUNC_EMAC, 1);
 	emacdata = def->additions;
 	memcpy(emacdata->mac_addr, __res.bi_enet1addr, 6);
 	emacdata->phy_mode = mode;
+	emacdata->phy_feat_exc = excluded;
 }
 
 static int

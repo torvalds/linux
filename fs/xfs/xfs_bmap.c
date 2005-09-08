@@ -4754,10 +4754,20 @@ xfs_bmapi(
 					error = xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
 							-(alen), rsvd);
-				if (!error)
+				if (!error) {
 					error = xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
 							-(indlen), rsvd);
+					if (error && rt) {
+						xfs_mod_incore_sb(ip->i_mount,
+							XFS_SBS_FREXTENTS,
+							extsz, rsvd);
+					} else if (error) {
+						xfs_mod_incore_sb(ip->i_mount,
+							XFS_SBS_FDBLOCKS,
+							alen, rsvd);
+					}
+				}
 
 				if (error) {
 					if (XFS_IS_QUOTA_ON(ip->i_mount))

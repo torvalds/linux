@@ -19,7 +19,6 @@
 #define NR_HP_RESERVED_VECTORS 	20
 
 extern int vector_irq[NR_VECTORS];
-extern cpumask_t pending_irq_balance_cpumask[NR_IRQS];
 extern void (*interrupt[NR_IRQS])(void);
 extern int pci_vector_resources(int last, int nr_released);
 
@@ -27,10 +26,6 @@ extern int pci_vector_resources(int last, int nr_released);
 #define set_msi_irq_affinity	set_msi_affinity
 #else
 #define set_msi_irq_affinity	NULL
-#endif
-
-#ifndef CONFIG_IRQBALANCE
-static inline void move_msi(int vector) {}
 #endif
 
 /*

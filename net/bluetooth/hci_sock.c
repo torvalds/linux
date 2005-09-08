@@ -110,11 +110,11 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 		/* Apply filter */
 		flt = &hci_pi(sk)->filter;
 
-		if (!test_bit((skb->pkt_type == HCI_VENDOR_PKT) ?
-				0 : (skb->pkt_type & HCI_FLT_TYPE_BITS), &flt->type_mask))
+		if (!test_bit((bt_cb(skb)->pkt_type == HCI_VENDOR_PKT) ?
+				0 : (bt_cb(skb)->pkt_type & HCI_FLT_TYPE_BITS), &flt->type_mask))
 			continue;
 
-		if (skb->pkt_type == HCI_EVENT_PKT) {
+		if (bt_cb(skb)->pkt_type == HCI_EVENT_PKT) {
 			register int evt = (*(__u8 *)skb->data & HCI_FLT_EVENT_BITS);
 
 			if (!hci_test_bit(evt, &flt->event_mask))
@@ -131,7 +131,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			continue;
 
 		/* Put type byte before the data */
-		memcpy(skb_push(nskb, 1), &nskb->pkt_type, 1);
+		memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
 
 		if (sock_queue_rcv_skb(sk, nskb))
 			kfree_skb(nskb);
@@ -327,11 +327,17 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 {
 	__u32 mask = hci_pi(sk)->cmsg_mask;
 
-	if (mask & HCI_CMSG_DIR)
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(int), &bt_cb(skb)->incoming);
+	if (mask & HCI_CMSG_DIR) {
+		int incoming = bt_cb(skb)->incoming;
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(incoming), &incoming);
+	}
 
-	if (mask & HCI_CMSG_TSTAMP)
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(skb->stamp), &skb->stamp);
+	if (mask & HCI_CMSG_TSTAMP) {
+		struct timeval tv;
+
+		skb_get_timestamp(skb, &tv);
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(tv), &tv);
+	}
 }
  
 static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock, 
@@ -405,11 +411,11 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto drop;
 	}
 
-	skb->pkt_type = *((unsigned char *) skb->data);
+	bt_cb(skb)->pkt_type = *((unsigned char *) skb->data);
 	skb_pull(skb, 1);
 	skb->dev = (void *) hdev;
 
-	if (skb->pkt_type == HCI_COMMAND_PKT) {
+	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
 		u16 opcode = __le16_to_cpu(get_unaligned((u16 *)skb->data));
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);

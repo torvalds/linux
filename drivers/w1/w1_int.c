@@ -86,9 +86,9 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	dev->driver = driver;
 
-	dev->groups = 23;
+	dev->groups = 1;
 	dev->seq = 1;
-	dev->nls = netlink_kernel_create(NETLINK_W1, NULL);
+	dev->nls = netlink_kernel_create(NETLINK_W1, 1, NULL, THIS_MODULE);
 	if (!dev->nls) {
 		printk(KERN_ERR "Failed to create new netlink socket(%u) for w1 master %s.\n",
 			NETLINK_NFLOG, dev->dev.bus_id);
@@ -225,3 +225,5 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 
 EXPORT_SYMBOL(w1_add_master_device);
 EXPORT_SYMBOL(w1_remove_master_device);
+
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_W1);

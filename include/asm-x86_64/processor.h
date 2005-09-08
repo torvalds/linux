@@ -398,7 +398,7 @@ static inline void prefetch(void *x)
 #define ARCH_HAS_PREFETCHW 1
 static inline void prefetchw(void *x) 
 { 
-	alternative_input(ASM_NOP5,
+	alternative_input("prefetcht0 (%1)",
 			  "prefetchw (%1)",
 			  X86_FEATURE_3DNOW,
 			  "r" (x));
@@ -436,6 +436,11 @@ static inline void prefetchw(void *x)
 	outb((reg), 0x22); \
 	outb((data), 0x23); \
 } while (0)
+
+static inline void serialize_cpu(void)
+{
+	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+}
 
 static inline void __monitor(const void *eax, unsigned long ecx,
 		unsigned long edx)

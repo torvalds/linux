@@ -1020,7 +1020,7 @@ struct gem {
 		
 	struct gem_init_block	*init_block;
 	struct sk_buff		*rx_skbs[RX_RING_SIZE];
-	struct sk_buff		*tx_skbs[RX_RING_SIZE];
+	struct sk_buff		*tx_skbs[TX_RING_SIZE];
 	dma_addr_t		gblock_dvma;
 
 	struct pci_dev		*pdev;

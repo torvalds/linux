@@ -82,6 +82,16 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /**
+ *	aac_sa_disable_interrupt	-	disable interrupt
+ *	@dev: Which adapter to enable.
+ */
+
+static void aac_sa_disable_interrupt (struct aac_dev *dev)
+{
+	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
+}
+
+/**
  *	aac_sa_notify_adapter		-	handle adapter notification
  *	@dev:	Adapter that notification is for
  *	@event:	Event to notidy
@@ -214,9 +224,8 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command,
  
 static void aac_sa_interrupt_adapter (struct aac_dev *dev)
 {
-	u32 ret;
 	sa_sync_cmd(dev, BREAKPOINT_REQUEST, 0, 0, 0, 0, 0, 0,
-			&ret, NULL, NULL, NULL, NULL);
+			NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -352,10 +361,18 @@ int aac_sa_init(struct aac_dev *dev)
 	 */
 
 	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
+	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
 	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_sa_check_health;
 
+	/*
+	 *	First clear out all interrupts.  Then enable the one's that 
+	 *	we can handle.
+	 */
+	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
+	sa_writew(dev, SaDbCSR.PRICLEARIRQMASK, (PrintfReady | DOORBELL_1 | 
+				DOORBELL_2 | DOORBELL_3 | DOORBELL_4));
 
 	if(aac_init_adapter(dev) == NULL)
 		goto error_irq;
@@ -381,6 +398,7 @@ error_kfree:
 	kfree(dev->queues);
 
 error_irq:
+	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
 	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
 
 error_iounmap:

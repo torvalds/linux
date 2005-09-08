@@ -15,7 +15,7 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * Routines for generic manipulation of the interrupts found on the 
+ * Routines for generic manipulation of the interrupts found on the
  * Lasat boards.
  */
 #include <linux/init.h>
@@ -101,7 +101,7 @@ static unsigned long get_int_status_100(void)
 	return *lasat_int_status & *lasat_int_mask;
 }
 
-static unsigned long get_int_status_200(void) 
+static unsigned long get_int_status_200(void)
 {
 	unsigned long int_status;
 

@@ -148,7 +148,7 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	tioca_kern->ca_pcigart_entries =
 	    tioca_kern->ca_pciap_size / tioca_kern->ca_ap_pagesize;
 	tioca_kern->ca_pcigart_pagemap =
-	    kcalloc(1, tioca_kern->ca_pcigart_entries / 8, GFP_KERNEL);
+	    kzalloc(tioca_kern->ca_pcigart_entries / 8, GFP_KERNEL);
 	if (!tioca_kern->ca_pcigart_pagemap) {
 		free_pages((unsigned long)tioca_kern->ca_gart,
 			   get_order(tioca_kern->ca_gart_size));
@@ -392,7 +392,7 @@ tioca_dma_mapped(struct pci_dev *pdev, uint64_t paddr, size_t req_size)
 	 * allocate a map struct
 	 */
 
-	ca_dmamap = kcalloc(1, sizeof(struct tioca_dmamap), GFP_ATOMIC);
+	ca_dmamap = kzalloc(sizeof(struct tioca_dmamap), GFP_ATOMIC);
 	if (!ca_dmamap)
 		goto map_return;
 
@@ -559,7 +559,7 @@ tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 
-	segment = 0;
+	segment = soft->ca_common.bs_persist_segment;
 	busnum = soft->ca_common.bs_persist_busnum;
 
 	SAL_CALL_NOLOCK(ret_stuff,
@@ -600,7 +600,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * Allocate kernel bus soft and copy from prom.
 	 */
 
-	tioca_common = kcalloc(1, sizeof(struct tioca_common), GFP_KERNEL);
+	tioca_common = kzalloc(sizeof(struct tioca_common), GFP_KERNEL);
 	if (!tioca_common)
 		return NULL;
 
@@ -609,7 +609,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 
 	/* init kernel-private area */
 
-	tioca_kern = kcalloc(1, sizeof(struct tioca_kernel), GFP_KERNEL);
+	tioca_kern = kzalloc(sizeof(struct tioca_kernel), GFP_KERNEL);
 	if (!tioca_kern) {
 		kfree(tioca_common);
 		return NULL;
@@ -622,7 +622,8 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	    nasid_to_cnodeid(tioca_common->ca_closest_nasid);
 	tioca_common->ca_kernel_private = (uint64_t) tioca_kern;
 
-	bus = pci_find_bus(0, tioca_common->ca_common.bs_persist_busnum);
+	bus = pci_find_bus(tioca_common->ca_common.bs_persist_segment,
+		tioca_common->ca_common.bs_persist_busnum);
 	BUG_ON(!bus);
 	tioca_kern->ca_devices = &bus->devices;
 
@@ -656,6 +657,8 @@ static struct sn_pcibus_provider tioca_pci_interfaces = {
 	.dma_map_consistent = tioca_dma_map,
 	.dma_unmap = tioca_dma_unmap,
 	.bus_fixup = tioca_bus_fixup,
+	.force_interrupt = NULL,
+	.target_interrupt = NULL
 };
 
 /**
