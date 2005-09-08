@@ -60,17 +60,6 @@ struct pxa_i2c {
  */
 #define I2C_PXA_SLAVE_ADDR      0x1
 
-/*
- * Set this to zero to remove all debug statements via dead code elimination.
- */
-#undef DEBUG
-
-#if 0
-#define DBGLVL KERN_INFO
-#else
-#define DBGLVL KERN_DEBUG
-#endif
-
 #ifdef DEBUG
 
 struct bits {
@@ -108,7 +97,7 @@ static const struct bits isr_bits[] = {
 
 static void decode_ISR(unsigned int val)
 {
-	decode_bits(DBGLVL "ISR", isr_bits, ARRAY_SIZE(isr_bits), val);
+	decode_bits(KERN_DEBUG "ISR", isr_bits, ARRAY_SIZE(isr_bits), val);
 	printk("\n");
 }
 
@@ -132,7 +121,7 @@ static const struct bits icr_bits[] = {
 
 static void decode_ICR(unsigned int val)
 {
-	decode_bits(DBGLVL "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
+	decode_bits(KERN_DEBUG "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
 	printk("\n");
 }
 
@@ -140,7 +129,7 @@ static unsigned int i2c_debug = DEBUG;
 
 static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 {
-	printk(DBGLVL "state:%s:%d: ISR=%08x, ICR=%08x, IBMR=%02x\n", fname, lno, ISR, ICR, IBMR);
+	dev_dbg(&i2c->adap.dev, "state:%s:%d: ISR=%08x, ICR=%08x, IBMR=%02x\n", fname, lno, ISR, ICR, IBMR);
 }
 
 #define show_state(i2c) i2c_pxa_show_state(i2c, __LINE__, __FUNCTION__)
@@ -152,7 +141,7 @@ static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 #define decode_ICR(val) do { } while (0)
 #endif
 
-#define eedbg(lvl, x...) do { if ((lvl) < 1) { printk(DBGLVL "" x); } } while(0)
+#define eedbg(lvl, x...) do { if ((lvl) < 1) { printk(KERN_DEBUG "" x); } } while(0)
 
 static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret);
 
@@ -162,7 +151,8 @@ static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 	printk("i2c: error: %s\n", why);
 	printk("i2c: msg_num: %d msg_idx: %d msg_ptr: %d\n",
 		i2c->msg_num, i2c->msg_idx, i2c->msg_ptr);
-	printk("i2c: ICR: %08x ISR: %08x\ni2c: log: ", ICR, ISR);
+	printk("i2c: ICR: %08x ISR: %08x\n"
+	       "i2c: log: ", ICR, ISR);
 	for (i = 0; i < i2c->irqlogidx; i++)
 		printk("[%08x:%08x] ", i2c->isrlog[i], i2c->icrlog[i]);
 	printk("\n");
@@ -178,7 +168,7 @@ static void i2c_pxa_abort(struct pxa_i2c *i2c)
 	unsigned long timeout = jiffies + HZ/4;
 
 	if (i2c_pxa_is_slavemode(i2c)) {
-		printk(DBGLVL "i2c_pxa_transfer: called in slave mode\n");
+		dev_dbg(&i2c->adap.dev, "%s: called in slave mode\n", __func__);
 		return;
 	}
 
@@ -222,12 +212,12 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 
 	while (time_before(jiffies, timeout)) {
 		if (i2c_debug > 1)
-			printk(DBGLVL "i2c_pxa_wait_master: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
-			       (long)jiffies, ISR, ICR, IBMR);
+			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
+				__func__, (long)jiffies, ISR, ICR, IBMR);
 
 		if (ISR & ISR_SAD) {
 			if (i2c_debug > 0)
-				printk(DBGLVL "i2c_pxa_wait_master: Slave detected\n");
+				dev_dbg(&i2c->adap.dev, "%s: Slave detected\n", __func__);
 			goto out;
 		}
 
@@ -237,7 +227,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 		 */
 		if ((ISR & (ISR_UB | ISR_IBB)) == 0 && IBMR == 3) {
 			if (i2c_debug > 0)
-				printk(DBGLVL "i2c_pxa_wait_master: done\n");
+				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
 		}
 
@@ -245,7 +235,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 	}
 
 	if (i2c_debug > 0)
-		printk(DBGLVL "i2c_pxa_wait_master: did not free\n");
+		dev_dbg(&i2c->adap.dev, "%s: did not free\n", __func__);
  out:
 	return 0;
 }
@@ -253,12 +243,12 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 static int i2c_pxa_set_master(struct pxa_i2c *i2c)
 {
 	if (i2c_debug)
-		printk(DBGLVL "I2C: setting to bus master\n");
+		dev_dbg(&i2c->adap.dev, "setting to bus master\n");
 
 	if ((ISR & (ISR_UB | ISR_IBB)) != 0) {
-		printk(DBGLVL "set_master: unit is busy\n");
+		dev_dbg(&i2c->adap.dev, "%s: unit is busy\n", __func__);
 		if (!i2c_pxa_wait_master(i2c)) {
-			printk(DBGLVL "set_master: error: unit busy\n");
+			dev_dbg(&i2c->adap.dev, "%s: error: unit busy\n", __func__);
 			return I2C_RETRY;
 		}
 	}
@@ -278,13 +268,13 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 
 	while (time_before(jiffies, timeout)) {
 		if (i2c_debug > 1)
-			printk(DBGLVL "i2c_pxa_wait_slave: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
-			       (long)jiffies, ISR, ICR, IBMR);
+			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
+				__func__, (long)jiffies, ISR, ICR, IBMR);
 
 		if ((ISR & (ISR_UB|ISR_IBB|ISR_SAD)) == ISR_SAD ||
 		    (ICR & ICR_SCLE) == 0) {
 			if (i2c_debug > 1)
-				printk(DBGLVL "i2c_pxa_wait_slave: done\n");
+				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
 		}
 
@@ -292,7 +282,7 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 	}
 
 	if (i2c_debug > 0)
-		printk(DBGLVL "i2c_pxa_wait_slave: did not free\n");
+		dev_dbg(&i2c->adap.dev, "%s: did not free\n", __func__);
 	return 0;
 }
 
@@ -316,7 +306,8 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 		}
 
 		if (!i2c_pxa_wait_slave(i2c)) {
-			printk(KERN_ERR "i2c_pxa_set_slave: wait timedout\n");
+			dev_err(&i2c->adap.dev, "%s: wait timedout\n",
+				__func__);
 			return;
 		}
 	}
@@ -325,7 +316,7 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 	ICR &= ~ICR_SCLE;
 
 	if (i2c_debug) {
-		printk(DBGLVL "ICR now %08x, ISR %08x\n", ICR, ISR);
+		dev_dbg(&i2c->adap.dev, "ICR now %08x, ISR %08x\n", ICR, ISR);
 		decode_ICR(ICR);
 	}
 }
@@ -351,7 +342,7 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 	ICR = I2C_ICR_INIT;
 
 #ifdef CONFIG_I2C_PXA_SLAVE
-	printk(KERN_INFO "I2C: Enabling slave mode\n");
+	dev_info(&i2c->adap.dev, "Enabling slave mode\n");
 	ICR |= ICR_SADIE | ICR_ALDIE | ICR_SSDIE;
 #endif
 
@@ -522,7 +513,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 	int timeout;
 
 	if (i2c_debug > 0)
-		printk(DBGLVL "I2C: SAD, mode is slave-%cx\n",
+		dev_dbg(&i2c->adap.dev, "SAD, mode is slave-%cx\n",
 		       (isr & ISR_RWM) ? 'r' : 't');
 
 	if (i2c->slave != NULL)
@@ -546,7 +537,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 		timeout--;
 
 		if (timeout <= 0) {
-			printk(KERN_ERR "timeout waiting for SCL high\n");
+			dev_err(&i2c->adap.dev, "timeout waiting for SCL high\n");
 			break;
 		}
 	}
@@ -557,13 +548,13 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
 {
 	if (i2c_debug > 2)
-		printk(DBGLVL "ISR: SSD (Slave Stop)\n");
+		dev_dbg(&i2c->adap.dev, "ISR: SSD (Slave Stop)\n");
 
 	if (i2c->slave != NULL)
 		i2c->slave->event(i2c->slave->data, I2C_SLAVE_EVENT_STOP);
 
 	if (i2c_debug > 2)
-		printk(DBGLVL "ISR: SSD (Slave Stop) acked\n");
+		dev_dbg(&i2c->adap.dev, "ISR: SSD (Slave Stop) acked\n");
 
 	/*
 	 * If we have a master-mode message waiting,
@@ -609,7 +600,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 		timeout--;
 
 		if (timeout <= 0) {
-			printk(KERN_ERR "timeout waiting for SCL high\n");
+			dev_err(&i2c->adap.dev, "timeout waiting for SCL high\n");
 			break;
 		}
 	}
@@ -667,7 +658,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	 */
 	ret = i2c_pxa_wait_bus_not_busy(i2c);
 	if (ret) {
-		printk(KERN_INFO "i2c_pxa: timeout waiting for bus free\n");
+		dev_err(&i2c->adap.dev, "i2c_pxa: timeout waiting for bus free\n");
 		goto out;
 	}
 
@@ -676,7 +667,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	 */
 	ret = i2c_pxa_set_master(i2c);
 	if (ret) {
-		printk(KERN_INFO "i2c_pxa_set_master: error %d\n", ret);
+		dev_err(&i2c->adap.dev, "i2c_pxa_set_master: error %d\n", ret);
 		goto out;
 	}
 
@@ -864,8 +855,8 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id, struct pt_regs *r
 	u32 isr = ISR;
 
 	if (i2c_debug > 2 && 0) {
-		printk(DBGLVL "i2c_pxa_handler: ISR=%08x, ICR=%08x, IBMR=%02x\n",
-		       isr, ICR, IBMR);
+		dev_dbg(&i2c->adap.dev, "%s: ISR=%08x, ICR=%08x, IBMR=%02x\n",
+			__func__, isr, ICR, IBMR);
 		decode_ISR(isr);
 	}
 
@@ -913,7 +904,7 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 			goto out;
 
 		if (i2c_debug)
-			printk(KERN_INFO "Retrying transmission\n");
+			dev_dbg(&adap->dev, "Retrying transmission\n");
 		udelay(100);
 	}
 	i2c_pxa_scream_blue_murder(i2c, "exhausted retries");
