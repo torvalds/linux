@@ -735,7 +735,7 @@ lock_retry_remap:
 	/* For the error case, need to reset bh to the beginning. */
 	bh = head;
 
-	/* Just an optimization, so ->readpage() isn't called later. */
+	/* Just an optimization, so ->readpage() is not called later. */
 	if (unlikely(!PageUptodate(page))) {
 		int uptodate = 1;
 		do {
@@ -751,7 +751,6 @@ lock_retry_remap:
 
 	/* Setup all mapped, dirty buffers for async write i/o. */
 	do {
-		get_bh(bh);
 		if (buffer_mapped(bh) && buffer_dirty(bh)) {
 			lock_buffer(bh);
 			if (test_clear_buffer_dirty(bh)) {
@@ -789,14 +788,8 @@ lock_retry_remap:
 
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);	/* Keeps try_to_free_buffers() away. */
-	unlock_page(page);
 
-	/*
-	 * Submit the prepared buffers for i/o. Note the page is unlocked,
-	 * and the async write i/o completion handler can end_page_writeback()
-	 * at any time after the *first* submit_bh(). So the buffers can then
-	 * disappear...
-	 */
+	/* Submit the prepared buffers for i/o. */
 	need_end_writeback = TRUE;
 	do {
 		struct buffer_head *next = bh->b_this_page;
@@ -804,9 +797,9 @@ lock_retry_remap:
 			submit_bh(WRITE, bh);
 			need_end_writeback = FALSE;
 		}
-		put_bh(bh);
 		bh = next;
 	} while (bh != head);
+	unlock_page(page);
 
 	/* If no i/o was started, need to end_page_writeback(). */
 	if (unlikely(need_end_writeback))

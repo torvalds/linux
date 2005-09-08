@@ -81,6 +81,9 @@ ToDo/Notes:
 	  only zeroes.
 	- Fixup handling of sparse, compressed, and encrypted attributes in
 	  fs/ntfs/aops.c::ntfs_writepage().
+	- Optimize fs/ntfs/aops.c::ntfs_write_block() by extending the page
+	  lock protection over the buffer submission for i/o which allows the
+	  removal of the get_bh()/put_bh() pairs for each buffer.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
