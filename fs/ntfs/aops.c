@@ -204,6 +204,7 @@ static int ntfs_read_block(struct page *page)
 	nr = i = 0;
 	do {
 		u8 *kaddr;
+		int err;
 
 		if (unlikely(buffer_uptodate(bh)))
 			continue;
@@ -211,6 +212,7 @@ static int ntfs_read_block(struct page *page)
 			arr[nr++] = bh;
 			continue;
 		}
+		err = 0;
 		bh->b_bdev = vol->sb->s_bdev;
 		/* Is the block within the allowed limits? */
 		if (iblock < lblock) {
@@ -252,7 +254,6 @@ lock_retry_remap:
 				goto handle_hole;
 			/* If first try and runlist unmapped, map and retry. */
 			if (!is_retry && lcn == LCN_RL_NOT_MAPPED) {
-				int err;
 				is_retry = TRUE;
 				/*
 				 * Attempt to map runlist, dropping lock for
@@ -263,20 +264,30 @@ lock_retry_remap:
 				if (likely(!err))
 					goto lock_retry_remap;
 				rl = NULL;
-				lcn = err;
 			} else if (!rl)
 				up_read(&ni->runlist.lock);
+			/*
+			 * If buffer is outside the runlist, treat it as a
+			 * hole.  This can happen due to concurrent truncate
+			 * for example.
+			 */
+			if (err == -ENOENT || lcn == LCN_ENOENT) {
+				err = 0;
+				goto handle_hole;
+			}
 			/* Hard error, zero out region. */
+			if (!err)
+				err = -EIO;
 			bh->b_blocknr = -1;
 			SetPageError(page);
 			ntfs_error(vol->sb, "Failed to read from inode 0x%lx, "
 					"attribute type 0x%x, vcn 0x%llx, "
 					"offset 0x%x because its location on "
 					"disk could not be determined%s "
-					"(error code %lli).", ni->mft_no,
+					"(error code %i).", ni->mft_no,
 					ni->type, (unsigned long long)vcn,
 					vcn_ofs, is_retry ? " even after "
-					"retrying" : "", (long long)lcn);
+					"retrying" : "", err);
 		}
 		/*
 		 * Either iblock was outside lblock limits or
@@ -289,9 +300,10 @@ handle_hole:
 handle_zblock:
 		kaddr = kmap_atomic(page, KM_USER0);
 		memset(kaddr + i * blocksize, 0, blocksize);
-		flush_dcache_page(page);
 		kunmap_atomic(kaddr, KM_USER0);
-		set_buffer_uptodate(bh);
+		flush_dcache_page(page);
+		if (likely(!err))
+			set_buffer_uptodate(bh);
 	} while (i++, iblock++, (bh = bh->b_this_page) != head);
 
 	/* Release the lock if we took it. */
@@ -711,20 +723,37 @@ lock_retry_remap:
 			if (likely(!err))
 				goto lock_retry_remap;
 			rl = NULL;
-			lcn = err;
 		} else if (!rl)
 			up_read(&ni->runlist.lock);
+		/*
+		 * If buffer is outside the runlist, truncate has cut it out
+		 * of the runlist.  Just clean and clear the buffer and set it
+		 * uptodate so it can get discarded by the VM.
+		 */
+		if (err == -ENOENT || lcn == LCN_ENOENT) {
+			u8 *kaddr;
+
+			bh->b_blocknr = -1;
+			clear_buffer_dirty(bh);
+			kaddr = kmap_atomic(page, KM_USER0);
+			memset(kaddr + bh_offset(bh), 0, blocksize);
+			kunmap_atomic(kaddr, KM_USER0);
+			flush_dcache_page(page);
+			set_buffer_uptodate(bh);
+			err = 0;
+			continue;
+		}
 		/* Failed to map the buffer, even after retrying. */
+		if (!err)
+			err = -EIO;
 		bh->b_blocknr = -1;
 		ntfs_error(vol->sb, "Failed to write to inode 0x%lx, "
 				"attribute type 0x%x, vcn 0x%llx, offset 0x%x "
 				"because its location on disk could not be "
-				"determined%s (error code %lli).", ni->mft_no,
+				"determined%s (error code %i).", ni->mft_no,
 				ni->type, (unsigned long long)vcn,
 				vcn_ofs, is_retry ? " even after "
-				"retrying" : "", (long long)lcn);
-		if (!err)
-			err = -EIO;
+				"retrying" : "", err);
 		break;
 	} while (block++, (bh = bh->b_this_page) != head);
 
