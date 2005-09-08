@@ -29,22 +29,11 @@ DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);
 extern void w1_reconnect_slaves(struct w1_family *f);
 
-static int w1_check_family(struct w1_family *f)
-{
-	if (!f->fops->rname || !f->fops->rbin)
-		return -EINVAL;
-
-	return 0;
-}
-
 int w1_register_family(struct w1_family *newf)
 {
 	struct list_head *ent, *n;
 	struct w1_family *f;
 	int ret = 0;
-
-	if (w1_check_family(newf))
-		return -EINVAL;
 
 	spin_lock(&w1_flock);
 	list_for_each_safe(ent, n, &w1_families) {
