@@ -42,6 +42,9 @@ typedef unsigned int kprobe_opcode_t;
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)((func_descr_t *)pentry)
 
+#define is_trap(instr)	(IS_TW(instr) || IS_TD(instr) || \
+			IS_TWI(instr) || IS_TDI(instr))
+
 #define ARCH_SUPPORTS_KRETPROBES
 void kretprobe_trampoline(void);
 

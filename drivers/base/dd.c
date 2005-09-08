@@ -42,7 +42,7 @@ void device_bind_driver(struct device * dev)
 {
 	pr_debug("bound device '%s' to driver '%s'\n",
 		 dev->bus_id, dev->driver->name);
-	klist_add_tail(&dev->driver->klist_devices, &dev->knode_driver);
+	klist_add_tail(&dev->knode_driver, &dev->driver->klist_devices);
 	sysfs_create_link(&dev->driver->kobj, &dev->kobj,
 			  kobject_name(&dev->kobj));
 	sysfs_create_link(&dev->kobj, &dev->driver->kobj, "driver");

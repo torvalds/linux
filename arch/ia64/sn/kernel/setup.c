@@ -80,8 +80,6 @@ EXPORT_PER_CPU_SYMBOL(__sn_cnodeid_to_nasid);
 DEFINE_PER_CPU(struct nodepda_s *, __sn_nodepda);
 EXPORT_PER_CPU_SYMBOL(__sn_nodepda);
 
-partid_t sn_partid = -1;
-EXPORT_SYMBOL(sn_partid);
 char sn_system_serial_number_string[128];
 EXPORT_SYMBOL(sn_system_serial_number_string);
 u64 sn_partition_serial_number;
@@ -403,6 +401,7 @@ static void __init sn_init_pdas(char **cmdline_p)
 		memset(nodepdaindr[cnode], 0, sizeof(nodepda_t));
 		memset(nodepdaindr[cnode]->phys_cpuid, -1,
 		    sizeof(nodepdaindr[cnode]->phys_cpuid));
+		spin_lock_init(&nodepdaindr[cnode]->ptc_lock);
 	}
 
 	/*
@@ -532,8 +531,8 @@ void __init sn_cpu_init(void)
 	 */
 	{
 		u64 pio1[] = {SH1_PIO_WRITE_STATUS_0, 0, SH1_PIO_WRITE_STATUS_1, 0};
-		u64 pio2[] = {SH2_PIO_WRITE_STATUS_0, SH2_PIO_WRITE_STATUS_1,
-			SH2_PIO_WRITE_STATUS_2, SH2_PIO_WRITE_STATUS_3};
+		u64 pio2[] = {SH2_PIO_WRITE_STATUS_0, SH2_PIO_WRITE_STATUS_2,
+			SH2_PIO_WRITE_STATUS_1, SH2_PIO_WRITE_STATUS_3};
 		u64 *pio;
 		pio = is_shub1() ? pio1 : pio2;
 		pda->pio_write_status_addr = (volatile unsigned long *) LOCAL_MMR_ADDR(pio[slice]);

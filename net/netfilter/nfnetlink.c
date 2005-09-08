@@ -344,14 +344,14 @@ static void nfnetlink_rcv(struct sock *sk, int len)
 	} while(nfnl && nfnl->sk_receive_queue.qlen);
 }
 
-void __exit nfnetlink_exit(void)
+static void __exit nfnetlink_exit(void)
 {
 	printk("Removing netfilter NETLINK layer.\n");
 	sock_release(nfnl->sk_socket);
 	return;
 }
 
-int __init nfnetlink_init(void)
+static int __init nfnetlink_init(void)
 {
 	printk("Netfilter messages via NETLINK v%s.\n", nfversion);
 

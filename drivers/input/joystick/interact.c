@@ -212,7 +212,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	int i, t;
 	int err;
 
-	if (!(interact = kcalloc(1, sizeof(struct interact), GFP_KERNEL)))
+	if (!(interact = kzalloc(sizeof(struct interact), GFP_KERNEL)))
 		return -ENOMEM;
 
 	interact->gameport = gameport;

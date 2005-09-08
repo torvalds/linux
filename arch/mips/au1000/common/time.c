@@ -281,7 +281,7 @@ unsigned long cal_r4koff(void)
 			cpu_speed = count * 2;
 		}
 #else
-		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * 
+		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) *
 			AU1000_SRC_CLK;
 		count = cpu_speed / 2;
 #endif
@@ -356,7 +356,7 @@ static unsigned long do_fast_cp0_gettimeoffset(void)
 		: "hi", "lo", GCC_REG_ACCUM);
 
 	/*
- 	 * Due to possible jiffies inconsistencies, we need to check 
+ 	 * Due to possible jiffies inconsistencies, we need to check
 	 * the result so that we'll get a timer that is monotonic.
 	 */
 	if (res >= USECS_PER_JIFFY)
@@ -375,8 +375,8 @@ static unsigned long do_fast_pm_gettimeoffset(void)
 	au_sync();
 	offset = pc0 - last_pc0;
 	if (offset > 2*MATCH20_INC) {
-		printk("huge offset %x, last_pc0 %x last_match20 %x pc0 %x\n", 
-				(unsigned)offset, (unsigned)last_pc0, 
+		printk("huge offset %x, last_pc0 %x last_match20 %x pc0 %x\n",
+				(unsigned)offset, (unsigned)last_pc0,
 				(unsigned)last_match20, (unsigned)pc0);
 	}
 	offset = (unsigned long)((offset * 305) / 10);
@@ -394,11 +394,11 @@ void au1xxx_timer_setup(struct irqaction *irq)
 	r4k_offset = cal_r4koff();
 	printk("%08lx(%d)\n", r4k_offset, (int) r4k_offset);
 
-	//est_freq = 2*r4k_offset*HZ;	
-	est_freq = r4k_offset*HZ;	
+	//est_freq = 2*r4k_offset*HZ;
+	est_freq = r4k_offset*HZ;
 	est_freq += 5000;    /* round */
 	est_freq -= est_freq%10000;
-	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000, 
+	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
 	       (est_freq%1000000)*100/1000000);
  	set_au1x00_speed(est_freq);
  	set_au1x00_lcd_clock(); // program the LCD clock

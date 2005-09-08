@@ -103,7 +103,7 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 	 * Convert jiffies to nanoseconds and seperate with
 	 * one divide.
 	 */
-	u64 nsec = (u64)jiffies * TICK_NSEC; 
+	u64 nsec = (u64)jiffies * TICK_NSEC;
 	value->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &value->tv_usec);
 	value->tv_usec /= NSEC_PER_USEC;
 }

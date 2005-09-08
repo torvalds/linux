@@ -21,6 +21,7 @@
 #include <asm/arch/usb.h>
 
 #include "clock.h"
+#include "sram.h"
 
 static LIST_HEAD(clocks);
 static DECLARE_MUTEX(clocks_sem);
@@ -141,7 +142,7 @@ static struct clk arm_ck = {
 static struct clk armper_ck = {
 	.name		= "armper_ck",
 	.parent		= &ck_dpll1,
-	.flags		= CLOCK_IN_OMAP730 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 			  RATE_CKCTL,
 	.enable_reg	= ARM_IDLECT2,
 	.enable_bit	= EN_PERCK,
@@ -385,7 +386,8 @@ static struct clk uart2_ck = {
 	.name		= "uart2_ck",
 	/* Direct from ULPD, no parent */
 	.rate		= 12000000,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | ENABLE_REG_32BIT,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | ENABLE_REG_32BIT |
+			  ALWAYS_ENABLED,
 	.enable_reg	= MOD_CONF_CTRL_0,
 	.enable_bit	= 30,	/* Chooses between 12MHz and 48MHz */
 	.set_rate	= &set_uart_rate,
@@ -441,6 +443,15 @@ static struct clk usb_hhc_ck16xx = {
 			  RATE_FIXED | ENABLE_REG_32BIT,
 	.enable_reg	= OTG_BASE + 0x08 /* OTG_SYSCON_2 */,
 	.enable_bit	= 8 /* UHOST_EN */,
+};
+
+static struct clk usb_dc_ck = {
+	.name		= "usb_dc_ck",
+	/* Direct from ULPD, no parent */
+	.rate		= 48000000,
+	.flags		= CLOCK_IN_OMAP16XX | RATE_FIXED,
+	.enable_reg	= SOFT_REQ_REG,
+	.enable_bit	= 4,
 };
 
 static struct clk mclk_1510 = {
@@ -552,6 +563,7 @@ static struct clk *  onchip_clks[] = {
 	&uart3_16xx,
 	&usb_clko,
 	&usb_hhc_ck1510, &usb_hhc_ck16xx,
+	&usb_dc_ck,
 	&mclk_1510,  &mclk_16xx,
 	&bclk_1510,  &bclk_16xx,
 	&mmc1_ck,
@@ -946,14 +958,13 @@ static int select_table_rate(struct clk *  clk, unsigned long rate)
 	if (!ptr->rate)
 		return -EINVAL;
 
-	if (!ptr->rate)
-		return -EINVAL;
+	/*
+	 * In most cases we should not need to reprogram DPLL.
+	 * Reprogramming the DPLL is tricky, it must be done from SRAM.
+	 */
+	omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
 
-	if (unlikely(ck_dpll1.rate == 0)) {
-		omap_writew(ptr->dpllctl_val, DPLL_CTL);
-		ck_dpll1.rate = ptr->pll_rate;
-	}
-	omap_writew(ptr->ckctl_val, ARM_CKCTL);
+	ck_dpll1.rate = ptr->pll_rate;
 	propagate_rate(&ck_dpll1);
 	return 0;
 }
@@ -1224,9 +1235,11 @@ int __init clk_init(void)
 #endif
 	/* Cache rates for clocks connected to ck_ref (not dpll1) */
 	propagate_rate(&ck_ref);
-	printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld/%ld MHz\n",
+	printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): "
+		"%ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
 	       ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
-	       ck_dpll1.rate, arm_ck.rate);
+	       ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
+	       arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
 
 #ifdef CONFIG_MACH_OMAP_PERSEUS2
 	/* Select slicer output as OMAP input clock */
@@ -1271,7 +1284,9 @@ static int __init omap_late_clk_reset(void)
 	struct clk *p;
 	__u32 regval32;
 
-	omap_writew(0, SOFT_REQ_REG);
+	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
+	regval32 = omap_readw(SOFT_REQ_REG) & (1 << 4);
+	omap_writew(regval32, SOFT_REQ_REG);
 	omap_writew(0, SOFT_REQ_REG2);
 
 	list_for_each_entry(p, &clocks, node) {

@@ -57,11 +57,11 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 	 * The common rates of 1000 and 128 are rounded wrongly by the
 	 * catchall case for 64-bit.  Excessive precission?  Probably ...
 	 */
-#if defined(CONFIG_MIPS64) && (HZ == 128)
+#if defined(CONFIG_64BIT) && (HZ == 128)
 	usecs *= 0x0008637bd05af6c7UL;		/* 2**64 / (1000000 / HZ) */
-#elif defined(CONFIG_MIPS64) && (HZ == 1000)
+#elif defined(CONFIG_64BIT) && (HZ == 1000)
 	usecs *= 0x004189374BC6A7f0UL;		/* 2**64 / (1000000 / HZ) */
-#elif defined(CONFIG_MIPS64)
+#elif defined(CONFIG_64BIT)
 	usecs *= (0x8000000000000000UL / (500000 / HZ));
 #else /* 32-bit junk follows here */
 	usecs *= (unsigned long) (((0x8000000000000000ULL / (500000 / HZ)) +

@@ -23,7 +23,10 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/i2c-isa.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 #include <asm/io.h>
 
 /* Addresses to scan */
@@ -31,10 +34,10 @@ static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24,
 					0x25, 0x26, 0x27, 0x28, 0x29,
 					0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
 					0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
+static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
-SENSORS_INSMOD_3(lm78, lm78j, lm79);
+I2C_CLIENT_INSMOD_2(lm78, lm79);
 
 /* Many LM78 constants specified below */
 
@@ -104,13 +107,6 @@ static inline int TEMP_FROM_REG(s8 val)
 	return val * 1000;
 }
 
-/* VID: mV
-   REG: (see doc/vid) */
-static inline int VID_FROM_REG(u8 val)
-{
-	return val==0x1f ? 0 : val>=0x10 ? 5100-val*100 : 2050-val*50;
-}
-
 #define DIV_FROM_REG(val) (1 << (val))
 
 /* There are some complications in a module like this. First off, LM78 chips
@@ -134,6 +130,7 @@ static inline int VID_FROM_REG(u8 val)
    allocated. */
 struct lm78_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -156,6 +153,7 @@ struct lm78_data {
 
 
 static int lm78_attach_adapter(struct i2c_adapter *adapter);
+static int lm78_isa_attach_adapter(struct i2c_adapter *adapter);
 static int lm78_detect(struct i2c_adapter *adapter, int address, int kind);
 static int lm78_detach_client(struct i2c_client *client);
 
@@ -173,6 +171,14 @@ static struct i2c_driver lm78_driver = {
 	.attach_adapter	= lm78_attach_adapter,
 	.detach_client	= lm78_detach_client,
 };
+
+static struct i2c_driver lm78_isa_driver = {
+	.owner		= THIS_MODULE,
+	.name		= "lm78-isa",
+	.attach_adapter	= lm78_isa_attach_adapter,
+	.detach_client	= lm78_detach_client,
+};
+
 
 /* 7 Voltages */
 static ssize_t show_in(struct device *dev, char *buf, int nr)
@@ -445,7 +451,7 @@ static DEVICE_ATTR(fan3_div, S_IRUGO, show_fan_3_div, NULL);
 static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
-	return sprintf(buf, "%d\n", VID_FROM_REG(data->vid));
+	return sprintf(buf, "%d\n", vid_from_reg(82, data->vid));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
@@ -465,10 +471,15 @@ static int lm78_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, lm78_detect);
+	return i2c_probe(adapter, &addr_data, lm78_detect);
 }
 
-/* This function is called by i2c_detect */
+static int lm78_isa_attach_adapter(struct i2c_adapter *adapter)
+{
+	return lm78_detect(adapter, isa_address, -1);
+}
+
+/* This function is called by i2c_probe */
 int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i, err;
@@ -485,7 +496,8 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Reserve the ISA region */
 	if (is_isa)
-		if (!request_region(address, LM78_EXTENT, lm78_driver.name)) {
+		if (!request_region(address, LM78_EXTENT,
+				    lm78_isa_driver.name)) {
 			err = -EBUSY;
 			goto ERROR0;
 		}
@@ -540,7 +552,7 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
-	new_client->driver = &lm78_driver;
+	new_client->driver = is_isa ? &lm78_isa_driver : &lm78_driver;
 	new_client->flags = 0;
 
 	/* Now, we do the remaining detection. */
@@ -559,10 +571,9 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Determine the chip type. */
 	if (kind <= 0) {
 		i = lm78_read_value(new_client, LM78_REG_CHIPID);
-		if (i == 0x00 || i == 0x20)
+		if (i == 0x00 || i == 0x20	/* LM78 */
+		 || i == 0x40)			/* LM78-J */
 			kind = lm78;
-		else if (i == 0x40)
-			kind = lm78j;
 		else if ((i & 0xfe) == 0xc0)
 			kind = lm79;
 		else {
@@ -578,8 +589,6 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	if (kind == lm78) {
 		client_name = "lm78";
-	} else if (kind == lm78j) {
-		client_name = "lm78-j";
 	} else if (kind == lm79) {
 		client_name = "lm79";
 	}
@@ -605,6 +614,12 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in0_min);
 	device_create_file(&new_client->dev, &dev_attr_in0_max);
@@ -643,6 +658,8 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR3:
+	i2c_detach_client(new_client);
 ERROR2:
 	kfree(data);
 ERROR1:
@@ -654,18 +671,18 @@ ERROR0:
 
 static int lm78_detach_client(struct i2c_client *client)
 {
+	struct lm78_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-		    "Client deregistration failed, client not detached.\n");
+	hwmon_device_unregister(data->class_dev);
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	if(i2c_is_isa_client(client))
 		release_region(client->addr, LM78_EXTENT);
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }
@@ -777,18 +794,31 @@ static struct lm78_data *lm78_update_device(struct device *dev)
 
 static int __init sm_lm78_init(void)
 {
-	return i2c_add_driver(&lm78_driver);
+	int res;
+
+	res = i2c_add_driver(&lm78_driver);
+	if (res)
+		return res;
+
+	res = i2c_isa_add_driver(&lm78_isa_driver);
+	if (res) {
+		i2c_del_driver(&lm78_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit sm_lm78_exit(void)
 {
+	i2c_isa_del_driver(&lm78_isa_driver);
 	i2c_del_driver(&lm78_driver);
 }
 
 
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
-MODULE_DESCRIPTION("LM78, LM78-J and LM79 driver");
+MODULE_DESCRIPTION("LM78/LM79 driver");
 MODULE_LICENSE("GPL");
 
 module_init(sm_lm78_init);

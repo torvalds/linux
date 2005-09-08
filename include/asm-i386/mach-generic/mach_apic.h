@@ -28,4 +28,6 @@
 #define enable_apic_mode (genapic->enable_apic_mode)
 #define phys_pkg_id (genapic->phys_pkg_id)
 
+extern void generic_bigsmp_probe(void);
+
 #endif /* __ASM_MACH_APIC_H */

@@ -1,23 +1,23 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
-    *  
+    *
     *  SCD Constants and Macros			File: sb1250_scd.h
-    *  
+    *
     *  This module contains constants and macros useful for
     *  manipulating the System Control and Debug module on the 1250.
-    *  
+    *
     *  SB1250 specification level:  User's manual 1/02/02
-    *  
+    *
     *  Author:  Mitch Lichtenberg
-    *  
-    *********************************************************************  
+    *
+    *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
     *  Broadcom Corporation. All rights reserved.
-    *  
-    *  This program is free software; you can redistribute it and/or 
-    *  modify it under the terms of the GNU General Public License as 
-    *  published by the Free Software Foundation; either version 2 of 
+    *
+    *  This program is free software; you can redistribute it and/or
+    *  modify it under the terms of the GNU General Public License as
+    *  published by the Free Software Foundation; either version 2 of
     *  the License, or (at your option) any later version.
     *
     *  This program is distributed in the hope that it will be useful,
@@ -27,7 +27,7 @@
     *
     *  You should have received a copy of the GNU General Public License
     *  along with this program; if not, write to the Free Software
-    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston,
     *  MA 02111-1307 USA
     ********************************************************************* */
 
@@ -130,40 +130,40 @@
 /* System Manufacturing Register
 * Register: SCD_SYSTEM_MANUF
 */
- 
+
 /* Wafer ID: bits 31:0 */
 #define S_SYS_WAFERID1_200        _SB_MAKE64(0)
 #define M_SYS_WAFERID1_200        _SB_MAKEMASK(32,S_SYS_WAFERID1_200)
 #define V_SYS_WAFERID1_200(x)     _SB_MAKEVALUE(x,S_SYS_WAFERID1_200)
 #define G_SYS_WAFERID1_200(x)     _SB_GETVALUE(x,S_SYS_WAFERID1_200,M_SYS_WAFERID1_200)
- 
+
 #define S_SYS_BIN                 _SB_MAKE64(32)
 #define M_SYS_BIN                 _SB_MAKEMASK(4,S_SYS_BIN)
 #define V_SYS_BIN                 _SB_MAKEVALUE(x,S_SYS_BIN)
 #define G_SYS_BIN                 _SB_GETVALUE(x,S_SYS_BIN,M_SYS_BIN)
- 
+
 /* Wafer ID: bits 39:36 */
 #define S_SYS_WAFERID2_200        _SB_MAKE64(36)
 #define M_SYS_WAFERID2_200        _SB_MAKEMASK(4,S_SYS_WAFERID2_200)
 #define V_SYS_WAFERID2_200(x)     _SB_MAKEVALUE(x,S_SYS_WAFERID2_200)
 #define G_SYS_WAFERID2_200(x)     _SB_GETVALUE(x,S_SYS_WAFERID2_200,M_SYS_WAFERID2_200)
- 
+
 /* Wafer ID: bits 39:0 */
 #define S_SYS_WAFERID_300         _SB_MAKE64(0)
 #define M_SYS_WAFERID_300         _SB_MAKEMASK(40,S_SYS_WAFERID_300)
 #define V_SYS_WAFERID_300(x)      _SB_MAKEVALUE(x,S_SYS_WAFERID_300)
 #define G_SYS_WAFERID_300(x)      _SB_GETVALUE(x,S_SYS_WAFERID_300,M_SYS_WAFERID_300)
- 
+
 #define S_SYS_XPOS                _SB_MAKE64(40)
 #define M_SYS_XPOS                _SB_MAKEMASK(6,S_SYS_XPOS)
 #define V_SYS_XPOS(x)             _SB_MAKEVALUE(x,S_SYS_XPOS)
 #define G_SYS_XPOS(x)             _SB_GETVALUE(x,S_SYS_XPOS,M_SYS_XPOS)
- 
+
 #define S_SYS_YPOS                _SB_MAKE64(46)
 #define M_SYS_YPOS                _SB_MAKEMASK(6,S_SYS_YPOS)
 #define V_SYS_YPOS(x)             _SB_MAKEVALUE(x,S_SYS_YPOS)
 #define G_SYS_YPOS(x)             _SB_GETVALUE(x,S_SYS_YPOS,M_SYS_YPOS)
- 
+
 /*
  * System Config Register (Table 4-2)
  * Register: SCD_SYSTEM_CFG

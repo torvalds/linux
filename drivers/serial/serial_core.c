@@ -80,7 +80,7 @@ static void uart_stop(struct tty_struct *tty)
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	port->ops->stop_tx(port, 1);
+	port->ops->stop_tx(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -91,7 +91,7 @@ static void __uart_start(struct tty_struct *tty)
 
 	if (!uart_circ_empty(&state->info->xmit) && state->info->xmit.buf &&
 	    !tty->stopped && !tty->hw_stopped)
-		port->ops->start_tx(port, 1);
+		port->ops->start_tx(port);
 }
 
 static void uart_start(struct tty_struct *tty)
@@ -542,7 +542,7 @@ static void uart_send_xchar(struct tty_struct *tty, char ch)
 		port->x_char = ch;
 		if (ch) {
 			spin_lock_irqsave(&port->lock, flags);
-			port->ops->start_tx(port, 0);
+			port->ops->start_tx(port);
 			spin_unlock_irqrestore(&port->lock, flags);
 		}
 	}
@@ -1146,7 +1146,7 @@ static void uart_set_termios(struct tty_struct *tty, struct termios *old_termios
 		spin_lock_irqsave(&state->port->lock, flags);
 		if (!(state->port->ops->get_mctrl(state->port) & TIOCM_CTS)) {
 			tty->hw_stopped = 1;
-			state->port->ops->stop_tx(state->port, 0);
+			state->port->ops->stop_tx(state->port);
 		}
 		spin_unlock_irqrestore(&state->port->lock, flags);
 	}
@@ -1869,7 +1869,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 		struct uart_ops *ops = port->ops;
 
 		spin_lock_irq(&port->lock);
-		ops->stop_tx(port, 0);
+		ops->stop_tx(port);
 		ops->set_mctrl(port, 0);
 		ops->stop_rx(port);
 		spin_unlock_irq(&port->lock);
@@ -1935,7 +1935,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		uart_change_speed(state, NULL);
 		spin_lock_irq(&port->lock);
 		ops->set_mctrl(port, port->mctrl);
-		ops->start_tx(port, 0);
+		ops->start_tx(port);
 		spin_unlock_irq(&port->lock);
 	}
 
@@ -1947,21 +1947,29 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 static inline void
 uart_report_port(struct uart_driver *drv, struct uart_port *port)
 {
-	printk("%s%d", drv->dev_name, port->line);
-	printk(" at ");
+	char address[64];
+
 	switch (port->iotype) {
 	case UPIO_PORT:
-		printk("I/O 0x%x", port->iobase);
+		snprintf(address, sizeof(address),
+			 "I/O 0x%x", port->iobase);
 		break;
 	case UPIO_HUB6:
-		printk("I/O 0x%x offset 0x%x", port->iobase, port->hub6);
+		snprintf(address, sizeof(address),
+			 "I/O 0x%x offset 0x%x", port->iobase, port->hub6);
 		break;
 	case UPIO_MEM:
 	case UPIO_MEM32:
-		printk("MMIO 0x%lx", port->mapbase);
+		snprintf(address, sizeof(address),
+			 "MMIO 0x%lx", port->mapbase);
+		break;
+	default:
+		strlcpy(address, "*unknown*", sizeof(address));
 		break;
 	}
-	printk(" (irq = %d) is a %s\n", port->irq, uart_type(port));
+
+	printk(KERN_INFO "%s%d at %s (irq = %d) is a %s\n",
+	       drv->dev_name, port->line, address, port->irq, uart_type(port));
 }
 
 static void
@@ -2289,143 +2297,11 @@ int uart_match_port(struct uart_port *port1, struct uart_port *port2)
 }
 EXPORT_SYMBOL(uart_match_port);
 
-/*
- *	Try to find an unused uart_state slot for a port.
- */
-static struct uart_state *
-uart_find_match_or_unused(struct uart_driver *drv, struct uart_port *port)
-{
-	int i;
-
-	/*
-	 * First, find a port entry which matches.  Note: if we do
-	 * find a matching entry, and it has a non-zero use count,
-	 * then we can't register the port.
-	 */
-	for (i = 0; i < drv->nr; i++)
-		if (uart_match_port(drv->state[i].port, port))
-			return &drv->state[i];
-
-	/*
-	 * We didn't find a matching entry, so look for the first
-	 * free entry.  We look for one which hasn't been previously
-	 * used (indicated by zero iobase).
-	 */
-	for (i = 0; i < drv->nr; i++)
-		if (drv->state[i].port->type == PORT_UNKNOWN &&
-		    drv->state[i].port->iobase == 0 &&
-		    drv->state[i].count == 0)
-			return &drv->state[i];
-
-	/*
-	 * That also failed.  Last resort is to find any currently
-	 * entry which doesn't have a real port associated with it.
-	 */
-	for (i = 0; i < drv->nr; i++)
-		if (drv->state[i].port->type == PORT_UNKNOWN &&
-		    drv->state[i].count == 0)
-			return &drv->state[i];
-
-	return NULL;
-}
-
-/**
- *	uart_register_port: register uart settings with a port
- *	@drv: pointer to the uart low level driver structure for this port
- *	@port: uart port structure describing the port
- *
- *	Register UART settings with the specified low level driver.  Detect
- *	the type of the port if UPF_BOOT_AUTOCONF is set, and detect the
- *	IRQ if UPF_AUTO_IRQ is set.
- *
- *	We try to pick the same port for the same IO base address, so that
- *	when a modem is plugged in, unplugged and plugged back in, it gets
- *	allocated the same port.
- *
- *	Returns negative error, or positive line number.
- */
-int uart_register_port(struct uart_driver *drv, struct uart_port *port)
-{
-	struct uart_state *state;
-	int ret;
-
-	down(&port_sem);
-
-	state = uart_find_match_or_unused(drv, port);
-
-	if (state) {
-		/*
-		 * Ok, we've found a line that we can use.
-		 *
-		 * If we find a port that matches this one, and it appears
-		 * to be in-use (even if it doesn't have a type) we shouldn't
-		 * alter it underneath itself - the port may be open and
-		 * trying to do useful work.
-		 */
-		if (uart_users(state) != 0) {
-			ret = -EBUSY;
-			goto out;
-		}
-
-		/*
-		 * If the port is already initialised, don't touch it.
-		 */
-		if (state->port->type == PORT_UNKNOWN) {
-			state->port->iobase   = port->iobase;
-			state->port->membase  = port->membase;
-			state->port->irq      = port->irq;
-			state->port->uartclk  = port->uartclk;
-			state->port->fifosize = port->fifosize;
-			state->port->regshift = port->regshift;
-			state->port->iotype   = port->iotype;
-			state->port->flags    = port->flags;
-			state->port->line     = state - drv->state;
-			state->port->mapbase  = port->mapbase;
-
-			uart_configure_port(drv, state, state->port);
-		}
-
-		ret = state->port->line;
-	} else
-		ret = -ENOSPC;
- out:
-	up(&port_sem);
-	return ret;
-}
-
-/**
- *	uart_unregister_port - de-allocate a port
- *	@drv: pointer to the uart low level driver structure for this port
- *	@line: line index previously returned from uart_register_port()
- *
- *	Hang up the specified line associated with the low level driver,
- *	and mark the port as unused.
- */
-void uart_unregister_port(struct uart_driver *drv, int line)
-{
-	struct uart_state *state;
-
-	if (line < 0 || line >= drv->nr) {
-		printk(KERN_ERR "Attempt to unregister ");
-		printk("%s%d", drv->dev_name, line);
-		printk("\n");
-		return;
-	}
-
-	state = drv->state + line;
-
-	down(&port_sem);
-	uart_unconfigure_port(drv, state);
-	up(&port_sem);
-}
-
 EXPORT_SYMBOL(uart_write_wakeup);
 EXPORT_SYMBOL(uart_register_driver);
 EXPORT_SYMBOL(uart_unregister_driver);
 EXPORT_SYMBOL(uart_suspend_port);
 EXPORT_SYMBOL(uart_resume_port);
-EXPORT_SYMBOL(uart_register_port);
-EXPORT_SYMBOL(uart_unregister_port);
 EXPORT_SYMBOL(uart_add_one_port);
 EXPORT_SYMBOL(uart_remove_one_port);
 

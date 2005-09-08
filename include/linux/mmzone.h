@@ -487,11 +487,27 @@ struct mem_section {
 	unsigned long section_mem_map;
 };
 
-extern struct mem_section mem_section[NR_MEM_SECTIONS];
+#ifdef CONFIG_SPARSEMEM_EXTREME
+#define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+#else
+#define SECTIONS_PER_ROOT	1
+#endif
+
+#define SECTION_NR_TO_ROOT(sec)	((sec) / SECTIONS_PER_ROOT)
+#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
+#define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+
+#ifdef CONFIG_SPARSEMEM_EXTREME
+extern struct mem_section *mem_section[NR_SECTION_ROOTS];
+#else
+extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+#endif
 
 static inline struct mem_section *__nr_to_section(unsigned long nr)
 {
-	return &mem_section[nr];
+	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+		return NULL;
+	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
 }
 
 /*
@@ -513,12 +529,12 @@ static inline struct page *__section_mem_map_addr(struct mem_section *section)
 
 static inline int valid_section(struct mem_section *section)
 {
-	return (section->section_mem_map & SECTION_MARKED_PRESENT);
+	return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
 }
 
 static inline int section_has_mem_map(struct mem_section *section)
 {
-	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
+	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
 }
 
 static inline int valid_section_nr(unsigned long nr)
@@ -572,6 +588,7 @@ static inline int pfn_valid(unsigned long pfn)
 void sparse_init(void);
 #else
 #define sparse_init()	do {} while (0)
+#define sparse_index_init(_sec, _nid)  do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
 
 #ifdef CONFIG_NODES_SPAN_OTHER_NODES

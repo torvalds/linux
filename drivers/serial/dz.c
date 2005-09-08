@@ -112,7 +112,7 @@ static inline void dz_out(struct dz_port *dport, unsigned offset,
  * ------------------------------------------------------------
  */
 
-static void dz_stop_tx(struct uart_port *uport, unsigned int tty_stop)
+static void dz_stop_tx(struct uart_port *uport)
 {
 	struct dz_port *dport = (struct dz_port *)uport;
 	unsigned short tmp, mask = 1 << dport->port.line;
@@ -125,7 +125,7 @@ static void dz_stop_tx(struct uart_port *uport, unsigned int tty_stop)
 	spin_unlock_irqrestore(&dport->port.lock, flags);
 }
 
-static void dz_start_tx(struct uart_port *uport, unsigned int tty_start)
+static void dz_start_tx(struct uart_port *uport)
 {
 	struct dz_port *dport = (struct dz_port *)uport;
 	unsigned short tmp, mask = 1 << dport->port.line;
@@ -290,7 +290,7 @@ static inline void dz_transmit_chars(struct dz_port *dport)
 	}
 	/* if nothing to do or stopped or hardware stopped */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&dport->port)) {
-		dz_stop_tx(&dport->port, 0);
+		dz_stop_tx(&dport->port);
 		return;
 	}
 
@@ -308,7 +308,7 @@ static inline void dz_transmit_chars(struct dz_port *dport)
 
 	/* Are we done */
 	if (uart_circ_empty(xmit))
-		dz_stop_tx(&dport->port, 0);
+		dz_stop_tx(&dport->port);
 }
 
 /*
@@ -440,7 +440,7 @@ static int dz_startup(struct uart_port *uport)
  */
 static void dz_shutdown(struct uart_port *uport)
 {
-	dz_stop_tx(uport, 0);
+	dz_stop_tx(uport);
 }
 
 /*

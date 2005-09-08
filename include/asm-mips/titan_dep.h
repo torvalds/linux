@@ -228,4 +228,4 @@ extern unsigned long ocd_base;
 #define RM9K_READ_8(ofs, val)   *(val) = *(volatile u8 *)(RM9000x2_BASE_ADDR+ofs)
 #define RM9K_READ_16(ofs, val)  *(val) = *(volatile u16 *)(RM9000x2_BASE_ADDR+ofs)
 
-#endif 
+#endif

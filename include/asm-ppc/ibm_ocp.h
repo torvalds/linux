@@ -67,6 +67,7 @@ struct ocp_func_emac_data {
 	int	phy_mode;	/* PHY type or configurable mode */
 	u8	mac_addr[6];	/* EMAC mac address */
 	u32	phy_map;	/* EMAC phy map */
+	u32	phy_feat_exc;	/* Excluded PHY features */
 };
 
 /* Sysfs support */
@@ -83,6 +84,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mdio_idx)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, tah_idx)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, phy_mode)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_map)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_feat_exc)\
 									\
 void ocp_show_emac_data(struct device *dev)				\
 {									\
@@ -98,7 +100,21 @@ void ocp_show_emac_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_emac_tah_idx);		\
 	device_create_file(dev, &dev_attr_emac_phy_mode);		\
 	device_create_file(dev, &dev_attr_emac_phy_map);		\
+	device_create_file(dev, &dev_attr_emac_phy_feat_exc);		\
 }
+
+/*
+ * PHY mode settings (EMAC <-> ZMII/RGMII bridge <-> PHY)
+ */
+#define PHY_MODE_NA	0
+#define PHY_MODE_MII	1
+#define PHY_MODE_RMII	2
+#define PHY_MODE_SMII	3
+#define PHY_MODE_RGMII	4
+#define PHY_MODE_TBI	5
+#define PHY_MODE_GMII	6
+#define PHY_MODE_RTBI	7
+#define PHY_MODE_SGMII	8
 
 #ifdef CONFIG_40x
 /*
@@ -133,6 +149,7 @@ struct ocp_func_mal_data {
 	int	txde_irq;	/* TX Descriptor Error IRQ */
 	int	rxde_irq;	/* RX Descriptor Error IRQ */
 	int	serr_irq;	/* MAL System Error IRQ    */
+	int	dcr_base;	/* MALx_CFG DCR number   */
 };
 
 #define OCP_SYSFS_MAL_DATA()						\
@@ -143,6 +160,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, rxeob_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, txde_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, rxde_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, serr_irq)	\
+OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, dcr_base)	\
 									\
 void ocp_show_mal_data(struct device *dev)				\
 {									\
@@ -153,6 +171,7 @@ void ocp_show_mal_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_mal_txde_irq);		\
 	device_create_file(dev, &dev_attr_mal_rxde_irq);		\
 	device_create_file(dev, &dev_attr_mal_serr_irq);		\
+	device_create_file(dev, &dev_attr_mal_dcr_base);		\
 }
 
 /*

@@ -182,14 +182,14 @@ struct sgimc_regs {
 	volatile u32 dtlb_hi3;
 	u32 _unused33;
 	volatile u32 dtlb_lo3;
-	
+
 	u32 _unused34[0x0392];
-	
+
 	u32 _unused35;
 	volatile u32 rpsscounter;	/* Chirps at 100ns */
 
 	u32 _unused36[0x1000/4-2*4];
-	
+
 	u32 _unused37;
 	volatile u32 maddronly;		/* Address DMA goes at */
 	u32 _unused38;

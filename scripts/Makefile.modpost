@@ -36,6 +36,7 @@
 _modpost: __modpost
 
 include .config
+include scripts/Kbuild.include
 include scripts/Makefile.lib
 
 symverfile := $(objtree)/Module.symvers

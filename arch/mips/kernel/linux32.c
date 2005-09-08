@@ -313,7 +313,7 @@ asmlinkage int sys32_sysinfo(struct sysinfo32 *info)
 	struct sysinfo s;
 	int ret, err;
 	mm_segment_t old_fs = get_fs ();
-	
+
 	set_fs (KERNEL_DS);
 	ret = sys_sysinfo(&s);
 	set_fs (old_fs);
@@ -546,21 +546,21 @@ struct msgbuf32 { s32 mtype; char mtext[1]; };
 struct ipc_perm32
 {
 	key_t    	  key;
-        compat_uid_t  uid;
-        compat_gid_t  gid;
-        compat_uid_t  cuid;
-        compat_gid_t  cgid;
+        __compat_uid_t  uid;
+        __compat_gid_t  gid;
+        __compat_uid_t  cuid;
+        __compat_gid_t  cgid;
         compat_mode_t	mode;
         unsigned short  seq;
 };
 
 struct ipc64_perm32 {
 	key_t key;
-	compat_uid_t uid;
-	compat_gid_t gid;
-	compat_uid_t cuid;
-	compat_gid_t cgid;
-	compat_mode_t	mode; 
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
+	compat_mode_t	mode;
 	unsigned short	seq;
 	unsigned short __pad1;
 	unsigned int __unused1;
@@ -1334,17 +1334,17 @@ asmlinkage int sys32_sendfile(int out_fd, int in_fd, compat_off_t *offset,
 	mm_segment_t old_fs = get_fs();
 	int ret;
 	off_t of;
-	
+
 	if (offset && get_user(of, offset))
 		return -EFAULT;
-		
+
 	set_fs(KERNEL_DS);
 	ret = sys_sendfile(out_fd, in_fd, offset ? &of : NULL, count);
 	set_fs(old_fs);
-	
+
 	if (offset && put_user(of, offset))
 		return -EFAULT;
-		
+
 	return ret;
 }
 
@@ -1362,11 +1362,11 @@ static unsigned char socketcall_nargs[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),
 #undef AL
 
 /*
- *	System call vectors. 
+ *	System call vectors.
  *
  *	Argument checking cleaned up. Saved 20% in size.
  *  This function doesn't need to set the kernel lock because
- *  it is set by the callees. 
+ *  it is set by the callees.
  */
 
 asmlinkage long sys32_socketcall(int call, unsigned int *args32)
@@ -1402,11 +1402,11 @@ asmlinkage long sys32_socketcall(int call, unsigned int *args32)
 	/* copy_from_user should be SMP safe. */
 	if (copy_from_user(a, args32, socketcall_nargs[call]))
 		return -EFAULT;
-		
+
 	a0=a[0];
 	a1=a[1];
-	
-	switch(call) 
+
+	switch(call)
 	{
 		case SYS_SOCKET:
 			err = sys_socket(a0,a1,a[2]);

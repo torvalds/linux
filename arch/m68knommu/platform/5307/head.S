@@ -39,13 +39,17 @@
  *	Memory size exceptions for special cases. Some boards may be set
  *	for auto memory sizing, but we can't do it that way for some reason.
  *	For example the 5206eLITE board has static RAM, and auto-detecting
- *	the SDRAM will do you no good at all.
+ *	the SDRAM will do you no good at all. Same goes for the MOD5272.
  */
 #ifdef CONFIG_RAMAUTO
 #if defined(CONFIG_M5206eLITE)
-#define	MEM_SIZE	0x00100000		/* 1MiB default memory */
+#define	MEM_SIZE	0x00100000	/* 1MiB default memory */
+#endif
+#if defined(CONFIG_MOD5272)
+#define MEM_SIZE	0x00800000	/* 8MiB default memory */
 #endif
 #endif /* CONFIG_RAMAUTO */
+
 
 /*
  *	If we don't have a fixed memory size now, then lets build in code
@@ -100,10 +104,14 @@
 
 /*
  *	Most ColdFire boards have their DRAM starting at address 0.
- *	Notable exception is the 5206eLITE board.
+ *	Notable exception is the 5206eLITE board, another is the MOD5272.
  */
 #if defined(CONFIG_M5206eLITE)
 #define	MEM_BASE	0x30000000
+#endif
+#if defined(CONFIG_MOD5272)
+#define MEM_BASE	0x02000000
+#define VBR_BASE	0x20000000	/* vectors in SRAM */
 #endif
 
 #ifndef MEM_BASE
@@ -188,6 +196,7 @@ _start:
 	movel	%a7,_rambase
 
 	GET_MEM_SIZE				/* macro code determines size */
+	addl	%a7,%d0
 	movel	%d0,_ramend			/* set end ram addr */
 
 	/*

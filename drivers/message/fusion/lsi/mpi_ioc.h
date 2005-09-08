@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  August 11, 2000
  *
- *    mpi_ioc.h Version:  01.05.08
+ *    mpi_ioc.h Version:  01.05.09
  *
  *  Version History
  *  ---------------
@@ -81,6 +81,8 @@
  *                      Reply and IOC Init Request.
  *  03-11-05  01.05.08  Added family code for 1068E family.
  *                      Removed IOCFacts Reply EEDP Capability bit.
+ *  06-24-05  01.05.09  Added 5 new IOCFacts Reply IOCCapabilities bits.
+ *                      Added Max SATA Targets to SAS Discovery Error event.
  *  --------------------------------------------------------------------------
  */
 
@@ -261,7 +263,11 @@ typedef struct _MSG_IOC_FACTS_REPLY
 #define MPI_IOCFACTS_CAPABILITY_DIAG_TRACE_BUFFER       (0x00000008)
 #define MPI_IOCFACTS_CAPABILITY_SNAPSHOT_BUFFER         (0x00000010)
 #define MPI_IOCFACTS_CAPABILITY_EXTENDED_BUFFER         (0x00000020)
-
+#define MPI_IOCFACTS_CAPABILITY_EEDP                    (0x00000040)
+#define MPI_IOCFACTS_CAPABILITY_BIDIRECTIONAL           (0x00000080)
+#define MPI_IOCFACTS_CAPABILITY_MULTICAST               (0x00000100)
+#define MPI_IOCFACTS_CAPABILITY_SCSIIO32                (0x00000200)
+#define MPI_IOCFACTS_CAPABILITY_NO_SCSIIO16             (0x00000400)
 
 
 /*****************************************************************************
@@ -677,6 +683,7 @@ typedef struct _EVENT_DATA_DISCOVERY_ERROR
 #define MPI_EVENT_DSCVRY_ERR_DS_MULTPL_SUBTRACTIVE          (0x00000200)
 #define MPI_EVENT_DSCVRY_ERR_DS_TABLE_TO_TABLE              (0x00000400)
 #define MPI_EVENT_DSCVRY_ERR_DS_MULTPL_PATHS                (0x00000800)
+#define MPI_EVENT_DSCVRY_ERR_DS_MAX_SATA_TARGETS            (0x00001000)
 
 
 /*****************************************************************************

@@ -144,7 +144,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	}
 
 	/* Hash the cipher key with the given hash algorithm */
-	hash_tfm = crypto_alloc_tfm(opts, 0);
+	hash_tfm = crypto_alloc_tfm(opts, CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (hash_tfm == NULL) {
 		ti->error = PFX "Error initializing ESSIV hash";
 		return -EINVAL;
@@ -172,7 +172,8 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 
 	/* Setup the essiv_tfm with the given salt */
 	essiv_tfm = crypto_alloc_tfm(crypto_tfm_alg_name(cc->tfm),
-	                             CRYPTO_TFM_MODE_ECB);
+	                             CRYPTO_TFM_MODE_ECB |
+	                             CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (essiv_tfm == NULL) {
 		ti->error = PFX "Error allocating crypto tfm for ESSIV";
 		kfree(salt);
@@ -587,7 +588,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad1;
 	}
 
-	tfm = crypto_alloc_tfm(cipher, crypto_flags);
+	tfm = crypto_alloc_tfm(cipher, crypto_flags | CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (!tfm) {
 		ti->error = PFX "Error allocating crypto tfm";
 		goto bad1;

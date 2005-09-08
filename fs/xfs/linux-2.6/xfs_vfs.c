@@ -251,7 +251,6 @@ vfs_allocate( void )
 	bhv_head_init(VFS_BHVHEAD(vfsp), "vfs");
 	INIT_LIST_HEAD(&vfsp->vfs_sync_list);
 	spin_lock_init(&vfsp->vfs_sync_lock);
-	init_waitqueue_head(&vfsp->vfs_wait_sync_task);
 	init_waitqueue_head(&vfsp->vfs_wait_single_sync_task);
 	return vfsp;
 }

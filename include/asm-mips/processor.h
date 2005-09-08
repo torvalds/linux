@@ -33,7 +33,7 @@ extern void (*cpu_wait)(void);
 
 extern unsigned int vced_count, vcei_count;
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
@@ -47,7 +47,7 @@ extern unsigned int vced_count, vcei_count;
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 /*
  * User space process size: 1TB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.  TASK_SIZE

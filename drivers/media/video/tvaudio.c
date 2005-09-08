@@ -162,24 +162,23 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 	unsigned char buffer[2];
 
 	if (-1 == subaddr) {
-		dprintk("%s: chip_write: 0x%x\n",
-			i2c_clientname(&chip->c), val);
+		dprintk("%s: chip_write: 0x%x\n", chip->c.name, val);
 		chip->shadow.bytes[1] = val;
 		buffer[0] = val;
 		if (1 != i2c_master_send(&chip->c,buffer,1)) {
 			printk(KERN_WARNING "%s: I/O error (write 0x%x)\n",
-			       i2c_clientname(&chip->c), val);
+			       chip->c.name, val);
 			return -1;
 		}
 	} else {
 		dprintk("%s: chip_write: reg%d=0x%x\n",
-			i2c_clientname(&chip->c), subaddr, val);
+			chip->c.name, subaddr, val);
 		chip->shadow.bytes[subaddr+1] = val;
 		buffer[0] = subaddr;
 		buffer[1] = val;
 		if (2 != i2c_master_send(&chip->c,buffer,2)) {
 			printk(KERN_WARNING "%s: I/O error (write reg%d=0x%x)\n",
-			       i2c_clientname(&chip->c), subaddr, val);
+			       chip->c.name, subaddr, val);
 			return -1;
 		}
 	}
@@ -203,11 +202,10 @@ static int chip_read(struct CHIPSTATE *chip)
 	unsigned char buffer;
 
 	if (1 != i2c_master_recv(&chip->c,&buffer,1)) {
-		printk(KERN_WARNING "%s: I/O error (read)\n",
-		       i2c_clientname(&chip->c));
+		printk(KERN_WARNING "%s: I/O error (read)\n", chip->c.name);
 		return -1;
 	}
-	dprintk("%s: chip_read: 0x%x\n",i2c_clientname(&chip->c),buffer);
+	dprintk("%s: chip_read: 0x%x\n", chip->c.name, buffer);
 	return buffer;
 }
 
@@ -222,12 +220,11 @@ static int chip_read2(struct CHIPSTATE *chip, int subaddr)
         write[0] = subaddr;
 
 	if (2 != i2c_transfer(chip->c.adapter,msgs,2)) {
-		printk(KERN_WARNING "%s: I/O error (read2)\n",
-		       i2c_clientname(&chip->c));
+		printk(KERN_WARNING "%s: I/O error (read2)\n", chip->c.name);
 		return -1;
 	}
 	dprintk("%s: chip_read2: reg%d=0x%x\n",
-		i2c_clientname(&chip->c),subaddr,read[0]);
+		chip->c.name, subaddr, read[0]);
 	return read[0];
 }
 
@@ -240,7 +237,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 	/* update our shadow register set; print bytes if (debug > 0) */
 	dprintk("%s: chip_cmd(%s): reg=%d, data:",
-		i2c_clientname(&chip->c),name,cmd->bytes[0]);
+		chip->c.name, name, cmd->bytes[0]);
 	for (i = 1; i < cmd->count; i++) {
 		dprintk(" 0x%x",cmd->bytes[i]);
 		chip->shadow.bytes[i+cmd->bytes[0]] = cmd->bytes[i];
@@ -249,7 +246,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 	/* send data to the chip */
 	if (cmd->count != i2c_master_send(&chip->c,cmd->bytes,cmd->count)) {
-		printk(KERN_WARNING "%s: I/O error (%s)\n", i2c_clientname(&chip->c), name);
+		printk(KERN_WARNING "%s: I/O error (%s)\n", chip->c.name, name);
 		return -1;
 	}
 	return 0;
@@ -274,9 +271,9 @@ static int chip_thread(void *data)
         struct CHIPSTATE *chip = data;
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
-	daemonize("%s",i2c_clientname(&chip->c));
+	daemonize("%s", chip->c.name);
 	allow_signal(SIGTERM);
-	dprintk("%s: thread started\n", i2c_clientname(&chip->c));
+	dprintk("%s: thread started\n", chip->c.name);
 
 	for (;;) {
 		add_wait_queue(&chip->wq, &wait);
@@ -288,7 +285,7 @@ static int chip_thread(void *data)
 		try_to_freeze();
 		if (chip->done || signal_pending(current))
 			break;
-		dprintk("%s: thread wakeup\n", i2c_clientname(&chip->c));
+		dprintk("%s: thread wakeup\n", chip->c.name);
 
 		/* don't do anything for radio or if mode != auto */
 		if (chip->norm == VIDEO_MODE_RADIO || chip->mode != 0)
@@ -301,7 +298,7 @@ static int chip_thread(void *data)
 		mod_timer(&chip->wt, jiffies+2*HZ);
 	}
 
-	dprintk("%s: thread exiting\n", i2c_clientname(&chip->c));
+	dprintk("%s: thread exiting\n", chip->c.name);
         complete_and_exit(&chip->texit, 0);
 	return 0;
 }
@@ -314,7 +311,7 @@ static void generic_checkmode(struct CHIPSTATE *chip)
 	if (mode == chip->prevmode)
 	    return;
 
-	dprintk("%s: thread checkmode\n", i2c_clientname(&chip->c));
+	dprintk("%s: thread checkmode\n", chip->c.name);
 	chip->prevmode = mode;
 
 	if (mode & VIDEO_SOUND_STEREO)
@@ -1098,7 +1095,7 @@ static int tda8425_initialize(struct CHIPSTATE *chip)
 			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF,
 			    /* off	*/ TDA8425_S1_OFF, /* on     */ TDA8425_S1_CH2};
 
-	if (chip->c.adapter->id == (I2C_ALGO_BIT | I2C_HW_B_RIVA)) {
+	if (chip->c.adapter->id == I2C_HW_B_RIVA) {
 		memcpy (desc->inputmap, inputmap, sizeof (inputmap));
 	}
 	return 0;
@@ -1501,7 +1498,7 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		(desc->flags & CHIP_HAS_INPUTSEL)   ? " audiomux"    : "");
 
 	/* fill required data structures */
-	strcpy(i2c_clientname(&chip->c),desc->name);
+	strcpy(chip->c.name, desc->name);
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
         chip->prevmode = -1;
@@ -1538,7 +1535,7 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		chip->tpid = kernel_thread(chip_thread,(void *)chip,0);
 		if (chip->tpid < 0)
 			printk(KERN_WARNING "%s: kernel_thread() failed\n",
-			       i2c_clientname(&chip->c));
+			       chip->c.name);
 		wake_up_interruptible(&chip->wq);
 	}
 	return 0;
@@ -1548,16 +1545,16 @@ static int chip_probe(struct i2c_adapter *adap)
 {
 	/* don't attach on saa7146 based cards,
 	   because dedicated drivers are used */
-	if ((adap->id & I2C_ALGO_SAA7146))
+	if (adap->id == I2C_HW_SAA7146)
 		return 0;
 #ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, chip_attach);
 #else
 	switch (adap->id) {
-	case I2C_ALGO_BIT | I2C_HW_B_BT848:
-	case I2C_ALGO_BIT | I2C_HW_B_RIVA:
-	case I2C_ALGO_SAA7134:
+	case I2C_HW_B_BT848:
+	case I2C_HW_B_RIVA:
+	case I2C_HW_SAA7134:
 		return i2c_probe(adap, &addr_data, chip_attach);
 	}
 #endif
@@ -1591,7 +1588,7 @@ static int chip_command(struct i2c_client *client,
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
-	dprintk("%s: chip_command 0x%x\n",i2c_clientname(&chip->c),cmd);
+	dprintk("%s: chip_command 0x%x\n", chip->c.name, cmd);
 
 	switch (cmd) {
 	case AUDC_SET_INPUT:
@@ -1702,7 +1699,7 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-	I2C_DEVNAME("(unset)"),
+	.name       = "(unset)",
 	.flags      = I2C_CLIENT_ALLOW_USE,
         .driver     = &driver,
 };

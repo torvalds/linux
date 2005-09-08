@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/cio.c
  *   S/390 common I/O routines -- low level i/o calls
- *   $Revision: 1.134 $
+ *   $Revision: 1.135 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
@@ -815,8 +815,9 @@ __clear_subchannel_easy(unsigned int schid)
 		struct tpi_info ti;
 
 		if (tpi(&ti)) {
-			tsch(schid, (struct irb *)__LC_IRB);
-			return 0;
+			tsch(ti.irq, (struct irb *)__LC_IRB);
+			if (ti.irq == schid)
+				return 0;
 		}
 		udelay(100);
 	}

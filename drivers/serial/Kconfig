@@ -308,7 +308,7 @@ config SERIAL_S3C2410_CONSOLE
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
-	depends on MACH_DECSTATION && MIPS32
+	depends on MACH_DECSTATION && 32BIT
 	select SERIAL_CORE
 	help
 	  DZ11-family serial controllers for VAXstations, including the
@@ -830,7 +830,7 @@ config SERIAL_M32R_PLDSIO
 
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
-	depends HAS_TXX9_SERIAL
+	depends HAS_TXX9_SERIAL && BROKEN
 	select SERIAL_CORE
 	default y
 

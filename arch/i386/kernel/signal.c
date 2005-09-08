@@ -278,9 +278,9 @@ setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
 	int tmp, err = 0;
 
 	tmp = 0;
-	__asm__("movl %%gs,%0" : "=r"(tmp): "0"(tmp));
+	savesegment(gs, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->gs);
-	__asm__("movl %%fs,%0" : "=r"(tmp): "0"(tmp));
+	savesegment(fs, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->fs);
 
 	err |= __put_user(regs->xes, (unsigned int __user *)&sc->es);
@@ -604,7 +604,9 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * We want the common case to go fast, which
 	 * is why we may in certain cases get here from
 	 * kernel mode. Just return without doing anything
-	 * if so.
+ 	 * if so.  vm86 regs switched out by assembly code
+ 	 * before reaching here, so testing against kernel
+ 	 * CS suffices.
 	 */
 	if (!user_mode(regs))
 		return 1;

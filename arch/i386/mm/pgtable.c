@@ -207,19 +207,19 @@ void pgd_ctor(void *pgd, kmem_cache_t *cache, unsigned long unused)
 {
 	unsigned long flags;
 
-	if (PTRS_PER_PMD == 1)
+	if (PTRS_PER_PMD == 1) {
+		memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
 		spin_lock_irqsave(&pgd_lock, flags);
+	}
 
-	memcpy((pgd_t *)pgd + USER_PTRS_PER_PGD,
+	clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
 			swapper_pg_dir + USER_PTRS_PER_PGD,
-			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
-
+			KERNEL_PGD_PTRS);
 	if (PTRS_PER_PMD > 1)
 		return;
 
 	pgd_list_add(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
-	memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
 }
 
 /* never called when PTRS_PER_PMD > 1 */

@@ -1,23 +1,23 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
-    *  
+    *
     *  MAC constants and macros			File: sb1250_mac.h
-    *  
+    *
     *  This module contains constants and macros for the SB1250's
     *  ethernet controllers.
-    *  
+    *
     *  SB1250 specification level:  User's manual 1/02/02
-    *  
+    *
     *  Author:  Mitch Lichtenberg
-    *  
-    *********************************************************************  
+    *
+    *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
     *  Broadcom Corporation. All rights reserved.
-    *  
-    *  This program is free software; you can redistribute it and/or 
-    *  modify it under the terms of the GNU General Public License as 
-    *  published by the Free Software Foundation; either version 2 of 
+    *
+    *  This program is free software; you can redistribute it and/or
+    *  modify it under the terms of the GNU General Public License as
+    *  published by the Free Software Foundation; either version 2 of
     *  the License, or (at your option) any later version.
     *
     *  This program is distributed in the hope that it will be useful,
@@ -27,7 +27,7 @@
     *
     *  You should have received a copy of the GNU General Public License
     *  along with this program; if not, write to the Free Software
-    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston,
     *  MA 02111-1307 USA
     ********************************************************************* */
 
@@ -311,7 +311,7 @@
 
 /*
  * These constants are used to configure the fields within the Frame
- * Configuration Register.  
+ * Configuration Register.
  */
 
 #define K_MAC_IFG_RX_10             _SB_MAKE64(0)	/* See table 176, not used */
@@ -393,7 +393,7 @@
  * Register: MAC_INT_MASK_2
  */
 
-/* 
+/*
  * Use these constants to shift the appropriate channel
  * into the CH0 position so the same tests can be used
  * on each channel.

@@ -171,11 +171,11 @@ static inline void blast_dcache16(void)
 	unsigned long start = INDEX_BASE;
 	unsigned long end = start + current_cpu_data.dcache.waysize;
 	unsigned long ws_inc = 1UL << current_cpu_data.dcache.waybit;
-	unsigned long ws_end = current_cpu_data.dcache.ways << 
+	unsigned long ws_end = current_cpu_data.dcache.ways <<
 	                       current_cpu_data.dcache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x200)
 			cache16_unroll32(addr|ws,Index_Writeback_Inv_D);
 }
@@ -200,8 +200,8 @@ static inline void blast_dcache16_page_indexed(unsigned long page)
 	                       current_cpu_data.dcache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x200) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x200)
 			cache16_unroll32(addr|ws,Index_Writeback_Inv_D);
 }
 
@@ -214,8 +214,8 @@ static inline void blast_icache16(void)
 	                       current_cpu_data.icache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x200) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x200)
 			cache16_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -239,8 +239,8 @@ static inline void blast_icache16_page_indexed(unsigned long page)
 	                       current_cpu_data.icache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x200) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x200)
 			cache16_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -249,11 +249,11 @@ static inline void blast_scache16(void)
 	unsigned long start = INDEX_BASE;
 	unsigned long end = start + current_cpu_data.scache.waysize;
 	unsigned long ws_inc = 1UL << current_cpu_data.scache.waybit;
-	unsigned long ws_end = current_cpu_data.scache.ways << 
+	unsigned long ws_end = current_cpu_data.scache.ways <<
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x200)
 			cache16_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
@@ -278,8 +278,8 @@ static inline void blast_scache16_page_indexed(unsigned long page)
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x200) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x200)
 			cache16_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
 
@@ -318,8 +318,8 @@ static inline void blast_dcache32(void)
 	                       current_cpu_data.dcache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x400) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x400)
 			cache32_unroll32(addr|ws,Index_Writeback_Inv_D);
 }
 
@@ -343,8 +343,8 @@ static inline void blast_dcache32_page_indexed(unsigned long page)
 	                       current_cpu_data.dcache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x400) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x400)
 			cache32_unroll32(addr|ws,Index_Writeback_Inv_D);
 }
 
@@ -357,8 +357,8 @@ static inline void blast_icache32(void)
 	                       current_cpu_data.icache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x400) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x400)
 			cache32_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -383,7 +383,7 @@ static inline void blast_icache32_page_indexed(unsigned long page)
 	unsigned long ws, addr;
 
 	for (ws = 0; ws < ws_end; ws += ws_inc)
-		for (addr = start; addr < end; addr += 0x400) 
+		for (addr = start; addr < end; addr += 0x400)
 			cache32_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -392,11 +392,11 @@ static inline void blast_scache32(void)
 	unsigned long start = INDEX_BASE;
 	unsigned long end = start + current_cpu_data.scache.waysize;
 	unsigned long ws_inc = 1UL << current_cpu_data.scache.waybit;
-	unsigned long ws_end = current_cpu_data.scache.ways << 
+	unsigned long ws_end = current_cpu_data.scache.ways <<
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x400)
 			cache32_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
@@ -421,8 +421,8 @@ static inline void blast_scache32_page_indexed(unsigned long page)
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x400) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x400)
 			cache32_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
 
@@ -461,8 +461,8 @@ static inline void blast_icache64(void)
 	                       current_cpu_data.icache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x800) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x800)
 			cache64_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -487,7 +487,7 @@ static inline void blast_icache64_page_indexed(unsigned long page)
 	unsigned long ws, addr;
 
 	for (ws = 0; ws < ws_end; ws += ws_inc)
-		for (addr = start; addr < end; addr += 0x800) 
+		for (addr = start; addr < end; addr += 0x800)
 			cache64_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -496,11 +496,11 @@ static inline void blast_scache64(void)
 	unsigned long start = INDEX_BASE;
 	unsigned long end = start + current_cpu_data.scache.waysize;
 	unsigned long ws_inc = 1UL << current_cpu_data.scache.waybit;
-	unsigned long ws_end = current_cpu_data.scache.ways << 
+	unsigned long ws_end = current_cpu_data.scache.ways <<
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x800)
 			cache64_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
@@ -525,8 +525,8 @@ static inline void blast_scache64_page_indexed(unsigned long page)
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x800) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x800)
 			cache64_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
 
@@ -561,11 +561,11 @@ static inline void blast_scache128(void)
 	unsigned long start = INDEX_BASE;
 	unsigned long end = start + current_cpu_data.scache.waysize;
 	unsigned long ws_inc = 1UL << current_cpu_data.scache.waybit;
-	unsigned long ws_end = current_cpu_data.scache.ways << 
+	unsigned long ws_end = current_cpu_data.scache.ways <<
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x1000)
 			cache128_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
@@ -590,8 +590,8 @@ static inline void blast_scache128_page_indexed(unsigned long page)
 	                       current_cpu_data.scache.waybit;
 	unsigned long ws, addr;
 
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x1000) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x1000)
 			cache128_unroll32(addr|ws,Index_Writeback_Inv_SD);
 }
 

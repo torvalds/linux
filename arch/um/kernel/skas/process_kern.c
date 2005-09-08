@@ -129,7 +129,9 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 	return(0);
 }
 
-int new_mm(int from)
+extern void map_stub_pages(int fd, unsigned long code,
+			   unsigned long data, unsigned long stack);
+int new_mm(int from, unsigned long stack)
 {
 	struct proc_mm_op copy;
 	int n, fd;
@@ -147,6 +149,9 @@ int new_mm(int from)
 			printk("new_mm : /proc/mm copy_segments failed, "
 			       "err = %d\n", -n);
 	}
+
+	if(!ptrace_faultinfo)
+		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
 
 	return(fd);
 }

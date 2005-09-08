@@ -1,6 +1,7 @@
 #ifndef _ASMi386_TIMER_H
 #define _ASMi386_TIMER_H
 #include <linux/init.h>
+#include <linux/pm.h>
 
 /**
  * struct timer_ops - used to define a timer source
@@ -23,6 +24,8 @@ struct timer_opts {
 	unsigned long long (*monotonic_clock)(void);
 	void (*delay)(unsigned long);
 	unsigned long (*read_timer)(void);
+	int (*suspend)(pm_message_t state);
+	int (*resume)(void);
 };
 
 struct init_timer_opts {

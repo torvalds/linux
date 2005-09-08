@@ -1711,7 +1711,6 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			  unsigned long arg4, unsigned long arg5)
 {
 	long error;
-	int sig;
 
 	error = security_task_prctl(option, arg2, arg3, arg4, arg5);
 	if (error)
@@ -1719,12 +1718,11 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 
 	switch (option) {
 		case PR_SET_PDEATHSIG:
-			sig = arg2;
-			if (!valid_signal(sig)) {
+			if (!valid_signal(arg2)) {
 				error = -EINVAL;
 				break;
 			}
-			current->pdeath_signal = sig;
+			current->pdeath_signal = arg2;
 			break;
 		case PR_GET_PDEATHSIG:
 			error = put_user(current->pdeath_signal, (int __user *)arg2);

@@ -254,6 +254,7 @@ static void fib_dealloc(struct fib * fibptr)
 static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entry, u32 * index, unsigned long *nonotify)
 {
 	struct aac_queue * q;
+	unsigned long idx;
 
 	/*
 	 *	All of the queues wrap when they reach the end, so we check
@@ -263,10 +264,23 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
 	 */
 
 	q = &dev->queues->queue[qid];
-	
-	*index = le32_to_cpu(*(q->headers.producer));
-	if ((*index - 2) == le32_to_cpu(*(q->headers.consumer)))
+
+	idx = *index = le32_to_cpu(*(q->headers.producer));
+	/* Interrupt Moderation, only interrupt for first two entries */
+	if (idx != le32_to_cpu(*(q->headers.consumer))) {
+		if (--idx == 0) {
+			if (qid == AdapHighCmdQueue)
+				idx = ADAP_HIGH_CMD_ENTRIES;
+			else if (qid == AdapNormCmdQueue)
+				idx = ADAP_NORM_CMD_ENTRIES;
+			else if (qid == AdapHighRespQueue) 
+	        		idx = ADAP_HIGH_RESP_ENTRIES;
+			else if (qid == AdapNormRespQueue) 
+				idx = ADAP_NORM_RESP_ENTRIES;
+		}
+		if (idx != le32_to_cpu(*(q->headers.consumer)))
 			*nonotify = 1; 
+	}
 
 	if (qid == AdapHighCmdQueue) {
 	        if (*index >= ADAP_HIGH_CMD_ENTRIES)

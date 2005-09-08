@@ -35,6 +35,8 @@
 #include <linux/topology.h>
 #include <linux/seccomp.h>
 
+#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
+
 struct exec_domain;
 
 /*
@@ -176,6 +178,23 @@ extern void trap_init(void);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
 
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+extern void softlockup_tick(struct pt_regs *regs);
+extern void spawn_softlockup_task(void);
+extern void touch_softlockup_watchdog(void);
+#else
+static inline void softlockup_tick(struct pt_regs *regs)
+{
+}
+static inline void spawn_softlockup_task(void)
+{
+}
+static inline void touch_softlockup_watchdog(void)
+{
+}
+#endif
+
+
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
 /* Is this address in the __sched functions? */
@@ -244,7 +263,7 @@ struct mm_struct {
 	mm_counter_t _rss;
 	mm_counter_t _anon_rss;
 
-	unsigned long saved_auxv[42]; /* for /proc/PID/auxv */
+	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
 	unsigned dumpable:2;
 	cpumask_t cpu_vm_mask;
@@ -545,13 +564,6 @@ struct sched_domain {
 
 extern void partition_sched_domains(cpumask_t *partition1,
 				    cpumask_t *partition2);
-#ifdef ARCH_HAS_SCHED_DOMAIN
-/* Useful helpers that arch setup code may use. Defined in kernel/sched.c */
-extern cpumask_t cpu_isolated_map;
-extern void init_sched_build_groups(struct sched_group groups[],
-	                        cpumask_t span, int (*group_fn)(int cpu));
-extern void cpu_attach_domain(struct sched_domain *sd, int cpu);
-#endif /* ARCH_HAS_SCHED_DOMAIN */
 #endif /* CONFIG_SMP */
 
 

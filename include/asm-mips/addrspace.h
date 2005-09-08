@@ -48,7 +48,7 @@
 #define CPHYSADDR(a)		((_ACAST32_ (a)) & 0x1fffffff)
 #define XPHYSADDR(a)            ((_ACAST64_ (a)) & 0x000000ffffffffff)
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 /*
  * Memory segments (64bit kernel mode addresses)

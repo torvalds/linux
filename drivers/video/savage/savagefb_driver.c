@@ -2110,7 +2110,6 @@ static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 	struct savagefb_par *par = (struct savagefb_par *)info->par;
 
 	DBG("savagefb_suspend");
-	printk(KERN_DEBUG "state: %u\n", state);
 
 	acquire_console_sem();
 	fb_set_suspend(info, pci_choose_state(dev, state));

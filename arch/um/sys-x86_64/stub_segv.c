@@ -3,9 +3,10 @@
  * Licensed under the GPL
  */
 
-#include <signal.h>
+#include <asm/signal.h>
 #include <linux/compiler.h>
 #include <asm/unistd.h>
+#include <asm/ucontext.h>
 #include "uml-config.h"
 #include "sysdep/sigcontext.h"
 #include "sysdep/faultinfo.h"

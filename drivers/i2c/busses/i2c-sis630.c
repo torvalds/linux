@@ -448,8 +448,6 @@ exit:
 
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-I2C SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= sis630_access,
 	.functionality	= sis630_func,
 };

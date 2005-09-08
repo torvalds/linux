@@ -305,6 +305,9 @@ static void __devinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 {
 	struct _cpuid4_info	*this_leaf;
 	unsigned long num_threads_sharing;
+#ifdef CONFIG_X86_HT
+	struct cpuinfo_x86 *c = cpu_data + cpu;
+#endif
 
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
 	num_threads_sharing = 1 + this_leaf->eax.split.num_threads_sharing;
@@ -314,10 +317,12 @@ static void __devinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 #ifdef CONFIG_X86_HT
 	else if (num_threads_sharing == smp_num_siblings)
 		this_leaf->shared_cpu_map = cpu_sibling_map[cpu];
-#endif
+	else if (num_threads_sharing == (c->x86_num_cores * smp_num_siblings))
+		this_leaf->shared_cpu_map = cpu_core_map[cpu];
 	else
-		printk(KERN_INFO "Number of CPUs sharing cache didn't match "
+		printk(KERN_DEBUG "Number of CPUs sharing cache didn't match "
 				"any known set of CPUs\n");
+#endif
 }
 #else
 static void __init cache_shared_cpu_map_setup(unsigned int cpu, int index) {}

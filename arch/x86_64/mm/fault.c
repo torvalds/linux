@@ -23,6 +23,7 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/compiler.h>
 #include <linux/module.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -294,7 +295,8 @@ int exception_trace = 1;
  *	bit 2 == 0 means kernel, 1 means user-mode
  *      bit 3 == 1 means fault was an instruction fetch
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code)
+asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
+					unsigned long error_code)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;

@@ -36,6 +36,7 @@
  * via the mkdefs mechanism.
  */
 struct cpu_spec;
+struct op_ppc64_model;
 
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
 
@@ -52,10 +53,19 @@ struct cpu_spec {
 	unsigned int	icache_bsize;
 	unsigned int	dcache_bsize;
 
+	/* number of performance monitor counters */
+	unsigned int	num_pmcs;
+
 	/* this is called to initialize various CPU bits like L1 cache,
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
 	cpu_setup_t	cpu_setup;
+
+	/* Used by oprofile userspace to select the right counters */
+	char		*oprofile_cpu_type;
+
+	/* Processor specific oprofile operations */
+	struct op_ppc64_model *oprofile_model;
 };
 
 extern struct cpu_spec		cpu_specs[];
@@ -95,7 +105,7 @@ static inline unsigned long cpu_has_feature(unsigned long feature)
 #define CPU_FTR_NODSISRALIGN  		ASM_CONST(0x0000001000000000)
 #define CPU_FTR_IABR  			ASM_CONST(0x0000002000000000)
 #define CPU_FTR_MMCRA  			ASM_CONST(0x0000004000000000)
-#define CPU_FTR_PMC8  			ASM_CONST(0x0000008000000000)
+/* unused 				ASM_CONST(0x0000008000000000) */
 #define CPU_FTR_SMT  			ASM_CONST(0x0000010000000000)
 #define CPU_FTR_COHERENT_ICACHE  	ASM_CONST(0x0000020000000000)
 #define CPU_FTR_LOCKLESS_TLBIE		ASM_CONST(0x0000040000000000)

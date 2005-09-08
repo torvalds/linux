@@ -672,7 +672,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int tuner_suspend(struct device *dev, u32 state, u32 level)
+static int tuner_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct i2c_client *c = container_of (dev, struct i2c_client, dev);
 	struct tuner *t = i2c_get_clientdata (c);
@@ -709,7 +709,7 @@ static struct i2c_driver driver = {
 		   },
 };
 static struct i2c_client client_template = {
-	I2C_DEVNAME("(tuner unset)"),
+	.name = "(tuner unset)",
 	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };

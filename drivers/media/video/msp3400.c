@@ -1416,7 +1416,7 @@ static int msp_detach(struct i2c_client *client);
 static int msp_probe(struct i2c_adapter *adap);
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg);
 
-static int msp_suspend(struct device * dev, u32 state, u32 level);
+static int msp_suspend(struct device * dev, pm_message_t state, u32 level);
 static int msp_resume(struct device * dev, u32 level);
 
 static void msp_wake_thread(struct i2c_client *client);
@@ -1437,7 +1437,7 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-	I2C_DEVNAME("(unset)"),
+	.name      = "(unset)",
 	.flags     = I2C_CLIENT_ALLOW_USE,
         .driver    = &driver,
 };
@@ -1509,7 +1509,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 
 	/* hello world :-) */
-	printk(KERN_INFO "msp34xx: init: chip=%s",i2c_clientname(c));
+	printk(KERN_INFO "msp34xx: init: chip=%s", c->name);
 	if (HAVE_NICAM(msp))
 		printk(" +nicam");
 	if (HAVE_SIMPLE(msp))
@@ -1817,7 +1817,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int msp_suspend(struct device * dev, u32 state, u32 level)
+static int msp_suspend(struct device * dev, pm_message_t state, u32 level)
 {
 	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
 

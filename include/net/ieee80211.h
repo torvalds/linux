@@ -20,18 +20,9 @@
  */
 #ifndef IEEE80211_H
 #define IEEE80211_H
-
 #include <linux/if_ether.h> /* ETH_ALEN */
 #include <linux/kernel.h>   /* ARRAY_SIZE */
-
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
+#include <linux/wireless.h>
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -47,51 +38,22 @@
 #define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
 
 struct ieee80211_hdr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_3addr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-} __attribute__ ((packed));
-
-enum eap_type {
-	EAP_PACKET = 0,
-	EAPOL_START,
-	EAPOL_LOGOFF,
-	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
-};
-
-static const char *eap_types[] = {
-	[EAP_PACKET]		= "EAP-Packet",
-	[EAPOL_START]		= "EAPOL-Start",
-	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
-	[EAPOL_KEY]		= "EAPOL-Key",
-	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
-};
-
-static inline const char *eap_get_type(int type)
-{
-	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
-}
-
-struct eapol {
-	u8 snap[6];
-	u16 ethertype;
-	u8 version;
-	u8 type;
-	u16 length;
+	__le16 seq_ctl;
 } __attribute__ ((packed));
 
 #define IEEE80211_1ADDR_LEN 10
@@ -104,7 +66,7 @@ struct eapol {
 #define	MAX_FRAG_THRESHOLD     2346U
 
 /* Frame control field constants */
-#define IEEE80211_FCTL_VERS		0x0002
+#define IEEE80211_FCTL_VERS		0x0003
 #define IEEE80211_FCTL_FTYPE		0x000c
 #define IEEE80211_FCTL_STYPE		0x00f0
 #define IEEE80211_FCTL_TODS		0x0100
@@ -112,8 +74,8 @@ struct eapol {
 #define IEEE80211_FCTL_MOREFRAGS	0x0400
 #define IEEE80211_FCTL_RETRY		0x0800
 #define IEEE80211_FCTL_PM		0x1000
-#define IEEE80211_FCTL_MOREDATA	0x2000
-#define IEEE80211_FCTL_WEP		0x4000
+#define IEEE80211_FCTL_MOREDATA		0x2000
+#define IEEE80211_FCTL_PROTECTED	0x4000
 #define IEEE80211_FCTL_ORDER		0x8000
 
 #define IEEE80211_FTYPE_MGMT		0x0000
@@ -132,6 +94,7 @@ struct eapol {
 #define IEEE80211_STYPE_DISASSOC	0x00A0
 #define IEEE80211_STYPE_AUTH		0x00B0
 #define IEEE80211_STYPE_DEAUTH		0x00C0
+#define IEEE80211_STYPE_ACTION		0x00D0
 
 /* control */
 #define IEEE80211_STYPE_PSPOLL		0x00A0
@@ -167,8 +130,19 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
+
+/* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
+
+#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
+
+/* escape_essid() is intended to be used in debug (and possibly error)
+ * messages. It should never be used for passing essid to user space. */
+const char *escape_essid(const char *essid, u8 essid_len);
+
+
 /*
- * To use the debug system;
+ * To use the debug system:
  *
  * If you are defining a new debug classification, simply add it to the #define
  * list here in the form of:
@@ -184,11 +158,11 @@ do { if (ieee80211_debug_level & (level)) \
  *
  * To add your debug level to the list of levels seen when you perform
  *
- * % cat /proc/net/ipw/debug_level
+ * % cat /proc/net/ieee80211/debug_level
  *
- * you simply need to add your entry to the ipw_debug_levels array.
+ * you simply need to add your entry to the ieee80211_debug_level array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
+ * If you do not see debug_level in /proc/net/ieee80211 then you do not have
  * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
  *
  */
@@ -199,7 +173,6 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DL_STATE         (1<<3)
 #define IEEE80211_DL_MGMT          (1<<4)
 #define IEEE80211_DL_FRAG          (1<<5)
-#define IEEE80211_DL_EAP           (1<<6)
 #define IEEE80211_DL_DROP          (1<<7)
 
 #define IEEE80211_DL_TX            (1<<8)
@@ -214,7 +187,6 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG_STATE(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_STATE, f, ## a)
 #define IEEE80211_DEBUG_MGMT(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_MGMT, f, ## a)
 #define IEEE80211_DEBUG_FRAG(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_FRAG, f, ## a)
-#define IEEE80211_DEBUG_EAP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_EAP, f, ## a)
 #define IEEE80211_DEBUG_DROP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_DROP, f, ## a)
 #define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
@@ -223,9 +195,9 @@ do { if (ieee80211_debug_level & (level)) \
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
 
 #ifndef WIRELESS_SPY
-#define WIRELESS_SPY		// enable iwspy support
+#define WIRELESS_SPY		/* enable iwspy support */
 #endif
-#include <net/iw_handler.h>	// new driver API
+#include <net/iw_handler.h>	/* new driver API */
 
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
@@ -252,6 +224,7 @@ struct ieee80211_snap_hdr {
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
 
+#define WLAN_FC_GET_VERS(fc) ((fc) & IEEE80211_FCTL_VERS)
 #define WLAN_FC_GET_TYPE(fc) ((fc) & IEEE80211_FCTL_FTYPE)
 #define WLAN_FC_GET_STYPE(fc) ((fc) & IEEE80211_FCTL_STYPE)
 
@@ -264,7 +237,7 @@ struct ieee80211_snap_hdr {
 
 #define WLAN_AUTH_CHALLENGE_LEN 128
 
-#define WLAN_CAPABILITY_BSS (1<<0)
+#define WLAN_CAPABILITY_ESS (1<<0)
 #define WLAN_CAPABILITY_IBSS (1<<1)
 #define WLAN_CAPABILITY_CF_POLLABLE (1<<2)
 #define WLAN_CAPABILITY_CF_POLL_REQUEST (1<<3)
@@ -272,34 +245,72 @@ struct ieee80211_snap_hdr {
 #define WLAN_CAPABILITY_SHORT_PREAMBLE (1<<5)
 #define WLAN_CAPABILITY_PBCC (1<<6)
 #define WLAN_CAPABILITY_CHANNEL_AGILITY (1<<7)
+#define WLAN_CAPABILITY_SPECTRUM_MGMT (1<<8)
+#define WLAN_CAPABILITY_SHORT_SLOT_TIME (1<<10)
+#define WLAN_CAPABILITY_OSSS_OFDM (1<<13)
 
 /* Status codes */
-#define WLAN_STATUS_SUCCESS 0
-#define WLAN_STATUS_UNSPECIFIED_FAILURE 1
-#define WLAN_STATUS_CAPS_UNSUPPORTED 10
-#define WLAN_STATUS_REASSOC_NO_ASSOC 11
-#define WLAN_STATUS_ASSOC_DENIED_UNSPEC 12
-#define WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG 13
-#define WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION 14
-#define WLAN_STATUS_CHALLENGE_FAIL 15
-#define WLAN_STATUS_AUTH_TIMEOUT 16
-#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
-#define WLAN_STATUS_ASSOC_DENIED_RATES 18
-/* 802.11b */
-#define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
-#define WLAN_STATUS_ASSOC_DENIED_NOPBCC 20
-#define WLAN_STATUS_ASSOC_DENIED_NOAGILITY 21
+enum ieee80211_statuscode {
+	WLAN_STATUS_SUCCESS = 0,
+	WLAN_STATUS_UNSPECIFIED_FAILURE = 1,
+	WLAN_STATUS_CAPS_UNSUPPORTED = 10,
+	WLAN_STATUS_REASSOC_NO_ASSOC = 11,
+	WLAN_STATUS_ASSOC_DENIED_UNSPEC = 12,
+	WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG = 13,
+	WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION = 14,
+	WLAN_STATUS_CHALLENGE_FAIL = 15,
+	WLAN_STATUS_AUTH_TIMEOUT = 16,
+	WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA = 17,
+	WLAN_STATUS_ASSOC_DENIED_RATES = 18,
+	/* 802.11b */
+	WLAN_STATUS_ASSOC_DENIED_NOSHORTPREAMBLE = 19,
+	WLAN_STATUS_ASSOC_DENIED_NOPBCC = 20,
+	WLAN_STATUS_ASSOC_DENIED_NOAGILITY = 21,
+	/* 802.11h */
+	WLAN_STATUS_ASSOC_DENIED_NOSPECTRUM = 22,
+	WLAN_STATUS_ASSOC_REJECTED_BAD_POWER = 23,
+	WLAN_STATUS_ASSOC_REJECTED_BAD_SUPP_CHAN = 24,
+	/* 802.11g */
+	WLAN_STATUS_ASSOC_DENIED_NOSHORTTIME = 25,
+	WLAN_STATUS_ASSOC_DENIED_NODSSSOFDM = 26,
+	/* 802.11i */
+	WLAN_STATUS_INVALID_IE = 40,
+	WLAN_STATUS_INVALID_GROUP_CIPHER = 41,
+	WLAN_STATUS_INVALID_PAIRWISE_CIPHER = 42,
+	WLAN_STATUS_INVALID_AKMP = 43,
+	WLAN_STATUS_UNSUPP_RSN_VERSION = 44,
+	WLAN_STATUS_INVALID_RSN_IE_CAP = 45,
+	WLAN_STATUS_CIPHER_SUITE_REJECTED = 46,
+};
 
 /* Reason codes */
-#define WLAN_REASON_UNSPECIFIED 1
-#define WLAN_REASON_PREV_AUTH_NOT_VALID 2
-#define WLAN_REASON_DEAUTH_LEAVING 3
-#define WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY 4
-#define WLAN_REASON_DISASSOC_AP_BUSY 5
-#define WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA 6
-#define WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA 7
-#define WLAN_REASON_DISASSOC_STA_HAS_LEFT 8
-#define WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH 9
+enum ieee80211_reasoncode {
+	WLAN_REASON_UNSPECIFIED = 1,
+	WLAN_REASON_PREV_AUTH_NOT_VALID = 2,
+	WLAN_REASON_DEAUTH_LEAVING = 3,
+	WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY = 4,
+	WLAN_REASON_DISASSOC_AP_BUSY = 5,
+	WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA = 6,
+	WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA = 7,
+	WLAN_REASON_DISASSOC_STA_HAS_LEFT = 8,
+	WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,
+	/* 802.11h */
+	WLAN_REASON_DISASSOC_BAD_POWER = 10,
+	WLAN_REASON_DISASSOC_BAD_SUPP_CHAN = 11,
+	/* 802.11i */
+	WLAN_REASON_INVALID_IE = 13,
+	WLAN_REASON_MIC_FAILURE = 14,
+	WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,
+	WLAN_REASON_GROUP_KEY_HANDSHAKE_TIMEOUT = 16,
+	WLAN_REASON_IE_DIFFERENT = 17,
+	WLAN_REASON_INVALID_GROUP_CIPHER = 18,
+	WLAN_REASON_INVALID_PAIRWISE_CIPHER = 19,
+	WLAN_REASON_INVALID_AKMP = 20,
+	WLAN_REASON_UNSUPP_RSN_VERSION = 21,
+	WLAN_REASON_INVALID_RSN_IE_CAP = 22,
+	WLAN_REASON_IEEE8021X_FAILED = 23,
+	WLAN_REASON_CIPHER_SUITE_REJECTED = 24,
+};
 
 
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
@@ -426,9 +437,7 @@ struct ieee80211_stats {
 
 struct ieee80211_device;
 
-#if 0 /* for later */
 #include "ieee80211_crypt.h"
-#endif
 
 #define SEC_KEY_1         (1<<0)
 #define SEC_KEY_2         (1<<1)
@@ -480,17 +489,34 @@ Total: 28-2340 bytes
 #define BEACON_PROBE_SSID_ID_POSITION 12
 
 /* Management Frame Information Element Types */
-#define MFIE_TYPE_SSID       0
-#define MFIE_TYPE_RATES      1
-#define MFIE_TYPE_FH_SET     2
-#define MFIE_TYPE_DS_SET     3
-#define MFIE_TYPE_CF_SET     4
-#define MFIE_TYPE_TIM        5
-#define MFIE_TYPE_IBSS_SET   6
-#define MFIE_TYPE_CHALLENGE  16
-#define MFIE_TYPE_RSN	     48
-#define MFIE_TYPE_RATES_EX   50
-#define MFIE_TYPE_GENERIC    221
+enum ieee80211_mfie {
+	MFIE_TYPE_SSID = 0,
+	MFIE_TYPE_RATES = 1,
+	MFIE_TYPE_FH_SET = 2,
+	MFIE_TYPE_DS_SET = 3,
+	MFIE_TYPE_CF_SET =  4,
+	MFIE_TYPE_TIM = 5,
+	MFIE_TYPE_IBSS_SET = 6,
+	MFIE_TYPE_COUNTRY = 7,
+	MFIE_TYPE_HOP_PARAMS = 8,
+	MFIE_TYPE_HOP_TABLE = 9,
+	MFIE_TYPE_REQUEST = 10,
+	MFIE_TYPE_CHALLENGE = 16,
+	MFIE_TYPE_POWER_CONSTRAINT = 32,
+	MFIE_TYPE_POWER_CAPABILITY = 33,
+	MFIE_TYPE_TPC_REQUEST = 34,
+	MFIE_TYPE_TPC_REPORT = 35,
+	MFIE_TYPE_SUPP_CHANNELS = 36,
+	MFIE_TYPE_CSA = 37,
+	MFIE_TYPE_MEASURE_REQUEST = 38,
+	MFIE_TYPE_MEASURE_REPORT = 39,
+	MFIE_TYPE_QUIET = 40,
+	MFIE_TYPE_IBSS_DFS = 41,
+	MFIE_TYPE_ERP_INFO = 42,
+	MFIE_TYPE_RSN = 48,
+	MFIE_TYPE_RATES_EX = 50,
+	MFIE_TYPE_GENERIC = 221,
+};
 
 struct ieee80211_info_element_hdr {
 	u8 id;
@@ -522,9 +548,9 @@ struct ieee80211_info_element {
 
 struct ieee80211_authentication {
 	struct ieee80211_hdr_3addr header;
-	u16 algorithm;
-	u16 transaction;
-	u16 status;
+	__le16 algorithm;
+	__le16 transaction;
+	__le16 status;
 	struct ieee80211_info_element info_element;
 } __attribute__ ((packed));
 
@@ -532,23 +558,23 @@ struct ieee80211_authentication {
 struct ieee80211_probe_response {
 	struct ieee80211_hdr_3addr header;
 	u32 time_stamp[2];
-	u16 beacon_interval;
-	u16 capability;
+	__le16 beacon_interval;
+	__le16 capability;
 	struct ieee80211_info_element info_element;
 } __attribute__ ((packed));
 
 struct ieee80211_assoc_request_frame {
-	u16 capability;
-	u16 listen_interval;
+	__le16 capability;
+	__le16 listen_interval;
 	u8 current_ap[ETH_ALEN];
 	struct ieee80211_info_element info_element;
 } __attribute__ ((packed));
 
 struct ieee80211_assoc_response_frame {
 	struct ieee80211_hdr_3addr header;
-	u16 capability;
-	u16 status;
-	u16 aid;
+	__le16 capability;
+	__le16 status;
+	__le16 aid;
 	struct ieee80211_info_element info_element; /* supported rates */
 } __attribute__ ((packed));
 
@@ -563,7 +589,7 @@ struct ieee80211_txb {
 };
 
 
-/* SWEEP TABLE ENTRIES NUMBER*/
+/* SWEEP TABLE ENTRIES NUMBER */
 #define MAX_SWEEP_TAB_ENTRIES		  42
 #define MAX_SWEEP_TAB_ENTRIES_PER_PACKET  7
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
@@ -624,8 +650,6 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
 
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
@@ -793,8 +817,6 @@ extern struct net_device *alloc_ieee80211(int sizeof_priv);
 extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
 
 /* ieee80211_tx.c */
-
-
 extern int ieee80211_xmit(struct sk_buff *skb,
 			  struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
@@ -807,7 +829,7 @@ extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr *header,
 			     struct ieee80211_rx_stats *stats);
 
-/* iee80211_wx.c */
+/* ieee80211_wx.c */
 extern int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *key);
@@ -829,28 +851,5 @@ extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
 	return ieee->scans;
 }
 
-static inline const char *escape_essid(const char *essid, u8 essid_len) {
-	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
-	const char *s = essid;
-	char *d = escaped;
-
-	if (ieee80211_is_empty_essid(essid, essid_len)) {
-		memcpy(escaped, "<hidden>", sizeof("<hidden>"));
-		return escaped;
-	}
-
-	essid_len = min(essid_len, (u8)IW_ESSID_MAX_SIZE);
-	while (essid_len--) {
-		if (*s == '\0') {
-			*d++ = '\\';
-			*d++ = '0';
-			s++;
-		} else {
-			*d++ = *s++;
-		}
-	}
-	*d = '\0';
-	return escaped;
-}
 
 #endif /* IEEE80211_H */

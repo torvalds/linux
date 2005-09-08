@@ -145,7 +145,7 @@ static void sa1100_timeout(unsigned long data)
 /*
  * interrupts disabled on entry
  */
-static void sa1100_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void sa1100_stop_tx(struct uart_port *port)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
 	u32 utcr3;
@@ -158,7 +158,7 @@ static void sa1100_stop_tx(struct uart_port *port, unsigned int tty_stop)
 /*
  * interrupts may not be disabled on entry
  */
-static void sa1100_start_tx(struct uart_port *port, unsigned int tty_start)
+static void sa1100_start_tx(struct uart_port *port)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
 	unsigned long flags;
@@ -264,7 +264,7 @@ static void sa1100_tx_chars(struct sa1100_port *sport)
 	sa1100_mctrl_check(sport);
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
-		sa1100_stop_tx(&sport->port, 0);
+		sa1100_stop_tx(&sport->port);
 		return;
 	}
 
@@ -284,7 +284,7 @@ static void sa1100_tx_chars(struct sa1100_port *sport)
 		uart_write_wakeup(&sport->port);
 
 	if (uart_circ_empty(xmit))
-		sa1100_stop_tx(&sport->port, 0);
+		sa1100_stop_tx(&sport->port);
 }
 
 static irqreturn_t sa1100_int(int irq, void *dev_id, struct pt_regs *regs)

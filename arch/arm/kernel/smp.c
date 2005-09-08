@@ -110,7 +110,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 * We need to tell the secondary core where to find
 	 * its stack and the page tables.
 	 */
-	secondary_data.stack = (void *)idle->thread_info + THREAD_SIZE - 8;
+	secondary_data.stack = (void *)idle->thread_info + THREAD_START_SP;
 	secondary_data.pgdir = virt_to_phys(pgd);
 	wmb();
 

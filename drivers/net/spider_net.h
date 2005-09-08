@@ -1,0 +1,469 @@
+/*
+ * Network device driver for Cell Processor-Based Blade
+ *
+ * (C) Copyright IBM Corp. 2005
+ *
+ * Authors : Utz Bacher <utz.bacher@de.ibm.com>
+ *           Jens Osterkamp <Jens.Osterkamp@de.ibm.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+#ifndef _SPIDER_NET_H
+#define _SPIDER_NET_H
+
+#include "sungem_phy.h"
+
+extern int spider_net_stop(struct net_device *netdev);
+extern int spider_net_open(struct net_device *netdev);
+
+extern struct ethtool_ops spider_net_ethtool_ops;
+
+extern char spider_net_driver_name[];
+
+#define SPIDER_NET_MAX_MTU			2308
+#define SPIDER_NET_MIN_MTU			64
+
+#define SPIDER_NET_RXBUF_ALIGN			128
+
+#define SPIDER_NET_RX_DESCRIPTORS_DEFAULT	64
+#define SPIDER_NET_RX_DESCRIPTORS_MIN		16
+#define SPIDER_NET_RX_DESCRIPTORS_MAX		256
+
+#define SPIDER_NET_TX_DESCRIPTORS_DEFAULT	64
+#define SPIDER_NET_TX_DESCRIPTORS_MIN		16
+#define SPIDER_NET_TX_DESCRIPTORS_MAX		256
+
+#define SPIDER_NET_RX_CSUM_DEFAULT		1
+
+#define SPIDER_NET_WATCHDOG_TIMEOUT 5*HZ
+#define SPIDER_NET_NAPI_WEIGHT 64
+
+#define SPIDER_NET_FIRMWARE_LEN		1024
+#define SPIDER_NET_FIRMWARE_NAME	"spider_fw.bin"
+
+/** spider_net SMMIO registers */
+#define SPIDER_NET_GHIINT0STS		0x00000000
+#define SPIDER_NET_GHIINT1STS		0x00000004
+#define SPIDER_NET_GHIINT2STS		0x00000008
+#define SPIDER_NET_GHIINT0MSK		0x00000010
+#define SPIDER_NET_GHIINT1MSK		0x00000014
+#define SPIDER_NET_GHIINT2MSK		0x00000018
+
+#define SPIDER_NET_GRESUMINTNUM		0x00000020
+#define SPIDER_NET_GREINTNUM		0x00000024
+
+#define SPIDER_NET_GFFRMNUM		0x00000028
+#define SPIDER_NET_GFAFRMNUM		0x0000002c
+#define SPIDER_NET_GFBFRMNUM		0x00000030
+#define SPIDER_NET_GFCFRMNUM		0x00000034
+#define SPIDER_NET_GFDFRMNUM		0x00000038
+
+/* clear them (don't use it) */
+#define SPIDER_NET_GFREECNNUM		0x0000003c
+#define SPIDER_NET_GONETIMENUM		0x00000040
+
+#define SPIDER_NET_GTOUTFRMNUM		0x00000044
+
+#define SPIDER_NET_GTXMDSET		0x00000050
+#define SPIDER_NET_GPCCTRL		0x00000054
+#define SPIDER_NET_GRXMDSET		0x00000058
+#define SPIDER_NET_GIPSECINIT		0x0000005c
+#define SPIDER_NET_GFTRESTRT		0x00000060
+#define SPIDER_NET_GRXDMAEN		0x00000064
+#define SPIDER_NET_GMRWOLCTRL		0x00000068
+#define SPIDER_NET_GPCWOPCMD		0x0000006c
+#define SPIDER_NET_GPCROPCMD		0x00000070
+#define SPIDER_NET_GTTFRMCNT		0x00000078
+#define SPIDER_NET_GTESTMD		0x0000007c
+
+#define SPIDER_NET_GSINIT		0x00000080
+#define SPIDER_NET_GSnPRGADR		0x00000084
+#define SPIDER_NET_GSnPRGDAT		0x00000088
+
+#define SPIDER_NET_GMACOPEMD		0x00000100
+#define SPIDER_NET_GMACLENLMT		0x00000108
+#define SPIDER_NET_GMACINTEN		0x00000118
+#define SPIDER_NET_GMACPHYCTRL		0x00000120
+
+#define SPIDER_NET_GMACAPAUSE		0x00000154
+#define SPIDER_NET_GMACTXPAUSE		0x00000164
+
+#define SPIDER_NET_GMACMODE		0x000001b0
+#define SPIDER_NET_GMACBSTLMT		0x000001b4
+
+#define SPIDER_NET_GMACUNIMACU		0x000001c0
+#define SPIDER_NET_GMACUNIMACL		0x000001c8
+
+#define SPIDER_NET_GMRMHFILnR		0x00000400
+#define SPIDER_NET_MULTICAST_HASHES	256
+
+#define SPIDER_NET_GMRUAFILnR		0x00000500
+#define SPIDER_NET_GMRUA0FIL15R		0x00000578
+
+/* RX DMA controller registers, all 0x00000a.. are for DMA controller A,
+ * 0x00000b.. for DMA controller B, etc. */
+#define SPIDER_NET_GDADCHA		0x00000a00
+#define SPIDER_NET_GDADMACCNTR		0x00000a04
+#define SPIDER_NET_GDACTDPA		0x00000a08
+#define SPIDER_NET_GDACTDCNT		0x00000a0c
+#define SPIDER_NET_GDACDBADDR		0x00000a20
+#define SPIDER_NET_GDACDBSIZE		0x00000a24
+#define SPIDER_NET_GDACNEXTDA		0x00000a28
+#define SPIDER_NET_GDACCOMST		0x00000a2c
+#define SPIDER_NET_GDAWBCOMST		0x00000a30
+#define SPIDER_NET_GDAWBRSIZE		0x00000a34
+#define SPIDER_NET_GDAWBVSIZE		0x00000a38
+#define SPIDER_NET_GDAWBTRST		0x00000a3c
+#define SPIDER_NET_GDAWBTRERR		0x00000a40
+
+/* TX DMA controller registers */
+#define SPIDER_NET_GDTDCHA		0x00000e00
+#define SPIDER_NET_GDTDMACCNTR		0x00000e04
+#define SPIDER_NET_GDTCDPA		0x00000e08
+#define SPIDER_NET_GDTDMASEL		0x00000e14
+
+#define SPIDER_NET_ECMODE		0x00000f00
+/* clock and reset control register */
+#define SPIDER_NET_CKRCTRL		0x00000ff0
+
+/** SCONFIG registers */
+#define SPIDER_NET_SCONFIG_IOACTE	0x00002810
+
+/** hardcoded register values */
+#define SPIDER_NET_INT0_MASK_VALUE	0x3f7fe3ff
+#define SPIDER_NET_INT1_MASK_VALUE	0xffffffff
+/* no MAC aborts -> auto retransmission */
+#define SPIDER_NET_INT2_MASK_VALUE	0xfffffff1
+
+/* clear counter when interrupt sources are cleared
+#define SPIDER_NET_FRAMENUM_VALUE	0x0001f001 */
+/* we rely on flagged descriptor interrupts */
+#define SPIDER_NET_FRAMENUM_VALUE	0x00000000
+/* set this first, then the FRAMENUM_VALUE */
+#define SPIDER_NET_GFXFRAMES_VALUE	0x00000000
+
+#define SPIDER_NET_STOP_SEQ_VALUE	0x00000000
+#define SPIDER_NET_RUN_SEQ_VALUE	0x0000007e
+
+#define SPIDER_NET_PHY_CTRL_VALUE	0x00040040
+/* #define SPIDER_NET_PHY_CTRL_VALUE	0x01070080*/
+#define SPIDER_NET_RXMODE_VALUE		0x00000011
+/* auto retransmission in case of MAC aborts */
+#define SPIDER_NET_TXMODE_VALUE		0x00010000
+#define SPIDER_NET_RESTART_VALUE	0x00000000
+#define SPIDER_NET_WOL_VALUE		0x00001111
+#if 0
+#define SPIDER_NET_WOL_VALUE		0x00000000
+#endif
+#define SPIDER_NET_IPSECINIT_VALUE	0x00f000f8
+
+/* pause frames: automatic, no upper retransmission count */
+/* outside loopback mode: ETOMOD signal dont matter, not connected */
+#define SPIDER_NET_OPMODE_VALUE		0x00000063
+/*#define SPIDER_NET_OPMODE_VALUE		0x001b0062*/
+#define SPIDER_NET_LENLMT_VALUE		0x00000908
+
+#define SPIDER_NET_MACAPAUSE_VALUE	0x00000800 /* about 1 ms */
+#define SPIDER_NET_TXPAUSE_VALUE	0x00000000
+
+#define SPIDER_NET_MACMODE_VALUE	0x00000001
+#define SPIDER_NET_BURSTLMT_VALUE	0x00000200 /* about 16 us */
+
+/* 1(0)					enable r/tx dma
+ *  0000000				fixed to 0
+ *
+ *         000000			fixed to 0
+ *               0(1)			en/disable descr writeback on force end
+ *                0(1)			force end
+ *
+ *                 000000		fixed to 0
+ *                       00		burst alignment: 128 bytes
+ *
+ *                         00000	fixed to 0
+ *                              0	descr writeback size 32 bytes
+ *                               0(1)	descr chain end interrupt enable
+ *                                0(1)	descr status writeback enable */
+
+/* to set RX_DMA_EN */
+#define SPIDER_NET_DMA_RX_VALUE		0x80000000
+#define SPIDER_NET_DMA_RX_FEND_VALUE	0x00030003
+/* to set TX_DMA_EN */
+#define SPIDER_NET_DMA_TX_VALUE		0x80000000
+#define SPIDER_NET_DMA_TX_FEND_VALUE	0x00030003
+
+/* SPIDER_NET_UA_DESCR_VALUE is OR'ed with the unicast address */
+#define SPIDER_NET_UA_DESCR_VALUE	0x00080000
+#define SPIDER_NET_PROMISC_VALUE	0x00080000
+#define SPIDER_NET_NONPROMISC_VALUE	0x00000000
+
+#define SPIDER_NET_DMASEL_VALUE		0x00000001
+
+#define SPIDER_NET_ECMODE_VALUE		0x00000000
+
+#define SPIDER_NET_CKRCTRL_RUN_VALUE	0x1fff010f
+#define SPIDER_NET_CKRCTRL_STOP_VALUE	0x0000010f
+
+#define SPIDER_NET_SBIMSTATE_VALUE	0x00000000
+#define SPIDER_NET_SBTMSTATE_VALUE	0x00000000
+
+/* SPIDER_NET_GHIINT0STS bits, in reverse order so that they can be used
+ * with 1 << SPIDER_NET_... */
+enum spider_net_int0_status {
+	SPIDER_NET_GPHYINT = 0,
+	SPIDER_NET_GMAC2INT,
+	SPIDER_NET_GMAC1INT,
+	SPIDER_NET_GIPSINT,
+	SPIDER_NET_GFIFOINT,
+	SPIDER_NET_GDMACINT,
+	SPIDER_NET_GSYSINT,
+	SPIDER_NET_GPWOPCMPINT,
+	SPIDER_NET_GPROPCMPINT,
+	SPIDER_NET_GPWFFINT,
+	SPIDER_NET_GRMDADRINT,
+	SPIDER_NET_GRMARPINT,
+	SPIDER_NET_GRMMPINT,
+	SPIDER_NET_GDTDEN0INT,
+	SPIDER_NET_GDDDEN0INT,
+	SPIDER_NET_GDCDEN0INT,
+	SPIDER_NET_GDBDEN0INT,
+	SPIDER_NET_GDADEN0INT,
+	SPIDER_NET_GDTFDCINT,
+	SPIDER_NET_GDDFDCINT,
+	SPIDER_NET_GDCFDCINT,
+	SPIDER_NET_GDBFDCINT,
+	SPIDER_NET_GDAFDCINT,
+	SPIDER_NET_GTTEDINT,
+	SPIDER_NET_GDTDCEINT,
+	SPIDER_NET_GRFDNMINT,
+	SPIDER_NET_GRFCNMINT,
+	SPIDER_NET_GRFBNMINT,
+	SPIDER_NET_GRFANMINT,
+	SPIDER_NET_GRFNMINT,
+	SPIDER_NET_G1TMCNTINT,
+	SPIDER_NET_GFREECNTINT
+};
+/* GHIINT1STS bits */
+enum spider_net_int1_status {
+	SPIDER_NET_GTMFLLINT = 0,
+	SPIDER_NET_GRMFLLINT,
+	SPIDER_NET_GTMSHTINT,
+	SPIDER_NET_GDTINVDINT,
+	SPIDER_NET_GRFDFLLINT,
+	SPIDER_NET_GDDDCEINT,
+	SPIDER_NET_GDDINVDINT,
+	SPIDER_NET_GRFCFLLINT,
+	SPIDER_NET_GDCDCEINT,
+	SPIDER_NET_GDCINVDINT,
+	SPIDER_NET_GRFBFLLINT,
+	SPIDER_NET_GDBDCEINT,
+	SPIDER_NET_GDBINVDINT,
+	SPIDER_NET_GRFAFLLINT,
+	SPIDER_NET_GDADCEINT,
+	SPIDER_NET_GDAINVDINT,
+	SPIDER_NET_GDTRSERINT,
+	SPIDER_NET_GDDRSERINT,
+	SPIDER_NET_GDCRSERINT,
+	SPIDER_NET_GDBRSERINT,
+	SPIDER_NET_GDARSERINT,
+	SPIDER_NET_GDSERINT,
+	SPIDER_NET_GDTPTERINT,
+	SPIDER_NET_GDDPTERINT,
+	SPIDER_NET_GDCPTERINT,
+	SPIDER_NET_GDBPTERINT,
+	SPIDER_NET_GDAPTERINT
+};
+/* GHIINT2STS bits */
+enum spider_net_int2_status {
+	SPIDER_NET_GPROPERINT = 0,
+	SPIDER_NET_GMCTCRSNGINT,
+	SPIDER_NET_GMCTLCOLINT,
+	SPIDER_NET_GMCTTMOTINT,
+	SPIDER_NET_GMCRCAERINT,
+	SPIDER_NET_GMCRCALERINT,
+	SPIDER_NET_GMCRALNERINT,
+	SPIDER_NET_GMCROVRINT,
+	SPIDER_NET_GMCRRNTINT,
+	SPIDER_NET_GMCRRXERINT,
+	SPIDER_NET_GTITCSERINT,
+	SPIDER_NET_GTIFMTERINT,
+	SPIDER_NET_GTIPKTRVKINT,
+	SPIDER_NET_GTISPINGINT,
+	SPIDER_NET_GTISADNGINT,
+	SPIDER_NET_GTISPDNGINT,
+	SPIDER_NET_GRIFMTERINT,
+	SPIDER_NET_GRIPKTRVKINT,
+	SPIDER_NET_GRISPINGINT,
+	SPIDER_NET_GRISADNGINT,
+	SPIDER_NET_GRISPDNGINT
+};
+
+#define SPIDER_NET_TXINT	( (1 << SPIDER_NET_GTTEDINT) | \
+				  (1 << SPIDER_NET_GDTDCEINT) | \
+				  (1 << SPIDER_NET_GDTFDCINT) )
+
+/* we rely on flagged descriptor interrupts*/
+#define SPIDER_NET_RXINT	( (1 << SPIDER_NET_GDAFDCINT) | \
+				  (1 << SPIDER_NET_GRMFLLINT) )
+
+#define SPIDER_NET_GPREXEC		0x80000000
+#define SPIDER_NET_GPRDAT_MASK		0x0000ffff
+
+/* descriptor bits
+ *
+ * 1010					descriptor ready
+ *     0				descr in middle of chain
+ *      000				fixed to 0
+ *
+ *         0				no interrupt on completion
+ *          000				fixed to 0
+ *             1			no ipsec processing
+ *              1			last descriptor for this frame
+ *               00			no checksum
+ *               10			tcp checksum
+ *               11			udp checksum
+ *
+ *                 00			fixed to 0
+ *                   0			fixed to 0
+ *                    0			no interrupt on response errors
+ *                     0		no interrupt on invalid descr
+ *                      0		no interrupt on dma process termination
+ *                       0		no interrupt on descr chain end
+ *                        0		no interrupt on descr complete
+ *
+ *                         000		fixed to 0
+ *                            0		response error interrupt status
+ *                             0	invalid descr status
+ *                              0	dma termination status
+ *                               0	descr chain end status
+ *                                0	descr complete status */
+#define SPIDER_NET_DMAC_CMDSTAT_NOCS	0xa00c0000
+#define SPIDER_NET_DMAC_CMDSTAT_TCPCS	0xa00e0000
+#define SPIDER_NET_DMAC_CMDSTAT_UDPCS	0xa00f0000
+#define SPIDER_NET_DESCR_IND_PROC_SHIFT	28
+#define SPIDER_NET_DESCR_IND_PROC_MASKO	0x0fffffff
+
+/* descr ready, descr is in middle of chain, get interrupt on completion */
+#define SPIDER_NET_DMAC_RX_CARDOWNED	0xa0800000
+
+/* multicast is no problem */
+#define SPIDER_NET_DATA_ERROR_MASK	0xffffbfff
+
+enum spider_net_descr_status {
+	SPIDER_NET_DESCR_COMPLETE		= 0x00, /* used in rx and tx */
+	SPIDER_NET_DESCR_RESPONSE_ERROR		= 0x01, /* used in rx and tx */
+	SPIDER_NET_DESCR_PROTECTION_ERROR	= 0x02, /* used in rx and tx */
+	SPIDER_NET_DESCR_FRAME_END		= 0x04, /* used in rx */
+	SPIDER_NET_DESCR_FORCE_END		= 0x05, /* used in rx and tx */
+	SPIDER_NET_DESCR_CARDOWNED		= 0x0a, /* used in rx and tx */
+	SPIDER_NET_DESCR_NOT_IN_USE /* any other value */
+};
+
+struct spider_net_descr {
+	/* as defined by the hardware */
+	dma_addr_t buf_addr;
+	u32 buf_size;
+	dma_addr_t next_descr_addr;
+	u32 dmac_cmd_status;
+	u32 result_size;
+	u32 valid_size;	/* all zeroes for tx */
+	u32 data_status;
+	u32 data_error;	/* all zeroes for tx */
+
+	/* used in the driver */
+	struct sk_buff *skb;
+	dma_addr_t bus_addr;
+	struct spider_net_descr *next;
+	struct spider_net_descr *prev;
+} __attribute__((aligned(32)));
+
+struct spider_net_descr_chain {
+	/* we walk from tail to head */
+	struct spider_net_descr *head;
+	struct spider_net_descr *tail;
+};
+
+/* descriptor data_status bits */
+#define SPIDER_NET_RXIPCHK		29
+#define SPIDER_NET_TCPUDPIPCHK		28
+#define SPIDER_NET_DATA_STATUS_CHK_MASK	(1 << SPIDER_NET_RXIPCHK | \
+					 1 << SPIDER_NET_TCPUDPIPCHK)
+
+#define SPIDER_NET_VLAN_PACKET		21
+
+/* descriptor data_error bits */
+#define SPIDER_NET_RXIPCHKERR		27
+#define SPIDER_NET_RXTCPCHKERR		26
+#define SPIDER_NET_DATA_ERROR_CHK_MASK	(1 << SPIDER_NET_RXIPCHKERR | \
+					 1 << SPIDER_NET_RXTCPCHKERR)
+
+/* the cases we don't pass the packet to the stack */
+#define SPIDER_NET_DESTROY_RX_FLAGS	0x70138000
+
+#define SPIDER_NET_DESCR_SIZE		32
+
+/* this will be bigger some time */
+struct spider_net_options {
+	int rx_csum; /* for rx: if 0 ip_summed=NONE,
+			if 1 and hw has verified, ip_summed=UNNECESSARY */
+};
+
+#define SPIDER_NET_DEFAULT_MSG		( NETIF_MSG_DRV | \
+					  NETIF_MSG_PROBE | \
+					  NETIF_MSG_LINK | \
+					  NETIF_MSG_TIMER | \
+					  NETIF_MSG_IFDOWN | \
+					  NETIF_MSG_IFUP | \
+					  NETIF_MSG_RX_ERR | \
+					  NETIF_MSG_TX_ERR | \
+					  NETIF_MSG_TX_QUEUED | \
+					  NETIF_MSG_INTR | \
+					  NETIF_MSG_TX_DONE | \
+					  NETIF_MSG_RX_STATUS | \
+					  NETIF_MSG_PKTDATA | \
+					  NETIF_MSG_HW | \
+					  NETIF_MSG_WOL )
+
+struct spider_net_card {
+	struct net_device *netdev;
+	struct pci_dev *pdev;
+	struct mii_phy phy;
+
+	void __iomem *regs;
+
+	struct spider_net_descr_chain tx_chain;
+	struct spider_net_descr_chain rx_chain;
+	spinlock_t chain_lock;
+
+	struct net_device_stats netdev_stats;
+
+	struct spider_net_options options;
+
+	spinlock_t intmask_lock;
+
+	struct work_struct tx_timeout_task;
+	atomic_t tx_timeout_task_counter;
+	wait_queue_head_t waitq;
+
+	/* for ethtool */
+	int msg_enable;
+
+	struct spider_net_descr descr[0];
+};
+
+#define pr_err(fmt,arg...) \
+	printk(KERN_ERR fmt ,##arg)
+
+#endif

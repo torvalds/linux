@@ -308,7 +308,7 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-        I2C_DEVNAME("unset"),
+        .name = "unset",
         .driver = &driver
 };
 
@@ -429,10 +429,10 @@ static int ir_probe(struct i2c_adapter *adap)
 	struct i2c_client c; char buf; int i,rc;
 
 	switch (adap->id) {
-	case I2C_ALGO_BIT | I2C_HW_B_BT848:
+	case I2C_HW_B_BT848:
 		probe = probe_bttv;
 		break;
-	case I2C_ALGO_SAA7134:
+	case I2C_HW_SAA7134:
 		probe = probe_saa7134;
 		break;
 	}

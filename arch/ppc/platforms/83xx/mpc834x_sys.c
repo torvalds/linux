@@ -62,9 +62,29 @@ extern unsigned long total_memory;	/* in mm/init */
 unsigned char __res[sizeof (bd_t)];
 
 #ifdef CONFIG_PCI
-#error "PCI is not supported"
-/* NEED mpc83xx_map_irq & mpc83xx_exclude_device
-   see platforms/85xx/mpc85xx_ads_common.c */
+int
+mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
+{
+	static char pci_irq_table[][4] =
+	    /*
+	     *      PCI IDSEL/INTPIN->INTLINE
+	     *       A      B      C      D
+	     */
+	{
+		{PIRQA, PIRQB,  PIRQC,  PIRQD}, /* idsel 0x11 */
+		{PIRQC, PIRQD,  PIRQA,  PIRQB}, /* idsel 0x12 */
+		{PIRQD, PIRQA,  PIRQB,  PIRQC}  /* idsel 0x13 */
+	};
+
+	const long min_idsel = 0x11, max_idsel = 0x13, irqs_per_slot = 4;
+	return PCI_IRQ_TABLE_LOOKUP;
+}
+
+int
+mpc83xx_exclude_device(u_char bus, u_char devfn)
+{
+	return PCIBIOS_SUCCESSFUL;
+}
 #endif /* CONFIG_PCI */
 
 /* ************************************************************************
@@ -88,7 +108,7 @@ mpc834x_sys_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	/* setup PCI host bridges */
-	mpc83xx_sys_setup_hose();
+	mpc83xx_setup_hose();
 #endif
 	mpc83xx_early_serial_map();
 
@@ -175,10 +195,17 @@ mpc834x_sys_init_IRQ(void)
 		IRQ_SENSE_LEVEL,	/* EXT 1 */
 		IRQ_SENSE_LEVEL,	/* EXT 2 */
 		0,			/* EXT 3 */
+#ifdef CONFIG_PCI
+		IRQ_SENSE_LEVEL,	/* EXT 4 */
+		IRQ_SENSE_LEVEL,	/* EXT 5 */
+		IRQ_SENSE_LEVEL,	/* EXT 6 */
+		IRQ_SENSE_LEVEL,	/* EXT 7 */
+#else
 		0,			/* EXT 4 */
 		0,			/* EXT 5 */
 		0,			/* EXT 6 */
 		0,			/* EXT 7 */
+#endif
 	};
 
 	ipic_init(binfo->bi_immr_base + 0x00700, 0, MPC83xx_IPIC_IRQ_OFFSET, senses, 8);

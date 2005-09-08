@@ -750,7 +750,7 @@ static int mbcs_probe(struct cx_dev *dev, const struct cx_device_id *id)
 
 	dev->soft = NULL;
 
-	soft = kcalloc(1, sizeof(struct mbcs_soft), GFP_KERNEL);
+	soft = kzalloc(sizeof(struct mbcs_soft), GFP_KERNEL);
 	if (soft == NULL)
 		return -ENOMEM;
 

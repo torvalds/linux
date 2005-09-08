@@ -215,10 +215,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 
@@ -234,7 +231,7 @@ static long last_rtc_update;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static inline void do_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
 {
 	do_timer(regs);
 #ifndef CONFIG_SMP
@@ -252,7 +249,7 @@ static inline void do_timer_interrupt(int irq, void *dev_id, struct pt_regs *reg
 	 * RTC clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
@@ -285,7 +282,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * locally disabled. -arca
 	 */
 	write_seqlock(&xtime_lock);
-	do_timer_interrupt(irq, NULL, regs);
+	do_timer_interrupt(irq, regs);
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;

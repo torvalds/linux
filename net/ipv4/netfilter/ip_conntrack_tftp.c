@@ -75,6 +75,7 @@ static int tftp_help(struct sk_buff **pskb,
 		exp->mask.dst.u.udp.port = 0xffff;
 		exp->mask.dst.protonum = 0xff;
 		exp->expectfn = NULL;
+		exp->flags = 0;
 
 		DEBUGP("expect: ");
 		DUMP_TUPLE(&exp->tuple);

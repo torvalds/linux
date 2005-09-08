@@ -172,20 +172,6 @@ typedef unsigned long pgprot_t;
 
 #endif
 
-/* Pure 2^n version of get_order */
-static inline int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 #define __pa(x) ((unsigned long)(x)-PAGE_OFFSET)
 
 extern int page_is_ram(unsigned long pfn);
@@ -270,4 +256,7 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 	 VM_STACK_DEFAULT_FLAGS32 : VM_STACK_DEFAULT_FLAGS64)
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
+
 #endif /* _PPC64_PAGE_H */

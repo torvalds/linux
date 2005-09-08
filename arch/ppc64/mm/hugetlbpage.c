@@ -144,7 +144,8 @@ static void flush_low_segments(void *parm)
 	for (i = 0; i < NUM_LOW_AREAS; i++) {
 		if (! (areas & (1U << i)))
 			continue;
-		asm volatile("slbie %0" : : "r" (i << SID_SHIFT));
+		asm volatile("slbie %0"
+			     : : "r" ((i << SID_SHIFT) | SLBIE_C));
 	}
 
 	asm volatile("isync" : : : "memory");
@@ -164,7 +165,8 @@ static void flush_high_segments(void *parm)
 			continue;
 		for (j = 0; j < (1UL << (HTLB_AREA_SHIFT-SID_SHIFT)); j++)
 			asm volatile("slbie %0"
-				     :: "r" ((i << HTLB_AREA_SHIFT) + (j << SID_SHIFT)));
+				     :: "r" (((i << HTLB_AREA_SHIFT)
+					     + (j << SID_SHIFT)) | SLBIE_C));
 	}
 
 	asm volatile("isync" : : : "memory");

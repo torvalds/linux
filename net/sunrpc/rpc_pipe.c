@@ -3,7 +3,7 @@
  *
  * Userland/kernel interface for rpcauth_gss.
  * Code shamelessly plagiarized from fs/nfsd/nfsctl.c
- * and fs/driverfs/inode.c
+ * and fs/sysfs/inode.c
  *
  * Copyright (c) 2002, Trond Myklebust <trond.myklebust@fys.uio.no>
  *

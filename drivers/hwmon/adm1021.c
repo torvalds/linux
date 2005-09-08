@@ -24,7 +24,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 
 /* Addresses to scan */
@@ -32,10 +33,9 @@ static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
 					0x29, 0x2a, 0x2b,
 					0x4c, 0x4d, 0x4e, 
 					I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066);
+I2C_CLIENT_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066);
 
 /* adm1021 constants specified below */
 
@@ -89,6 +89,7 @@ clearing it.  Weird, ey?   --Phil  */
 /* Each client has this additional data */
 struct adm1021_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	enum chips type;
 
 	struct semaphore update_lock;
@@ -185,7 +186,7 @@ static int adm1021_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, adm1021_detect);
+	return i2c_probe(adapter, &addr_data, adm1021_detect);
 }
 
 static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
@@ -195,15 +196,6 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct adm1021_data *data;
 	int err = 0;
 	const char *type_name = "";
-
-	/* Make sure we aren't probing the ISA bus!! This is just a safety check
-	   at this moment; i2c_detect really won't call us. */
-#ifdef DEBUG
-	if (i2c_is_isa_adapter(adapter)) {
-		dev_dbg(&adapter->dev, "adm1021_detect called for an ISA bus adapter?!?\n");
-		return 0;
-	}
-#endif
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto error0;
@@ -295,6 +287,12 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 		adm1021_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto error2;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_max);
 	device_create_file(&new_client->dev, &dev_attr_temp1_min);
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
@@ -305,6 +303,8 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+error2:
+	i2c_detach_client(new_client);
 error1:
 	kfree(data);
 error0:
@@ -322,14 +322,15 @@ static void adm1021_init_client(struct i2c_client *client)
 
 static int adm1021_detach_client(struct i2c_client *client)
 {
+	struct adm1021_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, client not detached.\n");
-		return err;
-	}
+	hwmon_device_unregister(data->class_dev);
 
-	kfree(i2c_get_clientdata(client));
+	if ((err = i2c_detach_client(client)))
+		return err;
+
+	kfree(data);
 	return 0;
 }
 

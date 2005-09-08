@@ -236,5 +236,12 @@ struct _mmc_csd {
 #define CSD_SPEC_VER_2      2           /* Implements system specification 2.0 - 2.2 */
 #define CSD_SPEC_VER_3      3           /* Implements system specification 3.1 */
 
+
+/*
+ * SD bus widths
+ */
+#define SD_BUS_WIDTH_1      0
+#define SD_BUS_WIDTH_4      2
+
 #endif  /* MMC_MMC_PROTOCOL_H */
 

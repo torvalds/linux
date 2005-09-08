@@ -49,7 +49,6 @@ struct hostfs_iattr {
 	struct timespec	ia_atime;
 	struct timespec	ia_mtime;
 	struct timespec	ia_ctime;
-	unsigned int	ia_attr_flags;
 };
 
 extern int stat_file(const char *path, unsigned long long *inode_out,

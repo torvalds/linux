@@ -94,7 +94,7 @@ struct mace_video {
 	unsigned long xxx;	/* later... */
 };
 
-/* 
+/*
  * Ethernet interface
  */
 struct mace_ethernet {
@@ -129,7 +129,7 @@ struct mace_ethernet {
 	volatile unsigned long rx_fifo;
 };
 
-/* 
+/*
  * Peripherals
  */
 
@@ -251,7 +251,7 @@ struct mace_timers {
 	timer_reg audio_out2;
 	timer_reg video_in1;
 	timer_reg video_in2;
-	timer_reg video_out;	
+	timer_reg video_out;
 };
 
 struct mace_perif {
@@ -272,7 +272,7 @@ struct mace_perif {
 };
 
 
-/* 
+/*
  * ISA peripherals
  */
 

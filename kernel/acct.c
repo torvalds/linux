@@ -220,7 +220,7 @@ asmlinkage long sys_acct(const char __user *name)
 			return (PTR_ERR(tmp));
 		}
 		/* Difference from BSD - they don't do O_APPEND */
-		file = filp_open(tmp, O_WRONLY|O_APPEND, 0);
+		file = filp_open(tmp, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
 		putname(tmp);
 		if (IS_ERR(file)) {
 			return (PTR_ERR(file));

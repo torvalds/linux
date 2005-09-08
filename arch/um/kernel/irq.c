@@ -31,7 +31,7 @@
 #include "kern_util.h"
 #include "irq_user.h"
 #include "irq_kern.h"
-
+#include "os.h"
 
 /*
  * Generic, controller-independent functions:
@@ -168,13 +168,32 @@ void __init init_IRQ(void)
 	}
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
+							     struct pt_regs *))
+{
+	int fds[2], err;
+
+	err = os_pipe(fds, 1, 1);
+	if(err){
+		printk("init_aio_irq - os_pipe failed, err = %d\n", -err);
+		goto out;
+	}
+
+	err = um_request_irq(irq, fds[0], IRQ_READ, handler,
+			     SA_INTERRUPT | SA_SAMPLE_RANDOM, name,
+			     (void *) (long) fds[0]);
+	if(err){
+		printk("init_aio_irq - : um_request_irq failed, err = %d\n",
+		       err);
+		goto out_close;
+	}
+
+	err = fds[1];
+	goto out;
+
+ out_close:
+	os_close_file(fds[0]);
+	os_close_file(fds[1]);
+ out:
+	return(err);
+}

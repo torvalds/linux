@@ -903,7 +903,7 @@ int snd_pcm_format_unsigned(snd_pcm_format_t format);
 int snd_pcm_format_linear(snd_pcm_format_t format);
 int snd_pcm_format_little_endian(snd_pcm_format_t format);
 int snd_pcm_format_big_endian(snd_pcm_format_t format);
-/**
+/*
  * snd_pcm_format_cpu_endian - Check the PCM format is CPU-endian
  * @format: the format to check
  *

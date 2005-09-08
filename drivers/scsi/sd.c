@@ -59,7 +59,6 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
-#include <scsi/scsi_request.h>
 #include <scsi/scsicam.h>
 
 #include "scsi_logging.h"
@@ -125,7 +124,7 @@ static int sd_issue_flush(struct device *, sector_t *);
 static void sd_end_flush(request_queue_t *, struct request *);
 static int sd_prepare_flush(request_queue_t *, struct request *);
 static void sd_read_capacity(struct scsi_disk *sdkp, char *diskname,
-		 struct scsi_request *SRpnt, unsigned char *buffer);
+			     unsigned char *buffer);
 
 static struct scsi_driver sd_template = {
 	.owner			= THIS_MODULE,
@@ -682,19 +681,13 @@ not_present:
 
 static int sd_sync_cache(struct scsi_device *sdp)
 {
-	struct scsi_request *sreq;
 	int retries, res;
+	struct scsi_sense_hdr sshdr;
 
 	if (!scsi_device_online(sdp))
 		return -ENODEV;
 
-	sreq = scsi_allocate_request(sdp, GFP_KERNEL);
-	if (!sreq) {
-		printk("FAILED\n  No memory for request\n");
-		return -ENOMEM;
-	}
 
-	sreq->sr_data_direction = DMA_NONE;
 	for (retries = 3; retries > 0; --retries) {
 		unsigned char cmd[10] = { 0 };
 
@@ -703,22 +696,20 @@ static int sd_sync_cache(struct scsi_device *sdp)
 		 * Leave the rest of the command zero to indicate
 		 * flush everything.
 		 */
-		scsi_wait_req(sreq, cmd, NULL, 0, SD_TIMEOUT, SD_MAX_RETRIES);
-		if (sreq->sr_result == 0)
+		res = scsi_execute_req(sdp, cmd, DMA_NONE, NULL, 0, &sshdr,
+				       SD_TIMEOUT, SD_MAX_RETRIES);
+		if (res == 0)
 			break;
 	}
 
-	res = sreq->sr_result;
-	if (res) {
-		printk(KERN_WARNING "FAILED\n  status = %x, message = %02x, "
+	if (res) {		printk(KERN_WARNING "FAILED\n  status = %x, message = %02x, "
 				    "host = %d, driver = %02x\n  ",
 				    status_byte(res), msg_byte(res),
 				    host_byte(res), driver_byte(res));
 			if (driver_byte(res) & DRIVER_SENSE)
-				scsi_print_req_sense("sd", sreq);
+				scsi_print_sense_hdr("sd", &sshdr);
 	}
 
-	scsi_release_request(sreq);
 	return res;
 }
 
@@ -957,22 +948,19 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 	scsi_io_completion(SCpnt, good_bytes, block_sectors << 9);
 }
 
-static int media_not_present(struct scsi_disk *sdkp, struct scsi_request *srp)
+static int media_not_present(struct scsi_disk *sdkp,
+			     struct scsi_sense_hdr *sshdr)
 {
-	struct scsi_sense_hdr sshdr;
 
-	if (!srp->sr_result)
-		return 0;
-	if (!(driver_byte(srp->sr_result) & DRIVER_SENSE))
+	if (!scsi_sense_valid(sshdr))
 		return 0;
 	/* not invoked for commands that could return deferred errors */
-	if (scsi_request_normalize_sense(srp, &sshdr)) {
-		if (sshdr.sense_key != NOT_READY &&
-		    sshdr.sense_key != UNIT_ATTENTION)
-			return 0;
-		if (sshdr.asc != 0x3A) /* medium not present */
-			return 0;
-	}
+	if (sshdr->sense_key != NOT_READY &&
+	    sshdr->sense_key != UNIT_ATTENTION)
+		return 0;
+	if (sshdr->asc != 0x3A) /* medium not present */
+		return 0;
+
 	set_media_not_present(sdkp);
 	return 1;
 }
@@ -981,10 +969,10 @@ static int media_not_present(struct scsi_disk *sdkp, struct scsi_request *srp)
  * spinup disk - called only in sd_revalidate_disk()
  */
 static void
-sd_spinup_disk(struct scsi_disk *sdkp, char *diskname,
-	       struct scsi_request *SRpnt, unsigned char *buffer) {
+sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
+{
 	unsigned char cmd[10];
-	unsigned long spintime_value = 0;
+	unsigned long spintime_expire = 0;
 	int retries, spintime;
 	unsigned int the_result;
 	struct scsi_sense_hdr sshdr;
@@ -1001,18 +989,13 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname,
 			cmd[0] = TEST_UNIT_READY;
 			memset((void *) &cmd[1], 0, 9);
 
-			SRpnt->sr_cmd_len = 0;
-			memset(SRpnt->sr_sense_buffer, 0,
-			       SCSI_SENSE_BUFFERSIZE);
-			SRpnt->sr_data_direction = DMA_NONE;
+			the_result = scsi_execute_req(sdkp->device, cmd,
+						      DMA_NONE, NULL, 0,
+						      &sshdr, SD_TIMEOUT,
+						      SD_MAX_RETRIES);
 
-			scsi_wait_req (SRpnt, (void *) cmd, (void *) buffer,
-				       0/*512*/, SD_TIMEOUT, SD_MAX_RETRIES);
-
-			the_result = SRpnt->sr_result;
 			if (the_result)
-				sense_valid = scsi_request_normalize_sense(
-							SRpnt, &sshdr);
+				sense_valid = scsi_sense_valid(&sshdr);
 			retries++;
 		} while (retries < 3 && 
 			 (!scsi_status_is_good(the_result) ||
@@ -1024,7 +1007,7 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname,
 		 * any media in it, don't bother with any of the rest of
 		 * this crap.
 		 */
-		if (media_not_present(sdkp, SRpnt))
+		if (media_not_present(sdkp, &sshdr))
 			return;
 
 		if ((driver_byte(the_result) & DRIVER_SENSE) == 0) {
@@ -1063,33 +1046,42 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname,
 				cmd[1] = 1;	/* Return immediately */
 				memset((void *) &cmd[2], 0, 8);
 				cmd[4] = 1;	/* Start spin cycle */
-				SRpnt->sr_cmd_len = 0;
-				memset(SRpnt->sr_sense_buffer, 0,
-					SCSI_SENSE_BUFFERSIZE);
-
-				SRpnt->sr_data_direction = DMA_NONE;
-				scsi_wait_req(SRpnt, (void *)cmd, 
-					      (void *) buffer, 0/*512*/, 
-					      SD_TIMEOUT, SD_MAX_RETRIES);
-				spintime_value = jiffies;
+				scsi_execute_req(sdkp->device, cmd, DMA_NONE,
+						 NULL, 0, &sshdr,
+						 SD_TIMEOUT, SD_MAX_RETRIES);
+				spintime_expire = jiffies + 100 * HZ;
+				spintime = 1;
 			}
-			spintime = 1;
 			/* Wait 1 second for next try */
 			msleep(1000);
 			printk(".");
+
+		/*
+		 * Wait for USB flash devices with slow firmware.
+		 * Yes, this sense key/ASC combination shouldn't
+		 * occur here.  It's characteristic of these devices.
+		 */
+		} else if (sense_valid &&
+				sshdr.sense_key == UNIT_ATTENTION &&
+				sshdr.asc == 0x28) {
+			if (!spintime) {
+				spintime_expire = jiffies + 5 * HZ;
+				spintime = 1;
+			}
+			/* Wait 1 second for next try */
+			msleep(1000);
 		} else {
 			/* we don't understand the sense code, so it's
 			 * probably pointless to loop */
 			if(!spintime) {
 				printk(KERN_NOTICE "%s: Unit Not Ready, "
 					"sense:\n", diskname);
-				scsi_print_req_sense("", SRpnt);
+				scsi_print_sense_hdr("", &sshdr);
 			}
 			break;
 		}
 				
-	} while (spintime &&
-		 time_after(spintime_value + 100 * HZ, jiffies));
+	} while (spintime && time_before_eq(jiffies, spintime_expire));
 
 	if (spintime) {
 		if (scsi_status_is_good(the_result))
@@ -1104,14 +1096,15 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname,
  */
 static void
 sd_read_capacity(struct scsi_disk *sdkp, char *diskname,
-		 struct scsi_request *SRpnt, unsigned char *buffer) {
+		 unsigned char *buffer)
+{
 	unsigned char cmd[16];
-	struct scsi_device *sdp = sdkp->device;
 	int the_result, retries;
 	int sector_size = 0;
 	int longrc = 0;
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
+	struct scsi_device *sdp = sdkp->device;
 
 repeat:
 	retries = 3;
@@ -1128,20 +1121,15 @@ repeat:
 			memset((void *) buffer, 0, 8);
 		}
 		
-		SRpnt->sr_cmd_len = 0;
-		memset(SRpnt->sr_sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-		SRpnt->sr_data_direction = DMA_FROM_DEVICE;
+		the_result = scsi_execute_req(sdp, cmd, DMA_FROM_DEVICE,
+					      buffer, longrc ? 12 : 8, &sshdr,
+					      SD_TIMEOUT, SD_MAX_RETRIES);
 
-		scsi_wait_req(SRpnt, (void *) cmd, (void *) buffer,
-			      longrc ? 12 : 8, SD_TIMEOUT, SD_MAX_RETRIES);
-
-		if (media_not_present(sdkp, SRpnt))
+		if (media_not_present(sdkp, &sshdr))
 			return;
 
-		the_result = SRpnt->sr_result;
 		if (the_result)
-			sense_valid = scsi_request_normalize_sense(SRpnt,
-								   &sshdr);
+			sense_valid = scsi_sense_valid(&sshdr);
 		retries--;
 
 	} while (the_result && retries);
@@ -1156,7 +1144,7 @@ repeat:
 		       driver_byte(the_result));
 
 		if (driver_byte(the_result) & DRIVER_SENSE)
-			scsi_print_req_sense("sd", SRpnt);
+			scsi_print_sense_hdr("sd", &sshdr);
 		else
 			printk("%s : sense not available. \n", diskname);
 
@@ -1296,11 +1284,13 @@ got_data:
 
 /* called with buffer of length 512 */
 static inline int
-sd_do_mode_sense(struct scsi_request *SRpnt, int dbd, int modepage,
-		 unsigned char *buffer, int len, struct scsi_mode_data *data)
+sd_do_mode_sense(struct scsi_device *sdp, int dbd, int modepage,
+		 unsigned char *buffer, int len, struct scsi_mode_data *data,
+		 struct scsi_sense_hdr *sshdr)
 {
-	return __scsi_mode_sense(SRpnt, dbd, modepage, buffer, len,
-				 SD_TIMEOUT, SD_MAX_RETRIES, data);
+	return scsi_mode_sense(sdp, dbd, modepage, buffer, len,
+			       SD_TIMEOUT, SD_MAX_RETRIES, data,
+			       sshdr);
 }
 
 /*
@@ -1309,25 +1299,27 @@ sd_do_mode_sense(struct scsi_request *SRpnt, int dbd, int modepage,
  */
 static void
 sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
-		   struct scsi_request *SRpnt, unsigned char *buffer) {
+			   unsigned char *buffer)
+{
 	int res;
+	struct scsi_device *sdp = sdkp->device;
 	struct scsi_mode_data data;
 
 	set_disk_ro(sdkp->disk, 0);
-	if (sdkp->device->skip_ms_page_3f) {
+	if (sdp->skip_ms_page_3f) {
 		printk(KERN_NOTICE "%s: assuming Write Enabled\n", diskname);
 		return;
 	}
 
-	if (sdkp->device->use_192_bytes_for_3f) {
-		res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 192, &data);
+	if (sdp->use_192_bytes_for_3f) {
+		res = sd_do_mode_sense(sdp, 0, 0x3F, buffer, 192, &data, NULL);
 	} else {
 		/*
 		 * First attempt: ask for all pages (0x3F), but only 4 bytes.
 		 * We have to start carefully: some devices hang if we ask
 		 * for more than is available.
 		 */
-		res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 4, &data);
+		res = sd_do_mode_sense(sdp, 0, 0x3F, buffer, 4, &data, NULL);
 
 		/*
 		 * Second attempt: ask for page 0 When only page 0 is
@@ -1336,14 +1328,14 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
 		 * CDB.
 		 */
 		if (!scsi_status_is_good(res))
-			res = sd_do_mode_sense(SRpnt, 0, 0, buffer, 4, &data);
+			res = sd_do_mode_sense(sdp, 0, 0, buffer, 4, &data, NULL);
 
 		/*
 		 * Third attempt: ask 255 bytes, as we did earlier.
 		 */
 		if (!scsi_status_is_good(res))
-			res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 255,
-					       &data);
+			res = sd_do_mode_sense(sdp, 0, 0x3F, buffer, 255,
+					       &data, NULL);
 	}
 
 	if (!scsi_status_is_good(res)) {
@@ -1365,19 +1357,20 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
  */
 static void
 sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
-		   struct scsi_request *SRpnt, unsigned char *buffer)
+		   unsigned char *buffer)
 {
 	int len = 0, res;
+	struct scsi_device *sdp = sdkp->device;
 
 	int dbd;
 	int modepage;
 	struct scsi_mode_data data;
 	struct scsi_sense_hdr sshdr;
 
-	if (sdkp->device->skip_ms_page_8)
+	if (sdp->skip_ms_page_8)
 		goto defaults;
 
-	if (sdkp->device->type == TYPE_RBC) {
+	if (sdp->type == TYPE_RBC) {
 		modepage = 6;
 		dbd = 8;
 	} else {
@@ -1386,7 +1379,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 	}
 
 	/* cautiously ask */
-	res = sd_do_mode_sense(SRpnt, dbd, modepage, buffer, 4, &data);
+	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, 4, &data, &sshdr);
 
 	if (!scsi_status_is_good(res))
 		goto bad_sense;
@@ -1407,7 +1400,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 	len += data.header_length + data.block_descriptor_length;
 
 	/* Get the data */
-	res = sd_do_mode_sense(SRpnt, dbd, modepage, buffer, len, &data);
+	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, len, &data, &sshdr);
 
 	if (scsi_status_is_good(res)) {
 		const char *types[] = {
@@ -1439,7 +1432,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 	}
 
 bad_sense:
-	if (scsi_request_normalize_sense(SRpnt, &sshdr) &&
+	if (scsi_sense_valid(&sshdr) &&
 	    sshdr.sense_key == ILLEGAL_REQUEST &&
 	    sshdr.asc == 0x24 && sshdr.ascq == 0x0)
 		printk(KERN_NOTICE "%s: cache data unavailable\n",
@@ -1464,7 +1457,6 @@ static int sd_revalidate_disk(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
-	struct scsi_request *sreq;
 	unsigned char *buffer;
 
 	SCSI_LOG_HLQUEUE(3, printk("sd_revalidate_disk: disk=%s\n", disk->disk_name));
@@ -1476,18 +1468,11 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	if (!scsi_device_online(sdp))
 		goto out;
 
-	sreq = scsi_allocate_request(sdp, GFP_KERNEL);
-	if (!sreq) {
-		printk(KERN_WARNING "(sd_revalidate_disk:) Request allocation "
-		       "failure.\n");
-		goto out;
-	}
-
 	buffer = kmalloc(512, GFP_KERNEL | __GFP_DMA);
 	if (!buffer) {
 		printk(KERN_WARNING "(sd_revalidate_disk:) Memory allocation "
 		       "failure.\n");
-		goto out_release_request;
+		goto out;
 	}
 
 	/* defaults, until the device tells us otherwise */
@@ -1498,25 +1483,23 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	sdkp->WCE = 0;
 	sdkp->RCD = 0;
 
-	sd_spinup_disk(sdkp, disk->disk_name, sreq, buffer);
+	sd_spinup_disk(sdkp, disk->disk_name);
 
 	/*
 	 * Without media there is no reason to ask; moreover, some devices
 	 * react badly if we do.
 	 */
 	if (sdkp->media_present) {
-		sd_read_capacity(sdkp, disk->disk_name, sreq, buffer);
+		sd_read_capacity(sdkp, disk->disk_name, buffer);
 		if (sdp->removable)
 			sd_read_write_protect_flag(sdkp, disk->disk_name,
-					sreq, buffer);
-		sd_read_cache_type(sdkp, disk->disk_name, sreq, buffer);
+						   buffer);
+		sd_read_cache_type(sdkp, disk->disk_name, buffer);
 	}
 		
 	set_capacity(disk, sdkp->capacity);
 	kfree(buffer);
 
- out_release_request: 
-	scsi_release_request(sreq);
  out:
 	return 0;
 }
