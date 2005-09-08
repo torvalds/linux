@@ -263,6 +263,9 @@ struct ip_conntrack_expect
 	/* Unique ID */
 	unsigned int id;
 
+	/* Flags */
+	unsigned int flags;
+
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
@@ -271,6 +274,8 @@ struct ip_conntrack_expect
 	enum ip_conntrack_dir dir;
 #endif
 };
+
+#define IP_CT_EXPECT_PERMANENT	0x1
 
 static inline struct ip_conntrack *
 tuplehash_to_ctrack(const struct ip_conntrack_tuple_hash *hash)

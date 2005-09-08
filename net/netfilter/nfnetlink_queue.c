@@ -371,6 +371,12 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 	
 	case NFQNL_COPY_PACKET:
+		if (entry->skb->ip_summed == CHECKSUM_HW &&
+		    (*errp = skb_checksum_help(entry->skb,
+		                               entry->info->outdev == NULL))) {
+			spin_unlock_bh(&queue->lock);
+			return NULL;
+		}
 		if (queue->copy_range == 0 
 		    || queue->copy_range > entry->skb->len)
 			data_len = entry->skb->len;
@@ -636,7 +642,7 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 	if (!skb_make_writable(&e->skb, data_len))
 		return -ENOMEM;
 	memcpy(e->skb->data, data, data_len);
-
+	e->skb->ip_summed = CHECKSUM_NONE;
 	return 0;
 }
 

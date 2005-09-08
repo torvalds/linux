@@ -221,6 +221,7 @@ static int help(struct sk_buff **pskb,
 				{ { 0, { 0 } },
 				  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 			exp->expectfn = NULL;
+			exp->flags = 0;
 			if (ip_nat_irc_hook)
 				ret = ip_nat_irc_hook(pskb, ctinfo, 
 						      addr_beg_p - ib_ptr,
