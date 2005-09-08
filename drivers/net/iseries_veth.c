@@ -4,6 +4,7 @@
  * Copyright (C) 2001 Kyle A. Lucke (klucke@us.ibm.com), IBM Corp.
  * Substantially cleaned up by:
  * Copyright (C) 2003 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
+ * Copyright (C) 2004-2005 Michael Ellerman, IBM Corporation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

@@ -1372,7 +1372,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 
 	/* synchronized against open : rtnl_lock() held by caller */
 	if (netif_running(dev)) {
-		u8 *base = get_hwbase(dev);
+		u8 __iomem *base = get_hwbase(dev);
 		/*
 		 * It seems that the nic preloads valid ring entries into an
 		 * internal buffer. The procedure for flushing everything is
@@ -1423,7 +1423,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 
 static void nv_copy_mac_to_hw(struct net_device *dev)
 {
-	u8 *base = get_hwbase(dev);
+	u8 __iomem *base = get_hwbase(dev);
 	u32 mac[2];
 
 	mac[0] = (dev->dev_addr[0] << 0) + (dev->dev_addr[1] << 8) +

@@ -3258,7 +3258,7 @@ badrx:
 				wstats.noise = apriv->wstats.qual.noise;
 				wstats.updated = IW_QUAL_LEVEL_UPDATED
 					| IW_QUAL_QUAL_UPDATED
-					| IW_QUAL_NOISE_UPDATED;
+					| IW_QUAL_DBM;
 				/* Update spy records */
 				wireless_spy_update(dev, sa, &wstats);
 			}
@@ -3604,7 +3604,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 		wstats.noise = ai->wstats.qual.noise;
 		wstats.updated = IW_QUAL_QUAL_UPDATED
 			| IW_QUAL_LEVEL_UPDATED
-			| IW_QUAL_NOISE_UPDATED;
+			| IW_QUAL_DBM;
 		/* Update spy records */
 		wireless_spy_update(ai->dev, sa, &wstats);
 	}
@@ -6489,22 +6489,20 @@ static int airo_get_range(struct net_device *dev,
 		range->max_qual.qual = 100;	/* % */
 	else
 		range->max_qual.qual = airo_get_max_quality(&cap_rid);
-	range->max_qual.level = 0;	/* 0 means we use dBm  */
-	range->max_qual.noise = 0;
-	range->max_qual.updated = 0;
+	range->max_qual.level = 0x100 - 120;	/* -120 dBm */
+	range->max_qual.noise = 0x100 - 120;	/* -120 dBm */
 
 	/* Experimental measurements - boundary 11/5.5 Mb/s */
 	/* Note : with or without the (local->rssi), results
 	 * are somewhat different. - Jean II */
 	if (local->rssi) {
-		range->avg_qual.qual = 50;	/* % */
-		range->avg_qual.level = 186;	/* -70 dBm */
+		range->avg_qual.qual = 50;		/* % */
+		range->avg_qual.level = 0x100 - 70;	/* -70 dBm */
 	} else {
 		range->avg_qual.qual = airo_get_avg_quality(&cap_rid);
-		range->avg_qual.level = 176;	/* -80 dBm */
+		range->avg_qual.level = 0x100 - 80;	/* -80 dBm */
 	}
-	range->avg_qual.noise = 0;
-	range->avg_qual.updated = 0;
+	range->avg_qual.noise = 0x100 - 85;		/* -85 dBm */
 
 	for(i = 0 ; i < 8 ; i++) {
 		range->bitrate[i] = cap_rid.supportedRates[i] * 500000;
@@ -6727,15 +6725,17 @@ static int airo_get_aplist(struct net_device *dev,
 		if (local->rssi) {
 			qual[i].level = 0x100 - BSSList.dBm;
 			qual[i].qual = airo_dbm_to_pct( local->rssi, BSSList.dBm );
-			qual[i].updated = IW_QUAL_QUAL_UPDATED;
+			qual[i].updated = IW_QUAL_QUAL_UPDATED
+					| IW_QUAL_LEVEL_UPDATED
+					| IW_QUAL_DBM;
 		} else {
 			qual[i].level = (BSSList.dBm + 321) / 2;
 			qual[i].qual = 0;
-			qual[i].updated = IW_QUAL_QUAL_INVALID;
+			qual[i].updated = IW_QUAL_QUAL_INVALID
+					| IW_QUAL_LEVEL_UPDATED
+					| IW_QUAL_DBM;
 		}
 		qual[i].noise = local->wstats.qual.noise;
-		qual[i].updated = IW_QUAL_LEVEL_UPDATED
-				| IW_QUAL_NOISE_UPDATED;
 		if (BSSList.index == 0xffff)
 			break;
 	}
@@ -6861,15 +6861,17 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	if (ai->rssi) {
 		iwe.u.qual.level = 0x100 - bss->dBm;
 		iwe.u.qual.qual = airo_dbm_to_pct( ai->rssi, bss->dBm );
-		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED;
+		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED
+				| IW_QUAL_LEVEL_UPDATED
+				| IW_QUAL_DBM;
 	} else {
 		iwe.u.qual.level = (bss->dBm + 321) / 2;
 		iwe.u.qual.qual = 0;
-		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID;
+		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID
+				| IW_QUAL_LEVEL_UPDATED
+				| IW_QUAL_DBM;
 	}
 	iwe.u.qual.noise = ai->wstats.qual.noise;
-	iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED
-			| IW_QUAL_NOISE_UPDATED;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
@@ -7222,13 +7224,12 @@ static void airo_read_wireless_stats(struct airo_info *local)
 		local->wstats.qual.level = (status_rid.normalizedSignalStrength + 321) / 2;
 		local->wstats.qual.qual = airo_get_quality(&status_rid, &cap_rid);
 	}
-	local->wstats.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED;
 	if (status_rid.len >= 124) {
 		local->wstats.qual.noise = 0x100 - status_rid.noisedBm;
-		local->wstats.qual.updated |= IW_QUAL_NOISE_UPDATED;
+		local->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	} else {
 		local->wstats.qual.noise = 0;
-		local->wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
+		local->wstats.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED | IW_QUAL_NOISE_INVALID | IW_QUAL_DBM;
 	}
 
 	/* Packets discarded in the wireless adapter due to wireless

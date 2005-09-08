@@ -54,7 +54,8 @@
 #include <net/ieee80211.h>
 
 MODULE_DESCRIPTION("802.11 data/management/control stack");
-MODULE_AUTHOR("Copyright (C) 2004 Intel Corporation <jketreno@linux.intel.com>");
+MODULE_AUTHOR
+    ("Copyright (C) 2004 Intel Corporation <jketreno@linux.intel.com>");
 MODULE_LICENSE("GPL");
 
 #define DRV_NAME "ieee80211"
@@ -64,9 +65,9 @@ static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kmalloc(
-		MAX_NETWORK_COUNT * sizeof(struct ieee80211_network),
-		GFP_KERNEL);
+	ieee->networks =
+	    kmalloc(MAX_NETWORK_COUNT * sizeof(struct ieee80211_network),
+		    GFP_KERNEL);
 	if (!ieee->networks) {
 		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
 		       ieee->dev->name);
@@ -94,9 +95,9 @@ static inline void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 	INIT_LIST_HEAD(&ieee->network_free_list);
 	INIT_LIST_HEAD(&ieee->network_list);
 	for (i = 0; i < MAX_NETWORK_COUNT; i++)
-		list_add_tail(&ieee->networks[i].list, &ieee->network_free_list);
+		list_add_tail(&ieee->networks[i].list,
+			      &ieee->network_free_list);
 }
-
 
 struct net_device *alloc_ieee80211(int sizeof_priv)
 {
@@ -118,8 +119,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	err = ieee80211_networks_allocate(ieee);
 	if (err) {
-		IEEE80211_ERROR("Unable to allocate beacon storage: %d\n",
-				err);
+		IEEE80211_ERROR("Unable to allocate beacon storage: %d\n", err);
 		goto failed;
 	}
 	ieee80211_networks_initialize(ieee);
@@ -132,7 +132,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	/* Default to enabling full open WEP with host based encrypt/decrypt */
 	ieee->host_encrypt = 1;
 	ieee->host_decrypt = 1;
-	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
+	ieee->ieee802_1x = 1;	/* Default to supporting 802.1x */
 
 	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
 	init_timer(&ieee->crypt_deinit_timer);
@@ -141,20 +141,19 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	spin_lock_init(&ieee->lock);
 
- 	ieee->wpa_enabled = 0;
- 	ieee->tkip_countermeasures = 0;
- 	ieee->drop_unencrypted = 0;
- 	ieee->privacy_invoked = 0;
- 	ieee->ieee802_1x = 1;
+	ieee->wpa_enabled = 0;
+	ieee->tkip_countermeasures = 0;
+	ieee->drop_unencrypted = 0;
+	ieee->privacy_invoked = 0;
+	ieee->ieee802_1x = 1;
 
 	return dev;
 
- failed:
+      failed:
 	if (dev)
 		free_netdev(dev);
 	return NULL;
 }
-
 
 void free_ieee80211(struct net_device *dev)
 {
@@ -193,7 +192,7 @@ static int show_debug_level(char *page, char **start, off_t offset,
 	return snprintf(page, count, "0x%08X\n", ieee80211_debug_level);
 }
 
-static int store_debug_level(struct file *file, const char __user *buffer,
+static int store_debug_level(struct file *file, const char __user * buffer,
 			     unsigned long count, void *data)
 {
 	char buf[] = "0x00000000";
@@ -264,13 +263,12 @@ static void __exit ieee80211_exit(void)
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 
-
 module_exit(ieee80211_exit);
 module_init(ieee80211_init);
 #endif
 
-
-const char *escape_essid(const char *essid, u8 essid_len) {
+const char *escape_essid(const char *essid, u8 essid_len)
+{
 	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
 	const char *s = essid;
 	char *d = escaped;
@@ -280,7 +278,7 @@ const char *escape_essid(const char *essid, u8 essid_len) {
 		return escaped;
 	}
 
-	essid_len = min(essid_len, (u8)IW_ESSID_MAX_SIZE);
+	essid_len = min(essid_len, (u8) IW_ESSID_MAX_SIZE);
 	while (essid_len--) {
 		if (*s == '\0') {
 			*d++ = '\\';
