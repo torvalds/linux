@@ -1,5 +1,4 @@
 /*
- * $Id: tveeprom.h,v 1.2 2005/06/12 04:19:19 mchehab Exp $
  */
 
 struct tveeprom {

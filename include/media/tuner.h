@@ -1,5 +1,3 @@
-
-/* $Id: tuner.h,v 1.45 2005/07/28 18:41:21 mchehab Exp $
  *
     tuner.h - definition for different tuners
 
@@ -111,6 +109,8 @@
 #define TUNER_LG_TDVS_H062F   64	/* DViCO FusionHDTV 5 */
 #define TUNER_YMEC_TVF66T5_B_DFF 65	/* Acorp Y878F */
 
+#define TUNER_LG_NTSC_TALN_MINI 66
+
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
 #define PAL_I   2
@@ -134,6 +134,7 @@
 #define THOMSON 12
 
 #define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)
+#define TUNER_SET_STANDBY            _IOW('T',4,int)
 #define TDA9887_SET_CONFIG           _IOW('t',5,int)
 
 /* tv card specific */
@@ -152,9 +153,6 @@
 # define TDA9887_AUTOMUTE            (1<<18)
 
 #ifdef __KERNEL__
-
-#define I2C_ADDR_TDA8290        0x4b
-#define I2C_ADDR_TDA8275        0x61
 
 enum tuner_mode {
 	T_UNINITIALIZED = 0,
@@ -198,6 +196,7 @@ struct tuner {
 	void (*radio_freq)(struct i2c_client *c, unsigned int freq);
 	int  (*has_signal)(struct i2c_client *c);
 	int  (*is_stereo)(struct i2c_client *c);
+	void (*standby)(struct i2c_client *c);
 };
 
 extern unsigned int tuner_debug;
@@ -209,12 +208,16 @@ extern int tea5767_tuner_init(struct i2c_client *c);
 extern int default_tuner_init(struct i2c_client *c);
 extern int tea5767_autodetection(struct i2c_client *c);
 
-#define tuner_warn(fmt, arg...) \
-	dev_printk(KERN_WARNING , &t->i2c.dev , fmt , ## arg)
-#define tuner_info(fmt, arg...) \
-	dev_printk(KERN_INFO , &t->i2c.dev , fmt , ## arg)
-#define tuner_dbg(fmt, arg...) \
-	if (tuner_debug) dev_printk(KERN_DEBUG , &t->i2c.dev , fmt , ## arg)
+#define tuner_warn(fmt, arg...) do {\
+	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->name, \
+                        t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+#define tuner_info(fmt, arg...) do {\
+	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.driver->name, \
+                        t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+#define tuner_dbg(fmt, arg...) do {\
+	if (tuner_debug) \
+                printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->name, \
+                        t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
 
 #endif /* __KERNEL__ */
 

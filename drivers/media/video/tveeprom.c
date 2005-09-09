@@ -155,10 +155,10 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Philips FQ1216ME MK3"},
 	{ TUNER_ABSENT,        "Philips FI1236 MK3"},
 	{ TUNER_PHILIPS_FM1216ME_MK3, "Philips FM1216 ME MK3"},
-	{ TUNER_ABSENT,        "Philips FM1236 MK3"},
+	{ TUNER_PHILIPS_FM1236_MK3, "Philips FM1236 MK3"},
 	{ TUNER_ABSENT,        "Philips FM1216MP MK3"},
 	/* 60-69 */
-	{ TUNER_ABSENT,        "LG S001D MK3"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "LG S001D MK3"},
 	{ TUNER_ABSENT,        "LG M001D MK3"},
 	{ TUNER_ABSENT,        "LG S701D MK3"},
 	{ TUNER_ABSENT,        "LG M701D MK3"},
@@ -183,8 +183,8 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Philips FQ1216LME MK3"},
 	{ TUNER_ABSENT,        "LG TAPC G701D"},
 	{ TUNER_LG_NTSC_NEW_TAPC, "LG TAPC H791F"},
-	{ TUNER_ABSENT,        "TCL 2002MB 3"},
-	{ TUNER_ABSENT,        "TCL 2002MI 3"},
+	{ TUNER_LG_PAL_NEW_TAPC, "TCL 2002MB 3"},
+	{ TUNER_LG_PAL_NEW_TAPC, "TCL 2002MI 3"},
 	{ TUNER_TCL_2002N,     "TCL 2002N 6A"},
 	{ TUNER_ABSENT,        "Philips FQ1236 MK3"},
 	{ TUNER_ABSENT,        "Samsung TCPN 2121P30A"},
@@ -445,23 +445,6 @@ int tveeprom_read(struct i2c_client *c, unsigned char *eedata, int len)
 }
 EXPORT_SYMBOL(tveeprom_read);
 
-#if 0
-int tveeprom_dump(unsigned char *eedata, int len)
-{
-	int i;
-
-	dprintk(1, "%s\n",__FUNCTION__);
-	for (i = 0; i < len; i++) {
-		if (0 == (i % 16))
-			printk(KERN_INFO "tveeprom: %02x:",i);
-		printk(" %02x",eedata[i]);
-		if (15 == (i % 16))
-			printk("\n");
-	}
-	return 0;
-}
-EXPORT_SYMBOL(tveeprom_dump);
-#endif  /*  0  */
 
 /* ----------------------------------------------------------------------- */
 /* needed for ivtv.sf.net at the moment.  Should go away in the long       */

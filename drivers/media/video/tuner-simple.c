@@ -1,5 +1,4 @@
 /*
- * $Id: tuner-simple.c,v 1.43 2005/07/28 18:41:21 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * controls all those simple 4-control-bytes style tuners.
@@ -248,9 +247,10 @@ static struct tunertype tuners[] = {
 
 	{ "LG TDVS-H062F/TUA6034", LGINNOTEK, NTSC,
 	  16*160.00,16*455.00,0x01,0x02,0x04,0x8e,732},
-
 	{ "Ymec TVF66T5-B/DFF", Philips, PAL,
           16*160.25,16*464.25,0x01,0x02,0x08,0x8e,623},
+ 	{ "LG NTSC (TALN mini series)", LGINNOTEK, NTSC,
+	  16*150.00,16*425.00,0x01,0x02,0x08,0x8e,732 },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
@@ -497,6 +497,7 @@ int default_tuner_init(struct i2c_client *c)
 	t->radio_freq = default_set_radio_freq;
 	t->has_signal = tuner_signal;
 	t->is_stereo  = tuner_stereo;
+	t->standby = NULL;
 
 	return 0;
 }

@@ -1,5 +1,4 @@
 /*
- * $Id: ir-kbd-gpio.c,v 1.13 2005/05/15 19:01:26 mchehab Exp $
  *
  * Copyright (c) 2003 Gerd Knorr
  * Copyright (c) 2003 Pavel Machek
