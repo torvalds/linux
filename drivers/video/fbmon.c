@@ -314,11 +314,13 @@ static int edid_is_monitor_block(unsigned char *block)
 		return 0;
 }
 
-static void calc_mode_timings(int xres, int yres, int refresh, struct fb_videomode *mode)
+static void calc_mode_timings(int xres, int yres, int refresh,
+			      struct fb_videomode *mode)
 {
 	struct fb_var_screeninfo var;
 	struct fb_info info;
 	
+	memset(&var, 0, sizeof(struct fb_var_screeninfo));
 	var.xres = xres;
 	var.yres = yres;
 	fb_get_mode(FB_VSYNCTIMINGS | FB_IGNOREMON, 
