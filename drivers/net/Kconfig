@@ -1655,7 +1655,7 @@ config LAN_SAA9730
 
 config NET_POCKET
 	bool "Pocket and portable adapters"
-	depends on NET_ETHERNET && ISA
+	depends on NET_ETHERNET && PARPORT
 	---help---
 	  Cute little network (Ethernet) devices which attach to the parallel
 	  port ("pocket adapters"), commonly used with laptops. If you have
@@ -1679,7 +1679,7 @@ config NET_POCKET
 
 config ATP
 	tristate "AT-LAN-TEC/RealTek pocket adapter support"
-	depends on NET_POCKET && ISA && X86
+	depends on NET_POCKET && PARPORT && X86
 	select CRC32
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
@@ -1694,7 +1694,7 @@ config ATP
 
 config DE600
 	tristate "D-Link DE600 pocket adapter support"
-	depends on NET_POCKET && ISA
+	depends on NET_POCKET && PARPORT
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
 	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
@@ -1709,7 +1709,7 @@ config DE600
 
 config DE620
 	tristate "D-Link DE620 pocket adapter support"
-	depends on NET_POCKET && ISA
+	depends on NET_POCKET && PARPORT
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
 	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
