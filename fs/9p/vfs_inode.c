@@ -250,6 +250,9 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		case S_IFBLK:
 		case S_IFCHR:
 		case S_IFSOCK:
+			init_special_inode(inode, inode->i_mode,
+					   inode->i_rdev);
+			break;
 		case S_IFREG:
 			inode->i_op = &v9fs_file_inode_operations;
 			inode->i_fop = &v9fs_file_operations;
