@@ -1,5 +1,5 @@
 /*
- * $Id: synclinkmp.c,v 4.34 2005/03/04 15:07:10 paulkf Exp $
+ * $Id: synclinkmp.c,v 4.38 2005/07/15 13:29:44 paulkf Exp $
  *
  * Device driver for Microgate SyncLink Multiport
  * high speed multiprotocol serial adapter.
@@ -486,7 +486,7 @@ module_param_array(maxframe, int, NULL, 0);
 module_param_array(dosyncppp, int, NULL, 0);
 
 static char *driver_name = "SyncLink MultiPort driver";
-static char *driver_version = "$Revision: 4.34 $";
+static char *driver_version = "$Revision: 4.38 $";
 
 static int synclinkmp_init_one(struct pci_dev *dev,const struct pci_device_id *ent);
 static void synclinkmp_remove_one(struct pci_dev *dev);
@@ -555,7 +555,6 @@ static int  set_txidle(SLMP_INFO *info, int idle_mode);
 static int  tx_enable(SLMP_INFO *info, int enable);
 static int  tx_abort(SLMP_INFO *info);
 static int  rx_enable(SLMP_INFO *info, int enable);
-static int  map_status(int signals);
 static int  modem_input_wait(SLMP_INFO *info,int arg);
 static int  wait_mgsl_event(SLMP_INFO *info, int __user *mask_ptr);
 static int  tiocmget(struct tty_struct *tty, struct file *file);
@@ -3108,16 +3107,6 @@ static int rx_enable(SLMP_INFO * info, int enable)
 	return 0;
 }
 
-static int map_status(int signals)
-{
-	/* Map status bits to API event bits */
-
-	return ((signals & SerialSignal_DSR) ? MgslEvent_DsrActive : MgslEvent_DsrInactive) +
-	       ((signals & SerialSignal_CTS) ? MgslEvent_CtsActive : MgslEvent_CtsInactive) +
-	       ((signals & SerialSignal_DCD) ? MgslEvent_DcdActive : MgslEvent_DcdInactive) +
-	       ((signals & SerialSignal_RI)  ? MgslEvent_RiActive : MgslEvent_RiInactive);
-}
-
 /* wait for specified event to occur
  */
 static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
@@ -3144,7 +3133,7 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
 
 	/* return immediately if state matches requested events */
 	get_signals(info);
-	s = map_status(info->serial_signals);
+	s = info->serial_signals;
 
 	events = mask &
 		( ((s & SerialSignal_DSR) ? MgslEvent_DsrActive:MgslEvent_DsrInactive) +
