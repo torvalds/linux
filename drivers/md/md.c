@@ -3334,7 +3334,8 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			if (rdev->faulty) {
 				seq_printf(seq, "(F)");
 				continue;
-			}
+			} else if (rdev->raid_disk < 0)
+				seq_printf(seq, "(S)"); /* spare */
 			size += rdev->size;
 		}
 
