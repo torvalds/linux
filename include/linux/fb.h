@@ -833,6 +833,21 @@ extern int fb_new_modelist(struct fb_info *info);
 extern struct fb_info *registered_fb[FB_MAX];
 extern int num_registered_fb;
 
+static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
+					   u8 *src, u32 s_pitch, u32 height)
+{
+	int i, j;
+
+	d_pitch -= s_pitch;
+
+	for (i = height; i--; ) {
+		/* s_pitch is a few bytes at the most, memcpy is suboptimal */
+		for (j = 0; j < s_pitch; j++)
+			*dst++ = *src++;
+		dst += d_pitch;
+	}
+}
+
 /* drivers/video/fbsysfs.c */
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);
 extern void framebuffer_release(struct fb_info *info);
