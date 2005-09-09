@@ -156,7 +156,8 @@ sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
  * SAS host attributes
  */
 
-static int sas_host_setup(struct device *dev)
+static int sas_host_setup(struct transport_container *tc, struct device *dev,
+			  struct class_device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
