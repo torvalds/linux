@@ -2235,6 +2235,20 @@ config ISERIES_VETH
 	tristate "iSeries Virtual Ethernet driver support"
 	depends on PPC_ISERIES
 
+config RIONET
+	tristate "RapidIO Ethernet over messaging driver support"
+	depends on NETDEVICES && RAPIDIO
+
+config RIONET_TX_SIZE
+	int "Number of outbound queue entries"
+	depends on RIONET
+	default "128"
+
+config RIONET_RX_SIZE
+	int "Number of inbound queue entries"
+	depends on RIONET
+	default "128"
+
 config FDDI
 	bool "FDDI driver support"
 	depends on (PCI || EISA)
