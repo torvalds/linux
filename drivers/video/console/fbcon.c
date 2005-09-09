@@ -247,9 +247,26 @@ static inline int get_color(struct vc_data *vc, struct fb_info *info,
 	case 2:
 		/*
 		 * Scale down 16-colors to 4 colors. Default 4-color palette
-		 * is grayscale.
+		 * is grayscale. However, simply dividing the values by 4
+		 * will not work, as colors 1, 2 and 3 will be scaled-down
+		 * to zero rendering them invisible.  So empirically convert
+		 * colors to a sane 4-level grayscale.
 		 */
-		color /= 4;
+		switch (color) {
+		case 0:
+			color = 0; /* black */
+			break;
+		case 1 ... 6:
+			color = 2; /* white */
+			break;
+		case 7 ... 8:
+			color = 1; /* gray */
+			break;
+		default:
+			color = 3; /* intense white */
+			break;
+		}
+		break;
 	case 3:
 		/*
 		 * Last 8 entries of default 16-color palette is a more intense
