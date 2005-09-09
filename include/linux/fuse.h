@@ -99,7 +99,8 @@ enum fuse_opcode {
 	FUSE_INIT          = 26,
 	FUSE_OPENDIR       = 27,
 	FUSE_READDIR       = 28,
-	FUSE_RELEASEDIR    = 29
+	FUSE_RELEASEDIR    = 29,
+	FUSE_FSYNCDIR      = 30
 };
 
 /* Conservative buffer size for the client */

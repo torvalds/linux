@@ -617,6 +617,12 @@ static int fuse_dir_release(struct inode *inode, struct file *file)
 	return fuse_release_common(inode, file, 1);
 }
 
+static int fuse_dir_fsync(struct file *file, struct dentry *de, int datasync)
+{
+	/* nfsd can call this with no file */
+	return file ? fuse_fsync_common(file, de, datasync, 1) : 0;
+}
+
 static unsigned iattr_to_fattr(struct iattr *iattr, struct fuse_attr *fattr)
 {
 	unsigned ivalid = iattr->ia_valid;
@@ -934,6 +940,7 @@ static struct file_operations fuse_dir_operations = {
 	.readdir	= fuse_readdir,
 	.open		= fuse_dir_open,
 	.release	= fuse_dir_release,
+	.fsync		= fuse_dir_fsync,
 };
 
 static struct inode_operations fuse_common_inode_operations = {

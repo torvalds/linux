@@ -248,6 +248,9 @@ struct fuse_conn {
 	/** Is fsync not implemented by fs? */
 	unsigned no_fsync : 1;
 
+	/** Is fsyncdir not implemented by fs? */
+	unsigned no_fsyncdir : 1;
+
 	/** Is flush not implemented by fs? */
 	unsigned no_flush : 1;
 
@@ -338,6 +341,12 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir);
  * Send RELEASE or RELEASEDIR request
  */
 int fuse_release_common(struct inode *inode, struct file *file, int isdir);
+
+/**
+ * Send FSYNC or FSYNCDIR request
+ */
+int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
+		      int isdir);
 
 /**
  * Initialise file operations on a regular file
