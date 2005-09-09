@@ -645,7 +645,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 		if (sb->state & (1<<MD_SB_BITMAP_PRESENT) &&
 		    mddev->bitmap_file == NULL) {
-			if (mddev->level != 1) {
+			if (mddev->level != 1 && mddev->level != 5) {
 				/* FIXME use a better test */
 				printk(KERN_WARNING "md: bitmaps only support for raid1\n");
 				return -EINVAL;
@@ -3517,7 +3517,6 @@ void md_done_sync(mddev_t *mddev, int blocks, int ok)
  */
 void md_write_start(mddev_t *mddev, struct bio *bi)
 {
-	DEFINE_WAIT(w);
 	if (bio_data_dir(bi) != WRITE)
 		return;
 
