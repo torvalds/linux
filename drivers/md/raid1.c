@@ -1708,14 +1708,14 @@ void raid1_quiesce(mddev_t *mddev, int state)
 	conf_t *conf = mddev_to_conf(mddev);
 
 	switch(state) {
-	case 0:
+	case 1:
 		spin_lock_irq(&conf->resync_lock);
 		conf->barrier++;
 		wait_event_lock_irq(conf->wait_idle, !conf->nr_pending,
 				    conf->resync_lock, raid1_unplug(mddev->queue));
 		spin_unlock_irq(&conf->resync_lock);
 		break;
-	case 1:
+	case 0:
 		spin_lock_irq(&conf->resync_lock);
 		conf->barrier--;
 		spin_unlock_irq(&conf->resync_lock);
