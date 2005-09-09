@@ -1232,9 +1232,6 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 	dmx->allocate_section_feed = dvbdmx_allocate_section_feed;
 	dmx->release_section_feed = dvbdmx_release_section_feed;
 
-	dmx->descramble_mac_address = NULL;
-	dmx->descramble_section_payload = NULL;
-
 	dmx->add_frontend = dvbdmx_add_frontend;
 	dmx->remove_frontend = dvbdmx_remove_frontend;
 	dmx->get_frontends = dvbdmx_get_frontends;

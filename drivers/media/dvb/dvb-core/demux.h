@@ -260,17 +260,6 @@ struct dmx_demux {
 				      dmx_section_cb callback);
         int (*release_section_feed) (struct dmx_demux* demux,
 				     struct dmx_section_feed* feed);
-        int (*descramble_mac_address) (struct dmx_demux* demux,
-				       u8* buffer1,
-				       size_t buffer1_length,
-				       u8* buffer2,
-				       size_t buffer2_length,
-				       u16 pid);
-        int (*descramble_section_payload) (struct dmx_demux* demux,
-					   u8* buffer1,
-					   size_t buffer1_length,
-					   u8* buffer2, size_t buffer2_length,
-					   u16 pid);
         int (*add_frontend) (struct dmx_demux* demux,
 			     struct dmx_frontend* frontend);
         int (*remove_frontend) (struct dmx_demux* demux,
