@@ -6151,6 +6151,11 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 		usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) & ~BIT12));
 	}
 
+	if (info->params.loopback) {
+		info->loopback_bits = 0x300;
+		outw(0x0300, info->io_base + CCAR);
+	}
+
 }	/* end of usc_set_async_mode() */
 
 /* usc_loopback_frame()
