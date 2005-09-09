@@ -203,7 +203,7 @@ static client_t *seq_create_client1(int client_index, int poolsize)
 	client_t *client;
 
 	/* init client data */
-	client = kcalloc(1, sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL)
 		return NULL;
 	client->pool = snd_seq_pool_new(poolsize);
