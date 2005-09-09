@@ -16,7 +16,7 @@
 #define __ASM_PPC_CPUTABLE_H
 
 #include <linux/config.h>
-#include <asm/page.h> /* for ASM_CONST */
+#include <asm/ppc_asm.h> /* for ASM_CONST */
 
 /* Exposed to userland CPU features - Must match ppc32 definitions */
 #define PPC_FEATURE_32			0x80000000

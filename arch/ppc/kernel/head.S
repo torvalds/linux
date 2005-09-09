@@ -804,7 +804,7 @@ load_up_altivec:
 	beq	1f
 	add	r4,r4,r6
 	addi	r4,r4,THREAD	/* want THREAD of last_task_used_altivec */
-	SAVE_32VR(0,r10,r4)
+	SAVE_32VRS(0,r10,r4)
 	mfvscr	vr0
 	li	r10,THREAD_VSCR
 	stvx	vr0,r10,r4
@@ -824,7 +824,7 @@ load_up_altivec:
 	stw	r4,THREAD_USED_VR(r5)
 	lvx	vr0,r10,r5
 	mtvscr	vr0
-	REST_32VR(0,r10,r5)
+	REST_32VRS(0,r10,r5)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	sub	r4,r4,r6
@@ -870,7 +870,7 @@ giveup_altivec:
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	lwz	r5,PT_REGS(r3)
 	cmpwi	0,r5,0
-	SAVE_32VR(0, r4, r3)
+	SAVE_32VRS(0, r4, r3)
 	mfvscr	vr0
 	li	r4,THREAD_VSCR
 	stvx	vr0,r4,r3

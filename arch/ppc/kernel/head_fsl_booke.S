@@ -853,7 +853,7 @@ load_up_spe:
 	cmpi	0,r4,0
 	beq	1f
 	addi	r4,r4,THREAD	/* want THREAD of last_task_used_spe */
-	SAVE_32EVR(0,r10,r4)
+	SAVE_32EVRS(0,r10,r4)
    	evxor	evr10, evr10, evr10	/* clear out evr10 */
 	evmwumiaa evr10, evr10, evr10	/* evr10 <- ACC = 0 * 0 + ACC */
 	li	r5,THREAD_ACC
@@ -873,7 +873,7 @@ load_up_spe:
 	stw	r4,THREAD_USED_SPE(r5)
 	evlddx	evr4,r10,r5
 	evmra	evr4,evr4
-	REST_32EVR(0,r10,r5)
+	REST_32EVRS(0,r10,r5)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	stw	r4,last_task_used_spe@l(r3)
@@ -963,7 +963,7 @@ _GLOBAL(giveup_spe)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	lwz	r5,PT_REGS(r3)
 	cmpi	0,r5,0
-	SAVE_32EVR(0, r4, r3)
+	SAVE_32EVRS(0, r4, r3)
    	evxor	evr6, evr6, evr6	/* clear out evr6 */
 	evmwumiaa evr6, evr6, evr6	/* evr6 <- ACC = 0 * 0 + ACC */
 	li	r4,THREAD_ACC

@@ -1,35 +1,39 @@
 /*
- * arch/ppc64/kernel/ppc_asm.h
- *
- * Definitions used by various bits of low-level assembly code on PowerPC.
- *
  * Copyright (C) 1995-1999 Gary Thomas, Paul Mackerras, Cort Dougan.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PPC64_PPC_ASM_H
-#define _PPC64_PPC_ASM_H
+#ifndef _ASM_POWERPC_PPC_ASM_H
+#define _ASM_POWERPC_PPC_ASM_H
+
+#ifdef __ASSEMBLY__
+
 /*
  * Macros for storing registers into and loading registers from
  * exception frames.
  */
+#ifdef __powerpc64__
 #define SAVE_GPR(n, base)	std	n,GPR0+8*(n)(base)
+#define REST_GPR(n, base)	ld	n,GPR0+8*(n)(base)
+#define SAVE_NVGPRS(base)	SAVE_8GPRS(14, base); SAVE_10GPRS(22, base)
+#define REST_NVGPRS(base)	REST_8GPRS(14, base); REST_10GPRS(22, base)
+#else
+#define SAVE_GPR(n, base)	stw	n,GPR0+4*(n)(base)
+#define REST_GPR(n, base)	lwz	n,GPR0+4*(n)(base)
+#define SAVE_NVGPRS(base)	SAVE_GPR(13, base); SAVE_8GPRS(14, base); \
+				SAVE_10GPRS(22, base)
+#define REST_NVGPRS(base)	REST_GPR(13, base); REST_8GPRS(14, base); \
+				REST_10GPRS(22, base)
+#endif
+
+
 #define SAVE_2GPRS(n, base)	SAVE_GPR(n, base); SAVE_GPR(n+1, base)
 #define SAVE_4GPRS(n, base)	SAVE_2GPRS(n, base); SAVE_2GPRS(n+2, base)
 #define SAVE_8GPRS(n, base)	SAVE_4GPRS(n, base); SAVE_4GPRS(n+4, base)
 #define SAVE_10GPRS(n, base)	SAVE_8GPRS(n, base); SAVE_2GPRS(n+8, base)
-#define REST_GPR(n, base)	ld	n,GPR0+8*(n)(base)
 #define REST_2GPRS(n, base)	REST_GPR(n, base); REST_GPR(n+1, base)
 #define REST_4GPRS(n, base)	REST_2GPRS(n, base); REST_2GPRS(n+2, base)
 #define REST_8GPRS(n, base)	REST_4GPRS(n, base); REST_4GPRS(n+4, base)
 #define REST_10GPRS(n, base)	REST_8GPRS(n, base); REST_2GPRS(n+8, base)
-
-#define SAVE_NVGPRS(base)	SAVE_8GPRS(14, base); SAVE_10GPRS(22, base)
-#define REST_NVGPRS(base)	REST_8GPRS(14, base); REST_10GPRS(22, base)
 
 #define SAVE_FPR(n, base)	stfd	n,THREAD_FPR0+8*(n)(base)
 #define SAVE_2FPRS(n, base)	SAVE_FPR(n, base); SAVE_FPR(n+1, base)
@@ -57,21 +61,28 @@
 #define REST_16VRS(n,b,base)	REST_8VRS(n,b,base); REST_8VRS(n+8,b,base)
 #define REST_32VRS(n,b,base)	REST_16VRS(n,b,base); REST_16VRS(n+16,b,base)
 
+#define SAVE_EVR(n,s,base)	evmergehi s,s,n; stw s,THREAD_EVR0+4*(n)(base)
+#define SAVE_2EVRS(n,s,base)	SAVE_EVR(n,s,base); SAVE_EVR(n+1,s,base)
+#define SAVE_4EVRS(n,s,base)	SAVE_2EVRS(n,s,base); SAVE_2EVRS(n+2,s,base)
+#define SAVE_8EVRS(n,s,base)	SAVE_4EVRS(n,s,base); SAVE_4EVRS(n+4,s,base)
+#define SAVE_16EVRS(n,s,base)	SAVE_8EVRS(n,s,base); SAVE_8EVRS(n+8,s,base)
+#define SAVE_32EVRS(n,s,base)	SAVE_16EVRS(n,s,base); SAVE_16EVRS(n+16,s,base)
+#define REST_EVR(n,s,base)	lwz s,THREAD_EVR0+4*(n)(base); evmergelo n,s,n
+#define REST_2EVRS(n,s,base)	REST_EVR(n,s,base); REST_EVR(n+1,s,base)
+#define REST_4EVRS(n,s,base)	REST_2EVRS(n,s,base); REST_2EVRS(n+2,s,base)
+#define REST_8EVRS(n,s,base)	REST_4EVRS(n,s,base); REST_4EVRS(n+4,s,base)
+#define REST_16EVRS(n,s,base)	REST_8EVRS(n,s,base); REST_8EVRS(n+8,s,base)
+#define REST_32EVRS(n,s,base)	REST_16EVRS(n,s,base); REST_16EVRS(n+16,s,base)
+
 /* Macros to adjust thread priority for Iseries hardware multithreading */
 #define HMT_LOW		or 1,1,1
 #define HMT_MEDIUM	or 2,2,2
 #define HMT_HIGH	or 3,3,3
 
-/* Insert the high 32 bits of the MSR into what will be the new
-   MSR (via SRR1 and rfid)  This preserves the MSR.SF and MSR.ISF
-   bits. */
-
-#define FIX_SRR1(ra, rb)	\
-	mr	rb,ra;		\
-	mfmsr	ra;		\
-	rldimi	ra,rb,0,32
-
-#define CLR_TOP32(r)	rlwinm	(r),(r),0,0,31	/* clear top 32 bits */
+/* handle instructions that older assemblers may not know */
+#define RFCI		.long 0x4c000066	/* rfci instruction */
+#define RFDI		.long 0x4c00004e	/* rfdi instruction */
+#define RFMCI		.long 0x4c00004c	/* rfmci instruction */
 
 /* 
  * LOADADDR( rn, name )
@@ -81,6 +92,7 @@
  *   loads the address (less the low 16 bits) of 'name' into 'rn'
  *   suitable for base+disp addressing
  */
+#ifdef __powerpc64__
 #define LOADADDR(rn,name) \
 	lis	rn,name##@highest;	\
 	ori	rn,rn,name##@higher;	\
@@ -108,8 +120,84 @@
 	rldicr  reg,reg,32,31;                          \
 	oris    reg,reg,(label)@h;                      \
 	ori     reg,reg,(label)@l;
+#endif
+
+/* various errata or part fixups */
+#ifdef CONFIG_PPC601_SYNC_FIX
+#define SYNC				\
+BEGIN_FTR_SECTION			\
+	sync;				\
+	isync;				\
+END_FTR_SECTION_IFSET(CPU_FTR_601)
+#define SYNC_601			\
+BEGIN_FTR_SECTION			\
+	sync;				\
+END_FTR_SECTION_IFSET(CPU_FTR_601)
+#define ISYNC_601			\
+BEGIN_FTR_SECTION			\
+	isync;				\
+END_FTR_SECTION_IFSET(CPU_FTR_601)
+#else
+#define	SYNC
+#define SYNC_601
+#define ISYNC_601
+#endif
 
 
+#ifndef CONFIG_SMP
+#define TLBSYNC
+#else /* CONFIG_SMP */
+/* tlbsync is not implemented on 601 */
+#define TLBSYNC				\
+BEGIN_FTR_SECTION			\
+	tlbsync;			\
+	sync;				\
+END_FTR_SECTION_IFCLR(CPU_FTR_601)
+#endif
+
+	
+/*
+ * This instruction is not implemented on the PPC 603 or 601; however, on
+ * the 403GCX and 405GP tlbia IS defined and tlbie is not.
+ * All of these instructions exist in the 8xx, they have magical powers,
+ * and they must be used.
+ */
+
+#if !defined(CONFIG_4xx) && !defined(CONFIG_8xx)
+#define tlbia					\
+	li	r4,1024;			\
+	mtctr	r4;				\
+	lis	r4,KERNELBASE@h;		\
+0:	tlbie	r4;				\
+	addi	r4,r4,0x1000;			\
+	bdnz	0b
+#endif
+
+
+#ifdef CONFIG_IBM405_ERR77
+#define PPC405_ERR77(ra,rb)	dcbt	ra, rb;
+#define	PPC405_ERR77_SYNC	sync;
+#else
+#define PPC405_ERR77(ra,rb)
+#define PPC405_ERR77_SYNC
+#endif
+
+
+#ifdef CONFIG_IBM440EP_ERR42
+#define PPC440EP_ERR42 isync
+#else
+#define PPC440EP_ERR42
+#endif
+
+
+#if defined(CONFIG_BOOKE)
+#define tophys(rd,rs)				\
+	addis	rd,rs,0
+
+#define tovirt(rd,rs)				\
+	addis	rd,rs,0
+
+#elif defined(CONFIG_PPC64)
 /* PPPBBB - DRENG  If KERNELBASE is always 0xC0...,
  * Then we can easily do this with one asm insn. -Peter
  */
@@ -122,6 +210,64 @@
         lis     rd,((KERNELBASE>>48)&0xFFFF);   \
         rldicr  rd,rd,32,31;                    \
         add     rd,rs,rd
+#else
+/*
+ * On APUS (Amiga PowerPC cpu upgrade board), we don't know the
+ * physical base address of RAM at compile time.
+ */
+#define tophys(rd,rs)				\
+0:	addis	rd,rs,-KERNELBASE@h;		\
+	.section ".vtop_fixup","aw";		\
+	.align  1;				\
+	.long   0b;				\
+	.previous
+
+#define tovirt(rd,rs)				\
+0:	addis	rd,rs,KERNELBASE@h;		\
+	.section ".ptov_fixup","aw";		\
+	.align  1;				\
+	.long   0b;				\
+	.previous
+#endif
+
+/*
+ * On 64-bit cpus, we use the rfid instruction instead of rfi, but
+ * we then have to make sure we preserve the top 32 bits except for
+ * the 64-bit mode bit, which we clear.
+ */
+#if defined(CONFIG_PPC64BRIDGE)
+#define	FIX_SRR1(ra, rb)	\
+	mr	rb,ra;		\
+	mfmsr	ra;		\
+	clrldi	ra,ra,1;		/* turn off 64-bit mode */ \
+	rldimi	ra,rb,0,32
+#define	RFI		.long	0x4c000024	/* rfid instruction */
+#define MTMSRD(r)	.long	(0x7c000164 + ((r) << 21))	/* mtmsrd */
+#define CLR_TOP32(r)	rlwinm	(r),(r),0,0,31	/* clear top 32 bits */
+#elif defined(CONFIG_PPC64)
+/* Insert the high 32 bits of the MSR into what will be the new
+   MSR (via SRR1 and rfid)  This preserves the MSR.SF and MSR.ISF
+   bits. */
+
+#define FIX_SRR1(ra, rb)	\
+	mr	rb,ra;		\
+	mfmsr	ra;		\
+	rldimi	ra,rb,0,32
+
+#define CLR_TOP32(r)	rlwinm	(r),(r),0,0,31	/* clear top 32 bits */
+
+#else
+#define FIX_SRR1(ra, rb)
+#ifndef CONFIG_40x
+#define	RFI		rfi
+#else
+#define RFI		rfi; b .	/* Prevent prefetch past rfi */
+#endif
+#define MTMSRD(r)	mtmsr	r
+#define CLR_TOP32(r)
+#endif
+
+/* The boring bits... */
 
 /* Condition Register Bit Fields */
 
@@ -206,6 +352,8 @@
 #define	fr30	30
 #define	fr31	31
 
+/* AltiVec Registers (VPRs) */
+
 #define	vr0	0
 #define	vr1	1
 #define	vr2	2
@@ -239,4 +387,51 @@
 #define	vr30	30
 #define	vr31	31
 
-#endif /* _PPC64_PPC_ASM_H */
+/* SPE Registers (EVPRs) */
+
+#define	evr0	0
+#define	evr1	1
+#define	evr2	2
+#define	evr3	3
+#define	evr4	4
+#define	evr5	5
+#define	evr6	6
+#define	evr7	7
+#define	evr8	8
+#define	evr9	9
+#define	evr10	10
+#define	evr11	11
+#define	evr12	12
+#define	evr13	13
+#define	evr14	14
+#define	evr15	15
+#define	evr16	16
+#define	evr17	17
+#define	evr18	18
+#define	evr19	19
+#define	evr20	20
+#define	evr21	21
+#define	evr22	22
+#define	evr23	23
+#define	evr24	24
+#define	evr25	25
+#define	evr26	26
+#define	evr27	27
+#define	evr28	28
+#define	evr29	29
+#define	evr30	30
+#define	evr31	31
+
+/* some stab codes */
+#define N_FUN	36
+#define N_RSYM	64
+#define N_SLINE	68
+#define N_SO	100
+
+#define ASM_CONST(x) x
+#else
+  #define __ASM_CONST(x) x##UL
+  #define ASM_CONST(x) __ASM_CONST(x)
+#endif /*  __ASSEMBLY__ */
+
+#endif /* _ASM_POWERPC_PPC_ASM_H */
