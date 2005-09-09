@@ -30,12 +30,6 @@ config MTD_ONENAND_GENERIC
 	  Support for OneNAND flash on generic board. Using device driver
 	  framework, now all most platfrom are support.
 
-config MTD_ONENAND_OMAP
-	tristate "OneNAND Flash device on OMAP board"
-	depends on ARCH_OMAP && MTD_ONENAND
-	help
-	  Support for OneNAND flash on TI OMAP board.
-
 config MTD_ONENAND_SYNC_READ
 	bool "OneNAND Sync. Burst Read Support"
 	depends on ARCH_OMAP
