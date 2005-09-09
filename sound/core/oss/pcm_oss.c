@@ -1740,7 +1740,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 	snd_assert(rpcm_oss_file != NULL, return -EINVAL);
 	*rpcm_oss_file = NULL;
 
-	pcm_oss_file = kcalloc(1, sizeof(*pcm_oss_file), GFP_KERNEL);
+	pcm_oss_file = kzalloc(sizeof(*pcm_oss_file), GFP_KERNEL);
 	if (pcm_oss_file == NULL)
 		return -ENOMEM;
 

@@ -2001,7 +2001,7 @@ static int snd_pcm_open_file(struct file *file,
 	snd_assert(rpcm_file != NULL, return -EINVAL);
 	*rpcm_file = NULL;
 
-	pcm_file = kcalloc(1, sizeof(*pcm_file), GFP_KERNEL);
+	pcm_file = kzalloc(sizeof(*pcm_file), GFP_KERNEL);
 	if (pcm_file == NULL) {
 		return -ENOMEM;
 	}

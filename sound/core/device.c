@@ -49,7 +49,7 @@ int snd_device_new(snd_card_t *card, snd_device_type_t type,
 	snd_assert(card != NULL, return -ENXIO);
 	snd_assert(device_data != NULL, return -ENXIO);
 	snd_assert(ops != NULL, return -ENXIO);
-	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
 		return -ENOMEM;
 	dev->card = card;

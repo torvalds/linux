@@ -72,7 +72,7 @@ snd_card_t *snd_card_new(int idx, const char *xid,
 
 	if (extra_size < 0)
 		extra_size = 0;
-	card = kcalloc(1, sizeof(*card) + extra_size, GFP_KERNEL);
+	card = kzalloc(sizeof(*card) + extra_size, GFP_KERNEL);
 	if (card == NULL)
 		return NULL;
 	if (xid) {
@@ -702,7 +702,7 @@ static int snd_generic_device_register(snd_card_t *card)
 	if (card->generic_dev)
 		return 0; /* already registered */
 
-	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (! dev) {
 		snd_printk(KERN_ERR "can't allocate generic_device\n");
 		return -ENOMEM;
