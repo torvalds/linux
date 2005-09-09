@@ -859,7 +859,9 @@ extern int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var,
 extern int fb_validate_mode(const struct fb_var_screeninfo *var,
 			    struct fb_info *info);
 extern int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var);
-extern void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs);
+extern const unsigned char *fb_firmware_edid(struct device *device);
+extern void fb_edid_to_monspecs(unsigned char *edid,
+				struct fb_monspecs *specs);
 extern void fb_destroy_modedb(struct fb_videomode *modedb);
 
 /* drivers/video/modedb.c */

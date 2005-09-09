@@ -139,6 +139,7 @@ struct sys_desc_table_struct {
 	unsigned char table[0];
 };
 struct edid_info edid_info;
+EXPORT_SYMBOL_GPL(edid_info);
 struct ist_info ist_info;
 #if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
 	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
