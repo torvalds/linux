@@ -358,10 +358,12 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 	}
 
 	/* Can we send? if so add options and add to packet history */
-	if (rc == 0)
+	if (rc == 0) {
+		dp->dccps_hc_tx_insert_options = 1;
 		new_packet->dccphtx_ccval =
 			DCCP_SKB_CB(skb)->dccpd_ccval =
 				hctx->ccid3hctx_last_win_count;
+	}
 out:
 	return rc;
 }
@@ -811,6 +813,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 		hcrx->ccid3hcrx_pinv = ~0;
 	else
 		hcrx->ccid3hcrx_pinv = 1000000 / hcrx->ccid3hcrx_p;
+	dp->dccps_hc_rx_insert_options = 1;
 	dccp_send_ack(sk);
 }
 

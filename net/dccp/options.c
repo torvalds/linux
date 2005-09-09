@@ -505,13 +505,18 @@ void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 		    (dp->dccps_hc_rx_ackpkts->dccpap_buf_ackno !=
 		     DCCP_MAX_SEQNO + 1))
 			dccp_insert_option_ack_vector(sk, skb);
-
 		if (dp->dccps_timestamp_echo != 0)
 			dccp_insert_option_timestamp_echo(sk, skb);
 	}
 
-	ccid_hc_rx_insert_options(dp->dccps_hc_rx_ccid, sk, skb);
-	ccid_hc_tx_insert_options(dp->dccps_hc_tx_ccid, sk, skb);
+	if (dp->dccps_hc_rx_insert_options) {
+		ccid_hc_rx_insert_options(dp->dccps_hc_rx_ccid, sk, skb);
+		dp->dccps_hc_rx_insert_options = 0;
+	}
+	if (dp->dccps_hc_tx_insert_options) {
+		ccid_hc_tx_insert_options(dp->dccps_hc_tx_ccid, sk, skb);
+		dp->dccps_hc_tx_insert_options = 0;
+	}
 
 	/* XXX: insert other options when appropriate */
 
