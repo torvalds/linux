@@ -779,11 +779,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	case TFRC_RSTATE_DATA: {
 		const u32 delta = timeval_delta(&now,
 					&hcrx->ccid3hcrx_tstamp_last_feedback);
-
-		hcrx->ccid3hcrx_x_recv = (hcrx->ccid3hcrx_bytes_recv *
-					  USEC_PER_SEC);
-		if (likely(delta > 1))
-			hcrx->ccid3hcrx_x_recv /= delta;
+		hcrx->ccid3hcrx_x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv,
+						   delta);
 	}
 		break;
 	default:
