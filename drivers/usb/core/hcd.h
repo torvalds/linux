@@ -339,11 +339,11 @@ extern int usb_check_bandwidth (struct usb_device *dev, struct urb *urb);
  * to preallocate bandwidth)
  */
 #define USB2_HOST_DELAY	5	/* nsec, guess */
-#define HS_NSECS(bytes) ( ((55 * 8 * 2083)/1000) \
-	+ ((2083UL * (3167 + BitTime (bytes)))/1000) \
+#define HS_NSECS(bytes) ( ((55 * 8 * 2083) \
+	+ (2083UL * (3 + BitTime(bytes))))/1000 \
 	+ USB2_HOST_DELAY)
-#define HS_NSECS_ISO(bytes) ( ((38 * 8 * 2083)/1000) \
-	+ ((2083UL * (3167 + BitTime (bytes)))/1000) \
+#define HS_NSECS_ISO(bytes) ( ((38 * 8 * 2083) \
+	+ (2083UL * (3 + BitTime(bytes))))/1000 \
 	+ USB2_HOST_DELAY)
 #define HS_USECS(bytes) NS_TO_US (HS_NSECS(bytes))
 #define HS_USECS_ISO(bytes) NS_TO_US (HS_NSECS_ISO(bytes))

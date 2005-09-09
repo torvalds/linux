@@ -426,7 +426,7 @@ static int auerchain_submit_urb (pauerchain_t acp, struct urb * urb)
 
 /* cancel an urb which is submitted to the chain
    the result is 0 if the urb is cancelled, or -EINPROGRESS if
-   URB_ASYNC_UNLINK is set and the function is successfully started.
+   the function is successfully started.
 */
 static int auerchain_unlink_urb (pauerchain_t acp, struct urb * urb)
 {
@@ -515,7 +515,6 @@ static void auerchain_unlink_all (pauerchain_t acp)
         acep = acp->active;
         if (acep) {
                 urbp = acep->urbp;
-                urbp->transfer_flags &= ~URB_ASYNC_UNLINK;
                 dbg ("unlink active urb");
                 usb_kill_urb (urbp);
         }

@@ -79,6 +79,13 @@ UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001,
 		US_SC_8070, US_PR_SCM_ATAPI, init_usbat, 0), 
 #endif
 
+/* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
+UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
+		"VIA Technologies Inc.",
+		"USB 2.0 Card Reader",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Deduced by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
  * Entry needed for flags: US_FL_FIX_INQUIRY because initial inquiry message
  * always fails and confuses drive.
@@ -927,6 +934,18 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 	       "SM",
 	       US_SC_SCSI, US_PR_SDDR55, NULL,
 	       US_FL_SINGLE_LUN ),
+#endif
+
+/* Submitted by: Nick Sillik <n.sillik@temple.edu>
+ * Needed for OneTouch extension to usb-storage
+ *
+ */
+#ifdef CONFIG_USB_STORAGE_ONETOUCH
+	UNUSUAL_DEV(  0x0d49, 0x7010, 0x0000, 0x9999,
+			"Maxtor",
+			"OneTouch External Harddrive",
+			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
+			0),
 #endif
 
 /* Submitted by Joris Struyve <joris@struyve.be> */

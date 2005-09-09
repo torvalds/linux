@@ -309,9 +309,8 @@ int usb_submit_urb(struct urb *urb, unsigned mem_flags)
 	unsigned int	allowed;
 
 	/* enforce simple/standard policy */
-	allowed = URB_ASYNC_UNLINK;	// affects later unlinks
-	allowed |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
-	allowed |= URB_NO_INTERRUPT;
+	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
+			URB_NO_INTERRUPT);
 	switch (temp) {
 	case PIPE_BULK:
 		if (is_out)
@@ -400,14 +399,8 @@ int usb_submit_urb(struct urb *urb, unsigned mem_flags)
  * canceled (rather than any other code) and will quickly be removed
  * from host controller data structures.
  *
- * In the past, clearing the URB_ASYNC_UNLINK transfer flag for the
- * URB indicated that the request was synchronous.  This usage is now
- * deprecated; if the flag is clear the call will be forwarded to
- * usb_kill_urb() and the return value will be 0.  In the future, drivers
- * should call usb_kill_urb() directly for synchronous unlinking.
- *
- * When the URB_ASYNC_UNLINK transfer flag for the URB is set, this
- * request is asynchronous.  Success is indicated by returning -EINPROGRESS,
+ * This request is always asynchronous.
+ * Success is indicated by returning -EINPROGRESS,
  * at which time the URB will normally have been unlinked but not yet
  * given back to the device driver.  When it is called, the completion
  * function will see urb->status == -ECONNRESET.  Failure is indicated
@@ -453,17 +446,6 @@ int usb_unlink_urb(struct urb *urb)
 {
 	if (!urb)
 		return -EINVAL;
-	if (!(urb->transfer_flags & URB_ASYNC_UNLINK)) {
-#ifdef CONFIG_DEBUG_KERNEL
-		if (printk_ratelimit()) {
-			printk(KERN_NOTICE "usb_unlink_urb() is deprecated for "
-				"synchronous unlinks.  Use usb_kill_urb() instead.\n");
-			WARN_ON(1);
-		}
-#endif
-		usb_kill_urb(urb);
-		return 0;
-	}
 	if (!(urb->dev && urb->dev->bus && urb->dev->bus->op))
 		return -ENODEV;
 	return urb->dev->bus->op->unlink_urb(urb, -ECONNRESET);
