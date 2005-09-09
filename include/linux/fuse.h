@@ -74,7 +74,13 @@ enum fuse_opcode {
 	FUSE_RMDIR	   = 11,
 	FUSE_RENAME	   = 12,
 	FUSE_LINK	   = 13,
+	FUSE_OPEN	   = 14,
+	FUSE_READ	   = 15,
+	FUSE_WRITE	   = 16,
 	FUSE_STATFS	   = 17,
+	FUSE_RELEASE       = 18,
+	FUSE_FSYNC         = 20,
+	FUSE_FLUSH         = 25,
 	FUSE_INIT          = 26
 };
 
@@ -132,8 +138,49 @@ struct fuse_setattr_in {
 	struct fuse_attr attr;
 };
 
+struct fuse_open_in {
+	__u32	flags;
+};
+
+struct fuse_open_out {
+	__u64	fh;
+	__u32	open_flags;
+};
+
+struct fuse_release_in {
+	__u64	fh;
+	__u32	flags;
+};
+
+struct fuse_flush_in {
+	__u64	fh;
+	__u32	flush_flags;
+};
+
+struct fuse_read_in {
+	__u64	fh;
+	__u64	offset;
+	__u32	size;
+};
+
+struct fuse_write_in {
+	__u64	fh;
+	__u64	offset;
+	__u32	size;
+	__u32	write_flags;
+};
+
+struct fuse_write_out {
+	__u32	size;
+};
+
 struct fuse_statfs_out {
 	struct fuse_kstatfs st;
+};
+
+struct fuse_fsync_in {
+	__u64	fh;
+	__u32	fsync_flags;
 };
 
 struct fuse_init_in_out {

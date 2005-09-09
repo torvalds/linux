@@ -40,6 +40,15 @@ struct fuse_inode {
 	unsigned long i_time;
 };
 
+/** FUSE specific file data */
+struct fuse_file {
+	/** Request reserved for flush and release */
+	struct fuse_req *release_req;
+
+	/** File handle used by userspace */
+	u64 fh;
+};
+
 /** One input argument of a request */
 struct fuse_in_arg {
 	unsigned size;
@@ -136,6 +145,7 @@ struct fuse_req {
 	/** Data for asynchronous requests */
 	union {
 		struct fuse_forget_in forget_in;
+		struct fuse_release_in release_in;
 		struct fuse_init_in_out init_in_out;
 	} misc;
 
@@ -200,6 +210,12 @@ struct fuse_conn {
 	/** Connection failed (version mismatch) */
 	unsigned conn_error : 1;
 
+	/** Is fsync not implemented by fs? */
+	unsigned no_fsync : 1;
+
+	/** Is flush not implemented by fs? */
+	unsigned no_flush : 1;
+
 	/** Backing dev info */
 	struct backing_dev_info bdi;
 };
@@ -262,6 +278,11 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
  */
 void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 		      unsigned long nodeid, u64 nlookup);
+
+/**
+ * Initialise file operations on a regular file
+ */
+void fuse_init_file_inode(struct inode *inode);
 
 /**
  * Initialise inode operations on regular files and special files

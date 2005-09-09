@@ -731,6 +731,7 @@ static struct inode_operations fuse_dir_inode_operations = {
 };
 
 static struct file_operations fuse_dir_operations = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= fuse_readdir,
 	.open		= fuse_dir_open,

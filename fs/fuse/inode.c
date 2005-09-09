@@ -124,6 +124,7 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 	i_size_write(inode, attr->size);
 	if (S_ISREG(inode->i_mode)) {
 		fuse_init_common(inode);
+		fuse_init_file_inode(inode);
 	} else if (S_ISDIR(inode->i_mode))
 		fuse_init_dir(inode);
 	else if (S_ISLNK(inode->i_mode))
@@ -137,6 +138,7 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 		/* Don't let user create weird files */
 		inode->i_mode = S_IFREG;
 		fuse_init_common(inode);
+		fuse_init_file_inode(inode);
 	}
 }
 
