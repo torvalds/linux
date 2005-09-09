@@ -296,11 +296,6 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	case PROTO_FD:
 		trans_proto = &v9fs_trans_fd;
 		*v9ses->remotename = 0;
-		if((v9ses->wfdno == ~0) || (v9ses->rfdno == ~0)) {
-			printk(KERN_ERR "v9fs: Insufficient options for proto=fd\n");
-			retval = -ENOPROTOOPT;
-			goto SessCleanUp;
-		}
 		break;
 	default:
 		printk(KERN_ERR "v9fs: Bad mount protocol %d\n", v9ses->proto);
