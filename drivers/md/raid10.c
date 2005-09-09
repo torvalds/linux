@@ -538,7 +538,8 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 	}
 
 
-	current_distance = abs(this_sector - conf->mirrors[disk].head_position);
+	current_distance = abs(r10_bio->devs[slot].addr -
+			       conf->mirrors[disk].head_position);
 
 	/* Find the disk whose head is closest */
 
