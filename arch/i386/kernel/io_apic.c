@@ -1634,9 +1634,9 @@ void disable_IO_APIC(void)
 	clear_IO_APIC();
 
 	/*
-	 * If the i82559 is routed through an IOAPIC
+	 * If the i8259 is routed through an IOAPIC
 	 * Put that IOAPIC in virtual wire mode
-	 * so legacy interrups can be delivered.
+	 * so legacy interrupts can be delivered.
 	 */
 	pin = find_isa_irq_pin(0, mp_ExtINT);
 	if (pin != -1) {
