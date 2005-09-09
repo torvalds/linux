@@ -333,7 +333,7 @@ __syscall_start:
 		.long	sys_inotify_init
 		.long	sys_inotify_add_watch
 		.long	sys_inotify_rm_watch
-		.long	sys_mbind
+		.long	sys_mbind_wrapper
 /* 320 */	.long	sys_get_mempolicy
 		.long	sys_set_mempolicy
 __syscall_end:
