@@ -2068,6 +2068,47 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_YUAN_TUN900] = {
+		/* FIXME:
+		 * S-Video and composite sources untested.
+		 * Radio not working.
+		 * Remote control not yet implemented.
+		 * From : codemaster@webgeeks.be */
+		.name           = "Yuan TUN-900 (saa7135)",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr= ADDR_UNSET,
+		.radio_addr= ADDR_UNSET,
+		.gpiomask       = 0x00010003,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x01,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x02,
+		},{
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE2,
+			.gpio = 0x02,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE1,
+			.gpio = 0x00010003,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x01,
+		},
+	},
 };
 
 
