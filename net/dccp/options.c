@@ -72,6 +72,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 	struct dccp_options_received *opt_recv = &dp->dccps_options_received;
 	unsigned char opt, len;
 	unsigned char *value;
+	u32 elapsed_time;
 
 	memset(opt_recv, 0, sizeof(*opt_recv));
 
@@ -159,18 +160,18 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 
-			if (len > 4) {
-				if (len == 6)
-					opt_recv->dccpor_elapsed_time =
-						 ntohs(*(u16 *)(value + 4));
-				else
-					opt_recv->dccpor_elapsed_time =
-						 ntohl(*(u32 *)(value + 4));
 
-				dccp_pr_debug("%sTIMESTAMP_ECHO ELAPSED_TIME=%d\n",
-				      debug_prefix,
-				      opt_recv->dccpor_elapsed_time);
-			}
+			if (len == 4)
+				break;
+
+			if (len == 6)
+				elapsed_time = ntohs(*(u16 *)(value + 4));
+			else
+				elapsed_time = ntohl(*(u32 *)(value + 4));
+
+			/* Give precedence to the biggest ELAPSED_TIME */
+			if (elapsed_time > opt_recv->dccpor_elapsed_time)
+				opt_recv->dccpor_elapsed_time = elapsed_time;
 			break;
 		case DCCPO_ELAPSED_TIME:
 			if (len != 2 && len != 4)
@@ -180,14 +181,15 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				continue;
 
 			if (len == 2)
-				opt_recv->dccpor_elapsed_time =
-							ntohs(*(u16 *)value);
+				elapsed_time = ntohs(*(u16 *)value);
 			else
-				opt_recv->dccpor_elapsed_time =
-							ntohl(*(u32 *)value);
+				elapsed_time = ntohl(*(u32 *)value);
+
+			if (elapsed_time > opt_recv->dccpor_elapsed_time)
+				opt_recv->dccpor_elapsed_time = elapsed_time;
 
 			dccp_pr_debug("%sELAPSED_TIME=%d\n", debug_prefix,
-				      opt_recv->dccpor_elapsed_time);
+				      elapsed_time);
 			break;
 			/*
 			 * From draft-ietf-dccp-spec-11.txt:
