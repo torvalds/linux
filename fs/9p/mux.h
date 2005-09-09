@@ -28,6 +28,7 @@
 struct v9fs_rpcreq {
 	struct v9fs_fcall *tcall;
 	struct v9fs_fcall *rcall;
+	int err;	/* error code if response failed */
 
 	/* XXX - could we put scatter/gather buffers here? */
 

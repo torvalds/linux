@@ -254,7 +254,12 @@ v9fs_unix_init(struct v9fs_session_info *v9ses, const char *dev_name,
 
 static void v9fs_sock_close(struct v9fs_transport *trans)
 {
-	struct v9fs_trans_sock *ts = trans ? trans->priv : NULL;
+	struct v9fs_trans_sock *ts;
+
+	if (!trans)
+		return;
+
+	ts = trans->priv;
 
 	if ((ts) && (ts->s)) {
 		dprintk(DEBUG_TRANS, "closing the socket %p\n", ts->s);
@@ -264,7 +269,10 @@ static void v9fs_sock_close(struct v9fs_transport *trans)
 		dprintk(DEBUG_TRANS, "socket closed\n");
 	}
 
-	kfree(ts);
+	if (ts)
+		kfree(ts);
+
+	trans->priv = NULL;
 }
 
 struct v9fs_transport v9fs_trans_tcp = {

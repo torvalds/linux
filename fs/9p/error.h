@@ -47,6 +47,7 @@ static struct errormap errmap[] = {
 	{"Operation not permitted", EPERM},
 	{"wstat prohibited", EPERM},
 	{"No such file or directory", ENOENT},
+	{"directory entry not found", ENOENT},
 	{"file not found", ENOENT},
 	{"Interrupted system call", EINTR},
 	{"Input/output error", EIO},

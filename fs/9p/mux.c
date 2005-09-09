@@ -162,17 +162,20 @@ static int v9fs_recv(struct v9fs_session_info *v9ses, struct v9fs_rpcreq *req)
 	dprintk(DEBUG_MUX, "waiting for response: %d\n", req->tcall->tag);
 	ret = wait_event_interruptible(v9ses->read_wait,
 		       ((v9ses->transport->status != Connected) ||
-			(req->rcall != 0) || dprintcond(v9ses, req)));
+			(req->rcall != 0) || (req->err < 0) ||
+			dprintcond(v9ses, req)));
 
 	dprintk(DEBUG_MUX, "got it: rcall %p\n", req->rcall);
+
+	spin_lock(&v9ses->muxlock);
+	list_del(&req->next);
+	spin_unlock(&v9ses->muxlock);
+
+	if (req->err < 0)
+		return req->err;
+
 	if (v9ses->transport->status == Disconnected)
 		return -ECONNRESET;
-
-	if (ret == 0) {
-		spin_lock(&v9ses->muxlock);
-		list_del(&req->next);
-		spin_unlock(&v9ses->muxlock);
-	}
 
 	return ret;
 }
@@ -245,6 +248,9 @@ v9fs_mux_rpc(struct v9fs_session_info *v9ses, struct v9fs_fcall *tcall,
 	if (!v9ses)
 		return -EINVAL;
 
+	if (!v9ses->transport || v9ses->transport->status != Connected)
+		return -EIO;
+
 	if (rcall)
 		*rcall = NULL;
 
@@ -257,6 +263,7 @@ v9fs_mux_rpc(struct v9fs_session_info *v9ses, struct v9fs_fcall *tcall,
 	tcall->tag = tid;
 
 	req.tcall = tcall;
+	req.err = 0;
 	req.rcall = NULL;
 
 	ret = v9fs_send(v9ses, &req);
@@ -371,16 +378,21 @@ static int v9fs_recvproc(void *data)
 		}
 
 		err = read_message(v9ses, rcall, v9ses->maxdata + V9FS_IOHDRSZ);
-		if (err < 0) {
-			kfree(rcall);
-			break;
-		}
 		spin_lock(&v9ses->muxlock);
-		list_for_each_entry_safe(rreq, rptr, &v9ses->mux_fcalls, next) {
-			if (rreq->tcall->tag == rcall->tag) {
-				req = rreq;
-				req->rcall = rcall;
-				break;
+		if (err < 0) {
+			list_for_each_entry_safe(rreq, rptr, &v9ses->mux_fcalls, next) {
+				rreq->err = err;
+			}
+			if(err != -ERESTARTSYS)
+				eprintk(KERN_ERR,
+					"Transport error while reading message %d\n", err);
+		} else {
+			list_for_each_entry_safe(rreq, rptr, &v9ses->mux_fcalls, next) {
+				if (rreq->tcall->tag == rcall->tag) {
+					req = rreq;
+					req->rcall = rcall;
+					break;
+				}
 			}
 		}
 
@@ -399,9 +411,10 @@ static int v9fs_recvproc(void *data)
 		spin_unlock(&v9ses->muxlock);
 
 		if (!req) {
-			dprintk(DEBUG_ERROR,
-				"unexpected response: id %d tag %d\n",
-				rcall->id, rcall->tag);
+			if (err >= 0)
+				dprintk(DEBUG_ERROR,
+					"unexpected response: id %d tag %d\n",
+					rcall->id, rcall->tag);
 
 			kfree(rcall);
 		}
@@ -409,6 +422,8 @@ static int v9fs_recvproc(void *data)
 		wake_up_all(&v9ses->read_wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
+
+	v9ses->transport->close(v9ses->transport);
 
 	/* Inform all pending processes about the failure */
 	wake_up_all(&v9ses->read_wait);
