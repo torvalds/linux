@@ -1328,7 +1328,7 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 		char buf[16];
 
 		memset(buf, 0, 16);
-		snprintf(buf, 15, "%dx%d", par->fpWidth, par->fpHeight);
+		snprintf(buf, 15, "%dx%dMR", par->fpWidth, par->fpHeight);
 		fb_find_mode(&nvidiafb_default_var, info, buf, specs->modedb,
 			     specs->modedb_len, &modedb, 8);
 	}
