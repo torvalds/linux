@@ -13,6 +13,13 @@ always  := $(offsets-file)
 targets := $(offsets-file)
 targets += arch/$(ARCH)/kernel/asm-offsets.s
 
+# Default sed regexp - multiline due to syntax constraints
+define sed-y
+	"/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}"
+endef
+# Override default regexp for specific architectures
+sed-$(CONFIG_MIPS) := "/^@@@/s///p"
+
 quiet_cmd_offsets = GEN     $@
 define cmd_offsets
 	cat $< | \
@@ -26,7 +33,7 @@ define cmd_offsets
 	 echo " *"; \
 	 echo " */"; \
 	 echo ""; \
-	 sed -ne "/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}"; \
+	 sed -ne $(sed-y); \
 	 echo ""; \
 	 echo "#endif" ) > $@
 endef
