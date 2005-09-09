@@ -123,6 +123,7 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_read(READ_12),
 		safe_for_read(READ_16),
 		safe_for_read(READ_BUFFER),
+		safe_for_read(READ_DEFECT_DATA),
 		safe_for_read(READ_LONG),
 		safe_for_read(INQUIRY),
 		safe_for_read(MODE_SENSE),
