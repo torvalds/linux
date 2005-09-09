@@ -61,7 +61,6 @@
 #define	DST_TYPE_HAS_ANALOG	64	/*	Analog inputs	*/
 #define DST_TYPE_HAS_SESSION	128
 
-
 #define RDC_8820_PIO_0_DISABLE	0
 #define RDC_8820_PIO_0_ENABLE	1
 #define RDC_8820_INT		2
@@ -124,14 +123,11 @@ struct dst_types {
 	u32 dst_feature;
 };
 
-
-
 struct dst_config
 {
 	/* the ASIC i2c address */
 	u8 demod_address;
 };
-
 
 int rdc_reset_state(struct dst_state *state);
 int rdc_8820_reset(struct dst_state *state);
