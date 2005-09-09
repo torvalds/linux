@@ -315,8 +315,11 @@ static inline struct pci_bus *pci_scan_bus(int bus, struct pci_ops *ops, void *s
 		pci_bus_add_devices(root_bus);
 	return root_bus;
 }
+struct pci_bus *pci_create_bus(struct device *parent, int bus, struct pci_ops *ops, void *sysdata);
+struct pci_bus * pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr);
 int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev * pci_scan_single_device(struct pci_bus *bus, int devfn);
+void pci_device_add(struct pci_dev *dev, struct pci_bus *bus);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
 void pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
@@ -377,32 +380,32 @@ static inline int pci_write_config_dword(struct pci_dev *dev, int where, u32 val
 	return pci_bus_write_config_dword (dev->bus, dev->devfn, where, val);
 }
 
-int pci_enable_device(struct pci_dev *dev);
-int pci_enable_device_bars(struct pci_dev *dev, int mask);
+int __must_check pci_enable_device(struct pci_dev *dev);
+int __must_check pci_enable_device_bars(struct pci_dev *dev, int mask);
 void pci_disable_device(struct pci_dev *dev);
 void pci_set_master(struct pci_dev *dev);
 #define HAVE_PCI_SET_MWI
-int pci_set_mwi(struct pci_dev *dev);
+int __must_check pci_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);
 void pci_intx(struct pci_dev *dev, int enable);
-int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
-int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
+int __must_check pci_set_dma_mask(struct pci_dev *dev, u64 mask);
+int __must_check pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int pci_assign_resource(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
 
 /* ROM control related routines */
-void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size);
-void __iomem *pci_map_rom_copy(struct pci_dev *pdev, size_t *size);
+void __iomem __must_check *pci_map_rom(struct pci_dev *pdev, size_t *size);
+void __iomem __must_check *pci_map_rom_copy(struct pci_dev *pdev, size_t *size);
 void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom);
 void pci_remove_rom(struct pci_dev *pdev);
 
 /* Power management related routines */
 int pci_save_state(struct pci_dev *dev);
 int pci_restore_state(struct pci_dev *dev);
-int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
-pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
-int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
+int __must_check pci_set_power_state(struct pci_dev *dev, pci_power_t state);
+pci_power_t __must_check pci_choose_state(struct pci_dev *dev, pm_message_t state);
+int __must_check pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
 
 /* Helper functions for low-level code (drivers/pci/setup-[bus,res].c) */
 void pci_bus_assign_resources(struct pci_bus *bus);
