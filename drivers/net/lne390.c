@@ -298,7 +298,7 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 	return 0;
 unmap:
 	if (ei_status.reg0)
-		iounmap((void *)dev->mem_start);
+		iounmap(ei_status.mem);
 cleanup:
 	free_irq(dev->irq, dev);
 	return ret;
