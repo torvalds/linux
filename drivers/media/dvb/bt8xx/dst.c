@@ -359,6 +359,7 @@ static int dst_set_freq(struct dst_state *state, u32 freq)
 		state->tx_tuna[3] = (freq >> 8) & 0xff;
 		state->tx_tuna[4] = (u8) freq;
 	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
+		freq = freq / 1000;
 		state->tx_tuna[2] = (freq >> 16) & 0xff;
 		state->tx_tuna[3] = (freq >> 8) & 0xff;
 		state->tx_tuna[4] = (u8) freq;
