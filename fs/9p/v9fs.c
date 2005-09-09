@@ -409,6 +409,15 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 	putname(v9ses->remotename);
 }
 
+/**
+ * v9fs_session_cancel - mark transport as disconnected
+ * 	and cancel all pending requests.
+ */
+void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
+	v9ses->transport->status = Disconnected;
+	v9fs_mux_cancel_requests(v9ses, -EIO);
+}
+
 extern int v9fs_error_init(void);
 
 /**

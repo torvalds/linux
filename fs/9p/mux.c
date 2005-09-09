@@ -324,6 +324,26 @@ v9fs_mux_rpc(struct v9fs_session_info *v9ses, struct v9fs_fcall *tcall,
 }
 
 /**
+ * v9fs_mux_cancel_requests - cancels all pending requests
+ *
+ * @v9ses: session info structure
+ * @err: error code to return to the requests
+ */
+void v9fs_mux_cancel_requests(struct v9fs_session_info *v9ses, int err)
+{
+	struct v9fs_rpcreq *rptr;
+	struct v9fs_rpcreq *rreq;
+
+	dprintk(DEBUG_MUX, " %d\n", err);
+	spin_lock(&v9ses->muxlock);
+	list_for_each_entry_safe(rreq, rptr, &v9ses->mux_fcalls, next) {
+		rreq->err = err;
+	}
+	spin_unlock(&v9ses->muxlock);
+	wake_up_all(&v9ses->read_wait);
+}
+
+/**
  * v9fs_recvproc - kproc to handle demultiplexing responses
  * @data: session info structure
  *

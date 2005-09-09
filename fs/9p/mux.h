@@ -37,3 +37,4 @@ struct v9fs_rpcreq {
 int v9fs_mux_init(struct v9fs_session_info *v9ses, const char *dev_name);
 long v9fs_mux_rpc(struct v9fs_session_info *v9ses,
 		  struct v9fs_fcall *tcall, struct v9fs_fcall **rcall);
+void v9fs_mux_cancel_requests(struct v9fs_session_info *v9ses, int err);

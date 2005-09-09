@@ -257,10 +257,19 @@ static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
+static void
+v9fs_umount_begin(struct super_block *sb)
+{
+	struct v9fs_session_info *v9ses = sb->s_fs_info;
+
+	v9fs_session_cancel(v9ses);
+}
+
 static struct super_operations v9fs_super_ops = {
 	.statfs = simple_statfs,
 	.clear_inode = v9fs_clear_inode,
 	.show_options = v9fs_show_options,
+	.umount_begin = v9fs_umount_begin,
 };
 
 struct file_system_type v9fs_fs_type = {

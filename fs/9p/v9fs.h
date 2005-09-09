@@ -89,9 +89,7 @@ struct v9fs_session_info *v9fs_inode2v9ses(struct inode *);
 void v9fs_session_close(struct v9fs_session_info *v9ses);
 int v9fs_get_idpool(struct v9fs_idpool *p);
 void v9fs_put_idpool(int id, struct v9fs_idpool *p);
-int v9fs_get_option(char *opts, char *name, char *buf, int buflen);
-long long v9fs_get_int_option(char *opts, char *name, long long dflt);
-int v9fs_parse_tcp_devname(const char *devname, char **addr, char **remotename);
+void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 
 #define V9FS_MAGIC 0x01021997
 
