@@ -329,8 +329,9 @@ static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev 
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_ERR "radeonfb (%s): Invalid ROM signature %x should be"
-		       "0xaa55\n", pci_name(rinfo->pdev), BIOS_IN16(0));
+		printk(KERN_DEBUG "radeonfb (%s): Invalid ROM signature %x "
+			"should be 0xaa55\n",
+			pci_name(rinfo->pdev), BIOS_IN16(0));
 		goto failed;
 	}
 	/* Look for the PCI data to check the ROM type */

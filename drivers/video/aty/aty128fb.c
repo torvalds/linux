@@ -806,8 +806,8 @@ static void __iomem * __init aty128_map_ROM(const struct aty128fb_par *par, stru
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_ERR "aty128fb: Invalid ROM signature %x should be 0xaa55\n",
-		       BIOS_IN16(0));
+		printk(KERN_DEBUG "aty128fb: Invalid ROM signature %x should "
+			" be 0xaa55\n", BIOS_IN16(0));
 		goto failed;
 	}
 
