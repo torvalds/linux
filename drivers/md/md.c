@@ -670,6 +670,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (mddev->level != LEVEL_MULTIPATH) {
 		rdev->faulty = 0;
+		rdev->flags = 0;
 		desc = sb->disks + rdev->desc_nr;
 
 		if (desc->state & (1<<MD_DISK_FAULTY))
@@ -679,6 +680,8 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			rdev->in_sync = 1;
 			rdev->raid_disk = desc->raid_disk;
 		}
+		if (desc->state & (1<<MD_DISK_WRITEMOSTLY))
+			set_bit(WriteMostly, &rdev->flags);
 	} else /* MULTIPATH are always insync */
 		rdev->in_sync = 1;
 	return 0;
@@ -777,6 +780,8 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 			spare++;
 			working++;
 		}
+		if (test_bit(WriteMostly, &rdev2->flags))
+			d->state |= (1<<MD_DISK_WRITEMOSTLY);
 	}
 	
 	/* now set the "removed" and "faulty" bits on any missing devices */
@@ -990,6 +995,9 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			rdev->raid_disk = role;
 			break;
 		}
+		rdev->flags = 0;
+		if (sb->devflags & WriteMostly1)
+			set_bit(WriteMostly, &rdev->flags);
 	} else /* MULTIPATH are always insync */
 		rdev->in_sync = 1;
 
@@ -2152,6 +2160,8 @@ static int get_disk_info(mddev_t * mddev, void __user * arg)
 			info.state |= (1<<MD_DISK_ACTIVE);
 			info.state |= (1<<MD_DISK_SYNC);
 		}
+		if (test_bit(WriteMostly, &rdev->flags))
+			info.state |= (1<<MD_DISK_WRITEMOSTLY);
 	} else {
 		info.major = info.minor = 0;
 		info.raid_disk = -1;
@@ -2237,6 +2247,9 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		rdev->saved_raid_disk = rdev->raid_disk;
 
 		rdev->in_sync = 0; /* just to be sure */
+		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
+			set_bit(WriteMostly, &rdev->flags);
+
 		rdev->raid_disk = -1;
 		err = bind_rdev_to_array(rdev, mddev);
 		if (err)
@@ -2276,6 +2289,9 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			rdev->in_sync = (info->state & (1<<MD_DISK_SYNC));
 		else
 			rdev->in_sync = 0;
+
+		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
+			set_bit(WriteMostly, &rdev->flags);
 
 		err = bind_rdev_to_array(rdev, mddev);
 		if (err) {
@@ -3329,6 +3345,8 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			char b[BDEVNAME_SIZE];
 			seq_printf(seq, " %s[%d]",
 				bdevname(rdev->bdev,b), rdev->desc_nr);
+			if (test_bit(WriteMostly, &rdev->flags))
+				seq_printf(seq, "(W)");
 			if (rdev->faulty) {
 				seq_printf(seq, "(F)");
 				continue;

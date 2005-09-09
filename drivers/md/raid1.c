@@ -360,13 +360,14 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 {
 	const unsigned long this_sector = r1_bio->sector;
 	int new_disk = conf->last_used, disk = new_disk;
+	int wonly_disk = -1;
 	const int sectors = r1_bio->sectors;
 	sector_t new_distance, current_distance;
-	mdk_rdev_t *new_rdev, *rdev;
+	mdk_rdev_t *rdev;
 
 	rcu_read_lock();
 	/*
-	 * Check if it if we can balance. We can balance on the whole
+	 * Check if we can balance. We can balance on the whole
 	 * device if no resync is going on, or below the resync window.
 	 * We take the first readable disk when above the resync window.
 	 */
@@ -376,11 +377,16 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 		/* Choose the first operation device, for consistancy */
 		new_disk = 0;
 
-		while ((new_rdev=conf->mirrors[new_disk].rdev) == NULL ||
-		       !new_rdev->in_sync) {
-			new_disk++;
-			if (new_disk == conf->raid_disks) {
-				new_disk = -1;
+		for (rdev = conf->mirrors[new_disk].rdev;
+		     !rdev || !rdev->in_sync
+			     || test_bit(WriteMostly, &rdev->flags);
+		     rdev = conf->mirrors[++new_disk].rdev) {
+
+			if (rdev && rdev->in_sync)
+				wonly_disk = new_disk;
+
+			if (new_disk == conf->raid_disks - 1) {
+				new_disk = wonly_disk;
 				break;
 			}
 		}
@@ -389,16 +395,26 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 
 
 	/* make sure the disk is operational */
-	while ((new_rdev=conf->mirrors[new_disk].rdev) == NULL ||
-	       !new_rdev->in_sync) {
+	for (rdev = conf->mirrors[new_disk].rdev;
+	     !rdev || !rdev->in_sync ||
+		     test_bit(WriteMostly, &rdev->flags);
+	     rdev = conf->mirrors[new_disk].rdev) {
+
+		if (rdev && rdev->in_sync)
+			wonly_disk = new_disk;
+
 		if (new_disk <= 0)
 			new_disk = conf->raid_disks;
 		new_disk--;
 		if (new_disk == disk) {
-			new_disk = -1;
-			goto rb_out;
+			new_disk = wonly_disk;
+			break;
 		}
 	}
+
+	if (new_disk < 0)
+		goto rb_out;
+
 	disk = new_disk;
 	/* now disk == new_disk == starting point for search */
 
@@ -419,37 +435,41 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 			disk = conf->raid_disks;
 		disk--;
 
-		if ((rdev=conf->mirrors[disk].rdev) == NULL ||
-		    !rdev->in_sync)
+		rdev = conf->mirrors[disk].rdev;
+
+		if (!rdev ||
+		    !rdev->in_sync ||
+		    test_bit(WriteMostly, &rdev->flags))
 			continue;
 
 		if (!atomic_read(&rdev->nr_pending)) {
 			new_disk = disk;
-			new_rdev = rdev;
 			break;
 		}
 		new_distance = abs(this_sector - conf->mirrors[disk].head_position);
 		if (new_distance < current_distance) {
 			current_distance = new_distance;
 			new_disk = disk;
-			new_rdev = rdev;
 		}
 	} while (disk != conf->last_used);
 
-rb_out:
+ rb_out:
 
 
 	if (new_disk >= 0) {
-		conf->next_seq_sect = this_sector + sectors;
-		conf->last_used = new_disk;
-		atomic_inc(&new_rdev->nr_pending);
-		if (!new_rdev->in_sync) {
+		rdev = conf->mirrors[new_disk].rdev;
+		if (!rdev)
+			goto retry;
+		atomic_inc(&rdev->nr_pending);
+		if (!rdev->in_sync) {
 			/* cannot risk returning a device that failed
 			 * before we inc'ed nr_pending
 			 */
-			atomic_dec(&new_rdev->nr_pending);
+			atomic_dec(&rdev->nr_pending);
 			goto retry;
 		}
+		conf->next_seq_sect = this_sector + sectors;
+		conf->last_used = new_disk;
 	}
 	rcu_read_unlock();
 
@@ -1109,6 +1129,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	sector_t max_sector, nr_sectors;
 	int disk;
 	int i;
+	int wonly;
 	int write_targets = 0;
 	int sync_blocks;
 	int still_degraded = 0;
@@ -1164,14 +1185,21 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	 */
 	disk = conf->last_used;
 	/* make sure disk is operational */
-
+	wonly = disk;
 	while (conf->mirrors[disk].rdev == NULL ||
-	       !conf->mirrors[disk].rdev->in_sync) {
+	       !conf->mirrors[disk].rdev->in_sync ||
+	       test_bit(WriteMostly, &conf->mirrors[disk].rdev->flags)
+		) {
+		if (conf->mirrors[disk].rdev  &&
+		    conf->mirrors[disk].rdev->in_sync)
+			wonly = disk;
 		if (disk <= 0)
 			disk = conf->raid_disks;
 		disk--;
-		if (disk == conf->last_used)
+		if (disk == conf->last_used) {
+			disk = wonly;
 			break;
+		}
 	}
 	conf->last_used = disk;
 	atomic_inc(&conf->mirrors[disk].rdev->nr_pending);

@@ -181,6 +181,9 @@ struct mdk_rdev_s
 	int faulty;			/* if faulty do not issue IO requests */
 	int in_sync;			/* device is a full member of the array */
 
+	unsigned long	flags;		/* Should include faulty and in_sync here. */
+#define	WriteMostly	4		/* Avoid reading if at all possible */
+
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
 	int saved_raid_disk;		/* role that device used to have in the
