@@ -177,9 +177,6 @@ static void init_av7110_av(struct av7110 *av7110)
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
 	if (ret < 0)
 		printk("dvb-ttpci:cannot set volume :%d\n",ret);
-	ret = av7110_setup_irc_config(av7110, 0);
-	if (ret < 0)
-		printk("dvb-ttpci:cannot setup irc config :%d\n",ret);
 }
 
 static void recover_arm(struct av7110 *av7110)
@@ -264,60 +261,6 @@ static int arm_thread(void *data)
 	return 0;
 }
 
-
-/**
- *  Hack! we save the last av7110 ptr. This should be ok, since
- *  you rarely will use more then one IR control.
- *
- *  If we want to support multiple controls we would have to do much more...
- */
-int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
-{
-	int ret = 0;
-	static struct av7110 *last;
-
-	dprintk(4, "%p\n", av7110);
-
-	if (!av7110)
-		av7110 = last;
-	else
-		last = av7110;
-
-	if (av7110) {
-		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
-		av7110->ir_config = ir_config;
-	}
-	return ret;
-}
-
-static void (*irc_handler)(u32);
-
-void av7110_register_irc_handler(void (*func)(u32))
-{
-	dprintk(4, "registering %p\n", func);
-	irc_handler = func;
-}
-
-void av7110_unregister_irc_handler(void (*func)(u32))
-{
-	dprintk(4, "unregistering %p\n", func);
-	irc_handler = NULL;
-}
-
-static void run_handlers(unsigned long ircom)
-{
-	if (irc_handler != NULL)
-		(*irc_handler)((u32) ircom);
-}
-
-static DECLARE_TASKLET(irtask, run_handlers, 0);
-
-static void IR_handle(struct av7110 *av7110, u32 ircom)
-{
-	dprintk(4, "ircommand = %08x\n", ircom);
-	irtask.data = (unsigned long) ircom;
-	tasklet_schedule(&irtask);
-}
 
 /****************************************************************************
  * IRQ handling
@@ -711,8 +654,9 @@ static void gpioirq(unsigned long data)
 		return;
 
 	case DATA_IRCOMMAND:
-		IR_handle(av7110,
-			  swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
+		if (av7110->ir_handler)
+			av7110->ir_handler(av7110,
+				swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
 		iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 		break;
 
@@ -2783,7 +2727,7 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 		goto err_av7110_exit_v4l_12;
 
 #if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
-	av7110_ir_init();
+	av7110_ir_init(av7110);
 #endif
 	printk(KERN_INFO "dvb-ttpci: found av7110-%d.\n", av7110_num);
 	av7110_num++;
@@ -2825,6 +2769,9 @@ static int av7110_detach(struct saa7146_dev* saa)
 	struct av7110 *av7110 = saa->ext_priv;
 	dprintk(4, "%p\n", av7110);
 
+#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+	av7110_ir_exit(av7110);
+#endif
 	if (budgetpatch) {
 		/* Disable RPS1 */
 		saa7146_write(saa, MC1, MASK_29);
@@ -2980,9 +2927,6 @@ static int __init av7110_init(void)
 
 static void __exit av7110_exit(void)
 {
-#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
-	av7110_ir_exit();
-#endif
 	saa7146_unregister_extension(&av7110_extension);
 }
 
