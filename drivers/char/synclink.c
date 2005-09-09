@@ -1,7 +1,7 @@
 /*
  * linux/drivers/char/synclink.c
  *
- * $Id: synclink.c,v 4.28 2004/08/11 19:30:01 paulkf Exp $
+ * $Id: synclink.c,v 4.37 2005/09/07 13:13:19 paulkf Exp $
  *
  * Device driver for Microgate SyncLink ISA and PCI
  * high speed multiprotocol serial adapters.
@@ -141,9 +141,9 @@ static MGSL_PARAMS default_params = {
 typedef struct _DMABUFFERENTRY
 {
 	u32 phys_addr;	/* 32-bit flat physical address of data buffer */
-	u16 count;	/* buffer size/data count */
-	u16 status;	/* Control/status field */
-	u16 rcc;	/* character count field */
+	volatile u16 count;	/* buffer size/data count */
+	volatile u16 status;	/* Control/status field */
+	volatile u16 rcc;	/* character count field */
 	u16 reserved;	/* padding required by 16C32 */
 	u32 link;	/* 32-bit flat link to next buffer entry */
 	char *virt_addr;	/* virtual address of data buffer */
@@ -896,7 +896,7 @@ module_param_array(txdmabufs, int, NULL, 0);
 module_param_array(txholdbufs, int, NULL, 0);
 
 static char *driver_name = "SyncLink serial driver";
-static char *driver_version = "$Revision: 4.28 $";
+static char *driver_version = "$Revision: 4.37 $";
 
 static int synclink_init_one (struct pci_dev *dev,
 				     const struct pci_device_id *ent);
