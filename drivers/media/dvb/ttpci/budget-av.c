@@ -192,7 +192,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 {
 	struct budget_av *budget_av = (struct budget_av *) ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
-	int timeout = 50; // 5 seconds (4.4.6 Ready)
+	int timeout = 500; // 5 seconds (4.4.6 Ready)
 
 	if (slot != 0)
 		return -EINVAL;
@@ -217,7 +217,6 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	{
 		printk(KERN_ERR "budget-av: cam reset failed (timeout).\n");
 		saa7146_setgpio(saa, 2, SAA7146_GPIO_OUTHI); /* disable card */
-		saa7146_setgpio(saa, 0, SAA7146_GPIO_OUTHI); /* Vcc off */
 		return -ETIMEDOUT;
 	}
 
@@ -276,7 +275,6 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		{
 			printk(KERN_INFO "budget-av: cam ejected\n");
 			saa7146_setgpio(saa, 2, SAA7146_GPIO_OUTHI); /* disable card */
-			saa7146_setgpio(saa, 0, SAA7146_GPIO_OUTHI); /* Vcc off */
 			budget_av->slot_status = 0;
 		}
 	}
