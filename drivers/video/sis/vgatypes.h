@@ -3,7 +3,7 @@
 /*
  * General type definitions for universal mode switching modules
  *
- * Copyright (C) 2001-2004 by Thomas Winischhofer, Vienna, Austria
+ * Copyright (C) 2001-2005 by Thomas Winischhofer, Vienna, Austria
  *
  * If distributed as part of the Linux kernel, the following license terms
  * apply:
@@ -50,11 +50,10 @@
  *
  */
 
-#ifndef _VGATYPES_
-#define _VGATYPES_
+#ifndef _VGATYPES_H_
+#define _VGATYPES_H_
 
-#ifdef LINUX_KERNEL  /* We don't want the X driver to depend on kernel source */
-#include <linux/ioctl.h>
+#ifdef SIS_LINUX_KERNEL
 #include <linux/version.h>
 #endif
 
@@ -66,41 +65,13 @@
 #define TRUE    1
 #endif
 
-#ifndef NULL
-#define NULL    0
-#endif
-
-#ifndef CHAR
-typedef char CHAR;
-#endif
-
-#ifndef SHORT
-typedef short SHORT;
-#endif
-
-#ifndef LONG
-typedef long  LONG;
-#endif
-
-#ifndef UCHAR
-typedef unsigned char UCHAR;
-#endif
-
-#ifndef USHORT
-typedef unsigned short USHORT;
-#endif
-
-#ifndef ULONG
-typedef unsigned long ULONG;
-#endif
-
 #ifndef BOOLEAN
-typedef unsigned char BOOLEAN;
+typedef unsigned int BOOLEAN;
 #endif
 
 #define SISIOMEMTYPE
 
-#ifdef LINUX_KERNEL
+#ifdef SIS_LINUX_KERNEL
 typedef unsigned long SISIOADDRESS;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
 #include <linux/types.h>  /* Need __iomem */
@@ -109,7 +80,7 @@ typedef unsigned long SISIOADDRESS;
 #endif
 #endif
 
-#ifdef LINUX_XF86
+#ifdef SIS_XORG_XF86
 #if XF86_VERSION_CURRENT < XF86_VERSION_NUMERIC(4,2,0,0,0)
 typedef unsigned long IOADDRESS;
 typedef unsigned long SISIOADDRESS;
@@ -118,7 +89,7 @@ typedef IOADDRESS SISIOADDRESS;
 #endif
 #endif
 
-enum _SIS_CHIP_TYPE {
+typedef enum _SIS_CHIP_TYPE {
     SIS_VGALegacy = 0,
     SIS_530,
     SIS_OLD,
@@ -128,115 +99,27 @@ enum _SIS_CHIP_TYPE {
     SIS_540,
     SIS_315H,   /* SiS 310 */
     SIS_315,
-    SIS_315PRO,
+    SIS_315PRO, /* SiS 325 */
     SIS_550,
     SIS_650,
     SIS_740,
     SIS_330,
     SIS_661,
     SIS_741,
-    SIS_660,
+    SIS_670,
+    SIS_660 = 35,
     SIS_760,
     SIS_761,
-    SIS_340,
+    SIS_762,
+    SIS_770,
+    SIS_340 = 55,
+    SIS_341,
+    SIS_342,
+    XGI_20  = 75,
+    XGI_40,
     MAX_SIS_CHIP
-};
+} SIS_CHIP_TYPE;
 
-#ifndef SIS_HW_INFO
-typedef struct _SIS_HW_INFO  SIS_HW_INFO, *PSIS_HW_INFO;
-
-struct _SIS_HW_INFO
-{
-#ifdef LINUX_XF86
-    PCITAG PciTag;		 /* PCI Tag */
-#endif
-
-    UCHAR *pjVirtualRomBase;	 /* ROM image */
-
-    BOOLEAN UseROM;		 /* Use the ROM image if provided */
-
-#ifdef LINUX_KERNEL
-    UCHAR SISIOMEMTYPE *pjVideoMemoryAddress;
-    				 /* base virtual memory address */
-                                 /* of Linear VGA memory */
-
-    ULONG  ulVideoMemorySize;    /* size, in bytes, of the memory on the board */
-#endif
-
-    SISIOADDRESS ulIOAddress;    /* base I/O address of VGA ports (0x3B0; relocated) */
-
-    UCHAR  jChipType;            /* Used to Identify SiS Graphics Chip */
-                                 /* defined in the enum "SIS_CHIP_TYPE" (above or sisfb.h) */
-
-    UCHAR  jChipRevision;        /* Used to Identify SiS Graphics Chip Revision */
-
-    BOOLEAN bIntegratedMMEnabled;/* supporting integration MM enable */
-};
-#endif
-
-/* Addtional IOCTLs for communication sisfb <> X driver        */
-/* If changing this, sisfb.h must also be changed (for sisfb) */
-
-#ifdef LINUX_XF86  /* We don't want the X driver to depend on the kernel source */
-
-/* ioctl for identifying and giving some info (esp. memory heap start) */
-#define SISFB_GET_INFO_SIZE	0x8004f300
-#define SISFB_GET_INFO		0x8000f301  /* Must be patched with result from ..._SIZE at D[29:16] */
-/* deprecated ioctl number (for older versions of sisfb) */
-#define SISFB_GET_INFO_OLD    	0x80046ef8
-
-/* ioctls for tv parameters (position) */
-#define SISFB_SET_TVPOSOFFSET   0x4004f304
-
-/* lock sisfb from register access */
-#define SISFB_SET_LOCK		0x4004f306
-
-/* Structure argument for SISFB_GET_INFO ioctl  */
-typedef struct _SISFB_INFO sisfb_info, *psisfb_info;
-
-struct _SISFB_INFO {
-	CARD32 	sisfb_id;         	/* for identifying sisfb */
-#ifndef SISFB_ID
-#define SISFB_ID	  0x53495346    /* Identify myself with 'SISF' */
-#endif
- 	CARD32 	chip_id;		/* PCI ID of detected chip */
-	CARD32	memory;			/* video memory in KB which sisfb manages */
-	CARD32	heapstart;             	/* heap start (= sisfb "mem" argument) in KB */
-	CARD8 	fbvidmode;		/* current sisfb mode */
-
-	CARD8 	sisfb_version;
-	CARD8	sisfb_revision;
-	CARD8 	sisfb_patchlevel;
-
-	CARD8 	sisfb_caps;		/* sisfb's capabilities */
-
-	CARD32 	sisfb_tqlen;		/* turbo queue length (in KB) */
-
-	CARD32 	sisfb_pcibus;      	/* The card's PCI ID */
-	CARD32 	sisfb_pcislot;
-	CARD32 	sisfb_pcifunc;
-
-	CARD8 	sisfb_lcdpdc;
-
-	CARD8	sisfb_lcda;
-
-	CARD32	sisfb_vbflags;
-	CARD32	sisfb_currentvbflags;
-
-	CARD32 	sisfb_scalelcd;
-	CARD32 	sisfb_specialtiming;
-
-	CARD8 	sisfb_haveemi;
-	CARD8 	sisfb_emi30,sisfb_emi31,sisfb_emi32,sisfb_emi33;
-	CARD8 	sisfb_haveemilcd;
-
-	CARD8 	sisfb_lcdpdca;
-
-	CARD16  sisfb_tvxpos, sisfb_tvypos;  	/* Warning: Values + 32 ! */
-
-	CARD8 reserved[208]; 			/* for future use */
-};
-#endif
 
 #endif
 

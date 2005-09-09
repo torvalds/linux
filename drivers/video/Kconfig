@@ -1079,15 +1079,16 @@ config FB_SAVAGE_ACCEL
           choose N here.
 
 config FB_SIS
-	tristate "SiS acceleration"
+	tristate "SiS/XGI display support"
 	depends on FB && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_SOFT_CURSOR
 	help
-	  This is the frame buffer device driver for the SiS 300, 315 and
-	  330 series VGA chipsets. Specs available at <http://www.sis.com>
+	  This is the frame buffer device driver for the SiS 300, 315, 330
+	  and 340 series as well as XGI V3XT, V5, V8, Z7 graphics chipsets.
+	  Specs available at <http://www.sis.com> and <http://www.xgitech.com>.
 
 	  To compile this driver as a module, choose M here; the module
 	  will be called sisfb.
@@ -1099,11 +1100,12 @@ config FB_SIS_300
 	  Say Y here to support use of the SiS 300/305, 540, 630 and 730.
 
 config FB_SIS_315
-	bool "SiS 315/330 series support"
+	bool "SiS 315/330/340 series and XGI support"
 	depends on FB_SIS
 	help
-	  Say Y here to support use of the SiS 315 and 330 series
-	  (315/H/PRO, 55x, 650, 651, 740, 330, 661, 741, 760).
+	  Say Y here to support use of the SiS 315, 330 and 340 series
+	  (315/H/PRO, 55x, 650, 651, 740, 330, 661, 741, 760, 761) as well
+	  as XGI V3XT, V5, V8 and Z7.
 
 config FB_NEOMAGIC
 	tristate "NeoMagic display support"
