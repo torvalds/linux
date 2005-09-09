@@ -1503,16 +1503,13 @@ void bitmap_flush(mddev_t *mddev)
 /*
  * free memory that was allocated
  */
-void bitmap_destroy(mddev_t *mddev)
+static void bitmap_free(struct bitmap *bitmap)
 {
 	unsigned long k, pages;
 	struct bitmap_page *bp;
-	struct bitmap *bitmap = mddev->bitmap;
 
 	if (!bitmap) /* there was no bitmap */
 		return;
-
-	mddev->bitmap = NULL; /* disconnect from the md device */
 
 	/* release the bitmap file and kill the daemon */
 	bitmap_file_put(bitmap);
@@ -1530,6 +1527,17 @@ void bitmap_destroy(mddev_t *mddev)
 				kfree(bp[k].map);
 	kfree(bp);
 	kfree(bitmap);
+}
+void bitmap_destroy(mddev_t *mddev)
+{
+	struct bitmap *bitmap = mddev->bitmap;
+
+	if (!bitmap) /* there was no bitmap */
+		return;
+
+	mddev->bitmap = NULL; /* disconnect from the md device */
+
+	bitmap_free(bitmap);
 }
 
 /*
@@ -1561,15 +1569,15 @@ int bitmap_create(mddev_t *mddev)
 
 	spin_lock_init(&bitmap->lock);
 	bitmap->mddev = mddev;
-	mddev->bitmap = bitmap;
 
 	spin_lock_init(&bitmap->write_lock);
 	INIT_LIST_HEAD(&bitmap->complete_pages);
 	init_waitqueue_head(&bitmap->write_wait);
 	bitmap->write_pool = mempool_create(WRITE_POOL_SIZE, write_pool_alloc,
 				write_pool_free, NULL);
+	err = -ENOMEM;
 	if (!bitmap->write_pool)
-		return -ENOMEM;
+		goto error;
 
 	bitmap->file = file;
 	bitmap->offset = mddev->bitmap_offset;
@@ -1577,7 +1585,7 @@ int bitmap_create(mddev_t *mddev)
 	/* read superblock from bitmap file (this sets bitmap->chunksize) */
 	err = bitmap_read_sb(bitmap);
 	if (err)
-		return err;
+		goto error;
 
 	bitmap->chunkshift = find_first_bit(&bitmap->chunksize,
 					sizeof(bitmap->chunksize));
@@ -1601,8 +1609,9 @@ int bitmap_create(mddev_t *mddev)
 #else
 	bitmap->bp = kmalloc(pages * sizeof(*bitmap->bp), GFP_KERNEL);
 #endif
+	err = -ENOMEM;
 	if (!bitmap->bp)
-		return -ENOMEM;
+		goto error;
 	memset(bitmap->bp, 0, pages * sizeof(*bitmap->bp));
 
 	bitmap->flags |= BITMAP_ACTIVE;
@@ -1617,16 +1626,22 @@ int bitmap_create(mddev_t *mddev)
 	err = bitmap_init_from_disk(bitmap, start);
 
 	if (err)
-		return err;
+		goto error;
 
 	printk(KERN_INFO "created bitmap (%lu pages) for device %s\n",
 		pages, bmname(bitmap));
+
+	mddev->bitmap = bitmap;
 
 	/* kick off the bitmap daemons */
 	err = bitmap_start_daemons(bitmap);
 	if (err)
 		return err;
 	return bitmap_update_sb(bitmap);
+
+ error:
+	bitmap_free(bitmap);
+	return err;
 }
 
 /* the bitmap API -- for raid personalities */
