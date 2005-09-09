@@ -4479,11 +4479,13 @@ void async_mode(SLMP_INFO *info)
 	/* MD2, Mode Register 2
 	 *
 	 * 07..02  Reserved, must be 0
-	 * 01..00  CNCT<1..0> Channel connection, 0=normal
+	 * 01..00  CNCT<1..0> Channel connection, 00=normal 11=local loopback
 	 *
 	 * 0000 0000
 	 */
 	RegValue = 0x00;
+	if (info->params.loopback)
+		RegValue |= (BIT1 + BIT0);
 	write_reg(info, MD2, RegValue);
 
 	/* RXS, Receive clock source
@@ -4564,9 +4566,6 @@ void async_mode(SLMP_INFO *info)
 	write_reg(info, IE2, info->ie2_value);
 
 	set_rate( info, info->params.data_rate * 16 );
-
-	if (info->params.loopback)
-		enable_loopback(info,1);
 }
 
 /* Program the SCA for HDLC communications.
