@@ -245,7 +245,6 @@ struct dmx_frontend {
 struct dmx_demux {
         u32 capabilities;            /* Bitfield of capability flags */
         struct dmx_frontend* frontend;    /* Front-end connected to the demux */
-        struct list_head reg_list;   /* List of registered demuxes */
         void* priv;                  /* Pointer to private data of the API client */
         int users;                   /* Number of users */
         int (*open) (struct dmx_demux* demux);
@@ -290,17 +289,5 @@ struct dmx_demux {
         int (*get_stc) (struct dmx_demux* demux, unsigned int num,
 			u64 *stc, unsigned int *base);
 };
-
-/*--------------------------------------------------------------------------*/
-/* Demux directory */
-/*--------------------------------------------------------------------------*/
-
-/*
- * DMX_DIR_ENTRY(): Casts elements in the list of registered
- * demuxes from the generic type struct list_head* to the type struct dmx_demux
- *.
- */
-
-#define DMX_DIR_ENTRY(list) list_entry(list, struct dmx_demux, reg_list)
 
 #endif /* #ifndef __DEMUX_H */

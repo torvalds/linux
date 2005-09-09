@@ -39,33 +39,6 @@
 // #define DVB_DEMUX_SECTION_LOSS_LOG
 
 
-static LIST_HEAD(dmx_muxs);
-
-
-static int dmx_register_demux(struct dmx_demux *demux)
-{
-	demux->users = 0;
-	list_add(&demux->reg_list, &dmx_muxs);
-	return 0;
-}
-
-static int dmx_unregister_demux(struct dmx_demux* demux)
-{
-	struct list_head *pos, *n, *head=&dmx_muxs;
-
-	list_for_each_safe (pos, n, head) {
-		if (DMX_DIR_ENTRY(pos) == demux) {
-			if (demux->users>0)
-				return -EINVAL;
-			list_del(pos);
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-
-
 /******************************************************************************
  * static inlined helper functions
  ******************************************************************************/
@@ -1207,7 +1180,7 @@ static int dvbdmx_get_pes_pids(struct dmx_demux *demux, u16 *pids)
 
 int dvb_dmx_init(struct dvb_demux *dvbdemux)
 {
-	int i, err;
+	int i;
 	struct dmx_demux *dmx = &dvbdemux->dmx;
 
 	dvbdemux->users = 0;
@@ -1250,7 +1223,6 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 		 dvbdemux->memcopy = dvb_dmx_memcopy;
 
 	dmx->frontend = NULL;
-	dmx->reg_list.prev = dmx->reg_list.next = &dmx->reg_list;
 	dmx->priv = (void *) dvbdemux;
 	dmx->open = dvbdmx_open;
 	dmx->close = dvbdmx_close;
@@ -1273,21 +1245,14 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 	sema_init(&dvbdemux->mutex, 1);
 	spin_lock_init(&dvbdemux->lock);
 
-	if ((err = dmx_register_demux(dmx)) < 0)
-		return err;
-
 	return 0;
 }
 EXPORT_SYMBOL(dvb_dmx_init);
 
 
-int dvb_dmx_release(struct dvb_demux *dvbdemux)
+void dvb_dmx_release(struct dvb_demux *dvbdemux)
 {
-	struct dmx_demux *dmx = &dvbdemux->dmx;
-
-	dmx_unregister_demux(dmx);
 	vfree(dvbdemux->filter);
 	vfree(dvbdemux->feed);
-	return 0;
 }
 EXPORT_SYMBOL(dvb_dmx_release);
