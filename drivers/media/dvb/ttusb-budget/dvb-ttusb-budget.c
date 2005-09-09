@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/errno.h>
+#include <linux/jiffies.h>
 #include <asm/semaphore.h>
 
 #include "dvb_frontend.h"
@@ -570,7 +571,8 @@ static void ttusb_handle_sec_data(struct ttusb_channel *channel,
 				  const u8 * data, int len);
 #endif
 
-static int numpkt = 0, lastj, numts, numstuff, numsec, numinvalid;
+static int numpkt = 0, numts, numstuff, numsec, numinvalid;
+static unsigned long lastj;
 
 static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,
 			   int len)
@@ -779,7 +781,7 @@ static void ttusb_iso_irq(struct urb *urb, struct pt_regs *ptregs)
 			u8 *data;
 			int len;
 			numpkt++;
-			if ((jiffies - lastj) >= HZ) {
+			if (time_after_eq(jiffies, lastj + HZ)) {
 #if DEBUG > 2
 				printk
 				    ("frames/s: %d (ts: %d, stuff %d, sec: %d, invalid: %d, all: %d)\n",
