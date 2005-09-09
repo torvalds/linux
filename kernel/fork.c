@@ -1116,6 +1116,9 @@ static task_t *copy_process(unsigned long clone_flags,
 			__get_cpu_var(process_counts)++;
 	}
 
+	if (!current->signal->tty && p->signal->tty)
+		p->signal->tty = NULL;
+
 	nr_threads++;
 	total_forks++;
 	write_unlock_irq(&tasklist_lock);
