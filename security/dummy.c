@@ -270,12 +270,6 @@ static int dummy_inode_create (struct inode *inode, struct dentry *dentry,
 	return 0;
 }
 
-static void dummy_inode_post_create (struct inode *inode, struct dentry *dentry,
-				     int mask)
-{
-	return;
-}
-
 static int dummy_inode_link (struct dentry *old_dentry, struct inode *inode,
 			     struct dentry *new_dentry)
 {
@@ -300,22 +294,10 @@ static int dummy_inode_symlink (struct inode *inode, struct dentry *dentry,
 	return 0;
 }
 
-static void dummy_inode_post_symlink (struct inode *inode,
-				      struct dentry *dentry, const char *name)
-{
-	return;
-}
-
 static int dummy_inode_mkdir (struct inode *inode, struct dentry *dentry,
 			      int mask)
 {
 	return 0;
-}
-
-static void dummy_inode_post_mkdir (struct inode *inode, struct dentry *dentry,
-				    int mask)
-{
-	return;
 }
 
 static int dummy_inode_rmdir (struct inode *inode, struct dentry *dentry)
@@ -327,12 +309,6 @@ static int dummy_inode_mknod (struct inode *inode, struct dentry *dentry,
 			      int mode, dev_t dev)
 {
 	return 0;
-}
-
-static void dummy_inode_post_mknod (struct inode *inode, struct dentry *dentry,
-				    int mode, dev_t dev)
-{
-	return;
 }
 
 static int dummy_inode_rename (struct inode *old_inode,
@@ -894,17 +870,13 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, inode_free_security);
 	set_to_dummy_if_null(ops, inode_init_security);
 	set_to_dummy_if_null(ops, inode_create);
-	set_to_dummy_if_null(ops, inode_post_create);
 	set_to_dummy_if_null(ops, inode_link);
 	set_to_dummy_if_null(ops, inode_post_link);
 	set_to_dummy_if_null(ops, inode_unlink);
 	set_to_dummy_if_null(ops, inode_symlink);
-	set_to_dummy_if_null(ops, inode_post_symlink);
 	set_to_dummy_if_null(ops, inode_mkdir);
-	set_to_dummy_if_null(ops, inode_post_mkdir);
 	set_to_dummy_if_null(ops, inode_rmdir);
 	set_to_dummy_if_null(ops, inode_mknod);
-	set_to_dummy_if_null(ops, inode_post_mknod);
 	set_to_dummy_if_null(ops, inode_rename);
 	set_to_dummy_if_null(ops, inode_post_rename);
 	set_to_dummy_if_null(ops, inode_readlink);

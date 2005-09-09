@@ -46,7 +46,6 @@ struct inode_security_struct {
 	unsigned char initialized;     /* initialization flag */
 	struct semaphore sem;
 	unsigned char inherit;         /* inherit SID from parent entry */
-	unsigned char security_attr_init; /* security attributes init flag */
 };
 
 struct file_security_struct {
