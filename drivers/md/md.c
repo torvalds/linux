@@ -2226,8 +2226,11 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			       mdname(mddev));
 			return -EINVAL;
 		}
-		rdev = md_import_device(dev, mddev->major_version,
-					mddev->minor_version);
+		if (mddev->persistent)
+			rdev = md_import_device(dev, mddev->major_version,
+						mddev->minor_version);
+		else
+			rdev = md_import_device(dev, -1, -1);
 		if (IS_ERR(rdev)) {
 			printk(KERN_WARNING 
 				"md: md_import_device returned %ld\n",
