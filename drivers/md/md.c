@@ -393,7 +393,7 @@ int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 	return ret;
 }
 
-static int read_disk_sb(mdk_rdev_t * rdev)
+static int read_disk_sb(mdk_rdev_t * rdev, int size)
 {
 	char b[BDEVNAME_SIZE];
 	if (!rdev->sb_page) {
@@ -404,7 +404,7 @@ static int read_disk_sb(mdk_rdev_t * rdev)
 		return 0;
 
 
-	if (!sync_page_io(rdev->bdev, rdev->sb_offset<<1, MD_SB_BYTES, rdev->sb_page, READ))
+	if (!sync_page_io(rdev->bdev, rdev->sb_offset<<1, size, rdev->sb_page, READ))
 		goto fail;
 	rdev->sb_loaded = 1;
 	return 0;
@@ -531,7 +531,7 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	sb_offset = calc_dev_sboffset(rdev->bdev);
 	rdev->sb_offset = sb_offset;
 
-	ret = read_disk_sb(rdev);
+	ret = read_disk_sb(rdev, MD_SB_BYTES);
 	if (ret) return ret;
 
 	ret = -EINVAL;
@@ -564,6 +564,7 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 
 	rdev->preferred_minor = sb->md_minor;
 	rdev->data_offset = 0;
+	rdev->sb_size = MD_SB_BYTES;
 
 	if (sb->level == LEVEL_MULTIPATH)
 		rdev->desc_nr = -1;
@@ -837,6 +838,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	int ret;
 	sector_t sb_offset;
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
+	int bmask;
 
 	/*
 	 * Calculate the position of the superblock.
@@ -865,7 +867,10 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	}
 	rdev->sb_offset = sb_offset;
 
-	ret = read_disk_sb(rdev);
+	/* superblock is rarely larger than 1K, but it can be larger,
+	 * and it is safe to read 4k, so we do that
+	 */
+	ret = read_disk_sb(rdev, 4096);
 	if (ret) return ret;
 
 
@@ -890,6 +895,11 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	}
 	rdev->preferred_minor = 0xffff;
 	rdev->data_offset = le64_to_cpu(sb->data_offset);
+
+	rdev->sb_size = le32_to_cpu(sb->max_dev) * 2 + 256;
+	bmask = block_size(rdev->bdev)-1;
+	if (rdev->sb_size & bmask)
+		rdev-> sb_size = (rdev->sb_size | bmask)+1;
 
 	if (refdev == 0)
 		return 1;
@@ -1375,7 +1385,7 @@ repeat:
 		dprintk("%s ", bdevname(rdev->bdev,b));
 		if (!rdev->faulty) {
 			md_super_write(mddev,rdev,
-				       rdev->sb_offset<<1, MD_SB_BYTES,
+				       rdev->sb_offset<<1, rdev->sb_size,
 				       rdev->sb_page);
 			dprintk(KERN_INFO "(write) %s's sb offset: %llu\n",
 				bdevname(rdev->bdev,b),

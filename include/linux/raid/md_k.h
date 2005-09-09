@@ -102,6 +102,7 @@ struct mdk_rdev_s
 	int		sb_loaded;
 	sector_t	data_offset;	/* start of data in array */
 	sector_t	sb_offset;
+	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 
 	/* A device can be in one of three states based on two flags:
