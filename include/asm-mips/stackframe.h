@@ -15,7 +15,7 @@
 
 #include <asm/asm.h>
 #include <asm/mipsregs.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 
 		.macro	SAVE_AT
 		.set	push

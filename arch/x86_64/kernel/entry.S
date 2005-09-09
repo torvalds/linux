@@ -36,7 +36,7 @@
 #include <asm/errno.h>
 #include <asm/dwarf2.h>
 #include <asm/calling.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/msr.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>

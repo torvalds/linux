@@ -14,7 +14,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/tlbflush.h>
 #include "proc-macros.S"
 

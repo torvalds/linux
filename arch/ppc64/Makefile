@@ -117,13 +117,6 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)rm -rf include3
 
-prepare: include/asm-ppc64/offsets.h
-
-arch/ppc64/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-ppc64/offsets.h: arch/ppc64/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
 
 # Temporary hack until we have migrated to asm-powerpc
 include/asm: include3/asm
@@ -139,5 +132,3 @@ define archhelp
   echo  '  zImage              - zImage for pSeries machines'
   echo  '  zImage.initrd       - zImage with initrd for pSeries machines'
 endef
-
-CLEAN_FILES += include/asm-ppc64/offsets.h

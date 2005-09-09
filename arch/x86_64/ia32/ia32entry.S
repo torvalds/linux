@@ -6,7 +6,7 @@
 
 #include <asm/dwarf2.h>
 #include <asm/calling.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/current.h>
 #include <asm/errno.h>
 #include <asm/ia32_unistd.h>	

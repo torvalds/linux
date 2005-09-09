@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 
 	.text

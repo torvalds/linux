@@ -1,6 +1,6 @@
 #include <asm/asmmacro.h>
 #include <asm/ia32.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/signal.h>
 #include <asm/thread_info.h>
 
