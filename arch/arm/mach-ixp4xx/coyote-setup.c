@@ -66,7 +66,7 @@ static struct plat_serial8250_port coyote_uart_data[] = {
 
 static struct platform_device coyote_uart = {
 	.name		= "serial8250",
-	.id		= 0,
+	.id		= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= coyote_uart_data,
 	},

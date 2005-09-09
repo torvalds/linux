@@ -439,6 +439,18 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.24:
+	- Support journals ($LogFile) which have been modified by chkdsk.  This
+	  means users can boot into Windows after we marked the volume dirty.
+	  The Windows boot will run chkdsk and then reboot.  The user can then
+	  immediately boot into Linux rather than having to do a full Windows
+	  boot first before rebooting into Linux and we will recognize such a
+	  journal and empty it as it is clean by definition.
+	- Support journals ($LogFile) with only one restart page as well as
+	  journals with two different restart pages.  We sanity check both and
+	  either use the only sane one or the more recent one of the two in the
+	  case that both are valid.
+	- Lots of bug fixes and enhancements across the board.
 2.1.23:
 	- Stamp the user space journal, aka transaction log, aka $UsnJrnl, if
 	  it is present and active thus telling Windows and applications using

@@ -538,8 +538,10 @@ static int pl2303_open (struct usb_serial_port *port, struct file *filp)
 
 	dbg("%s -  port %d", __FUNCTION__, port->number);
 
-	usb_clear_halt(serial->dev, port->write_urb->pipe);
-	usb_clear_halt(serial->dev, port->read_urb->pipe);
+	if (priv->type != HX) {
+		usb_clear_halt(serial->dev, port->write_urb->pipe);
+		usb_clear_halt(serial->dev, port->read_urb->pipe);
+	}
 
 	buf = kmalloc(10, GFP_KERNEL);
 	if (buf==NULL)

@@ -447,10 +447,8 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0) {
-		dst_release(dst);
+	if (err < 0)
 		return;
-	}
 
 	if (inc_opt) {
 		if (dev->addr_len)
@@ -539,10 +537,8 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0) {
-		dst_release(dst);
+	if (err < 0)
 		return;
-	}
 
 	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
 	send_llinfo = dev->addr_len && !ipv6_addr_any(saddr);
@@ -616,10 +612,8 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0) {
-		dst_release(dst);
+	if (err < 0)
 		return;
-	}
 
 	len = sizeof(struct icmp6hdr);
 	if (dev->addr_len)
@@ -1353,10 +1347,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err) {
-		dst_release(dst);
+	if (err)
 		return;
-	}
 
 	rt = (struct rt6_info *) dst;
 

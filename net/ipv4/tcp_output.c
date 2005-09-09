@@ -499,7 +499,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	/* If this packet has been sent out already, we must
 	 * adjust the various packet counters.
 	 */
-	if (after(tp->snd_nxt, TCP_SKB_CB(buff)->end_seq)) {
+	if (!before(tp->snd_nxt, TCP_SKB_CB(buff)->end_seq)) {
 		int diff = old_factor - tcp_skb_pcount(skb) -
 			tcp_skb_pcount(buff);
 

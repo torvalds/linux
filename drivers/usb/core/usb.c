@@ -65,6 +65,16 @@ static int generic_probe (struct device *dev)
 }
 static int generic_remove (struct device *dev)
 {
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* if this is only an unbind, not a physical disconnect, then
+	 * unconfigure the device */
+	if (udev->state == USB_STATE_CONFIGURED)
+		usb_set_configuration(udev, 0);
+
+	/* in case the call failed or the device was suspended */
+	if (udev->state >= USB_STATE_CONFIGURED)
+		usb_disable_device(udev, 0);
 	return 0;
 }
 
@@ -912,7 +922,7 @@ int usb_trylock_device(struct usb_device *udev)
  * is neither BINDING nor BOUND.  Rather than sleeping to wait for the
  * lock, the routine polls repeatedly.  This is to prevent deadlock with
  * disconnect; in some drivers (such as usb-storage) the disconnect()
- * callback will block waiting for a device reset to complete.
+ * or suspend() method will block waiting for a device reset to complete.
  *
  * Returns a negative error code for failure, otherwise 1 or 0 to indicate
  * that the device will or will not have to be unlocked.  (0 can be
@@ -922,6 +932,8 @@ int usb_trylock_device(struct usb_device *udev)
 int usb_lock_device_for_reset(struct usb_device *udev,
 		struct usb_interface *iface)
 {
+	unsigned long jiffies_expire = jiffies + HZ;
+
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
 	if (udev->state == USB_STATE_SUSPENDED)
@@ -938,6 +950,12 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 	}
 
 	while (!usb_trylock_device(udev)) {
+
+		/* If we can't acquire the lock after waiting one second,
+		 * we're probably deadlocked */
+		if (time_after(jiffies, jiffies_expire))
+			return -EBUSY;
+
 		msleep(15);
 		if (udev->state == USB_STATE_NOTATTACHED)
 			return -ENODEV;
@@ -1478,13 +1496,18 @@ static int __init usb_init(void)
 	retval = usb_major_init();
 	if (retval)
 		goto major_init_failed;
+	retval = usb_register(&usbfs_driver);
+	if (retval)
+		goto driver_register_failed;
+	retval = usbdev_init();
+	if (retval)
+		goto usbdevice_init_failed;
 	retval = usbfs_init();
 	if (retval)
 		goto fs_init_failed;
 	retval = usb_hub_init();
 	if (retval)
 		goto hub_init_failed;
-
 	retval = driver_register(&usb_generic_driver);
 	if (!retval)
 		goto out;
@@ -1493,7 +1516,11 @@ static int __init usb_init(void)
 hub_init_failed:
 	usbfs_cleanup();
 fs_init_failed:
-	usb_major_cleanup();	
+	usbdev_cleanup();
+usbdevice_init_failed:
+	usb_deregister(&usbfs_driver);
+driver_register_failed:
+	usb_major_cleanup();
 major_init_failed:
 	usb_host_cleanup();
 host_init_failed:
@@ -1514,6 +1541,8 @@ static void __exit usb_exit(void)
 	driver_unregister(&usb_generic_driver);
 	usb_major_cleanup();
 	usbfs_cleanup();
+	usb_deregister(&usbfs_driver);
+	usbdev_cleanup();
 	usb_hub_cleanup();
 	usb_host_cleanup();
 	bus_unregister(&usb_bus_type);

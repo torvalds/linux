@@ -554,7 +554,7 @@ static unsigned char sabre_pil_table[] = {
 /*0x32*/15,		/* Power Management		*/
 };
 
-static int __init sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
+static int sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 {
 	int ret;
 
@@ -612,9 +612,9 @@ static void sabre_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_a
 	sabre_read(sync_reg);
 }
 
-static unsigned int __init sabre_irq_build(struct pci_pbm_info *pbm,
-					   struct pci_dev *pdev,
-					   unsigned int ino)
+static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
+				    struct pci_dev *pdev,
+				    unsigned int ino)
 {
 	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
@@ -1009,7 +1009,7 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id, struct pt_regs *regs
 #define SABRE_UE_INO		0x2e
 #define SABRE_CE_INO		0x2f
 #define SABRE_PCIERR_INO	0x30
-static void __init sabre_register_error_handlers(struct pci_controller_info *p)
+static void sabre_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
 	unsigned long base = pbm->controller_regs;
@@ -1056,9 +1056,9 @@ static void __init sabre_register_error_handlers(struct pci_controller_info *p)
 	sabre_write(base + SABRE_PCICTRL, tmp);
 }
 
-static void __init sabre_resource_adjust(struct pci_dev *pdev,
-					 struct resource *res,
-					 struct resource *root)
+static void sabre_resource_adjust(struct pci_dev *pdev,
+				  struct resource *res,
+				  struct resource *root)
 {
 	struct pci_pbm_info *pbm = pdev->bus->sysdata;
 	unsigned long base;
@@ -1072,7 +1072,7 @@ static void __init sabre_resource_adjust(struct pci_dev *pdev,
 	res->end += base;
 }
 
-static void __init sabre_base_address_update(struct pci_dev *pdev, int resource)
+static void sabre_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
 	struct pci_pbm_info *pbm = pcp->pbm;
@@ -1118,7 +1118,7 @@ static void __init sabre_base_address_update(struct pci_dev *pdev, int resource)
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-static void __init apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
+static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 {
 	struct pci_dev *pdev;
 
@@ -1181,7 +1181,7 @@ static struct pcidev_cookie *alloc_bridge_cookie(struct pci_pbm_info *pbm)
 	return cookie;
 }
 
-static void __init sabre_scan_bus(struct pci_controller_info *p)
+static void sabre_scan_bus(struct pci_controller_info *p)
 {
 	static int once;
 	struct pci_bus *sabre_bus, *pbus;
@@ -1262,9 +1262,9 @@ static void __init sabre_scan_bus(struct pci_controller_info *p)
 	sabre_register_error_handlers(p);
 }
 
-static void __init sabre_iommu_init(struct pci_controller_info *p,
-				    int tsbsize, unsigned long dvma_offset,
-				    u32 dma_mask)
+static void sabre_iommu_init(struct pci_controller_info *p,
+			     int tsbsize, unsigned long dvma_offset,
+			     u32 dma_mask)
 {
 	struct pci_iommu *iommu = p->pbm_A.iommu;
 	unsigned long tsbbase, i, order;
@@ -1345,8 +1345,8 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 	}
 }
 
-static void __init pbm_register_toplevel_resources(struct pci_controller_info *p,
-						   struct pci_pbm_info *pbm)
+static void pbm_register_toplevel_resources(struct pci_controller_info *p,
+					    struct pci_pbm_info *pbm)
 {
 	char *name = pbm->name;
 	unsigned long ibase = p->pbm_A.controller_regs + SABRE_IOSPACE;
@@ -1415,7 +1415,7 @@ static void __init pbm_register_toplevel_resources(struct pci_controller_info *p
 					    &pbm->mem_space);
 }
 
-static void __init sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dma_begin)
+static void sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dma_begin)
 {
 	struct pci_pbm_info *pbm;
 	char namebuf[128];
@@ -1552,7 +1552,7 @@ static void __init sabre_pbm_init(struct pci_controller_info *p, int sabre_node,
 	}
 }
 
-void __init sabre_init(int pnode, char *model_name)
+void sabre_init(int pnode, char *model_name)
 {
 	struct linux_prom64_registers pr_regs[2];
 	struct pci_controller_info *p;

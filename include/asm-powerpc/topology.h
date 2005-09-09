@@ -1,10 +1,11 @@
-#ifndef _ASM_PPC64_TOPOLOGY_H
-#define _ASM_PPC64_TOPOLOGY_H
+#ifndef _ASM_POWERPC_TOPOLOGY_H
+#define _ASM_POWERPC_TOPOLOGY_H
 
 #include <linux/config.h>
-#include <asm/mmzone.h>
 
 #ifdef CONFIG_NUMA
+
+#include <asm/mmzone.h>
 
 static inline int cpu_to_node(int cpu)
 {
@@ -66,4 +67,4 @@ static inline int node_to_first_cpu(int node)
 
 #endif /* CONFIG_NUMA */
 
-#endif /* _ASM_PPC64_TOPOLOGY_H */
+#endif	/* _ASM_POWERPC_TOPOLOGY_H */

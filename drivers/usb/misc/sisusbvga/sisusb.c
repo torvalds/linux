@@ -229,7 +229,7 @@ sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index, unsigned int pipe,
 	usb_fill_bulk_urb(urb, sisusb->sisusb_dev, pipe, data, len,
 		sisusb_bulk_completeout, &sisusb->urbout_context[index]);
 
-	urb->transfer_flags |= (tflags | URB_ASYNC_UNLINK);
+	urb->transfer_flags |= tflags;
 	urb->actual_length = 0;
 
 	if ((urb->transfer_dma = transfer_dma))
@@ -295,7 +295,7 @@ sisusb_bulkin_msg(struct sisusb_usb_data *sisusb, unsigned int pipe, void *data,
 	usb_fill_bulk_urb(urb, sisusb->sisusb_dev, pipe, data, len,
 			sisusb_bulk_completein, sisusb);
 
-	urb->transfer_flags |= (tflags | URB_ASYNC_UNLINK);
+	urb->transfer_flags |= tflags;
 	urb->actual_length = 0;
 
 	if ((urb->transfer_dma = transfer_dma))

@@ -627,7 +627,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 
 	ret = kobject_register(&policy->kobj);
 	if (ret)
-		goto err_out;
+		goto err_out_driver_exit;
 
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
@@ -672,6 +672,10 @@ err_out_unregister:
 
 	kobject_unregister(&policy->kobj);
 	wait_for_completion(&policy->kobj_unregister);
+
+err_out_driver_exit:
+	if (cpufreq_driver->exit)
+		cpufreq_driver->exit(policy);
 
 err_out:
 	kfree(policy);

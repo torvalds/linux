@@ -474,7 +474,7 @@ static int show_dev_config(struct seq_file *m, void *v)
 	struct pci_dev *first_dev;
 	struct pci_driver *drv;
 	u32 class_rev;
-	unsigned char latency, min_gnt, max_lat, *class;
+	unsigned char latency, min_gnt, max_lat;
 	int reg;
 
 	first_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -490,16 +490,8 @@ static int show_dev_config(struct seq_file *m, void *v)
 	pci_read_config_byte (dev, PCI_MAX_LAT, &max_lat);
 	seq_printf(m, "  Bus %2d, device %3d, function %2d:\n",
 	       dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-	class = pci_class_name(class_rev >> 16);
-	if (class)
-		seq_printf(m, "    %s", class);
-	else
-		seq_printf(m, "    Class %04x", class_rev >> 16);
-#ifdef CONFIG_PCI_NAMES
-	seq_printf(m, ": %s", dev->pretty_name);
-#else
+	seq_printf(m, "    Class %04x", class_rev >> 16);
 	seq_printf(m, ": PCI device %04x:%04x", dev->vendor, dev->device);
-#endif
 	seq_printf(m, " (rev %d).\n", class_rev & 0xff);
 
 	if (dev->irq)

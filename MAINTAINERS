@@ -116,6 +116,12 @@ M:	ajk@iehk.rwth-aachen.de
 L:	linux-hams@vger.kernel.org
 S:	Maintained
 
+YEALINK PHONE DRIVER
+P:	Henk Vergonet
+M:	Henk.Vergonet@gmail.com
+L:	usbb2k-api-dev@nongnu.org
+S:	Maintained
+
 8139CP 10/100 FAST ETHERNET DRIVER
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
@@ -1811,13 +1817,6 @@ PERSONALITY HANDLING
 P:	Christoph Hellwig
 M:	hch@infradead.org
 L:	linux-abi-devel@lists.sourceforge.net
-S:	Maintained
-
-PCI ID DATABASE
-P:	Martin Mares
-M:	mj@ucw.cz
-L:	pciids-devel@lists.sourceforge.net
-W:	http://pciids.sourceforge.net/
 S:	Maintained
 
 PCI SOUND DRIVERS (ES1370, ES1371 and SONICVIBES)

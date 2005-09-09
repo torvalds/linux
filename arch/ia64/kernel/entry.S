@@ -204,9 +204,6 @@ GLOBAL_ENTRY(ia64_switch_to)
 (p6)	br.cond.dpnt .map
 	;;
 .done:
-(p6)	ssm psr.ic			// if we had to map, reenable the psr.ic bit FIRST!!!
-	;;
-(p6)	srlz.d
 	ld8 sp=[r21]			// load kernel stack pointer of new task
 	mov IA64_KR(CURRENT)=in0	// update "current" application register
 	mov r8=r13			// return pointer to previously running task
@@ -234,6 +231,9 @@ GLOBAL_ENTRY(ia64_switch_to)
 	mov IA64_KR(CURRENT_STACK)=r26	// remember last page we mapped...
 	;;
 	itr.d dtr[r25]=r23		// wire in new mapping...
+	ssm psr.ic			// reenable the psr.ic bit
+	;;
+	srlz.d
 	br.cond.sptk .done
 END(ia64_switch_to)
 

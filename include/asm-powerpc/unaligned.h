@@ -1,6 +1,7 @@
+#ifndef _ASM_POWERPC_UNALIGNED_H
+#define _ASM_POWERPC_UNALIGNED_H
+
 #ifdef __KERNEL__
-#ifndef __PPC_UNALIGNED_H
-#define __PPC_UNALIGNED_H
 
 /*
  * The PowerPC can do unaligned accesses itself in big endian mode.
@@ -14,5 +15,5 @@
 
 #define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
 
-#endif
-#endif /* __KERNEL__ */
+#endif	/* __KERNEL__ */
+#endif	/* _ASM_POWERPC_UNALIGNED_H */

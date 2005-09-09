@@ -250,8 +250,7 @@ config ACPI_CUSTOM_DSDT_FILE
 	  Enter the full path name to the file wich includes the AmlCode declaration.
 
 config ACPI_BLACKLIST_YEAR
-	int "Disable ACPI for systems before Jan 1st this year"
-	depends on X86
+	int "Disable ACPI for systems before Jan 1st this year" if X86
 	default 0
 	help
 	  enter a 4-digit year, eg. 2001 to disable ACPI by default

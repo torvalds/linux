@@ -1,5 +1,5 @@
-#ifndef _PPC_STRING_H_
-#define _PPC_STRING_H_
+#ifndef _ASM_POWERPC_STRING_H
+#define _ASM_POWERPC_STRING_H
 
 #ifdef __KERNEL__
 
@@ -29,4 +29,4 @@ extern void * memchr(const void *,int,__kernel_size_t);
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif	/* _ASM_POWERPC_STRING_H */

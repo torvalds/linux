@@ -1079,13 +1079,17 @@ static void mmc_setup(struct mmc_host *host)
 /**
  *	mmc_detect_change - process change of state on a MMC socket
  *	@host: host which changed state.
+ *	@delay: optional delay to wait before detection (jiffies)
  *
  *	All we know is that card(s) have been inserted or removed
  *	from the socket(s).  We don't know which socket or cards.
  */
-void mmc_detect_change(struct mmc_host *host)
+void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
-	schedule_work(&host->detect);
+	if (delay)
+		schedule_delayed_work(&host->detect, delay);
+	else
+		schedule_work(&host->detect);
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
@@ -1189,7 +1193,7 @@ int mmc_add_host(struct mmc_host *host)
 	ret = mmc_add_host_sysfs(host);
 	if (ret == 0) {
 		mmc_power_off(host);
-		mmc_detect_change(host);
+		mmc_detect_change(host, 0);
 	}
 
 	return ret;
@@ -1259,7 +1263,7 @@ EXPORT_SYMBOL(mmc_suspend_host);
  */
 int mmc_resume_host(struct mmc_host *host)
 {
-	mmc_detect_change(host);
+	mmc_detect_change(host, 0);
 
 	return 0;
 }

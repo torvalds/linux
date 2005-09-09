@@ -677,6 +677,9 @@ qh_make (
 				goto done;
 			}
 		} else {
+			struct usb_tt	*tt = urb->dev->tt;
+			int		think_time;
+
 			/* gap is f(FS/LS transfer times) */
 			qh->gap_uf = 1 + usb_calc_bus_time (urb->dev->speed,
 					is_input, 0, maxp) / (125 * 1000);
@@ -690,6 +693,10 @@ qh_make (
 				qh->c_usecs = HS_USECS (0);
 			}
 
+			think_time = tt ? tt->think_time : 0;
+			qh->tt_usecs = NS_TO_US (think_time +
+					usb_calc_bus_time (urb->dev->speed,
+					is_input, 0, max_packet (maxp)));
 			qh->period = urb->interval;
 		}
 	}

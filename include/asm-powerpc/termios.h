@@ -1,5 +1,5 @@
-#ifndef _POWERPC_TERMIOS_H
-#define _POWERPC_TERMIOS_H
+#ifndef _ASM_POWERPC_TERMIOS_H
+#define _ASM_POWERPC_TERMIOS_H
 
 /*
  * Liberally adapted from alpha/termios.h.  In particular, the c_cc[]
@@ -233,4 +233,4 @@ struct termio {
 
 #endif	/* __KERNEL__ */
 
-#endif	/* _POWERPC_TERMIOS_H */
+#endif	/* _ASM_POWERPC_TERMIOS_H */

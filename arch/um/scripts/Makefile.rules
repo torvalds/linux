@@ -9,6 +9,11 @@ USER_OBJS := $(foreach file,$(USER_OBJS),$(obj)/$(file))
 
 $(USER_OBJS) : c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS) \
 	$(CFLAGS_$(notdir $@))
+$(USER_OBJS): cmd_checksrc =
+$(USER_OBJS): quiet_cmd_checksrc =
+$(USER_OBJS): cmd_force_checksrc =
+$(USER_OBJS): quiet_cmd_force_checksrc =
+
 
 # The stubs and unmap.o can't try to call mcount or update basic block data
 define unprofile

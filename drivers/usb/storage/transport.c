@@ -96,8 +96,8 @@
  * or before the URB_ACTIVE bit was set.  If so, it's essential to cancel
  * the URB if it hasn't been cancelled already (i.e., if the URB_ACTIVE bit
  * is still set).  Either way, the function must then wait for the URB to
- * finish.  Note that because the URB_ASYNC_UNLINK flag is set, the URB can
- * still be in progress even after a call to usb_unlink_urb() returns.
+ * finish.  Note that the URB can still be in progress even after a call to
+ * usb_unlink_urb() returns.
  *
  * The idea is that (1) once the ABORTING or DISCONNECTING bit is set,
  * either the stop_transport() function or the submitting function
@@ -158,8 +158,7 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	 * hasn't been mapped for DMA.  Yes, this is clunky, but it's
 	 * easier than always having the caller tell us whether the
 	 * transfer buffer has already been mapped. */
-	us->current_urb->transfer_flags =
-			URB_ASYNC_UNLINK | URB_NO_SETUP_DMA_MAP;
+	us->current_urb->transfer_flags = URB_NO_SETUP_DMA_MAP;
 	if (us->current_urb->transfer_buffer == us->iobuf)
 		us->current_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	us->current_urb->transfer_dma = us->iobuf_dma;
@@ -611,7 +610,6 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		unsigned char old_sc_data_direction;
 		unsigned char old_cmd_len;
 		unsigned char old_cmnd[MAX_COMMAND_SIZE];
-		unsigned long old_serial_number;
 		int old_resid;
 
 		US_DEBUGP("Issuing auto-REQUEST_SENSE\n");
@@ -648,10 +646,6 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		old_sg = srb->use_sg;
 		srb->use_sg = 0;
 
-		/* change the serial number -- toggle the high bit*/
-		old_serial_number = srb->serial_number;
-		srb->serial_number ^= 0x80000000;
-
 		/* issue the auto-sense command */
 		old_resid = srb->resid;
 		srb->resid = 0;
@@ -662,7 +656,6 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		srb->request_buffer = old_request_buffer;
 		srb->request_bufflen = old_request_bufflen;
 		srb->use_sg = old_sg;
-		srb->serial_number = old_serial_number;
 		srb->sc_data_direction = old_sc_data_direction;
 		srb->cmd_len = old_cmd_len;
 		memcpy(srb->cmnd, old_cmnd, MAX_COMMAND_SIZE);
@@ -985,7 +978,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = cpu_to_le32(transfer_length);
 	bcb->Flags = srb->sc_data_direction == DMA_FROM_DEVICE ? 1 << 7 : 0;
-	bcb->Tag = srb->serial_number;
+	bcb->Tag = ++us->tag;
 	bcb->Lun = srb->device->lun;
 	if (us->flags & US_FL_SCM_MULT_TARG)
 		bcb->Lun |= srb->device->id << 4;
@@ -1074,7 +1067,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	US_DEBUGP("Bulk Status S 0x%x T 0x%x R %u Stat 0x%x\n",
 			le32_to_cpu(bcs->Signature), bcs->Tag, 
 			residue, bcs->Status);
-	if (bcs->Tag != srb->serial_number || bcs->Status > US_BULK_STAT_PHASE) {
+	if (bcs->Tag != us->tag || bcs->Status > US_BULK_STAT_PHASE) {
 		US_DEBUGP("Bulk logical error\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}

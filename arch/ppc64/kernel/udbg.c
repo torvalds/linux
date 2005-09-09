@@ -158,14 +158,20 @@ static struct console udbg_console = {
 	.index	= -1,
 };
 
+static int early_console_initialized;
+
 void __init disable_early_printk(void)
 {
+	if (!early_console_initialized)
+		return;
 	unregister_console(&udbg_console);
+	early_console_initialized = 0;
 }
 
 /* called by setup_system */
 void register_early_udbg_console(void)
 {
+	early_console_initialized = 1;
 	register_console(&udbg_console);
 }
 

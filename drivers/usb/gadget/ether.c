@@ -2181,6 +2181,7 @@ eth_bind (struct usb_gadget *gadget)
 	u8			cdc = 1, zlp = 1, rndis = 1;
 	struct usb_ep		*in_ep, *out_ep, *status_ep = NULL;
 	int			status = -ENOMEM;
+	int			gcnum;
 
 	/* these flags are only ever cleared; compiler take note */
 #ifndef	DEV_CONFIG_CDC
@@ -2194,44 +2195,26 @@ eth_bind (struct usb_gadget *gadget)
 	 * standard protocol is _strongly_ preferred for interop purposes.
 	 * (By everyone except Microsoft.)
 	 */
-	if (gadget_is_net2280 (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0201);
-	} else if (gadget_is_dummy (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0202);
-	} else if (gadget_is_pxa (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0203);
+	if (gadget_is_pxa (gadget)) {
 		/* pxa doesn't support altsettings */
 		cdc = 0;
 	} else if (gadget_is_sh(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0204);
 		/* sh doesn't support multiple interfaces or configs */
 		cdc = 0;
 		rndis = 0;
 	} else if (gadget_is_sa1100 (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0205);
 		/* hardware can't write zlps */
 		zlp = 0;
 		/* sa1100 CAN do CDC, without status endpoint ... we use
 		 * non-CDC to be compatible with ARM Linux-2.4 "usb-eth".
 		 */
 		cdc = 0;
-	} else if (gadget_is_goku (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0206);
-	} else if (gadget_is_mq11xx (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0207);
-	} else if (gadget_is_omap (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0208);
-	} else if (gadget_is_lh7a40x(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0209);
-	} else if (gadget_is_n9604(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0210);
-	} else if (gadget_is_pxa27x(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0211);
-	} else if (gadget_is_s3c2410(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0212);
-	} else if (gadget_is_at91(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0213);
-	} else {
+	}
+
+	gcnum = usb_gadget_controller_number (gadget);
+	if (gcnum >= 0)
+		device_desc.bcdDevice = cpu_to_le16 (0x0200 + gcnum);
+	else {
 		/* can't assume CDC works.  don't want to default to
 		 * anything less functional on CDC-capable hardware,
 		 * so we fail in this case.

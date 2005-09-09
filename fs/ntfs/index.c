@@ -205,6 +205,7 @@ int ntfs_index_lookup(const void *key, const int key_len,
 				&ie->key, key_len)) {
 ir_done:
 			ictx->is_in_root = TRUE;
+			ictx->ir = ir;
 			ictx->actx = actx;
 			ictx->base_ni = base_ni;
 			ictx->ia = NULL;

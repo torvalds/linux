@@ -1,5 +1,7 @@
+/***************************************************************************/
+
 /*
- *  linux/arch/m68knommu/platform/MC68VZ328/de2/config.c
+ *  linux/arch/m68knommu/platform/68VZ328/config.c
  *
  *  Copyright (C) 1993 Hamish Macdonald
  *  Copyright (C) 1999 D. Jeff Dionne
@@ -9,6 +11,8 @@
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  */
+
+/***************************************************************************/
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -25,66 +29,25 @@
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
+#include <asm/bootstd.h>
 
 #ifdef CONFIG_INIT_LCD
-#include "screen.h"
+#include "bootlogo.h"
 #endif
 
-/* with a 33.16 MHz clock, this will give usec resolution to the time functions */
-#define CLOCK_SOURCE TCTL_CLKSOURCE_SYSCLK
-#define CLOCK_PRE 7
-#define TICKS_PER_JIFFY 41450
+/***************************************************************************/
 
-static void
-dragen2_sched_init(irqreturn_t (*timer_routine) (int, void *, struct pt_regs *))
-{
-	/* disable timer 1 */
-	TCTL = 0;
+void m68328_timer_init(irqreturn_t (*timer_routine) (int, void *, struct pt_regs *));
+void m68328_timer_tick(void);
+unsigned long m68328_timer_gettimeoffset(void);
+void m68328_timer_gettod(int *year, int *mon, int *day, int *hour, int *min, int *sec);
 
-	/* set ISR */
-	if (request_irq(TMR_IRQ_NUM, timer_routine, IRQ_FLG_LOCK, "timer", NULL)) 
-		panic("Unable to attach timer interrupt\n");
+/***************************************************************************/
+/*                        Init Drangon Engine hardware                     */
+/***************************************************************************/
+#if defined(CONFIG_DRAGEN2)
 
-	/* Restart mode, Enable int, Set clock source */
-	TCTL = TCTL_OM | TCTL_IRQEN | CLOCK_SOURCE;
-	TPRER = CLOCK_PRE;
-	TCMP = TICKS_PER_JIFFY;
-
-	/* Enable timer 1 */
-	TCTL |= TCTL_TEN;
-}
-
-static void dragen2_tick(void)
-{
-	/* Reset Timer1 */
-	TSTAT &= 0;
-}
-
-static unsigned long dragen2_gettimeoffset(void)
-{
-	unsigned long ticks = TCN, offset = 0;
-
-	/* check for pending interrupt */
-	if (ticks < (TICKS_PER_JIFFY >> 1) && (ISR & (1 << TMR_IRQ_NUM)))
-		offset = 1000000 / HZ;
-
-	ticks = (ticks * 1000000 / HZ) / TICKS_PER_JIFFY;
-
-	return ticks + offset;
-}
-
-static void dragen2_gettod(int *year, int *mon, int *day, int *hour,
-						   int *min, int *sec)
-{
-	long now = RTCTIME;
-
-	*year = *mon = *day = 1;
-	*hour = (now >> 24) % 24;
-	*min = (now >> 16) % 60;
-	*sec = now % 60;
-}
-
-static void dragen2_reset(void)
+static void m68vz328_reset(void)
 {
 	local_irq_disable();
 
@@ -103,7 +66,7 @@ static void dragen2_reset(void)
 	);
 }
 
-static void init_hardware(void)
+static void init_hardware(char *command, int size)
 {
 #ifdef CONFIG_DIRECT_IO_ACCESS
 	SCR = 0x10;					/* allow user access to internal registers */
@@ -170,6 +133,60 @@ static void init_hardware(void)
 #endif
 }
 
+/***************************************************************************/
+/*                      Init RT-Control uCdimm hardware                    */
+/***************************************************************************/
+#elif defined(CONFIG_UCDIMM)
+
+static void m68vz328_reset(void)
+{
+	local_irq_disable();
+	asm volatile ("
+		moveal #0x10c00000, %a0;
+		moveb #0, 0xFFFFF300;
+		moveal 0(%a0), %sp;
+		moveal 4(%a0), %a0;
+		jmp (%a0);
+	");
+}
+
+unsigned char *cs8900a_hwaddr;
+static int errno;
+
+_bsc0(char *, getserialnum)
+_bsc1(unsigned char *, gethwaddr, int, a)
+_bsc1(char *, getbenv, char *, a)
+
+static void init_hardware(char *command, int size)
+{
+	char *p;
+
+	printk(KERN_INFO "uCdimm serial string [%s]\n", getserialnum());
+	p = cs8900a_hwaddr = gethwaddr(0);
+	printk(KERN_INFO "uCdimm hwaddr %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+		p[0], p[1], p[2], p[3], p[4], p[5]);
+	p = getbenv("APPEND");
+	if (p)
+		strcpy(p, command);
+	else
+		command[0] = 0;
+}
+
+/***************************************************************************/
+#else
+
+static void m68vz328_reset(void)
+{
+}
+
+static void init_hardware(char *command, int size)
+{
+}
+
+/***************************************************************************/
+#endif
+/***************************************************************************/
+
 void config_BSP(char *command, int size)
 {
 	printk(KERN_INFO "68VZ328 DragonBallVZ support (c) 2001 Lineo, Inc.\n");
@@ -181,11 +198,13 @@ void config_BSP(char *command, int size)
 	memset(command, 0, size);
 #endif
 
-	init_hardware();
+	init_hardware(command, size);
 
-	mach_sched_init = (void *)dragen2_sched_init;
-	mach_tick = dragen2_tick;
-	mach_gettimeoffset = dragen2_gettimeoffset;
-	mach_reset = dragen2_reset;
-	mach_gettod = dragen2_gettod;
+	mach_sched_init = (void *) m68328_timer_init;
+	mach_tick = m68328_timer_tick;
+	mach_gettimeoffset = m68328_timer_gettimeoffset;
+	mach_gettod = m68328_timer_gettod;
+	mach_reset = m68vz328_reset;
 }
+
+/***************************************************************************/

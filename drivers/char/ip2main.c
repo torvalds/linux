@@ -120,7 +120,6 @@
 
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <asm/serial.h>
 
 #include <asm/uaccess.h>
 
