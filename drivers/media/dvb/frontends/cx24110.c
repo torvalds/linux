@@ -398,7 +398,7 @@ static int cx24110_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t 
 		return -EINVAL;
 
 	rv = cx24110_readreg(state, 0x77);
-	cx24110_writereg(state, 0x77, rv|0x04);
+	cx24110_writereg(state, 0x77, rv | 0x04);
 
 	rv = cx24110_readreg(state, 0x76);
 	cx24110_writereg(state, 0x76, ((rv & 0x90) | 0x40 | bit));
@@ -418,7 +418,8 @@ static int cx24110_send_diseqc_msg(struct dvb_frontend* fe,
 		cx24110_writereg(state, 0x79 + i, cmd->msg[i]);
 
 	rv = cx24110_readreg(state, 0x77);
-	cx24110_writereg(state, 0x77, rv|0x04);
+	cx24110_writereg(state, 0x77, rv & ~0x04);
+	msleep(30); /* reportedly fixes switching problems */
 
 	rv = cx24110_readreg(state, 0x76);
 
