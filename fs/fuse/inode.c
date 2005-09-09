@@ -32,6 +32,7 @@ struct fuse_mount_data {
 	unsigned rootmode;
 	unsigned user_id;
 	unsigned flags;
+	unsigned max_read;
 };
 
 static struct inode *fuse_alloc_inode(struct super_block *sb)
@@ -250,6 +251,7 @@ enum {
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_ALLOW_OTHER,
 	OPT_KERNEL_CACHE,
+	OPT_MAX_READ,
 	OPT_ERR
 };
 
@@ -260,6 +262,7 @@ static match_table_t tokens = {
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_ALLOW_OTHER,		"allow_other"},
 	{OPT_KERNEL_CACHE,		"kernel_cache"},
+	{OPT_MAX_READ,			"max_read=%u"},
 	{OPT_ERR,			NULL}
 };
 
@@ -268,6 +271,7 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 	char *p;
 	memset(d, 0, sizeof(struct fuse_mount_data));
 	d->fd = -1;
+	d->max_read = ~0;
 
 	while ((p = strsep(&opt, ",")) != NULL) {
 		int token;
@@ -308,6 +312,12 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			d->flags |= FUSE_KERNEL_CACHE;
 			break;
 
+		case OPT_MAX_READ:
+			if (match_int(&args[0], &value))
+				return 0;
+			d->max_read = value;
+			break;
+
 		default:
 			return 0;
 		}
@@ -329,6 +339,8 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_puts(m, ",allow_other");
 	if (fc->flags & FUSE_KERNEL_CACHE)
 		seq_puts(m, ",kernel_cache");
+	if (fc->max_read != ~0)
+		seq_printf(m, ",max_read=%u", fc->max_read);
 	return 0;
 }
 
@@ -453,6 +465,9 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
+	fc->max_read = d.max_read;
+	if (fc->max_read / PAGE_CACHE_SIZE < fc->bdi.ra_pages)
+		fc->bdi.ra_pages = fc->max_read / PAGE_CACHE_SIZE;
 
 	err = -ENOMEM;
 	root = get_root_inode(sb, d.rootmode);

@@ -227,6 +227,72 @@ static int fuse_readpage(struct file *file, struct page *page)
 	return err;
 }
 
+static int fuse_send_readpages(struct fuse_req *req, struct file *file,
+			       struct inode *inode)
+{
+	loff_t pos = (loff_t) req->pages[0]->index << PAGE_CACHE_SHIFT;
+	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
+	unsigned i;
+	req->out.page_zeroing = 1;
+	fuse_send_read(req, file, inode, pos, count);
+	for (i = 0; i < req->num_pages; i++) {
+		struct page *page = req->pages[i];
+		if (!req->out.h.error)
+			SetPageUptodate(page);
+		unlock_page(page);
+	}
+	return req->out.h.error;
+}
+
+struct fuse_readpages_data {
+	struct fuse_req *req;
+	struct file *file;
+	struct inode *inode;
+};
+
+static int fuse_readpages_fill(void *_data, struct page *page)
+{
+	struct fuse_readpages_data *data = _data;
+	struct fuse_req *req = data->req;
+	struct inode *inode = data->inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+
+	if (req->num_pages &&
+	    (req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
+	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_read ||
+	     req->pages[req->num_pages - 1]->index + 1 != page->index)) {
+		int err = fuse_send_readpages(req, data->file, inode);
+		if (err) {
+			unlock_page(page);
+			return err;
+		}
+		fuse_reset_request(req);
+	}
+	req->pages[req->num_pages] = page;
+	req->num_pages ++;
+	return 0;
+}
+
+static int fuse_readpages(struct file *file, struct address_space *mapping,
+			  struct list_head *pages, unsigned nr_pages)
+{
+	struct inode *inode = mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_readpages_data data;
+	int err;
+	data.file = file;
+	data.inode = inode;
+	data.req = fuse_get_request_nonint(fc);
+	if (!data.req)
+		return -EINTR;
+
+	err = read_cache_pages(mapping, pages, fuse_readpages_fill, &data);
+	if (!err && data.req->num_pages)
+		err = fuse_send_readpages(data.req, file, inode);
+	fuse_put_request(fc, data.req);
+	return err;
+}
+
 static ssize_t fuse_send_write(struct fuse_req *req, struct file *file,
 			       struct inode *inode, loff_t pos, size_t count)
 {
@@ -331,6 +397,7 @@ static struct address_space_operations fuse_file_aops  = {
 	.readpage	= fuse_readpage,
 	.prepare_write	= fuse_prepare_write,
 	.commit_write	= fuse_commit_write,
+	.readpages	= fuse_readpages,
 	.set_page_dirty	= fuse_set_page_dirty,
 };
 

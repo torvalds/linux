@@ -201,6 +201,9 @@ struct fuse_conn {
 	/** The fuse mount flags for this mount */
 	unsigned flags;
 
+	/** Maximum read size */
+	unsigned max_read;
+
 	/** Readers of the connection are waiting on this */
 	wait_queue_head_t waitq;
 
