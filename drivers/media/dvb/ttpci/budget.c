@@ -480,6 +480,7 @@ static int s5h1420_pll_set(struct dvb_frontend* fe, struct dvb_frontend_paramete
 
 static struct s5h1420_config s5h1420_config = {
 	.demod_address = 0x53,
+	.invert = 1,
 	.pll_set = s5h1420_pll_set,
 };
 
