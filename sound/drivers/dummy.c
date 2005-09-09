@@ -337,7 +337,7 @@ static int snd_card_dummy_playback_open(snd_pcm_substream_t * substream)
 	snd_card_dummy_pcm_t *dpcm;
 	int err;
 
-	dpcm = kcalloc(1, sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (dpcm == NULL)
 		return -ENOMEM;
 	init_timer(&dpcm->timer);
@@ -368,7 +368,7 @@ static int snd_card_dummy_capture_open(snd_pcm_substream_t * substream)
 	snd_card_dummy_pcm_t *dpcm;
 	int err;
 
-	dpcm = kcalloc(1, sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (dpcm == NULL)
 		return -ENOMEM;
 	init_timer(&dpcm->timer);

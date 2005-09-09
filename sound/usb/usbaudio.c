@@ -3136,7 +3136,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		return -ENOMEM;
 	}
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
 		snd_card_free(card);
 		return -ENOMEM;

@@ -688,7 +688,7 @@ static int snd_mtpav_get_RAWMIDI(mtpav_t * mcard)
 
 static mtpav_t *new_mtpav(void)
 {
-	mtpav_t *ncrd = kcalloc(1, sizeof(*ncrd), GFP_KERNEL);
+	mtpav_t *ncrd = kzalloc(sizeof(*ncrd), GFP_KERNEL);
 	if (ncrd != NULL) {
 		spin_lock_init(&ncrd->spinlock);
 

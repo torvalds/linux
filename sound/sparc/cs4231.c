@@ -1969,7 +1969,7 @@ static int __init snd_cs4231_sbus_create(snd_card_t *card,
 	int err;
 
 	*rchip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
@@ -2083,7 +2083,7 @@ static int __init snd_cs4231_ebus_create(snd_card_t *card,
 	int err;
 
 	*rchip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 

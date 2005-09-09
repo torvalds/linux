@@ -779,7 +779,7 @@ static int __init snd_uart16550_create(snd_card_t * card,
 	int err;
 
 
-	if ((uart = kcalloc(1, sizeof(*uart), GFP_KERNEL)) == NULL)
+	if ((uart = kzalloc(sizeof(*uart), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
 	uart->adaptor = adaptor;
 	uart->card = card;

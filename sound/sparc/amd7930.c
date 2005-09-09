@@ -967,7 +967,7 @@ static int __init snd_amd7930_create(snd_card_t *card,
 	int err;
 
 	*ramd = NULL;
-	amd = kcalloc(1, sizeof(*amd), GFP_KERNEL);
+	amd = kzalloc(sizeof(*amd), GFP_KERNEL);
 	if (amd == NULL)
 		return -ENOMEM;
 

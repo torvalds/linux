@@ -841,7 +841,7 @@ static int snd_usbmidi_in_endpoint_create(snd_usb_midi_t* umidi,
 	int length;
 
 	rep->in = NULL;
-	ep = kcalloc(1, sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
 		return -ENOMEM;
 	ep->umidi = umidi;
@@ -913,7 +913,7 @@ static int snd_usbmidi_out_endpoint_create(snd_usb_midi_t* umidi,
 	void* buffer;
 
 	rep->out = NULL;
-	ep = kcalloc(1, sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
 		return -ENOMEM;
 	ep->umidi = umidi;
@@ -1537,7 +1537,7 @@ int snd_usb_create_midi_interface(snd_usb_audio_t* chip,
 	int out_ports, in_ports;
 	int i, err;
 
-	umidi = kcalloc(1, sizeof(*umidi), GFP_KERNEL);
+	umidi = kzalloc(sizeof(*umidi), GFP_KERNEL);
 	if (!umidi)
 		return -ENOMEM;
 	umidi->chip = chip;

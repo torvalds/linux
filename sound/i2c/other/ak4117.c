@@ -83,7 +83,7 @@ int snd_ak4117_create(snd_card_t *card, ak4117_read_t *read, ak4117_write_t *wri
 		.dev_free =     snd_ak4117_dev_free,
 	};
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->lock);

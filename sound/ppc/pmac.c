@@ -1160,7 +1160,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	snd_runtime_check(chip_return, return -EINVAL);
 	*chip_return = NULL;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->card = card;
