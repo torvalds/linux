@@ -894,23 +894,6 @@ static __init void disable_smp(void)
 	cpu_set(0, cpu_core_map[0]);
 }
 
-/*
- * Handle user cpus=... parameter.
- */
-static __init void enforce_max_cpus(unsigned max_cpus)
-{
-	int i, k;
-	k = 0;
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
-		if (++k > max_cpus) {
-			cpu_clear(i, cpu_possible_map);
-			cpu_clear(i, cpu_present_map);
-		}
-	}
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
@@ -998,8 +981,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	nmi_watchdog_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
-
-	enforce_max_cpus(max_cpus);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	prefill_possible_map();
