@@ -2748,6 +2748,8 @@ static int startup(SLMP_INFO * info)
 
 	info->pending_bh = 0;
 
+	memset(&info->icount, 0, sizeof(info->icount));
+
 	/* program hardware for current parameters */
 	reset_port(info);
 
@@ -2951,12 +2953,12 @@ static int get_stats(SLMP_INFO * info, struct mgsl_icount __user *user_icount)
 		printk("%s(%d):%s get_params()\n",
 			 __FILE__,__LINE__, info->device_name);
 
-	COPY_TO_USER(err,user_icount, &info->icount, sizeof(struct mgsl_icount));
-	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
-			printk( "%s(%d):%s get_stats() user buffer copy failed\n",
-				__FILE__,__LINE__,info->device_name);
-		return -EFAULT;
+	if (!user_icount) {
+		memset(&info->icount, 0, sizeof(info->icount));
+	} else {
+		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		if (err)
+			return -EFAULT;
 	}
 
 	return 0;
