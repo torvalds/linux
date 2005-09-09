@@ -24,6 +24,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
+#include <asm/arch/tc.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
@@ -83,8 +84,8 @@ static struct flash_platform_data p2_flash_data = {
 };
 
 static struct resource p2_flash_resource = {
-	.start		= OMAP_FLASH_0_START,
-	.end		= OMAP_FLASH_0_START + OMAP_FLASH_0_SIZE - 1,
+	.start		= OMAP_CS0_PHYS,
+	.end		= OMAP_CS0_PHYS + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 

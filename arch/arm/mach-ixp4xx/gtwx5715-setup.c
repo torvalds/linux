@@ -93,7 +93,7 @@ static struct plat_serial8250_port gtwx5715_uart_platform_data[] = {
 
 static struct platform_device gtwx5715_uart_device = {
 	.name		= "serial8250",
-	.id		= 0,
+	.id		= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= gtwx5715_uart_platform_data,
 	},

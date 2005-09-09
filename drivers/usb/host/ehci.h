@@ -421,6 +421,7 @@ struct ehci_qh {
 	u8			usecs;		/* intr bandwidth */
 	u8			gap_uf;		/* uframes split/csplit gap */
 	u8			c_usecs;	/* ... split completion bw */
+	u16			tt_usecs;	/* tt downstream bandwidth */
 	unsigned short		period;		/* polling interval */
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
@@ -479,6 +480,7 @@ struct ehci_iso_stream {
 	 */
 	u8			interval;
 	u8			usecs, c_usecs;
+	u16			tt_usecs;
 	u16			maxp;
 	u16			raw_mask;
 	unsigned		bandwidth;

@@ -636,6 +636,10 @@ xpnet_init(void)
 	int result = -ENOMEM;
 
 
+	if (!ia64_platform_is("sn2")) {
+		return -ENODEV;
+	}
+
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
 	/*

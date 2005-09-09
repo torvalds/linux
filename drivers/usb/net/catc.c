@@ -383,7 +383,6 @@ static void catc_tx_done(struct urb *urb, struct pt_regs *regs)
 
 	if (urb->status == -ECONNRESET) {
 		dbg("Tx Reset.");
-		urb->transfer_flags &= ~URB_ASYNC_UNLINK;
 		urb->status = 0;
 		catc->netdev->trans_start = jiffies;
 		catc->stats.tx_errors++;
@@ -445,7 +444,6 @@ static void catc_tx_timeout(struct net_device *netdev)
 	struct catc *catc = netdev_priv(netdev);
 
 	warn("Transmit timed out.");
-	catc->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(catc->tx_urb);
 }
 

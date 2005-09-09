@@ -230,9 +230,6 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 		return;
 	}
 
-	if (ia64_done_with_exception(regs))
-		return;
-
 	/*
 	 * Since we have no vma's for region 5, we might get here even if the address is
 	 * valid, due to the VHPT walker inserting a non present translation that becomes
@@ -241,6 +238,9 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	 * valid, and return if it is.
 	 */
 	if (REGION_NUMBER(address) == 5 && mapped_kernel_page_is_present(address))
+		return;
+
+	if (ia64_done_with_exception(regs))
 		return;
 
 	/*

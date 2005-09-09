@@ -1473,10 +1473,6 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	par->Chipset = (pd->vendor << 16) | pd->device;
 	printk(KERN_INFO PFX "nVidia device/chipset %X\n", par->Chipset);
 
-#ifdef CONFIG_PCI_NAMES
-	printk(KERN_INFO PFX "%s\n", pd->pretty_name);
-#endif
-
 	if (par->Architecture == 0) {
 		printk(KERN_ERR PFX "unknown NV_ARCH\n");
 		goto err_out_free_base0;

@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/fpga.c
+ * linux/arch/arm/mach-omap1/fpga.c
  *
  * Interrupt handler for OMAP-1510 Innovator FPGA
  *
@@ -181,7 +181,7 @@ void omap1510_fpga_init_irq(void)
 	 */
 	omap_request_gpio(13);
 	omap_set_gpio_direction(13, 1);
-	omap_set_gpio_edge_ctrl(13, OMAP_GPIO_RISING_EDGE);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_RISING);
 	set_irq_chained_handler(OMAP1510_INT_FPGA, innovator_fpga_IRQ_demux);
 }
 

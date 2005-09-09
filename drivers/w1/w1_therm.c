@@ -42,12 +42,31 @@ static u8 bad_roms[][9] = {
 				{}
 			};
 
-static ssize_t w1_therm_read_name(struct device *, struct device_attribute *attr, char *);
 static ssize_t w1_therm_read_bin(struct kobject *, char *, loff_t, size_t);
 
+static struct bin_attribute w1_therm_bin_attr = {
+	.attr = {
+		.name = "w1_slave",
+		.mode = S_IRUGO,
+		.owner = THIS_MODULE,
+	},
+	.size = W1_SLAVE_DATA_SIZE,
+	.read = w1_therm_read_bin,
+};
+
+static int w1_therm_add_slave(struct w1_slave *sl)
+{
+	return sysfs_create_bin_file(&sl->dev.kobj, &w1_therm_bin_attr);
+}
+
+static void w1_therm_remove_slave(struct w1_slave *sl)
+{
+	sysfs_remove_bin_file(&sl->dev.kobj, &w1_therm_bin_attr);
+}
+
 static struct w1_family_ops w1_therm_fops = {
-	.rname = &w1_therm_read_name,
-	.rbin = &w1_therm_read_bin,
+	.add_slave	= w1_therm_add_slave,
+	.remove_slave	= w1_therm_remove_slave,
 };
 
 static struct w1_family w1_therm_family_DS18S20 = {
@@ -59,6 +78,7 @@ static struct w1_family w1_therm_family_DS18B20 = {
 	.fid = W1_THERM_DS18B20,
 	.fops = &w1_therm_fops,
 };
+
 static struct w1_family w1_therm_family_DS1822 = {
 	.fid = W1_THERM_DS1822,
 	.fops = &w1_therm_fops,
@@ -89,13 +109,6 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.convert 	= w1_DS18B20_convert_temp
 	},
 };
-
-static ssize_t w1_therm_read_name(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
-	return sprintf(buf, "%s\n", sl->name);
-}
 
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
 {
@@ -148,8 +161,7 @@ static int w1_therm_check_rom(u8 rom[9])
 
 static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
-	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-					   struct w1_slave, dev);
+	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	struct w1_master *dev = sl->master;
 	u8 rom[9], crc, verdict;
 	int i, max_trying = 10;
@@ -178,14 +190,9 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 	crc = 0;
 
 	while (max_trying--) {
-		if (!w1_reset_bus (dev)) {
+		if (!w1_reset_select_slave(sl)) {
 			int count = 0;
-			u8 match[9] = {W1_MATCH_ROM, };
 			unsigned int tm = 750;
-
-			memcpy(&match[1], (u64 *) & sl->reg_num, 8);
-
-			w1_write_block(dev, match, 9);
 
 			w1_write_8(dev, W1_CONVERT_TEMP);
 
@@ -195,8 +202,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 					flush_signals(current);
 			}
 
-			if (!w1_reset_bus (dev)) {
-				w1_write_block(dev, match, 9);
+			if (!w1_reset_select_slave(sl)) {
 
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
 				if ((count = w1_read_block(dev, rom, 9)) != 9) {
@@ -207,7 +213,6 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 
 				if (rom[8] == crc && rom[0])
 					verdict = 1;
-
 			}
 		}
 

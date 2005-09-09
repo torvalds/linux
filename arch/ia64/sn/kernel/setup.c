@@ -56,7 +56,7 @@
 
 DEFINE_PER_CPU(struct pda_s, pda_percpu);
 
-#define MAX_PHYS_MEMORY		(1UL << 49)	/* 1 TB */
+#define MAX_PHYS_MEMORY		(1UL << IA64_MAX_PHYS_BITS)	/* Max physical address supported */
 
 lboard_t *root_lboard[MAX_COMPACT_NODES];
 

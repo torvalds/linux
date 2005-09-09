@@ -40,7 +40,7 @@ static struct plat_serial8250_port hub6_data[] = {
 
 static struct platform_device hub6_device = {
 	.name			= "serial8250",
-	.id			= 4,
+	.id			= PLAT8250_DEV_HUB6,
 	.dev			= {
 		.platform_data	= hub6_data,
 	},

@@ -765,8 +765,8 @@ restart:
 	switch (policy->action) {
 	case XFRM_POLICY_BLOCK:
 		/* Prohibit the flow */
-		xfrm_pol_put(policy);
-		return -EPERM;
+		err = -EPERM;
+		goto error;
 
 	case XFRM_POLICY_ALLOW:
 		if (policy->xfrm_nr == 0) {
@@ -782,8 +782,8 @@ restart:
 		 */
 		dst = xfrm_find_bundle(fl, policy, family);
 		if (IS_ERR(dst)) {
-			xfrm_pol_put(policy);
-			return PTR_ERR(dst);
+			err = PTR_ERR(dst);
+			goto error;
 		}
 
 		if (dst)

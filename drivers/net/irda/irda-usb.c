@@ -267,7 +267,7 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
                       frame, IRDA_USB_SPEED_MTU,
                       speed_bulk_callback, self);
 	urb->transfer_buffer_length = USB_IRDA_HEADER;
-	urb->transfer_flags = URB_ASYNC_UNLINK;
+	urb->transfer_flags = 0;
 
 	/* Irq disabled -> GFP_ATOMIC */
 	if ((ret = usb_submit_urb(urb, GFP_ATOMIC))) {
@@ -401,15 +401,12 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
                       skb->data, IRDA_SKB_MAX_MTU,
                       write_bulk_callback, skb);
 	urb->transfer_buffer_length = skb->len;
-	/* Note : unlink *must* be Asynchronous because of the code in 
-	 * irda_usb_net_timeout() -> call in irq - Jean II */
-	urb->transfer_flags = URB_ASYNC_UNLINK;
 	/* This flag (URB_ZERO_PACKET) indicates that what we send is not
 	 * a continuous stream of data but separate packets.
 	 * In this case, the USB layer will insert an empty USB frame (TD)
 	 * after each of our packets that is exact multiple of the frame size.
 	 * This is how the dongle will detect the end of packet - Jean II */
-	urb->transfer_flags |= URB_ZERO_PACKET;
+	urb->transfer_flags = URB_ZERO_PACKET;
 
 	/* Generate min turn time. FIXME: can we do better than this? */
 	/* Trying to a turnaround time at this level is trying to measure
@@ -630,8 +627,6 @@ static void irda_usb_net_timeout(struct net_device *netdev)
 			 * in completion handler, because urb->status will
 			 * be -ENOENT. We will fix that at the next watchdog,
 			 * leaving more time to USB to recover...
-			 * Also, we are in interrupt, so we need to have
-			 * URB_ASYNC_UNLINK to work properly...
 			 * Jean II */
 			done = 1;
 			break;
@@ -1008,9 +1003,7 @@ static int irda_usb_net_close(struct net_device *netdev)
 		}
 	}
 	/* Cancel Tx and speed URB - need to be synchronous to avoid races */
-	self->tx_urb->transfer_flags &= ~URB_ASYNC_UNLINK;
 	usb_kill_urb(self->tx_urb);
-	self->speed_urb->transfer_flags &= ~URB_ASYNC_UNLINK;
 	usb_kill_urb(self->speed_urb);
 
 	/* Stop and remove instance of IrLAP */
@@ -1521,9 +1514,7 @@ static void irda_usb_disconnect(struct usb_interface *intf)
 			usb_kill_urb(self->rx_urb[i]);
 		/* Cancel Tx and speed URB.
 		 * Toggle flags to make sure it's synchronous. */
-		self->tx_urb->transfer_flags &= ~URB_ASYNC_UNLINK;
 		usb_kill_urb(self->tx_urb);
-		self->speed_urb->transfer_flags &= ~URB_ASYNC_UNLINK;
 		usb_kill_urb(self->speed_urb);
 	}
 
