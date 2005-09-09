@@ -24,6 +24,7 @@
 #define USB_VID_HANFTEK						0x15f4
 #define USB_VID_HAUPPAUGE					0x2040
 #define USB_VID_HYPER_PALTEK				0x1025
+#define USB_VID_KWORLD						0xeb2a
 #define USB_VID_KYE							0x0458
 #define USB_VID_MEDION						0x1660
 #define USB_VID_VISIONPLUS					0x13d3
