@@ -31,6 +31,7 @@ struct fuse_mount_data {
 	int fd;
 	unsigned rootmode;
 	unsigned user_id;
+	unsigned group_id;
 	unsigned flags;
 	unsigned max_read;
 };
@@ -199,6 +200,7 @@ static void fuse_put_super(struct super_block *sb)
 	spin_lock(&fuse_lock);
 	fc->mounted = 0;
 	fc->user_id = 0;
+	fc->group_id = 0;
 	fc->flags = 0;
 	/* Flush all readers on this fs */
 	wake_up_all(&fc->waitq);
@@ -248,6 +250,7 @@ enum {
 	OPT_FD,
 	OPT_ROOTMODE,
 	OPT_USER_ID,
+	OPT_GROUP_ID,
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_ALLOW_OTHER,
 	OPT_KERNEL_CACHE,
@@ -259,6 +262,7 @@ static match_table_t tokens = {
 	{OPT_FD,			"fd=%u"},
 	{OPT_ROOTMODE,			"rootmode=%o"},
 	{OPT_USER_ID,			"user_id=%u"},
+	{OPT_GROUP_ID,			"group_id=%u"},
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_ALLOW_OTHER,		"allow_other"},
 	{OPT_KERNEL_CACHE,		"kernel_cache"},
@@ -300,6 +304,12 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			d->user_id = value;
 			break;
 
+		case OPT_GROUP_ID:
+			if (match_int(&args[0], &value))
+				return 0;
+			d->group_id = value;
+			break;
+
 		case OPT_DEFAULT_PERMISSIONS:
 			d->flags |= FUSE_DEFAULT_PERMISSIONS;
 			break;
@@ -333,6 +343,7 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 	struct fuse_conn *fc = get_fuse_conn_super(mnt->mnt_sb);
 
 	seq_printf(m, ",user_id=%u", fc->user_id);
+	seq_printf(m, ",group_id=%u", fc->group_id);
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS)
 		seq_puts(m, ",default_permissions");
 	if (fc->flags & FUSE_ALLOW_OTHER)
@@ -465,6 +476,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
+	fc->group_id = d.group_id;
 	fc->max_read = d.max_read;
 	if (fc->max_read / PAGE_CACHE_SIZE < fc->bdi.ra_pages)
 		fc->bdi.ra_pages = fc->max_read / PAGE_CACHE_SIZE;
