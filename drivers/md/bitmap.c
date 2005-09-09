@@ -437,6 +437,7 @@ void bitmap_print_sb(struct bitmap *bitmap)
 	printk(KERN_DEBUG "  daemon sleep: %ds\n", le32_to_cpu(sb->daemon_sleep));
 	printk(KERN_DEBUG "     sync size: %llu KB\n",
 			(unsigned long long)le64_to_cpu(sb->sync_size)/2);
+	printk(KERN_DEBUG "max write behind: %d\n", le32_to_cpu(sb->write_behind));
 	kunmap(bitmap->sb_page);
 }
 
@@ -445,7 +446,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 {
 	char *reason = NULL;
 	bitmap_super_t *sb;
-	unsigned long chunksize, daemon_sleep;
+	unsigned long chunksize, daemon_sleep, write_behind;
 	unsigned long bytes_read;
 	unsigned long long events;
 	int err = -EINVAL;
@@ -474,6 +475,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 
 	chunksize = le32_to_cpu(sb->chunksize);
 	daemon_sleep = le32_to_cpu(sb->daemon_sleep);
+	write_behind = le32_to_cpu(sb->write_behind);
 
 	/* verify that the bitmap-specific fields are valid */
 	if (sb->magic != cpu_to_le32(BITMAP_MAGIC))
@@ -485,7 +487,9 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	else if ((1 << ffz(~chunksize)) != chunksize)
 		reason = "bitmap chunksize not a power of 2";
 	else if (daemon_sleep < 1 || daemon_sleep > 15)
-		reason = "daemon sleep period out of range";
+		reason = "daemon sleep period out of range (1-15s)";
+	else if (write_behind > COUNTER_MAX)
+		reason = "write-behind limit out of range (0 - 16383)";
 	if (reason) {
 		printk(KERN_INFO "%s: invalid bitmap file superblock: %s\n",
 			bmname(bitmap), reason);
@@ -518,6 +522,7 @@ success:
 	/* assign fields using values from superblock */
 	bitmap->chunksize = chunksize;
 	bitmap->daemon_sleep = daemon_sleep;
+	bitmap->max_write_behind = write_behind;
 	bitmap->flags |= sb->state;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
 	if (sb->state & BITMAP_STALE)
@@ -1282,9 +1287,16 @@ static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
 	}
 }
 
-int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors)
+int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors, int behind)
 {
 	if (!bitmap) return 0;
+
+	if (behind) {
+		atomic_inc(&bitmap->behind_writes);
+		PRINTK(KERN_DEBUG "inc write-behind count %d/%d\n",
+		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
+	}
+
 	while (sectors) {
 		int blocks;
 		bitmap_counter_t *bmc;
@@ -1319,9 +1331,15 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 }
 
 void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors,
-		     int success)
+		     int success, int behind)
 {
 	if (!bitmap) return;
+	if (behind) {
+		atomic_dec(&bitmap->behind_writes);
+		PRINTK(KERN_DEBUG "dec write-behind count %d/%d\n",
+		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
+	}
+
 	while (sectors) {
 		int blocks;
 		unsigned long flags;

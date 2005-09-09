@@ -222,8 +222,17 @@ static void raid_end_bio_io(r1bio_t *r1_bio)
 {
 	struct bio *bio = r1_bio->master_bio;
 
-	bio_endio(bio, bio->bi_size,
-		test_bit(R1BIO_Uptodate, &r1_bio->state) ? 0 : -EIO);
+	/* if nobody has done the final endio yet, do it now */
+	if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
+		PRINTK(KERN_DEBUG "raid1: sync end %s on sectors %llu-%llu\n",
+			(bio_data_dir(bio) == WRITE) ? "write" : "read",
+			(unsigned long long) bio->bi_sector,
+			(unsigned long long) bio->bi_sector +
+				(bio->bi_size >> 9) - 1);
+
+		bio_endio(bio, bio->bi_size,
+			test_bit(R1BIO_Uptodate, &r1_bio->state) ? 0 : -EIO);
+	}
 	free_r1bio(r1_bio);
 }
 
@@ -292,7 +301,7 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
-	int mirror;
+	int mirror, behind;
 	conf_t *conf = mddev_to_conf(r1_bio->mddev);
 
 	if (bio->bi_size)
@@ -323,16 +332,46 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 
 	update_head_pos(mirror, r1_bio);
 
+	behind = test_bit(R1BIO_BehindIO, &r1_bio->state);
+	if (behind) {
+		if (test_bit(WriteMostly, &conf->mirrors[mirror].rdev->flags))
+			atomic_dec(&r1_bio->behind_remaining);
+
+		/* In behind mode, we ACK the master bio once the I/O has safely
+		 * reached all non-writemostly disks. Setting the Returned bit
+		 * ensures that this gets done only once -- we don't ever want to
+		 * return -EIO here, instead we'll wait */
+
+		if (atomic_read(&r1_bio->behind_remaining) >= (atomic_read(&r1_bio->remaining)-1) &&
+		    test_bit(R1BIO_Uptodate, &r1_bio->state)) {
+			/* Maybe we can return now */
+			if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
+				struct bio *mbio = r1_bio->master_bio;
+				PRINTK(KERN_DEBUG "raid1: behind end write sectors %llu-%llu\n",
+				       (unsigned long long) mbio->bi_sector,
+				       (unsigned long long) mbio->bi_sector +
+				       (mbio->bi_size >> 9) - 1);
+				bio_endio(mbio, mbio->bi_size, 0);
+			}
+		}
+	}
 	/*
 	 *
 	 * Let's see if all mirrored write operations have finished
 	 * already.
 	 */
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
+		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
+			/* free extra copy of the data pages */
+			int i = bio->bi_vcnt;
+			while (i--)
+				__free_page(bio->bi_io_vec[i].bv_page);
+		}
 		/* clear the bitmap if all writes complete successfully */
 		bitmap_endwrite(r1_bio->mddev->bitmap, r1_bio->sector,
 				r1_bio->sectors,
-				!test_bit(R1BIO_Degraded, &r1_bio->state));
+				!test_bit(R1BIO_Degraded, &r1_bio->state),
+				behind);
 		md_write_end(r1_bio->mddev);
 		raid_end_bio_io(r1_bio);
 	}
@@ -562,6 +601,39 @@ static void device_barrier(conf_t *conf, sector_t sect)
 	spin_unlock_irq(&conf->resync_lock);
 }
 
+/* duplicate the data pages for behind I/O */
+static struct page **alloc_behind_pages(struct bio *bio)
+{
+	int i;
+	struct bio_vec *bvec;
+	struct page **pages = kmalloc(bio->bi_vcnt * sizeof(struct page *),
+					GFP_NOIO);
+	if (unlikely(!pages))
+		goto do_sync_io;
+
+	memset(pages, 0, bio->bi_vcnt * sizeof(struct page *));
+
+	bio_for_each_segment(bvec, bio, i) {
+		pages[i] = alloc_page(GFP_NOIO);
+		if (unlikely(!pages[i]))
+			goto do_sync_io;
+		memcpy(kmap(pages[i]) + bvec->bv_offset,
+			kmap(bvec->bv_page) + bvec->bv_offset, bvec->bv_len);
+		kunmap(pages[i]);
+		kunmap(bvec->bv_page);
+	}
+
+	return pages;
+
+do_sync_io:
+	if (pages)
+		for (i = 0; i < bio->bi_vcnt && pages[i]; i++)
+			__free_page(pages[i]);
+	kfree(pages);
+	PRINTK("%dB behind alloc failed, doing sync I/O\n", bio->bi_size);
+	return NULL;
+}
+
 static int make_request(request_queue_t *q, struct bio * bio)
 {
 	mddev_t *mddev = q->queuedata;
@@ -574,6 +646,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	struct bitmap *bitmap = mddev->bitmap;
 	unsigned long flags;
 	struct bio_list bl;
+	struct page **behind_pages = NULL;
 
 	if (unlikely(bio_barrier(bio))) {
 		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
@@ -612,8 +685,6 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	r1_bio->state = 0;
 	r1_bio->mddev = mddev;
 	r1_bio->sector = bio->bi_sector;
-
-	r1_bio->state = 0;
 
 	if (bio_data_dir(bio) == READ) {
 		/*
@@ -675,13 +746,22 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	}
 	rcu_read_unlock();
 
+	BUG_ON(targets == 0); /* we never fail the last device */
+
 	if (targets < conf->raid_disks) {
 		/* array is degraded, we will not clear the bitmap
 		 * on I/O completion (see raid1_end_write_request) */
 		set_bit(R1BIO_Degraded, &r1_bio->state);
 	}
 
+	/* do behind I/O ? */
+	if (bitmap &&
+	    atomic_read(&bitmap->behind_writes) < bitmap->max_write_behind &&
+	    (behind_pages = alloc_behind_pages(bio)) != NULL)
+		set_bit(R1BIO_BehindIO, &r1_bio->state);
+
 	atomic_set(&r1_bio->remaining, 0);
+	atomic_set(&r1_bio->behind_remaining, 0);
 
 	bio_list_init(&bl);
 	for (i = 0; i < disks; i++) {
@@ -698,12 +778,31 @@ static int make_request(request_queue_t *q, struct bio * bio)
 		mbio->bi_rw = WRITE;
 		mbio->bi_private = r1_bio;
 
+		if (behind_pages) {
+			struct bio_vec *bvec;
+			int j;
+
+			/* Yes, I really want the '__' version so that
+			 * we clear any unused pointer in the io_vec, rather
+			 * than leave them unchanged.  This is important
+			 * because when we come to free the pages, we won't
+			 * know the originial bi_idx, so we just free
+			 * them all
+			 */
+			__bio_for_each_segment(bvec, mbio, j, 0)
+				bvec->bv_page = behind_pages[j];
+			if (test_bit(WriteMostly, &conf->mirrors[i].rdev->flags))
+				atomic_inc(&r1_bio->behind_remaining);
+		}
+
 		atomic_inc(&r1_bio->remaining);
 
 		bio_list_add(&bl, mbio);
 	}
+	kfree(behind_pages); /* the behind pages are attached to the bios now */
 
-	bitmap_startwrite(bitmap, bio->bi_sector, r1_bio->sectors);
+	bitmap_startwrite(bitmap, bio->bi_sector, r1_bio->sectors,
+				test_bit(R1BIO_BehindIO, &r1_bio->state));
 	spin_lock_irqsave(&conf->device_lock, flags);
 	bio_list_merge(&conf->pending_bio_list, &bl);
 	bio_list_init(&bl);
@@ -1471,6 +1570,17 @@ out:
 static int stop(mddev_t *mddev)
 {
 	conf_t *conf = mddev_to_conf(mddev);
+	struct bitmap *bitmap = mddev->bitmap;
+	int behind_wait = 0;
+
+	/* wait for behind writes to complete */
+	while (bitmap && atomic_read(&bitmap->behind_writes) > 0) {
+		behind_wait++;
+		printk(KERN_INFO "raid1: behind writes in progress on device %s, waiting to stop (%d)\n", mdname(mddev), behind_wait);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(HZ); /* wait a second */
+		/* need to kick something here to make sure I/O goes? */
+	}
 
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;

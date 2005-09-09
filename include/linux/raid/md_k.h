@@ -275,6 +275,9 @@ struct mddev_s
 	atomic_t			writes_pending; 
 	request_queue_t			*queue;	/* for plugging ... */
 
+	atomic_t                        write_behind; /* outstanding async IO */
+	unsigned int                    max_write_behind; /* 0 = sync */
+
 	struct bitmap                   *bitmap; /* the bitmap for the device */
 	struct file			*bitmap_file; /* the bitmap file */
 	long				bitmap_offset; /* offset from superblock of
