@@ -14,7 +14,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 1
+#define FUSE_KERNEL_MINOR_VERSION 2
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -62,6 +62,15 @@ struct fuse_kstatfs {
 #define FATTR_ATIME	(1 << 4)
 #define FATTR_MTIME	(1 << 5)
 #define FATTR_CTIME	(1 << 6)
+
+/**
+ * Flags returned by the OPEN request
+ *
+ * FOPEN_DIRECT_IO: bypass page cache for this open file
+ * FOPEN_KEEP_CACHE: don't invalidate the data cache on open
+ */
+#define FOPEN_DIRECT_IO		(1 << 0)
+#define FOPEN_KEEP_CACHE	(1 << 1)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,

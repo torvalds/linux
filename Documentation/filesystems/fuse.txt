@@ -80,32 +80,6 @@ Mount options
   allowed to root, but this restriction can be removed with a
   (userspace) configuration option.
 
-'kernel_cache'
-
-  This option disables flushing the cache of the file contents on
-  every open().  This should only be enabled on filesystems, where the
-  file data is never changed externally (not through the mounted FUSE
-  filesystem).  Thus it is not suitable for network filesystems and
-  other "intermediate" filesystems.
-
-  NOTE: if this option is not specified (and neither 'direct_io') data
-  is still cached after the open(), so a read() system call will not
-  always initiate a read operation.
-
-'direct_io'
-
-  This option disables the use of page cache (file content cache) in
-  the kernel for this filesystem.  This has several affects:
-
-     - Each read() or write() system call will initiate one or more
-       read or write operations, data will not be cached in the
-       kernel.
-
-     - The return value of the read() and write() system calls will
-       correspond to the return values of the read and write
-       operations.  This is useful for example if the file size is not
-       known in advance (before reading it).
-
 'max_read=N'
 
   With this option the maximum size of read operations can be set.

@@ -30,12 +30,6 @@
     doing the mount will be allowed to access the filesystem */
 #define FUSE_ALLOW_OTHER         (1 << 1)
 
-/** If the FUSE_KERNEL_CACHE flag is given, then cached data will not
-    be flushed on open */
-#define FUSE_KERNEL_CACHE        (1 << 2)
-
-/** Bypass the page cache for read and write operations  */
-#define FUSE_DIRECT_IO           (1 << 3)
 
 /** FUSE inode */
 struct fuse_inode {
