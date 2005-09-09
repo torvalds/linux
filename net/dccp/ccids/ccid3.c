@@ -328,7 +328,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		hctx->ccid3hctx_last_win_count	 = 0;
 		hctx->ccid3hctx_t_last_win_count = now;
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-		hctx->ccid3hctx_t_ipi = TFRC_INITIAL_TIMEOUT;
+		hctx->ccid3hctx_t_ipi = TFRC_INITIAL_IPI;
 
 		/* Set nominal send time for initial packet */
 		hctx->ccid3hctx_t_nom = now;
