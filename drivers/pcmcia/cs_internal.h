@@ -42,7 +42,6 @@ typedef struct region_t {
 typedef struct config_t {
     u_int		state;
     u_int		Attributes;
-    u_int		Vcc, Vpp1, Vpp2;
     u_int		IntType;
     u_int		ConfigBase;
     u_char		Status, Pin, Copy, Option, ExtStatus;
