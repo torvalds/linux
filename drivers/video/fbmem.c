@@ -1029,6 +1029,7 @@ register_framebuffer(struct fb_info *fb_info)
 {
 	int i;
 	struct fb_event event;
+	struct fb_videomode mode;
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -1059,16 +1060,11 @@ register_framebuffer(struct fb_info *fb_info)
 	}	
 	fb_info->pixmap.offset = 0;
 
-	if (!fb_info->modelist.prev ||
-	    !fb_info->modelist.next ||
-	    list_empty(&fb_info->modelist)) {
-	        struct fb_videomode mode;
-
+	if (!fb_info->modelist.prev || !fb_info->modelist.next)
 		INIT_LIST_HEAD(&fb_info->modelist);
-		fb_var_to_videomode(&mode, &fb_info->var);
-		fb_add_videomode(&mode, &fb_info->modelist);
-	}
 
+	fb_var_to_videomode(&mode, &fb_info->var);
+	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
 
 	devfs_mk_cdev(MKDEV(FB_MAJOR, i),

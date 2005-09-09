@@ -866,6 +866,7 @@ extern const unsigned char *fb_firmware_edid(struct device *device);
 extern void fb_edid_to_monspecs(unsigned char *edid,
 				struct fb_monspecs *specs);
 extern void fb_destroy_modedb(struct fb_videomode *modedb);
+extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 
 /* drivers/video/modedb.c */
 #define VESA_MODEDB_SIZE 34
