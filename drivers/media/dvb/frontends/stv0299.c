@@ -63,11 +63,7 @@ struct stv0299_state {
 	u32 tuner_frequency;
 	u32 symbol_rate;
 	fe_code_rate_t fec_inner;
-	int errmode;
 };
-
-#define STATUS_BER 0
-#define STATUS_UCBLOCKS 1
 
 static int debug;
 static int debug_legacy_dish_switch;
@@ -520,7 +516,8 @@ static int stv0299_read_ber(struct dvb_frontend* fe, u32* ber)
 {
         struct stv0299_state* state = fe->demodulator_priv;
 
-	if (state->errmode != STATUS_BER) return 0;
+	stv0299_writeregI(state, 0x34, (stv0299_readreg(state, 0x34) & 0xcf) | 0x10);
+	msleep(100);
 	*ber = (stv0299_readreg (state, 0x1d) << 8) | stv0299_readreg (state, 0x1e);
 
 	return 0;
@@ -559,8 +556,9 @@ static int stv0299_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
         struct stv0299_state* state = fe->demodulator_priv;
 
-	if (state->errmode != STATUS_UCBLOCKS) *ucblocks = 0;
-	else *ucblocks = (stv0299_readreg (state, 0x1d) << 8) | stv0299_readreg (state, 0x1e);
+	stv0299_writeregI(state, 0x34, (stv0299_readreg(state, 0x34) & 0xcf) | 0x30);
+	msleep(100);
+	*ucblocks = (stv0299_readreg (state, 0x1d) << 8) | stv0299_readreg (state, 0x1e);
 
 	return 0;
 }
@@ -709,7 +707,6 @@ struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 	state->tuner_frequency = 0;
 	state->symbol_rate = 0;
 	state->fec_inner = 0;
-	state->errmode = STATUS_BER;
 
 	/* check if the demod is there */
 	stv0299_writeregI(state, 0x02, 0x34); /* standby off */
