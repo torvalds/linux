@@ -1156,6 +1156,9 @@ static void bitmap_writeback_daemon(mddev_t *mddev)
 		err = -EINTR;
 		goto out;
 	}
+	if (bitmap == NULL)
+		/* about to be stopped. */
+		return;
 
 	PRINTK("%s: bitmap writeback daemon woke up...\n", bmname(bitmap));
 	/* wait on bitmap page writebacks */
