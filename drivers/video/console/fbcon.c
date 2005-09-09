@@ -331,6 +331,35 @@ static void cursor_timer_handler(unsigned long dev_addr)
 	mod_timer(&ops->cursor_timer, jiffies + HZ/5);
 }
 
+static void fbcon_add_cursor_timer(struct fb_info *info)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	if ((!info->queue.func || info->queue.func == fb_flashcursor) &&
+	    !(ops->flags & FBCON_FLAGS_CURSOR_TIMER)) {
+		if (!info->queue.func)
+			INIT_WORK(&info->queue, fb_flashcursor, info);
+
+		init_timer(&ops->cursor_timer);
+		ops->cursor_timer.function = cursor_timer_handler;
+		ops->cursor_timer.expires = jiffies + HZ / 5;
+		ops->cursor_timer.data = (unsigned long ) info;
+		add_timer(&ops->cursor_timer);
+		ops->flags |= FBCON_FLAGS_CURSOR_TIMER;
+	}
+}
+
+static void fbcon_del_cursor_timer(struct fb_info *info)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	if (info->queue.func == fb_flashcursor &&
+	    ops->flags & FBCON_FLAGS_CURSOR_TIMER) {
+		del_timer_sync(&ops->cursor_timer);
+		ops->flags &= ~FBCON_FLAGS_CURSOR_TIMER;
+	}
+}
+
 #ifndef MODULE
 static int __init fb_console_setup(char *this_opt)
 {
@@ -583,9 +612,7 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 	}
 
 	if (!err) {
-		if (oldinfo->queue.func == fb_flashcursor)
-			del_timer_sync(&ops->cursor_timer);
-
+		fbcon_del_cursor_timer(oldinfo);
 		kfree(ops->cursor_state.mask);
 		kfree(ops->cursor_data);
 		kfree(oldinfo->fbcon_par);
@@ -594,22 +621,6 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 	}
 
 	return err;
-}
-
-static void con2fb_init_newinfo(struct fb_info *info)
-{
-	if (!info->queue.func || info->queue.func == fb_flashcursor) {
-		struct fbcon_ops *ops = info->fbcon_par;
-
-		if (!info->queue.func)
-			INIT_WORK(&info->queue, fb_flashcursor, info);
-
-		init_timer(&ops->cursor_timer);
-		ops->cursor_timer.function = cursor_timer_handler;
-		ops->cursor_timer.expires = jiffies + HZ / 5;
-		ops->cursor_timer.data = (unsigned long ) info;
-		add_timer(&ops->cursor_timer);
-	}
 }
 
 static void con2fb_init_display(struct vc_data *vc, struct fb_info *info,
@@ -695,7 +706,7 @@ static int set_con2fb_map(int unit, int newidx, int user)
  				 logo_shown != FBCON_LOGO_DONTSHOW);
 
  		if (!found)
- 			con2fb_init_newinfo(info);
+ 			fbcon_add_cursor_timer(info);
  		con2fb_map_boot[unit] = newidx;
  		con2fb_init_display(vc, info, unit, show_logo);
 	}
@@ -898,18 +909,7 @@ static const char *fbcon_startup(void)
 	}
 #endif				/* CONFIG_MAC */
 
-	/* Initialize the work queue. If the driver provides its
-	 * own work queue this means it will use something besides 
-	 * default timer to flash the cursor. */
-	if (!info->queue.func) {
-		INIT_WORK(&info->queue, fb_flashcursor, info);
-
-		init_timer(&ops->cursor_timer);
-		ops->cursor_timer.function = cursor_timer_handler;
-		ops->cursor_timer.expires = jiffies + HZ / 5;
-		ops->cursor_timer.data = (unsigned long ) info;
-		add_timer(&ops->cursor_timer);
-	}
+	fbcon_add_cursor_timer(info);
 	return display_desc;
 }
 
@@ -1923,7 +1923,7 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 
 static int fbcon_switch(struct vc_data *vc)
 {
-	struct fb_info *info;
+	struct fb_info *info, *old_info = NULL;
 	struct display *p = &fb_display[vc->vc_num];
 	struct fb_var_screeninfo var;
 	int i, prev_console;
@@ -1956,7 +1956,8 @@ static int fbcon_switch(struct vc_data *vc)
 	}
 
 	prev_console = ((struct fbcon_ops *)info->fbcon_par)->currcon;
-
+	if (prev_console != -1)
+		old_info = registered_fb[con2fb_map[prev_console]];
 	/*
 	 * FIXME: If we have multiple fbdev's loaded, we need to
 	 * update all info->currcon.  Perhaps, we can place this
@@ -1984,10 +1985,12 @@ static int fbcon_switch(struct vc_data *vc)
 	info->var.yoffset = info->var.xoffset = p->yscroll = 0;
 	fb_set_var(info, &var);
 
-	if (prev_console != -1 &&
-	    registered_fb[con2fb_map[prev_console]] != info &&
-	    info->fbops->fb_set_par)
-		info->fbops->fb_set_par(info);
+	if (old_info != NULL && old_info != info) {
+		if (info->fbops->fb_set_par)
+			info->fbops->fb_set_par(info);
+		fbcon_del_cursor_timer(old_info);
+		fbcon_add_cursor_timer(info);
+	}
 
 	set_blitting_type(vc, info, p);
 	((struct fbcon_ops *)info->fbcon_par)->cursor_reset = 1;
@@ -2073,11 +2076,16 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 				fbcon_generic_blank(vc, info, blank);
 		}
 
- 		if (!blank)
- 			update_screen(vc);
- 	}
+		if (!blank)
+			update_screen(vc);
+	}
 
- 	return 0;
+	if (!blank)
+		fbcon_add_cursor_timer(info);
+	else
+		fbcon_del_cursor_timer(info);
+
+	return 0;
 }
 
 static void fbcon_free_font(struct display *p)

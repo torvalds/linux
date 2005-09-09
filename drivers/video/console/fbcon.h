@@ -18,7 +18,8 @@
 
 #include <asm/io.h>
 
-#define FBCON_FLAGS_INIT 1
+#define FBCON_FLAGS_INIT         1
+#define FBCON_FLAGS_CURSOR_TIMER 2
 
    /*
     *    This is the interface between the low-level console driver and the
