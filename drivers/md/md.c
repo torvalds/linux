@@ -3346,6 +3346,15 @@ static int md_seq_show(struct seq_file *seq, void *v)
 				seq_printf(seq, "\n      %llu blocks",
 					(unsigned long long)size);
 		}
+		if (mddev->persistent) {
+			if (mddev->major_version != 0 ||
+			    mddev->minor_version != 90) {
+				seq_printf(seq," super %d.%d",
+					   mddev->major_version,
+					   mddev->minor_version);
+			}
+		} else
+			seq_printf(seq, " super non-persistent");
 
 		if (mddev->pers) {
 			mddev->pers->status (seq, mddev);
