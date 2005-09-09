@@ -1370,7 +1370,8 @@ static void scsi_kill_request(struct request *req, request_queue_t *q)
 {
 	struct scsi_cmnd *cmd = req->special;
 
-	spin_unlock(q->queue_lock);
+	blkdev_dequeue_request(req);
+
 	if (unlikely(cmd == NULL)) {
 		printk(KERN_CRIT "impossible request in %s.\n",
 				 __FUNCTION__);
@@ -1381,7 +1382,6 @@ static void scsi_kill_request(struct request *req, request_queue_t *q)
 	cmd->result = DID_NO_CONNECT << 16;
 	atomic_inc(&cmd->device->iorequest_cnt);
 	__scsi_done(cmd);
-	spin_lock(q->queue_lock);
 }
 
 /*
@@ -1432,7 +1432,6 @@ static void scsi_request_fn(struct request_queue *q)
 		if (unlikely(!scsi_device_online(sdev))) {
 			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to offline device\n",
 			       sdev->host->host_no, sdev->id, sdev->lun);
-			blkdev_dequeue_request(req);
 			scsi_kill_request(req, q);
 			continue;
 		}
