@@ -35,6 +35,7 @@
 #include <linux/syscalls.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
+#include <linux/rcupdate.h>
 #include <linux/ptrace.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
@@ -565,13 +566,12 @@ static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk)
 	return 0;
 }
 
-static int count_open_files(struct files_struct *files, int size)
+static int count_open_files(struct fdtable *fdt)
 {
+	int size = fdt->max_fdset;
 	int i;
-	struct fdtable *fdt;
 
 	/* Find the last open fd */
-	fdt = files_fdtable(files);
 	for (i = size/(8*sizeof(long)); i > 0; ) {
 		if (fdt->open_fds->fds_bits[--i])
 			break;
@@ -592,13 +592,17 @@ static struct files_struct *alloc_files(void)
 	atomic_set(&newf->count, 1);
 
 	spin_lock_init(&newf->file_lock);
-	fdt = files_fdtable(newf);
+	fdt = &newf->fdtab;
 	fdt->next_fd = 0;
 	fdt->max_fds = NR_OPEN_DEFAULT;
 	fdt->max_fdset = __FD_SETSIZE;
 	fdt->close_on_exec = &newf->close_on_exec_init;
 	fdt->open_fds = &newf->open_fds_init;
 	fdt->fd = &newf->fd_array[0];
+	INIT_RCU_HEAD(&fdt->rcu);
+	fdt->free_files = NULL;
+	fdt->next = NULL;
+	rcu_assign_pointer(newf->fdt, fdt);
 out:
 	return newf;
 }
@@ -637,7 +641,7 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 	old_fdt = files_fdtable(oldf);
 	new_fdt = files_fdtable(newf);
 	size = old_fdt->max_fdset;
-	open_files = count_open_files(oldf, old_fdt->max_fdset);
+	open_files = count_open_files(old_fdt);
 	expand = 0;
 
 	/*
@@ -661,7 +665,14 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 		spin_unlock(&newf->file_lock);
 		if (error < 0)
 			goto out_release;
+		new_fdt = files_fdtable(newf);
+		/*
+		 * Reacquire the oldf lock and a pointer to its fd table
+		 * who knows it may have a new bigger fd table. We need
+		 * the latest pointer.
+		 */
 		spin_lock(&oldf->file_lock);
+		old_fdt = files_fdtable(oldf);
 	}
 
 	old_fds = old_fdt->fd;
@@ -683,7 +694,7 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 			 */
 			FD_CLR(open_files - i, new_fdt->open_fds);
 		}
-		*new_fds++ = f;
+		rcu_assign_pointer(*new_fds++, f);
 	}
 	spin_unlock(&oldf->file_lock);
 

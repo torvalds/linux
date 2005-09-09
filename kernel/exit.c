@@ -411,15 +411,16 @@ void fastcall put_files_struct(struct files_struct *files)
 		close_files(files);
 		/*
 		 * Free the fd and fdset arrays if we expanded them.
+		 * If the fdtable was embedded, pass files for freeing
+		 * at the end of the RCU grace period. Otherwise,
+		 * you can free files immediately.
 		 */
 		fdt = files_fdtable(files);
-		if (fdt->fd != &files->fd_array[0])
-			free_fd_array(fdt->fd, fdt->max_fds);
-		if (fdt->max_fdset > __FD_SETSIZE) {
-			free_fdset(fdt->open_fds, fdt->max_fdset);
-			free_fdset(fdt->close_on_exec, fdt->max_fdset);
-		}
-		kmem_cache_free(files_cachep, files);
+		if (fdt == &files->fdtab)
+			fdt->free_files = files;
+		else
+			kmem_cache_free(files_cachep, files);
+		free_fdtable(fdt);
 	}
 }
 

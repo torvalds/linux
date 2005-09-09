@@ -2,6 +2,7 @@
 #define _LINUX__INIT_TASK_H
 
 #include <linux/file.h>
+#include <linux/rcupdate.h>
 
 #define INIT_FDTABLE \
 {							\
@@ -11,12 +12,16 @@
 	.fd		= &init_files.fd_array[0], 	\
 	.close_on_exec	= &init_files.close_on_exec_init, \
 	.open_fds	= &init_files.open_fds_init, 	\
+	.rcu		= RCU_HEAD_INIT, 		\
+	.free_files	= NULL,		 		\
+	.next		= NULL,		 		\
 }
 
 #define INIT_FILES \
 { 							\
 	.count		= ATOMIC_INIT(1), 		\
 	.file_lock	= SPIN_LOCK_UNLOCKED, 		\
+	.fdt		= &init_files.fdtab, 		\
 	.fdtab		= INIT_FDTABLE,			\
 	.close_on_exec_init = { { 0, } }, 		\
 	.open_fds_init	= { { 0, } }, 			\

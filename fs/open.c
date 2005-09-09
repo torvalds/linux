@@ -24,6 +24,7 @@
 #include <linux/personality.h>
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
+#include <linux/rcupdate.h>
 
 #include <asm/unistd.h>
 
@@ -930,9 +931,8 @@ void fastcall fd_install(unsigned int fd, struct file * file)
 	struct fdtable *fdt;
 	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
-	if (unlikely(fdt->fd[fd] != NULL))
-		BUG();
-	fdt->fd[fd] = file;
+	BUG_ON(fdt->fd[fd] != NULL);
+	rcu_assign_pointer(fdt->fd[fd], file);
 	spin_unlock(&files->file_lock);
 }
 
@@ -1024,7 +1024,7 @@ asmlinkage long sys_close(unsigned int fd)
 	filp = fdt->fd[fd];
 	if (!filp)
 		goto out_unlock;
-	fdt->fd[fd] = NULL;
+	rcu_assign_pointer(fdt->fd[fd], NULL);
 	FD_CLR(fd, fdt->close_on_exec);
 	__put_unused_fd(files, fd);
 	spin_unlock(&files->file_lock);

@@ -16,6 +16,7 @@
 #include <linux/security.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
+#include <linux/rcupdate.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -64,8 +65,8 @@ static int locate_fd(struct files_struct *files,
 	if (orig_start >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out;
 
-	fdt = files_fdtable(files);
 repeat:
+	fdt = files_fdtable(files);
 	/*
 	 * Someone might have closed fd's in the range
 	 * orig_start..fdt->next_fd
@@ -95,9 +96,15 @@ repeat:
 	if (error)
 		goto repeat;
 
+	/*
+	 * We reacquired files_lock, so we are safe as long as
+	 * we reacquire the fdtable pointer and use it while holding
+	 * the lock, no one can free it during that time.
+	 */
+	fdt = files_fdtable(files);
 	if (start <= fdt->next_fd)
 		fdt->next_fd = newfd + 1;
-	
+
 	error = newfd;
 	
 out:
@@ -163,7 +170,7 @@ asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 	if (!tofree && FD_ISSET(newfd, fdt->open_fds))
 		goto out_fput;
 
-	fdt->fd[newfd] = file;
+	rcu_assign_pointer(fdt->fd[newfd], file);
 	FD_SET(newfd, fdt->open_fds);
 	FD_CLR(newfd, fdt->close_on_exec);
 	spin_unlock(&files->file_lock);
