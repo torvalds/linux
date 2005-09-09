@@ -270,19 +270,20 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 
 	if (!page)
 		return ERR_PTR(-ENOMEM);
-	do {
-		ITERATE_RDEV(mddev, rdev, tmp)
-			if (rdev->in_sync && !rdev->faulty)
-				goto found;
-		return ERR_PTR(-EIO);
 
-	found:
+	ITERATE_RDEV(mddev, rdev, tmp) {
+		if (! rdev->in_sync || rdev->faulty)
+			continue;
+
 		target = (rdev->sb_offset << 1) + offset + index * (PAGE_SIZE/512);
 
-	} while (!sync_page_io(rdev->bdev, target, PAGE_SIZE, page, READ));
+		if (sync_page_io(rdev->bdev, target, PAGE_SIZE, page, READ)) {
+			page->index = index;
+			return page;
+		}
+	}
+	return ERR_PTR(-EIO);
 
-	page->index = index;
-	return page;
 }
 
 static int write_sb_page(mddev_t *mddev, long offset, struct page *page, int wait)
