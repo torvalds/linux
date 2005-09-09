@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/suspend.h>
-#include <linux/config.h>
 
 
 #include "saa7134-reg.h"
