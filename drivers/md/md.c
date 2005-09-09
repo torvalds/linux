@@ -712,6 +712,8 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	int i;
 	int active=0, working=0,failed=0,spare=0,nr_disks=0;
 
+	rdev->sb_size = MD_SB_BYTES;
+
 	sb = (mdp_super_t*)page_address(rdev->sb_page);
 
 	memset(sb, 0, sizeof(*sb));
@@ -2302,8 +2304,6 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			rdev->in_sync = (info->state & (1<<MD_DISK_SYNC));
 		else
 			rdev->in_sync = 0;
-
-		rdev->sb_size = MD_SB_BYTES;
 
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
