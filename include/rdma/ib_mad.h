@@ -173,6 +173,27 @@ struct ib_vendor_mad {
 	u8			data[216];
 };
 
+struct ib_class_port_info
+{
+	u8			base_version;
+	u8			class_version;
+	__be16			capability_mask;
+	u8			reserved[3];
+	u8			resp_time_value;
+	u8			redirect_gid[16];
+	__be32			redirect_tcslfl;
+	__be16			redirect_lid;
+	__be16			redirect_pkey;
+	__be32			redirect_qp;
+	__be32			redirect_qkey;
+	u8			trap_gid[16];
+	__be32			trap_tcslfl;
+	__be16			trap_lid;
+	__be16			trap_pkey;
+	__be32			trap_hlqp;
+	__be32			trap_qkey;
+};
+
 /**
  * ib_mad_send_buf - MAD data buffer and work request for sends.
  * @mad: References an allocated MAD data buffer.  The size of the data
