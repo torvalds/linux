@@ -1452,7 +1452,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
         client_template.addr = addr;
 
         if (-1 == msp3400c_reset(&client_template)) {
-                dprintk("msp3400: no chip found\n");
+                dprintk("msp34xx: no chip found\n");
                 return -1;
         }
 
@@ -1478,7 +1478,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	if (-1 == msp3400c_reset(c)) {
 		kfree(msp);
 		kfree(c);
-		dprintk("msp3400: no chip found\n");
+		dprintk("msp34xx: no chip found\n");
 		return -1;
 	}
 
@@ -1488,7 +1488,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	if ((-1 == msp->rev1) || (0 == msp->rev1 && 0 == msp->rev2)) {
 		kfree(msp);
 		kfree(c);
-		printk("msp3400: error while reading chip version\n");
+		dprintk("msp34xx: error while reading chip version\n");
 		return -1;
 	}
 
