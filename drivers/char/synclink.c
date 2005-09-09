@@ -1814,6 +1814,8 @@ static int startup(struct mgsl_struct * info)
 
 	info->pending_bh = 0;
 	
+	memset(&info->icount, 0, sizeof(info->icount));
+
 	init_timer(&info->tx_timer);
 	info->tx_timer.data = (unsigned long)info;
 	info->tx_timer.function = mgsl_tx_timeout;
@@ -2470,12 +2472,12 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
-	COPY_TO_USER(err,user_icount, &info->icount, sizeof(struct mgsl_icount));
-	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
-			printk( "%s(%d):mgsl_get_stats(%s) user buffer copy failed\n",
-				__FILE__,__LINE__,info->device_name);
-		return -EFAULT;
+	if (!user_icount) {
+		memset(&info->icount, 0, sizeof(info->icount));
+	} else {
+		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		if (err)
+			return -EFAULT;
 	}
 	
 	return 0;
