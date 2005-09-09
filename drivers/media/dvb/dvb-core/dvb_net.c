@@ -62,7 +62,6 @@
 #include <linux/uio.h>
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
-#include <linux/version.h>
 
 #include "dvb_demux.h"
 #include "dvb_net.h"
@@ -171,11 +170,7 @@ static unsigned short dvb_net_eth_type_trans(struct sk_buff *skb,
 
 	skb->mac.raw=skb->data;
 	skb_pull(skb,dev->hard_header_len);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,8)
-	eth = skb->mac.ethernet;
-#else
 	eth = eth_hdr(skb);
-#endif
 
 	if (*eth->h_dest & 1) {
 		if(memcmp(eth->h_dest,dev->broadcast, ETH_ALEN)==0)
