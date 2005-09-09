@@ -410,25 +410,15 @@ void fuse_reset_request(struct fuse_req *req);
 struct fuse_req *fuse_get_request(struct fuse_conn *fc);
 
 /**
- * Reserve a preallocated request, only interruptible by SIGKILL
- */
-struct fuse_req *fuse_get_request_nonint(struct fuse_conn *fc);
-
-/**
  * Decrement reference count of a request.  If count goes to zero put
  * on unused list (preallocated) or free reqest (not preallocated).
  */
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
- * Send a request (synchronous, interruptible)
+ * Send a request (synchronous)
  */
 void request_send(struct fuse_conn *fc, struct fuse_req *req);
-
-/**
- * Send a request (synchronous, non-interruptible except by SIGKILL)
- */
-void request_send_nonint(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Send a request with no reply

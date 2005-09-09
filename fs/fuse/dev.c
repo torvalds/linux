@@ -103,19 +103,8 @@ static struct fuse_req *do_get_request(struct fuse_conn *fc)
 	return req;
 }
 
+/* This can return NULL, but only in case it's interrupted by a SIGKILL */
 struct fuse_req *fuse_get_request(struct fuse_conn *fc)
-{
-	if (down_interruptible(&fc->outstanding_sem))
-		return NULL;
-	return do_get_request(fc);
-}
-
-/*
- * Non-interruptible version of the above function is for operations
- * which can't legally return -ERESTART{SYS,NOINTR}.  This can still
- * return NULL, but only in case the signal is SIGKILL.
- */
-struct fuse_req *fuse_get_request_nonint(struct fuse_conn *fc)
 {
 	int intr;
 	sigset_t oldset;
@@ -241,43 +230,20 @@ static void background_request(struct fuse_conn *fc, struct fuse_req *req)
 		get_file(req->file);
 }
 
-static int request_wait_answer_nonint(struct fuse_req *req)
-{
-	int err;
-	sigset_t oldset;
-	block_sigs(&oldset);
-	err = wait_event_interruptible(req->waitq, req->finished);
-	restore_sigs(&oldset);
-	return err;
-}
-
 /* Called with fuse_lock held.  Releases, and then reacquires it. */
-static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req,
-				int interruptible)
+static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 {
-	int intr;
+	sigset_t oldset;
 
 	spin_unlock(&fuse_lock);
-	if (interruptible)
-		intr = wait_event_interruptible(req->waitq, req->finished);
-	else
-		intr = request_wait_answer_nonint(req);
+	block_sigs(&oldset);
+	wait_event_interruptible(req->waitq, req->finished);
+	restore_sigs(&oldset);
 	spin_lock(&fuse_lock);
-	if (intr && interruptible && req->sent) {
-		/* If request is already in userspace, only allow KILL
-		   signal to interrupt */
-		spin_unlock(&fuse_lock);
-		intr = request_wait_answer_nonint(req);
-		spin_lock(&fuse_lock);
-	}
-	if (!intr)
+	if (req->finished)
 		return;
 
-	if (!interruptible || req->sent)
-		req->out.h.error = -EINTR;
-	else
-		req->out.h.error = -ERESTARTNOINTR;
-
+	req->out.h.error = -EINTR;
 	req->interrupted = 1;
 	if (req->locked) {
 		/* This is uninterruptible sleep, because data is
@@ -330,8 +296,10 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	wake_up(&fc->waitq);
 }
 
-static void request_send_wait(struct fuse_conn *fc, struct fuse_req *req,
-			      int interruptible)
+/*
+ * This can only be interrupted by a SIGKILL
+ */
+void request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
 	spin_lock(&fuse_lock);
@@ -345,24 +313,9 @@ static void request_send_wait(struct fuse_conn *fc, struct fuse_req *req,
 		   after request_end() */
 		__fuse_get_request(req);
 
-		request_wait_answer(fc, req, interruptible);
+		request_wait_answer(fc, req);
 	}
 	spin_unlock(&fuse_lock);
-}
-
-void request_send(struct fuse_conn *fc, struct fuse_req *req)
-{
-	request_send_wait(fc, req, 1);
-}
-
-/*
- * Non-interruptible version of the above function is for operations
- * which can't legally return -ERESTART{SYS,NOINTR}.  This can still
- * be interrupted but only with SIGKILL.
- */
-void request_send_nonint(struct fuse_conn *fc, struct fuse_req *req)
-{
-	request_send_wait(fc, req, 0);
 }
 
 static void request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)

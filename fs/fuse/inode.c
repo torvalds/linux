@@ -236,7 +236,7 @@ static int fuse_statfs(struct super_block *sb, struct kstatfs *buf)
 
         req = fuse_get_request(fc);
 	if (!req)
-		return -ERESTARTSYS;
+		return -EINTR;
 
 	req->in.numargs = 0;
 	req->in.h.opcode = FUSE_STATFS;
