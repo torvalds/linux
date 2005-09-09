@@ -122,7 +122,7 @@ int snd_sb_csp_new(sb_t *chip, int device, snd_hwdep_t ** rhwdep)
 	if ((err = snd_hwdep_new(chip->card, "SB16-CSP", device, &hw)) < 0)
 		return err;
 
-	if ((p = kcalloc(1, sizeof(*p), GFP_KERNEL)) == NULL) {
+	if ((p = kzalloc(sizeof(*p), GFP_KERNEL)) == NULL) {
 		snd_device_free(chip->card, hw);
 		return -ENOMEM;
 	}

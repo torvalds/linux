@@ -1686,7 +1686,7 @@ static int __devinit snd_es18xx_new_device(snd_card_t * card,
 	int err;
 
 	*rchip = NULL;
-        chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+        chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);

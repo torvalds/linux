@@ -715,7 +715,7 @@ static int __devinit snd_opl3sa2_probe(int dev,
 		return -ENOMEM;
 	strcpy(card->driver, "OPL3SA2");
 	strcpy(card->shortname, "Yamaha OPL3-SA2");
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		err = -ENOMEM;
 		goto __error;

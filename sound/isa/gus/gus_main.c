@@ -157,7 +157,7 @@ int snd_gus_create(snd_card_t * card,
 	};
 
 	*rgus = NULL;
-	gus = kcalloc(1, sizeof(*gus), GFP_KERNEL);
+	gus = kzalloc(sizeof(*gus), GFP_KERNEL);
 	if (gus == NULL)
 		return -ENOMEM;
 	gus->gf1.irq = -1;

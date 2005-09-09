@@ -1273,7 +1273,7 @@ static int snd_opti93x_create(snd_card_t *card, opti9xx_t *chip,
 	opti93x_t *codec;
 
 	*rcodec = NULL;
-	codec = kcalloc(1, sizeof(*codec), GFP_KERNEL);
+	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
 	if (codec == NULL)
 		return -ENOMEM;
 	codec->irq = -1;
