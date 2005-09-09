@@ -44,6 +44,7 @@
 #include "fid.h"
 
 static struct inode_operations v9fs_dir_inode_operations;
+static struct inode_operations v9fs_dir_inode_operations_ext;
 static struct inode_operations v9fs_file_inode_operations;
 static struct inode_operations v9fs_symlink_inode_operations;
 
@@ -232,6 +233,7 @@ v9fs_mistat2unix(struct v9fs_stat *mistat, struct stat *buf,
 struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 {
 	struct inode *inode = NULL;
+	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
 	dprintk(DEBUG_VFS, "super block: %p mode: %o\n", sb, mode);
 
@@ -250,6 +252,10 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		case S_IFBLK:
 		case S_IFCHR:
 		case S_IFSOCK:
+			if(!v9ses->extended) {
+				dprintk(DEBUG_ERROR, "special files without extended mode\n");
+				return ERR_PTR(-EINVAL);
+			}
 			init_special_inode(inode, inode->i_mode,
 					   inode->i_rdev);
 			break;
@@ -257,13 +263,20 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 			inode->i_op = &v9fs_file_inode_operations;
 			inode->i_fop = &v9fs_file_operations;
 			break;
+		case S_IFLNK:
+			if(!v9ses->extended) {
+				dprintk(DEBUG_ERROR, "extended modes used w/o 9P2000.u\n");
+				return ERR_PTR(-EINVAL);
+			}
+			inode->i_op = &v9fs_symlink_inode_operations;
+			break;
 		case S_IFDIR:
 			inode->i_nlink++;
-			inode->i_op = &v9fs_dir_inode_operations;
+			if(v9ses->extended)
+				inode->i_op = &v9fs_dir_inode_operations_ext;
+			else
+				inode->i_op = &v9fs_dir_inode_operations;
 			inode->i_fop = &v9fs_dir_operations;
-			break;
-		case S_IFLNK:
-			inode->i_op = &v9fs_symlink_inode_operations;
 			break;
 		default:
 			dprintk(DEBUG_ERROR, "BAD mode 0x%x S_IFMT 0x%x\n",
@@ -1284,7 +1297,7 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	return retval;
 }
 
-static struct inode_operations v9fs_dir_inode_operations = {
+static struct inode_operations v9fs_dir_inode_operations_ext = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
 	.symlink = v9fs_vfs_symlink,
@@ -1295,6 +1308,18 @@ static struct inode_operations v9fs_dir_inode_operations = {
 	.mknod = v9fs_vfs_mknod,
 	.rename = v9fs_vfs_rename,
 	.readlink = v9fs_vfs_readlink,
+	.getattr = v9fs_vfs_getattr,
+	.setattr = v9fs_vfs_setattr,
+};
+
+static struct inode_operations v9fs_dir_inode_operations = {
+	.create = v9fs_vfs_create,
+	.lookup = v9fs_vfs_lookup,
+	.unlink = v9fs_vfs_unlink,
+	.mkdir = v9fs_vfs_mkdir,
+	.rmdir = v9fs_vfs_rmdir,
+	.mknod = v9fs_vfs_mknod,
+	.rename = v9fs_vfs_rename,
 	.getattr = v9fs_vfs_getattr,
 	.setattr = v9fs_vfs_setattr,
 };
