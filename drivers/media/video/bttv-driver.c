@@ -4111,15 +4111,29 @@ static int bttv_resume(struct pci_dev *pci_dev)
 {
         struct bttv *btv = pci_get_drvdata(pci_dev);
 	unsigned long flags;
+	int err;
 
 	dprintk("bttv%d: resume\n", btv->c.nr);
 
 	/* restore pci state */
 	if (btv->state.disabled) {
-		pci_enable_device(pci_dev);
+		err=pci_enable_device(pci_dev);
+		if (err) {
+			printk(KERN_WARNING "bttv%d: Can't enable device.\n",
+								btv->c.nr);
+			return err;
+		}
 		btv->state.disabled = 0;
 	}
-	pci_set_power_state(pci_dev, PCI_D0);
+	err=pci_set_power_state(pci_dev, PCI_D0);
+	if (err) {
+		pci_disable_device(pci_dev);
+		printk(KERN_WARNING "bttv%d: Can't enable device.\n",
+							btv->c.nr);
+		btv->state.disabled = 1;
+		return err;
+	}
+
 	pci_restore_state(pci_dev);
 
 	/* restore bt878 state */

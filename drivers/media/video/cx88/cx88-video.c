@@ -2005,12 +2005,28 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 {
 	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
+	int err;
 
 	if (dev->state.disabled) {
-		pci_enable_device(pci_dev);
+		err=pci_enable_device(pci_dev);
+		if (err) {
+			printk(KERN_ERR "%s: can't enable device\n",
+						       core->name);
+			return err;
+		}
+
 		dev->state.disabled = 0;
 	}
-	pci_set_power_state(pci_dev, PCI_D0);
+	err= pci_set_power_state(pci_dev, PCI_D0);
+	if (err) {
+		printk(KERN_ERR "%s: can't enable device\n",
+				       core->name);
+
+		pci_disable_device(pci_dev);
+		dev->state.disabled = 1;
+
+		return err;
+	}
 	pci_restore_state(pci_dev);
 
 	/* FIXME: re-initialize hardware */
