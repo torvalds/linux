@@ -462,9 +462,11 @@ static int mt352_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
 	struct mt352_state* state = fe->demodulator_priv;
 
-	u16 signal = ((mt352_read_register(state, AGC_GAIN_1) << 8) & 0x0f) |
-		      (mt352_read_register(state, AGC_GAIN_0));
+	/* align the 12 bit AGC gain with the most significant bits */
+	u16 signal = ((mt352_read_register(state, AGC_GAIN_1) & 0x0f) << 12) |
+		(mt352_read_register(state, AGC_GAIN_0) << 4);
 
+	/* inverse of gain is signal strength */
 	*strength = ~signal;
 	return 0;
 }
