@@ -424,8 +424,12 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 {
 	cistpl_manfid_t manf_id;
 	cistpl_funcid_t func_id;
-	cistpl_vers_1_t	vers1;
+	cistpl_vers_1_t	*vers1;
 	unsigned int i;
+
+	vers1 = kmalloc(sizeof(*vers1), GFP_KERNEL);
+	if (!vers1)
+		return -ENOMEM;
 
 	if (!pccard_read_tuple(p_dev->socket, p_dev->func,
 			       CISTPL_MANFID, &manf_id)) {
@@ -443,23 +447,30 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		/* rule of thumb: cards with no FUNCID, but with
 		 * common memory device geometry information, are
 		 * probably memory cards (from pcmcia-cs) */
-		cistpl_device_geo_t devgeo;
+		cistpl_device_geo_t *devgeo;
+
+		devgeo = kmalloc(sizeof(*devgeo), GFP_KERNEL);
+		if (!devgeo) {
+			kfree(vers1);
+			return -ENOMEM;
+		}
 		if (!pccard_read_tuple(p_dev->socket, p_dev->func,
-				      CISTPL_DEVICE_GEO, &devgeo)) {
+				      CISTPL_DEVICE_GEO, devgeo)) {
 			ds_dbg(0, "mem device geometry probably means "
 			       "FUNCID_MEMORY\n");
 			p_dev->func_id = CISTPL_FUNCID_MEMORY;
 			p_dev->has_func_id = 1;
 		}
+		kfree(devgeo);
 	}
 
 	if (!pccard_read_tuple(p_dev->socket, p_dev->func, CISTPL_VERS_1,
-			       &vers1)) {
-		for (i=0; i < vers1.ns; i++) {
+			       vers1)) {
+		for (i=0; i < vers1->ns; i++) {
 			char *tmp;
 			unsigned int length;
 
-			tmp = vers1.str + vers1.ofs[i];
+			tmp = vers1->str + vers1->ofs[i];
 
 			length = strlen(tmp) + 1;
 			if ((length < 3) || (length > 255))
@@ -475,6 +486,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		}
 	}
 
+	kfree(vers1);
 	return 0;
 }
 
