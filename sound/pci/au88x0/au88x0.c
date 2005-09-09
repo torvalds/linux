@@ -156,7 +156,7 @@ snd_vortex_create(snd_card_t * card, struct pci_dev *pci, vortex_t ** rchip)
 	}
 	pci_set_dma_mask(pci, VORTEX_DMA_MASK);
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 

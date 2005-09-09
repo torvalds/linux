@@ -2095,7 +2095,7 @@ static int patch_alc880(struct hda_codec *codec)
 	int board_config;
 	int i, err;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -2367,7 +2367,7 @@ static int patch_alc260(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int board_config;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -2617,7 +2617,7 @@ static int patch_alc882(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 

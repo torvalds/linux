@@ -1943,7 +1943,7 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 	*rensoniq = NULL;
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	ensoniq = kcalloc(1, sizeof(*ensoniq), GFP_KERNEL);
+	ensoniq = kzalloc(sizeof(*ensoniq), GFP_KERNEL);
 	if (ensoniq == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

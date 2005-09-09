@@ -2220,7 +2220,7 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
         if ((err = pci_enable_device(pci)) < 0)
                 return err;
 
-        korg1212 = kcalloc(1, sizeof(*korg1212), GFP_KERNEL);
+        korg1212 = kzalloc(sizeof(*korg1212), GFP_KERNEL);
         if (korg1212 == NULL) {
 		pci_disable_device(pci);
                 return -ENOMEM;

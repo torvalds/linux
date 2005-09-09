@@ -50,7 +50,7 @@
 #include "ad1889.h"
 #include "ac97/ac97_id.h"
 
-#define	AD1889_DRVVER	"$Revision: 1.1 $"
+#define	AD1889_DRVVER	"$Revision: 1.2 $"
 
 MODULE_AUTHOR("Kyle McMartin <kyle@parisc-linux.org>, Thibaut Varene <t-bone@parisc-linux.org>");
 MODULE_DESCRIPTION("Analog Devices AD1889 ALSA sound driver");
@@ -928,7 +928,7 @@ snd_ad1889_create(snd_card_t *card,
 	}
 
 	/* allocate chip specific data with zero-filled memory */
-	if ((chip = kcalloc(1, sizeof(*chip), GFP_KERNEL)) == NULL) {
+	if ((chip = kzalloc(sizeof(*chip), GFP_KERNEL)) == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}

@@ -1797,7 +1797,7 @@ int snd_ac97_bus(snd_card_t *card, int num, ac97_bus_ops_t *ops,
 
 	snd_assert(card != NULL, return -EINVAL);
 	snd_assert(rbus != NULL, return -EINVAL);
-	bus = kcalloc(1, sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
 		return -ENOMEM;
 	bus->card = card;
@@ -1906,7 +1906,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 	}
 
 	card = bus->card;
-	ac97 = kcalloc(1, sizeof(*ac97), GFP_KERNEL);
+	ac97 = kzalloc(sizeof(*ac97), GFP_KERNEL);
 	if (ac97 == NULL)
 		return -ENOMEM;
 	ac97->private_data = template->private_data;

@@ -2775,7 +2775,7 @@ static int __devinit snd_cmipci_create(snd_card_t *card, struct pci_dev *pci,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	cm = kcalloc(1, sizeof(*cm), GFP_KERNEL);
+	cm = kzalloc(sizeof(*cm), GFP_KERNEL);
 	if (cm == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

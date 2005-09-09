@@ -2529,7 +2529,7 @@ static int __devinit snd_ice1712_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	ice = kcalloc(1, sizeof(*ice), GFP_KERNEL);
+	ice = kzalloc(sizeof(*ice), GFP_KERNEL);
 	if (ice == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

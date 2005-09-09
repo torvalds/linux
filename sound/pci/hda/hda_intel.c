@@ -1402,7 +1402,7 @@ static int __devinit azx_create(snd_card_t *card, struct pci_dev *pci,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	
 	if (NULL == chip) {
 		snd_printk(KERN_ERR SFX "cannot allocate chip\n");

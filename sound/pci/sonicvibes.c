@@ -1250,7 +1250,7 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
                 return -ENXIO;
         }
 
-	sonic = kcalloc(1, sizeof(*sonic), GFP_KERNEL);
+	sonic = kzalloc(sizeof(*sonic), GFP_KERNEL);
 	if (sonic == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

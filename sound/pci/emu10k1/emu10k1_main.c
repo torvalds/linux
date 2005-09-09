@@ -865,7 +865,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	emu = kcalloc(1, sizeof(*emu), GFP_KERNEL);
+	emu = kzalloc(sizeof(*emu), GFP_KERNEL);
 	if (emu == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

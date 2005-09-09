@@ -1494,7 +1494,7 @@ static int __devinit snd_es1938_create(snd_card_t * card,
                 return -ENXIO;
         }
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
