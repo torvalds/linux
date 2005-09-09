@@ -962,7 +962,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
 	u8 win_count;
-	u32 p_prev;
+	u32 p_prev, r_sample, t_elapsed;
 	int ins;
 
 	if (hcrx == NULL)
@@ -982,9 +982,23 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			break;
 		p_prev = hcrx->ccid3hcrx_rtt;
 		do_gettimeofday(&now);
-		hcrx->ccid3hcrx_rtt = timeval_usecs(&now) -
-				     (opt_recv->dccpor_timestamp_echo -
-				      opt_recv->dccpor_elapsed_time) * 10;
+		timeval_sub_usecs(&now, opt_recv->dccpor_timestamp_echo * 10);
+		r_sample = timeval_usecs(&now);
+		t_elapsed = opt_recv->dccpor_elapsed_time * 10;
+
+		if (unlikely(r_sample <= t_elapsed))
+			LIMIT_NETDEBUG(KERN_WARNING
+				       "%s: r_sample=%uus, t_elapsed=%uus\n",
+				       __FUNCTION__, r_sample, t_elapsed);
+		else
+			r_sample -= t_elapsed;
+
+		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
+			hcrx->ccid3hcrx_rtt = r_sample;
+		else
+			hcrx->ccid3hcrx_rtt = (hcrx->ccid3hcrx_rtt * 9) / 10 +
+					      r_sample / 10;
+
 		if (p_prev != hcrx->ccid3hcrx_rtt)
 			ccid3_pr_debug("%s, New RTT=%luus, elapsed time=%u\n",
 				       dccp_role(sk), hcrx->ccid3hcrx_rtt,
