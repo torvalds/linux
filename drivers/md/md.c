@@ -957,8 +957,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->events = le64_to_cpu(sb->events);
 		mddev->bitmap_offset = 0;
 		mddev->default_bitmap_offset = 0;
-		if (mddev->minor_version == 0)
-			mddev->default_bitmap_offset = -(64*1024)/512;
+		mddev->default_bitmap_offset = 1024;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
