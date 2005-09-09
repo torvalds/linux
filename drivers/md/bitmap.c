@@ -522,6 +522,7 @@ success:
 	/* assign fields using values from superblock */
 	bitmap->chunksize = chunksize;
 	bitmap->daemon_sleep = daemon_sleep;
+	bitmap->daemon_lastrun = jiffies;
 	bitmap->max_write_behind = write_behind;
 	bitmap->flags |= sb->state;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
