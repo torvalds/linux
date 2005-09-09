@@ -168,7 +168,9 @@ static void init_av7110_av(struct av7110 *av7110)
 		if (ret < 0)
 			printk("dvb-ttpci:cannot switch on SCART(AD):%d\n",ret);
 		if (rgb_on &&
-		    (av7110->dev->pci->subsystem_vendor == 0x110a) && (av7110->dev->pci->subsystem_device == 0x0000)) {
+		    ((av7110->dev->pci->subsystem_vendor == 0x110a) ||
+		     (av7110->dev->pci->subsystem_vendor == 0x13c2)) &&
+		     (av7110->dev->pci->subsystem_device == 0x0000)) {
 			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI); // RGB on, SCART pin 16
 			//saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO); // SCARTpin 8
 		}
@@ -2868,7 +2870,7 @@ static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = x_name, \
 	.ext = &av7110_extension }
 
-MAKE_AV7110_INFO(tts_1_X,    "Technotrend/Hauppauge WinTV DVB-S rev1.X");
+MAKE_AV7110_INFO(tts_1_X_fsc,"Technotrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(ttt_1_X,    "Technotrend/Hauppauge WinTV DVB-T rev1.X");
 MAKE_AV7110_INFO(ttc_1_X,    "Technotrend/Hauppauge WinTV Nexus-CA rev1.X");
 MAKE_AV7110_INFO(ttc_2_X,    "Technotrend/Hauppauge WinTV DVB-C rev2.X");
@@ -2880,16 +2882,16 @@ MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
 
 static struct pci_device_id pci_tbl[] = {
-	MAKE_EXTENSION_PCI(fsc,       0x110a, 0x0000),
-	MAKE_EXTENSION_PCI(tts_1_X,   0x13c2, 0x0000),
-	MAKE_EXTENSION_PCI(ttt_1_X,   0x13c2, 0x0001),
-	MAKE_EXTENSION_PCI(ttc_2_X,   0x13c2, 0x0002),
-	MAKE_EXTENSION_PCI(tts_2_X,   0x13c2, 0x0003),
-	MAKE_EXTENSION_PCI(fss,       0x13c2, 0x0006),
-	MAKE_EXTENSION_PCI(ttt,       0x13c2, 0x0008),
-	MAKE_EXTENSION_PCI(ttc_1_X,   0x13c2, 0x000a),
-	MAKE_EXTENSION_PCI(tts_2_3,   0x13c2, 0x000e),
-	MAKE_EXTENSION_PCI(tts_1_3se, 0x13c2, 0x1002),
+	MAKE_EXTENSION_PCI(fsc,         0x110a, 0x0000),
+	MAKE_EXTENSION_PCI(tts_1_X_fsc, 0x13c2, 0x0000),
+	MAKE_EXTENSION_PCI(ttt_1_X,     0x13c2, 0x0001),
+	MAKE_EXTENSION_PCI(ttc_2_X,     0x13c2, 0x0002),
+	MAKE_EXTENSION_PCI(tts_2_X,     0x13c2, 0x0003),
+	MAKE_EXTENSION_PCI(fss,         0x13c2, 0x0006),
+	MAKE_EXTENSION_PCI(ttt,         0x13c2, 0x0008),
+	MAKE_EXTENSION_PCI(ttc_1_X,     0x13c2, 0x000a),
+	MAKE_EXTENSION_PCI(tts_2_3,     0x13c2, 0x000e),
+	MAKE_EXTENSION_PCI(tts_1_3se,   0x13c2, 0x1002),
 
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0004), UNDEFINED CARD */ // Galaxis DVB PC-Sat-Carte
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0005), UNDEFINED CARD */ // Technisat SkyStar1
