@@ -906,6 +906,27 @@ static void close_sync(conf_t *conf)
 	conf->r10buf_pool = NULL;
 }
 
+/* check if there are enough drives for
+ * every block to appear on atleast one
+ */
+static int enough(conf_t *conf)
+{
+	int first = 0;
+
+	do {
+		int n = conf->copies;
+		int cnt = 0;
+		while (n--) {
+			if (conf->mirrors[first].rdev)
+				cnt++;
+			first = (first+1) % conf->raid_disks;
+		}
+		if (cnt == 0)
+			return 0;
+	} while (first != 0);
+	return 1;
+}
+
 static int raid10_spare_active(mddev_t *mddev)
 {
 	int i;
@@ -943,6 +964,8 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		/* only hot-add to in-sync arrays, as recovery is
 		 * very different from resync
 		 */
+		return 0;
+	if (!enough(conf))
 		return 0;
 
 	for (mirror=0; mirror < mddev->raid_disks; mirror++)
@@ -1684,9 +1707,10 @@ static int run(mddev_t *mddev)
 	init_waitqueue_head(&conf->wait_idle);
 	init_waitqueue_head(&conf->wait_resume);
 
-	if (!conf->working_disks) {
-		printk(KERN_ERR "raid10: no operational mirrors for %s\n",
-			mdname(mddev));
+	/* need to check that every block has at least one working mirror */
+	if (!enough(conf)) {
+		printk(KERN_ERR "raid10: not enough operational mirrors for %s\n",
+		       mdname(mddev));
 		goto out_free_conf;
 	}
 
