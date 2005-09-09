@@ -1256,8 +1256,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	MPT_SCSI_HOST		*hd;
 	MPT_FRAME_HDR		*mf;
 	SCSIIORequest_t		*pScsiReq;
-	VirtDevice		*pTarget;
-	int	 target;
+	VirtDevice		*pTarget = SCpnt->device->hostdata;
 	int	 lun;
 	u32	 datalen;
 	u32	 scsictl;
@@ -1267,11 +1266,8 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	int	 ii;
 
 	hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata;
-	target = SCpnt->device->id;
 	lun = SCpnt->device->lun;
 	SCpnt->scsi_done = done;
-
-	pTarget = hd->Targets[target];
 
 	dmfprintk((MYIOC_s_INFO_FMT "qcmd: SCpnt=%p, done()=%p\n",
 			(hd && hd->ioc) ? hd->ioc->name : "ioc?", SCpnt, done));
@@ -1315,7 +1311,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	/* Default to untagged. Once a target structure has been allocated,
 	 * use the Inquiry data to determine if device supports tagged.
 	 */
-	if (   pTarget
+	if (pTarget
 	    && (pTarget->tflags & MPT_TARGET_FLAGS_Q_YES)
 	    && (SCpnt->device->tagged_supported)) {
 		scsictl = scsidir | MPI_SCSIIO_CONTROL_SIMPLEQ;
@@ -1325,8 +1321,8 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	/* Use the above information to set up the message frame
 	 */
-	pScsiReq->TargetID = (u8) target;
-	pScsiReq->Bus = (u8) SCpnt->device->channel;
+	pScsiReq->TargetID = (u8) pTarget->target_id;
+	pScsiReq->Bus = pTarget->bus_id;
 	pScsiReq->ChainOffset = 0;
 	pScsiReq->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
 	pScsiReq->CDBLength = SCpnt->cmd_len;
@@ -1378,7 +1374,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 #ifdef MPTSCSIH_ENABLE_DOMAIN_VALIDATION
 	if (hd->ioc->bus_type == SCSI) {
-		int dvStatus = hd->ioc->spi_data.dvStatus[target];
+		int dvStatus = hd->ioc->spi_data.dvStatus[pTarget->target_id];
 		int issueCmd = 1;
 
 		if (dvStatus || hd->ioc->spi_data.forceDv) {
@@ -2180,6 +2176,7 @@ mptscsih_slave_alloc(struct scsi_device *device)
 
  out:
 	vdev->num_luns++;
+	device->hostdata = vdev;
 	return 0;
 }
 
