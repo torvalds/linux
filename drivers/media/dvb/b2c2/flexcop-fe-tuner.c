@@ -164,12 +164,11 @@ static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend* fe, u32 srate,
 	return 0;
 }
 
-static int samsung_tbmu24112_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int samsung_tbmu24112_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
 {
 	u8 buf[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
-	struct flexcop_device *fc = fe->dvb->priv;
 
 	div = params->frequency / 125;
 
@@ -180,7 +179,7 @@ static int samsung_tbmu24112_pll_set(struct dvb_frontend* fe, struct dvb_fronten
 
 	if (params->frequency < 1500000) buf[3] |= 0x10;
 
-	if (i2c_transfer(&fc->i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }

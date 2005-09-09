@@ -1299,7 +1299,7 @@ static int alps_stv0299_set_symbol_rate(struct dvb_frontend *fe, u32 srate, u32 
 	return 0;
 }
 
-static int philips_tsa5059_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tsa5059_pll_set(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters *params)
 {
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
 	u8 buf[4];
@@ -1322,7 +1322,7 @@ static int philips_tsa5059_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 	if (ttusb->revision == TTUSB_REV_2_2)
 		buf[3] |= 0x20;
 
-	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 
 	return 0;

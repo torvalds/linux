@@ -548,9 +548,8 @@ static int alps_bsru6_set_symbol_rate(struct dvb_frontend *fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsru6_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int alps_bsru6_pll_set(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters *params)
 {
-	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	u8 buf[4];
 	u32 div;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
@@ -567,7 +566,7 @@ static int alps_bsru6_pll_set(struct dvb_frontend *fe, struct dvb_frontend_param
 	if (params->frequency > 1530000)
 		buf[3] = 0xc0;
 
-	if (i2c_transfer(&budget_ci->budget.i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }
@@ -669,9 +668,9 @@ static int philips_su1278_tt_set_symbol_rate(struct dvb_frontend *fe, u32 srate,
 }
 
 static int philips_su1278_tt_pll_set(struct dvb_frontend *fe,
+				     struct i2c_adapter *i2c,
 				     struct dvb_frontend_parameters *params)
 {
-	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	u32 div;
 	u8 buf[4];
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
@@ -697,7 +696,7 @@ static int philips_su1278_tt_pll_set(struct dvb_frontend *fe,
 	else if (params->frequency < 2150000)
 		buf[3] |= 0xC0;
 
-	if (i2c_transfer(&budget_ci->budget.i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }

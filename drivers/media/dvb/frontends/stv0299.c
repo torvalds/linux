@@ -481,7 +481,7 @@ static int stv0299_init (struct dvb_frontend* fe)
 
 	if (state->config->pll_init) {
 		stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-		state->config->pll_init(fe);
+		state->config->pll_init(fe, state->i2c);
 		stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
 	}
 
@@ -603,7 +603,7 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 		} else {
 			/* A "normal" tune is requested */
 			stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-			state->config->pll_set(fe, p);
+			state->config->pll_set(fe, state->i2c, p);
 			stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
 
 			stv0299_writeregI(state, 0x32, 0x80);
@@ -615,7 +615,7 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 		}
 	} else {
 		stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-		state->config->pll_set(fe, p);
+		state->config->pll_set(fe, state->i2c, p);
 		stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
 
 		stv0299_set_FEC (state, p->u.qpsk.fec_inner);

@@ -453,9 +453,9 @@ static int philips_su1278_ty_ci_set_symbol_rate(struct dvb_frontend *fe, u32 sra
 }
 
 static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
+					struct i2c_adapter *i2c,
 					struct dvb_frontend_parameters *params)
 {
-	struct budget_av *budget_av = (struct budget_av *) fe->dvb->priv;
 	u32 div;
 	u8 buf[4];
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
@@ -481,7 +481,7 @@ static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
 	else if (params->frequency < 2150000)
 		buf[3] |= 0xC0;
 
-	if (i2c_transfer(&budget_av->budget.i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }

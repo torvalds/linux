@@ -1668,9 +1668,8 @@ static int alps_bsru6_set_symbol_rate(struct dvb_frontend* fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 	int ret;
 	u8 data[4];
 	u32 div;
@@ -1687,7 +1686,7 @@ static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 
 	if (params->frequency > 1530000) data[3] = 0xc0;
 
-	ret = i2c_transfer(&av7110->i2c_adap, &msg, 1);
+	ret = i2c_transfer(i2c, &msg, 1);
 	if (ret != 1)
 		return -EIO;
 	return 0;
@@ -1751,9 +1750,8 @@ static u8 alps_bsbe1_inittab[] = {
 	0xff, 0xff
 };
 
-static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 	int ret;
 	u8 data[4];
 	u32 div;
@@ -1768,7 +1766,7 @@ static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	data[2] = 0x80 | ((div & 0x18000) >> 10) | 4;
 	data[3] = (params->frequency > 1530000) ? 0xE0 : 0xE4;
 
-	ret = i2c_transfer(&av7110->i2c_adap, &msg, 1);
+	ret = i2c_transfer(i2c, &msg, 1);
 	return (ret != 1) ? -EIO : 0;
 }
 
