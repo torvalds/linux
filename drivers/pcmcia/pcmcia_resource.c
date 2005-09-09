@@ -832,7 +832,8 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		}
 	}
 #endif
-	if (ret) {
+	/* only assign PCI irq if no IRQ already assigned */
+	if (ret && !s->irq.AssignedIRQ) {
 		if (!s->pci_irq)
 			return ret;
 		irq = s->pci_irq;
