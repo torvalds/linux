@@ -366,7 +366,8 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 		msleep(1);
 	}
 
-	wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0xffff, 2);
+	if (FW_VERSION(av7110->arm_app) <= 0x261f)
+		wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0xffff, 2);
 
 #ifndef _NOHANDSHAKE
 	start = jiffies;
@@ -439,7 +440,8 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 
 	wdebi(av7110, DEBINOSWAP, COMMAND, (u32) buf[0], 2);
 
-	wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0x0000, 2);
+	if (FW_VERSION(av7110->arm_app) <= 0x261f)
+		wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0x0000, 2);
 
 #ifdef COM_DEBUG
 	start = jiffies;
