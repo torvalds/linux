@@ -606,7 +606,13 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	stv0297_set_inversion(state, inversion);
 
 	/* kick off lock */
-	stv0297_writereg_mask(state, 0x88, 0x08, 0x08);
+	/* Disable corner detection for higher QAMs */
+	if (p->u.qam.modulation == QAM_128 ||
+		p->u.qam.modulation == QAM_256)
+		stv0297_writereg_mask(state, 0x88, 0x08, 0x00);
+	else
+		stv0297_writereg_mask(state, 0x88, 0x08, 0x08);
+
 	stv0297_writereg_mask(state, 0x5a, 0x20, 0x00);
 	stv0297_writereg_mask(state, 0x6a, 0x01, 0x01);
 	stv0297_writereg_mask(state, 0x43, 0x40, 0x40);
