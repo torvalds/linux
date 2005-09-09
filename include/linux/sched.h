@@ -604,6 +604,11 @@ extern int groups_search(struct group_info *group_info, gid_t grp);
 #define GROUP_AT(gi, i) \
     ((gi)->blocks[(i)/NGROUPS_PER_BLOCK][(i)%NGROUPS_PER_BLOCK])
 
+#ifdef ARCH_HAS_PREFETCH_SWITCH_STACK
+extern void prefetch_stack(struct task_struct*);
+#else
+static inline void prefetch_stack(struct task_struct *t) { }
+#endif
 
 struct audit_context;		/* See audit.c */
 struct mempolicy;

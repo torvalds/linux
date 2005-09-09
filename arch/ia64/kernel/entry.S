@@ -470,6 +470,29 @@ ENTRY(load_switch_stack)
 	br.cond.sptk.many b7
 END(load_switch_stack)
 
+GLOBAL_ENTRY(prefetch_stack)
+	add r14 = -IA64_SWITCH_STACK_SIZE, sp
+	add r15 = IA64_TASK_THREAD_KSP_OFFSET, in0
+	;;
+	ld8 r16 = [r15]				// load next's stack pointer
+	lfetch.fault.excl [r14], 128
+	;;
+	lfetch.fault.excl [r14], 128
+	lfetch.fault [r16], 128
+	;;
+	lfetch.fault.excl [r14], 128
+	lfetch.fault [r16], 128
+	;;
+	lfetch.fault.excl [r14], 128
+	lfetch.fault [r16], 128
+	;;
+	lfetch.fault.excl [r14], 128
+	lfetch.fault [r16], 128
+	;;
+	lfetch.fault [r16], 128
+	br.ret.sptk.many rp
+END(prefetch_switch_stack)
+
 GLOBAL_ENTRY(execve)
 	mov r15=__NR_execve			// put syscall number in place
 	break __BREAK_SYSCALL
