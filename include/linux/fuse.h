@@ -70,7 +70,6 @@ enum fuse_opcode {
 	FUSE_SETATTR	   = 4,
 	FUSE_READLINK	   = 5,
 	FUSE_SYMLINK	   = 6,
-	FUSE_GETDIR	   = 7,
 	FUSE_MKNOD	   = 8,
 	FUSE_MKDIR	   = 9,
 	FUSE_UNLINK	   = 10,
@@ -88,7 +87,10 @@ enum fuse_opcode {
 	FUSE_LISTXATTR     = 23,
 	FUSE_REMOVEXATTR   = 24,
 	FUSE_FLUSH         = 25,
-	FUSE_INIT          = 26
+	FUSE_INIT          = 26,
+	FUSE_OPENDIR       = 27,
+	FUSE_READDIR       = 28,
+	FUSE_RELEASEDIR    = 29
 };
 
 /* Conservative buffer size for the client */
@@ -118,10 +120,6 @@ struct fuse_attr_out {
 	__u32	attr_valid_nsec;
 	__u32	dummy;
 	struct fuse_attr attr;
-};
-
-struct fuse_getdir_out {
-	__u32	fd;
 };
 
 struct fuse_mknod_in {

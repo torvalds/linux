@@ -519,70 +519,40 @@ static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
 	return 0;
 }
 
-static int fuse_checkdir(struct file *cfile, struct file *file)
+static inline size_t fuse_send_readdir(struct fuse_req *req, struct file *file,
+				       struct inode *inode, loff_t pos,
+				       size_t count)
 {
-	struct inode *inode;
-	if (!cfile)
-		return -EIO;
-	inode = cfile->f_dentry->d_inode;
-	if (!S_ISREG(inode->i_mode)) {
-		fput(cfile);
-		return -EIO;
-	}
-
-	file->private_data = cfile;
-	return 0;
-}
-
-static int fuse_getdir(struct file *file)
-{
-	struct inode *inode = file->f_dentry->d_inode;
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_request(fc);
-	struct fuse_getdir_out_i outarg;
-	int err;
-
-	if (!req)
-		return -ERESTARTNOINTR;
-
-	req->in.h.opcode = FUSE_GETDIR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
-	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(struct fuse_getdir_out);
-	req->out.args[0].value = &outarg;
-	request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
-	if (!err)
-		err = fuse_checkdir(outarg.file, file);
-	return err;
+	return fuse_send_read_common(req, file, inode, pos, count, 1);
 }
 
 static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 {
-	struct file *cfile = file->private_data;
-	char *buf;
-	int ret;
+	int err;
+	size_t nbytes;
+	struct page *page;
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req = fuse_get_request_nonint(fc);
+	if (!req)
+		return -EINTR;
 
-	if (!cfile) {
-		ret = fuse_getdir(file);
-		if (ret)
-			return ret;
-
-		cfile = file->private_data;
-	}
-
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
+	page = alloc_page(GFP_KERNEL);
+	if (!page) {
+		fuse_put_request(fc, req);
 		return -ENOMEM;
+	}
+	req->num_pages = 1;
+	req->pages[0] = page;
+	nbytes = fuse_send_readdir(req, file, inode, file->f_pos, PAGE_SIZE);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	if (!err)
+		err = parse_dirfile(page_address(page), nbytes, file, dstbuf,
+				    filldir);
 
-	ret = kernel_read(cfile, file->f_pos, buf, PAGE_SIZE);
-	if (ret > 0)
-		ret = parse_dirfile(buf, ret, file, dstbuf, filldir);
-
-	free_page((unsigned long) buf);
-	return ret;
+	__free_page(page);
+	return err;
 }
 
 static char *read_link(struct dentry *dentry)
@@ -637,18 +607,12 @@ static void fuse_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
 {
-	file->private_data = NULL;
-	return 0;
+	return fuse_open_common(inode, file, 1);
 }
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
 {
-	struct file *cfile = file->private_data;
-
-	if (cfile)
-		fput(cfile);
-
-	return 0;
+	return fuse_release_common(inode, file, 1);
 }
 
 static unsigned iattr_to_fattr(struct iattr *iattr, struct fuse_attr *fattr)
