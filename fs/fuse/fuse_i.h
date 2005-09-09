@@ -21,6 +21,19 @@
 /** If more requests are outstanding, then the operation will block */
 #define FUSE_MAX_OUTSTANDING 10
 
+/** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
+    module will check permissions based on the file mode.  Otherwise no
+    permission checking is done in the kernel */
+#define FUSE_DEFAULT_PERMISSIONS (1 << 0)
+
+/** If the FUSE_ALLOW_OTHER flag is given, then not only the user
+    doing the mount will be allowed to access the filesystem */
+#define FUSE_ALLOW_OTHER         (1 << 1)
+
+/** If the FUSE_KERNEL_CACHE flag is given, then cached data will not
+    be flushed on open */
+#define FUSE_KERNEL_CACHE        (1 << 2)
+
 /** FUSE inode */
 struct fuse_inode {
 	/** Inode data */
@@ -109,6 +122,9 @@ struct fuse_req {
 	    lists in fuse_conn */
 	struct list_head list;
 
+	/** Entry on the background list */
+	struct list_head bg_entry;
+
 	/** refcount */
 	atomic_t count;
 
@@ -176,14 +192,14 @@ struct fuse_req {
  * unmounted.
  */
 struct fuse_conn {
-	/** The superblock of the mounted filesystem */
-	struct super_block *sb;
-
-	/** The opened client device */
-	struct file *file;
+	/** Reference count */
+	int count;
 
 	/** The user id for this mount */
 	uid_t user_id;
+
+	/** The fuse mount flags for this mount */
+	unsigned flags;
 
 	/** Readers of the connection are waiting on this */
 	wait_queue_head_t waitq;
@@ -194,6 +210,10 @@ struct fuse_conn {
 	/** The list of requests being processed */
 	struct list_head processing;
 
+	/** Requests put in the background (RELEASE or any other
+	    interrupted request) */
+	struct list_head background;
+
 	/** Controls the maximum number of outstanding requests */
 	struct semaphore outstanding_sem;
 
@@ -201,11 +221,20 @@ struct fuse_conn {
 	    outstanding_sem would go negative */
 	unsigned outstanding_debt;
 
+	/** RW semaphore for exclusion with fuse_put_super() */
+	struct rw_semaphore sbput_sem;
+
 	/** The list of unused requests */
 	struct list_head unused_list;
 
 	/** The next unique request id */
 	u64 reqctr;
+
+	/** Mount is active */
+	unsigned mounted : 1;
+
+	/** Connection established */
+	unsigned connected : 1;
 
 	/** Connection failed (version mismatch) */
 	unsigned conn_error : 1;
@@ -261,6 +290,7 @@ extern struct file_operations fuse_dev_operations;
  *  - the private_data field of the device file
  *  - the s_fs_info field of the super block
  *  - unused_list, pending, processing lists in fuse_conn
+ *  - background list in fuse_conn
  *  - the unique request ID counter reqctr in fuse_conn
  *  - the sb (super_block) field in fuse_conn
  *  - the file (device file) field in fuse_conn
@@ -370,6 +400,11 @@ void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
  * Send a request in the background
  */
 void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
+
+/**
+ * Release inodes and file assiciated with background request
+ */
+void fuse_release_background(struct fuse_req *req);
 
 /**
  * Get the attributes of a file

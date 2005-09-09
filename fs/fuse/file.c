@@ -70,7 +70,7 @@ static int fuse_open(struct inode *inode, struct file *file)
 	else
 		request_send(fc, req);
 	err = req->out.h.error;
-	if (!err)
+	if (!err && !(fc->flags & FUSE_KERNEL_CACHE))
 		invalidate_inode_pages(inode->i_mapping);
 	if (err) {
 		fuse_request_free(ff->release_req);

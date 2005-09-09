@@ -418,7 +418,8 @@ static int fuse_revalidate(struct dentry *entry)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
 	if (get_node_id(inode) == FUSE_ROOT_ID) {
-		if (current->fsuid != fc->user_id)
+		if (!(fc->flags & FUSE_ALLOW_OTHER) &&
+		    current->fsuid != fc->user_id)
 			return -EACCES;
 	} else if (time_before_eq(jiffies, fi->i_time))
 		return 0;
@@ -430,9 +431,31 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
-	if (current->fsuid != fc->user_id)
+	if (!(fc->flags & FUSE_ALLOW_OTHER) && current->fsuid != fc->user_id)
 		return -EACCES;
-	else {
+	else if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
+		int err = generic_permission(inode, mask, NULL);
+
+		/* If permission is denied, try to refresh file
+		   attributes.  This is also needed, because the root
+		   node will at first have no permissions */
+		if (err == -EACCES) {
+		 	err = fuse_do_getattr(inode);
+			if (!err)
+				err = generic_permission(inode, mask, NULL);
+		}
+
+		/* FIXME: Need some mechanism to revoke permissions:
+		   currently if the filesystem suddenly changes the
+		   file mode, we will not be informed about it, and
+		   continue to allow access to the file/directory.
+
+		   This is actually not so grave, since the user can
+		   simply keep access to the file/directory anyway by
+		   keeping it open... */
+
+		return err;
+	} else {
 		int mode = inode->i_mode;
 		if ((mask & MAY_WRITE) && IS_RDONLY(inode) &&
                     (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)))
@@ -635,6 +658,12 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	struct fuse_attr_out outarg;
 	int err;
 	int is_truncate = 0;
+
+	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
+		err = inode_change_ok(inode, attr);
+		if (err)
+			return err;
+	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		unsigned long limit;

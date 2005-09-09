@@ -15,7 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/parser.h>
 #include <linux/statfs.h>
 
@@ -25,11 +24,6 @@ MODULE_LICENSE("GPL");
 
 spinlock_t fuse_lock;
 static kmem_cache_t *fuse_inode_cachep;
-static int mount_count;
-
-static int mount_max = 1000;
-module_param(mount_max, int, 0644);
-MODULE_PARM_DESC(mount_max, "Maximum number of FUSE mounts allowed, if -1 then unlimited (default: 1000)");
 
 #define FUSE_SUPER_MAGIC 0x65735546
 
@@ -37,6 +31,7 @@ struct fuse_mount_data {
 	int fd;
 	unsigned rootmode;
 	unsigned user_id;
+	unsigned flags;
 };
 
 static struct inode *fuse_alloc_inode(struct super_block *sb)
@@ -89,8 +84,8 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 
 static void fuse_clear_inode(struct inode *inode)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	if (fc) {
+	if (inode->i_sb->s_flags & MS_ACTIVE) {
+		struct fuse_conn *fc = get_fuse_conn(inode);
 		struct fuse_inode *fi = get_fuse_inode(inode);
 		fuse_send_forget(fc, fi->forget_req, fi->nodeid, fi->nlookup);
 		fi->forget_req = NULL;
@@ -195,14 +190,19 @@ static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
+	down_write(&fc->sbput_sem);
+	while (!list_empty(&fc->background))
+		fuse_release_background(list_entry(fc->background.next,
+						   struct fuse_req, bg_entry));
+
 	spin_lock(&fuse_lock);
-	mount_count --;
-	fc->sb = NULL;
+	fc->mounted = 0;
 	fc->user_id = 0;
+	fc->flags = 0;
 	/* Flush all readers on this fs */
 	wake_up_all(&fc->waitq);
+	up_write(&fc->sbput_sem);
 	fuse_release_conn(fc);
-	*get_fuse_conn_super_p(sb) = NULL;
 	spin_unlock(&fuse_lock);
 }
 
@@ -249,7 +249,6 @@ enum {
 	OPT_USER_ID,
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_ALLOW_OTHER,
-	OPT_ALLOW_ROOT,
 	OPT_KERNEL_CACHE,
 	OPT_ERR
 };
@@ -260,7 +259,6 @@ static match_table_t tokens = {
 	{OPT_USER_ID,			"user_id=%u"},
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_ALLOW_OTHER,		"allow_other"},
-	{OPT_ALLOW_ROOT,		"allow_root"},
 	{OPT_KERNEL_CACHE,		"kernel_cache"},
 	{OPT_ERR,			NULL}
 };
@@ -298,6 +296,18 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			d->user_id = value;
 			break;
 
+		case OPT_DEFAULT_PERMISSIONS:
+			d->flags |= FUSE_DEFAULT_PERMISSIONS;
+			break;
+
+		case OPT_ALLOW_OTHER:
+			d->flags |= FUSE_ALLOW_OTHER;
+			break;
+
+		case OPT_KERNEL_CACHE:
+			d->flags |= FUSE_KERNEL_CACHE;
+			break;
+
 		default:
 			return 0;
 		}
@@ -313,6 +323,12 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 	struct fuse_conn *fc = get_fuse_conn_super(mnt->mnt_sb);
 
 	seq_printf(m, ",user_id=%u", fc->user_id);
+	if (fc->flags & FUSE_DEFAULT_PERMISSIONS)
+		seq_puts(m, ",default_permissions");
+	if (fc->flags & FUSE_ALLOW_OTHER)
+		seq_puts(m, ",allow_other");
+	if (fc->flags & FUSE_KERNEL_CACHE)
+		seq_puts(m, ",kernel_cache");
 	return 0;
 }
 
@@ -330,7 +346,8 @@ static void free_conn(struct fuse_conn *fc)
 /* Must be called with the fuse lock held */
 void fuse_release_conn(struct fuse_conn *fc)
 {
-	if (!fc->sb && !fc->file)
+	fc->count--;
+	if (!fc->count)
 		free_conn(fc);
 }
 
@@ -342,14 +359,13 @@ static struct fuse_conn *new_conn(void)
 	if (fc != NULL) {
 		int i;
 		memset(fc, 0, sizeof(*fc));
-		fc->sb = NULL;
-		fc->file = NULL;
-		fc->user_id = 0;
 		init_waitqueue_head(&fc->waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->unused_list);
+		INIT_LIST_HEAD(&fc->background);
 		sema_init(&fc->outstanding_sem, 0);
+		init_rwsem(&fc->sbput_sem);
 		for (i = 0; i < FUSE_MAX_OUTSTANDING; i++) {
 			struct fuse_req *req = fuse_request_alloc();
 			if (!req) {
@@ -380,8 +396,10 @@ static struct fuse_conn *get_conn(struct file *file, struct super_block *sb)
 		fc = ERR_PTR(-EINVAL);
 	} else {
 		file->private_data = fc;
-		fc->sb = sb;
-		fc->file = file;
+		*get_fuse_conn_super_p(sb) = fc;
+		fc->mounted = 1;
+		fc->connected = 1;
+		fc->count = 2;
 	}
 	spin_unlock(&fuse_lock);
 	return fc;
@@ -406,17 +424,6 @@ static struct super_operations fuse_super_operations = {
 	.statfs		= fuse_statfs,
 	.show_options	= fuse_show_options,
 };
-
-static int inc_mount_count(void)
-{
-	int success = 0;
-	spin_lock(&fuse_lock);
-	mount_count ++;
-	if (mount_max == -1 || mount_count <= mount_max)
-		success = 1;
-	spin_unlock(&fuse_lock);
-	return success;
-}
 
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -444,13 +451,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (IS_ERR(fc))
 		return PTR_ERR(fc);
 
+	fc->flags = d.flags;
 	fc->user_id = d.user_id;
-
-	*get_fuse_conn_super_p(sb) = fc;
-
-	err = -ENFILE;
-	if (!inc_mount_count() && current->uid != 0)
-		goto err;
 
 	err = -ENOMEM;
 	root = get_root_inode(sb, d.rootmode);
@@ -467,11 +469,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
  err:
 	spin_lock(&fuse_lock);
-	mount_count --;
-	fc->sb = NULL;
 	fuse_release_conn(fc);
 	spin_unlock(&fuse_lock);
-	*get_fuse_conn_super_p(sb) = NULL;
 	return err;
 }
 
