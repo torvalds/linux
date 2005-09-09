@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/agp_backend.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/io.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/tioca_provider.h>
