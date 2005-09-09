@@ -56,8 +56,7 @@ static void ( *mac_special_bell )( unsigned int, unsigned int, unsigned int );
 /*
  * our timer to start/continue/stop the bell
  */
-static struct timer_list mac_sound_timer =
-		TIMER_INITIALIZER(mac_nosound, 0, 0);
+static DEFINE_TIMER(mac_sound_timer, mac_nosound, 0, 0);
 
 /*
  * Sort of initialize the sound chip (called from mac_mksound on the first

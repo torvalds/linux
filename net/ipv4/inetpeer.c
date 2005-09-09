@@ -100,8 +100,7 @@ DEFINE_SPINLOCK(inet_peer_unused_lock);
 #define PEER_MAX_CLEANUP_WORK 30
 
 static void peer_check_expire(unsigned long dummy);
-static struct timer_list peer_periodic_timer =
-	TIMER_INITIALIZER(peer_check_expire, 0, 0);
+static DEFINE_TIMER(peer_periodic_timer, peer_check_expire, 0, 0);
 
 /* Exported for sysctl_net_ipv4.  */
 int inet_peer_gc_mintime = 10 * HZ,

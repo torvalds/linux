@@ -628,7 +628,7 @@ static inline void debugt(const char *message) { }
 #endif /* DEBUGT */
 
 typedef void (*timeout_fn) (unsigned long);
-static struct timer_list fd_timeout = TIMER_INITIALIZER(floppy_shutdown, 0, 0);
+static DEFINE_TIMER(fd_timeout, floppy_shutdown, 0, 0);
 
 static const char *timeout_message;
 
@@ -1012,7 +1012,7 @@ static void schedule_bh(void (*handler) (void))
 	schedule_work(&floppy_work);
 }
 
-static struct timer_list fd_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(fd_timer, NULL, 0, 0);
 
 static void cancel_activity(void)
 {
