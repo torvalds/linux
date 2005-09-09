@@ -132,11 +132,13 @@ static int max_select_fd(unsigned long n, fd_set_bits *fds)
 	unsigned long *open_fds;
 	unsigned long set;
 	int max;
+	struct fdtable *fdt;
 
 	/* handle last in-complete long-word first */
 	set = ~(~0UL << (n & (__NFDBITS-1)));
 	n /= __NFDBITS;
-	open_fds = current->files->open_fds->fds_bits+n;
+	fdt = files_fdtable(current->files);
+	open_fds = fdt->open_fds->fds_bits+n;
 	max = 0;
 	if (set) {
 		set &= BITS(fds, n);
@@ -299,6 +301,7 @@ sys_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 	char *bits;
 	long timeout;
 	int ret, size, max_fdset;
+	struct fdtable *fdt;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
@@ -326,7 +329,8 @@ sys_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 		goto out_nofds;
 
 	/* max_fdset can increase, so grab it once to avoid race */
-	max_fdset = current->files->max_fdset;
+	fdt = files_fdtable(current->files);
+	max_fdset = fdt->max_fdset;
 	if (n > max_fdset)
 		n = max_fdset;
 
@@ -464,9 +468,11 @@ asmlinkage long sys_poll(struct pollfd __user * ufds, unsigned int nfds, long ti
  	unsigned int i;
 	struct poll_list *head;
  	struct poll_list *walk;
+	struct fdtable *fdt;
 
 	/* Do a sanity check on nfds ... */
-	if (nfds > current->files->max_fdset && nfds > OPEN_MAX)
+	fdt = files_fdtable(current->files);
+	if (nfds > fdt->max_fdset && nfds > OPEN_MAX)
 		return -EINVAL;
 
 	if (timeout) {

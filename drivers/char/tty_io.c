@@ -2454,6 +2454,7 @@ static void __do_SAK(void *arg)
 	int		i;
 	struct file	*filp;
 	struct tty_ldisc *disc;
+	struct fdtable *fdt;
 	
 	if (!tty)
 		return;
@@ -2480,7 +2481,8 @@ static void __do_SAK(void *arg)
 		task_lock(p);
 		if (p->files) {
 			spin_lock(&p->files->file_lock);
-			for (i=0; i < p->files->max_fds; i++) {
+			fdt = files_fdtable(p->files);
+			for (i=0; i < fdt->max_fds; i++) {
 				filp = fcheck_files(p->files, i);
 				if (!filp)
 					continue;

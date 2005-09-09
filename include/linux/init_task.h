@@ -3,16 +3,21 @@
 
 #include <linux/file.h>
 
-#define INIT_FILES \
-{ 							\
-	.count		= ATOMIC_INIT(1), 		\
-	.file_lock	= SPIN_LOCK_UNLOCKED, 		\
+#define INIT_FDTABLE \
+{							\
 	.max_fds	= NR_OPEN_DEFAULT, 		\
 	.max_fdset	= __FD_SETSIZE, 		\
 	.next_fd	= 0, 				\
 	.fd		= &init_files.fd_array[0], 	\
 	.close_on_exec	= &init_files.close_on_exec_init, \
 	.open_fds	= &init_files.open_fds_init, 	\
+}
+
+#define INIT_FILES \
+{ 							\
+	.count		= ATOMIC_INIT(1), 		\
+	.file_lock	= SPIN_LOCK_UNLOCKED, 		\
+	.fdtab		= INIT_FDTABLE,			\
 	.close_on_exec_init = { { 0, } }, 		\
 	.open_fds_init	= { { 0, } }, 			\
 	.fd_array	= { NULL, } 			\

@@ -974,6 +974,7 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 	size_t size;
 	long timeout;
 	int ret = -EINVAL;
+	struct fdtable *fdt;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
@@ -995,7 +996,8 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 		}
 	}
 
-	if (n < 0 || n > current->files->max_fdset)
+	fdt = files_fdtable(current->files);
+	if (n < 0 || n > fdt->max_fdset)
 		goto out_nofds;
 
 	/*

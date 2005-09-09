@@ -38,6 +38,7 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/bitops.h>
+#include <linux/rcupdate.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>
@@ -2217,15 +2218,17 @@ static void
 pfm_free_fd(int fd, struct file *file)
 {
 	struct files_struct *files = current->files;
+	struct fdtable *fdt = files_fdtable(files);
 
 	/* 
 	 * there ie no fd_uninstall(), so we do it here
 	 */
 	spin_lock(&files->file_lock);
-        files->fd[fd] = NULL;
+	rcu_assign_pointer(fdt->fd[fd], NULL);
 	spin_unlock(&files->file_lock);
 
-	if (file) put_filp(file);
+	if (file)
+		put_filp(file);
 	put_unused_fd(fd);
 }
 

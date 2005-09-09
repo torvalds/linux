@@ -59,13 +59,15 @@ static int expand_fd_array(struct files_struct *files, int nr)
 {
 	struct file **new_fds;
 	int error, nfds;
+	struct fdtable *fdt;
 
 	
 	error = -EMFILE;
-	if (files->max_fds >= NR_OPEN || nr >= NR_OPEN)
+	fdt = files_fdtable(files);
+	if (fdt->max_fds >= NR_OPEN || nr >= NR_OPEN)
 		goto out;
 
-	nfds = files->max_fds;
+	nfds = fdt->max_fds;
 	spin_unlock(&files->file_lock);
 
 	/* 
@@ -95,13 +97,14 @@ static int expand_fd_array(struct files_struct *files, int nr)
 		goto out;
 
 	/* Copy the existing array and install the new pointer */
+	fdt = files_fdtable(files);
 
-	if (nfds > files->max_fds) {
+	if (nfds > fdt->max_fds) {
 		struct file **old_fds;
 		int i;
 		
-		old_fds = xchg(&files->fd, new_fds);
-		i = xchg(&files->max_fds, nfds);
+		old_fds = xchg(&fdt->fd, new_fds);
+		i = xchg(&fdt->max_fds, nfds);
 
 		/* Don't copy/clear the array if we are creating a new
 		   fd array for fork() */
@@ -164,12 +167,14 @@ static int expand_fdset(struct files_struct *files, int nr)
 {
 	fd_set *new_openset = NULL, *new_execset = NULL;
 	int error, nfds = 0;
+	struct fdtable *fdt;
 
 	error = -EMFILE;
-	if (files->max_fdset >= NR_OPEN || nr >= NR_OPEN)
+	fdt = files_fdtable(files);
+	if (fdt->max_fdset >= NR_OPEN || nr >= NR_OPEN)
 		goto out;
 
-	nfds = files->max_fdset;
+	nfds = fdt->max_fdset;
 	spin_unlock(&files->file_lock);
 
 	/* Expand to the max in easy steps */
@@ -193,24 +198,25 @@ static int expand_fdset(struct files_struct *files, int nr)
 	error = 0;
 	
 	/* Copy the existing tables and install the new pointers */
-	if (nfds > files->max_fdset) {
-		int i = files->max_fdset / (sizeof(unsigned long) * 8);
-		int count = (nfds - files->max_fdset) / 8;
+	fdt = files_fdtable(files);
+	if (nfds > fdt->max_fdset) {
+		int i = fdt->max_fdset / (sizeof(unsigned long) * 8);
+		int count = (nfds - fdt->max_fdset) / 8;
 		
 		/* 
 		 * Don't copy the entire array if the current fdset is
 		 * not yet initialised.  
 		 */
 		if (i) {
-			memcpy (new_openset, files->open_fds, files->max_fdset/8);
-			memcpy (new_execset, files->close_on_exec, files->max_fdset/8);
+			memcpy (new_openset, fdt->open_fds, fdt->max_fdset/8);
+			memcpy (new_execset, fdt->close_on_exec, fdt->max_fdset/8);
 			memset (&new_openset->fds_bits[i], 0, count);
 			memset (&new_execset->fds_bits[i], 0, count);
 		}
 		
-		nfds = xchg(&files->max_fdset, nfds);
-		new_openset = xchg(&files->open_fds, new_openset);
-		new_execset = xchg(&files->close_on_exec, new_execset);
+		nfds = xchg(&fdt->max_fdset, nfds);
+		new_openset = xchg(&fdt->open_fds, new_openset);
+		new_execset = xchg(&fdt->close_on_exec, new_execset);
 		spin_unlock(&files->file_lock);
 		free_fdset (new_openset, nfds);
 		free_fdset (new_execset, nfds);
@@ -237,13 +243,15 @@ out:
 int expand_files(struct files_struct *files, int nr)
 {
 	int err, expand = 0;
+	struct fdtable *fdt;
 
-	if (nr >= files->max_fdset) {
+	fdt = files_fdtable(files);
+	if (nr >= fdt->max_fdset) {
 		expand = 1;
 		if ((err = expand_fdset(files, nr)))
 			goto out;
 	}
-	if (nr >= files->max_fds) {
+	if (nr >= fdt->max_fds) {
 		expand = 1;
 		if ((err = expand_fd_array(files, nr)))
 			goto out;

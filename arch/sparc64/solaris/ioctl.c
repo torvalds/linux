@@ -293,11 +293,13 @@ static struct module_info {
 static inline int solaris_sockmod(unsigned int fd, unsigned int cmd, u32 arg)
 {
 	struct inode *ino;
+	struct fdtable *fdt;
 	/* I wonder which of these tests are superfluous... --patrik */
 	spin_lock(&current->files->file_lock);
-	if (! current->files->fd[fd] ||
-	    ! current->files->fd[fd]->f_dentry ||
-	    ! (ino = current->files->fd[fd]->f_dentry->d_inode) ||
+	fdt = files_fdtable(current->files);
+	if (! fdt->fd[fd] ||
+	    ! fdt->fd[fd]->f_dentry ||
+	    ! (ino = fdt->fd[fd]->f_dentry->d_inode) ||
 	    ! S_ISSOCK(ino->i_mode)) {
 		spin_unlock(&current->files->file_lock);
 		return TBADF;

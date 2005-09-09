@@ -16,22 +16,28 @@
  */
 #define NR_OPEN_DEFAULT BITS_PER_LONG
 
+struct fdtable {
+	unsigned int max_fds;
+	int max_fdset;
+	int next_fd;
+	struct file ** fd;      /* current fd array */
+	fd_set *close_on_exec;
+	fd_set *open_fds;
+};
+
 /*
  * Open file table structure
  */
 struct files_struct {
         atomic_t count;
         spinlock_t file_lock;     /* Protects all the below members.  Nests inside tsk->alloc_lock */
-        int max_fds;
-        int max_fdset;
-        int next_fd;
-        struct file ** fd;      /* current fd array */
-        fd_set *close_on_exec;
-        fd_set *open_fds;
+	struct fdtable fdtab;
         fd_set close_on_exec_init;
         fd_set open_fds_init;
         struct file * fd_array[NR_OPEN_DEFAULT];
 };
+
+#define files_fdtable(files) (&(files)->fdtab)
 
 extern void FASTCALL(__fput(struct file *));
 extern void FASTCALL(fput(struct file *));
@@ -63,9 +69,10 @@ extern int expand_files(struct files_struct *, int nr);
 static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)
 {
 	struct file * file = NULL;
+	struct fdtable *fdt = files_fdtable(files);
 
-	if (fd < files->max_fds)
-		file = files->fd[fd];
+	if (fd < fdt->max_fds)
+		file = fdt->fd[fd];
 	return file;
 }
 

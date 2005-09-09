@@ -1039,6 +1039,7 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 	int retval;
 	char buf[NUMBUF];
 	struct files_struct * files;
+	struct fdtable *fdt;
 
 	retval = -ENOENT;
 	if (!pid_alive(p))
@@ -1062,8 +1063,9 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 			if (!files)
 				goto out;
 			spin_lock(&files->file_lock);
+			fdt = files_fdtable(files);
 			for (fd = filp->f_pos-2;
-			     fd < files->max_fds;
+			     fd < fdt->max_fds;
 			     fd++, filp->f_pos++) {
 				unsigned int i,j;
 

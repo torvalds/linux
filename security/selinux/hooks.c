@@ -1594,6 +1594,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 	struct avc_audit_data ad;
 	struct file *file, *devnull = NULL;
 	struct tty_struct *tty = current->signal->tty;
+	struct fdtable *fdt;
 	long j = -1;
 
 	if (tty) {
@@ -1627,9 +1628,10 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 
 		j++;
 		i = j * __NFDBITS;
-		if (i >= files->max_fds || i >= files->max_fdset)
+		fdt = files_fdtable(files);
+		if (i >= fdt->max_fds || i >= fdt->max_fdset)
 			break;
-		set = files->open_fds->fds_bits[j];
+		set = fdt->open_fds->fds_bits[j];
 		if (!set)
 			continue;
 		spin_unlock(&files->file_lock);
