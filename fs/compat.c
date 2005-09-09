@@ -1645,8 +1645,10 @@ compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp
 		goto out_nofds;
 
 	/* max_fdset can increase, so grab it once to avoid race */
+	rcu_read_lock();
 	fdt = files_fdtable(current->files);
 	max_fdset = fdt->max_fdset;
+	rcu_read_unlock();
 	if (n > max_fdset)
 		n = max_fdset;
 
