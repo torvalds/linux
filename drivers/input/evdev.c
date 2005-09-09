@@ -509,7 +509,7 @@ do { \
 	int len = NBITS_COMPAT((max)) * sizeof(compat_long_t); \
 	if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd); \
 	for (i = 0; i < len / sizeof(compat_long_t); i++) \
-		if (copy_to_user((compat_long_t*) p + i, \
+		if (copy_to_user((compat_long_t __user *) p + i, \
 				 (compat_long_t*) (bit) + i + 1 - ((i % 2) << 1), \
 				 sizeof(compat_long_t))) \
 			return -EFAULT; \
