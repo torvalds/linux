@@ -864,7 +864,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	/*
 	 * We're pretty sure there's a port here.  Lets find out what
 	 * type of port it is.  The IIR top two bits allows us to find
-	 * out if its 8250 or 16450, 16550, 16550A or later.  This
+	 * out if it's 8250 or 16450, 16550, 16550A or later.  This
 	 * determines what we test for next.
 	 *
 	 * We also initialise the EFR (if any) to zero for later.  The
