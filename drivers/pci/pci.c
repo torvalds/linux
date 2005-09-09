@@ -819,7 +819,7 @@ pci_intx(struct pci_dev *pdev, int enable)
 	}
 
 	if (new != pci_command) {
-		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
+		pci_write_config_word(pdev, PCI_COMMAND, new);
 	}
 }
 
