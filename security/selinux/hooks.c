@@ -2009,11 +2009,6 @@ static int selinux_inode_link(struct dentry *old_dentry, struct inode *dir, stru
 	return may_link(dir, old_dentry, MAY_LINK);
 }
 
-static void selinux_inode_post_link(struct dentry *old_dentry, struct inode *inode, struct dentry *new_dentry)
-{
-	return;
-}
-
 static int selinux_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc;
@@ -2054,12 +2049,6 @@ static int selinux_inode_rename(struct inode *old_inode, struct dentry *old_dent
                                 struct inode *new_inode, struct dentry *new_dentry)
 {
 	return may_rename(old_inode, old_dentry, new_inode, new_dentry);
-}
-
-static void selinux_inode_post_rename(struct inode *old_inode, struct dentry *old_dentry,
-                                      struct inode *new_inode, struct dentry *new_dentry)
-{
-	return;
 }
 
 static int selinux_inode_readlink(struct dentry *dentry)
@@ -4257,14 +4246,12 @@ static struct security_operations selinux_ops = {
 	.inode_init_security =		selinux_inode_init_security,
 	.inode_create =			selinux_inode_create,
 	.inode_link =			selinux_inode_link,
-	.inode_post_link =		selinux_inode_post_link,
 	.inode_unlink =			selinux_inode_unlink,
 	.inode_symlink =		selinux_inode_symlink,
 	.inode_mkdir =			selinux_inode_mkdir,
 	.inode_rmdir =			selinux_inode_rmdir,
 	.inode_mknod =			selinux_inode_mknod,
 	.inode_rename =			selinux_inode_rename,
-	.inode_post_rename =		selinux_inode_post_rename,
 	.inode_readlink =		selinux_inode_readlink,
 	.inode_follow_link =		selinux_inode_follow_link,
 	.inode_permission =		selinux_inode_permission,

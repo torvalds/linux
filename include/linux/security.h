@@ -281,11 +281,6 @@ struct swap_info_struct;
  *	@dir contains the inode structure of the parent directory of the new link.
  *	@new_dentry contains the dentry structure for the new link.
  *	Return 0 if permission is granted.
- * @inode_post_link:
- *	Set security attributes for a new hard link to a file.
- *	@old_dentry contains the dentry structure for the existing link.
- *	@dir contains the inode structure of the parent directory of the new file.
- *	@new_dentry contains the dentry structure for the new file link.
  * @inode_unlink:
  *	Check the permission to remove a hard link to a file. 
  *	@dir contains the inode structure of parent directory of the file.
@@ -326,12 +321,6 @@ struct swap_info_struct;
  *	@new_dir contains the inode structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
- * @inode_post_rename:
- *	Set security attributes on a renamed file or directory.
- *	@old_dir contains the inode structure for parent of the old link.
- *	@old_dentry contains the dentry structure of the old link.
- *	@new_dir contains the inode structure for parent of the new link.
- *	@new_dentry contains the dentry structure of the new link.
  * @inode_readlink:
  *	Check the permission to read the symbolic link.
  *	@dentry contains the dentry structure for the file link.
@@ -1080,8 +1069,6 @@ struct security_operations {
 	                     struct dentry *dentry, int mode);
 	int (*inode_link) (struct dentry *old_dentry,
 	                   struct inode *dir, struct dentry *new_dentry);
-	void (*inode_post_link) (struct dentry *old_dentry,
-	                         struct inode *dir, struct dentry *new_dentry);
 	int (*inode_unlink) (struct inode *dir, struct dentry *dentry);
 	int (*inode_symlink) (struct inode *dir,
 	                      struct dentry *dentry, const char *old_name);
@@ -1091,10 +1078,6 @@ struct security_operations {
 	                    int mode, dev_t dev);
 	int (*inode_rename) (struct inode *old_dir, struct dentry *old_dentry,
 	                     struct inode *new_dir, struct dentry *new_dentry);
-	void (*inode_post_rename) (struct inode *old_dir,
-	                           struct dentry *old_dentry,
-	                           struct inode *new_dir,
-	                           struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
 	int (*inode_permission) (struct inode *inode, int mask, struct nameidata *nd);
@@ -1459,15 +1442,6 @@ static inline int security_inode_link (struct dentry *old_dentry,
 	return security_ops->inode_link (old_dentry, dir, new_dentry);
 }
 
-static inline void security_inode_post_link (struct dentry *old_dentry,
-					     struct inode *dir,
-					     struct dentry *new_dentry)
-{
-	if (new_dentry->d_inode && unlikely (IS_PRIVATE (new_dentry->d_inode)))
-		return;
-	security_ops->inode_post_link (old_dentry, dir, new_dentry);
-}
-
 static inline int security_inode_unlink (struct inode *dir,
 					 struct dentry *dentry)
 {
@@ -1521,18 +1495,6 @@ static inline int security_inode_rename (struct inode *old_dir,
 		return 0;
 	return security_ops->inode_rename (old_dir, old_dentry,
 					   new_dir, new_dentry);
-}
-
-static inline void security_inode_post_rename (struct inode *old_dir,
-					       struct dentry *old_dentry,
-					       struct inode *new_dir,
-					       struct dentry *new_dentry)
-{
-	if (unlikely (IS_PRIVATE (old_dentry->d_inode) ||
-	    (new_dentry->d_inode && IS_PRIVATE (new_dentry->d_inode))))
-		return;
-	security_ops->inode_post_rename (old_dir, old_dentry,
-						new_dir, new_dentry);
 }
 
 static inline int security_inode_readlink (struct dentry *dentry)
@@ -2157,11 +2119,6 @@ static inline int security_inode_link (struct dentry *old_dentry,
 	return 0;
 }
 
-static inline void security_inode_post_link (struct dentry *old_dentry,
-					     struct inode *dir,
-					     struct dentry *new_dentry)
-{ }
-
 static inline int security_inode_unlink (struct inode *dir,
 					 struct dentry *dentry)
 {
@@ -2202,12 +2159,6 @@ static inline int security_inode_rename (struct inode *old_dir,
 {
 	return 0;
 }
-
-static inline void security_inode_post_rename (struct inode *old_dir,
-					       struct dentry *old_dentry,
-					       struct inode *new_dir,
-					       struct dentry *new_dentry)
-{ }
 
 static inline int security_inode_readlink (struct dentry *dentry)
 {

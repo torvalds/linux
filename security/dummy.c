@@ -276,13 +276,6 @@ static int dummy_inode_link (struct dentry *old_dentry, struct inode *inode,
 	return 0;
 }
 
-static void dummy_inode_post_link (struct dentry *old_dentry,
-				   struct inode *inode,
-				   struct dentry *new_dentry)
-{
-	return;
-}
-
 static int dummy_inode_unlink (struct inode *inode, struct dentry *dentry)
 {
 	return 0;
@@ -317,14 +310,6 @@ static int dummy_inode_rename (struct inode *old_inode,
 			       struct dentry *new_dentry)
 {
 	return 0;
-}
-
-static void dummy_inode_post_rename (struct inode *old_inode,
-				     struct dentry *old_dentry,
-				     struct inode *new_inode,
-				     struct dentry *new_dentry)
-{
-	return;
 }
 
 static int dummy_inode_readlink (struct dentry *dentry)
@@ -871,14 +856,12 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, inode_init_security);
 	set_to_dummy_if_null(ops, inode_create);
 	set_to_dummy_if_null(ops, inode_link);
-	set_to_dummy_if_null(ops, inode_post_link);
 	set_to_dummy_if_null(ops, inode_unlink);
 	set_to_dummy_if_null(ops, inode_symlink);
 	set_to_dummy_if_null(ops, inode_mkdir);
 	set_to_dummy_if_null(ops, inode_rmdir);
 	set_to_dummy_if_null(ops, inode_mknod);
 	set_to_dummy_if_null(ops, inode_rename);
-	set_to_dummy_if_null(ops, inode_post_rename);
 	set_to_dummy_if_null(ops, inode_readlink);
 	set_to_dummy_if_null(ops, inode_follow_link);
 	set_to_dummy_if_null(ops, inode_permission);

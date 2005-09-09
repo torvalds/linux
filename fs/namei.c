@@ -2012,10 +2012,8 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 	DQUOT_INIT(dir);
 	error = dir->i_op->link(old_dentry, dir, new_dentry);
 	up(&old_dentry->d_inode->i_sem);
-	if (!error) {
+	if (!error)
 		fsnotify_create(dir, new_dentry->d_name.name);
-		security_inode_post_link(old_dentry, dir, new_dentry);
-	}
 	return error;
 }
 
@@ -2134,11 +2132,8 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 			d_rehash(new_dentry);
 		dput(new_dentry);
 	}
-	if (!error) {
+	if (!error)
 		d_move(old_dentry,new_dentry);
-		security_inode_post_rename(old_dir, old_dentry,
-					   new_dir, new_dentry);
-	}
 	return error;
 }
 
@@ -2164,7 +2159,6 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 		/* The following d_move() should become unconditional */
 		if (!(old_dir->i_sb->s_type->fs_flags & FS_ODD_RENAME))
 			d_move(old_dentry, new_dentry);
-		security_inode_post_rename(old_dir, old_dentry, new_dir, new_dentry);
 	}
 	if (target)
 		up(&target->i_sem);
