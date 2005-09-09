@@ -1372,7 +1372,7 @@ struct saa7134_board saa7134_boards[] = {
 		.inputs         = {{
 			.name = name_comp1,
 			.vmux = 1,
-			.amux = LINE2,
+			.amux = LINE1,
 		},{
 			.name = name_tv,
 			.vmux = 3,
@@ -1381,7 +1381,7 @@ struct saa7134_board saa7134_boards[] = {
 		},{
 			.name = name_svideo,
 			.vmux = 8,
-			.amux = LINE2,
+			.amux = LINE1,
 		}},
 		.radio = {
 			.name   = name_radio,
