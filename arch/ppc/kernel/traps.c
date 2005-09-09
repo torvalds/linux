@@ -849,10 +849,12 @@ void AltivecAssistException(struct pt_regs *regs)
 }
 #endif /* CONFIG_ALTIVEC */
 
+#ifdef CONFIG_E500
 void PerformanceMonitorException(struct pt_regs *regs)
 {
 	perf_irq(regs);
 }
+#endif
 
 #ifdef CONFIG_FSL_BOOKE
 void CacheLockingException(struct pt_regs *regs, unsigned long address,
