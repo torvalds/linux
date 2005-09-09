@@ -152,7 +152,7 @@ hauppauge_tuner[] =
 	{ TUNER_MICROTUNE_4049FM5, "Microtune 4049 FM5"},
 	{ TUNER_ABSENT,        "LG TPI8NSR11F"},
 	{ TUNER_ABSENT,        "Microtune 4049 FM5 Alt I2C"},
-	{ TUNER_ABSENT,        "Philips FQ1216ME MK3"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "Philips FQ1216ME MK3"},
 	{ TUNER_ABSENT,        "Philips FI1236 MK3"},
 	{ TUNER_PHILIPS_FM1216ME_MK3, "Philips FM1216 ME MK3"},
 	{ TUNER_PHILIPS_FM1236_MK3, "Philips FM1236 MK3"},
@@ -167,7 +167,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Temic 4106FH5"},
 	{ TUNER_ABSENT,        "Philips FQ1216LMP MK3"},
 	{ TUNER_LG_NTSC_TAPE,  "LG TAPE H001F MK3"},
-	{ TUNER_ABSENT,        "LG TAPE H701F MK3"},
+	{ TUNER_LG_NTSC_TAPE,  "LG TAPE H701F MK3"},
 	/* 70-79 */
 	{ TUNER_ABSENT,        "LG TALN H200T"},
 	{ TUNER_ABSENT,        "LG TALN H250T"},
@@ -199,6 +199,13 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Philips FQ1236 MK5"},
 	{ TUNER_ABSENT,        "Unspecified"},
 	{ TUNER_LG_PAL_TAPE,   "LG PAL (TAPE Series)"},
+        { TUNER_ABSENT,        "Unspecified"},
+        { TUNER_TCL_2002N,     "TCL 2002N 5H"},
+	/* 100-103 */
+	{ TUNER_ABSENT,        "Unspecified"},
+        { TUNER_ABSENT,        "Unspecified"},
+        { TUNER_ABSENT,        "Unspecified"},
+        { TUNER_PHILIPS_FM1236_MK3, "TCL MFNM05 4"},
 };
 
 static char *sndtype[] = {
@@ -484,6 +491,7 @@ tveeprom_command(struct i2c_client *client,
 		eeprom_props[1] = eeprom.tuner_formats;
 		eeprom_props[2] = eeprom.model;
 		eeprom_props[3] = eeprom.revision;
+		eeprom_props[4] = eeprom.has_radio;
 		break;
 	default:
 		return -EINVAL;
