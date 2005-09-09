@@ -197,12 +197,12 @@ static inline void r4k_blast_icache_page_indexed_setup(void)
 	if (ic_lsize == 16)
 		r4k_blast_icache_page_indexed = blast_icache16_page_indexed;
 	else if (ic_lsize == 32) {
-		if (TX49XX_ICACHE_INDEX_INV_WAR)
-			r4k_blast_icache_page_indexed =
-				tx49_blast_icache32_page_indexed;
-		else if (R4600_V1_INDEX_ICACHEOP_WAR && cpu_is_r4600_v1_x())
+		if (R4600_V1_INDEX_ICACHEOP_WAR && cpu_is_r4600_v1_x())
 			r4k_blast_icache_page_indexed =
 				blast_icache32_r4600_v1_page_indexed;
+		else if (TX49XX_ICACHE_INDEX_INV_WAR)
+			r4k_blast_icache_page_indexed =
+				tx49_blast_icache32_page_indexed;
 		else
 			r4k_blast_icache_page_indexed =
 				blast_icache32_page_indexed;
@@ -470,9 +470,9 @@ struct flush_icache_range_args {
 static inline void local_r4k_flush_icache_range(void *args)
 {
 	struct flush_icache_range_args *fir_args = args;
-	unsigned long dc_lsize = current_cpu_data.dcache.linesz;
-	unsigned long ic_lsize = current_cpu_data.icache.linesz;
-	unsigned long sc_lsize = current_cpu_data.scache.linesz;
+	unsigned long dc_lsize = cpu_dcache_line_size();
+	unsigned long ic_lsize = cpu_icache_line_size();
+	unsigned long sc_lsize = cpu_scache_line_size();
 	unsigned long start = fir_args->start;
 	unsigned long end = fir_args->end;
 	unsigned long addr, aend;
@@ -501,7 +501,7 @@ static inline void local_r4k_flush_icache_range(void *args)
 				aend = (end - 1) & ~(sc_lsize - 1);
 
 				while (1) {
-					/* Hit_Writeback_Inv_D */
+					/* Hit_Writeback_Inv_SD */
 					protected_writeback_scache_line(addr);
 					if (addr == aend)
 						break;
@@ -624,7 +624,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	BUG_ON(size == 0);
 
 	if (cpu_has_subset_pcaches) {
-		unsigned long sc_lsize = current_cpu_data.scache.linesz;
+		unsigned long sc_lsize = cpu_scache_line_size();
 
 		if (size >= scache_size) {
 			r4k_blast_scache();
@@ -650,7 +650,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	if (size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
-		unsigned long dc_lsize = current_cpu_data.dcache.linesz;
+		unsigned long dc_lsize = cpu_dcache_line_size();
 
 		R4600_HIT_CACHEOP_WAR_IMPL;
 		a = addr & ~(dc_lsize - 1);
@@ -674,7 +674,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	BUG_ON(size == 0);
 
 	if (cpu_has_subset_pcaches) {
-		unsigned long sc_lsize = current_cpu_data.scache.linesz;
+		unsigned long sc_lsize = cpu_scache_line_size();
 
 		if (size >= scache_size) {
 			r4k_blast_scache();
@@ -695,7 +695,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	if (size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
-		unsigned long dc_lsize = current_cpu_data.dcache.linesz;
+		unsigned long dc_lsize = cpu_dcache_line_size();
 
 		R4600_HIT_CACHEOP_WAR_IMPL;
 		a = addr & ~(dc_lsize - 1);
@@ -719,9 +719,9 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
  */
 static void local_r4k_flush_cache_sigtramp(void * arg)
 {
-	unsigned long ic_lsize = current_cpu_data.icache.linesz;
-	unsigned long dc_lsize = current_cpu_data.dcache.linesz;
-	unsigned long sc_lsize = current_cpu_data.scache.linesz;
+	unsigned long ic_lsize = cpu_icache_line_size();
+	unsigned long dc_lsize = cpu_dcache_line_size();
+	unsigned long sc_lsize = cpu_scache_line_size();
 	unsigned long addr = (unsigned long) arg;
 
 	R4600_HIT_CACHEOP_WAR_IMPL;
