@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/time.h>
+#include <linux/dvb/dmx.h>
 
 /*--------------------------------------------------------------------------*/
 /* Common definitions */
@@ -281,6 +282,10 @@ struct dmx_demux {
         int (*disconnect_frontend) (struct dmx_demux* demux);
 
         int (*get_pes_pids) (struct dmx_demux* demux, u16 *pids);
+
+	int (*get_caps) (struct dmx_demux* demux, struct dmx_caps *caps);
+
+	int (*set_source) (struct dmx_demux* demux, const dmx_source_t *src);
 
         int (*get_stc) (struct dmx_demux* demux, unsigned int num,
 			u64 *stc, unsigned int *base);
