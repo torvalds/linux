@@ -751,6 +751,12 @@ config FB_I810_GTF
   
           If unsure, say N.
 
+config FB_I810_I2C
+	bool "Enable DDC Support"
+	depends on FB_I810 && I2C && FB_I810_GTF
+	select I2C_ALGOBIT
+	help
+
 config FB_INTEL
 	tristate "Intel 830M/845G/852GM/855GM/865G support (EXPERIMENTAL)"
 	depends on FB && EXPERIMENTAL && PCI && X86 && !X86_64
