@@ -1976,12 +1976,11 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 		info->pixmap.buf_align = 4;
 		info->pixmap.access_align = 32;
 
-		fb_alloc_cmap (&info->cmap, NR_PALETTE, 0);
+		err = fb_alloc_cmap (&info->cmap, NR_PALETTE, 0);
+		if (!err)
 		info->flags |= FBINFO_HWACCEL_COPYAREA |
 	                       FBINFO_HWACCEL_FILLRECT |
 		               FBINFO_HWACCEL_IMAGEBLIT;
-
-		err = 0;
 	}
 #endif
 	return err;
@@ -2009,14 +2008,14 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 	if (err)
 		goto failed_enable;
 
-	if (pci_request_regions(dev, "savagefb")) {
+	if ((err = pci_request_regions(dev, "savagefb"))) {
 		printk(KERN_ERR "cannot request PCI regions\n");
 		goto failed_enable;
 	}
 
 	err = -ENOMEM;
 
-	if (savage_init_fb_info(info, dev, id))
+	if ((err = savage_init_fb_info(info, dev, id)))
 		goto failed_init;
 
 	err = savage_map_mmio(info);
@@ -2024,6 +2023,7 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 		goto failed_mmio;
 
 	video_len = savage_init_hw(par);
+	/* FIXME: cant be negative */
 	if (video_len < 0) {
 		err = video_len;
 		goto failed_mmio;
