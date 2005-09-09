@@ -54,12 +54,9 @@ struct dvb_demux_filter {
         int index;
         int state;
         int type;
-	int pesto;
 
-        u16 handle;
         u16 hw_handle;
         struct timer_list timer;
-	int ts_state;
 };
 
 
@@ -83,11 +80,9 @@ struct dvb_demux_feed {
         u16 pid;
         u8 *buffer;
         int buffer_size;
-        int descramble;
 
         struct timespec timeout;
         struct dvb_demux_filter *filter;
-        int cb_length;
 
         int ts_type;
         enum dmx_ts_pes pes_type;
@@ -98,7 +93,7 @@ struct dvb_demux_feed {
         u16 peslen;
 
 	struct list_head list_head;
-		int index; /* a unique index for each feed (can be used as hardware pid filter index) */
+	unsigned int index; /* a unique index for each feed (can be used as hardware pid filter index) */
 };
 
 struct dvb_demux {

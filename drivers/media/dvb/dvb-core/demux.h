@@ -125,9 +125,7 @@ struct dmx_ts_feed {
 		    u16 pid,
 		    int type,
 		    enum dmx_ts_pes pes_type,
-		    size_t callback_length,
 		    size_t circular_buffer_size,
-		    int descramble,
 		    struct timespec timeout);
         int (*start_filtering) (struct dmx_ts_feed* feed);
         int (*stop_filtering) (struct dmx_ts_feed* feed);
@@ -160,7 +158,6 @@ struct dmx_section_feed {
         int (*set) (struct dmx_section_feed* feed,
 		    u16 pid,
 		    size_t circular_buffer_size,
-		    int descramble,
 		    int check_crc);
         int (*allocate_filter) (struct dmx_section_feed* feed,
 				struct dmx_section_filter** filter);
@@ -208,7 +205,6 @@ struct dmx_frontend {
         struct list_head connectivity_list; /* List of front-ends that can
 					       be connected to a particular
 					       demux */
-        void* priv;     /* Pointer to private data of the API client */
         enum dmx_frontend_source source;
 };
 
@@ -226,8 +222,6 @@ struct dmx_frontend {
 #define DMX_MEMORY_BASED_FILTERING              8    /* write() available */
 #define DMX_CRC_CHECKING                        16
 #define DMX_TS_DESCRAMBLING                     32
-#define DMX_SECTION_PAYLOAD_DESCRAMBLING        64
-#define DMX_MAC_ADDRESS_DESCRAMBLING            128
 
 /*
  * Demux resource type identifier.
@@ -246,7 +240,6 @@ struct dmx_demux {
         u32 capabilities;            /* Bitfield of capability flags */
         struct dmx_frontend* frontend;    /* Front-end connected to the demux */
         void* priv;                  /* Pointer to private data of the API client */
-        int users;                   /* Number of users */
         int (*open) (struct dmx_demux* demux);
         int (*close) (struct dmx_demux* demux);
         int (*write) (struct dmx_demux* demux, const char* buf, size_t count);

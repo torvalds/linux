@@ -577,8 +577,7 @@ out:
 }
 
 static int dmx_ts_feed_set (struct dmx_ts_feed* ts_feed, u16 pid, int ts_type,
-		     enum dmx_ts_pes pes_type, size_t callback_length,
-		     size_t circular_buffer_size, int descramble,
+		     enum dmx_ts_pes pes_type, size_t circular_buffer_size,
 		     struct timespec timeout)
 {
 	struct dvb_demux_feed *feed = (struct dvb_demux_feed *) ts_feed;
@@ -610,16 +609,9 @@ static int dmx_ts_feed_set (struct dmx_ts_feed* ts_feed, u16 pid, int ts_type,
 
 	feed->pid = pid;
 	feed->buffer_size = circular_buffer_size;
-	feed->descramble = descramble;
 	feed->timeout = timeout;
-	feed->cb_length = callback_length;
 	feed->ts_type = ts_type;
 	feed->pes_type = pes_type;
-
-	if (feed->descramble) {
-		up(&demux->mutex);
-		return -ENOSYS;
-	}
 
 	if (feed->buffer_size) {
 #ifdef NOBUFS
@@ -819,7 +811,7 @@ static int dmx_section_feed_allocate_filter(struct dmx_section_feed* feed,
 
 static int dmx_section_feed_set(struct dmx_section_feed* feed,
 			 u16 pid, size_t circular_buffer_size,
-			 int descramble, int check_crc)
+			 int check_crc)
 {
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) feed;
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
@@ -834,12 +826,6 @@ static int dmx_section_feed_set(struct dmx_section_feed* feed,
 
 	dvbdmxfeed->pid = pid;
 	dvbdmxfeed->buffer_size = circular_buffer_size;
-	dvbdmxfeed->descramble = descramble;
-	if (dvbdmxfeed->descramble) {
-		up(&dvbdmx->mutex);
-		return -ENOSYS;
-	}
-
 	dvbdmxfeed->feed.sec.check_crc = check_crc;
 
 #ifdef NOBUFS

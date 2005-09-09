@@ -903,7 +903,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 			return ret;
 		}
 
-		ret = priv->secfeed->set(priv->secfeed, priv->pid, 32768, 0, 1);
+		ret = priv->secfeed->set(priv->secfeed, priv->pid, 32768, 1);
 
 		if (ret<0) {
 			printk("%s: could not set section feed\n", dev->name);
@@ -955,9 +955,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		priv->tsfeed->priv = (void *)dev;
 		ret = priv->tsfeed->set(priv->tsfeed, priv->pid,
 					TS_PACKET, DMX_TS_PES_OTHER,
-					188 * 100, /* nr. of bytes delivered per callback */
 					32768,     /* circular buffer size */
-					0,         /* descramble */
 					timeout);
 
 		if (ret < 0) {
