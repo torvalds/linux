@@ -116,7 +116,7 @@ typedef struct {
 } scsi_changer;
 
 static LIST_HEAD(ch_devlist);
-static spinlock_t ch_devlist_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ch_devlist_lock);
 static int ch_devcount;
 
 static struct scsi_driver ch_template =
