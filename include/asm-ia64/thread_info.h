@@ -5,7 +5,7 @@
 #ifndef _ASM_IA64_THREAD_INFO_H
 #define _ASM_IA64_THREAD_INFO_H
 
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 

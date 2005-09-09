@@ -17,7 +17,7 @@
 #include <asm/cputable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 #define MAGIC	0x4c617273	/* 'Lars' */
 

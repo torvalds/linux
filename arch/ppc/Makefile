@@ -105,13 +105,7 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/ppc/boot
 	$(Q)rm -rf include3
 
-prepare: include/asm-$(ARCH)/offsets.h checkbin
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
+prepare: checkbin
 
 # Temporary hack until we have migrated to asm-powerpc
 include/asm: include3/asm
@@ -143,7 +137,5 @@ checkbin:
 		false ; \
 	fi
 
-CLEAN_FILES +=	include/asm-$(ARCH)/offsets.h \
-		arch/$(ARCH)/kernel/asm-offsets.s \
-		$(TOUT)
+CLEAN_FILES += $(TOUT)
 
