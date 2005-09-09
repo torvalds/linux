@@ -1188,9 +1188,9 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 		dvbdemux->feed[i].state = DMX_STATE_FREE;
 		dvbdemux->feed[i].index = i;
 	}
-	dvbdemux->frontend_list.next=
-	  dvbdemux->frontend_list.prev=
-	    &dvbdemux->frontend_list;
+
+	INIT_LIST_HEAD(&dvbdemux->frontend_list);
+
 	for (i=0; i<DMX_TS_PES_OTHER; i++) {
 		dvbdemux->pesfilter[i] = NULL;
 		dvbdemux->pids[i] = 0xffff;
