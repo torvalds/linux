@@ -2998,6 +2998,8 @@ EXPORT_SYMBOL(kzalloc);
  * kfree - free previously allocated memory
  * @objp: pointer returned by kmalloc.
  *
+ * If @objp is NULL, no operation is performed.
+ *
  * Don't free memory not originally allocated by kmalloc()
  * or you will run into trouble.
  */
