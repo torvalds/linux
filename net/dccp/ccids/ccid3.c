@@ -483,7 +483,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	opt_recv = &hctx->ccid3hctx_options_received;
 
-	t_elapsed = dp->dccps_options_received.dccpor_elapsed_time;
+	t_elapsed = dp->dccps_options_received.dccpor_elapsed_time * 10;
 	x_recv = opt_recv->ccid3or_receive_rate;
 	pinv = opt_recv->ccid3or_loss_event_rate;
 
@@ -509,8 +509,12 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 		/* Update RTT */
 		r_sample = timeval_now_delta(&packet->dccphtx_tstamp);
-		/* FIXME: */
-		// r_sample -= usecs_to_jiffies(t_elapsed * 10);
+		if (unlikely(r_sample <= t_elapsed))
+			LIMIT_NETDEBUG(KERN_WARNING
+				       "%s: r_sample=%uus, t_elapsed=%uus\n",
+				       __FUNCTION__, r_sample, t_elapsed);
+		else
+			r_sample -= t_elapsed;
 
 		/* Update RTT estimate by 
 		 * If (No feedback recv)
