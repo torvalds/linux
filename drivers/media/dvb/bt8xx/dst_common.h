@@ -113,6 +113,10 @@ struct dst_state {
 	fe_sec_mini_cmd_t minicmd;
 	fe_modulation_t modulation;
 	u8 messages[256];
+	u8 mac_address[8];
+	u8 fw_version[8];
+	u8 card_info[8];
+	u8 vendor[8];
 };
 
 struct dst_types {
