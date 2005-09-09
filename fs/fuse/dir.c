@@ -552,6 +552,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 				    filldir);
 
 	__free_page(page);
+	fuse_invalidate_attr(inode); /* atime changed */
 	return err;
 }
 
@@ -585,6 +586,7 @@ static char *read_link(struct dentry *dentry)
 		link[req->out.args[0].size] = '\0';
  out:
 	fuse_put_request(fc, req);
+	fuse_invalidate_attr(inode); /* atime changed */
 	return link;
 }
 

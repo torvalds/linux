@@ -173,6 +173,7 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 		return NULL;
 
 	if ((inode->i_state & I_NEW)) {
+		inode->i_flags |= S_NOATIME|S_NOCMTIME;
 		inode->i_generation = generation;
 		inode->i_data.backing_dev_info = &fc->bdi;
 		fuse_init_inode(inode, attr);
