@@ -380,16 +380,16 @@ static inline int pci_write_config_dword(struct pci_dev *dev, int where, u32 val
 	return pci_bus_write_config_dword (dev->bus, dev->devfn, where, val);
 }
 
-int __must_check pci_enable_device(struct pci_dev *dev);
-int __must_check pci_enable_device_bars(struct pci_dev *dev, int mask);
+int pci_enable_device(struct pci_dev *dev);
+int pci_enable_device_bars(struct pci_dev *dev, int mask);
 void pci_disable_device(struct pci_dev *dev);
 void pci_set_master(struct pci_dev *dev);
 #define HAVE_PCI_SET_MWI
-int __must_check pci_set_mwi(struct pci_dev *dev);
+int pci_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);
 void pci_intx(struct pci_dev *dev, int enable);
-int __must_check pci_set_dma_mask(struct pci_dev *dev, u64 mask);
-int __must_check pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
+int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
+int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int pci_assign_resource(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
@@ -403,9 +403,9 @@ void pci_remove_rom(struct pci_dev *pdev);
 /* Power management related routines */
 int pci_save_state(struct pci_dev *dev);
 int pci_restore_state(struct pci_dev *dev);
-int __must_check pci_set_power_state(struct pci_dev *dev, pci_power_t state);
-pci_power_t __must_check pci_choose_state(struct pci_dev *dev, pm_message_t state);
-int __must_check pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
+int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
+pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
+int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
 
 /* Helper functions for low-level code (drivers/pci/setup-[bus,res].c) */
 void pci_bus_assign_resources(struct pci_bus *bus);
