@@ -495,6 +495,9 @@ struct fb_cursor_user {
 #define FB_EVENT_BLANK                  0x08
 /*      Private modelist is to be replaced */
 #define FB_EVENT_NEW_MODELIST           0x09
+/*	The resolution of the passed in fb_info about to change and
+        all vc's should be changed         */
+#define FB_EVENT_MODE_CHANGE_ALL	0x0A
 
 struct fb_event {
 	struct fb_info *info;

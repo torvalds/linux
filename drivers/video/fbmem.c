@@ -684,11 +684,13 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 			if (!err && (flags & FBINFO_MISC_USEREVENT)) {
 				struct fb_event event;
+				int evnt = (var->activate & FB_ACTIVATE_ALL) ?
+					FB_EVENT_MODE_CHANGE_ALL :
+					FB_EVENT_MODE_CHANGE;
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
 				event.info = info;
-				notifier_call_chain(&fb_notifier_list,
-						    FB_EVENT_MODE_CHANGE,
+				notifier_call_chain(&fb_notifier_list, evnt,
 						    &event);
 			}
 		}

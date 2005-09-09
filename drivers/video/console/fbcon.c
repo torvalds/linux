@@ -2593,6 +2593,51 @@ static void fbcon_modechanged(struct fb_info *info)
 	}
 }
 
+static void fbcon_set_all_vcs(struct fb_info *info)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	struct vc_data *vc;
+	struct display *p;
+	int i, rows, cols;
+
+	if (!ops || ops->currcon < 0)
+		return;
+
+	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		vc = vc_cons[i].d;
+		if (!vc || vc->vc_mode != KD_TEXT ||
+		    registered_fb[con2fb_map[i]] != info)
+			continue;
+
+		p = &fb_display[vc->vc_num];
+
+		info->var.xoffset = info->var.yoffset = p->yscroll = 0;
+		var_to_display(p, &info->var, info);
+		cols = info->var.xres / vc->vc_font.width;
+		rows = info->var.yres / vc->vc_font.height;
+		vc_resize(vc, cols, rows);
+
+		if (CON_IS_VISIBLE(vc)) {
+			updatescrollmode(p, info, vc);
+			scrollback_max = 0;
+			scrollback_current = 0;
+			update_var(vc->vc_num, info);
+			fbcon_set_palette(vc, color_table);
+			update_screen(vc);
+			if (softback_buf) {
+				int l = fbcon_softback_size / vc->vc_size_row;
+				if (l > 5)
+					softback_end = softback_buf + l * vc->vc_size_row;
+				else {
+					/* Smaller scrollback makes no sense, and 0
+					   would screw the operation totally */
+					softback_top = 0;
+				}
+			}
+		}
+	}
+}
+
 static int fbcon_mode_deleted(struct fb_info *info,
 			      struct fb_videomode *mode)
 {
@@ -2707,6 +2752,9 @@ static int fbcon_event_notify(struct notifier_block *self,
 		break;
 	case FB_EVENT_MODE_CHANGE:
 		fbcon_modechanged(info);
+		break;
+	case FB_EVENT_MODE_CHANGE_ALL:
+		fbcon_set_all_vcs(info);
 		break;
 	case FB_EVENT_MODE_DELETE:
 		mode = event->data;
