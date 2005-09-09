@@ -1411,6 +1411,11 @@ static int make_request (request_queue_t *q, struct bio * bi)
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
 
+	if (unlikely(bio_barrier(bi))) {
+		bio_endio(bi, bi->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
+
 	md_write_start(mddev, bi);
 
 	if (bio_data_dir(bi)==WRITE) {

@@ -238,6 +238,11 @@ static int linear_make_request (request_queue_t *q, struct bio *bio)
 	dev_info_t *tmp_dev;
 	sector_t block;
 
+	if (unlikely(bio_barrier(bio))) {
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
+
 	if (bio_data_dir(bio)==WRITE) {
 		disk_stat_inc(mddev->gendisk, writes);
 		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bio));

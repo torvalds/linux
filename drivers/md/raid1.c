@@ -555,6 +555,10 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	unsigned long flags;
 	struct bio_list bl;
 
+	if (unlikely(bio_barrier(bio))) {
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
 
 	/*
 	 * Register the new request and wait if the reconstruction

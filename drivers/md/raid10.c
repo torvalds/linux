@@ -669,6 +669,11 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	int i;
 	int chunk_sects = conf->chunk_mask + 1;
 
+	if (unlikely(bio_barrier(bio))) {
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
+
 	/* If this request crosses a chunk boundary, we need to
 	 * split it.  This will only happen for 1 PAGE (or less) requests.
 	 */
