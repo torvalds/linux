@@ -956,8 +956,7 @@ config FB_RADEON
 	  can be build either as modules or built-in.
 
 	  There is a product page at
-	  <http://www.ati.com/na/pages/products/pc/radeon32/index.html>.
-
+	  http://apps.ati.com/ATIcompare/
 config FB_RADEON_I2C
 	bool "DDC/I2C for ATI Radeon support"
 	depends on FB_RADEON
