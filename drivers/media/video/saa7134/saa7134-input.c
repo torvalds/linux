@@ -564,6 +564,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		ir->dev.id.vendor  = dev->pci->vendor;
 		ir->dev.id.product = dev->pci->device;
 	}
+	ir->dev.dev = &dev->pci->dev;
 
 	/* all done */
 	dev->remote = ir;
