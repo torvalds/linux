@@ -173,7 +173,7 @@ static struct dvb_usb_properties digitv_properties;
 static int digitv_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&digitv_properties,THIS_MODULE);
+	return dvb_usb_device_init(intf,&digitv_properties,THIS_MODULE,NULL);
 }
 
 static struct usb_device_id digitv_table [] = {

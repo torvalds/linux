@@ -128,7 +128,9 @@ static struct dvb_usb_device_description * dvb_usb_find_device(struct usb_device
 /*
  * USB
  */
-int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties *props, struct module *owner)
+
+int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
+		*props, struct module *owner,struct dvb_usb_device **du)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
@@ -169,6 +171,9 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties *p
 		}
 
 		usb_set_intfdata(intf, d);
+
+		if (du != NULL)
+			*du = d;
 
 		ret = dvb_usb_init(d);
 	}

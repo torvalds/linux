@@ -86,9 +86,9 @@ static struct dvb_usb_properties dibusb2_0b_properties;
 static int dibusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&dibusb1_1_properties,THIS_MODULE) == 0 ||
-		dvb_usb_device_init(intf,&dibusb1_1_an2235_properties,THIS_MODULE) == 0 ||
-		dvb_usb_device_init(intf,&dibusb2_0b_properties,THIS_MODULE) == 0)
+	if (dvb_usb_device_init(intf,&dibusb1_1_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&dibusb1_1_an2235_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&dibusb2_0b_properties,THIS_MODULE,NULL) == 0)
 		return 0;
 
 	return -EINVAL;

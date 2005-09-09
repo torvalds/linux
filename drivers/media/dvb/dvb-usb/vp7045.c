@@ -199,7 +199,7 @@ static struct dvb_usb_properties vp7045_properties;
 static int vp7045_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&vp7045_properties,THIS_MODULE);
+	return dvb_usb_device_init(intf,&vp7045_properties,THIS_MODULE,NULL);
 }
 
 static struct usb_device_id vp7045_usb_table [] = {

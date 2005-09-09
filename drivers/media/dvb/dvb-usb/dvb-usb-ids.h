@@ -27,6 +27,7 @@
 #define USB_VID_KWORLD						0xeb2a
 #define USB_VID_KYE							0x0458
 #define USB_VID_MEDION						0x1660
+#define USB_VID_PINNACLE					0x2304
 #define USB_VID_VISIONPLUS					0x13d3
 #define USB_VID_TWINHAN						0x1822
 #define USB_VID_ULTIMA_ELECTRONIC			0x05d8
@@ -88,5 +89,7 @@
 #define USB_PID_MEDION_MD95700				0x0932
 #define USB_PID_KYE_DVB_T_COLD				0x701e
 #define USB_PID_KYE_DVB_T_WARM				0x701f
+#define USB_PID_PCTV_200E					0x020e
+#define USB_PID_PCTV_400E					0x020f
 
 #endif

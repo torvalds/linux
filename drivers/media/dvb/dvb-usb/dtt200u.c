@@ -98,8 +98,8 @@ static struct dvb_usb_properties wt220u_properties;
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE) == 0)
+	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE,NULL) == 0)
 		return 0;
 
 	return -ENODEV;

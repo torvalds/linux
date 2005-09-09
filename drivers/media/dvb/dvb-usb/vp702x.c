@@ -197,7 +197,7 @@ static int vp702x_usb_probe(struct usb_interface *intf,
 	usb_clear_halt(udev,usb_sndctrlpipe(udev,0));
 	usb_clear_halt(udev,usb_rcvctrlpipe(udev,0));
 
-	return dvb_usb_device_init(intf,&vp702x_properties,THIS_MODULE);
+	return dvb_usb_device_init(intf,&vp702x_properties,THIS_MODULE,NULL);
 }
 
 static struct usb_device_id vp702x_usb_table [] = {

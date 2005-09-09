@@ -211,7 +211,7 @@ static struct dvb_usb_properties cxusb_properties;
 static int cxusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&cxusb_properties,THIS_MODULE);
+	return dvb_usb_device_init(intf,&cxusb_properties,THIS_MODULE,NULL);
 }
 
 static struct usb_device_id cxusb_table [] = {
