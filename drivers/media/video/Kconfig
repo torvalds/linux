@@ -22,9 +22,6 @@ config VIDEO_BT848
 	  the Miro, Hauppauge and STB boards. Please read the material in
 	  <file:Documentation/video4linux/bttv/> for more information.
 
-	  If you say Y or M here, you need to say Y or M to "I2C support" and
-	  "I2C bit-banging interfaces" in the device drivers section.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called bttv.
 
