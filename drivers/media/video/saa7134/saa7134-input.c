@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-input.c,v 1.21 2005/06/22 23:37:34 nsh Exp $
  *
  * handle saa7134 IR remotes via linux kernel input layer.
  *

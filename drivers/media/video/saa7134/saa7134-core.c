@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-core.c,v 1.39 2005/07/05 17:37:35 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * driver core

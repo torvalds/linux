@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-dvb.c,v 1.23 2005/07/24 22:12:47 mkrufky Exp $
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *

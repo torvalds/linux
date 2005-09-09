@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-cards.c,v 1.80 2005/07/07 01:49:30 mkrufky Exp $
  *
  * device driver for philips saa7134 based TV cards
  * card-specific stuff.
@@ -2001,6 +2000,41 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x000,
 		},
 	},
+	[SAA7134_BOARD_FLYTV_DIGIMATRIX] = {
+		.name		= "FlyTV mini Asus Digimatrix",
+		.audio_clock	= 0x00200000,
+		.tuner_type	= TUNER_LG_NTSC_TALN_MINI,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,		/* radio unconfirmed */
+			.amux = LINE2,
+		},
+	},
 };
 
 
@@ -2346,6 +2380,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x4e42,
 		.subdevice    = 0x0502,
 		.driver_data  = SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x0210,		/* mini pci NTSC version */
+		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x0210,		/* mini pci PAL/SECAM version */
+		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
 
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
