@@ -336,7 +336,6 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8
 		*/
 		feed->pusi_seen = 0;
 		dvb_dmx_swfilter_section_new(feed);
-		return 0;
 	}
 
 	if (buf[1] & 0x40) {
