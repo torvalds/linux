@@ -235,6 +235,13 @@ config SCSI_ISCSI_ATTRS
 	  each attached iSCSI device to sysfs, say Y.
 	  Otherwise, say N.
 
+config SCSI_SAS_ATTRS
+	tristate "SAS Transport Attributes"
+	depends on SCSI
+	help
+	  If you wish to export transport-specific information about
+	  each attached SAS device to sysfs, say Y.
+
 endmenu
 
 menu "SCSI low-level drivers"
