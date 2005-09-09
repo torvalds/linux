@@ -55,7 +55,7 @@ enum {
 	SIS180_SATA1_OFS	= 0x10, /* offset from sata0->sata1 phy regs */
 	SIS182_SATA1_OFS	= 0x20, /* offset from sata0->sata1 phy regs */
 	SIS_PMR			= 0x90, /* port mapping register */
-	SIS_PMR_COMBINED	= 0x30, 
+	SIS_PMR_COMBINED	= 0x30,
 
 	/* random bits */
 	SIS_FLAG_CFGSCR		= (1 << 30), /* host flag: SCRs via PCI cfg */
@@ -147,11 +147,13 @@ static unsigned int get_scr_cfg_addr(unsigned int port_no, unsigned int sc_reg, 
 {
 	unsigned int addr = SIS_SCR_BASE + (4 * sc_reg);
 
-	if (port_no) 
+	if (port_no)  {
 		if (device == 0x182)
 			addr += SIS182_SATA1_OFS;
 		else
 			addr += SIS180_SATA1_OFS;
+	}
+
 	return addr;
 }
 
@@ -166,10 +168,10 @@ static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 		return 0xffffffff;
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
-	
+
 	pci_read_config_dword(pdev, cfg_addr, &val);
 
-	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED)) 
+	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
 		pci_read_config_dword(pdev, cfg_addr+0x10, &val2);
 
 	return val|val2;
@@ -185,7 +187,7 @@ static void sis_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
 		return;
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
-	
+
 	pci_write_config_dword(pdev, cfg_addr, val);
 
 	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
@@ -195,7 +197,7 @@ static void sis_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
 static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
-	u32 val,val2;
+	u32 val, val2 = 0;
 	u8 pmr;
 
 	if (sc_reg > SCR_CONTROL)
@@ -209,9 +211,9 @@ static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg)
 	val = inl(ap->ioaddr.scr_addr + (sc_reg * 4));
 
 	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
-		val2 = inl(ap->ioaddr.scr_addr + (sc_reg * 4)+0x10);
+		val2 = inl(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
 
-	return val|val2;
+	return val | val2;
 }
 
 static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
@@ -223,7 +225,7 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 		return;
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
-	
+
 	if (ap->flags & SIS_FLAG_CFGSCR)
 		sis_scr_cfg_write(ap, sc_reg, val);
 	else {
