@@ -820,7 +820,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 					  ((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) ||
 					   (s->functions > 1) ||
 					   (irq == s->pci_irq)) ? SA_SHIRQ : 0,
-					  p_dev->dev.bus_id,
+					  p_dev->devname,
 					  (req->Attributes & IRQ_HANDLE_PRESENT) ? req->Instance : data);
 			if (!ret) {
 				if (!(req->Attributes & IRQ_HANDLE_PRESENT))
@@ -842,7 +842,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 				((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) ||
 				 (s->functions > 1) ||
 				 (irq == s->pci_irq)) ? SA_SHIRQ : 0,
-				p_dev->dev.bus_id, req->Instance))
+				p_dev->devname, req->Instance))
 			return CS_IN_USE;
 	}
 

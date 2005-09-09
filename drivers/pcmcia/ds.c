@@ -354,6 +354,7 @@ static void pcmcia_release_dev(struct device *dev)
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	ds_dbg(1, "releasing dev %p\n", p_dev);
 	pcmcia_put_socket(p_dev->socket);
+	kfree(p_dev->devname);
 	kfree(p_dev);
 }
 
@@ -504,6 +505,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 {
 	struct pcmcia_device *p_dev;
 	unsigned long flags;
+	int bus_id_len;
 
 	s = pcmcia_get_socket(s);
 	if (!s)
@@ -527,7 +529,12 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	p_dev->dev.bus = &pcmcia_bus_type;
 	p_dev->dev.parent = s->dev.dev;
 	p_dev->dev.release = pcmcia_release_dev;
-	sprintf (p_dev->dev.bus_id, "%d.%d", p_dev->socket->sock, p_dev->device_no);
+	bus_id_len = sprintf (p_dev->dev.bus_id, "%d.%d", p_dev->socket->sock, p_dev->device_no);
+
+	p_dev->devname = kmalloc(6 + bus_id_len + 1, GFP_KERNEL);
+	if (!p_dev->devname)
+		goto err_free;
+	sprintf (p_dev->devname, "pcmcia%s", p_dev->dev.bus_id);
 
 	/* compat */
 	p_dev->state = CLIENT_UNBOUND;
@@ -552,6 +559,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	return p_dev;
 
  err_free:
+	kfree(p_dev->devname);
 	kfree(p_dev);
 	s->device_count--;
  err_put:
