@@ -151,6 +151,8 @@ static void fuse_put_super(struct super_block *sb)
 	mount_count --;
 	fc->sb = NULL;
 	fc->user_id = 0;
+	/* Flush all readers on this fs */
+	wake_up_all(&fc->waitq);
 	fuse_release_conn(fc);
 	*get_fuse_conn_super_p(sb) = NULL;
 	spin_unlock(&fuse_lock);
@@ -229,9 +231,22 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
+static void free_conn(struct fuse_conn *fc)
+{
+	while (!list_empty(&fc->unused_list)) {
+		struct fuse_req *req;
+		req = list_entry(fc->unused_list.next, struct fuse_req, list);
+		list_del(&req->list);
+		fuse_request_free(req);
+	}
+	kfree(fc);
+}
+
+/* Must be called with the fuse lock held */
 void fuse_release_conn(struct fuse_conn *fc)
 {
-	kfree(fc);
+	if (!fc->sb && !fc->file)
+		free_conn(fc);
 }
 
 static struct fuse_conn *new_conn(void)
@@ -240,11 +255,27 @@ static struct fuse_conn *new_conn(void)
 
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc != NULL) {
+		int i;
 		memset(fc, 0, sizeof(*fc));
 		fc->sb = NULL;
+		fc->file = NULL;
 		fc->user_id = 0;
+		init_waitqueue_head(&fc->waitq);
+		INIT_LIST_HEAD(&fc->pending);
+		INIT_LIST_HEAD(&fc->processing);
+		INIT_LIST_HEAD(&fc->unused_list);
+		sema_init(&fc->outstanding_sem, 0);
+		for (i = 0; i < FUSE_MAX_OUTSTANDING; i++) {
+			struct fuse_req *req = fuse_request_alloc();
+			if (!req) {
+				free_conn(fc);
+				return NULL;
+			}
+			list_add(&req->list, &fc->unused_list);
+		}
 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
+		fc->reqctr = 0;
 	}
 	return fc;
 }
@@ -253,11 +284,20 @@ static struct fuse_conn *get_conn(struct file *file, struct super_block *sb)
 {
 	struct fuse_conn *fc;
 
+	if (file->f_op != &fuse_dev_operations)
+		return ERR_PTR(-EINVAL);
 	fc = new_conn();
 	if (fc == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	spin_lock(&fuse_lock);
-	fc->sb = sb;
+	if (file->private_data) {
+		free_conn(fc);
+		fc = ERR_PTR(-EINVAL);
+	} else {
+		file->private_data = fc;
+		fc->sb = sb;
+		fc->file = file;
+	}
 	spin_unlock(&fuse_lock);
 	return fc;
 }
@@ -315,8 +355,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	fc = get_conn(file, sb);
 	fput(file);
-	if (fc == NULL)
-		return -EINVAL;
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
 
 	fc->user_id = d.user_id;
 
@@ -336,6 +376,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		iput(root);
 		goto err;
 	}
+	fuse_send_init(fc);
 	return 0;
 
  err:
@@ -411,8 +452,14 @@ static int __init fuse_init(void)
 	if (res)
 		goto err;
 
+	res = fuse_dev_init();
+	if (res)
+		goto err_fs_cleanup;
+
 	return 0;
 
+ err_fs_cleanup:
+	fuse_fs_cleanup();
  err:
 	return res;
 }
@@ -422,6 +469,7 @@ static void __exit fuse_exit(void)
 	printk(KERN_DEBUG "fuse exit\n");
 
 	fuse_fs_cleanup();
+	fuse_dev_cleanup();
 }
 
 module_init(fuse_init);

@@ -11,13 +11,19 @@
 #include <asm/types.h>
 
 /** Version number of this interface */
-#define FUSE_KERNEL_VERSION 5
+#define FUSE_KERNEL_VERSION 6
 
 /** Minor version number of this interface */
 #define FUSE_KERNEL_MINOR_VERSION 1
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
+
+/** The major number of the fuse character device */
+#define FUSE_MAJOR 10
+
+/** The minor number of the fuse character device */
+#define FUSE_MINOR 229
 
 struct fuse_attr {
 	__u64	ino;
@@ -34,5 +40,33 @@ struct fuse_attr {
 	__u32	uid;
 	__u32	gid;
 	__u32	rdev;
+};
+
+enum fuse_opcode {
+	FUSE_INIT          = 26
+};
+
+/* Conservative buffer size for the client */
+#define FUSE_MAX_IN 8192
+
+struct fuse_init_in_out {
+	__u32	major;
+	__u32	minor;
+};
+
+struct fuse_in_header {
+	__u32	len;
+	__u32	opcode;
+	__u64	unique;
+	__u64	nodeid;
+	__u32	uid;
+	__u32	gid;
+	__u32	pid;
+};
+
+struct fuse_out_header {
+	__u32	len;
+	__s32	error;
+	__u64	unique;
 };
 

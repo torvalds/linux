@@ -4,4 +4,4 @@
 
 obj-$(CONFIG_FUSE_FS) += fuse.o
 
-fuse-objs := inode.o
+fuse-objs := dev.o inode.o
