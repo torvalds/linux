@@ -1,5 +1,4 @@
 /*
-    $Id: cx88-i2c.c,v 1.30 2005/07/25 05:10:13 mkrufky Exp $
 
     cx88-i2c.c  --  all the i2c code is here
 
