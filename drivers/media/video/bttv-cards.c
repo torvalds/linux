@@ -299,8 +299,8 @@ static struct CARD {
 	{ 0x00011822, BTTV_TWINHAN_DST,   "Twinhan VisionPlus DVB" },
 	{ 0xfc00270f, BTTV_TWINHAN_DST,   "ChainTech digitop DST-1000 DVB-S" },
 	{ 0x07711461, BTTV_AVDVBT_771,    "AVermedia AverTV DVB-T 771" },
-	{ 0xdb1018ac, BTTV_DVICO_DVBT_LITE,    "DVICO FusionHDTV DVB-T Lite" },
-	{ 0xd50018ac, BTTV_DVICO_FUSIONHDTV_5_LITE,    "DVICO FusionHDTV 5 Lite" },
+	{ 0xdb1018ac, BTTV_DVICO_DVBT_LITE,    "DViCO FusionHDTV DVB-T Lite" },
+	{ 0xd50018ac, BTTV_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
 
 	{ 0, -1, NULL }
 };

@@ -468,6 +468,10 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	case TUNER_LG_PAL_FM:
 		buffer[3] = 0xa5;
 		break;
+	case TUNER_MICROTUNE_4049FM5:
+		div = (20 * freq) / 16000 + (int)(33.3 * 20); /* IF 33.3 MHz */
+		buffer[3] = 0xa4;
+		break;
 	default:
 		buffer[3] = 0xa4;
 		break;
