@@ -2032,9 +2032,9 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
 	struct inode_security_struct *isec;
-	u32 newsid;
+	u32 newsid, clen;
 	int rc;
-	char *namep, *context;
+	char *namep = NULL, *context;
 
 	tsec = current->security;
 	dsec = dir->i_security;
@@ -2059,17 +2059,22 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 
 	inode_security_set_sid(inode, newsid);
 
-	namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_KERNEL);
-	if (!namep)
-		return -ENOMEM;
-	*name = namep;
-
-	rc = security_sid_to_context(newsid, &context, len);
-	if (rc) {
-		kfree(namep);
-		return rc;
+	if (name) {
+		namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_KERNEL);
+		if (!namep)
+			return -ENOMEM;
+		*name = namep;
 	}
-	*value = context;
+
+	if (value && len) {
+		rc = security_sid_to_context(newsid, &context, &clen);
+		if (rc) {
+			kfree(namep);
+			return rc;
+		}
+		*value = context;
+		*len = clen;
+	}
 
 	isec->security_attr_init = 1;
 
