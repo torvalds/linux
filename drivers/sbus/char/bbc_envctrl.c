@@ -5,6 +5,7 @@
  */
 
 #define __KERNEL_SYSCALLS__
+static int errno;
 
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -13,8 +14,6 @@
 #include <linux/delay.h>
 #include <asm/oplib.h>
 #include <asm/ebus.h>
-static int errno;
-#include <asm/unistd.h>
 
 #include "bbc_i2c.h"
 #include "max1617.h"
