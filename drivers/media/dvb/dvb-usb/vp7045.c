@@ -164,7 +164,6 @@ static int vp7045_read_eeprom(struct dvb_usb_device *d,u8 *buf, int len, int off
 	return 0;
 }
 
-
 static int vp7045_read_mac_addr(struct dvb_usb_device *d,u8 mac[6])
 {
 	return vp7045_read_eeprom(d,mac, 6, MAC_0_ADDR);
@@ -256,9 +255,9 @@ static struct dvb_usb_properties vp7045_properties = {
 static struct usb_driver vp7045_usb_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_vp7045",
-	.probe 		= vp7045_usb_probe,
+	.probe		= vp7045_usb_probe,
 	.disconnect = dvb_usb_device_exit,
-	.id_table 	= vp7045_usb_table,
+	.id_table	= vp7045_usb_table,
 };
 
 /* module stuff */
