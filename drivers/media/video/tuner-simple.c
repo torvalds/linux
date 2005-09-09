@@ -242,7 +242,7 @@ static struct tunertype tuners[] = {
           /* see tea5767.c for details */},
 	{ "Philips FMD1216ME MK3 Hybrid Tuner", Philips, PAL,
 	  16*160.00,16*442.00,0x51,0x52,0x54,0x86,623 },
-	{ "LG TDVS-H062F/TUA6034", LGINNOTEK, NTSC,
+	{ "LG TDVS-H062F/TUA6034", LGINNOTEK, ATSC,
 	  16*160.00,16*455.00,0x01,0x02,0x04,0x8e,732},
 	{ "Ymec TVF66T5-B/DFF", Philips, PAL,
           16*160.25,16*464.25,0x01,0x02,0x08,0x8e,623},
