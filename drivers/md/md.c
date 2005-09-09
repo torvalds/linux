@@ -645,7 +645,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 		if (sb->state & (1<<MD_SB_BITMAP_PRESENT) &&
 		    mddev->bitmap_file == NULL) {
-			if (mddev->level != 1 && mddev->level != 5) {
+			if (mddev->level != 1 && mddev->level != 5 && mddev->level != 6) {
 				/* FIXME use a better test */
 				printk(KERN_WARNING "md: bitmaps only support for raid1\n");
 				return -EINVAL;
