@@ -114,7 +114,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 	unsigned int scan_align = info->pixmap.scan_align - 1;
 	unsigned int buf_align = info->pixmap.buf_align - 1;
 	unsigned int shift_low = 0, mod = vc->vc_font.width % 8;
-	unsigned int shift_high = 8, pitch, cnt, size, k;
+	unsigned int shift_high = 8, pitch, cnt, size, i, k;
 	unsigned int idx = vc->vc_font.width >> 3;
 	unsigned int attribute = get_attribute(info, scr_readw(s));
 	struct fb_image image;
@@ -175,7 +175,11 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 					src = buf;
 				}
 
-				fb_pad_aligned_buffer(dst, pitch, src, idx, image.height);
+				if (idx == 1)
+					for(i=0; i < image.height; i++)
+						dst[pitch*i] = src[i];
+				else
+					fb_pad_aligned_buffer(dst, pitch, src, idx, image.height);
 				dst += width;
 			}
 		}
