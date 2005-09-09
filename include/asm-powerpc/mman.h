@@ -1,5 +1,5 @@
-#ifndef _POWERPC_MMAN_H
-#define _POWERPC_MMAN_H
+#ifndef _ASM_POWERPC_MMAN_H
+#define _ASM_POWERPC_MMAN_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -49,4 +49,4 @@
 #define MAP_ANON	MAP_ANONYMOUS
 #define MAP_FILE	0
 
-#endif /* _POWERPC_MMAN_H */
+#endif	/* _ASM_POWERPC_MMAN_H */

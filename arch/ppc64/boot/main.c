@@ -23,7 +23,8 @@ extern void flush_cache(void *, unsigned long);
 
 /* Value picked to match that used by yaboot */
 #define PROG_START	0x01400000
-#define RAM_END		(256<<20) // Fixme: use OF */
+#define RAM_END		(512<<20) // Fixme: use OF */
+#define	ONE_MB		0x100000
 
 static char *avail_ram;
 static char *begin_avail, *end_avail;
@@ -32,6 +33,7 @@ static unsigned int heap_use;
 static unsigned int heap_max;
 
 extern char _start[];
+extern char _end[];
 extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
@@ -58,13 +60,13 @@ typedef void (*kernel_entry_t)( unsigned long,
 
 #undef DEBUG
 
-static unsigned long claim_base = PROG_START;
+static unsigned long claim_base;
 
 static unsigned long try_claim(unsigned long size)
 {
 	unsigned long addr = 0;
 
-	for(; claim_base < RAM_END; claim_base += 0x100000) {
+	for(; claim_base < RAM_END; claim_base += ONE_MB) {
 #ifdef DEBUG
 		printf("    trying: 0x%08lx\n\r", claim_base);
 #endif
@@ -95,7 +97,26 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	if (getprop(chosen_handle, "stdin", &stdin, sizeof(stdin)) != 4)
 		exit();
 
-	printf("\n\rzImage starting: loaded at 0x%x\n\r", (unsigned)_start);
+	printf("\n\rzImage starting: loaded at 0x%lx\n\r", (unsigned long) _start);
+
+	/*
+	 * The first available claim_base must be above the end of the
+	 * the loaded kernel wrapper file (_start to _end includes the
+	 * initrd image if it is present) and rounded up to a nice
+	 * 1 MB boundary for good measure.
+	 */
+
+	claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
+
+#if defined(PROG_START)
+	/*
+	 * Maintain a "magic" minimum address. This keeps some older
+	 * firmware platforms running.
+	 */
+
+	if (claim_base < PROG_START)
+		claim_base = PROG_START;
+#endif
 
 	/*
 	 * Now we try to claim some memory for the kernel itself
@@ -105,7 +126,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	 * size... In practice we add 1Mb, that is enough, but we should really
 	 * consider fixing the Makefile to put a _raw_ kernel in there !
 	 */
-	vmlinux_memsize += 0x100000;
+	vmlinux_memsize += ONE_MB;
 	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux_memsize);
 	vmlinux.addr = try_claim(vmlinux_memsize);
 	if (vmlinux.addr == 0) {

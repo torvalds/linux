@@ -89,11 +89,12 @@ drivers-$(CONFIG_OPROFILE)	+= arch/ppc64/oprofile/
 
 boot := arch/ppc64/boot
 
-boottarget-$(CONFIG_PPC_PSERIES) := zImage zImage.initrd
-boottarget-$(CONFIG_PPC_MAPLE) := zImage zImage.initrd
-boottarget-$(CONFIG_PPC_ISERIES) := vmlinux.sminitrd vmlinux.initrd vmlinux.sm
-boottarget-$(CONFIG_PPC_BPA) := zImage zImage.initrd
-$(boottarget-y): vmlinux
+boottargets-$(CONFIG_PPC_PSERIES) += zImage zImage.initrd
+boottargets-$(CONFIG_PPC_PMAC) += zImage.vmode zImage.initrd.vmode
+boottargets-$(CONFIG_PPC_MAPLE) += zImage zImage.initrd
+boottargets-$(CONFIG_PPC_ISERIES) += vmlinux.sminitrd vmlinux.initrd vmlinux.sm
+boottargets-$(CONFIG_PPC_BPA) += zImage zImage.initrd
+$(boottargets-y): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 bootimage-$(CONFIG_PPC_PSERIES) := $(boot)/zImage
@@ -131,10 +132,12 @@ include3/asm:
 	$(Q)ln -fsn $(srctree)/include/asm-powerpc include3/asm
 
 define archhelp
-  echo  '* zImage       - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
-  echo  '  zImage.initrd- Compressed kernel image with initrd attached,'
-  echo  '		   sourced from arch/$(ARCH)/boot/ramdisk.image.gz'
-  echo  '		   (arch/$(ARCH)/boot/zImage.initrd)'
+  echo  '  zImage.vmode        - Compressed kernel image (arch/$(ARCH)/boot/zImage.vmode)'
+  echo  '  zImage.initrd.vmode - Compressed kernel image with initrd attached,'
+  echo  '                        sourced from arch/$(ARCH)/boot/ramdisk.image.gz'
+  echo  '                        (arch/$(ARCH)/boot/zImage.initrd.vmode)'
+  echo  '  zImage              - zImage for pSeries machines'
+  echo  '  zImage.initrd       - zImage with initrd for pSeries machines'
 endef
 
 CLEAN_FILES += include/asm-ppc64/offsets.h

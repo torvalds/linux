@@ -242,7 +242,7 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 	else
 		busdn = hose->arch_data;
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->devfn == devfn)
+		if (dn->data && PCI_DN(dn)->devfn == devfn)
 			break;
 	if (dn == NULL)
 		return -1;
@@ -746,9 +746,9 @@ void __init pmac_pci_init(void)
 	 */
 	if (u3_agp) {
 		struct device_node *np = u3_agp->arch_data;
-		np->busno = 0xf0;
+		PCI_DN(np)->busno = 0xf0;
 		for (np = np->child; np; np = np->sibling)
-			np->busno = 0xf0;
+			PCI_DN(np)->busno = 0xf0;
 	}
 
 	pmac_check_ht_link();

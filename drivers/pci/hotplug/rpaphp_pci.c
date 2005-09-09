@@ -51,10 +51,12 @@ static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
 
 struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
 {
-	if (!dn->phb || !dn->phb->bus)
+	struct pci_dn *pdn = dn->data;
+
+	if (!pdn  || !pdn->phb || !pdn->phb->bus)
 		return NULL;
 
-	return find_bus_among_children(dn->phb->bus, dn);
+	return find_bus_among_children(pdn->phb->bus, dn);
 }
 EXPORT_SYMBOL_GPL(rpaphp_find_pci_bus);
 
@@ -229,7 +231,7 @@ rpaphp_pci_config_slot(struct pci_bus *bus)
 	if (!dn || !dn->child)
 		return NULL;
 
-	slotno = PCI_SLOT(dn->child->devfn);
+	slotno = PCI_SLOT(PCI_DN(dn->child)->devfn);
 
 	/* pci_scan_slot should find all children */
 	num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));

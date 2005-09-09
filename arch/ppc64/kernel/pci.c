@@ -21,6 +21,7 @@
 #include <linux/bootmem.h>
 #include <linux/mm.h>
 #include <linux/list.h>
+#include <linux/syscalls.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -837,9 +838,11 @@ int pcibios_scan_all_fns(struct pci_bus *bus, int devfn)
         * device tree.  If they are then we need to scan all the
         * functions of this slot.
         */
-       for (dn = busdn->child; dn; dn = dn->sibling)
-               if ((dn->devfn >> 3) == (devfn >> 3))
+       for (dn = busdn->child; dn; dn = dn->sibling) {
+	       struct pci_dn *pdn = dn->data;
+	       if (pdn && (pdn->devfn >> 3) == (devfn >> 3))
                        return 1;
+       }
 
        return 0;
 }
@@ -982,3 +985,62 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 }
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */
+
+
+#define IOBASE_BRIDGE_NUMBER	0
+#define IOBASE_MEMORY		1
+#define IOBASE_IO		2
+#define IOBASE_ISA_IO		3
+#define IOBASE_ISA_MEM		4
+
+long sys_pciconfig_iobase(long which, unsigned long in_bus,
+			  unsigned long in_devfn)
+{
+	struct pci_controller* hose;
+	struct list_head *ln;
+	struct pci_bus *bus = NULL;
+	struct device_node *hose_node;
+
+	/* Argh ! Please forgive me for that hack, but that's the
+	 * simplest way to get existing XFree to not lockup on some
+	 * G5 machines... So when something asks for bus 0 io base
+	 * (bus 0 is HT root), we return the AGP one instead.
+	 */
+#ifdef CONFIG_PPC_PMAC
+	if (systemcfg->platform == PLATFORM_POWERMAC &&
+	    machine_is_compatible("MacRISC4"))
+		if (in_bus == 0)
+			in_bus = 0xf0;
+#endif /* CONFIG_PPC_PMAC */
+
+	/* That syscall isn't quite compatible with PCI domains, but it's
+	 * used on pre-domains setup. We return the first match
+	 */
+
+	for (ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
+		bus = pci_bus_b(ln);
+		if (in_bus >= bus->number && in_bus < (bus->number + bus->subordinate))
+			break;
+		bus = NULL;
+	}
+	if (bus == NULL || bus->sysdata == NULL)
+		return -ENODEV;
+
+	hose_node = (struct device_node *)bus->sysdata;
+	hose = PCI_DN(hose_node)->phb;
+
+	switch (which) {
+	case IOBASE_BRIDGE_NUMBER:
+		return (long)hose->first_busno;
+	case IOBASE_MEMORY:
+		return (long)hose->pci_mem_offset;
+	case IOBASE_IO:
+		return (long)hose->io_base_phys;
+	case IOBASE_ISA_IO:
+		return (long)isa_io_base;
+	case IOBASE_ISA_MEM:
+		return -EINVAL;
+	}
+
+	return -EOPNOTSUPP;
+}

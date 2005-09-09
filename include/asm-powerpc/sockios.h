@@ -1,5 +1,5 @@
-#ifndef _POWERPC_SOCKIOS_H
-#define _POWERPC_SOCKIOS_H
+#ifndef _ASM_POWERPC_SOCKIOS_H
+#define _ASM_POWERPC_SOCKIOS_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -16,4 +16,4 @@
 #define SIOCATMARK	0x8905
 #define SIOCGSTAMP	0x8906		/* Get stamp */
 
-#endif /* _POWERPC_SOCKIOS_H */
+#endif	/* _ASM_POWERPC_SOCKIOS_H */

@@ -1,13 +1,14 @@
+#ifndef _ASM_POWERPC_USER_H
+#define _ASM_POWERPC_USER_H
+
 #ifdef __KERNEL__
-#ifndef _PPC_USER_H
-#define _PPC_USER_H
 
-/* Adapted from <asm-alpha/user.h> */
-
-#include <linux/ptrace.h>
+#include <asm/ptrace.h>
 #include <asm/page.h>
 
 /*
+ * Adapted from <asm-alpha/user.h>
+ *
  * Core file format: The core file is written in such a way that gdb
  * can understand it and provide useful information to the user (under
  * linux we use the `trad-core' bfd, NOT the osf-core).  The file contents
@@ -50,5 +51,5 @@ struct user {
 #define HOST_DATA_START_ADDR	(u.start_data)
 #define HOST_STACK_END_ADDR	(u.start_stack + u.u_ssize * NBPG)
 
-#endif /* _PPC_USER_H */
-#endif /* __KERNEL__ */
+#endif	/* __KERNEL__ */
+#endif	/* _ASM_POWERPC_USER_H */

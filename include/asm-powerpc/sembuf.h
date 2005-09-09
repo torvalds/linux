@@ -1,5 +1,5 @@
-#ifndef _POWERPC_SEMBUF_H
-#define _POWERPC_SEMBUF_H
+#ifndef _ASM_POWERPC_SEMBUF_H
+#define _ASM_POWERPC_SEMBUF_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -33,4 +33,4 @@ struct semid64_ds {
 	unsigned long	__unused4;
 };
 
-#endif /* _POWERPC_SEMBUF_H */
+#endif	/* _ASM_POWERPC_SEMBUF_H */
