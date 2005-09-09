@@ -481,6 +481,7 @@ static inline void local_r4k_flush_icache_range(void *args)
 		if (end - start > dcache_size) {
 			r4k_blast_dcache();
 		} else {
+			R4600_HIT_CACHEOP_WAR_IMPL;
 			addr = start & ~(dc_lsize - 1);
 			aend = (end - 1) & ~(dc_lsize - 1);
 
