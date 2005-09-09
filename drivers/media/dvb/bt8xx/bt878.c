@@ -1,7 +1,7 @@
 /*
  * bt878.c: part of the driver for the Pinnacle PCTV Sat DVB PCI card
  *
- * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
+ * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@htp-tel.de>
  *
  * large parts based on the bttv driver
  * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@metzlerbros.de)
