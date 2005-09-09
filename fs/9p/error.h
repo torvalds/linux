@@ -139,7 +139,7 @@ static struct errormap errmap[] = {
 	{"illegal mode", EINVAL},
 	{"illegal name", ENAMETOOLONG},
 	{"not a directory", ENOTDIR},
-	{"not a member of proposed group", EINVAL},
+	{"not a member of proposed group", EPERM},
 	{"not owner", EACCES},
 	{"only owner can change group in wstat", EACCES},
 	{"read only file system", EROFS},

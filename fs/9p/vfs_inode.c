@@ -1,7 +1,7 @@
 /*
  *  linux/fs/9p/vfs_inode.c
  *
- * This file contians vfs inode ops for the 9P2000 protocol.
+ * This file contains vfs inode ops for the 9P2000 protocol.
  *
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
@@ -54,7 +54,7 @@ static struct inode_operations v9fs_symlink_inode_operations;
  *
  */
 
-static inline int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
+static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 {
 	int res;
 	res = mode & 0777;
@@ -92,7 +92,7 @@ static inline int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
  *
  */
 
-static inline int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
+static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 {
 	int res;
 
@@ -132,7 +132,7 @@ static inline int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
  *
  */
 
-static inline void
+static void
 v9fs_blank_mistat(struct v9fs_session_info *v9ses, struct v9fs_stat *mistat)
 {
 	mistat->type = ~0;
@@ -160,7 +160,7 @@ v9fs_blank_mistat(struct v9fs_session_info *v9ses, struct v9fs_stat *mistat)
 /**
  * v9fs_mistat2unix - convert mistat to unix stat
  * @mistat: Plan 9 metadata (mistat) structure
- * @stat: unix metadata (stat) structure to populate
+ * @buf: unix metadata (stat) structure to populate
  * @sb: superblock
  *
  */
@@ -177,22 +177,11 @@ v9fs_mistat2unix(struct v9fs_stat *mistat, struct stat *buf,
 	buf->st_mtime = mistat->mtime;
 	buf->st_ctime = mistat->mtime;
 
-	if (v9ses && v9ses->extended) {
-		/* TODO: string to uid mapping via user-space daemon */
-		buf->st_uid = mistat->n_uid;
-		buf->st_gid = mistat->n_gid;
-
-		sscanf(mistat->uid, "%x", (unsigned int *)&buf->st_uid);
-		sscanf(mistat->gid, "%x", (unsigned int *)&buf->st_gid);
-	} else {
-		buf->st_uid = v9ses->uid;
-		buf->st_gid = v9ses->gid;
-	}
-
 	buf->st_uid = (unsigned short)-1;
 	buf->st_gid = (unsigned short)-1;
 
 	if (v9ses && v9ses->extended) {
+		/* TODO: string to uid mapping via user-space daemon */
 		if (mistat->n_uid != -1)
 			sscanf(mistat->uid, "%x", (unsigned int *)&buf->st_uid);
 
@@ -290,7 +279,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
  * @dir: directory inode file is being created in
  * @file_dentry: dentry file is being created in
  * @perm: permissions file is being created with
- * @open_mode: resulting open mode for file ???
+ * @open_mode: resulting open mode for file
  *
  */
 
@@ -434,9 +423,9 @@ v9fs_create(struct inode *dir,
 
 /**
  * v9fs_remove - helper function to remove files and directories
- * @inode: directory inode that is being deleted
- * @dentry:  dentry that is being deleted
- * @rmdir: where we are a file or a directory
+ * @dir: directory inode that is being deleted
+ * @file:  dentry that is being deleted
+ * @rmdir: removing a directory
  *
  */
 
@@ -502,7 +491,7 @@ v9fs_vfs_create(struct inode *inode, struct dentry *dentry, int perm,
 
 /**
  * v9fs_vfs_mkdir - VFS mkdir hook to create a directory
- * @i:  inode that is being unlinked
+ * @inode:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
  * @mode: mode for new directory
  *
@@ -624,7 +613,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 /**
  * v9fs_vfs_unlink - VFS unlink hook to delete an inode
  * @i:  inode that is being unlinked
- * @dentry: dentry that is being unlinked
+ * @d: dentry that is being unlinked
  *
  */
 
@@ -636,7 +625,7 @@ static int v9fs_vfs_unlink(struct inode *i, struct dentry *d)
 /**
  * v9fs_vfs_rmdir - VFS unlink hook to delete a directory
  * @i:  inode that is being unlinked
- * @dentry: dentry that is being unlinked
+ * @d: dentry that is being unlinked
  *
  */
 
@@ -673,6 +662,9 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int retval = 0;
 
 	dprintk(DEBUG_VFS, "\n");
+
+	if (!mistat)
+		return -ENOMEM;
 
 	if ((!oldfid) || (!olddirfid) || (!newdirfid)) {
 		dprintk(DEBUG_ERROR, "problem with arguments\n");
@@ -771,19 +763,20 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
 	struct v9fs_fid *fid = v9fs_fid_lookup(dentry, FID_OP);
-	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
 	struct v9fs_fcall *fcall = NULL;
+	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
 	int res = -EPERM;
 
 	dprintk(DEBUG_VFS, "\n");
+
+	if (!mistat)
+		return -ENOMEM;
+
 	if (!fid) {
 		dprintk(DEBUG_ERROR,
 			"Couldn't find fid associated with dentry\n");
 		return -EBADF;
 	}
-
-	if (!mistat)
-		return -ENOMEM;
 
 	v9fs_blank_mistat(v9ses, mistat);
 	if (iattr->ia_valid & ATTR_MODE)
@@ -799,72 +792,19 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		mistat->length = iattr->ia_size;
 
 	if (v9ses->extended) {
-		char *uid = kmalloc(strlen(mistat->uid), GFP_KERNEL);
-		char *gid = kmalloc(strlen(mistat->gid), GFP_KERNEL);
-		char *muid = kmalloc(strlen(mistat->muid), GFP_KERNEL);
-		char *name = kmalloc(strlen(mistat->name), GFP_KERNEL);
-		char *extension = kmalloc(strlen(mistat->extension),
-					  GFP_KERNEL);
-
-		if ((!uid) || (!gid) || (!muid) || (!name) || (!extension)) {
-			kfree(uid);
-			kfree(gid);
-			kfree(muid);
-			kfree(name);
-			kfree(extension);
-
-			return -ENOMEM;
-		}
-
-		strcpy(uid, mistat->uid);
-		strcpy(gid, mistat->gid);
-		strcpy(muid, mistat->muid);
-		strcpy(name, mistat->name);
-		strcpy(extension, mistat->extension);
+		char *ptr = mistat->data+1;
 
 		if (iattr->ia_valid & ATTR_UID) {
-			if (strlen(uid) != 8) {
-				dprintk(DEBUG_ERROR, "uid strlen is %u not 8\n",
-					(unsigned int)strlen(uid));
-				sprintf(uid, "%08x", iattr->ia_uid);
-			} else {
-				kfree(uid);
-				uid = kmalloc(9, GFP_KERNEL);
-			}
-
-			sprintf(uid, "%08x", iattr->ia_uid);
+			mistat->uid = ptr;
+			ptr += 1+sprintf(ptr, "%08x", iattr->ia_uid);
 			mistat->n_uid = iattr->ia_uid;
 		}
 
 		if (iattr->ia_valid & ATTR_GID) {
-			if (strlen(gid) != 8)
-				dprintk(DEBUG_ERROR, "gid strlen is %u not 8\n",
-					(unsigned int)strlen(gid));
-			else {
-				kfree(gid);
-				gid = kmalloc(9, GFP_KERNEL);
-			}
-
-			sprintf(gid, "%08x", iattr->ia_gid);
+			mistat->gid = ptr;
+			ptr += 1+sprintf(ptr, "%08x", iattr->ia_gid);
 			mistat->n_gid = iattr->ia_gid;
 		}
-
-		mistat->uid = mistat->data;
-		strcpy(mistat->uid, uid);
-		mistat->gid = mistat->data + strlen(uid) + 1;
-		strcpy(mistat->gid, gid);
-		mistat->muid = mistat->gid + strlen(gid) + 1;
-		strcpy(mistat->muid, muid);
-		mistat->name = mistat->muid + strlen(muid) + 1;
-		strcpy(mistat->name, name);
-		mistat->extension = mistat->name + strlen(name) + 1;
-		strcpy(mistat->extension, extension);
-
-		kfree(uid);
-		kfree(gid);
-		kfree(muid);
-		kfree(name);
-		kfree(extension);
 	}
 
 	res = v9fs_t_wstat(v9ses, fid->fid, mistat, &fcall);
@@ -985,17 +925,14 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	int retval = -EPERM;
 	struct v9fs_fid *newfid;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
-	struct super_block *sb = dir ? dir->i_sb : NULL;
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
 
 	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
 		symname);
 
-	if ((!dentry) || (!sb) || (!v9ses)) {
-		dprintk(DEBUG_ERROR, "problem with arguments\n");
-		return -EBADF;
-	}
+	if (!mistat)
+		return -ENOMEM;
 
 	if (!v9ses->extended) {
 		dprintk(DEBUG_ERROR, "not extended\n");
@@ -1040,7 +977,7 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 /**
  * v9fs_readlink - read a symlink's location (internal version)
  * @dentry: dentry for symlink
- * @buf: buffer to load symlink location into
+ * @buffer: buffer to load symlink location into
  * @buflen: length of buffer
  *
  */
@@ -1179,7 +1116,7 @@ static void v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void 
  * v9fs_vfs_link - create a hardlink
  * @old_dentry: dentry for file to link to
  * @dir: inode destination for new link
- * @new_dentry: dentry for link
+ * @dentry: dentry for link
  *
  */
 
@@ -1274,6 +1211,9 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	dprintk(DEBUG_VFS, " %lu,%s mode: %x MAJOR: %u MINOR: %u\n", dir->i_ino,
 		dentry->d_name.name, mode, MAJOR(rdev), MINOR(rdev));
 
+	if (!mistat)
+		return -ENOMEM;
+
 	if (!new_valid_dev(rdev)) {
 		retval = -EINVAL;
 		goto FreeMem;
@@ -1302,7 +1242,8 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 		sprintf(symname, "b %u %u", MAJOR(rdev), MINOR(rdev));
 	else if (S_ISCHR(mode))
 		sprintf(symname, "c %u %u", MAJOR(rdev), MINOR(rdev));
-	else if (S_ISFIFO(mode)) ;	/* DO NOTHING */
+	else if (S_ISFIFO(mode))
+		;	/* DO NOTHING */
 	else {
 		retval = -EINVAL;
 		goto FreeMem;
@@ -1319,8 +1260,6 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 				FCALL_ERROR(fcall));
 			goto FreeMem;
 		}
-
-		kfree(fcall);
 	}
 
 	/* need to update dcache so we show up */
