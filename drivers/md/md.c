@@ -2087,7 +2087,7 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 	return 0;
 }
 
-static int get_bitmap_file(mddev_t * mddev, void * arg)
+static int get_bitmap_file(mddev_t * mddev, void __user * arg)
 {
 	mdu_bitmap_file_t *file = NULL; /* too big for stack allocation */
 	char *ptr, *buf = NULL;
@@ -2781,7 +2781,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			goto done_unlock;
 
 		case GET_BITMAP_FILE:
-			err = get_bitmap_file(mddev, (void *)arg);
+			err = get_bitmap_file(mddev, argp);
 			goto done_unlock;
 
 		case GET_DISK_INFO:
