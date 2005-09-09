@@ -1248,11 +1248,6 @@ module_init(inet_init);
 /* ------------------------------------------------------------------------ */
 
 #ifdef CONFIG_PROC_FS
-#ifdef CONFIG_IP_FIB_TRIE
-extern int  fib_stat_proc_init(void);
-extern void fib_stat_proc_exit(void);
-#endif
-
 static int __init ipv4_proc_init(void)
 {
 	int rc = 0;
@@ -1265,19 +1260,11 @@ static int __init ipv4_proc_init(void)
 		goto out_udp;
 	if (fib_proc_init())
 		goto out_fib;
-#ifdef CONFIG_IP_FIB_TRIE
-         if (fib_stat_proc_init())
-                 goto out_fib_stat;
-#endif
 	if (ip_misc_proc_init())
 		goto out_misc;
 out:
 	return rc;
 out_misc:
-#ifdef CONFIG_IP_FIB_TRIE
- 	fib_stat_proc_exit();
-out_fib_stat:
-#endif
 	fib_proc_exit();
 out_fib:
 	udp4_proc_exit();

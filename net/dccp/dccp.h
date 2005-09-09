@@ -426,9 +426,12 @@ extern struct dccp_ackpkts *
 		dccp_ackpkts_alloc(unsigned int len,
 				  const unsigned int __nocast priority);
 extern void dccp_ackpkts_free(struct dccp_ackpkts *ap);
-extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state);
+extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, const struct sock *sk,
+			    u64 ackno, u8 state);
 extern void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap,
 					 struct sock *sk, u64 ackno);
+
+extern void dccp_timestamp(const struct sock *sk, struct timeval *tv);
 
 static inline suseconds_t timeval_usecs(const struct timeval *tv)
 {
@@ -466,17 +469,6 @@ static inline void timeval_sub_usecs(struct timeval *tv,
 		tv->tv_sec--;
 		tv->tv_usec += USEC_PER_SEC;
 	}
-}
-
-/*
- * Returns the difference in usecs between timeval
- * passed in and current time
- */
-static inline suseconds_t timeval_now_delta(const struct timeval *tv)
-{
-	struct timeval now;
-	do_gettimeofday(&now);
-	return timeval_delta(&now, tv);
 }
 
 #ifdef CONFIG_IP_DCCP_DEBUG
