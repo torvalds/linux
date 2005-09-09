@@ -143,6 +143,8 @@ static void bfs_delete_inode(struct inode * inode)
 
 	dprintf("ino=%08lx\n", inode->i_ino);
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (inode->i_ino < BFS_ROOT_INO || inode->i_ino > info->si_lasti) {
 		printf("invalid ino=%08lx\n", inode->i_ino);
 		return;

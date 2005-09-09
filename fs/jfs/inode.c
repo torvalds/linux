@@ -132,6 +132,8 @@ void jfs_delete_inode(struct inode *inode)
 	    (JFS_IP(inode)->fileset != cpu_to_le32(FILESYSTEM_I)))
 			return;
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (test_cflag(COMMIT_Freewmap, inode))
 		jfs_free_zero_link(inode);
 
