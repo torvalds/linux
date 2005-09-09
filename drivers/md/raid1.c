@@ -1703,7 +1703,7 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 	return 0;
 }
 
-void raid1_quiesce(mddev_t *mddev, int state)
+static void raid1_quiesce(mddev_t *mddev, int state)
 {
 	conf_t *conf = mddev_to_conf(mddev);
 
