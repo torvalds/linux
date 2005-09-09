@@ -311,6 +311,8 @@ static void i810_hires(u8 __iomem *mmio)
 	val = i810_readb(CR_DATA_CGA, mmio);
 	i810_writeb(CR_INDEX_CGA, mmio, CR80);
 	i810_writeb(CR_DATA_CGA, mmio, val | 1);
+	/* Stop LCD displays from flickering */
+	i810_writel(MEM_MODE, mmio, i810_readl(MEM_MODE, mmio) | 4);
 }
 
 /**
