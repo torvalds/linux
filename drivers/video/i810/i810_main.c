@@ -1375,7 +1375,6 @@ static int i810fb_set_par(struct fb_info *info)
 	decode_var(&info->var, par);
 	i810_load_regs(par);
 	i810_init_cursor(par);
-
 	encode_fix(&info->fix, info);
 
 	if (info->var.accel_flags && !(par->dev_flags & LOCKUP)) {
@@ -1418,9 +1417,8 @@ static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	struct i810fb_par *par = (struct i810fb_par *)info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 
-	if (!(par->dev_flags & USE_HWCUR) || !info->var.accel_flags ||
-	    par->dev_flags & LOCKUP)
-		return soft_cursor(info, cursor);
+	if (!par->dev_flags & LOCKUP)
+		return -ENXIO;
 
 	if (cursor->image.width > 64 || cursor->image.height > 64)
 		return -ENXIO;
