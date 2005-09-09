@@ -134,6 +134,7 @@ static inline struct dccp_tx_hist_entry *
 
 static inline struct dccp_rx_hist_entry *
 		     dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
+				     	    const struct sock *sk, 
 				     	    const u32 ndp, 
 					    const struct sk_buff *skb,
 					    const unsigned int __nocast prio)
@@ -148,7 +149,7 @@ static inline struct dccp_rx_hist_entry *
 		entry->dccphrx_ccval = dh->dccph_ccval;
 		entry->dccphrx_type  = dh->dccph_type;
 		entry->dccphrx_ndp   = ndp;
-		do_gettimeofday(&(entry->dccphrx_tstamp));
+		dccp_timestamp(sk, &entry->dccphrx_tstamp);
 	}
 
 	return entry;
