@@ -574,8 +574,10 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 
 		/* Old Nebula (marked (c)2003 on high profile pci card) has nxt6000 demod */
 		card->fe = nxt6000_attach(&vp3021_alps_tded4_config, card->i2c_adapter);
-		if (card->fe != NULL)
+		if (card->fe != NULL) {
 			dprintk ("dvb_bt8xx: an nxt6000 was detected on your digitv card\n");
+			break;
+		}
 
 		/* New Nebula (marked (c)2005 on low profile pci card) has mt352 demod */
 		digitv_alps_tded4_reset(card);
