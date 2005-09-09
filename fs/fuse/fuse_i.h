@@ -30,6 +30,9 @@ struct fuse_inode {
 	 * and kernel */
 	u64 nodeid;
 
+	/** The request used for sending the FORGET message */
+	struct fuse_req *forget_req;
+
 	/** Time in jiffies until the file attributes are valid */
 	unsigned long i_time;
 };
@@ -129,6 +132,7 @@ struct fuse_req {
 
 	/** Data for asynchronous requests */
 	union {
+		struct fuse_forget_in forget_in;
 		struct fuse_init_in_out init_in_out;
 	} misc;
 
@@ -197,6 +201,11 @@ struct fuse_conn {
 	struct backing_dev_info bdi;
 };
 
+struct fuse_getdir_out_i {
+	int fd;
+	void *file; /* Used by kernel only */
+};
+
 static inline struct fuse_conn **get_fuse_conn_super_p(struct super_block *sb)
 {
 	return (struct fuse_conn **) &sb->s_fs_info;
@@ -238,6 +247,38 @@ extern struct file_operations fuse_dev_operations;
  *  - the file (device file) field in fuse_conn
  */
 extern spinlock_t fuse_lock;
+
+/**
+ * Get a filled in inode
+ */
+struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
+			int generation, struct fuse_attr *attr, int version);
+
+/**
+ * Send FORGET command
+ */
+void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
+		      unsigned long nodeid, int version);
+
+/**
+ * Initialise inode operations on regular files and special files
+ */
+void fuse_init_common(struct inode *inode);
+
+/**
+ * Initialise inode and file operations on a directory
+ */
+void fuse_init_dir(struct inode *inode);
+
+/**
+ * Initialise inode operations on a symlink
+ */
+void fuse_init_symlink(struct inode *inode);
+
+/**
+ * Change attributes of an inode
+ */
+void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr);
 
 /**
  * Check if the connection can be released, and if yes, then free the
@@ -305,6 +346,16 @@ void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
  * Send a request in the background
  */
 void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
+
+/**
+ * Get the attributes of a file
+ */
+int fuse_do_getattr(struct inode *inode);
+
+/**
+ * Invalidate inode attributes
+ */
+void fuse_invalidate_attr(struct inode *inode);
 
 /**
  * Send the INIT message

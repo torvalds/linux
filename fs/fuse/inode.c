@@ -51,12 +51,20 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi = get_fuse_inode(inode);
 	fi->i_time = jiffies - 1;
 	fi->nodeid = 0;
+	fi->forget_req = fuse_request_alloc();
+	if (!fi->forget_req) {
+		kmem_cache_free(fuse_inode_cachep, inode);
+		return NULL;
+	}
 
 	return inode;
 }
 
 static void fuse_destroy_inode(struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	if (fi->forget_req)
+		fuse_request_free(fi->forget_req);
 	kmem_cache_free(fuse_inode_cachep, inode);
 }
 
@@ -65,8 +73,27 @@ static void fuse_read_inode(struct inode *inode)
 	/* No op */
 }
 
+void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
+		      unsigned long nodeid, int version)
+{
+	struct fuse_forget_in *inarg = &req->misc.forget_in;
+	inarg->version = version;
+	req->in.h.opcode = FUSE_FORGET;
+	req->in.h.nodeid = nodeid;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(struct fuse_forget_in);
+	req->in.args[0].value = inarg;
+	request_send_noreply(fc, req);
+}
+
 static void fuse_clear_inode(struct inode *inode)
 {
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	if (fc) {
+		struct fuse_inode *fi = get_fuse_inode(inode);
+		fuse_send_forget(fc, fi->forget_req, fi->nodeid, inode->i_version);
+		fi->forget_req = NULL;
+	}
 }
 
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
@@ -94,6 +121,22 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 {
 	inode->i_mode = attr->mode & S_IFMT;
 	i_size_write(inode, attr->size);
+	if (S_ISREG(inode->i_mode)) {
+		fuse_init_common(inode);
+	} else if (S_ISDIR(inode->i_mode))
+		fuse_init_dir(inode);
+	else if (S_ISLNK(inode->i_mode))
+		fuse_init_symlink(inode);
+	else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
+		 S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
+		fuse_init_common(inode);
+		init_special_inode(inode, inode->i_mode,
+				   new_decode_dev(attr->rdev));
+	} else {
+		/* Don't let user create weird files */
+		inode->i_mode = S_IFREG;
+		fuse_init_common(inode);
+	}
 }
 
 static int fuse_inode_eq(struct inode *inode, void *_nodeidp)
@@ -156,6 +199,43 @@ static void fuse_put_super(struct super_block *sb)
 	fuse_release_conn(fc);
 	*get_fuse_conn_super_p(sb) = NULL;
 	spin_unlock(&fuse_lock);
+}
+
+static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr)
+{
+	stbuf->f_type    = FUSE_SUPER_MAGIC;
+	stbuf->f_bsize   = attr->bsize;
+	stbuf->f_blocks  = attr->blocks;
+	stbuf->f_bfree   = attr->bfree;
+	stbuf->f_bavail  = attr->bavail;
+	stbuf->f_files   = attr->files;
+	stbuf->f_ffree   = attr->ffree;
+	stbuf->f_namelen = attr->namelen;
+	/* fsid is left zero */
+}
+
+static int fuse_statfs(struct super_block *sb, struct kstatfs *buf)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+	struct fuse_req *req;
+	struct fuse_statfs_out outarg;
+	int err;
+
+        req = fuse_get_request(fc);
+	if (!req)
+		return -ERESTARTSYS;
+
+	req->in.numargs = 0;
+	req->in.h.opcode = FUSE_STATFS;
+	req->out.numargs = 1;
+	req->out.args[0].size = sizeof(outarg);
+	req->out.args[0].value = &outarg;
+	request_send(fc, req);
+	err = req->out.h.error;
+	if (!err)
+		convert_fuse_statfs(buf, &outarg.st);
+	fuse_put_request(fc, req);
+	return err;
 }
 
 enum {
@@ -318,6 +398,7 @@ static struct super_operations fuse_super_operations = {
 	.read_inode	= fuse_read_inode,
 	.clear_inode	= fuse_clear_inode,
 	.put_super	= fuse_put_super,
+	.statfs		= fuse_statfs,
 	.show_options	= fuse_show_options,
 };
 

@@ -42,12 +42,60 @@ struct fuse_attr {
 	__u32	rdev;
 };
 
+struct fuse_kstatfs {
+	__u64	blocks;
+	__u64	bfree;
+	__u64	bavail;
+	__u64	files;
+	__u64	ffree;
+	__u32	bsize;
+	__u32	namelen;
+};
+
 enum fuse_opcode {
+	FUSE_LOOKUP	   = 1,
+	FUSE_FORGET	   = 2,  /* no reply */
+	FUSE_GETATTR	   = 3,
+	FUSE_READLINK	   = 5,
+	FUSE_GETDIR	   = 7,
+	FUSE_STATFS	   = 17,
 	FUSE_INIT          = 26
 };
 
 /* Conservative buffer size for the client */
 #define FUSE_MAX_IN 8192
+
+#define FUSE_NAME_MAX 1024
+
+struct fuse_entry_out {
+	__u64	nodeid;		/* Inode ID */
+	__u64	generation;	/* Inode generation: nodeid:gen must
+				   be unique for the fs's lifetime */
+	__u64	entry_valid;	/* Cache timeout for the name */
+	__u64	attr_valid;	/* Cache timeout for the attributes */
+	__u32	entry_valid_nsec;
+	__u32	attr_valid_nsec;
+	struct fuse_attr attr;
+};
+
+struct fuse_forget_in {
+	__u64	version;
+};
+
+struct fuse_attr_out {
+	__u64	attr_valid;	/* Cache timeout for the attributes */
+	__u32	attr_valid_nsec;
+	__u32	dummy;
+	struct fuse_attr attr;
+};
+
+struct fuse_getdir_out {
+	__u32	fd;
+};
+
+struct fuse_statfs_out {
+	struct fuse_kstatfs st;
+};
 
 struct fuse_init_in_out {
 	__u32	major;
@@ -70,3 +118,15 @@ struct fuse_out_header {
 	__u64	unique;
 };
 
+struct fuse_dirent {
+	__u64	ino;
+	__u64	off;
+	__u32	namelen;
+	__u32	type;
+	char name[0];
+};
+
+#define FUSE_NAME_OFFSET ((unsigned) ((struct fuse_dirent *) 0)->name)
+#define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(__u64) - 1) & ~(sizeof(__u64) - 1))
+#define FUSE_DIRENT_SIZE(d) \
+	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)

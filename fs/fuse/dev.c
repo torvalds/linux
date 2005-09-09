@@ -691,6 +691,13 @@ static struct fuse_req *request_find(struct fuse_conn *fc, u64 unique)
 	return NULL;
 }
 
+/* fget() needs to be done in this context */
+static void process_getdir(struct fuse_req *req)
+{
+	struct fuse_getdir_out_i *arg = req->out.args[0].value;
+	arg->file = fget(arg->fd);
+}
+
 static int copy_out_args(struct fuse_copy_state *cs, struct fuse_out *out,
 			 unsigned nbytes)
 {
@@ -770,6 +777,8 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 	if (!err) {
 		if (req->interrupted)
 			err = -ENOENT;
+		else if (req->in.h.opcode == FUSE_GETDIR && !oh.error)
+			process_getdir(req);
 	} else if (!req->interrupted)
 		req->out.h.error = -EIO;
 	request_end(fc, req);
