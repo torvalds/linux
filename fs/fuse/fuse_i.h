@@ -245,6 +245,18 @@ struct fuse_conn {
 	/** Is flush not implemented by fs? */
 	unsigned no_flush : 1;
 
+	/** Is setxattr not implemented by fs? */
+	unsigned no_setxattr : 1;
+
+	/** Is getxattr not implemented by fs? */
+	unsigned no_getxattr : 1;
+
+	/** Is listxattr not implemented by fs? */
+	unsigned no_listxattr : 1;
+
+	/** Is removexattr not implemented by fs? */
+	unsigned no_removexattr : 1;
+
 	/** Backing dev info */
 	struct backing_dev_info bdi;
 };

@@ -80,6 +80,10 @@ enum fuse_opcode {
 	FUSE_STATFS	   = 17,
 	FUSE_RELEASE       = 18,
 	FUSE_FSYNC         = 20,
+	FUSE_SETXATTR      = 21,
+	FUSE_GETXATTR      = 22,
+	FUSE_LISTXATTR     = 23,
+	FUSE_REMOVEXATTR   = 24,
 	FUSE_FLUSH         = 25,
 	FUSE_INIT          = 26
 };
@@ -89,6 +93,7 @@ enum fuse_opcode {
 
 #define FUSE_NAME_MAX 1024
 #define FUSE_SYMLINK_MAX 4096
+#define FUSE_XATTR_SIZE_MAX 4096
 
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
@@ -181,6 +186,19 @@ struct fuse_statfs_out {
 struct fuse_fsync_in {
 	__u64	fh;
 	__u32	fsync_flags;
+};
+
+struct fuse_setxattr_in {
+	__u32	size;
+	__u32	flags;
+};
+
+struct fuse_getxattr_in {
+	__u32	size;
+};
+
+struct fuse_getxattr_out {
+	__u32	size;
 };
 
 struct fuse_init_in_out {

@@ -744,6 +744,177 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	return d_splice_alias(inode, entry);
 }
 
+static int fuse_setxattr(struct dentry *entry, const char *name,
+			 const void *value, size_t size, int flags)
+{
+	struct inode *inode = entry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_setxattr_in inarg;
+	int err;
+
+	if (size > FUSE_XATTR_SIZE_MAX)
+		return -E2BIG;
+
+	if (fc->no_setxattr)
+		return -EOPNOTSUPP;
+
+	req = fuse_get_request(fc);
+	if (!req)
+		return -ERESTARTNOINTR;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.size = size;
+	inarg.flags = flags;
+	req->in.h.opcode = FUSE_SETXATTR;
+	req->in.h.nodeid = get_node_id(inode);
+	req->inode = inode;
+	req->in.numargs = 3;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	req->in.args[1].size = strlen(name) + 1;
+	req->in.args[1].value = name;
+	req->in.args[2].size = size;
+	req->in.args[2].value = value;
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	if (err == -ENOSYS) {
+		fc->no_setxattr = 1;
+		err = -EOPNOTSUPP;
+	}
+	return err;
+}
+
+static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
+			     void *value, size_t size)
+{
+	struct inode *inode = entry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_getxattr_in inarg;
+	struct fuse_getxattr_out outarg;
+	ssize_t ret;
+
+	if (fc->no_getxattr)
+		return -EOPNOTSUPP;
+
+	req = fuse_get_request(fc);
+	if (!req)
+		return -ERESTARTNOINTR;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.size = size;
+	req->in.h.opcode = FUSE_GETXATTR;
+	req->in.h.nodeid = get_node_id(inode);
+	req->inode = inode;
+	req->in.numargs = 2;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	req->in.args[1].size = strlen(name) + 1;
+	req->in.args[1].value = name;
+	/* This is really two different operations rolled into one */
+	req->out.numargs = 1;
+	if (size) {
+		req->out.argvar = 1;
+		req->out.args[0].size = size;
+		req->out.args[0].value = value;
+	} else {
+		req->out.args[0].size = sizeof(outarg);
+		req->out.args[0].value = &outarg;
+	}
+	request_send(fc, req);
+	ret = req->out.h.error;
+	if (!ret)
+		ret = size ? req->out.args[0].size : outarg.size;
+	else {
+		if (ret == -ENOSYS) {
+			fc->no_getxattr = 1;
+			ret = -EOPNOTSUPP;
+		}
+	}
+	fuse_put_request(fc, req);
+	return ret;
+}
+
+static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
+{
+	struct inode *inode = entry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_getxattr_in inarg;
+	struct fuse_getxattr_out outarg;
+	ssize_t ret;
+
+	if (fc->no_listxattr)
+		return -EOPNOTSUPP;
+
+	req = fuse_get_request(fc);
+	if (!req)
+		return -ERESTARTNOINTR;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.size = size;
+	req->in.h.opcode = FUSE_LISTXATTR;
+	req->in.h.nodeid = get_node_id(inode);
+	req->inode = inode;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	/* This is really two different operations rolled into one */
+	req->out.numargs = 1;
+	if (size) {
+		req->out.argvar = 1;
+		req->out.args[0].size = size;
+		req->out.args[0].value = list;
+	} else {
+		req->out.args[0].size = sizeof(outarg);
+		req->out.args[0].value = &outarg;
+	}
+	request_send(fc, req);
+	ret = req->out.h.error;
+	if (!ret)
+		ret = size ? req->out.args[0].size : outarg.size;
+	else {
+		if (ret == -ENOSYS) {
+			fc->no_listxattr = 1;
+			ret = -EOPNOTSUPP;
+		}
+	}
+	fuse_put_request(fc, req);
+	return ret;
+}
+
+static int fuse_removexattr(struct dentry *entry, const char *name)
+{
+	struct inode *inode = entry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	int err;
+
+	if (fc->no_removexattr)
+		return -EOPNOTSUPP;
+
+	req = fuse_get_request(fc);
+	if (!req)
+		return -ERESTARTNOINTR;
+
+	req->in.h.opcode = FUSE_REMOVEXATTR;
+	req->in.h.nodeid = get_node_id(inode);
+	req->inode = inode;
+	req->in.numargs = 1;
+	req->in.args[0].size = strlen(name) + 1;
+	req->in.args[0].value = name;
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	if (err == -ENOSYS) {
+		fc->no_removexattr = 1;
+		err = -EOPNOTSUPP;
+	}
+	return err;
+}
+
 static struct inode_operations fuse_dir_inode_operations = {
 	.lookup		= fuse_lookup,
 	.mkdir		= fuse_mkdir,
@@ -757,6 +928,10 @@ static struct inode_operations fuse_dir_inode_operations = {
 	.mknod		= fuse_mknod,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
+	.setxattr	= fuse_setxattr,
+	.getxattr	= fuse_getxattr,
+	.listxattr	= fuse_listxattr,
+	.removexattr	= fuse_removexattr,
 };
 
 static struct file_operations fuse_dir_operations = {
@@ -771,6 +946,10 @@ static struct inode_operations fuse_common_inode_operations = {
 	.setattr	= fuse_setattr,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
+	.setxattr	= fuse_setxattr,
+	.getxattr	= fuse_getxattr,
+	.listxattr	= fuse_listxattr,
+	.removexattr	= fuse_removexattr,
 };
 
 static struct inode_operations fuse_symlink_inode_operations = {
@@ -779,6 +958,10 @@ static struct inode_operations fuse_symlink_inode_operations = {
 	.put_link	= fuse_put_link,
 	.readlink	= generic_readlink,
 	.getattr	= fuse_getattr,
+	.setxattr	= fuse_setxattr,
+	.getxattr	= fuse_getxattr,
+	.listxattr	= fuse_listxattr,
+	.removexattr	= fuse_removexattr,
 };
 
 void fuse_init_common(struct inode *inode)
