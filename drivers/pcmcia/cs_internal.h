@@ -17,9 +17,6 @@
 
 #include <linux/config.h>
 
-#define CLIENT_MAGIC 	0x51E6
-typedef struct client_t client_t;
-
 /* Flags in client state */
 #define CLIENT_CONFIG_LOCKED	0x0001
 #define CLIENT_IRQ_REQ		0x0002
