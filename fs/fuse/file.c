@@ -363,6 +363,118 @@ static int fuse_commit_write(struct file *file, struct page *page,
 	return err;
 }
 
+static void fuse_release_user_pages(struct fuse_req *req, int write)
+{
+	unsigned i;
+
+	for (i = 0; i < req->num_pages; i++) {
+		struct page *page = req->pages[i];
+		if (write)
+			set_page_dirty_lock(page);
+		put_page(page);
+	}
+}
+
+static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
+			       unsigned nbytes, int write)
+{
+	unsigned long user_addr = (unsigned long) buf;
+	unsigned offset = user_addr & ~PAGE_MASK;
+	int npages;
+
+	/* This doesn't work with nfsd */
+	if (!current->mm)
+		return -EPERM;
+
+	nbytes = min(nbytes, (unsigned) FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
+	npages = (nbytes + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	npages = min(npages, FUSE_MAX_PAGES_PER_REQ);
+	down_read(&current->mm->mmap_sem);
+	npages = get_user_pages(current, current->mm, user_addr, npages, write,
+				0, req->pages, NULL);
+	up_read(&current->mm->mmap_sem);
+	if (npages < 0)
+		return npages;
+
+	req->num_pages = npages;
+	req->page_offset = offset;
+	return 0;
+}
+
+static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
+			      size_t count, loff_t *ppos, int write)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	size_t nmax = write ? fc->max_write : fc->max_read;
+	loff_t pos = *ppos;
+	ssize_t res = 0;
+	struct fuse_req *req = fuse_get_request(fc);
+	if (!req)
+		return -ERESTARTSYS;
+
+	while (count) {
+		size_t tmp;
+		size_t nres;
+		size_t nbytes = min(count, nmax);
+		int err = fuse_get_user_pages(req, buf, nbytes, !write);
+		if (err) {
+			res = err;
+			break;
+		}
+		tmp = (req->num_pages << PAGE_SHIFT) - req->page_offset;
+		nbytes = min(nbytes, tmp);
+		if (write)
+			nres = fuse_send_write(req, file, inode, pos, nbytes);
+		else
+			nres = fuse_send_read(req, file, inode, pos, nbytes);
+		fuse_release_user_pages(req, !write);
+		if (req->out.h.error) {
+			if (!res)
+				res = req->out.h.error;
+			break;
+		} else if (nres > nbytes) {
+			res = -EIO;
+			break;
+		}
+		count -= nres;
+		res += nres;
+		pos += nres;
+		buf += nres;
+		if (nres != nbytes)
+			break;
+		if (count)
+			fuse_reset_request(req);
+	}
+	fuse_put_request(fc, req);
+	if (res > 0) {
+		if (write && pos > i_size_read(inode))
+			i_size_write(inode, pos);
+		*ppos = pos;
+	} else if (write && (res == -EINTR || res == -EIO))
+		fuse_invalidate_attr(inode);
+
+	return res;
+}
+
+static ssize_t fuse_direct_read(struct file *file, char __user *buf,
+				     size_t count, loff_t *ppos)
+{
+	return fuse_direct_io(file, buf, count, ppos, 0);
+}
+
+static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	ssize_t res;
+	/* Don't allow parallel writes to the same file */
+	down(&inode->i_sem);
+	res = fuse_direct_io(file, buf, count, ppos, 1);
+	up(&inode->i_sem);
+	return res;
+}
+
 static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	if ((vma->vm_flags & VM_SHARED)) {
@@ -393,6 +505,17 @@ static struct file_operations fuse_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
+static struct file_operations fuse_direct_io_file_operations = {
+	.llseek		= generic_file_llseek,
+	.read		= fuse_direct_read,
+	.write		= fuse_direct_write,
+	.open		= fuse_open,
+	.flush		= fuse_flush,
+	.release	= fuse_release,
+	.fsync		= fuse_fsync,
+	/* no mmap and sendfile */
+};
+
 static struct address_space_operations fuse_file_aops  = {
 	.readpage	= fuse_readpage,
 	.prepare_write	= fuse_prepare_write,
@@ -403,6 +526,12 @@ static struct address_space_operations fuse_file_aops  = {
 
 void fuse_init_file_inode(struct inode *inode)
 {
-	inode->i_fop = &fuse_file_operations;
-	inode->i_data.a_ops = &fuse_file_aops;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+
+	if (fc->flags & FUSE_DIRECT_IO)
+		inode->i_fop = &fuse_direct_io_file_operations;
+	else {
+		inode->i_fop = &fuse_file_operations;
+		inode->i_data.a_ops = &fuse_file_aops;
+	}
 }

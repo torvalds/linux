@@ -34,6 +34,9 @@
     be flushed on open */
 #define FUSE_KERNEL_CACHE        (1 << 2)
 
+/** Bypass the page cache for read and write operations  */
+#define FUSE_DIRECT_IO           (1 << 3)
+
 /** FUSE inode */
 struct fuse_inode {
 	/** Inode data */
@@ -206,6 +209,9 @@ struct fuse_conn {
 
 	/** Maximum read size */
 	unsigned max_read;
+
+	/** Maximum write size */
+	unsigned max_write;
 
 	/** Readers of the connection are waiting on this */
 	wait_queue_head_t waitq;
