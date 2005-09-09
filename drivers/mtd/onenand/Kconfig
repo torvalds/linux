@@ -23,6 +23,13 @@ config MTD_ONENAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentaly due to device wear or something else.
 
+config MTD_ONENAND_GENERIC
+	tristate "OneNAND Flash device on generic board"
+	depends on MTD_ONENAND
+	help
+	  Support for OneNAND flash on generic board. Using device driver
+	  framework, now all most platfrom are support.
+
 config MTD_ONENAND_OMAP
 	tristate "OneNAND Flash device on OMAP board"
 	depends on ARCH_OMAP && MTD_ONENAND

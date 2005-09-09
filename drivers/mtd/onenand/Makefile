@@ -6,6 +6,7 @@
 obj-$(CONFIG_MTD_ONENAND)		+= onenand.o
 
 # Board specific.
+obj-$(CONFIG_MTD_ONENAND_GENERIC)	+= generic.o
 obj-$(CONFIG_MTD_ONENAND_OMAP)		+= omap-onenand.o
 
 # Simulator
