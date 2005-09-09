@@ -798,13 +798,16 @@ static int routing_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 		r = (void *) &r4;
 	}
 
-	if (ret)
-		return -EFAULT;
+	if (ret) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	set_fs (KERNEL_DS);
 	ret = sys_ioctl (fd, cmd, (unsigned long) r);
 	set_fs (old_fs);
 
+out:
 	if (mysock)
 		sockfd_put(mysock);
 
