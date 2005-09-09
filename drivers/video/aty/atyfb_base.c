@@ -911,20 +911,6 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		vdisplay  = par->lcd_height;
 #endif
 
-	if(vdisplay < 400) {
-		h_sync_pol = 1;
-		v_sync_pol = 0;
-	} else if(vdisplay < 480) {
-		h_sync_pol = 0;
-		v_sync_pol = 1;
-	} else if(vdisplay < 768) {
-		h_sync_pol = 0;
-		v_sync_pol = 0;
-	} else {
-		h_sync_pol = 1;
-		v_sync_pol = 1;
-	}
-
 	v_disp--;
 	v_sync_strt--;
 	v_sync_end--;
