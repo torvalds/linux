@@ -2035,6 +2035,39 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		},
 	},
+	[SAA7134_BOARD_KWORLD_TERMINATOR] = {
+		/* Kworld V-Stream Studio TV Terminator */
+		/* "James Webb <jrwebb@qwest.net> */
+		.name           = "V-Stream Studio TV Terminator",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 1 << 21,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.gpio = 0x0000000,
+			.tv   = 1,
+		},{
+			.name = name_comp1,     /* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x0000000,
+		},{
+			.name = name_svideo,    /* S-Video input */
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x0000000,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x0200000,
+		},
+	},
 };
 
 
