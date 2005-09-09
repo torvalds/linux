@@ -23,6 +23,7 @@
       TDA9887 (world), TDA9885 (USA)
       Note: OP2 of tda988x must be set to 1, else MT2032 is disabled!
    - KNC One TV-Station RDS (saa7134)
+   - Hauppauge PVR-150/500 (possibly more)
 */
 
 
@@ -519,6 +520,12 @@ static int tda9887_fixup_std(struct tda9887 *t)
 			dprintk(PREFIX "insmod fixup: PAL => PAL-DK\n");
 			t->std = V4L2_STD_PAL_DK;
 			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			printk(PREFIX "pal= argument not recognised\n");
+			break;
 		}
 	}
 	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
@@ -534,6 +541,12 @@ static int tda9887_fixup_std(struct tda9887 *t)
 		case 'L':
 			dprintk(PREFIX "insmod fixup: SECAM => SECAM-L\n");
 			t->std = V4L2_STD_SECAM_L;
+			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			printk(PREFIX "secam= argument not recognised\n");
 			break;
 		}
 	}

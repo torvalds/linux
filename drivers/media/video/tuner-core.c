@@ -281,6 +281,12 @@ static int tuner_fixup_std(struct tuner *t)
 			tuner_dbg ("insmod fixup: PAL => PAL-N\n");
 			t->std = V4L2_STD_PAL_N;
 			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tuner_warn ("pal= argument not recognised\n");
+			break;
 		}
 	}
 	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
@@ -296,6 +302,12 @@ static int tuner_fixup_std(struct tuner *t)
 		case 'L':
 			tuner_dbg ("insmod fixup: SECAM => SECAM-L\n");
 			t->std = V4L2_STD_SECAM_L;
+			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tuner_warn ("secam= argument not recognised\n");
 			break;
 		}
 	}
