@@ -133,3 +133,5 @@ card=131 - Tibet Systems 'Progress DVR' CS16
 card=132 - Kodicom 4400R (master)
 card=133 - Kodicom 4400R (slave)
 card=134 - Adlink RTV24
+card=135 - DVICO FusionHDTV 5 Lite
+card=136 - Acorp Y878F

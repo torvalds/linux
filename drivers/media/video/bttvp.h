@@ -1,5 +1,4 @@
 /*
-    $Id: bttvp.h,v 1.21 2005/07/15 21:44:14 mchehab Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -26,7 +25,7 @@
 #ifndef _BTTVP_H_
 #define _BTTVP_H_
 
-#include <linux/version.h>
+#include <linux/utsname.h>
 #define BTTV_VERSION_CODE KERNEL_VERSION(0,9,16)
 
 #include <linux/types.h>
