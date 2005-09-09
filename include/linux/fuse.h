@@ -11,7 +11,7 @@
 #include <asm/types.h>
 
 /** Version number of this interface */
-#define FUSE_KERNEL_VERSION 6
+#define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
 #define FUSE_KERNEL_MINOR_VERSION 1
@@ -52,12 +52,28 @@ struct fuse_kstatfs {
 	__u32	namelen;
 };
 
+#define FATTR_MODE	(1 << 0)
+#define FATTR_UID	(1 << 1)
+#define FATTR_GID	(1 << 2)
+#define FATTR_SIZE	(1 << 3)
+#define FATTR_ATIME	(1 << 4)
+#define FATTR_MTIME	(1 << 5)
+#define FATTR_CTIME	(1 << 6)
+
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
 	FUSE_FORGET	   = 2,  /* no reply */
 	FUSE_GETATTR	   = 3,
+	FUSE_SETATTR	   = 4,
 	FUSE_READLINK	   = 5,
+	FUSE_SYMLINK	   = 6,
 	FUSE_GETDIR	   = 7,
+	FUSE_MKNOD	   = 8,
+	FUSE_MKDIR	   = 9,
+	FUSE_UNLINK	   = 10,
+	FUSE_RMDIR	   = 11,
+	FUSE_RENAME	   = 12,
+	FUSE_LINK	   = 13,
 	FUSE_STATFS	   = 17,
 	FUSE_INIT          = 26
 };
@@ -66,6 +82,7 @@ enum fuse_opcode {
 #define FUSE_MAX_IN 8192
 
 #define FUSE_NAME_MAX 1024
+#define FUSE_SYMLINK_MAX 4096
 
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
@@ -79,7 +96,7 @@ struct fuse_entry_out {
 };
 
 struct fuse_forget_in {
-	__u64	version;
+	__u64	nlookup;
 };
 
 struct fuse_attr_out {
@@ -91,6 +108,28 @@ struct fuse_attr_out {
 
 struct fuse_getdir_out {
 	__u32	fd;
+};
+
+struct fuse_mknod_in {
+	__u32	mode;
+	__u32	rdev;
+};
+
+struct fuse_mkdir_in {
+	__u32	mode;
+};
+
+struct fuse_rename_in {
+	__u64	newdir;
+};
+
+struct fuse_link_in {
+	__u64	oldnodeid;
+};
+
+struct fuse_setattr_in {
+	__u32	valid;
+	struct fuse_attr attr;
 };
 
 struct fuse_statfs_out {

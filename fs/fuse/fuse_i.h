@@ -30,6 +30,9 @@ struct fuse_inode {
 	 * and kernel */
 	u64 nodeid;
 
+	/** Number of lookups on this inode */
+	u64 nlookup;
+
 	/** The request used for sending the FORGET message */
 	struct fuse_req *forget_req;
 
@@ -252,13 +255,13 @@ extern spinlock_t fuse_lock;
  * Get a filled in inode
  */
 struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
-			int generation, struct fuse_attr *attr, int version);
+			int generation, struct fuse_attr *attr);
 
 /**
  * Send FORGET command
  */
 void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
-		      unsigned long nodeid, int version);
+		      unsigned long nodeid, u64 nlookup);
 
 /**
  * Initialise inode operations on regular files and special files
