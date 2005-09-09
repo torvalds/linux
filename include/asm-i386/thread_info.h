@@ -48,7 +48,7 @@ struct thread_info {
 
 #else /* !__ASSEMBLY__ */
 
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 #endif
 
