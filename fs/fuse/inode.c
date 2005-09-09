@@ -32,6 +32,10 @@ struct fuse_mount_data {
 	unsigned rootmode;
 	unsigned user_id;
 	unsigned group_id;
+	unsigned fd_present : 1;
+	unsigned rootmode_present : 1;
+	unsigned user_id_present : 1;
+	unsigned group_id_present : 1;
 	unsigned flags;
 	unsigned max_read;
 };
@@ -274,7 +278,6 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 {
 	char *p;
 	memset(d, 0, sizeof(struct fuse_mount_data));
-	d->fd = -1;
 	d->max_read = ~0;
 
 	while ((p = strsep(&opt, ",")) != NULL) {
@@ -290,24 +293,28 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			if (match_int(&args[0], &value))
 				return 0;
 			d->fd = value;
+			d->fd_present = 1;
 			break;
 
 		case OPT_ROOTMODE:
 			if (match_octal(&args[0], &value))
 				return 0;
 			d->rootmode = value;
+			d->rootmode_present = 1;
 			break;
 
 		case OPT_USER_ID:
 			if (match_int(&args[0], &value))
 				return 0;
 			d->user_id = value;
+			d->user_id_present = 1;
 			break;
 
 		case OPT_GROUP_ID:
 			if (match_int(&args[0], &value))
 				return 0;
 			d->group_id = value;
+			d->group_id_present = 1;
 			break;
 
 		case OPT_DEFAULT_PERMISSIONS:
@@ -332,7 +339,9 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			return 0;
 		}
 	}
-	if (d->fd == -1)
+
+	if (!d->fd_present || !d->rootmode_present ||
+	    !d->user_id_present || !d->group_id_present)
 		return 0;
 
 	return 1;
