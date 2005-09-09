@@ -2383,3 +2383,6 @@ static int __init savagefb_init(void)
 
 module_init(savagefb_init);
 module_exit(savage_done);
+
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Specify initial video mode");
