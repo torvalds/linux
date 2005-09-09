@@ -112,8 +112,7 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 static inline void ccid3_hc_tx_set_state(struct sock *sk,
 					 enum ccid3_hc_tx_states state)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	enum ccid3_hc_tx_states oldstate = hctx->ccid3hctx_state;
 
 	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
@@ -154,8 +153,7 @@ static inline void ccid3_calc_new_delta(struct ccid3_hc_tx_sock *hctx)
  */ 
 static void ccid3_hc_tx_update_x(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	/* To avoid large error in calcX */
 	if (hctx->ccid3hctx_p >= TFRC_SMALLEST_P) {
@@ -184,9 +182,8 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
-	struct dccp_sock *dp = dccp_sk(sk);
 	unsigned long next_tmout = 0;
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -284,7 +281,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 				   struct sk_buff *skb, int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct dccp_tx_hist_entry *new_packet;
 	struct timeval now;
 	long delay;
@@ -370,8 +367,8 @@ out:
 
 static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct timeval now;
 
 	BUG_ON(hctx == NULL);
@@ -457,8 +454,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
 	struct timeval now;
@@ -609,8 +606,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 static void ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	if (hctx == NULL || !(sk->sk_state == DCCP_OPEN ||
 			      sk->sk_state == DCCP_PARTOPEN))
@@ -624,8 +620,8 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				     unsigned char *value)
 {
 	int rc = 0;
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 
 	if (hctx == NULL)
@@ -688,11 +684,11 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	hctx = dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx),
-						      gfp_any());
-	if (hctx == NULL)
+	dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx), gfp_any());
+	if (dp->dccps_hc_tx_ccid_private == NULL)
 		return -ENOMEM;
 
+	hctx = ccid3_hc_tx_sk(sk);
 	memset(hctx, 0, sizeof(*hctx));
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
@@ -714,7 +710,7 @@ static int ccid3_hc_tx_init(struct sock *sk)
 static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 	BUG_ON(hctx == NULL);
@@ -756,8 +752,7 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 static inline void ccid3_hc_rx_set_state(struct sock *sk,
 					 enum ccid3_hc_rx_states state)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	enum ccid3_hc_rx_states oldstate = hcrx->ccid3hcrx_state;
 
 	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
@@ -769,8 +764,8 @@ static inline void ccid3_hc_rx_set_state(struct sock *sk,
 
 static void ccid3_hc_rx_send_feedback(struct sock *sk)
 {
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
 
@@ -822,9 +817,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 
 static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	u32 x_recv, pinv;
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 
 	if (hcrx == NULL || !(sk->sk_state == DCCP_OPEN ||
 			      sk->sk_state == DCCP_PARTOPEN))
@@ -853,8 +847,7 @@ static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 
 static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 rtt, delta, x_recv, fval, p, tmp2;
 	struct timeval tstamp = { 0, };
@@ -926,8 +919,7 @@ found:
 
 static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 
 	if (seq_loss != DCCP_MAX_SEQNO + 1 &&
 	    list_empty(&hcrx->ccid3hcrx_li_hist)) {
@@ -945,8 +937,7 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 
 static void ccid3_hc_rx_detect_loss(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	u8 win_loss;
 	const u64 seq_loss = dccp_rx_hist_detect_loss(&hcrx->ccid3hcrx_hist,
 						      &hcrx->ccid3hcrx_li_hist,
@@ -957,8 +948,7 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
@@ -972,7 +962,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	BUG_ON(!(hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA ||
 		 hcrx->ccid3hcrx_state == TFRC_RSTATE_DATA));
 
-	opt_recv = &dp->dccps_options_received;
+	opt_recv = &dccp_sk(sk)->dccps_options_received;
 
 	switch (DCCP_SKB_CB(skb)->dccpd_type) {
 	case DCCP_PKT_ACK:
@@ -1085,11 +1075,11 @@ static int ccid3_hc_rx_init(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	hcrx = dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx),
-						      gfp_any());
-	if (hcrx == NULL)
+	dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx), gfp_any());
+	if (dp->dccps_hc_rx_ccid_private == NULL)
 		return -ENOMEM;
 
+	hcrx = ccid3_hc_rx_sk(sk);
 	memset(hcrx, 0, sizeof(*hcrx));
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
@@ -1109,8 +1099,8 @@ static int ccid3_hc_rx_init(struct sock *sk)
 
 static void ccid3_hc_rx_exit(struct sock *sk)
 {
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
@@ -1131,8 +1121,7 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	const struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 
 	if (hcrx == NULL)
 		return;
@@ -1144,8 +1133,7 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	const struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	if (hctx == NULL)
 		return;

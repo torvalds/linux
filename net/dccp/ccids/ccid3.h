@@ -128,10 +128,14 @@ struct ccid3_hc_rx_sock {
   	u32			ccid3hcrx_x_recv;
 };
 
-#define ccid3_hc_tx_field(s,field) (s->dccps_hc_tx_ccid_private == NULL ? 0 : \
-    ((struct ccid3_hc_tx_sock *)s->dccps_hc_tx_ccid_private)->ccid3hctx_##field)
+static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
+{
+    return dccp_sk(sk)->dccps_hc_tx_ccid_private;
+}
 
-#define ccid3_hc_rx_field(s,field) (s->dccps_hc_rx_ccid_private == NULL ? 0 : \
-    ((struct ccid3_hc_rx_sock *)s->dccps_hc_rx_ccid_private)->ccid3hcrx_##field)
+static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
+{
+    return dccp_sk(sk)->dccps_hc_rx_ccid_private;
+}
 
 #endif /* _DCCP_CCID3_H_ */
