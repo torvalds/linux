@@ -39,7 +39,7 @@ static inline int get_attribute(struct fb_info *info, u16 c)
 {
 	int attribute = 0;
 
-	if (fb_get_color_depth(&info->var) == 1) {
+	if (fb_get_color_depth(&info->var, &info->fix) == 1) {
 		if (attr_underline(c))
 			attribute |= FBCON_ATTRIBUTE_UNDERLINE;
 		if (attr_reverse(c))

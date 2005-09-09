@@ -62,16 +62,26 @@ int num_registered_fb;
  * Helpers
  */
 
-int fb_get_color_depth(struct fb_var_screeninfo *var)
+int fb_get_color_depth(struct fb_var_screeninfo *var,
+		       struct fb_fix_screeninfo *fix)
 {
-	if (var->green.length == var->blue.length &&
-	    var->green.length == var->red.length &&
-	    !var->green.offset && !var->blue.offset &&
-	    !var->red.offset)
-		return var->green.length;
-	else
-		return (var->green.length + var->red.length +
-			var->blue.length);
+	int depth = 0;
+
+	if (fix->visual == FB_VISUAL_MONO01 ||
+	    fix->visual == FB_VISUAL_MONO10)
+		depth = 1;
+	else {
+		if (var->green.length == var->blue.length &&
+		    var->green.length == var->red.length &&
+		    var->green.offset == var->blue.offset &&
+		    var->green.offset == var->red.offset)
+			depth = var->green.length;
+		else
+			depth = var->green.length + var->red.length +
+				var->blue.length;
+	}
+
+	return depth;
 }
 EXPORT_SYMBOL(fb_get_color_depth);
 
@@ -249,12 +259,17 @@ static void fb_set_logo(struct fb_info *info,
 			       const struct linux_logo *logo, u8 *dst,
 			       int depth)
 {
-	int i, j, k, fg = 1;
+	int i, j, k;
 	const u8 *src = logo->data;
-	u8 d, xor = (info->fix.visual == FB_VISUAL_MONO01) ? 0xff : 0;
+	u8 xor = (info->fix.visual == FB_VISUAL_MONO01) ? 0xff : 0;
+	u8 fg = 1, d;
 
-	if (fb_get_color_depth(&info->var) == 3)
+	if (fb_get_color_depth(&info->var, &info->fix) == 3)
 		fg = 7;
+
+	if (info->fix.visual == FB_VISUAL_MONO01 ||
+	    info->fix.visual == FB_VISUAL_MONO10)
+		fg = ~((u8) (0xfff << info->var.green.length));
 
 	switch (depth) {
 	case 4:
@@ -318,7 +333,7 @@ static struct logo_data {
 
 int fb_prepare_logo(struct fb_info *info)
 {
-	int depth = fb_get_color_depth(&info->var);
+	int depth = fb_get_color_depth(&info->var, &info->fix);
 
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 

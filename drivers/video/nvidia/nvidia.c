@@ -658,7 +658,7 @@ static int nvidia_calc_regs(struct fb_info *info)
 {
 	struct nvidia_par *par = info->par;
 	struct _riva_hw_state *state = &par->ModeReg;
-	int i, depth = fb_get_color_depth(&info->var);
+	int i, depth = fb_get_color_depth(&info->var, &info->fix);
 	int h_display = info->var.xres / 8 - 1;
 	int h_start = (info->var.xres + info->var.right_margin) / 8 - 1;
 	int h_end = (info->var.xres + info->var.right_margin +
@@ -978,6 +978,9 @@ static int nvidiafb_set_par(struct fb_info *info)
 	    !par->twoHeads)
 		par->FPDither = 0;
 
+	info->fix.visual = (info->var.bits_per_pixel == 8) ?
+	    FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
+
 	nvidia_init_vga(info);
 	nvidia_calc_regs(info);
 	nvidia_write_regs(par);
@@ -992,9 +995,6 @@ static int nvidiafb_set_par(struct fb_info *info)
 	NVWriteCrtc(par, 0x11, 0x00);
 	info->fix.line_length = (info->var.xres_virtual *
 				 info->var.bits_per_pixel) >> 3;
-	info->fix.visual = (info->var.bits_per_pixel == 8) ?
-	    FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
-
 	if (info->var.accel_flags) {
 		info->fbops->fb_imageblit = nvidiafb_imageblit;
 		info->fbops->fb_fillrect = nvidiafb_fillrect;

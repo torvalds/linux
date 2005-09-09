@@ -214,7 +214,7 @@ static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 static inline int get_color(struct vc_data *vc, struct fb_info *info,
 	      u16 c, int is_fg)
 {
-	int depth = fb_get_color_depth(&info->var);
+	int depth = fb_get_color_depth(&info->var, &info->fix);
 	int color = 0;
 
 	if (console_blanked) {
@@ -230,9 +230,13 @@ static inline int get_color(struct vc_data *vc, struct fb_info *info,
 	switch (depth) {
 	case 1:
 	{
+		int col = ~(0xfff << (max(info->var.green.length,
+					  max(info->var.red.length,
+					      info->var.blue.length)))) & 0xff;
+
 		/* 0 or 1 */
-		int fg = (info->fix.visual != FB_VISUAL_MONO01) ? 1 : 0;
-		int bg = (info->fix.visual != FB_VISUAL_MONO01) ? 0 : 1;
+		int fg = (info->fix.visual != FB_VISUAL_MONO01) ? col : 0;
+		int bg = (info->fix.visual != FB_VISUAL_MONO01) ? 0 : col;
 
 		if (console_blanked)
 			fg = bg;
@@ -246,7 +250,6 @@ static inline int get_color(struct vc_data *vc, struct fb_info *info,
 		 * is grayscale.
 		 */
 		color /= 4;
-		break;
 	case 3:
 		/*
 		 * Last 8 entries of default 16-color palette is a more intense
@@ -426,7 +429,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 	 * remove underline attribute from erase character
 	 * if black and white framebuffer.
 	 */
-	if (fb_get_color_depth(&info->var) == 1)
+	if (fb_get_color_depth(&info->var, &info->fix) == 1)
 		erase &= ~0x400;
 	logo_height = fb_prepare_logo(info);
 	logo_lines = (logo_height + vc->vc_font.height - 1) /
@@ -930,7 +933,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	}
 	if (p->userfont)
 		charcnt = FNTCHARCNT(p->fontdata);
-	vc->vc_can_do_color = (fb_get_color_depth(&info->var) != 1);
+	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
 	if (charcnt == 256) {
 		vc->vc_hi_font_mask = 0;
@@ -1178,7 +1181,12 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 	if (p->userfont)
 		charcnt = FNTCHARCNT(p->fontdata);
 
-	vc->vc_can_do_color = (fb_get_color_depth(var) != 1);
+	var->activate = FB_ACTIVATE_NOW;
+	info->var.activate = var->activate;
+	info->var.yoffset = info->var.xoffset = 0;
+	fb_set_var(info, var);
+
+	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
 	if (charcnt == 256) {
 		vc->vc_hi_font_mask = 0;
@@ -1967,7 +1975,7 @@ static int fbcon_switch(struct vc_data *vc)
 	set_blitting_type(vc, info, p);
 	((struct fbcon_ops *)info->fbcon_par)->cursor_reset = 1;
 
-	vc->vc_can_do_color = (fb_get_color_depth(&info->var) != 1);
+	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
 	updatescrollmode(p, info, vc);
 
@@ -2332,7 +2340,7 @@ static int fbcon_set_palette(struct vc_data *vc, unsigned char *table)
 	if (!CON_IS_VISIBLE(vc))
 		return 0;
 
-	depth = fb_get_color_depth(&info->var);
+	depth = fb_get_color_depth(&info->var, &info->fix);
 	if (depth > 3) {
 		for (i = j = 0; i < 16; i++) {
 			k = table[i];
