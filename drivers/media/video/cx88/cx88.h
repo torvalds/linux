@@ -34,7 +34,7 @@
 #include "btcx-risc.h"
 #include "cx88-reg.h"
 
-#include <linux/utsname.h>
+#include <linux/version.h>
 #define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
 
 #ifndef TRUE
