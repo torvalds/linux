@@ -1652,7 +1652,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 						continue;
 					}
 					if (devnull) {
-						atomic_inc(&devnull->f_count);
+						rcuref_inc(&devnull->f_count);
 					} else {
 						devnull = dentry_open(dget(selinux_null), mntget(selinuxfs_mount), O_RDWR);
 						if (!devnull) {

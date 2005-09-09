@@ -40,10 +40,10 @@ static inline int get_close_on_exec(unsigned int fd)
 	struct files_struct *files = current->files;
 	struct fdtable *fdt;
 	int res;
-	spin_lock(&files->file_lock);
+	rcu_read_lock();
 	fdt = files_fdtable(files);
 	res = FD_ISSET(fd, fdt->close_on_exec);
-	spin_unlock(&files->file_lock);
+	rcu_read_unlock();
 	return res;
 }
 

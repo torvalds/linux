@@ -2480,7 +2480,7 @@ static void __do_SAK(void *arg)
 		}
 		task_lock(p);
 		if (p->files) {
-			spin_lock(&p->files->file_lock);
+			rcu_read_lock();
 			fdt = files_fdtable(p->files);
 			for (i=0; i < fdt->max_fds; i++) {
 				filp = fcheck_files(p->files, i);
@@ -2495,7 +2495,7 @@ static void __do_SAK(void *arg)
 					break;
 				}
 			}
-			spin_unlock(&p->files->file_lock);
+			rcu_read_unlock();
 		}
 		task_unlock(p);
 	} while_each_task_pid(session, PIDTYPE_SID, p);
