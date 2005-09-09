@@ -743,6 +743,7 @@ static void frontend_init(struct budget_av *budget_av)
 		case SUBID_DVBC_KNC1_PLUS:
 		case SUBID_DVBT_KNC1_PLUS:
 			// Enable / PowerON Frontend
+			saa7146_setgpio(saa, 0, SAA7146_GPIO_OUTLO);
 			saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTHI);
 			break;
 	}
