@@ -137,7 +137,7 @@ MODULE_PARM_DESC(force_monitor, "Allow monitor mode for all firmware versions");
 
 /* We do this this way to avoid ifdefs in the actual code */
 #ifdef WIRELESS_SPY
-#define SPY_NUMBER(priv)	(priv->spy_number)
+#define SPY_NUMBER(priv)	(priv->spy_data.spy_number)
 #else
 #define SPY_NUMBER(priv)	0
 #endif /* WIRELESS_SPY */
@@ -396,10 +396,10 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 		/* If a spy address is defined, we report stats of the
 		 * first spy address - Jean II */
 		if (SPY_NUMBER(priv)) {
-			wstats->qual.qual = priv->spy_stat[0].qual;
-			wstats->qual.level = priv->spy_stat[0].level;
-			wstats->qual.noise = priv->spy_stat[0].noise;
-			wstats->qual.updated = priv->spy_stat[0].updated;
+			wstats->qual.qual = priv->spy_data.spy_stat[0].qual;
+			wstats->qual.level = priv->spy_data.spy_stat[0].level;
+			wstats->qual.noise = priv->spy_data.spy_stat[0].noise;
+			wstats->qual.updated = priv->spy_data.spy_stat[0].updated;
 		}
 	} else {
 		struct {
@@ -718,18 +718,13 @@ static inline int is_ethersnap(void *_hdr)
 static inline void orinoco_spy_gather(struct net_device *dev, u_char *mac,
 				      int level, int noise)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
-	int i;
-
-	/* Gather wireless spy statistics: for each packet, compare the
-	 * source address with out list, and if match, get the stats... */
-	for (i = 0; i < priv->spy_number; i++)
-		if (!memcmp(mac, priv->spy_address[i], ETH_ALEN)) {
-			priv->spy_stat[i].level = level - 0x95;
-			priv->spy_stat[i].noise = noise - 0x95;
-			priv->spy_stat[i].qual = (level > noise) ? (level - noise) : 0;
-			priv->spy_stat[i].updated = 7;
-		}
+	struct iw_quality wstats;
+	wstats.level = level - 0x95;
+	wstats.noise = noise - 0x95;
+	wstats.qual = (level > noise) ? (level - noise) : 0;
+	wstats.updated = 7;
+	/* Update spy records */
+	wireless_spy_update(dev, mac, &wstats);
 }
 
 static void orinoco_stat_gather(struct net_device *dev,
@@ -2458,8 +2453,11 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
 	dev->get_stats = orinoco_get_stats;
 	dev->ethtool_ops = &orinoco_ethtool_ops;
-	dev->get_wireless_stats = orinoco_get_wireless_stats;
 	dev->wireless_handlers = (struct iw_handler_def *)&orinoco_handler_def;
+#ifdef WIRELESS_SPY
+	priv->wireless_data.spy_data = &priv->spy_data;
+	dev->wireless_data = &priv->wireless_data;
+#endif
 	dev->change_mtu = orinoco_change_mtu;
 	dev->set_multicast_list = orinoco_set_multicast_list;
 	/* we use the default eth_mac_addr for setting the MAC addr */
@@ -2831,7 +2829,7 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 		}
 	}
 
-	if ((priv->iw_mode == IW_MODE_ADHOC) && (priv->spy_number == 0)){
+	if ((priv->iw_mode == IW_MODE_ADHOC) && (!SPY_NUMBER(priv))){
 		/* Quality stats meaningless in ad-hoc mode */
 	} else {
 		range->max_qual.qual = 0x8b - 0x2f;
@@ -2877,6 +2875,14 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 	range->max_retry = 65535;	/* ??? */
 	range->min_r_time = 0;
 	range->max_r_time = 65535 * 1000;	/* ??? */
+
+	/* Event capability (kernel) */
+	IW_EVENT_CAPA_SET_KERNEL(range->event_capa);
+	/* Event capability (driver) */
+	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWTHRSPY);
+	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
+	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVTXDROP);
 
 	TRACE_EXIT(dev->name);
 
@@ -3837,92 +3843,6 @@ static int orinoco_ioctl_getrid(struct net_device *dev,
 	return err;
 }
 
-/* Spy is used for link quality/strength measurements in Ad-Hoc mode
- * Jean II */
-static int orinoco_ioctl_setspy(struct net_device *dev,
-				struct iw_request_info *info,
-				struct iw_point *srq,
-				char *extra)
-
-{
-	struct orinoco_private *priv = netdev_priv(dev);
-	struct sockaddr *address = (struct sockaddr *) extra;
-	int number = srq->length;
-	int i;
-	unsigned long flags;
-
-	/* Make sure nobody mess with the structure while we do */
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	/* orinoco_lock() doesn't disable interrupts, so make sure the
-	 * interrupt rx path don't get confused while we copy */
-	priv->spy_number = 0;
-
-	if (number > 0) {
-		/* Extract the addresses */
-		for (i = 0; i < number; i++)
-			memcpy(priv->spy_address[i], address[i].sa_data,
-			       ETH_ALEN);
-		/* Reset stats */
-		memset(priv->spy_stat, 0,
-		       sizeof(struct iw_quality) * IW_MAX_SPY);
-		/* Set number of addresses */
-		priv->spy_number = number;
-	}
-
-	/* Now, let the others play */
-	orinoco_unlock(priv, &flags);
-
-	/* Do NOT call commit handler */
-	return 0;
-}
-
-static int orinoco_ioctl_getspy(struct net_device *dev,
-				struct iw_request_info *info,
-				struct iw_point *srq,
-				char *extra)
-{
-	struct orinoco_private *priv = netdev_priv(dev);
-	struct sockaddr *address = (struct sockaddr *) extra;
-	int number;
-	int i;
-	unsigned long flags;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	number = priv->spy_number;
-	/* Create address struct */
-	for (i = 0; i < number; i++) {
-		memcpy(address[i].sa_data, priv->spy_address[i], ETH_ALEN);
-		address[i].sa_family = AF_UNIX;
-	}
-	if (number > 0) {
-		/* Create address struct */
-		for (i = 0; i < number; i++) {
-			memcpy(address[i].sa_data, priv->spy_address[i],
-			       ETH_ALEN);
-			address[i].sa_family = AF_UNIX;
-		}
-		/* Copy stats */
-		/* In theory, we should disable irqs while copying the stats
-		 * because the rx path might update it in the middle...
-		 * Bah, who care ? - Jean II */
-		memcpy(extra  + (sizeof(struct sockaddr) * number),
-		       priv->spy_stat, sizeof(struct iw_quality) * number);
-	}
-	/* Reset updated flags. */
-	for (i = 0; i < number; i++)
-		priv->spy_stat[i].updated = 0;
-
-	orinoco_unlock(priv, &flags);
-
-	srq->length = number;
-
-	return 0;
-}
-
 /* Trigger a scan (look for other cells in the vicinity */
 static int orinoco_ioctl_setscan(struct net_device *dev,
 				 struct iw_request_info *info,
@@ -4353,8 +4273,10 @@ static const iw_handler	orinoco_handler[] = {
 	[SIOCSIWSENS  -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_setsens,
 	[SIOCGIWSENS  -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_getsens,
 	[SIOCGIWRANGE -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_getiwrange,
-	[SIOCSIWSPY   -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_setspy,
-	[SIOCGIWSPY   -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_getspy,
+	[SIOCSIWSPY   -SIOCIWFIRST] = (iw_handler) iw_handler_set_spy,
+	[SIOCGIWSPY   -SIOCIWFIRST] = (iw_handler) iw_handler_get_spy,
+	[SIOCSIWTHRSPY-SIOCIWFIRST] = (iw_handler) iw_handler_set_thrspy,
+	[SIOCGIWTHRSPY-SIOCIWFIRST] = (iw_handler) iw_handler_get_thrspy,
 	[SIOCSIWAP    -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_setwap,
 	[SIOCGIWAP    -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_getwap,
 	[SIOCSIWSCAN  -SIOCIWFIRST] = (iw_handler) orinoco_ioctl_setscan,
@@ -4399,6 +4321,7 @@ static const struct iw_handler_def orinoco_handler_def = {
 	.standard = orinoco_handler,
 	.private = orinoco_private_handler,
 	.private_args = orinoco_privtab,
+	.get_wireless_stats = orinoco_get_wireless_stats,
 };
 
 static void orinoco_get_drvinfo(struct net_device *dev,

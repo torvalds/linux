@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
+#include <net/iw_handler.h>
 #include <linux/version.h>
 
 #include "hermes.h"
@@ -112,9 +113,8 @@ struct orinoco_private {
 	u16 pm_on, pm_mcast, pm_period, pm_timeout;
 	u16 preamble;
 #ifdef WIRELESS_SPY
-	int			spy_number;
-	u_char			spy_address[IW_MAX_SPY][ETH_ALEN];
-	struct iw_quality	spy_stat[IW_MAX_SPY];
+ 	struct iw_spy_data spy_data; /* iwspy support */
+	struct iw_public_data	wireless_data;
 #endif
 
 	/* Configuration dependent variables */
