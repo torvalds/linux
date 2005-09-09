@@ -2430,7 +2430,7 @@ static int set_bitmap_file(mddev_t *mddev, int fd)
 {
 	int err;
 
-	if (mddev->pers)
+	if (mddev->pers || mddev->bitmap_file)
 		return -EBUSY;
 
 	mddev->bitmap_file = fget(fd);
