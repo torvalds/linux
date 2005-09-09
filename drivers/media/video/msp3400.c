@@ -124,10 +124,14 @@ module_param(standard,         int, 0644);
 module_param(amsound,          int, 0644);
 module_param(dolby,            int, 0644);
 
+MODULE_PARM_DESC(opmode, "Forces a MSP3400 opmode. 0=Manual, 1=Simple, 2=Simpler");
 MODULE_PARM_DESC(once, "No continuous stereo monitoring");
 MODULE_PARM_DESC(debug, "Enable debug messages");
+MODULE_PARM_DESC(stereo_threshold, "Sets signal threshold to activate stereo");
 MODULE_PARM_DESC(standard, "Specify audio standard: 32 = NTSC, 64 = radio, Default: Autodetect");
 MODULE_PARM_DESC(amsound, "Hardwire AM sound at 6.5Hz (France), FM can autoscan");
+MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
+
 
 MODULE_DESCRIPTION("device driver for msp34xx TV sound processor");
 MODULE_AUTHOR("Gerd Knorr");
