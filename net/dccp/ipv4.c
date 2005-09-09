@@ -1243,6 +1243,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	static int dccp_ctl_socket_init = 1;
 
 	dccp_options_init(&dp->dccps_options);
+	do_gettimeofday(&dp->dccps_epoch);
 
 	if (dp->dccps_options.dccpo_send_ack_vector) {
 		dp->dccps_hc_rx_ackpkts =

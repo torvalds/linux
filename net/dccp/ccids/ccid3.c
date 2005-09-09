@@ -169,7 +169,7 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 	} else {
 		struct timeval now;
 
-		do_gettimeofday(&now);
+		dccp_timestamp(sk, &now);
 	       	if (timeval_delta(&now, &hctx->ccid3hctx_t_ld) >=
 		    hctx->ccid3hctx_rtt) {
 			hctx->ccid3hctx_x = max_t(u32, min_t(u32, hctx->ccid3hctx_x_recv,
@@ -317,7 +317,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, new_packet);
 	}
 
-	do_gettimeofday(&now);
+	dccp_timestamp(sk, &now);
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
@@ -382,7 +382,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		return;
 	}
 
-	do_gettimeofday(&now);
+	dccp_timestamp(sk, &now);
 
 	/* check if we have sent a data packet */
 	if (len > 0) {
@@ -461,6 +461,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
+	struct timeval now;
 	unsigned long next_tmout; 
 	u32 t_elapsed;
 	u32 pinv;
@@ -508,7 +509,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		}
 
 		/* Update RTT */
-		r_sample = timeval_now_delta(&packet->dccphtx_tstamp);
+		dccp_timestamp(sk, &now);
+		r_sample = timeval_delta(&now, &packet->dccphtx_tstamp);
 		if (unlikely(r_sample <= t_elapsed))
 			LIMIT_NETDEBUG(KERN_WARNING
 				       "%s: r_sample=%uus, t_elapsed=%uus\n",
@@ -774,7 +776,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	do_gettimeofday(&now);
+	dccp_timestamp(sk, &now);
 
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
@@ -903,10 +905,9 @@ found:
 	if (rtt == 0)
 		rtt = 1;
 
-	delta = timeval_now_delta(&hcrx->ccid3hcrx_tstamp_last_feedback);
-	x_recv = hcrx->ccid3hcrx_bytes_recv * USEC_PER_SEC;
-	if (likely(delta > 1))
-		x_recv /= delta;
+	dccp_timestamp(sk, &tstamp);
+	delta = timeval_delta(&tstamp, &hcrx->ccid3hcrx_tstamp_last_feedback);
+	x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv, delta);
 
 	tmp1 = (u64)x_recv * (u64)rtt;
 	do_div(tmp1,10000000);
@@ -981,7 +982,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
 		p_prev = hcrx->ccid3hcrx_rtt;
-		do_gettimeofday(&now);
+		dccp_timestamp(sk, &now);
 		timeval_sub_usecs(&now, opt_recv->dccpor_timestamp_echo * 10);
 		r_sample = timeval_usecs(&now);
 		t_elapsed = opt_recv->dccpor_elapsed_time * 10;
@@ -1013,7 +1014,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
+	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, sk, opt_recv->dccpor_ndp,
 					skb, SLAB_ATOMIC);
 	if (packet == NULL) {
 		ccid3_pr_debug("%s, sk=%p, Not enough mem to add rx packet "
@@ -1045,7 +1046,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (ins != 0)
 			break;
 
-		do_gettimeofday(&now);
+		dccp_timestamp(sk, &now);
 		if (timeval_delta(&now, &hcrx->ccid3hcrx_tstamp_last_ack) >=
 		    hcrx->ccid3hcrx_rtt) {
 			hcrx->ccid3hcrx_tstamp_last_ack = now;
@@ -1100,7 +1101,7 @@ static int ccid3_hc_rx_init(struct sock *sk)
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
-	do_gettimeofday(&hcrx->ccid3hcrx_tstamp_last_ack);
+	dccp_timestamp(sk, &hcrx->ccid3hcrx_tstamp_last_ack);
 	hcrx->ccid3hcrx_tstamp_last_feedback = hcrx->ccid3hcrx_tstamp_last_ack;
 	hcrx->ccid3hcrx_rtt = 5000; /* XXX 5ms for now... */
 	return 0;

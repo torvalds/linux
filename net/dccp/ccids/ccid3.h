@@ -115,7 +115,7 @@ struct ccid3_hc_rx_sock {
   	u64			ccid3hcrx_seqno_last_counter:48,
 				ccid3hcrx_state:8,
 				ccid3hcrx_last_counter:4;
-	unsigned long		ccid3hcrx_rtt;
+	u32			ccid3hcrx_rtt;
   	u32			ccid3hcrx_p;
   	u32			ccid3hcrx_bytes_recv;
   	struct timeval		ccid3hcrx_tstamp_last_feedback;

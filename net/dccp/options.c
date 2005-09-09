@@ -140,7 +140,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_timestamp = ntohl(*(u32 *)value);
 
 			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
-			do_gettimeofday(&dp->dccps_timestamp_time);
+			dccp_timestamp(sk, &dp->dccps_timestamp_time);
 
 			dccp_pr_debug("%sTIMESTAMP=%u, ackno=%llu\n",
 				      debug_prefix, opt_recv->dccpor_timestamp,
@@ -361,8 +361,12 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 #endif
 	struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
 	int len = ap->dccpap_buf_vector_len + 2;
-	const u32 elapsed_time = timeval_now_delta(&ap->dccpap_time) / 10;
+	struct timeval now;
+	u32 elapsed_time;
 	unsigned char *to, *from;
+
+	dccp_timestamp(sk, &now);
+	elapsed_time = timeval_delta(&now, &ap->dccpap_time) / 10;
 
 	if (elapsed_time != 0)
 		dccp_insert_option_elapsed_time(sk, skb, elapsed_time);
@@ -428,13 +432,29 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 		      (unsigned long long) ap->dccpap_ack_ackno);
 }
 
+void dccp_timestamp(const struct sock *sk, struct timeval *tv)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+
+	do_gettimeofday(tv);
+	tv->tv_sec  -= dp->dccps_epoch.tv_sec;
+	tv->tv_usec -= dp->dccps_epoch.tv_usec;
+
+	while (tv->tv_usec < 0) {
+		tv->tv_sec--;
+		tv->tv_usec += USEC_PER_SEC;
+	}
+}
+
+EXPORT_SYMBOL_GPL(dccp_timestamp);
+
 void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 {
 	struct timeval tv;
 	u32 now;
 	
-	do_gettimeofday(&tv);
-	now = (tv.tv_sec * USEC_PER_SEC + tv.tv_usec) / 10;
+	dccp_timestamp(sk, &tv);
+	now = timeval_usecs(&tv) / 10;
 	/* yes this will overflow but that is the point as we want a
 	 * 10 usec 32 bit timer which mean it wraps every 11.9 hours */
 
@@ -452,12 +472,16 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					"CLIENT TX opt: " : "server TX opt: ";
 #endif
+	struct timeval now;
 	u32 tstamp_echo;
-	const u32 elapsed_time =
-			timeval_now_delta(&dp->dccps_timestamp_time) / 10;
-	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
-	const int len = 6 + elapsed_time_len;
+	u32 elapsed_time;
+	int len, elapsed_time_len;
 	unsigned char *to;
+
+	dccp_timestamp(sk, &now);
+	elapsed_time = timeval_delta(&now, &dp->dccps_timestamp_time) / 10;
+	elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
+	len = 6 + elapsed_time_len;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
 		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert "
@@ -623,7 +647,8 @@ static inline int dccp_ackpkts_set_buf_head_state(struct dccp_ackpkts *ap,
 /*
  * Implements the draft-ietf-dccp-spec-11.txt Appendix A
  */
-int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
+int dccp_ackpkts_add(struct dccp_ackpkts *ap, const struct sock *sk,
+		     u64 ackno, u8 state)
 {
 	/*
 	 * Check at the right places if the buffer is full, if it is, tell the
@@ -704,7 +729,7 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 	}
 
 	ap->dccpap_buf_ackno = ackno;
-	do_gettimeofday(&ap->dccpap_time);
+	dccp_timestamp(sk, &ap->dccpap_time);
 out:
 	dccp_pr_debug("");
 	dccp_ackpkts_print(ap);
