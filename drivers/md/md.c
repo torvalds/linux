@@ -875,7 +875,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	    sb->major_version != cpu_to_le32(1) ||
 	    le32_to_cpu(sb->max_dev) > (4096-256)/2 ||
 	    le64_to_cpu(sb->super_offset) != (rdev->sb_offset<<1) ||
-	    sb->feature_map != 0)
+	    (le32_to_cpu(sb->feature_map) & ~MD_FEATURE_ALL) != 0)
 		return -EINVAL;
 
 	if (calc_sb_1_csum(sb) != sb->sb_csum) {
@@ -954,7 +954,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 		mddev->max_disks =  (4096-256)/2;
 
-		if ((le32_to_cpu(sb->feature_map) & 1) &&
+		if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET) &&
 		    mddev->bitmap_file == NULL ) {
 			if (mddev->level != 1) {
 				printk(KERN_WARNING "md: bitmaps only supported for raid1\n");
@@ -1029,7 +1029,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (mddev->bitmap && mddev->bitmap_file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
-		sb->feature_map = cpu_to_le32(1);
+		sb->feature_map = cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
 	}
 
 	max_dev = 0;

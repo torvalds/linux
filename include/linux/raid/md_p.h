@@ -238,5 +238,10 @@ struct mdp_superblock_1 {
 	__u16	dev_roles[0];	/* role in array, or 0xffff for a spare, or 0xfffe for faulty */
 };
 
+/* feature_map bits */
+#define MD_FEATURE_BITMAP_OFFSET	1
+
+#define	MD_FEATURE_ALL			1
+
 #endif 
 
