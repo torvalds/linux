@@ -2258,7 +2258,7 @@ struct tvcard bttv_tvcards[] = {
 
 	/* ---- card 0x80 ---------------------------------- */
 	/* Chris Pascoe <c.pascoe@itee.uq.edu.au> */
-	.name           = "DVICO FusionHDTV DVB-T Lite",
+	.name           = "DViCO FusionHDTV DVB-T Lite",
 	.tuner          = -1,
 	.no_msp34xx     = 1,
 	.no_tda9875     = 1,
@@ -2389,7 +2389,7 @@ struct tvcard bttv_tvcards[] = {
 {
 	/* ---- card 0x87---------------------------------- */
 	/* Michael Krufky <mkrufky@m1k.net> */
-	.name           = "DVICO FusionHDTV 5 Lite",
+	.name           = "DViCO FusionHDTV 5 Lite",
 	.tuner          = 0,
 	.tuner_type     = TUNER_LG_TDVS_H062F,
 	.tuner_addr	= ADDR_UNSET,

@@ -28,7 +28,6 @@
 #include <linux/kthread.h>
 #include <linux/file.h>
 #include <linux/suspend.h>
-#include <linux/config.h>
 
 
 #include "cx88.h"
@@ -402,11 +401,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend->ops->info.frequency_min = dev->core->pll_desc->min;
 		dev->dvb.frontend->ops->info.frequency_max = dev->core->pll_desc->max;
 	}
-
-	/* Copy the board name into the DVB structure */
-	strlcpy(dev->dvb.frontend->ops->info.name,
-		cx88_boards[dev->core->board].name,
-		sizeof(dev->dvb.frontend->ops->info.name));
 
 	/* register everything */
 	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev);
