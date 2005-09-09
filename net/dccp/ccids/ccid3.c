@@ -1100,11 +1100,9 @@ static int ccid3_hc_rx_init(struct sock *sk)
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
-	/*
-	 * XXX this seems to be paranoid, need to think more about this, for
-	 * now start with something different than zero. -acme
-	 */
-	hcrx->ccid3hcrx_rtt = USEC_PER_SEC / 5;
+	do_gettimeofday(&hcrx->ccid3hcrx_tstamp_last_ack);
+	hcrx->ccid3hcrx_tstamp_last_feedback = hcrx->ccid3hcrx_tstamp_last_ack;
+	hcrx->ccid3hcrx_rtt = 5000; /* XXX 5ms for now... */
 	return 0;
 }
 
