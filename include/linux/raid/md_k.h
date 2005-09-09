@@ -278,6 +278,10 @@ struct mddev_s
 							* start of bitmap. May be
 							* negative, but not '0'
 							*/
+	long				default_bitmap_offset; /* this is the offset to use when
+								* hot-adding a bitmap.  It should
+								* eventually be settable by sysfs.
+								*/
 
 	struct list_head		all_mddevs;
 };
@@ -314,6 +318,12 @@ struct mdk_personality_s
 	int (*resize) (mddev_t *mddev, sector_t sectors);
 	int (*reshape) (mddev_t *mddev, int raid_disks);
 	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
+	/* quiesce moves between quiescence states
+	 * 0 - fully active
+	 * 1 - no new requests allowed
+	 * others - reserved
+	 */
+	void (*quiesce) (mddev_t *mddev, int state);
 };
 
 

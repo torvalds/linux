@@ -1565,6 +1565,35 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 	return 0;
 }
 
+void raid1_quiesce(mddev_t *mddev, int state)
+{
+	conf_t *conf = mddev_to_conf(mddev);
+
+	switch(state) {
+	case 0:
+		spin_lock_irq(&conf->resync_lock);
+		conf->barrier++;
+		wait_event_lock_irq(conf->wait_idle, !conf->nr_pending,
+				    conf->resync_lock, raid1_unplug(mddev->queue));
+		spin_unlock_irq(&conf->resync_lock);
+		break;
+	case 1:
+		spin_lock_irq(&conf->resync_lock);
+		conf->barrier--;
+		spin_unlock_irq(&conf->resync_lock);
+		wake_up(&conf->wait_resume);
+		wake_up(&conf->wait_idle);
+		break;
+	}
+	if (mddev->thread) {
+		if (mddev->bitmap)
+			mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
+		else
+			mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
+		md_wakeup_thread(mddev->thread);
+	}
+}
+
 
 static mdk_personality_t raid1_personality =
 {
@@ -1581,6 +1610,7 @@ static mdk_personality_t raid1_personality =
 	.sync_request	= sync_request,
 	.resize		= raid1_resize,
 	.reshape	= raid1_reshape,
+	.quiesce	= raid1_quiesce,
 };
 
 static int __init raid_init(void)

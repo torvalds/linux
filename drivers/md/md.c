@@ -623,6 +623,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->size = sb->size;
 		mddev->events = md_event(sb);
 		mddev->bitmap_offset = 0;
+		mddev->default_bitmap_offset = MD_SB_BYTES >> 9;
 
 		if (sb->state & (1<<MD_SB_CLEAN))
 			mddev->recovery_cp = MaxSector;
@@ -648,7 +649,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 				printk(KERN_WARNING "md: bitmaps only support for raid1\n");
 				return -EINVAL;
 			}
-			mddev->bitmap_offset = (MD_SB_BYTES >> 9);
+			mddev->bitmap_offset = mddev->default_bitmap_offset;
 		}
 
 	} else if (mddev->pers == NULL) {
@@ -939,6 +940,9 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
 		mddev->bitmap_offset = 0;
+		mddev->default_bitmap_offset = 0;
+		if (mddev->minor_version == 0)
+			mddev->default_bitmap_offset = -(64*1024)/512;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
@@ -2073,6 +2077,8 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 	info.state         = 0;
 	if (mddev->in_sync)
 		info.state = (1<<MD_SB_CLEAN);
+	if (mddev->bitmap && mddev->bitmap_offset)
+		info.state = (1<<MD_SB_BITMAP_PRESENT);
 	info.active_disks  = active;
 	info.working_disks = working;
 	info.failed_disks  = failed;
@@ -2430,25 +2436,51 @@ static int set_bitmap_file(mddev_t *mddev, int fd)
 {
 	int err;
 
-	if (mddev->pers || mddev->bitmap_file)
-		return -EBUSY;
-
-	mddev->bitmap_file = fget(fd);
-
-	if (mddev->bitmap_file == NULL) {
-		printk(KERN_ERR "%s: error: failed to get bitmap file\n",
-			mdname(mddev));
-		return -EBADF;
+	if (mddev->pers) {
+		if (!mddev->pers->quiesce)
+			return -EBUSY;
+		if (mddev->recovery || mddev->sync_thread)
+			return -EBUSY;
+		/* we should be able to change the bitmap.. */
 	}
 
-	err = deny_bitmap_write_access(mddev->bitmap_file);
-	if (err) {
-		printk(KERN_ERR "%s: error: bitmap file is already in use\n",
-			mdname(mddev));
-		fput(mddev->bitmap_file);
-		mddev->bitmap_file = NULL;
-	} else
+
+	if (fd >= 0) {
+		if (mddev->bitmap)
+			return -EEXIST; /* cannot add when bitmap is present */
+		mddev->bitmap_file = fget(fd);
+
+		if (mddev->bitmap_file == NULL) {
+			printk(KERN_ERR "%s: error: failed to get bitmap file\n",
+			       mdname(mddev));
+			return -EBADF;
+		}
+
+		err = deny_bitmap_write_access(mddev->bitmap_file);
+		if (err) {
+			printk(KERN_ERR "%s: error: bitmap file is already in use\n",
+			       mdname(mddev));
+			fput(mddev->bitmap_file);
+			mddev->bitmap_file = NULL;
+			return err;
+		}
 		mddev->bitmap_offset = 0; /* file overrides offset */
+	} else if (mddev->bitmap == NULL)
+		return -ENOENT; /* cannot remove what isn't there */
+	err = 0;
+	if (mddev->pers) {
+		mddev->pers->quiesce(mddev, 1);
+		if (fd >= 0)
+			err = bitmap_create(mddev);
+		if (fd < 0 || err)
+			bitmap_destroy(mddev);
+		mddev->pers->quiesce(mddev, 0);
+	} else if (fd < 0) {
+		if (mddev->bitmap_file)
+			fput(mddev->bitmap_file);
+		mddev->bitmap_file = NULL;
+	}
+
 	return err;
 }
 
@@ -2528,6 +2560,11 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 {
 	int rv = 0;
 	int cnt = 0;
+	int state = 0;
+
+	/* calculate expected state,ignoring low bits */
+	if (mddev->bitmap && mddev->bitmap_offset)
+		state |= (1 << MD_SB_BITMAP_PRESENT);
 
 	if (mddev->major_version != info->major_version ||
 	    mddev->minor_version != info->minor_version ||
@@ -2536,12 +2573,16 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 	    mddev->level         != info->level         ||
 /*	    mddev->layout        != info->layout        || */
 	    !mddev->persistent	 != info->not_persistent||
-	    mddev->chunk_size    != info->chunk_size    )
+	    mddev->chunk_size    != info->chunk_size    ||
+	    /* ignore bottom 8 bits of state, and allow SB_BITMAP_PRESENT to change */
+	    ((state^info->state) & 0xfffffe00)
+		)
 		return -EINVAL;
 	/* Check there is only one change */
 	if (mddev->size != info->size) cnt++;
 	if (mddev->raid_disks != info->raid_disks) cnt++;
 	if (mddev->layout != info->layout) cnt++;
+	if ((state ^ info->state) & (1<<MD_SB_BITMAP_PRESENT)) cnt++;
 	if (cnt == 0) return 0;
 	if (cnt > 1) return -EINVAL;
 
@@ -2618,6 +2659,35 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 				up(&bdev->bd_inode->i_sem);
 				bdput(bdev);
 			}
+		}
+	}
+	if ((state ^ info->state) & (1<<MD_SB_BITMAP_PRESENT)) {
+		if (mddev->pers->quiesce == NULL)
+			return -EINVAL;
+		if (mddev->recovery || mddev->sync_thread)
+			return -EBUSY;
+		if (info->state & (1<<MD_SB_BITMAP_PRESENT)) {
+			/* add the bitmap */
+			if (mddev->bitmap)
+				return -EEXIST;
+			if (mddev->default_bitmap_offset == 0)
+				return -EINVAL;
+			mddev->bitmap_offset = mddev->default_bitmap_offset;
+			mddev->pers->quiesce(mddev, 1);
+			rv = bitmap_create(mddev);
+			if (rv)
+				bitmap_destroy(mddev);
+			mddev->pers->quiesce(mddev, 0);
+		} else {
+			/* remove the bitmap */
+			if (!mddev->bitmap)
+				return -ENOENT;
+			if (mddev->bitmap->file)
+				return -EINVAL;
+			mddev->pers->quiesce(mddev, 1);
+			bitmap_destroy(mddev);
+			mddev->pers->quiesce(mddev, 0);
+			mddev->bitmap_offset = 0;
 		}
 	}
 	md_update_sb(mddev);
