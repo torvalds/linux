@@ -1274,6 +1274,7 @@ static int post_create(struct inode *dir,
 	struct inode *inode;
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
+	struct inode_security_struct *isec;
 	u32 newsid;
 	char *context;
 	unsigned int len;
@@ -1292,6 +1293,11 @@ static int post_create(struct inode *dir,
 		       "ino=%ld)\n", dir->i_sb->s_id, dir->i_ino);
 		return 0;
 	}
+
+	isec = inode->i_security;
+
+	if (isec->security_attr_init)
+		return 0;
 
 	if (tsec->create_sid && sbsec->behavior != SECURITY_FS_USE_MNTPOINT) {
 		newsid = tsec->create_sid;
@@ -2016,6 +2022,58 @@ static int selinux_inode_alloc_security(struct inode *inode)
 static void selinux_inode_free_security(struct inode *inode)
 {
 	inode_free_security(inode);
+}
+
+static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
+				       char **name, void **value,
+				       size_t *len)
+{
+	struct task_security_struct *tsec;
+	struct inode_security_struct *dsec;
+	struct superblock_security_struct *sbsec;
+	struct inode_security_struct *isec;
+	u32 newsid;
+	int rc;
+	char *namep, *context;
+
+	tsec = current->security;
+	dsec = dir->i_security;
+	sbsec = dir->i_sb->s_security;
+	isec = inode->i_security;
+
+	if (tsec->create_sid && sbsec->behavior != SECURITY_FS_USE_MNTPOINT) {
+		newsid = tsec->create_sid;
+	} else {
+		rc = security_transition_sid(tsec->sid, dsec->sid,
+					     inode_mode_to_security_class(inode->i_mode),
+					     &newsid);
+		if (rc) {
+			printk(KERN_WARNING "%s:  "
+			       "security_transition_sid failed, rc=%d (dev=%s "
+			       "ino=%ld)\n",
+			       __FUNCTION__,
+			       -rc, inode->i_sb->s_id, inode->i_ino);
+			return rc;
+		}
+	}
+
+	inode_security_set_sid(inode, newsid);
+
+	namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_KERNEL);
+	if (!namep)
+		return -ENOMEM;
+	*name = namep;
+
+	rc = security_sid_to_context(newsid, &context, len);
+	if (rc) {
+		kfree(namep);
+		return rc;
+	}
+	*value = context;
+
+	isec->security_attr_init = 1;
+
+	return 0;
 }
 
 static int selinux_inode_create(struct inode *dir, struct dentry *dentry, int mask)
@@ -4298,6 +4356,7 @@ static struct security_operations selinux_ops = {
 
 	.inode_alloc_security =		selinux_inode_alloc_security,
 	.inode_free_security =		selinux_inode_free_security,
+	.inode_init_security =		selinux_inode_init_security,
 	.inode_create =			selinux_inode_create,
 	.inode_post_create =		selinux_inode_post_create,
 	.inode_link =			selinux_inode_link,

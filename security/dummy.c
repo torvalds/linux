@@ -258,6 +258,12 @@ static void dummy_inode_free_security (struct inode *inode)
 	return;
 }
 
+static int dummy_inode_init_security (struct inode *inode, struct inode *dir,
+				      char **name, void **value, size_t *len)
+{
+	return -EOPNOTSUPP;
+}
+
 static int dummy_inode_create (struct inode *inode, struct dentry *dentry,
 			       int mask)
 {
@@ -886,6 +892,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sb_post_pivotroot);
 	set_to_dummy_if_null(ops, inode_alloc_security);
 	set_to_dummy_if_null(ops, inode_free_security);
+	set_to_dummy_if_null(ops, inode_init_security);
 	set_to_dummy_if_null(ops, inode_create);
 	set_to_dummy_if_null(ops, inode_post_create);
 	set_to_dummy_if_null(ops, inode_link);

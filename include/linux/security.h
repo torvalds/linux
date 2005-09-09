@@ -250,6 +250,25 @@ struct swap_info_struct;
  *	@inode contains the inode structure.
  *	Deallocate the inode security structure and set @inode->i_security to
  *	NULL. 
+ * @inode_init_security:
+ * 	Obtain the security attribute name suffix and value to set on a newly
+ *	created inode and set up the incore security field for the new inode.
+ *	This hook is called by the fs code as part of the inode creation
+ *	transaction and provides for atomic labeling of the inode, unlike
+ *	the post_create/mkdir/... hooks called by the VFS.  The hook function
+ *	is expected to allocate the name and value via kmalloc, with the caller
+ *	being responsible for calling kfree after using them.
+ *	If the security module does not use security attributes or does
+ *	not wish to put a security attribute on this particular inode,
+ *	then it should return -EOPNOTSUPP to skip this processing.
+ *	@inode contains the inode structure of the newly created inode.
+ *	@dir contains the inode structure of the parent directory.
+ *	@name will be set to the allocated name suffix (e.g. selinux).
+ *	@value will be set to the allocated attribute value.
+ *	@len will be set to the length of the value.
+ *	Returns 0 if @name and @value have been successfully set,
+ *		-EOPNOTSUPP if no security attribute is needed, or
+ *		-ENOMEM on memory allocation failure.
  * @inode_create:
  *	Check permission to create a regular file.
  *	@dir contains inode structure of the parent of the new file.
@@ -1080,6 +1099,8 @@ struct security_operations {
 
 	int (*inode_alloc_security) (struct inode *inode);	
 	void (*inode_free_security) (struct inode *inode);
+	int (*inode_init_security) (struct inode *inode, struct inode *dir,
+				    char **name, void **value, size_t *len);
 	int (*inode_create) (struct inode *dir,
 	                     struct dentry *dentry, int mode);
 	void (*inode_post_create) (struct inode *dir,
@@ -1441,6 +1462,17 @@ static inline void security_inode_free (struct inode *inode)
 	if (unlikely (IS_PRIVATE (inode)))
 		return;
 	security_ops->inode_free_security (inode);
+}
+
+static inline int security_inode_init_security (struct inode *inode,
+						struct inode *dir,
+						char **name,
+						void **value,
+						size_t *len)
+{
+	if (unlikely (IS_PRIVATE (inode)))
+		return -EOPNOTSUPP;
+	return security_ops->inode_init_security (inode, dir, name, value, len);
 }
 	
 static inline int security_inode_create (struct inode *dir,
@@ -2171,6 +2203,15 @@ static inline int security_inode_alloc (struct inode *inode)
 
 static inline void security_inode_free (struct inode *inode)
 { }
+
+static inline int security_inode_init_security (struct inode *inode,
+						struct inode *dir,
+						char **name,
+						void **value,
+						size_t *len)
+{
+	return -EOPNOTSUPP;
+}
 	
 static inline int security_inode_create (struct inode *dir,
 					 struct dentry *dentry,
