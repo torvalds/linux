@@ -49,10 +49,6 @@ all: zImage
 
 boot := arch/arm26/boot
 
-prepare: include/asm-$(ARCH)/asm_offsets.h
-CLEAN_FILES += include/asm-$(ARCH)/asm_offsets.h
-
-
 .PHONY: maketools FORCE
 maketools: FORCE
 	
@@ -93,12 +89,6 @@ zi:;	$(Q)$(MAKE) $(build)=$(boot) zinstall
 	  echo "$$CFG does not exist"; \
 	fi; \
 	)
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
 
 define archhelp
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
