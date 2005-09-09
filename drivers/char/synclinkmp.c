@@ -643,7 +643,7 @@ static unsigned char tx_active_fifo_level = 16;	// tx request FIFO activation le
 static unsigned char tx_negate_fifo_level = 32;	// tx request FIFO negation level in bytes
 
 static u32 misc_ctrl_value = 0x007e4040;
-static u32 lcr1_brdr_value = 0x00800029;
+static u32 lcr1_brdr_value = 0x00800028;
 
 static u32 read_ahead_count = 8;
 
