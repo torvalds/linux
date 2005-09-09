@@ -59,6 +59,7 @@
                  Fix 'handled=1' ISR usage, remove bogus IRQ check.
                  Remove un-needed eh_abort handler.
                  Add support for embedded firmware error strings.
+   2.26.02.003 - Correctly handle single sgl's with use_sg=1.
 */
 
 #include <linux/module.h>
@@ -81,7 +82,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.002"
+#define TW_DRIVER_VERSION "2.26.02.003"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -1805,6 +1806,8 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 			if (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH) {
 				command_packet->sg_list[0].address = tw_dev->generic_buffer_phys[request_id];
 				command_packet->sg_list[0].length = TW_MIN_SGL_LENGTH;
+				if (tw_dev->srb[request_id]->sc_data_direction == DMA_TO_DEVICE || tw_dev->srb[request_id]->sc_data_direction == DMA_BIDIRECTIONAL)
+					memcpy(tw_dev->generic_buffer_virt[request_id], tw_dev->srb[request_id]->request_buffer, tw_dev->srb[request_id]->request_bufflen);
 			} else {
 				buffaddr = twa_map_scsi_single_data(tw_dev, request_id);
 				if (buffaddr == 0)
@@ -1823,6 +1826,12 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 
 		if (tw_dev->srb[request_id]->use_sg > 0) {
 			if ((tw_dev->srb[request_id]->use_sg == 1) && (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH)) {
+				if (tw_dev->srb[request_id]->sc_data_direction == DMA_TO_DEVICE || tw_dev->srb[request_id]->sc_data_direction == DMA_BIDIRECTIONAL) {
+					struct scatterlist *sg = (struct scatterlist *)tw_dev->srb[request_id]->request_buffer;
+					char *buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+					memcpy(tw_dev->generic_buffer_virt[request_id], buf, sg->length);
+					kunmap_atomic(buf - sg->offset, KM_IRQ0);
+				}
 				command_packet->sg_list[0].address = tw_dev->generic_buffer_phys[request_id];
 				command_packet->sg_list[0].length = TW_MIN_SGL_LENGTH;
 			} else {
@@ -1888,11 +1897,20 @@ out:
 /* This function completes an execute scsi operation */
 static void twa_scsiop_execute_scsi_complete(TW_Device_Extension *tw_dev, int request_id)
 {
-	/* Copy the response if too small */
-	if ((tw_dev->srb[request_id]->request_buffer) && (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH)) {
-		memcpy(tw_dev->srb[request_id]->request_buffer,
-		       tw_dev->generic_buffer_virt[request_id],
-		       tw_dev->srb[request_id]->request_bufflen);
+	if (tw_dev->srb[request_id]->request_bufflen < TW_MIN_SGL_LENGTH &&
+	    (tw_dev->srb[request_id]->sc_data_direction == DMA_FROM_DEVICE ||
+	     tw_dev->srb[request_id]->sc_data_direction == DMA_BIDIRECTIONAL)) {
+		if (tw_dev->srb[request_id]->use_sg == 0) {
+			memcpy(tw_dev->srb[request_id]->request_buffer,
+			       tw_dev->generic_buffer_virt[request_id],
+			       tw_dev->srb[request_id]->request_bufflen);
+		}
+		if (tw_dev->srb[request_id]->use_sg == 1) {
+			struct scatterlist *sg = (struct scatterlist *)tw_dev->srb[request_id]->request_buffer;
+			char *buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+			memcpy(buf, tw_dev->generic_buffer_virt[request_id], sg->length);
+			kunmap_atomic(buf - sg->offset, KM_IRQ0);
+		}
 	}
 } /* End twa_scsiop_execute_scsi_complete() */
 
