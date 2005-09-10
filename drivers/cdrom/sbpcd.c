@@ -827,8 +827,7 @@ static void mark_timeout_audio(u_long i)
 static void sbp_sleep(u_int time)
 {
 	sti();
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(time);
+	schedule_timeout_interruptible(time);
 	sti();
 }
 /*==========================================================================*/
