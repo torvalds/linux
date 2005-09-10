@@ -131,27 +131,12 @@ static struct platform_device corgits_device = {
 /*
  * MMC/SD Device
  *
- * The card detect interrupt isn't debounced so we delay it by HZ/4
+ * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-static struct mmc_detect {
-	struct timer_list detect_timer;
-	void *devid;
-} mmc_detect;
+static struct pxamci_platform_data corgi_mci_platform_data;
 
-static void mmc_detect_callback(unsigned long data)
-{
-	mmc_detect_change(mmc_detect.devid);
-}
-
-static irqreturn_t corgi_mmc_detect_int(int irq, void *devid, struct pt_regs *regs)
-{
-	mmc_detect.devid=devid;
-	mod_timer(&mmc_detect.detect_timer, jiffies + HZ/4);
-	return IRQ_HANDLED;
-}
-
-static int corgi_mci_init(struct device *dev, irqreturn_t (*unused_detect_int)(int, void *, struct pt_regs *), void *data)
+static int corgi_mci_init(struct device *dev, irqreturn_t (*corgi_detect_int)(int, void *, struct pt_regs *), void *data)
 {
 	int err;
 
@@ -161,11 +146,9 @@ static int corgi_mci_init(struct device *dev, irqreturn_t (*unused_detect_int)(i
 	pxa_gpio_mode(CORGI_GPIO_nSD_DETECT | GPIO_IN);
 	pxa_gpio_mode(CORGI_GPIO_SD_PWR | GPIO_OUT);
 
-	init_timer(&mmc_detect.detect_timer);
-	mmc_detect.detect_timer.function = mmc_detect_callback;
-	mmc_detect.detect_timer.data = (unsigned long) &mmc_detect;
+	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_mmc_detect_int, SA_INTERRUPT,
+	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int, SA_INTERRUPT,
 			     "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "corgi_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
@@ -198,7 +181,6 @@ static int corgi_mci_get_ro(struct device *dev)
 static void corgi_mci_exit(struct device *dev, void *data)
 {
 	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
-	del_timer(&mmc_detect.detect_timer);
 }
 
 static struct pxamci_platform_data corgi_mci_platform_data = {
