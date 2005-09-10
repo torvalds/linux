@@ -207,6 +207,19 @@ int sys_ptrace(long request, long pid, long addr, long data)
 		break;
 	}
 
+	case PTRACE_GET_DEBUGREG: {
+		ret = -EINVAL;
+		/* We only support one DABR and no IABRS at the moment */
+		if (addr > 0)
+			break;
+		ret = put_user(child->thread.dabr,
+			       (unsigned long __user *)data);
+		break;
+	}
+
+	case PTRACE_SET_DEBUGREG:
+		ret = ptrace_set_debugreg(child, addr, data);
+
 	case PTRACE_DETACH:
 		ret = ptrace_detach(child, data);
 		break;

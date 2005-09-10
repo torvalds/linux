@@ -13,6 +13,7 @@
 #define _PPC64_PTRACE_COMMON_H
 
 #include <linux/config.h>
+#include <asm/system.h>
 
 /*
  * Set of msr bits that gdb can change on behalf of a process.
@@ -140,5 +141,24 @@ static inline int set_vrregs(struct task_struct *task,
 	return 0;
 }
 #endif
+
+static inline int ptrace_set_debugreg(struct task_struct *task,
+				      unsigned long addr, unsigned long data)
+{
+	/* We only support one DABR and no IABRS at the moment */
+	if (addr > 0)
+		return -EINVAL;
+
+	/* The bottom 3 bits are flags */
+	if ((data & ~0x7UL) >= TASK_SIZE)
+		return -EIO;
+
+	/* Ensure translation is on */
+	if (data && !(data & DABR_TRANSLATION))
+		return -EIO;
+
+	task->thread.dabr = data;
+	return 0;
+}
 
 #endif /* _PPC64_PTRACE_COMMON_H */
