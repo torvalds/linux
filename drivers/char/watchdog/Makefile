@@ -50,10 +50,10 @@ obj-$(CONFIG_MACHZ_WDT) += machzwd.o
 
 # PowerPC Architecture
 obj-$(CONFIG_8xx_WDT) += mpc8xx_wdt.o
+obj-$(CONFIG_BOOKE_WDT) += booke_wdt.o
 
 # PPC64 Architecture
 obj-$(CONFIG_WATCHDOG_RTAS) += wdrtas.o
-obj-$(CONFIG_BOOKE_WDT) += booke_wdt.o
 
 # MIPS Architecture
 obj-$(CONFIG_INDYDOG) += indydog.o

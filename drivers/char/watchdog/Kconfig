@@ -84,6 +84,17 @@ config 977_WATCHDOG
 
 	  Not sure? It's safe to say N.
 
+config IXP2000_WATCHDOG
+	tristate "IXP2000 Watchdog"
+	depends on WATCHDOG && ARCH_IXP2000
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in the Intel IXP2000(2400, 2800, 2850) network processors.
+	  This driver can be built as a module by choosing M. The module
+	  will be called ixp2000_wdt.
+
+	  Say N if you are unsure.
+
 config IXP4XX_WATCHDOG
 	tristate "IXP4xx Watchdog"
 	depends on WATCHDOG && ARCH_IXP4XX
@@ -97,17 +108,6 @@ config IXP4XX_WATCHDOG
 	  which doesn't reset any peripherals. There are circumstances
 	  where the watchdog will fail to reset the board correctly
 	  (e.g., if the boot ROM is in an unreadable state).
-
-	  Say N if you are unsure.
-
-config IXP2000_WATCHDOG
-	tristate "IXP2000 Watchdog"
-	depends on WATCHDOG && ARCH_IXP2000
-	help
-	  Say Y here if to include support for the watchdog timer
-	  in the Intel IXP2000(2400, 2800, 2850) network processors.
-	  This driver can be built as a module by choosing M. The module
-	  will be called ixp2000_wdt.
 
 	  Say N if you are unsure.
 
@@ -353,6 +353,17 @@ config BOOKE_WDT
 	  Please see Documentation/watchdog/watchdog-api.txt for
 	  more information.
 
+# PPC64 Architecture
+
+config WATCHDOG_RTAS
+	tristate "RTAS watchdog"
+	depends on WATCHDOG && PPC_RTAS
+	help
+	  This driver adds watchdog support for the RTAS watchdog.
+
+          To compile this driver as a module, choose M here. The module
+	  will be called wdrtas.
+
 # MIPS Architecture
 
 config INDYDOG
@@ -420,16 +431,6 @@ config WATCHDOG_RIO
 	  Say Y here to support the hardware watchdog capability on Sun RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
-
-# ppc64 RTAS watchdog
-config WATCHDOG_RTAS
-	tristate "RTAS watchdog"
-	depends on WATCHDOG && PPC_RTAS
-	help
-	  This driver adds watchdog support for the RTAS watchdog.
-
-          To compile this driver as a module, choose M here. The module
-	  will be called wdrtas.
 
 #
 # ISA-based Watchdog Cards
