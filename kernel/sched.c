@@ -2580,6 +2580,13 @@ out:
 }
 
 #ifdef CONFIG_SCHED_SMT
+static inline void wakeup_busy_runqueue(runqueue_t *rq)
+{
+	/* If an SMT runqueue is sleeping due to priority reasons wake it up */
+	if (rq->curr == rq->idle && rq->nr_running)
+		resched_task(rq->idle);
+}
+
 static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *tmp, *sd = NULL;
@@ -2613,12 +2620,7 @@ static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 	for_each_cpu_mask(i, sibling_map) {
 		runqueue_t *smt_rq = cpu_rq(i);
 
-		/*
-		 * If an SMT sibling task is sleeping due to priority
-		 * reasons wake it up now.
-		 */
-		if (smt_rq->curr == smt_rq->idle && smt_rq->nr_running)
-			resched_task(smt_rq->idle);
+		wakeup_busy_runqueue(smt_rq);
 	}
 
 	for_each_cpu_mask(i, sibling_map)
@@ -2672,6 +2674,10 @@ static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 		runqueue_t *smt_rq = cpu_rq(i);
 		task_t *smt_curr = smt_rq->curr;
 
+		/* Kernel threads do not participate in dependent sleeping */
+		if (!p->mm || !smt_curr->mm || rt_task(p))
+			goto check_smt_task;
+
 		/*
 		 * If a user task with lower static priority than the
 		 * running task on the SMT sibling is trying to schedule,
@@ -2680,21 +2686,44 @@ static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 		 * task from using an unfair proportion of the
 		 * physical cpu's resources. -ck
 		 */
-		if (((smt_curr->time_slice * (100 - sd->per_cpu_gain) / 100) >
-			task_timeslice(p) || rt_task(smt_curr)) &&
-			p->mm && smt_curr->mm && !rt_task(p))
-				ret = 1;
+		if (rt_task(smt_curr)) {
+			/*
+			 * With real time tasks we run non-rt tasks only
+			 * per_cpu_gain% of the time.
+			 */
+			if ((jiffies % DEF_TIMESLICE) >
+				(sd->per_cpu_gain * DEF_TIMESLICE / 100))
+					ret = 1;
+		} else
+			if (((smt_curr->time_slice * (100 - sd->per_cpu_gain) /
+				100) > task_timeslice(p)))
+					ret = 1;
+
+check_smt_task:
+		if ((!smt_curr->mm && smt_curr != smt_rq->idle) ||
+			rt_task(smt_curr))
+				continue;
+		if (!p->mm) {
+			wakeup_busy_runqueue(smt_rq);
+			continue;
+		}
 
 		/*
-		 * Reschedule a lower priority task on the SMT sibling,
-		 * or wake it up if it has been put to sleep for priority
-		 * reasons.
+		 * Reschedule a lower priority task on the SMT sibling for
+		 * it to be put to sleep, or wake it up if it has been put to
+		 * sleep for priority reasons to see if it should run now.
 		 */
-		if ((((p->time_slice * (100 - sd->per_cpu_gain) / 100) >
-			task_timeslice(smt_curr) || rt_task(p)) &&
-			smt_curr->mm && p->mm && !rt_task(smt_curr)) ||
-			(smt_curr == smt_rq->idle && smt_rq->nr_running))
-				resched_task(smt_curr);
+		if (rt_task(p)) {
+			if ((jiffies % DEF_TIMESLICE) >
+				(sd->per_cpu_gain * DEF_TIMESLICE / 100))
+					resched_task(smt_curr);
+		} else {
+			if ((p->time_slice * (100 - sd->per_cpu_gain) / 100) >
+				task_timeslice(smt_curr))
+					resched_task(smt_curr);
+			else
+				wakeup_busy_runqueue(smt_rq);
+		}
 	}
 out_unlock:
 	for_each_cpu_mask(i, sibling_map)
