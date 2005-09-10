@@ -1315,6 +1315,7 @@ error3:	atomic_dec(&cm_id_priv->refcount);
 	cm_deref_id(listen_cm_id_priv);
 	cm_cleanup_timewait(cm_id_priv->timewait_info);
 error2:	kfree(cm_id_priv->timewait_info);
+	cm_id_priv->timewait_info = NULL;
 error1:	ib_destroy_cm_id(&cm_id_priv->id);
 	return ret;
 }
