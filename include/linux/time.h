@@ -29,18 +29,9 @@ struct timezone {
 
 /* Parameters used to convert the timespec values */
 #define MSEC_PER_SEC (1000L)
-
-#ifndef USEC_PER_SEC
 #define USEC_PER_SEC (1000000L)
-#endif
-
-#ifndef NSEC_PER_SEC
 #define NSEC_PER_SEC (1000000000L)
-#endif
-
-#ifndef NSEC_PER_USEC
 #define NSEC_PER_USEC (1000L)
-#endif
 
 static __inline__ int timespec_equal(struct timespec *a, struct timespec *b) 
 { 
