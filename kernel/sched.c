@@ -2104,8 +2104,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		 */
 		double_lock_balance(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
-						imbalance, sd, idle,
-						&all_pinned);
+					imbalance, sd, idle, &all_pinned);
 		spin_unlock(&busiest->lock);
 
 		/* All tasks on this runqueue were pinned by CPU affinity */
@@ -2200,18 +2199,22 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 
 	BUG_ON(busiest == this_rq);
 
-	/* Attempt to move tasks */
-	double_lock_balance(this_rq, busiest);
-
 	schedstat_add(sd, lb_imbalance[NEWLY_IDLE], imbalance);
-	nr_moved = move_tasks(this_rq, this_cpu, busiest,
+
+	nr_moved = 0;
+	if (busiest->nr_running > 1) {
+		/* Attempt to move tasks */
+		double_lock_balance(this_rq, busiest);
+		nr_moved = move_tasks(this_rq, this_cpu, busiest,
 					imbalance, sd, NEWLY_IDLE, NULL);
+		spin_unlock(&busiest->lock);
+	}
+
 	if (!nr_moved)
 		schedstat_inc(sd, lb_failed[NEWLY_IDLE]);
 	else
 		sd->nr_balance_failed = 0;
 
-	spin_unlock(&busiest->lock);
 	return nr_moved;
 
 out_balanced:
