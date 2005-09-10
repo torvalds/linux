@@ -2075,7 +2075,6 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 	int nr_moved, all_pinned = 0;
 	int active_balance = 0;
 
-	spin_lock(&this_rq->lock);
 	schedstat_inc(sd, lb_cnt[idle]);
 
 	group = find_busiest_group(sd, this_cpu, &imbalance, idle);
@@ -2102,17 +2101,15 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		 * still unbalanced. nr_moved simply stays zero, so it is
 		 * correctly treated as an imbalance.
 		 */
-		double_lock_balance(this_rq, busiest);
+		double_rq_lock(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
 					imbalance, sd, idle, &all_pinned);
-		spin_unlock(&busiest->lock);
+		double_rq_unlock(this_rq, busiest);
 
 		/* All tasks on this runqueue were pinned by CPU affinity */
 		if (unlikely(all_pinned))
 			goto out_balanced;
 	}
-
-	spin_unlock(&this_rq->lock);
 
 	if (!nr_moved) {
 		schedstat_inc(sd, lb_failed[idle]);
@@ -2156,8 +2153,6 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 	return nr_moved;
 
 out_balanced:
-	spin_unlock(&this_rq->lock);
-
 	schedstat_inc(sd, lb_balanced[idle]);
 
 	sd->nr_balance_failed = 0;
