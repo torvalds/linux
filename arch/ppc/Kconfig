@@ -265,6 +265,15 @@ config PPC601_SYNC_FIX
 
 	  If in doubt, say Y here.
 
+config HOTPLUG_CPU
+	bool "Support for enabling/disabling CPUs"
+	depends on SMP && HOTPLUG && EXPERIMENTAL && PPC_PMAC
+	---help---
+	  Say Y here to be able to disable and re-enable individual
+	  CPUs at runtime on SMP machines.
+
+	  Say N if you are unsure.
+
 source arch/ppc/platforms/4xx/Kconfig
 source arch/ppc/platforms/85xx/Kconfig
 
