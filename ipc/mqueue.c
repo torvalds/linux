@@ -69,7 +69,7 @@ struct mqueue_inode_info {
 
 	struct sigevent notify;
 	pid_t notify_owner;
- 	struct user_struct *user;	/* user who created, for accouting */
+	struct user_struct *user;	/* user who created, for accounting */
 	struct sock *notify_sock;
 	struct sk_buff *notify_cookie;
 

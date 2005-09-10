@@ -74,7 +74,7 @@ static DEFINE_SPINLOCK(pers_lock);
  * Current RAID-1,4,5 parallel reconstruction 'guaranteed speed limit'
  * is 1000 KB/sec, so the extra system load does not show up that much.
  * Increase it if you want to have more _guaranteed_ speed. Note that
- * the RAID driver will use the maximum available bandwith if the IO
+ * the RAID driver will use the maximum available bandwidth if the IO
  * subsystem is idle. There is also an 'absolute maximum' reconstruction
  * speed limit - in case reconstruction slows down your system despite
  * idle IO detection.
@@ -3616,7 +3616,7 @@ static void md_do_sync(mddev_t *mddev)
 	printk(KERN_INFO "md: syncing RAID array %s\n", mdname(mddev));
 	printk(KERN_INFO "md: minimum _guaranteed_ reconstruction speed:"
 		" %d KB/sec/disc.\n", sysctl_speed_limit_min);
-	printk(KERN_INFO "md: using maximum available idle IO bandwith "
+	printk(KERN_INFO "md: using maximum available idle IO bandwidth "
 	       "(but not more than %d KB/sec) for reconstruction.\n",
 	       sysctl_speed_limit_max);
 
