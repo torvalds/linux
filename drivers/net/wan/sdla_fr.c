@@ -822,7 +822,7 @@ static int new_if(struct wan_device* wandev, struct net_device* dev,
 	chan->card = card;
 
 	/* verify media address */
-	if (is_digit(conf->addr[0])) {
+	if (isdigit(conf->addr[0])) {
 
 		dlci = dec_to_uint(conf->addr, 0);
 
@@ -3456,7 +3456,7 @@ static unsigned int dec_to_uint (unsigned char* str, int len)
 	if (!len) 
 		len = strlen(str);
 
-	for (val = 0; len && is_digit(*str); ++str, --len)
+	for (val = 0; len && isdigit(*str); ++str, --len)
 		val = (val * 10) + (*str - (unsigned)'0');
 
 	return val;

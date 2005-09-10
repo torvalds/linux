@@ -37,8 +37,6 @@
 #include <linux/cycx_x25.h>
 #endif
 
-#define	is_digit(ch) (((ch)>=(unsigned)'0'&&(ch)<=(unsigned)'9')?1:0)
-
 /* Adapter Data Space.
  * This structure is needed because we handle multiple cards, otherwise
  * static data would do it.
