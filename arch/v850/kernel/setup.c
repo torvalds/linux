@@ -138,13 +138,13 @@ static void nmi_end (unsigned irq)
 }
 
 static struct hw_interrupt_type nmi_irq_type = {
-	"NMI",
-	irq_zero,		/* startup */
-	irq_nop,		/* shutdown */
-	irq_nop,		/* enable */
-	irq_nop,		/* disable */
-	irq_nop,		/* ack */
-	nmi_end,		/* end */
+	.typename = "NMI",
+	.startup = irq_zero,		/* startup */
+	.shutdown = irq_nop,		/* shutdown */
+	.enable = irq_nop,		/* enable */
+	.disable = irq_nop,		/* disable */
+	.ack = irq_nop,		/* ack */
+	.end = nmi_end,		/* end */
 };
 
 void __init init_IRQ (void)
