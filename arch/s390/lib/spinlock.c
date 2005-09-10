@@ -36,7 +36,7 @@ _diag44(void)
 }
 
 void
-_raw_spin_lock_wait(spinlock_t *lp, unsigned int pc)
+_raw_spin_lock_wait(raw_spinlock_t *lp, unsigned int pc)
 {
 	int count = spin_retry;
 
@@ -53,7 +53,7 @@ _raw_spin_lock_wait(spinlock_t *lp, unsigned int pc)
 EXPORT_SYMBOL(_raw_spin_lock_wait);
 
 int
-_raw_spin_trylock_retry(spinlock_t *lp, unsigned int pc)
+_raw_spin_trylock_retry(raw_spinlock_t *lp, unsigned int pc)
 {
 	int count = spin_retry;
 
@@ -67,7 +67,7 @@ _raw_spin_trylock_retry(spinlock_t *lp, unsigned int pc)
 EXPORT_SYMBOL(_raw_spin_trylock_retry);
 
 void
-_raw_read_lock_wait(rwlock_t *rw)
+_raw_read_lock_wait(raw_rwlock_t *rw)
 {
 	unsigned int old;
 	int count = spin_retry;
@@ -86,7 +86,7 @@ _raw_read_lock_wait(rwlock_t *rw)
 EXPORT_SYMBOL(_raw_read_lock_wait);
 
 int
-_raw_read_trylock_retry(rwlock_t *rw)
+_raw_read_trylock_retry(raw_rwlock_t *rw)
 {
 	unsigned int old;
 	int count = spin_retry;
@@ -102,7 +102,7 @@ _raw_read_trylock_retry(rwlock_t *rw)
 EXPORT_SYMBOL(_raw_read_trylock_retry);
 
 void
-_raw_write_lock_wait(rwlock_t *rw)
+_raw_write_lock_wait(raw_rwlock_t *rw)
 {
 	int count = spin_retry;
 
@@ -119,7 +119,7 @@ _raw_write_lock_wait(rwlock_t *rw)
 EXPORT_SYMBOL(_raw_write_lock_wait);
 
 int
-_raw_write_trylock_retry(rwlock_t *rw)
+_raw_write_trylock_retry(raw_rwlock_t *rw)
 {
 	int count = spin_retry;
 

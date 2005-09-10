@@ -491,12 +491,7 @@ init_handler_platform (pal_min_state_area_t *ms,
 	unw_init_from_interruption(&info, current, pt, sw);
 	ia64_do_show_stack(&info, NULL);
 
-#ifdef CONFIG_SMP
-	/* read_trylock() would be handy... */
-	if (!tasklist_lock.write_lock)
-		read_lock(&tasklist_lock);
-#endif
-	{
+	if (read_trylock(&tasklist_lock)) {
 		struct task_struct *g, *t;
 		do_each_thread (g, t) {
 			if (t == current)
@@ -506,10 +501,6 @@ init_handler_platform (pal_min_state_area_t *ms,
 			show_stack(t, NULL);
 		} while_each_thread (g, t);
 	}
-#ifdef CONFIG_SMP
-	if (!tasklist_lock.write_lock)
-		read_unlock(&tasklist_lock);
-#endif
 
 	printk("\nINIT dump complete.  Please reboot now.\n");
 	while (1);			/* hang city if no debugger */

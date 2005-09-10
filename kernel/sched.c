@@ -1511,6 +1511,10 @@ static inline void finish_task_switch(runqueue_t *rq, task_t *prev)
 	 *		Manfred Spraul <manfred@colorfullife.com>
 	 */
 	prev_task_flags = prev->flags;
+#ifdef CONFIG_DEBUG_SPINLOCK
+	/* this is a valid case when another task releases the spinlock */
+	rq->lock.owner = current;
+#endif
 	finish_arch_switch(prev);
 	finish_lock_switch(rq, prev);
 	if (mm)
