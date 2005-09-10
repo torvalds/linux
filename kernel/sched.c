@@ -1910,6 +1910,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 {
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
+	unsigned long max_pull;
 	int load_idx;
 
 	max_load = this_load = total_load = total_pwr = 0;
@@ -1959,7 +1960,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		group = group->next;
 	} while (group != sd->groups);
 
-	if (!busiest || this_load >= max_load)
+	if (!busiest || this_load >= max_load || max_load <= SCHED_LOAD_SCALE)
 		goto out_balanced;
 
 	avg_load = (SCHED_LOAD_SCALE * total_load) / total_pwr;
@@ -1979,8 +1980,12 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 * by pulling tasks to us.  Be careful of negative numbers as they'll
 	 * appear as very large values with unsigned longs.
 	 */
+
+	/* Don't want to pull so many tasks that a group would go idle */
+	max_pull = min(max_load - avg_load, max_load - SCHED_LOAD_SCALE);
+
 	/* How much load to actually move to equalise the imbalance */
-	*imbalance = min((max_load - avg_load) * busiest->cpu_power,
+	*imbalance = min(max_pull * busiest->cpu_power,
 				(avg_load - this_load) * this->cpu_power)
 			/ SCHED_LOAD_SCALE;
 
