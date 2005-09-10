@@ -3938,7 +3938,7 @@ asmlinkage long sys_sched_yield(void)
 	if (rt_task(current))
 		target = rq->active;
 
-	if (current->array->nr_active == 1) {
+	if (array->nr_active == 1) {
 		schedstat_inc(rq, yld_act_empty);
 		if (!rq->expired->nr_active)
 			schedstat_inc(rq, yld_both_empty);
