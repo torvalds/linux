@@ -406,8 +406,7 @@ ipv6_invert_rthdr(struct sock *sk, struct ipv6_rt_hdr *hdr)
 
 	memcpy(opt->srcrt, hdr, sizeof(*hdr));
 	irthdr = (struct rt0_hdr*)opt->srcrt;
-	/* Obsolete field, MBZ, when originated by us */
-	irthdr->bitmap = 0;
+	irthdr->reserved = 0;
 	opt->srcrt->segments_left = n;
 	for (i=0; i<n; i++)
 		memcpy(irthdr->addr+i, rthdr->addr+(n-1-i), 16);
