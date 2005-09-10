@@ -2125,6 +2125,16 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		if (unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2)) {
 
 			spin_lock(&busiest->lock);
+
+			/* don't kick the migration_thread, if the curr
+			 * task on busiest cpu can't be moved to this_cpu
+			 */
+			if (!cpu_isset(this_cpu, busiest->curr->cpus_allowed)) {
+				spin_unlock(&busiest->lock);
+				all_pinned = 1;
+				goto out_one_pinned;
+			}
+
 			if (!busiest->active_balance) {
 				busiest->active_balance = 1;
 				busiest->push_cpu = this_cpu;
@@ -2165,6 +2175,8 @@ out_balanced:
 	schedstat_inc(sd, lb_balanced[idle]);
 
 	sd->nr_balance_failed = 0;
+
+out_one_pinned:
 	/* tune up the balancing interval */
 	if ((all_pinned && sd->balance_interval < MAX_PINNED_INTERVAL) ||
 			(sd->balance_interval < sd->max_interval))
@@ -2357,7 +2369,8 @@ static void rebalance_tick(int this_cpu, runqueue_t *this_rq,
 
 		if (j - sd->last_balance >= interval) {
 			if (load_balance(this_cpu, this_rq, sd, idle)) {
-				/* We've pulled tasks over so either we're no
+				/*
+				 * We've pulled tasks over so either we're no
 				 * longer idle, or one of our SMT siblings is
 				 * not idle.
 				 */
