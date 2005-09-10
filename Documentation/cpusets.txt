@@ -277,7 +277,7 @@ rewritten to the 'tasks' file of its cpuset.  This is done to avoid
 impacting the scheduler code in the kernel with a check for changes
 in a tasks processor placement.
 
-There is an exception to the above.  If hotplug funtionality is used
+There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
 then the kernel will automatically update the cpus_allowed of all
 tasks attached to CPUs in that cpuset to allow all CPUs.  When memory
