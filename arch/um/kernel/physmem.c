@@ -248,16 +248,6 @@ unsigned long high_physmem;
 
 extern unsigned long physmem_size;
 
-void *to_virt(unsigned long phys)
-{
-	return((void *) uml_physmem + phys);
-}
-
-unsigned long to_phys(void *virt)
-{
-	return(((unsigned long) virt) - uml_physmem);
-}
-
 int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 {
 	struct page *p, *map;
@@ -296,31 +286,6 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 
 	max_mapnr = total_pages;
 	return(0);
-}
-
-struct page *phys_to_page(const unsigned long phys)
-{
-	return(&mem_map[phys >> PAGE_SHIFT]);
-}
-
-struct page *__virt_to_page(const unsigned long virt)
-{
-	return(&mem_map[__pa(virt) >> PAGE_SHIFT]);
-}
-
-phys_t page_to_phys(struct page *page)
-{
-	return((page - mem_map) << PAGE_SHIFT);
-}
-
-pte_t mk_pte(struct page *page, pgprot_t pgprot)
-{
-	pte_t pte;
-
-	pte_set_val(pte, page_to_phys(page), pgprot);
-	if(pte_present(pte))
-		pte_mknewprot(pte_mknewpage(pte));
-	return(pte);
 }
 
 /* Changed during early boot */
