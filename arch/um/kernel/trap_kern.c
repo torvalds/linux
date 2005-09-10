@@ -57,7 +57,8 @@ good_area:
 	if(is_write && !(vma->vm_flags & VM_WRITE)) 
 		goto out;
 
-        if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
+	/* Don't require VM_READ|VM_EXEC for write faults! */
+        if(!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
                 goto out;
 
 	do {
