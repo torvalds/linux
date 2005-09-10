@@ -782,6 +782,7 @@ struct task_struct {
 	short il_next;
 #endif
 #ifdef CONFIG_CPUSETS
+	short cpuset_sem_nest_depth;
 	struct cpuset *cpuset;
 	nodemask_t mems_allowed;
 	int cpuset_mems_generation;
