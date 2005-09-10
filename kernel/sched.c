@@ -1906,7 +1906,7 @@ out:
  */
 static struct sched_group *
 find_busiest_group(struct sched_domain *sd, int this_cpu,
-		   unsigned long *imbalance, enum idle_type idle)
+		   unsigned long *imbalance, enum idle_type idle, int *sd_idle)
 {
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
@@ -1931,6 +1931,9 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		avg_load = 0;
 
 		for_each_cpu_mask(i, group->cpumask) {
+			if (*sd_idle && !idle_cpu(i))
+				*sd_idle = 0;
+
 			/* Bias balancing toward cpus of our domain */
 			if (local_group)
 				load = target_load(i, load_idx);
@@ -2074,10 +2077,14 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 	unsigned long imbalance;
 	int nr_moved, all_pinned = 0;
 	int active_balance = 0;
+	int sd_idle = 0;
+
+	if (idle != NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER)
+		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[idle]);
 
-	group = find_busiest_group(sd, this_cpu, &imbalance, idle);
+	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle);
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[idle]);
 		goto out_balanced;
@@ -2150,6 +2157,8 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 			sd->balance_interval *= 2;
 	}
 
+	if (!nr_moved && !sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+		return -1;
 	return nr_moved;
 
 out_balanced:
@@ -2161,6 +2170,8 @@ out_balanced:
 			(sd->balance_interval < sd->max_interval))
 		sd->balance_interval *= 2;
 
+	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+		return -1;
 	return 0;
 }
 
@@ -2178,9 +2189,13 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 	runqueue_t *busiest = NULL;
 	unsigned long imbalance;
 	int nr_moved = 0;
+	int sd_idle = 0;
+
+	if (sd->flags & SD_SHARE_CPUPOWER)
+		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
-	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE);
+	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE, &sd_idle);
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[NEWLY_IDLE]);
 		goto out_balanced;
@@ -2205,15 +2220,19 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 		spin_unlock(&busiest->lock);
 	}
 
-	if (!nr_moved)
+	if (!nr_moved) {
 		schedstat_inc(sd, lb_failed[NEWLY_IDLE]);
-	else
+		if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+			return -1;
+	} else
 		sd->nr_balance_failed = 0;
 
 	return nr_moved;
 
 out_balanced:
 	schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
+	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+		return -1;
 	sd->nr_balance_failed = 0;
 	return 0;
 }
@@ -2338,7 +2357,10 @@ static void rebalance_tick(int this_cpu, runqueue_t *this_rq,
 
 		if (j - sd->last_balance >= interval) {
 			if (load_balance(this_cpu, this_rq, sd, idle)) {
-				/* We've pulled tasks over so no longer idle */
+				/* We've pulled tasks over so either we're no
+				 * longer idle, or one of our SMT siblings is
+				 * not idle.
+				 */
 				idle = NOT_IDLE;
 			}
 			sd->last_balance += interval;
