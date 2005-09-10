@@ -522,7 +522,4 @@ void dccp_send_close(struct sock *sk, const int active)
 		dccp_transmit_skb(sk, skb_clone(skb, prio));
 	} else
 		dccp_transmit_skb(sk, skb);
-
-	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
 }

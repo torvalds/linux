@@ -641,16 +641,12 @@ int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 
 	skb = dccp_make_reset(sk, sk->sk_dst_cache, code);
 	if (skb != NULL) {
-		const struct dccp_sock *dp = dccp_sk(sk);
 		const struct inet_sock *inet = inet_sk(sk);
 
 		err = ip_build_and_send_pkt(skb, sk,
 					    inet->saddr, inet->daddr, NULL);
 		if (err == NET_XMIT_CN)
 			err = 0;
-
-		ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-		ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
 	}
 
 	return err;
