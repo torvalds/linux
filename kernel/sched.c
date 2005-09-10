@@ -966,8 +966,11 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 		int local_group;
 		int i;
 
+		/* Skip over this group if it has no CPUs allowed */
+		if (!cpus_intersects(group->cpumask, p->cpus_allowed))
+			goto nextgroup;
+
 		local_group = cpu_isset(this_cpu, group->cpumask);
-		/* XXX: put a cpus allowed check */
 
 		/* Tally up the load of all CPUs in the group */
 		avg_load = 0;
@@ -992,6 +995,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 			min_load = avg_load;
 			idlest = group;
 		}
+nextgroup:
 		group = group->next;
 	} while (group != sd->groups);
 
@@ -1003,13 +1007,18 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 /*
  * find_idlest_queue - find the idlest runqueue among the cpus in group.
  */
-static int find_idlest_cpu(struct sched_group *group, int this_cpu)
+static int find_idlest_cpu(struct sched_group *group,
+			struct task_struct *p, int this_cpu)
 {
+	cpumask_t tmp;
 	unsigned long load, min_load = ULONG_MAX;
 	int idlest = -1;
 	int i;
 
-	for_each_cpu_mask(i, group->cpumask) {
+	/* Traverse only the allowed CPUs */
+	cpus_and(tmp, group->cpumask, p->cpus_allowed);
+
+	for_each_cpu_mask(i, tmp) {
 		load = source_load(i, 0);
 
 		if (load < min_load || (load == min_load && i == this_cpu)) {
@@ -1052,7 +1061,7 @@ static int sched_balance_self(int cpu, int flag)
 		if (!group)
 			goto nextlevel;
 
-		new_cpu = find_idlest_cpu(group, cpu);
+		new_cpu = find_idlest_cpu(group, t, cpu);
 		if (new_cpu == -1 || new_cpu == cpu)
 			goto nextlevel;
 
