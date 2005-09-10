@@ -17,6 +17,7 @@
  * this archive for more details.
  */
 
+#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -273,6 +274,20 @@ int sys_ptrace(long request, long pid, long addr, long data)
 		}
 		break;
 	}
+
+#ifdef CONFIG_ALTIVEC
+	case PTRACE_GETVRREGS:
+		/* Get the child altivec register state. */
+		flush_altivec_to_thread(child);
+		ret = get_vrregs((unsigned long __user *)data, child);
+		break;
+
+	case PTRACE_SETVRREGS:
+		/* Set the child altivec register state. */
+		flush_altivec_to_thread(child);
+		ret = set_vrregs(child, (unsigned long __user *)data);
+		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
