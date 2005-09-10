@@ -530,10 +530,8 @@ static inline u_char xd_waitport (u_short port,u_char flags,u_char mask,u_long t
 	int success;
 
 	xdc_busy = 1;
-	while ((success = ((inb(port) & mask) != flags)) && time_before(jiffies, expiry)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while ((success = ((inb(port) & mask) != flags)) && time_before(jiffies, expiry))
+		schedule_timeout_uninterruptible(1);
 	xdc_busy = 0;
 	return (success);
 }
