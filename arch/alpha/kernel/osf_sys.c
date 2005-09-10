@@ -1154,8 +1154,7 @@ osf_usleep_thread(struct timeval32 __user *sleep, struct timeval32 __user *remai
 
 	ticks = timeval_to_jiffies(&tmp);
 
-	current->state = TASK_INTERRUPTIBLE;
-	ticks = schedule_timeout(ticks);
+	ticks = schedule_timeout_interruptible(ticks);
 
 	if (remain) {
 		jiffies_to_timeval(ticks, &tmp);
