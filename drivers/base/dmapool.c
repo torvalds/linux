@@ -262,7 +262,8 @@ dma_pool_destroy (struct dma_pool *pool)
  * If such a memory block can't be allocated, null is returned.
  */
 void *
-dma_pool_alloc (struct dma_pool *pool, int mem_flags, dma_addr_t *handle)
+dma_pool_alloc (struct dma_pool *pool, unsigned int __nocast mem_flags,
+		dma_addr_t *handle)
 {
 	unsigned long		flags;
 	struct dma_page		*page;
