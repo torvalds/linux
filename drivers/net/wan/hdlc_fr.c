@@ -330,7 +330,7 @@ static int pvc_close(struct net_device *dev)
 
 
 
-int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	pvc_device *pvc = dev_to_pvc(dev);
 	fr_proto_pvc_info info;

@@ -48,14 +48,6 @@
   */
 
 /*
- * For lack of a better place, put the SSI cable stuff here.
- */
-char *lmc_t1_cables[] = {
-  "V.10/RS423", "EIA530A", "reserved", "X.21", "V.35",
-  "EIA449/EIA530/V.36", "V.28/EIA232", "none", NULL
-};
-
-/*
  * protocol independent method.
  */
 static void lmc_set_protocol (lmc_softc_t * const, lmc_ctl_t *);

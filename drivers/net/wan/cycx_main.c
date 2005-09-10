@@ -103,7 +103,7 @@ static struct cycx_device *cycx_card_array;	/* adapter data space */
  *		< 0	error.
  * Context:	process
  */
-int __init cycx_init(void)
+static int __init cycx_init(void)
 {
 	int cnt, err = -ENOMEM;
 

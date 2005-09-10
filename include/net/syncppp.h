@@ -86,7 +86,6 @@ static inline struct sppp *sppp_of(struct net_device *dev)
 
 void sppp_attach (struct ppp_device *pd);
 void sppp_detach (struct net_device *dev);
-void sppp_input (struct net_device *dev, struct sk_buff *m);
 int sppp_do_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd);
 struct sk_buff *sppp_dequeue (struct net_device *dev);
 int sppp_isempty (struct net_device *dev);
