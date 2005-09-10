@@ -221,6 +221,20 @@ struct in6_flowlabel_req
 #define IPV6_DONTFRAG		62
 #define IPV6_USE_MIN_MTU	63
 #endif
+
+/*
+ * Netfilter
+ *
+ * Following socket options are used in ip6_tables;
+ * see include/linux/netfilter_ipv6/ip6_tables.h.
+ *
+ * IP6T_SO_SET_REPLACE / IP6T_SO_GET_INFO		64
+ * IP6T_SO_SET_ADD_COUNTERS / IP6T_SO_GET_ENTRIES	65
+ */
+
+/*
+ * Advanced API (RFC3542) (2)
+ */
 #define IPV6_RECVTCLASS		66
 #define IPV6_TCLASS		67
 
