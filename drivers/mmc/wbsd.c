@@ -1112,20 +1112,6 @@ static void wbsd_reset_ignore(unsigned long data)
 }
 
 /*
- * Helper function for card detection
- */
-static void wbsd_detect_card(unsigned long data)
-{
-	struct wbsd_host *host = (struct wbsd_host*)data;
-	
-	BUG_ON(host == NULL);
-	
-	DBG("Executing card detection\n");
-	
-	mmc_detect_change(host->mmc, 0);	
-}
-
-/*
  * Tasklets
  */
 
@@ -1169,14 +1155,16 @@ static void wbsd_tasklet_card(unsigned long param)
 			DBG("Card inserted\n");
 			host->flags |= WBSD_FCARD_PRESENT;
 			
+			spin_unlock(&host->lock);
+
 			/*
 			 * Delay card detection to allow electrical connections
 			 * to stabilise.
 			 */
-			mod_timer(&host->detect_timer, jiffies + HZ/2);
+			mmc_detect_change(host->mmc, msecs_to_jiffies(500));
 		}
-		
-		spin_unlock(&host->lock);
+		else
+			spin_unlock(&host->lock);
 	}
 	else if (host->flags & WBSD_FCARD_PRESENT)
 	{
@@ -1409,10 +1397,6 @@ static int __devinit wbsd_alloc_mmc(struct device* dev)
 	/*
 	 * Set up timers
 	 */
-	init_timer(&host->detect_timer);
-	host->detect_timer.data = (unsigned long)host;
-	host->detect_timer.function = wbsd_detect_card;
-
 	init_timer(&host->ignore_timer);
 	host->ignore_timer.data = (unsigned long)host;
 	host->ignore_timer.function = wbsd_reset_ignore;
@@ -1454,7 +1438,6 @@ static void __devexit wbsd_free_mmc(struct device* dev)
 	BUG_ON(host == NULL);
 	
 	del_timer_sync(&host->ignore_timer);
-	del_timer_sync(&host->detect_timer);
 	
 	mmc_free_host(mmc);
 	
