@@ -85,8 +85,7 @@ survive:
 		pte = pte_offset_kernel(pmd, address);
 	} while(!pte_present(*pte));
 	err = 0;
-	*pte = pte_mkyoung(*pte);
-	if(pte_write(*pte)) *pte = pte_mkdirty(*pte);
+	WARN_ON(!pte_young(*pte) || (is_write && !pte_dirty(*pte)));
 	flush_tlb_page(vma, address);
 out:
 	up_read(&mm->mmap_sem);
