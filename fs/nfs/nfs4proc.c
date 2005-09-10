@@ -2418,14 +2418,11 @@ static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
 		*timeout = NFS4_POLL_RETRY_MAX;
 	rpc_clnt_sigmask(clnt, &oldset);
 	if (clnt->cl_intr) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(*timeout);
+		schedule_timeout_interruptible(*timeout);
 		if (signalled())
 			res = -ERESTARTSYS;
-	} else {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(*timeout);
-	}
+	} else
+		schedule_timeout_uninterruptible(*timeout);
 	rpc_clnt_sigunmask(clnt, &oldset);
 	*timeout <<= 1;
 	return res;
@@ -2578,8 +2575,7 @@ int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4
 static unsigned long
 nfs4_set_lock_task_retry(unsigned long timeout)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(timeout);
+	schedule_timeout_interruptible(timeout);
 	timeout <<= 1;
 	if (timeout > NFS4_LOCK_MAXTIMEOUT)
 		return NFS4_LOCK_MAXTIMEOUT;

@@ -34,8 +34,7 @@ nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 		res = rpc_call_sync(clnt, msg, flags);
 		if (res != -EJUKEBOX)
 			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(NFS_JUKEBOX_RETRY_TIME);
+		schedule_timeout_interruptible(NFS_JUKEBOX_RETRY_TIME);
 		res = -ERESTARTSYS;
 	} while (!signalled());
 	rpc_clnt_sigunmask(clnt, &oldset);
