@@ -1264,6 +1264,19 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 }
 EXPORT_SYMBOL(__scsi_add_device);
 
+int scsi_add_device(struct Scsi_Host *host, uint channel,
+		    uint target, uint lun)
+{
+	struct scsi_device *sdev = 
+		__scsi_add_device(host, channel, target, lun, NULL);
+	if (IS_ERR(sdev))
+		return PTR_ERR(sdev);
+
+	scsi_device_put(sdev);
+	return 0;
+}
+EXPORT_SYMBOL(scsi_add_device);
+
 void scsi_rescan_device(struct device *dev)
 {
 	struct scsi_driver *drv;
