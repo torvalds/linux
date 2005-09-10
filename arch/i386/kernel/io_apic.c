@@ -573,8 +573,7 @@ static int balanced_irq(void *unused)
 	}
 
 	for ( ; ; ) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		time_remaining = schedule_timeout(time_remaining);
+		time_remaining = schedule_timeout_interruptible(time_remaining);
 		try_to_freeze();
 		if (time_after(jiffies,
 				prev_balance_time+balanced_irq_interval)) {
