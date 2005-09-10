@@ -1920,8 +1920,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	for (;;)
 	{
 		if (smi_result == SI_SM_CALL_WITH_DELAY) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 			smi_result = smi_info->handlers->event(
 				smi_info->si_sm, 100);
 		}
@@ -2256,10 +2255,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */
-	while (! new_smi->timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (!new_smi->timer_stopped)
+		schedule_timeout_uninterruptible(1);
 
  out_err:
 	if (new_smi->intf)
@@ -2379,17 +2376,14 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */
-	while (! to_clean->timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (!to_clean->timer_stopped)
+		schedule_timeout_uninterruptible(1);
 
 	/* Interrupts and timeouts are stopped, now make sure the
 	   interface is in a clean state. */
 	while (to_clean->curr_msg || (to_clean->si_state != SI_NORMAL)) {
 		poll(to_clean);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	rv = ipmi_unregister_smi(to_clean->intf);
