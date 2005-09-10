@@ -189,6 +189,13 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define PTRACE_SETEVRREGS       21
 #endif
 
+/*
+ * Get or set a debug register. The first 16 are DABR registers and the
+ * second 16 are IABR registers.
+ */
+#define PTRACE_GET_DEBUGREG	25
+#define PTRACE_SET_DEBUGREG	26
+
 /* Additional PTRACE requests implemented on PowerPC. */
 #define PPC_PTRACE_GETREGS	0x99	/* Get GPRs 0 - 31 */
 #define PPC_PTRACE_SETREGS	0x98	/* Set GPRs 0 - 31 */
