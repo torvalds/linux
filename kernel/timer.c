@@ -1154,6 +1154,20 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
 
 EXPORT_SYMBOL(schedule_timeout);
 
+signed long __sched schedule_timeout_interruptible(signed long timeout)
+{
+       set_current_state(TASK_INTERRUPTIBLE);
+       return schedule_timeout(timeout);
+}
+EXPORT_SYMBOL(schedule_timeout_interruptible);
+
+signed long __sched schedule_timeout_uninterruptible(signed long timeout)
+{
+       set_current_state(TASK_UNINTERRUPTIBLE);
+       return schedule_timeout(timeout);
+}
+EXPORT_SYMBOL(schedule_timeout_uninterruptible);
+
 /* Thread ID - the internal kernel "pid" */
 asmlinkage long sys_gettid(void)
 {
