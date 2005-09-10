@@ -2650,6 +2650,16 @@ static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 	 */
 }
 
+/*
+ * number of 'lost' timeslices this task wont be able to fully
+ * utilize, if another task runs on a sibling. This models the
+ * slowdown effect of other tasks running on siblings:
+ */
+static inline unsigned long smt_slice(task_t *p, struct sched_domain *sd)
+{
+	return p->time_slice * (100 - sd->per_cpu_gain) / 100;
+}
+
 static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *tmp, *sd = NULL;
@@ -2714,8 +2724,9 @@ static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 				(sd->per_cpu_gain * DEF_TIMESLICE / 100))
 					ret = 1;
 		} else
-			if (((smt_curr->time_slice * (100 - sd->per_cpu_gain) /
-				100) > task_timeslice(p)))
+			if (smt_curr->static_prio < p->static_prio &&
+				!TASK_PREEMPTS_CURR(p, smt_rq) &&
+				smt_slice(smt_curr, sd) > task_timeslice(p))
 					ret = 1;
 
 check_smt_task:
@@ -2737,8 +2748,8 @@ check_smt_task:
 				(sd->per_cpu_gain * DEF_TIMESLICE / 100))
 					resched_task(smt_curr);
 		} else {
-			if ((p->time_slice * (100 - sd->per_cpu_gain) / 100) >
-				task_timeslice(smt_curr))
+			if (TASK_PREEMPTS_CURR(p, smt_rq) &&
+				smt_slice(p, sd) > task_timeslice(smt_curr))
 					resched_task(smt_curr);
 			else
 				wakeup_busy_runqueue(smt_rq);
