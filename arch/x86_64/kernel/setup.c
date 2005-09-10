@@ -929,7 +929,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
  	c->x86_num_cores = intel_num_cpu_cores(c);
 }
 
-void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
+static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
 

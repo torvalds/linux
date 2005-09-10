@@ -8,7 +8,6 @@
 struct cpuinfo_x86; 
 struct pt_regs;
 
-extern void get_cpu_vendor(struct cpuinfo_x86*);
 extern void start_kernel(void);
 extern void pda_init(int); 
 
