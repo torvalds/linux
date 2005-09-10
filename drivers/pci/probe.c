@@ -72,11 +72,13 @@ void pci_remove_legacy_files(struct pci_bus *bus) { return; }
 /*
  * PCI Bus Class Devices
  */
-static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev, char *buf)
+static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev,
+					char *buf)
 {
-	cpumask_t cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
 	int ret;
+	cpumask_t cpumask;
 
+	cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
 	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
 	if (ret < PAGE_SIZE)
 		buf[ret++] = '\n';
