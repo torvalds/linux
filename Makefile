@@ -814,7 +814,7 @@ ifneq ($(KBUILD_MODULES),)
 endif
 
 prepare0: prepare prepare1 FORCE
-	$(Q)$(MAKE) $(build)=$(srctree)
+	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
 prepare-all: prepare0
