@@ -4216,7 +4216,8 @@ static int sbpcd_dev_ioctl(struct cdrom_device_info *cdi, u_int cmd,
 		
 	case CDROMAUDIOBUFSIZ: /* configure the audio buffer size */
 		msg(DBG_IOC,"ioctl: CDROMAUDIOBUFSIZ entered.\n");
-		if (current_drive->sbp_audsiz>0) vfree(current_drive->aud_buf);
+		if (current_drive->sbp_audsiz>0)
+			vfree(current_drive->aud_buf);
 		current_drive->aud_buf=NULL;
 		current_drive->sbp_audsiz=arg;
 		
@@ -5910,7 +5911,8 @@ static void sbpcd_exit(void)
 		put_disk(D_S[j].disk);
 		devfs_remove("sbp/c0t%d", j);
 		vfree(D_S[j].sbp_buf);
-		if (D_S[j].sbp_audsiz>0) vfree(D_S[j].aud_buf);
+		if (D_S[j].sbp_audsiz>0)
+			vfree(D_S[j].aud_buf);
 		if ((unregister_cdrom(D_S[j].sbpcd_infop) == -EINVAL))
 		{
 			msg(DBG_INF, "What's that: can't unregister info %s.\n", major_name);

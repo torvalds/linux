@@ -2184,30 +2184,18 @@ static void release_saa(void)
 		vfree(saa->vidbuf);
 		vfree(saa->audbuf);
 		vfree(saa->osdbuf);
-		if (saa->dmavid2)
-			kfree((void *) saa->dmavid2);
+		kfree(saa->dmavid2);
 		saa->audbuf = saa->vidbuf = saa->osdbuf = NULL;
 		saa->dmavid2 = NULL;
-		if (saa->dmadebi)
-			kfree((void *) saa->dmadebi);
-		if (saa->dmavid1)
-			kfree((void *) saa->dmavid1);
-		if (saa->dmavid2)
-			kfree((void *) saa->dmavid2);
-		if (saa->dmavid3)
-			kfree((void *) saa->dmavid3);
-		if (saa->dmaa1in)
-			kfree((void *) saa->dmaa1in);
-		if (saa->dmaa1out)
-			kfree((void *) saa->dmaa1out);
-		if (saa->dmaa2in)
-			kfree((void *) saa->dmaa2in);
-		if (saa->dmaa2out)
-			kfree((void *) saa->dmaa2out);
-		if (saa->dmaRPS1)
-			kfree((void *) saa->dmaRPS1);
-		if (saa->dmaRPS2)
-			kfree((void *) saa->dmaRPS2);
+		kfree(saa->dmadebi);
+		kfree(saa->dmavid1);
+		kfree(saa->dmavid3);
+		kfree(saa->dmaa1in);
+		kfree(saa->dmaa1out);
+		kfree(saa->dmaa2in);
+		kfree(saa->dmaa2out);
+		kfree(saa->dmaRPS1);
+		kfree(saa->dmaRPS2);
 		free_irq(saa->irq, saa);
 		if (saa->saa7146_mem)
 			iounmap(saa->saa7146_mem);

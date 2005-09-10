@@ -267,10 +267,10 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 		kfree(dma->pages);
 		dma->pages = NULL;
 	}
-	if (dma->vmalloc) {
-		vfree(dma->vmalloc);
-		dma->vmalloc = NULL;
-	}
+
+	vfree(dma->vmalloc);
+	dma->vmalloc = NULL;
+
 	if (dma->bus_addr) {
 		dma->bus_addr = 0;
 	}
