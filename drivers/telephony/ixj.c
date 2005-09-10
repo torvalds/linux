@@ -2071,8 +2071,7 @@ static int ixj_ring(IXJ *j)
 				j->flags.ringing = 0;
 				return 1;
 			}
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 			if (signal_pending(current))
 				break;
 		}
@@ -2086,8 +2085,7 @@ static int ixj_ring(IXJ *j)
 					return 1;
 				}
 			}
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 			if (signal_pending(current))
 				break;
 		}
@@ -2153,10 +2151,8 @@ static int ixj_release(struct inode *inode, struct file *file_p)
 	 *    Set up locks to ensure that only one process is talking to the DSP at a time.
 	 *    This is necessary to keep the DSP from locking up.
 	 */
-	while(test_and_set_bit(board, (void *)&j->busyflags) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while(test_and_set_bit(board, (void *)&j->busyflags) != 0)
+		schedule_timeout_interruptible(1);
 	if (ixjdebug & 0x0002)
 		printk(KERN_INFO "Closing board %d\n", NUM(inode));
 
@@ -3286,14 +3282,10 @@ static void ixj_write_cidcw(IXJ *j)
 	ixj_play_tone(j, 23);
 
 	clear_bit(j->board, &j->busyflags);
-	while(j->tone_state) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
-	while(test_and_set_bit(j->board, (void *)&j->busyflags) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while(j->tone_state)
+		schedule_timeout_interruptible(1);
+	while(test_and_set_bit(j->board, (void *)&j->busyflags) != 0)
+		schedule_timeout_interruptible(1);
 	if(ixjdebug & 0x0200) {
 		printk("IXJ cidcw phone%d first tone end at %ld\n", j->board, jiffies);
 	}
@@ -3313,14 +3305,10 @@ static void ixj_write_cidcw(IXJ *j)
 	ixj_play_tone(j, 24);
 
 	clear_bit(j->board, &j->busyflags);
-	while(j->tone_state) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
-	while(test_and_set_bit(j->board, (void *)&j->busyflags) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while(j->tone_state)
+		schedule_timeout_interruptible(1);
+	while(test_and_set_bit(j->board, (void *)&j->busyflags) != 0)
+		schedule_timeout_interruptible(1);
 	if(ixjdebug & 0x0200) {
 		printk("IXJ cidcw phone%d sent second tone at %ld\n", j->board, jiffies);
 	}
@@ -3328,14 +3316,10 @@ static void ixj_write_cidcw(IXJ *j)
 	j->cidcw_wait = jiffies + ((50 * hertz) / 100);
 
 	clear_bit(j->board, &j->busyflags);
-	while(!j->flags.cidcw_ack && time_before(jiffies, j->cidcw_wait)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
-	while(test_and_set_bit(j->board, (void *)&j->busyflags) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while(!j->flags.cidcw_ack && time_before(jiffies, j->cidcw_wait))
+		schedule_timeout_interruptible(1);
+	while(test_and_set_bit(j->board, (void *)&j->busyflags) != 0)
+		schedule_timeout_interruptible(1);
 	j->cidcw_wait = 0;
 	if(!j->flags.cidcw_ack) {
 		if(ixjdebug & 0x0200) {
@@ -6110,10 +6094,8 @@ static int ixj_ioctl(struct inode *inode, struct file *file_p, unsigned int cmd,
 	 *    Set up locks to ensure that only one process is talking to the DSP at a time.
 	 *    This is necessary to keep the DSP from locking up.
 	 */
-	while(test_and_set_bit(board, (void *)&j->busyflags) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while(test_and_set_bit(board, (void *)&j->busyflags) != 0)
+		schedule_timeout_interruptible(1);
 	if (ixjdebug & 0x0040)
 		printk("phone%d ioctl, cmd: 0x%x, arg: 0x%lx\n", minor, cmd, arg);
 	if (minor >= IXJMAX) {
