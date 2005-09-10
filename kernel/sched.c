@@ -875,7 +875,7 @@ static int migrate_task(task_t *p, int dest_cpu, migration_req_t *req)
  * smp_call_function() if an IPI is sent by the same process we are
  * waiting to become inactive.
  */
-void wait_task_inactive(task_t * p)
+void wait_task_inactive(task_t *p)
 {
 	unsigned long flags;
 	runqueue_t *rq;
@@ -1007,8 +1007,8 @@ nextgroup:
 /*
  * find_idlest_queue - find the idlest runqueue among the cpus in group.
  */
-static int find_idlest_cpu(struct sched_group *group,
-			struct task_struct *p, int this_cpu)
+static int
+find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 {
 	cpumask_t tmp;
 	unsigned long load, min_load = ULONG_MAX;
@@ -1136,7 +1136,7 @@ static inline int wake_idle(int cpu, task_t *p)
  *
  * returns failure only if the task is already active.
  */
-static int try_to_wake_up(task_t * p, unsigned int state, int sync)
+static int try_to_wake_up(task_t *p, unsigned int state, int sync)
 {
 	int cpu, this_cpu, success = 0;
 	unsigned long flags;
@@ -1283,7 +1283,7 @@ out:
 	return success;
 }
 
-int fastcall wake_up_process(task_t * p)
+int fastcall wake_up_process(task_t *p)
 {
 	return try_to_wake_up(p, TASK_STOPPED | TASK_TRACED |
 				 TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE, 0);
@@ -1362,7 +1362,7 @@ void fastcall sched_fork(task_t *p, int clone_flags)
  * that must be done for every newly created context, then puts the task
  * on the runqueue and wakes it.
  */
-void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
+void fastcall wake_up_new_task(task_t *p, unsigned long clone_flags)
 {
 	unsigned long flags;
 	int this_cpu, cpu;
@@ -1445,7 +1445,7 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
  * artificially, because any timeslice recovered here
  * was given away by the parent in the first place.)
  */
-void fastcall sched_exit(task_t * p)
+void fastcall sched_exit(task_t *p)
 {
 	unsigned long flags;
 	runqueue_t *rq;
@@ -1766,7 +1766,8 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
  */
 static inline
 int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
-	     struct sched_domain *sd, enum idle_type idle, int *all_pinned)
+		     struct sched_domain *sd, enum idle_type idle,
+		     int *all_pinned)
 {
 	/*
 	 * We do not migrate tasks that are:
@@ -3058,7 +3059,8 @@ need_resched:
 
 #endif /* CONFIG_PREEMPT */
 
-int default_wake_function(wait_queue_t *curr, unsigned mode, int sync, void *key)
+int default_wake_function(wait_queue_t *curr, unsigned mode, int sync,
+			  void *key)
 {
 	task_t *p = curr->private;
 	return try_to_wake_up(p, mode, sync);
@@ -3100,7 +3102,7 @@ static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
  * @key: is directly passed to the wakeup function
  */
 void fastcall __wake_up(wait_queue_head_t *q, unsigned int mode,
-				int nr_exclusive, void *key)
+			int nr_exclusive, void *key)
 {
 	unsigned long flags;
 
@@ -3132,7 +3134,8 @@ void fastcall __wake_up_locked(wait_queue_head_t *q, unsigned int mode)
  *
  * On UP it can prevent extra preemption.
  */
-void fastcall __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr_exclusive)
+void fastcall
+__wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr_exclusive)
 {
 	unsigned long flags;
 	int sync = 1;
@@ -3323,7 +3326,8 @@ void fastcall __sched interruptible_sleep_on(wait_queue_head_t *q)
 
 EXPORT_SYMBOL(interruptible_sleep_on);
 
-long fastcall __sched interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
+long fastcall __sched
+interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
 	SLEEP_ON_VAR
 
@@ -3542,7 +3546,8 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
  * @policy: new policy.
  * @param: structure containing the new RT priority.
  */
-int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *param)
+int sched_setscheduler(struct task_struct *p, int policy,
+		       struct sched_param *param)
 {
 	int retval;
 	int oldprio, oldpolicy = -1;
@@ -3562,7 +3567,7 @@ recheck:
 	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_NORMAL is 0.
 	 */
 	if (param->sched_priority < 0 ||
-	    (p->mm &&  param->sched_priority > MAX_USER_RT_PRIO-1) ||
+	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
 	if ((policy == SCHED_NORMAL) != (param->sched_priority == 0))
@@ -3625,7 +3630,8 @@ recheck:
 }
 EXPORT_SYMBOL_GPL(sched_setscheduler);
 
-static int do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
+static int
+do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
 {
 	int retval;
 	struct sched_param lparam;
@@ -3956,7 +3962,7 @@ EXPORT_SYMBOL(cond_resched);
  * operations here to prevent schedule() from being called twice (once via
  * spin_unlock(), once by hand).
  */
-int cond_resched_lock(spinlock_t * lock)
+int cond_resched_lock(spinlock_t *lock)
 {
 	int ret = 0;
 
@@ -4139,7 +4145,7 @@ static inline struct task_struct *younger_sibling(struct task_struct *p)
 	return list_entry(p->sibling.next,struct task_struct,sibling);
 }
 
-static void show_task(task_t * p)
+static void show_task(task_t *p)
 {
 	task_t *relative;
 	unsigned state;
@@ -4165,7 +4171,7 @@ static void show_task(task_t * p)
 #endif
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	{
-		unsigned long * n = (unsigned long *) (p->thread_info+1);
+		unsigned long *n = (unsigned long *) (p->thread_info+1);
 		while (!*n)
 			n++;
 		free = (unsigned long) n - (unsigned long)(p->thread_info+1);
@@ -4374,7 +4380,7 @@ out:
  * thread migration by bumping thread off CPU then 'pushing' onto
  * another runqueue.
  */
-static int migration_thread(void * data)
+static int migration_thread(void *data)
 {
 	runqueue_t *rq;
 	int cpu = (long)data;
