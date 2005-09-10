@@ -1261,6 +1261,16 @@ out_activate:
 	}
 
 	/*
+	 * Tasks that have marked their sleep as noninteractive get
+	 * woken up without updating their sleep average. (i.e. their
+	 * sleep is handled in a priority-neutral manner, no priority
+	 * boost and no penalty.)
+	 */
+	if (old_state & TASK_NONINTERACTIVE)
+		__activate_task(p, rq);
+	else
+		activate_task(p, rq, cpu == this_cpu);
+	/*
 	 * Sync wakeups (i.e. those types of wakeups where the waker
 	 * has indicated that it will leave the CPU in short order)
 	 * don't trigger a preemption, if the woken up task will run on
@@ -1268,7 +1278,6 @@ out_activate:
 	 * the waker guarantees that the freshly woken up task is going
 	 * to be considered on this CPU.)
 	 */
-	activate_task(p, rq, cpu == this_cpu);
 	if (!sync || cpu != this_cpu) {
 		if (TASK_PREEMPTS_CURR(p, rq))
 			resched_task(rq->curr);

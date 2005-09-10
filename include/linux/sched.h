@@ -114,6 +114,7 @@ extern unsigned long nr_iowait(void);
 #define TASK_TRACED		8
 #define EXIT_ZOMBIE		16
 #define EXIT_DEAD		32
+#define TASK_NONINTERACTIVE	64
 
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
