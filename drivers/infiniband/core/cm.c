@@ -173,7 +173,8 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	if (IS_ERR(ah))
 		return PTR_ERR(ah);
 
-	m = ib_create_send_mad(mad_agent, 1, cm_id_priv->av.pkey_index,
+	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn, 
+			       cm_id_priv->av.pkey_index,
 			       ah, 0, sizeof(struct ib_mad_hdr),
 			       sizeof(struct ib_mad)-sizeof(struct ib_mad_hdr),
 			       GFP_ATOMIC);
@@ -536,6 +537,7 @@ struct ib_cm_id *ib_create_cm_id(ib_cm_handler cm_handler,
 	cm_id_priv->id.state = IB_CM_IDLE;
 	cm_id_priv->id.cm_handler = cm_handler;
 	cm_id_priv->id.context = context;
+	cm_id_priv->id.remote_cm_qpn = 1;
 	ret = cm_alloc_id(cm_id_priv);
 	if (ret)
 		goto error;
