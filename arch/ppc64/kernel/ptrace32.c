@@ -406,9 +406,9 @@ int sys32_ptrace(long request, long pid, unsigned long addr, unsigned long data)
 		break;
 	}
 
-       case PTRACE_GETEVENTMSG:
-                ret = put_user(child->ptrace_message, (unsigned int __user *) data);
-                break;
+	case PTRACE_GETEVENTMSG:
+		ret = put_user(child->ptrace_message, (unsigned int __user *) data);
+		break;
 
 #ifdef CONFIG_ALTIVEC
 	case PTRACE_GETVRREGS:
