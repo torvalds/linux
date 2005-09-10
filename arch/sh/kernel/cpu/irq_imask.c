@@ -46,13 +46,13 @@ static unsigned int startup_imask_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type imask_irq_type = {
-	"SR.IMASK",
-	startup_imask_irq,
-	shutdown_imask_irq,
-	enable_imask_irq,
-	disable_imask_irq,
-	mask_and_ack_imask,
-	end_imask_irq
+	.typename = "SR.IMASK",
+	.startup = startup_imask_irq,
+	.shutdown = shutdown_imask_irq,
+	.enable = enable_imask_irq,
+	.disable = disable_imask_irq,
+	.ack = mask_and_ack_imask,
+	.end = end_imask_irq
 };
 
 void static inline set_interrupt_registers(int ip)
