@@ -198,7 +198,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  but the function is very linear in the useful range (0-80 deg C), so
  we'll just use linear interpolation for 10-bit readings.)  So, tempLUT
  is the temp at via register values 0-255: */
-static const long tempLUT[] =
+static const s16 tempLUT[] =
 { -709, -688, -667, -646, -627, -607, -589, -570, -553, -536, -519,
 	-503, -487, -471, -456, -442, -428, -414, -400, -387, -375,
 	-362, -350, -339, -327, -316, -305, -295, -285, -275, -265,
@@ -270,7 +270,7 @@ static inline u8 TEMP_TO_REG(long val)
 }
 
 /* for 8-bit temperature hyst and over registers */
-#define TEMP_FROM_REG(val) (tempLUT[(val)] * 100)
+#define TEMP_FROM_REG(val)	((long)tempLUT[val] * 100)
 
 /* for 10-bit temperature readings */
 static inline long TEMP_FROM_REG10(u16 val)
