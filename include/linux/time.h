@@ -28,6 +28,8 @@ struct timezone {
 #ifdef __KERNEL__
 
 /* Parameters used to convert the timespec values */
+#define MSEC_PER_SEC (1000L)
+
 #ifndef USEC_PER_SEC
 #define USEC_PER_SEC (1000000L)
 #endif

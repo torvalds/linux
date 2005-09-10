@@ -254,23 +254,23 @@ static inline u64 get_jiffies_64(void)
  */
 static inline unsigned int jiffies_to_msecs(const unsigned long j)
 {
-#if HZ <= 1000 && !(1000 % HZ)
-	return (1000 / HZ) * j;
-#elif HZ > 1000 && !(HZ % 1000)
-	return (j + (HZ / 1000) - 1)/(HZ / 1000);
+#if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
+	return (MSEC_PER_SEC / HZ) * j;
+#elif HZ > MSEC_PER_SEC && !(HZ % MSEC_PER_SEC)
+	return (j + (HZ / MSEC_PER_SEC) - 1)/(HZ / MSEC_PER_SEC);
 #else
-	return (j * 1000) / HZ;
+	return (j * MSEC_PER_SEC) / HZ;
 #endif
 }
 
 static inline unsigned int jiffies_to_usecs(const unsigned long j)
 {
-#if HZ <= 1000000 && !(1000000 % HZ)
-	return (1000000 / HZ) * j;
-#elif HZ > 1000000 && !(HZ % 1000000)
-	return (j + (HZ / 1000000) - 1)/(HZ / 1000000);
+#if HZ <= USEC_PER_SEC && !(USEC_PER_SEC % HZ)
+	return (USEC_PER_SEC / HZ) * j;
+#elif HZ > USEC_PER_SEC && !(HZ % USEC_PER_SEC)
+	return (j + (HZ / USEC_PER_SEC) - 1)/(HZ / USEC_PER_SEC);
 #else
-	return (j * 1000000) / HZ;
+	return (j * USEC_PER_SEC) / HZ;
 #endif
 }
 
@@ -278,12 +278,12 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 {
 	if (m > jiffies_to_msecs(MAX_JIFFY_OFFSET))
 		return MAX_JIFFY_OFFSET;
-#if HZ <= 1000 && !(1000 % HZ)
-	return (m + (1000 / HZ) - 1) / (1000 / HZ);
-#elif HZ > 1000 && !(HZ % 1000)
-	return m * (HZ / 1000);
+#if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
+	return (m + (MSEC_PER_SEC / HZ) - 1) / (MSEC_PER_SEC / HZ);
+#elif HZ > MSEC_PER_SEC && !(HZ % MSEC_PER_SEC)
+	return m * (HZ / MSEC_PER_SEC);
 #else
-	return (m * HZ + 999) / 1000;
+	return (m * HZ + MSEC_PER_SEC - 1) / MSEC_PER_SEC;
 #endif
 }
 
@@ -291,12 +291,12 @@ static inline unsigned long usecs_to_jiffies(const unsigned int u)
 {
 	if (u > jiffies_to_usecs(MAX_JIFFY_OFFSET))
 		return MAX_JIFFY_OFFSET;
-#if HZ <= 1000000 && !(1000000 % HZ)
-	return (u + (1000000 / HZ) - 1) / (1000000 / HZ);
-#elif HZ > 1000000 && !(HZ % 1000000)
-	return u * (HZ / 1000000);
+#if HZ <= USEC_PER_SEC && !(USEC_PER_SEC % HZ)
+	return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
+#elif HZ > USEC_PER_SEC && !(HZ % USEC_PER_SEC)
+	return u * (HZ / USEC_PER_SEC);
 #else
-	return (u * HZ + 999999) / 1000000;
+	return (u * HZ + USEC_PER_SEC - 1) / USEC_PER_SEC;
 #endif
 }
 
