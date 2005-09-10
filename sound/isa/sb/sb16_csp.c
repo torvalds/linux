@@ -54,20 +54,20 @@ MODULE_LICENSE("GPL");
 /*
  * RIFF data format
  */
-typedef struct riff_header {
+struct riff_header {
 	__u32 name;
 	__u32 len;
-} riff_header_t;
+};
 
-typedef struct desc_header {
-	riff_header_t info;
+struct desc_header {
+	struct riff_header info;
 	__u16 func_nr;
 	__u16 VOC_type;
 	__u16 flags_play_rec;
 	__u16 flags_16bit_8bit;
 	__u16 flags_stereo_mono;
 	__u16 flags_rates;
-} desc_header_t;
+};
 
 /*
  * prototypes
@@ -300,9 +300,9 @@ static int snd_sb_csp_riff_load(snd_sb_csp_t * p, snd_sb_csp_microcode_t __user 
 	unsigned char __user *data_end;
 	unsigned short func_nr = 0;
 
-	riff_header_t file_h, item_h, code_h;
+	struct riff_header file_h, item_h, code_h;
 	__u32 item_type;
-	desc_header_t funcdesc_h;
+	struct desc_header funcdesc_h;
 
 	unsigned long flags;
 	int err;
