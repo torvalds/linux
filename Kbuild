@@ -4,7 +4,7 @@
 # 1) Generate asm-offsets.h
 
 #####
-# 1) Generate asm-offsets.h 
+# 1) Generate asm-offsets.h
 #
 
 offsets-file := include/asm-$(ARCH)/asm-offsets.h
@@ -22,6 +22,7 @@ sed-$(CONFIG_MIPS) := "/^@@@/s///p"
 
 quiet_cmd_offsets = GEN     $@
 define cmd_offsets
+	mkdir -p $(dir $@); \
 	cat $< | \
 	(set -e; \
 	 echo "#ifndef __ASM_OFFSETS_H__"; \
@@ -43,6 +44,6 @@ arch/$(ARCH)/kernel/asm-offsets.s: arch/$(ARCH)/kernel/asm-offsets.c FORCE
 	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,cc_s_c)
 
-$(srctree)/$(offsets-file): arch/$(ARCH)/kernel/asm-offsets.s Kbuild
+$(obj)/$(offsets-file): arch/$(ARCH)/kernel/asm-offsets.s Kbuild
 	$(call cmd,offsets)
 
