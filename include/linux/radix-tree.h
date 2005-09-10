@@ -24,7 +24,7 @@
 
 struct radix_tree_root {
 	unsigned int		height;
-	int			gfp_mask;
+	unsigned int		gfp_mask;
 	struct radix_tree_node	*rnode;
 };
 
@@ -50,7 +50,7 @@ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
 unsigned int
 radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
 			unsigned long first_index, unsigned int max_items);
-int radix_tree_preload(int gfp_mask);
+int radix_tree_preload(unsigned int __nocast gfp_mask);
 void radix_tree_init(void);
 void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, int tag);
