@@ -440,18 +440,6 @@ struct irix5_siginfo {
 	} stuff;
 };
 
-static inline unsigned long timespectojiffies(struct timespec *value)
-{
-	unsigned long sec = (unsigned) value->tv_sec;
-	long nsec = value->tv_nsec;
-
-	if (sec > (LONG_MAX / HZ))
-		return LONG_MAX;
-	nsec += 1000000000L / HZ - 1;
-	nsec /= 1000000000L / HZ;
-	return HZ * sec + nsec;
-}
-
 asmlinkage int irix_sigpoll_sys(unsigned long *set, struct irix5_siginfo *info,
 				struct timespec *tp)
 {
@@ -489,14 +477,13 @@ asmlinkage int irix_sigpoll_sys(unsigned long *set, struct irix5_siginfo *info,
 			error = -EINVAL;
 			goto out;
 		}
-		expire = timespectojiffies(tp)+(tp->tv_sec||tp->tv_nsec);
+		expire = timespec_to_jiffies(tp) + (tp->tv_sec||tp->tv_nsec);
 	}
 
 	while(1) {
 		long tmp = 0;
 
-		current->state = TASK_INTERRUPTIBLE;
-		expire = schedule_timeout(expire);
+		expire = schedule_timeout_interruptible(expire);
 
 		for (i=0; i<=4; i++)
 			tmp |= (current->pending.signal.sig[i] & kset.sig[i]);
