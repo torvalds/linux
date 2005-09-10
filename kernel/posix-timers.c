@@ -427,21 +427,23 @@ int posix_timer_event(struct k_itimer *timr,int si_private)
 	timr->sigq->info.si_code = SI_TIMER;
 	timr->sigq->info.si_tid = timr->it_id;
 	timr->sigq->info.si_value = timr->it_sigev_value;
+
 	if (timr->it_sigev_notify & SIGEV_THREAD_ID) {
-		if (unlikely(timr->it_process->flags & PF_EXITING)) {
-			timr->it_sigev_notify = SIGEV_SIGNAL;
-			put_task_struct(timr->it_process);
-			timr->it_process = timr->it_process->group_leader;
-			goto group;
-		}
-		return send_sigqueue(timr->it_sigev_signo, timr->sigq,
-			timr->it_process);
+		struct task_struct *leader;
+		int ret = send_sigqueue(timr->it_sigev_signo, timr->sigq,
+					timr->it_process);
+
+		if (likely(ret >= 0))
+			return ret;
+
+		timr->it_sigev_notify = SIGEV_SIGNAL;
+		leader = timr->it_process->group_leader;
+		put_task_struct(timr->it_process);
+		timr->it_process = leader;
 	}
-	else {
-	group:
-		return send_group_sigqueue(timr->it_sigev_signo, timr->sigq,
-			timr->it_process);
-	}
+
+	return send_group_sigqueue(timr->it_sigev_signo, timr->sigq,
+				   timr->it_process);
 }
 EXPORT_SYMBOL_GPL(posix_timer_event);
 

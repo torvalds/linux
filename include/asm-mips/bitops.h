@@ -20,13 +20,13 @@
 #define SZLONG_MASK 31UL
 #define __LL	"ll	"
 #define __SC	"sc	"
-#define cpu_to_lelongp(x) cpu_to_le32p((__u32 *) (x)) 
+#define cpu_to_lelongp(x) cpu_to_le32p((__u32 *) (x))
 #elif (_MIPS_SZLONG == 64)
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL	"lld	"
 #define __SC	"scd	"
-#define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x)) 
+#define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x))
 #endif
 
 #ifdef __KERNEL__
@@ -533,14 +533,14 @@ static inline unsigned long ffz(unsigned long word)
 	int b = 0, s;
 
 	word = ~word;
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	s = 16; if (word << 16 != 0) s = 0; b += s; word >>= s;
 	s =  8; if (word << 24 != 0) s = 0; b += s; word >>= s;
 	s =  4; if (word << 28 != 0) s = 0; b += s; word >>= s;
 	s =  2; if (word << 30 != 0) s = 0; b += s; word >>= s;
 	s =  1; if (word << 31 != 0) s = 0; b += s;
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	s = 32; if (word << 32 != 0) s = 0; b += s; word >>= s;
 	s = 16; if (word << 48 != 0) s = 0; b += s; word >>= s;
 	s =  8; if (word << 56 != 0) s = 0; b += s; word >>= s;
@@ -683,7 +683,7 @@ found_middle:
  */
 static inline int sched_find_first_bit(const unsigned long *b)
 {
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	if (unlikely(b[0]))
 		return __ffs(b[0]);
 	if (unlikely(b[1]))
@@ -694,7 +694,7 @@ static inline int sched_find_first_bit(const unsigned long *b)
 		return __ffs(b[3]) + 96;
 	return __ffs(b[4]) + 128;
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	if (unlikely(b[0]))
 		return __ffs(b[0]);
 	if (unlikely(b[1]))

@@ -1,5 +1,4 @@
 /*
- * $Id: video-buf.h,v 1.9 2004/11/07 13:17:15 kraxel Exp $
  *
  * generic helper functions for video4linux capture buffers, to handle
  * memory management and PCI DMA.  Right now bttv + saa7134 use it.

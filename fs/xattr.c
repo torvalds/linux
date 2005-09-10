@@ -51,20 +51,29 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 		}
 	}
 
+	down(&d->d_inode->i_sem);
+	error = security_inode_setxattr(d, kname, kvalue, size, flags);
+	if (error)
+		goto out;
 	error = -EOPNOTSUPP;
 	if (d->d_inode->i_op && d->d_inode->i_op->setxattr) {
-		down(&d->d_inode->i_sem);
-		error = security_inode_setxattr(d, kname, kvalue, size, flags);
-		if (error)
-			goto out;
-		error = d->d_inode->i_op->setxattr(d, kname, kvalue, size, flags);
+		error = d->d_inode->i_op->setxattr(d, kname, kvalue,
+						   size, flags);
 		if (!error) {
 			fsnotify_xattr(d);
-			security_inode_post_setxattr(d, kname, kvalue, size, flags);
+			security_inode_post_setxattr(d, kname, kvalue,
+						     size, flags);
 		}
-out:
-		up(&d->d_inode->i_sem);
+	} else if (!strncmp(kname, XATTR_SECURITY_PREFIX,
+			    sizeof XATTR_SECURITY_PREFIX - 1)) {
+		const char *suffix = kname + sizeof XATTR_SECURITY_PREFIX - 1;
+		error = security_inode_setsecurity(d->d_inode, suffix, kvalue,
+						   size, flags);
+		if (!error)
+			fsnotify_xattr(d);
 	}
+out:
+	up(&d->d_inode->i_sem);
 	if (kvalue)
 		kfree(kvalue);
 	return error;
@@ -139,20 +148,25 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 			return -ENOMEM;
 	}
 
+	error = security_inode_getxattr(d, kname);
+	if (error)
+		goto out;
 	error = -EOPNOTSUPP;
-	if (d->d_inode->i_op && d->d_inode->i_op->getxattr) {
-		error = security_inode_getxattr(d, kname);
-		if (error)
-			goto out;
+	if (d->d_inode->i_op && d->d_inode->i_op->getxattr)
 		error = d->d_inode->i_op->getxattr(d, kname, kvalue, size);
-		if (error > 0) {
-			if (size && copy_to_user(value, kvalue, error))
-				error = -EFAULT;
-		} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
-			/* The file system tried to returned a value bigger
-			   than XATTR_SIZE_MAX bytes. Not possible. */
-			error = -E2BIG;
-		}
+	else if (!strncmp(kname, XATTR_SECURITY_PREFIX,
+			  sizeof XATTR_SECURITY_PREFIX - 1)) {
+		const char *suffix = kname + sizeof XATTR_SECURITY_PREFIX - 1;
+		error = security_inode_getsecurity(d->d_inode, suffix, kvalue,
+						   size);
+	}
+	if (error > 0) {
+		if (size && copy_to_user(value, kvalue, error))
+			error = -EFAULT;
+	} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
+		/* The file system tried to returned a value bigger
+		   than XATTR_SIZE_MAX bytes. Not possible. */
+		error = -E2BIG;
 	}
 out:
 	if (kvalue)
@@ -221,20 +235,24 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 			return -ENOMEM;
 	}
 
+	error = security_inode_listxattr(d);
+	if (error)
+		goto out;
 	error = -EOPNOTSUPP;
 	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
-		error = security_inode_listxattr(d);
-		if (error)
-			goto out;
 		error = d->d_inode->i_op->listxattr(d, klist, size);
-		if (error > 0) {
-			if (size && copy_to_user(list, klist, error))
-				error = -EFAULT;
-		} else if (error == -ERANGE && size >= XATTR_LIST_MAX) {
-			/* The file system tried to returned a list bigger
-			   than XATTR_LIST_MAX bytes. Not possible. */
-			error = -E2BIG;
-		}
+	} else {
+		error = security_inode_listsecurity(d->d_inode, klist, size);
+		if (size && error >= size)
+			error = -ERANGE;
+	}
+	if (error > 0) {
+		if (size && copy_to_user(list, klist, error))
+			error = -EFAULT;
+	} else if (error == -ERANGE && size >= XATTR_LIST_MAX) {
+		/* The file system tried to returned a list bigger
+		   than XATTR_LIST_MAX bytes. Not possible. */
+		error = -E2BIG;
 	}
 out:
 	if (klist)
@@ -307,6 +325,8 @@ removexattr(struct dentry *d, char __user *name)
 		down(&d->d_inode->i_sem);
 		error = d->d_inode->i_op->removexattr(d, kname);
 		up(&d->d_inode->i_sem);
+		if (!error)
+			fsnotify_xattr(d);
 	}
 out:
 	return error;

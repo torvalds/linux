@@ -628,13 +628,6 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
  * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
  */
 
-/*
- * Hack to avoid 2.6.13 partial node dynamic sched domain bug.
- * Disable letting 'cpu_exclusive' cpusets define dynamic sched
- * domains, until the sched domain can handle partial nodes.
- * Remove this #if hackery when sched domains fixed.
- */
-#if 0
 static void update_cpu_domains(struct cpuset *cur)
 {
 	struct cpuset *c, *par = cur->parent;
@@ -675,11 +668,6 @@ static void update_cpu_domains(struct cpuset *cur)
 	partition_sched_domains(&pspan, &cspan);
 	unlock_cpu_hotplug();
 }
-#else
-static void update_cpu_domains(struct cpuset *cur)
-{
-}
-#endif
 
 static int update_cpumask(struct cpuset *cs, char *buf)
 {
@@ -983,6 +971,10 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	}
 	*s++ = '\n';
 	*s = '\0';
+
+	/* Do nothing if *ppos is at the eof or beyond the eof. */
+	if (s - page <= *ppos)
+		return 0;
 
 	start = page + *ppos;
 	n = s - start;
@@ -1611,17 +1603,114 @@ int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	return 0;
 }
 
-/**
- * cpuset_zone_allowed - is zone z allowed in current->mems_allowed
- * @z: zone in question
- *
- * Is zone z allowed in current->mems_allowed, or is
- * the CPU in interrupt context? (zone is always allowed in this case)
+/*
+ * nearest_exclusive_ancestor() - Returns the nearest mem_exclusive
+ * ancestor to the specified cpuset.  Call while holding cpuset_sem.
+ * If no ancestor is mem_exclusive (an unusual configuration), then
+ * returns the root cpuset.
  */
-int cpuset_zone_allowed(struct zone *z)
+static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
 {
-	return in_interrupt() ||
-		node_isset(z->zone_pgdat->node_id, current->mems_allowed);
+	while (!is_mem_exclusive(cs) && cs->parent)
+		cs = cs->parent;
+	return cs;
+}
+
+/**
+ * cpuset_zone_allowed - Can we allocate memory on zone z's memory node?
+ * @z: is this zone on an allowed node?
+ * @gfp_mask: memory allocation flags (we use __GFP_HARDWALL)
+ *
+ * If we're in interrupt, yes, we can always allocate.  If zone
+ * z's node is in our tasks mems_allowed, yes.  If it's not a
+ * __GFP_HARDWALL request and this zone's nodes is in the nearest
+ * mem_exclusive cpuset ancestor to this tasks cpuset, yes.
+ * Otherwise, no.
+ *
+ * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
+ * and do not allow allocations outside the current tasks cpuset.
+ * GFP_KERNEL allocations are not so marked, so can escape to the
+ * nearest mem_exclusive ancestor cpuset.
+ *
+ * Scanning up parent cpusets requires cpuset_sem.  The __alloc_pages()
+ * routine only calls here with __GFP_HARDWALL bit _not_ set if
+ * it's a GFP_KERNEL allocation, and all nodes in the current tasks
+ * mems_allowed came up empty on the first pass over the zonelist.
+ * So only GFP_KERNEL allocations, if all nodes in the cpuset are
+ * short of memory, might require taking the cpuset_sem semaphore.
+ *
+ * The first loop over the zonelist in mm/page_alloc.c:__alloc_pages()
+ * calls here with __GFP_HARDWALL always set in gfp_mask, enforcing
+ * hardwall cpusets - no allocation on a node outside the cpuset is
+ * allowed (unless in interrupt, of course).
+ *
+ * The second loop doesn't even call here for GFP_ATOMIC requests
+ * (if the __alloc_pages() local variable 'wait' is set).  That check
+ * and the checks below have the combined affect in the second loop of
+ * the __alloc_pages() routine that:
+ *	in_interrupt - any node ok (current task context irrelevant)
+ *	GFP_ATOMIC   - any node ok
+ *	GFP_KERNEL   - any node in enclosing mem_exclusive cpuset ok
+ *	GFP_USER     - only nodes in current tasks mems allowed ok.
+ **/
+
+int cpuset_zone_allowed(struct zone *z, unsigned int __nocast gfp_mask)
+{
+	int node;			/* node that zone z is on */
+	const struct cpuset *cs;	/* current cpuset ancestors */
+	int allowed = 1;		/* is allocation in zone z allowed? */
+
+	if (in_interrupt())
+		return 1;
+	node = z->zone_pgdat->node_id;
+	if (node_isset(node, current->mems_allowed))
+		return 1;
+	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
+		return 0;
+
+	/* Not hardwall and node outside mems_allowed: scan up cpusets */
+	down(&cpuset_sem);
+	cs = current->cpuset;
+	if (!cs)
+		goto done;		/* current task exiting */
+	cs = nearest_exclusive_ancestor(cs);
+	allowed = node_isset(node, cs->mems_allowed);
+done:
+	up(&cpuset_sem);
+	return allowed;
+}
+
+/**
+ * cpuset_excl_nodes_overlap - Do we overlap @p's mem_exclusive ancestors?
+ * @p: pointer to task_struct of some other task.
+ *
+ * Description: Return true if the nearest mem_exclusive ancestor
+ * cpusets of tasks @p and current overlap.  Used by oom killer to
+ * determine if task @p's memory usage might impact the memory
+ * available to the current task.
+ *
+ * Acquires cpuset_sem - not suitable for calling from a fast path.
+ **/
+
+int cpuset_excl_nodes_overlap(const struct task_struct *p)
+{
+	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
+	int overlap = 0;		/* do cpusets overlap? */
+
+	down(&cpuset_sem);
+	cs1 = current->cpuset;
+	if (!cs1)
+		goto done;		/* current task exiting */
+	cs2 = p->cpuset;
+	if (!cs2)
+		goto done;		/* task p is exiting */
+	cs1 = nearest_exclusive_ancestor(cs1);
+	cs2 = nearest_exclusive_ancestor(cs2);
+	overlap = nodes_intersects(cs1->mems_allowed, cs2->mems_allowed);
+done:
+	up(&cpuset_sem);
+
+	return overlap;
 }
 
 /*

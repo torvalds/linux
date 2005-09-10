@@ -18,7 +18,7 @@
 #include <asm/errno.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
 
@@ -131,14 +131,14 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	stg	%r12,__SF_BACKCHAIN(%r15)
         .endm
 
-	.macro	RESTORE_ALL sync
-	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15) # move user PSW to lowcore
+	.macro	RESTORE_ALL psworg,sync
+	mvc	\psworg(16),SP_PSW(%r15) # move user PSW to lowcore
 	.if !\sync
-	ni	__LC_RETURN_PSW+1,0xfd	# clear wait state bit
+	ni	\psworg+1,0xfd		# clear wait state bit
 	.endif
 	lmg	%r0,%r15,SP_R0(%r15)	# load gprs 0-15 of user
 	STORE_TIMER __LC_EXIT_TIMER
-	lpswe	__LC_RETURN_PSW		# back to caller
+	lpswe	\psworg			# back to caller
 	.endm
 
 /*
@@ -214,8 +214,8 @@ sysc_nr_ok:
 sysc_do_restart:
 	larl    %r10,sys_call_table
 #ifdef CONFIG_S390_SUPPORT
-        tm      SP_PSW+3(%r15),0x01  # are we running in 31 bit mode ?
-        jo      sysc_noemu
+	tm	__TI_flags+5(%r9),(_TIF_31BIT>>16)  # running in 31 bit mode ?
+	jno	sysc_noemu
 	larl    %r10,sys_call_table_emu  # use 31 bit emulation system calls
 sysc_noemu:
 #endif
@@ -233,7 +233,7 @@ sysc_return:
 	tm	__TI_flags+7(%r9),_TIF_WORK_SVC
 	jnz	sysc_work         # there is work to do (signals etc.)
 sysc_leave:
-        RESTORE_ALL 1
+        RESTORE_ALL __LC_RETURN_PSW,1
 
 #
 # recheck if there is more work to do
@@ -307,8 +307,6 @@ sysc_singlestep:
 	larl	%r14,sysc_return	# load adr. of system return
 	jg	do_single_step		# branch to do_sigtrap
 
-
-__critical_end:
 
 #
 # call syscall_trace before and after system call
@@ -612,7 +610,8 @@ io_return:
 	tm	__TI_flags+7(%r9),_TIF_WORK_INT
 	jnz	io_work                # there is work to do (signals etc.)
 io_leave:
-        RESTORE_ALL 0
+        RESTORE_ALL __LC_RETURN_PSW,0
+io_done:
 
 #ifdef CONFIG_PREEMPT
 io_preempt:
@@ -711,6 +710,8 @@ ext_no_vtime:
 	brasl   %r14,do_extint
 	j	io_return
 
+__critical_end:
+
 /*
  * Machine check handler routines
  */
@@ -718,6 +719,7 @@ ext_no_vtime:
 mcck_int_handler:
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
+	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA-4095(%r1)
   	lmg     %r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
 	SAVE_ALL_BASE __LC_SAVE_AREA+64
 	la	%r12,__LC_MCK_OLD_PSW
@@ -730,17 +732,8 @@ mcck_int_handler:
 	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
 	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
 	mvc	__LC_EXIT_TIMER(8),__LC_LAST_UPDATE_TIMER
-0:	tm	__LC_MCCK_CODE+2,0x08	# mwp of old psw valid?
-	jno	mcck_no_vtime		# no -> no timer update
-	tm      __LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?
-	jz	mcck_no_vtime
-	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
-	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
-mcck_no_vtime:
 #endif
-0:
-	tm	__LC_MCCK_CODE+2,0x09   # mwp + ia of old psw valid?
+0:	tm	__LC_MCCK_CODE+2,0x09   # mwp + ia of old psw valid?
 	jno	mcck_int_main		# no -> skip cleanup critical
 	tm      __LC_MCK_OLD_PSW+1,0x01 # test problem state bit
 	jnz	mcck_int_main		# from user -> load kernel stack
@@ -756,6 +749,16 @@ mcck_int_main:
 	jz	0f
 	lg      %r15,__LC_PANIC_STACK   # load panic stack
 0:	CREATE_STACK_FRAME __LC_MCK_OLD_PSW,__LC_SAVE_AREA+64
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	tm	__LC_MCCK_CODE+2,0x08	# mwp of old psw valid?
+	jno	mcck_no_vtime		# no -> no timer update
+	tm      __LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?
+	jz	mcck_no_vtime
+	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
+	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
+mcck_no_vtime:
+#endif
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	brasl	%r14,s390_do_machine_check
@@ -771,7 +774,7 @@ mcck_int_main:
 	jno	mcck_return
 	brasl	%r14,s390_handle_mcck
 mcck_return:
-        RESTORE_ALL 0
+        RESTORE_ALL __LC_RETURN_MCCK_PSW,0
 
 #ifdef CONFIG_SMP
 /*
@@ -833,6 +836,10 @@ cleanup_table_sysc_leave:
 	.quad	sysc_leave, sysc_work_loop
 cleanup_table_sysc_work_loop:
 	.quad	sysc_work_loop, sysc_reschedule
+cleanup_table_io_leave:
+	.quad	io_leave, io_done
+cleanup_table_io_work_loop:
+	.quad	io_work_loop, io_mcck_pending
 
 cleanup_critical:
 	clc	8(8,%r12),BASED(cleanup_table_system_call)
@@ -855,10 +862,26 @@ cleanup_critical:
 	clc	8(8,%r12),BASED(cleanup_table_sysc_work_loop+8)
 	jl	cleanup_sysc_return
 0:
+	clc	8(8,%r12),BASED(cleanup_table_io_leave)
+	jl	0f
+	clc	8(8,%r12),BASED(cleanup_table_io_leave+8)
+	jl	cleanup_io_leave
+0:
+	clc	8(8,%r12),BASED(cleanup_table_io_work_loop)
+	jl	0f
+	clc	8(8,%r12),BASED(cleanup_table_io_work_loop+8)
+	jl	cleanup_io_return
+0:
 	br	%r14
 
 cleanup_system_call:
 	mvc	__LC_RETURN_PSW(16),0(%r12)
+	cghi	%r12,__LC_MCK_OLD_PSW
+	je	0f
+	la	%r12,__LC_SAVE_AREA+32
+	j	1f
+0:	la	%r12,__LC_SAVE_AREA+64
+1:
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	clc	__LC_RETURN_PSW+8(8),BASED(cleanup_system_call_insn+8)
 	jh	0f
@@ -868,11 +891,13 @@ cleanup_system_call:
 #endif
 	clc	__LC_RETURN_PSW+8(8),BASED(cleanup_system_call_insn)
 	jh	0f
-	mvc	__LC_SAVE_AREA(32),__LC_SAVE_AREA+32
-0:	stg	%r13,__LC_SAVE_AREA+40
+	mvc	__LC_SAVE_AREA(32),0(%r12)
+0:	stg	%r13,8(%r12)
+	stg	%r12,__LC_SAVE_AREA+96	# argh
 	SAVE_ALL __LC_SVC_OLD_PSW,__LC_SAVE_AREA,1
 	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
-	stg	%r15,__LC_SAVE_AREA+56
+	lg	%r12,__LC_SAVE_AREA+96	# argh
+	stg	%r15,24(%r12)
 	llgh	%r7,__LC_SVC_INT_CODE
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 cleanup_vtime:
@@ -909,23 +934,57 @@ cleanup_sysc_return:
 
 cleanup_sysc_leave:
 	clc	8(8,%r12),BASED(cleanup_sysc_leave_insn)
-	je	0f
+	je	2f
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
 	clc	8(8,%r12),BASED(cleanup_sysc_leave_insn+8)
-	je	0f
+	je	2f
 #endif
 	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
-	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
-	lmg	%r0,%r11,SP_R0(%r15)
+	cghi	%r12,__LC_MCK_OLD_PSW
+	jne	0f
+	mvc	__LC_SAVE_AREA+64(32),SP_R12(%r15)
+	j	1f
+0:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
+1:	lmg	%r0,%r11,SP_R0(%r15)
 	lg	%r15,SP_R15(%r15)
-0:	la	%r12,__LC_RETURN_PSW
+2:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_sysc_leave_insn:
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.quad	sysc_leave + 16
 #endif
 	.quad	sysc_leave + 12
+
+cleanup_io_return:
+	mvc	__LC_RETURN_PSW(8),0(%r12)
+	mvc	__LC_RETURN_PSW+8(8),BASED(cleanup_table_io_work_loop)
+	la	%r12,__LC_RETURN_PSW
+	br	%r14
+
+cleanup_io_leave:
+	clc	8(8,%r12),BASED(cleanup_io_leave_insn)
+	je	2f
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	clc	8(8,%r12),BASED(cleanup_io_leave_insn+8)
+	je	2f
+#endif
+	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
+	cghi	%r12,__LC_MCK_OLD_PSW
+	jne	0f
+	mvc	__LC_SAVE_AREA+64(32),SP_R12(%r15)
+	j	1f
+0:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
+1:	lmg	%r0,%r11,SP_R0(%r15)
+	lg	%r15,SP_R15(%r15)
+2:	la	%r12,__LC_RETURN_PSW
+	br	%r14
+cleanup_io_leave_insn:
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	.quad	io_leave + 20
+#endif
+	.quad	io_leave + 16
 
 /*
  * Integer constants

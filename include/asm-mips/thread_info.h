@@ -62,10 +62,10 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define current_thread_info()  __current_thread_info
 
 /* thread information allocation */
-#if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS32)
+#if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_32BIT)
 #define THREAD_SIZE_ORDER (1)
 #endif
-#if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS64)
+#if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_64BIT)
 #define THREAD_SIZE_ORDER (2)
 #endif
 #ifdef CONFIG_PAGE_SIZE_8KB

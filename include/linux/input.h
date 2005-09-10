@@ -66,6 +66,7 @@ struct input_absinfo {
 #define EVIOCGKEY(len)		_IOC(_IOC_READ, 'E', 0x18, len)		/* get global keystate */
 #define EVIOCGLED(len)		_IOC(_IOC_READ, 'E', 0x19, len)		/* get all LEDs */
 #define EVIOCGSND(len)		_IOC(_IOC_READ, 'E', 0x1a, len)		/* get all sounds status */
+#define EVIOCGSW(len)		_IOC(_IOC_READ, 'E', 0x1b, len)		/* get all switch states */
 
 #define EVIOCGBIT(ev,len)	_IOC(_IOC_READ, 'E', 0x20 + ev, len)	/* get event bits */
 #define EVIOCGABS(abs)		_IOR('E', 0x40 + abs, struct input_absinfo)		/* get abs value/limits */
@@ -86,6 +87,7 @@ struct input_absinfo {
 #define EV_REL			0x02
 #define EV_ABS			0x03
 #define EV_MSC			0x04
+#define EV_SW			0x05
 #define EV_LED			0x11
 #define EV_SND			0x12
 #define EV_REP			0x14
@@ -559,6 +561,20 @@ struct input_absinfo {
 #define ABS_MAX			0x3f
 
 /*
+ * Switch events
+ */
+
+#define SW_0		0x00
+#define SW_1		0x01
+#define SW_2		0x02
+#define SW_3		0x03
+#define SW_4		0x04
+#define SW_5		0x05
+#define SW_6		0x06
+#define SW_7		0x07
+#define SW_MAX		0x0f
+
+/*
  * Misc events
  */
 
@@ -832,6 +848,7 @@ struct input_dev {
 	unsigned long ledbit[NBITS(LED_MAX)];
 	unsigned long sndbit[NBITS(SND_MAX)];
 	unsigned long ffbit[NBITS(FF_MAX)];
+	unsigned long swbit[NBITS(SW_MAX)];
 	int ff_effects_max;
 
 	unsigned int keycodemax;
@@ -852,6 +869,7 @@ struct input_dev {
 	unsigned long key[NBITS(KEY_MAX)];
 	unsigned long led[NBITS(LED_MAX)];
 	unsigned long snd[NBITS(SND_MAX)];
+	unsigned long sw[NBITS(SW_MAX)];
 
 	int absmax[ABS_MAX + 1];
 	int absmin[ABS_MAX + 1];
@@ -894,6 +912,7 @@ struct input_dev {
 #define INPUT_DEVICE_ID_MATCH_LEDBIT	0x200
 #define INPUT_DEVICE_ID_MATCH_SNDBIT	0x400
 #define INPUT_DEVICE_ID_MATCH_FFBIT	0x800
+#define INPUT_DEVICE_ID_MATCH_SWBIT	0x1000
 
 #define INPUT_DEVICE_ID_MATCH_DEVICE\
 	(INPUT_DEVICE_ID_MATCH_BUS | INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT)
@@ -914,6 +933,7 @@ struct input_device_id {
 	unsigned long ledbit[NBITS(LED_MAX)];
 	unsigned long sndbit[NBITS(SND_MAX)];
 	unsigned long ffbit[NBITS(FF_MAX)];
+	unsigned long swbit[NBITS(SW_MAX)];
 
 	unsigned long driver_info;
 };
@@ -1004,6 +1024,11 @@ static inline void input_report_ff(struct input_dev *dev, unsigned int code, int
 static inline void input_report_ff_status(struct input_dev *dev, unsigned int code, int value)
 {
 	input_event(dev, EV_FF_STATUS, code, value);
+}
+
+static inline void input_report_switch(struct input_dev *dev, unsigned int code, int value)
+{
+	input_event(dev, EV_SW, code, !!value);
 }
 
 static inline void input_regs(struct input_dev *dev, struct pt_regs *regs)

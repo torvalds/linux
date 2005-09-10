@@ -824,7 +824,7 @@ static void cxgb_proc_cleanup(struct adapter *adapter,
 static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
         struct adapter *adapter = dev->priv;
-        struct mii_ioctl_data *data = (struct mii_ioctl_data *)&req->ifr_data;
+        struct mii_ioctl_data *data = if_mii(req);
 
 	switch (cmd) {
         case SIOCGMIIPHY:

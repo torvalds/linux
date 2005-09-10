@@ -233,8 +233,7 @@ static void kd_nosound(unsigned long ignored)
 	}
 }
 
-static struct timer_list kd_mksound_timer =
-		TIMER_INITIALIZER(kd_nosound, 0, 0);
+static DEFINE_TIMER(kd_mksound_timer, kd_nosound, 0, 0);
 
 void kd_mksound(unsigned int hz, unsigned int ticks)
 {

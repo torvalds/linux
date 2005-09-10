@@ -421,7 +421,7 @@ xfs_qm_init_dquot_blk(
  */
 STATIC int
 xfs_qm_dqalloc(
-	xfs_trans_t	*tp,
+	xfs_trans_t	**tpp,
 	xfs_mount_t	*mp,
 	xfs_dquot_t	*dqp,
 	xfs_inode_t	*quotip,
@@ -433,6 +433,7 @@ xfs_qm_dqalloc(
 	xfs_bmbt_irec_t map;
 	int		nmaps, error, committed;
 	xfs_buf_t	*bp;
+	xfs_trans_t	*tp = *tpp;
 
 	ASSERT(tp != NULL);
 	xfs_dqtrace_entry(dqp, "DQALLOC");
@@ -492,8 +493,30 @@ xfs_qm_dqalloc(
 	xfs_qm_init_dquot_blk(tp, mp, INT_GET(dqp->q_core.d_id, ARCH_CONVERT),
 			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
 
-	if ((error = xfs_bmap_finish(&tp, &flist, firstblock, &committed))) {
+	/*
+	 * xfs_bmap_finish() may commit the current transaction and
+	 * start a second transaction if the freelist is not empty.
+	 *
+	 * Since we still want to modify this buffer, we need to
+	 * ensure that the buffer is not released on commit of
+	 * the first transaction and ensure the buffer is added to the
+	 * second transaction.
+	 *
+	 * If there is only one transaction then don't stop the buffer
+	 * from being released when it commits later on.
+	 */
+
+	xfs_trans_bhold(tp, bp);
+
+	if ((error = xfs_bmap_finish(tpp, &flist, firstblock, &committed))) {
 		goto error1;
+	}
+
+	if (committed) {
+		tp = *tpp;
+		xfs_trans_bjoin(tp, bp);
+	} else {
+		xfs_trans_bhold_release(tp, bp);
 	}
 
 	*O_bpp = bp;
@@ -514,7 +537,7 @@ xfs_qm_dqalloc(
  */
 STATIC int
 xfs_qm_dqtobp(
-	xfs_trans_t		*tp,
+	xfs_trans_t		**tpp,
 	xfs_dquot_t		*dqp,
 	xfs_disk_dquot_t	**O_ddpp,
 	xfs_buf_t		**O_bpp,
@@ -528,6 +551,7 @@ xfs_qm_dqtobp(
 	xfs_disk_dquot_t *ddq;
 	xfs_dqid_t	id;
 	boolean_t	newdquot;
+	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
 
 	mp = dqp->q_mount;
 	id = INT_GET(dqp->q_core.d_id, ARCH_CONVERT);
@@ -579,9 +603,10 @@ xfs_qm_dqtobp(
 				return (ENOENT);
 
 			ASSERT(tp);
-			if ((error = xfs_qm_dqalloc(tp, mp, dqp, quotip,
+			if ((error = xfs_qm_dqalloc(tpp, mp, dqp, quotip,
 						dqp->q_fileoffset, &bp)))
 				return (error);
+			tp = *tpp;
 			newdquot = B_TRUE;
 		} else {
 			/*
@@ -645,7 +670,7 @@ xfs_qm_dqtobp(
 /* ARGSUSED */
 STATIC int
 xfs_qm_dqread(
-	xfs_trans_t	*tp,
+	xfs_trans_t	**tpp,
 	xfs_dqid_t	id,
 	xfs_dquot_t	*dqp,	/* dquot to get filled in */
 	uint		flags)
@@ -653,15 +678,19 @@ xfs_qm_dqread(
 	xfs_disk_dquot_t *ddqp;
 	xfs_buf_t	 *bp;
 	int		 error;
+	xfs_trans_t	 *tp;
+
+	ASSERT(tpp);
 
 	/*
 	 * get a pointer to the on-disk dquot and the buffer containing it
 	 * dqp already knows its own type (GROUP/USER).
 	 */
 	xfs_dqtrace_entry(dqp, "DQREAD");
-	if ((error = xfs_qm_dqtobp(tp, dqp, &ddqp, &bp, flags))) {
+	if ((error = xfs_qm_dqtobp(tpp, dqp, &ddqp, &bp, flags))) {
 		return (error);
 	}
+	tp = *tpp;
 
 	/* copy everything from disk dquot to the incore dquot */
 	memcpy(&dqp->q_core, ddqp, sizeof(xfs_disk_dquot_t));
@@ -740,7 +769,7 @@ xfs_qm_idtodq(
 	 * Read it from disk; xfs_dqread() takes care of
 	 * all the necessary initialization of dquot's fields (locks, etc)
 	 */
-	if ((error = xfs_qm_dqread(tp, id, dqp, flags))) {
+	if ((error = xfs_qm_dqread(&tp, id, dqp, flags))) {
 		/*
 		 * This can happen if quotas got turned off (ESRCH),
 		 * or if the dquot didn't exist on disk and we ask to

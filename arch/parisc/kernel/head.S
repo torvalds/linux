@@ -14,7 +14,7 @@
 
 #include <linux/autoconf.h>	/* for CONFIG_SMP */
 
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/psw.h>
 #include <asm/pdc.h>
 	

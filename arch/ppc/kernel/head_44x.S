@@ -40,7 +40,7 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include "head_booke.h"
 
 
@@ -462,7 +462,11 @@ interrupt_base:
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
+#ifdef CONFIG_BOOKE_WDT
+	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, WatchdogException)
+#else
 	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, UnknownException)
+#endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)

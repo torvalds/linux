@@ -283,8 +283,6 @@ au1550_func(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm au1550_algo = {
-	.name		= "Au1550 algorithm",
-	.id		= I2C_ALGO_AU1550,
 	.master_xfer	= au1550_xfer,
 	.functionality	= au1550_func,
 };

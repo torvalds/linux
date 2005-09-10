@@ -13,45 +13,40 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME		("event")
+ACPI_MODULE_NAME("event")
 
 /* Global vars for handling event proc entry */
 static DEFINE_SPINLOCK(acpi_system_event_lock);
-int				event_is_open = 0;
-extern struct list_head		acpi_bus_event_list;
-extern wait_queue_head_t	acpi_bus_event_queue;
+int event_is_open = 0;
+extern struct list_head acpi_bus_event_list;
+extern wait_queue_head_t acpi_bus_event_queue;
 
-static int
-acpi_system_open_event(struct inode *inode, struct file *file)
+static int acpi_system_open_event(struct inode *inode, struct file *file)
 {
-	spin_lock_irq (&acpi_system_event_lock);
+	spin_lock_irq(&acpi_system_event_lock);
 
-	if(event_is_open)
+	if (event_is_open)
 		goto out_busy;
 
 	event_is_open = 1;
 
-	spin_unlock_irq (&acpi_system_event_lock);
+	spin_unlock_irq(&acpi_system_event_lock);
 	return 0;
 
-out_busy:
-	spin_unlock_irq (&acpi_system_event_lock);
+      out_busy:
+	spin_unlock_irq(&acpi_system_event_lock);
 	return -EBUSY;
 }
 
 static ssize_t
-acpi_system_read_event (
-	struct file		*file,
-	char			__user *buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_read_event(struct file *file, char __user * buffer, size_t count,
+		       loff_t * ppos)
 {
-	int			result = 0;
-	struct acpi_bus_event	event;
-	static char		str[ACPI_MAX_STRING];
-	static int		chars_remaining = 0;
-	static char		*ptr;
-
+	int result = 0;
+	struct acpi_bus_event event;
+	static char str[ACPI_MAX_STRING];
+	static int chars_remaining = 0;
+	static char *ptr;
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_event");
 
@@ -67,10 +62,12 @@ acpi_system_read_event (
 			return_VALUE(-EIO);
 		}
 
-		chars_remaining = sprintf(str, "%s %s %08x %08x\n", 
-			event.device_class?event.device_class:"<unknown>",
-			event.bus_id?event.bus_id:"<unknown>", 
-			event.type, event.data);
+		chars_remaining = sprintf(str, "%s %s %08x %08x\n",
+					  event.device_class ? event.
+					  device_class : "<unknown>",
+					  event.bus_id ? event.
+					  bus_id : "<unknown>", event.type,
+					  event.data);
 		ptr = str;
 	}
 
@@ -88,19 +85,15 @@ acpi_system_read_event (
 	return_VALUE(count);
 }
 
-static int
-acpi_system_close_event(struct inode *inode, struct file *file)
+static int acpi_system_close_event(struct inode *inode, struct file *file)
 {
-	spin_lock_irq (&acpi_system_event_lock);
+	spin_lock_irq(&acpi_system_event_lock);
 	event_is_open = 0;
-	spin_unlock_irq (&acpi_system_event_lock);
+	spin_unlock_irq(&acpi_system_event_lock);
 	return 0;
 }
 
-static unsigned int
-acpi_system_poll_event(
-	struct file		*file,
-	poll_table		*wait)
+static unsigned int acpi_system_poll_event(struct file *file, poll_table * wait)
 {
 	poll_wait(file, &acpi_bus_event_queue, wait);
 	if (!list_empty(&acpi_bus_event_list))
@@ -109,15 +102,15 @@ acpi_system_poll_event(
 }
 
 static struct file_operations acpi_system_event_ops = {
-	.open =		acpi_system_open_event,
-	.read =		acpi_system_read_event,
-	.release =	acpi_system_close_event,
-	.poll =		acpi_system_poll_event,
+	.open = acpi_system_open_event,
+	.read = acpi_system_read_event,
+	.release = acpi_system_close_event,
+	.poll = acpi_system_poll_event,
 };
 
 static int __init acpi_event_init(void)
 {
-	struct proc_dir_entry	*entry;
+	struct proc_dir_entry *entry;
 	int error = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_event_init");
@@ -130,8 +123,9 @@ static int __init acpi_event_init(void)
 	if (entry)
 		entry->proc_fops = &acpi_system_event_ops;
 	else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
-				  "Unable to create '%s' proc fs entry\n","event" ));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Unable to create '%s' proc fs entry\n",
+				  "event"));
 		error = -EFAULT;
 	}
 	return_VALUE(error);

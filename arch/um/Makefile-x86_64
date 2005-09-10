@@ -6,8 +6,9 @@ START := 0x60000000
 
 #We #undef __x86_64__ for kernelspace, not for userspace where
 #it's needed for headers to work!
-CFLAGS += -U__$(SUBARCH)__ -fno-builtin $(STUB_CFLAGS)
+CFLAGS += -U__$(SUBARCH)__ -fno-builtin
 USER_CFLAGS += -fno-builtin
+CHECKFLAGS  += -m64
 
 ELF_ARCH := i386:x86-64
 ELF_FORMAT := elf64-x86-64

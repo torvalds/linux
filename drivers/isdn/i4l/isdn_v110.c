@@ -516,11 +516,11 @@ buffer_full:
 }
 
 int
-isdn_v110_stat_callback(int idx, isdn_ctrl * c)
+isdn_v110_stat_callback(int idx, isdn_ctrl *c)
 {
 	isdn_v110_stream *v = NULL;
 	int i;
-	int ret;
+	int ret = 0;
 
 	if (idx < 0)
 		return 0;

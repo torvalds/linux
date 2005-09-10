@@ -104,7 +104,8 @@ struct mip_reg {
 #define	MIP_SW_APIC		0x1020b
 #define	MIP_FUNC(VALUE) 	(VALUE & 0xff)
 
-extern int parse_unisys_oem (char *oemptr, int oem_entries);
-extern int find_unisys_acpi_oem_table(unsigned long *oem_addr, int *length);
+extern int parse_unisys_oem (char *oemptr);
+extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
+extern void setup_unisys ();
 extern int es7000_start_cpu(int cpu, unsigned long eip);
 extern void es7000_sw_apic(void);

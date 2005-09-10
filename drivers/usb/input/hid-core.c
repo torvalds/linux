@@ -1432,7 +1432,7 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_VERNIER_CYCLOPS	0x0004
 
 #define USB_VENDOR_ID_LD		0x0f11
-#define USB_DEVICE_ID_CASSY        	0x1000
+#define USB_DEVICE_ID_CASSY		0x1000
 #define USB_DEVICE_ID_POCKETCASSY	0x1010
 #define USB_DEVICE_ID_MOBILECASSY	0x1020
 #define USB_DEVICE_ID_JWM		0x1080
@@ -1446,6 +1446,7 @@ void hid_init_reports(struct hid_device *hid)
 
 #define USB_VENDOR_ID_APPLE		0x05ac
 #define USB_DEVICE_ID_APPLE_POWERMOUSE	0x0304
+#define USB_DEVICE_ID_APPLE_BLUETOOTH	0x1000
 
 /*
  * Alphabetically sorted blacklist by quirk type.
@@ -1464,6 +1465,7 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_22, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_23, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_24, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_BLUETOOTH, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_BERKSHIRE, USB_DEVICE_ID_BERKSHIRE_PCWD, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW40, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW24, HID_QUIRK_IGNORE },
@@ -1720,7 +1722,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			usb_fill_int_urb(hid->urbin, dev, pipe, hid->inbuf, insize,
 					 hid_irq_in, hid, interval);
 			hid->urbin->transfer_dma = hid->inbuf_dma;
-			hid->urbin->transfer_flags |=(URB_NO_TRANSFER_DMA_MAP | URB_ASYNC_UNLINK);
+			hid->urbin->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		} else {
 			if (hid->urbout)
 				continue;
@@ -1730,7 +1732,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			usb_fill_int_urb(hid->urbout, dev, pipe, hid->outbuf, 0,
 					 hid_irq_out, hid, interval);
 			hid->urbout->transfer_dma = hid->outbuf_dma;
-			hid->urbout->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_ASYNC_UNLINK);
+			hid->urbout->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		}
 	}
 
@@ -1782,7 +1784,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			     hid->ctrlbuf, 1, hid_ctrl, hid);
 	hid->urbctrl->setup_dma = hid->cr_dma;
 	hid->urbctrl->transfer_dma = hid->ctrlbuf_dma;
-	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP | URB_ASYNC_UNLINK);
+	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
 	return hid;
 

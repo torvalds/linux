@@ -126,13 +126,13 @@ static inline void tx49_blast_icache32(void)
 
 	CACHE32_UNROLL32_ALIGN2;
 	/* I'm in even chunk.  blast odd chunks */
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start + 0x400; addr < end; addr += 0x400 * 2) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
 			cache32_unroll32(addr|ws,Index_Invalidate_I);
 	CACHE32_UNROLL32_ALIGN;
 	/* I'm in odd chunk.  blast even chunks */
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x400 * 2) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x400 * 2)
 			cache32_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -156,13 +156,13 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 
 	CACHE32_UNROLL32_ALIGN2;
 	/* I'm in even chunk.  blast odd chunks */
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start + 0x400; addr < end; addr += 0x400 * 2) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
 			cache32_unroll32(addr|ws,Index_Invalidate_I);
 	CACHE32_UNROLL32_ALIGN;
 	/* I'm in odd chunk.  blast even chunks */
-	for (ws = 0; ws < ws_end; ws += ws_inc) 
-		for (addr = start; addr < end; addr += 0x400 * 2) 
+	for (ws = 0; ws < ws_end; ws += ws_inc)
+		for (addr = start; addr < end; addr += 0x400 * 2)
 			cache32_unroll32(addr|ws,Index_Invalidate_I);
 }
 
@@ -723,10 +723,10 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 			".set push\n\t"
 			".set noat\n\t"
 			".set mips3\n\t"
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 			"la	$at,1f\n\t"
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 			"dla	$at,1f\n\t"
 #endif
 			"cache	%0,($at)\n\t"

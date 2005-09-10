@@ -849,10 +849,12 @@ void AltivecAssistException(struct pt_regs *regs)
 }
 #endif /* CONFIG_ALTIVEC */
 
+#ifdef CONFIG_E500
 void PerformanceMonitorException(struct pt_regs *regs)
 {
 	perf_irq(regs);
 }
+#endif
 
 #ifdef CONFIG_FSL_BOOKE
 void CacheLockingException(struct pt_regs *regs, unsigned long address,
@@ -901,6 +903,25 @@ void SPEFloatingPointException(struct pt_regs *regs)
 
 	_exception(SIGFPE, regs, code, regs->nip);
 	return;
+}
+#endif
+
+#ifdef CONFIG_BOOKE_WDT
+/*
+ * Default handler for a Watchdog exception,
+ * spins until a reboot occurs
+ */
+void __attribute__ ((weak)) WatchdogHandler(struct pt_regs *regs)
+{
+	/* Generic WatchdogHandler, implement your own */
+	mtspr(SPRN_TCR, mfspr(SPRN_TCR)&(~TCR_WIE));
+	return;
+}
+
+void WatchdogException(struct pt_regs *regs)
+{
+	printk (KERN_EMERG "PowerPC Book-E Watchdog Exception\n");
+	WatchdogHandler(regs);
 }
 #endif
 

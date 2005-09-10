@@ -116,15 +116,21 @@ void *snd_hidden_kmalloc(size_t size, unsigned int __nocast flags)
 	return _snd_kmalloc(size, flags);
 }
 
+void *snd_hidden_kzalloc(size_t size, unsigned int __nocast flags)
+{
+	void *ret = _snd_kmalloc(size, flags);
+	if (ret)
+		memset(ret, 0, size);
+	return ret;
+}
+EXPORT_SYMBOL(snd_hidden_kzalloc);
+
 void *snd_hidden_kcalloc(size_t n, size_t size, unsigned int __nocast flags)
 {
 	void *ret = NULL;
 	if (n != 0 && size > INT_MAX / n)
 		return ret;
-	ret = _snd_kmalloc(n * size, flags);
-	if (ret)
-		memset(ret, 0, n * size);
-	return ret;
+	return snd_hidden_kzalloc(n * size, flags);
 }
 
 void snd_hidden_kfree(const void *obj)

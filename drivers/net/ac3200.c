@@ -275,7 +275,7 @@ static int __init ac_probe1(int ioaddr, struct net_device *dev)
 	return 0;
 out2:
 	if (ei_status.reg0)
-		iounmap((void *)dev->mem_start);
+		iounmap(ei_status.mem);
 out1:
 	free_irq(dev->irq, dev);
 out:

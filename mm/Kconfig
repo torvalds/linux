@@ -89,3 +89,25 @@ config NEED_MULTIPLE_NODES
 config HAVE_MEMORY_PRESENT
 	def_bool y
 	depends on ARCH_HAVE_MEMORY_PRESENT || SPARSEMEM
+
+#
+# SPARSEMEM_EXTREME (which is the default) does some bootmem
+# allocations when memory_present() is called.  If this can not
+# be done on your architecture, select this option.  However,
+# statically allocating the mem_section[] array can potentially
+# consume vast quantities of .bss, so be careful.
+#
+# This option will also potentially produce smaller runtime code
+# with gcc 3.4 and later.
+#
+config SPARSEMEM_STATIC
+	def_bool n
+
+#
+# Architectecture platforms which require a two level mem_section in SPARSEMEM
+# must select this option. This is usually for architecture platforms with
+# an extremely sparse physical address space.
+#
+config SPARSEMEM_EXTREME
+	def_bool y
+	depends on SPARSEMEM && !SPARSEMEM_STATIC

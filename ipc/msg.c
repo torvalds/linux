@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/seq_file.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 #include "util.h"
@@ -74,16 +75,16 @@ static struct ipc_ids msg_ids;
 static void freeque (struct msg_queue *msq, int id);
 static int newque (key_t key, int msgflg);
 #ifdef CONFIG_PROC_FS
-static int sysvipc_msg_read_proc(char *buffer, char **start, off_t offset, int length, int *eof, void *data);
+static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
 #endif
 
 void __init msg_init (void)
 {
 	ipc_init_ids(&msg_ids,msg_ctlmni);
-
-#ifdef CONFIG_PROC_FS
-	create_proc_read_entry("sysvipc/msg", 0, NULL, sysvipc_msg_read_proc, NULL);
-#endif
+	ipc_init_proc_interface("sysvipc/msg",
+				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",
+				&msg_ids,
+				sysvipc_msg_proc_show);
 }
 
 static int newque (key_t key, int msgflg)
@@ -113,6 +114,7 @@ static int newque (key_t key, int msgflg)
 		return -ENOSPC;
 	}
 
+	msq->q_id = msg_buildid(id,msq->q_perm.seq);
 	msq->q_stime = msq->q_rtime = 0;
 	msq->q_ctime = get_seconds();
 	msq->q_cbytes = msq->q_qnum = 0;
@@ -123,7 +125,7 @@ static int newque (key_t key, int msgflg)
 	INIT_LIST_HEAD(&msq->q_senders);
 	msg_unlock(msq);
 
-	return msg_buildid(id,msq->q_perm.seq);
+	return msq->q_id;
 }
 
 static inline void ss_add(struct msg_queue* msq, struct msg_sender* mss)
@@ -808,55 +810,25 @@ out_unlock:
 }
 
 #ifdef CONFIG_PROC_FS
-static int sysvipc_msg_read_proc(char *buffer, char **start, off_t offset, int length, int *eof, void *data)
+static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 {
-	off_t pos = 0;
-	off_t begin = 0;
-	int i, len = 0;
+	struct msg_queue *msq = it;
 
-	down(&msg_ids.sem);
-	len += sprintf(buffer, "       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n");
-
-	for(i = 0; i <= msg_ids.max_id; i++) {
-		struct msg_queue * msq;
-		msq = msg_lock(i);
-		if(msq != NULL) {
-			len += sprintf(buffer + len, "%10d %10d  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %10lu %10lu %10lu\n",
-				msq->q_perm.key,
-				msg_buildid(i,msq->q_perm.seq),
-				msq->q_perm.mode,
-				msq->q_cbytes,
-				msq->q_qnum,
-				msq->q_lspid,
-				msq->q_lrpid,
-				msq->q_perm.uid,
-				msq->q_perm.gid,
-				msq->q_perm.cuid,
-				msq->q_perm.cgid,
-				msq->q_stime,
-				msq->q_rtime,
-				msq->q_ctime);
-			msg_unlock(msq);
-
-			pos += len;
-			if(pos < offset) {
-				len = 0;
-				begin = pos;
-			}
-			if(pos > offset + length)
-				goto done;
-		}
-
-	}
-	*eof = 1;
-done:
-	up(&msg_ids.sem);
-	*start = buffer + (offset - begin);
-	len -= (offset - begin);
-	if(len > length)
-		len = length;
-	if(len < 0)
-		len = 0;
-	return len;
+	return seq_printf(s,
+			  "%10d %10d  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %10lu %10lu %10lu\n",
+			  msq->q_perm.key,
+			  msq->q_id,
+			  msq->q_perm.mode,
+			  msq->q_cbytes,
+			  msq->q_qnum,
+			  msq->q_lspid,
+			  msq->q_lrpid,
+			  msq->q_perm.uid,
+			  msq->q_perm.gid,
+			  msq->q_perm.cuid,
+			  msq->q_perm.cgid,
+			  msq->q_stime,
+			  msq->q_rtime,
+			  msq->q_ctime);
 }
 #endif

@@ -108,6 +108,7 @@ static int help(struct sk_buff **pskb,
 		}
 
 		exp->expectfn = NULL;
+		exp->flags = 0;
 
 		exp->tuple.src.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
 		exp->tuple.src.u.tcp.port = 0;

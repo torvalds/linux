@@ -98,12 +98,13 @@ MODULE_PARM_DESC(useinput,
 
 #define SONYPI_DEVICE_MODEL_TYPE1	1
 #define SONYPI_DEVICE_MODEL_TYPE2	2
+#define SONYPI_DEVICE_MODEL_TYPE3	3
 
 /* type1 models use those */
 #define SONYPI_IRQ_PORT			0x8034
 #define SONYPI_IRQ_SHIFT		22
-#define SONYPI_BASE			0x50
-#define SONYPI_G10A			(SONYPI_BASE+0x14)
+#define SONYPI_TYPE1_BASE		0x50
+#define SONYPI_G10A			(SONYPI_TYPE1_BASE+0x14)
 #define SONYPI_TYPE1_REGION_SIZE	0x08
 #define SONYPI_TYPE1_EVTYPE_OFFSET	0x04
 
@@ -113,6 +114,13 @@ MODULE_PARM_DESC(useinput,
 #define SONYPI_SHIB			0x9d
 #define SONYPI_TYPE2_REGION_SIZE	0x20
 #define SONYPI_TYPE2_EVTYPE_OFFSET	0x12
+
+/* type3 series specifics */
+#define SONYPI_TYPE3_BASE		0x40
+#define SONYPI_TYPE3_GID2		(SONYPI_TYPE3_BASE+0x48) /* 16 bits */
+#define SONYPI_TYPE3_MISC		(SONYPI_TYPE3_BASE+0x6d) /* 8 bits  */
+#define SONYPI_TYPE3_REGION_SIZE	0x20
+#define SONYPI_TYPE3_EVTYPE_OFFSET	0x12
 
 /* battery / brightness addresses */
 #define SONYPI_BAT_FLAGS	0x81
@@ -159,6 +167,10 @@ static struct sonypi_ioport_list sonypi_type2_ioport_list[] = {
 	{ 0x0, 0x0 }
 };
 
+/* same as in type 2 models */
+static struct sonypi_ioport_list *sonypi_type3_ioport_list =
+	sonypi_type2_ioport_list;
+
 /* The set of possible interrupts */
 struct sonypi_irq_list {
 	u16	irq;
@@ -179,6 +191,9 @@ static struct sonypi_irq_list sonypi_type2_irq_list[] = {
 	{  6, 0x10 },	/* IRQ  6, 0x10 in SIRQ in AML */
 	{  0, 0x00 }	/* no IRQ, 0x00 in SIRQ in AML */
 };
+
+/* same as in type2 models */
+static struct sonypi_irq_list *sonypi_type3_irq_list = sonypi_type2_irq_list;
 
 #define SONYPI_CAMERA_BRIGHTNESS		0
 #define SONYPI_CAMERA_CONTRAST			1
@@ -223,6 +238,7 @@ static struct sonypi_irq_list sonypi_type2_irq_list[] = {
 #define SONYPI_MEYE_MASK			0x00000400
 #define SONYPI_MEMORYSTICK_MASK			0x00000800
 #define SONYPI_BATTERY_MASK			0x00001000
+#define SONYPI_WIRELESS_MASK			0x00002000
 
 struct sonypi_event {
 	u8	data;
@@ -305,6 +321,13 @@ static struct sonypi_event sonypi_blueev[] = {
 	{ 0, 0 }
 };
 
+/* The set of possible wireless events */
+static struct sonypi_event sonypi_wlessev[] = {
+	{ 0x59, SONYPI_EVENT_WIRELESS_ON },
+	{ 0x5a, SONYPI_EVENT_WIRELESS_OFF },
+	{ 0, 0 }
+};
+
 /* The set of possible back button events */
 static struct sonypi_event sonypi_backev[] = {
 	{ 0x20, SONYPI_EVENT_BACK_PRESSED },
@@ -383,7 +406,6 @@ static struct sonypi_eventtypes {
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x31, SONYPI_BLUETOOTH_MASK, sonypi_blueev },
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x08, SONYPI_PKEY_MASK, sonypi_pkeyev },
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x11, SONYPI_BACK_MASK, sonypi_backev },
-	{ SONYPI_DEVICE_MODEL_TYPE2, 0x08, SONYPI_HELP_MASK, sonypi_helpev },
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x21, SONYPI_HELP_MASK, sonypi_helpev },
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x21, SONYPI_ZOOM_MASK, sonypi_zoomev },
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x20, SONYPI_THUMBPHRASE_MASK, sonypi_thumbphraseev },
@@ -391,6 +413,12 @@ static struct sonypi_eventtypes {
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x41, SONYPI_BATTERY_MASK, sonypi_batteryev },
 	{ SONYPI_DEVICE_MODEL_TYPE2, 0x31, SONYPI_PKEY_MASK, sonypi_pkeyev },
 
+	{ SONYPI_DEVICE_MODEL_TYPE3, 0, 0xffffffff, sonypi_releaseev },
+	{ SONYPI_DEVICE_MODEL_TYPE3, 0x21, SONYPI_FNKEY_MASK, sonypi_fnkeyev },
+	{ SONYPI_DEVICE_MODEL_TYPE3, 0x31, SONYPI_WIRELESS_MASK, sonypi_wlessev },
+	{ SONYPI_DEVICE_MODEL_TYPE3, 0x31, SONYPI_MEMORYSTICK_MASK, sonypi_memorystickev },
+	{ SONYPI_DEVICE_MODEL_TYPE3, 0x41, SONYPI_BATTERY_MASK, sonypi_batteryev },
+	{ SONYPI_DEVICE_MODEL_TYPE3, 0x31, SONYPI_PKEY_MASK, sonypi_pkeyev },
 	{ 0 }
 };
 
@@ -563,6 +591,23 @@ static void sonypi_type2_srs(void)
 	udelay(10);
 }
 
+static void sonypi_type3_srs(void)
+{
+	u16 v16;
+	u8  v8;
+
+	/* This model type uses the same initialiazation of
+	 * the embedded controller as the type2 models. */
+	sonypi_type2_srs();
+
+	/* Initialization of PCI config space of the LPC interface bridge. */
+	v16 = (sonypi_device.ioport1 & 0xFFF0) | 0x01;
+	pci_write_config_word(sonypi_device.dev, SONYPI_TYPE3_GID2, v16);
+	pci_read_config_byte(sonypi_device.dev, SONYPI_TYPE3_MISC, &v8);
+	v8 = (v8 & 0xCF) | 0x10;
+	pci_write_config_byte(sonypi_device.dev, SONYPI_TYPE3_MISC, v8);
+}
+
 /* Disables the device - this comes from the AML code in the ACPI bios */
 static void sonypi_type1_dis(void)
 {
@@ -585,6 +630,13 @@ static void sonypi_type2_dis(void)
 		printk(KERN_WARNING "ec_write failed\n");
 	if (sonypi_ec_write(SONYPI_SIRQ, 0))
 		printk(KERN_WARNING "ec_write failed\n");
+}
+
+static void sonypi_type3_dis(void)
+{
+	sonypi_type2_dis();
+	udelay(10);
+	pci_write_config_word(sonypi_device.dev, SONYPI_TYPE3_GID2, 0);
 }
 
 static u8 sonypi_call1(u8 dev)
@@ -1067,10 +1119,17 @@ static struct miscdevice sonypi_misc_device = {
 
 static void sonypi_enable(unsigned int camera_on)
 {
-	if (sonypi_device.model == SONYPI_DEVICE_MODEL_TYPE2)
-		sonypi_type2_srs();
-	else
+	switch (sonypi_device.model) {
+	case SONYPI_DEVICE_MODEL_TYPE1:
 		sonypi_type1_srs();
+		break;
+	case SONYPI_DEVICE_MODEL_TYPE2:
+		sonypi_type2_srs();
+		break;
+	case SONYPI_DEVICE_MODEL_TYPE3:
+		sonypi_type3_srs();
+		break;
+	}
 
 	sonypi_call1(0x82);
 	sonypi_call2(0x81, 0xff);
@@ -1094,10 +1153,18 @@ static int sonypi_disable(void)
 	if (!SONYPI_ACPI_ACTIVE && fnkeyinit)
 		outb(0xf1, 0xb2);
 
-	if (sonypi_device.model == SONYPI_DEVICE_MODEL_TYPE2)
-		sonypi_type2_dis();
-	else
+	switch (sonypi_device.model) {
+	case SONYPI_DEVICE_MODEL_TYPE1:
 		sonypi_type1_dis();
+		break;
+	case SONYPI_DEVICE_MODEL_TYPE2:
+		sonypi_type2_dis();
+		break;
+	case SONYPI_DEVICE_MODEL_TYPE3:
+		sonypi_type3_dis();
+		break;
+	}
+
 	return 0;
 }
 
@@ -1143,12 +1210,16 @@ static int __devinit sonypi_probe(void)
 	struct sonypi_irq_list *irq_list;
 	struct pci_dev *pcidev;
 
-	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
+	if ((pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				     PCI_DEVICE_ID_INTEL_82371AB_3, NULL)))
+		sonypi_device.model = SONYPI_DEVICE_MODEL_TYPE1;
+	else if ((pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
+					  PCI_DEVICE_ID_INTEL_ICH6_1, NULL)))
+		sonypi_device.model = SONYPI_DEVICE_MODEL_TYPE3;
+	else
+		sonypi_device.model = SONYPI_DEVICE_MODEL_TYPE2;
 
 	sonypi_device.dev = pcidev;
-	sonypi_device.model = pcidev ?
-		SONYPI_DEVICE_MODEL_TYPE1 : SONYPI_DEVICE_MODEL_TYPE2;
 
 	spin_lock_init(&sonypi_device.fifo_lock);
 	sonypi_device.fifo = kfifo_alloc(SONYPI_BUF_SIZE, GFP_KERNEL,
@@ -1176,16 +1247,22 @@ static int __devinit sonypi_probe(void)
 		goto out_miscreg;
 	}
 
-	if (sonypi_device.model == SONYPI_DEVICE_MODEL_TYPE2) {
+
+	if (sonypi_device.model == SONYPI_DEVICE_MODEL_TYPE1) {
+		ioport_list = sonypi_type1_ioport_list;
+		sonypi_device.region_size = SONYPI_TYPE1_REGION_SIZE;
+		sonypi_device.evtype_offset = SONYPI_TYPE1_EVTYPE_OFFSET;
+		irq_list = sonypi_type1_irq_list;
+	} else if (sonypi_device.model == SONYPI_DEVICE_MODEL_TYPE2) {
 		ioport_list = sonypi_type2_ioport_list;
 		sonypi_device.region_size = SONYPI_TYPE2_REGION_SIZE;
 		sonypi_device.evtype_offset = SONYPI_TYPE2_EVTYPE_OFFSET;
 		irq_list = sonypi_type2_irq_list;
 	} else {
-		ioport_list = sonypi_type1_ioport_list;
-		sonypi_device.region_size = SONYPI_TYPE1_REGION_SIZE;
-		sonypi_device.evtype_offset = SONYPI_TYPE1_EVTYPE_OFFSET;
-		irq_list = sonypi_type1_irq_list;
+		ioport_list = sonypi_type3_ioport_list;
+		sonypi_device.region_size = SONYPI_TYPE3_REGION_SIZE;
+		sonypi_device.evtype_offset = SONYPI_TYPE3_EVTYPE_OFFSET;
+		irq_list = sonypi_type3_irq_list;
 	}
 
 	for (i = 0; ioport_list[i].port1; i++) {
@@ -1274,11 +1351,10 @@ static int __devinit sonypi_probe(void)
 
 	printk(KERN_INFO "sonypi: Sony Programmable I/O Controller Driver"
 	       "v%s.\n", SONYPI_DRIVER_VERSION);
-	printk(KERN_INFO "sonypi: detected %s model, "
+	printk(KERN_INFO "sonypi: detected type%d model, "
 	       "verbose = %d, fnkeyinit = %s, camera = %s, "
 	       "compat = %s, mask = 0x%08lx, useinput = %s, acpi = %s\n",
-	       (sonypi_device.model == SONYPI_DEVICE_MODEL_TYPE1) ?
-			"type1" : "type2",
+	       sonypi_device.model,
 	       verbose,
 	       fnkeyinit ? "on" : "off",
 	       camera ? "on" : "off",

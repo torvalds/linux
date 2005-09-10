@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -365,16 +365,6 @@ xfs_qm_mount_quotas(
 	int		error = 0;
 	uint		sbf;
 
-	/*
-	 * If a file system had quotas running earlier, but decided to
-	 * mount without -o uquota/pquota/gquota options, revoke the
-	 * quotachecked license, and bail out.
-	 */
-	if (! XFS_IS_QUOTA_ON(mp) &&
-	    (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT)) {
-		mp->m_qflags = 0;
-		goto write_changes;
-	}
 
 	/*
 	 * If quotas on realtime volumes is not supported, we disable
@@ -388,11 +378,8 @@ xfs_qm_mount_quotas(
 		goto write_changes;
 	}
 
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-	cmn_err(CE_NOTE, "Attempting to turn on disk quotas.");
-#endif
-
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
+
 	/*
 	 * Allocate the quotainfo structure inside the mount struct, and
 	 * create quotainode(s), and change/rev superblock if necessary.
@@ -410,19 +397,14 @@ xfs_qm_mount_quotas(
 	 */
 	if (XFS_QM_NEED_QUOTACHECK(mp) &&
 		!(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
-#ifdef DEBUG
-		cmn_err(CE_NOTE, "Doing a quotacheck. Please wait.");
-#endif
 		if ((error = xfs_qm_quotacheck(mp))) {
 			/* Quotacheck has failed and quotas have
 			 * been disabled.
 			 */
 			return XFS_ERROR(error);
 		}
-#ifdef DEBUG
-		cmn_err(CE_NOTE, "Done quotacheck.");
-#endif
 	}
+
  write_changes:
 	/*
 	 * We actually don't have to acquire the SB_LOCK at all.
@@ -2010,7 +1992,7 @@ xfs_qm_quotacheck(
 		ASSERT(mp->m_quotainfo != NULL);
 		ASSERT(xfs_Gqm != NULL);
 		xfs_qm_destroy_quotainfo(mp);
-		xfs_mount_reset_sbqflags(mp);
+		(void)xfs_mount_reset_sbqflags(mp);
 	} else {
 		cmn_err(CE_NOTE, "XFS quotacheck %s: Done.", mp->m_fsname);
 	}

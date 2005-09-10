@@ -55,13 +55,6 @@
 #include <syslib/gen550.h>
 #include <syslib/ibm440gp_common.h>
 
-/*
- * This is a horrible kludge, we eventually need to abstract this
- * generic PHY stuff, so the  standard phy mode defines can be
- * easily used from arch code.
- */
-#include "../../../../drivers/net/ibm_emac/ibm_emac_phy.h"
-
 bd_t __res;
 
 static struct ibm44x_clocks clocks __initdata;
@@ -98,15 +91,10 @@ ebony_calibrate_decr(void)
 	 * on Rev. C silicon then errata forces us to
 	 * use the internal clock.
 	 */
-	switch (PVR_REV(mfspr(SPRN_PVR))) {
-		case PVR_REV(PVR_440GP_RB):
-			freq = EBONY_440GP_RB_SYSCLK;
-			break;
-		case PVR_REV(PVR_440GP_RC1):
-		default:
-			freq = EBONY_440GP_RC_SYSCLK;
-			break;
-	}
+	if (strcmp(cur_cpu_spec[0]->cpu_name, "440GP Rev. B") == 0)
+		freq = EBONY_440GP_RB_SYSCLK;
+	else
+		freq = EBONY_440GP_RC_SYSCLK;
 
 	ibm44x_calibrate_decr(freq);
 }

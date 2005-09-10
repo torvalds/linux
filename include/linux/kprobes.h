@@ -42,6 +42,9 @@
 #define KPROBE_REENTER		0x00000004
 #define KPROBE_HIT_SSDONE	0x00000008
 
+/* Attach to insert probes on any functions which should be ignored*/
+#define __kprobes	__attribute__((__section__(".kprobes.text")))
+
 struct kprobe;
 struct pt_regs;
 struct kretprobe;

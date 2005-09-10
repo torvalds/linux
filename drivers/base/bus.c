@@ -156,7 +156,9 @@ static ssize_t driver_unbind(struct device_driver *drv,
 		device_release_driver(dev);
 		err = count;
 	}
-	return err;
+	if (err)
+		return err;
+	return count;
 }
 static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
 
@@ -358,7 +360,7 @@ int bus_add_device(struct device * dev)
 	if (bus) {
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
 		device_attach(dev);
-		klist_add_tail(&bus->klist_devices, &dev->knode_bus);
+		klist_add_tail(&dev->knode_bus, &bus->klist_devices);
 		error = device_add_attrs(bus, dev);
 		if (!error) {
 			sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
@@ -446,7 +448,7 @@ int bus_add_driver(struct device_driver * drv)
 		}
 
 		driver_attach(drv);
-		klist_add_tail(&bus->klist_drivers, &drv->knode_bus);
+		klist_add_tail(&drv->knode_bus, &bus->klist_drivers);
 		module_add_driver(drv->owner, drv);
 
 		driver_add_attrs(bus, drv);
@@ -566,6 +568,36 @@ static void bus_remove_attrs(struct bus_type * bus)
 	}
 }
 
+static void klist_devices_get(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_bus);
+
+	get_device(dev);
+}
+
+static void klist_devices_put(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_bus);
+
+	put_device(dev);
+}
+
+static void klist_drivers_get(struct klist_node *n)
+{
+	struct device_driver *drv = container_of(n, struct device_driver,
+						 knode_bus);
+
+	get_driver(drv);
+}
+
+static void klist_drivers_put(struct klist_node *n)
+{
+	struct device_driver *drv = container_of(n, struct device_driver,
+						 knode_bus);
+
+	put_driver(drv);
+}
+
 /**
  *	bus_register - register a bus with the system.
  *	@bus:	bus.
@@ -600,8 +632,8 @@ int bus_register(struct bus_type * bus)
 	if (retval)
 		goto bus_drivers_fail;
 
-	klist_init(&bus->klist_devices);
-	klist_init(&bus->klist_drivers);
+	klist_init(&bus->klist_devices, klist_devices_get, klist_devices_put);
+	klist_init(&bus->klist_drivers, klist_drivers_get, klist_drivers_put);
 	bus_add_attrs(bus);
 
 	pr_debug("bus type '%s' registered\n", bus->name);

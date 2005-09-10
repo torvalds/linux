@@ -1068,6 +1068,8 @@ static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
 	struct unit_directory *ud;
 	int i = 0;
 	int length = 0;
+	/* ieee1394:venNmoNspNverN */
+	char buf[8 + 1 + 3 + 8 + 2 + 8 + 2 + 8 + 3 + 8 + 1];
 
 	if (!cdev)
 		return -ENODEV;
@@ -1094,6 +1096,12 @@ do {								\
 	PUT_ENVP("GUID=%016Lx", (unsigned long long)ud->ne->guid);
 	PUT_ENVP("SPECIFIER_ID=%06x", ud->specifier_id);
 	PUT_ENVP("VERSION=%06x", ud->version);
+	snprintf(buf, sizeof(buf), "ieee1394:ven%08Xmo%08Xsp%08Xver%08X",
+			ud->vendor_id,
+			ud->model_id,
+			ud->specifier_id,
+			ud->version);
+	PUT_ENVP("MODALIAS=%s", buf);
 
 #undef PUT_ENVP
 

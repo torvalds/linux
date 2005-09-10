@@ -1,8 +1,8 @@
 /*
- * 	dscore.c
+ *	dscore.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,19 +32,16 @@ static struct usb_device_id ds_id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, ds_id_table);
 
-int ds_probe(struct usb_interface *, const struct usb_device_id *);
-void ds_disconnect(struct usb_interface *);
+static int ds_probe(struct usb_interface *, const struct usb_device_id *);
+static void ds_disconnect(struct usb_interface *);
 
 int ds_touch_bit(struct ds_device *, u8, u8 *);
 int ds_read_byte(struct ds_device *, u8 *);
 int ds_read_bit(struct ds_device *, u8 *);
 int ds_write_byte(struct ds_device *, u8);
 int ds_write_bit(struct ds_device *, u8);
-int ds_start_pulse(struct ds_device *, int);
-int ds_set_speed(struct ds_device *, int);
+static int ds_start_pulse(struct ds_device *, int);
 int ds_reset(struct ds_device *, struct ds_status *);
-int ds_detect(struct ds_device *, struct ds_status *);
-int ds_stop_pulse(struct ds_device *, int);
 struct ds_device * ds_get_device(void);
 void ds_put_device(struct ds_device *);
 
@@ -79,11 +76,11 @@ void ds_put_device(struct ds_device *dev)
 static int ds_send_control_cmd(struct ds_device *dev, u16 value, u16 index)
 {
 	int err;
-	
-	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]), 
+
+	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]),
 			CONTROL_CMD, 0x40, value, index, NULL, 0, 1000);
 	if (err < 0) {
-		printk(KERN_ERR "Failed to send command control message %x.%x: err=%d.\n", 
+		printk(KERN_ERR "Failed to send command control message %x.%x: err=%d.\n",
 				value, index, err);
 		return err;
 	}
@@ -94,11 +91,11 @@ static int ds_send_control_cmd(struct ds_device *dev, u16 value, u16 index)
 static int ds_send_control_mode(struct ds_device *dev, u16 value, u16 index)
 {
 	int err;
-	
-	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]), 
+
+	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]),
 			MODE_CMD, 0x40, value, index, NULL, 0, 1000);
 	if (err < 0) {
-		printk(KERN_ERR "Failed to send mode control message %x.%x: err=%d.\n", 
+		printk(KERN_ERR "Failed to send mode control message %x.%x: err=%d.\n",
 				value, index, err);
 		return err;
 	}
@@ -109,11 +106,11 @@ static int ds_send_control_mode(struct ds_device *dev, u16 value, u16 index)
 static int ds_send_control(struct ds_device *dev, u16 value, u16 index)
 {
 	int err;
-	
-	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]), 
+
+	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, dev->ep[EP_CONTROL]),
 			COMM_CMD, 0x40, value, index, NULL, 0, 1000);
 	if (err < 0) {
-		printk(KERN_ERR "Failed to send control message %x.%x: err=%d.\n", 
+		printk(KERN_ERR "Failed to send control message %x.%x: err=%d.\n",
 				value, index, err);
 		return err;
 	}
@@ -126,19 +123,20 @@ static inline void ds_dump_status(unsigned char *buf, unsigned char *str, int of
 	printk("%45s: %8x\n", str, buf[off]);
 }
 
-int ds_recv_status_nodump(struct ds_device *dev, struct ds_status *st, unsigned char *buf, int size)
+static int ds_recv_status_nodump(struct ds_device *dev, struct ds_status *st,
+				 unsigned char *buf, int size)
 {
 	int count, err;
-		
+
 	memset(st, 0, sizeof(st));
-	
+
 	count = 0;
 	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_STATUS]), buf, size, &count, 100);
 	if (err < 0) {
 		printk(KERN_ERR "Failed to read 1-wire data from 0x%x: err=%d.\n", dev->ep[EP_STATUS], err);
 		return err;
 	}
-	
+
 	if (count >= sizeof(*st))
 		memcpy(st, buf, sizeof(*st));
 
@@ -149,13 +147,13 @@ static int ds_recv_status(struct ds_device *dev, struct ds_status *st)
 {
 	unsigned char buf[64];
 	int count, err = 0, i;
-	
+
 	memcpy(st, buf, sizeof(*st));
-		
+
 	count = ds_recv_status_nodump(dev, st, buf, sizeof(buf));
 	if (count < 0)
 		return err;
-	
+
 	printk("0x%x: count=%d, status: ", dev->ep[EP_STATUS], count);
 	for (i=0; i<count; ++i)
 		printk("%02x ", buf[i]);
@@ -199,7 +197,7 @@ static int ds_recv_status(struct ds_device *dev, struct ds_status *st)
 			return err;
 	}
 #endif
-	
+
 	return err;
 }
 
@@ -207,9 +205,9 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 {
 	int count, err;
 	struct ds_status st;
-	
+
 	count = 0;
-	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]), 
+	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]),
 				buf, size, &count, 1000);
 	if (err < 0) {
 		printk(KERN_INFO "Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
@@ -234,7 +232,7 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 static int ds_send_data(struct ds_device *dev, unsigned char *buf, int len)
 {
 	int count, err;
-	
+
 	count = 0;
 	err = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->ep[EP_DATA_OUT]), buf, len, &count, 1000);
 	if (err < 0) {
@@ -245,12 +243,14 @@ static int ds_send_data(struct ds_device *dev, unsigned char *buf, int len)
 	return err;
 }
 
+#if 0
+
 int ds_stop_pulse(struct ds_device *dev, int limit)
 {
 	struct ds_status st;
 	int count = 0, err = 0;
 	u8 buf[0x20];
-	
+
 	do {
 		err = ds_send_control(dev, CTL_HALT_EXE_IDLE, 0);
 		if (err)
@@ -275,7 +275,7 @@ int ds_stop_pulse(struct ds_device *dev, int limit)
 int ds_detect(struct ds_device *dev, struct ds_status *st)
 {
 	int err;
-	
+
 	err = ds_send_control_cmd(dev, CTL_RESET_DEVICE, 0);
 	if (err)
 		return err;
@@ -283,11 +283,11 @@ int ds_detect(struct ds_device *dev, struct ds_status *st)
 	err = ds_send_control(dev, COMM_SET_DURATION | COMM_IM, 0);
 	if (err)
 		return err;
-	
+
 	err = ds_send_control(dev, COMM_SET_DURATION | COMM_IM | COMM_TYPE, 0x40);
 	if (err)
 		return err;
-	
+
 	err = ds_send_control_mode(dev, MOD_PULSE_EN, PULSE_PROG);
 	if (err)
 		return err;
@@ -297,7 +297,9 @@ int ds_detect(struct ds_device *dev, struct ds_status *st)
 	return err;
 }
 
-int ds_wait_status(struct ds_device *dev, struct ds_status *st)
+#endif  /*  0  */
+
+static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 {
 	u8 buf[0x20];
 	int err, count = 0;
@@ -305,7 +307,7 @@ int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 	do {
 		err = ds_recv_status_nodump(dev, st, buf, sizeof(buf));
 #if 0
-		if (err >= 0) {	
+		if (err >= 0) {
 			int i;
 			printk("0x%x: count=%d, status: ", dev->ep[EP_STATUS], err);
 			for (i=0; i<err; ++i)
@@ -319,10 +321,8 @@ int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 	if (((err > 16) && (buf[0x10] & 0x01)) || count >= 100 || err < 0) {
 		ds_recv_status(dev, st);
 		return -1;
-	}
-	else {
+	} else
 		return 0;
-	}
 }
 
 int ds_reset(struct ds_device *dev, struct ds_status *st)
@@ -345,6 +345,7 @@ int ds_reset(struct ds_device *dev, struct ds_status *st)
 	return 0;
 }
 
+#if 0
 int ds_set_speed(struct ds_device *dev, int speed)
 {
 	int err;
@@ -356,20 +357,21 @@ int ds_set_speed(struct ds_device *dev, int speed)
 		speed = SPEED_FLEXIBLE;
 
 	speed &= 0xff;
-	
+
 	err = ds_send_control_mode(dev, MOD_1WIRE_SPEED, speed);
 	if (err)
 		return err;
 
 	return err;
 }
+#endif  /*  0  */
 
-int ds_start_pulse(struct ds_device *dev, int delay)
+static int ds_start_pulse(struct ds_device *dev, int delay)
 {
 	int err;
 	u8 del = 1 + (u8)(delay >> 4);
 	struct ds_status st;
-	
+
 #if 0
 	err = ds_stop_pulse(dev, 10);
 	if (err)
@@ -390,7 +392,7 @@ int ds_start_pulse(struct ds_device *dev, int delay)
 	mdelay(delay);
 
 	ds_wait_status(dev, &st);
-	
+
 	return err;
 }
 
@@ -400,7 +402,7 @@ int ds_touch_bit(struct ds_device *dev, u8 bit, u8 *tbit)
 	struct ds_status st;
 	u16 value = (COMM_BIT_IO | COMM_IM) | ((bit) ? COMM_D : 0);
 	u16 cmd;
-	
+
 	err = ds_send_control(dev, value, 0);
 	if (err)
 		return err;
@@ -430,7 +432,7 @@ int ds_write_bit(struct ds_device *dev, u8 bit)
 {
 	int err;
 	struct ds_status st;
-	
+
 	err = ds_send_control(dev, COMM_BIT_IO | COMM_IM | (bit) ? COMM_D : 0, 0);
 	if (err)
 		return err;
@@ -445,7 +447,7 @@ int ds_write_byte(struct ds_device *dev, u8 byte)
 	int err;
 	struct ds_status st;
 	u8 rbyte;
-	
+
 	err = ds_send_control(dev, COMM_BYTE_IO | COMM_IM | COMM_SPU, byte);
 	if (err)
 		return err;
@@ -453,11 +455,11 @@ int ds_write_byte(struct ds_device *dev, u8 byte)
 	err = ds_wait_status(dev, &st);
 	if (err)
 		return err;
-		
+
 	err = ds_recv_data(dev, &rbyte, sizeof(rbyte));
 	if (err < 0)
 		return err;
-	
+
 	ds_start_pulse(dev, PULLUP_PULSE_DURATION);
 
 	return !(byte == rbyte);
@@ -470,11 +472,11 @@ int ds_read_bit(struct ds_device *dev, u8 *bit)
 	err = ds_send_control_mode(dev, MOD_PULSE_EN, PULSE_SPUE);
 	if (err)
 		return err;
-	
+
 	err = ds_send_control(dev, COMM_BIT_IO | COMM_IM | COMM_SPU | COMM_D, 0);
 	if (err)
 		return err;
-	
+
 	err = ds_recv_data(dev, bit, sizeof(*bit));
 	if (err < 0)
 		return err;
@@ -492,7 +494,7 @@ int ds_read_byte(struct ds_device *dev, u8 *byte)
 		return err;
 
 	ds_wait_status(dev, &st);
-	
+
 	err = ds_recv_data(dev, byte, sizeof(*byte));
 	if (err < 0)
 		return err;
@@ -509,17 +511,17 @@ int ds_read_block(struct ds_device *dev, u8 *buf, int len)
 		return -E2BIG;
 
 	memset(buf, 0xFF, len);
-	
+
 	err = ds_send_data(dev, buf, len);
 	if (err < 0)
 		return err;
-	
+
 	err = ds_send_control(dev, COMM_BLOCK_IO | COMM_IM | COMM_SPU, len);
 	if (err)
 		return err;
 
 	ds_wait_status(dev, &st);
-	
+
 	memset(buf, 0x00, len);
 	err = ds_recv_data(dev, buf, len);
 
@@ -530,11 +532,11 @@ int ds_write_block(struct ds_device *dev, u8 *buf, int len)
 {
 	int err;
 	struct ds_status st;
-	
+
 	err = ds_send_data(dev, buf, len);
 	if (err < 0)
 		return err;
-	
+
 	ds_wait_status(dev, &st);
 
 	err = ds_send_control(dev, COMM_BLOCK_IO | COMM_IM | COMM_SPU, len);
@@ -548,9 +550,11 @@ int ds_write_block(struct ds_device *dev, u8 *buf, int len)
 		return err;
 
 	ds_start_pulse(dev, PULLUP_PULSE_DURATION);
-	
+
 	return !(err == len);
 }
+
+#if 0
 
 int ds_search(struct ds_device *dev, u64 init, u64 *buf, u8 id_number, int conditional_search)
 {
@@ -559,11 +563,11 @@ int ds_search(struct ds_device *dev, u64 init, u64 *buf, u8 id_number, int condi
 	struct ds_status st;
 
 	memset(buf, 0, sizeof(buf));
-	
+
 	err = ds_send_data(ds_dev, (unsigned char *)&init, 8);
 	if (err)
 		return err;
-	
+
 	ds_wait_status(ds_dev, &st);
 
 	value = COMM_SEARCH_ACCESS | COMM_IM | COMM_SM | COMM_F | COMM_RTS;
@@ -589,7 +593,7 @@ int ds_match_access(struct ds_device *dev, u64 init)
 	err = ds_send_data(dev, (unsigned char *)&init, sizeof(init));
 	if (err)
 		return err;
-	
+
 	ds_wait_status(dev, &st);
 
 	err = ds_send_control(dev, COMM_MATCH_ACCESS | COMM_IM | COMM_RST, 0x0055);
@@ -609,11 +613,11 @@ int ds_set_path(struct ds_device *dev, u64 init)
 
 	memcpy(buf, &init, 8);
 	buf[8] = BRANCH_MAIN;
-	
+
 	err = ds_send_data(dev, buf, sizeof(buf));
 	if (err)
 		return err;
-	
+
 	ds_wait_status(dev, &st);
 
 	err = ds_send_control(dev, COMM_SET_PATH | COMM_IM | COMM_RST, 0);
@@ -625,7 +629,10 @@ int ds_set_path(struct ds_device *dev, u64 init)
 	return 0;
 }
 
-int ds_probe(struct usb_interface *intf, const struct usb_device_id *udev_id)
+#endif  /*  0  */
+
+static int ds_probe(struct usb_interface *intf,
+		    const struct usb_device_id *udev_id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_endpoint_descriptor *endpoint;
@@ -653,7 +660,7 @@ int ds_probe(struct usb_interface *intf, const struct usb_device_id *udev_id)
 		printk(KERN_ERR "Failed to reset configuration: err=%d.\n", err);
 		return err;
 	}
-	
+
 	iface_desc = &intf->altsetting[0];
 	if (iface_desc->desc.bNumEndpoints != NUM_EP-1) {
 		printk(KERN_INFO "Num endpoints=%d. It is not DS9490R.\n", iface_desc->desc.bNumEndpoints);
@@ -662,37 +669,37 @@ int ds_probe(struct usb_interface *intf, const struct usb_device_id *udev_id)
 
 	atomic_set(&ds_dev->refcnt, 0);
 	memset(ds_dev->ep, 0, sizeof(ds_dev->ep));
-	
+
 	/*
-	 * This loop doesn'd show control 0 endpoint, 
+	 * This loop doesn'd show control 0 endpoint,
 	 * so we will fill only 1-3 endpoints entry.
 	 */
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		ds_dev->ep[i+1] = endpoint->bEndpointAddress;
-		
+
 		printk("%d: addr=%x, size=%d, dir=%s, type=%x\n",
 			i, endpoint->bEndpointAddress, le16_to_cpu(endpoint->wMaxPacketSize),
 			(endpoint->bEndpointAddress & USB_DIR_IN)?"IN":"OUT",
 			endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
 	}
-	
+
 #if 0
 	{
 		int err, i;
 		u64 buf[3];
 		u64 init=0xb30000002078ee81ull;
 		struct ds_status st;
-		
+
 		ds_reset(ds_dev, &st);
 		err = ds_search(ds_dev, init, buf, 3, 0);
 		if (err < 0)
 			return err;
 		for (i=0; i<err; ++i)
 			printk("%d: %llx\n", i, buf[i]);
-		
-		printk("Resetting...\n");	
+
+		printk("Resetting...\n");
 		ds_reset(ds_dev, &st);
 		printk("Setting path for %llx.\n", init);
 		err = ds_set_path(ds_dev, init);
@@ -707,12 +714,12 @@ int ds_probe(struct usb_interface *intf, const struct usb_device_id *udev_id)
 		err = ds_search(ds_dev, init, buf, 3, 0);
 
 		printk("ds_search() returned %d\n", err);
-		
+
 		if (err < 0)
 			return err;
 		for (i=0; i<err; ++i)
 			printk("%d: %llx\n", i, buf[i]);
-		
+
 		return 0;
 	}
 #endif
@@ -720,10 +727,10 @@ int ds_probe(struct usb_interface *intf, const struct usb_device_id *udev_id)
 	return 0;
 }
 
-void ds_disconnect(struct usb_interface *intf)
+static void ds_disconnect(struct usb_interface *intf)
 {
 	struct ds_device *dev;
-	
+
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
 
@@ -740,7 +747,7 @@ void ds_disconnect(struct usb_interface *intf)
 	ds_dev = NULL;
 }
 
-int ds_init(void)
+static int ds_init(void)
 {
 	int err;
 
@@ -753,7 +760,7 @@ int ds_init(void)
 	return 0;
 }
 
-void ds_fini(void)
+static void ds_fini(void)
 {
 	usb_deregister(&ds_driver);
 }
@@ -776,8 +783,8 @@ EXPORT_SYMBOL(ds_get_device);
 EXPORT_SYMBOL(ds_put_device);
 
 /*
- * This functions can be used for EEPROM programming, 
- * when driver will be included into mainline this will 
+ * This functions can be used for EEPROM programming,
+ * when driver will be included into mainline this will
  * require uncommenting.
  */
 #if 0

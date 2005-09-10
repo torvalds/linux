@@ -68,7 +68,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-#define ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
 #endif
 
 #define pgd_val(x)	((x).pgd)
@@ -103,20 +102,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * as well as fixmap mappings.
  */
 extern unsigned int __VMALLOC_RESERVE;
-
-/* Pure 2^n version of get_order */
-static __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
 
 extern int sysctl_legacy_va_layout;
 
@@ -155,5 +140,7 @@ extern int page_is_ram(unsigned long pagenr);
 		 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _I386_PAGE_H */

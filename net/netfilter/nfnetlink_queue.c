@@ -76,17 +76,6 @@ typedef int (*nfqnl_cmpfn)(struct nfqnl_queue_entry *, unsigned long);
 
 static DEFINE_RWLOCK(instances_lock);
 
-u_int64_t htonll(u_int64_t in)
-{
-	u_int64_t out;
-	int i;
-
-	for (i = 0; i < sizeof(u_int64_t); i++)
-		((u_int8_t *)&out)[sizeof(u_int64_t)-1] = ((u_int8_t *)&in)[i];
-
-	return out;
-}
-
 #define INSTANCE_BUCKETS	16
 static struct hlist_head instance_table[INSTANCE_BUCKETS];
 
@@ -382,6 +371,12 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 	
 	case NFQNL_COPY_PACKET:
+		if (entry->skb->ip_summed == CHECKSUM_HW &&
+		    (*errp = skb_checksum_help(entry->skb,
+		                               entry->info->outdev == NULL))) {
+			spin_unlock_bh(&queue->lock);
+			return NULL;
+		}
 		if (queue->copy_range == 0 
 		    || queue->copy_range > entry->skb->len)
 			data_len = entry->skb->len;
@@ -497,8 +492,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (entry->skb->tstamp.off_sec) {
 		struct nfqnl_msg_packet_timestamp ts;
 
-		ts.sec = htonll(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
-		ts.usec = htonll(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
+		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
 
 		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
@@ -647,7 +642,7 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 	if (!skb_make_writable(&e->skb, data_len))
 		return -ENOMEM;
 	memcpy(e->skb->data, data, data_len);
-
+	e->skb->ip_summed = CHECKSUM_NONE;
 	return 0;
 }
 

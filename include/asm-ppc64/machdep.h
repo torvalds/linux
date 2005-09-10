@@ -103,11 +103,6 @@ struct machdep_calls {
 
 	void		(*progress)(char *, unsigned short);
 
-	/* Debug interface.  Low level I/O to some terminal device */
-	void		(*udbg_putc)(unsigned char c);
-	unsigned char	(*udbg_getc)(void);
-	int		(*udbg_getc_poll)(void);
-
 	/* Interface for platform error logging */
 	void 		(*log_error)(char *buf, unsigned int err_type, int fatal);
 

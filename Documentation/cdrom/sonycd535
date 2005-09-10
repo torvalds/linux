@@ -68,7 +68,8 @@ it a better device citizen.  Further thanks to Joel Katz
 Porfiri Claudio <C.Porfiri@nisms.tei.ericsson.se> for patches
 to make the driver work with the older CDU-510/515 series, and
 Heiko Eissfeldt <heiko@colossus.escape.de> for pointing out that
-the verify_area() checks were ignoring the results of said checks.
+the verify_area() checks were ignoring the results of said checks
+(note: verify_area() has since been replaced by access_ok()).
 
 (Acknowledgments from Ron Jeppesen in the 0.3 release:)
 Thanks to Corey Minyard who wrote the original CDU-31A driver on which

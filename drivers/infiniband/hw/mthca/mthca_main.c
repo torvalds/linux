@@ -937,12 +937,12 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 		++mthca_version_printed;
 	}
 
-	printk(KERN_INFO PFX "Initializing %s (%s)\n",
-	       pci_pretty_name(pdev), pci_name(pdev));
+	printk(KERN_INFO PFX "Initializing %s\n",
+	       pci_name(pdev));
 
 	if (id->driver_data >= ARRAY_SIZE(mthca_hca_table)) {
-		printk(KERN_ERR PFX "%s (%s) has invalid driver data %lx\n",
-		       pci_pretty_name(pdev), pci_name(pdev), id->driver_data);
+		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",
+		       pci_name(pdev), id->driver_data);
 		return -ENODEV;
 	}
 

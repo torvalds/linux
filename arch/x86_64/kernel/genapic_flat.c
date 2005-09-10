@@ -78,8 +78,18 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 
 static void flat_send_IPI_allbutself(int vector)
 {
+#ifndef CONFIG_HOTPLUG_CPU
 	if (((num_online_cpus()) - 1) >= 1)
 		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
+#else
+	cpumask_t allbutme = cpu_online_map;
+	int me = get_cpu(); /* Ensure we are not preempted when we clear */
+	cpu_clear(me, allbutme);
+
+	if (!cpus_empty(allbutme))
+		flat_send_IPI_mask(allbutme, vector);
+	put_cpu();
+#endif
 }
 
 static void flat_send_IPI_all(int vector)

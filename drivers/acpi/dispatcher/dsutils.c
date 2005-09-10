@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
@@ -51,8 +50,7 @@
 #include <acpi/acdebug.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
-	 ACPI_MODULE_NAME    ("dsutils")
-
+ACPI_MODULE_NAME("dsutils")
 
 /*******************************************************************************
  *
@@ -68,13 +66,9 @@
  *              parent method exits.)
  *
  ******************************************************************************/
-
-void
-acpi_ds_clear_implicit_return (
-	struct acpi_walk_state          *walk_state)
+void acpi_ds_clear_implicit_return(struct acpi_walk_state *walk_state)
 {
-	ACPI_FUNCTION_NAME ("ds_clear_implicit_return");
-
+	ACPI_FUNCTION_NAME("ds_clear_implicit_return");
 
 	/*
 	 * Slack must be enabled for this feature
@@ -89,15 +83,14 @@ acpi_ds_clear_implicit_return (
 		 * complex statements, the implicit return value can be
 		 * bubbled up several levels.
 		 */
-		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-			"Removing reference on stale implicit return obj %p\n",
-			walk_state->implicit_return_obj));
+		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				  "Removing reference on stale implicit return obj %p\n",
+				  walk_state->implicit_return_obj));
 
-		acpi_ut_remove_reference (walk_state->implicit_return_obj);
+		acpi_ut_remove_reference(walk_state->implicit_return_obj);
 		walk_state->implicit_return_obj = NULL;
 	}
 }
-
 
 #ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
@@ -119,27 +112,22 @@ acpi_ds_clear_implicit_return (
  ******************************************************************************/
 
 u8
-acpi_ds_do_implicit_return (
-	union acpi_operand_object       *return_desc,
-	struct acpi_walk_state          *walk_state,
-	u8                              add_reference)
+acpi_ds_do_implicit_return(union acpi_operand_object *return_desc,
+			   struct acpi_walk_state *walk_state, u8 add_reference)
 {
-	ACPI_FUNCTION_NAME ("ds_do_implicit_return");
-
+	ACPI_FUNCTION_NAME("ds_do_implicit_return");
 
 	/*
 	 * Slack must be enabled for this feature, and we must
 	 * have a valid return object
 	 */
-	if ((!acpi_gbl_enable_interpreter_slack) ||
-		(!return_desc)) {
+	if ((!acpi_gbl_enable_interpreter_slack) || (!return_desc)) {
 		return (FALSE);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-			"Result %p will be implicitly returned; Prev=%p\n",
-			return_desc,
-			walk_state->implicit_return_obj));
+	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			  "Result %p will be implicitly returned; Prev=%p\n",
+			  return_desc, walk_state->implicit_return_obj));
 
 	/*
 	 * Delete any "stale" implicit return value first. However, in
@@ -151,19 +139,18 @@ acpi_ds_do_implicit_return (
 		if (walk_state->implicit_return_obj == return_desc) {
 			return (TRUE);
 		}
-		acpi_ds_clear_implicit_return (walk_state);
+		acpi_ds_clear_implicit_return(walk_state);
 	}
 
 	/* Save the implicit return value, add a reference if requested */
 
 	walk_state->implicit_return_obj = return_desc;
 	if (add_reference) {
-		acpi_ut_add_reference (return_desc);
+		acpi_ut_add_reference(return_desc);
 	}
 
 	return (TRUE);
 }
-
 
 /*******************************************************************************
  *
@@ -179,20 +166,18 @@ acpi_ds_do_implicit_return (
  ******************************************************************************/
 
 u8
-acpi_ds_is_result_used (
-	union acpi_parse_object         *op,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_is_result_used(union acpi_parse_object * op,
+		       struct acpi_walk_state * walk_state)
 {
-	const struct acpi_opcode_info   *parent_info;
+	const struct acpi_opcode_info *parent_info;
 
-	ACPI_FUNCTION_TRACE_PTR ("ds_is_result_used", op);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_is_result_used", op);
 
 	/* Must have both an Op and a Result Object */
 
 	if (!op) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null Op\n"));
-		return_VALUE (TRUE);
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null Op\n"));
+		return_VALUE(TRUE);
 	}
 
 	/*
@@ -204,7 +189,8 @@ acpi_ds_is_result_used (
 	 * NOTE: this is optional because the ASL language does not actually
 	 * support this behavior.
 	 */
-	(void) acpi_ds_do_implicit_return (walk_state->result_obj, walk_state, TRUE);
+	(void)acpi_ds_do_implicit_return(walk_state->result_obj, walk_state,
+					 TRUE);
 
 	/*
 	 * Now determine if the parent will use the result
@@ -215,22 +201,24 @@ acpi_ds_is_result_used (
 	 * via execute_control_method has a scope_op as the parent.
 	 */
 	if ((!op->common.parent) ||
-		(op->common.parent->common.aml_opcode == AML_SCOPE_OP)) {
+	    (op->common.parent->common.aml_opcode == AML_SCOPE_OP)) {
 		/* No parent, the return value cannot possibly be used */
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-			"At Method level, result of [%s] not used\n",
-			acpi_ps_get_opcode_name (op->common.aml_opcode)));
-		return_VALUE (FALSE);
+		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				  "At Method level, result of [%s] not used\n",
+				  acpi_ps_get_opcode_name(op->common.
+							  aml_opcode)));
+		return_VALUE(FALSE);
 	}
 
 	/* Get info on the parent. The root_op is AML_SCOPE */
 
-	parent_info = acpi_ps_get_opcode_info (op->common.parent->common.aml_opcode);
+	parent_info =
+	    acpi_ps_get_opcode_info(op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Unknown parent opcode. Op=%p\n", op));
-		return_VALUE (FALSE);
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Unknown parent opcode. Op=%p\n", op));
+		return_VALUE(FALSE);
 	}
 
 	/*
@@ -256,8 +244,10 @@ acpi_ds_is_result_used (
 			 * If we are executing the predicate AND this is the predicate op,
 			 * we will use the return value
 			 */
-			if ((walk_state->control_state->common.state == ACPI_CONTROL_PREDICATE_EXECUTING) &&
-				(walk_state->control_state->control.predicate_op == op)) {
+			if ((walk_state->control_state->common.state ==
+			     ACPI_CONTROL_PREDICATE_EXECUTING)
+			    && (walk_state->control_state->control.
+				predicate_op == op)) {
 				goto result_used;
 			}
 			break;
@@ -271,7 +261,6 @@ acpi_ds_is_result_used (
 
 		goto result_not_used;
 
-
 	case AML_CLASS_CREATE:
 
 		/*
@@ -280,15 +269,16 @@ acpi_ds_is_result_used (
 		 */
 		goto result_used;
 
-
 	case AML_CLASS_NAMED_OBJECT:
 
-		if ((op->common.parent->common.aml_opcode == AML_REGION_OP)      ||
-			(op->common.parent->common.aml_opcode == AML_DATA_REGION_OP) ||
-			(op->common.parent->common.aml_opcode == AML_PACKAGE_OP)     ||
-			(op->common.parent->common.aml_opcode == AML_VAR_PACKAGE_OP) ||
-			(op->common.parent->common.aml_opcode == AML_BUFFER_OP)      ||
-			(op->common.parent->common.aml_opcode == AML_INT_EVAL_SUBTREE_OP)) {
+		if ((op->common.parent->common.aml_opcode == AML_REGION_OP) ||
+		    (op->common.parent->common.aml_opcode == AML_DATA_REGION_OP)
+		    || (op->common.parent->common.aml_opcode == AML_PACKAGE_OP)
+		    || (op->common.parent->common.aml_opcode ==
+			AML_VAR_PACKAGE_OP)
+		    || (op->common.parent->common.aml_opcode == AML_BUFFER_OP)
+		    || (op->common.parent->common.aml_opcode ==
+			AML_INT_EVAL_SUBTREE_OP)) {
 			/*
 			 * These opcodes allow term_arg(s) as operands and therefore
 			 * the operands can be method calls.  The result is used.
@@ -297,7 +287,6 @@ acpi_ds_is_result_used (
 		}
 
 		goto result_not_used;
-
 
 	default:
 
@@ -308,25 +297,24 @@ acpi_ds_is_result_used (
 		goto result_used;
 	}
 
+      result_used:
+	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			  "Result of [%s] used by Parent [%s] Op=%p\n",
+			  acpi_ps_get_opcode_name(op->common.aml_opcode),
+			  acpi_ps_get_opcode_name(op->common.parent->common.
+						  aml_opcode), op));
 
-result_used:
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-		"Result of [%s] used by Parent [%s] Op=%p\n",
-		acpi_ps_get_opcode_name (op->common.aml_opcode),
-		acpi_ps_get_opcode_name (op->common.parent->common.aml_opcode), op));
+	return_VALUE(TRUE);
 
-	return_VALUE (TRUE);
+      result_not_used:
+	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			  "Result of [%s] not used by Parent [%s] Op=%p\n",
+			  acpi_ps_get_opcode_name(op->common.aml_opcode),
+			  acpi_ps_get_opcode_name(op->common.parent->common.
+						  aml_opcode), op));
 
-
-result_not_used:
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-		"Result of [%s] not used by Parent [%s] Op=%p\n",
-		acpi_ps_get_opcode_name (op->common.aml_opcode),
-		acpi_ps_get_opcode_name (op->common.parent->common.aml_opcode), op));
-
-	return_VALUE (FALSE);
+	return_VALUE(FALSE);
 }
-
 
 /*******************************************************************************
  *
@@ -346,20 +334,17 @@ result_not_used:
  ******************************************************************************/
 
 void
-acpi_ds_delete_result_if_not_used (
-	union acpi_parse_object         *op,
-	union acpi_operand_object       *result_obj,
-	struct acpi_walk_state          *walk_state)
+acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
+				  union acpi_operand_object *result_obj,
+				  struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_delete_result_if_not_used", result_obj);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_delete_result_if_not_used", result_obj);
 
 	if (!op) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null Op\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null Op\n"));
 		return_VOID;
 	}
 
@@ -367,18 +352,17 @@ acpi_ds_delete_result_if_not_used (
 		return_VOID;
 	}
 
-	if (!acpi_ds_is_result_used (op, walk_state)) {
+	if (!acpi_ds_is_result_used(op, walk_state)) {
 		/* Must pop the result stack (obj_desc should be equal to result_obj) */
 
-		status = acpi_ds_result_pop (&obj_desc, walk_state);
-		if (ACPI_SUCCESS (status)) {
-			acpi_ut_remove_reference (result_obj);
+		status = acpi_ds_result_pop(&obj_desc, walk_state);
+		if (ACPI_SUCCESS(status)) {
+			acpi_ut_remove_reference(result_obj);
 		}
 	}
 
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
@@ -394,16 +378,12 @@ acpi_ds_delete_result_if_not_used (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ds_resolve_operands (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ds_resolve_operands(struct acpi_walk_state *walk_state)
 {
-	u32                             i;
-	acpi_status                     status = AE_OK;
+	u32 i;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_resolve_operands", walk_state);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_resolve_operands", walk_state);
 
 	/*
 	 * Attempt to resolve each of the valid operands
@@ -411,15 +391,16 @@ acpi_ds_resolve_operands (
 	 * that the actual objects are passed, not copies of the objects.
 	 */
 	for (i = 0; i < walk_state->num_operands; i++) {
-		status = acpi_ex_resolve_to_value (&walk_state->operands[i], walk_state);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_ex_resolve_to_value(&walk_state->operands[i],
+					     walk_state);
+		if (ACPI_FAILURE(status)) {
 			break;
 		}
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -433,15 +414,11 @@ acpi_ds_resolve_operands (
  *
  ******************************************************************************/
 
-void
-acpi_ds_clear_operands (
-	struct acpi_walk_state          *walk_state)
+void acpi_ds_clear_operands(struct acpi_walk_state *walk_state)
 {
-	u32                             i;
+	u32 i;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_clear_operands", walk_state);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_clear_operands", walk_state);
 
 	/* Remove a reference on each operand on the stack */
 
@@ -450,7 +427,7 @@ acpi_ds_clear_operands (
 		 * Remove a reference to all operands, including both
 		 * "Arguments" and "Targets".
 		 */
-		acpi_ut_remove_reference (walk_state->operands[i]);
+		acpi_ut_remove_reference(walk_state->operands[i]);
 		walk_state->operands[i] = NULL;
 	}
 
@@ -458,7 +435,6 @@ acpi_ds_clear_operands (
 	return_VOID;
 }
 #endif
-
 
 /*******************************************************************************
  *
@@ -478,37 +454,36 @@ acpi_ds_clear_operands (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_create_operand (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *arg,
-	u32                             arg_index)
+acpi_ds_create_operand(struct acpi_walk_state *walk_state,
+		       union acpi_parse_object *arg, u32 arg_index)
 {
-	acpi_status                     status = AE_OK;
-	char                            *name_string;
-	u32                             name_length;
-	union acpi_operand_object       *obj_desc;
-	union acpi_parse_object         *parent_op;
-	u16                             opcode;
-	acpi_interpreter_mode           interpreter_mode;
-	const struct acpi_opcode_info   *op_info;
+	acpi_status status = AE_OK;
+	char *name_string;
+	u32 name_length;
+	union acpi_operand_object *obj_desc;
+	union acpi_parse_object *parent_op;
+	u16 opcode;
+	acpi_interpreter_mode interpreter_mode;
+	const struct acpi_opcode_info *op_info;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_create_operand", arg);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_create_operand", arg);
 
 	/* A valid name must be looked up in the namespace */
 
 	if ((arg->common.aml_opcode == AML_INT_NAMEPATH_OP) &&
-		(arg->common.value.string)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Getting a name: Arg=%p\n", arg));
+	    (arg->common.value.string)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Getting a name: Arg=%p\n",
+				  arg));
 
 		/* Get the entire name string from the AML stream */
 
-		status = acpi_ex_get_name_string (ACPI_TYPE_ANY, arg->common.value.buffer,
-				  &name_string, &name_length);
+		status =
+		    acpi_ex_get_name_string(ACPI_TYPE_ANY,
+					    arg->common.value.buffer,
+					    &name_string, &name_length);
 
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 
 		/* All prefixes have been handled, and the name is in name_string */
@@ -523,13 +498,14 @@ acpi_ds_create_operand (
 		 * actual opcode exists.
 		 */
 		if ((walk_state->deferred_node) &&
-			(walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD) &&
-			(arg_index != 0)) {
-			obj_desc = ACPI_CAST_PTR (
-					 union acpi_operand_object, walk_state->deferred_node);
+		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
+		    && (arg_index != 0)) {
+			obj_desc =
+			    ACPI_CAST_PTR(union acpi_operand_object,
+					  walk_state->deferred_node);
 			status = AE_OK;
-		}
-		else    /* All other opcodes */ {
+		} else {	/* All other opcodes */
+
 			/*
 			 * Differentiate between a namespace "create" operation
 			 * versus a "lookup" operation (IMODE_LOAD_PASS2 vs.
@@ -537,43 +513,51 @@ acpi_ds_create_operand (
 			 * namespace objects during the execution of control methods.
 			 */
 			parent_op = arg->common.parent;
-			op_info = acpi_ps_get_opcode_info (parent_op->common.aml_opcode);
-			if ((op_info->flags & AML_NSNODE) &&
-				(parent_op->common.aml_opcode != AML_INT_METHODCALL_OP) &&
-				(parent_op->common.aml_opcode != AML_REGION_OP) &&
-				(parent_op->common.aml_opcode != AML_INT_NAMEPATH_OP)) {
+			op_info =
+			    acpi_ps_get_opcode_info(parent_op->common.
+						    aml_opcode);
+			if ((op_info->flags & AML_NSNODE)
+			    && (parent_op->common.aml_opcode !=
+				AML_INT_METHODCALL_OP)
+			    && (parent_op->common.aml_opcode != AML_REGION_OP)
+			    && (parent_op->common.aml_opcode !=
+				AML_INT_NAMEPATH_OP)) {
 				/* Enter name into namespace if not found */
 
 				interpreter_mode = ACPI_IMODE_LOAD_PASS2;
-			}
-			else {
+			} else {
 				/* Return a failure if name not found */
 
 				interpreter_mode = ACPI_IMODE_EXECUTE;
 			}
 
-			status = acpi_ns_lookup (walk_state->scope_info, name_string,
-					 ACPI_TYPE_ANY, interpreter_mode,
-					 ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-					 walk_state,
-					 ACPI_CAST_INDIRECT_PTR (struct acpi_namespace_node, &obj_desc));
+			status =
+			    acpi_ns_lookup(walk_state->scope_info, name_string,
+					   ACPI_TYPE_ANY, interpreter_mode,
+					   ACPI_NS_SEARCH_PARENT |
+					   ACPI_NS_DONT_OPEN_SCOPE, walk_state,
+					   ACPI_CAST_INDIRECT_PTR(struct
+								  acpi_namespace_node,
+								  &obj_desc));
 			/*
 			 * The only case where we pass through (ignore) a NOT_FOUND
 			 * error is for the cond_ref_of opcode.
 			 */
 			if (status == AE_NOT_FOUND) {
-				if (parent_op->common.aml_opcode == AML_COND_REF_OF_OP) {
+				if (parent_op->common.aml_opcode ==
+				    AML_COND_REF_OF_OP) {
 					/*
 					 * For the Conditional Reference op, it's OK if
 					 * the name is not found;  We just need a way to
 					 * indicate this to the interpreter, set the
 					 * object to the root
 					 */
-					obj_desc = ACPI_CAST_PTR (
-							 union acpi_operand_object, acpi_gbl_root_node);
+					obj_desc =
+					    ACPI_CAST_PTR(union
+							  acpi_operand_object,
+							  acpi_gbl_root_node);
 					status = AE_OK;
-				}
-				else {
+				} else {
 					/*
 					 * We just plain didn't find it -- which is a
 					 * very serious error at this point
@@ -582,30 +566,30 @@ acpi_ds_create_operand (
 				}
 			}
 
-			if (ACPI_FAILURE (status)) {
-				ACPI_REPORT_NSERROR (name_string, status);
+			if (ACPI_FAILURE(status)) {
+				ACPI_REPORT_NSERROR(name_string, status);
 			}
 		}
 
 		/* Free the namestring created above */
 
-		ACPI_MEM_FREE (name_string);
+		ACPI_MEM_FREE(name_string);
 
 		/* Check status from the lookup */
 
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 
 		/* Put the resulting object onto the current object stack */
 
-		status = acpi_ds_obj_stack_push (obj_desc, walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ds_obj_stack_push(obj_desc, walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
-		ACPI_DEBUGGER_EXEC (acpi_db_display_argument_object (obj_desc, walk_state));
-	}
-	else {
+		ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
+				   (obj_desc, walk_state));
+	} else {
 		/* Check for null name case */
 
 		if (arg->common.aml_opcode == AML_INT_NAMEPATH_OP) {
@@ -615,76 +599,82 @@ acpi_ds_create_operand (
 			 * in the original ASL.  Create a Zero Constant for a
 			 * placeholder.  (Store to a constant is a Noop.)
 			 */
-			opcode = AML_ZERO_OP;       /* Has no arguments! */
+			opcode = AML_ZERO_OP;	/* Has no arguments! */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-				"Null namepath: Arg=%p\n", arg));
-		}
-		else {
+			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+					  "Null namepath: Arg=%p\n", arg));
+		} else {
 			opcode = arg->common.aml_opcode;
 		}
 
 		/* Get the object type of the argument */
 
-		op_info = acpi_ps_get_opcode_info (opcode);
+		op_info = acpi_ps_get_opcode_info(opcode);
 		if (op_info->object_type == ACPI_TYPE_INVALID) {
-			return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
+			return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 		}
 
 		if (op_info->flags & AML_HAS_RETVAL) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-				"Argument previously created, already stacked \n"));
+			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+					  "Argument previously created, already stacked \n"));
 
-			ACPI_DEBUGGER_EXEC (acpi_db_display_argument_object (
-				walk_state->operands [walk_state->num_operands - 1], walk_state));
+			ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
+					   (walk_state->
+					    operands[walk_state->num_operands -
+						     1], walk_state));
 
 			/*
 			 * Use value that was already previously returned
 			 * by the evaluation of this argument
 			 */
-			status = acpi_ds_result_pop_from_bottom (&obj_desc, walk_state);
-			if (ACPI_FAILURE (status)) {
+			status =
+			    acpi_ds_result_pop_from_bottom(&obj_desc,
+							   walk_state);
+			if (ACPI_FAILURE(status)) {
 				/*
 				 * Only error is underflow, and this indicates
 				 * a missing or null operand!
 				 */
-				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-					"Missing or null operand, %s\n",
-					acpi_format_exception (status)));
-				return_ACPI_STATUS (status);
+				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+						  "Missing or null operand, %s\n",
+						  acpi_format_exception
+						  (status)));
+				return_ACPI_STATUS(status);
 			}
-		}
-		else {
+		} else {
 			/* Create an ACPI_INTERNAL_OBJECT for the argument */
 
-			obj_desc = acpi_ut_create_internal_object (op_info->object_type);
+			obj_desc =
+			    acpi_ut_create_internal_object(op_info->
+							   object_type);
 			if (!obj_desc) {
-				return_ACPI_STATUS (AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
 			/* Initialize the new object */
 
-			status = acpi_ds_init_object_from_op (
-					 walk_state, arg, opcode, &obj_desc);
-			if (ACPI_FAILURE (status)) {
-				acpi_ut_delete_object_desc (obj_desc);
-				return_ACPI_STATUS (status);
+			status =
+			    acpi_ds_init_object_from_op(walk_state, arg, opcode,
+							&obj_desc);
+			if (ACPI_FAILURE(status)) {
+				acpi_ut_delete_object_desc(obj_desc);
+				return_ACPI_STATUS(status);
 			}
 		}
 
 		/* Put the operand object on the object stack */
 
-		status = acpi_ds_obj_stack_push (obj_desc, walk_state);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ds_obj_stack_push(obj_desc, walk_state);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 
-		ACPI_DEBUGGER_EXEC (acpi_db_display_argument_object (obj_desc, walk_state));
+		ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
+				   (obj_desc, walk_state));
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -702,29 +692,27 @@ acpi_ds_create_operand (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_create_operands (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *first_arg)
+acpi_ds_create_operands(struct acpi_walk_state *walk_state,
+			union acpi_parse_object *first_arg)
 {
-	acpi_status                     status = AE_OK;
-	union acpi_parse_object         *arg;
-	u32                             arg_count = 0;
+	acpi_status status = AE_OK;
+	union acpi_parse_object *arg;
+	u32 arg_count = 0;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ds_create_operands", first_arg);
-
+	ACPI_FUNCTION_TRACE_PTR("ds_create_operands", first_arg);
 
 	/* For all arguments in the list... */
 
 	arg = first_arg;
 	while (arg) {
-		status = acpi_ds_create_operand (walk_state, arg, arg_count);
-		if (ACPI_FAILURE (status)) {
+		status = acpi_ds_create_operand(walk_state, arg, arg_count);
+		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Arg #%d (%p) done, Arg1=%p\n",
-			arg_count, arg, first_arg));
+		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				  "Arg #%d (%p) done, Arg1=%p\n", arg_count,
+				  arg, first_arg));
 
 		/* Move on to next argument, if any */
 
@@ -732,20 +720,17 @@ acpi_ds_create_operands (
 		arg_count++;
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 
-
-cleanup:
+      cleanup:
 	/*
 	 * We must undo everything done above; meaning that we must
 	 * pop everything off of the operand stack and delete those
 	 * objects
 	 */
-	(void) acpi_ds_obj_stack_pop_and_delete (arg_count, walk_state);
+	(void)acpi_ds_obj_stack_pop_and_delete(arg_count, walk_state);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "While creating Arg %d - %s\n",
-		(arg_count + 1), acpi_format_exception (status)));
-	return_ACPI_STATUS (status);
+	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "While creating Arg %d - %s\n",
+			  (arg_count + 1), acpi_format_exception(status)));
+	return_ACPI_STATUS(status);
 }
-
-

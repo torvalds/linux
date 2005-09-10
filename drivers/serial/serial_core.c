@@ -1947,21 +1947,29 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 static inline void
 uart_report_port(struct uart_driver *drv, struct uart_port *port)
 {
-	printk("%s%d", drv->dev_name, port->line);
-	printk(" at ");
+	char address[64];
+
 	switch (port->iotype) {
 	case UPIO_PORT:
-		printk("I/O 0x%x", port->iobase);
+		snprintf(address, sizeof(address),
+			 "I/O 0x%x", port->iobase);
 		break;
 	case UPIO_HUB6:
-		printk("I/O 0x%x offset 0x%x", port->iobase, port->hub6);
+		snprintf(address, sizeof(address),
+			 "I/O 0x%x offset 0x%x", port->iobase, port->hub6);
 		break;
 	case UPIO_MEM:
 	case UPIO_MEM32:
-		printk("MMIO 0x%lx", port->mapbase);
+		snprintf(address, sizeof(address),
+			 "MMIO 0x%lx", port->mapbase);
+		break;
+	default:
+		strlcpy(address, "*unknown*", sizeof(address));
 		break;
 	}
-	printk(" (irq = %d) is a %s\n", port->irq, uart_type(port));
+
+	printk(KERN_INFO "%s%d at %s (irq = %d) is a %s\n",
+	       drv->dev_name, port->line, address, port->irq, uart_type(port));
 }
 
 static void

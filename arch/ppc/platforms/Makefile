@@ -21,22 +21,17 @@ obj-$(CONFIG_CPU_FREQ_PMAC)	+= pmac_cpufreq.o
 endif
 obj-$(CONFIG_PMAC_BACKLIGHT)	+= pmac_backlight.o
 obj-$(CONFIG_PREP_RESIDUAL)	+= residual.o
-obj-$(CONFIG_ADIR)		+= adir_setup.o adir_pic.o adir_pci.o
 obj-$(CONFIG_PQ2ADS)		+= pq2ads.o
 obj-$(CONFIG_TQM8260)		+= tqm8260_setup.o
 obj-$(CONFIG_CPCI690)		+= cpci690.o
 obj-$(CONFIG_EV64260)		+= ev64260.o
 obj-$(CONFIG_CHESTNUT)		+= chestnut.o
 obj-$(CONFIG_GEMINI)		+= gemini_pci.o gemini_setup.o gemini_prom.o
-obj-$(CONFIG_K2)		+= k2.o
 obj-$(CONFIG_LOPEC)		+= lopec.o
 obj-$(CONFIG_KATANA)		+= katana.o
 obj-$(CONFIG_HDPU)		+= hdpu.o
-obj-$(CONFIG_MCPN765)		+= mcpn765.o
-obj-$(CONFIG_MENF1)		+= menf1_setup.o menf1_pci.o
 obj-$(CONFIG_MVME5100)		+= mvme5100.o
 obj-$(CONFIG_PAL4)		+= pal4_setup.o pal4_pci.o
-obj-$(CONFIG_PCORE)		+= pcore.o
 obj-$(CONFIG_POWERPMC250)	+= powerpmc250.o
 obj-$(CONFIG_PPLUS)		+= pplus.o
 obj-$(CONFIG_PRPMC750)		+= prpmc750.o
@@ -46,6 +41,7 @@ obj-$(CONFIG_SANDPOINT)		+= sandpoint.o
 obj-$(CONFIG_SBC82xx)		+= sbc82xx.o
 obj-$(CONFIG_SPRUCE)		+= spruce.o
 obj-$(CONFIG_LITE5200)		+= lite5200.o
+obj-$(CONFIG_EV64360)		+= ev64360.o
 
 ifeq ($(CONFIG_SMP),y)
 obj-$(CONFIG_PPC_PMAC)		+= pmac_smp.o

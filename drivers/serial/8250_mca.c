@@ -44,7 +44,7 @@ static struct plat_serial8250_port mca_data[] = {
 
 static struct platform_device mca_device = {
 	.name			= "serial8250",
-	.id			= 5,
+	.id			= PLAT8250_DEV_MCA,
 	.dev			= {
 		.platform_data	= mca_data,
 	},

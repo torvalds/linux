@@ -1593,7 +1593,6 @@ struct net_device *init_atmel_card( unsigned short irq, int port, const AtmelFWT
 	dev->set_mac_address = atmel_set_mac_address;
 	dev->hard_start_xmit = start_tx;
 	dev->get_stats = atmel_get_stats;
-	dev->get_wireless_stats = atmel_get_wireless_stats;
 	dev->wireless_handlers = (struct iw_handler_def *)&atmel_handler_def;
 	dev->do_ioctl = atmel_ioctl;
 	dev->irq = irq;
@@ -2411,7 +2410,8 @@ static const struct iw_handler_def	atmel_handler_def =
 	.num_private_args = sizeof(atmel_private_args)/sizeof(struct iw_priv_args), 
 	.standard	= (iw_handler *) atmel_handler,
 	.private	= (iw_handler *) atmel_private_handler, 
-	.private_args	= (struct iw_priv_args *) atmel_private_args
+	.private_args	= (struct iw_priv_args *) atmel_private_args,
+	.get_wireless_stats = atmel_get_wireless_stats
 };
 
 static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -2424,19 +2424,6 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	char domain[REGDOMAINSZ+1];
 
 	switch (cmd) {
-	case SIOCGIWPRIV:
-		if(wrq->u.data.pointer) {
-			/* Set the number of ioctl available */
-			wrq->u.data.length = sizeof(atmel_private_args) / sizeof(atmel_private_args[0]);
-			
-			/* Copy structure to the user buffer */
-			if (copy_to_user(wrq->u.data.pointer,
-					 (u_char *) atmel_private_args,
-					 sizeof(atmel_private_args)))
-				rc = -EFAULT;
-		}
-		break;
-
 	case ATMELIDIFC:
 		wrq->u.param.value = ATMELMAGIC;		
 		break;

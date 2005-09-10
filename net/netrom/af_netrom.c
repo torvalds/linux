@@ -1261,6 +1261,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 	struct net_device *dev;
 	struct nr_sock *nr;
 	const char *devname;
+	char buf[11];
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
@@ -1276,11 +1277,11 @@ static int nr_info_show(struct seq_file *seq, void *v)
 		else
 			devname = dev->name;
 
-		seq_printf(seq, "%-9s ", ax2asc(&nr->user_addr));
-		seq_printf(seq, "%-9s ", ax2asc(&nr->dest_addr));
+		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->user_addr));
+		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->dest_addr));
 		seq_printf(seq, 
 "%-9s %-3s  %02X/%02X %02X/%02X %2d %3d %3d %3d %3lu/%03lu %2lu/%02lu %3lu/%03lu %3lu/%03lu %2d/%02d %3d %5d %5d %ld\n",
-			ax2asc(&nr->source_addr),
+			ax2asc(buf, &nr->source_addr),
 			devname,
 			nr->my_index,
 			nr->my_id,

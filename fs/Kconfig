@@ -382,10 +382,8 @@ config QUOTA
 	  usage (also called disk quotas). Currently, it works for the
 	  ext2, ext3, and reiserfs file system. ext3 also supports journalled
 	  quotas for which you don't need to run quotacheck(8) after an unclean
-	  shutdown. You need additional software in order to use quota support
-	  (you can download sources from
-	  <http://www.sf.net/projects/linuxquota/>). For further details, read
-	  the Quota mini-HOWTO, available from
+	  shutdown.
+	  For further details, read the Quota mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, or the documentation provided
 	  with the quota tools. Probably the quota support is only useful for
 	  multi user systems. If unsure, say N.
@@ -403,8 +401,7 @@ config QFMT_V2
 	depends on QUOTA
 	help
 	  This quota format allows using quotas with 32-bit UIDs/GIDs. If you
-	  need this functionality say Y here. Note that you will need recent
-	  quota utilities (>= 3.01) for new quota format with this kernel.
+	  need this functionality say Y here.
 
 config QUOTACTL
 	bool
@@ -464,6 +461,19 @@ config AUTOFS4_FS
 	  don't have a laptop which needs to dynamically reconfigure to the
 	  local network, you probably do not need an automounter, and can say
 	  N here.
+
+config FUSE_FS
+	tristate "Filesystem in Userspace support"
+	help
+	  With FUSE it is possible to implement a fully functional filesystem
+	  in a userspace program.
+
+	  There's also companion library: libfuse.  This library along with
+	  utilities is available from the FUSE homepage:
+	  <http://fuse.sourceforge.net/>
+
+	  If you want to develop a userspace FS, or if you want to use
+	  a filesystem based on FUSE, answer Y or M.
 
 menu "CD-ROM/DVD Filesystems"
 
@@ -783,28 +793,6 @@ config SYSFS
 
 	Designers of embedded systems may wish to say N here to conserve space.
 
-config DEVPTS_FS_XATTR
-	bool "/dev/pts Extended Attributes"
-	depends on UNIX98_PTYS
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-config DEVPTS_FS_SECURITY
-	bool "/dev/pts Security Labels"
-	depends on DEVPTS_FS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the /dev/pts filesystem.
-
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
-
 config TMPFS
 	bool "Virtual memory file system support (former shm fs)"
 	help
@@ -816,27 +804,6 @@ config TMPFS
 	  lost.
 
 	  See <file:Documentation/filesystems/tmpfs.txt> for details.
-
-config TMPFS_XATTR
-	bool "tmpfs Extended Attributes"
-	depends on TMPFS
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-config TMPFS_SECURITY
-	bool "tmpfs Security Labels"
-	depends on TMPFS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the tmpfs filesystem.
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
@@ -858,6 +825,18 @@ config RAMFS
 
 	  To compile this as a module, choose M here: the module will be called
 	  ramfs.
+
+config RELAYFS_FS
+	tristate "Relayfs file system support"
+	---help---
+	  Relayfs is a high-speed data relay filesystem designed to provide
+	  an efficient mechanism for tools and facilities to relay large
+	  amounts of data from kernel space to user space.
+
+	  To compile this code as a module, choose M here: the module will be
+	  called relayfs.
+
+	  If unsure, say N.
 
 endmenu
 
@@ -1736,6 +1715,17 @@ config AFS_FS
 
 config RXRPC
 	tristate
+
+config 9P_FS
+	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
+	depends on INET && EXPERIMENTAL
+	help
+	  If you say Y here, you will get experimental support for
+	  Plan 9 resource sharing via the 9P2000 protocol.
+
+	  See <http://v9fs.sf.net> for more information.
+
+	  If unsure, say N.
 
 endmenu
 

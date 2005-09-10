@@ -42,93 +42,33 @@ DEFINE_SPINLOCK(vnumber_lock);
  */
 #define NVSYNC                  37
 #define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
-sv_t vsync[NVSYNC];
-
-/*
- * Translate stat(2) file types to vnode types and vice versa.
- * Aware of numeric order of S_IFMT and vnode type values.
- */
-enum vtype iftovt_tab[] = {
-	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
-	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VNON
-};
-
-u_short vttoif_tab[] = {
-	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK, S_IFIFO, 0, S_IFSOCK
-};
+STATIC wait_queue_head_t vsync[NVSYNC];
 
 
 void
 vn_init(void)
 {
-	register sv_t *svp;
-	register int i;
+	int i;
 
-	for (svp = vsync, i = 0; i < NVSYNC; i++, svp++)
-		init_sv(svp, SV_DEFAULT, "vsy", i);
+	for (i = 0; i < NVSYNC; i++)
+		init_waitqueue_head(&vsync[i]);
 }
 
-/*
- * Clean a vnode of filesystem-specific data and prepare it for reuse.
- */
-STATIC int
-vn_reclaim(
+void
+vn_iowait(
 	struct vnode	*vp)
 {
-	int		error;
+	wait_queue_head_t *wq = vptosync(vp);
 
-	XFS_STATS_INC(vn_reclaim);
-	vn_trace_entry(vp, "vn_reclaim", (inst_t *)__return_address);
-
-	/*
-	 * Only make the VOP_RECLAIM call if there are behaviors
-	 * to call.
-	 */
-	if (vp->v_fbhv) {
-		VOP_RECLAIM(vp, error);
-		if (error)
-			return -error;
-	}
-	ASSERT(vp->v_fbhv == NULL);
-
-	VN_LOCK(vp);
-	vp->v_flag &= (VRECLM|VWAIT);
-	VN_UNLOCK(vp, 0);
-
-	vp->v_type = VNON;
-	vp->v_fbhv = NULL;
-
-#ifdef XFS_VNODE_TRACE
-	ktrace_free(vp->v_trace);
-	vp->v_trace = NULL;
-#endif
-
-	return 0;
+	wait_event(*wq, (atomic_read(&vp->v_iocount) == 0));
 }
 
-STATIC void
-vn_wakeup(
+void
+vn_iowake(
 	struct vnode	*vp)
 {
-	VN_LOCK(vp);
-	if (vp->v_flag & VWAIT)
-		sv_broadcast(vptosync(vp));
-	vp->v_flag &= ~(VRECLM|VWAIT|VMODIFIED);
-	VN_UNLOCK(vp, 0);
-}
-
-int
-vn_wait(
-	struct vnode	*vp)
-{
-	VN_LOCK(vp);
-	if (vp->v_flag & (VINACT | VRECLM)) {
-		vp->v_flag |= VWAIT;
-		sv_wait(vptosync(vp), PINOD, &vp->v_lock, 0);
-		return 1;
-	}
-	VN_UNLOCK(vp, 0);
-	return 0;
+	if (atomic_dec_and_test(&vp->v_iocount))
+		wake_up(vptosync(vp));
 }
 
 struct vnode *
@@ -154,35 +94,13 @@ vn_initialize(
 	/* Initialize the first behavior and the behavior chain head. */
 	vn_bhv_head_init(VN_BHV_HEAD(vp), "vnode");
 
+	atomic_set(&vp->v_iocount, 0);
+
 #ifdef	XFS_VNODE_TRACE
 	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);
 #endif	/* XFS_VNODE_TRACE */
 
 	vn_trace_exit(vp, "vn_initialize", (inst_t *)__return_address);
-	return vp;
-}
-
-/*
- * Get a reference on a vnode.
- */
-vnode_t *
-vn_get(
-	struct vnode	*vp,
-	vmap_t		*vmap)
-{
-	struct inode	*inode;
-
-	XFS_STATS_INC(vn_get);
-	inode = LINVFS_GET_IP(vp);
-	if (inode->i_state & I_FREEING)
-		return NULL;
-
-	inode = ilookup(vmap->v_vfsp->vfs_super, vmap->v_ino);
-	if (!inode)	/* Inode not present */
-		return NULL;
-
-	vn_trace_exit(vp, "vn_get", (inst_t *)__return_address);
-
 	return vp;
 }
 
@@ -198,7 +116,7 @@ vn_revalidate_core(
 {
 	struct inode	*inode = LINVFS_GET_IP(vp);
 
-	inode->i_mode	    = VTTOIF(vap->va_type) | vap->va_mode;
+	inode->i_mode	    = vap->va_mode;
 	inode->i_nlink	    = vap->va_nlink;
 	inode->i_uid	    = vap->va_uid;
 	inode->i_gid	    = vap->va_gid;
@@ -247,71 +165,6 @@ vn_revalidate(
 }
 
 /*
- * purge a vnode from the cache
- * At this point the vnode is guaranteed to have no references (vn_count == 0)
- * The caller has to make sure that there are no ways someone could
- * get a handle (via vn_get) on the vnode (usually done via a mount/vfs lock).
- */
-void
-vn_purge(
-	struct vnode	*vp,
-	vmap_t		*vmap)
-{
-	vn_trace_entry(vp, "vn_purge", (inst_t *)__return_address);
-
-again:
-	/*
-	 * Check whether vp has already been reclaimed since our caller
-	 * sampled its version while holding a filesystem cache lock that
-	 * its VOP_RECLAIM function acquires.
-	 */
-	VN_LOCK(vp);
-	if (vp->v_number != vmap->v_number) {
-		VN_UNLOCK(vp, 0);
-		return;
-	}
-
-	/*
-	 * If vp is being reclaimed or inactivated, wait until it is inert,
-	 * then proceed.  Can't assume that vnode is actually reclaimed
-	 * just because the reclaimed flag is asserted -- a vn_alloc
-	 * reclaim can fail.
-	 */
-	if (vp->v_flag & (VINACT | VRECLM)) {
-		ASSERT(vn_count(vp) == 0);
-		vp->v_flag |= VWAIT;
-		sv_wait(vptosync(vp), PINOD, &vp->v_lock, 0);
-		goto again;
-	}
-
-	/*
-	 * Another process could have raced in and gotten this vnode...
-	 */
-	if (vn_count(vp) > 0) {
-		VN_UNLOCK(vp, 0);
-		return;
-	}
-
-	XFS_STATS_DEC(vn_active);
-	vp->v_flag |= VRECLM;
-	VN_UNLOCK(vp, 0);
-
-	/*
-	 * Call VOP_RECLAIM and clean vp. The FSYNC_INVAL flag tells
-	 * vp's filesystem to flush and invalidate all cached resources.
-	 * When vn_reclaim returns, vp should have no private data,
-	 * either in a system cache or attached to v_data.
-	 */
-	if (vn_reclaim(vp) != 0)
-		panic("vn_purge: cannot reclaim");
-
-	/*
-	 * Wakeup anyone waiting for vp to be reclaimed.
-	 */
-	vn_wakeup(vp);
-}
-
-/*
  * Add a reference to a referenced vnode.
  */
 struct vnode *
@@ -329,80 +182,6 @@ vn_hold(
 
 	return vp;
 }
-
-/*
- *  Call VOP_INACTIVE on last reference.
- */
-void
-vn_rele(
-	struct vnode	*vp)
-{
-	int		vcnt;
-	int		cache;
-
-	XFS_STATS_INC(vn_rele);
-
-	VN_LOCK(vp);
-
-	vn_trace_entry(vp, "vn_rele", (inst_t *)__return_address);
-	vcnt = vn_count(vp);
-
-	/*
-	 * Since we always get called from put_inode we know
-	 * that i_count won't be decremented after we
-	 * return.
-	 */
-	if (!vcnt) {
-		/*
-		 * As soon as we turn this on, noone can find us in vn_get
-		 * until we turn off VINACT or VRECLM
-		 */
-		vp->v_flag |= VINACT;
-		VN_UNLOCK(vp, 0);
-
-		/*
-		 * Do not make the VOP_INACTIVE call if there
-		 * are no behaviors attached to the vnode to call.
-		 */
-		if (vp->v_fbhv)
-			VOP_INACTIVE(vp, NULL, cache);
-
-		VN_LOCK(vp);
-		if (vp->v_flag & VWAIT)
-			sv_broadcast(vptosync(vp));
-
-		vp->v_flag &= ~(VINACT|VWAIT|VRECLM|VMODIFIED);
-	}
-
-	VN_UNLOCK(vp, 0);
-
-	vn_trace_exit(vp, "vn_rele", (inst_t *)__return_address);
-}
-
-/*
- * Finish the removal of a vnode.
- */
-void
-vn_remove(
-	struct vnode	*vp)
-{
-	vmap_t		vmap;
-
-	/* Make sure we don't do this to the same vnode twice */
-	if (!(vp->v_fbhv))
-		return;
-
-	XFS_STATS_INC(vn_remove);
-	vn_trace_exit(vp, "vn_remove", (inst_t *)__return_address);
-
-	/*
-	 * After the following purge the vnode
-	 * will no longer exist.
-	 */
-	VMAP(vp, vmap);
-	vn_purge(vp, &vmap);
-}
-
 
 #ifdef	XFS_VNODE_TRACE
 

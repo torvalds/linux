@@ -14,6 +14,10 @@ config X86
 	  486, 586, Pentiums, and various instruction-set-compatible chips by
 	  AMD, Cyrix, and others.
 
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
 config MMU
 	bool
 	default y
@@ -30,6 +34,10 @@ config GENERIC_ISA_DMA
 	default y
 
 config GENERIC_IOMAP
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
@@ -754,6 +762,7 @@ config NUMA
 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
+	select SPARSEMEM_STATIC
 
 # Need comments to help the hapless user trying to turn on NUMA support
 comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
@@ -1203,7 +1212,6 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool
 	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
-	select ACPI_BOOT
 	default y
 
 source "drivers/pci/pcie/Kconfig"
@@ -1311,6 +1319,11 @@ config GENERIC_HARDIRQS
 
 config GENERIC_IRQ_PROBE
 	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
 	default y
 
 config X86_SMP

@@ -264,8 +264,5 @@ void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
 	printk("%d. PCI: Bus%3d, Device%3d, Vendor %04X Frame%3d, Card %4s  ",
 			count, bus, PCI_SLOT(PciDev->devfn), PciDev->vendor,
 			frame, card);
-	if (pci_class_name(PciDev->class >> 8) == 0)
-		printk("0x%04X\n", (int)(PciDev->class >> 8));
-	else
-		printk("%s\n", pci_class_name(PciDev->class >> 8));
+	printk("0x%04X\n", (int)(PciDev->class >> 8));
 }

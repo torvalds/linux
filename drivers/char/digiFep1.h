@@ -13,88 +13,88 @@
 
 struct global_data 
 {
-	volatile ushort cin;
-	volatile ushort cout;
-	volatile ushort cstart;
-	volatile ushort cmax;
-	volatile ushort ein;
-	volatile ushort eout;
-	volatile ushort istart;
-	volatile ushort imax;
+	u16 cin;
+	u16 cout;
+	u16 cstart;
+	u16 cmax;
+	u16 ein;
+	u16 eout;
+	u16 istart;
+	u16 imax;
 };
 
 
 struct board_chan 
 {
-	int filler1; 
-	int filler2;
-	volatile ushort tseg;
-	volatile ushort tin;
-	volatile ushort tout;
-	volatile ushort tmax;
-	
-	volatile ushort rseg;
-	volatile ushort rin;
-	volatile ushort rout;
-	volatile ushort rmax;
-	
-	volatile ushort tlow;
-	volatile ushort rlow;
-	volatile ushort rhigh;
-	volatile ushort incr;
-	
-	volatile ushort etime;
-	volatile ushort edelay;
-	volatile unchar *dev;
-	
-	volatile ushort iflag;
-	volatile ushort oflag;
-	volatile ushort cflag;
-	volatile ushort gmask;
-	
-	volatile ushort col;
-	volatile ushort delay;
-	volatile ushort imask;
-	volatile ushort tflush;
+	u32 filler1;
+	u32 filler2;
+	u16 tseg;
+	u16 tin;
+	u16 tout;
+	u16 tmax;
 
-	int filler3;
-	int filler4;
-	int filler5;
-	int filler6;
-	
-	volatile unchar num;
-	volatile unchar ract;
-	volatile unchar bstat;
-	volatile unchar tbusy;
-	volatile unchar iempty;
-	volatile unchar ilow;
-	volatile unchar idata;
-	volatile unchar eflag;
-	
-	volatile unchar tflag;
-	volatile unchar rflag;
-	volatile unchar xmask;
-	volatile unchar xval;
-	volatile unchar mstat;
-	volatile unchar mchange;
-	volatile unchar mint;
-	volatile unchar lstat;
+	u16 rseg;
+	u16 rin;
+	u16 rout;
+	u16 rmax;
 
-	volatile unchar mtran;
-	volatile unchar orun;
-	volatile unchar startca;
-	volatile unchar stopca;
-	volatile unchar startc;
-	volatile unchar stopc;
-	volatile unchar vnext;
-	volatile unchar hflow;
+	u16 tlow;
+	u16 rlow;
+	u16 rhigh;
+	u16 incr;
 
-	volatile unchar fillc;
-	volatile unchar ochar;
-	volatile unchar omask;
+	u16 etime;
+	u16 edelay;
+	unchar *dev;
 
-	unchar filler7;
-	unchar filler8[28];
+	u16 iflag;
+	u16 oflag;
+	u16 cflag;
+	u16 gmask;
+
+	u16 col;
+	u16 delay;
+	u16 imask;
+	u16 tflush;
+
+	u32 filler3;
+	u32 filler4;
+	u32 filler5;
+	u32 filler6;
+
+	u8 num;
+	u8 ract;
+	u8 bstat;
+	u8 tbusy;
+	u8 iempty;
+	u8 ilow;
+	u8 idata;
+	u8 eflag;
+
+	u8 tflag;
+	u8 rflag;
+	u8 xmask;
+	u8 xval;
+	u8 mstat;
+	u8 mchange;
+	u8 mint;
+	u8 lstat;
+
+	u8 mtran;
+	u8 orun;
+	u8 startca;
+	u8 stopca;
+	u8 startc;
+	u8 stopc;
+	u8 vnext;
+	u8 hflow;
+
+	u8 fillc;
+	u8 ochar;
+	u8 omask;
+
+	u8 filler7;
+	u8 filler8[28];
 }; 
 
 

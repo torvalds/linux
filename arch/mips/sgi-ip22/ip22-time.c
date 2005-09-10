@@ -126,7 +126,7 @@ static __init void indy_time_init(void)
 	unsigned long r4k_ticks[3];
 	unsigned long r4k_tick;
 
-	/* 
+	/*
 	 * Figure out the r4k offset, the algorithm is very simple and works in
 	 * _all_ cases as long as the 8254 counter register itself works ok (as
 	 * an interrupt driving timer it does not because of bug, this is why

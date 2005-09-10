@@ -42,12 +42,23 @@
 /**
  *	klist_init - Initialize a klist structure. 
  *	@k:	The klist we're initializing.
+ *	@get:	The get function for the embedding object (NULL if none)
+ *	@put:	The put function for the embedding object (NULL if none)
+ *
+ * Initialises the klist structure.  If the klist_node structures are
+ * going to be embedded in refcounted objects (necessary for safe
+ * deletion) then the get/put arguments are used to initialise
+ * functions that take and release references on the embedding
+ * objects.
  */
 
-void klist_init(struct klist * k)
+void klist_init(struct klist * k, void (*get)(struct klist_node *),
+		void (*put)(struct klist_node *))
 {
 	INIT_LIST_HEAD(&k->k_list);
 	spin_lock_init(&k->k_lock);
+	k->get = get;
+	k->put = put;
 }
 
 EXPORT_SYMBOL_GPL(klist_init);
@@ -74,16 +85,18 @@ static void klist_node_init(struct klist * k, struct klist_node * n)
 	init_completion(&n->n_removed);
 	kref_init(&n->n_ref);
 	n->n_klist = k;
+	if (k->get)
+		k->get(n);
 }
 
 
 /**
  *	klist_add_head - Initialize a klist_node and add it to front.
- *	@k:	klist it's going on.
  *	@n:	node we're adding.
+ *	@k:	klist it's going on.
  */
 
-void klist_add_head(struct klist * k, struct klist_node * n)
+void klist_add_head(struct klist_node * n, struct klist * k)
 {
 	klist_node_init(k, n);
 	add_head(k, n);
@@ -94,11 +107,11 @@ EXPORT_SYMBOL_GPL(klist_add_head);
 
 /**
  *	klist_add_tail - Initialize a klist_node and add it to back.
- *	@k:	klist it's going on.
  *	@n:	node we're adding.
+ *	@k:	klist it's going on.
  */
 
-void klist_add_tail(struct klist * k, struct klist_node * n)
+void klist_add_tail(struct klist_node * n, struct klist * k)
 {
 	klist_node_init(k, n);
 	add_tail(k, n);
@@ -110,9 +123,12 @@ EXPORT_SYMBOL_GPL(klist_add_tail);
 static void klist_release(struct kref * kref)
 {
 	struct klist_node * n = container_of(kref, struct klist_node, n_ref);
+	void (*put)(struct klist_node *) = n->n_klist->put;
 	list_del(&n->n_node);
 	complete(&n->n_removed);
 	n->n_klist = NULL;
+	if (put)
+		put(n);
 }
 
 static int klist_dec_and_del(struct klist_node * n)

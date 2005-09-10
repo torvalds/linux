@@ -47,7 +47,7 @@ extern int _raw_spin_trylock_retry(spinlock_t *lp, unsigned int pc);
 
 static inline void _raw_spin_lock(spinlock_t *lp)
 {
-	unsigned long pc = (unsigned long) __builtin_return_address(0);
+	unsigned long pc = 1 | (unsigned long) __builtin_return_address(0);
 
 	if (unlikely(_raw_compare_and_swap(&lp->lock, 0, pc) != 0))
 		_raw_spin_lock_wait(lp, pc);
@@ -55,7 +55,7 @@ static inline void _raw_spin_lock(spinlock_t *lp)
 
 static inline int _raw_spin_trylock(spinlock_t *lp)
 {
-	unsigned long pc = (unsigned long) __builtin_return_address(0);
+	unsigned long pc = 1 | (unsigned long) __builtin_return_address(0);
 
 	if (likely(_raw_compare_and_swap(&lp->lock, 0, pc) == 0))
 		return 1;

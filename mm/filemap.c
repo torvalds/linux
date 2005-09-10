@@ -54,9 +54,8 @@
  *
  *  ->i_mmap_lock		(vmtruncate)
  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
- *      ->swap_list_lock
- *        ->swap_device_lock	(exclusive_swap_page, others)
- *          ->mapping->tree_lock
+ *      ->swap_lock		(exclusive_swap_page, others)
+ *        ->mapping->tree_lock
  *
  *  ->i_sem
  *    ->i_mmap_lock		(truncate->unmap_mapping_range)
@@ -86,7 +85,7 @@
  *    ->page_table_lock		(anon_vma_prepare and various)
  *
  *  ->page_table_lock
- *    ->swap_device_lock	(try_to_unmap_one)
+ *    ->swap_lock		(try_to_unmap_one)
  *    ->private_lock		(try_to_unmap_one)
  *    ->tree_lock		(try_to_unmap_one)
  *    ->zone.lru_lock		(follow_page->mark_page_accessed)
@@ -1505,8 +1504,12 @@ repeat:
 		return -EINVAL;
 
 	page = filemap_getpage(file, pgoff, nonblock);
+
+	/* XXX: This is wrong, a filesystem I/O error may have happened. Fix that as
+	 * done in shmem_populate calling shmem_getpage */
 	if (!page && !nonblock)
 		return -ENOMEM;
+
 	if (page) {
 		err = install_page(mm, vma, addr, page, prot);
 		if (err) {
@@ -1514,6 +1517,9 @@ repeat:
 			return err;
 		}
 	} else {
+		/* No page was found just because we can't read it in now (being
+		 * here implies nonblock != 0), but the page may exist, so set
+		 * the PTE to fault it in later. */
 		err = install_file_pte(mm, vma, addr, pgoff, prot);
 		if (err)
 			return err;

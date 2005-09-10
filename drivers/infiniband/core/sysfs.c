@@ -463,7 +463,7 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 		return NULL;
 
 	for (i = 0; i < len; i++) {
-		element = kcalloc(1, sizeof(struct port_table_attribute),
+		element = kzalloc(sizeof(struct port_table_attribute),
 				  GFP_KERNEL);
 		if (!element)
 			goto err;

@@ -18,18 +18,18 @@
 	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
 	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr))))
 
-static inline int verify_area_skas(int type, const void * addr,
+static inline int verify_area_skas(int type, const void __user * addr,
                                    unsigned long size)
 {
 	return(access_ok_skas(type, addr, size) ? 0 : -EFAULT);
 }
 
-extern int copy_from_user_skas(void *to, const void *from, int n);
-extern int copy_to_user_skas(void *to, const void *from, int n);
-extern int strncpy_from_user_skas(char *dst, const char *src, int count);
-extern int __clear_user_skas(void *mem, int len);
-extern int clear_user_skas(void *mem, int len);
-extern int strnlen_user_skas(const void *str, int len);
+extern int copy_from_user_skas(void *to, const void __user *from, int n);
+extern int copy_to_user_skas(void __user *to, const void *from, int n);
+extern int strncpy_from_user_skas(char *dst, const char __user *src, int count);
+extern int __clear_user_skas(void __user *mem, int len);
+extern int clear_user_skas(void __user *mem, int len);
+extern int strnlen_user_skas(const void __user *str, int len);
 
 #endif
 

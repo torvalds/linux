@@ -1,5 +1,5 @@
-#ifndef __PPC_POLL_H
-#define __PPC_POLL_H
+#ifndef _ASM_POWERPC_POLL_H
+#define _ASM_POWERPC_POLL_H
 
 #define POLLIN		0x0001
 #define POLLPRI		0x0002
@@ -20,4 +20,4 @@ struct pollfd {
 	short revents;
 };
 
-#endif
+#endif	/* _ASM_POWERPC_POLL_H */

@@ -431,11 +431,6 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = usb_get_dev(interface_to_usbdev(interface));
 
-	/* See if the offered device matches what we can accept */
-	if ((udev->descriptor.idVendor != USB_KEYSPAN_VENDOR_ID) ||
-	    (udev->descriptor.idProduct != USB_KEYSPAN_PRODUCT_UIA11) )
-		return -ENODEV;
-
 	/* allocate memory for our device state and initialize it */
 	remote = kmalloc(sizeof(*remote), GFP_KERNEL);
 	if (remote == NULL) {

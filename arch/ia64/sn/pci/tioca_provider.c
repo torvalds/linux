@@ -148,7 +148,7 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	tioca_kern->ca_pcigart_entries =
 	    tioca_kern->ca_pciap_size / tioca_kern->ca_ap_pagesize;
 	tioca_kern->ca_pcigart_pagemap =
-	    kcalloc(1, tioca_kern->ca_pcigart_entries / 8, GFP_KERNEL);
+	    kzalloc(tioca_kern->ca_pcigart_entries / 8, GFP_KERNEL);
 	if (!tioca_kern->ca_pcigart_pagemap) {
 		free_pages((unsigned long)tioca_kern->ca_gart,
 			   get_order(tioca_kern->ca_gart_size));
@@ -392,7 +392,7 @@ tioca_dma_mapped(struct pci_dev *pdev, uint64_t paddr, size_t req_size)
 	 * allocate a map struct
 	 */
 
-	ca_dmamap = kcalloc(1, sizeof(struct tioca_dmamap), GFP_ATOMIC);
+	ca_dmamap = kzalloc(sizeof(struct tioca_dmamap), GFP_ATOMIC);
 	if (!ca_dmamap)
 		goto map_return;
 
@@ -600,7 +600,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * Allocate kernel bus soft and copy from prom.
 	 */
 
-	tioca_common = kcalloc(1, sizeof(struct tioca_common), GFP_KERNEL);
+	tioca_common = kzalloc(sizeof(struct tioca_common), GFP_KERNEL);
 	if (!tioca_common)
 		return NULL;
 
@@ -609,7 +609,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 
 	/* init kernel-private area */
 
-	tioca_kern = kcalloc(1, sizeof(struct tioca_kernel), GFP_KERNEL);
+	tioca_kern = kzalloc(sizeof(struct tioca_kernel), GFP_KERNEL);
 	if (!tioca_kern) {
 		kfree(tioca_common);
 		return NULL;

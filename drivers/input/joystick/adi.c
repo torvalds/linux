@@ -469,7 +469,7 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int i;
 	int err;
 
-	if (!(port = kcalloc(1, sizeof(struct adi_port), GFP_KERNEL)))
+	if (!(port = kzalloc(sizeof(struct adi_port), GFP_KERNEL)))
 		return -ENOMEM;
 
 	port->gameport = gameport;

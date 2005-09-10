@@ -142,12 +142,21 @@ void scc2_lineif(struct uart_cpm_port *pinfo)
 	 * be supported in a sane fashion.
 	 */
 #ifndef CONFIG_STX_GP3
+#ifdef CONFIG_MPC8560_ADS
+	volatile iop_cpm2_t *io = &cpm2_immr->im_ioport;
+	io->iop_ppard |= 0x00000018;
+	io->iop_psord &= ~0x00000008;	/* Rx */
+	io->iop_psord &= ~0x00000010;	/* Tx */
+	io->iop_pdird &= ~0x00000008;	/* Rx */
+	io->iop_pdird |= 0x00000010;	/* Tx */
+#else
 	volatile iop_cpm2_t *io = &cpm2_immr->im_ioport;
 	io->iop_pparb |= 0x008b0000;
 	io->iop_pdirb |= 0x00880000;
 	io->iop_psorb |= 0x00880000;
 	io->iop_pdirb &= ~0x00030000;
 	io->iop_psorb &= ~0x00030000;
+#endif
 #endif
 	cpm2_immr->im_cpmux.cmx_scr &= 0xff00ffff;
 	cpm2_immr->im_cpmux.cmx_scr |= 0x00090000;
@@ -257,6 +266,7 @@ int cpm_uart_init_portdesc(void)
 	cpm_uart_ports[UART_SMC1].smcp = (smc_t *) & cpm2_immr->im_smc[0];
 	cpm_uart_ports[UART_SMC1].smcup =
 	    (smc_uart_t *) & cpm2_immr->im_dprambase[PROFF_SMC1];
+	*(u16 *)(&cpm2_immr->im_dprambase[PROFF_SMC1_BASE]) = PROFF_SMC1;
 	cpm_uart_ports[UART_SMC1].port.mapbase =
 	    (unsigned long)&cpm2_immr->im_smc[0];
 	cpm_uart_ports[UART_SMC1].smcp->smc_smcm |= (SMCM_RX | SMCM_TX);
@@ -269,6 +279,7 @@ int cpm_uart_init_portdesc(void)
 	cpm_uart_ports[UART_SMC2].smcp = (smc_t *) & cpm2_immr->im_smc[1];
 	cpm_uart_ports[UART_SMC2].smcup =
 	    (smc_uart_t *) & cpm2_immr->im_dprambase[PROFF_SMC2];
+	*(u16 *)(&cpm2_immr->im_dprambase[PROFF_SMC2_BASE]) = PROFF_SMC2;
 	cpm_uart_ports[UART_SMC2].port.mapbase =
 	    (unsigned long)&cpm2_immr->im_smc[1];
 	cpm_uart_ports[UART_SMC2].smcp->smc_smcm |= (SMCM_RX | SMCM_TX);

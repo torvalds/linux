@@ -40,22 +40,28 @@
 
 #include <asm/byteorder.h>
 
-#ifdef __LITTLE_ENDIAN
-# define __BYTE_ORDER	__LITTLE_ENDIAN
-#endif
 #ifdef __BIG_ENDIAN
-# define __BYTE_ORDER	__BIG_ENDIAN
+#define	XFS_NATIVE_HOST	1
+#else
+#undef XFS_NATIVE_HOST
+#endif
+
+#else /* __KERNEL__ */
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define	XFS_NATIVE_HOST	1
+#else
+#undef XFS_NATIVE_HOST
 #endif
 
 #endif	/* __KERNEL__ */
 
 /* do we need conversion? */
-
 #define ARCH_NOCONVERT 1
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-# define ARCH_CONVERT	0
-#else
+#ifdef XFS_NATIVE_HOST
 # define ARCH_CONVERT	ARCH_NOCONVERT
+#else
+# define ARCH_CONVERT	0
 #endif
 
 /* generic swapping macros */

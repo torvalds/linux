@@ -109,8 +109,6 @@ static u32 stub_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name		= "Non-I2C SMBus adapter",
-	.id		= I2C_ALGO_SMBUS,
 	.functionality	= stub_func,
 	.smbus_xfer	= stub_xfer,
 };

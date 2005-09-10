@@ -191,6 +191,20 @@ void device_remove_file(struct device * dev, struct device_attribute * attr)
 	}
 }
 
+static void klist_children_get(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_parent);
+
+	get_device(dev);
+}
+
+static void klist_children_put(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_parent);
+
+	put_device(dev);
+}
+
 
 /**
  *	device_initialize - init device structure.
@@ -207,7 +221,8 @@ void device_initialize(struct device *dev)
 {
 	kobj_set_kset_s(dev, devices_subsys);
 	kobject_init(&dev->kobj);
-	klist_init(&dev->klist_children);
+	klist_init(&dev->klist_children, klist_children_get,
+		   klist_children_put);
 	INIT_LIST_HEAD(&dev->dma_pools);
 	init_MUTEX(&dev->sem);
 }
@@ -249,7 +264,7 @@ int device_add(struct device *dev)
 	if ((error = bus_add_device(dev)))
 		goto BusError;
 	if (parent)
-		klist_add_tail(&parent->klist_children, &dev->knode_parent);
+		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
 	/* notify platform of device entry */
 	if (platform_notify)

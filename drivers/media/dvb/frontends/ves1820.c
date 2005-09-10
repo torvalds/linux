@@ -194,19 +194,18 @@ static int ves1820_init(struct dvb_frontend* fe)
 {
 	struct ves1820_state* state = fe->demodulator_priv;
 	int i;
-	int val;
 
 	ves1820_writereg(state, 0, 0);
 
-	for (i = 0; i < 53; i++) {
-		val = ves1820_inittab[i];
-		if ((i == 2) && (state->config->selagc)) val |= 0x08;
-		ves1820_writereg(state, i, val);
-	}
+	for (i = 0; i < sizeof(ves1820_inittab); i++)
+		ves1820_writereg(state, i, ves1820_inittab[i]);
+	if (state->config->selagc)
+		ves1820_writereg(state, 2, ves1820_inittab[2] | 0x08);
 
 	ves1820_writereg(state, 0x34, state->pwm);
 
-	if (state->config->pll_init) state->config->pll_init(fe);
+	if (state->config->pll_init)
+		state->config->pll_init(fe);
 
 	return 0;
 }
@@ -234,7 +233,7 @@ static int ves1820_set_parameters(struct dvb_frontend* fe, struct dvb_frontend_p
 	ves1820_writereg(state, 0x09, reg0x09[real_qam]);
 
 	ves1820_setup_reg0(state, reg0x00[real_qam], p->inversion);
-
+	ves1820_writereg(state, 2, ves1820_inittab[2] | (state->config->selagc ? 0x08 : 0));
 	return 0;
 }
 

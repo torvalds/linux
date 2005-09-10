@@ -158,8 +158,6 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
 	return err;
 }
 
-#define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
-
 struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 				unsigned long start, unsigned long end)
 {
@@ -334,9 +332,10 @@ void __vunmap(void *addr, int deallocate_pages)
  *	@addr:		memory base address
  *
  *	Free the virtually contiguous memory area starting at @addr, as
- *	obtained from vmalloc(), vmalloc_32() or __vmalloc().
+ *	obtained from vmalloc(), vmalloc_32() or __vmalloc(). If @addr is
+ *	NULL, no operation is performed.
  *
- *	May not be called in interrupt context.
+ *	Must not be called in interrupt context.
  */
 void vfree(void *addr)
 {
@@ -354,7 +353,7 @@ EXPORT_SYMBOL(vfree);
  *	Free the virtually contiguous memory area starting at @addr,
  *	which was created from the page array passed to vmap().
  *
- *	May not be called in interrupt context.
+ *	Must not be called in interrupt context.
  */
 void vunmap(void *addr)
 {

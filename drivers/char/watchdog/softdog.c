@@ -77,7 +77,7 @@ static void watchdog_fire(unsigned long);
 
 static struct timer_list watchdog_ticktock =
 		TIMER_INITIALIZER(watchdog_fire, 0, 0);
-static unsigned long timer_alive;
+static unsigned long driver_open, orphan_timer;
 static char expect_close;
 
 
@@ -87,6 +87,9 @@ static char expect_close;
 
 static void watchdog_fire(unsigned long data)
 {
+	if (test_and_clear_bit(0, &orphan_timer))
+		module_put(THIS_MODULE);
+
 	if (soft_noboot)
 		printk(KERN_CRIT PFX "Triggered - Reboot ignored.\n");
 	else
@@ -128,9 +131,9 @@ static int softdog_set_heartbeat(int t)
 
 static int softdog_open(struct inode *inode, struct file *file)
 {
-	if(test_and_set_bit(0, &timer_alive))
+	if (test_and_set_bit(0, &driver_open))
 		return -EBUSY;
-	if (nowayout)
+	if (!test_and_clear_bit(0, &orphan_timer))
 		__module_get(THIS_MODULE);
 	/*
 	 *	Activate timer
@@ -147,11 +150,13 @@ static int softdog_release(struct inode *inode, struct file *file)
 	 */
 	if (expect_close == 42) {
 		softdog_stop();
+		module_put(THIS_MODULE);
 	} else {
 		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+		set_bit(0, &orphan_timer);
 		softdog_keepalive();
 	}
-	clear_bit(0, &timer_alive);
+	clear_bit(0, &driver_open);
 	expect_close = 0;
 	return 0;
 }

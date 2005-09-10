@@ -298,6 +298,8 @@ static void ax25_rt_seq_stop(struct seq_file *seq, void *v)
 
 static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
+
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "callsign  dev  mode digipeaters\n");
 	else {
@@ -308,7 +310,7 @@ static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 		if (ax25cmp(&ax25_rt->callsign, &null_ax25_address) == 0)
 			callsign = "default";
 		else
-			callsign = ax2asc(&ax25_rt->callsign);
+			callsign = ax2asc(buf, &ax25_rt->callsign);
 
 		seq_printf(seq, "%-9s %-4s",
 			callsign,
@@ -328,7 +330,8 @@ static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 
 		if (ax25_rt->digipeat != NULL)
 			for (i = 0; i < ax25_rt->digipeat->ndigi; i++)
-				seq_printf(seq, " %s", ax2asc(&ax25_rt->digipeat->calls[i]));
+				seq_printf(seq, " %s",
+				     ax2asc(buf, &ax25_rt->digipeat->calls[i]));
 
 		seq_puts(seq, "\n");
 	}

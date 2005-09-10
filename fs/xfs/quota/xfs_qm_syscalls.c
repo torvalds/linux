@@ -1053,7 +1053,6 @@ xfs_qm_dqrele_all_inodes(
 	struct xfs_mount *mp,
 	uint		 flags)
 {
-	vmap_t		vmap;
 	xfs_inode_t	*ip, *topino;
 	uint		ireclaims;
 	vnode_t		*vp;
@@ -1061,8 +1060,8 @@ xfs_qm_dqrele_all_inodes(
 
 	ASSERT(mp->m_quotainfo);
 
-again:
 	XFS_MOUNT_ILOCK(mp);
+again:
 	ip = mp->m_inodes;
 	if (ip == NULL) {
 		XFS_MOUNT_IUNLOCK(mp);
@@ -1090,18 +1089,14 @@ again:
 		}
 		vnode_refd = B_FALSE;
 		if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL) == 0) {
-			/*
-			 * Sample vp mapping while holding the mplock, lest
-			 * we come across a non-existent vnode.
-			 */
-			VMAP(vp, vmap);
 			ireclaims = mp->m_ireclaims;
 			topino = mp->m_inodes;
-			XFS_MOUNT_IUNLOCK(mp);
-
-			/* XXX restart limit ? */
-			if ( ! (vp = vn_get(vp, &vmap)))
+			vp = vn_grab(vp);
+			if (!vp)
 				goto again;
+
+			XFS_MOUNT_IUNLOCK(mp);
+			/* XXX restart limit ? */
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			vnode_refd = B_TRUE;
 		} else {
@@ -1137,7 +1132,6 @@ again:
 		 */
 		if (topino != mp->m_inodes || mp->m_ireclaims != ireclaims) {
 			/* XXX use a sentinel */
-			XFS_MOUNT_IUNLOCK(mp);
 			goto again;
 		}
 		ip = ip->i_mnext;

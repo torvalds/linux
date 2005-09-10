@@ -102,21 +102,11 @@ CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 
 head-y := arch/m68knommu/platform/$(cpuclass-y)/head.o
 
-CLEAN_FILES := include/asm-$(ARCH)/asm-offsets.h \
-	       arch/$(ARCH)/kernel/asm-offsets.s
-
 core-y	+= arch/m68knommu/kernel/ \
 	   arch/m68knommu/mm/ \
 	   $(CLASSDIR) \
 	   arch/m68knommu/platform/$(PLATFORM)/
 libs-y	+= arch/m68knommu/lib/
 
-prepare: include/asm-$(ARCH)/asm-offsets.h
-
 archclean:
-	$(call descend arch/$(ARCH)/boot, subdirclean)
-
-include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
-				   include/asm include/linux/version.h \
-				   include/config/MARKER
-	$(call filechk,gen-asm-offsets)
+	$(Q)$(MAKE) $(clean)=arch/m68knommu/boot

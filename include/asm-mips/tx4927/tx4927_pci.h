@@ -5,8 +5,8 @@
  *
  * Copyright (C) 2000-2001 Toshiba Corporation
  */
-#ifndef __ASM_TX4927_TX4927_PCI_H 
-#define __ASM_TX4927_TX4927_PCI_H 
+#ifndef __ASM_TX4927_TX4927_PCI_H
+#define __ASM_TX4927_TX4927_PCI_H
 
 #define TX4927_CCFG_TOE 0x00004000
 

@@ -179,14 +179,6 @@ enum sis190_register_content {
 	TxInterFrameGapShift	= 24,
 	TxDMAShift		= 8, /* DMA burst value (0-7) is shift this many bits */
 
-	/* StationControl */
-	_1000bpsF		= 0x1c00,
-	_1000bpsH		= 0x0c00,
-	_100bpsF		= 0x1800,
-	_100bpsH		= 0x0800,
-	_10bpsF			= 0x1400,
-	_10bpsH			= 0x0400,
-
 	LinkStatus		= 0x02,		// unused
 	FullDup			= 0x01,		// unused
 
@@ -279,6 +271,12 @@ enum sis190_eeprom_address {
 	EEPROMMACAddr	= 0x03
 };
 
+enum sis190_feature {
+	F_HAS_RGMII	= 1,
+	F_PHY_88E1111	= 2,
+	F_PHY_BCM5461	= 4
+};
+
 struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
@@ -300,6 +298,7 @@ struct sis190_private {
 	u32 msg_enable;
 	struct mii_if_info mii_if;
 	struct list_head first_phy;
+	u32 features;
 };
 
 struct sis190_phy {
@@ -321,24 +320,25 @@ static struct mii_chip_info {
         const char *name;
         u16 id[2];
         unsigned int type;
+	u32 feature;
 } mii_chip_table[] = {
-	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN },
-	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN },
-	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN },
-	{ "Realtek PHY RTL8201",  { 0x0000, 0x8200 }, LAN },
+	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN, F_PHY_BCM5461 },
+	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN, 0 },
+	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN, F_PHY_88E1111 },
+	{ "Realtek PHY RTL8201",  { 0x0000, 0x8200 }, LAN, 0 },
 	{ NULL, }
 };
 
 const static struct {
 	const char *name;
-	u8 version;		/* depend on docs */
-	u32 RxConfigMask;	/* clear the bits supported by this chip */
 } sis_chip_info[] = {
-	{ DRV_NAME, 0x00, 0xff7e1880, },
+	{ "SiS 190 PCI Fast Ethernet adapter" },
+	{ "SiS 191 PCI Gigabit Ethernet adapter" },
 };
 
 static struct pci_device_id sis190_pci_tbl[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0190), 0, 0, 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0191), 0, 0, 1 },
 	{ 0, },
 };
 
@@ -360,7 +360,7 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
 static const u32 sis190_intr_mask =
-	RxQEmpty | RxQInt | TxQ1Int | TxQ0Int | RxHalt | TxHalt;
+	RxQEmpty | RxQInt | TxQ1Int | TxQ0Int | RxHalt | TxHalt | LinkChange;
 
 /*
  * Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
@@ -879,11 +879,6 @@ static void sis190_hw_start(struct net_device *dev)
 
 	SIS_W32(IntrStatus, 0xffffffff);
 	SIS_W32(IntrMask, 0x0);
-	/*
-	 * Default is 100Mbps.
-	 * A bit strange: 100Mbps is 0x1801 elsewhere -- FR 2005/06/09
-	 */
-	SIS_W16(StationControl, 0x1901);
 	SIS_W32(GMIIControl, 0x0);
 	SIS_W32(TxMacControl, 0x60);
 	SIS_W16(RxMacControl, 0x02);
@@ -923,35 +918,30 @@ static void sis190_phy_task(void * data)
 		     BMSR_ANEGCOMPLETE)) {
 		net_link(tp, KERN_WARNING "%s: PHY reset until link up.\n",
 			 dev->name);
+		netif_carrier_off(dev);
 		mdio_write(ioaddr, phy_id, MII_BMCR, val | BMCR_RESET);
 		mod_timer(&tp->timer, jiffies + SIS190_PHY_TIMEOUT);
 	} else {
 		/* Rejoice ! */
 		struct {
 			int val;
+			u32 ctl;
 			const char *msg;
-			u16 ctl;
 		} reg31[] = {
-			{ LPA_1000XFULL | LPA_SLCT,
-				"1000 Mbps Full Duplex",
-				0x01 | _1000bpsF },
-			{ LPA_1000XHALF | LPA_SLCT,
-				"1000 Mbps Half Duplex",
-				0x01 | _1000bpsH },
-			{ LPA_100FULL,
-				"100 Mbps Full Duplex",
-				0x01 | _100bpsF },
-			{ LPA_100HALF,
-				"100 Mbps Half Duplex",
-				0x01 | _100bpsH },
-			{ LPA_10FULL,
-				"10 Mbps Full Duplex",
-				0x01 | _10bpsF },
-			{ LPA_10HALF,
-				"10 Mbps Half Duplex",
-				0x01 | _10bpsH },
-			{ 0, "unknown", 0x0000 }
-		}, *p;
+			{ LPA_1000XFULL | LPA_SLCT, 0x07000c00 | 0x00001000,
+				"1000 Mbps Full Duplex" },
+			{ LPA_1000XHALF | LPA_SLCT, 0x07000c00,
+				"1000 Mbps Half Duplex" },
+			{ LPA_100FULL, 0x04000800 | 0x00001000,
+				"100 Mbps Full Duplex" },
+			{ LPA_100HALF, 0x04000800,
+				"100 Mbps Half Duplex" },
+			{ LPA_10FULL, 0x04000400 | 0x00001000,
+				"10 Mbps Full Duplex" },
+			{ LPA_10HALF, 0x04000400,
+				"10 Mbps Half Duplex" },
+			{ 0, 0x04000400, "unknown" }
+ 		}, *p;
 		u16 adv;
 
 		val = mdio_read(ioaddr, phy_id, 0x1f);
@@ -964,12 +954,29 @@ static void sis190_phy_task(void * data)
 
 		val &= adv;
 
-		for (p = reg31; p->ctl; p++) {
+		for (p = reg31; p->val; p++) {
 			if ((val & p->val) == p->val)
 				break;
 		}
-		if (p->ctl)
-			SIS_W16(StationControl, p->ctl);
+
+		p->ctl |= SIS_R32(StationControl) & ~0x0f001c00;
+
+		if ((tp->features & F_HAS_RGMII) &&
+		    (tp->features & F_PHY_BCM5461)) {
+			// Set Tx Delay in RGMII mode.
+			mdio_write(ioaddr, phy_id, 0x18, 0xf1c7);
+			udelay(200);
+			mdio_write(ioaddr, phy_id, 0x1c, 0x8c00);
+			p->ctl |= 0x03000000;
+		}
+
+		SIS_W32(StationControl, p->ctl);
+
+		if (tp->features & F_HAS_RGMII) {
+			SIS_W32(RGDelay, 0x0441);
+			SIS_W32(RGDelay, 0x0440);
+		}
+
 		net_link(tp, KERN_INFO "%s: link on %s mode.\n", dev->name,
 			 p->msg);
 		netif_carrier_on(dev);
@@ -1308,12 +1315,32 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 		phy->type = (p->type == MIX) ?
 			((mii_status & (BMSR_100FULL | BMSR_100HALF)) ?
 				LAN : HOME) : p->type;
+		tp->features |= p->feature;
 	} else
 		phy->type = UNKNOWN;
 
 	net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
 		  pci_name(tp->pci_dev),
 		  (phy->type == UNKNOWN) ? "Unknown PHY" : p->name, phy_id);
+}
+
+static void sis190_mii_probe_88e1111_fixup(struct sis190_private *tp)
+{
+	if (tp->features & F_PHY_88E1111) {
+		void __iomem *ioaddr = tp->mmio_addr;
+		int phy_id = tp->mii_if.phy_id;
+		u16 reg[2][2] = {
+			{ 0x808b, 0x0ce1 },
+			{ 0x808f, 0x0c60 }
+		}, *p;
+
+		p = (tp->features & F_HAS_RGMII) ? reg[0] : reg[1];
+
+		mdio_write(ioaddr, phy_id, 0x1b, p[0]);
+		udelay(200);
+		mdio_write(ioaddr, phy_id, 0x14, p[1]);
+		udelay(200);
+	}
 }
 
 /**
@@ -1365,6 +1392,8 @@ static int __devinit sis190_mii_probe(struct net_device *dev)
 
 	/* Select default PHY for mac */
 	sis190_default_phy(dev);
+
+	sis190_mii_probe_88e1111_fixup(tp);
 
 	mii_if->dev = dev;
 	mii_if->mdio_read = __mdio_read;
@@ -1505,6 +1534,11 @@ static void sis190_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
+static void sis190_set_rgmii(struct sis190_private *tp, u8 reg)
+{
+	tp->features |= (reg & 0x80) ? F_HAS_RGMII : 0;
+}
+
 static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 						     struct net_device *dev)
 {
@@ -1531,6 +1565,8 @@ static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 
 		((u16 *)dev->dev_addr)[0] = le16_to_cpu(w);
 	}
+
+	sis190_set_rgmii(tp, sis190_read_eeprom(ioaddr, EEPROMInfo));
 
 	return 0;
 }
@@ -1576,6 +1612,8 @@ static int __devinit sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
 
 	outb(0x12, 0x78);
 	reg = inb(0x79);
+
+	sis190_set_rgmii(tp, reg);
 
 	/* Restore the value to ISA Bridge */
 	pci_write_config_byte(isa_bridge, 0x48, tmp8);
@@ -1798,6 +1836,9 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	       dev->dev_addr[0], dev->dev_addr[1],
 	       dev->dev_addr[2], dev->dev_addr[3],
 	       dev->dev_addr[4], dev->dev_addr[5]);
+
+	net_probe(tp, KERN_INFO "%s: %s mode.\n", dev->name,
+		  (tp->features & F_HAS_RGMII) ? "RGMII" : "GMII");
 
 	netif_carrier_off(dev);
 

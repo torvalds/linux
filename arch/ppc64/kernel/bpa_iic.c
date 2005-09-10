@@ -205,6 +205,18 @@ static struct iic_regs __iomem *find_iic(int cpu)
 }
 
 #ifdef CONFIG_SMP
+
+/* Use the highest interrupt priorities for IPI */
+static inline int iic_ipi_to_irq(int ipi)
+{
+	return IIC_IPI_OFFSET + IIC_NUM_IPIS - 1 - ipi;
+}
+
+static inline int iic_irq_to_ipi(int irq)
+{
+	return IIC_NUM_IPIS - 1 - (irq - IIC_IPI_OFFSET);
+}
+
 void iic_setup_cpu(void)
 {
 	out_be64(&__get_cpu_var(iic).regs->prio, 0xff);
@@ -212,18 +224,20 @@ void iic_setup_cpu(void)
 
 void iic_cause_IPI(int cpu, int mesg)
 {
-	out_be64(&per_cpu(iic, cpu).regs->generate, mesg);
+	out_be64(&per_cpu(iic, cpu).regs->generate, (IIC_NUM_IPIS - 1 - mesg) << 4);
 }
 
 static irqreturn_t iic_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
 {
-
-	smp_message_recv(irq - IIC_IPI_OFFSET, regs);
+	smp_message_recv(iic_irq_to_ipi(irq), regs);
 	return IRQ_HANDLED;
 }
 
-static void iic_request_ipi(int irq, const char *name)
+static void iic_request_ipi(int ipi, const char *name)
 {
+	int irq;
+
+	irq = iic_ipi_to_irq(ipi);
 	/* IPIs are marked SA_INTERRUPT as they must run with irqs
 	 * disabled */
 	get_irq_desc(irq)->handler = &iic_pic;
@@ -233,10 +247,10 @@ static void iic_request_ipi(int irq, const char *name)
 
 void iic_request_IPIs(void)
 {
-	iic_request_ipi(IIC_IPI_OFFSET + PPC_MSG_CALL_FUNCTION, "IPI-call");
-	iic_request_ipi(IIC_IPI_OFFSET + PPC_MSG_RESCHEDULE, "IPI-resched");
+	iic_request_ipi(PPC_MSG_CALL_FUNCTION, "IPI-call");
+	iic_request_ipi(PPC_MSG_RESCHEDULE, "IPI-resched");
 #ifdef CONFIG_DEBUGGER
-	iic_request_ipi(IIC_IPI_OFFSET + PPC_MSG_DEBUGGER_BREAK, "IPI-debug");
+	iic_request_ipi(PPC_MSG_DEBUGGER_BREAK, "IPI-debug");
 #endif /* CONFIG_DEBUGGER */
 }
 #endif /* CONFIG_SMP */

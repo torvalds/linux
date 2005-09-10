@@ -619,7 +619,7 @@ not_found:
 	return viaint;
 }
 
-static int pmacpic_suspend(struct sys_device *sysdev, u32 state)
+static int pmacpic_suspend(struct sys_device *sysdev, pm_message_t state)
 {
 	int viaint = pmacpic_find_viaint();
 

@@ -73,7 +73,7 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 {
 	if (!is_fixup && (regs->cp0_cause & 4)) {
 		/* Data bus error - print PA */
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		printk("DBE physical address: %010lx\n",
 		       __read_64bit_c0_register($26, 1));
 #else
@@ -98,7 +98,7 @@ static int __init swarm_setup(void)
 		rtc_get_time = xicor_get_time;
 		rtc_set_time = xicor_set_time;
 	}
- 
+
 	if (m41t81_probe()) {
 		printk("swarm setup: M41T81 RTC detected.\n");
 		rtc_get_time = m41t81_get_time;

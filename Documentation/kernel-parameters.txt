@@ -1175,6 +1175,11 @@ running once the system is up.
 			New name for the ramdisk parameter.
 			See Documentation/ramdisk.txt.
 
+	rdinit=		[KNL]
+			Format: <full_path>
+			Run specified binary instead of /init from the ramdisk,
+			used for early userspace startup. See initrd.
+
 	reboot=		[BUGS=IA-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
 			See arch/*/kernel/reboot.c.

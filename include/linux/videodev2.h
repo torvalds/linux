@@ -270,7 +270,6 @@ struct v4l2_timecode
 /* The above is based on SMPTE timecodes */
 
 
-#if 1
 /*
  *	M P E G   C O M P R E S S I O N   P A R A M E T E R S
  *
@@ -357,7 +356,6 @@ struct v4l2_mpeg_compression {
 	/* I don't expect the above being perfect yet ;) */
 	__u32				reserved_5[8];
 };
-#endif
 
 struct v4l2_jpegcompression
 {
@@ -871,10 +869,8 @@ struct v4l2_streamparm
 #define VIDIOC_ENUM_FMT         _IOWR ('V',  2, struct v4l2_fmtdesc)
 #define VIDIOC_G_FMT		_IOWR ('V',  4, struct v4l2_format)
 #define VIDIOC_S_FMT		_IOWR ('V',  5, struct v4l2_format)
-#if 1 /* experimental */
 #define VIDIOC_G_MPEGCOMP       _IOR  ('V',  6, struct v4l2_mpeg_compression)
 #define VIDIOC_S_MPEGCOMP     	_IOW  ('V',  7, struct v4l2_mpeg_compression)
-#endif
 #define VIDIOC_REQBUFS		_IOWR ('V',  8, struct v4l2_requestbuffers)
 #define VIDIOC_QUERYBUF		_IOWR ('V',  9, struct v4l2_buffer)
 #define VIDIOC_G_FBUF		_IOR  ('V', 10, struct v4l2_framebuffer)

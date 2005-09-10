@@ -329,8 +329,9 @@ static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev 
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_ERR "radeonfb (%s): Invalid ROM signature %x should be"
-		       "0xaa55\n", pci_name(rinfo->pdev), BIOS_IN16(0));
+		printk(KERN_DEBUG "radeonfb (%s): Invalid ROM signature %x "
+			"should be 0xaa55\n",
+			pci_name(rinfo->pdev), BIOS_IN16(0));
 		goto failed;
 	}
 	/* Look for the PCI data to check the ROM type */
@@ -2312,19 +2313,27 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	rinfo->mmio_base_phys = pci_resource_start (pdev, 2);
 
 	/* request the mem regions */
-	ret = pci_request_regions(pdev, "radeonfb");
+	ret = pci_request_region(pdev, 0, "radeonfb framebuffer");
 	if (ret < 0) {
-		printk( KERN_ERR "radeonfb (%s): cannot reserve PCI regions."
-			"  Someone already got them?\n", pci_name(rinfo->pdev));
+		printk( KERN_ERR "radeonfb (%s): cannot request region 0.\n",
+			pci_name(rinfo->pdev));
 		goto err_release_fb;
+	}
+
+	ret = pci_request_region(pdev, 2, "radeonfb mmio");
+	if (ret < 0) {
+		printk( KERN_ERR "radeonfb (%s): cannot request region 2.\n",
+			pci_name(rinfo->pdev));
+		goto err_release_pci0;
 	}
 
 	/* map the regions */
 	rinfo->mmio_base = ioremap(rinfo->mmio_base_phys, RADEON_REGSIZE);
 	if (!rinfo->mmio_base) {
-		printk(KERN_ERR "radeonfb (%s): cannot map MMIO\n", pci_name(rinfo->pdev));
+		printk(KERN_ERR "radeonfb (%s): cannot map MMIO\n",
+		       pci_name(rinfo->pdev));
 		ret = -EIO;
-		goto err_release_pci;
+		goto err_release_pci2;
 	}
 
 	rinfo->fb_local_base = INREG(MC_FB_LOCATION) << 16;
@@ -2499,10 +2508,12 @@ err_unmap_rom:
 	if (rinfo->bios_seg)
 		radeon_unmap_ROM(rinfo, pdev);
 	iounmap(rinfo->mmio_base);
-err_release_pci:
-	pci_release_regions(pdev);
+err_release_pci2:
+	pci_release_region(pdev, 2);
+err_release_pci0:
+	pci_release_region(pdev, 0);
 err_release_fb:
-	framebuffer_release(info);
+        framebuffer_release(info);
 err_disable:
 	pci_disable_device(pdev);
 err_out:
@@ -2548,7 +2559,8 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
         iounmap(rinfo->mmio_base);
         iounmap(rinfo->fb_base);
  
- 	pci_release_regions(pdev);
+	pci_release_region(pdev, 2);
+	pci_release_region(pdev, 0);
 
 	kfree(rinfo->mon1_EDID);
 	kfree(rinfo->mon2_EDID);

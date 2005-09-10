@@ -221,7 +221,7 @@ struct hpc3_regs {
 #define HPC3_BESTAT_PIDMASK	0x3f700	/* DMA channel parity identifier */
 
 	u32 _unused1[0x14000/4 - 5];	/* padding */
-	
+
 	/* Now direct PIO per-HPC3 peripheral access to external regs. */
 	volatile u32 scsi0_ext[256];	/* SCSI channel 0 external regs */
 	u32 _unused2[0x7c00/4];
@@ -304,7 +304,7 @@ struct hpc3_regs {
 	volatile u32 bbram[8192-50-14];	/* Battery backed ram */
 };
 
-/* 
+/*
  * It is possible to have two HPC3's within the address space on
  * one machine, though only having one is more likely on an Indy.
  */

@@ -77,8 +77,7 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	}
 }
 
-static void __devinit
-pci_setup_cardbus(struct pci_bus *bus)
+void pci_setup_cardbus(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
@@ -130,6 +129,7 @@ pci_setup_cardbus(struct pci_bus *bus)
 					region.end);
 	}
 }
+EXPORT_SYMBOL(pci_setup_cardbus);
 
 /* Initialize bridges with base/limit values we have collected.
    PCI-to-PCI Bridge Architecture Specification rev. 1.1 (1998)

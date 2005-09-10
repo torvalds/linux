@@ -1874,6 +1874,7 @@ static void ax25_info_stop(struct seq_file *seq, void *v)
 static int ax25_info_show(struct seq_file *seq, void *v)
 {
 	ax25_cb *ax25 = v;
+	char buf[11];
 	int k;
 
 
@@ -1885,13 +1886,13 @@ static int ax25_info_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%8.8lx %s %s%s ",
 		   (long) ax25,
 		   ax25->ax25_dev == NULL? "???" : ax25->ax25_dev->dev->name,
-		   ax2asc(&ax25->source_addr),
+		   ax2asc(buf, &ax25->source_addr),
 		   ax25->iamdigi? "*":"");
-	seq_printf(seq, "%s", ax2asc(&ax25->dest_addr));
+	seq_printf(seq, "%s", ax2asc(buf, &ax25->dest_addr));
 
 	for (k=0; (ax25->digipeat != NULL) && (k < ax25->digipeat->ndigi); k++) {
 		seq_printf(seq, ",%s%s",
-			   ax2asc(&ax25->digipeat->calls[k]),
+			   ax2asc(buf, &ax25->digipeat->calls[k]),
 			   ax25->digipeat->repeated[k]? "*":"");
 	}
 

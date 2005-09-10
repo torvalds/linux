@@ -16,11 +16,6 @@ choice
 	depends on 40x
 	default WALNUT
 
-config ASH
-	bool "Ash"
-	help
-	  This option enables support for the IBM NP405H evaluation board.
-
 config BUBINGA
 	bool "Bubinga"
 	select WANT_EARLY_SERIAL
@@ -36,11 +31,6 @@ config EP405
 	bool "EP405/EP405PC"
 	help
 	  This option enables support for the EP405/EP405PC boards.
-
-config OAK
-	bool "Oak"
-	help
-	  This option enables support for the IBM 403GCX evaluation board.
 
 config REDWOOD_5
 	bool "Redwood-5"
@@ -152,13 +142,13 @@ config IBM440EP_ERR42
 # All 405-based cores up until the 405GPR and 405EP have this errata.
 config IBM405_ERR77
 	bool
-	depends on 40x && !403GCX && !405GPR
+	depends on 40x && !403GCX && !405GPR && !405EP
 	default y
 
 # All 40x-based cores, up until the 405GPR and 405EP have this errata.
 config IBM405_ERR51
 	bool
-	depends on 40x && !405GPR
+	depends on 40x && !405GPR && !405EP
 	default y
 
 config BOOKE
@@ -186,6 +176,7 @@ config BIOS_FIXUP
 	depends on BUBINGA || EP405 || SYCAMORE || WALNUT
 	default y
 
+# OAK doesn't exist but wanted to keep this around for any future 403GCX boards
 config 403GCX
 	bool
 	depends OAK

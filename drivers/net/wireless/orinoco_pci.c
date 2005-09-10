@@ -301,8 +301,6 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	unsigned long flags;
 	int err;
 	
-	printk(KERN_DEBUG "%s: Orinoco-PCI entering sleep mode (state=%d)\n",
-	       dev->name, state);
 
 	err = orinoco_lock(priv, &flags);
 	if (err) {

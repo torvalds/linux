@@ -1,5 +1,4 @@
 /*
- * $Id: cx88-vbi.c,v 1.17 2005/06/12 04:19:19 mchehab Exp $
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

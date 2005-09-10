@@ -98,20 +98,19 @@ static struct dvb_usb_properties wt220u_properties;
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE) == 0)
+	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE,NULL) == 0)
 		return 0;
 
 	return -ENODEV;
 }
 
 static struct usb_device_id dtt200u_usb_table [] = {
-//		{ USB_DEVICE(0x04b4,0x8613) },
-	    { USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_COLD) },
-	    { USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_WARM) },
-		{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_COLD)  },
-		{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_WARM)  },
-	    { 0 },
+	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_COLD) },
+	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_WARM) },
+	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_COLD)  },
+	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_WARM)  },
+	{ 0 },
 };
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
 
@@ -189,7 +188,7 @@ static struct dvb_usb_properties wt220u_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{ .name = "WideView WT-220U PenType Receiver (and clones)",
+		{ .name = "WideView WT-220U PenType Receiver (Typhoon/Freecom)",
 		  .cold_ids = { &dtt200u_usb_table[2], NULL },
 		  .warm_ids = { &dtt200u_usb_table[3], NULL },
 		},
@@ -201,9 +200,9 @@ static struct dvb_usb_properties wt220u_properties = {
 static struct usb_driver dtt200u_usb_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_dtt200u",
-	.probe 		= dtt200u_usb_probe,
+	.probe		= dtt200u_usb_probe,
 	.disconnect = dvb_usb_device_exit,
-	.id_table 	= dtt200u_usb_table,
+	.id_table	= dtt200u_usb_table,
 };
 
 /* module stuff */

@@ -111,7 +111,7 @@ static struct resource sni_mem_resource = {
  * The RM200/RM300 has a few holes in it's PCI/EISA memory address space used
  * for other purposes.  Be paranoid and allocate all of the before the PCI
  * code gets a chance to to map anything else there ...
- * 
+ *
  * This leaves the following areas available:
  *
  * 0x10000000 - 0x1009ffff (640kB) PCI/EISA/ISA Bus Memory

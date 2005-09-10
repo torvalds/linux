@@ -24,17 +24,26 @@
 static int tiocgdev(unsigned fd, unsigned cmd,  unsigned int __user *ptr) 
 { 
 
-	struct file *file = fget(fd);
+	struct file *file;
 	struct tty_struct *real_tty;
+	int fput_needed, ret;
 
+	file = fget_light(fd, &fput_needed);
 	if (!file)
 		return -EBADF;
+
+	ret = -EINVAL;
 	if (file->f_op->ioctl != tty_ioctl)
-		return -EINVAL; 
+		goto out;
 	real_tty = (struct tty_struct *)file->private_data;
 	if (!real_tty) 	
-		return -EINVAL; 
-	return put_user(new_encode_dev(tty_devnum(real_tty)), ptr); 
+		goto out;
+
+	ret = put_user(new_encode_dev(tty_devnum(real_tty)), ptr); 
+
+out:
+	fput_light(file, fput_needed);
+	return ret;
 } 
 
 #define RTC_IRQP_READ32	_IOR('p', 0x0b, unsigned int)	 /* Read IRQ rate   */

@@ -377,7 +377,7 @@ void __init arch_init_irq(void)
 
 	/*
 	 * Note that the timer interrupts are also mapped, but this is
-	 * done in sb1250_time_init().  Also, the profiling driver 
+	 * done in sb1250_time_init().  Also, the profiling driver
 	 * does its own management of IP7.
 	 */
 
@@ -392,7 +392,7 @@ void __init arch_init_irq(void)
 	if (kgdb_flag) {
 		kgdb_irq = K_INT_UART_0 + kgdb_port;
 
-#ifdef CONFIG_SIBYTE_SB1250_DUART	
+#ifdef CONFIG_SIBYTE_SB1250_DUART
 		sb1250_duart_present[kgdb_port] = 0;
 #endif
 		/* Setup uart 1 settings, mapper */

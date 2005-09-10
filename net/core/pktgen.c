@@ -503,7 +503,7 @@ static int pg_delay_d = 0;
 static int pg_clone_skb_d = 0;
 static int debug = 0;
 
-static spinlock_t _thread_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(_thread_lock);
 static struct pktgen_thread *pktgen_threads = NULL;
 
 static char module_fname[128];

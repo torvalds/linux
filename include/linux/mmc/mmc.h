@@ -88,6 +88,8 @@ struct mmc_card;
 
 extern int mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
+extern int mmc_wait_for_app_cmd(struct mmc_host *, unsigned int,
+	struct mmc_command *, int);
 
 extern int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card);
 

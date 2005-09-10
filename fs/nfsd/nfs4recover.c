@@ -93,7 +93,7 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
-	tfm = crypto_alloc_tfm("md5", 0);
+	tfm = crypto_alloc_tfm("md5", CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (tfm == NULL)
 		goto out;
 	cksum.len = crypto_tfm_alg_digestsize(tfm);
@@ -114,8 +114,7 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 	kfree(cksum.data);
 	status = nfs_ok;
 out:
-	if (tfm)
-		crypto_free_tfm(tfm);
+	crypto_free_tfm(tfm);
 	return status;
 }
 

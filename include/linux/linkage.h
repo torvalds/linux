@@ -33,6 +33,13 @@
   ALIGN; \
   name:
 
+#define KPROBE_ENTRY(name) \
+  .section .kprobes.text, "ax"; \
+  .globl name; \
+  ALIGN; \
+  name:
+
+
 #endif
 
 #define NORET_TYPE    /**/

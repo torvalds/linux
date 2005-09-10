@@ -742,13 +742,10 @@ static struct sbpcd_drive *current_drive = D_S;
 unsigned long cli_sti; /* for saving the processor flags */
 #endif
 /*==========================================================================*/
-static struct timer_list delay_timer =
-		TIMER_INITIALIZER(mark_timeout_delay, 0, 0);
-static struct timer_list data_timer =
-		TIMER_INITIALIZER(mark_timeout_data, 0, 0);
+static DEFINE_TIMER(delay_timer, mark_timeout_delay, 0, 0);
+static DEFINE_TIMER(data_timer, mark_timeout_data, 0, 0);
 #if 0
-static struct timer_list audio_timer =
-		TIMER_INITIALIZER(mark_timeout_audio, 0, 0);
+static DEFINE_TIMER(audio_timer, mark_timeout_audio, 0, 0);
 #endif
 /*==========================================================================*/
 /*

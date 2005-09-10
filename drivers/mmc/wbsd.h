@@ -106,6 +106,8 @@
 #define WBSD_CLK_16M		0x02
 #define WBSD_CLK_24M		0x03
 
+#define WBSD_DATA_WIDTH		0x01
+
 #define WBSD_DAT3_H		0x08
 #define WBSD_FIFO_RESET		0x04
 #define WBSD_SOFT_RESET		0x02
@@ -164,6 +166,7 @@ struct wbsd_host
 	int			firsterr;	/* See fifo functions */
 	
 	u8			clk;		/* Current clock speed */
+	unsigned char		bus_width;	/* Current bus width */
 	
 	int			config;		/* Config port */
 	u8			unlock_code;	/* Code to unlock config */
@@ -181,5 +184,6 @@ struct wbsd_host
 	struct tasklet_struct	finish_tasklet;
 	struct tasklet_struct	block_tasklet;
 	
-	struct timer_list	timer;		/* Card detection timer */
+	struct timer_list	detect_timer;	/* Card detection timer */
+	struct timer_list	ignore_timer;	/* Ignore detection timer */
 };

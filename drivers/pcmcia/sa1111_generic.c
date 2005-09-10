@@ -189,7 +189,7 @@ static void __exit sa1111_drv_pcmcia_exit(void)
 	sa1111_driver_unregister(&pcmcia_driver);
 }
 
-module_init(sa1111_drv_pcmcia_init);
+fs_initcall(sa1111_drv_pcmcia_init);
 module_exit(sa1111_drv_pcmcia_exit);
 
 MODULE_DESCRIPTION("SA1111 PCMCIA card socket driver");

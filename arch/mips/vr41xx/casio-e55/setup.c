@@ -23,11 +23,6 @@
 #include <asm/io.h>
 #include <asm/vr41xx/e55.h>
 
-const char *get_system_type(void)
-{
-	return "CASIO CASSIOPEIA E-11/15/55/65";
-}
-
 static int __init casio_e55_setup(void)
 {
 	set_io_port_base(IO_PORT_BASE);

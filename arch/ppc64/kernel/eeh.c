@@ -202,10 +202,9 @@ static void pci_addr_cache_print(struct pci_io_addr_cache *cache)
 	while (n) {
 		struct pci_io_addr_range *piar;
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
-		printk(KERN_DEBUG "PCI: %s addr range %d [%lx-%lx]: %s %s\n",
+		printk(KERN_DEBUG "PCI: %s addr range %d [%lx-%lx]: %s\n",
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem", cnt,
-		       piar->addr_lo, piar->addr_hi, pci_name(piar->pcidev),
-		       pci_pretty_name(piar->pcidev));
+		       piar->addr_lo, piar->addr_hi, pci_name(piar->pcidev));
 		cnt++;
 		n = rb_next(n);
 	}
@@ -255,22 +254,24 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 {
 	struct device_node *dn;
+	struct pci_dn *pdn;
 	int i;
 	int inserted = 0;
 
 	dn = pci_device_to_OF_node(dev);
 	if (!dn) {
-		printk(KERN_WARNING "PCI: no pci dn found for dev=%s %s\n",
-			pci_name(dev), pci_pretty_name(dev));
+		printk(KERN_WARNING "PCI: no pci dn found for dev=%s\n",
+			pci_name(dev));
 		return;
 	}
 
 	/* Skip any devices for which EEH is not enabled. */
-	if (!(dn->eeh_mode & EEH_MODE_SUPPORTED) ||
-	    dn->eeh_mode & EEH_MODE_NOCHECK) {
+	pdn = dn->data;
+	if (!(pdn->eeh_mode & EEH_MODE_SUPPORTED) ||
+	    pdn->eeh_mode & EEH_MODE_NOCHECK) {
 #ifdef DEBUG
-		printk(KERN_INFO "PCI: skip building address cache for=%s %s\n",
-		       pci_name(dev), pci_pretty_name(dev));
+		printk(KERN_INFO "PCI: skip building address cache for=%s\n",
+		       pci_name(dev));
 #endif
 		return;
 	}
@@ -416,6 +417,7 @@ int eeh_unregister_notifier(struct notifier_block *nb)
 static int read_slot_reset_state(struct device_node *dn, int rets[])
 {
 	int token, outputs;
+	struct pci_dn *pdn = dn->data;
 
 	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
 		token = ibm_read_slot_reset_state2;
@@ -425,8 +427,8 @@ static int read_slot_reset_state(struct device_node *dn, int rets[])
 		outputs = 3;
 	}
 
-	return rtas_call(token, 3, outputs, rets, dn->eeh_config_addr,
-			 BUID_HI(dn->phb->buid), BUID_LO(dn->phb->buid));
+	return rtas_call(token, 3, outputs, rets, pdn->eeh_config_addr,
+			 BUID_HI(pdn->phb->buid), BUID_LO(pdn->phb->buid));
 }
 
 /**
@@ -447,12 +449,12 @@ static void eeh_panic(struct pci_dev *dev, int reset_state)
 	 * in light of potential corruption, we can use it here.
 	 */
 	if (panic_on_oops)
-		panic("EEH: MMIO failure (%d) on device:%s %s\n", reset_state,
-		      pci_name(dev), pci_pretty_name(dev));
+		panic("EEH: MMIO failure (%d) on device:%s\n", reset_state,
+		      pci_name(dev));
 	else {
 		__get_cpu_var(ignored_failures)++;
-		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s %s\n",
-		       reset_state, pci_name(dev), pci_pretty_name(dev));
+		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s\n",
+		       reset_state, pci_name(dev));
 	}
 }
 
@@ -482,8 +484,8 @@ static void eeh_event_handler(void *dummy)
 			break;
 
 		printk(KERN_INFO "EEH: MMIO failure (%d), notifiying device "
-		       "%s %s\n", event->reset_state,
-		       pci_name(event->dev), pci_pretty_name(event->dev));
+		       "%s\n", event->reset_state,
+		       pci_name(event->dev));
 
 		atomic_set(&eeh_fail_count, 0);
 		notifier_call_chain (&eeh_notifier_chain,
@@ -535,6 +537,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	unsigned long flags;
 	int rc, reset_state;
 	struct eeh_event  *event;
+	struct pci_dn *pdn;
 
 	__get_cpu_var(total_mmio_ffs)++;
 
@@ -543,14 +546,15 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 
 	if (!dn)
 		return 0;
+	pdn = dn->data;
 
 	/* Access to IO BARs might get this far and still not want checking. */
-	if (!(dn->eeh_mode & EEH_MODE_SUPPORTED) ||
-	    dn->eeh_mode & EEH_MODE_NOCHECK) {
+	if (!pdn->eeh_capable || !(pdn->eeh_mode & EEH_MODE_SUPPORTED) ||
+	    pdn->eeh_mode & EEH_MODE_NOCHECK) {
 		return 0;
 	}
 
-	if (!dn->eeh_config_addr) {
+	if (!pdn->eeh_config_addr) {
 		return 0;
 	}
 
@@ -558,7 +562,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * If we already have a pending isolation event for this
 	 * slot, we know it's bad already, we don't need to check...
 	 */
-	if (dn->eeh_mode & EEH_MODE_ISOLATED) {
+	if (pdn->eeh_mode & EEH_MODE_ISOLATED) {
 		atomic_inc(&eeh_fail_count);
 		if (atomic_read(&eeh_fail_count) >= EEH_MAX_FAILS) {
 			/* re-read the slot reset state */
@@ -583,7 +587,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	}
 
 	/* prevent repeated reports of this failure */
-	dn->eeh_mode |= EEH_MODE_ISOLATED;
+	pdn->eeh_mode |= EEH_MODE_ISOLATED;
 
 	reset_state = rets[0];
 
@@ -591,9 +595,9 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	memset(slot_errbuf, 0, eeh_error_buf_size);
 
 	rc = rtas_call(ibm_slot_error_detail,
-	               8, 1, NULL, dn->eeh_config_addr,
-	               BUID_HI(dn->phb->buid),
-	               BUID_LO(dn->phb->buid), NULL, 0,
+	               8, 1, NULL, pdn->eeh_config_addr,
+	               BUID_HI(pdn->phb->buid),
+	               BUID_LO(pdn->phb->buid), NULL, 0,
 	               virt_to_phys(slot_errbuf),
 	               eeh_error_buf_size,
 	               1 /* Temporary Error */);
@@ -680,8 +684,9 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	u32 *device_id = (u32 *)get_property(dn, "device-id", NULL);
 	u32 *regs;
 	int enable;
+	struct pci_dn *pdn = dn->data;
 
-	dn->eeh_mode = 0;
+	pdn->eeh_mode = 0;
 
 	if (status && strcmp(status, "ok") != 0)
 		return NULL;	/* ignore devices with bad status */
@@ -692,7 +697,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 
 	/* There is nothing to check on PCI to ISA bridges */
 	if (dn->type && !strcmp(dn->type, "isa")) {
-		dn->eeh_mode |= EEH_MODE_NOCHECK;
+		pdn->eeh_mode |= EEH_MODE_NOCHECK;
 		return NULL;
 	}
 
@@ -709,7 +714,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 		enable = 0;
 
 	if (!enable)
-		dn->eeh_mode |= EEH_MODE_NOCHECK;
+		pdn->eeh_mode |= EEH_MODE_NOCHECK;
 
 	/* Ok... see if this device supports EEH.  Some do, some don't,
 	 * and the only way to find out is to check each and every one. */
@@ -722,8 +727,8 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 				EEH_ENABLE);
 		if (ret == 0) {
 			eeh_subsystem_enabled = 1;
-			dn->eeh_mode |= EEH_MODE_SUPPORTED;
-			dn->eeh_config_addr = regs[0];
+			pdn->eeh_mode |= EEH_MODE_SUPPORTED;
+			pdn->eeh_config_addr = regs[0];
 #ifdef DEBUG
 			printk(KERN_DEBUG "EEH: %s: eeh enabled\n", dn->full_name);
 #endif
@@ -731,10 +736,11 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 
 			/* This device doesn't support EEH, but it may have an
 			 * EEH parent, in which case we mark it as supported. */
-			if (dn->parent && (dn->parent->eeh_mode & EEH_MODE_SUPPORTED)) {
+			if (dn->parent && dn->parent->data
+			    && (PCI_DN(dn->parent)->eeh_mode & EEH_MODE_SUPPORTED)) {
 				/* Parent supports EEH. */
-				dn->eeh_mode |= EEH_MODE_SUPPORTED;
-				dn->eeh_config_addr = dn->parent->eeh_config_addr;
+				pdn->eeh_mode |= EEH_MODE_SUPPORTED;
+				pdn->eeh_config_addr = PCI_DN(dn->parent)->eeh_config_addr;
 				return NULL;
 			}
 		}
@@ -791,11 +797,13 @@ void __init eeh_init(void)
 	for (phb = of_find_node_by_name(NULL, "pci"); phb;
 	     phb = of_find_node_by_name(phb, "pci")) {
 		unsigned long buid;
+		struct pci_dn *pci;
 
 		buid = get_phb_buid(phb);
-		if (buid == 0)
+		if (buid == 0 || phb->data == NULL)
 			continue;
 
+		pci = phb->data;
 		info.buid_lo = BUID_LO(buid);
 		info.buid_hi = BUID_HI(buid);
 		traverse_pci_devices(phb, early_enable_eeh, &info);
@@ -824,9 +832,9 @@ void eeh_add_device_early(struct device_node *dn)
 	struct pci_controller *phb;
 	struct eeh_early_enable_info info;
 
-	if (!dn)
+	if (!dn || !dn->data)
 		return;
-	phb = dn->phb;
+	phb = PCI_DN(dn)->phb;
 	if (NULL == phb || 0 == phb->buid) {
 		printk(KERN_WARNING "EEH: Expected buid but found none\n");
 		return;
@@ -851,8 +859,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 		return;
 
 #ifdef DEBUG
-	printk(KERN_DEBUG "EEH: adding device %s %s\n", pci_name(dev),
-	       pci_pretty_name(dev));
+	printk(KERN_DEBUG "EEH: adding device %s\n", pci_name(dev));
 #endif
 
 	pci_addr_cache_insert_device (dev);
@@ -873,8 +880,7 @@ void eeh_remove_device(struct pci_dev *dev)
 
 	/* Unregister the device with the EEH/PCI address search system */
 #ifdef DEBUG
-	printk(KERN_DEBUG "EEH: remove device %s %s\n", pci_name(dev),
-	       pci_pretty_name(dev));
+	printk(KERN_DEBUG "EEH: remove device %s\n", pci_name(dev));
 #endif
 	pci_addr_cache_remove_device(dev);
 }

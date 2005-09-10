@@ -61,7 +61,9 @@ xmon_read(void *handle, void *ptr, int nb)
 int
 xmon_read_poll(void)
 {
-	return udbg_getc_poll();
+	if (udbg_getc_poll)
+		return udbg_getc_poll();
+	return -1;
 }
  
 FILE *xmon_stdin;

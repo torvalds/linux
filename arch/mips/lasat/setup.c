@@ -105,7 +105,7 @@ static int lasat_panic_prom_monitor(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block lasat_panic_block[] = 
+static struct notifier_block lasat_panic_block[] =
 {
 	{ lasat_panic_display, NULL, INT_MAX },
 	{ lasat_panic_prom_monitor, NULL, INT_MIN }
@@ -120,7 +120,7 @@ static void lasat_timer_setup(struct irqaction *irq)
 {
 
 	write_c0_compare(
-		read_c0_count() + 
+		read_c0_count() +
 		mips_hpt_frequency / HZ);
 	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
 }

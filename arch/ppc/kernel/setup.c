@@ -41,7 +41,11 @@
 #include <asm/xmon.h>
 #include <asm/ocp.h>
 
-#if defined(CONFIG_85xx) || defined(CONFIG_83xx) || defined(CONFIG_MPC10X_BRIDGE)
+#define USES_PPC_SYS (defined(CONFIG_85xx) || defined(CONFIG_83xx) || \
+		      defined(CONFIG_MPC10X_BRIDGE) || defined(CONFIG_8260) || \
+		      defined(CONFIG_PPC_MPC52xx))
+
+#if USES_PPC_SYS
 #include <asm/ppc_sys.h>
 #endif
 
@@ -241,7 +245,7 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		   lpj / (500000/HZ), (lpj / (5000/HZ)) % 100);
 
-#if defined(CONFIG_85xx) || defined(CONFIG_83xx) || defined(CONFIG_MPC10X_BRIDGE)
+#if USES_PPC_SYS
 	if (cur_ppc_sys_spec->ppc_sys_name)
 		seq_printf(m, "chipset\t\t: %s\n",
 			cur_ppc_sys_spec->ppc_sys_name);
@@ -615,6 +619,26 @@ machine_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (ppc_md.progress)
 		ppc_md.progress("id mach(): done", 0x200);
 }
+#ifdef CONFIG_BOOKE_WDT
+/* Checks wdt=x and wdt_period=xx command-line option */
+int __init early_parse_wdt(char *p)
+{
+	if (p && strncmp(p, "0", 1) != 0)
+	       booke_wdt_enabled = 1;
+
+	return 0;
+}
+early_param("wdt", early_parse_wdt);
+
+int __init early_parse_wdt_period (char *p)
+{
+	if (p)
+		booke_wdt_period = simple_strtoul(p, NULL, 0);
+
+	return 0;
+}
+early_param("wdt_period", early_parse_wdt_period);
+#endif	/* CONFIG_BOOKE_WDT */
 
 /* Checks "l2cr=xxxx" command-line option */
 int __init ppc_setup_l2cr(char *str)

@@ -15,7 +15,7 @@ extern void check_bugs64(void);
 static inline void check_bugs(void)
 {
 	check_bugs32();
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	check_bugs64();
 #endif
 }

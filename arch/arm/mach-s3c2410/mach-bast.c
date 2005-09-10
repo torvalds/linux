@@ -381,7 +381,7 @@ static struct plat_serial8250_port bast_sio_data[] = {
 
 static struct platform_device bast_sio = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= &bast_sio_data,
 	},

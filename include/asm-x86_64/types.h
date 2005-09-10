@@ -51,8 +51,6 @@ typedef u64 dma_addr_t;
 typedef u64 sector_t;
 #define HAVE_SECTOR_T
 
-typedef unsigned short kmem_bufctl_t;
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

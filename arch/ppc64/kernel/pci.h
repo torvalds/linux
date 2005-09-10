@@ -34,7 +34,6 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 
 void pci_devs_phb_init(void);
 void pci_devs_phb_init_dynamic(struct pci_controller *phb);
-struct device_node *fetch_dev_dn(struct pci_dev *dev);
 
 /* PCI address cache management routines */
 void pci_addr_cache_insert_device(struct pci_dev *dev);

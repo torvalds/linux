@@ -215,18 +215,23 @@ static void register_cpu_online(unsigned int cpu)
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		sysdev_create_file(s, &attr_mmcra);
 
-	sysdev_create_file(s, &attr_pmc1);
-	sysdev_create_file(s, &attr_pmc2);
-	sysdev_create_file(s, &attr_pmc3);
-	sysdev_create_file(s, &attr_pmc4);
-	sysdev_create_file(s, &attr_pmc5);
-	sysdev_create_file(s, &attr_pmc6);
-
-	if (cpu_has_feature(CPU_FTR_PMC8)) {
+	if (cur_cpu_spec->num_pmcs >= 1)
+		sysdev_create_file(s, &attr_pmc1);
+	if (cur_cpu_spec->num_pmcs >= 2)
+		sysdev_create_file(s, &attr_pmc2);
+	if (cur_cpu_spec->num_pmcs >= 3)
+		sysdev_create_file(s, &attr_pmc3);
+	if (cur_cpu_spec->num_pmcs >= 4)
+		sysdev_create_file(s, &attr_pmc4);
+	if (cur_cpu_spec->num_pmcs >= 5)
+		sysdev_create_file(s, &attr_pmc5);
+	if (cur_cpu_spec->num_pmcs >= 6)
+		sysdev_create_file(s, &attr_pmc6);
+	if (cur_cpu_spec->num_pmcs >= 7)
 		sysdev_create_file(s, &attr_pmc7);
+	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_create_file(s, &attr_pmc8);
-	}
-
+  
 	if (cpu_has_feature(CPU_FTR_SMT))
 		sysdev_create_file(s, &attr_purr);
 }
@@ -252,17 +257,22 @@ static void unregister_cpu_online(unsigned int cpu)
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		sysdev_remove_file(s, &attr_mmcra);
 
-	sysdev_remove_file(s, &attr_pmc1);
-	sysdev_remove_file(s, &attr_pmc2);
-	sysdev_remove_file(s, &attr_pmc3);
-	sysdev_remove_file(s, &attr_pmc4);
-	sysdev_remove_file(s, &attr_pmc5);
-	sysdev_remove_file(s, &attr_pmc6);
-
-	if (cpu_has_feature(CPU_FTR_PMC8)) {
+	if (cur_cpu_spec->num_pmcs >= 1)
+		sysdev_remove_file(s, &attr_pmc1);
+	if (cur_cpu_spec->num_pmcs >= 2)
+		sysdev_remove_file(s, &attr_pmc2);
+	if (cur_cpu_spec->num_pmcs >= 3)
+		sysdev_remove_file(s, &attr_pmc3);
+	if (cur_cpu_spec->num_pmcs >= 4)
+		sysdev_remove_file(s, &attr_pmc4);
+	if (cur_cpu_spec->num_pmcs >= 5)
+		sysdev_remove_file(s, &attr_pmc5);
+	if (cur_cpu_spec->num_pmcs >= 6)
+		sysdev_remove_file(s, &attr_pmc6);
+	if (cur_cpu_spec->num_pmcs >= 7)
 		sysdev_remove_file(s, &attr_pmc7);
+	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_remove_file(s, &attr_pmc8);
-	}
 
 	if (cpu_has_feature(CPU_FTR_SMT))
 		sysdev_remove_file(s, &attr_purr);

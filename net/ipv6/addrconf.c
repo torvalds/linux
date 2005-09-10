@@ -123,8 +123,7 @@ DEFINE_RWLOCK(addrconf_lock);
 
 static void addrconf_verify(unsigned long);
 
-static struct timer_list addr_chk_timer =
-			TIMER_INITIALIZER(addrconf_verify, 0, 0);
+static DEFINE_TIMER(addr_chk_timer, addrconf_verify, 0, 0);
 static DEFINE_SPINLOCK(addrconf_verify_lock);
 
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp);
@@ -3593,10 +3592,8 @@ void __exit addrconf_cleanup(void)
 	rtnl_unlock();
 
 #ifdef CONFIG_IPV6_PRIVACY
-	if (likely(md5_tfm != NULL)) {
-		crypto_free_tfm(md5_tfm);
-		md5_tfm = NULL;
-	}
+	crypto_free_tfm(md5_tfm);
+	md5_tfm = NULL;
 #endif
 
 #ifdef CONFIG_PROC_FS

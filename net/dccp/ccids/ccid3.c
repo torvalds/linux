@@ -43,12 +43,22 @@
 #include "ccid3.h"
 
 /*
- * Reason for maths with 10 here is to avoid 32 bit overflow when a is big.
+ * Reason for maths here is to avoid 32 bit overflow when a is big.
+ * With this we get close to the limit.
  */
 static inline u32 usecs_div(const u32 a, const u32 b)
 {
-	const u32 tmp = a * (USEC_PER_SEC / 10);
-	return b > 20 ? tmp / (b / 10) : tmp;
+	const u32 div = a < (UINT_MAX / (USEC_PER_SEC /    10)) ?    10 :
+			a < (UINT_MAX / (USEC_PER_SEC /    50)) ?    50 :
+			a < (UINT_MAX / (USEC_PER_SEC /   100)) ?   100 :
+			a < (UINT_MAX / (USEC_PER_SEC /   500)) ?   500 :
+			a < (UINT_MAX / (USEC_PER_SEC /  1000)) ?  1000 :
+			a < (UINT_MAX / (USEC_PER_SEC /  5000)) ?  5000 :
+			a < (UINT_MAX / (USEC_PER_SEC / 10000)) ? 10000 :
+			a < (UINT_MAX / (USEC_PER_SEC / 50000)) ? 50000 :
+								 100000;
+	const u32 tmp = a * (USEC_PER_SEC / div);
+	return (b >= 2 * div) ? tmp / (b / div) : tmp;
 }
 
 static int ccid3_debug;
@@ -102,8 +112,7 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 static inline void ccid3_hc_tx_set_state(struct sock *sk,
 					 enum ccid3_hc_tx_states state)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	enum ccid3_hc_tx_states oldstate = hctx->ccid3hctx_state;
 
 	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
@@ -144,8 +153,7 @@ static inline void ccid3_calc_new_delta(struct ccid3_hc_tx_sock *hctx)
  */ 
 static void ccid3_hc_tx_update_x(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	/* To avoid large error in calcX */
 	if (hctx->ccid3hctx_p >= TFRC_SMALLEST_P) {
@@ -159,7 +167,7 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 	} else {
 		struct timeval now;
 
-		do_gettimeofday(&now);
+		dccp_timestamp(sk, &now);
 	       	if (timeval_delta(&now, &hctx->ccid3hctx_t_ld) >=
 		    hctx->ccid3hctx_rtt) {
 			hctx->ccid3hctx_x = max_t(u32, min_t(u32, hctx->ccid3hctx_x_recv,
@@ -174,9 +182,8 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
-	struct dccp_sock *dp = dccp_sk(sk);
 	unsigned long next_tmout = 0;
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -274,7 +281,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 				   struct sk_buff *skb, int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct dccp_tx_hist_entry *new_packet;
 	struct timeval now;
 	long delay;
@@ -307,7 +314,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, new_packet);
 	}
 
-	do_gettimeofday(&now);
+	dccp_timestamp(sk, &now);
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
@@ -348,18 +355,20 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 	}
 
 	/* Can we send? if so add options and add to packet history */
-	if (rc == 0)
+	if (rc == 0) {
+		dp->dccps_hc_tx_insert_options = 1;
 		new_packet->dccphtx_ccval =
 			DCCP_SKB_CB(skb)->dccpd_ccval =
 				hctx->ccid3hctx_last_win_count;
+	}
 out:
 	return rc;
 }
 
 static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct timeval now;
 
 	BUG_ON(hctx == NULL);
@@ -370,7 +379,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		return;
 	}
 
-	do_gettimeofday(&now);
+	dccp_timestamp(sk, &now);
 
 	/* check if we have sent a data packet */
 	if (len > 0) {
@@ -445,10 +454,11 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
+	struct timeval now;
 	unsigned long next_tmout; 
 	u32 t_elapsed;
 	u32 pinv;
@@ -471,7 +481,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	opt_recv = &hctx->ccid3hctx_options_received;
 
-	t_elapsed = dp->dccps_options_received.dccpor_elapsed_time;
+	t_elapsed = dp->dccps_options_received.dccpor_elapsed_time * 10;
 	x_recv = opt_recv->ccid3or_receive_rate;
 	pinv = opt_recv->ccid3or_loss_event_rate;
 
@@ -496,9 +506,14 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		}
 
 		/* Update RTT */
-		r_sample = timeval_now_delta(&packet->dccphtx_tstamp);
-		/* FIXME: */
-		// r_sample -= usecs_to_jiffies(t_elapsed * 10);
+		dccp_timestamp(sk, &now);
+		r_sample = timeval_delta(&now, &packet->dccphtx_tstamp);
+		if (unlikely(r_sample <= t_elapsed))
+			LIMIT_NETDEBUG(KERN_WARNING
+				       "%s: r_sample=%uus, t_elapsed=%uus\n",
+				       __FUNCTION__, r_sample, t_elapsed);
+		else
+			r_sample -= t_elapsed;
 
 		/* Update RTT estimate by 
 		 * If (No feedback recv)
@@ -591,8 +606,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 static void ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	if (hctx == NULL || !(sk->sk_state == DCCP_OPEN ||
 			      sk->sk_state == DCCP_PARTOPEN))
@@ -606,8 +620,8 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				     unsigned char *value)
 {
 	int rc = 0;
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 
 	if (hctx == NULL)
@@ -670,11 +684,11 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	hctx = dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx),
-						      gfp_any());
-	if (hctx == NULL)
+	dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx), gfp_any());
+	if (dp->dccps_hc_tx_ccid_private == NULL)
 		return -ENOMEM;
 
+	hctx = ccid3_hc_tx_sk(sk);
 	memset(hctx, 0, sizeof(*hctx));
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
@@ -696,7 +710,7 @@ static int ccid3_hc_tx_init(struct sock *sk)
 static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 	BUG_ON(hctx == NULL);
@@ -738,8 +752,7 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 static inline void ccid3_hc_rx_set_state(struct sock *sk,
 					 enum ccid3_hc_rx_states state)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	enum ccid3_hc_rx_states oldstate = hcrx->ccid3hcrx_state;
 
 	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
@@ -751,14 +764,14 @@ static inline void ccid3_hc_rx_set_state(struct sock *sk,
 
 static void ccid3_hc_rx_send_feedback(struct sock *sk)
 {
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	do_gettimeofday(&now);
+	dccp_timestamp(sk, &now);
 
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
@@ -767,11 +780,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	case TFRC_RSTATE_DATA: {
 		const u32 delta = timeval_delta(&now,
 					&hcrx->ccid3hcrx_tstamp_last_feedback);
-
-		hcrx->ccid3hcrx_x_recv = (hcrx->ccid3hcrx_bytes_recv *
-					  USEC_PER_SEC);
-		if (likely(delta > 1))
-			hcrx->ccid3hcrx_x_recv /= delta;
+		hcrx->ccid3hcrx_x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv,
+						   delta);
 	}
 		break;
 	default:
@@ -801,14 +811,14 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 		hcrx->ccid3hcrx_pinv = ~0;
 	else
 		hcrx->ccid3hcrx_pinv = 1000000 / hcrx->ccid3hcrx_p;
+	dp->dccps_hc_rx_insert_options = 1;
 	dccp_send_ack(sk);
 }
 
 static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	u32 x_recv, pinv;
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 
 	if (hcrx == NULL || !(sk->sk_state == DCCP_OPEN ||
 			      sk->sk_state == DCCP_PARTOPEN))
@@ -837,8 +847,7 @@ static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 
 static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 rtt, delta, x_recv, fval, p, tmp2;
 	struct timeval tstamp = { 0, };
@@ -889,10 +898,9 @@ found:
 	if (rtt == 0)
 		rtt = 1;
 
-	delta = timeval_now_delta(&hcrx->ccid3hcrx_tstamp_last_feedback);
-	x_recv = hcrx->ccid3hcrx_bytes_recv * USEC_PER_SEC;
-	if (likely(delta > 1))
-		x_recv /= delta;
+	dccp_timestamp(sk, &tstamp);
+	delta = timeval_delta(&tstamp, &hcrx->ccid3hcrx_tstamp_last_feedback);
+	x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv, delta);
 
 	tmp1 = (u64)x_recv * (u64)rtt;
 	do_div(tmp1,10000000);
@@ -911,8 +919,7 @@ found:
 
 static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 
 	if (seq_loss != DCCP_MAX_SEQNO + 1 &&
 	    list_empty(&hcrx->ccid3hcrx_li_hist)) {
@@ -930,8 +937,7 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 
 static void ccid3_hc_rx_detect_loss(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	u8 win_loss;
 	const u64 seq_loss = dccp_rx_hist_detect_loss(&hcrx->ccid3hcrx_hist,
 						      &hcrx->ccid3hcrx_li_hist,
@@ -942,13 +948,12 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
 	u8 win_count;
-	u32 p_prev;
+	u32 p_prev, r_sample, t_elapsed;
 	int ins;
 
 	if (hcrx == NULL)
@@ -957,7 +962,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	BUG_ON(!(hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA ||
 		 hcrx->ccid3hcrx_state == TFRC_RSTATE_DATA));
 
-	opt_recv = &dp->dccps_options_received;
+	opt_recv = &dccp_sk(sk)->dccps_options_received;
 
 	switch (DCCP_SKB_CB(skb)->dccpd_type) {
 	case DCCP_PKT_ACK:
@@ -967,10 +972,24 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
 		p_prev = hcrx->ccid3hcrx_rtt;
-		do_gettimeofday(&now);
-		hcrx->ccid3hcrx_rtt = timeval_usecs(&now) -
-				     (opt_recv->dccpor_timestamp_echo -
-				      opt_recv->dccpor_elapsed_time) * 10;
+		dccp_timestamp(sk, &now);
+		timeval_sub_usecs(&now, opt_recv->dccpor_timestamp_echo * 10);
+		r_sample = timeval_usecs(&now);
+		t_elapsed = opt_recv->dccpor_elapsed_time * 10;
+
+		if (unlikely(r_sample <= t_elapsed))
+			LIMIT_NETDEBUG(KERN_WARNING
+				       "%s: r_sample=%uus, t_elapsed=%uus\n",
+				       __FUNCTION__, r_sample, t_elapsed);
+		else
+			r_sample -= t_elapsed;
+
+		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
+			hcrx->ccid3hcrx_rtt = r_sample;
+		else
+			hcrx->ccid3hcrx_rtt = (hcrx->ccid3hcrx_rtt * 9) / 10 +
+					      r_sample / 10;
+
 		if (p_prev != hcrx->ccid3hcrx_rtt)
 			ccid3_pr_debug("%s, New RTT=%luus, elapsed time=%u\n",
 				       dccp_role(sk), hcrx->ccid3hcrx_rtt,
@@ -985,7 +1004,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
+	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, sk, opt_recv->dccpor_ndp,
 					skb, SLAB_ATOMIC);
 	if (packet == NULL) {
 		ccid3_pr_debug("%s, sk=%p, Not enough mem to add rx packet "
@@ -1017,7 +1036,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (ins != 0)
 			break;
 
-		do_gettimeofday(&now);
+		dccp_timestamp(sk, &now);
 		if (timeval_delta(&now, &hcrx->ccid3hcrx_tstamp_last_ack) >=
 		    hcrx->ccid3hcrx_rtt) {
 			hcrx->ccid3hcrx_tstamp_last_ack = now;
@@ -1056,11 +1075,11 @@ static int ccid3_hc_rx_init(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	hcrx = dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx),
-						      gfp_any());
-	if (hcrx == NULL)
+	dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx), gfp_any());
+	if (dp->dccps_hc_rx_ccid_private == NULL)
 		return -ENOMEM;
 
+	hcrx = ccid3_hc_rx_sk(sk);
 	memset(hcrx, 0, sizeof(*hcrx));
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
@@ -1072,18 +1091,16 @@ static int ccid3_hc_rx_init(struct sock *sk)
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
-	/*
-	 * XXX this seems to be paranoid, need to think more about this, for
-	 * now start with something different than zero. -acme
-	 */
-	hcrx->ccid3hcrx_rtt = USEC_PER_SEC / 5;
+	dccp_timestamp(sk, &hcrx->ccid3hcrx_tstamp_last_ack);
+	hcrx->ccid3hcrx_tstamp_last_feedback = hcrx->ccid3hcrx_tstamp_last_ack;
+	hcrx->ccid3hcrx_rtt = 5000; /* XXX 5ms for now... */
 	return 0;
 }
 
 static void ccid3_hc_rx_exit(struct sock *sk)
 {
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
@@ -1104,8 +1121,7 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	const struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 
 	if (hcrx == NULL)
 		return;
@@ -1117,8 +1133,7 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	const struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	if (hctx == NULL)
 		return;

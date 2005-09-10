@@ -30,7 +30,7 @@
 #include <asm/mmu.h>
 #include <asm/systemcfg.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/bug.h>
 #include <asm/cputable.h>
 #include <asm/setup.h>
@@ -1646,8 +1646,9 @@ _GLOBAL(__secondary_start)
 #else
 	/* set the ASR */
 	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg	 */
+	ld	r3,0(r3)
 	lwz	r3,PLATFORM(r3)		/* r3 = platform flags		 */
-	cmpldi 	r3,PLATFORM_PSERIES_LPAR
+	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
 	bne	98f
 	mfspr	r3,PVR
 	srwi	r3,r3,16
@@ -1809,8 +1810,9 @@ _STATIC(start_here_multiplatform)
 	ld	r3,PACASTABREAL(r13)
 	ori	r4,r3,1			/* turn on valid bit		 */
 	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg */
+	ld	r3,0(r3)
 	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
-	cmpldi 	r3,PLATFORM_PSERIES_LPAR
+	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
 	bne	98f
 	mfspr	r3,PVR
 	srwi	r3,r3,16
@@ -1828,9 +1830,10 @@ _STATIC(start_here_multiplatform)
 99:
 	/* Set SDR1 (hash table pointer) */
 	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg */
+	ld	r3,0(r3)
 	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
 	/* Test if bit 0 is set (LPAR bit) */
-	andi.	r3,r3,0x1
+	andi.	r3,r3,PLATFORM_LPAR
 	bne	98f
 	LOADADDR(r6,_SDR1)		/* Only if NOT LPAR */
 	sub	r6,r6,r26

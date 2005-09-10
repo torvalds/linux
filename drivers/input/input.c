@@ -89,6 +89,15 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 
 			break;
 
+		case EV_SW:
+
+			if (code > SW_MAX || !test_bit(code, dev->swbit) || !!test_bit(code, dev->sw) == value)
+				return;
+
+			change_bit(code, dev->sw);
+
+			break;
+
 		case EV_ABS:
 
 			if (code > ABS_MAX || !test_bit(code, dev->absbit))
@@ -402,6 +411,7 @@ static void input_call_hotplug(char *verb, struct input_dev *dev)
 	SPRINTF_BIT_A2(ledbit, "LED=", LED_MAX, EV_LED);
 	SPRINTF_BIT_A2(sndbit, "SND=", SND_MAX, EV_SND);
 	SPRINTF_BIT_A2(ffbit,  "FF=",  FF_MAX, EV_FF);
+	SPRINTF_BIT_A2(swbit,  "SW=",  SW_MAX, EV_SW);
 
 	envp[i++] = NULL;
 
@@ -490,6 +500,7 @@ static int input_devices_read(char *buf, char **start, off_t pos, int count, int
 		SPRINTF_BIT_B2(ledbit, "LED=", LED_MAX, EV_LED);
 		SPRINTF_BIT_B2(sndbit, "SND=", SND_MAX, EV_SND);
 		SPRINTF_BIT_B2(ffbit,  "FF=",  FF_MAX, EV_FF);
+		SPRINTF_BIT_B2(swbit,  "SW=",  SW_MAX, EV_SW);
 
 		len += sprintf(buf + len, "\n");
 
