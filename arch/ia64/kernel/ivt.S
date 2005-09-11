@@ -69,7 +69,6 @@
 # define DBG_FAULT(i)
 #endif
 
-#define MINSTATE_VIRT	/* needed by minstate.h */
 #include "minstate.h"
 
 #define FAULT(n)									\
