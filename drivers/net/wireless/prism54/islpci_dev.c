@@ -439,8 +439,7 @@ prism54_bring_down(islpci_private *priv)
 	wmb();
 
 	/* wait a while for the device to reset */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(50*HZ/1000);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(50));
 
 	return 0;
 }
@@ -491,8 +490,7 @@ islpci_reset_if(islpci_private *priv)
 		/* The software reset acknowledge needs about 220 msec here.
 		 * Be conservative and wait for up to one second. */
 	
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		remaining = schedule_timeout(HZ);
+		remaining = schedule_timeout_uninterruptible(HZ);
 
 		if(remaining > 0) {
 			result = 0;

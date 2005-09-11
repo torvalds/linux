@@ -455,7 +455,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 		       struct islpci_mgmtframe **recvframe)
 {
 	islpci_private *priv = netdev_priv(ndev);
-	const long wait_cycle_jiffies = (ISL38XX_WAIT_CYCLE * 10 * HZ) / 1000;
+	const long wait_cycle_jiffies = msecs_to_jiffies(ISL38XX_WAIT_CYCLE * 10);
 	long timeout_left = ISL38XX_MAX_WAIT_CYCLES * wait_cycle_jiffies;
 	int err;
 	DEFINE_WAIT(wait);
@@ -475,8 +475,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 		int timeleft;
 		struct islpci_mgmtframe *frame;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		timeleft = schedule_timeout(wait_cycle_jiffies);
+		timeleft = schedule_timeout_uninterruptible(wait_cycle_jiffies);
 		frame = xchg(&priv->mgmt_received, NULL);
 		if (frame) {
 			if (frame->header->oid == oid) {

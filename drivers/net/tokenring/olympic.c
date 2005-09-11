@@ -1101,7 +1101,7 @@ static int olympic_close(struct net_device *dev)
 
 	while(olympic_priv->srb_queued) {
 
-		t = schedule_timeout(60*HZ); 
+		t = schedule_timeout_interruptible(60*HZ);
 
         	if(signal_pending(current))	{            
 			printk(KERN_WARNING "%s: SRB timed out.\n",dev->name);

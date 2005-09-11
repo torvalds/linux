@@ -7,8 +7,8 @@
 /* ported to the Alpha architecture 02/20/96 (just used the HZ macro) */
 
 #define TR_RETRY_INTERVAL	(30*HZ)	/* 500 on PC = 5 s */
-#define TR_RST_TIME		(HZ/20) /* 5 on PC = 50 ms */
-#define TR_BUSY_INTERVAL	(HZ/5)	/* 5 on PC = 200 ms */
+#define TR_RST_TIME		(msecs_to_jiffies(50))	/* 5 on PC = 50 ms */
+#define TR_BUSY_INTERVAL	(msecs_to_jiffies(200))	/* 5 on PC = 200 ms */
 #define TR_SPIN_INTERVAL	(3*HZ)	/* 3 seconds before init timeout */
 
 #define TR_ISA 1

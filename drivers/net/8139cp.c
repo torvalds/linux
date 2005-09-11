@@ -1029,8 +1029,7 @@ static void cp_reset_hw (struct cp_private *cp)
 		if (!(cpr8(Cmd) & CmdReset))
 			return;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 	}
 
 	printk(KERN_ERR "%s: hardware reset timeout\n", cp->dev->name);

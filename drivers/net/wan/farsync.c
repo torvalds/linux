@@ -980,8 +980,7 @@ fst_issue_cmd(struct fst_port_info *port, unsigned short cmd)
 	/* Wait for any previous command to complete */
 	while (mbval > NAK) {
 		spin_unlock_irqrestore(&card->card_lock, flags);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 		spin_lock_irqsave(&card->card_lock, flags);
 
 		if (++safety > 2000) {

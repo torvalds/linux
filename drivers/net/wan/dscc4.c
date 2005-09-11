@@ -542,8 +542,7 @@ static int dscc4_wait_ack_cec(struct dscc4_dev_priv *dpriv,
 			       msg, i);
 			goto done;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 		rmb();
 	} while (++i > 0);
 	printk(KERN_ERR "%s: %s timeout\n", dev->name, msg);
@@ -588,8 +587,7 @@ static inline int dscc4_xpr_ack(struct dscc4_dev_priv *dpriv)
 		    (dpriv->iqtx[cur] & Xpr))
 			break;
 		smp_rmb();
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 	} while (++i > 0);
 
 	return (i >= 0 ) ? i : -EAGAIN;
@@ -1035,8 +1033,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 	/* Flush posted writes */
 	readl(ioaddr + GSTAR);
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(10);
+	schedule_timeout_uninterruptible(10);
 
 	for (i = 0; i < 16; i++)
 		pci_write_config_dword(pdev, i << 2, dscc4_pci_config_store[i]);

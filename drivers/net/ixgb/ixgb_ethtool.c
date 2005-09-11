@@ -645,11 +645,10 @@ ixgb_phys_id(struct net_device *netdev, uint32_t data)
 
 	mod_timer(&adapter->blink_timer, jiffies);
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	if(data)
-		schedule_timeout(data * HZ);
+	if (data)
+		schedule_timeout_interruptible(data * HZ);
 	else
-		schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+		schedule_timeout_interruptible(MAX_SCHEDULE_TIMEOUT);
 
 	del_timer_sync(&adapter->blink_timer);
 	ixgb_led_off(&adapter->hw);
