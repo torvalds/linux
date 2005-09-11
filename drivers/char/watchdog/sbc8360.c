@@ -199,12 +199,7 @@ static int wd_times[64][2] = {
 static int timeout = 27;
 static int wd_margin = 0xB;
 static int wd_multiplier = 2;
-
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
+static int nowayout = WATCHDOG_NOWAYOUT;
 
 module_param(timeout, int, 27);
 MODULE_PARM_DESC(timeout, "Index into timeout table (0-63) (default=27 (60s))");
