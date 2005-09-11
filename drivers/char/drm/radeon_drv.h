@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20050311"
+#define DRIVER_DATE		"20050720"
 
 /* Interface history:
  *
@@ -83,9 +83,13 @@
  * 1.16- Add R200_EMIT_PP_TRI_PERF_CNTL packet to support brilinear
  *       texture filtering on r200
  * 1.17- Add initial support for R300 (3D).
+ * 1.18- Add support for GL_ATI_fragment_shader, new packets
+ *       R200_EMIT_PP_AFS_0/1, R200_EMIT_PP_TXCTLALL_0-5 (replaces
+ *       R200_EMIT_PP_TXFILTER_0-5, 2 more regs) and R200_EMIT_ATF_TFACTOR
+ *       (replaces R200_EMIT_TFACTOR_0 (8 consts instead of 6)
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		17
+#define DRIVER_MINOR		18
 #define DRIVER_PATCHLEVEL	0
 
 #define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
@@ -856,6 +860,9 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define R200_SE_TCL_POINT_SPRITE_CNTL     0x22c4
 
 #define R200_PP_TRI_PERF 0x2cf8
+
+#define R200_PP_AFS_0                     0x2f80
+#define R200_PP_AFS_1                     0x2f00 /* same as txcblend_0 */
 
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
