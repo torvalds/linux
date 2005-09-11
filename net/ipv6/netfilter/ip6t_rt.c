@@ -161,8 +161,8 @@ match(const struct sk_buff *skb,
                            ((rtinfo->hdrlen == hdrlen) ^
                            !!(rtinfo->invflags & IP6T_RT_INV_LEN))));
        DEBUGP("res %02X %02X %02X ", 
-       		(rtinfo->flags & IP6T_RT_RES), ((struct rt0_hdr *)rh)->bitmap,
-       		!((rtinfo->flags & IP6T_RT_RES) && (((struct rt0_hdr *)rh)->bitmap)));
+       		(rtinfo->flags & IP6T_RT_RES), ((struct rt0_hdr *)rh)->reserved,
+       		!((rtinfo->flags & IP6T_RT_RES) && (((struct rt0_hdr *)rh)->reserved)));
 
        ret = (rh != NULL)
        		&&
@@ -179,12 +179,12 @@ match(const struct sk_buff *skb,
                            !!(rtinfo->invflags & IP6T_RT_INV_TYP)));
 
 	if (ret && (rtinfo->flags & IP6T_RT_RES)) {
-		u_int32_t *bp, _bitmap;
-		bp = skb_header_pointer(skb,
-					ptr + offsetof(struct rt0_hdr, bitmap),
-					sizeof(_bitmap), &_bitmap);
+		u_int32_t *rp, _reserved;
+		rp = skb_header_pointer(skb,
+					ptr + offsetof(struct rt0_hdr, reserved),
+					sizeof(_reserved), &_reserved);
 
-		ret = (*bp == 0);
+		ret = (*rp == 0);
 	}
 
 	DEBUGP("#%d ",rtinfo->addrnr);
