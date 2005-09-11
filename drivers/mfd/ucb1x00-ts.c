@@ -1,7 +1,8 @@
 /*
- *  linux/drivers/mfd/ucb1x00-ts.c
+ *  Touchscreen driver for UCB1x00-based touchscreens
  *
  *  Copyright (C) 2001 Russell King, All Rights Reserved.
+ *  Copyright (C) 2005 Pavel Machek
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,6 +31,7 @@
 #include <linux/device.h>
 #include <linux/suspend.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include <asm/dma.h>
 #include <asm/semaphore.h>
@@ -42,10 +44,7 @@ struct ucb1x00_ts {
 	struct ucb1x00		*ucb;
 
 	wait_queue_head_t	irq_wait;
-	struct semaphore	sem;
-	struct completion	init_exit;
 	struct task_struct	*rtask;
-	int			use_count;
 	u16			x_res;
 	u16			y_res;
 
@@ -176,12 +175,6 @@ static int ucb1x00_thread(void *_ts)
 	DECLARE_WAITQUEUE(wait, tsk);
 	int valid;
 
-	ts->rtask = tsk;
-
-	daemonize("ktsd");
-	/* only want to receive SIGKILL */
-	allow_signal(SIGKILL);
-
 	/*
 	 * We could run as a real-time thread.  However, thus far
 	 * this doesn't seem to be necessary.
@@ -189,12 +182,10 @@ static int ucb1x00_thread(void *_ts)
 //	tsk->policy = SCHED_FIFO;
 //	tsk->rt_priority = 1;
 
-	complete(&ts->init_exit);
-
 	valid = 0;
 
 	add_wait_queue(&ts->irq_wait, &wait);
-	for (;;) {
+	while (!kthread_should_stop()) {
 		unsigned int x, y, p, val;
 		signed long timeout;
 
@@ -212,10 +203,7 @@ static int ucb1x00_thread(void *_ts)
 		ucb1x00_ts_mode_int(ts);
 		ucb1x00_adc_disable(ts->ucb);
 
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ / 100);
-		if (signal_pending(tsk))
-			break;
+		msleep(10);
 
 		ucb1x00_enable(ts->ucb);
 		val = ucb1x00_reg_read(ts->ucb, UCB_TS_CR);
@@ -256,14 +244,12 @@ static int ucb1x00_thread(void *_ts)
 		try_to_freeze();
 
 		schedule_timeout(timeout);
-		if (signal_pending(tsk))
-			break;
 	}
 
 	remove_wait_queue(&ts->irq_wait, &wait);
 
 	ts->rtask = NULL;
-	complete_and_exit(&ts->init_exit, 0);
+	return 0;
 }
 
 /*
@@ -282,14 +268,7 @@ static int ucb1x00_ts_open(struct input_dev *idev)
 	struct ucb1x00_ts *ts = (struct ucb1x00_ts *)idev;
 	int ret = 0;
 
-	if (down_interruptible(&ts->sem))
-		return -EINTR;
-
-	if (ts->use_count++ != 0)
-		goto out;
-
-	if (ts->rtask)
-		panic("ucb1x00: rtask running?");
+	BUG_ON(ts->rtask);
 
 	init_waitqueue_head(&ts->irq_wait);
 	ret = ucb1x00_hook_irq(ts->ucb, UCB_IRQ_TSPX, ucb1x00_ts_irq, ts);
@@ -305,19 +284,16 @@ static int ucb1x00_ts_open(struct input_dev *idev)
 	ts->y_res = ucb1x00_ts_read_yres(ts);
 	ucb1x00_adc_disable(ts->ucb);
 
-	init_completion(&ts->init_exit);
-	ret = kernel_thread(ucb1x00_thread, ts, CLONE_KERNEL);
-	if (ret >= 0) {
-		wait_for_completion(&ts->init_exit);
+	ts->rtask = kthread_run(ucb1x00_thread, ts, "ktsd");
+	if (!IS_ERR(ts->rtask)) {
 		ret = 0;
 	} else {
 		ucb1x00_free_irq(ts->ucb, UCB_IRQ_TSPX, ts);
+		ts->rtask = NULL;
+		ret = -EFAULT;
 	}
 
  out:
-	if (ret)
-		ts->use_count--;
-	up(&ts->sem);
 	return ret;
 }
 
@@ -328,19 +304,13 @@ static void ucb1x00_ts_close(struct input_dev *idev)
 {
 	struct ucb1x00_ts *ts = (struct ucb1x00_ts *)idev;
 
-	down(&ts->sem);
-	if (--ts->use_count == 0) {
-		if (ts->rtask) {
-			send_sig(SIGKILL, ts->rtask, 1);
-			wait_for_completion(&ts->init_exit);
-		}
+	if (ts->rtask)
+		kthread_stop(ts->rtask);
 
-		ucb1x00_enable(ts->ucb);
-		ucb1x00_free_irq(ts->ucb, UCB_IRQ_TSPX, ts);
-		ucb1x00_reg_write(ts->ucb, UCB_TS_CR, 0);
-		ucb1x00_disable(ts->ucb);
-	}
-	up(&ts->sem);
+	ucb1x00_enable(ts->ucb);
+	ucb1x00_free_irq(ts->ucb, UCB_IRQ_TSPX, ts);
+	ucb1x00_reg_write(ts->ucb, UCB_TS_CR, 0);
+	ucb1x00_disable(ts->ucb);
 }
 
 #ifdef CONFIG_PM
@@ -379,7 +349,6 @@ static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 
 	ts->ucb = dev->ucb;
 	ts->adcsync = adcsync ? UCB_SYNC : UCB_NOSYNC;
-	init_MUTEX(&ts->sem);
 
 	ts->idev.name       = "Touchscreen panel";
 	ts->idev.id.product = ts->ucb->id;
