@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -43,8 +44,6 @@
 #include <rdma/ib_cm.h>
 #include <rdma/ib_user_cm.h>
 
-#define IB_UCM_CM_ID_INVALID 0xffffffff
-
 struct ib_ucm_file {
 	struct semaphore mutex;
 	struct file *filp;
@@ -58,9 +57,11 @@ struct ib_ucm_context {
 	int                 id;
 	wait_queue_head_t   wait;
 	atomic_t            ref;
+	int		    events_reported;
 
 	struct ib_ucm_file *file;
 	struct ib_cm_id    *cm_id;
+	__u64		   uid;
 
 	struct list_head    events;    /* list of pending events. */
 	struct list_head    file_list; /* member in file ctx list */
@@ -71,16 +72,12 @@ struct ib_ucm_event {
 	struct list_head file_list; /* member in file event list */
 	struct list_head ctx_list;  /* member in ctx event list */
 
+	struct ib_cm_id *cm_id;
 	struct ib_ucm_event_resp resp;
 	void *data;
 	void *info;
 	int data_len;
 	int info_len;
-	/*
-	 * new connection identifiers needs to be saved until
-	 * userspace can get a handle on them.
-	 */
-	struct ib_cm_id *cm_id;
 };
 
 #endif /* UCM_H */
