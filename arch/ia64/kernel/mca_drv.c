@@ -4,6 +4,8 @@
  *
  * Copyright (C) 2004 FUJITSU LIMITED
  * Copyright (C) Hidetoshi Seto (seto.hidetoshi@jp.fujitsu.com)
+ * Copyright (C) 2005 Silicon Graphics, Inc
+ * Copyright (C) 2005 Keith Owens <kaos@sgi.com>
  */
 #include <linux/config.h>
 #include <linux/types.h>
@@ -37,10 +39,6 @@
 
 /* max size of SAL error record (default) */
 static int sal_rec_max = 10000;
-
-/* from mca.c */
-static ia64_mca_sal_to_os_state_t *sal_to_os_handoff_state;
-static ia64_mca_os_to_sal_state_t *os_to_sal_handoff_state;
 
 /* from mca_drv_asm.S */
 extern void *mca_handler_bhhook(void);
@@ -316,7 +314,8 @@ init_record_index_pools(void)
  */
 
 static mca_type_t
-is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+	      struct ia64_sal_os_state *sos)
 {
 	pal_processor_state_info_t *psp = (pal_processor_state_info_t*)peidx_psp(peidx);
 
@@ -327,7 +326,7 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci)
 	 * Therefore it is local MCA when rendezvous has not been requested.
 	 * Failed to rendezvous, the system must be down.
 	 */
-	switch (sal_to_os_handoff_state->imsto_rendez_state) {
+	switch (sos->rv_rc) {
 		case -1: /* SAL rendezvous unsuccessful */
 			return MCA_IS_GLOBAL;
 		case  0: /* SAL rendezvous not required */
@@ -388,7 +387,8 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci)
  */
 
 static int
-recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+			struct ia64_sal_os_state *sos)
 {
 	sal_log_mod_error_info_t *smei;
 	pal_min_state_area_t *pmsa;
@@ -426,7 +426,7 @@ recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_chec
 			 *  setup for resume to bottom half of MCA,
 			 * "mca_handler_bhhook"
 			 */
-			pmsa = (pal_min_state_area_t *)(sal_to_os_handoff_state->pal_min_state | (6ul<<61));
+			pmsa = sos->pal_min_state;
 			/* pass to bhhook as 1st argument (gr8) */
 			pmsa->pmsa_gr[8-1] = smei->target_identifier;
 			/* set interrupted return address (but no use) */
@@ -459,7 +459,8 @@ recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_chec
  */
 
 static int
-recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+			    struct ia64_sal_os_state *sos)
 {
 	int status = 0;
 	pal_processor_state_info_t *psp = (pal_processor_state_info_t*)peidx_psp(peidx);
@@ -469,7 +470,7 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_
 		case 1: /* partial read */
 		case 3: /* full line(cpu) read */
 		case 9: /* I/O space read */
-			status = recover_from_read_error(slidx, peidx, pbci);
+			status = recover_from_read_error(slidx, peidx, pbci, sos);
 			break;
 		case 0: /* unknown */
 		case 2: /* partial write */
@@ -508,7 +509,8 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_
  */
 
 static int
-recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+			     struct ia64_sal_os_state *sos)
 {
 	pal_processor_state_info_t *psp = (pal_processor_state_info_t*)peidx_psp(peidx);
 
@@ -545,7 +547,7 @@ recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *
 	 * This means "there are some platform errors".
 	 */
 	if (platform) 
-		return recover_from_platform_error(slidx, peidx, pbci);
+		return recover_from_platform_error(slidx, peidx, pbci, sos);
 	/* 
 	 * On account of strange SAL error record, we cannot recover. 
 	 */
@@ -562,18 +564,13 @@ recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *
 
 static int
 mca_try_to_recover(void *rec, 
-	ia64_mca_sal_to_os_state_t *sal_to_os_state,
-	ia64_mca_os_to_sal_state_t *os_to_sal_state)
+	struct ia64_sal_os_state *sos)
 {
 	int platform_err;
 	int n_proc_err;
 	slidx_table_t slidx;
 	peidx_table_t peidx;
 	pal_bus_check_info_t pbci;
-
-	/* handoff state from/to mca.c */
-	sal_to_os_handoff_state = sal_to_os_state;
-	os_to_sal_handoff_state = os_to_sal_state;
 
 	/* Make index of SAL error record */
 	platform_err = mca_make_slidx(rec, &slidx);
@@ -597,11 +594,11 @@ mca_try_to_recover(void *rec,
 	*((u64*)&pbci) = peidx_check_info(&peidx, bus_check, 0);
 
 	/* Check whether MCA is global or not */
-	if (is_mca_global(&peidx, &pbci))
+	if (is_mca_global(&peidx, &pbci, sos))
 		return 0;
 	
 	/* Try to recover a processor error */
-	return recover_from_processor_error(platform_err, &slidx, &peidx, &pbci);
+	return recover_from_processor_error(platform_err, &slidx, &peidx, &pbci, sos);
 }
 
 /*
