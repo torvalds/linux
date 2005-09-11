@@ -825,6 +825,12 @@ static int RADEON_READ_PLL(drm_device_t *dev, int addr)
 	return RADEON_READ(RADEON_CLOCK_CNTL_DATA);
 }
 
+static int RADEON_READ_PCIE(drm_radeon_private_t *dev_priv, int addr)
+{
+	RADEON_WRITE8(RADEON_PCIE_INDEX, addr & 0xff);
+	return RADEON_READ(RADEON_PCIE_DATA);
+}
+
 #if RADEON_FIFO_DEBUG
 static void radeon_status( drm_radeon_private_t *dev_priv )
 {
@@ -1241,17 +1247,46 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 		       RADEON_ISYNC_CPSCRATCH_IDLEGUI) );
 }
 
+/* Enable or disable PCI-E GART on the chip */
+static void radeon_set_pciegart(drm_radeon_private_t * dev_priv, int on)
+{
+	u32 tmp = RADEON_READ_PCIE(dev_priv, RADEON_PCIE_TX_GART_CNTL);
+	if (on) {
+
+		DRM_DEBUG("programming pcie %08X %08lX %08X\n",
+			  dev_priv->gart_vm_start, (long)dev_priv->gart_info.bus_addr,
+			  dev_priv->gart_size);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_LO, dev_priv->gart_vm_start);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_BASE, dev_priv->gart_info.bus_addr);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_START_LO, dev_priv->gart_vm_start);
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_END_LO, dev_priv->gart_vm_start
+				  + dev_priv->gart_size - 1);
+		
+		RADEON_WRITE(RADEON_MC_AGP_LOCATION, 0xffffffc0);	/* ?? */
+		
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_CNTL, RADEON_PCIE_TX_GART_EN);
+	} else {
+		RADEON_WRITE_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp & ~RADEON_PCIE_TX_GART_EN);
+	}
+}
+
 /* Enable or disable PCI GART on the chip */
 static void radeon_set_pcigart( drm_radeon_private_t *dev_priv, int on )
 {
 	u32 tmp	= RADEON_READ( RADEON_AIC_CNTL );
+
+	if (dev_priv->flags & CHIP_IS_PCIE)
+	{
+		radeon_set_pciegart(dev_priv, on);
+		return;
+	}
 
 	if ( on ) {
 		RADEON_WRITE( RADEON_AIC_CNTL, tmp | RADEON_PCIGART_TRANSLATE_EN );
 
 		/* set PCI GART page-table base address
 		 */
-		RADEON_WRITE( RADEON_AIC_PT_BASE, dev_priv->bus_pci_gart );
+		RADEON_WRITE(RADEON_AIC_PT_BASE, dev_priv->gart_info.bus_addr);
 
 		/* set address range for PCI address translate
 		 */
@@ -1519,8 +1554,28 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 	} else
 #endif
 	{
-		if (!drm_ati_pcigart_init( dev, &dev_priv->phys_pci_gart,
-					    &dev_priv->bus_pci_gart)) {
+		/* if we have an offset set from userspace */
+		if (dev_priv->pcigart_offset) {
+			dev_priv->gart_info.bus_addr = dev_priv->pcigart_offset + dev_priv->fb_location;
+			dev_priv->gart_info.addr = (unsigned long)drm_ioremap(dev_priv->gart_info.bus_addr, RADEON_PCIGART_TABLE_SIZE, dev);
+
+			dev_priv->gart_info.is_pcie = !!(dev_priv->flags & CHIP_IS_PCIE);
+			dev_priv->gart_info.gart_table_location = DRM_ATI_GART_FB;
+			
+			DRM_DEBUG("Setting phys_pci_gart to %08lX %08lX\n", dev_priv->gart_info.addr, dev_priv->pcigart_offset);
+		}
+		else {
+			dev_priv->gart_info.gart_table_location = DRM_ATI_GART_MAIN;
+			dev_priv->gart_info.addr = dev_priv->gart_info.bus_addr= 0;
+			if (dev_priv->flags & CHIP_IS_PCIE)
+			{
+				DRM_ERROR("Cannot use PCI Express without GART in FB memory\n");
+				radeon_do_cleanup_cp(dev);
+				return DRM_ERR(EINVAL);
+			}
+		}
+
+		if (!drm_ati_pcigart_init(dev, &dev_priv->gart_info)) {
 			DRM_ERROR( "failed to init PCI GART!\n" );
 			dev->dev_private = (void *)dev_priv;
 			radeon_do_cleanup_cp(dev);
@@ -1568,10 +1623,15 @@ static int radeon_do_cleanup_cp( drm_device_t *dev )
 	} else
 #endif
 	{
-		if (!drm_ati_pcigart_cleanup( dev,
-					      dev_priv->phys_pci_gart,
-					      dev_priv->bus_pci_gart ))
-			DRM_ERROR( "failed to cleanup PCI GART!\n" );
+		if (dev_priv->gart_info.bus_addr)
+			if (!drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info))
+				DRM_ERROR("failed to cleanup PCI GART!\n");
+		
+		if (dev_priv->gart_info.gart_table_location == DRM_ATI_GART_FB)
+		{
+			drm_ioremapfree((void *)dev_priv->gart_info.addr, RADEON_PCIGART_TABLE_SIZE, dev);
+			dev_priv->gart_info.addr = 0;
+		}
 	}
 	
 	/* only clear to the start of flags */
@@ -2057,6 +2117,9 @@ int radeon_driver_preinit(struct drm_device *dev, unsigned long flags)
 	if (drm_device_is_agp(dev))
 		dev_priv->flags |= CHIP_IS_AGP;
 	
+	if (drm_device_is_pcie(dev))
+		dev_priv->flags |= CHIP_IS_PCIE;
+
 	DRM_DEBUG("%s card detected\n",
 		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : "PCI"));
 	return ret;

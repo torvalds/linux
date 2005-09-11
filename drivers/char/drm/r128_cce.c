@@ -562,14 +562,16 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 #if __OS_HAS_AGP
 	if ( dev_priv->is_pci ) {
 #endif
-		if (!drm_ati_pcigart_init( dev, &dev_priv->phys_pci_gart,
-     					    &dev_priv->bus_pci_gart) ) {
+		dev_priv->gart_info.gart_table_location = DRM_ATI_GART_MAIN;
+		dev_priv->gart_info.addr = dev_priv->gart_info.bus_addr = 0;
+ 		dev_priv->gart_info.is_pcie = 0;
+		if (!drm_ati_pcigart_init(dev, &dev_priv->gart_info)) {
 			DRM_ERROR( "failed to init PCI GART!\n" );
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce( dev );
 			return DRM_ERR(ENOMEM);
 		}
-		R128_WRITE( R128_PCI_GART_PAGE, dev_priv->bus_pci_gart );
+		R128_WRITE(R128_PCI_GART_PAGE, dev_priv->gart_info.bus_addr);
 #if __OS_HAS_AGP
 	}
 #endif
@@ -607,10 +609,10 @@ int r128_do_cleanup_cce( drm_device_t *dev )
 		} else
 #endif
 		{
-			if (!drm_ati_pcigart_cleanup( dev,
-						dev_priv->phys_pci_gart,
-						dev_priv->bus_pci_gart ))
-				DRM_ERROR( "failed to cleanup PCI GART!\n" );
+ 			if (dev_priv->gart_info.bus_addr)
+				if (!drm_ati_pcigart_cleanup( dev,
+							      &dev_priv->gart_info))
+					DRM_ERROR( "failed to cleanup PCI GART!\n" );
 		}
 
 		drm_free( dev->dev_private, sizeof(drm_r128_private_t),

@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20050720"
+#define DRIVER_DATE		"20050911"
 
 /* Interface history:
  *
@@ -87,9 +87,10 @@
  *       R200_EMIT_PP_AFS_0/1, R200_EMIT_PP_TXCTLALL_0-5 (replaces
  *       R200_EMIT_PP_TXFILTER_0-5, 2 more regs) and R200_EMIT_ATF_TFACTOR
  *       (replaces R200_EMIT_TFACTOR_0 (8 consts instead of 6)
+ * 1.19- Add support for gart table in FB memory and PCIE r300
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		18
+#define DRIVER_MINOR		19
 #define DRIVER_PATCHLEVEL	0
 
 #define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
@@ -134,6 +135,7 @@ enum radeon_chip_flags {
 	CHIP_SINGLE_CRTC = 0x00040000UL,
 	CHIP_IS_AGP = 0x00080000UL,
 	CHIP_HAS_HIERZ = 0x00100000UL, 
+	CHIP_IS_PCIE = 0x00200000UL,
 };
 
 typedef struct drm_radeon_freelist {
@@ -213,8 +215,6 @@ typedef struct drm_radeon_private {
 	int microcode_version;
 
 	int is_pci;
-	unsigned long phys_pci_gart;
-	dma_addr_t bus_pci_gart;
 
 	struct {
 		u32 boxes;
@@ -269,6 +269,9 @@ typedef struct drm_radeon_private {
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
 	struct radeon_virt_surface virt_surfaces[2*RADEON_MAX_SURFACES];
+
+ 	unsigned long pcigart_offset;
+ 	drm_ati_pcigart_info gart_info;
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
@@ -372,6 +375,25 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #	define RADEON_CRTC_OFFSET_FLIP_CNTL	(1 << 16)
 #define RADEON_CRTC2_OFFSET		0x0324
 #define RADEON_CRTC2_OFFSET_CNTL	0x0328
+
+#define RADEON_PCIE_INDEX               0x0030
+#define RADEON_PCIE_DATA                0x0034
+#define RADEON_PCIE_TX_GART_CNTL	0x10
+#	define RADEON_PCIE_TX_GART_EN   	(1 << 0)
+#	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_PASS_THRU (0<<1)
+#	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_CLAMP_LO  (1<<1)
+#	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD   (3<<1)
+#	define RADEON_PCIE_TX_GART_MODE_32_128_CACHE	(0<<3)
+#	define RADEON_PCIE_TX_GART_MODE_8_4_128_CACHE	(1<<3)
+#	define RADEON_PCIE_TX_GART_CHK_RW_VALID_EN      (1<<5)
+#	define RADEON_PCIE_TX_GART_INVALIDATE_TLB	(1<<8)
+#define RADEON_PCIE_TX_DISCARD_RD_ADDR_LO 0x11
+#define RADEON_PCIE_TX_DISCARD_RD_ADDR_HI 0x12
+#define RADEON_PCIE_TX_GART_BASE  	0x13
+#define RADEON_PCIE_TX_GART_START_LO	0x14
+#define RADEON_PCIE_TX_GART_START_HI	0x15
+#define RADEON_PCIE_TX_GART_END_LO	0x16
+#define RADEON_PCIE_TX_GART_END_HI	0x17
 
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140
@@ -878,6 +900,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 
 #define RADEON_RING_HIGH_MARK		128
 
+#define RADEON_PCIGART_TABLE_SIZE      (32*1024)
+
 #define RADEON_READ(reg)	DRM_READ32(  dev_priv->mmio, (reg) )
 #define RADEON_WRITE(reg,val)	DRM_WRITE32( dev_priv->mmio, (reg), (val) )
 #define RADEON_READ8(reg)	DRM_READ8(  dev_priv->mmio, (reg) )
@@ -888,6 +912,13 @@ do {									\
 	RADEON_WRITE8( RADEON_CLOCK_CNTL_INDEX,				\
 		       ((addr) & 0x1f) | RADEON_PLL_WR_EN );		\
 	RADEON_WRITE( RADEON_CLOCK_CNTL_DATA, (val) );			\
+} while (0)
+
+#define RADEON_WRITE_PCIE( addr, val )					\
+do {									\
+	RADEON_WRITE8( RADEON_PCIE_INDEX,				\
+			((addr) & 0xff));				\
+	RADEON_WRITE( RADEON_PCIE_DATA, (val) );			\
 } while (0)
 
 #define CP_PACKET0( reg, n )						\

@@ -3034,6 +3034,9 @@ static int radeon_cp_setparam( DRM_IOCTL_ARGS ) {
 			dev_priv->sarea_priv->tiling_enabled = 1;
 		}
 		break;	
+	case RADEON_SETPARAM_PCIGART_LOCATION:
+		dev_priv->pcigart_offset = sp.value;
+		break;
 	default:
 		DRM_DEBUG( "Invalid parameter %d\n", sp.param );
 		return DRM_ERR( EINVAL );

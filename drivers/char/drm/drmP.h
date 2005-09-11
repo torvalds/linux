@@ -532,6 +532,17 @@ typedef struct drm_vbl_sig {
 } drm_vbl_sig_t;
 
 
+/* location of GART table */
+#define DRM_ATI_GART_MAIN 1
+#define DRM_ATI_GART_FB   2
+
+typedef struct ati_pcigart_info {
+	int gart_table_location;
+	int is_pcie;
+	unsigned long addr;
+	dma_addr_t bus_addr;
+} drm_ati_pcigart_info;
+
 /**
  * DRM driver structure. This structure represent the common code for
  * a family of cards. There will one drm_device for each card present
@@ -975,12 +986,8 @@ extern int            drm_sg_free(struct inode *inode, struct file *filp,
 				   unsigned int cmd, unsigned long arg);
 
                                /* ATI PCIGART support (ati_pcigart.h) */
-extern int            drm_ati_pcigart_init(drm_device_t *dev,
-					    unsigned long *addr,
-					    dma_addr_t *bus_addr);
-extern int            drm_ati_pcigart_cleanup(drm_device_t *dev,
-					       unsigned long addr,
-					       dma_addr_t bus_addr);
+extern int drm_ati_pcigart_init(drm_device_t * dev, drm_ati_pcigart_info *gart_info);
+extern int drm_ati_pcigart_cleanup(drm_device_t * dev, drm_ati_pcigart_info *gart_info);
 
 extern drm_dma_handle_t *drm_pci_alloc(drm_device_t *dev, size_t size,
 				       size_t align, dma_addr_t maxaddr);
@@ -1036,6 +1043,11 @@ static __inline__ int drm_device_is_agp(drm_device_t *dev)
 	}
 
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
+}
+
+static __inline__ int drm_device_is_pcie(drm_device_t *dev)
+{
+	return pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
 }
 
 static __inline__ void drm_core_dropmap(struct drm_map *map)

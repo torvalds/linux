@@ -698,6 +698,7 @@ typedef struct drm_radeon_setparam {
 
 #define RADEON_SETPARAM_FB_LOCATION    1	/* determined framebuffer location */
 #define RADEON_SETPARAM_SWITCH_TILING  2	/* enable/disable color tiling */
+#define RADEON_SETPARAM_PCIGART_LOCATION 3      /* PCI Gart Location */
 
 /* 1.14: Clients can allocate/free a surface
  */
