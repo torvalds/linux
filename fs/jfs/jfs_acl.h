@@ -21,8 +21,16 @@
 #ifdef CONFIG_JFS_POSIX_ACL
 
 int jfs_permission(struct inode *, int, struct nameidata *);
-int jfs_init_acl(struct inode *, struct inode *);
+int jfs_init_acl(tid_t, struct inode *, struct inode *);
 int jfs_setattr(struct dentry *, struct iattr *);
 
-#endif		/* CONFIG_JFS_POSIX_ACL */
+#else
+
+static inline int jfs_init_acl(tid_t tid, struct inode *inode,
+			       struct inode *dir)
+{
+	return 0;
+}
+
+#endif
 #endif		/* _H_JFS_ACL */
