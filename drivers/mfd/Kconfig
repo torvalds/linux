@@ -18,4 +18,8 @@ config MCP_UCB1200
 	tristate "Support for UCB1200 / UCB1300"
 	depends on MCP
 
+config MCP_UCB1200_TS
+	tristate "Touchscreen interface support"
+	depends on MCP_UCB1200 && INPUT
+
 endmenu
