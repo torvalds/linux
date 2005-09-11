@@ -152,7 +152,7 @@ endif
 	@touch $@
 
 
-prepare: maketools include/asm-sh/.cpu include/asm-sh/.mach
+archprepare: maketools include/asm-sh/.cpu include/asm-sh/.mach
 
 .PHONY: maketools FORCE
 maketools:  include/linux/version.h FORCE

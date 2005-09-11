@@ -82,7 +82,7 @@ unwcheck: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-prepare:  include/asm-ia64/.offsets.h.stamp
+archprepare:  include/asm-ia64/.offsets.h.stamp
 
 include/asm-ia64/.offsets.h.stamp:
 	mkdir -p include/asm-ia64

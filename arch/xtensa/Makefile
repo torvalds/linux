@@ -66,7 +66,7 @@ boot		:= arch/xtensa/boot
 
 archinc		:= include/asm-xtensa
 
-prepare: $(archinc)/.platform
+archprepare: $(archinc)/.platform
 
 # Update machine cpu and platform symlinks if something which affects
 # them changed.

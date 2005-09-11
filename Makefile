@@ -776,15 +776,20 @@ $(sort $(vmlinux-init) $(vmlinux-main)) $(vmlinux-lds): $(vmlinux-dirs) ;
 # Error messages still appears in the original language
 
 .PHONY: $(vmlinux-dirs)
-$(vmlinux-dirs): prepare-all scripts
+$(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
 # Things we need to do before we recursively start building the kernel
-# or the modules are listed in "prepare-all".
-# A multi level approach is used. prepare1 is updated first, then prepare0.
-# prepare-all is the collection point for the prepare targets.
+# or the modules are listed in "prepare".
+# A multi level approach is used. prepareN is processed before prepareN-1.
+# archprepare is used in arch Makefiles and when processed asm symlink,
+# version.h and scripts_basic is processed / created.
 
-.PHONY: prepare-all prepare prepare0 prepare1 prepare2 prepare3
+# Listed in dependency order
+.PHONY: prepare archprepare prepare0 prepare1 prepare2 prepare3
+
+# prepare-all is deprecated, use prepare as valid replacement
+.PHONY: prepare-all
 
 # prepare3 is used to check if we are building in a separate output directory,
 # and if so do:
@@ -813,11 +818,13 @@ ifneq ($(KBUILD_MODULES),)
 	$(Q)mkdir -p $(MODVERDIR)
 endif
 
-prepare0: prepare prepare1 FORCE
+archprepare: prepare1 scripts_basic
+
+prepare0: archprepare FORCE
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
-prepare-all: prepare0
+prepare prepare-all: prepare0
 
 #	Leave this as default for preprocessing vmlinux.lds.S, which is now
 #	done in arch/$(ARCH)/kernel/Makefile
@@ -908,7 +915,7 @@ modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux)
 
 # Target to prepare building external modules
 .PHONY: modules_prepare
-modules_prepare: prepare-all scripts
+modules_prepare: prepare scripts
 
 # Target to install modules
 .PHONY: modules_install

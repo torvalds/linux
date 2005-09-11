@@ -175,7 +175,7 @@ else
 endif
 	@touch $@
 
-prepare: maketools include/asm-arm/.arch
+archprepare: maketools include/asm-arm/.arch
 
 .PHONY: maketools FORCE
 maketools: include/linux/version.h FORCE

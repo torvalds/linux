@@ -107,7 +107,7 @@ archclean:
 	# Temporary hack until we have migrated to asm-powerpc
 	$(Q)rm -rf arch/$(ARCH)/include
 
-prepare: checkbin
+archprepare: checkbin
 
 # Temporary hack until we have migrated to asm-powerpc
 include/asm: arch/$(ARCH)/include/asm
