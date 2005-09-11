@@ -119,7 +119,7 @@ struct pt_regs {
 	unsigned long ar_unat;		/* interrupted task's NaT register (preserved) */
 	unsigned long ar_pfs;		/* prev function state  */
 	unsigned long ar_rsc;		/* RSE configuration */
-	/* The following two are valid only if cr_ipsr.cpl > 0: */
+	/* The following two are valid only if cr_ipsr.cpl > 0 || ti->flags & _TIF_MCA_INIT */
 	unsigned long ar_rnat;		/* RSE NaT */
 	unsigned long ar_bspstore;	/* RSE bspstore */
 

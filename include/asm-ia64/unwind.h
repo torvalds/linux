@@ -114,13 +114,6 @@ extern void unw_remove_unwind_table (void *handle);
  */
 extern void unw_init_from_blocked_task (struct unw_frame_info *info, struct task_struct *t);
 
-/*
- * Prepare to unwind from interruption.  The pt-regs and switch-stack structures must have
- * be "adjacent" (no state modifications between pt-regs and switch-stack).
- */
-extern void unw_init_from_interruption (struct unw_frame_info *info, struct task_struct *t,
-					struct pt_regs *pt, struct switch_stack *sw);
-
 extern void unw_init_frame_info (struct unw_frame_info *info, struct task_struct *t,
 				 struct switch_stack *sw);
 
