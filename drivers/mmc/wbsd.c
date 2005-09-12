@@ -1136,6 +1136,7 @@ static void wbsd_tasklet_card(unsigned long param)
 {
 	struct wbsd_host* host = (struct wbsd_host*)param;
 	u8 csr;
+	int delay = -1;
 
 	spin_lock(&host->lock);
 
@@ -1155,16 +1156,8 @@ static void wbsd_tasklet_card(unsigned long param)
 			DBG("Card inserted\n");
 			host->flags |= WBSD_FCARD_PRESENT;
 
-			spin_unlock(&host->lock);
-
-			/*
-			 * Delay card detection to allow electrical connections
-			 * to stabilise.
-			 */
-			mmc_detect_change(host->mmc, msecs_to_jiffies(500));
+			delay = 500;
 		}
-		else
-			spin_unlock(&host->lock);
 	}
 	else if (host->flags & WBSD_FCARD_PRESENT)
 	{
@@ -1181,15 +1174,17 @@ static void wbsd_tasklet_card(unsigned long param)
 			tasklet_schedule(&host->finish_tasklet);
 		}
 
-		/*
-		 * Unlock first since we might get a call back.
-		 */
-		spin_unlock(&host->lock);
-
-		mmc_detect_change(host->mmc, 0);
+		delay = 0;
 	}
-	else
-		spin_unlock(&host->lock);
+
+	/*
+	 * Unlock first since we might get a call back.
+	 */
+
+	spin_unlock(&host->lock);
+
+	if (delay != -1)
+		mmc_detect_change(host->mmc, msecs_to_jiffies(delay));
 }
 
 static void wbsd_tasklet_fifo(unsigned long param)
