@@ -2065,6 +2065,7 @@ static struct ethtool_ops ops = {
 	.get_regs_len = nv_get_regs_len,
 	.get_regs = nv_get_regs,
 	.nway_reset = nv_nway_reset,
+	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
 static int nv_open(struct net_device *dev)
@@ -2377,8 +2378,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	dev->dev_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
 	dev->dev_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
 	dev->dev_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->perm_addr)) {
 		/*
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab
