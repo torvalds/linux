@@ -252,7 +252,7 @@ unsigned long __init find_and_init_phbs(void)
 			phb = (struct pci_controller *)kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
 			if (phb == NULL)
 				return -ENOMEM;
-       			pci_setup_pci_controller(phb);
+			pci_setup_pci_controller(phb);
 
 			phb->pci_mem_offset = phb->local_number = bus;
 			phb->first_busno = bus;

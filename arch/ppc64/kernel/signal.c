@@ -550,6 +550,15 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		/* Whee!  Actually deliver the signal.  */
 		if (TRAP(regs) == 0x0C00)
 			syscall_restart(regs, &ka);
+
+		/*
+		 * Reenable the DABR before delivering the signal to
+		 * user space. The DABR will have been cleared if it
+		 * triggered inside the kernel.
+		 */
+		if (current->thread.dabr)
+			set_dabr(current->thread.dabr);
+
 		return handle_signal(signr, &ka, &info, oldset, regs);
 	}
 
