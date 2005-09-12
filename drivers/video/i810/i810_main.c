@@ -950,7 +950,7 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
 	struct i810fb_par *par = (struct i810fb_par *) info->par;
-	int line_length, vidmem, mode_valid = 0;
+	int line_length, vidmem, mode_valid = 0, retval = 0;
 	u32 vyres = var->yres_virtual, vxres = var->xres_virtual;
 	/*
 	 *  Memory limit
@@ -1026,10 +1026,11 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 			printk("i810fb: invalid video mode%s\n",
 			       default_sync ? "" : ". Specifying "
 			       "vsyncN/hsyncN parameters may help");
+			retval = -EINVAL;
 		}
 	}
 
-	return 0;
+	return retval;
 }	
 
 /**
@@ -1830,7 +1831,7 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 {
 	struct fb_videomode mode;
 	struct fb_var_screeninfo var;
-	struct fb_monspecs *specs = NULL;
+	struct fb_monspecs *specs = &info->monspecs;
 	int found = 0;
 #ifdef CONFIG_FB_I810_I2C
 	int i;
@@ -1853,12 +1854,11 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	if (!err)
 		printk("i810fb_init_pci: DDC probe successful\n");
 
-	fb_edid_to_monspecs(par->edid, &info->monspecs);
+	fb_edid_to_monspecs(par->edid, specs);
 
-	if (info->monspecs.modedb == NULL)
+	if (specs->modedb == NULL)
 		printk("i810fb_init_pci: Unable to get Mode Database\n");
 
-	specs = &info->monspecs;
 	fb_videomode_to_modelist(specs->modedb, specs->modedb_len,
 				 &info->modelist);
 	if (specs->modedb != NULL) {
