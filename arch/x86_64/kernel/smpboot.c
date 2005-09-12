@@ -540,8 +540,8 @@ static void inquire_remote_apic(int apicid)
 		 */
 		apic_wait_icr_idle();
 
-		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
-		apic_write_around(APIC_ICR, APIC_DM_REMRD | regs[i]);
+		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
+		apic_write(APIC_ICR, APIC_DM_REMRD | regs[i]);
 
 		timeout = 0;
 		do {
@@ -574,12 +574,12 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	/*
 	 * Turn INIT on target chip
 	 */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 	/*
 	 * Send IPI
 	 */
-	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_INT_ASSERT
+	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_INT_ASSERT
 				| APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
@@ -595,10 +595,10 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	Dprintk("Deasserting INIT.\n");
 
 	/* Target chip */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 	/* Send IPI */
-	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
+	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
 	timeout = 0;
@@ -640,12 +640,11 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 		 */
 
 		/* Target chip */
-		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 		/* Boot on the stack */
 		/* Kick the second */
-		apic_write_around(APIC_ICR, APIC_DM_STARTUP
-					| (start_rip >> 12));
+		apic_write(APIC_ICR, APIC_DM_STARTUP | (start_rip >> 12));
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
