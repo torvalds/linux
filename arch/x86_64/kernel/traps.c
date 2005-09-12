@@ -795,13 +795,16 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 	 */
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
-	switch (((~cwd) & swd & 0x3f) | (swd & 0x240)) {
+	switch (swd & ~cwd & 0x3f) {
 		case 0x000:
 		default:
 			break;
 		case 0x001: /* Invalid Op */
-		case 0x041: /* Stack Fault */
-		case 0x241: /* Stack Fault | Direction */
+			/*
+			 * swd & 0x240 == 0x040: Stack Underflow
+			 * swd & 0x240 == 0x240: Stack Overflow
+			 * User must clear the SF bit (0x40) if set
+			 */
 			info.si_code = FPE_FLTINV;
 			break;
 		case 0x002: /* Denormalize */
