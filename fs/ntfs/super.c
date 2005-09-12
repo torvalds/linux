@@ -126,6 +126,14 @@ static BOOL parse_options(ntfs_volume *vol, char *opt)
 		if (*v)							\
 			goto needs_val;					\
 	}
+#define NTFS_GETOPT_OCTAL(option, variable)				\
+	if (!strcmp(p, option)) {					\
+		if (!v || !*v)						\
+			goto needs_arg;					\
+		variable = simple_strtoul(ov = v, &v, 8);		\
+		if (*v)							\
+			goto needs_val;					\
+	}
 #define NTFS_GETOPT_BOOL(option, variable)				\
 	if (!strcmp(p, option)) {					\
 		BOOL val;						\
@@ -157,9 +165,9 @@ static BOOL parse_options(ntfs_volume *vol, char *opt)
 			*v++ = 0;
 		NTFS_GETOPT("uid", uid)
 		else NTFS_GETOPT("gid", gid)
-		else NTFS_GETOPT("umask", fmask = dmask)
-		else NTFS_GETOPT("fmask", fmask)
-		else NTFS_GETOPT("dmask", dmask)
+		else NTFS_GETOPT_OCTAL("umask", fmask = dmask)
+		else NTFS_GETOPT_OCTAL("fmask", fmask)
+		else NTFS_GETOPT_OCTAL("dmask", dmask)
 		else NTFS_GETOPT("mft_zone_multiplier", mft_zone_multiplier)
 		else NTFS_GETOPT_WITH_DEFAULT("sloppy", sloppy, TRUE)
 		else NTFS_GETOPT_BOOL("show_sys_files", show_sys_files)
