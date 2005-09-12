@@ -270,7 +270,7 @@ ENTRY(level3_kernel_pgt)
 .org 0x4000
 ENTRY(level2_ident_pgt)
 	/* 40MB for bootup. 	*/
-	.quad	0x0000000000000283
+	.quad	0x0000000000000183
 	.quad	0x0000000000200183
 	.quad	0x0000000000400183
 	.quad	0x0000000000600183
