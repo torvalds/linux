@@ -49,7 +49,7 @@
  * C-brick nasids, thus the need for bitmaps which don't account for
  * odd-numbered (non C-brick) nasids.
  */
-#define XP_MAX_PHYSNODE_ID	(MAX_PHYSNODE_ID / 2)
+#define XP_MAX_PHYSNODE_ID	(MAX_NUMALINK_NODES / 2)
 #define XP_NASID_MASK_BYTES	((XP_MAX_PHYSNODE_ID + 7) / 8)
 #define XP_NASID_MASK_WORDS	((XP_MAX_PHYSNODE_ID + 63) / 64)
 

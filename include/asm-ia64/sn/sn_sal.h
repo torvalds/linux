@@ -198,26 +198,16 @@ ia64_sn_get_master_baseio_nasid(void)
 	return ret_stuff.v0;
 }
 
-static inline char *
+static inline void *
 ia64_sn_get_klconfig_addr(nasid_t nasid)
 {
 	struct ia64_sal_retval ret_stuff;
-	int cnodeid;
 
-	cnodeid = nasid_to_cnodeid(nasid);
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL(ret_stuff, SN_SAL_GET_KLCONFIG_ADDR, (u64)nasid, 0, 0, 0, 0, 0, 0);
-
-	/*
-	 * We should panic if a valid cnode nasid does not produce
-	 * a klconfig address.
-	 */
-	if (ret_stuff.status != 0) {
-		panic("ia64_sn_get_klconfig_addr: Returned error %lx\n", ret_stuff.status);
-	}
 	return ret_stuff.v0 ? __va(ret_stuff.v0) : NULL;
 }
 

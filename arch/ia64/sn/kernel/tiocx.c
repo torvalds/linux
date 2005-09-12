@@ -486,11 +486,10 @@ static int __init tiocx_init(void)
 
 	bus_register(&tiocx_bus_type);
 
-	for (cnodeid = 0; cnodeid < MAX_COMPACT_NODES; cnodeid++) {
+	for (cnodeid = 0; cnodeid < num_cnodes; cnodeid++) {
 		nasid_t nasid;
 
-		if ((nasid = cnodeid_to_nasid(cnodeid)) < 0)
-			break;	/* No more nasids .. bail out of loop */
+		nasid = cnodeid_to_nasid(cnodeid);
 
 		if ((nasid & 0x1) && is_fpga_brick(nasid)) {
 			struct hubdev_info *hubdev;
