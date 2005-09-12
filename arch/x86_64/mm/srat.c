@@ -50,7 +50,7 @@ static __init int setup_node(int pxm)
 static __init int conflicting_nodes(unsigned long start, unsigned long end)
 {
 	int i;
-	for_each_online_node(i) {
+	for_each_node_mask(i, nodes_parsed) {
 		struct node *nd = &nodes[i];
 		if (nd->start == nd->end)
 			continue;
