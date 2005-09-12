@@ -17,6 +17,8 @@ obj-$(CONFIG_PNP)		+= pnp/
 # default.
 obj-y				+= char/
 
+obj-$(CONFIG_CONNECTOR)		+= connector/
+
 # i810fb and intelfb depend on char/agp/
 obj-$(CONFIG_FB_I810)           += video/i810/
 obj-$(CONFIG_FB_INTEL)          += video/intelfb/
