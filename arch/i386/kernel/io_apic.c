@@ -60,6 +60,8 @@ int sis_apic_bug = -1;
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
+int disable_timer_pin_1 __initdata;
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
@@ -2211,6 +2213,8 @@ static inline void check_timer(void)
 				setup_nmi();
 				enable_8259A_irq(0);
 			}
+			if (disable_timer_pin_1 > 0)
+				clear_IO_APIC_pin(0, pin1);
 			return;
 		}
 		clear_IO_APIC_pin(0, pin1);

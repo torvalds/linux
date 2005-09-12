@@ -336,6 +336,11 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 #endif
 #endif
 
+		if (!memcmp(from, "disable_timer_pin_1", 19))
+			disable_timer_pin_1 = 1;
+		if (!memcmp(from, "enable_timer_pin_1", 18))
+			disable_timer_pin_1 = -1;
+
 		if (!memcmp(from, "nolapic", 7) ||
 		    !memcmp(from, "disableapic", 11))
 			disable_apic = 1;

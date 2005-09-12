@@ -44,6 +44,8 @@ int sis_apic_bug; /* not actually supported, dummy for compile */
 
 static int no_timer_check;
 
+int disable_timer_pin_1 __initdata;
+
 static DEFINE_SPINLOCK(ioapic_lock);
 
 /*
@@ -296,6 +298,15 @@ void __init check_ioapic(void)
 	     "Nvidia board detected. Ignoring ACPI timer override.\n");
 #endif
 					/* RED-PEN skip them on mptables too? */
+					return;
+				case PCI_VENDOR_ID_ATI:
+					/* All timer interrupts on atiixp
+				           are doubled. Disable one. */
+					if (disable_timer_pin_1 == 0) {
+						disable_timer_pin_1 = 1;
+						printk(KERN_INFO
+		"ATI board detected. Disabling timer pin 1.\n");
+					}
 					return;
 				} 
 
@@ -1658,6 +1669,8 @@ static inline void check_timer(void)
 				setup_nmi();
 				enable_8259A_irq(0);
 			}
+			if (disable_timer_pin_1 > 0)
+				clear_IO_APIC_pin(0, pin1);
 			return;
 		}
 		clear_IO_APIC_pin(0, pin1);

@@ -851,6 +851,11 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
+		if (!memcmp(from, "disable_timer_pin_1", 19))
+			disable_timer_pin_1 = 1;
+		if (!memcmp(from, "enable_timer_pin_1", 18))
+			disable_timer_pin_1 = -1;
+
 		/* disable IO-APIC */
 		else if (!memcmp(from, "noapic", 6))
 			disable_ioapic_setup();

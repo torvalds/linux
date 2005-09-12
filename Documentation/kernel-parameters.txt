@@ -164,6 +164,15 @@ running once the system is up.
 			over-ride platform specific driver.
 			See also Documentation/acpi-hotkey.txt.
 
+	enable_timer_pin_1 [i386,x86-64]
+			Enable PIN 1 of APIC timer
+			Can be useful to work around chipset bugs (in particular on some ATI chipsets)
+			The kernel tries to set a reasonable default.
+
+	disable_timer_pin_1 [i386,x86-64]
+			Disable PIN 1 of APIC timer
+			Can be useful to work around chipset bugs.
+
 	ad1816=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>
 			See also Documentation/sound/oss/AD1816.
