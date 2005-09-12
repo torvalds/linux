@@ -47,7 +47,7 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 	struct net_device_stats *stats = netdev_priv(dev);
 
 	if (!netif_running(dev)) {
-		stats->rx_errors++;
+		stats->rx_dropped++;
 		return 0;
 	}
 
