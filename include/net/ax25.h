@@ -26,11 +26,20 @@
 
 /* AX.25 Protocol IDs */
 #define AX25_P_ROSE			0x01
-#define AX25_P_IP			0xCC
-#define AX25_P_ARP			0xCD
-#define AX25_P_TEXT 			0xF0
-#define AX25_P_NETROM 			0xCF
-#define	AX25_P_SEGMENT			0x08
+#define AX25_P_VJCOMP			0x06	/* Compressed TCP/IP packet   */
+						/* Van Jacobsen (RFC 1144)    */
+#define AX25_P_VJUNCOMP			0x07	/* Uncompressed TCP/IP packet */
+						/* Van Jacobsen (RFC 1144)    */
+#define	AX25_P_SEGMENT			0x08	/* Segmentation fragment      */
+#define AX25_P_TEXNET			0xc3	/* TEXTNET datagram protocol  */
+#define AX25_P_LQ			0xc4	/* Link Quality Protocol      */
+#define AX25_P_ATALK			0xca	/* Appletalk                  */
+#define AX25_P_ATALK_ARP		0xcb	/* Appletalk ARP              */
+#define AX25_P_IP			0xcc	/* ARPA Internet Protocol     */
+#define AX25_P_ARP			0xcd	/* ARPA Adress Resolution     */
+#define AX25_P_FLEXNET			0xce	/* FlexNet                    */
+#define AX25_P_NETROM 			0xcf	/* NET/ROM                    */
+#define AX25_P_TEXT 			0xF0	/* No layer 3 protocol impl.  */
 
 /* AX.25 Segment control values */
 #define	AX25_SEG_REM			0x7F
