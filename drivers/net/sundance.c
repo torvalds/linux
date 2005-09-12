@@ -549,6 +549,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((u16 *)dev->dev_addr)[i] =
 			le16_to_cpu(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->base_addr = (unsigned long)ioaddr;
 	dev->irq = irq;
@@ -1619,6 +1620,7 @@ static struct ethtool_ops ethtool_ops = {
 	.get_link = get_link,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
+	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
