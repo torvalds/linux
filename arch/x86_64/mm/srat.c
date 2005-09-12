@@ -177,6 +177,14 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	int i;
 	if (acpi_numa <= 0)
 		return -1;
+
+	/* First clean up the node list */
+	for_each_node_mask(i, nodes_parsed) {
+		cutoff_node(i, start, end);
+		if (nodes[i].start == nodes[i].end)
+			node_clear(i, nodes_parsed);
+	}
+
 	memnode_shift = compute_hash_shift(nodes, nodes_weight(nodes_parsed));
 	if (memnode_shift < 0) {
 		printk(KERN_ERR
@@ -184,16 +192,10 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		bad_srat();
 		return -1;
 	}
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		if (!node_isset(i, nodes_parsed))
-			continue;
-		cutoff_node(i, start, end);
-		if (nodes[i].start == nodes[i].end) { 
-			node_clear(i, nodes_parsed);
-			continue;
-		}
+
+	/* Finally register nodes */
+	for_each_node_mask(i, nodes_parsed)
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-	}
 	for (i = 0; i < NR_CPUS; i++) { 
 		if (cpu_to_node[i] == NUMA_NO_NODE)
 			continue;
