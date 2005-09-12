@@ -487,33 +487,6 @@ out:
 }
 
 /*
- * This function selects if the context switch from prev to next
- * has to tweak the TSC disable bit in the cr4.
- */
-static inline void disable_tsc(struct task_struct *prev_p,
-			       struct task_struct *next_p)
-{
-	struct thread_info *prev, *next;
-
-	/*
-	 * gcc should eliminate the ->thread_info dereference if
-	 * has_secure_computing returns 0 at compile time (SECCOMP=n).
-	 */
-	prev = prev_p->thread_info;
-	next = next_p->thread_info;
-
-	if (has_secure_computing(prev) || has_secure_computing(next)) {
-		/* slow path here */
-		if (has_secure_computing(prev) &&
-		    !has_secure_computing(next)) {
-			write_cr4(read_cr4() & ~X86_CR4_TSD);
-		} else if (!has_secure_computing(prev) &&
-			   has_secure_computing(next))
-			write_cr4(read_cr4() | X86_CR4_TSD);
-	}
-}
-
-/*
  * This special macro can be used to load a debugging register
  */
 #define loaddebug(thread,r) set_debug(thread->debugreg ## r, r)
@@ -630,8 +603,6 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 			memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 		}
 	}
-
-	disable_tsc(prev_p, next_p);
 
 	return prev_p;
 }
