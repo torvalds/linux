@@ -81,8 +81,11 @@ static __init void cutoff_node(int i, unsigned long start, unsigned long end)
 
 static __init void bad_srat(void)
 {
+	int i;
 	printk(KERN_ERR "SRAT: SRAT not used.\n");
 	acpi_numa = -1;
+	for (i = 0; i < MAX_LOCAL_APIC; i++)
+		apicid_to_node[i] = NUMA_NO_NODE;
 }
 
 static __init inline int srat_disabled(void)
