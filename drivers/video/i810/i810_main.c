@@ -105,7 +105,7 @@ static int xres       __devinitdata;
 static int yres       __devinitdata;
 static int vyres      __devinitdata;
 static int sync       __devinitdata;
-static int ext_vga    __devinitdata;
+static int extvga     __devinitdata;
 static int dcolor     __devinitdata;
 
 /*------------------------------------------------------------*/
@@ -1766,7 +1766,7 @@ static void __devinit i810_init_device(struct i810fb_par *par)
 	i810_init_cursor(par);
 
 	/* mvo: enable external vga-connector (for laptops) */
-	if (ext_vga) {
+	if (extvga) {
 		i810_writel(HVSYNC, mmio, 0);
 		i810_writel(PWR_CLKC, mmio, 3);
 	}
@@ -1921,8 +1921,8 @@ static int __devinit i810fb_setup(char *options)
 			mtrr = 1;
 		else if (!strncmp(this_opt, "accel", 5))
 			accel = 1;
-		else if (!strncmp(this_opt, "ext_vga", 7))
-			ext_vga = 1;
+		else if (!strncmp(this_opt, "extvga", 6))
+			extvga = 1;
 		else if (!strncmp(this_opt, "sync", 4))
 			sync = 1;
 		else if (!strncmp(this_opt, "vram:", 5))
@@ -2151,8 +2151,8 @@ module_param(accel, bool, 0);
 MODULE_PARM_DESC(accel, "Use Acceleration (BLIT) engine (default = 0)");
 module_param(mtrr, bool, 0);
 MODULE_PARM_DESC(mtrr, "Use MTRR (default = 0)");
-module_param(ext_vga, bool, 0);
-MODULE_PARM_DESC(ext_vga, "Enable external VGA connector (default = 0)");
+module_param(extvga, bool, 0);
+MODULE_PARM_DESC(extvga, "Enable external VGA connector (default = 0)");
 module_param(sync, bool, 0);
 MODULE_PARM_DESC(sync, "wait for accel engine to finish drawing"
 		 " (default = 0)");
