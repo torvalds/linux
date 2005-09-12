@@ -56,15 +56,19 @@ void mce_log(struct mce *mce)
 	smp_wmb();
 	for (;;) {
 		entry = rcu_dereference(mcelog.next);
-		/* When the buffer fills up discard new entries. Assume 
-		   that the earlier errors are the more interesting. */
-		if (entry >= MCE_LOG_LEN) {
-			set_bit(MCE_OVERFLOW, &mcelog.flags);
-			return;
+		for (;;) {
+			/* When the buffer fills up discard new entries. Assume
+			   that the earlier errors are the more interesting. */
+			if (entry >= MCE_LOG_LEN) {
+				set_bit(MCE_OVERFLOW, &mcelog.flags);
+				return;
+			}
+			/* Old left over entry. Skip. */
+			if (mcelog.entry[entry].finished) {
+				entry++;
+				continue;
+			}
 		}
-		/* Old left over entry. Skip. */
-		if (mcelog.entry[entry].finished)
-			continue;
 		smp_rmb();
 		next = entry + 1;
 		if (cmpxchg(&mcelog.next, entry, next) == entry)
@@ -404,9 +408,15 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	}
 
 	err = 0;
-	for (i = 0; i < next; i++) {
-		if (!mcelog.entry[i].finished)
-			continue;
+	for (i = 0; i < next; i++) {		
+		unsigned long start = jiffies;
+		while (!mcelog.entry[i].finished) {
+			if (!time_before(jiffies, start + 2)) {
+				memset(mcelog.entry + i,0, sizeof(struct mce));
+				continue;
+			}
+			cpu_relax();
+		}
 		smp_rmb();
 		err |= copy_to_user(buf, mcelog.entry + i, sizeof(struct mce));
 		buf += sizeof(struct mce); 
