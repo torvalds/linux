@@ -194,7 +194,6 @@ void nr_setup(struct net_device *dev)
 	dev->hard_header_len	= NR_NETWORK_LEN + NR_TRANSPORT_LEN;
 	dev->addr_len		= AX25_ADDR_LEN;
 	dev->type		= ARPHRD_NETROM;
-	dev->tx_queue_len	= 40;
 	dev->rebuild_header	= nr_rebuild_header;
 	dev->set_mac_address    = nr_set_mac_address;
 
