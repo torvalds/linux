@@ -60,15 +60,7 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-/* prototypes for ax25_encapsulate and ax25_rebuild_header */
 #include <net/ax25.h>
-#endif	/* CONFIG_AX25 || CONFIG_AX25_MODULE */
-
-/* make genksyms happy */
-#include <linux/ip.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
 
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
@@ -1116,23 +1108,17 @@ static void yam_setup(struct net_device *dev)
 
 	skb_queue_head_init(&yp->send_queue);
 
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header = ax25_encapsulate;
+	dev->hard_header = ax25_hard_header;
 	dev->rebuild_header = ax25_rebuild_header;
-#else							/* CONFIG_AX25 || CONFIG_AX25_MODULE */
-	dev->hard_header = NULL;
-	dev->rebuild_header = NULL;
-#endif							/* CONFIG_AX25 || CONFIG_AX25_MODULE */
 
 	dev->set_mac_address = yam_set_mac_address;
 
-	dev->type = ARPHRD_AX25;	/* AF_AX25 device */
-	dev->hard_header_len = 73;	/* We do digipeaters now */
-	dev->mtu = 256;				/* AX25 is the default */
-	dev->addr_len = 7;			/* sizeof an ax.25 address */
-	memcpy(dev->broadcast, ax25_bcast, 7);
-	memcpy(dev->dev_addr, ax25_test, 7);
-
+	dev->type = ARPHRD_AX25;
+	dev->hard_header_len = AX25_MAX_HEADER_LEN;
+	dev->mtu = AX25_MTU;
+	dev->addr_len = AX25_ADDR_LEN;
+	memcpy(dev->broadcast, ax25_bcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr, ax25_test, AX25_ADDR_LEN);
 }
 
 static int __init yam_init_driver(void)

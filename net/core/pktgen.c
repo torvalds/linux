@@ -1452,8 +1452,7 @@ static int proc_thread_write(struct file *file, const char __user *user_buffer,
 		thread_lock();
 		t->control |= T_REMDEV;
 		thread_unlock();
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(HZ/8);  /* Propagate thread->control  */
+		schedule_timeout_interruptible(msecs_to_jiffies(125));  /* Propagate thread->control  */
 		ret = count;
                 sprintf(pg_result, "OK: rem_device_all");
 		goto out;
@@ -1716,10 +1715,9 @@ static void spin(struct pktgen_dev *pkt_dev, __u64 spin_until_us)
 	printk(KERN_INFO "sleeping for %d\n", (int)(spin_until_us - now));
 	while (now < spin_until_us) {
 		/* TODO: optimise sleeping behavior */
-		if (spin_until_us - now > (1000000/HZ)+1) {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(1);
-		} else if (spin_until_us - now > 100) {
+		if (spin_until_us - now > jiffies_to_usecs(1)+1)
+			schedule_timeout_interruptible(1);
+		else if (spin_until_us - now > 100) {
 			do_softirq();
 			if (!pkt_dev->running)
 				return;
@@ -2449,8 +2447,7 @@ static void pktgen_run_all_threads(void)
 	}
 	thread_unlock();
 
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(HZ/8);  /* Propagate thread->control  */
+	schedule_timeout_interruptible(msecs_to_jiffies(125));  /* Propagate thread->control  */
 			
 	pktgen_wait_all_threads_run();
 }
