@@ -123,6 +123,7 @@ static void poll_idle (void)
 			: :
 			"i" (_TIF_NEED_RESCHED), 
 			"m" (current_thread_info()->flags));
+		clear_thread_flag(TIF_POLLING_NRFLAG);
 	} else {
 		set_need_resched();
 	}
