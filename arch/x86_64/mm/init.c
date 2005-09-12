@@ -403,8 +403,6 @@ static inline int page_is_ram (unsigned long pagenr)
 	return 0;
 }
 
-extern int swiotlb_force;
-
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
 
@@ -414,8 +412,6 @@ void __init mem_init(void)
 	int tmp;
 
 #ifdef CONFIG_SWIOTLB
-	if (swiotlb_force)
-		swiotlb = 1;
 	if (!iommu_aperture &&
 	    (end_pfn >= 0xffffffff>>PAGE_SHIFT || force_iommu))
 	       swiotlb = 1;
