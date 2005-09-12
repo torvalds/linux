@@ -413,8 +413,13 @@ void __cpuinit smp_callin(void)
 
 	/*
 	 * Get our bogomips.
+ 	 *
+ 	 * Need to enable IRQs because it can take longer and then
+	 * the NMI watchdog might kill us.
 	 */
+	local_irq_enable();
 	calibrate_delay();
+	local_irq_disable();
 	Dprintk("Stack at about %p\n",&cpuid);
 
 	disable_APIC_timer();
