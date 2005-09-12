@@ -515,10 +515,12 @@ __setup("mce", mcheck_enable);
  * Sysfs support
  */ 
 
-/* On resume clear all MCE state. Don't want to see leftovers from the BIOS. */
+/* On resume clear all MCE state. Don't want to see leftovers from the BIOS.
+   Only one CPU is active at this time, the others get readded later using
+   CPU hotplug. */
 static int mce_resume(struct sys_device *dev)
 {
-	on_each_cpu(mce_init, NULL, 1, 1);
+	mce_init(NULL);
 	return 0;
 }
 
