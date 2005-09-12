@@ -94,7 +94,7 @@ void __init setup_per_cpu_areas(void)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
 
-	for (i = 0; i < NR_CPUS; i++) { 
+	for_each_cpu_mask (i, cpu_possible_map) {
 		char *ptr;
 
 		if (!NODE_DATA(cpu_to_node(i))) {
