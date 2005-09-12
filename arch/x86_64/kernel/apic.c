@@ -325,14 +325,6 @@ void __cpuinit setup_local_APIC (void)
 {
 	unsigned int value, ver, maxlvt;
 
-	/* Pound the ESR really hard over the head with a big hammer - mbligh */
-	if (esr_disable) {
-		apic_write(APIC_ESR, 0);
-		apic_write(APIC_ESR, 0);
-		apic_write(APIC_ESR, 0);
-		apic_write(APIC_ESR, 0);
-	}
-
 	value = apic_read(APIC_LVR);
 	ver = GET_APIC_VERSION(value);
 
@@ -434,7 +426,7 @@ void __cpuinit setup_local_APIC (void)
 		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 
-	if (APIC_INTEGRATED(ver) && !esr_disable) {		/* !82489DX */
+	{
 		unsigned oldvalue;
 		maxlvt = get_maxlvt();
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
@@ -452,17 +444,6 @@ void __cpuinit setup_local_APIC (void)
 			apic_printk(APIC_VERBOSE,
 			"ESR value after enabling vector: %08x, after %08x\n",
 			oldvalue, value);
-	} else {
-		if (esr_disable)	
-			/* 
-			 * Something untraceble is creating bad interrupts on 
-			 * secondary quads ... for the moment, just leave the
-			 * ESR disabled - we can't do anything useful with the
-			 * errors anyway - mbligh
-			 */
-			apic_printk(APIC_DEBUG, "Leaving ESR disabled.\n");
-		else 
-			apic_printk(APIC_DEBUG, "No ESR for 82489DX.\n");
 	}
 
 	nmi_watchdog_default();
