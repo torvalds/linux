@@ -34,9 +34,6 @@ ToDo/Notes:
 	  journals with two different restart pages.  We sanity check both and
 	  either use the only sane one or the more recent one of the two in the
 	  case that both are valid.
-	- Modify fs/ntfs/malloc.h::ntfs_malloc_nofs() to do the kmalloc() based
-	  allocations with __GFP_HIGHMEM, analogous to how the vmalloc() based
-	  allocations are done.
 	- Add fs/ntfs/malloc.h::ntfs_malloc_nofs_nofail() which is analogous to
 	  ntfs_malloc_nofs() but it performs allocations with __GFP_NOFAIL and
 	  hence cannot fail.
