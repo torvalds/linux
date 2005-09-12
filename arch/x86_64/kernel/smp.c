@@ -295,8 +295,11 @@ void unlock_ipi_call_lock(void)
 /*
  * this function sends a 'generic call function' IPI to one other CPU
  * in the system.
+ *
+ * cpu is a standard Linux logical CPU number.
  */
-static void __smp_call_function_single (int cpu, void (*func) (void *info), void *info,
+static void
+__smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 				int nonatomic, int wait)
 {
 	struct call_data_struct data;
