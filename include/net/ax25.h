@@ -97,11 +97,11 @@
 /* Define Link State constants. */
 
 enum { 
-	AX25_STATE_0,
-	AX25_STATE_1,
-	AX25_STATE_2,
-	AX25_STATE_3,
-	AX25_STATE_4
+	AX25_STATE_0,			/* Listening */
+	AX25_STATE_1,			/* SABM sent */
+	AX25_STATE_2,			/* DISC sent */
+	AX25_STATE_3,			/* Established */
+	AX25_STATE_4			/* Recovery */
 };
 
 #define AX25_MODULUS 		8	/*  Standard AX.25 modulus */
