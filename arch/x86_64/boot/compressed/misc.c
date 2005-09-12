@@ -83,7 +83,7 @@ static unsigned char *real_mode; /* Pointer to real-mode data */
 #endif
 #define SCREEN_INFO (*(struct screen_info *)(real_mode+0))
 
-extern char input_data[];
+extern unsigned char input_data[];
 extern int input_len;
 
 static long bytes_out = 0;
@@ -288,7 +288,7 @@ void setup_normal_output_buffer(void)
 #else
 	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < 1024) error("Less than 2MB of memory");
 #endif
-	output_data = (char *)__PHYSICAL_START; /* Normally Points to 1M */
+	output_data = (unsigned char *)__PHYSICAL_START; /* Normally Points to 1M */
 	free_mem_end_ptr = (long)real_mode;
 }
 
@@ -305,7 +305,7 @@ void setup_output_buffer_if_we_run_high(struct moveparams *mv)
 #else
 	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < (3*1024)) error("Less than 4MB of memory");
 #endif	
-	mv->low_buffer_start = output_data = (char *)LOW_BUFFER_START;
+	mv->low_buffer_start = output_data = (unsigned char *)LOW_BUFFER_START;
 	low_buffer_end = ((unsigned int)real_mode > LOW_BUFFER_MAX
 	  ? LOW_BUFFER_MAX : (unsigned int)real_mode) & ~0xfff;
 	low_buffer_size = low_buffer_end - LOW_BUFFER_START;
