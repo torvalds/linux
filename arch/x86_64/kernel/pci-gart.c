@@ -191,11 +191,9 @@ static void *dma_alloc_pages(struct device *dev, unsigned gfp, unsigned order)
 {
 	struct page *page;
 	int node;
-	if (dev->bus == &pci_bus_type) {
-		cpumask_t mask;
-		mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
-		node = cpu_to_node(first_cpu(mask));
-	} else
+	if (dev->bus == &pci_bus_type)
+		node = pcibus_to_node(to_pci_dev(dev)->bus);
+	else
 		node = numa_node_id();
 	page = alloc_pages_node(node, gfp, order);
 	return page ? page_address(page) : NULL;
