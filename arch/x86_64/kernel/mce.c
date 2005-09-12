@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
+#include <linux/ctype.h>
 #include <asm/processor.h> 
 #include <asm/msr.h>
 #include <asm/mce.h>
@@ -489,6 +490,7 @@ static int __init mcheck_disable(char *str)
 
 /* mce=off disables machine check. Note you can reenable it later
    using sysfs.
+   mce=TOLERANCELEVEL (number, see above)
    mce=bootlog Log MCEs from before booting. Disabled by default to work
    around buggy BIOS that leave bogus MCEs.  */
 static int __init mcheck_enable(char *str)
@@ -499,6 +501,8 @@ static int __init mcheck_enable(char *str)
 		mce_dont_init = 1;
 	else if (!strcmp(str, "bootlog"))
 		mce_bootlog = 1;
+	else if (isdigit(str[0]))
+		get_option(&str, &tolerant);
 	else
 		printk("mce= argument %s ignored. Please use /sys", str); 
 	return 0;
