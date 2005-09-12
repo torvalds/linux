@@ -1171,7 +1171,7 @@ static void baycom_probe(struct net_device *dev)
 	/* Fill in the fields of the device structure */
 	bc->skb = NULL;
 	
-	dev->hard_header = ax25_encapsulate;
+	dev->hard_header = ax25_hard_header;
 	dev->rebuild_header = ax25_rebuild_header;
 	dev->set_mac_address = baycom_set_mac_address;
 	

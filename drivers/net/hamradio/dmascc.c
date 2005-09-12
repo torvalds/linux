@@ -600,7 +600,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		dev->do_ioctl = scc_ioctl;
 		dev->hard_start_xmit = scc_send_packet;
 		dev->get_stats = scc_get_stats;
-		dev->hard_header = ax25_encapsulate;
+		dev->hard_header = ax25_hard_header;
 		dev->rebuild_header = ax25_rebuild_header;
 		dev->set_mac_address = scc_set_mac_address;
 	}

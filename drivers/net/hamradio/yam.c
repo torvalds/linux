@@ -1108,7 +1108,7 @@ static void yam_setup(struct net_device *dev)
 
 	skb_queue_head_init(&yp->send_queue);
 
-	dev->hard_header = ax25_encapsulate;
+	dev->hard_header = ax25_hard_header;
 	dev->rebuild_header = ax25_rebuild_header;
 
 	dev->set_mac_address = yam_set_mac_address;

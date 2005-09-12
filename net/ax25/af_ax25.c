@@ -1984,7 +1984,7 @@ static struct notifier_block ax25_dev_notifier = {
 	.notifier_call =ax25_device_event,
 };
 
-EXPORT_SYMBOL(ax25_encapsulate);
+EXPORT_SYMBOL(ax25_hard_header);
 EXPORT_SYMBOL(ax25_rebuild_header);
 EXPORT_SYMBOL(ax25_findbyuid);
 EXPORT_SYMBOL(ax25_find_cb);

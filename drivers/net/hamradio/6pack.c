@@ -293,7 +293,7 @@ static int sp_header(struct sk_buff *skb, struct net_device *dev,
 {
 #ifdef CONFIG_INET
 	if (type != htons(ETH_P_AX25))
-		return ax25_encapsulate(skb, dev, type, daddr, saddr, len);
+		return ax25_hard_header(skb, dev, type, daddr, saddr, len);
 #endif
 	return 0;
 }
