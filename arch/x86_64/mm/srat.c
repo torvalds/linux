@@ -25,6 +25,13 @@ static nodemask_t nodes_found __initdata;
 static struct node nodes[MAX_NUMNODES] __initdata;
 static __u8  pxm2node[256] = { [0 ... 255] = 0xff };
 
+int pxm_to_node(int pxm)
+{
+	if ((unsigned)pxm >= 256)
+		return 0;
+	return pxm2node[pxm];
+}
+
 static __init int setup_node(int pxm)
 {
 	unsigned node = pxm2node[pxm];

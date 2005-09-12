@@ -213,12 +213,18 @@ static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_c
 		node_end_pfn[nid] = memory_chunk->end_pfn;
 }
 
+static u8 pxm_to_nid_map[MAX_PXM_DOMAINS];/* _PXM to logical node ID map */
+
+int pxm_to_node(int pxm)
+{
+	return pxm_to_nid_map[pxm];
+}
+
 /* Parse the ACPI Static Resource Affinity Table */
 static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 {
 	u8 *start, *end, *p;
 	int i, j, nid;
-	u8 pxm_to_nid_map[MAX_PXM_DOMAINS];/* _PXM to logical node ID map */
 	u8 nid_to_pxm_map[MAX_NUMNODES];/* logical node ID to _PXM map */
 
 	start = (u8 *)(&(sratp->reserved) + 1);	/* skip header */
