@@ -25,55 +25,48 @@
  */
 
 #ifndef __ASSEMBLY__
-#define PPC_REG unsigned long
+
 struct pt_regs {
-	PPC_REG gpr[32];
-	PPC_REG nip;
-	PPC_REG msr;
-	PPC_REG orig_gpr3;	/* Used for restarting system calls */
-	PPC_REG ctr;
-	PPC_REG link;
-	PPC_REG xer;
-	PPC_REG ccr;
-	PPC_REG softe;		/* Soft enabled/disabled */
-	PPC_REG trap;		/* Reason for being here */
-	PPC_REG dar;		/* Fault registers */
-	PPC_REG dsisr;
-	PPC_REG result; 	/* Result of a system call */
+	unsigned long gpr[32];
+	unsigned long nip;
+	unsigned long msr;
+	unsigned long orig_gpr3; /* Used for restarting system calls */
+	unsigned long ctr;
+	unsigned long link;
+	unsigned long xer;
+	unsigned long ccr;
+	unsigned long softe;	/* Soft enabled/disabled */
+	unsigned long trap;	/* Reason for being here */
+	unsigned long dar;	/* Fault registers */
+	unsigned long dsisr;
+	unsigned long result;	/* Result of a system call */
 };
 
-#define PPC_REG_32 unsigned int
 struct pt_regs32 {
-	PPC_REG_32 gpr[32];
-	PPC_REG_32 nip;
-	PPC_REG_32 msr;
-	PPC_REG_32 orig_gpr3;	/* Used for restarting system calls */
-	PPC_REG_32 ctr;
-	PPC_REG_32 link;
-	PPC_REG_32 xer;
-	PPC_REG_32 ccr;
-	PPC_REG_32 mq;		/* 601 only (not used at present) */
-				/* Used on APUS to hold IPL value. */
-	PPC_REG_32 trap;		/* Reason for being here */
-	PPC_REG_32 dar;		/* Fault registers */
-	PPC_REG_32 dsisr;
-	PPC_REG_32 result; 	/* Result of a system call */
+	unsigned int gpr[32];
+	unsigned int nip;
+	unsigned int msr;
+	unsigned int orig_gpr3;	/* Used for restarting system calls */
+	unsigned int ctr;
+	unsigned int link;
+	unsigned int xer;
+	unsigned int ccr;
+	unsigned int mq;	/* 601 only (not used at present) */
+	unsigned int trap;	/* Reason for being here */
+	unsigned int dar;	/* Fault registers */
+	unsigned int dsisr;
+	unsigned int result;	/* Result of a system call */
 };
+
+#ifdef __KERNEL__
 
 #define instruction_pointer(regs) ((regs)->nip)
+
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *regs);
 #else
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
-
-#endif /* __ASSEMBLY__ */
-
-#define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
-
-/* Size of dummy stack frame allocated when calling signal handler. */
-#define __SIGNAL_FRAMESIZE	128
-#define __SIGNAL_FRAMESIZE32	64
 
 #define user_mode(regs) ((((regs)->msr) >> MSR_PR_LG) & 0x1)
 
@@ -88,6 +81,16 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
 #define TRAP(regs)		((regs)->trap & ~0xF)
 #define CHECK_FULL_REGS(regs)	BUG_ON(regs->trap & 1)
+
+#endif /* __KERNEL__ */
+
+#endif /* __ASSEMBLY__ */
+
+#define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
+
+/* Size of dummy stack frame allocated when calling signal handler. */
+#define __SIGNAL_FRAMESIZE	128
+#define __SIGNAL_FRAMESIZE32	64
 
 /*
  * Offsets used by 'ptrace' system call interface.
@@ -135,17 +138,21 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define PT_XER	37
 #define PT_CCR	38
 #define PT_SOFTE 39
+#define PT_TRAP	40
+#define PT_DAR	41
+#define PT_DSISR 42
 #define PT_RESULT 43
 
 #define PT_FPR0	48
 
-/* Kernel and userspace will both use this PT_FPSCR value.  32-bit apps will have
- * visibility to the asm-ppc/ptrace.h header instead of this one.
+/*
+ * Kernel and userspace will both use this PT_FPSCR value.  32-bit apps will
+ * have visibility to the asm-ppc/ptrace.h header instead of this one.
  */
-#define PT_FPSCR (PT_FPR0 + 32)	  /* each FP reg occupies 1 slot in 64-bit space */
+#define PT_FPSCR (PT_FPR0 + 32)	/* each FP reg occupies 1 slot in 64-bit space */
 
 #ifdef __KERNEL__
-#define PT_FPSCR32 (PT_FPR0 + 2*32 + 1)	  /* each FP reg occupies 2 32-bit userspace slots */
+#define PT_FPSCR32 (PT_FPR0 + 2*32 + 1)	/* each FP reg occupies 2 32-bit userspace slots */
 #endif
 
 #define PT_VR0 82	/* each Vector reg occupies 2 slots in 64-bit */
@@ -173,17 +180,34 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define PTRACE_GETVRREGS	18
 #define PTRACE_SETVRREGS	19
 
-/* Additional PTRACE requests implemented on PowerPC. */
-#define PPC_PTRACE_GETREGS	      0x99  /* Get GPRs 0 - 31 */
-#define PPC_PTRACE_SETREGS	      0x98  /* Set GPRs 0 - 31 */
-#define PPC_PTRACE_GETFPREGS	    0x97  /* Get FPRs 0 - 31 */
-#define PPC_PTRACE_SETFPREGS	    0x96  /* Set FPRs 0 - 31 */
-#define PPC_PTRACE_PEEKTEXT_3264  0x95  /* Read word at location ADDR on a 64-bit process from a 32-bit process. */
-#define PPC_PTRACE_PEEKDATA_3264  0x94  /* Read word at location ADDR on a 64-bit process from a 32-bit process. */
-#define PPC_PTRACE_POKETEXT_3264  0x93  /* Write word at location ADDR on a 64-bit process from a 32-bit process. */
-#define PPC_PTRACE_POKEDATA_3264  0x92  /* Write word at location ADDR on a 64-bit process from a 32-bit process. */
-#define PPC_PTRACE_PEEKUSR_3264   0x91  /* Read a register (specified by ADDR) out of the "user area" on a 64-bit process from a 32-bit process. */
-#define PPC_PTRACE_POKEUSR_3264   0x90  /* Write DATA into location ADDR within the "user area" on a 64-bit process from a 32-bit process. */
+/*
+ * While we dont have 64bit book E processors, we need to reserve the
+ * relevant ptrace calls for 32bit compatibility.
+ */
+#if 0
+#define PTRACE_GETEVRREGS       20
+#define PTRACE_SETEVRREGS       21
+#endif
 
+/*
+ * Get or set a debug register. The first 16 are DABR registers and the
+ * second 16 are IABR registers.
+ */
+#define PTRACE_GET_DEBUGREG	25
+#define PTRACE_SET_DEBUGREG	26
+
+/* Additional PTRACE requests implemented on PowerPC. */
+#define PPC_PTRACE_GETREGS	0x99	/* Get GPRs 0 - 31 */
+#define PPC_PTRACE_SETREGS	0x98	/* Set GPRs 0 - 31 */
+#define PPC_PTRACE_GETFPREGS	0x97	/* Get FPRs 0 - 31 */
+#define PPC_PTRACE_SETFPREGS	0x96	/* Set FPRs 0 - 31 */
+
+/* Calls to trace a 64bit program from a 32bit program */
+#define PPC_PTRACE_PEEKTEXT_3264 0x95
+#define PPC_PTRACE_PEEKDATA_3264 0x94
+#define PPC_PTRACE_POKETEXT_3264 0x93
+#define PPC_PTRACE_POKEDATA_3264 0x92
+#define PPC_PTRACE_PEEKUSR_3264  0x91
+#define PPC_PTRACE_POKEUSR_3264  0x90
 
 #endif /* _PPC64_PTRACE_H */

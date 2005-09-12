@@ -101,6 +101,9 @@ static inline int debugger_dabr_match(struct pt_regs *regs) { return 0; }
 static inline int debugger_fault_handler(struct pt_regs *regs) { return 0; }
 #endif
 
+extern int set_dabr(unsigned long dabr);
+extern void _exception(int signr, struct pt_regs *regs, int code,
+		       unsigned long addr);
 extern int fix_alignment(struct pt_regs *regs);
 extern void bad_page_fault(struct pt_regs *regs, unsigned long address,
 			   int sig);
