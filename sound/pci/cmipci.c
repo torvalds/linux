@@ -3037,6 +3037,7 @@ static void __devexit snd_cmipci_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "C-Media PCI",
+	.owner = THIS_MODULE,
 	.id_table = snd_cmipci_ids,
 	.probe = snd_cmipci_probe,
 	.remove = __devexit_p(snd_cmipci_remove),

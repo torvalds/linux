@@ -2763,6 +2763,7 @@ static void __devexit snd_es1968_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ES1968 (ESS Maestro)",
+	.owner = THIS_MODULE,
 	.id_table = snd_es1968_ids,
 	.probe = snd_es1968_probe,
 	.remove = __devexit_p(snd_es1968_remove),

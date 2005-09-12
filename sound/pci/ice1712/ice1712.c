@@ -2735,6 +2735,7 @@ static void __devexit snd_ice1712_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ICE1712",
+	.owner = THIS_MODULE,
 	.id_table = snd_ice1712_ids,
 	.probe = snd_ice1712_probe,
 	.remove = __devexit_p(snd_ice1712_remove),

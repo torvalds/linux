@@ -50,7 +50,7 @@
 #include "ad1889.h"
 #include "ac97/ac97_id.h"
 
-#define	AD1889_DRVVER	"$Revision: 1.2 $"
+#define	AD1889_DRVVER	"$Revision: 1.3 $"
 
 MODULE_AUTHOR("Kyle McMartin <kyle@parisc-linux.org>, Thibaut Varene <t-bone@parisc-linux.org>");
 MODULE_DESCRIPTION("Analog Devices AD1889 ALSA sound driver");
@@ -1068,6 +1068,7 @@ MODULE_DEVICE_TABLE(pci, snd_ad1889_ids);
 
 static struct pci_driver ad1889_pci = {
 	.name = "AD1889 Audio",
+	.owner = THIS_MODULE,
 	.id_table = snd_ad1889_ids,
 	.probe = snd_ad1889_probe,
 	.remove = __devexit_p(snd_ad1889_remove),
