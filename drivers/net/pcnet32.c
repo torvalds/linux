@@ -957,6 +957,7 @@ static struct ethtool_ops pcnet32_ethtool_ops = {
     .phys_id		= pcnet32_phys_id,
     .get_regs_len	= pcnet32_get_regs_len,
     .get_regs		= pcnet32_get_regs,
+    .get_perm_addr	= ethtool_op_get_perm_addr,
 };
 
 /* only probes for non-PCI devices, the rest are handled by
@@ -1185,9 +1186,10 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	    memcpy(dev->dev_addr, promaddr, 6);
 	}
     }
+    memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
     /* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
-    if (!is_valid_ether_addr(dev->dev_addr))
+    if (!is_valid_ether_addr(dev->perm_addr))
 	memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
 
     if (pcnet32_debug & NETIF_MSG_PROBE) {
