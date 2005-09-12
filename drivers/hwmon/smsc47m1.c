@@ -2,8 +2,8 @@
     smsc47m1.c - Part of lm_sensors, Linux kernel modules
                  for hardware monitoring
 
-    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M13x and LPC47M14x
-    Super-I/O chips.
+    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M13x, LPC47M14x,
+    LPC47M15x and LPC47M192 Super-I/O chips.
 
     Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
     Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>

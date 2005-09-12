@@ -98,11 +98,6 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_PRTCL_PEC			0x80
 
 
-/* Other settings */
-#define MAX_TIMEOUT 256
-
-
-
 static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write,
 		       u8 command, int size, union i2c_smbus_data *data);
