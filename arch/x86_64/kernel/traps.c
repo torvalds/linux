@@ -321,13 +321,13 @@ void handle_BUG(struct pt_regs *regs)
 	if (__copy_from_user(&f, (struct bug_frame *) regs->rip, 
 			     sizeof(struct bug_frame)))
 		return; 
-	if ((unsigned long)f.filename < __PAGE_OFFSET || 
+	if (f.filename >= 0 ||
 	    f.ud2[0] != 0x0f || f.ud2[1] != 0x0b) 
 		return;
-	if (__get_user(tmp, f.filename))
-		f.filename = "unmapped filename"; 
+	if (__get_user(tmp, (char *)(long)f.filename))
+		f.filename = (int)(long)"unmapped filename";
 	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", f.filename, f.line);
+	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", (char *)(long)f.filename, f.line);
 } 
 
 #ifdef CONFIG_BUG
