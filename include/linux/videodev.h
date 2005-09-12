@@ -3,7 +3,6 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #define HAVE_V4L2 1
 #include <linux/videodev2.h>
@@ -29,7 +28,6 @@ struct video_device
 	void (*release)(struct video_device *vfd);
 
 
-#if 1 /* to be removed in 2.7.x */
 	/* obsolete -- fops->owner is used instead */
 	struct module *owner;
 	/* dev->driver_data will be used instead some day.
@@ -37,7 +35,6 @@ struct video_device
 	 * so the switch over will be transparent for you.
 	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
 	void *priv;
-#endif
 
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */

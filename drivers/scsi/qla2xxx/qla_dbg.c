@@ -1334,7 +1334,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0200000);
-		dmp_reg = (uint32_t *)((uint8_t *)reg + 0xFC);
+		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
 		fw->shadow_reg[2] = RD_REG_DWORD(dmp_reg);
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);

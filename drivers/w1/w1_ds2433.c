@@ -15,6 +15,10 @@
 #include <linux/delay.h>
 #ifdef CONFIG_W1_F23_CRC
 #include <linux/crc16.h>
+
+#define CRC16_INIT		0
+#define CRC16_VALID		0xb001
+
 #endif
 
 #include "w1.h"
@@ -214,7 +218,7 @@ static ssize_t w1_f23_write_bin(struct kobject *kobj, char *buf, loff_t off,
 #ifdef CONFIG_W1_F23_CRC
 	/* can only write full blocks in cached mode */
 	if ((off & W1_PAGE_MASK) || (count & W1_PAGE_MASK)) {
-		dev_err(&sl->dev, "invalid offset/count off=%d cnt=%d\n",
+		dev_err(&sl->dev, "invalid offset/count off=%d cnt=%zd\n",
 			(int)off, count);
 		return -EINVAL;
 	}

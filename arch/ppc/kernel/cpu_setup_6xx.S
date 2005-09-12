@@ -12,10 +12,9 @@
 #include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-#include <asm/ppc_asm.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cache.h>
 
 _GLOBAL(__setup_cpu_601)

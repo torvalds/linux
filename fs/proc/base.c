@@ -62,6 +62,7 @@
 #include <linux/namespace.h>
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
+#include <linux/rcupdate.h>
 #include <linux/kallsyms.h>
 #include <linux/mount.h>
 #include <linux/security.h>
@@ -283,16 +284,16 @@ static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsm
 
 	files = get_files_struct(task);
 	if (files) {
-		spin_lock(&files->file_lock);
+		rcu_read_lock();
 		file = fcheck_files(files, fd);
 		if (file) {
 			*mnt = mntget(file->f_vfsmnt);
 			*dentry = dget(file->f_dentry);
-			spin_unlock(&files->file_lock);
+			rcu_read_unlock();
 			put_files_struct(files);
 			return 0;
 		}
-		spin_unlock(&files->file_lock);
+		rcu_read_unlock();
 		put_files_struct(files);
 	}
 	return -ENOENT;
@@ -1039,6 +1040,7 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 	int retval;
 	char buf[NUMBUF];
 	struct files_struct * files;
+	struct fdtable *fdt;
 
 	retval = -ENOENT;
 	if (!pid_alive(p))
@@ -1061,15 +1063,16 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 			files = get_files_struct(p);
 			if (!files)
 				goto out;
-			spin_lock(&files->file_lock);
+			rcu_read_lock();
+			fdt = files_fdtable(files);
 			for (fd = filp->f_pos-2;
-			     fd < files->max_fds;
+			     fd < fdt->max_fds;
 			     fd++, filp->f_pos++) {
 				unsigned int i,j;
 
 				if (!fcheck_files(files, fd))
 					continue;
-				spin_unlock(&files->file_lock);
+				rcu_read_unlock();
 
 				j = NUMBUF;
 				i = fd;
@@ -1081,12 +1084,12 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 
 				ino = fake_ino(tid, PROC_TID_FD_DIR + fd);
 				if (filldir(dirent, buf+j, NUMBUF-j, fd+2, ino, DT_LNK) < 0) {
-					spin_lock(&files->file_lock);
+					rcu_read_lock();
 					break;
 				}
-				spin_lock(&files->file_lock);
+				rcu_read_lock();
 			}
-			spin_unlock(&files->file_lock);
+			rcu_read_unlock();
 			put_files_struct(files);
 	}
 out:
@@ -1261,9 +1264,9 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 	files = get_files_struct(task);
 	if (files) {
-		spin_lock(&files->file_lock);
+		rcu_read_lock();
 		if (fcheck_files(files, fd)) {
-			spin_unlock(&files->file_lock);
+			rcu_read_unlock();
 			put_files_struct(files);
 			if (task_dumpable(task)) {
 				inode->i_uid = task->euid;
@@ -1275,7 +1278,7 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 			security_task_to_inode(task, inode);
 			return 1;
 		}
-		spin_unlock(&files->file_lock);
+		rcu_read_unlock();
 		put_files_struct(files);
 	}
 	d_drop(dentry);
@@ -1367,7 +1370,7 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 	if (!files)
 		goto out_unlock;
 	inode->i_mode = S_IFLNK;
-	spin_lock(&files->file_lock);
+	rcu_read_lock();
 	file = fcheck_files(files, fd);
 	if (!file)
 		goto out_unlock2;
@@ -1375,7 +1378,7 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 		inode->i_mode |= S_IRUSR | S_IXUSR;
 	if (file->f_mode & 2)
 		inode->i_mode |= S_IWUSR | S_IXUSR;
-	spin_unlock(&files->file_lock);
+	rcu_read_unlock();
 	put_files_struct(files);
 	inode->i_op = &proc_pid_link_inode_operations;
 	inode->i_size = 64;
@@ -1385,7 +1388,7 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 	return NULL;
 
 out_unlock2:
-	spin_unlock(&files->file_lock);
+	rcu_read_unlock();
 	put_files_struct(files);
 out_unlock:
 	iput(inode);

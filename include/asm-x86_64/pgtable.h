@@ -85,7 +85,7 @@ static inline void set_pud(pud_t *dst, pud_t val)
 	pud_val(*dst) = pud_val(val);
 }
 
-extern inline void pud_clear (pud_t *pud)
+static inline void pud_clear (pud_t *pud)
 {
 	set_pud(pud, __pud(0));
 }
@@ -95,7 +95,7 @@ static inline void set_pgd(pgd_t *dst, pgd_t val)
 	pgd_val(*dst) = pgd_val(val); 
 } 
 
-extern inline void pgd_clear (pgd_t * pgd)
+static inline void pgd_clear (pgd_t * pgd)
 {
 	set_pgd(pgd, __pgd(0));
 }
@@ -375,7 +375,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 }
  
 /* Change flags of a PTE */
-extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { 
 	pte_val(pte) &= _PAGE_CHG_MASK;
 	pte_val(pte) |= pgprot_val(newprot);

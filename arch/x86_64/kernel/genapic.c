@@ -45,7 +45,7 @@ void __init clustered_apic_check(void)
 	u8 clusters, max_cluster;
 	u8 id;
 	u8 cluster_cnt[NUM_APIC_CLUSTERS];
-	int num_cpus = 0;
+	int max_apic = 0;
 
 #if defined(CONFIG_ACPI)
 	/*
@@ -64,14 +64,15 @@ void __init clustered_apic_check(void)
 		id = bios_cpu_apicid[i];
 		if (id == BAD_APICID)
 			continue;
-		num_cpus++;
+		if (id > max_apic)
+			max_apic = id;
 		cluster_cnt[APIC_CLUSTERID(id)]++;
 	}
 
 	/* Don't use clustered mode on AMD platforms. */
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
 		genapic = &apic_physflat;
-#ifndef CONFIG_CPU_HOTPLUG
+#ifndef CONFIG_HOTPLUG_CPU
 		/* In the CPU hotplug case we cannot use broadcast mode
 		   because that opens a race when a CPU is removed.
 		   Stay at physflat mode in this case.
@@ -79,7 +80,7 @@ void __init clustered_apic_check(void)
 		   we have ACPI platform support for CPU hotplug
 		   we should detect hotplug capablity from ACPI tables and
 		   only do this when really needed. -AK */
-		if (num_cpus <= 8)
+		if (max_apic <= 8)
 			genapic = &apic_flat;
 #endif
  		goto print;
@@ -103,9 +104,14 @@ void __init clustered_apic_check(void)
 	 * (We don't use lowest priority delivery + HW APIC IRQ steering, so
 	 * can ignore the clustered logical case and go straight to physical.)
 	 */
-	if (clusters <= 1 && max_cluster <= 8 && cluster_cnt[0] == max_cluster)
+	if (clusters <= 1 && max_cluster <= 8 && cluster_cnt[0] == max_cluster) {
+#ifdef CONFIG_HOTPLUG_CPU
+		/* Don't use APIC shortcuts in CPU hotplug to avoid races */
+		genapic = &apic_physflat;
+#else
 		genapic = &apic_flat;
-	else
+#endif
+	} else
 		genapic = &apic_cluster;
 
 print:

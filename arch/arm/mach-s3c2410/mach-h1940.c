@@ -45,6 +45,9 @@
 
 //#include <asm/debug-ll.h>
 #include <asm/arch/regs-serial.h>
+#include <asm/arch/regs-lcd.h>
+
+#include <asm/arch/fb.h>
 
 #include <linux/serial_core.h>
 
@@ -88,6 +91,48 @@ static struct s3c2410_uartcfg h1940_uartcfgs[] = {
 
 
 
+/**
+ * Set lcd on or off
+ **/
+static struct s3c2410fb_mach_info h1940_lcdcfg __initdata = {
+	.fixed_syncs=		1,
+	.regs={
+		.lcdcon1=	S3C2410_LCDCON1_TFT16BPP | \
+				S3C2410_LCDCON1_TFT | \
+				S3C2410_LCDCON1_CLKVAL(0x0C),
+
+		.lcdcon2=	S3C2410_LCDCON2_VBPD(7) | \
+				S3C2410_LCDCON2_LINEVAL(319) | \
+				S3C2410_LCDCON2_VFPD(6) | \
+				S3C2410_LCDCON2_VSPW(0),
+
+		.lcdcon3=	S3C2410_LCDCON3_HBPD(19) | \
+				S3C2410_LCDCON3_HOZVAL(239) | \
+				S3C2410_LCDCON3_HFPD(7),
+
+		.lcdcon4=	S3C2410_LCDCON4_MVAL(0) | \
+				S3C2410_LCDCON4_HSPW(3),
+
+		.lcdcon5=	S3C2410_LCDCON5_FRM565 | \
+				S3C2410_LCDCON5_INVVLINE | \
+				S3C2410_LCDCON5_HWSWP,
+	},
+	.lpcsel=	0x02,
+	.gpccon=	0xaa940659,
+	.gpccon_mask=	0xffffffff,
+	.gpcup=		0x0000ffff,
+	.gpcup_mask=	0xffffffff,
+	.gpdcon=	0xaa84aaa0,
+	.gpdcon_mask=	0xffffffff,
+	.gpdup=		0x0000faff,
+	.gpdup_mask=	0xffffffff,
+
+	.width=		240,
+	.height=	320,
+	.xres=		{240,240,240},
+	.yres=		{320,320,320},
+	.bpp=		{16,16,16},
+};
 
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_usb,
@@ -116,6 +161,11 @@ void __init h1940_init_irq(void)
 
 }
 
+void __init h1940_init(void)
+{
+	set_s3c2410fb_info(&h1940_lcdcfg);
+}
+
 MACHINE_START(H1940, "IPAQ-H1940")
 	/* Maintainer: Ben Dooks <ben@fluff.org> */
 	.phys_ram	= S3C2410_SDRAM_PA,
@@ -124,5 +174,6 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= h1940_map_io,
 	.init_irq	= h1940_init_irq,
+	.init_machine   = h1940_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

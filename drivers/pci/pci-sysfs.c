@@ -44,10 +44,14 @@ pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 
-static ssize_t local_cpus_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t local_cpus_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {		
-	cpumask_t mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
-	int len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
+	cpumask_t mask;
+	int len;
+
+	mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
+	len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
 	strcat(buf,"\n"); 
 	return 1+len;
 }

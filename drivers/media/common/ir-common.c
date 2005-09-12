@@ -1,5 +1,4 @@
 /*
- * $Id: ir-common.c,v 1.11 2005/07/07 14:44:43 mchehab Exp $
  *
  * some common structs and functions to handle infrared remotes via
  * input layer ...
@@ -335,6 +334,72 @@ int ir_dump_samples(u32 *samples, int count)
 	return 0;
 }
 
+/* decode raw samples, pulse distance coding used by NEC remotes */
+int ir_decode_pulsedistance(u32 *samples, int count, int low, int high)
+{
+	int i,last,bit,len;
+	u32 curBit;
+	u32 value;
+
+	/* find start burst */
+	for (i = len = 0; i < count * 32; i++) {
+		bit = getbit(samples,i);
+		if (bit) {
+			len++;
+		} else {
+			if (len >= 29)
+				break;
+			len = 0;
+		}
+	}
+
+	/* start burst to short */
+	if (len < 29)
+		return 0xffffffff;
+
+	/* find start silence */
+	for (len = 0; i < count * 32; i++) {
+		bit = getbit(samples,i);
+		if (bit) {
+			break;
+		} else {
+			len++;
+		}
+	}
+
+	/* silence to short */
+	if (len < 7)
+		return 0xffffffff;
+
+	/* go decoding */
+	len   = 0;
+	last = 1;
+	value = 0; curBit = 1;
+	for (; i < count * 32; i++) {
+		bit  = getbit(samples,i);
+		if (last) {
+			if(bit) {
+				continue;
+			} else {
+				len = 1;
+			}
+		} else {
+			if (bit) {
+				if (len > (low + high) /2)
+					value |= curBit;
+				curBit <<= 1;
+				if (curBit == 1)
+					break;
+			} else {
+				len++;
+			}
+		}
+		last = bit;
+	}
+
+	return value;
+}
+
 /* decode raw samples, biphase coding, used by rc5 for example */
 int ir_decode_biphase(u32 *samples, int count, int low, int high)
 {
@@ -383,6 +448,7 @@ EXPORT_SYMBOL_GPL(ir_input_keydown);
 EXPORT_SYMBOL_GPL(ir_extract_bits);
 EXPORT_SYMBOL_GPL(ir_dump_samples);
 EXPORT_SYMBOL_GPL(ir_decode_biphase);
+EXPORT_SYMBOL_GPL(ir_decode_pulsedistance);
 
 /*
  * Local variables:

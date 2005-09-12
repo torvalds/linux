@@ -160,29 +160,7 @@ static inline void set_eiem(unsigned long val)
 })
 
 #ifdef CONFIG_SMP
-/*
- * Your basic SMP spinlocks, allowing only a single CPU anywhere
- */
-
-typedef struct {
-	volatile unsigned int lock[4];
-#ifdef CONFIG_DEBUG_SPINLOCK
-	unsigned long magic;
-	volatile unsigned int babble;
-	const char *module;
-	char *bfile;
-	int bline;
-	int oncpu;
-	void *previous;
-	struct task_struct * task;
-#endif
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
-
-#define __lock_aligned __attribute__((__section__(".data.lock_aligned")))
-
+# define __lock_aligned __attribute__((__section__(".data.lock_aligned")))
 #endif
 
 #define KERNEL_START (0x10100000 - 0x1000)

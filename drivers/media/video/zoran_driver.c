@@ -650,7 +650,7 @@ jpg_fbuffer_free (struct file *file)
 				     off += PAGE_SIZE)
 					ClearPageReserved(MAP_NR
 							  (mem + off));
-				kfree((void *) mem);
+				kfree(mem);
 				fh->jpg_buffers.buffer[i].frag_tab[0] = 0;
 				fh->jpg_buffers.buffer[i].frag_tab[1] = 0;
 			}

@@ -30,7 +30,7 @@
 #include <asm/mmu.h>
 #include <asm/systemcfg.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/bug.h>
 #include <asm/cputable.h>
 #include <asm/setup.h>

@@ -2260,6 +2260,8 @@ static void cfq_put_cfqd(struct cfq_data *cfqd)
 	if (!atomic_dec_and_test(&cfqd->ref))
 		return;
 
+	blk_put_queue(q);
+
 	cfq_shutdown_timer_wq(cfqd);
 	q->elevator->elevator_data = NULL;
 
@@ -2316,6 +2318,7 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	e->elevator_data = cfqd;
 
 	cfqd->queue = q;
+	atomic_inc(&q->refcnt);
 
 	cfqd->max_queued = q->nr_requests / 4;
 	q->nr_batching = cfq_queued;

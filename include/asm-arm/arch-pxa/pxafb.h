@@ -66,3 +66,4 @@ struct pxafb_mach_info {
 
 };
 void set_pxa_fb_info(struct pxafb_mach_info *hard_pxa_fb_info);
+unsigned long pxafb_get_hsync_time(struct device *dev);

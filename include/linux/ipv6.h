@@ -68,7 +68,7 @@ struct ipv6_opt_hdr {
 
 struct rt0_hdr {
 	struct ipv6_rt_hdr	rt_hdr;
-	__u32			bitmap;		/* strict/loose bit map */
+	__u32			reserved;
 	struct in6_addr		addr[0];
 
 #define rt0_type		rt_hdr.type

@@ -146,6 +146,8 @@ nfs_delete_inode(struct inode * inode)
 {
 	dprintk("NFS: delete_inode(%s/%ld)\n", inode->i_sb->s_id, inode->i_ino);
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	nfs_wb_all(inode);
 	/*
 	 * The following should never happen...

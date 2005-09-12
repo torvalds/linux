@@ -1153,8 +1153,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	p->highest_bit = 0;		/* cuts scans short */
 	while (p->flags >= SWP_SCANNING) {
 		spin_unlock(&swap_lock);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 		spin_lock(&swap_lock);
 	}
 

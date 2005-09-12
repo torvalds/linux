@@ -2221,8 +2221,7 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 			recalc_sigpending();
 			spin_unlock_irq(&current->sighand->siglock);
 
-			current->state = TASK_INTERRUPTIBLE;
-			timeout = schedule_timeout(timeout);
+			timeout = schedule_timeout_interruptible(timeout);
 
 			try_to_freeze();
 			spin_lock_irq(&current->sighand->siglock);

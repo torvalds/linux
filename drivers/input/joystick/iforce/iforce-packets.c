@@ -249,9 +249,6 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, 
 
 int iforce_get_id_packet(struct iforce *iforce, char *packet)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	int timeout = HZ; /* 1 second */
-
 	switch (iforce->bus) {
 
 	case IFORCE_USB:
@@ -260,22 +257,13 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 		iforce->cr.bRequest = packet[0];
 		iforce->ctrl->dev = iforce->usbdev;
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&iforce->wait, &wait);
-
-		if (usb_submit_urb(iforce->ctrl, GFP_ATOMIC)) {
-			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&iforce->wait, &wait);
+		if (usb_submit_urb(iforce->ctrl, GFP_ATOMIC))
 			return -1;
-		}
 
-		while (timeout && iforce->ctrl->status == -EINPROGRESS)
-			timeout = schedule_timeout(timeout);
+		wait_event_interruptible_timeout(iforce->wait,
+			iforce->ctrl->status != -EINPROGRESS, HZ);
 
-		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&iforce->wait, &wait);
-
-		if (!timeout) {
+		if (iforce->ctrl->status != -EINPROGRESS) {
 			usb_unlink_urb(iforce->ctrl);
 			return -1;
 		}
@@ -290,16 +278,10 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 		iforce->expect_packet = FF_CMD_QUERY;
 		iforce_send_packet(iforce, FF_CMD_QUERY, packet);
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&iforce->wait, &wait);
+		wait_event_interruptible_timeout(iforce->wait,
+			!iforce->expect_packet, HZ);
 
-		while (timeout && iforce->expect_packet)
-			timeout = schedule_timeout(timeout);
-
-		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&iforce->wait, &wait);
-
-		if (!timeout) {
+		if (iforce->expect_packet) {
 			iforce->expect_packet = 0;
 			return -1;
 		}

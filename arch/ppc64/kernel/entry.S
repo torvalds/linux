@@ -28,7 +28,7 @@
 #include <asm/mmu.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 
 #ifdef CONFIG_PPC_ISERIES

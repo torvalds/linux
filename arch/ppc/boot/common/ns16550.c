@@ -23,7 +23,7 @@ static int shift;
 
 unsigned long serial_init(int chan, void *ignored)
 {
-	unsigned long com_port;
+	unsigned long com_port, base_baud;
 	unsigned char lcr, dlm;
 
 	/* We need to find out which type io we're expecting.  If it's
@@ -43,6 +43,8 @@ unsigned long serial_init(int chan, void *ignored)
 
 	/* How far apart the registers are. */
 	shift = rs_table[chan].iomem_reg_shift;
+	/* Base baud.. */
+	base_baud = rs_table[chan].baud_base;
 	
 	/* save the LCR */
 	lcr = inb(com_port + (UART_LCR << shift));
@@ -62,9 +64,9 @@ unsigned long serial_init(int chan, void *ignored)
 	else {
 		/* Input clock. */
 		outb(com_port + (UART_DLL << shift),
-		     (BASE_BAUD / SERIAL_BAUD) & 0xFF);
+		     (base_baud / SERIAL_BAUD) & 0xFF);
 		outb(com_port + (UART_DLM << shift),
-		     (BASE_BAUD / SERIAL_BAUD) >> 8);
+		     (base_baud / SERIAL_BAUD) >> 8);
 		/* 8 data, 1 stop, no parity */
 		outb(com_port + (UART_LCR << shift), 0x03);
 		/* RTS/DTR */

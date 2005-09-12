@@ -63,7 +63,7 @@
 	.level 2.0w
 #endif
 
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 
 #include <asm/asmregs.h>

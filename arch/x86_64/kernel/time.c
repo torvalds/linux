@@ -18,7 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/mc146818rtc.h>
-#include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -937,7 +936,6 @@ void __init time_init(void)
 	vxtime.mode = VXTIME_TSC;
 	vxtime.quot = (1000000L << 32) / vxtime_hz;
 	vxtime.tsc_quot = (1000L << 32) / cpu_khz;
-	vxtime.hz = vxtime_hz;
 	rdtscll_sync(&vxtime.last_tsc);
 	setup_irq(0, &irq0);
 

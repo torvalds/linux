@@ -1,5 +1,4 @@
 /*
-    $Id: bttv-driver.c,v 1.52 2005/08/04 00:55:16 mchehab Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -41,6 +40,9 @@
 #include <asm/byteorder.h>
 
 #include "bttvp.h"
+
+#include "rds.h"
+
 
 unsigned int bttv_num;			/* number of Bt848s in use */
 struct bttv bttvs[BTTV_MAX];
@@ -3128,15 +3130,12 @@ static int radio_open(struct inode *inode, struct file *file)
 
 	dprintk("bttv%d: open called (radio)\n",btv->c.nr);
 	down(&btv->lock);
-	if (btv->radio_user) {
-		up(&btv->lock);
-		return -EBUSY;
-	}
+
 	btv->radio_user++;
+
 	file->private_data = btv;
 
-	i2c_vidiocschan(btv);
-        bttv_call_i2c_clients(btv,AUDC_SET_RADIO,&btv->tuner_type);
+	bttv_call_i2c_clients(btv,AUDC_SET_RADIO,&btv->tuner_type);
 	audio_mux(btv,AUDIO_RADIO);
 
 	up(&btv->lock);
@@ -3145,9 +3144,13 @@ static int radio_open(struct inode *inode, struct file *file)
 
 static int radio_release(struct inode *inode, struct file *file)
 {
-	struct bttv    *btv = file->private_data;
+	struct bttv        *btv = file->private_data;
+	struct rds_command cmd;
 
 	btv->radio_user--;
+
+	bttv_call_i2c_clients(btv, RDS_CMD_CLOSE, &cmd);
+
 	return 0;
 }
 
@@ -3203,13 +3206,42 @@ static int radio_ioctl(struct inode *inode, struct file *file,
 	return video_usercopy(inode, file, cmd, arg, radio_do_ioctl);
 }
 
+static ssize_t radio_read(struct file *file, char __user *data,
+			 size_t count, loff_t *ppos)
+{
+	struct bttv    *btv = file->private_data;
+	struct rds_command cmd;
+	cmd.block_count = count/3;
+	cmd.buffer = data;
+	cmd.instance = file;
+	cmd.result = -ENODEV;
+
+	bttv_call_i2c_clients(btv, RDS_CMD_READ, &cmd);
+
+	return cmd.result;
+}
+
+static unsigned int radio_poll(struct file *file, poll_table *wait)
+{
+	struct bttv    *btv = file->private_data;
+	struct rds_command cmd;
+	cmd.instance = file;
+	cmd.event_list = wait;
+	cmd.result = -ENODEV;
+	bttv_call_i2c_clients(btv, RDS_CMD_POLL, &cmd);
+
+	return cmd.result;
+}
+
 static struct file_operations radio_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = radio_open,
+	.read     = radio_read,
 	.release  = radio_release,
 	.ioctl	  = radio_ioctl,
 	.llseek	  = no_llseek,
+	.poll     = radio_poll,
 };
 
 static struct video_device radio_template =
@@ -4047,6 +4079,7 @@ static int bttv_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	struct bttv_buffer_set idle;
 	unsigned long flags;
 
+	dprintk("bttv%d: suspend %d\n", btv->c.nr, state.event);
 
 	/* stop dma + irqs */
 	spin_lock_irqsave(&btv->s_lock,flags);
@@ -4079,15 +4112,29 @@ static int bttv_resume(struct pci_dev *pci_dev)
 {
         struct bttv *btv = pci_get_drvdata(pci_dev);
 	unsigned long flags;
+	int err;
 
 	dprintk("bttv%d: resume\n", btv->c.nr);
 
 	/* restore pci state */
 	if (btv->state.disabled) {
-		pci_enable_device(pci_dev);
+		err=pci_enable_device(pci_dev);
+		if (err) {
+			printk(KERN_WARNING "bttv%d: Can't enable device.\n",
+								btv->c.nr);
+			return err;
+		}
 		btv->state.disabled = 0;
 	}
-	pci_set_power_state(pci_dev, PCI_D0);
+	err=pci_set_power_state(pci_dev, PCI_D0);
+	if (err) {
+		pci_disable_device(pci_dev);
+		printk(KERN_WARNING "bttv%d: Can't enable device.\n",
+							btv->c.nr);
+		btv->state.disabled = 1;
+		return err;
+	}
+
 	pci_restore_state(pci_dev);
 
 	/* restore bt878 state */

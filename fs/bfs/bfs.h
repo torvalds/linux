@@ -20,7 +20,6 @@ struct bfs_sb_info {
 	unsigned long si_lasti;
 	unsigned long * si_imap;
 	struct buffer_head * si_sbh;		/* buffer header w/superblock */
-	struct bfs_super_block * si_bfs_sb;	/* superblock in si_sbh->b_data */
 };
 
 /*

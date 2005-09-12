@@ -2176,7 +2176,7 @@
   If you want to access files on the host machine from inside UML, you
   can treat it as a separate machine and either nfs mount directories
   from the host or copy files into the virtual machine with scp or rcp.
-  However, since UML is running on the the host, it can access those
+  However, since UML is running on the host, it can access those
   files just like any other process and make them available inside the
   virtual machine without needing to use the network.
 

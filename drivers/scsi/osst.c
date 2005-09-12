@@ -1377,7 +1377,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct scsi
 	
 		if ((STp->buffer)->syscall_result || !SRpnt) {
 			printk(KERN_ERR "%s:E: Failed to read frame back from OnStream buffer\n", name);
-			vfree((void *)buffer);
+			vfree(buffer);
 			*aSRpnt = SRpnt;
 			return (-EIO);
 		}
@@ -1419,7 +1419,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct scsi
 
 			if (new_frame > frame + 1000) {
 				printk(KERN_ERR "%s:E: Failed to find writable tape media\n", name);
-				vfree((void *)buffer);
+				vfree(buffer);
 				return (-EIO);
 			}
 			if ( i >= nframes + pending ) break;
@@ -1500,7 +1500,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct scsi
 			     SRpnt->sr_sense_buffer[12]         ==  0 &&
 			     SRpnt->sr_sense_buffer[13]         ==  2) {
 				printk(KERN_ERR "%s:E: Volume overflow in write error recovery\n", name);
-				vfree((void *)buffer);
+				vfree(buffer);
 				return (-EIO);			/* hit end of tape = fail */
 			}
 			i = ((SRpnt->sr_sense_buffer[3] << 24) |
@@ -1525,7 +1525,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct scsi
 	}
 	if (!pending)
 		osst_copy_to_buffer(STp->buffer, p);	/* so buffer content == at entry in all cases */
-	vfree((void *)buffer);
+	vfree(buffer);
 	return 0;
 }
 
@@ -5852,7 +5852,7 @@ static int osst_remove(struct device *dev)
 			os_scsi_tapes[i] = NULL;
 			osst_nr_dev--;
 			write_unlock(&os_scsi_tapes_lock);
-			if (tpnt->header_cache != NULL) vfree(tpnt->header_cache);
+			vfree(tpnt->header_cache);
 			if (tpnt->buffer) {
 				normalize_buffer(tpnt->buffer);
 				kfree(tpnt->buffer);
@@ -5896,8 +5896,7 @@ static void __exit exit_osst (void)
 		for (i=0; i < osst_max_dev; ++i) {
 			if (!(STp = os_scsi_tapes[i])) continue;
 			/* This is defensive, supposed to happen during detach */
-			if (STp->header_cache)
-				vfree(STp->header_cache);
+			vfree(STp->header_cache);
 			if (STp->buffer) {
 				normalize_buffer(STp->buffer);
 				kfree(STp->buffer);

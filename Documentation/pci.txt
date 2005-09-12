@@ -84,7 +84,7 @@ Each entry consists of:
 
 Most drivers don't need to use the driver_data field.  Best practice
 for use of driver_data is to use it as an index into a static list of
-equivalant device types, not to use it as a pointer.
+equivalent device types, not to use it as a pointer.
 
 Have a table entry {PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID}
 to have probe() called for every PCI device known to the system.

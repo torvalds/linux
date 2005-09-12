@@ -10,7 +10,7 @@
  *  This file is included twice in entry-common.S
  */
 #ifndef NR_syscalls
-#define NR_syscalls 320
+#define NR_syscalls 328
 #else
 
 __syscall_start:
@@ -333,6 +333,9 @@ __syscall_start:
 		.long	sys_inotify_init
 		.long	sys_inotify_add_watch
 		.long	sys_inotify_rm_watch
+		.long	sys_mbind_wrapper
+/* 320 */	.long	sys_get_mempolicy
+		.long	sys_set_mempolicy
 __syscall_end:
 
 		.rept	NR_syscalls - (__syscall_end - __syscall_start) / 4

@@ -20,6 +20,7 @@
  */
 
 #define __KERNEL_SYSCALLS__
+static int errno;
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -37,9 +38,6 @@
 #include <asm/ebus.h>
 #include <asm/uaccess.h>
 #include <asm/envctrl.h>
-
-static int errno;
-#include <asm/unistd.h>
 
 #define ENVCTRL_MINOR	162
 

@@ -198,27 +198,43 @@ struct in6_flowlabel_req
  * MCAST_MSFILTER		48
  */
 
-/* RFC3542 advanced socket options (50-67) */
-#define IPV6_RECVPKTINFO	50
-#define IPV6_PKTINFO		51
-#if 0
-#define IPV6_RECVPATHMTU	52
-#define IPV6_PATHMTU		53
-#define IPV6_DONTFRAG		54
-#define IPV6_USE_MIN_MTU	55
+/*
+ * Advanced API (RFC3542) (1)
+ *
+ * Note: IPV6_RECVRTHDRDSTOPTS does not exist. see net/ipv6/datagram.c.
+ */
+
+#define IPV6_RECVPKTINFO	49
+#define IPV6_PKTINFO		50
+#define IPV6_RECVHOPLIMIT	51
+#define IPV6_HOPLIMIT		52
+#define IPV6_RECVHOPOPTS	53
+#define IPV6_HOPOPTS		54
+#define IPV6_RTHDRDSTOPTS	55
+#define IPV6_RECVRTHDR		56
+#define IPV6_RTHDR		57
+#define IPV6_RECVDSTOPTS	58
+#define IPV6_DSTOPTS		59
+#if 0	/* not yet */
+#define IPV6_RECVPATHMTU	60
+#define IPV6_PATHMTU		61
+#define IPV6_DONTFRAG		62
+#define IPV6_USE_MIN_MTU	63
 #endif
-#define IPV6_RECVHOPOPTS	56
-#define IPV6_HOPOPTS		57
-#if 0
-#define IPV6_RECVRTHDRDSTOPTS	58	/* Unused, see net/ipv6/datagram.c */
-#endif
-#define IPV6_RTHDRDSTOPTS	59
-#define IPV6_RECVRTHDR		60
-#define IPV6_RTHDR		61
-#define IPV6_RECVDSTOPTS	62
-#define IPV6_DSTOPTS		63
-#define IPV6_RECVHOPLIMIT	64
-#define IPV6_HOPLIMIT		65
+
+/*
+ * Netfilter
+ *
+ * Following socket options are used in ip6_tables;
+ * see include/linux/netfilter_ipv6/ip6_tables.h.
+ *
+ * IP6T_SO_SET_REPLACE / IP6T_SO_GET_INFO		64
+ * IP6T_SO_SET_ADD_COUNTERS / IP6T_SO_GET_ENTRIES	65
+ */
+
+/*
+ * Advanced API (RFC3542) (2)
+ */
 #define IPV6_RECVTCLASS		66
 #define IPV6_TCLASS		67
 

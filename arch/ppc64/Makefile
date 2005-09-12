@@ -56,7 +56,7 @@ LDFLAGS_vmlinux	:= -Bstatic -e $(KERNELLOAD) -Ttext $(KERNELLOAD)
 CFLAGS		+= -msoft-float -pipe -mminimal-toc -mtraceback=none \
 		   -mcall-aixdesc
 # Temporary hack until we have migrated to asm-powerpc
-CPPFLAGS	+= -Iinclude3
+CPPFLAGS	+= -Iarch/$(ARCH)/include
 
 GCC_VERSION     := $(call cc-version)
 GCC_BROKEN_VEC	:= $(shell if [ $(GCC_VERSION) -lt 0400 ] ; then echo "y"; fi ;)
@@ -115,21 +115,15 @@ all: $(KBUILD_IMAGE)
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-	$(Q)rm -rf include3
+	# Temporary hack until we have migrated to asm-powerpc
+	$(Q)rm -rf arch/$(ARCH)/include
 
-prepare: include/asm-ppc64/offsets.h
-
-arch/ppc64/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-ppc64/offsets.h: arch/ppc64/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
 
 # Temporary hack until we have migrated to asm-powerpc
-include/asm: include3/asm
-include3/asm:
-	$(Q)if [ ! -d include3 ]; then mkdir -p include3; fi;
-	$(Q)ln -fsn $(srctree)/include/asm-powerpc include3/asm
+include/asm: arch/$(ARCH)/include/asm
+arch/$(ARCH)/include/asm:
+	$(Q)if [ ! -d arch/$(ARCH)/include ]; then mkdir -p arch/$(ARCH)/include; fi
+	$(Q)ln -fsn $(srctree)/include/asm-powerpc arch/$(ARCH)/include/asm
 
 define archhelp
   echo  '  zImage.vmode        - Compressed kernel image (arch/$(ARCH)/boot/zImage.vmode)'
@@ -139,5 +133,3 @@ define archhelp
   echo  '  zImage              - zImage for pSeries machines'
   echo  '  zImage.initrd       - zImage with initrd for pSeries machines'
 endef
-
-CLEAN_FILES += include/asm-ppc64/offsets.h

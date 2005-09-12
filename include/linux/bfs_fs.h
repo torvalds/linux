@@ -14,8 +14,9 @@
 #define BFS_INODES_PER_BLOCK	8
 
 /* SVR4 vnode type values (bfs_inode->i_vtype) */
-#define BFS_VDIR		2
-#define BFS_VREG		1
+#define BFS_VDIR 2L
+#define BFS_VREG 1L
+
 
 /* BFS inode layout on disk */
 struct bfs_inode {
@@ -58,22 +59,22 @@ struct bfs_super_block {
 	__u32 s_padding[118];
 };
 
-#define BFS_NZFILESIZE(ip) \
-        (((ip)->i_eoffset + 1) - (ip)->i_sblock * BFS_BSIZE)
-
-#define BFS_FILESIZE(ip) \
-        ((ip)->i_sblock == 0 ? 0 : BFS_NZFILESIZE(ip))
-
-#define BFS_FILEBLOCKS(ip) \
-        ((ip)->i_sblock == 0 ? 0 : ((ip)->i_eblock + 1) - (ip)->i_sblock)
 
 #define BFS_OFF2INO(offset) \
         ((((offset) - BFS_BSIZE) / sizeof(struct bfs_inode)) + BFS_ROOT_INO)
 
 #define BFS_INO2OFF(ino) \
 	((__u32)(((ino) - BFS_ROOT_INO) * sizeof(struct bfs_inode)) + BFS_BSIZE)
+#define BFS_NZFILESIZE(ip) \
+        ((cpu_to_le32((ip)->i_eoffset) + 1) -  cpu_to_le32((ip)->i_sblock) * BFS_BSIZE)
 
+#define BFS_FILESIZE(ip) \
+        ((ip)->i_sblock == 0 ? 0 : BFS_NZFILESIZE(ip))
+
+#define BFS_FILEBLOCKS(ip) \
+        ((ip)->i_sblock == 0 ? 0 : (cpu_to_le32((ip)->i_eblock) + 1) -  cpu_to_le32((ip)->i_sblock))
 #define BFS_UNCLEAN(bfs_sb, sb)	\
-	((bfs_sb->s_from != -1) && (bfs_sb->s_to != -1) && !(sb->s_flags & MS_RDONLY))
+	((cpu_to_le32(bfs_sb->s_from) != -1) && (cpu_to_le32(bfs_sb->s_to) != -1) && !(sb->s_flags & MS_RDONLY))
+
 
 #endif	/* _LINUX_BFS_FS_H */

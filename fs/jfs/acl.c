@@ -23,6 +23,7 @@
 #include <linux/quotaops.h>
 #include <linux/posix_acl_xattr.h>
 #include "jfs_incore.h"
+#include "jfs_txnmgr.h"
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
 
@@ -75,7 +76,8 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
+static int jfs_set_acl(tid_t tid, struct inode *inode, int type,
+		       struct posix_acl *acl)
 {
 	char *ea_name;
 	struct jfs_inode_info *ji = JFS_IP(inode);
@@ -110,7 +112,7 @@ static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		if (rc < 0)
 			goto out;
 	}
-	rc = __jfs_setxattr(inode, ea_name, value, size, 0);
+	rc = __jfs_setxattr(tid, inode, ea_name, value, size, 0);
 out:
 	kfree(value);
 
@@ -143,7 +145,7 @@ int jfs_permission(struct inode *inode, int mask, struct nameidata *nd)
 	return generic_permission(inode, mask, jfs_check_acl);
 }
 
-int jfs_init_acl(struct inode *inode, struct inode *dir)
+int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)
 {
 	struct posix_acl *acl = NULL;
 	struct posix_acl *clone;
@@ -159,7 +161,7 @@ int jfs_init_acl(struct inode *inode, struct inode *dir)
 
 	if (acl) {
 		if (S_ISDIR(inode->i_mode)) {
-			rc = jfs_set_acl(inode, ACL_TYPE_DEFAULT, acl);
+			rc = jfs_set_acl(tid, inode, ACL_TYPE_DEFAULT, acl);
 			if (rc)
 				goto cleanup;
 		}
@@ -173,7 +175,8 @@ int jfs_init_acl(struct inode *inode, struct inode *dir)
 		if (rc >= 0) {
 			inode->i_mode = mode;
 			if (rc > 0)
-				rc = jfs_set_acl(inode, ACL_TYPE_ACCESS, clone);
+				rc = jfs_set_acl(tid, inode, ACL_TYPE_ACCESS,
+						 clone);
 		}
 		posix_acl_release(clone);
 cleanup:
@@ -202,8 +205,15 @@ static int jfs_acl_chmod(struct inode *inode)
 		return -ENOMEM;
 
 	rc = posix_acl_chmod_masq(clone, inode->i_mode);
-	if (!rc)
-		rc = jfs_set_acl(inode, ACL_TYPE_ACCESS, clone);
+	if (!rc) {
+		tid_t tid = txBegin(inode->i_sb, 0);
+		down(&JFS_IP(inode)->commit_sem);
+		rc = jfs_set_acl(tid, inode, ACL_TYPE_ACCESS, clone);
+		if (!rc)
+			rc = txCommit(tid, 1, &inode, 0);
+		txEnd(tid);
+		up(&JFS_IP(inode)->commit_sem);
+	}
 
 	posix_acl_release(clone);
 	return rc;

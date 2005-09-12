@@ -94,7 +94,7 @@ void __init setup_per_cpu_areas(void)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
 
-	for (i = 0; i < NR_CPUS; i++) { 
+	for_each_cpu_mask (i, cpu_possible_map) {
 		char *ptr;
 
 		if (!NODE_DATA(cpu_to_node(i))) {
@@ -119,7 +119,6 @@ void pda_init(int cpu)
 	asm volatile("movl %0,%%fs ; movl %0,%%gs" :: "r" (0)); 
 	wrmsrl(MSR_GS_BASE, cpu_pda + cpu);
 
-	pda->me = pda;
 	pda->cpunumber = cpu; 
 	pda->irqcount = -1;
 	pda->kernelstack = 

@@ -335,7 +335,7 @@ static inline void free_pages_check(const char *function, struct page *page)
 /*
  * Frees a list of pages. 
  * Assumes all pages on list are in same zone, and of same order.
- * count is the number of pages to free, or 0 for all on the list.
+ * count is the number of pages to free.
  *
  * If the zone was previously in an "all pages pinned" state then look to
  * see if this freeing clears that state.

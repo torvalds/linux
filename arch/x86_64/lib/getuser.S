@@ -29,7 +29,7 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 #include <asm/errno.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
 	.text

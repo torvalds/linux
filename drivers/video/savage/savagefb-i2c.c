@@ -259,8 +259,9 @@ static u8 *savage_do_probe_i2c_edid(struct savagefb_i2c_chan *chan)
 	return buf;
 }
 
-int savagefb_probe_i2c_connector(struct savagefb_par *par, u8 **out_edid)
+int savagefb_probe_i2c_connector(struct fb_info *info, u8 **out_edid)
 {
+	struct savagefb_par *par = info->par;
 	u8 *edid = NULL;
 	int i;
 
@@ -270,12 +271,19 @@ int savagefb_probe_i2c_connector(struct savagefb_par *par, u8 **out_edid)
 		if (edid)
 			break;
 	}
+
+	if (!edid) {
+		/* try to get from firmware */
+		edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+		if (edid)
+			memcpy(edid, fb_firmware_edid(info->device),
+			       EDID_LENGTH);
+	}
+
 	if (out_edid)
 		*out_edid = edid;
-	if (!edid)
-		return 1;
 
-	return 0;
+	return (edid) ? 0 : 1;
 }
 
 MODULE_LICENSE("GPL");

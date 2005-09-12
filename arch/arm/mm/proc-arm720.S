@@ -33,7 +33,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>

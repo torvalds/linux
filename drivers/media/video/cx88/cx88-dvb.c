@@ -1,5 +1,4 @@
 /*
- * $Id: cx88-dvb.c,v 1.58 2005/08/07 09:24:08 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -29,7 +28,7 @@
 #include <linux/kthread.h>
 #include <linux/file.h>
 #include <linux/suspend.h>
-#include <linux/config.h>
+
 
 #include "cx88.h"
 #include "dvb-pll.h"
@@ -210,16 +209,26 @@ static struct or51132_config pchdtv_hd3000 = {
 static int lgdt330x_pll_set(struct dvb_frontend* fe,
 			    struct dvb_frontend_parameters* params)
 {
+	/* FIXME make this routine use the tuner-simple code.
+	 * It could probably be shared with a number of ATSC
+	 * frontends. Many share the same tuner with analog TV. */
+
 	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx88_core *core = dev->core;
 	u8 buf[4];
 	struct i2c_msg msg =
 		{ .addr = dev->core->pll_addr, .flags = 0, .buf = buf, .len = 4 };
 	int err;
 
-	dvb_pll_configure(dev->core->pll_desc, buf, params->frequency, 0);
+	/* Put the analog decoder in standby to keep it quiet */
+	if (core->tda9887_conf) {
+		cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
+	}
+
+	dvb_pll_configure(core->pll_desc, buf, params->frequency, 0);
 	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
 			__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
-	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
+	if ((err = i2c_transfer(&core->i2c_adap, &msg, 1)) != 1) {
 		printk(KERN_WARNING "cx88-dvb: %s error "
 			   "(addr %02x <- %02x, err = %i)\n",
 			   __FUNCTION__, buf[0], buf[1], err);
@@ -227,6 +236,13 @@ static int lgdt330x_pll_set(struct dvb_frontend* fe,
 			return err;
 		else
 			return -EREMOTEIO;
+	}
+	if (core->tuner_type == TUNER_LG_TDVS_H062F) {
+		/* Set the Auxiliary Byte. */
+		buf[2] &= ~0x20;
+		buf[2] |= 0x18;
+		buf[3] = 0x50;
+		i2c_transfer(&core->i2c_adap, &msg, 1);
 	}
 	return 0;
 }
@@ -258,6 +274,14 @@ static struct lgdt330x_config fusionhdtv_3_gold = {
 	.demod_address    = 0x0e,
 	.demod_chip       = LGDT3302,
 	.serial_mpeg      = 0x04, /* TPSERIAL for 3302 in TOP_CONTROL */
+	.pll_set          = lgdt330x_pll_set,
+	.set_ts_params    = lgdt330x_set_ts_param,
+};
+
+static struct lgdt330x_config fusionhdtv_5_gold = {
+	.demod_address    = 0x0e,
+	.demod_chip       = LGDT3303,
+	.serial_mpeg      = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
 	.pll_set          = lgdt330x_pll_set,
 	.set_ts_params    = lgdt330x_set_ts_param,
 };
@@ -346,6 +370,22 @@ static int dvb_register(struct cx8802_dev *dev)
 						    &dev->core->i2c_adap);
 		}
 		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
+		dev->ts_gen_cntrl = 0x08;
+		{
+		/* Do a hardware reset of chip before using it. */
+		struct cx88_core *core = dev->core;
+
+		cx_clear(MO_GP0_IO, 1);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 1);
+		mdelay(200);
+		dev->core->pll_addr = 0x61;
+		dev->core->pll_desc = &dvb_pll_tdvs_tua6034;
+		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_5_gold,
+						    &dev->core->i2c_adap);
+		}
+		break;
 #endif
 	default:
 		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
@@ -361,11 +401,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend->ops->info.frequency_min = dev->core->pll_desc->min;
 		dev->dvb.frontend->ops->info.frequency_max = dev->core->pll_desc->max;
 	}
-
-	/* Copy the board name into the DVB structure */
-	strlcpy(dev->dvb.frontend->ops->info.name,
-		cx88_boards[dev->core->board].name,
-		sizeof(dev->dvb.frontend->ops->info.name));
 
 	/* register everything */
 	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev);

@@ -170,7 +170,7 @@ ktrace_enter(
 	void            *val14,
 	void            *val15)
 {
-	static lock_t   wrap_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(wrap_lock);
 	unsigned long	flags;
 	int             index;
 	ktrace_entry_t  *ktep;

@@ -1744,6 +1744,7 @@ jffs_delete_inode(struct inode *inode)
 	D3(printk("jffs_delete_inode(): inode->i_ino == %lu\n",
 		  inode->i_ino));
 
+	truncate_inode_pages(&inode->i_data, 0);
 	lock_kernel();
 	inode->i_size = 0;
 	inode->i_blocks = 0;

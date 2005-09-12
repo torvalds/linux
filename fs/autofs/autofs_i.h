@@ -105,6 +105,7 @@ struct autofs_sb_info {
 	struct file *pipe;
 	pid_t oz_pgrp;
 	int catatonic;
+	struct super_block *sb;
 	unsigned long exp_timeout;
 	ino_t next_dir_ino;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
@@ -134,7 +135,7 @@ void autofs_hash_insert(struct autofs_dirhash *,struct autofs_dir_ent *);
 void autofs_hash_delete(struct autofs_dir_ent *);
 struct autofs_dir_ent *autofs_hash_enum(const struct autofs_dirhash *,off_t *,struct autofs_dir_ent *);
 void autofs_hash_dputall(struct autofs_dirhash *);
-void autofs_hash_nuke(struct autofs_dirhash *);
+void autofs_hash_nuke(struct autofs_sb_info *);
 
 /* Expiration-handling functions */
 

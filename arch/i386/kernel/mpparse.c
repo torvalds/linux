@@ -122,8 +122,8 @@ static int MP_valid_apicid(int apicid, int version)
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
- 	int ver, apicid, cpu, found_bsp = 0;
-	physid_mask_t tmp;
+ 	int ver, apicid;
+	physid_mask_t phys_cpu;
  	
 	if (!(m->mpc_cpuflag & CPU_ENABLED))
 		return;
@@ -181,7 +181,6 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		Dprintk("    Bootup CPU\n");
 		boot_cpu_physical_apicid = m->mpc_apicid;
-		found_bsp = 1;
 	}
 
 	if (num_processors >= NR_CPUS) {
@@ -195,29 +194,26 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 			" Processor ignored.\n", maxcpus); 
 		return;
 	}
-	num_processors++;
 	ver = m->mpc_apicver;
 
 	if (!MP_valid_apicid(apicid, ver)) {
 		printk(KERN_WARNING "Processor #%d INVALID. (Max ID: %d).\n",
 			m->mpc_apicid, MAX_APICS);
-		--num_processors;
 		return;
 	}
 
-	if (found_bsp)
-		cpu = 0;
-	else
-		cpu = num_processors - 1;
-	cpu_set(cpu, cpu_possible_map);
-	tmp = apicid_to_cpu_present(apicid);
-	physids_or(phys_cpu_present_map, phys_cpu_present_map, tmp);
-	
+	cpu_set(num_processors, cpu_possible_map);
+	num_processors++;
+	phys_cpu = apicid_to_cpu_present(apicid);
+	physids_or(phys_cpu_present_map, phys_cpu_present_map, phys_cpu);
+
 	/*
 	 * Validate version
 	 */
 	if (ver == 0x0) {
-		printk(KERN_WARNING "BIOS bug, APIC version is 0 for CPU#%d! fixing up to 0x10. (tell your hw vendor)\n", m->mpc_apicid);
+		printk(KERN_WARNING "BIOS bug, APIC version is 0 for CPU#%d! "
+				"fixing up to 0x10. (tell your hw vendor)\n",
+				m->mpc_apicid);
 		ver = 0x10;
 	}
 	apic_version[m->mpc_apicid] = ver;
