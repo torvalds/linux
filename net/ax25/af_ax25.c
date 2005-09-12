@@ -1700,11 +1700,7 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 
 	case SIOCGSTAMP:
-		if (sk != NULL) {
-			res = sock_get_timestamp(sk, argp);
-			break;
-	 	}
-		res = -EINVAL;
+		res = sock_get_timestamp(sk, argp);
 		break;
 
 	case SIOCAX25ADDUID:	/* Add a uid to the uid/call map table */

@@ -1187,9 +1187,7 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 
 	case SIOCGSTAMP:
-		ret = -EINVAL;
-		if (sk != NULL)
-			ret = sock_get_timestamp(sk, argp);
+		ret = sock_get_timestamp(sk, argp);
 		release_sock(sk);
 		return ret;
 

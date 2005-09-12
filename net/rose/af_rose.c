@@ -1256,9 +1256,7 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 
 	case SIOCGSTAMP:
-		if (sk != NULL) 
-			return sock_get_timestamp(sk, (struct timeval __user *)argp);
-		return -EINVAL;
+		return sock_get_timestamp(sk, (struct timeval __user *)argp);
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
