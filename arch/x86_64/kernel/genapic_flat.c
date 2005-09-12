@@ -177,9 +177,9 @@ static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
 
 struct genapic apic_physflat =  {
 	.name = "physical flat",
-	.int_delivery_mode = dest_LowestPrio,
+	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
-	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_LOWEST,
+	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_FIXED,
 	.target_cpus = physflat_target_cpus,
 	.apic_id_registered = flat_apic_id_registered,
 	.init_apic_ldr = flat_init_apic_ldr,/*not needed, but shouldn't hurt*/
