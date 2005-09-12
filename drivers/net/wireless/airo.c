@@ -6852,7 +6852,10 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	/* Add frequency */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = le16_to_cpu(bss->dsChannel);
-	iwe.u.freq.m = frequency_list[iwe.u.freq.m] * 100000;
+	/* iwe.u.freq.m containt the channel (starting 1), our 
+	 * frequency_list array start at index 0...
+	 */
+	iwe.u.freq.m = frequency_list[iwe.u.freq.m - 1] * 100000;
 	iwe.u.freq.e = 1;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
 
