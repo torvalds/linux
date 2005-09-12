@@ -88,6 +88,7 @@ struct machdep_calls {
 
 	/* PCI stuff */
 	void		(*pcibios_fixup)(void);
+	int		(*pci_probe_mode)(struct pci_bus *);
 
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);

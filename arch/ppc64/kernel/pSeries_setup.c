@@ -590,6 +590,13 @@ static int pseries_shared_idle(void)
 	return 0;
 }
 
+static int pSeries_pci_probe_mode(struct pci_bus *bus)
+{
+	if (systemcfg->platform & PLATFORM_LPAR)
+		return PCI_PROBE_DEVTREE;
+	return PCI_PROBE_NORMAL;
+}
+
 struct machdep_calls __initdata pSeries_md = {
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
@@ -597,6 +604,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.get_cpuinfo		= pSeries_get_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
+	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
