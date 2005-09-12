@@ -72,7 +72,7 @@ void __init clustered_apic_check(void)
 	/* Don't use clustered mode on AMD platforms. */
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
 		genapic = &apic_physflat;
-#ifndef CONFIG_CPU_HOTPLUG
+#ifndef CONFIG_HOTPLUG_CPU
 		/* In the CPU hotplug case we cannot use broadcast mode
 		   because that opens a race when a CPU is removed.
 		   Stay at physflat mode in this case.
