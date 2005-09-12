@@ -488,8 +488,8 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 							== NOTIFY_STOP) {
 				local_set(&__get_cpu_var(alert_counter), 0);
 				return;
-			} 
-			die_nmi("NMI Watchdog detected LOCKUP on CPU%d", regs);
+			}
+			die_nmi("NMI Watchdog detected LOCKUP on CPU %d\n", regs);
 		}
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
