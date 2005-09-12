@@ -289,7 +289,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ent->device != 0x182) {
 		if ((pmr & SIS_PMR_COMBINED) == 0) {
 			printk(KERN_INFO "sata_sis: Detected SiS 180/181 chipset in SATA mode\n");
-			port2_start=0x64;
+			port2_start = 64;
 		}
 		else {
 			printk(KERN_INFO "sata_sis: Detected SiS 180/181 chipset in combined mode\n");
