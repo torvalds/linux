@@ -22,7 +22,7 @@ struct x8664_pda {
 	struct mm_struct *active_mm;
 	int mmu_state;     
 	unsigned apic_timer_irqs;
-} ____cacheline_aligned;
+} ____cacheline_aligned_in_smp;
 
 
 #define IRQSTACK_ORDER 2
