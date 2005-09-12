@@ -174,10 +174,6 @@ extern sys_ctrler_t sys_ctrler;
 void ppc64_boot_msg(unsigned int src, const char *msg);
 /* Print a termination message (print only -- does not stop the kernel) */
 void ppc64_terminate_msg(unsigned int src, const char *msg);
-/* Print something that needs attention (device error, etc) */
-void ppc64_attention_msg(unsigned int src, const char *msg);
-/* Print a dump progress message. */
-void ppc64_dump_msg(unsigned int src, const char *msg);
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {
