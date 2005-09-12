@@ -942,6 +942,25 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
+static void srat_detect_node(void)
+{
+#ifdef CONFIG_NUMA
+	unsigned apicid, node;
+	int cpu = smp_processor_id();
+
+	/* Don't do the funky fallback heuristics the AMD version employs
+	   for now. */
+	apicid = phys_proc_id[cpu];
+	node = apicid_to_node[apicid];
+	if (node == NUMA_NO_NODE)
+		node = 0;
+	cpu_to_node[cpu] = node;
+
+	if (acpi_numa > 0)
+		printk(KERN_INFO "CPU %d -> Node %d\n", cpu, node);
+#endif
+}
+
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
@@ -960,6 +979,8 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 >= 15)
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
  	c->x86_num_cores = intel_num_cpu_cores(c);
+
+	srat_detect_node();
 }
 
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
