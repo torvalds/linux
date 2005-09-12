@@ -8305,6 +8305,7 @@ static struct ethtool_ops tg3_ethtool_ops = {
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
 	.get_coalesce		= tg3_get_coalesce,
 	.set_coalesce		= tg3_set_coalesce,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
@@ -9783,6 +9784,7 @@ static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 		if (prom_getproplen(node, "local-mac-address") == 6) {
 			prom_getproperty(node, "local-mac-address",
 					 dev->dev_addr, 6);
+			memcpy(dev->perm_addr, dev->dev_addr, 6);
 			return 0;
 		}
 	}
@@ -9794,6 +9796,7 @@ static int __devinit tg3_get_default_macaddr_sparc(struct tg3 *tp)
 	struct net_device *dev = tp->dev;
 
 	memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+	memcpy(dev->perm_addr, idprom->id_ethaddr, 6);
 	return 0;
 }
 #endif
@@ -9863,6 +9866,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 #endif
 		return -EINVAL;
 	}
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	return 0;
 }
 
