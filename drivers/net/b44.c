@@ -1676,6 +1676,7 @@ static struct ethtool_ops b44_ethtool_ops = {
 	.set_pauseparam		= b44_set_pauseparam,
 	.get_msglevel		= b44_get_msglevel,
 	.set_msglevel		= b44_set_msglevel,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -1718,6 +1719,7 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	bp->dev->dev_addr[3] = eeprom[80];
 	bp->dev->dev_addr[4] = eeprom[83];
 	bp->dev->dev_addr[5] = eeprom[82];
+	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
 
 	bp->phy_addr = eeprom[90] & 0x1f;
 
