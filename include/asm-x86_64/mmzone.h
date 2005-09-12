@@ -12,7 +12,7 @@
 
 #include <asm/smp.h>
 
-#define NODEMAPSIZE 0xff
+#define NODEMAPSIZE 0xfff
 
 /* Simple perfect hash to map physical addresses to node numbers */
 extern int memnode_shift; 
