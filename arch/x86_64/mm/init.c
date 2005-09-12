@@ -57,31 +57,31 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 void show_mem(void)
 {
-	int i, total = 0, reserved = 0;
-	int shared = 0, cached = 0;
+	long i, total = 0, reserved = 0;
+	long shared = 0, cached = 0;
 	pg_data_t *pgdat;
 	struct page *page;
 
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
 	for_each_pgdat(pgdat) {
                for (i = 0; i < pgdat->node_spanned_pages; ++i) {
 			page = pfn_to_page(pgdat->node_start_pfn + i);
 			total++;
-                       if (PageReserved(page))
-			reserved++;
-                       else if (PageSwapCache(page))
-			cached++;
-                       else if (page_count(page))
-                               shared += page_count(page) - 1;
+			if (PageReserved(page))
+				reserved++;
+			else if (PageSwapCache(page))
+				cached++;
+			else if (page_count(page))
+				shared += page_count(page) - 1;
                }
 	}
-	printk("%d pages of RAM\n", total);
-	printk("%d reserved pages\n",reserved);
-	printk("%d pages shared\n",shared);
-	printk("%d pages swap cached\n",cached);
+	printk(KERN_INFO "%lu pages of RAM\n", total);
+	printk(KERN_INFO "%lu reserved pages\n",reserved);
+	printk(KERN_INFO "%lu pages shared\n",shared);
+	printk(KERN_INFO "%lu pages swap cached\n",cached);
 }
 
 /* References to section boundaries */
