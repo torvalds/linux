@@ -765,6 +765,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	int cpu = smp_processor_id();
 	int node = 0;
 	unsigned bits;
+	unsigned apicid = phys_proc_id[cpu];
 
 	bits = 0;
 	while ((1 << bits) < c->x86_num_cores)
@@ -777,15 +778,19 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_NUMA
 	/* When an ACPI SRAT table is available use the mappings from SRAT
- 	   instead. */
-	if (acpi_numa <= 0) {
-		node = phys_proc_id[cpu];
-		if (!node_online(node))
-			node = first_node(node_online_map);
-		cpu_to_node[cpu] = node;
-	} else {
-		node = cpu_to_node[cpu];
+	   instead. */
+	node = phys_proc_id[cpu];
+	if (acpi_numa > 0) {
+		if (apicid_to_node[apicid] != NUMA_NO_NODE)
+			node = apicid_to_node[apicid];
+		else
+			printk(KERN_ERR
+			       "SRAT: Didn't specify node for CPU %d(%d)\n",
+			       cpu, apicid);
 	}
+	if (!node_online(node))
+		node = first_node(node_online_map);
+	cpu_to_node[cpu] = node;
 #endif
 
 	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",

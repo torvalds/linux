@@ -20,9 +20,6 @@
 
 static struct acpi_table_slit *acpi_slit;
 
-/* Internal processor count */
-static unsigned int __initdata num_processors = 0;
-
 static nodemask_t nodes_parsed __initdata;
 static nodemask_t nodes_found __initdata;
 static struct node nodes[MAX_NUMNODES] __initdata;
@@ -104,18 +101,10 @@ acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 		bad_srat();
 		return;
 	}
-	if (num_processors >= NR_CPUS) {
-		printk(KERN_ERR "SRAT: Processor #%d (lapic %u) INVALID. (Max ID: %d).\n",
-			num_processors, pa->apic_id, NR_CPUS);
-		bad_srat();
-		return;
-	}
-	cpu_to_node[num_processors] = node;
+	apicid_to_node[pa->apic_id] = node;
 	acpi_numa = 1;
-	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> CPU %u -> Node %u\n",
-	       pxm, pa->apic_id, num_processors, node);
-
-	num_processors++;
+	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
+	       pxm, pa->apic_id, node);
 }
 
 /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */

@@ -29,6 +29,9 @@ int memnode_shift;
 u8  memnodemap[NODEMAPSIZE];
 
 unsigned char cpu_to_node[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
+unsigned char apicid_to_node[256] __cpuinitdata = {
+ 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+};
 cpumask_t     node_to_cpumask[MAX_NUMNODES] __read_mostly;
 
 int numa_off __initdata;
