@@ -25,6 +25,8 @@ static nodemask_t nodes_found __initdata;
 static struct node nodes[MAX_NUMNODES] __initdata;
 static __u8  pxm2node[256] = { [0 ... 255] = 0xff };
 
+static int node_to_pxm(int n);
+
 int pxm_to_node(int pxm)
 {
 	if ((unsigned)pxm >= 256)
@@ -53,9 +55,9 @@ static __init int conflicting_nodes(unsigned long start, unsigned long end)
 		if (nd->start == nd->end)
 			continue;
 		if (nd->end > start && nd->start < end)
-			return 1;
+			return i;
 		if (nd->end == end && nd->start == start)
-			return 1;
+			return i;
 	}
 	return -1;
 }
@@ -139,10 +141,15 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 		printk(KERN_INFO "SRAT: hot plug zone found %lx - %lx \n",
 				start, end);
 	i = conflicting_nodes(start, end);
-	if (i >= 0) {
+	if (i == node) {
+		printk(KERN_WARNING
+		"SRAT: Warning: PXM %d (%lx-%lx) overlaps with itself (%Lx-%Lx)\n",
+			pxm, start, end, nodes[i].start, nodes[i].end);
+	} else if (i >= 0) {
 		printk(KERN_ERR
-		       "SRAT: pxm %d overlap %lx-%lx with node %d(%Lx-%Lx)\n",
-		       pxm, start, end, i, nodes[i].start, nodes[i].end);
+		       "SRAT: PXM %d (%lx-%lx) overlaps with PXM %d (%Lx-%Lx)\n",
+		       pxm, start, end, node_to_pxm(i),
+			nodes[i].start, nodes[i].end);
 		bad_srat();
 		return;
 	}
@@ -197,7 +204,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	return 0;
 }
 
-int node_to_pxm(int n)
+static int node_to_pxm(int n)
 {
        int i;
        if (pxm2node[n] == n)
