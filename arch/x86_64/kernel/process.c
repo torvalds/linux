@@ -32,7 +32,6 @@
 #include <linux/a.out.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/ptrace.h>
 #include <linux/utsname.h>
 #include <linux/random.h>

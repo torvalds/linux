@@ -14,7 +14,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/config.h>

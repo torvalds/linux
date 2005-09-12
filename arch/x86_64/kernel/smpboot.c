@@ -44,7 +44,6 @@
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 #include <linux/smp_lock.h>
-#include <linux/irq.h>
 #include <linux/bootmem.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
@@ -58,6 +57,8 @@
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
 #include <asm/nmi.h>
+#include <asm/irq.h>
+#include <asm/hw_irq.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;

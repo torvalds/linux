@@ -47,9 +47,6 @@
 #include <asm/proto.h>
 #include <asm/nmi.h>
 
-#include <linux/irq.h>
-
-
 extern struct gate_struct idt_table[256]; 
 
 asmlinkage void divide_error(void);

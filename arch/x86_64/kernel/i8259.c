@@ -18,14 +18,11 @@
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/pgtable.h>
 #include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
-
-#include <linux/irq.h>
 
 /*
  * Common place to define all x86 IRQ vectors
