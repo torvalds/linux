@@ -460,8 +460,9 @@ ixgb_probe(struct pci_dev *pdev,
 	}
 
 	ixgb_get_ee_mac_addr(&adapter->hw, netdev->dev_addr);
+	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
-	if(!is_valid_ether_addr(netdev->dev_addr)) {
+	if(!is_valid_ether_addr(netdev->perm_addr)) {
 		err = -EIO;
 		goto err_eeprom;
 	}
