@@ -6893,8 +6893,7 @@ static struct net_device_stats *tg3_get_stats(struct net_device *dev)
 		get_stat64(&hw_stats->tx_octets);
 
 	stats->rx_errors = old_stats->rx_errors +
-		get_stat64(&hw_stats->rx_errors) +
-		get_stat64(&hw_stats->rx_discards);
+		get_stat64(&hw_stats->rx_errors);
 	stats->tx_errors = old_stats->tx_errors +
 		get_stat64(&hw_stats->tx_errors) +
 		get_stat64(&hw_stats->tx_mac_errors) +
@@ -6921,6 +6920,9 @@ static struct net_device_stats *tg3_get_stats(struct net_device *dev)
 
 	stats->rx_crc_errors = old_stats->rx_crc_errors +
 		calc_crc_errors(tp);
+
+	stats->rx_missed_errors = old_stats->rx_missed_errors +
+		get_stat64(&hw_stats->rx_discards);
 
 	return stats;
 }
