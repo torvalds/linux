@@ -970,6 +970,7 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((u16 *) (dev->dev_addr))[i] =
 		    le16_to_cpu (read_eeprom (ioaddr, i + 7, addr_len));
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* The Rtl8139-specific entries in the device structure. */
 	dev->open = rtl8139_open;
@@ -2465,6 +2466,7 @@ static struct ethtool_ops rtl8139_ethtool_ops = {
 	.get_strings		= rtl8139_get_strings,
 	.get_stats_count	= rtl8139_get_stats_count,
 	.get_ethtool_stats	= rtl8139_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
