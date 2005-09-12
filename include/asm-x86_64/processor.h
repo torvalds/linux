@@ -254,7 +254,13 @@ struct thread_struct {
 	u64 tls_array[GDT_ENTRY_TLS_ENTRIES];
 } __attribute__((aligned(16)));
 
-#define INIT_THREAD  {}
+#define INIT_THREAD  { \
+	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+}
+
+#define INIT_TSS  { \
+	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+}
 
 #define INIT_MMAP \
 { &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
