@@ -449,12 +449,12 @@ module_exit(dmascc_exit);
 static void dev_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_AX25;
-	dev->hard_header_len = 73;
+	dev->hard_header_len = AX25_MAX_HEADER_LEN;
 	dev->mtu = 1500;
-	dev->addr_len = 7;
+	dev->addr_len = AX25_ADDR_LEN;
 	dev->tx_queue_len = 64;
-	memcpy(dev->broadcast, ax25_broadcast, 7);
-	memcpy(dev->dev_addr, ax25_test, 7);
+	memcpy(dev->broadcast, ax25_broadcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr, ax25_test, AX25_ADDR_LEN);
 }
 
 static int __init setup_adapter(int card_base, int type, int n)
