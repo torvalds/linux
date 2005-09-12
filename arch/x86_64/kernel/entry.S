@@ -536,8 +536,19 @@ ENTRY(thermal_interrupt)
 ENTRY(reschedule_interrupt)
 	apicinterrupt RESCHEDULE_VECTOR,smp_reschedule_interrupt
 
-ENTRY(invalidate_interrupt)
-	apicinterrupt INVALIDATE_TLB_VECTOR,smp_invalidate_interrupt
+	.macro INVALIDATE_ENTRY num
+ENTRY(invalidate_interrupt\num)
+	apicinterrupt INVALIDATE_TLB_VECTOR_START+\num,smp_invalidate_interrupt	
+	.endm
+
+	INVALIDATE_ENTRY 0
+	INVALIDATE_ENTRY 1
+	INVALIDATE_ENTRY 2
+	INVALIDATE_ENTRY 3
+	INVALIDATE_ENTRY 4
+	INVALIDATE_ENTRY 5
+	INVALIDATE_ENTRY 6
+	INVALIDATE_ENTRY 7
 
 ENTRY(call_function_interrupt)
 	apicinterrupt CALL_FUNCTION_VECTOR,smp_call_function_interrupt
