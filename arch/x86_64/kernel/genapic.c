@@ -104,9 +104,14 @@ void __init clustered_apic_check(void)
 	 * (We don't use lowest priority delivery + HW APIC IRQ steering, so
 	 * can ignore the clustered logical case and go straight to physical.)
 	 */
-	if (clusters <= 1 && max_cluster <= 8 && cluster_cnt[0] == max_cluster)
+	if (clusters <= 1 && max_cluster <= 8 && cluster_cnt[0] == max_cluster) {
+#ifdef CONFIG_HOTPLUG_CPU
+		/* Don't use APIC shortcuts in CPU hotplug to avoid races */
+		genapic = &apic_physflat;
+#else
 		genapic = &apic_flat;
-	else
+#endif
+	} else
 		genapic = &apic_cluster;
 
 print:
