@@ -21,7 +21,9 @@
  */
 
 	.globl .umul
+	.globl _Umul
 .umul:
+_Umul:	/* needed for export */
 	or	%o0, %o1, %o4
 	mov	%o0, %y		! multiplier -> Y
 

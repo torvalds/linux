@@ -16,7 +16,9 @@
  */
 
 	.globl .mul
+	.globl _Mul
 .mul:
+_Mul:	/* needed for export */
 	mov	%o0, %y		! multiplier -> Y
 	andncc	%o0, 0xfff, %g0	! test bits 12..31
 	be	Lmul_shortway	! if zero, can do it the short way
