@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <asm/pci-direct.h>
 #include <asm/acpi.h>
+#include <asm/apic.h>
 
 static int __init check_bridge(int vendor, int device)
 {
@@ -15,6 +16,7 @@ static int __init check_bridge(int vendor, int device)
 	if (vendor == PCI_VENDOR_ID_NVIDIA) {
 		acpi_skip_timer_override = 1;
 	}
+#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * ATI IXP chipsets get double timer interrupts.
 	 * For now just do this for all ATI chipsets.
@@ -22,6 +24,7 @@ static int __init check_bridge(int vendor, int device)
 	 */
 	if (vendor == PCI_VENDOR_ID_ATI)
 		disable_timer_pin_1 = 1;
+#endif
 	return 0;
 }
 
