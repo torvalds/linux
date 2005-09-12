@@ -198,7 +198,7 @@ void nr_setup(struct net_device *dev)
 	dev->set_mac_address    = nr_set_mac_address;
 
 	/* New-style flags. */
-	dev->flags		= 0;
+	dev->flags		= IFF_NOARP;
 
 	dev->get_stats 		= nr_get_stats;
 }
