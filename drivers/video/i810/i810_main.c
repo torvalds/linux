@@ -95,18 +95,18 @@ static struct pci_driver i810fb_driver = {
 static char *mode_option __devinitdata = NULL;
 static int vram       __devinitdata = 4;
 static int bpp        __devinitdata = 8;
-static int mtrr       __devinitdata = 0;
-static int accel      __devinitdata = 0;
-static int hsync1     __devinitdata = 0;
-static int hsync2     __devinitdata = 0;
-static int vsync1     __devinitdata = 0;
-static int vsync2     __devinitdata = 0;
-static int xres       __devinitdata = 640;
-static int yres       __devinitdata = 480;
-static int vyres      __devinitdata = 0;
-static int sync       __devinitdata = 0;
-static int ext_vga    __devinitdata = 0;
-static int dcolor     __devinitdata = 0;
+static int mtrr       __devinitdata;
+static int accel      __devinitdata;
+static int hsync1     __devinitdata;
+static int hsync2     __devinitdata;
+static int vsync1     __devinitdata;
+static int vsync2     __devinitdata;
+static int xres       __devinitdata;
+static int yres       __devinitdata;
+static int vyres      __devinitdata;
+static int sync       __devinitdata;
+static int ext_vga    __devinitdata;
+static int dcolor     __devinitdata;
 
 /*------------------------------------------------------------*/
 
@@ -1725,12 +1725,21 @@ static void __devinit i810_init_defaults(struct i810fb_par *par,
 	if (bpp < 8)
 		bpp = 8;
 	
-	if (!vyres) 
-		vyres = (vram << 20)/(xres*bpp >> 3);
-
 	par->i810fb_ops = i810fb_ops;
-	info->var.xres = xres;
-	info->var.yres = yres;
+
+	if (xres)
+		info->var.xres = xres;
+	else
+		info->var.xres = 640;
+
+	if (yres)
+		info->var.yres = yres;
+	else
+		info->var.yres = 480;
+
+	if (!vyres) 
+		vyres = (vram << 20)/(info->var.xres*bpp >> 3);
+
 	info->var.yres_virtual = vyres;
 	info->var.bits_per_pixel = bpp;
 
@@ -1862,7 +1871,16 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	fb_videomode_to_modelist(specs->modedb, specs->modedb_len,
 				 &info->modelist);
 	if (specs->modedb != NULL) {
-		if (specs->misc & FB_MISC_1ST_DETAIL) {
+		if (xres && yres) {
+			struct fb_videomode *m;
+
+			if ((m = fb_find_best_mode(&var, &info->modelist))) {
+				mode = *m;
+				found  = 1;
+			}
+		}
+
+		if (!found && specs->misc & FB_MISC_1ST_DETAIL) {
 			for (i = 0; i < specs->modedb_len; i++) {
 				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
 					mode = specs->modedb[i];
