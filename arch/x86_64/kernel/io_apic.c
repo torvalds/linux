@@ -1022,13 +1022,11 @@ void __apicdebuginit print_local_APIC(void * dummy)
 	v = apic_read(APIC_TASKPRI);
 	printk(KERN_DEBUG "... APIC TASKPRI: %08x (%02x)\n", v, v & APIC_TPRI_MASK);
 
-	if (APIC_INTEGRATED(ver)) {			/* !82489DX */
-		v = apic_read(APIC_ARBPRI);
-		printk(KERN_DEBUG "... APIC ARBPRI: %08x (%02x)\n", v,
-			v & APIC_ARBPRI_MASK);
-		v = apic_read(APIC_PROCPRI);
-		printk(KERN_DEBUG "... APIC PROCPRI: %08x\n", v);
-	}
+	v = apic_read(APIC_ARBPRI);
+	printk(KERN_DEBUG "... APIC ARBPRI: %08x (%02x)\n", v,
+		v & APIC_ARBPRI_MASK);
+	v = apic_read(APIC_PROCPRI);
+	printk(KERN_DEBUG "... APIC PROCPRI: %08x\n", v);
 
 	v = apic_read(APIC_EOI);
 	printk(KERN_DEBUG "... APIC EOI: %08x\n", v);
@@ -1048,12 +1046,8 @@ void __apicdebuginit print_local_APIC(void * dummy)
 	printk(KERN_DEBUG "... APIC IRR field:\n");
 	print_APIC_bitfield(APIC_IRR);
 
-	if (APIC_INTEGRATED(ver)) {		/* !82489DX */
-		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
-			apic_write(APIC_ESR, 0);
-		v = apic_read(APIC_ESR);
-		printk(KERN_DEBUG "... APIC ESR: %08x\n", v);
-	}
+	v = apic_read(APIC_ESR);
+	printk(KERN_DEBUG "... APIC ESR: %08x\n", v);
 
 	v = apic_read(APIC_ICR);
 	printk(KERN_DEBUG "... APIC ICR: %08x\n", v);

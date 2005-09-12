@@ -109,11 +109,8 @@ void clear_local_APIC(void)
 	if (maxlvt >= 4)
 		apic_write_around(APIC_LVTPC, APIC_LVT_MASKED);
 	v = GET_APIC_VERSION(apic_read(APIC_LVR));
-	if (APIC_INTEGRATED(v)) {	/* !82489DX */
-		if (maxlvt > 3)		/* Due to Pentium errata 3AP and 11AP. */
-			apic_write(APIC_ESR, 0);
-		apic_read(APIC_ESR);
-	}
+	apic_write(APIC_ESR, 0);
+	apic_read(APIC_ESR);
 }
 
 void __init connect_bsp_APIC(void)
@@ -316,8 +313,6 @@ void __init init_bsp_APIC(void)
 	 */
 	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
 	value = APIC_DM_NMI;
-	if (!APIC_INTEGRATED(ver))		/* 82489DX */
-		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 }
 
@@ -422,15 +417,11 @@ void __cpuinit setup_local_APIC (void)
 		value = APIC_DM_NMI;
 	else
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
-	if (!APIC_INTEGRATED(ver))		/* 82489DX */
-		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 
 	{
 		unsigned oldvalue;
 		maxlvt = get_maxlvt();
-		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
-			apic_write(APIC_ESR, 0);
 		oldvalue = apic_read(APIC_ESR);
 		value = ERROR_APIC_VECTOR;      // enables sending errors
 		apic_write_around(APIC_LVTERR, value);
@@ -674,8 +665,6 @@ static void __setup_APIC_LVTT(unsigned int clocks)
 
 	ver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	lvtt_value = APIC_LVT_TIMER_PERIODIC | LOCAL_TIMER_VECTOR;
-	if (!APIC_INTEGRATED(ver))
-		lvtt_value |= SET_APIC_TIMER_BASE(APIC_TIMER_BASE_DIV);
 	apic_write_around(APIC_LVTT, lvtt_value);
 
 	/*

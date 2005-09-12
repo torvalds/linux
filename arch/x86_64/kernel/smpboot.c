@@ -610,16 +610,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 
 	atomic_set(&init_deasserted, 1);
 
-	/*
-	 * Should we send STARTUP IPIs ?
-	 *
-	 * Determine this based on the APIC version.
-	 * If we don't have an integrated APIC, don't send the STARTUP IPIs.
-	 */
-	if (APIC_INTEGRATED(apic_version[phys_apicid]))
-		num_starts = 2;
-	else
-		num_starts = 0;
+	num_starts = 2;
 
 	/*
 	 * Run STARTUP IPI loop.
