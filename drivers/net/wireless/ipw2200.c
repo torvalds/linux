@@ -7877,10 +7877,7 @@ static void ipw_rebuild_decrypted_skb(struct ipw_priv *priv,
 		memmove(skb->data + IEEE80211_3ADDR_LEN,
 			skb->data + IEEE80211_3ADDR_LEN + 8,
 			skb->len - IEEE80211_3ADDR_LEN - 8);
-		if (fc & IEEE80211_FCTL_MOREFRAGS)
-			skb_trim(skb, skb->len - 16);	/* 2*MIC */
-		else
-			skb_trim(skb, skb->len - 8);	/* MIC */
+		skb_trim(skb, skb->len - 16);	/* CCMP_HDR_LEN + CCMP_MIC_LEN */
 		break;
 	case SEC_LEVEL_2:
 		break;
@@ -7889,10 +7886,7 @@ static void ipw_rebuild_decrypted_skb(struct ipw_priv *priv,
 		memmove(skb->data + IEEE80211_3ADDR_LEN,
 			skb->data + IEEE80211_3ADDR_LEN + 4,
 			skb->len - IEEE80211_3ADDR_LEN - 4);
-		if (fc & IEEE80211_FCTL_MOREFRAGS)
-			skb_trim(skb, skb->len - 8);	/* 2*ICV */
-		else
-			skb_trim(skb, skb->len - 4);	/* ICV */
+		skb_trim(skb, skb->len - 8);	/* IV + ICV */
 		break;
 	case SEC_LEVEL_0:
 		break;
