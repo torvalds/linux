@@ -622,8 +622,7 @@ void __init init_apic_mappings(void)
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	if (boot_cpu_id == -1U)
-		boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
 
 #ifdef CONFIG_X86_IO_APIC
 	{
