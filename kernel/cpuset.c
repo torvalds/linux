@@ -180,6 +180,8 @@ static struct super_block *cpuset_sb = NULL;
  */
 
 static DECLARE_MUTEX(cpuset_sem);
+static struct task_struct *cpuset_sem_owner;
+static int cpuset_sem_depth;
 
 /*
  * The global cpuset semaphore cpuset_sem can be needed by the
@@ -200,16 +202,19 @@ static DECLARE_MUTEX(cpuset_sem);
 
 static inline void cpuset_down(struct semaphore *psem)
 {
-	if (current->cpuset_sem_nest_depth == 0)
+	if (cpuset_sem_owner != current) {
 		down(psem);
-	current->cpuset_sem_nest_depth++;
+		cpuset_sem_owner = current;
+	}
+	cpuset_sem_depth++;
 }
 
 static inline void cpuset_up(struct semaphore *psem)
 {
-	current->cpuset_sem_nest_depth--;
-	if (current->cpuset_sem_nest_depth == 0)
+	if (--cpuset_sem_depth == 0) {
+		cpuset_sem_owner = NULL;
 		up(psem);
+	}
 }
 
 /*
