@@ -381,35 +381,12 @@ void __init clear_kernel_mapping(unsigned long address, unsigned long size)
 	__flush_tlb_all();
 } 
 
-static inline int page_is_ram (unsigned long pagenr)
-{
-	int i;
-
-	for (i = 0; i < e820.nr_map; i++) {
-		unsigned long addr, end;
-
-		if (e820.map[i].type != E820_RAM)	/* not usable memory */
-			continue;
-		/*
-		 *	!!!FIXME!!! Some BIOSen report areas as RAM that
-		 *	are not. Notably the 640->1Mb area. We need a sanity
-		 *	check here.
-		 */
-		addr = (e820.map[i].addr+PAGE_SIZE-1) >> PAGE_SHIFT;
-		end = (e820.map[i].addr+e820.map[i].size) >> PAGE_SHIFT;
-		if  ((pagenr >= addr) && (pagenr < end))
-			return 1;
-	}
-	return 0;
-}
-
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
 
 void __init mem_init(void)
 {
-	int codesize, reservedpages, datasize, initsize;
-	int tmp;
+	long codesize, reservedpages, datasize, initsize;
 
 #ifdef CONFIG_SWIOTLB
 	if (!iommu_aperture &&
@@ -432,25 +409,16 @@ void __init mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 #ifdef CONFIG_NUMA
-	totalram_pages += numa_free_all_bootmem();
-	tmp = 0;
-	/* should count reserved pages here for all nodes */ 
+	totalram_pages = numa_free_all_bootmem();
 #else
 
 #ifdef CONFIG_FLATMEM
 	max_mapnr = end_pfn;
 	if (!mem_map) BUG();
 #endif
-
-	totalram_pages += free_all_bootmem();
-
-	for (tmp = 0; tmp < end_pfn; tmp++)
-		/*
-		 * Only count reserved RAM pages
-		 */
-		if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
-			reservedpages++;
+	totalram_pages = free_all_bootmem();
 #endif
+	reservedpages = end_pfn - totalram_pages - e820_hole_size(0, end_pfn);
 
 	after_bootmem = 1;
 
@@ -467,7 +435,7 @@ void __init mem_init(void)
 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START, 
 				 VSYSCALL_END - VSYSCALL_START);
 
-	printk("Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init)\n",
+	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, %ldk data, %ldk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		end_pfn << (PAGE_SHIFT-10),
 		codesize >> 10,
