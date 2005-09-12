@@ -687,7 +687,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_TIMEOUT) {
-		qp_context->pri_path.ackto = attr->timeout;
+		qp_context->pri_path.ackto = attr->timeout << 3;
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_ACK_TIMEOUT);
 	}
 
