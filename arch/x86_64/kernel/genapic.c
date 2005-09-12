@@ -45,7 +45,7 @@ void __init clustered_apic_check(void)
 	u8 clusters, max_cluster;
 	u8 id;
 	u8 cluster_cnt[NUM_APIC_CLUSTERS];
-	int num_cpus = 0;
+	int max_apic = 0;
 
 #if defined(CONFIG_ACPI)
 	/*
@@ -64,7 +64,8 @@ void __init clustered_apic_check(void)
 		id = bios_cpu_apicid[i];
 		if (id == BAD_APICID)
 			continue;
-		num_cpus++;
+		if (id > max_apic)
+			max_apic = id;
 		cluster_cnt[APIC_CLUSTERID(id)]++;
 	}
 
@@ -79,7 +80,7 @@ void __init clustered_apic_check(void)
 		   we have ACPI platform support for CPU hotplug
 		   we should detect hotplug capablity from ACPI tables and
 		   only do this when really needed. -AK */
-		if (num_cpus <= 8)
+		if (max_apic <= 8)
 			genapic = &apic_flat;
 #endif
  		goto print;
