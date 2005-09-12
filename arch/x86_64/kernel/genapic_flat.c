@@ -38,10 +38,10 @@ static void flat_init_apic_ldr(void)
 	num = smp_processor_id();
 	id = 1UL << num;
 	x86_cpu_to_log_apicid[num] = id;
-	apic_write_around(APIC_DFR, APIC_DFR_FLAT);
+	apic_write(APIC_DFR, APIC_DFR_FLAT);
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
 	val |= SET_APIC_LOGICAL_ID(id);
-	apic_write_around(APIC_LDR, val);
+	apic_write(APIC_LDR, val);
 }
 
 static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
@@ -62,7 +62,7 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	 * prepare target chip field
 	 */
 	cfg = __prepare_ICR2(mask);
-	apic_write_around(APIC_ICR2, cfg);
+	apic_write(APIC_ICR2, cfg);
 
 	/*
 	 * program the ICR
@@ -72,7 +72,7 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 	local_irq_restore(flags);
 }
 

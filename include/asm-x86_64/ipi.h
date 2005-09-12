@@ -66,7 +66,7 @@ static inline void __send_IPI_shortcut(unsigned int shortcut, int vector, unsign
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 
 
@@ -92,7 +92,7 @@ static inline void send_IPI_mask_sequence(cpumask_t mask, int vector)
 		 * prepare target chip field
 		 */
 		cfg = __prepare_ICR2(x86_cpu_to_apicid[query_cpu]);
-		apic_write_around(APIC_ICR2, cfg);
+		apic_write(APIC_ICR2, cfg);
 
 		/*
 		 * program the ICR
@@ -102,7 +102,7 @@ static inline void send_IPI_mask_sequence(cpumask_t mask, int vector)
 		/*
 		 * Send the IPI. The write to APIC_ICR fires this off.
 		 */
-		apic_write_around(APIC_ICR, cfg);
+		apic_write(APIC_ICR, cfg);
 	}
 	local_irq_restore(flags);
 }
