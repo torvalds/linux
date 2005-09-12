@@ -3577,32 +3577,6 @@ task_t *idle_task(int cpu)
 }
 
 /**
- * curr_task - return the current task for a given cpu.
- * @cpu: the processor in question.
- */
-task_t *curr_task(int cpu)
-{
-	return cpu_curr(cpu);
-}
-
-/**
- * set_curr_task - set the current task for a given cpu.
- * @cpu: the processor in question.
- * @p: the task pointer to set.
- *
- * Description: This function must only be used when non-maskable interrupts
- * are serviced on a separate stack.  It allows the architecture to switch the
- * notion of the current task on a cpu in a non-blocking manner.  This function
- * must be called with interrupts disabled, the caller must save the original
- * value of the current task (see curr_task() above) and restore that value
- * before reenabling interrupts.
- */
-void set_curr_task(int cpu, task_t *p)
-{
-	cpu_curr(cpu) = p;
-}
-
-/**
  * find_process_by_pid - find a process with a matching PID value.
  * @pid: the pid in question.
  */
@@ -5628,3 +5602,47 @@ void normalize_rt_tasks(void)
 }
 
 #endif /* CONFIG_MAGIC_SYSRQ */
+
+#ifdef CONFIG_IA64
+/*
+ * These functions are only useful for the IA64 MCA handling.
+ *
+ * They can only be called when the whole system has been
+ * stopped - every CPU needs to be quiescent, and no scheduling
+ * activity can take place. Using them for anything else would
+ * be a serious bug, and as a result, they aren't even visible
+ * under any other configuration.
+ */
+
+/**
+ * curr_task - return the current task for a given cpu.
+ * @cpu: the processor in question.
+ *
+ * ONLY VALID WHEN THE WHOLE SYSTEM IS STOPPED!
+ */
+task_t *curr_task(int cpu)
+{
+	return cpu_curr(cpu);
+}
+
+/**
+ * set_curr_task - set the current task for a given cpu.
+ * @cpu: the processor in question.
+ * @p: the task pointer to set.
+ *
+ * Description: This function must only be used when non-maskable interrupts
+ * are serviced on a separate stack.  It allows the architecture to switch the
+ * notion of the current task on a cpu in a non-blocking manner.  This function
+ * must be called with all CPU's synchronized, and interrupts disabled, the
+ * and caller must save the original value of the current task (see
+ * curr_task() above) and restore that value before reenabling interrupts and
+ * re-starting the system.
+ *
+ * ONLY VALID WHEN THE WHOLE SYSTEM IS STOPPED!
+ */
+void set_curr_task(int cpu, task_t *p)
+{
+	cpu_curr(cpu) = p;
+}
+
+#endif
