@@ -34,9 +34,6 @@ ToDo/Notes:
 	  journals with two different restart pages.  We sanity check both and
 	  either use the only sane one or the more recent one of the two in the
 	  case that both are valid.
-	- Modify fs/ntfs/malloc.h::ntfs_malloc_nofs() to do the kmalloc() based
-	  allocations with __GFP_HIGHMEM, analogous to how the vmalloc() based
-	  allocations are done.
 	- Add fs/ntfs/malloc.h::ntfs_malloc_nofs_nofail() which is analogous to
 	  ntfs_malloc_nofs() but it performs allocations with __GFP_NOFAIL and
 	  hence cannot fail.
@@ -90,7 +87,11 @@ ToDo/Notes:
 	  in the first buffer head instead of a driver global spin lock to
 	  improve scalability.
 	- Minor fix to error handling and error message display in
-	  fs/ntfs/aops.c::ntfs_prepare_nonresident_write(). 
+	  fs/ntfs/aops.c::ntfs_prepare_nonresident_write().
+	- Change the mount options {u,f,d}mask to always parse the number as
+	  an octal number to conform to how chmod(1) works, too.  Thanks to
+	  Giuseppe Bilotta and Horst von Brand for pointing out the errors of
+	  my ways.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
