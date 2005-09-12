@@ -97,19 +97,12 @@ extern void ___rw_write_enter(void);
 /* Alias functions whose names begin with "." and export the aliases.
  * The module references will be fixed up by module_frob_arch_sections.
  */
-#define DOT_ALIAS2(__ret, __x, __arg1, __arg2) \
-	extern __ret __x(__arg1, __arg2); \
-	asm(".weak " #__x);\
-	asm(#__x "=." #__x);
-
-DOT_ALIAS2(int, div, int, int)
-DOT_ALIAS2(int, mul, int, int)
-DOT_ALIAS2(int, rem, int, int)
-DOT_ALIAS2(unsigned, udiv, unsigned, unsigned)
-DOT_ALIAS2(unsigned, umul, unsigned, unsigned)
-DOT_ALIAS2(unsigned, urem, unsigned, unsigned)
-
-#undef DOT_ALIAS2
+extern int _Div(int, int);
+extern int _Mul(int, int);
+extern int _Rem(int, int);
+extern unsigned _Udiv(unsigned, unsigned);
+extern unsigned _Umul(unsigned, unsigned);
+extern unsigned _Urem(unsigned, unsigned);
 
 /* used by various drivers */
 EXPORT_SYMBOL(sparc_cpu_model);
@@ -320,12 +313,12 @@ EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__divdi3);
 
-EXPORT_SYMBOL(rem);
-EXPORT_SYMBOL(urem);
-EXPORT_SYMBOL(mul);
-EXPORT_SYMBOL(umul);
-EXPORT_SYMBOL(div);
-EXPORT_SYMBOL(udiv);
+EXPORT_SYMBOL(_Rem);
+EXPORT_SYMBOL(_Urem);
+EXPORT_SYMBOL(_Mul);
+EXPORT_SYMBOL(_Umul);
+EXPORT_SYMBOL(_Div);
+EXPORT_SYMBOL(_Udiv);
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 EXPORT_SYMBOL(do_BUG);
