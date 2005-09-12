@@ -5789,6 +5789,8 @@ static void ipw_set_hwcrypto_keys(struct ipw_priv *priv)
 		break;
 	case SEC_LEVEL_1:
 		ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_WEP);
+		ipw_set_hw_decrypt_unicast(priv, priv->ieee->sec.level);
+		ipw_set_hw_decrypt_multicast(priv, priv->ieee->sec.level);
 		break;
 	case SEC_LEVEL_0:
 	default:
