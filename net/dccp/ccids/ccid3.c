@@ -1095,6 +1095,10 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 
+	/* Listen socks doesn't have a private CCID block */
+	if (sk->sk_state == DCCP_LISTEN)
+		return;
+
 	BUG_ON(hcrx == NULL);
 
 	info->tcpi_ca_state	= hcrx->ccid3hcrx_state;
@@ -1105,6 +1109,10 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+
+	/* Listen socks doesn't have a private CCID block */
+	if (sk->sk_state == DCCP_LISTEN)
+		return;
 
 	BUG_ON(hctx == NULL);
 
