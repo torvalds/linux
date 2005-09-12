@@ -614,8 +614,9 @@ e1000_probe(struct pci_dev *pdev,
 	if(e1000_read_mac_addr(&adapter->hw))
 		DPRINTK(PROBE, ERR, "EEPROM Read Error\n");
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
+	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 
-	if(!is_valid_ether_addr(netdev->dev_addr)) {
+	if(!is_valid_ether_addr(netdev->perm_addr)) {
 		DPRINTK(PROBE, ERR, "Invalid MAC Address\n");
 		err = -EIO;
 		goto err_eeprom;

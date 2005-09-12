@@ -1739,6 +1739,7 @@ struct ethtool_ops e1000_ethtool_ops = {
 	.phys_id                = e1000_phys_id,
 	.get_stats_count        = e1000_get_stats_count,
 	.get_ethtool_stats      = e1000_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 void e1000_set_ethtool_ops(struct net_device *netdev)
