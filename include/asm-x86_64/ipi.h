@@ -31,9 +31,20 @@
 
 static inline unsigned int __prepare_ICR (unsigned int shortcut, int vector, unsigned int dest)
 {
-	unsigned int icr =  APIC_DM_FIXED | shortcut | vector | dest;
-	if (vector == KDB_VECTOR)
-		icr = (icr & (~APIC_VECTOR_MASK)) | APIC_DM_NMI;
+	unsigned int icr = shortcut | dest;
+
+	switch (vector) {
+	default:
+		icr |= APIC_DM_FIXED | vector;
+		break;
+	case NMI_VECTOR:
+		/*
+		 * Setup KDB IPI to be delivered as an NMI
+		 */
+	case KDB_VECTOR:
+		icr |= APIC_DM_NMI;
+		break;
+	}
 	return icr;
 }
 
