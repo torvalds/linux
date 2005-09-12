@@ -343,30 +343,33 @@ void out_of_line_bug(void)
 static DEFINE_SPINLOCK(die_lock);
 static int die_owner = -1;
 
-void oops_begin(void)
+unsigned long oops_begin(void)
 {
-	int cpu = safe_smp_processor_id(); 
-	/* racy, but better than risking deadlock. */ 
-	local_irq_disable();
+	int cpu = safe_smp_processor_id();
+	unsigned long flags;
+
+	/* racy, but better than risking deadlock. */
+	local_irq_save(flags);
 	if (!spin_trylock(&die_lock)) { 
 		if (cpu == die_owner) 
 			/* nested oops. should stop eventually */;
 		else
-			spin_lock(&die_lock); 
+			spin_lock(&die_lock);
 	}
-	die_owner = cpu; 
+	die_owner = cpu;
 	console_verbose();
-	bust_spinlocks(1); 
+	bust_spinlocks(1);
+	return flags;
 }
 
-void oops_end(void)
+void oops_end(unsigned long flags)
 { 
 	die_owner = -1;
-	bust_spinlocks(0); 
-	spin_unlock(&die_lock); 
+	bust_spinlocks(0);
+	spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
-		panic("Oops"); 
-} 
+		panic("Oops");
+}
 
 void __die(const char * str, struct pt_regs * regs, long err)
 {
@@ -392,10 +395,11 @@ void __die(const char * str, struct pt_regs * regs, long err)
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
-	oops_begin();
+	unsigned long flags = oops_begin();
+
 	handle_BUG(regs);
 	__die(str, regs, err);
-	oops_end();
+	oops_end(flags);
 	do_exit(SIGSEGV); 
 }
 static inline void die_if_kernel(const char * str, struct pt_regs * regs, long err)
@@ -406,7 +410,8 @@ static inline void die_if_kernel(const char * str, struct pt_regs * regs, long e
 
 void die_nmi(char *str, struct pt_regs *regs)
 {
-	oops_begin();
+	unsigned long flags = oops_begin();
+
 	/*
 	 * We are in trouble anyway, lets at least try
 	 * to get a message out.
@@ -416,7 +421,7 @@ void die_nmi(char *str, struct pt_regs *regs)
 	if (panic_on_timeout || panic_on_oops)
 		panic("nmi watchdog");
 	printk("console shuts up ...\n");
-	oops_end();
+	oops_end(flags);
 	do_exit(SIGSEGV);
 }
 
