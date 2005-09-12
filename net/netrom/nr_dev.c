@@ -160,10 +160,9 @@ static int nr_close(struct net_device *dev)
 
 static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = netdev_priv(dev);
-	unsigned int len;
-
-	len = skb->len;
+	struct nr_private *nr = netdev_priv(dev);
+	struct net_device_stats *stats = &nr->stats;
+	unsigned int len = skb->len;
 
 	if (!nr_route_frame(skb, NULL)) {
 		kfree_skb(skb);
@@ -179,7 +178,9 @@ static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *nr_get_stats(struct net_device *dev)
 {
-	return netdev_priv(dev);
+	struct nr_private *nr = netdev_priv(dev);
+
+	return &nr->stats;
 }
 
 void nr_setup(struct net_device *dev)

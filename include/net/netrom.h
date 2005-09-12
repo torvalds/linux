@@ -6,6 +6,7 @@
 
 #ifndef _NETROM_H
 #define _NETROM_H 
+
 #include <linux/netrom.h>
 #include <linux/list.h>
 #include <net/sock.h>
@@ -57,6 +58,10 @@ enum {
 #define NR_MODULUS 			256
 #define NR_MAX_WINDOW_SIZE		127			/* Maximum Window Allowable - 127 */
 #define	NR_MAX_PACKET_SIZE		236			/* Maximum Packet Length - 236 */
+
+struct nr_private {
+	struct net_device_stats	stats;
+};
 
 struct nr_sock {
 	struct sock		sock;
