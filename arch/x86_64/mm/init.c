@@ -411,11 +411,6 @@ void __init mem_init(void)
 #ifdef CONFIG_NUMA
 	totalram_pages = numa_free_all_bootmem();
 #else
-
-#ifdef CONFIG_FLATMEM
-	max_mapnr = end_pfn;
-	if (!mem_map) BUG();
-#endif
 	totalram_pages = free_all_bootmem();
 #endif
 	reservedpages = end_pfn - totalram_pages - e820_hole_size(0, end_pfn);

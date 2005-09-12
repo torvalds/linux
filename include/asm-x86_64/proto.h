@@ -93,8 +93,6 @@ extern int unhandled_signal(struct task_struct *tsk, int sig);
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 extern void swiotlb_init(void);
 
-extern unsigned long max_mapnr;
-extern unsigned long end_pfn; 
 extern unsigned long table_start, table_end;
 
 extern int exception_trace;
