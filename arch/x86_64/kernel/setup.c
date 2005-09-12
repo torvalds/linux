@@ -755,6 +755,24 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
+#ifdef CONFIG_NUMA
+static int nearby_node(int apicid)
+{
+	int i;
+	for (i = apicid - 1; i >= 0; i--) {
+		int node = apicid_to_node[i];
+		if (node != NUMA_NO_NODE && node_online(node))
+			return node;
+	}
+	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
+		int node = apicid_to_node[i];
+		if (node != NUMA_NO_NODE && node_online(node))
+			return node;
+	}
+	return first_node(node_online_map); /* Shouldn't happen */
+}
+#endif
+
 /*
  * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
  * Assumes number of cores is a power of two.
@@ -763,9 +781,11 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
-	int node = 0;
 	unsigned bits;
+#ifdef CONFIG_NUMA
+	int node = 0;
 	unsigned apicid = phys_proc_id[cpu];
+#endif
 
 	bits = 0;
 	while ((1 << bits) < c->x86_num_cores)
@@ -777,24 +797,32 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	phys_proc_id[cpu] >>= bits;
 
 #ifdef CONFIG_NUMA
-	/* When an ACPI SRAT table is available use the mappings from SRAT
-	   instead. */
-	node = phys_proc_id[cpu];
-	if (acpi_numa > 0) {
-		if (apicid_to_node[apicid] != NUMA_NO_NODE)
-			node = apicid_to_node[apicid];
-		else
-			printk(KERN_ERR
-			       "SRAT: Didn't specify node for CPU %d(%d)\n",
-			       cpu, apicid);
-	}
-	if (!node_online(node))
-		node = first_node(node_online_map);
-	cpu_to_node[cpu] = node;
-#endif
+  	node = phys_proc_id[cpu];
+ 	if (apicid_to_node[apicid] != NUMA_NO_NODE)
+ 		node = apicid_to_node[apicid];
+ 	if (!node_online(node)) {
+ 		/* Two possibilities here:
+ 		   - The CPU is missing memory and no node was created.
+ 		   In that case try picking one from a nearby CPU
+ 		   - The APIC IDs differ from the HyperTransport node IDs
+ 		   which the K8 northbridge parsing fills in.
+ 		   Assume they are all increased by a constant offset,
+ 		   but in the same order as the HT nodeids.
+ 		   If that doesn't result in a usable node fall back to the
+ 		   path for the previous case.  */
+ 		int ht_nodeid = apicid - (phys_proc_id[0] << bits);
+ 		if (ht_nodeid >= 0 &&
+ 		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
+ 			node = apicid_to_node[ht_nodeid];
+ 		/* Pick a nearby node */
+ 		if (!node_online(node))
+ 			node = nearby_node(apicid);
+ 	}
+  	cpu_to_node[cpu] = node;
 
-	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
-			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
+  	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
+  			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
+#endif
 #endif
 }
 
