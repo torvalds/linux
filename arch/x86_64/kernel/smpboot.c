@@ -859,17 +859,6 @@ static __cpuinit void smp_cleanup_boot(void)
 	 * Reset trampoline flag
 	 */
 	*((volatile int *) phys_to_virt(0x467)) = 0;
-
-#ifndef CONFIG_HOTPLUG_CPU
-	/*
-	 * Free pages reserved for SMP bootup.
-	 * When you add hotplug CPU support later remove this
-	 * Note there is more work to be done for later CPU bootup.
-	 */
-
-	free_page((unsigned long) __va(PAGE_SIZE));
-	free_page((unsigned long) __va(SMP_TRAMPOLINE_BASE));
-#endif
 }
 
 /*
