@@ -1017,27 +1017,16 @@ static int ftl_writesect(struct mtd_blktrans_dev *dev,
 
 void ftl_freepart(partition_t *part)
 {
-    if (part->VirtualBlockMap) {
 	vfree(part->VirtualBlockMap);
 	part->VirtualBlockMap = NULL;
-    }
-    if (part->VirtualPageMap) {
 	kfree(part->VirtualPageMap);
 	part->VirtualPageMap = NULL;
-    }
-    if (part->EUNInfo) {
 	kfree(part->EUNInfo);
 	part->EUNInfo = NULL;
-    }
-    if (part->XferInfo) {
 	kfree(part->XferInfo);
 	part->XferInfo = NULL;
-    }
-    if (part->bam_cache) {
 	kfree(part->bam_cache);
 	part->bam_cache = NULL;
-    }
-    
 } /* ftl_freepart */
 
 static void ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)

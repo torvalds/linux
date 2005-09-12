@@ -123,8 +123,7 @@ DEFINE_RWLOCK(addrconf_lock);
 
 static void addrconf_verify(unsigned long);
 
-static struct timer_list addr_chk_timer =
-			TIMER_INITIALIZER(addrconf_verify, 0, 0);
+static DEFINE_TIMER(addr_chk_timer, addrconf_verify, 0, 0);
 static DEFINE_SPINLOCK(addrconf_verify_lock);
 
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp);

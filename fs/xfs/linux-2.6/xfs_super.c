@@ -467,7 +467,7 @@ xfs_flush_inode(
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_inode_work);
-	delay(HZ/2);
+	delay(msecs_to_jiffies(500));
 }
 
 /*
@@ -492,7 +492,7 @@ xfs_flush_device(
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_device_work);
-	delay(HZ/2);
+	delay(msecs_to_jiffies(500));
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
@@ -520,10 +520,9 @@ xfssyncd(
 	struct vfs_sync_work	*work, *n;
 	LIST_HEAD		(tmp);
 
-	timeleft = (xfs_syncd_centisecs * HZ) / 100;
+	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		timeleft = schedule_timeout(timeleft);
+		timeleft = schedule_timeout_interruptible(timeleft);
 		/* swsusp */
 		try_to_freeze();
 		if (kthread_should_stop())
@@ -537,7 +536,8 @@ xfssyncd(
 		 */
 		if (!timeleft || list_empty(&vfsp->vfs_sync_list)) {
 			if (!timeleft)
-				timeleft = (xfs_syncd_centisecs * HZ) / 100;
+				timeleft = xfs_syncd_centisecs *
+							msecs_to_jiffies(10);
 			INIT_LIST_HEAD(&vfsp->vfs_sync_work.w_list);
 			list_add_tail(&vfsp->vfs_sync_work.w_list,
 					&vfsp->vfs_sync_list);

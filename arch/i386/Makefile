@@ -156,15 +156,6 @@ install: vmlinux
 install kernel_install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
 
-prepare: include/asm-$(ARCH)/asm_offsets.h
-CLEAN_FILES += include/asm-$(ARCH)/asm_offsets.h
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
 archclean:
 	$(Q)$(MAKE) $(clean)=arch/i386/boot
 

@@ -38,10 +38,10 @@ static void flat_init_apic_ldr(void)
 	num = smp_processor_id();
 	id = 1UL << num;
 	x86_cpu_to_log_apicid[num] = id;
-	apic_write_around(APIC_DFR, APIC_DFR_FLAT);
+	apic_write(APIC_DFR, APIC_DFR_FLAT);
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
 	val |= SET_APIC_LOGICAL_ID(id);
-	apic_write_around(APIC_LDR, val);
+	apic_write(APIC_LDR, val);
 }
 
 static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
@@ -62,7 +62,7 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	 * prepare target chip field
 	 */
 	cfg = __prepare_ICR2(mask);
-	apic_write_around(APIC_ICR2, cfg);
+	apic_write(APIC_ICR2, cfg);
 
 	/*
 	 * program the ICR
@@ -72,14 +72,24 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 	local_irq_restore(flags);
 }
 
 static void flat_send_IPI_allbutself(int vector)
 {
+#ifndef CONFIG_HOTPLUG_CPU
 	if (((num_online_cpus()) - 1) >= 1)
 		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
+#else
+	cpumask_t allbutme = cpu_online_map;
+	int me = get_cpu(); /* Ensure we are not preempted when we clear */
+	cpu_clear(me, allbutme);
+
+	if (!cpus_empty(allbutme))
+		flat_send_IPI_mask(allbutme, vector);
+	put_cpu();
+#endif
 }
 
 static void flat_send_IPI_all(int vector)
@@ -167,9 +177,9 @@ static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
 
 struct genapic apic_physflat =  {
 	.name = "physical flat",
-	.int_delivery_mode = dest_LowestPrio,
+	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
-	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_LOWEST,
+	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_FIXED,
 	.target_cpus = physflat_target_cpus,
 	.apic_id_registered = flat_apic_id_registered,
 	.init_apic_ldr = flat_init_apic_ldr,/*not needed, but shouldn't hurt*/

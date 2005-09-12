@@ -59,8 +59,6 @@ char mce_data_buf[RTAS_ERROR_LOG_MAX]
 /* This is true if we are using the firmware NMI handler (typically LPAR) */
 extern int fwnmi_active;
 
-extern void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr);
-
 static int ras_get_sensor_state_token;
 static int ras_check_exception_token;
 

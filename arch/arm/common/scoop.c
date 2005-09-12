@@ -91,7 +91,7 @@ EXPORT_SYMBOL(read_scoop_reg);
 EXPORT_SYMBOL(write_scoop_reg);
 
 #ifdef CONFIG_PM
-static int scoop_suspend(struct device *dev, uint32_t state, uint32_t level)
+static int scoop_suspend(struct device *dev, pm_message_t state, uint32_t level)
 {
 	if (level == SUSPEND_POWER_DOWN) {
 		struct scoop_dev *sdev = dev_get_drvdata(dev);

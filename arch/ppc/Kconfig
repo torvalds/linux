@@ -265,6 +265,15 @@ config PPC601_SYNC_FIX
 
 	  If in doubt, say Y here.
 
+config HOTPLUG_CPU
+	bool "Support for enabling/disabling CPUs"
+	depends on SMP && HOTPLUG && EXPERIMENTAL && PPC_PMAC
+	---help---
+	  Say Y here to be able to disable and re-enable individual
+	  CPUs at runtime on SMP machines.
+
+	  Say N if you are unsure.
+
 source arch/ppc/platforms/4xx/Kconfig
 source arch/ppc/platforms/85xx/Kconfig
 
@@ -499,11 +508,6 @@ config WINCEPT
 	  MPC821 PowerPC, introduced in 1998 and designed to be used in
 	  thin-client machines.  Say Y to support it directly.
 
-	  Be aware that PCI buses can only function when SYS board is plugged
-	  into the PIB (Platform IO Board) board from Freescale which provide
-	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
-	  responsiblilty.
-
 endchoice
 
 choice
@@ -679,6 +683,11 @@ config MPC834x_SYS
 	bool "Freescale MPC834x SYS"
 	help
 	  This option enables support for the MPC 834x SYS evaluation board.
+
+	  Be aware that PCI buses can only function when SYS board is plugged
+	  into the PIB (Platform IO Board) board from Freescale which provide
+	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
+	  responsiblilty.
 
 config EV64360
 	bool "Marvell-EV64360BP"

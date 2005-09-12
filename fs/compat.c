@@ -1619,6 +1619,7 @@ compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp
 	char *bits;
 	long timeout;
 	int size, max_fdset, ret = -EINVAL;
+	struct fdtable *fdt;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
@@ -1644,7 +1645,10 @@ compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp
 		goto out_nofds;
 
 	/* max_fdset can increase, so grab it once to avoid race */
-	max_fdset = current->files->max_fdset;
+	rcu_read_lock();
+	fdt = files_fdtable(current->files);
+	max_fdset = fdt->max_fdset;
+	rcu_read_unlock();
 	if (n > max_fdset)
 		n = max_fdset;
 

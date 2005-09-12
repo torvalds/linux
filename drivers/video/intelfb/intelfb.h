@@ -234,7 +234,6 @@ struct intelfb_info {
 
 	/* palette */
 	u32 pseudo_palette[17];
-	struct { u8 red, green, blue, pad; } palette[256];
 
 	/* chip info */
 	int pci_chipset;

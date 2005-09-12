@@ -1,0 +1,74 @@
+Refcounter framework for elements of lists/arrays protected by
+RCU.
+
+Refcounting on elements of  lists which are protected by traditional
+reader/writer spinlocks or semaphores are straight forward as in:
+
+1.					2.
+add()					search_and_reference()
+{					{
+	alloc_object				read_lock(&list_lock);
+	...					search_for_element
+	atomic_set(&el->rc, 1);			atomic_inc(&el->rc);
+	write_lock(&list_lock);			...
+	add_element				read_unlock(&list_lock);
+	...					...
+	write_unlock(&list_lock);	}
+}
+
+3.					4.
+release_referenced()			delete()
+{					{
+	...				write_lock(&list_lock);
+	atomic_dec(&el->rc, relfunc)	...
+	...				delete_element
+}					write_unlock(&list_lock);
+ 					...
+					if (atomic_dec_and_test(&el->rc))
+						kfree(el);
+					...
+					}
+
+If this list/array is made lock free using rcu as in changing the
+write_lock in add() and delete() to spin_lock and changing read_lock
+in search_and_reference to rcu_read_lock(), the rcuref_get in
+search_and_reference could potentially hold reference to an element which
+has already been deleted from the list/array.  rcuref_lf_get_rcu takes
+care of this scenario. search_and_reference should look as;
+
+1.					2.
+add()					search_and_reference()
+{					{
+ 	alloc_object				rcu_read_lock();
+	...					search_for_element
+	atomic_set(&el->rc, 1);			if (rcuref_inc_lf(&el->rc)) {
+	write_lock(&list_lock);				rcu_read_unlock();
+							return FAIL;
+	add_element				}
+	...					...
+	write_unlock(&list_lock);		rcu_read_unlock();
+}					}
+3.					4.
+release_referenced()			delete()
+{					{
+	...				write_lock(&list_lock);
+	rcuref_dec(&el->rc, relfunc)	...
+	...				delete_element
+}					write_unlock(&list_lock);
+ 					...
+					if (rcuref_dec_and_test(&el->rc))
+						call_rcu(&el->head, el_free);
+					...
+					}
+
+Sometimes, reference to the element need to be obtained in the
+update (write) stream.  In such cases, rcuref_inc_lf might be an overkill
+since the spinlock serialising list updates are held. rcuref_inc
+is to be used in such cases.
+For arches which do not have cmpxchg rcuref_inc_lf
+api uses a hashed spinlock implementation and the same hashed spinlock
+is acquired in all rcuref_xxx primitives to preserve atomicity.
+Note: Use rcuref_inc api only if you need to use rcuref_inc_lf on the
+refcounter atleast at one place.  Mixing rcuref_inc and atomic_xxx api
+might lead to races. rcuref_inc_lf() must be used in lockfree
+RCU critical sections only.

@@ -44,7 +44,7 @@
 #include <asm/break.h>
 #include <asm/ia32.h>
 #include <asm/kregs.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
@@ -69,7 +69,6 @@
 # define DBG_FAULT(i)
 #endif
 
-#define MINSTATE_VIRT	/* needed by minstate.h */
 #include "minstate.h"
 
 #define FAULT(n)									\

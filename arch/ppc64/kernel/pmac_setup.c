@@ -477,6 +477,18 @@ static int __init pmac_probe(int platform)
 	return 1;
 }
 
+static int pmac_probe_mode(struct pci_bus *bus)
+{
+	struct device_node *node = bus->sysdata;
+
+	/* We need to use normal PCI probing for the AGP bus,
+	   since the device for the AGP bridge isn't in the tree. */
+	if (bus->self == NULL && device_is_compatible(node, "u3-agp"))
+		return PCI_PROBE_NORMAL;
+
+	return PCI_PROBE_DEVTREE;
+}
+
 struct machdep_calls __initdata pmac_md = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= generic_mach_cpu_die,
@@ -488,6 +500,7 @@ struct machdep_calls __initdata pmac_md = {
 	.init_IRQ		= pmac_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.pcibios_fixup		= pmac_pcibios_fixup,
+	.pci_probe_mode		= pmac_probe_mode,
 	.restart		= pmac_restart,
 	.power_off		= pmac_power_off,
 	.halt			= pmac_halt,

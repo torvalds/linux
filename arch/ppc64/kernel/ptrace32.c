@@ -17,6 +17,7 @@
  * this archive for more details.
  */
 
+#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -337,6 +338,19 @@ int sys32_ptrace(long request, long pid, unsigned long addr, unsigned long data)
 		break;
 	}
 
+	case PTRACE_GET_DEBUGREG: {
+		ret = -EINVAL;
+		/* We only support one DABR and no IABRS at the moment */
+		if (addr > 0)
+			break;
+		ret = put_user(child->thread.dabr, (u32 __user *)data);
+		break;
+	}
+
+	case PTRACE_SET_DEBUGREG:
+		ret = ptrace_set_debugreg(child, addr, data);
+		break;
+
 	case PTRACE_DETACH:
 		ret = ptrace_detach(child, data);
 		break;
@@ -405,9 +419,23 @@ int sys32_ptrace(long request, long pid, unsigned long addr, unsigned long data)
 		break;
 	}
 
-       case PTRACE_GETEVENTMSG:
-                ret = put_user(child->ptrace_message, (unsigned int __user *) data);
-                break;
+	case PTRACE_GETEVENTMSG:
+		ret = put_user(child->ptrace_message, (unsigned int __user *) data);
+		break;
+
+#ifdef CONFIG_ALTIVEC
+	case PTRACE_GETVRREGS:
+		/* Get the child altivec register state. */
+		flush_altivec_to_thread(child);
+		ret = get_vrregs((unsigned long __user *)data, child);
+		break;
+
+	case PTRACE_SETVRREGS:
+		/* Set the child altivec register state. */
+		flush_altivec_to_thread(child);
+		ret = set_vrregs(child, (unsigned long __user *)data);
+		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);

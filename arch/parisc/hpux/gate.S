@@ -9,7 +9,7 @@
  */
 
 #include <asm/assembly.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>
 

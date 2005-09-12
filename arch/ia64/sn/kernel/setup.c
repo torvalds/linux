@@ -49,6 +49,7 @@
 #include <asm/sn/clksupport.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/geo.h>
+#include <asm/sn/sn_feature_sets.h>
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
 #include <asm/sn/klconfig.h>
@@ -97,6 +98,7 @@ EXPORT_SYMBOL(sn_region_size);
 int sn_prom_type;	/* 0=hardware, 1=medusa/realprom, 2=medusa/fakeprom */
 
 short physical_node_map[MAX_PHYSNODE_ID];
+static unsigned long sn_prom_features[MAX_PROM_FEATURE_SETS];
 
 EXPORT_SYMBOL(physical_node_map);
 
@@ -271,7 +273,10 @@ void __init sn_setup(char **cmdline_p)
 	u32 version = sn_sal_rev();
 	extern void sn_cpu_init(void);
 
-	ia64_sn_plat_set_error_handling_features();
+	ia64_sn_plat_set_error_handling_features();	// obsolete
+	ia64_sn_set_os_feature(OSF_MCA_SLV_TO_OS_INIT_SLV);
+	ia64_sn_set_os_feature(OSF_FEAT_LOG_SBES);
+
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 	/*
@@ -313,16 +318,6 @@ void __init sn_setup(char **cmdline_p)
 	}
 
 	printk("SGI SAL version %x.%02x\n", version >> 8, version & 0x00FF);
-
-	/*
-	 * Confirm the SAL we're running on is recent enough...
-	 */
-	if (version < SN_SAL_MIN_VERSION) {
-		printk(KERN_ERR "This kernel needs SGI SAL version >= "
-		       "%x.%02x\n", SN_SAL_MIN_VERSION >> 8,
-		        SN_SAL_MIN_VERSION & 0x00FF);
-		panic("PROM version too old\n");
-	}
 
 	master_nasid = boot_get_nasid();
 
@@ -479,6 +474,10 @@ void __init sn_cpu_init(void)
 	 */
 	if (nodepdaindr[0] == NULL)
 		return;
+
+	for (i = 0; i < MAX_PROM_FEATURE_SETS; i++)
+		if (ia64_sn_get_prom_feature_set(i, &sn_prom_features[i]) != 0)
+			break;
 
 	cpuid = smp_processor_id();
 	cpuphyid = get_sapicid();
@@ -651,3 +650,12 @@ nasid_slice_to_cpuid(int nasid, int slice)
 
 	return -1;
 }
+
+int sn_prom_feature_available(int id)
+{
+	if (id >= BITS_PER_LONG * MAX_PROM_FEATURE_SETS)
+		return 0;
+	return test_bit(id, sn_prom_features);
+}
+EXPORT_SYMBOL(sn_prom_feature_available);
+

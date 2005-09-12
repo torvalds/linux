@@ -113,32 +113,6 @@ static DEFINE_IDR(query_idr);
 static spinlock_t tid_lock;
 static u32 tid;
 
-enum {
-	IB_SA_ATTR_CLASS_PORTINFO    = 0x01,
-	IB_SA_ATTR_NOTICE	     = 0x02,
-	IB_SA_ATTR_INFORM_INFO	     = 0x03,
-	IB_SA_ATTR_NODE_REC	     = 0x11,
-	IB_SA_ATTR_PORT_INFO_REC     = 0x12,
-	IB_SA_ATTR_SL2VL_REC	     = 0x13,
-	IB_SA_ATTR_SWITCH_REC	     = 0x14,
-	IB_SA_ATTR_LINEAR_FDB_REC    = 0x15,
-	IB_SA_ATTR_RANDOM_FDB_REC    = 0x16,
-	IB_SA_ATTR_MCAST_FDB_REC     = 0x17,
-	IB_SA_ATTR_SM_INFO_REC	     = 0x18,
-	IB_SA_ATTR_LINK_REC	     = 0x20,
-	IB_SA_ATTR_GUID_INFO_REC     = 0x30,
-	IB_SA_ATTR_SERVICE_REC	     = 0x31,
-	IB_SA_ATTR_PARTITION_REC     = 0x33,
-	IB_SA_ATTR_RANGE_REC	     = 0x34,
-	IB_SA_ATTR_PATH_REC	     = 0x35,
-	IB_SA_ATTR_VL_ARB_REC	     = 0x36,
-	IB_SA_ATTR_MC_GROUP_REC	     = 0x37,
-	IB_SA_ATTR_MC_MEMBER_REC     = 0x38,
-	IB_SA_ATTR_TRACE_REC	     = 0x39,
-	IB_SA_ATTR_MULTI_PATH_REC    = 0x3a,
-	IB_SA_ATTR_SERVICE_ASSOC_REC = 0x3b
-};
-
 #define PATH_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct ib_sa_path_rec, field),		\
 	.struct_size_bytes   = sizeof ((struct ib_sa_path_rec *) 0)->field,	\
@@ -431,8 +405,8 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 	    event->event == IB_EVENT_LID_CHANGE  ||
 	    event->event == IB_EVENT_PKEY_CHANGE ||
 	    event->event == IB_EVENT_SM_CHANGE) {
-		struct ib_sa_device *sa_dev =
-			ib_get_client_data(event->device, &sa_client);
+		struct ib_sa_device *sa_dev;
+		sa_dev = container_of(handler, typeof(*sa_dev), event_handler);
 
 		schedule_work(&sa_dev->port[event->element.port_num -
 					    sa_dev->start_port].update_task);

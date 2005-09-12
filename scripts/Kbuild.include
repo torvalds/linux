@@ -49,6 +49,9 @@ build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 cmd = @$(if $($(quiet)cmd_$(1)),\
       echo '  $(subst ','\'',$($(quiet)cmd_$(1)))' &&) $(cmd_$(1))
 
+# Add $(obj)/ for paths that is not absolute
+objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
+
 ###
 # if_changed      - execute command if any prerequisite is newer than 
 #                   target, or command line has changed

@@ -43,7 +43,7 @@
 #include <asm/mmu.h>
 #include <asm/irq.h>
 #include <asm/atomic.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/coprocessor.h>
 
 extern void ret_from_fork(void);

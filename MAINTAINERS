@@ -626,6 +626,12 @@ M:	rmk@arm.linux.org.uk
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
+CYBLAFB FRAMEBUFFER DRIVER
+P:	Knut Petersen
+M:	Knut_Petersen@t-online.de
+L:	linux-fbdev-devel@lists.sourceforge.net
+S:	Maintained
+
 CYCLADES 2X SYNC CARD DRIVER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
@@ -924,6 +930,13 @@ FTAPE/QIC-117
 L:	linux-tape@vger.kernel.org
 W:	http://sourceforge.net/projects/ftape
 S:	Orphan
+
+FUSE: FILESYSTEM IN USERSPACE
+P:	Miklos Szeredi
+M:	miklos@szeredi.hu
+L:	fuse-devel@lists.sourceforge.net
+W:	http://fuse.sourceforge.net/
+S:	Maintained
 
 FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
 P:	Rik Faith
@@ -2683,6 +2696,17 @@ M:	miquel@df.uba.ar
 L:	rio500-users@lists.sourceforge.net
 W:	http://rio500.sourceforge.net
 S:	Maintained
+
+V9FS FILE SYSTEM
+P:      Eric Van Hensbergen
+M:      ericvh@gmail.com
+P:      Ron Minnich
+M:      rminnich@lanl.gov
+P:      Latchesar Ionkov
+M:      lucho@ionkov.net
+L:      v9fs-developer@lists.sourceforge.net
+W:      http://v9fs.sf.net
+S:      Maintained
 
 VIDEO FOR LINUX
 P:	Mauro Carvalho Chehab

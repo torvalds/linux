@@ -7,7 +7,7 @@
  */
 
 #include <asm/unistd.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 
 /* XXX

@@ -593,7 +593,8 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 		rmpp_mad->rmpp_hdr.paylen_newwin =
 			cpu_to_be32(mad_send_wr->total_seg *
 				    (sizeof(struct ib_rmpp_mad) -
-				       offsetof(struct ib_rmpp_mad, data)));
+				       offsetof(struct ib_rmpp_mad, data)) -
+				    mad_send_wr->pad);
 		mad_send_wr->sg_list[0].length = sizeof(struct ib_rmpp_mad);
 	} else {
 		mad_send_wr->send_wr.num_sge = 2;
@@ -602,6 +603,7 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 		mad_send_wr->sg_list[1].length = sizeof(struct ib_rmpp_mad) -
 						 mad_send_wr->data_offset;
 		mad_send_wr->sg_list[1].lkey = mad_send_wr->sg_list[0].lkey;
+		rmpp_mad->rmpp_hdr.paylen_newwin = 0;
 	}
 
 	if (mad_send_wr->seg_num == mad_send_wr->total_seg) {

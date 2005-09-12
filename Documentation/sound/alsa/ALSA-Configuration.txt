@@ -1459,7 +1459,7 @@ devices where %i is sound card number from zero to seven.
 To auto-load an ALSA driver for OSS services, define the string
 'sound-slot-%i' where %i means the slot number for OSS, which
 corresponds to the card index of ALSA.  Usually, define this
-as the the same card module.
+as the same card module.
 
 An example configuration for a single emu10k1 card is like below:
 ----- /etc/modprobe.conf

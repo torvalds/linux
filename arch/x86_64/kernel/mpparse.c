@@ -14,7 +14,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/config.h>
@@ -46,8 +45,6 @@ int acpi_found_madt;
 int apic_version [MAX_APICS];
 unsigned char mp_bus_id_to_type [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
-unsigned char pci_bus_to_node [256];
-EXPORT_SYMBOL(pci_bus_to_node);
 
 static int mp_current_pci_id = 0;
 /* I/O APIC entries */
@@ -705,7 +702,7 @@ void __init mp_register_lapic (
 
 	processor.mpc_type = MP_PROCESSOR;
 	processor.mpc_apicid = id;
-	processor.mpc_apicver = 0x10; /* TBD: lapic version */
+	processor.mpc_apicver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	processor.mpc_cpuflag = (enabled ? CPU_ENABLED : 0);
 	processor.mpc_cpuflag |= (boot_cpu ? CPU_BOOTPROCESSOR : 0);
 	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) | 

@@ -1,5 +1,4 @@
 /*
- * $Id: cx88-cards.c,v 1.90 2005/07/28 02:47:42 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
@@ -499,9 +498,6 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
                         .type   = CX88_VMUX_DVB,
                         .vmux   = 0,
-		},{
-			.type   = CX88_VMUX_SVIDEO,
-			.vmux   = 2,
                 }},
 		.dvb            = 1,
 	},
@@ -614,12 +610,12 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.gpio0  = 0xed12,  // internal decoder
+			.gpio0  = 0xed12,  /* internal decoder */
 			.gpio2  = 0x00ff,
 		},{
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
-			.gpio0  = 0xff01,  // mono from tuner chip
+			.gpio0  = 0xff01,  /* mono from tuner chip */
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
@@ -715,19 +711,18 @@ struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		/*  See DViCO FusionHDTV 3 Gold-Q for GPIO documentation.  */
 		.input          = {{
                         .type   = CX88_VMUX_TELEVISION,
                         .vmux   = 0,
-                        .gpio0  = 0x0f0d,
+                        .gpio0  = 0x97ed,
                 },{
                         .type   = CX88_VMUX_COMPOSITE1,
                         .vmux   = 1,
-                        .gpio0  = 0x0f00,
+                        .gpio0  = 0x97e9,
                 },{
                         .type   = CX88_VMUX_SVIDEO,
                         .vmux   = 2,
-                        .gpio0  = 0x0f00,
+                        .gpio0  = 0x97e9,
                 }},
 		.dvb            = 1,
         },
@@ -765,20 +760,21 @@ struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		/*  See DViCO FusionHDTV 3 Gold-Q for GPIO documentation.  */
+		.tda9887_conf   = TDA9887_PRESENT,
 		.input          = {{
                         .type   = CX88_VMUX_TELEVISION,
                         .vmux   = 0,
-                        .gpio0  = 0x0f0d,
+                        .gpio0  = 0x87fd,
                 },{
                         .type   = CX88_VMUX_COMPOSITE1,
                         .vmux   = 1,
-                        .gpio0  = 0x0f00,
+                        .gpio0  = 0x87f9,
                 },{
                         .type   = CX88_VMUX_SVIDEO,
                         .vmux   = 2,
-                        .gpio0  = 0x0f00,
+                        .gpio0  = 0x87f9,
                 }},
+		.dvb            = 1,
 	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
@@ -949,7 +945,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&tv, eeprom_data);
+	tveeprom_hauppauge_analog(&core->i2c_client, &tv, eeprom_data);
 	core->tuner_type = tv.tuner_type;
 	core->has_radio  = tv.has_radio;
 }

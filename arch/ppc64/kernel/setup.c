@@ -1064,8 +1064,6 @@ void __init setup_arch(char **cmdline_p)
 #define PPC64_LINUX_FUNCTION 0x0f000000
 #define PPC64_IPL_MESSAGE 0xc0000000
 #define PPC64_TERM_MESSAGE 0xb0000000
-#define PPC64_ATTN_MESSAGE 0xa0000000
-#define PPC64_DUMP_MESSAGE 0xd0000000
 
 static void ppc64_do_msg(unsigned int src, const char *msg)
 {
@@ -1091,20 +1089,6 @@ void ppc64_terminate_msg(unsigned int src, const char *msg)
 {
 	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_TERM_MESSAGE|src, msg);
 	printk("[terminate]%04x %s\n", src, msg);
-}
-
-/* Print something that needs attention (device error, etc) */
-void ppc64_attention_msg(unsigned int src, const char *msg)
-{
-	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_ATTN_MESSAGE|src, msg);
-	printk("[attention]%04x %s\n", src, msg);
-}
-
-/* Print a dump progress message. */
-void ppc64_dump_msg(unsigned int src, const char *msg)
-{
-	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_DUMP_MESSAGE|src, msg);
-	printk("[dump]%04x %s\n", src, msg);
 }
 
 /* This should only be called on processor 0 during calibrate decr */

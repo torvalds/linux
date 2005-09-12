@@ -57,7 +57,7 @@ With BK, you can just get it from
 
 and DaveJ has tar-balls at
 
-	http://www.codemonkey.org.uk/projects/bitkeeper/sparse/
+	http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
 
 
 Once you have it, just do

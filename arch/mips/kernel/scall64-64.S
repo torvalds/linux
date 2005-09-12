@@ -14,7 +14,7 @@
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/sysmips.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>

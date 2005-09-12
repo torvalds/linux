@@ -3,6 +3,7 @@
 
 #include <linux/config.h>
 #include <linux/mm.h>
+#include <asm/cache.h>	/* for flush_user_dcache_range_asm() proto */
 
 /* The usual comment is "Caches aren't brain-dead on the <architecture>".
  * Unfortunately, that doesn't apply to PA-RISC. */

@@ -3,7 +3,7 @@
 /*
  * Global definitions for init.c and init301.c
  *
- * Copyright (C) 2001-2004 by Thomas Winischhofer, Vienna, Austria
+ * Copyright (C) 2001-2005 by Thomas Winischhofer, Vienna, Austria
  *
  * If distributed as part of the Linux kernel, the following license terms
  * apply:
@@ -53,19 +53,20 @@
 #ifndef _INITDEF_
 #define _INITDEF_
 
-#define IS_SIS330		(HwInfo->jChipType == SIS_330)
-#define IS_SIS550		(HwInfo->jChipType == SIS_550)
-#define IS_SIS650		(HwInfo->jChipType == SIS_650)  /* All versions, incl 651, M65x */
-#define IS_SIS740		(HwInfo->jChipType == SIS_740)
+#define IS_SIS330		(SiS_Pr->ChipType == SIS_330)
+#define IS_SIS550		(SiS_Pr->ChipType == SIS_550)
+#define IS_SIS650		(SiS_Pr->ChipType == SIS_650)  /* All versions, incl 651, M65x */
+#define IS_SIS740		(SiS_Pr->ChipType == SIS_740)
 #define IS_SIS651	        (SiS_Pr->SiS_SysFlags & (SF_Is651 | SF_Is652))
 #define IS_SISM650	        (SiS_Pr->SiS_SysFlags & (SF_IsM650 | SF_IsM652 | SF_IsM653))
 #define IS_SIS65x               (IS_SIS651 || IS_SISM650)       /* Only special versions of 65x */
-#define IS_SIS661		(HwInfo->jChipType == SIS_661)
-#define IS_SIS741		(HwInfo->jChipType == SIS_741)
-#define IS_SIS660		(HwInfo->jChipType == SIS_660)
-#define IS_SIS760		(HwInfo->jChipType == SIS_760)
-#define IS_SIS661741660760	(IS_SIS661 || IS_SIS741 || IS_SIS660 || IS_SIS760)
-#define IS_SIS650740            ((HwInfo->jChipType >= SIS_650) && (HwInfo->jChipType < SIS_330))
+#define IS_SIS661		(SiS_Pr->ChipType == SIS_661)
+#define IS_SIS741		(SiS_Pr->ChipType == SIS_741)
+#define IS_SIS660		(SiS_Pr->ChipType == SIS_660)
+#define IS_SIS760		(SiS_Pr->ChipType == SIS_760)
+#define IS_SIS761		(SiS_Pr->ChipType == SIS_761)
+#define IS_SIS661741660760	(IS_SIS661 || IS_SIS741 || IS_SIS660 || IS_SIS760 || IS_SIS761)
+#define IS_SIS650740            ((SiS_Pr->ChipType >= SIS_650) && (SiS_Pr->ChipType < SIS_330))
 #define IS_SIS550650740         (IS_SIS550 || IS_SIS650740)
 #define IS_SIS650740660         (IS_SIS650 || IS_SIS740 || IS_SIS661741660760)
 #define IS_SIS550650740660      (IS_SIS550 || IS_SIS650740660)
@@ -73,24 +74,37 @@
 #define SISGETROMW(x)		(ROMAddr[(x)] | (ROMAddr[(x)+1] << 8))
 
 /* SiS_VBType */
-#define VB_SIS301	      	0x0001
-#define VB_SIS301B        	0x0002
-#define VB_SIS302B        	0x0004
-#define VB_SIS301LV     	0x0008
-#define VB_SIS302LV     	0x0010
+#define VB_SIS301		0x0001
+#define VB_SIS301B		0x0002
+#define VB_SIS302B		0x0004
+#define VB_SIS301LV		0x0008
+#define VB_SIS302LV		0x0010
 #define VB_SIS302ELV		0x0020
-#define VB_SIS301C              0x0040
+#define VB_SIS301C		0x0040
+#define VB_SIS307T		0x0080
+#define VB_SIS307LV		0x0100
 #define VB_UMC			0x4000
 #define VB_NoLCD        	0x8000
-#define VB_SIS301BLV302BLV      (VB_SIS301B|VB_SIS301C|VB_SIS302B|VB_SIS301LV|VB_SIS302LV|VB_SIS302ELV)
-#define VB_SIS301B302B          (VB_SIS301B|VB_SIS301C|VB_SIS302B)
-#define VB_SIS301LV302LV        (VB_SIS301LV|VB_SIS302LV|VB_SIS302ELV)
-#define VB_SISVB		(VB_SIS301 | VB_SIS301BLV302BLV)
-#define VB_SISTMDS		(VB_SIS301 | VB_SIS301B302B)
-#define VB_SISLVDS		VB_SIS301LV302LV
-#define VB_SISLCDA		(VB_SIS302B|VB_SIS301C|VB_SIS301LV|VB_SIS302LV|VB_SIS302ELV)
-#define VB_SISYPBPR		(VB_SIS301C|VB_SIS301LV|VB_SIS302LV|VB_SIS302ELV)
-#define VB_SISHIVISION		(VB_SIS301|VB_SIS301B|VB_SIS302B)
+#define VB_SIS30xB		(VB_SIS301B | VB_SIS301C | VB_SIS302B | VB_SIS307T)
+#define VB_SIS30xC		(VB_SIS301C | VB_SIS307T)
+#define VB_SISTMDS		(VB_SIS301 | VB_SIS301B | VB_SIS301C | VB_SIS302B | VB_SIS307T)
+#define VB_SISLVDS		(VB_SIS301LV | VB_SIS302LV | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SIS30xBLV		(VB_SIS30xB | VB_SISLVDS)
+#define VB_SIS30xCLV		(VB_SIS30xC | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISVB		(VB_SIS301 | VB_SIS30xBLV)
+#define VB_SISLCDA		(VB_SIS302B | VB_SIS301C  | VB_SIS307T  | VB_SISLVDS)
+#define VB_SISTMDSLCDA		(VB_SIS301C | VB_SIS307T)
+#define VB_SISPART4SCALER	(VB_SIS301C | VB_SIS307T | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISHIVISION		(VB_SIS301 | VB_SIS301B | VB_SIS302B)
+#define VB_SISYPBPR		(VB_SIS301C | VB_SIS307T  | VB_SIS301LV | VB_SIS302LV | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISTAP4SCALER	(VB_SIS301C | VB_SIS307T | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISPART4OVERFLOW	(VB_SIS301C | VB_SIS307T | VB_SIS302LV | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISPWD		(VB_SIS301C | VB_SIS307T | VB_SISLVDS)
+#define VB_SISEMI		(VB_SIS302LV | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISPOWER		(VB_SIS301C | VB_SIS307T | VB_SIS302LV | VB_SIS302ELV | VB_SIS307LV)
+#define VB_SISDUALLINK		(VB_SIS302LV | VB_SIS302ELV | VB_SIS307T | VB_SIS307LV)
+#define VB_SISVGA2		VB_SISTMDS
+#define VB_SISRAMDAC202		(VB_SIS301C | VB_SIS307T)
 
 /* VBInfo */
 #define SetSimuScanMode         0x0001   /* CR 30 */
@@ -160,6 +174,7 @@
 #define SupportRAMDAC2_202      0x0400  /* C             (<= 202Mhz) */
 #define InterlaceMode           0x0080
 #define SyncPP                  0x0000
+#define HaveWideTiming		0x2000	/* Have specific wide- and non-wide timing */
 #define SyncPN                  0x4000
 #define SyncNP                  0x8000
 #define SyncNN                  0xc000
@@ -188,6 +203,7 @@
 #define TVSetTVSimuMode		0x0200 /* new 0x200, prev. 0x800 */
 #define TVRPLLDIV2XO		0x0400 /* prev 0x1000 */
 #define TVSetNTSC1024		0x0800 /* new 0x100, prev. 0x2000 */
+#define TVSet525p1024		0x1000 /* TW */
 #define TVAspect43		0x2000
 #define TVAspect169		0x4000
 #define TVAspect43LB		0x8000
@@ -208,7 +224,8 @@
 #define SF_IsM661		0x0020
 #define SF_IsM741		0x0040
 #define SF_IsM760		0x0080
-#define SF_760LFB		0x8000  /* 760: We have LFB */
+#define SF_760UMA		0x4000  /* 76x: We have UMA */
+#define SF_760LFB		0x8000  /* 76x: We have LFB */
 
 /* CR32 (Newer 630, and 315 series)
 
@@ -228,25 +245,19 @@
 #define TVOverScanShift         4
 
 /* CR35 (661 series only)
-
    [0]    1 = PAL, 0 = NTSC
    [1]    1 = NTSC-J (if D0 = 0)
    [2]    1 = PALM (if D0 = 1)
    [3]    1 = PALN (if D0 = 1)
    [4]    1 = Overscan (Chrontel only)
    [7:5]  (only if D2 in CR38 is set)
-          000  525i
- 	  001  525p
+	  000  525i
+	  001  525p
 	  010  750p
 	  011  1080i (or HiVision on 301, 301B)
-
-   These bits are being translated to TVMode flag.
-
 */
 
-/*
-   CR37
-
+/* CR37
    [0]   Set 24/18 bit (0/1) RGB to LVDS/TMDS transmitter (set by BIOS)
    [3:1] External chip
          300 series:
@@ -260,7 +271,7 @@
 	    010   LVDS
 	    011   LVDS + Chrontel 7019
 	  660 series [2:1] only:
-	     reserved (now in CR38)
+	     reserved (chip type now in CR38)
 	  All other combinations reserved
    [3]    661 only: Pass 1:1 data
    [4]    LVDS: 0: Panel Link expands / 1: Panel Link does not expand
@@ -320,6 +331,7 @@
 #define Enable302LV_DualLink    0x04   /* 302LV only; enable dual link */
 
 /* CR39 (661 and later)
+   D[7]   LVDS (SiS or third party)
    D[1:0] YPbPr Aspect Ratio
           00 4:3 letterbox
 	  01 4:3
@@ -341,13 +353,33 @@
 	 0101 Set Contrast event
 	 0110 Set Mute event
 	 0111 Set Volume Up/Down event
-   [4]   Enable Backlight Control by BIOS/driver 
+   [4]   Enable Backlight Control by BIOS/driver
          (set by driver; set means that the BIOS should
 	 not touch the backlight registers because eg.
 	 the driver already switched off the backlight)
    [5]   PAL/NTSC (set by BIOS)
    [6]   Expansion On/Off (set by BIOS; copied to CR32[4])
    [7]   TV UnderScan/OverScan (set by BIOS)
+*/
+
+/* CR7C - 661 and later
+   [7]   DualEdge enabled (or: to be enabled)
+   [6]   CRT2 = TV/LCD/VGA enabled (or: to be enabled)
+   [5]   Init done (set at end of SiS_Init)
+   {4]   LVDS LCD capabilities
+   [3]   LVDS LCD capabilities
+   [2]   LVDS LCD capabilities (PWD)
+   [1]   LVDS LCD capabilities (PWD)
+   [0]   LVDS=1, TMDS=0 (SiS or third party)
+*/
+
+/* CR7E - 661 and later
+   VBType:
+   [7] LVDS (third party)
+   [3] 301C
+   [2] 302LV
+   [1] 301LV
+   [0] 301B
 */
 
 /* LCDResInfo */
@@ -359,7 +391,6 @@
 #define Panel300_1024x600       0x06
 #define Panel300_1152x768       0x07
 #define Panel300_1280x768       0x0a
-#define Panel300_320x480        0x0e 	/* fstn - This is fake, can be any */
 #define Panel300_Custom		0x0f
 #define Panel300_Barco1366      0x10
 
@@ -374,9 +405,9 @@
 #define Panel310_1400x1050      0x09
 #define Panel310_1280x768       0x0a
 #define Panel310_1600x1200      0x0b
-#define Panel310_640x480_2      0x0c
-#define Panel310_640x480_3      0x0d
-#define Panel310_320x480        0x0e    /* fstn - TW: This is fake, can be any */
+#define Panel310_320x240_2      0x0c    /* xSTN */
+#define Panel310_320x240_3      0x0d    /* xSTN */
+#define Panel310_320x240_1      0x0e    /* xSTN - This is fake, can be any */
 #define Panel310_Custom		0x0f
 
 #define Panel661_800x600        0x01
@@ -386,7 +417,7 @@
 #define Panel661_1024x600       0x05
 #define Panel661_1152x864       0x06
 #define Panel661_1280x960       0x07
-#define Panel661_1152x768       0x08
+#define Panel661_1280x854       0x08
 #define Panel661_1400x1050      0x09
 #define Panel661_1280x768       0x0a
 #define Panel661_1600x1200      0x0b
@@ -410,14 +441,16 @@
 #define Panel_1680x1050         0x0d    /* 661etc  */
 #define Panel_1280x720		0x0e    /* 661etc  */
 #define Panel_Custom		0x0f	/* MUST BE 0x0f (for DVI DDC detection) */
-#define Panel_320x480           0x10    /* SiS 550 fstn - TW: This is fake, can be any */
+#define Panel_320x240_1         0x10    /* SiS 550 xSTN */
 #define Panel_Barco1366         0x11
 #define Panel_848x480		0x12
-#define Panel_640x480_2		0x13    /* SiS 550 */
-#define Panel_640x480_3		0x14    /* SiS 550 */
+#define Panel_320x240_2		0x13    /* SiS 550 xSTN */
+#define Panel_320x240_3		0x14    /* SiS 550 xSTN */
 #define Panel_1280x768_2        0x15	/* 30xLV */
 #define Panel_1280x768_3        0x16    /* (unused) */
 #define Panel_1280x800_2	0x17    /* 30xLV */
+#define Panel_856x480		0x18
+#define Panel_1280x854		0x19	/* 661etc */
 
 /* Index in ModeResInfo table */
 #define SIS_RI_320x200    0
@@ -454,6 +487,7 @@
 #define SIS_RI_1920x1080 31
 #define SIS_RI_960x540   32
 #define SIS_RI_960x600   33
+#define SIS_RI_1280x854  34
 
 /* CR5F */
 #define IsM650                  0x80
@@ -482,16 +516,18 @@
 #define VCLK100_300             0x43   /* Index in VCLKData table (300) */
 #define VCLK34_300              0x3d   /* Index in VCLKData table (300) */
 #define VCLK_CUSTOM_300		0x47
-#define VCLK65_315              0x0b   /* Index in (VB)VCLKData table (315) */
-#define VCLK108_2_315           0x19   /* Index in (VB)VCLKData table (315) */
-#define VCLK81_315		0x5b   /* Index in (VB)VCLKData table (315) */
-#define VCLK162_315             0x5e   /* Index in (VB)VCLKData table (315) */
-#define VCLK108_3_315           0x45   /* Index in VBVCLKData table (315) */
-#define VCLK100_315             0x46   /* Index in VBVCLKData table (315) */
+
+#define VCLK65_315              0x0b   /* Indices in (VB)VCLKData table (315) */
+#define VCLK108_2_315           0x19
+#define VCLK81_315		0x5b
+#define VCLK162_315             0x5e
+#define VCLK108_3_315           0x45
+#define VCLK100_315             0x46
 #define VCLK34_315              0x55
 #define VCLK68_315		0x0d
-#define VCLK_1280x800_315_2	0x5c   /* Index in VBVCLKData table (315) */
-#define VCLK121_315		0x5d   /* Index in VBVCLKData table (315) */
+#define VCLK_1280x800_315_2	0x5c
+#define VCLK121_315		0x5d
+#define VCLK130_315		0x72
 #define VCLK_1280x720		0x5f
 #define VCLK_1280x768_2		0x60
 #define VCLK_1280x768_3		0x61   /* (unused?) */
@@ -507,6 +543,7 @@
 #define VCLK_1152x864		0x64
 #define VCLK_1360x768		0x58
 #define VCLK_1280x800_315	0x6c
+#define VCLK_1280x854		0x76
 
 #define TVCLKBASE_300		0x21   /* Indices on TV clocks in VCLKData table (300) */
 #define TVCLKBASE_315	        0x3a   /* Indices on TV clocks in (VB)VCLKData table (315) */

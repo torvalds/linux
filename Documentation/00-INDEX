@@ -46,6 +46,8 @@ SubmittingPatches
 	- procedure to get a source patch included into the kernel tree.
 VGA-softcursor.txt
 	- how to change your VGA cursor from a blinking underscore.
+applying-patches.txt
+	- description of various trees and how to apply their patches.
 arm/
 	- directory with info about Linux on the ARM architecture.
 basic_profiling.txt
@@ -275,7 +277,7 @@ tty.txt
 unicode.txt
 	- info on the Unicode character/font mapping used in Linux.
 uml/
-	- directory with infomation about User Mode Linux.
+	- directory with information about User Mode Linux.
 usb/
 	- directory with info regarding the Universal Serial Bus.
 video4linux/

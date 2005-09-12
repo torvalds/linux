@@ -329,8 +329,7 @@ EXPORT_SYMBOL(get_cmos_time);
 
 static void sync_cmos_clock(unsigned long dummy);
 
-static struct timer_list sync_cmos_timer =
-                                      TIMER_INITIALIZER(sync_cmos_clock, 0, 0);
+static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
 
 static void sync_cmos_clock(unsigned long dummy)
 {

@@ -17,14 +17,6 @@ Who:	Greg Kroah-Hartman <greg@kroah.com>
 
 ---------------------------
 
-What:	ACPI S4bios support
-When:	May 2005
-Why:	Noone uses it, and it probably does not work, anyway. swsusp is
-	faster, more reliable, and people are actually using it.
-Who:	Pavel Machek <pavel@suse.cz>
-
----------------------------
-
 What:	io_remap_page_range() (macro or function)
 When:	September 2005
 Why:	Replaced by io_remap_pfn_range() which allows more memory space

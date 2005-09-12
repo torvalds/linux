@@ -151,7 +151,7 @@ static char __devinit *table_lookup_model(struct cpuinfo_x86 *c)
 }
 
 
-void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
+static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 {
 	char *v = c->x86_vendor_id;
 	int i;

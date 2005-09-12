@@ -39,7 +39,7 @@ static inline int get_attribute(struct fb_info *info, u16 c)
 {
 	int attribute = 0;
 
-	if (fb_get_color_depth(&info->var) == 1) {
+	if (fb_get_color_depth(&info->var, &info->fix) == 1) {
 		if (attr_underline(c))
 			attribute |= FBCON_ATTRIBUTE_UNDERLINE;
 		if (attr_reverse(c))
@@ -103,22 +103,92 @@ static void bit_clear(struct vc_data *vc, struct fb_info *info, int sy,
 	info->fbops->fb_fillrect(info, &region);
 }
 
+static inline void bit_putcs_aligned(struct vc_data *vc, struct fb_info *info,
+				     const u16 *s, u32 attr, u32 cnt,
+				     u32 d_pitch, u32 s_pitch, u32 cellsize,
+				     struct fb_image *image, u8 *buf, u8 *dst)
+{
+	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+	u32 idx = vc->vc_font.width >> 3;
+	u8 *src;
+
+	while (cnt--) {
+		src = vc->vc_font.data + (scr_readw(s++)&
+					  charmask)*cellsize;
+
+		if (attr) {
+			update_attr(buf, src, attr, vc);
+			src = buf;
+		}
+
+		if (likely(idx == 1))
+			__fb_pad_aligned_buffer(dst, d_pitch, src, idx,
+						image->height);
+		else
+			fb_pad_aligned_buffer(dst, d_pitch, src, idx,
+					      image->height);
+
+		dst += s_pitch;
+	}
+
+	info->fbops->fb_imageblit(info, image);
+}
+
+static inline void bit_putcs_unaligned(struct vc_data *vc,
+				       struct fb_info *info, const u16 *s,
+				       u32 attr, u32 cnt, u32 d_pitch,
+				       u32 s_pitch, u32 cellsize,
+				       struct fb_image *image, u8 *buf,
+				       u8 *dst)
+{
+	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+	u32 shift_low = 0, mod = vc->vc_font.width % 8;
+	u32 shift_high = 8;
+	u32 idx = vc->vc_font.width >> 3;
+	u8 *src;
+
+	while (cnt--) {
+		src = vc->vc_font.data + (scr_readw(s++)&
+					  charmask)*cellsize;
+
+		if (attr) {
+			update_attr(buf, src, attr, vc);
+			src = buf;
+		}
+
+		fb_pad_unaligned_buffer(dst, d_pitch, src, idx,
+					image->height, shift_high,
+					shift_low, mod);
+		shift_low += mod;
+		dst += (shift_low >= 8) ? s_pitch : s_pitch - 1;
+		shift_low &= 7;
+		shift_high = 8 - shift_low;
+	}
+
+	info->fbops->fb_imageblit(info, image);
+
+}
+
 static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 		      const unsigned short *s, int count, int yy, int xx,
 		      int fg, int bg)
 {
-	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
-	unsigned int width = (vc->vc_font.width + 7) >> 3;
-	unsigned int cellsize = vc->vc_font.height * width;
-	unsigned int maxcnt = info->pixmap.size/cellsize;
-	unsigned int scan_align = info->pixmap.scan_align - 1;
-	unsigned int buf_align = info->pixmap.buf_align - 1;
-	unsigned int shift_low = 0, mod = vc->vc_font.width % 8;
-	unsigned int shift_high = 8, pitch, cnt, size, k;
-	unsigned int idx = vc->vc_font.width >> 3;
-	unsigned int attribute = get_attribute(info, scr_readw(s));
 	struct fb_image image;
-	u8 *src, *dst, *buf = NULL;
+	u32 width = (vc->vc_font.width + 7)/8;
+	u32 cellsize = width * vc->vc_font.height;
+	u32 maxcnt = info->pixmap.size/cellsize;
+	u32 scan_align = info->pixmap.scan_align - 1;
+	u32 buf_align = info->pixmap.buf_align - 1;
+	u32 mod = vc->vc_font.width % 8, cnt, pitch, size;
+	u32 attribute = get_attribute(info, scr_readw(s));
+	u8 *dst, *buf = NULL;
+
+	image.fg_color = fg;
+	image.bg_color = bg;
+	image.dx = xx * vc->vc_font.width;
+	image.dy = yy * vc->vc_font.height;
+	image.height = vc->vc_font.height;
+	image.depth = 1;
 
 	if (attribute) {
 		buf = kmalloc(cellsize, GFP_KERNEL);
@@ -126,19 +196,11 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 			return;
 	}
 
-	image.fg_color = fg;
-	image.bg_color = bg;
-
-	image.dx = xx * vc->vc_font.width;
-	image.dy = yy * vc->vc_font.height;
-	image.height = vc->vc_font.height;
-	image.depth = 1;
-
 	while (count) {
 		if (count > maxcnt)
-			cnt = k = maxcnt;
+			cnt = maxcnt;
 		else
-			cnt = k = count;
+			cnt = count;
 
 		image.width = vc->vc_font.width * cnt;
 		pitch = ((image.width + 7) >> 3) + scan_align;
@@ -147,41 +209,18 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 		size &= ~buf_align;
 		dst = fb_get_buffer_offset(info, &info->pixmap, size);
 		image.data = dst;
-		if (mod) {
-			while (k--) {
-				src = vc->vc_font.data + (scr_readw(s++)&
-							  charmask)*cellsize;
 
-				if (attribute) {
-					update_attr(buf, src, attribute, vc);
-					src = buf;
-				}
+		if (!mod)
+			bit_putcs_aligned(vc, info, s, attribute, cnt, pitch,
+					  width, cellsize, &image, buf, dst);
+		else
+			bit_putcs_unaligned(vc, info, s, attribute, cnt,
+					    pitch, width, cellsize, &image,
+					    buf, dst);
 
-				fb_pad_unaligned_buffer(dst, pitch, src, idx,
-						image.height, shift_high,
-						shift_low, mod);
-				shift_low += mod;
-				dst += (shift_low >= 8) ? width : width - 1;
-				shift_low &= 7;
-				shift_high = 8 - shift_low;
-			}
-		} else {
-			while (k--) {
-				src = vc->vc_font.data + (scr_readw(s++)&
-							  charmask)*cellsize;
-
-				if (attribute) {
-					update_attr(buf, src, attribute, vc);
-					src = buf;
-				}
-
-				fb_pad_aligned_buffer(dst, pitch, src, idx, image.height);
-				dst += width;
-			}
-		}
-		info->fbops->fb_imageblit(info, &image);
 		image.dx += cnt * vc->vc_font.width;
 		count -= cnt;
+		s += cnt;
 	}
 
 	/* buf is always NULL except when in monochrome mode, so in this case
@@ -189,6 +228,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 	   NULL pointers just fine */
 	if (unlikely(buf))
 		kfree(buf);
+
 }
 
 static void bit_clear_margins(struct vc_data *vc, struct fb_info *info,

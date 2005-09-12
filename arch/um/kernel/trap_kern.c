@@ -57,7 +57,8 @@ good_area:
 	if(is_write && !(vma->vm_flags & VM_WRITE)) 
 		goto out;
 
-        if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
+	/* Don't require VM_READ|VM_EXEC for write faults! */
+        if(!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
                 goto out;
 
 	do {
@@ -84,8 +85,7 @@ survive:
 		pte = pte_offset_kernel(pmd, address);
 	} while(!pte_present(*pte));
 	err = 0;
-	*pte = pte_mkyoung(*pte);
-	if(pte_write(*pte)) *pte = pte_mkdirty(*pte);
+	WARN_ON(!pte_young(*pte) || (is_write && !pte_dirty(*pte)));
 	flush_tlb_page(vma, address);
 out:
 	up_read(&mm->mmap_sem);

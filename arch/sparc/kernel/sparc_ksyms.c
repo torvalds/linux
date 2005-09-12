@@ -114,17 +114,7 @@ DOT_ALIAS2(unsigned, urem, unsigned, unsigned)
 /* used by various drivers */
 EXPORT_SYMBOL(sparc_cpu_model);
 EXPORT_SYMBOL(kernel_thread);
-#ifdef CONFIG_DEBUG_SPINLOCK
 #ifdef CONFIG_SMP
-EXPORT_SYMBOL(_do_spin_lock);
-EXPORT_SYMBOL(_do_spin_unlock);
-EXPORT_SYMBOL(_spin_trylock);
-EXPORT_SYMBOL(_do_read_lock);
-EXPORT_SYMBOL(_do_read_unlock);
-EXPORT_SYMBOL(_do_write_lock);
-EXPORT_SYMBOL(_do_write_unlock);
-#endif
-#else
 // XXX find what uses (or used) these.
 EXPORT_SYMBOL(___rw_read_enter);
 EXPORT_SYMBOL(___rw_read_exit);

@@ -456,11 +456,21 @@ static int fb_try_mode(struct fb_var_screeninfo *var, struct fb_info *info,
  *
  *	Valid mode specifiers for @mode_option:
  *
- *	<xres>x<yres>[-<bpp>][@<refresh>] or
+ *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m] or
  *	<name>[-<bpp>][@<refresh>]
  *
  *	with <xres>, <yres>, <bpp> and <refresh> decimal numbers and
  *	<name> a string.
+ *
+ *      If 'M' is present after yres (and before refresh/bpp if present),
+ *      the function will compute the timings using VESA(tm) Coordinated
+ *      Video Timings (CVT).  If 'R' is present after 'M', will compute with
+ *      reduced blanking (for flatpanels).  If 'i' is present, compute
+ *      interlaced mode.  If 'm' is present, add margins equal to 1.8%
+ *      of xres rounded down to 8 pixels, and 1.8% of yres. The char
+ *      'i' and 'm' must be after 'M' and 'R'. Example:
+ *
+ *      1024x768MR-8@60m - Reduced blank with margins at 60Hz.
  *
  *	NOTE: The passed struct @var is _not_ cleared!  This allows you
  *	to supply values for e.g. the grayscale and accel_flags fields.
@@ -495,7 +505,7 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 	unsigned int namelen = strlen(name);
 	int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
 	unsigned int xres = 0, yres = 0, bpp = default_bpp, refresh = 0;
-	int yres_specified = 0;
+	int yres_specified = 0, cvt = 0, rb = 0, interlace = 0, margins = 0;
 	u32 best, diff;
 
 	for (i = namelen-1; i >= 0; i--) {
@@ -506,6 +516,8 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 			!yres_specified) {
 			refresh = my_atoi(&name[i+1]);
 			refresh_specified = 1;
+			if (cvt || rb)
+			    cvt = 0;
 		    } else
 			goto done;
 		    break;
@@ -514,6 +526,8 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 		    if (!bpp_specified && !yres_specified) {
 			bpp = my_atoi(&name[i+1]);
 			bpp_specified = 1;
+			if (cvt || rb)
+			    cvt = 0;
 		    } else
 			goto done;
 		    break;
@@ -526,6 +540,22 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 		    break;
 		case '0'...'9':
 		    break;
+		case 'M':
+		    if (!yres_specified)
+			cvt = 1;
+		    break;
+		case 'R':
+		    if (!cvt)
+			rb = 1;
+		    break;
+		case 'm':
+		    if (!cvt)
+			margins = 1;
+		    break;
+		case 'i':
+		    if (!cvt)
+			interlace = 1;
+		    break;
 		default:
 		    goto done;
 	    }
@@ -535,6 +565,34 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 	    res_specified = 1;
 	}
 done:
+	if (cvt) {
+	    struct fb_videomode cvt_mode;
+	    int ret;
+
+	    DPRINTK("CVT mode %dx%d@%dHz%s%s%s\n", xres, yres,
+		    (refresh) ? refresh : 60, (rb) ? " reduced blanking" :
+		    "", (margins) ? " with margins" : "", (interlace) ?
+		    " interlaced" : "");
+
+	    cvt_mode.xres = xres;
+	    cvt_mode.yres = yres;
+	    cvt_mode.refresh = (refresh) ? refresh : 60;
+
+	    if (interlace)
+		cvt_mode.vmode |= FB_VMODE_INTERLACED;
+	    else
+		cvt_mode.vmode &= ~FB_VMODE_INTERLACED;
+
+	    ret = fb_find_mode_cvt(&cvt_mode, margins, rb);
+
+	    if (!ret && !fb_try_mode(var, info, &cvt_mode, bpp)) {
+		DPRINTK("modedb CVT: CVT mode ok\n");
+		return 1;
+	    }
+
+	    DPRINTK("CVT mode invalid, getting mode from database\n");
+	}
+
 	DPRINTK("Trying specified video mode%s %ix%i\n",
 	    refresh_specified ? "" : " (ignoring refresh rate)", xres, yres);
 

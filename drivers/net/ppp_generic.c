@@ -1232,9 +1232,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	navail = 0;	/* total # of usable channels (not deregistered) */
 	hdrlen = (ppp->flags & SC_MP_XSHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
 	i = 0;
-	list = &ppp->channels;
-	while ((list = list->next) != &ppp->channels) {
-		pch = list_entry(list, struct channel, clist);
+	list_for_each_entry(pch, &ppp->channels, clist) {
 		navail += pch->avail = (pch->chan != NULL);
 		if (pch->avail) {
 			if (skb_queue_empty(&pch->file.xq) ||
@@ -1280,6 +1278,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 
 	/* skip to the channel after the one we last used
 	   and start at that one */
+	list = &ppp->channels;
 	for (i = 0; i < ppp->nxchan; ++i) {
 		list = list->next;
 		if (list == &ppp->channels) {
@@ -1730,7 +1729,7 @@ static void
 ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 {
 	u32 mask, seq;
-	struct list_head *l;
+	struct channel *ch;
 	int mphdrlen = (ppp->flags & SC_MP_SHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
 
 	if (!pskb_may_pull(skb, mphdrlen) || ppp->mrru == 0)
@@ -1784,8 +1783,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	 * The list of channels can't change because we have the receive
 	 * side of the ppp unit locked.
 	 */
-	for (l = ppp->channels.next; l != &ppp->channels; l = l->next) {
-		struct channel *ch = list_entry(l, struct channel, clist);
+	list_for_each_entry(ch, &ppp->channels, clist) {
 		if (seq_before(ch->lastseq, seq))
 			seq = ch->lastseq;
 	}
@@ -2271,10 +2269,8 @@ static struct compressor_entry *
 find_comp_entry(int proto)
 {
 	struct compressor_entry *ce;
-	struct list_head *list = &compressor_list;
 
-	while ((list = list->next) != &compressor_list) {
-		ce = list_entry(list, struct compressor_entry, list);
+	list_for_each_entry(ce, &compressor_list, list) {
 		if (ce->comp->compress_proto == proto)
 			return ce;
 	}
@@ -2540,20 +2536,15 @@ static struct channel *
 ppp_find_channel(int unit)
 {
 	struct channel *pch;
-	struct list_head *list;
 
-	list = &new_channels;
-	while ((list = list->next) != &new_channels) {
-		pch = list_entry(list, struct channel, list);
+	list_for_each_entry(pch, &new_channels, list) {
 		if (pch->file.index == unit) {
 			list_del(&pch->list);
 			list_add(&pch->list, &all_channels);
 			return pch;
 		}
 	}
-	list = &all_channels;
-	while ((list = list->next) != &all_channels) {
-		pch = list_entry(list, struct channel, list);
+	list_for_each_entry(pch, &all_channels, list) {
 		if (pch->file.index == unit)
 			return pch;
 	}

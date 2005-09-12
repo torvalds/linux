@@ -196,7 +196,7 @@ int parport_wait_peripheral(struct parport *port,
 		return 1;
 
 	/* 40ms of slow polling. */
-	deadline = jiffies + (HZ + 24) / 25;
+	deadline = jiffies + msecs_to_jiffies(40);
 	while (time_before (jiffies, deadline)) {
 		int ret;
 
@@ -205,7 +205,7 @@ int parport_wait_peripheral(struct parport *port,
 
 		/* Wait for 10ms (or until an interrupt occurs if
 		 * the handler is set) */
-		if ((ret = parport_wait_event (port, (HZ + 99) / 100)) < 0)
+		if ((ret = parport_wait_event (port, msecs_to_jiffies(10))) < 0)
 			return ret;
 
 		status = parport_read_status (port);
@@ -216,8 +216,7 @@ int parport_wait_peripheral(struct parport *port,
 			/* parport_wait_event didn't time out, but the
 			 * peripheral wasn't actually ready either.
 			 * Wait for another 10ms. */
-			__set_current_state (TASK_INTERRUPTIBLE);
-			schedule_timeout ((HZ+ 99) / 100);
+			schedule_timeout_interruptible(msecs_to_jiffies(10));
 		}
 	}
 

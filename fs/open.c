@@ -24,6 +24,7 @@
 #include <linux/personality.h>
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
+#include <linux/rcupdate.h>
 
 #include <asm/unistd.h>
 
@@ -842,14 +843,16 @@ int get_unused_fd(void)
 {
 	struct files_struct * files = current->files;
 	int fd, error;
+	struct fdtable *fdt;
 
   	error = -EMFILE;
 	spin_lock(&files->file_lock);
 
 repeat:
- 	fd = find_next_zero_bit(files->open_fds->fds_bits, 
-				files->max_fdset, 
-				files->next_fd);
+	fdt = files_fdtable(files);
+ 	fd = find_next_zero_bit(fdt->open_fds->fds_bits,
+				fdt->max_fdset,
+				fdt->next_fd);
 
 	/*
 	 * N.B. For clone tasks sharing a files structure, this test
@@ -872,14 +875,14 @@ repeat:
 		goto repeat;
 	}
 
-	FD_SET(fd, files->open_fds);
-	FD_CLR(fd, files->close_on_exec);
-	files->next_fd = fd + 1;
+	FD_SET(fd, fdt->open_fds);
+	FD_CLR(fd, fdt->close_on_exec);
+	fdt->next_fd = fd + 1;
 #if 1
 	/* Sanity check */
-	if (files->fd[fd] != NULL) {
+	if (fdt->fd[fd] != NULL) {
 		printk(KERN_WARNING "get_unused_fd: slot %d not NULL!\n", fd);
-		files->fd[fd] = NULL;
+		fdt->fd[fd] = NULL;
 	}
 #endif
 	error = fd;
@@ -893,9 +896,10 @@ EXPORT_SYMBOL(get_unused_fd);
 
 static inline void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
-	__FD_CLR(fd, files->open_fds);
-	if (fd < files->next_fd)
-		files->next_fd = fd;
+	struct fdtable *fdt = files_fdtable(files);
+	__FD_CLR(fd, fdt->open_fds);
+	if (fd < fdt->next_fd)
+		fdt->next_fd = fd;
 }
 
 void fastcall put_unused_fd(unsigned int fd)
@@ -924,10 +928,11 @@ EXPORT_SYMBOL(put_unused_fd);
 void fastcall fd_install(unsigned int fd, struct file * file)
 {
 	struct files_struct *files = current->files;
+	struct fdtable *fdt;
 	spin_lock(&files->file_lock);
-	if (unlikely(files->fd[fd] != NULL))
-		BUG();
-	files->fd[fd] = file;
+	fdt = files_fdtable(files);
+	BUG_ON(fdt->fd[fd] != NULL);
+	rcu_assign_pointer(fdt->fd[fd], file);
 	spin_unlock(&files->file_lock);
 }
 
@@ -1010,15 +1015,17 @@ asmlinkage long sys_close(unsigned int fd)
 {
 	struct file * filp;
 	struct files_struct *files = current->files;
+	struct fdtable *fdt;
 
 	spin_lock(&files->file_lock);
-	if (fd >= files->max_fds)
+	fdt = files_fdtable(files);
+	if (fd >= fdt->max_fds)
 		goto out_unlock;
-	filp = files->fd[fd];
+	filp = fdt->fd[fd];
 	if (!filp)
 		goto out_unlock;
-	files->fd[fd] = NULL;
-	FD_CLR(fd, files->close_on_exec);
+	rcu_assign_pointer(fdt->fd[fd], NULL);
+	FD_CLR(fd, fdt->close_on_exec);
 	__put_unused_fd(files, fd);
 	spin_unlock(&files->file_lock);
 	return filp_close(filp, files);

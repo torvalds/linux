@@ -170,7 +170,7 @@ static char ax25_bcast[7] =
 static char ax25_test[7] =
 {'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1, '1' << 1};
 
-static struct timer_list yam_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(yam_timer, NULL, 0, 0);
 
 /* --------------------------------------------------------------------- */
 

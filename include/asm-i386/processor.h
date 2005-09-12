@@ -679,7 +679,7 @@ static inline void rep_nop(void)
    However we don't do prefetches for pre XP Athlons currently
    That should be fixed. */
 #define ARCH_HAS_PREFETCH
-extern inline void prefetch(const void *x)
+static inline void prefetch(const void *x)
 {
 	alternative_input(ASM_NOP4,
 			  "prefetchnta (%1)",
@@ -693,7 +693,7 @@ extern inline void prefetch(const void *x)
 
 /* 3dnow! prefetch to get an exclusive cache line. Useful for 
    spinlocks to avoid one state transition in the cache coherency protocol. */
-extern inline void prefetchw(const void *x)
+static inline void prefetchw(const void *x)
 {
 	alternative_input(ASM_NOP4,
 			  "prefetchw (%1)",

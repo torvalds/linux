@@ -84,7 +84,7 @@ asmlinkage void __do_softirq(void)
 	cpu = smp_processor_id();
 restart:
 	/* Reset the pending bitmask before enabling irqs */
-	local_softirq_pending() = 0;
+	set_softirq_pending(0);
 
 	local_irq_enable();
 

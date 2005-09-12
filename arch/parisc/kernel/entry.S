@@ -23,7 +23,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 /* we have the following possibilities to act on an interruption:
  *  - handle in assembly and use shadowed registers only

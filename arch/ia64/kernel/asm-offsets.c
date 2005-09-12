@@ -211,17 +211,41 @@ void foo(void)
 #endif
 
 	BLANK();
-	DEFINE(IA64_MCA_CPU_PROC_STATE_DUMP_OFFSET,
-	       offsetof (struct ia64_mca_cpu, proc_state_dump));
-	DEFINE(IA64_MCA_CPU_STACK_OFFSET,
-	       offsetof (struct ia64_mca_cpu, stack));
-	DEFINE(IA64_MCA_CPU_STACKFRAME_OFFSET,
-	       offsetof (struct ia64_mca_cpu, stackframe));
-	DEFINE(IA64_MCA_CPU_RBSTORE_OFFSET,
-	       offsetof (struct ia64_mca_cpu, rbstore));
+	DEFINE(IA64_MCA_CPU_MCA_STACK_OFFSET,
+	       offsetof (struct ia64_mca_cpu, mca_stack));
 	DEFINE(IA64_MCA_CPU_INIT_STACK_OFFSET,
 	       offsetof (struct ia64_mca_cpu, init_stack));
 	BLANK();
+	DEFINE(IA64_SAL_OS_STATE_COMMON_OFFSET,
+	       offsetof (struct ia64_sal_os_state, sal_ra));
+	DEFINE(IA64_SAL_OS_STATE_OS_GP_OFFSET,
+	       offsetof (struct ia64_sal_os_state, os_gp));
+	DEFINE(IA64_SAL_OS_STATE_PAL_MIN_STATE_OFFSET,
+	       offsetof (struct ia64_sal_os_state, pal_min_state));
+	DEFINE(IA64_SAL_OS_STATE_PROC_STATE_PARAM_OFFSET,
+	       offsetof (struct ia64_sal_os_state, proc_state_param));
+	DEFINE(IA64_SAL_OS_STATE_SIZE,
+	       sizeof (struct ia64_sal_os_state));
+	DEFINE(IA64_PMSA_GR_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_gr));
+	DEFINE(IA64_PMSA_BANK1_GR_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_bank1_gr));
+	DEFINE(IA64_PMSA_PR_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_pr));
+	DEFINE(IA64_PMSA_BR0_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_br0));
+	DEFINE(IA64_PMSA_RSC_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_rsc));
+	DEFINE(IA64_PMSA_IIP_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_iip));
+	DEFINE(IA64_PMSA_IPSR_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_ipsr));
+	DEFINE(IA64_PMSA_IFS_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_ifs));
+	DEFINE(IA64_PMSA_XIP_OFFSET,
+	       offsetof (struct pal_min_state_area_s, pmsa_xip));
+	BLANK();
+
 	/* used by fsys_gettimeofday in arch/ia64/kernel/fsys.S */
 	DEFINE(IA64_TIME_INTERPOLATOR_ADDRESS_OFFSET, offsetof (struct time_interpolator, addr));
 	DEFINE(IA64_TIME_INTERPOLATOR_SOURCE_OFFSET, offsetof (struct time_interpolator, source));

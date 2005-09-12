@@ -245,6 +245,8 @@ void __init iommu_hole_init(void)
 		
 	if (aper_alloc) { 
 		/* Got the aperture from the AGP bridge */
+	} else if (swiotlb && !valid_agp) {
+		/* Do nothing */
 	} else if ((!no_iommu && end_pfn >= 0xffffffff>>PAGE_SHIFT) ||
 		   force_iommu ||
 		   valid_agp ||

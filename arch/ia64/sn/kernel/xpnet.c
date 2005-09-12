@@ -130,7 +130,7 @@ struct net_device *xpnet_device;
  */
 static u64 xpnet_broadcast_partitions;
 /* protect above */
-static spinlock_t xpnet_broadcast_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(xpnet_broadcast_lock);
 
 /*
  * Since the Block Transfer Engine (BTE) is being used for the transfer

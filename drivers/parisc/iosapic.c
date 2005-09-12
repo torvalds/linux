@@ -215,7 +215,7 @@ static inline void iosapic_write(void __iomem *iosapic, unsigned int reg, u32 va
 #define IOSAPIC_IRDT_ID_EID_SHIFT              0x10
 
 
-static spinlock_t iosapic_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(iosapic_lock);
 
 static inline void iosapic_eoi(void __iomem *addr, unsigned int data)
 {

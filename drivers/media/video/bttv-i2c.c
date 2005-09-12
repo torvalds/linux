@@ -1,5 +1,4 @@
 /*
-    $Id: bttv-i2c.c,v 1.25 2005/07/05 17:37:35 nsh Exp $
 
     bttv-i2c.c  --  all the i2c code is here
 
@@ -381,6 +380,7 @@ void __devinit bttv_readee(struct bttv *btv, unsigned char *eedata, int addr)
 }
 
 static char *i2c_devs[128] = {
+	[ 0x1c >> 1 ] = "lgdt330x",
 	[ 0x30 >> 1 ] = "IR (hauppauge)",
 	[ 0x80 >> 1 ] = "msp34xx",
 	[ 0x86 >> 1 ] = "tda9887",

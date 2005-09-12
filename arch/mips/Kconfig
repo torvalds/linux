@@ -154,6 +154,13 @@ config TANBAC_TB0226
 	  The TANBAC Mbase(TB0226) is a MIPS-based platform manufactured by TANBAC.
 	  Please refer to <http://www.tanbac.co.jp/> about Mbase.
 
+config TANBAC_TB0287
+	bool "Support for TANBAC Mini-ITX DIMM base(TB0287)"
+	depends on TANBAC_TB022X
+	help
+	  The TANBAC Mini-ITX DIMM base(TB0287) is a MIPS-based platform manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/> about Mini-ITX DIMM base.
+
 config VICTOR_MPC30X
 	bool "Support for Victor MP-C303/304"
 	depends on MACH_VR41XX

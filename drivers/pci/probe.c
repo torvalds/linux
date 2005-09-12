@@ -72,11 +72,13 @@ void pci_remove_legacy_files(struct pci_bus *bus) { return; }
 /*
  * PCI Bus Class Devices
  */
-static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev, char *buf)
+static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev,
+					char *buf)
 {
-	cpumask_t cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
 	int ret;
+	cpumask_t cpumask;
 
+	cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
 	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
 	if (ret < PAGE_SIZE)
 		buf[ret++] = '\n';
@@ -753,6 +755,12 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 		kfree(dev);
 		return NULL;
 	}
+
+	return dev;
+}
+
+void __devinit pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
+{
 	device_initialize(&dev->dev);
 	dev->dev.release = pci_release_dev;
 	pci_dev_get(dev);
@@ -760,20 +768,6 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
 
-	return dev;
-}
-
-struct pci_dev * __devinit
-pci_scan_single_device(struct pci_bus *bus, int devfn)
-{
-	struct pci_dev *dev;
-
-	dev = pci_scan_device(bus, devfn);
-	pci_scan_msi_device(dev);
-
-	if (!dev)
-		return NULL;
-	
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
 
@@ -785,6 +779,19 @@ pci_scan_single_device(struct pci_bus *bus, int devfn)
 	spin_lock(&pci_bus_lock);
 	list_add_tail(&dev->bus_list, &bus->devices);
 	spin_unlock(&pci_bus_lock);
+}
+
+struct pci_dev * __devinit
+pci_scan_single_device(struct pci_bus *bus, int devfn)
+{
+	struct pci_dev *dev;
+
+	dev = pci_scan_device(bus, devfn);
+	if (!dev)
+		return NULL;
+
+	pci_device_add(dev, bus);
+	pci_scan_msi_device(dev);
 
 	return dev;
 }
@@ -881,7 +888,8 @@ unsigned int __devinit pci_do_scan_bus(struct pci_bus *bus)
 	return max;
 }
 
-struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent, int bus, struct pci_ops *ops, void *sysdata)
+struct pci_bus * __devinit pci_create_bus(struct device *parent,
+		int bus, struct pci_ops *ops, void *sysdata)
 {
 	int error;
 	struct pci_bus *b;
@@ -938,8 +946,6 @@ struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent, int bus,
 	b->resource[0] = &ioport_resource;
 	b->resource[1] = &iomem_resource;
 
-	b->subordinate = pci_scan_child_bus(b);
-
 	return b;
 
 sys_create_link_err:
@@ -956,6 +962,18 @@ err_out:
 	kfree(dev);
 	kfree(b);
 	return NULL;
+}
+EXPORT_SYMBOL_GPL(pci_create_bus);
+
+struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
+		int bus, struct pci_ops *ops, void *sysdata)
+{
+	struct pci_bus *b;
+
+	b = pci_create_bus(parent, bus, ops, sysdata);
+	if (b)
+		b->subordinate = pci_scan_child_bus(b);
+	return b;
 }
 EXPORT_SYMBOL(pci_scan_bus_parented);
 

@@ -49,7 +49,4 @@ do {									\
 
 extern void arch_init_irq(void);
 
-struct irqaction;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif /* _ASM_IRQ_H */

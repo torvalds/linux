@@ -607,11 +607,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	struct thread_info *t = p->thread_info;
 	char *child_trap_frame;
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-	p->thread.smp_lock_count = 0;
-	p->thread.smp_lock_pc = 0;
-#endif
-
 	/* Calculate offset to stack_frame & pt_regs */
 	child_trap_frame = ((char *)t) + (THREAD_SIZE - (TRACEREG_SZ+STACKFRAME_SZ));
 	memcpy(child_trap_frame, (((struct sparc_stackf *)regs)-1), (TRACEREG_SZ+STACKFRAME_SZ));

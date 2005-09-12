@@ -119,5 +119,10 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return PCI_DN(busdn)->phb;
 }
 
+/* Return values for ppc_md.pci_probe_mode function */
+#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
+#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
+#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
+
 #endif
 #endif /* __KERNEL__ */

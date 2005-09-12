@@ -1,5 +1,4 @@
 /*
-    $Id: bttv-gpio.c,v 1.7 2005/02/16 12:14:10 kraxel Exp $
 
     bttv-gpio.c  --  gpio sub drivers
 

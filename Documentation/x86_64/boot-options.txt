@@ -11,6 +11,11 @@ Machine check
                If your BIOS doesn't do that it's a good idea to enable though
                to make sure you log even machine check events that result
                in a reboot.
+   mce=tolerancelevel (number)
+		0: always panic, 1: panic if deadlock possible,
+		2: try to avoid panic, 3: never panic or exit (for testing)
+		default is 1
+		Can be also set using sysfs which is preferable.
 
    nomce (for compatibility with i386): same as mce=off
 

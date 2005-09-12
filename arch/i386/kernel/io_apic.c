@@ -60,6 +60,8 @@ int sis_apic_bug = -1;
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
+int disable_timer_pin_1 __initdata;
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
@@ -573,8 +575,7 @@ static int balanced_irq(void *unused)
 	}
 
 	for ( ; ; ) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		time_remaining = schedule_timeout(time_remaining);
+		time_remaining = schedule_timeout_interruptible(time_remaining);
 		try_to_freeze();
 		if (time_after(jiffies,
 				prev_balance_time+balanced_irq_interval)) {
@@ -2212,6 +2213,8 @@ static inline void check_timer(void)
 				setup_nmi();
 				enable_8259A_irq(0);
 			}
+			if (disable_timer_pin_1 > 0)
+				clear_IO_APIC_pin(0, pin1);
 			return;
 		}
 		clear_IO_APIC_pin(0, pin1);

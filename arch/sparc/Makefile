@@ -59,17 +59,7 @@ image tftpboot.img: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-prepare: include/asm-$(ARCH)/asm_offsets.h
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
-CLEAN_FILES +=	include/asm-$(ARCH)/asm_offsets.h	\
-		arch/$(ARCH)/kernel/asm-offsets.s	\
-		arch/$(ARCH)/boot/System.map
+CLEAN_FILES += arch/$(ARCH)/boot/System.map
 
 # Don't use tabs in echo arguments.
 define archhelp

@@ -315,8 +315,11 @@ static inline struct pci_bus *pci_scan_bus(int bus, struct pci_ops *ops, void *s
 		pci_bus_add_devices(root_bus);
 	return root_bus;
 }
+struct pci_bus *pci_create_bus(struct device *parent, int bus, struct pci_ops *ops, void *sysdata);
+struct pci_bus * pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr);
 int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev * pci_scan_single_device(struct pci_bus *bus, int devfn);
+void pci_device_add(struct pci_dev *dev, struct pci_bus *bus);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
 void pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
@@ -326,6 +329,7 @@ extern struct pci_dev *pci_dev_get(struct pci_dev *dev);
 extern void pci_dev_put(struct pci_dev *dev);
 extern void pci_remove_bus(struct pci_bus *b);
 extern void pci_remove_bus_device(struct pci_dev *dev);
+void pci_setup_cardbus(struct pci_bus *bus);
 
 /* Generic PCI functions exported to card drivers */
 
@@ -391,8 +395,8 @@ int pci_assign_resource(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
 
 /* ROM control related routines */
-void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size);
-void __iomem *pci_map_rom_copy(struct pci_dev *pdev, size_t *size);
+void __iomem __must_check *pci_map_rom(struct pci_dev *pdev, size_t *size);
+void __iomem __must_check *pci_map_rom_copy(struct pci_dev *pdev, size_t *size);
 void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom);
 void pci_remove_rom(struct pci_dev *pdev);
 

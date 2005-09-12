@@ -86,9 +86,9 @@ static struct dvb_usb_properties dibusb2_0b_properties;
 static int dibusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&dibusb1_1_properties,THIS_MODULE) == 0 ||
-		dvb_usb_device_init(intf,&dibusb1_1_an2235_properties,THIS_MODULE) == 0 ||
-		dvb_usb_device_init(intf,&dibusb2_0b_properties,THIS_MODULE) == 0)
+	if (dvb_usb_device_init(intf,&dibusb1_1_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&dibusb1_1_an2235_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&dibusb2_0b_properties,THIS_MODULE,NULL) == 0)
 		return 0;
 
 	return -EINVAL;
@@ -126,10 +126,12 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 /* 25 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_COLD) },
 /* 26 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_WARM) },
 
+/* 27 */	{ USB_DEVICE(USB_VID_KWORLD,		USB_PID_KWORLD_VSTREAM_COLD) },
+
 // #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
 
 #ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
-/* 27 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
+/* 28 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
 #endif
 			{ }		/* Terminating entry */
 };
@@ -262,7 +264,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 		},
 #ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
-			{ &dibusb_dib3000mb_table[27], NULL },
+			{ &dibusb_dib3000mb_table[28], NULL },
 			{ NULL },
 		},
 #endif
@@ -306,11 +308,15 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 		}
 	},
 
-	.num_device_descs = 1,
+	.num_device_descs = 2,
 	.devices = {
-		{	"KWorld/ADSTech Instant DVB-T USB 2.0",
+		{	"KWorld/ADSTech Instant DVB-T USB2.0",
 			{ &dibusb_dib3000mb_table[23], NULL },
 			{ &dibusb_dib3000mb_table[24], NULL },
+		},
+		{	"KWorld Xpert DVB-T USB2.0",
+			{ &dibusb_dib3000mb_table[27], NULL },
+			{ NULL }
 		},
 	}
 };

@@ -27,6 +27,7 @@
 #include <linux/swap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/bit_spinlock.h>
 
 #include "aops.h"
 #include "attrib.h"

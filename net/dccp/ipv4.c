@@ -641,16 +641,12 @@ int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 
 	skb = dccp_make_reset(sk, sk->sk_dst_cache, code);
 	if (skb != NULL) {
-		const struct dccp_sock *dp = dccp_sk(sk);
 		const struct inet_sock *inet = inet_sk(sk);
 
 		err = ip_build_and_send_pkt(skb, sk,
 					    inet->saddr, inet->daddr, NULL);
 		if (err == NET_XMIT_CN)
 			err = 0;
-
-		ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-		ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
 	}
 
 	return err;
@@ -1243,6 +1239,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	static int dccp_ctl_socket_init = 1;
 
 	dccp_options_init(&dp->dccps_options);
+	do_gettimeofday(&dp->dccps_epoch);
 
 	if (dp->dccps_options.dccpo_send_ack_vector) {
 		dp->dccps_hc_rx_ackpkts =

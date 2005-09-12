@@ -46,3 +46,4 @@ microcode-$(subst m,y,$(CONFIG_MICROCODE))  += ../../i386/kernel/microcode.o
 intel_cacheinfo-y		+= ../../i386/kernel/cpu/intel_cacheinfo.o
 quirks-y			+= ../../i386/kernel/quirks.o
 i8237-y				+= ../../i386/kernel/i8237.o
+msr-$(subst m,y,$(CONFIG_X86_MSR))  += ../../i386/kernel/msr.o

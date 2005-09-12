@@ -27,7 +27,7 @@ static void autofs_put_super(struct super_block *sb)
 	if ( !sbi->catatonic )
 		autofs_catatonic_mode(sbi); /* Free wait queues, close pipe */
 
-	autofs_hash_nuke(&sbi->dirhash);
+	autofs_hash_nuke(sbi);
 	for ( n = 0 ; n < AUTOFS_MAX_SYMLINKS ; n++ ) {
 		if ( test_bit(n, sbi->symlink_bitmap) )
 			kfree(sbi->symlink[n].data);
@@ -148,6 +148,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	s->s_magic = AUTOFS_SUPER_MAGIC;
 	s->s_op = &autofs_sops;
 	s->s_time_gran = 1;
+	sbi->sb = s;
 
 	root_inode = iget(s, AUTOFS_ROOT_INO);
 	root = d_alloc_root(root_inode);

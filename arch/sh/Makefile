@@ -152,10 +152,10 @@ endif
 	@touch $@
 
 
-prepare: maketools include/asm-sh/.cpu include/asm-sh/.mach
+archprepare: maketools include/asm-sh/.cpu include/asm-sh/.mach
 
 .PHONY: maketools FORCE
-maketools: include/asm-sh/asm-offsets.h include/linux/version.h FORCE
+maketools:  include/linux/version.h FORCE
 	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
 
 all: zImage
@@ -168,14 +168,7 @@ compressed: zImage
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-CLEAN_FILES += include/asm-sh/machtypes.h include/asm-sh/asm-offsets.h
-
-arch/sh/kernel/asm-offsets.s: include/asm include/linux/version.h \
-			      include/asm-sh/.cpu include/asm-sh/.mach
-
-include/asm-sh/asm-offsets.h: arch/sh/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
+CLEAN_FILES += include/asm-sh/machtypes.h
 
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image (arch/sh/boot/zImage)'
