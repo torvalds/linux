@@ -131,7 +131,7 @@ void __init e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned lon
 
 		if (ei->type != E820_RAM || 
 		    ei->addr+ei->size <= start || 
-		    ei->addr > end)
+		    ei->addr >= end)
 			continue;
 
 		addr = round_up(ei->addr, PAGE_SIZE);
