@@ -914,7 +914,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 	unsigned interfaces;
 
 	/* Assume it is not the original SIO device for now. */
-	priv->baud_base = 48000000 / 16;
+	priv->baud_base = 48000000 / 2;
 	priv->write_offset = 0;
 
 	version = le16_to_cpu(udev->descriptor.bcdDevice);

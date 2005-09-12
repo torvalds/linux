@@ -392,10 +392,15 @@ SkipForAbort:
 		/* If an abort request was received we need to signal that
 		 * the abort has finished.  The proper test for this is
 		 * the TIMED_OUT flag, not srb->result == DID_ABORT, because
-		 * a timeout/abort request might be received after all the
-		 * USB processing was complete. */
-		if (test_bit(US_FLIDX_TIMED_OUT, &us->flags))
+		 * the timeout might have occurred after the command had
+		 * already completed with a different result code. */
+		if (test_bit(US_FLIDX_TIMED_OUT, &us->flags)) {
 			complete(&(us->notify));
+
+			/* Allow USB transfers to resume */
+			clear_bit(US_FLIDX_ABORTING, &us->flags);
+			clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
+		}
 
 		/* finished working on this command */
 		us->srb = NULL;

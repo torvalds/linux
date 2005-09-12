@@ -1606,7 +1606,7 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd, struct pt_regs * r)
 		return IRQ_NONE;
 
 	hcd->saw_irq = 1;
-	if (hcd->state != start && hcd->state == HC_STATE_HALT)
+	if (hcd->state == HC_STATE_HALT)
 		usb_hc_died (hcd);
 	return IRQ_HANDLED;
 }
@@ -1630,7 +1630,6 @@ void usb_hc_died (struct usb_hcd *hcd)
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->rh_registered) {
 		hcd->poll_rh = 0;
-		del_timer(&hcd->rh_timer);
 
 		/* make khubd clean up old urbs and devices */
 		usb_set_device_state (hcd->self.root_hub,
