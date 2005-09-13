@@ -2066,8 +2066,8 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 		return;
 	}
 
-	rport_ids.node_name = be64_to_cpu(*(uint64_t *)fcport->node_name);
-	rport_ids.port_name = be64_to_cpu(*(uint64_t *)fcport->port_name);
+	rport_ids.node_name = wwn_to_u64(fcport->node_name);
+	rport_ids.port_name = wwn_to_u64(fcport->port_name);
 	rport_ids.port_id = fcport->d_id.b.domain << 16 |
 	    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;

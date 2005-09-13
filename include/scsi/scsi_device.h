@@ -178,8 +178,8 @@ static inline struct scsi_target *scsi_target(struct scsi_device *sdev)
 
 extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 		uint, uint, uint, void *hostdata);
-#define scsi_add_device(host, channel, target, lun) \
-	__scsi_add_device(host, channel, target, lun, NULL)
+extern int scsi_add_device(struct Scsi_Host *host, uint channel,
+			   uint target, uint lun);
 extern void scsi_remove_device(struct scsi_device *);
 extern int scsi_device_cancel(struct scsi_device *, int);
 
