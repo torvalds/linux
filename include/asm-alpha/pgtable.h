@@ -339,13 +339,6 @@ extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define kern_addr_valid(addr)	(1)
 #endif
 
-#define io_remap_page_range(vma, start, busaddr, size, prot)	\
-({								\
-	void *va = (void __force *)ioremap(busaddr, size);	\
-	unsigned long pfn = virt_to_phys(va) >> PAGE_SHIFT;	\
-	remap_pfn_range(vma, start, pfn, size, prot);		\
-})
-
 #define io_remap_pfn_range(vma, start, pfn, size, prot)	\
 		remap_pfn_range(vma, start, pfn, size, prot)
 
