@@ -678,13 +678,12 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 	int 			status;
 	char                    dname[HEXDIR_LEN];
 	
-	status = nfserr_inval;
 	if (!check_name(clname))
-		goto out;
+		return nfserr_inval;
 
 	status = nfs4_make_rec_clidname(dname, &clname);
 	if (status)
-		goto out;
+		return status;
 
 	/* 
 	 * XXX The Duplicate Request Cache (DRC) has been checked (??)
