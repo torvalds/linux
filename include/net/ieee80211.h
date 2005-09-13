@@ -538,7 +538,7 @@ struct ieee80211_authentication {
 	__le16 algorithm;
 	__le16 transaction;
 	__le16 status;
-	struct ieee80211_info_element info_element;
+	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
 struct ieee80211_probe_response {
@@ -546,14 +546,14 @@ struct ieee80211_probe_response {
 	u32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
-	struct ieee80211_info_element info_element;
+	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
 struct ieee80211_assoc_request_frame {
 	__le16 capability;
 	__le16 listen_interval;
 	u8 current_ap[ETH_ALEN];
-	struct ieee80211_info_element info_element;
+	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
 struct ieee80211_assoc_response_frame {
@@ -561,7 +561,7 @@ struct ieee80211_assoc_response_frame {
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
-	struct ieee80211_info_element info_element;	/* supported rates */
+	struct ieee80211_info_element info_element[0];	/* supported rates */
 } __attribute__ ((packed));
 
 struct ieee80211_txb {

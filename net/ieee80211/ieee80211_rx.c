@@ -822,7 +822,7 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
 
-	info_element = &beacon->info_element;
+	info_element = beacon->info_element;
 	left = stats->len - ((void *)info_element - (void *)beacon);
 	while (left >= sizeof(struct ieee80211_info_element_hdr)) {
 		if (sizeof(struct ieee80211_info_element_hdr) +
@@ -1050,7 +1050,7 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 	struct ieee80211_network *target;
 	struct ieee80211_network *oldest = NULL;
 #ifdef CONFIG_IEEE80211_DEBUG
-	struct ieee80211_info_element *info_element = &beacon->info_element;
+	struct ieee80211_info_element *info_element = beacon->info_element;
 #endif
 	unsigned long flags;
 
