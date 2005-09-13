@@ -112,10 +112,9 @@ static struct bio *pkt_bio_alloc(int nr_iovecs)
 		goto no_bio;
 	bio_init(bio);
 
-	bvl = kmalloc(nr_iovecs * sizeof(struct bio_vec), GFP_KERNEL);
+	bvl = kcalloc(nr_iovecs, sizeof(struct bio_vec), GFP_KERNEL);
 	if (!bvl)
 		goto no_bvl;
-	memset(bvl, 0, nr_iovecs * sizeof(struct bio_vec));
 
 	bio->bi_max_vecs = nr_iovecs;
 	bio->bi_io_vec = bvl;
@@ -137,10 +136,9 @@ static struct packet_data *pkt_alloc_packet_data(void)
 	int i;
 	struct packet_data *pkt;
 
-	pkt = kmalloc(sizeof(struct packet_data), GFP_KERNEL);
+	pkt = kzalloc(sizeof(struct packet_data), GFP_KERNEL);
 	if (!pkt)
 		goto no_pkt;
-	memset(pkt, 0, sizeof(struct packet_data));
 
 	pkt->w_bio = pkt_bio_alloc(PACKET_MAX_SIZE);
 	if (!pkt->w_bio)
@@ -2492,10 +2490,9 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 		return -EBUSY;
 	}
 
-	pd = kmalloc(sizeof(struct pktcdvd_device), GFP_KERNEL);
+	pd = kzalloc(sizeof(struct pktcdvd_device), GFP_KERNEL);
 	if (!pd)
 		return ret;
-	memset(pd, 0, sizeof(struct pktcdvd_device));
 
 	pd->rb_pool = mempool_create(PKT_RB_POOL_SIZE, pkt_rb_alloc, pkt_rb_free, NULL);
 	if (!pd->rb_pool)
