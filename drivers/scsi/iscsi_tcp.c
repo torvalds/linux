@@ -1385,7 +1385,7 @@ iscsi_sendpage(struct iscsi_conn *conn, struct iscsi_buf *buf,
 	BUG_ON(buf->sent + size > buf->sg.length);
 	if (size > *count)
 		size = *count;
-	if (buf->sent + size != buf->sg.length)
+	if (buf->sent + size != buf->sg.length || *count != size)
 		flags |= MSG_MORE;
 
 	res = iscsi_send(sk, buf, size, flags);
