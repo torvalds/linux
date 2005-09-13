@@ -301,9 +301,9 @@ fw_register_class_device(struct class_device **class_dev_p,
 			 const char *fw_name, struct device *device)
 {
 	int retval;
-	struct firmware_priv *fw_priv = kmalloc(sizeof (struct firmware_priv),
+	struct firmware_priv *fw_priv = kzalloc(sizeof(*fw_priv),
 						GFP_KERNEL);
-	struct class_device *class_dev = kmalloc(sizeof (struct class_device),
+	struct class_device *class_dev = kzalloc(sizeof(*class_dev),
 						 GFP_KERNEL);
 
 	*class_dev_p = NULL;
@@ -313,8 +313,6 @@ fw_register_class_device(struct class_device **class_dev_p,
 		retval = -ENOMEM;
 		goto error_kfree;
 	}
-	memset(fw_priv, 0, sizeof (*fw_priv));
-	memset(class_dev, 0, sizeof (*class_dev));
 
 	init_completion(&fw_priv->completion);
 	fw_priv->attr_data = firmware_attr_data_tmpl;
@@ -402,14 +400,13 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	if (!firmware_p)
 		return -EINVAL;
 
-	*firmware_p = firmware = kmalloc(sizeof (struct firmware), GFP_KERNEL);
+	*firmware_p = firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware) {
 		printk(KERN_ERR "%s: kmalloc(struct firmware) failed\n",
 		       __FUNCTION__);
 		retval = -ENOMEM;
 		goto out;
 	}
-	memset(firmware, 0, sizeof (*firmware));
 
 	retval = fw_setup_class_device(firmware, &class_dev, name, device,
 		hotplug);
