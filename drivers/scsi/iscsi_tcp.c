@@ -1061,7 +1061,6 @@ iscsi_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 {
 	int rc;
 	struct iscsi_conn *conn = rd_desc->arg.data;
-	int start = skb_headlen(skb);
 	int processed;
 	char pad[ISCSI_PAD_LEN];
 	struct scatterlist sg;
@@ -1070,7 +1069,7 @@ iscsi_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 	 * Save current SKB and its offset in the corresponding
 	 * connection context.
 	 */
-	conn->in.copy = start - offset;
+	conn->in.copy = skb->len - offset;
 	conn->in.offset = offset;
 	conn->in.skb = skb;
 	conn->in.len = conn->in.copy;
