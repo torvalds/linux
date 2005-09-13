@@ -2053,10 +2053,6 @@ static int __init rs_init(void)
 	state->icount.rx = state->icount.tx = 0;
 	state->icount.frame = state->icount.parity = 0;
 	state->icount.overrun = state->icount.brk = 0;
-	/*
-	if(state->port && check_region(state->port,REGION_LENGTH(state)))
-	  continue;
-	*/
 
 	printk(KERN_INFO "ttyS%d is the amiga builtin serial port\n",
 		       state->line);
