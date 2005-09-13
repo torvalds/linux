@@ -56,7 +56,8 @@ struct iscsi_hdr {
 	__be32		ttt;		/* Target Task Tag */
 	__be32		statsn;
 	__be32		exp_statsn;
-	uint8_t		other[16];
+	__be32		max_statsn;
+	uint8_t		other[12];
 };
 
 /************************* RFC 3720 Begin *****************************/
@@ -78,6 +79,11 @@ struct iscsi_hdr {
 #define ISCSI_OP_LOGOUT			0x06
 #define ISCSI_OP_SNACK			0x10
 
+#define ISCSI_OP_VENDOR1_CMD		0x1c
+#define ISCSI_OP_VENDOR2_CMD		0x1d
+#define ISCSI_OP_VENDOR3_CMD		0x1e
+#define ISCSI_OP_VENDOR4_CMD		0x1f
+
 /* Target Opcode values */
 #define ISCSI_OP_NOOP_IN		0x20
 #define ISCSI_OP_SCSI_CMD_RSP		0x21
@@ -90,12 +96,20 @@ struct iscsi_hdr {
 #define ISCSI_OP_ASYNC_EVENT		0x32
 #define ISCSI_OP_REJECT			0x3f
 
+struct iscsi_ahs_hdr {
+	__be16 ahslength;
+	uint8_t ahstype;
+	uint8_t ahspec[5];
+};
+
+#define ISCSI_AHSTYPE_CDB		1
+#define ISCSI_AHSTYPE_RLENGTH		2
+
 /* iSCSI PDU Header */
 struct iscsi_cmd {
 	uint8_t opcode;
 	uint8_t flags;
-	uint8_t rsvd2;
-	uint8_t cmdrn;
+	__be16 rsvd2;
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t lun[8];
@@ -119,6 +133,13 @@ struct iscsi_cmd {
 #define ISCSI_ATTR_ORDERED		2
 #define ISCSI_ATTR_HEAD_OF_QUEUE	3
 #define ISCSI_ATTR_ACA			4
+
+struct iscsi_rlength_ahdr {
+	__be16 ahslength;
+	uint8_t ahstype;
+	uint8_t reserved;
+	__be32 read_length;
+};
 
 /* SCSI Response Header */
 struct iscsi_cmd_rsp {
@@ -227,7 +248,7 @@ struct iscsi_tm {
 	uint8_t rsvd2[8];
 };
 
-#define ISCSI_FLAG_TASK_MGMT_FUNCTION_MASK	0x7F
+#define ISCSI_FLAG_TM_FUNC_MASK			0x7F
 
 /* Function values */
 #define ISCSI_TM_FUNC_ABORT_TASK		1
@@ -257,14 +278,14 @@ struct iscsi_tm_rsp {
 };
 
 /* Response values */
-#define SCSI_TCP_TM_RESP_COMPLETE	0x00
-#define SCSI_TCP_TM_RESP_NO_TASK	0x01
-#define SCSI_TCP_TM_RESP_NO_LUN		0x02
-#define SCSI_TCP_TM_RESP_TASK_ALLEGIANT	0x03
-#define SCSI_TCP_TM_RESP_NO_FAILOVER	0x04
-#define SCSI_TCP_TM_RESP_NOT_SUPPORTED	0x05
-#define SCSI_TCP_TM_RESP_AUTH_FAILED	0x06
-#define SCSI_TCP_TM_RESP_REJECTED	0xff
+#define ISCSI_TMF_RSP_COMPLETE		0x00
+#define ISCSI_TMF_RSP_NO_TASK		0x01
+#define ISCSI_TMF_RSP_NO_LUN		0x02
+#define ISCSI_TMF_RSP_TASK_ALLEGIANT	0x03
+#define ISCSI_TMF_RSP_NO_FAILOVER	0x04
+#define ISCSI_TMF_RSP_NOT_SUPPORTED	0x05
+#define ISCSI_TMF_RSP_AUTH_FAILED	0x06
+#define ISCSI_TMF_RSP_REJECTED		0xff
 
 /* Ready To Transfer Header */
 struct iscsi_r2t_rsp {

@@ -751,7 +751,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 						(void*)&mtask, sizeof(void*));
 				conn->tmabort_state =
 					((struct iscsi_tm_rsp *)hdr)->
-					response == SCSI_TCP_TM_RESP_COMPLETE ?
+					response == ISCSI_TMF_RSP_COMPLETE ?
 						TMABORT_SUCCESS:TMABORT_FAILED;
 				/* unblock eh_abort() */
 				wake_up(&conn->ehwait);
