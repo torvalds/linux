@@ -276,12 +276,22 @@ _GLOBAL(ppc64_rt_sigsuspend)
 _GLOBAL(ppc32_rt_sigsuspend)
 	bl	.save_nvgprs
 	bl	.sys32_rt_sigsuspend
-	/* If sigsuspend() returns zero, we are going into a signal handler */
 70:	cmpdi	0,r3,0
-	beq	.ret_from_except
-	/* If it returned -EINTR, we need to return via syscall_exit to set
+	/* If it returned an error, we need to return via syscall_exit to set
 	   the SO bit in cr0 and potentially stop for ptrace. */
-	b	syscall_exit
+	bne	syscall_exit
+	/* If sigsuspend() returns zero, we are going into a signal handler. We
+	   may need to call audit_syscall_exit() to mark the exit from sigsuspend() */
+#ifdef CONFIG_AUDIT
+	ld	r3,PACACURRENT(r13)
+	ld	r4,AUDITCONTEXT(r3)
+	cmpdi	0,r4,0
+	beq	.ret_from_except	/* No audit_context: Leave immediately. */
+	li	r4, 2			/* AUDITSC_FAILURE */
+	li	r5,-4			/* It's always -EINTR */
+	bl	.audit_syscall_exit
+#endif
+	b	.ret_from_except
 
 _GLOBAL(ppc_fork)
 	bl	.save_nvgprs

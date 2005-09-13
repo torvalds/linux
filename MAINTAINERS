@@ -370,7 +370,10 @@ W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 
 AUDIT SUBSYSTEM
-L:	linux-audit@redhat.com (subscribers-only)
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	linux-audit@redhat.com
+W:	http://people.redhat.com/sgrubb/audit/
 S:	Maintained
 
 AX.25 NETWORK LAYER
