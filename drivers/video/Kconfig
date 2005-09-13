@@ -753,7 +753,8 @@ config FB_I810_GTF
 
 config FB_I810_I2C
 	bool "Enable DDC Support"
-	depends on FB_I810 && I2C && FB_I810_GTF
+	depends on FB_I810 && FB_I810_GTF
+	select I2C
 	select I2C_ALGOBIT
 	help
 
