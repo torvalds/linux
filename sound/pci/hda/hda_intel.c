@@ -223,6 +223,9 @@ enum {
 #define ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR   0x42
 #define ATI_SB450_HDAUDIO_ENABLE_SNOOP      0x02
 
+/* Defines for Nvidia HDA support */
+#define NVIDIA_HDA_TRANSREG_ADDR      0x4e
+#define NVIDIA_HDA_ENABLE_COHBITS     0x0f
 
 /*
  * Use CORB/RIRB for communication from/to codecs.
@@ -328,6 +331,7 @@ enum {
 	AZX_DRIVER_VIA,
 	AZX_DRIVER_SIS,
 	AZX_DRIVER_ULI,
+	AZX_DRIVER_NVIDIA,
 };
 
 static char *driver_short_names[] __devinitdata = {
@@ -335,7 +339,8 @@ static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_ATI] = "HDA ATI SB",
 	[AZX_DRIVER_VIA] = "HDA VIA VT82xx",
 	[AZX_DRIVER_SIS] = "HDA SIS966",
-	[AZX_DRIVER_ULI] = "HDA ULI M5461"
+	[AZX_DRIVER_ULI] = "HDA ULI M5461",
+	[AZX_DRIVER_NVIDIA] = "HDA NVidia",
 };
 
 /*
@@ -710,14 +715,14 @@ static void azx_stream_stop(azx_t *chip, azx_dev_t *azx_dev)
  */
 static void azx_init_chip(azx_t *chip)
 {
-	unsigned char tcsel_reg, ati_misc_cntl2;
+	unsigned char reg;
 
 	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
 	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
 	 * Ensuring these bits are 0 clears playback static on some HD Audio codecs
 	 */
-	pci_read_config_byte (chip->pci, ICH6_PCIREG_TCSEL, &tcsel_reg);
-	pci_write_config_byte(chip->pci, ICH6_PCIREG_TCSEL, tcsel_reg & 0xf8);
+	pci_read_config_byte (chip->pci, ICH6_PCIREG_TCSEL, &reg);
+	pci_write_config_byte(chip->pci, ICH6_PCIREG_TCSEL, reg & 0xf8);
 
 	/* reset controller */
 	azx_reset(chip);
@@ -733,13 +738,21 @@ static void azx_init_chip(azx_t *chip)
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
 	azx_writel(chip, DPUBASE, upper_32bit(chip->posbuf.addr));
 
-	/* For ATI SB450 azalia HD audio, we need to enable snoop */
-	if (chip->driver_type == AZX_DRIVER_ATI) {
+	switch (chip->driver_type) {
+	case AZX_DRIVER_ATI:
+		/* For ATI SB450 azalia HD audio, we need to enable snoop */
 		pci_read_config_byte(chip->pci, ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
-				     &ati_misc_cntl2);
+				     &reg);
 		pci_write_config_byte(chip->pci, ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
-				      (ati_misc_cntl2 & 0xf8) | ATI_SB450_HDAUDIO_ENABLE_SNOOP);
-	}
+				      (reg & 0xf8) | ATI_SB450_HDAUDIO_ENABLE_SNOOP);
+		break;
+	case AZX_DRIVER_NVIDIA:
+		/* For NVIDIA HDA, enable snoop */
+		pci_read_config_byte(chip->pci,NVIDIA_HDA_TRANSREG_ADDR, &reg);
+		pci_write_config_byte(chip->pci,NVIDIA_HDA_TRANSREG_ADDR,
+				      (reg & 0xf0) | NVIDIA_HDA_ENABLE_COHBITS);
+		break;
+        }
 }
 
 
@@ -1601,6 +1614,8 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x1106, 0x3288, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_VIA }, /* VIA VT8251/VT8237A */
 	{ 0x1039, 0x7502, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_SIS }, /* SIS966 */
 	{ 0x10b9, 0x5461, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ULI }, /* ULI M5461 */
+	{ 0x10de, 0x026c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA 026c */
+	{ 0x10de, 0x0371, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA 0371 */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);
