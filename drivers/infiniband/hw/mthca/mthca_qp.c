@@ -227,7 +227,6 @@ static void mthca_wq_init(struct mthca_wq *wq)
 	wq->last_comp = wq->max - 1;
 	wq->head      = 0;
 	wq->tail      = 0;
-	wq->last      = NULL;
 }
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
@@ -1103,6 +1102,9 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 		}
 	}
 
+	qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
+	qp->rq.last = get_recv_wqe(qp, qp->rq.max - 1);
+
 	return 0;
 }
 
@@ -1583,15 +1585,13 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			goto out;
 		}
 
-		if (prev_wqe) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32(((ind << qp->sq.wqe_shift) +
-					     qp->send_wqe_offset) |
-					    mthca_opcode[wr->opcode]);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32(((ind << qp->sq.wqe_shift) +
+				     qp->send_wqe_offset) |
+				    mthca_opcode[wr->opcode]);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size);
 
 		if (!size0) {
 			size0 = size;
@@ -1688,13 +1688,11 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		qp->wrid[ind] = wr->wr_id;
 
-		if (likely(prev_wqe)) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32((ind << qp->rq.wqe_shift) | 1);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32(MTHCA_NEXT_DBD | size);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32((ind << qp->rq.wqe_shift) | 1);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32(MTHCA_NEXT_DBD | size);
 
 		if (!size0)
 			size0 = size;
@@ -1905,15 +1903,13 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			goto out;
 		}
 
-		if (likely(prev_wqe)) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32(((ind << qp->sq.wqe_shift) +
-					     qp->send_wqe_offset) |
-					    mthca_opcode[wr->opcode]);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32(MTHCA_NEXT_DBD | size);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32(((ind << qp->sq.wqe_shift) +
+				     qp->send_wqe_offset) |
+				    mthca_opcode[wr->opcode]);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32(MTHCA_NEXT_DBD | size);
 
 		if (!size0) {
 			size0 = size;

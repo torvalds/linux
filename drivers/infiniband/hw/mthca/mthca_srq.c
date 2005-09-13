@@ -189,7 +189,6 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	srq->max      = attr->max_wr;
 	srq->max_gs   = attr->max_sge;
-	srq->last     = NULL;
 	srq->counter  = 0;
 
 	if (mthca_is_memfree(dev))
@@ -264,6 +263,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	srq->first_free = 0;
 	srq->last_free  = srq->max - 1;
+	srq->last	= get_wqe(srq, srq->max - 1);
 
 	return 0;
 
@@ -446,13 +446,11 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			((struct mthca_data_seg *) wqe)->addr = 0;
 		}
 
-		if (likely(prev_wqe)) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32((ind << srq->wqe_shift) | 1);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32(MTHCA_NEXT_DBD);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32((ind << srq->wqe_shift) | 1);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32(MTHCA_NEXT_DBD);
 
 		srq->wrid[ind]  = wr->wr_id;
 		srq->first_free = next_ind;
