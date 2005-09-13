@@ -93,6 +93,7 @@ struct cciss_scsi_cmd_stack_elem_t {
 	CommandList_struct cmd;
 	ErrorInfo_struct Err;
 	__u32 busaddr;
+	__u32 pad;
 };
 
 #pragma pack()

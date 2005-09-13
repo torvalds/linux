@@ -101,6 +101,7 @@ struct ctlr_info
 #ifdef CONFIG_CISS_SCSI_TAPE
 	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
 #endif
+	unsigned char alive;
 };
 
 /*  Defining the diffent access_menthods */

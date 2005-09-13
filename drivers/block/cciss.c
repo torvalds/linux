@@ -174,6 +174,8 @@ static int sendcmd_withirq(__u8	cmd, int ctlr, void *buff, size_t size,
 	unsigned int use_unit_num, unsigned int log_unit, __u8	page_code,
 	int cmd_type);
 
+static void fail_all_cmds(unsigned long ctlr);
+
 #ifdef CONFIG_PROC_FS
 static int cciss_proc_get_info(char *buffer, char **start, off_t offset, 
 		int length, int *eof, void *data);
@@ -387,6 +389,8 @@ static CommandList_struct * cmd_alloc(ctlr_info_t *h, int get_from_pool)
                  	return NULL;
 		memset(c, 0, sizeof(CommandList_struct));
 
+		c->cmdindex = -1;
+
 		c->err_info = (ErrorInfo_struct *)pci_alloc_consistent(
 					h->pdev, sizeof(ErrorInfo_struct), 
 					&err_dma_handle);
@@ -417,6 +421,8 @@ static CommandList_struct * cmd_alloc(ctlr_info_t *h, int get_from_pool)
 		err_dma_handle = h->errinfo_pool_dhandle 
 					+ i*sizeof(ErrorInfo_struct);
                 h->nr_allocs++;
+
+		c->cmdindex = i;
         }
 
 	c->busaddr = (__u32) cmd_dma_handle;
@@ -2257,7 +2263,11 @@ queue:
 	/* fill in the request */ 
 	drv = creq->rq_disk->private_data;
 	c->Header.ReplyQueue = 0;  // unused in simple mode
-	c->Header.Tag.lower = c->busaddr;  // use the physical address the cmd block for tag
+	/* got command from pool, so use the command block index instead */
+	/* for direct lookups. */
+	/* The first 2 bits are reserved for controller error reporting. */
+	c->Header.Tag.lower = (c->cmdindex << 3);
+	c->Header.Tag.lower |= 0x04; /* flag for direct lookup. */
 	c->Header.LUN.LogDev.VolId= drv->LunID;
 	c->Header.LUN.LogDev.Mode = 1;
 	c->Request.CDBLen = 10; // 12 byte commands not in FW yet;
@@ -2332,7 +2342,7 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 	ctlr_info_t *h = dev_id;
 	CommandList_struct *c;
 	unsigned long flags;
-	__u32 a, a1;
+	__u32 a, a1, a2;
 	int j;
 	int start_queue = h->next_to_run;
 
@@ -2350,16 +2360,28 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 		while((a = h->access.command_completed(h)) != FIFO_EMPTY) 
 		{
 			a1 = a;
+			if ((a & 0x04)) {
+				a2 = (a >> 3);
+				if (a2 >= NR_CMDS) {
+					printk(KERN_WARNING "cciss: controller cciss%d failed, stopping.\n", h->ctlr);
+					fail_all_cmds(h->ctlr);
+					return IRQ_HANDLED;
+				}
+
+				c = h->cmd_pool + a2;
+				a = c->busaddr;
+
+			} else {
 			a &= ~3;
-			if ((c = h->cmpQ) == NULL)
-			{  
-				printk(KERN_WARNING "cciss: Completion of %08lx ignored\n", (unsigned long)a1);
+				if ((c = h->cmpQ) == NULL) {
+					printk(KERN_WARNING "cciss: Completion of %08x ignored\n", a1);
 				continue;	
 			} 
 			while(c->busaddr != a) {
 				c = c->next;
 				if (c == h->cmpQ) 
 					break;
+			}
 			}
 			/*
 			 * If we've found the command, take it off the
@@ -3122,6 +3144,44 @@ static void __exit cciss_cleanup(void)
 		}
 	}
 	remove_proc_entry("cciss", proc_root_driver);
+}
+
+static void fail_all_cmds(unsigned long ctlr)
+{
+	/* If we get here, the board is apparently dead. */
+	ctlr_info_t *h = hba[ctlr];
+	CommandList_struct *c;
+	unsigned long flags;
+
+	printk(KERN_WARNING "cciss%d: controller not responding.\n", h->ctlr);
+	h->alive = 0;	/* the controller apparently died... */
+
+	spin_lock_irqsave(CCISS_LOCK(ctlr), flags);
+
+	pci_disable_device(h->pdev); /* Make sure it is really dead. */
+
+	/* move everything off the request queue onto the completed queue */
+	while( (c = h->reqQ) != NULL ) {
+		removeQ(&(h->reqQ), c);
+		h->Qdepth--;
+		addQ (&(h->cmpQ), c);
+	}
+
+	/* Now, fail everything on the completed queue with a HW error */
+	while( (c = h->cmpQ) != NULL ) {
+		removeQ(&h->cmpQ, c);
+		c->err_info->CommandStatus = CMD_HARDWARE_ERR;
+		if (c->cmd_type == CMD_RWREQ) {
+			complete_command(h, c, 0);
+		} else if (c->cmd_type == CMD_IOCTL_PEND)
+			complete(c->waiting);
+#ifdef CONFIG_CISS_SCSI_TAPE
+			else if (c->cmd_type == CMD_SCSI)
+				complete_scsi_command(c, 0, 0);
+#endif
+	}
+	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
+	return;
 }
 
 module_init(cciss_init);
