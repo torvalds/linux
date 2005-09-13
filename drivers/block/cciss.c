@@ -468,6 +468,9 @@ static int cciss_open(struct inode *inode, struct file *filep)
 	printk(KERN_DEBUG "cciss_open %s\n", inode->i_bdev->bd_disk->disk_name);
 #endif /* CCISS_DEBUG */ 
 
+	if (host->busy_initializing)
+		return -EBUSY;
+
 	/*
 	 * Root is allowed to open raw volume zero even if it's not configured
 	 * so array config can still work. Root is also allowed to open any
@@ -2742,6 +2745,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	i = alloc_cciss_hba();
 	if(i < 0)
 		return (-1);
+
+	hba[i]->busy_initializing = 1;
+
 	if (cciss_pci_init(hba[i], pdev) != 0)
 		goto clean1;
 
@@ -2864,6 +2870,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		add_disk(disk);
 	}
 
+	hba[i]->busy_initializing = 0;
 	return(1);
 
 clean4:
@@ -2884,6 +2891,7 @@ clean2:
 clean1:
 	release_io_mem(hba[i]);
 	free_hba(i);
+	hba[i]->busy_initializing = 0;
 	return(-1);
 }
 

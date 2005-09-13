@@ -83,6 +83,7 @@ struct ctlr_info
 	int			nr_allocs;
 	int			nr_frees; 
 	int			busy_configuring;
+	int			busy_initializing;
 
 	/* This element holds the zero based queue number of the last
 	 * queue to be started.  It is used for fairness.
