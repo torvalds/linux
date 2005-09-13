@@ -141,7 +141,7 @@ zfcp_cmd_dbf_event_fsf(const char *text, struct zfcp_fsf_req *fsf_req,
 
 	spin_lock_irqsave(&adapter->dbf_lock, flags);
 	if (zfcp_fsf_req_is_scsi_cmnd(fsf_req)) {
-		scsi_cmnd = fsf_req->data.send_fcp_command_task.scsi_cmnd;
+		scsi_cmnd = (struct scsi_cmnd*) fsf_req->data;
 		debug_text_event(adapter->cmd_dbf, level, "fsferror");
 		debug_text_event(adapter->cmd_dbf, level, text);
 		debug_event(adapter->cmd_dbf, level, &fsf_req,
@@ -167,14 +167,12 @@ void
 zfcp_cmd_dbf_event_scsi(const char *text, struct scsi_cmnd *scsi_cmnd)
 {
 	struct zfcp_adapter *adapter;
-	union zfcp_req_data *req_data;
 	struct zfcp_fsf_req *fsf_req;
 	int level = ((host_byte(scsi_cmnd->result) != 0) ? 1 : 5);
 	unsigned long flags;
 
 	adapter = (struct zfcp_adapter *) scsi_cmnd->device->host->hostdata[0];
-	req_data = (union zfcp_req_data *) scsi_cmnd->host_scribble;
-	fsf_req = (req_data ? req_data->send_fcp_command_task.fsf_req : NULL);
+	fsf_req = (struct zfcp_fsf_req  *) scsi_cmnd->host_scribble;
 	spin_lock_irqsave(&adapter->dbf_lock, flags);
 	debug_text_event(adapter->cmd_dbf, level, "hostbyte");
 	debug_text_event(adapter->cmd_dbf, level, text);
@@ -1609,7 +1607,7 @@ zfcp_fsf_incoming_els(struct zfcp_fsf_req *fsf_req)
 	u32 els_type;
 	struct zfcp_adapter *adapter;
 
-	status_buffer = fsf_req->data.status_read.buffer;
+	status_buffer = (struct fsf_status_read_buffer *) fsf_req->data;
 	els_type = *(u32 *) (status_buffer->payload);
 	adapter = fsf_req->adapter;
 

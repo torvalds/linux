@@ -635,45 +635,6 @@ struct zfcp_adapter_mempool {
 	mempool_t *data_gid_pn;
 };
 
-struct  zfcp_exchange_config_data{
-};
-
-struct zfcp_open_port {
-        struct zfcp_port *port;
-};
-
-struct zfcp_close_port {
-	struct zfcp_port *port;
-};
-
-struct zfcp_open_unit {
-	struct zfcp_unit *unit;
-};
-
-struct zfcp_close_unit {
-	struct zfcp_unit *unit;
-};
-
-struct zfcp_close_physical_port {
-        struct zfcp_port *port;
-};
-
-struct zfcp_send_fcp_command_task {
-	struct zfcp_fsf_req *fsf_req;
-	struct zfcp_unit *unit;
- 	struct scsi_cmnd *scsi_cmnd;
-	unsigned long start_jiffies;
-};
-
-struct zfcp_send_fcp_command_task_management {
-	struct zfcp_unit *unit;
-};
-
-struct zfcp_abort_fcp_command {
-	struct zfcp_fsf_req *fsf_req;
-	struct zfcp_unit *unit;
-};
-
 /*
  * header for CT_IU
  */
@@ -779,33 +740,6 @@ struct zfcp_send_els {
 	struct completion *completion;
 	int ls_code;
 	int status;
-};
-
-struct zfcp_status_read {
-	struct fsf_status_read_buffer *buffer;
-};
-
-struct zfcp_fsf_done {
-	struct completion *complete;
-	int status;
-};
-
-/* request specific data */
-union zfcp_req_data {
-	struct zfcp_exchange_config_data exchange_config_data;
-	struct zfcp_open_port		  open_port;
-	struct zfcp_close_port		  close_port;
-	struct zfcp_open_unit		  open_unit;
-	struct zfcp_close_unit		  close_unit;
-	struct zfcp_close_physical_port	  close_physical_port;
-	struct zfcp_send_fcp_command_task send_fcp_command_task;
-        struct zfcp_send_fcp_command_task_management
-					  send_fcp_command_task_management;
-	struct zfcp_abort_fcp_command	  abort_fcp_command;
-	struct zfcp_send_ct *send_ct;
-	struct zfcp_send_els *send_els;
-	struct zfcp_status_read 	  status_read;
-	struct fsf_qtcb_bottom_port *port_data;
 };
 
 struct zfcp_qdio_queue {
@@ -963,11 +897,12 @@ struct zfcp_fsf_req {
 	u32		       fsf_command;    /* FSF Command copy */
 	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
 	u32		       seq_no;         /* Sequence number of request */
-        union zfcp_req_data    data;           /* Info fields of request */ 
+        unsigned long          data;           /* private data of request */ 
 	struct zfcp_erp_action *erp_action;    /* used if this request is
 						  issued on behalf of erp */
 	mempool_t	       *pool;	       /* used if request was alloacted
 						  from emergency pool */
+	struct zfcp_unit       *unit;
 };
 
 typedef void zfcp_fsf_req_handler_t(struct zfcp_fsf_req*);
