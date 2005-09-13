@@ -719,6 +719,9 @@ struct ieee80211_device {
 	int freq_band;  /* 2.4Ghz, 5.2Ghz, Mixed */
 	int abg_ture;   /* ABG flag              */
 
+	int perfect_rssi;
+	int worst_rssi;
+
 	/* Callback functions */
 	void (*set_security)(struct net_device *dev,
 			     struct ieee80211_security *sec);

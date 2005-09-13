@@ -140,18 +140,38 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
 
 	/* Add quality statistics */
-	/* TODO: Fix these values... */
 	iwe.cmd = IWEVQUAL;
-	iwe.u.qual.qual = network->stats.signal;
-	iwe.u.qual.level = network->stats.rssi;
-	iwe.u.qual.noise = network->stats.noise;
-	iwe.u.qual.updated = network->stats.mask & IEEE80211_STATMASK_WEMASK;
-	if (!(network->stats.mask & IEEE80211_STATMASK_RSSI))
-		iwe.u.qual.updated |= IW_QUAL_LEVEL_INVALID;
-	if (!(network->stats.mask & IEEE80211_STATMASK_NOISE))
+	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
+	    IW_QUAL_NOISE_UPDATED;
+
+	if (!(network->stats.mask & IEEE80211_STATMASK_RSSI)) {
+		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID |
+		    IW_QUAL_LEVEL_INVALID;
+		iwe.u.qual.qual = 0;
+		iwe.u.qual.level = 0;
+	} else {
+		iwe.u.qual.level = network->stats.rssi;
+		iwe.u.qual.qual =
+		    (100 *
+		     (ieee->perfect_rssi - ieee->worst_rssi) *
+		     (ieee->perfect_rssi - ieee->worst_rssi) -
+		     (ieee->perfect_rssi - network->stats.rssi) *
+		     (15 * (ieee->perfect_rssi - ieee->worst_rssi) +
+		      62 * (ieee->perfect_rssi - network->stats.rssi))) /
+		    ((ieee->perfect_rssi - ieee->worst_rssi) *
+		     (ieee->perfect_rssi - ieee->worst_rssi));
+		if (iwe.u.qual.qual > 100)
+			iwe.u.qual.qual = 100;
+		else if (iwe.u.qual.qual < 1)
+			iwe.u.qual.qual = 0;
+	}
+
+	if (!(network->stats.mask & IEEE80211_STATMASK_NOISE)) {
 		iwe.u.qual.updated |= IW_QUAL_NOISE_INVALID;
-	if (!(network->stats.mask & IEEE80211_STATMASK_SIGNAL))
-		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID;
+		iwe.u.qual.noise = 0;
+	} else {
+		iwe.u.qual.noise = network->stats.noise;
+	}
 
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
 
