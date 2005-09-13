@@ -558,9 +558,8 @@ static int
 zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
-	int retval;
-	int status;
 	struct zfcp_fsf_req *fsf_req;
+	int retval = 0;
 
 	/* issue task management function */
 	fsf_req = zfcp_fsf_send_fcp_command_task_management
@@ -574,18 +573,16 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags)
 		goto out;
 	}
 
-	retval = zfcp_fsf_req_wait_and_cleanup(fsf_req,
-					       ZFCP_UNINTERRUPTIBLE, &status);
-	/*
-	 * check completion status of task management function
-	 * (status should always be valid since no signals permitted)
-	 */
-	if (status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED)
+	__wait_event(fsf_req->completion_wq,
+		     fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+
+	/* check completion status of task management function */
+	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED)
 		retval = -EIO;
-	else if (status & ZFCP_STATUS_FSFREQ_TMFUNCNOTSUPP)
+	else if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCNOTSUPP)
 		retval = -ENOTSUPP;
-	else
-		retval = 0;
+
+	zfcp_fsf_req_free(fsf_req);
  out:
 	return retval;
 }

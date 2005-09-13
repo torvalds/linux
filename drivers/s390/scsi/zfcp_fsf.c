@@ -4548,52 +4548,6 @@ skip_fsfstatus:
 	return retval;
 }
 
-
-/*
- * function:    zfcp_fsf_req_wait_and_cleanup
- *
- * purpose:
- *
- * FIXME(design): signal seems to be <0 !!!
- * returns:	0	- request completed (*status is valid), cleanup succ.
- *		<0	- request completed (*status is valid), cleanup failed
- *		>0	- signal which interrupted waiting (*status invalid),
- *			  request not completed, no cleanup
- *
- *		*status is a copy of status of completed fsf_req
- */
-int
-zfcp_fsf_req_wait_and_cleanup(struct zfcp_fsf_req *fsf_req,
-			      int interruptible, u32 * status)
-{
-	int retval = 0;
-	int signal = 0;
-
-	if (interruptible) {
-		__wait_event_interruptible(fsf_req->completion_wq,
-					   fsf_req->status &
-					   ZFCP_STATUS_FSFREQ_COMPLETED,
-					   signal);
-		if (signal) {
-			ZFCP_LOG_DEBUG("Caught signal %i while waiting for the "
-				       "completion of the request at %p\n",
-				       signal, fsf_req);
-			retval = signal;
-			goto out;
-		}
-	} else {
-		__wait_event(fsf_req->completion_wq,
-			     fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
-	}
-
-	*status = fsf_req->status;
-
-	/* cleanup request */
-	zfcp_fsf_req_free(fsf_req);
- out:
-	return retval;
-}
-
 static inline int
 zfcp_fsf_req_sbal_check(unsigned long *flags,
 			struct zfcp_qdio_queue *queue, int needed)
