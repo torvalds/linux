@@ -66,11 +66,11 @@ SETUP
    c) Enable "/proc/vmcore support" (Optional, in Pseudo filesystems).
 	CONFIG_PROC_VMCORE=y
    d) Disable SMP support and build a UP kernel (Until it is fixed).
-   	CONFIG_SMP=n
+	CONFIG_SMP=n
    e) Enable "Local APIC support on uniprocessors".
-   	CONFIG_X86_UP_APIC=y
+	CONFIG_X86_UP_APIC=y
    f) Enable "IO-APIC support on uniprocessors"
-   	CONFIG_X86_UP_IOAPIC=y
+	CONFIG_X86_UP_IOAPIC=y
 
   Note:   i) Options a) and b) depend upon "Configure standard kernel features
 	     (for small systems)" (under General setup).
@@ -95,6 +95,11 @@ SETUP
 	    hence have memory less than 4GB.
        iii) Specify "irqpoll" as command line parameter. This reduces driver
             initialization failures in second kernel due to shared interrupts.
+        iv) <root-dev> needs to be specified in a format corresponding to
+            the root device name in the output of mount command.
+         v) If you have built the drivers required to mount root file
+            system as modules in <second-kernel>, then, specify
+            --initrd=<initrd-for-second-kernel>.
 
 5) System reboots into the second kernel when a panic occurs. A module can be
    written to force the panic or "ALT-SysRq-c" can be used initiate a crash
