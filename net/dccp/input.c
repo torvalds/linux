@@ -50,7 +50,8 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	dccp_set_state(sk, DCCP_CLOSING);
+	if (sk->sk_state != DCCP_CLOSING)
+		dccp_set_state(sk, DCCP_CLOSING);
 	dccp_send_close(sk, 0);
 }
 
