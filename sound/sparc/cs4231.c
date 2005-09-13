@@ -1915,6 +1915,9 @@ static int cs4231_attach_finish(snd_card_t *card, cs4231_t *chip)
 	if ((err = snd_cs4231_timer(chip)) < 0)
 		goto out_err;
 
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto out_err;
+
 	if ((err = snd_card_register(card)) < 0)
 		goto out_err;
 
@@ -1966,7 +1969,7 @@ static int __init snd_cs4231_sbus_create(snd_card_t *card,
 	int err;
 
 	*rchip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
@@ -2080,7 +2083,7 @@ static int __init snd_cs4231_ebus_create(snd_card_t *card,
 	int err;
 
 	*rchip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 

@@ -505,6 +505,7 @@ struct hda_pcm_stream {
 struct hda_pcm {
 	char *name;
 	struct hda_pcm_stream stream[2];
+	unsigned int is_modem;	/* modem codec? */
 };
 
 /* codec information */

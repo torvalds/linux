@@ -839,7 +839,7 @@ static int snd_ymfpci_playback_open_1(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	ymfpci_pcm_t *ypcm;
 
-	ypcm = kcalloc(1, sizeof(*ypcm), GFP_KERNEL);
+	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
 	if (ypcm == NULL)
 		return -ENOMEM;
 	ypcm->chip = chip;
@@ -957,7 +957,7 @@ static int snd_ymfpci_capture_open(snd_pcm_substream_t * substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	ymfpci_pcm_t *ypcm;
 
-	ypcm = kcalloc(1, sizeof(*ypcm), GFP_KERNEL);
+	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
 	if (ypcm == NULL)
 		return -ENOMEM;
 	ypcm->chip = chip;
@@ -2270,7 +2270,7 @@ int __devinit snd_ymfpci_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

@@ -370,13 +370,6 @@ MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
 #define UNITY_GAIN                       32768
 #define MINUS_INFINITY_GAIN              0
 
-#ifndef PCI_VENDOR_ID_XILINX
-#define PCI_VENDOR_ID_XILINX		0x10ee
-#endif
-#ifndef PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP
-#define PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP 0x3fc5
-#endif
-
 /* the size of a substream (1 mono data stream) */
 
 #define HDSP_CHANNEL_BUFFER_SAMPLES  (16*1024)
@@ -4899,6 +4892,7 @@ static int snd_hdsp_create_alsa_devices(snd_card_t *card, hdsp_t *hdsp)
 	}
 	
 	if (!(hdsp->state & HDSP_InitializationComplete)) {
+		strcpy(card->shortname, "Hammerfall DSP");
 		sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name, 
 			hdsp->port, hdsp->irq);
 	    
@@ -5222,6 +5216,7 @@ static void __devexit snd_hdsp_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name =     "RME Hammerfall DSP",
+	.owner =    THIS_MODULE,
 	.id_table = snd_hdsp_ids,
 	.probe =    snd_hdsp_probe,
 	.remove = __devexit_p(snd_hdsp_remove),

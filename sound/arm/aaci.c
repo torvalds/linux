@@ -900,6 +900,8 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 	if (ret)
 		goto out;
 
+	snd_card_set_dev(aaci->card, &dev->dev);
+
 	ret = snd_card_register(aaci->card);
 	if (ret == 0) {
 		dev_info(&dev->dev, "%s, fifo %d\n", aaci->card->longname,

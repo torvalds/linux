@@ -473,7 +473,7 @@ static int vx_alloc_pipe(vx_core_t *chip, int capture,
 		return err;
 
 	/* initialize the pipe record */
-	pipe = kcalloc(1, sizeof(*pipe), GFP_KERNEL);
+	pipe = kzalloc(sizeof(*pipe), GFP_KERNEL);
 	if (! pipe) {
 		/* release the pipe */
 		vx_init_rmh(&rmh, CMD_FREE_PIPE);

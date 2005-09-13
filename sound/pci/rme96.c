@@ -200,25 +200,6 @@ MODULE_PARM_DESC(enable, "Enable RME Digi96 soundcard.");
 #define RME96_AD1852_VOL_BITS 14
 #define RME96_AD1855_VOL_BITS 10
 
-/*
- * PCI vendor/device ids, could in the future be defined in <linux/pci.h>,
- * therefore #ifndef is used.
- */
-#ifndef PCI_VENDOR_ID_XILINX
-#define PCI_VENDOR_ID_XILINX 0x10ee
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96
-#define PCI_DEVICE_ID_DIGI96 0x3fc0
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96_8
-#define PCI_DEVICE_ID_DIGI96_8 0x3fc1
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96_8_PRO
-#define PCI_DEVICE_ID_DIGI96_8_PRO 0x3fc2
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST
-#define PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST 0x3fc3
-#endif
 
 typedef struct snd_rme96 {
 	spinlock_t    lock;
@@ -985,7 +966,8 @@ snd_rme96_playback_hw_params(snd_pcm_substream_t *substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err, rate, dummy;
 
-	runtime->dma_area = (void *)(rme96->iobase + RME96_IO_PLAY_BUFFER);
+	runtime->dma_area = (void __force *)(rme96->iobase +
+					     RME96_IO_PLAY_BUFFER);
 	runtime->dma_addr = rme96->port + RME96_IO_PLAY_BUFFER;
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
@@ -1037,7 +1019,8 @@ snd_rme96_capture_hw_params(snd_pcm_substream_t *substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err, isadat, rate;
 	
-	runtime->dma_area = (void *)(rme96->iobase + RME96_IO_REC_BUFFER);
+	runtime->dma_area = (void __force *)(rme96->iobase +
+					     RME96_IO_REC_BUFFER);
 	runtime->dma_addr = rme96->port + RME96_IO_REC_BUFFER;
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
@@ -2430,6 +2413,7 @@ static void __devexit snd_rme96_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "RME Digi96",
+	.owner = THIS_MODULE,
 	.id_table = snd_rme96_ids,
 	.probe = snd_rme96_probe,
 	.remove = __devexit_p(snd_rme96_remove),

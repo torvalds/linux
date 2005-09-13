@@ -77,20 +77,26 @@ static int snd_mpu401_create(int dev, snd_card_t **rcard)
 		strcat(card->longname, "polled");
 	}
 
-	if (snd_mpu401_uart_new(card, 0,
-				MPU401_HW_MPU401,
-				port[dev], 0,
-				irq[dev], irq[dev] >= 0 ? SA_INTERRUPT : 0, NULL) < 0) {
+	if ((err = snd_mpu401_uart_new(card, 0,
+				       MPU401_HW_MPU401,
+				       port[dev], 0,
+				       irq[dev], irq[dev] >= 0 ? SA_INTERRUPT : 0, NULL)) < 0) {
 		printk(KERN_ERR "MPU401 not detected at 0x%lx\n", port[dev]);
-		snd_card_free(card);
-		return -ENODEV;
+		goto _err;
 	}
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	*rcard = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __devinit snd_mpu401_probe(int dev)

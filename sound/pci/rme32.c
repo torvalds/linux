@@ -192,20 +192,6 @@ MODULE_SUPPORTED_DEVICE("{{RME,Digi32}," "{RME,Digi32/8}," "{RME,Digi32 PRO}}");
 #define RME32_PRO_REVISION_WITH_8414 150
 
 
-/* PCI vendor/device ID's */
-#ifndef PCI_VENDOR_ID_XILINX_RME
-# define PCI_VENDOR_ID_XILINX_RME 0xea60
-#endif
-#ifndef PCI_DEVICE_ID_DIGI32
-# define PCI_DEVICE_ID_DIGI32 0x9896
-#endif
-#ifndef PCI_DEVICE_ID_DIGI32_PRO
-# define PCI_DEVICE_ID_DIGI32_PRO 0x9897
-#endif
-#ifndef PCI_DEVICE_ID_DIGI32_8
-# define PCI_DEVICE_ID_DIGI32_8 0x9898
-#endif
-
 typedef struct snd_rme32 {
 	spinlock_t lock;
 	int irq;
@@ -692,7 +678,8 @@ snd_rme32_playback_hw_params(snd_pcm_substream_t * substream,
 		if (err < 0)
 			return err;
 	} else {
-		runtime->dma_area = (void *)(rme32->iobase + RME32_IO_DATA_BUFFER);
+		runtime->dma_area = (void __force *)(rme32->iobase +
+						     RME32_IO_DATA_BUFFER);
 		runtime->dma_addr = rme32->port + RME32_IO_DATA_BUFFER;
 		runtime->dma_bytes = RME32_BUFFER_SIZE;
 	}
@@ -746,7 +733,8 @@ snd_rme32_capture_hw_params(snd_pcm_substream_t * substream,
 		if (err < 0)
 			return err;
 	} else {
-		runtime->dma_area = (void *)rme32->iobase + RME32_IO_DATA_BUFFER;
+		runtime->dma_area = (void __force *)rme32->iobase +
+					RME32_IO_DATA_BUFFER;
 		runtime->dma_addr = rme32->port + RME32_IO_DATA_BUFFER;
 		runtime->dma_bytes = RME32_BUFFER_SIZE;
 	}
@@ -2024,6 +2012,7 @@ static void __devexit snd_rme32_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name =		"RME Digi32",
+	.owner =	THIS_MODULE,
 	.id_table =	snd_rme32_ids,
 	.probe =	snd_rme32_probe,
 	.remove =	__devexit_p(snd_rme32_remove),

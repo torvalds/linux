@@ -126,8 +126,8 @@ int __init snd_seq_system_client_init(void)
 	snd_seq_client_info_t *inf;
 	snd_seq_port_info_t *port;
 
-	inf = kcalloc(1, sizeof(*inf), GFP_KERNEL);
-	port = kcalloc(1, sizeof(*port), GFP_KERNEL);
+	inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (! inf || ! port) {
 		kfree(inf);
 		kfree(port);
