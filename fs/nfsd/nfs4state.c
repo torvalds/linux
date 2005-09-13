@@ -2286,7 +2286,7 @@ check_replay:
 }
 
 int
-nfsd4_open_confirm(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open_confirm *oc)
+nfsd4_open_confirm(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open_confirm *oc, struct nfs4_stateowner **replay_owner)
 {
 	int status;
 	struct nfs4_stateowner *sop;
@@ -2320,8 +2320,10 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 
 	nfsd4_create_clid_dir(sop->so_client);
 out:
-	if (oc->oc_stateowner)
+	if (oc->oc_stateowner) {
 		nfs4_get_stateowner(oc->oc_stateowner);
+		*replay_owner = oc->oc_stateowner;
+	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -2352,7 +2354,7 @@ reset_union_bmap_deny(unsigned long deny, unsigned long *bmap)
 }
 
 int
-nfsd4_open_downgrade(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open_downgrade *od)
+nfsd4_open_downgrade(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open_downgrade *od, struct nfs4_stateowner **replay_owner)
 {
 	int status;
 	struct nfs4_stateid *stp;
@@ -2394,8 +2396,10 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct n
 	memcpy(&od->od_stateid, &stp->st_stateid, sizeof(stateid_t));
 	status = nfs_ok;
 out:
-	if (od->od_stateowner)
+	if (od->od_stateowner) {
 		nfs4_get_stateowner(od->od_stateowner);
+		*replay_owner = od->od_stateowner;
+	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -2404,7 +2408,7 @@ out:
  * nfs4_unlock_state() called after encode
  */
 int
-nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_close *close)
+nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_close *close, struct nfs4_stateowner **replay_owner)
 {
 	int status;
 	struct nfs4_stateid *stp;
@@ -2430,8 +2434,10 @@ nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_clos
 	/* release_state_owner() calls nfsd_close() if needed */
 	release_state_owner(stp, OPEN_STATE);
 out:
-	if (close->cl_stateowner)
+	if (close->cl_stateowner) {
 		nfs4_get_stateowner(close->cl_stateowner);
+		*replay_owner = close->cl_stateowner;
+	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -2675,7 +2681,7 @@ check_lock_length(u64 offset, u64 length)
  *  LOCK operation 
  */
 int
-nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock *lock)
+nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock *lock, struct nfs4_stateowner **replay_owner)
 {
 	struct nfs4_stateowner *open_sop = NULL;
 	struct nfs4_stateid *lock_stp;
@@ -2835,8 +2841,10 @@ out_destroy_new_stateid:
 		release_state_owner(lock_stp, LOCK_STATE);
 	}
 out:
-	if (lock->lk_stateowner)
+	if (lock->lk_stateowner) {
 		nfs4_get_stateowner(lock->lk_stateowner);
+		*replay_owner = lock->lk_stateowner;
+	}
 	nfs4_unlock_state();
 	return status;
 }
@@ -2925,7 +2933,7 @@ out:
 }
 
 int
-nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_locku *locku)
+nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_locku *locku, struct nfs4_stateowner **replay_owner)
 {
 	struct nfs4_stateid *stp;
 	struct file *filp = NULL;
@@ -2981,8 +2989,10 @@ nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	memcpy(&locku->lu_stateid, &stp->st_stateid, sizeof(stateid_t));
 
 out:
-	if (locku->lu_stateowner)
+	if (locku->lu_stateowner) {
 		nfs4_get_stateowner(locku->lu_stateowner);
+		*replay_owner = locku->lu_stateowner;
+	}
 	nfs4_unlock_state();
 	return status;
 
