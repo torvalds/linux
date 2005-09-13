@@ -426,19 +426,19 @@ static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 }
 
 static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {
-	.name			= "CCMP",
-	.init			= ieee80211_ccmp_init,
-	.deinit			= ieee80211_ccmp_deinit,
-	.encrypt_mpdu		= ieee80211_ccmp_encrypt,
-	.decrypt_mpdu		= ieee80211_ccmp_decrypt,
-	.encrypt_msdu		= NULL,
-	.decrypt_msdu		= NULL,
-	.set_key		= ieee80211_ccmp_set_key,
-	.get_key		= ieee80211_ccmp_get_key,
-	.print_stats		= ieee80211_ccmp_print_stats,
-	.extra_prefix_len	= CCMP_HDR_LEN,
-	.extra_postfix_len	= CCMP_MIC_LEN,
-	.owner			= THIS_MODULE,
+	.name = "CCMP",
+	.init = ieee80211_ccmp_init,
+	.deinit = ieee80211_ccmp_deinit,
+	.encrypt_mpdu = ieee80211_ccmp_encrypt,
+	.decrypt_mpdu = ieee80211_ccmp_decrypt,
+	.encrypt_msdu = NULL,
+	.decrypt_msdu = NULL,
+	.set_key = ieee80211_ccmp_set_key,
+	.get_key = ieee80211_ccmp_get_key,
+	.print_stats = ieee80211_ccmp_print_stats,
+	.extra_prefix_len = CCMP_HDR_LEN,
+	.extra_postfix_len = CCMP_MIC_LEN,
+	.owner = THIS_MODULE,
 };
 
 static int __init ieee80211_crypto_ccmp_init(void)

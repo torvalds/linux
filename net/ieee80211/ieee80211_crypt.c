@@ -191,18 +191,18 @@ static void ieee80211_crypt_null_deinit(void *priv)
 }
 
 static struct ieee80211_crypto_ops ieee80211_crypt_null = {
-	.name			= "NULL",
-	.init			= ieee80211_crypt_null_init,
-	.deinit			= ieee80211_crypt_null_deinit,
-	.encrypt_mpdu		= NULL,
-	.decrypt_mpdu		= NULL,
-	.encrypt_msdu		= NULL,
-	.decrypt_msdu		= NULL,
-	.set_key		= NULL,
-	.get_key		= NULL,
-	.extra_prefix_len	= 0,
-	.extra_postfix_len	= 0,
-	.owner			= THIS_MODULE,
+	.name = "NULL",
+	.init = ieee80211_crypt_null_init,
+	.deinit = ieee80211_crypt_null_deinit,
+	.encrypt_mpdu = NULL,
+	.decrypt_mpdu = NULL,
+	.encrypt_msdu = NULL,
+	.decrypt_msdu = NULL,
+	.set_key = NULL,
+	.get_key = NULL,
+	.extra_prefix_len = 0,
+	.extra_postfix_len = 0,
+	.owner = THIS_MODULE,
 };
 
 static int __init ieee80211_crypto_init(void)

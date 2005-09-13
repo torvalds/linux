@@ -20,8 +20,8 @@
  */
 #ifndef IEEE80211_H
 #define IEEE80211_H
-#include <linux/if_ether.h> /* ETH_ALEN */
-#include <linux/kernel.h>   /* ARRAY_SIZE */
+#include <linux/if_ether.h>	/* ETH_ALEN */
+#include <linux/kernel.h>	/* ARRAY_SIZE */
 #include <linux/wireless.h>
 
 #define IEEE80211_DATA_LEN		2304
@@ -32,7 +32,6 @@
    bytes is allowed, which is a bit confusing, I suspect this
    represents the 2304 bytes of real data, plus a possible 8 bytes of
    WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
-
 
 #define IEEE80211_HLEN			30
 #define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
@@ -117,7 +116,6 @@ struct ieee80211_hdr_3addr {
 #define IEEE80211_SCTL_FRAG		0x000F
 #define IEEE80211_SCTL_SEQ		0xFFF0
 
-
 /* debug macros */
 
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -128,8 +126,7 @@ do { if (ieee80211_debug_level & (level)) \
          in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 #else
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
-#endif	/* CONFIG_IEEE80211_DEBUG */
-
+#endif				/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
 
@@ -139,7 +136,6 @@ do { if (ieee80211_debug_level & (level)) \
 /* escape_essid() is intended to be used in debug (and possibly error)
  * messages. It should never be used for passing essid to user space. */
 const char *escape_essid(const char *essid, u8 essid_len);
-
 
 /*
  * To use the debug system:
@@ -192,7 +188,7 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
-#include <linux/if_arp.h> /* ARPHRD_ETHER */
+#include <linux/if_arp.h>	/* ARPHRD_ETHER */
 
 #ifndef WIRELESS_SPY
 #define WIRELESS_SPY		/* enable iwspy support */
@@ -200,10 +196,10 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #include <net/iw_handler.h>	/* new driver API */
 
 #ifndef ETH_P_PAE
-#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
-#endif /* ETH_P_PAE */
+#define ETH_P_PAE 0x888E	/* Port Access Entity (IEEE 802.1X) */
+#endif				/* ETH_P_PAE */
 
-#define ETH_P_PREAUTH 0x88C7 /* IEEE 802.11i pre-authentication */
+#define ETH_P_PREAUTH 0x88C7	/* IEEE 802.11i pre-authentication */
 
 #ifndef ETH_P_80211_RAW
 #define ETH_P_80211_RAW (ETH_P_ECONET + 1)
@@ -215,10 +211,10 @@ const char *escape_essid(const char *essid, u8 essid_len);
 
 struct ieee80211_snap_hdr {
 
-        u8    dsap;   /* always 0xAA */
-        u8    ssap;   /* always 0xAA */
-        u8    ctrl;   /* always 0x03 */
-        u8    oui[P80211_OUI_LEN];    /* organizational universal id */
+	u8 dsap;		/* always 0xAA */
+	u8 ssap;		/* always 0xAA */
+	u8 ctrl;		/* always 0x03 */
+	u8 oui[P80211_OUI_LEN];	/* organizational universal id */
 
 } __attribute__ ((packed));
 
@@ -312,13 +308,11 @@ enum ieee80211_reasoncode {
 	WLAN_REASON_CIPHER_SUITE_REJECTED = 24,
 };
 
-
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
 #define IEEE80211_STATMASK_NOISE (1<<2)
 #define IEEE80211_STATMASK_RATE (1<<3)
 #define IEEE80211_STATMASK_WEMASK 0x7
-
 
 #define IEEE80211_CCK_MODULATION    (1<<0)
 #define IEEE80211_OFDM_MODULATION   (1<<1)
@@ -377,9 +371,6 @@ enum ieee80211_reasoncode {
 #define IEEE80211_NUM_CCK_RATES	            4
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
-
-
-
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
  *       any adverse affects. */
@@ -388,7 +379,7 @@ struct ieee80211_rx_stats {
 	s8 rssi;
 	u8 signal;
 	u8 noise;
-	u16 rate; /* in 100 kbps */
+	u16 rate;		/* in 100 kbps */
 	u8 received_channel;
 	u8 control;
 	u8 mask;
@@ -449,27 +440,23 @@ struct ieee80211_device;
 #define SEC_LEVEL         (1<<7)
 #define SEC_ENABLED       (1<<8)
 
-#define SEC_LEVEL_0      0 /* None */
-#define SEC_LEVEL_1      1 /* WEP 40 and 104 bit */
-#define SEC_LEVEL_2      2 /* Level 1 + TKIP */
-#define SEC_LEVEL_2_CKIP 3 /* Level 1 + CKIP */
-#define SEC_LEVEL_3      4 /* Level 2 + CCMP */
+#define SEC_LEVEL_0      0	/* None */
+#define SEC_LEVEL_1      1	/* WEP 40 and 104 bit */
+#define SEC_LEVEL_2      2	/* Level 1 + TKIP */
+#define SEC_LEVEL_2_CKIP 3	/* Level 1 + CKIP */
+#define SEC_LEVEL_3      4	/* Level 2 + CCMP */
 
 #define WEP_KEYS 4
 #define WEP_KEY_LEN 13
 
 struct ieee80211_security {
 	u16 active_key:2,
-            enabled:1,
-	    auth_mode:2,
-            auth_algo:4,
-            unicast_uses_group:1;
+	    enabled:1, auth_mode:2, auth_algo:4, unicast_uses_group:1;
 	u8 key_sizes[WEP_KEYS];
 	u8 keys[WEP_KEYS][WEP_KEY_LEN];
 	u8 level;
 	u16 flags;
 } __attribute__ ((packed));
-
 
 /*
 
@@ -494,7 +481,7 @@ enum ieee80211_mfie {
 	MFIE_TYPE_RATES = 1,
 	MFIE_TYPE_FH_SET = 2,
 	MFIE_TYPE_DS_SET = 3,
-	MFIE_TYPE_CF_SET =  4,
+	MFIE_TYPE_CF_SET = 4,
 	MFIE_TYPE_TIM = 5,
 	MFIE_TYPE_IBSS_SET = 6,
 	MFIE_TYPE_COUNTRY = 7,
@@ -554,7 +541,6 @@ struct ieee80211_authentication {
 	struct ieee80211_info_element info_element;
 } __attribute__ ((packed));
 
-
 struct ieee80211_probe_response {
 	struct ieee80211_hdr_3addr header;
 	u32 time_stamp[2];
@@ -575,9 +561,8 @@ struct ieee80211_assoc_response_frame {
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
-	struct ieee80211_info_element info_element; /* supported rates */
+	struct ieee80211_info_element info_element;	/* supported rates */
 } __attribute__ ((packed));
-
 
 struct ieee80211_txb {
 	u8 nr_frags;
@@ -587,7 +572,6 @@ struct ieee80211_txb {
 	u16 payload_size;
 	struct sk_buff *fragments[0];
 };
-
 
 /* SWEEP TABLE ENTRIES NUMBER */
 #define MAX_SWEEP_TAB_ENTRIES		  42
@@ -651,7 +635,6 @@ enum ieee80211_state {
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
 
-
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
 
@@ -669,24 +652,25 @@ struct ieee80211_device {
 	int scans;
 	int scan_age;
 
-	int iw_mode; /* operating mode (IW_MODE_*) */
+	int iw_mode;		/* operating mode (IW_MODE_*) */
+	struct iw_spy_data spy_data;	/* iwspy support */
 
 	spinlock_t lock;
 
-	int tx_headroom; /* Set to size of any additional room needed at front
-			  * of allocated Tx SKBs */
+	int tx_headroom;	/* Set to size of any additional room needed at front
+				 * of allocated Tx SKBs */
 	u32 config;
 
 	/* WEP and other encryption related settings at the device level */
-	int open_wep; /* Set to 1 to allow unencrypted frames */
+	int open_wep;		/* Set to 1 to allow unencrypted frames */
 
-	int reset_on_keychange; /* Set to 1 if the HW needs to be reset on
+	int reset_on_keychange;	/* Set to 1 if the HW needs to be reset on
 				 * WEP key changes */
 
 	/* If the host performs {en,de}cryption, then set to 1 */
 	int host_encrypt;
 	int host_decrypt;
-	int ieee802_1x; /* is IEEE 802.1X used */
+	int ieee802_1x;		/* is IEEE 802.1X used */
 
 	/* WPA data */
 	int wpa_enabled;
@@ -698,36 +682,36 @@ struct ieee80211_device {
 
 	struct list_head crypt_deinit_list;
 	struct ieee80211_crypt_data *crypt[WEP_KEYS];
-	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
+	int tx_keyidx;		/* default TX key index (crypt[tx_keyidx]) */
 	struct timer_list crypt_deinit_timer;
 
-	int bcrx_sta_key; /* use individual keys to override default keys even
-			   * with RX of broad/multicast frames */
+	int bcrx_sta_key;	/* use individual keys to override default keys even
+				 * with RX of broad/multicast frames */
 
 	/* Fragmentation structures */
 	struct ieee80211_frag_entry frag_cache[IEEE80211_FRAG_CACHE_LEN];
 	unsigned int frag_next_idx;
-	u16 fts; /* Fragmentation Threshold */
+	u16 fts;		/* Fragmentation Threshold */
 
 	/* Association info */
 	u8 bssid[ETH_ALEN];
 
 	enum ieee80211_state state;
 
-	int mode;       /* A, B, G */
-	int modulation; /* CCK, OFDM */
-	int freq_band;  /* 2.4Ghz, 5.2Ghz, Mixed */
-	int abg_ture;   /* ABG flag              */
+	int mode;		/* A, B, G */
+	int modulation;		/* CCK, OFDM */
+	int freq_band;		/* 2.4Ghz, 5.2Ghz, Mixed */
+	int abg_ture;		/* ABG flag              */
 
 	int perfect_rssi;
 	int worst_rssi;
 
 	/* Callback functions */
-	void (*set_security)(struct net_device *dev,
-			     struct ieee80211_security *sec);
-	int (*hard_start_xmit)(struct ieee80211_txb *txb,
-			       struct net_device *dev);
-	int (*reset_port)(struct net_device *dev);
+	void (*set_security) (struct net_device * dev,
+			      struct ieee80211_security * sec);
+	int (*hard_start_xmit) (struct ieee80211_txb * txb,
+				struct net_device * dev);
+	int (*reset_port) (struct net_device * dev);
 
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_ieee80211 */
@@ -760,7 +744,8 @@ extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
+extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
+					  int mode)
 {
 	/*
 	 * It is possible for both access points and our device to support
@@ -811,8 +796,6 @@ extern inline int ieee80211_get_hdrlen(u16 fc)
 	return hdrlen;
 }
 
-
-
 /* ieee80211.c */
 extern void free_ieee80211(struct net_device *dev);
 extern struct net_device *alloc_ieee80211(int sizeof_priv);
@@ -820,10 +803,8 @@ extern struct net_device *alloc_ieee80211(int sizeof_priv);
 extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
 
 /* ieee80211_tx.c */
-extern int ieee80211_xmit(struct sk_buff *skb,
-			  struct net_device *dev);
+extern int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
-
 
 /* ieee80211_rx.c */
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
@@ -843,7 +824,6 @@ extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
 
-
 extern inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
 {
 	ieee->scans++;
@@ -854,5 +834,4 @@ extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
 	return ieee->scans;
 }
 
-
-#endif /* IEEE80211_H */
+#endif				/* IEEE80211_H */

@@ -31,10 +31,10 @@ struct ieee80211_crypto_ops {
 	/* init new crypto context (e.g., allocate private data space,
 	 * select IV, etc.); returns NULL on failure or pointer to allocated
 	 * private data on success */
-	void * (*init)(int keyidx);
+	void *(*init) (int keyidx);
 
 	/* deinitialize crypto context and free allocated private data */
-	void (*deinit)(void *priv);
+	void (*deinit) (void *priv);
 
 	/* encrypt/decrypt return < 0 on error or >= 0 on success. The return
 	 * value from decrypt_mpdu is passed as the keyidx value for
@@ -42,21 +42,21 @@ struct ieee80211_crypto_ops {
 	 * encryption; if not, error will be returned; these functions are
 	 * called for all MPDUs (i.e., fragments).
 	 */
-	int (*encrypt_mpdu)(struct sk_buff *skb, int hdr_len, void *priv);
-	int (*decrypt_mpdu)(struct sk_buff *skb, int hdr_len, void *priv);
+	int (*encrypt_mpdu) (struct sk_buff * skb, int hdr_len, void *priv);
+	int (*decrypt_mpdu) (struct sk_buff * skb, int hdr_len, void *priv);
 
 	/* These functions are called for full MSDUs, i.e. full frames.
 	 * These can be NULL if full MSDU operations are not needed. */
-	int (*encrypt_msdu)(struct sk_buff *skb, int hdr_len, void *priv);
-	int (*decrypt_msdu)(struct sk_buff *skb, int keyidx, int hdr_len,
-			    void *priv);
+	int (*encrypt_msdu) (struct sk_buff * skb, int hdr_len, void *priv);
+	int (*decrypt_msdu) (struct sk_buff * skb, int keyidx, int hdr_len,
+			     void *priv);
 
-	int (*set_key)(void *key, int len, u8 *seq, void *priv);
-	int (*get_key)(void *key, int len, u8 *seq, void *priv);
+	int (*set_key) (void *key, int len, u8 * seq, void *priv);
+	int (*get_key) (void *key, int len, u8 * seq, void *priv);
 
 	/* procfs handler for printing out key information and possible
 	 * statistics */
-	char * (*print_stats)(char *p, void *priv);
+	char *(*print_stats) (char *p, void *priv);
 
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
@@ -69,7 +69,7 @@ struct ieee80211_crypto_ops {
 };
 
 struct ieee80211_crypt_data {
-	struct list_head list; /* delayed deletion list */
+	struct list_head list;	/* delayed deletion list */
 	struct ieee80211_crypto_ops *ops;
 	void *priv;
 	atomic_t refcnt;
@@ -77,7 +77,7 @@ struct ieee80211_crypt_data {
 
 int ieee80211_register_crypto_ops(struct ieee80211_crypto_ops *ops);
 int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops);
-struct ieee80211_crypto_ops * ieee80211_get_crypto_ops(const char *name);
+struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name);
 void ieee80211_crypt_deinit_entries(struct ieee80211_device *, int);
 void ieee80211_crypt_deinit_handler(unsigned long);
 void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,

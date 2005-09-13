@@ -378,33 +378,47 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-#ifdef NOT_YET
-#if WIRELESS_EXT > 15
 	/* Put this code here so that we avoid duplicating it in all
 	 * Rx paths. - Jean II */
 #ifdef IW_WIRELESS_SPY		/* defined in iw_handler.h */
 	/* If spy monitoring on */
-	if (iface->spy_data.spy_number > 0) {
+	if (ieee->spy_data.spy_number > 0) {
 		struct iw_quality wstats;
-		wstats.level = rx_stats->signal;
-		wstats.noise = rx_stats->noise;
-		wstats.updated = 6;	/* No qual value */
+
+		wstats.updated = 0;
+		if (rx_stats->mask & IEEE80211_STATMASK_RSSI) {
+			wstats.level = rx_stats->rssi;
+			wstats.updated |= IW_QUAL_LEVEL_UPDATED;
+		} else
+			wstats.updated |= IW_QUAL_LEVEL_INVALID;
+
+		if (rx_stats->mask & IEEE80211_STATMASK_NOISE) {
+			wstats.noise = rx_stats->noise;
+			wstats.updated |= IW_QUAL_NOISE_UPDATED;
+		} else
+			wstats.updated |= IW_QUAL_NOISE_INVALID;
+
+		if (rx_stats->mask & IEEE80211_STATMASK_SIGNAL) {
+			wstats.qual = rx_stats->signal;
+			wstats.updated |= IW_QUAL_QUAL_UPDATED;
+		} else
+			wstats.updated |= IW_QUAL_QUAL_INVALID;
+
 		/* Update spy records */
-		wireless_spy_update(dev, hdr->addr2, &wstats);
+		wireless_spy_update(ieee->dev, hdr->addr2, &wstats);
 	}
 #endif				/* IW_WIRELESS_SPY */
-#endif				/* WIRELESS_EXT > 15 */
+
+#ifdef NOT_YET
 	hostap_update_rx_stats(local->ap, hdr, rx_stats);
 #endif
 
-#if WIRELESS_EXT > 15
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ieee80211_monitor_rx(ieee, skb, rx_stats);
 		stats->rx_packets++;
 		stats->rx_bytes += skb->len;
 		return 1;
 	}
-#endif
 
 	if (ieee->host_decrypt) {
 		int idx = 0;
@@ -771,8 +785,7 @@ static inline int ieee80211_is_ofdm_rate(u8 rate)
 	return 0;
 }
 
-static inline int ieee80211_network_init(struct ieee80211_device *ieee,
-					 struct ieee80211_probe_response
+static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct ieee80211_probe_response
 					 *beacon,
 					 struct ieee80211_network *network,
 					 struct ieee80211_rx_stats *stats)
@@ -1028,11 +1041,9 @@ static inline void update_network(struct ieee80211_network *dst,
 }
 
 static inline void ieee80211_process_probe_response(struct ieee80211_device
-						    *ieee,
-						    struct
+						    *ieee, struct
 						    ieee80211_probe_response
-						    *beacon,
-						    struct ieee80211_rx_stats
+						    *beacon, struct ieee80211_rx_stats
 						    *stats)
 {
 	struct ieee80211_network network;
