@@ -696,7 +696,7 @@ struct ieee80211_device {
 	int mode;		/* A, B, G */
 	int modulation;		/* CCK, OFDM */
 	int freq_band;		/* 2.4Ghz, 5.2Ghz, Mixed */
-	int abg_ture;		/* ABG flag              */
+	int abg_true;		/* ABG flag              */
 
 	int perfect_rssi;
 	int worst_rssi;
