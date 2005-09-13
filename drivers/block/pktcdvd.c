@@ -736,12 +736,6 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	atomic_set(&pkt->io_wait, 0);
 	atomic_set(&pkt->io_errors, 0);
 
-	if (pkt->cache_valid) {
-		VPRINTK("pkt_gather_data: zone %llx cached\n",
-			(unsigned long long)pkt->sector);
-		goto out_account;
-	}
-
 	/*
 	 * Figure out which frames we need to read before we can write.
 	 */
@@ -750,12 +744,19 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	for (bio = pkt->orig_bios; bio; bio = bio->bi_next) {
 		int first_frame = (bio->bi_sector - pkt->sector) / (CD_FRAMESIZE >> 9);
 		int num_frames = bio->bi_size / CD_FRAMESIZE;
+		pd->stats.secs_w += num_frames * (CD_FRAMESIZE >> 9);
 		BUG_ON(first_frame < 0);
 		BUG_ON(first_frame + num_frames > pkt->frames);
 		for (f = first_frame; f < first_frame + num_frames; f++)
 			written[f] = 1;
 	}
 	spin_unlock(&pkt->lock);
+
+	if (pkt->cache_valid) {
+		VPRINTK("pkt_gather_data: zone %llx cached\n",
+			(unsigned long long)pkt->sector);
+		goto out_account;
+	}
 
 	/*
 	 * Schedule reads for missing parts of the packet.
@@ -790,7 +791,6 @@ out_account:
 		frames_read, (unsigned long long)pkt->sector);
 	pd->stats.pkt_started++;
 	pd->stats.secs_rg += frames_read * (CD_FRAMESIZE >> 9);
-	pd->stats.secs_w += pd->settings.size;
 }
 
 /*
