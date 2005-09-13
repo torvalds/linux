@@ -964,8 +964,8 @@ static int snd_emu10k1_ipcm_peek(emu10k1_t *emu, emu10k1_fx8010_pcm_t *ipcm)
 	return err;
 }
 
-#define SND_EMU10K1_GPR_CONTROLS	41
-#define SND_EMU10K1_INPUTS		10
+#define SND_EMU10K1_GPR_CONTROLS	44
+#define SND_EMU10K1_INPUTS		12
 #define SND_EMU10K1_PLAYBACK_CHANNELS	8
 #define SND_EMU10K1_CAPTURE_CHANNELS	4
 
@@ -1527,7 +1527,7 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 
 	strcpy(icode->name, "SB Live! FX8010 code for ALSA v1.2 by Jaroslav Kysela");
 	ptr = 0; i = 0;
-	/* we have 10 inputs */
+	/* we have 12 inputs */
 	playback = SND_EMU10K1_INPUTS;
 	/* we have 6 playback channels and tone control doubles */
 	capture = playback + (SND_EMU10K1_PLAYBACK_CHANNELS * 2);
@@ -1551,6 +1551,8 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 	OP(icode, &ptr, iMACINT0, GPR(7), C_00000000, FXBUS(FXBUS_PCM_LFE), C_00000004);
 	OP(icode, &ptr, iMACINT0, GPR(8), C_00000000, C_00000000, C_00000000);	/* S/PDIF left */
 	OP(icode, &ptr, iMACINT0, GPR(9), C_00000000, C_00000000, C_00000000);	/* S/PDIF right */
+	OP(icode, &ptr, iMACINT0, GPR(10), C_00000000, FXBUS(FXBUS_PCM_LEFT_FRONT), C_00000004);
+	OP(icode, &ptr, iMACINT0, GPR(11), C_00000000, FXBUS(FXBUS_PCM_RIGHT_FRONT), C_00000004);
 
 	/* Raw S/PDIF PCM */
 	ipcm->substream = 0;
@@ -1696,6 +1698,21 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 	/* LFE Playback Volume + Switch (renamed later without Digital) */
 	VOLUME_ADD(icode, &ptr, playback + 5, 7, gpr);
 	snd_emu10k1_init_mono_control(controls + i++, "LFE Digital Playback Volume", gpr++, 100);
+
+	/* Front Playback Volume */
+	for (z = 0; z < 2; z++)
+		VOLUME_ADD(icode, &ptr, playback + z, 10 + z, gpr + z);
+	snd_emu10k1_init_stereo_control(controls + i++, "Front Playback Volume", gpr, 100);
+	gpr += 2;
+
+	/* Front Capture Volume + Switch */
+	for (z = 0; z < 2; z++) {
+		SWITCH(icode, &ptr, tmp + 0, 10 + z, gpr + 2);
+		VOLUME_ADD(icode, &ptr, capture + z, tmp + 0, gpr + z);
+	}
+	snd_emu10k1_init_stereo_control(controls + i++, "Front Capture Volume", gpr, 0);
+	snd_emu10k1_init_mono_onoff_control(controls + i++, "Front Capture Switch", gpr + 2, 0);
+	gpr += 3;
 
 	/*
 	 *  Process inputs
