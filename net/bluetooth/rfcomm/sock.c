@@ -363,6 +363,11 @@ static int rfcomm_sock_bind(struct socket *sock, struct sockaddr *addr, int addr
 		goto done;
 	}
 
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
+		goto done;
+	}
+
 	write_lock_bh(&rfcomm_sk_list.lock);
 
 	if (sa->rc_channel && __rfcomm_get_sock_by_addr(sa->rc_channel, &sa->rc_bdaddr)) {
@@ -393,13 +398,17 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	if (addr->sa_family != AF_BLUETOOTH || alen < sizeof(struct sockaddr_rc))
 		return -EINVAL;
 
-	if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND)
-		return -EBADFD;
-
-	if (sk->sk_type != SOCK_STREAM)
-		return -EINVAL;
-
 	lock_sock(sk);
+
+	if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND) {
+		err = -EBADFD;
+		goto done;
+	}
+
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
+		goto done;
+	}
 
 	sk->sk_state = BT_CONNECT;
 	bacpy(&bt_sk(sk)->dst, &sa->rc_bdaddr);
@@ -410,6 +419,7 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 		err = bt_sock_wait_state(sk, BT_CONNECTED,
 				sock_sndtimeo(sk, flags & O_NONBLOCK));
 
+done:
 	release_sock(sk);
 	return err;
 }
@@ -425,6 +435,11 @@ static int rfcomm_sock_listen(struct socket *sock, int backlog)
 
 	if (sk->sk_state != BT_BOUND) {
 		err = -EBADFD;
+		goto done;
+	}
+
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
 		goto done;
 	}
 
@@ -469,6 +484,11 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 
 	if (sk->sk_state != BT_LISTEN) {
 		err = -EBADFD;
+		goto done;
+	}
+
+	if (sk->sk_type != SOCK_STREAM) {
+		err = -EINVAL;
 		goto done;
 	}
 
