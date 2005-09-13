@@ -1142,9 +1142,6 @@
 /* do we want accelerated console  */
 #define PM3FB_USE_ACCEL 1
 
-/* useful ? */
-#define CHAR_IS_NUM(a)  ((((a) >= '0') && ((a) <= '9')) ? 1 : 0)
-
 /* for driver debugging ONLY */
 /* 0 = assert only, 1 = error, 2 = info, 3+ = verbose */
 /* define PM3FB_MASTER_DEBUG 1 */
