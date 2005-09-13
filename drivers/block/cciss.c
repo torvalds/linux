@@ -1730,8 +1730,10 @@ case CMD_HARDWARE_ERR:
 		}
 	}	
 	/* unlock the buffers from DMA */
+	buff_dma_handle.val32.lower = c->SG[0].Addr.lower;
+	buff_dma_handle.val32.upper = c->SG[0].Addr.upper;
 	pci_unmap_single( h->pdev, (dma_addr_t) buff_dma_handle.val,
-			size, PCI_DMA_BIDIRECTIONAL);
+			c->SG[0].Len, PCI_DMA_BIDIRECTIONAL);
 	cmd_free(h, c, 0);
         return(return_status);
 
@@ -2011,8 +2013,10 @@ resend_cmd1:
 		
 cleanup1:	
 	/* unlock the data buffer from DMA */
+	buff_dma_handle.val32.lower = c->SG[0].Addr.lower;
+	buff_dma_handle.val32.upper = c->SG[0].Addr.upper;
 	pci_unmap_single(info_p->pdev, (dma_addr_t) buff_dma_handle.val,
-				size, PCI_DMA_BIDIRECTIONAL);
+				c->SG[0].Len, PCI_DMA_BIDIRECTIONAL);
 	cmd_free(info_p, c, 1);
 	return (status);
 } 
