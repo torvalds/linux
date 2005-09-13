@@ -41,6 +41,7 @@
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
+#include "sharpsl.h"
 
 
 /*
@@ -92,6 +93,16 @@ struct platform_device corgissp_device = {
  		.parent = &corgiscoop_device.dev,
 	},
 	.id		= -1,
+};
+
+struct corgissp_machinfo corgi_ssp_machinfo = {
+	.port		= 1,
+	.cs_lcdcon	= CORGI_GPIO_LCDCON_CS,
+	.cs_ads7846	= CORGI_GPIO_ADS7846_CS,
+	.cs_max1111	= CORGI_GPIO_MAX1111_CS,
+	.clk_lcdcon	= 76,
+	.clk_ads7846	= 2,
+	.clk_max1111	= 8,
 };
 
 
@@ -225,6 +236,8 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init corgi_init(void)
 {
+	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
+
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
