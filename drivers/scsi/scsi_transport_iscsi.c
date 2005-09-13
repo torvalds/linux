@@ -97,7 +97,7 @@ static ssize_t
 show_transport_handle(struct class_device *cdev, char *buf)
 {
 	struct iscsi_internal *priv = cdev_to_iscsi_internal(cdev);
-	return sprintf(buf, "%llu", (unsigned long long)iscsi_handle(priv->iscsi_transport));
+	return sprintf(buf, "%llu\n", (unsigned long long)iscsi_handle(priv->iscsi_transport));
 }
 static CLASS_DEVICE_ATTR(handle, S_IRUGO, show_transport_handle, NULL);
 
