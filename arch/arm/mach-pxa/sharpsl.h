@@ -13,3 +13,14 @@ struct corgissp_machinfo {
 };
 
 void corgi_ssp_set_machinfo(struct corgissp_machinfo *machinfo);
+
+/*
+ * SharpSL Touchscreen Driver
+ */
+
+unsigned long corgi_get_hsync_len(void);
+unsigned long spitz_get_hsync_len(void);
+void corgi_put_hsync(void);
+void spitz_put_hsync(void);
+void corgi_wait_hsync(void);
+void spitz_wait_hsync(void);
