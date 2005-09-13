@@ -20,3 +20,13 @@ struct corgits_machinfo {
 	void (*put_hsync)(void);
 	void (*wait_hsync)(void);
 };
+
+/*
+ * SharpSL Backlight
+ */
+
+struct corgibl_machinfo {
+	int max_intensity;
+	void (*set_bl_intensity)(int intensity);
+};
+

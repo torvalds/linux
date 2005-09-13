@@ -498,3 +498,68 @@ void spitz_wait_hsync(void)
 	sharpsl_wait_sync(SPITZ_GPIO_HSYNC);
 }
 #endif
+
+/*
+ * Corgi/Spitz Backlight Power
+ */
+#ifdef CONFIG_PXA_SHARP_C7xx
+void corgi_bl_set_intensity(int intensity)
+{
+	if (intensity > 0x10)
+		intensity += 0x10;
+
+	/* Bits 0-4 are accessed via the SSP interface */
+	corgi_ssp_blduty_set(intensity & 0x1f);
+
+	/* Bit 5 is via SCOOP */
+	if (intensity & 0x0020)
+		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
+	else
+		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
+}
+#endif
+
+
+#if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)
+void spitz_bl_set_intensity(int intensity)
+{
+	if (intensity > 0x10)
+		intensity += 0x10;
+
+	/* Bits 0-4 are accessed via the SSP interface */
+	corgi_ssp_blduty_set(intensity & 0x1f);
+
+	/* Bit 5 is via SCOOP */
+	if (intensity & 0x0020)
+		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
+	else
+		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
+
+	if (intensity)
+		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+	else
+		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+}
+#endif
+
+#ifdef CONFIG_MACH_AKITA
+void akita_bl_set_intensity(int intensity)
+{
+	if (intensity > 0x10)
+		intensity += 0x10;
+
+	/* Bits 0-4 are accessed via the SSP interface */
+	corgi_ssp_blduty_set(intensity & 0x1f);
+
+	/* Bit 5 is via IO-Expander */
+	if (intensity & 0x0020)
+		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
+	else
+		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
+
+	if (intensity)
+		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+	else
+		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+}
+#endif

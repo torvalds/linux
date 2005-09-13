@@ -109,10 +109,16 @@ struct corgissp_machinfo corgi_ssp_machinfo = {
 /*
  * Corgi Backlight Device
  */
+static struct corgibl_machinfo corgi_bl_machinfo = {
+	.max_intensity = 0x2f,
+	.set_bl_intensity = corgi_bl_set_intensity,
+};
+
 static struct platform_device corgibl_device = {
 	.name		= "corgi-bl",
 	.dev		= {
  		.parent = &corgifb_device.dev,
+		.platform_data	= &corgi_bl_machinfo,
 	},
 	.id		= -1,
 };

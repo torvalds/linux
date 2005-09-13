@@ -15,6 +15,14 @@ struct corgissp_machinfo {
 void corgi_ssp_set_machinfo(struct corgissp_machinfo *machinfo);
 
 /*
+ * SharpSL Backlight
+ */
+
+void corgi_bl_set_intensity(int intensity);
+void spitz_bl_set_intensity(int intensity);
+void akita_bl_set_intensity(int intensity);
+
+/*
  * SharpSL Touchscreen Driver
  */
 
