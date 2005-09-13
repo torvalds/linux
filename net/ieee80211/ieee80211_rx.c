@@ -823,10 +823,10 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	network->rsn_ie_len = 0;
 
 	info_element = beacon->info_element;
-	left = stats->len - ((void *)info_element - (void *)beacon);
-	while (left >= sizeof(struct ieee80211_info_element_hdr)) {
-		if (sizeof(struct ieee80211_info_element_hdr) +
-		    info_element->len > left) {
+	left = stats->len - sizeof(*beacon);
+	while (left >= sizeof(struct ieee80211_info_element)) {
+		if (sizeof(struct ieee80211_info_element) + info_element->len >
+		    left) {
 			IEEE80211_DEBUG_SCAN
 			    ("SCAN: parse failed: info_element->len + 2 > left : info_element->len+2=%Zd left=%d.\n",
 			     info_element->len +
@@ -967,7 +967,7 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 			break;
 		}
 
-		left -= sizeof(struct ieee80211_info_element_hdr) +
+		left -= sizeof(struct ieee80211_info_element) +
 		    info_element->len;
 		info_element = (struct ieee80211_info_element *)
 		    &info_element->data[info_element->len];

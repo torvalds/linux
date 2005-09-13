@@ -505,11 +505,6 @@ enum ieee80211_mfie {
 	MFIE_TYPE_GENERIC = 221,
 };
 
-struct ieee80211_info_element_hdr {
-	u8 id;
-	u8 len;
-} __attribute__ ((packed));
-
 struct ieee80211_info_element {
 	u8 id;
 	u8 len;
