@@ -557,7 +557,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 	conn->data_copied = 0;
 
 	/* read AHS */
-	conn->in.ahslen = hdr->hlength*(4*sizeof(__u16));
+	conn->in.ahslen = hdr->hlength * 4;
 	conn->in.offset += conn->in.ahslen;
 	conn->in.copy -= conn->in.ahslen;
 	if (conn->in.copy < 0) {
