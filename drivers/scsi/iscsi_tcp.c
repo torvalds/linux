@@ -129,14 +129,11 @@ iscsi_buf_left(struct iscsi_buf *ibuf)
 }
 
 static inline void
-iscsi_buf_init_hdr(struct iscsi_conn *conn, struct iscsi_buf *ibuf,
-		   char *vbuf, u8 *crc)
+iscsi_hdr_digest(struct iscsi_conn *conn, struct iscsi_buf *buf,
+		 u8* crc)
 {
-	iscsi_buf_init_virt(ibuf, vbuf, sizeof(struct iscsi_hdr));
-	if (conn->hdrdgst_en) {
-		crypto_digest_digest(conn->tx_tfm, &ibuf->sg, 1, crc);
-		ibuf->sg.length += sizeof(uint32_t);
-	}
+	crypto_digest_digest(conn->tx_tfm, &buf->sg, 1, crc);
+	buf->sg.length += sizeof(uint32_t);
 }
 
 static void
@@ -427,8 +424,8 @@ iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 
 	r2t->sent = 0;
 
-	iscsi_buf_init_hdr(conn, &r2t->headbuf, (char*)hdr,
-			   (u8 *)dtask->hdrext);
+	iscsi_buf_init_virt(&r2t->headbuf, (char*)hdr,
+			   sizeof(struct iscsi_hdr));
 
 	r2t->dtask = dtask;
 
@@ -1494,8 +1491,8 @@ iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	}
 	conn->dataout_pdus_cnt++;
 
-	iscsi_buf_init_hdr(conn, &r2t->headbuf, (char*)hdr,
-			   (u8 *)dtask->hdrext);
+	iscsi_buf_init_virt(&r2t->headbuf, (char*)hdr,
+			   sizeof(struct iscsi_hdr));
 
 	r2t->dtask = dtask;
 
@@ -1541,8 +1538,8 @@ iscsi_unsolicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		hdr->flags = ISCSI_FLAG_CMD_FINAL;
 	}
 
-	iscsi_buf_init_hdr(conn, &ctask->headbuf, (char*)hdr,
-			   (u8 *)dtask->hdrext);
+	iscsi_buf_init_virt(&ctask->headbuf, (char*)hdr,
+			   sizeof(struct iscsi_hdr));
 
 	list_add(&dtask->item, &ctask->dataqueue);
 
@@ -1662,8 +1659,8 @@ iscsi_cmd_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 		zero_data(ctask->hdr.dlength);
 	}
 
-	iscsi_buf_init_hdr(conn, &ctask->headbuf, (char*)&ctask->hdr,
-			    (u8 *)ctask->hdrext);
+	iscsi_buf_init_virt(&ctask->headbuf, (char*)&ctask->hdr, 
+			    sizeof(struct iscsi_hdr));
 	conn->scsicmd_pdus_cnt++;
 }
 
@@ -1692,6 +1689,11 @@ iscsi_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 		mtask->xmstate &= ~XMSTATE_IMM_HDR;
 		if (mtask->data_count)
 			mtask->xmstate |= XMSTATE_IMM_DATA;
+		if (conn->c_stage != ISCSI_CONN_INITIAL_STAGE &&
+	    	    conn->stop_stage != STOP_CONN_RECOVER &&
+		    conn->hdrdgst_en)
+			iscsi_hdr_digest(conn, &mtask->headbuf,
+					(u8*)mtask->hdrext);
 		if (iscsi_sendhdr(conn, &mtask->headbuf, mtask->data_count)) {
 			mtask->xmstate |= XMSTATE_IMM_HDR;
 			if (mtask->data_count)
@@ -1723,6 +1725,8 @@ static inline int
 handle_xmstate_r_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	ctask->xmstate &= ~XMSTATE_R_HDR;
+	if (conn->hdrdgst_en) 
+		iscsi_hdr_digest(conn, &ctask->headbuf, (u8*)ctask->hdrext);
 	if (!iscsi_sendhdr(conn, &ctask->headbuf, 0)) {
 		BUG_ON(ctask->xmstate != XMSTATE_IDLE);
 		return 0; /* wait for Data-In */
@@ -1735,6 +1739,8 @@ static inline int
 handle_xmstate_w_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	ctask->xmstate &= ~XMSTATE_W_HDR;
+	if (conn->hdrdgst_en) 
+		iscsi_hdr_digest(conn, &ctask->headbuf, (u8*)ctask->hdrext);
 	if (iscsi_sendhdr(conn, &ctask->headbuf, ctask->imm_count)) {
 		ctask->xmstate |= XMSTATE_W_HDR;
 		return -EAGAIN;
@@ -1813,7 +1819,9 @@ handle_xmstate_uns_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		iscsi_unsolicit_data_init(conn, ctask);
 		BUG_ON(!ctask->dtask);
 		dtask = ctask->dtask;
-
+		if (conn->hdrdgst_en)
+			iscsi_hdr_digest(conn, &ctask->headbuf,
+					(u8*)dtask->hdrext);
 		ctask->xmstate &= ~XMSTATE_UNS_INIT;
 	}
 	if (iscsi_sendhdr(conn, &ctask->headbuf, ctask->data_count)) {
@@ -2118,7 +2126,9 @@ unsolicit_head_again:
 				    sizeof(void*));
 solicit_head_again:
 		r2t = ctask->r2t;
-
+		if (conn->hdrdgst_en)
+			iscsi_hdr_digest(conn, &r2t->headbuf, 
+					(u8*)r2t->dtask->hdrext);
 		if (iscsi_sendhdr(conn, &r2t->headbuf, r2t->data_count)) {
 			ctask->xmstate &= ~XMSTATE_SOL_DATA;
 			ctask->xmstate |= XMSTATE_SOL_HDR;
@@ -2889,14 +2899,8 @@ iscsi_conn_send_generic(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 	memcpy(&mtask->hdr, hdr, sizeof(struct iscsi_hdr));
 
-	if (conn->c_stage == ISCSI_CONN_INITIAL_STAGE ||
-	    conn->stop_stage == STOP_CONN_RECOVER)
-		iscsi_buf_init_virt(&mtask->headbuf, (char*)&mtask->hdr,
+	iscsi_buf_init_virt(&mtask->headbuf, (char*)&mtask->hdr,
 				    sizeof(struct iscsi_hdr));
-	else
-		/* this will update header digest */
-		iscsi_buf_init_hdr(conn, &mtask->headbuf, (char*)&mtask->hdr,
-				    (u8 *)mtask->hdrext);
 
 	spin_unlock_bh(&session->lock);
 
