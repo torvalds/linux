@@ -170,7 +170,7 @@ static inline int is_surround_on(ac97_t *ac97)
 
 static inline int is_clfe_on(ac97_t *ac97)
 {
-	return a97->channel_mode >= 2;
+	return ac97->channel_mode >= 2;
 }
 
 static inline int is_shared_linein(ac97_t *ac97)
