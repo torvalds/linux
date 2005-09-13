@@ -946,7 +946,6 @@ try_next_bio:
 	pd->current_sector = zone + pd->settings.size;
 	pkt->sector = zone;
 	pkt->frames = pd->settings.size >> 2;
-	BUG_ON(pkt->frames > PACKET_MAX_SIZE);
 	pkt->write_size = 0;
 
 	/*
@@ -1635,6 +1634,10 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	if (pd->settings.size == 0) {
 		printk("pktcdvd: detected zero packet size!\n");
 		pd->settings.size = 128;
+	}
+	if (pd->settings.size > PACKET_MAX_SECTORS) {
+		printk("pktcdvd: packet size is too big\n");
+		return -ENXIO;
 	}
 	pd->settings.fp = ti.fp;
 	pd->offset = (be32_to_cpu(ti.track_start) << 2) & (pd->settings.size - 1);
