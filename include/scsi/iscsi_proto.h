@@ -548,9 +548,11 @@ struct iscsi_reject {
 	uint8_t flags;
 	uint8_t reason;
 	uint8_t rsvd2;
-	uint8_t rsvd3;
+	uint8_t hlength;
 	uint8_t dlength[3];
-	uint8_t rsvd4[16];
+	uint8_t rsvd3[8];
+	__be32  ffffffff;
+	uint8_t rsvd4[4];
 	__be32	statsn;
 	__be32	exp_cmdsn;
 	__be32	max_cmdsn;
@@ -560,17 +562,17 @@ struct iscsi_reject {
 };
 
 /* Reason for Reject */
-#define CMD_BEFORE_LOGIN	1
-#define DATA_DIGEST_ERROR	2
-#define DATA_SNACK_REJECT	3
-#define ISCSI_PROTOCOL_ERROR	4
-#define CMD_NOT_SUPPORTED	5
-#define IMM_CMD_REJECT		6
-#define TASK_IN_PROGRESS	7
-#define INVALID_SNACK		8
-#define BOOKMARK_REJECTED	9
-#define BOOKMARK_NO_RESOURCES	10
-#define NEGOTIATION_RESET	11
+#define ISCSI_REASON_CMD_BEFORE_LOGIN	1
+#define ISCSI_REASON_DATA_DIGEST_ERROR	2
+#define ISCSI_REASON_DATA_SNACK_REJECT	3
+#define ISCSI_REASON_PROTOCOL_ERROR	4
+#define ISCSI_REASON_CMD_NOT_SUPPORTED	5
+#define ISCSI_REASON_IMM_CMD_REJECT		6
+#define ISCSI_REASON_TASK_IN_PROGRESS	7
+#define ISCSI_REASON_INVALID_SNACK		8
+#define ISCSI_REASON_BOOKMARK_INVALID	9
+#define ISCSI_REASON_BOOKMARK_NO_RESOURCES	10
+#define ISCSI_REASON_NEGOTIATION_RESET	11
 
 /* Max. number of Key=Value pairs in a text message */
 #define MAX_KEY_VALUE_PAIRS	8192
