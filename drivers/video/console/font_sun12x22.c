@@ -2,7 +2,7 @@
 
 #define FONTDATAMAX 11264
 
-static unsigned char fontdata_sun12x22[FONTDATAMAX] = {
+static const unsigned char fontdata_sun12x22[FONTDATAMAX] = {
 
 	/* 0 0x00 '^@' */
 	0x00, 0x00, /* 000000000000 */
@@ -6151,7 +6151,7 @@ static unsigned char fontdata_sun12x22[FONTDATAMAX] = {
 };
 
 
-struct font_desc font_sun_12x22 = {
+const struct font_desc font_sun_12x22 = {
 	SUN12x22_IDX,
 	"SUN12x22",
 	12,

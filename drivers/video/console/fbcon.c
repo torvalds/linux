@@ -767,7 +767,7 @@ static const char *fbcon_startup(void)
 	const char *display_desc = "frame buffer device";
 	struct display *p = &fb_display[fg_console];
 	struct vc_data *vc = vc_cons[fg_console].d;
-	struct font_desc *font = NULL;
+	const struct font_desc *font = NULL;
 	struct module *owner;
 	struct fb_info *info = NULL;
 	struct fbcon_ops *ops;
@@ -841,7 +841,7 @@ static const char *fbcon_startup(void)
 						info->var.yres);
 		vc->vc_font.width = font->width;
 		vc->vc_font.height = font->height;
-		vc->vc_font.data = p->fontdata = font->data;
+		vc->vc_font.data = (void *)(p->fontdata = font->data);
 		vc->vc_font.charcount = 256; /* FIXME  Need to support more fonts */
 	}
 
@@ -941,7 +941,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	   fb, copy the font from that console */
 	t = &fb_display[svc->vc_num];
 	if (!vc->vc_font.data) {
-		vc->vc_font.data = p->fontdata = t->fontdata;
+		vc->vc_font.data = (void *)(p->fontdata = t->fontdata);
 		vc->vc_font.width = (*default_mode)->vc_font.width;
 		vc->vc_font.height = (*default_mode)->vc_font.height;
 		p->userfont = t->userfont;
@@ -1188,7 +1188,7 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 		return;
 	t = &fb_display[svc->vc_num];
 	if (!vc->vc_font.data) {
-		vc->vc_font.data = p->fontdata = t->fontdata;
+		vc->vc_font.data = (void *)(p->fontdata = t->fontdata);
 		vc->vc_font.width = (*default_mode)->vc_font.width;
 		vc->vc_font.height = (*default_mode)->vc_font.height;
 		p->userfont = t->userfont;
@@ -2150,7 +2150,7 @@ static int fbcon_get_font(struct vc_data *vc, struct console_font *font)
 }
 
 static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
-			     u8 * data, int userfont)
+			     const u8 * data, int userfont)
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct display *p = &fb_display[vc->vc_num];
@@ -2168,7 +2168,7 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 		cnt = FNTCHARCNT(data);
 	else
 		cnt = 256;
-	vc->vc_font.data = p->fontdata = data;
+	vc->vc_font.data = (void *)(p->fontdata = data);
 	if ((p->userfont = userfont))
 		REFCOUNT(data)++;
 	vc->vc_font.width = w;
@@ -2325,7 +2325,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font, unsigne
 		    tmp->vc_font.width == w &&
 		    !memcmp(fb_display[i].fontdata, new_data, size)) {
 			kfree(new_data - FONT_EXTRA_WORDS * sizeof(int));
-			new_data = fb_display[i].fontdata;
+			new_data = (u8 *)fb_display[i].fontdata;
 			break;
 		}
 	}
@@ -2335,7 +2335,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font, unsigne
 static int fbcon_set_def_font(struct vc_data *vc, struct console_font *font, char *name)
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
-	struct font_desc *f;
+	const struct font_desc *f;
 
 	if (!name)
 		f = get_default_font(info->var.xres, info->var.yres);
