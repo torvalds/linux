@@ -285,8 +285,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Save source and destination addresses */
-	memcpy(&dest, skb->data, ETH_ALEN);
-	memcpy(&src, skb->data + ETH_ALEN, ETH_ALEN);
+	memcpy(dest, skb->data, ETH_ALEN);
+	memcpy(src, skb->data + ETH_ALEN, ETH_ALEN);
 
 	/* Advance the SKB to the start of the payload */
 	skb_pull(skb, sizeof(struct ethhdr));
@@ -304,15 +304,15 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		fc |= IEEE80211_FCTL_TODS;
 		/* To DS: Addr1 = BSSID, Addr2 = SA,
 		   Addr3 = DA */
-		memcpy(&header.addr1, ieee->bssid, ETH_ALEN);
-		memcpy(&header.addr2, &src, ETH_ALEN);
-		memcpy(&header.addr3, &dest, ETH_ALEN);
+		memcpy(header.addr1, ieee->bssid, ETH_ALEN);
+		memcpy(header.addr2, src, ETH_ALEN);
+		memcpy(header.addr3, dest, ETH_ALEN);
 	} else if (ieee->iw_mode == IW_MODE_ADHOC) {
 		/* not From/To DS: Addr1 = DA, Addr2 = SA,
 		   Addr3 = BSSID */
-		memcpy(&header.addr1, dest, ETH_ALEN);
-		memcpy(&header.addr2, src, ETH_ALEN);
-		memcpy(&header.addr3, ieee->bssid, ETH_ALEN);
+		memcpy(header.addr1, dest, ETH_ALEN);
+		memcpy(header.addr2, src, ETH_ALEN);
+		memcpy(header.addr3, ieee->bssid, ETH_ALEN);
 	}
 	header.frame_ctl = cpu_to_le16(fc);
 	hdr_len = IEEE80211_3ADDR_LEN;
