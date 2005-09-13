@@ -130,12 +130,29 @@ static struct platform_device corgikbd_device = {
 /*
  * Corgi Touch Screen Device
  */
+static struct resource corgits_resources[] = {
+	[0] = {
+		.start		= CORGI_IRQ_GPIO_TP_INT,
+		.end		= CORGI_IRQ_GPIO_TP_INT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct corgits_machinfo  corgi_ts_machinfo = {
+	.get_hsync_len   = corgi_get_hsync_len,
+	.put_hsync       = corgi_put_hsync,
+	.wait_hsync      = corgi_wait_hsync,
+};
+
 static struct platform_device corgits_device = {
 	.name		= "corgi-ts",
 	.dev		= {
  		.parent = &corgissp_device.dev,
+		.platform_data	= &corgi_ts_machinfo,
 	},
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(corgits_resources),
+	.resource	= corgits_resources,
 };
 
 
@@ -239,6 +256,7 @@ static void __init corgi_init(void)
 	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
 
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
+	pxa_gpio_mode(CORGI_GPIO_HSYNC | GPIO_IN);
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 
