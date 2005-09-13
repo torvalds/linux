@@ -330,6 +330,15 @@ static int audit_list_rules(void *_dest)
 	return 0;
 }
 
+/**
+ * audit_receive_filter - apply all rules to the specified message type
+ * @type: audit message type
+ * @pid: target pid for netlink audit messages
+ * @uid: target uid for netlink audit messages
+ * @seq: netlink audit message sequence (serial) number
+ * @data: payload data
+ * @loginuid: loginuid of sender
+ */
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 							uid_t loginuid)
 {
@@ -527,7 +536,7 @@ static enum audit_state audit_filter_task(struct task_struct *tsk)
 /* At syscall entry and exit time, this filter is called if the
  * audit_state is not low enough that auditing cannot take place, but is
  * also not high enough that we already know we have to write an audit
- * record (i.e., the state is AUDIT_SETUP_CONTEXT or  AUDIT_BUILD_CONTEXT).
+ * record (i.e., the state is AUDIT_SETUP_CONTEXT or AUDIT_BUILD_CONTEXT).
  */
 static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 					     struct audit_context *ctx,
@@ -721,10 +730,15 @@ static inline struct audit_context *audit_alloc_context(enum audit_state state)
 	return context;
 }
 
-/* Filter on the task information and allocate a per-task audit context
+/**
+ * audit_alloc - allocate an audit context block for a task
+ * @tsk: task
+ *
+ * Filter on the task information and allocate a per-task audit context
  * if necessary.  Doing so turns on system call auditing for the
  * specified task.  This is called from copy_process, so no lock is
- * needed. */
+ * needed.
+ */
 int audit_alloc(struct task_struct *tsk)
 {
 	struct audit_context *context;
@@ -911,8 +925,12 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 	}
 }
 
-/* Free a per-task audit context.  Called from copy_process and
- * __put_task_struct. */
+/**
+ * audit_free - free a per-task audit context
+ * @tsk: task whose audit context block to free
+ *
+ * Called from copy_process and __put_task_struct.
+ */
 void audit_free(struct task_struct *tsk)
 {
 	struct audit_context *context;
@@ -934,13 +952,24 @@ void audit_free(struct task_struct *tsk)
 	audit_free_context(context);
 }
 
-/* Fill in audit context at syscall entry.  This only happens if the
+/**
+ * audit_syscall_entry - fill in an audit record at syscall entry
+ * @tsk: task being audited
+ * @arch: architecture type
+ * @major: major syscall type (function)
+ * @a1: additional syscall register 1
+ * @a2: additional syscall register 2
+ * @a3: additional syscall register 3
+ * @a4: additional syscall register 4
+ *
+ * Fill in audit context at syscall entry.  This only happens if the
  * audit context was created when the task was created and the state or
  * filters demand the audit context be built.  If the state from the
  * per-task filter or from the per-syscall filter is AUDIT_RECORD_CONTEXT,
  * then the record will be written at syscall exit time (otherwise, it
  * will only be written if another part of the kernel requests that it
- * be written). */
+ * be written).
+ */
 void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 			 unsigned long a1, unsigned long a2,
 			 unsigned long a3, unsigned long a4)
@@ -950,7 +979,8 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 
 	BUG_ON(!context);
 
-	/* This happens only on certain architectures that make system
+	/*
+	 * This happens only on certain architectures that make system
 	 * calls in kernel_thread via the entry.S interface, instead of
 	 * with direct calls.  (If you are porting to a new
 	 * architecture, hitting this condition can indicate that you
@@ -1009,11 +1039,18 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 	context->auditable  = !!(state == AUDIT_RECORD_CONTEXT);
 }
 
-/* Tear down after system call.  If the audit context has been marked as
+/**
+ * audit_syscall_exit - deallocate audit context after a system call
+ * @tsk: task being audited
+ * @valid: success/failure flag
+ * @return_code: syscall return value
+ *
+ * Tear down after system call.  If the audit context has been marked as
  * auditable (either because of the AUDIT_RECORD_CONTEXT state from
  * filtering, or because some other part of the kernel write an audit
  * message), then write out the syscall information.  In call cases,
- * free the names stored from getname(). */
+ * free the names stored from getname().
+ */
 void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 {
 	struct audit_context *context;
@@ -1048,7 +1085,13 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 	put_task_struct(tsk);
 }
 
-/* Add a name to the list.  Called from fs/namei.c:getname(). */
+/**
+ * audit_getname - add a name to the list
+ * @name: name to add
+ *
+ * Add a name to the list of audit names for this context.
+ * Called from fs/namei.c:getname().
+ */
 void audit_getname(const char *name)
 {
 	struct audit_context *context = current->audit_context;
@@ -1077,10 +1120,13 @@ void audit_getname(const char *name)
 		
 }
 
-/* Intercept a putname request.  Called from
- * include/linux/fs.h:putname().  If we have stored the name from
- * getname in the audit context, then we delay the putname until syscall
- * exit. */
+/* audit_putname - intercept a putname request
+ * @name: name to intercept and delay for putname
+ *
+ * If we have stored the name from getname in the audit context,
+ * then we delay the putname until syscall exit.
+ * Called from include/linux/fs.h:putname().
+ */
 void audit_putname(const char *name)
 {
 	struct audit_context *context = current->audit_context;
@@ -1117,8 +1163,14 @@ void audit_putname(const char *name)
 #endif
 }
 
-/* Store the inode and device from a lookup.  Called from
- * fs/namei.c:path_lookup(). */
+/**
+ * audit_inode - store the inode and device from a lookup
+ * @name: name being audited
+ * @inode: inode being audited
+ * @flags: lookup flags (as used in path_lookup())
+ *
+ * Called from fs/namei.c:path_lookup().
+ */
 void audit_inode(const char *name, const struct inode *inode, unsigned flags)
 {
 	int idx;
@@ -1154,6 +1206,14 @@ void audit_inode(const char *name, const struct inode *inode, unsigned flags)
 	context->names[idx].rdev  = inode->i_rdev;
 }
 
+/**
+ * auditsc_get_stamp - get local copies of audit_context values
+ * @ctx: audit_context for the task
+ * @t: timespec to store time recorded in the audit_context
+ * @serial: serial value that is recorded in the audit_context
+ *
+ * Also sets the context as auditable.
+ */
 void auditsc_get_stamp(struct audit_context *ctx,
 		       struct timespec *t, unsigned int *serial)
 {
@@ -1165,6 +1225,15 @@ void auditsc_get_stamp(struct audit_context *ctx,
 	ctx->auditable = 1;
 }
 
+/**
+ * audit_set_loginuid - set a task's audit_context loginuid
+ * @task: task whose audit context is being modified
+ * @loginuid: loginuid value
+ *
+ * Returns 0.
+ *
+ * Called (set) from fs/proc/base.c::proc_loginuid_write().
+ */
 int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
 	if (task->audit_context) {
@@ -1183,11 +1252,26 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 	return 0;
 }
 
+/**
+ * audit_get_loginuid - get the loginuid for an audit_context
+ * @ctx: the audit_context
+ *
+ * Returns the context's loginuid or -1 if @ctx is NULL.
+ */
 uid_t audit_get_loginuid(struct audit_context *ctx)
 {
 	return ctx ? ctx->loginuid : -1;
 }
 
+/**
+ * audit_ipc_perms - record audit data for ipc
+ * @qbytes: msgq bytes
+ * @uid: msgq user id
+ * @gid: msgq group id
+ * @mode: msgq mode (permissions)
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
 int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 {
 	struct audit_aux_data_ipcctl *ax;
@@ -1211,6 +1295,13 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	return 0;
 }
 
+/**
+ * audit_socketcall - record audit data for sys_socketcall
+ * @nargs: number of args
+ * @args: args array
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
 int audit_socketcall(int nargs, unsigned long *args)
 {
 	struct audit_aux_data_socketcall *ax;
@@ -1232,6 +1323,13 @@ int audit_socketcall(int nargs, unsigned long *args)
 	return 0;
 }
 
+/**
+ * audit_sockaddr - record audit data for sys_bind, sys_connect, sys_sendto
+ * @len: data length in user space
+ * @a: data address in kernel space
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
 int audit_sockaddr(int len, void *a)
 {
 	struct audit_aux_data_sockaddr *ax;
@@ -1253,6 +1351,15 @@ int audit_sockaddr(int len, void *a)
 	return 0;
 }
 
+/**
+ * audit_avc_path - record the granting or denial of permissions
+ * @dentry: dentry to record
+ * @mnt: mnt to record
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ *
+ * Called from security/selinux/avc.c::avc_audit()
+ */
 int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
 {
 	struct audit_aux_data_path *ax;
@@ -1274,6 +1381,14 @@ int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
 	return 0;
 }
 
+/**
+ * audit_signal_info - record signal info for shutting down audit subsystem
+ * @sig: signal value
+ * @t: task being signaled
+ *
+ * If the audit subsystem is being terminated, record the task (pid)
+ * and uid that is doing that.
+ */
 void audit_signal_info(int sig, struct task_struct *t)
 {
 	extern pid_t audit_sig_pid;
@@ -1290,4 +1405,3 @@ void audit_signal_info(int sig, struct task_struct *t)
 		}
 	}
 }
-

@@ -72,7 +72,7 @@ static int	audit_failure = AUDIT_FAIL_PRINTK;
  * contains the (non-zero) pid. */
 int		audit_pid;
 
-/* If audit_limit is non-zero, limit the rate of sending audit records
+/* If audit_rate_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
  * audit records being dropped. */
 static int	audit_rate_limit;
@@ -102,7 +102,7 @@ static struct sock *audit_sock;
  * than AUDIT_MAXFREE are in use, the audit buffer is freed instead of
  * being placed on the freelist). */
 static DEFINE_SPINLOCK(audit_freelist_lock);
-static int	   audit_freelist_count = 0;
+static int	   audit_freelist_count;
 static LIST_HEAD(audit_freelist);
 
 static struct sk_buff_head audit_skb_queue;
@@ -186,8 +186,14 @@ static inline int audit_rate_check(void)
 	return retval;
 }
 
-/* Emit at least 1 message per second, even if audit_rate_check is
- * throttling. */
+/**
+ * audit_log_lost - conditionally log lost audit message event
+ * @message: the message stating reason for lost audit message
+ *
+ * Emit at least 1 message per second, even if audit_rate_check is
+ * throttling.
+ * Always increment the lost messages counter.
+*/
 void audit_log_lost(const char *message)
 {
 	static unsigned long	last_msg = 0;
@@ -218,7 +224,6 @@ void audit_log_lost(const char *message)
 		       audit_backlog_limit);
 		audit_panic(message);
 	}
-
 }
 
 static int audit_set_rate_limit(int limit, uid_t loginuid)
@@ -302,6 +307,19 @@ static int kauditd_thread(void *dummy)
 	}
 }
 
+/**
+ * audit_send_reply - send an audit reply message via netlink
+ * @pid: process id to send reply to
+ * @seq: sequence number
+ * @type: audit message type
+ * @done: done (last) flag
+ * @multi: multi-part message flag
+ * @payload: payload data
+ * @size: payload size
+ *
+ * Allocates an skb, builds the netlink message, and sends it to the pid.
+ * No failure notifications.
+ */
 void audit_send_reply(int pid, int seq, int type, int done, int multi,
 		      void *payload, int size)
 {
@@ -376,7 +394,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (err)
 		return err;
 
-	/* As soon as there's any sign of userspace auditd, start kauditd to talk to it */
+	/* As soon as there's any sign of userspace auditd,
+	 * start kauditd to talk to it */
 	if (!kauditd_task)
 		kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
 	if (IS_ERR(kauditd_task)) {
@@ -469,9 +488,11 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return err < 0 ? err : 0;
 }
 
-/* Get message from skb (based on rtnetlink_rcv_skb).  Each message is
+/*
+ * Get message from skb (based on rtnetlink_rcv_skb).  Each message is
  * processed by audit_receive_msg.  Malformed skbs with wrong length are
- * discarded silently.  */
+ * discarded silently.
+ */
 static void audit_receive_skb(struct sk_buff *skb)
 {
 	int		err;
@@ -600,7 +621,10 @@ err:
 	return NULL;
 }
 
-/* Compute a serial number for the audit record.  Audit records are
+/**
+ * audit_serial - compute a serial number for the audit record
+ *
+ * Compute a serial number for the audit record.  Audit records are
  * written to user-space as soon as they are generated, so a complete
  * audit record may be written in several pieces.  The timestamp of the
  * record and this serial number are used by the user-space tools to
@@ -612,8 +636,8 @@ err:
  * audit context (for those records that have a context), and emit them
  * all at syscall exit.  However, this could delay the reporting of
  * significant errors until syscall exit (or never, if the system
- * halts). */
-
+ * halts).
+ */
 unsigned int audit_serial(void)
 {
 	static spinlock_t serial_lock = SPIN_LOCK_UNLOCKED;
@@ -649,6 +673,21 @@ static inline void audit_get_stamp(struct audit_context *ctx,
  * will be written at syscall exit.  If there is no associated task, tsk
  * should be NULL. */
 
+/**
+ * audit_log_start - obtain an audit buffer
+ * @ctx: audit_context (may be NULL)
+ * @gfp_mask: type of allocation
+ * @type: audit message type
+ *
+ * Returns audit_buffer pointer on success or NULL on error.
+ *
+ * Obtain an audit buffer.  This routine does locking to obtain the
+ * audit buffer, but then no locking is required for calls to
+ * audit_log_*format.  If the task (ctx) is a task that is currently in a
+ * syscall, then the syscall is marked as auditable and an audit record
+ * will be written at syscall exit.  If there is no associated task, then
+ * task context (ctx) should be NULL.
+ */
 struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 				     int type)
 {
@@ -713,6 +752,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 /**
  * audit_expand - expand skb in the audit buffer
  * @ab: audit_buffer
+ * @extra: space to add at tail of the skb
  *
  * Returns 0 (no space) on failed expansion, or available space if
  * successful.
@@ -729,10 +769,12 @@ static inline int audit_expand(struct audit_buffer *ab, int extra)
 	return skb_tailroom(skb);
 }
 
-/* Format an audit message into the audit buffer.  If there isn't enough
+/*
+ * Format an audit message into the audit buffer.  If there isn't enough
  * room in the audit buffer, more room will be allocated and vsnprint
  * will be called a second time.  Currently, we assume that a printk
- * can't format message larger than 1024 bytes, so we don't either. */
+ * can't format message larger than 1024 bytes, so we don't either.
+ */
 static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			      va_list args)
 {
@@ -757,7 +799,8 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
 		 * log everything that printk could have logged. */
-		avail = audit_expand(ab, max_t(unsigned, AUDIT_BUFSIZ, 1+len-avail));
+		avail = audit_expand(ab,
+			max_t(unsigned, AUDIT_BUFSIZ, 1+len-avail));
 		if (!avail)
 			goto out;
 		len = vsnprintf(skb->tail, avail, fmt, args2);
@@ -768,8 +811,14 @@ out:
 	return;
 }
 
-/* Format a message into the audit buffer.  All the work is done in
- * audit_log_vformat. */
+/**
+ * audit_log_format - format a message into the audit buffer.
+ * @ab: audit_buffer
+ * @fmt: format string
+ * @...: optional parameters matching @fmt string
+ *
+ * All the work is done in audit_log_vformat.
+ */
 void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 {
 	va_list args;
@@ -781,9 +830,18 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 	va_end(args);
 }
 
-/* This function will take the passed buf and convert it into a string of
- * ascii hex digits. The new string is placed onto the skb. */
-void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf, 
+/**
+ * audit_log_hex - convert a buffer to hex and append it to the audit skb
+ * @ab: the audit_buffer
+ * @buf: buffer to convert to hex
+ * @len: length of @buf to be converted
+ *
+ * No return value; failure to expand is silently ignored.
+ *
+ * This function will take the passed buf and convert it into a string of
+ * ascii hex digits. The new string is placed onto the skb.
+ */
+void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 		size_t len)
 {
 	int i, avail, new_len;
@@ -812,10 +870,16 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 	skb_put(skb, len << 1); /* new string is twice the old string */
 }
 
-/* This code will escape a string that is passed to it if the string
- * contains a control character, unprintable character, double quote mark, 
+/**
+ * audit_log_unstrustedstring - log a string that may contain random characters
+ * @ab: audit_buffer
+ * @string: string to be logged
+ *
+ * This code will escape a string that is passed to it if the string
+ * contains a control character, unprintable character, double quote mark,
  * or a space. Unescaped strings will start and end with a double quote mark.
- * Strings that are escaped are printed in hex (2 digits per char). */
+ * Strings that are escaped are printed in hex (2 digits per char).
+ */
 void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 {
 	const unsigned char *p = string;
@@ -854,10 +918,15 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	kfree(path);
 }
 
-/* The netlink_* functions cannot be called inside an irq context, so
- * the audit buffer is places on a queue and a tasklet is scheduled to
+/**
+ * audit_log_end - end one audit record
+ * @ab: the audit_buffer
+ *
+ * The netlink_* functions cannot be called inside an irq context, so
+ * the audit buffer is placed on a queue and a tasklet is scheduled to
  * remove them from the queue outside the irq context.  May be called in
- * any context. */
+ * any context.
+ */
 void audit_log_end(struct audit_buffer *ab)
 {
 	if (!ab)
@@ -878,9 +947,18 @@ void audit_log_end(struct audit_buffer *ab)
 	audit_buffer_free(ab);
 }
 
-/* Log an audit record.  This is a convenience function that calls
- * audit_log_start, audit_log_vformat, and audit_log_end.  It may be
- * called in any context. */
+/**
+ * audit_log - Log an audit record
+ * @ctx: audit context
+ * @gfp_mask: type of allocation
+ * @type: audit message type
+ * @fmt: format string to use
+ * @...: variable parameters matching the format string
+ *
+ * This is a convenience function that calls audit_log_start,
+ * audit_log_vformat, and audit_log_end.  It may be called
+ * in any context.
+ */
 void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type, 
 	       const char *fmt, ...)
 {
