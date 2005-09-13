@@ -225,6 +225,7 @@ void device_initialize(struct device *dev)
 		   klist_children_put);
 	INIT_LIST_HEAD(&dev->dma_pools);
 	init_MUTEX(&dev->sem);
+	device_init_wakeup(dev, 0);
 }
 
 /**
