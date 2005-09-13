@@ -669,7 +669,6 @@ static void pkt_make_local_copy(struct packet_data *pkt, struct page **pages, in
 		}
 		offs += CD_FRAMESIZE;
 		if (offs >= PAGE_SIZE) {
-			BUG_ON(offs > PAGE_SIZE);
 			offs = 0;
 			p++;
 		}
@@ -804,10 +803,11 @@ static struct packet_data *pkt_get_packet_data(struct pktcdvd_device *pd, int zo
 			list_del_init(&pkt->list);
 			if (pkt->sector != zone)
 				pkt->cache_valid = 0;
-			break;
+			return pkt;
 		}
 	}
-	return pkt;
+	BUG();
+	return NULL;
 }
 
 static void pkt_put_packet_data(struct pktcdvd_device *pd, struct packet_data *pkt)
@@ -951,7 +951,6 @@ try_next_bio:
 	}
 
 	pkt = pkt_get_packet_data(pd, zone);
-	BUG_ON(!pkt);
 
 	pd->current_sector = zone + pd->settings.size;
 	pkt->sector = zone;
@@ -2211,7 +2210,6 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 	 * No matching packet found. Store the bio in the work queue.
 	 */
 	node = mempool_alloc(pd->rb_pool, GFP_NOIO);
-	BUG_ON(!node);
 	node->bio = bio;
 	spin_lock(&pd->lock);
 	BUG_ON(pd->bio_queue_size < 0);
@@ -2419,7 +2417,6 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	struct pktcdvd_device *pd = inode->i_bdev->bd_disk->private_data;
 
 	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd, imajor(inode), iminor(inode));
-	BUG_ON(!pd);
 
 	switch (cmd) {
 	/*
