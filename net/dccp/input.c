@@ -562,6 +562,12 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 	}
 
+	if (unlikely(dh->dccph_type == DCCP_PKT_SYNC)) {
+		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
+			       DCCP_PKT_SYNCACK);
+		goto discard;
+	}
+
 	switch (sk->sk_state) {
 	case DCCP_CLOSED:
 		return 1;
