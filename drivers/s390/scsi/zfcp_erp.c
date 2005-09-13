@@ -82,6 +82,7 @@ static int zfcp_erp_adapter_strategy_open(struct zfcp_erp_action *);
 static int zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *);
 static int zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *);
 static int zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *);
+static int zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *);
 static int zfcp_erp_adapter_strategy_open_fsf_statusread(
 	struct zfcp_erp_action *);
 
@@ -2258,16 +2259,21 @@ zfcp_erp_adapter_strategy_close_qdio(struct zfcp_erp_action *erp_action)
 static int
 zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *erp_action)
 {
-	int retval;
+	int xconfig, xport;
 
-	/* do 'exchange configuration data' */
-	retval = zfcp_erp_adapter_strategy_open_fsf_xconfig(erp_action);
-	if (retval == ZFCP_ERP_FAILED)
-		return retval;
+	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
+			     &erp_action->adapter->status)) {
+		zfcp_erp_adapter_strategy_open_fsf_xport(erp_action);
+		atomic_set(&erp_action->adapter->erp_counter, 0);
+		return ZFCP_ERP_FAILED;
+	}
 
-	/* start the desired number of Status Reads */
-	retval = zfcp_erp_adapter_strategy_open_fsf_statusread(erp_action);
-	return retval;
+	xconfig = zfcp_erp_adapter_strategy_open_fsf_xconfig(erp_action);
+	xport   = zfcp_erp_adapter_strategy_open_fsf_xport(erp_action);
+	if ((xconfig == ZFCP_ERP_FAILED) || (xport == ZFCP_ERP_FAILED))
+		return ZFCP_ERP_FAILED;
+
+	return zfcp_erp_adapter_strategy_open_fsf_statusread(erp_action);
 }
 
 /*
@@ -2342,6 +2348,76 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
 			      &adapter->status)) {
 		ZFCP_LOG_INFO("error: exchange of configuration data for "
+			      "adapter %s failed\n",
+			      zfcp_get_busid_by_adapter(adapter));
+		retval = ZFCP_ERP_FAILED;
+	}
+
+	return retval;
+}
+
+static int
+zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
+{
+	int retval = ZFCP_ERP_SUCCEEDED;
+	int retries;
+	int sleep;
+	struct zfcp_adapter *adapter = erp_action->adapter;
+
+	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
+
+	for (retries = 0; ; retries++) {
+		ZFCP_LOG_DEBUG("Doing exchange port data\n");
+		zfcp_erp_action_to_running(erp_action);
+		zfcp_erp_timeout_init(erp_action);
+		if (zfcp_fsf_exchange_port_data(erp_action, adapter, NULL)) {
+			retval = ZFCP_ERP_FAILED;
+			debug_text_event(adapter->erp_dbf, 5, "a_fstx_xf");
+			ZFCP_LOG_INFO("error: initiation of exchange of "
+				      "port data failed for adapter %s\n",
+				      zfcp_get_busid_by_adapter(adapter));
+			break;
+		}
+		debug_text_event(adapter->erp_dbf, 6, "a_fstx_xok");
+		ZFCP_LOG_DEBUG("Xchange underway\n");
+
+		/*
+		 * Why this works:
+		 * Both the normal completion handler as well as the timeout
+		 * handler will do an 'up' when the 'exchange port data'
+		 * request completes or times out. Thus, the signal to go on
+		 * won't be lost utilizing this semaphore.
+		 * Furthermore, this 'adapter_reopen' action is
+		 * guaranteed to be the only action being there (highest action
+		 * which prevents other actions from being created).
+		 * Resulting from that, the wake signal recognized here
+		 * _must_ be the one belonging to the 'exchange port
+		 * data' request.
+		 */
+		down(&adapter->erp_ready_sem);
+		if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
+			ZFCP_LOG_INFO("error: exchange of port data "
+				      "for adapter %s timed out\n",
+				      zfcp_get_busid_by_adapter(adapter));
+			break;
+		}
+
+		if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
+				      &adapter->status))
+			break;
+
+		ZFCP_LOG_DEBUG("host connection still initialising... "
+			       "waiting and retrying...\n");
+		/* sleep a little bit before retry */
+		sleep = retries < ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES ?
+				ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP :
+				ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP;
+		msleep(jiffies_to_msecs(sleep));
+	}
+
+	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
+			     &adapter->status)) {
+		ZFCP_LOG_INFO("error: exchange of port data for "
 			      "adapter %s failed\n",
 			      zfcp_get_busid_by_adapter(adapter));
 		retval = ZFCP_ERP_FAILED;
@@ -3598,6 +3674,9 @@ zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 {
 	struct zfcp_port *port;
 	unsigned long flags;
+
+	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
+		return;
 
 	debug_text_event(adapter->erp_dbf, 3, "a_access_recover");
 	debug_event(adapter->erp_dbf, 3, &adapter->name, 8);

@@ -140,9 +140,18 @@
 #define FSF_SQ_CFDC_SUBTABLE_LUN		0x0004
 
 /* FSF status qualifier (most significant 4 bytes), local link down */
-#define FSF_PSQ_LINK_NOLIGHT			0x00000004
-#define FSF_PSQ_LINK_WRAPPLUG			0x00000008
-#define FSF_PSQ_LINK_NOFCP			0x00000010
+#define FSF_PSQ_LINK_NO_LIGHT			0x00000004
+#define FSF_PSQ_LINK_WRAP_PLUG			0x00000008
+#define FSF_PSQ_LINK_NO_FCP			0x00000010
+#define FSF_PSQ_LINK_FIRMWARE_UPDATE		0x00000020
+#define FSF_PSQ_LINK_INVALID_WWPN		0x00000100
+#define FSF_PSQ_LINK_NO_NPIV_SUPPORT		0x00000200
+#define FSF_PSQ_LINK_NO_FCP_RESOURCES		0x00000400
+#define FSF_PSQ_LINK_NO_FABRIC_RESOURCES	0x00000800
+#define FSF_PSQ_LINK_FABRIC_LOGIN_UNABLE	0x00001000
+#define FSF_PSQ_LINK_WWPN_ASSIGNMENT_CORRUPTED	0x00002000
+#define FSF_PSQ_LINK_MODE_TABLE_CURRUPTED	0x00004000
+#define FSF_PSQ_LINK_NO_WWPN_ASSIGNMENT		0x00008000
 
 /* payload size in status read buffer */
 #define FSF_STATUS_READ_PAYLOAD_SIZE		4032
@@ -155,14 +164,20 @@
 #define FSF_STATUS_READ_INCOMING_ELS		0x00000002
 #define FSF_STATUS_READ_SENSE_DATA_AVAIL        0x00000003
 #define FSF_STATUS_READ_BIT_ERROR_THRESHOLD	0x00000004
-#define FSF_STATUS_READ_LINK_DOWN		0x00000005 /* FIXME: really? */
+#define FSF_STATUS_READ_LINK_DOWN		0x00000005
 #define FSF_STATUS_READ_LINK_UP          	0x00000006
 #define FSF_STATUS_READ_CFDC_UPDATED		0x0000000A
 #define FSF_STATUS_READ_CFDC_HARDENED		0x0000000B
+#define FSF_STATUS_READ_FEATURE_UPDATE_ALERT	0x0000000C
 
 /* status subtypes in status read buffer */
 #define FSF_STATUS_READ_SUB_CLOSE_PHYS_PORT	0x00000001
 #define FSF_STATUS_READ_SUB_ERROR_PORT		0x00000002
+
+/* status subtypes for link down */
+#define FSF_STATUS_READ_SUB_NO_PHYSICAL_LINK	0x00000000
+#define FSF_STATUS_READ_SUB_FDISC_FAILED	0x00000001
+#define FSF_STATUS_READ_SUB_FIRMWARE_UPDATE	0x00000002
 
 /* status subtypes for CFDC */
 #define FSF_STATUS_READ_SUB_CFDC_HARDENED_ON_SE	0x00000002
@@ -194,11 +209,15 @@
 #define FSF_QTCB_LOG_SIZE			1024
 
 /* channel features */
-#define FSF_FEATURE_QTCB_SUPPRESSION            0x00000001
 #define FSF_FEATURE_CFDC			0x00000002
 #define FSF_FEATURE_LUN_SHARING			0x00000004
 #define FSF_FEATURE_HBAAPI_MANAGEMENT           0x00000010
 #define FSF_FEATURE_ELS_CT_CHAINED_SBALS        0x00000020
+#define FSF_FEATURE_UPDATE_ALERT		0x00000100
+
+/* host connection features */
+#define FSF_FEATURE_NPIV_MODE			0x00000001
+#define FSF_FEATURE_VM_ASSIGNED_WWPN		0x00000002
 
 /* option */
 #define FSF_OPEN_LUN_SUPPRESS_BOXING		0x00000001
@@ -306,16 +325,23 @@ struct fsf_qual_sequence_error {
 	u32 res1[3];
 } __attribute__ ((packed));
 
-struct fsf_qual_locallink_error {
-	u32 code;
-	u32 res1[3];
+struct fsf_link_down_info {
+	u32 error_code;
+	u32 res1;
+	u8 res2[2];
+	u8 primary_status;
+	u8 ioerr_code;
+	u8 action_code;
+	u8 reason_code;
+	u8 explanation_code;
+	u8 vendor_specific_code;
 } __attribute__ ((packed));
 
 union fsf_prot_status_qual {
 	u64 doubleword[FSF_PROT_STATUS_QUAL_SIZE / sizeof(u64)];
 	struct fsf_qual_version_error   version_error;
 	struct fsf_qual_sequence_error  sequence_error;
-	struct fsf_qual_locallink_error locallink_error;
+	struct fsf_link_down_info link_down_info;
 } __attribute__ ((packed));
 
 struct fsf_qtcb_prefix {
@@ -335,6 +361,7 @@ union fsf_status_qual {
 	u32 word[FSF_STATUS_QUALIFIER_SIZE / sizeof (u32)];
 	u64 doubleword[FSF_STATUS_QUALIFIER_SIZE / sizeof(u64)];
 	struct fsf_queue_designator fsf_queue_designator;
+	struct fsf_link_down_info link_down_info;
 } __attribute__ ((packed));
 
 struct fsf_qtcb_header {
@@ -409,8 +436,8 @@ struct fsf_qtcb_bottom_config {
 	u32 low_qtcb_version;
 	u32 max_qtcb_size;
 	u32 max_data_transfer_size;
-	u32 supported_features;
-	u8  res1[4];
+	u32 adapter_features;
+	u32 connection_features;
 	u32 fc_topology;
 	u32 fc_link_speed;
 	u32 adapter_type;
@@ -428,7 +455,7 @@ struct fsf_qtcb_bottom_config {
 } __attribute__ ((packed));
 
 struct fsf_qtcb_bottom_port {
-	u8 res1[8];
+	u64 wwpn;
 	u32 fc_port_id;
 	u32 port_type;
 	u32 port_state;

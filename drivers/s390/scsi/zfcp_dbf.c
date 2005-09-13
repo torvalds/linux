@@ -279,9 +279,18 @@ zfcp_hba_dbf_event_fsf_unsol(const char *tag, struct zfcp_adapter *adapter,
 			break;
 
 		case FSF_STATUS_READ_LINK_DOWN:
-			rec->type.status.payload_size = sizeof(u64);
+			switch (status_buffer->status_subtype) {
+			case FSF_STATUS_READ_SUB_NO_PHYSICAL_LINK:
+			case FSF_STATUS_READ_SUB_FDISC_FAILED:
+				rec->type.status.payload_size =
+					sizeof(struct fsf_link_down_info);
+			}
 			break;
 
+		case FSF_STATUS_READ_FEATURE_UPDATE_ALERT:
+			rec->type.status.payload_size =
+			    ZFCP_DBF_UNSOL_PAYLOAD_FEATURE_UPDATE_ALERT;
+			break;
 		}
 		memcpy(&rec->type.status.payload,
 		       &status_buffer->payload, rec->type.status.payload_size);

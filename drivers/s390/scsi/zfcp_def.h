@@ -66,7 +66,7 @@
 /********************* GENERAL DEFINES *********************************/
 
 /* zfcp version number, it consists of major, minor, and patch-level number */
-#define ZFCP_VERSION		"4.4.0"
+#define ZFCP_VERSION		"4.5.0"
 
 /**
  * zfcp_sg_to_address - determine kernel address from struct scatterlist
@@ -153,6 +153,11 @@ typedef u32 scsi_lun_t;
 /* Do 1st retry in 1 second, then double the timeout for each following retry */
 #define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
+
+/* Retry 5 times every 2 second, then every minute */
+#define ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES	5
+#define ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP	200
+#define ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP	6000
 
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);
@@ -638,6 +643,7 @@ do { \
 #define ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL	0x00000080
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
+#define ZFCP_STATUS_ADAPTER_XPORT_OK		0x00000800
 
 #define ZFCP_STATUS_ADAPTER_SCSI_UP			\
 		(ZFCP_STATUS_COMMON_UNBLOCKED |	\
@@ -915,13 +921,16 @@ struct zfcp_adapter {
 	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
 	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
 	fc_id_t			peer_d_id;	   /* P2P peer D_ID */
+	wwn_t			physical_wwpn;     /* WWPN of physical port */
+	fc_id_t			physical_s_id;     /* local FC port ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u8			fc_service_class;
 	u32			fc_topology;	   /* FC topology */
 	u32			fc_link_speed;	   /* FC interface speed */
 	u32			hydra_version;	   /* Hydra version */
 	u32			fsf_lic_version;
-        u32			supported_features;/* of FCP channel */
+	u32			adapter_features;  /* FCP channel features */
+	u32			connection_features; /* host connection features */
         u32			hardware_version;  /* of FCP channel */
         u8			serial_number[32]; /* of hardware */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
