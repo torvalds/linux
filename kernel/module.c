@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
@@ -498,7 +499,7 @@ static inline int try_force(unsigned int flags)
 {
 	int ret = (flags & O_TRUNC);
 	if (ret)
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 	return ret;
 }
 #else
@@ -897,7 +898,7 @@ static int check_version(Elf_Shdr *sechdrs,
 	if (!(tainted & TAINT_FORCED_MODULE)) {
 		printk("%s: no version for \"%s\" found: kernel tainted.\n",
 		       mod->name, symname);
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 	}
 	return 1;
 }
@@ -1352,7 +1353,7 @@ static void set_license(struct module *mod, const char *license)
 	if (!mod->license_gplok && !(tainted & TAINT_PROPRIETARY_MODULE)) {
 		printk(KERN_WARNING "%s: module license '%s' taints kernel.\n",
 		       mod->name, license);
-		tainted |= TAINT_PROPRIETARY_MODULE;
+		add_taint(TAINT_PROPRIETARY_MODULE);
 	}
 }
 
@@ -1610,7 +1611,7 @@ static struct module *load_module(void __user *umod,
 	modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 		printk(KERN_WARNING "%s: no version magic, tainting kernel.\n",
 		       mod->name);
 	} else if (!same_magic(modmagic, vermagic)) {
@@ -1739,7 +1740,7 @@ static struct module *load_module(void __user *umod,
 	    (mod->num_gpl_syms && !gplcrcindex)) {
 		printk(KERN_WARNING "%s: No versions for exported symbols."
 		       " Tainting kernel.\n", mod->name);
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 	}
 #endif
 
