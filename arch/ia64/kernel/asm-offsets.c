@@ -4,6 +4,7 @@
  * to extract and format the required data.
  */
 
+#define ASM_OFFSETS_C 1
 #include <linux/config.h>
 
 #include <linux/sched.h>
