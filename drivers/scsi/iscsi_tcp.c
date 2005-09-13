@@ -672,34 +672,6 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 			else
 				rc = ISCSI_ERR_PROTO;
 			break;
-		case ISCSI_OP_NOOP_IN:
-		case ISCSI_OP_TEXT_RSP:
-		case ISCSI_OP_LOGOUT_RSP:
-		case ISCSI_OP_ASYNC_EVENT:
-		case ISCSI_OP_REJECT:
-			rc = iscsi_check_assign_cmdsn(session,
-						 (struct iscsi_nopin*)hdr);
-			if (rc)
-				break;
-
-			/* update ExpStatSN */
-			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
-			if (!conn->in.datalen) {
-				struct iscsi_mgmt_task *mtask;
-
-				rc = iscsi_recv_pdu(iscsi_handle(conn), hdr,
-						    NULL, 0);
-				mtask = (struct iscsi_mgmt_task *)
-					session->mgmt_cmds[conn->in.itt -
-						ISCSI_MGMT_ITT_OFFSET];
-				if (conn->login_mtask != mtask) {
-					spin_lock(&session->lock);
-					__kfifo_put(session->mgmtpool.queue,
-					    (void*)&mtask, sizeof(void*));
-					spin_unlock(&session->lock);
-				}
-			}
-			break;
 		default:
 			rc = ISCSI_ERR_BAD_OPCODE;
 			break;
@@ -718,6 +690,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		switch(conn->in.opcode) {
 		case ISCSI_OP_LOGIN_RSP:
 		case ISCSI_OP_TEXT_RSP:
+		case ISCSI_OP_LOGOUT_RSP: 
 			rc = iscsi_check_assign_cmdsn(session,
 						 (struct iscsi_nopin*)hdr);
 			if (rc)
@@ -758,20 +731,59 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 			}
 			spin_unlock(&session->lock);
 			break;
+		case ISCSI_OP_NOOP_IN: 
+			if (hdr->ttt != ISCSI_RESERVED_TAG) {
+				rc = ISCSI_ERR_PROTO;
+				break;
+			}
+			rc = iscsi_check_assign_cmdsn(session, 
+						(struct iscsi_nopin*)hdr);
+			if (rc)
+				break;
+			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
+
+			if (!conn->in.datalen) {
+				struct iscsi_mgmt_task *mtask;
+
+				rc = iscsi_recv_pdu(iscsi_handle(conn), hdr,
+						    NULL, 0);
+				mtask = (struct iscsi_mgmt_task *)
+					session->mgmt_cmds[conn->in.itt -
+							ISCSI_MGMT_ITT_OFFSET];
+				if (conn->login_mtask != mtask) {
+					spin_lock(&session->lock);
+					__kfifo_put(session->mgmtpool.queue,
+						  (void*)&mtask, sizeof(void*));
+					spin_unlock(&session->lock);
+				}
+			}
+			break;
 		default:
 			rc = ISCSI_ERR_BAD_OPCODE;
 			break;
 		}
 	} else if (conn->in.itt == ISCSI_RESERVED_TAG) {
-		if (conn->in.opcode == ISCSI_OP_NOOP_IN && !conn->in.datalen) {
-			rc = iscsi_check_assign_cmdsn(session,
+		switch(conn->in.opcode) {
+		case ISCSI_OP_NOOP_IN:
+			if (!conn->in.datalen) {
+				rc = iscsi_check_assign_cmdsn(session,
 						 (struct iscsi_nopin*)hdr);
-			if (!rc)
-				rc = iscsi_recv_pdu(iscsi_handle(conn),
-						    hdr, NULL, 0);
-		}
-		else
+				if (!rc && hdr->ttt != ISCSI_RESERVED_TAG)
+					rc = iscsi_recv_pdu(iscsi_handle(conn),
+							    hdr, NULL, 0);
+			} else 
+				rc = ISCSI_ERR_PROTO;
+			break;
+		case ISCSI_OP_REJECT:
+			/* we need sth like iscsi_reject_rsp()*/
+		case ISCSI_OP_ASYNC_EVENT:
+			/* we need sth like iscsi_async_event_rsp() */
 			rc = ISCSI_ERR_BAD_OPCODE;
+			break;
+		default:
+			rc = ISCSI_ERR_BAD_OPCODE;
+			break;
+		}
 	} else
 		rc = ISCSI_ERR_BAD_ITT;
 
