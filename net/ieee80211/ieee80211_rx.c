@@ -787,11 +787,11 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee,
 
 	/* Pull out fixed field data */
 	memcpy(network->bssid, beacon->header.addr3, ETH_ALEN);
-	network->capability = beacon->capability;
+	network->capability = le16_to_cpu(beacon->capability);
 	network->last_scanned = jiffies;
-	network->time_stamp[0] = beacon->time_stamp[0];
-	network->time_stamp[1] = beacon->time_stamp[1];
-	network->beacon_interval = beacon->beacon_interval;
+	network->time_stamp[0] = le32_to_cpu(beacon->time_stamp[0]);
+	network->time_stamp[1] = le32_to_cpu(beacon->time_stamp[1]);
+	network->beacon_interval = le16_to_cpu(beacon->beacon_interval);
 	/* Where to pull this? beacon->listen_interval; */
 	network->listen_interval = 0x0A;
 	network->rates_len = network->rates_ex_len = 0;
@@ -1070,8 +1070,9 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     MAC_ARG(beacon->header.addr3),
-				     WLAN_FC_GET_STYPE(beacon->header.
-						       frame_ctl) ==
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (beacon->header.
+							frame_ctl)) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 		return;
@@ -1122,8 +1123,9 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(network.ssid,
 						  network.ssid_len),
 				     MAC_ARG(network.bssid),
-				     WLAN_FC_GET_STYPE(beacon->header.
-						       frame_ctl) ==
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (beacon->header.
+							frame_ctl)) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 #endif
@@ -1134,8 +1136,9 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(target->ssid,
 						  target->ssid_len),
 				     MAC_ARG(target->bssid),
-				     WLAN_FC_GET_STYPE(beacon->header.
-						       frame_ctl) ==
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (beacon->header.
+							frame_ctl)) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 		update_network(target, &network);
@@ -1148,20 +1151,23 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		      struct ieee80211_hdr *header,
 		      struct ieee80211_rx_stats *stats)
 {
-	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
+	switch (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl))) {
 	case IEEE80211_STYPE_ASSOC_RESP:
 		IEEE80211_DEBUG_MGMT("received ASSOCIATION RESPONSE (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
 		break;
 
 	case IEEE80211_STYPE_REASSOC_RESP:
 		IEEE80211_DEBUG_MGMT("received REASSOCIATION RESPONSE (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
 		break;
 
 	case IEEE80211_STYPE_PROBE_RESP:
 		IEEE80211_DEBUG_MGMT("received PROBE RESPONSE (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
 		IEEE80211_DEBUG_SCAN("Probe response\n");
 		ieee80211_process_probe_response(ieee,
 						 (struct
@@ -1171,7 +1177,8 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	case IEEE80211_STYPE_BEACON:
 		IEEE80211_DEBUG_MGMT("received BEACON (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
 		IEEE80211_DEBUG_SCAN("Beacon\n");
 		ieee80211_process_probe_response(ieee,
 						 (struct
@@ -1181,10 +1188,12 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	default:
 		IEEE80211_DEBUG_MGMT("received UNKNOWN (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
 		IEEE80211_WARNING("%s: Unknown management packet: %d\n",
 				  ieee->dev->name,
-				  WLAN_FC_GET_STYPE(header->frame_ctl));
+				  WLAN_FC_GET_STYPE(le16_to_cpu
+						    (header->frame_ctl)));
 		break;
 	}
 }
