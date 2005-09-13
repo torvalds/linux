@@ -195,34 +195,20 @@ static int show_debug_level(char *page, char **start, off_t offset,
 static int store_debug_level(struct file *file, const char __user * buffer,
 			     unsigned long count, void *data)
 {
-	char buf[] = "0x00000000";
-	char *p = (char *)buf;
+	char buf[] = "0x00000000\n";
+	unsigned long len = min((unsigned long)sizeof(buf) - 1, count);
 	unsigned long val;
 
-	if (count > sizeof(buf) - 1)
-		count = sizeof(buf) - 1;
-
-	if (copy_from_user(buf, buffer, count))
+	if (copy_from_user(buf, buffer, len))
 		return count;
-	buf[count] = 0;
-	/*
-	 * what a FPOS...  What, sscanf(buf, "%i", &val) would be too
-	 * scary?
-	 */
-	if (p[1] == 'x' || p[1] == 'X' || p[0] == 'x' || p[0] == 'X') {
-		p++;
-		if (p[0] == 'x' || p[0] == 'X')
-			p++;
-		val = simple_strtoul(p, &p, 16);
-	} else
-		val = simple_strtoul(p, &p, 10);
-	if (p == buf)
+	buf[len] = 0;
+	if (sscanf(buf, "%li", &val) != 1)
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
 		ieee80211_debug_level = val;
 
-	return strlen(buf);
+	return strnlen(buf, len);
 }
 
 static int __init ieee80211_init(void)
