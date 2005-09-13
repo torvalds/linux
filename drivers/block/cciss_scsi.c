@@ -1144,6 +1144,7 @@ cciss_scsi_proc_info(struct Scsi_Host *sh,
 
 	int buflen, datalen;
 	ctlr_info_t *ci;
+	int i;
 	int cntl_num;
 
 
@@ -1154,8 +1155,28 @@ cciss_scsi_proc_info(struct Scsi_Host *sh,
 	cntl_num = ci->ctlr;	/* Get our index into the hba[] array */
 
 	if (func == 0) {	/* User is reading from /proc/scsi/ciss*?/?*  */
-		buflen = sprintf(buffer, "hostnum=%d\n", sh->host_no); 	
+		buflen = sprintf(buffer, "cciss%d: SCSI host: %d\n",
+				cntl_num, sh->host_no);
 
+		/* this information is needed by apps to know which cciss
+		   device corresponds to which scsi host number without
+		   having to open a scsi target device node.  The device
+		   information is not a duplicate of /proc/scsi/scsi because
+		   the two may be out of sync due to scsi hotplug, rather
+		   this info is for an app to be able to use to know how to
+		   get them back in sync. */
+
+		for (i=0;i<ccissscsi[cntl_num].ndevices;i++) {
+			struct cciss_scsi_dev_t *sd = &ccissscsi[cntl_num].dev[i];
+			buflen += sprintf(&buffer[buflen], "c%db%dt%dl%d %02d "
+				"0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				sh->host_no, sd->bus, sd->target, sd->lun,
+				sd->devtype,
+				sd->scsi3addr[0], sd->scsi3addr[1],
+				sd->scsi3addr[2], sd->scsi3addr[3],
+				sd->scsi3addr[4], sd->scsi3addr[5],
+				sd->scsi3addr[6], sd->scsi3addr[7]);
+		}
 		datalen = buflen - offset;
 		if (datalen < 0) { 	/* they're reading past EOF. */
 			datalen = 0;
@@ -1417,7 +1438,7 @@ cciss_proc_tape_report(int ctlr, unsigned char *buffer, off_t *pos, off_t *len)
 
 	CPQ_TAPE_LOCK(ctlr, flags);
 	size = sprintf(buffer + *len, 
-		"       Sequential access devices: %d\n\n",
+		"Sequential access devices: %d\n\n",
 			ccissscsi[ctlr].ndevices);
 	CPQ_TAPE_UNLOCK(ctlr, flags);
 	*pos += size; *len += size;
