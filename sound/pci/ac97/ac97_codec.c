@@ -1557,7 +1557,7 @@ static int snd_ac97_modem_build(snd_card_t * card, ac97_t * ac97)
 
 	/* build modem switches */
 	for (idx = 0; idx < ARRAY_SIZE(snd_ac97_controls_modem_switches); idx++)
-		if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_modem_switches[idx], ac97))) < 0)
+		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_ac97_controls_modem_switches[idx], ac97))) < 0)
 			return err;
 
 	/* build chip specific controls */
