@@ -886,7 +886,7 @@ static int
 zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 {
 	int retval = 0;
-	struct zfcp_fsf_req *fsf_req;
+	struct zfcp_fsf_req *fsf_req = NULL;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	if (erp_action->fsf_req) {
@@ -896,7 +896,7 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 		list_for_each_entry(fsf_req, &adapter->fsf_req_list_head, list)
 		    if (fsf_req == erp_action->fsf_req)
 			break;
-		if (fsf_req == erp_action->fsf_req) {
+		if (fsf_req && (fsf_req->erp_action == erp_action)) {
 			/* fsf_req still exists */
 			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
 			debug_event(adapter->erp_dbf, 3, &fsf_req,
@@ -2291,7 +2291,9 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		atomic_clear_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
 				  &adapter->status);
 		ZFCP_LOG_DEBUG("Doing exchange config data\n");
+		write_lock(&adapter->erp_lock);
 		zfcp_erp_action_to_running(erp_action);
+		write_unlock(&adapter->erp_lock);
 		zfcp_erp_timeout_init(erp_action);
 		if (zfcp_fsf_exchange_config_data(erp_action)) {
 			retval = ZFCP_ERP_FAILED;
@@ -3194,11 +3196,19 @@ zfcp_erp_action_enqueue(int action,
 		/* fall through !!! */
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
-		if (atomic_test_mask
-		    (ZFCP_STATUS_COMMON_ERP_INUSE, &port->status)
-		    && port->erp_action.action ==
-		    ZFCP_ERP_ACTION_REOPEN_PORT_FORCED) {
-			debug_text_event(adapter->erp_dbf, 4, "pf_actenq_drp");
+		if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_INUSE,
+				     &port->status)) {
+			if (port->erp_action.action !=
+			    ZFCP_ERP_ACTION_REOPEN_PORT_FORCED) {
+				ZFCP_LOG_INFO("dropped erp action %i (port "
+					      "0x%016Lx, action in use: %i)\n",
+					      action, port->wwpn,
+					      port->erp_action.action);
+				debug_text_event(adapter->erp_dbf, 4,
+						 "pf_actenq_drp");
+			} else 
+				debug_text_event(adapter->erp_dbf, 4,
+						 "pf_actenq_drpcp");
 			debug_event(adapter->erp_dbf, 4, &port->wwpn,
 				    sizeof (wwn_t));
 			goto out;
