@@ -3095,9 +3095,10 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 	/* remove it from the disk list */
 	for (j = 0; j < NWD; j++) {
 		struct gendisk *disk = hba[i]->gendisk[j];
-		if (disk->flags & GENHD_FL_UP)
-			blk_cleanup_queue(disk->queue);
+		if (disk->flags & GENHD_FL_UP) {
 			del_gendisk(disk);
+			blk_cleanup_queue(disk->queue);
+		}
 	}
 
 	pci_free_consistent(hba[i]->pdev, NR_CMDS * sizeof(CommandList_struct),
