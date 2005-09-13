@@ -28,6 +28,7 @@ extern char _end[];
  * PFN of last memory page.
  */
 unsigned long end_pfn; 
+EXPORT_SYMBOL(end_pfn);
 
 /* 
  * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.
