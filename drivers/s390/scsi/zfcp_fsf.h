@@ -116,6 +116,7 @@
 #define FSF_INVALID_COMMAND_OPTION              0x000000E5
 /* #define FSF_ERROR                             0x000000FF  */
 
+#define FSF_PROT_STATUS_QUAL_SIZE		16
 #define FSF_STATUS_QUALIFIER_SIZE		16
 
 /* FSF status qualifier, recommendations */
@@ -311,6 +312,7 @@ struct fsf_qual_locallink_error {
 } __attribute__ ((packed));
 
 union fsf_prot_status_qual {
+	u64 doubleword[FSF_PROT_STATUS_QUAL_SIZE / sizeof(u64)];
 	struct fsf_qual_version_error   version_error;
 	struct fsf_qual_sequence_error  sequence_error;
 	struct fsf_qual_locallink_error locallink_error;
@@ -331,6 +333,7 @@ union fsf_status_qual {
 	u8  byte[FSF_STATUS_QUALIFIER_SIZE];
 	u16 halfword[FSF_STATUS_QUALIFIER_SIZE / sizeof (u16)];
 	u32 word[FSF_STATUS_QUALIFIER_SIZE / sizeof (u32)];
+	u64 doubleword[FSF_STATUS_QUALIFIER_SIZE / sizeof(u64)];
 	struct fsf_queue_designator fsf_queue_designator;
 } __attribute__ ((packed));
 

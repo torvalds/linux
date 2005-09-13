@@ -44,7 +44,8 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_bus_reset_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *);
-static int zfcp_task_management_function(struct zfcp_unit *, u8);
+static int zfcp_task_management_function(struct zfcp_unit *, u8,
+					 struct scsi_cmnd *);
 
 static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int, scsi_id_t,
 					  scsi_lun_t);
@@ -242,7 +243,10 @@ static void
 zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 {
 	set_host_byte(&scpnt->result, result);
-	zfcp_cmd_dbf_event_scsi("failing", scpnt);
+	if ((scpnt->device != NULL) && (scpnt->device->host != NULL))
+		zfcp_scsi_dbf_event_result("fail", 4,
+			(struct zfcp_adapter*) scpnt->device->host->hostdata[0],
+			scpnt);
 	/* return directly */
 	scpnt->scsi_done(scpnt);
 }
@@ -434,7 +438,8 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
  	struct zfcp_adapter *adapter;
 	struct zfcp_unit *unit;
 	int retval = SUCCESS;
-	struct zfcp_fsf_req *new_fsf_req, *old_fsf_req;
+	struct zfcp_fsf_req *new_fsf_req = NULL;
+	struct zfcp_fsf_req *old_fsf_req;
 	unsigned long flags;
 
 	scsi_host = scpnt->device->host;
@@ -457,11 +462,8 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	old_fsf_req = (struct zfcp_fsf_req *) scpnt->host_scribble;
 	if (!old_fsf_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
-		ZFCP_LOG_NORMAL("bug: no old fsf request found\n");
-		ZFCP_LOG_NORMAL("scsi_cmnd:\n");
-		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_NORMAL,
-			      (char *) scpnt, sizeof (struct scsi_cmnd));
-		retval = FAILED;
+		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, new_fsf_req);
+		retval = SUCCESS;
 		goto out;
 	}
 	old_fsf_req->data = 0;
@@ -473,25 +475,27 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	new_fsf_req = zfcp_fsf_abort_fcp_command((unsigned long) old_fsf_req,
 						 adapter, unit, 0);
 	if (!new_fsf_req) {
+		ZFCP_LOG_INFO("error: initiation of Abort FCP Cmnd failed\n");
 		retval = FAILED;
-		ZFCP_LOG_NORMAL("error: initiation of Abort FCP Cmnd "
-				"failed\n");
 		goto out;
 	}
 
 	/* wait for completion of abort */
 	__wait_event(new_fsf_req->completion_wq,
 		     new_fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
-	zfcp_fsf_req_free(new_fsf_req);
 
 	/* status should be valid since signals were not permitted */
 	if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED) {
+		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, new_fsf_req);
 		retval = SUCCESS;
 	} else if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED) {
+		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, new_fsf_req);
 		retval = SUCCESS;
 	} else {
+		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, new_fsf_req);
 		retval = FAILED;
 	}
+	zfcp_fsf_req_free(new_fsf_req);
  out:
 	return retval;
 }
@@ -525,8 +529,9 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 	 */
 	if (!atomic_test_mask(ZFCP_STATUS_UNIT_NOTSUPPUNITRESET,
 			      &unit->status)) {
-		retval =
-		    zfcp_task_management_function(unit, FCP_LOGICAL_UNIT_RESET);
+		retval = zfcp_task_management_function(unit,
+						       FCP_LOGICAL_UNIT_RESET,
+						       scpnt);
 		if (retval) {
 			ZFCP_LOG_DEBUG("unit reset failed (unit=%p)\n", unit);
 			if (retval == -ENOTSUPP)
@@ -542,7 +547,7 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 			goto out;
 		}
 	}
-	retval = zfcp_task_management_function(unit, FCP_TARGET_RESET);
+	retval = zfcp_task_management_function(unit, FCP_TARGET_RESET, scpnt);
 	if (retval) {
 		ZFCP_LOG_DEBUG("target reset failed (unit=%p)\n", unit);
 		retval = FAILED;
@@ -555,7 +560,8 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 }
 
 static int
-zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags)
+zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags,
+			      struct scsi_cmnd *scpnt)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
 	struct zfcp_fsf_req *fsf_req;
@@ -569,6 +575,7 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags)
 			      "failed for unit 0x%016Lx on port 0x%016Lx on  "
 			      "adapter %s\n", unit->fcp_lun, unit->port->wwpn,
 			      zfcp_get_busid_by_adapter(adapter));
+		zfcp_scsi_dbf_event_devreset("nres", tm_flags, unit, scpnt);
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -576,11 +583,17 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags)
 	__wait_event(fsf_req->completion_wq,
 		     fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
-	/* check completion status of task management function */
-	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED)
+	/*
+	 * check completion status of task management function
+	 */
+	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED) {
+		zfcp_scsi_dbf_event_devreset("fail", tm_flags, unit, scpnt);
 		retval = -EIO;
-	else if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCNOTSUPP)
+	} else if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCNOTSUPP) {
+		zfcp_scsi_dbf_event_devreset("nsup", tm_flags, unit, scpnt);
 		retval = -ENOTSUPP;
+	} else
+		zfcp_scsi_dbf_event_devreset("okay", tm_flags, unit, scpnt);
 
 	zfcp_fsf_req_free(fsf_req);
  out:
