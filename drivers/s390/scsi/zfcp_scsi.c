@@ -587,50 +587,38 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags)
 	return retval;
 }
 
-/*
- * function:	zfcp_scsi_eh_bus_reset_handler
- *
- * purpose:
- *
- * returns:
+/**
+ * zfcp_scsi_eh_bus_reset_handler - reset bus (reopen adapter)
  */
 int
 zfcp_scsi_eh_bus_reset_handler(struct scsi_cmnd *scpnt)
 {
-	int retval = 0;
-	struct zfcp_unit *unit;
+	struct zfcp_unit *unit = (struct zfcp_unit*) scpnt->device->hostdata;
+	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	unit = (struct zfcp_unit *) scpnt->device->hostdata;
 	ZFCP_LOG_NORMAL("bus reset because of problems with "
 			"unit 0x%016Lx\n", unit->fcp_lun);
-	zfcp_erp_adapter_reopen(unit->port->adapter, 0);
-	zfcp_erp_wait(unit->port->adapter);
-	retval = SUCCESS;
+	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_wait(adapter);
 
-	return retval;
+	return SUCCESS;
 }
 
-/*
- * function:	zfcp_scsi_eh_host_reset_handler
- *
- * purpose:
- *
- * returns:
+/**
+ * zfcp_scsi_eh_host_reset_handler - reset host (reopen adapter)
  */
 int
 zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
-	int retval = 0;
-	struct zfcp_unit *unit;
+	struct zfcp_unit *unit = (struct zfcp_unit*) scpnt->device->hostdata;
+	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	unit = (struct zfcp_unit *) scpnt->device->hostdata;
 	ZFCP_LOG_NORMAL("host reset because of problems with "
 			"unit 0x%016Lx\n", unit->fcp_lun);
-	zfcp_erp_adapter_reopen(unit->port->adapter, 0);
-	zfcp_erp_wait(unit->port->adapter);
-	retval = SUCCESS;
+	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_wait(adapter);
 
-	return retval;
+	return SUCCESS;
 }
 
 /*
