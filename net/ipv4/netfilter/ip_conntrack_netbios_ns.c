@@ -23,13 +23,14 @@
 #include <linux/inetdevice.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#include <linux/udp.h>
 #include <net/route.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
+
+#define NMBD_PORT	137
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("NetBIOS name service broadcast connection tracking helper");
@@ -44,7 +45,6 @@ static int help(struct sk_buff **pskb,
 {
 	struct ip_conntrack_expect *exp;
 	struct iphdr *iph = (*pskb)->nh.iph;
-	struct udphdr _uh, *uh;
 	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct in_device *in_dev;
 	u_int32_t mask = 0;
@@ -72,20 +72,15 @@ static int help(struct sk_buff **pskb,
 	if (mask == 0)
 		goto out;
 
-	uh = skb_header_pointer(*pskb, iph->ihl * 4, sizeof(_uh), &_uh);
-	BUG_ON(uh == NULL);
-
 	exp = ip_conntrack_expect_alloc(ct);
 	if (exp == NULL)
 		goto out;
-	memset(&exp->tuple, 0, sizeof(exp->tuple));
-	exp->tuple.src.ip         = iph->daddr & mask;
-	exp->tuple.dst.ip         = iph->saddr;
-	exp->tuple.dst.u.udp.port = uh->source;
-	exp->tuple.dst.protonum   = IPPROTO_UDP;
 
-	memset(&exp->mask, 0, sizeof(exp->mask));
+	exp->tuple                = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+	exp->tuple.src.u.udp.port = ntohs(NMBD_PORT);
+
 	exp->mask.src.ip          = mask;
+	exp->mask.src.u.udp.port  = 0xFFFF;
 	exp->mask.dst.ip          = 0xFFFFFFFF;
 	exp->mask.dst.u.udp.port  = 0xFFFF;
 	exp->mask.dst.protonum    = 0xFF;
@@ -107,7 +102,7 @@ static struct ip_conntrack_helper helper = {
 		.src = {
 			.u = {
 				.udp = {
-					.port	= __constant_htons(137),
+					.port	= __constant_htons(NMBD_PORT),
 				}
 			}
 		},
