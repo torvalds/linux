@@ -624,7 +624,7 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 	cb->cb_ident = se->se_callback_ident;
 	return;
 out_err:
-	printk(KERN_INFO "NFSD: this client (clientid %08x/%08x) "
+	dprintk(KERN_INFO "NFSD: this client (clientid %08x/%08x) "
 		"will not receive delegations\n",
 		clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
 
@@ -2014,7 +2014,7 @@ STALE_STATEID(stateid_t *stateid)
 {
 	if (stateid->si_boot == boot_time)
 		return 0;
-	printk("NFSD: stale stateid (%08x/%08x/%08x/%08x)!\n",
+	dprintk("NFSD: stale stateid (%08x/%08x/%08x/%08x)!\n",
 		stateid->si_boot, stateid->si_stateownerid, stateid->si_fileid,
 		stateid->si_generation);
 	return 1;
@@ -2275,7 +2275,7 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 
 check_replay:
 	if (seqid == sop->so_seqid - 1) {
-		printk("NFSD: preprocess_seqid_op: retransmission?\n");
+		dprintk("NFSD: preprocess_seqid_op: retransmission?\n");
 		/* indicate replay to calling function */
 		return NFSERR_REPLAY_ME;
 	}
@@ -2500,8 +2500,7 @@ find_stateid(stateid_t *stid, int flags)
 			    (local->st_stateid.si_fileid == f_id))
 				return local;
 		}
-	} else
-		printk("NFSD: find_stateid: ERROR: no state flag\n");
+	}
 	return NULL;
 }
 
@@ -2705,10 +2704,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		struct nfs4_file *fp;
 		
 		status = nfserr_stale_clientid;
-		if (STALE_CLIENTID(&lock->lk_new_clientid)) {
-			printk("NFSD: nfsd4_lock: clientid is stale!\n");
+		if (STALE_CLIENTID(&lock->lk_new_clientid))
 			goto out;
-		}
 
 		/* validate and update open stateid and open seqid */
 		status = nfs4_preprocess_seqid_op(current_fh, 
@@ -2751,7 +2748,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	filp = lock_stp->st_vfs_file;
 
 	if ((status = fh_verify(rqstp, current_fh, S_IFREG, MAY_LOCK))) {
-		printk("NFSD: nfsd4_lock: permission denied!\n");
+		dprintk("NFSD: nfsd4_lock: permission denied!\n");
 		goto out;
 	}
 
@@ -2866,13 +2863,11 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	nfs4_lock_state();
 
 	status = nfserr_stale_clientid;
-	if (STALE_CLIENTID(&lockt->lt_clientid)) {
-		printk("NFSD: nfsd4_lockt: clientid is stale!\n");
+	if (STALE_CLIENTID(&lockt->lt_clientid))
 		goto out;
-	}
 
 	if ((status = fh_verify(rqstp, current_fh, S_IFREG, 0))) {
-		printk("NFSD: nfsd4_lockt: fh_verify() failed!\n");
+		dprintk("NFSD: nfsd4_lockt: fh_verify() failed!\n");
 		if (status == nfserr_symlink)
 			status = nfserr_inval;
 		goto out;
@@ -2976,7 +2971,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	if (file_lock.fl_ops && file_lock.fl_ops->fl_release_private)
 		file_lock.fl_ops->fl_release_private(&file_lock);
 	if (status) {
-		printk("NFSD: nfs4_locku: posix_lock_file failed!\n");
+		dprintk("NFSD: nfs4_locku: posix_lock_file failed!\n");
 		goto out_nfserr;
 	}
 	/*
@@ -3036,10 +3031,8 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp, struct nfsd4_release_lockowner *
 	/* XXX check for lease expiration */
 
 	status = nfserr_stale_clientid;
-	if (STALE_CLIENTID(clid)) {
-		printk("NFSD: nfsd4_release_lockowner: clientid is stale!\n");
+	if (STALE_CLIENTID(clid))
 		return status;
-	}
 
 	nfs4_lock_state();
 
