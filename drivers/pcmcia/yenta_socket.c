@@ -1052,8 +1052,8 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	 * Bail out if so.
 	 */
 	if (!dev->subordinate) {
-		printk(KERN_ERROR "Yenta: no bus associated with %s!\n",
-			pci_name(dev));
+		printk(KERN_ERR "Yenta: no bus associated with %s! "
+			"(try 'pci=assign-busses')\n", pci_name(dev));
 		return -ENODEV;
 	}
 
