@@ -488,7 +488,7 @@ static void bpq_setup(struct net_device *dev)
 	dev->flags      = 0;
 
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header     = ax25_encapsulate;
+	dev->hard_header     = ax25_hard_header;
 	dev->rebuild_header  = ax25_rebuild_header;
 #endif
 

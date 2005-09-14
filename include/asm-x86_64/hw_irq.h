@@ -26,6 +26,7 @@
 struct hw_interrupt_type;
 #endif
 
+#define NMI_VECTOR		0x02
 /*
  * IDT vectors usable for external interrupt sources start
  * at 0x20:
@@ -50,14 +51,15 @@ struct hw_interrupt_type;
  */
 #define SPURIOUS_APIC_VECTOR	0xff
 #define ERROR_APIC_VECTOR	0xfe
-#define INVALIDATE_TLB_VECTOR	0xfd
-#define RESCHEDULE_VECTOR	0xfc
-#define TASK_MIGRATION_VECTOR	0xfb
-#define CALL_FUNCTION_VECTOR	0xfa
-#define KDB_VECTOR	0xf9
+#define RESCHEDULE_VECTOR	0xfd
+#define CALL_FUNCTION_VECTOR	0xfc
+#define KDB_VECTOR		0xfb	/* reserved for KDB */
+#define THERMAL_APIC_VECTOR	0xfa
+/* 0xf9 free */
+#define INVALIDATE_TLB_VECTOR_END	0xf8
+#define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f8 used for TLB flush */
 
-#define THERMAL_APIC_VECTOR	0xf0
-
+#define NUM_INVALIDATE_TLB_VECTORS	8
 
 /*
  * Local APIC timer IRQ vector is on a different priority level,

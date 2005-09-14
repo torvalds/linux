@@ -99,8 +99,7 @@ static DECLARE_WAIT_QUEUE_HEAD(ps2esdi_int);
 static int no_int_yet;
 static int ps2esdi_drives;
 static u_short io_base;
-static struct timer_list esdi_timer =
-		TIMER_INITIALIZER(ps2esdi_reset_timer, 0, 0);
+static DEFINE_TIMER(esdi_timer, ps2esdi_reset_timer, 0, 0);
 static int reset_status;
 static int ps2esdi_slot = -1;
 static int tp720esdi = 0;	/* Is it Integrated ESDI of ThinkPad-720? */

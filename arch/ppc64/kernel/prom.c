@@ -1733,6 +1733,7 @@ static void of_node_release(struct kref *kref)
 	kfree(node->intrs);
 	kfree(node->addrs);
 	kfree(node->full_name);
+	kfree(node->data);
 	kfree(node);
 }
 

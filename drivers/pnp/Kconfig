@@ -6,7 +6,7 @@ menu "Plug and Play support"
 
 config PNP
 	bool "Plug and Play support"
-	depends on ISA || ACPI_BUS
+	depends on ISA || ACPI
 	---help---
 	  Plug and Play (PnP) is a standard for peripherals which allows those
 	  peripherals to be configured by software, e.g. assign IRQ's or other

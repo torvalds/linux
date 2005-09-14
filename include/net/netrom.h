@@ -6,6 +6,7 @@
 
 #ifndef _NETROM_H
 #define _NETROM_H 
+
 #include <linux/netrom.h>
 #include <linux/list.h>
 #include <net/sock.h>
@@ -22,6 +23,7 @@
 #define	NR_DISCACK			0x04
 #define	NR_INFO				0x05
 #define	NR_INFOACK			0x06
+#define	NR_RESET			0x07
 
 #define	NR_CHOKE_FLAG			0x80
 #define	NR_NAK_FLAG			0x40
@@ -51,10 +53,15 @@ enum {
 #define	NR_DEFAULT_TTL			16		/* Default Time To Live - 16 */
 #define	NR_DEFAULT_ROUTING		1		/* Is routing enabled ? */
 #define	NR_DEFAULT_FAILS		2		/* Link fails until route fails */
+#define	NR_DEFAULT_RESET		0		/* Sent / accept reset cmds? */
 
 #define NR_MODULUS 			256
 #define NR_MAX_WINDOW_SIZE		127			/* Maximum Window Allowable - 127 */
 #define	NR_MAX_PACKET_SIZE		236			/* Maximum Packet Length - 236 */
+
+struct nr_private {
+	struct net_device_stats	stats;
+};
 
 struct nr_sock {
 	struct sock		sock;
@@ -176,6 +183,8 @@ extern int  sysctl_netrom_transport_requested_window_size;
 extern int  sysctl_netrom_transport_no_activity_timeout;
 extern int  sysctl_netrom_routing_control;
 extern int  sysctl_netrom_link_fails_count;
+extern int  sysctl_netrom_reset_circuit;
+
 extern int  nr_rx_frame(struct sk_buff *, struct net_device *);
 extern void nr_destroy_socket(struct sock *);
 
@@ -218,7 +227,28 @@ extern void nr_requeue_frames(struct sock *);
 extern int  nr_validate_nr(struct sock *, unsigned short);
 extern int  nr_in_rx_window(struct sock *, unsigned short);
 extern void nr_write_internal(struct sock *, int);
-extern void nr_transmit_refusal(struct sk_buff *, int);
+
+extern void __nr_transmit_reply(struct sk_buff *skb, int mine,
+	unsigned char cmdflags);
+
+/*
+ * This routine is called when a Connect Acknowledge with the Choke Flag
+ * set is needed to refuse a connection.
+ */
+#define nr_transmit_refusal(skb, mine)					\
+do {									\
+	__nr_transmit_reply((skb), (mine), NR_CONNACK | NR_CHOKE_FLAG);	\
+} while (0)
+
+/*
+ * This routine is called when we don't have a circuit matching an incoming
+ * NET/ROM packet.  This is an G8PZT Xrouter extension.
+ */
+#define nr_transmit_reset(skb, mine)					\
+do {									\
+	__nr_transmit_reply((skb), (mine), NR_RESET);			\
+} while (0)
+
 extern void nr_disconnect(struct sock *, int);
 
 /* nr_timer.c */

@@ -44,10 +44,8 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-
 #define _COMPONENT		ACPI_POWER_COMPONENT
-ACPI_MODULE_NAME		("acpi_power")
-
+ACPI_MODULE_NAME("acpi_power")
 #define ACPI_POWER_COMPONENT		0x00800000
 #define ACPI_POWER_CLASS		"power_resource"
 #define ACPI_POWER_DRIVER_NAME		"ACPI Power Resource Driver"
@@ -57,38 +55,36 @@ ACPI_MODULE_NAME		("acpi_power")
 #define ACPI_POWER_RESOURCE_STATE_OFF	0x00
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
-
-static int acpi_power_add (struct acpi_device *device);
-static int acpi_power_remove (struct acpi_device *device, int type);
+static int acpi_power_add(struct acpi_device *device);
+static int acpi_power_remove(struct acpi_device *device, int type);
 static int acpi_power_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_power_driver = {
-	.name =		ACPI_POWER_DRIVER_NAME,
-	.class =	ACPI_POWER_CLASS,
-	.ids =		ACPI_POWER_HID,
-	.ops =		{
-				.add =		acpi_power_add,
-				.remove =	acpi_power_remove,
-			},
+	.name = ACPI_POWER_DRIVER_NAME,
+	.class = ACPI_POWER_CLASS,
+	.ids = ACPI_POWER_HID,
+	.ops = {
+		.add = acpi_power_add,
+		.remove = acpi_power_remove,
+		},
 };
 
-struct acpi_power_resource
-{
-	acpi_handle		handle;
-	acpi_bus_id		name;
-	u32			system_level;
-	u32			order;
-	int			state;
-	int			references;
+struct acpi_power_resource {
+	acpi_handle handle;
+	acpi_bus_id name;
+	u32 system_level;
+	u32 order;
+	int state;
+	int references;
 };
 
-static struct list_head		acpi_power_resource_list;
+static struct list_head acpi_power_resource_list;
 
 static struct file_operations acpi_power_fops = {
-	.open		= acpi_power_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_power_open_fs,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 /* --------------------------------------------------------------------------
@@ -96,12 +92,11 @@ static struct file_operations acpi_power_fops = {
    -------------------------------------------------------------------------- */
 
 static int
-acpi_power_get_context (
-	acpi_handle		handle,
-	struct acpi_power_resource **resource)
+acpi_power_get_context(acpi_handle handle,
+		       struct acpi_power_resource **resource)
 {
-	int			result = 0;
-	struct acpi_device	*device = NULL;
+	int result = 0;
+	struct acpi_device *device = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_power_get_context");
 
@@ -111,24 +106,21 @@ acpi_power_get_context (
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Error getting context [%p]\n",
-			handle));
+				  handle));
 		return_VALUE(result);
 	}
 
-	*resource = (struct acpi_power_resource *) acpi_driver_data(device);
+	*resource = (struct acpi_power_resource *)acpi_driver_data(device);
 	if (!resource)
 		return_VALUE(-ENODEV);
 
 	return_VALUE(0);
 }
 
-
-static int
-acpi_power_get_state (
-	struct acpi_power_resource *resource)
+static int acpi_power_get_state(struct acpi_power_resource *resource)
 {
-	acpi_status		status = AE_OK;
-	unsigned long		sta = 0;
+	acpi_status status = AE_OK;
+	unsigned long sta = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_power_get_state");
 
@@ -145,20 +137,16 @@ acpi_power_get_state (
 		resource->state = ACPI_POWER_RESOURCE_STATE_OFF;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] is %s\n",
-		resource->name, resource->state?"on":"off"));
+			  resource->name, resource->state ? "on" : "off"));
 
 	return_VALUE(0);
 }
 
-
-static int
-acpi_power_get_list_state (
-	struct acpi_handle_list	*list,
-	int			*state)
+static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 {
-	int			result = 0;
+	int result = 0;
 	struct acpi_power_resource *resource = NULL;
-	u32			i = 0;
+	u32 i = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_power_get_list_state");
 
@@ -167,7 +155,7 @@ acpi_power_get_list_state (
 
 	/* The state of the list is 'on' IFF all resources are 'on'. */
 
-	for (i=0; i<list->count; i++) {
+	for (i = 0; i < list->count; i++) {
 		result = acpi_power_get_context(list->handles[i], &resource);
 		if (result)
 			return_VALUE(result);
@@ -182,19 +170,16 @@ acpi_power_get_list_state (
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource list is %s\n",
-		*state?"on":"off"));
+			  *state ? "on" : "off"));
 
 	return_VALUE(result);
 }
 
-
-static int
-acpi_power_on (
-	acpi_handle		handle)
+static int acpi_power_on(acpi_handle handle)
 {
-	int			result = 0;
-	acpi_status		status = AE_OK;
-	struct acpi_device	*device = NULL;
+	int result = 0;
+	acpi_status status = AE_OK;
+	struct acpi_device *device = NULL;
 	struct acpi_power_resource *resource = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_power_on");
@@ -205,10 +190,10 @@ acpi_power_on (
 
 	resource->references++;
 
-	if ((resource->references > 1) 
-		|| (resource->state == ACPI_POWER_RESOURCE_STATE_ON)) {
+	if ((resource->references > 1)
+	    || (resource->state == ACPI_POWER_RESOURCE_STATE_ON)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] already on\n",
-			resource->name));
+				  resource->name));
 		return_VALUE(0);
 	}
 
@@ -229,19 +214,16 @@ acpi_power_on (
 	device->power.state = ACPI_STATE_D0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned on\n",
-		resource->name));
+			  resource->name));
 
 	return_VALUE(0);
 }
 
-
-static int
-acpi_power_off_device (
-	acpi_handle		handle)
+static int acpi_power_off_device(acpi_handle handle)
 {
-	int			result = 0;
-	acpi_status		status = AE_OK;
-	struct acpi_device	*device = NULL;
+	int result = 0;
+	acpi_status status = AE_OK;
+	struct acpi_device *device = NULL;
 	struct acpi_power_resource *resource = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_power_off_device");
@@ -254,15 +236,15 @@ acpi_power_off_device (
 		resource->references--;
 
 	if (resource->references) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, 
-			"Resource [%s] is still in use, dereferencing\n",
-			device->pnp.bus_id));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Resource [%s] is still in use, dereferencing\n",
+				  device->pnp.bus_id));
 		return_VALUE(0);
 	}
 
 	if (resource->state == ACPI_POWER_RESOURCE_STATE_OFF) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] already off\n",
-			device->pnp.bus_id));
+				  device->pnp.bus_id));
 		return_VALUE(0);
 	}
 
@@ -283,7 +265,7 @@ acpi_power_off_device (
 	device->power.state = ACPI_STATE_D3;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned off\n",
-		resource->name));
+			  resource->name));
 
 	return_VALUE(0);
 }
@@ -293,13 +275,13 @@ acpi_power_off_device (
  * 1. Power on the power resources required for the wakeup device 
  * 2. Enable _PSW (power state wake) for the device if present
  */
-int acpi_enable_wakeup_device_power (struct acpi_device *dev)
+int acpi_enable_wakeup_device_power(struct acpi_device *dev)
 {
-	union acpi_object 		arg = {ACPI_TYPE_INTEGER};
-	struct acpi_object_list	arg_list = {1, &arg};
-	acpi_status			status = AE_OK;
-	int					i;
-	int 					ret = 0;
+	union acpi_object arg = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list arg_list = { 1, &arg };
+	acpi_status status = AE_OK;
+	int i;
+	int ret = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_enable_wakeup_device_power");
 	if (!dev || !dev->wakeup.flags.valid)
@@ -310,8 +292,8 @@ int acpi_enable_wakeup_device_power (struct acpi_device *dev)
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
 		ret = acpi_power_on(dev->wakeup.resources.handles[i]);
 		if (ret) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
-				"Error transition power state\n"));
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Error transition power state\n"));
 			dev->wakeup.flags.valid = 0;
 			return_VALUE(-1);
 		}
@@ -333,20 +315,20 @@ int acpi_enable_wakeup_device_power (struct acpi_device *dev)
  * 1. Disable _PSW (power state wake)
  * 2. Shutdown down the power resources
  */
-int acpi_disable_wakeup_device_power (struct acpi_device *dev)
+int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 {
-	union acpi_object 		arg = {ACPI_TYPE_INTEGER};
-	struct acpi_object_list	arg_list = {1, &arg};
-	acpi_status			status = AE_OK;
-	int					i;
-	int 					ret = 0;
+	union acpi_object arg = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list arg_list = { 1, &arg };
+	acpi_status status = AE_OK;
+	int i;
+	int ret = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_disable_wakeup_device_power");
 
 	if (!dev || !dev->wakeup.flags.valid)
 		return_VALUE(-1);
 
-	arg.integer.value = 0;	
+	arg.integer.value = 0;
 	/* Execute PSW */
 	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
@@ -359,8 +341,8 @@ int acpi_disable_wakeup_device_power (struct acpi_device *dev)
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
 		ret = acpi_power_off_device(dev->wakeup.resources.handles[i]);
 		if (ret) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
-				"Error transition power state\n"));
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Error transition power state\n"));
 			dev->wakeup.flags.valid = 0;
 			return_VALUE(-1);
 		}
@@ -373,14 +355,12 @@ int acpi_disable_wakeup_device_power (struct acpi_device *dev)
                              Device Power Management
    -------------------------------------------------------------------------- */
 
-int
-acpi_power_get_inferred_state (
-	struct acpi_device	*device)
+int acpi_power_get_inferred_state(struct acpi_device *device)
 {
-	int			result = 0;
-	struct acpi_handle_list	*list = NULL;
-	int			list_state = 0;
-	int			i = 0;
+	int result = 0;
+	struct acpi_handle_list *list = NULL;
+	int list_state = 0;
+	int i = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_power_get_inferred_state");
 
@@ -393,7 +373,7 @@ acpi_power_get_inferred_state (
 	 * We know a device's inferred power state when all the resources
 	 * required for a given D-state are 'on'.
 	 */
-	for (i=ACPI_STATE_D0; i<ACPI_STATE_D3; i++) {
+	for (i = ACPI_STATE_D0; i < ACPI_STATE_D3; i++) {
 		list = &device->power.states[i].resources;
 		if (list->count < 1)
 			continue;
@@ -413,23 +393,20 @@ acpi_power_get_inferred_state (
 	return_VALUE(0);
 }
 
-
-int
-acpi_power_transition (
-	struct acpi_device	*device,
-	int			state)
+int acpi_power_transition(struct acpi_device *device, int state)
 {
-	int			result = 0;
-	struct acpi_handle_list	*cl = NULL;	/* Current Resources */
-	struct acpi_handle_list	*tl = NULL;	/* Target Resources */
-	int			i = 0;
+	int result = 0;
+	struct acpi_handle_list *cl = NULL;	/* Current Resources */
+	struct acpi_handle_list *tl = NULL;	/* Target Resources */
+	int i = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_power_transition");
 
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
 		return_VALUE(-EINVAL);
 
-	if ((device->power.state < ACPI_STATE_D0) || (device->power.state > ACPI_STATE_D3))
+	if ((device->power.state < ACPI_STATE_D0)
+	    || (device->power.state > ACPI_STATE_D3))
 		return_VALUE(-ENODEV);
 
 	cl = &device->power.states[device->power.state].resources;
@@ -448,7 +425,7 @@ acpi_power_transition (
 	 * First we reference all power resources required in the target list
 	 * (e.g. so the device doesn't lose power while transitioning).
 	 */
-	for (i=0; i<tl->count; i++) {
+	for (i = 0; i < tl->count; i++) {
 		result = acpi_power_on(tl->handles[i]);
 		if (result)
 			goto end;
@@ -457,7 +434,7 @@ acpi_power_transition (
 	/*
 	 * Then we dereference all power resources used in the current list.
 	 */
-	for (i=0; i<cl->count; i++) {
+	for (i = 0; i < cl->count; i++) {
 		result = acpi_power_off_device(cl->handles[i]);
 		if (result)
 			goto end;
@@ -465,21 +442,20 @@ acpi_power_transition (
 
 	/* We shouldn't change the state till all above operations succeed */
 	device->power.state = state;
-end:
+      end:
 	if (result)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, 
-			"Error transitioning device [%s] to D%d\n",
-			device->pnp.bus_id, state));
+		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+				  "Error transitioning device [%s] to D%d\n",
+				  device->pnp.bus_id, state));
 
 	return_VALUE(result);
 }
-
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
-static struct proc_dir_entry	*acpi_power_dir;
+static struct proc_dir_entry *acpi_power_dir;
 
 static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 {
@@ -506,13 +482,12 @@ static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 	}
 
 	seq_printf(seq, "system level:            S%d\n"
-			"order:                   %d\n"
-			"reference count:         %d\n",
-			resource->system_level,
-			resource->order,
-			resource->references);
+		   "order:                   %d\n"
+		   "reference count:         %d\n",
+		   resource->system_level,
+		   resource->order, resource->references);
 
-end:
+      end:
 	return_VALUE(0);
 }
 
@@ -521,11 +496,9 @@ static int acpi_power_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_power_seq_show, PDE(inode)->data);
 }
 
-static int
-acpi_power_add_fs (
-	struct acpi_device	*device)
+static int acpi_power_add_fs(struct acpi_device *device)
 {
-	struct proc_dir_entry	*entry = NULL;
+	struct proc_dir_entry *entry = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_power_add_fs");
 
@@ -534,18 +507,18 @@ acpi_power_add_fs (
 
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
-			acpi_power_dir);
+						     acpi_power_dir);
 		if (!acpi_device_dir(device))
 			return_VALUE(-ENODEV);
 	}
 
 	/* 'status' [R] */
 	entry = create_proc_entry(ACPI_POWER_FILE_STATUS,
-		S_IRUGO, acpi_device_dir(device));
+				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Unable to create '%s' fs entry\n",
-			ACPI_POWER_FILE_STATUS));
+				  "Unable to create '%s' fs entry\n",
+				  ACPI_POWER_FILE_STATUS));
 	else {
 		entry->proc_fops = &acpi_power_fops;
 		entry->data = acpi_driver_data(device);
@@ -554,10 +527,7 @@ acpi_power_add_fs (
 	return_VALUE(0);
 }
 
-
-static int
-acpi_power_remove_fs (
-	struct acpi_device	*device)
+static int acpi_power_remove_fs(struct acpi_device *device)
 {
 	ACPI_FUNCTION_TRACE("acpi_power_remove_fs");
 
@@ -571,20 +541,17 @@ acpi_power_remove_fs (
 	return_VALUE(0);
 }
 
-
 /* --------------------------------------------------------------------------
                                 Driver Interface
    -------------------------------------------------------------------------- */
 
-static int
-acpi_power_add (
-	struct acpi_device	*device)
+static int acpi_power_add(struct acpi_device *device)
 {
-	int			result = 0;
-	acpi_status		status = AE_OK;
+	int result = 0;
+	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
-	union acpi_object	acpi_object;
-	struct acpi_buffer	buffer = {sizeof(acpi_object), &acpi_object};
+	union acpi_object acpi_object;
+	struct acpi_buffer buffer = { sizeof(acpi_object), &acpi_object };
 
 	ACPI_FUNCTION_TRACE("acpi_power_add");
 
@@ -630,22 +597,18 @@ acpi_power_add (
 	result = acpi_power_add_fs(device);
 	if (result)
 		goto end;
-	
-	printk(KERN_INFO PREFIX "%s [%s] (%s)\n", acpi_device_name(device),
-		acpi_device_bid(device), resource->state?"on":"off");
 
-end:
+	printk(KERN_INFO PREFIX "%s [%s] (%s)\n", acpi_device_name(device),
+	       acpi_device_bid(device), resource->state ? "on" : "off");
+
+      end:
 	if (result)
 		kfree(resource);
-	
+
 	return_VALUE(result);
 }
 
-
-static int
-acpi_power_remove (
-	struct acpi_device	*device,
-	int			type)
+static int acpi_power_remove(struct acpi_device *device, int type)
 {
 	struct acpi_power_resource *resource = NULL;
 
@@ -654,7 +617,7 @@ acpi_power_remove (
 	if (!device || !acpi_driver_data(device))
 		return_VALUE(-EINVAL);
 
-	resource = (struct acpi_power_resource *) acpi_driver_data(device);
+	resource = (struct acpi_power_resource *)acpi_driver_data(device);
 
 	acpi_power_remove_fs(device);
 
@@ -663,10 +626,9 @@ acpi_power_remove (
 	return_VALUE(0);
 }
 
-
-static int __init acpi_power_init (void)
+static int __init acpi_power_init(void)
 {
-	int			result = 0;
+	int result = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_power_init");
 
@@ -689,4 +651,3 @@ static int __init acpi_power_init (void)
 }
 
 subsys_initcall(acpi_power_init);
-

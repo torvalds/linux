@@ -21,7 +21,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -44,6 +43,8 @@
 int sis_apic_bug; /* not actually supported, dummy for compile */
 
 static int no_timer_check;
+
+int disable_timer_pin_1 __initdata;
 
 static DEFINE_SPINLOCK(ioapic_lock);
 
@@ -297,6 +298,15 @@ void __init check_ioapic(void)
 	     "Nvidia board detected. Ignoring ACPI timer override.\n");
 #endif
 					/* RED-PEN skip them on mptables too? */
+					return;
+				case PCI_VENDOR_ID_ATI:
+					/* All timer interrupts on atiixp
+				           are doubled. Disable one. */
+					if (disable_timer_pin_1 == 0) {
+						disable_timer_pin_1 = 1;
+						printk(KERN_INFO
+		"ATI board detected. Disabling timer pin 1.\n");
+					}
 					return;
 				} 
 
@@ -1022,13 +1032,11 @@ void __apicdebuginit print_local_APIC(void * dummy)
 	v = apic_read(APIC_TASKPRI);
 	printk(KERN_DEBUG "... APIC TASKPRI: %08x (%02x)\n", v, v & APIC_TPRI_MASK);
 
-	if (APIC_INTEGRATED(ver)) {			/* !82489DX */
-		v = apic_read(APIC_ARBPRI);
-		printk(KERN_DEBUG "... APIC ARBPRI: %08x (%02x)\n", v,
-			v & APIC_ARBPRI_MASK);
-		v = apic_read(APIC_PROCPRI);
-		printk(KERN_DEBUG "... APIC PROCPRI: %08x\n", v);
-	}
+	v = apic_read(APIC_ARBPRI);
+	printk(KERN_DEBUG "... APIC ARBPRI: %08x (%02x)\n", v,
+		v & APIC_ARBPRI_MASK);
+	v = apic_read(APIC_PROCPRI);
+	printk(KERN_DEBUG "... APIC PROCPRI: %08x\n", v);
 
 	v = apic_read(APIC_EOI);
 	printk(KERN_DEBUG "... APIC EOI: %08x\n", v);
@@ -1048,12 +1056,8 @@ void __apicdebuginit print_local_APIC(void * dummy)
 	printk(KERN_DEBUG "... APIC IRR field:\n");
 	print_APIC_bitfield(APIC_IRR);
 
-	if (APIC_INTEGRATED(ver)) {		/* !82489DX */
-		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
-			apic_write(APIC_ESR, 0);
-		v = apic_read(APIC_ESR);
-		printk(KERN_DEBUG "... APIC ESR: %08x\n", v);
-	}
+	v = apic_read(APIC_ESR);
+	printk(KERN_DEBUG "... APIC ESR: %08x\n", v);
 
 	v = apic_read(APIC_ICR);
 	printk(KERN_DEBUG "... APIC ICR: %08x\n", v);
@@ -1167,9 +1171,9 @@ void disable_IO_APIC(void)
 	clear_IO_APIC();
 
 	/*
-	 * If the i82559 is routed through an IOAPIC
+	 * If the i8259 is routed through an IOAPIC
 	 * Put that IOAPIC in virtual wire mode
-	 * so legacy interrups can be delivered.
+	 * so legacy interrupts can be delivered.
 	 */
 	pin = find_isa_irq_pin(0, mp_ExtINT);
 	if (pin != -1) {
@@ -1665,6 +1669,8 @@ static inline void check_timer(void)
 				setup_nmi();
 				enable_8259A_irq(0);
 			}
+			if (disable_timer_pin_1 > 0)
+				clear_IO_APIC_pin(0, pin1);
 			return;
 		}
 		clear_IO_APIC_pin(0, pin1);
@@ -1864,7 +1870,7 @@ device_initcall(ioapic_init_sysfs);
                           ACPI-based IOAPIC Configuration
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 #define IO_APIC_MAX_ID		0xFE
 
@@ -1947,7 +1953,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	return 0;
 }
 
-#endif /*CONFIG_ACPI_BOOT*/
+#endif /* CONFIG_ACPI */
 
 
 /*

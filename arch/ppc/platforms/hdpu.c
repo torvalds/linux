@@ -58,7 +58,7 @@ static void parse_bootinfo(unsigned long r3,
 static void hdpu_set_l1pe(void);
 static void hdpu_cpustate_set(unsigned char new_state);
 #ifdef CONFIG_SMP
-static spinlock_t timebase_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(timebase_lock);
 static unsigned int timebase_upper = 0, timebase_lower = 0;
 extern int smp_tb_synchronized;
 

@@ -86,13 +86,13 @@ static unsigned int startup_od_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type od_irq_type = {
-	"Overdrive-IRQ",
-	startup_od_irq,
-	shutdown_od_irq,
-	enable_od_irq,
-	disable_od_irq,
-	mask_and_ack_od,
-	end_od_irq
+	.typename = "Overdrive-IRQ",
+	.startup = startup_od_irq,
+	.shutdown = shutdown_od_irq,
+	.enable = enable_od_irq,
+	.disable = disable_od_irq,
+	.ack = mask_and_ack_od,
+	.end = end_od_irq
 };
 
 static void disable_od_irq(unsigned int irq)

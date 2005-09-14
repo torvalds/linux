@@ -118,7 +118,8 @@ extern void kfree(const void *);
 extern unsigned int ksize(const void *);
 
 #ifdef CONFIG_NUMA
-extern void *kmem_cache_alloc_node(kmem_cache_t *, int flags, int node);
+extern void *kmem_cache_alloc_node(kmem_cache_t *,
+			unsigned int __nocast flags, int node);
 extern void *kmalloc_node(size_t size, unsigned int __nocast flags, int node);
 #else
 static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int node)

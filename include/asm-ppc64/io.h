@@ -20,10 +20,10 @@
 
 #include <asm-generic/iomap.h>
 
-#define __ide_mm_insw(p, a, c) _insw_ns((volatile u16 *)(p), (a), (c))
-#define __ide_mm_insl(p, a, c) _insl_ns((volatile u32 *)(p), (a), (c))
-#define __ide_mm_outsw(p, a, c) _outsw_ns((volatile u16 *)(p), (a), (c))
-#define __ide_mm_outsl(p, a, c) _outsl_ns((volatile u32 *)(p), (a), (c))
+#define __ide_mm_insw(p, a, c) _insw_ns((volatile u16 __iomem *)(p), (a), (c))
+#define __ide_mm_insl(p, a, c) _insl_ns((volatile u32 __iomem *)(p), (a), (c))
+#define __ide_mm_outsw(p, a, c) _outsw_ns((volatile u16 __iomem *)(p), (a), (c))
+#define __ide_mm_outsl(p, a, c) _outsl_ns((volatile u32 __iomem *)(p), (a), (c))
 
 
 #define SIO_CONFIG_RA	0x398
@@ -71,8 +71,8 @@ extern unsigned long io_page_mask;
  * Neither do the standard versions now, these are just here
  * for older code.
  */
-#define insw_ns(port, buf, ns)	_insw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
-#define insl_ns(port, buf, nl)	_insl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
+#define insw_ns(port, buf, ns)	_insw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
+#define insl_ns(port, buf, nl)	_insl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
 #else
 
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
@@ -136,9 +136,9 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 #define insw_ns(port, buf, ns)	eeh_insw_ns((port), (buf), (ns))
 #define insl_ns(port, buf, nl)	eeh_insl_ns((port), (buf), (nl))
 
-#define outsb(port, buf, ns)  _outsb((u8 *)((port)+pci_io_base), (buf), (ns))
-#define outsw(port, buf, ns)  _outsw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
-#define outsl(port, buf, nl)  _outsl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
+#define outsb(port, buf, ns)  _outsb((u8 __iomem *)((port)+pci_io_base), (buf), (ns))
+#define outsw(port, buf, ns)  _outsw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
+#define outsl(port, buf, nl)  _outsl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
 
 #endif
 
@@ -147,16 +147,16 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 #define readl_relaxed(addr) readl(addr)
 #define readq_relaxed(addr) readq(addr)
 
-extern void _insb(volatile u8 *port, void *buf, int ns);
-extern void _outsb(volatile u8 *port, const void *buf, int ns);
-extern void _insw(volatile u16 *port, void *buf, int ns);
-extern void _outsw(volatile u16 *port, const void *buf, int ns);
-extern void _insl(volatile u32 *port, void *buf, int nl);
-extern void _outsl(volatile u32 *port, const void *buf, int nl);
-extern void _insw_ns(volatile u16 *port, void *buf, int ns);
-extern void _outsw_ns(volatile u16 *port, const void *buf, int ns);
-extern void _insl_ns(volatile u32 *port, void *buf, int nl);
-extern void _outsl_ns(volatile u32 *port, const void *buf, int nl);
+extern void _insb(volatile u8 __iomem *port, void *buf, int ns);
+extern void _outsb(volatile u8 __iomem *port, const void *buf, int ns);
+extern void _insw(volatile u16 __iomem *port, void *buf, int ns);
+extern void _outsw(volatile u16 __iomem *port, const void *buf, int ns);
+extern void _insl(volatile u32 __iomem *port, void *buf, int nl);
+extern void _outsl(volatile u32 __iomem *port, const void *buf, int nl);
+extern void _insw_ns(volatile u16 __iomem *port, void *buf, int ns);
+extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, int ns);
+extern void _insl_ns(volatile u32 __iomem *port, void *buf, int nl);
+extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, int nl);
 
 #define mmiowb()
 
@@ -176,8 +176,8 @@ extern void _outsl_ns(volatile u32 *port, const void *buf, int nl);
  * Neither do the standard versions now, these are just here
  * for older code.
  */
-#define outsw_ns(port, buf, ns)	_outsw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
-#define outsl_ns(port, buf, nl)	_outsl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
+#define outsw_ns(port, buf, ns)	_outsw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
+#define outsl_ns(port, buf, nl)	_outsl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
 
 
 #define IO_SPACE_LIMIT ~(0UL)

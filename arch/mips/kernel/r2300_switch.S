@@ -15,7 +15,7 @@
 #include <asm/cachectl.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>

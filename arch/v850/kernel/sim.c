@@ -73,13 +73,13 @@ static void irq_nop (unsigned irq) { }
 static unsigned irq_zero (unsigned irq) { return 0; }
 
 static struct hw_interrupt_type sim_irq_type = {
-	"IRQ",
-	irq_zero,		/* startup */
-	irq_nop,		/* shutdown */
-	irq_nop,		/* enable */
-	irq_nop,		/* disable */
-	irq_nop,		/* ack */
-	irq_nop,		/* end */
+	.typename = "IRQ",
+	.startup = irq_zero,		/* startup */
+	.shutdown = irq_nop,		/* shutdown */
+	.enable = irq_nop,		/* enable */
+	.disable = irq_nop,		/* disable */
+	.ack = irq_nop,		/* ack */
+	.end = irq_nop,		/* end */
 };
 
 void __init mach_init_irqs (void)

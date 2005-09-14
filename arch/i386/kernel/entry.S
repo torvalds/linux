@@ -319,7 +319,7 @@ work_notifysig:				# deal with pending signals and
 					# vm86-space
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp restore_all
+	jmp resume_userspace
 
 	ALIGN
 work_notifysig_v86:
@@ -329,7 +329,7 @@ work_notifysig_v86:
 	movl %eax, %esp
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp restore_all
+	jmp resume_userspace
 
 	# perform syscall exit tracing
 	ALIGN

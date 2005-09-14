@@ -25,7 +25,7 @@
 #include <asm/fpu.h>
 #include <asm/kregs.h>
 #include <asm/mmu_context.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/pal.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>

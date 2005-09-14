@@ -85,6 +85,11 @@ static inline void dma_sync_single_for_device(struct device *hwdev,
 	flush_write_buffers();
 }
 
+#define dma_sync_single_range_for_cpu(dev, dma_handle, offset, size, dir)       \
+        dma_sync_single_for_cpu(dev, dma_handle, size, dir)
+#define dma_sync_single_range_for_device(dev, dma_handle, offset, size, dir)    \
+        dma_sync_single_for_device(dev, dma_handle, size, dir)
+
 static inline void dma_sync_sg_for_cpu(struct device *hwdev,
 				       struct scatterlist *sg,
 				       int nelems, int direction)

@@ -100,14 +100,14 @@ static struct hpets *hpets;
 #endif
 
 #ifndef readq
-static unsigned long long __inline readq(void __iomem *addr)
+static inline unsigned long long readq(void __iomem *addr)
 {
 	return readl(addr) | (((unsigned long long)readl(addr + 4)) << 32LL);
 }
 #endif
 
 #ifndef writeq
-static void __inline writeq(unsigned long long v, void __iomem *addr)
+static inline void writeq(unsigned long long v, void __iomem *addr)
 {
 	writel(v & 0xffffffff, addr);
 	writel(v >> 32, addr + 4);
@@ -906,11 +906,15 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		if (irqp->number_of_interrupts > 0) {
 			hdp->hd_nirqs = irqp->number_of_interrupts;
 
-			for (i = 0; i < hdp->hd_nirqs; i++)
-				hdp->hd_irq[i] =
+			for (i = 0; i < hdp->hd_nirqs; i++) {
+				int rc =
 				    acpi_register_gsi(irqp->interrupts[i],
 						      irqp->edge_level,
 						      irqp->active_high_low);
+				if (rc < 0)
+					return AE_ERROR;
+				hdp->hd_irq[i] = rc;
+			}
 		}
 	}
 

@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-ts.c,v 1.15 2005/06/14 22:48:18 hhackmann Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface

@@ -192,22 +192,37 @@ static int hdpu_cpustate_probe(struct device *ddev)
 {
 	struct platform_device *pdev = to_platform_device(ddev);
 	struct resource *res;
+	struct proc_dir_entry *proc_de;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cpustate.set_addr = (unsigned long *)res->start;
 	cpustate.clr_addr = (unsigned long *)res->end - 1;
 
-	misc_register(&cpustate_dev);
-	create_proc_read_entry("sky_cpustate", 0, 0, cpustate_read_proc, NULL);
+	ret = misc_register(&cpustate_dev);
+	if (ret) {
+		printk(KERN_WARNING "sky_cpustate: Unable to register misc "
+					"device.\n");
+		cpustate.set_addr = NULL;
+		cpustate.clr_addr = NULL;
+		return ret;
+	}
+
+	proc_de = create_proc_read_entry("sky_cpustate", 0, 0,
+					cpustate_read_proc, NULL);
+	if (proc_de == NULL)
+		printk(KERN_WARNING "sky_cpustate: Unable to create proc "
+					"dir entry\n");
 
 	printk(KERN_INFO "Sky CPU State Driver v" SKY_CPUSTATE_VERSION "\n");
 	return 0;
 }
+
 static int hdpu_cpustate_remove(struct device *ddev)
 {
 
-	cpustate.set_addr = 0;
-	cpustate.clr_addr = 0;
+	cpustate.set_addr = NULL;
+	cpustate.clr_addr = NULL;
 
 	remove_proc_entry("sky_cpustate", NULL);
 	misc_deregister(&cpustate_dev);

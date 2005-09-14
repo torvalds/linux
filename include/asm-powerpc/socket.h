@@ -1,5 +1,5 @@
-#ifndef _POWERPC_SOCKET_H
-#define _POWERPC_SOCKET_H
+#ifndef _ASM_POWERPC_SOCKET_H
+#define _ASM_POWERPC_SOCKET_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -56,4 +56,4 @@
 
 #define SO_PEERSEC		31
 
-#endif /* _POWERPC_SOCKET_H */
+#endif	/* _ASM_POWERPC_SOCKET_H */

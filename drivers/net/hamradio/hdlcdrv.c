@@ -42,7 +42,6 @@
 
 /*****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/net.h>
@@ -52,20 +51,14 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
 
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
-#include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/hdlcdrv.h>
-/* prototypes for ax25_encapsulate and ax25_rebuild_header */
 #include <net/ax25.h> 
+#include <asm/uaccess.h>
 
-/* make genksyms happy */
-#include <linux/ip.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
 #include <linux/crc-ccitt.h>
 
 /* --------------------------------------------------------------------- */
@@ -708,13 +701,8 @@ static void hdlcdrv_setup(struct net_device *dev)
 
 	s->skb = NULL;
 	
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header = ax25_encapsulate;
+	dev->hard_header = ax25_hard_header;
 	dev->rebuild_header = ax25_rebuild_header;
-#else /* CONFIG_AX25 || CONFIG_AX25_MODULE */
-	dev->hard_header = NULL;
-	dev->rebuild_header = NULL;
-#endif /* CONFIG_AX25 || CONFIG_AX25_MODULE */
 	dev->set_mac_address = hdlcdrv_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */

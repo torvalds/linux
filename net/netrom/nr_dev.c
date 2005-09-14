@@ -47,7 +47,7 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 	struct net_device_stats *stats = netdev_priv(dev);
 
 	if (!netif_running(dev)) {
-		stats->rx_errors++;
+		stats->rx_dropped++;
 		return 0;
 	}
 
@@ -71,15 +71,10 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 
 static int nr_rebuild_header(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
-	struct net_device_stats *stats = netdev_priv(dev);
-	struct sk_buff *skbn;
 	unsigned char *bp = skb->data;
-	int len;
 
-	if (arp_find(bp + 7, skb)) {
+	if (arp_find(bp + 7, skb))
 		return 1;
-	}
 
 	bp[6] &= ~AX25_CBIT;
 	bp[6] &= ~AX25_EBIT;
@@ -90,27 +85,7 @@ static int nr_rebuild_header(struct sk_buff *skb)
 	bp[6] |= AX25_EBIT;
 	bp[6] |= AX25_SSSID_SPARE;
 
-	if ((skbn = skb_clone(skb, GFP_ATOMIC)) == NULL) {
-		kfree_skb(skb);
-		return 1;
-	}
-
-	if (skb->sk != NULL)
-		skb_set_owner_w(skbn, skb->sk);
-
-	kfree_skb(skb);
-
-	len = skbn->len;
-
-	if (!nr_route_frame(skbn, NULL)) {
-		kfree_skb(skbn);
-		stats->tx_errors++;
-	}
-
-	stats->tx_packets++;
-	stats->tx_bytes += len;
-
-	return 1;
+	return 0;
 }
 
 #else
@@ -185,15 +160,27 @@ static int nr_close(struct net_device *dev)
 
 static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = netdev_priv(dev);
-	dev_kfree_skb(skb);
-	stats->tx_errors++;
+	struct nr_private *nr = netdev_priv(dev);
+	struct net_device_stats *stats = &nr->stats;
+	unsigned int len = skb->len;
+
+	if (!nr_route_frame(skb, NULL)) {
+		kfree_skb(skb);
+		stats->tx_errors++;
+		return 0;
+	}
+
+	stats->tx_packets++;
+	stats->tx_bytes += len;
+
 	return 0;
 }
 
 static struct net_device_stats *nr_get_stats(struct net_device *dev)
 {
-	return netdev_priv(dev);
+	struct nr_private *nr = netdev_priv(dev);
+
+	return &nr->stats;
 }
 
 void nr_setup(struct net_device *dev)
@@ -208,12 +195,11 @@ void nr_setup(struct net_device *dev)
 	dev->hard_header_len	= NR_NETWORK_LEN + NR_TRANSPORT_LEN;
 	dev->addr_len		= AX25_ADDR_LEN;
 	dev->type		= ARPHRD_NETROM;
-	dev->tx_queue_len	= 40;
 	dev->rebuild_header	= nr_rebuild_header;
 	dev->set_mac_address    = nr_set_mac_address;
 
 	/* New-style flags. */
-	dev->flags		= 0;
+	dev->flags		= IFF_NOARP;
 
 	dev->get_stats 		= nr_get_stats;
 }

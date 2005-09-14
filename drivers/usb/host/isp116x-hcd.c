@@ -83,7 +83,7 @@
 #include "../core/hcd.h"
 #include "isp116x.h"
 
-#define DRIVER_VERSION	"08 Apr 2005"
+#define DRIVER_VERSION	"05 Aug 2005"
 #define DRIVER_DESC	"ISP116x USB Host Controller Driver"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -629,14 +629,12 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 			ERR("Unrecoverable error\n");
 			/* What should we do here? Reset?  */
 		}
-		if (intstat & HCINT_RHSC) {
-			isp116x->rhstatus =
-			    isp116x_read_reg32(isp116x, HCRHSTATUS);
-			isp116x->rhport[0] =
-			    isp116x_read_reg32(isp116x, HCRHPORT1);
-			isp116x->rhport[1] =
-			    isp116x_read_reg32(isp116x, HCRHPORT2);
-		}
+		if (intstat & HCINT_RHSC)
+			/* When root hub or any of its ports is going
+			   to come out of suspend, it may take more
+			   than 10ms for status bits to stabilize. */
+			mod_timer(&hcd->rh_timer, jiffies
+				  + msecs_to_jiffies(20) + 1);
 		if (intstat & HCINT_RD) {
 			DBG("---- remote wakeup\n");
 			schedule_work(&isp116x->rh_resume);
@@ -925,20 +923,27 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	int ports, i, changed = 0;
+	unsigned long flags;
 
 	if (!HC_IS_RUNNING(hcd->state))
 		return -ESHUTDOWN;
 
-	ports = isp116x->rhdesca & RH_A_NDP;
+	/* Report no status change now, if we are scheduled to be
+	   called later */
+	if (timer_pending(&hcd->rh_timer))
+		return 0;
 
-	/* init status */
+	ports = isp116x->rhdesca & RH_A_NDP;
+	spin_lock_irqsave(&isp116x->lock, flags);
+	isp116x->rhstatus = isp116x_read_reg32(isp116x, HCRHSTATUS);
 	if (isp116x->rhstatus & (RH_HS_LPSC | RH_HS_OCIC))
 		buf[0] = changed = 1;
 	else
 		buf[0] = 0;
 
 	for (i = 0; i < ports; i++) {
-		u32 status = isp116x->rhport[i];
+		u32 status = isp116x->rhport[i] =
+		    isp116x_read_reg32(isp116x, i ? HCRHPORT2 : HCRHPORT1);
 
 		if (status & (RH_PS_CSC | RH_PS_PESC | RH_PS_PSSC
 			      | RH_PS_OCIC | RH_PS_PRSC)) {
@@ -947,6 +952,7 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 			continue;
 		}
 	}
+	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return changed;
 }
 
@@ -1463,10 +1469,6 @@ static int isp116x_sw_reset(struct isp116x *isp116x)
 	return ret;
 }
 
-/*
-  Reset. Tries to perform platform-specific hardware
-  reset first; falls back to software reset.
-*/
 static int isp116x_reset(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
@@ -1474,17 +1476,7 @@ static int isp116x_reset(struct usb_hcd *hcd)
 	u16 clkrdy = 0;
 	int ret = 0, timeout = 15 /* ms */ ;
 
-	if (isp116x->board && isp116x->board->reset) {
-		/* Hardware reset */
-		isp116x->board->reset(hcd->self.controller, 1);
-		msleep(10);
-		if (isp116x->board->clock)
-			isp116x->board->clock(hcd->self.controller, 1);
-		msleep(1);
-		isp116x->board->reset(hcd->self.controller, 0);
-	} else
-		ret = isp116x_sw_reset(isp116x);
-
+	ret = isp116x_sw_reset(isp116x);
 	if (ret)
 		return ret;
 
@@ -1501,10 +1493,7 @@ static int isp116x_reset(struct usb_hcd *hcd)
 		ERR("Clock not ready after 20ms\n");
 		/* After sw_reset the clock won't report to be ready, if
 		   H_WAKEUP pin is high. */
-		if (!isp116x->board || !isp116x->board->reset)
-			ERR("The driver does not support hardware wakeup.\n");
-			ERR("Please make sure that the H_WAKEUP pin "
-				"is pulled low!\n");
+		ERR("Please make sure that the H_WAKEUP pin is pulled low!\n");
 		ret = -ENODEV;
 	}
 	return ret;
@@ -1527,15 +1516,7 @@ static void isp116x_stop(struct usb_hcd *hcd)
 	isp116x_write_reg32(isp116x, HCRHSTATUS, RH_HS_LPS);
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 
-	/* Put the chip into reset state */
-	if (isp116x->board && isp116x->board->reset)
-		isp116x->board->reset(hcd->self.controller, 0);
-	else
-		isp116x_sw_reset(isp116x);
-
-	/* Stop the clock */
-	if (isp116x->board && isp116x->board->clock)
-		isp116x->board->clock(hcd->self.controller, 0);
+	isp116x_sw_reset(isp116x);
 }
 
 /*
@@ -1561,6 +1542,9 @@ static int isp116x_start(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
+	/* To be removed in future */
+	hcd->uses_new_polling = 1;
+
 	isp116x_write_reg16(isp116x, HCITLBUFLEN, ISP116x_ITL_BUFSIZE);
 	isp116x_write_reg16(isp116x, HCATLBUFLEN, ISP116x_ATL_BUFSIZE);
 
@@ -1569,7 +1553,7 @@ static int isp116x_start(struct usb_hcd *hcd)
 	if (board->sel15Kres)
 		val |= HCHWCFG_15KRSEL;
 	/* Remote wakeup won't work without working clock */
-	if (board->clknotstop || board->remote_wakeup_enable)
+	if (board->remote_wakeup_enable)
 		val |= HCHWCFG_CLKNOTSTOP;
 	if (board->oc_enable)
 		val |= HCHWCFG_ANALOG_OC;
@@ -1580,16 +1564,13 @@ static int isp116x_start(struct usb_hcd *hcd)
 	isp116x_write_reg16(isp116x, HCHWCFG, val);
 
 	/* ----- Root hub conf */
-	val = 0;
-	/* AN10003_1.pdf recommends NPS to be always 1 */
-	if (board->no_power_switching)
-		val |= RH_A_NPS;
-	if (board->power_switching_mode)
-		val |= RH_A_PSM;
-	if (board->potpg)
-		val |= (board->potpg << 24) & RH_A_POTPGT;
-	else
-		val |= (25 << 24) & RH_A_POTPGT;
+	val = (25 << 24) & RH_A_POTPGT;
+	/* AN10003_1.pdf recommends RH_A_NPS (no power switching) to
+	   be always set. Yet, instead, we request individual port
+	   power switching. */
+	val |= RH_A_PSM;
+	/* Report overcurrent per port */
+	val |= RH_A_OCPM;
 	isp116x_write_reg32(isp116x, HCRHDESCA, val);
 	isp116x->rhdesca = isp116x_read_reg32(isp116x, HCRHDESCA);
 
@@ -1619,9 +1600,6 @@ static int isp116x_start(struct usb_hcd *hcd)
 
 	/* Go operational */
 	val = HCCONTROL_USB_OPER;
-	/* Remote wakeup connected - NOT SUPPORTED */
-	/*  if (board->remote_wakeup_connected)
-	   val |= HCCONTROL_RWC;  */
 	if (board->remote_wakeup_enable)
 		val |= HCCONTROL_RWE;
 	isp116x_write_reg32(isp116x, HCCONTROL, val);
@@ -1670,7 +1648,7 @@ static int __init_or_module isp116x_remove(struct device *dev)
 	struct platform_device *pdev;
 	struct resource *res;
 
-	if(!hcd)
+	if (!hcd)
 		return 0;
 	isp116x = hcd_to_isp116x(hcd);
 	pdev = container_of(dev, struct platform_device, dev);

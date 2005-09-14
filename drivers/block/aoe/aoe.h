@@ -1,5 +1,5 @@
 /* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
-#define VERSION "10"
+#define VERSION "12"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
 
@@ -7,12 +7,12 @@
  * default is 16, which is 15 partitions plus the whole disk
  */
 #ifndef AOE_PARTITIONS
-#define AOE_PARTITIONS 16
+#define AOE_PARTITIONS (16)
 #endif
 
-#define SYSMINOR(aoemajor, aoeminor) ((aoemajor) * 10 + (aoeminor))
-#define AOEMAJOR(sysminor) ((sysminor) / 10)
-#define AOEMINOR(sysminor) ((sysminor) % 10)
+#define SYSMINOR(aoemajor, aoeminor) ((aoemajor) * NPERSHELF + (aoeminor))
+#define AOEMAJOR(sysminor) ((sysminor) / NPERSHELF)
+#define AOEMINOR(sysminor) ((sysminor) % NPERSHELF)
 #define WHITESPACE " \t\v\f\n"
 
 enum {
@@ -83,7 +83,7 @@ enum {
 
 enum {
 	MAXATADATA = 1024,
-	NPERSHELF = 10,
+	NPERSHELF = 16,		/* number of slots per shelf address */
 	FREETAG = -1,
 	MIN_BUFS = 8,
 };

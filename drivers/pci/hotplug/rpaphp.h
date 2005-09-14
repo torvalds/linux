@@ -30,10 +30,6 @@
 #include <linux/pci.h>
 #include "pci_hotplug.h"
 
-#define	PHB     2
-#define	HOTPLUG	1
-#define	EMBEDDED 0
-
 #define DR_INDICATOR 9002
 #define DR_ENTITY_SENSE 9003
 
@@ -61,21 +57,12 @@ extern int debug;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-/* slot types */
-#define VIO_DEV	1
-#define PCI_DEV	2
-
 /* slot states */
 
 #define	NOT_VALID	3
 #define	NOT_CONFIGURED	2
 #define	CONFIGURED	1
 #define	EMPTY		0
-
-struct rpaphp_pci_func {
-	struct pci_dev *pci_dev;
-	struct list_head sibling;
-};
 
 /*
  * struct slot - slot information for each *physical* slot
@@ -88,15 +75,9 @@ struct slot {
 	u32 power_domain;
 	char *name;
 	char *location;
-	u8 removable;
-	u8 dev_type;		/* VIO or PCI */
-	struct device_node *dn;	/* slot's device_node in OFDT */
-				/* dn has phb info */
-	struct pci_dev *bridge;	/* slot's pci_dev in pci_devices */
-	union {
-		struct list_head *pci_devs; /* pci_devs in PCI slot */
-		struct vio_dev *vio_dev; /* vio_dev in VIO slot */
-	} dev;
+	struct device_node *dn;
+	struct pci_bus *bus;
+	struct list_head *pci_devs;
 	struct hotplug_slot *hotplug_slot;
 };
 
@@ -107,25 +88,19 @@ extern int num_slots;
 /* function prototypes */
 
 /* rpaphp_pci.c */
-extern struct pci_dev *rpaphp_find_pci_dev(struct device_node *dn);
+extern struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn);
 extern int rpaphp_claim_resource(struct pci_dev *dev, int resource);
 extern int rpaphp_enable_pci_slot(struct slot *slot);
 extern int register_pci_slot(struct slot *slot);
 extern int rpaphp_unconfig_pci_adapter(struct slot *slot);
 extern int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value);
-extern struct hotplug_slot *rpaphp_find_hotplug_slot(struct pci_dev *dev);
+extern int rpaphp_config_pci_adapter(struct pci_bus *bus);
 
 /* rpaphp_core.c */
 extern int rpaphp_add_slot(struct device_node *dn);
 extern int rpaphp_remove_slot(struct slot *slot);
 extern int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 		char **drc_name, char **drc_type, int *drc_power_domain);
-
-/* rpaphp_vio.c */
-extern int rpaphp_get_vio_adapter_status(struct slot *slot, int is_init, u8 * value);
-extern int rpaphp_unconfig_vio_adapter(struct slot *slot);
-extern int register_vio_slot(struct device_node *dn);
-extern int rpaphp_enable_vio_slot(struct slot *slot);
 
 /* rpaphp_slot.c */
 extern void dealloc_slot_struct(struct slot *slot);

@@ -12,9 +12,8 @@ lib-y := PeeCeeI.o copy_page.o clear_page.o strlen.o strncmp.o \
 	 U1memcpy.o U1copy_from_user.o U1copy_to_user.o \
 	 U3memcpy.o U3copy_from_user.o U3copy_to_user.o U3patch.o \
 	 copy_in_user.o user_fixup.o memmove.o \
-	 mcount.o ipcsum.o rwsem.o xor.o find_bit.o delay.o mb.o
+	 mcount.o ipcsum.o rwsem.o xor.o find_bit.o delay.o
 
-lib-$(CONFIG_DEBUG_SPINLOCK) += debuglocks.o
 lib-$(CONFIG_HAVE_DEC_LOCK) += dec_and_lock.o
 
 obj-y += iomap.o

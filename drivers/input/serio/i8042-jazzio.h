@@ -53,7 +53,7 @@ static inline int i8042_platform_init(void)
 #if 0
 	/* XXX JAZZ_KEYBOARD_ADDRESS is a virtual address */
 	if (!request_mem_region(JAZZ_KEYBOARD_ADDRESS, 2, "i8042"))
-		return 1;
+		return -EBUSY;
 #endif
 
 	return 0;

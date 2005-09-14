@@ -20,7 +20,7 @@
 #include <asm/mach-types.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/system.h>
 

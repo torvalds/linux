@@ -16,20 +16,10 @@
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  */
 
-typedef struct {
-	volatile unsigned int lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
-
-#define SPIN_LOCK_UNLOCKED (spinlock_t) { 0 }
-
-#define spin_lock_init(x)	do { (x)->lock = 0; } while(0)
-
-#define spin_is_locked(x)	((x)->lock != 0)
-#define spin_unlock_wait(x)	do { barrier(); } while ((x)->lock)
-#define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
+#define __raw_spin_is_locked(x)	((x)->lock != 0)
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+#define __raw_spin_unlock_wait(x) \
+		do { cpu_relax(); } while ((x)->lock)
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -38,13 +28,13 @@ typedef struct {
  * We make no fairness assumptions.  They have a cost.
  */
 
-static inline void _raw_spin_lock(spinlock_t *lock)
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	unsigned int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_spin_lock	\n"
+		"	.set	noreorder	# __raw_spin_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bnez	%1, 1b					\n"
 		"	 li	%1, 1					\n"
@@ -58,7 +48,7 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_spin_lock	\n"
+		"	.set	noreorder	# __raw_spin_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bnez	%1, 1b					\n"
 		"	 li	%1, 1					\n"
@@ -72,10 +62,10 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 	}
 }
 
-static inline void _raw_spin_unlock(spinlock_t *lock)
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__(
-	"	.set	noreorder	# _raw_spin_unlock	\n"
+	"	.set	noreorder	# __raw_spin_unlock	\n"
 	"	sync						\n"
 	"	sw	$0, %0					\n"
 	"	.set\treorder					\n"
@@ -84,13 +74,13 @@ static inline void _raw_spin_unlock(spinlock_t *lock)
 	: "memory");
 }
 
-static inline unsigned int _raw_spin_trylock(spinlock_t *lock)
+static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned int temp, res;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_spin_trylock	\n"
+		"	.set	noreorder	# __raw_spin_trylock	\n"
 		"1:	ll	%0, %3					\n"
 		"	ori	%2, %0, 1				\n"
 		"	sc	%2, %1					\n"
@@ -104,7 +94,7 @@ static inline unsigned int _raw_spin_trylock(spinlock_t *lock)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_spin_trylock	\n"
+		"	.set	noreorder	# __raw_spin_trylock	\n"
 		"1:	ll	%0, %3					\n"
 		"	ori	%2, %0, 1				\n"
 		"	sc	%2, %1					\n"
@@ -129,24 +119,13 @@ static inline unsigned int _raw_spin_trylock(spinlock_t *lock)
  * read-locks.
  */
 
-typedef struct {
-	volatile unsigned int lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} rwlock_t;
-
-#define RW_LOCK_UNLOCKED (rwlock_t) { 0 }
-
-#define rwlock_init(x)  do { *(x) = RW_LOCK_UNLOCKED; } while(0)
-
-static inline void _raw_read_lock(rwlock_t *rw)
+static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_read_lock	\n"
+		"	.set	noreorder	# __raw_read_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bltz	%1, 1b					\n"
 		"	 addu	%1, 1					\n"
@@ -160,7 +139,7 @@ static inline void _raw_read_lock(rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_read_lock	\n"
+		"	.set	noreorder	# __raw_read_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bltz	%1, 1b					\n"
 		"	 addu	%1, 1					\n"
@@ -177,13 +156,13 @@ static inline void _raw_read_lock(rwlock_t *rw)
 /* Note the use of sub, not subu which will make the kernel die with an
    overflow exception if we ever try to unlock an rwlock that is already
    unlocked or is being held by a writer.  */
-static inline void _raw_read_unlock(rwlock_t *rw)
+static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"1:	ll	%1, %2		# _raw_read_unlock	\n"
+		"1:	ll	%1, %2		# __raw_read_unlock	\n"
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
@@ -193,7 +172,7 @@ static inline void _raw_read_unlock(rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_read_unlock	\n"
+		"	.set	noreorder	# __raw_read_unlock	\n"
 		"1:	ll	%1, %2					\n"
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
@@ -206,13 +185,13 @@ static inline void _raw_read_unlock(rwlock_t *rw)
 	}
 }
 
-static inline void _raw_write_lock(rwlock_t *rw)
+static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_write_lock	\n"
+		"	.set	noreorder	# __raw_write_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bnez	%1, 1b					\n"
 		"	 lui	%1, 0x8000				\n"
@@ -226,7 +205,7 @@ static inline void _raw_write_lock(rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_write_lock	\n"
+		"	.set	noreorder	# __raw_write_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bnez	%1, 1b					\n"
 		"	 lui	%1, 0x8000				\n"
@@ -241,26 +220,26 @@ static inline void _raw_write_lock(rwlock_t *rw)
 	}
 }
 
-static inline void _raw_write_unlock(rwlock_t *rw)
+static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	__asm__ __volatile__(
-	"	sync			# _raw_write_unlock	\n"
+	"	sync			# __raw_write_unlock	\n"
 	"	sw	$0, %0					\n"
 	: "=m" (rw->lock)
 	: "m" (rw->lock)
 	: "memory");
 }
 
-#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
+#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
-static inline int _raw_write_trylock(rwlock_t *rw)
+static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
 	int ret;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_write_trylock	\n"
+		"	.set	noreorder	# __raw_write_trylock	\n"
 		"	li	%2, 0					\n"
 		"1:	ll	%1, %3					\n"
 		"	bnez	%1, 2f					\n"
@@ -277,7 +256,7 @@ static inline int _raw_write_trylock(rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# _raw_write_trylock	\n"
+		"	.set	noreorder	# __raw_write_trylock	\n"
 		"	li	%2, 0					\n"
 		"1:	ll	%1, %3					\n"
 		"	bnez	%1, 2f					\n"

@@ -15,20 +15,11 @@
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  */
-typedef struct {
-	volatile unsigned long lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
 
-#define SPIN_LOCK_UNLOCKED	(spinlock_t) { 0 }
-
-#define spin_lock_init(x)	do { *(x) = SPIN_LOCK_UNLOCKED; } while(0)
-
-#define spin_is_locked(x)	((x)->lock != 0)
-#define spin_unlock_wait(x)	do { barrier(); } while (spin_is_locked(x))
-#define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
+#define __raw_spin_is_locked(x)	((x)->lock != 0)
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+#define __raw_spin_unlock_wait(x) \
+	do { cpu_relax(); } while (__raw_spin_is_locked(x))
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -36,7 +27,7 @@ typedef struct {
  *
  * We make no fairness assumptions.  They have a cost.
  */
-static inline void _raw_spin_lock(spinlock_t *lock)
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__ (
 		"1:\n\t"
@@ -49,14 +40,14 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 	);
 }
 
-static inline void _raw_spin_unlock(spinlock_t *lock)
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	assert_spin_locked(lock);
 
 	lock->lock = 0;
 }
 
-#define _raw_spin_trylock(x) (!test_and_set_bit(0, &(x)->lock))
+#define __raw_spin_trylock(x) (!test_and_set_bit(0, &(x)->lock))
 
 /*
  * Read-write spinlocks, allowing multiple readers but only one writer.
@@ -66,51 +57,40 @@ static inline void _raw_spin_unlock(spinlock_t *lock)
  * needs to get a irq-safe write-lock, but readers can get non-irqsafe
  * read-locks.
  */
-typedef struct {
-	spinlock_t lock;
-	atomic_t counter;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} rwlock_t;
 
-#define RW_LOCK_BIAS		0x01000000
-#define RW_LOCK_UNLOCKED	(rwlock_t) { { 0 }, { RW_LOCK_BIAS } }
-#define rwlock_init(x)		do { *(x) = RW_LOCK_UNLOCKED; } while (0)
-
-static inline void _raw_read_lock(rwlock_t *rw)
+static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
-	_raw_spin_lock(&rw->lock);
+	__raw_spin_lock(&rw->lock);
 
 	atomic_inc(&rw->counter);
 
-	_raw_spin_unlock(&rw->lock);
+	__raw_spin_unlock(&rw->lock);
 }
 
-static inline void _raw_read_unlock(rwlock_t *rw)
+static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
-	_raw_spin_lock(&rw->lock);
+	__raw_spin_lock(&rw->lock);
 
 	atomic_dec(&rw->counter);
 
-	_raw_spin_unlock(&rw->lock);
+	__raw_spin_unlock(&rw->lock);
 }
 
-static inline void _raw_write_lock(rwlock_t *rw)
+static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
-	_raw_spin_lock(&rw->lock);
+	__raw_spin_lock(&rw->lock);
 	atomic_set(&rw->counter, -1);
 }
 
-static inline void _raw_write_unlock(rwlock_t *rw)
+static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	atomic_set(&rw->counter, 0);
-	_raw_spin_unlock(&rw->lock);
+	__raw_spin_unlock(&rw->lock);
 }
 
-#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
+#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
-static inline int _raw_write_trylock(rwlock_t *rw)
+static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	if (atomic_sub_and_test(RW_LOCK_BIAS, &rw->counter))
 		return 1;
@@ -121,4 +101,3 @@ static inline int _raw_write_trylock(rwlock_t *rw)
 }
 
 #endif /* __ASM_SH_SPINLOCK_H */
-

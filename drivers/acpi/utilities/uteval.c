@@ -41,28 +41,20 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acinterp.h>
 
-
 #define _COMPONENT          ACPI_UTILITIES
-	 ACPI_MODULE_NAME    ("uteval")
+ACPI_MODULE_NAME("uteval")
 
 /* Local prototypes */
-
 static void
-acpi_ut_copy_id_string (
-	char                            *destination,
-	char                            *source,
-	acpi_size                       max_length);
+acpi_ut_copy_id_string(char *destination, char *source, acpi_size max_length);
 
 static acpi_status
-acpi_ut_translate_one_cid (
-	union acpi_operand_object       *obj_desc,
-	struct acpi_compatible_id       *one_cid);
-
+acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
+			  struct acpi_compatible_id *one_cid);
 
 /*******************************************************************************
  *
@@ -77,37 +69,33 @@ acpi_ut_translate_one_cid (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ut_osi_implementation (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       *string_desc;
-	union acpi_operand_object       *return_desc;
-	acpi_native_uint                i;
+	union acpi_operand_object *string_desc;
+	union acpi_operand_object *return_desc;
+	acpi_native_uint i;
 
-
-	ACPI_FUNCTION_TRACE ("ut_osi_implementation");
-
+	ACPI_FUNCTION_TRACE("ut_osi_implementation");
 
 	/* Validate the string input argument */
 
 	string_desc = walk_state->arguments[0].object;
 	if (!string_desc || (string_desc->common.type != ACPI_TYPE_STRING)) {
-		return_ACPI_STATUS (AE_TYPE);
+		return_ACPI_STATUS(AE_TYPE);
 	}
 
 	/* Create a return object (Default value = 0) */
 
-	return_desc = acpi_ut_create_internal_object (ACPI_TYPE_INTEGER);
+	return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 	if (!return_desc) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Compare input string to table of supported strings */
 
 	for (i = 0; i < ACPI_NUM_OSI_STRINGS; i++) {
-		if (!ACPI_STRCMP (string_desc->string.pointer,
-				   (char *) acpi_gbl_valid_osi_strings[i])) {
+		if (!ACPI_STRCMP(string_desc->string.pointer,
+				 (char *)acpi_gbl_valid_osi_strings[i])) {
 			/* This string is supported */
 
 			return_desc->integer.value = 0xFFFFFFFF;
@@ -116,9 +104,8 @@ acpi_ut_osi_implementation (
 	}
 
 	walk_state->return_desc = return_desc;
-	return_ACPI_STATUS (AE_CTRL_TERMINATE);
+	return_ACPI_STATUS(AE_CTRL_TERMINATE);
 }
-
 
 /*******************************************************************************
  *
@@ -140,19 +127,16 @@ acpi_ut_osi_implementation (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_evaluate_object (
-	struct acpi_namespace_node      *prefix_node,
-	char                            *path,
-	u32                             expected_return_btypes,
-	union acpi_operand_object       **return_desc)
+acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
+			char *path,
+			u32 expected_return_btypes,
+			union acpi_operand_object **return_desc)
 {
-	struct acpi_parameter_info      info;
-	acpi_status                     status;
-	u32                             return_btype;
+	struct acpi_parameter_info info;
+	acpi_status status;
+	u32 return_btype;
 
-
-	ACPI_FUNCTION_TRACE ("ut_evaluate_object");
-
+	ACPI_FUNCTION_TRACE("ut_evaluate_object");
 
 	info.node = prefix_node;
 	info.parameters = NULL;
@@ -160,36 +144,38 @@ acpi_ut_evaluate_object (
 
 	/* Evaluate the object/method */
 
-	status = acpi_ns_evaluate_relative (path, &info);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ns_evaluate_relative(path, &info);
+	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s.%s] was not found\n",
-				acpi_ut_get_node_name (prefix_node), path));
-		}
-		else {
-			ACPI_REPORT_METHOD_ERROR ("Method execution failed",
-				prefix_node, path, status);
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+					  "[%4.4s.%s] was not found\n",
+					  acpi_ut_get_node_name(prefix_node),
+					  path));
+		} else {
+			ACPI_REPORT_METHOD_ERROR("Method execution failed",
+						 prefix_node, path, status);
 		}
 
-		return_ACPI_STATUS (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Did we get a return object? */
 
 	if (!info.return_object) {
 		if (expected_return_btypes) {
-			ACPI_REPORT_METHOD_ERROR ("No object was returned from",
-				prefix_node, path, AE_NOT_EXIST);
+			ACPI_REPORT_METHOD_ERROR("No object was returned from",
+						 prefix_node, path,
+						 AE_NOT_EXIST);
 
-			return_ACPI_STATUS (AE_NOT_EXIST);
+			return_ACPI_STATUS(AE_NOT_EXIST);
 		}
 
-		return_ACPI_STATUS (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Map the return object type to the bitmapped type */
 
-	switch (ACPI_GET_OBJECT_TYPE (info.return_object)) {
+	switch (ACPI_GET_OBJECT_TYPE(info.return_object)) {
 	case ACPI_TYPE_INTEGER:
 		return_btype = ACPI_BTYPE_INTEGER;
 		break;
@@ -211,40 +197,40 @@ acpi_ut_evaluate_object (
 		break;
 	}
 
-	if ((acpi_gbl_enable_interpreter_slack) &&
-		(!expected_return_btypes)) {
+	if ((acpi_gbl_enable_interpreter_slack) && (!expected_return_btypes)) {
 		/*
 		 * We received a return object, but one was not expected.  This can
 		 * happen frequently if the "implicit return" feature is enabled.
 		 * Just delete the return object and return AE_OK.
 		 */
-		acpi_ut_remove_reference (info.return_object);
-		return_ACPI_STATUS (AE_OK);
+		acpi_ut_remove_reference(info.return_object);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Is the return object one of the expected types? */
 
 	if (!(expected_return_btypes & return_btype)) {
-		ACPI_REPORT_METHOD_ERROR ("Return object type is incorrect",
-			prefix_node, path, AE_TYPE);
+		ACPI_REPORT_METHOD_ERROR("Return object type is incorrect",
+					 prefix_node, path, AE_TYPE);
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Type returned from %s was incorrect: %s, expected Btypes: %X\n",
-			path, acpi_ut_get_object_type_name (info.return_object),
-			expected_return_btypes));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Type returned from %s was incorrect: %s, expected Btypes: %X\n",
+				  path,
+				  acpi_ut_get_object_type_name(info.
+							       return_object),
+				  expected_return_btypes));
 
 		/* On error exit, we must delete the return object */
 
-		acpi_ut_remove_reference (info.return_object);
-		return_ACPI_STATUS (AE_TYPE);
+		acpi_ut_remove_reference(info.return_object);
+		return_ACPI_STATUS(AE_TYPE);
 	}
 
 	/* Object type is OK, return it */
 
 	*return_desc = info.return_object;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -264,22 +250,19 @@ acpi_ut_evaluate_object (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_evaluate_numeric_object (
-	char                            *object_name,
-	struct acpi_namespace_node      *device_node,
-	acpi_integer                    *address)
+acpi_ut_evaluate_numeric_object(char *object_name,
+				struct acpi_namespace_node *device_node,
+				acpi_integer * address)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("ut_evaluate_numeric_object");
 
-	ACPI_FUNCTION_TRACE ("ut_evaluate_numeric_object");
-
-
-	status = acpi_ut_evaluate_object (device_node, object_name,
-			 ACPI_BTYPE_INTEGER, &obj_desc);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_evaluate_object(device_node, object_name,
+					 ACPI_BTYPE_INTEGER, &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Get the returned Integer */
@@ -288,10 +271,9 @@ acpi_ut_evaluate_numeric_object (
 
 	/* On exit, we must delete the return object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -310,10 +292,7 @@ acpi_ut_evaluate_numeric_object (
  ******************************************************************************/
 
 static void
-acpi_ut_copy_id_string (
-	char                            *destination,
-	char                            *source,
-	acpi_size                       max_length)
+acpi_ut_copy_id_string(char *destination, char *source, acpi_size max_length)
 {
 
 	/*
@@ -328,9 +307,8 @@ acpi_ut_copy_id_string (
 
 	/* Do the actual copy */
 
-	ACPI_STRNCPY (destination, source, max_length);
+	ACPI_STRNCPY(destination, source, max_length);
 }
-
 
 /*******************************************************************************
  *
@@ -349,41 +327,38 @@ acpi_ut_copy_id_string (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_HID (
-	struct acpi_namespace_node      *device_node,
-	struct acpi_device_id           *hid)
+acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
+		    struct acpi_device_id *hid)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("ut_execute_HID");
 
-	ACPI_FUNCTION_TRACE ("ut_execute_HID");
-
-
-	status = acpi_ut_evaluate_object (device_node, METHOD_NAME__HID,
-			 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING, &obj_desc);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__HID,
+					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
+					 &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_INTEGER) {
+	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 		/* Convert the Numeric HID to string */
 
-		acpi_ex_eisa_id_to_string ((u32) obj_desc->integer.value, hid->value);
-	}
-	else {
+		acpi_ex_eisa_id_to_string((u32) obj_desc->integer.value,
+					  hid->value);
+	} else {
 		/* Copy the String HID from the returned object */
 
-		acpi_ut_copy_id_string (hid->value, obj_desc->string.pointer,
-				sizeof (hid->value));
+		acpi_ut_copy_id_string(hid->value, obj_desc->string.pointer,
+				       sizeof(hid->value));
 	}
 
 	/* On exit, we must delete the return object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -403,18 +378,17 @@ acpi_ut_execute_HID (
  ******************************************************************************/
 
 static acpi_status
-acpi_ut_translate_one_cid (
-	union acpi_operand_object       *obj_desc,
-	struct acpi_compatible_id       *one_cid)
+acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
+			  struct acpi_compatible_id *one_cid)
 {
 
-
-	switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
+	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_INTEGER:
 
 		/* Convert the Numeric CID to string */
 
-		acpi_ex_eisa_id_to_string ((u32) obj_desc->integer.value, one_cid->value);
+		acpi_ex_eisa_id_to_string((u32) obj_desc->integer.value,
+					  one_cid->value);
 		return (AE_OK);
 
 	case ACPI_TYPE_STRING:
@@ -425,8 +399,8 @@ acpi_ut_translate_one_cid (
 
 		/* Copy the String CID from the returned object */
 
-		acpi_ut_copy_id_string (one_cid->value, obj_desc->string.pointer,
-				ACPI_MAX_CID_LENGTH);
+		acpi_ut_copy_id_string(one_cid->value, obj_desc->string.pointer,
+				       ACPI_MAX_CID_LENGTH);
 		return (AE_OK);
 
 	default:
@@ -434,7 +408,6 @@ acpi_ut_translate_one_cid (
 		return (AE_TYPE);
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -453,45 +426,42 @@ acpi_ut_translate_one_cid (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_CID (
-	struct acpi_namespace_node      *device_node,
-	struct acpi_compatible_id_list **return_cid_list)
+acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
+		    struct acpi_compatible_id_list ** return_cid_list)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
-	u32                             count;
-	u32                             size;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
+	u32 count;
+	u32 size;
 	struct acpi_compatible_id_list *cid_list;
-	acpi_native_uint                i;
+	acpi_native_uint i;
 
-
-	ACPI_FUNCTION_TRACE ("ut_execute_CID");
-
+	ACPI_FUNCTION_TRACE("ut_execute_CID");
 
 	/* Evaluate the _CID method for this device */
 
-	status = acpi_ut_evaluate_object (device_node, METHOD_NAME__CID,
-			 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_PACKAGE,
-			 &obj_desc);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__CID,
+					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING
+					 | ACPI_BTYPE_PACKAGE, &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Get the number of _CIDs returned */
 
 	count = 1;
-	if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_PACKAGE) {
+	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
 		count = obj_desc->package.count;
 	}
 
 	/* Allocate a worst-case buffer for the _CIDs */
 
-	size = (((count - 1) * sizeof (struct acpi_compatible_id)) +
-			   sizeof (struct acpi_compatible_id_list));
+	size = (((count - 1) * sizeof(struct acpi_compatible_id)) +
+		sizeof(struct acpi_compatible_id_list));
 
-	cid_list = ACPI_MEM_CALLOCATE ((acpi_size) size);
+	cid_list = ACPI_MEM_CALLOCATE((acpi_size) size);
 	if (!cid_list) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Init CID list */
@@ -508,38 +478,37 @@ acpi_ut_execute_CID (
 
 	/* The _CID object can be either a single CID or a package (list) of CIDs */
 
-	if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_PACKAGE) {
+	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
 		/* Translate each package element */
 
 		for (i = 0; i < count; i++) {
-			status = acpi_ut_translate_one_cid (obj_desc->package.elements[i],
-					  &cid_list->id[i]);
-			if (ACPI_FAILURE (status)) {
+			status =
+			    acpi_ut_translate_one_cid(obj_desc->package.
+						      elements[i],
+						      &cid_list->id[i]);
+			if (ACPI_FAILURE(status)) {
 				break;
 			}
 		}
-	}
-	else {
+	} else {
 		/* Only one CID, translate to a string */
 
-		status = acpi_ut_translate_one_cid (obj_desc, cid_list->id);
+		status = acpi_ut_translate_one_cid(obj_desc, cid_list->id);
 	}
 
 	/* Cleanup on error */
 
-	if (ACPI_FAILURE (status)) {
-		ACPI_MEM_FREE (cid_list);
-	}
-	else {
+	if (ACPI_FAILURE(status)) {
+		ACPI_MEM_FREE(cid_list);
+	} else {
 		*return_cid_list = cid_list;
 	}
 
 	/* On exit, we must delete the _CID return object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -558,41 +527,38 @@ acpi_ut_execute_CID (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_UID (
-	struct acpi_namespace_node      *device_node,
-	struct acpi_device_id           *uid)
+acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
+		    struct acpi_device_id *uid)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("ut_execute_UID");
 
-	ACPI_FUNCTION_TRACE ("ut_execute_UID");
-
-
-	status = acpi_ut_evaluate_object (device_node, METHOD_NAME__UID,
-			 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING, &obj_desc);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__UID,
+					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
+					 &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_INTEGER) {
+	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 		/* Convert the Numeric UID to string */
 
-		acpi_ex_unsigned_integer_to_string (obj_desc->integer.value, uid->value);
-	}
-	else {
+		acpi_ex_unsigned_integer_to_string(obj_desc->integer.value,
+						   uid->value);
+	} else {
 		/* Copy the String UID from the returned object */
 
-		acpi_ut_copy_id_string (uid->value, obj_desc->string.pointer,
-				sizeof (uid->value));
+		acpi_ut_copy_id_string(uid->value, obj_desc->string.pointer,
+				       sizeof(uid->value));
 	}
 
 	/* On exit, we must delete the return object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -611,30 +577,26 @@ acpi_ut_execute_UID (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_STA (
-	struct acpi_namespace_node      *device_node,
-	u32                             *flags)
+acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 * flags)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("ut_execute_STA");
 
-	ACPI_FUNCTION_TRACE ("ut_execute_STA");
-
-
-	status = acpi_ut_evaluate_object (device_node, METHOD_NAME__STA,
-			 ACPI_BTYPE_INTEGER, &obj_desc);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__STA,
+					 ACPI_BTYPE_INTEGER, &obj_desc);
+	if (ACPI_FAILURE(status)) {
 		if (AE_NOT_FOUND == status) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-				"_STA on %4.4s was not found, assuming device is present\n",
-				acpi_ut_get_node_name (device_node)));
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+					  "_STA on %4.4s was not found, assuming device is present\n",
+					  acpi_ut_get_node_name(device_node)));
 
 			*flags = 0x0F;
 			status = AE_OK;
 		}
 
-		return_ACPI_STATUS (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Extract the status flags */
@@ -643,10 +605,9 @@ acpi_ut_execute_STA (
 
 	/* On exit, we must delete the return object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -665,44 +626,45 @@ acpi_ut_execute_STA (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_sxds (
-	struct acpi_namespace_node      *device_node,
-	u8                              *highest)
+acpi_ut_execute_sxds(struct acpi_namespace_node *device_node, u8 * highest)
 {
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
-	u32                             i;
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
+	u32 i;
 
-
-	ACPI_FUNCTION_TRACE ("ut_execute_Sxds");
-
+	ACPI_FUNCTION_TRACE("ut_execute_Sxds");
 
 	for (i = 0; i < 4; i++) {
 		highest[i] = 0xFF;
-		status = acpi_ut_evaluate_object (device_node,
-				 (char *) acpi_gbl_highest_dstate_names[i],
-				 ACPI_BTYPE_INTEGER, &obj_desc);
-		if (ACPI_FAILURE (status)) {
+		status = acpi_ut_evaluate_object(device_node,
+						 (char *)
+						 acpi_gbl_highest_dstate_names
+						 [i], ACPI_BTYPE_INTEGER,
+						 &obj_desc);
+		if (ACPI_FAILURE(status)) {
 			if (status != AE_NOT_FOUND) {
-				ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-					"%s on Device %4.4s, %s\n",
-					(char *) acpi_gbl_highest_dstate_names[i],
-					acpi_ut_get_node_name (device_node),
-					acpi_format_exception (status)));
+				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+						  "%s on Device %4.4s, %s\n",
+						  (char *)
+						  acpi_gbl_highest_dstate_names
+						  [i],
+						  acpi_ut_get_node_name
+						  (device_node),
+						  acpi_format_exception
+						  (status)));
 
-				return_ACPI_STATUS (status);
+				return_ACPI_STATUS(status);
 			}
-		}
-		else {
+		} else {
 			/* Extract the Dstate value */
 
 			highest[i] = (u8) obj_desc->integer.value;
 
 			/* Delete the return object */
 
-			acpi_ut_remove_reference (obj_desc);
+			acpi_ut_remove_reference(obj_desc);
 		}
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }

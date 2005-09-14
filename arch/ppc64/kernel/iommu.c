@@ -438,7 +438,8 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl)
 
 void iommu_free_table(struct device_node *dn)
 {
-	struct iommu_table *tbl = dn->iommu_table;
+	struct pci_dn *pdn = dn->data;
+	struct iommu_table *tbl = pdn->iommu_table;
 	unsigned long bitmap_sz, i;
 	unsigned int order;
 

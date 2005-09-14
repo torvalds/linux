@@ -758,11 +758,6 @@ static int __devinit sis5595_pci_probe(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
-	if (!address) {
-		dev_err(&dev->dev,"No SiS 5595 sensors found.\n");
-		return -ENODEV;
-	}
-
 	s_bridge = pci_dev_get(dev);
 	if (i2c_isa_add_driver(&sis5595_driver)) {
 		pci_dev_put(s_bridge);

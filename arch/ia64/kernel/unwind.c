@@ -2020,28 +2020,6 @@ init_frame_info (struct unw_frame_info *info, struct task_struct *t,
 }
 
 void
-unw_init_from_interruption (struct unw_frame_info *info, struct task_struct *t,
-			    struct pt_regs *pt, struct switch_stack *sw)
-{
-	unsigned long sof;
-
-	init_frame_info(info, t, sw, pt->r12);
-	info->cfm_loc = &pt->cr_ifs;
-	info->unat_loc = &pt->ar_unat;
-	info->pfs_loc = &pt->ar_pfs;
-	sof = *info->cfm_loc & 0x7f;
-	info->bsp = (unsigned long) ia64_rse_skip_regs((unsigned long *) info->regstk.top, -sof);
-	info->ip = pt->cr_iip + ia64_psr(pt)->ri;
-	info->pt = (unsigned long) pt;
-	UNW_DPRINT(3, "unwind.%s:\n"
-		   "  bsp    0x%lx\n"
-		   "  sof    0x%lx\n"
-		   "  ip     0x%lx\n",
-		   __FUNCTION__, info->bsp, sof, info->ip);
-	find_save_locs(info);
-}
-
-void
 unw_init_frame_info (struct unw_frame_info *info, struct task_struct *t, struct switch_stack *sw)
 {
 	unsigned long sol;

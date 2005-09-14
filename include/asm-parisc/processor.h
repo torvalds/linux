@@ -11,6 +11,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/config.h>
 #include <linux/threads.h>
+#include <linux/spinlock_types.h>
 
 #include <asm/hardware.h>
 #include <asm/page.h>

@@ -78,7 +78,7 @@ config HOTPLUG_PCI_IBM
 
 config HOTPLUG_PCI_ACPI
 	tristate "ACPI PCI Hotplug driver"
-	depends on ACPI_BUS && HOTPLUG_PCI
+	depends on ACPI && HOTPLUG_PCI
 	help
 	  Say Y here if you have a system that supports PCI Hotplug using
 	  ACPI.
@@ -157,7 +157,7 @@ config HOTPLUG_PCI_SHPC_POLL_EVENT_MODE
 
 config HOTPLUG_PCI_SHPC_PHPRM_LEGACY
 	bool "For AMD SHPC only: Use $HRT for resource/configuration"
-	depends on HOTPLUG_PCI_SHPC && !ACPI_BUS 
+	depends on HOTPLUG_PCI_SHPC && !ACPI 
 	help
 	  Say Y here for AMD SHPC. You have to select this option if you are 
 	  using this driver on platform with AMD SHPC.

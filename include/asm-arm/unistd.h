@@ -355,6 +355,9 @@
 #define __NR_inotify_init		(__NR_SYSCALL_BASE+316)
 #define __NR_inotify_add_watch		(__NR_SYSCALL_BASE+317)
 #define __NR_inotify_rm_watch		(__NR_SYSCALL_BASE+318)
+#define __NR_mbind			(__NR_SYSCALL_BASE+319)
+#define __NR_get_mempolicy		(__NR_SYSCALL_BASE+320)
+#define __NR_set_mempolicy		(__NR_SYSCALL_BASE+321)
 
 /*
  * The following SWIs are ARM private.

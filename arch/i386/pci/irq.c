@@ -1075,7 +1075,7 @@ static void pirq_penalize_isa_irq(int irq, int active)
 
 void pcibios_penalize_isa_irq(int irq, int active)
 {
-#ifdef CONFIG_ACPI_PCI
+#ifdef CONFIG_ACPI
 	if (!acpi_noirq)
 		acpi_penalize_isa_irq(irq, active);
 	else

@@ -29,7 +29,6 @@ struct geodefb_par {
 	int enable_crt;
 	int panel_x; /* dimensions of an attached flat panel, non-zero => enable panel */
 	int panel_y;
-	struct pci_dev *vid_dev;
 	void __iomem *dc_regs;
 	void __iomem *vid_regs;
 	struct geode_dc_ops  *dc_ops;

@@ -42,7 +42,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IB_USER_VERBS_ABI_VERSION	1
+#define IB_USER_VERBS_ABI_VERSION	2
 
 enum {
 	IB_USER_VERBS_CMD_QUERY_PARAMS,
@@ -292,7 +292,14 @@ struct ib_uverbs_create_cq_resp {
 };
 
 struct ib_uverbs_destroy_cq {
+	__u64 response;
 	__u32 cq_handle;
+	__u32 reserved;
+};
+
+struct ib_uverbs_destroy_cq_resp {
+	__u32 comp_events_reported;
+	__u32 async_events_reported;
 };
 
 struct ib_uverbs_create_qp {
@@ -372,7 +379,13 @@ struct ib_uverbs_modify_qp_resp {
 };
 
 struct ib_uverbs_destroy_qp {
+	__u64 response;
 	__u32 qp_handle;
+	__u32 reserved;
+};
+
+struct ib_uverbs_destroy_qp_resp {
+	__u32 events_reported;
 };
 
 struct ib_uverbs_attach_mcast {
@@ -416,7 +429,13 @@ struct ib_uverbs_modify_srq {
 };
 
 struct ib_uverbs_destroy_srq {
+	__u64 response;
 	__u32 srq_handle;
+	__u32 reserved;
+};
+
+struct ib_uverbs_destroy_srq_resp {
+	__u32 events_reported;
 };
 
 #endif /* IB_USER_VERBS_H */

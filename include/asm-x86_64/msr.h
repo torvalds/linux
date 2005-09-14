@@ -29,21 +29,36 @@
 #define wrmsrl(msr,val) wrmsr(msr,(__u32)((__u64)(val)),((__u64)(val))>>32) 
 
 /* wrmsr with exception handling */
-#define wrmsr_safe(msr,a,b) ({ int ret__;						\
-	asm volatile("2: wrmsr ; xorl %0,%0\n"						\
-		     "1:\n\t"								\
-		     ".section .fixup,\"ax\"\n\t"					\
-		     "3:  movl %4,%0 ; jmp 1b\n\t"					\
-		     ".previous\n\t"							\
- 		     ".section __ex_table,\"a\"\n"					\
-		     "   .align 8\n\t"							\
-		     "   .quad 	2b,3b\n\t"						\
-		     ".previous"							\
-		     : "=a" (ret__)							\
-		     : "c" (msr), "0" (a), "d" (b), "i" (-EFAULT));\
+#define wrmsr_safe(msr,a,b) ({ int ret__;			\
+	asm volatile("2: wrmsr ; xorl %0,%0\n"			\
+		     "1:\n\t"					\
+		     ".section .fixup,\"ax\"\n\t"		\
+		     "3:  movl %4,%0 ; jmp 1b\n\t"		\
+		     ".previous\n\t"				\
+ 		     ".section __ex_table,\"a\"\n"		\
+		     "   .align 8\n\t"				\
+		     "   .quad 	2b,3b\n\t"			\
+		     ".previous"				\
+		     : "=a" (ret__)				\
+		     : "c" (msr), "0" (a), "d" (b), "i" (-EFAULT)); \
 	ret__; })
 
 #define checking_wrmsrl(msr,val) wrmsr_safe(msr,(u32)(val),(u32)((val)>>32))
+
+#define rdmsr_safe(msr,a,b) \
+	({ int ret__;						\
+	  asm volatile ("1:       rdmsr\n"			\
+                      "2:\n"					\
+                      ".section .fixup,\"ax\"\n"		\
+                      "3:       movl %4,%0\n"			\
+                      " jmp 2b\n"				\
+                      ".previous\n"				\
+                      ".section __ex_table,\"a\"\n"		\
+                      " .align 8\n"				\
+                      " .quad 1b,3b\n"				\
+                      ".previous":"=&bDS" (ret__), "=a"(a), "=d"(b)\
+                      :"c"(msr), "i"(-EIO), "0"(0));		\
+	  ret__; })		
 
 #define rdtsc(low,high) \
      __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
@@ -64,7 +79,7 @@
 			  : "=a" (low), "=d" (high) \
 			  : "c" (counter))
 
-extern inline void cpuid(int op, unsigned int *eax, unsigned int *ebx,
+static inline void cpuid(int op, unsigned int *eax, unsigned int *ebx,
 			 unsigned int *ecx, unsigned int *edx)
 {
 	__asm__("cpuid"
@@ -90,7 +105,7 @@ static inline void cpuid_count(int op, int count, int *eax, int *ebx, int *ecx,
 /*
  * CPUID functions returning a single datum
  */
-extern inline unsigned int cpuid_eax(unsigned int op)
+static inline unsigned int cpuid_eax(unsigned int op)
 {
 	unsigned int eax;
 
@@ -100,7 +115,7 @@ extern inline unsigned int cpuid_eax(unsigned int op)
 		: "bx", "cx", "dx");
 	return eax;
 }
-extern inline unsigned int cpuid_ebx(unsigned int op)
+static inline unsigned int cpuid_ebx(unsigned int op)
 {
 	unsigned int eax, ebx;
 
@@ -110,7 +125,7 @@ extern inline unsigned int cpuid_ebx(unsigned int op)
 		: "cx", "dx" );
 	return ebx;
 }
-extern inline unsigned int cpuid_ecx(unsigned int op)
+static inline unsigned int cpuid_ecx(unsigned int op)
 {
 	unsigned int eax, ecx;
 
@@ -120,7 +135,7 @@ extern inline unsigned int cpuid_ecx(unsigned int op)
 		: "bx", "dx" );
 	return ecx;
 }
-extern inline unsigned int cpuid_edx(unsigned int op)
+static inline unsigned int cpuid_edx(unsigned int op)
 {
 	unsigned int eax, edx;
 

@@ -43,21 +43,17 @@
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define ACPI_PROCESSOR_DRIVER_NAME      "ACPI Processor Driver"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME                ("acpi_processor")
-
+ACPI_MODULE_NAME("acpi_processor")
 
 /* --------------------------------------------------------------------------
                               Throttling Control
    -------------------------------------------------------------------------- */
-
-static int
-acpi_processor_get_throttling (
-	struct acpi_processor	*pr)
+static int acpi_processor_get_throttling(struct acpi_processor *pr)
 {
-	int			state = 0;
-	u32			value = 0;
-	u32			duty_mask = 0;
-	u32			duty_value = 0;
+	int state = 0;
+	u32 value = 0;
+	u32 duty_mask = 0;
+	u32 duty_value = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_get_throttling");
 
@@ -86,7 +82,7 @@ acpi_processor_get_throttling (
 		duty_value >>= pr->throttling.duty_offset;
 
 		if (duty_value)
-			state = pr->throttling.state_count-duty_value;
+			state = pr->throttling.state_count - duty_value;
 	}
 
 	pr->throttling.state = state;
@@ -94,20 +90,17 @@ acpi_processor_get_throttling (
 	local_irq_enable();
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"Throttling state is T%d (%d%% throttling applied)\n",
-		state, pr->throttling.states[state].performance));
+			  "Throttling state is T%d (%d%% throttling applied)\n",
+			  state, pr->throttling.states[state].performance));
 
 	return_VALUE(0);
 }
 
-
-int acpi_processor_set_throttling (
-	struct acpi_processor	*pr,
-	int			state)
+int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 {
-	u32                     value = 0;
-	u32                     duty_mask = 0;
-	u32                     duty_value = 0;
+	u32 value = 0;
+	u32 duty_mask = 0;
+	u32 duty_value = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_set_throttling");
 
@@ -168,28 +161,26 @@ int acpi_processor_set_throttling (
 	local_irq_enable();
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"Throttling state set to T%d (%d%%)\n", state,
-		(pr->throttling.states[state].performance?pr->throttling.states[state].performance/10:0)));
+			  "Throttling state set to T%d (%d%%)\n", state,
+			  (pr->throttling.states[state].performance ? pr->
+			   throttling.states[state].performance / 10 : 0)));
 
 	return_VALUE(0);
 }
 
-
-int
-acpi_processor_get_throttling_info (
-	struct acpi_processor	*pr)
+int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 {
-	int			result = 0;
-	int			step = 0;
-	int			i = 0;
+	int result = 0;
+	int step = 0;
+	int i = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_get_throttling_info");
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"pblk_address[0x%08x] duty_offset[%d] duty_width[%d]\n",
-		pr->throttling.address,
-		pr->throttling.duty_offset,
-		pr->throttling.duty_width));
+			  "pblk_address[0x%08x] duty_offset[%d] duty_width[%d]\n",
+			  pr->throttling.address,
+			  pr->throttling.duty_offset,
+			  pr->throttling.duty_width));
 
 	if (!pr)
 		return_VALUE(-EINVAL);
@@ -199,14 +190,12 @@ acpi_processor_get_throttling_info (
 	if (!pr->throttling.address) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling register\n"));
 		return_VALUE(0);
-	}
-	else if (!pr->throttling.duty_width) {
+	} else if (!pr->throttling.duty_width) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling states\n"));
 		return_VALUE(0);
 	}
 	/* TBD: Support duty_cycle values that span bit 4. */
-	else if ((pr->throttling.duty_offset
-		+ pr->throttling.duty_width) > 4) {
+	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "duty_cycle spans bit 4\n"));
 		return_VALUE(0);
 	}
@@ -218,7 +207,7 @@ acpi_processor_get_throttling_info (
 	 */
 	if (errata.piix4.throttle) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Throttling not supported on PIIX4 A- or B-step\n"));
+				  "Throttling not supported on PIIX4 A- or B-step\n"));
 		return_VALUE(0);
 	}
 
@@ -232,13 +221,13 @@ acpi_processor_get_throttling_info (
 
 	step = (1000 / pr->throttling.state_count);
 
-	for (i=0; i<pr->throttling.state_count; i++) {
+	for (i = 0; i < pr->throttling.state_count; i++) {
 		pr->throttling.states[i].performance = step * i;
 		pr->throttling.states[i].power = step * i;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d throttling states\n",
-		pr->throttling.state_count));
+			  pr->throttling.state_count));
 
 	pr->flags.throttling = 1;
 
@@ -253,28 +242,29 @@ acpi_processor_get_throttling_info (
 		goto end;
 
 	if (pr->throttling.state) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabling throttling (was T%d)\n",
-			pr->throttling.state));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Disabling throttling (was T%d)\n",
+				  pr->throttling.state));
 		result = acpi_processor_set_throttling(pr, 0);
 		if (result)
 			goto end;
 	}
 
-end:
+      end:
 	if (result)
 		pr->flags.throttling = 0;
 
 	return_VALUE(result);
 }
 
-
 /* proc interface */
 
-static int acpi_processor_throttling_seq_show(struct seq_file *seq, void *offset)
+static int acpi_processor_throttling_seq_show(struct seq_file *seq,
+					      void *offset)
 {
-	struct acpi_processor	*pr = (struct acpi_processor *)seq->private;
-	int			i = 0;
-	int                     result = 0;
+	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
+	int i = 0;
+	int result = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_throttling_seq_show");
 
@@ -289,41 +279,41 @@ static int acpi_processor_throttling_seq_show(struct seq_file *seq, void *offset
 	result = acpi_processor_get_throttling(pr);
 
 	if (result) {
-		seq_puts(seq, "Could not determine current throttling state.\n");
+		seq_puts(seq,
+			 "Could not determine current throttling state.\n");
 		goto end;
 	}
 
 	seq_printf(seq, "state count:             %d\n"
-			"active state:            T%d\n",
-			pr->throttling.state_count,
-			pr->throttling.state);
+		   "active state:            T%d\n",
+		   pr->throttling.state_count, pr->throttling.state);
 
 	seq_puts(seq, "states:\n");
 	for (i = 0; i < pr->throttling.state_count; i++)
 		seq_printf(seq, "   %cT%d:                  %02d%%\n",
-			(i == pr->throttling.state?'*':' '), i,
-			(pr->throttling.states[i].performance?pr->throttling.states[i].performance/10:0));
+			   (i == pr->throttling.state ? '*' : ' '), i,
+			   (pr->throttling.states[i].performance ? pr->
+			    throttling.states[i].performance / 10 : 0));
 
-end:
+      end:
 	return_VALUE(0);
 }
 
-static int acpi_processor_throttling_open_fs(struct inode *inode, struct file *file)
+static int acpi_processor_throttling_open_fs(struct inode *inode,
+					     struct file *file)
 {
 	return single_open(file, acpi_processor_throttling_seq_show,
-						PDE(inode)->data);
+			   PDE(inode)->data);
 }
 
-ssize_t acpi_processor_write_throttling (
-        struct file		*file,
-        const char		__user *buffer,
-        size_t			count,
-        loff_t			*data)
+ssize_t acpi_processor_write_throttling(struct file * file,
+					const char __user * buffer,
+					size_t count, loff_t * data)
 {
-	int			result = 0;
-        struct seq_file 	*m = (struct seq_file *)file->private_data;
-	struct acpi_processor	*pr = (struct acpi_processor *)m->private;
-	char			state_string[12] = {'\0'};
+	int result = 0;
+	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct acpi_processor *pr = (struct acpi_processor *)m->private;
+	char state_string[12] = { '\0' };
 
 	ACPI_FUNCTION_TRACE("acpi_processor_write_throttling");
 
@@ -336,7 +326,8 @@ ssize_t acpi_processor_write_throttling (
 	state_string[count] = '\0';
 
 	result = acpi_processor_set_throttling(pr,
-		simple_strtoul(state_string, NULL, 0));
+					       simple_strtoul(state_string,
+							      NULL, 0));
 	if (result)
 		return_VALUE(result);
 
@@ -344,8 +335,8 @@ ssize_t acpi_processor_write_throttling (
 }
 
 struct file_operations acpi_processor_throttling_fops = {
-	.open 		= acpi_processor_throttling_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_processor_throttling_open_fs,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };

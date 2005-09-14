@@ -655,6 +655,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	struct flowi fl;
 	int addr_len = msg->msg_namelen;
 	int hlimit = -1;
+	int tclass = -1;
 	u16 proto;
 	int err;
 
@@ -740,7 +741,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = datagram_send_ctl(msg, &fl, opt, &hlimit);
+		err = datagram_send_ctl(msg, &fl, opt, &hlimit, &tclass);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -755,8 +756,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 	if (opt == NULL)
 		opt = np->opt;
-	if (flowlabel)
-		opt = fl6_merge_options(&opt_space, flowlabel, opt);
+	opt = fl6_merge_options(&opt_space, flowlabel, opt);
 
 	fl.proto = proto;
 	rawv6_probe_proto_opt(&fl, msg);
@@ -782,10 +782,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
-		dst_release(dst);
+	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
 		goto out;
-	}
 
 	if (hlimit < 0) {
 		if (ipv6_addr_is_multicast(&fl.fl6_dst))
@@ -798,6 +796,12 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			hlimit = ipv6_get_hoplimit(dst->dev);
 	}
 
+	if (tclass < 0) {
+		tclass = np->cork.tclass;
+		if (tclass < 0)
+			tclass = 0;
+	}
+
 	if (msg->msg_flags&MSG_CONFIRM)
 		goto do_confirm;
 
@@ -806,8 +810,9 @@ back_from_confirm:
 		err = rawv6_send_hdrinc(sk, msg->msg_iov, len, &fl, (struct rt6_info*)dst, msg->msg_flags);
 	} else {
 		lock_sock(sk);
-		err = ip6_append_data(sk, ip_generic_getfrag, msg->msg_iov, len, 0,
-					hlimit, opt, &fl, (struct rt6_info*)dst, msg->msg_flags);
+		err = ip6_append_data(sk, ip_generic_getfrag, msg->msg_iov,
+			len, 0, hlimit, tclass, opt, &fl, (struct rt6_info*)dst,
+			msg->msg_flags);
 
 		if (err)
 			ip6_flush_pending_frames(sk);

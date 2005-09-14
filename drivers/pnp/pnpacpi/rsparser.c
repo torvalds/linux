@@ -73,25 +73,35 @@ static void decode_irq_flags(int flag, int *edge_level, int *active_high_low)
 }
 
 static void
-pnpacpi_parse_allocated_irqresource(struct pnp_resource_table * res, int irq)
+pnpacpi_parse_allocated_irqresource(struct pnp_resource_table * res, u32 gsi,
+	int edge_level, int active_high_low)
 {
 	int i = 0;
+	int irq;
+
+	if (!valid_IRQ(gsi))
+		return;
+
 	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET) &&
 			i < PNP_MAX_IRQ)
 		i++;
-	if (i < PNP_MAX_IRQ) {
-		res->irq_resource[i].flags = IORESOURCE_IRQ;  //Also clears _UNSET flag
-		if (irq == -1) {
-			res->irq_resource[i].flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		res->irq_resource[i].start =(unsigned long) irq;
-		res->irq_resource[i].end = (unsigned long) irq;
+	if (i >= PNP_MAX_IRQ)
+		return;
+
+	res->irq_resource[i].flags = IORESOURCE_IRQ;  // Also clears _UNSET flag
+	irq = acpi_register_gsi(gsi, edge_level, active_high_low);
+	if (irq < 0) {
+		res->irq_resource[i].flags |= IORESOURCE_DISABLED;
+		return;
 	}
+
+	res->irq_resource[i].start = irq;
+	res->irq_resource[i].end = irq;
+	pcibios_penalize_isa_irq(irq, 1);
 }
 
 static void
-pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table * res, int dma)
+pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table * res, u32 dma)
 {
 	int i = 0;
 	while (i < PNP_MAX_DMA &&
@@ -103,14 +113,14 @@ pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table * res, int dma)
 			res->dma_resource[i].flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->dma_resource[i].start =(unsigned long) dma;
-		res->dma_resource[i].end = (unsigned long) dma;
+		res->dma_resource[i].start = dma;
+		res->dma_resource[i].end = dma;
 	}
 }
 
 static void
 pnpacpi_parse_allocated_ioresource(struct pnp_resource_table * res,
-	int io, int len)
+	u32 io, u32 len)
 {
 	int i = 0;
 	while (!(res->port_resource[i].flags & IORESOURCE_UNSET) &&
@@ -122,14 +132,14 @@ pnpacpi_parse_allocated_ioresource(struct pnp_resource_table * res,
 			res->port_resource[i].flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->port_resource[i].start = (unsigned long) io;
-		res->port_resource[i].end = (unsigned long)(io + len - 1);
+		res->port_resource[i].start = io;
+		res->port_resource[i].end = io + len - 1;
 	}
 }
 
 static void
 pnpacpi_parse_allocated_memresource(struct pnp_resource_table * res,
-	int mem, int len)
+	u64 mem, u64 len)
 {
 	int i = 0;
 	while (!(res->mem_resource[i].flags & IORESOURCE_UNSET) &&
@@ -141,8 +151,8 @@ pnpacpi_parse_allocated_memresource(struct pnp_resource_table * res,
 			res->mem_resource[i].flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->mem_resource[i].start = (unsigned long) mem;
-		res->mem_resource[i].end = (unsigned long)(mem + len - 1);
+		res->mem_resource[i].start = mem;
+		res->mem_resource[i].end = mem + len - 1;
 	}
 }
 
@@ -151,27 +161,28 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	void *data)
 {
 	struct pnp_resource_table * res_table = (struct pnp_resource_table *)data;
+	int i;
 
 	switch (res->id) {
 	case ACPI_RSTYPE_IRQ:
-		if ((res->data.irq.number_of_interrupts > 0) &&
-			valid_IRQ(res->data.irq.interrupts[0])) {
-			pnpacpi_parse_allocated_irqresource(res_table, 
-				acpi_register_gsi(res->data.irq.interrupts[0],
-					res->data.irq.edge_level,
-					res->data.irq.active_high_low));
-			pcibios_penalize_isa_irq(res->data.irq.interrupts[0], 1);
+		/*
+		 * Per spec, only one interrupt per descriptor is allowed in
+		 * _CRS, but some firmware violates this, so parse them all.
+		 */
+		for (i = 0; i < res->data.irq.number_of_interrupts; i++) {
+			pnpacpi_parse_allocated_irqresource(res_table,
+				res->data.irq.interrupts[i],
+				res->data.irq.edge_level,
+				res->data.irq.active_high_low);
 		}
 		break;
 
 	case ACPI_RSTYPE_EXT_IRQ:
-		if ((res->data.extended_irq.number_of_interrupts > 0) &&
-			valid_IRQ(res->data.extended_irq.interrupts[0])) {
-			pnpacpi_parse_allocated_irqresource(res_table, 
-				acpi_register_gsi(res->data.extended_irq.interrupts[0],
-					res->data.extended_irq.edge_level,
-					res->data.extended_irq.active_high_low));
-			pcibios_penalize_isa_irq(res->data.extended_irq.interrupts[0], 1);
+		for (i = 0; i < res->data.extended_irq.number_of_interrupts; i++) {
+			pnpacpi_parse_allocated_irqresource(res_table,
+				res->data.extended_irq.interrupts[i],
+				res->data.extended_irq.edge_level,
+				res->data.extended_irq.active_high_low);
 		}
 		break;
 	case ACPI_RSTYPE_DMA:

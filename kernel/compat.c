@@ -48,8 +48,7 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	if (!time_after(expire, now))
 		return 0;
 
-	current->state = TASK_INTERRUPTIBLE;
-	expire = schedule_timeout(expire - now);
+	expire = schedule_timeout_interruptible(expire - now);
 	if (expire == 0)
 		return 0;
 
@@ -82,8 +81,7 @@ asmlinkage long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
 		return -EINVAL;
 
 	expire = timespec_to_jiffies(&t) + (t.tv_sec || t.tv_nsec);
-	current->state = TASK_INTERRUPTIBLE;
-	expire = schedule_timeout(expire);
+	expire = schedule_timeout_interruptible(expire);
 	if (expire == 0)
 		return 0;
 
@@ -795,8 +793,7 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 			recalc_sigpending();
 			spin_unlock_irq(&current->sighand->siglock);
 
-			current->state = TASK_INTERRUPTIBLE;
-			timeout = schedule_timeout(timeout);
+			timeout = schedule_timeout_interruptible(timeout);
 
 			spin_lock_irq(&current->sighand->siglock);
 			sig = dequeue_signal(current, &s, &info);

@@ -25,9 +25,6 @@
 
 /****************************************************************************/
 
-
-/****************************************************************************/
-
 struct map_info uclinux_ram_map = {
 	.name = "RAM",
 };
@@ -60,14 +57,15 @@ int __init uclinux_mtd_init(void)
 	struct mtd_info *mtd;
 	struct map_info *mapp;
 	extern char _ebss;
+	unsigned long addr = (unsigned long) &_ebss;
 
 	mapp = &uclinux_ram_map;
-	mapp->phys = (unsigned long) &_ebss;
-	mapp->size = PAGE_ALIGN(*((unsigned long *)((&_ebss) + 8)));
+	mapp->phys = addr;
+	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
 	mapp->bankwidth = 4;
 
 	printk("uclinux[mtd]: RAM probe address=0x%x size=0x%x\n",
-	       	(int) mapp->map_priv_2, (int) mapp->size);
+	       	(int) mapp->phys, (int) mapp->size);
 
 	mapp->virt = ioremap_nocache(mapp->phys, mapp->size);
 
@@ -95,7 +93,6 @@ int __init uclinux_mtd_init(void)
 	printk("uclinux[mtd]: set %s to be root filesystem\n",
 	     	uclinux_romfs[0].name);
 	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 0);
-	put_mtd_device(mtd);
 
 	return(0);
 }
@@ -109,7 +106,7 @@ void __exit uclinux_mtd_cleanup(void)
 		map_destroy(uclinux_ram_mtdinfo);
 		uclinux_ram_mtdinfo = NULL;
 	}
-	if (uclinux_ram_map.map_priv_1) {
+	if (uclinux_ram_map.virt) {
 		iounmap((void *) uclinux_ram_map.virt);
 		uclinux_ram_map.virt = 0;
 	}

@@ -27,8 +27,35 @@
 #include <linux/highmem.h>
 
 /**
+ * __ntfs_malloc - allocate memory in multiples of pages
+ * @size:	number of bytes to allocate
+ * @gfp_mask:	extra flags for the allocator
+ *
+ * Internal function.  You probably want ntfs_malloc_nofs()...
+ *
+ * Allocates @size bytes of memory, rounded up to multiples of PAGE_SIZE and
+ * returns a pointer to the allocated memory.
+ *
+ * If there was insufficient memory to complete the request, return NULL.
+ * Depending on @gfp_mask the allocation may be guaranteed to succeed.
+ */
+static inline void *__ntfs_malloc(unsigned long size,
+		unsigned int __nocast gfp_mask)
+{
+	if (likely(size <= PAGE_SIZE)) {
+		BUG_ON(!size);
+		/* kmalloc() has per-CPU caches so is faster for now. */
+		return kmalloc(PAGE_SIZE, gfp_mask & ~__GFP_HIGHMEM);
+		/* return (void *)__get_free_page(gfp_mask); */
+	}
+	if (likely(size >> PAGE_SHIFT < num_physpages))
+		return __vmalloc(size, gfp_mask, PAGE_KERNEL);
+	return NULL;
+}
+
+/**
  * ntfs_malloc_nofs - allocate memory in multiples of pages
- * @size	number of bytes to allocate
+ * @size:	number of bytes to allocate
  *
  * Allocates @size bytes of memory, rounded up to multiples of PAGE_SIZE and
  * returns a pointer to the allocated memory.
@@ -37,15 +64,24 @@
  */
 static inline void *ntfs_malloc_nofs(unsigned long size)
 {
-	if (likely(size <= PAGE_SIZE)) {
-		BUG_ON(!size);
-		/* kmalloc() has per-CPU caches so is faster for now. */
-		return kmalloc(PAGE_SIZE, GFP_NOFS);
-		/* return (void *)__get_free_page(GFP_NOFS | __GFP_HIGHMEM); */
-	}
-	if (likely(size >> PAGE_SHIFT < num_physpages))
-		return __vmalloc(size, GFP_NOFS | __GFP_HIGHMEM, PAGE_KERNEL);
-	return NULL;
+	return __ntfs_malloc(size, GFP_NOFS | __GFP_HIGHMEM);
+}
+
+/**
+ * ntfs_malloc_nofs_nofail - allocate memory in multiples of pages
+ * @size:	number of bytes to allocate
+ *
+ * Allocates @size bytes of memory, rounded up to multiples of PAGE_SIZE and
+ * returns a pointer to the allocated memory.
+ *
+ * This function guarantees that the allocation will succeed.  It will sleep
+ * for as long as it takes to complete the allocation.
+ *
+ * If there was insufficient memory to complete the request, return NULL.
+ */
+static inline void *ntfs_malloc_nofs_nofail(unsigned long size)
+{
+	return __ntfs_malloc(size, GFP_NOFS | __GFP_HIGHMEM | __GFP_NOFAIL);
 }
 
 static inline void ntfs_free(void *addr)

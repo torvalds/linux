@@ -2225,7 +2225,7 @@ void update_mem_hiwater(struct task_struct *tsk)
 #if !defined(__HAVE_ARCH_GATE_AREA)
 
 #if defined(AT_SYSINFO_EHDR)
-struct vm_area_struct gate_vma;
+static struct vm_area_struct gate_vma;
 
 static int __init gate_vma_init(void)
 {

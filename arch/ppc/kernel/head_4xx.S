@@ -40,7 +40,7 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 /* As with the other PowerPC ports, it is expected that when code
  * execution begins here, the following registers contain valid, yet
@@ -452,6 +452,7 @@ label:
 	CRITICAL_EXCEPTION(0x1020, WDTException, WatchdogException)
 #else
 	CRITICAL_EXCEPTION(0x1020, WDTException, UnknownException)
+#endif
 #endif
 
 /* 0x1100 - Data TLB Miss Exception

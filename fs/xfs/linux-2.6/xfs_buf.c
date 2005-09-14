@@ -1780,10 +1780,10 @@ xfsbufd(
 			xfsbufd_force_sleep = 0;
 		}
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout((xfs_buf_timer_centisecs * HZ) / 100);
+		schedule_timeout_interruptible
+			(xfs_buf_timer_centisecs * msecs_to_jiffies(10));
 
-		age = (xfs_buf_age_centisecs * HZ) / 100;
+		age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
 		spin_lock(&pbd_delwrite_lock);
 		list_for_each_entry_safe(pb, n, &pbd_delwrite_queue, pb_list) {
 			PB_TRACE(pb, "walkq1", (long)pagebuf_ispin(pb));

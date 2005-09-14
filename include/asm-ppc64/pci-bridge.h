@@ -48,19 +48,52 @@ struct pci_controller {
 	unsigned long dma_window_size;
 };
 
+/*
+ * PCI stuff, for nodes representing PCI devices, pointed to
+ * by device_node->data.
+ */
+struct pci_controller;
+struct iommu_table;
+
+struct pci_dn {
+	int	busno;			/* for pci devices */
+	int	bussubno;		/* for pci devices */
+	int	devfn;			/* for pci devices */
+	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
+	int	eeh_config_addr;
+	int	eeh_capable;		/* from firmware */
+	int 	eeh_check_count;	/* # times driver ignored error */
+	int 	eeh_freeze_count;	/* # times this device froze up. */
+	int	eeh_is_bridge;		/* device is pci-to-pci bridge */
+
+	int	pci_ext_config_space;	/* for pci devices */
+	struct  pci_controller *phb;	/* for pci devices */
+	struct	iommu_table *iommu_table;	/* for phb's or bridges */
+	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
+	struct	device_node *node;	/* back-pointer to the device_node */
+	u32	config_space[16];	/* saved PCI config space */
+};
+
+/* Get the pointer to a device_node's pci_dn */
+#define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
+
 struct device_node *fetch_dev_dn(struct pci_dev *dev);
 
-/* Get a device_node from a pci_dev.  This code must be fast except in the case
- * where the sysdata is incorrect and needs to be fixed up (hopefully just once)
+/* Get a device_node from a pci_dev.  This code must be fast except
+ * in the case where the sysdata is incorrect and needs to be fixed
+ * up (this will only happen once).
+ * In this case the sysdata will have been inherited from a PCI host
+ * bridge or a PCI-PCI bridge further up the tree, so it will point
+ * to a valid struct pci_dn, just not the one we want.
  */
 static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
 {
 	struct device_node *dn = dev->sysdata;
+	struct pci_dn *pdn = dn->data;
 
-	if (dn->devfn == dev->devfn && dn->busno == dev->bus->number)
+	if (pdn && pdn->devfn == dev->devfn && pdn->busno == dev->bus->number)
 		return dn;	/* fast path.  sysdata is good */
-	else
-		return fetch_dev_dn(dev);
+	return fetch_dev_dn(dev);
 }
 
 static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
@@ -83,8 +116,13 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	struct device_node *busdn = bus->sysdata;
 
 	BUG_ON(busdn == NULL);
-	return busdn->phb;
+	return PCI_DN(busdn)->phb;
 }
+
+/* Return values for ppc_md.pci_probe_mode function */
+#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
+#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
+#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
 #endif
 #endif /* __KERNEL__ */

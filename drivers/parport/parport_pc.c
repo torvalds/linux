@@ -173,8 +173,7 @@ static int change_mode(struct parport *p, int m)
 				if (time_after_eq (jiffies, expire))
 					/* The FIFO is stuck. */
 					return -EBUSY;
-				__set_current_state (TASK_INTERRUPTIBLE);
-				schedule_timeout ((HZ + 99) / 100);
+				schedule_timeout_interruptible(msecs_to_jiffies(10));
 				if (signal_pending (current))
 					break;
 			}
@@ -3010,7 +3009,7 @@ static int __init parport_pc_init_superio (int autoirq, int autodma)
 	struct pci_dev *pdev = NULL;
 	int ret = 0;
 
-	while ((pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
+	for_each_pci_dev(pdev) {
 		id = pci_match_id(parport_pc_pci_tbl, pdev);
 		if (id == NULL || id->driver_data >= last_sio)
 			continue;

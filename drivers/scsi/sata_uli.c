@@ -176,18 +176,6 @@ static void uli_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	uli_scr_cfg_write(ap, sc_reg, val);
 }
 
-/* move to PCI layer, integrate w/ MSI stuff */
-static void pci_enable_intx(struct pci_dev *pdev)
-{
-	u16 pci_command;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-	if (pci_command & PCI_COMMAND_INTX_DISABLE) {
-		pci_command &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
-	}
-}
-
 static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct ata_probe_ent *probe_ent;
@@ -260,7 +248,7 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	pci_set_master(pdev);
-	pci_enable_intx(pdev);
+	pci_intx(pdev, 1);
 
 	/* FIXME: check ata_device_add return value */
 	ata_device_add(probe_ent);

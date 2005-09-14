@@ -99,6 +99,8 @@ extern int ntfs_attr_can_be_resident(const ntfs_volume *vol,
 		const ATTR_TYPE type);
 
 extern int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size);
+extern int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
+		const u32 new_size);
 
 extern int ntfs_attr_make_non_resident(ntfs_inode *ni);
 

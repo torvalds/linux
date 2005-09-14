@@ -3,16 +3,31 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/numa.h>
 #include "pci.h"
 
 struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int domain, int busnum)
 {
+	struct pci_bus *bus;
+
 	if (domain != 0) {
 		printk(KERN_WARNING "PCI: Multiple domains not supported\n");
 		return NULL;
 	}
 
-	return pcibios_scan_root(busnum);
+	bus = pcibios_scan_root(busnum);
+#ifdef CONFIG_ACPI_NUMA
+	if (bus != NULL) {
+		int pxm = acpi_get_pxm(device->handle);
+		if (pxm >= 0) {
+			bus->sysdata = (void *)(unsigned long)pxm_to_node(pxm);
+			printk("bus %d -> pxm %d -> node %ld\n",
+				busnum, pxm, (long)(bus->sysdata));
+		}
+	}
+#endif
+	
+	return bus;
 }
 
 extern int pci_routeirq;

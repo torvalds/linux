@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 
 	.text
@@ -1431,9 +1431,9 @@ _GLOBAL(sys_call_table)
 	.llong .sys_ni_syscall		/* 195 - 32bit only stat64 */
 	.llong .sys_ni_syscall		/* 32bit only lstat64 */
 	.llong .sys_ni_syscall		/* 32bit only fstat64 */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_read */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_write */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_iobase */
+	.llong .sys_pciconfig_read
+	.llong .sys_pciconfig_write
+	.llong .sys_pciconfig_iobase	/* 200 - pciconfig_iobase */
 	.llong .sys_ni_syscall		/* reserved for MacOnLinux */
 	.llong .sys_getdents64
 	.llong .sys_pivot_root

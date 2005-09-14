@@ -117,14 +117,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/console.h>
-#include <linux/selection.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
-#include <linux/kd.h>
-#include <linux/vt_kern.h>
 #include <linux/pagemap.h>
 #include <linux/version.h>
 
@@ -242,7 +238,7 @@ static int voffset	= 48;
 static char *mode       = NULL;
 
 module_param(accel, bool, S_IRUGO);
-MODULE_PARM_DESC(accel, "Enable console acceleration");
+MODULE_PARM_DESC(accel, "Enable hardware acceleration");
 module_param(vram, int, S_IRUGO);
 MODULE_PARM_DESC(vram, "System RAM to allocate to framebuffer in MiB");
 module_param(voffset, int, S_IRUGO);
@@ -498,7 +494,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct intelfb_info *dinfo;
-	int i, j, err, dvo;
+	int i, err, dvo;
 	int aperture_size, stolen_size;
 	struct agp_kern_info gtt_info;
 	int agp_memtype;
@@ -844,13 +840,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (bailearly == 5)
 		bailout(dinfo);
-
-	for (i = 0; i < 16; i++) {
-		j = color_table[i];
-		dinfo->palette[i].red = default_red[j];
-		dinfo->palette[i].green = default_grn[j];
-		dinfo->palette[i].blue = default_blu[j];
-	}
 
 	if (bailearly == 6)
 		bailout(dinfo);
@@ -1363,10 +1352,6 @@ intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			green >>= 8;
 			blue >>= 8;
 
-			dinfo->palette[regno].red = red;
-			dinfo->palette[regno].green = green;
-			dinfo->palette[regno].blue = blue;
-
 			intelfbhw_setcolreg(dinfo, regno, red, green, blue,
 					    transp);
 		}
@@ -1499,7 +1484,7 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 #endif
 
 	if (!dinfo->hwcursor)
-		return soft_cursor(info, cursor);
+		return -ENXIO;
 
 	intelfbhw_cursor_hide(dinfo);
 

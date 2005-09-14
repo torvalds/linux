@@ -3,7 +3,7 @@
  * object prelinked to its virtual address, and with only one read-only
  * segment (that fits in one page).  This script controls its layout.
  */
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 SECTIONS
 {

@@ -39,7 +39,11 @@ void pipe_wait(struct inode * inode)
 {
 	DEFINE_WAIT(wait);
 
-	prepare_to_wait(PIPE_WAIT(*inode), &wait, TASK_INTERRUPTIBLE);
+	/*
+	 * Pipes are system-local resources, so sleeping on them
+	 * is considered a noninteractive wait:
+	 */
+	prepare_to_wait(PIPE_WAIT(*inode), &wait, TASK_INTERRUPTIBLE|TASK_NONINTERACTIVE);
 	up(PIPE_SEM(*inode));
 	schedule();
 	finish_wait(PIPE_WAIT(*inode), &wait);

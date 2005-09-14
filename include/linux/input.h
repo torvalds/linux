@@ -289,6 +289,8 @@ struct input_absinfo {
 #define KEY_SCROLLDOWN		178
 #define KEY_KPLEFTPAREN		179
 #define KEY_KPRIGHTPAREN	180
+#define KEY_NEW			181
+#define KEY_REDO		182
 
 #define KEY_F13			183
 #define KEY_F14			184
@@ -334,6 +336,12 @@ struct input_absinfo {
 #define KEY_KBDILLUMTOGGLE	228
 #define KEY_KBDILLUMDOWN	229
 #define KEY_KBDILLUMUP		230
+
+#define KEY_SEND		231
+#define KEY_REPLY		232
+#define KEY_FORWARDMAIL		233
+#define KEY_SAVE		234
+#define KEY_DOCUMENTS		235
 
 #define KEY_UNKNOWN		240
 

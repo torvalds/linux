@@ -23,7 +23,11 @@
  * and page free order so much..
  */
 #ifdef CONFIG_SMP
-  #define FREE_PTE_NR	506
+  #ifdef ARCH_FREE_PTR_NR
+    #define FREE_PTR_NR   ARCH_FREE_PTR_NR
+  #else
+    #define FREE_PTE_NR	506
+  #endif
   #define tlb_fast_mode(tlb) ((tlb)->nr == ~0U)
 #else
   #define FREE_PTE_NR	1

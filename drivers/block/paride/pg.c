@@ -276,8 +276,7 @@ static inline u8 DRIVE(struct pg *dev)
 
 static void pg_sleep(int cs)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(cs);
+	schedule_timeout_interruptible(cs);
 }
 
 static int pg_wait(struct pg *dev, int go, int stop, unsigned long tmo, char *msg)

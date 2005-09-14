@@ -445,10 +445,8 @@ static void cpia_usb_free_resources(struct usb_cpia *ucpia, int try)
 		ucpia->sbuf[1].urb = NULL;
 	}
 
-	if (ucpia->sbuf[1].data) {
-		kfree(ucpia->sbuf[1].data);
-		ucpia->sbuf[1].data = NULL;
-	}
+	kfree(ucpia->sbuf[1].data);
+	ucpia->sbuf[1].data = NULL;
  
 	if (ucpia->sbuf[0].urb) {
 		usb_kill_urb(ucpia->sbuf[0].urb);
@@ -456,10 +454,8 @@ static void cpia_usb_free_resources(struct usb_cpia *ucpia, int try)
 		ucpia->sbuf[0].urb = NULL;
 	}
 
-	if (ucpia->sbuf[0].data) {
-		kfree(ucpia->sbuf[0].data);
-		ucpia->sbuf[0].data = NULL;
-	}
+	kfree(ucpia->sbuf[0].data);
+	ucpia->sbuf[0].data = NULL;
 }
 
 static int cpia_usb_close(void *privdata)
@@ -623,20 +619,14 @@ static void cpia_disconnect(struct usb_interface *intf)
 
 	ucpia->curbuff = ucpia->workbuff = NULL;
 
-	if (ucpia->buffers[2]) {
-		vfree(ucpia->buffers[2]);
-		ucpia->buffers[2] = NULL;
-	}
+	vfree(ucpia->buffers[2]);
+	ucpia->buffers[2] = NULL;
 
-	if (ucpia->buffers[1]) {
-		vfree(ucpia->buffers[1]);
-		ucpia->buffers[1] = NULL;
-	}
+	vfree(ucpia->buffers[1]);
+	ucpia->buffers[1] = NULL;
 
-	if (ucpia->buffers[0]) {
-		vfree(ucpia->buffers[0]);
-		ucpia->buffers[0] = NULL;
-	}
+	vfree(ucpia->buffers[0]);
+	ucpia->buffers[0] = NULL;
 
 	cam->lowlevel_data = NULL;
 	kfree(ucpia);

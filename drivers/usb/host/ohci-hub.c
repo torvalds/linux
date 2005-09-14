@@ -184,7 +184,7 @@ static int ohci_hub_resume (struct usb_hcd *hcd)
 	if (status != -EINPROGRESS)
 		return status;
 
-	temp = roothub_a (ohci) & RH_A_NDP;
+	temp = ohci->num_ports;
 	enables = 0;
 	while (temp--) {
 		u32 stat = ohci_readl (ohci,
@@ -304,7 +304,7 @@ static int
 ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
-	int		ports, i, changed = 0, length = 1;
+	int		i, changed = 0, length = 1;
 	int		can_suspend = hcd->can_wakeup;
 	unsigned long	flags;
 
@@ -319,9 +319,10 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		goto done;
 	}
 
-	ports = roothub_a (ohci) & RH_A_NDP; 
-	if (ports > MAX_ROOT_PORTS) {
-		ohci_err (ohci, "bogus NDP=%d, rereads as NDP=%d\n", ports,
+	/* undocumented erratum seen on at least rev D */
+	if ((ohci->flags & OHCI_QUIRK_AMD756)
+			&& (roothub_a (ohci) & RH_A_NDP) > MAX_ROOT_PORTS) {
+		ohci_warn (ohci, "bogus NDP, rereads as NDP=%d\n",
 			  ohci_readl (ohci, &ohci->regs->roothub.a) & RH_A_NDP);
 		/* retry later; "should not happen" */
 		goto done;
@@ -332,13 +333,13 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		buf [0] = changed = 1;
 	else
 		buf [0] = 0;
-	if (ports > 7) {
+	if (ohci->num_ports > 7) {
 		buf [1] = 0;
 		length++;
 	}
 
 	/* look at each port */
-	for (i = 0; i < ports; i++) {
+	for (i = 0; i < ohci->num_ports; i++) {
 		u32	status = roothub_portstatus (ohci, i);
 
 		if (status & (RH_PS_CSC | RH_PS_PESC | RH_PS_PSSC
@@ -395,15 +396,14 @@ ohci_hub_descriptor (
 	struct usb_hub_descriptor	*desc
 ) {
 	u32		rh = roothub_a (ohci);
-	int		ports = rh & RH_A_NDP; 
 	u16		temp;
 
 	desc->bDescriptorType = 0x29;
 	desc->bPwrOn2PwrGood = (rh & RH_A_POTPGT) >> 24;
 	desc->bHubContrCurrent = 0;
 
-	desc->bNbrPorts = ports;
-	temp = 1 + (ports / 8);
+	desc->bNbrPorts = ohci->num_ports;
+	temp = 1 + (ohci->num_ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
 	temp = 0;
@@ -421,7 +421,7 @@ ohci_hub_descriptor (
 	rh = roothub_b (ohci);
 	memset(desc->bitmap, 0xff, sizeof(desc->bitmap));
 	desc->bitmap [0] = rh & RH_B_DR;
-	if (ports > 7) {
+	if (ohci->num_ports > 7) {
 		desc->bitmap [1] = (rh & RH_B_DR) >> 8;
 		desc->bitmap [2] = 0xff;
 	} else

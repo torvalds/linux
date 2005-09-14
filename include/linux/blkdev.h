@@ -728,7 +728,7 @@ static inline unsigned int blksize_bits(unsigned int size)
 	return bits;
 }
 
-extern inline unsigned int block_size(struct block_device *bdev)
+static inline unsigned int block_size(struct block_device *bdev)
 {
 	return bdev->bd_block_size;
 }

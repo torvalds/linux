@@ -63,8 +63,13 @@ struct timer_list mcfrs_timer_struct;
 #endif
 
 #if defined(CONFIG_HW_FEITH)
-  #define	CONSOLE_BAUD_RATE	38400
-  #define	DEFAULT_CBAUD		B38400
+#define	CONSOLE_BAUD_RATE	38400
+#define	DEFAULT_CBAUD		B38400
+#endif
+
+#if defined(CONFIG_MOD5272)
+#define CONSOLE_BAUD_RATE 	115200
+#define DEFAULT_CBAUD		B115200
 #endif
 
 #ifndef CONSOLE_BAUD_RATE
@@ -90,7 +95,7 @@ static struct tty_driver *mcfrs_serial_driver;
 #undef SERIAL_DEBUG_OPEN
 #undef SERIAL_DEBUG_FLOW
 
-#if defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 #define	IRQBASE	(MCFINT_VECBASE+MCFINT_UART0)
 #else
 #define	IRQBASE	73
@@ -1510,7 +1515,7 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 	*portp = (*portp & ~0x000000ff) | 0x00000055;
 	portp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_PDCNT);
 	*portp = (*portp & ~0x000003fc) | 0x000002a8;
-#elif defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#elif defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 	volatile unsigned char *icrp, *uartp;
 	volatile unsigned long *imrp;
 

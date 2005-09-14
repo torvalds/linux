@@ -32,6 +32,8 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
+extern unsigned long end_pfn;
+
 void clear_page(void *);
 void copy_page(void *, void *);
 
@@ -111,7 +113,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
-#define pfn_valid(pfn)		((pfn) < max_mapnr)
+#define pfn_valid(pfn)		((pfn) < end_pfn)
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

@@ -3713,6 +3713,7 @@ static void fsg_unbind(struct usb_gadget *gadget)
 static int __init check_parameters(struct fsg_dev *fsg)
 {
 	int	prot;
+	int	gcnum;
 
 	/* Store the default values */
 	mod_data.transport_type = USB_PR_BULK;
@@ -3724,33 +3725,13 @@ static int __init check_parameters(struct fsg_dev *fsg)
 		mod_data.can_stall = 0;
 
 	if (mod_data.release == 0xffff) {	// Parameter wasn't set
-		if (gadget_is_net2280(fsg->gadget))
-			mod_data.release = 0x0301;
-		else if (gadget_is_dummy(fsg->gadget))
-			mod_data.release = 0x0302;
-		else if (gadget_is_pxa(fsg->gadget))
-			mod_data.release = 0x0303;
-		else if (gadget_is_sh(fsg->gadget))
-			mod_data.release = 0x0304;
-
 		/* The sa1100 controller is not supported */
-
-		else if (gadget_is_goku(fsg->gadget))
-			mod_data.release = 0x0306;
-		else if (gadget_is_mq11xx(fsg->gadget))
-			mod_data.release = 0x0307;
-		else if (gadget_is_omap(fsg->gadget))
-			mod_data.release = 0x0308;
-		else if (gadget_is_lh7a40x(fsg->gadget))
-			mod_data.release = 0x0309;
-		else if (gadget_is_n9604(fsg->gadget))
-			mod_data.release = 0x0310;
-		else if (gadget_is_pxa27x(fsg->gadget))
-			mod_data.release = 0x0311;
-		else if (gadget_is_s3c2410(gadget))
-			mod_data.release = 0x0312;
-		else if (gadget_is_at91(fsg->gadget))
-			mod_data.release = 0x0313;
+		if (gadget_is_sa1100(fsg->gadget))
+			gcnum = -1;
+		else
+			gcnum = usb_gadget_controller_number(fsg->gadget);
+		if (gcnum >= 0)
+			mod_data.release = 0x0300 + gcnum;
 		else {
 			WARN(fsg, "controller '%s' not recognized\n",
 				fsg->gadget->name);

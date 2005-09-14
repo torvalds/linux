@@ -51,10 +51,10 @@ static void cluster_init_apic_ldr(void)
 		count = 3;
 	id = my_cluster | (1UL << count);
 	x86_cpu_to_log_apicid[smp_processor_id()] = id;
-	apic_write_around(APIC_DFR, APIC_DFR_CLUSTER);
+	apic_write(APIC_DFR, APIC_DFR_CLUSTER);
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
 	val |= SET_APIC_LOGICAL_ID(id);
-	apic_write_around(APIC_LDR, val);
+	apic_write(APIC_LDR, val);
 }
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */

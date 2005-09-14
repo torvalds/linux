@@ -8,7 +8,7 @@ is that since there is only one CPU, it should not be necessary to
 wait for anything else to get done, since there are no other CPUs for
 anything else to be happening on.  Although this approach will -sort- -of-
 work a surprising amount of the time, it is a very bad idea in general.
-This document presents two examples that demonstrate exactly how bad an
+This document presents three examples that demonstrate exactly how bad an
 idea this is.
 
 
@@ -25,6 +25,9 @@ Now, if call_rcu() were to directly invoke its arguments, then upon return
 from softirq, the list scan would find itself referencing a newly freed
 element B.  This situation can greatly decrease the life expectancy of
 your kernel.
+
+This same problem can occur if call_rcu() is invoked from a hardware
+interrupt handler.
 
 
 Example 2: Function-Call Fatality
@@ -44,8 +47,37 @@ its arguments would cause it to fail to make the fundamental guarantee
 underlying RCU, namely that call_rcu() defers invoking its arguments until
 all RCU read-side critical sections currently executing have completed.
 
-Quick Quiz: why is it -not- legal to invoke synchronize_rcu() in
-this case?
+Quick Quiz #1: why is it -not- legal to invoke synchronize_rcu() in
+	this case?
+
+
+Example 3: Death by Deadlock
+
+Suppose that call_rcu() is invoked while holding a lock, and that the
+callback function must acquire this same lock.  In this case, if
+call_rcu() were to directly invoke the callback, the result would
+be self-deadlock.
+
+In some cases, it would possible to restructure to code so that
+the call_rcu() is delayed until after the lock is released.  However,
+there are cases where this can be quite ugly:
+
+1.	If a number of items need to be passed to call_rcu() within
+	the same critical section, then the code would need to create
+	a list of them, then traverse the list once the lock was
+	released.
+
+2.	In some cases, the lock will be held across some kernel API,
+	so that delaying the call_rcu() until the lock is released
+	requires that the data item be passed up via a common API.
+	It is far better to guarantee that callbacks are invoked
+	with no locks held than to have to modify such APIs to allow
+	arbitrary data items to be passed back up through them.
+
+If call_rcu() directly invokes the callback, painful locking restrictions
+or API changes would be required.
+
+Quick Quiz #2: What locking restriction must RCU callbacks respect?
 
 
 Summary
@@ -53,12 +85,35 @@ Summary
 Permitting call_rcu() to immediately invoke its arguments or permitting
 synchronize_rcu() to immediately return breaks RCU, even on a UP system.
 So do not do it!  Even on a UP system, the RCU infrastructure -must-
-respect grace periods.
+respect grace periods, and -must- invoke callbacks from a known environment
+in which no locks are held.
 
 
-Answer to Quick Quiz
+Answer to Quick Quiz #1:
+	Why is it -not- legal to invoke synchronize_rcu() in this case?
 
-The calling function is scanning an RCU-protected linked list, and
-is therefore within an RCU read-side critical section.  Therefore,
-the called function has been invoked within an RCU read-side critical
-section, and is not permitted to block.
+	Because the calling function is scanning an RCU-protected linked
+	list, and is therefore within an RCU read-side critical section.
+	Therefore, the called function has been invoked within an RCU
+	read-side critical section, and is not permitted to block.
+
+Answer to Quick Quiz #2:
+	What locking restriction must RCU callbacks respect?
+
+	Any lock that is acquired within an RCU callback must be
+	acquired elsewhere using an _irq variant of the spinlock
+	primitive.  For example, if "mylock" is acquired by an
+	RCU callback, then a process-context acquisition of this
+	lock must use something like spin_lock_irqsave() to
+	acquire the lock.
+
+	If the process-context code were to simply use spin_lock(),
+	then, since RCU callbacks can be invoked from softirq context,
+	the callback might be called from a softirq that interrupted
+	the process-context critical section.  This would result in
+	self-deadlock.
+
+	This restriction might seem gratuitous, since very few RCU
+	callbacks acquire locks directly.  However, a great many RCU
+	callbacks do acquire locks -indirectly-, for example, via
+	the kfree() primitive.

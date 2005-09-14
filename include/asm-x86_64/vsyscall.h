@@ -29,7 +29,6 @@ enum vsyscall_num {
 
 struct vxtime_data {
 	long hpet_address;	/* HPET base address */
-	unsigned long hz;	/* HPET clocks / sec */
 	int last;
 	unsigned long last_tsc;
 	long quot;

@@ -439,10 +439,7 @@ static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 	}
     	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
 		/* PCI Express Endpoint device detected */
-		u16 cmd;
-		pci_read_config_word(dev, PCI_COMMAND, &cmd);
-		cmd |= PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
+		pci_intx(dev, 0);  /* disable intx */
 	}
 }
 
@@ -461,10 +458,7 @@ void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 	}
     	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
 		/* PCI Express Endpoint device detected */
-		u16 cmd;
-		pci_read_config_word(dev, PCI_COMMAND, &cmd);
-		cmd &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
+		pci_intx(dev, 1);  /* enable intx */
 	}
 }
 

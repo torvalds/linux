@@ -60,6 +60,8 @@ int sis_apic_bug = -1;
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
+int disable_timer_pin_1 __initdata;
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
@@ -573,8 +575,7 @@ static int balanced_irq(void *unused)
 	}
 
 	for ( ; ; ) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		time_remaining = schedule_timeout(time_remaining);
+		time_remaining = schedule_timeout_interruptible(time_remaining);
 		try_to_freeze();
 		if (time_after(jiffies,
 				prev_balance_time+balanced_irq_interval)) {
@@ -1634,9 +1635,9 @@ void disable_IO_APIC(void)
 	clear_IO_APIC();
 
 	/*
-	 * If the i82559 is routed through an IOAPIC
+	 * If the i8259 is routed through an IOAPIC
 	 * Put that IOAPIC in virtual wire mode
-	 * so legacy interrups can be delivered.
+	 * so legacy interrupts can be delivered.
 	 */
 	pin = find_isa_irq_pin(0, mp_ExtINT);
 	if (pin != -1) {
@@ -2212,6 +2213,8 @@ static inline void check_timer(void)
 				setup_nmi();
 				enable_8259A_irq(0);
 			}
+			if (disable_timer_pin_1 > 0)
+				clear_IO_APIC_pin(0, pin1);
 			return;
 		}
 		clear_IO_APIC_pin(0, pin1);
@@ -2423,7 +2426,7 @@ device_initcall(ioapic_init_sysfs);
                           ACPI-based IOAPIC Configuration
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 int __init io_apic_get_unique_id (int ioapic, int apic_id)
 {
@@ -2577,4 +2580,4 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	return 0;
 }
 
-#endif /*CONFIG_ACPI_BOOT*/
+#endif /* CONFIG_ACPI */

@@ -1,5 +1,4 @@
 /*
- * $Id: ir-kbd-gpio.c,v 1.13 2005/05/15 19:01:26 mchehab Exp $
  *
  * Copyright (c) 2003 Gerd Knorr
  * Copyright (c) 2003 Pavel Machek
@@ -354,6 +353,7 @@ static int ir_probe(struct device *dev)
 		ir->input.id.vendor  = sub->core->pci->vendor;
 		ir->input.id.product = sub->core->pci->device;
 	}
+	ir->input.dev = &sub->core->pci->dev;
 
 	if (ir->polling) {
 		INIT_WORK(&ir->work, ir_work, ir);

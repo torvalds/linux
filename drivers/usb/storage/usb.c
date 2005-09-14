@@ -90,7 +90,9 @@
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 #include "jumpshot.h"
 #endif
-
+#ifdef CONFIG_USB_STORAGE_ONETOUCH
+#include "onetouch.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -390,10 +392,15 @@ SkipForAbort:
 		/* If an abort request was received we need to signal that
 		 * the abort has finished.  The proper test for this is
 		 * the TIMED_OUT flag, not srb->result == DID_ABORT, because
-		 * a timeout/abort request might be received after all the
-		 * USB processing was complete. */
-		if (test_bit(US_FLIDX_TIMED_OUT, &us->flags))
+		 * the timeout might have occurred after the command had
+		 * already completed with a different result code. */
+		if (test_bit(US_FLIDX_TIMED_OUT, &us->flags)) {
 			complete(&(us->notify));
+
+			/* Allow USB transfers to resume */
+			clear_bit(US_FLIDX_ABORTING, &us->flags);
+			clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
+		}
 
 		/* finished working on this command */
 		us->srb = NULL;
@@ -786,6 +793,7 @@ static void usb_stor_release_resources(struct us_data *us)
 	 * any more commands.
 	 */
 	US_DEBUGP("-- sending exit command to thread\n");
+	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
 	up(&us->sema);
 
 	/* Call the destructor routine, if it exists */
@@ -814,6 +822,49 @@ static void dissociate_dev(struct us_data *us)
 
 	/* Remove our private data from the interface */
 	usb_set_intfdata(us->pusb_intf, NULL);
+}
+
+/* First stage of disconnect processing: stop all commands and remove
+ * the host */
+static void quiesce_and_remove_host(struct us_data *us)
+{
+	/* Prevent new USB transfers, stop the current command, and
+	 * interrupt a SCSI-scan or device-reset delay */
+	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
+	usb_stor_stop_transport(us);
+	wake_up(&us->delay_wait);
+
+	/* It doesn't matter if the SCSI-scanning thread is still running.
+	 * The thread will exit when it sees the DISCONNECTING flag. */
+
+	/* Wait for the current command to finish, then remove the host */
+	down(&us->dev_semaphore);
+	up(&us->dev_semaphore);
+
+	/* queuecommand won't accept any new commands and the control
+	 * thread won't execute a previously-queued command.  If there
+	 * is such a command pending, complete it with an error. */
+	if (us->srb) {
+		us->srb->result = DID_NO_CONNECT << 16;
+		scsi_lock(us_to_host(us));
+		us->srb->scsi_done(us->srb);
+		us->srb = NULL;
+		scsi_unlock(us_to_host(us));
+	}
+
+	/* Now we own no commands so it's safe to remove the SCSI host */
+	scsi_remove_host(us_to_host(us));
+}
+
+/* Second stage of disconnect processing: deallocate all resources */
+static void release_everything(struct us_data *us)
+{
+	usb_stor_release_resources(us);
+	dissociate_dev(us);
+
+	/* Drop our reference to the host; the SCSI core will free it
+	 * (and "us" along with it) when the refcount becomes 0. */
+	scsi_host_put(us_to_host(us));
 }
 
 /* Thread to carry out delayed SCSI-device scanning */
@@ -956,7 +1007,7 @@ static int storage_probe(struct usb_interface *intf,
 	if (result < 0) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start the device-scanning thread\n");
-		scsi_remove_host(host);
+		quiesce_and_remove_host(us);
 		goto BadDevice;
 	}
 	atomic_inc(&total_threads);
@@ -969,10 +1020,7 @@ static int storage_probe(struct usb_interface *intf,
 	/* We come here if there are any problems */
 BadDevice:
 	US_DEBUGP("storage_probe() failed\n");
-	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
-	usb_stor_release_resources(us);
-	dissociate_dev(us);
-	scsi_host_put(host);
+	release_everything(us);
 	return result;
 }
 
@@ -982,28 +1030,8 @@ static void storage_disconnect(struct usb_interface *intf)
 	struct us_data *us = usb_get_intfdata(intf);
 
 	US_DEBUGP("storage_disconnect() called\n");
-
-	/* Prevent new USB transfers, stop the current command, and
-	 * interrupt a SCSI-scan or device-reset delay */
-	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
-	usb_stor_stop_transport(us);
-	wake_up(&us->delay_wait);
-
-	/* It doesn't matter if the SCSI-scanning thread is still running.
-	 * The thread will exit when it sees the DISCONNECTING flag. */
-
-	/* Wait for the current command to finish, then remove the host */
-	down(&us->dev_semaphore);
-	up(&us->dev_semaphore);
-	scsi_remove_host(us_to_host(us));
-
-	/* Wait for everything to become idle and release all our resources */
-	usb_stor_release_resources(us);
-	dissociate_dev(us);
-
-	/* Drop our reference to the host; the SCSI core will free it
-	 * (and "us" along with it) when the refcount becomes 0. */
-	scsi_host_put(us_to_host(us));
+	quiesce_and_remove_host(us);
+	release_everything(us);
 }
 
 /***********************************************************************

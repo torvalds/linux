@@ -78,6 +78,7 @@ enum psmouse_type {
 	PSMOUSE_SYNAPTICS,
 	PSMOUSE_ALPS,
 	PSMOUSE_LIFEBOOK,
+	PSMOUSE_TRACKPOINT,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
@@ -85,24 +86,37 @@ int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);
 int psmouse_reset(struct psmouse *psmouse);
 void psmouse_set_resolution(struct psmouse *psmouse, unsigned int resolution);
 
-ssize_t psmouse_attr_show_helper(struct device *dev, char *buf,
-			ssize_t (*handler)(struct psmouse *, char *));
-ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t count,
-			ssize_t (*handler)(struct psmouse *, const char *, size_t));
 
-#define PSMOUSE_DEFINE_ATTR(_name)						\
-static ssize_t psmouse_attr_show_##_name(struct psmouse *, char *);		\
-static ssize_t psmouse_attr_set_##_name(struct psmouse *, const char *, size_t);\
-static ssize_t psmouse_do_show_##_name(struct device *d, struct device_attribute *attr, char *b)		\
-{										\
-	return psmouse_attr_show_helper(d, b, psmouse_attr_show_##_name);	\
-}										\
-static ssize_t psmouse_do_set_##_name(struct device *d, struct device_attribute *attr, const char *b, size_t s)\
-{										\
-	return psmouse_attr_set_helper(d, b, s, psmouse_attr_set_##_name);	\
-}										\
-static struct device_attribute psmouse_attr_##_name =				\
-	__ATTR(_name, S_IWUSR | S_IRUGO,					\
-		psmouse_do_show_##_name, psmouse_do_set_##_name);
+struct psmouse_attribute {
+	struct device_attribute dattr;
+	void *data;
+	ssize_t (*show)(struct psmouse *psmouse, void *data, char *buf);
+	ssize_t (*set)(struct psmouse *psmouse, void *data,
+			const char *buf, size_t count);
+};
+#define to_psmouse_attr(a)	container_of((a), struct psmouse_attribute, dattr)
+
+ssize_t psmouse_attr_show_helper(struct device *dev, struct device_attribute *attr,
+				 char *buf);
+ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count);
+
+#define PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set)			\
+static ssize_t _show(struct psmouse *, void *data, char *);			\
+static ssize_t _set(struct psmouse *, void *data, const char *, size_t);	\
+static struct psmouse_attribute psmouse_attr_##_name = {			\
+	.dattr	= {								\
+		.attr	= {							\
+			.name	= __stringify(_name),				\
+			.mode	= _mode,					\
+			.owner	= THIS_MODULE,					\
+		},								\
+		.show	= psmouse_attr_show_helper,				\
+		.store	= psmouse_attr_set_helper,				\
+	},									\
+	.data	= _data,							\
+	.show	= _show,							\
+	.set	= _set,								\
+}
 
 #endif /* _PSMOUSE_H */

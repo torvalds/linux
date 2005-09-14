@@ -17,23 +17,6 @@ Who:	Greg Kroah-Hartman <greg@kroah.com>
 
 ---------------------------
 
-What:	ACPI S4bios support
-When:	May 2005
-Why:	Noone uses it, and it probably does not work, anyway. swsusp is
-	faster, more reliable, and people are actually using it.
-Who:	Pavel Machek <pavel@suse.cz>
-
----------------------------
-
-What:	PCI Name Database (CONFIG_PCI_NAMES)
-When:	July 2005
-Why:	It bloats the kernel unnecessarily, and is handled by userspace better
-	(pciutils supports it.)  Will eliminate the need to try to keep the
-	pci.ids file in sync with the sf.net database all of the time.
-Who:	Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
 What:	io_remap_page_range() (macro or function)
 When:	September 2005
 Why:	Replaced by io_remap_pfn_range() which allows more memory space

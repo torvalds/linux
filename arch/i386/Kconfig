@@ -1212,7 +1212,6 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool
 	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
-	select ACPI_BOOT
 	default y
 
 source "drivers/pci/pcie/Kconfig"

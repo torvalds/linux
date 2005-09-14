@@ -228,7 +228,10 @@ struct av7110 {
 	struct dvb_video_events  video_events;
 	video_size_t		 video_size;
 
-	u32		    ir_config;
+	u32			ir_config;
+	u32			ir_command;
+	void			(*ir_handler)(struct av7110 *av7110, u32 ircom);
+	struct tasklet_struct	ir_tasklet;
 
 	/* firmware stuff */
 	unsigned char *bin_fw;
@@ -257,12 +260,10 @@ struct av7110 {
 extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		       u16 subpid, u16 pcrpid);
 
-extern void av7110_register_irc_handler(void (*func)(u32));
-extern void av7110_unregister_irc_handler(void (*func)(u32));
 extern int av7110_setup_irc_config (struct av7110 *av7110, u32 ir_config);
 
-extern int av7110_ir_init (void);
-extern void av7110_ir_exit (void);
+extern int av7110_ir_init(struct av7110 *av7110);
+extern void av7110_ir_exit(struct av7110 *av7110);
 
 /* msp3400 i2c subaddresses */
 #define MSP_WR_DEM 0x10

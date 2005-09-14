@@ -1340,8 +1340,7 @@ int journal_stop(handle_t *handle)
 	if (handle->h_sync) {
 		do {
 			old_handle_count = transaction->t_handle_count;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (old_handle_count != transaction->t_handle_count);
 	}
 

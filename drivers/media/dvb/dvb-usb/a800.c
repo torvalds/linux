@@ -90,7 +90,7 @@ static struct dvb_usb_properties a800_properties;
 static int a800_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&a800_properties,THIS_MODULE);
+	return dvb_usb_device_init(intf,&a800_properties,THIS_MODULE,NULL);
 }
 
 /* do not change the order of the ID table */

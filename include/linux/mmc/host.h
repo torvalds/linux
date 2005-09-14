@@ -109,6 +109,8 @@ struct mmc_host {
 	struct mmc_card		*card_selected;	/* the selected MMC card */
 
 	struct work_struct	detect;
+
+	unsigned long		private[0] ____cacheline_aligned;
 };
 
 extern struct mmc_host *mmc_alloc_host(int extra, struct device *);
@@ -116,14 +118,18 @@ extern int mmc_add_host(struct mmc_host *);
 extern void mmc_remove_host(struct mmc_host *);
 extern void mmc_free_host(struct mmc_host *);
 
-#define mmc_priv(x)	((void *)((x) + 1))
+static inline void *mmc_priv(struct mmc_host *host)
+{
+	return (void *)host->private;
+}
+
 #define mmc_dev(x)	((x)->dev)
 #define mmc_hostname(x)	((x)->class_dev.class_id)
 
 extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);
 
-extern void mmc_detect_change(struct mmc_host *);
+extern void mmc_detect_change(struct mmc_host *, unsigned long delay);
 extern void mmc_request_done(struct mmc_host *, struct mmc_request *);
 
 #endif

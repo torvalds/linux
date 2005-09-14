@@ -383,6 +383,7 @@ struct ohci_hcd {
 	/*
 	 * driver state
 	 */
+	int			num_ports;
 	int			load [NUM_INTS];
 	u32 			hc_control;	/* copy of hc control reg */
 	unsigned long		next_statechange;	/* suspend/resume */

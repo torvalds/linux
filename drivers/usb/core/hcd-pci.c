@@ -121,10 +121,6 @@ int usb_hcd_pci_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		}
 	}
 
-#ifdef CONFIG_PCI_NAMES
-	hcd->product_desc = dev->pretty_name;
-#endif
-
 	pci_set_master (dev);
 
 	retval = usb_add_hcd (hcd, dev->irq, SA_SHIRQ);
@@ -264,8 +260,10 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 		retval = pci_set_power_state (dev, PCI_D3hot);
 		if (retval == 0) {
 			dev_dbg (hcd->self.controller, "--> PCI D3\n");
-			pci_enable_wake (dev, PCI_D3hot, hcd->remote_wakeup);
-			pci_enable_wake (dev, PCI_D3cold, hcd->remote_wakeup);
+			retval = pci_enable_wake (dev, PCI_D3hot, hcd->remote_wakeup);
+			if (retval)
+				break;
+			retval = pci_enable_wake (dev, PCI_D3cold, hcd->remote_wakeup);
 		} else if (retval < 0) {
 			dev_dbg (&dev->dev, "PCI D3 suspend fail, %d\n",
 					retval);
@@ -339,8 +337,20 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 				dev->current_state);
 		}
 #endif
-		pci_enable_wake (dev, dev->current_state, 0);
-		pci_enable_wake (dev, PCI_D3cold, 0);
+		retval = pci_enable_wake (dev, dev->current_state, 0);
+		if (retval) {
+			dev_err(hcd->self.controller,
+				"can't enable_wake to %d, %d!\n",
+				dev->current_state, retval);
+			return retval;
+		}
+		retval = pci_enable_wake (dev, PCI_D3cold, 0);
+		if (retval) {
+			dev_err(hcd->self.controller,
+				"can't enable_wake to %d, %d!\n",
+				PCI_D3cold, retval);
+			return retval;
+		}
 	} else {
 		/* Same basic cases: clean (powered/not), dirty */
 		dev_dbg(hcd->self.controller, "PCI legacy resume\n");
@@ -380,7 +390,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 		usb_hc_died (hcd);
 	}
 
-	pci_enable_device(dev);
+	retval = pci_enable_device(dev);
 	return retval;
 }
 EXPORT_SYMBOL (usb_hcd_pci_resume);

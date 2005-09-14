@@ -228,23 +228,23 @@ static void shutdown_bigsur_irq(unsigned int irq)
 
 /* Define the IRQ structures for the L1 and L2 IRQ types */
 static struct hw_interrupt_type bigsur_l1irq_type = {
-        "BigSur-CPLD-Level1-IRQ",
-        startup_bigsur_irq,
-        shutdown_bigsur_irq,
-        enable_bigsur_l1irq,
-        disable_bigsur_l1irq,
-        mask_and_ack_bigsur,
-        end_bigsur_irq
+	.typename  = "BigSur-CPLD-Level1-IRQ",
+	.startup = startup_bigsur_irq,
+	.shutdown = shutdown_bigsur_irq,
+	.enable = enable_bigsur_l1irq,
+	.disable = disable_bigsur_l1irq,
+	.ack = mask_and_ack_bigsur,
+	.end = end_bigsur_irq
 };
 
 static struct hw_interrupt_type bigsur_l2irq_type = {
-        "BigSur-CPLD-Level2-IRQ",
-        startup_bigsur_irq,
-        shutdown_bigsur_irq,
-        enable_bigsur_l2irq,
-        disable_bigsur_l2irq,
-        mask_and_ack_bigsur,
-        end_bigsur_irq
+	.typename  = "BigSur-CPLD-Level2-IRQ",
+	.startup = startup_bigsur_irq,
+	.shutdown  =shutdown_bigsur_irq,
+	.enable = enable_bigsur_l2irq,
+	.disable = disable_bigsur_l2irq,
+	.ack = mask_and_ack_bigsur,
+	.end = end_bigsur_irq
 };
 
 

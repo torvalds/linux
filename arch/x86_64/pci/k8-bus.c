@@ -58,10 +58,16 @@ fill_mp_bus_to_cpumask(void)
 				for (j = SECONDARY_LDT_BUS_NUMBER(ldtbus);
 				     j <= SUBORDINATE_LDT_BUS_NUMBER(ldtbus);
 				     j++) { 
-					int node = NODE_ID(nid);
+					struct pci_bus *bus;
+					long node = NODE_ID(nid);
+					/* Algorithm a bit dumb, but
+ 					   it shouldn't matter here */
+					bus = pci_find_bus(0, j);
+					if (!bus)
+						continue;
 					if (!node_online(node))
 						node = 0;
-					pci_bus_to_node[j] = node;
+					bus->sysdata = (void *)node;
 				}		
 			}
 		}
