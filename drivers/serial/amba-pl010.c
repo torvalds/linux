@@ -689,7 +689,7 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver amba_reg;
+static struct uart_driver amba_reg;
 static struct console amba_console = {
 	.name		= "ttyAM",
 	.write		= pl010_console_write,
