@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_main.c ($Revision: 1.214 $)
+ * linux/drivers/s390/net/qeth_main.c ($Revision: 1.219 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  *
@@ -12,7 +12,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Thomas Spatzier <tspat@de.ibm.com>
  *
- *    $Revision: 1.214 $	 $Date: 2005/05/04 20:19:18 $
+ *    $Revision: 1.219 $	 $Date: 2005/05/04 20:19:18 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ qeth_eyecatcher(void)
 #include "qeth_eddp.h"
 #include "qeth_tso.h"
 
-#define VERSION_QETH_C "$Revision: 1.214 $"
+#define VERSION_QETH_C "$Revision: 1.219 $"
 static const char *version = "qeth S/390 OSA-Express driver";
 
 /**
@@ -3795,12 +3795,16 @@ static inline int
 qeth_prepare_skb(struct qeth_card *card, struct sk_buff **skb,
 		 struct qeth_hdr **hdr, int ipv)
 {
+	int rc;
 #ifdef CONFIG_QETH_VLAN
 	u16 *tag;
 #endif
 
 	QETH_DBF_TEXT(trace, 6, "prepskb");
 
+        rc = qeth_realloc_headroom(card, skb, sizeof(struct qeth_hdr));
+        if (rc)
+                return rc;
 #ifdef CONFIG_QETH_VLAN
 	if (card->vlangrp && vlan_tx_tag_present(*skb) &&
 	    ((ipv == 6) || card->options.layer2) ) {
@@ -4251,7 +4255,8 @@ out:
 }
 
 static inline int
-qeth_get_elements_no(struct qeth_card *card, void *hdr, struct sk_buff *skb)
+qeth_get_elements_no(struct qeth_card *card, void *hdr, 
+		     struct sk_buff *skb, int elems)
 {
 	int elements_needed = 0;
 
@@ -4261,9 +4266,10 @@ qeth_get_elements_no(struct qeth_card *card, void *hdr, struct sk_buff *skb)
         if (elements_needed == 0 )
                 elements_needed = 1 + (((((unsigned long) hdr) % PAGE_SIZE)
                                         + skb->len) >> PAGE_SHIFT);
-        if (elements_needed > QETH_MAX_BUFFER_ELEMENTS(card)){
+	if ((elements_needed + elems) > QETH_MAX_BUFFER_ELEMENTS(card)){
                 PRINT_ERR("qeth_do_send_packet: invalid size of "
-                          "IP packet. Discarded.");
+                          "IP packet (Number=%d / Length=%d). Discarded.\n",
+                          (elements_needed+elems), skb->len);
                 return 0;
         }
         return elements_needed;
@@ -4337,9 +4343,11 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 			return -EINVAL;
 		}
 	} else {
-		elements_needed += qeth_get_elements_no(card,(void*) hdr, skb);
-		if (!elements_needed)
+		int elems = qeth_get_elements_no(card,(void*) hdr, skb,
+						 elements_needed);
+		if (!elems)
 			return -EINVAL;
+		elements_needed += elems;
 	}
 
 	if (card->info.type != QETH_CARD_TYPE_IQD)
@@ -7038,14 +7046,16 @@ qeth_setrouting_v6(struct qeth_card *card)
 }
 
 int
-qeth_set_large_send(struct qeth_card *card)
+qeth_set_large_send(struct qeth_card *card, enum qeth_large_send_types type)
 {
 	int rc = 0;
 
-	if (card->dev == NULL)
+	if (card->dev == NULL) {
+		card->options.large_send = type;
 		return 0;
-
+	}
 	netif_stop_queue(card->dev);
+	card->options.large_send = type;
 	switch (card->options.large_send) {
 	case QETH_LARGE_SEND_EDDP:
 		card->dev->features |= NETIF_F_TSO | NETIF_F_SG;
@@ -7066,7 +7076,6 @@ qeth_set_large_send(struct qeth_card *card)
 		card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG);
 		break;
 	}
-
 	netif_wake_queue(card->dev);
 	return rc;
 }

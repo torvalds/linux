@@ -24,7 +24,7 @@
 
 #include "qeth_mpc.h"
 
-#define VERSION_QETH_H 		"$Revision: 1.139 $"
+#define VERSION_QETH_H 		"$Revision: 1.141 $"
 
 #ifdef CONFIG_QETH_IPV6
 #define QETH_VERSION_IPV6 	":IPv6"
@@ -1172,7 +1172,7 @@ extern int
 qeth_realloc_buffer_pool(struct qeth_card *, int);
 
 extern int
-qeth_set_large_send(struct qeth_card *);
+qeth_set_large_send(struct qeth_card *, enum qeth_large_send_types);
 
 extern void
 qeth_fill_header(struct qeth_card *, struct qeth_hdr *,
