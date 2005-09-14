@@ -28,6 +28,24 @@ extern void usb_major_cleanup(void);
 extern int usb_host_init(void);
 extern void usb_host_cleanup(void);
 
+/* Interfaces and their "power state" are owned by usbcore */
+
+static inline void mark_active(struct usb_interface *f)
+{
+	f->dev.power.power_state.event = PM_EVENT_ON;
+}
+
+static inline void mark_quiesced(struct usb_interface *f)
+{
+	f->dev.power.power_state.event = PM_EVENT_FREEZE;
+}
+
+static inline int is_active(struct usb_interface *f)
+{
+	return f->dev.power.power_state.event == PM_EVENT_ON;
+}
+
+
 /* for labeling diagnostics */
 extern const char *usbcore_name;
 

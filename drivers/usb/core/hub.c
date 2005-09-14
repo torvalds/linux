@@ -1624,7 +1624,7 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (state.event <= intf->dev.power.power_state.event)
+			if (!is_active(intf))
 				continue;
 			if (!intf->dev.driver)
 				continue;
@@ -1632,11 +1632,12 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 
 			if (driver->suspend) {
 				status = driver->suspend(intf, state);
-				if (intf->dev.power.power_state.event != state.event
-						|| status)
+				if (status == 0)
+					mark_quiesced(intf);
+				else
 					dev_err(&intf->dev,
-						"suspend %d fail, code %d\n",
-						state.event, status);
+						"suspend error %d\n",
+						status);
 			}
 
 			/* only drivers with suspend() can ever resume();
@@ -1787,7 +1788,7 @@ static int finish_port_resume(struct usb_device *udev)
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (intf->dev.power.power_state.event == PM_EVENT_ON)
+			if (is_active(intf))
 				continue;
 			if (!intf->dev.driver) {
 				/* FIXME maybe force to alt 0 */
@@ -1800,12 +1801,14 @@ static int finish_port_resume(struct usb_device *udev)
 				continue;
 
 			/* can we do better than just logging errors? */
+			mark_active(intf);
 			status = driver->resume(intf);
-			if (intf->dev.power.power_state.event != PM_EVENT_ON
-					|| status)
+			if (status < 0) {
+				mark_quiesced(intf);
 				dev_dbg(&intf->dev,
-					"resume fail, state %d code %d\n",
-					intf->dev.power.power_state.event, status);
+					"resume error %d\n",
+					status);
+			}
 		}
 		status = 0;
 
@@ -1952,7 +1955,7 @@ static int remote_wakeup(struct usb_device *udev)
 	return status;
 }
 
-static int hub_suspend(struct usb_interface *intf, pm_message_t state)
+static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_hub		*hub = usb_get_intfdata (intf);
 	struct usb_device	*hdev = hub->hdev;
@@ -1970,14 +1973,13 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t state)
 		if (!udev)
 			continue;
 		down(&udev->serialize);
-		status = __usb_suspend_device(udev, port1, state);
+		status = __usb_suspend_device(udev, port1, msg);
 		up(&udev->serialize);
 		if (status < 0)
 			dev_dbg(&intf->dev, "suspend port %d --> %d\n",
 				port1, status);
 	}
 
-	intf->dev.power.power_state = state;
 	return 0;
 }
 
@@ -1987,9 +1989,6 @@ static int hub_resume(struct usb_interface *intf)
 	struct usb_hub		*hub = usb_get_intfdata (intf);
 	unsigned		port1;
 	int			status;
-
-	if (intf->dev.power.power_state.event == PM_EVENT_ON)
-		return 0;
 
 	for (port1 = 1; port1 <= hdev->maxchild; port1++) {
 		struct usb_device	*udev;
@@ -2024,8 +2023,6 @@ static int hub_resume(struct usb_interface *intf)
 		}
 		up(&udev->serialize);
 	}
-	intf->dev.power.power_state = PMSG_ON;
-
 	hub->resume_root_hub = 0;
 	hub_activate(hub);
 	return 0;

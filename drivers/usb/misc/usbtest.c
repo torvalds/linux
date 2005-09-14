@@ -1948,21 +1948,11 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 
 static int usbtest_suspend (struct usb_interface *intf, pm_message_t message)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-
-	down (&dev->sem);
-	intf->dev.power.power_state = PMSG_SUSPEND;
-	up (&dev->sem);
 	return 0;
 }
 
 static int usbtest_resume (struct usb_interface *intf)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-
-	down (&dev->sem);
-	intf->dev.power.power_state = PMSG_ON;
-	up (&dev->sem);
 	return 0;
 }
 

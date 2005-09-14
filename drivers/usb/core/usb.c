@@ -107,10 +107,19 @@ static int usb_probe_interface(struct device *dev)
 	id = usb_match_id (intf, driver->id_table);
 	if (id) {
 		dev_dbg (dev, "%s - got id\n", __FUNCTION__);
+
+		/* Interface "power state" doesn't correspond to any hardware
+		 * state whatsoever.  We use it to record when it's bound to
+		 * a driver that may start I/0:  it's not frozen/quiesced.
+		 */
+		mark_active(intf);
 		intf->condition = USB_INTERFACE_BINDING;
 		error = driver->probe (intf, id);
-		intf->condition = error ? USB_INTERFACE_UNBOUND :
-				USB_INTERFACE_BOUND;
+		if (error) {
+			mark_quiesced(intf);
+			intf->condition = USB_INTERFACE_UNBOUND;
+		} else
+			intf->condition = USB_INTERFACE_BOUND;
 	}
 
 	return error;
@@ -136,6 +145,7 @@ static int usb_unbind_interface(struct device *dev)
 			0);
 	usb_set_intfdata(intf, NULL);
 	intf->condition = USB_INTERFACE_UNBOUND;
+	mark_quiesced(intf);
 
 	return 0;
 }
@@ -299,6 +309,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	dev->driver = &driver->driver;
 	usb_set_intfdata(iface, priv);
 	iface->condition = USB_INTERFACE_BOUND;
+	mark_active(iface);
 
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
@@ -345,6 +356,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	dev->driver = NULL;
 	usb_set_intfdata(iface, NULL);
 	iface->condition = USB_INTERFACE_UNBOUND;
+	mark_quiesced(iface);
 }
 
 /**
@@ -1404,8 +1416,9 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 
 static int usb_generic_suspend(struct device *dev, pm_message_t message)
 {
-	struct usb_interface *intf;
-	struct usb_driver *driver;
+	struct usb_interface	*intf;
+	struct usb_driver	*driver;
+	int			status;
 
 	if (dev->driver == &usb_generic_driver)
 		return usb_suspend_device (to_usb_device(dev), message);
@@ -1417,21 +1430,34 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 	intf = to_usb_interface(dev);
 	driver = to_usb_driver(dev->driver);
 
-	/* there's only one USB suspend state */
-	if (intf->dev.power.power_state.event)
+	/* with no hardware, USB interfaces only use FREEZE and ON states */
+	if (!is_active(intf))
 		return 0;
 
-	if (driver->suspend)
-		return driver->suspend(intf, message);
-	return 0;
+	if (driver->suspend && driver->resume) {
+		status = driver->suspend(intf, message);
+		if (status)
+			dev_err(dev, "%s error %d\n", "suspend", status);
+		else
+			mark_quiesced(intf);
+	} else {
+		// FIXME else if there's no suspend method, disconnect...
+		dev_warn(dev, "no %s?\n", "suspend");
+		status = 0;
+	}
+	return status;
 }
 
 static int usb_generic_resume(struct device *dev)
 {
-	struct usb_interface *intf;
-	struct usb_driver *driver;
+	struct usb_interface	*intf;
+	struct usb_driver	*driver;
+	int			status;
 
-	/* devices resume through their hub */
+	if (dev->power.power_state.event == PM_EVENT_ON)
+		return 0;
+
+	/* devices resume through their hubs */
 	if (dev->driver == &usb_generic_driver)
 		return usb_resume_device (to_usb_device(dev));
 
@@ -1442,8 +1468,19 @@ static int usb_generic_resume(struct device *dev)
 	intf = to_usb_interface(dev);
 	driver = to_usb_driver(dev->driver);
 
-	if (driver->resume)
-		return driver->resume(intf);
+	/* if driver was suspended, it has a resume method;
+	 * however, sysfs can wrongly mark things as suspended
+	 * (on the "no suspend method" FIXME path above)
+	 */
+	mark_active(intf);
+	if (driver->resume) {
+		status = driver->resume(intf);
+		if (status) {
+			dev_err(dev, "%s error %d\n", "resume", status);
+			mark_quiesced(intf);
+		}
+	} else
+		dev_warn(dev, "no %s?\n", "resume");
 	return 0;
 }
 
