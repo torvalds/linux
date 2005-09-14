@@ -589,8 +589,8 @@ serial_pxa_type(struct uart_port *port)
 
 #ifdef CONFIG_SERIAL_PXA_CONSOLE
 
-extern struct uart_pxa_port serial_pxa_ports[];
-extern struct uart_driver serial_pxa_reg;
+static struct uart_pxa_port serial_pxa_ports[];
+static struct uart_driver serial_pxa_reg;
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
