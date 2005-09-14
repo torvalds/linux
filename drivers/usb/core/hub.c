@@ -453,6 +453,7 @@ static void hub_quiesce(struct usb_hub *hub)
 {
 	/* stop khubd and related activity */
 	hub->quiescing = 1;
+	hub->activating = 0;
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
 		cancel_delayed_work(&hub->leds);
@@ -1613,66 +1614,19 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 		return 0;
 	}
 
-	/* suspend interface drivers; if this is a hub, it
-	 * suspends the child devices
-	 */
+	/* all interfaces must already be suspended */
 	if (udev->actconfig) {
 		int	i;
 
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			struct usb_interface	*intf;
-			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (!is_active(intf))
-				continue;
-			if (!intf->dev.driver)
-				continue;
-			driver = to_usb_driver(intf->dev.driver);
-
-			if (driver->suspend) {
-				status = driver->suspend(intf, state);
-				if (status == 0)
-					mark_quiesced(intf);
-				else
-					dev_err(&intf->dev,
-						"suspend error %d\n",
-						status);
-			}
-
-			/* only drivers with suspend() can ever resume();
-			 * and after power loss, even they won't.
-			 * bus_rescan_devices() can rebind drivers later.
-			 *
-			 * FIXME the PM core self-deadlocks when unbinding
-			 * drivers during suspend/resume ... everything grabs
-			 * dpm_sem (not a spinlock, ugh).  we want to unbind,
-			 * since we know every driver's probe/disconnect works
-			 * even for drivers that can't suspend.
-			 */
-			if (!driver->suspend || state.event > PM_EVENT_FREEZE) {
-#if 1
-				dev_warn(&intf->dev, "resume is unsafe!\n");
-#else
-				down_write(&usb_bus_type.rwsem);
-				device_release_driver(&intf->dev);
-				up_write(&usb_bus_type.rwsem);
-#endif
+			if (is_active(intf)) {
+				dev_dbg(&intf->dev, "nyet suspended\n");
+				return -EBUSY;
 			}
 		}
-	}
-
-	/*
-	 * FIXME this needs port power off call paths too, to help force
-	 * USB into the "generic" PM model.  At least for devices on
-	 * ports that aren't using ganged switching (usually root hubs).
-	 *
-	 * NOTE: SRP-capable links should adopt more aggressive poweroff
-	 * policies (when HNP doesn't apply) once we have mechanisms to
-	 * turn power back on!  (Likely not before 2.7...)
-	 */
-	if (state.event > PM_EVENT_FREEZE) {
-		dev_warn(&udev->dev, "no poweroff yet, suspending instead\n");
 	}
 
 	/* "global suspend" of the HC-to-USB interface (root hub), or
@@ -1960,26 +1914,20 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	struct usb_hub		*hub = usb_get_intfdata (intf);
 	struct usb_device	*hdev = hub->hdev;
 	unsigned		port1;
-	int			status;
 
-	/* stop khubd and related activity */
-	hub_quiesce(hub);
-
-	/* then suspend every port */
+	/* fail if children aren't already suspended */
 	for (port1 = 1; port1 <= hdev->maxchild; port1++) {
 		struct usb_device	*udev;
 
 		udev = hdev->children [port1-1];
-		if (!udev)
-			continue;
-		down(&udev->serialize);
-		status = __usb_suspend_device(udev, port1, msg);
-		up(&udev->serialize);
-		if (status < 0)
-			dev_dbg(&intf->dev, "suspend port %d --> %d\n",
-				port1, status);
+		if (udev && udev->state != USB_STATE_SUSPENDED) {
+			dev_dbg(&intf->dev, "port %d nyet suspended\n", port1);
+			return -EBUSY;
+		}
 	}
 
+	/* stop khubd and related activity */
+	hub_quiesce(hub);
 	return 0;
 }
 
