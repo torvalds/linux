@@ -209,13 +209,9 @@ enum csr_regs {
 	Y2_CFG_SPC	= 0x1c00,
 };
 
-/* Access pci config through board I/O */
-#define PCI_C(x)	(Y2_CFG_SPC + (x))
-
-
 /*	B0_CTST			16 bit	Control/Status register */
 enum {
-	Y2_VMAIN_AVAIL	= 1<<17, /* VMAIN available (YUKON-2 only) */
+	Y2_VMAIN_AVAIL	= 1<<17,/* VMAIN available (YUKON-2 only) */
 	Y2_VAUX_AVAIL	= 1<<16,/* VAUX available (YUKON-2 only) */
 	Y2_ASF_ENABLE	= 1<<13,/* ASF Unit Enable (YUKON-2 only) */
 	Y2_ASF_DISABLE	= 1<<12,/* ASF Unit Disable (YUKON-2 only) */
@@ -234,13 +230,17 @@ enum {
 	CS_MRST_SET	= 1<<2,	/* Set Master reset	*/
 	CS_RST_CLR	= 1<<1,	/* Clear Software reset	*/
 	CS_RST_SET	= 1,	/* Set   Software reset	*/
+};
 
 /*	B0_LED			 8 Bit	LED register */
+enum {
 /* Bit  7.. 2:	reserved */
 	LED_STAT_ON	= 1<<1,	/* Status LED on	*/
-	LED_STAT_OFF	= 1,		/* Status LED off	*/
+	LED_STAT_OFF	= 1,	/* Status LED off	*/
+};
 
 /*	B0_POWER_CTRL	 8 Bit	Power Control reg (YUKON only) */
+enum {
 	PC_VAUX_ENA	= 1<<7,	/* Switch VAUX Enable  */
 	PC_VAUX_DIS	= 1<<6,	/* Switch VAUX Disable */
 	PC_VCC_ENA	= 1<<5,	/* Switch VCC Enable  */
@@ -336,7 +336,7 @@ enum {
 	Y2_HWE_L2_MASK	= Y2_IS_PAR_RD2 | Y2_IS_PAR_WR2 | Y2_IS_PAR_MAC2 |
 			  Y2_IS_PAR_RX2 | Y2_IS_TCP_TXS2| Y2_IS_TCP_TXA2,
 
-	Y2_HWE_ALL_MASK	= Y2_IS_SENSOR | Y2_IS_MST_ERR | Y2_IS_IRQ_STAT |
+	Y2_HWE_ALL_MASK	= Y2_IS_TIST_OV | Y2_IS_MST_ERR | Y2_IS_IRQ_STAT |
 			  Y2_IS_PCI_EXP | Y2_IS_PCI_NEXP |
 			  Y2_HWE_L1_MASK | Y2_HWE_L2_MASK,
 };
@@ -793,11 +793,6 @@ enum {
 	STAT_ISR_TIMER_CNT = 0x0ed4,/* 32 bit	ISR Timer Counter Reg */
 	STAT_ISR_TIMER_CTRL= 0x0ed8,/*  8 bit	ISR Timer Control Reg */
 	STAT_ISR_TIMER_TEST= 0x0ed9,/*  8 bit	ISR Timer Test Reg */
-
-	ST_LAST_IDX_MASK	= 0x007f,/* Last Index Mask */
-	ST_TXRP_IDX_MASK	= 0x0fff,/* Tx Report Index Mask */
-	ST_TXTH_IDX_MASK	= 0x0fff,/* Tx Threshold Index Mask */
-	ST_WM_IDX_MASK	= 0x3f,/* FIFO Watermark Index Mask */
 };
 
 enum {
@@ -835,6 +830,7 @@ enum {
 	WOL_PATT_LEN_HI	= 0x0f34,/* 24 bit	WOL Pattern Length 6..4 */
 
 /* WOL Pattern Counter Registers (YUKON only) */
+
 
 	WOL_PATT_CNT_0	= 0x0f38,/* 32 bit	WOL Pattern Counter 3..0 */
 	WOL_PATT_CNT_4	= 0x0f3c,/* 24 bit	WOL Pattern Counter 6..4 */
@@ -1536,34 +1532,34 @@ enum {
 /* Receive Frame Status Encoding */
 enum {
 	GMR_FS_LEN	= 0xffff<<16, /* Bit 31..16:	Rx Frame Length */
-	GMR_FS_VLAN	= 1<<13, /* Bit 13:	VLAN Packet */
-	GMR_FS_JABBER	= 1<<12, /* Bit 12:	Jabber Packet */
-	GMR_FS_UN_SIZE	= 1<<11, /* Bit 11:	Undersize Packet */
-	GMR_FS_MC	= 1<<10, /* Bit 10:	Multicast Packet */
-	GMR_FS_BC	= 1<<9, /* Bit  9:	Broadcast Packet */
-	GMR_FS_RX_OK	= 1<<8, /* Bit  8:	Receive OK (Good Packet) */
-	GMR_FS_GOOD_FC	= 1<<7, /* Bit  7:	Good Flow-Control Packet */
-	GMR_FS_BAD_FC	= 1<<6, /* Bit  6:	Bad  Flow-Control Packet */
-	GMR_FS_MII_ERR	= 1<<5, /* Bit  5:	MII Error */
-	GMR_FS_LONG_ERR	= 1<<4, /* Bit  4:	Too Long Packet */
-	GMR_FS_FRAGMENT	= 1<<3, /* Bit  3:	Fragment */
+	GMR_FS_VLAN	= 1<<13, /* VLAN Packet */
+	GMR_FS_JABBER	= 1<<12, /* Jabber Packet */
+	GMR_FS_UN_SIZE	= 1<<11, /* Undersize Packet */
+	GMR_FS_MC	= 1<<10, /* Multicast Packet */
+	GMR_FS_BC	= 1<<9,  /* Broadcast Packet */
+	GMR_FS_RX_OK	= 1<<8,  /* Receive OK (Good Packet) */
+	GMR_FS_GOOD_FC	= 1<<7,  /* Good Flow-Control Packet */
+	GMR_FS_BAD_FC	= 1<<6,  /* Bad  Flow-Control Packet */
+	GMR_FS_MII_ERR	= 1<<5,  /* MII Error */
+	GMR_FS_LONG_ERR	= 1<<4,  /* Too Long Packet */
+	GMR_FS_FRAGMENT	= 1<<3,  /* Fragment */
 
-	GMR_FS_CRC_ERR	= 1<<1, /* Bit  1:	CRC Error */
-	GMR_FS_RX_FF_OV	= 1<<0, /* Bit  0:	Rx FIFO Overflow */
+	GMR_FS_CRC_ERR	= 1<<1,  /* CRC Error */
+	GMR_FS_RX_FF_OV	= 1<<0,  /* Rx FIFO Overflow */
 
-/*
- * GMR_FS_ANY_ERR (analogous to XMR_FS_ANY_ERR)
- */
 	GMR_FS_ANY_ERR	= GMR_FS_RX_FF_OV | GMR_FS_CRC_ERR |
 			  GMR_FS_FRAGMENT | GMR_FS_LONG_ERR |
 		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC | GMR_FS_GOOD_FC |
 			  GMR_FS_UN_SIZE | GMR_FS_JABBER,
-/* Rx GMAC FIFO Flush Mask (default) */
-	RX_FF_FL_DEF_MSK = GMR_FS_ANY_ERR,
 };
 
 /*	RX_GMF_CTRL_T	32 bit	Rx GMAC FIFO Control/Test */
 enum {
+	RX_TRUNC_ON	= 1<<27,  	/* enable  packet truncation */
+	RX_TRUNC_OFF	= 1<<26, 	/* disable packet truncation */
+	RX_VLAN_STRIP_ON = 1<<25,	/* enable  VLAN stripping */
+	RX_VLAN_STRIP_OFF = 1<<24,	/* disable VLAN stripping */
+
 	GMF_WP_TST_ON	= 1<<14,	/* Write Pointer Test On */
 	GMF_WP_TST_OFF	= 1<<13,	/* Write Pointer Test Off */
 	GMF_WP_STEP	= 1<<12,	/* Write Pointer Step/Increment */
@@ -1574,7 +1570,8 @@ enum {
 	GMF_RX_F_FL_ON	= 1<<7,		/* Rx FIFO Flush Mode On */
 	GMF_RX_F_FL_OFF	= 1<<6,		/* Rx FIFO Flush Mode Off */
 	GMF_CLI_RX_FO	= 1<<5,		/* Clear IRQ Rx FIFO Overrun */
-	GMF_CLI_RX_FC	= 1<<4,		/* Clear IRQ Rx Frame Complete */
+	GMF_CLI_RX_C	= 1<<4,		/* Clear IRQ Rx Frame Complete */
+
 	GMF_OPER_ON	= 1<<3,		/* Operational Mode On */
 	GMF_OPER_OFF	= 1<<2,		/* Operational Mode Off */
 	GMF_RST_CLR	= 1<<1,		/* Clear GMAC FIFO Reset */
@@ -1586,6 +1583,9 @@ enum {
 
 /*	TX_GMF_CTRL_T	32 bit	Tx GMAC FIFO Control/Test */
 enum {
+	TX_VLAN_TAG_ON	= 1<<25,/* enable  VLAN tagging */
+	TX_VLAN_TAG_OFF	= 1<<24,/* disable VLAN tagging */
+
 	GMF_WSP_TST_ON	= 1<<18,/* Write Shadow Pointer Test On */
 	GMF_WSP_TST_OFF	= 1<<17,/* Write Shadow Pointer Test Off */
 	GMF_WSP_STEP	= 1<<16,/* Write Shadow Pointer Step/Increment */
@@ -1679,8 +1679,7 @@ enum {
 	GM_IS_RX_FF_OR	= 1<<1,	/* Receive FIFO Overrun */
 	GM_IS_RX_COMPL	= 1<<0,	/* Frame Reception Complete */
 
-#define GMAC_DEF_MSK	(GM_IS_TX_CO_OV | GM_IS_RX_CO_OV |\
-			 GM_IS_TX_FF_UR | GM_IS_RX_FF_OR)
+#define GMAC_DEF_MSK     (GM_IS_TX_FF_UR|GM_IS_RX_FF_OR)
 
 /*	GMAC_LINK_CTRL	16 bit	GMAC Link Control Reg (YUKON only) */
 						/* Bits 15.. 2:	reserved */
@@ -1761,9 +1760,6 @@ enum {
 	OP_RXTIMEVLAN	= OP_RXTIMESTAMP | OP_RXVLAN,
 	OP_RSS_HASH	= 0x65,
 	OP_TXINDEXLE	= 0x68,
-
-/* YUKON-2 SPECIAL opcodes defines */
-	OP_PUTIDX	= 0x70,
 };
 
 /* Yukon 2 hardware interface
@@ -1775,62 +1771,60 @@ struct sky2_tx_le {
 		struct {
 			u16	offset;
 			u16	start;
-		} csum;
+		} csum  __attribute((packed));
 		struct {
 			u16	size;
 			u16	rsvd;
-		} tso;
+		} tso  __attribute((packed));
 	} tx;
 	u16	length;	/* also vlan tag or checksum start */
 	u8	ctrl;
 	u8	opcode;
-};
+} __attribute((packed));
 
 struct sky2_rx_le {
-	union {
-		u32	addr;
-		struct {
-			u16	start1;
-			u16	start2;
-		} csum;
-	} rx;
+	u32	addr;
 	u16	length;
 	u8	ctrl;
 	u8	opcode;
-};
+} __attribute((packed));;
 
 struct sky2_status_le {
 	u32	status;	/* also checksum */
 	u16	length;	/* also vlan tag */
 	u8	link;
 	u8	opcode;
-};
-
+} __attribute((packed));
 
 struct ring_info {
 	struct sk_buff	*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	DECLARE_PCI_UNMAP_LEN(maplen);
+	dma_addr_t	mapaddr;
+	u16		maplen;
+	u16		idx;
 };
 
 struct sky2_port {
-	struct sky2_hw	     *hw		____cacheline_aligned;
+	struct sky2_hw	     *hw;
 	struct net_device    *netdev;
 	unsigned	     port;
 	u32		     msg_enable;
 
-	struct ring_info     *tx_ring		____cacheline_aligned;
+	struct ring_info  *tx_ring;
 	struct sky2_tx_le    *tx_le;
 	spinlock_t	     tx_lock;
+	u32		     tx_addr64;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
+	u16		     tx_pending;
 	u16		     tx_last_put;
+	u16		     tx_last_mss;
 
-	struct ring_info     *rx_ring		____cacheline_aligned;
+	struct ring_info  *rx_ring;
 	struct sky2_rx_le    *rx_le;
-	u16		     rx_ring_size;
+	u32		     rx_addr64;
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
+	u16		     rx_pending;
 	u16		     rx_last_put;
 
 	dma_addr_t	     rx_le_map;
@@ -1882,11 +1876,13 @@ static inline u8 sky2_read8(const struct sky2_hw *hw, unsigned reg)
 	return readb(hw->regs + reg);
 }
 
+/* This should probably go away, bus based tweeks suck */
 static inline int is_pciex(const struct sky2_hw *hw)
 {
-	return (sky2_read32(hw, PCI_C(PCI_DEV_STATUS)) & PCI_OS_PCI_X) == 0;
+	u32 status;
+	pci_read_config_dword(hw->pdev, PCI_DEV_STATUS, &status);
+	return (status & PCI_OS_PCI_X) == 0;
 }
-
 
 static inline void sky2_write32(const struct sky2_hw *hw, unsigned reg, u32 val)
 {
