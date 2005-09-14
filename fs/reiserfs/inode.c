@@ -33,6 +33,8 @@ void reiserfs_delete_inode(struct inode *inode)
 	    2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb);
 	struct reiserfs_transaction_handle th;
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	reiserfs_write_lock(inode->i_sb);
 
 	/* The = 0 happens when we abort creating a new inode for some reason like lack of space.. */

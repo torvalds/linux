@@ -88,7 +88,7 @@ static kmem_cache_t *sn_cache;
    policied. */
 static int policy_zone;
 
-static struct mempolicy default_policy = {
+struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
 	.policy = MPOL_DEFAULT,
 };

@@ -159,6 +159,7 @@ static inline char * task_state(struct task_struct *p, char *buffer)
 {
 	struct group_info *group_info;
 	int g;
+	struct fdtable *fdt = NULL;
 
 	read_lock(&tasklist_lock);
 	buffer += sprintf(buffer,
@@ -179,10 +180,12 @@ static inline char * task_state(struct task_struct *p, char *buffer)
 		p->gid, p->egid, p->sgid, p->fsgid);
 	read_unlock(&tasklist_lock);
 	task_lock(p);
+	if (p->files)
+		fdt = files_fdtable(p->files);
 	buffer += sprintf(buffer,
 		"FDSize:\t%d\n"
 		"Groups:\t",
-		p->files ? p->files->max_fds : 0);
+		fdt ? fdt->max_fds : 0);
 
 	group_info = p->group_info;
 	get_group_info(group_info);

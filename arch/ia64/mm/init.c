@@ -382,13 +382,22 @@ ia64_mmu_init (void *my_cpu_data)
 
 	if (impl_va_bits < 51 || impl_va_bits > 61)
 		panic("CPU has bogus IMPL_VA_MSB value of %lu!\n", impl_va_bits - 1);
+	/*
+	 * mapped_space_bits - PAGE_SHIFT is the total number of ptes we need,
+	 * which must fit into "vmlpt_bits - pte_bits" slots. Second half of
+	 * the test makes sure that our mapped space doesn't overlap the
+	 * unimplemented hole in the middle of the region.
+	 */
+	if ((mapped_space_bits - PAGE_SHIFT > vmlpt_bits - pte_bits) ||
+	    (mapped_space_bits > impl_va_bits - 1))
+		panic("Cannot build a big enough virtual-linear page table"
+		      " to cover mapped address space.\n"
+		      " Try using a smaller page size.\n");
+
 
 	/* place the VMLPT at the end of each page-table mapped region: */
 	pta = POW2(61) - POW2(vmlpt_bits);
 
-	if (POW2(mapped_space_bits) >= pta)
-		panic("mm/init: overlap between virtually mapped linear page table and "
-		      "mapped kernel space!");
 	/*
 	 * Set the (virtually mapped linear) page table address.  Bit
 	 * 8 selects between the short and long format, bits 2-7 the

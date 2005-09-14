@@ -69,16 +69,16 @@ static inline int i8042_platform_init(void)
  */
 #if !defined(__sh__) && !defined(__alpha__) && !defined(__mips__) && !defined(CONFIG_PPC64)
 	if (!request_region(I8042_DATA_REG, 16, "i8042"))
-		return -1;
+		return -EBUSY;
 #endif
 
         i8042_reset = 1;
 
 #if defined(CONFIG_PPC64)
 	if (check_legacy_ioport(I8042_DATA_REG))
-		return -1;
+		return -EBUSY;
 	if (!request_region(I8042_DATA_REG, 16, "i8042"))
-		return -1;
+		return -EBUSY;
 #endif
 	return 0;
 }

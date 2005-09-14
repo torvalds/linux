@@ -22,6 +22,11 @@
  *
  * Dec  5 2004	kaos@sgi.com
  *   Standardize which records are cleared automatically.
+ *
+ * Aug 18 2005	kaos@sgi.com
+ *   mca.c may not pass a buffer, a NULL buffer just indicates that a new
+ *   record is available in SAL.
+ *   Replace some NR_CPUS by cpus_online, for hotplug cpu.
  */
 
 #include <linux/types.h>
@@ -193,7 +198,7 @@ shift1_data_saved (struct salinfo_data *data, int shift)
  * The buffer passed from mca.c points to the output from ia64_log_get. This is
  * a persistent buffer but its contents can change between the interrupt and
  * when user space processes the record.  Save the record id to identify
- * changes.
+ * changes.  If the buffer is NULL then just update the bitmap.
  */
 void
 salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe)
@@ -206,27 +211,29 @@ salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe)
 
 	BUG_ON(type >= ARRAY_SIZE(salinfo_log_name));
 
-	if (irqsafe)
-		spin_lock_irqsave(&data_saved_lock, flags);
-	for (i = 0, data_saved = data->data_saved; i < saved_size; ++i, ++data_saved) {
-		if (!data_saved->buffer)
-			break;
+	if (buffer) {
+		if (irqsafe)
+			spin_lock_irqsave(&data_saved_lock, flags);
+		for (i = 0, data_saved = data->data_saved; i < saved_size; ++i, ++data_saved) {
+			if (!data_saved->buffer)
+				break;
+		}
+		if (i == saved_size) {
+			if (!data->saved_num) {
+				shift1_data_saved(data, 0);
+				data_saved = data->data_saved + saved_size - 1;
+			} else
+				data_saved = NULL;
+		}
+		if (data_saved) {
+			data_saved->cpu = smp_processor_id();
+			data_saved->id = ((sal_log_record_header_t *)buffer)->id;
+			data_saved->size = size;
+			data_saved->buffer = buffer;
+		}
+		if (irqsafe)
+			spin_unlock_irqrestore(&data_saved_lock, flags);
 	}
-	if (i == saved_size) {
-		if (!data->saved_num) {
-			shift1_data_saved(data, 0);
-			data_saved = data->data_saved + saved_size - 1;
-		} else
-			data_saved = NULL;
-	}
-	if (data_saved) {
-		data_saved->cpu = smp_processor_id();
-		data_saved->id = ((sal_log_record_header_t *)buffer)->id;
-		data_saved->size = size;
-		data_saved->buffer = buffer;
-	}
-	if (irqsafe)
-		spin_unlock_irqrestore(&data_saved_lock, flags);
 
 	if (!test_and_set_bit(smp_processor_id(), &data->cpu_event)) {
 		if (irqsafe)
@@ -244,7 +251,7 @@ salinfo_timeout_check(struct salinfo_data *data)
 	int i;
 	if (!data->open)
 		return;
-	for (i = 0; i < NR_CPUS; ++i) {
+	for_each_online_cpu(i) {
 		if (test_bit(i, &data->cpu_event)) {
 			/* double up() is not a problem, user space will see no
 			 * records for the additional "events".
@@ -291,7 +298,7 @@ retry:
 
 	n = data->cpu_check;
 	for (i = 0; i < NR_CPUS; i++) {
-		if (test_bit(n, &data->cpu_event)) {
+		if (test_bit(n, &data->cpu_event) && cpu_online(n)) {
 			cpu = n;
 			break;
 		}
@@ -585,11 +592,10 @@ salinfo_init(void)
 
 		/* we missed any events before now */
 		online = 0;
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j)) {
-				set_bit(j, &data->cpu_event);
-				++online;
-			}
+		for_each_online_cpu(j) {
+			set_bit(j, &data->cpu_event);
+			++online;
+		}
 		sema_init(&data->sem, online);
 
 		*sdir++ = dir;

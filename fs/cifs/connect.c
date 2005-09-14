@@ -3215,10 +3215,8 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	}
 	
 	cifs_sb->tcon = NULL;
-	if (ses) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ / 2);
-	}
+	if (ses)
+		schedule_timeout_interruptible(msecs_to_jiffies(500));
 	if (ses)
 		sesInfoFree(ses);
 

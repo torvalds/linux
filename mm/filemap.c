@@ -37,6 +37,10 @@
 #include <asm/uaccess.h>
 #include <asm/mman.h>
 
+static ssize_t
+generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
+	loff_t offset, unsigned long nr_segs);
+
 /*
  * Shared mappings implemented 30.11.1994. It's not fully working yet,
  * though.
@@ -301,8 +305,9 @@ EXPORT_SYMBOL(sync_page_range);
  * as it forces O_SYNC writers to different parts of the same file
  * to be serialised right until io completion.
  */
-int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
-			loff_t pos, size_t count)
+static int sync_page_range_nolock(struct inode *inode,
+				  struct address_space *mapping,
+				  loff_t pos, size_t count)
 {
 	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
 	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
@@ -317,7 +322,6 @@ int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
 		ret = wait_on_page_writeback_range(mapping, start, end);
 	return ret;
 }
-EXPORT_SYMBOL(sync_page_range_nolock);
 
 /**
  * filemap_fdatawait - walk the list of under-writeback pages of the given
@@ -2008,7 +2012,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 }
 EXPORT_SYMBOL(generic_file_buffered_write);
 
-ssize_t
+static ssize_t
 __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t *ppos)
 {
@@ -2108,7 +2112,7 @@ generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 	return ret;
 }
 
-ssize_t
+static ssize_t
 __generic_file_write_nolock(struct file *file, const struct iovec *iov,
 				unsigned long nr_segs, loff_t *ppos)
 {
@@ -2229,7 +2233,7 @@ EXPORT_SYMBOL(generic_file_writev);
  * Called under i_sem for writes to S_ISREG files.   Returns -EIO if something
  * went wrong during pagecache shootdown.
  */
-ssize_t
+static ssize_t
 generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	loff_t offset, unsigned long nr_segs)
 {
@@ -2264,4 +2268,3 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	}
 	return retval;
 }
-EXPORT_SYMBOL_GPL(generic_file_direct_IO);

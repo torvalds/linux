@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 13
-EXTRAVERSION =
+SUBLEVEL = 14
+EXTRAVERSION =-rc1
 NAME=Affluent Albatross
 
 # *DOCUMENTATION*
@@ -334,7 +334,7 @@ KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
 
-CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__
+CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ $(CF)
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
@@ -381,6 +381,9 @@ RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn --exclude CV
 .PHONY: scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
+
+# To avoid any implicit rule to kick in, define an empty command.
+scripts/basic/%: scripts_basic ;
 
 .PHONY: outputmakefile
 # outputmakefile generate a Makefile to be placed in output directory, if
@@ -444,9 +447,8 @@ ifeq ($(config-targets),1)
 include $(srctree)/arch/$(ARCH)/Makefile
 export KBUILD_DEFCONFIG
 
-config: scripts_basic outputmakefile FORCE
-	$(Q)$(MAKE) $(build)=scripts/kconfig $@
-%config: scripts_basic outputmakefile FORCE
+config %config: scripts_basic outputmakefile FORCE
+	$(Q)mkdir -p include/linux
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
 else
@@ -489,6 +491,7 @@ include .config
 # If .config is newer than include/linux/autoconf.h, someone tinkered
 # with it and forgot to run make oldconfig
 include/linux/autoconf.h: .config
+	$(Q)mkdir -p include/linux
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
 else
 # Dummy target needed, because used as prerequisite
@@ -641,8 +644,13 @@ quiet_cmd_vmlinux__ ?= LD      $@
 # Generate new vmlinux version
 quiet_cmd_vmlinux_version = GEN     .version
       cmd_vmlinux_version = set -e;                     \
-	. $(srctree)/scripts/mkversion > .tmp_version;	\
-	mv -f .tmp_version .version;			\
+	if [ ! -r .version ]; then			\
+	  rm -f .version;				\
+	  echo 1 >.version;				\
+	else						\
+	  mv .version .old_version;			\
+	  expr 0$$(cat .old_version) + 1 >.version;	\
+	fi;						\
 	$(MAKE) $(build)=init
 
 # Generate System.map
@@ -756,6 +764,7 @@ endif # ifdef CONFIG_KALLSYMS
 # vmlinux image - including updated kernel symbols
 vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
 	$(call if_changed_rule,vmlinux__)
+	$(Q)rm -f .old_version
 
 # The actual objects are generated when descending, 
 # make sure no implicit rule kicks in
@@ -768,22 +777,27 @@ $(sort $(vmlinux-init) $(vmlinux-main)) $(vmlinux-lds): $(vmlinux-dirs) ;
 # Error messages still appears in the original language
 
 .PHONY: $(vmlinux-dirs)
-$(vmlinux-dirs): prepare-all scripts
+$(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
 # Things we need to do before we recursively start building the kernel
-# or the modules are listed in "prepare-all".
-# A multi level approach is used. prepare1 is updated first, then prepare0.
-# prepare-all is the collection point for the prepare targets.
+# or the modules are listed in "prepare".
+# A multi level approach is used. prepareN is processed before prepareN-1.
+# archprepare is used in arch Makefiles and when processed asm symlink,
+# version.h and scripts_basic is processed / created.
 
-.PHONY: prepare-all prepare prepare0 prepare1 prepare2
+# Listed in dependency order
+.PHONY: prepare archprepare prepare0 prepare1 prepare2 prepare3
 
-# prepare2 is used to check if we are building in a separate output directory,
+# prepare-all is deprecated, use prepare as valid replacement
+.PHONY: prepare-all
+
+# prepare3 is used to check if we are building in a separate output directory,
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
 # 2) Create the include2 directory, used for the second asm symlink
 
-prepare2:
+prepare3:
 ifneq ($(KBUILD_SRC),)
 	@echo '  Using $(srctree) as source for kernel'
 	$(Q)if [ -f $(srctree)/.config ]; then \
@@ -795,18 +809,23 @@ ifneq ($(KBUILD_SRC),)
 	$(Q)ln -fsn $(srctree)/include/asm-$(ARCH) include2/asm
 endif
 
-# prepare1 creates a makefile if using a separate output directory
-prepare1: prepare2 outputmakefile
+# prepare2 creates a makefile if using a separate output directory
+prepare2: prepare3 outputmakefile
 
-prepare0: prepare1 include/linux/version.h include/asm \
+prepare1: prepare2 include/linux/version.h include/asm \
                    include/config/MARKER
 ifneq ($(KBUILD_MODULES),)
 	$(Q)rm -rf $(MODVERDIR)
 	$(Q)mkdir -p $(MODVERDIR)
 endif
 
+archprepare: prepare1 scripts_basic
+
+prepare0: archprepare FORCE
+	$(Q)$(MAKE) $(build)=.
+
 # All the preparing..
-prepare-all: prepare0 prepare
+prepare prepare-all: prepare0
 
 #	Leave this as default for preprocessing vmlinux.lds.S, which is now
 #	done in arch/$(ARCH)/kernel/Makefile
@@ -845,7 +864,7 @@ include/asm:
 
 # 	Split autoconf.h into include/linux/config/*
 
-include/config/MARKER: include/linux/autoconf.h
+include/config/MARKER: scripts/basic/split-include include/linux/autoconf.h
 	@echo '  SPLIT   include/linux/autoconf.h -> include/config/*'
 	@scripts/basic/split-include include/linux/autoconf.h include/config
 	@touch $@
@@ -897,7 +916,7 @@ modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux)
 
 # Target to prepare building external modules
 .PHONY: modules_prepare
-modules_prepare: prepare-all scripts
+modules_prepare: prepare scripts
 
 # Target to install modules
 .PHONY: modules_install
@@ -949,26 +968,6 @@ modules modules_install: FORCE
 
 endif # CONFIG_MODULES
 
-# Generate asm-offsets.h 
-# ---------------------------------------------------------------------------
-
-define filechk_gen-asm-offsets
-	(set -e; \
-	 echo "#ifndef __ASM_OFFSETS_H__"; \
-	 echo "#define __ASM_OFFSETS_H__"; \
-	 echo "/*"; \
-	 echo " * DO NOT MODIFY."; \
-	 echo " *"; \
-	 echo " * This file was generated by arch/$(ARCH)/Makefile"; \
-	 echo " *"; \
-	 echo " */"; \
-	 echo ""; \
-	 sed -ne "/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}"; \
-	 echo ""; \
-	 echo "#endif" )
-endef
-
-
 ###
 # Cleaning is done on three levels.
 # make clean     Delete most generated files
@@ -991,7 +990,7 @@ MRPROPER_FILES += .config .config.old include/asm .version \
 #
 clean: rm-dirs  := $(CLEAN_DIRS)
 clean: rm-files := $(CLEAN_FILES)
-clean-dirs      := $(addprefix _clean_,$(vmlinux-alldirs))
+clean-dirs      := $(addprefix _clean_,$(srctree) $(vmlinux-alldirs))
 
 .PHONY: $(clean-dirs) clean archclean
 $(clean-dirs):
@@ -1070,6 +1069,7 @@ help:
 	@echo  '  rpm		  - Build a kernel as an RPM package'
 	@echo  '  tags/TAGS	  - Generate tags file for editors'
 	@echo  '  cscope	  - Generate cscope index'
+	@echo  '  kernelrelease	  - Output the release version string'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  buildcheck      - List dangling references to vmlinux discarded sections'

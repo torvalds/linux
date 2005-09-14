@@ -790,7 +790,7 @@ static void sbp2_host_reset(struct hpsb_host *host)
 static int sbp2_start_device(struct scsi_id_instance_data *scsi_id)
 {
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
-	struct scsi_device *sdev;
+	int error;
 
 	SBP2_DEBUG("sbp2_start_device");
 
@@ -939,10 +939,10 @@ alloc_fail:
 	sbp2_max_speed_and_size(scsi_id);
 
 	/* Add this device to the scsi layer now */
-	sdev = scsi_add_device(scsi_id->scsi_host, 0, scsi_id->ud->id, 0);
-	if (IS_ERR(sdev)) {
+	error = scsi_add_device(scsi_id->scsi_host, 0, scsi_id->ud->id, 0);
+	if (error) {
 		SBP2_ERR("scsi_add_device failed");
-		return PTR_ERR(sdev);
+		return error;
 	}
 
 	return 0;

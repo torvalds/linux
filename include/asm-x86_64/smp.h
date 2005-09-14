@@ -72,7 +72,7 @@ static inline int num_booting_cpus(void)
 
 #define raw_smp_processor_id() read_pda(cpunumber)
 
-extern __inline int hard_smp_processor_id(void)
+static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));

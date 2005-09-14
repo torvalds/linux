@@ -571,7 +571,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 				return ret;
 			}
 
-			ret=(*secfeed)->set(*secfeed, para->pid, 32768, 0,
+			ret=(*secfeed)->set(*secfeed, para->pid, 32768,
 					    (para->flags & DMX_CHECK_CRC) ? 1 : 0);
 
 			if (ret<0) {
@@ -654,7 +654,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		(*tsfeed)->priv = (void *) filter;
 
 		ret = (*tsfeed)->set(*tsfeed, para->pid, ts_type, ts_pes,
-				     188, 32768, 0, timeout);
+				     32768, timeout);
 
 		if (ret < 0) {
 			dmxdev->demux->release_ts_feed(dmxdev->demux, *tsfeed);
@@ -927,6 +927,22 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 		dmxdev->demux->get_pes_pids(dmxdev->demux, (u16 *)parg);
+		break;
+
+	case DMX_GET_CAPS:
+		if (!dmxdev->demux->get_caps) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->get_caps(dmxdev->demux, parg);
+		break;
+
+	case DMX_SET_SOURCE:
+		if (!dmxdev->demux->set_source) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->set_source(dmxdev->demux, parg);
 		break;
 
 	case DMX_GET_STC:

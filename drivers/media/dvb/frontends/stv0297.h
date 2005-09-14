@@ -29,6 +29,12 @@ struct stv0297_config
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
+	/* inittab - array of pairs of values.
+	* First of each pair is the register, second is the value.
+	* List should be terminated with an 0xff, 0xff pair.
+	*/
+	u8* inittab;
+
 	/* does the "inversion" need inverted? */
 	u8 invert:1;
 
@@ -38,7 +44,7 @@ struct stv0297_config
 };
 
 extern struct dvb_frontend* stv0297_attach(const struct stv0297_config* config,
-					   struct i2c_adapter* i2c, int pwm);
+					   struct i2c_adapter* i2c);
 extern int stv0297_enable_plli2c(struct dvb_frontend* fe);
 
 #endif // STV0297_H

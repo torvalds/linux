@@ -561,7 +561,7 @@ static inline int vector_is_shared (int vector)
 	return (iosapic_intr_info[vector].count > 1);
 }
 
-static void
+static int
 register_intr (unsigned int gsi, int vector, unsigned char delivery,
 	       unsigned long polarity, unsigned long trigger)
 {
@@ -576,7 +576,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 	index = find_iosapic(gsi);
 	if (index < 0) {
 		printk(KERN_WARNING "%s: No IOSAPIC for GSI %u\n", __FUNCTION__, gsi);
-		return;
+		return -ENODEV;
 	}
 
 	iosapic_address = iosapic_lists[index].addr;
@@ -587,7 +587,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 		rte = iosapic_alloc_rte();
 		if (!rte) {
 			printk(KERN_WARNING "%s: cannot allocate memory\n", __FUNCTION__);
-			return;
+			return -ENOMEM;
 		}
 
 		rte_index = gsi - gsi_base;
@@ -603,7 +603,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 		struct iosapic_intr_info *info = &iosapic_intr_info[vector];
 		if (info->trigger != trigger || info->polarity != polarity) {
 			printk (KERN_WARNING "%s: cannot override the interrupt\n", __FUNCTION__);
-			return;
+			return -EINVAL;
 		}
 	}
 
@@ -623,6 +623,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 			       __FUNCTION__, vector, idesc->handler->typename, irq_type->typename);
 		idesc->handler = irq_type;
 	}
+	return 0;
 }
 
 static unsigned int
@@ -710,7 +711,7 @@ int
 iosapic_register_intr (unsigned int gsi,
 		       unsigned long polarity, unsigned long trigger)
 {
-	int vector, mask = 1;
+	int vector, mask = 1, err;
 	unsigned int dest;
 	unsigned long flags;
 	struct iosapic_rte_info *rte;
@@ -737,8 +738,8 @@ again:
 	vector = assign_irq_vector(AUTO_ASSIGN);
 	if (vector < 0) {
 		vector = iosapic_find_sharable_vector(trigger, polarity);
-		if (vector < 0)
-			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+  		if (vector < 0)
+			return -ENOSPC;
 	}
 
 	spin_lock_irqsave(&irq_descp(vector)->lock, flags);
@@ -753,8 +754,13 @@ again:
 		}
 
 		dest = get_target_cpu(gsi, vector);
-		register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY,
+		err = register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY,
 			      polarity, trigger);
+		if (err < 0) {
+			spin_unlock(&iosapic_lock);
+			spin_unlock_irqrestore(&irq_descp(vector)->lock, flags);
+			return err;
+		}
 
 		/*
 		 * If the vector is shared and already unmasked for
@@ -776,7 +782,6 @@ again:
 	return vector;
 }
 
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void
 iosapic_unregister_intr (unsigned int gsi)
 {
@@ -859,7 +864,6 @@ iosapic_unregister_intr (unsigned int gsi)
 	spin_unlock(&iosapic_lock);
 	spin_unlock_irqrestore(&idesc->lock, flags);
 }
-#endif /* CONFIG_ACPI_DEALLOCATE_IRQ */
 
 /*
  * ACPI calls this when it finds an entry for a platform interrupt.

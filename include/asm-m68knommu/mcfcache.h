@@ -33,7 +33,7 @@
 .endm
 #endif /* CONFIG_M5206 || CONFIG_M5206e || CONFIG_M5272 */
 
-#if defined(CONFIG_M527x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x)
 /*
  *	New version 2 cores have a configurable split cache arrangement.
  *	For now I am just enabling instruction cache - but ultimately I
@@ -51,23 +51,20 @@
 	movec	%d0,%CACR		/* enable cache */
 	nop
 .endm
-#endif /* CONFIG_M527x */
+#endif /* CONFIG_M523x || CONFIG_M527x */
 
 #if defined(CONFIG_M528x)
-/*
- *	Cache is totally broken on early 5282 silicon. So far now we
- *	disable its cache all together.
- */
 .macro CACHE_ENABLE
-	movel	#0x01000000,%d0
-	movec	%d0,%CACR		/* invalidate cache */
 	nop
-	movel	#0x0000c000,%d0		/* set SDRAM cached only */
-	movec	%d0,%ACR0
-	movel	#0x00000000,%d0		/* no other regions cached */
-	movec	%d0,%ACR1
-	movel	#0x00000000,%d0		/* configure cache */
-	movec	%d0,%CACR		/* enable cache */
+	movel	#0x01000000, %d0
+	movec	%d0, %CACR		/* Invalidate cache */
+	nop
+	movel	#0x0000c020, %d0	/* Set SDRAM cached only */
+	movec	%d0, %ACR0
+	movel	#0xff00c000, %d0	/* Cache Flash also */
+	movec	%d0, %ACR1
+	movel	#0x80000200, %d0	/* Setup cache mask */
+	movec	%d0, %CACR		/* Enable cache */
 	nop
 .endm
 #endif /* CONFIG_M528x */

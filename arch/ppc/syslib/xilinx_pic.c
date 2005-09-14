@@ -79,14 +79,11 @@ xilinx_intc_end(unsigned int irq)
 }
 
 static struct hw_interrupt_type xilinx_intc = {
-	"Xilinx Interrupt Controller",
-	NULL,
-	NULL,
-	xilinx_intc_enable,
-	xilinx_intc_disable,
-	xilinx_intc_disable_and_ack,
-	xilinx_intc_end,
-	0
+	.typename = "Xilinx Interrupt Controller",
+	.enable = xilinx_intc_enable,
+	.disable = xilinx_intc_disable,
+	.ack = xilinx_intc_disable_and_ack,
+	.end = xilinx_intc_end,
 };
 
 int

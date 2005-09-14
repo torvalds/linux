@@ -683,7 +683,7 @@ struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
 {
 	struct sg_iovec iov;
 
-	iov.iov_base = (__user void *)uaddr;
+	iov.iov_base = (void __user *)uaddr;
 	iov.iov_len = len;
 
 	return bio_map_user_iov(q, bdev, &iov, 1, write_to_vm);

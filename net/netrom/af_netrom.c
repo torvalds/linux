@@ -56,6 +56,7 @@ int sysctl_netrom_transport_requested_window_size = NR_DEFAULT_WINDOW;
 int sysctl_netrom_transport_no_activity_timeout   = NR_DEFAULT_IDLE;
 int sysctl_netrom_routing_control                 = NR_DEFAULT_ROUTING;
 int sysctl_netrom_link_fails_count                = NR_DEFAULT_FAILS;
+int sysctl_netrom_reset_circuit                   = NR_DEFAULT_RESET;
 
 static unsigned short circuit = 0x101;
 
@@ -908,17 +909,17 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	if (frametype != NR_CONNREQ) {
 		/*
 		 * Here it would be nice to be able to send a reset but
-		 * NET/ROM doesn't have one. The following hack would
-		 * have been a way to extend the protocol but apparently
-		 * it kills BPQ boxes... :-(
+		 * NET/ROM doesn't have one.  We've tried to extend the protocol
+		 * by sending NR_CONNACK | NR_CHOKE_FLAGS replies but that
+		 * apparently kills BPQ boxes... :-(
+		 * So now we try to follow the established behaviour of
+		 * G8PZT's Xrouter which is sending packets with command type 7
+		 * as an extension of the protocol.
 		 */
-#if 0
-		/*
-		 * Never reply to a CONNACK/CHOKE.
-		 */
-		if (frametype != NR_CONNACK || flags != NR_CHOKE_FLAG)
-			nr_transmit_refusal(skb, 1);
-#endif
+		if (sysctl_netrom_reset_circuit &&
+		    (frametype != NR_RESET || flags != 0))
+			nr_transmit_reset(skb, 1);
+
 		return 0;
 	}
 
@@ -1187,9 +1188,7 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 
 	case SIOCGSTAMP:
-		ret = -EINVAL;
-		if (sk != NULL)
-			ret = sock_get_timestamp(sk, argp);
+		ret = sock_get_timestamp(sk, argp);
 		release_sock(sk);
 		return ret;
 
@@ -1393,8 +1392,7 @@ static int __init nr_proto_init(void)
 		struct net_device *dev;
 
 		sprintf(name, "nr%d", i);
-		dev = alloc_netdev(sizeof(struct net_device_stats), name,
-					  nr_setup);
+		dev = alloc_netdev(sizeof(struct nr_private), name, nr_setup);
 		if (!dev) {
 			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device structure\n");
 			goto fail;

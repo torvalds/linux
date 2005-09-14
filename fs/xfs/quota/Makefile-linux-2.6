@@ -41,13 +41,13 @@ ifeq ($(CONFIG_XFS_TRACE),y)
 	EXTRA_CFLAGS += -DXFS_VNODE_TRACE
 endif
 
-obj-$(CONFIG_XFS_QUOTA)		+= xfs_quota.o
-
-xfs_quota-y			+= xfs_dquot.o \
+xfs-$(CONFIG_XFS_QUOTA)		+= xfs_dquot.o \
 				   xfs_dquot_item.o \
 				   xfs_trans_dquot.o \
 				   xfs_qm_syscalls.o \
 				   xfs_qm_bhv.o \
 				   xfs_qm.o
 
-xfs_quota-$(CONFIG_PROC_FS)	+= xfs_qm_stats.o
+ifeq ($(CONFIG_XFS_QUOTA),y)
+xfs-$(CONFIG_PROC_FS)		+= xfs_qm_stats.o
+endif

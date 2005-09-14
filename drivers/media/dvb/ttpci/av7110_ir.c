@@ -7,15 +7,15 @@
 #include <asm/bitops.h>
 
 #include "av7110.h"
+#include "av7110_hw.h"
 
-#define UP_TIMEOUT (HZ/4)
+#define UP_TIMEOUT (HZ*7/25)
 
 /* enable ir debugging by or'ing debug with 16 */
 
-static int ir_initialized;
+static int av_cnt;
+static struct av7110 *av_list[4];
 static struct input_dev input_dev;
-
-static u32 ir_config;
 
 static u16 key_map [256] = {
 	KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7,
@@ -53,8 +53,11 @@ static void av7110_emit_keyup(unsigned long data)
 static struct timer_list keyup_timer = { .function = av7110_emit_keyup };
 
 
-static void av7110_emit_key(u32 ircom)
+static void av7110_emit_key(unsigned long parm)
 {
+	struct av7110 *av7110 = (struct av7110 *) parm;
+	u32 ir_config = av7110->ir_config;
+	u32 ircom = av7110->ir_command;
 	u8 data;
 	u8 addr;
 	static u16 old_toggle = 0;
@@ -62,19 +65,33 @@ static void av7110_emit_key(u32 ircom)
 	u16 keycode;
 
 	/* extract device address and data */
-	if (ir_config & 0x0001) {
-		/* TODO RCMM: ? bits device address, 8 bits data */
-		data = ircom & 0xff;
-		addr = (ircom >> 8) & 0xff;
-	} else {
-		/* RC5: 5 bits device address, 6 bits data */
+	switch (ir_config & 0x0003) {
+	case 0:	/* RC5: 5 bits device address, 6 bits data */
 		data = ircom & 0x3f;
 		addr = (ircom >> 6) & 0x1f;
+		break;
+
+	case 1:	/* RCMM: 8(?) bits device address, 8(?) bits data */
+		data = ircom & 0xff;
+		addr = (ircom >> 8) & 0xff;
+		break;
+
+	case 2:	/* extended RC5: 5 bits device address, 7 bits data */
+		data = ircom & 0x3f;
+		addr = (ircom >> 6) & 0x1f;
+		/* invert 7th data bit for backward compatibility with RC5 keymaps */
+		if (!(ircom & 0x1000))
+			data |= 0x40;
+		break;
+
+	default:
+		printk("invalid ir_config %x\n", ir_config);
+		return;
 	}
 
 	keycode = key_map[data];
 
-	dprintk(16, "#########%08x######### addr %i data 0x%02x (keycode %i)\n",
+	dprintk(16, "code %08x -> addr %i data 0x%02x -> keycode %i\n",
 		ircom, addr, data, keycode);
 
 	/* check device address (if selected) */
@@ -87,10 +104,10 @@ static void av7110_emit_key(u32 ircom)
 		return;
 	}
 
-	if (ir_config & 0x0001)
+	if ((ir_config & 0x0003) == 1)
 		new_toggle = 0; /* RCMM */
 	else
-		new_toggle = (ircom & 0x800); /* RC5 */
+		new_toggle = (ircom & 0x800); /* RC5, extended RC5 */
 
 	if (timer_pending(&keyup_timer)) {
 		del_timer(&keyup_timer);
@@ -137,6 +154,8 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 {
 	char *page;
 	int size = 4 + 256 * sizeof(u16);
+	u32 ir_config;
+	int i;
 
 	if (count < size)
 		return -EINVAL;
@@ -153,60 +172,95 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 	memcpy(&ir_config, page, 4);
 	memcpy(&key_map, page + 4, 256 * sizeof(u16));
 	vfree(page);
-	av7110_setup_irc_config(NULL, ir_config);
+	if (FW_VERSION(av_list[0]->arm_app) >= 0x2620 && !(ir_config & 0x0001))
+		ir_config |= 0x0002; /* enable extended RC5 */
+	for (i = 0; i < av_cnt; i++)
+		av7110_setup_irc_config(av_list[i], ir_config);
 	input_register_keys();
 	return count;
 }
 
 
-int __init av7110_ir_init(void)
+int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
+{
+	int ret = 0;
+
+	dprintk(4, "%p\n", av7110);
+	if (av7110) {
+		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
+		av7110->ir_config = ir_config;
+	}
+	return ret;
+}
+
+
+static void ir_handler(struct av7110 *av7110, u32 ircom)
+{
+	dprintk(4, "ircommand = %08x\n", ircom);
+	av7110->ir_command = ircom;
+	tasklet_schedule(&av7110->ir_tasklet);
+}
+
+
+int __init av7110_ir_init(struct av7110 *av7110)
 {
 	static struct proc_dir_entry *e;
 
-	if (ir_initialized)
-		return 0;
+	if (av_cnt >= sizeof av_list/sizeof av_list[0])
+		return -ENOSPC;
 
-	init_timer(&keyup_timer);
-	keyup_timer.data = 0;
+	av7110_setup_irc_config(av7110, 0x0001);
+	av_list[av_cnt++] = av7110;
 
-	input_dev.name = "DVB on-card IR receiver";
+	if (av_cnt == 1) {
+		init_timer(&keyup_timer);
+		keyup_timer.data = 0;
 
-	/**
-	 *  enable keys
-	 */
-	set_bit(EV_KEY, input_dev.evbit);
-	set_bit(EV_REP, input_dev.evbit);
+		input_dev.name = "DVB on-card IR receiver";
+		set_bit(EV_KEY, input_dev.evbit);
+		set_bit(EV_REP, input_dev.evbit);
+		input_register_keys();
+		input_register_device(&input_dev);
+		input_dev.timer.function = input_repeat_key;
 
-	input_register_keys();
-
-	input_register_device(&input_dev);
-	input_dev.timer.function = input_repeat_key;
-
-	av7110_setup_irc_config(NULL, 0x0001);
-	av7110_register_irc_handler(av7110_emit_key);
-
-	e = create_proc_entry("av7110_ir", S_IFREG | S_IRUGO | S_IWUSR, NULL);
-	if (e) {
-		e->write_proc = av7110_ir_write_proc;
-		e->size = 4 + 256 * sizeof(u16);
+		e = create_proc_entry("av7110_ir", S_IFREG | S_IRUGO | S_IWUSR, NULL);
+		if (e) {
+			e->write_proc = av7110_ir_write_proc;
+			e->size = 4 + 256 * sizeof(u16);
+		}
 	}
 
-	ir_initialized = 1;
+	tasklet_init(&av7110->ir_tasklet, av7110_emit_key, (unsigned long) av7110);
+	av7110->ir_handler = ir_handler;
+
 	return 0;
 }
 
 
-void __exit av7110_ir_exit(void)
+void __exit av7110_ir_exit(struct av7110 *av7110)
 {
-	if (ir_initialized == 0)
+	int i;
+
+	if (av_cnt == 0)
 		return;
-	del_timer_sync(&keyup_timer);
-	remove_proc_entry("av7110_ir", NULL);
-	av7110_unregister_irc_handler(av7110_emit_key);
-	input_unregister_device(&input_dev);
-	ir_initialized = 0;
+
+	av7110->ir_handler = NULL;
+	tasklet_kill(&av7110->ir_tasklet);
+	for (i = 0; i < av_cnt; i++)
+		if (av_list[i] == av7110) {
+			av_list[i] = av_list[av_cnt-1];
+			av_list[av_cnt-1] = NULL;
+			break;
+		}
+
+	if (av_cnt == 1) {
+		del_timer_sync(&keyup_timer);
+		remove_proc_entry("av7110_ir", NULL);
+		input_unregister_device(&input_dev);
+	}
+
+	av_cnt--;
 }
 
 //MODULE_AUTHOR("Holger Waechtler <holger@convergence.de>");
 //MODULE_LICENSE("GPL");
-

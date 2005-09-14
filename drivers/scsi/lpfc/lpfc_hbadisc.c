@@ -1017,13 +1017,10 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	struct fc_rport *rport;
 	struct lpfc_rport_data *rdata;
 	struct fc_rport_identifiers rport_ids;
-	uint64_t wwn;
 
 	/* Remote port has reappeared. Re-register w/ FC transport */
-	memcpy(&wwn, &ndlp->nlp_nodename, sizeof(uint64_t));
-	rport_ids.node_name = be64_to_cpu(wwn);
-	memcpy(&wwn, &ndlp->nlp_portname, sizeof(uint64_t));
-	rport_ids.port_name = be64_to_cpu(wwn);
+	rport_ids.node_name = wwn_to_u64(ndlp->nlp_nodename.wwn);
+	rport_ids.port_name = wwn_to_u64(ndlp->nlp_portname.wwn);
 	rport_ids.port_id = ndlp->nlp_DID;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 	if (ndlp->nlp_type & NLP_FCP_TARGET)

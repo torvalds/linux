@@ -60,6 +60,8 @@ static void proc_delete_inode(struct inode *inode)
 	struct proc_dir_entry *de;
 	struct task_struct *tsk;
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	/* Let go of any associated process */
 	tsk = PROC_I(inode)->task;
 	if (tsk)

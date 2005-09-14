@@ -653,7 +653,6 @@ static void rtl8150_tx_timeout(struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	warn("%s: Tx timeout.", netdev->name);
-	dev->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(dev->tx_urb);
 	dev->stats.tx_errors++;
 }

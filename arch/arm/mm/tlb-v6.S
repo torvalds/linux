@@ -11,7 +11,7 @@
  *  These assume a split I/D TLB.
  */
 #include <linux/linkage.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include "proc-macros.S"

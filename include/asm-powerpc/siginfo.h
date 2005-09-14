@@ -1,5 +1,5 @@
-#ifndef _POWERPC_SIGINFO_H
-#define _POWERPC_SIGINFO_H
+#ifndef _ASM_POWERPC_SIGINFO_H
+#define _ASM_POWERPC_SIGINFO_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -15,4 +15,12 @@
 
 #include <asm-generic/siginfo.h>
 
-#endif /* _POWERPC_SIGINFO_H */
+/*
+ * SIGTRAP si_codes
+ */
+#define TRAP_BRANCH	(__SI_FAULT|3)	/* process taken branch trap */
+#define TRAP_HWBKPT	(__SI_FAULT|4)	/* hardware breakpoint or watchpoint */
+#undef NSIGTRAP
+#define NSIGTRAP	4
+
+#endif	/* _ASM_POWERPC_SIGINFO_H */

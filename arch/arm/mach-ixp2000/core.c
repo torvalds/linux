@@ -174,7 +174,7 @@ static struct resource ixp2000_uart_resource = {
 
 static struct platform_device ixp2000_serial_device = {
 	.name		= "serial8250",
-	.id		= 0,
+	.id		= PLAT8250_DEV_PLATFORM,
 	.dev		= {
 		.platform_data		= ixp2000_serial_port,
 	},

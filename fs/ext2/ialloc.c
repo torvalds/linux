@@ -615,6 +615,11 @@ got:
 		DQUOT_DROP(inode);
 		goto fail2;
 	}
+	err = ext2_init_security(inode,dir);
+	if (err) {
+		DQUOT_FREE_INODE(inode);
+		goto fail2;
+	}
 	mark_inode_dirty(inode);
 	ext2_debug("allocating inode %lu\n", inode->i_ino);
 	ext2_preread_inode(inode);

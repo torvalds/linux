@@ -40,7 +40,7 @@
 
 /*****************************************************************************/
 
-#include <linux/config.h>
+#include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -48,18 +48,12 @@
 #include <linux/workqueue.h>
 #include <linux/fs.h>
 #include <linux/parport.h>
-#include <linux/smp_lock.h>
-#include <asm/uaccess.h>
 #include <linux/if_arp.h>
-#include <linux/kmod.h>
 #include <linux/hdlcdrv.h>
 #include <linux/baycom.h>
 #include <linux/jiffies.h>
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-/* prototypes for ax25_encapsulate and ax25_rebuild_header */
 #include <net/ax25.h> 
-#endif /* CONFIG_AX25 || CONFIG_AX25_MODULE */
-#include <linux/crc-ccitt.h>
+#include <asm/uaccess.h>
 
 /* --------------------------------------------------------------------- */
 
@@ -1177,13 +1171,8 @@ static void baycom_probe(struct net_device *dev)
 	/* Fill in the fields of the device structure */
 	bc->skb = NULL;
 	
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header = ax25_encapsulate;
+	dev->hard_header = ax25_hard_header;
 	dev->rebuild_header = ax25_rebuild_header;
-#else /* CONFIG_AX25 || CONFIG_AX25_MODULE */
-	dev->hard_header = NULL;
-	dev->rebuild_header = NULL;
-#endif /* CONFIG_AX25 || CONFIG_AX25_MODULE */
 	dev->set_mac_address = baycom_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */

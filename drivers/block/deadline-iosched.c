@@ -512,7 +512,10 @@ static int deadline_dispatch_requests(struct deadline_data *dd)
 	/*
 	 * batches are currently reads XOR writes
 	 */
-	drq = dd->next_drq[WRITE] ? : dd->next_drq[READ];
+	if (dd->next_drq[WRITE])
+		drq = dd->next_drq[WRITE];
+	else
+		drq = dd->next_drq[READ];
 
 	if (drq) {
 		/* we have a "next request" */

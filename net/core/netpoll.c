@@ -645,10 +645,10 @@ int netpoll_setup(struct netpoll *np)
 
 		npinfo->rx_flags = 0;
 		npinfo->rx_np = NULL;
-		npinfo->poll_lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&npinfo->poll_lock);
 		npinfo->poll_owner = -1;
 		npinfo->tries = MAX_RETRIES;
-		npinfo->rx_lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&npinfo->rx_lock);
 	} else
 		npinfo = ndev->npinfo;
 

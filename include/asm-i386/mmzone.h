@@ -29,7 +29,7 @@ static inline void get_memcfg_numa(void)
 #ifdef CONFIG_X86_NUMAQ
 	if (get_memcfg_numaq())
 		return;
-#elif CONFIG_ACPI_SRAT
+#elif defined(CONFIG_ACPI_SRAT)
 	if (get_memcfg_from_srat())
 		return;
 #endif

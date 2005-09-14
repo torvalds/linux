@@ -23,12 +23,12 @@
 /* waiting for a spinlock... */
 #if defined(CONFIG_PPC_SPLPAR) || defined(CONFIG_PPC_ISERIES)
 
-void __spin_yield(spinlock_t *lock)
+void __spin_yield(raw_spinlock_t *lock)
 {
 	unsigned int lock_value, holder_cpu, yield_count;
 	struct paca_struct *holder_paca;
 
-	lock_value = lock->lock;
+	lock_value = lock->slock;
 	if (lock_value == 0)
 		return;
 	holder_cpu = lock_value & 0xffff;
@@ -38,7 +38,7 @@ void __spin_yield(spinlock_t *lock)
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */
 	rmb();
-	if (lock->lock != lock_value)
+	if (lock->slock != lock_value)
 		return;		/* something has changed */
 #ifdef CONFIG_PPC_ISERIES
 	HvCall2(HvCallBaseYieldProcessor, HvCall_YieldToProc,
@@ -54,7 +54,7 @@ void __spin_yield(spinlock_t *lock)
  * This turns out to be the same for read and write locks, since
  * we only know the holder if it is write-locked.
  */
-void __rw_yield(rwlock_t *rw)
+void __rw_yield(raw_rwlock_t *rw)
 {
 	int lock_value;
 	unsigned int holder_cpu, yield_count;
@@ -82,9 +82,9 @@ void __rw_yield(rwlock_t *rw)
 }
 #endif
 
-void spin_unlock_wait(spinlock_t *lock)
+void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
-	while (lock->lock) {
+	while (lock->slock) {
 		HMT_low();
 		if (SHARED_PROCESSOR)
 			__spin_yield(lock);
@@ -92,4 +92,4 @@ void spin_unlock_wait(spinlock_t *lock)
 	HMT_medium();
 }
 
-EXPORT_SYMBOL(spin_unlock_wait);
+EXPORT_SYMBOL(__raw_spin_unlock_wait);

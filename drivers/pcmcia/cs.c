@@ -654,9 +654,10 @@ static int pccardd(void *__skt)
 		skt->thread = NULL;
 		complete_and_exit(&skt->thread_done, 0);
 	}
-	complete(&skt->thread_done);
 
 	add_wait_queue(&skt->thread_wait, &wait);
+	complete(&skt->thread_done);
+
 	for (;;) {
 		unsigned long flags;
 		unsigned int events;
@@ -682,11 +683,11 @@ static int pccardd(void *__skt)
 			continue;
 		}
 
-		schedule();
-		try_to_freeze();
-
 		if (!skt->thread)
 			break;
+
+		schedule();
+		try_to_freeze();
 	}
 	remove_wait_queue(&skt->thread_wait, &wait);
 

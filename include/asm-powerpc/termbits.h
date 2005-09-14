@@ -1,5 +1,5 @@
-#ifndef _POWERPC_TERMBITS_H
-#define _POWERPC_TERMBITS_H
+#ifndef _ASM_POWERPC_TERMBITS_H
+#define _ASM_POWERPC_TERMBITS_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -188,4 +188,4 @@ struct termios {
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 
-#endif /* _POWERPC_TERMBITS_H */
+#endif	/* _ASM_POWERPC_TERMBITS_H */

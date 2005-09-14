@@ -97,14 +97,9 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 /* to make sure it doesn't hog all of the bandwidth */
 #define DEPTH_INTERVAL 5
 
-static inline void restart_timer(struct uhci_hcd *uhci)
-{
-	mod_timer(&uhci->stall_timer, jiffies + msecs_to_jiffies(100));
-}
-
-#include "uhci-hub.c"
 #include "uhci-debug.c"
 #include "uhci-q.c"
+#include "uhci-hub.c"
 
 /*
  * Make sure the controller is completely inactive, unable to
@@ -160,7 +155,6 @@ static void hc_died(struct uhci_hcd *uhci)
 {
 	reset_hc(uhci);
 	uhci->hc_inaccessible = 1;
-	del_timer(&uhci->stall_timer);
 }
 
 /*
@@ -287,8 +281,11 @@ __acquires(uhci->lock)
 	/* Enable resume-detect interrupts if they work.
 	 * Then enter Global Suspend mode, still configured.
 	 */
-	int_enable = (resume_detect_interrupts_are_broken(uhci) ?
-			0 : USBINTR_RESUME);
+	uhci->working_RD = 1;
+	int_enable = USBINTR_RESUME;
+	if (resume_detect_interrupts_are_broken(uhci)) {
+		uhci->working_RD = int_enable = 0;
+	}
 	outw(int_enable, uhci->io_addr + USBINTR);
 	outw(USBCMD_EGSM | USBCMD_CF, uhci->io_addr + USBCMD);
 	mb();
@@ -315,7 +312,6 @@ __acquires(uhci->lock)
 
 	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
-	del_timer(&uhci->stall_timer);
 	uhci_to_hcd(uhci)->poll_rh = !int_enable;
 
 	uhci_scan_schedule(uhci, NULL);
@@ -335,7 +331,6 @@ static void start_rh(struct uhci_hcd *uhci)
 	mb();
 	uhci->rh_state = UHCI_RH_RUNNING;
 	uhci_to_hcd(uhci)->poll_rh = 1;
-	restart_timer(uhci);
 }
 
 static void wakeup_rh(struct uhci_hcd *uhci)
@@ -374,20 +369,6 @@ __acquires(uhci->lock)
 	mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
 }
 
-static void stall_callback(unsigned long _uhci)
-{
-	struct uhci_hcd *uhci = (struct uhci_hcd *) _uhci;
-	unsigned long flags;
-
-	spin_lock_irqsave(&uhci->lock, flags);
-	uhci_scan_schedule(uhci, NULL);
-	check_fsbr(uhci);
-
-	if (!uhci->is_stopped)
-		restart_timer(uhci);
-	spin_unlock_irqrestore(&uhci->lock, flags);
-}
-
 static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
@@ -418,8 +399,10 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 					"host controller halted, "
 					"very bad!\n");
 				hc_died(uhci);
-				spin_unlock_irqrestore(&uhci->lock, flags);
-				return IRQ_HANDLED;
+
+				/* Force a callback in case there are
+				 * pending unlinks */
+				mod_timer(&hcd->rh_timer, jiffies);
 			}
 			spin_unlock_irqrestore(&uhci->lock, flags);
 		}
@@ -427,10 +410,11 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 
 	if (status & USBSTS_RD)
 		usb_hcd_poll_rh_status(hcd);
-
-	spin_lock_irqsave(&uhci->lock, flags);
-	uhci_scan_schedule(uhci, regs);
-	spin_unlock_irqrestore(&uhci->lock, flags);
+	else {
+		spin_lock_irqsave(&uhci->lock, flags);
+		uhci_scan_schedule(uhci, regs);
+		spin_unlock_irqrestore(&uhci->lock, flags);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -595,10 +579,6 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	init_waitqueue_head(&uhci->waitqh);
 
-	init_timer(&uhci->stall_timer);
-	uhci->stall_timer.function = stall_callback;
-	uhci->stall_timer.data = (unsigned long) uhci;
-
 	uhci->fl = dma_alloc_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
 			&dma_handle, 0);
 	if (!uhci->fl) {
@@ -745,11 +725,11 @@ static void uhci_stop(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	spin_lock_irq(&uhci->lock);
-	reset_hc(uhci);
+	if (!uhci->hc_inaccessible)
+		reset_hc(uhci);
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
 
-	del_timer_sync(&uhci->stall_timer);
 	release_uhci(uhci);
 }
 
@@ -811,13 +791,12 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	 */
 	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
 	uhci->hc_inaccessible = 1;
+	hcd->poll_rh = 0;
 
 	/* FIXME: Enable non-PME# remote wakeup? */
 
 done:
 	spin_unlock_irq(&uhci->lock);
-	if (rc == 0)
-		del_timer_sync(&hcd->rh_timer);
 	return rc;
 }
 
@@ -850,8 +829,11 @@ static int uhci_resume(struct usb_hcd *hcd)
 
 	spin_unlock_irq(&uhci->lock);
 
-	if (hcd->poll_rh)
+	if (!uhci->working_RD) {
+		/* Suspended root hub needs to be polled */
+		hcd->poll_rh = 1;
 		usb_hcd_poll_rh_status(hcd);
+	}
 	return 0;
 }
 #endif

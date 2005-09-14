@@ -194,8 +194,9 @@ static u8 *nvidia_do_probe_i2c_edid(struct nvidia_i2c_chan *chan)
 	return NULL;
 }
 
-int nvidia_probe_i2c_connector(struct nvidia_par *par, int conn, u8 **out_edid)
+int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 {
+	struct nvidia_par *par = info->par;
 	u8 *edid = NULL;
 	int i;
 
@@ -205,10 +206,17 @@ int nvidia_probe_i2c_connector(struct nvidia_par *par, int conn, u8 **out_edid)
 		if (edid)
 			break;
 	}
+
+	if (!edid && conn == 1) {
+		/* try to get from firmware */
+		edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+		if (edid)
+			memcpy(edid, fb_firmware_edid(info->device),
+			       EDID_LENGTH);
+	}
+
 	if (out_edid)
 		*out_edid = edid;
-	if (!edid)
-		return 1;
 
-	return 0;
+	return (edid) ? 0 : 1;
 }

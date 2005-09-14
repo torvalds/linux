@@ -5,7 +5,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/pal.h>
 #include <asm/errno.h>

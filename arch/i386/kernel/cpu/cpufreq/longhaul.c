@@ -467,11 +467,11 @@ static void __init longhaul_setup_voltagescaling(void)
 	}
 
 	if (vrmrev==0) {
-		dprintk ("VRM 8.5 \n");
+		dprintk ("VRM 8.5\n");
 		memcpy (voltage_table, vrm85scales, sizeof(voltage_table));
 		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/25;
 	} else {
-		dprintk ("Mobile VRM \n");
+		dprintk ("Mobile VRM\n");
 		memcpy (voltage_table, mobilevrmscales, sizeof(voltage_table));
 		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/5;
 	}

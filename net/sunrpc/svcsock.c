@@ -1170,8 +1170,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	while (rqstp->rq_arghi < pages) {
 		struct page *p = alloc_page(GFP_KERNEL);
 		if (!p) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ/2);
+			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			continue;
 		}
 		rqstp->rq_argpages[rqstp->rq_arghi++] = p;

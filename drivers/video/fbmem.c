@@ -62,16 +62,26 @@ int num_registered_fb;
  * Helpers
  */
 
-int fb_get_color_depth(struct fb_var_screeninfo *var)
+int fb_get_color_depth(struct fb_var_screeninfo *var,
+		       struct fb_fix_screeninfo *fix)
 {
-	if (var->green.length == var->blue.length &&
-	    var->green.length == var->red.length &&
-	    !var->green.offset && !var->blue.offset &&
-	    !var->red.offset)
-		return var->green.length;
-	else
-		return (var->green.length + var->red.length +
-			var->blue.length);
+	int depth = 0;
+
+	if (fix->visual == FB_VISUAL_MONO01 ||
+	    fix->visual == FB_VISUAL_MONO10)
+		depth = 1;
+	else {
+		if (var->green.length == var->blue.length &&
+		    var->green.length == var->red.length &&
+		    var->green.offset == var->blue.offset &&
+		    var->green.offset == var->red.offset)
+			depth = var->green.length;
+		else
+			depth = var->green.length + var->red.length +
+				var->blue.length;
+	}
+
+	return depth;
 }
 EXPORT_SYMBOL(fb_get_color_depth);
 
@@ -80,15 +90,7 @@ EXPORT_SYMBOL(fb_get_color_depth);
  */
 void fb_pad_aligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch, u32 height)
 {
-	int i, j;
-
-	for (i = height; i--; ) {
-		/* s_pitch is a few bytes at the most, memcpy is suboptimal */
-		for (j = 0; j < s_pitch; j++)
-			dst[j] = src[j];
-		src += s_pitch;
-		dst += d_pitch;
-	}
+	__fb_pad_aligned_buffer(dst, d_pitch, src, s_pitch, height);
 }
 EXPORT_SYMBOL(fb_pad_aligned_buffer);
 
@@ -249,12 +251,17 @@ static void fb_set_logo(struct fb_info *info,
 			       const struct linux_logo *logo, u8 *dst,
 			       int depth)
 {
-	int i, j, k, fg = 1;
+	int i, j, k;
 	const u8 *src = logo->data;
-	u8 d, xor = (info->fix.visual == FB_VISUAL_MONO01) ? 0xff : 0;
+	u8 xor = (info->fix.visual == FB_VISUAL_MONO01) ? 0xff : 0;
+	u8 fg = 1, d;
 
-	if (fb_get_color_depth(&info->var) == 3)
+	if (fb_get_color_depth(&info->var, &info->fix) == 3)
 		fg = 7;
+
+	if (info->fix.visual == FB_VISUAL_MONO01 ||
+	    info->fix.visual == FB_VISUAL_MONO10)
+		fg = ~((u8) (0xfff << info->var.green.length));
 
 	switch (depth) {
 	case 4:
@@ -318,7 +325,7 @@ static struct logo_data {
 
 int fb_prepare_logo(struct fb_info *info)
 {
-	int depth = fb_get_color_depth(&info->var);
+	int depth = fb_get_color_depth(&info->var, &info->fix);
 
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
@@ -684,11 +691,13 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 			if (!err && (flags & FBINFO_MISC_USEREVENT)) {
 				struct fb_event event;
+				int evnt = (var->activate & FB_ACTIVATE_ALL) ?
+					FB_EVENT_MODE_CHANGE_ALL :
+					FB_EVENT_MODE_CHANGE;
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
 				event.info = info;
-				notifier_call_chain(&fb_notifier_list,
-						    FB_EVENT_MODE_CHANGE,
+				notifier_call_chain(&fb_notifier_list, evnt,
 						    &event);
 			}
 		}
@@ -1012,6 +1021,7 @@ register_framebuffer(struct fb_info *fb_info)
 {
 	int i;
 	struct fb_event event;
+	struct fb_videomode mode;
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -1042,16 +1052,11 @@ register_framebuffer(struct fb_info *fb_info)
 	}	
 	fb_info->pixmap.offset = 0;
 
-	if (!fb_info->modelist.prev ||
-	    !fb_info->modelist.next ||
-	    list_empty(&fb_info->modelist)) {
-	        struct fb_videomode mode;
-
+	if (!fb_info->modelist.prev || !fb_info->modelist.next)
 		INIT_LIST_HEAD(&fb_info->modelist);
-		fb_var_to_videomode(&mode, &fb_info->var);
-		fb_add_videomode(&mode, &fb_info->modelist);
-	}
 
+	fb_var_to_videomode(&mode, &fb_info->var);
+	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
 
 	devfs_mk_cdev(MKDEV(FB_MAJOR, i),

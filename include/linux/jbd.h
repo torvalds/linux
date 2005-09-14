@@ -28,6 +28,7 @@
 #include <linux/buffer_head.h>
 #include <linux/journal-head.h>
 #include <linux/stddef.h>
+#include <linux/bit_spinlock.h>
 #include <asm/semaphore.h>
 #endif
 

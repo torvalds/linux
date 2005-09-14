@@ -1,5 +1,3 @@
-menu "XFS support"
-
 config XFS_FS
 	tristate "XFS filesystem support"
 	select EXPORTFS if NFSD!=n
@@ -22,27 +20,11 @@ config XFS_FS
 
 config XFS_EXPORT
 	bool
-	default y if XFS_FS && EXPORTFS
-
-config XFS_RT
-	bool "Realtime support (EXPERIMENTAL)"
-	depends on XFS_FS && EXPERIMENTAL
-	help
-	  If you say Y here you will be able to mount and use XFS filesystems
-	  which contain a realtime subvolume. The realtime subvolume is a
-	  separate area of disk space where only file data is stored. The
-	  realtime subvolume is designed to provide very deterministic
-	  data rates suitable for media streaming applications.
-
-	  See the xfs man page in section 5 for a bit more information.
-
-	  This feature is unsupported at this time, is not yet fully
-	  functional, and may cause serious problems.
-
-	  If unsure, say N.
+	depends on XFS_FS && EXPORTFS
+	default y
 
 config XFS_QUOTA
-	bool "Quota support"
+	tristate "XFS Quota support"
 	depends on XFS_FS
 	help
 	  If you say Y here, you will be able to set limits for disk usage on
@@ -59,7 +41,7 @@ config XFS_QUOTA
 	  they are completely independent subsystems.
 
 config XFS_SECURITY
-	bool "Security Label support"
+	bool "XFS Security Label support"
 	depends on XFS_FS
 	help
 	  Security labels support alternative access control models
@@ -71,7 +53,7 @@ config XFS_SECURITY
 	  extended attributes for inode security labels, say N.
 
 config XFS_POSIX_ACL
-	bool "POSIX ACL support"
+	bool "XFS POSIX ACL support"
 	depends on XFS_FS
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -82,4 +64,19 @@ config XFS_POSIX_ACL
 
 	  If you don't know what Access Control Lists are, say N.
 
-endmenu
+config XFS_RT
+	bool "XFS Realtime support (EXPERIMENTAL)"
+	depends on XFS_FS && EXPERIMENTAL
+	help
+	  If you say Y here you will be able to mount and use XFS filesystems
+	  which contain a realtime subvolume. The realtime subvolume is a
+	  separate area of disk space where only file data is stored. The
+	  realtime subvolume is designed to provide very deterministic
+	  data rates suitable for media streaming applications.
+
+	  See the xfs man page in section 5 for a bit more information.
+
+	  This feature is unsupported at this time, is not yet fully
+	  functional, and may cause serious problems.
+
+	  If unsure, say N.

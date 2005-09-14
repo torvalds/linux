@@ -462,6 +462,19 @@ config AUTOFS4_FS
 	  local network, you probably do not need an automounter, and can say
 	  N here.
 
+config FUSE_FS
+	tristate "Filesystem in Userspace support"
+	help
+	  With FUSE it is possible to implement a fully functional filesystem
+	  in a userspace program.
+
+	  There's also companion library: libfuse.  This library along with
+	  utilities is available from the FUSE homepage:
+	  <http://fuse.sourceforge.net/>
+
+	  If you want to develop a userspace FS, or if you want to use
+	  a filesystem based on FUSE, answer Y or M.
+
 menu "CD-ROM/DVD Filesystems"
 
 config ISO9660_FS
@@ -1702,6 +1715,17 @@ config AFS_FS
 
 config RXRPC
 	tristate
+
+config 9P_FS
+	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
+	depends on INET && EXPERIMENTAL
+	help
+	  If you say Y here, you will get experimental support for
+	  Plan 9 resource sharing via the 9P2000 protocol.
+
+	  See <http://v9fs.sf.net> for more information.
+
+	  If unsure, say N.
 
 endmenu
 

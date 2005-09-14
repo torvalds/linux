@@ -1713,10 +1713,9 @@ static unsigned long pollcomplete(int ctlr)
 
 	for (i = 20 * HZ; i > 0; i--) {
 		done = hba[ctlr]->access.command_completed(hba[ctlr]);
-		if (done == FIFO_EMPTY) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
-		} else
+		if (done == FIFO_EMPTY)
+			schedule_timeout_uninterruptible(1);
+		else
 			return (done);
 	}
 	/* Invalid address to tell caller we ran out of time */

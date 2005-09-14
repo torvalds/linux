@@ -210,10 +210,9 @@ void nr_write_internal(struct sock *sk, int frametype)
 }
 
 /*
- * This routine is called when a Connect Acknowledge with the Choke Flag
- * set is needed to refuse a connection.
+ * This routine is called to send an error reply.
  */
-void nr_transmit_refusal(struct sk_buff *skb, int mine)
+void __nr_transmit_reply(struct sk_buff *skb, int mine, unsigned char cmdflags)
 {
 	struct sk_buff *skbn;
 	unsigned char *dptr;
@@ -254,7 +253,7 @@ void nr_transmit_refusal(struct sk_buff *skb, int mine)
 		*dptr++ = 0;
 	}
 
-	*dptr++ = NR_CONNACK | NR_CHOKE_FLAG;
+	*dptr++ = cmdflags;
 	*dptr++ = 0;
 
 	if (!nr_route_frame(skbn, NULL))

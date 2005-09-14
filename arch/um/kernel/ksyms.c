@@ -34,14 +34,9 @@ EXPORT_SYMBOL(host_task_size);
 EXPORT_SYMBOL(arch_validate);
 EXPORT_SYMBOL(get_kmem_end);
 
-EXPORT_SYMBOL(page_to_phys);
-EXPORT_SYMBOL(phys_to_page);
 EXPORT_SYMBOL(high_physmem);
 EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(um_virt_to_phys);
-EXPORT_SYMBOL(__virt_to_page);
-EXPORT_SYMBOL(to_phys);
-EXPORT_SYMBOL(to_virt);
 EXPORT_SYMBOL(mode_tt);
 EXPORT_SYMBOL(handle_page_fault);
 EXPORT_SYMBOL(find_iomem);

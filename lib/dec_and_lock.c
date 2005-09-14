@@ -25,8 +25,6 @@
  * this is trivially done efficiently using a load-locked
  * store-conditional approach, for example.
  */
-
-#ifndef ATOMIC_DEC_AND_LOCK
 int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock)
 {
 	spin_lock(lock);
@@ -37,4 +35,3 @@ int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock)
 }
 
 EXPORT_SYMBOL(_atomic_dec_and_lock);
-#endif

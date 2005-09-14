@@ -360,16 +360,16 @@ qla2x00_get_starget_node_name(struct scsi_target *starget)
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
 	fc_port_t *fcport;
-	uint64_t node_name = 0;
+	u64 node_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
 		if (starget->id == fcport->os_target_id) {
-			node_name = *(uint64_t *)fcport->node_name;
+			node_name = wwn_to_u64(fcport->node_name);
 			break;
 		}
 	}
 
-	fc_starget_node_name(starget) = be64_to_cpu(node_name);
+	fc_starget_node_name(starget) = node_name;
 }
 
 static void
@@ -378,16 +378,16 @@ qla2x00_get_starget_port_name(struct scsi_target *starget)
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
 	fc_port_t *fcport;
-	uint64_t port_name = 0;
+	u64 port_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
 		if (starget->id == fcport->os_target_id) {
-			port_name = *(uint64_t *)fcport->port_name;
+			port_name = wwn_to_u64(fcport->port_name);
 			break;
 		}
 	}
 
-	fc_starget_port_name(starget) = be64_to_cpu(port_name);
+	fc_starget_port_name(starget) = port_name;
 }
 
 static void
@@ -460,9 +460,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 void
 qla2x00_init_host_attr(scsi_qla_host_t *ha)
 {
-	fc_host_node_name(ha->host) =
-	    be64_to_cpu(*(uint64_t *)ha->init_cb->node_name);
-	fc_host_port_name(ha->host) =
-	    be64_to_cpu(*(uint64_t *)ha->init_cb->port_name);
+	fc_host_node_name(ha->host) = wwn_to_u64(ha->init_cb->node_name);
+	fc_host_port_name(ha->host) = wwn_to_u64(ha->init_cb->port_name);
 	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
 }

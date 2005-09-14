@@ -375,16 +375,18 @@ static void rh_inc(struct region_hash *rh, region_t region)
 
 	read_lock(&rh->hash_lock);
 	reg = __rh_find(rh, region);
+
+	atomic_inc(&reg->pending);
+
+	spin_lock_irq(&rh->region_lock);
 	if (reg->state == RH_CLEAN) {
 		rh->log->type->mark_region(rh->log, reg->key);
 
-		spin_lock_irq(&rh->region_lock);
 		reg->state = RH_DIRTY;
 		list_del_init(&reg->list);	/* take off the clean list */
-		spin_unlock_irq(&rh->region_lock);
 	}
+	spin_unlock_irq(&rh->region_lock);
 
-	atomic_inc(&reg->pending);
 	read_unlock(&rh->hash_lock);
 }
 
@@ -408,6 +410,10 @@ static void rh_dec(struct region_hash *rh, region_t region)
 
 	if (atomic_dec_and_test(&reg->pending)) {
 		spin_lock_irqsave(&rh->region_lock, flags);
+		if (atomic_read(&reg->pending)) { /* check race */
+			spin_unlock_irqrestore(&rh->region_lock, flags);
+			return;
+		}
 		if (reg->state == RH_RECOVERING) {
 			list_add_tail(&reg->list, &rh->quiesced_regions);
 		} else {

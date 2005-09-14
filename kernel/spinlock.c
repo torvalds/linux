@@ -3,7 +3,10 @@
  *
  * Author: Zwane Mwaikambo <zwane@fsmlabs.com>
  *
- * Copyright (2004) Ingo Molnar
+ * Copyright (2004, 2005) Ingo Molnar
+ *
+ * This file contains the spinlock/rwlock implementations for the
+ * SMP and the DEBUG_SPINLOCK cases. (UP-nondebug inlines them)
  */
 
 #include <linux/config.h>
@@ -17,12 +20,12 @@
  * Generic declaration of the raw read_trylock() function,
  * architectures are supposed to optimize this:
  */
-int __lockfunc generic_raw_read_trylock(rwlock_t *lock)
+int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock)
 {
-	_raw_read_lock(lock);
+	__raw_read_lock(lock);
 	return 1;
 }
-EXPORT_SYMBOL(generic_raw_read_trylock);
+EXPORT_SYMBOL(generic__raw_read_trylock);
 
 int __lockfunc _spin_trylock(spinlock_t *lock)
 {
@@ -57,7 +60,7 @@ int __lockfunc _write_trylock(rwlock_t *lock)
 }
 EXPORT_SYMBOL(_write_trylock);
 
-#ifndef CONFIG_PREEMPT
+#if !defined(CONFIG_PREEMPT) || !defined(CONFIG_SMP)
 
 void __lockfunc _read_lock(rwlock_t *lock)
 {
@@ -72,7 +75,7 @@ unsigned long __lockfunc _spin_lock_irqsave(spinlock_t *lock)
 
 	local_irq_save(flags);
 	preempt_disable();
-	_raw_spin_lock_flags(lock, flags);
+	_raw_spin_lock_flags(lock, &flags);
 	return flags;
 }
 EXPORT_SYMBOL(_spin_lock_irqsave);

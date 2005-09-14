@@ -18,14 +18,11 @@
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/pgtable.h>
 #include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
-
-#include <linux/irq.h>
 
 /*
  * Common place to define all x86 IRQ vectors
@@ -486,7 +483,14 @@ void spurious_interrupt(void);
 void error_interrupt(void);
 void reschedule_interrupt(void);
 void call_function_interrupt(void);
-void invalidate_interrupt(void);
+void invalidate_interrupt0(void);
+void invalidate_interrupt1(void);
+void invalidate_interrupt2(void);
+void invalidate_interrupt3(void);
+void invalidate_interrupt4(void);
+void invalidate_interrupt5(void);
+void invalidate_interrupt6(void);
+void invalidate_interrupt7(void);
 void thermal_interrupt(void);
 void i8254_timer_resume(void);
 
@@ -562,8 +566,15 @@ void __init init_IRQ(void)
 	 */
 	set_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
 
-	/* IPI for invalidation */
-	set_intr_gate(INVALIDATE_TLB_VECTOR, invalidate_interrupt);
+	/* IPIs for invalidation */
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+0, invalidate_interrupt0);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+1, invalidate_interrupt1);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+2, invalidate_interrupt2);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+3, invalidate_interrupt3);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+4, invalidate_interrupt4);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+5, invalidate_interrupt5);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+6, invalidate_interrupt6);
+	set_intr_gate(INVALIDATE_TLB_VECTOR_START+7, invalidate_interrupt7);
 
 	/* IPI for generic function call */
 	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);

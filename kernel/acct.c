@@ -165,7 +165,7 @@ out:
 }
 
 /*
- * Close the old accouting file (if currently open) and then replace
+ * Close the old accounting file (if currently open) and then replace
  * it with file (if non-NULL).
  *
  * NOTE: acct_globals.lock MUST be held on entry and exit.
@@ -199,11 +199,16 @@ static void acct_file_reopen(struct file *file)
 	}
 }
 
-/*
- *  sys_acct() is the only system call needed to implement process
- *  accounting. It takes the name of the file where accounting records
- *  should be written. If the filename is NULL, accounting will be
- *  shutdown.
+/**
+ * sys_acct - enable/disable process accounting
+ * @name: file name for accounting records or NULL to shutdown accounting
+ *
+ * Returns 0 for success or negative errno values for failure.
+ *
+ * sys_acct() is the only system call needed to implement process
+ * accounting. It takes the name of the file where accounting records
+ * should be written. If the filename is NULL, accounting will be
+ * shutdown.
  */
 asmlinkage long sys_acct(const char __user *name)
 {
@@ -250,9 +255,12 @@ asmlinkage long sys_acct(const char __user *name)
 	return (0);
 }
 
-/*
- * If the accouting is turned on for a file in the filesystem pointed
- * to by sb, turn accouting off.
+/**
+ * acct_auto_close - turn off a filesystem's accounting if it is on
+ * @sb: super block for the filesystem
+ *
+ * If the accounting is turned on for a file in the filesystem pointed
+ * to by sb, turn accounting off.
  */
 void acct_auto_close(struct super_block *sb)
 {
@@ -503,8 +511,11 @@ static void do_acct_process(long exitcode, struct file *file)
 	set_fs(fs);
 }
 
-/*
+/**
  * acct_process - now just a wrapper around do_acct_process
+ * @exitcode: task exit code
+ *
+ * handles process accounting for an exiting task
  */
 void acct_process(long exitcode)
 {
@@ -530,9 +541,9 @@ void acct_process(long exitcode)
 }
 
 
-/*
- * acct_update_integrals
- *    -  update mm integral fields in task_struct
+/**
+ * acct_update_integrals - update mm integral fields in task_struct
+ * @tsk: task_struct for accounting
  */
 void acct_update_integrals(struct task_struct *tsk)
 {
@@ -547,9 +558,9 @@ void acct_update_integrals(struct task_struct *tsk)
 	}
 }
 
-/*
- * acct_clear_integrals
- *    - clear the mm integral fields in task_struct
+/**
+ * acct_clear_integrals - clear the mm integral fields in task_struct
+ * @tsk: task_struct whose accounting fields are cleared
  */
 void acct_clear_integrals(struct task_struct *tsk)
 {

@@ -177,8 +177,7 @@ static inline void __lock_kernel(void)
 
 static inline void __unlock_kernel(void)
 {
-	_raw_spin_unlock(&kernel_flag);
-	preempt_enable();
+	spin_unlock(&kernel_flag);
 }
 
 /*

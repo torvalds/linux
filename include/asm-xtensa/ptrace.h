@@ -127,7 +127,7 @@ extern void show_regs(struct pt_regs *);
 #else	/* __ASSEMBLY__ */
 
 #ifdef __KERNEL__
-# include <asm/offsets.h>
+# include <asm/asm-offsets.h>
 #define PT_REGS_OFFSET	  (KERNEL_STACK_SIZE - PT_USER_SIZE)
 #endif
 

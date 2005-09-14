@@ -1062,6 +1062,8 @@ static void ipoib_remove_one(struct ib_device *device)
 		ipoib_dev_cleanup(priv->dev);
 		free_netdev(priv->dev);
 	}
+
+	kfree(dev_list);
 }
 
 static int __init ipoib_init_module(void)

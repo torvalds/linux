@@ -28,13 +28,48 @@ enum sparc_cpu {
 #define ARCH_SUN4C_SUN4 0
 #define ARCH_SUN4 0
 
-extern void mb(void);
-extern void rmb(void);
-extern void wmb(void);
-extern void membar_storeload(void);
-extern void membar_storeload_storestore(void);
-extern void membar_storeload_loadload(void);
-extern void membar_storestore_loadstore(void);
+/* These are here in an effort to more fully work around Spitfire Errata
+ * #51.  Essentially, if a memory barrier occurs soon after a mispredicted
+ * branch, the chip can stop executing instructions until a trap occurs.
+ * Therefore, if interrupts are disabled, the chip can hang forever.
+ *
+ * It used to be believed that the memory barrier had to be right in the
+ * delay slot, but a case has been traced recently wherein the memory barrier
+ * was one instruction after the branch delay slot and the chip still hung.
+ * The offending sequence was the following in sym_wakeup_done() of the
+ * sym53c8xx_2 driver:
+ *
+ *	call	sym_ccb_from_dsa, 0
+ *	 movge	%icc, 0, %l0
+ *	brz,pn	%o0, .LL1303
+ *	 mov	%o0, %l2
+ *	membar	#LoadLoad
+ *
+ * The branch has to be mispredicted for the bug to occur.  Therefore, we put
+ * the memory barrier explicitly into a "branch always, predicted taken"
+ * delay slot to avoid the problem case.
+ */
+#define membar_safe(type) \
+do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
+			     " membar	" type "\n" \
+			     "1:\n" \
+			     : : : "memory"); \
+} while (0)
+
+#define mb()	\
+	membar_safe("#LoadLoad | #LoadStore | #StoreStore | #StoreLoad")
+#define rmb()	\
+	membar_safe("#LoadLoad")
+#define wmb()	\
+	membar_safe("#StoreStore")
+#define membar_storeload() \
+	membar_safe("#StoreLoad")
+#define membar_storeload_storestore() \
+	membar_safe("#StoreLoad | #StoreStore")
+#define membar_storeload_loadload() \
+	membar_safe("#StoreLoad | #LoadLoad")
+#define membar_storestore_loadstore() \
+	membar_safe("#StoreStore | #LoadStore")
 
 #endif
 

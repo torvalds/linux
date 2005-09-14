@@ -283,7 +283,7 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-       	hose->first_busno = 0xf0;
+	hose->first_busno = 0xf0;
 	hose->last_busno = 0xff;
 	hose->ops = &u3_agp_pci_ops;
 	hose->cfg_addr = ioremap(0xf0000000 + 0x800000, 0x1000);
@@ -315,24 +315,24 @@ static int __init add_bridge(struct device_node *dev)
 	char* disp_name;
 	int *bus_range;
 	int primary = 1;
- 	struct property *of_prop;
+	struct property *of_prop;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 
-       	bus_range = (int *) get_property(dev, "bus-range", &len);
-       	if (bus_range == NULL || len < 2 * sizeof(int)) {
-       		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
-       			       dev->full_name);
-       	}
+	bus_range = (int *) get_property(dev, "bus-range", &len);
+	if (bus_range == NULL || len < 2 * sizeof(int)) {
+		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
+		dev->full_name);
+	}
 
 	hose = alloc_bootmem(sizeof(struct pci_controller));
 	if (hose == NULL)
 		return -ENOMEM;
-       	pci_setup_pci_controller(hose);
+	pci_setup_pci_controller(hose);
 
-       	hose->arch_data = dev;
-       	hose->first_busno = bus_range ? bus_range[0] : 0;
-       	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->arch_data = dev;
+	hose->first_busno = bus_range ? bus_range[0] : 0;
+	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	of_prop = alloc_bootmem(sizeof(struct property) +
 				sizeof(hose->global_number));
@@ -346,25 +346,25 @@ static int __init add_bridge(struct device_node *dev)
 	}
 
 	disp_name = NULL;
-       	if (device_is_compatible(dev, "u3-agp")) {
-       		setup_u3_agp(hose);
-       		disp_name = "U3-AGP";
-       		primary = 0;
-       	} else if (device_is_compatible(dev, "u3-ht")) {
-       		setup_u3_ht(hose);
-       		disp_name = "U3-HT";
-       		primary = 1;
-       	}
-       	printk(KERN_INFO "Found %s PCI host bridge. Firmware bus number: %d->%d\n",
-       		disp_name, hose->first_busno, hose->last_busno);
+	if (device_is_compatible(dev, "u3-agp")) {
+		setup_u3_agp(hose);
+		disp_name = "U3-AGP";
+		primary = 0;
+	} else if (device_is_compatible(dev, "u3-ht")) {
+		setup_u3_ht(hose);
+		disp_name = "U3-HT";
+		primary = 1;
+	}
+	printk(KERN_INFO "Found %s PCI host bridge. Firmware bus number: %d->%d\n",
+		disp_name, hose->first_busno, hose->last_busno);
 
-       	/* Interpret the "ranges" property */
-       	/* This also maps the I/O region and sets isa_io/mem_base */
-       	pci_process_bridge_OF_ranges(hose, dev);
+	/* Interpret the "ranges" property */
+	/* This also maps the I/O region and sets isa_io/mem_base */
+	pci_process_bridge_OF_ranges(hose, dev);
 	pci_setup_phb_io(hose, primary);
 
-       	/* Fixup "bus-range" OF property */
-       	fixup_bus_range(dev);
+	/* Fixup "bus-range" OF property */
+	fixup_bus_range(dev);
 
 	return 0;
 }
@@ -447,9 +447,9 @@ void __init maple_pci_init(void)
 	 */
 	if (u3_agp) {
 		struct device_node *np = u3_agp->arch_data;
-		np->busno = 0xf0;
+		PCI_DN(np)->busno = 0xf0;
 		for (np = np->child; np; np = np->sibling)
-			np->busno = 0xf0;
+			PCI_DN(np)->busno = 0xf0;
 	}
 
 	/* Tell pci.c to use the common resource allocation mecanism */

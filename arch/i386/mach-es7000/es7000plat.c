@@ -51,7 +51,7 @@ struct mip_reg		*host_reg;
 int 			mip_port;
 unsigned long		mip_addr, host_addr;
 
-#if defined(CONFIG_X86_IO_APIC) && (defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_ACPI_BOOT))
+#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI)
 
 /*
  * GSI override for ES7000 platforms.
@@ -73,7 +73,7 @@ es7000_rename_gsi(int ioapic, int gsi)
 	return gsi;
 }
 
-#endif // (CONFIG_X86_IO_APIC) && (CONFIG_ACPI_INTERPRETER || CONFIG_ACPI_BOOT)
+#endif	/* (CONFIG_X86_IO_APIC) && (CONFIG_ACPI) */
 
 void __init
 setup_unisys ()

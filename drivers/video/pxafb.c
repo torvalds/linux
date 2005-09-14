@@ -468,6 +468,36 @@ static inline unsigned int get_pcd(unsigned int pixclock)
 }
 
 /*
+ * Some touchscreens need hsync information from the video driver to
+ * function correctly. We export it here.
+ */
+static inline void set_hsync_time(struct pxafb_info *fbi, unsigned int pcd)
+{
+	unsigned long long htime;
+
+	if ((pcd == 0) || (fbi->fb.var.hsync_len == 0)) {
+		fbi->hsync_time=0;
+		return;
+	}
+
+	htime = (unsigned long long)get_lcdclk_frequency_10khz() * 10000;
+	do_div(htime, pcd * fbi->fb.var.hsync_len);
+	fbi->hsync_time = htime;
+}
+
+unsigned long pxafb_get_hsync_time(struct device *dev)
+{
+	struct pxafb_info *fbi = dev_get_drvdata(dev);
+
+	/* If display is blanked/suspended, hsync isn't active */
+	if (!fbi || (fbi->state != C_ENABLE))
+		return 0;
+
+	return fbi->hsync_time;
+}
+EXPORT_SYMBOL(pxafb_get_hsync_time);
+
+/*
  * pxafb_activate_var():
  *	Configures LCD Controller based on entries in var parameter.  Settings are
  *	only written to the controller if changes were made.
@@ -631,6 +661,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	fbi->reg_lccr1 = new_regs.lccr1;
 	fbi->reg_lccr2 = new_regs.lccr2;
 	fbi->reg_lccr3 = new_regs.lccr3;
+	set_hsync_time(fbi, pcd);
 	local_irq_restore(flags);
 
 	/*
@@ -907,6 +938,7 @@ pxafb_freq_transition(struct notifier_block *nb, unsigned long val, void *data)
 
 	case CPUFREQ_POSTCHANGE:
 		pcd = get_pcd(fbi->fb.var.pixclock);
+		set_hsync_time(fbi, pcd);
 		fbi->reg_lccr3 = (fbi->reg_lccr3 & ~0xff) | LCCR3_PixClkDiv(pcd);
 		set_ctrlr_state(fbi, C_ENABLE_CLKCHANGE);
 		break;

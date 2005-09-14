@@ -694,17 +694,22 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 __attribute__((regparm(3)))
 int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU), ret = 0;
-	/* With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP for syscall
-	 * interception. */
+	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);
+	/*
+	 * With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP for syscall
+	 * interception
+	 */
 	int is_singlestep = !is_sysemu && test_thread_flag(TIF_SINGLESTEP);
+	int ret = 0;
 
 	/* do the secure computing check first */
-	secure_computing(regs->orig_eax);
+	if (!entryexit)
+		secure_computing(regs->orig_eax);
 
 	if (unlikely(current->audit_context)) {
 		if (entryexit)
-			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax),
+						regs->eax);
 		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
 		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
 		 * not used, entry.S will call us only on syscall exit, not
@@ -738,7 +743,7 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
 	/* Note that the debugger could change the result of test_thread_flag!*/
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80:0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
@@ -750,7 +755,7 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 		current->exit_code = 0;
 	}
 	ret = is_sysemu;
- out:
+out:
 	if (unlikely(current->audit_context) && !entryexit)
 		audit_syscall_entry(current, AUDIT_ARCH_I386, regs->orig_eax,
 				    regs->ebx, regs->ecx, regs->edx, regs->esi);
@@ -759,6 +764,7 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 
 	regs->orig_eax = -1; /* force skip of syscall restarting */
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax),
+				regs->eax);
 	return 1;
 }

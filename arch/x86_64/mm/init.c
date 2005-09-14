@@ -57,31 +57,31 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 void show_mem(void)
 {
-	int i, total = 0, reserved = 0;
-	int shared = 0, cached = 0;
+	long i, total = 0, reserved = 0;
+	long shared = 0, cached = 0;
 	pg_data_t *pgdat;
 	struct page *page;
 
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
 	for_each_pgdat(pgdat) {
                for (i = 0; i < pgdat->node_spanned_pages; ++i) {
 			page = pfn_to_page(pgdat->node_start_pfn + i);
 			total++;
-                       if (PageReserved(page))
-			reserved++;
-                       else if (PageSwapCache(page))
-			cached++;
-                       else if (page_count(page))
-                               shared += page_count(page) - 1;
+			if (PageReserved(page))
+				reserved++;
+			else if (PageSwapCache(page))
+				cached++;
+			else if (page_count(page))
+				shared += page_count(page) - 1;
                }
 	}
-	printk("%d pages of RAM\n", total);
-	printk("%d reserved pages\n",reserved);
-	printk("%d pages shared\n",shared);
-	printk("%d pages swap cached\n",cached);
+	printk(KERN_INFO "%lu pages of RAM\n", total);
+	printk(KERN_INFO "%lu reserved pages\n",reserved);
+	printk(KERN_INFO "%lu pages shared\n",shared);
+	printk(KERN_INFO "%lu pages swap cached\n",cached);
 }
 
 /* References to section boundaries */
@@ -381,41 +381,14 @@ void __init clear_kernel_mapping(unsigned long address, unsigned long size)
 	__flush_tlb_all();
 } 
 
-static inline int page_is_ram (unsigned long pagenr)
-{
-	int i;
-
-	for (i = 0; i < e820.nr_map; i++) {
-		unsigned long addr, end;
-
-		if (e820.map[i].type != E820_RAM)	/* not usable memory */
-			continue;
-		/*
-		 *	!!!FIXME!!! Some BIOSen report areas as RAM that
-		 *	are not. Notably the 640->1Mb area. We need a sanity
-		 *	check here.
-		 */
-		addr = (e820.map[i].addr+PAGE_SIZE-1) >> PAGE_SHIFT;
-		end = (e820.map[i].addr+e820.map[i].size) >> PAGE_SHIFT;
-		if  ((pagenr >= addr) && (pagenr < end))
-			return 1;
-	}
-	return 0;
-}
-
-extern int swiotlb_force;
-
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
 
 void __init mem_init(void)
 {
-	int codesize, reservedpages, datasize, initsize;
-	int tmp;
+	long codesize, reservedpages, datasize, initsize;
 
 #ifdef CONFIG_SWIOTLB
-	if (swiotlb_force)
-		swiotlb = 1;
 	if (!iommu_aperture &&
 	    (end_pfn >= 0xffffffff>>PAGE_SHIFT || force_iommu))
 	       swiotlb = 1;
@@ -436,25 +409,11 @@ void __init mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 #ifdef CONFIG_NUMA
-	totalram_pages += numa_free_all_bootmem();
-	tmp = 0;
-	/* should count reserved pages here for all nodes */ 
+	totalram_pages = numa_free_all_bootmem();
 #else
-
-#ifdef CONFIG_FLATMEM
-	max_mapnr = end_pfn;
-	if (!mem_map) BUG();
+	totalram_pages = free_all_bootmem();
 #endif
-
-	totalram_pages += free_all_bootmem();
-
-	for (tmp = 0; tmp < end_pfn; tmp++)
-		/*
-		 * Only count reserved RAM pages
-		 */
-		if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
-			reservedpages++;
-#endif
+	reservedpages = end_pfn - totalram_pages - e820_hole_size(0, end_pfn);
 
 	after_bootmem = 1;
 
@@ -471,7 +430,7 @@ void __init mem_init(void)
 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START, 
 				 VSYSCALL_END - VSYSCALL_START);
 
-	printk("Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init)\n",
+	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, %ldk data, %ldk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		end_pfn << (PAGE_SHIFT-10),
 		codesize >> 10,

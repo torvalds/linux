@@ -16,21 +16,14 @@
  * Unlocked value: 0
  * Locked value: 1
  */
-typedef struct {
-	volatile unsigned int lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
 
-#define SPIN_LOCK_UNLOCKED	(spinlock_t) { 0 }
+#define __raw_spin_is_locked(x)		((x)->lock != 0)
+#define __raw_spin_unlock_wait(lock) \
+	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
 
-#define spin_lock_init(x)	do { *(x) = SPIN_LOCK_UNLOCKED; } while (0)
-#define spin_is_locked(x)	((x)->lock != 0)
-#define spin_unlock_wait(x)	do { barrier(); } while (spin_is_locked(x))
-#define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-static inline void _raw_spin_lock(spinlock_t *lock)
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -47,7 +40,7 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 	smp_mb();
 }
 
-static inline int _raw_spin_trylock(spinlock_t *lock)
+static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -67,7 +60,7 @@ static inline int _raw_spin_trylock(spinlock_t *lock)
 	}
 }
 
-static inline void _raw_spin_unlock(spinlock_t *lock)
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	smp_mb();
 
@@ -80,23 +73,14 @@ static inline void _raw_spin_unlock(spinlock_t *lock)
 
 /*
  * RWLOCKS
- */
-typedef struct {
-	volatile unsigned int lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} rwlock_t;
-
-#define RW_LOCK_UNLOCKED	(rwlock_t) { 0 }
-#define rwlock_init(x)		do { *(x) = RW_LOCK_UNLOCKED; } while (0)
-#define rwlock_is_locked(x)	(*((volatile unsigned int *)(x)) != 0)
-
-/*
+ *
+ *
  * Write locks are easy - we just set bit 31.  When unlocking, we can
  * just write zero since the lock is exclusively held.
  */
-static inline void _raw_write_lock(rwlock_t *rw)
+#define rwlock_is_locked(x)	(*((volatile unsigned int *)(x)) != 0)
+
+static inline void __raw_write_lock(rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -113,7 +97,7 @@ static inline void _raw_write_lock(rwlock_t *rw)
 	smp_mb();
 }
 
-static inline int _raw_write_trylock(rwlock_t *rw)
+static inline int __raw_write_trylock(rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -133,7 +117,7 @@ static inline int _raw_write_trylock(rwlock_t *rw)
 	}
 }
 
-static inline void _raw_write_unlock(rwlock_t *rw)
+static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	smp_mb();
 
@@ -156,7 +140,7 @@ static inline void _raw_write_unlock(rwlock_t *rw)
  * currently active.  However, we know we won't have any write
  * locks.
  */
-static inline void _raw_read_lock(rwlock_t *rw)
+static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -173,7 +157,7 @@ static inline void _raw_read_lock(rwlock_t *rw)
 	smp_mb();
 }
 
-static inline void _raw_read_unlock(rwlock_t *rw)
+static inline void __raw_read_unlock(rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -190,6 +174,6 @@ static inline void _raw_read_unlock(rwlock_t *rw)
 	: "cc");
 }
 
-#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
+#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
 #endif /* __ASM_SPINLOCK_H */

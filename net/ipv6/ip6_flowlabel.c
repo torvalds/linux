@@ -50,7 +50,7 @@ static atomic_t fl_size = ATOMIC_INIT(0);
 static struct ip6_flowlabel *fl_ht[FL_HASH_MASK+1];
 
 static void ip6_fl_gc(unsigned long dummy);
-static struct timer_list ip6_fl_gc_timer = TIMER_INITIALIZER(ip6_fl_gc, 0, 0);
+static DEFINE_TIMER(ip6_fl_gc_timer, ip6_fl_gc, 0, 0);
 
 /* FL hash table lock: it protects only of GC */
 
@@ -225,16 +225,20 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 					 struct ip6_flowlabel * fl,
 					 struct ipv6_txoptions * fopt)
 {
-	struct ipv6_txoptions * fl_opt = fl->opt;
+	struct ipv6_txoptions * fl_opt = fl ? fl->opt : NULL;
 
-	if (fopt == NULL || fopt->opt_flen == 0)
-		return fl_opt;
+	if (fopt == NULL || fopt->opt_flen == 0) {
+		if (!fl_opt || !fl_opt->dst0opt || fl_opt->srcrt)
+			return fl_opt;
+	}
 
 	if (fl_opt != NULL) {
 		opt_space->hopopt = fl_opt->hopopt;
-		opt_space->dst0opt = fl_opt->dst0opt;
+		opt_space->dst0opt = fl_opt->srcrt ? fl_opt->dst0opt : NULL;
 		opt_space->srcrt = fl_opt->srcrt;
 		opt_space->opt_nflen = fl_opt->opt_nflen;
+		if (fl_opt->dst0opt && !fl_opt->srcrt)
+			opt_space->opt_nflen -= ipv6_optlen(fl_opt->dst0opt);
 	} else {
 		if (fopt->opt_nflen == 0)
 			return fopt;
@@ -310,7 +314,7 @@ fl_create(struct in6_flowlabel_req *freq, char __user *optval, int optlen, int *
 		msg.msg_control = (void*)(fl->opt+1);
 		flowi.oif = 0;
 
-		err = datagram_send_ctl(&msg, &flowi, fl->opt, &junk);
+		err = datagram_send_ctl(&msg, &flowi, fl->opt, &junk, &junk);
 		if (err)
 			goto done;
 		err = -EINVAL;

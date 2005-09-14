@@ -1,5 +1,5 @@
-#ifndef _PPC_ERRNO_H
-#define _PPC_ERRNO_H
+#ifndef _ASM_POWERPC_ERRNO_H
+#define _ASM_POWERPC_ERRNO_H
 
 #include <asm-generic/errno.h>
 
@@ -8,4 +8,4 @@
 
 #define _LAST_ERRNO	516
 
-#endif
+#endif	/* _ASM_POWERPC_ERRNO_H */

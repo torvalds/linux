@@ -21,7 +21,7 @@
 #define	MCFDMA_BASE1		0x240		/* Base address of DMA 1 */
 #elif defined(CONFIG_M5272)
 #define	MCFDMA_BASE0		0x0e0		/* Base address of DMA 0 */
-#elif defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#elif defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 /* These are relative to the IPSBAR, not MBAR */
 #define	MCFDMA_BASE0		0x100		/* Base address of DMA 0 */
 #define	MCFDMA_BASE1		0x140		/* Base address of DMA 1 */

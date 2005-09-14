@@ -23,6 +23,8 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/bootmem.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -40,16 +42,26 @@ static void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 	struct pci_controller *phb = data;
 	int *type = (int *)get_property(dn, "ibm,pci-config-space-type", NULL);
 	u32 *regs;
+	struct pci_dn *pdn;
 
-	dn->phb = phb;
+	if (phb->is_dynamic)
+		pdn = kmalloc(sizeof(*pdn), GFP_KERNEL);
+	else
+		pdn = alloc_bootmem(sizeof(*pdn));
+	if (pdn == NULL)
+		return NULL;
+	memset(pdn, 0, sizeof(*pdn));
+	dn->data = pdn;
+	pdn->node = dn;
+	pdn->phb = phb;
 	regs = (u32 *)get_property(dn, "reg", NULL);
 	if (regs) {
 		/* First register entry is addr (00BBSS00)  */
-		dn->busno = (regs[0] >> 16) & 0xff;
-		dn->devfn = (regs[0] >> 8) & 0xff;
+		pdn->busno = (regs[0] >> 16) & 0xff;
+		pdn->devfn = (regs[0] >> 8) & 0xff;
 	}
 
-	dn->pci_ext_config_space = (type && *type == 1);
+	pdn->pci_ext_config_space = (type && *type == 1);
 	return NULL;
 }
 
@@ -112,10 +124,15 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 void __devinit pci_devs_phb_init_dynamic(struct pci_controller *phb)
 {
 	struct device_node * dn = (struct device_node *) phb->arch_data;
+	struct pci_dn *pdn;
 
 	/* PHB nodes themselves must not match */
-	dn->devfn = dn->busno = -1;
-	dn->phb = phb;
+	update_dn_pci_info(dn, phb);
+	pdn = dn->data;
+	if (pdn) {
+		pdn->devfn = pdn->busno = -1;
+		pdn->phb = phb;
+	}
 
 	/* Update dn->phb ptrs for new phb and children devices */
 	traverse_pci_devices(dn, update_dn_pci_info, phb);
@@ -123,14 +140,17 @@ void __devinit pci_devs_phb_init_dynamic(struct pci_controller *phb)
 
 /*
  * Traversal func that looks for a <busno,devfcn> value.
- * If found, the device_node is returned (thus terminating the traversal).
+ * If found, the pci_dn is returned (thus terminating the traversal).
  */
 static void *is_devfn_node(struct device_node *dn, void *data)
 {
 	int busno = ((unsigned long)data >> 8) & 0xff;
 	int devfn = ((unsigned long)data) & 0xff;
+	struct pci_dn *pci = dn->data;
 
-	return ((devfn == dn->devfn) && (busno == dn->busno)) ? dn : NULL;
+	if (pci && (devfn == pci->devfn) && (busno == pci->busno))
+		return dn;
+	return NULL;
 }
 
 /*
@@ -149,13 +169,10 @@ static void *is_devfn_node(struct device_node *dn, void *data)
 struct device_node *fetch_dev_dn(struct pci_dev *dev)
 {
 	struct device_node *orig_dn = dev->sysdata;
-	struct pci_controller *phb = orig_dn->phb; /* assume same phb as orig_dn */
-	struct device_node *phb_dn;
 	struct device_node *dn;
 	unsigned long searchval = (dev->bus->number << 8) | dev->devfn;
 
-	phb_dn = phb->arch_data;
-	dn = traverse_pci_devices(phb_dn, is_devfn_node, (void *)searchval);
+	dn = traverse_pci_devices(orig_dn, is_devfn_node, (void *)searchval);
 	if (dn)
 		dev->sysdata = dn;
 	return dn;
@@ -165,11 +182,13 @@ EXPORT_SYMBOL(fetch_dev_dn);
 static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *node)
 {
 	struct device_node *np = node;
+	struct pci_dn *pci;
 	int err = NOTIFY_OK;
 
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
-		update_dn_pci_info(np, np->parent->phb);
+		pci = np->parent->data;
+		update_dn_pci_info(np, pci->phb);
 		break;
 	default:
 		err = NOTIFY_DONE;

@@ -307,7 +307,7 @@ static unsigned char psycho_pil_table[] = {
 /*0x32*/15,		/* Power Management		*/
 };
 
-static int __init psycho_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
+static int psycho_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 {
 	int ret;
 
@@ -344,9 +344,9 @@ static int __init psycho_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 	return ret;
 }
 
-static unsigned int __init psycho_irq_build(struct pci_pbm_info *pbm,
-					    struct pci_dev *pdev,
-					    unsigned int ino)
+static unsigned int psycho_irq_build(struct pci_pbm_info *pbm,
+				     struct pci_dev *pdev,
+				     unsigned int ino)
 {
 	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
@@ -1024,7 +1024,7 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id, struct pt_regs *reg
 #define PSYCHO_CE_INO		0x2f
 #define PSYCHO_PCIERR_A_INO	0x30
 #define PSYCHO_PCIERR_B_INO	0x31
-static void __init psycho_register_error_handlers(struct pci_controller_info *p)
+static void psycho_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
 	unsigned long base = p->pbm_A.controller_regs;
@@ -1091,15 +1091,15 @@ static void __init psycho_register_error_handlers(struct pci_controller_info *p)
 }
 
 /* PSYCHO boot time probing and initialization. */
-static void __init psycho_resource_adjust(struct pci_dev *pdev,
-					  struct resource *res,
-					  struct resource *root)
+static void psycho_resource_adjust(struct pci_dev *pdev,
+				   struct resource *res,
+				   struct resource *root)
 {
 	res->start += root->start;
 	res->end += root->start;
 }
 
-static void __init psycho_base_address_update(struct pci_dev *pdev, int resource)
+static void psycho_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
 	struct pci_pbm_info *pbm = pcp->pbm;
@@ -1144,7 +1144,7 @@ static void __init psycho_base_address_update(struct pci_dev *pdev, int resource
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-static void __init pbm_config_busmastering(struct pci_pbm_info *pbm)
+static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 {
 	u8 *addr;
 
@@ -1161,8 +1161,8 @@ static void __init pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void __init pbm_scan_bus(struct pci_controller_info *p,
-				struct pci_pbm_info *pbm)
+static void pbm_scan_bus(struct pci_controller_info *p,
+			 struct pci_pbm_info *pbm)
 {
 	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
 
@@ -1189,7 +1189,7 @@ static void __init pbm_scan_bus(struct pci_controller_info *p,
 	pci_setup_busmastering(pbm, pbm->pci_bus);
 }
 
-static void __init psycho_scan_bus(struct pci_controller_info *p)
+static void psycho_scan_bus(struct pci_controller_info *p)
 {
 	pbm_config_busmastering(&p->pbm_B);
 	p->pbm_B.is_66mhz_capable = 0;
@@ -1204,7 +1204,7 @@ static void __init psycho_scan_bus(struct pci_controller_info *p)
 	psycho_register_error_handlers(p);
 }
 
-static void __init psycho_iommu_init(struct pci_controller_info *p)
+static void psycho_iommu_init(struct pci_controller_info *p)
 {
 	struct pci_iommu *iommu = p->pbm_A.iommu;
 	unsigned long tsbbase, i;
@@ -1327,8 +1327,8 @@ static void psycho_controller_hwinit(struct pci_controller_info *p)
 	psycho_write(p->pbm_A.controller_regs + PSYCHO_PCIB_DIAG, tmp);
 }
 
-static void __init pbm_register_toplevel_resources(struct pci_controller_info *p,
-						   struct pci_pbm_info *pbm)
+static void pbm_register_toplevel_resources(struct pci_controller_info *p,
+					    struct pci_pbm_info *pbm)
 {
 	char *name = pbm->name;
 
@@ -1481,7 +1481,7 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 
 #define PSYCHO_CONFIGSPACE	0x001000000UL
 
-void __init psycho_init(int node, char *model_name)
+void psycho_init(int node, char *model_name)
 {
 	struct linux_prom64_registers pr_regs[3];
 	struct pci_controller_info *p;

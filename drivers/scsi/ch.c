@@ -116,7 +116,7 @@ typedef struct {
 } scsi_changer;
 
 static LIST_HEAD(ch_devlist);
-static spinlock_t ch_devlist_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ch_devlist_lock);
 static int ch_devcount;
 
 static struct scsi_driver ch_template =
@@ -560,7 +560,7 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 	return result;
 }
 
-static int ch_gstatus(scsi_changer *ch, int type, unsigned char *dest)
+static int ch_gstatus(scsi_changer *ch, int type, unsigned char __user *dest)
 {
 	int retval = 0;
 	u_char data[16];
@@ -634,6 +634,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 {
 	scsi_changer *ch = file->private_data;
 	int retval;
+	void __user *argp = (void __user *)arg;
 	
 	switch (cmd) {
 	case CHIOGPARAMS:
@@ -646,7 +647,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		params.cp_nportals  = ch->counts[CHET_IE];
 		params.cp_ndrives   = ch->counts[CHET_DT];
 		
-		if (copy_to_user((void *) arg, &params, sizeof(params)))
+		if (copy_to_user(argp, &params, sizeof(params)))
 			return -EFAULT;
 		return 0;
 	}
@@ -671,7 +672,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			vparams.cvp_n4  = ch->counts[CHET_V4];
 			strncpy(vparams.cvp_label4,vendor_labels[3],16);
 		}
-		if (copy_to_user((void *) arg, &vparams, sizeof(vparams)))
+		if (copy_to_user(argp, &vparams, sizeof(vparams)))
 			return -EFAULT;
 		return 0;
 	}
@@ -680,7 +681,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_position pos;
 		
-		if (copy_from_user(&pos, (void*)arg, sizeof (pos)))
+		if (copy_from_user(&pos, argp, sizeof (pos)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, pos.cp_type, pos.cp_unit)) {
@@ -699,7 +700,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_move mv;
 
-		if (copy_from_user(&mv, (void*)arg, sizeof (mv)))
+		if (copy_from_user(&mv, argp, sizeof (mv)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, mv.cm_fromtype, mv.cm_fromunit) ||
@@ -721,7 +722,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_exchange mv;
 		
-		if (copy_from_user(&mv, (void*)arg, sizeof (mv)))
+		if (copy_from_user(&mv, argp, sizeof (mv)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, mv.ce_srctype,  mv.ce_srcunit ) ||
@@ -746,7 +747,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_element_status ces;
 		
-		if (copy_from_user(&ces, (void*)arg, sizeof (ces)))
+		if (copy_from_user(&ces, argp, sizeof (ces)))
 			return -EFAULT;
 		if (ces.ces_type < 0 || ces.ces_type >= CH_TYPES)
 			return -EINVAL;
@@ -762,7 +763,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		unsigned int elem;
 		int     result,i;
 		
-		if (copy_from_user(&cge, (void*)arg, sizeof (cge)))
+		if (copy_from_user(&cge, argp, sizeof (cge)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, cge.cge_type, cge.cge_unit))
@@ -825,7 +826,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		kfree(buffer);
 		up(&ch->lock);
 		
-		if (copy_to_user((void*)arg, &cge, sizeof (cge)))
+		if (copy_to_user(argp, &cge, sizeof (cge)))
 			return -EFAULT;
 		return result;
 	}
@@ -843,7 +844,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		struct changer_set_voltag csv;
 		int elem;
 
-		if (copy_from_user(&csv, (void*)arg, sizeof(csv)))
+		if (copy_from_user(&csv, argp, sizeof(csv)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, csv.csv_type, csv.csv_unit)) {
@@ -861,7 +862,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	}
 
 	default:
-		return scsi_ioctl(ch->device, cmd, (void*)arg);
+		return scsi_ioctl(ch->device, cmd, argp);
 
 	}
 }
@@ -894,9 +895,9 @@ static long ch_ioctl_compat(struct file * file,
 	case CHIOGSTATUS32:
 	{
 		struct changer_element_status32 ces32;
-		unsigned char *data;
+		unsigned char __user *data;
 		
-		if (copy_from_user(&ces32, (void*)arg, sizeof (ces32)))
+		if (copy_from_user(&ces32, (void __user *)arg, sizeof (ces32)))
 			return -EFAULT;
 		if (ces32.ces_type < 0 || ces32.ces_type >= CH_TYPES)
 			return -EINVAL;

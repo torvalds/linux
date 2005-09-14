@@ -332,7 +332,7 @@ type name(type1 arg1) \
 long __res; \
 __asm__ volatile ("int $0x80" \
 	: "=a" (__res) \
-	: "0" (__NR_##name),"b" ((long)(arg1))); \
+	: "0" (__NR_##name),"b" ((long)(arg1)) : "memory"); \
 __syscall_return(type,__res); \
 }
 
@@ -342,7 +342,7 @@ type name(type1 arg1,type2 arg2) \
 long __res; \
 __asm__ volatile ("int $0x80" \
 	: "=a" (__res) \
-	: "0" (__NR_##name),"b" ((long)(arg1)),"c" ((long)(arg2))); \
+	: "0" (__NR_##name),"b" ((long)(arg1)),"c" ((long)(arg2)) : "memory"); \
 __syscall_return(type,__res); \
 }
 
@@ -353,7 +353,7 @@ long __res; \
 __asm__ volatile ("int $0x80" \
 	: "=a" (__res) \
 	: "0" (__NR_##name),"b" ((long)(arg1)),"c" ((long)(arg2)), \
-		  "d" ((long)(arg3))); \
+		  "d" ((long)(arg3)) : "memory"); \
 __syscall_return(type,__res); \
 }
 
@@ -364,7 +364,7 @@ long __res; \
 __asm__ volatile ("int $0x80" \
 	: "=a" (__res) \
 	: "0" (__NR_##name),"b" ((long)(arg1)),"c" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"S" ((long)(arg4))); \
+	  "d" ((long)(arg3)),"S" ((long)(arg4)) : "memory"); \
 __syscall_return(type,__res); \
 } 
 
@@ -376,7 +376,7 @@ long __res; \
 __asm__ volatile ("int $0x80" \
 	: "=a" (__res) \
 	: "0" (__NR_##name),"b" ((long)(arg1)),"c" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"S" ((long)(arg4)),"D" ((long)(arg5))); \
+	  "d" ((long)(arg3)),"S" ((long)(arg4)),"D" ((long)(arg5)) : "memory"); \
 __syscall_return(type,__res); \
 }
 
@@ -389,7 +389,7 @@ __asm__ volatile ("push %%ebp ; movl %%eax,%%ebp ; movl %1,%%eax ; int $0x80 ; p
 	: "=a" (__res) \
 	: "i" (__NR_##name),"b" ((long)(arg1)),"c" ((long)(arg2)), \
 	  "d" ((long)(arg3)),"S" ((long)(arg4)),"D" ((long)(arg5)), \
-	  "0" ((long)(arg6))); \
+	  "0" ((long)(arg6)) : "memory"); \
 __syscall_return(type,__res); \
 }
 

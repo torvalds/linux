@@ -48,6 +48,9 @@
  *            Delete dead variables and functions.
  *            Reorder to remove the need for forward declarations and to consolidate
  *            related code.
+ *
+ * 2005-08-12 Keith Owens <kaos@sgi.com>
+ *	      Convert MCA/INIT handlers to use per event stacks and SAL/OS state.
  */
 #include <linux/config.h>
 #include <linux/types.h>
@@ -77,6 +80,8 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 
+#include "entry.h"
+
 #if defined(IA64_MCA_DEBUG_INFO)
 # define IA64_MCA_DEBUG(fmt...)	printk(fmt)
 #else
@@ -84,9 +89,7 @@
 #endif
 
 /* Used by mca_asm.S */
-ia64_mca_sal_to_os_state_t	ia64_sal_to_os_handoff_state;
-ia64_mca_os_to_sal_state_t	ia64_os_to_sal_handoff_state;
-u64				ia64_mca_serialize;
+u32				ia64_mca_serialize;
 DEFINE_PER_CPU(u64, ia64_mca_data); /* == __per_cpu_mca[smp_processor_id()] */
 DEFINE_PER_CPU(u64, ia64_mca_per_cpu_pte); /* PTE to map per-CPU area */
 DEFINE_PER_CPU(u64, ia64_mca_pal_pte);	    /* PTE to map PAL code */
@@ -95,8 +98,10 @@ DEFINE_PER_CPU(u64, ia64_mca_pal_base);    /* vaddr PAL code granule */
 unsigned long __per_cpu_mca[NR_CPUS];
 
 /* In mca_asm.S */
-extern void			ia64_monarch_init_handler (void);
-extern void			ia64_slave_init_handler (void);
+extern void			ia64_os_init_dispatch_monarch (void);
+extern void			ia64_os_init_dispatch_slave (void);
+
+static int monarch_cpu = -1;
 
 static ia64_mc_info_t		ia64_mc_info;
 
@@ -234,7 +239,8 @@ ia64_log_get(int sal_info_type, u8 **buffer, int irq_safe)
  *  This function retrieves a specified error record type from SAL
  *  and wakes up any processes waiting for error records.
  *
- *  Inputs  :   sal_info_type   (Type of error record MCA/CMC/CPE/INIT)
+ *  Inputs  :   sal_info_type   (Type of error record MCA/CMC/CPE)
+ *              FIXME: remove MCA and irq_safe.
  */
 static void
 ia64_mca_log_sal_error_record(int sal_info_type)
@@ -242,7 +248,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 	u8 *buffer;
 	sal_log_record_header_t *rh;
 	u64 size;
-	int irq_safe = sal_info_type != SAL_INFO_TYPE_MCA && sal_info_type != SAL_INFO_TYPE_INIT;
+	int irq_safe = sal_info_type != SAL_INFO_TYPE_MCA;
 #ifdef IA64_MCA_DEBUG_INFO
 	static const char * const rec_name[] = { "MCA", "INIT", "CMC", "CPE" };
 #endif
@@ -329,191 +335,6 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
 }
 
 #endif /* CONFIG_ACPI */
-
-static void
-show_min_state (pal_min_state_area_t *minstate)
-{
-	u64 iip = minstate->pmsa_iip + ((struct ia64_psr *)(&minstate->pmsa_ipsr))->ri;
-	u64 xip = minstate->pmsa_xip + ((struct ia64_psr *)(&minstate->pmsa_xpsr))->ri;
-
-	printk("NaT bits\t%016lx\n", minstate->pmsa_nat_bits);
-	printk("pr\t\t%016lx\n", minstate->pmsa_pr);
-	printk("b0\t\t%016lx ", minstate->pmsa_br0); print_symbol("%s\n", minstate->pmsa_br0);
-	printk("ar.rsc\t\t%016lx\n", minstate->pmsa_rsc);
-	printk("cr.iip\t\t%016lx ", iip); print_symbol("%s\n", iip);
-	printk("cr.ipsr\t\t%016lx\n", minstate->pmsa_ipsr);
-	printk("cr.ifs\t\t%016lx\n", minstate->pmsa_ifs);
-	printk("xip\t\t%016lx ", xip); print_symbol("%s\n", xip);
-	printk("xpsr\t\t%016lx\n", minstate->pmsa_xpsr);
-	printk("xfs\t\t%016lx\n", minstate->pmsa_xfs);
-	printk("b1\t\t%016lx ", minstate->pmsa_br1);
-	print_symbol("%s\n", minstate->pmsa_br1);
-
-	printk("\nstatic registers r0-r15:\n");
-	printk(" r0- 3 %016lx %016lx %016lx %016lx\n",
-	       0UL, minstate->pmsa_gr[0], minstate->pmsa_gr[1], minstate->pmsa_gr[2]);
-	printk(" r4- 7 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_gr[3], minstate->pmsa_gr[4],
-	       minstate->pmsa_gr[5], minstate->pmsa_gr[6]);
-	printk(" r8-11 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_gr[7], minstate->pmsa_gr[8],
-	       minstate->pmsa_gr[9], minstate->pmsa_gr[10]);
-	printk("r12-15 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_gr[11], minstate->pmsa_gr[12],
-	       minstate->pmsa_gr[13], minstate->pmsa_gr[14]);
-
-	printk("\nbank 0:\n");
-	printk("r16-19 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank0_gr[0], minstate->pmsa_bank0_gr[1],
-	       minstate->pmsa_bank0_gr[2], minstate->pmsa_bank0_gr[3]);
-	printk("r20-23 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank0_gr[4], minstate->pmsa_bank0_gr[5],
-	       minstate->pmsa_bank0_gr[6], minstate->pmsa_bank0_gr[7]);
-	printk("r24-27 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank0_gr[8], minstate->pmsa_bank0_gr[9],
-	       minstate->pmsa_bank0_gr[10], minstate->pmsa_bank0_gr[11]);
-	printk("r28-31 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank0_gr[12], minstate->pmsa_bank0_gr[13],
-	       minstate->pmsa_bank0_gr[14], minstate->pmsa_bank0_gr[15]);
-
-	printk("\nbank 1:\n");
-	printk("r16-19 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank1_gr[0], minstate->pmsa_bank1_gr[1],
-	       minstate->pmsa_bank1_gr[2], minstate->pmsa_bank1_gr[3]);
-	printk("r20-23 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank1_gr[4], minstate->pmsa_bank1_gr[5],
-	       minstate->pmsa_bank1_gr[6], minstate->pmsa_bank1_gr[7]);
-	printk("r24-27 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank1_gr[8], minstate->pmsa_bank1_gr[9],
-	       minstate->pmsa_bank1_gr[10], minstate->pmsa_bank1_gr[11]);
-	printk("r28-31 %016lx %016lx %016lx %016lx\n",
-	       minstate->pmsa_bank1_gr[12], minstate->pmsa_bank1_gr[13],
-	       minstate->pmsa_bank1_gr[14], minstate->pmsa_bank1_gr[15]);
-}
-
-static void
-fetch_min_state (pal_min_state_area_t *ms, struct pt_regs *pt, struct switch_stack *sw)
-{
-	u64 *dst_banked, *src_banked, bit, shift, nat_bits;
-	int i;
-
-	/*
-	 * First, update the pt-regs and switch-stack structures with the contents stored
-	 * in the min-state area:
-	 */
-	if (((struct ia64_psr *) &ms->pmsa_ipsr)->ic == 0) {
-		pt->cr_ipsr = ms->pmsa_xpsr;
-		pt->cr_iip = ms->pmsa_xip;
-		pt->cr_ifs = ms->pmsa_xfs;
-	} else {
-		pt->cr_ipsr = ms->pmsa_ipsr;
-		pt->cr_iip = ms->pmsa_iip;
-		pt->cr_ifs = ms->pmsa_ifs;
-	}
-	pt->ar_rsc = ms->pmsa_rsc;
-	pt->pr = ms->pmsa_pr;
-	pt->r1 = ms->pmsa_gr[0];
-	pt->r2 = ms->pmsa_gr[1];
-	pt->r3 = ms->pmsa_gr[2];
-	sw->r4 = ms->pmsa_gr[3];
-	sw->r5 = ms->pmsa_gr[4];
-	sw->r6 = ms->pmsa_gr[5];
-	sw->r7 = ms->pmsa_gr[6];
-	pt->r8 = ms->pmsa_gr[7];
-	pt->r9 = ms->pmsa_gr[8];
-	pt->r10 = ms->pmsa_gr[9];
-	pt->r11 = ms->pmsa_gr[10];
-	pt->r12 = ms->pmsa_gr[11];
-	pt->r13 = ms->pmsa_gr[12];
-	pt->r14 = ms->pmsa_gr[13];
-	pt->r15 = ms->pmsa_gr[14];
-	dst_banked = &pt->r16;		/* r16-r31 are contiguous in struct pt_regs */
-	src_banked = ms->pmsa_bank1_gr;
-	for (i = 0; i < 16; ++i)
-		dst_banked[i] = src_banked[i];
-	pt->b0 = ms->pmsa_br0;
-	sw->b1 = ms->pmsa_br1;
-
-	/* construct the NaT bits for the pt-regs structure: */
-#	define PUT_NAT_BIT(dst, addr)					\
-	do {								\
-		bit = nat_bits & 1; nat_bits >>= 1;			\
-		shift = ((unsigned long) addr >> 3) & 0x3f;		\
-		dst = ((dst) & ~(1UL << shift)) | (bit << shift);	\
-	} while (0)
-
-	/* Rotate the saved NaT bits such that bit 0 corresponds to pmsa_gr[0]: */
-	shift = ((unsigned long) &ms->pmsa_gr[0] >> 3) & 0x3f;
-	nat_bits = (ms->pmsa_nat_bits >> shift) | (ms->pmsa_nat_bits << (64 - shift));
-
-	PUT_NAT_BIT(sw->caller_unat, &pt->r1);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r2);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r3);
-	PUT_NAT_BIT(sw->ar_unat, &sw->r4);
-	PUT_NAT_BIT(sw->ar_unat, &sw->r5);
-	PUT_NAT_BIT(sw->ar_unat, &sw->r6);
-	PUT_NAT_BIT(sw->ar_unat, &sw->r7);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r8);	PUT_NAT_BIT(sw->caller_unat, &pt->r9);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r10);	PUT_NAT_BIT(sw->caller_unat, &pt->r11);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r12);	PUT_NAT_BIT(sw->caller_unat, &pt->r13);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r14);	PUT_NAT_BIT(sw->caller_unat, &pt->r15);
-	nat_bits >>= 16;	/* skip over bank0 NaT bits */
-	PUT_NAT_BIT(sw->caller_unat, &pt->r16);	PUT_NAT_BIT(sw->caller_unat, &pt->r17);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r18);	PUT_NAT_BIT(sw->caller_unat, &pt->r19);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r20);	PUT_NAT_BIT(sw->caller_unat, &pt->r21);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r22);	PUT_NAT_BIT(sw->caller_unat, &pt->r23);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r24);	PUT_NAT_BIT(sw->caller_unat, &pt->r25);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r26);	PUT_NAT_BIT(sw->caller_unat, &pt->r27);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r28);	PUT_NAT_BIT(sw->caller_unat, &pt->r29);
-	PUT_NAT_BIT(sw->caller_unat, &pt->r30);	PUT_NAT_BIT(sw->caller_unat, &pt->r31);
-}
-
-static void
-init_handler_platform (pal_min_state_area_t *ms,
-		       struct pt_regs *pt, struct switch_stack *sw)
-{
-	struct unw_frame_info info;
-
-	/* if a kernel debugger is available call it here else just dump the registers */
-
-	/*
-	 * Wait for a bit.  On some machines (e.g., HP's zx2000 and zx6000, INIT can be
-	 * generated via the BMC's command-line interface, but since the console is on the
-	 * same serial line, the user will need some time to switch out of the BMC before
-	 * the dump begins.
-	 */
-	printk("Delaying for 5 seconds...\n");
-	udelay(5*1000000);
-	show_min_state(ms);
-
-	printk("Backtrace of current task (pid %d, %s)\n", current->pid, current->comm);
-	fetch_min_state(ms, pt, sw);
-	unw_init_from_interruption(&info, current, pt, sw);
-	ia64_do_show_stack(&info, NULL);
-
-#ifdef CONFIG_SMP
-	/* read_trylock() would be handy... */
-	if (!tasklist_lock.write_lock)
-		read_lock(&tasklist_lock);
-#endif
-	{
-		struct task_struct *g, *t;
-		do_each_thread (g, t) {
-			if (t == current)
-				continue;
-
-			printk("\nBacktrace of pid %d (%s)\n", t->pid, t->comm);
-			show_stack(t, NULL);
-		} while_each_thread (g, t);
-	}
-#ifdef CONFIG_SMP
-	if (!tasklist_lock.write_lock)
-		read_unlock(&tasklist_lock);
-#endif
-
-	printk("\nINIT dump complete.  Please reboot now.\n");
-	while (1);			/* hang city if no debugger */
-}
 
 #ifdef CONFIG_ACPI
 /*
@@ -657,42 +478,6 @@ ia64_mca_cmc_vector_enable_keventd(void *unused)
 }
 
 /*
- * ia64_mca_wakeup_ipi_wait
- *
- *	Wait for the inter-cpu interrupt to be sent by the
- *	monarch processor once it is done with handling the
- *	MCA.
- *
- *  Inputs  :   None
- *  Outputs :   None
- */
-static void
-ia64_mca_wakeup_ipi_wait(void)
-{
-	int	irr_num = (IA64_MCA_WAKEUP_VECTOR >> 6);
-	int	irr_bit = (IA64_MCA_WAKEUP_VECTOR & 0x3f);
-	u64	irr = 0;
-
-	do {
-		switch(irr_num) {
-		      case 0:
-			irr = ia64_getreg(_IA64_REG_CR_IRR0);
-			break;
-		      case 1:
-			irr = ia64_getreg(_IA64_REG_CR_IRR1);
-			break;
-		      case 2:
-			irr = ia64_getreg(_IA64_REG_CR_IRR2);
-			break;
-		      case 3:
-			irr = ia64_getreg(_IA64_REG_CR_IRR3);
-			break;
-		}
-		cpu_relax();
-	} while (!(irr & (1UL << irr_bit))) ;
-}
-
-/*
  * ia64_mca_wakeup
  *
  *	Send an inter-cpu interrupt to wake-up a particular cpu
@@ -757,11 +542,9 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *ptregs)
 	 */
 	ia64_sal_mc_rendez();
 
-	/* Wait for the wakeup IPI from the monarch
-	 * This waiting is done by polling on the wakeup-interrupt
-	 * vector bit in the processor's IRRs
-	 */
-	ia64_mca_wakeup_ipi_wait();
+	/* Wait for the monarch cpu to exit. */
+	while (monarch_cpu != -1)
+	       cpu_relax();	/* spin until monarch leaves */
 
 	/* Enable all interrupts */
 	local_irq_restore(flags);
@@ -789,53 +572,13 @@ ia64_mca_wakeup_int_handler(int wakeup_irq, void *arg, struct pt_regs *ptregs)
 	return IRQ_HANDLED;
 }
 
-/*
- * ia64_return_to_sal_check
- *
- *	This is function called before going back from the OS_MCA handler
- *	to the OS_MCA dispatch code which finally takes the control back
- *	to the SAL.
- *	The main purpose of this routine is to setup the OS_MCA to SAL
- *	return state which can be used by the OS_MCA dispatch code
- *	just before going back to SAL.
- *
- *  Inputs  :   None
- *  Outputs :   None
- */
-
-static void
-ia64_return_to_sal_check(int recover)
-{
-
-	/* Copy over some relevant stuff from the sal_to_os_mca_handoff
-	 * so that it can be used at the time of os_mca_to_sal_handoff
-	 */
-	ia64_os_to_sal_handoff_state.imots_sal_gp =
-		ia64_sal_to_os_handoff_state.imsto_sal_gp;
-
-	ia64_os_to_sal_handoff_state.imots_sal_check_ra =
-		ia64_sal_to_os_handoff_state.imsto_sal_check_ra;
-
-	if (recover)
-		ia64_os_to_sal_handoff_state.imots_os_status = IA64_MCA_CORRECTED;
-	else
-		ia64_os_to_sal_handoff_state.imots_os_status = IA64_MCA_COLD_BOOT;
-
-	/* Default = tell SAL to return to same context */
-	ia64_os_to_sal_handoff_state.imots_context = IA64_MCA_SAME_CONTEXT;
-
-	ia64_os_to_sal_handoff_state.imots_new_min_state =
-		(u64 *)ia64_sal_to_os_handoff_state.pal_min_state;
-
-}
-
 /* Function pointer for extra MCA recovery */
 int (*ia64_mca_ucmc_extension)
-	(void*,ia64_mca_sal_to_os_state_t*,ia64_mca_os_to_sal_state_t*)
+	(void*,struct ia64_sal_os_state*)
 	= NULL;
 
 int
-ia64_reg_MCA_extension(void *fn)
+ia64_reg_MCA_extension(int (*fn)(void *, struct ia64_sal_os_state *))
 {
 	if (ia64_mca_ucmc_extension)
 		return 1;
@@ -854,8 +597,321 @@ ia64_unreg_MCA_extension(void)
 EXPORT_SYMBOL(ia64_reg_MCA_extension);
 EXPORT_SYMBOL(ia64_unreg_MCA_extension);
 
+
+static inline void
+copy_reg(const u64 *fr, u64 fnat, u64 *tr, u64 *tnat)
+{
+	u64 fslot, tslot, nat;
+	*tr = *fr;
+	fslot = ((unsigned long)fr >> 3) & 63;
+	tslot = ((unsigned long)tr >> 3) & 63;
+	*tnat &= ~(1UL << tslot);
+	nat = (fnat >> fslot) & 1;
+	*tnat |= (nat << tslot);
+}
+
+/* On entry to this routine, we are running on the per cpu stack, see
+ * mca_asm.h.  The original stack has not been touched by this event.  Some of
+ * the original stack's registers will be in the RBS on this stack.  This stack
+ * also contains a partial pt_regs and switch_stack, the rest of the data is in
+ * PAL minstate.
+ *
+ * The first thing to do is modify the original stack to look like a blocked
+ * task so we can run backtrace on the original task.  Also mark the per cpu
+ * stack as current to ensure that we use the correct task state, it also means
+ * that we can do backtrace on the MCA/INIT handler code itself.
+ */
+
+static task_t *
+ia64_mca_modify_original_stack(struct pt_regs *regs,
+		const struct switch_stack *sw,
+		struct ia64_sal_os_state *sos,
+		const char *type)
+{
+	char *p, comm[sizeof(current->comm)];
+	ia64_va va;
+	extern char ia64_leave_kernel[];	/* Need asm address, not function descriptor */
+	const pal_min_state_area_t *ms = sos->pal_min_state;
+	task_t *previous_current;
+	struct pt_regs *old_regs;
+	struct switch_stack *old_sw;
+	unsigned size = sizeof(struct pt_regs) +
+			sizeof(struct switch_stack) + 16;
+	u64 *old_bspstore, *old_bsp;
+	u64 *new_bspstore, *new_bsp;
+	u64 old_unat, old_rnat, new_rnat, nat;
+	u64 slots, loadrs = regs->loadrs;
+	u64 r12 = ms->pmsa_gr[12-1], r13 = ms->pmsa_gr[13-1];
+	u64 ar_bspstore = regs->ar_bspstore;
+	u64 ar_bsp = regs->ar_bspstore + (loadrs >> 16);
+	const u64 *bank;
+	const char *msg;
+	int cpu = smp_processor_id();
+
+	previous_current = curr_task(cpu);
+	set_curr_task(cpu, current);
+	if ((p = strchr(current->comm, ' ')))
+		*p = '\0';
+
+	/* Best effort attempt to cope with MCA/INIT delivered while in
+	 * physical mode.
+	 */
+	regs->cr_ipsr = ms->pmsa_ipsr;
+	if (ia64_psr(regs)->dt == 0) {
+		va.l = r12;
+		if (va.f.reg == 0) {
+			va.f.reg = 7;
+			r12 = va.l;
+		}
+		va.l = r13;
+		if (va.f.reg == 0) {
+			va.f.reg = 7;
+			r13 = va.l;
+		}
+	}
+	if (ia64_psr(regs)->rt == 0) {
+		va.l = ar_bspstore;
+		if (va.f.reg == 0) {
+			va.f.reg = 7;
+			ar_bspstore = va.l;
+		}
+		va.l = ar_bsp;
+		if (va.f.reg == 0) {
+			va.f.reg = 7;
+			ar_bsp = va.l;
+		}
+	}
+
+	/* mca_asm.S ia64_old_stack() cannot assume that the dirty registers
+	 * have been copied to the old stack, the old stack may fail the
+	 * validation tests below.  So ia64_old_stack() must restore the dirty
+	 * registers from the new stack.  The old and new bspstore probably
+	 * have different alignments, so loadrs calculated on the old bsp
+	 * cannot be used to restore from the new bsp.  Calculate a suitable
+	 * loadrs for the new stack and save it in the new pt_regs, where
+	 * ia64_old_stack() can get it.
+	 */
+	old_bspstore = (u64 *)ar_bspstore;
+	old_bsp = (u64 *)ar_bsp;
+	slots = ia64_rse_num_regs(old_bspstore, old_bsp);
+	new_bspstore = (u64 *)((u64)current + IA64_RBS_OFFSET);
+	new_bsp = ia64_rse_skip_regs(new_bspstore, slots);
+	regs->loadrs = (new_bsp - new_bspstore) * 8 << 16;
+
+	/* Verify the previous stack state before we change it */
+	if (user_mode(regs)) {
+		msg = "occurred in user space";
+		goto no_mod;
+	}
+	if (r13 != sos->prev_IA64_KR_CURRENT) {
+		msg = "inconsistent previous current and r13";
+		goto no_mod;
+	}
+	if ((r12 - r13) >= KERNEL_STACK_SIZE) {
+		msg = "inconsistent r12 and r13";
+		goto no_mod;
+	}
+	if ((ar_bspstore - r13) >= KERNEL_STACK_SIZE) {
+		msg = "inconsistent ar.bspstore and r13";
+		goto no_mod;
+	}
+	va.p = old_bspstore;
+	if (va.f.reg < 5) {
+		msg = "old_bspstore is in the wrong region";
+		goto no_mod;
+	}
+	if ((ar_bsp - r13) >= KERNEL_STACK_SIZE) {
+		msg = "inconsistent ar.bsp and r13";
+		goto no_mod;
+	}
+	size += (ia64_rse_skip_regs(old_bspstore, slots) - old_bspstore) * 8;
+	if (ar_bspstore + size > r12) {
+		msg = "no room for blocked state";
+		goto no_mod;
+	}
+
+	/* Change the comm field on the MCA/INT task to include the pid that
+	 * was interrupted, it makes for easier debugging.  If that pid was 0
+	 * (swapper or nested MCA/INIT) then use the start of the previous comm
+	 * field suffixed with its cpu.
+	 */
+	if (previous_current->pid)
+		snprintf(comm, sizeof(comm), "%s %d",
+			current->comm, previous_current->pid);
+	else {
+		int l;
+		if ((p = strchr(previous_current->comm, ' ')))
+			l = p - previous_current->comm;
+		else
+			l = strlen(previous_current->comm);
+		snprintf(comm, sizeof(comm), "%s %*s %d",
+			current->comm, l, previous_current->comm,
+			previous_current->thread_info->cpu);
+	}
+	memcpy(current->comm, comm, sizeof(current->comm));
+
+	/* Make the original task look blocked.  First stack a struct pt_regs,
+	 * describing the state at the time of interrupt.  mca_asm.S built a
+	 * partial pt_regs, copy it and fill in the blanks using minstate.
+	 */
+	p = (char *)r12 - sizeof(*regs);
+	old_regs = (struct pt_regs *)p;
+	memcpy(old_regs, regs, sizeof(*regs));
+	/* If ipsr.ic then use pmsa_{iip,ipsr,ifs}, else use
+	 * pmsa_{xip,xpsr,xfs}
+	 */
+	if (ia64_psr(regs)->ic) {
+		old_regs->cr_iip = ms->pmsa_iip;
+		old_regs->cr_ipsr = ms->pmsa_ipsr;
+		old_regs->cr_ifs = ms->pmsa_ifs;
+	} else {
+		old_regs->cr_iip = ms->pmsa_xip;
+		old_regs->cr_ipsr = ms->pmsa_xpsr;
+		old_regs->cr_ifs = ms->pmsa_xfs;
+	}
+	old_regs->pr = ms->pmsa_pr;
+	old_regs->b0 = ms->pmsa_br0;
+	old_regs->loadrs = loadrs;
+	old_regs->ar_rsc = ms->pmsa_rsc;
+	old_unat = old_regs->ar_unat;
+	copy_reg(&ms->pmsa_gr[1-1], ms->pmsa_nat_bits, &old_regs->r1, &old_unat);
+	copy_reg(&ms->pmsa_gr[2-1], ms->pmsa_nat_bits, &old_regs->r2, &old_unat);
+	copy_reg(&ms->pmsa_gr[3-1], ms->pmsa_nat_bits, &old_regs->r3, &old_unat);
+	copy_reg(&ms->pmsa_gr[8-1], ms->pmsa_nat_bits, &old_regs->r8, &old_unat);
+	copy_reg(&ms->pmsa_gr[9-1], ms->pmsa_nat_bits, &old_regs->r9, &old_unat);
+	copy_reg(&ms->pmsa_gr[10-1], ms->pmsa_nat_bits, &old_regs->r10, &old_unat);
+	copy_reg(&ms->pmsa_gr[11-1], ms->pmsa_nat_bits, &old_regs->r11, &old_unat);
+	copy_reg(&ms->pmsa_gr[12-1], ms->pmsa_nat_bits, &old_regs->r12, &old_unat);
+	copy_reg(&ms->pmsa_gr[13-1], ms->pmsa_nat_bits, &old_regs->r13, &old_unat);
+	copy_reg(&ms->pmsa_gr[14-1], ms->pmsa_nat_bits, &old_regs->r14, &old_unat);
+	copy_reg(&ms->pmsa_gr[15-1], ms->pmsa_nat_bits, &old_regs->r15, &old_unat);
+	if (ia64_psr(old_regs)->bn)
+		bank = ms->pmsa_bank1_gr;
+	else
+		bank = ms->pmsa_bank0_gr;
+	copy_reg(&bank[16-16], ms->pmsa_nat_bits, &old_regs->r16, &old_unat);
+	copy_reg(&bank[17-16], ms->pmsa_nat_bits, &old_regs->r17, &old_unat);
+	copy_reg(&bank[18-16], ms->pmsa_nat_bits, &old_regs->r18, &old_unat);
+	copy_reg(&bank[19-16], ms->pmsa_nat_bits, &old_regs->r19, &old_unat);
+	copy_reg(&bank[20-16], ms->pmsa_nat_bits, &old_regs->r20, &old_unat);
+	copy_reg(&bank[21-16], ms->pmsa_nat_bits, &old_regs->r21, &old_unat);
+	copy_reg(&bank[22-16], ms->pmsa_nat_bits, &old_regs->r22, &old_unat);
+	copy_reg(&bank[23-16], ms->pmsa_nat_bits, &old_regs->r23, &old_unat);
+	copy_reg(&bank[24-16], ms->pmsa_nat_bits, &old_regs->r24, &old_unat);
+	copy_reg(&bank[25-16], ms->pmsa_nat_bits, &old_regs->r25, &old_unat);
+	copy_reg(&bank[26-16], ms->pmsa_nat_bits, &old_regs->r26, &old_unat);
+	copy_reg(&bank[27-16], ms->pmsa_nat_bits, &old_regs->r27, &old_unat);
+	copy_reg(&bank[28-16], ms->pmsa_nat_bits, &old_regs->r28, &old_unat);
+	copy_reg(&bank[29-16], ms->pmsa_nat_bits, &old_regs->r29, &old_unat);
+	copy_reg(&bank[30-16], ms->pmsa_nat_bits, &old_regs->r30, &old_unat);
+	copy_reg(&bank[31-16], ms->pmsa_nat_bits, &old_regs->r31, &old_unat);
+
+	/* Next stack a struct switch_stack.  mca_asm.S built a partial
+	 * switch_stack, copy it and fill in the blanks using pt_regs and
+	 * minstate.
+	 *
+	 * In the synthesized switch_stack, b0 points to ia64_leave_kernel,
+	 * ar.pfs is set to 0.
+	 *
+	 * unwind.c::unw_unwind() does special processing for interrupt frames.
+	 * It checks if the PRED_NON_SYSCALL predicate is set, if the predicate
+	 * is clear then unw_unwind() does _not_ adjust bsp over pt_regs.  Not
+	 * that this is documented, of course.  Set PRED_NON_SYSCALL in the
+	 * switch_stack on the original stack so it will unwind correctly when
+	 * unwind.c reads pt_regs.
+	 *
+	 * thread.ksp is updated to point to the synthesized switch_stack.
+	 */
+	p -= sizeof(struct switch_stack);
+	old_sw = (struct switch_stack *)p;
+	memcpy(old_sw, sw, sizeof(*sw));
+	old_sw->caller_unat = old_unat;
+	old_sw->ar_fpsr = old_regs->ar_fpsr;
+	copy_reg(&ms->pmsa_gr[4-1], ms->pmsa_nat_bits, &old_sw->r4, &old_unat);
+	copy_reg(&ms->pmsa_gr[5-1], ms->pmsa_nat_bits, &old_sw->r5, &old_unat);
+	copy_reg(&ms->pmsa_gr[6-1], ms->pmsa_nat_bits, &old_sw->r6, &old_unat);
+	copy_reg(&ms->pmsa_gr[7-1], ms->pmsa_nat_bits, &old_sw->r7, &old_unat);
+	old_sw->b0 = (u64)ia64_leave_kernel;
+	old_sw->b1 = ms->pmsa_br1;
+	old_sw->ar_pfs = 0;
+	old_sw->ar_unat = old_unat;
+	old_sw->pr = old_regs->pr | (1UL << PRED_NON_SYSCALL);
+	previous_current->thread.ksp = (u64)p - 16;
+
+	/* Finally copy the original stack's registers back to its RBS.
+	 * Registers from ar.bspstore through ar.bsp at the time of the event
+	 * are in the current RBS, copy them back to the original stack.  The
+	 * copy must be done register by register because the original bspstore
+	 * and the current one have different alignments, so the saved RNAT
+	 * data occurs at different places.
+	 *
+	 * mca_asm does cover, so the old_bsp already includes all registers at
+	 * the time of MCA/INIT.  It also does flushrs, so all registers before
+	 * this function have been written to backing store on the MCA/INIT
+	 * stack.
+	 */
+	new_rnat = ia64_get_rnat(ia64_rse_rnat_addr(new_bspstore));
+	old_rnat = regs->ar_rnat;
+	while (slots--) {
+		if (ia64_rse_is_rnat_slot(new_bspstore)) {
+			new_rnat = ia64_get_rnat(new_bspstore++);
+		}
+		if (ia64_rse_is_rnat_slot(old_bspstore)) {
+			*old_bspstore++ = old_rnat;
+			old_rnat = 0;
+		}
+		nat = (new_rnat >> ia64_rse_slot_num(new_bspstore)) & 1UL;
+		old_rnat &= ~(1UL << ia64_rse_slot_num(old_bspstore));
+		old_rnat |= (nat << ia64_rse_slot_num(old_bspstore));
+		*old_bspstore++ = *new_bspstore++;
+	}
+	old_sw->ar_bspstore = (unsigned long)old_bspstore;
+	old_sw->ar_rnat = old_rnat;
+
+	sos->prev_task = previous_current;
+	return previous_current;
+
+no_mod:
+	printk(KERN_INFO "cpu %d, %s %s, original stack not modified\n",
+			smp_processor_id(), type, msg);
+	return previous_current;
+}
+
+/* The monarch/slave interaction is based on monarch_cpu and requires that all
+ * slaves have entered rendezvous before the monarch leaves.  If any cpu has
+ * not entered rendezvous yet then wait a bit.  The assumption is that any
+ * slave that has not rendezvoused after a reasonable time is never going to do
+ * so.  In this context, slave includes cpus that respond to the MCA rendezvous
+ * interrupt, as well as cpus that receive the INIT slave event.
+ */
+
+static void
+ia64_wait_for_slaves(int monarch)
+{
+	int c, wait = 0;
+	for_each_online_cpu(c) {
+		if (c == monarch)
+			continue;
+		if (ia64_mc_info.imi_rendez_checkin[c] == IA64_MCA_RENDEZ_CHECKIN_NOTDONE) {
+			udelay(1000);		/* short wait first */
+			wait = 1;
+			break;
+		}
+	}
+	if (!wait)
+		return;
+	for_each_online_cpu(c) {
+		if (c == monarch)
+			continue;
+		if (ia64_mc_info.imi_rendez_checkin[c] == IA64_MCA_RENDEZ_CHECKIN_NOTDONE) {
+			udelay(5*1000000);	/* wait 5 seconds for slaves (arbitrary) */
+			break;
+		}
+	}
+}
+
 /*
- * ia64_mca_ucmc_handler
+ * ia64_mca_handler
  *
  *	This is uncorrectable machine check handler called from OS_MCA
  *	dispatch code which is in turn called from SAL_CHECK().
@@ -866,16 +922,28 @@ EXPORT_SYMBOL(ia64_unreg_MCA_extension);
  *	further MCA logging is enabled by clearing logs.
  *	Monarch also has the duty of sending wakeup-IPIs to pull the
  *	slave processors out of rendezvous spinloop.
- *
- *  Inputs  :   None
- *  Outputs :   None
  */
 void
-ia64_mca_ucmc_handler(void)
+ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
+		 struct ia64_sal_os_state *sos)
 {
 	pal_processor_state_info_t *psp = (pal_processor_state_info_t *)
-		&ia64_sal_to_os_handoff_state.proc_state_param;
-	int recover; 
+		&sos->proc_state_param;
+	int recover, cpu = smp_processor_id();
+	task_t *previous_current;
+
+	oops_in_progress = 1;	/* FIXME: make printk NMI/MCA/INIT safe */
+	previous_current = ia64_mca_modify_original_stack(regs, sw, sos, "MCA");
+	monarch_cpu = cpu;
+	ia64_wait_for_slaves(cpu);
+
+	/* Wakeup all the processors which are spinning in the rendezvous loop.
+	 * They will leave SAL, then spin in the OS with interrupts disabled
+	 * until this monarch cpu leaves the MCA handler.  That gets control
+	 * back to the OS so we can backtrace the other cpus, backtrace when
+	 * spinning in SAL does not work.
+	 */
+	ia64_mca_wakeup_all();
 
 	/* Get the MCA error record and log it */
 	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_MCA);
@@ -883,25 +951,20 @@ ia64_mca_ucmc_handler(void)
 	/* TLB error is only exist in this SAL error record */
 	recover = (psp->tc && !(psp->cc || psp->bc || psp->rc || psp->uc))
 	/* other error recovery */
-	   || (ia64_mca_ucmc_extension 
+	   || (ia64_mca_ucmc_extension
 		&& ia64_mca_ucmc_extension(
 			IA64_LOG_CURR_BUFFER(SAL_INFO_TYPE_MCA),
-			&ia64_sal_to_os_handoff_state,
-			&ia64_os_to_sal_handoff_state)); 
+			sos));
 
 	if (recover) {
 		sal_log_record_header_t *rh = IA64_LOG_CURR_BUFFER(SAL_INFO_TYPE_MCA);
 		rh->severity = sal_log_severity_corrected;
 		ia64_sal_clear_state_info(SAL_INFO_TYPE_MCA);
+		sos->os_status = IA64_MCA_CORRECTED;
 	}
-	/*
-	 *  Wakeup all the processors which are spinning in the rendezvous
-	 *  loop.
-	 */
-	ia64_mca_wakeup_all();
 
-	/* Return to SAL */
-	ia64_return_to_sal_check(recover);
+	set_curr_task(cpu, previous_current);
+	monarch_cpu = -1;
 }
 
 static DECLARE_WORK(cmc_disable_work, ia64_mca_cmc_vector_disable_keventd, NULL);
@@ -1125,34 +1188,114 @@ ia64_mca_cpe_poll (unsigned long dummy)
 /*
  * C portion of the OS INIT handler
  *
- * Called from ia64_monarch_init_handler
+ * Called from ia64_os_init_dispatch
  *
- * Inputs: pointer to pt_regs where processor info was saved.
+ * Inputs: pointer to pt_regs where processor info was saved.  SAL/OS state for
+ * this event.  This code is used for both monarch and slave INIT events, see
+ * sos->monarch.
  *
- * Returns:
- *   0 if SAL must warm boot the System
- *   1 if SAL must return to interrupted context using PAL_MC_RESUME
- *
+ * All INIT events switch to the INIT stack and change the previous process to
+ * blocked status.  If one of the INIT events is the monarch then we are
+ * probably processing the nmi button/command.  Use the monarch cpu to dump all
+ * the processes.  The slave INIT events all spin until the monarch cpu
+ * returns.  We can also get INIT slave events for MCA, in which case the MCA
+ * process is the monarch.
  */
-void
-ia64_init_handler (struct pt_regs *pt, struct switch_stack *sw)
-{
-	pal_min_state_area_t *ms;
 
-	oops_in_progress = 1;	/* avoid deadlock in printk, but it makes recovery dodgy */
+void
+ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
+		  struct ia64_sal_os_state *sos)
+{
+	static atomic_t slaves;
+	static atomic_t monarchs;
+	task_t *previous_current;
+	int cpu = smp_processor_id(), c;
+	struct task_struct *g, *t;
+
+	oops_in_progress = 1;	/* FIXME: make printk NMI/MCA/INIT safe */
 	console_loglevel = 15;	/* make sure printks make it to console */
 
-	printk(KERN_INFO "Entered OS INIT handler. PSP=%lx\n",
-		ia64_sal_to_os_handoff_state.proc_state_param);
+	printk(KERN_INFO "Entered OS INIT handler. PSP=%lx cpu=%d monarch=%ld\n",
+		sos->proc_state_param, cpu, sos->monarch);
+	salinfo_log_wakeup(SAL_INFO_TYPE_INIT, NULL, 0, 0);
+
+	previous_current = ia64_mca_modify_original_stack(regs, sw, sos, "INIT");
+	sos->os_status = IA64_INIT_RESUME;
+
+	/* FIXME: Workaround for broken proms that drive all INIT events as
+	 * slaves.  The last slave that enters is promoted to be a monarch.
+	 * Remove this code in September 2006, that gives platforms a year to
+	 * fix their proms and get their customers updated.
+	 */
+	if (!sos->monarch && atomic_add_return(1, &slaves) == num_online_cpus()) {
+		printk(KERN_WARNING "%s: Promoting cpu %d to monarch.\n",
+		       __FUNCTION__, cpu);
+		atomic_dec(&slaves);
+		sos->monarch = 1;
+	}
+
+	/* FIXME: Workaround for broken proms that drive all INIT events as
+	 * monarchs.  Second and subsequent monarchs are demoted to slaves.
+	 * Remove this code in September 2006, that gives platforms a year to
+	 * fix their proms and get their customers updated.
+	 */
+	if (sos->monarch && atomic_add_return(1, &monarchs) > 1) {
+		printk(KERN_WARNING "%s: Demoting cpu %d to slave.\n",
+			       __FUNCTION__, cpu);
+		atomic_dec(&monarchs);
+		sos->monarch = 0;
+	}
+
+	if (!sos->monarch) {
+		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_INIT;
+		while (monarch_cpu == -1)
+		       cpu_relax();	/* spin until monarch enters */
+		while (monarch_cpu != -1)
+		       cpu_relax();	/* spin until monarch leaves */
+		printk("Slave on cpu %d returning to normal service.\n", cpu);
+		set_curr_task(cpu, previous_current);
+		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
+		atomic_dec(&slaves);
+		return;
+	}
+
+	monarch_cpu = cpu;
 
 	/*
-	 * Address of minstate area provided by PAL is physical,
-	 * uncacheable (bit 63 set). Convert to Linux virtual
-	 * address in region 6.
+	 * Wait for a bit.  On some machines (e.g., HP's zx2000 and zx6000, INIT can be
+	 * generated via the BMC's command-line interface, but since the console is on the
+	 * same serial line, the user will need some time to switch out of the BMC before
+	 * the dump begins.
 	 */
-	ms = (pal_min_state_area_t *)(ia64_sal_to_os_handoff_state.pal_min_state | (6ul<<61));
-
-	init_handler_platform(ms, pt, sw);	/* call platform specific routines */
+	printk("Delaying for 5 seconds...\n");
+	udelay(5*1000000);
+	ia64_wait_for_slaves(cpu);
+	printk(KERN_ERR "Processes interrupted by INIT -");
+	for_each_online_cpu(c) {
+		struct ia64_sal_os_state *s;
+		t = __va(__per_cpu_mca[c] + IA64_MCA_CPU_INIT_STACK_OFFSET);
+		s = (struct ia64_sal_os_state *)((char *)t + MCA_SOS_OFFSET);
+		g = s->prev_task;
+		if (g) {
+			if (g->pid)
+				printk(" %d", g->pid);
+			else
+				printk(" %d (cpu %d task 0x%p)", g->pid, task_cpu(g), g);
+		}
+	}
+	printk("\n\n");
+	if (read_trylock(&tasklist_lock)) {
+		do_each_thread (g, t) {
+			printk("\nBacktrace of pid %d (%s)\n", t->pid, t->comm);
+			show_stack(t, NULL);
+		} while_each_thread (g, t);
+		read_unlock(&tasklist_lock);
+	}
+	printk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
+	atomic_dec(&monarchs);
+	set_curr_task(cpu, previous_current);
+	monarch_cpu = -1;
+	return;
 }
 
 static int __init
@@ -1202,6 +1345,34 @@ static struct irqaction mca_cpep_irqaction = {
 };
 #endif /* CONFIG_ACPI */
 
+/* Minimal format of the MCA/INIT stacks.  The pseudo processes that run on
+ * these stacks can never sleep, they cannot return from the kernel to user
+ * space, they do not appear in a normal ps listing.  So there is no need to
+ * format most of the fields.
+ */
+
+static void
+format_mca_init_stack(void *mca_data, unsigned long offset,
+		const char *type, int cpu)
+{
+	struct task_struct *p = (struct task_struct *)((char *)mca_data + offset);
+	struct thread_info *ti;
+	memset(p, 0, KERNEL_STACK_SIZE);
+	ti = (struct thread_info *)((char *)p + IA64_TASK_SIZE);
+	ti->flags = _TIF_MCA_INIT;
+	ti->preempt_count = 1;
+	ti->task = p;
+	ti->cpu = cpu;
+	p->thread_info = ti;
+	p->state = TASK_UNINTERRUPTIBLE;
+	__set_bit(cpu, &p->cpus_allowed);
+	INIT_LIST_HEAD(&p->tasks);
+	p->parent = p->real_parent = p->group_leader = p;
+	INIT_LIST_HEAD(&p->children);
+	INIT_LIST_HEAD(&p->sibling);
+	strncpy(p->comm, type, sizeof(p->comm)-1);
+}
+
 /* Do per-CPU MCA-related initialization.  */
 
 void __devinit
@@ -1214,19 +1385,28 @@ ia64_mca_cpu_init(void *cpu_data)
 		int cpu;
 
 		mca_data = alloc_bootmem(sizeof(struct ia64_mca_cpu)
-					 * NR_CPUS);
+					 * NR_CPUS + KERNEL_STACK_SIZE);
+		mca_data = (void *)(((unsigned long)mca_data +
+					KERNEL_STACK_SIZE - 1) &
+				(-KERNEL_STACK_SIZE));
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+			format_mca_init_stack(mca_data,
+					offsetof(struct ia64_mca_cpu, mca_stack),
+					"MCA", cpu);
+			format_mca_init_stack(mca_data,
+					offsetof(struct ia64_mca_cpu, init_stack),
+					"INIT", cpu);
 			__per_cpu_mca[cpu] = __pa(mca_data);
 			mca_data += sizeof(struct ia64_mca_cpu);
 		}
 	}
 
-        /*
-         * The MCA info structure was allocated earlier and its
-         * physical address saved in __per_cpu_mca[cpu].  Copy that
-         * address * to ia64_mca_data so we can access it as a per-CPU
-         * variable.
-         */
+	/*
+	 * The MCA info structure was allocated earlier and its
+	 * physical address saved in __per_cpu_mca[cpu].  Copy that
+	 * address * to ia64_mca_data so we can access it as a per-CPU
+	 * variable.
+	 */
 	__get_cpu_var(ia64_mca_data) = __per_cpu_mca[smp_processor_id()];
 
 	/*
@@ -1236,11 +1416,11 @@ ia64_mca_cpu_init(void *cpu_data)
 	__get_cpu_var(ia64_mca_per_cpu_pte) =
 		pte_val(mk_pte_phys(__pa(cpu_data), PAGE_KERNEL));
 
-        /*
-         * Also, stash away a copy of the PAL address and the PTE
-         * needed to map it.
-         */
-        pal_vaddr = efi_get_pal_addr();
+	/*
+	 * Also, stash away a copy of the PAL address and the PTE
+	 * needed to map it.
+	 */
+	pal_vaddr = efi_get_pal_addr();
 	if (!pal_vaddr)
 		return;
 	__get_cpu_var(ia64_mca_pal_base) =
@@ -1272,8 +1452,8 @@ ia64_mca_cpu_init(void *cpu_data)
 void __init
 ia64_mca_init(void)
 {
-	ia64_fptr_t *mon_init_ptr = (ia64_fptr_t *)ia64_monarch_init_handler;
-	ia64_fptr_t *slave_init_ptr = (ia64_fptr_t *)ia64_slave_init_handler;
+	ia64_fptr_t *init_hldlr_ptr_monarch = (ia64_fptr_t *)ia64_os_init_dispatch_monarch;
+	ia64_fptr_t *init_hldlr_ptr_slave = (ia64_fptr_t *)ia64_os_init_dispatch_slave;
 	ia64_fptr_t *mca_hldlr_ptr = (ia64_fptr_t *)ia64_os_mca_dispatch;
 	int i;
 	s64 rc;
@@ -1351,9 +1531,9 @@ ia64_mca_init(void)
 	 * XXX - disable SAL checksum by setting size to 0, should be
 	 * size of the actual init handler in mca_asm.S.
 	 */
-	ia64_mc_info.imi_monarch_init_handler		= ia64_tpa(mon_init_ptr->fp);
+	ia64_mc_info.imi_monarch_init_handler		= ia64_tpa(init_hldlr_ptr_monarch->fp);
 	ia64_mc_info.imi_monarch_init_handler_size	= 0;
-	ia64_mc_info.imi_slave_init_handler		= ia64_tpa(slave_init_ptr->fp);
+	ia64_mc_info.imi_slave_init_handler		= ia64_tpa(init_hldlr_ptr_slave->fp);
 	ia64_mc_info.imi_slave_init_handler_size	= 0;
 
 	IA64_MCA_DEBUG("%s: OS INIT handler at %lx\n", __FUNCTION__,

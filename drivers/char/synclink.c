@@ -1,7 +1,7 @@
 /*
  * linux/drivers/char/synclink.c
  *
- * $Id: synclink.c,v 4.28 2004/08/11 19:30:01 paulkf Exp $
+ * $Id: synclink.c,v 4.37 2005/09/07 13:13:19 paulkf Exp $
  *
  * Device driver for Microgate SyncLink ISA and PCI
  * high speed multiprotocol serial adapters.
@@ -141,9 +141,9 @@ static MGSL_PARAMS default_params = {
 typedef struct _DMABUFFERENTRY
 {
 	u32 phys_addr;	/* 32-bit flat physical address of data buffer */
-	u16 count;	/* buffer size/data count */
-	u16 status;	/* Control/status field */
-	u16 rcc;	/* character count field */
+	volatile u16 count;	/* buffer size/data count */
+	volatile u16 status;	/* Control/status field */
+	volatile u16 rcc;	/* character count field */
 	u16 reserved;	/* padding required by 16C32 */
 	u32 link;	/* 32-bit flat link to next buffer entry */
 	char *virt_addr;	/* virtual address of data buffer */
@@ -896,7 +896,7 @@ module_param_array(txdmabufs, int, NULL, 0);
 module_param_array(txholdbufs, int, NULL, 0);
 
 static char *driver_name = "SyncLink serial driver";
-static char *driver_version = "$Revision: 4.28 $";
+static char *driver_version = "$Revision: 4.37 $";
 
 static int synclink_init_one (struct pci_dev *dev,
 				     const struct pci_device_id *ent);
@@ -1814,6 +1814,8 @@ static int startup(struct mgsl_struct * info)
 
 	info->pending_bh = 0;
 	
+	memset(&info->icount, 0, sizeof(info->icount));
+
 	init_timer(&info->tx_timer);
 	info->tx_timer.data = (unsigned long)info;
 	info->tx_timer.function = mgsl_tx_timeout;
@@ -2470,12 +2472,12 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
-	COPY_TO_USER(err,user_icount, &info->icount, sizeof(struct mgsl_icount));
-	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
-			printk( "%s(%d):mgsl_get_stats(%s) user buffer copy failed\n",
-				__FILE__,__LINE__,info->device_name);
-		return -EFAULT;
+	if (!user_icount) {
+		memset(&info->icount, 0, sizeof(info->icount));
+	} else {
+		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		if (err)
+			return -EFAULT;
 	}
 	
 	return 0;
@@ -6147,6 +6149,11 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 		/* Enable INTEN (Port 6, Bit12) */
 		/* This connects the IRQ request signal to the ISA bus */
 		usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) & ~BIT12));
+	}
+
+	if (info->params.loopback) {
+		info->loopback_bits = 0x300;
+		outw(0x0300, info->io_base + CCAR);
 	}
 
 }	/* end of usc_set_async_mode() */

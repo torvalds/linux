@@ -127,13 +127,6 @@ static int __init pci_mmcfg_init(void)
 	    (pci_mmcfg_config[0].base_address == 0))
 		goto out;
 
-	/* Kludge for now. Don't use mmconfig on AMD systems because
-	   those have some busses where mmconfig doesn't work,
-	   and we don't parse ACPI MCFG well enough to handle that. 
-	   Remove when proper handling is added. */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		goto out; 
-
 	printk(KERN_INFO "PCI: Using MMCONFIG\n");
 	raw_pci_ops = &pci_mmcfg;
 	pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;

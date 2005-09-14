@@ -48,6 +48,8 @@
 /* Two seconds as per CCID3 spec */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
+#define TFRC_INITIAL_IPI	   (USEC_PER_SEC / 4)
+
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */
 #define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
 
@@ -115,7 +117,7 @@ struct ccid3_hc_rx_sock {
   	u64			ccid3hcrx_seqno_last_counter:48,
 				ccid3hcrx_state:8,
 				ccid3hcrx_last_counter:4;
-	unsigned long		ccid3hcrx_rtt;
+	u32			ccid3hcrx_rtt;
   	u32			ccid3hcrx_p;
   	u32			ccid3hcrx_bytes_recv;
   	struct timeval		ccid3hcrx_tstamp_last_feedback;
@@ -128,10 +130,14 @@ struct ccid3_hc_rx_sock {
   	u32			ccid3hcrx_x_recv;
 };
 
-#define ccid3_hc_tx_field(s,field) (s->dccps_hc_tx_ccid_private == NULL ? 0 : \
-    ((struct ccid3_hc_tx_sock *)s->dccps_hc_tx_ccid_private)->ccid3hctx_##field)
+static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
+{
+    return dccp_sk(sk)->dccps_hc_tx_ccid_private;
+}
 
-#define ccid3_hc_rx_field(s,field) (s->dccps_hc_rx_ccid_private == NULL ? 0 : \
-    ((struct ccid3_hc_rx_sock *)s->dccps_hc_rx_ccid_private)->ccid3hcrx_##field)
+static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
+{
+    return dccp_sk(sk)->dccps_hc_rx_ccid_private;
+}
 
 #endif /* _DCCP_CCID3_H_ */

@@ -43,6 +43,9 @@
  * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
  * of bounds of the runlist.
  *
+ * Note the runlist can be NULL after this function returns if @vcn is zero and
+ * the attribute has zero allocated size, i.e. there simply is no runlist.
+ *
  * Locking: - The runlist must be locked for writing.
  *	    - This function modifies the runlist.
  */
@@ -54,6 +57,7 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 	ATTR_RECORD *a;
 	ntfs_attr_search_ctx *ctx;
 	runlist_element *rl;
+	unsigned long flags;
 	int err = 0;
 
 	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
@@ -85,8 +89,11 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 	 * ntfs_mapping_pairs_decompress() fails.
 	 */
 	end_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn) + 1;
-	if (unlikely(!a->data.non_resident.lowest_vcn && end_vcn <= 1))
+	if (unlikely(!a->data.non_resident.lowest_vcn && end_vcn <= 1)) {
+		read_lock_irqsave(&ni->size_lock, flags);
 		end_vcn = ni->allocated_size >> ni->vol->cluster_size_bits;
+		read_unlock_irqrestore(&ni->size_lock, flags);
+	}
 	if (unlikely(vcn >= end_vcn)) {
 		err = -ENOENT;
 		goto err_out;
@@ -165,6 +172,7 @@ LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked)
 {
 	LCN lcn;
+	unsigned long flags;
 	BOOL is_retry = FALSE;
 
 	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
@@ -173,6 +181,14 @@ LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
+	if (!ni->runlist.rl) {
+		read_lock_irqsave(&ni->size_lock, flags);
+		if (!ni->allocated_size) {
+			read_unlock_irqrestore(&ni->size_lock, flags);
+			return LCN_ENOENT;
+		}
+		read_unlock_irqrestore(&ni->size_lock, flags);
+	}
 retry_remap:
 	/* Convert vcn to lcn.  If that fails map the runlist and retry once. */
 	lcn = ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn);
@@ -255,6 +271,7 @@ retry_remap:
 runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked)
 {
+	unsigned long flags;
 	runlist_element *rl;
 	int err = 0;
 	BOOL is_retry = FALSE;
@@ -265,6 +282,14 @@ runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
+	if (!ni->runlist.rl) {
+		read_lock_irqsave(&ni->size_lock, flags);
+		if (!ni->allocated_size) {
+			read_unlock_irqrestore(&ni->size_lock, flags);
+			return ERR_PTR(-ENOENT);
+		}
+		read_unlock_irqrestore(&ni->size_lock, flags);
+	}
 retry_remap:
 	rl = ni->runlist.rl;
 	if (likely(rl && vcn >= rl[0].vcn)) {
@@ -528,6 +553,11 @@ int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 	block_size_bits = sb->s_blocksize_bits;
 	down_read(&runlist->lock);
 	rl = runlist->rl;
+	if (!rl) {
+		ntfs_error(sb, "Cannot read attribute list since runlist is "
+				"missing.");
+		goto err_out;	
+	}
 	/* Read all clusters specified by the runlist one run at a time. */
 	while (rl->length) {
 		lcn = ntfs_rl_vcn_to_lcn(rl, rl->vcn);
@@ -1247,6 +1277,46 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
 }
 
 /**
+ * ntfs_resident_attr_value_resize - resize the value of a resident attribute
+ * @m:		mft record containing attribute record
+ * @a:		attribute record whose value to resize
+ * @new_size:	new size in bytes to which to resize the attribute value of @a
+ *
+ * Resize the value of the attribute @a in the mft record @m to @new_size bytes.
+ * If the value is made bigger, the newly allocated space is cleared.
+ *
+ * Return 0 on success and -errno on error.  The following error codes are
+ * defined:
+ *	-ENOSPC	- Not enough space in the mft record @m to perform the resize.
+ *
+ * Note: On error, no modifications have been performed whatsoever.
+ *
+ * Warning: If you make a record smaller without having copied all the data you
+ *	    are interested in the data may be overwritten.
+ */
+int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
+		const u32 new_size)
+{
+	u32 old_size;
+
+	/* Resize the resident part of the attribute record. */
+	if (ntfs_attr_record_resize(m, a,
+			le16_to_cpu(a->data.resident.value_offset) + new_size))
+		return -ENOSPC;
+	/*
+	 * The resize succeeded!  If we made the attribute value bigger, clear
+	 * the area between the old size and @new_size.
+	 */
+	old_size = le32_to_cpu(a->data.resident.value_length);
+	if (new_size > old_size)
+		memset((u8*)a + le16_to_cpu(a->data.resident.value_offset) +
+				old_size, 0, new_size - old_size);
+	/* Finally update the length of the attribute value. */
+	a->data.resident.value_length = cpu_to_le32(new_size);
+	return 0;
+}
+
+/**
  * ntfs_attr_make_non_resident - convert a resident to a non-resident attribute
  * @ni:		ntfs inode describing the attribute to convert
  *
@@ -1301,6 +1371,12 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 					"volume!");
 		return err;
 	}
+	/*
+	 * FIXME: Compressed and encrypted attributes are not supported when
+	 * writing and we should never have gotten here for them.
+	 */
+	BUG_ON(NInoCompressed(ni));
+	BUG_ON(NInoEncrypted(ni));
 	/*
 	 * The size needs to be aligned to a cluster boundary for allocation
 	 * purposes.
@@ -1377,10 +1453,15 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	BUG_ON(a->non_resident);
 	/*
 	 * Calculate new offsets for the name and the mapping pairs array.
-	 * We assume the attribute is not compressed or sparse.
 	 */
-	name_ofs = (offsetof(ATTR_REC,
-			data.non_resident.compressed_size) + 7) & ~7;
+	if (NInoSparse(ni) || NInoCompressed(ni))
+		name_ofs = (offsetof(ATTR_REC,
+				data.non_resident.compressed_size) +
+				sizeof(a->data.non_resident.compressed_size) +
+				7) & ~7;
+	else
+		name_ofs = (offsetof(ATTR_REC,
+				data.non_resident.compressed_size) + 7) & ~7;
 	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
 	/*
 	 * Determine the size of the resident part of the now non-resident
@@ -1419,24 +1500,23 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
 				a->name_length * sizeof(ntfschar));
 	a->name_offset = cpu_to_le16(name_ofs);
-	/*
-	 * FIXME: For now just clear all of these as we do not support them
-	 * when writing.
-	 */
-	a->flags &= cpu_to_le16(0xffff & ~le16_to_cpu(ATTR_IS_SPARSE |
-			ATTR_IS_ENCRYPTED | ATTR_COMPRESSION_MASK));
 	/* Setup the fields specific to non-resident attributes. */
 	a->data.non_resident.lowest_vcn = 0;
 	a->data.non_resident.highest_vcn = cpu_to_sle64((new_size - 1) >>
 			vol->cluster_size_bits);
 	a->data.non_resident.mapping_pairs_offset = cpu_to_le16(mp_ofs);
-	a->data.non_resident.compression_unit = 0;
 	memset(&a->data.non_resident.reserved, 0,
 			sizeof(a->data.non_resident.reserved));
 	a->data.non_resident.allocated_size = cpu_to_sle64(new_size);
 	a->data.non_resident.data_size =
 			a->data.non_resident.initialized_size =
 			cpu_to_sle64(attr_size);
+	if (NInoSparse(ni) || NInoCompressed(ni)) {
+		a->data.non_resident.compression_unit = 4;
+		a->data.non_resident.compressed_size =
+				a->data.non_resident.allocated_size;
+	} else
+		a->data.non_resident.compression_unit = 0;
 	/* Generate the mapping pairs array into the attribute record. */
 	err = ntfs_mapping_pairs_build(vol, (u8*)a + mp_ofs,
 			arec_size - mp_ofs, rl, 0, -1, NULL);
@@ -1446,16 +1526,19 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		goto undo_err_out;
 	}
 	/* Setup the in-memory attribute structure to be non-resident. */
-	/*
-	 * FIXME: For now just clear all of these as we do not support them
-	 * when writing.
-	 */
-	NInoClearSparse(ni);
-	NInoClearEncrypted(ni);
-	NInoClearCompressed(ni);
 	ni->runlist.rl = rl;
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = new_size;
+	if (NInoSparse(ni) || NInoCompressed(ni)) {
+		ni->itype.compressed.size = ni->allocated_size;
+		ni->itype.compressed.block_size = 1U <<
+				(a->data.non_resident.compression_unit +
+				vol->cluster_size_bits);
+		ni->itype.compressed.block_size_bits =
+				ffs(ni->itype.compressed.block_size) - 1;
+		ni->itype.compressed.block_clusters = 1U <<
+				a->data.non_resident.compression_unit;
+	}
 	write_unlock_irqrestore(&ni->size_lock, flags);
 	/*
 	 * This needs to be last since the address space operations ->readpage
@@ -1603,6 +1686,12 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	BUG_ON(cnt < 0);
 	if (!cnt)
 		goto done;
+	/*
+	 * FIXME: Compressed and encrypted attributes are not supported when
+	 * writing and we should never have gotten here for them.
+	 */
+	BUG_ON(NInoCompressed(ni));
+	BUG_ON(NInoEncrypted(ni));
 	mapping = VFS_I(ni)->i_mapping;
 	/* Work out the starting index and page offset. */
 	idx = ofs >> PAGE_CACHE_SHIFT;

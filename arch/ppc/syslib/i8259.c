@@ -129,14 +129,11 @@ static void i8259_end_irq(unsigned int irq)
 }
 
 struct hw_interrupt_type i8259_pic = {
-	" i8259    ",
-	NULL,
-	NULL,
-	i8259_unmask_irq,
-	i8259_mask_irq,
-	i8259_mask_and_ack_irq,
-	i8259_end_irq,
-	NULL
+	.typename = " i8259    ",
+	.enable = i8259_unmask_irq,
+	.disable = i8259_mask_irq,
+	.ack = i8259_mask_and_ack_irq,
+	.end = i8259_end_irq,
 };
 
 static struct resource pic1_iores = {

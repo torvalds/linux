@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/irq.c
+ * linux/arch/arm/mach-omap1/irq.c
  *
  * Interrupt handler for all OMAP boards
  *

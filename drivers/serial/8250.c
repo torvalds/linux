@@ -864,7 +864,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	/*
 	 * We're pretty sure there's a port here.  Lets find out what
 	 * type of port it is.  The IIR top two bits allows us to find
-	 * out if its 8250 or 16450, 16550, 16550A or later.  This
+	 * out if it's 8250 or 16450, 16550, 16550A or later.  This
 	 * determines what we test for next.
 	 *
 	 * We also initialise the EFR (if any) to zero for later.  The
@@ -2536,7 +2536,7 @@ static int __init serial8250_init(void)
 		goto out;
 
 	serial8250_isa_devs = platform_device_register_simple("serial8250",
-							      -1, NULL, 0);
+					 PLAT8250_DEV_LEGACY, NULL, 0);
 	if (IS_ERR(serial8250_isa_devs)) {
 		ret = PTR_ERR(serial8250_isa_devs);
 		goto unreg;

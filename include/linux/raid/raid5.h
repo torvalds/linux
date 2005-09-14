@@ -134,6 +134,7 @@ struct stripe_head {
 	unsigned long		state;			/* state flags */
 	atomic_t		count;			/* nr of active thread/requests */
 	spinlock_t		lock;
+	int			bm_seq;	/* sequence number for bitmap flushes */
 	struct r5dev {
 		struct bio	req;
 		struct bio_vec	vec;
@@ -165,12 +166,13 @@ struct stripe_head {
 /*
  * Stripe state
  */
-#define STRIPE_ERROR		1
 #define STRIPE_HANDLE		2
 #define	STRIPE_SYNCING		3
 #define	STRIPE_INSYNC		4
 #define	STRIPE_PREREAD_ACTIVE	5
 #define	STRIPE_DELAYED		6
+#define	STRIPE_DEGRADED		7
+#define	STRIPE_BIT_DELAY	8
 
 /*
  * Plugging:
@@ -210,10 +212,20 @@ struct raid5_private_data {
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	delayed_list; /* stripes that have plugged requests */
+	struct list_head	bitmap_list; /* stripes delaying awaiting bitmap update */
 	atomic_t		preread_active_stripes; /* stripes with scheduled io */
 
 	char			cache_name[20];
 	kmem_cache_t		*slab_cache; /* for allocating stripes */
+
+	int			seq_flush, seq_write;
+	int			quiesce;
+
+	int			fullsync;  /* set to 1 if a full sync is needed,
+					    * (fresh device added).
+					    * Cleared when a sync completes.
+					    */
+
 	/*
 	 * Free stripes pool
 	 */

@@ -80,7 +80,6 @@ fixup_broken_pcnet32(struct pci_dev* dev)
 	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {
 		dev->vendor = PCI_VENDOR_ID_AMD;
 		pci_write_config_word(dev, PCI_VENDOR_ID, PCI_VENDOR_ID_AMD);
-		pci_name_device(dev);
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TRIDENT,	PCI_ANY_ID,			fixup_broken_pcnet32);

@@ -116,14 +116,6 @@ struct property {
 	struct property *next;
 };
 
-/* NOTE: the device_node contains PCI specific info for pci devices.
- * This perhaps could be hung off the device_node with another struct,
- * but for now it is directly in the node.  The phb ptr is a good
- * indication of a real PCI node.  Other nodes leave these fields zeroed.
- */
-struct pci_controller;
-struct iommu_table;
-
 struct device_node {
 	char	*name;
 	char	*type;
@@ -135,16 +127,6 @@ struct device_node {
 	struct	interrupt_info *intrs;
 	char	*full_name;
 
-	/* PCI stuff probably doesn't belong here */
-	int	busno;			/* for pci devices */
-	int	bussubno;		/* for pci devices */
-	int	devfn;			/* for pci devices */
-	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
-	int	eeh_config_addr;
-	int	pci_ext_config_space;	/* for pci devices */
-	struct  pci_controller *phb;	/* for pci devices */
-	struct	iommu_table *iommu_table;	/* for phb's or bridges */
-
 	struct	property *properties;
 	struct	device_node *parent;
 	struct	device_node *child;
@@ -154,6 +136,7 @@ struct device_node {
 	struct  proc_dir_entry *pde;	/* this node's proc directory */
 	struct  kref kref;
 	unsigned long _flags;
+	void	*data;
 };
 
 extern struct device_node *of_chosen;

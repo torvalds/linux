@@ -8,6 +8,8 @@
  * Copyright (C) 2000 David Mosberger-Tang <davidm@hpl.hp.com>
  * Copyright (C) 2002 Intel Corp.
  * Copyright (C) 2002 Jenna Hall <jenna.s.hall@intel.com>
+ * Copyright (C) 2005 Silicon Graphics, Inc
+ * Copyright (C) 2005 Keith Owens <kaos@sgi.com>
  */
 #ifndef _ASM_IA64_MCA_ASM_H
 #define _ASM_IA64_MCA_ASM_H
@@ -207,106 +209,33 @@
 	;;
 
 /*
- * The following offsets capture the order in which the
- * RSE related registers from the old context are
- * saved onto the new stack frame.
+ * The MCA and INIT stacks in struct ia64_mca_cpu look like normal kernel
+ * stacks, except that the SAL/OS state and a switch_stack are stored near the
+ * top of the MCA/INIT stack.  To support concurrent entry to MCA or INIT, as
+ * well as MCA over INIT, each event needs its own SAL/OS state.  All entries
+ * are 16 byte aligned.
  *
- *	+-----------------------+
- *	|NDIRTY [BSP - BSPSTORE]|
- *	+-----------------------+
- *	|	RNAT		|
- *	+-----------------------+
- *	|	BSPSTORE	|
- *	+-----------------------+
- *	|	IFS		|
- *	+-----------------------+
- *	|	PFS		|
- *	+-----------------------+
- *	|	RSC		|
- *	+-----------------------+ <-------- Bottom of new stack frame
+ *      +---------------------------+
+ *      |          pt_regs          |
+ *      +---------------------------+
+ *      |        switch_stack       |
+ *      +---------------------------+
+ *      |        SAL/OS state       |
+ *      +---------------------------+
+ *      |    16 byte scratch area   |
+ *      +---------------------------+ <-------- SP at start of C MCA handler
+ *      |           .....           |
+ *      +---------------------------+
+ *      | RBS for MCA/INIT handler  |
+ *      +---------------------------+
+ *      | struct task for MCA/INIT  |
+ *      +---------------------------+ <-------- Bottom of MCA/INIT stack
  */
-#define  rse_rsc_offset		0
-#define  rse_pfs_offset		(rse_rsc_offset+0x08)
-#define  rse_ifs_offset		(rse_pfs_offset+0x08)
-#define  rse_bspstore_offset	(rse_ifs_offset+0x08)
-#define  rse_rnat_offset	(rse_bspstore_offset+0x08)
-#define  rse_ndirty_offset	(rse_rnat_offset+0x08)
 
-/*
- * rse_switch_context
- *
- *	1. Save old RSC onto the new stack frame
- *	2. Save PFS onto new stack frame
- *	3. Cover the old frame and start a new frame.
- *	4. Save IFS onto new stack frame
- *	5. Save the old BSPSTORE on the new stack frame
- *	6. Save the old RNAT on the new stack frame
- *	7. Write BSPSTORE with the new backing store pointer
- *	8. Read and save the new BSP to calculate the #dirty registers
- * NOTE: Look at pages 11-10, 11-11 in PRM Vol 2
- */
-#define rse_switch_context(temp,p_stackframe,p_bspstore)			\
-	;;									\
-	mov     temp=ar.rsc;;							\
-	st8     [p_stackframe]=temp,8;;					\
-	mov     temp=ar.pfs;;							\
-	st8     [p_stackframe]=temp,8;						\
-	cover ;;								\
-	mov     temp=cr.ifs;;							\
-	st8     [p_stackframe]=temp,8;;						\
-	mov     temp=ar.bspstore;;						\
-	st8     [p_stackframe]=temp,8;;					\
-	mov     temp=ar.rnat;;							\
-	st8     [p_stackframe]=temp,8;						\
-	mov     ar.bspstore=p_bspstore;;					\
-	mov     temp=ar.bsp;;							\
-	sub     temp=temp,p_bspstore;;						\
-	st8     [p_stackframe]=temp,8;;
-
-/*
- * rse_return_context
- *	1. Allocate a zero-sized frame
- *	2. Store the number of dirty registers RSC.loadrs field
- *	3. Issue a loadrs to insure that any registers from the interrupted
- *	   context which were saved on the new stack frame have been loaded
- *	   back into the stacked registers
- *	4. Restore BSPSTORE
- *	5. Restore RNAT
- *	6. Restore PFS
- *	7. Restore IFS
- *	8. Restore RSC
- *	9. Issue an RFI
- */
-#define rse_return_context(psr_mask_reg,temp,p_stackframe)			\
-	;;									\
-	alloc   temp=ar.pfs,0,0,0,0;						\
-	add     p_stackframe=rse_ndirty_offset,p_stackframe;;			\
-	ld8     temp=[p_stackframe];;						\
-	shl     temp=temp,16;;							\
-	mov     ar.rsc=temp;;							\
-	loadrs;;								\
-	add     p_stackframe=-rse_ndirty_offset+rse_bspstore_offset,p_stackframe;;\
-	ld8     temp=[p_stackframe];;						\
-	mov     ar.bspstore=temp;;						\
-	add     p_stackframe=-rse_bspstore_offset+rse_rnat_offset,p_stackframe;;\
-	ld8     temp=[p_stackframe];;						\
-	mov     ar.rnat=temp;;							\
-	add     p_stackframe=-rse_rnat_offset+rse_pfs_offset,p_stackframe;;	\
-	ld8     temp=[p_stackframe];;						\
-	mov     ar.pfs=temp;;							\
-	add     p_stackframe=-rse_pfs_offset+rse_ifs_offset,p_stackframe;;	\
-	ld8     temp=[p_stackframe];;						\
-	mov     cr.ifs=temp;;							\
-	add     p_stackframe=-rse_ifs_offset+rse_rsc_offset,p_stackframe;;	\
-	ld8     temp=[p_stackframe];;						\
-	mov     ar.rsc=temp ;							\
-	mov     temp=psr;;							\
-	or      temp=temp,psr_mask_reg;;					\
-	mov     cr.ipsr=temp;;							\
-	mov     temp=ip;;							\
-	add     temp=0x30,temp;;						\
-	mov     cr.iip=temp;;							\
-	srlz.i;;								\
-	rfi;;
+#define ALIGN16(x)			((x)&~15)
+#define MCA_PT_REGS_OFFSET		ALIGN16(KERNEL_STACK_SIZE-IA64_PT_REGS_SIZE)
+#define MCA_SWITCH_STACK_OFFSET		ALIGN16(MCA_PT_REGS_OFFSET-IA64_SWITCH_STACK_SIZE)
+#define MCA_SOS_OFFSET			ALIGN16(MCA_SWITCH_STACK_OFFSET-IA64_SAL_OS_STATE_SIZE)
+#define MCA_SP_OFFSET			ALIGN16(MCA_SOS_OFFSET-16)
 
 #endif /* _ASM_IA64_MCA_ASM_H */

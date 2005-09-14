@@ -1,5 +1,5 @@
 /*
- * $Id: synclinkmp.c,v 4.34 2005/03/04 15:07:10 paulkf Exp $
+ * $Id: synclinkmp.c,v 4.38 2005/07/15 13:29:44 paulkf Exp $
  *
  * Device driver for Microgate SyncLink Multiport
  * high speed multiprotocol serial adapter.
@@ -55,7 +55,6 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <asm/serial.h>
 #include <linux/delay.h>
 #include <linux/ioctl.h>
 
@@ -487,7 +486,7 @@ module_param_array(maxframe, int, NULL, 0);
 module_param_array(dosyncppp, int, NULL, 0);
 
 static char *driver_name = "SyncLink MultiPort driver";
-static char *driver_version = "$Revision: 4.34 $";
+static char *driver_version = "$Revision: 4.38 $";
 
 static int synclinkmp_init_one(struct pci_dev *dev,const struct pci_device_id *ent);
 static void synclinkmp_remove_one(struct pci_dev *dev);
@@ -556,7 +555,6 @@ static int  set_txidle(SLMP_INFO *info, int idle_mode);
 static int  tx_enable(SLMP_INFO *info, int enable);
 static int  tx_abort(SLMP_INFO *info);
 static int  rx_enable(SLMP_INFO *info, int enable);
-static int  map_status(int signals);
 static int  modem_input_wait(SLMP_INFO *info,int arg);
 static int  wait_mgsl_event(SLMP_INFO *info, int __user *mask_ptr);
 static int  tiocmget(struct tty_struct *tty, struct file *file);
@@ -645,7 +643,7 @@ static unsigned char tx_active_fifo_level = 16;	// tx request FIFO activation le
 static unsigned char tx_negate_fifo_level = 32;	// tx request FIFO negation level in bytes
 
 static u32 misc_ctrl_value = 0x007e4040;
-static u32 lcr1_brdr_value = 0x00800029;
+static u32 lcr1_brdr_value = 0x00800028;
 
 static u32 read_ahead_count = 8;
 
@@ -2750,6 +2748,8 @@ static int startup(SLMP_INFO * info)
 
 	info->pending_bh = 0;
 
+	memset(&info->icount, 0, sizeof(info->icount));
+
 	/* program hardware for current parameters */
 	reset_port(info);
 
@@ -2953,12 +2953,12 @@ static int get_stats(SLMP_INFO * info, struct mgsl_icount __user *user_icount)
 		printk("%s(%d):%s get_params()\n",
 			 __FILE__,__LINE__, info->device_name);
 
-	COPY_TO_USER(err,user_icount, &info->icount, sizeof(struct mgsl_icount));
-	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
-			printk( "%s(%d):%s get_stats() user buffer copy failed\n",
-				__FILE__,__LINE__,info->device_name);
-		return -EFAULT;
+	if (!user_icount) {
+		memset(&info->icount, 0, sizeof(info->icount));
+	} else {
+		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		if (err)
+			return -EFAULT;
 	}
 
 	return 0;
@@ -3109,16 +3109,6 @@ static int rx_enable(SLMP_INFO * info, int enable)
 	return 0;
 }
 
-static int map_status(int signals)
-{
-	/* Map status bits to API event bits */
-
-	return ((signals & SerialSignal_DSR) ? MgslEvent_DsrActive : MgslEvent_DsrInactive) +
-	       ((signals & SerialSignal_CTS) ? MgslEvent_CtsActive : MgslEvent_CtsInactive) +
-	       ((signals & SerialSignal_DCD) ? MgslEvent_DcdActive : MgslEvent_DcdInactive) +
-	       ((signals & SerialSignal_RI)  ? MgslEvent_RiActive : MgslEvent_RiInactive);
-}
-
 /* wait for specified event to occur
  */
 static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
@@ -3145,7 +3135,7 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
 
 	/* return immediately if state matches requested events */
 	get_signals(info);
-	s = map_status(info->serial_signals);
+	s = info->serial_signals;
 
 	events = mask &
 		( ((s & SerialSignal_DSR) ? MgslEvent_DsrActive:MgslEvent_DsrInactive) +
@@ -4489,11 +4479,13 @@ void async_mode(SLMP_INFO *info)
 	/* MD2, Mode Register 2
 	 *
 	 * 07..02  Reserved, must be 0
-	 * 01..00  CNCT<1..0> Channel connection, 0=normal
+	 * 01..00  CNCT<1..0> Channel connection, 00=normal 11=local loopback
 	 *
 	 * 0000 0000
 	 */
 	RegValue = 0x00;
+	if (info->params.loopback)
+		RegValue |= (BIT1 + BIT0);
 	write_reg(info, MD2, RegValue);
 
 	/* RXS, Receive clock source
@@ -4574,9 +4566,6 @@ void async_mode(SLMP_INFO *info)
 	write_reg(info, IE2, info->ie2_value);
 
 	set_rate( info, info->params.data_rate * 16 );
-
-	if (info->params.loopback)
-		enable_loopback(info,1);
 }
 
 /* Program the SCA for HDLC communications.

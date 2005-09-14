@@ -142,4 +142,11 @@ do {									      \
 #define PTRACE_GETEVRREGS	20
 #define PTRACE_SETEVRREGS	21
 
+/*
+ * Get or set a debug register. The first 16 are DABR registers and the
+ * second 16 are IABR registers.
+ */
+#define PTRACE_GET_DEBUGREG	25
+#define PTRACE_SET_DEBUGREG	26
+
 #endif
