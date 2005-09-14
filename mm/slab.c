@@ -659,7 +659,7 @@ static inline kmem_cache_t *__find_general_cachep(size_t size,
  	* kmem_cache_create(), or __kmalloc(), before
  	* the generic caches are initialized.
  	*/
-	BUG_ON(csizep->cs_cachep == NULL);
+	BUG_ON(malloc_sizes[INDEX_AC].cs_cachep == NULL);
 #endif
 	while (size > csizep->cs_size)
 		csizep++;
