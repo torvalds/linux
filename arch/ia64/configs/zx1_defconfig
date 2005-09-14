@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.13-rc6
-# Wed Aug 17 10:02:43 2005
+# Linux kernel version: 2.6.14-rc1
+# Wed Sep 14 15:15:01 2005
 #
 
 #
@@ -18,6 +18,7 @@ CONFIG_INIT_ENV_ARG_LIMIT=32
 # General setup
 #
 CONFIG_LOCALVERSION=""
+CONFIG_LOCALVERSION_AUTO=y
 CONFIG_SWAP=y
 CONFIG_SYSVIPC=y
 # CONFIG_POSIX_MQUEUE is not set
@@ -29,6 +30,7 @@ CONFIG_HOTPLUG=y
 CONFIG_KOBJECT_UEVENT=y
 # CONFIG_IKCONFIG is not set
 # CONFIG_CPUSETS is not set
+CONFIG_INITRAMFS_SOURCE=""
 # CONFIG_EMBEDDED is not set
 CONFIG_KALLSYMS=y
 # CONFIG_KALLSYMS_ALL is not set
@@ -103,6 +105,7 @@ CONFIG_FLATMEM_MANUAL=y
 # CONFIG_SPARSEMEM_MANUAL is not set
 CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
+# CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_HAVE_DEC_LOCK=y
 CONFIG_IA32_SUPPORT=y
 CONFIG_COMPAT=y
@@ -115,6 +118,7 @@ CONFIG_IA64_PALINFO=y
 #
 CONFIG_EFI_VARS=y
 CONFIG_EFI_PCDP=y
+# CONFIG_DELL_RBU is not set
 CONFIG_BINFMT_ELF=y
 CONFIG_BINFMT_MISC=y
 
@@ -122,19 +126,26 @@ CONFIG_BINFMT_MISC=y
 # Power management and ACPI
 #
 CONFIG_PM=y
-CONFIG_ACPI=y
+# CONFIG_PM_DEBUG is not set
 
 #
 # ACPI (Advanced Configuration and Power Interface) Support
 #
+CONFIG_ACPI=y
 CONFIG_ACPI_BUTTON=y
 CONFIG_ACPI_FAN=y
 CONFIG_ACPI_PROCESSOR=y
 CONFIG_ACPI_THERMAL=y
+CONFIG_ACPI_BLACKLIST_YEAR=0
 # CONFIG_ACPI_DEBUG is not set
 CONFIG_ACPI_POWER=y
 CONFIG_ACPI_SYSTEM=y
 # CONFIG_ACPI_CONTAINER is not set
+
+#
+# CPU Frequency scaling
+#
+# CONFIG_CPU_FREQ is not set
 
 #
 # Bus options (PCI, PCMCIA)
@@ -143,7 +154,6 @@ CONFIG_PCI=y
 CONFIG_PCI_DOMAINS=y
 # CONFIG_PCI_MSI is not set
 CONFIG_PCI_LEGACY_PROC=y
-CONFIG_PCI_NAMES=y
 # CONFIG_PCI_DEBUG is not set
 
 #
@@ -187,8 +197,8 @@ CONFIG_IP_FIB_HASH=y
 # CONFIG_INET_ESP is not set
 # CONFIG_INET_IPCOMP is not set
 # CONFIG_INET_TUNNEL is not set
-# CONFIG_IP_TCPDIAG is not set
-# CONFIG_IP_TCPDIAG_IPV6 is not set
+CONFIG_INET_DIAG=y
+CONFIG_INET_TCP_DIAG=y
 # CONFIG_TCP_CONG_ADVANCED is not set
 CONFIG_TCP_CONG_BIC=y
 
@@ -204,12 +214,16 @@ CONFIG_NETFILTER=y
 # IP: Netfilter Configuration
 #
 # CONFIG_IP_NF_CONNTRACK is not set
-# CONFIG_IP_NF_CONNTRACK_MARK is not set
 # CONFIG_IP_NF_QUEUE is not set
 # CONFIG_IP_NF_IPTABLES is not set
 CONFIG_IP_NF_ARPTABLES=y
 # CONFIG_IP_NF_ARPFILTER is not set
 # CONFIG_IP_NF_ARP_MANGLE is not set
+
+#
+# DCCP Configuration (EXPERIMENTAL)
+#
+# CONFIG_IP_DCCP is not set
 
 #
 # SCTP Configuration (EXPERIMENTAL)
@@ -234,9 +248,11 @@ CONFIG_IP_NF_ARPTABLES=y
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
+# CONFIG_NETFILTER_NETLINK is not set
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
+# CONFIG_IEEE80211 is not set
 
 #
 # Device Drivers
@@ -251,6 +267,11 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 # CONFIG_DEBUG_DRIVER is not set
 
 #
+# Connector - unified userspace <-> kernelspace linker
+#
+# CONFIG_CONNECTOR is not set
+
+#
 # Memory Technology Devices (MTD)
 #
 # CONFIG_MTD is not set
@@ -263,7 +284,13 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 # Plug and Play support
 #
-# CONFIG_PNP is not set
+CONFIG_PNP=y
+# CONFIG_PNP_DEBUG is not set
+
+#
+# Protocols
+#
+CONFIG_PNPACPI=y
 
 #
 # Block devices
@@ -282,7 +309,6 @@ CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
 CONFIG_BLK_DEV_INITRD=y
-CONFIG_INITRAMFS_SOURCE=""
 # CONFIG_CDROM_PKTCDVD is not set
 
 #
@@ -315,7 +341,8 @@ CONFIG_BLK_DEV_IDECD=y
 #
 # IDE chipset support/bugfixes
 #
-CONFIG_IDE_GENERIC=y
+# CONFIG_IDE_GENERIC is not set
+# CONFIG_BLK_DEV_IDEPNP is not set
 CONFIG_BLK_DEV_IDEPCI=y
 CONFIG_IDEPCI_SHARE_IRQ=y
 # CONFIG_BLK_DEV_OFFBOARD is not set
@@ -354,6 +381,7 @@ CONFIG_BLK_DEV_IDEDMA=y
 #
 # SCSI device support
 #
+# CONFIG_RAID_ATTRS is not set
 CONFIG_SCSI=y
 CONFIG_SCSI_PROC_FS=y
 
@@ -381,6 +409,7 @@ CONFIG_SCSI_LOGGING=y
 CONFIG_SCSI_SPI_ATTRS=y
 # CONFIG_SCSI_FC_ATTRS is not set
 # CONFIG_SCSI_ISCSI_ATTRS is not set
+# CONFIG_SCSI_SAS_ATTRS is not set
 
 #
 # SCSI low-level drivers
@@ -457,11 +486,17 @@ CONFIG_DUMMY=y
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
+# CONFIG_NET_SB1000 is not set
 
 #
 # ARCnet devices
 #
 # CONFIG_ARCNET is not set
+
+#
+# PHY device support
+#
+# CONFIG_PHYLIB is not set
 
 #
 # Ethernet (10 or 100Mbit)
@@ -485,6 +520,7 @@ CONFIG_TULIP_NAPI_HW_MITIGATION=y
 # CONFIG_DE4X5 is not set
 # CONFIG_WINBOND_840 is not set
 # CONFIG_DM9102 is not set
+# CONFIG_ULI526X is not set
 # CONFIG_HP100 is not set
 CONFIG_NET_PCI=y
 # CONFIG_PCNET32 is not set
@@ -516,6 +552,7 @@ CONFIG_E1000=y
 # CONFIG_HAMACHI is not set
 # CONFIG_YELLOWFIN is not set
 # CONFIG_R8169 is not set
+# CONFIG_SIS190 is not set
 # CONFIG_SKGE is not set
 # CONFIG_SK98LIN is not set
 # CONFIG_VIA_VELOCITY is not set
@@ -525,6 +562,7 @@ CONFIG_TIGON3=y
 #
 # Ethernet (10000 Mbit)
 #
+# CONFIG_CHELSIO_T1 is not set
 # CONFIG_IXGB is not set
 # CONFIG_S2IO is not set
 
@@ -650,12 +688,12 @@ CONFIG_AGP=y
 CONFIG_AGP_HP_ZX1=y
 CONFIG_DRM=y
 # CONFIG_DRM_TDFX is not set
-# CONFIG_DRM_GAMMA is not set
 # CONFIG_DRM_R128 is not set
 CONFIG_DRM_RADEON=y
 # CONFIG_DRM_MGA is not set
 # CONFIG_DRM_SIS is not set
 # CONFIG_DRM_VIA is not set
+# CONFIG_DRM_SAVAGE is not set
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_HPET is not set
 # CONFIG_HANGCHECK_TIMER is not set
@@ -689,7 +727,6 @@ CONFIG_I2C_ALGOPCF=y
 # CONFIG_I2C_I801 is not set
 # CONFIG_I2C_I810 is not set
 # CONFIG_I2C_PIIX4 is not set
-# CONFIG_I2C_ISA is not set
 # CONFIG_I2C_NFORCE2 is not set
 # CONFIG_I2C_PARPORT_LIGHT is not set
 # CONFIG_I2C_PROSAVAGE is not set
@@ -703,7 +740,6 @@ CONFIG_I2C_ALGOPCF=y
 # CONFIG_I2C_VIAPRO is not set
 # CONFIG_I2C_VOODOO3 is not set
 # CONFIG_I2C_PCA_ISA is not set
-# CONFIG_I2C_SENSOR is not set
 
 #
 # Miscellaneous I2C Chip support
@@ -730,9 +766,14 @@ CONFIG_I2C_ALGOPCF=y
 # Hardware Monitoring support
 #
 # CONFIG_HWMON is not set
+# CONFIG_HWMON_VID is not set
 
 #
 # Misc devices
+#
+
+#
+# Multimedia Capabilities Port drivers
 #
 
 #
@@ -806,6 +847,7 @@ CONFIG_FB_RADEON_DEBUG=y
 # CONFIG_FB_KYRO is not set
 # CONFIG_FB_3DFX is not set
 # CONFIG_FB_VOODOO1 is not set
+# CONFIG_FB_CYBLA is not set
 # CONFIG_FB_TRIDENT is not set
 # CONFIG_FB_PM3 is not set
 # CONFIG_FB_S1D13XXX is not set
@@ -862,11 +904,12 @@ CONFIG_SND_OPL3_LIB=y
 # CONFIG_SND_MTPAV is not set
 # CONFIG_SND_SERIAL_U16550 is not set
 # CONFIG_SND_MPU401 is not set
+CONFIG_SND_AC97_CODEC=y
+CONFIG_SND_AC97_BUS=y
 
 #
 # PCI devices
 #
-CONFIG_SND_AC97_CODEC=y
 # CONFIG_SND_ALI5451 is not set
 # CONFIG_SND_ATIIXP is not set
 # CONFIG_SND_ATIIXP_MODEM is not set
@@ -890,7 +933,7 @@ CONFIG_SND_AC97_CODEC=y
 # CONFIG_SND_HDSPM is not set
 # CONFIG_SND_TRIDENT is not set
 # CONFIG_SND_YMFPCI is not set
-# CONFIG_SND_ALS4000 is not set
+# CONFIG_SND_AD1889 is not set
 # CONFIG_SND_CMIPCI is not set
 # CONFIG_SND_ENS1370 is not set
 # CONFIG_SND_ENS1371 is not set
@@ -952,9 +995,8 @@ CONFIG_USB_UHCI_HCD=y
 #
 # USB Device Class drivers
 #
-# CONFIG_USB_AUDIO is not set
+# CONFIG_OBSOLETE_OSS_USB_DRIVER is not set
 # CONFIG_USB_BLUETOOTH_TTY is not set
-# CONFIG_USB_MIDI is not set
 # CONFIG_USB_ACM is not set
 # CONFIG_USB_PRINTER is not set
 
@@ -971,6 +1013,7 @@ CONFIG_USB_STORAGE=y
 # CONFIG_USB_STORAGE_SDDR09 is not set
 # CONFIG_USB_STORAGE_SDDR55 is not set
 # CONFIG_USB_STORAGE_JUMPSHOT is not set
+# CONFIG_USB_STORAGE_ONETOUCH is not set
 
 #
 # USB Input Devices
@@ -987,9 +1030,11 @@ CONFIG_USB_HIDDEV=y
 # CONFIG_USB_MTOUCH is not set
 # CONFIG_USB_ITMTOUCH is not set
 # CONFIG_USB_EGALAX is not set
+# CONFIG_USB_YEALINK is not set
 # CONFIG_USB_XPAD is not set
 # CONFIG_USB_ATI_REMOTE is not set
 # CONFIG_USB_KEYSPAN_REMOTE is not set
+# CONFIG_USB_APPLETOUCH is not set
 
 #
 # USB Imaging devices
@@ -1088,10 +1133,6 @@ CONFIG_FS_MBCACHE=y
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
 # CONFIG_FS_POSIX_ACL is not set
-
-#
-# XFS support
-#
 # CONFIG_XFS_FS is not set
 # CONFIG_MINIX_FS is not set
 # CONFIG_ROMFS_FS is not set
@@ -1100,6 +1141,7 @@ CONFIG_FS_MBCACHE=y
 CONFIG_DNOTIFY=y
 CONFIG_AUTOFS_FS=y
 # CONFIG_AUTOFS4_FS is not set
+# CONFIG_FUSE_FS is not set
 
 #
 # CD-ROM/DVD Filesystems
@@ -1126,13 +1168,11 @@ CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
 CONFIG_PROC_FS=y
 CONFIG_PROC_KCORE=y
 CONFIG_SYSFS=y
-# CONFIG_DEVPTS_FS_XATTR is not set
 CONFIG_TMPFS=y
-CONFIG_TMPFS_XATTR=y
-CONFIG_TMPFS_SECURITY=y
 CONFIG_HUGETLBFS=y
 CONFIG_HUGETLB_PAGE=y
 CONFIG_RAMFS=y
+# CONFIG_RELAYFS_FS is not set
 
 #
 # Miscellaneous filesystems
@@ -1177,6 +1217,7 @@ CONFIG_RPCSEC_GSS_KRB5=y
 # CONFIG_NCP_FS is not set
 # CONFIG_CODA_FS is not set
 # CONFIG_AFS_FS is not set
+# CONFIG_9P_FS is not set
 
 #
 # Partition Types
@@ -1246,10 +1287,12 @@ CONFIG_NLS_UTF8=y
 # Library routines
 #
 # CONFIG_CRC_CCITT is not set
+# CONFIG_CRC16 is not set
 CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
 CONFIG_GENERIC_HARDIRQS=y
 CONFIG_GENERIC_IRQ_PROBE=y
+CONFIG_GENERIC_PENDING_IRQ=y
 
 #
 # Profiling support
@@ -1263,6 +1306,7 @@ CONFIG_GENERIC_IRQ_PROBE=y
 CONFIG_DEBUG_KERNEL=y
 CONFIG_MAGIC_SYSRQ=y
 CONFIG_LOG_BUF_SHIFT=17
+CONFIG_DETECT_SOFTLOCKUP=y
 # CONFIG_SCHEDSTATS is not set
 # CONFIG_DEBUG_SLAB is not set
 # CONFIG_DEBUG_SPINLOCK is not set
