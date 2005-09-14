@@ -745,8 +745,8 @@ static inline int de_thread(struct task_struct *tsk)
         }
 
 	/*
-	 * Now there are really no other threads at all,
-	 * so it's safe to stop telling them to kill themselves.
+	 * There may be one thread left which is just exiting,
+	 * but it's safe to stop telling the group to kill themselves.
 	 */
 	sig->flags = 0;
 
@@ -785,7 +785,6 @@ no_thread_group:
 			kmem_cache_free(sighand_cachep, oldsighand);
 	}
 
-	BUG_ON(!thread_group_empty(current));
 	BUG_ON(!thread_group_leader(current));
 	return 0;
 }
