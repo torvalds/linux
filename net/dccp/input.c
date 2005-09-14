@@ -50,7 +50,8 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	dccp_set_state(sk, DCCP_CLOSING);
+	if (sk->sk_state != DCCP_CLOSING)
+		dccp_set_state(sk, DCCP_CLOSING);
 	dccp_send_close(sk, 0);
 }
 
@@ -559,6 +560,12 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	} else if (dh->dccph_type == DCCP_PKT_CLOSE) {
 		dccp_rcv_close(sk, skb);
 		return 0;
+	}
+
+	if (unlikely(dh->dccph_type == DCCP_PKT_SYNC)) {
+		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
+			       DCCP_PKT_SYNCACK);
+		goto discard;
 	}
 
 	switch (sk->sk_state) {
