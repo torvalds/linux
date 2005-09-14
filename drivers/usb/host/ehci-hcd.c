@@ -759,7 +759,7 @@ static int ehci_suspend (struct usb_hcd *hcd, pm_message_t message)
 		msleep (100);
 
 #ifdef	CONFIG_USB_SUSPEND
-	(void) usb_suspend_device (hcd->self.root_hub, message);
+	(void) usb_suspend_device (hcd->self.root_hub);
 #else
 	usb_lock_device (hcd->self.root_hub);
 	(void) ehci_hub_suspend (hcd);

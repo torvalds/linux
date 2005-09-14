@@ -1781,7 +1781,7 @@ static int isp116x_suspend(struct device *dev, pm_message_t state)
 
 	VDBG("%s: state %x\n", __func__, state);
 
-	ret = usb_suspend_device(hcd->self.root_hub, state);
+	ret = usb_suspend_device(hcd->self.root_hub);
 	if (!ret) {
 		dev->power.power_state = state;
 		INFO("%s suspended\n", hcd_name);

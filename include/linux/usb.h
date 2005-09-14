@@ -976,7 +976,7 @@ extern int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 	int timeout);
 
 /* selective suspend/resume */
-extern int usb_suspend_device(struct usb_device *dev, pm_message_t message);
+extern int usb_suspend_device(struct usb_device *dev);
 extern int usb_resume_device(struct usb_device *dev);
 
 

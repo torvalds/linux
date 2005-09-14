@@ -1414,14 +1414,33 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
+static int verify_suspended(struct device *dev, void *unused)
+{
+	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
+}
+
 static int usb_generic_suspend(struct device *dev, pm_message_t message)
 {
 	struct usb_interface	*intf;
 	struct usb_driver	*driver;
 	int			status;
 
-	if (dev->driver == &usb_generic_driver)
-		return usb_suspend_device (to_usb_device(dev), message);
+	/* USB devices enter SUSPEND state through their hubs, but can be
+	 * marked for FREEZE as soon as their children are already idled.
+	 */
+	if (dev->driver == &usb_generic_driver) {
+		if (dev->power.power_state.event == message.event)
+			return 0;
+		/* we need to rule out bogus requests through sysfs */
+		status = device_for_each_child(dev, NULL, verify_suspended);
+		if (status)
+			return status;
+		if (message.event == PM_EVENT_FREEZE) {
+			dev->power.power_state = message;
+			return 0;
+		}
+ 		return usb_suspend_device (to_usb_device(dev));
+	}
 
 	if ((dev->driver == NULL) ||
 	    (dev->driver_data == &usb_generic_driver_data))

@@ -1323,11 +1323,9 @@ int usb_new_device(struct usb_device *udev)
 		 * (Includes HNP test device.)
 		 */
 		if (udev->bus->b_hnp_enable || udev->bus->is_b_host) {
-			static int __usb_suspend_device (struct usb_device *,
-						int port1, pm_message_t state);
-			err = __usb_suspend_device(udev,
-					udev->bus->otg_port,
-					PMSG_SUSPEND);
+			static int __usb_suspend_device(struct usb_device *,
+						int port1);
+			err = __usb_suspend_device(udev, udev->bus->otg_port);
 			if (err < 0)
 				dev_dbg(&udev->dev, "HNP fail, %d\n", err);
 		}
@@ -1517,7 +1515,7 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 	/* FIXME let caller ask to power down the port:
 	 *  - some devices won't enumerate without a VBUS power cycle
 	 *  - SRP saves power that way
-	 *  - usb_suspend_device(dev, PMSG_SUSPEND)
+	 *  - ... new call, TBD ...
 	 * That's easy if this hub can switch power per-port, and
 	 * khubd reactivates the port later (timer, SRP, etc).
 	 * Powerdown must be optional, because of reset/DFU.
@@ -1599,9 +1597,12 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
  * Other than re-initializing the hub (plug/unplug, except for root hubs),
  * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
  * timer, no SRP, no requests through sysfs.
+ *
+ * If CONFIG_USB_SUSPEND isn't enabled, devices only really suspend when
+ * the root hub for their bus goes into global suspend ... so we don't
+ * (falsely) update the device power state to say it suspended.
  */
-static int __usb_suspend_device (struct usb_device *udev, int port1,
-				 pm_message_t state)
+static int __usb_suspend_device (struct usb_device *udev, int port1)
 {
 	int	status;
 
@@ -1648,14 +1649,13 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 				udev);
 
 	if (status == 0)
-		udev->dev.power.power_state = state;
+		udev->dev.power.power_state = PMSG_SUSPEND;
 	return status;
 }
 
 /**
  * usb_suspend_device - suspend a usb device
  * @udev: device that's no longer in active use
- * @state: PMSG_SUSPEND to suspend
  * Context: must be able to sleep; device not locked
  *
  * Suspends a USB device that isn't in active use, conserving power.
@@ -1664,13 +1664,16 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
  * suspend by the host, using usb_resume_device().  It's also routine
  * to disconnect devices while they are suspended.
  *
+ * This only affects the USB hardware for a device; its interfaces
+ * (and, for hubs, child devices) must already have been suspended.
+ *
  * Suspending OTG devices may trigger HNP, if that's been enabled
  * between a pair of dual-role devices.  That will change roles, such
  * as from A-Host to A-Peripheral or from B-Host back to B-Peripheral.
  *
  * Returns 0 on success, else negative errno.
  */
-int usb_suspend_device(struct usb_device *udev, pm_message_t state)
+int usb_suspend_device(struct usb_device *udev)
 {
 	int	port1, status;
 
@@ -1678,12 +1681,15 @@ int usb_suspend_device(struct usb_device *udev, pm_message_t state)
 	if (port1 < 0)
 		return port1;
 
-	status = __usb_suspend_device(udev, port1, state);
+	status = __usb_suspend_device(udev, port1);
 	usb_unlock_device(udev);
 	return status;
 }
 
 /*
+ * If the USB "suspend" state is in use (rather than "global suspend"),
+ * many devices will be individually taken out of suspend state using
+ * special" resume" signaling.  These routines kick in shortly after
  * hardware resume signaling is finished, either because of selective
  * resume (by host) or remote wakeup (by device) ... now see what changed
  * in the tree that's rooted at this device.
@@ -1986,13 +1992,15 @@ void usb_resume_root_hub(struct usb_device *hdev)
 
 #else	/* !CONFIG_USB_SUSPEND */
 
-int usb_suspend_device(struct usb_device *udev, pm_message_t state)
+int usb_suspend_device(struct usb_device *udev)
 {
+	/* state does NOT lie by saying it's USB_STATE_SUSPENDED! */
 	return 0;
 }
 
 int usb_resume_device(struct usb_device *udev)
 {
+	udev->dev.power_state.event = PM_EVENT_ON;
 	return 0;
 }
 
