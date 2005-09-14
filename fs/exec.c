@@ -421,11 +421,6 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	if (!mpnt)
 		return -ENOMEM;
 
-	if (security_vm_enough_memory(arg_size >> PAGE_SHIFT)) {
-		kmem_cache_free(vm_area_cachep, mpnt);
-		return -ENOMEM;
-	}
-
 	memset(mpnt, 0, sizeof(*mpnt));
 
 	down_write(&mm->mmap_sem);

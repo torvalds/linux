@@ -224,10 +224,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack)
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (vma == NULL)
 		return -ENOMEM;
-	if (security_vm_enough_memory(vdso_pages)) {
-		kmem_cache_free(vm_area_cachep, vma);
-		return -ENOMEM;
-	}
+
 	memset(vma, 0, sizeof(*vma));
 
 	/*
@@ -237,8 +234,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack)
 	 */
 	vdso_base = get_unmapped_area(NULL, vdso_base,
 				      vdso_pages << PAGE_SHIFT, 0, 0);
-	if (vdso_base & ~PAGE_MASK)
+	if (vdso_base & ~PAGE_MASK) {
+		kmem_cache_free(vm_area_cachep, vma);
 		return (int)vdso_base;
+	}
 
 	current->thread.vdso_base = vdso_base;
 
@@ -266,7 +265,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack)
 	vma->vm_ops = &vdso_vmops;
 
 	down_write(&mm->mmap_sem);
-	insert_vm_struct(mm, vma);
+	if (insert_vm_struct(mm, vma)) {
+		up_write(&mm->mmap_sem);
+		kmem_cache_free(vm_area_cachep, vma);
+		return -ENOMEM;
+	}
 	mm->total_vm += (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	up_write(&mm->mmap_sem);
 
