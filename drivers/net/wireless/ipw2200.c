@@ -6010,12 +6010,12 @@ static int ipw_wx_set_wireless_mode(struct net_device *dev,
 	}
 
 	if (priv->adapter == IPW_2915ABG) {
-		priv->ieee->abg_ture = 1;
+		priv->ieee->abg_true = 1;
 		if (mode & IEEE_A) {
 			band |= IEEE80211_52GHZ_BAND;
 			modulation |= IEEE80211_OFDM_MODULATION;
 		} else
-			priv->ieee->abg_ture = 0;
+			priv->ieee->abg_true = 0;
 	} else {
 		if (mode & IEEE_A) {
 			IPW_WARNING("Attempt to set 2200BG into "
@@ -6023,20 +6023,20 @@ static int ipw_wx_set_wireless_mode(struct net_device *dev,
 			return -EINVAL;
 		}
 
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 	}
 
 	if (mode & IEEE_B) {
 		band |= IEEE80211_24GHZ_BAND;
 		modulation |= IEEE80211_CCK_MODULATION;
 	} else
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 
 	if (mode & IEEE_G) {
 		band |= IEEE80211_24GHZ_BAND;
 		modulation |= IEEE80211_OFDM_MODULATION;
 	} else
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 
 	priv->ieee->mode = mode;
 	priv->ieee->freq_band = band;
@@ -7108,7 +7108,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_INFO DRV_NAME
 		       ": Detected Intel PRO/Wireless 2915ABG Network "
 		       "Connection\n");
-		priv->ieee->abg_ture = 1;
+		priv->ieee->abg_true = 1;
 		band = IEEE80211_52GHZ_BAND | IEEE80211_24GHZ_BAND;
 		modulation = IEEE80211_OFDM_MODULATION |
 		    IEEE80211_CCK_MODULATION;
@@ -7124,7 +7124,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			       ": Detected Intel PRO/Wireless 2200BG Network "
 			       "Connection\n");
 
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 		band = IEEE80211_24GHZ_BAND;
 		modulation = IEEE80211_OFDM_MODULATION |
 		    IEEE80211_CCK_MODULATION;
