@@ -228,11 +228,11 @@ typedef struct snd_rme32 {
 } rme32_t;
 
 static struct pci_device_id snd_rme32_ids[] = {
-	{PCI_VENDOR_ID_XILINX_RME, PCI_DEVICE_ID_DIGI32,
+	{PCI_VENDOR_ID_XILINX_RME, PCI_DEVICE_ID_RME_DIGI32,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0,},
-	{PCI_VENDOR_ID_XILINX_RME, PCI_DEVICE_ID_DIGI32_8,
+	{PCI_VENDOR_ID_XILINX_RME, PCI_DEVICE_ID_RME_DIGI32_8,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0,},
-	{PCI_VENDOR_ID_XILINX_RME, PCI_DEVICE_ID_DIGI32_PRO,
+	{PCI_VENDOR_ID_XILINX_RME, PCI_DEVICE_ID_RME_DIGI32_PRO,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0,},
 	{0,}
 };
@@ -240,7 +240,7 @@ static struct pci_device_id snd_rme32_ids[] = {
 MODULE_DEVICE_TABLE(pci, snd_rme32_ids);
 
 #define RME32_ISWORKING(rme32) ((rme32)->wcreg & RME32_WCR_START)
-#define RME32_PRO_WITH_8414(rme32) ((rme32)->pci->device == PCI_DEVICE_ID_DIGI32_PRO && (rme32)->rev == RME32_PRO_REVISION_WITH_8414)
+#define RME32_PRO_WITH_8414(rme32) ((rme32)->pci->device == PCI_DEVICE_ID_RME_DIGI32_PRO && (rme32)->rev == RME32_PRO_REVISION_WITH_8414)
 
 static int snd_rme32_playback_prepare(snd_pcm_substream_t * substream);
 
@@ -527,21 +527,21 @@ static int snd_rme32_playback_setrate(rme32_t * rme32, int rate)
 			RME32_WCR_FREQ_1;
 		break;
 	case 64000:
-		if (rme32->pci->device != PCI_DEVICE_ID_DIGI32_PRO)
+		if (rme32->pci->device != PCI_DEVICE_ID_RME_DIGI32_PRO)
 			return -EINVAL;
 		rme32->wcreg |= RME32_WCR_DS_BM;
 		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) & 
 			~RME32_WCR_FREQ_1;
 		break;
 	case 88200:
-		if (rme32->pci->device != PCI_DEVICE_ID_DIGI32_PRO)
+		if (rme32->pci->device != PCI_DEVICE_ID_RME_DIGI32_PRO)
 			return -EINVAL;
 		rme32->wcreg |= RME32_WCR_DS_BM;
 		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_1) & 
 			~RME32_WCR_FREQ_0;
 		break;
 	case 96000:
-		if (rme32->pci->device != PCI_DEVICE_ID_DIGI32_PRO)
+		if (rme32->pci->device != PCI_DEVICE_ID_RME_DIGI32_PRO)
 			return -EINVAL;
 		rme32->wcreg |= RME32_WCR_DS_BM;
 		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) | 
@@ -881,7 +881,7 @@ static int snd_rme32_playback_spdif_open(snd_pcm_substream_t * substream)
 		runtime->hw = snd_rme32_spdif_fd_info;
 	else
 		runtime->hw = snd_rme32_spdif_info;
-	if (rme32->pci->device == PCI_DEVICE_ID_DIGI32_PRO) {
+	if (rme32->pci->device == PCI_DEVICE_ID_RME_DIGI32_PRO) {
 		runtime->hw.rates |= SNDRV_PCM_RATE_64000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000;
 		runtime->hw.rate_max = 96000;
 	}
@@ -1408,8 +1408,8 @@ static int __devinit snd_rme32_create(rme32_t * rme32)
 	}
 
 	/* set up ALSA pcm device for ADAT */
-	if ((pci->device == PCI_DEVICE_ID_DIGI32) ||
-	    (pci->device == PCI_DEVICE_ID_DIGI32_PRO)) {
+	if ((pci->device == PCI_DEVICE_ID_RME_DIGI32) ||
+	    (pci->device == PCI_DEVICE_ID_RME_DIGI32_PRO)) {
 		/* ADAT is not available on DIGI32 and DIGI32 Pro */
 		rme32->adat_pcm = NULL;
 	}
@@ -1639,11 +1639,11 @@ snd_rme32_info_inputtype_control(snd_kcontrol_t * kcontrol,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	switch (rme32->pci->device) {
-	case PCI_DEVICE_ID_DIGI32:
-	case PCI_DEVICE_ID_DIGI32_8:
+	case PCI_DEVICE_ID_RME_DIGI32:
+	case PCI_DEVICE_ID_RME_DIGI32_8:
 		uinfo->value.enumerated.items = 3;
 		break;
-	case PCI_DEVICE_ID_DIGI32_PRO:
+	case PCI_DEVICE_ID_RME_DIGI32_PRO:
 		uinfo->value.enumerated.items = 4;
 		break;
 	default:
@@ -1670,11 +1670,11 @@ snd_rme32_get_inputtype_control(snd_kcontrol_t * kcontrol,
 	ucontrol->value.enumerated.item[0] = snd_rme32_getinputtype(rme32);
 
 	switch (rme32->pci->device) {
-	case PCI_DEVICE_ID_DIGI32:
-	case PCI_DEVICE_ID_DIGI32_8:
+	case PCI_DEVICE_ID_RME_DIGI32:
+	case PCI_DEVICE_ID_RME_DIGI32_8:
 		items = 3;
 		break;
-	case PCI_DEVICE_ID_DIGI32_PRO:
+	case PCI_DEVICE_ID_RME_DIGI32_PRO:
 		items = 4;
 		break;
 	default:
@@ -1697,11 +1697,11 @@ snd_rme32_put_inputtype_control(snd_kcontrol_t * kcontrol,
 	int change, items = 3;
 
 	switch (rme32->pci->device) {
-	case PCI_DEVICE_ID_DIGI32:
-	case PCI_DEVICE_ID_DIGI32_8:
+	case PCI_DEVICE_ID_RME_DIGI32:
+	case PCI_DEVICE_ID_RME_DIGI32_8:
 		items = 3;
 		break;
-	case PCI_DEVICE_ID_DIGI32_PRO:
+	case PCI_DEVICE_ID_RME_DIGI32_PRO:
 		items = 4;
 		break;
 	default:
@@ -1982,13 +1982,13 @@ snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	strcpy(card->driver, "Digi32");
 	switch (rme32->pci->device) {
-	case PCI_DEVICE_ID_DIGI32:
+	case PCI_DEVICE_ID_RME_DIGI32:
 		strcpy(card->shortname, "RME Digi32");
 		break;
-	case PCI_DEVICE_ID_DIGI32_8:
+	case PCI_DEVICE_ID_RME_DIGI32_8:
 		strcpy(card->shortname, "RME Digi32/8");
 		break;
-	case PCI_DEVICE_ID_DIGI32_PRO:
+	case PCI_DEVICE_ID_RME_DIGI32_PRO:
 		strcpy(card->shortname, "RME Digi32 PRO");
 		break;
 	}
