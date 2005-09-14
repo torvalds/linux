@@ -1723,6 +1723,7 @@ static int finish_port_resume(struct usb_device *udev)
 			status);
 	else if (udev->actconfig) {
 		unsigned	i;
+		int		(*resume)(struct device *);
 
 		le16_to_cpus(&devstatus);
 		if (devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) {
@@ -1741,35 +1742,11 @@ static int finish_port_resume(struct usb_device *udev)
 		}
 
 		/* resume interface drivers; if this is a hub, it
-		 * resumes the child devices
+		 * may have a child resume event to deal with soon
 		 */
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-			struct usb_interface	*intf;
-			struct usb_driver	*driver;
-
-			intf = udev->actconfig->interface[i];
-			if (is_active(intf))
-				continue;
-			if (!intf->dev.driver) {
-				/* FIXME maybe force to alt 0 */
-				continue;
-			}
-			driver = to_usb_driver(intf->dev.driver);
-
-			/* bus_rescan_devices() may rebind drivers */
-			if (!driver->resume)
-				continue;
-
-			/* can we do better than just logging errors? */
-			mark_active(intf);
-			status = driver->resume(intf);
-			if (status < 0) {
-				mark_quiesced(intf);
-				dev_dbg(&intf->dev,
-					"resume error %d\n",
-					status);
-			}
-		}
+		resume = udev->dev.bus->resume;
+		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++)
+			(void) resume(&udev->actconfig->interface[i]->dev);
 		status = 0;
 
 	} else if (udev->devnum <= 0) {
