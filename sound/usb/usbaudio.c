@@ -2755,9 +2755,9 @@ static int create_fixed_stream_quirk(snd_usb_audio_t *chip,
 /*
  * create a stream for an interface with proper descriptors
  */
-static int create_standard_interface_quirk(snd_usb_audio_t *chip,
-					   struct usb_interface *iface,
-					   const snd_usb_audio_quirk_t *quirk)
+static int create_standard_audio_quirk(snd_usb_audio_t *chip,
+				       struct usb_interface *iface,
+				       const snd_usb_audio_quirk_t *quirk)
 {
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
@@ -2765,24 +2765,14 @@ static int create_standard_interface_quirk(snd_usb_audio_t *chip,
 
 	alts = &iface->altsetting[0];
 	altsd = get_iface_desc(alts);
-	switch (quirk->type) {
-	case QUIRK_AUDIO_STANDARD_INTERFACE:
-		err = parse_audio_endpoints(chip, altsd->bInterfaceNumber);
-		if (!err)
-			usb_set_interface(chip->dev, altsd->bInterfaceNumber, 0); /* reset the current interface */
-		break;
-	case QUIRK_MIDI_STANDARD_INTERFACE:
-		err = snd_usb_create_midi_interface(chip, iface, NULL);
-		break;
-	default:
-		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
-		return -ENXIO;
-	}
+	err = parse_audio_endpoints(chip, altsd->bInterfaceNumber);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot setup if %d: error %d\n",
 			   altsd->bInterfaceNumber, err);
 		return err;
 	}
+	/* reset the current interface */
+	usb_set_interface(chip->dev, altsd->bInterfaceNumber, 0);
 	return 0;
 }
 
@@ -3044,7 +3034,7 @@ static int snd_usb_create_quirk(snd_usb_audio_t *chip,
 		[QUIRK_MIDI_RAW] = snd_usb_create_midi_interface,
 		[QUIRK_MIDI_EMAGIC] = snd_usb_create_midi_interface,
 		[QUIRK_MIDI_MIDITECH] = snd_usb_create_midi_interface,
-		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_interface_quirk,
+		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UA700_UA25] = create_ua700_ua25_quirk,
 		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
