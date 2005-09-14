@@ -448,8 +448,7 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 	 */
 	.hub_status_data =	ohci_s3c2410_hub_status_data,
 	.hub_control =		ohci_s3c2410_hub_control,
-
-#if defined(CONFIG_USB_SUSPEND) && 0
+#ifdef	CONFIG_PM
 	.hub_suspend =		ohci_hub_suspend,
 	.hub_resume =		ohci_hub_resume,
 #endif

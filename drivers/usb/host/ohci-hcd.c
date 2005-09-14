@@ -791,7 +791,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 /* must not be called from interrupt context */
 
-#if	defined(CONFIG_USB_SUSPEND) || defined(CONFIG_PM)
+#ifdef	CONFIG_PM
 
 static int ohci_restart (struct ohci_hcd *ohci)
 {

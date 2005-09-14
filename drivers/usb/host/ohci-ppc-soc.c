@@ -163,7 +163,7 @@ static const struct hc_driver ohci_ppc_soc_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM
 	.hub_suspend =		ohci_hub_suspend,
 	.hub_resume =		ohci_hub_resume,
 #endif
@@ -196,7 +196,7 @@ static struct device_driver ohci_hcd_ppc_soc_driver = {
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_ppc_soc_drv_probe,
 	.remove		= ohci_hcd_ppc_soc_drv_remove,
-#if	defined(CONFIG_USB_SUSPEND) || defined(CONFIG_PM)
+#ifdef	CONFIG_PM
 	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
 	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/
 #endif

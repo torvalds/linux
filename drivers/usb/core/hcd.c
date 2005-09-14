@@ -1431,6 +1431,8 @@ rescan:
 
 /*-------------------------------------------------------------------------*/
 
+/* FIXME make this #ifdef CONFIG_PM ... update root hubs, retest */
+
 #ifdef	CONFIG_USB_SUSPEND
 
 static int hcd_hub_suspend (struct usb_bus *bus)

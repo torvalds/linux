@@ -36,7 +36,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_USB_SUSPEND) || defined(CONFIG_PM)
+#ifdef	CONFIG_PM
 
 #define OHCI_SCHED_ENABLES \
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
@@ -294,7 +294,7 @@ static void ohci_rh_resume (void *_hcd)
 	ohci_dbg(ohci, "rh_resume ??\n");
 }
 
-#endif	/* CONFIG_USB_SUSPEND || CONFIG_PM */
+#endif	/* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/
 
