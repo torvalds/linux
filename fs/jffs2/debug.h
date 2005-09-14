@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.15 2005/09/07 08:34:54 havasi Exp $
+ * $Id: debug.h,v 1.16 2005/09/14 16:57:32 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -55,41 +55,46 @@
 #endif
 
 /* The prefixes of JFFS2 messages */
-#define JFFS2_DBG_MSG_PREFIX "[JFFS2 DBG]"
-#define JFFS2_ERR_MSG_PREFIX "JFFS2 error:"
-#define JFFS2_WARN_MSG_PREFIX "JFFS2 warning:"
-#define JFFS2_NOTICE_MSG_PREFIX "JFFS2 notice:"
+#define JFFS2_DBG_PREFIX	"[JFFS2 DBG]"
+#define JFFS2_ERR_PREFIX	"JFFS2 error:"
+#define JFFS2_WARN_PREFIX	"JFFS2 warning:"
+#define JFFS2_NOTICE_PREFIX	"JFFS2 notice:"
 
-#define JFFS2_ERR_LVL		KERN_ERR
-#define JFFS2_WARN_LVL		KERN_WARNING
-#define JFFS2_NOTICE_LVL	KERN_NOTICE
-#define JFFS2_DBG_LVL		KERN_DEBUG
+#define JFFS2_ERR	KERN_ERR
+#define JFFS2_WARN	KERN_WARNING
+#define JFFS2_NOT	KERN_NOTICE
+#define JFFS2_DBG	KERN_DEBUG
+
+#define JFFS2_DBG_MSG_PREFIX	JFFS2_DBG JFFS2_DBG_PREFIX
+#define JFFS2_ERR_MSG_PREFIX	JFFS2_ERR JFFS2_ERR_PREFIX
+#define JFFS2_WARN_MSG_PREFIX	JFFS2_WARN JFFS2_WARN_PREFIX
+#define JFFS2_NOTICE_MSG_PREFIX	JFFS2_NOT JFFS2_NOTICE_PREFIX
 
 /* JFFS2 message macros */
 #define JFFS2_ERROR(fmt, ...)						\
 	do {								\
-		printk(JFFS2_ERR_LVL JFFS2_ERR_MSG_PREFIX		\
+		printk(JFFS2_ERR_MSG_PREFIX				\
 			" (%d) %s: " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_WARNING(fmt, ...)						\
 	do {								\
-		printk(JFFS2_WARN_LVL JFFS2_WARN_MSG_PREFIX		\
+		printk(JFFS2_WARN_MSG_PREFIX				\
 			" (%d) %s: " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 			
 #define JFFS2_NOTICE(fmt, ...)						\
 	do {								\
-		printk(JFFS2_NOTICE_LVL JFFS2_NOTICE_MSG_PREFIX		\
+		printk(JFFS2_NOTICE_MSG_PREFIX				\
 			" (%d) %s: " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_DEBUG(fmt, ...)						\
 	do {								\
-		printk(JFFS2_DBG_LVL JFFS2_DBG_MSG_PREFIX		\
+		printk(JFFS2_DBG_MSG_PREFIX				\
 			" (%d) %s: " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
