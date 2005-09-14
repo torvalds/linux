@@ -65,13 +65,6 @@
 
 #define access_ok(type,addr,size) __access_ok(addr,size)
 
-/* this function will go away soon - use access_ok() instead */
-extern inline int __deprecated verify_area(int type, const void __user *addr,
-						unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is
@@ -149,11 +142,11 @@ struct exception_table_entry
 })
 #endif
 
-#ifndef __CHECKER__
 #define __put_user(x, ptr) \
 ({								\
 	__typeof__(*(ptr)) __x = (x);				\
 	int __pu_err;						\
+        __chk_user_ptr(ptr);                                    \
 	switch (sizeof (*(ptr))) {				\
 	case 1:							\
 	case 2:							\
@@ -167,14 +160,6 @@ struct exception_table_entry
 	 }							\
 	__pu_err;						\
 })
-#else
-#define __put_user(x, ptr)			\
-({						\
-	void __user *p;				\
-	p = (ptr);				\
-	0;					\
-})
-#endif
 
 #define put_user(x, ptr)					\
 ({								\
@@ -213,11 +198,11 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 })
 #endif
 
-#ifndef __CHECKER__
 #define __get_user(x, ptr)					\
 ({								\
 	__typeof__(*(ptr)) __x;					\
 	int __gu_err;						\
+        __chk_user_ptr(ptr);                                    \
 	switch (sizeof(*(ptr))) {				\
 	case 1:							\
 	case 2:							\
@@ -232,15 +217,6 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 	(x) = __x;						\
 	__gu_err;						\
 })
-#else
-#define __get_user(x, ptr)			\
-({						\
-	void __user *p;				\
-	p = (ptr);				\
-	0;					\
-})
-#endif
-
 
 #define get_user(x, ptr)					\
 ({								\

@@ -60,6 +60,7 @@ choice
 
 config IA64_GENERIC
 	bool "generic"
+	select ACPI
 	select NUMA
 	select ACPI_NUMA
 	select VIRTUAL_MEM_MAP
@@ -338,11 +339,6 @@ config IA64_PALINFO
 	  To use this option, you have to ensure that the "/proc file system
 	  support" (CONFIG_PROC_FS) is enabled, too.
 
-config ACPI_DEALLOCATE_IRQ
-	bool
-	depends on IOSAPIC && EXPERIMENTAL
-	default y
-
 source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig.binfmt"
@@ -351,35 +347,13 @@ endmenu
 
 menu "Power management and ACPI"
 
-config PM
-	bool "Power Management support"
-	depends on !IA64_HP_SIM
-	default y
-	help
-	  "Power Management" means that parts of your computer are shut
-	  off or put into a power conserving "sleep" mode if they are not
-	  being used.  There are two competing standards for doing this: APM
-	  and ACPI.  If you want to use either one, say Y here and then also
-	  to the requisite support below.
-
-	  Power Management is most important for battery powered laptop
-	  computers; if you have a laptop, check out the Linux Laptop home
-	  page on the WWW at <http://www.linux-on-laptops.com/> and the
-	  Battery Powered Linux mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Note that, even if you say N here, Linux on the x86 architecture
-	  will issue the hlt instruction if nothing is to be done, thereby
-	  sending the processor to sleep and saving power.
-
-config ACPI
-	bool
-	depends on !IA64_HP_SIM
-	default y
-
-if !IA64_HP_SIM
+source "kernel/power/Kconfig"
 
 source "drivers/acpi/Kconfig"
+
+if PM
+
+source "arch/ia64/kernel/cpufreq/Kconfig"
 
 endif
 
@@ -392,15 +366,8 @@ menu "Bus options (PCI, PCMCIA)"
 config PCI
 	bool "PCI support"
 	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-	  The PCI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
+	  Real IA-64 machines all have PCI/PCI-X/PCI Express busses.  Say Y
+	  here unless you are using a simulator without PCI support.
 
 config PCI_DOMAINS
 	bool
@@ -433,6 +400,11 @@ config GENERIC_HARDIRQS
 
 config GENERIC_IRQ_PROBE
 	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
 	default y
 
 source "arch/ia64/hp/sim/Kconfig"

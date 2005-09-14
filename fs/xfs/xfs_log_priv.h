@@ -112,7 +112,7 @@ struct xfs_mount;
  * this has endian issues, of course.
  */
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifndef XFS_NATIVE_HOST
 #define GET_CLIENT_ID(i,arch) \
     ((i) & 0xff)
 #else
@@ -335,18 +335,66 @@ typedef __uint32_t xlog_tid_t;
 
 #define XLOG_COVER_OPS		5
 
+
+/* Ticket reservation region accounting */ 
+#if defined(XFS_LOG_RES_DEBUG)
+#define XLOG_TIC_LEN_MAX	15
+#define XLOG_TIC_RESET_RES(t) ((t)->t_res_num = \
+				(t)->t_res_arr_sum = (t)->t_res_num_ophdrs = 0)
+#define XLOG_TIC_ADD_OPHDR(t) ((t)->t_res_num_ophdrs++)
+#define XLOG_TIC_ADD_REGION(t, len, type)				\
+	do {								\
+		if ((t)->t_res_num == XLOG_TIC_LEN_MAX) { 		\
+			/* add to overflow and start again */		\
+			(t)->t_res_o_flow += (t)->t_res_arr_sum;	\
+			(t)->t_res_num = 0;				\
+			(t)->t_res_arr_sum = 0;				\
+		}							\
+		(t)->t_res_arr[(t)->t_res_num].r_len = (len);		\
+		(t)->t_res_arr[(t)->t_res_num].r_type = (type);		\
+		(t)->t_res_arr_sum += (len);				\
+		(t)->t_res_num++;					\
+	} while (0)
+
+/*
+ * Reservation region
+ * As would be stored in xfs_log_iovec but without the i_addr which
+ * we don't care about.
+ */
+typedef struct xlog_res {
+	uint	r_len;
+	uint	r_type;
+} xlog_res_t;
+#else
+#define XLOG_TIC_RESET_RES(t)
+#define XLOG_TIC_ADD_OPHDR(t)
+#define XLOG_TIC_ADD_REGION(t, len, type)
+#endif
+
+
 typedef struct xlog_ticket {
-	sv_t		   t_sema;	 /* sleep on this semaphore	 :20 */
-	struct xlog_ticket *t_next;	 /*			         : 4 */
-	struct xlog_ticket *t_prev;	 /*				 : 4 */
-	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4 */
-	int		   t_curr_res;	 /* current reservation in bytes : 4 */
-	int		   t_unit_res;	 /* unit reservation in bytes    : 4 */
-	__uint8_t	   t_ocnt;	 /* original count		 : 1 */
-	__uint8_t	   t_cnt;	 /* current count		 : 1 */
-	__uint8_t	   t_clientid;	 /* who does this belong to;	 : 1 */
-	__uint8_t	   t_flags;	 /* properties of reservation	 : 1 */
+	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
+ 	struct xlog_ticket *t_next;	 /*			         :4|8 */
+	struct xlog_ticket *t_prev;	 /*				 :4|8 */
+	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
+	int		   t_curr_res;	 /* current reservation in bytes : 4  */
+	int		   t_unit_res;	 /* unit reservation in bytes    : 4  */
+	char		   t_ocnt;	 /* original count		 : 1  */
+	char		   t_cnt;	 /* current count		 : 1  */
+	char		   t_clientid;	 /* who does this belong to;	 : 1  */
+	char		   t_flags;	 /* properties of reservation	 : 1  */
+	uint		   t_trans_type; /* transaction type             : 4  */
+
+#if defined (XFS_LOG_RES_DEBUG)
+        /* reservation array fields */
+	uint		   t_res_num;                    /* num in array : 4 */
+	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : X */ 
+	uint		   t_res_num_ophdrs;		 /* num op hdrs  : 4 */
+	uint		   t_res_arr_sum;		 /* array sum    : 4 */
+	uint		   t_res_o_flow;		 /* sum overflow : 4 */
+#endif
 } xlog_ticket_t;
+
 #endif
 
 
@@ -366,14 +414,10 @@ typedef struct xlog_op_header {
 #define XLOG_FMT_IRIX_BE  3
 
 /* our fmt */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define XLOG_FMT XLOG_FMT_LINUX_LE
-#else
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef XFS_NATIVE_HOST
 #define XLOG_FMT XLOG_FMT_LINUX_BE
 #else
-#error unknown byte order
-#endif
+#define XLOG_FMT XLOG_FMT_LINUX_LE
 #endif
 
 typedef struct xlog_rec_header {

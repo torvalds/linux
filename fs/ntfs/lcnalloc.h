@@ -43,13 +43,14 @@ extern runlist_element *ntfs_cluster_alloc(ntfs_volume *vol,
 		const NTFS_CLUSTER_ALLOCATION_ZONES zone);
 
 extern s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn,
-		s64 count, const BOOL is_rollback);
+		s64 count, const BOOL write_locked, const BOOL is_rollback);
 
 /**
  * ntfs_cluster_free - free clusters on an ntfs volume
  * @vi:		vfs inode whose runlist describes the clusters to free
  * @start_vcn:	vcn in the runlist of @vi at which to start freeing clusters
  * @count:	number of clusters to free or -1 for all clusters
+ * @write_locked:	true if the runlist is locked for writing
  *
  * Free @count clusters starting at the cluster @start_vcn in the runlist
  * described by the vfs inode @vi.
@@ -64,19 +65,19 @@ extern s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn,
  * Return the number of deallocated clusters (not counting sparse ones) on
  * success and -errno on error.
  *
- * Locking: - The runlist described by @vi must be unlocked on entry and is
- *	      unlocked on return.
- *	    - This function takes the runlist lock of @vi for reading and
- *	      sometimes for writing and sometimes modifies the runlist.
+ * Locking: - The runlist described by @vi must be locked on entry and is
+ *	      locked on return.  Note if the runlist is locked for reading the
+ *	      lock may be dropped and reacquired.  Note the runlist may be
+ *	      modified when needed runlist fragments need to be mapped.
  *	    - The volume lcn bitmap must be unlocked on entry and is unlocked
  *	      on return.
  *	    - This function takes the volume lcn bitmap lock for writing and
  *	      modifies the bitmap contents.
  */
 static inline s64 ntfs_cluster_free(struct inode *vi, const VCN start_vcn,
-		s64 count)
+		s64 count, const BOOL write_locked)
 {
-	return __ntfs_cluster_free(vi, start_vcn, count, FALSE);
+	return __ntfs_cluster_free(vi, start_vcn, count, write_locked, FALSE);
 }
 
 extern int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
@@ -93,8 +94,10 @@ extern int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  *
  * Return 0 on success and -errno on error.
  *
- * Locking: This function takes the volume lcn bitmap lock for writing and
- *	    modifies the bitmap contents.
+ * Locking: - This function takes the volume lcn bitmap lock for writing and
+ *	      modifies the bitmap contents.
+ *	    - The caller must have locked the runlist @rl for reading or
+ *	      writing.
  */
 static inline int ntfs_cluster_free_from_rl(ntfs_volume *vol,
 		const runlist_element *rl)

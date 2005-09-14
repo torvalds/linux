@@ -13,13 +13,13 @@
 #include <asm/stackframe.h>
 #include <asm/gdb-stub.h>
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #define DMFC0	mfc0
 #define DMTC0	mtc0
 #define LDC1	lwc1
 #define SDC1	lwc1
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define DMFC0	dmfc0
 #define DMTC0	dmtc0
 #define LDC1	ldc1

@@ -22,7 +22,7 @@
  *
  * For historical reasons, these macros are grossly misnamed.
  */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #define __UA_LIMIT	0x80000000UL
 
@@ -32,9 +32,9 @@
 #define __UA_t0		"$8"
 #define __UA_t1		"$9"
 
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 #define __UA_LIMIT	(- TASK_SIZE)
 
@@ -44,7 +44,7 @@
 #define __UA_t0		"$12"
 #define __UA_t1		"$13"
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 /*
  * USER_DS is a bitmask that has the bits set that may not be set in a valid
@@ -110,29 +110,6 @@
 
 #define access_ok(type, addr, size)					\
 	likely(__access_ok((unsigned long)(addr), (size),__access_mask))
-
-/*
- * verify_area: - Obsolete/deprecated and will go away soon,
- * use access_ok() instead.
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE
- * @addr: User space pointer to start of block to check
- * @size: Size of block to check
- *
- * Context: User context only.  This function may sleep.
- *
- * This function has been replaced by access_ok().
- *
- * Checks if a pointer to a block of memory in user space is valid.
- *
- * Returns zero if the memory block may be valid, -EFAULT
- * if it is definitely invalid.
- *
- * See access_ok() for more details.
- */
-static inline int __deprecated verify_area(int type, const void * addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
 
 /*
  * put_user: - Write a simple value into user space.

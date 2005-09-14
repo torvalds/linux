@@ -45,6 +45,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/systemcfg.h>
+#include <asm/firmware.h>
 #include "pci.h"
 
 #define DBG(fmt...)
@@ -294,7 +295,7 @@ static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct iommu_table *tbl,
 				      unsigned int *dma_window)
 {
-	tbl->it_busno  = dn->bussubno;
+	tbl->it_busno  = PCI_DN(dn)->bussubno;
 
 	/* TODO: Parse field size properties properly. */
 	tbl->it_size   = (((unsigned long)dma_window[4] << 32) |
@@ -310,6 +311,7 @@ static void iommu_table_setparms_lpar(struct pci_controller *phb,
 static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 {
 	struct device_node *dn, *pdn;
+	struct pci_dn *pci;
 	struct iommu_table *tbl;
 
 	DBG("iommu_bus_setup_pSeries, bus %p, bus->self %p\n", bus, bus->self);
@@ -324,6 +326,7 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 	 */
 
 	dn = pci_bus_to_OF_node(bus);
+	pci = dn->data;
 
 	if (!bus->self) {
 		/* Root bus */
@@ -340,18 +343,18 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 				 * alltogether. This leaves 768MB for the window.
 				 */
 				DBG("PHB has io-hole, reserving 256MB\n");
-				dn->phb->dma_window_size = 3 << 28;
-				dn->phb->dma_window_base_cur = 1 << 28;
+				pci->phb->dma_window_size = 3 << 28;
+				pci->phb->dma_window_base_cur = 1 << 28;
 			} else {
 				/* 1GB window by default */
-				dn->phb->dma_window_size = 1 << 30;
-				dn->phb->dma_window_base_cur = 0;
+				pci->phb->dma_window_size = 1 << 30;
+				pci->phb->dma_window_base_cur = 0;
 			}
 
 			tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
-			iommu_table_setparms(dn->phb, dn, tbl);
-			dn->iommu_table = iommu_init_table(tbl);
+			iommu_table_setparms(pci->phb, dn, tbl);
+			pci->iommu_table = iommu_init_table(tbl);
 		} else {
 			/* Do a 128MB table at root. This is used for the IDE
 			 * controller on some SMP-mode POWER4 machines. It
@@ -362,16 +365,16 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 			 * Allocate at offset 128MB to avoid having to deal
 			 * with ISA holes; 128MB table for IDE is plenty.
 			 */
-			dn->phb->dma_window_size = 1 << 27;
-			dn->phb->dma_window_base_cur = 1 << 27;
+			pci->phb->dma_window_size = 1 << 27;
+			pci->phb->dma_window_base_cur = 1 << 27;
 
 			tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
-			iommu_table_setparms(dn->phb, dn, tbl);
-			dn->iommu_table = iommu_init_table(tbl);
+			iommu_table_setparms(pci->phb, dn, tbl);
+			pci->iommu_table = iommu_init_table(tbl);
 
 			/* All child buses have 256MB tables */
-			dn->phb->dma_window_size = 1 << 28;
+			pci->phb->dma_window_size = 1 << 28;
 		}
 	} else {
 		pdn = pci_bus_to_OF_node(bus->parent);
@@ -385,12 +388,12 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 
 			tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
-			iommu_table_setparms(dn->phb, dn, tbl);
+			iommu_table_setparms(pci->phb, dn, tbl);
 
-			dn->iommu_table = iommu_init_table(tbl);
+			pci->iommu_table = iommu_init_table(tbl);
 		} else {
 			/* Lower than first child or under python, use parent table */
-			dn->iommu_table = pdn->iommu_table;
+			pci->iommu_table = PCI_DN(pdn)->iommu_table;
 		}
 	}
 }
@@ -400,6 +403,7 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 {
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
+	struct pci_dn *ppci;
 	unsigned int *dma_window = NULL;
 
 	DBG("iommu_bus_setup_pSeriesLP, bus %p, bus->self %p\n", bus, bus->self);
@@ -418,22 +422,24 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 		return;
 	}
 
-	if (!pdn->iommu_table) {
+	ppci = pdn->data;
+	if (!ppci->iommu_table) {
 		/* Bussubno hasn't been copied yet.
 		 * Do it now because iommu_table_setparms_lpar needs it.
 		 */
-		pdn->bussubno = bus->number;
+
+		ppci->bussubno = bus->number;
 
 		tbl = (struct iommu_table *)kmalloc(sizeof(struct iommu_table),
 						    GFP_KERNEL);
 	
-		iommu_table_setparms_lpar(pdn->phb, pdn, tbl, dma_window);
+		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 
-		pdn->iommu_table = iommu_init_table(tbl);
+		ppci->iommu_table = iommu_init_table(tbl);
 	}
 
 	if (pdn != dn)
-		dn->iommu_table = pdn->iommu_table;
+		PCI_DN(dn)->iommu_table = ppci->iommu_table;
 }
 
 
@@ -448,11 +454,11 @@ static void iommu_dev_setup_pSeries(struct pci_dev *dev)
 	 */
 	mydn = dn = pci_device_to_OF_node(dev);
 
-	while (dn && dn->iommu_table == NULL)
+	while (dn && dn->data && PCI_DN(dn)->iommu_table == NULL)
 		dn = dn->parent;
 
-	if (dn) {
-		mydn->iommu_table = dn->iommu_table;
+	if (dn && dn->data) {
+		PCI_DN(mydn)->iommu_table = PCI_DN(dn)->iommu_table;
 	} else {
 		DBG("iommu_dev_setup_pSeries, dev %p (%s) has no iommu table\n", dev, dev->pretty_name);
 	}
@@ -462,10 +468,11 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 {
 	int err = NOTIFY_OK;
 	struct device_node *np = node;
+	struct pci_dn *pci = np->data;
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
-		if (np->iommu_table &&
+		if (pci->iommu_table &&
 		    get_property(np, "ibm,dma-window", NULL))
 			iommu_free_table(np);
 		break;
@@ -485,6 +492,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
 	int *dma_window = NULL;
+	struct pci_dn *pci;
 
 	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, dev->pretty_name);
 
@@ -496,8 +504,10 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 */
 	dn = pci_device_to_OF_node(dev);
 
-	for (pdn = dn; pdn && !pdn->iommu_table; pdn = pdn->parent) {
-		dma_window = (unsigned int *)get_property(pdn, "ibm,dma-window", NULL);
+	for (pdn = dn; pdn && pdn->data && !PCI_DN(pdn)->iommu_table;
+	     pdn = pdn->parent) {
+		dma_window = (unsigned int *)
+			get_property(pdn, "ibm,dma-window", NULL);
 		if (dma_window)
 			break;
 	}
@@ -514,20 +524,21 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 		DBG("Found DMA window, allocating table\n");
 	}
 
-	if (!pdn->iommu_table) {
+	pci = pdn->data;
+	if (!pci->iommu_table) {
 		/* iommu_table_setparms_lpar needs bussubno. */
-		pdn->bussubno = pdn->phb->bus->number;
+		pci->bussubno = pci->phb->bus->number;
 
 		tbl = (struct iommu_table *)kmalloc(sizeof(struct iommu_table),
 						    GFP_KERNEL);
 
-		iommu_table_setparms_lpar(pdn->phb, pdn, tbl, dma_window);
+		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 
-		pdn->iommu_table = iommu_init_table(tbl);
+		pci->iommu_table = iommu_init_table(tbl);
 	}
 
 	if (pdn != dn)
-		dn->iommu_table = pdn->iommu_table;
+		PCI_DN(dn)->iommu_table = pci->iommu_table;
 }
 
 static void iommu_bus_setup_null(struct pci_bus *b) { }
@@ -546,7 +557,7 @@ void iommu_init_early_pSeries(void)
 	}
 
 	if (systemcfg->platform & PLATFORM_LPAR) {
-		if (cur_cpu_spec->firmware_features & FW_FEATURE_MULTITCE) {
+		if (firmware_has_feature(FW_FEATURE_MULTITCE)) {
 			ppc_md.tce_build = tce_buildmulti_pSeriesLP;
 			ppc_md.tce_free	 = tce_freemulti_pSeriesLP;
 		} else {

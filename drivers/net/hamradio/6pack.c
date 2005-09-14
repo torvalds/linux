@@ -293,7 +293,7 @@ static int sp_header(struct sk_buff *skb, struct net_device *dev,
 {
 #ifdef CONFIG_INET
 	if (type != htons(ETH_P_AX25))
-		return ax25_encapsulate(skb, dev, type, daddr, saddr, len);
+		return ax25_hard_header(skb, dev, type, daddr, saddr, len);
 #endif
 	return 0;
 }
@@ -307,12 +307,6 @@ static struct net_device_stats *sp_get_stats(struct net_device *dev)
 static int sp_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr_ax25 *sa = addr;
-
-	if (sa->sax25_family != AF_AX25)
-		return -EINVAL;
-
-	if (!sa->sax25_ndigis)
-		return -EINVAL;
 
 	spin_lock_irq(&dev->xmit_lock);
 	memcpy(dev->dev_addr, &sa->sax25_call, AX25_ADDR_LEN);
@@ -668,6 +662,9 @@ static int sixpack_open(struct tty_struct *tty)
 	netif_start_queue(dev);
 
 	init_timer(&sp->tx_t);
+	sp->tx_t.function = sp_xmit_on_air;
+	sp->tx_t.data = (unsigned long) sp;
+
 	init_timer(&sp->resync_t);
 
 	spin_unlock_bh(&sp->lock);

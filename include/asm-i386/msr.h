@@ -47,6 +47,21 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 		     : "c" (msr), "0" (a), "d" (b), "i" (-EFAULT));\
 	ret__; })
 
+/* rdmsr with exception handling */
+#define rdmsr_safe(msr,a,b) ({ int ret__;						\
+	asm volatile("2: rdmsr ; xorl %0,%0\n"						\
+		     "1:\n\t"								\
+		     ".section .fixup,\"ax\"\n\t"					\
+		     "3:  movl %4,%0 ; jmp 1b\n\t"					\
+		     ".previous\n\t"							\
+ 		     ".section __ex_table,\"a\"\n"					\
+		     "   .align 4\n\t"							\
+		     "   .long 	2b,3b\n\t"						\
+		     ".previous"							\
+		     : "=r" (ret__), "=a" (*(a)), "=d" (*(b))				\
+		     : "c" (msr), "i" (-EFAULT));\
+	ret__; })
+
 #define rdtsc(low,high) \
      __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
 

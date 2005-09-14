@@ -37,6 +37,11 @@ extern struct file_operations usbfs_devices_fops;
 extern struct file_operations usbfs_device_file_operations;
 extern void usbfs_conn_disc_event(void);
 
+extern int usbdev_init(void);
+extern void usbdev_cleanup(void);
+extern void usbdev_add(struct usb_device *dev);
+extern void usbdev_remove(struct usb_device *dev);
+extern struct usb_device *usbdev_lookup_minor(int minor);
 
 struct dev_state {
 	struct list_head list;      /* state list */

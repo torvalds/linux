@@ -77,8 +77,6 @@ static u32 digitv_i2c_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm digitv_i2c_algo = {
-	.name          = "Nebula DigiTV USB I2C algorithm",
-	.id            = I2C_ALGO_BIT,
 	.master_xfer   = digitv_i2c_xfer,
 	.functionality = digitv_i2c_func,
 };
@@ -113,31 +111,28 @@ static int digitv_mt352_demod_init(struct dvb_frontend *fe)
 }
 
 static struct mt352_config digitv_mt352_config = {
-	.demod_address = 0x0, /* ignored by the digitv anyway */
 	.demod_init = digitv_mt352_demod_init,
 	.pll_set = dvb_usb_pll_set,
 };
 
-static struct nxt6000_config digitv_nxt6000_config = {
-	.demod_address = 0x0, /* ignored by the digitv anyway */
-	.clock_inversion = 0x0,
+static int digitv_nxt6000_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+{
+	struct dvb_usb_device *d = fe->dvb->priv;
+	u8 b[5];
+	dvb_usb_pll_set(fe,fep,b);
+	return digitv_ctrl_msg(d,USB_WRITE_TUNER,0,&b[1],4,NULL,0);
+}
 
-	.pll_init = NULL,
-	.pll_set = NULL,
+static struct nxt6000_config digitv_nxt6000_config = {
+	.clock_inversion = 1,
+	.pll_set = digitv_nxt6000_pll_set,
 };
 
 static int digitv_frontend_attach(struct dvb_usb_device *d)
 {
-	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) != NULL)
+	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) != NULL ||
+		(d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) != NULL)
 		return 0;
-	if ((d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) != NULL) {
-
-		warn("nxt6000 support is not done yet, in fact you are one of the first "
-				"person who wants to use this device in Linux. Please report to "
-				"linux-dvb@linuxtv.org");
-
-		return 0;
-	}
 	return -EIO;
 }
 
@@ -175,7 +170,18 @@ static struct dvb_usb_properties digitv_properties;
 static int digitv_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&digitv_properties,THIS_MODULE);
+	struct dvb_usb_device *d;
+	int ret;
+	if ((ret = dvb_usb_device_init(intf,&digitv_properties,THIS_MODULE,&d)) == 0) {
+		u8 b[4] = { 0 };
+
+		b[0] = 1;
+		digitv_ctrl_msg(d,USB_WRITE_REMOTE_TYPE,0,b,4,NULL,0);
+
+		b[0] = 0;
+		digitv_ctrl_msg(d,USB_WRITE_REMOTE,0,b,4,NULL,0);
+	}
+	return ret;
 }
 
 static struct usb_device_id digitv_table [] = {

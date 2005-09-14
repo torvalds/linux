@@ -16,7 +16,7 @@
  *
  * The Indigo and Indy have two GIO bus connectors. Indigo2 (all models) have
  * three physical connectors, but only two slots, GFX and EXP0.
- * 
+ *
  * There is 10MB of GIO address space for GIO64 slot devices
  * slot#   slot type address range            size
  * -----   --------- ----------------------- -----

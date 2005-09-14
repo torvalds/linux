@@ -34,7 +34,7 @@
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(host,fmt,args...)	\
-	pr_debug("%s: %s: " fmt, host->mmc->host_name, __func__ , args)
+	pr_debug("%s: %s: " fmt, mmc_hostname(host->mmc), __func__ , args)
 #else
 #define DBG(host,fmt,args...)	do { } while (0)
 #endif
@@ -442,7 +442,7 @@ static void mmci_check_status(unsigned long data)
 
 	status = host->plat->status(mmc_dev(host->mmc));
 	if (status ^ host->oldstat)
-		mmc_detect_change(host->mmc);
+		mmc_detect_change(host->mmc, 0);
 
 	host->oldstat = status;
 	mod_timer(&host->timer, jiffies + HZ);
@@ -541,7 +541,7 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	mmc_add_host(mmc);
 
 	printk(KERN_INFO "%s: MMCI rev %x cfg %02x at 0x%08lx irq %d,%d\n",
-		mmc->host_name, amba_rev(dev), amba_config(dev),
+		mmc_hostname(mmc), amba_rev(dev), amba_config(dev),
 		dev->res.start, dev->irq[0], dev->irq[1]);
 
 	init_timer(&host->timer);

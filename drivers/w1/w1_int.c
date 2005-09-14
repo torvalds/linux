@@ -29,9 +29,9 @@
 
 static u32 w1_ids = 1;
 
-extern struct device_driver w1_driver;
+extern struct device_driver w1_master_driver;
 extern struct bus_type w1_bus_type;
-extern struct device w1_device;
+extern struct device w1_master_device;
 extern int w1_max_slave_count;
 extern int w1_max_slave_ttl;
 extern struct list_head w1_masters;
@@ -76,7 +76,6 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	INIT_LIST_HEAD(&dev->slist);
 	init_MUTEX(&dev->mutex);
 
-	init_completion(&dev->dev_released);
 	init_completion(&dev->dev_exited);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
@@ -86,19 +85,16 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	dev->driver = driver;
 
-	dev->groups = 23;
+	dev->groups = 1;
 	dev->seq = 1;
-	dev->nls = netlink_kernel_create(NETLINK_W1, NULL);
-	if (!dev->nls) {
-		printk(KERN_ERR "Failed to create new netlink socket(%u) for w1 master %s.\n",
-			NETLINK_NFLOG, dev->dev.bus_id);
-	}
+	dev_init_netlink(dev);
 
 	err = device_register(&dev->dev);
 	if (err) {
 		printk(KERN_ERR "Failed to register master device. err=%d\n", err);
-		if (dev->nls && dev->nls->sk_socket)
-			sock_release(dev->nls->sk_socket);
+
+		dev_fini_netlink(dev);
+
 		memset(dev, 0, sizeof(struct w1_master));
 		kfree(dev);
 		dev = NULL;
@@ -107,13 +103,9 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	return dev;
 }
 
-static void w1_free_dev(struct w1_master *dev)
+void w1_free_dev(struct w1_master *dev)
 {
 	device_unregister(&dev->dev);
-	if (dev->nls && dev->nls->sk_socket)
-		sock_release(dev->nls->sk_socket);
-	memset(dev, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
-	kfree(dev);
 }
 
 int w1_add_master_device(struct w1_bus_master *master)
@@ -129,7 +121,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 		return(-EINVAL);
         }
 
-	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_driver, &w1_device);
+	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_master_driver, &w1_master_device);
 	if (!dev)
 		return -ENOMEM;
 
@@ -188,7 +180,7 @@ void __w1_remove_master_device(struct w1_master *dev)
 			 __func__, dev->kpid);
 
 	while (atomic_read(&dev->refcnt)) {
-		printk(KERN_INFO "Waiting for %s to become free: refcnt=%d.\n",
+		dev_dbg(&dev->dev, "Waiting for %s to become free: refcnt=%d.\n",
 				dev->name, atomic_read(&dev->refcnt));
 
 		if (msleep_interruptible(1000))
@@ -225,3 +217,5 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 
 EXPORT_SYMBOL(w1_add_master_device);
 EXPORT_SYMBOL(w1_remove_master_device);
+
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_W1);

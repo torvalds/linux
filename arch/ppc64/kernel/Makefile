@@ -11,7 +11,7 @@ obj-y               :=	setup.o entry.o traps.o irq.o idle.o dma.o \
 			udbg.o binfmt_elf32.o sys_ppc32.o ioctl32.o \
 			ptrace32.o signal32.o rtc.o init_task.o \
 			lmb.o cputable.o cpu_setup_power4.o idle_power4.o \
-			iommu.o sysfs.o vdso.o pmc.o
+			iommu.o sysfs.o vdso.o pmc.o firmware.o
 obj-y += vdso32/ vdso64/
 
 obj-$(CONFIG_PPC_OF) +=	of_device.o
@@ -31,7 +31,7 @@ obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o prom.o
 
 obj-$(CONFIG_PPC_PSERIES) += pSeries_pci.o pSeries_lpar.o pSeries_hvCall.o \
 			     pSeries_nvram.o rtasd.o ras.o pSeries_reconfig.o \
-			     pSeries_setup.o pSeries_iommu.o
+			     pSeries_setup.o pSeries_iommu.o udbg_16550.o
 
 obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
 			 bpa_iic.o spider-pic.o
@@ -50,14 +50,19 @@ obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
-obj-$(CONFIG_IBMVIO)		+= vio.o
+
+vio-obj-$(CONFIG_PPC_PSERIES)	+= pSeries_vio.o
+vio-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_vio.o
+obj-$(CONFIG_IBMVIO)		+= vio.o $(vio-obj-y)
 obj-$(CONFIG_XICS)		+= xics.o
 obj-$(CONFIG_MPIC)		+= mpic.o
 
 obj-$(CONFIG_PPC_PMAC)		+= pmac_setup.o pmac_feature.o pmac_pci.o \
-				   pmac_time.o pmac_nvram.o pmac_low_i2c.o
+				   pmac_time.o pmac_nvram.o pmac_low_i2c.o \
+				   udbg_scc.o
 
-obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o
+obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o \
+				   udbg_16550.o
 
 obj-$(CONFIG_U3_DART)		+= u3_iommu.o
 
@@ -73,3 +78,8 @@ obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 
 CFLAGS_ioctl32.o += -Ifs/
+
+ifeq ($(CONFIG_PPC_ISERIES),y)
+arch/ppc64/kernel/head.o: arch/ppc64/kernel/lparmap.s
+AFLAGS_head.o += -Iarch/ppc64/kernel
+endif

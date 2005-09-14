@@ -39,8 +39,7 @@ typedef struct timespec timespec_t;
 
 static inline void delay(long ticks)
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(ticks);
+	schedule_timeout_uninterruptible(ticks);
 }
 
 static inline void nanotime(struct timespec *tvp)

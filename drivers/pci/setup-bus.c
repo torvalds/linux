@@ -40,7 +40,7 @@
  * FIXME: IO should be max 256 bytes.  However, since we may
  * have a P2P bridge below a cardbus bridge, we need 4K.
  */
-#define CARDBUS_IO_SIZE		(4096)
+#define CARDBUS_IO_SIZE		(4*1024)
 #define CARDBUS_MEM_SIZE	(32*1024*1024)
 
 static void __devinit
@@ -77,8 +77,7 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	}
 }
 
-static void __devinit
-pci_setup_cardbus(struct pci_bus *bus)
+void pci_setup_cardbus(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
@@ -130,6 +129,7 @@ pci_setup_cardbus(struct pci_bus *bus)
 					region.end);
 	}
 }
+EXPORT_SYMBOL(pci_setup_cardbus);
 
 /* Initialize bridges with base/limit values we have collected.
    PCI-to-PCI Bridge Architecture Specification rev. 1.1 (1998)

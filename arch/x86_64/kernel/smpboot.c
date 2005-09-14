@@ -44,7 +44,6 @@
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 #include <linux/smp_lock.h>
-#include <linux/irq.h>
 #include <linux/bootmem.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
@@ -58,17 +57,19 @@
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
 #include <asm/nmi.h>
+#include <asm/irq.h>
+#include <asm/hw_irq.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 /* Package ID of each logical CPU */
-u8 phys_proc_id[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
-u8 cpu_core_id[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+u8 phys_proc_id[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
+u8 cpu_core_id[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
 EXPORT_SYMBOL(phys_proc_id);
 EXPORT_SYMBOL(cpu_core_id);
 
 /* Bitmask of currently online CPUs */
-cpumask_t cpu_online_map;
+cpumask_t cpu_online_map __read_mostly;
 
 EXPORT_SYMBOL(cpu_online_map);
 
@@ -88,8 +89,8 @@ struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 /* Set when the idlers are all forked */
 int smp_threads_ready;
 
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
-cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
+cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
 
 /*
@@ -413,8 +414,13 @@ void __cpuinit smp_callin(void)
 
 	/*
 	 * Get our bogomips.
+ 	 *
+ 	 * Need to enable IRQs because it can take longer and then
+	 * the NMI watchdog might kill us.
 	 */
+	local_irq_enable();
 	calibrate_delay();
+	local_irq_disable();
 	Dprintk("Stack at about %p\n",&cpuid);
 
 	disable_APIC_timer();
@@ -492,6 +498,14 @@ void __cpuinit start_secondary(void)
 	 */
 	set_cpu_sibling_map(smp_processor_id());
 
+	/* 
+  	 * Wait for TSC sync to not schedule things before.
+	 * We still process interrupts, which could see an inconsistent
+	 * time in that window unfortunately. 
+	 * Do this here because TSC sync has global unprotected state.
+ 	 */
+	tsc_sync_wait();
+
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
 	 * between the time smp_call_function() determines number of
@@ -508,13 +522,6 @@ void __cpuinit start_secondary(void)
 	cpu_set(smp_processor_id(), cpu_online_map);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 	unlock_ipi_call_lock();
-
-	mb();
-
-	/* Wait for TSC sync to not schedule things before.
-	   We still process interrupts, which could see an inconsistent
-	   time in that window unfortunately. */
-	tsc_sync_wait();
 
 	cpu_idle();
 }
@@ -539,8 +546,8 @@ static void inquire_remote_apic(int apicid)
 		 */
 		apic_wait_icr_idle();
 
-		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
-		apic_write_around(APIC_ICR, APIC_DM_REMRD | regs[i]);
+		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
+		apic_write(APIC_ICR, APIC_DM_REMRD | regs[i]);
 
 		timeout = 0;
 		do {
@@ -573,12 +580,12 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	/*
 	 * Turn INIT on target chip
 	 */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 	/*
 	 * Send IPI
 	 */
-	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_INT_ASSERT
+	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_INT_ASSERT
 				| APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
@@ -594,10 +601,10 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	Dprintk("Deasserting INIT.\n");
 
 	/* Target chip */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 	/* Send IPI */
-	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
+	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
 	timeout = 0;
@@ -609,16 +616,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 
 	atomic_set(&init_deasserted, 1);
 
-	/*
-	 * Should we send STARTUP IPIs ?
-	 *
-	 * Determine this based on the APIC version.
-	 * If we don't have an integrated APIC, don't send the STARTUP IPIs.
-	 */
-	if (APIC_INTEGRATED(apic_version[phys_apicid]))
-		num_starts = 2;
-	else
-		num_starts = 0;
+	num_starts = 2;
 
 	/*
 	 * Run STARTUP IPI loop.
@@ -639,12 +637,11 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 		 */
 
 		/* Target chip */
-		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 		/* Boot on the stack */
 		/* Kick the second */
-		apic_write_around(APIC_ICR, APIC_DM_STARTUP
-					| (start_rip >> 12));
+		apic_write(APIC_ICR, APIC_DM_STARTUP | (start_rip >> 12));
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
@@ -863,17 +860,6 @@ static __cpuinit void smp_cleanup_boot(void)
 	 * Reset trampoline flag
 	 */
 	*((volatile int *) phys_to_virt(0x467)) = 0;
-
-#ifndef CONFIG_HOTPLUG_CPU
-	/*
-	 * Free pages reserved for SMP bootup.
-	 * When you add hotplug CPU support later remove this
-	 * Note there is more work to be done for later CPU bootup.
-	 */
-
-	free_page((unsigned long) __va(PAGE_SIZE));
-	free_page((unsigned long) __va(SMP_TRAMPOLINE_BASE));
-#endif
 }
 
 /*
@@ -891,23 +877,6 @@ static __init void disable_smp(void)
 		phys_cpu_present_map = physid_mask_of_physid(0);
 	cpu_set(0, cpu_sibling_map[0]);
 	cpu_set(0, cpu_core_map[0]);
-}
-
-/*
- * Handle user cpus=... parameter.
- */
-static __init void enforce_max_cpus(unsigned max_cpus)
-{
-	int i, k;
-	k = 0;
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
-		if (++k > max_cpus) {
-			cpu_clear(i, cpu_possible_map);
-			cpu_clear(i, cpu_present_map);
-		}
-	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -997,8 +966,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	nmi_watchdog_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
-
-	enforce_max_cpus(max_cpus);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	prefill_possible_map();

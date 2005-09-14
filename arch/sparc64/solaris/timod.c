@@ -143,9 +143,11 @@ static struct T_primsg *timod_mkctl(int size)
 static void timod_wake_socket(unsigned int fd)
 {
 	struct socket *sock;
+	struct fdtable *fdt;
 
 	SOLD("wakeing socket");
-	sock = SOCKET_I(current->files->fd[fd]->f_dentry->d_inode);
+	fdt = files_fdtable(current->files);
+	sock = SOCKET_I(fdt->fd[fd]->f_dentry->d_inode);
 	wake_up_interruptible(&sock->wait);
 	read_lock(&sock->sk->sk_callback_lock);
 	if (sock->fasync_list && !test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
@@ -157,9 +159,11 @@ static void timod_wake_socket(unsigned int fd)
 static void timod_queue(unsigned int fd, struct T_primsg *it)
 {
 	struct sol_socket_struct *sock;
+	struct fdtable *fdt;
 
 	SOLD("queuing primsg");
-	sock = (struct sol_socket_struct *)current->files->fd[fd]->private_data;
+	fdt = files_fdtable(current->files);
+	sock = (struct sol_socket_struct *)fdt->fd[fd]->private_data;
 	it->next = sock->pfirst;
 	sock->pfirst = it;
 	if (!sock->plast)
@@ -171,9 +175,11 @@ static void timod_queue(unsigned int fd, struct T_primsg *it)
 static void timod_queue_end(unsigned int fd, struct T_primsg *it)
 {
 	struct sol_socket_struct *sock;
+	struct fdtable *fdt;
 
 	SOLD("queuing primsg at end");
-	sock = (struct sol_socket_struct *)current->files->fd[fd]->private_data;
+	fdt = files_fdtable(current->files);
+	sock = (struct sol_socket_struct *)fdt->fd[fd]->private_data;
 	it->next = NULL;
 	if (sock->plast)
 		sock->plast->next = it;
@@ -344,6 +350,7 @@ int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
 	char *buf;
 	struct file *filp;
 	struct inode *ino;
+	struct fdtable *fdt;
 	struct sol_socket_struct *sock;
 	mm_segment_t old_fs = get_fs();
 	long args[6];
@@ -351,7 +358,9 @@ int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
 		(int (*)(int, unsigned long __user *))SYS(socketcall);
 	int (*sys_sendto)(int, void __user *, size_t, unsigned, struct sockaddr __user *, int) =
 		(int (*)(int, void __user *, size_t, unsigned, struct sockaddr __user *, int))SYS(sendto);
-	filp = current->files->fd[fd];
+
+	fdt = files_fdtable(current->files);
+	filp = fdt->fd[fd];
 	ino = filp->f_dentry->d_inode;
 	sock = (struct sol_socket_struct *)filp->private_data;
 	SOLD("entry");
@@ -620,6 +629,7 @@ int timod_getmsg(unsigned int fd, char __user *ctl_buf, int ctl_maxlen, s32 __us
 	int oldflags;
 	struct file *filp;
 	struct inode *ino;
+	struct fdtable *fdt;
 	struct sol_socket_struct *sock;
 	struct T_unitdata_ind udi;
 	mm_segment_t old_fs = get_fs();
@@ -632,7 +642,8 @@ int timod_getmsg(unsigned int fd, char __user *ctl_buf, int ctl_maxlen, s32 __us
 	
 	SOLD("entry");
 	SOLDD(("%u %p %d %p %p %d %p %d\n", fd, ctl_buf, ctl_maxlen, ctl_len, data_buf, data_maxlen, data_len, *flags_p));
-	filp = current->files->fd[fd];
+	fdt = files_fdtable(current->files);
+	filp = fdt->fd[fd];
 	ino = filp->f_dentry->d_inode;
 	sock = (struct sol_socket_struct *)filp->private_data;
 	SOLDD(("%p %p\n", sock->pfirst, sock->pfirst ? sock->pfirst->next : NULL));
@@ -844,12 +855,14 @@ asmlinkage int solaris_getmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 	int __user *flgptr;
 	int flags;
 	int error = -EBADF;
+	struct fdtable *fdt;
 
 	SOLD("entry");
 	lock_kernel();
 	if(fd >= NR_OPEN) goto out;
 
-	filp = current->files->fd[fd];
+	fdt = files_fdtable(current->files);
+	filp = fdt->fd[fd];
 	if(!filp) goto out;
 
 	ino = filp->f_dentry->d_inode;
@@ -910,12 +923,14 @@ asmlinkage int solaris_putmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 	struct strbuf ctl, dat;
 	int flags = (int) arg3;
 	int error = -EBADF;
+	struct fdtable *fdt;
 
 	SOLD("entry");
 	lock_kernel();
 	if(fd >= NR_OPEN) goto out;
 
-	filp = current->files->fd[fd];
+	fdt = files_fdtable(current->files);
+	filp = fdt->fd[fd];
 	if(!filp) goto out;
 
 	ino = filp->f_dentry->d_inode;

@@ -2,6 +2,7 @@
  *	fs/bfs/dir.c
  *	BFS directory operations.
  *	Copyright (C) 1999,2000  Tigran Aivazian <tigran@veritas.com>
+ *      Made endianness-clean by Andrew Stribblehill <ads@wompom.org> 2005
  */
 
 #include <linux/time.h>
@@ -20,9 +21,9 @@
 #define dprintf(x...)
 #endif
 
-static int bfs_add_entry(struct inode * dir, const char * name, int namelen, int ino);
+static int bfs_add_entry(struct inode * dir, const unsigned char * name, int namelen, int ino);
 static struct buffer_head * bfs_find_entry(struct inode * dir, 
-	const char * name, int namelen, struct bfs_dirent ** res_dir);
+	const unsigned char * name, int namelen, struct bfs_dirent ** res_dir);
 
 static int bfs_readdir(struct file * f, void * dirent, filldir_t filldir)
 {
@@ -53,7 +54,7 @@ static int bfs_readdir(struct file * f, void * dirent, filldir_t filldir)
 			de = (struct bfs_dirent *)(bh->b_data + offset);
 			if (de->ino) {
 				int size = strnlen(de->name, BFS_NAMELEN);
-				if (filldir(dirent, de->name, size, f->f_pos, de->ino, DT_UNKNOWN) < 0) {
+				if (filldir(dirent, de->name, size, f->f_pos, le16_to_cpu(de->ino), DT_UNKNOWN) < 0) {
 					brelse(bh);
 					unlock_kernel();
 					return 0;
@@ -107,7 +108,7 @@ static int bfs_create(struct inode * dir, struct dentry * dentry, int mode,
 	inode->i_mapping->a_ops = &bfs_aops;
 	inode->i_mode = mode;
 	inode->i_ino = ino;
-	BFS_I(inode)->i_dsk_ino = ino;
+	BFS_I(inode)->i_dsk_ino = cpu_to_le16(ino);
 	BFS_I(inode)->i_sblock = 0;
 	BFS_I(inode)->i_eblock = 0;
 	insert_inode_hash(inode);
@@ -139,7 +140,7 @@ static struct dentry * bfs_lookup(struct inode * dir, struct dentry * dentry, st
 	lock_kernel();
 	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
 	if (bh) {
-		unsigned long ino = le32_to_cpu(de->ino);
+		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
 		brelse(bh);
 		inode = iget(dir->i_sb, ino);
 		if (!inode) {
@@ -183,7 +184,7 @@ static int bfs_unlink(struct inode * dir, struct dentry * dentry)
 	inode = dentry->d_inode;
 	lock_kernel();
 	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
-	if (!bh || de->ino != inode->i_ino) 
+	if (!bh || le16_to_cpu(de->ino) != inode->i_ino)
 		goto out_brelse;
 
 	if (!inode->i_nlink) {
@@ -224,7 +225,7 @@ static int bfs_rename(struct inode * old_dir, struct dentry * old_dentry,
 				old_dentry->d_name.name, 
 				old_dentry->d_name.len, &old_de);
 
-	if (!old_bh || old_de->ino != old_inode->i_ino)
+	if (!old_bh || le16_to_cpu(old_de->ino) != old_inode->i_ino)
 		goto end_rename;
 
 	error = -EPERM;
@@ -270,7 +271,7 @@ struct inode_operations bfs_dir_inops = {
 	.rename			= bfs_rename,
 };
 
-static int bfs_add_entry(struct inode * dir, const char * name, int namelen, int ino)
+static int bfs_add_entry(struct inode * dir, const unsigned char * name, int namelen, int ino)
 {
 	struct buffer_head * bh;
 	struct bfs_dirent * de;
@@ -304,7 +305,7 @@ static int bfs_add_entry(struct inode * dir, const char * name, int namelen, int
 				}
 				dir->i_mtime = CURRENT_TIME_SEC;
 				mark_inode_dirty(dir);
-				de->ino = ino;
+				de->ino = cpu_to_le16((u16)ino);
 				for (i=0; i<BFS_NAMELEN; i++)
 					de->name[i] = (i < namelen) ? name[i] : 0;
 				mark_buffer_dirty(bh);
@@ -317,7 +318,7 @@ static int bfs_add_entry(struct inode * dir, const char * name, int namelen, int
 	return -ENOSPC;
 }
 
-static inline int bfs_namecmp(int len, const char * name, const char * buffer)
+static inline int bfs_namecmp(int len, const unsigned char * name, const char * buffer)
 {
 	if (len < BFS_NAMELEN && buffer[len])
 		return 0;
@@ -325,7 +326,7 @@ static inline int bfs_namecmp(int len, const char * name, const char * buffer)
 }
 
 static struct buffer_head * bfs_find_entry(struct inode * dir, 
-	const char * name, int namelen, struct bfs_dirent ** res_dir)
+	const unsigned char * name, int namelen, struct bfs_dirent ** res_dir)
 {
 	unsigned long block, offset;
 	struct buffer_head * bh;
@@ -346,7 +347,7 @@ static struct buffer_head * bfs_find_entry(struct inode * dir,
 		}
 		de = (struct bfs_dirent *)(bh->b_data + offset);
 		offset += BFS_DIRENT_SIZE;
-		if (de->ino && bfs_namecmp(namelen, name, de->name)) {
+		if (le16_to_cpu(de->ino) && bfs_namecmp(namelen, name, de->name)) {
 			*res_dir = de;
 			return bh;
 		}

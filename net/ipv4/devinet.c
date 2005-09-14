@@ -1111,13 +1111,12 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa)
 	struct sk_buff *skb = alloc_skb(size, GFP_KERNEL);
 
 	if (!skb)
-		netlink_set_err(rtnl, 0, RTMGRP_IPV4_IFADDR, ENOBUFS);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV4_IFADDR, ENOBUFS);
 	else if (inet_fill_ifaddr(skb, ifa, current->pid, 0, event, 0) < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTMGRP_IPV4_IFADDR, EINVAL);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV4_IFADDR, EINVAL);
 	} else {
-		NETLINK_CB(skb).dst_groups = RTMGRP_IPV4_IFADDR;
-		netlink_broadcast(rtnl, skb, 0, RTMGRP_IPV4_IFADDR, GFP_KERNEL);
+		netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV4_IFADDR, GFP_KERNEL);
 	}
 }
 

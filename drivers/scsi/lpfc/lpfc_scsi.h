@@ -78,18 +78,7 @@ struct fcp_rsp {
 };
 
 struct fcp_cmnd {
-	uint32_t fcpLunMsl;	/* most  significant lun word (32 bits) */
-	uint32_t fcpLunLsl;	/* least significant lun word (32 bits) */
-	/* # of bits to shift lun id to end up in right
-	 * payload word, little endian = 8, big = 16.
-	 */
-#ifdef __BIG_ENDIAN
-#define FC_LUN_SHIFT         16
-#define FC_ADDR_MODE_SHIFT   24
-#else	/*  __LITTLE_ENDIAN */
-#define FC_LUN_SHIFT         8
-#define FC_ADDR_MODE_SHIFT   0
-#endif
+	struct scsi_lun  fcp_lun;
 
 	uint8_t fcpCntl0;	/* FCP_CNTL byte 0 (reserved) */
 	uint8_t fcpCntl1;	/* FCP_CNTL byte 1 task codes */

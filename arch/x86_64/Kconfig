@@ -24,6 +24,10 @@ config X86
 	bool
 	default y
 
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
 config MMU
 	bool
 	default y
@@ -58,6 +62,10 @@ config GENERIC_ISA_DMA
 	default y
 
 config GENERIC_IOMAP
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
@@ -144,7 +152,6 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-# disable it for opteron optimized builds because it pulls in ACPI_BOOT
 config X86_HT
 	bool
 	depends on SMP && !MK8
@@ -437,6 +444,11 @@ config ISA_DMA_API
 	bool
 	default y
 
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
 menu "Power management options"
 
 source kernel/power/Kconfig
@@ -461,7 +473,6 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
-	select ACPI_BOOT
 
 config UNORDERED_IO
        bool "Unordered IO mapping access"

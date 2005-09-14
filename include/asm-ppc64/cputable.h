@@ -36,6 +36,7 @@
  * via the mkdefs mechanism.
  */
 struct cpu_spec;
+struct op_ppc64_model;
 
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
 
@@ -52,15 +53,19 @@ struct cpu_spec {
 	unsigned int	icache_bsize;
 	unsigned int	dcache_bsize;
 
+	/* number of performance monitor counters */
+	unsigned int	num_pmcs;
+
 	/* this is called to initialize various CPU bits like L1 cache,
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
 	cpu_setup_t	cpu_setup;
 
-	/* This is used to identify firmware features which are available
-	 * to the kernel.
-	 */
-	unsigned long   firmware_features;
+	/* Used by oprofile userspace to select the right counters */
+	char		*oprofile_cpu_type;
+
+	/* Processor specific oprofile operations */
+	struct op_ppc64_model *oprofile_model;
 };
 
 extern struct cpu_spec		cpu_specs[];
@@ -70,39 +75,6 @@ static inline unsigned long cpu_has_feature(unsigned long feature)
 {
 	return cur_cpu_spec->cpu_features & feature;
 }
-
-
-/* firmware feature bitmask values */
-#define FIRMWARE_MAX_FEATURES 63
-
-#define FW_FEATURE_PFT		(1UL<<0)
-#define FW_FEATURE_TCE		(1UL<<1)	
-#define FW_FEATURE_SPRG0	(1UL<<2)	
-#define FW_FEATURE_DABR		(1UL<<3)	
-#define FW_FEATURE_COPY		(1UL<<4)	
-#define FW_FEATURE_ASR		(1UL<<5)	
-#define FW_FEATURE_DEBUG	(1UL<<6)	
-#define FW_FEATURE_TERM		(1UL<<7)	
-#define FW_FEATURE_PERF		(1UL<<8)	
-#define FW_FEATURE_DUMP		(1UL<<9)	
-#define FW_FEATURE_INTERRUPT	(1UL<<10)	
-#define FW_FEATURE_MIGRATE	(1UL<<11)	
-#define FW_FEATURE_PERFMON	(1UL<<12)	
-#define FW_FEATURE_CRQ   	(1UL<<13)	
-#define FW_FEATURE_VIO   	(1UL<<14)	
-#define FW_FEATURE_RDMA   	(1UL<<15)	
-#define FW_FEATURE_LLAN   	(1UL<<16)	
-#define FW_FEATURE_BULK   	(1UL<<17)	
-#define FW_FEATURE_XDABR   	(1UL<<18)	
-#define FW_FEATURE_MULTITCE   	(1UL<<19)	
-#define FW_FEATURE_SPLPAR   	(1UL<<20)	
-
-typedef struct {
-    unsigned long val;
-    char * name;
-} firmware_feature_t;
-
-extern firmware_feature_t firmware_features_table[];
 
 #endif /* __ASSEMBLY__ */
 
@@ -133,17 +105,15 @@ extern firmware_feature_t firmware_features_table[];
 #define CPU_FTR_NODSISRALIGN  		ASM_CONST(0x0000001000000000)
 #define CPU_FTR_IABR  			ASM_CONST(0x0000002000000000)
 #define CPU_FTR_MMCRA  			ASM_CONST(0x0000004000000000)
-#define CPU_FTR_PMC8  			ASM_CONST(0x0000008000000000)
+/* unused 				ASM_CONST(0x0000008000000000) */
 #define CPU_FTR_SMT  			ASM_CONST(0x0000010000000000)
 #define CPU_FTR_COHERENT_ICACHE  	ASM_CONST(0x0000020000000000)
 #define CPU_FTR_LOCKLESS_TLBIE		ASM_CONST(0x0000040000000000)
 #define CPU_FTR_MMCRA_SIHV		ASM_CONST(0x0000080000000000)
 #define CPU_FTR_CTRL			ASM_CONST(0x0000100000000000)
 
-/* Platform firmware features */
-#define FW_FTR_				ASM_CONST(0x0000000000000001)
-
 #ifndef __ASSEMBLY__
+
 #define COMMON_USER_PPC64	(PPC_FEATURE_32 | PPC_FEATURE_64 | \
 			         PPC_FEATURE_HAS_FPU | PPC_FEATURE_HAS_MMU)
 
@@ -156,10 +126,9 @@ extern firmware_feature_t firmware_features_table[];
 #define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_PPCAS_ARCH_V2_BASE)
 #else
 #define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_PPCAS_ARCH_V2_BASE | CPU_FTR_16M_PAGE)
-#endif
+#endif /* CONFIG_PPC_ISERIES */
 
-#define COMMON_PPC64_FW	(0)
-#endif
+#endif /* __ASSEMBLY */
 
 #ifdef __ASSEMBLY__
 

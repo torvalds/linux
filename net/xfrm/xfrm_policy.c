@@ -37,7 +37,7 @@ EXPORT_SYMBOL(xfrm_policy_list);
 static DEFINE_RWLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo *xfrm_policy_afinfo[NPROTO];
 
-static kmem_cache_t *xfrm_dst_cache;
+static kmem_cache_t *xfrm_dst_cache __read_mostly;
 
 static struct work_struct xfrm_policy_gc_work;
 static struct list_head xfrm_policy_gc_list =
@@ -765,8 +765,8 @@ restart:
 	switch (policy->action) {
 	case XFRM_POLICY_BLOCK:
 		/* Prohibit the flow */
-		xfrm_pol_put(policy);
-		return -EPERM;
+		err = -EPERM;
+		goto error;
 
 	case XFRM_POLICY_ALLOW:
 		if (policy->xfrm_nr == 0) {
@@ -782,8 +782,8 @@ restart:
 		 */
 		dst = xfrm_find_bundle(fl, policy, family);
 		if (IS_ERR(dst)) {
-			xfrm_pol_put(policy);
-			return PTR_ERR(dst);
+			err = PTR_ERR(dst);
+			goto error;
 		}
 
 		if (dst)

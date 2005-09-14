@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +36,7 @@
 
 #include "core_priv.h"
 
-#include <ib_mad.h>
+#include <rdma/ib_mad.h>
 
 struct ib_port {
 	struct kobject         kobj;
@@ -253,14 +255,14 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((u16 *) gid.raw)[0]),
-		       be16_to_cpu(((u16 *) gid.raw)[1]),
-		       be16_to_cpu(((u16 *) gid.raw)[2]),
-		       be16_to_cpu(((u16 *) gid.raw)[3]),
-		       be16_to_cpu(((u16 *) gid.raw)[4]),
-		       be16_to_cpu(((u16 *) gid.raw)[5]),
-		       be16_to_cpu(((u16 *) gid.raw)[6]),
-		       be16_to_cpu(((u16 *) gid.raw)[7]));
+		       be16_to_cpu(((__be16 *) gid.raw)[0]),
+		       be16_to_cpu(((__be16 *) gid.raw)[1]),
+		       be16_to_cpu(((__be16 *) gid.raw)[2]),
+		       be16_to_cpu(((__be16 *) gid.raw)[3]),
+		       be16_to_cpu(((__be16 *) gid.raw)[4]),
+		       be16_to_cpu(((__be16 *) gid.raw)[5]),
+		       be16_to_cpu(((__be16 *) gid.raw)[6]),
+		       be16_to_cpu(((__be16 *) gid.raw)[7]));
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
@@ -332,11 +334,11 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 		break;
 	case 16:
 		ret = sprintf(buf, "%u\n",
-			      be16_to_cpup((u16 *)(out_mad->data + 40 + offset / 8)));
+			      be16_to_cpup((__be16 *)(out_mad->data + 40 + offset / 8)));
 		break;
 	case 32:
 		ret = sprintf(buf, "%u\n",
-			      be32_to_cpup((u32 *)(out_mad->data + 40 + offset / 8)));
+			      be32_to_cpup((__be32 *)(out_mad->data + 40 + offset / 8)));
 		break;
 	default:
 		ret = 0;
@@ -461,7 +463,7 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 		return NULL;
 
 	for (i = 0; i < len; i++) {
-		element = kcalloc(1, sizeof(struct port_table_attribute),
+		element = kzalloc(sizeof(struct port_table_attribute),
 				  GFP_KERNEL);
 		if (!element)
 			goto err;
@@ -598,10 +600,10 @@ static ssize_t show_sys_image_guid(struct class_device *cdev, char *buf)
 		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[0]),
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[1]),
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[2]),
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[3]));
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[0]),
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[1]),
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[2]),
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[3]));
 }
 
 static ssize_t show_node_guid(struct class_device *cdev, char *buf)
@@ -615,10 +617,10 @@ static ssize_t show_node_guid(struct class_device *cdev, char *buf)
 		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((u16 *) &attr.node_guid)[0]),
-		       be16_to_cpu(((u16 *) &attr.node_guid)[1]),
-		       be16_to_cpu(((u16 *) &attr.node_guid)[2]),
-		       be16_to_cpu(((u16 *) &attr.node_guid)[3]));
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[0]),
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[1]),
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[2]),
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[3]));
 }
 
 static CLASS_DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);

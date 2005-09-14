@@ -110,6 +110,22 @@ struct user_sgentry64 {
 	u32	count;	/* Length. */
 };
 
+struct sgentryraw {
+	__le32		next;	/* reserved for F/W use */
+	__le32		prev;	/* reserved for F/W use */
+	__le32		addr[2];
+	__le32		count;
+	__le32		flags;	/* reserved for F/W use */
+};
+
+struct user_sgentryraw {
+	u32		next;	/* reserved for F/W use */
+	u32		prev;	/* reserved for F/W use */
+	u32		addr[2];
+	u32		count;
+	u32		flags;	/* reserved for F/W use */
+};
+
 /*
  *	SGMAP
  *
@@ -135,6 +151,16 @@ struct sgmap64 {
 struct user_sgmap64 {
 	u32		count;
 	struct user_sgentry64 sg[1];
+};
+
+struct sgmapraw {
+	__le32		  count;
+	struct sgentryraw sg[1];
+};
+
+struct user_sgmapraw {
+	u32		  count;
+	struct user_sgentryraw sg[1];
 };
 
 struct creation_info
@@ -351,6 +377,7 @@ struct hw_fib {
  */
 #define		ContainerCommand		500
 #define		ContainerCommand64		501
+#define		ContainerRawIo			502
 /*
  *	Cluster Commands
  */
@@ -456,6 +483,7 @@ struct adapter_ops
 {
 	void (*adapter_interrupt)(struct aac_dev *dev);
 	void (*adapter_notify)(struct aac_dev *dev, u32 event);
+	void (*adapter_disable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 };
@@ -981,6 +1009,9 @@ struct aac_dev
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
+	/* macro side-effects BEWARE */
+#	define			raw_io_interface \
+	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
 	u8			printf_enabled;
 };
 
@@ -989,6 +1020,9 @@ struct aac_dev
 
 #define aac_adapter_notify(dev, event) \
 	(dev)->a_ops.adapter_notify(dev, event)
+
+#define aac_adapter_disable_int(dev) \
+	(dev)->a_ops.adapter_disable_int(dev)
 
 #define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
 	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
@@ -1156,6 +1190,17 @@ struct aac_write_reply
 	__le32		committed;
 };
 
+struct aac_raw_io
+{
+	__le32		block[2];
+	__le32		count;
+	__le16		cid;
+	__le16		flags;		/* 00 W, 01 R */
+	__le16		bpTotal;	/* reserved for F/W use */
+	__le16		bpComplete;	/* reserved for F/W use */
+	struct sgmapraw	sg;
+};
+
 #define CT_FLUSH_CACHE 129
 struct aac_synchronize {
 	__le32		command;	/* VM_ContainerConfig */
@@ -1196,7 +1241,7 @@ struct aac_srb
 };
 
 /*
- * This and assocated data structs are used by the 
+ * This and associated data structs are used by the
  * ioctl caller and are in cpu order.
  */
 struct user_aac_srb
@@ -1508,11 +1553,12 @@ struct fib_ioctl
 
 struct revision
 {
-	u32 compat;
-	u32 version;
-	u32 build;
+	__le32 compat;
+	__le32 version;
+	__le32 build;
 };
 	
+
 /*
  * 	Ugly - non Linux like ioctl coding for back compat.
  */
@@ -1733,3 +1779,4 @@ int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
 extern int numacb;
 extern int acbsize;
+extern char aac_driver_version[];

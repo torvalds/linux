@@ -46,11 +46,11 @@
 /**
  * \brief Allocate a PCI consistent memory block, for DMA.
  */
-void *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
-		    dma_addr_t maxaddr, dma_addr_t * busaddr)
+drm_dma_handle_t *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
+				dma_addr_t maxaddr)
 {
-	void *address;
-#if DRM_DEBUG_MEMORY
+	drm_dma_handle_t *dmah;
+#ifdef DRM_DEBUG_MEMORY
 	int area = DRM_MEM_DMA;
 
 	spin_lock(&drm_mem_lock);
@@ -74,13 +74,19 @@ void *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 		return NULL;
 	}
 
-	address = pci_alloc_consistent(dev->pdev, size, busaddr);
+	dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
+	if (!dmah)
+		return NULL;
+	
+	dmah->size = size;
+	dmah->vaddr = pci_alloc_consistent(dev->pdev, size, &dmah->busaddr);
 
-#if DRM_DEBUG_MEMORY
-	if (address == NULL) {
+#ifdef DRM_DEBUG_MEMORY
+	if (dmah->vaddr == NULL) {
 		spin_lock(&drm_mem_lock);
 		++drm_mem_stats[area].fail_count;
 		spin_unlock(&drm_mem_lock);
+		kfree(dmah);
 		return NULL;
 	}
 
@@ -90,37 +96,42 @@ void *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 	drm_ram_used += size;
 	spin_unlock(&drm_mem_lock);
 #else
-	if (address == NULL)
+	if (dmah->vaddr == NULL) {
+		kfree(dmah);
 		return NULL;
+	}
 #endif
 
-	memset(address, 0, size);
+	memset(dmah->vaddr, 0, size);
 
-	return address;
+	return dmah;
 }
 EXPORT_SYMBOL(drm_pci_alloc);
 
 /**
- * \brief Free a PCI consistent memory block.
+ * \brief Free a PCI consistent memory block with freeing its descriptor.
+ *
+ * This function is for internal use in the Linux-specific DRM core code.
  */
 void
-drm_pci_free(drm_device_t * dev, size_t size, void *vaddr, dma_addr_t busaddr)
+__drm_pci_free(drm_device_t * dev, drm_dma_handle_t *dmah)
 {
-#if DRM_DEBUG_MEMORY
+#ifdef DRM_DEBUG_MEMORY
 	int area = DRM_MEM_DMA;
 	int alloc_count;
 	int free_count;
 #endif
 
-	if (!vaddr) {
-#if DRM_DEBUG_MEMORY
+	if (!dmah->vaddr) {
+#ifdef DRM_DEBUG_MEMORY
 		DRM_MEM_ERROR(area, "Attempt to free address 0\n");
 #endif
 	} else {
-		pci_free_consistent(dev->pdev, size, vaddr, busaddr);
+		pci_free_consistent(dev->pdev, dmah->size, dmah->vaddr,
+				    dmah->busaddr);
 	}
 
-#if DRM_DEBUG_MEMORY
+#ifdef DRM_DEBUG_MEMORY
 	spin_lock(&drm_mem_lock);
 	free_count = ++drm_mem_stats[area].free_count;
 	alloc_count = drm_mem_stats[area].succeed_count;
@@ -134,6 +145,16 @@ drm_pci_free(drm_device_t * dev, size_t size, void *vaddr, dma_addr_t busaddr)
 	}
 #endif
 
+}
+
+/**
+ * \brief Free a PCI consistent memory block
+ */
+void
+drm_pci_free(drm_device_t *dev, drm_dma_handle_t *dmah)
+{
+	__drm_pci_free(dev, dmah);
+	kfree(dmah);
 }
 EXPORT_SYMBOL(drm_pci_free);
 

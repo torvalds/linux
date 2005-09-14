@@ -26,8 +26,9 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
-#include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 
 /* Type of the extra sensor */
 static unsigned short extra_sensor_type;
@@ -36,10 +37,9 @@ MODULE_PARM_DESC(extra_sensor_type, "Type of extra sensor (0=autodetect, 1=tempe
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(gl520sm);
+I2C_CLIENT_INSMOD_1(gl520sm);
 
 /* Many GL520 constants specified below 
 One of the inputs can be configured as either temp or voltage.
@@ -120,6 +120,7 @@ static struct i2c_driver gl520_driver = {
 /* Client data */
 struct gl520_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid;		/* zero until the following fields are valid */
 	unsigned long last_updated;	/* in jiffies */
@@ -518,7 +519,7 @@ static int gl520_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, gl520_detect);
+	return i2c_probe(adapter, &addr_data, gl520_detect);
 }
 
 static int gl520_detect(struct i2c_adapter *adapter, int address, int kind)
@@ -571,6 +572,12 @@ static int gl520_detect(struct i2c_adapter *adapter, int address, int kind)
 	gl520_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file_vid(new_client, 0);
 
 	device_create_file_in(new_client, 0);
@@ -592,6 +599,8 @@ static int gl520_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -608,7 +617,7 @@ static void gl520_init_client(struct i2c_client *client)
 	conf = oldconf = gl520_read_value(client, GL520_REG_CONF);
 
 	data->alarm_mask = 0xff;
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	if (extra_sensor_type == 1)
 		conf &= ~0x10;
@@ -639,15 +648,15 @@ static void gl520_init_client(struct i2c_client *client)
 
 static int gl520_detach_client(struct i2c_client *client)
 {
+	struct gl520_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
-		return err;
-	}
+	hwmon_device_unregister(data->class_dev);
 
-	kfree(i2c_get_clientdata(client));
+	if ((err = i2c_detach_client(client)))
+		return err;
+
+	kfree(data);
 	return 0;
 }
 

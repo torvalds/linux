@@ -83,13 +83,13 @@ static void shutdown_cqreek_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type cqreek_irq_type = {
-	"CqREEK-IRQ",
-	startup_cqreek_irq,
-	shutdown_cqreek_irq,
-	enable_cqreek_irq,
-	disable_cqreek_irq,
-	mask_and_ack_cqreek,
-	end_cqreek_irq
+	.typename = "CqREEK-IRQ",
+	.startup = startup_cqreek_irq,
+	.shutdown = shutdown_cqreek_irq,
+	.enable = enable_cqreek_irq,
+	.disable = disable_cqreek_irq,
+	.ack = mask_and_ack_cqreek,
+	.end = end_cqreek_irq
 };
 
 int cqreek_has_ide, cqreek_has_isa;

@@ -538,10 +538,11 @@ cheetah_tlb_fixup:
 	 nop
 	call	cheetah_plus_patch_winfixup
 	 nop
-	
 
 2:	/* Patch copy/page operations to cheetah optimized versions. */
 	call	cheetah_patch_copyops
+	 nop
+	call	cheetah_patch_copy_page
 	 nop
 	call	cheetah_patch_cachetlbops
 	 nop

@@ -507,18 +507,15 @@ static int deadline_dispatch_requests(struct deadline_data *dd)
 	const int reads = !list_empty(&dd->fifo_list[READ]);
 	const int writes = !list_empty(&dd->fifo_list[WRITE]);
 	struct deadline_rq *drq;
-	int data_dir, other_dir;
+	int data_dir;
 
 	/*
 	 * batches are currently reads XOR writes
 	 */
-	drq = NULL;
-
-	if (dd->next_drq[READ])
-		drq = dd->next_drq[READ];
-
 	if (dd->next_drq[WRITE])
 		drq = dd->next_drq[WRITE];
+	else
+		drq = dd->next_drq[READ];
 
 	if (drq) {
 		/* we have a "next request" */
@@ -544,7 +541,6 @@ static int deadline_dispatch_requests(struct deadline_data *dd)
 			goto dispatch_writes;
 
 		data_dir = READ;
-		other_dir = WRITE;
 
 		goto dispatch_find_request;
 	}
@@ -560,7 +556,6 @@ dispatch_writes:
 		dd->starved = 0;
 
 		data_dir = WRITE;
-		other_dir = READ;
 
 		goto dispatch_find_request;
 	}

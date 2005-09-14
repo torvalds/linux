@@ -586,6 +586,8 @@ int xmon_dabr_match(struct pt_regs *regs)
 {
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_SF)) != (MSR_IR|MSR_SF))
 		return 0;
+	if (dabr.enabled == 0)
+		return 0;
 	xmon_core(regs, 0);
 	return 1;
 }
@@ -626,20 +628,6 @@ int xmon_fault_handler(struct pt_regs *regs)
 	}
 
 	return 0;
-}
-
-/* On systems with a hypervisor, we can't set the DABR
-   (data address breakpoint register) directly. */
-static void set_controlled_dabr(unsigned long val)
-{
-#ifdef CONFIG_PPC_PSERIES
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR) {
-		int rc = plpar_hcall_norets(H_SET_DABR, val);
-		if (rc != H_Success)
-			xmon_printf("Warning: setting DABR failed (%d)\n", rc);
-	} else
-#endif
-		set_dabr(val);
 }
 
 static struct bpt *at_breakpoint(unsigned long pc)
@@ -728,7 +716,7 @@ static void insert_bpts(void)
 static void insert_cpu_bpts(void)
 {
 	if (dabr.enabled)
-		set_controlled_dabr(dabr.address | (dabr.enabled & 7));
+		set_dabr(dabr.address | (dabr.enabled & 7));
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		set_iabr(iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
@@ -756,7 +744,7 @@ static void remove_bpts(void)
 
 static void remove_cpu_bpts(void)
 {
-	set_controlled_dabr(0);
+	set_dabr(0);
 	if (cpu_has_feature(CPU_FTR_IABR))
 		set_iabr(0);
 }
@@ -2496,15 +2484,25 @@ static void dump_stab(void)
 	}
 }
 
-void xmon_init(void)
+void xmon_init(int enable)
 {
-	__debugger = xmon;
-	__debugger_ipi = xmon_ipi;
-	__debugger_bpt = xmon_bpt;
-	__debugger_sstep = xmon_sstep;
-	__debugger_iabr_match = xmon_iabr_match;
-	__debugger_dabr_match = xmon_dabr_match;
-	__debugger_fault_handler = xmon_fault_handler;
+	if (enable) {
+		__debugger = xmon;
+		__debugger_ipi = xmon_ipi;
+		__debugger_bpt = xmon_bpt;
+		__debugger_sstep = xmon_sstep;
+		__debugger_iabr_match = xmon_iabr_match;
+		__debugger_dabr_match = xmon_dabr_match;
+		__debugger_fault_handler = xmon_fault_handler;
+	} else {
+		__debugger = NULL;
+		__debugger_ipi = NULL;
+		__debugger_bpt = NULL;
+		__debugger_sstep = NULL;
+		__debugger_iabr_match = NULL;
+		__debugger_dabr_match = NULL;
+		__debugger_fault_handler = NULL;
+	}
 }
 
 void dump_segments(void)

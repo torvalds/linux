@@ -28,7 +28,7 @@
 #include <asm/mmu.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 
 #ifdef CONFIG_PPC_ISERIES
@@ -400,15 +400,14 @@ BEGIN_FTR_SECTION
 	cmpd	cr1,r6,r9	/* or is new ESID the same as current ESID? */
 	cror	eq,4*cr1+eq,eq
 	beq	2f		/* if yes, don't slbie it */
-	oris	r0,r6,0x0800	/* set C (class) bit */
 
 	/* Bolt in the new stack SLB entry */
 	ld	r7,KSP_VSID(r4)	/* Get new stack's VSID */
-	oris	r6,r6,(SLB_ESID_V)@h
-	ori	r6,r6,(SLB_NUM_BOLTED-1)@l
-	slbie	r0
-	slbie	r0		/* Workaround POWER5 < DD2.1 issue */
-	slbmte	r7,r6
+	oris	r0,r6,(SLB_ESID_V)@h
+	ori	r0,r0,(SLB_NUM_BOLTED-1)@l
+	slbie	r6
+	slbie	r6		/* Workaround POWER5 < DD2.1 issue */
+	slbmte	r7,r0
 	isync
 
 2:

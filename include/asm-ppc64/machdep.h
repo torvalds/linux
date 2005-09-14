@@ -88,6 +88,7 @@ struct machdep_calls {
 
 	/* PCI stuff */
 	void		(*pcibios_fixup)(void);
+	int		(*pci_probe_mode)(struct pci_bus *);
 
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);
@@ -102,11 +103,6 @@ struct machdep_calls {
 	void		(*calibrate_decr)(void);
 
 	void		(*progress)(char *, unsigned short);
-
-	/* Debug interface.  Low level I/O to some terminal device */
-	void		(*udbg_putc)(unsigned char c);
-	unsigned char	(*udbg_getc)(void);
-	int		(*udbg_getc_poll)(void);
 
 	/* Interface for platform error logging */
 	void 		(*log_error)(char *buf, unsigned int err_type, int fatal);
@@ -140,6 +136,9 @@ struct machdep_calls {
 
 	/* Idle loop for this platform, leave empty for default idle loop */
 	int		(*idle_loop)(void);
+
+	/* Function to enable pmcs for this platform, called once per cpu. */
+	void		(*enable_pmcs)(void);
 };
 
 extern int default_idle(void);
@@ -175,10 +174,6 @@ extern sys_ctrler_t sys_ctrler;
 void ppc64_boot_msg(unsigned int src, const char *msg);
 /* Print a termination message (print only -- does not stop the kernel) */
 void ppc64_terminate_msg(unsigned int src, const char *msg);
-/* Print something that needs attention (device error, etc) */
-void ppc64_attention_msg(unsigned int src, const char *msg);
-/* Print a dump progress message. */
-void ppc64_dump_msg(unsigned int src, const char *msg);
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {

@@ -20,7 +20,7 @@
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/serial_reg.h>
-#include <asm/arch/hardware.h>
+#include <asm/arch/serial.h>
 
 unsigned int system_rev;
 
@@ -34,8 +34,9 @@ static void
 putstr(const char *s)
 {
 	volatile u8 * uart = 0;
-	int shift;
+	int shift = 2;
 
+#ifdef CONFIG_ARCH_OMAP
 #ifdef	CONFIG_OMAP_LL_DEBUG_UART3
 	uart = (volatile u8 *)(OMAP_UART3_BASE);
 #elif	CONFIG_OMAP_LL_DEBUG_UART2
@@ -44,6 +45,7 @@ putstr(const char *s)
 	uart = (volatile u8 *)(OMAP_UART1_BASE);
 #endif
 
+#ifdef CONFIG_ARCH_OMAP1
 	/* Determine which serial port to use */
 	do {
 		/* MMU is not on, so cpu_is_omapXXXX() won't work here */
@@ -51,14 +53,14 @@ putstr(const char *s)
 
 		if (omap_id == OMAP_ID_730)
 			shift = 0;
-		else
-			shift = 2;
 
 		if (check_port(uart, shift))
 			break;
 		/* Silent boot if no serial ports are enabled. */
 		return;
 	} while (0);
+#endif /* CONFIG_ARCH_OMAP1 */
+#endif
 
 	/*
 	 * Now, xmit each character

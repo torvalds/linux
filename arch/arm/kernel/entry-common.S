@@ -265,6 +265,14 @@ sys_futex_wrapper:
 		str	r5, [sp, #4]		@ push sixth arg
 		b	sys_futex
 
+sys_arm_fadvise64_64_wrapper:
+		str	r5, [sp, #4]		@ push r5 to stack
+		b	sys_arm_fadvise64_64
+
+sys_mbind_wrapper:
+		str	r5, [sp, #4]
+		b	sys_mbind
+
 /*
  * Note: off_4k (r5) is always units of 4K.  If we can't do the requested
  * offset, we return EINVAL.

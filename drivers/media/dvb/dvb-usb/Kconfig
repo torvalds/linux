@@ -93,13 +93,30 @@ config DVB_USB_DIGITV
 	  Say Y here to support the Nebula Electronics uDigitV USB2.0 DVB-T receiver.
 
 config DVB_USB_VP7045
-	tristate "TwinhanDTV Alpha/MagicBoxII and DNTV tinyUSB2 DVB-T USB2.0 support"
+	tristate "TwinhanDTV Alpha/MagicBoxII, DNTV tinyUSB2, Beetle USB2.0 support"
 	depends on DVB_USB
 	help
 	  Say Y here to support the
+
 	    TwinhanDTV Alpha (stick) (VP-7045),
-		TwinhanDTV MagicBox II (VP-7046) and
-		DigitalNow TinyUSB 2 DVB-t DVB-T USB2.0 receivers.
+		TwinhanDTV MagicBox II (VP-7046),
+		DigitalNow TinyUSB 2 DVB-t,
+		DigitalRise USB 2.0 Ter (Beetle) and
+		TYPHOON DVB-T USB DRIVE
+
+	  DVB-T USB2.0 receivers.
+
+config DVB_USB_VP702X
+	tristate "TwinhanDTV StarBox and clones DVB-S USB2.0 support"
+	depends on DVB_USB
+	help
+	  Say Y here to support the
+
+	    TwinhanDTV StarBox,
+		DigitalRise USB Starbox and
+		TYPHOON DVB-S USB 2.0 BOX
+
+	  DVB-S USB2.0 receivers.
 
 config DVB_USB_NOVA_T_USB2
 	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"

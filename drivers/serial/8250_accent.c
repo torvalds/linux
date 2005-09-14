@@ -29,7 +29,7 @@ static struct plat_serial8250_port accent_data[] = {
 
 static struct platform_device accent_device = {
 	.name			= "serial8250",
-	.id			= 2,
+	.id			= PLAT8250_DEV_ACCENT,
 	.dev			= {
 		.platform_data	= accent_data,
 	},

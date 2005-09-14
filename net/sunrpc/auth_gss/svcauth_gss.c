@@ -250,6 +250,7 @@ out:
 }
 
 static struct cache_detail rsi_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= RSI_HASHMAX,
 	.hash_table     = rsi_table,
 	.name           = "auth.rpcsec.init",
@@ -436,6 +437,7 @@ out:
 }
 
 static struct cache_detail rsc_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= RSC_HASHMAX,
 	.hash_table	= rsc_table,
 	.name		= "auth.rpcsec.context",
@@ -1074,7 +1076,9 @@ gss_svc_init(void)
 void
 gss_svc_shutdown(void)
 {
-	cache_unregister(&rsc_cache);
-	cache_unregister(&rsi_cache);
+	if (cache_unregister(&rsc_cache))
+		printk(KERN_ERR "auth_rpcgss: failed to unregister rsc cache\n");
+	if (cache_unregister(&rsi_cache))
+		printk(KERN_ERR "auth_rpcgss: failed to unregister rsi cache\n");
 	svc_auth_unregister(RPC_AUTH_GSS);
 }

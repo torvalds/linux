@@ -996,7 +996,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		break;
 
 	case ABORT_DEVICE:
-		ha->flags.in_reset = 1;
 		if (qla1280_verbose)
 			printk(KERN_INFO
 			       "scsi(%ld:%d:%d:%d): Queueing abort device "
@@ -1010,7 +1009,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 			printk(KERN_INFO
 			       "scsi(%ld:%d:%d:%d): Queueing device reset "
 			       "command.\n", ha->host_no, bus, target, lun);
-		ha->flags.in_reset = 1;
 		if (qla1280_device_reset(ha, bus, target) == 0)
 			result = SUCCESS;
 		break;
@@ -1019,7 +1017,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		if (qla1280_verbose)
 			printk(KERN_INFO "qla1280(%ld:%d): Issuing BUS "
 			       "DEVICE RESET\n", ha->host_no, bus);
-		ha->flags.in_reset = 1;
 		if (qla1280_bus_reset(ha, bus == 0))
 			result = SUCCESS;
 
@@ -1047,7 +1044,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 
 	if (!list_empty(&ha->done_q))
 		qla1280_done(ha);
-	ha->flags.in_reset = 0;
 
 	/* If we didn't manage to issue the action, or we have no
 	 * command to wait for, exit here */
@@ -1269,6 +1265,22 @@ qla1280_biosparam_old(Disk * disk, kdev_t dev, int geom[])
 	return qla1280_biosparam(disk->device, NULL, disk->capacity, geom);
 }
 #endif
+ 
+/* disable risc and host interrupts */
+static inline void
+qla1280_disable_intrs(struct scsi_qla_host *ha)
+{
+	WRT_REG_WORD(&ha->iobase->ictrl, 0);
+	RD_REG_WORD(&ha->iobase->ictrl);	/* PCI Posted Write flush */
+}
+
+/* enable risc and host interrupts */
+static inline void
+qla1280_enable_intrs(struct scsi_qla_host *ha)
+{
+	WRT_REG_WORD(&ha->iobase->ictrl, (ISP_EN_INT | ISP_EN_RISC));
+	RD_REG_WORD(&ha->iobase->ictrl);	/* PCI Posted Write flush */
+}
 
 /**************************************************************************
  * qla1280_intr_handler
@@ -1290,7 +1302,7 @@ qla1280_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 	ha->isr_count++;
 	reg = ha->iobase;
 
-	WRT_REG_WORD(&reg->ictrl, 0);	/* disable our interrupt. */
+	qla1280_disable_intrs(ha);
 
 	data = qla1280_debounce_register(&reg->istatus);
 	/* Check for pending interrupts. */
@@ -1303,8 +1315,7 @@ qla1280_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_unlock(HOST_LOCK);
 
-	/* enable our interrupt. */
-	WRT_REG_WORD(&reg->ictrl, (ISP_EN_INT | ISP_EN_RISC));
+	qla1280_enable_intrs(ha);
 
 	LEAVE_INTR("qla1280_intr_handler");
 	return IRQ_RETVAL(handled);
@@ -1317,7 +1328,7 @@ qla1280_set_target_parameters(struct scsi_qla_host *ha, int bus, int target)
 	uint8_t mr;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	struct nvram *nv;
-	int status;
+	int status, lun;
 
 	nv = &ha->nvram;
 
@@ -1325,24 +1336,38 @@ qla1280_set_target_parameters(struct scsi_qla_host *ha, int bus, int target)
 
 	/* Set Target Parameters. */
 	mb[0] = MBC_SET_TARGET_PARAMETERS;
-	mb[1] = (uint16_t) (bus ? target | BIT_7 : target);
-	mb[1] <<= 8;
-
-	mb[2] = (nv->bus[bus].target[target].parameter.c << 8);
+	mb[1] = (uint16_t)((bus ? target | BIT_7 : target) << 8);
+	mb[2] = nv->bus[bus].target[target].parameter.renegotiate_on_error << 8;
+	mb[2] |= nv->bus[bus].target[target].parameter.stop_queue_on_check << 9;
+	mb[2] |= nv->bus[bus].target[target].parameter.auto_request_sense << 10;
+	mb[2] |= nv->bus[bus].target[target].parameter.tag_queuing << 11;
+	mb[2] |= nv->bus[bus].target[target].parameter.enable_sync << 12;
+	mb[2] |= nv->bus[bus].target[target].parameter.enable_wide << 13;
+	mb[2] |= nv->bus[bus].target[target].parameter.parity_checking << 14;
+	mb[2] |= nv->bus[bus].target[target].parameter.disconnect_allowed << 15;
 
 	if (IS_ISP1x160(ha)) {
 		mb[2] |= nv->bus[bus].target[target].ppr_1x160.flags.enable_ppr << 5;
-		mb[3] =	(nv->bus[bus].target[target].flags.flags1x160.sync_offset << 8) |
-			 nv->bus[bus].target[target].sync_period;
+		mb[3] =	(nv->bus[bus].target[target].flags.flags1x160.sync_offset << 8);
 		mb[6] =	(nv->bus[bus].target[target].ppr_1x160.flags.ppr_options << 8) |
 			 nv->bus[bus].target[target].ppr_1x160.flags.ppr_bus_width;
 		mr |= BIT_6;
 	} else {
-		mb[3] =	(nv->bus[bus].target[target].flags.flags1x80.sync_offset << 8) |
-			 nv->bus[bus].target[target].sync_period;
+		mb[3] =	(nv->bus[bus].target[target].flags.flags1x80.sync_offset << 8);
 	}
+	mb[3] |= nv->bus[bus].target[target].sync_period;
 
-	status = qla1280_mailbox_command(ha, mr, &mb[0]);
+	status = qla1280_mailbox_command(ha, mr, mb);
+
+	/* Set Device Queue Parameters. */
+	for (lun = 0; lun < MAX_LUNS; lun++) {
+		mb[0] = MBC_SET_DEVICE_QUEUE;
+		mb[1] = (uint16_t)((bus ? target | BIT_7 : target) << 8);
+		mb[1] |= lun;
+		mb[2] = nv->bus[bus].max_queue_depth;
+		mb[3] = nv->bus[bus].target[target].execution_throttle;
+		status |= qla1280_mailbox_command(ha, 0x0f, mb);
+	}
 
 	if (status)
 		printk(KERN_WARNING "scsi(%ld:%i:%i): "
@@ -1389,19 +1414,19 @@ qla1280_slave_configure(struct scsi_device *device)
 	}
 
 #if LINUX_VERSION_CODE > 0x020500
-	nv->bus[bus].target[target].parameter.f.enable_sync = device->sdtr;
-	nv->bus[bus].target[target].parameter.f.enable_wide = device->wdtr;
+	nv->bus[bus].target[target].parameter.enable_sync = device->sdtr;
+	nv->bus[bus].target[target].parameter.enable_wide = device->wdtr;
 	nv->bus[bus].target[target].ppr_1x160.flags.enable_ppr = device->ppr;
 #endif
 
 	if (driver_setup.no_sync ||
 	    (driver_setup.sync_mask &&
 	     (~driver_setup.sync_mask & (1 << target))))
-		nv->bus[bus].target[target].parameter.f.enable_sync = 0;
+		nv->bus[bus].target[target].parameter.enable_sync = 0;
 	if (driver_setup.no_wide ||
 	    (driver_setup.wide_mask &&
 	     (~driver_setup.wide_mask & (1 << target))))
-		nv->bus[bus].target[target].parameter.f.enable_wide = 0;
+		nv->bus[bus].target[target].parameter.enable_wide = 0;
 	if (IS_ISP1x160(ha)) {
 		if (driver_setup.no_ppr ||
 		    (driver_setup.ppr_mask &&
@@ -1410,7 +1435,7 @@ qla1280_slave_configure(struct scsi_device *device)
 	}
 
 	spin_lock_irqsave(HOST_LOCK, flags);
-	if (nv->bus[bus].target[target].parameter.f.enable_sync)
+	if (nv->bus[bus].target[target].parameter.enable_sync)
 		status = qla1280_set_target_parameters(ha, bus, target);
 	qla1280_get_target_parameters(ha, device);
 	spin_unlock_irqrestore(HOST_LOCK, flags);
@@ -1448,7 +1473,6 @@ qla1280_select_queue_depth(struct Scsi_Host *host, struct scsi_device *sdev_q)
  *
  * Input:
  *      ha           = adapter block pointer.
- *      done_q       = done queue.
  */
 static void
 qla1280_done(struct scsi_qla_host *ha)
@@ -1522,7 +1546,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 	int host_status = DID_ERROR;
 	uint16_t comp_status = le16_to_cpu(sts->comp_status);
 	uint16_t state_flags = le16_to_cpu(sts->state_flags);
-	uint16_t residual_length = le16_to_cpu(sts->residual_length);
+	uint16_t residual_length = le32_to_cpu(sts->residual_length);
 	uint16_t scsi_status = le16_to_cpu(sts->scsi_status);
 #if DEBUG_QLA1280_INTR
 	static char *reason[] = {
@@ -1582,7 +1606,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 
 	case CS_DATA_OVERRUN:
 		dprintk(2, "Data overrun 0x%x\n", residual_length);
-		dprintk(2, "qla1280_isr: response packet data\n");
+		dprintk(2, "qla1280_return_status: response packet data\n");
 		qla1280_dump_buffer(2, (char *)sts, RESPONSE_ENTRY_SIZE);
 		host_status = DID_ERROR;
 		break;
@@ -1617,40 +1641,6 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 /*                QLogic ISP1280 Hardware Support Functions.                */
 /****************************************************************************/
 
- /*
-  * qla2100_enable_intrs
-  * qla2100_disable_intrs
-  *
-  * Input:
-  *      ha = adapter block pointer.
-  *
-  * Returns:
-  *      None
-  */
-static inline void
-qla1280_enable_intrs(struct scsi_qla_host *ha)
-{
-	struct device_reg __iomem *reg;
-
-	reg = ha->iobase;
-	/* enable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, (ISP_EN_INT | ISP_EN_RISC));
-	RD_REG_WORD(&reg->ictrl);	/* PCI Posted Write flush */
-	ha->flags.ints_enabled = 1;
-}
-
-static inline void
-qla1280_disable_intrs(struct scsi_qla_host *ha)
-{
-	struct device_reg __iomem *reg;
-
-	reg = ha->iobase;
-	/* disable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, 0);
-	RD_REG_WORD(&reg->ictrl);	/* PCI Posted Write flush */
-	ha->flags.ints_enabled = 0;
-}
-
 /*
  * qla1280_initialize_adapter
  *      Initialize board.
@@ -1679,7 +1669,6 @@ qla1280_initialize_adapter(struct scsi_qla_host *ha)
 	ha->flags.reset_active = 0;
 	ha->flags.abort_isp_active = 0;
 
-	ha->flags.ints_enabled = 0;
 #if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_SN2)
 	if (ia64_platform_is("sn2")) {
 		printk(KERN_INFO "scsi(%li): Enabling SN2 PCI DMA "
@@ -1755,69 +1744,6 @@ qla1280_initialize_adapter(struct scsi_qla_host *ha)
 		dprintk(2, "qla1280_initialize_adapter: **** FAILED ****\n");
 
 	LEAVE("qla1280_initialize_adapter");
-	return status;
-}
-
-
-/*
- * ISP Firmware Test
- *      Checks if present version of RISC firmware is older than
- *      driver firmware.
- *
- * Input:
- *      ha = adapter block pointer.
- *
- * Returns:
- *      0 = firmware does not need to be loaded.
- */
-static int
-qla1280_isp_firmware(struct scsi_qla_host *ha)
-{
-	struct nvram *nv = (struct nvram *) ha->response_ring;
-	int status = 0;		/* dg 2/27 always loads RISC */
-	uint16_t mb[MAILBOX_REGISTER_COUNT];
-
-	ENTER("qla1280_isp_firmware");
-
-	dprintk(1, "scsi(%li): Determining if RISC is loaded\n", ha->host_no);
-
-	/* Bad NVRAM data, load RISC code. */
-	if (!ha->nvram_valid) {
-		ha->flags.disable_risc_code_load = 0;
-	} else
-		ha->flags.disable_risc_code_load =
-			nv->cntr_flags_1.disable_loading_risc_code;
-
-	if (ha->flags.disable_risc_code_load) {
-		dprintk(3, "qla1280_isp_firmware: Telling RISC to verify "
-			"checksum of loaded BIOS code.\n");
-
-		/* Verify checksum of loaded RISC code. */
-		mb[0] = MBC_VERIFY_CHECKSUM;
-		/* mb[1] = ql12_risc_code_addr01; */
-		mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
-
-		if (!(status =
-		      qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]))) {
-			/* Start firmware execution. */
-			dprintk(3, "qla1280_isp_firmware: Startng F/W "
-				"execution.\n");
-
-			mb[0] = MBC_EXECUTE_FIRMWARE;
-			/* mb[1] = ql12_risc_code_addr01; */
-			mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
-			qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
-		} else
-			printk(KERN_INFO "qla1280: RISC checksum failed.\n");
-	} else {
-		dprintk(1, "qla1280: NVRAM configured to load RISC load.\n");
-		status = 1;
-	}
-
-	if (status)
-		dprintk(2, "qla1280_isp_firmware: **** Load RISC code ****\n");
-
-	LEAVE("qla1280_isp_firmware");
 	return status;
 }
 
@@ -2006,7 +1932,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 			"%d,%d(0x%x)\n",
 			risc_code_address, cnt, num, risc_address);
 		for(i = 0; i < cnt; i++)
-			((uint16_t *)ha->request_ring)[i] =
+			((__le16 *)ha->request_ring)[i] =
 				cpu_to_le16(risc_code_address[i]);
 
 		mb[0] = MBC_LOAD_RAM;
@@ -2085,7 +2011,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
 	err = qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 	if (err) {
-		printk(KERN_ERR "scsi(%li): Failed checksum\n", ha->host_no);
+		printk(KERN_ERR "scsi(%li): RISC checksum failed.\n", ha->host_no);
 		return err;
 	}
 
@@ -2105,14 +2031,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 static int
 qla1280_load_firmware(struct scsi_qla_host *ha)
 {
-	int err = -ENODEV;
-
-	/* If firmware needs to be loaded */
-	if (!qla1280_isp_firmware(ha)) {
-		printk(KERN_ERR "scsi(%li): isp_firmware() failed!\n",
-				ha->host_no);
-		goto out;
-	}
+	int err;
 
 	err = qla1280_chip_diag(ha);
 	if (err)
@@ -2246,17 +2165,17 @@ qla1280_set_target_defaults(struct scsi_qla_host *ha, int bus, int target)
 {
 	struct nvram *nv = &ha->nvram;
 
-	nv->bus[bus].target[target].parameter.f.renegotiate_on_error = 1;
-	nv->bus[bus].target[target].parameter.f.auto_request_sense = 1;
-	nv->bus[bus].target[target].parameter.f.tag_queuing = 1;
-	nv->bus[bus].target[target].parameter.f.enable_sync = 1;
+	nv->bus[bus].target[target].parameter.renegotiate_on_error = 1;
+	nv->bus[bus].target[target].parameter.auto_request_sense = 1;
+	nv->bus[bus].target[target].parameter.tag_queuing = 1;
+	nv->bus[bus].target[target].parameter.enable_sync = 1;
 #if 1	/* Some SCSI Processors do not seem to like this */
-	nv->bus[bus].target[target].parameter.f.enable_wide = 1;
+	nv->bus[bus].target[target].parameter.enable_wide = 1;
 #endif
-	nv->bus[bus].target[target].parameter.f.parity_checking = 1;
-	nv->bus[bus].target[target].parameter.f.disconnect_allowed = 1;
 	nv->bus[bus].target[target].execution_throttle =
 		nv->bus[bus].max_queue_depth - 1;
+	nv->bus[bus].target[target].parameter.parity_checking = 1;
+	nv->bus[bus].target[target].parameter.disconnect_allowed = 1;
 
 	if (IS_ISP1x160(ha)) {
 		nv->bus[bus].target[target].flags.flags1x160.device_enable = 1;
@@ -2284,9 +2203,9 @@ qla1280_set_defaults(struct scsi_qla_host *ha)
 	/* nv->cntr_flags_1.disable_loading_risc_code = 1; */
 	nv->firmware_feature.f.enable_fast_posting = 1;
 	nv->firmware_feature.f.disable_synchronous_backoff = 1;
-	nv->termination.f.scsi_bus_0_control = 3;
-	nv->termination.f.scsi_bus_1_control = 3;
-	nv->termination.f.auto_term_support = 1;
+	nv->termination.scsi_bus_0_control = 3;
+	nv->termination.scsi_bus_1_control = 3;
+	nv->termination.auto_term_support = 1;
 
 	/*
 	 * Set default FIFO magic - What appropriate values would be here
@@ -2296,7 +2215,12 @@ qla1280_set_defaults(struct scsi_qla_host *ha)
 	 * header file provided by QLogic seems to be bogus or incomplete
 	 * at best.
 	 */
-	nv->isp_config.c = ISP_CFG1_BENAB|ISP_CFG1_F128;
+	nv->isp_config.burst_enable = 1;
+	if (IS_ISP1040(ha))
+		nv->isp_config.fifo_threshold |= 3;
+	else
+		nv->isp_config.fifo_threshold |= 4;
+
 	if (IS_ISP1x160(ha))
 		nv->isp_parameter = 0x01; /* fast memory enable */
 
@@ -2327,66 +2251,53 @@ qla1280_config_target(struct scsi_qla_host *ha, int bus, int target)
 	struct nvram *nv = &ha->nvram;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	int status, lun;
+	uint16_t flag;
 
 	/* Set Target Parameters. */
 	mb[0] = MBC_SET_TARGET_PARAMETERS;
-	mb[1] = (uint16_t) (bus ? target | BIT_7 : target);
-	mb[1] <<= 8;
+	mb[1] = (uint16_t)((bus ? target | BIT_7 : target) << 8);
 
 	/*
-	 * Do not enable wide, sync, and ppr for the initial
-	 * INQUIRY run. We enable this later if we determine
-	 * the target actually supports it.
+	 * Do not enable sync and ppr for the initial INQUIRY run. We
+	 * enable this later if we determine the target actually
+	 * supports it.
 	 */
-	nv->bus[bus].target[target].parameter.f.
-		auto_request_sense = 1;
-	nv->bus[bus].target[target].parameter.f.
-		stop_queue_on_check = 0;
-
-	if (IS_ISP1x160(ha))
-		nv->bus[bus].target[target].ppr_1x160.
-			flags.enable_ppr = 0;
-
-	/*
-	 * No sync, wide, etc. while probing
-	 */
-	mb[2] = (nv->bus[bus].target[target].parameter.c << 8) &
-		~(TP_SYNC /*| TP_WIDE | TP_PPR*/);
+	mb[2] = (TP_RENEGOTIATE | TP_AUTO_REQUEST_SENSE | TP_TAGGED_QUEUE
+		 | TP_WIDE | TP_PARITY | TP_DISCONNECT);
 
 	if (IS_ISP1x160(ha))
 		mb[3] =	nv->bus[bus].target[target].flags.flags1x160.sync_offset << 8;
 	else
 		mb[3] =	nv->bus[bus].target[target].flags.flags1x80.sync_offset << 8;
 	mb[3] |= nv->bus[bus].target[target].sync_period;
-
-	status = qla1280_mailbox_command(ha, BIT_3 | BIT_2 | BIT_1 | BIT_0, &mb[0]);
+	status = qla1280_mailbox_command(ha, 0x0f, mb);
 
 	/* Save Tag queuing enable flag. */
-	mb[0] = BIT_0 << target;
-	if (nv->bus[bus].target[target].parameter.f.tag_queuing)
-		ha->bus_settings[bus].qtag_enables |= mb[0];
+	flag = (BIT_0 << target) & mb[0];
+	if (nv->bus[bus].target[target].parameter.tag_queuing)
+		ha->bus_settings[bus].qtag_enables |= flag;
 
 	/* Save Device enable flag. */
 	if (IS_ISP1x160(ha)) {
 		if (nv->bus[bus].target[target].flags.flags1x160.device_enable)
-			ha->bus_settings[bus].device_enables |= mb[0];
+			ha->bus_settings[bus].device_enables |= flag;
 		ha->bus_settings[bus].lun_disables |= 0;
 	} else {
 		if (nv->bus[bus].target[target].flags.flags1x80.device_enable)
-			ha->bus_settings[bus].device_enables |= mb[0];
+			ha->bus_settings[bus].device_enables |= flag;
 		/* Save LUN disable flag. */
 		if (nv->bus[bus].target[target].flags.flags1x80.lun_disable)
-			ha->bus_settings[bus].lun_disables |= mb[0];
+			ha->bus_settings[bus].lun_disables |= flag;
 	}
 
 	/* Set Device Queue Parameters. */
 	for (lun = 0; lun < MAX_LUNS; lun++) {
 		mb[0] = MBC_SET_DEVICE_QUEUE;
-		mb[1] = (uint16_t)(bus ? target | BIT_7 : target);
-		mb[1] = mb[1] << 8 | lun;
+		mb[1] = (uint16_t)((bus ? target | BIT_7 : target) << 8);
+		mb[1] |= lun;
 		mb[2] = nv->bus[bus].max_queue_depth;
 		mb[3] = nv->bus[bus].target[target].execution_throttle;
-		status |= qla1280_mailbox_command(ha, 0x0f, &mb[0]);
+		status |= qla1280_mailbox_command(ha, 0x0f, mb);
 	}
 
 	return status;
@@ -2431,7 +2342,6 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 	struct nvram *nv = &ha->nvram;
 	int bus, target, status = 0;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
-	uint16_t mask;
 
 	ENTER("qla1280_nvram_config");
 
@@ -2439,7 +2349,7 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 		/* Always force AUTO sense for LINUX SCSI */
 		for (bus = 0; bus < MAX_BUSES; bus++)
 			for (target = 0; target < MAX_TARGETS; target++) {
-				nv->bus[bus].target[target].parameter.f.
+				nv->bus[bus].target[target].parameter.
 					auto_request_sense = 1;
 			}
 	} else {
@@ -2457,31 +2367,40 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 
 		hwrev = RD_REG_WORD(&reg->cfg_0) & ISP_CFG0_HWMSK;
 
-		cfg1 = RD_REG_WORD(&reg->cfg_1);
+		cfg1 = RD_REG_WORD(&reg->cfg_1) & ~(BIT_4 | BIT_5 | BIT_6);
 		cdma_conf = RD_REG_WORD(&reg->cdma_cfg);
 		ddma_conf = RD_REG_WORD(&reg->ddma_cfg);
 
 		/* Busted fifo, says mjacob. */
-		if (hwrev == ISP_CFG0_1040A)
-			WRT_REG_WORD(&reg->cfg_1, cfg1 | ISP_CFG1_F64);
-		else
-			WRT_REG_WORD(&reg->cfg_1, cfg1 | ISP_CFG1_F64 | ISP_CFG1_BENAB);
+		if (hwrev != ISP_CFG0_1040A)
+			cfg1 |= nv->isp_config.fifo_threshold << 4;
+
+		cfg1 |= nv->isp_config.burst_enable << 2;
+		WRT_REG_WORD(&reg->cfg_1, cfg1);
 
 		WRT_REG_WORD(&reg->cdma_cfg, cdma_conf | CDMA_CONF_BENAB);
 		WRT_REG_WORD(&reg->ddma_cfg, cdma_conf | DDMA_CONF_BENAB);
 	} else {
+		uint16_t cfg1, term;
+
 		/* Set ISP hardware DMA burst */
-		mb[0] = nv->isp_config.c;
+		cfg1 = nv->isp_config.fifo_threshold << 4;
+		cfg1 |= nv->isp_config.burst_enable << 2;
 		/* Enable DMA arbitration on dual channel controllers */
 		if (ha->ports > 1)
-			mb[0] |= BIT_13;
-		WRT_REG_WORD(&reg->cfg_1, mb[0]);
+			cfg1 |= BIT_13;
+		WRT_REG_WORD(&reg->cfg_1, cfg1);
 
 		/* Set SCSI termination. */
-		WRT_REG_WORD(&reg->gpio_enable, (BIT_3 + BIT_2 + BIT_1 + BIT_0));
-		mb[0] = nv->termination.c & (BIT_3 + BIT_2 + BIT_1 + BIT_0);
-		WRT_REG_WORD(&reg->gpio_data, mb[0]);
+		WRT_REG_WORD(&reg->gpio_enable,
+			     BIT_7 | BIT_3 | BIT_2 | BIT_1 | BIT_0);
+		term = nv->termination.scsi_bus_1_control;
+		term |= nv->termination.scsi_bus_0_control << 2;
+		term |= nv->termination.auto_term_support << 7;
+		RD_REG_WORD(&reg->id_l);	/* Flush PCI write */
+		WRT_REG_WORD(&reg->gpio_data, term);
 	}
+	RD_REG_WORD(&reg->id_l);	/* Flush PCI write */
 
 	/* ISP parameter word. */
 	mb[0] = MBC_SET_SYSTEM_PARAMETER;
@@ -2497,16 +2416,17 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 
 	/* Firmware feature word. */
 	mb[0] = MBC_SET_FIRMWARE_FEATURES;
-	mask = BIT_5 | BIT_1 | BIT_0;
-	mb[1] = le16_to_cpu(nv->firmware_feature.w) & (mask);
+	mb[1] = nv->firmware_feature.f.enable_fast_posting;
+	mb[1] |= nv->firmware_feature.f.report_lvd_bus_transition << 1;
+	mb[1] |= nv->firmware_feature.f.disable_synchronous_backoff << 5;
 #if defined(CONFIG_IA64_GENERIC) || defined (CONFIG_IA64_SGI_SN2)
 	if (ia64_platform_is("sn2")) {
 		printk(KERN_INFO "scsi(%li): Enabling SN2 PCI DMA "
 		       "workaround\n", ha->host_no);
-		mb[1] |= BIT_9;
+		mb[1] |= nv->firmware_feature.f.unused_9 << 9; /* XXX */
 	}
 #endif
-	status |= qla1280_mailbox_command(ha, mask, &mb[0]);
+	status |= qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 
 	/* Retry count and delay. */
 	mb[0] = MBC_SET_RETRY_COUNT;
@@ -2535,27 +2455,27 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 		mb[2] |= BIT_5;
 	if (nv->bus[1].config_2.data_line_active_negation)
 		mb[2] |= BIT_4;
-	status |= qla1280_mailbox_command(ha, BIT_2 | BIT_1 | BIT_0, &mb[0]);
+	status |= qla1280_mailbox_command(ha, BIT_2 | BIT_1 | BIT_0, mb);
 
 	mb[0] = MBC_SET_DATA_OVERRUN_RECOVERY;
 	mb[1] = 2;	/* Reset SCSI bus and return all outstanding IO */
-	status |= qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
+	status |= qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 
 	/* thingy */
 	mb[0] = MBC_SET_PCI_CONTROL;
-	mb[1] = 2;	/* Data DMA Channel Burst Enable */
-	mb[2] = 2;	/* Command DMA Channel Burst Enable */
-	status |= qla1280_mailbox_command(ha, BIT_2 | BIT_1 | BIT_0, &mb[0]);
+	mb[1] = BIT_1;	/* Data DMA Channel Burst Enable */
+	mb[2] = BIT_1;	/* Command DMA Channel Burst Enable */
+	status |= qla1280_mailbox_command(ha, BIT_2 | BIT_1 | BIT_0, mb);
 
 	mb[0] = MBC_SET_TAG_AGE_LIMIT;
 	mb[1] = 8;
-	status |= qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
+	status |= qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 
 	/* Selection timeout. */
 	mb[0] = MBC_SET_SELECTION_TIMEOUT;
 	mb[1] = nv->bus[0].selection_timeout;
 	mb[2] = nv->bus[1].selection_timeout;
-	status |= qla1280_mailbox_command(ha, BIT_2 | BIT_1 | BIT_0, &mb[0]);
+	status |= qla1280_mailbox_command(ha, BIT_2 | BIT_1 | BIT_0, mb);
 
 	for (bus = 0; bus < ha->ports; bus++)
 		status |= qla1280_config_bus(ha, bus);
@@ -3066,7 +2986,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	struct scsi_cmnd *cmd = sp->cmd;
 	cmd_a64_entry_t *pkt;
 	struct scatterlist *sg = NULL;
-	u32 *dword_ptr;
+	__le32 *dword_ptr;
 	dma_addr_t dma_handle;
 	int status = 0;
 	int cnt;
@@ -3104,10 +3024,13 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 				REQUEST_ENTRY_CNT - (ha->req_ring_index - cnt);
 	}
 
+	dprintk(3, "Number of free entries=(%d) seg_cnt=0x%x\n",
+		ha->req_q_cnt, seg_cnt);
+
 	/* If room for request in request ring. */
 	if ((req_cnt + 2) >= ha->req_q_cnt) {
 		status = 1;
-		dprintk(2, "qla1280_64bit_start_scsi: in-ptr=0x%x  req_q_cnt="
+		dprintk(2, "qla1280_start_scsi: in-ptr=0x%x  req_q_cnt="
 			"0x%xreq_cnt=0x%x", ha->req_ring_index, ha->req_q_cnt,
 			req_cnt);
 		goto out;
@@ -3119,7 +3042,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 	if (cnt >= MAX_OUTSTANDING_COMMANDS) {
 		status = 1;
-		dprintk(2, "qla1280_64bit_start_scsi: NO ROOM IN "
+		dprintk(2, "qla1280_start_scsi: NO ROOM IN "
 			"OUTSTANDING ARRAY, req_q_cnt=0x%x", ha->req_q_cnt);
 		goto out;
 	}
@@ -3128,7 +3051,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	ha->req_q_cnt -= req_cnt;
 	CMD_HANDLE(sp->cmd) = (unsigned char *)(unsigned long)(cnt + 1);
 
-	dprintk(2, "64bit_start: cmd=%p sp=%p CDB=%xm, handle %lx\n", cmd, sp,
+	dprintk(2, "start: cmd=%p sp=%p CDB=%xm, handle %lx\n", cmd, sp,
 		cmd->cmnd[0], (long)CMD_HANDLE(sp->cmd));
 	dprintk(2, "             bus %i, target %i, lun %i\n",
 		SCSI_BUS_32(cmd), SCSI_TCN_32(cmd), SCSI_LUN_32(cmd));
@@ -3350,7 +3273,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	struct scsi_cmnd *cmd = sp->cmd;
 	struct cmd_entry *pkt;
 	struct scatterlist *sg = NULL;
-	uint32_t *dword_ptr;
+	__le32 *dword_ptr;
 	int status = 0;
 	int cnt;
 	int req_cnt;
@@ -3993,21 +3916,21 @@ qla1280_get_target_options(struct scsi_cmnd *cmd, struct scsi_qla_host *ha)
 	result = cmd->request_buffer;
 	n = &ha->nvram;
 
-	n->bus[bus].target[target].parameter.f.enable_wide = 0;
-	n->bus[bus].target[target].parameter.f.enable_sync = 0;
+	n->bus[bus].target[target].parameter.enable_wide = 0;
+	n->bus[bus].target[target].parameter.enable_sync = 0;
 	n->bus[bus].target[target].ppr_1x160.flags.enable_ppr = 0;
 
         if (result[7] & 0x60)
-		n->bus[bus].target[target].parameter.f.enable_wide = 1;
+		n->bus[bus].target[target].parameter.enable_wide = 1;
         if (result[7] & 0x10)
-		n->bus[bus].target[target].parameter.f.enable_sync = 1;
+		n->bus[bus].target[target].parameter.enable_sync = 1;
 	if ((result[2] >= 3) && (result[4] + 5 > 56) &&
 	    (result[56] & 0x4))
 		n->bus[bus].target[target].ppr_1x160.flags.enable_ppr = 1;
 
 	dprintk(2, "get_target_options(): wide %i, sync %i, ppr %i\n",
-		n->bus[bus].target[target].parameter.f.enable_wide,
-		n->bus[bus].target[target].parameter.f.enable_sync,
+		n->bus[bus].target[target].parameter.enable_wide,
+		n->bus[bus].target[target].parameter.enable_sync,
 		n->bus[bus].target[target].ppr_1x160.flags.enable_ppr);
 }
 #endif
@@ -4071,7 +3994,7 @@ qla1280_status_entry(struct scsi_qla_host *ha, struct response *pkt,
 		/* Save ISP completion status */
 		CMD_RESULT(cmd) = qla1280_return_status(pkt, cmd);
 
-		if (scsi_status & SS_CHECK_CONDITION) {
+		if (scsi_status & SAM_STAT_CHECK_CONDITION) {
 			if (comp_status != CS_ARS_FAILED) {
 				uint16_t req_sense_length =
 					le16_to_cpu(pkt->req_sense_length);
@@ -4650,7 +4573,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_set_dma_mask(ha->pdev, (dma_addr_t) ~ 0ULL)) {
 		if (pci_set_dma_mask(ha->pdev, 0xffffffff)) {
 			printk(KERN_WARNING "scsi(%li): Unable to set a "
-			       " suitable DMA mask - aboring\n", ha->host_no);
+			       "suitable DMA mask - aborting\n", ha->host_no);
 			error = -ENODEV;
 			goto error_free_irq;
 		}
@@ -4660,14 +4583,14 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 #else
 	if (pci_set_dma_mask(ha->pdev, 0xffffffff)) {
 		printk(KERN_WARNING "scsi(%li): Unable to set a "
-		       " suitable DMA mask - aboring\n", ha->host_no);
+		       "suitable DMA mask - aborting\n", ha->host_no);
 		error = -ENODEV;
 		goto error_free_irq;
 	}
 #endif
 
 	ha->request_ring = pci_alloc_consistent(ha->pdev,
-			((REQUEST_ENTRY_CNT + 1) * (sizeof(request_t))),
+			((REQUEST_ENTRY_CNT + 1) * sizeof(request_t)),
 			&ha->request_dma);
 	if (!ha->request_ring) {
 		printk(KERN_INFO "qla1280: Failed to get request memory\n");
@@ -4675,7 +4598,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	ha->response_ring = pci_alloc_consistent(ha->pdev,
-			((RESPONSE_ENTRY_CNT + 1) * (sizeof(struct response))),
+			((RESPONSE_ENTRY_CNT + 1) * sizeof(struct response)),
 			&ha->response_dma);
 	if (!ha->response_ring) {
 		printk(KERN_INFO "qla1280: Failed to get response memory\n");
@@ -4758,7 +4681,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 #if LINUX_VERSION_CODE >= 0x020600
  error_disable_adapter:
-	WRT_REG_WORD(&ha->iobase->ictrl, 0);
+	qla1280_disable_intrs(ha);
 #endif
  error_free_irq:
 	free_irq(pdev->irq, ha);
@@ -4770,11 +4693,11 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 #endif
  error_free_response_ring:
 	pci_free_consistent(ha->pdev,
-			((RESPONSE_ENTRY_CNT + 1) * (sizeof(struct response))),
+			((RESPONSE_ENTRY_CNT + 1) * sizeof(struct response)),
 			ha->response_ring, ha->response_dma);
  error_free_request_ring:
 	pci_free_consistent(ha->pdev,
-			((REQUEST_ENTRY_CNT + 1) * (sizeof(request_t))),
+			((REQUEST_ENTRY_CNT + 1) * sizeof(request_t)),
 			ha->request_ring, ha->request_dma);
  error_put_host:
 	scsi_host_put(host);
@@ -4795,7 +4718,7 @@ qla1280_remove_one(struct pci_dev *pdev)
 	scsi_remove_host(host);
 #endif
 
-	WRT_REG_WORD(&ha->iobase->ictrl, 0);
+	qla1280_disable_intrs(ha);
 
 	free_irq(pdev->irq, ha);
 

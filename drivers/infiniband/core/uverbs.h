@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -43,8 +45,8 @@
 #include <linux/kref.h>
 #include <linux/idr.h>
 
-#include <ib_verbs.h>
-#include <ib_user_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_user_verbs.h>
 
 struct ib_uverbs_device {
 	int					devnum;
@@ -74,20 +76,28 @@ struct ib_uverbs_file {
 	struct ib_uverbs_event_file	        comp_file[1];
 };
 
-struct ib_uverbs_async_event {
-	struct ib_uverbs_async_event_desc	desc;
+struct ib_uverbs_event {
+	union {
+		struct ib_uverbs_async_event_desc	async;
+		struct ib_uverbs_comp_event_desc	comp;
+	}					desc;
 	struct list_head			list;
+	struct list_head			obj_list;
+	u32				       *counter;
 };
 
-struct ib_uverbs_comp_event {
-	struct ib_uverbs_comp_event_desc	desc;
-	struct list_head			list;
+struct ib_uevent_object {
+	struct ib_uobject	uobject;
+	struct list_head	event_list;
+	u32			events_reported;
 };
 
-struct ib_uobject_mr {
-	struct ib_uobject			uobj;
-	struct page			       *page_list;
-	struct scatterlist		       *sg_list;
+struct ib_ucq_object {
+	struct ib_uobject	uobject;
+	struct list_head	comp_list;
+	struct list_head	async_list;
+	u32			comp_events_reported;
+	u32			async_events_reported;
 };
 
 extern struct semaphore ib_uverbs_idr_mutex;
@@ -97,10 +107,12 @@ extern struct idr ib_uverbs_mw_idr;
 extern struct idr ib_uverbs_ah_idr;
 extern struct idr ib_uverbs_cq_idr;
 extern struct idr ib_uverbs_qp_idr;
+extern struct idr ib_uverbs_srq_idr;
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr);
+void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
 
 int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 		void *addr, size_t size, int write);
@@ -129,5 +141,8 @@ IB_UVERBS_DECLARE_CMD(modify_qp);
 IB_UVERBS_DECLARE_CMD(destroy_qp);
 IB_UVERBS_DECLARE_CMD(attach_mcast);
 IB_UVERBS_DECLARE_CMD(detach_mcast);
+IB_UVERBS_DECLARE_CMD(create_srq);
+IB_UVERBS_DECLARE_CMD(modify_srq);
+IB_UVERBS_DECLARE_CMD(destroy_srq);
 
 #endif /* UVERBS_H */

@@ -632,12 +632,9 @@ __raw3270_size_device(struct raw3270 *rp)
 	raw3270_init_request.ccw.cda = (__u32) __pa(raw3270_init_data);
 
 	rc = raw3270_start_init(rp, &raw3270_init_view, &raw3270_init_request);
-	if (rc) {
+	if (rc)
 		/* Check error cases: -ERESTARTSYS, -EIO and -EOPNOTSUPP */
-		if (rc == -EOPNOTSUPP && MACHINE_IS_VM)
-			return __raw3270_size_device_vm(rp);
 		return rc;
-	}
 
 	/* Wait for attention interrupt. */
 #ifdef CONFIG_TN3270_CONSOLE
@@ -695,7 +692,10 @@ raw3270_size_device(struct raw3270 *rp)
 	down(&raw3270_init_sem);
 	rp->view = &raw3270_init_view;
 	raw3270_init_view.dev = rp;
-	rc = __raw3270_size_device(rp);
+	if (MACHINE_IS_VM)
+		rc = __raw3270_size_device_vm(rp);
+	else
+		rc = __raw3270_size_device(rp);
 	raw3270_init_view.dev = 0;
 	rp->view = 0;
 	up(&raw3270_init_sem);
@@ -710,6 +710,12 @@ raw3270_size_device(struct raw3270 *rp)
 			rp->model = 4;
 		if (rp->rows == 27 && rp->cols == 132)
 			rp->model = 5;
+	} else {
+		/* Couldn't detect size. Use default model 2. */
+		rp->model = 2;
+		rp->rows = 24;
+		rp->cols = 80;
+		return 0;
 	}
 	return rc;
 }

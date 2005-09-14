@@ -1531,7 +1531,7 @@ yyreduce:
 
     {
 	menu_add_entry(NULL);
-	menu_add_prop(P_MENU, yyvsp[-1].string, NULL, NULL);
+	menu_add_prompt(P_MENU, yyvsp[-1].string, NULL);
 	printd(DEBUG_PARSE, "%s:%d:menu\n", zconf_curname(), zconf_lineno());
 ;}
     break;
@@ -1586,7 +1586,7 @@ yyreduce:
 
     {
 	menu_add_entry(NULL);
-	menu_add_prop(P_COMMENT, yyvsp[-1].string, NULL, NULL);
+	menu_add_prompt(P_COMMENT, yyvsp[-1].string, NULL);
 	printd(DEBUG_PARSE, "%s:%d:comment\n", zconf_curname(), zconf_lineno());
 ;}
     break;
@@ -1640,7 +1640,7 @@ yyreduce:
   case 86:
 
     {
-	menu_add_prop(P_PROMPT, yyvsp[-1].string, NULL, yyvsp[0].expr);
+	menu_add_prompt(P_PROMPT, yyvsp[-1].string, yyvsp[0].expr);
 ;}
     break;
 
@@ -1925,7 +1925,7 @@ void conf_parse(const char *name)
 	sym_init();
 	menu_init();
 	modules_sym = sym_lookup("MODULES", 0);
-	rootmenu.prompt = menu_add_prop(P_MENU, "Linux Kernel Configuration", NULL, NULL);
+	rootmenu.prompt = menu_add_prompt(P_MENU, "Linux Kernel Configuration", NULL);
 
 	//zconfdebug = 1;
 	zconfparse();

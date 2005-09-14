@@ -131,6 +131,8 @@ config NET_SB1000
 
 	source "drivers/net/arcnet/Kconfig"
 
+source "drivers/net/phy/Kconfig"
+
 #
 #	Ethernet
 #
@@ -395,7 +397,7 @@ config SUN3LANCE
 	  If you're not building a kernel for a Sun 3, say N.
 
 config SUN3_82586
-	tristate "Sun3 on-board Intel 82586 support"
+	bool "Sun3 on-board Intel 82586 support"
 	depends on NET_ETHERNET && SUN3
 	help
 	  This driver enables support for the on-board Intel 82586 based
@@ -445,7 +447,7 @@ config NET_SB1250_MAC
 
 config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
-	depends on NET_ETHERNET && PCI && SGI_IP27
+	depends on NET_ETHERNET && PCI && SGI_IP27 && BROKEN
 	select CRC32
 	select MII
 	help
@@ -1145,7 +1147,7 @@ config IBMVETH
 	  be called ibmveth.
 
 config IBM_EMAC
-	tristate "IBM PPC4xx EMAC driver support"
+	bool "IBM PPC4xx EMAC driver support"
 	depends on 4xx
 	select CRC32
 	---help---
@@ -1154,7 +1156,7 @@ config IBM_EMAC
 
 config IBM_EMAC_ERRMSG
 	bool "Verbose error messages"
-	depends on IBM_EMAC
+	depends on IBM_EMAC && BROKEN
 
 config IBM_EMAC_RXB
 	int "Number of receive buffers"
@@ -1736,11 +1738,18 @@ config 68360_ENET
 	  the Motorola 68360 processor.
 
 config FEC
-	bool "FEC ethernet controller (of ColdFire 5272)"
-	depends on M5272 || M5282
+	bool "FEC ethernet controller (of ColdFire CPUs)"
+	depends on M523x || M527x || M5272 || M528x
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
-	  controller on the Motorola ColdFire 5272 processor.
+	  controller on some Motorola ColdFire processors.
+
+config FEC2
+	bool "Second FEC ethernet controller (on some ColdFire CPUs)"
+	depends on FEC
+	help
+	  Say Y here if you want to use the second built-in 10/100 Fast
+	  ethernet controller on some Motorola ColdFire processors.
 
 config NE_H8300
 	tristate "NE2000 compatible support for H8/300"
@@ -1921,6 +1930,20 @@ config R8169_VLAN
 	  
 	  If in doubt, say Y.
 
+config SIS190
+	tristate "SiS190/SiS191 gigabit ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	---help---
+	  Say Y here if you have a SiS 190 PCI Fast Ethernet adapter or
+	  a SiS 191 PCI Gigabit Ethernet adapter. Both are expected to
+	  appear in lan on motherboard designs which are based on SiS 965
+	  and SiS 966 south bridge.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sis190.  This is recommended.
+
 config SKGE
 	tristate "New SysKonnect GigaEthernet support (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
@@ -2060,6 +2083,13 @@ config BNX2
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2.  This is recommended.
 
+config SPIDER_NET
+	tristate "Spider Gigabit Ethernet driver"
+	depends on PCI && PPC_BPA
+	help
+	  This driver supports the Gigabit Ethernet chips present on the
+	  Cell Processor-Based Blades from IBM.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx
@@ -2108,6 +2138,25 @@ endmenu
 
 menu "Ethernet (10000 Mbit)"
 	depends on !UML
+
+config CHELSIO_T1
+        tristate "Chelsio 10Gb Ethernet support"
+        depends on PCI
+        help
+          This driver supports Chelsio N110 and N210 models 10Gb Ethernet
+          cards. More information about adapter features and performance
+          tuning is in <file:Documentation/networking/cxgb.txt>.
+
+          For general information about Chelsio and our products, visit
+          our website at <http://www.chelsio.com>.
+
+          For customer support, please visit our customer support page at
+          <http://www.chelsio.com/support.htm>.
+
+          Please send feedback to <linux-bugs@chelsio.com>.
+
+          To compile this driver as a module, choose M here: the module
+          will be called cxgb.
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"

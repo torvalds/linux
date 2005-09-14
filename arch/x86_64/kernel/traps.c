@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/nmi.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -45,9 +46,6 @@
 #include <asm/pda.h>
 #include <asm/proto.h>
 #include <asm/nmi.h>
-
-#include <linux/irq.h>
-
 
 extern struct gate_struct idt_table[256]; 
 
@@ -323,13 +321,13 @@ void handle_BUG(struct pt_regs *regs)
 	if (__copy_from_user(&f, (struct bug_frame *) regs->rip, 
 			     sizeof(struct bug_frame)))
 		return; 
-	if ((unsigned long)f.filename < __PAGE_OFFSET || 
+	if (f.filename >= 0 ||
 	    f.ud2[0] != 0x0f || f.ud2[1] != 0x0b) 
 		return;
-	if (__get_user(tmp, f.filename))
-		f.filename = "unmapped filename"; 
+	if (__get_user(tmp, (char *)(long)f.filename))
+		f.filename = (int)(long)"unmapped filename";
 	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", f.filename, f.line);
+	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", (char *)(long)f.filename, f.line);
 } 
 
 #ifdef CONFIG_BUG
@@ -342,30 +340,33 @@ void out_of_line_bug(void)
 static DEFINE_SPINLOCK(die_lock);
 static int die_owner = -1;
 
-void oops_begin(void)
+unsigned long oops_begin(void)
 {
-	int cpu = safe_smp_processor_id(); 
-	/* racy, but better than risking deadlock. */ 
-	local_irq_disable();
+	int cpu = safe_smp_processor_id();
+	unsigned long flags;
+
+	/* racy, but better than risking deadlock. */
+	local_irq_save(flags);
 	if (!spin_trylock(&die_lock)) { 
 		if (cpu == die_owner) 
 			/* nested oops. should stop eventually */;
 		else
-			spin_lock(&die_lock); 
+			spin_lock(&die_lock);
 	}
-	die_owner = cpu; 
+	die_owner = cpu;
 	console_verbose();
-	bust_spinlocks(1); 
+	bust_spinlocks(1);
+	return flags;
 }
 
-void oops_end(void)
+void oops_end(unsigned long flags)
 { 
 	die_owner = -1;
-	bust_spinlocks(0); 
-	spin_unlock(&die_lock); 
+	bust_spinlocks(0);
+	spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
-		panic("Oops"); 
-} 
+		panic("Oops");
+}
 
 void __die(const char * str, struct pt_regs * regs, long err)
 {
@@ -391,10 +392,11 @@ void __die(const char * str, struct pt_regs * regs, long err)
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
-	oops_begin();
+	unsigned long flags = oops_begin();
+
 	handle_BUG(regs);
 	__die(str, regs, err);
-	oops_end();
+	oops_end(flags);
 	do_exit(SIGSEGV); 
 }
 static inline void die_if_kernel(const char * str, struct pt_regs * regs, long err)
@@ -405,7 +407,8 @@ static inline void die_if_kernel(const char * str, struct pt_regs * regs, long e
 
 void die_nmi(char *str, struct pt_regs *regs)
 {
-	oops_begin();
+	unsigned long flags = oops_begin();
+
 	/*
 	 * We are in trouble anyway, lets at least try
 	 * to get a message out.
@@ -415,12 +418,13 @@ void die_nmi(char *str, struct pt_regs *regs)
 	if (panic_on_timeout || panic_on_oops)
 		panic("nmi watchdog");
 	printk("console shuts up ...\n");
-	oops_end();
+	oops_end(flags);
 	do_exit(SIGSEGV);
 }
 
-static void do_trap(int trapnr, int signr, char *str, 
-			   struct pt_regs * regs, long error_code, siginfo_t *info)
+static void __kprobes do_trap(int trapnr, int signr, char *str,
+			      struct pt_regs * regs, long error_code,
+			      siginfo_t *info)
 {
 	conditional_sti(regs);
 
@@ -504,7 +508,8 @@ DO_ERROR(18, SIGSEGV, "reserved", reserved)
 DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
 DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
 
-asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
+asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
+						long error_code)
 {
 	conditional_sti(regs);
 
@@ -622,7 +627,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		io_check_error(reason, regs);
 }
 
-asmlinkage void do_int3(struct pt_regs * regs, long error_code)
+asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
 		return;
@@ -653,7 +658,8 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
 }
 
 /* runs on IST stack. */
-asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
+asmlinkage void __kprobes do_debug(struct pt_regs * regs,
+				   unsigned long error_code)
 {
 	unsigned long condition;
 	struct task_struct *tsk = current;
@@ -786,13 +792,16 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 	 */
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
-	switch (((~cwd) & swd & 0x3f) | (swd & 0x240)) {
+	switch (swd & ~cwd & 0x3f) {
 		case 0x000:
 		default:
 			break;
 		case 0x001: /* Invalid Op */
-		case 0x041: /* Stack Fault */
-		case 0x241: /* Stack Fault | Direction */
+			/*
+			 * swd & 0x240 == 0x040: Stack Underflow
+			 * swd & 0x240 == 0x240: Stack Overflow
+			 * User must clear the SF bit (0x40) if set
+			 */
 			info.si_code = FPE_FLTINV;
 			break;
 		case 0x002: /* Denormalize */

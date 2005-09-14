@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 
 	.text
@@ -183,7 +183,7 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_GLOBAL(__flush_icache_range)
+_KPROBE(__flush_icache_range)
 
 /*
  * Flush the data cache to memory 
@@ -223,7 +223,7 @@ _GLOBAL(__flush_icache_range)
 	bdnz	2b
 	isync
 	blr
-	
+	.previous .text
 /*
  * Like above, but only do the D-cache.
  *
@@ -680,6 +680,104 @@ _GLOBAL(kernel_thread)
 	ld	r30,-16(r1)
 	blr
 
+/*
+ * disable_kernel_fp()
+ * Disable the FPU.
+ */
+_GLOBAL(disable_kernel_fp)
+	mfmsr	r3
+	rldicl	r0,r3,(63-MSR_FP_LG),1
+	rldicl	r3,r0,(MSR_FP_LG+1),0
+	mtmsrd	r3			/* disable use of fpu now */
+	isync
+	blr
+
+/*
+ * giveup_fpu(tsk)
+ * Disable FP for the task given as the argument,
+ * and save the floating-point registers in its thread_struct.
+ * Enables the FPU for use in the kernel on return.
+ */
+_GLOBAL(giveup_fpu)
+	mfmsr	r5
+	ori	r5,r5,MSR_FP
+	mtmsrd	r5			/* enable use of fpu now */
+	isync
+	cmpdi	0,r3,0
+	beqlr-				/* if no previous owner, done */
+	addi	r3,r3,THREAD		/* want THREAD of task */
+	ld	r5,PT_REGS(r3)
+	cmpdi	0,r5,0
+	SAVE_32FPRS(0, r3)
+	mffs	fr0
+	stfd	fr0,THREAD_FPSCR(r3)
+	beq	1f
+	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	li	r3,MSR_FP|MSR_FE0|MSR_FE1
+	andc	r4,r4,r3		/* disable FP for previous task */
+	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+1:
+#ifndef CONFIG_SMP
+	li	r5,0
+	ld	r4,last_task_used_math@got(r2)
+	std	r5,0(r4)
+#endif /* CONFIG_SMP */
+	blr
+
+#ifdef CONFIG_ALTIVEC
+
+#if 0 /* this has no callers for now */
+/*
+ * disable_kernel_altivec()
+ * Disable the VMX.
+ */
+_GLOBAL(disable_kernel_altivec)
+	mfmsr	r3
+	rldicl	r0,r3,(63-MSR_VEC_LG),1
+	rldicl	r3,r0,(MSR_VEC_LG+1),0
+	mtmsrd	r3			/* disable use of VMX now */
+	isync
+	blr
+#endif /* 0 */
+
+/*
+ * giveup_altivec(tsk)
+ * Disable VMX for the task given as the argument,
+ * and save the vector registers in its thread_struct.
+ * Enables the VMX for use in the kernel on return.
+ */
+_GLOBAL(giveup_altivec)
+	mfmsr	r5
+	oris	r5,r5,MSR_VEC@h
+	mtmsrd	r5			/* enable use of VMX now */
+	isync
+	cmpdi	0,r3,0
+	beqlr-				/* if no previous owner, done */
+	addi	r3,r3,THREAD		/* want THREAD of task */
+	ld	r5,PT_REGS(r3)
+	cmpdi	0,r5,0
+	SAVE_32VRS(0,r4,r3)
+	mfvscr	vr0
+	li	r4,THREAD_VSCR
+	stvx	vr0,r4,r3
+	beq	1f
+	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	lis	r3,MSR_VEC@h
+	andc	r4,r4,r3		/* disable FP for previous task */
+	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+1:
+#ifndef CONFIG_SMP
+	li	r5,0
+	ld	r4,last_task_used_altivec@got(r2)
+	std	r5,0(r4)
+#endif /* CONFIG_SMP */
+	blr
+
+#endif /* CONFIG_ALTIVEC */
+
+_GLOBAL(__setup_cpu_power3)
+	blr
+
 /* kexec_wait(phys_cpu)
  *
  * wait for the flag to change, indicating this kernel is going away but
@@ -859,7 +957,7 @@ _GLOBAL(sys_call_table32)
 	.llong .ppc_fork
 	.llong .sys_read
 	.llong .sys_write
-	.llong .sys32_open		/* 5 */
+	.llong .compat_sys_open		/* 5 */
 	.llong .sys_close
 	.llong .sys32_waitpid
 	.llong .sys32_creat
@@ -1333,9 +1431,9 @@ _GLOBAL(sys_call_table)
 	.llong .sys_ni_syscall		/* 195 - 32bit only stat64 */
 	.llong .sys_ni_syscall		/* 32bit only lstat64 */
 	.llong .sys_ni_syscall		/* 32bit only fstat64 */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_read */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_write */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_iobase */
+	.llong .sys_pciconfig_read
+	.llong .sys_pciconfig_write
+	.llong .sys_pciconfig_iobase	/* 200 - pciconfig_iobase */
 	.llong .sys_ni_syscall		/* reserved for MacOnLinux */
 	.llong .sys_getdents64
 	.llong .sys_pivot_root

@@ -242,7 +242,7 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 	unsigned char data[GF2K_LENGTH];
 	int i, err;
 
-	if (!(gf2k = kcalloc(1, sizeof(struct gf2k), GFP_KERNEL)))
+	if (!(gf2k = kzalloc(sizeof(struct gf2k), GFP_KERNEL)))
 		return -ENOMEM;
 
 	gf2k->gameport = gameport;

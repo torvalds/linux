@@ -64,8 +64,6 @@ static int dont_scale_voltage;
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
 
-#define __hlt()     __asm__ __volatile__("hlt": : :"memory")
-
 /* Clock ratios multiplied by 10 */
 static int clock_ratio[32];
 static int eblcr_table[32];
@@ -168,11 +166,9 @@ static void do_powersaver(union msr_longhaul *longhaul,
 	outb(0xFE,0x21);	/* TMR0 only */
 	outb(0xFF,0x80);	/* delay */
 
-	local_irq_enable();
-
-	__hlt();
+	safe_halt();
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul->val);
-	__hlt();
+	halt();
 
 	local_irq_disable();
 
@@ -251,9 +247,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 		bcr2.bits.CLOCKMUL = clock_ratio_index;
 		local_irq_disable();
 		wrmsrl (MSR_VIA_BCR2, bcr2.val);
-		local_irq_enable();
-
-		__hlt();
+		safe_halt();
 
 		/* Disable software clock multiplier */
 		rdmsrl (MSR_VIA_BCR2, bcr2.val);
@@ -473,11 +467,11 @@ static void __init longhaul_setup_voltagescaling(void)
 	}
 
 	if (vrmrev==0) {
-		dprintk ("VRM 8.5 \n");
+		dprintk ("VRM 8.5\n");
 		memcpy (voltage_table, vrm85scales, sizeof(voltage_table));
 		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/25;
 	} else {
-		dprintk ("Mobile VRM \n");
+		dprintk ("Mobile VRM\n");
 		memcpy (voltage_table, mobilevrmscales, sizeof(voltage_table));
 		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/5;
 	}

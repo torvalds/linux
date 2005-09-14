@@ -217,8 +217,7 @@ static void hfsplus_put_super(struct super_block *sb)
 		vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_UNMNT);
 		vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_INCNSTNT);
 		mark_buffer_dirty(HFSPLUS_SB(sb).s_vhbh);
-		ll_rw_block(WRITE, 1, &HFSPLUS_SB(sb).s_vhbh);
-		wait_on_buffer(HFSPLUS_SB(sb).s_vhbh);
+		sync_dirty_buffer(HFSPLUS_SB(sb).s_vhbh);
 	}
 
 	hfs_btree_close(HFSPLUS_SB(sb).cat_tree);
@@ -277,6 +276,7 @@ static struct super_operations hfsplus_sops = {
 	.write_super	= hfsplus_write_super,
 	.statfs		= hfsplus_statfs,
 	.remount_fs	= hfsplus_remount,
+	.show_options	= hfsplus_show_options,
 };
 
 static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
@@ -297,8 +297,8 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	memset(sbi, 0, sizeof(HFSPLUS_SB(sb)));
 	sb->s_fs_info = sbi;
 	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
-	fill_defaults(sbi);
-	if (!parse_options(data, sbi)) {
+	hfsplus_fill_defaults(sbi);
+	if (!hfsplus_parse_options(data, sbi)) {
 		if (!silent)
 			printk("HFS+-fs: unable to parse mount options\n");
 		err = -EINVAL;
@@ -415,8 +415,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
 	vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
 	mark_buffer_dirty(HFSPLUS_SB(sb).s_vhbh);
-	ll_rw_block(WRITE, 1, &HFSPLUS_SB(sb).s_vhbh);
-	wait_on_buffer(HFSPLUS_SB(sb).s_vhbh);
+	sync_dirty_buffer(HFSPLUS_SB(sb).s_vhbh);
 
 	if (!HFSPLUS_SB(sb).hidden_dir) {
 		printk("HFS+: create hidden dir...\n");

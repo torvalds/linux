@@ -88,7 +88,7 @@ DEBUGGER_BOILERPLATE(debugger_dabr_match)
 DEBUGGER_BOILERPLATE(debugger_fault_handler)
 
 #ifdef CONFIG_XMON
-extern void xmon_init(void);
+extern void xmon_init(int enable);
 #endif
 
 #else
@@ -101,6 +101,9 @@ static inline int debugger_dabr_match(struct pt_regs *regs) { return 0; }
 static inline int debugger_fault_handler(struct pt_regs *regs) { return 0; }
 #endif
 
+extern int set_dabr(unsigned long dabr);
+extern void _exception(int signr, struct pt_regs *regs, int code,
+		       unsigned long addr);
 extern int fix_alignment(struct pt_regs *regs);
 extern void bad_page_fault(struct pt_regs *regs, unsigned long address,
 			   int sig);
@@ -158,7 +161,7 @@ static inline int __is_processor(unsigned long pv)
  * is more like most of the other architectures.
  */
 static __inline__ unsigned long
-__xchg_u32(volatile int *m, unsigned long val)
+__xchg_u32(volatile unsigned int *m, unsigned long val)
 {
 	unsigned long dummy;
 
@@ -200,7 +203,7 @@ __xchg_u64(volatile long *m, unsigned long val)
 extern void __xchg_called_with_bad_pointer(void);
 
 static __inline__ unsigned long
-__xchg(volatile void *ptr, unsigned long x, int size)
+__xchg(volatile void *ptr, unsigned long x, unsigned int size)
 {
 	switch (size) {
 	case 4:
@@ -223,7 +226,7 @@ __xchg(volatile void *ptr, unsigned long x, int size)
 #define __HAVE_ARCH_CMPXCHG	1
 
 static __inline__ unsigned long
-__cmpxchg_u32(volatile int *p, int old, int new)
+__cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 {
 	unsigned int prev;
 
@@ -271,7 +274,8 @@ __cmpxchg_u64(volatile long *p, unsigned long old, unsigned long new)
 extern void __cmpxchg_called_with_bad_pointer(void);
 
 static __inline__ unsigned long
-__cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
+__cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
+	  unsigned int size)
 {
 	switch (size) {
 	case 4:
@@ -283,13 +287,9 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 	return old;
 }
 
-#define cmpxchg(ptr,o,n)						 \
-  ({									 \
-     __typeof__(*(ptr)) _o_ = (o);					 \
-     __typeof__(*(ptr)) _n_ = (n);					 \
-     (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,		 \
-				    (unsigned long)_n_, sizeof(*(ptr))); \
-  })
+#define cmpxchg(ptr,o,n)\
+	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
+	(unsigned long)(n),sizeof(*(ptr))))
 
 /*
  * We handle most unaligned accesses in hardware. On the other hand 
@@ -301,6 +301,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 #define NET_IP_ALIGN   0
 
 #define arch_align_stack(x) (x)
+
+extern unsigned long reloc_offset(void);
 
 #endif /* __KERNEL__ */
 #endif

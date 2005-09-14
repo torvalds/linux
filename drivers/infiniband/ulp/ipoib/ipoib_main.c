@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +36,6 @@
 
 #include "ipoib.h"
 
-#include <linux/version.h>
 #include <linux/module.h>
 
 #include <linux/init.h>
@@ -607,8 +608,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x "
 					   IPOIB_GID_FMT "\n",
 					   skb->dst ? "neigh" : "dst",
-					   be16_to_cpup((u16 *) skb->data),
-					   be32_to_cpup((u32 *) phdr->hwaddr),
+					   be16_to_cpup((__be16 *) skb->data),
+					   be32_to_cpup((__be32 *) phdr->hwaddr),
 					   IPOIB_GID_ARG(*(union ib_gid *) (phdr->hwaddr + 4)));
 				dev_kfree_skb_any(skb);
 				++priv->stats.tx_dropped;
@@ -671,7 +672,7 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	schedule_work(&priv->restart_task);
+	queue_work(ipoib_workqueue, &priv->restart_task);
 }
 
 static void ipoib_neigh_destructor(struct neighbour *n)
@@ -780,15 +781,11 @@ void ipoib_dev_cleanup(struct net_device *dev)
 
 	ipoib_ib_dev_cleanup(dev);
 
-	if (priv->rx_ring) {
-		kfree(priv->rx_ring);
-		priv->rx_ring = NULL;
-	}
+	kfree(priv->rx_ring);
+	kfree(priv->tx_ring);
 
-	if (priv->tx_ring) {
-		kfree(priv->tx_ring);
-		priv->tx_ring = NULL;
-	}
+	priv->rx_ring = NULL;
+	priv->tx_ring = NULL;
 }
 
 static void ipoib_setup(struct net_device *dev)
@@ -886,6 +883,12 @@ static ssize_t create_child(struct class_device *cdev,
 	if (pkey < 0 || pkey > 0xffff)
 		return -EINVAL;
 
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	pkey |= 0x8000;
+
 	ret = ipoib_vlan_add(container_of(cdev, struct net_device, class_dev),
 			     pkey);
 
@@ -937,6 +940,12 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto alloc_mem_failed;
 	}
+
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	priv->pkey |= 0x8000;
 
 	priv->dev->broadcast[8] = priv->pkey >> 8;
 	priv->dev->broadcast[9] = priv->pkey & 0xff;
@@ -1053,6 +1062,8 @@ static void ipoib_remove_one(struct ib_device *device)
 		ipoib_dev_cleanup(priv->dev);
 		free_netdev(priv->dev);
 	}
+
+	kfree(dev_list);
 }
 
 static int __init ipoib_init_module(void)

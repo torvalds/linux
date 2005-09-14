@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-cards.c,v 1.80 2005/07/07 01:49:30 mkrufky Exp $
  *
  * device driver for philips saa7134 based TV cards
  * card-specific stuff.
@@ -1373,7 +1372,7 @@ struct saa7134_board saa7134_boards[] = {
 		.inputs         = {{
 			.name = name_comp1,
 			.vmux = 1,
-			.amux = LINE2,
+			.amux = LINE1,
 		},{
 			.name = name_tv,
 			.vmux = 3,
@@ -1382,7 +1381,7 @@ struct saa7134_board saa7134_boards[] = {
 		},{
 			.name = name_svideo,
 			.vmux = 8,
-			.amux = LINE2,
+			.amux = LINE1,
 		}},
 		.radio = {
 			.name   = name_radio,
@@ -2001,6 +2000,115 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x000,
 		},
 	},
+	[SAA7134_BOARD_FLYTV_DIGIMATRIX] = {
+		.name		= "FlyTV mini Asus Digimatrix",
+		.audio_clock	= 0x00200000,
+		.tuner_type	= TUNER_LG_NTSC_TALN_MINI,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,		/* radio unconfirmed */
+			.amux = LINE2,
+		},
+	},
+	[SAA7134_BOARD_KWORLD_TERMINATOR] = {
+		/* Kworld V-Stream Studio TV Terminator */
+		/* "James Webb <jrwebb@qwest.net> */
+		.name           = "V-Stream Studio TV Terminator",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 1 << 21,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.gpio = 0x0000000,
+			.tv   = 1,
+		},{
+			.name = name_comp1,     /* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x0000000,
+		},{
+			.name = name_svideo,    /* S-Video input */
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x0000000,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x0200000,
+		},
+	},
+	[SAA7134_BOARD_YUAN_TUN900] = {
+		/* FIXME:
+		 * S-Video and composite sources untested.
+		 * Radio not working.
+		 * Remote control not yet implemented.
+		 * From : codemaster@webgeeks.be */
+		.name           = "Yuan TUN-900 (saa7135)",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr= ADDR_UNSET,
+		.radio_addr= ADDR_UNSET,
+		.gpiomask       = 0x00010003,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x01,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x02,
+		},{
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE2,
+			.gpio = 0x02,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE1,
+			.gpio = 0x00010003,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x01,
+		},
+	},
 };
 
 
@@ -2272,12 +2380,6 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_TV_PVR,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1131,
-		.subdevice    = 0,
-		.driver_data  = SAA7134_BOARD_SABRENT_SBTTVFM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0x9715,
@@ -2346,6 +2448,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x4e42,
 		.subdevice    = 0x0502,
 		.driver_data  = SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x0210,		/* mini pci NTSC version */
+		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x0210,		/* mini pci PAL/SECAM version */
+		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
 
 	},{
 		/* --- boards without eeprom + subsystem ID --- */

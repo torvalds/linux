@@ -83,8 +83,8 @@ extern int cifs_dir_notify(struct file *, unsigned long arg);
 extern struct dentry_operations cifs_dentry_ops;
 
 /* Functions related to symlinks */
-extern int cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
-extern void cifs_put_link(struct dentry *direntry, struct nameidata *nd);
+extern void *cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
+extern void cifs_put_link(struct dentry *direntry, struct nameidata *nd, void *);
 extern int cifs_readlink(struct dentry *direntry, char __user *buffer, 
 			 int buflen);
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,

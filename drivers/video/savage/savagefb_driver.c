@@ -1400,6 +1400,58 @@ static int savagefb_pan_display (struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static int savagefb_blank(int blank, struct fb_info *info)
+{
+	struct savagefb_par *par = info->par;
+	u8 sr8 = 0, srd = 0;
+
+	if (par->display_type == DISP_CRT) {
+		vga_out8(0x3c4, 0x08);
+		sr8 = vga_in8(0x3c5);
+		sr8 |= 0x06;
+		vga_out8(0x3c5, sr8);
+		vga_out8(0x3c4, 0x0d);
+		srd = vga_in8(0x3c5);
+		srd &= 0x03;
+
+		switch (blank) {
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+			break;
+		case FB_BLANK_VSYNC_SUSPEND:
+			srd |= 0x10;
+			break;
+		case FB_BLANK_HSYNC_SUSPEND:
+			srd |= 0x40;
+			break;
+		case FB_BLANK_POWERDOWN:
+			srd |= 0x50;
+			break;
+		}
+
+		vga_out8(0x3c4, 0x0d);
+		vga_out8(0x3c5, srd);
+	}
+
+	if (par->display_type == DISP_LCD ||
+	    par->display_type == DISP_DFP) {
+		switch(blank) {
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+			vga_out8(0x3c4, 0x31); /* SR31 bit 4 - FP enable */
+			vga_out8(0x3c5, vga_in8(0x3c5) | 0x10);
+			break;
+		case FB_BLANK_VSYNC_SUSPEND:
+		case FB_BLANK_HSYNC_SUSPEND:
+		case FB_BLANK_POWERDOWN:
+			vga_out8(0x3c4, 0x31); /* SR31 bit 4 - FP enable */
+			vga_out8(0x3c5, vga_in8(0x3c5) & ~0x10);
+			break;
+		}
+	}
+
+	return (blank == FB_BLANK_NORMAL) ? 1 : 0;
+}
 
 static struct fb_ops savagefb_ops = {
 	.owner          = THIS_MODULE,
@@ -1407,6 +1459,7 @@ static struct fb_ops savagefb_ops = {
 	.fb_set_par     = savagefb_set_par,
 	.fb_setcolreg   = savagefb_setcolreg,
 	.fb_pan_display = savagefb_pan_display,
+	.fb_blank       = savagefb_blank,
 #if defined(CONFIG_FB_SAVAGE_ACCEL)
 	.fb_fillrect    = savagefb_fillrect,
 	.fb_copyarea    = savagefb_copyarea,
@@ -1583,8 +1636,7 @@ static int __devinit savage_init_hw (struct savagefb_par *par)
 	static unsigned char RamSavage4[] =  { 2, 4, 8, 12, 16, 32, 64, 32 };
 	static unsigned char RamSavageMX[] = { 2, 8, 4, 16, 8, 16, 4, 16 };
 	static unsigned char RamSavageNB[] = { 0, 2, 4, 8, 16, 32, 2, 2 };
-
-	int videoRam, videoRambytes;
+	int videoRam, videoRambytes, dvi;
 
 	DBG("savage_init_hw");
 
@@ -1705,6 +1757,30 @@ static int __devinit savage_init_hw (struct savagefb_par *par)
 	printk (KERN_INFO "savagefb: Detected current MCLK value of %d kHz\n",
 		par->MCLK);
 
+	/* check for DVI/flat panel */
+	dvi = 0;
+
+	if (par->chip == S3_SAVAGE4) {
+		unsigned char sr30 = 0x00;
+
+		vga_out8(0x3c4, 0x30);
+		/* clear bit 1 */
+		vga_out8(0x3c5, vga_in8(0x3c5) & ~0x02);
+		sr30 = vga_in8(0x3c5);
+		if (sr30 & 0x02 /*0x04 */) {
+			dvi = 1;
+			printk("savagefb: Digital Flat Panel Detected\n");
+		}
+	}
+
+	if (S3_SAVAGE_MOBILE_SERIES(par->chip) ||
+	    (S3_MOBILE_TWISTER_SERIES(par->chip) && !par->crtonly))
+		par->display_type = DISP_LCD;
+	else if (dvi || (par->chip == S3_SAVAGE4 && par->dvi))
+		par->display_type = DISP_DFP;
+	else
+		par->display_type = DISP_CRT;
+
 	/* Check LCD panel parrmation */
 
 	if (par->chip == S3_SAVAGE_MX) {
@@ -1759,7 +1835,8 @@ static int __devinit savage_init_hw (struct savagefb_par *par)
 			par->SavagePanelWidth = panelX;
 			par->SavagePanelHeight = panelY;
 
-		}
+		} else
+			par->display_type = DISP_CRT;
 	}
 
 	savage_get_default_par (par);
@@ -1845,15 +1922,15 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 		snprintf (info->fix.id, 16, "ProSavageKM");
 		break;
 	case FB_ACCEL_S3TWISTER_P:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_TWISTER;
 		snprintf (info->fix.id, 16, "TwisterP");
 		break;
 	case FB_ACCEL_S3TWISTER_K:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_TWISTER;
 		snprintf (info->fix.id, 16, "TwisterK");
 		break;
 	case FB_ACCEL_PROSAVAGE_DDR:
-		par->chip = S3_PROSAVAGE;
+		par->chip = S3_PROSAVAGEDDR;
 		snprintf (info->fix.id, 16, "ProSavageDDR");
 		break;
 	case FB_ACCEL_PROSAVAGE_DDRK:
@@ -1899,12 +1976,11 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 		info->pixmap.buf_align = 4;
 		info->pixmap.access_align = 32;
 
-		fb_alloc_cmap (&info->cmap, NR_PALETTE, 0);
+		err = fb_alloc_cmap (&info->cmap, NR_PALETTE, 0);
+		if (!err)
 		info->flags |= FBINFO_HWACCEL_COPYAREA |
 	                       FBINFO_HWACCEL_FILLRECT |
 		               FBINFO_HWACCEL_IMAGEBLIT;
-
-		err = 0;
 	}
 #endif
 	return err;
@@ -1932,14 +2008,14 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 	if (err)
 		goto failed_enable;
 
-	if (pci_request_regions(dev, "savagefb")) {
+	if ((err = pci_request_regions(dev, "savagefb"))) {
 		printk(KERN_ERR "cannot request PCI regions\n");
 		goto failed_enable;
 	}
 
 	err = -ENOMEM;
 
-	if (savage_init_fb_info(info, dev, id))
+	if ((err = savage_init_fb_info(info, dev, id)))
 		goto failed_init;
 
 	err = savage_map_mmio(info);
@@ -1947,6 +2023,7 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 		goto failed_mmio;
 
 	video_len = savage_init_hw(par);
+	/* FIXME: cant be negative */
 	if (video_len < 0) {
 		err = video_len;
 		goto failed_mmio;
@@ -1959,7 +2036,8 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 	INIT_LIST_HEAD(&info->modelist);
 #if defined(CONFIG_FB_SAVAGE_I2C)
 	savagefb_create_i2c_busses(info);
-	savagefb_probe_i2c_connector(par, &par->edid);
+	savagefb_probe_i2c_connector(info, &par->edid);
+	kfree(par->edid);
 	fb_edid_to_monspecs(par->edid, &info->monspecs);
 	fb_videomode_to_modelist(info->monspecs.modedb,
 				 info->monspecs.modedb_len,
@@ -2110,15 +2188,31 @@ static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 	struct savagefb_par *par = (struct savagefb_par *)info->par;
 
 	DBG("savagefb_suspend");
-	printk(KERN_DEBUG "state: %u\n", state);
+
+
+	par->pm_state = state.event;
+
+	/*
+	 * For PM_EVENT_FREEZE, do not power down so the console
+	 * can remain active.
+	 */
+	if (state.event == PM_EVENT_FREEZE) {
+		dev->dev.power.power_state = state;
+		return 0;
+	}
 
 	acquire_console_sem();
-	fb_set_suspend(info, pci_choose_state(dev, state));
-	savage_disable_mmio(par);
-	release_console_sem();
+	fb_set_suspend(info, 1);
 
+	if (info->fbops->fb_sync)
+		info->fbops->fb_sync(info);
+
+	savagefb_blank(FB_BLANK_POWERDOWN, info);
+	savage_disable_mmio(par);
+	pci_save_state(dev);
 	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, state));
+	release_console_sem();
 
 	return 0;
 }
@@ -2128,22 +2222,34 @@ static int savagefb_resume (struct pci_dev* dev)
 	struct fb_info *info =
 		(struct fb_info *)pci_get_drvdata(dev);
 	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	int cur_state = par->pm_state;
 
 	DBG("savage_resume");
 
-	pci_set_power_state(dev, 0);
-	pci_restore_state(dev);
-	if(pci_enable_device(dev))
-		DBG("err");
+	par->pm_state = PM_EVENT_ON;
 
-	SavagePrintRegs();
+	/*
+	 * The adapter was not powered down coming back from a
+	 * PM_EVENT_FREEZE.
+	 */
+	if (cur_state == PM_EVENT_FREEZE) {
+		pci_set_power_state(dev, PCI_D0);
+		return 0;
+	}
 
 	acquire_console_sem();
 
+	pci_set_power_state(dev, PCI_D0);
+	pci_restore_state(dev);
+
+	if(pci_enable_device(dev))
+		DBG("err");
+
+	pci_set_master(dev);
 	savage_enable_mmio(par);
 	savage_init_hw(par);
 	savagefb_set_par (info);
-
+	savagefb_blank(FB_BLANK_UNBLANK, info);
 	fb_set_suspend (info, 0);
 	release_console_sem();
 
@@ -2277,3 +2383,6 @@ static int __init savagefb_init(void)
 
 module_init(savagefb_init);
 module_exit(savage_done);
+
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Specify initial video mode");

@@ -46,28 +46,22 @@
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
-
 #define _COMPONENT          ACPI_TABLES
-	 ACPI_MODULE_NAME    ("tbconvrt")
+ACPI_MODULE_NAME("tbconvrt")
 
 /* Local prototypes */
+static void
+acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
+			     u8 register_bit_width,
+			     acpi_physical_address address);
 
 static void
-acpi_tb_init_generic_address (
-	struct acpi_generic_address     *new_gas_struct,
-	u8                              register_bit_width,
-	acpi_physical_address           address);
+acpi_tb_convert_fadt1(struct fadt_descriptor_rev2 *local_fadt,
+		      struct fadt_descriptor_rev1 *original_fadt);
 
 static void
-acpi_tb_convert_fadt1 (
-	struct fadt_descriptor_rev2    *local_fadt,
-	struct fadt_descriptor_rev1    *original_fadt);
-
-static void
-acpi_tb_convert_fadt2 (
-	struct fadt_descriptor_rev2    *local_fadt,
-	struct fadt_descriptor_rev2    *original_fadt);
-
+acpi_tb_convert_fadt2(struct fadt_descriptor_rev2 *local_fadt,
+		      struct fadt_descriptor_rev2 *original_fadt);
 
 u8 acpi_fadt_is_v1;
 EXPORT_SYMBOL(acpi_fadt_is_v1);
@@ -87,21 +81,19 @@ EXPORT_SYMBOL(acpi_fadt_is_v1);
  ******************************************************************************/
 
 u32
-acpi_tb_get_table_count (
-	struct rsdp_descriptor          *RSDP,
-	struct acpi_table_header        *RSDT)
+acpi_tb_get_table_count(struct rsdp_descriptor *RSDP,
+			struct acpi_table_header *RSDT)
 {
-	u32                             pointer_size;
+	u32 pointer_size;
 
+	ACPI_FUNCTION_ENTRY();
 
-	ACPI_FUNCTION_ENTRY ();
+	/* RSDT pointers are 32 bits, XSDT pointers are 64 bits */
 
-
-	if (RSDP->revision < 2) {
-		pointer_size = sizeof (u32);
-	}
-	else {
-		pointer_size = sizeof (u64);
+	if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
+		pointer_size = sizeof(u32);
+	} else {
+		pointer_size = sizeof(u64);
 	}
 
 	/*
@@ -110,9 +102,9 @@ acpi_tb_get_table_count (
 	 * pointers contained within the RSDT/XSDT.  The size of the pointers
 	 * is architecture-dependent.
 	 */
-	return ((RSDT->length - sizeof (struct acpi_table_header)) / pointer_size);
+	return ((RSDT->length -
+		 sizeof(struct acpi_table_header)) / pointer_size);
 }
-
 
 /*******************************************************************************
  *
@@ -126,63 +118,64 @@ acpi_tb_get_table_count (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_convert_to_xsdt (
-	struct acpi_table_desc          *table_info)
+acpi_status acpi_tb_convert_to_xsdt(struct acpi_table_desc *table_info)
 {
-	acpi_size                       table_size;
-	u32                             i;
-	XSDT_DESCRIPTOR         *new_table;
+	acpi_size table_size;
+	u32 i;
+	XSDT_DESCRIPTOR *new_table;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/* Compute size of the converted XSDT */
 
-	table_size = ((acpi_size) acpi_gbl_rsdt_table_count * sizeof (u64)) +
-			  sizeof (struct acpi_table_header);
+	table_size = ((acpi_size) acpi_gbl_rsdt_table_count * sizeof(u64)) +
+	    sizeof(struct acpi_table_header);
 
 	/* Allocate an XSDT */
 
-	new_table = ACPI_MEM_CALLOCATE (table_size);
+	new_table = ACPI_MEM_CALLOCATE(table_size);
 	if (!new_table) {
 		return (AE_NO_MEMORY);
 	}
 
 	/* Copy the header and set the length */
 
-	ACPI_MEMCPY (new_table, table_info->pointer, sizeof (struct acpi_table_header));
+	ACPI_MEMCPY(new_table, table_info->pointer,
+		    sizeof(struct acpi_table_header));
 	new_table->length = (u32) table_size;
 
 	/* Copy the table pointers */
 
 	for (i = 0; i < acpi_gbl_rsdt_table_count; i++) {
-		if (acpi_gbl_RSDP->revision < 2) {
-			ACPI_STORE_ADDRESS (new_table->table_offset_entry[i],
-				(ACPI_CAST_PTR (struct rsdt_descriptor_rev1,
-					table_info->pointer))->table_offset_entry[i]);
-		}
-		else {
+		/* RSDT pointers are 32 bits, XSDT pointers are 64 bits */
+
+		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
+			ACPI_STORE_ADDRESS(new_table->table_offset_entry[i],
+					   (ACPI_CAST_PTR
+					    (struct rsdt_descriptor_rev1,
+					     table_info->pointer))->
+					   table_offset_entry[i]);
+		} else {
 			new_table->table_offset_entry[i] =
-				(ACPI_CAST_PTR (XSDT_DESCRIPTOR,
-					table_info->pointer))->table_offset_entry[i];
+			    (ACPI_CAST_PTR(XSDT_DESCRIPTOR,
+					   table_info->pointer))->
+			    table_offset_entry[i];
 		}
 	}
 
 	/* Delete the original table (either mapped or in a buffer) */
 
-	acpi_tb_delete_single_table (table_info);
+	acpi_tb_delete_single_table(table_info);
 
 	/* Point the table descriptor to the new table */
 
-	table_info->pointer     = ACPI_CAST_PTR (struct acpi_table_header, new_table);
-	table_info->length      = table_size;
-	table_info->allocation  = ACPI_MEM_ALLOCATED;
+	table_info->pointer =
+	    ACPI_CAST_PTR(struct acpi_table_header, new_table);
+	table_info->length = table_size;
+	table_info->allocation = ACPI_MEM_ALLOCATED;
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -199,20 +192,18 @@ acpi_tb_convert_to_xsdt (
  ******************************************************************************/
 
 static void
-acpi_tb_init_generic_address (
-	struct acpi_generic_address     *new_gas_struct,
-	u8                              register_bit_width,
-	acpi_physical_address           address)
+acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
+			     u8 register_bit_width,
+			     acpi_physical_address address)
 {
 
-	ACPI_STORE_ADDRESS (new_gas_struct->address, address);
+	ACPI_STORE_ADDRESS(new_gas_struct->address, address);
 
 	new_gas_struct->address_space_id = ACPI_ADR_SPACE_SYSTEM_IO;
 	new_gas_struct->register_bit_width = register_bit_width;
 	new_gas_struct->register_bit_offset = 0;
-	new_gas_struct->access_width    = 0;
+	new_gas_struct->access_width = 0;
 }
-
 
 /*******************************************************************************
  *
@@ -228,9 +219,8 @@ acpi_tb_init_generic_address (
  ******************************************************************************/
 
 static void
-acpi_tb_convert_fadt1 (
-	struct fadt_descriptor_rev2    *local_fadt,
-	struct fadt_descriptor_rev1    *original_fadt)
+acpi_tb_convert_fadt1(struct fadt_descriptor_rev2 *local_fadt,
+		      struct fadt_descriptor_rev1 *original_fadt)
 {
 
 	/* ACPI 1.0 FACS */
@@ -243,12 +233,14 @@ acpi_tb_convert_fadt1 (
 	 * The 2.0 table is an extension of the 1.0 table, so the entire 1.0
 	 * table can be copied first, then expand some fields to 64 bits.
 	 */
-	ACPI_MEMCPY (local_fadt, original_fadt, sizeof (struct fadt_descriptor_rev1));
+	ACPI_MEMCPY(local_fadt, original_fadt,
+		    sizeof(struct fadt_descriptor_rev1));
 
 	/* Convert table pointers to 64-bit fields */
 
-	ACPI_STORE_ADDRESS (local_fadt->xfirmware_ctrl, local_fadt->V1_firmware_ctrl);
-	ACPI_STORE_ADDRESS (local_fadt->Xdsdt, local_fadt->V1_dsdt);
+	ACPI_STORE_ADDRESS(local_fadt->xfirmware_ctrl,
+			   local_fadt->V1_firmware_ctrl);
+	ACPI_STORE_ADDRESS(local_fadt->Xdsdt, local_fadt->V1_dsdt);
 
 	/*
 	 * System Interrupt Model isn't used in ACPI 2.0
@@ -283,17 +275,17 @@ acpi_tb_convert_fadt1 (
 	 * It primarily adds the FADT reset mechanism.
 	 */
 	if ((original_fadt->revision == 2) &&
-		(original_fadt->length == sizeof (struct fadt_descriptor_rev2_minus))) {
+	    (original_fadt->length ==
+	     sizeof(struct fadt_descriptor_rev2_minus))) {
 		/*
 		 * Grab the entire generic address struct, plus the 1-byte reset value
 		 * that immediately follows.
 		 */
-		ACPI_MEMCPY (&local_fadt->reset_register,
-			&(ACPI_CAST_PTR (struct fadt_descriptor_rev2_minus,
-				original_fadt))->reset_register,
-  			sizeof (struct acpi_generic_address) + 1);
-	}
-	else {
+		ACPI_MEMCPY(&local_fadt->reset_register,
+			    &(ACPI_CAST_PTR(struct fadt_descriptor_rev2_minus,
+					    original_fadt))->reset_register,
+			    sizeof(struct acpi_generic_address) + 1);
+	} else {
 		/*
 		 * Since there isn't any equivalence in 1.0 and since it is highly
 		 * likely that a 1.0 system has legacy support.
@@ -304,42 +296,59 @@ acpi_tb_convert_fadt1 (
 	/*
 	 * Convert the V1.0 block addresses to V2.0 GAS structures
 	 */
-	acpi_tb_init_generic_address (&local_fadt->xpm1a_evt_blk, local_fadt->pm1_evt_len,
-			  (acpi_physical_address)   local_fadt->V1_pm1a_evt_blk);
-	acpi_tb_init_generic_address (&local_fadt->xpm1b_evt_blk, local_fadt->pm1_evt_len,
-			  (acpi_physical_address)   local_fadt->V1_pm1b_evt_blk);
-	acpi_tb_init_generic_address (&local_fadt->xpm1a_cnt_blk, local_fadt->pm1_cnt_len,
-			  (acpi_physical_address)   local_fadt->V1_pm1a_cnt_blk);
-	acpi_tb_init_generic_address (&local_fadt->xpm1b_cnt_blk, local_fadt->pm1_cnt_len,
-			  (acpi_physical_address)   local_fadt->V1_pm1b_cnt_blk);
-	acpi_tb_init_generic_address (&local_fadt->xpm2_cnt_blk, local_fadt->pm2_cnt_len,
-			  (acpi_physical_address)   local_fadt->V1_pm2_cnt_blk);
-	acpi_tb_init_generic_address (&local_fadt->xpm_tmr_blk, local_fadt->pm_tm_len,
-			  (acpi_physical_address)   local_fadt->V1_pm_tmr_blk);
-	acpi_tb_init_generic_address (&local_fadt->xgpe0_blk, 0,
-			  (acpi_physical_address)   local_fadt->V1_gpe0_blk);
-	acpi_tb_init_generic_address (&local_fadt->xgpe1_blk, 0,
-			  (acpi_physical_address)   local_fadt->V1_gpe1_blk);
+	acpi_tb_init_generic_address(&local_fadt->xpm1a_evt_blk,
+				     local_fadt->pm1_evt_len,
+				     (acpi_physical_address) local_fadt->
+				     V1_pm1a_evt_blk);
+	acpi_tb_init_generic_address(&local_fadt->xpm1b_evt_blk,
+				     local_fadt->pm1_evt_len,
+				     (acpi_physical_address) local_fadt->
+				     V1_pm1b_evt_blk);
+	acpi_tb_init_generic_address(&local_fadt->xpm1a_cnt_blk,
+				     local_fadt->pm1_cnt_len,
+				     (acpi_physical_address) local_fadt->
+				     V1_pm1a_cnt_blk);
+	acpi_tb_init_generic_address(&local_fadt->xpm1b_cnt_blk,
+				     local_fadt->pm1_cnt_len,
+				     (acpi_physical_address) local_fadt->
+				     V1_pm1b_cnt_blk);
+	acpi_tb_init_generic_address(&local_fadt->xpm2_cnt_blk,
+				     local_fadt->pm2_cnt_len,
+				     (acpi_physical_address) local_fadt->
+				     V1_pm2_cnt_blk);
+	acpi_tb_init_generic_address(&local_fadt->xpm_tmr_blk,
+				     local_fadt->pm_tm_len,
+				     (acpi_physical_address) local_fadt->
+				     V1_pm_tmr_blk);
+	acpi_tb_init_generic_address(&local_fadt->xgpe0_blk, 0,
+				     (acpi_physical_address) local_fadt->
+				     V1_gpe0_blk);
+	acpi_tb_init_generic_address(&local_fadt->xgpe1_blk, 0,
+				     (acpi_physical_address) local_fadt->
+				     V1_gpe1_blk);
 
 	/* Create separate GAS structs for the PM1 Enable registers */
 
-	acpi_tb_init_generic_address (&acpi_gbl_xpm1a_enable,
-		 (u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-		 (acpi_physical_address)
-			(local_fadt->xpm1a_evt_blk.address +
-			ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
+	acpi_tb_init_generic_address(&acpi_gbl_xpm1a_enable,
+				     (u8) ACPI_DIV_2(acpi_gbl_FADT->
+						     pm1_evt_len),
+				     (acpi_physical_address)
+				     (local_fadt->xpm1a_evt_blk.address +
+				      ACPI_DIV_2(acpi_gbl_FADT->pm1_evt_len)));
 
 	/* PM1B is optional; leave null if not present */
 
 	if (local_fadt->xpm1b_evt_blk.address) {
-		acpi_tb_init_generic_address (&acpi_gbl_xpm1b_enable,
-			 (u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-			 (acpi_physical_address)
-				(local_fadt->xpm1b_evt_blk.address +
-				ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
+		acpi_tb_init_generic_address(&acpi_gbl_xpm1b_enable,
+					     (u8) ACPI_DIV_2(acpi_gbl_FADT->
+							     pm1_evt_len),
+					     (acpi_physical_address)
+					     (local_fadt->xpm1b_evt_blk.
+					      address +
+					      ACPI_DIV_2(acpi_gbl_FADT->
+							 pm1_evt_len)));
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -356,14 +365,14 @@ acpi_tb_convert_fadt1 (
  ******************************************************************************/
 
 static void
-acpi_tb_convert_fadt2 (
-	struct fadt_descriptor_rev2    *local_fadt,
-	struct fadt_descriptor_rev2    *original_fadt)
+acpi_tb_convert_fadt2(struct fadt_descriptor_rev2 *local_fadt,
+		      struct fadt_descriptor_rev2 *original_fadt)
 {
 
 	/* We have an ACPI 2.0 FADT but we must copy it to our local buffer */
 
-	ACPI_MEMCPY (local_fadt, original_fadt, sizeof (struct fadt_descriptor_rev2));
+	ACPI_MEMCPY(local_fadt, original_fadt,
+		    sizeof(struct fadt_descriptor_rev2));
 
 	/*
 	 * "X" fields are optional extensions to the original V1.0 fields, so
@@ -371,85 +380,98 @@ acpi_tb_convert_fadt2 (
 	 * is zero.
 	 */
 	if (!(local_fadt->xfirmware_ctrl)) {
-		ACPI_STORE_ADDRESS (local_fadt->xfirmware_ctrl,
-			local_fadt->V1_firmware_ctrl);
+		ACPI_STORE_ADDRESS(local_fadt->xfirmware_ctrl,
+				   local_fadt->V1_firmware_ctrl);
 	}
 
 	if (!(local_fadt->Xdsdt)) {
-		ACPI_STORE_ADDRESS (local_fadt->Xdsdt, local_fadt->V1_dsdt);
+		ACPI_STORE_ADDRESS(local_fadt->Xdsdt, local_fadt->V1_dsdt);
 	}
 
 	if (!(local_fadt->xpm1a_evt_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xpm1a_evt_blk,
-			local_fadt->pm1_evt_len,
-			(acpi_physical_address) local_fadt->V1_pm1a_evt_blk);
+		acpi_tb_init_generic_address(&local_fadt->xpm1a_evt_blk,
+					     local_fadt->pm1_evt_len,
+					     (acpi_physical_address)
+					     local_fadt->V1_pm1a_evt_blk);
 	}
 
 	if (!(local_fadt->xpm1b_evt_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xpm1b_evt_blk,
-			local_fadt->pm1_evt_len,
-			(acpi_physical_address) local_fadt->V1_pm1b_evt_blk);
+		acpi_tb_init_generic_address(&local_fadt->xpm1b_evt_blk,
+					     local_fadt->pm1_evt_len,
+					     (acpi_physical_address)
+					     local_fadt->V1_pm1b_evt_blk);
 	}
 
 	if (!(local_fadt->xpm1a_cnt_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xpm1a_cnt_blk,
-			local_fadt->pm1_cnt_len,
-			(acpi_physical_address) local_fadt->V1_pm1a_cnt_blk);
+		acpi_tb_init_generic_address(&local_fadt->xpm1a_cnt_blk,
+					     local_fadt->pm1_cnt_len,
+					     (acpi_physical_address)
+					     local_fadt->V1_pm1a_cnt_blk);
 	}
 
 	if (!(local_fadt->xpm1b_cnt_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xpm1b_cnt_blk,
-			local_fadt->pm1_cnt_len,
-			(acpi_physical_address) local_fadt->V1_pm1b_cnt_blk);
+		acpi_tb_init_generic_address(&local_fadt->xpm1b_cnt_blk,
+					     local_fadt->pm1_cnt_len,
+					     (acpi_physical_address)
+					     local_fadt->V1_pm1b_cnt_blk);
 	}
 
 	if (!(local_fadt->xpm2_cnt_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xpm2_cnt_blk,
-			local_fadt->pm2_cnt_len,
-			(acpi_physical_address) local_fadt->V1_pm2_cnt_blk);
+		acpi_tb_init_generic_address(&local_fadt->xpm2_cnt_blk,
+					     local_fadt->pm2_cnt_len,
+					     (acpi_physical_address)
+					     local_fadt->V1_pm2_cnt_blk);
 	}
 
 	if (!(local_fadt->xpm_tmr_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xpm_tmr_blk,
-			local_fadt->pm_tm_len,
-			(acpi_physical_address) local_fadt->V1_pm_tmr_blk);
+		acpi_tb_init_generic_address(&local_fadt->xpm_tmr_blk,
+					     local_fadt->pm_tm_len,
+					     (acpi_physical_address)
+					     local_fadt->V1_pm_tmr_blk);
 	}
 
 	if (!(local_fadt->xgpe0_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xgpe0_blk,
-			0, (acpi_physical_address) local_fadt->V1_gpe0_blk);
+		acpi_tb_init_generic_address(&local_fadt->xgpe0_blk,
+					     0,
+					     (acpi_physical_address)
+					     local_fadt->V1_gpe0_blk);
 	}
 
 	if (!(local_fadt->xgpe1_blk.address)) {
-		acpi_tb_init_generic_address (&local_fadt->xgpe1_blk,
-			0, (acpi_physical_address) local_fadt->V1_gpe1_blk);
+		acpi_tb_init_generic_address(&local_fadt->xgpe1_blk,
+					     0,
+					     (acpi_physical_address)
+					     local_fadt->V1_gpe1_blk);
 	}
 
 	/* Create separate GAS structs for the PM1 Enable registers */
 
-	acpi_tb_init_generic_address (&acpi_gbl_xpm1a_enable,
-		(u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-		(acpi_physical_address)
-			(local_fadt->xpm1a_evt_blk.address +
-			ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
+	acpi_tb_init_generic_address(&acpi_gbl_xpm1a_enable,
+				     (u8) ACPI_DIV_2(acpi_gbl_FADT->
+						     pm1_evt_len),
+				     (acpi_physical_address)
+				     (local_fadt->xpm1a_evt_blk.address +
+				      ACPI_DIV_2(acpi_gbl_FADT->pm1_evt_len)));
 
 	acpi_gbl_xpm1a_enable.address_space_id =
-		local_fadt->xpm1a_evt_blk.address_space_id;
+	    local_fadt->xpm1a_evt_blk.address_space_id;
 
 	/* PM1B is optional; leave null if not present */
 
 	if (local_fadt->xpm1b_evt_blk.address) {
-		acpi_tb_init_generic_address (&acpi_gbl_xpm1b_enable,
-			(u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-			(acpi_physical_address)
-				(local_fadt->xpm1b_evt_blk.address +
-				ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
+		acpi_tb_init_generic_address(&acpi_gbl_xpm1b_enable,
+					     (u8) ACPI_DIV_2(acpi_gbl_FADT->
+							     pm1_evt_len),
+					     (acpi_physical_address)
+					     (local_fadt->xpm1b_evt_blk.
+					      address +
+					      ACPI_DIV_2(acpi_gbl_FADT->
+							 pm1_evt_len)));
 
 		acpi_gbl_xpm1b_enable.address_space_id =
-			local_fadt->xpm1b_evt_blk.address_space_id;
+		    local_fadt->xpm1b_evt_blk.address_space_id;
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -467,82 +489,75 @@ acpi_tb_convert_fadt2 (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_convert_table_fadt (
-	void)
+acpi_status acpi_tb_convert_table_fadt(void)
 {
-	struct fadt_descriptor_rev2    *local_fadt;
-	struct acpi_table_desc         *table_desc;
+	struct fadt_descriptor_rev2 *local_fadt;
+	struct acpi_table_desc *table_desc;
 
-
-	ACPI_FUNCTION_TRACE ("tb_convert_table_fadt");
-
+	ACPI_FUNCTION_TRACE("tb_convert_table_fadt");
 
 	/*
 	 * acpi_gbl_FADT is valid. Validate the FADT length. The table must be
 	 * at least as long as the version 1.0 FADT
 	 */
-	if (acpi_gbl_FADT->length < sizeof (struct fadt_descriptor_rev1)) {
-		ACPI_REPORT_ERROR (("FADT is invalid, too short: 0x%X\n",
-			acpi_gbl_FADT->length));
-		return_ACPI_STATUS (AE_INVALID_TABLE_LENGTH);
+	if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor_rev1)) {
+		ACPI_REPORT_ERROR(("FADT is invalid, too short: 0x%X\n",
+				   acpi_gbl_FADT->length));
+		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 	}
 
 	/* Allocate buffer for the ACPI 2.0(+) FADT */
 
-	local_fadt = ACPI_MEM_CALLOCATE (sizeof (struct fadt_descriptor_rev2));
+	local_fadt = ACPI_MEM_CALLOCATE(sizeof(struct fadt_descriptor_rev2));
 	if (!local_fadt) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	if (acpi_gbl_FADT->revision >= FADT2_REVISION_ID) {
-		if (acpi_gbl_FADT->length < sizeof (struct fadt_descriptor_rev2)) {
+		if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor_rev2)) {
 			/* Length is too short to be a V2.0 table */
 
-			ACPI_REPORT_WARNING ((
-				"Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n",
-				acpi_gbl_FADT->length, acpi_gbl_FADT->revision));
+			ACPI_REPORT_WARNING(("Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n", acpi_gbl_FADT->length, acpi_gbl_FADT->revision));
 
-			acpi_tb_convert_fadt1 (local_fadt, (void *) acpi_gbl_FADT);
-		}
-		else {
+			acpi_tb_convert_fadt1(local_fadt,
+					      (void *)acpi_gbl_FADT);
+		} else {
 			/* Valid V2.0 table */
 
-			acpi_tb_convert_fadt2 (local_fadt, acpi_gbl_FADT);
+			acpi_tb_convert_fadt2(local_fadt, acpi_gbl_FADT);
 		}
-	}
-	else {
+	} else {
 		/* Valid V1.0 table */
 
-		acpi_tb_convert_fadt1 (local_fadt, (void *) acpi_gbl_FADT);
+		acpi_tb_convert_fadt1(local_fadt, (void *)acpi_gbl_FADT);
 	}
 
 	/* Global FADT pointer will point to the new common V2.0 FADT */
 
 	acpi_gbl_FADT = local_fadt;
-	acpi_gbl_FADT->length = sizeof (FADT_DESCRIPTOR);
+	acpi_gbl_FADT->length = sizeof(FADT_DESCRIPTOR);
 
 	/* Free the original table */
 
 	table_desc = acpi_gbl_table_lists[ACPI_TABLE_FADT].next;
-	acpi_tb_delete_single_table (table_desc);
+	acpi_tb_delete_single_table(table_desc);
 
 	/* Install the new table */
 
-	table_desc->pointer     = ACPI_CAST_PTR (struct acpi_table_header, acpi_gbl_FADT);
-	table_desc->allocation  = ACPI_MEM_ALLOCATED;
-	table_desc->length      = sizeof (struct fadt_descriptor_rev2);
+	table_desc->pointer =
+	    ACPI_CAST_PTR(struct acpi_table_header, acpi_gbl_FADT);
+	table_desc->allocation = ACPI_MEM_ALLOCATED;
+	table_desc->length = sizeof(struct fadt_descriptor_rev2);
 
 	/* Dump the entire FADT */
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
-		"Hex dump of common internal FADT, size %d (%X)\n",
-		acpi_gbl_FADT->length, acpi_gbl_FADT->length));
-	ACPI_DUMP_BUFFER ((u8 *) (acpi_gbl_FADT), acpi_gbl_FADT->length);
+	ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+			  "Hex dump of common internal FADT, size %d (%X)\n",
+			  acpi_gbl_FADT->length, acpi_gbl_FADT->length));
+	ACPI_DUMP_BUFFER((u8 *) (acpi_gbl_FADT), acpi_gbl_FADT->length);
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -557,26 +572,21 @@ acpi_tb_convert_table_fadt (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_build_common_facs (
-	struct acpi_table_desc          *table_info)
+acpi_status acpi_tb_build_common_facs(struct acpi_table_desc *table_info)
 {
 
-	ACPI_FUNCTION_TRACE ("tb_build_common_facs");
-
+	ACPI_FUNCTION_TRACE("tb_build_common_facs");
 
 	/* Absolute minimum length is 24, but the ACPI spec says 64 */
 
 	if (acpi_gbl_FACS->length < 24) {
-		ACPI_REPORT_ERROR (("Invalid FACS table length: 0x%X\n",
-			acpi_gbl_FACS->length));
-		return_ACPI_STATUS (AE_INVALID_TABLE_LENGTH);
+		ACPI_REPORT_ERROR(("Invalid FACS table length: 0x%X\n",
+				   acpi_gbl_FACS->length));
+		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 	}
 
 	if (acpi_gbl_FACS->length < 64) {
-		ACPI_REPORT_WARNING ((
-			"FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n",
-			acpi_gbl_FACS->length));
+		ACPI_REPORT_WARNING(("FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n", acpi_gbl_FACS->length));
 	}
 
 	/* Copy fields to the new FACS */
@@ -584,22 +594,22 @@ acpi_tb_build_common_facs (
 	acpi_gbl_common_fACS.global_lock = &(acpi_gbl_FACS->global_lock);
 
 	if ((acpi_gbl_RSDP->revision < 2) ||
-		(acpi_gbl_FACS->length < 32) ||
-		(!(acpi_gbl_FACS->xfirmware_waking_vector))) {
+	    (acpi_gbl_FACS->length < 32) ||
+	    (!(acpi_gbl_FACS->xfirmware_waking_vector))) {
 		/* ACPI 1.0 FACS or short table or optional X_ field is zero */
 
-		acpi_gbl_common_fACS.firmware_waking_vector = ACPI_CAST_PTR (u64,
-				&(acpi_gbl_FACS->firmware_waking_vector));
+		acpi_gbl_common_fACS.firmware_waking_vector = ACPI_CAST_PTR(u64,
+									    &
+									    (acpi_gbl_FACS->
+									     firmware_waking_vector));
 		acpi_gbl_common_fACS.vector_width = 32;
-	}
-	else {
+	} else {
 		/* ACPI 2.0 FACS with valid X_ field */
 
-		acpi_gbl_common_fACS.firmware_waking_vector = &acpi_gbl_FACS->xfirmware_waking_vector;
+		acpi_gbl_common_fACS.firmware_waking_vector =
+		    &acpi_gbl_FACS->xfirmware_waking_vector;
 		acpi_gbl_common_fACS.vector_width = 64;
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
-

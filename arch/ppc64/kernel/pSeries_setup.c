@@ -37,7 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include <linux/version.h>
+#include <linux/utsname.h>
 #include <linux/adb.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -60,7 +60,8 @@
 #include <asm/nvram.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/xics.h>
-#include <asm/cputable.h>
+#include <asm/firmware.h>
+#include <asm/pmc.h>
 
 #include "i8259.h"
 #include "mpic.h"
@@ -187,6 +188,21 @@ static void __init pSeries_setup_mpic(void)
 				  " MPIC     ");
 }
 
+static void pseries_lpar_enable_pmcs(void)
+{
+	unsigned long set, reset;
+
+	power4_enable_pmcs();
+
+	set = 1UL << 63;
+	reset = 0;
+	plpar_hcall_norets(H_PERFMON, set, reset);
+
+	/* instruct hypervisor to maintain PMCs */
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
+		get_paca()->lppaca.pmcregs_in_use = 1;
+}
+
 static void __init pSeries_setup_arch(void)
 {
 	/* Fixup ppc_md depending on the type of interrupt controller */
@@ -231,11 +247,9 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
-		vpa_init(boot_cpuid);
-
 	/* Choose an idle loop */
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+		vpa_init(boot_cpuid);
 		if (get_paca()->lppaca.shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
 			ppc_md.idle_loop = pseries_shared_idle;
@@ -247,24 +261,29 @@ static void __init pSeries_setup_arch(void)
 		printk(KERN_INFO "Using default idle loop\n");
 		ppc_md.idle_loop = default_idle;
 	}
+
+	if (systemcfg->platform & PLATFORM_LPAR)
+		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
+	else
+		ppc_md.enable_pmcs = power4_enable_pmcs;
 }
 
 static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
 	ppc_md.progress("Linux ppc64\n", 0);
-	ppc_md.progress(UTS_RELEASE, 0);
+	ppc_md.progress(system_utsname.version, 0);
 
 	return 0;
 }
 arch_initcall(pSeries_init_panel);
 
 
-/* Build up the firmware_features bitmask field
+/* Build up the ppc64_firmware_features bitmask field
  * using contents of device-tree/ibm,hypertas-functions.
  * Ultimately this functionality may be moved into prom.c prom_init().
  */
-void __init fw_feature_init(void)
+static void __init fw_feature_init(void)
 {
 	struct device_node * dn;
 	char * hypertas;
@@ -272,7 +291,7 @@ void __init fw_feature_init(void)
 
 	DBG(" -> fw_feature_init()\n");
 
-	cur_cpu_spec->firmware_features = 0;
+	ppc64_firmware_features = 0;
 	dn = of_find_node_by_path("/rtas");
 	if (dn == NULL) {
 		printk(KERN_ERR "WARNING ! Cannot find RTAS in device-tree !\n");
@@ -288,7 +307,7 @@ void __init fw_feature_init(void)
 				if ((firmware_features_table[i].name) &&
 				    (strcmp(firmware_features_table[i].name,hypertas))==0) {
 					/* we have a match */
-					cur_cpu_spec->firmware_features |= 
+					ppc64_firmware_features |= 
 						(firmware_features_table[i].val);
 					break;
 				} 
@@ -302,7 +321,7 @@ void __init fw_feature_init(void)
 	of_node_put(dn);
  no_rtas:
 	printk(KERN_INFO "firmware_features = 0x%lx\n", 
-	       cur_cpu_spec->firmware_features);
+	       ppc64_firmware_features);
 
 	DBG(" <- fw_feature_init()\n");
 }
@@ -378,9 +397,6 @@ static void __init pSeries_init_early(void)
 		comport = (void *)ioremap(physport, 16);
 		udbg_init_uart(comport, default_speed);
 
-		ppc_md.udbg_putc = udbg_putc;
-		ppc_md.udbg_getc = udbg_getc;
-		ppc_md.udbg_getc_poll = udbg_getc_poll;
 		DBG("Hello World !\n");
 	}
 
@@ -574,6 +590,13 @@ static int pseries_shared_idle(void)
 	return 0;
 }
 
+static int pSeries_pci_probe_mode(struct pci_bus *bus)
+{
+	if (systemcfg->platform & PLATFORM_LPAR)
+		return PCI_PROBE_DEVTREE;
+	return PCI_PROBE_NORMAL;
+}
+
 struct machdep_calls __initdata pSeries_md = {
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
@@ -581,6 +604,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.get_cpuinfo		= pSeries_get_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
+	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,

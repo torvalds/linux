@@ -20,7 +20,7 @@ static void doublefault_fn(void)
 	struct Xgt_desc_struct gdt_desc = {0, 0};
 	unsigned long gdt, tss;
 
-	__asm__ __volatile__("sgdt %0": "=m" (gdt_desc): :"memory");
+	store_gdt(&gdt_desc);
 	gdt = gdt_desc.address;
 
 	printk("double fault, gdt at %08lx [%d bytes]\n", gdt, gdt_desc.size);

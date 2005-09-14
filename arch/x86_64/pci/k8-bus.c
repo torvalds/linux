@@ -47,13 +47,28 @@ fill_mp_bus_to_cpumask(void)
 			 * if there are no busses hanging off of the current
 			 * ldt link then both the secondary and subordinate
 			 * bus number fields are set to 0.
+			 * 
+			 * RED-PEN
+			 * This is slightly broken because it assumes
+ 			 * HT node IDs == Linux node ids, which is not always
+			 * true. However it is probably mostly true.
 			 */
 			if (!(SECONDARY_LDT_BUS_NUMBER(ldtbus) == 0
 				&& SUBORDINATE_LDT_BUS_NUMBER(ldtbus) == 0)) {
 				for (j = SECONDARY_LDT_BUS_NUMBER(ldtbus);
 				     j <= SUBORDINATE_LDT_BUS_NUMBER(ldtbus);
-				     j++)
-					pci_bus_to_node[j] = NODE_ID(nid);
+				     j++) { 
+					struct pci_bus *bus;
+					long node = NODE_ID(nid);
+					/* Algorithm a bit dumb, but
+ 					   it shouldn't matter here */
+					bus = pci_find_bus(0, j);
+					if (!bus)
+						continue;
+					if (!node_online(node))
+						node = 0;
+					bus->sysdata = (void *)node;
+				}		
 			}
 		}
 	}

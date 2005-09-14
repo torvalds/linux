@@ -166,7 +166,7 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
 
-	if (!(itmtouch = kcalloc(1, sizeof(struct itmtouch_dev), GFP_KERNEL))) {
+	if (!(itmtouch = kzalloc(sizeof(struct itmtouch_dev), GFP_KERNEL))) {
 		err("%s - Out of memory.", __FUNCTION__);
 		return -ENOMEM;
 	}

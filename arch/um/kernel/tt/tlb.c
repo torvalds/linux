@@ -17,25 +17,31 @@
 #include "os.h"
 #include "tlb.h"
 
-static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
+static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
+		    int finished, void **flush)
 {
 	struct host_vm_op *op;
-	int i;
+        int i, ret=0;
 
-	for(i = 0; i <= last; i++){
+        for(i = 0; i <= last && !ret; i++){
 		op = &ops[i];
 		switch(op->type){
 		case MMAP:
-                        os_map_memory((void *) op->u.mmap.addr, op->u.mmap.fd,
-				      op->u.mmap.offset, op->u.mmap.len,
-				      op->u.mmap.r, op->u.mmap.w,
-				      op->u.mmap.x);
+                        ret = os_map_memory((void *) op->u.mmap.addr,
+                                            op->u.mmap.fd, op->u.mmap.offset,
+                                            op->u.mmap.len, op->u.mmap.r,
+                                            op->u.mmap.w, op->u.mmap.x);
 			break;
 		case MUNMAP:
-			os_unmap_memory((void *) op->u.munmap.addr,
-					op->u.munmap.len);
+                        ret = os_unmap_memory((void *) op->u.munmap.addr,
+                                              op->u.munmap.len);
 			break;
 		case MPROTECT:
+                        ret = protect_memory(op->u.mprotect.addr,
+                                             op->u.munmap.len,
+                                             op->u.mprotect.r,
+                                             op->u.mprotect.w,
+                                             op->u.mprotect.x, 1);
 			protect_memory(op->u.mprotect.addr, op->u.munmap.len,
 				       op->u.mprotect.r, op->u.mprotect.w,
 				       op->u.mprotect.x, 1);
@@ -45,6 +51,8 @@ static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
 			break;
 		}
 	}
+
+	return ret;
 }
 
 static void fix_range(struct mm_struct *mm, unsigned long start_addr, 

@@ -6,21 +6,24 @@
  *  Copyright 2005 Pacific Digital Corporation.
  *  (OSL/GPL code release authorized by Jalil Fadavi).
  *
- *  The contents of this file are subject to the Open
- *  Software License version 1.1 that can be found at
- *  http://www.opensource.org/licenses/osl-1.1.txt and is included herein
- *  by reference.
  *
- *  Alternatively, the contents of this file may be used under the terms
- *  of the GNU General Public License version 2 (the "GPL") as distributed
- *  in the kernel source COPYING file, in which case the provisions of
- *  the GPL are applicable instead of the above.  If you wish to allow
- *  the use of your version of this file only under the terms of the
- *  GPL and not to allow others to use your version of this file under
- *  the OSL, indicate your decision by deleting the provisions above and
- *  replace them with the notice and other provisions required by the GPL.
- *  If you do not delete the provisions above, a recipient may use your
- *  version of this file under either the OSL or the GPL.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
  *
  */
 
@@ -117,7 +120,7 @@ static void qs_phy_reset(struct ata_port *ap);
 static void qs_qc_prep(struct ata_queued_cmd *qc);
 static int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
-static void qs_bmdma_stop(struct ata_port *ap);
+static void qs_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 qs_bmdma_status(struct ata_port *ap);
 static void qs_irq_clear(struct ata_port *ap);
 static void qs_eng_timeout(struct ata_port *ap);
@@ -198,7 +201,7 @@ static int qs_check_atapi_dma(struct ata_queued_cmd *qc)
 	return 1;	/* ATAPI DMA not supported */
 }
 
-static void qs_bmdma_stop(struct ata_port *ap)
+static void qs_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	/* nothing */
 }
@@ -386,7 +389,8 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
 					sff1, sff0, port_no, sHST, sDST);
 			handled = 1;
-			if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+			if (ap && !(ap->flags &
+				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 				struct qs_port_priv *pp = ap->private_data;
 				if (!pp || pp->state != qs_state_pkt)
@@ -417,7 +421,8 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 	for (port_no = 0; port_no < host_set->n_ports; ++port_no) {
 		struct ata_port *ap;
 		ap = host_set->ports[port_no];
-		if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+		if (ap &&
+		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 			struct qs_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != qs_state_mmio)
@@ -431,7 +436,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
 					ap->id, qc->tf.protocol, status);
-		
+
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;
 				ata_qc_complete(qc, status);
@@ -489,7 +494,7 @@ static int qs_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 	qs_enter_reg_mode(ap);
-	pp = kcalloc(1, sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -533,11 +538,12 @@ static void qs_port_stop(struct ata_port *ap)
 static void qs_host_stop(struct ata_host_set *host_set)
 {
 	void __iomem *mmio_base = host_set->mmio_base;
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 
 	writeb(0, mmio_base + QS_HCT_CTRL); /* disable host interrupts */
 	writeb(QS_CNFG3_GSRST, mmio_base + QS_HCF_CNFG3); /* global reset */
 
-	ata_host_stop(host_set);
+	pci_iounmap(pdev, mmio_base);
 }
 
 static void qs_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
@@ -641,8 +647,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 		goto err_out_regions;
 	}
 
-	mmio_base = ioremap(pci_resource_start(pdev, 4),
-		            pci_resource_len(pdev, 4));
+	mmio_base = pci_iomap(pdev, 4, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_regions;
@@ -692,7 +697,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out_iounmap:
-	iounmap(mmio_base);
+	pci_iounmap(pdev, mmio_base);
 err_out_regions:
 	pci_release_regions(pdev);
 err_out:

@@ -16,11 +16,9 @@
 #include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/pmc.h>
+#include <asm/cputable.h>
+#include <asm/oprofile_impl.h>
 
-#include "op_impl.h"
-
-extern struct op_ppc64_model op_model_rs64;
-extern struct op_ppc64_model op_model_power4;
 static struct op_ppc64_model *model;
 
 static struct op_counter_config ctr[OP_MAX_COUNTER];
@@ -123,52 +121,13 @@ static int op_ppc64_create_files(struct super_block *sb, struct dentry *root)
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	unsigned int pvr;
+	if (!cur_cpu_spec->oprofile_model || !cur_cpu_spec->oprofile_cpu_type)
+		return -ENODEV;
 
-	pvr = mfspr(SPRN_PVR);
+	model = cur_cpu_spec->oprofile_model;
+	model->num_counters = cur_cpu_spec->num_pmcs;
 
-	switch (PVR_VER(pvr)) {
-		case PV_630:
-		case PV_630p:
-			model = &op_model_rs64;
-			model->num_counters = 8;
-			ops->cpu_type = "ppc64/power3";
-			break;
-
-		case PV_NORTHSTAR:
-		case PV_PULSAR:
-		case PV_ICESTAR:
-		case PV_SSTAR:
-			model = &op_model_rs64;
-			model->num_counters = 8;
-			ops->cpu_type = "ppc64/rs64";
-			break;
-
-		case PV_POWER4:
-		case PV_POWER4p:
-			model = &op_model_power4;
-			model->num_counters = 8;
-			ops->cpu_type = "ppc64/power4";
-			break;
-
-		case PV_970:
-		case PV_970FX:
-			model = &op_model_power4;
-			model->num_counters = 8;
-			ops->cpu_type = "ppc64/970";
-			break;
-
-		case PV_POWER5:
-		case PV_POWER5p:
-			model = &op_model_power4;
-			model->num_counters = 6;
-			ops->cpu_type = "ppc64/power5";
-			break;
-
-		default:
-			return -ENODEV;
-	}
-
+	ops->cpu_type = cur_cpu_spec->oprofile_cpu_type;
 	ops->create_files = op_ppc64_create_files;
 	ops->setup = op_ppc64_setup;
 	ops->shutdown = op_ppc64_shutdown;

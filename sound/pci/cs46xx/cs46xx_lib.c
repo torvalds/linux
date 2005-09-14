@@ -1243,8 +1243,8 @@ static snd_pcm_hardware_t snd_cs46xx_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED | 
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_RESUME),
+				 SNDRV_PCM_INFO_BLOCK_TRANSFER /*|*/
+				 /*SNDRV_PCM_INFO_RESUME*/),
 	.formats =		(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
 				 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |
 				 SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE),
@@ -1265,8 +1265,8 @@ static snd_pcm_hardware_t snd_cs46xx_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_RESUME),
+				 SNDRV_PCM_INFO_BLOCK_TRANSFER /*|*/
+				 /*SNDRV_PCM_INFO_RESUME*/),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5500,
@@ -2231,7 +2231,7 @@ static snd_kcontrol_new_t snd_cs46xx_controls[] __devinitdata = {
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Output Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.info = snd_mixer_boolean_info,
 	.get = snd_cs46xx_iec958_get,
 	.put = snd_cs46xx_iec958_put,
@@ -2239,7 +2239,7 @@ static snd_kcontrol_new_t snd_cs46xx_controls[] __devinitdata = {
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Input Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Input ",NONE,SWITCH),
 	.info = snd_mixer_boolean_info,
 	.get = snd_cs46xx_iec958_get,
 	.put = snd_cs46xx_iec958_put,
@@ -2249,7 +2249,7 @@ static snd_kcontrol_new_t snd_cs46xx_controls[] __devinitdata = {
 /* Input IEC958 volume does not work for the moment. (Benny) */
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Input Volume",
+	.name = SNDRV_CTL_NAME_IEC958("Input ",NONE,VOLUME),
 	.info = snd_cs46xx_vol_info,
 	.get = snd_cs46xx_vol_iec958_get,
 	.put = snd_cs46xx_vol_iec958_put,
@@ -2440,7 +2440,7 @@ static int __devinit cs46xx_detect_codec(cs46xx_t *chip, int codec)
 	return -ENXIO;
 }
 
-int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
+int __devinit snd_cs46xx_mixer(cs46xx_t *chip, int spdif_device)
 {
 	snd_card_t *card = chip->card;
 	snd_ctl_elem_id_t id;
@@ -2476,6 +2476,8 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	for (idx = 0; idx < ARRAY_SIZE(snd_cs46xx_controls); idx++) {
 		snd_kcontrol_t *kctl;
 		kctl = snd_ctl_new1(&snd_cs46xx_controls[idx], chip);
+		if (kctl && kctl->id.iface == SNDRV_CTL_ELEM_IFACE_PCM)
+			kctl->id.device = spdif_device;
 		if ((err = snd_ctl_add(card, kctl)) < 0)
 			return err;
 	}

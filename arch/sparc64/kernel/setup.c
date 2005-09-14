@@ -33,7 +33,6 @@
 #include <linux/cpu.h>
 #include <linux/initrd.h>
 
-#include <asm/segment.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -512,18 +511,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &prom_con;
 #endif
 
-#ifdef CONFIG_SMP
-	i = (unsigned long)&irq_stat[1] - (unsigned long)&irq_stat[0];
-	if ((i == SMP_CACHE_BYTES) || (i == (2 * SMP_CACHE_BYTES))) {
-		extern unsigned int irqsz_patchme[1];
-		irqsz_patchme[0] |= ((i == SMP_CACHE_BYTES) ? SMP_CACHE_BYTES_SHIFT : \
-							SMP_CACHE_BYTES_SHIFT + 1);
-		flushi((long)&irqsz_patchme[0]);
-	} else {
-		prom_printf("Unexpected size of irq_stat[] elements\n");
-		prom_halt();
-	}
-#endif
 	/* Work out if we are starfire early on */
 	check_if_starfire();
 

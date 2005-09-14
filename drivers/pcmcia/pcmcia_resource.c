@@ -41,6 +41,7 @@ module_param(io_speed, int, 0444);
 
 
 #ifdef CONFIG_PCMCIA_PROBE
+#include <asm/irq.h>
 /* mask of IRQs already reserved by other cards, we should avoid using them */
 static u8 pcmcia_used_irq[NR_IRQS];
 #endif
@@ -446,7 +447,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		if (mod->Vpp1 != mod->Vpp2)
 			return CS_BAD_VPP;
-		c->Vpp1 = c->Vpp2 = s->socket.Vpp = mod->Vpp1;
+		s->socket.Vpp = mod->Vpp1;
 		if (s->ops->set_socket(s, &s->socket))
 			return CS_BAD_VPP;
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
@@ -621,8 +622,6 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	s->socket.Vpp = req->Vpp1;
 	if (s->ops->set_socket(s, &s->socket))
 		return CS_BAD_VPP;
-
-	c->Vcc = req->Vcc; c->Vpp1 = c->Vpp2 = req->Vpp1;
 
 	/* Pick memory or I/O card, DMA mode, interrupt */
 	c->IntType = req->IntType;
@@ -821,7 +820,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 					  ((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) ||
 					   (s->functions > 1) ||
 					   (irq == s->pci_irq)) ? SA_SHIRQ : 0,
-					  p_dev->dev.bus_id,
+					  p_dev->devname,
 					  (req->Attributes & IRQ_HANDLE_PRESENT) ? req->Instance : data);
 			if (!ret) {
 				if (!(req->Attributes & IRQ_HANDLE_PRESENT))
@@ -831,7 +830,8 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		}
 	}
 #endif
-	if (ret) {
+	/* only assign PCI irq if no IRQ already assigned */
+	if (ret && !s->irq.AssignedIRQ) {
 		if (!s->pci_irq)
 			return ret;
 		irq = s->pci_irq;
@@ -842,7 +842,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 				((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) ||
 				 (s->functions > 1) ||
 				 (irq == s->pci_irq)) ? SA_SHIRQ : 0,
-				p_dev->dev.bus_id, req->Instance))
+				p_dev->devname, req->Instance))
 			return CS_IN_USE;
 	}
 

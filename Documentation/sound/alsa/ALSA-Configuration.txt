@@ -132,6 +132,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 UART (PnP setup)
     dma1	- first DMA # for AD1816A chip (PnP setup)
     dma2	- second DMA # for AD1816A chip (PnP setup)
+    clockfreq   - Clock frequency for AD1816A chip (default = 0, 33000Hz)
     
     Module supports up to 8 cards, autoprobe and PnP.
     
@@ -1458,7 +1459,7 @@ devices where %i is sound card number from zero to seven.
 To auto-load an ALSA driver for OSS services, define the string
 'sound-slot-%i' where %i means the slot number for OSS, which
 corresponds to the card index of ALSA.  Usually, define this
-as the the same card module.
+as the same card module.
 
 An example configuration for a single emu10k1 card is like below:
 ----- /etc/modprobe.conf

@@ -45,21 +45,6 @@ typedef struct { unsigned long	pgprot;	} pgprot_t;
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
 
-/* Pure 2^n version of get_order */
-static inline int get_order(unsigned long size) __attribute_const__;
-static inline int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size - 1) >> (PAGE_SHIFT - 1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 #define devmem_is_allowed(pfn)	1
 
 #define __pa(vaddr)		virt_to_phys((void *) vaddr)
@@ -101,5 +86,7 @@ extern unsigned long max_pfn;
 #ifdef CONFIG_CONTIGUOUS_PAGE_ALLOC
 #define WANT_PAGE_VIRTUAL	1
 #endif
+
+#include <asm-generic/page.h>
 
 #endif /* _ASM_PAGE_H */

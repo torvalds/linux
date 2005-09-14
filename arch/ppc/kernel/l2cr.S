@@ -156,6 +156,26 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	       The bit moved on the 7450.....
 	  ****/
 
+BEGIN_FTR_SECTION
+	/* Disable L2 prefetch on some 745x and try to ensure
+	 * L2 prefetch engines are idle. As explained by errata
+	 * text, we can't be sure they are, we just hope very hard
+	 * that well be enough (sic !). At least I noticed Apple
+	 * doesn't even bother doing the dcbf's here...
+	 */
+	mfspr	r4,SPRN_MSSCR0
+	rlwinm	r4,r4,0,0,29
+	sync
+	mtspr	SPRN_MSSCR0,r4
+	sync
+	isync
+	lis	r4,KERNELBASE@h
+	dcbf	0,r4
+	dcbf	0,r4
+	dcbf	0,r4
+	dcbf	0,r4
+END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
+
 	/* TODO: use HW flush assist when available */
 
 	lis	r4,0x0002
@@ -230,7 +250,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	oris	r3,r3,0x8000
 	mtspr	SPRN_L2CR,r3
 	sync
-
+	
+	/* Enable L2 HW prefetch on 744x/745x */
+BEGIN_FTR_SECTION
+	mfspr	r3,SPRN_MSSCR0
+	ori	r3,r3,3
+	sync
+	mtspr	SPRN_MSSCR0,r3
+	sync
+	isync
+END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 4:
 
 	/* Restore HID0[DPM] to whatever it was before */

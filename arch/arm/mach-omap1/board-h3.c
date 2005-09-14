@@ -82,8 +82,7 @@ static struct flash_platform_data h3_flash_data = {
 };
 
 static struct resource h3_flash_resource = {
-	.start		= OMAP_CS2B_PHYS,
-	.end		= OMAP_CS2B_PHYS + OMAP_CS2B_SIZE - 1,
+	/* This is on CS3, wherever it's mapped */
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -161,13 +160,26 @@ static struct omap_usb_config h3_usb_config __initdata = {
 	.pins[1]	= 3,
 };
 
+static struct omap_mmc_config h3_mmc_config __initdata = {
+	.mmc[0] = {
+		.enabled 	= 1,
+		.power_pin	= -1,   /* tps65010 GPIO4 */
+		.switch_pin	= OMAP_MPUIO(1),
+	},
+};
+
 static struct omap_board_config_kernel h3_config[] = {
 	{ OMAP_TAG_USB,	 &h3_usb_config },
+	{ OMAP_TAG_MMC,  &h3_mmc_config },
 };
 
 static void __init h3_init(void)
 {
+	h3_flash_resource.end = h3_flash_resource.start = omap_cs3_phys();
+	h3_flash_resource.end += OMAP_CS3_SIZE - 1;
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
+	omap_board_config = h3_config;
+	omap_board_config_size = ARRAY_SIZE(h3_config);
 }
 
 static void __init h3_init_smc91x(void)
@@ -177,7 +189,6 @@ static void __init h3_init_smc91x(void)
 		printk("Error requesting gpio 40 for smc91x irq\n");
 		return;
 	}
-	omap_set_gpio_edge_ctrl(40, OMAP_GPIO_FALLING_EDGE);
 }
 
 void h3_init_irq(void)

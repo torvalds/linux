@@ -79,7 +79,7 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 		return '-';
 
 	if (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)
-		return 'D';
+		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
 
@@ -91,25 +91,11 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
     int len, char ev_type)
 {
 	int pipe = urb->pipe;
-	unsigned char *data;
-
-	/*
-	 * The check to see if it's safe to poke at data has an enormous
-	 * number of corner cases, but it seems that the following is
-	 * more or less safe.
-	 *
-	 * We do not even try to look transfer_buffer, because it can
-	 * contain non-NULL garbage in case the upper level promised to
-	 * set DMA for the HCD.
-	 */
-	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
-		return 'D';
 
 	if (len <= 0)
 		return 'L';
-
-	if ((data = urb->transfer_buffer) == NULL)
-		return 'Z';	/* '0' would be not as pretty. */
+	if (len >= DATA_MAX)
+		len = DATA_MAX;
 
 	/*
 	 * Bulk is easy to shortcut reliably. 
@@ -126,8 +112,21 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 		}
 	}
 
-	if (len >= DATA_MAX)
-		len = DATA_MAX;
+	/*
+	 * The check to see if it's safe to poke at data has an enormous
+	 * number of corner cases, but it seems that the following is
+	 * more or less safe.
+	 *
+	 * We do not even try to look transfer_buffer, because it can
+	 * contain non-NULL garbage in case the upper level promised to
+	 * set DMA for the HCD.
+	 */
+	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
+		return mon_dmapeek(ep->data, urb->transfer_dma, len);
+
+	if (urb->transfer_buffer == NULL)
+		return 'Z';	/* '0' would be not as pretty. */
+
 	memcpy(ep->data, urb->transfer_buffer, len);
 	return 0;
 }

@@ -36,7 +36,6 @@
 #include <asm/topology.h>
 #include <asm/smp.h>
 #include <asm/semaphore.h>
-#include <asm/segment.h>
 #include <asm/uaccess.h>
 #include <asm/sal.h>
 #include <asm/sn/io.h>
@@ -59,7 +58,7 @@ static int sn_hwperf_enum_objects(int *nobj, struct sn_hwperf_object_info **ret)
 	struct sn_hwperf_object_info *objbuf = NULL;
 
 	if ((e = sn_hwperf_init()) < 0) {
-		printk("sn_hwperf_init failed: err %d\n", e);
+		printk(KERN_ERR "sn_hwperf_init failed: err %d\n", e);
 		goto out;
 	}
 
@@ -111,7 +110,7 @@ static int sn_hwperf_geoid_to_cnode(char *location)
 	if (sn_hwperf_location_to_bpos(location, &rack, &bay, &slot, &slab))
 		return -1;
 
-	for (cnode = 0; cnode < numionodes; cnode++) {
+	for_each_node(cnode) {
 		geoid = cnodeid_get_geoid(cnode);
 		module_id = geo_module(geoid);
 		this_rack = MODULE_GET_RACK(module_id);
@@ -124,11 +123,13 @@ static int sn_hwperf_geoid_to_cnode(char *location)
 		}
 	}
 
-	return cnode < numionodes ? cnode : -1;
+	return node_possible(cnode) ? cnode : -1;
 }
 
 static int sn_hwperf_obj_to_cnode(struct sn_hwperf_object_info * obj)
 {
+	if (!SN_HWPERF_IS_NODE(obj) && !SN_HWPERF_IS_IONODE(obj))
+		BUG();
 	if (!obj->sn_hwp_this_part)
 		return -1;
 	return sn_hwperf_geoid_to_cnode(obj->location);
@@ -174,30 +175,198 @@ static const char *sn_hwperf_get_slabname(struct sn_hwperf_object_info *obj,
 	return slabname;
 }
 
-static void print_pci_topology(struct seq_file *s,
-	struct sn_hwperf_object_info *obj, int *ordinal,
-	u64 rack, u64 bay, u64 slot, u64 slab)
+static void print_pci_topology(struct seq_file *s)
 {
-	char *p1;
-	char *p2;
-	char *pg;
+	char *p;
+	size_t sz;
+	int e;
 
-	if (!(pg = (char *)get_zeroed_page(GFP_KERNEL)))
-		return; /* ignore */
-	if (ia64_sn_ioif_get_pci_topology(rack, bay, slot, slab,
-		__pa(pg), PAGE_SIZE) == SN_HWPERF_OP_OK) {
-		for (p1=pg; *p1 && p1 < pg + PAGE_SIZE;) {
-			if (!(p2 = strchr(p1, '\n')))
-				break;
-			*p2 = '\0';
-			seq_printf(s, "pcibus %d %s-%s\n",
-				*ordinal, obj->location, p1);
-			(*ordinal)++;
-			p1 = p2 + 1;
+	for (sz = PAGE_SIZE; sz < 16 * PAGE_SIZE; sz += PAGE_SIZE) {
+		if (!(p = (char *)kmalloc(sz, GFP_KERNEL)))
+			break;
+		e = ia64_sn_ioif_get_pci_topology(__pa(p), sz);
+		if (e == SALRET_OK)
+			seq_puts(s, p);
+		kfree(p);
+		if (e == SALRET_OK || e == SALRET_NOT_IMPLEMENTED)
+			break;
+	}
+}
+
+static inline int sn_hwperf_has_cpus(cnodeid_t node)
+{
+	return node_online(node) && nr_cpus_node(node);
+}
+
+static inline int sn_hwperf_has_mem(cnodeid_t node)
+{
+	return node_online(node) && NODE_DATA(node)->node_present_pages;
+}
+
+static struct sn_hwperf_object_info *
+sn_hwperf_findobj_id(struct sn_hwperf_object_info *objbuf,
+	int nobj, int id)
+{
+	int i;
+	struct sn_hwperf_object_info *p = objbuf;
+
+	for (i=0; i < nobj; i++, p++) {
+		if (p->id == id)
+			return p;
+	}
+
+	return NULL;
+
+}
+
+static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objbuf,
+	int nobj, cnodeid_t node, cnodeid_t *near_mem_node, cnodeid_t *near_cpu_node)
+{
+	int e;
+	struct sn_hwperf_object_info *nodeobj = NULL;
+	struct sn_hwperf_object_info *op;
+	struct sn_hwperf_object_info *dest;
+	struct sn_hwperf_object_info *router;
+	struct sn_hwperf_port_info ptdata[16];
+	int sz, i, j;
+	cnodeid_t c;
+	int found_mem = 0;
+	int found_cpu = 0;
+
+	if (!node_possible(node))
+		return -EINVAL;
+
+	if (sn_hwperf_has_cpus(node)) {
+		if (near_cpu_node)
+			*near_cpu_node = node;
+		found_cpu++;
+	}
+
+	if (sn_hwperf_has_mem(node)) {
+		if (near_mem_node)
+			*near_mem_node = node;
+		found_mem++;
+	}
+
+	if (found_cpu && found_mem)
+		return 0; /* trivially successful */
+
+	/* find the argument node object */
+	for (i=0, op=objbuf; i < nobj; i++, op++) {
+		if (!SN_HWPERF_IS_NODE(op) && !SN_HWPERF_IS_IONODE(op))
+			continue;
+		if (node == sn_hwperf_obj_to_cnode(op)) {
+			nodeobj = op;
+			break;
 		}
 	}
-	free_page((unsigned long)pg);
+	if (!nodeobj) {
+		e = -ENOENT;
+		goto err;
+	}
+
+	/* get it's interconnect topology */
+	sz = op->ports * sizeof(struct sn_hwperf_port_info);
+	if (sz > sizeof(ptdata))
+		BUG();
+	e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
+			      SN_HWPERF_ENUM_PORTS, nodeobj->id, sz,
+			      (u64)&ptdata, 0, 0, NULL);
+	if (e != SN_HWPERF_OP_OK) {
+		e = -EINVAL;
+		goto err;
+	}
+
+	/* find nearest node with cpus and nearest memory */
+	for (router=NULL, j=0; j < op->ports; j++) {
+		dest = sn_hwperf_findobj_id(objbuf, nobj, ptdata[j].conn_id);
+		if (!dest || SN_HWPERF_FOREIGN(dest) ||
+		    !SN_HWPERF_IS_NODE(dest) || SN_HWPERF_IS_IONODE(dest)) {
+			continue;
+		}
+		c = sn_hwperf_obj_to_cnode(dest);
+		if (!found_cpu && sn_hwperf_has_cpus(c)) {
+			if (near_cpu_node)
+				*near_cpu_node = c;
+			found_cpu++;
+		}
+		if (!found_mem && sn_hwperf_has_mem(c)) {
+			if (near_mem_node)
+				*near_mem_node = c;
+			found_mem++;
+		}
+		if (SN_HWPERF_IS_ROUTER(dest))
+			router = dest;
+	}
+
+	if (router && (!found_cpu || !found_mem)) {
+		/* search for a node connected to the same router */
+		sz = router->ports * sizeof(struct sn_hwperf_port_info);
+		if (sz > sizeof(ptdata))
+			BUG();
+		e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
+				      SN_HWPERF_ENUM_PORTS, router->id, sz,
+				      (u64)&ptdata, 0, 0, NULL);
+		if (e != SN_HWPERF_OP_OK) {
+			e = -EINVAL;
+			goto err;
+		}
+		for (j=0; j < router->ports; j++) {
+			dest = sn_hwperf_findobj_id(objbuf, nobj,
+				ptdata[j].conn_id);
+			if (!dest || dest->id == node ||
+			    SN_HWPERF_FOREIGN(dest) ||
+			    !SN_HWPERF_IS_NODE(dest) ||
+			    SN_HWPERF_IS_IONODE(dest)) {
+				continue;
+			}
+			c = sn_hwperf_obj_to_cnode(dest);
+			if (!found_cpu && sn_hwperf_has_cpus(c)) {
+				if (near_cpu_node)
+					*near_cpu_node = c;
+				found_cpu++;
+			}
+			if (!found_mem && sn_hwperf_has_mem(c)) {
+				if (near_mem_node)
+					*near_mem_node = c;
+				found_mem++;
+			}
+			if (found_cpu && found_mem)
+				break;
+		}
+	}
+
+	if (!found_cpu || !found_mem) {
+		/* resort to _any_ node with CPUs and memory */
+		for (i=0, op=objbuf; i < nobj; i++, op++) {
+			if (SN_HWPERF_FOREIGN(op) ||
+			    SN_HWPERF_IS_IONODE(op) ||
+			    !SN_HWPERF_IS_NODE(op)) {
+				continue;
+			}
+			c = sn_hwperf_obj_to_cnode(op);
+			if (!found_cpu && sn_hwperf_has_cpus(c)) {
+				if (near_cpu_node)
+					*near_cpu_node = c;
+				found_cpu++;
+			}
+			if (!found_mem && sn_hwperf_has_mem(c)) {
+				if (near_mem_node)
+					*near_mem_node = c;
+				found_mem++;
+			}
+			if (found_cpu && found_mem)
+				break;
+		}
+	}
+
+	if (!found_cpu || !found_mem)
+		e = -ENODATA;
+
+err:
+	return e;
 }
+
 
 static int sn_topology_show(struct seq_file *s, void *d)
 {
@@ -215,7 +384,6 @@ static int sn_topology_show(struct seq_file *s, void *d)
 	struct sn_hwperf_object_info *p;
 	struct sn_hwperf_object_info *obj = d;	/* this object */
 	struct sn_hwperf_object_info *objs = s->private; /* all objects */
-	int rack, bay, slot, slab;
 	u8 shubtype;
 	u8 system_size;
 	u8 sharing_size;
@@ -225,7 +393,6 @@ static int sn_topology_show(struct seq_file *s, void *d)
 	u8 region_size;
 	u16 nasid_mask;
 	int nasid_msb;
-	int pci_bus_ordinal = 0;
 
 	if (obj == objs) {
 		seq_printf(s, "# sn_topology version 2\n");
@@ -253,6 +420,8 @@ static int sn_topology_show(struct seq_file *s, void *d)
 			shubtype ? "shub2" : "shub1", 
 			(u64)nasid_mask << nasid_shift, nasid_msb, nasid_shift,
 			system_size, sharing_size, coher, region_size);
+
+		print_pci_topology(s);
 	}
 
 	if (SN_HWPERF_FOREIGN(obj)) {
@@ -272,11 +441,24 @@ static int sn_topology_show(struct seq_file *s, void *d)
 	if (!SN_HWPERF_IS_NODE(obj) && !SN_HWPERF_IS_IONODE(obj))
 		seq_putc(s, '\n');
 	else {
+		cnodeid_t near_mem = -1;
+		cnodeid_t near_cpu = -1;
+
 		seq_printf(s, ", nasid 0x%x", cnodeid_to_nasid(ordinal));
-		for (i=0; i < numionodes; i++) {
-			seq_printf(s, i ? ":%d" : ", dist %d",
-				node_distance(ordinal, i));
+
+		if (sn_hwperf_get_nearest_node_objdata(objs, sn_hwperf_obj_cnt,
+			ordinal, &near_mem, &near_cpu) == 0) {
+			seq_printf(s, ", near_mem_nodeid %d, near_cpu_nodeid %d",
+				near_mem, near_cpu);
 		}
+
+		if (!SN_HWPERF_IS_IONODE(obj)) {
+			for_each_online_node(i) {
+				seq_printf(s, i ? ":%d" : ", dist %d",
+					node_distance(ordinal, i));
+			}
+		}
+
 		seq_putc(s, '\n');
 
 		/*
@@ -299,17 +481,6 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				}
 				seq_putc(s, '\n');
 			}
-		}
-
-		/*
-		 * PCI busses attached to this node, if any
-		 */
-		if (sn_hwperf_location_to_bpos(obj->location,
-			&rack, &bay, &slot, &slab)) {
-			/* export pci bus info */
-			print_pci_topology(s, obj, &pci_bus_ordinal,
-				rack, bay, slot, slab);
-
 		}
 	}
 
@@ -572,6 +743,8 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, u64 arg)
 		if ((r = sn_hwperf_enum_objects(&nobj, &objs)) == 0) {
 			memset(p, 0, a.sz);
 			for (i = 0; i < nobj; i++) {
+				if (!SN_HWPERF_IS_NODE(objs + i))
+					continue;
 				node = sn_hwperf_obj_to_cnode(objs + i);
 				for_each_online_cpu(j) {
 					if (node != cpu_to_node(j))
@@ -598,7 +771,7 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, u64 arg)
 
 	case SN_HWPERF_GET_NODE_NASID:
 		if (a.sz != sizeof(u64) ||
-		   (node = a.arg) < 0 || node >= numionodes) {
+		   (node = a.arg) < 0 || !node_possible(node)) {
 			r = -EINVAL;
 			goto error;
 		}
@@ -627,6 +800,14 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, u64 arg)
 				vfree(objs);
 				goto error;
 			}
+
+			if (!SN_HWPERF_IS_NODE(objs + i) &&
+			    !SN_HWPERF_IS_IONODE(objs + i)) {
+			    	r = -ENOENT;
+				vfree(objs);
+				goto error;
+			}
+
 			*(u64 *)p = (u64)sn_hwperf_obj_to_cnode(objs + i);
 			vfree(objs);
 		}
@@ -692,6 +873,7 @@ static int sn_hwperf_init(void)
 
 	/* single threaded, once-only initialization */
 	down(&sn_hwperf_init_mutex);
+
 	if (sn_hwperf_salheap) {
 		up(&sn_hwperf_init_mutex);
 		return e;
@@ -742,19 +924,6 @@ out:
 		sn_hwperf_salheap = NULL;
 		sn_hwperf_obj_cnt = 0;
 	}
-
-	if (!e) {
-		/*
-		 * Register a dynamic misc device for ioctl. Platforms
-		 * supporting hotplug will create /dev/sn_hwperf, else
-		 * user can to look up the minor number in /proc/misc.
-		 */
-		if ((e = misc_register(&sn_hwperf_dev)) != 0) {
-			printk(KERN_ERR "sn_hwperf_init: misc register "
-			       "for \"sn_hwperf\" failed, err %d\n", e);
-		}
-	}
-
 	up(&sn_hwperf_init_mutex);
 	return e;
 }
@@ -782,3 +951,41 @@ int sn_topology_release(struct inode *inode, struct file *file)
 	vfree(seq->private);
 	return seq_release(inode, file);
 }
+
+int sn_hwperf_get_nearest_node(cnodeid_t node,
+	cnodeid_t *near_mem_node, cnodeid_t *near_cpu_node)
+{
+	int e;
+	int nobj;
+	struct sn_hwperf_object_info *objbuf;
+
+	if ((e = sn_hwperf_enum_objects(&nobj, &objbuf)) == 0) {
+		e = sn_hwperf_get_nearest_node_objdata(objbuf, nobj,
+			node, near_mem_node, near_cpu_node);
+		vfree(objbuf);
+	}
+
+	return e;
+}
+
+static int __devinit sn_hwperf_misc_register_init(void)
+{
+	int e;
+
+	sn_hwperf_init();
+
+	/*
+	 * Register a dynamic misc device for hwperf ioctls. Platforms
+	 * supporting hotplug will create /dev/sn_hwperf, else user
+	 * can to look up the minor number in /proc/misc.
+	 */
+	if ((e = misc_register(&sn_hwperf_dev)) != 0) {
+		printk(KERN_ERR "sn_hwperf_misc_register_init: failed to "
+		"register misc device for \"%s\"\n", sn_hwperf_dev.name);
+	}
+
+	return e;
+}
+
+device_initcall(sn_hwperf_misc_register_init); /* after misc_init() */
+EXPORT_SYMBOL(sn_hwperf_get_nearest_node);

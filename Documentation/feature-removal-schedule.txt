@@ -17,23 +17,6 @@ Who:	Greg Kroah-Hartman <greg@kroah.com>
 
 ---------------------------
 
-What:	ACPI S4bios support
-When:	May 2005
-Why:	Noone uses it, and it probably does not work, anyway. swsusp is
-	faster, more reliable, and people are actually using it.
-Who:	Pavel Machek <pavel@suse.cz>
-
----------------------------
-
-What:	PCI Name Database (CONFIG_PCI_NAMES)
-When:	July 2005
-Why:	It bloats the kernel unnecessarily, and is handled by userspace better
-	(pciutils supports it.)  Will eliminate the need to try to keep the
-	pci.ids file in sync with the sf.net database all of the time.
-Who:	Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
 What:	io_remap_page_range() (macro or function)
 When:	September 2005
 Why:	Replaced by io_remap_pfn_range() which allows more memory space
@@ -51,14 +34,6 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	register_ioctl32_conversion() / unregister_ioctl32_conversion()
-When:	April 2005
-Why:	Replaced by ->compat_ioctl in file_operations and other method
-	vecors.
-Who:	Andi Kleen <ak@muc.de>, Christoph Hellwig <hch@lst.de>
-
----------------------------
-
 What:	RCU API moves to EXPORT_SYMBOL_GPL
 When:	April 2006
 Files:	include/linux/rcupdate.h, kernel/rcupdate.c
@@ -71,14 +46,6 @@ Why:	Outside of Linux, the only implementations of anything even
 	people, who might be using implementations that I am not aware
 	of, to adjust to this upcoming change.
 Who:	Paul E. McKenney <paulmck@us.ibm.com>
-
----------------------------
-
-What:	remove verify_area()
-When:	July 2006
-Files:	Various uaccess.h headers.
-Why:	Deprecated and redundant. access_ok() should be used instead.
-Who:	Jesper Juhl <juhl-lkml@dif.dk>
 
 ---------------------------
 
@@ -99,16 +66,6 @@ Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
 Who:	Jody McIntyre <scjody@steamballoon.com>
-
----------------------------
-
-What:	register_serial/unregister_serial
-When:	September 2005
-Why:	This interface does not allow serial ports to be registered against
-	a struct device, and as such does not allow correct power management
-	of such ports.  8250-based ports should use serial8250_register_port
-	and serial8250_unregister_port, or platform devices instead.
-Who:	Russell King <rmk@arm.linux.org.uk>
 
 ---------------------------
 
@@ -135,3 +92,15 @@ Why:	With the 16-bit PCMCIA subsystem now behaving (almost) like a
 	pcmciautils package available at
 	http://kernel.org/pub/linux/utils/kernel/pcmcia/
 Who:	Dominik Brodowski <linux@brodo.de>
+
+---------------------------
+
+What:	ip_queue and ip6_queue (old ipv4-only and ipv6-only netfilter queue)
+When:	December 2005
+Why:	This interface has been obsoleted by the new layer3-independent
+	"nfnetlink_queue".  The Kernel interface is compatible, so the old
+	ip[6]tables "QUEUE" targets still work and will transparently handle
+	all packets into nfnetlink queue number 0.  Userspace users will have
+	to link against API-compatible library on top of libnfnetlink_queue 
+	instead of the current 'libipq'.
+Who:	Harald Welte <laforge@netfilter.org>

@@ -158,6 +158,7 @@ struct us_data {
 
 	/* SCSI interfaces */
 	struct scsi_cmnd	*srb;		 /* current srb		*/
+	unsigned int		tag;		 /* current dCBWTag	*/
 
 	/* thread information */
 	int			pid;		 /* control thread	 */

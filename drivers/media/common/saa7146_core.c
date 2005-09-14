@@ -168,10 +168,8 @@ void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt)
 		return;
 	pci_free_consistent(pci, pt->size, pt->cpu, pt->dma);
 	pt->cpu = NULL;
-	if (NULL != pt->slist) {
-		kfree(pt->slist);
-		pt->slist = NULL;
-	}
+	kfree(pt->slist);
+	pt->slist = NULL;
 }
 
 int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)

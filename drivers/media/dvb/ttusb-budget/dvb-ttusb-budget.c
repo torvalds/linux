@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/errno.h>
+#include <linux/jiffies.h>
 #include <asm/semaphore.h>
 
 #include "dvb_frontend.h"
@@ -570,7 +571,8 @@ static void ttusb_handle_sec_data(struct ttusb_channel *channel,
 				  const u8 * data, int len);
 #endif
 
-static int numpkt = 0, lastj, numts, numstuff, numsec, numinvalid;
+static int numpkt = 0, numts, numstuff, numsec, numinvalid;
+static unsigned long lastj;
 
 static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,
 			   int len)
@@ -779,7 +781,7 @@ static void ttusb_iso_irq(struct urb *urb, struct pt_regs *ptregs)
 			u8 *data;
 			int len;
 			numpkt++;
-			if ((jiffies - lastj) >= HZ) {
+			if (time_after_eq(jiffies, lastj + HZ)) {
 #if DEBUG > 2
 				printk
 				    ("frames/s: %d (ts: %d, stuff %d, sec: %d, invalid: %d, all: %d)\n",
@@ -1299,7 +1301,7 @@ static int alps_stv0299_set_symbol_rate(struct dvb_frontend *fe, u32 srate, u32 
 	return 0;
 }
 
-static int philips_tsa5059_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tsa5059_pll_set(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters *params)
 {
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
 	u8 buf[4];
@@ -1322,7 +1324,7 @@ static int philips_tsa5059_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 	if (ttusb->revision == TTUSB_REV_2_2)
 		buf[3] |= 0x20;
 
-	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 
 	return 0;
@@ -1472,8 +1474,6 @@ static void frontend_init(struct ttusb* ttusb)
 
 
 static struct i2c_algorithm ttusb_dec_algo = {
-	.name		= "ttusb dec i2c algorithm",
-	.id		= I2C_ALGO_BIT,
 	.master_xfer	= master_xfer,
 	.functionality	= functionality,
 };
@@ -1525,7 +1525,6 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 #endif
 	ttusb->i2c_adap.algo              = &ttusb_dec_algo;
 	ttusb->i2c_adap.algo_data         = NULL;
-	ttusb->i2c_adap.id                = I2C_ALGO_BIT;
 
 	result = i2c_add_adapter(&ttusb->i2c_adap);
 	if (result) {

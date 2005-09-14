@@ -269,6 +269,8 @@
 #define DRIVER_DESC "USB FTDI Serial Converters Driver"
 
 static int debug;
+static __u16 vendor = FTDI_VID;
+static __u16 product;
 
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
 struct ftdi_sio_quirk {
@@ -407,6 +409,34 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_GUDEADS_E88F_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UO100_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UM100_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UR100_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_ALC8500_PID) },
+	/*
+	 * These will probably use user-space drivers.  Uncomment them if
+	 * you need them or use the user-specified vendor/product module
+	 * parameters (see ftdi_sio.h for the numbers).  Make a fuss if
+	 * you think the driver should recognize any of them by default.
+	 */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_CLI7000_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PPS7330_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_TFM100_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_UDF77_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_UIO88_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_UAD8_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_UDA7_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_USI2_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_T1100_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PCD200_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_ULA200_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_CSI8_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_EM1000DL_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PCK100_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_RFP500_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_FS20SIG_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_WS300PC_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1300PC_PID) }, */
+	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_WS500_PID) }, */
  	{ USB_DEVICE(FTDI_VID, LINX_SDMUSBQSS_PID) },
  	{ USB_DEVICE(FTDI_VID, LINX_MASTERDEVEL2_PID) },
  	{ USB_DEVICE(FTDI_VID, LINX_FUTURE_0_PID) },
@@ -418,6 +448,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(INTREPID_VID, INTREPID_VALUECAN_PID) },
 	{ USB_DEVICE(INTREPID_VID, INTREPID_NEOVI_PID) },
 	{ USB_DEVICE(FALCOM_VID, FALCOM_TWIST_PID) },
+	{ USB_DEVICE(FALCOM_VID, FALCOM_SAMBA_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SUUNTO_SPORTS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RM_CANVIEW_PID) },
 	{ USB_DEVICE(BANDB_VID, BANDB_USOTL4_PID) },
@@ -427,12 +458,21 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_0_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_1_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_2_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_0_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_1_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_2_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_3_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_4_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_5_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_6_PID) },
+	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_7_PID) },
 	{ USB_DEVICE(MOBILITY_VID, MOBILITY_USB_SERIAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ACTIVE_ROBOTS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y6_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y8_PID) },
 	{ USB_DEVICE(EVOLUTION_VID, EVOLUTION_ER1_PID) },
-	{ }						/* Terminating entry */
+	{ },					/* Optional parameter entry */
+	{ }					/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE (usb, id_table_combined);
@@ -874,7 +914,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 	unsigned interfaces;
 
 	/* Assume it is not the original SIO device for now. */
-	priv->baud_base = 48000000 / 16;
+	priv->baud_base = 48000000 / 2;
 	priv->write_offset = 0;
 
 	version = le16_to_cpu(udev->descriptor.bcdDevice);
@@ -2030,6 +2070,15 @@ static int __init ftdi_init (void)
 	int retval;
 
 	dbg("%s", __FUNCTION__);
+	if (vendor > 0 && product > 0) {
+		/* Add user specified VID/PID to reserved element of table. */
+		int i;
+		for (i = 0; id_table_combined[i].idVendor; i++)
+			;
+		id_table_combined[i].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
+		id_table_combined[i].idVendor = vendor;
+		id_table_combined[i].idProduct = product;
+	}
 	retval = usb_serial_register(&ftdi_sio_device);
 	if (retval)
 		goto failed_sio_register;
@@ -2066,4 +2115,9 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
+module_param(vendor, ushort, 0);
+MODULE_PARM_DESC(vendor, "User specified vendor ID (default="
+		__MODULE_STRING(FTDI_VID)")");
+module_param(product, ushort, 0);
+MODULE_PARM_DESC(vendor, "User specified product ID");
 

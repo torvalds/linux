@@ -19,12 +19,13 @@
 #include <asm/pal.h>
 #include <asm/percpu.h>
 
-#define GATE_ADDR		__IA64_UL_CONST(0xa000000000000000)
+#define GATE_ADDR		RGN_BASE(RGN_GATE)
+
 /*
  * 0xa000000000000000+2*PERCPU_PAGE_SIZE
  * - 0xa000000000000000+3*PERCPU_PAGE_SIZE remain unmapped (guard page)
  */
-#define KERNEL_START		 __IA64_UL_CONST(0xa000000100000000)
+#define KERNEL_START		 (GATE_ADDR+0x100000000)
 #define PERCPU_ADDR		(-PERCPU_PAGE_SIZE)
 
 #ifndef __ASSEMBLY__
@@ -274,6 +275,7 @@ extern void ia64_load_extra (struct task_struct *task);
  */
 #define __ARCH_WANT_UNLOCKED_CTXSW
 
+#define ARCH_HAS_PREFETCH_SWITCH_STACK
 #define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
 
 void cpu_idle_wait(void);

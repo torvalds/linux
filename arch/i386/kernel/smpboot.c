@@ -88,6 +88,8 @@ EXPORT_SYMBOL(cpu_online_map);
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
 EXPORT_SYMBOL(cpu_callout_map);
+cpumask_t cpu_possible_map;
+EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
 
 /* TSC's upper 32 bits can't be written in eariler CPU (before prescott), there
@@ -1017,8 +1019,8 @@ int __devinit smp_prepare_cpu(int cpu)
 	tsc_sync_disabled = 1;
 
 	/* init low mem mapping */
-	memcpy(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			sizeof(swapper_pg_dir[0]) * KERNEL_PGD_PTRS);
+	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
+			KERNEL_PGD_PTRS);
 	flush_tlb_all();
 	schedule_work(&task);
 	wait_for_completion(&done);
@@ -1265,6 +1267,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callout_map);
 	cpu_set(smp_processor_id(), cpu_present_map);
+	cpu_set(smp_processor_id(), cpu_possible_map);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 }
 
@@ -1327,8 +1330,7 @@ void __cpu_die(unsigned int cpu)
 			printk ("CPU %d is now offline\n", cpu);
 			return;
 		}
-		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(HZ/10);
+		msleep(100);
 	}
  	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }

@@ -1,25 +1,35 @@
 /*
-   libata-core.c - helper library for ATA
-
-   Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
-   Copyright 2003-2004 Jeff Garzik
-
-   The contents of this file are subject to the Open
-   Software License version 1.1 that can be found at
-   http://www.opensource.org/licenses/osl-1.1.txt and is included herein
-   by reference.
-
-   Alternatively, the contents of this file may be used under the terms
-   of the GNU General Public License version 2 (the "GPL") as distributed
-   in the kernel source COPYING file, in which case the provisions of
-   the GPL are applicable instead of the above.  If you wish to allow
-   the use of your version of this file only under the terms of the
-   GPL and not to allow others to use your version of this file under
-   the OSL, indicate your decision by deleting the provisions above and
-   replace them with the notice and other provisions required by the GPL.
-   If you do not delete the provisions above, a recipient may use your
-   version of this file under either the OSL or the GPL.
-
+ *  libata-core.c - helper library for ATA
+ *
+ *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *    		    Please ALWAYS copy linux-ide@vger.kernel.org
+ *		    on emails.
+ *
+ *  Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
+ *  Copyright 2003-2004 Jeff Garzik
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  Hardware documentation available from http://www.t13.org/ and
+ *  http://www.sata-io.org/
+ *
  */
 
 #include <linux/config.h>
@@ -64,6 +74,10 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc);
 
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
+
+int atapi_enabled = 0;
+module_param(atapi_enabled, int, 0444);
+MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
@@ -1304,12 +1318,12 @@ static inline u8 ata_dev_knobble(struct ata_port *ap)
 /**
  * 	ata_dev_config - Run device specific handlers and check for
  * 			 SATA->PATA bridges
- * 	@ap: Bus 
+ * 	@ap: Bus
  * 	@i:  Device
  *
  * 	LOCKING:
  */
- 
+
 void ata_dev_config(struct ata_port *ap, unsigned int i)
 {
 	/* limit bridge transfers to udma5, 200 sectors */
@@ -2268,19 +2282,6 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-
-
-/**
- *	ata_sg_init_one - Prepare a one-entry scatter-gather list.
- *	@qc:  Queued command
- *	@buf:  transfer buffer
- *	@buflen:  length of buf
- *
- *	Builds a single-entry scatter-gather list to initiate a
- *	transfer utilizing the specified buffer.
- *
- *	LOCKING:
- */
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
 	struct scatterlist *sg;
@@ -2310,18 +2311,6 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- */
-
-
-/**
- *	ata_sg_init - Assign a scatter gather list to a queued command
- *	@qc:  Queued command
- *	@sg:  Scatter-gather list
- *	@n_elem:  length of sg list
- *
- *	Attaches a scatter-gather list to a queued command.
- *
- *	LOCKING:
  */
 
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
@@ -2402,6 +2391,27 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_poll_qc_complete - turn irq back on and finish qc
+ *	@qc: Command to complete
+ *	@drv_stat: ATA status register content
+ *
+ *	LOCKING:
+ *	None.  (grabs host lock)
+ */
+
+void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
+{
+	struct ata_port *ap = qc->ap;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_NOINTR;
+	ata_irq_on(ap);
+	ata_qc_complete(qc, drv_stat);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+}
+
+/**
  *	ata_pio_poll -
  *	@ap:
  *
@@ -2463,11 +2473,10 @@ static void ata_pio_complete (struct ata_port *ap)
 	u8 drv_stat;
 
 	/*
-	 * This is purely hueristic.  This is a fast path.
-	 * Sometimes when we enter, BSY will be cleared in
-	 * a chk-status or two.  If not, the drive is probably seeking
-	 * or something.  Snooze for a couple msecs, then
-	 * chk-status again.  If still busy, fall back to
+	 * This is purely heuristic.  This is a fast path.  Sometimes when
+	 * we enter, BSY will be cleared in a chk-status or two.  If not,
+	 * the drive is probably seeking or something.  Snooze for a couple
+	 * msecs, then chk-status again.  If still busy, fall back to
 	 * PIO_ST_POLL state.
 	 */
 	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
@@ -2492,9 +2501,7 @@ static void ata_pio_complete (struct ata_port *ap)
 
 	ap->pio_task_state = PIO_ST_IDLE;
 
-	ata_irq_on(ap);
-
-	ata_qc_complete(qc, drv_stat);
+	ata_poll_qc_complete(qc, drv_stat);
 }
 
 
@@ -2519,6 +2526,20 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 #endif /* __BIG_ENDIAN */
 }
 
+/**
+ *	ata_mmio_data_xfer - Transfer data by MMIO
+ *	@ap: port to read/write
+ *	@buf: data buffer
+ *	@buflen: buffer length
+ *	@write_data: read/write
+ *
+ *	Transfer data from/to the device data register by MMIO.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ */
+
 static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
 			       unsigned int buflen, int write_data)
 {
@@ -2527,6 +2548,7 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
 	u16 *buf16 = (u16 *) buf;
 	void __iomem *mmio = (void __iomem *)ap->ioaddr.data_addr;
 
+	/* Transfer multiple of 2 bytes */
 	if (write_data) {
 		for (i = 0; i < words; i++)
 			writew(le16_to_cpu(buf16[i]), mmio);
@@ -2534,18 +2556,75 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
 		for (i = 0; i < words; i++)
 			buf16[i] = cpu_to_le16(readw(mmio));
 	}
+
+	/* Transfer trailing 1 byte, if any. */
+	if (unlikely(buflen & 0x01)) {
+		u16 align_buf[1] = { 0 };
+		unsigned char *trailing_buf = buf + buflen - 1;
+
+		if (write_data) {
+			memcpy(align_buf, trailing_buf, 1);
+			writew(le16_to_cpu(align_buf[0]), mmio);
+		} else {
+			align_buf[0] = cpu_to_le16(readw(mmio));
+			memcpy(trailing_buf, align_buf, 1);
+		}
+	}
 }
+
+/**
+ *	ata_pio_data_xfer - Transfer data by PIO
+ *	@ap: port to read/write
+ *	@buf: data buffer
+ *	@buflen: buffer length
+ *	@write_data: read/write
+ *
+ *	Transfer data from/to the device data register by PIO.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ */
 
 static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
 			      unsigned int buflen, int write_data)
 {
-	unsigned int dwords = buflen >> 1;
+	unsigned int words = buflen >> 1;
 
+	/* Transfer multiple of 2 bytes */
 	if (write_data)
-		outsw(ap->ioaddr.data_addr, buf, dwords);
+		outsw(ap->ioaddr.data_addr, buf, words);
 	else
-		insw(ap->ioaddr.data_addr, buf, dwords);
+		insw(ap->ioaddr.data_addr, buf, words);
+
+	/* Transfer trailing 1 byte, if any. */
+	if (unlikely(buflen & 0x01)) {
+		u16 align_buf[1] = { 0 };
+		unsigned char *trailing_buf = buf + buflen - 1;
+
+		if (write_data) {
+			memcpy(align_buf, trailing_buf, 1);
+			outw(le16_to_cpu(align_buf[0]), ap->ioaddr.data_addr);
+		} else {
+			align_buf[0] = cpu_to_le16(inw(ap->ioaddr.data_addr));
+			memcpy(trailing_buf, align_buf, 1);
+		}
+	}
 }
+
+/**
+ *	ata_data_xfer - Transfer data from/to the data register.
+ *	@ap: port to read/write
+ *	@buf: data buffer
+ *	@buflen: buffer length
+ *	@do_write: read/write
+ *
+ *	Transfer data from/to the device data register.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ */
 
 static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
 			  unsigned int buflen, int do_write)
@@ -2555,6 +2634,16 @@ static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
 	else
 		ata_pio_data_xfer(ap, buf, buflen, do_write);
 }
+
+/**
+ *	ata_pio_sector - Transfer ATA_SECT_SIZE (512 bytes) of data.
+ *	@qc: Command on going
+ *
+ *	Transfer ATA_SECT_SIZE of data from/to the ATA device.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 
 static void ata_pio_sector(struct ata_queued_cmd *qc)
 {
@@ -2594,6 +2683,18 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	kunmap(page);
 }
 
+/**
+ *	__atapi_pio_bytes - Transfer data from/to the ATAPI device.
+ *	@qc: Command on going
+ *	@bytes: number of bytes
+ *
+ *	Transfer Transfer data from/to the ATAPI device.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ */
+
 static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 {
 	int do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
@@ -2603,10 +2704,33 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 	unsigned char *buf;
 	unsigned int offset, count;
 
-	if (qc->curbytes == qc->nbytes - bytes)
+	if (qc->curbytes + bytes >= qc->nbytes)
 		ap->pio_task_state = PIO_ST_LAST;
 
 next_sg:
+	if (unlikely(qc->cursg >= qc->n_elem)) {
+		/* 
+		 * The end of qc->sg is reached and the device expects
+		 * more data to transfer. In order not to overrun qc->sg
+		 * and fulfill length specified in the byte count register,
+		 *    - for read case, discard trailing data from the device
+		 *    - for write case, padding zero data to the device
+		 */
+		u16 pad_buf[1] = { 0 };
+		unsigned int words = bytes >> 1;
+		unsigned int i;
+
+		if (words) /* warning if bytes > 1 */
+			printk(KERN_WARNING "ata%u: %u bytes trailing data\n", 
+			       ap->id, bytes);
+
+		for (i = 0; i < words; i++)
+			ata_data_xfer(ap, (unsigned char*)pad_buf, 2, do_write);
+
+		ap->pio_task_state = PIO_ST_LAST;
+		return;
+	}
+
 	sg = &qc->sg[qc->cursg];
 
 	page = sg->page;
@@ -2640,10 +2764,20 @@ next_sg:
 
 	kunmap(page);
 
-	if (bytes) {
+	if (bytes)
 		goto next_sg;
-	}
 }
+
+/**
+ *	atapi_pio_bytes - Transfer data from/to the ATAPI device.
+ *	@qc: Command on going
+ *
+ *	Transfer Transfer data from/to the ATAPI device.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ */
 
 static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 {
@@ -2717,9 +2851,7 @@ static void ata_pio_block(struct ata_port *ap)
 		if ((status & ATA_DRQ) == 0) {
 			ap->pio_task_state = PIO_ST_IDLE;
 
-			ata_irq_on(ap);
-
-			ata_qc_complete(qc, status);
+			ata_poll_qc_complete(qc, status);
 			return;
 		}
 
@@ -2749,9 +2881,7 @@ static void ata_pio_error(struct ata_port *ap)
 
 	ap->pio_task_state = PIO_ST_IDLE;
 
-	ata_irq_on(ap);
-
-	ata_qc_complete(qc, drv_stat | ATA_ERR);
+	ata_poll_qc_complete(qc, drv_stat | ATA_ERR);
 }
 
 static void ata_pio_task(void *_data)
@@ -2857,8 +2987,10 @@ static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
 static void ata_qc_timeout(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
+	struct ata_host_set *host_set = ap->host_set;
 	struct ata_device *dev = qc->dev;
 	u8 host_stat = 0, drv_stat;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
@@ -2869,7 +3001,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
 
 			/* finish completing original command */
+			spin_lock_irqsave(&host_set->lock, flags);
 			__ata_qc_complete(qc);
+			spin_unlock_irqrestore(&host_set->lock, flags);
 
 			atapi_request_sense(ap, dev, cmd);
 
@@ -2879,6 +3013,8 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 			goto out;
 		}
 	}
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	/* hack alert!  We cannot use the supplied completion
 	 * function from inside the ->eh_strategy_handler() thread.
@@ -2895,7 +3031,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		host_stat = ap->ops->bmdma_status(ap);
 
 		/* before we do anything else, clear DMA-Start bit */
-		ap->ops->bmdma_stop(ap);
+		ap->ops->bmdma_stop(qc);
 
 		/* fall through */
 
@@ -2913,6 +3049,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		ata_qc_complete(qc, drv_stat);
 		break;
 	}
+
+	spin_unlock_irqrestore(&host_set->lock, flags);
+
 out:
 	DPRINTK("EXIT\n");
 }
@@ -3086,9 +3225,14 @@ void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
 
+	/* atapi: mark qc as inactive to prevent the interrupt handler
+	 * from completing the command twice later, before the error handler
+	 * is called. (when rc != 0 and atapi request sense is needed)
+	 */
+	qc->flags &= ~ATA_QCFLAG_ACTIVE;
+
 	/* call completion callback */
 	rc = qc->complete_fn(qc, drv_stat);
-	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* if callback indicates not to complete command (non-zero),
 	 * return immediately
@@ -3218,11 +3362,13 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_ATAPI_NODATA:
+		ap->flags |= ATA_FLAG_NOINTR;
 		ata_tf_to_host_nolock(ap, &qc->tf);
 		queue_work(ata_wq, &ap->packet_task);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
+		ap->flags |= ATA_FLAG_NOINTR;
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
 		queue_work(ata_wq, &ap->packet_task);
@@ -3267,7 +3413,7 @@ static void ata_bmdma_setup_mmio (struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
+ *	ata_bmdma_start_mmio - Start a PCI IDE BMDMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
@@ -3438,7 +3584,7 @@ u8 ata_bmdma_status(struct ata_port *ap)
 
 /**
  *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
- *	@ap: Port associated with this ATA transaction.
+ *	@qc: Command we are ending DMA for
  *
  *	Clears the ATA_DMA_START flag in the dma control register
  *
@@ -3448,8 +3594,9 @@ u8 ata_bmdma_status(struct ata_port *ap)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_bmdma_stop(struct ata_port *ap)
+void ata_bmdma_stop(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
 	if (ap->flags & ATA_FLAG_MMIO) {
 		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 
@@ -3501,7 +3648,7 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 			goto idle_irq;
 
 		/* before we do anything else, clear DMA-Start bit */
-		ap->ops->bmdma_stop(ap);
+		ap->ops->bmdma_stop(qc);
 
 		/* fall through */
 
@@ -3576,7 +3723,8 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 		struct ata_port *ap;
 
 		ap = host_set->ports[i];
-		if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+		if (ap &&
+		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -3628,19 +3776,27 @@ static void atapi_packet_task(void *_data)
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
 	assert(ap->cdb_len >= 12);
-	ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
 
-	/* if we are DMA'ing, irq handler takes over from here */
-	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
-		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
+	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA ||
+	    qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {
+		unsigned long flags;
 
-	/* non-data commands are also handled via irq */
-	else if (qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {
-		/* do nothing */
-	}
+		/* Once we're done issuing command and kicking bmdma,
+		 * irq handler takes over.  To not lose irq, we need
+		 * to clear NOINTR flag before sending cdb, but
+		 * interrupt handler shouldn't be invoked before we're
+		 * finished.  Hence, the following locking.
+		 */
+		spin_lock_irqsave(&ap->host_set->lock, flags);
+		ap->flags &= ~ATA_FLAG_NOINTR;
+		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
+		if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
+			ap->ops->bmdma_start(qc);	/* initiate bmdma */
+		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	} else {
+		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
 
-	/* PIO commands are handled by polling */
-	else {
+		/* PIO commands are handled by polling */
 		ap->pio_task_state = PIO_ST;
 		queue_work(ata_wq, &ap->pio_task);
 	}
@@ -3648,7 +3804,7 @@ static void atapi_packet_task(void *_data)
 	return;
 
 err_out:
-	ata_qc_complete(qc, ATA_ERR);
+	ata_poll_qc_complete(qc, ATA_ERR);
 }
 
 
@@ -4048,6 +4204,15 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
 
 
 
+#ifdef CONFIG_PCI
+
+void ata_pci_host_stop (struct ata_host_set *host_set)
+{
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+
+	pci_iounmap(pdev, host_set->mmio_base);
+}
+
 /**
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
@@ -4060,7 +4225,6 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
  *	ata_probe_ent structure should then be freed with kfree().
  */
 
-#ifdef CONFIG_PCI
 struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port)
 {
@@ -4443,6 +4607,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
+EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);

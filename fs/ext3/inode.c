@@ -187,6 +187,8 @@ void ext3_delete_inode (struct inode * inode)
 {
 	handle_t *handle;
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (is_bad_inode(inode))
 		goto no_delete;
 

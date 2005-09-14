@@ -5,7 +5,7 @@
  *
  *  Modifications for ppc64:
  *      Copyright (C) 2003 Dave Engebretsen <engebret@us.ibm.com>
- * 
+ *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation; either version
@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
+#include <asm/oprofile_impl.h>
 #include <asm/cputable.h>
 
 struct cpu_spec* cur_cpu_spec = NULL;
@@ -54,26 +55,32 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00400000,
 		.cpu_name		= "POWER3 (630)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8,
+			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR,
 		.cpu_user_features = COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/power3",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Power3+ */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00410000,
 		.cpu_name		= "POWER3 (630+)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8,
+			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/power3",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Northstar */
 		.pvr_mask		= 0xffff0000,
@@ -81,12 +88,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-II (northstar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/rs64",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Pulsar */
 		.pvr_mask		= 0xffff0000,
@@ -94,12 +105,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-III (pulsar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/rs64",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* I-star */
 		.pvr_mask		= 0xffff0000,
@@ -107,12 +122,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-III (icestar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/rs64",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* S-star */
 		.pvr_mask		= 0xffff0000,
@@ -120,12 +139,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-IV (sstar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
+			CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/rs64",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Power4 */
 		.pvr_mask		= 0xffff0000,
@@ -133,12 +156,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "POWER4 (gp)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/power4",
+		.oprofile_model		= &op_model_rs64,
+#endif
 	},
 	{	/* Power4+ */
 		.pvr_mask		= 0xffff0000,
@@ -146,12 +173,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "POWER4+ (gq)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/power4",
+		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* PPC970 */
 		.pvr_mask		= 0xffff0000,
@@ -160,13 +191,17 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
 			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/970",
+		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* PPC970FX */
 		.pvr_mask		= 0xffff0000,
@@ -175,13 +210,17 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
 			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/970",
+		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* PPC970MP */
 		.pvr_mask		= 0xffff0000,
@@ -190,13 +229,16 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
 			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/970",
+		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -210,8 +252,12 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/power5",
+		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -225,8 +271,12 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc64/power5",
+		.oprofile_model		= &op_model_power4,
+#endif
 	},
 	{	/* BE DD1.x */
 		.pvr_mask		= 0xffff0000,
@@ -241,7 +291,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_be,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
@@ -253,30 +302,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	}
-};
-
-firmware_feature_t firmware_features_table[FIRMWARE_MAX_FEATURES] = {
-	{FW_FEATURE_PFT,		"hcall-pft"},
-	{FW_FEATURE_TCE,		"hcall-tce"},
-	{FW_FEATURE_SPRG0,		"hcall-sprg0"},
-	{FW_FEATURE_DABR,		"hcall-dabr"},
-	{FW_FEATURE_COPY,		"hcall-copy"},
-	{FW_FEATURE_ASR,		"hcall-asr"},
-	{FW_FEATURE_DEBUG,		"hcall-debug"},
-	{FW_FEATURE_PERF,		"hcall-perf"},
-	{FW_FEATURE_DUMP,		"hcall-dump"},
-	{FW_FEATURE_INTERRUPT,		"hcall-interrupt"},
-	{FW_FEATURE_MIGRATE,		"hcall-migrate"},
-	{FW_FEATURE_PERFMON,		"hcall-perfmon"},
-	{FW_FEATURE_CRQ,		"hcall-crq"},
-	{FW_FEATURE_VIO,		"hcall-vio"},
-	{FW_FEATURE_RDMA,		"hcall-rdma"},
-	{FW_FEATURE_LLAN,		"hcall-lLAN"},
-	{FW_FEATURE_BULK,		"hcall-bulk"},
-	{FW_FEATURE_XDABR,		"hcall-xdabr"},
-	{FW_FEATURE_MULTITCE,		"hcall-multi-tce"},
-	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
 };

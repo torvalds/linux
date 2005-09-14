@@ -25,7 +25,7 @@ typedef struct
   Elf64_Sxword r_addend;		/* Addend.  */
 } Elf64_Mips_Rela;
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #define Elf_Shdr	Elf32_Shdr
 #define Elf_Sym		Elf32_Sym
@@ -33,7 +33,7 @@ typedef struct
 
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 #define Elf_Shdr	Elf64_Shdr
 #define Elf_Sym		Elf64_Sym

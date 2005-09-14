@@ -892,7 +892,6 @@ unsigned long send_IPI_mask_phys(cpumask_t physid_mask, int ipi_num,
 	int try)
 {
 	spinlock_t *ipilock;
-	unsigned long flags = 0;
 	volatile unsigned long *ipicr_addr;
 	unsigned long ipicr_val;
 	unsigned long my_physid_mask;
@@ -916,50 +915,27 @@ unsigned long send_IPI_mask_phys(cpumask_t physid_mask, int ipi_num,
 	 * write IPICRi (send IPIi)
 	 * unlock ipi_lock[i]
 	 */
+	spin_lock(ipilock);
 	__asm__ __volatile__ (
-		";; LOCK ipi_lock[i]		\n\t"
-		".fillinsn			\n"
-		"1:				\n\t"
-		"mvfc	%1, psw 		\n\t"
-		"clrpsw	#0x40 -> nop		\n\t"
-		DCACHE_CLEAR("r4", "r5", "%2")
-		"lock	r4, @%2			\n\t"
-		"addi	r4, #-1			\n\t"
-		"unlock	r4, @%2			\n\t"
-		"mvtc	%1, psw			\n\t"
-		"bnez	r4, 2f			\n\t"
-		LOCK_SECTION_START(".balign 4 \n\t")
-		".fillinsn			\n"
-		"2:				\n\t"
-		"ld	r4, @%2			\n\t"
-		"blez	r4, 2b			\n\t"
-		"bra	1b			\n\t"
-		LOCK_SECTION_END
 		";; CHECK IPICRi == 0		\n\t"
 		".fillinsn			\n"
-		"3:				\n\t"
-		"ld	%0, @%3			\n\t"
-		"and	%0, %6			\n\t"
-		"beqz	%0, 4f			\n\t"
-		"bnez	%5, 5f			\n\t"
-		"bra	3b			\n\t"
+		"1:				\n\t"
+		"ld	%0, @%1			\n\t"
+		"and	%0, %4			\n\t"
+		"beqz	%0, 2f			\n\t"
+		"bnez	%3, 3f			\n\t"
+		"bra	1b			\n\t"
 		";; WRITE IPICRi (send IPIi)	\n\t"
 		".fillinsn			\n"
-		"4:				\n\t"
-		"st	%4, @%3			\n\t"
-		";; UNLOCK ipi_lock[i]		\n\t"
+		"2:				\n\t"
+		"st	%2, @%1			\n\t"
 		".fillinsn			\n"
-		"5:				\n\t"
-		"ldi	r4, #1			\n\t"
-		"st	r4, @%2			\n\t"
+		"3:				\n\t"
 		: "=&r"(ipicr_val)
-		: "r"(flags), "r"(&ipilock->slock), "r"(ipicr_addr),
-		  "r"(mask), "r"(try), "r"(my_physid_mask)
-		: "memory", "r4"
-#ifdef CONFIG_CHIP_M32700_TS1
-		, "r5"
-#endif	/* CONFIG_CHIP_M32700_TS1 */
+		: "r"(ipicr_addr), "r"(mask), "r"(try), "r"(my_physid_mask)
+		: "memory"
 	);
+	spin_unlock(ipilock);
 
 	return ipicr_val;
 }

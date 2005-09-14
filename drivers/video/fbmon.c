@@ -29,6 +29,7 @@
 #include <linux/tty.h>
 #include <linux/fb.h>
 #include <linux/module.h>
+#include <video/edid.h>
 #ifdef CONFIG_PPC_OF
 #include <linux/pci.h>
 #include <asm/prom.h>
@@ -313,11 +314,13 @@ static int edid_is_monitor_block(unsigned char *block)
 		return 0;
 }
 
-static void calc_mode_timings(int xres, int yres, int refresh, struct fb_videomode *mode)
+static void calc_mode_timings(int xres, int yres, int refresh,
+			      struct fb_videomode *mode)
 {
 	struct fb_var_screeninfo var;
 	struct fb_info info;
 	
+	memset(&var, 0, sizeof(struct fb_var_screeninfo));
 	var.xres = xres;
 	var.yres = yres;
 	fb_get_mode(FB_VSYNCTIMINGS | FB_IGNOREMON, 
@@ -1251,9 +1254,41 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 		-EINVAL : 0;
 }
 
+#if defined(__i386__)
+#include <linux/pci.h>
+
+/*
+ * We need to ensure that the EDID block is only returned for
+ * the primary graphics adapter.
+ */
+
+const unsigned char *fb_firmware_edid(struct device *device)
+{
+	struct pci_dev *dev = NULL;
+	struct resource *res = NULL;
+	unsigned char *edid = NULL;
+
+	if (device)
+		dev = to_pci_dev(device);
+
+	if (dev)
+		res = &dev->resource[PCI_ROM_RESOURCE];
+
+	if (res && res->flags & IORESOURCE_ROM_SHADOW)
+		edid = edid_info.dummy;
+
+	return edid;
+}
+#else
+const unsigned char *fb_firmware_edid(struct device *device)
+{
+	return NULL;
+}
+#endif /* _i386_ */
+
 EXPORT_SYMBOL(fb_parse_edid);
 EXPORT_SYMBOL(fb_edid_to_monspecs);
-
+EXPORT_SYMBOL(fb_firmware_edid);
 EXPORT_SYMBOL(fb_get_mode);
 EXPORT_SYMBOL(fb_validate_mode);
 EXPORT_SYMBOL(fb_destroy_modedb);

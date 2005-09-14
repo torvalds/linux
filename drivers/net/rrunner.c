@@ -1429,6 +1429,7 @@ static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rr_private *rrpriv = netdev_priv(dev);
 	struct rr_regs __iomem *regs = rrpriv->regs;
+	struct hippi_cb *hcb = (struct hippi_cb *) skb->cb;
 	struct ring_ctrl *txctrl;
 	unsigned long flags;
 	u32 index, len = skb->len;
@@ -1460,7 +1461,7 @@ static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ifield = (u32 *)skb_push(skb, 8);
 
 	ifield[0] = 0;
-	ifield[1] = skb->private.ifield;
+	ifield[1] = hcb->ifield;
 
 	/*
 	 * We don't need the lock before we are actually going to start

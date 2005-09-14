@@ -13,7 +13,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
@@ -38,8 +38,8 @@ ENTRY(cpu_arm7_data_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 	ldr	r8, [r0]			@ read arm instruction
-	tst	r8, #1 << 20			@ L = 1 -> write?
-	orreq	r1, r1, #1 << 8			@ yes.
+	tst	r8, #1 << 20			@ L = 0 -> write?
+	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #15 << 24
 	add	pc, pc, r7, lsr #22		@ Now branch to the relevant processing routine
 	nop
@@ -71,8 +71,8 @@ ENTRY(cpu_arm6_data_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 	ldr	r8, [r2]			@ read arm instruction
-	tst	r8, #1 << 20			@ L = 1 -> write?
-	orreq	r1, r1, #1 << 8			@ yes.
+	tst	r8, #1 << 20			@ L = 0 -> write?
+	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #14 << 24
 	teq	r7, #8 << 24			@ was it ldm/stm
 	movne	pc, lr

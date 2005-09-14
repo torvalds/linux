@@ -30,20 +30,20 @@
 
 #define MAX_BUF PAGE_SIZE
 
-/*
- * If we are told to probe a host, we will return 0 if  the host is not
- * present, 1 if the host is present, and will return an identifying
- * string at *arg, if arg is non null, filling to the length stored at
- * (int *) arg
+/**
+ * ioctl_probe  --  return host identification
+ * @host:	host to identify
+ * @buffer:	userspace buffer for identification
+ *
+ * Return an identifying string at @buffer, if @buffer is non-NULL, filling
+ * to the length stored at * (int *) @buffer.
  */
-
 static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 {
 	unsigned int len, slen;
 	const char *string;
-	int temp = host->hostt->present;
 
-	if (temp && buffer) {
+	if (buffer) {
 		if (get_user(len, (unsigned int __user *) buffer))
 			return -EFAULT;
 
@@ -59,7 +59,7 @@ static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 				return -EFAULT;
 		}
 	}
-	return temp;
+	return 1;
 }
 
 /*
@@ -88,25 +88,18 @@ static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 				  int timeout, int retries)
 {
-	struct scsi_request *sreq;
 	int result;
 	struct scsi_sense_hdr sshdr;
 
 	SCSI_LOG_IOCTL(1, printk("Trying ioctl with scsi command %d\n", *cmd));
 
-	sreq = scsi_allocate_request(sdev, GFP_KERNEL);
-	if (!sreq) {
-		printk(KERN_WARNING "SCSI internal ioctl failed, no memory\n");
-		return -ENOMEM;
-	}
+	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0,
+				  &sshdr, timeout, retries);
 
-	sreq->sr_data_direction = DMA_NONE;
-        scsi_wait_req(sreq, cmd, NULL, 0, timeout, retries);
+	SCSI_LOG_IOCTL(2, printk("Ioctl returned  0x%x\n", result));
 
-	SCSI_LOG_IOCTL(2, printk("Ioctl returned  0x%x\n", sreq->sr_result));
-
-	if ((driver_byte(sreq->sr_result) & DRIVER_SENSE) &&
-	    (scsi_request_normalize_sense(sreq, &sshdr))) {
+	if ((driver_byte(result) & DRIVER_SENSE) &&
+	    (scsi_sense_valid(&sshdr))) {
 		switch (sshdr.sense_key) {
 		case ILLEGAL_REQUEST:
 			if (cmd[0] == ALLOW_MEDIUM_REMOVAL)
@@ -125,7 +118,7 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;
-				sreq->sr_result = 0;	/* This is no longer considered an error */
+				result = 0;	/* This is no longer considered an error */
 				break;
 			}
 		default:	/* Fall through for non-removable media */
@@ -135,15 +128,13 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 			       sdev->channel,
 			       sdev->id,
 			       sdev->lun,
-			       sreq->sr_result);
-			scsi_print_req_sense("   ", sreq);
+			       result);
+			scsi_print_sense_hdr("   ", &sshdr);
 			break;
 		}
 	}
 
-	result = sreq->sr_result;
 	SCSI_LOG_IOCTL(2, printk("IOCTL Releasing command\n"));
-	scsi_release_request(sreq);
 	return result;
 }
 
@@ -208,8 +199,8 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 {
 	char *buf;
 	unsigned char cmd[MAX_COMMAND_SIZE];
+	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
 	char __user *cmd_in;
-	struct scsi_request *sreq;
 	unsigned char opcode;
 	unsigned int inlen, outlen, cmdlen;
 	unsigned int needed, buf_needed;
@@ -321,31 +312,23 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 		break;
 	}
 
-	sreq = scsi_allocate_request(sdev, GFP_KERNEL);
-        if (!sreq) {
-                result = -EINTR;
-                goto error;
-        }
-
-	sreq->sr_data_direction = data_direction;
-        scsi_wait_req(sreq, cmd, buf, needed, timeout, retries);
+	result = scsi_execute(sdev, cmd, data_direction, buf, needed,
+			      sense, timeout, retries, 0);
 
 	/* 
 	 * If there was an error condition, pass the info back to the user. 
 	 */
-	result = sreq->sr_result;
 	if (result) {
-		int sb_len = sizeof(sreq->sr_sense_buffer);
+		int sb_len = sizeof(*sense);
 
 		sb_len = (sb_len > OMAX_SB_LEN) ? OMAX_SB_LEN : sb_len;
-		if (copy_to_user(cmd_in, sreq->sr_sense_buffer, sb_len))
+		if (copy_to_user(cmd_in, sense, sb_len))
 			result = -EFAULT;
 	} else {
 		if (copy_to_user(cmd_in, buf, outlen))
 			result = -EFAULT;
 	}	
 
-	scsi_release_request(sreq);
 error:
 	kfree(buf);
 	return result;
@@ -475,8 +458,7 @@ int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 	 * error processing, as long as the device was opened
 	 * non-blocking */
 	if (filp && filp->f_flags & O_NONBLOCK) {
-		if (test_bit(SHOST_RECOVERY,
-			     &sdev->host->shost_state))
+		if (sdev->host->shost_state == SHOST_RECOVERY)
 			return -ENODEV;
 	} else if (!scsi_block_when_processing_errors(sdev))
 		return -ENODEV;

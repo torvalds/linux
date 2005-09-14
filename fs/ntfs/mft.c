@@ -511,7 +511,6 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 		} while (bh);
 		tail->b_this_page = head;
 		attach_page_buffers(page, head);
-		BUG_ON(!page_has_buffers(page));
 	}
 	bh = head = page_buffers(page);
 	BUG_ON(!bh);
@@ -533,6 +532,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 			LCN lcn;
 			unsigned int vcn_ofs;
 
+			bh->b_bdev = vol->sb->s_bdev;
 			/* Obtain the vcn and offset of the current block. */
 			vcn = ((VCN)mft_no << vol->mft_record_size_bits) +
 					(block_start - m_start);
@@ -691,7 +691,6 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	 */
 	if (!NInoTestClearDirty(ni))
 		goto done;
-	BUG_ON(!page_has_buffers(page));
 	bh = head = page_buffers(page);
 	BUG_ON(!bh);
 	rl = NULL;
@@ -725,6 +724,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 			LCN lcn;
 			unsigned int vcn_ofs;
 
+			bh->b_bdev = vol->sb->s_bdev;
 			/* Obtain the vcn and offset of the current block. */
 			vcn = ((VCN)ni->mft_no << vol->mft_record_size_bits) +
 					(block_start - m_start);
@@ -1953,7 +1953,7 @@ restore_undo_alloc:
 	a = ctx->attr;
 	a->data.non_resident.highest_vcn = cpu_to_sle64(old_last_vcn - 1);
 undo_alloc:
-	if (ntfs_cluster_free(vol->mft_ino, old_last_vcn, -1) < 0) {
+	if (ntfs_cluster_free(vol->mft_ino, old_last_vcn, -1, TRUE) < 0) {
 		ntfs_error(vol->sb, "Failed to free clusters from mft data "
 				"attribute.%s", es);
 		NVolSetErrors(vol);

@@ -247,7 +247,7 @@ static void
 pnpbios_parse_mem_option(unsigned char *p, int size, struct pnp_option *option)
 {
 	struct pnp_mem * mem;
-	mem = pnpbios_kmalloc(sizeof(struct pnp_mem), GFP_KERNEL);
+	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = ((p[5] << 8) | p[4]) << 8;
@@ -263,7 +263,7 @@ static void
 pnpbios_parse_mem32_option(unsigned char *p, int size, struct pnp_option *option)
 {
 	struct pnp_mem * mem;
-	mem = pnpbios_kmalloc(sizeof(struct pnp_mem), GFP_KERNEL);
+	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
@@ -279,7 +279,7 @@ static void
 pnpbios_parse_fixed_mem32_option(unsigned char *p, int size, struct pnp_option *option)
 {
 	struct pnp_mem * mem;
-	mem = pnpbios_kmalloc(sizeof(struct pnp_mem), GFP_KERNEL);
+	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = mem->max = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
@@ -296,7 +296,7 @@ pnpbios_parse_irq_option(unsigned char *p, int size, struct pnp_option *option)
 	struct pnp_irq * irq;
 	unsigned long bits;
 
-	irq = pnpbios_kmalloc(sizeof(struct pnp_irq), GFP_KERNEL);
+	irq = kcalloc(1, sizeof(struct pnp_irq), GFP_KERNEL);
 	if (!irq)
 		return;
 	bits = (p[2] << 8) | p[1];
@@ -313,7 +313,7 @@ static void
 pnpbios_parse_dma_option(unsigned char *p, int size, struct pnp_option *option)
 {
 	struct pnp_dma * dma;
-	dma = pnpbios_kmalloc(sizeof(struct pnp_dma), GFP_KERNEL);
+	dma = kcalloc(1, sizeof(struct pnp_dma), GFP_KERNEL);
 	if (!dma)
 		return;
 	dma->map = p[1];
@@ -326,7 +326,7 @@ static void
 pnpbios_parse_port_option(unsigned char *p, int size, struct pnp_option *option)
 {
 	struct pnp_port * port;
-	port = pnpbios_kmalloc(sizeof(struct pnp_port), GFP_KERNEL);
+	port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
 	port->min = (p[3] << 8) | p[2];
@@ -342,7 +342,7 @@ static void
 pnpbios_parse_fixed_port_option(unsigned char *p, int size, struct pnp_option *option)
 {
 	struct pnp_port * port;
-	port = pnpbios_kmalloc(sizeof(struct pnp_port), GFP_KERNEL);
+	port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
 	port->min = port->max = (p[2] << 8) | p[1];
@@ -530,7 +530,7 @@ pnpbios_parse_compatible_ids(unsigned char *p, unsigned char *end, struct pnp_de
 		case SMALL_TAG_COMPATDEVID: /* compatible ID */
 			if (len != 4)
 				goto len_err;
-			dev_id =  pnpbios_kmalloc(sizeof (struct pnp_id), GFP_KERNEL);
+			dev_id =  kcalloc(1, sizeof (struct pnp_id), GFP_KERNEL);
 			if (!dev_id)
 				return NULL;
 			memset(dev_id, 0, sizeof(struct pnp_id));

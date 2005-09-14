@@ -42,6 +42,7 @@
  */
 
 #include <net/sctp/structs.h>
+#include <net/sctp/sctp.h>
 #include <linux/sysctl.h>
 
 static ctl_handler sctp_sysctl_jiffies_ms;

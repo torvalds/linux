@@ -141,7 +141,7 @@ static void __init ddb_time_init(void)
 
 	/* mips_hpt_frequency is 1/2 of the cpu core freq */
 	i =  (read_c0_config() >> 28 ) & 7;
-	if ((current_cpu_data.cputype == CPU_R5432) && (i == 3)) 
+	if ((current_cpu_data.cputype == CPU_R5432) && (i == 3))
 		i = 4;
 	mips_hpt_frequency = bus_frequency*(i+4)/4;
 }
@@ -298,11 +298,11 @@ static void __init ddb5477_board_init(void)
 
 	if (mips_machtype == MACH_NEC_ROCKHOPPER
 	   ||  mips_machtype == MACH_NEC_ROCKHOPPERII) {
-		/* Disable bus diagnostics. */ 
+		/* Disable bus diagnostics. */
 		ddb_out32(DDB_PCICTL0_L, 0);
 		ddb_out32(DDB_PCICTL0_H, 0);
 		ddb_out32(DDB_PCICTL1_L, 0);
-		ddb_out32(DDB_PCICTL1_H, 0);         
+		ddb_out32(DDB_PCICTL1_H, 0);
 	}
 
 	if (mips_machtype == MACH_NEC_ROCKHOPPER) {
@@ -354,7 +354,7 @@ static void __init ddb5477_board_init(void)
 		 */
 		pci_write_config_byte(&dev_m1533, 0x58, 0x74);
 
-		/* 
+		/*
 		 * positive decode (bit6 -0)
 		 * enable IDE controler interrupt (bit 4 -1)
 		 * setup SIRQ to point to IRQ 14 (bit 3:0 - 1101)
@@ -364,31 +364,31 @@ static void __init ddb5477_board_init(void)
 		/* Setup M5229 registers */
 		dev_m5229.bus = &bus;
 		dev_m5229.sysdata = NULL;
-		dev_m5229.devfn = 4*8;  	// slot 4 (AD15): M5229 IDE 
+		dev_m5229.devfn = 4*8;  	// slot 4 (AD15): M5229 IDE
 
 		/*
 		 * enable IDE in the M5229 config register 0x50 (bit 0 - 1)
-		 * M5229 IDSEL is addr:15; see above setting 
+		 * M5229 IDSEL is addr:15; see above setting
 		 */
 		pci_read_config_byte(&dev_m5229, 0x50, &temp8);
 		pci_write_config_byte(&dev_m5229, 0x50, temp8 | 0x1);
 
-		/* 
-		 * enable bus master (bit 2)  and IO decoding  (bit 0) 
+		/*
+		 * enable bus master (bit 2)  and IO decoding  (bit 0)
 		 */
 		pci_read_config_byte(&dev_m5229, 0x04, &temp8);
 		pci_write_config_byte(&dev_m5229, 0x04, temp8 | 0x5);
 
 		/*
 		 * enable native, copied from arch/ppc/k2boot/head.S
-		 * TODO - need volatile, need to be portable 
+		 * TODO - need volatile, need to be portable
 		 */
 		pci_write_config_byte(&dev_m5229, 0x09, 0xef);
 
-		/* Set Primary Channel Command Block Timing */ 
+		/* Set Primary Channel Command Block Timing */
 		pci_write_config_byte(&dev_m5229, 0x59, 0x31);
 
-		/* 
+		/*
 		 * Enable primary channel 40-pin cable
 		 * M5229 register 0x4a (bit 0)
 		 */

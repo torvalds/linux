@@ -7,6 +7,7 @@
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
+#include <asm/auxvec.h>
 
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0
@@ -121,16 +122,6 @@ extern int dump_task_fpu(struct task_struct *t, elf_fpregset_t *fpu);
 #define ELF_PLATFORM	(NULL)
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
-
-/*
- * We need to put in some extra aux table entries to tell glibc what
- * the cache block size is, so it can use the dcbz instruction safely.
- */
-#define AT_DCACHEBSIZE		19
-#define AT_ICACHEBSIZE		20
-#define AT_UCACHEBSIZE		21
-/* A special ignored type value for PPC, for glibc compatibility.  */
-#define AT_IGNOREPPC		22
 
 extern int dcache_bsize;
 extern int icache_bsize;

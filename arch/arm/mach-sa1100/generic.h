@@ -34,5 +34,8 @@ struct resource;
 extern void sa11x0_set_flash_data(struct flash_platform_data *flash,
 				  struct resource *res, int nr);
 
+struct sa11x0_ssp_plat_ops;
+extern void sa11x0_set_ssp_data(struct sa11x0_ssp_plat_ops *ops);
+
 struct irda_platform_data;
 void sa11x0_set_irda_data(struct irda_platform_data *irda);

@@ -16,6 +16,9 @@
 // 04/11/12 Russ Anderson <rja@sgi.com>
 //		   Added per cpu MCA/INIT stack save areas.
 //
+// 12/08/05 Keith Owens <kaos@sgi.com>
+//		   Use per cpu MCA/INIT stacks for all data.
+//
 #include <linux/config.h>
 #include <linux/threads.h>
 
@@ -25,95 +28,22 @@
 #include <asm/mca_asm.h>
 #include <asm/mca.h>
 
-/*
- * When we get a machine check, the kernel stack pointer is no longer
- * valid, so we need to set a new stack pointer.
- */
-#define	MINSTATE_PHYS	/* Make sure stack access is physical for MINSTATE */
-
-/*
- * Needed for return context to SAL
- */
-#define IA64_MCA_SAME_CONTEXT	0
-#define IA64_MCA_COLD_BOOT	-2
-
-#include "minstate.h"
-
-/*
- * SAL_TO_OS_MCA_HANDOFF_STATE (SAL 3.0 spec)
- *		1. GR1 = OS GP
- *		2. GR8 = PAL_PROC physical address
- *		3. GR9 = SAL_PROC physical address
- *		4. GR10 = SAL GP (physical)
- *		5. GR11 = Rendez state
- *		6. GR12 = Return address to location within SAL_CHECK
- */
-#define SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(_tmp)		\
-	LOAD_PHYSICAL(p0, _tmp, ia64_sal_to_os_handoff_state);; \
-	st8	[_tmp]=r1,0x08;;			\
-	st8	[_tmp]=r8,0x08;;			\
-	st8	[_tmp]=r9,0x08;;			\
-	st8	[_tmp]=r10,0x08;;			\
-	st8	[_tmp]=r11,0x08;;			\
-	st8	[_tmp]=r12,0x08;;			\
-	st8	[_tmp]=r17,0x08;;			\
-	st8	[_tmp]=r18,0x08
-
-/*
- * OS_MCA_TO_SAL_HANDOFF_STATE (SAL 3.0 spec)
- * (p6) is executed if we never entered virtual mode (TLB error)
- * (p7) is executed if we entered virtual mode as expected (normal case)
- *	1. GR8 = OS_MCA return status
- *	2. GR9 = SAL GP (physical)
- *	3. GR10 = 0/1 returning same/new context
- *	4. GR22 = New min state save area pointer
- *	returns ptr to SAL rtn save loc in _tmp
- */
-#define OS_MCA_TO_SAL_HANDOFF_STATE_RESTORE(_tmp)	\
-	movl	_tmp=ia64_os_to_sal_handoff_state;;	\
-	DATA_VA_TO_PA(_tmp);;				\
-	ld8	r8=[_tmp],0x08;;			\
-	ld8	r9=[_tmp],0x08;;			\
-	ld8	r10=[_tmp],0x08;;			\
-	ld8	r22=[_tmp],0x08;;
-	// now _tmp is pointing to SAL rtn save location
-
-/*
- * COLD_BOOT_HANDOFF_STATE() sets ia64_mca_os_to_sal_state
- *	imots_os_status=IA64_MCA_COLD_BOOT
- *	imots_sal_gp=SAL GP
- *	imots_context=IA64_MCA_SAME_CONTEXT
- *	imots_new_min_state=Min state save area pointer
- *	imots_sal_check_ra=Return address to location within SAL_CHECK
- *
- */
-#define COLD_BOOT_HANDOFF_STATE(sal_to_os_handoff,os_to_sal_handoff,tmp)\
-	movl	tmp=IA64_MCA_COLD_BOOT;					\
-	movl	sal_to_os_handoff=__pa(ia64_sal_to_os_handoff_state);	\
-	movl	os_to_sal_handoff=__pa(ia64_os_to_sal_handoff_state);;	\
-	st8	[os_to_sal_handoff]=tmp,8;;				\
-	ld8	tmp=[sal_to_os_handoff],48;;				\
-	st8	[os_to_sal_handoff]=tmp,8;;				\
-	movl	tmp=IA64_MCA_SAME_CONTEXT;;				\
-	st8	[os_to_sal_handoff]=tmp,8;;				\
-	ld8	tmp=[sal_to_os_handoff],-8;;				\
-	st8     [os_to_sal_handoff]=tmp,8;;				\
-	ld8	tmp=[sal_to_os_handoff];;				\
-	st8     [os_to_sal_handoff]=tmp;;
+#include "entry.h"
 
 #define GET_IA64_MCA_DATA(reg)						\
 	GET_THIS_PADDR(reg, ia64_mca_data)				\
 	;;								\
 	ld8 reg=[reg]
 
-	.global ia64_os_mca_dispatch
-	.global ia64_os_mca_dispatch_end
-	.global ia64_sal_to_os_handoff_state
-	.global	ia64_os_to_sal_handoff_state
 	.global ia64_do_tlb_purge
+	.global ia64_os_mca_dispatch
+	.global ia64_os_init_dispatch_monarch
+	.global ia64_os_init_dispatch_slave
 
 	.text
 	.align 16
+
+//StartMain////////////////////////////////////////////////////////////////////
 
 /*
  * Just the TLB purge part is moved to a separate function
@@ -207,34 +137,31 @@ ia64_do_tlb_purge:
 	br.sptk.many b1
 	;;
 
-ia64_os_mca_dispatch:
+//EndMain//////////////////////////////////////////////////////////////////////
 
+//StartMain////////////////////////////////////////////////////////////////////
+
+ia64_os_mca_dispatch:
 	// Serialize all MCA processing
 	mov	r3=1;;
 	LOAD_PHYSICAL(p0,r2,ia64_mca_serialize);;
 ia64_os_mca_spin:
-	xchg8	r4=[r2],r3;;
+	xchg4	r4=[r2],r3;;
 	cmp.ne	p6,p0=r4,r0
 (p6)	br ia64_os_mca_spin
 
-	// Save the SAL to OS MCA handoff state as defined
-	// by SAL SPEC 3.0
-	// NOTE : The order in which the state gets saved
-	//	  is dependent on the way the C-structure
-	//	  for ia64_mca_sal_to_os_state_t has been
-	//	  defined in include/asm/mca.h
-	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
+	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	mov r19=1				// All MCA events are treated as monarch (for now)
+	br.sptk ia64_state_save			// save the state that is not in minstate
+1:
+
+	GET_IA64_MCA_DATA(r2)
+	// Using MCA stack, struct ia64_sal_os_state, variable proc_state_param
 	;;
-
-	// LOG PROCESSOR STATE INFO FROM HERE ON..
-begin_os_mca_dump:
-	br	ia64_os_mca_proc_state_dump;;
-
-ia64_os_mca_done_dump:
-
-	LOAD_PHYSICAL(p0,r16,ia64_sal_to_os_handoff_state+56)
+	add r3=IA64_MCA_CPU_MCA_STACK_OFFSET+MCA_SOS_OFFSET+IA64_SAL_OS_STATE_PROC_STATE_PARAM_OFFSET, r2
 	;;
-	ld8 r18=[r16]		// Get processor state parameter on existing PALE_CHECK.
+	ld8 r18=[r3]				// Get processor state parameter on existing PALE_CHECK.
 	;;
 	tbit.nz p6,p7=r18,60
 (p7)	br.spnt done_tlb_purge_and_reload
@@ -323,624 +250,775 @@ ia64_reload_tr:
 	itr.d dtr[r20]=r16
 	;;
 	srlz.d
-	;;
-	br.sptk.many done_tlb_purge_and_reload
-err:
-	COLD_BOOT_HANDOFF_STATE(r20,r21,r22)
-	br.sptk.many ia64_os_mca_done_restore
 
 done_tlb_purge_and_reload:
 
-	// Setup new stack frame for OS_MCA handling
-	GET_IA64_MCA_DATA(r2)
-	;;
-	add r3 = IA64_MCA_CPU_STACKFRAME_OFFSET, r2
-	add r2 = IA64_MCA_CPU_RBSTORE_OFFSET, r2
-	;;
-	rse_switch_context(r6,r3,r2);;	// RSC management in this new context
+	// switch to per cpu MCA stack
+	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_new_stack
+1:
 
+	// everything saved, now we can set the kernel registers
+	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_set_kernel_registers
+1:
+
+	// This must be done in physical mode
 	GET_IA64_MCA_DATA(r2)
 	;;
-	add r2 = IA64_MCA_CPU_STACK_OFFSET+IA64_MCA_STACK_SIZE-16, r2
-	;;
-	mov r12=r2		// establish new stack-pointer
+	mov r7=r2
 
         // Enter virtual mode from physical mode
 	VIRTUAL_MODE_ENTER(r2, r3, ia64_os_mca_virtual_begin, r4)
-ia64_os_mca_virtual_begin:
+
+	// This code returns to SAL via SOS r2, in general SAL has no unwind
+	// data.  To get a clean termination when backtracing the C MCA/INIT
+	// handler, set a dummy return address of 0 in this routine.  That
+	// requires that ia64_os_mca_virtual_begin be a global function.
+ENTRY(ia64_os_mca_virtual_begin)
+	.prologue
+	.save rp,r0
+	.body
+
+	mov ar.rsc=3				// set eager mode for C handler
+	mov r2=r7				// see GET_IA64_MCA_DATA above
+	;;
 
 	// Call virtual mode handler
-	movl		r2=ia64_mca_ucmc_handler;;
-	mov		b6=r2;;
-	br.call.sptk.many    b0=b6;;
-.ret0:
+	alloc r14=ar.pfs,0,0,3,0
+	;;
+	DATA_PA_TO_VA(r2,r7)
+	;;
+	add out0=IA64_MCA_CPU_MCA_STACK_OFFSET+MCA_PT_REGS_OFFSET, r2
+	add out1=IA64_MCA_CPU_MCA_STACK_OFFSET+MCA_SWITCH_STACK_OFFSET, r2
+	add out2=IA64_MCA_CPU_MCA_STACK_OFFSET+MCA_SOS_OFFSET, r2
+	br.call.sptk.many    b0=ia64_mca_handler
+
 	// Revert back to physical mode before going back to SAL
 	PHYSICAL_MODE_ENTER(r2, r3, ia64_os_mca_virtual_end, r4)
 ia64_os_mca_virtual_end:
 
-	// restore the original stack frame here
-	GET_IA64_MCA_DATA(r2)
-	;;
-	add r2 = IA64_MCA_CPU_STACKFRAME_OFFSET, r2
-	;;
-	movl    r4=IA64_PSR_MC
-	;;
-	rse_return_context(r4,r3,r2)	// switch from interrupt context for RSE
+END(ia64_os_mca_virtual_begin)
 
-	// let us restore all the registers from our PSI structure
-	mov	r8=gp
-	;;
-begin_os_mca_restore:
-	br	ia64_os_mca_proc_state_restore;;
+	// switch back to previous stack
+	alloc r14=ar.pfs,0,0,0,0		// remove the MCA handler frame
+	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_old_stack
+1:
 
-ia64_os_mca_done_restore:
-	OS_MCA_TO_SAL_HANDOFF_STATE_RESTORE(r2);;
-	// branch back to SALE_CHECK
-	ld8		r3=[r2];;
-	mov		b0=r3;;		// SAL_CHECK return address
+	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_state_restore		// restore the SAL state
+1:
+
+	mov		b0=r12			// SAL_CHECK return address
 
 	// release lock
-	movl		r3=ia64_mca_serialize;;
-	DATA_VA_TO_PA(r3);;
-	st8.rel		[r3]=r0
+	LOAD_PHYSICAL(p0,r3,ia64_mca_serialize);;
+	st4.rel		[r3]=r0
 
 	br		b0
-	;;
-ia64_os_mca_dispatch_end:
+
 //EndMain//////////////////////////////////////////////////////////////////////
 
+//StartMain////////////////////////////////////////////////////////////////////
 
-//++
-// Name:
-//      ia64_os_mca_proc_state_dump()
 //
-// Stub Description:
+// SAL to OS entry point for INIT on all processors.  This has been defined for
+// registration purposes with SAL as a part of ia64_mca_init.  Monarch and
+// slave INIT have identical processing, except for the value of the
+// sos->monarch flag in r19.
 //
-//       This stub dumps the processor state during MCHK to a data area
-//
-//--
 
-ia64_os_mca_proc_state_dump:
-// Save bank 1 GRs 16-31 which will be used by c-language code when we switch
-//  to virtual addressing mode.
+ia64_os_init_dispatch_monarch:
+	mov r19=1				// Bow, bow, ye lower middle classes!
+	br.sptk ia64_os_init_dispatch
+
+ia64_os_init_dispatch_slave:
+	mov r19=0				// <igor>yeth, mathter</igor>
+
+ia64_os_init_dispatch:
+
+	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_state_save			// save the state that is not in minstate
+1:
+
+	// switch to per cpu INIT stack
+	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_new_stack
+1:
+
+	// everything saved, now we can set the kernel registers
+	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_set_kernel_registers
+1:
+
+	// This must be done in physical mode
 	GET_IA64_MCA_DATA(r2)
 	;;
-	add r2 = IA64_MCA_CPU_PROC_STATE_DUMP_OFFSET, r2
-	;;
-// save ar.NaT
-	mov		r5=ar.unat                  // ar.unat
-
-// save banked GRs 16-31 along with NaT bits
-	bsw.1;;
-	st8.spill	[r2]=r16,8;;
-	st8.spill	[r2]=r17,8;;
-	st8.spill	[r2]=r18,8;;
-	st8.spill	[r2]=r19,8;;
-	st8.spill	[r2]=r20,8;;
-	st8.spill	[r2]=r21,8;;
-	st8.spill	[r2]=r22,8;;
-	st8.spill	[r2]=r23,8;;
-	st8.spill	[r2]=r24,8;;
-	st8.spill	[r2]=r25,8;;
-	st8.spill	[r2]=r26,8;;
-	st8.spill	[r2]=r27,8;;
-	st8.spill	[r2]=r28,8;;
-	st8.spill	[r2]=r29,8;;
-	st8.spill	[r2]=r30,8;;
-	st8.spill	[r2]=r31,8;;
-
-	mov		r4=ar.unat;;
-	st8		[r2]=r4,8                // save User NaT bits for r16-r31
-	mov		ar.unat=r5                  // restore original unat
-	bsw.0;;
-
-//save BRs
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2                // duplicate r2 in r4
-
-	mov		r3=b0
-	mov		r5=b1
-	mov		r7=b2;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=b3
-	mov		r5=b4
-	mov		r7=b5;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=b6
-	mov		r5=b7;;
-	st8		[r2]=r3,2*8
-	st8		[r4]=r5,2*8;;
-
-cSaveCRs:
-// save CRs
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2                // duplicate r2 in r4
-
-	mov		r3=cr.dcr
-	mov		r5=cr.itm
-	mov		r7=cr.iva;;
-
-	st8		[r2]=r3,8*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;            // 48 byte rements
-
-	mov		r3=cr.pta;;
-	st8		[r2]=r3,8*8;;            // 64 byte rements
-
-// if PSR.ic=0, reading interruption registers causes an illegal operation fault
-	mov		r3=psr;;
-	tbit.nz.unc	p6,p0=r3,PSR_IC;;           // PSI Valid Log bit pos. test
-(p6)    st8     [r2]=r0,9*8+160             // increment by 232 byte inc.
-begin_skip_intr_regs:
-(p6)	br		SkipIntrRegs;;
-
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2                // duplicate r2 in r6
-
-	mov		r3=cr.ipsr
-	mov		r5=cr.isr
-	mov		r7=r0;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=cr.iip
-	mov		r5=cr.ifa
-	mov		r7=cr.itir;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=cr.iipa
-	mov		r5=cr.ifs
-	mov		r7=cr.iim;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=cr25;;                   // cr.iha
-	st8		[r2]=r3,160;;               // 160 byte rement
-
-SkipIntrRegs:
-	st8		[r2]=r0,152;;               // another 152 byte .
-
-	add		r4=8,r2                     // duplicate r2 in r4
-	add		r6=2*8,r2                   // duplicate r2 in r6
-
-	mov		r3=cr.lid
-//	mov		r5=cr.ivr                     // cr.ivr, don't read it
-	mov		r7=cr.tpr;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=r0                       // cr.eoi => cr67
-	mov		r5=r0                       // cr.irr0 => cr68
-	mov		r7=r0;;                     // cr.irr1 => cr69
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=r0                       // cr.irr2 => cr70
-	mov		r5=r0                       // cr.irr3 => cr71
-	mov		r7=cr.itv;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=cr.pmv
-	mov		r5=cr.cmcv;;
-	st8		[r2]=r3,7*8
-	st8		[r4]=r5,7*8;;
-
-	mov		r3=r0                       // cr.lrr0 => cr80
-	mov		r5=r0;;                     // cr.lrr1 => cr81
-	st8		[r2]=r3,23*8
-	st8		[r4]=r5,23*8;;
-
-	adds		r2=25*8,r2;;
-
-cSaveARs:
-// save ARs
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2                // duplicate r2 in r6
-
-	mov		r3=ar.k0
-	mov		r5=ar.k1
-	mov		r7=ar.k2;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=ar.k3
-	mov		r5=ar.k4
-	mov		r7=ar.k5;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=ar.k6
-	mov		r5=ar.k7
-	mov		r7=r0;;                     // ar.kr8
-	st8		[r2]=r3,10*8
-	st8		[r4]=r5,10*8
-	st8		[r6]=r7,10*8;;           // rement by 72 bytes
-
-	mov		r3=ar.rsc
-	mov		ar.rsc=r0			    // put RSE in enforced lazy mode
-	mov		r5=ar.bsp
-	;;
-	mov		r7=ar.bspstore;;
-	st8		[r2]=r3,3*8
-	st8		[r4]=r5,3*8
-	st8		[r6]=r7,3*8;;
-
-	mov		r3=ar.rnat;;
-	st8		[r2]=r3,8*13             // increment by 13x8 bytes
-
-	mov		r3=ar.ccv;;
-	st8		[r2]=r3,8*4
-
-	mov		r3=ar.unat;;
-	st8		[r2]=r3,8*4
-
-	mov		r3=ar.fpsr;;
-	st8		[r2]=r3,8*4
-
-	mov		r3=ar.itc;;
-	st8		[r2]=r3,160                 // 160
-
-	mov		r3=ar.pfs;;
-	st8		[r2]=r3,8
-
-	mov		r3=ar.lc;;
-	st8		[r2]=r3,8
-
-	mov		r3=ar.ec;;
-	st8		[r2]=r3
-	add		r2=8*62,r2               //padding
-
-// save RRs
-	mov		ar.lc=0x08-1
-	movl		r4=0x00;;
-
-cStRR:
-	dep.z		r5=r4,61,3;;
-	mov		r3=rr[r5];;
-	st8		[r2]=r3,8
-	add		r4=1,r4
-	br.cloop.sptk.few	cStRR
-	;;
-end_os_mca_dump:
-	br	ia64_os_mca_done_dump;;
-
-//EndStub//////////////////////////////////////////////////////////////////////
-
-
-//++
-// Name:
-//       ia64_os_mca_proc_state_restore()
-//
-// Stub Description:
-//
-//       This is a stub to restore the saved processor state during MCHK
-//
-//--
-
-ia64_os_mca_proc_state_restore:
-
-// Restore bank1 GR16-31
-	GET_IA64_MCA_DATA(r2)
-	;;
-	add r2 = IA64_MCA_CPU_PROC_STATE_DUMP_OFFSET, r2
-
-restore_GRs:                                    // restore bank-1 GRs 16-31
-	bsw.1;;
-	add		r3=16*8,r2;;                // to get to NaT of GR 16-31
-	ld8		r3=[r3];;
-	mov		ar.unat=r3;;                // first restore NaT
-
-	ld8.fill	r16=[r2],8;;
-	ld8.fill	r17=[r2],8;;
-	ld8.fill	r18=[r2],8;;
-	ld8.fill	r19=[r2],8;;
-	ld8.fill	r20=[r2],8;;
-	ld8.fill	r21=[r2],8;;
-	ld8.fill	r22=[r2],8;;
-	ld8.fill	r23=[r2],8;;
-	ld8.fill	r24=[r2],8;;
-	ld8.fill	r25=[r2],8;;
-	ld8.fill	r26=[r2],8;;
-	ld8.fill	r27=[r2],8;;
-	ld8.fill	r28=[r2],8;;
-	ld8.fill	r29=[r2],8;;
-	ld8.fill	r30=[r2],8;;
-	ld8.fill	r31=[r2],8;;
-
-	ld8		r3=[r2],8;;              // increment to skip NaT
-	bsw.0;;
-
-restore_BRs:
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2;;              // duplicate r2 in r4
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		b0=r3
-	mov		b1=r5
-	mov		b2=r7;;
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		b3=r3
-	mov		b4=r5
-	mov		b5=r7;;
-
-	ld8		r3=[r2],2*8
-	ld8		r5=[r4],2*8;;
-	mov		b6=r3
-	mov		b7=r5;;
-
-restore_CRs:
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2;;              // duplicate r2 in r4
-
-	ld8		r3=[r2],8*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;            // 48 byte increments
-	mov		cr.dcr=r3
-	mov		cr.itm=r5
-	mov		cr.iva=r7;;
-
-	ld8		r3=[r2],8*8;;            // 64 byte increments
-//      mov		cr.pta=r3
-
-
-// if PSR.ic=1, reading interruption registers causes an illegal operation fault
-	mov		r3=psr;;
-	tbit.nz.unc	p6,p0=r3,PSR_IC;;           // PSI Valid Log bit pos. test
-(p6)    st8     [r2]=r0,9*8+160             // increment by 232 byte inc.
-
-begin_rskip_intr_regs:
-(p6)	br		rSkipIntrRegs;;
-
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2;;              // duplicate r2 in r4
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		cr.ipsr=r3
-//	mov		cr.isr=r5                   // cr.isr is read only
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		cr.iip=r3
-	mov		cr.ifa=r5
-	mov		cr.itir=r7;;
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		cr.iipa=r3
-	mov		cr.ifs=r5
-	mov		cr.iim=r7
-
-	ld8		r3=[r2],160;;               // 160 byte increment
-	mov		cr.iha=r3
-
-rSkipIntrRegs:
-	ld8		r3=[r2],152;;               // another 152 byte inc.
-
-	add		r4=8,r2                     // duplicate r2 in r4
-	add		r6=2*8,r2;;                 // duplicate r2 in r6
-
-	ld8		r3=[r2],8*3
-	ld8		r5=[r4],8*3
-	ld8		r7=[r6],8*3;;
-	mov		cr.lid=r3
-//	mov		cr.ivr=r5                   // cr.ivr is read only
-	mov		cr.tpr=r7;;
-
-	ld8		r3=[r2],8*3
-	ld8		r5=[r4],8*3
-	ld8		r7=[r6],8*3;;
-//	mov		cr.eoi=r3
-//	mov		cr.irr0=r5                  // cr.irr0 is read only
-//	mov		cr.irr1=r7;;                // cr.irr1 is read only
-
-	ld8		r3=[r2],8*3
-	ld8		r5=[r4],8*3
-	ld8		r7=[r6],8*3;;
-//	mov		cr.irr2=r3                  // cr.irr2 is read only
-//	mov		cr.irr3=r5                  // cr.irr3 is read only
-	mov		cr.itv=r7;;
-
-	ld8		r3=[r2],8*7
-	ld8		r5=[r4],8*7;;
-	mov		cr.pmv=r3
-	mov		cr.cmcv=r5;;
-
-	ld8		r3=[r2],8*23
-	ld8		r5=[r4],8*23;;
-	adds		r2=8*23,r2
-	adds		r4=8*23,r4;;
-//	mov		cr.lrr0=r3
-//	mov		cr.lrr1=r5
-
-	adds		r2=8*2,r2;;
-
-restore_ARs:
-	add		r4=8,r2                  // duplicate r2 in r4
-	add		r6=2*8,r2;;              // duplicate r2 in r4
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		ar.k0=r3
-	mov		ar.k1=r5
-	mov		ar.k2=r7;;
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-	mov		ar.k3=r3
-	mov		ar.k4=r5
-	mov		ar.k5=r7;;
-
-	ld8		r3=[r2],10*8
-	ld8		r5=[r4],10*8
-	ld8		r7=[r6],10*8;;
-	mov		ar.k6=r3
-	mov		ar.k7=r5
-	;;
-
-	ld8		r3=[r2],3*8
-	ld8		r5=[r4],3*8
-	ld8		r7=[r6],3*8;;
-//	mov		ar.rsc=r3
-//	mov		ar.bsp=r5                   // ar.bsp is read only
-	mov		ar.rsc=r0			    // make sure that RSE is in enforced lazy mode
-	;;
-	mov		ar.bspstore=r7;;
-
-	ld8		r9=[r2],8*13;;
-	mov		ar.rnat=r9
-
-	mov		ar.rsc=r3
-	ld8		r3=[r2],8*4;;
-	mov		ar.ccv=r3
-
-	ld8		r3=[r2],8*4;;
-	mov		ar.unat=r3
-
-	ld8		r3=[r2],8*4;;
-	mov		ar.fpsr=r3
-
-	ld8		r3=[r2],160;;               // 160
-//      mov		ar.itc=r3
-
-	ld8		r3=[r2],8;;
-	mov		ar.pfs=r3
-
-	ld8		r3=[r2],8;;
-	mov		ar.lc=r3
-
-	ld8		r3=[r2];;
-	mov		ar.ec=r3
-	add		r2=8*62,r2;;             // padding
-
-restore_RRs:
-	mov		r5=ar.lc
-	mov		ar.lc=0x08-1
-	movl		r4=0x00;;
-cStRRr:
-	dep.z		r7=r4,61,3
-	ld8		r3=[r2],8;;
-	mov		rr[r7]=r3                   // what are its access previledges?
-	add		r4=1,r4
-	br.cloop.sptk.few	cStRRr
-	;;
-	mov		ar.lc=r5
-	;;
-end_os_mca_restore:
-	br	ia64_os_mca_done_restore;;
-
-//EndStub//////////////////////////////////////////////////////////////////////
-
-
-// ok, the issue here is that we need to save state information so
-// it can be useable by the kernel debugger and show regs routines.
-// In order to do this, our best bet is save the current state (plus
-// the state information obtain from the MIN_STATE_AREA) into a pt_regs
-// format.  This way we can pass it on in a useable format.
-//
-
-//
-// SAL to OS entry point for INIT on the monarch processor
-// This has been defined for registration purposes with SAL
-// as a part of ia64_mca_init.
-//
-// When we get here, the following registers have been
-// set by the SAL for our use
-//
-//		1. GR1 = OS INIT GP
-//		2. GR8 = PAL_PROC physical address
-//		3. GR9 = SAL_PROC physical address
-//		4. GR10 = SAL GP (physical)
-//		5. GR11 = Init Reason
-//			0 = Received INIT for event other than crash dump switch
-//			1 = Received wakeup at the end of an OS_MCA corrected machine check
-//			2 = Received INIT dude to CrashDump switch assertion
-//
-//		6. GR12 = Return address to location within SAL_INIT procedure
-
-
-GLOBAL_ENTRY(ia64_monarch_init_handler)
+	mov r7=r2
+
+        // Enter virtual mode from physical mode
+	VIRTUAL_MODE_ENTER(r2, r3, ia64_os_init_virtual_begin, r4)
+
+	// This code returns to SAL via SOS r2, in general SAL has no unwind
+	// data.  To get a clean termination when backtracing the C MCA/INIT
+	// handler, set a dummy return address of 0 in this routine.  That
+	// requires that ia64_os_init_virtual_begin be a global function.
+ENTRY(ia64_os_init_virtual_begin)
 	.prologue
-	// stash the information the SAL passed to os
-	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
-	;;
-	SAVE_MIN_WITH_COVER
-	;;
-	mov r8=cr.ifa
-	mov r9=cr.isr
-	adds r3=8,r2				// set up second base pointer
-	;;
-	SAVE_REST
-
-// ok, enough should be saved at this point to be dangerous, and supply
-// information for a dump
-// We need to switch to Virtual mode before hitting the C functions.
-
-	movl	r2=IA64_PSR_IT|IA64_PSR_IC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_DFH|IA64_PSR_BN
-	mov	r3=psr	// get the current psr, minimum enabled at this point
-	;;
-	or	r2=r2,r3
-	;;
-	movl	r3=IVirtual_Switch
-	;;
-	mov	cr.iip=r3	// short return to set the appropriate bits
-	mov	cr.ipsr=r2	// need to do an rfi to set appropriate bits
-	;;
-	rfi
-	;;
-IVirtual_Switch:
-	//
-	// We should now be running virtual
-	//
-	// Let's call the C handler to get the rest of the state info
-	//
-	alloc r14=ar.pfs,0,0,2,0		// now it's safe (must be first in insn group!)
-	;;
-	adds out0=16,sp				// out0 = pointer to pt_regs
-	;;
-	DO_SAVE_SWITCH_STACK
+	.save rp,r0
 	.body
-	adds out1=16,sp				// out0 = pointer to switch_stack
 
-	br.call.sptk.many rp=ia64_init_handler
-.ret1:
+	mov ar.rsc=3				// set eager mode for C handler
+	mov r2=r7				// see GET_IA64_MCA_DATA above
+	;;
 
-return_from_init:
-	br.sptk return_from_init
-END(ia64_monarch_init_handler)
+	// Call virtual mode handler
+	alloc r14=ar.pfs,0,0,3,0
+	;;
+	DATA_PA_TO_VA(r2,r7)
+	;;
+	add out0=IA64_MCA_CPU_INIT_STACK_OFFSET+MCA_PT_REGS_OFFSET, r2
+	add out1=IA64_MCA_CPU_INIT_STACK_OFFSET+MCA_SWITCH_STACK_OFFSET, r2
+	add out2=IA64_MCA_CPU_INIT_STACK_OFFSET+MCA_SOS_OFFSET, r2
+	br.call.sptk.many    b0=ia64_init_handler
 
+	// Revert back to physical mode before going back to SAL
+	PHYSICAL_MODE_ENTER(r2, r3, ia64_os_init_virtual_end, r4)
+ia64_os_init_virtual_end:
+
+END(ia64_os_init_virtual_begin)
+
+	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_state_restore		// restore the SAL state
+1:
+
+	// switch back to previous stack
+	alloc r14=ar.pfs,0,0,0,0		// remove the INIT handler frame
+	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
+	LOAD_PHYSICAL(p0,r2,1f)			// return address
+	br.sptk ia64_old_stack
+1:
+
+	mov		b0=r12			// SAL_CHECK return address
+	br		b0
+
+//EndMain//////////////////////////////////////////////////////////////////////
+
+// common defines for the stubs
+#define	ms		r4
+#define	regs		r5
+#define	temp1		r2	/* careful, it overlaps with input registers */
+#define	temp2		r3	/* careful, it overlaps with input registers */
+#define	temp3		r7
+#define	temp4		r14
+
+
+//++
+// Name:
+//	ia64_state_save()
 //
-// SAL to OS entry point for INIT on the slave processor
-// This has been defined for registration purposes with SAL
-// as a part of ia64_mca_init.
+// Stub Description:
 //
+//	Save the state that is not in minstate.  This is sensitive to the layout of
+//	struct ia64_sal_os_state in mca.h.
+//
+//	r2 contains the return address, r3 contains either
+//	IA64_MCA_CPU_MCA_STACK_OFFSET or IA64_MCA_CPU_INIT_STACK_OFFSET.
+//
+//	The OS to SAL section of struct ia64_sal_os_state is set to a default
+//	value of cold boot (MCA) or warm boot (INIT) and return to the same
+//	context.  ia64_sal_os_state is also used to hold some registers that
+//	need to be saved and restored across the stack switches.
+//
+//	Most input registers to this stub come from PAL/SAL
+//	r1  os gp, physical
+//	r8  pal_proc entry point
+//	r9  sal_proc entry point
+//	r10 sal gp
+//	r11 MCA - rendevzous state, INIT - reason code
+//	r12 sal return address
+//	r17 pal min_state
+//	r18 processor state parameter
+//	r19 monarch flag, set by the caller of this routine
+//
+//	In addition to the SAL to OS state, this routine saves all the
+//	registers that appear in struct pt_regs and struct switch_stack,
+//	excluding those that are already in the PAL minstate area.  This
+//	results in a partial pt_regs and switch_stack, the C code copies the
+//	remaining registers from PAL minstate to pt_regs and switch_stack.  The
+//	resulting structures contain all the state of the original process when
+//	MCA/INIT occurred.
+//
+//--
 
-GLOBAL_ENTRY(ia64_slave_init_handler)
-1:	br.sptk 1b
-END(ia64_slave_init_handler)
+ia64_state_save:
+	add regs=MCA_SOS_OFFSET, r3
+	add ms=MCA_SOS_OFFSET+8, r3
+	mov b0=r2		// save return address
+	cmp.eq p1,p2=IA64_MCA_CPU_MCA_STACK_OFFSET, r3
+	;;
+	GET_IA64_MCA_DATA(temp2)
+	;;
+	add temp1=temp2, regs	// struct ia64_sal_os_state on MCA or INIT stack
+	add temp2=temp2, ms	// struct ia64_sal_os_state+8 on MCA or INIT stack
+	;;
+	mov regs=temp1		// save the start of sos
+	st8 [temp1]=r1,16	// os_gp
+	st8 [temp2]=r8,16	// pal_proc
+	;;
+	st8 [temp1]=r9,16	// sal_proc
+	st8 [temp2]=r11,16	// rv_rc
+	mov r11=cr.iipa
+	;;
+	st8 [temp1]=r18,16	// proc_state_param
+	st8 [temp2]=r19,16	// monarch
+	mov r6=IA64_KR(CURRENT)
+	;;
+	st8 [temp1]=r12,16	// sal_ra
+	st8 [temp2]=r10,16	// sal_gp
+	mov r12=cr.isr
+	;;
+	st8 [temp1]=r17,16	// pal_min_state
+	st8 [temp2]=r6,16	// prev_IA64_KR_CURRENT
+	mov r6=cr.ifa
+	;;
+	st8 [temp1]=r0,16	// prev_task, starts off as NULL
+	st8 [temp2]=r12,16	// cr.isr
+	mov r12=cr.itir
+	;;
+	st8 [temp1]=r6,16	// cr.ifa
+	st8 [temp2]=r12,16	// cr.itir
+	mov r12=cr.iim
+	;;
+	st8 [temp1]=r11,16	// cr.iipa
+	st8 [temp2]=r12,16	// cr.iim
+	mov r6=cr.iha
+(p1)	mov r12=IA64_MCA_COLD_BOOT
+(p2)	mov r12=IA64_INIT_WARM_BOOT
+	;;
+	st8 [temp1]=r6,16	// cr.iha
+	st8 [temp2]=r12		// os_status, default is cold boot
+	mov r6=IA64_MCA_SAME_CONTEXT
+	;;
+	st8 [temp1]=r6		// context, default is same context
+
+	// Save the pt_regs data that is not in minstate.  The previous code
+	// left regs at sos.
+	add regs=MCA_PT_REGS_OFFSET-MCA_SOS_OFFSET, regs
+	;;
+	add temp1=PT(B6), regs
+	mov temp3=b6
+	mov temp4=b7
+	add temp2=PT(B7), regs
+	;;
+	st8 [temp1]=temp3,PT(AR_CSD)-PT(B6)		// save b6
+	st8 [temp2]=temp4,PT(AR_SSD)-PT(B7)		// save b7
+	mov temp3=ar.csd
+	mov temp4=ar.ssd
+	cover						// must be last in group
+	;;
+	st8 [temp1]=temp3,PT(AR_UNAT)-PT(AR_CSD)	// save ar.csd
+	st8 [temp2]=temp4,PT(AR_PFS)-PT(AR_SSD)		// save ar.ssd
+	mov temp3=ar.unat
+	mov temp4=ar.pfs
+	;;
+	st8 [temp1]=temp3,PT(AR_RNAT)-PT(AR_UNAT)	// save ar.unat
+	st8 [temp2]=temp4,PT(AR_BSPSTORE)-PT(AR_PFS)	// save ar.pfs
+	mov temp3=ar.rnat
+	mov temp4=ar.bspstore
+	;;
+	st8 [temp1]=temp3,PT(LOADRS)-PT(AR_RNAT)	// save ar.rnat
+	st8 [temp2]=temp4,PT(AR_FPSR)-PT(AR_BSPSTORE)	// save ar.bspstore
+	mov temp3=ar.bsp
+	;;
+	sub temp3=temp3, temp4	// ar.bsp - ar.bspstore
+	mov temp4=ar.fpsr
+	;;
+	shl temp3=temp3,16	// compute ar.rsc to be used for "loadrs"
+	;;
+	st8 [temp1]=temp3,PT(AR_CCV)-PT(LOADRS)		// save loadrs
+	st8 [temp2]=temp4,PT(F6)-PT(AR_FPSR)		// save ar.fpsr
+	mov temp3=ar.ccv
+	;;
+	st8 [temp1]=temp3,PT(F7)-PT(AR_CCV)		// save ar.ccv
+	stf.spill [temp2]=f6,PT(F8)-PT(F6)
+	;;
+	stf.spill [temp1]=f7,PT(F9)-PT(F7)
+	stf.spill [temp2]=f8,PT(F10)-PT(F8)
+	;;
+	stf.spill [temp1]=f9,PT(F11)-PT(F9)
+	stf.spill [temp2]=f10
+	;;
+	stf.spill [temp1]=f11
+
+	// Save the switch_stack data that is not in minstate nor pt_regs.  The
+	// previous code left regs at pt_regs.
+	add regs=MCA_SWITCH_STACK_OFFSET-MCA_PT_REGS_OFFSET, regs
+	;;
+	add temp1=SW(F2), regs
+	add temp2=SW(F3), regs
+	;;
+	stf.spill [temp1]=f2,32
+	stf.spill [temp2]=f3,32
+	;;
+	stf.spill [temp1]=f4,32
+	stf.spill [temp2]=f5,32
+	;;
+	stf.spill [temp1]=f12,32
+	stf.spill [temp2]=f13,32
+	;;
+	stf.spill [temp1]=f14,32
+	stf.spill [temp2]=f15,32
+	;;
+	stf.spill [temp1]=f16,32
+	stf.spill [temp2]=f17,32
+	;;
+	stf.spill [temp1]=f18,32
+	stf.spill [temp2]=f19,32
+	;;
+	stf.spill [temp1]=f20,32
+	stf.spill [temp2]=f21,32
+	;;
+	stf.spill [temp1]=f22,32
+	stf.spill [temp2]=f23,32
+	;;
+	stf.spill [temp1]=f24,32
+	stf.spill [temp2]=f25,32
+	;;
+	stf.spill [temp1]=f26,32
+	stf.spill [temp2]=f27,32
+	;;
+	stf.spill [temp1]=f28,32
+	stf.spill [temp2]=f29,32
+	;;
+	stf.spill [temp1]=f30,SW(B2)-SW(F30)
+	stf.spill [temp2]=f31,SW(B3)-SW(F31)
+	mov temp3=b2
+	mov temp4=b3
+	;;
+	st8 [temp1]=temp3,16	// save b2
+	st8 [temp2]=temp4,16	// save b3
+	mov temp3=b4
+	mov temp4=b5
+	;;
+	st8 [temp1]=temp3,SW(AR_LC)-SW(B4)	// save b4
+	st8 [temp2]=temp4	// save b5
+	mov temp3=ar.lc
+	;;
+	st8 [temp1]=temp3	// save ar.lc
+
+	// FIXME: Some proms are incorrectly accessing the minstate area as
+	// cached data.  The C code uses region 6, uncached virtual.  Ensure
+	// that there is no cache data lying around for the first 1K of the
+	// minstate area.
+	// Remove this code in September 2006, that gives platforms a year to
+	// fix their proms and get their customers updated.
+
+	add r1=32*1,r17
+	add r2=32*2,r17
+	add r3=32*3,r17
+	add r4=32*4,r17
+	add r5=32*5,r17
+	add r6=32*6,r17
+	add r7=32*7,r17
+	;;
+	fc r17
+	fc r1
+	fc r2
+	fc r3
+	fc r4
+	fc r5
+	fc r6
+	fc r7
+	add r17=32*8,r17
+	add r1=32*8,r1
+	add r2=32*8,r2
+	add r3=32*8,r3
+	add r4=32*8,r4
+	add r5=32*8,r5
+	add r6=32*8,r6
+	add r7=32*8,r7
+	;;
+	fc r17
+	fc r1
+	fc r2
+	fc r3
+	fc r4
+	fc r5
+	fc r6
+	fc r7
+	add r17=32*8,r17
+	add r1=32*8,r1
+	add r2=32*8,r2
+	add r3=32*8,r3
+	add r4=32*8,r4
+	add r5=32*8,r5
+	add r6=32*8,r6
+	add r7=32*8,r7
+	;;
+	fc r17
+	fc r1
+	fc r2
+	fc r3
+	fc r4
+	fc r5
+	fc r6
+	fc r7
+	add r17=32*8,r17
+	add r1=32*8,r1
+	add r2=32*8,r2
+	add r3=32*8,r3
+	add r4=32*8,r4
+	add r5=32*8,r5
+	add r6=32*8,r6
+	add r7=32*8,r7
+	;;
+	fc r17
+	fc r1
+	fc r2
+	fc r3
+	fc r4
+	fc r5
+	fc r6
+	fc r7
+
+	br.sptk b0
+
+//EndStub//////////////////////////////////////////////////////////////////////
+
+
+//++
+// Name:
+//	ia64_state_restore()
+//
+// Stub Description:
+//
+//	Restore the SAL/OS state.  This is sensitive to the layout of struct
+//	ia64_sal_os_state in mca.h.
+//
+//	r2 contains the return address, r3 contains either
+//	IA64_MCA_CPU_MCA_STACK_OFFSET or IA64_MCA_CPU_INIT_STACK_OFFSET.
+//
+//	In addition to the SAL to OS state, this routine restores all the
+//	registers that appear in struct pt_regs and struct switch_stack,
+//	excluding those in the PAL minstate area.
+//
+//--
+
+ia64_state_restore:
+	// Restore the switch_stack data that is not in minstate nor pt_regs.
+	add regs=MCA_SWITCH_STACK_OFFSET, r3
+	mov b0=r2		// save return address
+	;;
+	GET_IA64_MCA_DATA(temp2)
+	;;
+	add regs=temp2, regs
+	;;
+	add temp1=SW(F2), regs
+	add temp2=SW(F3), regs
+	;;
+	ldf.fill f2=[temp1],32
+	ldf.fill f3=[temp2],32
+	;;
+	ldf.fill f4=[temp1],32
+	ldf.fill f5=[temp2],32
+	;;
+	ldf.fill f12=[temp1],32
+	ldf.fill f13=[temp2],32
+	;;
+	ldf.fill f14=[temp1],32
+	ldf.fill f15=[temp2],32
+	;;
+	ldf.fill f16=[temp1],32
+	ldf.fill f17=[temp2],32
+	;;
+	ldf.fill f18=[temp1],32
+	ldf.fill f19=[temp2],32
+	;;
+	ldf.fill f20=[temp1],32
+	ldf.fill f21=[temp2],32
+	;;
+	ldf.fill f22=[temp1],32
+	ldf.fill f23=[temp2],32
+	;;
+	ldf.fill f24=[temp1],32
+	ldf.fill f25=[temp2],32
+	;;
+	ldf.fill f26=[temp1],32
+	ldf.fill f27=[temp2],32
+	;;
+	ldf.fill f28=[temp1],32
+	ldf.fill f29=[temp2],32
+	;;
+	ldf.fill f30=[temp1],SW(B2)-SW(F30)
+	ldf.fill f31=[temp2],SW(B3)-SW(F31)
+	;;
+	ld8 temp3=[temp1],16	// restore b2
+	ld8 temp4=[temp2],16	// restore b3
+	;;
+	mov b2=temp3
+	mov b3=temp4
+	ld8 temp3=[temp1],SW(AR_LC)-SW(B4)	// restore b4
+	ld8 temp4=[temp2]	// restore b5
+	;;
+	mov b4=temp3
+	mov b5=temp4
+	ld8 temp3=[temp1]	// restore ar.lc
+	;;
+	mov ar.lc=temp3
+
+	// Restore the pt_regs data that is not in minstate.  The previous code
+	// left regs at switch_stack.
+	add regs=MCA_PT_REGS_OFFSET-MCA_SWITCH_STACK_OFFSET, regs
+	;;
+	add temp1=PT(B6), regs
+	add temp2=PT(B7), regs
+	;;
+	ld8 temp3=[temp1],PT(AR_CSD)-PT(B6)		// restore b6
+	ld8 temp4=[temp2],PT(AR_SSD)-PT(B7)		// restore b7
+	;;
+	mov b6=temp3
+	mov b7=temp4
+	ld8 temp3=[temp1],PT(AR_UNAT)-PT(AR_CSD)	// restore ar.csd
+	ld8 temp4=[temp2],PT(AR_PFS)-PT(AR_SSD)		// restore ar.ssd
+	;;
+	mov ar.csd=temp3
+	mov ar.ssd=temp4
+	ld8 temp3=[temp1]				// restore ar.unat
+	add temp1=PT(AR_CCV)-PT(AR_UNAT), temp1
+	ld8 temp4=[temp2],PT(AR_FPSR)-PT(AR_PFS)	// restore ar.pfs
+	;;
+	mov ar.unat=temp3
+	mov ar.pfs=temp4
+	// ar.rnat, ar.bspstore, loadrs are restore in ia64_old_stack.
+	ld8 temp3=[temp1],PT(F6)-PT(AR_CCV)		// restore ar.ccv
+	ld8 temp4=[temp2],PT(F7)-PT(AR_FPSR)		// restore ar.fpsr
+	;;
+	mov ar.ccv=temp3
+	mov ar.fpsr=temp4
+	ldf.fill f6=[temp1],PT(F8)-PT(F6)
+	ldf.fill f7=[temp2],PT(F9)-PT(F7)
+	;;
+	ldf.fill f8=[temp1],PT(F10)-PT(F8)
+	ldf.fill f9=[temp2],PT(F11)-PT(F9)
+	;;
+	ldf.fill f10=[temp1]
+	ldf.fill f11=[temp2]
+
+	// Restore the SAL to OS state. The previous code left regs at pt_regs.
+	add regs=MCA_SOS_OFFSET-MCA_PT_REGS_OFFSET, regs
+	;;
+	add temp1=IA64_SAL_OS_STATE_COMMON_OFFSET, regs
+	add temp2=IA64_SAL_OS_STATE_COMMON_OFFSET+8, regs
+	;;
+	ld8 r12=[temp1],16	// sal_ra
+	ld8 r9=[temp2],16	// sal_gp
+	;;
+	ld8 r22=[temp1],24	// pal_min_state, virtual.  skip prev_task
+	ld8 r21=[temp2],16	// prev_IA64_KR_CURRENT
+	;;
+	ld8 temp3=[temp1],16	// cr.isr
+	ld8 temp4=[temp2],16	// cr.ifa
+	;;
+	mov cr.isr=temp3
+	mov cr.ifa=temp4
+	ld8 temp3=[temp1],16	// cr.itir
+	ld8 temp4=[temp2],16	// cr.iipa
+	;;
+	mov cr.itir=temp3
+	mov cr.iipa=temp4
+	ld8 temp3=[temp1],16	// cr.iim
+	ld8 temp4=[temp2],16	// cr.iha
+	;;
+	mov cr.iim=temp3
+	mov cr.iha=temp4
+	dep r22=0,r22,62,2	// pal_min_state, physical, uncached
+	mov IA64_KR(CURRENT)=r21
+	ld8 r8=[temp1]		// os_status
+	ld8 r10=[temp2]		// context
+
+	br.sptk b0
+
+//EndStub//////////////////////////////////////////////////////////////////////
+
+
+//++
+// Name:
+//	ia64_new_stack()
+//
+// Stub Description:
+//
+//	Switch to the MCA/INIT stack.
+//
+//	r2 contains the return address, r3 contains either
+//	IA64_MCA_CPU_MCA_STACK_OFFSET or IA64_MCA_CPU_INIT_STACK_OFFSET.
+//
+//	On entry RBS is still on the original stack, this routine switches RBS
+//	to use the MCA/INIT stack.
+//
+//	On entry, sos->pal_min_state is physical, on exit it is virtual.
+//
+//--
+
+ia64_new_stack:
+	add regs=MCA_PT_REGS_OFFSET, r3
+	add temp2=MCA_SOS_OFFSET+IA64_SAL_OS_STATE_PAL_MIN_STATE_OFFSET, r3
+	mov b0=r2			// save return address
+	GET_IA64_MCA_DATA(temp1)
+	invala
+	;;
+	add temp2=temp2, temp1		// struct ia64_sal_os_state.pal_min_state on MCA or INIT stack
+	add regs=regs, temp1		// struct pt_regs on MCA or INIT stack
+	;;
+	// Address of minstate area provided by PAL is physical, uncacheable.
+	// Convert to Linux virtual address in region 6 for C code.
+	ld8 ms=[temp2]			// pal_min_state, physical
+	;;
+	dep temp1=-1,ms,62,2		// set region 6
+	mov temp3=IA64_RBS_OFFSET-MCA_PT_REGS_OFFSET
+	;;
+	st8 [temp2]=temp1		// pal_min_state, virtual
+
+	add temp4=temp3, regs		// start of bspstore on new stack
+	;;
+	mov ar.bspstore=temp4		// switch RBS to MCA/INIT stack
+	;;
+	flushrs				// must be first in group
+	br.sptk b0
+
+//EndStub//////////////////////////////////////////////////////////////////////
+
+
+//++
+// Name:
+//	ia64_old_stack()
+//
+// Stub Description:
+//
+//	Switch to the old stack.
+//
+//	r2 contains the return address, r3 contains either
+//	IA64_MCA_CPU_MCA_STACK_OFFSET or IA64_MCA_CPU_INIT_STACK_OFFSET.
+//
+//	On entry, pal_min_state is virtual, on exit it is physical.
+//
+//	On entry RBS is on the MCA/INIT stack, this routine switches RBS
+//	back to the previous stack.
+//
+//	The psr is set to all zeroes.  SAL return requires either all zeroes or
+//	just psr.mc set.  Leaving psr.mc off allows INIT to be issued if this
+//	code does not perform correctly.
+//
+//	The dirty registers at the time of the event were flushed to the
+//	MCA/INIT stack in ia64_pt_regs_save().  Restore the dirty registers
+//	before reverting to the previous bspstore.
+//--
+
+ia64_old_stack:
+	add regs=MCA_PT_REGS_OFFSET, r3
+	mov b0=r2			// save return address
+	GET_IA64_MCA_DATA(temp2)
+	LOAD_PHYSICAL(p0,temp1,1f)
+	;;
+	mov cr.ipsr=r0
+	mov cr.ifs=r0
+	mov cr.iip=temp1
+	;;
+	invala
+	rfi
+1:
+
+	add regs=regs, temp2		// struct pt_regs on MCA or INIT stack
+	;;
+	add temp1=PT(LOADRS), regs
+	;;
+	ld8 temp2=[temp1],PT(AR_BSPSTORE)-PT(LOADRS)	// restore loadrs
+	;;
+	ld8 temp3=[temp1],PT(AR_RNAT)-PT(AR_BSPSTORE)	// restore ar.bspstore
+	mov ar.rsc=temp2
+	;;
+	loadrs
+	ld8 temp4=[temp1]		// restore ar.rnat
+	;;
+	mov ar.bspstore=temp3		// back to old stack
+	;;
+	mov ar.rnat=temp4
+	;;
+
+	br.sptk b0
+
+//EndStub//////////////////////////////////////////////////////////////////////
+
+
+//++
+// Name:
+//	ia64_set_kernel_registers()
+//
+// Stub Description:
+//
+//	Set the registers that are required by the C code in order to run on an
+//	MCA/INIT stack.
+//
+//	r2 contains the return address, r3 contains either
+//	IA64_MCA_CPU_MCA_STACK_OFFSET or IA64_MCA_CPU_INIT_STACK_OFFSET.
+//
+//--
+
+ia64_set_kernel_registers:
+	add temp3=MCA_SP_OFFSET, r3
+	add temp4=MCA_SOS_OFFSET+IA64_SAL_OS_STATE_OS_GP_OFFSET, r3
+	mov b0=r2		// save return address
+	GET_IA64_MCA_DATA(temp1)
+	;;
+	add temp4=temp4, temp1	// &struct ia64_sal_os_state.os_gp
+	add r12=temp1, temp3	// kernel stack pointer on MCA/INIT stack
+	add r13=temp1, r3	// set current to start of MCA/INIT stack
+	;;
+	ld8 r1=[temp4]		// OS GP from SAL OS state
+	;;
+	DATA_PA_TO_VA(r1,temp1)
+	DATA_PA_TO_VA(r12,temp2)
+	DATA_PA_TO_VA(r13,temp3)
+	;;
+	mov IA64_KR(CURRENT)=r13
+
+	// FIXME: do I need to wire IA64_KR_CURRENT_STACK and IA64_TR_CURRENT_STACK?
+
+	br.sptk b0
+
+//EndStub//////////////////////////////////////////////////////////////////////
+
+#undef	ms
+#undef	regs
+#undef	temp1
+#undef	temp2
+#undef	temp3
+#undef	temp4
+
+
+// Support function for mca.c, it is here to avoid using inline asm.  Given the
+// address of an rnat slot, if that address is below the current ar.bspstore
+// then return the contents of that slot, otherwise return the contents of
+// ar.rnat.
+GLOBAL_ENTRY(ia64_get_rnat)
+	alloc r14=ar.pfs,1,0,0,0
+	mov ar.rsc=0
+	;;
+	mov r14=ar.bspstore
+	;;
+	cmp.lt p6,p7=in0,r14
+	;;
+(p6)	ld8 r8=[in0]
+(p7)	mov r8=ar.rnat
+	mov ar.rsc=3
+	br.ret.sptk.many rp
+END(ia64_get_rnat)

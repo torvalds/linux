@@ -8,38 +8,32 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include "ppc32-types.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include "elf.h"
+#include "page.h"
+#include "string.h"
+#include "stdio.h"
+#include "prom.h"
 #include "zlib.h"
-#include <linux/elf.h>
-#include <linux/string.h>
-#include <asm/processor.h>
-#include <asm/page.h>
 
-extern void *finddevice(const char *);
-extern int getprop(void *, const char *, void *, int);
-extern void printf(const char *fmt, ...);
-extern int sprintf(char *buf, const char *fmt, ...);
-void gunzip(void *, int, unsigned char *, int *);
-void *claim(unsigned int, unsigned int, unsigned int);
-void flush_cache(void *, unsigned long);
-void pause(void);
-extern void exit(void);
+static void gunzip(void *, int, unsigned char *, int *);
+extern void flush_cache(void *, unsigned long);
 
-unsigned long strlen(const char *s);
-void *memmove(void *dest, const void *src, unsigned long n);
-void *memcpy(void *dest, const void *src, unsigned long n);
 
 /* Value picked to match that used by yaboot */
 #define PROG_START	0x01400000
-#define RAM_END		(256<<20) // Fixme: use OF */
+#define RAM_END		(512<<20) // Fixme: use OF */
+#define	ONE_MB		0x100000
 
-char *avail_ram;
-char *begin_avail, *end_avail;
-char *avail_high;
-unsigned int heap_use;
-unsigned int heap_max;
+static char *avail_ram;
+static char *begin_avail, *end_avail;
+static char *avail_high;
+static unsigned int heap_use;
+static unsigned int heap_max;
 
 extern char _start[];
+extern char _end[];
 extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
@@ -52,9 +46,9 @@ struct addr_range {
 	unsigned long size;
 	unsigned long memsize;
 };
-struct addr_range vmlinux = {0, 0, 0};
-struct addr_range vmlinuz = {0, 0, 0};
-struct addr_range initrd  = {0, 0, 0};
+static struct addr_range vmlinux = {0, 0, 0};
+static struct addr_range vmlinuz = {0, 0, 0};
+static struct addr_range initrd  = {0, 0, 0};
 
 static char scratch[128<<10];	/* 128kB of scratch space for gunzip */
 
@@ -64,22 +58,15 @@ typedef void (*kernel_entry_t)( unsigned long,
 				void *);
 
 
-int (*prom)(void *);
-
-void *chosen_handle;
-void *stdin;
-void *stdout;
-void *stderr;
-
 #undef DEBUG
 
-static unsigned long claim_base = PROG_START;
+static unsigned long claim_base;
 
 static unsigned long try_claim(unsigned long size)
 {
 	unsigned long addr = 0;
 
-	for(; claim_base < RAM_END; claim_base += 0x100000) {
+	for(; claim_base < RAM_END; claim_base += ONE_MB) {
 #ifdef DEBUG
 		printf("    trying: 0x%08lx\n\r", claim_base);
 #endif
@@ -110,7 +97,26 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	if (getprop(chosen_handle, "stdin", &stdin, sizeof(stdin)) != 4)
 		exit();
 
-	printf("\n\rzImage starting: loaded at 0x%x\n\r", (unsigned)_start);
+	printf("\n\rzImage starting: loaded at 0x%lx\n\r", (unsigned long) _start);
+
+	/*
+	 * The first available claim_base must be above the end of the
+	 * the loaded kernel wrapper file (_start to _end includes the
+	 * initrd image if it is present) and rounded up to a nice
+	 * 1 MB boundary for good measure.
+	 */
+
+	claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
+
+#if defined(PROG_START)
+	/*
+	 * Maintain a "magic" minimum address. This keeps some older
+	 * firmware platforms running.
+	 */
+
+	if (claim_base < PROG_START)
+		claim_base = PROG_START;
+#endif
 
 	/*
 	 * Now we try to claim some memory for the kernel itself
@@ -120,7 +126,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	 * size... In practice we add 1Mb, that is enough, but we should really
 	 * consider fixing the Makefile to put a _raw_ kernel in there !
 	 */
-	vmlinux_memsize += 0x100000;
+	vmlinux_memsize += ONE_MB;
 	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux_memsize);
 	vmlinux.addr = try_claim(vmlinux_memsize);
 	if (vmlinux.addr == 0) {
@@ -277,7 +283,7 @@ void zfree(void *x, void *addr, unsigned nb)
 
 #define DEFLATED	8
 
-void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
+static void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 {
 	z_stream s;
 	int r, i, flags;

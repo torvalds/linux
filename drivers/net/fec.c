@@ -8,7 +8,7 @@
  * describes connections using the internal parallel port I/O, which
  * is basically all of Port D.
  *
- * Right now, I am very watseful with the buffers.  I allocate memory
+ * Right now, I am very wasteful with the buffers.  I allocate memory
  * pages and then divide them into 2K frame buffers.  This way I know I
  * have buffers large enough to hold one frame within one buffer descriptor.
  * Once I get this working, I will use 64 or 128 byte CPM buffers, which
@@ -19,7 +19,10 @@
  * Copyright (c) 2000 Ericsson Radio Systems AB.
  *
  * Support for FEC controller of ColdFire/5270/5271/5272/5274/5275/5280/5282.
- * Copyrught (c) 2001-2004 Greg Ungerer (gerg@snapgear.com)
+ * Copyright (c) 2001-2004 Greg Ungerer (gerg@snapgear.com)
+ *
+ * Bug fixes and cleanup by Philippe De Muyter (phdm@macqel.be)
+ * Copyright (c) 2004-2005 Macq Electronique SA.
  */
 
 #include <linux/config.h>
@@ -46,7 +49,8 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 
-#if defined(CONFIG_M527x) || defined(CONFIG_M5272) || defined(CONFIG_M528x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || \
+    defined(CONFIG_M5272) || defined(CONFIG_M528x)
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include "fec.h"
@@ -71,7 +75,7 @@ static unsigned int fec_hw[] = {
 #elif defined(CONFIG_M527x)
 	(MCF_MBAR + 0x1000),
 	(MCF_MBAR + 0x1800),
-#elif defined(CONFIG_M528x)
+#elif defined(CONFIG_M523x) || defined(CONFIG_M528x)
 	(MCF_MBAR + 0x1000),
 #else
 	&(((immap_t *)IMAP_ADDR)->im_cpm.cp_fec),
@@ -94,11 +98,13 @@ static unsigned char	fec_mac_default[] = {
 #define	FEC_FLASHMAC	0xffe04000
 #elif defined(CONFIG_CANCam)
 #define	FEC_FLASHMAC	0xf0020000
+#elif defined (CONFIG_M5272C3)
+#define	FEC_FLASHMAC	(0xffe04000 + 4)
+#elif defined(CONFIG_MOD5272)
+#define FEC_FLASHMAC 	0xffc0406b
 #else
 #define	FEC_FLASHMAC	0
 #endif
-
-unsigned char *fec_flashmac = (unsigned char *) FEC_FLASHMAC;
 
 /* Forward declarations of some structures to support different PHYs
 */
@@ -158,7 +164,7 @@ typedef struct {
  * size bits. Other FEC hardware does not, so we need to take that into
  * account when setting it.
  */
-#if defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 #define	OPT_FRAME_SIZE	(PKT_MAXBUF_SIZE << 16)
 #else
 #define	OPT_FRAME_SIZE	0
@@ -196,7 +202,7 @@ struct fec_enet_private {
 	uint	phy_id_done;
 	uint	phy_status;
 	uint	phy_speed;
-	phy_info_t	*phy;
+	phy_info_t const	*phy;
 	struct work_struct phy_task;
 
 	uint	sequence_done;
@@ -209,7 +215,6 @@ struct fec_enet_private {
 	int	link;
 	int	old_link;
 	int	full_duplex;
-	unsigned char mac_addr[ETH_ALEN];
 };
 
 static int fec_enet_open(struct net_device *dev);
@@ -237,10 +242,10 @@ typedef struct mii_list {
 } mii_list_t;
 
 #define		NMII	20
-mii_list_t	mii_cmds[NMII];
-mii_list_t	*mii_free;
-mii_list_t	*mii_head;
-mii_list_t	*mii_tail;
+static mii_list_t	mii_cmds[NMII];
+static mii_list_t	*mii_free;
+static mii_list_t	*mii_head;
+static mii_list_t	*mii_tail;
 
 static int	mii_queue(struct net_device *dev, int request, 
 				void (*func)(uint, struct net_device *));
@@ -425,7 +430,7 @@ fec_timeout(struct net_device *dev)
 	}
 	}
 #endif
-	fec_restart(dev, 0);
+	fec_restart(dev, fep->full_duplex);
 	netif_wake_queue(dev);
 }
 
@@ -757,45 +762,52 @@ static void mii_parse_sr(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_STAT_LINK | PHY_STAT_FAULT | PHY_STAT_ANC);
+	status = *s & ~(PHY_STAT_LINK | PHY_STAT_FAULT | PHY_STAT_ANC);
 
 	if (mii_reg & 0x0004)
-		*s |= PHY_STAT_LINK;
+		status |= PHY_STAT_LINK;
 	if (mii_reg & 0x0010)
-		*s |= PHY_STAT_FAULT;
+		status |= PHY_STAT_FAULT;
 	if (mii_reg & 0x0020)
-		*s |= PHY_STAT_ANC;
+		status |= PHY_STAT_ANC;
+
+	*s = status;
 }
 
 static void mii_parse_cr(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_CONF_ANE | PHY_CONF_LOOP);
+	status = *s & ~(PHY_CONF_ANE | PHY_CONF_LOOP);
 
 	if (mii_reg & 0x1000)
-		*s |= PHY_CONF_ANE;
+		status |= PHY_CONF_ANE;
 	if (mii_reg & 0x4000)
-		*s |= PHY_CONF_LOOP;
+		status |= PHY_CONF_LOOP;
+	*s = status;
 }
 
 static void mii_parse_anar(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_CONF_SPMASK);
+	status = *s & ~(PHY_CONF_SPMASK);
 
 	if (mii_reg & 0x0020)
-		*s |= PHY_CONF_10HDX;
+		status |= PHY_CONF_10HDX;
 	if (mii_reg & 0x0040)
-		*s |= PHY_CONF_10FDX;
+		status |= PHY_CONF_10FDX;
 	if (mii_reg & 0x0080)
-		*s |= PHY_CONF_100HDX;
+		status |= PHY_CONF_100HDX;
 	if (mii_reg & 0x00100)
-		*s |= PHY_CONF_100FDX;
+		status |= PHY_CONF_100FDX;
+	*s = status;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -811,37 +823,34 @@ static void mii_parse_lxt970_csr(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_STAT_SPMASK);
-
+	status = *s & ~(PHY_STAT_SPMASK);
 	if (mii_reg & 0x0800) {
 		if (mii_reg & 0x1000)
-			*s |= PHY_STAT_100FDX;
+			status |= PHY_STAT_100FDX;
 		else
-			*s |= PHY_STAT_100HDX;
+			status |= PHY_STAT_100HDX;
 	} else {
 		if (mii_reg & 0x1000)
-			*s |= PHY_STAT_10FDX;
+			status |= PHY_STAT_10FDX;
 		else
-			*s |= PHY_STAT_10HDX;
+			status |= PHY_STAT_10HDX;
 	}
+	*s = status;
 }
 
-static phy_info_t phy_info_lxt970 = {
-	0x07810000, 
-	"LXT970",
-
-	(const phy_cmd_t []) {  /* config */
+static phy_cmd_t const phy_cmd_lxt970_config[] = {
 		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
 		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* startup - enable interrupts */
+	};
+static phy_cmd_t const phy_cmd_lxt970_startup[] = { /* enable interrupts */
 		{ mk_mii_write(MII_LXT970_IER, 0x0002), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) { /* ack_int */
+	};
+static phy_cmd_t const phy_cmd_lxt970_ack_int[] = {
 		/* read SR and ISR to acknowledge */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		{ mk_mii_read(MII_LXT970_ISR), NULL },
@@ -849,11 +858,18 @@ static phy_info_t phy_info_lxt970 = {
 		/* find out the current status */
 		{ mk_mii_read(MII_LXT970_CSR), mii_parse_lxt970_csr },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* shutdown - disable interrupts */
+	};
+static phy_cmd_t const phy_cmd_lxt970_shutdown[] = { /* disable interrupts */
 		{ mk_mii_write(MII_LXT970_IER, 0x0000), NULL },
 		{ mk_mii_end, }
-	},
+	};
+static phy_info_t const phy_info_lxt970 = {
+	.id = 0x07810000, 
+	.name = "LXT970",
+	.config = phy_cmd_lxt970_config,
+	.startup = phy_cmd_lxt970_startup,
+	.ack_int = phy_cmd_lxt970_ack_int,
+	.shutdown = phy_cmd_lxt970_shutdown
 };
 	
 /* ------------------------------------------------------------------------- */
@@ -878,45 +894,44 @@ static void mii_parse_lxt971_sr2(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_STAT_SPMASK | PHY_STAT_LINK | PHY_STAT_ANC);
+	status = *s & ~(PHY_STAT_SPMASK | PHY_STAT_LINK | PHY_STAT_ANC);
 
 	if (mii_reg & 0x0400) {
 		fep->link = 1;
-		*s |= PHY_STAT_LINK;
+		status |= PHY_STAT_LINK;
 	} else {
 		fep->link = 0;
 	}
 	if (mii_reg & 0x0080)
-		*s |= PHY_STAT_ANC;
+		status |= PHY_STAT_ANC;
 	if (mii_reg & 0x4000) {
 		if (mii_reg & 0x0200)
-			*s |= PHY_STAT_100FDX;
+			status |= PHY_STAT_100FDX;
 		else
-			*s |= PHY_STAT_100HDX;
+			status |= PHY_STAT_100HDX;
 	} else {
 		if (mii_reg & 0x0200)
-			*s |= PHY_STAT_10FDX;
+			status |= PHY_STAT_10FDX;
 		else
-			*s |= PHY_STAT_10HDX;
+			status |= PHY_STAT_10HDX;
 	}
 	if (mii_reg & 0x0008)
-		*s |= PHY_STAT_FAULT;
-}
+		status |= PHY_STAT_FAULT;
 
-static phy_info_t phy_info_lxt971 = {
-	0x0001378e, 
-	"LXT971",
+	*s = status;
+}
 	
-	(const phy_cmd_t []) {  /* config */  
-		/* limit to 10MBit because my protorype board 
+static phy_cmd_t const phy_cmd_lxt971_config[] = {
+		/* limit to 10MBit because my prototype board 
 		 * doesn't work with 100. */
 		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
 		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
 		{ mk_mii_read(MII_LXT971_SR2), mii_parse_lxt971_sr2 },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* startup - enable interrupts */
+	};
+static phy_cmd_t const phy_cmd_lxt971_startup[] = {  /* enable interrupts */
 		{ mk_mii_write(MII_LXT971_IER, 0x00f2), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
 		{ mk_mii_write(MII_LXT971_LCR, 0xd422), NULL }, /* LED config */
@@ -925,19 +940,26 @@ static phy_info_t phy_info_lxt971 = {
 		 * read here to get a valid value in ack_int */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr }, 
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) { /* ack_int */
+	};
+static phy_cmd_t const phy_cmd_lxt971_ack_int[] = {
+		/* acknowledge the int before reading status ! */
+		{ mk_mii_read(MII_LXT971_ISR), NULL },
 		/* find out the current status */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		{ mk_mii_read(MII_LXT971_SR2), mii_parse_lxt971_sr2 },
-		/* we only need to read ISR to acknowledge */
-		{ mk_mii_read(MII_LXT971_ISR), NULL },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* shutdown - disable interrupts */
+	};
+static phy_cmd_t const phy_cmd_lxt971_shutdown[] = { /* disable interrupts */
 		{ mk_mii_write(MII_LXT971_IER, 0x0000), NULL },
 		{ mk_mii_end, }
-	},
+	};
+static phy_info_t const phy_info_lxt971 = {
+	.id = 0x0001378e, 
+	.name = "LXT971",
+	.config = phy_cmd_lxt971_config,
+	.startup = phy_cmd_lxt971_startup,
+	.ack_int = phy_cmd_lxt971_ack_int,
+	.shutdown = phy_cmd_lxt971_shutdown
 };
 
 /* ------------------------------------------------------------------------- */
@@ -956,22 +978,21 @@ static void mii_parse_qs6612_pcr(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_STAT_SPMASK);
+	status = *s & ~(PHY_STAT_SPMASK);
 
 	switch((mii_reg >> 2) & 7) {
-	case 1: *s |= PHY_STAT_10HDX; break;
-	case 2: *s |= PHY_STAT_100HDX; break;
-	case 5: *s |= PHY_STAT_10FDX; break;
-	case 6: *s |= PHY_STAT_100FDX; break;
-	}
+	case 1: status |= PHY_STAT_10HDX; break;
+	case 2: status |= PHY_STAT_100HDX; break;
+	case 5: status |= PHY_STAT_10FDX; break;
+	case 6: status |= PHY_STAT_100FDX; break;
 }
 
-static phy_info_t phy_info_qs6612 = {
-	0x00181440, 
-	"QS6612",
-	
-	(const phy_cmd_t []) {  /* config */  
+	*s = status;
+}
+
+static phy_cmd_t const phy_cmd_qs6612_config[] = {
 		/* The PHY powers up isolated on the RPX, 
 		 * so send a command to allow operation.
 		 */
@@ -981,13 +1002,13 @@ static phy_info_t phy_info_qs6612 = {
 		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
 		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* startup - enable interrupts */
+	};
+static phy_cmd_t const phy_cmd_qs6612_startup[] = {  /* enable interrupts */
 		{ mk_mii_write(MII_QS6612_IMR, 0x003a), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) { /* ack_int */
+	};
+static phy_cmd_t const phy_cmd_qs6612_ack_int[] = {
 		/* we need to read ISR, SR and ANER to acknowledge */
 		{ mk_mii_read(MII_QS6612_ISR), NULL },
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
@@ -996,11 +1017,18 @@ static phy_info_t phy_info_qs6612 = {
 		/* read pcr to get info */
 		{ mk_mii_read(MII_QS6612_PCR), mii_parse_qs6612_pcr },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* shutdown - disable interrupts */
+	};
+static phy_cmd_t const phy_cmd_qs6612_shutdown[] = { /* disable interrupts */
 		{ mk_mii_write(MII_QS6612_IMR, 0x0000), NULL },
 		{ mk_mii_end, }
-	},
+	};
+static phy_info_t const phy_info_qs6612 = {
+	.id = 0x00181440, 
+	.name = "QS6612",
+	.config = phy_cmd_qs6612_config,
+	.startup = phy_cmd_qs6612_startup,
+	.ack_int = phy_cmd_qs6612_ack_int,
+	.shutdown = phy_cmd_qs6612_shutdown
 };
 
 /* ------------------------------------------------------------------------- */
@@ -1020,48 +1048,53 @@ static void mii_parse_am79c874_dr(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
+	uint status;
 
-	*s &= ~(PHY_STAT_SPMASK | PHY_STAT_ANC);
+	status = *s & ~(PHY_STAT_SPMASK | PHY_STAT_ANC);
 
 	if (mii_reg & 0x0080)
-		*s |= PHY_STAT_ANC;
+		status |= PHY_STAT_ANC;
 	if (mii_reg & 0x0400)
-		*s |= ((mii_reg & 0x0800) ? PHY_STAT_100FDX : PHY_STAT_100HDX);
+		status |= ((mii_reg & 0x0800) ? PHY_STAT_100FDX : PHY_STAT_100HDX);
 	else
-		*s |= ((mii_reg & 0x0800) ? PHY_STAT_10FDX : PHY_STAT_10HDX);
+		status |= ((mii_reg & 0x0800) ? PHY_STAT_10FDX : PHY_STAT_10HDX);
+
+	*s = status;
 }
 
-static phy_info_t phy_info_am79c874 = {
-	0x00022561, 
-	"AM79C874",
-	
-	(const phy_cmd_t []) {  /* config */  
-		/* limit to 10MBit because my protorype board 
-		 * doesn't work with 100. */
+static phy_cmd_t const phy_cmd_am79c874_config[] = {
 		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
 		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
 		{ mk_mii_read(MII_AM79C874_DR), mii_parse_am79c874_dr },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* startup - enable interrupts */
+	};
+static phy_cmd_t const phy_cmd_am79c874_startup[] = {  /* enable interrupts */
 		{ mk_mii_write(MII_AM79C874_ICSR, 0xff00), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr }, 
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) { /* ack_int */
+	};
+static phy_cmd_t const phy_cmd_am79c874_ack_int[] = {
 		/* find out the current status */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		{ mk_mii_read(MII_AM79C874_DR), mii_parse_am79c874_dr },
 		/* we only need to read ISR to acknowledge */
 		{ mk_mii_read(MII_AM79C874_ICSR), NULL },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* shutdown - disable interrupts */
+	};
+static phy_cmd_t const phy_cmd_am79c874_shutdown[] = { /* disable interrupts */
 		{ mk_mii_write(MII_AM79C874_ICSR, 0x0000), NULL },
 		{ mk_mii_end, }
-	},
+	};
+static phy_info_t const phy_info_am79c874 = {
+	.id = 0x00022561,
+	.name = "AM79C874",
+	.config = phy_cmd_am79c874_config,
+	.startup = phy_cmd_am79c874_startup,
+	.ack_int = phy_cmd_am79c874_ack_int,
+	.shutdown = phy_cmd_am79c874_shutdown
 };
+
 
 /* ------------------------------------------------------------------------- */
 /* Kendin KS8721BL phy                                                       */
@@ -1072,37 +1105,40 @@ static phy_info_t phy_info_am79c874 = {
 #define MII_KS8721BL_ICSR	22
 #define	MII_KS8721BL_PHYCR	31
 
-static phy_info_t phy_info_ks8721bl = {
-	0x00022161, 
-	"KS8721BL",
-	
-	(const phy_cmd_t []) {  /* config */  
+static phy_cmd_t const phy_cmd_ks8721bl_config[] = {
 		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
 		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* startup */
+	};
+static phy_cmd_t const phy_cmd_ks8721bl_startup[] = {  /* enable interrupts */
 		{ mk_mii_write(MII_KS8721BL_ICSR, 0xff00), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr }, 
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) { /* ack_int */
+	};
+static phy_cmd_t const phy_cmd_ks8721bl_ack_int[] = {
 		/* find out the current status */
 		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		/* we only need to read ISR to acknowledge */
 		{ mk_mii_read(MII_KS8721BL_ICSR), NULL },
 		{ mk_mii_end, }
-	},
-	(const phy_cmd_t []) {  /* shutdown */
+	};
+static phy_cmd_t const phy_cmd_ks8721bl_shutdown[] = { /* disable interrupts */
 		{ mk_mii_write(MII_KS8721BL_ICSR, 0x0000), NULL },
 		{ mk_mii_end, }
-	},
+	};
+static phy_info_t const phy_info_ks8721bl = {
+	.id = 0x00022161, 
+	.name = "KS8721BL",
+	.config = phy_cmd_ks8721bl_config,
+	.startup = phy_cmd_ks8721bl_startup,
+	.ack_int = phy_cmd_ks8721bl_ack_int,
+	.shutdown = phy_cmd_ks8721bl_shutdown
 };
 
 /* ------------------------------------------------------------------------- */
 
-static phy_info_t *phy_info[] = {
+static phy_info_t const * const phy_info[] = {
 	&phy_info_lxt970,
 	&phy_info_lxt971,
 	&phy_info_qs6612,
@@ -1129,16 +1165,23 @@ mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs);
 static void __inline__ fec_request_intrs(struct net_device *dev)
 {
 	volatile unsigned long *icrp;
+	static const struct idesc {
+		char *name;
+		unsigned short irq;
+		irqreturn_t (*handler)(int, void *, struct pt_regs *);
+	} *idp, id[] = {
+		{ "fec(RX)", 86, fec_enet_interrupt },
+		{ "fec(TX)", 87, fec_enet_interrupt },
+		{ "fec(OTHER)", 88, fec_enet_interrupt },
+		{ "fec(MII)", 66, mii_link_interrupt },
+		{ NULL },
+	};
 
 	/* Setup interrupt handlers. */
-	if (request_irq(86, fec_enet_interrupt, 0, "fec(RX)", dev) != 0)
-		printk("FEC: Could not allocate FEC(RC) IRQ(86)!\n");
-	if (request_irq(87, fec_enet_interrupt, 0, "fec(TX)", dev) != 0)
-		printk("FEC: Could not allocate FEC(RC) IRQ(87)!\n");
-	if (request_irq(88, fec_enet_interrupt, 0, "fec(OTHER)", dev) != 0)
-		printk("FEC: Could not allocate FEC(OTHER) IRQ(88)!\n");
-	if (request_irq(66, mii_link_interrupt, 0, "fec(MII)", dev) != 0)
-		printk("FEC: Could not allocate MII IRQ(66)!\n");
+	for (idp = id; idp->name; idp++) {
+		if (request_irq(idp->irq, idp->handler, 0, idp->name, dev) != 0)
+			printk("FEC: Could not allocate %s IRQ(%d)!\n", idp->name, idp->irq);
+	}
 
 	/* Unmask interrupt at ColdFire 5272 SIM */
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR3);
@@ -1169,17 +1212,16 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile fec_t *fecp;
-	unsigned char *iap, tmpaddr[6];
-	int i;
+	unsigned char *iap, tmpaddr[ETH_ALEN];
 
 	fecp = fep->hwp;
 
-	if (fec_flashmac) {
+	if (FEC_FLASHMAC) {
 		/*
 		 * Get MAC address from FLASH.
 		 * If it is all 1's or 0's, use the default.
 		 */
-		iap = fec_flashmac;
+		iap = (unsigned char *)FEC_FLASHMAC;
 		if ((iap[0] == 0) && (iap[1] == 0) && (iap[2] == 0) &&
 		    (iap[3] == 0) && (iap[4] == 0) && (iap[5] == 0))
 			iap = fec_mac_default;
@@ -1192,14 +1234,11 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		iap = &tmpaddr[0];
 	}
 
-	for (i=0; i<ETH_ALEN; i++)
-		dev->dev_addr[i] = fep->mac_addr[i] = *iap++;
+	memcpy(dev->dev_addr, iap, ETH_ALEN);
 
 	/* Adjust MAC if using default MAC address */
-	if (iap == fec_mac_default) {
-		dev->dev_addr[ETH_ALEN-1] = fep->mac_addr[ETH_ALEN-1] =
-			iap[ETH_ALEN-1] + fep->index;
-	}
+	if (iap == fec_mac_default)
+		 dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 
 static void __inline__ fec_enable_phy_intr(void)
@@ -1234,48 +1273,44 @@ static void __inline__ fec_uncache(unsigned long addr)
 
 /* ------------------------------------------------------------------------- */
 
-#elif defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#elif defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 
 /*
- *	Code specific to Coldfire 5270/5271/5274/5275 and 5280/5282 setups.
+ *	Code specific to Coldfire 5230/5231/5232/5234/5235,
+ *	the 5270/5271/5274/5275 and 5280/5282 setups.
  */
 static void __inline__ fec_request_intrs(struct net_device *dev)
 {
 	struct fec_enet_private *fep;
 	int b;
+	static const struct idesc {
+		char *name;
+		unsigned short irq;
+	} *idp, id[] = {
+		{ "fec(TXF)", 23 },
+		{ "fec(TXB)", 24 },
+		{ "fec(TXFIFO)", 25 },
+		{ "fec(TXCR)", 26 },
+		{ "fec(RXF)", 27 },
+		{ "fec(RXB)", 28 },
+		{ "fec(MII)", 29 },
+		{ "fec(LC)", 30 },
+		{ "fec(HBERR)", 31 },
+		{ "fec(GRA)", 32 },
+		{ "fec(EBERR)", 33 },
+		{ "fec(BABT)", 34 },
+		{ "fec(BABR)", 35 },
+		{ NULL },
+	};
 
 	fep = netdev_priv(dev);
 	b = (fep->index) ? 128 : 64;
 
 	/* Setup interrupt handlers. */
-	if (request_irq(b+23, fec_enet_interrupt, 0, "fec(TXF)", dev) != 0)
-		printk("FEC: Could not allocate FEC(TXF) IRQ(%d+23)!\n", b);
-	if (request_irq(b+24, fec_enet_interrupt, 0, "fec(TXB)", dev) != 0)
-		printk("FEC: Could not allocate FEC(TXB) IRQ(%d+24)!\n", b);
-	if (request_irq(b+25, fec_enet_interrupt, 0, "fec(TXFIFO)", dev) != 0)
-		printk("FEC: Could not allocate FEC(TXFIFO) IRQ(%d+25)!\n", b);
-	if (request_irq(b+26, fec_enet_interrupt, 0, "fec(TXCR)", dev) != 0)
-		printk("FEC: Could not allocate FEC(TXCR) IRQ(%d+26)!\n", b);
-
-	if (request_irq(b+27, fec_enet_interrupt, 0, "fec(RXF)", dev) != 0)
-		printk("FEC: Could not allocate FEC(RXF) IRQ(%d+27)!\n", b);
-	if (request_irq(b+28, fec_enet_interrupt, 0, "fec(RXB)", dev) != 0)
-		printk("FEC: Could not allocate FEC(RXB) IRQ(%d+28)!\n", b);
-
-	if (request_irq(b+29, fec_enet_interrupt, 0, "fec(MII)", dev) != 0)
-		printk("FEC: Could not allocate FEC(MII) IRQ(%d+29)!\n", b);
-	if (request_irq(b+30, fec_enet_interrupt, 0, "fec(LC)", dev) != 0)
-		printk("FEC: Could not allocate FEC(LC) IRQ(%d+30)!\n", b);
-	if (request_irq(b+31, fec_enet_interrupt, 0, "fec(HBERR)", dev) != 0)
-		printk("FEC: Could not allocate FEC(HBERR) IRQ(%d+31)!\n", b);
-	if (request_irq(b+32, fec_enet_interrupt, 0, "fec(GRA)", dev) != 0)
-		printk("FEC: Could not allocate FEC(GRA) IRQ(%d+32)!\n", b);
-	if (request_irq(b+33, fec_enet_interrupt, 0, "fec(EBERR)", dev) != 0)
-		printk("FEC: Could not allocate FEC(EBERR) IRQ(%d+33)!\n", b);
-	if (request_irq(b+34, fec_enet_interrupt, 0, "fec(BABT)", dev) != 0)
-		printk("FEC: Could not allocate FEC(BABT) IRQ(%d+34)!\n", b);
-	if (request_irq(b+35, fec_enet_interrupt, 0, "fec(BABR)", dev) != 0)
-		printk("FEC: Could not allocate FEC(BABR) IRQ(%d+35)!\n", b);
+	for (idp = id; idp->name; idp++) {
+		if (request_irq(b+idp->irq, fec_enet_interrupt, 0, idp->name, dev) != 0)
+			printk("FEC: Could not allocate %s IRQ(%d)!\n", idp->name, b+idp->irq);
+	}
 
 	/* Unmask interrupts at ColdFire 5280/5282 interrupt controller */
 	{
@@ -1300,11 +1335,13 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 #if defined(CONFIG_M528x)
 	/* Set up gpio outputs for MII lines */
 	{
-		volatile unsigned short *gpio_paspar;
+		volatile u16 *gpio_paspar;
+		volatile u8 *gpio_pehlpar;
   
-		gpio_paspar = (volatile unsigned short *) (MCF_IPSBAR +
-			0x100056);
-		*gpio_paspar = 0x0f00;
+		gpio_paspar = (volatile u16 *) (MCF_IPSBAR + 0x100056);
+		gpio_pehlpar = (volatile u16 *) (MCF_IPSBAR + 0x100058);
+		*gpio_paspar |= 0x0f00;
+		*gpio_pehlpar = 0xc0;
 	}
 #endif
 }
@@ -1331,17 +1368,16 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile fec_t *fecp;
-	unsigned char *iap, tmpaddr[6];
-	int i;
+	unsigned char *iap, tmpaddr[ETH_ALEN];
 
 	fecp = fep->hwp;
 
-	if (fec_flashmac) {
+	if (FEC_FLASHMAC) {
 		/*
 		 * Get MAC address from FLASH.
 		 * If it is all 1's or 0's, use the default.
 		 */
-		iap = fec_flashmac;
+		iap = FEC_FLASHMAC;
 		if ((iap[0] == 0) && (iap[1] == 0) && (iap[2] == 0) &&
 		    (iap[3] == 0) && (iap[4] == 0) && (iap[5] == 0))
 			iap = fec_mac_default;
@@ -1354,14 +1390,11 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		iap = &tmpaddr[0];
 	}
 
-	for (i=0; i<ETH_ALEN; i++)
-		dev->dev_addr[i] = fep->mac_addr[i] = *iap++;
+	memcpy(dev->dev_addr, iap, ETH_ALEN);
 
 	/* Adjust MAC if using default MAC address */
-	if (iap == fec_mac_default) {
-		dev->dev_addr[ETH_ALEN-1] = fep->mac_addr[ETH_ALEN-1] =
-			iap[ETH_ALEN-1] + fep->index;
-	}
+	if (iap == fec_mac_default)
+		dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 
 static void __inline__ fec_enable_phy_intr(void)
@@ -1392,7 +1425,7 @@ static void __inline__ fec_uncache(unsigned long addr)
 #else
 
 /*
- *	Code sepcific to the MPC860T setup.
+ *	Code specific to the MPC860T setup.
  */
 static void __inline__ fec_request_intrs(struct net_device *dev)
 {
@@ -1424,13 +1457,10 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 static void __inline__ fec_get_mac(struct net_device *dev)
 {
-	struct fec_enet_private *fep = netdev_priv(dev);
-	unsigned char *iap, tmpaddr[6];
 	bd_t *bd;
-	int i;
 
-	iap = bd->bi_enetaddr;
 	bd = (bd_t *)__res;
+	memcpy(dev->dev_addr, bd->bi_enetaddr, ETH_ALEN);
 
 #ifdef CONFIG_RPXCLASSIC
 	/* The Embedded Planet boards have only one MAC address in
@@ -1439,14 +1469,8 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 	 * the address bits above something that would have (up to
 	 * now) been allocated.
 	 */
-	for (i=0; i<6; i++)
-		tmpaddr[i] = *iap++;
-	tmpaddr[3] |= 0x80;
-	iap = tmpaddr;
+	dev->dev_adrd[3] |= 0x80;
 #endif
-
-	for (i=0; i<6; i++)
-		dev->dev_addr[i] = fep->mac_addr[i] = *iap++;
 }
 
 static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_private *fep)
@@ -1556,7 +1580,7 @@ static void mii_display_status(struct net_device *dev)
 static void mii_display_config(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
-	volatile uint *s = &(fep->phy_status);
+	uint status = fep->phy_status;
 
 	/*
 	** When we get here, phy_task is already removed from
@@ -1565,23 +1589,23 @@ static void mii_display_config(struct net_device *dev)
 	fep->mii_phy_task_queued = 0;
 	printk("%s: config: auto-negotiation ", dev->name);
 
-	if (*s & PHY_CONF_ANE)
+	if (status & PHY_CONF_ANE)
 		printk("on");
 	else
 		printk("off");
 
-	if (*s & PHY_CONF_100FDX)
+	if (status & PHY_CONF_100FDX)
 		printk(", 100FDX");
-	if (*s & PHY_CONF_100HDX)
+	if (status & PHY_CONF_100HDX)
 		printk(", 100HDX");
-	if (*s & PHY_CONF_10FDX)
+	if (status & PHY_CONF_10FDX)
 		printk(", 10FDX");
-	if (*s & PHY_CONF_10HDX)
+	if (status & PHY_CONF_10HDX)
 		printk(", 10HDX");
-	if (!(*s & PHY_CONF_SPMASK))
+	if (!(status & PHY_CONF_SPMASK))
 		printk(", No speed/duplex selected?");
 
-	if (*s & PHY_CONF_LOOP)
+	if (status & PHY_CONF_LOOP)
 		printk(", loopback enabled");
 	
 	printk(".\n");
@@ -1639,7 +1663,7 @@ static void mii_queue_relink(uint mii_reg, struct net_device *dev)
 	schedule_work(&fep->phy_task);
 }
 
-/* mii_queue_config is called in user context from fec_enet_open */
+/* mii_queue_config is called in interrupt context from fec_enet_mii */
 static void mii_queue_config(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
@@ -1652,14 +1676,14 @@ static void mii_queue_config(uint mii_reg, struct net_device *dev)
 	schedule_work(&fep->phy_task);
 }
 
-
-
-phy_cmd_t phy_cmd_relink[] = { { mk_mii_read(MII_REG_CR), mii_queue_relink },
-			       { mk_mii_end, } };
-phy_cmd_t phy_cmd_config[] = { { mk_mii_read(MII_REG_CR), mii_queue_config },
-			       { mk_mii_end, } };
-
-
+phy_cmd_t const phy_cmd_relink[] = {
+	{ mk_mii_read(MII_REG_CR), mii_queue_relink },
+	{ mk_mii_end, }
+	};
+phy_cmd_t const phy_cmd_config[] = {
+	{ mk_mii_read(MII_REG_CR), mii_queue_config },
+	{ mk_mii_end, }
+	};
 
 /* Read remainder of PHY ID.
 */
@@ -1897,17 +1921,15 @@ static void set_multicast_list(struct net_device *dev)
 static void
 fec_set_mac_address(struct net_device *dev)
 {
-	struct fec_enet_private *fep;
 	volatile fec_t *fecp;
 
-	fep = netdev_priv(dev);
-	fecp = fep->hwp;
+	fecp = ((struct fec_enet_private *)netdev_priv(dev))->hwp;
 
 	/* Set station address. */
-	fecp->fec_addr_low = fep->mac_addr[3] | (fep->mac_addr[2] << 8) |
-		(fep->mac_addr[1] << 16) | (fep->mac_addr[0] << 24);
-	fecp->fec_addr_high = (fep->mac_addr[5] << 16) |
-		(fep->mac_addr[4] << 24);
+	fecp->fec_addr_low = dev->dev_addr[3] | (dev->dev_addr[2] << 8) |
+		(dev->dev_addr[1] << 16) | (dev->dev_addr[0] << 24);
+	fecp->fec_addr_high = (dev->dev_addr[5] << 16) |
+		(dev->dev_addr[4] << 24);
 
 }
 
@@ -1943,7 +1965,7 @@ int __init fec_enet_init(struct net_device *dev)
 	udelay(10);
 
 	/* Clear and enable interrupts */
-	fecp->fec_ievent = 0xffc0;
+	fecp->fec_ievent = 0xffc00000;
 	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_TXB |
 		FEC_ENET_RXF | FEC_ENET_RXB | FEC_ENET_MII);
 	fecp->fec_hash_table_high = 0;
@@ -2063,11 +2085,6 @@ int __init fec_enet_init(struct net_device *dev)
 	/* setup MII interface */
 	fec_set_mii(dev, fep);
 
-	printk("%s: FEC ENET Version 0.2, ", dev->name);
-	for (i=0; i<5; i++)
-		printk("%02x:", dev->dev_addr[i]);
-	printk("%02x\n", dev->dev_addr[5]);
-
 	/* Queue up command to detect the PHY and initialize the
 	 * remainder of the interface.
 	 */
@@ -2106,18 +2123,12 @@ fec_restart(struct net_device *dev, int duplex)
 
 	/* Clear any outstanding interrupt.
 	*/
-	fecp->fec_ievent = 0xffc0;
+	fecp->fec_ievent = 0xffc00000;
 	fec_enable_phy_intr();
 
 	/* Set station address.
 	*/
-	fecp->fec_addr_low = fep->mac_addr[3] | (fep->mac_addr[2] << 8) |
-		(fep->mac_addr[1] << 16) | (fep->mac_addr[0] << 24);
-	fecp->fec_addr_high = (fep->mac_addr[5] << 16) |
-		(fep->mac_addr[4] << 24);
-
-	for (i=0; i<ETH_ALEN; i++)
-		dev->dev_addr[i] = fep->mac_addr[i];
+	fec_set_mac_address(dev);
 
 	/* Reset all multicast.
 	*/
@@ -2215,7 +2226,7 @@ fec_stop(struct net_device *dev)
 
 	fecp->fec_x_cntrl = 0x01;	/* Graceful transmit stop */
 
-	while(!(fecp->fec_ievent & 0x10000000));
+	while(!(fecp->fec_ievent & FEC_ENET_GRA));
 
 	/* Whack a reset.  We should wait for this.
 	*/
@@ -2234,7 +2245,9 @@ fec_stop(struct net_device *dev)
 static int __init fec_enet_module_init(void)
 {
 	struct net_device *dev;
-	int i, err;
+	int i, j, err;
+
+	printk("FEC ENET Version 0.2\n");
 
 	for (i = 0; (i < FEC_MAX_PORTS); i++) {
 		dev = alloc_etherdev(sizeof(struct fec_enet_private));
@@ -2250,6 +2263,11 @@ static int __init fec_enet_module_init(void)
 			free_netdev(dev);
 			return -EIO;
 		}
+
+		printk("%s: ethernet ", dev->name);
+		for (j = 0; (j < 5); j++)
+			printk("%02x:", dev->dev_addr[j]);
+		printk("%02x\n", dev->dev_addr[5]);
 	}
 	return 0;
 }

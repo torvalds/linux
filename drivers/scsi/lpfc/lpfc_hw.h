@@ -262,12 +262,14 @@ struct lpfc_sli_ct_request {
 #define FF_FRAME_SIZE     2048
 
 struct lpfc_name {
+	union {
+		struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
-	uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit 8:11 of IEEE ext */
+			uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
+			uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit 8:11 of IEEE ext */
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit 8:11 of IEEE ext */
-	uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
+			uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit 8:11 of IEEE ext */
+			uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
 #endif
 
 #define NAME_IEEE           0x1	/* IEEE name - nameType */
@@ -276,8 +278,11 @@ struct lpfc_name {
 #define NAME_IP_TYPE        0x4	/* IP address */
 #define NAME_CCITT_TYPE     0xC
 #define NAME_CCITT_GR_TYPE  0xE
-	uint8_t IEEEextLsb;	/* FC Word 0, bit 16:23, IEEE extended Lsb */
-	uint8_t IEEE[6];	/* FC IEEE address */
+			uint8_t IEEEextLsb;	/* FC Word 0, bit 16:23, IEEE extended Lsb */
+			uint8_t IEEE[6];	/* FC IEEE address */
+		};
+		uint8_t wwn[8];
+	};
 };
 
 struct csp {

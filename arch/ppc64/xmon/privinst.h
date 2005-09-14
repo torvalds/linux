@@ -46,7 +46,6 @@ GSETSPR(287, pvr)
 GSETSPR(1008, hid0)
 GSETSPR(1009, hid1)
 GSETSPR(1010, iabr)
-GSETSPR(1013, dabr)
 GSETSPR(1023, pir)
 
 static inline void store_inst(void *p)

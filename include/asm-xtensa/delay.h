@@ -18,7 +18,7 @@
 
 extern unsigned long loops_per_jiffy;
 
-extern __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
   /* 2 cycles per loop. */
   __asm__ __volatile__ ("1: addi %0, %0, -2; bgeui %0, 2, 1b"

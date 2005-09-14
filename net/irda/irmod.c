@@ -54,7 +54,7 @@ extern int  irsock_init(void);
 extern void irsock_cleanup(void);
 /* irlap_frame.c */
 extern int  irlap_driver_rcv(struct sk_buff *, struct net_device *, 
-			     struct packet_type *);
+			     struct packet_type *, struct net_device *);
 
 /*
  * Module parameters

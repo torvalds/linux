@@ -22,7 +22,7 @@
 #include <asm/arch/corgi.h>
 #include <asm/arch/pxa-regs.h>
 
-static spinlock_t corgi_ssp_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(corgi_ssp_lock);
 static struct ssp_dev corgi_ssp_dev;
 static struct ssp_state corgi_ssp_state;
 

@@ -83,17 +83,6 @@ extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 #define IXP4XX_GPIO_OUT 		0x1
 #define IXP4XX_GPIO_IN  		0x2
 
-#define IXP4XX_GPIO_INTSTYLE_MASK	0x7C  /* Bits [6:2] define interrupt style */
-
-/* 
- * GPIO interrupt types.
- */
-#define IXP4XX_GPIO_ACTIVE_HIGH		0x4 /* Default */
-#define IXP4XX_GPIO_ACTIVE_LOW		0x8
-#define IXP4XX_GPIO_RISING_EDGE		0x10
-#define IXP4XX_GPIO_FALLING_EDGE 	0x20
-#define IXP4XX_GPIO_TRANSITIONAL 	0x40
-
 /* GPIO signal types */
 #define IXP4XX_GPIO_LOW			0
 #define IXP4XX_GPIO_HIGH		1
@@ -102,7 +91,13 @@ extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 #define IXP4XX_GPIO_CLK_0		14
 #define IXP4XX_GPIO_CLK_1		15
 
-extern void gpio_line_config(u8 line, u32 style);
+static inline void gpio_line_config(u8 line, u32 direction)
+{
+	if (direction == IXP4XX_GPIO_OUT)
+		*IXP4XX_GPIO_GPOER |= (1 << line);
+	else
+		*IXP4XX_GPIO_GPOER &= ~(1 << line);
+}
 
 static inline void gpio_line_get(u8 line, int *value)
 {

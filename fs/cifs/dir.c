@@ -145,24 +145,23 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		return -ENOMEM;
 	}
 
-	if(nd) {
-		if ((nd->intent.open.flags & O_ACCMODE) == O_RDONLY)
-			desiredAccess = GENERIC_READ;
-		else if ((nd->intent.open.flags & O_ACCMODE) == O_WRONLY) {
-			desiredAccess = GENERIC_WRITE;
-			write_only = TRUE;
-		} else if ((nd->intent.open.flags & O_ACCMODE) == O_RDWR) {
-			/* GENERIC_ALL is too much permission to request */
-			/* can cause unnecessary access denied on create */
-			/* desiredAccess = GENERIC_ALL; */
-			desiredAccess = GENERIC_READ | GENERIC_WRITE;
+	if(nd && (nd->flags & LOOKUP_OPEN)) {
+		int oflags = nd->intent.open.flags;
+
+		desiredAccess = 0;
+		if (oflags & FMODE_READ)
+			desiredAccess |= GENERIC_READ;
+		if (oflags & FMODE_WRITE) {
+			desiredAccess |= GENERIC_WRITE;
+			if (!(oflags & FMODE_READ))
+				write_only = TRUE;
 		}
 
-		if((nd->intent.open.flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
+		if((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
 			disposition = FILE_CREATE;
-		else if((nd->intent.open.flags & (O_CREAT | O_TRUNC)) == (O_CREAT | O_TRUNC))
+		else if((oflags & (O_CREAT | O_TRUNC)) == (O_CREAT | O_TRUNC))
 			disposition = FILE_OVERWRITE_IF;
-		else if((nd->intent.open.flags & O_CREAT) == O_CREAT)
+		else if((oflags & O_CREAT) == O_CREAT)
 			disposition = FILE_OPEN_IF;
 		else {
 			cFYI(1,("Create flag not set in create function"));

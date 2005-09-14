@@ -10,13 +10,16 @@ menu "IPv6: Netfilter Configuration (EXPERIMENTAL)"
 #  dep_tristate '  FTP protocol support' CONFIG_IP6_NF_FTP $CONFIG_IP6_NF_CONNTRACK
 #fi
 config IP6_NF_QUEUE
-	tristate "Userspace queueing via NETLINK"
+	tristate "IP6 Userspace queueing via NETLINK (OBSOLETE)"
 	---help---
 
 	  This option adds a queue handler to the kernel for IPv6
-	  packets which lets us to receive the filtered packets
-	  with QUEUE target using libiptc as we can do with
-	  the IPv4 now.
+	  packets which enables users to receive the filtered packets
+	  with QUEUE target using libipq.
+
+	  THis option enables the old IPv6-only "ip6_queue" implementation
+	  which has been obsoleted by the new "nfnetlink_queue" code (see
+	  CONFIG_NETFILTER_NETLINK_QUEUE).
 
 	  (C) Fernando Anton 2001
 	  IPv64 Project - Work based in IPv64 draft by Arturo Azcorra.
@@ -196,6 +199,16 @@ config IP6_NF_TARGET_LOG
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_TARGET_REJECT
+	tristate "REJECT target support"
+	depends on IP6_NF_FILTER
+	help
+	  The REJECT target allows a filtering rule to specify that an ICMPv6
+	  error should be issued in response to an incoming packet, rather
+	  than silently being dropped.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 #  if [ "$CONFIG_IP6_NF_FILTER" != "n" ]; then
 #    dep_tristate '    REJECT target support' CONFIG_IP6_NF_TARGET_REJECT $CONFIG_IP6_NF_FILTER
 #    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
@@ -223,6 +236,22 @@ config IP6_NF_TARGET_MARK
 	  the routing method (see `Use netfilter MARK value as routing
 	  key') and can also be used by other subsystems to change their
 	  behavior.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_HL
+	tristate  'HL (hoplimit) target support'
+	depends on IP6_NF_MANGLE
+	help
+	  This option adds a `HL' target, which enables the user to decrement
+	  the hoplimit value of the IPv6 header or set it to a given (lower)
+	  value.
+	
+	  While it is safe to decrement the hoplimit value, this option also
+	  enables functionality to increment and set the hoplimit value of the
+	  IPv6 header to arbitrary values.  This is EXTREMELY DANGEROUS since
+	  you can easily create immortal packets that loop forever on the
+	  network.  
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

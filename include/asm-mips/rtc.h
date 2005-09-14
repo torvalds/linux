@@ -1,5 +1,5 @@
 /*
- * include/asm-mips/rtc.h 
+ * include/asm-mips/rtc.h
  *
  * (Really an interface for drivers/char/genrtc.c)
  *

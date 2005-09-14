@@ -33,7 +33,7 @@ void usage(char *argv0)
 
 int getunicode(char **p0)
 {
-  unsigned char *p = *p0;
+  char *p = *p0;
 
   while (*p == ' ' || *p == '\t')
     p++;

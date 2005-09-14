@@ -7,7 +7,7 @@
 #define BITMAP_H 1
 
 #define BITMAP_MAJOR 3
-#define BITMAP_MINOR 38
+#define BITMAP_MINOR 39
 
 /*
  * in-memory bitmap:
@@ -147,8 +147,9 @@ typedef struct bitmap_super_s {
 	__u32 state;        /* 48  bitmap state information */
 	__u32 chunksize;    /* 52  the bitmap chunk size in bytes */
 	__u32 daemon_sleep; /* 56  seconds between disk flushes */
+	__u32 write_behind; /* 60  number of outstanding write-behind writes */
 
-	__u8  pad[256 - 60]; /* set to zero */
+	__u8  pad[256 - 64]; /* set to zero */
 } bitmap_super_t;
 
 /* notes:
@@ -226,6 +227,9 @@ struct bitmap {
 
 	unsigned long flags;
 
+	unsigned long max_write_behind; /* write-behind mode */
+	atomic_t behind_writes;
+
 	/*
 	 * the bitmap daemon - periodically wakes up and sweeps the bitmap
 	 * file, cleaning up bits and flushing out pages to disk as necessary
@@ -260,9 +264,10 @@ int  bitmap_setallbits(struct bitmap *bitmap);
 void bitmap_write_all(struct bitmap *bitmap);
 
 /* these are exported */
-int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors);
-void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors,
-		     int success);
+int bitmap_startwrite(struct bitmap *bitmap, sector_t offset,
+			unsigned long sectors, int behind);
+void bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
+			unsigned long sectors, int success, int behind);
 int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int degraded);
 void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int aborted);
 void bitmap_close_sync(struct bitmap *bitmap);

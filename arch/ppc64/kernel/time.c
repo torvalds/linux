@@ -51,7 +51,6 @@
 #include <linux/cpu.h>
 #include <linux/security.h>
 
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/nvram.h>
@@ -67,6 +66,7 @@
 #include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/systemcfg.h>
+#include <asm/firmware.h>
 
 u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
@@ -128,7 +128,7 @@ static __inline__ void timer_check_rtc(void)
          * We should have an rtc call that only sets the minutes and
          * seconds like on Intel to avoid problems with non UTC clocks.
          */
-        if ( (time_status & STA_UNSYNC) == 0 &&
+        if (ntp_synced() &&
              xtime.tv_sec - last_rtc_update >= 659 &&
              abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ &&
              jiffies - wall_jiffies == 1) {
@@ -370,13 +370,11 @@ int timer_interrupt(struct pt_regs * regs)
 		process_hvlpevents(regs);
 #endif
 
-/* collect purr register values often, for accurate calculations */
-#if defined(CONFIG_PPC_PSERIES)
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+	/* collect purr register values often, for accurate calculations */
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
 		cu->current_tb = mfspr(SPRN_PURR);
 	}
-#endif
 
 	irq_exit();
 
@@ -437,10 +435,7 @@ int do_settimeofday(struct timespec *tv)
 	 */
 	last_rtc_update = new_sec - 658;
 
-	time_adjust = 0;                /* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 
 	delta_xsec = mulhdu( (tb_last_stamp-do_gtod.varp->tb_orig_stamp),
 			     do_gtod.varp->tb_to_xs );

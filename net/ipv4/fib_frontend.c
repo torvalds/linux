@@ -558,16 +558,15 @@ static void nl_fib_input(struct sock *sk, int len)
 	nl_fib_lookup(frn, tb);
 	
 	pid = nlh->nlmsg_pid;           /*pid of sending process */
-	NETLINK_CB(skb).groups = 0;     /* not in mcast group */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
 	NETLINK_CB(skb).dst_pid = pid;
-	NETLINK_CB(skb).dst_groups = 0;  /* unicast */
+	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
 }    
 
 static void nl_fib_lookup_init(void)
 {
-      netlink_kernel_create(NETLINK_FIB_LOOKUP, nl_fib_input);
+      netlink_kernel_create(NETLINK_FIB_LOOKUP, 0, nl_fib_input, THIS_MODULE);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)
@@ -662,5 +661,4 @@ void __init ip_fib_init(void)
 }
 
 EXPORT_SYMBOL(inet_addr_type);
-EXPORT_SYMBOL(ip_dev_find);
 EXPORT_SYMBOL(ip_rt_ioctl);

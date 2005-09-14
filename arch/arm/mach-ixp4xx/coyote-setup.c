@@ -24,11 +24,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-void __init coyote_map_io(void)
-{
-	ixp4xx_map_io();
-}
-
 static struct flash_platform_data coyote_flash_data = {
 	.map_name	= "cfi_probe",
 	.width		= 2,
@@ -36,7 +31,7 @@ static struct flash_platform_data coyote_flash_data = {
 
 static struct resource coyote_flash_resource = {
 	.start		= COYOTE_FLASH_BASE,
-	.end		= COYOTE_FLASH_BASE + COYOTE_FLASH_SIZE,
+	.end		= COYOTE_FLASH_BASE + COYOTE_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -71,7 +66,7 @@ static struct plat_serial8250_port coyote_uart_data[] = {
 
 static struct platform_device coyote_uart = {
 	.name		= "serial8250",
-	.id		= 0,
+	.id		= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= coyote_uart_data,
 	},
@@ -107,7 +102,7 @@ MACHINE_START(ADI_COYOTE, "ADI Engineering Coyote")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= coyote_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
@@ -125,7 +120,7 @@ MACHINE_START(IXDPG425, "Intel IXDPG425")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= coyote_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,

@@ -40,7 +40,7 @@ static void timer_stop(void)
 }
 
 
-int __init nmi_timer_init(struct oprofile_operations * ops)
+int __init op_nmi_timer_init(struct oprofile_operations * ops)
 {
 	extern int nmi_active;
 

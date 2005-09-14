@@ -147,6 +147,7 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
+source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/atm/Kconfig"
 source "net/bridge/Kconfig"
@@ -205,6 +206,8 @@ config NET_PKTGEN
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.
 
+source "net/netfilter/Kconfig"
+
 endmenu
 
 endmenu
@@ -212,6 +215,7 @@ endmenu
 source "net/ax25/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
+source "net/ieee80211/Kconfig"
 
 endif   # if NET
 endmenu # Networking

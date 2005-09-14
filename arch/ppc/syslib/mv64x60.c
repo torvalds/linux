@@ -30,13 +30,16 @@
 #include <asm/mv64x60.h>
 
 
-u8		mv64x60_pci_exclude_bridge = 1;
-spinlock_t	mv64x60_lock = SPIN_LOCK_UNLOCKED;
+u8 mv64x60_pci_exclude_bridge = 1;
+DEFINE_SPINLOCK(mv64x60_lock);
 
-static phys_addr_t 	mv64x60_bridge_pbase = 0;
-static void 		*mv64x60_bridge_vbase = 0;
+static phys_addr_t 	mv64x60_bridge_pbase;
+static void 		*mv64x60_bridge_vbase;
 static u32		mv64x60_bridge_type = MV64x60_TYPE_INVALID;
-static u32		mv64x60_bridge_rev = 0;
+static u32		mv64x60_bridge_rev;
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+static struct pci_controller	sysfs_hose_a;
+#endif
 
 static u32 gt64260_translate_size(u32 base, u32 size, u32 num_bits);
 static u32 gt64260_untranslate_size(u32 base, u32 size, u32 num_bits);
@@ -432,6 +435,20 @@ static struct platform_device i2c_device = {
 };
 #endif
 
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+static struct mv64xxx_pdata mv64xxx_pdata = {
+	.hs_reg_valid	= 0,
+};
+
+static struct platform_device mv64xxx_device = { /* general mv64x60 stuff */
+	.name	= MV64XXX_DEV_NAME,
+	.id	= 0,
+	.dev = {
+		.platform_data = &mv64xxx_pdata,
+	},
+};
+#endif
+
 static struct platform_device *mv64x60_pd_devs[] __initdata = {
 #ifdef CONFIG_SERIAL_MPSC
 	&mpsc_shared_device,
@@ -452,6 +469,9 @@ static struct platform_device *mv64x60_pd_devs[] __initdata = {
 #endif
 #ifdef	CONFIG_I2C_MV64XXX
 	&i2c_device,
+#endif
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+	&mv64xxx_device,
 #endif
 };
 
@@ -574,6 +594,11 @@ mv64x60_early_init(struct mv64x60_handle *bh, struct mv64x60_setup_info *si)
 	bh->hose_a = &hose_a;
 	bh->hose_b = &hose_b;
 
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+	/* Save a copy of hose_a for sysfs functions -- hack */
+	memcpy(&sysfs_hose_a, &hose_a, sizeof(hose_a));
+#endif
+
 	mv64x60_set_bus(bh, 0, 0);
 	mv64x60_set_bus(bh, 1, 0);
 
@@ -590,8 +615,6 @@ mv64x60_early_init(struct mv64x60_handle *bh, struct mv64x60_setup_info *si)
 
 	mv64x60_set_bits(bh, MV64x60_PCI0_TO_RETRY, 0xffff);
 	mv64x60_set_bits(bh, MV64x60_PCI1_TO_RETRY, 0xffff);
-
-	return;
 }
 
 /*
@@ -628,19 +651,15 @@ mv64x60_get_32bit_window(struct mv64x60_handle *bh, u32 window,
 			val = mv64x60_read(bh, size_reg);
 			val = get_from_field(val, size_bits);
 			*size = bh->ci->untranslate_size(*base, val, size_bits);
-		}
-		else
+		} else
 			*size = 0;
-	}
-	else {
+	} else {
 		*base = 0;
 		*size = 0;
 	}
 
 	pr_debug("get 32bit window: %d, base: 0x%x, size: 0x%x\n",
 		window, *base, *size);
-
-	return;
 }
 
 /*
@@ -677,8 +696,6 @@ mv64x60_set_32bit_window(struct mv64x60_handle *bh, u32 window,
 
 		(void)mv64x60_read(bh, base_reg); /* Flush FIFO */
 	}
-
-	return;
 }
 
 /*
@@ -712,11 +729,9 @@ mv64x60_get_64bit_window(struct mv64x60_handle *bh, u32 window,
 			val = get_from_field(val, size_bits);
 			*size = bh->ci->untranslate_size(*base_lo, val,
 								size_bits);
-		}
-		else
+		} else
 			*size = 0;
-	}
-	else {
+	} else {
 		*base_hi = 0;
 		*base_lo = 0;
 		*size = 0;
@@ -724,8 +739,6 @@ mv64x60_get_64bit_window(struct mv64x60_handle *bh, u32 window,
 
 	pr_debug("get 64bit window: %d, base hi: 0x%x, base lo: 0x%x, "
 		"size: 0x%x\n", window, *base_hi, *base_lo, *size);
-
-	return;
 }
 
 /*
@@ -766,8 +779,6 @@ mv64x60_set_64bit_window(struct mv64x60_handle *bh, u32 window,
 
 		(void)mv64x60_read(bh, base_lo_reg); /* Flush FIFO */
 	}
-
-	return;
 }
 
 /*
@@ -1008,8 +1019,6 @@ mv64x60_get_mem_windows(struct mv64x60_handle *bh,
 			mem_windows[i][0] = 0;
 			mem_windows[i][1] = 0;
 		}
-
-	return;
 }
 
 /*
@@ -1077,8 +1086,6 @@ mv64x60_config_cpu2mem_windows(struct mv64x60_handle *bh,
 			}
 
 		}
-
-	return;
 }
 
 /*
@@ -1112,8 +1119,7 @@ mv64x60_config_cpu2pci_windows(struct mv64x60_handle *bh,
 		mv64x60_set_32bit_window(bh, remap_tab[bus][0],
 			pi->pci_io.pci_base_lo, 0, 0);
 		bh->ci->enable_window_32bit(bh, win_tab[bus][0]);
-	}
-	else /* Actually, the window should already be disabled */
+	} else /* Actually, the window should already be disabled */
 		bh->ci->disable_window_32bit(bh, win_tab[bus][0]);
 
 	for (i=0; i<3; i++)
@@ -1125,11 +1131,8 @@ mv64x60_config_cpu2pci_windows(struct mv64x60_handle *bh,
 				pi->pci_mem[i].pci_base_hi,
 				pi->pci_mem[i].pci_base_lo, 0, 0);
 			bh->ci->enable_window_32bit(bh, win_tab[bus][i+1]);
-		}
-		else /* Actually, the window should already be disabled */
+		} else /* Actually, the window should already be disabled */
 			bh->ci->disable_window_32bit(bh, win_tab[bus][i+1]);
-
-	return;
 }
 
 /*
@@ -1206,8 +1209,6 @@ mv64x60_config_pci2mem_windows(struct mv64x60_handle *bh,
 				MV64x60_PCI0_BAR_ENABLE :
 				MV64x60_PCI1_BAR_ENABLE), (1 << i));
 		}
-
-	return;
 }
 
 /*
@@ -1229,7 +1230,6 @@ mv64x60_alloc_hose(struct mv64x60_handle *bh, u32 cfg_addr, u32 cfg_data,
 	*hose = pcibios_alloc_controller();
 	setup_indirect_pci_nomap(*hose, bh->v_base + cfg_addr,
 		bh->v_base + cfg_data);
-	return;
 }
 
 /*
@@ -1272,7 +1272,6 @@ mv64x60_config_resources(struct pci_controller *hose,
 						pi->pci_mem[0].size - 1;
 	hose->pci_mem_offset = pi->pci_mem[0].cpu_base -
 						pi->pci_mem[0].pci_base_lo;
-	return;
 }
 
 /*
@@ -1309,7 +1308,6 @@ mv64x60_config_pci_params(struct pci_controller *hose,
 	early_write_config_word(hose, 0, devfn, PCI_CACHE_LINE_SIZE, u16_val);
 
 	mv64x60_pci_exclude_bridge = save_exclude;
-	return;
 }
 
 /*
@@ -1336,8 +1334,7 @@ mv64x60_set_bus(struct mv64x60_handle *bh, u32 bus, u32 child_bus)
 		p2p_cfg = MV64x60_PCI0_P2P_CONFIG;
 		pci_cfg_offset = 0x64;
 		hose = bh->hose_a;
-	}
-	else {
+	} else {
 		pci_mode = bh->pci_mode_b;
 		p2p_cfg = MV64x60_PCI1_P2P_CONFIG;
 		pci_cfg_offset = 0xe4;
@@ -1352,8 +1349,7 @@ mv64x60_set_bus(struct mv64x60_handle *bh, u32 bus, u32 child_bus)
 		val |= (child_bus << 16) | 0xff;
 		mv64x60_write(bh, p2p_cfg, val);
 		(void)mv64x60_read(bh, p2p_cfg); /* Flush FIFO */
-	}
-	else { /* PCI-X */
+	} else { /* PCI-X */
 		/*
 		 * Need to use the current bus/dev number (that's in the
 		 * P2P CONFIG reg) to access the bridge's pci config space.
@@ -1365,8 +1361,6 @@ mv64x60_set_bus(struct mv64x60_handle *bh, u32 bus, u32 child_bus)
 			pci_cfg_offset, child_bus << 8);
 		mv64x60_pci_exclude_bridge = save_exclude;
 	}
-
-	return;
 }
 
 /*
@@ -1423,8 +1417,6 @@ mv64x60_pd_fixup(struct mv64x60_handle *bh, struct platform_device *pd_devs[],
 			j++;
 		}
 	}
-
-	return;
 }
 
 /*
@@ -1498,8 +1490,6 @@ gt64260_set_pci2mem_window(struct pci_controller *hose, u32 bus, u32 window,
 	early_write_config_dword(hose, 0, PCI_DEVFN(0, 0),
 		gt64260_reg_addrs[bus][window], mv64x60_mask(base, 20) | 0x8);
 	mv64x60_pci_exclude_bridge = save_exclude;
-
-	return;
 }
 
 /*
@@ -1523,8 +1513,6 @@ gt64260_set_pci2regs_window(struct mv64x60_handle *bh,
 	early_write_config_dword(hose, 0, PCI_DEVFN(0,0), gt64260_offset[bus],
 		(base << 16));
 	mv64x60_pci_exclude_bridge = save_exclude;
-
-	return;
 }
 
 /*
@@ -1561,7 +1549,6 @@ static void __init
 gt64260_enable_window_32bit(struct mv64x60_handle *bh, u32 window)
 {
 	pr_debug("enable 32bit window: %d\n", window);
-	return;
 }
 
 /*
@@ -1584,8 +1571,6 @@ gt64260_disable_window_32bit(struct mv64x60_handle *bh, u32 window)
 		mv64x60_write(bh, gt64260_32bit_windows[window].base_reg,0xfff);
 		mv64x60_write(bh, gt64260_32bit_windows[window].size_reg, 0);
 	}
-
-	return;
 }
 
 /*
@@ -1599,7 +1584,6 @@ static void __init
 gt64260_enable_window_64bit(struct mv64x60_handle *bh, u32 window)
 {
 	pr_debug("enable 64bit window: %d\n", window);
-	return;	/* Enabled when window configured (i.e., when top >= base) */
 }
 
 /*
@@ -1624,8 +1608,6 @@ gt64260_disable_window_64bit(struct mv64x60_handle *bh, u32 window)
 		mv64x60_write(bh, gt64260_64bit_windows[window].base_hi_reg, 0);
 		mv64x60_write(bh, gt64260_64bit_windows[window].size_reg, 0);
 	}
-
-	return;
 }
 
 /*
@@ -1712,8 +1694,6 @@ gt64260_disable_all_windows(struct mv64x60_handle *bh,
 	mv64x60_write(bh, GT64260_IC_CPU_INT_1_MASK, 0);
 	mv64x60_write(bh, GT64260_IC_CPU_INT_2_MASK, 0);
 	mv64x60_write(bh, GT64260_IC_CPU_INT_3_MASK, 0);
-
-	return;
 }
 
 /*
@@ -1781,14 +1761,11 @@ gt64260a_chip_specific_init(struct mv64x60_handle *bh,
 	mv64x60_mpsc1_pdata.cache_mgmt = 1;
 
 	if ((r = platform_get_resource(&mpsc1_device, IORESOURCE_IRQ, 0))
-		!= NULL) {
-
+			!= NULL) {
 		r->start = MV64x60_IRQ_SDMA_0;
 		r->end = MV64x60_IRQ_SDMA_0;
 	}
 #endif
-
-	return;
 }
 
 /*
@@ -1861,14 +1838,11 @@ gt64260b_chip_specific_init(struct mv64x60_handle *bh,
 	mv64x60_mpsc1_pdata.cache_mgmt = 1;
 
 	if ((r = platform_get_resource(&mpsc1_device, IORESOURCE_IRQ, 0))
-		!= NULL) {
-
+			!= NULL) {
 		r->start = MV64x60_IRQ_SDMA_0;
 		r->end = MV64x60_IRQ_SDMA_0;
 	}
 #endif
-
-	return;
 }
 
 /*
@@ -1945,8 +1919,6 @@ mv64360_set_pci2mem_window(struct pci_controller *hose, u32 bus, u32 window,
 		mv64360_reg_addrs[bus][window].base_lo_bar,
 		mv64x60_mask(base,20) | 0xc);
 	mv64x60_pci_exclude_bridge = save_exclude;
-
-	return;
 }
 
 /*
@@ -1972,8 +1944,6 @@ mv64360_set_pci2regs_window(struct mv64x60_handle *bh,
 	early_write_config_dword(hose, 0, PCI_DEVFN(0,0),
 		mv64360_offset[bus][1], 0);
 	mv64x60_pci_exclude_bridge = save_exclude;
-
-	return;
 }
 
 /*
@@ -2082,8 +2052,6 @@ mv64360_enable_window_32bit(struct mv64x60_handle *bh, u32 window)
 				"32bit table corrupted");
 		}
 	}
-
-	return;
 }
 
 /*
@@ -2139,8 +2107,6 @@ mv64360_disable_window_32bit(struct mv64x60_handle *bh, u32 window)
 				"32bit table corrupted");
 		}
 	}
-
-	return;
 }
 
 /*
@@ -2158,8 +2124,7 @@ mv64360_enable_window_64bit(struct mv64x60_handle *bh, u32 window)
 		(mv64360_64bit_windows[window].size_reg != 0)) {
 
 		if ((mv64360_64bit_windows[window].extra & MV64x60_EXTRA_MASK)
-			== MV64x60_EXTRA_PCIACC_ENAB)
-
+				== MV64x60_EXTRA_PCIACC_ENAB)
 			mv64x60_set_bits(bh,
 				mv64360_64bit_windows[window].base_lo_reg,
 				(1 << (mv64360_64bit_windows[window].extra &
@@ -2168,8 +2133,6 @@ mv64360_enable_window_64bit(struct mv64x60_handle *bh, u32 window)
 			printk(KERN_ERR "mv64360_enable: %s\n",
 				"64bit table corrupted");
 	}
-
-	return;
 }
 
 /*
@@ -2186,11 +2149,9 @@ mv64360_disable_window_64bit(struct mv64x60_handle *bh, u32 window)
 		mv64360_64bit_windows[window].size_reg);
 
 	if ((mv64360_64bit_windows[window].base_lo_reg != 0) &&
-		(mv64360_64bit_windows[window].size_reg != 0)) {
-
+			(mv64360_64bit_windows[window].size_reg != 0)) {
 		if ((mv64360_64bit_windows[window].extra & MV64x60_EXTRA_MASK)
-			== MV64x60_EXTRA_PCIACC_ENAB)
-
+				== MV64x60_EXTRA_PCIACC_ENAB)
 			mv64x60_clr_bits(bh,
 				mv64360_64bit_windows[window].base_lo_reg,
 				(1 << (mv64360_64bit_windows[window].extra &
@@ -2199,8 +2160,6 @@ mv64360_disable_window_64bit(struct mv64x60_handle *bh, u32 window)
 			printk(KERN_ERR "mv64360_disable: %s\n",
 				"64bit table corrupted");
 	}
-
-	return;
 }
 
 /*
@@ -2241,8 +2200,6 @@ mv64360_disable_all_windows(struct mv64x60_handle *bh,
 	/* Disable all PCI-><whatever> windows */
 	mv64x60_set_bits(bh, MV64x60_PCI0_BAR_ENABLE, 0x0000f9ff);
 	mv64x60_set_bits(bh, MV64x60_PCI1_BAR_ENABLE, 0x0000f9ff);
-
-	return;
 }
 
 /*
@@ -2335,8 +2292,6 @@ mv64360_config_io2mem_windows(struct mv64x60_handle *bh,
 			mv64x60_set_bits(bh, MV64360_IDMA2MEM_ACC_PROT_3,
 				(0x3 << (i << 1)));
 		}
-
-	return;
 }
 
 /*
@@ -2350,42 +2305,145 @@ static void __init
 mv64360_set_mpsc2regs_window(struct mv64x60_handle *bh, u32 base)
 {
 	pr_debug("set mpsc->internal regs, base: 0x%x\n", base);
-
 	mv64x60_write(bh, MV64360_MPSC2REGS_BASE, base & 0xffff0000);
-	return;
 }
 
 /*
  * mv64360_chip_specific_init()
  *
- * No errata work arounds for the MV64360 implemented at this point.
+ * Implement errata work arounds for the MV64360.
  */
 static void __init
 mv64360_chip_specific_init(struct mv64x60_handle *bh,
 	struct mv64x60_setup_info *si)
 {
+#if !defined(CONFIG_NOT_COHERENT_CACHE)
+	mv64x60_set_bits(bh, MV64360_D_UNIT_CONTROL_HIGH, (1<<24));
+#endif
 #ifdef CONFIG_SERIAL_MPSC
 	mv64x60_mpsc0_pdata.brg_can_tune = 1;
 	mv64x60_mpsc0_pdata.cache_mgmt = 1;
 	mv64x60_mpsc1_pdata.brg_can_tune = 1;
 	mv64x60_mpsc1_pdata.cache_mgmt = 1;
 #endif
-
-	return;
 }
 
 /*
  * mv64460_chip_specific_init()
  *
- * No errata work arounds for the MV64460 implemented at this point.
+ * Implement errata work arounds for the MV64460.
  */
 static void __init
 mv64460_chip_specific_init(struct mv64x60_handle *bh,
 	struct mv64x60_setup_info *si)
 {
+#if !defined(CONFIG_NOT_COHERENT_CACHE)
+	mv64x60_set_bits(bh, MV64360_D_UNIT_CONTROL_HIGH, (1<<24) | (1<<25));
+	mv64x60_set_bits(bh, MV64460_D_UNIT_MMASK, (1<<1) | (1<<4));
+#endif
 #ifdef CONFIG_SERIAL_MPSC
 	mv64x60_mpsc0_pdata.brg_can_tune = 1;
+	mv64x60_mpsc0_pdata.cache_mgmt = 1;
 	mv64x60_mpsc1_pdata.brg_can_tune = 1;
+	mv64x60_mpsc1_pdata.cache_mgmt = 1;
 #endif
-	return;
 }
+
+
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+/* Export the hotswap register via sysfs for enum event monitoring */
+#define	VAL_LEN_MAX	11 /* 32-bit hex or dec stringified number + '\n' */
+
+DECLARE_MUTEX(mv64xxx_hs_lock);
+
+static ssize_t
+mv64xxx_hs_reg_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	u32	v;
+	u8	save_exclude;
+
+	if (off > 0)
+		return 0;
+	if (count < VAL_LEN_MAX)
+		return -EINVAL;
+
+	if (down_interruptible(&mv64xxx_hs_lock))
+		return -ERESTARTSYS;
+	save_exclude = mv64x60_pci_exclude_bridge;
+	mv64x60_pci_exclude_bridge = 0;
+	early_read_config_dword(&sysfs_hose_a, 0, PCI_DEVFN(0, 0),
+			MV64360_PCICFG_CPCI_HOTSWAP, &v);
+	mv64x60_pci_exclude_bridge = save_exclude;
+	up(&mv64xxx_hs_lock);
+
+	return sprintf(buf, "0x%08x\n", v);
+}
+
+static ssize_t
+mv64xxx_hs_reg_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	u32	v;
+	u8	save_exclude;
+
+	if (off > 0)
+		return 0;
+	if (count <= 0)
+		return -EINVAL;
+
+	if (sscanf(buf, "%i", &v) == 1) {
+		if (down_interruptible(&mv64xxx_hs_lock))
+			return -ERESTARTSYS;
+		save_exclude = mv64x60_pci_exclude_bridge;
+		mv64x60_pci_exclude_bridge = 0;
+		early_write_config_dword(&sysfs_hose_a, 0, PCI_DEVFN(0, 0),
+				MV64360_PCICFG_CPCI_HOTSWAP, v);
+		mv64x60_pci_exclude_bridge = save_exclude;
+		up(&mv64xxx_hs_lock);
+	}
+	else
+		count = -EINVAL;
+
+	return count;
+}
+
+static struct bin_attribute mv64xxx_hs_reg_attr = { /* Hotswap register */
+	.attr = {
+		.name = "hs_reg",
+		.mode = S_IRUGO | S_IWUSR,
+		.owner = THIS_MODULE,
+	},
+	.size  = VAL_LEN_MAX,
+	.read  = mv64xxx_hs_reg_read,
+	.write = mv64xxx_hs_reg_write,
+};
+
+/* Provide sysfs file indicating if this platform supports the hs_reg */
+static ssize_t
+mv64xxx_hs_reg_valid_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct platform_device	*pdev;
+	struct mv64xxx_pdata	*pdp;
+	u32			v;
+
+	pdev = container_of(dev, struct platform_device, dev);
+	pdp = (struct mv64xxx_pdata *)pdev->dev.platform_data;
+
+	if (down_interruptible(&mv64xxx_hs_lock))
+		return -ERESTARTSYS;
+	v = pdp->hs_reg_valid;
+	up(&mv64xxx_hs_lock);
+
+	return sprintf(buf, "%i\n", v);
+}
+static DEVICE_ATTR(hs_reg_valid, S_IRUGO, mv64xxx_hs_reg_valid_show, NULL);
+
+static int __init
+mv64xxx_sysfs_init(void)
+{
+	sysfs_create_bin_file(&mv64xxx_device.dev.kobj, &mv64xxx_hs_reg_attr);
+	sysfs_create_file(&mv64xxx_device.dev.kobj,&dev_attr_hs_reg_valid.attr);
+	return 0;
+}
+subsys_initcall(mv64xxx_sysfs_init);
+#endif

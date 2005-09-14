@@ -44,6 +44,10 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool
 	default y
 
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
 # We optimistically allocate largepages from the VM, so make the limit
 # large enough (16MB). This badly named config option is actually
 # max order + 1
@@ -302,12 +306,6 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
-config MSCHUNKS
-	bool
-	depends on PPC_ISERIES
-	default y
-
-
 config PPC_RTAS
 	bool
 	depends on PPC_PSERIES || PPC_BPA
@@ -350,13 +348,46 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+source "fs/Kconfig.binfmt"
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
+	select HOTPLUG
+	---help---
+	  Say Y here to be able to turn CPUs off and on.
+
+	  Say N if you are unsure.
+
+config PROC_DEVICETREE
+	bool "Support for Open Firmware device tree in /proc"
+	depends on !PPC_ISERIES
+	help
+	  This option adds a device-tree directory under /proc which contains
+	  an image of the device tree that the kernel copies from Open
+	  Firmware. If unsure, say Y here.
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+	depends on !PPC_ISERIES
+
+config CMDLINE
+	string "Initial kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyS0,9600 console=tty0 root=/dev/sda2"
+	help
+	  On some platforms, there is currently no way for the boot loader to
+	  pass arguments to the kernel. For these platforms, you can supply
+	  some command-line options at build time by entering them here.  In
+	  most cases you will need to specify the root device here.
+
 endmenu
 
 config ISA_DMA_API
 	bool
 	default y
 
-menu "General setup"
+menu "Bus Options"
 
 config ISA
 	bool
@@ -389,44 +420,11 @@ config PCI_DOMAINS
 	bool
 	default PCI
 
-source "fs/Kconfig.binfmt"
-
 source "drivers/pci/Kconfig"
-
-config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs"
-	depends on SMP && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
-	select HOTPLUG
-	---help---
-	  Say Y here to be able to turn CPUs off and on.
-
-	  Say N if you are unsure.
 
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
-
-config PROC_DEVICETREE
-	bool "Support for Open Firmware device tree in /proc"
-	depends on !PPC_ISERIES
-	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware. If unsure, say Y here.
-
-config CMDLINE_BOOL
-	bool "Default bootloader kernel arguments"
-	depends on !PPC_ISERIES
-
-config CMDLINE
-	string "Initial kernel command string"
-	depends on CMDLINE_BOOL
-	default "console=ttyS0,9600 console=tty0 root=/dev/sda2"
-	help
-	  On some platforms, there is currently no way for the boot loader to
-	  pass arguments to the kernel. For these platforms, you can supply
-	  some command-line options at build time by entering them here.  In
-	  most cases you will need to specify the root device here.
 
 endmenu
 

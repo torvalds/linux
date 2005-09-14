@@ -65,13 +65,13 @@
  * Machine setup..
  */
 
-struct cpuinfo_x86 boot_cpu_data;
+struct cpuinfo_x86 boot_cpu_data __read_mostly;
 
 unsigned long mmu_cr4_features;
 
 int acpi_disabled;
 EXPORT_SYMBOL(acpi_disabled);
-#ifdef	CONFIG_ACPI_BOOT
+#ifdef	CONFIG_ACPI
 extern int __initdata acpi_ht;
 extern acpi_interrupt_flags	acpi_sci_flags;
 int __initdata acpi_force = 0;
@@ -294,7 +294,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 			maxcpus = simple_strtoul(from + 8, NULL, 0);
 		}
 #endif
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter init */
 		if (!memcmp(from, "acpi=off", 8))
 			disable_acpi();
@@ -335,6 +335,11 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 			acpi_skip_timer_override = 1;
 #endif
 #endif
+
+		if (!memcmp(from, "disable_timer_pin_1", 19))
+			disable_timer_pin_1 = 1;
+		if (!memcmp(from, "enable_timer_pin_1", 18))
+			disable_timer_pin_1 = -1;
 
 		if (!memcmp(from, "nolapic", 7) ||
 		    !memcmp(from, "disableapic", 11))
@@ -566,7 +571,7 @@ void __init setup_arch(char **cmdline_p)
 
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Initialize the ACPI boot-time table parser (gets the RSDP and SDT).
 	 * Call this early for SRAT node setup.
@@ -658,7 +663,7 @@ void __init setup_arch(char **cmdline_p)
 
 	check_ioapic();
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Read APIC and some other early information from ACPI tables.
 	 */
@@ -755,6 +760,24 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
+#ifdef CONFIG_NUMA
+static int nearby_node(int apicid)
+{
+	int i;
+	for (i = apicid - 1; i >= 0; i--) {
+		int node = apicid_to_node[i];
+		if (node != NUMA_NO_NODE && node_online(node))
+			return node;
+	}
+	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
+		int node = apicid_to_node[i];
+		if (node != NUMA_NO_NODE && node_online(node))
+			return node;
+	}
+	return first_node(node_online_map); /* Shouldn't happen */
+}
+#endif
+
 /*
  * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
  * Assumes number of cores is a power of two.
@@ -763,8 +786,11 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
-	int node = 0;
 	unsigned bits;
+#ifdef CONFIG_NUMA
+	int node = 0;
+	unsigned apicid = phys_proc_id[cpu];
+#endif
 
 	bits = 0;
 	while ((1 << bits) < c->x86_num_cores)
@@ -776,20 +802,32 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	phys_proc_id[cpu] >>= bits;
 
 #ifdef CONFIG_NUMA
-	/* When an ACPI SRAT table is available use the mappings from SRAT
- 	   instead. */
-	if (acpi_numa <= 0) {
-		node = phys_proc_id[cpu];
-		if (!node_online(node))
-			node = first_node(node_online_map);
-		cpu_to_node[cpu] = node;
-	} else {
-		node = cpu_to_node[cpu];
-	}
-#endif
+  	node = phys_proc_id[cpu];
+ 	if (apicid_to_node[apicid] != NUMA_NO_NODE)
+ 		node = apicid_to_node[apicid];
+ 	if (!node_online(node)) {
+ 		/* Two possibilities here:
+ 		   - The CPU is missing memory and no node was created.
+ 		   In that case try picking one from a nearby CPU
+ 		   - The APIC IDs differ from the HyperTransport node IDs
+ 		   which the K8 northbridge parsing fills in.
+ 		   Assume they are all increased by a constant offset,
+ 		   but in the same order as the HT nodeids.
+ 		   If that doesn't result in a usable node fall back to the
+ 		   path for the previous case.  */
+ 		int ht_nodeid = apicid - (phys_proc_id[0] << bits);
+ 		if (ht_nodeid >= 0 &&
+ 		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
+ 			node = apicid_to_node[ht_nodeid];
+ 		/* Pick a nearby node */
+ 		if (!node_online(node))
+ 			node = nearby_node(apicid);
+ 	}
+  	cpu_to_node[cpu] = node;
 
-	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
-			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
+  	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
+  			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
+#endif
 #endif
 }
 
@@ -909,6 +947,25 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
+static void srat_detect_node(void)
+{
+#ifdef CONFIG_NUMA
+	unsigned apicid, node;
+	int cpu = smp_processor_id();
+
+	/* Don't do the funky fallback heuristics the AMD version employs
+	   for now. */
+	apicid = phys_proc_id[cpu];
+	node = apicid_to_node[apicid];
+	if (node == NUMA_NO_NODE)
+		node = 0;
+	cpu_to_node[cpu] = node;
+
+	if (acpi_numa > 0)
+		printk(KERN_INFO "CPU %d -> Node %d\n", cpu, node);
+#endif
+}
+
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
@@ -927,9 +984,11 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 >= 15)
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
  	c->x86_num_cores = intel_num_cpu_cores(c);
+
+	srat_detect_node();
 }
 
-void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
+static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
 

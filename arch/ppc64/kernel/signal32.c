@@ -970,17 +970,26 @@ int do_signal32(sigset_t *oldset, struct pt_regs *regs)
 		newsp = regs->gpr[1];
 	newsp &= ~0xfUL;
 
+	/*
+	 * Reenable the DABR before delivering the signal to
+	 * user space. The DABR will have been cleared if it
+	 * triggered inside the kernel.
+	 */
+	if (current->thread.dabr)
+		set_dabr(current->thread.dabr);
+
 	/* Whee!  Actually deliver the signal.  */
 	if (ka.sa.sa_flags & SA_SIGINFO)
 		ret = handle_rt_signal32(signr, &ka, &info, oldset, regs, newsp);
 	else
 		ret = handle_signal32(signr, &ka, &info, oldset, regs, newsp);
 
-	if (ret && !(ka.sa.sa_flags & SA_NODEFER)) {
+	if (ret) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked, &current->blocked,
 			  &ka.sa.sa_mask);
-		sigaddset(&current->blocked, signr);
+		if (!(ka.sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked, signr);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}

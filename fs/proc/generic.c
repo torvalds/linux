@@ -249,6 +249,18 @@ out:
 	return error;
 }
 
+static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct proc_dir_entry *de = PROC_I(inode)->pde;
+	if (de && de->nlink)
+		inode->i_nlink = de->nlink;
+
+	generic_fillattr(inode, stat);
+	return 0;
+}
+
 static struct inode_operations proc_file_inode_operations = {
 	.setattr	= proc_notify_change,
 };
@@ -329,10 +341,10 @@ static void release_inode_number(unsigned int inum)
 	spin_unlock(&proc_inum_lock);
 }
 
-static int proc_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	nd_set_link(nd, PDE(dentry->d_inode)->data);
-	return 0;
+	return NULL;
 }
 
 static struct inode_operations proc_link_inode_operations = {
@@ -475,6 +487,7 @@ static struct file_operations proc_dir_operations = {
  */
 static struct inode_operations proc_dir_inode_operations = {
 	.lookup		= proc_lookup,
+	.getattr	= proc_getattr,
 	.setattr	= proc_notify_change,
 };
 

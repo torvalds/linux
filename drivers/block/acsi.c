@@ -371,7 +371,7 @@ static int acsi_revalidate (struct gendisk *disk);
 /************************* End of Prototypes **************************/
 
 
-struct timer_list acsi_timer = TIMER_INITIALIZER(acsi_times_out, 0, 0);
+DEFINE_TIMER(acsi_timer, acsi_times_out, 0, 0);
 
 
 #ifdef CONFIG_ATARI_SLM

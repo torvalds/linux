@@ -26,6 +26,7 @@
 #include <asm/hardware/clock.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
+#include <asm/setup.h>
 
 #include <asm/arch/board.h>
 #include <asm/arch/mux.h>
@@ -35,11 +36,11 @@
 
 #define NO_LENGTH_CHECK 0xffffffff
 
-extern int omap_bootloader_tag_len;
-extern u8 omap_bootloader_tag[];
+unsigned char omap_bootloader_tag[512];
+int omap_bootloader_tag_len;
 
 struct omap_board_config_kernel *omap_board_config;
-int omap_board_config_size = 0;
+int omap_board_config_size;
 
 static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 {

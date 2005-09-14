@@ -86,11 +86,11 @@ static inline void bictcp_reset(struct bictcp *ca)
 	ca->delayed_ack = 2 << ACK_RATIO_SHIFT;
 }
 
-static void bictcp_init(struct tcp_sock *tp)
+static void bictcp_init(struct sock *sk)
 {
-	bictcp_reset(tcp_ca(tp));
+	bictcp_reset(inet_csk_ca(sk));
 	if (initial_ssthresh)
-		tp->snd_ssthresh = initial_ssthresh;
+		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
 }
 
 /*
@@ -156,9 +156,10 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 
 
 /* Detect low utilization in congestion avoidance */
-static inline void bictcp_low_utilization(struct tcp_sock *tp, int flag)
+static inline void bictcp_low_utilization(struct sock *sk, int flag)
 {
-	struct bictcp *ca = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct bictcp *ca = inet_csk_ca(sk);
 	u32 dist, delay;
 
 	/* No time stamp */
@@ -208,12 +209,13 @@ static inline void bictcp_low_utilization(struct tcp_sock *tp, int flag)
 
 }
 
-static void bictcp_cong_avoid(struct tcp_sock *tp, u32 ack,
+static void bictcp_cong_avoid(struct sock *sk, u32 ack,
 			      u32 seq_rtt, u32 in_flight, int data_acked)
 {
-	struct bictcp *ca = tcp_ca(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct bictcp *ca = inet_csk_ca(sk);
 
-	bictcp_low_utilization(tp, data_acked);
+	bictcp_low_utilization(sk, data_acked);
 
 	if (in_flight < tp->snd_cwnd)
 		return;
@@ -242,9 +244,10 @@ static void bictcp_cong_avoid(struct tcp_sock *tp, u32 ack,
  *	behave like Reno until low_window is reached,
  *	then increase congestion window slowly
  */
-static u32 bictcp_recalc_ssthresh(struct tcp_sock *tp)
+static u32 bictcp_recalc_ssthresh(struct sock *sk)
 {
-	struct bictcp *ca = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct bictcp *ca = inet_csk_ca(sk);
 
 	ca->epoch_start = 0;	/* end of epoch */
 
@@ -269,31 +272,34 @@ static u32 bictcp_recalc_ssthresh(struct tcp_sock *tp)
 		return max((tp->snd_cwnd * beta) / BICTCP_BETA_SCALE, 2U);
 }
 
-static u32 bictcp_undo_cwnd(struct tcp_sock *tp)
+static u32 bictcp_undo_cwnd(struct sock *sk)
 {
-	struct bictcp *ca = tcp_ca(tp);
-
+	const struct tcp_sock *tp = tcp_sk(sk);
+	const struct bictcp *ca = inet_csk_ca(sk);
 	return max(tp->snd_cwnd, ca->last_max_cwnd);
 }
 
-static u32 bictcp_min_cwnd(struct tcp_sock *tp)
+static u32 bictcp_min_cwnd(struct sock *sk)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
 	return tp->snd_ssthresh;
 }
 
-static void bictcp_state(struct tcp_sock *tp, u8 new_state)
+static void bictcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Loss)
-		bictcp_reset(tcp_ca(tp));
+		bictcp_reset(inet_csk_ca(sk));
 }
 
 /* Track delayed acknowledgement ratio using sliding window
  * ratio = (15*ratio + sample) / 16
  */
-static void bictcp_acked(struct tcp_sock *tp, u32 cnt)
+static void bictcp_acked(struct sock *sk, u32 cnt)
 {
-	if (cnt > 0 && 	tp->ca_state == TCP_CA_Open) {
-		struct bictcp *ca = tcp_ca(tp);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (cnt > 0 && 	icsk->icsk_ca_state == TCP_CA_Open) {
+		struct bictcp *ca = inet_csk_ca(sk);
 		cnt -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ca->delayed_ack += cnt;
 	}
@@ -314,7 +320,7 @@ static struct tcp_congestion_ops bictcp = {
 
 static int __init bictcp_register(void)
 {
-	BUG_ON(sizeof(struct bictcp) > TCP_CA_PRIV_SIZE);
+	BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&bictcp);
 }
 

@@ -34,7 +34,7 @@
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
@@ -584,13 +584,16 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		/* possibly an icmp error */
 		dprintk("svc: recvfrom returned error %d\n", -err);
 	}
-	if (skb->stamp.tv_sec == 0) {
-		skb->stamp.tv_sec = xtime.tv_sec; 
-		skb->stamp.tv_usec = xtime.tv_nsec / NSEC_PER_USEC; 
+	if (skb->tstamp.off_sec == 0) {
+		struct timeval tv;
+
+		tv.tv_sec = xtime.tv_sec;
+		tv.tv_usec = xtime.tv_nsec * 1000;
+		skb_set_timestamp(skb, &tv);
 		/* Don't enable netstamp, sunrpc doesn't 
 		   need that much accuracy */
 	}
-	svsk->sk_sk->sk_stamp = skb->stamp;
+	skb_get_timestamp(skb, &svsk->sk_sk->sk_stamp);
 	set_bit(SK_DATA, &svsk->sk_flags); /* there may be more data... */
 
 	/*
@@ -1167,8 +1170,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	while (rqstp->rq_arghi < pages) {
 		struct page *p = alloc_page(GFP_KERNEL);
 		if (!p) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ/2);
+			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			continue;
 		}
 		rqstp->rq_argpages[rqstp->rq_arghi++] = p;

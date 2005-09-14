@@ -4,6 +4,9 @@
 #include <linux/init.h>
 #include <linux/list.h>
 
+#include <linux/netfilter_ipv4/ip_nat.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+
 struct iphdr;
 struct ip_nat_range;
 
@@ -14,6 +17,8 @@ struct ip_nat_protocol
 
 	/* Protocol number. */
 	unsigned int protonum;
+
+	struct module *me;
 
 	/* Translate a packet to the target according to manip type.
 	   Return true if succeeded. */
@@ -43,19 +48,20 @@ struct ip_nat_protocol
 
 	unsigned int (*print_range)(char *buffer,
 				    const struct ip_nat_range *range);
-};
 
-#define MAX_IP_NAT_PROTO 256
-extern struct ip_nat_protocol *ip_nat_protos[MAX_IP_NAT_PROTO];
+	int (*range_to_nfattr)(struct sk_buff *skb,
+			       const struct ip_nat_range *range);
+
+	int (*nfattr_to_range)(struct nfattr *tb[],
+			       struct ip_nat_range *range);
+};
 
 /* Protocol registration. */
 extern int ip_nat_protocol_register(struct ip_nat_protocol *proto);
 extern void ip_nat_protocol_unregister(struct ip_nat_protocol *proto);
 
-static inline struct ip_nat_protocol *ip_nat_find_proto(u_int8_t protocol)
-{
-	return ip_nat_protos[protocol];
-}
+extern struct ip_nat_protocol *ip_nat_proto_find_get(u_int8_t protocol);
+extern void ip_nat_proto_put(struct ip_nat_protocol *proto);
 
 /* Built-in protocols. */
 extern struct ip_nat_protocol ip_nat_protocol_tcp;
@@ -66,5 +72,10 @@ extern struct ip_nat_protocol ip_nat_unknown_protocol;
 extern int init_protocols(void) __init;
 extern void cleanup_protocols(void);
 extern struct ip_nat_protocol *find_nat_proto(u_int16_t protonum);
+
+extern int ip_nat_port_range_to_nfattr(struct sk_buff *skb,
+				       const struct ip_nat_range *range);
+extern int ip_nat_port_nfattr_to_range(struct nfattr *tb[],
+				       struct ip_nat_range *range);
 
 #endif /*_IP_NAT_PROTO_H*/

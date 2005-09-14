@@ -22,13 +22,15 @@
 #define RELOC(x)        (*PTRRELOC(&(x)))
 
 /* Definitions used by the flattened device tree */
-#define OF_DT_HEADER		0xd00dfeed	/* 4: version, 4: total size */
-#define OF_DT_BEGIN_NODE	0x1		/* Start node: full name */
+#define OF_DT_HEADER		0xd00dfeed	/* marker */
+#define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
 #define OF_DT_END_NODE		0x2		/* End node */
-#define OF_DT_PROP		0x3		/* Property: name off, size, content */
+#define OF_DT_PROP		0x3		/* Property: name off, size,
+						 * content */
+#define OF_DT_NOP		0x4		/* nop */
 #define OF_DT_END		0x9
 
-#define OF_DT_VERSION		1
+#define OF_DT_VERSION		0x10
 
 /*
  * This is what gets passed to the kernel by prom_init or kexec
@@ -54,7 +56,9 @@ struct boot_param_header
 	u32	version;		/* format version */
 	u32	last_comp_version;	/* last compatible version */
 	/* version 2 fields below */
-	u32	boot_cpuid_phys;	/* Which physical CPU id we're booting on */
+	u32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
+	/* version 3 fields below */
+	u32	dt_strings_size;	/* size of the DT strings block */
 };
 
 
@@ -112,14 +116,6 @@ struct property {
 	struct property *next;
 };
 
-/* NOTE: the device_node contains PCI specific info for pci devices.
- * This perhaps could be hung off the device_node with another struct,
- * but for now it is directly in the node.  The phb ptr is a good
- * indication of a real PCI node.  Other nodes leave these fields zeroed.
- */
-struct pci_controller;
-struct iommu_table;
-
 struct device_node {
 	char	*name;
 	char	*type;
@@ -131,16 +127,6 @@ struct device_node {
 	struct	interrupt_info *intrs;
 	char	*full_name;
 
-	/* PCI stuff probably doesn't belong here */
-	int	busno;			/* for pci devices */
-	int	bussubno;		/* for pci devices */
-	int	devfn;			/* for pci devices */
-	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
-	int	eeh_config_addr;
-	int	pci_ext_config_space;	/* for pci devices */
-	struct  pci_controller *phb;	/* for pci devices */
-	struct	iommu_table *iommu_table;	/* for phb's or bridges */
-
 	struct	property *properties;
 	struct	device_node *parent;
 	struct	device_node *child;
@@ -150,6 +136,7 @@ struct device_node {
 	struct  proc_dir_entry *pde;	/* this node's proc directory */
 	struct  kref kref;
 	unsigned long _flags;
+	void	*data;
 };
 
 extern struct device_node *of_chosen;

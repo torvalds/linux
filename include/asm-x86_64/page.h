@@ -28,10 +28,11 @@
 #define HPAGE_SIZE	((1UL) << HPAGE_SHIFT)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-#define ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
+
+extern unsigned long end_pfn;
 
 void clear_page(void *);
 void copy_page(void *, void *);
@@ -92,20 +93,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #include <asm/bug.h>
 
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 #endif /* __ASSEMBLY__ */
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
@@ -126,7 +113,7 @@ extern __inline__ int get_order(unsigned long size)
 #ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
-#define pfn_valid(pfn)		((pfn) < max_mapnr)
+#define pfn_valid(pfn)		((pfn) < end_pfn)
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
@@ -140,5 +127,7 @@ extern __inline__ int get_order(unsigned long size)
 #define __HAVE_ARCH_GATE_AREA 1	
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _X86_64_PAGE_H */

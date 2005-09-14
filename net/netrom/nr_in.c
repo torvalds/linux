@@ -22,8 +22,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/tcp.h>
-#include <net/ip.h>			/* For ip_rcv */
+#include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
@@ -99,6 +98,11 @@ static int nr_state1_machine(struct sock *sk, struct sk_buff *skb,
 		nr_disconnect(sk, ECONNREFUSED);
 		break;
 
+	case NR_RESET:
+		if (sysctl_netrom_reset_circuit);
+			nr_disconnect(sk, ECONNRESET);
+		break;
+
 	default:
 		break;
 	}
@@ -123,6 +127,11 @@ static int nr_state2_machine(struct sock *sk, struct sk_buff *skb,
 
 	case NR_DISCACK:
 		nr_disconnect(sk, 0);
+		break;
+
+	case NR_RESET:
+		if (sysctl_netrom_reset_circuit);
+			nr_disconnect(sk, ECONNRESET);
 		break;
 
 	default:
@@ -253,6 +262,11 @@ static int nr_state3_machine(struct sock *sk, struct sk_buff *skb, int frametype
 				nr_start_t2timer(sk);
 			}
 		}
+		break;
+
+	case NR_RESET:
+		if (sysctl_netrom_reset_circuit);
+			nr_disconnect(sk, ECONNRESET);
 		break;
 
 	default:

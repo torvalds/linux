@@ -447,10 +447,8 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0) {
-		dst_release(dst);
+	if (err < 0)
 		return;
-	}
 
 	if (inc_opt) {
 		if (dev->addr_len)
@@ -539,10 +537,8 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0) {
-		dst_release(dst);
+	if (err < 0)
 		return;
-	}
 
 	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
 	send_llinfo = dev->addr_len && !ipv6_addr_any(saddr);
@@ -616,10 +612,8 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0) {
-		dst_release(dst);
+	if (err < 0)
 		return;
-	}
 
 	len = sizeof(struct icmp6hdr);
 	if (dev->addr_len)
@@ -812,7 +806,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding && 
 		     pneigh_lookup(&nd_tbl, &msg->target, dev, 0))) {
-			if (skb->stamp.tv_sec != LOCALLY_ENQUEUED &&
+			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
 			    inc != 0 &&
 			    idev->nd_parms->proxy_delay != 0) {
@@ -1353,10 +1347,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		return;
 
 	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err) {
-		dst_release(dst);
+	if (err)
 		return;
-	}
 
 	rt = (struct rt6_info *) dst;
 
@@ -1486,6 +1478,8 @@ int ndisc_rcv(struct sk_buff *skb)
 			   msg->icmph.icmp6_code);
 		return 0;
 	}
+
+	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
 	switch (msg->icmph.icmp6_type) {
 	case NDISC_NEIGHBOUR_SOLICITATION:

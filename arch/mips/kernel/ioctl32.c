@@ -27,7 +27,7 @@ long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include "compat_ioctl.c"
 
 typedef int (* ioctl32_handler_t)(unsigned int, unsigned int, unsigned long, struct file *);
-                                                                                
+
 #define COMPATIBLE_IOCTL(cmd)		HANDLE_IOCTL((cmd),sys_ioctl)
 #define HANDLE_IOCTL(cmd,handler)	{ (cmd), (ioctl32_handler_t)(handler), NULL },
 #define IOCTL_TABLE_START \

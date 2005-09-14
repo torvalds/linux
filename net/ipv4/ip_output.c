@@ -69,13 +69,10 @@
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
-#include <net/tcp.h>
-#include <net/udp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/arp.h>
 #include <net/icmp.h>
-#include <net/raw.h>
 #include <net/checksum.h>
 #include <net/inetpeer.h>
 #include <net/checksum.h>
@@ -84,12 +81,8 @@
 #include <linux/netfilter_bridge.h>
 #include <linux/mroute.h>
 #include <linux/netlink.h>
+#include <linux/tcp.h>
 
-/*
- *      Shall we try to damage output packets if routing dev changes?
- */
-
-int sysctl_ip_dynaddr;
 int sysctl_ip_default_ttl = IPDEFTTL;
 
 /* Generate a checksum for an outgoing IP datagram. */
@@ -165,6 +158,8 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 		       dst_output);
 }
 
+EXPORT_SYMBOL_GPL(ip_build_and_send_pkt);
+
 static inline int ip_finish_output2(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
@@ -205,7 +200,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	return -EINVAL;
 }
 
-int ip_finish_output(struct sk_buff *skb)
+static inline int ip_finish_output(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dst->dev;
 
@@ -329,8 +324,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 			if (ip_route_output_flow(&rt, &fl, sk, 0))
 				goto no_route;
 		}
-		__sk_dst_set(sk, &rt->u.dst);
-		tcp_v4_setup_caps(sk, &rt->u.dst);
+		sk_setup_caps(sk, &rt->u.dst);
 	}
 	skb->dst = dst_clone(&rt->u.dst);
 
@@ -392,7 +386,6 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 #endif
 #ifdef CONFIG_NETFILTER
 	to->nfmark = from->nfmark;
-	to->nfcache = from->nfcache;
 	/* Connection association is same as pre-frag packet */
 	nf_conntrack_put(to->nfct);
 	to->nfct = from->nfct;
@@ -580,7 +573,7 @@ slow_path:
 		 */
 
 		if ((skb2 = alloc_skb(len+hlen+ll_rs, GFP_ATOMIC)) == NULL) {
-			NETDEBUG(printk(KERN_INFO "IP: frag: no memory for new fragment!\n"));
+			NETDEBUG(KERN_INFO "IP: frag: no memory for new fragment!\n");
 			err = -ENOMEM;
 			goto fail;
 		}
@@ -1329,12 +1322,7 @@ void __init ip_init(void)
 #endif
 }
 
-EXPORT_SYMBOL(ip_finish_output);
 EXPORT_SYMBOL(ip_fragment);
 EXPORT_SYMBOL(ip_generic_getfrag);
 EXPORT_SYMBOL(ip_queue_xmit);
 EXPORT_SYMBOL(ip_send_check);
-
-#ifdef CONFIG_SYSCTL
-EXPORT_SYMBOL(sysctl_ip_default_ttl);
-#endif

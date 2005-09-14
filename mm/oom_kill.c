@@ -6,8 +6,8 @@
  *	for goading me into coding this file...
  *
  *  The routines in this file are used to kill a process when
- *  we're seriously out of memory. This gets called from kswapd()
- *  in linux/mm/vmscan.c when we really run out of memory.
+ *  we're seriously out of memory. This gets called from __alloc_pages()
+ *  in mm/page_alloc.c when we really run out of memory.
  *
  *  Since we won't call these routines often (on a well-configured
  *  machine) this file will double as a 'coding guide' and a signpost
@@ -20,13 +20,14 @@
 #include <linux/swap.h>
 #include <linux/timex.h>
 #include <linux/jiffies.h>
+#include <linux/cpuset.h>
 
 /* #define DEBUG */
 
 /**
  * oom_badness - calculate a numeric value for how bad this task has been
  * @p: task struct of which task we should calculate
- * @p: current uptime in seconds
+ * @uptime: current uptime in seconds
  *
  * The formula used is relatively simple and documented inline in the
  * function. The main rationale is that we want to select a good task
@@ -57,9 +58,9 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 
 	/*
 	 * Processes which fork a lot of child processes are likely
-	 * a good choice. We add the vmsize of the childs if they
+	 * a good choice. We add the vmsize of the children if they
 	 * have an own mm. This prevents forking servers to flood the
-	 * machine with an endless amount of childs
+	 * machine with an endless amount of children
 	 */
 	list_for_each(tsk, &p->children) {
 		struct task_struct *chld;
@@ -143,28 +144,36 @@ static struct task_struct * select_bad_process(void)
 	struct timespec uptime;
 
 	do_posix_clock_monotonic_gettime(&uptime);
-	do_each_thread(g, p)
+	do_each_thread(g, p) {
+		unsigned long points;
+		int releasing;
+
 		/* skip the init task with pid == 1 */
-		if (p->pid > 1 && p->oomkilladj != OOM_DISABLE) {
-			unsigned long points;
+		if (p->pid == 1)
+			continue;
+		if (p->oomkilladj == OOM_DISABLE)
+			continue;
+		/* If p's nodes don't overlap ours, it won't help to kill p. */
+		if (!cpuset_excl_nodes_overlap(p))
+			continue;
 
-			/*
-			 * This is in the process of releasing memory so wait it
-			 * to finish before killing some other task by mistake.
-			 */
-			if ((unlikely(test_tsk_thread_flag(p, TIF_MEMDIE)) || (p->flags & PF_EXITING)) &&
-			    !(p->flags & PF_DEAD))
-				return ERR_PTR(-1UL);
-			if (p->flags & PF_SWAPOFF)
-				return p;
+		/*
+		 * This is in the process of releasing memory so for wait it
+		 * to finish before killing some other task by mistake.
+		 */
+		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
+						p->flags & PF_EXITING;
+		if (releasing && !(p->flags & PF_DEAD))
+			return ERR_PTR(-1UL);
+		if (p->flags & PF_SWAPOFF)
+			return p;
 
-			points = badness(p, uptime.tv_sec);
-			if (points > maxpoints || !chosen) {
-				chosen = p;
-				maxpoints = points;
-			}
+		points = badness(p, uptime.tv_sec);
+		if (points > maxpoints || !chosen) {
+			chosen = p;
+			maxpoints = points;
 		}
-	while_each_thread(g, p);
+	} while_each_thread(g, p);
 	return chosen;
 }
 
@@ -189,7 +198,8 @@ static void __oom_kill_task(task_t *p)
 		return;
 	}
 	task_unlock(p);
-	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n", p->pid, p->comm);
+	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n",
+							p->pid, p->comm);
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
@@ -290,6 +300,5 @@ retry:
 	 * Give "p" a good chance of killing itself before we
 	 * retry to allocate memory.
 	 */
-	__set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(1);
+	schedule_timeout_interruptible(1);
 }

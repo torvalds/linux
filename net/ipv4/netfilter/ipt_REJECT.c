@@ -92,10 +92,7 @@ static inline struct rtable *route_reverse(struct sk_buff *skb,
 	fl.fl_ip_sport = tcph->dest;
 	fl.fl_ip_dport = tcph->source;
 
-	if (xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0)) {
-		dst_release(&rt->u.dst);
-		rt = NULL;
-	}
+	xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
 
 	return rt;
 }
@@ -156,7 +153,6 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* This packet will not be the same as the other: clear nf fields */
 	nf_reset(nskb);
-	nskb->nfcache = 0;
 	nskb->nfmark = 0;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(nskb->nf_bridge);

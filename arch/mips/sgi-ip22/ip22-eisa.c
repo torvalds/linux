@@ -242,7 +242,7 @@ int __init ip22_eisa_init(void)
 	int i, c;
 	char *str;
 	u8 *slot_addr;
-	
+
 	if (!(sgimc->systemid & SGIMC_SYSID_EPRESENT)) {
 		printk(KERN_INFO "EISA: bus not present.\n");
 		return 1;

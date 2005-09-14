@@ -1275,7 +1275,7 @@ static int help(struct sk_buff **pskb,
 		 return NF_DROP;
 	}
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
 		return NF_DROP;
 
 	spin_lock_bh(&snmp_lock);

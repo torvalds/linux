@@ -400,7 +400,7 @@ unsigned long *x;
 EVENT("error code 0x%x/0x%x\n",(here[3] & uPD98401_AAL5_ES) >>
   uPD98401_AAL5_ES_SHIFT,error);
 		skb = ((struct rx_buffer_head *) bus_to_virt(here[2]))->skb;
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 #if 0
 printk("[-3..0] 0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",((unsigned *) skb->data)[-3],
   ((unsigned *) skb->data)[-2],((unsigned *) skb->data)[-1],
@@ -417,10 +417,12 @@ printk("dummy: 0x%08lx, 0x%08lx\n",dummy[0],dummy[1]);
 		chan = (here[3] & uPD98401_AAL5_CHAN) >>
 		    uPD98401_AAL5_CHAN_SHIFT;
 		if (chan < zatm_dev->chans && zatm_dev->rx_map[chan]) {
+			int pos;
 			vcc = zatm_dev->rx_map[chan];
-			if (skb == zatm_dev->last_free[ZATM_VCC(vcc)->pool])
-				zatm_dev->last_free[ZATM_VCC(vcc)->pool] = NULL;
-			skb_unlink(skb);
+			pos = ZATM_VCC(vcc)->pool;
+			if (skb == zatm_dev->last_free[pos])
+				zatm_dev->last_free[pos] = NULL;
+			skb_unlink(skb, zatm_dev->pool + pos);
 		}
 		else {
 			printk(KERN_ERR DEV_LABEL "(itf %d): RX indication "

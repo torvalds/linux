@@ -29,7 +29,6 @@ static inline int pci_proc_detach_bus(struct pci_bus *bus) { return 0; }
 #endif
 
 /* Functions for PCI Hotplug drivers to use */
-extern struct pci_bus * pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr);
 extern unsigned int pci_do_scan_bus(struct pci_bus *bus);
 extern int pci_remove_device_safe(struct pci_dev *dev);
 extern unsigned char pci_max_busnr(void);
@@ -45,6 +44,12 @@ extern spinlock_t pci_bus_lock;
 extern int pci_msi_quirk;
 #else
 #define pci_msi_quirk 0
+#endif
+
+#ifdef CONFIG_PCI_MSI
+void disable_msi_mode(struct pci_dev *dev, int pos, int type);
+#else
+static inline void disable_msi_mode(struct pci_dev *dev, int pos, int type) { }
 #endif
 
 extern int pcie_mch_quirk;

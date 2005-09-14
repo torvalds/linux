@@ -227,7 +227,7 @@ struct syscall_args {
                         panic("Bad register in UPT_SET : %d\n", reg);  \
 			break; \
                 } \
-                val; \
+                __upt_val; \
         })
 
 #define UPT_SET_SYSCALL_RETURN(r, res) \

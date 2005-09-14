@@ -804,6 +804,7 @@ int ufs_sync_inode (struct inode *inode)
 
 void ufs_delete_inode (struct inode * inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
 	/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
 	lock_kernel();
 	mark_inode_dirty(inode);

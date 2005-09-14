@@ -31,7 +31,7 @@ This document describes the Linux kernel Makefiles.
 
 	=== 6 Architecture Makefiles
 	   --- 6.1 Set variables to tweak the build to the architecture
-	   --- 6.2 Add prerequisites to prepare:
+	   --- 6.2 Add prerequisites to archprepare:
 	   --- 6.3 List directories to visit when descending
 	   --- 6.4 Architecture specific boot images
 	   --- 6.5 Building non-kbuild targets
@@ -734,18 +734,18 @@ When kbuild executes the following steps are followed (roughly):
 	for loadable kernel modules.
 
  
---- 6.2 Add prerequisites to prepare:
+--- 6.2 Add prerequisites to archprepare:
 
-	The prepare: rule is used to list prerequisites that needs to be
+	The archprepare: rule is used to list prerequisites that needs to be
 	built before starting to descend down in the subdirectories.
 	This is usual header files containing assembler constants.
 
 		Example:
-		#arch/s390/Makefile
-		prepare: include/asm-$(ARCH)/offsets.h
+		#arch/arm/Makefile
+		archprepare: maketools
 
-	In this example the file include/asm-$(ARCH)/offsets.h will
-	be built before descending down in the subdirectories.
+	In this example the file target maketools will be processed
+	before descending down in the subdirectories.
 	See also chapter XXX-TODO that describe how kbuild supports
 	generating offset header files.
 
@@ -872,7 +872,13 @@ When kbuild executes the following steps are followed (roughly):
 	Assignments to $(targets) are without $(obj)/ prefix.
 	if_changed may be used in conjunction with custom commands as
 	defined in 6.7 "Custom kbuild commands".
+
 	Note: It is a typical mistake to forget the FORCE prerequisite.
+	Another common pitfall is that whitespace is sometimes
+	significant; for instance, the below will fail (note the extra space
+	after the comma):
+		target: source(s) FORCE
+	#WRONG!#	$(call if_changed, ld/objcopy/gzip)
 
     ld
 	Link target. Often LDFLAGS_$@ is used to set specific options to ld.

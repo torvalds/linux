@@ -135,8 +135,6 @@ static u32 bit_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm i2c_sibyte_algo = {
-	.name		= "SiByte algorithm",
-	.id		= I2C_ALGO_SIBYTE,
 	.smbus_xfer	= smbus_xfer,
 	.algo_control	= algo_control, /* ioctl */
 	.functionality	= bit_func,
@@ -151,8 +149,6 @@ int i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
 	/* register new adapter to i2c module... */
-
-	i2c_adap->id |= i2c_sibyte_algo.id;
 	i2c_adap->algo = &i2c_sibyte_algo;
         
         /* Set the frequency to 100 kHz */

@@ -246,7 +246,7 @@ static void __exit pxa2xx_pcmcia_exit(void)
 	driver_unregister(&pxa2xx_pcmcia_driver);
 }
 
-module_init(pxa2xx_pcmcia_init);
+fs_initcall(pxa2xx_pcmcia_init);
 module_exit(pxa2xx_pcmcia_exit);
 
 MODULE_AUTHOR("Stefan Eletzhofer <stefan.eletzhofer@inquant.de> and Ian Molton <spyro@f2s.com>");

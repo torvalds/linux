@@ -5,6 +5,7 @@
 #include <linux/usb_ch9.h>
 
 #define USB_MAJOR			180
+#define USB_DEVICE_MAJOR		189
 
 
 #ifdef __KERNEL__
@@ -349,6 +350,7 @@ struct usb_device {
 	char *manufacturer;
 	char *serial;			/* static strings from the device */
 	struct list_head filelist;
+	struct class_device *class_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
 
 	/*
@@ -614,7 +616,6 @@ extern int usb_disabled(void);
 #define URB_ISO_ASAP		0x0002	/* iso-only, urb->start_frame ignored */
 #define URB_NO_TRANSFER_DMA_MAP	0x0004	/* urb->transfer_dma valid on submit */
 #define URB_NO_SETUP_DMA_MAP	0x0008	/* urb->setup_dma valid on submit */
-#define URB_ASYNC_UNLINK	0x0010	/* usb_unlink_urb() returns asap */
 #define URB_NO_FSBR		0x0020	/* UHCI-specific */
 #define URB_ZERO_PACKET		0x0040	/* Finish bulk OUTs with short packet */
 #define URB_NO_INTERRUPT	0x0080	/* HINT: no non-error interrupt needed */
@@ -722,13 +723,7 @@ typedef void (*usb_complete_t)(struct urb *, struct pt_regs *);
  * Initialization:
  *
  * All URBs submitted must initialize the dev, pipe, transfer_flags (may be
- * zero), and complete fields.
- * The URB_ASYNC_UNLINK transfer flag affects later invocations of
- * the usb_unlink_urb() routine.  Note: Failure to set URB_ASYNC_UNLINK
- * with usb_unlink_urb() is deprecated.  For synchronous unlinks use
- * usb_kill_urb() instead.
- *
- * All URBs must also initialize 
+ * zero), and complete fields.  All URBs must also initialize
  * transfer_buffer and transfer_buffer_length.  They may provide the
  * URB_SHORT_NOT_OK transfer flag, indicating that short reads are
  * to be treated as errors; that flag is invalid for write requests.

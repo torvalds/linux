@@ -9,12 +9,12 @@
  */
 #include <elf.h>
 #include <stddef.h>
-#include <asm/elf.h>
 #include "init.h"
 #include "elf_user.h"
 #include "mem_user.h"
+#include <kernel-offsets.h>
 
-#if ELF_CLASS == ELFCLASS32
+#if HOST_ELF_CLASS == ELFCLASS32
 typedef Elf32_auxv_t elf_auxv_t;
 #else
 typedef Elf64_auxv_t elf_auxv_t;

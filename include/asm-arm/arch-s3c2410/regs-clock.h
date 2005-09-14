@@ -1,7 +1,7 @@
 /* linux/include/asm/arch-s3c2410/regs-clock.h
  *
- * Copyright (c) 2003,2004 Simtec Electronics <linux@simtec.co.uk>
- *		      http://www.simtec.co.uk/products/SWLINUX/
+ * Copyright (c) 2003,2004,2005 Simtec Electronics <linux@simtec.co.uk>
+ *		      http://armlinux.simtec.co.uk/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +17,7 @@
  *    29-Sep-2004 Ben Dooks	    Fixed usage for assembly inclusion
  *    10-Feb-2005 Ben Dooks	    Fixed CAMDIVN address (Guillaume Gourat)
  *    10-Mar-2005 Lucas Villa Real  Changed S3C2410_VA to S3C24XX_VA
+ *    27-Aug-2005 Ben Dooks	    Add clock-slow info
  */
 
 #ifndef __ASM_ARM_REGS_CLOCK
@@ -73,6 +74,12 @@
 
 #define S3C2410_CLKDIVN_PDIVN	     (1<<0)
 #define S3C2410_CLKDIVN_HDIVN	     (1<<1)
+
+#define S3C2410_CLKSLOW_UCLK_OFF	(1<<7)
+#define S3C2410_CLKSLOW_MPLL_OFF	(1<<5)
+#define S3C2410_CLKSLOW_SLOW		(1<<4)
+#define S3C2410_CLKSLOW_SLOWVAL(x)	(x)
+#define S3C2410_CLKSLOW_GET_SLOWVAL(x)	((x) & 7)
 
 #ifndef __ASSEMBLY__
 

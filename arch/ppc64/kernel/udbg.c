@@ -1,5 +1,5 @@
 /*
- * NS16550 Serial Port (uart) debugging stuff.
+ * polling mode stateless debugging stuff, originally for NS16550 Serial Ports
  *
  * c 2001 PPC 64 Team, IBM Corp
  *
@@ -13,249 +13,24 @@
 #define WANT_PPCDBG_TAB /* Only defined here */
 #include <linux/config.h>
 #include <linux/types.h>
+#include <linux/sched.h>
+#include <linux/console.h>
 #include <asm/ppcdebug.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
-#include <asm/machdep.h>
-#include <asm/io.h>
-#include <asm/prom.h>
-#include <asm/pmac_feature.h>
 
-extern u8 real_readb(volatile u8 __iomem  *addr);
-extern void real_writeb(u8 data, volatile u8 __iomem *addr);
+void (*udbg_putc)(unsigned char c);
+unsigned char (*udbg_getc)(void);
+int (*udbg_getc_poll)(void);
 
-struct NS16550 {
-	/* this struct must be packed */
-	unsigned char rbr;  /* 0 */
-	unsigned char ier;  /* 1 */
-	unsigned char fcr;  /* 2 */
-	unsigned char lcr;  /* 3 */
-	unsigned char mcr;  /* 4 */
-	unsigned char lsr;  /* 5 */
-	unsigned char msr;  /* 6 */
-	unsigned char scr;  /* 7 */
-};
-
-#define thr rbr
-#define iir fcr
-#define dll rbr
-#define dlm ier
-#define dlab lcr
-
-#define LSR_DR   0x01  /* Data ready */
-#define LSR_OE   0x02  /* Overrun */
-#define LSR_PE   0x04  /* Parity error */
-#define LSR_FE   0x08  /* Framing error */
-#define LSR_BI   0x10  /* Break */
-#define LSR_THRE 0x20  /* Xmit holding register empty */
-#define LSR_TEMT 0x40  /* Xmitter empty */
-#define LSR_ERR  0x80  /* Error */
-
-static volatile struct NS16550 __iomem *udbg_comport;
-
-void udbg_init_uart(void __iomem *comport, unsigned int speed)
-{
-	u16 dll = speed ? (115200 / speed) : 12;
-
-	if (comport) {
-		udbg_comport = (struct NS16550 __iomem *)comport;
-		out_8(&udbg_comport->lcr, 0x00);
-		out_8(&udbg_comport->ier, 0xff);
-		out_8(&udbg_comport->ier, 0x00);
-		out_8(&udbg_comport->lcr, 0x80);	/* Access baud rate */
-		out_8(&udbg_comport->dll, dll & 0xff);	/* 1 = 115200,  2 = 57600,
-							   3 = 38400, 12 = 9600 baud */
-		out_8(&udbg_comport->dlm, dll >> 8);	/* dll >> 8 which should be zero
-							   for fast rates; */
-		out_8(&udbg_comport->lcr, 0x03);	/* 8 data, 1 stop, no parity */
-		out_8(&udbg_comport->mcr, 0x03);	/* RTS/DTR */
-		out_8(&udbg_comport->fcr ,0x07);	/* Clear & enable FIFOs */
-	}
-}
-
-#ifdef CONFIG_PPC_PMAC
-
-#define	SCC_TXRDY	4
-#define SCC_RXRDY	1
-
-static volatile u8 __iomem *sccc;
-static volatile u8 __iomem *sccd;
-
-static unsigned char scc_inittab[] = {
-    13, 0,		/* set baud rate divisor */
-    12, 0,
-    14, 1,		/* baud rate gen enable, src=rtxc */
-    11, 0x50,		/* clocks = br gen */
-    5,  0xea,		/* tx 8 bits, assert DTR & RTS */
-    4,  0x46,		/* x16 clock, 1 stop */
-    3,  0xc1,		/* rx enable, 8 bits */
-};
-
-void udbg_init_scc(struct device_node *np)
-{
-	u32 *reg;
-	unsigned long addr;
-	int i, x;
-
-	if (np == NULL)
-		np = of_find_node_by_name(NULL, "escc");
-	if (np == NULL || np->parent == NULL)
-		return;
-
-	udbg_printf("found SCC...\n");
-	/* Get address within mac-io ASIC */ 
-	reg = (u32 *)get_property(np, "reg", NULL);
-	if (reg == NULL)
-		return;
-	addr = reg[0];
-	udbg_printf("local addr: %lx\n", addr);
-	/* Get address of mac-io PCI itself */
-	reg = (u32 *)get_property(np->parent, "assigned-addresses", NULL);
-	if (reg == NULL)
-		return;
-	addr += reg[2];
-	udbg_printf("final addr: %lx\n", addr);
-
-	/* Setup for 57600 8N1 */
-	addr += 0x20;
-	sccc = (volatile u8 * __iomem) ioremap(addr & PAGE_MASK, PAGE_SIZE) ;
-	sccc += addr & ~PAGE_MASK;
-	sccd = sccc + 0x10;
-
-	udbg_printf("ioremap result sccc: %p\n", sccc);
-	mb();
-
-	for (i = 20000; i != 0; --i)
-		x = in_8(sccc);
-	out_8(sccc, 0x09);		/* reset A or B side */
-	out_8(sccc, 0xc0);
-	for (i = 0; i < sizeof(scc_inittab); ++i)
-		out_8(sccc, scc_inittab[i]);
-
-	ppc_md.udbg_putc = udbg_putc;
-	ppc_md.udbg_getc = udbg_getc;
-	ppc_md.udbg_getc_poll = udbg_getc_poll;
-
-	udbg_puts("Hello World !\n");
-}
-
-#endif /* CONFIG_PPC_PMAC */
-
-#ifdef CONFIG_PPC_PMAC
-static void udbg_real_putc(unsigned char c)
-{
-	while ((real_readb(sccc) & SCC_TXRDY) == 0)
-		;
-	real_writeb(c, sccd);
-	if (c == '\n')
-		udbg_real_putc('\r');
-}
-
-void udbg_init_pmac_realmode(void)
-{
-	sccc = (volatile u8 __iomem *)0x80013020ul;
-	sccd = (volatile u8 __iomem *)0x80013030ul;
-
-	ppc_md.udbg_putc = udbg_real_putc;
-	ppc_md.udbg_getc = NULL;
-	ppc_md.udbg_getc_poll = NULL;
-}
-#endif /* CONFIG_PPC_PMAC */
-
-#ifdef CONFIG_PPC_MAPLE
-void udbg_maple_real_putc(unsigned char c)
-{
-	if (udbg_comport) {
-		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-		real_writeb(c, &udbg_comport->thr); eieio();
-		if (c == '\n') {
-			/* Also put a CR.  This is for convenience. */
-			while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-				/* wait for idle */;
-			real_writeb('\r', &udbg_comport->thr); eieio();
-		}
-	}
-}
-
-void udbg_init_maple_realmode(void)
-{
-	udbg_comport = (volatile struct NS16550 __iomem *)0xf40003f8;
-
-	ppc_md.udbg_putc = udbg_maple_real_putc;
-	ppc_md.udbg_getc = NULL;
-	ppc_md.udbg_getc_poll = NULL;
-}
-#endif /* CONFIG_PPC_MAPLE */
-
-void udbg_putc(unsigned char c)
-{
-	if (udbg_comport) {
-		while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-		out_8(&udbg_comport->thr, c);
-		if (c == '\n') {
-			/* Also put a CR.  This is for convenience. */
-			while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
-				/* wait for idle */; 
-			out_8(&udbg_comport->thr, '\r');
-		}
-	}
-#ifdef CONFIG_PPC_PMAC
-	else if (sccc) {
-		while ((in_8(sccc) & SCC_TXRDY) == 0)
-			;
-		out_8(sccd,  c);		
-		if (c == '\n')
-			udbg_putc('\r');
-	}
-#endif /* CONFIG_PPC_PMAC */
-}
-
-int udbg_getc_poll(void)
-{
-	if (udbg_comport) {
-		if ((in_8(&udbg_comport->lsr) & LSR_DR) != 0)
-			return in_8(&udbg_comport->rbr);
-		else
-			return -1;
-	}
-#ifdef CONFIG_PPC_PMAC
-	else if (sccc) {
-		if ((in_8(sccc) & SCC_RXRDY) != 0)
-			return in_8(sccd);
-		else
-			return -1;
-	}
-#endif /* CONFIG_PPC_PMAC */
-	return -1;
-}
-
-unsigned char udbg_getc(void)
-{
-	if (udbg_comport) {
-		while ((in_8(&udbg_comport->lsr) & LSR_DR) == 0)
-			/* wait for char */;
-		return in_8(&udbg_comport->rbr);
-	}
-#ifdef CONFIG_PPC_PMAC
-	else if (sccc) {
-		while ((in_8(sccc) & SCC_RXRDY) == 0)
-			;
-		return in_8(sccd);
-	}
-#endif /* CONFIG_PPC_PMAC */
-	return 0;
-}
-
+/* udbg library, used by xmon et al */
 void udbg_puts(const char *s)
 {
-	if (ppc_md.udbg_putc) {
+	if (udbg_putc) {
 		char c;
 
 		if (s && *s != '\0') {
 			while ((c = *s++) != '\0')
-				ppc_md.udbg_putc(c);
+				udbg_putc(c);
 		}
 	}
 #if 0
@@ -270,12 +45,12 @@ int udbg_write(const char *s, int n)
 	int remain = n;
 	char c;
 
-	if (!ppc_md.udbg_putc)
+	if (!udbg_putc)
 		return 0;
 
 	if (s && *s != '\0') {
 		while (((c = *s++) != '\0') && (remain-- > 0)) {
-			ppc_md.udbg_putc(c);
+			udbg_putc(c);
 		}
 	}
 
@@ -287,12 +62,12 @@ int udbg_read(char *buf, int buflen)
 	char c, *p = buf;
 	int i;
 
-	if (!ppc_md.udbg_getc)
+	if (!udbg_getc)
 		return 0;
 
 	for (i = 0; i < buflen; ++i) {
 		do {
-			c = ppc_md.udbg_getc();
+			c = udbg_getc();
 		} while (c == 0x11 || c == 0x13);
 		if (c == 0)
 			break;
@@ -300,11 +75,6 @@ int udbg_read(char *buf, int buflen)
 	}
 
 	return i;
-}
-
-void udbg_console_write(struct console *con, const char *s, unsigned int n)
-{
-	udbg_write(s, n);
 }
 
 #define UDBG_BUFSIZE 256
@@ -318,6 +88,10 @@ void udbg_printf(const char *fmt, ...)
 	udbg_puts(buf);
 	va_end(args);
 }
+
+/* PPCDBG stuff */
+
+u64 ppc64_debug_switch;
 
 /* Special print used by PPCDBG() macro */
 void udbg_ppcdbg(unsigned long debug_flags, const char *fmt, ...)
@@ -358,3 +132,49 @@ unsigned long udbg_ifdebug(unsigned long flags)
 {
 	return (flags & ppc64_debug_switch);
 }
+
+/*
+ * Initialize the PPCDBG state.  Called before relocation has been enabled.
+ */
+void __init ppcdbg_initialize(void)
+{
+	ppc64_debug_switch = PPC_DEBUG_DEFAULT; /* | PPCDBG_BUSWALK | */
+	/* PPCDBG_PHBINIT | PPCDBG_MM | PPCDBG_MMINIT | PPCDBG_TCEINIT | PPCDBG_TCE */;
+}
+
+/*
+ * Early boot console based on udbg
+ */
+static void udbg_console_write(struct console *con, const char *s,
+		unsigned int n)
+{
+	udbg_write(s, n);
+}
+
+static struct console udbg_console = {
+	.name	= "udbg",
+	.write	= udbg_console_write,
+	.flags	= CON_PRINTBUFFER,
+	.index	= -1,
+};
+
+static int early_console_initialized;
+
+void __init disable_early_printk(void)
+{
+	if (!early_console_initialized)
+		return;
+	unregister_console(&udbg_console);
+	early_console_initialized = 0;
+}
+
+/* called by setup_system */
+void register_early_udbg_console(void)
+{
+	early_console_initialized = 1;
+	register_console(&udbg_console);
+}
+
+#if 0   /* if you want to use this as a regular output console */
+console_initcall(register_udbg_console);
+#endif

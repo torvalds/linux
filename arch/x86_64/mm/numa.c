@@ -22,14 +22,19 @@
 #define Dprintk(x...)
 #endif
 
-struct pglist_data *node_data[MAX_NUMNODES];
+struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 int memnode_shift;
 u8  memnodemap[NODEMAPSIZE];
 
-unsigned char cpu_to_node[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
-cpumask_t     node_to_cpumask[MAX_NUMNODES];
+unsigned char cpu_to_node[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+};
+unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
+cpumask_t node_to_cpumask[MAX_NUMNODES] __read_mostly;
 
 int numa_off __initdata;
 
@@ -126,9 +131,11 @@ void __init setup_node_zones(int nodeid)
 { 
 	unsigned long start_pfn, end_pfn; 
 	unsigned long zones[MAX_NR_ZONES];
+	unsigned long holes[MAX_NR_ZONES];
 	unsigned long dma_end_pfn;
 
 	memset(zones, 0, sizeof(unsigned long) * MAX_NR_ZONES); 
+	memset(holes, 0, sizeof(unsigned long) * MAX_NR_ZONES);
 
 	start_pfn = node_start_pfn(nodeid);
 	end_pfn = node_end_pfn(nodeid);
@@ -139,13 +146,17 @@ void __init setup_node_zones(int nodeid)
 	dma_end_pfn = __pa(MAX_DMA_ADDRESS) >> PAGE_SHIFT; 
 	if (start_pfn < dma_end_pfn) { 
 		zones[ZONE_DMA] = dma_end_pfn - start_pfn;
+		holes[ZONE_DMA] = e820_hole_size(start_pfn, dma_end_pfn);
 		zones[ZONE_NORMAL] = end_pfn - dma_end_pfn; 
+		holes[ZONE_NORMAL] = e820_hole_size(dma_end_pfn, end_pfn);
+
 	} else { 
 		zones[ZONE_NORMAL] = end_pfn - start_pfn; 
+		holes[ZONE_NORMAL] = e820_hole_size(start_pfn, end_pfn);
 	} 
     
 	free_area_init_node(nodeid, NODE_DATA(nodeid), zones,
-			    start_pfn, NULL); 
+			    start_pfn, holes);
 } 
 
 void __init numa_init_array(void)

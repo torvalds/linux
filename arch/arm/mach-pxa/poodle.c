@@ -62,6 +62,15 @@ struct platform_device poodle_scoop_device = {
 	.resource	= poodle_scoop_resources,
 };
 
+static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
+{
+	.dev        = &poodle_scoop_device.dev,
+	.irq        = POODLE_IRQ_GPIO_CF_IRQ,
+	.cd_irq     = POODLE_IRQ_GPIO_CF_CD,
+	.cd_irq_str = "PCMCIA0 CD",
+},
+};
+
 
 /* LoCoMo device */
 static struct resource locomo_resources[] = {
@@ -146,6 +155,9 @@ static void __init poodle_init(void)
         GPSR2 = 0x00000000;
 
 	set_pxa_fb_info(&poodle_fb_info);
+
+	scoop_num = 1;
+	scoop_devs = &poodle_pcmcia_scoop[0];
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret) {

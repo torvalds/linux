@@ -250,29 +250,37 @@ struct swap_info_struct;
  *	@inode contains the inode structure.
  *	Deallocate the inode security structure and set @inode->i_security to
  *	NULL. 
+ * @inode_init_security:
+ * 	Obtain the security attribute name suffix and value to set on a newly
+ *	created inode and set up the incore security field for the new inode.
+ *	This hook is called by the fs code as part of the inode creation
+ *	transaction and provides for atomic labeling of the inode, unlike
+ *	the post_create/mkdir/... hooks called by the VFS.  The hook function
+ *	is expected to allocate the name and value via kmalloc, with the caller
+ *	being responsible for calling kfree after using them.
+ *	If the security module does not use security attributes or does
+ *	not wish to put a security attribute on this particular inode,
+ *	then it should return -EOPNOTSUPP to skip this processing.
+ *	@inode contains the inode structure of the newly created inode.
+ *	@dir contains the inode structure of the parent directory.
+ *	@name will be set to the allocated name suffix (e.g. selinux).
+ *	@value will be set to the allocated attribute value.
+ *	@len will be set to the length of the value.
+ *	Returns 0 if @name and @value have been successfully set,
+ *		-EOPNOTSUPP if no security attribute is needed, or
+ *		-ENOMEM on memory allocation failure.
  * @inode_create:
  *	Check permission to create a regular file.
  *	@dir contains inode structure of the parent of the new file.
  *	@dentry contains the dentry structure for the file to be created.
  *	@mode contains the file mode of the file to be created.
  *	Return 0 if permission is granted.
- * @inode_post_create:
- *	Set the security attributes on a newly created regular file.  This hook
- *	is called after a file has been successfully created.
- *	@dir contains the inode structure of the parent directory of the new file.
- *	@dentry contains the the dentry structure for the newly created file.
- *	@mode contains the file mode.
  * @inode_link:
  *	Check permission before creating a new hard link to a file.
  *	@old_dentry contains the dentry structure for an existing link to the file.
  *	@dir contains the inode structure of the parent directory of the new link.
  *	@new_dentry contains the dentry structure for the new link.
  *	Return 0 if permission is granted.
- * @inode_post_link:
- *	Set security attributes for a new hard link to a file.
- *	@old_dentry contains the dentry structure for the existing link.
- *	@dir contains the inode structure of the parent directory of the new file.
- *	@new_dentry contains the dentry structure for the new file link.
  * @inode_unlink:
  *	Check the permission to remove a hard link to a file. 
  *	@dir contains the inode structure of parent directory of the file.
@@ -284,13 +292,6 @@ struct swap_info_struct;
  *	@dentry contains the dentry structure of the symbolic link.
  *	@old_name contains the pathname of file.
  *	Return 0 if permission is granted.
- * @inode_post_symlink:
- *	@dir contains the inode structure of the parent directory of the new link.
- *	@dentry contains the dentry structure of new symbolic link.
- *	@old_name contains the pathname of file.
- *	Set security attributes for a newly created symbolic link.  Note that
- *	@dentry->d_inode may be NULL, since the filesystem might not
- *	instantiate the dentry (e.g. NFS).
  * @inode_mkdir:
  *	Check permissions to create a new directory in the existing directory
  *	associated with inode strcture @dir. 
@@ -298,11 +299,6 @@ struct swap_info_struct;
  *	@dentry contains the dentry structure of new directory.
  *	@mode contains the mode of new directory.
  *	Return 0 if permission is granted.
- * @inode_post_mkdir:
- *	Set security attributes on a newly created directory.
- *	@dir contains the inode structure of parent of the directory to be created.
- *	@dentry contains the dentry structure of new directory.
- *	@mode contains the mode of new directory.
  * @inode_rmdir:
  *	Check the permission to remove a directory.
  *	@dir contains the inode structure of parent of the directory to be removed.
@@ -318,13 +314,6 @@ struct swap_info_struct;
  *	@mode contains the mode of the new file.
  *	@dev contains the the device number.
  *	Return 0 if permission is granted.
- * @inode_post_mknod:
- *	Set security attributes on a newly created special file (or socket or
- *	fifo file created via the mknod system call).
- *	@dir contains the inode structure of parent of the new node.
- *	@dentry contains the dentry structure of the new node.
- *	@mode contains the mode of the new node.
- *	@dev contains the the device number.
  * @inode_rename:
  *	Check for permission to rename a file or directory.
  *	@old_dir contains the inode structure for parent of the old link.
@@ -332,12 +321,6 @@ struct swap_info_struct;
  *	@new_dir contains the inode structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
- * @inode_post_rename:
- *	Set security attributes on a renamed file or directory.
- *	@old_dir contains the inode structure for parent of the old link.
- *	@old_dentry contains the dentry structure of the old link.
- *	@new_dir contains the inode structure for parent of the new link.
- *	@new_dentry contains the dentry structure of the new link.
  * @inode_readlink:
  *	Check the permission to read the symbolic link.
  *	@dentry contains the dentry structure for the file link.
@@ -1080,34 +1063,21 @@ struct security_operations {
 
 	int (*inode_alloc_security) (struct inode *inode);	
 	void (*inode_free_security) (struct inode *inode);
+	int (*inode_init_security) (struct inode *inode, struct inode *dir,
+				    char **name, void **value, size_t *len);
 	int (*inode_create) (struct inode *dir,
 	                     struct dentry *dentry, int mode);
-	void (*inode_post_create) (struct inode *dir,
-	                           struct dentry *dentry, int mode);
 	int (*inode_link) (struct dentry *old_dentry,
 	                   struct inode *dir, struct dentry *new_dentry);
-	void (*inode_post_link) (struct dentry *old_dentry,
-	                         struct inode *dir, struct dentry *new_dentry);
 	int (*inode_unlink) (struct inode *dir, struct dentry *dentry);
 	int (*inode_symlink) (struct inode *dir,
 	                      struct dentry *dentry, const char *old_name);
-	void (*inode_post_symlink) (struct inode *dir,
-	                            struct dentry *dentry,
-	                            const char *old_name);
 	int (*inode_mkdir) (struct inode *dir, struct dentry *dentry, int mode);
-	void (*inode_post_mkdir) (struct inode *dir, struct dentry *dentry, 
-			    int mode);
 	int (*inode_rmdir) (struct inode *dir, struct dentry *dentry);
 	int (*inode_mknod) (struct inode *dir, struct dentry *dentry,
 	                    int mode, dev_t dev);
-	void (*inode_post_mknod) (struct inode *dir, struct dentry *dentry,
-	                          int mode, dev_t dev);
 	int (*inode_rename) (struct inode *old_dir, struct dentry *old_dentry,
 	                     struct inode *new_dir, struct dentry *new_dentry);
-	void (*inode_post_rename) (struct inode *old_dir,
-	                           struct dentry *old_dentry,
-	                           struct inode *new_dir,
-	                           struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
 	int (*inode_permission) (struct inode *inode, int mask, struct nameidata *nd);
@@ -1442,6 +1412,17 @@ static inline void security_inode_free (struct inode *inode)
 		return;
 	security_ops->inode_free_security (inode);
 }
+
+static inline int security_inode_init_security (struct inode *inode,
+						struct inode *dir,
+						char **name,
+						void **value,
+						size_t *len)
+{
+	if (unlikely (IS_PRIVATE (inode)))
+		return -EOPNOTSUPP;
+	return security_ops->inode_init_security (inode, dir, name, value, len);
+}
 	
 static inline int security_inode_create (struct inode *dir,
 					 struct dentry *dentry,
@@ -1452,15 +1433,6 @@ static inline int security_inode_create (struct inode *dir,
 	return security_ops->inode_create (dir, dentry, mode);
 }
 
-static inline void security_inode_post_create (struct inode *dir,
-					       struct dentry *dentry,
-					       int mode)
-{
-	if (dentry->d_inode && unlikely (IS_PRIVATE (dentry->d_inode)))
-		return;
-	security_ops->inode_post_create (dir, dentry, mode);
-}
-
 static inline int security_inode_link (struct dentry *old_dentry,
 				       struct inode *dir,
 				       struct dentry *new_dentry)
@@ -1468,15 +1440,6 @@ static inline int security_inode_link (struct dentry *old_dentry,
 	if (unlikely (IS_PRIVATE (old_dentry->d_inode)))
 		return 0;
 	return security_ops->inode_link (old_dentry, dir, new_dentry);
-}
-
-static inline void security_inode_post_link (struct dentry *old_dentry,
-					     struct inode *dir,
-					     struct dentry *new_dentry)
-{
-	if (new_dentry->d_inode && unlikely (IS_PRIVATE (new_dentry->d_inode)))
-		return;
-	security_ops->inode_post_link (old_dentry, dir, new_dentry);
 }
 
 static inline int security_inode_unlink (struct inode *dir,
@@ -1496,15 +1459,6 @@ static inline int security_inode_symlink (struct inode *dir,
 	return security_ops->inode_symlink (dir, dentry, old_name);
 }
 
-static inline void security_inode_post_symlink (struct inode *dir,
-						struct dentry *dentry,
-						const char *old_name)
-{
-	if (dentry->d_inode && unlikely (IS_PRIVATE (dentry->d_inode)))
-		return;
-	security_ops->inode_post_symlink (dir, dentry, old_name);
-}
-
 static inline int security_inode_mkdir (struct inode *dir,
 					struct dentry *dentry,
 					int mode)
@@ -1512,15 +1466,6 @@ static inline int security_inode_mkdir (struct inode *dir,
 	if (unlikely (IS_PRIVATE (dir)))
 		return 0;
 	return security_ops->inode_mkdir (dir, dentry, mode);
-}
-
-static inline void security_inode_post_mkdir (struct inode *dir,
-					      struct dentry *dentry,
-					      int mode)
-{
-	if (dentry->d_inode && unlikely (IS_PRIVATE (dentry->d_inode)))
-		return;
-	security_ops->inode_post_mkdir (dir, dentry, mode);
 }
 
 static inline int security_inode_rmdir (struct inode *dir,
@@ -1540,15 +1485,6 @@ static inline int security_inode_mknod (struct inode *dir,
 	return security_ops->inode_mknod (dir, dentry, mode, dev);
 }
 
-static inline void security_inode_post_mknod (struct inode *dir,
-					      struct dentry *dentry,
-					      int mode, dev_t dev)
-{
-	if (dentry->d_inode && unlikely (IS_PRIVATE (dentry->d_inode)))
-		return;
-	security_ops->inode_post_mknod (dir, dentry, mode, dev);
-}
-
 static inline int security_inode_rename (struct inode *old_dir,
 					 struct dentry *old_dentry,
 					 struct inode *new_dir,
@@ -1559,18 +1495,6 @@ static inline int security_inode_rename (struct inode *old_dir,
 		return 0;
 	return security_ops->inode_rename (old_dir, old_dentry,
 					   new_dir, new_dentry);
-}
-
-static inline void security_inode_post_rename (struct inode *old_dir,
-					       struct dentry *old_dentry,
-					       struct inode *new_dir,
-					       struct dentry *new_dentry)
-{
-	if (unlikely (IS_PRIVATE (old_dentry->d_inode) ||
-	    (new_dentry->d_inode && IS_PRIVATE (new_dentry->d_inode))))
-		return;
-	security_ops->inode_post_rename (old_dir, old_dentry,
-						new_dir, new_dentry);
 }
 
 static inline int security_inode_readlink (struct dentry *dentry)
@@ -2171,6 +2095,15 @@ static inline int security_inode_alloc (struct inode *inode)
 
 static inline void security_inode_free (struct inode *inode)
 { }
+
+static inline int security_inode_init_security (struct inode *inode,
+						struct inode *dir,
+						char **name,
+						void **value,
+						size_t *len)
+{
+	return -EOPNOTSUPP;
+}
 	
 static inline int security_inode_create (struct inode *dir,
 					 struct dentry *dentry,
@@ -2179,22 +2112,12 @@ static inline int security_inode_create (struct inode *dir,
 	return 0;
 }
 
-static inline void security_inode_post_create (struct inode *dir,
-					       struct dentry *dentry,
-					       int mode)
-{ }
-
 static inline int security_inode_link (struct dentry *old_dentry,
 				       struct inode *dir,
 				       struct dentry *new_dentry)
 {
 	return 0;
 }
-
-static inline void security_inode_post_link (struct dentry *old_dentry,
-					     struct inode *dir,
-					     struct dentry *new_dentry)
-{ }
 
 static inline int security_inode_unlink (struct inode *dir,
 					 struct dentry *dentry)
@@ -2209,22 +2132,12 @@ static inline int security_inode_symlink (struct inode *dir,
 	return 0;
 }
 
-static inline void security_inode_post_symlink (struct inode *dir,
-						struct dentry *dentry,
-						const char *old_name)
-{ }
-
 static inline int security_inode_mkdir (struct inode *dir,
 					struct dentry *dentry,
 					int mode)
 {
 	return 0;
 }
-
-static inline void security_inode_post_mkdir (struct inode *dir,
-					      struct dentry *dentry,
-					      int mode)
-{ }
 
 static inline int security_inode_rmdir (struct inode *dir,
 					struct dentry *dentry)
@@ -2239,11 +2152,6 @@ static inline int security_inode_mknod (struct inode *dir,
 	return 0;
 }
 
-static inline void security_inode_post_mknod (struct inode *dir,
-					      struct dentry *dentry,
-					      int mode, dev_t dev)
-{ }
-
 static inline int security_inode_rename (struct inode *old_dir,
 					 struct dentry *old_dentry,
 					 struct inode *new_dir,
@@ -2251,12 +2159,6 @@ static inline int security_inode_rename (struct inode *old_dir,
 {
 	return 0;
 }
-
-static inline void security_inode_post_rename (struct inode *old_dir,
-					       struct dentry *old_dentry,
-					       struct inode *new_dir,
-					       struct dentry *new_dentry)
-{ }
 
 static inline int security_inode_readlink (struct dentry *dentry)
 {
@@ -2727,7 +2629,8 @@ static inline int security_socket_getpeersec(struct socket *sock, char __user *o
 	return security_ops->socket_getpeersec(sock, optval, optlen, len);
 }
 
-static inline int security_sk_alloc(struct sock *sk, int family, int priority)
+static inline int security_sk_alloc(struct sock *sk, int family,
+				    unsigned int __nocast priority)
 {
 	return security_ops->sk_alloc_security(sk, family, priority);
 }
@@ -2844,7 +2747,8 @@ static inline int security_socket_getpeersec(struct socket *sock, char __user *o
 	return -ENOPROTOOPT;
 }
 
-static inline int security_sk_alloc(struct sock *sk, int family, int priority)
+static inline int security_sk_alloc(struct sock *sk, int family,
+				    unsigned int __nocast priority)
 {
 	return 0;
 }

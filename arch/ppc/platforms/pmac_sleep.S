@@ -17,7 +17,7 @@
 #include <asm/cputable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 #define MAGIC	0x4c617273	/* 'Lars' */
 
@@ -161,6 +161,8 @@ _GLOBAL(low_sleep_handler)
 	addi r3,r3,sleep_storage@l
 	stw r5,0(r3)
 
+	.globl	low_cpu_die
+low_cpu_die:
 	/* Flush & disable all caches */
 	bl	flush_disable_caches
 

@@ -1,6 +1,7 @@
 #ifndef _IPT_LOG_H
 #define _IPT_LOG_H
 
+/* make sure not to change this without changing netfilter.h:NF_LOG_* (!) */
 #define IPT_LOG_TCPSEQ		0x01	/* Log TCP sequence numbers */
 #define IPT_LOG_TCPOPT		0x02	/* Log TCP options */
 #define IPT_LOG_IPOPT		0x04	/* Log IP options */

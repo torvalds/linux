@@ -16,13 +16,15 @@
 
 #define _PAGE_PRESENT	0x001
 #define _PAGE_NEWPAGE	0x002
-#define _PAGE_NEWPROT   0x004
-#define _PAGE_FILE	0x008   /* set:pagecache unset:swap */
-#define _PAGE_PROTNONE	0x010	/* If not present */
+#define _PAGE_NEWPROT	0x004
 #define _PAGE_RW	0x020
 #define _PAGE_USER	0x040
 #define _PAGE_ACCESSED	0x080
 #define _PAGE_DIRTY	0x100
+/* If _PAGE_PRESENT is clear, we use these: */
+#define _PAGE_FILE	0x008	/* nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_PROTNONE	0x010	/* if the user mapped it with PROT_NONE;
+				   pte_present gives true */
 
 #ifdef CONFIG_3_LEVEL_PGTABLES
 #include "asm/pgtable-3level.h"
@@ -151,9 +153,23 @@ extern unsigned long pg0[1024];
 
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
 
+#define pte_page(x) pfn_to_page(pte_pfn(x))
 #define pte_address(x) (__va(pte_val(x) & PAGE_MASK))
 #define mk_phys(a, r) ((a) + (((unsigned long) r) << REGION_SHIFT))
 #define phys_addr(p) ((p) & ~REGION_MASK)
+
+#define pte_present(x)	pte_get_bits(x, (_PAGE_PRESENT | _PAGE_PROTNONE))
+
+/*
+ * =================================
+ * Flags checking section.
+ * =================================
+ */
+
+static inline int pte_none(pte_t pte)
+{
+	return pte_is_zero(pte);
+}
 
 /*
  * The following only work if pte_present() is true.
@@ -208,6 +224,18 @@ static inline int pte_newpage(pte_t pte)
 static inline int pte_newprot(pte_t pte)
 { 
 	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
+}
+
+/*
+ * =================================
+ * Flags setting section.
+ * =================================
+ */
+
+static inline pte_t pte_mknewprot(pte_t pte)
+{
+	pte_set_bits(pte, _PAGE_NEWPROT);
+	return(pte);
 }
 
 static inline pte_t pte_rdprotect(pte_t pte)
@@ -278,14 +306,42 @@ static inline pte_t pte_mkuptodate(pte_t pte)
 	return(pte); 
 }
 
-extern phys_t page_to_phys(struct page *page);
+static inline pte_t pte_mknewpage(pte_t pte)
+{
+	pte_set_bits(pte, _PAGE_NEWPAGE);
+	return(pte);
+}
+
+static inline void set_pte(pte_t *pteptr, pte_t pteval)
+{
+	pte_copy(*pteptr, pteval);
+
+	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
+	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
+	 * mapped pages.
+	 */
+
+	*pteptr = pte_mknewpage(*pteptr);
+	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
+}
+#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */
 
-extern pte_t mk_pte(struct page *page, pgprot_t pgprot);
+#define phys_to_page(phys) pfn_to_page(phys_to_pfn(phys))
+#define __virt_to_page(virt) phys_to_page(__pa(virt))
+#define page_to_phys(page) pfn_to_phys(page_to_pfn(page))
+
+#define mk_pte(page, pgprot) \
+	({ pte_t pte;					\
+							\
+	pte_set_val(pte, page_to_phys(page), (pgprot));	\
+	if (pte_present(pte))				\
+		pte_mknewprot(pte_mknewpage(pte));	\
+	pte;})
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -362,8 +418,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #endif
 #endif
 
-extern struct page *phys_to_page(const unsigned long phys);
-extern struct page *__virt_to_page(const unsigned long virt);
 #define virt_to_page(addr) __virt_to_page((const unsigned long) addr)
 
 /*

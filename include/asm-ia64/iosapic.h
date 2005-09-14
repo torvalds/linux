@@ -75,15 +75,14 @@ extern int __devinit iosapic_init (unsigned long address,
 				    unsigned int gsi_base);
 #ifdef CONFIG_HOTPLUG
 extern int iosapic_remove (unsigned int gsi_base);
+#else
+#define iosapic_remove(gsi_base)				(-EINVAL)
 #endif /* CONFIG_HOTPLUG */
 extern int gsi_to_vector (unsigned int gsi);
 extern int gsi_to_irq (unsigned int gsi);
-extern void iosapic_enable_intr (unsigned int vector);
 extern int iosapic_register_intr (unsigned int gsi, unsigned long polarity,
 				  unsigned long trigger);
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 extern void iosapic_unregister_intr (unsigned int irq);
-#endif
 extern void __init iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 				      unsigned long polarity,
 				      unsigned long trigger);
@@ -95,16 +94,13 @@ extern int __init iosapic_register_platform_intr (u32 int_type,
 					   unsigned long trigger);
 extern unsigned int iosapic_version (char __iomem *addr);
 
-extern void iosapic_pci_fixup (int);
 #ifdef CONFIG_NUMA
 extern void __devinit map_iosapic_to_node (unsigned int, int);
 #endif
 #else
 #define iosapic_system_init(pcat_compat)			do { } while (0)
 #define iosapic_init(address,gsi_base)				(-EINVAL)
-#ifdef CONFIG_HOTPLUG
 #define iosapic_remove(gsi_base)				(-ENODEV)
-#endif /* CONFIG_HOTPLUG */
 #define iosapic_register_intr(gsi,polarity,trigger)		(gsi)
 #define iosapic_unregister_intr(irq)				do { } while (0)
 #define iosapic_override_isa_irq(isa_irq,gsi,polarity,trigger)	do { } while (0)

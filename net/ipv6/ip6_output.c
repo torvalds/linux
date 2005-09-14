@@ -153,51 +153,6 @@ int ip6_output(struct sk_buff *skb)
 		return ip6_output2(skb);
 }
 
-#ifdef CONFIG_NETFILTER
-int ip6_route_me_harder(struct sk_buff *skb)
-{
-	struct ipv6hdr *iph = skb->nh.ipv6h;
-	struct dst_entry *dst;
-	struct flowi fl = {
-		.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
-		.nl_u =
-		{ .ip6_u =
-		  { .daddr = iph->daddr,
-		    .saddr = iph->saddr, } },
-		.proto = iph->nexthdr,
-	};
-
-	dst = ip6_route_output(skb->sk, &fl);
-
-	if (dst->error) {
-		IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
-		LIMIT_NETDEBUG(
-			printk(KERN_DEBUG "ip6_route_me_harder: No more route.\n"));
-		dst_release(dst);
-		return -EINVAL;
-	}
-
-	/* Drop old route. */
-	dst_release(skb->dst);
-
-	skb->dst = dst;
-	return 0;
-}
-#endif
-
-static inline int ip6_maybe_reroute(struct sk_buff *skb)
-{
-#ifdef CONFIG_NETFILTER
-	if (skb->nfcache & NFC_ALTERED){
-		if (ip6_route_me_harder(skb) != 0){
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-	}
-#endif /* CONFIG_NETFILTER */
-	return dst_output(skb);
-}
-
 /*
  *	xmit an sk_buff (used by TCP)
  */
@@ -211,7 +166,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	struct ipv6hdr *hdr;
 	u8  proto = fl->proto;
 	int seg_len = skb->len;
-	int hlimit;
+	int hlimit, tclass;
 	u32 mtu;
 
 	if (opt) {
@@ -247,7 +202,6 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	 *	Fill in the IPv6 header
 	 */
 
-	*(u32*)hdr = htonl(0x60000000) | fl->fl6_flowlabel;
 	hlimit = -1;
 	if (np)
 		hlimit = np->hop_limit;
@@ -255,6 +209,14 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 		hlimit = dst_metric(dst, RTAX_HOPLIMIT);
 	if (hlimit < 0)
 		hlimit = ipv6_get_hoplimit(dst->dev);
+
+	tclass = -1;
+	if (np)
+		tclass = np->tclass;
+	if (tclass < 0)
+		tclass = 0;
+
+	*(u32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl->fl6_flowlabel;
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -266,7 +228,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	mtu = dst_mtu(dst);
 	if ((skb->len <= mtu) || ipfragok) {
 		IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
-		return NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, ip6_maybe_reroute);
+		return NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev,
+				dst_output);
 	}
 
 	if (net_ratelimit())
@@ -321,7 +284,9 @@ static int ip6_call_ra_chain(struct sk_buff *skb, int sel)
 	read_lock(&ip6_ra_lock);
 	for (ra = ip6_ra_chain; ra; ra = ra->next) {
 		struct sock *sk = ra->sk;
-		if (sk && ra->sel == sel) {
+		if (sk && ra->sel == sel &&
+		    (!sk->sk_bound_dev_if ||
+		     sk->sk_bound_dev_if == skb->dev->ifindex)) {
 			if (last) {
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2)
@@ -667,7 +632,7 @@ slow_path:
 		 */
 
 		if ((frag = alloc_skb(len+hlen+sizeof(struct frag_hdr)+LL_RESERVED_SPACE(rt->u.dst.dev), GFP_ATOMIC)) == NULL) {
-			NETDEBUG(printk(KERN_INFO "IPv6: frag: no memory for new fragment!\n"));
+			NETDEBUG(KERN_INFO "IPv6: frag: no memory for new fragment!\n");
 			IP6_INC_STATS(IPSTATS_MIB_FRAGFAILS);
 			err = -ENOMEM;
 			goto fail;
@@ -804,10 +769,11 @@ out_err_release:
 	return err;
 }
 
-int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb),
-		    void *from, int length, int transhdrlen,
-		    int hlimit, struct ipv6_txoptions *opt, struct flowi *fl, struct rt6_info *rt,
-		    unsigned int flags)
+int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
+	int offset, int len, int odd, struct sk_buff *skb),
+	void *from, int length, int transhdrlen,
+	int hlimit, int tclass, struct ipv6_txoptions *opt, struct flowi *fl,
+	struct rt6_info *rt, unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -845,6 +811,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to, int offse
 		np->cork.rt = rt;
 		inet->cork.fl = *fl;
 		np->cork.hop_limit = hlimit;
+		np->cork.tclass = tclass;
 		inet->cork.fragsize = mtu = dst_mtu(rt->u.dst.path);
 		if (dst_allfrag(rt->u.dst.path))
 			inet->cork.flags |= IPCORK_ALLFRAG;
@@ -1126,7 +1093,8 @@ int ip6_push_pending_frames(struct sock *sk)
 
 	skb->nh.ipv6h = hdr = (struct ipv6hdr*) skb_push(skb, sizeof(struct ipv6hdr));
 	
-	*(u32*)hdr = fl->fl6_flowlabel | htonl(0x60000000);
+	*(u32*)hdr = fl->fl6_flowlabel |
+		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
 
 	if (skb->len <= sizeof(struct ipv6hdr) + IPV6_MAXPLEN)
 		hdr->payload_len = htons(skb->len - sizeof(struct ipv6hdr));

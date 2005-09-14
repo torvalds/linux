@@ -1,5 +1,4 @@
 /*
- * $Id: tuner-core.c,v 1.63 2005/07/28 18:19:55 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
@@ -182,6 +181,14 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c, buffer, 4);
 		default_tuner_init(c);
 		break;
+	case TUNER_LG_TDVS_H062F:
+		/* Set the Auxiliary Byte. */
+		buffer[2] &= ~0x20;
+		buffer[2] |= 0x18;
+		buffer[3] = 0x20;
+		i2c_master_send(c, buffer, 4);
+		default_tuner_init(c);
+		break;
 	default:
 		default_tuner_init(c);
 		break;
@@ -208,31 +215,31 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if (tun_setup->addr == ADDR_UNSET) {
-		if (t->mode_mask & tun_setup->mode_mask)
+	if ((tun_setup->addr == ADDR_UNSET &&
+		(t->mode_mask & tun_setup->mode_mask)) ||
+		tun_setup->addr == c->addr) {
 			set_type(c, tun_setup->type, tun_setup->mode_mask);
-	} else if (tun_setup->addr == c->addr) {
-		set_type(c, tun_setup->type, tun_setup->mode_mask);
 	}
 }
 
 static inline int check_mode(struct tuner *t, char *cmd)
 {
-	if (1 << t->mode & t->mode_mask) {
-		switch (t->mode) {
-		case V4L2_TUNER_RADIO:
-			tuner_dbg("Cmd %s accepted for radio\n", cmd);
-			break;
-		case V4L2_TUNER_ANALOG_TV:
-			tuner_dbg("Cmd %s accepted for analog TV\n", cmd);
-			break;
-		case V4L2_TUNER_DIGITAL_TV:
-			tuner_dbg("Cmd %s accepted for digital TV\n", cmd);
-			break;
-		}
-		return 0;
+	if ((1 << t->mode & t->mode_mask) == 0) {
+		return EINVAL;
 	}
-	return EINVAL;
+
+	switch (t->mode) {
+	case V4L2_TUNER_RADIO:
+		tuner_dbg("Cmd %s accepted for radio\n", cmd);
+		break;
+	case V4L2_TUNER_ANALOG_TV:
+		tuner_dbg("Cmd %s accepted for analog TV\n", cmd);
+		break;
+	case V4L2_TUNER_DIGITAL_TV:
+		tuner_dbg("Cmd %s accepted for digital TV\n", cmd);
+		break;
+	}
+	return 0;
 }
 
 static char pal[] = "-";
@@ -274,6 +281,12 @@ static int tuner_fixup_std(struct tuner *t)
 			tuner_dbg ("insmod fixup: PAL => PAL-N\n");
 			t->std = V4L2_STD_PAL_N;
 			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tuner_warn ("pal= argument not recognised\n");
+			break;
 		}
 	}
 	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
@@ -289,6 +302,12 @@ static int tuner_fixup_std(struct tuner *t)
 		case 'L':
 			tuner_dbg ("insmod fixup: SECAM => SECAM-L\n");
 			t->std = V4L2_STD_SECAM_L;
+			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tuner_warn ("secam= argument not recognised\n");
 			break;
 		}
 	}
@@ -406,20 +425,18 @@ static int tuner_detach(struct i2c_client *client)
 
 static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode, char *cmd)
 {
-	if (mode != t->mode) {
+ 	if (mode == t->mode)
+ 		return 0;
 
-		t->mode = mode;
-		if (check_mode(t, cmd) == EINVAL) {
-			t->mode = T_STANDBY;
-			if (V4L2_TUNER_RADIO == mode) {
-				set_tv_freq(client, 400 * 16);
-			} else {
-				set_radio_freq(client, 87.5 * 16000);
-			}
-			return EINVAL;
-		}
-	}
-	return 0;
+ 	t->mode = mode;
+
+ 	if (check_mode(t, cmd) == EINVAL) {
+ 		t->mode = T_STANDBY;
+ 		if (t->standby)
+ 			t->standby (client);
+ 		return EINVAL;
+  	}
+  	return 0;
 }
 
 #define switch_v4l2()	if (!t->using_v4l2) \
@@ -453,6 +470,14 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case AUDC_SET_RADIO:
 		set_mode(client,t,V4L2_TUNER_RADIO, "AUDC_SET_RADIO");
 		break;
+	case TUNER_SET_STANDBY:
+		{
+			if (check_mode(t, "TUNER_SET_STANDBY") == EINVAL)
+				return 0;
+			if (t->standby)
+				t->standby (client);
+			break;
+		}
 	case AUDC_CONFIG_PINNACLE:
 		if (check_mode(t, "AUDC_CONFIG_PINNACLE") == EINVAL)
 			return 0;
@@ -672,7 +697,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int tuner_suspend(struct device *dev, u32 state, u32 level)
+static int tuner_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct i2c_client *c = container_of (dev, struct i2c_client, dev);
 	struct tuner *t = i2c_get_clientdata (c);
@@ -709,7 +734,7 @@ static struct i2c_driver driver = {
 		   },
 };
 static struct i2c_client client_template = {
-	I2C_DEVNAME("(tuner unset)"),
+	.name = "(tuner unset)",
 	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };

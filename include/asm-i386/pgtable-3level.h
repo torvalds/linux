@@ -64,7 +64,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #define set_pmd(pmdptr,pmdval) \
 		set_64bit((unsigned long long *)(pmdptr),pmd_val(pmdval))
 #define set_pud(pudptr,pudval) \
-		set_64bit((unsigned long long *)(pudptr),pud_val(pudval))
+		(*(pudptr) = (pudval))
 
 /*
  * Pentium-II erratum A13: in PAE mode we explicitly have to flush

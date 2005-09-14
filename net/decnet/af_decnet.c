@@ -118,7 +118,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/flow.h>
 #include <asm/system.h>
 #include <asm/ioctls.h>
@@ -1763,7 +1763,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		nskb = skb->next;
 
 		if (skb->len == 0) {
-			skb_unlink(skb);
+			skb_unlink(skb, queue);
 			kfree_skb(skb);
 			/* 
 			 * N.B. Don't refer to skb or cb after this point
@@ -1876,8 +1876,27 @@ static inline unsigned int dn_current_mss(struct sock *sk, int flags)
 	return mss_now;
 }
 
+/* 
+ * N.B. We get the timeout wrong here, but then we always did get it
+ * wrong before and this is another step along the road to correcting
+ * it. It ought to get updated each time we pass through the routine,
+ * but in practise it probably doesn't matter too much for now.
+ */
+static inline struct sk_buff *dn_alloc_send_pskb(struct sock *sk,
+			      unsigned long datalen, int noblock,
+			      int *errcode)
+{
+	struct sk_buff *skb = sock_alloc_send_skb(sk, datalen,
+						   noblock, errcode);
+	if (skb) {
+		skb->protocol = __constant_htons(ETH_P_DNA_RT);
+		skb->pkt_type = PACKET_OUTGOING;
+	}
+	return skb;
+}
+
 static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
-	   struct msghdr *msg, size_t size)
+		      struct msghdr *msg, size_t size)
 {
 	struct sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
@@ -1892,7 +1911,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct dn_skb_cb *cb;
 	size_t len;
 	unsigned char fctype;
-	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
+	long timeo;
 
 	if (flags & ~(MSG_TRYHARD|MSG_OOB|MSG_DONTWAIT|MSG_EOR|MSG_NOSIGNAL|MSG_MORE|MSG_CMSG_COMPAT))
 		return -EOPNOTSUPP;
@@ -1900,18 +1919,21 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (addr_len && (addr_len != sizeof(struct sockaddr_dn)))
 		return -EINVAL;
 
+	lock_sock(sk);
+	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 	/*
 	 * The only difference between stream sockets and sequenced packet
 	 * sockets is that the stream sockets always behave as if MSG_EOR
 	 * has been set.
 	 */
 	if (sock->type == SOCK_STREAM) {
-		if (flags & MSG_EOR)
-			return -EINVAL;
+		if (flags & MSG_EOR) {
+			err = -EINVAL;
+			goto out;
+		}
 		flags |= MSG_EOR;
 	}
 
-	lock_sock(sk);
 
 	err = dn_check_state(sk, addr, addr_len, &timeo, flags);
 	if (err)
@@ -1980,8 +2002,12 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		/*
 		 * Get a suitably sized skb.
+		 * 64 is a bit of a hack really, but its larger than any
+		 * link-layer headers and has served us well as a good
+		 * guess as to their real length.
 		 */
-		skb = dn_alloc_send_skb(sk, &len, flags & MSG_DONTWAIT, timeo, &err);
+		skb = dn_alloc_send_pskb(sk, len + 64 + DN_MAX_NSP_DATA_HEADER,
+					 flags & MSG_DONTWAIT, &err);
 
 		if (err)
 			break;
@@ -1991,7 +2017,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		cb = DN_SKB_CB(skb);
 
-		skb_reserve(skb, DN_MAX_NSP_DATA_HEADER);
+		skb_reserve(skb, 64 + DN_MAX_NSP_DATA_HEADER);
 
 		if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
 			err = -EFAULT;
@@ -2064,7 +2090,7 @@ static struct notifier_block dn_dev_notifier = {
 	.notifier_call = dn_device_event,
 };
 
-extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *);
+extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
 static struct packet_type dn_dix_packet_type = {
 	.type =		__constant_htons(ETH_P_DNA_RT),

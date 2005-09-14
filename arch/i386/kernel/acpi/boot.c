@@ -40,19 +40,25 @@
 
 #ifdef	CONFIG_X86_64
 
-static inline void  acpi_madt_oem_check(char *oem_id, char *oem_table_id) { }
+static inline void acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+}
 extern void __init clustered_apic_check(void);
-static inline int ioapic_setup_disabled(void) { return 0; }
+static inline int ioapic_setup_disabled(void)
+{
+	return 0;
+}
+
 #include <asm/proto.h>
 
-#else	/* X86 */
+#else				/* X86 */
 
 #ifdef	CONFIG_X86_LOCAL_APIC
 #include <mach_apic.h>
 #include <mach_mpparse.h>
-#endif	/* CONFIG_X86_LOCAL_APIC */
+#endif				/* CONFIG_X86_LOCAL_APIC */
 
-#endif	/* X86 */
+#endif				/* X86 */
 
 #define BAD_MADT_ENTRY(entry, end) (					    \
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
@@ -60,13 +66,8 @@ static inline int ioapic_setup_disabled(void) { return 0; }
 
 #define PREFIX			"ACPI: "
 
-#ifdef CONFIG_ACPI_PCI
 int acpi_noirq __initdata;	/* skip ACPI IRQ initialization */
-int acpi_pci_disabled __initdata; /* skip ACPI PCI scan and IRQ initialization */
-#else
-int acpi_noirq __initdata = 1;
-int acpi_pci_disabled __initdata = 1;
-#endif
+int acpi_pci_disabled __initdata;	/* skip ACPI PCI scan and IRQ initialization */
 int acpi_ht __initdata = 1;	/* enable HT */
 
 int acpi_lapic;
@@ -88,7 +89,7 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 
 #define MAX_MADT_ENTRIES	256
 u8 x86_acpiid_to_apicid[MAX_MADT_ENTRIES] =
-			{ [0 ... MAX_MADT_ENTRIES-1] = 0xff };
+    {[0 ... MAX_MADT_ENTRIES - 1] = 0xff };
 EXPORT_SYMBOL(x86_acpiid_to_apicid);
 
 /* --------------------------------------------------------------------------
@@ -99,7 +100,7 @@ EXPORT_SYMBOL(x86_acpiid_to_apicid);
  * The default interrupt routing model is PIC (8259).  This gets
  * overriden if IOAPICs are enumerated (below).
  */
-enum acpi_irq_model_id		acpi_irq_model = ACPI_IRQ_MODEL_PIC;
+enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 
 #ifdef	CONFIG_X86_64
 
@@ -107,7 +108,7 @@ enum acpi_irq_model_id		acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 char *__acpi_map_table(unsigned long phys_addr, unsigned long size)
 {
 	if (!phys_addr || !size)
-	return NULL;
+		return NULL;
 
 	if (phys_addr < (end_pfn_map << PAGE_SHIFT))
 		return __va(phys_addr);
@@ -134,8 +135,8 @@ char *__acpi_map_table(unsigned long phys, unsigned long size)
 	unsigned long base, offset, mapped_size;
 	int idx;
 
-	if (phys + size < 8*1024*1024) 
-		return __va(phys); 
+	if (phys + size < 8 * 1024 * 1024)
+		return __va(phys);
 
 	offset = phys & (PAGE_SIZE - 1);
 	mapped_size = PAGE_SIZE - offset;
@@ -154,7 +155,7 @@ char *__acpi_map_table(unsigned long phys, unsigned long size)
 		mapped_size += PAGE_SIZE;
 	}
 
-	return ((unsigned char *) base + offset);
+	return ((unsigned char *)base + offset);
 }
 #endif
 
@@ -172,7 +173,7 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 	if (!phys_addr || !size)
 		return -EINVAL;
 
-	mcfg = (struct acpi_table_mcfg *) __acpi_map_table(phys_addr, size);
+	mcfg = (struct acpi_table_mcfg *)__acpi_map_table(phys_addr, size);
 	if (!mcfg) {
 		printk(KERN_WARNING PREFIX "Unable to map MCFG\n");
 		return -ENODEV;
@@ -209,20 +210,17 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 
 	return 0;
 }
-#endif /* CONFIG_PCI_MMCONFIG */
+#endif				/* CONFIG_PCI_MMCONFIG */
 
 #ifdef CONFIG_X86_LOCAL_APIC
-static int __init
-acpi_parse_madt (
-	unsigned long		phys_addr,
-	unsigned long		size)
+static int __init acpi_parse_madt(unsigned long phys_addr, unsigned long size)
 {
-	struct acpi_table_madt	*madt = NULL;
+	struct acpi_table_madt *madt = NULL;
 
 	if (!phys_addr || !size)
 		return -EINVAL;
 
-	madt = (struct acpi_table_madt *) __acpi_map_table(phys_addr, size);
+	madt = (struct acpi_table_madt *)__acpi_map_table(phys_addr, size);
 	if (!madt) {
 		printk(KERN_WARNING PREFIX "Unable to map MADT\n");
 		return -ENODEV;
@@ -232,22 +230,20 @@ acpi_parse_madt (
 		acpi_lapic_addr = (u64) madt->lapic_address;
 
 		printk(KERN_DEBUG PREFIX "Local APIC address 0x%08x\n",
-			madt->lapic_address);
+		       madt->lapic_address);
 	}
 
 	acpi_madt_oem_check(madt->header.oem_id, madt->header.oem_table_id);
-	
+
 	return 0;
 }
 
-
 static int __init
-acpi_parse_lapic (
-	acpi_table_entry_header *header, const unsigned long end)
+acpi_parse_lapic(acpi_table_entry_header * header, const unsigned long end)
 {
-	struct acpi_table_lapic	*processor = NULL;
+	struct acpi_table_lapic *processor = NULL;
 
-	processor = (struct acpi_table_lapic*) header;
+	processor = (struct acpi_table_lapic *)header;
 
 	if (BAD_MADT_ENTRY(processor, end))
 		return -EINVAL;
@@ -260,20 +256,19 @@ acpi_parse_lapic (
 
 	x86_acpiid_to_apicid[processor->acpi_id] = processor->id;
 
-	mp_register_lapic (
-		processor->id,					   /* APIC ID */
-		processor->flags.enabled);			  /* Enabled? */
+	mp_register_lapic(processor->id,	/* APIC ID */
+			  processor->flags.enabled);	/* Enabled? */
 
 	return 0;
 }
 
 static int __init
-acpi_parse_lapic_addr_ovr (
-	acpi_table_entry_header *header, const unsigned long end)
+acpi_parse_lapic_addr_ovr(acpi_table_entry_header * header,
+			  const unsigned long end)
 {
 	struct acpi_table_lapic_addr_ovr *lapic_addr_ovr = NULL;
 
-	lapic_addr_ovr = (struct acpi_table_lapic_addr_ovr*) header;
+	lapic_addr_ovr = (struct acpi_table_lapic_addr_ovr *)header;
 
 	if (BAD_MADT_ENTRY(lapic_addr_ovr, end))
 		return -EINVAL;
@@ -284,12 +279,11 @@ acpi_parse_lapic_addr_ovr (
 }
 
 static int __init
-acpi_parse_lapic_nmi (
-	acpi_table_entry_header *header, const unsigned long end)
+acpi_parse_lapic_nmi(acpi_table_entry_header * header, const unsigned long end)
 {
 	struct acpi_table_lapic_nmi *lapic_nmi = NULL;
 
-	lapic_nmi = (struct acpi_table_lapic_nmi*) header;
+	lapic_nmi = (struct acpi_table_lapic_nmi *)header;
 
 	if (BAD_MADT_ENTRY(lapic_nmi, end))
 		return -EINVAL;
@@ -302,37 +296,32 @@ acpi_parse_lapic_nmi (
 	return 0;
 }
 
+#endif				/*CONFIG_X86_LOCAL_APIC */
 
-#endif /*CONFIG_X86_LOCAL_APIC*/
-
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI_INTERPRETER)
+#ifdef CONFIG_X86_IO_APIC
 
 static int __init
-acpi_parse_ioapic (
-	acpi_table_entry_header *header, const unsigned long end)
+acpi_parse_ioapic(acpi_table_entry_header * header, const unsigned long end)
 {
 	struct acpi_table_ioapic *ioapic = NULL;
 
-	ioapic = (struct acpi_table_ioapic*) header;
+	ioapic = (struct acpi_table_ioapic *)header;
 
 	if (BAD_MADT_ENTRY(ioapic, end))
 		return -EINVAL;
- 
+
 	acpi_table_print_madt_entry(header);
 
-	mp_register_ioapic (
-		ioapic->id,
-		ioapic->address,
-		ioapic->global_irq_base);
- 
+	mp_register_ioapic(ioapic->id,
+			   ioapic->address, ioapic->global_irq_base);
+
 	return 0;
 }
 
 /*
  * Parse Interrupt Source Override for the ACPI SCI
  */
-static void
-acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
+static void acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
 {
 	if (trigger == 0)	/* compatible SCI trigger is level */
 		trigger = 3;
@@ -348,7 +337,7 @@ acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
 		polarity = acpi_sci_flags.polarity;
 
 	/*
- 	 * mp_config_acpi_legacy_irqs() already setup IRQs < 16
+	 * mp_config_acpi_legacy_irqs() already setup IRQs < 16
 	 * If GSI is < 16, this will update its flags,
 	 * else it will create a new mp_irqs[] entry.
 	 */
@@ -363,12 +352,12 @@ acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
 }
 
 static int __init
-acpi_parse_int_src_ovr (
-	acpi_table_entry_header *header, const unsigned long end)
+acpi_parse_int_src_ovr(acpi_table_entry_header * header,
+		       const unsigned long end)
 {
 	struct acpi_table_int_src_ovr *intsrc = NULL;
 
-	intsrc = (struct acpi_table_int_src_ovr*) header;
+	intsrc = (struct acpi_table_int_src_ovr *)header;
 
 	if (BAD_MADT_ENTRY(intsrc, end))
 		return -EINVAL;
@@ -377,33 +366,30 @@ acpi_parse_int_src_ovr (
 
 	if (intsrc->bus_irq == acpi_fadt.sci_int) {
 		acpi_sci_ioapic_setup(intsrc->global_irq,
-			intsrc->flags.polarity, intsrc->flags.trigger);
+				      intsrc->flags.polarity,
+				      intsrc->flags.trigger);
 		return 0;
 	}
 
 	if (acpi_skip_timer_override &&
-		intsrc->bus_irq == 0 && intsrc->global_irq == 2) {
-			printk(PREFIX "BIOS IRQ0 pin2 override ignored.\n");
-			return 0;
+	    intsrc->bus_irq == 0 && intsrc->global_irq == 2) {
+		printk(PREFIX "BIOS IRQ0 pin2 override ignored.\n");
+		return 0;
 	}
 
-	mp_override_legacy_irq (
-		intsrc->bus_irq,
-		intsrc->flags.polarity,
-		intsrc->flags.trigger,
-		intsrc->global_irq);
+	mp_override_legacy_irq(intsrc->bus_irq,
+			       intsrc->flags.polarity,
+			       intsrc->flags.trigger, intsrc->global_irq);
 
 	return 0;
 }
 
-
 static int __init
-acpi_parse_nmi_src (
-	acpi_table_entry_header *header, const unsigned long end)
+acpi_parse_nmi_src(acpi_table_entry_header * header, const unsigned long end)
 {
 	struct acpi_table_nmi_src *nmi_src = NULL;
 
-	nmi_src = (struct acpi_table_nmi_src*) header;
+	nmi_src = (struct acpi_table_nmi_src *)header;
 
 	if (BAD_MADT_ENTRY(nmi_src, end))
 		return -EINVAL;
@@ -415,9 +401,7 @@ acpi_parse_nmi_src (
 	return 0;
 }
 
-#endif /* CONFIG_X86_IO_APIC */
-
-#ifdef	CONFIG_ACPI_BUS
+#endif				/* CONFIG_X86_IO_APIC */
 
 /*
  * acpi_pic_sci_set_trigger()
@@ -433,8 +417,7 @@ acpi_parse_nmi_src (
  * ECLR2 is IRQ's 8-15 (IRQ 8, 13 must be 0)
  */
 
-void __init
-acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
+void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 {
 	unsigned int mask = 1 << irq;
 	unsigned int old, new;
@@ -454,10 +437,10 @@ acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	 * routing tables..
 	 */
 	switch (trigger) {
-	case 1:	/* Edge - clear */
+	case 1:		/* Edge - clear */
 		new &= ~mask;
 		break;
-	case 3: /* Level - set */
+	case 3:		/* Level - set */
 		new |= mask;
 		break;
 	}
@@ -470,21 +453,22 @@ acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	outb(new >> 8, 0x4d1);
 }
 
-
-#endif /* CONFIG_ACPI_BUS */
-
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
 #ifdef CONFIG_X86_IO_APIC
 	if (use_pci_vector() && !platform_legacy_irq(gsi))
- 		*irq = IO_APIC_VECTOR(gsi);
+		*irq = IO_APIC_VECTOR(gsi);
 	else
 #endif
 		*irq = gsi;
 	return 0;
 }
 
-unsigned int acpi_register_gsi(u32 gsi, int edge_level, int active_high_low)
+/*
+ * success: return IRQ number (>=0)
+ * failure: return < 0
+ */
+int acpi_register_gsi(u32 gsi, int edge_level, int active_high_low)
 {
 	unsigned int irq;
 	unsigned int plat_gsi = gsi;
@@ -497,7 +481,7 @@ unsigned int acpi_register_gsi(u32 gsi, int edge_level, int active_high_low)
 		extern void eisa_set_level_irq(unsigned int irq);
 
 		if (edge_level == ACPI_LEVEL_SENSITIVE)
-				eisa_set_level_irq(gsi);
+			eisa_set_level_irq(gsi);
 	}
 #endif
 
@@ -509,60 +493,58 @@ unsigned int acpi_register_gsi(u32 gsi, int edge_level, int active_high_low)
 	acpi_gsi_to_irq(plat_gsi, &irq);
 	return irq;
 }
+
 EXPORT_SYMBOL(acpi_register_gsi);
 
 /*
  *  ACPI based hotplug support for CPU
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
-int
-acpi_map_lsapic(acpi_handle handle, int *pcpu)
+int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 {
 	/* TBD */
 	return -EINVAL;
 }
+
 EXPORT_SYMBOL(acpi_map_lsapic);
 
-
-int
-acpi_unmap_lsapic(int cpu)
+int acpi_unmap_lsapic(int cpu)
 {
 	/* TBD */
 	return -EINVAL;
 }
+
 EXPORT_SYMBOL(acpi_unmap_lsapic);
-#endif /* CONFIG_ACPI_HOTPLUG_CPU */
+#endif				/* CONFIG_ACPI_HOTPLUG_CPU */
 
-int
-acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
+int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 {
 	/* TBD */
 	return -EINVAL;
 }
+
 EXPORT_SYMBOL(acpi_register_ioapic);
 
-int
-acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
+int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 {
 	/* TBD */
 	return -EINVAL;
 }
+
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
 static unsigned long __init
-acpi_scan_rsdp (
-	unsigned long		start,
-	unsigned long		length)
+acpi_scan_rsdp(unsigned long start, unsigned long length)
 {
-	unsigned long		offset = 0;
-	unsigned long		sig_len = sizeof("RSD PTR ") - 1;
+	unsigned long offset = 0;
+	unsigned long sig_len = sizeof("RSD PTR ") - 1;
 
 	/*
 	 * Scan all 16-byte boundaries of the physical memory region for the
 	 * RSDP signature.
 	 */
 	for (offset = 0; offset < length; offset += 16) {
-		if (strncmp((char *) (start + offset), "RSD PTR ", sig_len))
+		if (strncmp((char *)(start + offset), "RSD PTR ", sig_len))
 			continue;
 		return (start + offset);
 	}
@@ -575,19 +557,18 @@ static int __init acpi_parse_sbf(unsigned long phys_addr, unsigned long size)
 	struct acpi_table_sbf *sb;
 
 	if (!phys_addr || !size)
-	return -EINVAL;
+		return -EINVAL;
 
-	sb = (struct acpi_table_sbf *) __acpi_map_table(phys_addr, size);
+	sb = (struct acpi_table_sbf *)__acpi_map_table(phys_addr, size);
 	if (!sb) {
 		printk(KERN_WARNING PREFIX "Unable to map SBF\n");
 		return -ENODEV;
 	}
 
-	sbf_port = sb->sbf_cmos; /* Save CMOS port */
+	sbf_port = sb->sbf_cmos;	/* Save CMOS port */
 
 	return 0;
 }
-
 
 #ifdef CONFIG_HPET_TIMER
 
@@ -598,7 +579,7 @@ static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
 	if (!phys || !size)
 		return -EINVAL;
 
-	hpet_tbl = (struct acpi_table_hpet *) __acpi_map_table(phys, size);
+	hpet_tbl = (struct acpi_table_hpet *)__acpi_map_table(phys, size);
 	if (!hpet_tbl) {
 		printk(KERN_WARNING PREFIX "Unable to map HPET\n");
 		return -ENODEV;
@@ -609,22 +590,21 @@ static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
 		       "memory.\n");
 		return -1;
 	}
-
 #ifdef	CONFIG_X86_64
-        vxtime.hpet_address = hpet_tbl->addr.addrl |
-                ((long) hpet_tbl->addr.addrh << 32);
+	vxtime.hpet_address = hpet_tbl->addr.addrl |
+	    ((long)hpet_tbl->addr.addrh << 32);
 
-        printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
-               hpet_tbl->id, vxtime.hpet_address);
-#else	/* X86 */
+	printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
+	       hpet_tbl->id, vxtime.hpet_address);
+#else				/* X86 */
 	{
 		extern unsigned long hpet_address;
 
 		hpet_address = hpet_tbl->addr.addrl;
 		printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
-			hpet_tbl->id, hpet_address);
+		       hpet_tbl->id, hpet_address);
 	}
-#endif	/* X86 */
+#endif				/* X86 */
 
 	return 0;
 }
@@ -640,28 +620,25 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 {
 	struct fadt_descriptor_rev2 *fadt = NULL;
 
-	fadt = (struct fadt_descriptor_rev2*) __acpi_map_table(phys,size);
-	if(!fadt) {
+	fadt = (struct fadt_descriptor_rev2 *)__acpi_map_table(phys, size);
+	if (!fadt) {
 		printk(KERN_WARNING PREFIX "Unable to map FADT\n");
 		return 0;
 	}
-
-#ifdef	CONFIG_ACPI_INTERPRETER
 	/* initialize sci_int early for INT_SRC_OVR MADT parsing */
 	acpi_fadt.sci_int = fadt->sci_int;
-#endif
 
-#ifdef CONFIG_ACPI_BUS
 	/* initialize rev and apic_phys_dest_mode for x86_64 genapic */
 	acpi_fadt.revision = fadt->revision;
-	acpi_fadt.force_apic_physical_destination_mode = fadt->force_apic_physical_destination_mode;
-#endif
+	acpi_fadt.force_apic_physical_destination_mode =
+	    fadt->force_apic_physical_destination_mode;
 
 #ifdef CONFIG_X86_PM_TIMER
 	/* detect the location of the ACPI PM Timer */
 	if (fadt->revision >= FADT2_REVISION_ID) {
 		/* FADT rev. 2 */
-		if (fadt->xpm_tmr_blk.address_space_id != ACPI_ADR_SPACE_SYSTEM_IO)
+		if (fadt->xpm_tmr_blk.address_space_id !=
+		    ACPI_ADR_SPACE_SYSTEM_IO)
 			return 0;
 
 		pmtmr_ioport = fadt->xpm_tmr_blk.address;
@@ -670,16 +647,15 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 		pmtmr_ioport = fadt->V1_pm_tmr_blk;
 	}
 	if (pmtmr_ioport)
-		printk(KERN_INFO PREFIX "PM-Timer IO Port: %#x\n", pmtmr_ioport);
+		printk(KERN_INFO PREFIX "PM-Timer IO Port: %#x\n",
+		       pmtmr_ioport);
 #endif
 	return 0;
 }
 
-
-unsigned long __init
-acpi_find_rsdp (void)
+unsigned long __init acpi_find_rsdp(void)
 {
-	unsigned long		rsdp_phys = 0;
+	unsigned long rsdp_phys = 0;
 
 	if (efi_enabled) {
 		if (efi.acpi20)
@@ -691,9 +667,9 @@ acpi_find_rsdp (void)
 	 * Scan memory looking for the RSDP signature. First search EBDA (low
 	 * memory) paragraphs and then search upper memory (E0000-FFFFF).
 	 */
-	rsdp_phys = acpi_scan_rsdp (0, 0x400);
+	rsdp_phys = acpi_scan_rsdp(0, 0x400);
 	if (!rsdp_phys)
-		rsdp_phys = acpi_scan_rsdp (0xE0000, 0x20000);
+		rsdp_phys = acpi_scan_rsdp(0xE0000, 0x20000);
 
 	return rsdp_phys;
 }
@@ -703,8 +679,7 @@ acpi_find_rsdp (void)
  * Parse LAPIC entries in MADT
  * returns 0 on success, < 0 on error
  */
-static int __init
-acpi_parse_madt_lapic_entries(void)
+static int __init acpi_parse_madt_lapic_entries(void)
 {
 	int count;
 
@@ -713,28 +688,31 @@ acpi_parse_madt_lapic_entries(void)
 	 * and (optionally) overriden by a LAPIC_ADDR_OVR entry (64-bit value).
 	 */
 
-	count = acpi_table_parse_madt(ACPI_MADT_LAPIC_ADDR_OVR, acpi_parse_lapic_addr_ovr, 0);
+	count =
+	    acpi_table_parse_madt(ACPI_MADT_LAPIC_ADDR_OVR,
+				  acpi_parse_lapic_addr_ovr, 0);
 	if (count < 0) {
-		printk(KERN_ERR PREFIX "Error parsing LAPIC address override entry\n");
+		printk(KERN_ERR PREFIX
+		       "Error parsing LAPIC address override entry\n");
 		return count;
 	}
 
 	mp_register_lapic_address(acpi_lapic_addr);
 
 	count = acpi_table_parse_madt(ACPI_MADT_LAPIC, acpi_parse_lapic,
-				       MAX_APICS);
-	if (!count) { 
+				      MAX_APICS);
+	if (!count) {
 		printk(KERN_ERR PREFIX "No LAPIC entries present\n");
 		/* TBD: Cleanup to allow fallback to MPS */
 		return -ENODEV;
-	}
-	else if (count < 0) {
+	} else if (count < 0) {
 		printk(KERN_ERR PREFIX "Error parsing LAPIC entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
 		return count;
 	}
 
-	count = acpi_table_parse_madt(ACPI_MADT_LAPIC_NMI, acpi_parse_lapic_nmi, 0);
+	count =
+	    acpi_table_parse_madt(ACPI_MADT_LAPIC_NMI, acpi_parse_lapic_nmi, 0);
 	if (count < 0) {
 		printk(KERN_ERR PREFIX "Error parsing LAPIC NMI entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
@@ -742,15 +720,14 @@ acpi_parse_madt_lapic_entries(void)
 	}
 	return 0;
 }
-#endif /* CONFIG_X86_LOCAL_APIC */
+#endif				/* CONFIG_X86_LOCAL_APIC */
 
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI_INTERPRETER)
+#ifdef	CONFIG_X86_IO_APIC
 /*
  * Parse IOAPIC related entries in MADT
  * returns 0 on success, < 0 on error
  */
-static int __init
-acpi_parse_madt_ioapic_entries(void)
+static int __init acpi_parse_madt_ioapic_entries(void)
 {
 	int count;
 
@@ -762,30 +739,34 @@ acpi_parse_madt_ioapic_entries(void)
 	 */
 	if (acpi_disabled || acpi_noirq) {
 		return -ENODEV;
-        }
+	}
 
 	/*
- 	 * if "noapic" boot option, don't look for IO-APICs
+	 * if "noapic" boot option, don't look for IO-APICs
 	 */
 	if (skip_ioapic_setup) {
 		printk(KERN_INFO PREFIX "Skipping IOAPIC probe "
-			"due to 'noapic' option.\n");
+		       "due to 'noapic' option.\n");
 		return -ENODEV;
 	}
 
-	count = acpi_table_parse_madt(ACPI_MADT_IOAPIC, acpi_parse_ioapic, MAX_IO_APICS);
+	count =
+	    acpi_table_parse_madt(ACPI_MADT_IOAPIC, acpi_parse_ioapic,
+				  MAX_IO_APICS);
 	if (!count) {
 		printk(KERN_ERR PREFIX "No IOAPIC entries present\n");
 		return -ENODEV;
-	}
-	else if (count < 0) {
+	} else if (count < 0) {
 		printk(KERN_ERR PREFIX "Error parsing IOAPIC entry\n");
 		return count;
 	}
 
-	count = acpi_table_parse_madt(ACPI_MADT_INT_SRC_OVR, acpi_parse_int_src_ovr, NR_IRQ_VECTORS);
+	count =
+	    acpi_table_parse_madt(ACPI_MADT_INT_SRC_OVR, acpi_parse_int_src_ovr,
+				  NR_IRQ_VECTORS);
 	if (count < 0) {
-		printk(KERN_ERR PREFIX "Error parsing interrupt source overrides entry\n");
+		printk(KERN_ERR PREFIX
+		       "Error parsing interrupt source overrides entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
 		return count;
 	}
@@ -800,7 +781,9 @@ acpi_parse_madt_ioapic_entries(void)
 	/* Fill in identity legacy mapings where no override */
 	mp_config_acpi_legacy_irqs();
 
-	count = acpi_table_parse_madt(ACPI_MADT_NMI_SRC, acpi_parse_nmi_src, NR_IRQ_VECTORS);
+	count =
+	    acpi_table_parse_madt(ACPI_MADT_NMI_SRC, acpi_parse_nmi_src,
+				  NR_IRQ_VECTORS);
 	if (count < 0) {
 		printk(KERN_ERR PREFIX "Error parsing NMI SRC entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
@@ -814,11 +797,9 @@ static inline int acpi_parse_madt_ioapic_entries(void)
 {
 	return -1;
 }
-#endif /* !(CONFIG_X86_IO_APIC && CONFIG_ACPI_INTERPRETER) */
+#endif	/* !CONFIG_X86_IO_APIC */
 
-
-static void __init
-acpi_process_madt(void)
+static void __init acpi_process_madt(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
 	int count, error;
@@ -833,6 +814,9 @@ acpi_process_madt(void)
 		if (!error) {
 			acpi_lapic = 1;
 
+#ifdef CONFIG_X86_GENERICARCH
+			generic_bigsmp_probe();
+#endif
 			/*
 			 * Parse MADT IO-APIC entries
 			 */
@@ -850,7 +834,8 @@ acpi_process_madt(void)
 			/*
 			 * Dell Precision Workstation 410, 610 come here.
 			 */
-			printk(KERN_ERR PREFIX "Invalid BIOS MADT, disabling ACPI\n");
+			printk(KERN_ERR PREFIX
+			       "Invalid BIOS MADT, disabling ACPI\n");
 			disable_acpi();
 		}
 	}
@@ -862,7 +847,6 @@ extern int acpi_force;
 
 #ifdef __i386__
 
-#ifdef	CONFIG_ACPI_PCI
 static int __init disable_acpi_irq(struct dmi_system_id *d)
 {
 	if (!acpi_force) {
@@ -882,12 +866,11 @@ static int __init disable_acpi_pci(struct dmi_system_id *d)
 	}
 	return 0;
 }
-#endif
 
 static int __init dmi_disable_acpi(struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		printk(KERN_NOTICE "%s detected: acpi off\n",d->ident);
+		printk(KERN_NOTICE "%s detected: acpi off\n", d->ident);
 		disable_acpi();
 	} else {
 		printk(KERN_NOTICE
@@ -902,7 +885,8 @@ static int __init dmi_disable_acpi(struct dmi_system_id *d)
 static int __init force_acpi_ht(struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		printk(KERN_NOTICE "%s detected: force use of acpi=ht\n", d->ident);
+		printk(KERN_NOTICE "%s detected: force use of acpi=ht\n",
+		       d->ident);
 		disable_acpi();
 		acpi_ht = 1;
 	} else {
@@ -921,155 +905,155 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 * Boxes that need ACPI disabled
 	 */
 	{
-		.callback = dmi_disable_acpi,
-		.ident = "IBM Thinkpad",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
-			DMI_MATCH(DMI_BOARD_NAME, "2629H1G"),
-		},
-	},
+	 .callback = dmi_disable_acpi,
+	 .ident = "IBM Thinkpad",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "2629H1G"),
+		     },
+	 },
 
 	/*
 	 * Boxes that need acpi=ht
 	 */
 	{
-		.callback = force_acpi_ht,
-		.ident = "FSC Primergy T850",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "PRIMERGY T850"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "FSC Primergy T850",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "PRIMERGY T850"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "DELL GX240",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Dell Computer Corporation"),
-			DMI_MATCH(DMI_BOARD_NAME, "OptiPlex GX240"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "DELL GX240",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "Dell Computer Corporation"),
+		     DMI_MATCH(DMI_BOARD_NAME, "OptiPlex GX240"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "HP VISUALIZE NT Workstation",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP VISUALIZE NT Workstation"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "HP VISUALIZE NT Workstation",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP VISUALIZE NT Workstation"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "Compaq Workstation W8000",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Workstation W8000"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "Compaq Workstation W8000",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "Workstation W8000"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "ASUS P4B266",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			DMI_MATCH(DMI_BOARD_NAME, "P4B266"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "ASUS P4B266",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+		     DMI_MATCH(DMI_BOARD_NAME, "P4B266"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "ASUS P2B-DS",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			DMI_MATCH(DMI_BOARD_NAME, "P2B-DS"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "ASUS P2B-DS",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+		     DMI_MATCH(DMI_BOARD_NAME, "P2B-DS"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "ASUS CUR-DLS",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			DMI_MATCH(DMI_BOARD_NAME, "CUR-DLS"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "ASUS CUR-DLS",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+		     DMI_MATCH(DMI_BOARD_NAME, "CUR-DLS"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "ABIT i440BX-W83977",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ABIT <http://www.abit.com>"),
-			DMI_MATCH(DMI_BOARD_NAME, "i440BX-W83977 (BP6)"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "ABIT i440BX-W83977",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "ABIT <http://www.abit.com>"),
+		     DMI_MATCH(DMI_BOARD_NAME, "i440BX-W83977 (BP6)"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "IBM Bladecenter",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
-			DMI_MATCH(DMI_BOARD_NAME, "IBM eServer BladeCenter HS20"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "IBM Bladecenter",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "IBM eServer BladeCenter HS20"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "IBM eServer xSeries 360",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
-			DMI_MATCH(DMI_BOARD_NAME, "eServer xSeries 360"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "IBM eServer xSeries 360",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "eServer xSeries 360"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "IBM eserver xSeries 330",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
-			DMI_MATCH(DMI_BOARD_NAME, "eserver xSeries 330"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "IBM eserver xSeries 330",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "eserver xSeries 330"),
+		     },
+	 },
 	{
-		.callback = force_acpi_ht,
-		.ident = "IBM eserver xSeries 440",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "eserver xSeries 440"),
-		},
-	},
+	 .callback = force_acpi_ht,
+	 .ident = "IBM eserver xSeries 440",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "eserver xSeries 440"),
+		     },
+	 },
 
-#ifdef	CONFIG_ACPI_PCI
 	/*
 	 * Boxes that need ACPI PCI IRQ routing disabled
 	 */
 	{
-		.callback = disable_acpi_irq,
-		.ident = "ASUS A7V",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC"),
-			DMI_MATCH(DMI_BOARD_NAME, "<A7V>"),
-			/* newer BIOS, Revision 1011, does work */
-			DMI_MATCH(DMI_BIOS_VERSION, "ASUS A7V ACPI BIOS Revision 1007"),
-		},
-	},
+	 .callback = disable_acpi_irq,
+	 .ident = "ASUS A7V",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC"),
+		     DMI_MATCH(DMI_BOARD_NAME, "<A7V>"),
+		     /* newer BIOS, Revision 1011, does work */
+		     DMI_MATCH(DMI_BIOS_VERSION,
+			       "ASUS A7V ACPI BIOS Revision 1007"),
+		     },
+	 },
 
 	/*
 	 * Boxes that need ACPI PCI IRQ routing and PCI scan disabled
 	 */
-	{	/* _BBN 0 bug */
-		.callback = disable_acpi_pci,
-		.ident = "ASUS PR-DLS",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-			DMI_MATCH(DMI_BOARD_NAME, "PR-DLS"),
-			DMI_MATCH(DMI_BIOS_VERSION, "ASUS PR-DLS ACPI BIOS Revision 1010"),
-			DMI_MATCH(DMI_BIOS_DATE, "03/21/2003")
-		},
-	},
+	{			/* _BBN 0 bug */
+	 .callback = disable_acpi_pci,
+	 .ident = "ASUS PR-DLS",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+		     DMI_MATCH(DMI_BOARD_NAME, "PR-DLS"),
+		     DMI_MATCH(DMI_BIOS_VERSION,
+			       "ASUS PR-DLS ACPI BIOS Revision 1010"),
+		     DMI_MATCH(DMI_BIOS_DATE, "03/21/2003")
+		     },
+	 },
 	{
-		.callback = disable_acpi_pci,
-		.ident = "Acer TravelMate 36x Laptop",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
- 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
-		},
-	},
-#endif
-	{ }
+	 .callback = disable_acpi_pci,
+	 .ident = "Acer TravelMate 36x Laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
+		     },
+	 },
+	{}
 };
 
-#endif	/* __i386__ */
+#endif				/* __i386__ */
 
 /*
  * acpi_boot_table_init() and acpi_boot_init()
@@ -1094,8 +1078,7 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
  *	!0: failure
  */
 
-int __init
-acpi_boot_table_init(void)
+int __init acpi_boot_table_init(void)
 {
 	int error;
 
@@ -1108,7 +1091,7 @@ acpi_boot_table_init(void)
 	 * One exception: acpi=ht continues far enough to enumerate LAPICs
 	 */
 	if (acpi_disabled && !acpi_ht)
-		 return 1;
+		return 1;
 
 	/* 
 	 * Initialize the ACPI boot-time table parser.
@@ -1118,7 +1101,6 @@ acpi_boot_table_init(void)
 		disable_acpi();
 		return error;
 	}
-
 #ifdef __i386__
 	check_acpi_pci();
 #endif
@@ -1142,7 +1124,6 @@ acpi_boot_table_init(void)
 	return 0;
 }
 
-
 int __init acpi_boot_init(void)
 {
 	/*
@@ -1150,7 +1131,7 @@ int __init acpi_boot_init(void)
 	 * One exception: acpi=ht continues far enough to enumerate LAPICs
 	 */
 	if (acpi_disabled && !acpi_ht)
-		 return 1;
+		return 1;
 
 	acpi_table_parse(ACPI_BOOT, acpi_parse_sbf);
 
@@ -1168,4 +1149,3 @@ int __init acpi_boot_init(void)
 
 	return 0;
 }
-

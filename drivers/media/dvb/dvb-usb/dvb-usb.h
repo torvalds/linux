@@ -127,7 +127,7 @@ struct dvb_usb_device;
  *  helper functions.
  *
  * @urb: describes the kind of USB transfer used for MPEG2-TS-streaming.
- *  Currently only BULK is implemented
+ *  (BULK or ISOC)
  *
  * @num_device_descs: number of struct dvb_usb_device_description in @devices
  * @devices: array of struct dvb_usb_device_description compatibles with these
@@ -310,7 +310,7 @@ struct dvb_usb_device {
 	void *priv;
 };
 
-extern int dvb_usb_device_init(struct usb_interface *, struct dvb_usb_properties *, struct module *);
+extern int dvb_usb_device_init(struct usb_interface *, struct dvb_usb_properties *, struct module *, struct dvb_usb_device **);
 extern void dvb_usb_device_exit(struct usb_interface *);
 
 /* the generic read/write method for device control */

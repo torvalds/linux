@@ -76,7 +76,7 @@ void hubiio_crb_free(struct hubdev_info *hubdev_info, int crbnum)
 	 */
 	REMOTE_HUB_S(hubdev_info->hdi_nasid, IIO_ICDR, (IIO_ICDR_PND | crbnum));
 	while (REMOTE_HUB_L(hubdev_info->hdi_nasid, IIO_ICDR) & IIO_ICDR_PND)
-		udelay(1);
+		cpu_relax();
 
 }
 

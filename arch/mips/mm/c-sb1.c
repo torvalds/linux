@@ -270,7 +270,7 @@ static void local_sb1_flush_icache_range(unsigned long start,
 		__sb1_writeback_inv_dcache_all();
 	else
 		__sb1_writeback_inv_dcache_range(start, end);
-	
+
 	/* Just flush the whole icache if the range is big enough */
 	if ((end - start) > icache_range_cutoff)
 		__sb1_flush_icache_all();

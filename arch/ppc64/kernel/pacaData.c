@@ -59,6 +59,7 @@ extern unsigned long __toc_start;
 		.fpregs_in_use = 1,					    \
 		.end_of_quantum = 0xfffffffffffffffful,			    \
 		.slb_count = 64,					    \
+		.vmxregs_in_use = 0,					    \
 	},								    \
 
 #ifdef CONFIG_PPC_ISERIES
@@ -78,7 +79,7 @@ extern unsigned long __toc_start;
 
 #define BOOTCPU_PACA_INIT(number)					    \
 {									    \
-	PACA_INIT_COMMON(number, 1, 0, STAB0_VIRT_ADDR)			    \
+	PACA_INIT_COMMON(number, 1, 0, (u64)&initial_stab)		    \
 	PACA_INIT_ISERIES(number)					    \
 }
 
@@ -90,7 +91,7 @@ extern unsigned long __toc_start;
 
 #define BOOTCPU_PACA_INIT(number)					    \
 {									    \
-	PACA_INIT_COMMON(number, 1, STAB0_PHYS_ADDR, STAB0_VIRT_ADDR)	    \
+	PACA_INIT_COMMON(number, 1, STAB0_PHYS_ADDR, (u64)&initial_stab)    \
 }
 #endif
 

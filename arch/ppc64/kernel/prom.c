@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -625,8 +624,8 @@ void __init finish_device_tree(void)
 
 static inline char *find_flat_dt_string(u32 offset)
 {
-	return ((char *)initial_boot_params) + initial_boot_params->off_dt_strings
-		+ offset;
+	return ((char *)initial_boot_params) +
+		initial_boot_params->off_dt_strings + offset;
 }
 
 /**
@@ -635,26 +634,33 @@ static inline char *find_flat_dt_string(u32 offset)
  * unflatten the tree
  */
 static int __init scan_flat_dt(int (*it)(unsigned long node,
-					 const char *full_path, void *data),
+					 const char *uname, int depth,
+					 void *data),
 			       void *data)
 {
 	unsigned long p = ((unsigned long)initial_boot_params) +
 		initial_boot_params->off_dt_struct;
 	int rc = 0;
+	int depth = -1;
 
 	do {
 		u32 tag = *((u32 *)p);
 		char *pathp;
 		
 		p += 4;
-		if (tag == OF_DT_END_NODE)
+		if (tag == OF_DT_END_NODE) {
+			depth --;
+			continue;
+		}
+		if (tag == OF_DT_NOP)
 			continue;
 		if (tag == OF_DT_END)
 			break;
 		if (tag == OF_DT_PROP) {
 			u32 sz = *((u32 *)p);
 			p += 8;
-			p = _ALIGN(p, sz >= 8 ? 8 : 4);
+			if (initial_boot_params->version < 0x10)
+				p = _ALIGN(p, sz >= 8 ? 8 : 4);
 			p += sz;
 			p = _ALIGN(p, 4);
 			continue;
@@ -664,9 +670,18 @@ static int __init scan_flat_dt(int (*it)(unsigned long node,
 			       " device tree !\n", tag);
 			return -EINVAL;
 		}
+		depth++;
 		pathp = (char *)p;
 		p = _ALIGN(p + strlen(pathp) + 1, 4);
-		rc = it(p, pathp, data);
+		if ((*pathp) == '/') {
+			char *lp, *np;
+			for (lp = NULL, np = pathp; *np; np++)
+				if ((*np) == '/')
+					lp = np+1;
+			if (lp != NULL)
+				pathp = lp;
+		}
+		rc = it(p, pathp, depth, data);
 		if (rc != 0)
 			break;		
 	} while(1);
@@ -689,17 +704,21 @@ static void* __init get_flat_dt_prop(unsigned long node, const char *name,
 		const char *nstr;
 
 		p += 4;
+		if (tag == OF_DT_NOP)
+			continue;
 		if (tag != OF_DT_PROP)
 			return NULL;
 
 		sz = *((u32 *)p);
 		noff = *((u32 *)(p + 4));
 		p += 8;
-		p = _ALIGN(p, sz >= 8 ? 8 : 4);
+		if (initial_boot_params->version < 0x10)
+			p = _ALIGN(p, sz >= 8 ? 8 : 4);
 
 		nstr = find_flat_dt_string(noff);
 		if (nstr == NULL) {
-			printk(KERN_WARNING "Can't find property index name !\n");
+			printk(KERN_WARNING "Can't find property index"
+			       " name !\n");
 			return NULL;
 		}
 		if (strcmp(name, nstr) == 0) {
@@ -713,7 +732,7 @@ static void* __init get_flat_dt_prop(unsigned long node, const char *name,
 }
 
 static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
-					       unsigned long align)
+				       unsigned long align)
 {
 	void *res;
 
@@ -727,13 +746,16 @@ static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
 static unsigned long __init unflatten_dt_node(unsigned long mem,
 					      unsigned long *p,
 					      struct device_node *dad,
-					      struct device_node ***allnextpp)
+					      struct device_node ***allnextpp,
+					      unsigned long fpsize)
 {
 	struct device_node *np;
 	struct property *pp, **prev_pp = NULL;
 	char *pathp;
 	u32 tag;
-	unsigned int l;
+	unsigned int l, allocl;
+	int has_name = 0;
+	int new_format = 0;
 
 	tag = *((u32 *)(*p));
 	if (tag != OF_DT_BEGIN_NODE) {
@@ -742,21 +764,62 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 	}
 	*p += 4;
 	pathp = (char *)*p;
-	l = strlen(pathp) + 1;
+	l = allocl = strlen(pathp) + 1;
 	*p = _ALIGN(*p + l, 4);
 
-	np = unflatten_dt_alloc(&mem, sizeof(struct device_node) + l,
+	/* version 0x10 has a more compact unit name here instead of the full
+	 * path. we accumulate the full path size using "fpsize", we'll rebuild
+	 * it later. We detect this because the first character of the name is
+	 * not '/'.
+	 */
+	if ((*pathp) != '/') {
+		new_format = 1;
+		if (fpsize == 0) {
+			/* root node: special case. fpsize accounts for path
+			 * plus terminating zero. root node only has '/', so
+			 * fpsize should be 2, but we want to avoid the first
+			 * level nodes to have two '/' so we use fpsize 1 here
+			 */
+			fpsize = 1;
+			allocl = 2;
+		} else {
+			/* account for '/' and path size minus terminal 0
+			 * already in 'l'
+			 */
+			fpsize += l;
+			allocl = fpsize;
+		}
+	}
+
+
+	np = unflatten_dt_alloc(&mem, sizeof(struct device_node) + allocl,
 				__alignof__(struct device_node));
 	if (allnextpp) {
 		memset(np, 0, sizeof(*np));
 		np->full_name = ((char*)np) + sizeof(struct device_node);
-		memcpy(np->full_name, pathp, l);
+		if (new_format) {
+			char *p = np->full_name;
+			/* rebuild full path for new format */
+			if (dad && dad->parent) {
+				strcpy(p, dad->full_name);
+#ifdef DEBUG
+				if ((strlen(p) + l + 1) != allocl) {
+					DBG("%s: p: %d, l: %d, a: %d\n",
+					    pathp, strlen(p), l, allocl);
+				}
+#endif
+				p += strlen(p);
+			}
+			*(p++) = '/';
+			memcpy(p, pathp, l);
+		} else
+			memcpy(np->full_name, pathp, l);
 		prev_pp = &np->properties;
 		**allnextpp = np;
 		*allnextpp = &np->allnext;
 		if (dad != NULL) {
 			np->parent = dad;
-			/* we temporarily use the `next' field as `last_child'. */
+			/* we temporarily use the next field as `last_child'*/
 			if (dad->next == 0)
 				dad->child = np;
 			else
@@ -770,18 +833,26 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 		char *pname;
 
 		tag = *((u32 *)(*p));
+		if (tag == OF_DT_NOP) {
+			*p += 4;
+			continue;
+		}
 		if (tag != OF_DT_PROP)
 			break;
 		*p += 4;
 		sz = *((u32 *)(*p));
 		noff = *((u32 *)((*p) + 4));
-		*p = _ALIGN((*p) + 8, sz >= 8 ? 8 : 4);
+		*p += 8;
+		if (initial_boot_params->version < 0x10)
+			*p = _ALIGN(*p, sz >= 8 ? 8 : 4);
 
 		pname = find_flat_dt_string(noff);
 		if (pname == NULL) {
 			printk("Can't find property name in list !\n");
 			break;
 		}
+		if (strcmp(pname, "name") == 0)
+			has_name = 1;
 		l = strlen(pname) + 1;
 		pp = unflatten_dt_alloc(&mem, sizeof(struct property),
 					__alignof__(struct property));
@@ -801,6 +872,36 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 		}
 		*p = _ALIGN((*p) + sz, 4);
 	}
+	/* with version 0x10 we may not have the name property, recreate
+	 * it here from the unit name if absent
+	 */
+	if (!has_name) {
+		char *p = pathp, *ps = pathp, *pa = NULL;
+		int sz;
+
+		while (*p) {
+			if ((*p) == '@')
+				pa = p;
+			if ((*p) == '/')
+				ps = p + 1;
+			p++;
+		}
+		if (pa < ps)
+			pa = p;
+		sz = (pa - ps) + 1;
+		pp = unflatten_dt_alloc(&mem, sizeof(struct property) + sz,
+					__alignof__(struct property));
+		if (allnextpp) {
+			pp->name = "name";
+			pp->length = sz;
+			pp->value = (unsigned char *)(pp + 1);
+			*prev_pp = pp;
+			prev_pp = &pp->next;
+			memcpy(pp->value, ps, sz - 1);
+			((char *)pp->value)[sz - 1] = 0;
+			DBG("fixed up name for %s -> %s\n", pathp, pp->value);
+		}
+	}
 	if (allnextpp) {
 		*prev_pp = NULL;
 		np->name = get_property(np, "name", NULL);
@@ -812,11 +913,11 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 			np->type = "<NULL>";
 	}
 	while (tag == OF_DT_BEGIN_NODE) {
-		mem = unflatten_dt_node(mem, p, np, allnextpp);
+		mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
 		tag = *((u32 *)(*p));
 	}
 	if (tag != OF_DT_END_NODE) {
-		printk("Weird tag at start of node: %x\n", tag);
+		printk("Weird tag at end of node: %x\n", tag);
 		return mem;
 	}
 	*p += 4;
@@ -842,21 +943,32 @@ void __init unflatten_device_tree(void)
 	/* First pass, scan for size */
 	start = ((unsigned long)initial_boot_params) +
 		initial_boot_params->off_dt_struct;
-	size = unflatten_dt_node(0, &start, NULL, NULL);
+	size = unflatten_dt_node(0, &start, NULL, NULL, 0);
+	size = (size | 3) + 1;
 
 	DBG("  size is %lx, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
-	mem = (unsigned long)abs_to_virt(lmb_alloc(size,
-						   __alignof__(struct device_node)));
+	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
+	if (!mem) {
+		DBG("Couldn't allocate memory with lmb_alloc()!\n");
+		panic("Couldn't allocate memory with lmb_alloc()!\n");
+	}
+	mem = (unsigned long)abs_to_virt(mem);
+
+	((u32 *)mem)[size / 4] = 0xdeadbeef;
+
 	DBG("  unflattening...\n", mem);
 
 	/* Second pass, do actual unflattening */
 	start = ((unsigned long)initial_boot_params) +
 		initial_boot_params->off_dt_struct;
-	unflatten_dt_node(mem, &start, NULL, &allnextp);
+	unflatten_dt_node(mem, &start, NULL, &allnextp, 0);
 	if (*((u32 *)start) != OF_DT_END)
-		printk(KERN_WARNING "Weird tag at end of tree: %x\n", *((u32 *)start));
+		printk(KERN_WARNING "Weird tag at end of tree: %08x\n", *((u32 *)start));
+	if (((u32 *)mem)[size / 4] != 0xdeadbeef)
+		printk(KERN_WARNING "End of tree marker overwritten: %08x\n",
+		       ((u32 *)mem)[size / 4] );
 	*allnextp = NULL;
 
 	/* Get pointer to OF "/chosen" node for use everywhere */
@@ -880,7 +992,7 @@ void __init unflatten_device_tree(void)
 
 
 static int __init early_init_dt_scan_cpus(unsigned long node,
-					  const char *full_path, void *data)
+					  const char *uname, int depth, void *data)
 {
 	char *type = get_flat_dt_prop(node, "device_type", NULL);
 	u32 *prop;
@@ -947,13 +1059,15 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 }
 
 static int __init early_init_dt_scan_chosen(unsigned long node,
-					    const char *full_path, void *data)
+					    const char *uname, int depth, void *data)
 {
 	u32 *prop;
 	u64 *prop64;
 	extern unsigned long memory_limit, tce_alloc_start, tce_alloc_end;
 
-	if (strcmp(full_path, "/chosen") != 0)
+	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
+
+	if (depth != 1 || strcmp(uname, "chosen") != 0)
 		return 0;
 
 	/* get platform type */
@@ -1003,18 +1117,20 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 }
 
 static int __init early_init_dt_scan_root(unsigned long node,
-					  const char *full_path, void *data)
+					  const char *uname, int depth, void *data)
 {
 	u32 *prop;
 
-	if (strcmp(full_path, "/") != 0)
+	if (depth != 0)
 		return 0;
 
 	prop = (u32 *)get_flat_dt_prop(node, "#size-cells", NULL);
 	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
-		
+	DBG("dt_root_size_cells = %x\n", dt_root_size_cells);
+
 	prop = (u32 *)get_flat_dt_prop(node, "#address-cells", NULL);
 	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
+	DBG("dt_root_addr_cells = %x\n", dt_root_addr_cells);
 	
 	/* break now */
 	return 1;
@@ -1042,7 +1158,7 @@ static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
 
 
 static int __init early_init_dt_scan_memory(unsigned long node,
-					    const char *full_path, void *data)
+					    const char *uname, int depth, void *data)
 {
 	char *type = get_flat_dt_prop(node, "device_type", NULL);
 	cell_t *reg, *endp;
@@ -1058,7 +1174,9 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 
 	endp = reg + (l / sizeof(cell_t));
 
-	DBG("memory scan node %s ...\n", full_path);
+	DBG("memory scan node %s ..., reg size %ld, data: %x %x %x %x, ...\n",
+	    uname, l, reg[0], reg[1], reg[2], reg[3]);
+
 	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
 		unsigned long base, size;
 
@@ -1469,10 +1587,11 @@ struct device_node *of_find_node_by_path(const char *path)
 	struct device_node *np = allnodes;
 
 	read_lock(&devtree_lock);
-	for (; np != 0; np = np->allnext)
+	for (; np != 0; np = np->allnext) {
 		if (np->full_name != 0 && strcasecmp(np->full_name, path) == 0
 		    && of_node_get(np))
 			break;
+	}
 	read_unlock(&devtree_lock);
 	return np;
 }
@@ -1614,6 +1733,7 @@ static void of_node_release(struct kref *kref)
 	kfree(node->intrs);
 	kfree(node->addrs);
 	kfree(node->full_name);
+	kfree(node->data);
 	kfree(node);
 }
 

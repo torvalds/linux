@@ -284,6 +284,7 @@ void hpfs_write_if_changed(struct inode *inode)
 
 void hpfs_delete_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
 	lock_kernel();
 	hpfs_remove_fnode(inode->i_sb, inode->i_ino);
 	unlock_kernel();

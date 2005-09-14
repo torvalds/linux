@@ -241,7 +241,7 @@ static struct proto_ops packet_ops;
 #ifdef CONFIG_SOCK_PACKET
 static struct proto_ops packet_ops_spkt;
 
-static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct sockaddr_pkt *spkt;
@@ -441,7 +441,7 @@ static inline unsigned run_filter(struct sk_buff *skb, struct sock *sk, unsigned
    we will not harm anyone.
  */
 
-static int packet_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct sockaddr_ll *sll;
@@ -546,7 +546,7 @@ drop:
 }
 
 #ifdef CONFIG_PACKET_MMAP
-static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct packet_sock *po;
@@ -635,12 +635,12 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,  struct pack
 	h->tp_snaplen = snaplen;
 	h->tp_mac = macoff;
 	h->tp_net = netoff;
-	if (skb->stamp.tv_sec == 0) { 
-		do_gettimeofday(&skb->stamp);
+	if (skb->tstamp.off_sec == 0) { 
+		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
-	h->tp_sec = skb->stamp.tv_sec;
-	h->tp_usec = skb->stamp.tv_usec;
+	h->tp_sec = skb_tv_base.tv_sec + skb->tstamp.off_sec;
+	h->tp_usec = skb_tv_base.tv_usec + skb->tstamp.off_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
 	sll->sll_halen = 0;
@@ -1535,8 +1535,7 @@ static unsigned int packet_poll(struct file * file, struct socket *sock,
 static void packet_mm_open(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
-	struct inode *inode = file->f_dentry->d_inode;
-	struct socket * sock = SOCKET_I(inode);
+	struct socket * sock = file->private_data;
 	struct sock *sk = sock->sk;
 	
 	if (sk)
@@ -1546,8 +1545,7 @@ static void packet_mm_open(struct vm_area_struct *vma)
 static void packet_mm_close(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
-	struct inode *inode = file->f_dentry->d_inode;
-	struct socket * sock = SOCKET_I(inode);
+	struct socket * sock = file->private_data;
 	struct sock *sk = sock->sk;
 	
 	if (sk)

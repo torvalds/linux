@@ -490,7 +490,7 @@ out:
 }
 
 static inline void avc_print_ipv6_addr(struct audit_buffer *ab,
-				       struct in6_addr *addr, u16 port,
+				       struct in6_addr *addr, __be16 port,
 				       char *name1, char *name2)
 {
 	if (!ipv6_addr_any(addr))
@@ -501,7 +501,7 @@ static inline void avc_print_ipv6_addr(struct audit_buffer *ab,
 }
 
 static inline void avc_print_ipv4_addr(struct audit_buffer *ab, u32 addr,
-				       u16 port, char *name1, char *name2)
+				       __be16 port, char *name1, char *name2)
 {
 	if (addr)
 		audit_log_format(ab, " %s=%d.%d.%d.%d", name1, NIPQUAD(addr));

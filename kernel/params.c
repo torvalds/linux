@@ -542,8 +542,8 @@ static void __init kernel_param_sysfs_setup(const char *name,
 {
 	struct module_kobject *mk;
 
-	mk = kmalloc(sizeof(struct module_kobject), GFP_KERNEL);
-	memset(mk, 0, sizeof(struct module_kobject));
+	mk = kzalloc(sizeof(struct module_kobject), GFP_KERNEL);
+	BUG_ON(!mk);
 
 	mk->mod = THIS_MODULE;
 	kobj_set_kset_s(mk, module_subsys);

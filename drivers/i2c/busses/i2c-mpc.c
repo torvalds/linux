@@ -272,8 +272,6 @@ static u32 mpc_functionality(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm mpc_algo = {
-	.name = "MPC algorithm",
-	.id = I2C_ALGO_MPC107,
 	.master_xfer = mpc_xfer,
 	.functionality = mpc_functionality,
 };
@@ -281,7 +279,7 @@ static struct i2c_algorithm mpc_algo = {
 static struct i2c_adapter mpc_ops = {
 	.owner = THIS_MODULE,
 	.name = "MPC adapter",
-	.id = I2C_ALGO_MPC107 | I2C_HW_MPC107,
+	.id = I2C_HW_MPC107,
 	.algo = &mpc_algo,
 	.class = I2C_CLASS_HWMON,
 	.timeout = 1,

@@ -36,7 +36,7 @@ struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table };
 
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
-unsigned long __supported_pte_mask = ~0UL;
+unsigned long __supported_pte_mask __read_mostly = ~0UL;
 static int do_not_nx __initdata = 0;
 
 /* noexec=on|off
@@ -94,7 +94,7 @@ void __init setup_per_cpu_areas(void)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
 
-	for (i = 0; i < NR_CPUS; i++) { 
+	for_each_cpu_mask (i, cpu_possible_map) {
 		char *ptr;
 
 		if (!NODE_DATA(cpu_to_node(i))) {
@@ -119,7 +119,6 @@ void pda_init(int cpu)
 	asm volatile("movl %0,%%fs ; movl %0,%%gs" :: "r" (0)); 
 	wrmsrl(MSR_GS_BASE, cpu_pda + cpu);
 
-	pda->me = pda;
 	pda->cpunumber = cpu; 
 	pda->irqcount = -1;
 	pda->kernelstack = 

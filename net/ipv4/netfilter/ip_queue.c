@@ -43,17 +43,10 @@
 #define NET_IPQ_QMAX 2088
 #define NET_IPQ_QMAX_NAME "ip_queue_maxlen"
 
-struct ipq_rt_info {
-	__u8 tos;
-	__u32 daddr;
-	__u32 saddr;
-};
-
 struct ipq_queue_entry {
 	struct list_head list;
 	struct nf_info *info;
 	struct sk_buff *skb;
-	struct ipq_rt_info rt_info;
 };
 
 typedef int (*ipq_cmpfn)(struct ipq_queue_entry *, unsigned long);
@@ -214,6 +207,12 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 		break;
 	
 	case IPQ_COPY_PACKET:
+		if (entry->skb->ip_summed == CHECKSUM_HW &&
+		    (*errp = skb_checksum_help(entry->skb,
+		                               entry->info->outdev == NULL))) {
+			read_unlock_bh(&queue_lock);
+			return NULL;
+		}
 		if (copy_range == 0 || copy_range > entry->skb->len)
 			data_len = entry->skb->len;
 		else
@@ -241,8 +240,8 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 
 	pmsg->packet_id       = (unsigned long )entry;
 	pmsg->data_len        = data_len;
-	pmsg->timestamp_sec   = entry->skb->stamp.tv_sec;
-	pmsg->timestamp_usec  = entry->skb->stamp.tv_usec;
+	pmsg->timestamp_sec   = skb_tv_base.tv_sec + entry->skb->tstamp.off_sec;
+	pmsg->timestamp_usec  = skb_tv_base.tv_usec + entry->skb->tstamp.off_usec;
 	pmsg->mark            = entry->skb->nfmark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;
@@ -281,7 +280,8 @@ nlmsg_failure:
 }
 
 static int
-ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, void *data)
+ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
+		   unsigned int queuenum, void *data)
 {
 	int status = -EINVAL;
 	struct sk_buff *nskb;
@@ -298,14 +298,6 @@ ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, void *data)
 
 	entry->info = info;
 	entry->skb = skb;
-
-	if (entry->info->hook == NF_IP_LOCAL_OUT) {
-		struct iphdr *iph = skb->nh.iph;
-
-		entry->rt_info.tos = iph->tos;
-		entry->rt_info.daddr = iph->daddr;
-		entry->rt_info.saddr = iph->saddr;
-	}
 
 	nskb = ipq_build_packet_message(entry, &status);
 	if (nskb == NULL)
@@ -382,23 +374,11 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 		}
 		skb_put(e->skb, diff);
 	}
-	if (!skb_ip_make_writable(&e->skb, v->data_len))
+	if (!skb_make_writable(&e->skb, v->data_len))
 		return -ENOMEM;
 	memcpy(e->skb->data, v->payload, v->data_len);
-	e->skb->nfcache |= NFC_ALTERED;
+	e->skb->ip_summed = CHECKSUM_NONE;
 
-	/*
-	 * Extra routing may needed on local out, as the QUEUE target never
-	 * returns control to the table.
-	 */
-	if (e->info->hook == NF_IP_LOCAL_OUT) {
-		struct iphdr *iph = e->skb->nh.iph;
-
-		if (!(iph->tos == e->rt_info.tos
-		      && iph->daddr == e->rt_info.daddr
-		      && iph->saddr == e->rt_info.saddr))
-			return ip_route_me_harder(&e->skb);
-	}
 	return 0;
 }
 
@@ -676,6 +656,11 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 }
 #endif /* CONFIG_PROC_FS */
 
+static struct nf_queue_handler nfqh = {
+	.name	= "ip_queue",
+	.outfn	= &ipq_enqueue_packet,
+};
+
 static int
 init_or_cleanup(int init)
 {
@@ -686,7 +671,8 @@ init_or_cleanup(int init)
 		goto cleanup;
 
 	netlink_register_notifier(&ipq_nl_notifier);
-	ipqnl = netlink_kernel_create(NETLINK_FIREWALL, ipq_rcv_sk);
+	ipqnl = netlink_kernel_create(NETLINK_FIREWALL, 0, ipq_rcv_sk,
+				      THIS_MODULE);
 	if (ipqnl == NULL) {
 		printk(KERN_ERR "ip_queue: failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;
@@ -703,7 +689,7 @@ init_or_cleanup(int init)
 	register_netdevice_notifier(&ipq_dev_notifier);
 	ipq_sysctl_header = register_sysctl_table(ipq_root_table, 0);
 	
-	status = nf_register_queue_handler(PF_INET, ipq_enqueue_packet, NULL);
+	status = nf_register_queue_handler(PF_INET, &nfqh);
 	if (status < 0) {
 		printk(KERN_ERR "ip_queue: failed to register queue handler\n");
 		goto cleanup_sysctl;
@@ -711,7 +697,7 @@ init_or_cleanup(int init)
 	return status;
 
 cleanup:
-	nf_unregister_queue_handler(PF_INET);
+	nf_unregister_queue_handlers(&nfqh);
 	synchronize_net();
 	ipq_flush(NF_DROP);
 	

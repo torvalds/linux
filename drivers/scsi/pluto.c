@@ -95,8 +95,7 @@ int __init pluto_detect(Scsi_Host_Template *tpnt)
 	int i, retry, nplutos;
 	fc_channel *fc;
 	Scsi_Device dev;
-	struct timer_list fc_timer =
-		TIMER_INITIALIZER(pluto_detect_timeout, 0, 0);
+	DEFINE_TIMER(fc_timer, pluto_detect_timeout, 0, 0);
 
 	tpnt->proc_name = "pluto";
 	fcscount = 0;

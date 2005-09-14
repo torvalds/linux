@@ -765,7 +765,8 @@ snd_pmac_ctrl_intr(int irq, void *devid, struct pt_regs *regs)
  */
 static void snd_pmac_sound_feature(pmac_t *chip, int enable)
 {
-	ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
+	if (ppc_md.feature_call)
+		ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
 }
 
 /*

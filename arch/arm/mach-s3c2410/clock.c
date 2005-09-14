@@ -388,6 +388,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 				unsigned long hclk,
 				unsigned long pclk)
 {
+	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
 	struct clk *clkp = init_clocks;
 	int ptr;
 	int ret;
@@ -445,6 +446,14 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 			       clkp->name, ret);
 		}
 	}
+
+	/* show the clock-slow value */
+
+	printk("CLOCK: Slow mode (%ld.%ld MHz), %s, MPLL %s, UPLL %s\n",
+	       print_mhz(xtal / ( 2 * S3C2410_CLKSLOW_GET_SLOWVAL(clkslow))),
+	       (clkslow & S3C2410_CLKSLOW_SLOW) ? "slow" : "fast",
+	       (clkslow & S3C2410_CLKSLOW_MPLL_OFF) ? "off" : "on",
+	       (clkslow & S3C2410_CLKSLOW_UCLK_OFF) ? "off" : "on");
 
 	return 0;
 }

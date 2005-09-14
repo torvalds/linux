@@ -1,7 +1,7 @@
 /*
  * This file define a set of standard wireless extensions
  *
- * Version :	18	12.3.05
+ * Version :	19	18.3.05
  *
  * Authors :	Jean Tourrilhes - HPL - <jt@hpl.hp.com>
  * Copyright (c) 1997-2005 Jean Tourrilhes, All Rights Reserved.
@@ -69,8 +69,6 @@
 
 /***************************** INCLUDES *****************************/
 
-/* To minimise problems in user space, I might remove those headers
- * at some point. Jean II */
 #include <linux/types.h>		/* for "caddr_t" et al		*/
 #include <linux/socket.h>		/* for "struct sockaddr" et al	*/
 #include <linux/if.h>			/* for IFNAMSIZ and co... */
@@ -82,7 +80,7 @@
  * (there is some stuff that will be added in the future...)
  * I just plan to increment with each new version.
  */
-#define WIRELESS_EXT	18
+#define WIRELESS_EXT	19
 
 /*
  * Changes :
@@ -197,6 +195,15 @@
  *	  related parameters (extensible up to 4096 parameter values)
  *	- Add wireless events: IWEVGENIE, IWEVMICHAELMICFAILURE,
  *	  IWEVASSOCREQIE, IWEVASSOCRESPIE, IWEVPMKIDCAND
+ *
+ * V18 to V19
+ * ----------
+ *	- Remove (struct iw_point *)->pointer from events and streams
+ *	- Remove header includes to help user space
+ *	- Increase IW_ENCODING_TOKEN_MAX from 32 to 64
+ *	- Add IW_QUAL_ALL_UPDATED and IW_QUAL_ALL_INVALID macros
+ *	- Add explicit flag to tell stats are in dBm : IW_QUAL_DBM
+ *	- Add IW_IOCTL_IDX() and IW_EVENT_IDX() macros
  */
 
 /**************************** CONSTANTS ****************************/
@@ -322,6 +329,7 @@
 /* The first and the last (range) */
 #define SIOCIWFIRST	0x8B00
 #define SIOCIWLAST	SIOCIWLASTPRIV		/* 0x8BFF */
+#define IW_IOCTL_IDX(cmd)	((cmd) - SIOCIWFIRST)
 
 /* Even : get (world access), odd : set (root access) */
 #define IW_IS_SET(cmd)	(!((cmd) & 0x1))
@@ -366,6 +374,7 @@
 					 * (struct iw_pmkid_cand) */
 
 #define IWEVFIRST	0x8C00
+#define IW_EVENT_IDX(cmd)	((cmd) - IWEVFIRST)
 
 /* ------------------------- PRIVATE INFO ------------------------- */
 /*
@@ -427,12 +436,15 @@
 #define IW_MODE_MONITOR	6	/* Passive monitor (listen only) */
 
 /* Statistics flags (bitmask in updated) */
-#define IW_QUAL_QUAL_UPDATED	0x1	/* Value was updated since last read */
-#define IW_QUAL_LEVEL_UPDATED	0x2
-#define IW_QUAL_NOISE_UPDATED	0x4
+#define IW_QUAL_QUAL_UPDATED	0x01	/* Value was updated since last read */
+#define IW_QUAL_LEVEL_UPDATED	0x02
+#define IW_QUAL_NOISE_UPDATED	0x04
+#define IW_QUAL_ALL_UPDATED	0x07
+#define IW_QUAL_DBM		0x08	/* Level + Noise are dBm */
 #define IW_QUAL_QUAL_INVALID	0x10	/* Driver doesn't provide value */
 #define IW_QUAL_LEVEL_INVALID	0x20
 #define IW_QUAL_NOISE_INVALID	0x40
+#define IW_QUAL_ALL_INVALID	0x70
 
 /* Frequency flags */
 #define IW_FREQ_AUTO		0x00	/* Let the driver decides */
@@ -443,7 +455,7 @@
 #define IW_MAX_ENCODING_SIZES	8
 
 /* Maximum size of the encoding token in bytes */
-#define IW_ENCODING_TOKEN_MAX	32	/* 256 bits (for now) */
+#define IW_ENCODING_TOKEN_MAX	64	/* 512 bits (for now) */
 
 /* Flags for encoding (along with the token) */
 #define IW_ENCODE_INDEX		0x00FF	/* Token index (if needed) */
@@ -1039,12 +1051,16 @@ struct iw_event
 #define IW_EV_CHAR_LEN	(IW_EV_LCP_LEN + IFNAMSIZ)
 #define IW_EV_UINT_LEN	(IW_EV_LCP_LEN + sizeof(__u32))
 #define IW_EV_FREQ_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_freq))
-#define IW_EV_POINT_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_point))
 #define IW_EV_PARAM_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_param))
 #define IW_EV_ADDR_LEN	(IW_EV_LCP_LEN + sizeof(struct sockaddr))
 #define IW_EV_QUAL_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_quality))
 
-/* Note : in the case of iw_point, the extra data will come at the
- * end of the event */
+/* iw_point events are special. First, the payload (extra data) come at
+ * the end of the event, so they are bigger than IW_EV_POINT_LEN. Second,
+ * we omit the pointer, so start at an offset. */
+#define IW_EV_POINT_OFF (((char *) &(((struct iw_point *) NULL)->length)) - \
+			  (char *) NULL)
+#define IW_EV_POINT_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_point) - \
+			 IW_EV_POINT_OFF)
 
 #endif	/* _LINUX_WIRELESS_H */

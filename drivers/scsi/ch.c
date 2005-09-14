@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/chio.h>			/* here are all the ioctls */
@@ -31,7 +30,7 @@
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
-#include <scsi/scsi_request.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 
 #define CH_DT_MAX       16
@@ -117,7 +116,7 @@ typedef struct {
 } scsi_changer;
 
 static LIST_HEAD(ch_devlist);
-static spinlock_t ch_devlist_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ch_devlist_lock);
 static int ch_devcount;
 
 static struct scsi_driver ch_template =
@@ -181,17 +180,17 @@ static struct {
 
 /* ------------------------------------------------------------------- */
 
-static int ch_find_errno(unsigned char *sense_buffer)
+static int ch_find_errno(struct scsi_sense_hdr *sshdr)
 {
 	int i,errno = 0;
 
 	/* Check to see if additional sense information is available */
-	if (sense_buffer[7]  > 5 &&
-	    sense_buffer[12] != 0) {
+	if (scsi_sense_valid(sshdr) &&
+	    sshdr->asc != 0) {
 		for (i = 0; err[i].errno != 0; i++) {
-			if (err[i].sense == sense_buffer[ 2] &&
-			    err[i].asc   == sense_buffer[12] &&
-			    err[i].ascq  == sense_buffer[13]) {
+			if (err[i].sense == sshdr->sense_key &&
+			    err[i].asc   == sshdr->asc &&
+			    err[i].ascq  == sshdr->ascq) {
 				errno = -err[i].errno;
 				break;
 			}
@@ -207,13 +206,9 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
 	   void *buffer, unsigned buflength,
 	   enum dma_data_direction direction)
 {
-	int errno, retries = 0, timeout;
-	struct scsi_request *sr;
+	int errno, retries = 0, timeout, result;
+	struct scsi_sense_hdr sshdr;
 	
-	sr = scsi_allocate_request(ch->device, GFP_KERNEL);
-	if (NULL == sr)
-		return -ENOMEM;
-
 	timeout = (cmd[0] == INITIALIZE_ELEMENT_STATUS)
 		? timeout_init : timeout_move;
 
@@ -224,16 +219,17 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
 		__scsi_print_command(cmd);
 	}
 
-        scsi_wait_req(sr, cmd, buffer, buflength,
-		      timeout * HZ, MAX_RETRIES);
+        result = scsi_execute_req(ch->device, cmd, direction, buffer,
+				  buflength, &sshdr, timeout * HZ,
+				  MAX_RETRIES);
 
-	dprintk("result: 0x%x\n",sr->sr_result);
-	if (driver_byte(sr->sr_result) & DRIVER_SENSE) {
+	dprintk("result: 0x%x\n",result);
+	if (driver_byte(result) & DRIVER_SENSE) {
 		if (debug)
-			scsi_print_req_sense(ch->name, sr);
-		errno = ch_find_errno(sr->sr_sense_buffer);
+			scsi_print_sense_hdr(ch->name, &sshdr);
+		errno = ch_find_errno(&sshdr);
 
-		switch(sr->sr_sense_buffer[2] & 0xf) {
+		switch(sshdr.sense_key) {
 		case UNIT_ATTENTION:
 			ch->unit_attention = 1;
 			if (retries++ < 3)
@@ -241,7 +237,6 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
 			break;
 		}
 	}
-	scsi_release_request(sr);
 	return errno;
 }
 
@@ -565,7 +560,7 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 	return result;
 }
 
-static int ch_gstatus(scsi_changer *ch, int type, unsigned char *dest)
+static int ch_gstatus(scsi_changer *ch, int type, unsigned char __user *dest)
 {
 	int retval = 0;
 	u_char data[16];
@@ -639,6 +634,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 {
 	scsi_changer *ch = file->private_data;
 	int retval;
+	void __user *argp = (void __user *)arg;
 	
 	switch (cmd) {
 	case CHIOGPARAMS:
@@ -651,7 +647,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		params.cp_nportals  = ch->counts[CHET_IE];
 		params.cp_ndrives   = ch->counts[CHET_DT];
 		
-		if (copy_to_user((void *) arg, &params, sizeof(params)))
+		if (copy_to_user(argp, &params, sizeof(params)))
 			return -EFAULT;
 		return 0;
 	}
@@ -676,7 +672,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			vparams.cvp_n4  = ch->counts[CHET_V4];
 			strncpy(vparams.cvp_label4,vendor_labels[3],16);
 		}
-		if (copy_to_user((void *) arg, &vparams, sizeof(vparams)))
+		if (copy_to_user(argp, &vparams, sizeof(vparams)))
 			return -EFAULT;
 		return 0;
 	}
@@ -685,7 +681,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_position pos;
 		
-		if (copy_from_user(&pos, (void*)arg, sizeof (pos)))
+		if (copy_from_user(&pos, argp, sizeof (pos)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, pos.cp_type, pos.cp_unit)) {
@@ -704,7 +700,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_move mv;
 
-		if (copy_from_user(&mv, (void*)arg, sizeof (mv)))
+		if (copy_from_user(&mv, argp, sizeof (mv)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, mv.cm_fromtype, mv.cm_fromunit) ||
@@ -726,7 +722,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_exchange mv;
 		
-		if (copy_from_user(&mv, (void*)arg, sizeof (mv)))
+		if (copy_from_user(&mv, argp, sizeof (mv)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, mv.ce_srctype,  mv.ce_srcunit ) ||
@@ -751,7 +747,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	{
 		struct changer_element_status ces;
 		
-		if (copy_from_user(&ces, (void*)arg, sizeof (ces)))
+		if (copy_from_user(&ces, argp, sizeof (ces)))
 			return -EFAULT;
 		if (ces.ces_type < 0 || ces.ces_type >= CH_TYPES)
 			return -EINVAL;
@@ -767,7 +763,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		unsigned int elem;
 		int     result,i;
 		
-		if (copy_from_user(&cge, (void*)arg, sizeof (cge)))
+		if (copy_from_user(&cge, argp, sizeof (cge)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, cge.cge_type, cge.cge_unit))
@@ -830,7 +826,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		kfree(buffer);
 		up(&ch->lock);
 		
-		if (copy_to_user((void*)arg, &cge, sizeof (cge)))
+		if (copy_to_user(argp, &cge, sizeof (cge)))
 			return -EFAULT;
 		return result;
 	}
@@ -848,7 +844,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		struct changer_set_voltag csv;
 		int elem;
 
-		if (copy_from_user(&csv, (void*)arg, sizeof(csv)))
+		if (copy_from_user(&csv, argp, sizeof(csv)))
 			return -EFAULT;
 
 		if (0 != ch_checkrange(ch, csv.csv_type, csv.csv_unit)) {
@@ -866,7 +862,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 	}
 
 	default:
-		return scsi_ioctl(ch->device, cmd, (void*)arg);
+		return scsi_ioctl(ch->device, cmd, argp);
 
 	}
 }
@@ -899,9 +895,9 @@ static long ch_ioctl_compat(struct file * file,
 	case CHIOGSTATUS32:
 	{
 		struct changer_element_status32 ces32;
-		unsigned char *data;
+		unsigned char __user *data;
 		
-		if (copy_from_user(&ces32, (void*)arg, sizeof (ces32)))
+		if (copy_from_user(&ces32, (void __user *)arg, sizeof (ces32)))
 			return -EFAULT;
 		if (ces32.ces_type < 0 || ces32.ces_type >= CH_TYPES)
 			return -EINVAL;
@@ -940,8 +936,6 @@ static int ch_probe(struct device *dev)
 	if (init)
 		ch_init_elem(ch);
 
-	devfs_mk_cdev(MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
-		      S_IFCHR | S_IRUGO | S_IWUGO, ch->name);
 	class_device_create(ch_sysfs_class,
 			    MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
 			    dev, "s%s", ch->name);
@@ -974,7 +968,6 @@ static int ch_remove(struct device *dev)
 
 	class_device_destroy(ch_sysfs_class,
 			     MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
-	devfs_remove(ch->name);
 	kfree(ch->dt);
 	kfree(ch);
 	ch_devcount--;

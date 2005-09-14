@@ -776,7 +776,7 @@ static int viodasd_remove(struct vio_dev *vdev)
  */
 static struct vio_device_id viodasd_device_table[] __devinitdata = {
 	{ "viodasd", "" },
-	{ 0, }
+	{ "", "" }
 };
 
 MODULE_DEVICE_TABLE(vio, viodasd_device_table);

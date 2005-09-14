@@ -810,12 +810,8 @@ qla24xx_start_scsi(srb_t *sp)
 			ha->req_q_cnt = ha->request_q_length -
 				(ha->req_ring_index - cnt);
 	}
-	if (ha->req_q_cnt < (req_cnt + 2)) {
-		if  (cmd->use_sg)
-			pci_unmap_sg(ha->pdev, sg, cmd->use_sg,
-					cmd->sc_data_direction);
+	if (ha->req_q_cnt < (req_cnt + 2))
 		goto queuing_error;
-	}
 
 	/* Build command packet. */
 	ha->current_outstanding_cmd = handle;

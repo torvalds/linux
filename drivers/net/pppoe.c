@@ -377,7 +377,8 @@ abort_kfree:
  ***********************************************************************/
 static int pppoe_rcv(struct sk_buff *skb,
 		     struct net_device *dev,
-		     struct packet_type *pt)
+		     struct packet_type *pt,
+		     struct net_device *orig_dev)
 
 {
 	struct pppoe_hdr *ph;
@@ -426,7 +427,8 @@ out:
  ***********************************************************************/
 static int pppoe_disc_rcv(struct sk_buff *skb,
 			  struct net_device *dev,
-			  struct packet_type *pt)
+			  struct packet_type *pt,
+			  struct net_device *orig_dev)
 
 {
 	struct pppoe_hdr *ph;

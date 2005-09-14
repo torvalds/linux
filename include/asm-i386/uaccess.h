@@ -83,30 +83,6 @@ extern struct movsl_mask {
  */
 #define access_ok(type,addr,size) (likely(__range_ok(addr,size) == 0))
 
-/**
- * verify_area: - Obsolete/deprecated and will go away soon,
- * use access_ok() instead.
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE
- * @addr: User space pointer to start of block to check
- * @size: Size of block to check
- *
- * Context: User context only.  This function may sleep.
- *
- * This function has been replaced by access_ok().
- *
- * Checks if a pointer to a block of memory in user space is valid.
- *
- * Returns zero if the memory block may be valid, -EFAULT
- * if it is definitely invalid.
- *
- * See access_ok() for more details.
- */
-static inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
-{
-	return access_ok(type,addr,size) ? 0 : -EFAULT;
-}
-
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is

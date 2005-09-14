@@ -30,6 +30,9 @@
 #define __ASM_ARCH_OMAP_H4_H
 
 /* Placeholder for H4 specific defines */
+/* GPMC CS1 */
+#define OMAP24XX_ETHR_START             0x08000300
+#define OMAP24XX_ETHR_GPIO_IRQ		92
 
 #endif /*  __ASM_ARCH_OMAP_H4_H */
 

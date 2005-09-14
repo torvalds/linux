@@ -50,9 +50,11 @@
 #include <asm/machdep.h>
 #include <asm/iSeries/HvCallHpt.h>
 #include <asm/cputable.h>
+#include <asm/firmware.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/time.h>
+#include <asm/plpar_wrappers.h>
 
 #ifndef CONFIG_SMP
 struct task_struct *last_task_used_math = NULL;
@@ -162,7 +164,30 @@ int dump_task_altivec(struct pt_regs *regs, elf_vrregset_t *vrregs)
 
 #endif /* CONFIG_ALTIVEC */
 
+static void set_dabr_spr(unsigned long val)
+{
+	mtspr(SPRN_DABR, val);
+}
+
+int set_dabr(unsigned long dabr)
+{
+	int ret = 0;
+
+	if (firmware_has_feature(FW_FEATURE_XDABR)) {
+		/* We want to catch accesses from kernel and userspace */
+		unsigned long flags = H_DABRX_KERNEL|H_DABRX_USER;
+		ret = plpar_set_xdabr(dabr, flags);
+	} else if (firmware_has_feature(FW_FEATURE_DABR)) {
+		ret = plpar_set_dabr(dabr);
+	} else {
+		set_dabr_spr(dabr);
+	}
+
+	return ret;
+}
+
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
+static DEFINE_PER_CPU(unsigned long, current_dabr);
 
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *new)
@@ -197,16 +222,20 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		new->thread.regs->msr |= MSR_VEC;
 #endif /* CONFIG_ALTIVEC */
 
+	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr)) {
+		set_dabr(new->thread.dabr);
+		__get_cpu_var(current_dabr) = new->thread.dabr;
+	}
+
 	flush_tlb_pending();
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
 
-/* Collect purr utilization data per process and per processor wise */
-/* purr is nothing but processor time base                          */
-
-#if defined(CONFIG_PPC_PSERIES)
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+	/* Collect purr utilization data per process and per processor
+	 * wise purr is nothing but processor time base
+	 */
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
 		long unsigned start_tb, current_tb;
 		start_tb = old_thread->start_tb;
@@ -214,8 +243,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		old_thread->accum_tb += (current_tb - start_tb);
 		new_thread->start_tb = current_tb;
 	}
-#endif
-
 
 	local_irq_save(flags);
 	last = _switch(old_thread, new_thread);
@@ -336,6 +363,11 @@ void flush_thread(void)
 		last_task_used_altivec = NULL;
 #endif /* CONFIG_ALTIVEC */
 #endif /* CONFIG_SMP */
+
+	if (current->thread.dabr) {
+		current->thread.dabr = 0;
+		set_dabr(0);
+	}
 }
 
 void

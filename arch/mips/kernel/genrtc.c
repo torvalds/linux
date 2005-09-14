@@ -14,7 +14,7 @@
 #include <asm/rtc.h>
 #include <asm/time.h>
 
-static spinlock_t mips_rtc_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mips_rtc_lock);
 
 unsigned int get_rtc_time(struct rtc_time *time)
 {

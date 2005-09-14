@@ -345,9 +345,6 @@ enum uhci_rh_state {
 
 /*
  * This describes the full uhci information.
- *
- * Note how the "proper" USB information is just
- * a subset of what the full implementation needs.
  */
 struct uhci_hcd {
 
@@ -359,8 +356,6 @@ struct uhci_hcd {
 
 	struct dma_pool *qh_pool;
 	struct dma_pool *td_pool;
-
-	struct usb_bus *bus;
 
 	struct uhci_td *term_td;	/* Terminating TD, see UHCI bug */
 	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QH's */
@@ -380,6 +375,8 @@ struct uhci_hcd {
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */
 	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
+	unsigned int working_RD:1;		/* Suspended root hub doesn't
+						   need to be polled */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
@@ -405,9 +402,7 @@ struct uhci_hcd {
 	/* List of URB's awaiting completion callback */
 	struct list_head complete_list;		/* P: uhci->lock */
 
-	int rh_numports;
-
-	struct timer_list stall_timer;
+	int rh_numports;			/* Number of root-hub ports */
 
 	wait_queue_head_t waitqh;		/* endpoint_disable waiters */
 };

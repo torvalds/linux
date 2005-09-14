@@ -67,8 +67,8 @@ void show_swap_cache_info(void)
  * __add_to_swap_cache resembles add_to_page_cache on swapper_space,
  * but sets SwapCache flag and private instead of mapping and index.
  */
-static int __add_to_swap_cache(struct page *page,
-		swp_entry_t entry, int gfp_mask)
+static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
+			       unsigned int __nocast gfp_mask)
 {
 	int error;
 
@@ -124,6 +124,7 @@ void __delete_from_swap_cache(struct page *page)
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!PageSwapCache(page));
 	BUG_ON(PageWriteback(page));
+	BUG_ON(PagePrivate(page));
 
 	radix_tree_delete(&swapper_space.page_tree, page->private);
 	page->private = 0;
@@ -196,11 +197,6 @@ void delete_from_swap_cache(struct page *page)
 {
 	swp_entry_t entry;
 
-	BUG_ON(!PageSwapCache(page));
-	BUG_ON(!PageLocked(page));
-	BUG_ON(PageWriteback(page));
-	BUG_ON(PagePrivate(page));
-  
 	entry.val = page->private;
 
 	write_lock_irq(&swapper_space.tree_lock);

@@ -137,69 +137,6 @@ struct sk_buff *dn_alloc_skb(struct sock *sk, int size, int pri)
 }
 
 /*
- * Wrapper for the above, for allocs of data skbs. We try and get the
- * whole size thats been asked for (plus 11 bytes of header). If this
- * fails, then we try for any size over 16 bytes for SOCK_STREAMS.
- */
-struct sk_buff *dn_alloc_send_skb(struct sock *sk, size_t *size, int noblock, long timeo, int *err)
-{
-	int space;
-	int len;
-	struct sk_buff *skb = NULL;
-
-	*err = 0;
-
-	while(skb == NULL) {
-		if (signal_pending(current)) {
-			*err = sock_intr_errno(timeo);
-			break;
-		}
-
-		if (sk->sk_shutdown & SEND_SHUTDOWN) {
-			*err = EINVAL;
-			break;
-		}
-
-		if (sk->sk_err)
-			break;
-
-		len = *size + 11;
-		space = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
-
-		if (space < len) {
-			if ((sk->sk_socket->type == SOCK_STREAM) &&
-			    (space >= (16 + 11)))
-				len = space;
-		}
-
-		if (space < len) {
-			set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
-			if (noblock) {
-				*err = EWOULDBLOCK;
-				break;
-			}
-
-			clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
-			SOCK_SLEEP_PRE(sk)
-
-			if ((sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc)) <
-			    len)
-				schedule();
-
-			SOCK_SLEEP_POST(sk)
-			continue;
-		}
-
-		if ((skb = dn_alloc_skb(sk, len, sk->sk_allocation)) == NULL)
-			continue;
-
-		*size = len - 11;
-	}
-
-	return skb;
-}
-
-/*
  * Calculate persist timer based upon the smoothed round
  * trip time and the variance. Backoff according to the
  * nsp_backoff[] array.
@@ -479,7 +416,7 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 		xmit_count = cb2->xmit_count;
 		segnum = cb2->segnum;
 		/* Remove and drop ack'ed packet */
-		skb_unlink(ack);
+		skb_unlink(ack, q);
 		kfree_skb(ack);
 		ack = NULL;
 

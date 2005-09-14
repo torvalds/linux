@@ -1,24 +1,42 @@
 /*
-
-    ata_piix.c - Intel PATA/SATA controllers
-
-    Maintained by:  Jeff Garzik <jgarzik@pobox.com>
-    		    Please ALWAYS copy linux-ide@vger.kernel.org
-		    on emails.
-
-
-	Copyright 2003-2004 Red Hat Inc
-	Copyright 2003-2004 Jeff Garzik
-
-
-	Copyright header from piix.c:
-
-    Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
-    Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
-    Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
-
-    May be copied or modified under the terms of the GNU General Public License
-
+ *    ata_piix.c - Intel PATA/SATA controllers
+ *
+ *    Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *    		    Please ALWAYS copy linux-ide@vger.kernel.org
+ *		    on emails.
+ *
+ *
+ *	Copyright 2003-2005 Red Hat Inc
+ *	Copyright 2003-2005 Jeff Garzik
+ *
+ *
+ *	Copyright header from piix.c:
+ *
+ *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
+ *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  Hardware documentation available at http://developer.intel.com/
+ *
  */
 
 #include <linux/kernel.h>
@@ -32,7 +50,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"ata_piix"
-#define DRV_VERSION	"1.03"
+#define DRV_VERSION	"1.04"
 
 enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
@@ -50,8 +68,8 @@ enum {
 	PIIX_COMB_PATA_P0	= (1 << 1),
 	PIIX_COMB		= (1 << 2), /* combined mode enabled? */
 
-	PIIX_PORT_PRESENT	= (1 << 0),
-	PIIX_PORT_ENABLED	= (1 << 4),
+	PIIX_PORT_ENABLED	= (1 << 0),
+	PIIX_PORT_PRESENT	= (1 << 4),
 
 	PIIX_80C_PRI		= (1 << 5) | (1 << 4),
 	PIIX_80C_SEC		= (1 << 7) | (1 << 6),
@@ -359,7 +377,9 @@ static void piix_pata_phy_reset(struct ata_port *ap)
  *	None (inherited from caller).
  *
  *	RETURNS:
- *	Non-zero if device detected, zero otherwise.
+ *	Non-zero if port is enabled, it may or may not have a device
+ *	attached in that case (PRESENT bit would only be set if BIOS probe
+ *	was done). Zero is returned if port is disabled.
  */
 static int piix_sata_probe (struct ata_port *ap)
 {
@@ -383,7 +403,7 @@ static int piix_sata_probe (struct ata_port *ap)
 	 */
 
 	for (i = 0; i < 4; i++) {
-		mask = (PIIX_PORT_PRESENT << i) | (PIIX_PORT_ENABLED << i);
+		mask = (PIIX_PORT_ENABLED << i);
 
 		if ((orig_mask & mask) == mask)
 			if (combined || (i == ap->hard_port_no))
@@ -548,25 +568,12 @@ static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	}
 }
 
-/* move to PCI layer, integrate w/ MSI stuff */
-static void pci_enable_intx(struct pci_dev *pdev)
-{
-	u16 pci_command;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-	if (pci_command & PCI_COMMAND_INTX_DISABLE) {
-		pci_command &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
-	}
-}
-
 #define AHCI_PCI_BAR 5
 #define AHCI_GLOBAL_CTL 0x04
 #define AHCI_ENABLE (1 << 31)
 static int piix_disable_ahci(struct pci_dev *pdev)
 {
-	void *mmio;
-	unsigned long addr;
+	void __iomem *mmio;
 	u32 tmp;
 	int rc = 0;
 
@@ -574,11 +581,11 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 	 * works because this device is usually set up by BIOS.
 	 */
 
-	addr = pci_resource_start(pdev, AHCI_PCI_BAR);
-	if (!addr || !pci_resource_len(pdev, AHCI_PCI_BAR))
+	if (!pci_resource_start(pdev, AHCI_PCI_BAR) ||
+	    !pci_resource_len(pdev, AHCI_PCI_BAR))
 		return 0;
 
-	mmio = ioremap(addr, 64);
+	mmio = pci_iomap(pdev, AHCI_PCI_BAR, 64);
 	if (!mmio)
 		return -ENOMEM;
 
@@ -592,7 +599,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 			rc = -EIO;
 	}
 
-	iounmap(mmio);
+	pci_iounmap(pdev, mmio);
 	return rc;
 }
 
@@ -629,13 +636,13 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	port_info[1] = NULL;
 
 	if (port_info[0]->host_flags & PIIX_FLAG_AHCI) {
-               u8 tmp;
-               pci_read_config_byte(pdev, PIIX_SCC, &tmp);
-               if (tmp == PIIX_AHCI_DEVICE) {
-                       int rc = piix_disable_ahci(pdev);
-                       if (rc)
-                           return rc;
-               }
+		u8 tmp;
+		pci_read_config_byte(pdev, PIIX_SCC, &tmp);
+		if (tmp == PIIX_AHCI_DEVICE) {
+			int rc = piix_disable_ahci(pdev);
+			if (rc)
+				return rc;
+		}
 	}
 
 	if (port_info[0]->host_flags & PIIX_FLAG_COMBINED) {
@@ -658,7 +665,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * message-signalled interrupts currently).
 	 */
 	if (port_info[0]->host_flags & PIIX_FLAG_CHECKINTR)
-		pci_enable_intx(pdev);
+		pci_intx(pdev, 1);
 
 	if (combined) {
 		port_info[sata_chan] = &piix_port_info[ent->driver_data];

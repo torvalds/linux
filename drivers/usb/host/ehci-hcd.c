@@ -400,6 +400,23 @@ static int ehci_hc_reset (struct usb_hcd *hcd)
 				return -EIO;
 			}
 			break;
+		case PCI_VENDOR_ID_NVIDIA:
+			/* NVidia reports that certain chips don't handle
+			 * QH, ITD, or SITD addresses above 2GB.  (But TD,
+			 * data buffer, and periodic schedule are normal.)
+			 */
+			switch (pdev->device) {
+			case 0x003c:	/* MCP04 */
+			case 0x005b:	/* CK804 */
+			case 0x00d8:	/* CK8 */
+			case 0x00e8:	/* CK8S */
+				if (pci_set_consistent_dma_mask(pdev,
+							DMA_31BIT_MASK) < 0)
+					ehci_warn (ehci, "can't enable NVidia "
+						"workaround for >2GB RAM\n");
+				break;
+			}
+			break;
 		}
 
 		/* optional debug port, normally in the first BAR */
@@ -549,7 +566,9 @@ static int ehci_start (struct usb_hcd *hcd)
 		hcd->can_wakeup = (port_wake & 1) != 0;
 
 		/* help hc dma work well with cachelines */
-		pci_set_mwi (pdev);
+		retval = pci_set_mwi(pdev);
+		if (retval)
+			ehci_dbg(ehci, "unable to enable MWI - not fatal.\n");
 	}
 #endif
 
@@ -757,12 +776,16 @@ static int ehci_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep (100);
 
-	/* If any port is suspended, we know we can/must resume the HC. */
+	/* If any port is suspended (or owned by the companion),
+	 * we know we can/must resume the HC (and mustn't reset it).
+	 */
 	for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; ) {
 		u32	status;
 		port--;
 		status = readl (&ehci->regs->port_status [port]);
-		if (status & PORT_SUSPEND) {
+		if (!(status & PORT_POWER))
+			continue;
+		if (status & (PORT_SUSPEND | PORT_OWNER)) {
 			down (&hcd->self.root_hub->serialize);
 			retval = ehci_hub_resume (hcd);
 			up (&hcd->self.root_hub->serialize);
@@ -1124,8 +1147,7 @@ rescan:
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 idle_timeout:
 		spin_unlock_irqrestore (&ehci->lock, flags);
-		set_current_state (TASK_UNINTERRUPTIBLE);
-		schedule_timeout (1);
+		schedule_timeout_uninterruptible(1);
 		goto rescan;
 	case QH_STATE_IDLE:		/* fully unlinked */
 		if (list_empty (&qh->qtd_list)) {

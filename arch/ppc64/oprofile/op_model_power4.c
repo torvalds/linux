@@ -16,14 +16,12 @@
 #include <asm/cputable.h>
 #include <asm/systemcfg.h>
 #include <asm/rtas.h>
+#include <asm/oprofile_impl.h>
 
 #define dbg(args...)
 
-#include "op_impl.h"
-
 static unsigned long reset_value[OP_MAX_COUNTER];
 
-static int num_counters;
 static int oprofile_running;
 static int mmcra_has_sihv;
 
@@ -44,8 +42,6 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 			     int num_ctrs)
 {
 	int i;
-
-	num_counters = num_ctrs;
 
 	/*
 	 * SIHV / SIPR bits are only implemented on POWER4+ (GQ) and above.
@@ -68,7 +64,7 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 
 	backtrace_spinlocks = sys->backtrace_spinlocks;
 
-	for (i = 0; i < num_counters; ++i)
+	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i)
 		reset_value[i] = 0x80000000UL - ctr[i].count;
 
 	/* setup user and kernel profiling */
@@ -121,7 +117,7 @@ static void power4_start(struct op_counter_config *ctr)
 	/* set the PMM bit (see comment below) */
 	mtmsrd(mfmsr() | MSR_PMM);
 
-	for (i = 0; i < num_counters; ++i) {
+	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i) {
 		if (ctr[i].enabled) {
 			ctr_write(i, reset_value[i]);
 		} else {
@@ -272,7 +268,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	/* set the PMM bit (see comment below) */
 	mtmsrd(mfmsr() | MSR_PMM);
 
-	for (i = 0; i < num_counters; ++i) {
+	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i) {
 		val = ctr_read(i);
 		if (val < 0) {
 			if (oprofile_running && ctr[i].enabled) {

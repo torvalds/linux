@@ -37,6 +37,7 @@
 #include <asm/ioctls.h>
 
 static atomic_t inotify_cookie;
+static atomic_t inotify_watches;
 
 static kmem_cache_t *watch_cachep;
 static kmem_cache_t *event_cachep;
@@ -353,7 +354,7 @@ static int inotify_dev_get_wd(struct inotify_device *dev,
 	do {
 		if (unlikely(!idr_pre_get(&dev->idr, GFP_KERNEL)))
 			return -ENOSPC;
-		ret = idr_get_new_above(&dev->idr, watch, dev->last_wd, &watch->wd);
+		ret = idr_get_new_above(&dev->idr, watch, dev->last_wd+1, &watch->wd);
 	} while (ret == -EAGAIN);
 
 	return ret;
@@ -402,7 +403,7 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	dev->last_wd = ret;
+	dev->last_wd = watch->wd;
 	watch->mask = mask;
 	atomic_set(&watch->count, 0);
 	INIT_LIST_HEAD(&watch->d_list);
@@ -422,6 +423,7 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 	get_inotify_watch(watch);
 
 	atomic_inc(&dev->user->inotify_watches);
+	atomic_inc(&inotify_watches);
 
 	return watch;
 }
@@ -454,6 +456,7 @@ static void remove_watch_no_event(struct inotify_watch *watch,
 	list_del(&watch->d_list);
 
 	atomic_dec(&dev->user->inotify_watches);
+	atomic_dec(&inotify_watches);
 	idr_remove(&dev->idr, watch->wd);
 	put_inotify_watch(watch);
 }
@@ -531,6 +534,9 @@ void inotify_dentry_parent_queue_event(struct dentry *dentry, u32 mask,
 {
 	struct dentry *parent;
 	struct inode *inode;
+
+	if (!atomic_read (&inotify_watches))
+		return;
 
 	spin_lock(&dentry->d_lock);
 	parent = dentry->d_parent;
@@ -925,6 +931,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	struct nameidata nd;
 	struct file *filp;
 	int ret, fput_needed;
+	int mask_add = 0;
 
 	filp = fget_light(fd, &fput_needed);
 	if (unlikely(!filp))
@@ -947,6 +954,9 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	down(&inode->inotify_sem);
 	down(&dev->sem);
 
+	if (mask & IN_MASK_ADD)
+		mask_add = 1;
+
 	/* don't let user-space set invalid bits: we don't want flags set */
 	mask &= IN_ALL_EVENTS;
 	if (unlikely(!mask)) {
@@ -960,7 +970,10 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	 */
 	old = inode_find_dev(inode, dev);
 	if (unlikely(old)) {
-		old->mask = mask;
+		if (mask_add)
+			old->mask |= mask;
+		else
+			old->mask = mask;
 		ret = old->wd;
 		goto out;
 	}
@@ -1043,6 +1056,7 @@ static int __init inotify_setup(void)
 	inotify_max_user_watches = 8192;
 
 	atomic_set(&inotify_cookie, 0);
+	atomic_set(&inotify_watches, 0);
 
 	watch_cachep = kmem_cache_create("inotify_watch_cache",
 					 sizeof(struct inotify_watch),

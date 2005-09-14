@@ -7,7 +7,7 @@
  */
 
 #include <asm/unistd.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 
 /* XXX
@@ -15,7 +15,7 @@
 */
 
 	.text
-	.org	__kernel_vsyscall+32
+	.org __kernel_vsyscall+32,0x90
 	.globl __kernel_sigreturn
 	.type __kernel_sigreturn,@function
 __kernel_sigreturn:
@@ -35,6 +35,7 @@ __kernel_rt_sigreturn:
 	int $0x80
 .LEND_rt_sigreturn:
 	.size __kernel_rt_sigreturn,.-.LSTART_rt_sigreturn
+	.balign 32
 	.previous
 
 	.section .eh_frame,"a",@progbits

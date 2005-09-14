@@ -1125,9 +1125,8 @@ static int xfrm_exp_state_notify(struct xfrm_state *x, struct km_event *c)
 	if (build_expire(skb, x, c->data.hard) < 0)
 		BUG();
 
-	NETLINK_CB(skb).dst_groups = XFRMGRP_EXPIRE;
-
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_EXPIRE, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_EXPIRE;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_EXPIRE, GFP_ATOMIC);
 }
 
 static int xfrm_notify_sa_flush(struct km_event *c)
@@ -1152,7 +1151,8 @@ static int xfrm_notify_sa_flush(struct km_event *c)
 
 	nlh->nlmsg_len = skb->tail - b;
 
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_SA, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_SA;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_SA, GFP_ATOMIC);
 
 nlmsg_failure:
 	kfree_skb(skb);
@@ -1226,7 +1226,8 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 
 	nlh->nlmsg_len = skb->tail - b;
 
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_SA, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_SA;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_SA, GFP_ATOMIC);
 
 nlmsg_failure:
 rtattr_failure:
@@ -1304,9 +1305,8 @@ static int xfrm_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *xt,
 	if (build_acquire(skb, x, xt, xp, dir) < 0)
 		BUG();
 
-	NETLINK_CB(skb).dst_groups = XFRMGRP_ACQUIRE;
-
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_ACQUIRE, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_ACQUIRE;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_ACQUIRE, GFP_ATOMIC);
 }
 
 /* User gives us xfrm_user_policy_info followed by an array of 0
@@ -1405,9 +1405,8 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 	if (build_polexpire(skb, xp, dir, c->data.hard) < 0)
 		BUG();
 
-	NETLINK_CB(skb).dst_groups = XFRMGRP_EXPIRE;
-
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_EXPIRE, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_EXPIRE;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_EXPIRE, GFP_ATOMIC);
 }
 
 static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c)
@@ -1455,7 +1454,8 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 
 	nlh->nlmsg_len = skb->tail - b;
 
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_POLICY, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_POLICY;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_POLICY, GFP_ATOMIC);
 
 nlmsg_failure:
 rtattr_failure:
@@ -1480,7 +1480,8 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 
 	nlh->nlmsg_len = skb->tail - b;
 
-	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_POLICY, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_POLICY;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_POLICY, GFP_ATOMIC);
 
 nlmsg_failure:
 	kfree_skb(skb);
@@ -1519,7 +1520,8 @@ static int __init xfrm_user_init(void)
 {
 	printk(KERN_INFO "Initializing IPsec netlink socket\n");
 
-	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, xfrm_netlink_rcv);
+	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
+	                                xfrm_netlink_rcv, THIS_MODULE);
 	if (xfrm_nl == NULL)
 		return -ENOMEM;
 
@@ -1537,3 +1539,4 @@ static void __exit xfrm_user_exit(void)
 module_init(xfrm_user_init);
 module_exit(xfrm_user_exit);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_XFRM);

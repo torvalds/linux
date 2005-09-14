@@ -51,7 +51,7 @@ struct mip_reg		*host_reg;
 int 			mip_port;
 unsigned long		mip_addr, host_addr;
 
-#if defined(CONFIG_X86_IO_APIC) && (defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_ACPI_BOOT))
+#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI)
 
 /*
  * GSI override for ES7000 platforms.
@@ -73,14 +73,31 @@ es7000_rename_gsi(int ioapic, int gsi)
 	return gsi;
 }
 
-#endif // (CONFIG_X86_IO_APIC) && (CONFIG_ACPI_INTERPRETER || CONFIG_ACPI_BOOT)
+#endif	/* (CONFIG_X86_IO_APIC) && (CONFIG_ACPI) */
+
+void __init
+setup_unisys ()
+{
+	/*
+	 * Determine the generation of the ES7000 currently running.
+	 *
+	 * es7000_plat = 1 if the machine is a 5xx ES7000 box
+	 * es7000_plat = 2 if the machine is a x86_64 ES7000 box
+	 *
+	 */
+	if (!(boot_cpu_data.x86 <= 15 && boot_cpu_data.x86_model <= 2))
+		es7000_plat = 2;
+	else
+		es7000_plat = 1;
+	ioapic_renumber_irq = es7000_rename_gsi;
+}
 
 /*
  * Parse the OEM Table
  */
 
 int __init
-parse_unisys_oem (char *oemptr, int oem_entries)
+parse_unisys_oem (char *oemptr)
 {
 	int                     i;
 	int 			success = 0;
@@ -95,7 +112,7 @@ parse_unisys_oem (char *oemptr, int oem_entries)
 
 	tp += 8;
 
-	for (i=0; i <= oem_entries; i++) {
+	for (i=0; i <= 6; i++) {
 		type = *tp++;
 		size = *tp++;
 		tp -= 2;
@@ -130,34 +147,18 @@ parse_unisys_oem (char *oemptr, int oem_entries)
 		default:
 			break;
 		}
-		if (i == 6) break;
 		tp += size;
 	}
 
 	if (success < 2) {
 		es7000_plat = 0;
-	} else {
-		printk("\nEnabling ES7000 specific features...\n");
-		/*
-		 * Determine the generation of the ES7000 currently running.
-		 *
-		 * es7000_plat = 0 if the machine is NOT a Unisys ES7000 box
-		 * es7000_plat = 1 if the machine is a 5xx ES7000 box
-		 * es7000_plat = 2 if the machine is a x86_64 ES7000 box
-		 *
-		 */
-		if (!(boot_cpu_data.x86 <= 15 && boot_cpu_data.x86_model <= 2))
-			es7000_plat = 2;
-		else
-			es7000_plat = 1;
-
-		ioapic_renumber_irq = es7000_rename_gsi;
-	}
+	} else
+		setup_unisys();
 	return es7000_plat;
 }
 
 int __init
-find_unisys_acpi_oem_table(unsigned long *oem_addr, int *length)
+find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
 	struct acpi_table_rsdp		*rsdp = NULL;
 	unsigned long			rsdp_phys = 0;
@@ -201,13 +202,11 @@ find_unisys_acpi_oem_table(unsigned long *oem_addr, int *length)
 				acpi_table_print(header, sdt.entry[i].pa);
 				t = (struct oem_table *) __acpi_map_table(sdt.entry[i].pa, header->length);
 				addr = (void *) __acpi_map_table(t->OEMTableAddr, t->OEMTableSize);
-				*length = header->length;
 				*oem_addr = (unsigned long) addr;
 				return 0;
 			}
 		}
 	}
-	Dprintk("ES7000: did not find Unisys ACPI OEM table!\n");
 	return -1;
 }
 

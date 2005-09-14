@@ -33,7 +33,8 @@ extern asmlinkage long compat_sys_sendmsg(int,struct compat_msghdr __user *,unsi
 extern asmlinkage long compat_sys_recvmsg(int,struct compat_msghdr __user *,unsigned);
 extern asmlinkage long compat_sys_getsockopt(int, int, int, char __user *, int __user *);
 extern int put_cmsg_compat(struct msghdr*, int, int, int, void *);
-extern int cmsghdr_from_user_compat_to_kern(struct msghdr *, unsigned char *,
-		int);
+
+struct sock;
+extern int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *, unsigned char *, int);
 
 #endif /* NET_COMPAT_H */

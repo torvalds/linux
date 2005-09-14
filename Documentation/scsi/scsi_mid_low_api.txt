@@ -373,13 +373,11 @@ Summary:
    scsi_activate_tcq - turn on tag command queueing
    scsi_add_device - creates new scsi device (lu) instance
    scsi_add_host - perform sysfs registration and SCSI bus scan.
-   scsi_add_timer - (re-)start timer on a SCSI command.
    scsi_adjust_queue_depth - change the queue depth on a SCSI device
    scsi_assign_lock - replace default host_lock with given lock
    scsi_bios_ptable - return copy of block device's partition table
    scsi_block_requests - prevent further commands being queued to given host
    scsi_deactivate_tcq - turn off tag command queueing
-   scsi_delete_timer - cancel timer on a SCSI command.
    scsi_host_alloc - return a new scsi_host instance whose refcount==1
    scsi_host_get - increments Scsi_Host instance's refcount
    scsi_host_put - decrements Scsi_Host instance's refcount (free if 0)
@@ -455,27 +453,6 @@ struct scsi_device * scsi_add_device(struct Scsi_Host *shost,
  *      Defined in: drivers/scsi/hosts.c
  **/
 int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
-
-
-/**
- * scsi_add_timer - (re-)start timer on a SCSI command.
- * @scmd:    pointer to scsi command instance
- * @timeout: duration of timeout in "jiffies"
- * @complete: pointer to function to call if timeout expires
- *
- *      Returns nothing
- *
- *      Might block: no
- *
- *      Notes: Each scsi command has its own timer, and as it is added
- *      to the queue, we set up the timer. When the command completes, 
- *      we cancel the timer. An LLD can use this function to change
- *      the existing timeout value.
- *
- *      Defined in: drivers/scsi/scsi_error.c
- **/
-void scsi_add_timer(struct scsi_cmnd *scmd, int timeout, 
-                    void (*complete)(struct scsi_cmnd *))
 
 
 /**
@@ -563,24 +540,6 @@ void scsi_block_requests(struct Scsi_Host * shost)
  *      Defined (inline) in: include/scsi/scsi_tcq.h
  **/
 void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
-
-
-/**
- * scsi_delete_timer - cancel timer on a SCSI command.
- * @scmd:    pointer to scsi command instance
- *
- *      Returns 1 if able to cancel timer else 0 (i.e. too late or already
- *      cancelled).
- *
- *      Might block: no [may in the future if it invokes del_timer_sync()]
- *
- *      Notes: All commands issued by upper levels already have a timeout
- *      associated with them. An LLD can use this function to cancel the
- *      timer.
- *
- *      Defined in: drivers/scsi/scsi_error.c
- **/
-int scsi_delete_timer(struct scsi_cmnd *scmd)
 
 
 /**

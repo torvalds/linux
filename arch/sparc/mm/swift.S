@@ -9,7 +9,7 @@
 #include <asm/asi.h>
 #include <asm/page.h>
 #include <asm/pgtsrmmu.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 	.text
 	.align	4

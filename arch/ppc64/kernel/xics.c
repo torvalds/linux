@@ -38,7 +38,7 @@ static void xics_mask_and_ack_irq(unsigned int irq);
 static void xics_end_irq(unsigned int irq);
 static void xics_set_affinity(unsigned int irq_nr, cpumask_t cpumask);
 
-struct hw_interrupt_type xics_pic = {
+static struct hw_interrupt_type xics_pic = {
 	.typename = " XICS     ",
 	.startup = xics_startup,
 	.enable = xics_enable_irq,
@@ -48,7 +48,7 @@ struct hw_interrupt_type xics_pic = {
 	.set_affinity = xics_set_affinity
 };
 
-struct hw_interrupt_type xics_8259_pic = {
+static struct hw_interrupt_type xics_8259_pic = {
 	.typename = " XICS/8259",
 	.ack = xics_mask_and_ack_irq,
 };
@@ -89,9 +89,8 @@ static struct xics_ipl __iomem *xics_per_cpu[NR_CPUS];
 static int xics_irq_8259_cascade = 0;
 static int xics_irq_8259_cascade_real = 0;
 static unsigned int default_server = 0xFF;
-/* also referenced in smp.c... */
-unsigned int default_distrib_server = 0;
-unsigned int interrupt_server_size = 8;
+static unsigned int default_distrib_server = 0;
+static unsigned int interrupt_server_size = 8;
 
 /*
  * XICS only has a single IPI, so encode the messages per CPU
@@ -99,10 +98,10 @@ unsigned int interrupt_server_size = 8;
 struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
 
 /* RTAS service tokens */
-int ibm_get_xive;
-int ibm_set_xive;
-int ibm_int_on;
-int ibm_int_off;
+static int ibm_get_xive;
+static int ibm_set_xive;
+static int ibm_int_on;
+static int ibm_int_off;
 
 typedef struct {
 	int (*xirr_info_get)(int cpu);
@@ -284,16 +283,17 @@ static void xics_enable_irq(unsigned int virq)
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
 	if (call_status != 0) {
-		printk(KERN_ERR "xics_enable_irq: irq=%d: ibm_set_xive "
-		       "returned %x\n", irq, call_status);
+		printk(KERN_ERR "xics_enable_irq: irq=%u: ibm_set_xive "
+		       "returned %d\n", irq, call_status);
+		printk("set_xive %x, server %x\n", ibm_set_xive, server);
 		return;
 	}
 
 	/* Now unmask the interrupt (often a no-op) */
 	call_status = rtas_call(ibm_int_on, 1, 1, NULL, irq);
 	if (call_status != 0) {
-		printk(KERN_ERR "xics_enable_irq: irq=%d: ibm_int_on "
-		       "returned %x\n", irq, call_status);
+		printk(KERN_ERR "xics_enable_irq: irq=%u: ibm_int_on "
+		       "returned %d\n", irq, call_status);
 		return;
 	}
 }
@@ -308,8 +308,8 @@ static void xics_disable_real_irq(unsigned int irq)
 
 	call_status = rtas_call(ibm_int_off, 1, 1, NULL, irq);
 	if (call_status != 0) {
-		printk(KERN_ERR "xics_disable_real_irq: irq=%d: "
-		       "ibm_int_off returned %x\n", irq, call_status);
+		printk(KERN_ERR "xics_disable_real_irq: irq=%u: "
+		       "ibm_int_off returned %d\n", irq, call_status);
 		return;
 	}
 
@@ -317,8 +317,8 @@ static void xics_disable_real_irq(unsigned int irq)
 	/* Have to set XIVE to 0xff to be able to remove a slot */
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server, 0xff);
 	if (call_status != 0) {
-		printk(KERN_ERR "xics_disable_irq: irq=%d: ibm_set_xive(0xff)"
-		       " returned %x\n", irq, call_status);
+		printk(KERN_ERR "xics_disable_irq: irq=%u: ibm_set_xive(0xff)"
+		       " returned %d\n", irq, call_status);
 		return;
 	}
 }
@@ -380,7 +380,7 @@ int xics_get_irq(struct pt_regs *regs)
 		if (irq == NO_IRQ)
 			irq = real_irq_to_virt_slowpath(vec);
 		if (irq == NO_IRQ) {
-			printk(KERN_ERR "Interrupt %d (real) is invalid,"
+			printk(KERN_ERR "Interrupt %u (real) is invalid,"
 			       " disabling it.\n", vec);
 			xics_disable_real_irq(vec);
 		} else
@@ -622,7 +622,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
 
 	if (status) {
-		printk(KERN_ERR "xics_set_affinity: irq=%d ibm,get-xive "
+		printk(KERN_ERR "xics_set_affinity: irq=%u ibm,get-xive "
 		       "returns %d\n", irq, status);
 		return;
 	}
@@ -641,7 +641,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 				irq, newmask, xics_status[1]);
 
 	if (status) {
-		printk(KERN_ERR "xics_set_affinity: irq=%d ibm,set-xive "
+		printk(KERN_ERR "xics_set_affinity: irq=%u ibm,set-xive "
 		       "returns %d\n", irq, status);
 		return;
 	}
@@ -720,7 +720,7 @@ void xics_migrate_irqs_away(void)
 
 		status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
 		if (status) {
-			printk(KERN_ERR "migrate_irqs_away: irq=%d "
+			printk(KERN_ERR "migrate_irqs_away: irq=%u "
 					"ibm,get-xive returns %d\n",
 					virq, status);
 			goto unlock;
@@ -734,7 +734,7 @@ void xics_migrate_irqs_away(void)
 		if (xics_status[0] != get_hard_smp_processor_id(cpu))
 			goto unlock;
 
-		printk(KERN_WARNING "IRQ %d affinity broken off cpu %u\n",
+		printk(KERN_WARNING "IRQ %u affinity broken off cpu %u\n",
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */

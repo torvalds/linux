@@ -141,12 +141,18 @@ xfs_find_handle(
 		return -XFS_ERROR(EINVAL);
 	}
 
-	/* we need the vnode */
-	vp = LINVFS_GET_VP(inode);
-	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
+	case S_IFDIR:
+	case S_IFLNK:
+		break;
+	default:
 		iput(inode);
 		return -XFS_ERROR(EBADF);
 	}
+
+	/* we need the vnode */
+	vp = LINVFS_GET_VP(inode);
 
 	/* now we can grab the fsid */
 	memcpy(&handle.ha_fsid, vp->v_vfsp->vfs_altfsid, sizeof(xfs_fsid_t));
@@ -386,7 +392,7 @@ xfs_readlink_by_handle(
 		return -error;
 
 	/* Restrict this handle operation to symlinks only. */
-	if (vp->v_type != VLNK) {
+	if (!S_ISLNK(inode->i_mode)) {
 		VN_RELE(vp);
 		return -XFS_ERROR(EINVAL);
 	}
@@ -982,10 +988,10 @@ xfs_ioc_space(
 	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
 		return -XFS_ERROR(EPERM);
 
-	if (!(filp->f_flags & FMODE_WRITE))
+	if (!(filp->f_mode & FMODE_WRITE))
 		return -XFS_ERROR(EBADF);
 
-	if (vp->v_type != VREG)
+	if (!VN_ISREG(vp))
 		return -XFS_ERROR(EINVAL);
 
 	if (copy_from_user(&bf, arg, sizeof(bf)))

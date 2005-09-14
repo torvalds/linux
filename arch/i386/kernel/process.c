@@ -164,7 +164,7 @@ static inline void play_dead(void)
 	 */
 	local_irq_disable();
 	while (1)
-		__asm__ __volatile__("hlt":::"memory");
+		halt();
 }
 #else
 static inline void play_dead(void)
@@ -313,16 +313,12 @@ void show_regs(struct pt_regs * regs)
 	printk(" DS: %04x ES: %04x\n",
 		0xffff & regs->xds,0xffff & regs->xes);
 
-	__asm__("movl %%cr0, %0": "=r" (cr0));
-	__asm__("movl %%cr2, %0": "=r" (cr2));
-	__asm__("movl %%cr3, %0": "=r" (cr3));
-	/* This could fault if %cr4 does not exist */
-	__asm__("1: movl %%cr4, %0		\n"
-		"2:				\n"
-		".section __ex_table,\"a\"	\n"
-		".long 1b,2b			\n"
-		".previous			\n"
-		: "=r" (cr4): "0" (0));
+	cr0 = read_cr0();
+	cr2 = read_cr2();
+	cr3 = read_cr3();
+	if (current_cpu_data.x86 > 4) {
+		cr4 = read_cr4();
+	}
 	printk("CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n", cr0, cr2, cr3, cr4);
 	show_trace(NULL, &regs->esp);
 }
@@ -682,21 +678,26 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	__unlazy_fpu(prev_p);
 
 	/*
-	 * Reload esp0, LDT and the page table pointer:
+	 * Reload esp0.
 	 */
 	load_esp0(tss, next);
+
+	/*
+	 * Save away %fs and %gs. No need to save %es and %ds, as
+	 * those are always kernel segments while inside the kernel.
+	 * Doing this before setting the new TLS descriptors avoids
+	 * the situation where we temporarily have non-reloadable
+	 * segments in %fs and %gs.  This could be an issue if the
+	 * NMI handler ever used %fs or %gs (it does not today), or
+	 * if the kernel is running inside of a hypervisor layer.
+	 */
+	savesegment(fs, prev->fs);
+	savesegment(gs, prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
 	 */
 	load_TLS(next, cpu);
-
-	/*
-	 * Save away %fs and %gs. No need to save %es and %ds, as
-	 * those are always kernel segments while inside the kernel.
-	 */
-	asm volatile("mov %%fs,%0":"=m" (prev->fs));
-	asm volatile("mov %%gs,%0":"=m" (prev->gs));
 
 	/*
 	 * Restore %fs and %gs if needed.
@@ -709,6 +710,12 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	if (prev->gs | next->gs)
 		loadsegment(gs, next->gs);
+
+	/*
+	 * Restore IOPL if needed.
+	 */
+	if (unlikely(prev->iopl != next->iopl))
+		set_iopl_mask(next->iopl);
 
 	/*
 	 * Now maybe reload the debug registers

@@ -35,6 +35,7 @@
 #define __LINUX_IPMI_H
 
 #include <linux/ipmi_msgdefs.h>
+#include <linux/compiler.h>
 
 /*
  * This file describes an interface to an IPMI driver.  You have to
@@ -241,7 +242,8 @@ struct ipmi_recv_msg
 	/* The user_msg_data is the data supplied when a message was
 	   sent, if this is a response to a sent message.  If this is
 	   not a response to a sent message, then user_msg_data will
-	   be NULL. */
+	   be NULL.  If the user above is NULL, then this will be the
+	   intf. */
 	void             *user_msg_data;
 
 	/* Call this when done with the message.  It will presumably free
@@ -298,13 +300,19 @@ void ipmi_get_version(ipmi_user_t   user,
    this user, so it will affect all users of this interface.  This is
    so some initialization code can come in and do the OEM-specific
    things it takes to determine your address (if not the BMC) and set
-   it for everyone else. */
-void ipmi_set_my_address(ipmi_user_t   user,
-			 unsigned char address);
-unsigned char ipmi_get_my_address(ipmi_user_t user);
-void ipmi_set_my_LUN(ipmi_user_t   user,
-		     unsigned char LUN);
-unsigned char ipmi_get_my_LUN(ipmi_user_t user);
+   it for everyone else.  Note that each channel can have its own address. */
+int ipmi_set_my_address(ipmi_user_t   user,
+			unsigned int  channel,
+			unsigned char address);
+int ipmi_get_my_address(ipmi_user_t   user,
+			unsigned int  channel,
+			unsigned char *address);
+int ipmi_set_my_LUN(ipmi_user_t   user,
+		    unsigned int  channel,
+		    unsigned char LUN);
+int ipmi_get_my_LUN(ipmi_user_t   user,
+		    unsigned int  channel,
+		    unsigned char *LUN);
 
 /*
  * Like ipmi_request, but lets you specify the number of retries and
@@ -585,6 +593,16 @@ struct ipmi_cmdspec
  * things it takes to determine your address (if not the BMC) and set
  * it for everyone else.  You should probably leave the LUN alone.
  */
+struct ipmi_channel_lun_address_set
+{
+	unsigned short channel;
+	unsigned char  value;
+};
+#define IPMICTL_SET_MY_CHANNEL_ADDRESS_CMD _IOR(IPMI_IOC_MAGIC, 24, struct ipmi_channel_lun_address_set)
+#define IPMICTL_GET_MY_CHANNEL_ADDRESS_CMD _IOR(IPMI_IOC_MAGIC, 25, struct ipmi_channel_lun_address_set)
+#define IPMICTL_SET_MY_CHANNEL_LUN_CMD	   _IOR(IPMI_IOC_MAGIC, 26, struct ipmi_channel_lun_address_set)
+#define IPMICTL_GET_MY_CHANNEL_LUN_CMD	   _IOR(IPMI_IOC_MAGIC, 27, struct ipmi_channel_lun_address_set)
+/* Legacy interfaces, these only set IPMB 0. */
 #define IPMICTL_SET_MY_ADDRESS_CMD	_IOR(IPMI_IOC_MAGIC, 17, unsigned int)
 #define IPMICTL_GET_MY_ADDRESS_CMD	_IOR(IPMI_IOC_MAGIC, 18, unsigned int)
 #define IPMICTL_SET_MY_LUN_CMD		_IOR(IPMI_IOC_MAGIC, 19, unsigned int)

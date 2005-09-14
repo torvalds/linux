@@ -481,10 +481,11 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	/* Set up Signal Frame */
 	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
-	if (ret && !(ka->sa.sa_flags & SA_NODEFER)) {
+	if (ret) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-		sigaddset(&current->blocked,sig);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked,sig);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}
@@ -549,6 +550,15 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		/* Whee!  Actually deliver the signal.  */
 		if (TRAP(regs) == 0x0C00)
 			syscall_restart(regs, &ka);
+
+		/*
+		 * Reenable the DABR before delivering the signal to
+		 * user space. The DABR will have been cleared if it
+		 * triggered inside the kernel.
+		 */
+		if (current->thread.dabr)
+			set_dabr(current->thread.dabr);
+
 		return handle_signal(signr, &ka, &info, oldset, regs);
 	}
 

@@ -39,7 +39,6 @@
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
-#include <video/w100fb.h>
 
 #include "generic.h"
 
@@ -60,6 +59,15 @@ static struct scoop_config corgi_scoop_setup = {
 	.io_out		= CORGI_SCOOP_IO_OUT,
 };
 
+static struct scoop_pcmcia_dev corgi_pcmcia_scoop[] = {
+{
+	.dev        = &corgiscoop_device.dev,
+	.irq        = CORGI_IRQ_GPIO_CF_IRQ,
+	.cd_irq     = CORGI_IRQ_GPIO_CF_CD,
+	.cd_irq_str = "PCMCIA0 CD",
+},
+};
+
 struct platform_device corgiscoop_device = {
 	.name		= "sharp-scoop",
 	.id		= -1,
@@ -78,41 +86,12 @@ struct platform_device corgiscoop_device = {
  * also use scoop functions and this makes the power up/down order
  * work correctly.
  */
-static struct platform_device corgissp_device = {
+struct platform_device corgissp_device = {
 	.name		= "corgi-ssp",
 	.dev		= {
  		.parent = &corgiscoop_device.dev,
 	},
 	.id		= -1,
-};
-
-
-/*
- * Corgi w100 Frame Buffer Device
- */
-static struct w100fb_mach_info corgi_fb_info = {
-	.w100fb_ssp_send 	= corgi_ssp_lcdtg_send,
-	.comadj 			= -1,
-	.phadadj 			= -1,
-};
-
-static struct resource corgi_fb_resources[] = {
-	[0] = {
-		.start		= 0x08000000,
-		.end		= 0x08ffffff,
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device corgifb_device = {
-	.name		= "w100fb",
-	.id		= -1,
-	.dev		= {
- 		.platform_data	= &corgi_fb_info,
- 		.parent = &corgissp_device.dev,
-	},
-	.num_resources	= ARRAY_SIZE(corgi_fb_resources),
-	.resource	= corgi_fb_resources,
 };
 
 
@@ -129,29 +108,35 @@ static struct platform_device corgibl_device = {
 
 
 /*
+ * Corgi Keyboard Device
+ */
+static struct platform_device corgikbd_device = {
+	.name		= "corgi-keyboard",
+	.id		= -1,
+};
+
+
+/*
+ * Corgi Touch Screen Device
+ */
+static struct platform_device corgits_device = {
+	.name		= "corgi-ts",
+	.dev		= {
+ 		.parent = &corgissp_device.dev,
+	},
+	.id		= -1,
+};
+
+
+/*
  * MMC/SD Device
  *
- * The card detect interrupt isn't debounced so we delay it by HZ/4
+ * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-static struct mmc_detect {
-	struct timer_list detect_timer;
-	void *devid;
-} mmc_detect;
+static struct pxamci_platform_data corgi_mci_platform_data;
 
-static void mmc_detect_callback(unsigned long data)
-{
-	mmc_detect_change(mmc_detect.devid);
-}
-
-static irqreturn_t corgi_mmc_detect_int(int irq, void *devid, struct pt_regs *regs)
-{
-	mmc_detect.devid=devid;
-	mod_timer(&mmc_detect.detect_timer, jiffies + HZ/4);
-	return IRQ_HANDLED;
-}
-
-static int corgi_mci_init(struct device *dev, irqreturn_t (*unused_detect_int)(int, void *, struct pt_regs *), void *data)
+static int corgi_mci_init(struct device *dev, irqreturn_t (*corgi_detect_int)(int, void *, struct pt_regs *), void *data)
 {
 	int err;
 
@@ -161,11 +146,9 @@ static int corgi_mci_init(struct device *dev, irqreturn_t (*unused_detect_int)(i
 	pxa_gpio_mode(CORGI_GPIO_nSD_DETECT | GPIO_IN);
 	pxa_gpio_mode(CORGI_GPIO_SD_PWR | GPIO_OUT);
 
-	init_timer(&mmc_detect.detect_timer);
-	mmc_detect.detect_timer.function = mmc_detect_callback;
-	mmc_detect.detect_timer.data = (unsigned long) &mmc_detect;
+	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_mmc_detect_int, SA_INTERRUPT,
+	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int, SA_INTERRUPT,
 			     "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "corgi_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
@@ -190,18 +173,24 @@ static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
 	}
 }
 
+static int corgi_mci_get_ro(struct device *dev)
+{
+	return GPLR(CORGI_GPIO_nSD_WP) & GPIO_bit(CORGI_GPIO_nSD_WP);
+}
+
 static void corgi_mci_exit(struct device *dev, void *data)
 {
 	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
-	del_timer(&mmc_detect.detect_timer);
 }
 
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 		= corgi_mci_init,
+	.get_ro		= corgi_mci_get_ro,
 	.setpower 	= corgi_mci_setpower,
 	.exit		= corgi_mci_exit,
 };
+
 
 
 /*
@@ -229,17 +218,19 @@ static struct platform_device *devices[] __initdata = {
 	&corgiscoop_device,
 	&corgissp_device,
 	&corgifb_device,
+	&corgikbd_device,
 	&corgibl_device,
+	&corgits_device,
 };
 
 static void __init corgi_init(void)
 {
-	corgi_fb_info.comadj=sharpsl_param.comadj;
-	corgi_fb_info.phadadj=sharpsl_param.phadadj;
-
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
+
+	scoop_num = 1;
+	scoop_devs = &corgi_pcmcia_scoop[0];
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

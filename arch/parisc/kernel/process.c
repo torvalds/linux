@@ -47,7 +47,7 @@
 #include <linux/kallsyms.h>
 
 #include <asm/io.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/pgalloc.h>

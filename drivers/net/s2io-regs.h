@@ -1,5 +1,5 @@
 /************************************************************************
- * regs.h: A Linux PCI-X Ethernet driver for S2IO 10GbE Server NIC
+ * regs.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
  * Copyright(c) 2002-2005 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
@@ -62,6 +62,7 @@ typedef struct _XENA_dev_config {
 #define ADAPTER_STATUS_RMAC_REMOTE_FAULT   BIT(6)
 #define ADAPTER_STATUS_RMAC_LOCAL_FAULT    BIT(7)
 #define ADAPTER_STATUS_RMAC_PCC_IDLE       vBIT(0xFF,8,8)
+#define ADAPTER_STATUS_RMAC_PCC_FOUR_IDLE  vBIT(0x0F,8,8)
 #define ADAPTER_STATUS_RC_PRC_QUIESCENT    vBIT(0xFF,16,8)
 #define ADAPTER_STATUS_MC_DRAM_READY       BIT(24)
 #define ADAPTER_STATUS_MC_QUEUES_READY     BIT(25)
@@ -77,21 +78,34 @@ typedef struct _XENA_dev_config {
 #define ADAPTER_ECC_EN                     BIT(55)
 
 	u64 serr_source;
-#define SERR_SOURCE_PIC					BIT(0)
-#define SERR_SOURCE_TXDMA				BIT(1)
-#define SERR_SOURCE_RXDMA				BIT(2)
+#define SERR_SOURCE_PIC			BIT(0)
+#define SERR_SOURCE_TXDMA		BIT(1)
+#define SERR_SOURCE_RXDMA		BIT(2)
 #define SERR_SOURCE_MAC                 BIT(3)
 #define SERR_SOURCE_MC                  BIT(4)
 #define SERR_SOURCE_XGXS                BIT(5)
-#define	SERR_SOURCE_ANY					(SERR_SOURCE_PIC		| \
-										SERR_SOURCE_TXDMA	| \
-										SERR_SOURCE_RXDMA	| \
-										SERR_SOURCE_MAC		| \
-										SERR_SOURCE_MC      | \
-										SERR_SOURCE_XGXS)
+#define	SERR_SOURCE_ANY			(SERR_SOURCE_PIC	| \
+					SERR_SOURCE_TXDMA	| \
+					SERR_SOURCE_RXDMA	| \
+					SERR_SOURCE_MAC		| \
+					SERR_SOURCE_MC		| \
+					SERR_SOURCE_XGXS)
 
+	u64 pci_mode;
+#define	GET_PCI_MODE(val)		((val & vBIT(0xF, 0, 4)) >> 60)
+#define	PCI_MODE_PCI_33			0
+#define	PCI_MODE_PCI_66			0x1
+#define	PCI_MODE_PCIX_M1_66		0x2
+#define	PCI_MODE_PCIX_M1_100		0x3
+#define	PCI_MODE_PCIX_M1_133		0x4
+#define	PCI_MODE_PCIX_M2_66		0x5
+#define	PCI_MODE_PCIX_M2_100		0x6
+#define	PCI_MODE_PCIX_M2_133		0x7
+#define	PCI_MODE_UNSUPPORTED		BIT(0)
+#define	PCI_MODE_32_BITS		BIT(8)
+#define	PCI_MODE_UNKNOWN_MODE		BIT(9)
 
-	u8 unused_0[0x800 - 0x120];
+	u8 unused_0[0x800 - 0x128];
 
 /* PCI-X Controller registers */
 	u64 pic_int_status;
@@ -153,7 +167,11 @@ typedef struct _XENA_dev_config {
 	u8 unused4[0x08];
 
 	u64 gpio_int_reg;
+#define GPIO_INT_REG_LINK_DOWN                 BIT(1)
+#define GPIO_INT_REG_LINK_UP                   BIT(2)
 	u64 gpio_int_mask;
+#define GPIO_INT_MASK_LINK_DOWN                BIT(1)
+#define GPIO_INT_MASK_LINK_UP                  BIT(2)
 	u64 gpio_alarms;
 
 	u8 unused5[0x38];
@@ -223,19 +241,16 @@ typedef struct _XENA_dev_config {
 	u64 xmsi_data;
 
 	u64 rx_mat;
+#define RX_MAT_SET(ring, msi)			vBIT(msi, (8 * ring), 8)
 
 	u8 unused6[0x8];
 
-	u64 tx_mat0_7;
-	u64 tx_mat8_15;
-	u64 tx_mat16_23;
-	u64 tx_mat24_31;
-	u64 tx_mat32_39;
-	u64 tx_mat40_47;
-	u64 tx_mat48_55;
-	u64 tx_mat56_63;
+	u64 tx_mat0_n[0x8];
+#define TX_MAT_SET(fifo, msi)			vBIT(msi, (8 * fifo), 8)
 
-	u8 unused_1[0x10];
+	u8 unused_1[0x8];
+	u64 stat_byte_cnt;
+#define STAT_BC(n)                              vBIT(n,4,12)
 
 	/* Automated statistics collection */
 	u64 stat_cfg;
@@ -246,6 +261,7 @@ typedef struct _XENA_dev_config {
 #define STAT_TRSF_PER(n)           TBD
 #define	PER_SEC					   0x208d5
 #define	SET_UPDT_PERIOD(n)		   vBIT((PER_SEC*n),32,32)
+#define	SET_UPDT_CLICKS(val)		   vBIT(val, 32, 32)
 
 	u64 stat_addr;
 
@@ -267,8 +283,15 @@ typedef struct _XENA_dev_config {
 
 	u64 gpio_control;
 #define GPIO_CTRL_GPIO_0		BIT(8)
+	u64 misc_control;
+#define MISC_LINK_STABILITY_PRD(val)   vBIT(val,29,3)
 
-	u8 unused7[0x600];
+	u8 unused7_1[0x240 - 0x208];
+
+	u64 wreq_split_mask;
+#define	WREQ_SPLIT_MASK_SET_MASK(val)	vBIT(val, 52, 12)
+
+	u8 unused7_2[0x800 - 0x248];
 
 /* TxDMA registers */
 	u64 txdma_int_status;
@@ -290,6 +313,7 @@ typedef struct _XENA_dev_config {
 
 	u64 pcc_err_reg;
 #define PCC_FB_ECC_DB_ERR		vBIT(0xFF, 16, 8)
+#define PCC_ENABLE_FOUR			vBIT(0x0F,0,8)
 
 	u64 pcc_err_mask;
 	u64 pcc_err_alarm;
@@ -468,6 +492,7 @@ typedef struct _XENA_dev_config {
 #define PRC_CTRL_NO_SNOOP                      (BIT(22)|BIT(23))
 #define PRC_CTRL_NO_SNOOP_DESC                 BIT(22)
 #define PRC_CTRL_NO_SNOOP_BUFF                 BIT(23)
+#define PRC_CTRL_BIMODAL_INTERRUPT             BIT(37)
 #define PRC_CTRL_RXD_BACKOFF_INTERVAL(val)     vBIT(val,40,24)
 
 	u64 prc_alarm_action;
@@ -688,9 +713,16 @@ typedef struct _XENA_dev_config {
 	u64 mc_err_reg;
 #define MC_ERR_REG_ECC_DB_ERR_L            BIT(14)
 #define MC_ERR_REG_ECC_DB_ERR_U            BIT(15)
+#define MC_ERR_REG_MIRI_ECC_DB_ERR_0       BIT(18)
+#define MC_ERR_REG_MIRI_ECC_DB_ERR_1       BIT(20)
 #define MC_ERR_REG_MIRI_CRI_ERR_0          BIT(22)
 #define MC_ERR_REG_MIRI_CRI_ERR_1          BIT(23)
 #define MC_ERR_REG_SM_ERR                  BIT(31)
+#define MC_ERR_REG_ECC_ALL_SNG		   (BIT(2) | BIT(3) | BIT(4) | BIT(5) |\
+					    BIT(6) | BIT(7) | BIT(17) | BIT(19))
+#define MC_ERR_REG_ECC_ALL_DBL		   (BIT(10) | BIT(11) | BIT(12) |\
+					    BIT(13) | BIT(14) | BIT(15) |\
+					    BIT(18) | BIT(20))
 	u64 mc_err_mask;
 	u64 mc_err_alarm;
 
@@ -736,7 +768,19 @@ typedef struct _XENA_dev_config {
 	u64 mc_rldram_test_d1;
 	u8 unused24[0x300 - 0x288];
 	u64 mc_rldram_test_d2;
-	u8 unused25[0x700 - 0x308];
+
+	u8 unused24_1[0x360 - 0x308];
+	u64 mc_rldram_ctrl;
+#define	MC_RLDRAM_ENABLE_ODT		BIT(7)
+
+	u8 unused24_2[0x640 - 0x368];
+	u64 mc_rldram_ref_per_herc;
+#define	MC_RLDRAM_SET_REF_PERIOD(val)	vBIT(val, 0, 16)
+
+	u8 unused24_3[0x660 - 0x648];
+	u64 mc_rldram_mrs_herc;
+
+	u8 unused25[0x700 - 0x668];
 	u64 mc_debug_ctrl;
 
 	u8 unused26[0x3000 - 0x2f08];

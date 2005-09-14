@@ -98,7 +98,7 @@ static char bcast_addr[6]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
 static char bpq_eth_addr[6];
 
-static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *);
+static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 static int bpq_device_event(struct notifier_block *, unsigned long, void *);
 static const char *bpq_print_ethaddr(const unsigned char *);
 
@@ -165,7 +165,7 @@ static inline int dev_is_ethdev(struct net_device *dev)
 /*
  *	Receive an AX.25 frame via an ethernet interface.
  */
-static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *ptype)
+static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *ptype, struct net_device *orig_dev)
 {
 	int len;
 	char * ptr;
@@ -488,7 +488,7 @@ static void bpq_setup(struct net_device *dev)
 	dev->flags      = 0;
 
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header     = ax25_encapsulate;
+	dev->hard_header     = ax25_hard_header;
 	dev->rebuild_header  = ax25_rebuild_header;
 #endif
 

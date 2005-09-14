@@ -64,6 +64,9 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_BUST_SPINLOCK
 	bool
 
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+
 config GENERIC_ISA_DMA
 	bool
 
@@ -150,6 +153,7 @@ config ARCH_RPC
 	select ARCH_ACORN
 	select FIQ
 	select TIMER_ACORN
+	select ARCH_MAY_HAVE_PC_FDC
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -310,7 +314,7 @@ menu "Kernel Features"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL #&& n
+	depends on EXPERIMENTAL && BROKEN #&& n
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -322,8 +326,8 @@ config SMP
 	  processor machines. On a single processor machine, the kernel will
 	  run faster if you say N here.
 
-	  See also the <file:Documentation/smp.tex>,
-	  <file:Documentation/smp.txt>, <file:Documentation/i386/IO-APIC.txt>,
+	  See also the <file:Documentation/smp.txt>,
+	  <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.linuxdoc.org/docs.html#howto>.
 
@@ -365,8 +369,8 @@ config NO_IDLE_HZ
 
 	  Please note that dynamic tick may affect the accuracy of
 	  timekeeping on some platforms depending on the implementation.
-	  Currently at least OMAP platform is known to have accurate
-	  timekeeping with dynamic tick.
+	  Currently at least OMAP, PXA2xx and SA11x0 platforms are known
+	  to have accurate timekeeping with dynamic tick.
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
@@ -635,10 +639,6 @@ config PM
 	  and the Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  Note that, even if you say N here, Linux on the x86 architecture
-	  will issue the hlt instruction if nothing is to be done, thereby
-	  sending the processor to sleep and saving power.
-
 config APM
 	tristate "Advanced Power Management Emulation"
 	depends on PM
@@ -650,12 +650,6 @@ config APM
 	  battery status information, and user-space programs will receive
 	  notification of APM "events" (e.g. battery status change).
 
-	  If you select "Y" here, you can disable actual use of the APM
-	  BIOS by passing the "apm=off" option to the kernel at boot time.
-
-	  Note that the APM support is almost completely disabled for
-	  machines with more than one CPU.
-
 	  In order to use APM, you will need supporting software. For location
 	  and more information, read <file:Documentation/pm.txt> and the
 	  Battery Powered Linux mini-HOWTO, available from
@@ -665,38 +659,11 @@ config APM
 	  manpage ("man 8 hdparm") for that), and it doesn't turn off
 	  VESA-compliant "green" monitors.
 
-	  This driver does not support the TI 4000M TravelMate and the ACER
-	  486/DX4/75 because they don't have compliant BIOSes. Many "green"
-	  desktop machines also don't have compliant BIOSes, and this driver
-	  may cause those machines to panic during the boot phase.
-
 	  Generally, if you don't have a battery in your machine, there isn't
 	  much point in using this driver and you should say N. If you get
 	  random kernel OOPSes or reboots that don't seem to be related to
 	  anything, try disabling/enabling this option (or disabling/enabling
 	  APM in your BIOS).
-
-	  Some other things you should try when experiencing seemingly random,
-	  "weird" problems:
-
-	  1) make sure that you have enough swap space and that it is
-	  enabled.
-	  2) pass the "no-hlt" option to the kernel
-	  3) switch on floating point emulation in the kernel and pass
-	  the "no387" option to the kernel
-	  4) pass the "floppy=nodma" option to the kernel
-	  5) pass the "mem=4M" option to the kernel (thereby disabling
-	  all but the first 4 MB of RAM)
-	  6) make sure that the CPU is not over clocked.
-	  7) read the sig11 FAQ at <http://www.bitwizard.nl/sig11/>
-	  8) disable the cache from your BIOS settings
-	  9) install a fan for the video card or exchange video RAM
-	  10) install a better fan for the CPU
-	  11) exchange RAM chips
-	  12) exchange the motherboard.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called apm.
 
 endmenu
 
@@ -751,6 +718,8 @@ source "drivers/hwmon/Kconfig"
 #source "drivers/l3/Kconfig"
 
 source "drivers/misc/Kconfig"
+
+source "drivers/mfd/Kconfig"
 
 source "drivers/media/Kconfig"
 

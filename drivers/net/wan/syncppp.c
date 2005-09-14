@@ -1440,6 +1440,7 @@ static void sppp_print_bytes (u_char *p, u16 len)
  *	@skb:	The buffer to process
  *	@dev:	The device it arrived on
  *	@p: Unused
+ *	@orig_dev: Unused
  *
  *	Protocol glue. This drives the deferred processing mode the poorer
  *	cards use. This can be called directly by cards that do not have
@@ -1447,7 +1448,7 @@ static void sppp_print_bytes (u_char *p, u16 len)
  *	after interrupt servicing to process frames queued via netif_rx.
  */
 
-static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p)
+static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p, struct net_device *orig_dev)
 {
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;

@@ -120,7 +120,6 @@
 
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <asm/serial.h>
 
 #include <asm/uaccess.h>
 
@@ -255,7 +254,7 @@ static unsigned long bh_counter = 0;
  * selected, the board is serviced periodically to see if anything needs doing.
  */
 #define  POLL_TIMEOUT   (jiffies + 1)
-static struct timer_list PollTimer = TIMER_INITIALIZER(ip2_poll, 0, 0);
+static DEFINE_TIMER(PollTimer, ip2_poll, 0, 0);
 static char  TimerOn;
 
 #ifdef IP2DEBUG_TRACE

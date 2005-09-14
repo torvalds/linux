@@ -864,7 +864,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	/*
 	 * We're pretty sure there's a port here.  Lets find out what
 	 * type of port it is.  The IIR top two bits allows us to find
-	 * out if its 8250 or 16450, 16550, 16550A or later.  This
+	 * out if it's 8250 or 16450, 16550, 16550A or later.  This
 	 * determines what we test for next.
 	 *
 	 * We also initialise the EFR (if any) to zero for later.  The
@@ -1001,7 +1001,7 @@ static inline void __stop_tx(struct uart_8250_port *p)
 	}
 }
 
-static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial8250_stop_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -1018,7 +1018,7 @@ static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 
 static void transmit_chars(struct uart_8250_port *up);
 
-static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial8250_start_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -1158,7 +1158,11 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		up->port.x_char = 0;
 		return;
 	}
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
+	if (uart_tx_stopped(&up->port)) {
+		serial8250_stop_tx(&up->port);
+		return;
+	}
+	if (uart_circ_empty(xmit)) {
 		__stop_tx(up);
 		return;
 	}
@@ -2532,7 +2536,7 @@ static int __init serial8250_init(void)
 		goto out;
 
 	serial8250_isa_devs = platform_device_register_simple("serial8250",
-							      -1, NULL, 0);
+					 PLAT8250_DEV_LEGACY, NULL, 0);
 	if (IS_ERR(serial8250_isa_devs)) {
 		ret = PTR_ERR(serial8250_isa_devs);
 		goto unreg;
@@ -2586,82 +2590,3 @@ module_param_array(probe_rsa, ulong, &probe_rsa_count, 0444);
 MODULE_PARM_DESC(probe_rsa, "Probe I/O ports for RSA");
 #endif
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
-
-/**
- *	register_serial - configure a 16x50 serial port at runtime
- *	@req: request structure
- *
- *	Configure the serial port specified by the request. If the
- *	port exists and is in use an error is returned. If the port
- *	is not currently in the table it is added.
- *
- *	The port is then probed and if necessary the IRQ is autodetected
- *	If this fails an error is returned.
- *
- *	On success the port is ready to use and the line number is returned.
- *
- *	Note: this function is deprecated - use serial8250_register_port
- *	instead.
- */
-int register_serial(struct serial_struct *req)
-{
-	struct uart_port port;
-
-	port.iobase   = req->port;
-	port.membase  = req->iomem_base;
-	port.irq      = req->irq;
-	port.uartclk  = req->baud_base * 16;
-	port.fifosize = req->xmit_fifo_size;
-	port.regshift = req->iomem_reg_shift;
-	port.iotype   = req->io_type;
-	port.flags    = req->flags | UPF_BOOT_AUTOCONF;
-	port.mapbase  = req->iomap_base;
-	port.dev      = NULL;
-
-	if (share_irqs)
-		port.flags |= UPF_SHARE_IRQ;
-
-	if (HIGH_BITS_OFFSET)
-		port.iobase |= (long) req->port_high << HIGH_BITS_OFFSET;
-
-	/*
-	 * If a clock rate wasn't specified by the low level driver, then
-	 * default to the standard clock rate.  This should be 115200 (*16)
-	 * and should not depend on the architecture's BASE_BAUD definition.
-	 * However, since this API will be deprecated, it's probably a
-	 * better idea to convert the drivers to use the new API
-	 * (serial8250_register_port and serial8250_unregister_port).
-	 */
-	if (port.uartclk == 0) {
-		printk(KERN_WARNING
-		       "Serial: registering port at [%08x,%08lx,%p] irq %d with zero baud_base\n",
-		       port.iobase, port.mapbase, port.membase, port.irq);
-		printk(KERN_WARNING "Serial: see %s:%d for more information\n",
-		       __FILE__, __LINE__);
-		dump_stack();
-
-		/*
-		 * Fix it up for now, but this is only a temporary measure.
-		 */
-		port.uartclk = BASE_BAUD * 16;
-	}
-
-	return serial8250_register_port(&port);
-}
-EXPORT_SYMBOL(register_serial);
-
-/**
- *	unregister_serial - remove a 16x50 serial port at runtime
- *	@line: serial line number
- *
- *	Remove one serial port.  This may not be called from interrupt
- *	context.  We hand the port back to our local PM control.
- *
- *	Note: this function is deprecated - use serial8250_unregister_port
- *	instead.
- */
-void unregister_serial(int line)
-{
-	serial8250_unregister_port(line);
-}
-EXPORT_SYMBOL(unregister_serial);

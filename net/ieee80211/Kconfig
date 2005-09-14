@@ -1,0 +1,68 @@
+config IEEE80211
+	tristate "Generic IEEE 802.11 Networking Stack"
+	---help---
+	This option enables the hardware independent IEEE 802.11
+	networking stack.
+
+config IEEE80211_DEBUG
+	bool "Enable full debugging output"
+	depends on IEEE80211
+	---help---
+	  This option will enable debug tracing output for the
+	  ieee80211 network stack.
+
+	  This will result in the kernel module being ~70k larger.  You
+	  can control which debug output is sent to the kernel log by
+	  setting the value in
+
+	  /proc/net/ieee80211/debug_level
+
+	  For example:
+
+	  % echo 0x00000FFO > /proc/net/ieee80211/debug_level
+
+	  For a list of values you can assign to debug_level, you
+	  can look at the bit mask values in <net/ieee80211.h>
+
+	  If you are not trying to debug or develop the ieee80211
+	  subsystem, you most likely want to say N here.
+
+config IEEE80211_CRYPT_WEP
+	tristate "IEEE 802.11 WEP encryption (802.1x)"
+	depends on IEEE80211
+	select CRYPTO
+	select CRYPTO_ARC4
+	select CRC32
+	---help---
+	Include software based cipher suites in support of IEEE
+	802.11's WEP.  This is needed for WEP as well as 802.1x.
+
+	This can be compiled as a modules and it will be called
+	"ieee80211_crypt_wep".
+
+config IEEE80211_CRYPT_CCMP
+	tristate "IEEE 802.11i CCMP support"
+	depends on IEEE80211
+	select CRYPTO
+	select CRYPTO_AES
+	---help---
+	Include software based cipher suites in support of IEEE 802.11i
+	(aka TGi, WPA, WPA2, WPA-PSK, etc.) for use with CCMP enabled
+	networks.
+
+	This can be compiled as a modules and it will be called
+	"ieee80211_crypt_ccmp".
+
+config IEEE80211_CRYPT_TKIP
+	tristate "IEEE 802.11i TKIP encryption"
+	depends on IEEE80211
+	select CRYPTO
+	select CRYPTO_MICHAEL_MIC
+	---help---
+	Include software based cipher suites in support of IEEE 802.11i
+	(aka TGi, WPA, WPA2, WPA-PSK, etc.) for use with TKIP enabled
+	networks.
+
+	This can be compiled as a modules and it will be called
+	"ieee80211_crypt_tkip".
+

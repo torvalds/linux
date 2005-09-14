@@ -1,0 +1,57 @@
+#
+# PHY Layer Configuration
+#
+
+menu "PHY device support"
+
+config PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NET_ETHERNET && (BROKEN || !ARCH_S390)
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
+
+config PHYCONTROL
+	bool "  Support for automatically handling PHY state changes"
+	depends on PHYLIB
+	help
+	  Adds code to perform all the work for keeping PHY link
+	  state (speed/duplex/etc) up-to-date.  Also handles
+	  interrupts.
+
+comment "MII PHY device drivers"
+	depends on PHYLIB
+
+config MARVELL_PHY
+	tristate "Drivers for Marvell PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently has a driver for the 88E1011S
+	
+config DAVICOM_PHY
+	tristate "Drivers for Davicom PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently supports dm9161e and dm9131
+
+config QSEMI_PHY
+	tristate "Drivers for Quality Semiconductor PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently supports the qs6612
+
+config LXT_PHY
+	tristate "Drivers for the Intel LXT PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently supports the lxt970, lxt971
+
+config CICADA_PHY
+	tristate "Drivers for the Cicada PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently supports the cis8204
+
+endmenu
+

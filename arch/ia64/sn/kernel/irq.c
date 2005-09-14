@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 #include <linux/irq.h>
@@ -23,7 +23,7 @@ static void force_interrupt(int irq);
 static void register_intr_pda(struct sn_irq_info *sn_irq_info);
 static void unregister_intr_pda(struct sn_irq_info *sn_irq_info);
 
-extern int sn_force_interrupt_flag;
+int sn_force_interrupt_flag = 1;
 extern int sn_ioif_inited;
 static struct list_head **sn_irq_lh;
 static spinlock_t sn_irq_info_lock = SPIN_LOCK_UNLOCKED; /* non-IRQ lock */
@@ -76,16 +76,14 @@ static void sn_enable_irq(unsigned int irq)
 
 static void sn_ack_irq(unsigned int irq)
 {
-	uint64_t event_occurred, mask = 0;
-	int nasid;
+	u64 event_occurred, mask = 0;
 
 	irq = irq & 0xff;
-	nasid = get_nasid();
 	event_occurred =
-	    HUB_L((uint64_t *) GLOBAL_MMR_ADDR(nasid, SH_EVENT_OCCURRED));
+	    HUB_L((u64*)LOCAL_MMR_ADDR(SH_EVENT_OCCURRED));
 	mask = event_occurred & SH_ALL_INT_MASK;
-	HUB_S((uint64_t *) GLOBAL_MMR_ADDR(nasid, SH_EVENT_OCCURRED_ALIAS),
-		 mask);
+	HUB_S((u64*)LOCAL_MMR_ADDR(SH_EVENT_OCCURRED_ALIAS),
+	      mask);
 	__set_bit(irq, (volatile void *)pda->sn_in_service_ivecs);
 
 	move_irq(irq);
@@ -93,15 +91,12 @@ static void sn_ack_irq(unsigned int irq)
 
 static void sn_end_irq(unsigned int irq)
 {
-	int nasid;
 	int ivec;
-	uint64_t event_occurred;
+	u64 event_occurred;
 
 	ivec = irq & 0xff;
 	if (ivec == SGI_UART_VECTOR) {
-		nasid = get_nasid();
-		event_occurred = HUB_L((uint64_t *) GLOBAL_MMR_ADDR
-				       (nasid, SH_EVENT_OCCURRED));
+		event_occurred = HUB_L((u64*)LOCAL_MMR_ADDR (SH_EVENT_OCCURRED));
 		/* If the UART bit is set here, we may have received an
 		 * interrupt from the UART that the driver missed.  To
 		 * make sure, we IPI ourselves to force us to look again.
@@ -132,6 +127,7 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 		int local_widget, status;
 		nasid_t local_nasid;
 		struct sn_irq_info *new_irq_info;
+		struct sn_pcibus_provider *pci_provider;
 
 		new_irq_info = kmalloc(sizeof(struct sn_irq_info), GFP_ATOMIC);
 		if (new_irq_info == NULL)
@@ -171,8 +167,9 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 		new_irq_info->irq_cpuid = cpuid;
 		register_intr_pda(new_irq_info);
 
-		if (IS_PCI_BRIDGE_ASIC(new_irq_info->irq_bridge_type))
-			pcibr_change_devices_irq(new_irq_info);
+		pci_provider = sn_pci_provider[new_irq_info->irq_bridge_type];
+		if (pci_provider && pci_provider->target_interrupt)
+			(pci_provider->target_interrupt)(new_irq_info);
 
 		spin_lock(&sn_irq_info_lock);
 		list_replace_rcu(&sn_irq_info->list, &new_irq_info->list);
@@ -317,6 +314,16 @@ void sn_irq_unfixup(struct pci_dev *pci_dev)
 	pci_dev_put(pci_dev);
 }
 
+static inline void
+sn_call_force_intr_provider(struct sn_irq_info *sn_irq_info)
+{
+	struct sn_pcibus_provider *pci_provider;
+
+	pci_provider = sn_pci_provider[sn_irq_info->irq_bridge_type];
+	if (pci_provider && pci_provider->force_interrupt)
+		(*pci_provider->force_interrupt)(sn_irq_info);
+}
+
 static void force_interrupt(int irq)
 {
 	struct sn_irq_info *sn_irq_info;
@@ -325,11 +332,9 @@ static void force_interrupt(int irq)
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[irq], list) {
-		if (IS_PCI_BRIDGE_ASIC(sn_irq_info->irq_bridge_type) &&
-		    (sn_irq_info->irq_bridge != NULL))
-			pcibr_force_interrupt(sn_irq_info);
-	}
+	list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[irq], list)
+		sn_call_force_intr_provider(sn_irq_info);
+
 	rcu_read_unlock();
 }
 
@@ -350,6 +355,14 @@ static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 	uint64_t irr_reg;
 	struct pcidev_info *pcidev_info;
 	struct pcibus_info *pcibus_info;
+
+	/*
+	 * Bridge types attached to TIO (anything but PIC) do not need this WAR
+	 * since they do not target Shub II interrupt registers.  If that
+	 * ever changes, this check needs to accomodate.
+	 */
+	if (sn_irq_info->irq_bridge_type != PCIIO_ASIC_TYPE_PIC)
+		return;
 
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (!pcidev_info)
@@ -377,16 +390,12 @@ static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 		break;
 	}
 	if (!test_bit(irr_bit, &irr_reg)) {
-		if (!test_bit(irq, pda->sn_soft_irr)) {
-			if (!test_bit(irq, pda->sn_in_service_ivecs)) {
-				regval &= 0xff;
-				if (sn_irq_info->irq_int_bit & regval &
-				    sn_irq_info->irq_last_intr) {
-					regval &=
-					    ~(sn_irq_info->
-					      irq_int_bit & regval);
-					pcibr_force_interrupt(sn_irq_info);
-				}
+		if (!test_bit(irq, pda->sn_in_service_ivecs)) {
+			regval &= 0xff;
+			if (sn_irq_info->irq_int_bit & regval &
+			    sn_irq_info->irq_last_intr) {
+				regval &= ~(sn_irq_info->irq_int_bit & regval);
+				sn_call_force_intr_provider(sn_irq_info);
 			}
 		}
 	}
@@ -404,13 +413,7 @@ void sn_lb_int_war_check(void)
 	rcu_read_lock();
 	for (i = pda->sn_first_irq; i <= pda->sn_last_irq; i++) {
 		list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[i], list) {
-			/*
-			 * Only call for PCI bridges that are fully
-			 * initialized.
-			 */
-			if (IS_PCI_BRIDGE_ASIC(sn_irq_info->irq_bridge_type) &&
-			    (sn_irq_info->irq_bridge != NULL))
-				sn_check_intr(i, sn_irq_info);
+			sn_check_intr(i, sn_irq_info);
 		}
 	}
 	rcu_read_unlock();

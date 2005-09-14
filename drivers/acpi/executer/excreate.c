@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
@@ -49,10 +48,8 @@
 #include <acpi/acevents.h>
 #include <acpi/actables.h>
 
-
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("excreate")
-
+ACPI_MODULE_NAME("excreate")
 
 #ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
@@ -66,33 +63,30 @@
  * DESCRIPTION: Create a new named alias
  *
  ******************************************************************************/
-
-acpi_status
-acpi_ex_create_alias (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 {
-	struct acpi_namespace_node      *target_node;
-	struct acpi_namespace_node      *alias_node;
-	acpi_status                     status = AE_OK;
+	struct acpi_namespace_node *target_node;
+	struct acpi_namespace_node *alias_node;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("ex_create_alias");
-
+	ACPI_FUNCTION_TRACE("ex_create_alias");
 
 	/* Get the source/alias operands (both namespace nodes) */
 
-	alias_node = (struct acpi_namespace_node *) walk_state->operands[0];
-	target_node = (struct acpi_namespace_node *) walk_state->operands[1];
+	alias_node = (struct acpi_namespace_node *)walk_state->operands[0];
+	target_node = (struct acpi_namespace_node *)walk_state->operands[1];
 
 	if ((target_node->type == ACPI_TYPE_LOCAL_ALIAS) ||
-		(target_node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+	    (target_node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
 		/*
 		 * Dereference an existing alias so that we don't create a chain
 		 * of aliases.  With this code, we guarantee that an alias is
 		 * always exactly one level of indirection away from the
 		 * actual aliased name.
 		 */
-		target_node = ACPI_CAST_PTR (struct acpi_namespace_node, target_node->object);
+		target_node =
+		    ACPI_CAST_PTR(struct acpi_namespace_node,
+				  target_node->object);
 	}
 
 	/*
@@ -115,7 +109,8 @@ acpi_ex_create_alias (
 		 * types, the object can change dynamically via a Store.
 		 */
 		alias_node->type = ACPI_TYPE_LOCAL_ALIAS;
-		alias_node->object = ACPI_CAST_PTR (union acpi_operand_object, target_node);
+		alias_node->object =
+		    ACPI_CAST_PTR(union acpi_operand_object, target_node);
 		break;
 
 	case ACPI_TYPE_METHOD:
@@ -126,7 +121,8 @@ acpi_ex_create_alias (
 		 * types, the object can change dynamically via a Store.
 		 */
 		alias_node->type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
-		alias_node->object = ACPI_CAST_PTR (union acpi_operand_object, target_node);
+		alias_node->object =
+		    ACPI_CAST_PTR(union acpi_operand_object, target_node);
 		break;
 
 	default:
@@ -139,16 +135,17 @@ acpi_ex_create_alias (
 		 * additional reference to prevent deletion out from under either the
 		 * target node or the alias Node
 		 */
-		status = acpi_ns_attach_object (alias_node,
-				 acpi_ns_get_attached_object (target_node), target_node->type);
+		status = acpi_ns_attach_object(alias_node,
+					       acpi_ns_get_attached_object
+					       (target_node),
+					       target_node->type);
 		break;
 	}
 
 	/* Since both operands are Nodes, we don't need to delete them */
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -162,18 +159,14 @@ acpi_ex_create_alias (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_create_event (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	union acpi_operand_object       *obj_desc;
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
 
+	ACPI_FUNCTION_TRACE("ex_create_event");
 
-	ACPI_FUNCTION_TRACE ("ex_create_event");
-
-
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_EVENT);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_EVENT);
 	if (!obj_desc) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -183,26 +176,26 @@ acpi_ex_create_event (
 	 * Create the actual OS semaphore, with zero initial units -- meaning
 	 * that the event is created in an unsignalled state
 	 */
-	status = acpi_os_create_semaphore (ACPI_NO_UNIT_LIMIT, 0,
-			 &obj_desc->event.semaphore);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_os_create_semaphore(ACPI_NO_UNIT_LIMIT, 0,
+					  &obj_desc->event.semaphore);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
 	/* Attach object to the Node */
 
-	status = acpi_ns_attach_object ((struct acpi_namespace_node *) walk_state->operands[0],
-			 obj_desc, ACPI_TYPE_EVENT);
+	status =
+	    acpi_ns_attach_object((struct acpi_namespace_node *)walk_state->
+				  operands[0], obj_desc, ACPI_TYPE_EVENT);
 
-cleanup:
+      cleanup:
 	/*
 	 * Remove local reference to the object (on error, will cause deletion
 	 * of both object and semaphore if present.)
 	 */
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -218,20 +211,16 @@ cleanup:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_create_mutex (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status = AE_OK;
-	union acpi_operand_object       *obj_desc;
+	acpi_status status = AE_OK;
+	union acpi_operand_object *obj_desc;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_create_mutex", ACPI_WALK_OPERANDS);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_create_mutex", ACPI_WALK_OPERANDS);
 
 	/* Create the new mutex object */
 
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_MUTEX);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_MUTEX);
 	if (!obj_desc) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -242,29 +231,29 @@ acpi_ex_create_mutex (
 	 * One unit max to make it a mutex, with one initial unit to allow
 	 * the mutex to be acquired.
 	 */
-	status = acpi_os_create_semaphore (1, 1, &obj_desc->mutex.semaphore);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_os_create_semaphore(1, 1, &obj_desc->mutex.semaphore);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
 	/* Init object and attach to NS node */
 
-	obj_desc->mutex.sync_level = (u8) walk_state->operands[1]->integer.value;
-	obj_desc->mutex.node = (struct acpi_namespace_node *) walk_state->operands[0];
+	obj_desc->mutex.sync_level =
+	    (u8) walk_state->operands[1]->integer.value;
+	obj_desc->mutex.node =
+	    (struct acpi_namespace_node *)walk_state->operands[0];
 
-	status = acpi_ns_attach_object (obj_desc->mutex.node,
-			 obj_desc, ACPI_TYPE_MUTEX);
+	status = acpi_ns_attach_object(obj_desc->mutex.node,
+				       obj_desc, ACPI_TYPE_MUTEX);
 
-
-cleanup:
+      cleanup:
 	/*
 	 * Remove local reference to the object (on error, will cause deletion
 	 * of both object and semaphore if present.)
 	 */
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -282,20 +271,16 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ex_create_region (
-	u8                              *aml_start,
-	u32                             aml_length,
-	u8                              region_space,
-	struct acpi_walk_state          *walk_state)
+acpi_ex_create_region(u8 * aml_start,
+		      u32 aml_length,
+		      u8 region_space, struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	union acpi_operand_object       *obj_desc;
-	struct acpi_namespace_node      *node;
-	union acpi_operand_object       *region_obj2;
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *region_obj2;
 
-
-	ACPI_FUNCTION_TRACE ("ex_create_region");
-
+	ACPI_FUNCTION_TRACE("ex_create_region");
 
 	/* Get the Namespace Node */
 
@@ -305,8 +290,8 @@ acpi_ex_create_region (
 	 * If the region object is already attached to this node,
 	 * just return
 	 */
-	if (acpi_ns_get_attached_object (node)) {
-		return_ACPI_STATUS (AE_OK);
+	if (acpi_ns_get_attached_object(node)) {
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -314,17 +299,18 @@ acpi_ex_create_region (
 	 * range
 	 */
 	if ((region_space >= ACPI_NUM_PREDEFINED_REGIONS) &&
-		(region_space < ACPI_USER_REGION_BEGIN)) {
-		ACPI_REPORT_ERROR (("Invalid address_space type %X\n", region_space));
-		return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
+	    (region_space < ACPI_USER_REGION_BEGIN)) {
+		ACPI_REPORT_ERROR(("Invalid address_space type %X\n",
+				   region_space));
+		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
-		acpi_ut_get_region_name (region_space), region_space));
+	ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
+			  acpi_ut_get_region_name(region_space), region_space));
 
 	/* Create the region descriptor */
 
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_REGION);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_REGION);
 	if (!obj_desc) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -334,7 +320,7 @@ acpi_ex_create_region (
 	 * Remember location in AML stream of address & length
 	 * operands since they need to be evaluated at run time.
 	 */
-	region_obj2                 = obj_desc->common.next_object;
+	region_obj2 = obj_desc->common.next_object;
 	region_obj2->extra.aml_start = aml_start;
 	region_obj2->extra.aml_length = aml_length;
 
@@ -343,21 +329,19 @@ acpi_ex_create_region (
 	obj_desc->region.space_id = region_space;
 	obj_desc->region.address = 0;
 	obj_desc->region.length = 0;
-	obj_desc->region.node   = node;
+	obj_desc->region.node = node;
 
 	/* Install the new region object in the parent Node */
 
-	status = acpi_ns_attach_object (node, obj_desc, ACPI_TYPE_REGION);
+	status = acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_REGION);
 
-
-cleanup:
+      cleanup:
 
 	/* Remove local reference to the object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -371,20 +355,16 @@ cleanup:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_create_table_region (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state)
 {
-	acpi_status                     status;
-	union acpi_operand_object       **operand = &walk_state->operands[0];
-	union acpi_operand_object       *obj_desc;
-	struct acpi_namespace_node      *node;
-	struct acpi_table_header        *table;
-	union acpi_operand_object       *region_obj2;
+	acpi_status status;
+	union acpi_operand_object **operand = &walk_state->operands[0];
+	union acpi_operand_object *obj_desc;
+	struct acpi_namespace_node *node;
+	struct acpi_table_header *table;
+	union acpi_operand_object *region_obj2;
 
-
-	ACPI_FUNCTION_TRACE ("ex_create_table_region");
-
+	ACPI_FUNCTION_TRACE("ex_create_table_region");
 
 	/* Get the Node from the object stack  */
 
@@ -394,65 +374,63 @@ acpi_ex_create_table_region (
 	 * If the region object is already attached to this node,
 	 * just return
 	 */
-	if (acpi_ns_get_attached_object (node)) {
-		return_ACPI_STATUS (AE_OK);
+	if (acpi_ns_get_attached_object(node)) {
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Find the ACPI table */
 
-	status = acpi_tb_find_table (operand[1]->string.pointer,
-			   operand[2]->string.pointer,
-			   operand[3]->string.pointer, &table);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_find_table(operand[1]->string.pointer,
+				    operand[2]->string.pointer,
+				    operand[3]->string.pointer, &table);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Create the region descriptor */
 
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_REGION);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_REGION);
 	if (!obj_desc) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	region_obj2                     = obj_desc->common.next_object;
+	region_obj2 = obj_desc->common.next_object;
 	region_obj2->extra.region_context = NULL;
 
 	/* Init the region from the operands */
 
 	obj_desc->region.space_id = REGION_DATA_TABLE;
-	obj_desc->region.address = (acpi_physical_address) ACPI_TO_INTEGER (table);
+	obj_desc->region.address =
+	    (acpi_physical_address) ACPI_TO_INTEGER(table);
 	obj_desc->region.length = table->length;
-	obj_desc->region.node   = node;
-	obj_desc->region.flags  = AOPOBJ_DATA_VALID;
+	obj_desc->region.node = node;
+	obj_desc->region.flags = AOPOBJ_DATA_VALID;
 
 	/* Install the new region object in the parent Node */
 
-	status = acpi_ns_attach_object (node, obj_desc, ACPI_TYPE_REGION);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_REGION);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
-	status = acpi_ev_initialize_region (obj_desc, FALSE);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ev_initialize_region(obj_desc, FALSE);
+	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_EXIST) {
 			status = AE_OK;
-		}
-		else {
+		} else {
 			goto cleanup;
 		}
 	}
 
 	obj_desc->region.flags |= AOPOBJ_SETUP_COMPLETE;
 
-
-cleanup:
+      cleanup:
 
 	/* Remove local reference to the object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -468,42 +446,38 @@ cleanup:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_create_processor (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_create_processor(struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       **operand = &walk_state->operands[0];
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
+	union acpi_operand_object **operand = &walk_state->operands[0];
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_create_processor", walk_state);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_create_processor", walk_state);
 
 	/* Create the processor object */
 
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_PROCESSOR);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_PROCESSOR);
 	if (!obj_desc) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Initialize the processor object from the operands */
 
-	obj_desc->processor.proc_id = (u8)          operand[1]->integer.value;
-	obj_desc->processor.address = (acpi_io_address) operand[2]->integer.value;
-	obj_desc->processor.length = (u8)           operand[3]->integer.value;
+	obj_desc->processor.proc_id = (u8) operand[1]->integer.value;
+	obj_desc->processor.address =
+	    (acpi_io_address) operand[2]->integer.value;
+	obj_desc->processor.length = (u8) operand[3]->integer.value;
 
 	/* Install the processor object in the parent Node */
 
-	status = acpi_ns_attach_object ((struct acpi_namespace_node *) operand[0],
-			  obj_desc, ACPI_TYPE_PROCESSOR);
+	status = acpi_ns_attach_object((struct acpi_namespace_node *)operand[0],
+				       obj_desc, ACPI_TYPE_PROCESSOR);
 
 	/* Remove local reference to the object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -519,42 +493,38 @@ acpi_ex_create_processor (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_create_power_resource (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_create_power_resource(struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       **operand = &walk_state->operands[0];
-	acpi_status                     status;
-	union acpi_operand_object       *obj_desc;
+	union acpi_operand_object **operand = &walk_state->operands[0];
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_create_power_resource", walk_state);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_create_power_resource", walk_state);
 
 	/* Create the power resource object */
 
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_POWER);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_POWER);
 	if (!obj_desc) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Initialize the power object from the operands */
 
 	obj_desc->power_resource.system_level = (u8) operand[1]->integer.value;
-	obj_desc->power_resource.resource_order = (u16) operand[2]->integer.value;
+	obj_desc->power_resource.resource_order =
+	    (u16) operand[2]->integer.value;
 
 	/* Install the  power resource object in the parent Node */
 
-	status = acpi_ns_attach_object ((struct acpi_namespace_node *) operand[0],
-			  obj_desc, ACPI_TYPE_POWER);
+	status = acpi_ns_attach_object((struct acpi_namespace_node *)operand[0],
+				       obj_desc, ACPI_TYPE_POWER);
 
 	/* Remove local reference to the object */
 
-	acpi_ut_remove_reference (obj_desc);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
 }
 #endif
-
 
 /*******************************************************************************
  *
@@ -571,25 +541,21 @@ acpi_ex_create_power_resource (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_create_method (
-	u8                              *aml_start,
-	u32                             aml_length,
-	struct acpi_walk_state          *walk_state)
+acpi_ex_create_method(u8 * aml_start,
+		      u32 aml_length, struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       **operand = &walk_state->operands[0];
-	union acpi_operand_object       *obj_desc;
-	acpi_status                     status;
-	u8                              method_flags;
+	union acpi_operand_object **operand = &walk_state->operands[0];
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
+	u8 method_flags;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_create_method", walk_state);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_create_method", walk_state);
 
 	/* Create a new method object */
 
-	obj_desc = acpi_ut_create_internal_object (ACPI_TYPE_METHOD);
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 	if (!obj_desc) {
-	   return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Save the method's AML pointer and length  */
@@ -603,8 +569,10 @@ acpi_ex_create_method (
 	 */
 	method_flags = (u8) operand[1]->integer.value;
 
-	obj_desc->method.method_flags = (u8) (method_flags & ~AML_METHOD_ARG_COUNT);
-	obj_desc->method.param_count = (u8) (method_flags & AML_METHOD_ARG_COUNT);
+	obj_desc->method.method_flags =
+	    (u8) (method_flags & ~AML_METHOD_ARG_COUNT);
+	obj_desc->method.param_count =
+	    (u8) (method_flags & AML_METHOD_ARG_COUNT);
 
 	/*
 	 * Get the concurrency count.  If required, a semaphore will be
@@ -613,32 +581,28 @@ acpi_ex_create_method (
 	if (acpi_gbl_all_methods_serialized) {
 		obj_desc->method.concurrency = 1;
 		obj_desc->method.method_flags |= AML_METHOD_SERIALIZED;
-	}
-	else if (method_flags & AML_METHOD_SERIALIZED) {
+	} else if (method_flags & AML_METHOD_SERIALIZED) {
 		/*
 		 * ACPI 1.0: Concurrency = 1
 		 * ACPI 2.0: Concurrency = (sync_level (in method declaration) + 1)
 		 */
 		obj_desc->method.concurrency = (u8)
-				  (((method_flags & AML_METHOD_SYNCH_LEVEL) >> 4) + 1);
-	}
-	else {
+		    (((method_flags & AML_METHOD_SYNCH_LEVEL) >> 4) + 1);
+	} else {
 		obj_desc->method.concurrency = ACPI_INFINITE_CONCURRENCY;
 	}
 
 	/* Attach the new object to the method Node */
 
-	status = acpi_ns_attach_object ((struct acpi_namespace_node *) operand[0],
-			  obj_desc, ACPI_TYPE_METHOD);
+	status = acpi_ns_attach_object((struct acpi_namespace_node *)operand[0],
+				       obj_desc, ACPI_TYPE_METHOD);
 
 	/* Remove local reference to the object */
 
-	acpi_ut_remove_reference (obj_desc);
+	acpi_ut_remove_reference(obj_desc);
 
 	/* Remove a reference to the operand */
 
-	acpi_ut_remove_reference (operand[1]);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(operand[1]);
+	return_ACPI_STATUS(status);
 }
-
-

@@ -252,7 +252,8 @@ struct fc_internal {
 
 #define to_fc_internal(tmpl)	container_of(tmpl, struct fc_internal, t)
 
-static int fc_target_setup(struct device *dev)
+static int fc_target_setup(struct transport_container *tc, struct device *dev,
+			   struct class_device *cdev)
 {
 	struct scsi_target *starget = to_scsi_target(dev);
 	struct fc_rport *rport = starget_to_rport(starget);
@@ -281,7 +282,8 @@ static DECLARE_TRANSPORT_CLASS(fc_transport_class,
 			       NULL,
 			       NULL);
 
-static int fc_host_setup(struct device *dev)
+static int fc_host_setup(struct transport_container *tc, struct device *dev,
+			 struct class_device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 

@@ -8,7 +8,7 @@ CFLAGS += -Iarch/i386/pci
 obj-y		:= i386.o
 obj-$(CONFIG_PCI_DIRECT)+= direct.o
 obj-y		+= fixup.o
-obj-$(CONFIG_ACPI_PCI)	+= acpi.o
+obj-$(CONFIG_ACPI)	+= acpi.o
 obj-y			+= legacy.o irq.o common.o
 # mmconfig has a 64bit special
 obj-$(CONFIG_PCI_MMCONFIG) += mmconfig.o

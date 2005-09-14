@@ -19,5 +19,10 @@ extern unsigned int
 alloc_null_binding(struct ip_conntrack *conntrack,
 		   struct ip_nat_info *info,
 		   unsigned int hooknum);
+
+extern unsigned int
+alloc_null_binding_confirmed(struct ip_conntrack *conntrack,
+			     struct ip_nat_info *info,
+			     unsigned int hooknum);
 #endif
 #endif /* _IP_NAT_RULE_H */

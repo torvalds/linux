@@ -498,6 +498,17 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	unsigned long addr = vma->vm_start;
 	unsigned long end = vma->vm_end;
 
+	/*
+	 * Don't copy ptes where a page fault will fill them correctly.
+	 * Fork becomes much lighter when there are big shared or private
+	 * readonly mappings. The tradeoff is that copy_page_range is more
+	 * efficient than faulting.
+	 */
+	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_RESERVED))) {
+		if (!vma->anon_vma)
+			return 0;
+	}
+
 	if (is_vm_hugetlb_page(vma))
 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
 
@@ -551,7 +562,8 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 				     page->index > details->last_index))
 					continue;
 			}
-			ptent = ptep_get_and_clear(tlb->mm, addr, pte);
+			ptent = ptep_get_and_clear_full(tlb->mm, addr, pte,
+							tlb->fullmm);
 			tlb_remove_tlb_entry(tlb, pte, addr);
 			if (unlikely(!page))
 				continue;
@@ -579,7 +591,7 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 			continue;
 		if (!pte_file(ptent))
 			free_swap_and_cache(pte_to_swp_entry(ptent));
-		pte_clear(tlb->mm, addr, pte);
+		pte_clear_full(tlb->mm, addr, pte, tlb->fullmm);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(pte - 1);
 }
@@ -1944,7 +1956,7 @@ static int do_file_page(struct mm_struct * mm, struct vm_area_struct * vma,
 	 * Fall back to the linear mapping if the fs does not support
 	 * ->populate:
 	 */
-	if (!vma->vm_ops || !vma->vm_ops->populate || 
+	if (!vma->vm_ops->populate ||
 			(write_access && !(vma->vm_flags & VM_SHARED))) {
 		pte_clear(mm, address, pte);
 		return do_no_page(mm, vma, address, write_access, pte, pmd);
@@ -2213,7 +2225,7 @@ void update_mem_hiwater(struct task_struct *tsk)
 #if !defined(__HAVE_ARCH_GATE_AREA)
 
 #if defined(AT_SYSINFO_EHDR)
-struct vm_area_struct gate_vma;
+static struct vm_area_struct gate_vma;
 
 static int __init gate_vma_init(void)
 {

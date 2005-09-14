@@ -283,23 +283,19 @@ static void bsd_free (void *state)
 		/*
 		 * Release the dictionary
 		 */
-		if (db->dict) {
-			vfree (db->dict);
-			db->dict = NULL;
-		}
+		vfree(db->dict);
+		db->dict = NULL;
 
 		/*
 		 * Release the string buffer
 		 */
-		if (db->lens) {
-			vfree (db->lens);
-			db->lens = NULL;
-		}
+		vfree(db->lens);
+		db->lens = NULL;
 
 		/*
 		 * Finally release the structure itself.
 		 */
-		kfree (db);
+		kfree(db);
 	}
 }
 

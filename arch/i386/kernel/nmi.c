@@ -195,7 +195,7 @@ static void disable_lapic_nmi_watchdog(void)
 			wrmsr(MSR_P6_EVNTSEL0, 0, 0);
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x3)
+			if (boot_cpu_data.x86_model > 0x4)
 				break;
 
 			wrmsr(MSR_P4_IQ_CCCR0, 0, 0);
@@ -432,7 +432,7 @@ void setup_apic_nmi_watchdog (void)
 			setup_p6_watchdog();
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x3)
+			if (boot_cpu_data.x86_model > 0x4)
 				return;
 
 			if (!setup_p4_watchdog())
@@ -478,6 +478,11 @@ void touch_nmi_watchdog (void)
 	 */
 	for (i = 0; i < NR_CPUS; i++)
 		alert_counter[i] = 0;
+
+	/*
+	 * Tickle the softlockup detector too:
+	 */
+	touch_softlockup_watchdog();
 }
 
 extern void die_nmi(struct pt_regs *, const char *msg);
@@ -501,8 +506,11 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 		 */
 		alert_counter[cpu]++;
 		if (alert_counter[cpu] == 5*nmi_hz)
+			/*
+			 * die_nmi will return ONLY if NOTIFY_STOP happens..
+			 */
 			die_nmi(regs, "NMI Watchdog detected LOCKUP");
-	} else {
+
 		last_irq_sums[cpu] = sum;
 		alert_counter[cpu] = 0;
 	}

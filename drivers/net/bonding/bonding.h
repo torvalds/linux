@@ -211,6 +211,9 @@ struct bonding {
 	struct   bond_params params;
 	struct   list_head vlan_list;
 	struct   vlan_group *vlgrp;
+	/* the features the bonding device supports, independently 
+	 * of any slaves */
+	int	 bond_features; 
 };
 
 /**

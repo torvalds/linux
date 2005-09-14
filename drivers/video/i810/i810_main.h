@@ -83,6 +83,22 @@ extern int  i810fb_sync     (struct fb_info *p);
 extern void i810fb_init_ringbuffer(struct fb_info *info);
 extern void i810fb_load_front     (u32 offset, struct fb_info *info);
 
+#ifdef CONFIG_FB_I810_I2C
+/* I2C */
+extern int i810_probe_i2c_connector(struct fb_info *info, u8 **out_edid,
+				    int conn);
+extern void i810_create_i2c_busses(struct i810fb_par *par);
+extern void i810_delete_i2c_busses(struct i810fb_par *par);
+#else
+static inline int i810_probe_i2c_connector(struct fb_info *info, u8 **out_edid,
+				    int conn)
+{
+	return 1;
+}
+static inline void i810_create_i2c_busses(struct i810fb_par *par) { }
+static inline void i810_delete_i2c_busses(struct i810fb_par *par) { }
+#endif
+
 /* Conditionals */
 #ifdef CONFIG_X86
 inline void flush_cache(void)

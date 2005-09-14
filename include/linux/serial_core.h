@@ -142,8 +142,8 @@ struct uart_ops {
 	unsigned int	(*tx_empty)(struct uart_port *);
 	void		(*set_mctrl)(struct uart_port *, unsigned int mctrl);
 	unsigned int	(*get_mctrl)(struct uart_port *);
-	void		(*stop_tx)(struct uart_port *, unsigned int tty_stop);
-	void		(*start_tx)(struct uart_port *, unsigned int tty_start);
+	void		(*stop_tx)(struct uart_port *);
+	void		(*start_tx)(struct uart_port *);
 	void		(*send_xchar)(struct uart_port *, char ch);
 	void		(*stop_rx)(struct uart_port *);
 	void		(*enable_ms)(struct uart_port *);
@@ -360,8 +360,6 @@ struct tty_driver *uart_console_device(struct console *co, int *index);
  */
 int uart_register_driver(struct uart_driver *uart);
 void uart_unregister_driver(struct uart_driver *uart);
-void __deprecated uart_unregister_port(struct uart_driver *reg, int line);
-int __deprecated uart_register_port(struct uart_driver *reg, struct uart_port *port);
 int uart_add_one_port(struct uart_driver *reg, struct uart_port *port);
 int uart_remove_one_port(struct uart_driver *reg, struct uart_port *port);
 int uart_match_port(struct uart_port *port1, struct uart_port *port2);
@@ -387,11 +385,11 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 /*
  * The following are helper functions for the low level drivers.
  */
-#ifdef SUPPORT_SYSRQ
 static inline int
 uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 		       struct pt_regs *regs)
 {
+#ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
 			handle_sysrq(ch, regs, NULL);
@@ -400,10 +398,11 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 		}
 		port->sysrq = 0;
 	}
+#endif
 	return 0;
 }
-#else
-#define uart_handle_sysrq_char(port,ch,regs)	(0)
+#ifndef SUPPORT_SYSRQ
+#define uart_handle_sysrq_char(port,ch,regs) uart_handle_sysrq_char(port, 0, NULL)
 #endif
 
 /*
@@ -468,13 +467,13 @@ uart_handle_cts_change(struct uart_port *port, unsigned int status)
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;
-				port->ops->start_tx(port, 0);
+				port->ops->start_tx(port);
 				uart_write_wakeup(port);
 			}
 		} else {
 			if (!status) {
 				tty->hw_stopped = 1;
-				port->ops->stop_tx(port, 0);
+				port->ops->stop_tx(port);
 			}
 		}
 	}

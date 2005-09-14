@@ -41,6 +41,7 @@
 #include <asm/machdep.h>
 #include <asm/xics.h>
 #include <asm/cputable.h>
+#include <asm/firmware.h>
 #include <asm/system.h>
 #include <asm/rtas.h>
 #include <asm/plpar_wrappers.h>
@@ -271,6 +272,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	unsigned long start_here = __pa((u32)*((unsigned long *)
 					       pSeries_secondary_smp_init));
 	unsigned int pcpu;
+	int start_cpu;
 
 	if (cpu_isset(lcpu, of_spin_map))
 		/* Already started by OF and sitting in spin loop */
@@ -281,12 +283,20 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	/* Fixup atomic count: it exited inside IRQ handler. */
 	paca[lcpu].__current->thread_info->preempt_count	= 0;
 
-	status = rtas_call(rtas_token("start-cpu"), 3, 1, NULL,
-			   pcpu, start_here, lcpu);
+	/* 
+	 * If the RTAS start-cpu token does not exist then presume the
+	 * cpu is already spinning.
+	 */
+	start_cpu = rtas_token("start-cpu");
+	if (start_cpu == RTAS_UNKNOWN_SERVICE)
+		return 1;
+
+	status = rtas_call(start_cpu, 3, 1, NULL, pcpu, start_here, lcpu);
 	if (status != 0) {
 		printk(KERN_ERR "start-cpu failed: %i\n", status);
 		return 0;
 	}
+
 	return 1;
 }
 
@@ -326,7 +336,7 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
 
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		vpa_init(cpu);
 
 	cpu_clear(cpu, of_spin_map);

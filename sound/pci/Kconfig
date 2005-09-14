@@ -1,11 +1,15 @@
 # ALSA PCI drivers
 
-menu "PCI devices"
-	depends on SND!=n && PCI
-
 config SND_AC97_CODEC
 	tristate
 	select SND_PCM
+	select SND_AC97_BUS
+
+config SND_AC97_BUS
+	tristate
+
+menu "PCI devices"
+	depends on SND!=n && PCI
 
 config SND_ALI5451
 	tristate "ALi M5451 PCI Audio Controller"
@@ -314,7 +318,7 @@ config SND_YMFPCI
 
 config SND_ALS4000
 	tristate "Avance Logic ALS4000"
-	depends on SND
+	depends on SND && ISA_DMA_API
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM

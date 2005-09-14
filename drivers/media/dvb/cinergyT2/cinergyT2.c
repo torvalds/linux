@@ -25,7 +25,6 @@
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/pci.h>
@@ -35,7 +34,6 @@
 #include "dmxdev.h"
 #include "dvb_demux.h"
 #include "dvb_net.h"
-
 
 #ifdef CONFIG_DVB_CINERGYT2_TUNING
 	#define STREAM_URB_COUNT (CONFIG_DVB_CINERGYT2_STREAM_URB_COUNT)
@@ -49,7 +47,7 @@
 	#define STREAM_URB_COUNT (32)
 	#define STREAM_BUF_SIZE (512)	/* bytes */
 	#define ENABLE_RC (1)
-	#define RC_QUERY_INTERVAL (100)	/* milliseconds */
+	#define RC_QUERY_INTERVAL (50)	/* milliseconds */
 	#define QUERY_INTERVAL (333)	/* milliseconds */
 #endif
 
@@ -142,6 +140,8 @@ struct cinergyt2 {
 	struct input_dev rc_input_dev;
 	struct work_struct rc_query_work;
 	int rc_input_event;
+	u32 rc_last_code;
+	unsigned long last_event_jiffies;
 #endif
 };
 
@@ -156,7 +156,7 @@ struct cinergyt2_rc_event {
 	uint32_t value;
 } __attribute__((packed));
 
-static const uint32_t rc_keys [] = {
+static const uint32_t rc_keys[] = {
 	CINERGYT2_RC_EVENT_TYPE_NEC,	0xfe01eb04,	KEY_POWER,
 	CINERGYT2_RC_EVENT_TYPE_NEC,	0xfd02eb04,	KEY_1,
 	CINERGYT2_RC_EVENT_TYPE_NEC,	0xfc03eb04,	KEY_2,
@@ -685,52 +685,68 @@ static struct dvb_device cinergyt2_fe_template = {
 #ifdef ENABLE_RC
 static void cinergyt2_query_rc (void *data)
 {
-	struct cinergyt2 *cinergyt2 = (struct cinergyt2 *) data;
-	char buf [1] = { CINERGYT2_EP1_GET_RC_EVENTS };
+	struct cinergyt2 *cinergyt2 = data;
+	char buf[1] = { CINERGYT2_EP1_GET_RC_EVENTS };
 	struct cinergyt2_rc_event rc_events[12];
-	int n, len;
+	int n, len, i;
 
 	if (down_interruptible(&cinergyt2->sem))
 		return;
 
 	len = cinergyt2_command(cinergyt2, buf, sizeof(buf),
-			     (char *) rc_events, sizeof(rc_events));
+				(char *) rc_events, sizeof(rc_events));
+	if (len < 0)
+		goto out;
+	if (len == 0) {
+		if (time_after(jiffies, cinergyt2->last_event_jiffies +
+			       msecs_to_jiffies(150))) {
+			/* stop key repeat */
+			if (cinergyt2->rc_input_event != KEY_MAX) {
+				dprintk(1, "rc_input_event=%d Up\n", cinergyt2->rc_input_event);
+				input_report_key(&cinergyt2->rc_input_dev,
+						 cinergyt2->rc_input_event, 0);
+				cinergyt2->rc_input_event = KEY_MAX;
+			}
+			cinergyt2->rc_last_code = ~0;
+		}
+		goto out;
+	}
+	cinergyt2->last_event_jiffies = jiffies;
 
-	for (n=0; len>0 && n<(len/sizeof(rc_events[0])); n++) {
-		int i;
-
-/*		dprintk(1,"rc_events[%d].value = %x, type=%x\n",n,le32_to_cpu(rc_events[n].value),rc_events[n].type);*/
+	for (n = 0; n < (len / sizeof(rc_events[0])); n++) {
+		dprintk(1, "rc_events[%d].value = %x, type=%x\n",
+			n, le32_to_cpu(rc_events[n].value), rc_events[n].type);
 
 		if (rc_events[n].type == CINERGYT2_RC_EVENT_TYPE_NEC &&
-		    rc_events[n].value == ~0)
-		{
-			/**
-			 * keyrepeat bit. If we would handle this properly
-			 * we would need to emit down events as long the
-			 * keyrepeat goes, a up event if no further
-			 * repeat bits occur. Would need a timer to implement
-			 * and no other driver does this, so we simply
-			 * emit the last key up/down sequence again.
-			 */
+		    rc_events[n].value == ~0) {
+			/* keyrepeat bit -> just repeat last rc_input_event */
 		} else {
 			cinergyt2->rc_input_event = KEY_MAX;
-			for (i=0; i<sizeof(rc_keys)/sizeof(rc_keys[0]); i+=3) {
-				if (rc_keys[i+0] == rc_events[n].type &&
-				    rc_keys[i+1] == le32_to_cpu(rc_events[n].value))
-				{
-					cinergyt2->rc_input_event = rc_keys[i+2];
+			for (i = 0; i < sizeof(rc_keys) / sizeof(rc_keys[0]); i += 3) {
+				if (rc_keys[i + 0] == rc_events[n].type &&
+				    rc_keys[i + 1] == le32_to_cpu(rc_events[n].value)) {
+					cinergyt2->rc_input_event = rc_keys[i + 2];
 					break;
 				}
 			}
 		}
 
 		if (cinergyt2->rc_input_event != KEY_MAX) {
-			input_report_key(&cinergyt2->rc_input_dev, cinergyt2->rc_input_event, 1);
-			input_report_key(&cinergyt2->rc_input_dev, cinergyt2->rc_input_event, 0);
-			input_sync(&cinergyt2->rc_input_dev);
+			if (rc_events[n].value == cinergyt2->rc_last_code &&
+			    cinergyt2->rc_last_code != ~0) {
+				/* emit a key-up so the double event is recognized */
+				dprintk(1, "rc_input_event=%d UP\n", cinergyt2->rc_input_event);
+				input_report_key(&cinergyt2->rc_input_dev,
+						 cinergyt2->rc_input_event, 0);
+			}
+			dprintk(1, "rc_input_event=%d\n", cinergyt2->rc_input_event);
+			input_report_key(&cinergyt2->rc_input_dev,
+					 cinergyt2->rc_input_event, 1);
+			cinergyt2->rc_last_code = rc_events[n].value;
 		}
 	}
 
+out:
 	schedule_delayed_work(&cinergyt2->rc_query_work,
 			      msecs_to_jiffies(RC_QUERY_INTERVAL));
 
@@ -772,7 +788,10 @@ static int cinergyt2_probe (struct usb_interface *intf,
 		  const struct usb_device_id *id)
 {
 	struct cinergyt2 *cinergyt2;
-	int i, err;
+	int err;
+#ifdef ENABLE_RC
+	int i;
+#endif
 
 	if (!(cinergyt2 = kmalloc (sizeof(struct cinergyt2), GFP_KERNEL))) {
 		dprintk(1, "out of memory?!?\n");
@@ -828,19 +847,18 @@ static int cinergyt2_probe (struct usb_interface *intf,
 			    DVB_DEVICE_FRONTEND);
 
 #ifdef ENABLE_RC
-	init_input_dev(&cinergyt2->rc_input_dev);
-
-	cinergyt2->rc_input_dev.evbit[0] = BIT(EV_KEY);
-	cinergyt2->rc_input_dev.keycodesize = sizeof(unsigned char);
-	cinergyt2->rc_input_dev.keycodemax = KEY_MAX;
+	cinergyt2->rc_input_dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	cinergyt2->rc_input_dev.keycodesize = 0;
+	cinergyt2->rc_input_dev.keycodemax = 0;
 	cinergyt2->rc_input_dev.name = DRIVER_NAME " remote control";
 
-	for (i=0; i<sizeof(rc_keys)/sizeof(rc_keys[0]); i+=3)
-		set_bit(rc_keys[i+2], cinergyt2->rc_input_dev.keybit);
+	for (i = 0; i < sizeof(rc_keys) / sizeof(rc_keys[0]); i += 3)
+		set_bit(rc_keys[i + 2], cinergyt2->rc_input_dev.keybit);
 
 	input_register_device(&cinergyt2->rc_input_dev);
 
 	cinergyt2->rc_input_event = KEY_MAX;
+	cinergyt2->rc_last_code = ~0;
 
 	INIT_WORK(&cinergyt2->rc_query_work, cinergyt2_query_rc, cinergyt2);
 	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
@@ -888,7 +906,7 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	if (down_interruptible(&cinergyt2->sem))
 		return -ERESTARTSYS;
 
-	if (state > 0) {	/* state 0 seems to mean DEVICE_PM_ON */
+	if (state.event > PM_EVENT_ON) {
 		struct cinergyt2 *cinergyt2 = usb_get_intfdata (intf);
 #ifdef ENABLE_RC
 		cancel_delayed_work(&cinergyt2->rc_query_work);
