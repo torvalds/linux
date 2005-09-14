@@ -1,5 +1,6 @@
 config PM
 	bool "Power Management support"
+	depends on !IA64_HP_SIM
 	---help---
 	  "Power Management" means that parts of your computer are shut
 	  off or put into a power conserving "sleep" mode if they are not

@@ -1,5 +1,4 @@
 /*
-    $Id: bttv-vbi.c,v 1.9 2005/01/13 17:22:33 kraxel Exp $
 
     bttv - Bt848 frame grabber driver
     vbi interface

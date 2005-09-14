@@ -23,7 +23,7 @@
 #include <asm/unistd.h>
 #include <asm/errno.h>
 #include <asm/thread_info.h>
-#include <asm/arch/offset.h>
+#include <asm/asm-offsets.h>
 
 #include <asm/arch/hwregs/asm/reg_map_asm.h>
 #include <asm/arch/hwregs/asm/intr_vect_defs_asm.h>

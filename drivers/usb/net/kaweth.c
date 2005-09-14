@@ -787,7 +787,6 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 		      kaweth_usb_transmit_complete,
 		      kaweth);
 	kaweth->end = 0;
-	kaweth->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 
 	if((res = usb_submit_urb(kaweth->tx_urb, GFP_ATOMIC)))
 	{

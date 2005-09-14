@@ -32,6 +32,10 @@ extern struct timer_base_s __init_timer_base;
 		.magic = TIMER_MAGIC,				\
 	}
 
+#define DEFINE_TIMER(_name, _function, _expires, _data)		\
+	struct timer_list _name =				\
+		TIMER_INITIALIZER(_function, _expires, _data)
+
 void fastcall init_timer(struct timer_list * timer);
 
 /***

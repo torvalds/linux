@@ -507,8 +507,7 @@ static void pf_eject(struct pf_unit *pf)
 
 static void pf_sleep(int cs)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(cs);
+	schedule_timeout_interruptible(cs);
 }
 
 /* the ATAPI standard actually specifies the contents of all 7 registers

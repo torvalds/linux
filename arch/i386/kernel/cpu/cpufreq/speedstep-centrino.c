@@ -259,7 +259,7 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 
 	if (model->op_points == NULL) {
 		/* Matched a non-match */
-		dprintk(KERN_INFO PFX "no table support for CPU model \"%s\": \n",
+		dprintk(KERN_INFO PFX "no table support for CPU model \"%s\"\n",
 		       cpu->x86_model_id);
 #ifndef CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI
 		dprintk(KERN_INFO PFX "try compiling with CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI enabled\n");
@@ -402,7 +402,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 
 	for (i=0; i<p.state_count; i++) {
 		if (p.states[i].control != p.states[i].status) {
-			dprintk("Different control (%x) and status values (%x)\n",
+			dprintk("Different control (%llu) and status values (%llu)\n",
 				p.states[i].control, p.states[i].status);
 			result = -EINVAL;
 			goto err_unreg;
@@ -415,7 +415,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 		}
 
 		if (p.states[i].core_frequency > p.states[0].core_frequency) {
-			dprintk("P%u has larger frequency (%u) than P0 (%u), skipping\n", i,
+			dprintk("P%u has larger frequency (%llu) than P0 (%llu), skipping\n", i,
 				p.states[i].core_frequency, p.states[0].core_frequency);
 			p.states[i].core_frequency = 0;
 			continue;
@@ -498,13 +498,6 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	if (cpu->x86_vendor != X86_VENDOR_INTEL || !cpu_has(cpu, X86_FEATURE_EST))
 		return -ENODEV;
 
-	for (i = 0; i < N_IDS; i++)
-		if (centrino_verify_cpu_id(cpu, &cpu_ids[i]))
-			break;
-
-	if (i != N_IDS)
-		centrino_cpu[policy->cpu] = &cpu_ids[i];
-
 	if (is_const_loops_cpu(policy->cpu)) {
 		centrino_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
@@ -512,6 +505,13 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	if (centrino_cpu_init_acpi(policy)) {
 		if (policy->cpu != 0)
 			return -ENODEV;
+
+		for (i = 0; i < N_IDS; i++)
+			if (centrino_verify_cpu_id(cpu, &cpu_ids[i]))
+				break;
+
+		if (i != N_IDS)
+			centrino_cpu[policy->cpu] = &cpu_ids[i];
 
 		if (!centrino_cpu[policy->cpu]) {
 			dprintk(KERN_INFO PFX "found unsupported CPU with "

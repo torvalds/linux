@@ -57,9 +57,18 @@ asmlinkage void resume(void);
         : "cc", "%d0", "memory")
 #define local_irq_disable() __asm__ __volatile__ (		\
 	"move %/sr,%%d0\n\t"					\
-	"ori.l  #0x0700,%%d0\n\t"				\
+	"ori.l #0x0700,%%d0\n\t"				\
 	"move %%d0,%/sr\n"					\
-	: /* no inputs */					\
+	: /* no outputs */					\
+	:							\
+	: "cc", "%d0", "memory")
+/* For spinlocks etc */
+#define local_irq_save(x) __asm__ __volatile__ (		\
+	"movew %%sr,%0\n\t"					\
+	"movew #0x0700,%%d0\n\t"				\
+	"or.l  %0,%%d0\n\t"					\
+	"movew %%d0,%/sr"					\
+	: "=d" (x)						\
 	:							\
 	: "cc", "%d0", "memory")
 #else
@@ -75,7 +84,9 @@ asmlinkage void resume(void);
 #define local_irq_restore(x) asm volatile ("movew %0,%%sr": :"d" (x) : "memory")
 
 /* For spinlocks etc */
+#ifndef local_irq_save
 #define local_irq_save(x) do { local_save_flags(x); local_irq_disable(); } while (0)
+#endif
 
 #define	irqs_disabled()			\
 ({					\
@@ -234,9 +245,9 @@ cmpxchg(volatile int *p, int old, int new)
 #ifdef CONFIG_COLDFIRE
 #if defined(CONFIG_M5272) && defined(CONFIG_NETtel)
 /*
- *	Need to account for broken early mask of 5272 silicon. So don't
- *	jump through the original start address. Jump strait into the
- *	known start of the FLASH code.
+ * Need to account for broken early mask of 5272 silicon. So don't
+ * jump through the original start address. Jump strait into the
+ * known start of the FLASH code.
  */
 #define HARD_RESET_NOW() ({		\
         asm("				\
@@ -244,7 +255,9 @@ cmpxchg(volatile int *p, int old, int new)
         jmp 0xf0000400;			\
         ");				\
 })
-#elif defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || defined(CONFIG_DISKtel) || defined(CONFIG_SECUREEDGEMP3) || defined(CONFIG_CLEOPATRA)
+#elif defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
+      defined(CONFIG_DISKtel) || defined(CONFIG_SECUREEDGEMP3) || \
+      defined(CONFIG_CLEOPATRA)
 #define HARD_RESET_NOW() ({		\
         asm("				\
 	movew #0x2700, %sr;		\
@@ -256,6 +269,26 @@ cmpxchg(volatile int *p, int old, int new)
         moveal (%a0), %a0;		\
         jmp (%a0);			\
         ");				\
+})
+#elif defined(CONFIG_M5272)
+/*
+ * Retrieve the boot address in flash using CSBR0 and CSOR0
+ * find the reset vector at flash_address + 4 (e.g. 0x400)
+ * remap it in the flash's current location (e.g. 0xf0000400)
+ * and jump there.
+ */ 
+#define HARD_RESET_NOW() ({		\
+	asm("				\
+	movew #0x2700, %%sr;		\
+	move.l	%0+0x40,%%d0;		\
+	and.l	%0+0x44,%%d0;		\
+	andi.l	#0xfffff000,%%d0;	\
+	mov.l	%%d0,%%a0;		\
+	or.l	4(%%a0),%%d0;		\
+	mov.l	%%d0,%%a0;		\
+	jmp (%%a0);"			\
+	: /* No output */		\
+	: "o" (*(char *)MCF_MBAR) );	\
 })
 #elif defined(CONFIG_M528x)
 /*
@@ -269,6 +302,15 @@ cmpxchg(volatile int *p, int old, int new)
 	reset = ((volatile unsigned short *)(MCF_IPSBAR + 0x110000));	\
 	while(1)				\
 	*reset |= (0x01 << 7);\
+})
+#elif defined(CONFIG_M523x)
+#define HARD_RESET_NOW() ({		\
+	asm("				\
+	movew #0x2700, %sr;		\
+	movel #0x01000000, %sp;		\
+	moveal #0x40110000, %a0;	\
+	moveb #0x80, (%a0);		\
+	");				\
 })
 #else
 #define HARD_RESET_NOW() ({		\

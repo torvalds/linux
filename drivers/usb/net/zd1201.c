@@ -847,7 +847,6 @@ static void zd1201_tx_timeout(struct net_device *dev)
 		return;
 	dev_warn(&zd->usb->dev, "%s: TX timeout, shooting down urb\n",
 	    dev->name);
-	zd->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(zd->tx_urb);
 	zd->stats.tx_errors++;
 	/* Restart the timeout to quiet the watchdog: */

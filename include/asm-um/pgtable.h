@@ -326,14 +326,22 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-extern phys_t page_to_phys(struct page *page);
-
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */
 
-extern pte_t mk_pte(struct page *page, pgprot_t pgprot);
+#define phys_to_page(phys) pfn_to_page(phys_to_pfn(phys))
+#define __virt_to_page(virt) phys_to_page(__pa(virt))
+#define page_to_phys(page) pfn_to_phys(page_to_pfn(page))
+
+#define mk_pte(page, pgprot) \
+	({ pte_t pte;					\
+							\
+	pte_set_val(pte, page_to_phys(page), (pgprot));	\
+	if (pte_present(pte))				\
+		pte_mknewprot(pte_mknewpage(pte));	\
+	pte;})
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -410,8 +418,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #endif
 #endif
 
-extern struct page *phys_to_page(const unsigned long phys);
-extern struct page *__virt_to_page(const unsigned long virt);
 #define virt_to_page(addr) __virt_to_page((const unsigned long) addr)
 
 /*

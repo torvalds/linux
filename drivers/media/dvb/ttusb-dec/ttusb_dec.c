@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/crc32.h>

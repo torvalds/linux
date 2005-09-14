@@ -1333,7 +1333,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	unsigned long bar0map_len, bar2map_len;
 	int error = -ENODEV, retval;
 	int i;
-	u64 wwname;
 
 	if (pci_enable_device(pdev))
 		goto out;
@@ -1524,10 +1523,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	 * Must done after lpfc_sli_hba_setup()
 	 */
 
-	memcpy(&wwname, &phba->fc_nodename, sizeof(u64));
-	fc_host_node_name(host) = be64_to_cpu(wwname);
-	memcpy(&wwname, &phba->fc_portname, sizeof(u64));
-	fc_host_port_name(host) = be64_to_cpu(wwname);
+	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.wwn);
+	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.wwn);
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
 
 	memset(fc_host_supported_fc4s(host), 0,

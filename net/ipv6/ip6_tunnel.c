@@ -673,11 +673,12 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if ((dst = ip6_tnl_dst_check(t)) != NULL)
 		dst_hold(dst);
-	else
+	else {
 		dst = ip6_route_output(NULL, &fl);
 
-	if (dst->error || xfrm_lookup(&dst, &fl, NULL, 0) < 0)
-		goto tx_err_link_failure;
+		if (dst->error || xfrm_lookup(&dst, &fl, NULL, 0) < 0)
+			goto tx_err_link_failure;
+	}
 
 	tdev = dst->dev;
 

@@ -96,7 +96,7 @@ static struct plat_serial8250_port ixdp425_uart_data[] = {
 
 static struct platform_device ixdp425_uart = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev.platform_data	= ixdp425_uart_data,
 	.num_resources		= 2,
 	.resource		= ixdp425_uart_resources

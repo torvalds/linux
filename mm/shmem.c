@@ -666,6 +666,7 @@ static void shmem_delete_inode(struct inode *inode)
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	if (inode->i_op->truncate == shmem_truncate) {
+		truncate_inode_pages(inode->i_mapping, 0);
 		shmem_unacct_size(info->flags, inode->i_size);
 		inode->i_size = 0;
 		shmem_truncate(inode);
@@ -1607,6 +1608,15 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	int error = -ENOSPC;
 
 	if (inode) {
+		error = security_inode_init_security(inode, dir, NULL, NULL,
+						     NULL);
+		if (error) {
+			if (error != -EOPNOTSUPP) {
+				iput(inode);
+				return error;
+			}
+			error = 0;
+		}
 		if (dir->i_mode & S_ISGID) {
 			inode->i_gid = dir->i_gid;
 			if (S_ISDIR(mode))
@@ -1616,7 +1626,6 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 		d_instantiate(dentry, inode);
 		dget(dentry); /* Extra count - pin the dentry in core */
-		error = 0;
 	}
 	return error;
 }
@@ -1745,6 +1754,16 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	inode = shmem_get_inode(dir->i_sb, S_IFLNK|S_IRWXUGO, 0);
 	if (!inode)
 		return -ENOSPC;
+
+	error = security_inode_init_security(inode, dir, NULL, NULL,
+					     NULL);
+	if (error) {
+		if (error != -EOPNOTSUPP) {
+			iput(inode);
+			return error;
+		}
+		error = 0;
+	}
 
 	info = SHMEM_I(inode);
 	inode->i_size = len-1;

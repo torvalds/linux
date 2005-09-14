@@ -180,6 +180,42 @@ static struct super_block *cpuset_sb = NULL;
  */
 
 static DECLARE_MUTEX(cpuset_sem);
+static struct task_struct *cpuset_sem_owner;
+static int cpuset_sem_depth;
+
+/*
+ * The global cpuset semaphore cpuset_sem can be needed by the
+ * memory allocator to update a tasks mems_allowed (see the calls
+ * to cpuset_update_current_mems_allowed()) or to walk up the
+ * cpuset hierarchy to find a mem_exclusive cpuset see the calls
+ * to cpuset_excl_nodes_overlap()).
+ *
+ * But if the memory allocation is being done by cpuset.c code, it
+ * usually already holds cpuset_sem.  Double tripping on a kernel
+ * semaphore deadlocks the current task, and any other task that
+ * subsequently tries to obtain the lock.
+ *
+ * Run all up's and down's on cpuset_sem through the following
+ * wrappers, which will detect this nested locking, and avoid
+ * deadlocking.
+ */
+
+static inline void cpuset_down(struct semaphore *psem)
+{
+	if (cpuset_sem_owner != current) {
+		down(psem);
+		cpuset_sem_owner = current;
+	}
+	cpuset_sem_depth++;
+}
+
+static inline void cpuset_up(struct semaphore *psem)
+{
+	if (--cpuset_sem_depth == 0) {
+		cpuset_sem_owner = NULL;
+		up(psem);
+	}
+}
 
 /*
  * A couple of forward declarations required, due to cyclic reference loop:
@@ -522,19 +558,10 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * Refresh current tasks mems_allowed and mems_generation from
  * current tasks cpuset.  Call with cpuset_sem held.
  *
- * Be sure to call refresh_mems() on any cpuset operation which
- * (1) holds cpuset_sem, and (2) might possibly alloc memory.
- * Call after obtaining cpuset_sem lock, before any possible
- * allocation.  Otherwise one risks trying to allocate memory
- * while the task cpuset_mems_generation is not the same as
- * the mems_generation in its cpuset, which would deadlock on
- * cpuset_sem in cpuset_update_current_mems_allowed().
- *
- * Since we hold cpuset_sem, once refresh_mems() is called, the
- * test (current->cpuset_mems_generation != cs->mems_generation)
- * in cpuset_update_current_mems_allowed() will remain false,
- * until we drop cpuset_sem.  Anyone else who would change our
- * cpusets mems_generation needs to lock cpuset_sem first.
+ * This routine is needed to update the per-task mems_allowed
+ * data, within the tasks context, when it is trying to allocate
+ * memory (in various mm/mempolicy.c routines) and notices
+ * that some other task has been modifying its cpuset.
  */
 
 static void refresh_mems(void)
@@ -840,7 +867,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 	}
 	buffer[nbytes] = 0;	/* nul-terminate */
 
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 
 	if (is_removed(cs)) {
 		retval = -ENODEV;
@@ -874,7 +901,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 	if (retval == 0)
 		retval = nbytes;
 out2:
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 	cpuset_release_agent(pathbuf);
 out1:
 	kfree(buffer);
@@ -914,9 +941,9 @@ static int cpuset_sprintf_cpulist(char *page, struct cpuset *cs)
 {
 	cpumask_t mask;
 
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 	mask = cs->cpus_allowed;
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 
 	return cpulist_scnprintf(page, PAGE_SIZE, mask);
 }
@@ -925,9 +952,9 @@ static int cpuset_sprintf_memlist(char *page, struct cpuset *cs)
 {
 	nodemask_t mask;
 
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 	mask = cs->mems_allowed;
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 
 	return nodelist_scnprintf(page, PAGE_SIZE, mask);
 }
@@ -971,6 +998,10 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	}
 	*s++ = '\n';
 	*s = '\0';
+
+	/* Do nothing if *ppos is at the eof or beyond the eof. */
+	if (s - page <= *ppos)
+		return 0;
 
 	start = page + *ppos;
 	n = s - start;
@@ -1330,8 +1361,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 	if (!cs)
 		return -ENOMEM;
 
-	down(&cpuset_sem);
-	refresh_mems();
+	cpuset_down(&cpuset_sem);
 	cs->flags = 0;
 	if (notify_on_release(parent))
 		set_bit(CS_NOTIFY_ON_RELEASE, &cs->flags);
@@ -1356,14 +1386,14 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 	 * will down() this new directory's i_sem and if we race with
 	 * another mkdir, we might deadlock.
 	 */
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 
 	err = cpuset_populate_dir(cs->dentry);
 	/* If err < 0, we have a half-filled directory - oh well ;) */
 	return 0;
 err:
 	list_del(&cs->sibling);
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 	kfree(cs);
 	return err;
 }
@@ -1385,14 +1415,13 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 
 	/* the vfs holds both inode->i_sem already */
 
-	down(&cpuset_sem);
-	refresh_mems();
+	cpuset_down(&cpuset_sem);
 	if (atomic_read(&cs->count) > 0) {
-		up(&cpuset_sem);
+		cpuset_up(&cpuset_sem);
 		return -EBUSY;
 	}
 	if (!list_empty(&cs->children)) {
-		up(&cpuset_sem);
+		cpuset_up(&cpuset_sem);
 		return -EBUSY;
 	}
 	parent = cs->parent;
@@ -1408,7 +1437,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	spin_unlock(&d->d_lock);
 	cpuset_d_remove_dir(d);
 	dput(d);
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 	cpuset_release_agent(pathbuf);
 	return 0;
 }
@@ -1511,10 +1540,10 @@ void cpuset_exit(struct task_struct *tsk)
 	if (notify_on_release(cs)) {
 		char *pathbuf = NULL;
 
-		down(&cpuset_sem);
+		cpuset_down(&cpuset_sem);
 		if (atomic_dec_and_test(&cs->count))
 			check_for_release(cs, &pathbuf);
-		up(&cpuset_sem);
+		cpuset_up(&cpuset_sem);
 		cpuset_release_agent(pathbuf);
 	} else {
 		atomic_dec(&cs->count);
@@ -1535,11 +1564,11 @@ cpumask_t cpuset_cpus_allowed(const struct task_struct *tsk)
 {
 	cpumask_t mask;
 
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 	task_lock((struct task_struct *)tsk);
 	guarantee_online_cpus(tsk->cpuset, &mask);
 	task_unlock((struct task_struct *)tsk);
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 
 	return mask;
 }
@@ -1564,9 +1593,9 @@ void cpuset_update_current_mems_allowed(void)
 	if (!cs)
 		return;		/* task is exiting */
 	if (current->cpuset_mems_generation != cs->mems_generation) {
-		down(&cpuset_sem);
+		cpuset_down(&cpuset_sem);
 		refresh_mems();
-		up(&cpuset_sem);
+		cpuset_up(&cpuset_sem);
 	}
 }
 
@@ -1665,14 +1694,14 @@ int cpuset_zone_allowed(struct zone *z, unsigned int __nocast gfp_mask)
 		return 0;
 
 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 	cs = current->cpuset;
 	if (!cs)
 		goto done;		/* current task exiting */
 	cs = nearest_exclusive_ancestor(cs);
 	allowed = node_isset(node, cs->mems_allowed);
 done:
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 	return allowed;
 }
 
@@ -1693,7 +1722,7 @@ int cpuset_excl_nodes_overlap(const struct task_struct *p)
 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
 	int overlap = 0;		/* do cpusets overlap? */
 
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 	cs1 = current->cpuset;
 	if (!cs1)
 		goto done;		/* current task exiting */
@@ -1704,7 +1733,7 @@ int cpuset_excl_nodes_overlap(const struct task_struct *p)
 	cs2 = nearest_exclusive_ancestor(cs2);
 	overlap = nodes_intersects(cs1->mems_allowed, cs2->mems_allowed);
 done:
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 
 	return overlap;
 }
@@ -1727,7 +1756,7 @@ static int proc_cpuset_show(struct seq_file *m, void *v)
 		return -ENOMEM;
 
 	tsk = m->private;
-	down(&cpuset_sem);
+	cpuset_down(&cpuset_sem);
 	task_lock(tsk);
 	cs = tsk->cpuset;
 	task_unlock(tsk);
@@ -1742,7 +1771,7 @@ static int proc_cpuset_show(struct seq_file *m, void *v)
 	seq_puts(m, buf);
 	seq_putc(m, '\n');
 out:
-	up(&cpuset_sem);
+	cpuset_up(&cpuset_sem);
 	kfree(buf);
 	return retval;
 }

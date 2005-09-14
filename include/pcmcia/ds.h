@@ -151,6 +151,8 @@ struct pcmcia_device {
 	   uniquely define a pcmcia_device */
 	struct pcmcia_socket	*socket;
 
+	char			*devname;
+
 	u8			device_no;
 
 	/* the hardware "function" device; certain subdevices can

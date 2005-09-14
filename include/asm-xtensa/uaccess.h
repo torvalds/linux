@@ -25,7 +25,7 @@
 
 #define _ASMLANGUAGE
 #include <asm/current.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/processor.h>
 
 /*

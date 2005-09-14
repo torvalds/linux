@@ -537,7 +537,6 @@ lives_below_in_same_fs(struct dentry *d, struct dentry *dentry)
 static struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct vfsmount *res, *p, *q, *r, *s;
-	struct list_head *h;
 	struct nameidata nd;
 
 	res = q = clone_mnt(mnt, dentry);
@@ -546,8 +545,7 @@ static struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry)
 	q->mnt_mountpoint = mnt->mnt_mountpoint;
 
 	p = mnt;
-	for (h = mnt->mnt_mounts.next; h != &mnt->mnt_mounts; h = h->next) {
-		r = list_entry(h, struct vfsmount, mnt_child);
+	list_for_each_entry(r, &mnt->mnt_mounts, mnt_child) {
 		if (!lives_below_in_same_fs(r->mnt_mountpoint, dentry))
 			continue;
 

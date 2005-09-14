@@ -221,6 +221,13 @@ config PCMCIA_VRC4173
 	tristate "NEC VRC4173 CARDU support"
 	depends on CPU_VR41XX && PCI && PCMCIA
 
+config OMAP_CF
+	tristate "OMAP CompactFlash Controller"
+	depends on PCMCIA && ARCH_OMAP16XX
+	help
+	  Say Y here to support the CompactFlash controller on OMAP.
+	  Note that this doesn't support "True IDE" mode.
+
 config PCCARD_NONSTATIC
 	tristate
 

@@ -299,8 +299,7 @@ nlmclnt_alloc_call(void)
 			return call;
 		}
 		printk("nlmclnt_alloc_call: failed, waiting for memory\n");
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(5*HZ);
+		schedule_timeout_interruptible(5*HZ);
 	}
 	return NULL;
 }

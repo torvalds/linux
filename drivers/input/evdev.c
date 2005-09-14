@@ -322,7 +322,7 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (t < 0 || t >= dev->keycodemax || !dev->keycodesize) return -EINVAL;
 			if (get_user(v, ip + 1)) return -EFAULT;
 			if (v < 0 || v > KEY_MAX) return -EINVAL;
-			if (v >> (dev->keycodesize * 8)) return -EINVAL;
+			if (dev->keycodesize < sizeof(v) && (v >> (dev->keycodesize * 8))) return -EINVAL;
 			u = SET_INPUT_KEYCODE(dev, t, v);
 			clear_bit(u, dev->keybit);
 			set_bit(v, dev->keybit);
@@ -509,7 +509,7 @@ do { \
 	int len = NBITS_COMPAT((max)) * sizeof(compat_long_t); \
 	if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd); \
 	for (i = 0; i < len / sizeof(compat_long_t); i++) \
-		if (copy_to_user((compat_long_t*) p + i, \
+		if (copy_to_user((compat_long_t __user *) p + i, \
 				 (compat_long_t*) (bit) + i + 1 - ((i % 2) << 1), \
 				 sizeof(compat_long_t))) \
 			return -EFAULT; \

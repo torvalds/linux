@@ -115,17 +115,12 @@ EXPORT_PER_CPU_SYMBOL(__cpu_data);
 
 /* used by various drivers */
 #ifdef CONFIG_SMP
-#ifndef CONFIG_DEBUG_SPINLOCK
 /* Out of line rw-locking implementation. */
 EXPORT_SYMBOL(__read_lock);
 EXPORT_SYMBOL(__read_unlock);
 EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
-/* Out of line spin-locking implementation. */
-EXPORT_SYMBOL(_raw_spin_lock);
-EXPORT_SYMBOL(_raw_spin_lock_flags);
-#endif
 
 /* Hard IRQ locking */
 EXPORT_SYMBOL(synchronize_irq);
@@ -403,12 +398,3 @@ EXPORT_SYMBOL(xor_vis_4);
 EXPORT_SYMBOL(xor_vis_5);
 
 EXPORT_SYMBOL(prom_palette);
-
-/* memory barriers */
-EXPORT_SYMBOL(mb);
-EXPORT_SYMBOL(rmb);
-EXPORT_SYMBOL(wmb);
-EXPORT_SYMBOL(membar_storeload);
-EXPORT_SYMBOL(membar_storeload_storestore);
-EXPORT_SYMBOL(membar_storeload_loadload);
-EXPORT_SYMBOL(membar_storestore_loadstore);

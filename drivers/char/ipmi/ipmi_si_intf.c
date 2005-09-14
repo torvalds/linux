@@ -1019,7 +1019,7 @@ MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 #define IPMI_MEM_ADDR_SPACE 1
 #define IPMI_IO_ADDR_SPACE  2
 
-#if defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_X86) || defined(CONFIG_PCI)
+#if defined(CONFIG_ACPI) || defined(CONFIG_X86) || defined(CONFIG_PCI)
 static int is_new_interface(int intf, u8 addr_space, unsigned long base_addr)
 {
 	int i;
@@ -1395,7 +1395,7 @@ static int try_init_mem(int intf_num, struct smi_info **new_info)
 }
 
 
-#ifdef CONFIG_ACPI_INTERPRETER
+#ifdef CONFIG_ACPI
 
 #include <linux/acpi.h>
 
@@ -1516,6 +1516,9 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 	struct SPMITable *spmi;
 	char             *io_type;
 	u8 		 addr_space;
+
+	if (acpi_disabled)
+		return -ENODEV;
 
 	if (acpi_failure)
 		return -ENODEV;
@@ -1917,8 +1920,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	for (;;)
 	{
 		if (smi_result == SI_SM_CALL_WITH_DELAY) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 			smi_result = smi_info->handlers->event(
 				smi_info->si_sm, 100);
 		}
@@ -2092,7 +2094,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	rv = try_init_mem(intf_num, &new_smi);
 	if (rv)
 		rv = try_init_port(intf_num, &new_smi);
-#ifdef CONFIG_ACPI_INTERPRETER
+#ifdef CONFIG_ACPI
 	if (rv && si_trydefaults)
 		rv = try_init_acpi(intf_num, &new_smi);
 #endif
@@ -2253,10 +2255,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */
-	while (! new_smi->timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (!new_smi->timer_stopped)
+		schedule_timeout_uninterruptible(1);
 
  out_err:
 	if (new_smi->intf)
@@ -2376,17 +2376,14 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */
-	while (! to_clean->timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (!to_clean->timer_stopped)
+		schedule_timeout_uninterruptible(1);
 
 	/* Interrupts and timeouts are stopped, now make sure the
 	   interface is in a clean state. */
 	while (to_clean->curr_msg || (to_clean->si_state != SI_NORMAL)) {
 		poll(to_clean);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	rv = ipmi_unregister_smi(to_clean->intf);

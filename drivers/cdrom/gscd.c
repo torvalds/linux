@@ -146,7 +146,7 @@ static int AudioStart_f;
 static int AudioEnd_m;
 static int AudioEnd_f;
 
-static struct timer_list gscd_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(gscd_timer, NULL, 0, 0);
 static DEFINE_SPINLOCK(gscd_lock);
 static struct request_queue *gscd_queue;
 

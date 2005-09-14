@@ -6,15 +6,16 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sort.h>
 
-void u32_swap(void *a, void *b, int size)
+static void u32_swap(void *a, void *b, int size)
 {
 	u32 t = *(u32 *)a;
 	*(u32 *)a = *(u32 *)b;
 	*(u32 *)b = t;
 }
 
-void generic_swap(void *a, void *b, int size)
+static void generic_swap(void *a, void *b, int size)
 {
 	char t;
 

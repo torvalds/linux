@@ -94,7 +94,7 @@ static char mv643xx_driver_version[] = "1.0";
 static void __iomem *mv643xx_eth_shared_base;
 
 /* used to protect MV643XX_ETH_SMI_REG, which is shared across ports */
-static spinlock_t mv643xx_eth_phy_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mv643xx_eth_phy_lock);
 
 static inline u32 mv_read(int offset)
 {

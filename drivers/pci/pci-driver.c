@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/mempolicy.h>
 #include "pci.h"
 
 /*
@@ -163,6 +164,34 @@ const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 	return NULL;
 }
 
+static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
+			  const struct pci_device_id *id)
+{
+	int error;
+#ifdef CONFIG_NUMA
+	/* Execute driver initialization on node where the
+	   device's bus is attached to.  This way the driver likely
+	   allocates its local memory on the right node without
+	   any need to change it. */
+	struct mempolicy *oldpol;
+	cpumask_t oldmask = current->cpus_allowed;
+	int node = pcibus_to_node(dev->bus);
+	if (node >= 0 && node_online(node))
+	    set_cpus_allowed(current, node_to_cpumask(node));
+	/* And set default memory allocation policy */
+	oldpol = current->mempolicy;
+	current->mempolicy = &default_policy;
+	mpol_get(current->mempolicy);
+#endif
+	error = drv->probe(dev, id);
+#ifdef CONFIG_NUMA
+	set_cpus_allowed(current, oldmask);
+	mpol_free(current->mempolicy);
+	current->mempolicy = oldpol;
+#endif
+	return error;
+}
+
 /**
  * __pci_device_probe()
  * 
@@ -180,7 +209,7 @@ __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 
 		id = pci_match_device(drv, pci_dev);
 		if (id)
-			error = drv->probe(pci_dev, id);
+			error = pci_call_probe(drv, pci_dev, id);
 		if (error >= 0) {
 			pci_dev->driver = drv;
 			error = 0;
@@ -243,17 +272,19 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 }
 
 
-/* 
+/*
  * Default resume method for devices that have no driver provided resume,
  * or not even a driver at all.
  */
 static void pci_default_resume(struct pci_dev *pci_dev)
 {
+	int retval;
+
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
 	if (pci_dev->is_enabled)
-		pci_enable_device(pci_dev);
+		retval = pci_enable_device(pci_dev);
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);

@@ -236,6 +236,9 @@ ugly), but try to avoid excess.  Instead, put the comments at the head
 of the function, telling people what it does, and possibly WHY it does
 it.
 
+When commenting the kernel API functions, please use the kerneldoc format.
+See the files Documentation/kernel-doc-nano-HOWTO.txt and scripts/kernel-doc
+for details.
 
 		Chapter 8: You've made a mess of it
 

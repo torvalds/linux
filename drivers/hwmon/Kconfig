@@ -411,6 +411,23 @@ config SENSORS_W83627EHF
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
 
+config SENSORS_HDAPS
+	tristate "IBM Hard Drive Active Protection System (hdaps)"
+	depends on HWMON && INPUT && X86
+	default n
+	help
+	  This driver provides support for the IBM Hard Drive Active Protection
+	  System (hdaps), which provides an accelerometer and other misc. data.
+	  Supported laptops include the IBM ThinkPad T41, T42, T43, and R51.
+	  The accelerometer data is readable via sysfs.
+
+	  This driver also provides an input class device, allowing the
+	  laptop to act as a pinball machine-esque mouse.  This is off by
+	  default but enabled via sysfs or the module parameter "mousedev".
+
+	  Say Y here if you have an applicable laptop and want to experience
+	  the awesome power of hdaps.
+
 config HWMON_DEBUG_CHIP
 	bool "Hardware Monitoring Chip debugging messages"
 	depends on HWMON

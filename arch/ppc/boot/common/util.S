@@ -252,7 +252,7 @@ _GLOBAL(flush_instruction_cache)
 1:	dcbf	r0,r3			# Flush the data cache
 	icbi	r0,r3			# Invalidate the instruction cache
 	addi	r3,r3,0x10		# Increment by one cache line
-	cmplwi	cr0,r3,r4		# Are we at the end yet?
+	cmplw	cr0,r3,r4		# Are we at the end yet?
 	blt	1b			# No, keep flushing and invalidating
 #else
 	/* Enable, invalidate and then disable the L1 icache/dcache. */

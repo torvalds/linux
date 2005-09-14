@@ -263,6 +263,7 @@ struct ehci_regs {
 #define PORT_PE		(1<<2)		/* port enable */
 #define PORT_CSC	(1<<1)		/* connect status change */
 #define PORT_CONNECT	(1<<0)		/* device connected */
+#define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
 } __attribute__ ((packed));
 
 /* Appendix C, Debug port ... intended for use with special "debug devices"
@@ -421,6 +422,7 @@ struct ehci_qh {
 	u8			usecs;		/* intr bandwidth */
 	u8			gap_uf;		/* uframes split/csplit gap */
 	u8			c_usecs;	/* ... split completion bw */
+	u16			tt_usecs;	/* tt downstream bandwidth */
 	unsigned short		period;		/* polling interval */
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
@@ -479,6 +481,7 @@ struct ehci_iso_stream {
 	 */
 	u8			interval;
 	u8			usecs, c_usecs;
+	u16			tt_usecs;
 	u16			maxp;
 	u16			raw_mask;
 	unsigned		bandwidth;

@@ -87,14 +87,14 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-#ifdef	CONFIG_ACPI_INTERPRETER
+#ifdef	CONFIG_ACPI
 	int acpi_disabled = 0;
 #else
 	int acpi_disabled = 1;
 #endif
 EXPORT_SYMBOL(acpi_disabled);
 
-#ifdef	CONFIG_ACPI_BOOT
+#ifdef	CONFIG_ACPI
 int __initdata acpi_force = 0;
 extern acpi_interrupt_flags	acpi_sci_flags;
 #endif
@@ -139,6 +139,7 @@ struct sys_desc_table_struct {
 	unsigned char table[0];
 };
 struct edid_info edid_info;
+EXPORT_SYMBOL_GPL(edid_info);
 struct ist_info ist_info;
 #if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
 	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
@@ -798,7 +799,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		}
 #endif
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter */
 		else if (!memcmp(from, "acpi=off", 8)) {
 			disable_acpi();
@@ -850,11 +851,16 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
+		if (!memcmp(from, "disable_timer_pin_1", 19))
+			disable_timer_pin_1 = 1;
+		if (!memcmp(from, "enable_timer_pin_1", 18))
+			disable_timer_pin_1 = -1;
+
 		/* disable IO-APIC */
 		else if (!memcmp(from, "noapic", 6))
 			disable_ioapic_setup();
 #endif /* CONFIG_X86_LOCAL_APIC */
-#endif /* CONFIG_ACPI_BOOT */
+#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_X86_LOCAL_APIC
 		/* enable local APIC */
@@ -1299,7 +1305,7 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
  */
 static void __init register_memory(void)
 {
-	unsigned long gapstart, gapsize;
+	unsigned long gapstart, gapsize, round;
 	unsigned long long last;
 	int	      i;
 
@@ -1344,14 +1350,14 @@ static void __init register_memory(void)
 	}
 
 	/*
-	 * Start allocating dynamic PCI memory a bit into the gap,
-	 * aligned up to the nearest megabyte.
-	 *
-	 * Question: should we try to pad it up a bit (do something
-	 * like " + (gapsize >> 3)" in there too?). We now have the
-	 * technology.
+	 * See how much we want to round up: start off with
+	 * rounding to the next 1MB area.
 	 */
-	pci_mem_start = (gapstart + 0xfffff) & ~0xfffff;
+	round = 0x100000;
+	while ((gapsize >> 4) > round)
+		round += round;
+	/* Fun with two's complement */
+	pci_mem_start = (gapstart + round) & -round;
 
 	printk("Allocating PCI resources starting at %08lx (gap: %08lx:%08lx)\n",
 		pci_mem_start, gapstart, gapsize);
@@ -1579,7 +1585,7 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_map_memmap();
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */

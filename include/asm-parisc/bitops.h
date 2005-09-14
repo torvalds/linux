@@ -2,7 +2,7 @@
 #define _PARISC_BITOPS_H
 
 #include <linux/compiler.h>
-#include <asm/system.h>
+#include <asm/spinlock.h>
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
 

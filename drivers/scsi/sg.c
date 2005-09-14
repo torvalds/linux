@@ -61,7 +61,7 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20050901";
+static char *sg_version_date = "20050908";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -1299,7 +1299,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 		sg_rb_correct4mmap(rsv_schp, 1);	/* do only once per fd lifetime */
 		sfp->mmap_called = 1;
 	}
-	vma->vm_flags |= (VM_RESERVED | VM_IO);
+	vma->vm_flags |= VM_RESERVED;
 	vma->vm_private_data = sfp;
 	vma->vm_ops = &sg_mmap_vm_ops;
 	return 0;

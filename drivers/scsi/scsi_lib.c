@@ -97,6 +97,30 @@ int scsi_insert_special_req(struct scsi_request *sreq, int at_head)
 }
 
 static void scsi_run_queue(struct request_queue *q);
+static void scsi_release_buffers(struct scsi_cmnd *cmd);
+
+/*
+ * Function:	scsi_unprep_request()
+ *
+ * Purpose:	Remove all preparation done for a request, including its
+ *		associated scsi_cmnd, so that it can be requeued.
+ *
+ * Arguments:	req	- request to unprepare
+ *
+ * Lock status:	Assumed that no locks are held upon entry.
+ *
+ * Returns:	Nothing.
+ */
+static void scsi_unprep_request(struct request *req)
+{
+	struct scsi_cmnd *cmd = req->special;
+
+	req->flags &= ~REQ_DONTPREP;
+	req->special = (req->flags & REQ_SPECIAL) ? cmd->sc_request : NULL;
+
+	scsi_release_buffers(cmd);
+	scsi_put_command(cmd);
+}
 
 /*
  * Function:    scsi_queue_insert()
@@ -116,12 +140,14 @@ static void scsi_run_queue(struct request_queue *q);
  *              commands.
  * Notes:       This could be called either from an interrupt context or a
  *              normal process context.
+ * Notes:	Upon return, cmd is a stale pointer.
  */
 int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_device *device = cmd->device;
 	struct request_queue *q = device->request_queue;
+	struct request *req = cmd->request;
 	unsigned long flags;
 
 	SCSI_LOG_MLQUEUE(1,
@@ -162,8 +188,9 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	 * function.  The SCSI request function detects the blocked condition
 	 * and plugs the queue appropriately.
          */
+	scsi_unprep_request(req);
 	spin_lock_irqsave(q->queue_lock, flags);
-	blk_requeue_request(q, cmd->request);
+	blk_requeue_request(q, req);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	scsi_run_queue(q);
@@ -339,7 +366,7 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 	int result;
 	
 	if (sshdr) {
-		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
+		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
 		if (!sense)
 			return DRIVER_ERROR << 24;
 		memset(sense, 0, SCSI_SENSE_BUFFERSIZE);
@@ -552,15 +579,16 @@ static void scsi_run_queue(struct request_queue *q)
  *		I/O errors in the middle of the request, in which case
  *		we need to request the blocks that come after the bad
  *		sector.
+ * Notes:	Upon return, cmd is a stale pointer.
  */
 static void scsi_requeue_command(struct request_queue *q, struct scsi_cmnd *cmd)
 {
+	struct request *req = cmd->request;
 	unsigned long flags;
 
-	cmd->request->flags &= ~REQ_DONTPREP;
-
+	scsi_unprep_request(req);
 	spin_lock_irqsave(q->queue_lock, flags);
-	blk_requeue_request(q, cmd->request);
+	blk_requeue_request(q, req);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	scsi_run_queue(q);
@@ -595,13 +623,14 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
  *
  * Lock status: Assumed that lock is not held upon entry.
  *
- * Returns:     cmd if requeue done or required, NULL otherwise
+ * Returns:     cmd if requeue required, NULL otherwise.
  *
  * Notes:       This is called for block device requests in order to
  *              mark some number of sectors as complete.
  * 
  *		We are guaranteeing that the request queue will be goosed
  *		at some point during this call.
+ * Notes:	If cmd was requeued, upon return it will be a stale pointer.
  */
 static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int uptodate,
 					  int bytes, int requeue)
@@ -624,14 +653,15 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int uptodate,
 		if (!uptodate && blk_noretry_request(req))
 			end_that_request_chunk(req, 0, leftover);
 		else {
-			if (requeue)
+			if (requeue) {
 				/*
 				 * Bleah.  Leftovers again.  Stick the
 				 * leftovers in the front of the
 				 * queue, and goose the queue again.
 				 */
 				scsi_requeue_command(q, cmd);
-
+				cmd = NULL;
+			}
 			return cmd;
 		}
 	}
@@ -857,15 +887,13 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 		 * requeueing right here - we will requeue down below
 		 * when we handle the bad sectors.
 		 */
-		cmd = scsi_end_request(cmd, 1, good_bytes, result == 0);
 
 		/*
-		 * If the command completed without error, then either finish off the
-		 * rest of the command, or start a new one.
+		 * If the command completed without error, then either
+		 * finish off the rest of the command, or start a new one.
 		 */
-		if (result == 0 || cmd == NULL ) {
+		if (scsi_end_request(cmd, 1, good_bytes, result == 0) == NULL)
 			return;
-		}
 	}
 	/*
 	 * Now, if we were good little boys and girls, Santa left us a request
@@ -880,7 +908,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				 * and quietly refuse further access.
 				 */
 				cmd->device->changed = 1;
-				cmd = scsi_end_request(cmd, 0,
+				scsi_end_request(cmd, 0,
 						this_count, 1);
 				return;
 			} else {
@@ -914,7 +942,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				scsi_requeue_command(q, cmd);
 				result = 0;
 			} else {
-				cmd = scsi_end_request(cmd, 0, this_count, 1);
+				scsi_end_request(cmd, 0, this_count, 1);
 				return;
 			}
 			break;
@@ -931,7 +959,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				dev_printk(KERN_INFO,
 					   &cmd->device->sdev_gendev,
 					   "Device not ready.\n");
-			cmd = scsi_end_request(cmd, 0, this_count, 1);
+			scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:
 			if (!(req->flags & REQ_QUIET)) {
@@ -941,7 +969,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				__scsi_print_command(cmd->data_cmnd);
 				scsi_print_sense("", cmd);
 			}
-			cmd = scsi_end_request(cmd, 0, block_bytes, 1);
+			scsi_end_request(cmd, 0, block_bytes, 1);
 			return;
 		default:
 			break;
@@ -972,7 +1000,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 		block_bytes = req->hard_cur_sectors << 9;
 		if (!block_bytes)
 			block_bytes = req->data_len;
-		cmd = scsi_end_request(cmd, 0, block_bytes, 1);
+		scsi_end_request(cmd, 0, block_bytes, 1);
 	}
 }
 EXPORT_SYMBOL(scsi_io_completion);
@@ -1118,7 +1146,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	if (unlikely(!scsi_device_online(sdev))) {
 		printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to offline device\n",
 		       sdev->host->host_no, sdev->id, sdev->lun);
-		return BLKPREP_KILL;
+		goto kill;
 	}
 	if (unlikely(sdev->sdev_state != SDEV_RUNNING)) {
 		/* OK, we're not in a running state don't prep
@@ -1128,7 +1156,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 			 * at all allowed down */
 			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to dead device\n",
 			       sdev->host->host_no, sdev->id, sdev->lun);
-			return BLKPREP_KILL;
+			goto kill;
 		}
 		/* OK, we only allow special commands (i.e. not
 		 * user initiated ones */
@@ -1160,11 +1188,11 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		if(unlikely(specials_only) && !(req->flags & REQ_SPECIAL)) {
 			if(specials_only == SDEV_QUIESCE ||
 					specials_only == SDEV_BLOCK)
-				return BLKPREP_DEFER;
+				goto defer;
 			
 			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to device being removed\n",
 			       sdev->host->host_no, sdev->id, sdev->lun);
-			return BLKPREP_KILL;
+			goto kill;
 		}
 			
 			
@@ -1182,7 +1210,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		cmd->tag = req->tag;
 	} else {
 		blk_dump_rq_flags(req, "SCSI bad req");
-		return BLKPREP_KILL;
+		goto kill;
 	}
 	
 	/* note the overloading of req->special.  When the tag
@@ -1220,8 +1248,13 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		 * required).
 		 */
 		ret = scsi_init_io(cmd);
-		if (ret)	/* BLKPREP_KILL return also releases the command */
-			return ret;
+		switch(ret) {
+		case BLKPREP_KILL:
+			/* BLKPREP_KILL return also releases the command */
+			goto kill;
+		case BLKPREP_DEFER:
+			goto defer;
+		}
 		
 		/*
 		 * Initialize the actual SCSI command for this request.
@@ -1231,7 +1264,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 			if (unlikely(!drv->init_command(cmd))) {
 				scsi_release_buffers(cmd);
 				scsi_put_command(cmd);
-				return BLKPREP_KILL;
+				goto kill;
 			}
 		} else {
 			memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
@@ -1262,6 +1295,9 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	if (sdev->device_busy == 0)
 		blk_plug_device(q);
 	return BLKPREP_DEFER;
+ kill:
+	req->errors = DID_NO_CONNECT << 16;
+	return BLKPREP_KILL;
 }
 
 /*
@@ -1336,19 +1372,24 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 }
 
 /*
- * Kill requests for a dead device
+ * Kill a request for a dead device
  */
-static void scsi_kill_requests(request_queue_t *q)
+static void scsi_kill_request(struct request *req, request_queue_t *q)
 {
-	struct request *req;
+	struct scsi_cmnd *cmd = req->special;
 
-	while ((req = elv_next_request(q)) != NULL) {
-		blkdev_dequeue_request(req);
-		req->flags |= REQ_QUIET;
-		while (end_that_request_first(req, 0, req->nr_sectors))
-			;
-		end_that_request_last(req);
+	blkdev_dequeue_request(req);
+
+	if (unlikely(cmd == NULL)) {
+		printk(KERN_CRIT "impossible request in %s.\n",
+				 __FUNCTION__);
+		BUG();
 	}
+
+	scsi_init_cmd_errh(cmd);
+	cmd->result = DID_NO_CONNECT << 16;
+	atomic_inc(&cmd->device->iorequest_cnt);
+	__scsi_done(cmd);
 }
 
 /*
@@ -1371,7 +1412,8 @@ static void scsi_request_fn(struct request_queue *q)
 
 	if (!sdev) {
 		printk("scsi: killing requests for dead queue\n");
-		scsi_kill_requests(q);
+		while ((req = elv_next_request(q)) != NULL)
+			scsi_kill_request(req, q);
 		return;
 	}
 
@@ -1398,11 +1440,7 @@ static void scsi_request_fn(struct request_queue *q)
 		if (unlikely(!scsi_device_online(sdev))) {
 			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to offline device\n",
 			       sdev->host->host_no, sdev->id, sdev->lun);
-			blkdev_dequeue_request(req);
-			req->flags |= REQ_QUIET;
-			while (end_that_request_first(req, 0, req->nr_sectors))
-				;
-			end_that_request_last(req);
+			scsi_kill_request(req, q);
 			continue;
 		}
 
@@ -1415,6 +1453,14 @@ static void scsi_request_fn(struct request_queue *q)
 		sdev->device_busy++;
 
 		spin_unlock(q->queue_lock);
+		cmd = req->special;
+		if (unlikely(cmd == NULL)) {
+			printk(KERN_CRIT "impossible request in %s.\n"
+					 "please mail a stack trace to "
+					 "linux-scsi@vger.kernel.org",
+					 __FUNCTION__);
+			BUG();
+		}
 		spin_lock(shost->host_lock);
 
 		if (!scsi_host_queue_ready(q, shost, sdev))
@@ -1432,15 +1478,6 @@ static void scsi_request_fn(struct request_queue *q)
 		 *		take the lock again.
 		 */
 		spin_unlock_irq(shost->host_lock);
-
-		cmd = req->special;
-		if (unlikely(cmd == NULL)) {
-			printk(KERN_CRIT "impossible request in %s.\n"
-					 "please mail a stack trace to "
-					 "linux-scsi@vger.kernel.org",
-					 __FUNCTION__);
-			BUG();
-		}
 
 		/*
 		 * Finally, initialize any error handling parameters, and set up
@@ -1477,6 +1514,7 @@ static void scsi_request_fn(struct request_queue *q)
 	 * cases (host limits or settings) should run the queue at some
 	 * later time.
 	 */
+	scsi_unprep_request(req);
 	spin_lock_irq(q->queue_lock);
 	blk_requeue_request(q, req);
 	sdev->device_busy--;

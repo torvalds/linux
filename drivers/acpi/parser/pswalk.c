@@ -41,13 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 
 #define _COMPONENT          ACPI_PARSER
-	 ACPI_MODULE_NAME    ("pswalk")
-
+ACPI_MODULE_NAME("pswalk")
 
 /*******************************************************************************
  *
@@ -60,18 +58,13 @@
  * DESCRIPTION: Delete a portion of or an entire parse tree.
  *
  ******************************************************************************/
-
-void
-acpi_ps_delete_parse_tree (
-	union acpi_parse_object         *subtree_root)
+void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 {
-	union acpi_parse_object         *op = subtree_root;
-	union acpi_parse_object         *next = NULL;
-	union acpi_parse_object         *parent = NULL;
+	union acpi_parse_object *op = subtree_root;
+	union acpi_parse_object *next = NULL;
+	union acpi_parse_object *parent = NULL;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ps_delete_parse_tree", subtree_root);
-
+	ACPI_FUNCTION_TRACE_PTR("ps_delete_parse_tree", subtree_root);
 
 	/* Visit all nodes in the subtree */
 
@@ -81,7 +74,7 @@ acpi_ps_delete_parse_tree (
 		if (op != parent) {
 			/* Look for an argument or child of the current op */
 
-			next = acpi_ps_get_arg (op, 0);
+			next = acpi_ps_get_arg(op, 0);
 			if (next) {
 				/* Still going downward in tree (Op is not completed yet) */
 
@@ -95,7 +88,7 @@ acpi_ps_delete_parse_tree (
 		next = op->common.next;
 		parent = op->common.parent;
 
-		acpi_ps_free_op (op);
+		acpi_ps_free_op(op);
 
 		/* If we are back to the starting point, the walk is complete. */
 
@@ -104,8 +97,7 @@ acpi_ps_delete_parse_tree (
 		}
 		if (next) {
 			op = next;
-		}
-		else {
+		} else {
 			op = parent;
 		}
 	}

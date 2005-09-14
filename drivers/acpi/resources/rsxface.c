@@ -47,10 +47,9 @@
 #include <acpi/acresrc.h>
 
 #define _COMPONENT          ACPI_RESOURCES
-	 ACPI_MODULE_NAME    ("rsxface")
+ACPI_MODULE_NAME("rsxface")
 
 /* Local macros for 16,32-bit to 64-bit conversion */
-
 #define ACPI_COPY_FIELD(out, in, field)  ((out)->field = (in)->field)
 #define ACPI_COPY_ADDRESS(out, in)                      \
 	ACPI_COPY_FIELD(out, in, resource_type);             \
@@ -65,8 +64,6 @@
 	ACPI_COPY_FIELD(out, in, address_translation_offset); \
 	ACPI_COPY_FIELD(out, in, address_length);            \
 	ACPI_COPY_FIELD(out, in, resource_source);
-
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_irq_routing_table
@@ -89,17 +86,13 @@
  *              the object indicated by the passed device_handle.
  *
  ******************************************************************************/
-
 acpi_status
-acpi_get_irq_routing_table (
-	acpi_handle                     device_handle,
-	struct acpi_buffer              *ret_buffer)
+acpi_get_irq_routing_table(acpi_handle device_handle,
+			   struct acpi_buffer *ret_buffer)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_irq_routing_table ");
-
+	ACPI_FUNCTION_TRACE("acpi_get_irq_routing_table ");
 
 	/*
 	 * Must have a valid handle and buffer, So we have to have a handle
@@ -108,18 +101,17 @@ acpi_get_irq_routing_table (
 	 * we'll be returning the needed buffer size, so keep going.
 	 */
 	if (!device_handle) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ut_validate_buffer (ret_buffer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_validate_buffer(ret_buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_prt_method_data (device_handle, ret_buffer);
-	return_ACPI_STATUS (status);
+	status = acpi_rs_get_prt_method_data(device_handle, ret_buffer);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -146,15 +138,12 @@ acpi_get_irq_routing_table (
  ******************************************************************************/
 
 acpi_status
-acpi_get_current_resources (
-	acpi_handle                     device_handle,
-	struct acpi_buffer              *ret_buffer)
+acpi_get_current_resources(acpi_handle device_handle,
+			   struct acpi_buffer *ret_buffer)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_current_resources");
-
+	ACPI_FUNCTION_TRACE("acpi_get_current_resources");
 
 	/*
 	 * Must have a valid handle and buffer, So we have to have a handle
@@ -163,19 +152,19 @@ acpi_get_current_resources (
 	 * we'll be returning the needed buffer size, so keep going.
 	 */
 	if (!device_handle) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ut_validate_buffer (ret_buffer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_validate_buffer(ret_buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_crs_method_data (device_handle, ret_buffer);
-	return_ACPI_STATUS (status);
+	status = acpi_rs_get_crs_method_data(device_handle, ret_buffer);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_get_current_resources);
 
+EXPORT_SYMBOL(acpi_get_current_resources);
 
 /*******************************************************************************
  *
@@ -200,15 +189,12 @@ EXPORT_SYMBOL(acpi_get_current_resources);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
-acpi_get_possible_resources (
-	acpi_handle                     device_handle,
-	struct acpi_buffer              *ret_buffer)
+acpi_get_possible_resources(acpi_handle device_handle,
+			    struct acpi_buffer *ret_buffer)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_possible_resources");
-
+	ACPI_FUNCTION_TRACE("acpi_get_possible_resources");
 
 	/*
 	 * Must have a valid handle and buffer, So we have to have a handle
@@ -217,20 +203,20 @@ acpi_get_possible_resources (
 	 * we'll be returning the needed buffer size, so keep going.
 	 */
 	if (!device_handle) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ut_validate_buffer (ret_buffer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_validate_buffer(ret_buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_prs_method_data (device_handle, ret_buffer);
-	return_ACPI_STATUS (status);
+	status = acpi_rs_get_prs_method_data(device_handle, ret_buffer);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_get_possible_resources);
-#endif  /*  ACPI_FUTURE_USAGE  */
 
+EXPORT_SYMBOL(acpi_get_possible_resources);
+#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
  *
@@ -252,37 +238,33 @@ EXPORT_SYMBOL(acpi_get_possible_resources);
  ******************************************************************************/
 
 acpi_status
-acpi_walk_resources (
-	acpi_handle                             device_handle,
-	char                                    *path,
-	ACPI_WALK_RESOURCE_CALLBACK     user_function,
-	void                                    *context)
+acpi_walk_resources(acpi_handle device_handle,
+		    char *path,
+		    ACPI_WALK_RESOURCE_CALLBACK user_function, void *context)
 {
-	acpi_status                         status;
-	struct acpi_buffer                  buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	struct acpi_resource                *resource;
-	struct acpi_resource                *buffer_end;
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_resource *resource;
+	struct acpi_resource *buffer_end;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_walk_resources");
-
+	ACPI_FUNCTION_TRACE("acpi_walk_resources");
 
 	if (!device_handle ||
-		(ACPI_STRNCMP (path, METHOD_NAME__CRS, sizeof (METHOD_NAME__CRS)) &&
-		 ACPI_STRNCMP (path, METHOD_NAME__PRS, sizeof (METHOD_NAME__PRS)))) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	    (ACPI_STRNCMP(path, METHOD_NAME__CRS, sizeof(METHOD_NAME__CRS)) &&
+	     ACPI_STRNCMP(path, METHOD_NAME__PRS, sizeof(METHOD_NAME__PRS)))) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_rs_get_method_data (device_handle, path, &buffer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_rs_get_method_data(device_handle, path, &buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Setup pointers */
 
-	resource  = (struct acpi_resource *) buffer.pointer;
-	buffer_end = ACPI_CAST_PTR (struct acpi_resource,
-			  ((u8 *) buffer.pointer + buffer.length));
+	resource = (struct acpi_resource *)buffer.pointer;
+	buffer_end = ACPI_CAST_PTR(struct acpi_resource,
+				   ((u8 *) buffer.pointer + buffer.length));
 
 	/* Walk the resource list */
 
@@ -291,7 +273,7 @@ acpi_walk_resources (
 			break;
 		}
 
-		status = user_function (resource, context);
+		status = user_function(resource, context);
 
 		switch (status) {
 		case AE_OK:
@@ -318,7 +300,7 @@ acpi_walk_resources (
 
 		/* Get the next resource descriptor */
 
-		resource = ACPI_NEXT_RESOURCE (resource);
+		resource = ACPI_NEXT_RESOURCE(resource);
 
 		/* Check for end-of-buffer */
 
@@ -327,13 +309,13 @@ acpi_walk_resources (
 		}
 	}
 
-cleanup:
+      cleanup:
 
-	acpi_os_free (buffer.pointer);
-	return_ACPI_STATUS (status);
+	acpi_os_free(buffer.pointer);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_walk_resources);
 
+EXPORT_SYMBOL(acpi_walk_resources);
 
 /*******************************************************************************
  *
@@ -354,30 +336,25 @@ EXPORT_SYMBOL(acpi_walk_resources);
  ******************************************************************************/
 
 acpi_status
-acpi_set_current_resources (
-	acpi_handle                     device_handle,
-	struct acpi_buffer              *in_buffer)
+acpi_set_current_resources(acpi_handle device_handle,
+			   struct acpi_buffer *in_buffer)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_set_current_resources");
-
+	ACPI_FUNCTION_TRACE("acpi_set_current_resources");
 
 	/* Must have a valid handle and buffer */
 
-	if ((!device_handle)      ||
-		(!in_buffer)          ||
-		(!in_buffer->pointer) ||
-		(!in_buffer->length)) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	if ((!device_handle) ||
+	    (!in_buffer) || (!in_buffer->pointer) || (!in_buffer->length)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_rs_set_srs_method_data (device_handle, in_buffer);
-	return_ACPI_STATUS (status);
+	status = acpi_rs_set_srs_method_data(device_handle, in_buffer);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_set_current_resources);
 
+EXPORT_SYMBOL(acpi_set_current_resources);
 
 /******************************************************************************
  *
@@ -398,36 +375,32 @@ EXPORT_SYMBOL(acpi_set_current_resources);
  ******************************************************************************/
 
 acpi_status
-acpi_resource_to_address64 (
-	struct acpi_resource                *resource,
-	struct acpi_resource_address64      *out)
+acpi_resource_to_address64(struct acpi_resource *resource,
+			   struct acpi_resource_address64 *out)
 {
-	struct acpi_resource_address16      *address16;
-	struct acpi_resource_address32      *address32;
-
+	struct acpi_resource_address16 *address16;
+	struct acpi_resource_address32 *address32;
 
 	switch (resource->id) {
 	case ACPI_RSTYPE_ADDRESS16:
 
-		address16 = (struct acpi_resource_address16 *) &resource->data;
-		ACPI_COPY_ADDRESS (out, address16);
+		address16 = (struct acpi_resource_address16 *)&resource->data;
+		ACPI_COPY_ADDRESS(out, address16);
 		break;
-
 
 	case ACPI_RSTYPE_ADDRESS32:
 
-		address32 = (struct acpi_resource_address32 *) &resource->data;
-		ACPI_COPY_ADDRESS (out, address32);
+		address32 = (struct acpi_resource_address32 *)&resource->data;
+		ACPI_COPY_ADDRESS(out, address32);
 		break;
-
 
 	case ACPI_RSTYPE_ADDRESS64:
 
 		/* Simple copy for 64 bit source */
 
-		ACPI_MEMCPY (out, &resource->data, sizeof (struct acpi_resource_address64));
+		ACPI_MEMCPY(out, &resource->data,
+			    sizeof(struct acpi_resource_address64));
 		break;
-
 
 	default:
 		return (AE_BAD_PARAMETER);
@@ -435,4 +408,5 @@ acpi_resource_to_address64 (
 
 	return (AE_OK);
 }
+
 EXPORT_SYMBOL(acpi_resource_to_address64);

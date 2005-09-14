@@ -84,20 +84,6 @@ MODULE_LICENSE("GPL");
  *  Video Standard Operations (contributed by Michael Schimek)
  */
 
-#if 0 /* seems to have no users */
-/* This is the recommended method to deal with the framerate fields. More
-   sophisticated drivers will access the fields directly. */
-unsigned int
-v4l2_video_std_fps(struct v4l2_standard *vs)
-{
-	if (vs->frameperiod.numerator > 0)
-		return (((vs->frameperiod.denominator << 8) /
-			 vs->frameperiod.numerator) +
-			(1 << 7)) / (1 << 8);
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_video_std_fps);
-#endif
 
 /* Fill in the fields of a v4l2_standard structure according to the
    'id' and 'transmission' parameters.  Returns negative on error.  */
@@ -213,10 +199,6 @@ char *v4l2_ioctl_names[256] = {
 	[_IOC_NR(VIDIOC_ENUM_FMT)]       = "VIDIOC_ENUM_FMT",
 	[_IOC_NR(VIDIOC_G_FMT)]          = "VIDIOC_G_FMT",
 	[_IOC_NR(VIDIOC_S_FMT)]          = "VIDIOC_S_FMT",
-#if 0
-	[_IOC_NR(VIDIOC_G_COMP)]         = "VIDIOC_G_COMP",
-	[_IOC_NR(VIDIOC_S_COMP)]         = "VIDIOC_S_COMP",
-#endif
 	[_IOC_NR(VIDIOC_REQBUFS)]        = "VIDIOC_REQBUFS",
 	[_IOC_NR(VIDIOC_QUERYBUF)]       = "VIDIOC_QUERYBUF",
 	[_IOC_NR(VIDIOC_G_FBUF)]         = "VIDIOC_G_FBUF",

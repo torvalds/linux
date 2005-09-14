@@ -353,9 +353,8 @@ static int alps_bsru6_set_symbol_rate(struct dvb_frontend* fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
 {
-	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;
 	u8 data[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
@@ -370,7 +369,7 @@ static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 
 	if (params->frequency > 1530000) data[3] = 0xc0;
 
-	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(i2c, &msg, 1) != 1) return -EIO;
 	return 0;
 }
 

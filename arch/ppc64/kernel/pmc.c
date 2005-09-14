@@ -26,7 +26,7 @@ static void dummy_perf(struct pt_regs *regs)
 	mtspr(SPRN_MMCR0, mmcr0);
 }
 
-static spinlock_t pmc_owner_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pmc_owner_lock);
 static void *pmc_owner_caller; /* mostly for debugging */
 perf_irq_t perf_irq = dummy_perf;
 

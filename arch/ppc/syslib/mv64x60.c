@@ -31,7 +31,7 @@
 
 
 u8 mv64x60_pci_exclude_bridge = 1;
-spinlock_t	mv64x60_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(mv64x60_lock);
 
 static phys_addr_t 	mv64x60_bridge_pbase;
 static void 		*mv64x60_bridge_vbase;

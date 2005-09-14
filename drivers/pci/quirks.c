@@ -245,12 +245,19 @@ static void __devinit quirk_io_region(struct pci_dev *dev, unsigned region, unsi
 {
 	region &= ~(size-1);
 	if (region) {
+		struct pci_bus_region bus_region;
 		struct resource *res = dev->resource + nr;
 
 		res->name = pci_name(dev);
 		res->start = region;
 		res->end = region + size - 1;
 		res->flags = IORESOURCE_IO;
+
+		/* Convert from PCI bus to resource space.  */
+		bus_region.start = res->start;
+		bus_region.end = res->end;
+		pcibios_bus_to_resource(dev, res, &bus_region);
+
 		pci_claim_resource(dev, nr);
 	}
 }	
@@ -869,6 +876,12 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
                        case 0xC00C: /* Samsung P35 notebook */
                                asus_hides_smbus = 1;
                        }
+	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_COMPAQ)) {
+		if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
+			switch(dev->subsystem_device) {
+			case 0x0058: /* Compaq Evo N620c */
+				asus_hides_smbus = 1;
+			}
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82845_HB,	asus_hides_smbus_hostbridge );

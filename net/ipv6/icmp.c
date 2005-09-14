@@ -287,7 +287,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	int iif = 0;
 	int addr_type = 0;
 	int len;
-	int hlimit;
+	int hlimit, tclass;
 	int err = 0;
 
 	if ((u8*)hdr < skb->head || (u8*)(hdr+1) > skb->tail)
@@ -374,7 +374,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (err)
 		goto out;
 	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
-		goto out_dst_release;
+		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
 		hlimit = np->mcast_hops;
@@ -384,6 +384,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		hlimit = dst_metric(dst, RTAX_HOPLIMIT);
 	if (hlimit < 0)
 		hlimit = ipv6_get_hoplimit(dst->dev);
+
+	tclass = np->cork.tclass;
+	if (tclass < 0)
+		tclass = 0;
 
 	msg.skb = skb;
 	msg.offset = skb->nh.raw - skb->data;
@@ -400,7 +404,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	err = ip6_append_data(sk, icmpv6_getfrag, &msg,
 			      len + sizeof(struct icmp6hdr),
 			      sizeof(struct icmp6hdr),
-			      hlimit, NULL, &fl, (struct rt6_info*)dst,
+			      hlimit, tclass, NULL, &fl, (struct rt6_info*)dst,
 			      MSG_DONTWAIT);
 	if (err) {
 		ip6_flush_pending_frames(sk);
@@ -434,6 +438,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	int err = 0;
 	int hlimit;
+	int tclass;
 
 	saddr = &skb->nh.ipv6h->daddr;
 
@@ -464,7 +469,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (err)
 		goto out;
 	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
-		goto out_dst_release;
+		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
 		hlimit = np->mcast_hops;
@@ -475,13 +480,17 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (hlimit < 0)
 		hlimit = ipv6_get_hoplimit(dst->dev);
 
+	tclass = np->cork.tclass;
+	if (tclass < 0)
+		tclass = 0;
+
 	idev = in6_dev_get(skb->dev);
 
 	msg.skb = skb;
 	msg.offset = 0;
 
 	err = ip6_append_data(sk, icmpv6_getfrag, &msg, skb->len + sizeof(struct icmp6hdr),
-				sizeof(struct icmp6hdr), hlimit, NULL, &fl,
+				sizeof(struct icmp6hdr), hlimit, tclass, NULL, &fl,
 				(struct rt6_info*)dst, MSG_DONTWAIT);
 
 	if (err) {
@@ -496,7 +505,6 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 out_put: 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
-out_dst_release:
 	dst_release(dst);
 out: 
 	icmpv6_xmit_unlock();

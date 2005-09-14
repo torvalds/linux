@@ -11,7 +11,7 @@
 
 #include <linux/config.h>
 
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 
 #define __str2(x) #x
 #define __str(x) __str2(x)

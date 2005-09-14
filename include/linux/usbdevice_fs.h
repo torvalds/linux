@@ -32,7 +32,6 @@
 #define _LINUX_USBDEVICE_FS_H
 
 #include <linux/types.h>
-#include <linux/compat.h>
 
 /* --------------------------------------------------------------------- */
 
@@ -125,6 +124,7 @@ struct usbdevfs_hub_portinfo {
 };
 
 #ifdef CONFIG_COMPAT
+#include <linux/compat.h>
 struct usbdevfs_urb32 {
 	unsigned char type;
 	unsigned char endpoint;

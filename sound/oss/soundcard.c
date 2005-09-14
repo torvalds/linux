@@ -681,8 +681,7 @@ static void do_sequencer_timer(unsigned long dummy)
 }
 
 
-static struct timer_list seq_timer =
-		TIMER_INITIALIZER(do_sequencer_timer, 0, 0);
+static DEFINE_TIMER(seq_timer, do_sequencer_timer, 0, 0);
 
 void request_sound_timer(int count)
 {

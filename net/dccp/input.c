@@ -170,7 +170,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	if (dp->dccps_options.dccpo_send_ack_vector) {
 		struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
 
-		if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
+		if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts, sk,
 				     DCCP_SKB_CB(skb)->dccpd_seq,
 				     DCCP_ACKPKTS_STATE_RECEIVED)) {
 			LIMIT_NETDEBUG(KERN_WARNING "DCCP: acknowledgeable "
@@ -498,7 +498,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 * DCCP_ACKPKTS_STATE_ECN_MARKED
 		 */
 		if (dp->dccps_options.dccpo_send_ack_vector) {
-			if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
+			if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts, sk,
 					     DCCP_SKB_CB(skb)->dccpd_seq,
 					     DCCP_ACKPKTS_STATE_RECEIVED))
 				goto discard;

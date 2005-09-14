@@ -24,7 +24,11 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/mux.h>
+#include <asm/arch/gpio.h>
 #include <asm/arch/fpga.h>
+#ifdef CONFIG_PM
+#include <asm/arch/pm.h>
+#endif
 
 static struct clk * uart1_ck = NULL;
 static struct clk * uart2_ck = NULL;
@@ -94,7 +98,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -192,6 +196,86 @@ void __init omap_serial_init(int ports[OMAP_MAX_NR_PORTS])
 		omap_serial_reset(&serial_platform_data[i]);
 	}
 }
+
+#ifdef CONFIG_OMAP_SERIAL_WAKE
+
+static irqreturn_t omap_serial_wake_interrupt(int irq, void *dev_id,
+					      struct pt_regs *regs)
+{
+	/* Need to do something with serial port right after wake-up? */
+	return IRQ_HANDLED;
+}
+
+/*
+ * Reroutes serial RX lines to GPIO lines for the duration of
+ * sleep to allow waking up the device from serial port even
+ * in deep sleep.
+ */
+void omap_serial_wake_trigger(int enable)
+{
+	if (!cpu_is_omap16xx())
+		return;
+
+	if (uart1_ck != NULL) {
+		if (enable)
+			omap_cfg_reg(V14_16XX_GPIO37);
+		else
+			omap_cfg_reg(V14_16XX_UART1_RX);
+	}
+	if (uart2_ck != NULL) {
+		if (enable)
+			omap_cfg_reg(R9_16XX_GPIO18);
+		else
+			omap_cfg_reg(R9_16XX_UART2_RX);
+	}
+	if (uart3_ck != NULL) {
+		if (enable)
+			omap_cfg_reg(L14_16XX_GPIO49);
+		else
+			omap_cfg_reg(L14_16XX_UART3_RX);
+	}
+}
+
+static void __init omap_serial_set_port_wakeup(int gpio_nr)
+{
+	int ret;
+
+	ret = omap_request_gpio(gpio_nr);
+	if (ret < 0) {
+		printk(KERN_ERR "Could not request UART wake GPIO: %i\n",
+		       gpio_nr);
+		return;
+	}
+	omap_set_gpio_direction(gpio_nr, 1);
+	set_irq_type(OMAP_GPIO_IRQ(gpio_nr), IRQT_RISING);
+	ret = request_irq(OMAP_GPIO_IRQ(gpio_nr), &omap_serial_wake_interrupt,
+			  0, "serial wakeup", NULL);
+	if (ret) {
+		omap_free_gpio(gpio_nr);
+		printk(KERN_ERR "No interrupt for UART wake GPIO: %i\n",
+		       gpio_nr);
+		return;
+	}
+	enable_irq_wake(OMAP_GPIO_IRQ(gpio_nr));
+}
+
+static int __init omap_serial_wakeup_init(void)
+{
+	if (!cpu_is_omap16xx())
+		return 0;
+
+	if (uart1_ck != NULL)
+		omap_serial_set_port_wakeup(37);
+	if (uart2_ck != NULL)
+		omap_serial_set_port_wakeup(18);
+	if (uart3_ck != NULL)
+		omap_serial_set_port_wakeup(49);
+
+	return 0;
+}
+late_initcall(omap_serial_wakeup_init);
+
+#endif	/* CONFIG_OMAP_SERIAL_WAKE */
 
 static int __init omap_init(void)
 {

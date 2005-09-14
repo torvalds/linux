@@ -335,6 +335,8 @@ EXPORT_SYMBOL(fat_build_inode);
 
 static void fat_delete_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (!is_bad_inode(inode)) {
 		inode->i_size = 0;
 		fat_truncate(inode);

@@ -295,8 +295,7 @@ static unsigned short get_pins(unsigned minor)
 
 static void snooze(unsigned long snooze_time, unsigned minor)
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(snooze_time + 1);
+	schedule_timeout_uninterruptible(snooze_time + 1);
 }
 
 static int wait_for(unsigned short set, unsigned short clr,

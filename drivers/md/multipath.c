@@ -169,6 +169,11 @@ static int multipath_make_request (request_queue_t *q, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
+	if (unlikely(bio_barrier(bio))) {
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
+
 	mp_bh = mempool_alloc(conf->pool, GFP_NOIO);
 
 	mp_bh->master_bio = bio;

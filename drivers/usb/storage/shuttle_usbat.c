@@ -839,34 +839,31 @@ static int usbat_identify_device(struct us_data *us,
 	rc = usbat_device_reset(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
 		return rc;
+	msleep(25);
 
 	/*
-	 * By examining the device signature after a reset, we can identify
-	 * whether the device supports the ATAPI packet interface.
-	 * The flash-devices do not support this, whereas the HP CDRW's obviously
-	 * do.
-	 *
-	 * This method is not ideal, but works because no other devices have been
-	 * produced based on the USBAT/USBAT02.
-	 *
-	 * Section 9.1 of the ATAPI-4 spec states (amongst other things) that
-	 * after a device reset, a Cylinder low of 0x14 indicates that the device
-	 * does support packet commands.
+	 * In attempt to distinguish between HP CDRW's and Flash readers, we now
+	 * execute the IDENTIFY PACKET DEVICE command. On ATA devices (i.e. flash
+	 * readers), this command should fail with error. On ATAPI devices (i.e.
+	 * CDROM drives), it should succeed.
 	 */
-	rc = usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, &status);
-	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+	rc = usbat_write(us, USBAT_ATA, USBAT_ATA_CMD, 0xA1);
+ 	if (rc != USB_STOR_XFER_GOOD)
+ 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUGP("usbat_identify_device: Cylinder low is %02X\n", status);
+	rc = usbat_get_status(us, &status);
+ 	if (rc != USB_STOR_XFER_GOOD)
+ 		return USB_STOR_TRANSPORT_ERROR;
 
-	if (status == 0x14) {
+	// Check for error bit
+	if (status & 0x01) {
+		 // Device is a CompactFlash reader/writer
+		US_DEBUGP("usbat_identify_device: Detected Flash reader/writer\n");
+		info->devicetype = USBAT_DEV_FLASH;
+	} else {
 		// Device is HP 8200
 		US_DEBUGP("usbat_identify_device: Detected HP8200 CDRW\n");
 		info->devicetype = USBAT_DEV_HP8200;
-	} else {
-		// Device is a CompactFlash reader/writer
-		US_DEBUGP("usbat_identify_device: Detected Flash reader/writer\n");
-		info->devicetype = USBAT_DEV_FLASH;
 	}
 
 	return USB_STOR_TRANSPORT_GOOD;
@@ -1239,16 +1236,10 @@ static int usbat_select_and_test_registers(struct us_data *us)
 {
 	int selector;
 	unsigned char *status = us->iobuf;
-	unsigned char max_selector = 0xB0;
-	if (usbat_get_device_type(us) == USBAT_DEV_FLASH)
-		max_selector = 0xA0;
 
 	// try device = master, then device = slave.
-
-	for (selector = 0xA0; selector <= max_selector; selector += 0x10) {
-
-		if (usbat_get_device_type(us) == USBAT_DEV_HP8200 &&
-			usbat_write(us, USBAT_ATA, USBAT_ATA_DEVICE, selector) != 
+	for (selector = 0xA0; selector <= 0xB0; selector += 0x10) {
+		if (usbat_write(us, USBAT_ATA, USBAT_ATA_DEVICE, selector) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
@@ -1334,60 +1325,30 @@ int init_usbat(struct us_data *us)
 
 	US_DEBUGP("INIT 3\n");
 
-	// At this point, we need to detect which device we are using
-	if (usbat_set_transport(us, info))
-		return USB_STOR_TRANSPORT_ERROR;
-
-	US_DEBUGP("INIT 4\n");
-
-	if (usbat_get_device_type(us) == USBAT_DEV_HP8200) {
-		msleep(250);
-
-		// Write 0x80 to ISA port 0x3F
-		rc = usbat_write(us, USBAT_ISA, 0x3F, 0x80);
-		if (rc != USB_STOR_XFER_GOOD)
-			return USB_STOR_TRANSPORT_ERROR;
-
-		US_DEBUGP("INIT 5\n");
-
-		// Read ISA port 0x27
-		rc = usbat_read(us, USBAT_ISA, 0x27, status);
-		if (rc != USB_STOR_XFER_GOOD)
-			return USB_STOR_TRANSPORT_ERROR;
-
-		US_DEBUGP("INIT 6\n");
-
-		rc = usbat_read_user_io(us, status);
-		if (rc != USB_STOR_XFER_GOOD)
-			return USB_STOR_TRANSPORT_ERROR;
-
-		US_DEBUGP("INIT 7\n");
-	}
-
 	rc = usbat_select_and_test_registers(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
 		return rc;
 
-	US_DEBUGP("INIT 8\n");
+	US_DEBUGP("INIT 4\n");
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUGP("INIT 9\n");
+	US_DEBUGP("INIT 5\n");
 
 	// Enable peripheral control signals and card detect
 	rc = usbat_device_enable_cdt(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
 		return rc;
 
-	US_DEBUGP("INIT 10\n");
+	US_DEBUGP("INIT 6\n");
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUGP("INIT 11\n");
+	US_DEBUGP("INIT 7\n");
 
 	msleep(1400);
 
@@ -1395,13 +1356,19 @@ int init_usbat(struct us_data *us)
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUGP("INIT 12\n");
+	US_DEBUGP("INIT 8\n");
 
 	rc = usbat_select_and_test_registers(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
 		return rc;
 
-	US_DEBUGP("INIT 13\n");
+	US_DEBUGP("INIT 9\n");
+
+	// At this point, we need to detect which device we are using
+	if (usbat_set_transport(us, info))
+		return USB_STOR_TRANSPORT_ERROR;
+
+	US_DEBUGP("INIT 10\n");
 
 	if (usbat_get_device_type(us) == USBAT_DEV_FLASH) { 
 		subcountH = 0x02;
@@ -1412,7 +1379,7 @@ int init_usbat(struct us_data *us)
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUGP("INIT 14\n");
+	US_DEBUGP("INIT 11\n");
 
 	return USB_STOR_TRANSPORT_GOOD;
 }

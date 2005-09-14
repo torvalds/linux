@@ -78,8 +78,8 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 {
 	struct input_dev *input = &hidinput->input;
 	struct hid_device *device = hidinput->input.private;
-	int max, code;
-	unsigned long *bit;
+	int max = 0, code;
+	unsigned long *bit = NULL;
 
 	field->hidinput = hidinput;
 
@@ -129,6 +129,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			}
 
 			map_key(code);
+			break;
+
+
+		case HID_UP_SIMULATION:
+
+			switch (usage->hid & 0xffff) {
+				case 0xba: map_abs(ABS_RUDDER); break;
+				case 0xbb: map_abs(ABS_THROTTLE); break;
+			}
 			break;
 
 		case HID_UP_GENDESK:
@@ -238,8 +247,12 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x000: goto ignore;
 				case 0x034: map_key_clear(KEY_SLEEP);		break;
 				case 0x036: map_key_clear(BTN_MISC);		break;
+				case 0x045: map_key_clear(KEY_RADIO);		break;
 				case 0x08a: map_key_clear(KEY_WWW);		break;
+				case 0x08d: map_key_clear(KEY_PROGRAM);		break;
 				case 0x095: map_key_clear(KEY_HELP);		break;
+				case 0x09c: map_key_clear(KEY_CHANNELUP);	break;
+				case 0x09d: map_key_clear(KEY_CHANNELDOWN);	break;
 				case 0x0b0: map_key_clear(KEY_PLAY);		break;
 				case 0x0b1: map_key_clear(KEY_PAUSE);		break;
 				case 0x0b2: map_key_clear(KEY_RECORD);		break;
@@ -259,6 +272,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x18a: map_key_clear(KEY_MAIL);		break;
 				case 0x192: map_key_clear(KEY_CALC);		break;
 				case 0x194: map_key_clear(KEY_FILE);		break;
+				case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
+				case 0x201: map_key_clear(KEY_NEW);		break;
+				case 0x207: map_key_clear(KEY_SAVE);		break;
+				case 0x208: map_key_clear(KEY_PRINT);		break;
+				case 0x209: map_key_clear(KEY_PROPS);		break;
 				case 0x21a: map_key_clear(KEY_UNDO);		break;
 				case 0x21b: map_key_clear(KEY_COPY);		break;
 				case 0x21c: map_key_clear(KEY_CUT);		break;
@@ -271,7 +289,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x227: map_key_clear(KEY_REFRESH);		break;
 				case 0x22a: map_key_clear(KEY_BOOKMARKS);	break;
 				case 0x238: map_rel(REL_HWHEEL);		break;
-				default:    goto unknown;
+				case 0x279: map_key_clear(KEY_REDO);		break;
+				case 0x289: map_key_clear(KEY_REPLY);		break;
+				case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
+				case 0x28c: map_key_clear(KEY_SEND);		break;
+				default:    goto ignore;
 			}
 			break;
 
@@ -296,8 +318,41 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_MSVENDOR:
-
 			goto ignore;
+
+		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
+
+			set_bit(EV_REP, input->evbit);
+			switch(usage->hid & HID_USAGE) {
+				case 0x003: map_key_clear(KEY_FN);		break;
+				default:    goto ignore;
+			}
+			break;
+
+		case HID_UP_LOGIVENDOR: /* Reported on Logitech Ultra X Media Remote */
+
+			set_bit(EV_REP, input->evbit);
+			switch(usage->hid & HID_USAGE) {
+				case 0x004: map_key_clear(KEY_AGAIN);		break;
+				case 0x00d: map_key_clear(KEY_HOME);		break;
+				case 0x024: map_key_clear(KEY_SHUFFLE);		break;
+				case 0x025: map_key_clear(KEY_TV);		break;
+				case 0x026: map_key_clear(KEY_MENU);		break;
+				case 0x031: map_key_clear(KEY_AUDIO);		break;
+				case 0x032: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x033: map_key_clear(KEY_LAST);		break;
+				case 0x047: map_key_clear(KEY_MP3);		break;
+				case 0x048: map_key_clear(KEY_DVD);		break;
+				case 0x049: map_key_clear(KEY_MEDIA);		break;
+				case 0x04a: map_key_clear(KEY_VIDEO);		break;
+				case 0x04b: map_key_clear(KEY_ANGLE);		break;
+				case 0x04c: map_key_clear(KEY_LANGUAGE);	break;
+				case 0x04d: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x051: map_key_clear(KEY_RED);		break;
+				case 0x052: map_key_clear(KEY_CLOSE);		break;
+				default:    goto ignore;
+			}
+			break;
 
 		case HID_UP_PID:
 
@@ -348,6 +403,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	if (usage->code > max)
 		goto ignore;
+
+	if (((device->quirks & (HID_QUIRK_2WHEEL_POWERMOUSE)) && (usage->hid == 0x00010032)))
+		map_rel(REL_HWHEEL);
 
 	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5)) &&
 		 (usage->type == EV_REL) && (usage->code == REL_WHEEL))

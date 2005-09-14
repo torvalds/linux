@@ -1243,7 +1243,7 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
 		if (amount < 0)
 			amount = 0;
-		return put_user(amount, (unsigned int __user *)argp);
+		return put_user(amount, (unsigned int __user *) argp);
 	}
 
 	case TIOCINQ: {
@@ -1252,13 +1252,11 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		/* These two are safe on a single CPU system as only user tasks fiddle here */
 		if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 			amount = skb->len;
-		return put_user(amount, (unsigned int __user *)argp);
+		return put_user(amount, (unsigned int __user *) argp);
 	}
 
 	case SIOCGSTAMP:
-		if (sk != NULL) 
-			return sock_get_timestamp(sk, (struct timeval __user *)argp);
-		return -EINVAL;
+		return sock_get_timestamp(sk, (struct timeval __user *) argp);
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:

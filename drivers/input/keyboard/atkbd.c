@@ -208,6 +208,7 @@ struct atkbd {
 	unsigned char resend;
 	unsigned char release;
 	unsigned char bat_xl;
+	unsigned char err_xl;
 	unsigned int last;
 	unsigned long time;
 };
@@ -296,15 +297,18 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		if (atkbd->emul ||
 		    !(code == ATKBD_RET_EMUL0 || code == ATKBD_RET_EMUL1 ||
 		      code == ATKBD_RET_HANGUEL || code == ATKBD_RET_HANJA ||
-		      code == ATKBD_RET_ERR ||
+		     (code == ATKBD_RET_ERR && !atkbd->err_xl) ||
 	             (code == ATKBD_RET_BAT && !atkbd->bat_xl))) {
 			atkbd->release = code >> 7;
 			code &= 0x7f;
 		}
 
-		if (!atkbd->emul &&
-		     (code & 0x7f) == (ATKBD_RET_BAT & 0x7f))
+		if (!atkbd->emul) {
+		     if ((code & 0x7f) == (ATKBD_RET_BAT & 0x7f))
 			atkbd->bat_xl = !atkbd->release;
+		     if ((code & 0x7f) == (ATKBD_RET_ERR & 0x7f))
+			atkbd->err_xl = !atkbd->release;
+		}
 	}
 
 	switch (code) {

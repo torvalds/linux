@@ -1,5 +1,5 @@
-#ifndef _ASM_PPC_IOCTLS_H
-#define _ASM_PPC_IOCTLS_H
+#ifndef _ASM_POWERPC_IOCTLS_H
+#define _ASM_POWERPC_IOCTLS_H
 
 #include <asm/ioctl.h>
 
@@ -104,4 +104,4 @@
 #define TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
 #define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
 
-#endif /* _ASM_PPC_IOCTLS_H */
+#endif	/* _ASM_POWERPC_IOCTLS_H */

@@ -45,6 +45,7 @@ cpumask_t cpu_online_map;
 cpumask_t cpu_possible_map;
 int smp_hw_index[NR_CPUS];
 struct thread_info *secondary_ti;
+static struct task_struct *idle_tasks[NR_CPUS];
 
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
@@ -286,7 +287,8 @@ static void __devinit smp_store_cpu_info(int id)
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int num_cpus, i;
+	int num_cpus, i, cpu;
+	struct task_struct *p;
 
 	/* Fixup boot cpu */
         smp_store_cpu_info(smp_processor_id());
@@ -308,6 +310,17 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	if (smp_ops->space_timers)
 		smp_ops->space_timers(num_cpus);
+
+	for_each_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		/* create a process for the processor */
+		p = fork_idle(cpu);
+		if (IS_ERR(p))
+			panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
+		p->thread_info->cpu = cpu;
+		idle_tasks[cpu] = p;
+	}
 }
 
 void __devinit smp_prepare_boot_cpu(void)
@@ -334,12 +347,17 @@ int __devinit start_secondary(void *unused)
 	set_dec(tb_ticks_per_jiffy);
 	cpu_callin_map[cpu] = 1;
 
-	printk("CPU %i done callin...\n", cpu);
+	printk("CPU %d done callin...\n", cpu);
 	smp_ops->setup_cpu(cpu);
-	printk("CPU %i done setup...\n", cpu);
-	local_irq_enable();
+	printk("CPU %d done setup...\n", cpu);
 	smp_ops->take_timebase();
-	printk("CPU %i done timebase take...\n", cpu);
+	printk("CPU %d done timebase take...\n", cpu);
+
+	spin_lock(&call_lock);
+	cpu_set(cpu, cpu_online_map);
+	spin_unlock(&call_lock);
+
+	local_irq_enable();
 
 	cpu_idle();
 	return 0;
@@ -347,17 +365,11 @@ int __devinit start_secondary(void *unused)
 
 int __cpu_up(unsigned int cpu)
 {
-	struct task_struct *p;
 	char buf[32];
 	int c;
 
-	/* create a process for the processor */
-	/* only regs.msr is actually used, and 0 is OK for it */
-	p = fork_idle(cpu);
-	if (IS_ERR(p))
-		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-	secondary_ti = p->thread_info;
-	p->thread_info->cpu = cpu;
+	secondary_ti = idle_tasks[cpu]->thread_info;
+	mb();
 
 	/*
 	 * There was a cache flush loop here to flush the cache
@@ -389,7 +401,11 @@ int __cpu_up(unsigned int cpu)
 	printk("Processor %d found.\n", cpu);
 
 	smp_ops->give_timebase();
-	cpu_set(cpu, cpu_online_map);
+
+	/* Wait until cpu puts itself in the online map */
+	while (!cpu_online(cpu))
+		cpu_relax();
+
 	return 0;
 }
 

@@ -90,15 +90,19 @@ static void pcie_portdrv_save_config(struct pci_dev *dev)
 		pci_save_msi_state(dev);
 }
 
-static void pcie_portdrv_restore_config(struct pci_dev *dev)
+static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	struct pcie_port_device_ext *p_ext = pci_get_drvdata(dev);
+	int retval;
 
 	pci_restore_state(dev);
 	if (p_ext->interrupt_mode == PCIE_PORT_MSI_MODE)
 		pci_restore_msi_state(dev);
-	pci_enable_device(dev);
+	retval = pci_enable_device(dev);
+	if (retval)
+		return retval;
 	pci_set_master(dev);
+	return 0;
 }
 
 /*

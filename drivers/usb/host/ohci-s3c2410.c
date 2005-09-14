@@ -129,7 +129,7 @@ static void s3c2410_usb_set_power(struct s3c2410_hcd_info *info,
 
 	if (info->power_control != NULL) {
 		info->port[port-1].power = to;
-		(info->power_control)(port, to);
+		(info->power_control)(port-1, to);
 	}
 }
 
@@ -339,8 +339,8 @@ int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
 	struct usb_hcd *hcd = NULL;
 	int retval;
 
-	s3c2410_usb_set_power(dev->dev.platform_data, 0, 1);
 	s3c2410_usb_set_power(dev->dev.platform_data, 1, 1);
+	s3c2410_usb_set_power(dev->dev.platform_data, 2, 1);
 
 	hcd = usb_create_hcd(driver, &dev->dev, "s3c24xx");
 	if (hcd == NULL)

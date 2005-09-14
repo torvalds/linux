@@ -107,6 +107,8 @@
 #define FB_ACCEL_NV_20          44      /* nVidia Arch 20               */
 #define FB_ACCEL_NV_30          45      /* nVidia Arch 30               */
 #define FB_ACCEL_NV_40          46      /* nVidia Arch 40               */
+#define FB_ACCEL_XGI_VOLARI_V	47	/* XGI Volari V3XT, V5, V8      */
+#define FB_ACCEL_XGI_VOLARI_Z	48	/* XGI Volari Z7                */
 #define FB_ACCEL_NEOMAGIC_NM2070 90	/* NeoMagic NM2070              */
 #define FB_ACCEL_NEOMAGIC_NM2090 91	/* NeoMagic NM2090              */
 #define FB_ACCEL_NEOMAGIC_NM2093 92	/* NeoMagic NM2093              */
@@ -495,6 +497,9 @@ struct fb_cursor_user {
 #define FB_EVENT_BLANK                  0x08
 /*      Private modelist is to be replaced */
 #define FB_EVENT_NEW_MODELIST           0x09
+/*	The resolution of the passed in fb_info about to change and
+        all vc's should be changed         */
+#define FB_EVENT_MODE_CHANGE_ALL	0x0A
 
 struct fb_event {
 	struct fb_info *info;
@@ -820,12 +825,28 @@ extern void fb_pad_unaligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 idx,
 				u32 height, u32 shift_high, u32 shift_low, u32 mod);
 extern void fb_pad_aligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch, u32 height);
 extern void fb_set_suspend(struct fb_info *info, int state);
-extern int fb_get_color_depth(struct fb_var_screeninfo *var);
+extern int fb_get_color_depth(struct fb_var_screeninfo *var,
+			      struct fb_fix_screeninfo *fix);
 extern int fb_get_options(char *name, char **option);
 extern int fb_new_modelist(struct fb_info *info);
 
 extern struct fb_info *registered_fb[FB_MAX];
 extern int num_registered_fb;
+
+static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
+					   u8 *src, u32 s_pitch, u32 height)
+{
+	int i, j;
+
+	d_pitch -= s_pitch;
+
+	for (i = height; i--; ) {
+		/* s_pitch is a few bytes at the most, memcpy is suboptimal */
+		for (j = 0; j < s_pitch; j++)
+			*dst++ = *src++;
+		dst += d_pitch;
+	}
+}
 
 /* drivers/video/fbsysfs.c */
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);
@@ -856,8 +877,11 @@ extern int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var,
 extern int fb_validate_mode(const struct fb_var_screeninfo *var,
 			    struct fb_info *info);
 extern int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var);
-extern void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs);
+extern const unsigned char *fb_firmware_edid(struct device *device);
+extern void fb_edid_to_monspecs(unsigned char *edid,
+				struct fb_monspecs *specs);
 extern void fb_destroy_modedb(struct fb_videomode *modedb);
+extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 
 /* drivers/video/modedb.c */
 #define VESA_MODEDB_SIZE 34

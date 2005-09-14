@@ -82,13 +82,11 @@ static void openpic2_end_irq(unsigned int irq_nr);
 static void openpic2_ack_irq(unsigned int irq_nr);
 
 struct hw_interrupt_type open_pic2 = {
-	" OpenPIC2 ",
-	NULL,
-	NULL,
-	openpic2_enable_irq,
-	openpic2_disable_irq,
-	openpic2_ack_irq,
-	openpic2_end_irq,
+	.typename = " OpenPIC2 ",
+	.enable = openpic2_enable_irq,
+	.disable = openpic2_disable_irq,
+	.ack = openpic2_ack_irq,
+	.end = openpic2_end_irq,
 };
 
 /*

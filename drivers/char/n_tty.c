@@ -62,7 +62,7 @@
 
 static inline unsigned char *alloc_buf(void)
 {
-	int prio = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
+	unsigned int prio = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 
 	if (PAGE_SIZE != N_TTY_BUF_SIZE)
 		return kmalloc(N_TTY_BUF_SIZE, prio);

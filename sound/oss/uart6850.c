@@ -78,8 +78,7 @@ static void (*midi_input_intr) (int dev, unsigned char data);
 static void poll_uart6850(unsigned long dummy);
 
 
-static struct timer_list uart6850_timer =
-		TIMER_INITIALIZER(poll_uart6850, 0, 0);
+static DEFINE_TIMER(uart6850_timer, poll_uart6850, 0, 0);
 
 static void uart6850_input_loop(void)
 {

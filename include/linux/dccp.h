@@ -432,7 +432,10 @@ struct dccp_sock {
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
 	struct dccp_options_received	dccps_options_received;
+	struct timeval			dccps_epoch;
 	enum dccp_role			dccps_role:2;
+	__u8				dccps_hc_rx_insert_options:1;
+	__u8				dccps_hc_tx_insert_options:1;
 };
  
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)

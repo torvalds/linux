@@ -1,5 +1,4 @@
 /*
- * $Id: ir-kbd-i2c.c,v 1.11 2005/07/07 16:42:11 mchehab Exp $
  *
  * keyboard input driver for i2c IR remote controls
  *

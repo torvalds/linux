@@ -1032,8 +1032,7 @@ bad:
 
 asmlinkage int irix_sginap(int ticks)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(ticks);
+	schedule_timeout_interruptible(ticks);
 	return 0;
 }
 

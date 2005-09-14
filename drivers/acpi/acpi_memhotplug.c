@@ -32,7 +32,6 @@
 #include <linux/memory_hotplug.h>
 #include <acpi/acpi_drivers.h>
 
-
 #define ACPI_MEMORY_DEVICE_COMPONENT		0x08000000UL
 #define ACPI_MEMORY_DEVICE_CLASS		"memory"
 #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
@@ -41,8 +40,8 @@
 
 #define _COMPONENT		ACPI_MEMORY_DEVICE_COMPONENT
 
-ACPI_MODULE_NAME		("acpi_memory")
-MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
+ACPI_MODULE_NAME("acpi_memory")
+    MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
 MODULE_DESCRIPTION(ACPI_MEMORY_DEVICE_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
@@ -56,34 +55,33 @@ MODULE_LICENSE("GPL");
 #define MEMORY_POWER_ON_STATE	1
 #define MEMORY_POWER_OFF_STATE	2
 
-static int acpi_memory_device_add (struct acpi_device *device);
-static int acpi_memory_device_remove (struct acpi_device *device, int type);
+static int acpi_memory_device_add(struct acpi_device *device);
+static int acpi_memory_device_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_memory_device_driver = {
-	.name =		ACPI_MEMORY_DEVICE_DRIVER_NAME,
-	.class =	ACPI_MEMORY_DEVICE_CLASS,
-	.ids =		ACPI_MEMORY_DEVICE_HID,
-	.ops =		{
-				.add =		acpi_memory_device_add,
-				.remove =	acpi_memory_device_remove,
-			},
+	.name = ACPI_MEMORY_DEVICE_DRIVER_NAME,
+	.class = ACPI_MEMORY_DEVICE_CLASS,
+	.ids = ACPI_MEMORY_DEVICE_HID,
+	.ops = {
+		.add = acpi_memory_device_add,
+		.remove = acpi_memory_device_remove,
+		},
 };
 
 struct acpi_memory_device {
 	acpi_handle handle;
-	unsigned int state;		/* State of the memory device */
+	unsigned int state;	/* State of the memory device */
 	unsigned short cache_attribute;	/* memory cache attribute */
-	unsigned short read_write_attribute;/* memory read/write attribute */
-	u64 start_addr;	/* Memory Range start physical addr */
-	u64 end_addr;	/* Memory Range end physical addr */
+	unsigned short read_write_attribute;	/* memory read/write attribute */
+	u64 start_addr;		/* Memory Range start physical addr */
+	u64 end_addr;		/* Memory Range end physical addr */
 };
-
 
 static int
 acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 {
 	acpi_status status;
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_resource *resource = NULL;
 	struct acpi_resource_address64 address64;
 
@@ -94,15 +92,15 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 	if (ACPI_FAILURE(status))
 		return_VALUE(-EINVAL);
 
-	resource = (struct acpi_resource *) buffer.pointer;
+	resource = (struct acpi_resource *)buffer.pointer;
 	status = acpi_resource_to_address64(resource, &address64);
 	if (ACPI_SUCCESS(status)) {
 		if (address64.resource_type == ACPI_MEMORY_RANGE) {
 			/* Populate the structure */
 			mem_device->cache_attribute =
-				address64.attribute.memory.cache_attribute;
+			    address64.attribute.memory.cache_attribute;
 			mem_device->read_write_attribute =
-			address64.attribute.memory.read_write_attribute;
+			    address64.attribute.memory.read_write_attribute;
 			mem_device->start_addr = address64.min_address_range;
 			mem_device->end_addr = address64.max_address_range;
 		}
@@ -114,7 +112,7 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 
 static int
 acpi_memory_get_device(acpi_handle handle,
-	struct acpi_memory_device **mem_device)
+		       struct acpi_memory_device **mem_device)
 {
 	acpi_status status;
 	acpi_handle phandle;
@@ -128,8 +126,7 @@ acpi_memory_get_device(acpi_handle handle,
 
 	status = acpi_get_parent(handle, &phandle);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error in acpi_get_parent\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error in acpi_get_parent\n"));
 		return_VALUE(-EINVAL);
 	}
 
@@ -137,7 +134,7 @@ acpi_memory_get_device(acpi_handle handle,
 	status = acpi_bus_get_device(phandle, &pdevice);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error in acpi_bus_get_device\n"));
+				  "Error in acpi_bus_get_device\n"));
 		return_VALUE(-EINVAL);
 	}
 
@@ -147,23 +144,21 @@ acpi_memory_get_device(acpi_handle handle,
 	 */
 	status = acpi_bus_add(&device, pdevice, handle, ACPI_BUS_TYPE_DEVICE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error in acpi_bus_add\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error in acpi_bus_add\n"));
 		return_VALUE(-EINVAL);
 	}
 
-end:
+      end:
 	*mem_device = acpi_driver_data(device);
 	if (!(*mem_device)) {
-		printk(KERN_ERR "\n driver data not found" );
+		printk(KERN_ERR "\n driver data not found");
 		return_VALUE(-ENODEV);
 	}
 
 	return_VALUE(0);
 }
 
-static int
-acpi_memory_check_device(struct acpi_memory_device *mem_device)
+static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 {
 	unsigned long current_status;
 
@@ -171,22 +166,21 @@ acpi_memory_check_device(struct acpi_memory_device *mem_device)
 
 	/* Get device present/absent information from the _STA */
 	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->handle, "_STA",
-		NULL, &current_status)))
+					       NULL, &current_status)))
 		return_VALUE(-ENODEV);
 	/*
 	 * Check for device status. Device should be
 	 * present/enabled/functioning.
 	 */
 	if (!((current_status & ACPI_MEMORY_STA_PRESENT)
-		&& (current_status & ACPI_MEMORY_STA_ENABLED)
-		&& (current_status & ACPI_MEMORY_STA_FUNCTIONAL)))
+	      && (current_status & ACPI_MEMORY_STA_ENABLED)
+	      && (current_status & ACPI_MEMORY_STA_FUNCTIONAL)))
 		return_VALUE(-ENODEV);
 
 	return_VALUE(0);
 }
 
-static int
-acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 {
 	int result;
 
@@ -196,7 +190,7 @@ acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	result = acpi_memory_get_device_resources(mem_device);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"\nget_device_resources failed\n"));
+				  "\nget_device_resources failed\n"));
 		mem_device->state = MEMORY_INVALID_STATE;
 		return result;
 	}
@@ -206,11 +200,10 @@ acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 * Note: Assume that this function returns zero on success
 	 */
 	result = add_memory(mem_device->start_addr,
-			(mem_device->end_addr - mem_device->start_addr) + 1,
-			mem_device->read_write_attribute);
+			    (mem_device->end_addr - mem_device->start_addr) + 1,
+			    mem_device->read_write_attribute);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"\nadd_memory failed\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "\nadd_memory failed\n"));
 		mem_device->state = MEMORY_INVALID_STATE;
 		return result;
 	}
@@ -218,11 +211,10 @@ acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	return result;
 }
 
-static int
-acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
+static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 {
 	acpi_status status;
-	struct acpi_object_list	arg_list;
+	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	unsigned long current_status;
 
@@ -234,16 +226,16 @@ acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 	arg.type = ACPI_TYPE_INTEGER;
 	arg.integer.value = 1;
 	status = acpi_evaluate_object(mem_device->handle,
-			"_EJ0", &arg_list, NULL);
+				      "_EJ0", &arg_list, NULL);
 	/* Return on _EJ0 failure */
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,"_EJ0 failed.\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "_EJ0 failed.\n"));
 		return_VALUE(-ENODEV);
 	}
 
 	/* Evalute _STA to check if the device is disabled */
 	status = acpi_evaluate_integer(mem_device->handle, "_STA",
-		NULL, &current_status);
+				       NULL, &current_status);
 	if (ACPI_FAILURE(status))
 		return_VALUE(-ENODEV);
 
@@ -254,8 +246,7 @@ acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 	return_VALUE(0);
 }
 
-static int
-acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 {
 	int result;
 	u64 start = mem_device->start_addr;
@@ -278,7 +269,7 @@ acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 	result = acpi_memory_powerdown_device(mem_device);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					"Device Power Down failed.\n"));
+				  "Device Power Down failed.\n"));
 		/* Set the status of the device to invalid */
 		mem_device->state = MEMORY_INVALID_STATE;
 		return result;
@@ -288,8 +279,7 @@ acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 	return result;
 }
 
-static void
-acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_memory_device *mem_device;
 	struct acpi_device *device;
@@ -299,37 +289,37 @@ acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"\nReceived BUS CHECK notification for device\n"));
+				  "\nReceived BUS CHECK notification for device\n"));
 		/* Fall Through */
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		if (event == ACPI_NOTIFY_DEVICE_CHECK)
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"\nReceived DEVICE CHECK notification for device\n"));
+					  "\nReceived DEVICE CHECK notification for device\n"));
 		if (acpi_memory_get_device(handle, &mem_device)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Error in finding driver data\n"));
+					  "Error in finding driver data\n"));
 			return_VOID;
 		}
 
 		if (!acpi_memory_check_device(mem_device)) {
 			if (acpi_memory_enable_device(mem_device))
 				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Error in acpi_memory_enable_device\n"));
+						  "Error in acpi_memory_enable_device\n"));
 		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"\nReceived EJECT REQUEST notification for device\n"));
+				  "\nReceived EJECT REQUEST notification for device\n"));
 
 		if (acpi_bus_get_device(handle, &device)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					"Device doesn't exist\n"));
+					  "Device doesn't exist\n"));
 			break;
 		}
 		mem_device = acpi_driver_data(device);
 		if (!mem_device) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					"Driver Data is NULL\n"));
+					  "Driver Data is NULL\n"));
 			break;
 		}
 
@@ -337,26 +327,25 @@ acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		 * Currently disabling memory device from kernel mode
 		 * TBD: Can also be disabled from user mode scripts
 		 * TBD: Can also be disabled by Callback registration
-		 * 	with generic sysfs driver
+		 *      with generic sysfs driver
 		 */
 		if (acpi_memory_disable_device(mem_device))
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Error in acpi_memory_disable_device\n"));
+					  "Error in acpi_memory_disable_device\n"));
 		/*
 		 * TBD: Invoke acpi_bus_remove to cleanup data structures
 		 */
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Unsupported event [0x%x]\n", event));
+				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
 
 	return_VOID;
 }
 
-static int
-acpi_memory_device_add(struct acpi_device *device)
+static int acpi_memory_device_add(struct acpi_device *device)
 {
 	int result;
 	struct acpi_memory_device *mem_device = NULL;
@@ -391,8 +380,7 @@ acpi_memory_device_add(struct acpi_device *device)
 	return_VALUE(result);
 }
 
-static int
-acpi_memory_device_remove (struct acpi_device *device, int type)
+static int acpi_memory_device_remove(struct acpi_device *device, int type)
 {
 	struct acpi_memory_device *mem_device = NULL;
 
@@ -401,7 +389,7 @@ acpi_memory_device_remove (struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return_VALUE(-EINVAL);
 
-	mem_device = (struct acpi_memory_device *) acpi_driver_data(device);
+	mem_device = (struct acpi_memory_device *)acpi_driver_data(device);
 	kfree(mem_device);
 
 	return_VALUE(0);
@@ -410,12 +398,11 @@ acpi_memory_device_remove (struct acpi_device *device, int type)
 /*
  * Helper function to check for memory device
  */
-static acpi_status
-is_memory_device(acpi_handle handle)
+static acpi_status is_memory_device(acpi_handle handle)
 {
 	char *hardware_id;
 	acpi_status status;
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_device_info *info;
 
 	ACPI_FUNCTION_TRACE("is_memory_device");
@@ -432,7 +419,7 @@ is_memory_device(acpi_handle handle)
 
 	hardware_id = info->hardware_id.value;
 	if ((hardware_id == NULL) ||
-		(strcmp(hardware_id, ACPI_MEMORY_DEVICE_HID)))
+	    (strcmp(hardware_id, ACPI_MEMORY_DEVICE_HID)))
 		status = AE_ERROR;
 
 	acpi_os_free(buffer.pointer);
@@ -440,8 +427,8 @@ is_memory_device(acpi_handle handle)
 }
 
 static acpi_status
-acpi_memory_register_notify_handler (acpi_handle handle,
-	u32 level, void *ctxt, void **retv)
+acpi_memory_register_notify_handler(acpi_handle handle,
+				    u32 level, void *ctxt, void **retv)
 {
 	acpi_status status;
 
@@ -452,10 +439,10 @@ acpi_memory_register_notify_handler (acpi_handle handle,
 		return_ACPI_STATUS(AE_OK);	/* continue */
 
 	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-			acpi_memory_device_notify, NULL);
+					     acpi_memory_device_notify, NULL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error installing notify handler\n"));
+				  "Error installing notify handler\n"));
 		return_ACPI_STATUS(AE_OK);	/* continue */
 	}
 
@@ -463,8 +450,8 @@ acpi_memory_register_notify_handler (acpi_handle handle,
 }
 
 static acpi_status
-acpi_memory_deregister_notify_handler (acpi_handle handle,
-			       u32 level, void *ctxt, void **retv)
+acpi_memory_deregister_notify_handler(acpi_handle handle,
+				      u32 level, void *ctxt, void **retv)
 {
 	acpi_status status;
 
@@ -475,18 +462,18 @@ acpi_memory_deregister_notify_handler (acpi_handle handle,
 		return_ACPI_STATUS(AE_OK);	/* continue */
 
 	status = acpi_remove_notify_handler(handle,
-			ACPI_SYSTEM_NOTIFY, acpi_memory_device_notify);
+					    ACPI_SYSTEM_NOTIFY,
+					    acpi_memory_device_notify);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Error removing notify handler\n"));
+				  "Error removing notify handler\n"));
 		return_ACPI_STATUS(AE_OK);	/* continue */
 	}
 
 	return_ACPI_STATUS(status);
 }
 
-static int __init
-acpi_memory_device_init (void)
+static int __init acpi_memory_device_init(void)
 {
 	int result;
 	acpi_status status;
@@ -499,21 +486,20 @@ acpi_memory_device_init (void)
 		return_VALUE(-ENODEV);
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-				ACPI_UINT32_MAX,
-				acpi_memory_register_notify_handler,
-				NULL, NULL);
+				     ACPI_UINT32_MAX,
+				     acpi_memory_register_notify_handler,
+				     NULL, NULL);
 
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "walk_namespace failed\n"));
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed\n"));
 		acpi_bus_unregister_driver(&acpi_memory_device_driver);
 		return_VALUE(-ENODEV);
-        }
+	}
 
 	return_VALUE(0);
 }
 
-static void __exit
-acpi_memory_device_exit (void)
+static void __exit acpi_memory_device_exit(void)
 {
 	acpi_status status;
 
@@ -524,12 +510,12 @@ acpi_memory_device_exit (void)
 	 * handles.
 	 */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX,
-			acpi_memory_deregister_notify_handler,
-			NULL, NULL);
+				     ACPI_UINT32_MAX,
+				     acpi_memory_deregister_notify_handler,
+				     NULL, NULL);
 
-	if (ACPI_FAILURE (status))
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "walk_namespace failed\n"));
+	if (ACPI_FAILURE(status))
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed\n"));
 
 	acpi_bus_unregister_driver(&acpi_memory_device_driver);
 
@@ -538,5 +524,3 @@ acpi_memory_device_exit (void)
 
 module_init(acpi_memory_device_init);
 module_exit(acpi_memory_device_exit);
-
-

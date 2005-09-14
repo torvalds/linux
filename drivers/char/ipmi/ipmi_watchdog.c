@@ -1037,10 +1037,8 @@ static __exit void ipmi_unregister_watchdog(void)
 	/* Wait to make sure the message makes it out.  The lower layer has
 	   pointers to our buffers, we want to make sure they are done before
 	   we release our memory. */
-	while (atomic_read(&set_timeout_tofree)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (atomic_read(&set_timeout_tofree))
+		schedule_timeout_uninterruptible(1);
 
 	/* Disconnect from IPMI. */
 	rv = ipmi_destroy_user(watchdog_user);

@@ -77,6 +77,28 @@ static int store_updates_sp(struct pt_regs *regs)
 	return 0;
 }
 
+static void do_dabr(struct pt_regs *regs, unsigned long error_code)
+{
+	siginfo_t info;
+
+	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
+			11, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (debugger_dabr_match(regs))
+		return;
+
+	/* Clear the DABR */
+	set_dabr(0);
+
+	/* Deliver the signal to userspace */
+	info.si_signo = SIGTRAP;
+	info.si_errno = 0;
+	info.si_code = TRAP_HWBKPT;
+	info.si_addr = (void __user *)regs->nip;
+	force_sig_info(SIGTRAP, &info, current);
+}
+
 /*
  * The error_code parameter is
  *  - DSISR for a non-SLB data access fault,
@@ -111,12 +133,9 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (!user_mode(regs) && (address >= TASK_SIZE))
 		return SIGSEGV;
 
-	if (error_code & DSISR_DABRMATCH) {
-		if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
-					11, SIGSEGV) == NOTIFY_STOP)
-			return 0;
-		if (debugger_dabr_match(regs))
-			return 0;
+  	if (error_code & DSISR_DABRMATCH) {
+		do_dabr(regs, error_code);
+		return 0;
 	}
 
 	if (in_atomic() || mm == NULL) {

@@ -242,7 +242,7 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 	else
 		busdn = hose->arch_data;
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->devfn == devfn)
+		if (dn->data && PCI_DN(dn)->devfn == devfn)
 			break;
 	if (dn == NULL)
 		return -1;
@@ -388,7 +388,7 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-       	hose->first_busno = 0xf0;
+	hose->first_busno = 0xf0;
 	hose->last_busno = 0xff;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
@@ -473,7 +473,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 			continue;
 		}		
 		cur++;
-       		DBG("U3/HT: hole, %d end at %08lx, %d start at %08lx\n",
+		DBG("U3/HT: hole, %d end at %08lx, %d start at %08lx\n",
 		    cur-1, res->start - 1, cur, res->end + 1);
 		hose->mem_resources[cur].name = np->full_name;
 		hose->mem_resources[cur].flags = IORESOURCE_MEM;
@@ -603,24 +603,24 @@ static int __init add_bridge(struct device_node *dev)
 	char* disp_name;
 	int *bus_range;
 	int primary = 1;
- 	struct property *of_prop;
+	struct property *of_prop;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 
-       	bus_range = (int *) get_property(dev, "bus-range", &len);
-       	if (bus_range == NULL || len < 2 * sizeof(int)) {
-       		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
-       			       dev->full_name);
-       	}
+	bus_range = (int *) get_property(dev, "bus-range", &len);
+	if (bus_range == NULL || len < 2 * sizeof(int)) {
+		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
+			dev->full_name);
+	}
 
 	hose = alloc_bootmem(sizeof(struct pci_controller));
 	if (hose == NULL)
 		return -ENOMEM;
-       	pci_setup_pci_controller(hose);
+	pci_setup_pci_controller(hose);
 
-       	hose->arch_data = dev;
-       	hose->first_busno = bus_range ? bus_range[0] : 0;
-       	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->arch_data = dev;
+	hose->first_busno = bus_range ? bus_range[0] : 0;
+	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	of_prop = alloc_bootmem(sizeof(struct property) +
 				sizeof(hose->global_number));
@@ -634,24 +634,24 @@ static int __init add_bridge(struct device_node *dev)
 	}
 
 	disp_name = NULL;
-       	if (device_is_compatible(dev, "u3-agp")) {
-       		setup_u3_agp(hose);
-       		disp_name = "U3-AGP";
-       		primary = 0;
-       	} else if (device_is_compatible(dev, "u3-ht")) {
-       		setup_u3_ht(hose);
-       		disp_name = "U3-HT";
-       		primary = 1;
-       	}
-       	printk(KERN_INFO "Found %s PCI host bridge. Firmware bus number: %d->%d\n",
-       		disp_name, hose->first_busno, hose->last_busno);
+	if (device_is_compatible(dev, "u3-agp")) {
+		setup_u3_agp(hose);
+		disp_name = "U3-AGP";
+		primary = 0;
+	} else if (device_is_compatible(dev, "u3-ht")) {
+		setup_u3_ht(hose);
+		disp_name = "U3-HT";
+		primary = 1;
+	}
+	printk(KERN_INFO "Found %s PCI host bridge. Firmware bus number: %d->%d\n",
+		disp_name, hose->first_busno, hose->last_busno);
 
-       	/* Interpret the "ranges" property */
-       	/* This also maps the I/O region and sets isa_io/mem_base */
-       	pmac_process_bridge_OF_ranges(hose, dev, primary);
+	/* Interpret the "ranges" property */
+	/* This also maps the I/O region and sets isa_io/mem_base */
+	pmac_process_bridge_OF_ranges(hose, dev, primary);
 
-       	/* Fixup "bus-range" OF property */
-       	fixup_bus_range(dev);
+	/* Fixup "bus-range" OF property */
+	fixup_bus_range(dev);
 
 	return 0;
 }
@@ -746,9 +746,9 @@ void __init pmac_pci_init(void)
 	 */
 	if (u3_agp) {
 		struct device_node *np = u3_agp->arch_data;
-		np->busno = 0xf0;
+		PCI_DN(np)->busno = 0xf0;
 		for (np = np->child; np; np = np->sibling)
-			np->busno = 0xf0;
+			PCI_DN(np)->busno = 0xf0;
 	}
 
 	pmac_check_ht_link();

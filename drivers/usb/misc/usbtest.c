@@ -986,7 +986,6 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 
 		u->context = &context;
 		u->complete = ctrl_complete;
-		u->transfer_flags |= URB_ASYNC_UNLINK;
 	}
 
 	/* queue the urbs */
@@ -1052,7 +1051,6 @@ static int unlink1 (struct usbtest_dev *dev, int pipe, int size, int async)
 	urb = simple_alloc_urb (testdev_to_usbdev (dev), pipe, size);
 	if (!urb)
 		return -ENOMEM;
-	urb->transfer_flags |= URB_ASYNC_UNLINK;
 	urb->context = &completion;
 	urb->complete = unlink1_callback;
 

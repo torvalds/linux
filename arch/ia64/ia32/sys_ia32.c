@@ -2327,7 +2327,7 @@ sys32_sendfile (int out_fd, int in_fd, int __user *offset, unsigned int count)
 	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *) &of : NULL, count);
 	set_fs(old_fs);
 
-	if (!ret && offset && put_user(of, offset))
+	if (offset && put_user(of, offset))
 		return -EFAULT;
 
 	return ret;

@@ -20,7 +20,7 @@
  * Fixup routines for kernel exception handling.
  */
 #include <linux/config.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/assembly.h>
 #include <asm/errno.h>
 

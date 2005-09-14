@@ -81,8 +81,7 @@ int vfc_pcf8584_init(struct vfc_dev *dev)
 
 void vfc_i2c_delay_no_busy(struct vfc_dev *dev, unsigned long usecs) 
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(usecs_to_jiffies(usecs));
+	schedule_timeout_uninterruptible(usecs_to_jiffies(usecs));
 }
 
 void inline vfc_i2c_delay(struct vfc_dev *dev) 

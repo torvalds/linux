@@ -68,7 +68,7 @@ struct ipv6_opt_hdr {
 
 struct rt0_hdr {
 	struct ipv6_rt_hdr	rt_hdr;
-	__u32			bitmap;		/* strict/loose bit map */
+	__u32			reserved;
 	struct in6_addr		addr[0];
 
 #define rt0_type		rt_hdr.type
@@ -189,6 +189,7 @@ struct inet6_skb_parm {
 	__u16			dst0;
 	__u16			srcrt;
 	__u16			dst1;
+	__u16			lastopt;
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
@@ -234,14 +235,20 @@ struct ipv6_pinfo {
 	/* pktoption flags */
 	union {
 		struct {
-			__u8	srcrt:2,
+			__u16	srcrt:2,
+				osrcrt:2,
 			        rxinfo:1,
+			        rxoinfo:1,
 				rxhlim:1,
+				rxohlim:1,
 				hopopts:1,
+				ohopopts:1,
 				dstopts:1,
-                                rxflow:1;
+				odstopts:1,
+                                rxflow:1,
+				rxtclass:1;
 		} bits;
-		__u8		all;
+		__u16		all;
 	} rxopt;
 
 	/* sockopt flags */
@@ -250,6 +257,7 @@ struct ipv6_pinfo {
 	                        sndflow:1,
 				pmtudisc:2,
 				ipv6only:1;
+	__u8			tclass;
 
 	__u32			dst_cookie;
 
@@ -263,6 +271,7 @@ struct ipv6_pinfo {
 		struct ipv6_txoptions *opt;
 		struct rt6_info	*rt;
 		int hop_limit;
+		int tclass;
 	} cork;
 };
 

@@ -30,7 +30,7 @@ other program after you have done the following:
    Read the file 'binfmt_misc.txt' in this directory to know
    more about the configuration process.
 
-3) Add the following enries to /etc/rc.local or similar script
+3) Add the following entries to /etc/rc.local or similar script
    to be run at system startup:
 
 # Insert BINFMT_MISC module into the kernel

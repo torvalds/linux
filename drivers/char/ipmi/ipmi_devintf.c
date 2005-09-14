@@ -735,7 +735,8 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	case COMPAT_IPMICTL_RECEIVE_MSG:
 	case COMPAT_IPMICTL_RECEIVE_MSG_TRUNC:
 	{
-		struct ipmi_recv   *precv64, recv64;
+		struct ipmi_recv   __user *precv64;
+		struct ipmi_recv   recv64;
 
 		if (get_compat_ipmi_recv(&recv64, compat_ptr(arg)))
 			return -EFAULT;
@@ -748,7 +749,7 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 				((cmd == COMPAT_IPMICTL_RECEIVE_MSG)
 				 ? IPMICTL_RECEIVE_MSG
 				 : IPMICTL_RECEIVE_MSG_TRUNC),
-				(long) precv64);
+				(unsigned long) precv64);
 		if (rc != 0)
 			return rc;
 

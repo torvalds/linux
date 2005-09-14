@@ -172,7 +172,7 @@ static int ac_register_board(unsigned long physloc, void __iomem *loc,
 
 void cleanup_module(void)
 {
-	int i;
+	unsigned int i;
 
 	misc_deregister(&ac_miscdev);
 
@@ -195,7 +195,7 @@ int __init applicom_init(void)
 	int i, numisa = 0;
 	struct pci_dev *dev = NULL;
 	void __iomem *RamIO;
-	int boardno;
+	int boardno, ret;
 
 	printk(KERN_INFO "Applicom driver: $Id: ac.c,v 1.30 2000/03/22 16:03:57 dwmw2 Exp $\n");
 
@@ -294,7 +294,8 @@ int __init applicom_init(void)
 	}
 
 	if (!numisa)
-		printk(KERN_WARNING"ac.o: No valid ISA Applicom boards found at mem 0x%lx\n",mem);
+		printk(KERN_WARNING "ac.o: No valid ISA Applicom boards found "
+				"at mem 0x%lx\n", mem);
 
  fin:
 	init_waitqueue_head(&FlagSleepRec);
@@ -304,7 +305,11 @@ int __init applicom_init(void)
 	DeviceErrorCount = 0;
 
 	if (numboards) {
-		misc_register(&ac_miscdev);
+		ret = misc_register(&ac_miscdev);
+		if (ret) {
+			printk(KERN_WARNING "ac.o: Unable to register misc device\n");
+			goto out;
+		}
 		for (i = 0; i < MAX_BOARD; i++) {
 			int serial;
 			char boardname[(SERIAL_NUMBER - TYPE_CARD) + 1];
@@ -337,6 +342,17 @@ int __init applicom_init(void)
 
 	else
 		return -ENXIO;
+
+out:
+	for (i = 0; i < MAX_BOARD; i++) {
+		if (!apbs[i].RamIO)
+			continue;
+		if (apbs[i].irq)
+			free_irq(apbs[i].irq, &dummy);
+		iounmap(apbs[i].RamIO);
+	}
+	pci_disable_device(dev);
+	return ret;
 }
 
 

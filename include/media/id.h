@@ -1,5 +1,4 @@
 /*
- * $Id: id.h,v 1.4 2005/06/12 04:19:19 mchehab Exp $
  */
 
 /* FIXME: this temporarely, until these are included in linux/i2c-id.h */

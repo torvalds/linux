@@ -1,0 +1,155 @@
+#
+#   Sample fb.modes file
+#
+#	Provides an incomplete list of working modes for
+#	the cyberblade/i1 graphics core.
+#
+#	The value 4294967256 is used instead of -40. Of course, -40 is not
+#	a really reasonable value, but chip design does not always follow
+#	logic. Believe me, it's ok, and it's the way the BIOS does it.
+#
+#	fbset requires 4294967256 in fb.modes and -40 as an argument to
+#	the -t parameter. That's also not too reasonable, and it might change
+#	in the future or might even be differt for your current version.
+#
+
+mode "640x480-50"
+    geometry 640 480 640 3756 8
+    timings 47619 4294967256 24 17 0 216 3
+endmode
+
+mode "640x480-60"
+    geometry 640 480 640 3756 8
+    timings 39682 4294967256 24 17 0 216 3
+endmode
+
+mode "640x480-70"
+    geometry 640 480 640 3756 8
+    timings 34013 4294967256 24 17 0 216 3
+endmode
+
+mode "640x480-72"
+    geometry 640 480 640 3756 8
+    timings 33068 4294967256 24 17 0 216 3
+endmode
+
+mode "640x480-75"
+    geometry 640 480 640 3756 8
+    timings 31746 4294967256 24 17 0 216 3
+endmode
+
+mode "640x480-80"
+    geometry 640 480 640 3756 8
+    timings 29761 4294967256 24 17 0 216 3
+endmode
+
+mode "640x480-85"
+    geometry 640 480 640 3756 8
+    timings 28011 4294967256 24 17 0 216 3
+endmode
+
+mode "800x600-50"
+    geometry 800 600 800 3221 8
+    timings 30303 96 24 14 0 136 11
+endmode
+
+mode "800x600-60"
+    geometry 800 600 800 3221 8
+    timings 25252 96 24 14 0 136 11
+endmode
+
+mode "800x600-70"
+    geometry 800 600 800 3221 8
+    timings 21645 96 24 14 0 136 11
+endmode
+
+mode "800x600-72"
+    geometry 800 600 800 3221 8
+    timings 21043 96 24 14 0 136 11
+endmode
+
+mode "800x600-75"
+    geometry 800 600 800 3221 8
+    timings 20202 96 24 14 0 136 11
+endmode
+
+mode "800x600-80"
+    geometry 800 600 800 3221 8
+    timings 18939 96 24 14 0 136 11
+endmode
+
+mode "800x600-85"
+    geometry 800 600 800 3221 8
+    timings 17825 96 24 14 0 136 11
+endmode
+
+mode "1024x768-50"
+    geometry 1024 768 1024 2815 8
+    timings 19054 144 24 29 0 120 3
+endmode
+
+mode "1024x768-60"
+    geometry 1024 768 1024 2815 8
+    timings 15880 144 24 29 0 120 3
+endmode
+
+mode "1024x768-70"
+    geometry 1024 768 1024 2815 8
+    timings 13610 144 24 29 0 120 3
+endmode
+
+mode "1024x768-72"
+    geometry 1024 768 1024 2815 8
+    timings 13232 144 24 29 0 120 3
+endmode
+
+mode "1024x768-75"
+    geometry 1024 768 1024 2815 8
+    timings 12703 144 24 29 0 120 3
+endmode
+
+mode "1024x768-80"
+    geometry 1024 768 1024 2815 8
+    timings 11910 144 24 29 0 120 3
+endmode
+
+mode "1024x768-85"
+    geometry 1024 768 1024 2815 8
+    timings 11209 144 24 29 0 120 3
+endmode
+
+mode "1280x1024-50"
+    geometry 1280 1024 1280 2662 8
+    timings 11114 232 16 39 0 160 3
+endmode
+
+mode "1280x1024-60"
+    geometry 1280 1024 1280 2662 8
+    timings 9262 232 16 39 0 160 3
+endmode
+
+mode "1280x1024-70"
+    geometry 1280 1024 1280 2662 8
+    timings 7939 232 16 39 0 160 3
+endmode
+
+mode "1280x1024-72"
+    geometry 1280 1024 1280 2662 8
+    timings 7719 232 16 39 0 160 3
+endmode
+
+mode "1280x1024-75"
+    geometry 1280 1024 1280 2662 8
+    timings 7410 232 16 39 0 160 3
+endmode
+
+mode "1280x1024-80"
+    geometry 1280 1024 1280 2662 8
+    timings 6946 232 16 39 0 160 3
+endmode
+
+mode "1280x1024-85"
+    geometry 1280 1024 1280 2662 8
+    timings 6538 232 16 39 0 160 3
+endmode
+

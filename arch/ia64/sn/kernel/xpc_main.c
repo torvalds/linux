@@ -885,6 +885,10 @@ xpc_init(void)
 	pid_t pid;
 
 
+	if (!ia64_platform_is("sn2")) {
+		return -ENODEV;
+	}
+
 	/*
 	 * xpc_remote_copy_buffer is used as a temporary buffer for bte_copy'ng
 	 * both a partition's reserved page and its XPC variables. Its size was

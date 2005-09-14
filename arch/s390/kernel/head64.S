@@ -30,7 +30,7 @@
 #include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/lowcore.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
 

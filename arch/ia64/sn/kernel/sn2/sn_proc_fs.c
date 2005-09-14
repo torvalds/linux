@@ -52,7 +52,7 @@ static int licenseID_open(struct inode *inode, struct file *file)
  * the bridge chip.  The hardware will then send an interrupt message if the
  * interrupt line is active.  This mimics a level sensitive interrupt.
  */
-int sn_force_interrupt_flag = 1;
+extern int sn_force_interrupt_flag;
 
 static int sn_force_interrupt_show(struct seq_file *s, void *p)
 {

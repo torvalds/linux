@@ -1,5 +1,5 @@
-#ifndef _POWERPC_MC146818RTC_H
-#define _POWERPC_MC146818RTC_H
+#ifndef _ASM_POWERPC_MC146818RTC_H
+#define _ASM_POWERPC_MC146818RTC_H
 
 /*
  * Machine dependent access functions for RTC registers.
@@ -33,4 +33,4 @@ outb_p((val),RTC_PORT(1)); \
 })
 
 #endif	/* __KERNEL__ */
-#endif	/* _POWERPC_MC146818RTC_H */
+#endif	/* _ASM_POWERPC_MC146818RTC_H */

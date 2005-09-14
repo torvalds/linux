@@ -382,8 +382,7 @@ sanitize:
 			goto sanitize;
 		}
 		spin_unlock_irqrestore (&ohci->lock, flags);
-		set_current_state (TASK_UNINTERRUPTIBLE);
-		schedule_timeout (1);
+		schedule_timeout_uninterruptible(1);
 		goto rescan;
 	case ED_IDLE:		/* fully unlinked */
 		if (list_empty (&ed->td_list)) {
@@ -485,6 +484,10 @@ static int ohci_init (struct ohci_hcd *ohci)
 	// flush the writes
 	(void) ohci_readl (ohci, &ohci->regs->control);
 
+	/* Read the number of ports unless overridden */
+	if (ohci->num_ports == 0)
+		ohci->num_ports = roothub_a(ohci) & RH_A_NDP;
+
 	if (ohci->hcca)
 		return 0;
 
@@ -561,10 +564,8 @@ static int ohci_run (struct ohci_hcd *ohci)
 	msleep(temp);
 	temp = roothub_a (ohci);
 	if (!(temp & RH_A_NPS)) {
-		unsigned ports = temp & RH_A_NDP; 
-
 		/* power down each port */
-		for (temp = 0; temp < ports; temp++)
+		for (temp = 0; temp < ohci->num_ports; temp++)
 			ohci_writel (ohci, RH_PS_LSDA,
 				&ohci->regs->roothub.portstatus [temp]);
 	}
@@ -720,6 +721,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 
 	if (ints & OHCI_INTR_RD) {
 		ohci_vdbg (ohci, "resume detect\n");
+		ohci_writel (ohci, OHCI_INTR_RD, &regs->intrstatus);
 		if (hcd->state != HC_STATE_QUIESCING)
 			schedule_work(&ohci->rh_resume);
 	}
@@ -861,7 +863,7 @@ static int ohci_restart (struct ohci_hcd *ohci)
 		 * and that if we try to turn them back on the root hub
 		 * will respond to CSC processing.
 		 */
-		i = roothub_a (ohci) & RH_A_NDP;
+		i = ohci->num_ports;
 		while (i--)
 			ohci_writel (ohci, RH_PS_PSS,
 				&ohci->regs->roothub.portstatus [temp]);

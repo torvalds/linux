@@ -30,6 +30,21 @@ struct plat_serial8250_port {
 };
 
 /*
+ * Allocate 8250 platform device IDs.  Nothing is implied by
+ * the numbering here, except for the legacy entry being -1.
+ */
+enum {
+	PLAT8250_DEV_LEGACY = -1,
+	PLAT8250_DEV_PLATFORM,
+	PLAT8250_DEV_PLATFORM1,
+	PLAT8250_DEV_FOURPORT,
+	PLAT8250_DEV_ACCENT,
+	PLAT8250_DEV_BOCA,
+	PLAT8250_DEV_HUB6,
+	PLAT8250_DEV_MCA,
+};
+
+/*
  * This should be used by drivers which want to register
  * their own 8250 ports without registering their own
  * platform device.  Using these will make your driver

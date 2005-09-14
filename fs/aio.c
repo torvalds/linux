@@ -29,6 +29,7 @@
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
+#include <linux/rcuref.h>
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
@@ -499,7 +500,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 	/* Must be done under the lock to serialise against cancellation.
 	 * Call this aio_fput as it duplicates fput via the fput_work.
 	 */
-	if (unlikely(atomic_dec_and_test(&req->ki_filp->f_count))) {
+	if (unlikely(rcuref_dec_and_test(&req->ki_filp->f_count))) {
 		get_ioctx(ctx);
 		spin_lock(&fput_lock);
 		list_add(&req->ki_list, &fput_head);
@@ -544,6 +545,24 @@ struct kioctx *lookup_ioctx(unsigned long ctx_id)
 	read_unlock(&mm->ioctx_list_lock);
 
 	return ioctx;
+}
+
+static int lock_kiocb_action(void *param)
+{
+	schedule();
+	return 0;
+}
+
+static inline void lock_kiocb(struct kiocb *iocb)
+{
+	wait_on_bit_lock(&iocb->ki_flags, KIF_LOCKED, lock_kiocb_action,
+			 TASK_UNINTERRUPTIBLE);
+}
+
+static inline void unlock_kiocb(struct kiocb *iocb)
+{
+	kiocbClearLocked(iocb);
+	wake_up_bit(&iocb->ki_flags, KIF_LOCKED);
 }
 
 /*
@@ -786,7 +805,9 @@ static int __aio_run_iocbs(struct kioctx *ctx)
 		 * Hold an extra reference while retrying i/o.
 		 */
 		iocb->ki_users++;       /* grab extra reference */
+		lock_kiocb(iocb);
 		aio_run_iocb(iocb);
+		unlock_kiocb(iocb);
 		if (__aio_put_req(ctx, iocb))  /* drop extra ref */
 			put_ioctx(ctx);
  	}
@@ -1527,10 +1548,9 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 
 	spin_lock_irq(&ctx->ctx_lock);
-	if (likely(list_empty(&ctx->run_list))) {
-		aio_run_iocb(req);
-	} else {
-		list_add_tail(&req->ki_run_list, &ctx->run_list);
+	aio_run_iocb(req);
+	unlock_kiocb(req);
+	if (!list_empty(&ctx->run_list)) {
 		/* drain the run list */
 		while (__aio_run_iocbs(ctx))
 			;
@@ -1661,6 +1681,7 @@ asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,
 	if (NULL != cancel) {
 		struct io_event tmp;
 		pr_debug("calling cancel\n");
+		lock_kiocb(kiocb);
 		memset(&tmp, 0, sizeof(tmp));
 		tmp.obj = (u64)(unsigned long)kiocb->ki_obj.user;
 		tmp.data = kiocb->ki_user_data;
@@ -1672,8 +1693,9 @@ asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,
 			if (copy_to_user(result, &tmp, sizeof(tmp)))
 				ret = -EFAULT;
 		}
+		unlock_kiocb(kiocb);
 	} else
-		printk(KERN_DEBUG "iocb has no cancel operation\n");
+		ret = -EINVAL;
 
 	put_ioctx(ctx);
 

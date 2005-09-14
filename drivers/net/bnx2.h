@@ -50,6 +50,7 @@
 #endif
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
+#include <linux/prefetch.h>
 
 /* Hardware data structures and register definitions automatically
  * generated from RTL code. Do not modify.

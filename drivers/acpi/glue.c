@@ -29,7 +29,8 @@ int register_acpi_bus_type(struct acpi_bus_type *type)
 		down_write(&bus_type_sem);
 		list_add_tail(&type->list, &bus_type_list);
 		up_write(&bus_type_sem);
-		printk(KERN_INFO PREFIX "bus type %s registered\n", type->bus->name);
+		printk(KERN_INFO PREFIX "bus type %s registered\n",
+		       type->bus->name);
 		return 0;
 	}
 	return -ENODEV;
@@ -45,7 +46,8 @@ int unregister_acpi_bus_type(struct acpi_bus_type *type)
 		down_write(&bus_type_sem);
 		list_del_init(&type->list);
 		up_write(&bus_type_sem);
-		printk(KERN_INFO PREFIX "ACPI bus type %s unregistered\n", type->bus->name);
+		printk(KERN_INFO PREFIX "ACPI bus type %s unregistered\n",
+		       type->bus->name);
 		return 0;
 	}
 	return -ENODEV;
@@ -168,9 +170,6 @@ find_pci_rootbridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	status = acpi_evaluate_integer(handle, METHOD_NAME__SEG, NULL, &seg);
 	if (status == AE_NOT_FOUND) {
 		/* Assume seg = 0 */
-		printk(KERN_INFO PREFIX
-		       "Assume root bridge [%s] segment is 0\n",
-		       (char *)buffer.pointer);
 		status = AE_OK;
 		seg = 0;
 	}

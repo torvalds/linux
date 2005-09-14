@@ -300,6 +300,5 @@ retry:
 	 * Give "p" a good chance of killing itself before we
 	 * retry to allocate memory.
 	 */
-	__set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(1);
+	schedule_timeout_interruptible(1);
 }

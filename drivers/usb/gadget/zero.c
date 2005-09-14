@@ -1139,6 +1139,13 @@ zero_bind (struct usb_gadget *gadget)
 {
 	struct zero_dev		*dev;
 	struct usb_ep		*ep;
+	int			gcnum;
+
+	/* FIXME this can't yet work right with SH ... it has only
+	 * one configuration, numbered one.
+	 */
+	if (gadget_is_sh(gadget))
+		return -ENODEV;
 
 	/* Bulk-only drivers like this one SHOULD be able to
 	 * autoconfigure on any sane usb controller driver,
@@ -1161,43 +1168,10 @@ autoconf_fail:
 	EP_OUT_NAME = ep->name;
 	ep->driver_data = ep;	/* claim */
 
-
-	/*
-	 * DRIVER POLICY CHOICE:  you may want to do this differently.
-	 * One thing to avoid is reusing a bcdDevice revision code
-	 * with different host-visible configurations or behavior
-	 * restrictions -- using ep1in/ep2out vs ep1out/ep3in, etc
-	 */
-	if (gadget_is_net2280 (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0201);
-	} else if (gadget_is_pxa (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0203);
-#if 0
-	} else if (gadget_is_sh(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0204);
-		/* SH has only one configuration; see "loopdefault" */
-		device_desc.bNumConfigurations = 1;
-		/* FIXME make 1 == default.bConfigurationValue */
-#endif
-	} else if (gadget_is_sa1100 (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0205);
-	} else if (gadget_is_goku (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0206);
-	} else if (gadget_is_mq11xx (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0207);
-	} else if (gadget_is_omap (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0208);
-	} else if (gadget_is_lh7a40x(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0209);
-	} else if (gadget_is_n9604(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0210);
-	} else if (gadget_is_pxa27x(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0211);
-	} else if (gadget_is_s3c2410(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0212);
-	} else if (gadget_is_at91(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0213);
-	} else {
+	gcnum = usb_gadget_controller_number (gadget);
+	if (gcnum >= 0)
+		device_desc.bcdDevice = cpu_to_le16 (0x0200 + gcnum);
+	else {
 		/* gadget zero is so simple (for now, no altsettings) that
 		 * it SHOULD NOT have problems with bulk-capable hardware.
 		 * so warn about unrcognized controllers, don't panic.

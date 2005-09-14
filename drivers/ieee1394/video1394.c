@@ -883,7 +883,7 @@ static int __video1394_ioctl(struct file *file,
 			      v.channel);
 		}
 
-		if (copy_to_user((void *)arg, &v, sizeof(v))) {
+		if (copy_to_user(argp, &v, sizeof(v))) {
 			/* FIXME : free allocated dma resources */
 			return -EFAULT;
 		}
