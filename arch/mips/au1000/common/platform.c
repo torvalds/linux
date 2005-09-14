@@ -14,6 +14,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
+/* OHCI (USB full speed host controller) */
 static struct resource au1xxx_usb_ohci_resources[] = {
 	[0] = {
 		.start		= USB_OHCI_BASE,
@@ -71,11 +72,128 @@ static struct platform_device au1100_lcd_device = {
 };
 #endif
 
+#ifdef CONFIG_SOC_AU1200
+/* EHCI (USB high speed host controller) */
+static struct resource au1xxx_usb_ehci_resources[] = {
+	[0] = {
+		.start		= USB_EHCI_BASE,
+		.end		= USB_EHCI_BASE + USB_EHCI_LEN - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= AU1000_USB_HOST_INT,
+		.end		= AU1000_USB_HOST_INT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static u64 ehci_dmamask = ~(u32)0;
+
+static struct platform_device au1xxx_usb_ehci_device = {
+	.name		= "au1xxx-ehci",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &ehci_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(au1xxx_usb_ehci_resources),
+	.resource	= au1xxx_usb_ehci_resources,
+};
+
+/* Au1200 UDC (USB gadget controller) */
+static struct resource au1xxx_usb_gdt_resources[] = {
+	[0] = {
+		.start		= USB_UDC_BASE,
+		.end		= USB_UDC_BASE + USB_UDC_LEN - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= AU1200_USB_INT,
+		.end		= AU1200_USB_INT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static u64 udc_dmamask = ~(u32)0;
+
+static struct platform_device au1xxx_usb_gdt_device = {
+	.name		= "au1xxx-udc",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &udc_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(au1xxx_usb_gdt_resources),
+	.resource	= au1xxx_usb_gdt_resources,
+};
+
+/* Au1200 UOC (USB OTG controller) */
+static struct resource au1xxx_usb_otg_resources[] = {
+	[0] = {
+		.start		= USB_UOC_BASE,
+		.end		= USB_UOC_BASE + USB_UOC_LEN - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= AU1200_USB_INT,
+		.end		= AU1200_USB_INT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static u64 uoc_dmamask = ~(u32)0;
+
+static struct platform_device au1xxx_usb_otg_device = {
+	.name		= "au1xxx-uoc",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &uoc_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(au1xxx_usb_otg_resources),
+	.resource	= au1xxx_usb_otg_resources,
+};
+
+/*** AU1200 LCD controller ***/
+static struct resource au1200_lcd_resources[] = {
+	[0] = {
+		.start          = LCD_PHYS_ADDR,
+		.end            = LCD_PHYS_ADDR + 0x800 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start          = AU1200_LCD_INT,
+		.end            = AU1200_LCD_INT,
+		.flags          = IORESOURCE_IRQ,
+	}
+};
+
+static u64 au1200_lcd_dmamask = ~(u32)0;
+
+static struct platform_device au1200_lcd_device = {
+	.name           = "au1200-lcd",
+	.id             = 0,
+	.dev = {
+		.dma_mask               = &au1200_lcd_dmamask,
+		.coherent_dma_mask      = 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(au1200_lcd_resources),
+	.resource       = au1200_lcd_resources,
+};
+#endif
 
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_usb_ohci_device,
 #ifdef CONFIG_FB_AU1100
 	&au1100_lcd_device,
+#endif
+#ifdef CONFIG_SOC_AU1200
+#if 0	/* fixme */
+	&au1xxx_usb_ehci_device,
+#endif
+	&au1xxx_usb_gdt_device,
+	&au1xxx_usb_otg_device,
+	&au1200_lcd_device,
 #endif
 };
 

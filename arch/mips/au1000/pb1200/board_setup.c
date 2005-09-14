@@ -58,22 +58,10 @@
 extern void _board_init_irq(void);
 extern void	(*board_init_irq)(void);
 
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX
-extern u32 au1xxx_ide_virtbase;
-extern u64 au1xxx_ide_physbase;
-extern int au1xxx_ide_irq;
-
-u32 led_base_addr;
-/* Ddma */
-chan_tab_t *ide_read_ch, *ide_write_ch;
-u32 au1xxx_ide_ddma_enable = 0, switch4ddma = 1; // PIO+ddma
-
-dbdev_tab_t new_dbdev_tab_element = { DSCR_CMD0_THROTTLE, DEV_FLAGS_ANYUSE, 0, 0, 0x00000000, 0, 0 };
-#endif /* end CONFIG_BLK_DEV_IDE_AU1XXX */
-
 void board_reset (void)
 {
 	bcsr->resets = 0;
+	bcsr->system = 0;
 }
 
 void __init board_setup(void)
@@ -94,7 +82,7 @@ void __init board_setup(void)
 	au_sync();
 #endif
 
-#if defined( CONFIG_I2C_ALGO_AU1550 )
+#if defined(CONFIG_I2C_AU1550)
 	{
 	u32 freq0, clksrc;
 
@@ -134,35 +122,24 @@ void __init board_setup(void)
 #ifdef CONFIG_FB_AU1200
 	argptr = prom_getcmdline();
 #ifdef CONFIG_MIPS_PB1200
-	strcat(argptr, " video=au1200fb:panel:s11");
+	strcat(argptr, " video=au1200fb:panel:bs");
 #endif
 #ifdef CONFIG_MIPS_DB1200
-	strcat(argptr, " video=au1200fb:panel:s7");
+	strcat(argptr, " video=au1200fb:panel:bs");
 #endif
-#endif
-
-#if defined(CONFIG_BLK_DEV_IDE_AU1XXX)
-	/*
-	 * Iniz IDE parameters
-	 */
-	au1xxx_ide_irq = PB1200_IDE_INT;
-	au1xxx_ide_physbase = AU1XXX_ATA_PHYS_ADDR;
-	au1xxx_ide_virtbase = KSEG1ADDR(AU1XXX_ATA_PHYS_ADDR);
-	/*
-	 * change PIO or PIO+Ddma
-	 * check the GPIO-5 pin condition. pb1200:s18_dot */
-	switch4ddma = (au_readl(SYS_PINSTATERD) & (1 << 5)) ? 1 : 0;
 #endif
 
 	/* The Pb1200 development board uses external MUX for PSC0 to
 	support SMB/SPI. bcsr->resets bit 12: 0=SMB 1=SPI
 	*/
-#if defined(CONFIG_AU1550_PSC_SPI) && defined(CONFIG_I2C_ALGO_AU1550)
+#if defined(CONFIG_AU1XXX_PSC_SPI) && defined(CONFIG_I2C_AU1550)
 	#error I2C and SPI are mutually exclusive. Both are physically connected to PSC0.\
 			Refer to Pb1200/Db1200 documentation.
-#elif defined( CONFIG_AU1550_PSC_SPI )
+#elif defined( CONFIG_AU1XXX_PSC_SPI )
 	bcsr->resets |= BCSR_RESETS_PCS0MUX;
-#elif defined( CONFIG_I2C_ALGO_AU1550 )
+	/*Hard Coding Value to enable Temp Sensors [bit 14] Value for SOC Au1200. Pls refer documentation*/
+	  bcsr->resets =0x900f;
+#elif defined( CONFIG_I2C_AU1550 )
 	bcsr->resets &= (~BCSR_RESETS_PCS0MUX);
 #endif
 	au_sync();
@@ -181,3 +158,36 @@ void __init board_setup(void)
 		board_init_irq = _board_init_irq;
 	}
 }
+
+int
+board_au1200fb_panel (void)
+{
+	BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
+	int p;
+
+	p = bcsr->switches;
+	p >>= 8;
+	p &= 0x0F;
+	return p;
+}
+
+int
+board_au1200fb_panel_init (void)
+{
+	/* Apply power */
+    BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
+	bcsr->board |= (BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD | BCSR_BOARD_LCDBL);
+	/*printk("board_au1200fb_panel_init()\n"); */
+	return 0;
+}
+
+int
+board_au1200fb_panel_shutdown (void)
+{
+	/* Remove power */
+    BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
+	bcsr->board &= ~(BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD | BCSR_BOARD_LCDBL);
+	/*printk("board_au1200fb_panel_shutdown()\n"); */
+	return 0;
+}
+
