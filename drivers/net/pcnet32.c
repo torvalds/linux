@@ -22,8 +22,8 @@
  *************************************************************************/
 
 #define DRV_NAME	"pcnet32"
-#define DRV_VERSION	"1.31"
-#define DRV_RELDATE	"02.Sep.2005"
+#define DRV_VERSION	"1.31a"
+#define DRV_RELDATE	"12.Sep.2005"
 #define PFX		DRV_NAME ": "
 
 static const char *version =
@@ -258,6 +258,8 @@ static int homepna[MAX_UNITS];
  * v1.30i  28 Jun 2004 Don Fry change to use module_param.
  * v1.30j  29 Apr 2005 Don Fry fix skb/map leak with loopback test.
  * v1.31   02 Sep 2005 Hubert WS Lin <wslin@tw.ibm.c0m> added set_ringparam().
+ * v1.31a  12 Sep 2005 Hubert WS Lin <wslin@tw.ibm.c0m> set min ring size to 4
+ *	   to allow loopback test to work unchanged.
  */
 
 
@@ -335,14 +337,14 @@ struct pcnet32_access {
 };
 
 /*
- * The first three fields of pcnet32_private are read by the ethernet device
- * so we allocate the structure should be allocated by pci_alloc_consistent().
+ * The first field of pcnet32_private is read by the ethernet device
+ * so the structure should be allocated using pci_alloc_consistent().
  */
 struct pcnet32_private {
+    struct pcnet32_init_block init_block;
     /* The Tx and Rx ring entries must be aligned on 16-byte boundaries in 32bit mode. */
     struct pcnet32_rx_head    *rx_ring;
     struct pcnet32_tx_head    *tx_ring;
-    struct pcnet32_init_block init_block;
     dma_addr_t		dma_addr;	/* DMA address of beginning of this
 					   object, returned by
 					   pci_alloc_consistent */
@@ -648,7 +650,10 @@ static int pcnet32_set_ringparam(struct net_device *dev, struct ethtool_ringpara
     lp->tx_ring_size = min(ering->tx_pending, (unsigned int) TX_MAX_RING_SIZE);
     lp->rx_ring_size = min(ering->rx_pending, (unsigned int) RX_MAX_RING_SIZE);
 
-    for (i = 0; i <= PCNET32_LOG_MAX_TX_BUFFERS; i++) {
+    /* set the minimum ring size to 4, to allow the loopback test to work
+     * unchanged.
+     */
+    for (i = 2; i <= PCNET32_LOG_MAX_TX_BUFFERS; i++) {
 	if (lp->tx_ring_size <= (1 << i))
 	    break;
     }
@@ -656,7 +661,7 @@ static int pcnet32_set_ringparam(struct net_device *dev, struct ethtool_ringpara
     lp->tx_mod_mask = lp->tx_ring_size - 1;
     lp->tx_len_bits = (i << 12);
 
-    for (i = 0; i <= PCNET32_LOG_MAX_RX_BUFFERS; i++) {
+    for (i = 2; i <= PCNET32_LOG_MAX_RX_BUFFERS; i++) {
 	if (lp->rx_ring_size <= (1 << i))
 	    break;
     }
