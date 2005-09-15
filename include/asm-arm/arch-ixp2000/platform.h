@@ -88,7 +88,7 @@ void ixp2000_release_slowport(struct slowport_cfg *);
  */
 static inline unsigned ixp2000_has_broken_slowport(void)
 {
-	unsigned long id = *IXP2000_PROD_ID;
+	unsigned long id = *IXP2000_PRODUCT_ID;
 	unsigned long id_prod = id & (IXP2000_MAJ_PROD_TYPE_MASK |
 				      IXP2000_MIN_PROD_TYPE_MASK);
 	return (((id_prod ==
