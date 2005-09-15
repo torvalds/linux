@@ -44,6 +44,8 @@
 #include <linux/nfsd/syscall.h>
 #include <linux/personality.h>
 #include <linux/rwsem.h>
+#include <linux/acct.h>
+#include <linux/mm.h>
 
 #include <net/sock.h>		/* siocdevprivate_ioctl */
 
@@ -1487,6 +1489,8 @@ int compat_do_execve(char * filename,
 
 		/* execve success */
 		security_bprm_free(bprm);
+		acct_update_integrals(current);
+		update_mem_hiwater(current);
 		kfree(bprm);
 		return retval;
 	}
