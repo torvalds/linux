@@ -22,7 +22,6 @@
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
@@ -770,13 +769,8 @@ static int __init input_init(void)
 		goto fail2;
 	}
 
-	err = devfs_mk_dir("input");
-	if (err)
-		goto fail3;
-
 	return 0;
 
- fail3:	unregister_chrdev(INPUT_MAJOR, "input");
  fail2:	input_proc_exit();
  fail1:	class_destroy(input_class);
 	return err;
@@ -785,7 +779,6 @@ static int __init input_init(void)
 static void __exit input_exit(void)
 {
 	input_proc_exit();
-	devfs_remove("input");
 	unregister_chrdev(INPUT_MAJOR, "input");
 	class_destroy(input_class);
 }

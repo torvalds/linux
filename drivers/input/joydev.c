@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Joystick device interfaces");
@@ -514,8 +513,6 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 
 	joydev_table[minor] = joydev;
 
-	devfs_mk_cdev(MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-			S_IFCHR|S_IRUGO|S_IWUSR, "input/js%d", minor);
 	class_device_create(input_class, NULL,
 			MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
 			dev->dev, "js%d", minor);
@@ -529,7 +526,6 @@ static void joydev_disconnect(struct input_handle *handle)
 	struct joydev_list *list;
 
 	class_device_destroy(input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
-	devfs_remove("input/js%d", joydev->minor);
 	joydev->exist = 0;
 
 	if (joydev->open) {

@@ -20,7 +20,6 @@
 #include <linux/major.h>
 #include <linux/smp_lock.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/compat.h>
 
 struct evdev {
@@ -687,8 +686,6 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 
 	evdev_table[minor] = evdev;
 
-	devfs_mk_cdev(MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-			S_IFCHR|S_IRUGO|S_IWUSR, "input/event%d", minor);
 	class_device_create(input_class, NULL,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
 			dev->dev, "event%d", minor);
@@ -703,7 +700,6 @@ static void evdev_disconnect(struct input_handle *handle)
 
 	class_device_destroy(input_class,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
-	devfs_remove("input/event%d", evdev->minor);
 	evdev->exist = 0;
 
 	if (evdev->open) {
