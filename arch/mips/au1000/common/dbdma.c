@@ -197,6 +197,12 @@ find_dbdev_id (u32 id)
 	return NULL;
 }
 
+void * au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp)
+{
+        return phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
+}
+EXPORT_SYMBOL(au1xxx_ddma_get_nextptr_virt);
+
 u32
 au1xxx_ddma_add_device(dbdev_tab_t *dev)
 {

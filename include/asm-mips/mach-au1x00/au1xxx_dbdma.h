@@ -368,6 +368,7 @@ void au1xxx_dbdma_dump(u32 chanid);
 u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr );
 
 u32 au1xxx_ddma_add_device( dbdev_tab_t *dev );
+void * au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
 
 /*
  	Some compatibilty macros --
@@ -375,9 +376,12 @@ u32 au1xxx_ddma_add_device( dbdev_tab_t *dev );
 */
 #define	au1xxx_dbdma_put_source(chanid,buf,nbytes)_au1xxx_dbdma_put_source(chanid, buf, nbytes, DDMA_FLAGS_IE)
 #define	au1xxx_dbdma_put_source_flags(chanid,buf,nbytes,flags) _au1xxx_dbdma_put_source(chanid, buf, nbytes, flags)
+#define	put_source_flags(chanid,buf,nbytes,flags) au1xxx_dbdma_put_source_flags(chanid,buf,nbytes,flags)
+
 
 #define au1xxx_dbdma_put_dest(chanid,buf,nbytes) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, DDMA_FLAGS_IE)
 #define	au1xxx_dbdma_put_dest_flags(chanid,buf,nbytes,flags) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, flags)
+#define	put_dest_flags(chanid,buf,nbytes,flags) au1xxx_dbdma_put_dest_flags(chanid,buf,nbytes,flags)
 
 /*
  *	Flags for the put_source/put_dest functions.

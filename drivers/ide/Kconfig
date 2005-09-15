@@ -778,6 +778,35 @@ config BLK_DEV_IDE_PMAC_BLINK
 	  This option enables the use of the sleep LED as a hard drive
 	  activity LED.
 
+config BLK_DEV_IDE_AU1XXX
+       bool "IDE for AMD Alchemy Au1200"
+       depends on SOC_AU1200
+choice
+       prompt "IDE Mode for AMD Alchemy Au1200"
+       default CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+       depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
+
+config BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+       bool "PIO+DbDMA IDE for AMD Alchemy Au1200"
+
+config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+       bool "MDMA2+DbDMA IDE for AMD Alchemy Au1200"
+       depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
+endchoice
+
+config BLK_DEV_IDE_AU1XXX_BURSTABLE_ON
+        bool "Enable burstable Mode on DbDMA"
+        default false
+        depends BLK_DEV_IDE_AU1XXX
+        help
+          This option enable the burstable Flag on DbDMA controller
+          (cf. "AMD Alchemy 'Au1200' Processor Data Book - PRELIMINARY").
+
+config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
+       int "Maximum transfer size (KB) per request (up to 128)"
+       default "128"
+       depends BLK_DEV_IDE_AU1XXX
+
 config IDE_ARM
 	def_bool ARM && (ARCH_A5K || ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
 
@@ -1013,7 +1042,7 @@ config BLK_DEV_UMC8672
 endif
 
 config BLK_DEV_IDEDMA
-	def_bool BLK_DEV_IDEDMA_PCI || BLK_DEV_IDEDMA_PMAC || BLK_DEV_IDEDMA_ICS
+	def_bool BLK_DEV_IDEDMA_PCI || BLK_DEV_IDEDMA_PMAC || BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 
 config IDEDMA_IVB
 	bool "IGNORE word93 Validation BITS"
