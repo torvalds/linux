@@ -690,7 +690,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states discovered */
 	if (pr->power.count < 2)
-		status = -ENODEV;
+		status = -EFAULT;
 
       end:
 	acpi_os_free(buffer.pointer);
@@ -841,11 +841,11 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	 * this function */
 
 	result = acpi_processor_get_power_info_cst(pr);
-	if ((result) || (acpi_processor_power_verify(pr) < 2)) {
+	if (result == -ENODEV)
 		result = acpi_processor_get_power_info_fadt(pr);
-		if ((result) || (acpi_processor_power_verify(pr) < 2))
-			result = acpi_processor_get_power_info_default_c1(pr);
-	}
+
+	if ((result) || (acpi_processor_power_verify(pr) < 2))
+		result = acpi_processor_get_power_info_default_c1(pr);
 
 	/*
 	 * Set Default Policy
