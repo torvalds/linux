@@ -72,6 +72,7 @@ config MACH_JAZZ
 	bool "Support for the Jazz family of machines"
 	select ARC
 	select ARC32
+	select ARCH_MAY_HAVE_PC_FDC
 	select GENERIC_ISA_DMA
 	select I8259
 	select ISA
@@ -358,6 +359,7 @@ config MIPS_ATLAS
 
 config MIPS_MALTA
 	bool "Support for MIPS Malta board"
+	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
@@ -825,6 +827,7 @@ config SNI_RM200_PCI
 	bool "Support for SNI RM200 PCI"
 	select ARC
 	select ARC32
+	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
@@ -883,6 +886,9 @@ config ARC
 	bool
 	depends on SNI_RM200_PCI || SGI_IP32 || SGI_IP27 || SGI_IP22 || MIPS_MAGNUM_4000 || OLIVETTI_M700 || ACER_PICA_61
 	default y
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
 
 config DMA_COHERENT
 	bool
