@@ -125,6 +125,7 @@ static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos
 				     *qos_param);
 #endif				/* CONFIG_IPW_QOS */
 
+static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev);
 static void ipw_remove_current_network(struct ipw_priv *priv);
 static void ipw_rx(struct ipw_priv *priv);
 static int ipw_queue_tx_reclaim(struct ipw_priv *priv,
@@ -8883,6 +8884,13 @@ static int ipw_wx_get_range(struct net_device *dev,
 	range->num_frequency = i;
 
 	up(&priv->sem);
+
+	/* Event capability (kernel + driver) */
+	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
+				IW_EVENT_CAPA_MASK(SIOCGIWTHRSPY) |
+				IW_EVENT_CAPA_MASK(SIOCGIWAP));
+	range->event_capa[1] = IW_EVENT_CAPA_K_1;
+
 	IPW_DEBUG_WX("GET Range\n");
 	return 0;
 }
@@ -9999,9 +10007,8 @@ static struct iw_handler_def ipw_wx_handler_def = {
 	.num_private_args = ARRAY_SIZE(ipw_priv_args),
 	.private = ipw_priv_handler,
 	.private_args = ipw_priv_args,
+	.get_wireless_stats = ipw_get_wireless_stats,
 };
-
-static struct iw_public_data ipw_wx_data;
 
 /*
  * Get wireless statistics.
@@ -11487,9 +11494,6 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_MODULE_OWNER(net_dev);
 	SET_NETDEV_DEV(net_dev, &pdev->dev);
 
-	ipw_wx_data.spy_data = &priv->ieee->spy_data;
-	ipw_wx_data.ieee80211 = priv->ieee;
-
 	down(&priv->sem);
 
 	priv->ieee->hard_start_xmit = ipw_net_hard_start_xmit;
@@ -11514,8 +11518,9 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	net_dev->get_stats = ipw_net_get_stats;
 	net_dev->set_multicast_list = ipw_net_set_multicast_list;
 	net_dev->set_mac_address = ipw_net_set_mac_address;
-	net_dev->get_wireless_stats = ipw_get_wireless_stats;
-	net_dev->wireless_data = &ipw_wx_data;
+	priv->wireless_data.spy_data = &priv->ieee->spy_data;
+	priv->wireless_data.ieee80211 = priv->ieee;
+	net_dev->wireless_data = &priv->wireless_data;
 	net_dev->wireless_handlers = &ipw_wx_handler_def;
 	net_dev->ethtool_ops = &ipw_ethtool_ops;
 	net_dev->irq = pdev->irq;

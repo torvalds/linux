@@ -1228,6 +1228,8 @@ struct ipw_priv {
 
 	struct iw_statistics wstats;
 
+	struct iw_public_data wireless_data;
+
 	struct workqueue_struct *workqueue;
 
 	struct work_struct adhoc_check;
