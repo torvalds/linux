@@ -105,7 +105,7 @@ work_notifysig:				# deal with pending signals and
 	move	a0, sp
 	li	a1, 0
 	jal	do_notify_resume	# a2 already loaded
-	j	restore_all
+	j	resume_userspace
 
 FEXPORT(syscall_exit_work_partial)
 	SAVE_STATIC
