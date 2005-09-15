@@ -524,6 +524,8 @@ int class_device_add(struct class_device *class_dev)
 				  class_name);
 	}
 
+	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
+
 	/* notify any interfaces this device is now here */
 	if (parent) {
 		down(&parent->sem);
@@ -533,7 +535,6 @@ int class_device_add(struct class_device *class_dev)
 				class_intf->add(class_dev);
 		up(&parent->sem);
 	}
-	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
 
  register_done:
 	if (error && parent)
