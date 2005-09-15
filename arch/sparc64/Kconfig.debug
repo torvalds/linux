@@ -33,14 +33,6 @@ config DEBUG_BOOTMEM
 	depends on DEBUG_KERNEL
 	bool "Debug BOOTMEM initialization"
 
-# We have a custom atomic_dec_and_lock() implementation but it's not
-# compatible with spinlock debugging so we need to fall back on
-# the generic version in that case.
-config HAVE_DEC_LOCK
-	bool
-	depends on SMP && !DEBUG_SPINLOCK
-	default y
-
 config MCOUNT
 	bool
 	depends on STACK_DEBUG

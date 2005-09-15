@@ -28,10 +28,6 @@ config GENERIC_ISA_DMA
 	bool
 	default y
 
-config HAVE_DEC_LOCK
-	bool
-	default y
-
 config EARLY_PRINTK
 	bool
 	default y
