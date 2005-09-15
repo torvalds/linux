@@ -532,7 +532,7 @@ int class_device_add(struct class_device *class_dev)
 		list_add_tail(&class_dev->node, &parent->children);
 		list_for_each_entry(class_intf, &parent->interfaces, node)
 			if (class_intf->add)
-				class_intf->add(class_dev);
+				class_intf->add(class_dev, class_intf);
 		up(&parent->sem);
 	}
 
@@ -612,7 +612,7 @@ void class_device_del(struct class_device *class_dev)
 		list_del_init(&class_dev->node);
 		list_for_each_entry(class_intf, &parent->interfaces, node)
 			if (class_intf->remove)
-				class_intf->remove(class_dev);
+				class_intf->remove(class_dev, class_intf);
 		up(&parent->sem);
 	}
 
@@ -729,7 +729,7 @@ int class_interface_register(struct class_interface *class_intf)
 	list_add_tail(&class_intf->node, &parent->interfaces);
 	if (class_intf->add) {
 		list_for_each_entry(class_dev, &parent->children, node)
-			class_intf->add(class_dev);
+			class_intf->add(class_dev, class_intf);
 	}
 	up(&parent->sem);
 
@@ -748,7 +748,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 	list_del_init(&class_intf->node);
 	if (class_intf->remove) {
 		list_for_each_entry(class_dev, &parent->children, node)
-			class_intf->remove(class_dev);
+			class_intf->remove(class_dev, class_intf);
 	}
 	up(&parent->sem);
 

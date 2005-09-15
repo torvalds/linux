@@ -251,8 +251,8 @@ struct class_interface {
 	struct list_head	node;
 	struct class		*class;
 
-	int (*add)	(struct class_device *);
-	void (*remove)	(struct class_device *);
+	int (*add)	(struct class_device *, struct class_interface *);
+	void (*remove)	(struct class_device *, struct class_interface *);
 };
 
 extern int class_interface_register(struct class_interface *);
