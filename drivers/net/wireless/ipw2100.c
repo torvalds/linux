@@ -6709,11 +6709,7 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 }
 
 #ifdef CONFIG_PM
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-static int ipw2100_suspend(struct pci_dev *pci_dev, u32 state)
-#else
 static int ipw2100_suspend(struct pci_dev *pci_dev, pm_message_t state)
-#endif
 {
 	struct ipw2100_priv *priv = pci_get_drvdata(pci_dev);
 	struct net_device *dev = priv->net_dev;
