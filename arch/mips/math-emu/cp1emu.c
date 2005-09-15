@@ -467,7 +467,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 				switch (MIPSInst_OPCODE(ir)) {
 				case lwc1_op:
 				case swc1_op:
-#if (__mips >= 2 || __mips64) && !defined(SINGLE_ONLY_FPU)
+#if (__mips >= 2 || defined(__mips64)) && !defined(SINGLE_ONLY_FPU)
 				case ldc1_op:
 				case sdc1_op:
 #endif
@@ -842,7 +842,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			goto scopbop;
 
 			/* unary  ops */
-#if __mips >= 2 || __mips64
+#if __mips >= 2 || defined(__mips64)
 		case fsqrt_op:
 			handler.u = ieee754sp_sqrt;
 			goto scopuop;
@@ -941,7 +941,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			goto copcsr;
 		}
 
-#if __mips >= 2 || __mips64
+#if __mips >= 2 || defined(__mips64)
 		case fround_op:
 		case ftrunc_op:
 		case fceil_op:
@@ -982,7 +982,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			rfmt = l_fmt;
 			goto copcsr;
 		}
-#endif /* __mips64 && !fpu(single) */
+#endif /* defined(__mips64) && !fpu(single) */
 
 		default:
 			if (MIPSInst_FUNC(ir) >= fcmp_op) {
@@ -1032,7 +1032,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			goto dcopbop;
 
 			/* unary  ops */
-#if __mips >= 2 || __mips64
+#if __mips >= 2 || defined(__mips64)
 		case fsqrt_op:
 			handler.u = ieee754dp_sqrt;
 			goto dcopuop;
@@ -1116,7 +1116,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			goto copcsr;
 		}
 
-#if __mips >= 2 || __mips64
+#if __mips >= 2 || defined(__mips64)
 		case fround_op:
 		case ftrunc_op:
 		case fceil_op:
