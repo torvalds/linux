@@ -106,4 +106,3 @@ extern int mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pE
 extern int mptscsih_ioc_reset(MPT_ADAPTER *ioc, int post_reset);
 extern int mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
 extern void mptscsih_timer_expired(unsigned long data);
-extern void scsi_print_command(struct scsi_cmnd *cmd);
