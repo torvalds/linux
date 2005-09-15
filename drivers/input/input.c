@@ -475,17 +475,21 @@ static int input_devices_read(char *buf, char **start, off_t pos, int count, int
 {
 	struct input_dev *dev;
 	struct input_handle *handle;
+	const char *path;
 
 	off_t at = 0;
 	int i, len, cnt = 0;
 
 	list_for_each_entry(dev, &input_dev_list, node) {
 
+		path = dev->dynalloc ? kobject_get_path(&dev->cdev.kobj, GFP_KERNEL) : NULL;
+
 		len = sprintf(buf, "I: Bus=%04x Vendor=%04x Product=%04x Version=%04x\n",
 			dev->id.bustype, dev->id.vendor, dev->id.product, dev->id.version);
 
 		len += sprintf(buf + len, "N: Name=\"%s\"\n", dev->name ? dev->name : "");
 		len += sprintf(buf + len, "P: Phys=%s\n", dev->phys ? dev->phys : "");
+		len += sprintf(buf + len, "S: Sysfs=%s\n", path ? path : "");
 		len += sprintf(buf + len, "H: Handlers=");
 
 		list_for_each_entry(handle, &dev->h_list, d_node)
@@ -516,6 +520,8 @@ static int input_devices_read(char *buf, char **start, off_t pos, int count, int
 			if (cnt >= count)
 				break;
 		}
+
+		kfree(path);
 	}
 
 	if (&dev->node == &input_dev_list)
