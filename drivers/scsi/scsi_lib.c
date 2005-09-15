@@ -118,7 +118,6 @@ static void scsi_unprep_request(struct request *req)
 	req->flags &= ~REQ_DONTPREP;
 	req->special = (req->flags & REQ_SPECIAL) ? cmd->sc_request : NULL;
 
-	scsi_release_buffers(cmd);
 	scsi_put_command(cmd);
 }
 
@@ -1512,7 +1511,6 @@ static void scsi_request_fn(struct request_queue *q)
 	 * cases (host limits or settings) should run the queue at some
 	 * later time.
 	 */
-	scsi_unprep_request(req);
 	spin_lock_irq(q->queue_lock);
 	blk_requeue_request(q, req);
 	sdev->device_busy--;
