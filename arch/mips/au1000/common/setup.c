@@ -32,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -186,4 +187,5 @@ phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 	/* default nop */
 	return phys_addr;
 }
+EXPORT_SYMBOL(__fixup_bigphys_addr);
 #endif

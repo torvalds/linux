@@ -209,8 +209,14 @@ static struct platform_device au1200_ide0_device = {
 
 #endif
 
+static struct platform_device au1x00_pcmcia_device = {
+	.name 		= "au1x00-pcmcia",
+	.id 		= 0,
+};
+
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_usb_ohci_device,
+	&au1x00_pcmcia_device,
 #ifdef CONFIG_FB_AU1100
 	&au1100_lcd_device,
 #endif
