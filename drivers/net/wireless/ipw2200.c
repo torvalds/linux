@@ -1882,18 +1882,6 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		return -EAGAIN;
 	}
 
-	if (priv->status & STATUS_ASSOCIATING) {
-		IPW_DEBUG_HC("abandon a command while associating\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return -1;
-	}
-
-	if (priv->status & STATUS_DISASSOCIATING) {
-		IPW_DEBUG_HC("abandon a command while disassociating\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return -1;
-	}
-
 	priv->status |= STATUS_HCMD_ACTIVE;
 
 	if (priv->cmdlog) {
@@ -3697,19 +3685,20 @@ static void ipw_send_disassociate(struct ipw_priv *priv, int quiet)
 			MAC_ARG(priv->assoc_request.bssid),
 			priv->assoc_request.channel);
 
+	priv->status &= ~(STATUS_ASSOCIATING | STATUS_ASSOCIATED);
+	priv->status |= STATUS_DISASSOCIATING;
+
 	if (quiet)
 		priv->assoc_request.assoc_type = HC_DISASSOC_QUIET;
 	else
 		priv->assoc_request.assoc_type = HC_DISASSOCIATE;
+
 	err = ipw_send_associate(priv, &priv->assoc_request);
 	if (err) {
 		IPW_DEBUG_HC("Attempt to send [dis]associate command "
 			     "failed.\n");
 		return;
 	}
-
-	priv->status &= ~(STATUS_ASSOCIATING | STATUS_ASSOCIATED);
-	priv->status |= STATUS_DISASSOCIATING;
 
 }
 
@@ -7672,6 +7661,8 @@ static int ipw_associate_network(struct ipw_priv *priv,
 	 */
 	priv->channel = network->channel;
 	memcpy(priv->bssid, network->bssid, ETH_ALEN);
+	priv->status |= STATUS_ASSOCIATING;
+	priv->status &= ~STATUS_SECURITY_UPDATED;
 
 	priv->assoc_network = network;
 
@@ -7684,9 +7675,6 @@ static int ipw_associate_network(struct ipw_priv *priv,
 		IPW_DEBUG_HC("Attempt to send associate command failed.\n");
 		return err;
 	}
-
-	priv->status |= STATUS_ASSOCIATING;
-	priv->status &= ~STATUS_SECURITY_UPDATED;
 
 	IPW_DEBUG(IPW_DL_STATE, "associating: '%s' " MAC_FMT " \n",
 		  escape_essid(priv->essid, priv->essid_len),
@@ -7788,6 +7776,13 @@ static int ipw_associate(void *data)
 	if (priv->status & (STATUS_ASSOCIATED | STATUS_ASSOCIATING)) {
 		IPW_DEBUG_ASSOC("Not attempting association (already in "
 				"progress)\n");
+		return 0;
+	}
+
+	if (priv->status & STATUS_DISASSOCIATING) {
+		IPW_DEBUG_ASSOC("Not attempting association (in "
+				"disassociating)\n ");
+		queue_work(priv->workqueue, &priv->associate);
 		return 0;
 	}
 
