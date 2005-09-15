@@ -467,7 +467,7 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 		/*
 		 * Invalidate the connection template
 		 */
-		if (ct->cport) {
+		if (ct->vport != 65535) {
 			if (ip_vs_conn_unhash(ct)) {
 				ct->dport = 65535;
 				ct->vport = 65535;
