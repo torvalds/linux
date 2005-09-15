@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/message/fusion/mptscsi.h
+ *  linux/drivers/message/fusion/mptscsih.h
  *      High performance SCSI / Fibre Channel SCSI Host device driver.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
@@ -53,8 +53,8 @@
  *	SCSI Public stuff...
  */
 
-#define MPT_SCSI_CMD_PER_DEV_HIGH	31
-#define MPT_SCSI_CMD_PER_DEV_LOW	7
+#define MPT_SCSI_CMD_PER_DEV_HIGH	64
+#define MPT_SCSI_CMD_PER_DEV_LOW	32
 
 #define MPT_SCSI_CMD_PER_LUN		7
 
@@ -77,6 +77,7 @@
 #define MPTSCSIH_MAX_WIDTH              1
 #define MPTSCSIH_MIN_SYNC               0x08
 #define MPTSCSIH_SAF_TE                 0
+#define MPTSCSIH_PT_CLEAR               0
 
 
 #endif
@@ -105,3 +106,4 @@ extern int mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pE
 extern int mptscsih_ioc_reset(MPT_ADAPTER *ioc, int post_reset);
 extern int mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
 extern void mptscsih_timer_expired(unsigned long data);
+extern void scsi_print_command(struct scsi_cmnd *cmd);

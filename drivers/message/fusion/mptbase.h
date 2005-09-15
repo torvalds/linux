@@ -77,8 +77,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.02"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.02"
+#define MPT_LINUX_VERSION_COMMON	"3.03.03"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.03"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -424,7 +424,7 @@ typedef struct _MPT_IOCTL {
 /*
  *  Event Structure and define
  */
-#define MPTCTL_EVENT_LOG_SIZE		(0x0000000A)
+#define MPTCTL_EVENT_LOG_SIZE		(0x000000032)
 typedef struct _mpt_ioctl_events {
 	u32	event;		/* Specified by define above */
 	u32	eventContext;	/* Index or counter */
@@ -452,16 +452,13 @@ typedef struct _mpt_ioctl_events {
 #define MPT_SCSICFG_ALL_IDS		0x02	/* WriteSDP1 to all IDS */
 /* #define MPT_SCSICFG_BLK_NEGO		0x10	   WriteSDP1 with WDTR and SDTR disabled */
 
-typedef	struct _ScsiCfgData {
+typedef	struct _SpiCfgData {
 	u32		 PortFlags;
 	int		*nvram;			/* table of device NVRAM values */
-	IOCPage2_t	*pIocPg2;		/* table of Raid Volumes */
-	IOCPage3_t	*pIocPg3;		/* table of physical disks */
 	IOCPage4_t	*pIocPg4;		/* SEP devices addressing */
 	dma_addr_t	 IocPg4_dma;		/* Phys Addr of IOCPage4 data */
 	int		 IocPg4Sz;		/* IOCPage4 size */
 	u8		 dvStatus[MPT_MAX_SCSI_DEVICES];
-	int		 isRaid;		/* bit field, 1 if RAID */
 	u8		 minSyncFactor;		/* 0xFF if async */
 	u8		 maxSyncOffset;		/* 0 if async */
 	u8		 maxBusWidth;		/* 0 if narrow, 1 if wide */
@@ -473,10 +470,14 @@ typedef	struct _ScsiCfgData {
 	u8		 dvScheduled;		/* 1 if scheduled */
 	u8		 forceDv;		/* 1 to force DV scheduling */
 	u8		 noQas;			/* Disable QAS for this adapter */
-	u8		 Saf_Te;		/* 1 to force all Processors as SAF-TE if Inquiry data length is too short to check for SAF-TE */
+	u8		 Saf_Te;		/* 1 to force all Processors as
+						 * SAF-TE if Inquiry data length
+						 * is too short to check for SAF-TE
+						 */
 	u8		 mpt_dv;		/* command line option: enhanced=1, basic=0 */
+	u8		 bus_reset;		/* 1 to allow bus reset */
 	u8		 rsvd[1];
-} ScsiCfgData;
+}SpiCfgData;
 
 typedef	struct _SasCfgData {
 	u8		 ptClear;		/* 1 to automatically clear the
@@ -485,6 +486,12 @@ typedef	struct _SasCfgData {
 						 * automatic clearing.
 						 */
 }SasCfgData;
+
+typedef	struct _RaidCfgData {
+	IOCPage2_t	*pIocPg2;		/* table of Raid Volumes */
+	IOCPage3_t	*pIocPg3;		/* table of physical disks */
+	int		 isRaid;		/* bit field, 1 if RAID */
+}RaidCfgData;
 
 /*
  *  Adapter Structure - pci_dev specific. Maximum: MPT_MAX_ADAPTERS
@@ -546,7 +553,8 @@ typedef struct _MPT_ADAPTER
 	struct pci_dev		*pcidev;	/* struct pci_dev pointer */
 	u8			__iomem *memmap;	/* mmap address */
 	struct Scsi_Host	*sh;		/* Scsi Host pointer */
-	ScsiCfgData		spi_data;	/* Scsi config. data */
+	SpiCfgData		spi_data;	/* Scsi config. data */
+	RaidCfgData		raid_data;	/* Raid config. data */
 	SasCfgData		sas_data;	/* Sas config. data */
 	MPT_IOCTL		*ioctl;		/* ioctl data pointer */
 	struct proc_dir_entry	*ioc_dentry;

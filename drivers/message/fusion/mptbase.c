@@ -135,7 +135,6 @@ static void	mpt_adapter_dispose(MPT_ADAPTER *ioc);
 
 static void	MptDisplayIocCapabilities(MPT_ADAPTER *ioc);
 static int	MakeIocReady(MPT_ADAPTER *ioc, int force, int sleepFlag);
-//static u32	mpt_GetIocState(MPT_ADAPTER *ioc, int cooked);
 static int	GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason);
 static int	GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag);
 static int	SendIocInit(MPT_ADAPTER *ioc, int sleepFlag);
@@ -178,6 +177,7 @@ static int	ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *
 static void	mpt_sp_ioc_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf);
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info);
+static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
 
 /* module entry point */
 static int  __init    fusion_init  (void);
@@ -209,6 +209,144 @@ pci_enable_io_access(struct pci_dev *pdev)
 	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
 }
 
+/*
+ *  Process turbo (context) reply...
+ */
+static void
+mpt_turbo_reply(MPT_ADAPTER *ioc, u32 pa)
+{
+	MPT_FRAME_HDR *mf = NULL;
+	MPT_FRAME_HDR *mr = NULL;
+	int req_idx = 0;
+	int cb_idx;
+
+	dmfprintk((MYIOC_s_INFO_FMT "Got TURBO reply req_idx=%08x\n",
+				ioc->name, pa));
+
+	switch (pa >> MPI_CONTEXT_REPLY_TYPE_SHIFT) {
+	case MPI_CONTEXT_REPLY_TYPE_SCSI_INIT:
+		req_idx = pa & 0x0000FFFF;
+		cb_idx = (pa & 0x00FF0000) >> 16;
+		mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
+		break;
+	case MPI_CONTEXT_REPLY_TYPE_LAN:
+		cb_idx = mpt_lan_index;
+		/*
+		 *  Blind set of mf to NULL here was fatal
+		 *  after lan_reply says "freeme"
+		 *  Fix sort of combined with an optimization here;
+		 *  added explicit check for case where lan_reply
+		 *  was just returning 1 and doing nothing else.
+		 *  For this case skip the callback, but set up
+		 *  proper mf value first here:-)
+		 */
+		if ((pa & 0x58000000) == 0x58000000) {
+			req_idx = pa & 0x0000FFFF;
+			mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
+			mpt_free_msg_frame(ioc, mf);
+			mb();
+			return;
+			break;
+		}
+		mr = (MPT_FRAME_HDR *) CAST_U32_TO_PTR(pa);
+		break;
+	case MPI_CONTEXT_REPLY_TYPE_SCSI_TARGET:
+		cb_idx = mpt_stm_index;
+		mr = (MPT_FRAME_HDR *) CAST_U32_TO_PTR(pa);
+		break;
+	default:
+		cb_idx = 0;
+		BUG();
+	}
+
+	/*  Check for (valid) IO callback!  */
+	if (cb_idx < 1 || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS ||
+			MptCallbacks[cb_idx] == NULL) {
+		printk(MYIOC_s_WARN_FMT "%s: Invalid cb_idx (%d)!\n",
+				__FUNCTION__, ioc->name, cb_idx);
+		goto out;
+	}
+
+	if (MptCallbacks[cb_idx](ioc, mf, mr))
+		mpt_free_msg_frame(ioc, mf);
+ out:
+	mb();
+}
+
+static void
+mpt_reply(MPT_ADAPTER *ioc, u32 pa)
+{
+	MPT_FRAME_HDR	*mf;
+	MPT_FRAME_HDR	*mr;
+	int		 req_idx;
+	int		 cb_idx;
+	int		 freeme;
+
+	u32 reply_dma_low;
+	u16 ioc_stat;
+
+	/* non-TURBO reply!  Hmmm, something may be up...
+	 *  Newest turbo reply mechanism; get address
+	 *  via left shift 1 (get rid of MPI_ADDRESS_REPLY_A_BIT)!
+	 */
+
+	/* Map DMA address of reply header to cpu address.
+	 * pa is 32 bits - but the dma address may be 32 or 64 bits
+	 * get offset based only only the low addresses
+	 */
+
+	reply_dma_low = (pa <<= 1);
+	mr = (MPT_FRAME_HDR *)((u8 *)ioc->reply_frames +
+			 (reply_dma_low - ioc->reply_frames_low_dma));
+
+	req_idx = le16_to_cpu(mr->u.frame.hwhdr.msgctxu.fld.req_idx);
+	cb_idx = mr->u.frame.hwhdr.msgctxu.fld.cb_idx;
+	mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
+
+	dmfprintk((MYIOC_s_INFO_FMT "Got non-TURBO reply=%p req_idx=%x cb_idx=%x Function=%x\n",
+			ioc->name, mr, req_idx, cb_idx, mr->u.hdr.Function));
+	DBG_DUMP_REPLY_FRAME(mr)
+
+	 /*  Check/log IOC log info
+	 */
+	ioc_stat = le16_to_cpu(mr->u.reply.IOCStatus);
+	if (ioc_stat & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
+		u32	 log_info = le32_to_cpu(mr->u.reply.IOCLogInfo);
+		if (ioc->bus_type == FC)
+			mpt_fc_log_info(ioc, log_info);
+		else if (ioc->bus_type == SCSI)
+			mpt_sp_log_info(ioc, log_info);
+		else if (ioc->bus_type == SAS)
+			mpt_sas_log_info(ioc, log_info);
+	}
+	if (ioc_stat & MPI_IOCSTATUS_MASK) {
+		if (ioc->bus_type == SCSI &&
+		    cb_idx != mpt_stm_index &&
+		    cb_idx != mpt_lan_index)
+			mpt_sp_ioc_info(ioc, (u32)ioc_stat, mf);
+	}
+
+
+	/*  Check for (valid) IO callback!  */
+	if (cb_idx < 1 || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS ||
+			MptCallbacks[cb_idx] == NULL) {
+		printk(MYIOC_s_WARN_FMT "%s: Invalid cb_idx (%d)!\n",
+				__FUNCTION__, ioc->name, cb_idx);
+		freeme = 0;
+		goto out;
+	}
+
+	freeme = MptCallbacks[cb_idx](ioc, mf, mr);
+
+ out:
+	/*  Flush (non-TURBO) reply with a WRITE!  */
+	CHIPREG_WRITE32(&ioc->chip->ReplyFifo, pa);
+
+	if (freeme)
+		mpt_free_msg_frame(ioc, mf);
+	mb();
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mpt_interrupt - MPT adapter (IOC) specific interrupt handler.
@@ -230,164 +368,21 @@ pci_enable_io_access(struct pci_dev *pdev)
 static irqreturn_t
 mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 {
-	MPT_ADAPTER	*ioc;
-	MPT_FRAME_HDR	*mf;
-	MPT_FRAME_HDR	*mr;
-	u32		 pa;
-	int		 req_idx;
-	int		 cb_idx;
-	int		 type;
-	int		 freeme;
-
-	ioc = (MPT_ADAPTER *)bus_id;
+	MPT_ADAPTER *ioc = bus_id;
+	u32 pa;
 
 	/*
 	 *  Drain the reply FIFO!
-	 *
-	 * NOTES: I've seen up to 10 replies processed in this loop, so far...
-	 * Update: I've seen up to 9182 replies processed in this loop! ??
-	 * Update: Limit ourselves to processing max of N replies
-	 *	(bottom of loop).
 	 */
 	while (1) {
-
-		if ((pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo)) == 0xFFFFFFFF)
+		pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
+		if (pa == 0xFFFFFFFF)
 			return IRQ_HANDLED;
-
-		cb_idx = 0;
-		freeme = 0;
-
-		/*
-		 *  Check for non-TURBO reply!
-		 */
-		if (pa & MPI_ADDRESS_REPLY_A_BIT) {
-			u32 reply_dma_low;
-			u16 ioc_stat;
-
-			/* non-TURBO reply!  Hmmm, something may be up...
-			 *  Newest turbo reply mechanism; get address
-			 *  via left shift 1 (get rid of MPI_ADDRESS_REPLY_A_BIT)!
-			 */
-
-			/* Map DMA address of reply header to cpu address.
-			 * pa is 32 bits - but the dma address may be 32 or 64 bits
-			 * get offset based only only the low addresses
-			 */
-			reply_dma_low = (pa = (pa << 1));
-			mr = (MPT_FRAME_HDR *)((u8 *)ioc->reply_frames +
-					 (reply_dma_low - ioc->reply_frames_low_dma));
-
-			req_idx = le16_to_cpu(mr->u.frame.hwhdr.msgctxu.fld.req_idx);
-			cb_idx = mr->u.frame.hwhdr.msgctxu.fld.cb_idx;
-			mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
-
-			dmfprintk((MYIOC_s_INFO_FMT "Got non-TURBO reply=%p req_idx=%x cb_idx=%x Function=%x\n",
-					ioc->name, mr, req_idx, cb_idx, mr->u.hdr.Function));
-			DBG_DUMP_REPLY_FRAME(mr)
-
-			 /*  Check/log IOC log info
-			 */
-			ioc_stat = le16_to_cpu(mr->u.reply.IOCStatus);
-			if (ioc_stat & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
-				u32	 log_info = le32_to_cpu(mr->u.reply.IOCLogInfo);
-				if (ioc->bus_type == FC)
-					mpt_fc_log_info(ioc, log_info);
-				else if (ioc->bus_type == SCSI)
-					mpt_sp_log_info(ioc, log_info);
-			}
-			if (ioc_stat & MPI_IOCSTATUS_MASK) {
-				if (ioc->bus_type == SCSI)
-					mpt_sp_ioc_info(ioc, (u32)ioc_stat, mf);
-			}
-		} else {
-			/*
-			 *  Process turbo (context) reply...
-			 */
-			dmfprintk((MYIOC_s_INFO_FMT "Got TURBO reply req_idx=%08x\n", ioc->name, pa));
-			type = (pa >> MPI_CONTEXT_REPLY_TYPE_SHIFT);
-			if (type == MPI_CONTEXT_REPLY_TYPE_SCSI_TARGET) {
-				cb_idx = mpt_stm_index;
-				mf = NULL;
-				mr = (MPT_FRAME_HDR *) CAST_U32_TO_PTR(pa);
-			} else if (type == MPI_CONTEXT_REPLY_TYPE_LAN) {
-				cb_idx = mpt_lan_index;
-				 /*  Blind set of mf to NULL here was fatal
-				 *  after lan_reply says "freeme"
-				 *  Fix sort of combined with an optimization here;
-				 *  added explicit check for case where lan_reply
-				 *  was just returning 1 and doing nothing else.
-				 *  For this case skip the callback, but set up
-				 *  proper mf value first here:-)
-				 */
-				if ((pa & 0x58000000) == 0x58000000) {
-					req_idx = pa & 0x0000FFFF;
-					mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
-					freeme = 1;
-					/*
-					 *  IMPORTANT!  Invalidate the callback!
-					 */
-					cb_idx = 0;
-				} else {
-					mf = NULL;
-				}
-				mr = (MPT_FRAME_HDR *) CAST_U32_TO_PTR(pa);
-			} else {
-				req_idx = pa & 0x0000FFFF;
-				cb_idx = (pa & 0x00FF0000) >> 16;
-				mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
-				mr = NULL;
-			}
-			pa = 0;					/* No reply flush! */
-		}
-
-#ifdef MPT_DEBUG_IRQ
-		if (ioc->bus_type == SCSI) {
-			/* Verify mf, mr are reasonable.
-			 */
-			if ((mf) && ((mf >= MPT_INDEX_2_MFPTR(ioc, ioc->req_depth))
-				|| (mf < ioc->req_frames)) ) {
-				printk(MYIOC_s_WARN_FMT
-					"mpt_interrupt: Invalid mf (%p)!\n", ioc->name, (void *)mf);
-				cb_idx = 0;
-				pa = 0;
-				freeme = 0;
-			}
-			if ((pa) && (mr) && ((mr >= MPT_INDEX_2_RFPTR(ioc, ioc->req_depth))
-				|| (mr < ioc->reply_frames)) ) {
-				printk(MYIOC_s_WARN_FMT
-					"mpt_interrupt: Invalid rf (%p)!\n", ioc->name, (void *)mr);
-				cb_idx = 0;
-				pa = 0;
-				freeme = 0;
-			}
-			if (cb_idx > (MPT_MAX_PROTOCOL_DRIVERS-1)) {
-				printk(MYIOC_s_WARN_FMT
-					"mpt_interrupt: Invalid cb_idx (%d)!\n", ioc->name, cb_idx);
-				cb_idx = 0;
-				pa = 0;
-				freeme = 0;
-			}
-		}
-#endif
-
-		/*  Check for (valid) IO callback!  */
-		if (cb_idx) {
-			/*  Do the callback!  */
-			freeme = (*(MptCallbacks[cb_idx]))(ioc, mf, mr);
-		}
-
-		if (pa) {
-			/*  Flush (non-TURBO) reply with a WRITE!  */
-			CHIPREG_WRITE32(&ioc->chip->ReplyFifo, pa);
-		}
-
-		if (freeme) {
-			/*  Put Request back on FreeQ!  */
-			mpt_free_msg_frame(ioc, mf);
-		}
-
-		mb();
-	}	/* drain reply FIFO */
+		else if (pa & MPI_ADDRESS_REPLY_A_BIT)
+			mpt_reply(ioc, pa);
+		else
+			mpt_turbo_reply(ioc, pa);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1065,7 +1060,7 @@ mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
 				    ioc->name,
 				    ioc->HostPageBuffer,
 				    ioc->HostPageBuffer_dma,
-				    hst_page_buffer_sz));
+				    host_page_buffer_sz));
 				ioc->alloc_total += host_page_buffer_sz;
 				ioc->HostPageBuffer_sz = host_page_buffer_sz;
 				break;
@@ -1208,7 +1203,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Initilize SCSI Config Data structure
 	 */
-	memset(&ioc->spi_data, 0, sizeof(ScsiCfgData));
+	memset(&ioc->spi_data, 0, sizeof(SpiCfgData));
 
 	/* Initialize the running configQ head.
 	 */
@@ -1755,8 +1750,23 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			 */
 			if (ret == 0) {
 				rc = mpt_do_upload(ioc, sleepFlag);
-				if (rc != 0)
+				if (rc == 0) {
+					if (ioc->alt_ioc && ioc->alt_ioc->cached_fw) {
+						/*
+						 * Maintain only one pointer to FW memory
+						 * so there will not be two attempt to
+						 * downloadboot onboard dual function
+						 * chips (mpt_adapter_disable,
+						 * mpt_diag_reset)
+						 */
+						ioc->cached_fw = NULL;
+						ddlprintk((MYIOC_s_INFO_FMT ": mpt_upload:  alt_%s has cached_fw=%p \n",
+							ioc->name, ioc->alt_ioc->name, ioc->alt_ioc->cached_fw));
+					}
+				} else {
 					printk(KERN_WARNING MYNAM ": firmware upload failure!\n");
+					ret = -5;
+				}
 			}
 		}
 	}
@@ -1997,9 +2007,9 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 	}
 
 	kfree(ioc->spi_data.nvram);
-	kfree(ioc->spi_data.pIocPg3);
+	kfree(ioc->raid_data.pIocPg3);
 	ioc->spi_data.nvram = NULL;
-	ioc->spi_data.pIocPg3 = NULL;
+	ioc->raid_data.pIocPg3 = NULL;
 
 	if (ioc->spi_data.pIocPg4 != NULL) {
 		sz = ioc->spi_data.IocPg4Sz;
@@ -3852,7 +3862,7 @@ WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 	int count = 0;
 	u32 intstat=0;
 
-	cntdn = ((sleepFlag == CAN_SLEEP) ? HZ : 1000) * howlong;
+	cntdn = 1000 * howlong;
 
 	if (sleepFlag == CAN_SLEEP) {
 		while (--cntdn) {
@@ -3902,7 +3912,7 @@ WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 	int count = 0;
 	u32 intstat=0;
 
-	cntdn = ((sleepFlag == CAN_SLEEP) ? HZ : 1000) * howlong;
+	cntdn = 1000 * howlong;
 	if (sleepFlag == CAN_SLEEP) {
 		while (--cntdn) {
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
@@ -4634,10 +4644,10 @@ mpt_findImVolumes(MPT_ADAPTER *ioc)
 	if (mpt_config(ioc, &cfg) != 0)
 		goto done_and_free;
 
-	if ( (mem = (u8 *)ioc->spi_data.pIocPg2) == NULL ) {
+	if ( (mem = (u8 *)ioc->raid_data.pIocPg2) == NULL ) {
 		mem = kmalloc(iocpage2sz, GFP_ATOMIC);
 		if (mem) {
-			ioc->spi_data.pIocPg2 = (IOCPage2_t *) mem;
+			ioc->raid_data.pIocPg2 = (IOCPage2_t *) mem;
 		} else {
 			goto done_and_free;
 		}
@@ -4654,7 +4664,7 @@ mpt_findImVolumes(MPT_ADAPTER *ioc)
 		/* At least 1 RAID Volume
 		 */
 		pIocRv = pIoc2->RaidVolume;
-		ioc->spi_data.isRaid = 0;
+		ioc->raid_data.isRaid = 0;
 		for (jj = 0; jj < nVols; jj++, pIocRv++) {
 			vid = pIocRv->VolumeID;
 			vbus = pIocRv->VolumeBus;
@@ -4663,7 +4673,7 @@ mpt_findImVolumes(MPT_ADAPTER *ioc)
 			/* find the match
 			 */
 			if (vbus == 0) {
-				ioc->spi_data.isRaid |= (1 << vid);
+				ioc->raid_data.isRaid |= (1 << vid);
 			} else {
 				/* Error! Always bus 0
 				 */
@@ -4698,8 +4708,8 @@ mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 
 	/* Free the old page
 	 */
-	kfree(ioc->spi_data.pIocPg3);
-	ioc->spi_data.pIocPg3 = NULL;
+	kfree(ioc->raid_data.pIocPg3);
+	ioc->raid_data.pIocPg3 = NULL;
 
 	/* There is at least one physical disk.
 	 * Read and save IOC Page 3
@@ -4736,7 +4746,7 @@ mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 		mem = kmalloc(iocpage3sz, GFP_ATOMIC);
 		if (mem) {
 			memcpy(mem, (u8 *)pIoc3, iocpage3sz);
-			ioc->spi_data.pIocPg3 = (IOCPage3_t *) mem;
+			ioc->raid_data.pIocPg3 = (IOCPage3_t *) mem;
 		}
 	}
 
@@ -6020,6 +6030,111 @@ mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info)
 	}
 
 	printk(MYIOC_s_INFO_FMT "LogInfo(0x%08x): F/W: %s\n", ioc->name, log_info, desc);
+}
+
+/* strings for sas loginfo */
+	static char *originator_str[] = {
+		"IOP",						/* 00h */
+		"PL",						/* 01h */
+		"IR"						/* 02h */
+	};
+	static char *iop_code_str[] = {
+		NULL,						/* 00h */
+		"Invalid SAS Address",				/* 01h */
+		NULL,						/* 02h */
+		"Invalid Page",					/* 03h */
+		NULL,						/* 04h */
+		"Task Terminated"				/* 05h */
+	};
+	static char *pl_code_str[] = {
+		NULL,						/* 00h */
+		"Open Failure",					/* 01h */
+		"Invalid Scatter Gather List",			/* 02h */
+		"Wrong Relative Offset or Frame Length",	/* 03h */
+		"Frame Transfer Error",				/* 04h */
+		"Transmit Frame Connected Low",			/* 05h */
+		"SATA Non-NCQ RW Error Bit Set",		/* 06h */
+		"SATA Read Log Receive Data Error",		/* 07h */
+		"SATA NCQ Fail All Commands After Error",	/* 08h */
+		"SATA Error in Receive Set Device Bit FIS",	/* 09h */
+		"Receive Frame Invalid Message",		/* 0Ah */
+		"Receive Context Message Valid Error",		/* 0Bh */
+		"Receive Frame Current Frame Error",		/* 0Ch */
+		"SATA Link Down",				/* 0Dh */
+		"Discovery SATA Init W IOS",			/* 0Eh */
+		"Config Invalid Page",				/* 0Fh */
+		"Discovery SATA Init Timeout",			/* 10h */
+		"Reset",					/* 11h */
+		"Abort",					/* 12h */
+		"IO Not Yet Executed",				/* 13h */
+		"IO Executed",					/* 14h */
+		NULL,						/* 15h */
+		NULL,						/* 16h */
+		NULL,						/* 17h */
+		NULL,						/* 18h */
+		NULL,						/* 19h */
+		NULL,						/* 1Ah */
+		NULL,						/* 1Bh */
+		NULL,						/* 1Ch */
+		NULL,						/* 1Dh */
+		NULL,						/* 1Eh */
+		NULL,						/* 1Fh */
+		"Enclosure Management"				/* 20h */
+	};
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/*
+ *	mpt_sas_log_info - Log information returned from SAS IOC.
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@log_info: U32 LogInfo reply word from the IOC
+ *
+ *	Refer to lsi/mpi_log_sas.h.
+ */
+static void
+mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info)
+{
+union loginfo_type {
+	u32	loginfo;
+	struct {
+		u32	subcode:16;
+		u32	code:8;
+		u32	originator:4;
+		u32	bus_type:4;
+	}dw;
+};
+	union loginfo_type sas_loginfo;
+	char *code_desc = NULL;
+
+	sas_loginfo.loginfo = log_info;
+	if ((sas_loginfo.dw.bus_type != 3 /*SAS*/) &&
+	    (sas_loginfo.dw.originator < sizeof(originator_str)/sizeof(char*)))
+		return;
+	if ((sas_loginfo.dw.originator == 0 /*IOP*/) &&
+	    (sas_loginfo.dw.code < sizeof(iop_code_str)/sizeof(char*))) {
+		code_desc = iop_code_str[sas_loginfo.dw.code];
+	}else if ((sas_loginfo.dw.originator == 1 /*PL*/) &&
+	    (sas_loginfo.dw.code < sizeof(pl_code_str)/sizeof(char*) )) {
+		code_desc = pl_code_str[sas_loginfo.dw.code];
+	}
+
+	if (code_desc != NULL)
+		printk(MYIOC_s_INFO_FMT
+			"LogInfo(0x%08x): Originator={%s}, Code={%s},"
+			" SubCode(0x%04x)\n",
+			ioc->name,
+			log_info,
+			originator_str[sas_loginfo.dw.originator],
+			code_desc,
+			sas_loginfo.dw.subcode);
+	else
+		printk(MYIOC_s_INFO_FMT
+			"LogInfo(0x%08x): Originator={%s}, Code=(0x%02x),"
+			" SubCode(0x%04x)\n",
+			ioc->name,
+			log_info,
+			originator_str[sas_loginfo.dw.originator],
+			sas_loginfo.dw.code,
+			sas_loginfo.dw.subcode);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
