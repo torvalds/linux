@@ -121,10 +121,9 @@ static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 
 };
 
-struct IR;
 struct IR {
 	struct i2c_client      c;
-	struct input_dev       input;
+	struct input_dev       *input;
 	struct ir_input_state  ir;
 
 	struct work_struct     work;
@@ -271,9 +270,9 @@ static void ir_key_poll(struct IR *ir)
 	}
 
 	if (0 == rc) {
-		ir_input_nokey(&ir->input,&ir->ir);
+		ir_input_nokey(ir->input, &ir->ir);
 	} else {
-		ir_input_keydown(&ir->input,&ir->ir, ir_key, ir_raw);
+		ir_input_keydown(ir->input, &ir->ir, ir_key, ir_raw);
 	}
 }
 
@@ -318,11 +317,18 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	char *name;
 	int ir_type;
         struct IR *ir;
+	struct input_dev *input_dev;
 
-        if (NULL == (ir = kmalloc(sizeof(struct IR),GFP_KERNEL)))
+	ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev) {
+		kfree(ir);
+		input_free_device(input_dev);
                 return -ENOMEM;
-	memset(ir,0,sizeof(*ir));
+	}
+
 	ir->c = client_template;
+	ir->input = input_dev;
 
 	i2c_set_clientdata(&ir->c, ir);
 	ir->c.adapter = adap;
@@ -375,13 +381,12 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		 ir->c.dev.bus_id);
 
 	/* init + register input device */
-	ir_input_init(&ir->input,&ir->ir,ir_type,ir_codes);
-	ir->input.id.bustype = BUS_I2C;
-	ir->input.name       = ir->c.name;
-	ir->input.phys       = ir->phys;
-	input_register_device(&ir->input);
-	printk(DEVNAME ": %s detected at %s [%s]\n",
-	       ir->input.name,ir->input.phys,adap->name);
+	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	input_dev->id.bustype	= BUS_I2C;
+	input_dev->name		= ir->c.name;
+	input_dev->phys		= ir->phys;
+
+	input_register_device(ir->input);
 
 	/* start polling via eventd */
 	INIT_WORK(&ir->work, ir_work, ir);
@@ -402,7 +407,7 @@ static int ir_detach(struct i2c_client *client)
 	flush_scheduled_work();
 
 	/* unregister devices */
-	input_unregister_device(&ir->input);
+	input_unregister_device(ir->input);
 	i2c_detach_client(&ir->c);
 
 	/* free memory */
