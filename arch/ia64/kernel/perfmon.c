@@ -574,7 +574,7 @@ pfm_protect_ctx_ctxsw(pfm_context_t *x)
 	return 0UL;
 }
 
-static inline unsigned long
+static inline void
 pfm_unprotect_ctx_ctxsw(pfm_context_t *x, unsigned long f)
 {
 	spin_unlock(&(x)->ctx_lock);

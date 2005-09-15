@@ -899,7 +899,7 @@ int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 	if ((err = iosapic_init(phys_addr, gsi_base)))
 		return err;
 
-#if CONFIG_ACPI_NUMA
+#ifdef CONFIG_ACPI_NUMA
 	acpi_map_iosapic(handle, 0, NULL, NULL);
 #endif				/* CONFIG_ACPI_NUMA */
 
