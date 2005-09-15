@@ -47,14 +47,13 @@ MODULE_LICENSE("GPL");
 
 #define WARRIOR_MAX_LENGTH	16
 static char warrior_lengths[] = { 0, 4, 12, 3, 4, 4, 0, 0 };
-static char *warrior_name = "Logitech WingMan Warrior";
 
 /*
  * Per-Warrior data.
  */
 
 struct warrior {
-	struct input_dev dev;
+	struct input_dev *dev;
 	int idx, len;
 	unsigned char data[WARRIOR_MAX_LENGTH];
 	char phys[32];
@@ -67,7 +66,7 @@ struct warrior {
 
 static void warrior_process_packet(struct warrior *warrior, struct pt_regs *regs)
 {
-	struct input_dev *dev = &warrior->dev;
+	struct input_dev *dev = warrior->dev;
 	unsigned char *data = warrior->data;
 
 	if (!warrior->idx) return;
@@ -131,9 +130,9 @@ static void warrior_disconnect(struct serio *serio)
 {
 	struct warrior *warrior = serio_get_drvdata(serio);
 
-	input_unregister_device(&warrior->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(warrior->dev);
 	kfree(warrior);
 }
 
@@ -146,60 +145,48 @@ static void warrior_disconnect(struct serio *serio)
 static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct warrior *warrior;
-	int i;
-	int err;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 
-	if (!(warrior = kmalloc(sizeof(struct warrior), GFP_KERNEL)))
-		return -ENOMEM;
+	warrior = kzalloc(sizeof(struct warrior), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!warrior || !input_dev)
+		goto fail;
 
-	memset(warrior, 0, sizeof(struct warrior));
-
-	warrior->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REL) | BIT(EV_ABS);
-	warrior->dev.keybit[LONG(BTN_TRIGGER)] = BIT(BTN_TRIGGER) | BIT(BTN_THUMB) | BIT(BTN_TOP) | BIT(BTN_TOP2);
-	warrior->dev.relbit[0] = BIT(REL_DIAL);
-	warrior->dev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_THROTTLE) | BIT(ABS_HAT0X) | BIT(ABS_HAT0Y);
-
+	warrior->dev = input_dev;
 	sprintf(warrior->phys, "%s/input0", serio->phys);
 
-	init_input_dev(&warrior->dev);
-	warrior->dev.name = warrior_name;
-	warrior->dev.phys = warrior->phys;
-	warrior->dev.id.bustype = BUS_RS232;
-	warrior->dev.id.vendor = SERIO_WARRIOR;
-	warrior->dev.id.product = 0x0001;
-	warrior->dev.id.version = 0x0100;
-	warrior->dev.dev = &serio->dev;
+	input_dev->name = "Logitech WingMan Warrior";
+	input_dev->phys = warrior->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_WARRIOR;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = warrior;
 
-	for (i = 0; i < 2; i++) {
-		warrior->dev.absmax[ABS_X+i] = -64;
-		warrior->dev.absmin[ABS_X+i] =  64;
-		warrior->dev.absflat[ABS_X+i] = 8;
-	}
-
-	warrior->dev.absmax[ABS_THROTTLE] = -112;
-	warrior->dev.absmin[ABS_THROTTLE] =  112;
-
-	for (i = 0; i < 2; i++) {
-		warrior->dev.absmax[ABS_HAT0X+i] = -1;
-		warrior->dev.absmin[ABS_HAT0X+i] =  1;
-	}
-
-	warrior->dev.private = warrior;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_TRIGGER)] = BIT(BTN_TRIGGER) | BIT(BTN_THUMB) | BIT(BTN_TOP) | BIT(BTN_TOP2);
+	input_dev->relbit[0] = BIT(REL_DIAL);
+	input_set_abs_params(input_dev, ABS_X, -64, 64, 0, 8);
+	input_set_abs_params(input_dev, ABS_Y, -64, 64, 0, 8);
+	input_set_abs_params(input_dev, ABS_THROTTLE, -112, 112, 0, 0);
+	input_set_abs_params(input_dev, ABS_HAT0X, -1, 1, 0, 0);
+	input_set_abs_params(input_dev, ABS_HAT0X, -1, 1, 0, 0);
 
 	serio_set_drvdata(serio, warrior);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(warrior);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&warrior->dev);
-
-	printk(KERN_INFO "input: Logitech WingMan Warrior on %s\n", serio->phys);
-
+	input_register_device(warrior->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(warrior);
+	return err;
 }
 
 /*

@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 
 struct interact {
 	struct gameport *gameport;
-	struct input_dev dev;
+	struct input_dev *dev;
 	int bads;
 	int reads;
 	unsigned char type;
@@ -130,7 +130,7 @@ static int interact_read_packet(struct gameport *gameport, int length, u32 *data
 static void interact_poll(struct gameport *gameport)
 {
 	struct interact *interact = gameport_get_drvdata(gameport);
-	struct input_dev *dev = &interact->dev;
+	struct input_dev *dev = interact->dev;
 	u32 data[3];
 	int i;
 
@@ -208,14 +208,20 @@ static void interact_close(struct input_dev *dev)
 static int interact_connect(struct gameport *gameport, struct gameport_driver *drv)
 {
 	struct interact *interact;
+	struct input_dev *input_dev;
 	__u32 data[3];
 	int i, t;
 	int err;
 
-	if (!(interact = kzalloc(sizeof(struct interact), GFP_KERNEL)))
-		return -ENOMEM;
+	interact = kzalloc(sizeof(struct interact), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!interact || !input_dev) {
+		err = -ENOMEM;
+		goto fail1;
+	}
 
 	interact->gameport = gameport;
+	interact->dev = input_dev;
 
 	gameport_set_drvdata(gameport, interact);
 
@@ -249,41 +255,40 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	interact->type = i;
 	interact->length = interact_type[i].length;
 
-	interact->dev.private = interact;
-	interact->dev.open = interact_open;
-	interact->dev.close = interact_close;
+	input_dev->name = interact_type[i].name;
+	input_dev->phys = interact->phys;
+	input_dev->id.bustype = BUS_GAMEPORT;
+	input_dev->id.vendor = GAMEPORT_ID_VENDOR_INTERACT;
+	input_dev->id.product = interact_type[i].id;
+	input_dev->id.version = 0x0100;
+	input_dev->private = interact;
 
-	interact->dev.name = interact_type[i].name;
-	interact->dev.phys = interact->phys;
-	interact->dev.id.bustype = BUS_GAMEPORT;
-	interact->dev.id.vendor = GAMEPORT_ID_VENDOR_INTERACT;
-	interact->dev.id.product = interact_type[i].id;
-	interact->dev.id.version = 0x0100;
+	input_dev->open = interact_open;
+	input_dev->close = interact_close;
 
-	interact->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	for (i = 0; (t = interact_type[interact->type].abs[i]) >= 0; i++) {
-		set_bit(t, interact->dev.absbit);
+		set_bit(t, input_dev->absbit);
 		if (i < interact_type[interact->type].b8) {
-			interact->dev.absmin[t] = 0;
-			interact->dev.absmax[t] = 255;
+			input_dev->absmin[t] = 0;
+			input_dev->absmax[t] = 255;
 		} else {
-			interact->dev.absmin[t] = -1;
-			interact->dev.absmax[t] = 1;
+			input_dev->absmin[t] = -1;
+			input_dev->absmax[t] = 1;
 		}
 	}
 
 	for (i = 0; (t = interact_type[interact->type].btn[i]) >= 0; i++)
-		set_bit(t, interact->dev.keybit);
+		set_bit(t, input_dev->keybit);
 
-	input_register_device(&interact->dev);
-	printk(KERN_INFO "input: %s on %s\n",
-		interact_type[interact->type].name, gameport->phys);
+	input_register_device(interact->dev);
 
 	return 0;
 
 fail2:	gameport_close(gameport);
 fail1:  gameport_set_drvdata(gameport, NULL);
+	input_free_device(input_dev);
 	kfree(interact);
 	return err;
 }
@@ -292,7 +297,7 @@ static void interact_disconnect(struct gameport *gameport)
 {
 	struct interact *interact = gameport_get_drvdata(gameport);
 
-	input_unregister_device(&interact->dev);
+	input_unregister_device(interact->dev);
 	gameport_close(gameport);
 	gameport_set_drvdata(gameport, NULL);
 	kfree(interact);
