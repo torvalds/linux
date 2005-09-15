@@ -126,6 +126,15 @@ static void __init poodle_init(void)
 {
 	int ret = 0;
 
+	/* setup sleep mode values */
+	PWER  = 0x00000002;
+	PFER  = 0x00000000;
+	PRER  = 0x00000002;
+	PGSR0 = 0x00008000;
+	PGSR1 = 0x003F0202;
+	PGSR2 = 0x0001C000;
+	PCFR |= PCFR_OPDE;
+
 	/* cpu initialize */
 	/* Pgsr Register */
   	PGSR0 = 0x0146dd80;
@@ -171,32 +180,12 @@ static void __init fixup_poodle(struct machine_desc *desc,
 	sharpsl_save_param();
 }
 
-static struct map_desc poodle_io_desc[] __initdata = {
- /* virtual     physical    length                   */
-  { 0xef800000, 0x00000000, 0x00800000, MT_DEVICE }, /* Boot Flash */
-};
-
-static void __init poodle_map_io(void)
-{
-	pxa_map_io();
-	iotable_init(poodle_io_desc, ARRAY_SIZE(poodle_io_desc));
-
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x00008000;
-	PGSR1 = 0x003F0202;
-	PGSR2 = 0x0001C000;
-	PCFR |= PCFR_OPDE;
-}
-
 MACHINE_START(POODLE, "SHARP Poodle")
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_poodle,
-	.map_io		= poodle_map_io,
+	.map_io		= pxa_map_io,
 	.init_irq	= pxa_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,
