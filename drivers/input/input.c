@@ -27,6 +27,7 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
 
+EXPORT_SYMBOL(input_allocate_device);
 EXPORT_SYMBOL(input_register_device);
 EXPORT_SYMBOL(input_unregister_device);
 EXPORT_SYMBOL(input_register_handler);
@@ -605,6 +606,56 @@ static inline int input_proc_init(void) { return 0; }
 static inline void input_proc_exit(void) { }
 #endif
 
+static void input_dev_release(struct class_device *class_dev)
+{
+	struct input_dev *dev = to_input_dev(class_dev);
+
+	kfree(dev);
+	module_put(THIS_MODULE);
+}
+
+static struct class input_dev_class = {
+	.name			= "input_dev",
+	.release		= input_dev_release,
+};
+
+struct input_dev *input_allocate_device(void)
+{
+	struct input_dev *dev;
+
+	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
+	if (dev) {
+		dev->dynalloc = 1;
+		dev->cdev.class = &input_dev_class;
+		class_device_initialize(&dev->cdev);
+		INIT_LIST_HEAD(&dev->h_list);
+		INIT_LIST_HEAD(&dev->node);
+	}
+
+	return dev;
+}
+
+static void input_register_classdevice(struct input_dev *dev)
+{
+	static atomic_t input_no = ATOMIC_INIT(0);
+	const char *path;
+
+	__module_get(THIS_MODULE);
+
+	dev->dev = dev->cdev.dev;
+
+	snprintf(dev->cdev.class_id, sizeof(dev->cdev.class_id),
+		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
+
+	path = kobject_get_path(&dev->cdev.class->subsys.kset.kobj, GFP_KERNEL);
+	printk(KERN_INFO "input: %s/%s as %s\n",
+		dev->name ? dev->name : "Unspecified device",
+		path ? path : "", dev->cdev.class_id);
+	kfree(path);
+
+	class_device_add(&dev->cdev);
+}
+
 void input_register_device(struct input_dev *dev)
 {
 	struct input_handle *handle;
@@ -637,6 +688,10 @@ void input_register_device(struct input_dev *dev)
 				if ((handle = handler->connect(handler, dev, id)))
 					input_link_handle(handle);
 
+
+	if (dev->dynalloc)
+		input_register_classdevice(dev);
+
 #ifdef CONFIG_HOTPLUG
 	input_call_hotplug("add", dev);
 #endif
@@ -664,6 +719,9 @@ void input_unregister_device(struct input_dev *dev)
 #endif
 
 	list_del_init(&dev->node);
+
+	if (dev->dynalloc)
+		class_device_unregister(&dev->cdev);
 
 	input_wakeup_procfs_readers();
 }
@@ -753,26 +811,34 @@ static int __init input_init(void)
 {
 	int err;
 
+	err = class_register(&input_dev_class);
+	if (err) {
+		printk(KERN_ERR "input: unable to register input_dev class\n");
+		return err;
+	}
+
 	input_class = class_create(THIS_MODULE, "input");
 	if (IS_ERR(input_class)) {
 		printk(KERN_ERR "input: unable to register input class\n");
-		return PTR_ERR(input_class);
+		err = PTR_ERR(input_class);
+		goto fail1;
 	}
 
 	err = input_proc_init();
 	if (err)
-		goto fail1;
+		goto fail2;
 
 	err = register_chrdev(INPUT_MAJOR, "input", &input_fops);
 	if (err) {
 		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
-		goto fail2;
+		goto fail3;
 	}
 
 	return 0;
 
- fail2:	input_proc_exit();
- fail1:	class_destroy(input_class);
+ fail3:	input_proc_exit();
+ fail2:	class_destroy(input_class);
+ fail1:	class_unregister(&input_dev_class);
 	return err;
 }
 
@@ -781,6 +847,7 @@ static void __exit input_exit(void)
 	input_proc_exit();
 	unregister_chrdev(INPUT_MAJOR, "input");
 	class_destroy(input_class);
+	class_unregister(&input_dev_class);
 }
 
 subsys_initcall(input_init);
