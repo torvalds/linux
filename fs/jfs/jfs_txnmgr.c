@@ -2070,8 +2070,8 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  *
  * function:    log from maplock of freed data extents;
  */
-void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-	    struct tlock * tlck)
+static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
+		   struct tlock * tlck)
 {
 	struct pxd_lock *pxdlock;
 	int i, nlock;
@@ -2209,7 +2209,7 @@ void txEA(tid_t tid, struct inode *ip, dxd_t * oldea, dxd_t * newea)
  * function: synchronously write pages locked by transaction
  *              after txLog() but before txUpdateMap();
  */
-void txForce(struct tblock * tblk)
+static void txForce(struct tblock * tblk)
 {
 	struct tlock *tlck;
 	lid_t lid, next;
