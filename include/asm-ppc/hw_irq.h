@@ -10,11 +10,7 @@
 
 extern void timer_interrupt(struct pt_regs *);
 
-#define INLINE_IRQS
-
 #define irqs_disabled()	((mfmsr() & MSR_EE) == 0)
-
-#ifdef INLINE_IRQS
 
 static inline void local_irq_disable(void)
 {
@@ -44,18 +40,6 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 #define local_save_flags(flags)		((flags) = mfmsr())
 #define local_irq_save(flags)		local_irq_save_ptr(&flags)
 #define local_irq_restore(flags)	mtmsr(flags)
-
-#else
-
-extern void local_irq_enable(void);
-extern void local_irq_disable(void);
-extern void local_irq_restore(unsigned long);
-extern void local_save_flags_ptr(unsigned long *);
-
-#define local_save_flags(flags) local_save_flags_ptr(&flags)
-#define local_irq_save(flags) ({local_save_flags(flags);local_irq_disable();})
-
-#endif
 
 extern void do_lost_interrupts(unsigned long);
 

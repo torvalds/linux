@@ -272,16 +272,6 @@ EXPORT_SYMBOL(screen_info);
 #endif
 
 EXPORT_SYMBOL(__delay);
-#ifndef INLINE_IRQS
-EXPORT_SYMBOL(local_irq_enable);
-EXPORT_SYMBOL(local_irq_enable_end);
-EXPORT_SYMBOL(local_irq_disable);
-EXPORT_SYMBOL(local_irq_disable_end);
-EXPORT_SYMBOL(local_save_flags_ptr);
-EXPORT_SYMBOL(local_save_flags_ptr_end);
-EXPORT_SYMBOL(local_irq_restore);
-EXPORT_SYMBOL(local_irq_restore_end);
-#endif
 EXPORT_SYMBOL(timer_interrupt);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
