@@ -396,7 +396,8 @@ ffirst_retry:
 
 	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls,
 		&cifsFile->netfid, &cifsFile->srch_inf,
-		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
+		cifs_sb->mnt_cifs_flags & 
+			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if(rc == 0)
 		cifsFile->invalidHandle = FALSE;
 	if((rc == -EOPNOTSUPP) && 
@@ -513,6 +514,30 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
 	return rc;
 }
 
+/* Check if directory that we are searching has changed so we can decide
+   whether we can use the cached search results from the previous search */
+static int is_dir_changed(struct file * file)
+{
+	struct inode * inode;
+	struct cifsInodeInfo *cifsInfo;
+
+	if(file->f_dentry == NULL)
+		return 0;
+
+	inode = file->f_dentry->d_inode;
+
+	if(inode == NULL)
+		return 0;
+
+	cifsInfo = CIFS_I(inode);
+
+	if(cifsInfo->time == 0)
+		return 1; /* directory was changed, perhaps due to unlink */
+	else
+		return 0;
+
+}
+
 /* find the corresponding entry in the search */
 /* Note that the SMB server returns search entries for . and .. which
    complicates logic here if we choose to parse for them and we do not
@@ -529,7 +554,8 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	struct cifsFileInfo * cifsFile = file->private_data;
 	/* check if index in the buffer */
 	
-	if((cifsFile == NULL) || (ppCurrentEntry == NULL) || (num_to_ret == NULL))
+	if((cifsFile == NULL) || (ppCurrentEntry == NULL) || 
+	   (num_to_ret == NULL))
 		return -ENOENT;
 	
 	*ppCurrentEntry = NULL;
@@ -537,7 +563,9 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		cifsFile->srch_inf.index_of_last_entry - 
 			cifsFile->srch_inf.entries_in_buffer;
 /*	dump_cifs_file_struct(file, "In fce ");*/
-	if(index_to_find < first_entry_in_buffer) {
+	if(((index_to_find < cifsFile->srch_inf.index_of_last_entry) && 
+	     is_dir_changed(file)) || 
+	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
 		cFYI(1,("search backing up - close and restart search"));
 		cifsFile->invalidHandle = TRUE;
@@ -604,7 +632,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	}
 
 	if(pos_in_buf >= cifsFile->srch_inf.entries_in_buffer) {
-		cFYI(1,("can not return entries when pos_in_buf beyond last entry"));
+		cFYI(1,("can not return entries pos_in_buf beyond last entry"));
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cifsFile->srch_inf.entries_in_buffer - pos_in_buf;
@@ -832,7 +860,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	pTcon = cifs_sb->tcon;
 	if(pTcon == NULL)
 		return -EINVAL;
-
 
 	switch ((int) file->f_pos) {
 	case 0:

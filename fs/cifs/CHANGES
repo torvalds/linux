@@ -1,3 +1,8 @@
+Version 1.37
+------------
+Fix readdir caching when unlink removes file in current search buffer,
+and this is followed by a rewind search to just before the deleted entry.
+
 Version 1.36
 ------------
 Add support for mounting to older pre-CIFS servers such as Windows9x and ME.
