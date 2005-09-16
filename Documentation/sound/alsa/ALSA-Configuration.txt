@@ -663,6 +663,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
 
+	ALC260
+	  hp		HP machines
+	  fujitsu	Fujitsu S7020
+
 	CMI9880
 	  minimal	3-jack in back
 	  min_fp	3-jack in back, 2-jack in front
