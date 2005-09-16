@@ -17,12 +17,13 @@
 #include <linux/string.h>
 
 /*
- * Codec families have names seperated by commas, so we search for an
- * individual codec name within the family string. 
+ * Let drivers decide whether they want to support given codec from their
+ * probe method.  Drivers have direct access to the ac97_t structure and may
+ * decide based on the id field amongst other things.
  */
 static int ac97_bus_match(struct device *dev, struct device_driver *drv)
 {
-	return (strstr(dev->bus_id, drv->name) != NULL);
+	return 1;
 }
 
 static int ac97_bus_suspend(struct device *dev, pm_message_t state)
