@@ -120,29 +120,6 @@ struct pci_ops pci_root_ops = {
 	.write = pci_write,
 };
 
-#ifdef CONFIG_NUMA
-extern acpi_status acpi_map_iosapic(acpi_handle, u32, void *, void **);
-static void acpi_map_iosapics(void)
-{
-	acpi_get_devices(NULL, acpi_map_iosapic, NULL, NULL);
-}
-#else
-static void acpi_map_iosapics(void)
-{
-	return;
-}
-#endif /* CONFIG_NUMA */
-
-static int __init
-pci_acpi_init (void)
-{
-	acpi_map_iosapics();
-
-	return 0;
-}
-
-subsys_initcall(pci_acpi_init);
-
 /* Called by ACPI when it finds a new root bus.  */
 
 static struct pci_controller * __devinit
