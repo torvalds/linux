@@ -331,7 +331,7 @@ CIFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline const char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
+static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 		return '/';

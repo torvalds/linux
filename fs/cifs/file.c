@@ -791,8 +791,8 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 	pTcon = cifs_sb->tcon;
 
-	cFYI(1,(" write %d bytes to offset %lld of %s", write_size,
-	   *poffset, file->f_dentry->d_name.name)); /* BB removeme BB */
+	cFYI(1,("write %zd bytes to offset %lld of %s", write_size,
+	   *poffset, file->f_dentry->d_name.name));
 
 	if (file->private_data == NULL)
 		return -EBADF;

@@ -485,7 +485,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 				BCC(in_buf) = le16_to_cpu(BCC(in_buf));
 		} else {
 			rc = -EIO;
-			cFYI(1,("Bad MID state? "));
+			cFYI(1,("Bad MID state?"));
 		}
 	}
 cifs_no_response_exit2:
