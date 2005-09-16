@@ -359,7 +359,11 @@ struct uhci_hcd {
 	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QH's */
 
 	spinlock_t lock;
-	struct uhci_frame_list *fl;		/* P: uhci->lock */
+
+	dma_addr_t frame_dma_handle;		/* Hardware frame list */
+	__le32 *frame;				/* P: uhci->lock */
+	void **frame_cpu;			/* CPU's frame list */
+
 	int fsbr;				/* Full-speed bandwidth reclamation */
 	unsigned long fsbrtimeout;		/* FSBR delay */
 

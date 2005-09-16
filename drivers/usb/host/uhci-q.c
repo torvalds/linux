@@ -89,10 +89,10 @@ static void uhci_insert_td_frame_list(struct uhci_hcd *uhci, struct uhci_td *td,
 	td->frame = framenum;
 
 	/* Is there a TD already mapped there? */
-	if (uhci->fl->frame_cpu[framenum]) {
+	if (uhci->frame_cpu[framenum]) {
 		struct uhci_td *ftd, *ltd;
 
-		ftd = uhci->fl->frame_cpu[framenum];
+		ftd = uhci->frame_cpu[framenum];
 		ltd = list_entry(ftd->fl_list.prev, struct uhci_td, fl_list);
 
 		list_add_tail(&td->fl_list, &ftd->fl_list);
@@ -101,10 +101,10 @@ static void uhci_insert_td_frame_list(struct uhci_hcd *uhci, struct uhci_td *td,
 		wmb();
 		ltd->link = cpu_to_le32(td->dma_handle);
 	} else {
-		td->link = uhci->fl->frame[framenum];
+		td->link = uhci->frame[framenum];
 		wmb();
-		uhci->fl->frame[framenum] = cpu_to_le32(td->dma_handle);
-		uhci->fl->frame_cpu[framenum] = td;
+		uhci->frame[framenum] = cpu_to_le32(td->dma_handle);
+		uhci->frame_cpu[framenum] = td;
 	}
 }
 
@@ -114,16 +114,16 @@ static void uhci_remove_td(struct uhci_hcd *uhci, struct uhci_td *td)
 	if (td->frame == -1 && list_empty(&td->fl_list))
 		return;
 
-	if (td->frame != -1 && uhci->fl->frame_cpu[td->frame] == td) {
+	if (td->frame != -1 && uhci->frame_cpu[td->frame] == td) {
 		if (list_empty(&td->fl_list)) {
-			uhci->fl->frame[td->frame] = td->link;
-			uhci->fl->frame_cpu[td->frame] = NULL;
+			uhci->frame[td->frame] = td->link;
+			uhci->frame_cpu[td->frame] = NULL;
 		} else {
 			struct uhci_td *ntd;
 
 			ntd = list_entry(td->fl_list.next, struct uhci_td, fl_list);
-			uhci->fl->frame[td->frame] = cpu_to_le32(ntd->dma_handle);
-			uhci->fl->frame_cpu[td->frame] = ntd;
+			uhci->frame[td->frame] = cpu_to_le32(ntd->dma_handle);
+			uhci->frame_cpu[td->frame] = ntd;
 		}
 	} else {
 		struct uhci_td *ptd;

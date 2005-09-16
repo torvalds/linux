@@ -212,7 +212,7 @@ static void configure_hc(struct uhci_hcd *uhci)
 	outb(USBSOF_DEFAULT, uhci->io_addr + USBSOF);
 
 	/* Store the frame list base address */
-	outl(uhci->fl->dma_handle, uhci->io_addr + USBFLBASEADD);
+	outl(uhci->frame_dma_handle, uhci->io_addr + USBFLBASEADD);
 
 	/* Set the current frame number */
 	outw(uhci->frame_number, uhci->io_addr + USBFRNUM);
@@ -445,8 +445,11 @@ static void release_uhci(struct uhci_hcd *uhci)
 
 	dma_pool_destroy(uhci->td_pool);
 
-	dma_free_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
-			uhci->fl, uhci->fl->dma_handle);
+	kfree(uhci->frame_cpu);
+
+	dma_free_coherent(uhci_dev(uhci),
+			UHCI_NUMFRAMES * sizeof(*uhci->frame),
+			uhci->frame, uhci->frame_dma_handle);
 
 	debugfs_remove(uhci->dentry);
 }
@@ -527,7 +530,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int retval = -EBUSY;
 	int i;
-	dma_addr_t dma_handle;
 	struct dentry *dentry;
 
 	hcd->uses_new_polling = 1;
@@ -561,17 +563,23 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	init_waitqueue_head(&uhci->waitqh);
 
-	uhci->fl = dma_alloc_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
-			&dma_handle, 0);
-	if (!uhci->fl) {
+	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
+			UHCI_NUMFRAMES * sizeof(*uhci->frame),
+			&uhci->frame_dma_handle, 0);
+	if (!uhci->frame) {
 		dev_err(uhci_dev(uhci), "unable to allocate "
 				"consistent memory for frame list\n");
-		goto err_alloc_fl;
+		goto err_alloc_frame;
 	}
+	memset(uhci->frame, 0, UHCI_NUMFRAMES * sizeof(*uhci->frame));
 
-	memset((void *)uhci->fl, 0, sizeof(*uhci->fl));
-
-	uhci->fl->dma_handle = dma_handle;
+	uhci->frame_cpu = kcalloc(UHCI_NUMFRAMES, sizeof(*uhci->frame_cpu),
+			GFP_KERNEL);
+	if (!uhci->frame_cpu) {
+		dev_err(uhci_dev(uhci), "unable to allocate "
+				"memory for frame pointers\n");
+		goto err_alloc_frame_cpu;
+	}
 
 	uhci->td_pool = dma_pool_create("uhci_td", uhci_dev(uhci),
 			sizeof(struct uhci_td), 16, 0);
@@ -654,7 +662,7 @@ static int uhci_start(struct usb_hcd *hcd)
 			irq = 7;
 
 		/* Only place we don't use the frame list routines */
-		uhci->fl->frame[i] = UHCI_PTR_QH |
+		uhci->frame[i] = UHCI_PTR_QH |
 				cpu_to_le32(uhci->skelqh[irq]->dma_handle);
 	}
 
@@ -686,10 +694,14 @@ err_create_qh_pool:
 	dma_pool_destroy(uhci->td_pool);
 
 err_create_td_pool:
-	dma_free_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
-			uhci->fl, uhci->fl->dma_handle);
+	kfree(uhci->frame_cpu);
 
-err_alloc_fl:
+err_alloc_frame_cpu:
+	dma_free_coherent(uhci_dev(uhci),
+			UHCI_NUMFRAMES * sizeof(*uhci->frame),
+			uhci->frame, uhci->frame_dma_handle);
+
+err_alloc_frame:
 	debugfs_remove(uhci->dentry);
 
 err_create_debug_entry:

@@ -445,11 +445,11 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	out += sprintf(out, "Frame List\n");
 	for (i = 0; i < UHCI_NUMFRAMES; ++i) {
 		int shown = 0;
-		td = uhci->fl->frame_cpu[i];
+		td = uhci->frame_cpu[i];
 		if (!td)
 			continue;
 
-		if (td->dma_handle != (dma_addr_t)uhci->fl->frame[i]) {
+		if (td->dma_handle != (dma_addr_t)uhci->frame[i]) {
 			show_frame_num();
 			out += sprintf(out, "    frame list does not match td->dma_handle!\n");
 		}
