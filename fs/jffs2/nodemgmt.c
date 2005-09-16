@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.125 2005/09/07 08:34:54 havasi Exp $
+ * $Id: nodemgmt.c,v 1.126 2005/09/16 12:58:17 havasi Exp $
  *
  */
 
@@ -307,6 +307,8 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
 
 			jffs2_close_nextblock(c, jeb);
 			jeb = NULL;
+			/* keep always valid value in reserved_size */
+			reserved_size = PAD(sumsize + c->summary->sum_size + JFFS2_SUMMARY_FRAME_SIZE);
 		}
 	} else {
 		if (jeb && minsize > jeb->free_size) {
