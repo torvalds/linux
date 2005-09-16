@@ -205,8 +205,6 @@ struct uhci_td {
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct urb *urb;
-
 	struct list_head list;		/* P: urb->lock */
 	struct list_head remove_list;	/* P: uhci->td_remove_list_lock */
 
@@ -434,7 +432,6 @@ struct urb_priv {
 						/*  a control transfer, retrigger */
 						/*  the status phase */
 
-	unsigned long inserttime;	/* In jiffies */
 	unsigned long fsbrtime;		/* In jiffies */
 
 	struct list_head queue_list;	/* P: uhci->frame_list_lock */

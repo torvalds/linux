@@ -348,7 +348,6 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp, char *bu
 
 	if (urbp->urb->status != -EINPROGRESS)
 		out += sprintf(out, "Status=%d ", urbp->urb->status);
-	//out += sprintf(out, "Inserttime=%lx ",urbp->inserttime);
 	//out += sprintf(out, "FSBRtime=%lx ",urbp->fsbrtime);
 
 	count = 0;

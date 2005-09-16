@@ -437,36 +437,18 @@ static void release_uhci(struct uhci_hcd *uhci)
 	int i;
 
 	for (i = 0; i < UHCI_NUM_SKELQH; i++)
-		if (uhci->skelqh[i]) {
-			uhci_free_qh(uhci, uhci->skelqh[i]);
-			uhci->skelqh[i] = NULL;
-		}
+		uhci_free_qh(uhci, uhci->skelqh[i]);
 
-	if (uhci->term_td) {
-		uhci_free_td(uhci, uhci->term_td);
-		uhci->term_td = NULL;
-	}
+	uhci_free_td(uhci, uhci->term_td);
 
-	if (uhci->qh_pool) {
-		dma_pool_destroy(uhci->qh_pool);
-		uhci->qh_pool = NULL;
-	}
+	dma_pool_destroy(uhci->qh_pool);
 
-	if (uhci->td_pool) {
-		dma_pool_destroy(uhci->td_pool);
-		uhci->td_pool = NULL;
-	}
+	dma_pool_destroy(uhci->td_pool);
 
-	if (uhci->fl) {
-		dma_free_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
-				uhci->fl, uhci->fl->dma_handle);
-		uhci->fl = NULL;
-	}
+	dma_free_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
+			uhci->fl, uhci->fl->dma_handle);
 
-	if (uhci->dentry) {
-		debugfs_remove(uhci->dentry);
-		uhci->dentry = NULL;
-	}
+	debugfs_remove(uhci->dentry);
 }
 
 static int uhci_reset(struct usb_hcd *hcd)
@@ -690,31 +672,25 @@ static int uhci_start(struct usb_hcd *hcd)
  * error exits:
  */
 err_alloc_skelqh:
-	for (i = 0; i < UHCI_NUM_SKELQH; i++)
-		if (uhci->skelqh[i]) {
+	for (i = 0; i < UHCI_NUM_SKELQH; i++) {
+		if (uhci->skelqh[i])
 			uhci_free_qh(uhci, uhci->skelqh[i]);
-			uhci->skelqh[i] = NULL;
-		}
+	}
 
 	uhci_free_td(uhci, uhci->term_td);
-	uhci->term_td = NULL;
 
 err_alloc_term_td:
 	dma_pool_destroy(uhci->qh_pool);
-	uhci->qh_pool = NULL;
 
 err_create_qh_pool:
 	dma_pool_destroy(uhci->td_pool);
-	uhci->td_pool = NULL;
 
 err_create_td_pool:
 	dma_free_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
 			uhci->fl, uhci->fl->dma_handle);
-	uhci->fl = NULL;
 
 err_alloc_fl:
 	debugfs_remove(uhci->dentry);
-	uhci->dentry = NULL;
 
 err_create_debug_entry:
 	return retval;

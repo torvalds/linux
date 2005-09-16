@@ -443,7 +443,6 @@ static struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci, struct urb *u
 
 	memset((void *)urbp, 0, sizeof(*urbp));
 
-	urbp->inserttime = jiffies;
 	urbp->fsbrtime = jiffies;
 	urbp->urb = urb;
 	
@@ -462,8 +461,6 @@ static void uhci_add_td_to_urb(struct urb *urb, struct uhci_td *td)
 {
 	struct urb_priv *urbp = (struct urb_priv *)urb->hcpriv;
 
-	td->urb = urb;
-
 	list_add_tail(&td->list, &urbp->td_list);
 }
 
@@ -473,8 +470,6 @@ static void uhci_remove_td_from_urb(struct uhci_td *td)
 		return;
 
 	list_del_init(&td->list);
-
-	td->urb = NULL;
 }
 
 static void uhci_destroy_urb_priv(struct uhci_hcd *uhci, struct urb *urb)
