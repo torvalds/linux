@@ -246,6 +246,9 @@ static int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	dp->dccps_role = DCCP_ROLE_CLIENT;
 
+	if (dccp_service_not_initialized(sk))
+		return -EPROTO;
+
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
 
@@ -661,6 +664,16 @@ static inline u64 dccp_v4_init_sequence(const struct sock *sk,
 					   dccp_hdr(skb)->dccph_sport);
 }
 
+static inline int dccp_bad_service_code(const struct sock *sk,
+					const __u32 service)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+
+	if (dp->dccps_service == service)
+		return 0;
+	return !dccp_list_has_service(dp->dccps_service_list, service);
+}
+
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq;
@@ -669,6 +682,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_request_sock *dreq;
 	const __u32 saddr = skb->nh.iph->saddr;
 	const __u32 daddr = skb->nh.iph->daddr;
+ 	const __u32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 	struct dst_entry *dst = NULL;
@@ -680,6 +694,10 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
+	if (dccp_bad_service_code(sk, service)) {
+		reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
+		goto drop;
+ 	}
 	/*
 	 * TW buckets are converted to open requests without
 	 * limitations, they conserve resources and peer is
@@ -722,9 +740,9 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * dccp_create_openreq_child.
 	 */
 	dreq = dccp_rsk(req);
-	dreq->dreq_isr = dcb->dccpd_seq;
-	dreq->dreq_iss = dccp_v4_init_sequence(sk, skb);
-	dreq->dreq_service = dccp_hdr_request(skb)->dccph_req_service;
+	dreq->dreq_isr	   = dcb->dccpd_seq;
+	dreq->dreq_iss	   = dccp_v4_init_sequence(sk, skb);
+	dreq->dreq_service = service;
 
 	if (dccp_v4_send_response(sk, req, dst))
 		goto drop_and_free;
@@ -1284,6 +1302,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	sk->sk_write_space = dccp_write_space;
 	dp->dccps_mss_cache = 536;
 	dp->dccps_role = DCCP_ROLE_UNDEFINED;
+	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;
 
 	return 0;
 }
@@ -1304,6 +1323,11 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	/* Clean up a referenced DCCP bind bucket. */
 	if (inet_csk(sk)->icsk_bind_hash != NULL)
 		inet_put_port(&dccp_hashinfo, sk);
+
+	if (dp->dccps_service_list != NULL) {
+		kfree(dp->dccps_service_list);
+		dp->dccps_service_list = NULL;
+	}
 
 	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);

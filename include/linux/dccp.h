@@ -4,16 +4,6 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
-/* Structure describing an Internet (DCCP) socket address. */
-struct sockaddr_dccp {
-	__u16	sdccp_family;	/* Address family   */
-	__u16	sdccp_port;	/* Port number	    */
-	__u32	sdccp_addr;	/* Internet address */
-	__u32	sdccp_service;	/* Service	    */
-	/* Pad to size of `struct sockaddr': 16 bytes . */
-	__u32	sdccp_pad;
-};
-
 /**
  * struct dccp_hdr - generic part of DCCP packet header
  *
@@ -188,6 +178,9 @@ enum {
 
 /* DCCP socket options */
 #define DCCP_SOCKOPT_PACKET_SIZE	1
+#define DCCP_SOCKOPT_SERVICE		2
+
+#define DCCP_SERVICE_LIST_MAX_LEN      32
 
 #ifdef __KERNEL__
 
@@ -382,6 +375,25 @@ enum dccp_role {
 	DCCP_ROLE_SERVER,
 };
 
+struct dccp_service_list {
+	__u32	dccpsl_nr;
+	__u32	dccpsl_list[0];
+};
+
+#define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
+
+static inline int dccp_list_has_service(const struct dccp_service_list *sl,
+					const u32 service)
+{
+	if (likely(sl != NULL)) {
+		u32 i = sl->dccpsl_nr;
+		while (i--)
+			if (sl->dccpsl_list[i] == service)
+				return 1; 
+	}
+	return 0;
+}
+
 /**
  * struct dccp_sock - DCCP socket state
  *
@@ -417,7 +429,8 @@ struct dccp_sock {
 	__u64				dccps_gss;
 	__u64				dccps_gsr;
 	__u64				dccps_gar;
-	unsigned long			dccps_service;
+	__u32				dccps_service;
+	struct dccp_service_list	*dccps_service_list;
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_packet_size;
@@ -441,6 +454,11 @@ struct dccp_sock {
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;
+}
+
+static inline int dccp_service_not_initialized(const struct sock *sk)
+{
+	return dccp_sk(sk)->dccps_service == DCCP_SERVICE_INVALID_VALUE;
 }
 
 static inline const char *dccp_role(const struct sock *sk)
