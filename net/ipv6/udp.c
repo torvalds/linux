@@ -405,9 +405,8 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 				continue;
 
 			if (!ipv6_addr_any(&np->rcv_saddr)) {
-				if (ipv6_addr_equal(&np->rcv_saddr, loc_addr))
-					return s;
-				continue;
+				if (!ipv6_addr_equal(&np->rcv_saddr, loc_addr))
+					continue;
 			}
 			if(!inet6_mc_check(s, loc_addr, rmt_addr))
 				continue;

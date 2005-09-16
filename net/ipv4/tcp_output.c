@@ -435,6 +435,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	int nsize, old_factor;
 	u16 flags;
 
+	BUG_ON(len >= skb->len);
+
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
 		nsize = 0;

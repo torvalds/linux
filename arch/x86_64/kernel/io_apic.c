@@ -299,15 +299,6 @@ void __init check_ioapic(void)
 #endif
 					/* RED-PEN skip them on mptables too? */
 					return;
-				case PCI_VENDOR_ID_ATI:
-					/* All timer interrupts on atiixp
-				           are doubled. Disable one. */
-					if (disable_timer_pin_1 == 0) {
-						disable_timer_pin_1 = 1;
-						printk(KERN_INFO
-		"ATI board detected. Disabling timer pin 1.\n");
-					}
-					return;
 				} 
 
 				/* No multi-function device? */
