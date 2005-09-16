@@ -67,8 +67,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.39"
-#define DRV_MODULE_RELDATE	"September 5, 2005"
+#define DRV_MODULE_VERSION	"3.40"
+#define DRV_MODULE_RELDATE	"September 15, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -9271,6 +9271,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	static struct pci_device_id write_reorder_chipsets[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_AMD,
 		             PCI_DEVICE_ID_AMD_FE_GATE_700C) },
+		{ PCI_DEVICE(PCI_VENDOR_ID_AMD,
+		             PCI_DEVICE_ID_AMD_K8_NB) },
 		{ },
 	};
 	u32 misc_ctrl_reg;
@@ -9285,7 +9287,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_SUN_570X;
 #endif
 
-	/* If we have an AMD 762 chipset, write
+	/* If we have an AMD 762 or K8 chipset, write
 	 * reordering to the mailbox registers done by the host
 	 * controller can cause major troubles.  We read back from
 	 * every mailbox register write to force the writes to be
