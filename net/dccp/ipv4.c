@@ -669,12 +669,16 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_request_sock *dreq;
 	const __u32 saddr = skb->nh.iph->saddr;
 	const __u32 daddr = skb->nh.iph->daddr;
+	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
+	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 	struct dst_entry *dst = NULL;
 
 	/* Never answer to DCCP_PKT_REQUESTs send to broadcast or multicast */
 	if (((struct rtable *)skb->dst)->rt_flags &
-	    (RTCF_BROADCAST | RTCF_MULTICAST))
+	    (RTCF_BROADCAST | RTCF_MULTICAST)) {
+		reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		goto drop;
+	}
 
 	/*
 	 * TW buckets are converted to open requests without
@@ -718,7 +722,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * dccp_create_openreq_child.
 	 */
 	dreq = dccp_rsk(req);
-	dreq->dreq_isr = DCCP_SKB_CB(skb)->dccpd_seq;
+	dreq->dreq_isr = dcb->dccpd_seq;
 	dreq->dreq_iss = dccp_v4_init_sequence(sk, skb);
 	dreq->dreq_service = dccp_hdr_request(skb)->dccph_req_service;
 
@@ -735,6 +739,7 @@ drop_and_free:
 	__reqsk_free(req);
 drop:
 	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
+	dcb->dccpd_reset_code = reset_code;
 	return -1;
 }
 
@@ -1005,7 +1010,6 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 reset:
-	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 	dccp_v4_ctl_send_reset(skb);
 discard:
 	kfree_skb(skb);

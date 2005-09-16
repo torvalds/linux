@@ -384,9 +384,9 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 	}
 
 out_invalid_packet:
-	return 1; /* dccp_v4_do_rcv will send a reset, but...
-		     FIXME: the reset code should be
-			    DCCP_RESET_CODE_PACKET_ERROR */
+	/* dccp_v4_do_rcv will send a reset */
+	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_PACKET_ERROR;
+	return 1; 
 }
 
 static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
@@ -433,6 +433,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			   struct dccp_hdr *dh, unsigned len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	const int old_state = sk->sk_state;
 	int queued = 0;
 
@@ -473,7 +474,8 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dh->dccph_type == DCCP_PKT_RESET)
 			goto discard;
 
-		/* Caller (dccp_v4_do_rcv) will send Reset(No Connection)*/
+		/* Caller (dccp_v4_do_rcv) will send Reset */
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		return 1;
 	}
 
@@ -487,8 +489,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dccp_parse_options(sk, skb))
 			goto discard;
 
-		if (DCCP_SKB_CB(skb)->dccpd_ack_seq !=
-		    DCCP_PKT_WITHOUT_ACK_SEQ)
+		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
 
 		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
@@ -500,7 +501,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 */
 		if (dp->dccps_options.dccpo_send_ack_vector) {
 			if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts, sk,
-					     DCCP_SKB_CB(skb)->dccpd_seq,
+					     dcb->dccpd_seq,
 					     DCCP_ACKPKTS_STATE_RECEIVED))
 				goto discard;
 			/*
@@ -551,8 +552,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		     dh->dccph_type == DCCP_PKT_REQUEST) ||
 		    (sk->sk_state == DCCP_RESPOND &&
 		     dh->dccph_type == DCCP_PKT_DATA)) {
-		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
-			       DCCP_PKT_SYNC);
+		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNC);
 		goto discard;
 	} else if (dh->dccph_type == DCCP_PKT_CLOSEREQ) {
 		dccp_rcv_closereq(sk, skb);
@@ -563,13 +563,13 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	}
 
 	if (unlikely(dh->dccph_type == DCCP_PKT_SYNC)) {
-		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
-			       DCCP_PKT_SYNCACK);
+		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNCACK);
 		goto discard;
 	}
 
 	switch (sk->sk_state) {
 	case DCCP_CLOSED:
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		return 1;
 
 	case DCCP_REQUESTING:
