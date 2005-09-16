@@ -976,6 +976,16 @@ static void send_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 	}
 }
 
+static inline void pio_trigger(void)
+{
+	static int feedback_requested;
+
+	if (!feedback_requested) {
+		feedback_requested = 1;
+		printk(KERN_WARNING "%s: Please, contact <linux-scsi@vger.kernel.org> "
+		       "to help improve support for your system.\n", __FILE__);
+	}
+}
 
 /* Prepare SRB for being sent to Device DCB w/ command *cmd */
 static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
@@ -2320,6 +2330,7 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 					      CFG2_WIDEFIFO);
 			while (DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT) != 0x40) {
 				u8 byte = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+				pio_trigger();
 				*(srb->virt_addr)++ = byte;
 				if (debug_enabled(DBG_PIO))
 					printk(" %02x", byte);
@@ -2331,6 +2342,7 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
                 /* Read the last byte ... */
 				if (srb->total_xfer_length > 0) {
 					u8 byte = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+					pio_trigger();
 					*(srb->virt_addr)++ = byte;
 					srb->total_xfer_length--;
 					if (debug_enabled(DBG_PIO))
@@ -2507,6 +2519,7 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 				if (debug_enabled(DBG_PIO))
 					printk(" %02x", (unsigned char) *(srb->virt_addr));
 
+				pio_trigger();
 				DC395x_write8(acb, TRM_S1040_SCSI_FIFO, 
 				     *(srb->virt_addr)++);
 
