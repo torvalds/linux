@@ -160,12 +160,25 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #define page_to_pfn(page)					\
 	(( (page) - page_zone(page)->zone_mem_map)		\
 	  + page_zone(page)->zone_start_pfn)
+
 #define pfn_to_page(pfn)					\
 	(PFN_TO_MAPBASE(pfn) + LOCAL_MAP_NR((pfn) << PAGE_SHIFT))
-#define pfn_valid(pfn)		(PFN_TO_NID(pfn) < MAX_NUMNODES)
+
+#define pfn_valid(pfn)						\
+	({							\
+		unsigned int nid = PFN_TO_NID(pfn);		\
+		int valid = nid < MAX_NUMNODES;			\
+		if (valid) {					\
+			pg_data_t *node = NODE_DATA(nid);	\
+			valid = (pfn - node->node_start_pfn) <	\
+				node->node_spanned_pages;	\
+		}						\
+		valid;						\
+	})
 
 #define virt_to_page(kaddr)					\
 	(ADDR_TO_MAPBASE(kaddr) + LOCAL_MAP_NR(kaddr))
+
 #define virt_addr_valid(kaddr)	(KVADDR_TO_NID(kaddr) < MAX_NUMNODES)
 
 /*
