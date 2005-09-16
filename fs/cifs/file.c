@@ -1278,6 +1278,13 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	     total_read += bytes_read, current_offset += bytes_read) {
 		current_read_size = min_t(const int, read_size - total_read,
 					  cifs_sb->rsize);
+		/* For windows me and 9x we do not want to request more
+		than it negotiated since it will refuse the read then */
+		if((pTcon->ses) && 
+			!(pTcon->ses->capabilities & CAP_LARGE_FILES)) {
+			current_read_size = min_t(const int, current_read_size,
+					pTcon->ses->server->maxBuf - 128);
+		}
 		rc = -EAGAIN;
 		while (rc == -EAGAIN) {
 			if ((open_file->invalidHandle) && 
