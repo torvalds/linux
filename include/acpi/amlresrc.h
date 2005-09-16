@@ -157,10 +157,15 @@ struct asl_end_tag_desc {
 
 /* LARGE descriptors */
 
+#define ASL_LARGE_HEADER_COMMON \
+	u8                                  descriptor_type;\
+	u16                                 length;
+
+struct asl_large_header {
+ASL_LARGE_HEADER_COMMON};
+
 struct asl_memory_24_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 information;
+	ASL_LARGE_HEADER_COMMON u8 information;
 	u16 address_min;
 	u16 address_max;
 	u16 alignment;
@@ -168,15 +173,11 @@ struct asl_memory_24_desc {
 };
 
 struct asl_large_vendor_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 vendor_defined[1];
+	ASL_LARGE_HEADER_COMMON u8 vendor_defined[1];
 };
 
 struct asl_memory_32_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 information;
+	ASL_LARGE_HEADER_COMMON u8 information;
 	u32 address_min;
 	u32 address_max;
 	u32 alignment;
@@ -184,17 +185,13 @@ struct asl_memory_32_desc {
 };
 
 struct asl_fixed_memory_32_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 information;
+	ASL_LARGE_HEADER_COMMON u8 information;
 	u32 base_address;
 	u32 range_length;
 };
 
 struct asl_extended_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
+	ASL_LARGE_HEADER_COMMON u8 resource_type;
 	u8 flags;
 	u8 specific_flags;
 	u8 revision_iD;
@@ -211,9 +208,7 @@ struct asl_extended_address_desc {
 #define ASL_EXTENDED_ADDRESS_DESC_REVISION          1	/* ACPI 3.0 */
 
 struct asl_qword_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
+	ASL_LARGE_HEADER_COMMON u8 resource_type;
 	u8 flags;
 	u8 specific_flags;
 	u64 granularity;
@@ -225,9 +220,7 @@ struct asl_qword_address_desc {
 };
 
 struct asl_dword_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
+	ASL_LARGE_HEADER_COMMON u8 resource_type;
 	u8 flags;
 	u8 specific_flags;
 	u32 granularity;
@@ -239,9 +232,7 @@ struct asl_dword_address_desc {
 };
 
 struct asl_word_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
+	ASL_LARGE_HEADER_COMMON u8 resource_type;
 	u8 flags;
 	u8 specific_flags;
 	u16 granularity;
@@ -253,18 +244,14 @@ struct asl_word_address_desc {
 };
 
 struct asl_extended_xrupt_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 flags;
+	ASL_LARGE_HEADER_COMMON u8 flags;
 	u8 table_length;
 	u32 interrupt_number[1];
 	/* res_source_index, res_source optional fields follow */
 };
 
-struct asl_general_register_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 address_space_id;
+struct asl_generic_register_desc {
+	ASL_LARGE_HEADER_COMMON u8 address_space_id;
 	u8 bit_width;
 	u8 bit_offset;
 	u8 access_size;		/* ACPI 3.0, was Reserved */
@@ -280,13 +267,14 @@ struct asl_general_register_desc {
 union asl_resource_desc {
 	struct asl_irq_format_desc irq;
 	struct asl_dma_format_desc dma;
-	struct asl_start_dependent_desc std;
-	struct asl_end_dependent_desc end;
 	struct asl_io_port_desc iop;
 	struct asl_fixed_io_port_desc fio;
+	struct asl_start_dependent_desc std;
+	struct asl_end_dependent_desc end;
 	struct asl_small_vendor_desc smv;
 	struct asl_end_tag_desc et;
 
+	struct asl_large_header lhd;
 	struct asl_memory_24_desc M24;
 	struct asl_large_vendor_desc lgv;
 	struct asl_memory_32_desc M32;
@@ -296,7 +284,7 @@ union asl_resource_desc {
 	struct asl_word_address_desc was;
 	struct asl_extended_address_desc eas;
 	struct asl_extended_xrupt_desc exx;
-	struct asl_general_register_desc grg;
+	struct asl_generic_register_desc grg;
 	u32 u32_item;
 	u16 u16_item;
 	u8 U8item;

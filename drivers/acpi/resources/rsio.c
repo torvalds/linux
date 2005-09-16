@@ -84,7 +84,7 @@ acpi_rs_io_resource(u8 * byte_stream_buffer,
 
 	*bytes_consumed = 8;
 
-	output_struct->id = ACPI_RSTYPE_IO;
+	output_struct->type = ACPI_RSTYPE_IO;
 
 	/* Check Decode */
 
@@ -170,7 +170,7 @@ acpi_rs_fixed_io_resource(u8 * byte_stream_buffer,
 
 	*bytes_consumed = 4;
 
-	output_struct->id = ACPI_RSTYPE_FIXED_IO;
+	output_struct->type = ACPI_RSTYPE_FIXED_IO;
 
 	/* Check Range Base Address */
 
@@ -200,7 +200,7 @@ acpi_rs_fixed_io_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_io_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -213,7 +213,7 @@ acpi_rs_fixed_io_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_io_stream(struct acpi_resource *linked_list,
+acpi_rs_io_stream(struct acpi_resource *resource,
 		  u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -222,42 +222,42 @@ acpi_rs_io_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_io_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x47;
+	*buffer = ACPI_RDESC_TYPE_IO_PORT | 0x07;
 	buffer += 1;
 
 	/* Io Information Byte */
 
-	temp8 = (u8) (linked_list->data.io.io_decode & 0x01);
+	temp8 = (u8) (resource->data.io.io_decode & 0x01);
 
 	*buffer = temp8;
 	buffer += 1;
 
 	/* Set the Range minimum base address */
 
-	temp16 = (u16) linked_list->data.io.min_base_address;
+	temp16 = (u16) resource->data.io.min_base_address;
 
 	ACPI_MOVE_16_TO_16(buffer, &temp16);
 	buffer += 2;
 
 	/* Set the Range maximum base address */
 
-	temp16 = (u16) linked_list->data.io.max_base_address;
+	temp16 = (u16) resource->data.io.max_base_address;
 
 	ACPI_MOVE_16_TO_16(buffer, &temp16);
 	buffer += 2;
 
 	/* Set the base alignment */
 
-	temp8 = (u8) linked_list->data.io.alignment;
+	temp8 = (u8) resource->data.io.alignment;
 
 	*buffer = temp8;
 	buffer += 1;
 
 	/* Set the range length */
 
-	temp8 = (u8) linked_list->data.io.range_length;
+	temp8 = (u8) resource->data.io.range_length;
 
 	*buffer = temp8;
 	buffer += 1;
@@ -272,7 +272,7 @@ acpi_rs_io_stream(struct acpi_resource *linked_list,
  *
  * FUNCTION:    acpi_rs_fixed_io_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -285,7 +285,7 @@ acpi_rs_io_stream(struct acpi_resource *linked_list,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_fixed_io_stream(struct acpi_resource *linked_list,
+acpi_rs_fixed_io_stream(struct acpi_resource *resource,
 			u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -294,22 +294,21 @@ acpi_rs_fixed_io_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_fixed_io_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x4B;
-
+	*buffer = ACPI_RDESC_TYPE_FIXED_IO_PORT | 0x03;
 	buffer += 1;
 
 	/* Set the Range base address */
 
-	temp16 = (u16) linked_list->data.fixed_io.base_address;
+	temp16 = (u16) resource->data.fixed_io.base_address;
 
 	ACPI_MOVE_16_TO_16(buffer, &temp16);
 	buffer += 2;
 
 	/* Set the range length */
 
-	temp8 = (u8) linked_list->data.fixed_io.range_length;
+	temp8 = (u8) resource->data.fixed_io.range_length;
 
 	*buffer = temp8;
 	buffer += 1;
@@ -358,7 +357,7 @@ acpi_rs_dma_resource(u8 * byte_stream_buffer,
 	/* The number of bytes consumed are Constant */
 
 	*bytes_consumed = 3;
-	output_struct->id = ACPI_RSTYPE_DMA;
+	output_struct->type = ACPI_RSTYPE_DMA;
 
 	/* Point to the 8-bits of Byte 1 */
 
@@ -420,7 +419,7 @@ acpi_rs_dma_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_dma_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -433,7 +432,7 @@ acpi_rs_dma_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_dma_stream(struct acpi_resource *linked_list,
+acpi_rs_dma_stream(struct acpi_resource *resource,
 		   u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -443,17 +442,16 @@ acpi_rs_dma_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_dma_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x2A;
+	*buffer = ACPI_RDESC_TYPE_DMA_FORMAT | 0x02;
 	buffer += 1;
 	temp8 = 0;
 
 	/* Loop through all of the Channels and set the mask bits */
 
-	for (index = 0;
-	     index < linked_list->data.dma.number_of_channels; index++) {
-		temp16 = (u16) linked_list->data.dma.channels[index];
+	for (index = 0; index < resource->data.dma.number_of_channels; index++) {
+		temp16 = (u16) resource->data.dma.channels[index];
 		temp8 |= 0x1 << temp16;
 	}
 
@@ -462,9 +460,9 @@ acpi_rs_dma_stream(struct acpi_resource *linked_list,
 
 	/* Set the DMA Info */
 
-	temp8 = (u8) ((linked_list->data.dma.type & 0x03) << 5);
-	temp8 |= ((linked_list->data.dma.bus_master & 0x01) << 2);
-	temp8 |= (linked_list->data.dma.transfer & 0x03);
+	temp8 = (u8) ((resource->data.dma.type & 0x03) << 5);
+	temp8 |= ((resource->data.dma.bus_master & 0x01) << 2);
+	temp8 |= (resource->data.dma.transfer & 0x03);
 
 	*buffer = temp8;
 	buffer += 1;

@@ -811,7 +811,7 @@ u8 *acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc)
 
 	while (buffer < end_buffer) {
 		buffer_byte = *buffer;
-		if (buffer_byte & ACPI_RDESC_TYPE_MASK) {
+		if (buffer_byte & ACPI_RDESC_TYPE_LARGE) {
 			/* Large Descriptor - Length is next 2 bytes */
 
 			buffer += ((*(buffer + 1) | (*(buffer + 2) << 8)) + 3);

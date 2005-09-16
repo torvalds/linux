@@ -68,6 +68,7 @@
 #define ACPI_APPLICATION
 #define ACPI_DEBUGGER
 #define ACPI_DISASSEMBLER
+#define ACPI_MUTEX_DEBUG
 #endif
 
 #ifdef ACPI_ASL_COMPILER

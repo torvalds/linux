@@ -214,7 +214,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		 * the ACPI subsystem code.
 		 */
 		for (i = mutex_id; i < MAX_MUTEX; i++) {
-			if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
+			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 							  "Mutex [%s] already acquired by this thread [%X]\n",
@@ -313,7 +313,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 		 * the ACPI subsystem code.
 		 */
 		for (i = mutex_id; i < MAX_MUTEX; i++) {
-			if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
+			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					continue;
 				}

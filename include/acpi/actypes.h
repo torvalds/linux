@@ -1125,6 +1125,14 @@ struct acpi_resource_ext_irq {
 	u32 interrupts[1];
 };
 
+struct acpi_resource_generic_reg {
+	u32 space_id;
+	u32 bit_width;
+	u32 bit_offset;
+	u32 address_size;
+	u64 address;
+};
+
 /* ACPI_RESOURCE_TYPEs */
 
 #define ACPI_RSTYPE_IRQ                 0
@@ -1142,6 +1150,8 @@ struct acpi_resource_ext_irq {
 #define ACPI_RSTYPE_ADDRESS32           12
 #define ACPI_RSTYPE_ADDRESS64           13
 #define ACPI_RSTYPE_EXT_IRQ             14
+#define ACPI_RSTYPE_GENERIC_REG         15
+#define ACPI_RSTYPE_MAX                 15
 
 typedef u32 acpi_resource_type;
 
@@ -1161,10 +1171,11 @@ union acpi_resource_data {
 	struct acpi_resource_address32 address32;
 	struct acpi_resource_address64 address64;
 	struct acpi_resource_ext_irq extended_irq;
+	struct acpi_resource_generic_reg generic_reg;
 };
 
 struct acpi_resource {
-	acpi_resource_type id;
+	acpi_resource_type type;
 	u32 length;
 	union acpi_resource_data data;
 };

@@ -270,7 +270,7 @@ acpi_rs_address16_resource(u8 * byte_stream_buffer,
 	}
 
 	*bytes_consumed = temp16 + 3;
-	output_struct->id = ACPI_RSTYPE_ADDRESS16;
+	output_struct->type = ACPI_RSTYPE_ADDRESS16;
 
 	/* Get the Resource Type (Byte3) */
 
@@ -400,7 +400,7 @@ acpi_rs_address16_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_address16_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -413,7 +413,7 @@ acpi_rs_address16_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address16_stream(struct acpi_resource *linked_list,
+acpi_rs_address16_stream(struct acpi_resource *resource,
 			 u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -434,59 +434,56 @@ acpi_rs_address16_stream(struct acpi_resource *linked_list,
 
 	/* Set the Resource Type (Memory, Io, bus_number) */
 
-	*buffer = (u8) (linked_list->data.address16.resource_type & 0x03);
+	*buffer = (u8) (resource->data.address16.resource_type & 0x03);
 	buffer += 1;
 
 	/* Set the general flags */
 
-	*buffer = acpi_rs_encode_general_flags(&linked_list->data);
+	*buffer = acpi_rs_encode_general_flags(&resource->data);
 	buffer += 1;
 
 	/* Set the type specific flags */
 
-	*buffer = acpi_rs_encode_specific_flags(&linked_list->data);
+	*buffer = acpi_rs_encode_specific_flags(&resource->data);
 	buffer += 1;
 
 	/* Set the address space granularity */
 
-	ACPI_MOVE_32_TO_16(buffer, &linked_list->data.address16.granularity);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.granularity);
 	buffer += 2;
 
 	/* Set the address range minimum */
 
-	ACPI_MOVE_32_TO_16(buffer,
-			   &linked_list->data.address16.min_address_range);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.min_address_range);
 	buffer += 2;
 
 	/* Set the address range maximum */
 
-	ACPI_MOVE_32_TO_16(buffer,
-			   &linked_list->data.address16.max_address_range);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.max_address_range);
 	buffer += 2;
 
 	/* Set the address translation offset */
 
 	ACPI_MOVE_32_TO_16(buffer,
-			   &linked_list->data.address16.
+			   &resource->data.address16.
 			   address_translation_offset);
 	buffer += 2;
 
 	/* Set the address length */
 
-	ACPI_MOVE_32_TO_16(buffer, &linked_list->data.address16.address_length);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.address_length);
 	buffer += 2;
 
 	/* Resource Source Index and Resource Source are optional */
 
-	if (linked_list->data.address16.resource_source.string_length) {
-		*buffer =
-		    (u8) linked_list->data.address16.resource_source.index;
+	if (resource->data.address16.resource_source.string_length) {
+		*buffer = (u8) resource->data.address16.resource_source.index;
 		buffer += 1;
 
 		/* Copy the resource_source string */
 
 		ACPI_STRCPY((char *)buffer,
-			    linked_list->data.address16.resource_source.
+			    resource->data.address16.resource_source.
 			    string_ptr);
 
 		/*
@@ -495,7 +492,7 @@ acpi_rs_address16_stream(struct acpi_resource *linked_list,
 		 */
 		buffer +=
 		    (acpi_size) (ACPI_STRLEN
-				 (linked_list->data.address16.resource_source.
+				 (resource->data.address16.resource_source.
 				  string_ptr) + 1);
 	}
 
@@ -562,7 +559,7 @@ acpi_rs_address32_resource(u8 * byte_stream_buffer,
 	}
 
 	*bytes_consumed = temp16 + 3;
-	output_struct->id = ACPI_RSTYPE_ADDRESS32;
+	output_struct->type = ACPI_RSTYPE_ADDRESS32;
 
 	/* Get the Resource Type (Byte3) */
 
@@ -690,7 +687,7 @@ acpi_rs_address32_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_address32_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -703,7 +700,7 @@ acpi_rs_address32_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address32_stream(struct acpi_resource *linked_list,
+acpi_rs_address32_stream(struct acpi_resource *resource,
 			 u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer;
@@ -725,59 +722,56 @@ acpi_rs_address32_stream(struct acpi_resource *linked_list,
 
 	/* Set the Resource Type (Memory, Io, bus_number) */
 
-	*buffer = (u8) (linked_list->data.address32.resource_type & 0x03);
+	*buffer = (u8) (resource->data.address32.resource_type & 0x03);
 	buffer += 1;
 
 	/* Set the general flags */
 
-	*buffer = acpi_rs_encode_general_flags(&linked_list->data);
+	*buffer = acpi_rs_encode_general_flags(&resource->data);
 	buffer += 1;
 
 	/* Set the type specific flags */
 
-	*buffer = acpi_rs_encode_specific_flags(&linked_list->data);
+	*buffer = acpi_rs_encode_specific_flags(&resource->data);
 	buffer += 1;
 
 	/* Set the address space granularity */
 
-	ACPI_MOVE_32_TO_32(buffer, &linked_list->data.address32.granularity);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.granularity);
 	buffer += 4;
 
 	/* Set the address range minimum */
 
-	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.address32.min_address_range);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.min_address_range);
 	buffer += 4;
 
 	/* Set the address range maximum */
 
-	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.address32.max_address_range);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.max_address_range);
 	buffer += 4;
 
 	/* Set the address translation offset */
 
 	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.address32.
+			   &resource->data.address32.
 			   address_translation_offset);
 	buffer += 4;
 
 	/* Set the address length */
 
-	ACPI_MOVE_32_TO_32(buffer, &linked_list->data.address32.address_length);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.address_length);
 	buffer += 4;
 
 	/* Resource Source Index and Resource Source are optional */
 
-	if (linked_list->data.address32.resource_source.string_length) {
-		*buffer =
-		    (u8) linked_list->data.address32.resource_source.index;
+	if (resource->data.address32.resource_source.string_length) {
+		*buffer = (u8) resource->data.address32.resource_source.index;
 		buffer += 1;
 
 		/* Copy the resource_source string */
 
 		ACPI_STRCPY((char *)buffer,
-			    linked_list->data.address32.resource_source.
+			    resource->data.address32.resource_source.
 			    string_ptr);
 
 		/*
@@ -786,7 +780,7 @@ acpi_rs_address32_stream(struct acpi_resource *linked_list,
 		 */
 		buffer +=
 		    (acpi_size) (ACPI_STRLEN
-				 (linked_list->data.address32.resource_source.
+				 (resource->data.address32.resource_source.
 				  string_ptr) + 1);
 	}
 
@@ -856,7 +850,7 @@ acpi_rs_address64_resource(u8 * byte_stream_buffer,
 	}
 
 	*bytes_consumed = temp16 + 3;
-	output_struct->id = ACPI_RSTYPE_ADDRESS64;
+	output_struct->type = ACPI_RSTYPE_ADDRESS64;
 
 	/* Get the Resource Type (Byte3) */
 
@@ -1005,7 +999,7 @@ acpi_rs_address64_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_address64_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -1018,7 +1012,7 @@ acpi_rs_address64_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address64_stream(struct acpi_resource *linked_list,
+acpi_rs_address64_stream(struct acpi_resource *resource,
 			 u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer;
@@ -1040,59 +1034,56 @@ acpi_rs_address64_stream(struct acpi_resource *linked_list,
 
 	/* Set the Resource Type (Memory, Io, bus_number) */
 
-	*buffer = (u8) (linked_list->data.address64.resource_type & 0x03);
+	*buffer = (u8) (resource->data.address64.resource_type & 0x03);
 	buffer += 1;
 
 	/* Set the general flags */
 
-	*buffer = acpi_rs_encode_general_flags(&linked_list->data);
+	*buffer = acpi_rs_encode_general_flags(&resource->data);
 	buffer += 1;
 
 	/* Set the type specific flags */
 
-	*buffer = acpi_rs_encode_specific_flags(&linked_list->data);
+	*buffer = acpi_rs_encode_specific_flags(&resource->data);
 	buffer += 1;
 
 	/* Set the address space granularity */
 
-	ACPI_MOVE_64_TO_64(buffer, &linked_list->data.address64.granularity);
+	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.granularity);
 	buffer += 8;
 
 	/* Set the address range minimum */
 
-	ACPI_MOVE_64_TO_64(buffer,
-			   &linked_list->data.address64.min_address_range);
+	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.min_address_range);
 	buffer += 8;
 
 	/* Set the address range maximum */
 
-	ACPI_MOVE_64_TO_64(buffer,
-			   &linked_list->data.address64.max_address_range);
+	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.max_address_range);
 	buffer += 8;
 
 	/* Set the address translation offset */
 
 	ACPI_MOVE_64_TO_64(buffer,
-			   &linked_list->data.address64.
+			   &resource->data.address64.
 			   address_translation_offset);
 	buffer += 8;
 
 	/* Set the address length */
 
-	ACPI_MOVE_64_TO_64(buffer, &linked_list->data.address64.address_length);
+	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.address_length);
 	buffer += 8;
 
 	/* Resource Source Index and Resource Source are optional */
 
-	if (linked_list->data.address64.resource_source.string_length) {
-		*buffer =
-		    (u8) linked_list->data.address64.resource_source.index;
+	if (resource->data.address64.resource_source.string_length) {
+		*buffer = (u8) resource->data.address64.resource_source.index;
 		buffer += 1;
 
 		/* Copy the resource_source string */
 
 		ACPI_STRCPY((char *)buffer,
-			    linked_list->data.address64.resource_source.
+			    resource->data.address64.resource_source.
 			    string_ptr);
 
 		/*
@@ -1101,7 +1092,7 @@ acpi_rs_address64_stream(struct acpi_resource *linked_list,
 		 */
 		buffer +=
 		    (acpi_size) (ACPI_STRLEN
-				 (linked_list->data.address64.resource_source.
+				 (resource->data.address64.resource_source.
 				  string_ptr) + 1);
 	}
 

@@ -744,12 +744,13 @@ struct acpi_bit_register_info {
 #define ACPI_RDESC_TYPE_LARGE                   0x80
 #define ACPI_RDESC_TYPE_SMALL                   0x00
 
-#define ACPI_RDESC_TYPE_MASK                    0x80
-#define ACPI_RDESC_SMALL_MASK                   0x78	/* Only bits 6:3 contain the type */
+#define ACPI_RDESC_SMALL_MASK                   0x78	/* Bits 6:3 contain the type */
+#define ACPI_RDESC_SMALL_LENGTH_MASK            0x07	/* Bits 2:0 contain the length */
+#define ACPI_RDESC_LARGE_MASK                   0x7F	/* Bits 6:0 contain the type */
 
 /*
  * Small resource descriptor types
- * Note: The 3 length bits (2:0) must be zero
+ * Note: Bits 2:0 are used for the descriptor length
  */
 #define ACPI_RDESC_TYPE_IRQ_FORMAT              0x20
 #define ACPI_RDESC_TYPE_DMA_FORMAT              0x28
@@ -757,6 +758,10 @@ struct acpi_bit_register_info {
 #define ACPI_RDESC_TYPE_END_DEPENDENT           0x38
 #define ACPI_RDESC_TYPE_IO_PORT                 0x40
 #define ACPI_RDESC_TYPE_FIXED_IO_PORT           0x48
+#define ACPI_RDESC_TYPE_RESERVED_S1             0x50
+#define ACPI_RDESC_TYPE_RESERVED_S2             0x58
+#define ACPI_RDESC_TYPE_RESERVED_S3             0x60
+#define ACPI_RDESC_TYPE_RESERVED_S4             0x68
 #define ACPI_RDESC_TYPE_SMALL_VENDOR            0x70
 #define ACPI_RDESC_TYPE_END_TAG                 0x78
 
@@ -764,7 +769,8 @@ struct acpi_bit_register_info {
  * Large resource descriptor types
  */
 #define ACPI_RDESC_TYPE_MEMORY_24               0x81
-#define ACPI_RDESC_TYPE_GENERAL_REGISTER        0x82
+#define ACPI_RDESC_TYPE_GENERIC_REGISTER        0x82
+#define ACPI_RDESC_TYPE_RESERVED_L1             0x83
 #define ACPI_RDESC_TYPE_LARGE_VENDOR            0x84
 #define ACPI_RDESC_TYPE_MEMORY_32               0x85
 #define ACPI_RDESC_TYPE_FIXED_MEMORY_32         0x86
@@ -773,6 +779,15 @@ struct acpi_bit_register_info {
 #define ACPI_RDESC_TYPE_EXTENDED_XRUPT          0x89
 #define ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE     0x8A
 #define ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE  0x8B
+#define ACPI_RDESC_LARGE_MAX                    0x8B
+
+/*
+ * Minimum lengths for descriptors with optional fields
+ */
+#define ACPI_RDESC_QWORD_MIN                    43
+#define ACPI_RDESC_DWORD_MIN                    23
+#define ACPI_RDESC_WORD_MIN                     13
+#define ACPI_RDESC_EXT_XRUPT_MIN                 6
 
 /*****************************************************************************
  *

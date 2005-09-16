@@ -49,7 +49,7 @@ ACPI_MODULE_NAME("rsmisc")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_end_tag_resource
+ * FUNCTION:    acpi_rs_generic_register_resource
  *
  * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
  *                                        stream
@@ -68,6 +68,170 @@ ACPI_MODULE_NAME("rsmisc")
  *
  ******************************************************************************/
 acpi_status
+acpi_rs_generic_register_resource(u8 * byte_stream_buffer,
+				  acpi_size * bytes_consumed,
+				  u8 ** output_buffer,
+				  acpi_size * structure_size)
+{
+	u8 *buffer = byte_stream_buffer;
+	struct acpi_resource *output_struct = (void *)*output_buffer;
+	u16 temp16;
+	u8 temp8;
+	acpi_size struct_size =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_generic_reg);
+
+	ACPI_FUNCTION_TRACE("rs_generic_register_resource");
+
+	/* Byte 0 is the Descriptor Type */
+
+	buffer += 1;
+
+	/* Get the Descriptor Length field (Bytes 1-2) */
+
+	ACPI_MOVE_16_TO_16(&temp16, buffer);
+	buffer += 2;
+
+	/* Validate the descriptor length */
+
+	if (temp16 != 12) {
+		return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
+	}
+
+	/* The number of bytes consumed is fixed (12 + 3) */
+
+	*bytes_consumed = 15;
+
+	/* Fill out the structure */
+
+	output_struct->type = ACPI_RSTYPE_GENERIC_REG;
+
+	/* Get space_id (Byte 3) */
+
+	temp8 = *buffer;
+	output_struct->data.generic_reg.space_id = temp8;
+	buffer += 1;
+
+	/* Get register_bit_width (Byte 4) */
+
+	temp8 = *buffer;
+	output_struct->data.generic_reg.bit_width = temp8;
+	buffer += 1;
+
+	/* Get register_bit_offset (Byte 5) */
+
+	temp8 = *buffer;
+	output_struct->data.generic_reg.bit_offset = temp8;
+	buffer += 1;
+
+	/* Get address_size (Byte 6) */
+
+	temp8 = *buffer;
+	output_struct->data.generic_reg.address_size = temp8;
+	buffer += 1;
+
+	/* Get register_address (Bytes 7-14) */
+
+	ACPI_MOVE_64_TO_64(&output_struct->data.generic_reg.address, buffer);
+
+	/* Set the Length parameter */
+
+	output_struct->length = (u32) struct_size;
+
+	/* Return the final size of the structure */
+
+	*structure_size = struct_size;
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_generic_register_stream
+ *
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
+ *              output_buffer           - Pointer to the user's return buffer
+ *              bytes_consumed          - Pointer to where the number of bytes
+ *                                        used in the output_buffer is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Take the linked list resource structure and fills in the
+ *              the appropriate bytes in a byte stream
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_generic_register_stream(struct acpi_resource *resource,
+				u8 ** output_buffer, acpi_size * bytes_consumed)
+{
+	u8 *buffer = *output_buffer;
+	u16 temp16;
+
+	ACPI_FUNCTION_TRACE("rs_generic_register_stream");
+
+	/* Set the Descriptor Type (Byte 0) */
+
+	*buffer = ACPI_RDESC_TYPE_GENERIC_REGISTER;
+	buffer += 1;
+
+	/* Set the Descriptor Length (Bytes 1-2) */
+
+	temp16 = 12;
+	ACPI_MOVE_16_TO_16(buffer, &temp16);
+	buffer += 2;
+
+	/* Set space_id (Byte 3) */
+
+	*buffer = (u8) resource->data.generic_reg.space_id;
+	buffer += 1;
+
+	/* Set register_bit_width (Byte 4) */
+
+	*buffer = (u8) resource->data.generic_reg.bit_width;
+	buffer += 1;
+
+	/* Set register_bit_offset (Byte 5) */
+
+	*buffer = (u8) resource->data.generic_reg.bit_offset;
+	buffer += 1;
+
+	/* Set address_size (Byte 6) */
+
+	*buffer = (u8) resource->data.generic_reg.address_size;
+	buffer += 1;
+
+	/* Set register_address (Bytes 7-14) */
+
+	ACPI_MOVE_64_TO_64(buffer, &resource->data.generic_reg.address);
+	buffer += 8;
+
+	/* Return the number of bytes consumed in this operation */
+
+	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_end_tag_resource
+ *
+ * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
+ *                                        stream
+ *              bytes_consumed          - Pointer to where the number of bytes
+ *                                        consumed the byte_stream_buffer is
+ *                                        returned
+ *              output_buffer           - Pointer to the return data buffer
+ *              structure_size          - Pointer to where the number of bytes
+ *                                        in the return data struct is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Take the resource byte stream and fill out the appropriate
+ *              structure pointed to by the output_buffer. Return the
+ *              number of bytes consumed from the byte stream.
+ *
+ ******************************************************************************/
+
+acpi_status
 acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
 			 acpi_size * bytes_consumed,
 			 u8 ** output_buffer, acpi_size * structure_size)
@@ -81,9 +245,9 @@ acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
 
 	*bytes_consumed = 2;
 
-	/*  Fill out the structure */
+	/* Fill out the structure */
 
-	output_struct->id = ACPI_RSTYPE_END_TAG;
+	output_struct->type = ACPI_RSTYPE_END_TAG;
 
 	/* Set the Length parameter */
 
@@ -99,7 +263,7 @@ acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_end_tag_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -112,7 +276,7 @@ acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_end_tag_stream(struct acpi_resource *linked_list,
+acpi_rs_end_tag_stream(struct acpi_resource *resource,
 		       u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -120,9 +284,9 @@ acpi_rs_end_tag_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_end_tag_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x79;
+	*buffer = ACPI_RDESC_TYPE_END_TAG | 0x01;
 	buffer += 1;
 
 	/*
@@ -180,7 +344,7 @@ acpi_rs_vendor_resource(u8 * byte_stream_buffer,
 
 	temp8 = *buffer;
 
-	if (temp8 & 0x80) {
+	if (temp8 & ACPI_RDESC_TYPE_LARGE) {
 		/* Large Item, point to the length field */
 
 		buffer += 1;
@@ -210,7 +374,7 @@ acpi_rs_vendor_resource(u8 * byte_stream_buffer,
 		buffer += 1;
 	}
 
-	output_struct->id = ACPI_RSTYPE_VENDOR;
+	output_struct->type = ACPI_RSTYPE_VENDOR;
 	output_struct->data.vendor_specific.length = temp16;
 
 	for (index = 0; index < temp16; index++) {
@@ -239,7 +403,7 @@ acpi_rs_vendor_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_vendor_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -252,7 +416,7 @@ acpi_rs_vendor_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_vendor_stream(struct acpi_resource *linked_list,
+acpi_rs_vendor_stream(struct acpi_resource *resource,
 		      u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -264,21 +428,21 @@ acpi_rs_vendor_stream(struct acpi_resource *linked_list,
 
 	/* Dereference the length to find if this is a large or small item. */
 
-	if (linked_list->data.vendor_specific.length > 7) {
+	if (resource->data.vendor_specific.length > 7) {
 		/* Large Item, Set the descriptor field and length bytes */
 
-		*buffer = 0x84;
+		*buffer = ACPI_RDESC_TYPE_LARGE_VENDOR;
 		buffer += 1;
 
-		temp16 = (u16) linked_list->data.vendor_specific.length;
+		temp16 = (u16) resource->data.vendor_specific.length;
 
 		ACPI_MOVE_16_TO_16(buffer, &temp16);
 		buffer += 2;
 	} else {
 		/* Small Item, Set the descriptor field */
 
-		temp8 = 0x70;
-		temp8 |= (u8) linked_list->data.vendor_specific.length;
+		temp8 = ACPI_RDESC_TYPE_SMALL_VENDOR;
+		temp8 |= (u8) resource->data.vendor_specific.length;
 
 		*buffer = temp8;
 		buffer += 1;
@@ -286,9 +450,8 @@ acpi_rs_vendor_stream(struct acpi_resource *linked_list,
 
 	/* Loop through all of the Vendor Specific fields */
 
-	for (index = 0; index < linked_list->data.vendor_specific.length;
-	     index++) {
-		temp8 = linked_list->data.vendor_specific.reserved[index];
+	for (index = 0; index < resource->data.vendor_specific.length; index++) {
+		temp8 = resource->data.vendor_specific.reserved[index];
 
 		*buffer = temp8;
 		buffer += 1;
@@ -341,7 +504,7 @@ acpi_rs_start_depend_fns_resource(u8 * byte_stream_buffer,
 
 	*bytes_consumed = (temp8 & 0x01) + 1;
 
-	output_struct->id = ACPI_RSTYPE_START_DPF;
+	output_struct->type = ACPI_RSTYPE_START_DPF;
 
 	/* Point to Byte 1 if it is used */
 
@@ -421,7 +584,7 @@ acpi_rs_end_depend_fns_resource(u8 * byte_stream_buffer,
 
 	/*  Fill out the structure */
 
-	output_struct->id = ACPI_RSTYPE_END_DPF;
+	output_struct->type = ACPI_RSTYPE_END_DPF;
 
 	/* Set the Length parameter */
 
@@ -437,7 +600,7 @@ acpi_rs_end_depend_fns_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_start_depend_fns_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - u32 pointer that is filled with
  *                                        the number of bytes of the
@@ -451,7 +614,7 @@ acpi_rs_end_depend_fns_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
+acpi_rs_start_depend_fns_stream(struct acpi_resource *resource,
 				u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -460,26 +623,25 @@ acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
 	ACPI_FUNCTION_TRACE("rs_start_depend_fns_stream");
 
 	/*
-	 * The descriptor field is set based upon whether a byte is needed
+	 * The descriptor type field is set based upon whether a byte is needed
 	 * to contain Priority data.
 	 */
 	if (ACPI_ACCEPTABLE_CONFIGURATION ==
-	    linked_list->data.start_dpf.compatibility_priority &&
+	    resource->data.start_dpf.compatibility_priority &&
 	    ACPI_ACCEPTABLE_CONFIGURATION ==
-	    linked_list->data.start_dpf.performance_robustness) {
-		*buffer = 0x30;
+	    resource->data.start_dpf.performance_robustness) {
+		*buffer = ACPI_RDESC_TYPE_START_DEPENDENT;
 	} else {
-		*buffer = 0x31;
+		*buffer = ACPI_RDESC_TYPE_START_DEPENDENT | 0x01;
 		buffer += 1;
 
 		/* Set the Priority Byte Definition */
 
 		temp8 = 0;
-		temp8 =
-		    (u8) ((linked_list->data.start_dpf.
-			   performance_robustness & 0x03) << 2);
-		temp8 |=
-		    (linked_list->data.start_dpf.compatibility_priority & 0x03);
+		temp8 = (u8) ((resource->data.start_dpf.performance_robustness &
+			       0x03) << 2);
+		temp8 |= (resource->data.start_dpf.compatibility_priority &
+			  0x03);
 		*buffer = temp8;
 	}
 
@@ -495,7 +657,7 @@ acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
  *
  * FUNCTION:    acpi_rs_end_depend_fns_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -508,16 +670,16 @@ acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_end_depend_fns_stream(struct acpi_resource *linked_list,
+acpi_rs_end_depend_fns_stream(struct acpi_resource *resource,
 			      u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
 
 	ACPI_FUNCTION_TRACE("rs_end_depend_fns_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x38;
+	*buffer = ACPI_RDESC_TYPE_END_DEPENDENT;
 	buffer += 1;
 
 	/* Return the number of bytes consumed in this operation */

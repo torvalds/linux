@@ -84,11 +84,11 @@ acpi_rs_memory24_resource(u8 * byte_stream_buffer,
 	/* Point past the Descriptor to get the number of bytes consumed */
 
 	buffer += 1;
-
 	ACPI_MOVE_16_TO_16(&temp16, buffer);
+
 	buffer += 2;
 	*bytes_consumed = (acpi_size) temp16 + 3;
-	output_struct->id = ACPI_RSTYPE_MEM24;
+	output_struct->type = ACPI_RSTYPE_MEM24;
 
 	/* Check Byte 3 the Read/Write bit */
 
@@ -133,7 +133,7 @@ acpi_rs_memory24_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_memory24_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -146,7 +146,7 @@ acpi_rs_memory24_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_memory24_stream(struct acpi_resource *linked_list,
+acpi_rs_memory24_stream(struct acpi_resource *resource,
 			u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -155,9 +155,9 @@ acpi_rs_memory24_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_memory24_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x81;
+	*buffer = ACPI_RDESC_TYPE_MEMORY_24;
 	buffer += 1;
 
 	/* The length field is static */
@@ -168,30 +168,28 @@ acpi_rs_memory24_stream(struct acpi_resource *linked_list,
 
 	/* Set the Information Byte */
 
-	temp8 = (u8) (linked_list->data.memory24.read_write_attribute & 0x01);
+	temp8 = (u8) (resource->data.memory24.read_write_attribute & 0x01);
 	*buffer = temp8;
 	buffer += 1;
 
 	/* Set the Range minimum base address */
 
-	ACPI_MOVE_32_TO_16(buffer,
-			   &linked_list->data.memory24.min_base_address);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.min_base_address);
 	buffer += 2;
 
 	/* Set the Range maximum base address */
 
-	ACPI_MOVE_32_TO_16(buffer,
-			   &linked_list->data.memory24.max_base_address);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.max_base_address);
 	buffer += 2;
 
 	/* Set the base alignment */
 
-	ACPI_MOVE_32_TO_16(buffer, &linked_list->data.memory24.alignment);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.alignment);
 	buffer += 2;
 
 	/* Set the range length */
 
-	ACPI_MOVE_32_TO_16(buffer, &linked_list->data.memory24.range_length);
+	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.range_length);
 	buffer += 2;
 
 	/* Return the number of bytes consumed in this operation */
@@ -238,12 +236,11 @@ acpi_rs_memory32_range_resource(u8 * byte_stream_buffer,
 	/* Point past the Descriptor to get the number of bytes consumed */
 
 	buffer += 1;
-
 	ACPI_MOVE_16_TO_16(&temp16, buffer);
+
 	buffer += 2;
 	*bytes_consumed = (acpi_size) temp16 + 3;
-
-	output_struct->id = ACPI_RSTYPE_MEM32;
+	output_struct->type = ACPI_RSTYPE_MEM32;
 
 	/*
 	 *  Point to the place in the output buffer where the data portion will
@@ -335,8 +332,7 @@ acpi_rs_fixed_memory32_resource(u8 * byte_stream_buffer,
 
 	buffer += 2;
 	*bytes_consumed = (acpi_size) temp16 + 3;
-
-	output_struct->id = ACPI_RSTYPE_FIXED_MEM32;
+	output_struct->type = ACPI_RSTYPE_FIXED_MEM32;
 
 	/* Check Byte 3 the Read/Write bit */
 
@@ -369,7 +365,7 @@ acpi_rs_fixed_memory32_resource(u8 * byte_stream_buffer,
  *
  * FUNCTION:    acpi_rs_memory32_range_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -382,7 +378,7 @@ acpi_rs_fixed_memory32_resource(u8 * byte_stream_buffer,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_memory32_range_stream(struct acpi_resource *linked_list,
+acpi_rs_memory32_range_stream(struct acpi_resource *resource,
 			      u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -391,9 +387,9 @@ acpi_rs_memory32_range_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_memory32_range_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x85;
+	*buffer = ACPI_RDESC_TYPE_MEMORY_32;
 	buffer += 1;
 
 	/* The length field is static */
@@ -405,30 +401,28 @@ acpi_rs_memory32_range_stream(struct acpi_resource *linked_list,
 
 	/* Set the Information Byte */
 
-	temp8 = (u8) (linked_list->data.memory32.read_write_attribute & 0x01);
+	temp8 = (u8) (resource->data.memory32.read_write_attribute & 0x01);
 	*buffer = temp8;
 	buffer += 1;
 
 	/* Set the Range minimum base address */
 
-	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.memory32.min_base_address);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.min_base_address);
 	buffer += 4;
 
 	/* Set the Range maximum base address */
 
-	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.memory32.max_base_address);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.max_base_address);
 	buffer += 4;
 
 	/* Set the base alignment */
 
-	ACPI_MOVE_32_TO_32(buffer, &linked_list->data.memory32.alignment);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.alignment);
 	buffer += 4;
 
 	/* Set the range length */
 
-	ACPI_MOVE_32_TO_32(buffer, &linked_list->data.memory32.range_length);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.range_length);
 	buffer += 4;
 
 	/* Return the number of bytes consumed in this operation */
@@ -441,7 +435,7 @@ acpi_rs_memory32_range_stream(struct acpi_resource *linked_list,
  *
  * FUNCTION:    acpi_rs_fixed_memory32_stream
  *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
+ * PARAMETERS:  Resource                - Pointer to the resource linked list
  *              output_buffer           - Pointer to the user's return buffer
  *              bytes_consumed          - Pointer to where the number of bytes
  *                                        used in the output_buffer is returned
@@ -454,7 +448,7 @@ acpi_rs_memory32_range_stream(struct acpi_resource *linked_list,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_fixed_memory32_stream(struct acpi_resource *linked_list,
+acpi_rs_fixed_memory32_stream(struct acpi_resource *resource,
 			      u8 ** output_buffer, acpi_size * bytes_consumed)
 {
 	u8 *buffer = *output_buffer;
@@ -463,9 +457,9 @@ acpi_rs_fixed_memory32_stream(struct acpi_resource *linked_list,
 
 	ACPI_FUNCTION_TRACE("rs_fixed_memory32_stream");
 
-	/* The descriptor field is static */
+	/* The Descriptor Type field is static */
 
-	*buffer = 0x86;
+	*buffer = ACPI_RDESC_TYPE_FIXED_MEMORY_32;
 	buffer += 1;
 
 	/* The length field is static */
@@ -478,21 +472,19 @@ acpi_rs_fixed_memory32_stream(struct acpi_resource *linked_list,
 	/* Set the Information Byte */
 
 	temp8 =
-	    (u8) (linked_list->data.fixed_memory32.read_write_attribute & 0x01);
+	    (u8) (resource->data.fixed_memory32.read_write_attribute & 0x01);
 	*buffer = temp8;
 	buffer += 1;
 
 	/* Set the Range base address */
 
 	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.fixed_memory32.
-			   range_base_address);
+			   &resource->data.fixed_memory32.range_base_address);
 	buffer += 4;
 
 	/* Set the range length */
 
-	ACPI_MOVE_32_TO_32(buffer,
-			   &linked_list->data.fixed_memory32.range_length);
+	ACPI_MOVE_32_TO_32(buffer, &resource->data.fixed_memory32.range_length);
 	buffer += 4;
 
 	/* Return the number of bytes consumed in this operation */

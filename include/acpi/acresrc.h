@@ -110,7 +110,7 @@ acpi_rs_byte_stream_to_list(u8 * byte_stream_buffer,
 			    u32 byte_stream_buffer_length, u8 * output_buffer);
 
 acpi_status
-acpi_rs_list_to_byte_stream(struct acpi_resource *linked_list,
+acpi_rs_list_to_byte_stream(struct acpi_resource *resource,
 			    acpi_size byte_stream_size_needed,
 			    u8 * output_buffer);
 
@@ -125,11 +125,11 @@ acpi_rs_fixed_io_resource(u8 * byte_stream_buffer,
 			  u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_io_stream(struct acpi_resource *linked_list,
+acpi_rs_io_stream(struct acpi_resource *resource,
 		  u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
-acpi_rs_fixed_io_stream(struct acpi_resource *linked_list,
+acpi_rs_fixed_io_stream(struct acpi_resource *resource,
 			u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -138,7 +138,7 @@ acpi_rs_irq_resource(u8 * byte_stream_buffer,
 		     u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_irq_stream(struct acpi_resource *linked_list,
+acpi_rs_irq_stream(struct acpi_resource *resource,
 		   u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -147,7 +147,7 @@ acpi_rs_dma_resource(u8 * byte_stream_buffer,
 		     u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_dma_stream(struct acpi_resource *linked_list,
+acpi_rs_dma_stream(struct acpi_resource *resource,
 		   u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -156,7 +156,7 @@ acpi_rs_address16_resource(u8 * byte_stream_buffer,
 			   u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_address16_stream(struct acpi_resource *linked_list,
+acpi_rs_address16_stream(struct acpi_resource *resource,
 			 u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -165,7 +165,7 @@ acpi_rs_address32_resource(u8 * byte_stream_buffer,
 			   u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_address32_stream(struct acpi_resource *linked_list,
+acpi_rs_address32_stream(struct acpi_resource *resource,
 			 u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -174,7 +174,7 @@ acpi_rs_address64_resource(u8 * byte_stream_buffer,
 			   u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_address64_stream(struct acpi_resource *linked_list,
+acpi_rs_address64_stream(struct acpi_resource *resource,
 			 u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -190,12 +190,12 @@ acpi_rs_end_depend_fns_resource(u8 * byte_stream_buffer,
 				acpi_size * structure_size);
 
 acpi_status
-acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
+acpi_rs_start_depend_fns_stream(struct acpi_resource *resource,
 				u8 ** output_buffer,
 				acpi_size * bytes_consumed);
 
 acpi_status
-acpi_rs_end_depend_fns_stream(struct acpi_resource *linked_list,
+acpi_rs_end_depend_fns_stream(struct acpi_resource *resource,
 			      u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -204,7 +204,7 @@ acpi_rs_memory24_resource(u8 * byte_stream_buffer,
 			  u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_memory24_stream(struct acpi_resource *linked_list,
+acpi_rs_memory24_stream(struct acpi_resource *resource,
 			u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -220,11 +220,11 @@ acpi_rs_fixed_memory32_resource(u8 * byte_stream_buffer,
 				acpi_size * structure_size);
 
 acpi_status
-acpi_rs_memory32_range_stream(struct acpi_resource *linked_list,
+acpi_rs_memory32_range_stream(struct acpi_resource *resource,
 			      u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
-acpi_rs_fixed_memory32_stream(struct acpi_resource *linked_list,
+acpi_rs_fixed_memory32_stream(struct acpi_resource *resource,
 			      u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -233,7 +233,7 @@ acpi_rs_extended_irq_resource(u8 * byte_stream_buffer,
 			      u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_extended_irq_stream(struct acpi_resource *linked_list,
+acpi_rs_extended_irq_stream(struct acpi_resource *resource,
 			    u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -242,7 +242,7 @@ acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
 			 u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_end_tag_stream(struct acpi_resource *linked_list,
+acpi_rs_end_tag_stream(struct acpi_resource *resource,
 		       u8 ** output_buffer, acpi_size * bytes_consumed);
 
 acpi_status
@@ -251,9 +251,23 @@ acpi_rs_vendor_resource(u8 * byte_stream_buffer,
 			u8 ** output_buffer, acpi_size * structure_size);
 
 acpi_status
-acpi_rs_vendor_stream(struct acpi_resource *linked_list,
+acpi_rs_vendor_stream(struct acpi_resource *resource,
 		      u8 ** output_buffer, acpi_size * bytes_consumed);
 
 u8 acpi_rs_get_resource_type(u8 resource_start_byte);
+
+/*
+ * rsmisc
+ */
+acpi_status
+acpi_rs_generic_register_resource(u8 * byte_stream_buffer,
+				  acpi_size * bytes_consumed,
+				  u8 ** output_buffer,
+				  acpi_size * structure_size);
+
+acpi_status
+acpi_rs_generic_register_stream(struct acpi_resource *resource,
+				u8 ** output_buffer,
+				acpi_size * bytes_consumed);
 
 #endif				/* __ACRESRC_H__ */

@@ -269,7 +269,7 @@ acpi_walk_resources(acpi_handle device_handle,
 	/* Walk the resource list */
 
 	for (;;) {
-		if (!resource || resource->id == ACPI_RSTYPE_END_TAG) {
+		if (!resource || resource->type == ACPI_RSTYPE_END_TAG) {
 			break;
 		}
 
@@ -360,8 +360,8 @@ EXPORT_SYMBOL(acpi_set_current_resources);
  *
  * FUNCTION:    acpi_resource_to_address64
  *
- * PARAMETERS:  resource                - Pointer to a resource
- *              out                     - Pointer to the users's return
+ * PARAMETERS:  Resource                - Pointer to a resource
+ *              Out                     - Pointer to the users's return
  *                                        buffer (a struct
  *                                        struct acpi_resource_address64)
  *
@@ -381,7 +381,7 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 	struct acpi_resource_address16 *address16;
 	struct acpi_resource_address32 *address32;
 
-	switch (resource->id) {
+	switch (resource->type) {
 	case ACPI_RSTYPE_ADDRESS16:
 
 		address16 = (struct acpi_resource_address16 *)&resource->data;
