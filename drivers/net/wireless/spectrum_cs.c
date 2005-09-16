@@ -22,9 +22,6 @@
 #define PFX DRIVER_NAME ": "
 
 #include <linux/config.h>
-#ifdef  __IN_PCMCIA_PACKAGE__
-#include <pcmcia/k_compat.h>
-#endif /* __IN_PCMCIA_PACKAGE__ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -38,6 +35,7 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
+#include <linux/firmware.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -51,29 +49,10 @@
 
 #include "orinoco.h"
 
-/*
- * If SPECTRUM_FW_INCLUDED is defined, the firmware is hardcoded into
- * the driver.  Use get_symbol_fw script to generate spectrum_fw.h and
- * copy it to the same directory as spectrum_cs.c.
- *
- * If SPECTRUM_FW_INCLUDED is not defined, the firmware is loaded at the
- * runtime using hotplug.  Use the same get_symbol_fw script to generate
- * files symbol_sp24t_prim_fw symbol_sp24t_sec_fw, copy them to the
- * hotplug firmware directory (typically /usr/lib/hotplug/firmware) and
- * make sure that you have hotplug installed and enabled in the kernel.
- */
-/* #define SPECTRUM_FW_INCLUDED 1 */
-
-#ifdef SPECTRUM_FW_INCLUDED
-/* Header with the firmware */
-#include "spectrum_fw.h"
-#else	/* !SPECTRUM_FW_INCLUDED */
-#include <linux/firmware.h>
 static unsigned char *primsym;
 static unsigned char *secsym;
 static const char primary_fw_name[] = "symbol_sp24t_prim_fw";
 static const char secondary_fw_name[] = "symbol_sp24t_sec_fw";
-#endif	/* !SPECTRUM_FW_INCLUDED */
 
 /********************************************************************/
 /* Module stuff							    */
@@ -571,8 +550,6 @@ spectrum_dl_firmware(hermes_t *hw, dev_link_t *link)
 {
 	int ret;
 	client_handle_t handle = link->handle;
-
-#ifndef SPECTRUM_FW_INCLUDED
 	const struct firmware *fw_entry;
 
 	if (request_firmware(&fw_entry, primary_fw_name,
@@ -592,7 +569,6 @@ spectrum_dl_firmware(hermes_t *hw, dev_link_t *link)
 		       secondary_fw_name);
 		return -ENOENT;
 	}
-#endif
 
 	/* Load primary firmware */
 	ret = spectrum_dl_image(hw, link, primsym);
