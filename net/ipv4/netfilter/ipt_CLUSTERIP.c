@@ -49,6 +49,8 @@ MODULE_DESCRIPTION("iptables target for CLUSTERIP");
 struct clusterip_config {
 	struct list_head list;			/* list of all configs */
 	atomic_t refcount;			/* reference count */
+	atomic_t entries;			/* number of entries/rules
+						 * referencing us */
 
 	u_int32_t clusterip;			/* the IP address */
 	u_int8_t clustermac[ETH_ALEN];		/* the MAC address */
@@ -76,22 +78,47 @@ static struct proc_dir_entry *clusterip_procdir;
 #endif
 
 static inline void
-clusterip_config_get(struct clusterip_config *c) {
+clusterip_config_get(struct clusterip_config *c)
+{
 	atomic_inc(&c->refcount);
 }
 
 static inline void
-clusterip_config_put(struct clusterip_config *c) {
-	if (atomic_dec_and_test(&c->refcount)) {
+clusterip_config_put(struct clusterip_config *c)
+{
+	if (atomic_dec_and_test(&c->refcount))
+		kfree(c);
+}
+
+/* increase the count of entries(rules) using/referencing this config */
+static inline void
+clusterip_config_entry_get(struct clusterip_config *c)
+{
+	atomic_inc(&c->entries);
+}
+
+/* decrease the count of entries using/referencing this config.  If last
+ * entry(rule) is removed, remove the config from lists, but don't free it
+ * yet, since proc-files could still be holding references */
+static inline void
+clusterip_config_entry_put(struct clusterip_config *c)
+{
+	if (atomic_dec_and_test(&c->entries)) {
 		write_lock_bh(&clusterip_lock);
 		list_del(&c->list);
 		write_unlock_bh(&clusterip_lock);
+
 		dev_mc_delete(c->dev, c->clustermac, ETH_ALEN, 0);
 		dev_put(c->dev);
-		kfree(c);
+
+		/* In case anyone still accesses the file, the open/close
+		 * functions are also incrementing the refcount on their own,
+		 * so it's safe to remove the entry even if it's in use. */
+#ifdef CONFIG_PROC_FS
+		remove_proc_entry(c->pde->name, c->pde->parent);
+#endif
 	}
 }
-
 
 static struct clusterip_config *
 __clusterip_config_find(u_int32_t clusterip)
@@ -111,7 +138,7 @@ __clusterip_config_find(u_int32_t clusterip)
 }
 
 static inline struct clusterip_config *
-clusterip_config_find_get(u_int32_t clusterip)
+clusterip_config_find_get(u_int32_t clusterip, int entry)
 {
 	struct clusterip_config *c;
 
@@ -122,6 +149,8 @@ clusterip_config_find_get(u_int32_t clusterip)
 		return NULL;
 	}
 	atomic_inc(&c->refcount);
+	if (entry)
+		atomic_inc(&c->entries);
 	read_unlock_bh(&clusterip_lock);
 
 	return c;
@@ -148,6 +177,7 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
 	c->hash_mode = i->hash_mode;
 	c->hash_initval = i->hash_initval;
 	atomic_set(&c->refcount, 1);
+	atomic_set(&c->entries, 1);
 
 #ifdef CONFIG_PROC_FS
 	/* create proc dir entry */
@@ -415,8 +445,26 @@ checkentry(const char *tablename,
 
 	/* FIXME: further sanity checks */
 
-	config = clusterip_config_find_get(e->ip.dst.s_addr);
-	if (!config) {
+	config = clusterip_config_find_get(e->ip.dst.s_addr, 1);
+	if (config) {
+		if (cipinfo->config != NULL) {
+			/* Case A: This is an entry that gets reloaded, since
+			 * it still has a cipinfo->config pointer. Simply
+			 * increase the entry refcount and return */
+			if (cipinfo->config != config) {
+				printk(KERN_ERR "CLUSTERIP: Reloaded entry "
+				       "has invalid config pointer!\n");
+				return 0;
+			}
+			clusterip_config_entry_get(cipinfo->config);
+		} else {
+			/* Case B: This is a new rule referring to an existing
+			 * clusterip config. */
+			cipinfo->config = config;
+			clusterip_config_entry_get(cipinfo->config);
+		}
+	} else {
+		/* Case C: This is a completely new clusterip config */
 		if (!(cipinfo->flags & CLUSTERIP_FLAG_NEW)) {
 			printk(KERN_WARNING "CLUSTERIP: no config found for %u.%u.%u.%u, need 'new'\n", NIPQUAD(e->ip.dst.s_addr));
 			return 0;
@@ -443,9 +491,8 @@ checkentry(const char *tablename,
 			}
 			dev_mc_add(config->dev,config->clustermac, ETH_ALEN, 0);
 		}
+		cipinfo->config = config;
 	}
-
-	cipinfo->config = config;
 
 	return 1;
 }
@@ -455,13 +502,10 @@ static void destroy(void *matchinfo, unsigned int matchinfosize)
 {
 	struct ipt_clusterip_tgt_info *cipinfo = matchinfo;
 
-	/* we first remove the proc entry and then drop the reference
-	 * count.  In case anyone still accesses the file, the open/close
-	 * functions are also incrementing the refcount on their own */
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry(cipinfo->config->pde->name,
-			  cipinfo->config->pde->parent);
-#endif
+	/* if no more entries are referencing the config, remove it
+	 * from the list and destroy the proc entry */
+	clusterip_config_entry_put(cipinfo->config);
+
 	clusterip_config_put(cipinfo->config);
 }
 
@@ -533,7 +577,7 @@ arp_mangle(unsigned int hook,
 
 	/* if there is no clusterip configuration for the arp reply's 
 	 * source ip, we don't want to mangle it */
-	c = clusterip_config_find_get(payload->src_ip);
+	c = clusterip_config_find_get(payload->src_ip, 0);
 	if (!c)
 		return NF_ACCEPT;
 
