@@ -94,8 +94,6 @@
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
 
-#include <net/ieee80211.h>
-
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/system.h>
