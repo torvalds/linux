@@ -1061,7 +1061,7 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 static struct pcmcia_device_id spectrum_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4100 */
 	PCMCIA_DEVICE_MANF_CARD(0x0104, 0x0001), /* Socket Communications CF */
-	PCMCIA_DEVICE_MANF_CARD(0x0089, 0x0001), /* Intel PRO/Wireless 2011B */
+	PCMCIA_DEVICE_PROD_ID12("Intel", "PRO/Wireless LAN PC Card", 0x816cc815, 0x6fbf459a), /* 2011B, not 2011 */
 	PCMCIA_DEVICE_NULL,
 };
 MODULE_DEVICE_TABLE(pcmcia, spectrum_cs_ids);
