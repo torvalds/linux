@@ -119,7 +119,14 @@ void *_switch_to(void *prev, void *next, void *last)
         to->thread.prev_sched = from;
         set_current(to);
 
-	CHOOSE_MODE_PROC(switch_to_tt, switch_to_skas, prev, next);
+	do {
+		current->thread.saved_task = NULL ;
+		CHOOSE_MODE_PROC(switch_to_tt, switch_to_skas, prev, next);
+		if(current->thread.saved_task)
+			show_regs(&(current->thread.regs));
+		next= current->thread.saved_task;
+		prev= current;
+	} while(current->thread.saved_task);
 
         return(current->thread.prev_sched);
 
