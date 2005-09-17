@@ -10,6 +10,8 @@
  *  Commonly used scsi driver functions.
  */
 
+#include <linux/scatterlist.h>
+
 #define BELT_AND_BRACES
 
 /*
@@ -22,9 +24,7 @@ static inline int copy_SCp_to_sg(struct scatterlist *sg, Scsi_Pointer *SCp, int 
 
 	BUG_ON(bufs + 1 > max);
 
-	sg->page   = virt_to_page(SCp->ptr);
-	sg->offset = offset_in_page(SCp->ptr);
-	sg->length = SCp->this_residual;
+	sg_set_buf(sg, SCp->ptr, SCp->this_residual);
 
 	if (bufs)
 		memcpy(sg + 1, SCp->buffer + 1,

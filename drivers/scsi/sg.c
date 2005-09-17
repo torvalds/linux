@@ -49,6 +49,7 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 #include <linux/seq_file.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/scatterlist.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -1992,9 +1993,7 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 				if (!p)
 					break;
 			}
-			sclp->page = virt_to_page(p);
-			sclp->offset = offset_in_page(p);
-			sclp->length = ret_sz;
+			sg_set_buf(sclp, p, ret_sz);
 
 			SCSI_LOG_TIMEOUT(5, printk("sg_build_build: k=%d, a=0x%p, len=%d\n",
 					  k, sg_scatg2virt(sclp), ret_sz));

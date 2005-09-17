@@ -49,6 +49,7 @@
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
+#include <linux/scatterlist.h>
 #include <scsi/scsi.h>
 #include "scsi.h"
 #include "scsi_priv.h"
@@ -2576,19 +2577,12 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
 
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
-	struct scatterlist *sg;
-
 	qc->flags |= ATA_QCFLAG_SINGLE;
 
-	memset(&qc->sgent, 0, sizeof(qc->sgent));
 	qc->sg = &qc->sgent;
 	qc->n_elem = 1;
 	qc->buf_virt = buf;
-
-	sg = qc->sg;
-	sg->page = virt_to_page(buf);
-	sg->offset = (unsigned long) buf & ~PAGE_MASK;
-	sg->length = buflen;
+	sg_init_one(qc->sg, buf, buflen);
 }
 
 /**
