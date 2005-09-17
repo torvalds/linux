@@ -201,6 +201,7 @@ int
 qla2100_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w, mwi;
+	uint32_t d;
 	unsigned long flags;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
@@ -215,9 +216,9 @@ qla2100_pci_config(scsi_qla_host_t *ha)
 	pci_write_config_word(ha->pdev, PCI_COMMAND, w);
 
 	/* Reset expansion ROM address decode enable */
-	pci_read_config_word(ha->pdev, PCI_ROM_ADDRESS, &w);
-	w &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_word(ha->pdev, PCI_ROM_ADDRESS, w);
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -237,6 +238,7 @@ int
 qla2300_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t	w, mwi;
+	uint32_t	d;
 	unsigned long   flags = 0;
 	uint32_t	cnt;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
@@ -302,9 +304,9 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 	pci_write_config_byte(ha->pdev, PCI_LATENCY_TIMER, 0x80);
 
 	/* Reset expansion ROM address decode enable */
-	pci_read_config_word(ha->pdev, PCI_ROM_ADDRESS, &w);
-	w &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_word(ha->pdev, PCI_ROM_ADDRESS, w);
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -324,6 +326,7 @@ int
 qla24xx_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w, mwi;
+	uint32_t d;
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	int pcix_cmd_reg, pcie_dctl_reg;
@@ -366,9 +369,9 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	}
 
 	/* Reset expansion ROM address decode enable */
-	pci_read_config_word(ha->pdev, PCI_ROM_ADDRESS, &w);
-	w &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_word(ha->pdev, PCI_ROM_ADDRESS, w);
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
