@@ -253,9 +253,8 @@ passwd_write_file(struct file * file, const char __user * buf,
 
 	if (count < 0 || count >= PAGE_SIZE)
 		return -ENOMEM;
-	if (*ppos != 0) {
+	if (*ppos != 0)
 		return -EINVAL;
-	}
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
@@ -265,9 +264,8 @@ passwd_write_file(struct file * file, const char __user * buf,
 	
 	len = strlen(page);
 	/* ``echo "secret" > seclvl/passwd'' includes a newline */
-	if (page[len - 1] == '\n') {
+	if (page[len - 1] == '\n')
 		len--;
-	}
 	/* Hash the password, then compare the hashed values */
 	if ((rc = plaintext_to_sha1(tmp, page, len))) {
 		seclvl_printk(0, KERN_ERR, "Error hashing password: rc = "
@@ -275,9 +273,8 @@ passwd_write_file(struct file * file, const char __user * buf,
 		return rc;
 	}
 	for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
-		if (hashedPassword[i] != tmp[i]) {
+		if (hashedPassword[i] != tmp[i])
 			return -EPERM;
-		}
 	}
 	seclvl_printk(0, KERN_INFO,
 		      "Password accepted; seclvl reduced to 0.\n");
@@ -482,9 +479,8 @@ static void seclvl_file_free_security(struct file *filp)
  */
 static int seclvl_umount(struct vfsmount *mnt, int flags)
 {
-	if (current->pid == 1) {
+	if (current->pid == 1)
 		return 0;
-	}
 	if (seclvl == 2) {
 		seclvl_printk(1, KERN_WARNING, "Attempt to unmount in secure "
 			      "level %d\n", seclvl);
@@ -638,9 +634,8 @@ static int __init seclvl_init(void)
 static void __exit seclvl_exit(void)
 {
 	securityfs_remove(seclvl_ino);
-	if (*passwd || *sha1_passwd) {
+	if (*passwd || *sha1_passwd)
 		securityfs_remove(passwd_ino);
-	}
 	securityfs_remove(dir_ino);
 	if (secondary == 1) {
 		mod_unreg_security(MY_NAME, &seclvl_ops);
