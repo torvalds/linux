@@ -74,10 +74,6 @@ unsigned long agp_special_page;
 extern char _end[];
 extern char etext[], _stext[];
 extern char __init_begin, __init_end;
-extern char __prep_begin, __prep_end;
-extern char __chrp_begin, __chrp_end;
-extern char __pmac_begin, __pmac_end;
-extern char __openfirmware_begin, __openfirmware_end;
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
@@ -167,14 +163,6 @@ void free_initmem(void)
 
 	printk ("Freeing unused kernel memory:");
 	FREESEC(init);
-	if (_machine != _MACH_Pmac)
-		FREESEC(pmac);
-	if (_machine != _MACH_chrp)
-		FREESEC(chrp);
-	if (_machine != _MACH_prep)
-		FREESEC(prep);
-	if (!have_of)
-		FREESEC(openfirmware);
  	printk("\n");
 	ppc_md.progress = NULL;
 #undef FREESEC
