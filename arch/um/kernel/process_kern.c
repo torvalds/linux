@@ -113,8 +113,16 @@ void set_current(void *t)
 
 void *_switch_to(void *prev, void *next, void *last)
 {
-	return(CHOOSE_MODE(switch_to_tt(prev, next), 
-			   switch_to_skas(prev, next)));
+        struct task_struct *from = prev;
+        struct task_struct *to= next;
+
+        to->thread.prev_sched = from;
+        set_current(to);
+
+	CHOOSE_MODE_PROC(switch_to_tt, switch_to_skas, prev, next);
+
+        return(current->thread.prev_sched);
+
 }
 
 void interrupt_end(void)
