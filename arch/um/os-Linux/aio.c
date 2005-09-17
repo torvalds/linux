@@ -117,6 +117,8 @@ static int do_aio(aio_context_t ctx, struct aio_context *aio)
         err = io_submit(ctx, 1, &iocbp);
         if(err > 0)
                 err = 0;
+	else
+		err = -errno;
 
  out:
         return err;
