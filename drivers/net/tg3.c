@@ -9534,7 +9534,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->write32_rx_mbox = tg3_write_indirect_mbox;
 
 		iounmap(tp->regs);
-		tp->regs = 0;
+		tp->regs = NULL;
 
 		pci_read_config_word(tp->pdev, PCI_COMMAND, &pci_cmd);
 		pci_cmd &= ~PCI_COMMAND_MEMORY;
@@ -10682,7 +10682,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 err_out_iounmap:
 	if (tp->regs) {
 		iounmap(tp->regs);
-		tp->regs = 0;
+		tp->regs = NULL;
 	}
 
 err_out_free_dev:
@@ -10707,7 +10707,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 		unregister_netdev(dev);
 		if (tp->regs) {
 			iounmap(tp->regs);
-			tp->regs = 0;
+			tp->regs = NULL;
 		}
 		free_netdev(dev);
 		pci_release_regions(pdev);
