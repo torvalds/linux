@@ -3442,30 +3442,46 @@ static void tg3_tx_timeout(struct net_device *dev)
 	schedule_work(&tp->reset_task);
 }
 
+/* Test for DMA buffers crossing any 4GB boundaries: 4G, 8G, etc */
+static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
+{
+	u32 base = (u32) mapping & 0xffffffff;
+
+	return ((base > 0xffffdcc0) &&
+		(base + len + 8 < base));
+}
+
 static void tg3_set_txd(struct tg3 *, int, dma_addr_t, int, u32, u32);
 
 static int tigon3_4gb_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
-				       u32 guilty_entry, int guilty_len,
-				       u32 last_plus_one, u32 *start, u32 mss)
+				       u32 last_plus_one, u32 *start,
+				       u32 base_flags, u32 mss)
 {
 	struct sk_buff *new_skb = skb_copy(skb, GFP_ATOMIC);
-	dma_addr_t new_addr;
+	dma_addr_t new_addr = 0;
 	u32 entry = *start;
-	int i;
+	int i, ret = 0;
 
 	if (!new_skb) {
-		dev_kfree_skb(skb);
-		return -1;
+		ret = -1;
+	} else {
+		/* New SKB is guaranteed to be linear. */
+		entry = *start;
+		new_addr = pci_map_single(tp->pdev, new_skb->data, new_skb->len,
+					  PCI_DMA_TODEVICE);
+		/* Make sure new skb does not cross any 4G boundaries.
+		 * Drop the packet if it does.
+		 */
+		if (tg3_4g_overflow_test(new_addr, new_skb->len)) {
+			ret = -1;
+			dev_kfree_skb(new_skb);
+			new_skb = NULL;
+		} else {
+			tg3_set_txd(tp, entry, new_addr, new_skb->len,
+				    base_flags, 1 | (mss << 1));
+			*start = NEXT_TX(entry);
+		}
 	}
-
-	/* New SKB is guaranteed to be linear. */
-	entry = *start;
-	new_addr = pci_map_single(tp->pdev, new_skb->data, new_skb->len,
-				  PCI_DMA_TODEVICE);
-	tg3_set_txd(tp, entry, new_addr, new_skb->len,
-		    (skb->ip_summed == CHECKSUM_HW) ?
-		    TXD_FLAG_TCPUDP_CSUM : 0, 1 | (mss << 1));
-	*start = NEXT_TX(entry);
 
 	/* Now clean up the sw ring entries. */
 	i = 0;
@@ -3491,7 +3507,7 @@ static int tigon3_4gb_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return ret;
 }
 
 static void tg3_set_txd(struct tg3 *tp, int entry,
@@ -3517,19 +3533,10 @@ static void tg3_set_txd(struct tg3 *tp, int entry,
 	txd->vlan_tag = vlan_tag << TXD_VLAN_TAG_SHIFT;
 }
 
-static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
-{
-	u32 base = (u32) mapping & 0xffffffff;
-
-	return ((base > 0xffffdcc0) &&
-		(base + len + 8 < base));
-}
-
 static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	dma_addr_t mapping;
-	unsigned int i;
 	u32 len, entry, base_flags, mss;
 	int would_hit_hwbug;
 
@@ -3624,7 +3631,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	would_hit_hwbug = 0;
 
 	if (tg3_4g_overflow_test(mapping, len))
-		would_hit_hwbug = entry + 1;
+		would_hit_hwbug = 1;
 
 	tg3_set_txd(tp, entry, mapping, len, base_flags,
 		    (skb_shinfo(skb)->nr_frags == 0) | (mss << 1));
@@ -3648,12 +3655,8 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tp->tx_buffers[entry].skb = NULL;
 			pci_unmap_addr_set(&tp->tx_buffers[entry], mapping, mapping);
 
-			if (tg3_4g_overflow_test(mapping, len)) {
-				/* Only one should match. */
-				if (would_hit_hwbug)
-					BUG();
-				would_hit_hwbug = entry + 1;
-			}
+			if (tg3_4g_overflow_test(mapping, len))
+				would_hit_hwbug = 1;
 
 			if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 				tg3_set_txd(tp, entry, mapping, len,
@@ -3669,34 +3672,15 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (would_hit_hwbug) {
 		u32 last_plus_one = entry;
 		u32 start;
-		unsigned int len = 0;
 
-		would_hit_hwbug -= 1;
-		entry = entry - 1 - skb_shinfo(skb)->nr_frags;
-		entry &= (TG3_TX_RING_SIZE - 1);
-		start = entry;
-		i = 0;
-		while (entry != last_plus_one) {
-			if (i == 0)
-				len = skb_headlen(skb);
-			else
-				len = skb_shinfo(skb)->frags[i-1].size;
-
-			if (entry == would_hit_hwbug)
-				break;
-
-			i++;
-			entry = NEXT_TX(entry);
-
-		}
+		start = entry - 1 - skb_shinfo(skb)->nr_frags;
+		start &= (TG3_TX_RING_SIZE - 1);
 
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_4gb_hwbug_workaround(tp, skb,
-						entry, len,
-						last_plus_one,
-						&start, mss))
+		if (tigon3_4gb_hwbug_workaround(tp, skb, last_plus_one,
+						&start, base_flags, mss))
 			goto out_unlock;
 
 		entry = start;
