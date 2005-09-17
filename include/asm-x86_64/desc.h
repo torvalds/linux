@@ -8,6 +8,8 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/string.h>
+#include <linux/smp.h>
+
 #include <asm/segment.h>
 #include <asm/mmu.h>
 
