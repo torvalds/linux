@@ -77,7 +77,7 @@ pmac_time_init(void)
 #endif
 }
 
-unsigned long __pmac
+unsigned long
 pmac_get_rtc_time(void)
 {
 #if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
@@ -118,7 +118,7 @@ pmac_get_rtc_time(void)
 	return 0;
 }
 
-int __pmac
+int
 pmac_set_rtc_time(unsigned long nowtime)
 {
 #if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
@@ -210,7 +210,7 @@ via_calibrate_decr(void)
 /*
  * Reset the time after a sleep.
  */
-static int __pmac
+static int
 time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 {
 	static unsigned long time_diff;
@@ -235,7 +235,7 @@ time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	return PBOOK_SLEEP_OK;
 }
 
-static struct pmu_sleep_notifier time_sleep_notifier __pmacdata = {
+static struct pmu_sleep_notifier time_sleep_notifier = {
 	time_sleep_notify, SLEEP_LEVEL_MISC,
 };
 #endif /* CONFIG_PM */

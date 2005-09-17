@@ -644,7 +644,7 @@ pcibios_alloc_controller(void)
 /*
  * Functions below are used on OpenFirmware machines.
  */
-static void __openfirmware
+static void
 make_one_node_map(struct device_node* node, u8 pci_bus)
 {
 	int *bus_range;
@@ -678,7 +678,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 	}
 }
 	
-void __openfirmware
+void
 pcibios_make_OF_bus_map(void)
 {
 	int i;
@@ -720,7 +720,7 @@ pcibios_make_OF_bus_map(void)
 
 typedef int (*pci_OF_scan_iterator)(struct device_node* node, void* data);
 
-static struct device_node* __openfirmware
+static struct device_node*
 scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* data)
 {
 	struct device_node* sub_node;
@@ -761,7 +761,7 @@ scan_OF_pci_childs_iterator(struct device_node* node, void* data)
 	return 0;
 }
 
-static struct device_node* __openfirmware
+static struct device_node*
 scan_OF_childs_for_device(struct device_node* node, u8 bus, u8 dev_fn)
 {
 	u8 filter_data[2] = {bus, dev_fn};
@@ -842,7 +842,7 @@ pci_find_hose_for_OF_device(struct device_node* node)
 	return NULL;
 }
 
-static int __openfirmware
+static int
 find_OF_pci_device_filter(struct device_node* node, void* data)
 {
 	return ((void *)node == data);

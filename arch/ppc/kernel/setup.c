@@ -339,7 +339,7 @@ early_init(int r3, int r4, int r5)
  * Assume here that all clock rates are the same in a
  * smp system.  -- Cort
  */
-int __openfirmware
+int
 of_show_percpuinfo(struct seq_file *m, int i)
 {
 	struct device_node *cpu_node;

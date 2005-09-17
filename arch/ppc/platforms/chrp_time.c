@@ -52,7 +52,7 @@ long __init chrp_time_init(void)
 	return 0;
 }
 
-int __chrp chrp_cmos_clock_read(int addr)
+int chrp_cmos_clock_read(int addr)
 {
 	if (nvram_as1 != 0)
 		outb(addr>>8, nvram_as1);
@@ -60,7 +60,7 @@ int __chrp chrp_cmos_clock_read(int addr)
 	return (inb(nvram_data));
 }
 
-void __chrp chrp_cmos_clock_write(unsigned long val, int addr)
+void chrp_cmos_clock_write(unsigned long val, int addr)
 {
 	if (nvram_as1 != 0)
 		outb(addr>>8, nvram_as1);
@@ -72,7 +72,7 @@ void __chrp chrp_cmos_clock_write(unsigned long val, int addr)
 /*
  * Set the hardware clock. -- Cort
  */
-int __chrp chrp_set_rtc_time(unsigned long nowtime)
+int chrp_set_rtc_time(unsigned long nowtime)
 {
 	unsigned char save_control, save_freq_select;
 	struct rtc_time tm;
@@ -118,7 +118,7 @@ int __chrp chrp_set_rtc_time(unsigned long nowtime)
 	return 0;
 }
 
-unsigned long __chrp chrp_get_rtc_time(void)
+unsigned long chrp_get_rtc_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 	int uip, i;

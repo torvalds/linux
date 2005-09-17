@@ -173,7 +173,7 @@ prep_carolina_enable_l2(void)
 }
 
 /* cpuinfo code common to all IBM PReP */
-static void __prep
+static void
 prep_ibm_cpuinfo(struct seq_file *m)
 {
 	unsigned int equip_reg = inb(PREP_IBM_EQUIPMENT);
@@ -209,14 +209,14 @@ prep_ibm_cpuinfo(struct seq_file *m)
 	}
 }
 
-static int __prep
+static int
 prep_gen_cpuinfo(struct seq_file *m)
 {
 	prep_ibm_cpuinfo(m);
 	return 0;
 }
 
-static int __prep
+static int
 prep_sandalfoot_cpuinfo(struct seq_file *m)
 {
 	unsigned int equip_reg = inb(PREP_IBM_EQUIPMENT);
@@ -243,7 +243,7 @@ prep_sandalfoot_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-static int __prep
+static int
 prep_thinkpad_cpuinfo(struct seq_file *m)
 {
 	unsigned int equip_reg = inb(PREP_IBM_EQUIPMENT);
@@ -314,7 +314,7 @@ prep_thinkpad_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-static int __prep
+static int
 prep_carolina_cpuinfo(struct seq_file *m)
 {
 	unsigned int equip_reg = inb(PREP_IBM_EQUIPMENT);
@@ -350,7 +350,7 @@ prep_carolina_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-static int __prep
+static int
 prep_tiger1_cpuinfo(struct seq_file *m)
 {
 	unsigned int l2_reg = inb(PREP_IBM_L2INFO);
@@ -393,7 +393,7 @@ prep_tiger1_cpuinfo(struct seq_file *m)
 
 
 /* Used by all Motorola PReP */
-static int __prep
+static int
 prep_mot_cpuinfo(struct seq_file *m)
 {
 	unsigned int cachew = *((unsigned char *)CACHECRBA);
@@ -454,7 +454,7 @@ no_l2:
 	return 0;
 }
 
-static void __prep
+static void
 prep_restart(char *cmd)
 {
 #define PREP_SP92	0x92	/* Special Port 92 */
@@ -473,7 +473,7 @@ prep_restart(char *cmd)
 #undef PREP_SP92
 }
 
-static void __prep
+static void
 prep_halt(void)
 {
 	local_irq_disable(); /* no interrupts */
@@ -488,7 +488,7 @@ prep_halt(void)
 /* Carrera is the power manager in the Thinkpads. Unfortunately not much is
  * known about it, so we can't power down.
  */
-static void __prep
+static void
 prep_carrera_poweroff(void)
 {
 	prep_halt();
@@ -501,7 +501,7 @@ prep_carrera_poweroff(void)
  * somewhat in the IBM Carolina Technical Specification.
  * -Hollis
  */
-static void __prep
+static void
 utah_sig87c750_setbit(unsigned int bytenum, unsigned int bitnum, int value)
 {
 	/*
@@ -539,7 +539,7 @@ utah_sig87c750_setbit(unsigned int bytenum, unsigned int bitnum, int value)
 	udelay(100);				/* important: let controller recover */
 }
 
-static void __prep
+static void
 prep_sig750_poweroff(void)
 {
 	/* tweak the power manager found in most IBM PRePs (except Thinkpads) */
@@ -554,7 +554,7 @@ prep_sig750_poweroff(void)
 	/* not reached */
 }
 
-static int __prep
+static int
 prep_show_percpuinfo(struct seq_file *m, int i)
 {
 	/* PREP's without residual data will give incorrect values here */
@@ -700,12 +700,12 @@ prep_set_bat(void)
 /*
  * IBM 3-digit status LED
  */
-static unsigned int ibm_statusled_base __prepdata;
+static unsigned int ibm_statusled_base;
 
-static void __prep
+static void
 ibm_statusled_progress(char *s, unsigned short hex);
 
-static int __prep
+static int
 ibm_statusled_panic(struct notifier_block *dummy1, unsigned long dummy2,
 		    void * dummy3)
 {
@@ -713,13 +713,13 @@ ibm_statusled_panic(struct notifier_block *dummy1, unsigned long dummy2,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ibm_statusled_block __prepdata = {
+static struct notifier_block ibm_statusled_block = {
 	ibm_statusled_panic,
 	NULL,
 	INT_MAX /* try to do it first */
 };
 
-static void __prep
+static void
 ibm_statusled_progress(char *s, unsigned short hex)
 {
 	static int notifier_installed;
@@ -945,7 +945,7 @@ prep_calibrate_decr(void)
 		todc_calibrate_decr();
 }
 
-static unsigned int __prep
+static unsigned int
 prep_irq_canonicalize(u_int irq)
 {
 	if (irq == 2)
@@ -996,7 +996,7 @@ prep_init_IRQ(void)
 /*
  * IDE stuff.
  */
-static int __prep
+static int
 prep_ide_default_irq(unsigned long base)
 {
 	switch (base) {
@@ -1010,7 +1010,7 @@ prep_ide_default_irq(unsigned long base)
 	}
 }
 
-static unsigned long __prep
+static unsigned long
 prep_ide_default_io_base(int index)
 {
 	switch (index) {
@@ -1055,7 +1055,7 @@ smp_prep_setup_cpu(int cpu_nr)
 		do_openpic_setup_cpu();
 }
 
-static struct smp_ops_t prep_smp_ops __prepdata = {
+static struct smp_ops_t prep_smp_ops = {
 	smp_openpic_message_pass,
 	smp_prep_probe,
 	smp_prep_kick_cpu,

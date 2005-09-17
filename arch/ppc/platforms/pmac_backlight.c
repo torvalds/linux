@@ -37,7 +37,7 @@ static int backlight_req_enable = -1;
 static void backlight_callback(void *);
 static DECLARE_WORK(backlight_work, backlight_callback, NULL);
 
-void __pmac register_backlight_controller(struct backlight_controller *ctrler,
+void register_backlight_controller(struct backlight_controller *ctrler,
 					  void *data, char *type)
 {
 	struct device_node* bk_node;
@@ -99,7 +99,7 @@ void __pmac register_backlight_controller(struct backlight_controller *ctrler,
 }
 EXPORT_SYMBOL(register_backlight_controller);
 
-void __pmac unregister_backlight_controller(struct backlight_controller
+void unregister_backlight_controller(struct backlight_controller
 					    *ctrler, void *data)
 {
 	/* We keep the current backlight level (for now) */
@@ -108,7 +108,7 @@ void __pmac unregister_backlight_controller(struct backlight_controller
 }
 EXPORT_SYMBOL(unregister_backlight_controller);
 
-static int __pmac __set_backlight_enable(int enable)
+static int __set_backlight_enable(int enable)
 {
 	int rc;
 
@@ -122,7 +122,7 @@ static int __pmac __set_backlight_enable(int enable)
 	release_console_sem();
 	return rc;
 }
-int __pmac set_backlight_enable(int enable)
+int set_backlight_enable(int enable)
 {
 	if (!backlighter)
 		return -ENODEV;
@@ -133,7 +133,7 @@ int __pmac set_backlight_enable(int enable)
 
 EXPORT_SYMBOL(set_backlight_enable);
 
-int __pmac get_backlight_enable(void)
+int get_backlight_enable(void)
 {
 	if (!backlighter)
 		return -ENODEV;
@@ -141,7 +141,7 @@ int __pmac get_backlight_enable(void)
 }
 EXPORT_SYMBOL(get_backlight_enable);
 
-static int __pmac __set_backlight_level(int level)
+static int __set_backlight_level(int level)
 {
 	int rc = 0;
 
@@ -165,7 +165,7 @@ static int __pmac __set_backlight_level(int level)
 	}
 	return rc;
 }
-int __pmac set_backlight_level(int level)
+int set_backlight_level(int level)
 {
 	if (!backlighter)
 		return -ENODEV;
@@ -176,7 +176,7 @@ int __pmac set_backlight_level(int level)
 
 EXPORT_SYMBOL(set_backlight_level);
 
-int __pmac get_backlight_level(void)
+int get_backlight_level(void)
 {
 	if (!backlighter)
 		return -ENODEV;

@@ -105,7 +105,7 @@ static const char *gg2_cachemodes[4] = {
 	"Disabled", "Write-Through", "Copy-Back", "Transparent Mode"
 };
 
-int __chrp
+int
 chrp_show_cpuinfo(struct seq_file *m)
 {
 	int i, sdramen;
@@ -303,7 +303,7 @@ void __init chrp_setup_arch(void)
 	pci_create_OF_bus_map();
 }
 
-void __chrp
+void
 chrp_event_scan(void)
 {
 	unsigned char log[1024];
@@ -314,7 +314,7 @@ chrp_event_scan(void)
 	ppc_md.heartbeat_count = ppc_md.heartbeat_reset;
 }
 
-void __chrp
+void
 chrp_restart(char *cmd)
 {
 	printk("RTAS system-reboot returned %d\n",
@@ -322,7 +322,7 @@ chrp_restart(char *cmd)
 	for (;;);
 }
 
-void __chrp
+void
 chrp_power_off(void)
 {
 	/* allow power on only with power button press */
@@ -331,13 +331,13 @@ chrp_power_off(void)
 	for (;;);
 }
 
-void __chrp
+void
 chrp_halt(void)
 {
 	chrp_power_off();
 }
 
-u_int __chrp
+u_int
 chrp_irq_canonicalize(u_int irq)
 {
 	if (irq == 2)
@@ -572,7 +572,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (ppc_md.progress) ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0x0);
 }
 
-void __chrp
+void
 rtas_display_progress(char *s, unsigned short hex)
 {
 	int width;
@@ -599,7 +599,7 @@ rtas_display_progress(char *s, unsigned short hex)
 	call_rtas( "display-character", 1, 1, NULL, ' ' );
 }
 
-void __chrp
+void
 rtas_indicator_progress(char *s, unsigned short hex)
 {
 	call_rtas("set-indicator", 3, 1, NULL, 6, 0, hex);

@@ -88,17 +88,17 @@ extern int system_running;
 static int (*core99_write_bank)(int bank, u8* datas);
 static int (*core99_erase_bank)(int bank);
 
-static char *nvram_image __pmacdata;
+static char *nvram_image;
 
 
-static unsigned char __pmac core99_nvram_read_byte(int addr)
+static unsigned char core99_nvram_read_byte(int addr)
 {
 	if (nvram_image == NULL)
 		return 0xff;
 	return nvram_image[addr];
 }
 
-static void __pmac core99_nvram_write_byte(int addr, unsigned char val)
+static void core99_nvram_write_byte(int addr, unsigned char val)
 {
 	if (nvram_image == NULL)
 		return;
@@ -106,18 +106,18 @@ static void __pmac core99_nvram_write_byte(int addr, unsigned char val)
 }
 
 
-static unsigned char __openfirmware direct_nvram_read_byte(int addr)
+static unsigned char direct_nvram_read_byte(int addr)
 {
 	return in_8(&nvram_data[(addr & (NVRAM_SIZE - 1)) * nvram_mult]);
 }
 
-static void __openfirmware direct_nvram_write_byte(int addr, unsigned char val)
+static void direct_nvram_write_byte(int addr, unsigned char val)
 {
 	out_8(&nvram_data[(addr & (NVRAM_SIZE - 1)) * nvram_mult], val);
 }
 
 
-static unsigned char __pmac indirect_nvram_read_byte(int addr)
+static unsigned char indirect_nvram_read_byte(int addr)
 {
 	unsigned char val;
 	unsigned long flags;
@@ -130,7 +130,7 @@ static unsigned char __pmac indirect_nvram_read_byte(int addr)
 	return val;
 }
 
-static void __pmac indirect_nvram_write_byte(int addr, unsigned char val)
+static void indirect_nvram_write_byte(int addr, unsigned char val)
 {
 	unsigned long flags;
 
@@ -143,13 +143,13 @@ static void __pmac indirect_nvram_write_byte(int addr, unsigned char val)
 
 #ifdef CONFIG_ADB_PMU
 
-static void __pmac pmu_nvram_complete(struct adb_request *req)
+static void pmu_nvram_complete(struct adb_request *req)
 {
 	if (req->arg)
 		complete((struct completion *)req->arg);
 }
 
-static unsigned char __pmac pmu_nvram_read_byte(int addr)
+static unsigned char pmu_nvram_read_byte(int addr)
 {
 	struct adb_request req;
 	DECLARE_COMPLETION(req_complete); 
@@ -165,7 +165,7 @@ static unsigned char __pmac pmu_nvram_read_byte(int addr)
 	return req.reply[0];
 }
 
-static void __pmac pmu_nvram_write_byte(int addr, unsigned char val)
+static void pmu_nvram_write_byte(int addr, unsigned char val)
 {
 	struct adb_request req;
 	DECLARE_COMPLETION(req_complete); 
@@ -183,7 +183,7 @@ static void __pmac pmu_nvram_write_byte(int addr, unsigned char val)
 #endif /* CONFIG_ADB_PMU */
 
 
-static u8 __pmac chrp_checksum(struct chrp_header* hdr)
+static u8 chrp_checksum(struct chrp_header* hdr)
 {
 	u8 *ptr;
 	u16 sum = hdr->signature;
@@ -194,7 +194,7 @@ static u8 __pmac chrp_checksum(struct chrp_header* hdr)
 	return sum;
 }
 
-static u32 __pmac core99_calc_adler(u8 *buffer)
+static u32 core99_calc_adler(u8 *buffer)
 {
 	int cnt;
 	u32 low, high;
@@ -216,7 +216,7 @@ static u32 __pmac core99_calc_adler(u8 *buffer)
 	return (high << 16) | low;
 }
 
-static u32 __pmac core99_check(u8* datas)
+static u32 core99_check(u8* datas)
 {
 	struct core99_header* hdr99 = (struct core99_header*)datas;
 
@@ -235,7 +235,7 @@ static u32 __pmac core99_check(u8* datas)
 	return hdr99->generation;
 }
 
-static int __pmac sm_erase_bank(int bank)
+static int sm_erase_bank(int bank)
 {
 	int stat, i;
 	unsigned long timeout;
@@ -267,7 +267,7 @@ static int __pmac sm_erase_bank(int bank)
 	return 0;
 }
 
-static int __pmac sm_write_bank(int bank, u8* datas)
+static int sm_write_bank(int bank, u8* datas)
 {
 	int i, stat = 0;
 	unsigned long timeout;
@@ -302,7 +302,7 @@ static int __pmac sm_write_bank(int bank, u8* datas)
 	return 0;
 }
 
-static int __pmac amd_erase_bank(int bank)
+static int amd_erase_bank(int bank)
 {
 	int i, stat = 0;
 	unsigned long timeout;
@@ -349,7 +349,7 @@ static int __pmac amd_erase_bank(int bank)
 	return 0;
 }
 
-static int __pmac amd_write_bank(int bank, u8* datas)
+static int amd_write_bank(int bank, u8* datas)
 {
 	int i, stat = 0;
 	unsigned long timeout;
@@ -430,7 +430,7 @@ static void __init lookup_partitions(void)
 	DBG("nvram: NR partition at 0x%x\n", nvram_partitions[pmac_nvram_NR]);
 }
 
-static void __pmac core99_nvram_sync(void)
+static void core99_nvram_sync(void)
 {
 	struct core99_header* hdr99;
 	unsigned long flags;
@@ -554,12 +554,12 @@ void __init pmac_nvram_init(void)
 	lookup_partitions();
 }
 
-int __pmac pmac_get_partition(int partition)
+int pmac_get_partition(int partition)
 {
 	return nvram_partitions[partition];
 }
 
-u8 __pmac pmac_xpram_read(int xpaddr)
+u8 pmac_xpram_read(int xpaddr)
 {
 	int offset = nvram_partitions[pmac_nvram_XPRAM];
 
@@ -569,7 +569,7 @@ u8 __pmac pmac_xpram_read(int xpaddr)
 	return ppc_md.nvram_read_val(xpaddr + offset);
 }
 
-void __pmac pmac_xpram_write(int xpaddr, u8 data)
+void pmac_xpram_write(int xpaddr, u8 data)
 {
 	int offset = nvram_partitions[pmac_nvram_XPRAM];
 

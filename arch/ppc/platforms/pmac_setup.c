@@ -123,7 +123,7 @@ extern struct smp_ops_t psurge_smp_ops;
 extern struct smp_ops_t core99_smp_ops;
 #endif /* CONFIG_SMP */
 
-static int __pmac
+static int
 pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
@@ -227,7 +227,7 @@ pmac_show_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-static int __openfirmware
+static int
 pmac_show_percpuinfo(struct seq_file *m, int i)
 {
 #ifdef CONFIG_CPU_FREQ_PMAC
@@ -486,7 +486,7 @@ static int pmac_late_init(void)
 late_initcall(pmac_late_init);
 
 /* can't be __init - can be called whenever a disk is first accessed */
-void __pmac
+void
 note_bootable_part(dev_t dev, int part, int goodness)
 {
 	static int found_boot = 0;
@@ -512,7 +512,7 @@ note_bootable_part(dev_t dev, int part, int goodness)
 	}
 }
 
-static void __pmac
+static void
 pmac_restart(char *cmd)
 {
 #ifdef CONFIG_ADB_CUDA
@@ -537,7 +537,7 @@ pmac_restart(char *cmd)
 	}
 }
 
-static void __pmac
+static void
 pmac_power_off(void)
 {
 #ifdef CONFIG_ADB_CUDA
@@ -562,7 +562,7 @@ pmac_power_off(void)
 	}
 }
 
-static void __pmac
+static void
 pmac_halt(void)
 {
    pmac_power_off();
