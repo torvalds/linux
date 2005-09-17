@@ -313,15 +313,16 @@ static int init_aio_26(void)
         int err;
 
         if(io_setup(256, &ctx)){
+		err = -errno;
                 printk("aio_thread failed to initialize context, err = %d\n",
                        errno);
-                return -errno;
+                return err;
         }
 
         err = run_helper_thread(aio_thread, NULL,
                                 CLONE_FILES | CLONE_VM | SIGCHLD, &stack, 0);
         if(err < 0)
-                return -errno;
+                return err;
 
         aio_pid = err;
 

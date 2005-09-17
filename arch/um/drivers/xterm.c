@@ -110,13 +110,15 @@ int xterm_open(int input, int output, int primary, void *d,
 
 	fd = mkstemp(file);
 	if(fd < 0){
+		err = -errno;
 		printk("xterm_open : mkstemp failed, errno = %d\n", errno);
-		return(-errno);
+		return err;
 	}
 
 	if(unlink(file)){
+		err = -errno;
 		printk("xterm_open : unlink failed, errno = %d\n", errno);
-		return(-errno);
+		return err;
 	}
 	os_close_file(fd);
 

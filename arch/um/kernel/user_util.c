@@ -109,18 +109,14 @@ int raw(int fd)
 	int err;
 
 	CATCH_EINTR(err = tcgetattr(fd, &tt));
-	if (err < 0) {
-			printk("tcgetattr failed, errno = %d\n", errno);
-		return(-errno);
-	}
+	if(err < 0)
+		return -errno;
 
 	cfmakeraw(&tt);
 
  	CATCH_EINTR(err = tcsetattr(fd, TCSADRAIN, &tt));
-	if (err < 0) {
-			printk("tcsetattr failed, errno = %d\n", errno);
-		return(-errno);
-	}
+	if(err < 0)
+		return -errno;
 
 	/* XXX tcsetattr could have applied only some changes
 	 * (and cfmakeraw() is a set of changes) */

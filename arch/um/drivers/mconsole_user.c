@@ -173,9 +173,9 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	if(notify_sock < 0){
 		notify_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
 		if(notify_sock < 0){
-			printk("mconsole_notify - socket failed, errno = %d\n",
-			       errno);
 			err = -errno;
+			printk("mconsole_notify - socket failed, errno = %d\n",
+			       err);
 		}
 	}
 	unlock_notify();
@@ -198,8 +198,8 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	n = sendto(notify_sock, &packet, len, 0, (struct sockaddr *) &target, 
 		   sizeof(target));
 	if(n < 0){
-		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
 		err = -errno;
+		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
 	}
 	return(err);
 }
