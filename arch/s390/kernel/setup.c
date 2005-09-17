@@ -634,6 +634,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
         struct cpuinfo_S390 *cpuinfo;
 	unsigned long n = (unsigned long) v - 1;
 
+	preempt_disable();
 	if (!n) {
 		seq_printf(m, "vendor_id       : IBM/S390\n"
 			       "# processors    : %i\n"
@@ -658,6 +659,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			       cpuinfo->cpu_id.ident,
 			       cpuinfo->cpu_id.machine);
 	}
+	preempt_enable();
         return 0;
 }
 
