@@ -835,7 +835,7 @@ static struct pci_save {
 } *pbook_pci_saves;
 static int n_pbook_pci_saves;
 
-static inline void __openfirmware
+static inline void
 pbook_pci_save(void)
 {
 	int npci;
@@ -863,7 +863,7 @@ pbook_pci_save(void)
 	}
 }
 
-static inline void __openfirmware
+static inline void
 pbook_pci_restore(void)
 {
 	u16 cmd;
@@ -902,7 +902,7 @@ pbook_pci_restore(void)
 #define IRQ_ENABLE	((unsigned int *)0xf3000024)
 #define MEM_CTRL	((unsigned int *)0xf8000070)
 
-int __openfirmware powerbook_sleep(void)
+int powerbook_sleep(void)
 {
 	int ret, i, x;
 	static int save_backlight;
@@ -1001,25 +1001,24 @@ int __openfirmware powerbook_sleep(void)
 /*
  * Support for /dev/pmu device
  */
-static int __openfirmware pmu_open(struct inode *inode, struct file *file)
+static int pmu_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-static ssize_t __openfirmware pmu_read(struct file *file, char *buf,
+static ssize_t pmu_read(struct file *file, char *buf,
 			size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-static ssize_t __openfirmware pmu_write(struct file *file, const char *buf,
+static ssize_t pmu_write(struct file *file, const char *buf,
 			 size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-/* Note: removed __openfirmware here since it causes link errors */
-static int /*__openfirmware*/ pmu_ioctl(struct inode * inode, struct file *filp,
+static int pmu_ioctl(struct inode * inode, struct file *filp,
 		     u_int cmd, u_long arg)
 {
 	int error;

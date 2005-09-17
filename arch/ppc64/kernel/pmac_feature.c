@@ -53,7 +53,7 @@
  * We use a single global lock to protect accesses. Each driver has
  * to take care of its own locking
  */
-static DEFINE_SPINLOCK(feature_lock  __pmacdata);
+static DEFINE_SPINLOCK(feature_lock);
 
 #define LOCK(flags)	spin_lock_irqsave(&feature_lock, flags);
 #define UNLOCK(flags)	spin_unlock_irqrestore(&feature_lock, flags);
@@ -62,9 +62,9 @@ static DEFINE_SPINLOCK(feature_lock  __pmacdata);
 /*
  * Instance of some macio stuffs
  */
-struct macio_chip macio_chips[MAX_MACIO_CHIPS]  __pmacdata;
+struct macio_chip macio_chips[MAX_MACIO_CHIPS] ;
 
-struct macio_chip* __pmac macio_find(struct device_node* child, int type)
+struct macio_chip* macio_find(struct device_node* child, int type)
 {
 	while(child) {
 		int	i;
@@ -79,7 +79,7 @@ struct macio_chip* __pmac macio_find(struct device_node* child, int type)
 }
 EXPORT_SYMBOL_GPL(macio_find);
 
-static const char* macio_names[] __pmacdata =
+static const char* macio_names[] =
 {
 	"Unknown",
 	"Grand Central",
@@ -106,9 +106,9 @@ static const char* macio_names[] __pmacdata =
 #define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
 #define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
 
-static struct device_node* uninorth_node __pmacdata;
-static u32* uninorth_base __pmacdata;
-static u32 uninorth_rev __pmacdata;
+static struct device_node* uninorth_node;
+static u32* uninorth_base;
+static u32 uninorth_rev;
 static void *u3_ht;
 
 extern struct device_node *k2_skiplist[2];
@@ -133,14 +133,14 @@ struct pmac_mb_def
 	struct feature_table_entry* 	features;
 	unsigned long			board_flags;
 };
-static struct pmac_mb_def pmac_mb __pmacdata;
+static struct pmac_mb_def pmac_mb;
 
 /*
  * Here are the chip specific feature functions
  */
 
 
-static long __pmac g5_read_gpio(struct device_node* node, long param, long value)
+static long g5_read_gpio(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
 
@@ -148,7 +148,7 @@ static long __pmac g5_read_gpio(struct device_node* node, long param, long value
 }
 
 
-static long __pmac g5_write_gpio(struct device_node* node, long param, long value)
+static long g5_write_gpio(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
 
@@ -156,7 +156,7 @@ static long __pmac g5_write_gpio(struct device_node* node, long param, long valu
 	return 0;
 }
 
-static long __pmac g5_gmac_enable(struct device_node* node, long param, long value)
+static long g5_gmac_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
 	unsigned long flags;
@@ -181,7 +181,7 @@ static long __pmac g5_gmac_enable(struct device_node* node, long param, long val
 	return 0;
 }
 
-static long __pmac g5_fw_enable(struct device_node* node, long param, long value)
+static long g5_fw_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
 	unsigned long flags;
@@ -206,7 +206,7 @@ static long __pmac g5_fw_enable(struct device_node* node, long param, long value
 	return 0;
 }
 
-static long __pmac g5_mpic_enable(struct device_node* node, long param, long value)
+static long g5_mpic_enable(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
 
@@ -220,7 +220,7 @@ static long __pmac g5_mpic_enable(struct device_node* node, long param, long val
 	return 0;
 }
 
-static long __pmac g5_eth_phy_reset(struct device_node* node, long param, long value)
+static long g5_eth_phy_reset(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
 	struct device_node *phy;
@@ -250,7 +250,7 @@ static long __pmac g5_eth_phy_reset(struct device_node* node, long param, long v
 	return 0;
 }
 
-static long __pmac g5_i2s_enable(struct device_node *node, long param, long value)
+static long g5_i2s_enable(struct device_node *node, long param, long value)
 {
 	/* Very crude implementation for now */
 	struct macio_chip* macio = &macio_chips[0];
@@ -275,7 +275,7 @@ static long __pmac g5_i2s_enable(struct device_node *node, long param, long valu
 
 
 #ifdef CONFIG_SMP
-static long __pmac g5_reset_cpu(struct device_node* node, long param, long value)
+static long g5_reset_cpu(struct device_node* node, long param, long value)
 {
 	unsigned int reset_io = 0;
 	unsigned long flags;
@@ -320,12 +320,12 @@ static long __pmac g5_reset_cpu(struct device_node* node, long param, long value
  * This takes the second CPU off the bus on dual CPU machines
  * running UP
  */
-void __pmac g5_phy_disable_cpu1(void)
+void g5_phy_disable_cpu1(void)
 {
 	UN_OUT(U3_API_PHY_CONFIG_1, 0);
 }
 
-static long __pmac generic_get_mb_info(struct device_node* node, long param, long value)
+static long generic_get_mb_info(struct device_node* node, long param, long value)
 {
 	switch(param) {
 		case PMAC_MB_INFO_MODEL:
@@ -347,14 +347,14 @@ static long __pmac generic_get_mb_info(struct device_node* node, long param, lon
 
 /* Used on any machine
  */
-static struct feature_table_entry any_features[]  __pmacdata = {
+static struct feature_table_entry any_features[] = {
 	{ PMAC_FTR_GET_MB_INFO,		generic_get_mb_info },
 	{ 0, NULL }
 };
 
 /* G5 features
  */
-static struct feature_table_entry g5_features[]  __pmacdata = {
+static struct feature_table_entry g5_features[] = {
 	{ PMAC_FTR_GMAC_ENABLE,		g5_gmac_enable },
 	{ PMAC_FTR_1394_ENABLE,		g5_fw_enable },
 	{ PMAC_FTR_ENABLE_MPIC,		g5_mpic_enable },
@@ -368,7 +368,7 @@ static struct feature_table_entry g5_features[]  __pmacdata = {
 	{ 0, NULL }
 };
 
-static struct pmac_mb_def pmac_mb_defs[] __pmacdata = {
+static struct pmac_mb_def pmac_mb_defs[] = {
 	{	"PowerMac7,2",			"PowerMac G5",
 		PMAC_TYPE_POWERMAC_G5,		g5_features,
 		0,
@@ -394,7 +394,7 @@ static struct pmac_mb_def pmac_mb_defs[] __pmacdata = {
 /*
  * The toplevel feature_call callback
  */
-long __pmac pmac_do_feature_call(unsigned int selector, ...)
+long pmac_do_feature_call(unsigned int selector, ...)
 {
 	struct device_node* node;
 	long param, value;
@@ -706,8 +706,8 @@ void __init pmac_check_ht_link(void)
  * Early video resume hook
  */
 
-static void (*pmac_early_vresume_proc)(void *data) __pmacdata;
-static void *pmac_early_vresume_data __pmacdata;
+static void (*pmac_early_vresume_proc)(void *data);
+static void *pmac_early_vresume_data;
 
 void pmac_set_early_video_resume(void (*proc)(void *data), void *data)
 {
@@ -725,11 +725,11 @@ EXPORT_SYMBOL(pmac_set_early_video_resume);
  * AGP related suspend/resume code
  */
 
-static struct pci_dev *pmac_agp_bridge __pmacdata;
-static int (*pmac_agp_suspend)(struct pci_dev *bridge) __pmacdata;
-static int (*pmac_agp_resume)(struct pci_dev *bridge) __pmacdata;
+static struct pci_dev *pmac_agp_bridge;
+static int (*pmac_agp_suspend)(struct pci_dev *bridge);
+static int (*pmac_agp_resume)(struct pci_dev *bridge);
 
-void __pmac pmac_register_agp_pm(struct pci_dev *bridge,
+void pmac_register_agp_pm(struct pci_dev *bridge,
 				 int (*suspend)(struct pci_dev *bridge),
 				 int (*resume)(struct pci_dev *bridge))
 {
@@ -746,7 +746,7 @@ void __pmac pmac_register_agp_pm(struct pci_dev *bridge,
 }
 EXPORT_SYMBOL(pmac_register_agp_pm);
 
-void __pmac pmac_suspend_agp_for_card(struct pci_dev *dev)
+void pmac_suspend_agp_for_card(struct pci_dev *dev)
 {
 	if (pmac_agp_bridge == NULL || pmac_agp_suspend == NULL)
 		return;
@@ -756,7 +756,7 @@ void __pmac pmac_suspend_agp_for_card(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pmac_suspend_agp_for_card);
 
-void __pmac pmac_resume_agp_for_card(struct pci_dev *dev)
+void pmac_resume_agp_for_card(struct pci_dev *dev)
 {
 	if (pmac_agp_bridge == NULL || pmac_agp_resume == NULL)
 		return;

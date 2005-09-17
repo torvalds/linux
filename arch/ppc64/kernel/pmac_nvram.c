@@ -82,10 +82,10 @@ extern int system_running;
 static int (*core99_write_bank)(int bank, u8* datas);
 static int (*core99_erase_bank)(int bank);
 
-static char *nvram_image __pmacdata;
+static char *nvram_image;
 
 
-static ssize_t __pmac core99_nvram_read(char *buf, size_t count, loff_t *index)
+static ssize_t core99_nvram_read(char *buf, size_t count, loff_t *index)
 {
 	int i;
 
@@ -103,7 +103,7 @@ static ssize_t __pmac core99_nvram_read(char *buf, size_t count, loff_t *index)
 	return count;
 }
 
-static ssize_t __pmac core99_nvram_write(char *buf, size_t count, loff_t *index)
+static ssize_t core99_nvram_write(char *buf, size_t count, loff_t *index)
 {
 	int i;
 
@@ -121,14 +121,14 @@ static ssize_t __pmac core99_nvram_write(char *buf, size_t count, loff_t *index)
 	return count;
 }
 
-static ssize_t __pmac core99_nvram_size(void)
+static ssize_t core99_nvram_size(void)
 {
 	if (nvram_image == NULL)
 		return -ENODEV;
 	return NVRAM_SIZE;
 }
 
-static u8 __pmac chrp_checksum(struct chrp_header* hdr)
+static u8 chrp_checksum(struct chrp_header* hdr)
 {
 	u8 *ptr;
 	u16 sum = hdr->signature;
@@ -139,7 +139,7 @@ static u8 __pmac chrp_checksum(struct chrp_header* hdr)
 	return sum;
 }
 
-static u32 __pmac core99_calc_adler(u8 *buffer)
+static u32 core99_calc_adler(u8 *buffer)
 {
 	int cnt;
 	u32 low, high;
@@ -161,7 +161,7 @@ static u32 __pmac core99_calc_adler(u8 *buffer)
 	return (high << 16) | low;
 }
 
-static u32 __pmac core99_check(u8* datas)
+static u32 core99_check(u8* datas)
 {
 	struct core99_header* hdr99 = (struct core99_header*)datas;
 
@@ -180,7 +180,7 @@ static u32 __pmac core99_check(u8* datas)
 	return hdr99->generation;
 }
 
-static int __pmac sm_erase_bank(int bank)
+static int sm_erase_bank(int bank)
 {
 	int stat, i;
 	unsigned long timeout;
@@ -212,7 +212,7 @@ static int __pmac sm_erase_bank(int bank)
 	return 0;
 }
 
-static int __pmac sm_write_bank(int bank, u8* datas)
+static int sm_write_bank(int bank, u8* datas)
 {
 	int i, stat = 0;
 	unsigned long timeout;
@@ -247,7 +247,7 @@ static int __pmac sm_write_bank(int bank, u8* datas)
 	return 0;
 }
 
-static int __pmac amd_erase_bank(int bank)
+static int amd_erase_bank(int bank)
 {
 	int i, stat = 0;
 	unsigned long timeout;
@@ -294,7 +294,7 @@ static int __pmac amd_erase_bank(int bank)
 	return 0;
 }
 
-static int __pmac amd_write_bank(int bank, u8* datas)
+static int amd_write_bank(int bank, u8* datas)
 {
 	int i, stat = 0;
 	unsigned long timeout;
@@ -341,7 +341,7 @@ static int __pmac amd_write_bank(int bank, u8* datas)
 }
 
 
-static int __pmac core99_nvram_sync(void)
+static int core99_nvram_sync(void)
 {
 	struct core99_header* hdr99;
 	unsigned long flags;
@@ -431,7 +431,7 @@ int __init pmac_nvram_init(void)
 	return 0;
 }
 
-int __pmac pmac_get_partition(int partition)
+int pmac_get_partition(int partition)
 {
 	struct nvram_partition *part;
 	const char *name;
@@ -459,7 +459,7 @@ int __pmac pmac_get_partition(int partition)
 	return part->index;
 }
 
-u8 __pmac pmac_xpram_read(int xpaddr)
+u8 pmac_xpram_read(int xpaddr)
 {
 	int offset = pmac_get_partition(pmac_nvram_XPRAM);
 	loff_t index;
@@ -476,7 +476,7 @@ u8 __pmac pmac_xpram_read(int xpaddr)
 	return buf;
 }
 
-void __pmac pmac_xpram_write(int xpaddr, u8 data)
+void pmac_xpram_write(int xpaddr, u8 data)
 {
 	int offset = pmac_get_partition(pmac_nvram_XPRAM);
 	loff_t index;

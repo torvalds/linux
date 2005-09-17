@@ -121,7 +121,7 @@ static void __init fixup_bus_range(struct device_node *bridge)
 	|(((unsigned long)(off)) & 0xFCUL) \
 	|1UL)
 
-static unsigned long __pmac macrisc_cfg_access(struct pci_controller* hose,
+static unsigned long macrisc_cfg_access(struct pci_controller* hose,
 					       u8 bus, u8 dev_fn, u8 offset)
 {
 	unsigned int caddr;
@@ -142,7 +142,7 @@ static unsigned long __pmac macrisc_cfg_access(struct pci_controller* hose,
 	return ((unsigned long)hose->cfg_data) + offset;
 }
 
-static int __pmac macrisc_read_config(struct pci_bus *bus, unsigned int devfn,
+static int macrisc_read_config(struct pci_bus *bus, unsigned int devfn,
 				      int offset, int len, u32 *val)
 {
 	struct pci_controller *hose;
@@ -173,7 +173,7 @@ static int __pmac macrisc_read_config(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int __pmac macrisc_write_config(struct pci_bus *bus, unsigned int devfn,
+static int macrisc_write_config(struct pci_bus *bus, unsigned int devfn,
 				       int offset, int len, u32 val)
 {
 	struct pci_controller *hose;
@@ -265,7 +265,7 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 		+ (((unsigned long)bus) << 16) \
 		+ 0x01000000UL)
 
-static unsigned long __pmac u3_ht_cfg_access(struct pci_controller* hose,
+static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
 					     u8 bus, u8 devfn, u8 offset)
 {
 	if (bus == hose->first_busno) {
@@ -277,7 +277,7 @@ static unsigned long __pmac u3_ht_cfg_access(struct pci_controller* hose,
 		return ((unsigned long)hose->cfg_data) + U3_HT_CFA1(bus, devfn, offset);
 }
 
-static int __pmac u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
+static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 				    int offset, int len, u32 *val)
 {
 	struct pci_controller *hose;
@@ -327,7 +327,7 @@ static int __pmac u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int __pmac u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
+static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int offset, int len, u32 val)
 {
 	struct pci_controller *hose;

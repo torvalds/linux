@@ -81,7 +81,7 @@ typedef struct pmac_ide_hwif {
 	
 } pmac_ide_hwif_t;
 
-static pmac_ide_hwif_t pmac_ide[MAX_HWIFS] __pmacdata;
+static pmac_ide_hwif_t pmac_ide[MAX_HWIFS];
 static int pmac_ide_count;
 
 enum {
@@ -242,7 +242,7 @@ struct mdma_timings_t {
 	int	cycleTime;
 };
 
-struct mdma_timings_t mdma_timings_33[] __pmacdata =
+struct mdma_timings_t mdma_timings_33[] =
 {
     { 240, 240, 480 },
     { 180, 180, 360 },
@@ -255,7 +255,7 @@ struct mdma_timings_t mdma_timings_33[] __pmacdata =
     {   0,   0,   0 }
 };
 
-struct mdma_timings_t mdma_timings_33k[] __pmacdata =
+struct mdma_timings_t mdma_timings_33k[] =
 {
     { 240, 240, 480 },
     { 180, 180, 360 },
@@ -268,7 +268,7 @@ struct mdma_timings_t mdma_timings_33k[] __pmacdata =
     {   0,   0,   0 }
 };
 
-struct mdma_timings_t mdma_timings_66[] __pmacdata =
+struct mdma_timings_t mdma_timings_66[] =
 {
     { 240, 240, 480 },
     { 180, 180, 360 },
@@ -286,7 +286,7 @@ struct {
 	int	addrSetup; /* ??? */
 	int	rdy2pause;
 	int	wrDataSetup;
-} kl66_udma_timings[] __pmacdata =
+} kl66_udma_timings[] =
 {
     {   0, 180,  120 },	/* Mode 0 */
     {   0, 150,  90 },	/*      1 */
@@ -301,7 +301,7 @@ struct kauai_timing {
 	u32	timing_reg;
 };
 
-static struct kauai_timing	kauai_pio_timings[] __pmacdata =
+static struct kauai_timing	kauai_pio_timings[] =
 {
 	{ 930	, 0x08000fff },
 	{ 600	, 0x08000a92 },
@@ -316,7 +316,7 @@ static struct kauai_timing	kauai_pio_timings[] __pmacdata =
 	{ 120	, 0x04000148 }
 };
 
-static struct kauai_timing	kauai_mdma_timings[] __pmacdata =
+static struct kauai_timing	kauai_mdma_timings[] =
 {
 	{ 1260	, 0x00fff000 },
 	{ 480	, 0x00618000 },
@@ -330,7 +330,7 @@ static struct kauai_timing	kauai_mdma_timings[] __pmacdata =
 	{ 0	, 0 },
 };
 
-static struct kauai_timing	kauai_udma_timings[] __pmacdata =
+static struct kauai_timing	kauai_udma_timings[] =
 {
 	{ 120	, 0x000070c0 },
 	{ 90	, 0x00005d80 },
@@ -341,7 +341,7 @@ static struct kauai_timing	kauai_udma_timings[] __pmacdata =
 	{ 0	, 0 },
 };
 
-static struct kauai_timing	shasta_pio_timings[] __pmacdata =
+static struct kauai_timing	shasta_pio_timings[] =
 {
 	{ 930	, 0x08000fff },
 	{ 600	, 0x0A000c97 },
@@ -356,7 +356,7 @@ static struct kauai_timing	shasta_pio_timings[] __pmacdata =
 	{ 120	, 0x0400010a }
 };
 
-static struct kauai_timing	shasta_mdma_timings[] __pmacdata =
+static struct kauai_timing	shasta_mdma_timings[] =
 {
 	{ 1260	, 0x00fff000 },
 	{ 480	, 0x00820800 },
@@ -370,7 +370,7 @@ static struct kauai_timing	shasta_mdma_timings[] __pmacdata =
 	{ 0	, 0 },
 };
 
-static struct kauai_timing	shasta_udma133_timings[] __pmacdata =
+static struct kauai_timing	shasta_udma133_timings[] =
 {
 	{ 120   , 0x00035901, },
 	{ 90    , 0x000348b1, },
@@ -522,7 +522,7 @@ pmu_hd_blink_init(void)
  * N.B. this can't be an initfunc, because the media-bay task can
  * call ide_[un]register at any time.
  */
-void __pmac
+void
 pmac_ide_init_hwif_ports(hw_regs_t *hw,
 			      unsigned long data_port, unsigned long ctrl_port,
 			      int *irq)
@@ -559,7 +559,7 @@ pmac_ide_init_hwif_ports(hw_regs_t *hw,
  * timing register when selecting that unit. This version is for
  * ASICs with a single timing register
  */
-static void __pmac
+static void
 pmac_ide_selectproc(ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -579,7 +579,7 @@ pmac_ide_selectproc(ide_drive_t *drive)
  * timing register when selecting that unit. This version is for
  * ASICs with a dual timing register (Kauai)
  */
-static void __pmac
+static void
 pmac_ide_kauai_selectproc(ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -600,7 +600,7 @@ pmac_ide_kauai_selectproc(ide_drive_t *drive)
 /*
  * Force an update of controller timing values for a given drive
  */
-static void __pmac
+static void
 pmac_ide_do_update_timings(ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -633,7 +633,7 @@ pmac_outbsync(ide_drive_t *drive, u8 value, unsigned long port)
  * to sort that out sooner or later and see if I can finally get the
  * common version to work properly in all cases
  */
-static int __pmac
+static int
 pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -710,7 +710,7 @@ out:
 /*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
-static void __pmac
+static void
 pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
 {
 	ide_pio_data_t d;
@@ -801,7 +801,7 @@ pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
 /*
  * Calculate KeyLargo ATA/66 UDMA timings
  */
-static int __pmac
+static int
 set_timings_udma_ata4(u32 *timings, u8 speed)
 {
 	unsigned rdyToPauseTicks, wrDataSetupTicks, addrTicks;
@@ -829,7 +829,7 @@ set_timings_udma_ata4(u32 *timings, u8 speed)
 /*
  * Calculate Kauai ATA/100 UDMA timings
  */
-static int __pmac
+static int
 set_timings_udma_ata6(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 {
 	struct ide_timing *t = ide_timing_find_mode(speed);
@@ -849,7 +849,7 @@ set_timings_udma_ata6(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 /*
  * Calculate Shasta ATA/133 UDMA timings
  */
-static int __pmac
+static int
 set_timings_udma_shasta(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 {
 	struct ide_timing *t = ide_timing_find_mode(speed);
@@ -869,7 +869,7 @@ set_timings_udma_shasta(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 /*
  * Calculate MDMA timings for all cells
  */
-static int __pmac
+static int
 set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 			u8 speed, int drive_cycle_time)
 {
@@ -1014,7 +1014,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
  * our dedicated function is more precise as it uses the drive provided
  * cycle time value. We should probably fix this one to deal with that too...
  */
-static int __pmac
+static int
 pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 {
 	int unit = (drive->select.b.unit & 0x01);
@@ -1092,7 +1092,7 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
  * Blast some well known "safe" values to the timing registers at init or
  * wakeup from sleep time, before we do real calculation
  */
-static void __pmac
+static void
 sanitize_timings(pmac_ide_hwif_t *pmif)
 {
 	unsigned int value, value2 = 0;
@@ -1123,13 +1123,13 @@ sanitize_timings(pmac_ide_hwif_t *pmif)
 	pmif->timings[2] = pmif->timings[3] = value2;
 }
 
-unsigned long __pmac
+unsigned long
 pmac_ide_get_base(int index)
 {
 	return pmac_ide[index].regbase;
 }
 
-int __pmac
+int
 pmac_ide_check_base(unsigned long base)
 {
 	int ix;
@@ -1140,7 +1140,7 @@ pmac_ide_check_base(unsigned long base)
 	return -1;
 }
 
-int __pmac
+int
 pmac_ide_get_irq(unsigned long base)
 {
 	int ix;
@@ -1151,7 +1151,7 @@ pmac_ide_get_irq(unsigned long base)
 	return 0;
 }
 
-static int ide_majors[]  __pmacdata = { 3, 22, 33, 34, 56, 57 };
+static int ide_majors[] = { 3, 22, 33, 34, 56, 57 };
 
 dev_t __init
 pmac_find_ide_boot(char *bootdevice, int n)
@@ -1701,7 +1701,7 @@ pmac_ide_probe(void)
  * pmac_ide_build_dmatable builds the DBDMA command list
  * for a transfer and sets the DBDMA channel to point to it.
  */
-static int __pmac
+static int
 pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 {
 	struct dbdma_cmd *table;
@@ -1785,7 +1785,7 @@ pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 }
 
 /* Teardown mappings after DMA has completed.  */
-static void __pmac
+static void
 pmac_ide_destroy_dmatable (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -1802,7 +1802,7 @@ pmac_ide_destroy_dmatable (ide_drive_t *drive)
 /*
  * Pick up best MDMA timing for the drive and apply it
  */
-static int __pmac
+static int
 pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -1859,7 +1859,7 @@ pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
 /*
  * Pick up best UDMA timing for the drive and apply it
  */
-static int __pmac
+static int
 pmac_ide_udma_enable(ide_drive_t *drive, u16 mode)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -1915,7 +1915,7 @@ pmac_ide_udma_enable(ide_drive_t *drive, u16 mode)
  * Check what is the best DMA timing setting for the drive and
  * call appropriate functions to apply it.
  */
-static int __pmac
+static int
 pmac_ide_dma_check(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
@@ -1967,7 +1967,7 @@ pmac_ide_dma_check(ide_drive_t *drive)
  * Prepare a DMA transfer. We build the DMA table, adjust the timings for
  * a read on KeyLargo ATA/66 and mark us as waiting for DMA completion
  */
-static int __pmac
+static int
 pmac_ide_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -1997,7 +1997,7 @@ pmac_ide_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
-static void __pmac
+static void
 pmac_ide_dma_exec_cmd(ide_drive_t *drive, u8 command)
 {
 	/* issue cmd to drive */
@@ -2008,7 +2008,7 @@ pmac_ide_dma_exec_cmd(ide_drive_t *drive, u8 command)
  * Kick the DMA controller into life after the DMA command has been issued
  * to the drive.
  */
-static void __pmac
+static void
 pmac_ide_dma_start(ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -2024,7 +2024,7 @@ pmac_ide_dma_start(ide_drive_t *drive)
 /*
  * After a DMA transfer, make sure the controller is stopped
  */
-static int __pmac
+static int
 pmac_ide_dma_end (ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -2052,7 +2052,7 @@ pmac_ide_dma_end (ide_drive_t *drive)
  * that's not implemented yet), on the other hand, we don't have shared interrupts
  * so it's not really a problem
  */
-static int __pmac
+static int
 pmac_ide_dma_test_irq (ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -2108,19 +2108,19 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 	return 1;
 }
 
-static int __pmac
+static int
 pmac_ide_dma_host_off (ide_drive_t *drive)
 {
 	return 0;
 }
 
-static int __pmac
+static int
 pmac_ide_dma_host_on (ide_drive_t *drive)
 {
 	return 0;
 }
 
-static int __pmac
+static int
 pmac_ide_dma_lostirq (ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;

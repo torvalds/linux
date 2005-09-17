@@ -310,7 +310,7 @@ static void __init smp_core99_setup_cpu(int cpu_nr)
 	}
 }
 
-struct smp_ops_t core99_smp_ops __pmacdata = {
+struct smp_ops_t core99_smp_ops = {
 	.message_pass	= smp_mpic_message_pass,
 	.probe		= smp_core99_probe,
 	.kick_cpu	= smp_core99_kick_cpu,

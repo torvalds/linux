@@ -51,7 +51,7 @@
 extern struct timezone sys_tz;
 extern void to_tm(int tim, struct rtc_time * tm);
 
-void __pmac pmac_get_rtc_time(struct rtc_time *tm)
+void pmac_get_rtc_time(struct rtc_time *tm)
 {
 	switch(sys_ctrler) {
 #ifdef CONFIG_ADB_PMU
@@ -92,7 +92,7 @@ void __pmac pmac_get_rtc_time(struct rtc_time *tm)
 	}
 }
 
-int __pmac pmac_set_rtc_time(struct rtc_time *tm)
+int pmac_set_rtc_time(struct rtc_time *tm)
 {
 	switch(sys_ctrler) {
 #ifdef CONFIG_ADB_PMU

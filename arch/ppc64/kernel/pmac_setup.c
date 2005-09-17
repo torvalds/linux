@@ -98,7 +98,7 @@ EXPORT_SYMBOL(smu_cmdbuf_abs);
 
 extern void udbg_init_scc(struct device_node *np);
 
-static void __pmac pmac_show_cpuinfo(struct seq_file *m)
+static void pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
 	char *pp;
@@ -210,7 +210,7 @@ static int pmac_late_init(void)
 late_initcall(pmac_late_init);
 
 /* can't be __init - can be called whenever a disk is first accessed */
-void __pmac note_bootable_part(dev_t dev, int part, int goodness)
+void note_bootable_part(dev_t dev, int part, int goodness)
 {
 	extern dev_t boot_dev;
 	char *p;
@@ -231,7 +231,7 @@ void __pmac note_bootable_part(dev_t dev, int part, int goodness)
 	}
 }
 
-static void __pmac pmac_restart(char *cmd)
+static void pmac_restart(char *cmd)
 {
 	switch(sys_ctrler) {
 #ifdef CONFIG_ADB_PMU
@@ -250,7 +250,7 @@ static void __pmac pmac_restart(char *cmd)
 	}
 }
 
-static void __pmac pmac_power_off(void)
+static void pmac_power_off(void)
 {
 	switch(sys_ctrler) {
 #ifdef CONFIG_ADB_PMU
@@ -268,7 +268,7 @@ static void __pmac pmac_power_off(void)
 	}
 }
 
-static void __pmac pmac_halt(void)
+static void pmac_halt(void)
 {
 	pmac_power_off();
 }
