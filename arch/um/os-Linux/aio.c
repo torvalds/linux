@@ -142,7 +142,7 @@ static int aio_thread(void *arg)
                                "errno = %d\n", errno);
                 }
                 else {
-			aio = (struct aio_context *) event.data;
+			aio = (struct aio_context *) (long) event.data;
 			if(update_aio(aio, event.res)){
 				do_aio(ctx, aio);
 				continue;
