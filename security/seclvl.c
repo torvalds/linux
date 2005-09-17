@@ -252,7 +252,7 @@ passwd_write_file(struct file * file, const char __user * buf,
 	}
 
 	if (count < 0 || count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EINVAL;
 	if (*ppos != 0)
 		return -EINVAL;
 	page = (char *)get_zeroed_page(GFP_KERNEL);
