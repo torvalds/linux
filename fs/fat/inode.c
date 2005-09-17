@@ -102,6 +102,19 @@ static int fat_prepare_write(struct file *file, struct page *page,
 				  &MSDOS_I(page->mapping->host)->mmu_private);
 }
 
+static int fat_commit_write(struct file *file, struct page *page,
+			    unsigned from, unsigned to)
+{
+	struct inode *inode = page->mapping->host;
+	int err = generic_commit_write(file, page, from, to);
+	if (!err && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {
+		inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
+		mark_inode_dirty(inode);
+	}
+	return err;
+}
+
 static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping, block, fat_get_block);
@@ -112,7 +125,7 @@ static struct address_space_operations fat_aops = {
 	.writepage	= fat_writepage,
 	.sync_page	= block_sync_page,
 	.prepare_write	= fat_prepare_write,
-	.commit_write	= generic_commit_write,
+	.commit_write	= fat_commit_write,
 	.bmap		= _fat_bmap
 };
 
