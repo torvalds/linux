@@ -50,7 +50,7 @@
 MODULE_AUTHOR("Abhay Salunke <abhay_salunke@dell.com>");
 MODULE_DESCRIPTION("Driver for updating BIOS image on DELL systems");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0");
+MODULE_VERSION("2.0");
 
 #define BIOS_SCAN_LIMIT 0xffffffff
 #define MAX_IMAGE_LENGTH 16
@@ -65,10 +65,11 @@ static struct _rbu_data {
 	unsigned long packet_write_count;
 	unsigned long num_packets;
 	unsigned long packetsize;
+	int entry_created;
 } rbu_data;
 
-static char image_type[MAX_IMAGE_LENGTH] = "mono";
-module_param_string(image_type, image_type, sizeof(image_type), 0);
+static char image_type[MAX_IMAGE_LENGTH + 1] = "mono";
+module_param_string(image_type, image_type, sizeof (image_type), 0);
 MODULE_PARM_DESC(image_type, "BIOS image type. choose- mono or packet");
 
 struct packet_data {
@@ -84,7 +85,8 @@ static struct platform_device *rbu_device;
 static int context;
 static dma_addr_t dell_rbu_dmaaddr;
 
-static void init_packet_head(void)
+static void
+init_packet_head(void)
 {
 	INIT_LIST_HEAD(&packet_data_head.list);
 	rbu_data.packet_write_count = 0;
@@ -93,7 +95,8 @@ static void init_packet_head(void)
 	rbu_data.packetsize = 0;
 }
 
-static int fill_last_packet(void *data, size_t length)
+static int
+fill_last_packet(void *data, size_t length)
 {
 	struct list_head *ptemp_list;
 	struct packet_data *packet = NULL;
@@ -114,7 +117,7 @@ static int fill_last_packet(void *data, size_t length)
 
 	if ((rbu_data.packet_write_count + length) > rbu_data.packetsize) {
 		pr_debug("dell_rbu:%s: packet size data "
-			 "overrun\n", __FUNCTION__);
+			"overrun\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -135,7 +138,8 @@ static int fill_last_packet(void *data, size_t length)
 	return 0;
 }
 
-static int create_packet(size_t length)
+static int
+create_packet(size_t length)
 {
 	struct packet_data *newpacket;
 	int ordernum = 0;
@@ -146,12 +150,14 @@ static int create_packet(size_t length)
 		pr_debug("create_packet: packetsize not specified\n");
 		return -EINVAL;
 	}
+	spin_unlock(&rbu_data.lock);
+	newpacket = kmalloc(sizeof (struct packet_data), GFP_KERNEL);
+	spin_lock(&rbu_data.lock);
 
-	newpacket = kmalloc(sizeof(struct packet_data), GFP_KERNEL);
 	if (!newpacket) {
 		printk(KERN_WARNING
-		       "dell_rbu:%s: failed to allocate new "
-		       "packet\n", __FUNCTION__);
+			"dell_rbu:%s: failed to allocate new "
+			"packet\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
@@ -160,15 +166,17 @@ static int create_packet(size_t length)
 	 * there is no upper limit on memory
 	 * address for packetized mechanism
 	 */
-	newpacket->data = (unsigned char *)__get_free_pages(GFP_KERNEL,
-							    ordernum);
+	spin_unlock(&rbu_data.lock);
+	newpacket->data = (unsigned char *) __get_free_pages(GFP_KERNEL,
+		ordernum);
+	spin_lock(&rbu_data.lock);
 
 	pr_debug("create_packet: newpacket %p\n", newpacket->data);
 
 	if (!newpacket->data) {
 		printk(KERN_WARNING
-		       "dell_rbu:%s: failed to allocate new "
-		       "packet\n", __FUNCTION__);
+			"dell_rbu:%s: failed to allocate new "
+			"packet\n", __FUNCTION__);
 		kfree(newpacket);
 		return -ENOMEM;
 	}
@@ -190,7 +198,8 @@ static int create_packet(size_t length)
 	return 0;
 }
 
-static int packetize_data(void *data, size_t length)
+static int
+packetize_data(void *data, size_t length)
 {
 	int rc = 0;
 
@@ -206,7 +215,7 @@ static int packetize_data(void *data, size_t length)
 
 static int
 do_packet_read(char *data, struct list_head *ptemp_list,
-	       int length, int bytes_read, int *list_read_count)
+	int length, int bytes_read, int *list_read_count)
 {
 	void *ptemp_buf;
 	struct packet_data *newpacket = NULL;
@@ -239,7 +248,8 @@ do_packet_read(char *data, struct list_head *ptemp_list,
 	return bytes_copied;
 }
 
-static int packet_read_list(char *data, size_t * pread_length)
+static int
+packet_read_list(char *data, size_t * pread_length)
 {
 	struct list_head *ptemp_list;
 	int temp_count = 0;
@@ -258,8 +268,7 @@ static int packet_read_list(char *data, size_t * pread_length)
 	ptemp_list = (&packet_data_head.list)->next;
 	while (!list_empty(ptemp_list)) {
 		bytes_copied = do_packet_read(pdest, ptemp_list,
-					      remaining_bytes, bytes_read,
-					      &temp_count);
+			remaining_bytes, bytes_read, &temp_count);
 		remaining_bytes -= bytes_copied;
 		bytes_read += bytes_copied;
 		pdest += bytes_copied;
@@ -278,7 +287,8 @@ static int packet_read_list(char *data, size_t * pread_length)
 	return 0;
 }
 
-static void packet_empty_list(void)
+static void
+packet_empty_list(void)
 {
 	struct list_head *ptemp_list;
 	struct list_head *pnext_list;
@@ -287,7 +297,7 @@ static void packet_empty_list(void)
 	ptemp_list = (&packet_data_head.list)->next;
 	while (!list_empty(ptemp_list)) {
 		newpacket =
-		    list_entry(ptemp_list, struct packet_data, list);
+			list_entry(ptemp_list, struct packet_data, list);
 		pnext_list = ptemp_list->next;
 		list_del(ptemp_list);
 		ptemp_list = pnext_list;
@@ -296,8 +306,8 @@ static void packet_empty_list(void)
 		 * to make sure there are no stale RBU packets left in memory
 		 */
 		memset(newpacket->data, 0, rbu_data.packetsize);
-		free_pages((unsigned long)newpacket->data,
-			   newpacket->ordernum);
+		free_pages((unsigned long) newpacket->data,
+			newpacket->ordernum);
 		kfree(newpacket);
 	}
 	rbu_data.packet_write_count = 0;
@@ -310,7 +320,8 @@ static void packet_empty_list(void)
  * img_update_free: Frees the buffer allocated for storing BIOS image
  * Always called with lock held and returned with lock held
  */
-static void img_update_free(void)
+static void
+img_update_free(void)
 {
 	if (!rbu_data.image_update_buffer)
 		return;
@@ -319,14 +330,13 @@ static void img_update_free(void)
 	 * BIOS image copied in memory.
 	 */
 	memset(rbu_data.image_update_buffer, 0,
-	       rbu_data.image_update_buffer_size);
+		rbu_data.image_update_buffer_size);
 	if (rbu_data.dma_alloc == 1)
 		dma_free_coherent(NULL, rbu_data.bios_image_size,
-				  rbu_data.image_update_buffer,
-				  dell_rbu_dmaaddr);
+			rbu_data.image_update_buffer, dell_rbu_dmaaddr);
 	else
-		free_pages((unsigned long)rbu_data.image_update_buffer,
-			   rbu_data.image_update_ordernum);
+		free_pages((unsigned long) rbu_data.image_update_buffer,
+			rbu_data.image_update_ordernum);
 
 	/*
 	 * Re-initialize the rbu_data variables after a free
@@ -348,7 +358,8 @@ static void img_update_free(void)
  * already allocated size, then that memory is reused. This function is
  * called with lock held and returns with lock held.
  */
-static int img_update_realloc(unsigned long size)
+static int
+img_update_realloc(unsigned long size)
 {
 	unsigned char *image_update_buffer = NULL;
 	unsigned long rc;
@@ -366,7 +377,7 @@ static int img_update_realloc(unsigned long size)
 		 */
 		if ((size != 0) && (rbu_data.image_update_buffer == NULL)) {
 			printk(KERN_ERR "dell_rbu:%s: corruption "
-			       "check failed\n", __FUNCTION__);
+				"check failed\n", __FUNCTION__);
 			return -EINVAL;
 		}
 		/*
@@ -385,17 +396,16 @@ static int img_update_realloc(unsigned long size)
 
 	ordernum = get_order(size);
 	image_update_buffer =
-	    (unsigned char *)__get_free_pages(GFP_KERNEL, ordernum);
+		(unsigned char *) __get_free_pages(GFP_KERNEL, ordernum);
 
 	img_buf_phys_addr =
-	    (unsigned long)virt_to_phys(image_update_buffer);
+		(unsigned long) virt_to_phys(image_update_buffer);
 
 	if (img_buf_phys_addr > BIOS_SCAN_LIMIT) {
-		free_pages((unsigned long)image_update_buffer, ordernum);
+		free_pages((unsigned long) image_update_buffer, ordernum);
 		ordernum = -1;
 		image_update_buffer = dma_alloc_coherent(NULL, size,
-							 &dell_rbu_dmaaddr,
-							 GFP_KERNEL);
+			&dell_rbu_dmaaddr, GFP_KERNEL);
 		dma_alloc = 1;
 	}
 
@@ -405,20 +415,21 @@ static int img_update_realloc(unsigned long size)
 		rbu_data.image_update_buffer = image_update_buffer;
 		rbu_data.image_update_buffer_size = size;
 		rbu_data.bios_image_size =
-		    rbu_data.image_update_buffer_size;
+			rbu_data.image_update_buffer_size;
 		rbu_data.image_update_ordernum = ordernum;
 		rbu_data.dma_alloc = dma_alloc;
 		rc = 0;
 	} else {
 		pr_debug("Not enough memory for image update:"
-			 "size = %ld\n", size);
+			"size = %ld\n", size);
 		rc = -ENOMEM;
 	}
 
 	return rc;
 }
 
-static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
+static ssize_t
+read_packet_data(char *buffer, loff_t pos, size_t count)
 {
 	int retval;
 	size_t bytes_left;
@@ -438,7 +449,7 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 	if (pos > imagesize) {
 		retval = 0;
 		printk(KERN_WARNING "dell_rbu:read_packet_data: "
-		       "data underrun\n");
+			"data underrun\n");
 		goto read_rbu_data_exit;
 	}
 
@@ -459,7 +470,8 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 	return retval;
 }
 
-static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
+static ssize_t
+read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 {
 	unsigned char *ptemp = NULL;
 	size_t bytes_left = 0;
@@ -468,11 +480,11 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 
 	/* check to see if we have something to return */
 	if ((rbu_data.image_update_buffer == NULL) ||
-	    (rbu_data.bios_image_size == 0)) {
+		(rbu_data.bios_image_size == 0)) {
 		pr_debug("read_rbu_data_mono: image_update_buffer %p ,"
-			 "bios_image_size %lu\n",
-			 rbu_data.image_update_buffer,
-			 rbu_data.bios_image_size);
+			"bios_image_size %lu\n",
+			rbu_data.image_update_buffer,
+			rbu_data.bios_image_size);
 		ret_count = -ENOMEM;
 		goto read_rbu_data_exit;
 	}
@@ -515,62 +527,21 @@ read_rbu_data(struct kobject *kobj, char *buffer, loff_t pos, size_t count)
 	return ret_count;
 }
 
-static ssize_t
-read_rbu_image_type(struct kobject *kobj, char *buffer, loff_t pos,
-		    size_t count)
-{
-	int size = 0;
-	if (!pos)
-		size = sprintf(buffer, "%s\n", image_type);
-	return size;
-}
-
-static ssize_t
-write_rbu_image_type(struct kobject *kobj, char *buffer, loff_t pos,
-		     size_t count)
-{
-	int rc = count;
-	spin_lock(&rbu_data.lock);
-
-	if (strlen(buffer) < MAX_IMAGE_LENGTH)
-		sscanf(buffer, "%s", image_type);
-	else
-		printk(KERN_WARNING "dell_rbu: image_type is invalid"
-		       "max chars = %d, \n incoming str--%s-- \n",
-		       MAX_IMAGE_LENGTH, buffer);
-
-	/* we must free all previous allocations */
-	packet_empty_list();
-	img_update_free();
-
-	spin_unlock(&rbu_data.lock);
-	return rc;
-
-}
-
-static struct bin_attribute rbu_data_attr = {
-	.attr = {.name = "data",.owner = THIS_MODULE,.mode = 0444},
-	.read = read_rbu_data,
-};
-
-static struct bin_attribute rbu_image_type_attr = {
-	.attr = {.name = "image_type",.owner = THIS_MODULE,.mode = 0644},
-	.read = read_rbu_image_type,
-	.write = write_rbu_image_type,
-};
-
-static void callbackfn_rbu(const struct firmware *fw, void *context)
+static void
+callbackfn_rbu(const struct firmware *fw, void *context)
 {
 	int rc = 0;
 
-	if (!fw || !fw->size)
+	if (!fw || !fw->size) {
+		rbu_data.entry_created = 0;
 		return;
+	}
 
 	spin_lock(&rbu_data.lock);
 	if (!strcmp(image_type, "mono")) {
 		if (!img_update_realloc(fw->size))
 			memcpy(rbu_data.image_update_buffer,
-			       fw->data, fw->size);
+				fw->data, fw->size);
 	} else if (!strcmp(image_type, "packet")) {
 		if (!rbu_data.packetsize)
 			rbu_data.packetsize = fw->size;
@@ -584,26 +555,110 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 	spin_unlock(&rbu_data.lock);
 
 	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG,
-				     "dell_rbu", &rbu_device->dev,
-				     &context, callbackfn_rbu);
+		"dell_rbu", &rbu_device->dev, &context, callbackfn_rbu);
 	if (rc)
 		printk(KERN_ERR
-		       "dell_rbu:%s request_firmware_nowait failed"
-		       " %d\n", __FUNCTION__, rc);
+			"dell_rbu:%s request_firmware_nowait failed"
+			" %d\n", __FUNCTION__, rc);
+	else
+		rbu_data.entry_created = 1;
 }
 
-static int __init dcdrbu_init(void)
+static ssize_t
+read_rbu_image_type(struct kobject *kobj, char *buffer, loff_t pos,
+	size_t count)
+{
+	int size = 0;
+	if (!pos)
+		size = sprintf(buffer, "%s\n", image_type);
+	return size;
+}
+
+static ssize_t
+write_rbu_image_type(struct kobject *kobj, char *buffer, loff_t pos,
+	size_t count)
+{
+	int rc = count;
+	int req_firm_rc = 0;
+	int i;
+	spin_lock(&rbu_data.lock);
+	/*
+	 * Find the first newline or space
+	 */
+	for (i = 0; i < count; ++i)
+		if (buffer[i] == '\n' || buffer[i] == ' ') {
+			buffer[i] = '\0';
+			break;
+		}
+	if (i == count)
+		buffer[count] = '\0';
+
+	if (strstr(buffer, "mono"))
+		strcpy(image_type, "mono");
+	else if (strstr(buffer, "packet"))
+		strcpy(image_type, "packet");
+	else if (strstr(buffer, "init")) {
+		/*
+		 * If due to the user error the driver gets in a bad
+		 * state where even though it is loaded , the
+		 * /sys/class/firmware/dell_rbu entries are missing.
+		 * to cover this situation the user can recreate entries
+		 * by writing init to image_type.
+		 */
+		if (!rbu_data.entry_created) {
+			spin_unlock(&rbu_data.lock);
+			req_firm_rc = request_firmware_nowait(THIS_MODULE,
+				FW_ACTION_NOHOTPLUG, "dell_rbu",
+				&rbu_device->dev, &context,
+				callbackfn_rbu);
+			if (req_firm_rc) {
+				printk(KERN_ERR
+					"dell_rbu:%s request_firmware_nowait"
+					" failed %d\n", __FUNCTION__, rc);
+				rc = -EIO;
+			} else
+				rbu_data.entry_created = 1;
+
+			spin_lock(&rbu_data.lock);
+		}
+	} else {
+		printk(KERN_WARNING "dell_rbu: image_type is invalid\n");
+		spin_unlock(&rbu_data.lock);
+		return -EINVAL;
+	}
+
+	/* we must free all previous allocations */
+	packet_empty_list();
+	img_update_free();
+	spin_unlock(&rbu_data.lock);
+
+	return rc;
+}
+
+static struct bin_attribute rbu_data_attr = {
+	.attr = {.name = "data",.owner = THIS_MODULE,.mode = 0444},
+	.read = read_rbu_data,
+};
+
+static struct bin_attribute rbu_image_type_attr = {
+	.attr = {.name = "image_type",.owner = THIS_MODULE,.mode = 0644},
+	.read = read_rbu_image_type,
+	.write = write_rbu_image_type,
+};
+
+static int __init
+dcdrbu_init(void)
 {
 	int rc = 0;
 	spin_lock_init(&rbu_data.lock);
 
 	init_packet_head();
 	rbu_device =
-	    platform_device_register_simple("dell_rbu", -1, NULL, 0);
+		platform_device_register_simple("dell_rbu", -1, NULL, 0);
 	if (!rbu_device) {
 		printk(KERN_ERR
-		       "dell_rbu:%s:platform_device_register_simple "
-		       "failed\n", __FUNCTION__);
+			"dell_rbu:%s:platform_device_register_simple "
+			"failed\n", __FUNCTION__);
 		return -EIO;
 	}
 
@@ -611,17 +666,19 @@ static int __init dcdrbu_init(void)
 	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
 
 	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG,
-				     "dell_rbu", &rbu_device->dev,
-				     &context, callbackfn_rbu);
+		"dell_rbu", &rbu_device->dev, &context, callbackfn_rbu);
 	if (rc)
 		printk(KERN_ERR "dell_rbu:%s:request_firmware_nowait"
-		       " failed %d\n", __FUNCTION__, rc);
+			" failed %d\n", __FUNCTION__, rc);
+	else
+		rbu_data.entry_created = 1;
 
 	return rc;
 
 }
 
-static __exit void dcdrbu_exit(void)
+static __exit void
+dcdrbu_exit(void)
 {
 	spin_lock(&rbu_data.lock);
 	packet_empty_list();
