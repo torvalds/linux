@@ -173,6 +173,14 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define BCSR_INT_SD1INSERT	0x4000
 #define BCSR_INT_SD1EJECT	0x8000
 
+/* PCMCIA Db1x00 specific defines */
+#define PCMCIA_MAX_SOCK 1
+#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK+1)
+
+/* VPP/VCC */
+#define SET_VCC_VPP(VCC, VPP, SLOT)\
+	((((VCC)<<2) | ((VPP)<<0)) << ((SLOT)*8))
+
 #define AU1XXX_SMC91111_PHYS_ADDR	(0x0D000300)
 #define AU1XXX_SMC91111_IRQ			PB1200_ETH_INT
 

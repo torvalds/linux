@@ -207,8 +207,6 @@ static struct platform_device au1200_ide0_device = {
 	.resource	= au1200_ide0_resources,
 };
 
-#endif
-
 static struct platform_device au1x00_pcmcia_device = {
 	.name 		= "au1x00-pcmcia",
 	.id 		= 0,
