@@ -132,11 +132,15 @@ static void usb_ctrl_complete(struct urb *urb, struct pt_regs *regs)
 	struct ctrl_msg *ctrl_msg;
 	
 	if (unlikely(urb->status < 0)) {
-		if (urb->status != -ENOENT && urb->status != -ESHUTDOWN) {
-			WARN("urb status %d",urb->status);
-		} else {
-			DBG(1,"urb killed");
-			return; // Give up
+		switch (urb->status) {
+			case -ENOENT:
+			case -ESHUTDOWN:
+			case -ECONNRESET:
+				DBG(1,"urb killed status %d", urb->status);
+				return; // Give up
+			default: 
+				WARN("urb status %d",urb->status);
+				break;
 		}
 	}
 
@@ -184,22 +188,22 @@ static void usb_int_complete(struct urb *urb, struct pt_regs *regs)
 	int status;
 
 	switch (urb->status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		DBG(1, "urb shutting down with status: %d", urb->status);
-		return;
-	default:
-		WARN("nonzero urb status received: %d", urb->status);
-		goto exit;
+		case 0:
+			/* success */
+			break;
+		case -ECONNRESET:
+		case -ENOENT:
+		case -ESHUTDOWN:
+			/* this urb is terminated, clean up */
+			DBG(2, "urb shutting down with status: %d", urb->status);
+			return;
+		default:
+			WARN("nonzero urb status received: %d", urb->status);
+			goto exit;
 	}
 
 	
-	DBG_PACKET(1, data, INT_PKT_SIZE);
+	DBG_PACKET(2, data, INT_PKT_SIZE);
 		
 	if (urb->actual_length == 0) {
 		goto exit;
@@ -250,7 +254,7 @@ int st5481_setup_usb(struct st5481_adapter *adapter)
 	struct urb *urb;
 	u8 *buf;
 	
-	DBG(1,"");
+	DBG(2,"");
 	
 	if ((status = usb_reset_configuration (dev)) < 0) {
 		WARN("reset_configuration failed,status=%d",status);
@@ -330,15 +334,17 @@ void st5481_release_usb(struct st5481_adapter *adapter)
 	DBG(1,"");
 
 	// Stop and free Control and Interrupt URBs
-	usb_unlink_urb(ctrl->urb);
+	usb_kill_urb(ctrl->urb);
 	if (ctrl->urb->transfer_buffer)
 		kfree(ctrl->urb->transfer_buffer);
 	usb_free_urb(ctrl->urb);
+	ctrl->urb = NULL;
 
-	usb_unlink_urb(intr->urb);
+	usb_kill_urb(intr->urb);
 	if (intr->urb->transfer_buffer)
 		kfree(intr->urb->transfer_buffer);
 	usb_free_urb(intr->urb);
+	ctrl->urb = NULL;
 }
 
 /*
@@ -406,6 +412,7 @@ fill_isoc_urb(struct urb *urb, struct usb_device *dev,
 	spin_lock_init(&urb->lock);
 	urb->dev=dev;
 	urb->pipe=pipe;
+	urb->interval = 1;
 	urb->transfer_buffer=buf;
 	urb->number_of_packets = num_packets;
 	urb->transfer_buffer_length=num_packets*packet_size;
@@ -452,7 +459,9 @@ st5481_setup_isocpipes(struct urb* urb[2], struct usb_device *dev,
 		if (urb[j]) {
 			if (urb[j]->transfer_buffer)
 				kfree(urb[j]->transfer_buffer);
+			urb[j]->transfer_buffer = NULL;
 			usb_free_urb(urb[j]);
+			urb[j] = NULL;
 		}
 	}
 	return retval;
@@ -463,10 +472,11 @@ void st5481_release_isocpipes(struct urb* urb[2])
 	int j;
 
 	for (j = 0; j < 2; j++) {
-		usb_unlink_urb(urb[j]);
+		usb_kill_urb(urb[j]);
 		if (urb[j]->transfer_buffer)
 			kfree(urb[j]->transfer_buffer);			
 		usb_free_urb(urb[j]);
+		urb[j] = NULL;
 	}
 }
 
@@ -485,11 +495,15 @@ static void usb_in_complete(struct urb *urb, struct pt_regs *regs)
 	int len, count, status;
 
 	if (unlikely(urb->status < 0)) {
-		if (urb->status != -ENOENT && urb->status != -ESHUTDOWN) {
-			WARN("urb status %d",urb->status);
-		} else {
-			DBG(1,"urb killed");
-			return; // Give up
+		switch (urb->status) {
+			case -ENOENT:
+			case -ESHUTDOWN:
+			case -ECONNRESET:
+				DBG(1,"urb killed status %d", urb->status);
+				return; // Give up
+			default: 
+				WARN("urb status %d",urb->status);
+				break;
 		}
 	}
 
@@ -631,7 +645,9 @@ void st5481_in_mode(struct st5481_in *in, int mode)
 
 	in->mode = mode;
 
+	in->urb[0]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(in->urb[0]);
+	in->urb[1]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(in->urb[1]);
 
 	if (in->mode != L1_MODE_NULL) {
