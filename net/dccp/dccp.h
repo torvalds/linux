@@ -17,6 +17,7 @@
 #include <net/snmp.h>
 #include <net/sock.h>
 #include <net/tcp.h>
+#include "ackvec.h"
 
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern int dccp_debug;
@@ -358,6 +359,17 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 		       (dp->dccps_gss -
 			dp->dccps_options.dccpo_sequence_window + 1));
 }
+				
+static inline int dccp_ack_pending(const struct sock *sk)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+	return dp->dccps_timestamp_echo != 0 ||
+#ifdef CONFIG_IP_DCCP_ACKVEC
+	       (dp->dccps_options.dccpo_send_ack_vector &&
+		dccp_ackvec_pending(dp->dccps_hc_rx_ackvec)) ||
+#endif
+	       inet_csk_ack_scheduled(sk);
+}
 
 extern void dccp_insert_options(struct sock *sk, struct sk_buff *skb);
 extern void dccp_insert_option_elapsed_time(struct sock *sk,
@@ -370,65 +382,6 @@ extern void dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 			       const void *value, unsigned char len);
 
 extern struct socket *dccp_ctl_socket;
-
-#define DCCP_ACKPKTS_STATE_RECEIVED	0
-#define DCCP_ACKPKTS_STATE_ECN_MARKED	(1 << 6)
-#define DCCP_ACKPKTS_STATE_NOT_RECEIVED	(3 << 6)
-
-#define DCCP_ACKPKTS_STATE_MASK		0xC0 /* 11000000 */
-#define DCCP_ACKPKTS_LEN_MASK		0x3F /* 00111111 */
-
-/** struct dccp_ackpkts - acknowledgeable packets
- *
- * This data structure is the one defined in the DCCP draft
- * Appendix A.
- *
- * @dccpap_buf_head - circular buffer head
- * @dccpap_buf_tail - circular buffer tail
- * @dccpap_buf_ackno - ack # of the most recent packet acknowledgeable in the
- * 		       buffer (i.e. %dccpap_buf_head)
- * @dccpap_buf_nonce - the one-bit sum of the ECN Nonces on all packets acked
- * 		       by the buffer with State 0
- *
- * Additionally, the HC-Receiver must keep some information about the
- * Ack Vectors it has recently sent. For each packet sent carrying an
- * Ack Vector, it remembers four variables:
- *
- * @dccpap_ack_seqno - the Sequence Number used for the packet
- * 		       (HC-Receiver seqno)
- * @dccpap_ack_ptr - the value of buf_head at the time of acknowledgement.
- * @dccpap_ack_ackno - the Acknowledgement Number used for the packet
- * 		       (HC-Sender seqno)
- * @dccpap_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
- *
- * @dccpap_buf_len - circular buffer length
- * @dccpap_time		- the time in usecs
- * @dccpap_buf - circular buffer of acknowledgeable packets
- */
-struct dccp_ackpkts {
-	unsigned int		dccpap_buf_head;
-	unsigned int		dccpap_buf_tail;
-	u64			dccpap_buf_ackno;
-	u64			dccpap_ack_seqno;
-	u64			dccpap_ack_ackno;
-	unsigned int		dccpap_ack_ptr;
-	unsigned int		dccpap_buf_vector_len;
-	unsigned int		dccpap_ack_vector_len;
-	unsigned int		dccpap_buf_len;
-	struct timeval		dccpap_time;
-	u8			dccpap_buf_nonce;
-	u8			dccpap_ack_nonce;
-	u8			dccpap_buf[0];
-};
-
-extern struct dccp_ackpkts *
-		dccp_ackpkts_alloc(unsigned int len,
-				  const unsigned int __nocast priority);
-extern void dccp_ackpkts_free(struct dccp_ackpkts *ap);
-extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, const struct sock *sk,
-			    u64 ackno, u8 state);
-extern void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap,
-					 struct sock *sk, u64 ackno);
 
 extern void dccp_timestamp(const struct sock *sk, struct timeval *tv);
 
@@ -469,16 +422,5 @@ static inline void timeval_sub_usecs(struct timeval *tv,
 		tv->tv_usec += USEC_PER_SEC;
 	}
 }
-
-#ifdef CONFIG_IP_DCCP_DEBUG
-extern void dccp_ackvector_print(const u64 ackno,
-				 const unsigned char *vector, int len);
-extern void dccp_ackpkts_print(const struct dccp_ackpkts *ap);
-#else
-static inline void dccp_ackvector_print(const u64 ackno,
-					const unsigned char *vector,
-					int len) { }
-static inline void dccp_ackpkts_print(const struct dccp_ackpkts *ap) { }
-#endif
 
 #endif /* _DCCP_H */

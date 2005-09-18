@@ -19,6 +19,7 @@
 #include <net/xfrm.h>
 #include <net/inet_timewait_sock.h>
 
+#include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
 
@@ -94,23 +95,23 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		struct dccp_sock *newdp = dccp_sk(newsk);
 
 		newdp->dccps_role	   = DCCP_ROLE_SERVER;
-		newdp->dccps_hc_rx_ackpkts = NULL;
+		newdp->dccps_hc_rx_ackvec  = NULL;
 		newdp->dccps_service_list  = NULL;
 		newdp->dccps_service	   = dreq->dreq_service;
 		newicsk->icsk_rto	   = DCCP_TIMEOUT_INIT;
 		do_gettimeofday(&newdp->dccps_epoch);
 
 		if (newdp->dccps_options.dccpo_send_ack_vector) {
-			newdp->dccps_hc_rx_ackpkts =
-				dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
-						   GFP_ATOMIC);
+			newdp->dccps_hc_rx_ackvec =
+				dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
+						  GFP_ATOMIC);
 			/*
 			 * XXX: We're using the same CCIDs set on the parent,
 			 * i.e. sk_clone copied the master sock and left the
 			 * CCID pointers for this child, that is why we do the
 			 * __ccid_get calls.
 			 */
-			if (unlikely(newdp->dccps_hc_rx_ackpkts == NULL))
+			if (unlikely(newdp->dccps_hc_rx_ackvec == NULL))
 				goto out_free;
 		}
 
@@ -118,7 +119,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 					     newsk) != 0 ||
 			     ccid_hc_tx_init(newdp->dccps_hc_tx_ccid,
 				     	     newsk) != 0)) {
-			dccp_ackpkts_free(newdp->dccps_hc_rx_ackpkts);
+			dccp_ackvec_free(newdp->dccps_hc_rx_ackvec);
 			ccid_hc_rx_exit(newdp->dccps_hc_rx_ccid, newsk);
 			ccid_hc_tx_exit(newdp->dccps_hc_tx_ccid, newsk);
 out_free:

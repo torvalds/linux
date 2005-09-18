@@ -353,14 +353,8 @@ static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
 
 extern struct inet_timewait_death_row dccp_death_row;
 
-/* Read about the ECN nonce to see why it is 253 */
-#define DCCP_MAX_ACK_VECTOR_LEN 253
-
 struct dccp_options_received {
-	u32	dccpor_ndp:24,
-		dccpor_ack_vector_len:8;
-	u32	dccpor_ack_vector_idx:10;
-	/* 22 bits hole, try to pack */
+	u32	dccpor_ndp; /* only 24 bits */
 	u32	dccpor_timestamp;
 	u32	dccpor_timestamp_echo;
 	u32	dccpor_elapsed_time;
@@ -394,6 +388,8 @@ static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 	return 0;
 }
 
+struct dccp_ackvec;
+
 /**
  * struct dccp_sock - DCCP socket state
  *
@@ -414,7 +410,7 @@ static inline int dccp_list_has_service(const struct dccp_service_list *sl,
  * @dccps_packet_size - Set thru setsockopt
  * @dccps_role - Role of this sock, one of %dccp_role
  * @dccps_ndp_count - number of Non Data Packets since last data packet
- * @dccps_hc_rx_ackpkts - receiver half connection acked packets
+ * @dccps_hc_rx_ackvec - rx half connection ack vector
  */
 struct dccp_sock {
 	/* inet_connection_sock has to be the first member of dccp_sock */
@@ -439,7 +435,7 @@ struct dccp_sock {
 	__u32				dccps_pmtu_cookie;
 	__u32				dccps_mss_cache;
 	struct dccp_options		dccps_options;
-	struct dccp_ackpkts		*dccps_hc_rx_ackpkts;
+	struct dccp_ackvec		*dccps_hc_rx_ackvec;
 	void				*dccps_hc_rx_ccid_private;
 	void				*dccps_hc_tx_ccid_private;
 	struct ccid			*dccps_hc_rx_ccid;

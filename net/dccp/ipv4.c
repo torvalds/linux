@@ -23,6 +23,7 @@
 #include <net/tcp_states.h>
 #include <net/xfrm.h>
 
+#include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
 
@@ -1112,45 +1113,7 @@ int dccp_v4_rcv(struct sk_buff *skb)
 		goto discard_it;
 
 	dh = dccp_hdr(skb);
-#if 0
-	/*
-	 * Use something like this to simulate some DATA/DATAACK loss to test
-	 * dccp_ackpkts_add, you'll get something like this on a session that
-	 * sends 10 DATA/DATAACK packets:
-	 *
-	 * ackpkts_print: 281473596467422 |0,0|3,0|0,0|3,0|0,0|3,0|0,0|3,0|0,1|
-	 *
-	 * 0, 0 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == just this packet
-	 * 0, 1 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == two adjacent packets
-	 * 						   with the same state
-	 * 3, 0 means: DCCP_ACKPKTS_STATE_NOT_RECEIVED, RLE == just this packet
-	 *
-	 * So...
-	 *
-	 * 281473596467422 was received
-	 * 281473596467421 was not received
-	 * 281473596467420 was received
-	 * 281473596467419 was not received
-	 * 281473596467418 was received
-	 * 281473596467417 was not received
-	 * 281473596467416 was received
-	 * 281473596467415 was not received
-	 * 281473596467414 was received
-	 * 281473596467413 was received (this one was the 3way handshake
-	 * 				 RESPONSE)
-	 *
-	 */
-	if (dh->dccph_type == DCCP_PKT_DATA ||
-	    dh->dccph_type == DCCP_PKT_DATAACK) {
-		static int discard = 0;
 
-		if (discard) {
-			discard = 0;
-			goto discard_it;
-		}
-		discard = 1;
-	}
-#endif
 	DCCP_SKB_CB(skb)->dccpd_seq  = dccp_hdr_seq(skb);
 	DCCP_SKB_CB(skb)->dccpd_type = dh->dccph_type;
 
@@ -1264,11 +1227,9 @@ static int dccp_v4_init_sock(struct sock *sk)
 	do_gettimeofday(&dp->dccps_epoch);
 
 	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dp->dccps_hc_rx_ackpkts =
-			dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
-					   GFP_KERNEL);
-
-		if (dp->dccps_hc_rx_ackpkts == NULL)
+		dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
+							   GFP_KERNEL);
+		if (dp->dccps_hc_rx_ackvec == NULL)
 			return -ENOMEM;
 	}
 
@@ -1288,8 +1249,10 @@ static int dccp_v4_init_sock(struct sock *sk)
 		    dp->dccps_hc_tx_ccid == NULL) {
 			ccid_exit(dp->dccps_hc_rx_ccid, sk);
 			ccid_exit(dp->dccps_hc_tx_ccid, sk);
-			dccp_ackpkts_free(dp->dccps_hc_rx_ackpkts);
-			dp->dccps_hc_rx_ackpkts = NULL;
+			if (dp->dccps_options.dccpo_send_ack_vector) {
+				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
+				dp->dccps_hc_rx_ackvec = NULL;
+			}
 			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
 			return -ENOMEM;
 		}
@@ -1331,8 +1294,10 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 
 	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
-	dccp_ackpkts_free(dp->dccps_hc_rx_ackpkts);
-	dp->dccps_hc_rx_ackpkts = NULL;
+	if (dp->dccps_options.dccpo_send_ack_vector) {
+		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
+		dp->dccps_hc_rx_ackvec = NULL;
+	}
 	ccid_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_exit(dp->dccps_hc_tx_ccid, sk);
 	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;

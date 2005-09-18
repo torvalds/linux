@@ -16,6 +16,7 @@
 
 #include <net/sock.h>
 
+#include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
 
@@ -225,7 +226,6 @@ int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, long *timeo)
 		err = dccp_wait_for_ccid(sk, skb, timeo);
 
 	if (err == 0) {
-		const struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
 		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 		const int len = skb->len;
 
@@ -236,15 +236,7 @@ int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, long *timeo)
 						  inet_csk(sk)->icsk_rto,
 						  DCCP_RTO_MAX);
 			dcb->dccpd_type = DCCP_PKT_DATAACK;
-			/*
-			 * FIXME: we really should have a
-			 * dccps_ack_pending or use icsk.
-			 */
-		} else if (inet_csk_ack_scheduled(sk) ||
-			   dp->dccps_timestamp_echo != 0 ||
-			   (dp->dccps_options.dccpo_send_ack_vector &&
-			    ap->dccpap_buf_ackno != DCCP_MAX_SEQNO + 1 &&
-			    ap->dccpap_ack_seqno == DCCP_MAX_SEQNO + 1))
+		} else if (dccp_ack_pending(sk))
 			dcb->dccpd_type = DCCP_PKT_DATAACK;
 		else
 			dcb->dccpd_type = DCCP_PKT_DATA;
