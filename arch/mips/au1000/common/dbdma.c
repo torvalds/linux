@@ -141,12 +141,12 @@ static dbdev_tab_t dbdev_tab[] = {
 	{ DSCR_CMD0_AES_RX, DEV_FLAGS_IN , 4, 32, 0x10300008, 0, 0 },
 	{ DSCR_CMD0_AES_TX, DEV_FLAGS_OUT, 4, 32, 0x10300004, 0, 0 },
 
-	{ DSCR_CMD0_PSC0_TX, DEV_FLAGS_OUT, 0, 0, 0x11a0001c, 0, 0 },
-	{ DSCR_CMD0_PSC0_RX, DEV_FLAGS_IN, 0, 0, 0x11a0001c, 0, 0 },
+	{ DSCR_CMD0_PSC0_TX, DEV_FLAGS_OUT, 0, 16, 0x11a0001c, 0, 0 },
+	{ DSCR_CMD0_PSC0_RX, DEV_FLAGS_IN, 0, 16, 0x11a0001c, 0, 0 },
 	{ DSCR_CMD0_PSC0_SYNC, DEV_FLAGS_ANYUSE, 0, 0, 0x00000000, 0, 0 },
 
-	{ DSCR_CMD0_PSC1_TX, DEV_FLAGS_OUT, 0, 0, 0x11b0001c, 0, 0 },
-	{ DSCR_CMD0_PSC1_RX, DEV_FLAGS_IN, 0, 0, 0x11b0001c, 0, 0 },
+	{ DSCR_CMD0_PSC1_TX, DEV_FLAGS_OUT, 0, 16, 0x11b0001c, 0, 0 },
+	{ DSCR_CMD0_PSC1_RX, DEV_FLAGS_IN, 0, 16, 0x11b0001c, 0, 0 },
 	{ DSCR_CMD0_PSC1_SYNC, DEV_FLAGS_ANYUSE, 0, 0, 0x00000000, 0, 0 },
 
 	{ DSCR_CMD0_CIM_RXA, DEV_FLAGS_IN, 0, 32, 0x14004020, 0, 0 },
@@ -430,7 +430,13 @@ au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 	cmd0 |= DSCR_CMD0_SID(srcid);
 	cmd0 |= DSCR_CMD0_DID(destid);
 	cmd0 |= DSCR_CMD0_IE | DSCR_CMD0_CV;
-	cmd0 |= DSCR_CMD0_ST(DSCR_CMD0_ST_CURRENT);
+	cmd0 |= DSCR_CMD0_ST(DSCR_CMD0_ST_NOCHANGE);
+
+        /* is it mem to mem transfer? */
+        if(((DSCR_CUSTOM2DEV_ID(srcid) == DSCR_CMD0_THROTTLE) || (DSCR_CUSTOM2DEV_ID(srcid) == DSCR_CMD0_ALWAYS)) &&
+           ((DSCR_CUSTOM2DEV_ID(destid) == DSCR_CMD0_THROTTLE) || (DSCR_CUSTOM2DEV_ID(destid) == DSCR_CMD0_ALWAYS))) {
+               cmd0 |= DSCR_CMD0_MEM;
+        }
 
 	switch (stp->dev_devwidth) {
 	case 8:
@@ -539,7 +545,8 @@ au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 		dp->dscr_dest0 = dest0;
 		dp->dscr_dest1 = dest1;
 		dp->dscr_stat = 0;
-				dp->sw_context = dp->sw_status = 0;
+		dp->sw_context = 0;
+		dp->sw_status = 0;
 		dp->dscr_nxtptr = DSCR_NXTPTR(virt_to_phys(dp + 1));
 		dp++;
 	}
@@ -591,9 +598,6 @@ _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 		dp->dscr_cmd0 |= DSCR_CMD0_IE;
 	if (flags & DDMA_FLAGS_NOIE)
 		dp->dscr_cmd0 &= ~DSCR_CMD0_IE;
-	/* Get next descriptor pointer.
-	*/
-	ctp->put_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 
 	/*
 	 * There is an errata on the Au1200/Au1550 parts that could result
@@ -607,6 +611,10 @@ _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 	au_sync();
 	dma_cache_wback_inv((unsigned long)dp, sizeof(dp));
         ctp->chan_ptr->ddma_dbell = 0;
+
+	/* Get next descriptor pointer.
+	*/
+	ctp->put_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 
 	/* return something not zero.
 	*/
