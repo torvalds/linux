@@ -5039,6 +5039,14 @@ static int __init bonding_init(void)
 	return 0;
 
 out_err:
+	/*
+	 * rtnl_unlock() will run netdev_run_todo(), putting the
+	 * thus-far-registered bonding devices into a state which
+	 * unregigister_netdevice() will accept
+	 */
+	rtnl_unlock();
+	rtnl_lock();
+
 	/* free and unregister all bonds that were successfully added */
 	bond_free_all();
 
