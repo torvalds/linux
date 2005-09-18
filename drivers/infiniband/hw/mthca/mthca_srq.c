@@ -409,7 +409,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
-			return nreq;
+			break;
 		}
 
 		wqe       = get_wqe(srq, ind);
@@ -427,7 +427,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			err = -EINVAL;
 			*bad_wr = wr;
 			srq->last = prev_wqe;
-			return nreq;
+			break;
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {
@@ -455,8 +455,6 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		srq->wrid[ind]  = wr->wr_id;
 		srq->first_free = next_ind;
 	}
-
-	return nreq;
 
 	if (likely(nreq)) {
 		__be32 doorbell[2];
@@ -501,7 +499,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
-			return nreq;
+			break;
 		}
 
 		wqe       = get_wqe(srq, ind);
@@ -517,7 +515,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		if (unlikely(wr->num_sge > srq->max_gs)) {
 			err = -EINVAL;
 			*bad_wr = wr;
-			return nreq;
+			break;
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {
