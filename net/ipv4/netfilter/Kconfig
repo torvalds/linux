@@ -8,6 +8,7 @@ menu "IP: Netfilter Configuration"
 # connection tracking, helpers and protocols
 config IP_NF_CONNTRACK
 	tristate "Connection tracking (required for masq/NAT)"
+	select NETFILTER_NETLINK if IP_NF_CONNTRACK_NETLINK!=n
 	---help---
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
@@ -50,6 +51,15 @@ config IP_NF_CONNTRACK_EVENTS
 	  to get notified about changes in the connection tracking state.
 	  
 	  IF unsure, say `N'.
+
+config IP_NF_CONNTRACK_NETLINK
+	tristate 'Connection tracking netlink interface'
+	depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
+	default IP_NF_CONNTRACK if NETFILTER_NETLINK=y
+	default m if NETFILTER_NETLINK=m
+	help
+	  This option enables support for a netlink-based userspace interface
+
 
 config IP_NF_CT_PROTO_SCTP
 	tristate  'SCTP protocol connection tracking support (EXPERIMENTAL)'
@@ -773,12 +783,6 @@ config IP_NF_ARP_MANGLE
 	help
 	  Allows altering the ARP packet payload: source and destination
 	  hardware and network addresses.
-
-config IP_NF_CONNTRACK_NETLINK
-        tristate 'Connection tracking netlink interface'
-        depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
-        help
-          This option enables support for a netlink-based userspace interface
 
 endmenu
 

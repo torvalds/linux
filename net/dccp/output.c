@@ -85,7 +85,7 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_REQUEST:
 			dccp_hdr_request(skb)->dccph_req_service =
-							dcb->dccpd_service;
+							dp->dccps_service;
 			break;
 		case DCCP_PKT_RESET:
 			dccp_hdr_reset(skb)->dccph_reset_code =
@@ -270,6 +270,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 				   struct request_sock *req)
 {
 	struct dccp_hdr *dh;
+	struct dccp_request_sock *dreq;
 	const int dccp_header_size = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_response);
@@ -285,8 +286,9 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	skb->dst = dst_clone(dst);
 	skb->csum = 0;
 
+	dreq = dccp_rsk(req);
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
-	DCCP_SKB_CB(skb)->dccpd_seq  = dccp_rsk(req)->dreq_iss;
+	DCCP_SKB_CB(skb)->dccpd_seq  = dreq->dreq_iss;
 	dccp_insert_options(sk, skb);
 
 	skb->h.raw = skb_push(skb, dccp_header_size);
@@ -300,8 +302,9 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 			   DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;
 	dh->dccph_type	= DCCP_PKT_RESPONSE;
 	dh->dccph_x	= 1;
-	dccp_hdr_set_seq(dh, dccp_rsk(req)->dreq_iss);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dccp_rsk(req)->dreq_isr);
+	dccp_hdr_set_seq(dh, dreq->dreq_iss);
+	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dreq->dreq_isr);
+	dccp_hdr_response(skb)->dccph_resp_service = dreq->dreq_service;
 
 	dh->dccph_checksum = dccp_v4_checksum(skb, inet_rsk(req)->loc_addr,
 					      inet_rsk(req)->rmt_addr);
@@ -397,9 +400,6 @@ int dccp_connect(struct sock *sk)
 	skb_reserve(skb, MAX_DCCP_HEADER);
 
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_REQUEST;
-	/* FIXME: set service to something meaningful, coming
-	 * from userspace*/
-	DCCP_SKB_CB(skb)->dccpd_service = 0;
 	skb->csum = 0;
 	skb_set_owner_w(skb, sk);
 

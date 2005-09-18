@@ -258,13 +258,12 @@ extern int	   dccp_v4_send_reset(struct sock *sk,
 extern void	   dccp_send_close(struct sock *sk, const int active);
 
 struct dccp_skb_cb {
-	__u8 dccpd_type;
-	__u8 dccpd_reset_code;
-	__u8 dccpd_service;
-	__u8 dccpd_ccval;
+	__u8  dccpd_type:4;
+	__u8  dccpd_ccval:4;
+	__u8  dccpd_reset_code;
+	__u16 dccpd_opt_len;
 	__u64 dccpd_seq;
 	__u64 dccpd_ack_seq;
-	int  dccpd_opt_len;
 };
 
 #define DCCP_SKB_CB(__skb) ((struct dccp_skb_cb *)&((__skb)->cb[0]))

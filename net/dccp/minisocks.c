@@ -93,9 +93,11 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		struct inet_connection_sock *newicsk = inet_csk(sk);
 		struct dccp_sock *newdp = dccp_sk(newsk);
 
+		newdp->dccps_role	   = DCCP_ROLE_SERVER;
 		newdp->dccps_hc_rx_ackpkts = NULL;
-		newdp->dccps_role = DCCP_ROLE_SERVER;
-		newicsk->icsk_rto = DCCP_TIMEOUT_INIT;
+		newdp->dccps_service_list  = NULL;
+		newdp->dccps_service	   = dreq->dreq_service;
+		newicsk->icsk_rto	   = DCCP_TIMEOUT_INIT;
 		do_gettimeofday(&newdp->dccps_epoch);
 
 		if (newdp->dccps_options.dccpo_send_ack_vector) {
