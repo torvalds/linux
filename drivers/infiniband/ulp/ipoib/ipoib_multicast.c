@@ -145,7 +145,7 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 
 	mcast->dev = dev;
 	mcast->created = jiffies;
-	mcast->backoff = HZ;
+	mcast->backoff = 1;
 	mcast->logcount = 0;
 
 	INIT_LIST_HEAD(&mcast->list);
@@ -396,7 +396,7 @@ static void ipoib_mcast_join_complete(int status,
 			IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 	if (!status && !ipoib_mcast_join_finish(mcast, mcmember)) {
-		mcast->backoff = HZ;
+		mcast->backoff = 1;
 		down(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_work(ipoib_workqueue, &priv->mcast_task);
@@ -496,7 +496,7 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_delayed_work(ipoib_workqueue,
 					   &priv->mcast_task,
-					   mcast->backoff);
+					   mcast->backoff * HZ);
 		up(&mcast_mutex);
 	} else
 		mcast->query_id = ret;
