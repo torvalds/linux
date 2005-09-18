@@ -179,6 +179,8 @@ enum {
 /* DCCP socket options */
 #define DCCP_SOCKOPT_PACKET_SIZE	1
 #define DCCP_SOCKOPT_SERVICE		2
+#define DCCP_SOCKOPT_CCID_RX_INFO	128
+#define DCCP_SOCKOPT_CCID_TX_INFO	192
 
 #define DCCP_SERVICE_LIST_MAX_LEN      32
 

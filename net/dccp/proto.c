@@ -325,12 +325,7 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	if (get_user(len, optlen))
 		return -EFAULT;
 
-	if (optname == DCCP_SOCKOPT_SERVICE)
-		return dccp_getsockopt_service(sk, len,
-					       (u32 __user *)optval, optlen);
-
-	len = min_t(unsigned int, len, sizeof(int));
-	if (len < 0)
+	if (len < sizeof(int))
 		return -EINVAL;
 
 	dp = dccp_sk(sk);
@@ -338,7 +333,17 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		val = dp->dccps_packet_size;
+		len = sizeof(dp->dccps_packet_size);
 		break;
+	case DCCP_SOCKOPT_SERVICE:
+		return dccp_getsockopt_service(sk, len,
+					       (u32 __user *)optval, optlen);
+	case 128 ... 191:
+		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
+					     len, (u32 __user *)optval, optlen);
+	case 192 ... 255:
+		return ccid_hc_tx_getsockopt(dp->dccps_hc_tx_ccid, sk, optname,
+					     len, (u32 __user *)optval, optlen);
 	default:
 		return -ENOPROTOOPT;
 	}
