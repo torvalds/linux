@@ -98,6 +98,7 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 		switch (oldstate) {
 		case SHOST_CREATED:
 		case SHOST_RUNNING:
+		case SHOST_CANCEL_RECOVERY:
 			break;
 		default:
 			goto illegal;
@@ -107,12 +108,31 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 	case SHOST_DEL:
 		switch (oldstate) {
 		case SHOST_CANCEL:
+		case SHOST_DEL_RECOVERY:
 			break;
 		default:
 			goto illegal;
 		}
 		break;
 
+	case SHOST_CANCEL_RECOVERY:
+		switch (oldstate) {
+		case SHOST_CANCEL:
+		case SHOST_RECOVERY:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
+
+	case SHOST_DEL_RECOVERY:
+		switch (oldstate) {
+		case SHOST_CANCEL_RECOVERY:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
 	}
 	shost->shost_state = state;
 	return 0;
@@ -134,13 +154,24 @@ EXPORT_SYMBOL(scsi_host_set_state);
  **/
 void scsi_remove_host(struct Scsi_Host *shost)
 {
+	unsigned long flags;
 	down(&shost->scan_mutex);
-	scsi_host_set_state(shost, SHOST_CANCEL);
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (scsi_host_set_state(shost, SHOST_CANCEL))
+		if (scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY)) {
+			spin_unlock_irqrestore(shost->host_lock, flags);
+			up(&shost->scan_mutex);
+			return;
+		}
+	spin_unlock_irqrestore(shost->host_lock, flags);
 	up(&shost->scan_mutex);
 	scsi_forget_host(shost);
 	scsi_proc_host_rm(shost);
 
-	scsi_host_set_state(shost, SHOST_DEL);
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (scsi_host_set_state(shost, SHOST_DEL))
+		BUG_ON(scsi_host_set_state(shost, SHOST_DEL_RECOVERY));
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	transport_unregister_device(&shost->shost_gendev);
 	class_device_unregister(&shost->shost_classdev);

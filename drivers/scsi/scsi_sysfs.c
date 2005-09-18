@@ -57,6 +57,8 @@ static struct {
 	{ SHOST_CANCEL, "cancel" },
 	{ SHOST_DEL, "deleted" },
 	{ SHOST_RECOVERY, "recovery" },
+	{ SHOST_CANCEL_RECOVERY, "cancel/recovery" },
+	{ SHOST_DEL_RECOVERY, "deleted/recovery", },
 };
 const char *scsi_host_state_name(enum scsi_host_state state)
 {
