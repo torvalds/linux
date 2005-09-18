@@ -25,7 +25,8 @@
 /* stores the default values for new connection. may be changed with sysctl */
 static const struct dccp_options dccpo_default_values = {
 	.dccpo_sequence_window	  = DCCPF_INITIAL_SEQUENCE_WINDOW,
-	.dccpo_ccid		  = DCCPF_INITIAL_CCID,
+	.dccpo_rx_ccid		  = DCCPF_INITIAL_CCID,
+	.dccpo_tx_ccid		  = DCCPF_INITIAL_CCID,
 	.dccpo_send_ack_vector	  = DCCPF_INITIAL_SEND_ACK_VECTOR,
 	.dccpo_send_ndp_count	  = DCCPF_INITIAL_SEND_NDP_COUNT,
 };

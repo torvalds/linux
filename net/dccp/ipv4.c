@@ -1241,9 +1241,9 @@ static int dccp_v4_init_sock(struct sock *sk)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(!dccp_ctl_socket_init)) {
-		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_ccid,
+		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_rx_ccid,
 						 sk);
-		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_ccid,
+		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_tx_ccid,
 						 sk);
 	    	if (dp->dccps_hc_rx_ccid == NULL ||
 		    dp->dccps_hc_tx_ccid == NULL) {

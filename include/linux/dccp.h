@@ -330,7 +330,8 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   */
 struct dccp_options {
 	__u64	dccpo_sequence_window;
-	__u8	dccpo_ccid;
+	__u8	dccpo_rx_ccid;
+	__u8	dccpo_tx_ccid;
 	__u8	dccpo_send_ack_vector;
 	__u8	dccpo_send_ndp_count;
 };
