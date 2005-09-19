@@ -319,7 +319,7 @@ unsigned long tb_last_stamp __cacheline_aligned_in_smp;
  * timer_interrupt - gets called when the decrementer overflows,
  * with interrupts disabled.
  */
-int timer_interrupt(struct pt_regs * regs)
+void timer_interrupt(struct pt_regs * regs)
 {
 	int next_dec;
 	unsigned long cur_tb;
@@ -377,8 +377,6 @@ int timer_interrupt(struct pt_regs * regs)
 	}
 
 	irq_exit();
-
-	return 1;
 }
 
 /*
