@@ -105,41 +105,28 @@ static const u32 rxirqmask[] = { IS_R1_F, IS_R2_F };
 static const u32 txirqmask[] = { IS_XA1_F, IS_XA2_F };
 static const u32 portirqmask[] = { IS_PORT_1, IS_PORT_2 };
 
-/* Don't need to look at whole 16K.
- * last interesting register is descriptor poll timer.
- */
-#define SKGE_REGS_LEN	(29*128)
-
 static int skge_get_regs_len(struct net_device *dev)
 {
-	return SKGE_REGS_LEN;
+	return 0x4000;
 }
 
 /*
- * Returns copy of control register region
- * I/O region is divided into banks and certain regions are unreadable
+ * Returns copy of whole control register region
+ * Note: skip RAM address register because accessing it will
+ * 	 cause bus hangs!
  */
 static void skge_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *p)
 {
 	const struct skge_port *skge = netdev_priv(dev);
-	unsigned long offs;
 	const void __iomem *io = skge->hw->regs;
-	static const unsigned long bankmap
-		= (1<<0) | (1<<2) | (1<<8) | (1<<9)
-		  | (1<<12) | (1<<13) | (1<<14) | (1<<15) | (1<<16)
-		  | (1<<17) | (1<<20) | (1<<21) | (1<<22) | (1<<23)
-		  | (1<<24)  | (1<<25) | (1<<26) | (1<<27) | (1<<28);
 
 	regs->version = 1;
-	for (offs = 0; offs < regs->len; offs += 128) {
-		u32 len = min_t(u32, 128, regs->len - offs);
+	memset(p, 0, regs->len);
+	memcpy_fromio(p, io, B3_RAM_ADDR);
 
-		if (bankmap & (1<<(offs/128)))
-			memcpy_fromio(p + offs, io + offs, len);
-		else
-			memset(p + offs, 0, len);
-	}
+	memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1,
+		      regs->len - B3_RI_WTO_R1);
 }
 
 /* Wake on Lan only supported on Yukon chps with rev 1 or above */
