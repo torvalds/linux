@@ -7,6 +7,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/reg.h>
+#include <asm/irq.h>
 
 extern void timer_interrupt(struct pt_regs *);
 
