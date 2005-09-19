@@ -22,8 +22,7 @@
 #include <asm/system.h>
 #include <asm/perfmon.h>
 #include <asm/cputable.h>
-
-#include "op_impl.h"
+#include <asm/oprofile_impl.h>
 
 static struct op_powerpc_model *model;
 

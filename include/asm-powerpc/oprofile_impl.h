@@ -9,31 +9,39 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef OP_IMPL_H
-#define OP_IMPL_H 1
+#ifndef _ASM_POWERPC_OPROFILE_IMPL_H
+#define _ASM_POWERPC_OPROFILE_IMPL_H
 
 #define OP_MAX_COUNTER 8
 
 /* Per-counter configuration as set via oprofilefs.  */
 struct op_counter_config {
+#ifdef __powerpc64__
 	unsigned long valid;
+#endif
 	unsigned long enabled;
 	unsigned long event;
 	unsigned long count;
 	unsigned long kernel;
+#ifdef __powerpc64__
 	/* We dont support per counter user/kernel selection */
+#endif
 	unsigned long user;
 	unsigned long unit_mask;
 };
 
 /* System-wide configuration as set via oprofilefs.  */
 struct op_system_config {
+#ifdef __powerpc64__
 	unsigned long mmcr0;
 	unsigned long mmcr1;
 	unsigned long mmcra;
+#endif
 	unsigned long enable_kernel;
 	unsigned long enable_user;
+#ifdef __powerpc64__
 	unsigned long backtrace_spinlocks;
+#endif
 };
 
 /* Per-arch configuration */
@@ -41,7 +49,9 @@ struct op_powerpc_model {
 	void (*reg_setup) (struct op_counter_config *,
 			   struct op_system_config *,
 			   int num_counters);
+#ifdef __powerpc64__
 	void (*cpu_setup) (void *);
+#endif
 	void (*start) (struct op_counter_config *);
 	void (*stop) (void);
 	void (*handle_interrupt) (struct pt_regs *,
@@ -49,6 +59,7 @@ struct op_powerpc_model {
 	int num_counters;
 };
 
+#ifdef __powerpc64__
 extern struct op_powerpc_model op_model_rs64;
 extern struct op_powerpc_model op_model_power4;
 
@@ -107,5 +118,6 @@ static inline void ctr_write(unsigned int i, unsigned int val)
 		break;
 	}
 }
+#endif /* __powerpc64__ */
 
-#endif
+#endif /* _ASM_POWERPC_OPROFILE_IMPL_H */
