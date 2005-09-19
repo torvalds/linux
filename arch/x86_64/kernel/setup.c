@@ -831,10 +831,25 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 #endif
 }
 
+#define HWCR 0xc0010015
+
 static int __init init_amd(struct cpuinfo_x86 *c)
 {
 	int r;
 	int level;
+
+#ifdef CONFIG_SMP
+	unsigned long value;
+
+	// Disable TLB flush filter by setting HWCR.FFDIS:
+	// bit 6 of msr C001_0015
+	//
+	// Errata 63 for SH-B3 steppings
+	// Errata 122 for all(?) steppings
+	rdmsrl(HWCR, value);
+	value |= 1 << 6;
+	wrmsrl(HWCR, value);
+#endif
 
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */

@@ -19,6 +19,7 @@
 #include "raid6.h"
 #ifndef __KERNEL__
 #include <sys/mman.h>
+#include <stdio.h>
 #endif
 
 struct raid6_calls raid6_call;

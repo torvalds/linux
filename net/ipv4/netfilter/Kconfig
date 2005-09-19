@@ -51,6 +51,14 @@ config IP_NF_CONNTRACK_EVENTS
 	  
 	  IF unsure, say `N'.
 
+config IP_NF_CONNTRACK_NETLINK
+	tristate 'Connection tracking netlink interface'
+	depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
+	depends on IP_NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	help
+	  This option enables support for a netlink-based userspace interface
+
+
 config IP_NF_CT_PROTO_SCTP
 	tristate  'SCTP protocol connection tracking support (EXPERIMENTAL)'
 	depends on IP_NF_CONNTRACK && EXPERIMENTAL
@@ -773,12 +781,6 @@ config IP_NF_ARP_MANGLE
 	help
 	  Allows altering the ARP packet payload: source and destination
 	  hardware and network addresses.
-
-config IP_NF_CONNTRACK_NETLINK
-        tristate 'Connection tracking netlink interface'
-        depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
-        help
-          This option enables support for a netlink-based userspace interface
 
 endmenu
 

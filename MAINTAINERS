@@ -686,6 +686,13 @@ P:	Guennadi Liakhovetski
 M:	g.liakhovetski@gmx.de
 S:	Maintained
 
+DCCP PROTOCOL
+P:	Arnaldo Carvalho de Melo
+M:	acme@mandriva.com
+L:	dccp@vger.kernel.org
+W:	http://www.wlug.org.nz/DCCP
+S:	Maintained
+
 DECnet NETWORK LAYER
 P:	Patrick Caulfield
 M:	patrick@tykepenguin.com
@@ -2269,12 +2276,6 @@ SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 P:	Roger Wolff
 M:	R.E.Wolff@BitWizard.nl
 L:	linux-kernel@vger.kernel.org ?
-S:	Supported
-
-SPX NETWORK LAYER
-P:	Jay Schulist
-M:	jschlst@samba.org
-L:	netdev@vger.kernel.org
 S:	Supported
 
 SRM (Alpha) environment access

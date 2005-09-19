@@ -13,6 +13,7 @@
 #include "asm/pgtable.h"
 #include "user_util.h"
 #include "mem_user.h"
+#include "os.h"
 
 static struct fs_struct init_fs = INIT_FS;
 struct mm_struct init_mm = INIT_MM(init_mm);
@@ -45,8 +46,8 @@ __attribute__((__section__(".data.init_task"))) =
 
 void unprotect_stack(unsigned long stack)
 {
-	protect_memory(stack, (1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE, 
-		       1, 1, 0, 1);
+	os_protect_memory((void *) stack, (1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE,
+		       1, 1, 0);
 }
 
 /*

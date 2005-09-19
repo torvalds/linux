@@ -562,6 +562,7 @@ static inline void lock_kiocb(struct kiocb *iocb)
 static inline void unlock_kiocb(struct kiocb *iocb)
 {
 	kiocbClearLocked(iocb);
+	smp_mb__after_clear_bit();
 	wake_up_bit(&iocb->ki_flags, KIF_LOCKED);
 }
 

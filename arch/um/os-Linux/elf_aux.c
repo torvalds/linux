@@ -54,7 +54,8 @@ __init void scan_elf_aux( char **envp)
                                  * a_un, so we have to use a_val, which is
                                  * all that's left.
                                  */
-				elf_aux_platform = (char *) auxv->a_un.a_val;
+				elf_aux_platform =
+					(char *) (long) auxv->a_un.a_val;
 				break;
 			case AT_PAGESZ:
 				page_size = auxv->a_un.a_val;

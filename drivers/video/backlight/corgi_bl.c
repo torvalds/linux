@@ -19,17 +19,18 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 
-#include <asm/arch-pxa/corgi.h>
-#include <asm/hardware/scoop.h>
+#include <asm/mach-types.h>
+#include <asm/arch/sharpsl.h>
 
-#define CORGI_MAX_INTENSITY 		0x3e
 #define CORGI_DEFAULT_INTENSITY		0x1f
-#define CORGI_LIMIT_MASK			0x0b
+#define CORGI_LIMIT_MASK		0x0b
 
 static int corgibl_powermode = FB_BLANK_UNBLANK;
 static int current_intensity = 0;
 static int corgibl_limit = 0;
+static void (*corgibl_mach_set_intensity)(int intensity);
 static spinlock_t bl_lock = SPIN_LOCK_UNLOCKED;
+static struct backlight_properties corgibl_data;
 
 static void corgibl_send_intensity(int intensity)
 {

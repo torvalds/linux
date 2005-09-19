@@ -8,6 +8,8 @@ OPTFLAGS = -O2			# Adjust as desired
 CFLAGS	 = -I.. -g $(OPTFLAGS)
 LD	 = ld
 PERL	 = perl
+AR	 = ar
+RANLIB	 = ranlib
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -18,17 +20,32 @@ PERL	 = perl
 %.uc: ../%.uc
 	cp -f $< $@
 
-all:	raid6.o raid6test
+all:	raid6.a raid6test
 
-raid6.o: raid6int1.o raid6int2.o raid6int4.o raid6int8.o raid6int16.o \
+raid6.a: raid6int1.o raid6int2.o raid6int4.o raid6int8.o raid6int16.o \
 	 raid6int32.o \
 	 raid6mmx.o raid6sse1.o raid6sse2.o \
+	 raid6altivec1.o raid6altivec2.o raid6altivec4.o raid6altivec8.o \
 	 raid6recov.o raid6algos.o \
 	 raid6tables.o
-	$(LD) -r -o $@ $^
+	 rm -f $@
+	 $(AR) cq $@ $^
+	 $(RANLIB) $@
 
-raid6test: raid6.o test.c
+raid6test: test.c raid6.a
 	$(CC) $(CFLAGS) -o raid6test $^
+
+raid6altivec1.c: raid6altivec.uc ../unroll.pl
+	$(PERL) ../unroll.pl 1 < raid6altivec.uc > $@
+
+raid6altivec2.c: raid6altivec.uc ../unroll.pl
+	$(PERL) ../unroll.pl 2 < raid6altivec.uc > $@
+
+raid6altivec4.c: raid6altivec.uc ../unroll.pl
+	$(PERL) ../unroll.pl 4 < raid6altivec.uc > $@
+
+raid6altivec8.c: raid6altivec.uc ../unroll.pl
+	$(PERL) ../unroll.pl 8 < raid6altivec.uc > $@
 
 raid6int1.c: raid6int.uc ../unroll.pl
 	$(PERL) ../unroll.pl 1 < raid6int.uc > $@
@@ -52,7 +69,7 @@ raid6tables.c: mktables
 	./mktables > raid6tables.c
 
 clean:
-	rm -f *.o mktables mktables.c raid6int.uc raid6*.c raid6test
+	rm -f *.o *.a mktables mktables.c raid6int.uc raid6*.c raid6test
 
 spotless: clean
 	rm -f *~
