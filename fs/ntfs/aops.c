@@ -389,9 +389,11 @@ retry_readpage:
 	 * Only $DATA attributes can be encrypted and only unnamed $DATA
 	 * attributes can be compressed.  Index root can have the flags set but
 	 * this means to create compressed/encrypted files, not that the
-	 * attribute is compressed/encrypted.
+	 * attribute is compressed/encrypted.  Note we need to check for
+	 * AT_INDEX_ALLOCATION since this is the type of both directory and
+	 * index inodes.
 	 */
-	if (ni->type != AT_INDEX_ROOT) {
+	if (ni->type != AT_INDEX_ALLOCATION) {
 		/* If attribute is encrypted, deny access, just like NT4. */
 		if (NInoEncrypted(ni)) {
 			BUG_ON(ni->type != AT_DATA);
@@ -1341,9 +1343,11 @@ retry_writepage:
 	 * Only $DATA attributes can be encrypted and only unnamed $DATA
 	 * attributes can be compressed.  Index root can have the flags set but
 	 * this means to create compressed/encrypted files, not that the
-	 * attribute is compressed/encrypted.
+	 * attribute is compressed/encrypted.  Note we need to check for
+	 * AT_INDEX_ALLOCATION since this is the type of both directory and
+	 * index inodes.
 	 */
-	if (ni->type != AT_INDEX_ROOT) {
+	if (ni->type != AT_INDEX_ALLOCATION) {
 		/* If file is encrypted, deny access, just like NT4. */
 		if (NInoEncrypted(ni)) {
 			unlock_page(page);
