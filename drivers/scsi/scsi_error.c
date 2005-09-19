@@ -50,7 +50,7 @@
 void scsi_eh_wakeup(struct Scsi_Host *shost)
 {
 	if (shost->host_busy == shost->host_failed) {
-		up(shost->eh_wait);
+		wake_up_process(shost->ehandler);
 		SCSI_LOG_ERROR_RECOVERY(5,
 				printk("Waking error handler thread\n"));
 	}
@@ -70,7 +70,7 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 	unsigned long flags;
 	int ret = 0;
 
-	if (shost->eh_wait == NULL)
+	if (!shost->ehandler)
 		return 0;
 
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -1591,40 +1591,31 @@ int scsi_error_handler(void *data)
 {
 	struct Scsi_Host *shost = (struct Scsi_Host *) data;
 	int rtn;
-	DECLARE_MUTEX_LOCKED(sem);
 
 	current->flags |= PF_NOFREEZE;
-	shost->eh_wait = &sem;
 
+	
 	/*
-	 * Wake up the thread that created us.
+	 * Note - we always use TASK_INTERRUPTIBLE even if the module
+	 * was loaded as part of the kernel.  The reason is that
+	 * UNINTERRUPTIBLE would cause this thread to be counted in
+	 * the load average as a running process, and an interruptible
+	 * wait doesn't.
 	 */
-	SCSI_LOG_ERROR_RECOVERY(3, printk("Wake up parent of"
-					  " scsi_eh_%d\n",shost->host_no));
+	set_current_state(TASK_INTERRUPTIBLE);
+	while (!kthread_should_stop()) {
+		if (shost->host_failed == 0 ||
+		    shost->host_failed != shost->host_busy) {
+			SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
+							  " scsi_eh_%d"
+							  " sleeping\n",
+							  shost->host_no));
+			schedule();
+			set_current_state(TASK_INTERRUPTIBLE);
+			continue;
+		}
 
-	while (1) {
-		/*
-		 * If we get a signal, it means we are supposed to go
-		 * away and die.  This typically happens if the user is
-		 * trying to unload a module.
-		 */
-		SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
-						  " scsi_eh_%d"
-						  " sleeping\n",shost->host_no));
-
-		/*
-		 * Note - we always use down_interruptible with the semaphore
-		 * even if the module was loaded as part of the kernel.  The
-		 * reason is that down() will cause this thread to be counted
-		 * in the load average as a running process, and down
-		 * interruptible doesn't.  Given that we need to allow this
-		 * thread to die if the driver was loaded as a module, using
-		 * semaphores isn't unreasonable.
-		 */
-		down_interruptible(&sem);
-		if (kthread_should_stop())
-			break;
-
+		__set_current_state(TASK_RUNNING);
 		SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
 						  " scsi_eh_%d waking"
 						  " up\n",shost->host_no));
@@ -1651,7 +1642,7 @@ int scsi_error_handler(void *data)
 		 * which are still online.
 		 */
 		scsi_restart_operations(shost);
-
+		set_current_state(TASK_INTERRUPTIBLE);
 	}
 
 	SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler scsi_eh_%d"
@@ -1660,7 +1651,7 @@ int scsi_error_handler(void *data)
 	/*
 	 * Make sure that nobody tries to wake us up again.
 	 */
-	shost->eh_wait = NULL;
+	shost->ehandler = NULL;
 	return 0;
 }
 
