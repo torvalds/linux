@@ -1030,6 +1030,14 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					/* now that we found one valid file
 					   handle no sense continuing to loop
 					   trying others, so break here */
+					/* if(rc == -EINVAL) {
+						int bytes_written;
+						rc = CIFSSMBWrite(xid, pTcon,
+							nfid, 0,
+							attrs->ia_size, 
+							&bytes_written,
+							NULL, NULL, long_op);
+					} */
 					break;
 				}
 			}
@@ -1048,6 +1056,13 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			cFYI(1, (" SetEOF by path (setattrs) rc = %d", rc));
+			/* if(rc == -EINVAL)
+				old_style_set_eof_via_write(xid, pTcon, 
+						full_path, 
+						attrs->ia_size,
+						cifs_sb->local_nls,
+						cifs_sb->mnt_cifs_flags &
+						  CIFS_MOUNT_MAP_SPECIAL_CHR);*/
 		}
 
 		/* Server is ok setting allocation size implicitly - no need

@@ -766,7 +766,7 @@ OldOpenRetry:
         if(create_options & CREATE_OPTION_SPECIAL)
                 pSMB->FileAttributes = cpu_to_le16(ATTR_SYSTEM);
         else
-                pSMB->FileAttributes = cpu_to_le16(ATTR_NORMAL);
+                pSMB->FileAttributes = cpu_to_le16(0/*ATTR_NORMAL*/); /* BB FIXME */
 
 	/* if ((omode & S_IWUGO) == 0)
 		pSMB->FileAttributes |= cpu_to_le32(ATTR_READONLY);*/
@@ -777,6 +777,8 @@ OldOpenRetry:
 	/* BB FIXME BB */
 /*	pSMB->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK); */
 	/* BB FIXME END BB */
+
+	pSMB->Sattr = cpu_to_le16(ATTR_HIDDEN | ATTR_SYSTEM | ATTR_DIRECTORY);
 	pSMB->OpenFunction = convert_disposition(openDisposition);
 	count += name_len;
 	pSMB->hdr.smb_buf_length += count;
@@ -3689,7 +3691,7 @@ SetEOFRetry:
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
-	} else {		/* BB improve the check for buffer overruns BB */
+	} else {	/* BB improve the check for buffer overruns BB */
 		name_len = strnlen(fileName, PATH_MAX);
 		name_len++;	/* trailing null */
 		strncpy(pSMB->FileName, fileName, name_len);
@@ -3697,7 +3699,7 @@ SetEOFRetry:
 	params = 6 + name_len;
 	data_count = sizeof (struct file_end_of_file_info);
 	pSMB->MaxParameterCount = cpu_to_le16(2);
-	pSMB->MaxDataCount = cpu_to_le16(1000);	/* BB find max SMB size from sess */
+	pSMB->MaxDataCount = cpu_to_le16(4100);
 	pSMB->MaxSetupCount = 0;
 	pSMB->Reserved = 0;
 	pSMB->Flags = 0;
@@ -4079,7 +4081,7 @@ setPermsRetry:
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
-	} else {		/* BB improve the check for buffer overruns BB */
+	} else {	/* BB improve the check for buffer overruns BB */
 		name_len = strnlen(fileName, PATH_MAX);
 		name_len++;	/* trailing null */
 		strncpy(pSMB->FileName, fileName, name_len);
