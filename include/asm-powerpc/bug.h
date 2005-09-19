@@ -1,5 +1,5 @@
-#ifndef _PPC64_BUG_H
-#define _PPC64_BUG_H
+#ifndef _ASM_POWERPC_BUG_H
+#define _ASM_POWERPC_BUG_H
 
 /*
  * Define an illegal instr to trap on the bug.
@@ -11,9 +11,21 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef __powerpc64__
+#define BUG_TABLE_ENTRY(label, line, file, func) \
+	".llong " #label "\n .long " #line "\n .llong " #file ", " #func "\n"
+#define TRAP_OP(ra, rb) "1: tdnei " #ra ", " #rb "\n"
+#define DATA_TYPE long long
+#else 
+#define BUG_TABLE_ENTRY(label, line, file, func) \
+	".long " #label ", " #line ", " #file ", " #func "\n"
+#define TRAP_OP(ra, rb) "1: twnei " #ra ", " #rb "\n"
+#define DATA_TYPE int
+#endif /* __powerpc64__ */
+
 struct bug_entry {
 	unsigned long	bug_addr;
-	long		line;
+	int		line;
 	const char	*file;
 	const char	*function;
 };
@@ -32,28 +44,28 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 	__asm__ __volatile__(						 \
 		"1:	twi 31,0,0\n"					 \
 		".section __bug_table,\"a\"\n\t"			 \
-		"	.llong 1b,%0,%1,%2\n"				 \
+		BUG_TABLE_ENTRY(1b,%0,%1,%2)				 \
 		".previous"						 \
 		: : "i" (__LINE__), "i" (__FILE__), "i" (__FUNCTION__)); \
 } while (0)
 
 #define BUG_ON(x) do {						\
 	__asm__ __volatile__(					\
-		"1:	tdnei %0,0\n"				\
+		TRAP_OP(%0,0)					\
 		".section __bug_table,\"a\"\n\t"		\
-		"	.llong 1b,%1,%2,%3\n"			\
+		BUG_TABLE_ENTRY(1b,%1,%2,%3)			\
 		".previous"					\
-		: : "r" ((long long)(x)), "i" (__LINE__),	\
+		: : "r" ((DATA_TYPE)(x)), "i" (__LINE__),	\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
 
 #define WARN_ON(x) do {						\
 	__asm__ __volatile__(					\
-		"1:	tdnei %0,0\n"				\
+		TRAP_OP(%0,0)					\
 		".section __bug_table,\"a\"\n\t"		\
-		"	.llong 1b,%1,%2,%3\n"			\
+		BUG_TABLE_ENTRY(1b,%1,%2,%3)			\
 		".previous"					\
-		: : "r" ((long long)(x)),			\
+		: : "r" ((DATA_TYPE)(x)),			\
 		    "i" (__LINE__ + BUG_WARNING_TRAP),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
@@ -61,9 +73,9 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_ON
 #define HAVE_ARCH_WARN_ON
-#endif
-#endif
+#endif /* CONFIG_BUG */
+#endif /* __ASSEMBLY __ */
 
 #include <asm-generic/bug.h>
 
-#endif
+#endif /* _ASM_POWERPC_BUG_H */

@@ -390,12 +390,12 @@ check_bug_trap(struct pt_regs *regs)
 		/* this is a WARN_ON rather than BUG/BUG_ON */
 		printk(KERN_ERR "Badness in %s at %s:%d\n",
 		       bug->function, bug->file,
-		      (unsigned int)bug->line & ~BUG_WARNING_TRAP);
+		       bug->line & ~BUG_WARNING_TRAP);
 		show_stack(current, (void *)regs->gpr[1]);
 		return 1;
 	}
 	printk(KERN_CRIT "kernel BUG in %s at %s:%d!\n",
-	       bug->function, bug->file, (unsigned int)bug->line);
+	       bug->function, bug->file, bug->line);
 	return 0;
 }
 

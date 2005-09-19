@@ -575,7 +575,7 @@ extern struct bug_entry __start___bug_table[], __stop___bug_table[];
 #define module_find_bug(x)	NULL
 #endif
 
-static struct bug_entry *find_bug(unsigned long bugaddr)
+struct bug_entry *find_bug(unsigned long bugaddr)
 {
 	struct bug_entry *bug;
 
