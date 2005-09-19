@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.0"
+#define DRV_VERSION		"1.1"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -762,17 +762,6 @@ static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u64 base)
 	return 0;
 }
 
-static struct sk_buff *skge_rx_alloc(struct net_device *dev, unsigned int size)
-{
-	struct sk_buff *skb = dev_alloc_skb(size);
-
-	if (likely(skb)) {
-		skb->dev = dev;
-		skb_reserve(skb, NET_IP_ALIGN);
-	}
-	return skb;
-}
-
 /* Allocate and setup a new buffer for receiving */
 static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 			  struct sk_buff *skb, unsigned int bufsize)
@@ -845,16 +834,17 @@ static int skge_rx_fill(struct skge_port *skge)
 {
 	struct skge_ring *ring = &skge->rx_ring;
 	struct skge_element *e;
-	unsigned int bufsize = skge->rx_buf_size;
 
 	e = ring->start;
 	do {
-		struct sk_buff *skb = skge_rx_alloc(skge->netdev, bufsize);
+		struct sk_buff *skb;
 
+		skb = dev_alloc_skb(skge->rx_buf_size + NET_IP_ALIGN);
 		if (!skb)
 			return -ENOMEM;
 
-		skge_rx_setup(skge, e, skb, bufsize);
+		skb_reserve(skb, NET_IP_ALIGN);
+		skge_rx_setup(skge, e, skb, skge->rx_buf_size);
 	} while ( (e = e->next) != ring->start);
 
 	ring->to_clean = ring->start;
@@ -2429,6 +2419,14 @@ static void yukon_set_multicast(struct net_device *dev)
 	gma_write16(hw, port, GM_RX_CTRL, reg);
 }
 
+static inline u16 phy_length(const struct skge_hw *hw, u32 status)
+{
+	if (hw->chip_id == CHIP_ID_GENESIS)
+		return status >> XMR_FS_LEN_SHIFT;
+	else
+		return status >> GMR_FS_LEN_SHIFT;
+}
+
 static inline int bad_phy_status(const struct skge_hw *hw, u32 status)
 {
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -2438,16 +2436,81 @@ static inline int bad_phy_status(const struct skge_hw *hw, u32 status)
 			(status & GMR_FS_RX_OK) == 0;
 }
 
-static void skge_rx_error(struct skge_port *skge, int slot,
-			  u32 control, u32 status)
+
+/* Get receive buffer from descriptor.
+ * Handles copy of small buffers and reallocation failures
+ */
+static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
+					  struct skge_element *e,
+					  u32 control, u32 status, u16 csum)
 {
-	if (netif_msg_rx_err(skge))
-		printk(KERN_DEBUG PFX "%s: rx err, slot %d control 0x%x status 0x%x\n",
-		       skge->netdev->name, slot, control, status);
+	struct sk_buff *skb;
+	u16 len = control & BMU_BBC;
+
+	if (unlikely(netif_msg_rx_status(skge)))
+		printk(KERN_DEBUG PFX "%s: rx slot %td status 0x%x len %d\n",
+		       skge->netdev->name, e - skge->rx_ring.start,
+		       status, len);
+
+	if (len > skge->rx_buf_size)
+		goto error;
 
 	if ((control & (BMU_EOF|BMU_STF)) != (BMU_STF|BMU_EOF))
-		skge->net_stats.rx_length_errors++;
-	else if (skge->hw->chip_id == CHIP_ID_GENESIS) {
+		goto error;
+
+	if (bad_phy_status(skge->hw, status))
+		goto error;
+
+	if (phy_length(skge->hw, status) != len)
+		goto error;
+
+	if (len < RX_COPY_THRESHOLD) {
+		skb = dev_alloc_skb(len + 2);
+		if (!skb)
+			goto resubmit;
+
+		skb_reserve(skb, 2);
+		pci_dma_sync_single_for_cpu(skge->hw->pdev,
+					    pci_unmap_addr(e, mapaddr),
+					    len, PCI_DMA_FROMDEVICE);
+		memcpy(skb->data, e->skb->data, len);
+		pci_dma_sync_single_for_device(skge->hw->pdev,
+					       pci_unmap_addr(e, mapaddr),
+					       len, PCI_DMA_FROMDEVICE);
+		skge_rx_reuse(e, skge->rx_buf_size);
+	} else {
+		struct sk_buff *nskb;
+		nskb = dev_alloc_skb(skge->rx_buf_size + NET_IP_ALIGN);
+		if (!nskb)
+			goto resubmit;
+
+		pci_unmap_single(skge->hw->pdev,
+				 pci_unmap_addr(e, mapaddr),
+				 pci_unmap_len(e, maplen),
+				 PCI_DMA_FROMDEVICE);
+		skb = e->skb;
+  		prefetch(skb->data);
+		skge_rx_setup(skge, e, nskb, skge->rx_buf_size);
+	}
+
+	skb_put(skb, len);
+	skb->dev = skge->netdev;
+	if (skge->rx_csum) {
+		skb->csum = csum;
+		skb->ip_summed = CHECKSUM_HW;
+	}
+
+	skb->protocol = eth_type_trans(skb, skge->netdev);
+
+	return skb;
+error:
+
+	if (netif_msg_rx_err(skge))
+		printk(KERN_DEBUG PFX "%s: rx err, slot %td control 0x%x status 0x%x\n",
+		       skge->netdev->name, e - skge->rx_ring.start,
+		       control, status);
+
+	if (skge->hw->chip_id == CHIP_ID_GENESIS) {
 		if (status & (XMR_FS_RUNT|XMR_FS_LNG_ERR))
 			skge->net_stats.rx_length_errors++;
 		if (status & XMR_FS_FRA_ERR)
@@ -2462,56 +2525,10 @@ static void skge_rx_error(struct skge_port *skge, int slot,
 		if (status & GMR_FS_CRC_ERR)
 			skge->net_stats.rx_crc_errors++;
 	}
-}
 
-/* Get receive buffer from descriptor.
- * Handles copy of small buffers and reallocation failures
- */
-static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
-					  struct skge_element *e,
-					  unsigned int len)
-{
-	struct sk_buff *nskb, *skb;
-
-	if (len < RX_COPY_THRESHOLD) {
-		nskb = skge_rx_alloc(skge->netdev, len + NET_IP_ALIGN);
-		if (unlikely(!nskb))
-			return NULL;
-
-		pci_dma_sync_single_for_cpu(skge->hw->pdev,
-					    pci_unmap_addr(e, mapaddr),
-					    len, PCI_DMA_FROMDEVICE);
-		memcpy(nskb->data, e->skb->data, len);
-		pci_dma_sync_single_for_device(skge->hw->pdev,
-					       pci_unmap_addr(e, mapaddr),
-					       len, PCI_DMA_FROMDEVICE);
-
-		if (skge->rx_csum) {
-			struct skge_rx_desc *rd = e->desc;
-			nskb->csum = le16_to_cpu(rd->csum2);
-			nskb->ip_summed = CHECKSUM_HW;
-		}
-		skge_rx_reuse(e, skge->rx_buf_size);
-		return nskb;
-	} else {
-		nskb = skge_rx_alloc(skge->netdev, skge->rx_buf_size);
-		if (unlikely(!nskb))
-			return NULL;
-
-		pci_unmap_single(skge->hw->pdev,
-				 pci_unmap_addr(e, mapaddr),
-				 pci_unmap_len(e, maplen),
-				 PCI_DMA_FROMDEVICE);
-		skb = e->skb;
-		if (skge->rx_csum) {
-			struct skge_rx_desc *rd = e->desc;
-			skb->csum = le16_to_cpu(rd->csum2);
-			skb->ip_summed = CHECKSUM_HW;
-		}
-
-		skge_rx_setup(skge, e, nskb, skge->rx_buf_size);
-		return skb;
-	}
+resubmit:
+	skge_rx_reuse(e, skge->rx_buf_size);
+	return NULL;
 }
 
 
@@ -2527,32 +2544,16 @@ static int skge_poll(struct net_device *dev, int *budget)
 	for (e = ring->to_clean; work_done < to_do; e = e->next) {
 		struct skge_rx_desc *rd = e->desc;
 		struct sk_buff *skb;
-		u32 control, len, status;
+		u32 control;
 
 		rmb();
 		control = rd->control;
 		if (control & BMU_OWN)
 			break;
 
-		len = control & BMU_BBC;
-		status = rd->status;
-
-		if (unlikely((control & (BMU_EOF|BMU_STF)) != (BMU_STF|BMU_EOF)
-			     || bad_phy_status(hw, status))) {
-			skge_rx_error(skge, e - ring->start, control, status);
-			skge_rx_reuse(e, skge->rx_buf_size);
-			continue;
-		}
-
-		if (netif_msg_rx_status(skge))
-		    printk(KERN_DEBUG PFX "%s: rx slot %td status 0x%x len %d\n",
-			   dev->name, e - ring->start, rd->status, len);
-
-		skb = skge_rx_get(skge, e, len);
+ 		skb = skge_rx_get(skge, e, control, rd->status,
+ 				  le16_to_cpu(rd->csum2));
 		if (likely(skb)) {
-			skb_put(skb, len);
-			skb->protocol = eth_type_trans(skb, dev);
-
 			dev->last_rx = jiffies;
 			netif_receive_skb(skb);
 
