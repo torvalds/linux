@@ -85,7 +85,7 @@ libs-y				+= arch/ppc64/lib/
 core-y				+= arch/ppc64/kernel/
 core-y				+= arch/ppc64/mm/
 core-$(CONFIG_XMON)		+= arch/ppc64/xmon/
-drivers-$(CONFIG_OPROFILE)	+= arch/ppc64/oprofile/
+drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 boot := arch/ppc64/boot
 

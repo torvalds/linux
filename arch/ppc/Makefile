@@ -71,7 +71,7 @@ drivers-$(CONFIG_8xx)		+= arch/ppc/8xx_io/
 drivers-$(CONFIG_4xx)		+= arch/ppc/4xx_io/
 drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
 
-drivers-$(CONFIG_OPROFILE)	+= arch/ppc/oprofile/
+drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
