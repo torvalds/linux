@@ -461,7 +461,7 @@ config VIOPATH
 	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || VETH
 	default y
 
-source "arch/ppc64/oprofile/Kconfig"
+source "arch/powerpc/oprofile/Kconfig"
 
 source "arch/ppc64/Kconfig.debug"
 

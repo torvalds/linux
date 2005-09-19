@@ -1368,7 +1368,7 @@ endmenu
 
 source "lib/Kconfig"
 
-source "arch/ppc/oprofile/Kconfig"
+source "arch/powerpc/oprofile/Kconfig"
 
 source "arch/ppc/Kconfig.debug"
 
