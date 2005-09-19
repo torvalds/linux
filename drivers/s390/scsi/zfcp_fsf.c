@@ -1617,7 +1617,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 {
 	volatile struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *fsf_req;
-	fc_id_t d_id;
+	u32 d_id;
 	struct zfcp_adapter *adapter;
 	unsigned long lock_flags;
         int bytes;
@@ -1740,7 +1740,7 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
-	fc_id_t d_id;
+	u32 d_id;
 	struct fsf_qtcb_header *header;
 	struct fsf_qtcb_bottom_support *bottom;
 	struct zfcp_send_els *send_els;
@@ -1978,6 +1978,7 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 {
 	struct fsf_qtcb_bottom_config *bottom;
 	struct zfcp_adapter *adapter = fsf_req->adapter;
+	struct Scsi_Host *shost = adapter->scsi_host;
 
 	bottom = &fsf_req->qtcb->bottom.config;
 	ZFCP_LOG_DEBUG("low/high QTCB version 0x%x/0x%x of FSF\n",
@@ -1990,22 +1991,23 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 	adapter->peer_d_id = 0;
 
 	if (xchg_ok) {
-		adapter->wwnn = bottom->nport_serv_param.wwnn;
-		adapter->wwpn = bottom->nport_serv_param.wwpn;
-		adapter->s_id = bottom->s_id & ZFCP_DID_MASK;
+		fc_host_node_name(shost) = bottom->nport_serv_param.wwnn;
+		fc_host_port_name(shost) = bottom->nport_serv_param.wwpn;
+		fc_host_port_id(shost) = bottom->s_id & ZFCP_DID_MASK;
+		fc_host_speed(shost) = bottom->fc_link_speed;
+		fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
 		adapter->fc_topology = bottom->fc_topology;
-		adapter->fc_link_speed = bottom->fc_link_speed;
 		adapter->hydra_version = bottom->adapter_type;
 		if (adapter->physical_wwpn == 0)
-			adapter->physical_wwpn = adapter->wwpn;
+			adapter->physical_wwpn = fc_host_port_name(shost);
 		if (adapter->physical_s_id == 0)
-			adapter->physical_s_id = adapter->s_id;
+			adapter->physical_s_id = fc_host_port_id(shost);
 	} else {
-		adapter->wwnn = 0;
-		adapter->wwpn = 0;
-		adapter->s_id = 0;
+		fc_host_node_name(shost) = 0;
+		fc_host_port_name(shost) = 0;
+		fc_host_port_id(shost) = 0;
+		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		adapter->fc_topology = 0;
-		adapter->fc_link_speed = 0;
 		adapter->hydra_version = 0;
 	}
 
@@ -2017,24 +2019,26 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 
 	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT) {
 		adapter->hardware_version = bottom->hardware_version;
-		memcpy(adapter->serial_number, bottom->serial_number, 17);
-		EBCASC(adapter->serial_number, sizeof(adapter->serial_number));
+		memcpy(fc_host_serial_number(shost), bottom->serial_number,
+		       min(FC_SERIAL_NUMBER_SIZE, 17));
+		EBCASC(fc_host_serial_number(shost),
+		       min(FC_SERIAL_NUMBER_SIZE, 17));
 	}
 
 	ZFCP_LOG_NORMAL("The adapter %s reported the following characteristics:\n"
-		      "WWNN 0x%016Lx, "
-		      "WWPN 0x%016Lx, "
-		      "S_ID 0x%08x,\n"
-		      "adapter version 0x%x, "
-		      "LIC version 0x%x, "
-		      "FC link speed %d Gb/s\n",
-		      zfcp_get_busid_by_adapter(adapter),
-		      adapter->wwnn,
-		      adapter->wwpn,
-		      (unsigned int) adapter->s_id,
-		      adapter->hydra_version,
-		      adapter->fsf_lic_version,
-		      adapter->fc_link_speed);
+			"WWNN 0x%016Lx, "
+			"WWPN 0x%016Lx, "
+			"S_ID 0x%08x,\n"
+			"adapter version 0x%x, "
+			"LIC version 0x%x, "
+			"FC link speed %d Gb/s\n",
+			zfcp_get_busid_by_adapter(adapter),
+			(wwn_t) fc_host_node_name(shost),
+			(wwn_t) fc_host_port_name(shost),
+			fc_host_port_id(shost),
+			adapter->hydra_version,
+			adapter->fsf_lic_version,
+			fc_host_speed(shost));
 	if (ZFCP_QTCB_VERSION < bottom->low_qtcb_version) {
 		ZFCP_LOG_NORMAL("error: the adapter %s "
 				"only supports newer control block "
@@ -2055,7 +2059,6 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 		zfcp_erp_adapter_shutdown(adapter, 0);
 		return -EIO;
 	}
-	zfcp_set_fc_host_attrs(adapter);
 	return 0;
 }
 
@@ -2259,6 +2262,7 @@ static void
 zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_adapter *adapter = fsf_req->adapter;
+	struct Scsi_Host *shost = adapter->scsi_host;
 	struct fsf_qtcb *qtcb = fsf_req->qtcb;
 	struct fsf_qtcb_bottom_port *bottom, *data;
 
@@ -2277,9 +2281,10 @@ zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *fsf_req)
 			adapter->physical_wwpn = bottom->wwpn;
 			adapter->physical_s_id = bottom->fc_port_id;
 		} else {
-			adapter->physical_wwpn = adapter->wwpn;
-			adapter->physical_s_id = adapter->s_id;
+			adapter->physical_wwpn = fc_host_port_name(shost);
+			adapter->physical_s_id = fc_host_port_id(shost);
 		}
+		fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
 		break;
 
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:

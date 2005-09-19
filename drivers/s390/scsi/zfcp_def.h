@@ -165,7 +165,6 @@ typedef u32 scsi_lun_t;
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
 typedef unsigned long long wwn_t;
-typedef unsigned int       fc_id_t;
 typedef unsigned long long fcp_lun_t;
 /* data length field may be at variable position in FCP-2 FCP_CMND IU */
 typedef unsigned int       fcp_dl_t;
@@ -806,7 +805,7 @@ struct ct_iu_gid_pn_req {
 /* FS_ACC IU and data unit for GID_PN nameserver request */
 struct ct_iu_gid_pn_resp {
 	struct ct_hdr header;
-	fc_id_t d_id;
+	u32 d_id;
 } __attribute__ ((packed));
 
 typedef void (*zfcp_send_ct_handler_t)(unsigned long);
@@ -872,7 +871,7 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
 struct zfcp_send_els {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
-	fc_id_t d_id;
+	u32 d_id;
 	struct scatterlist *req;
 	struct scatterlist *resp;
 	unsigned int req_count;
@@ -915,24 +914,19 @@ struct zfcp_adapter {
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
 						      refcount drop to zero */
-	wwn_t			wwnn;	           /* WWNN */
-	wwn_t			wwpn;	           /* WWPN */
-	fc_id_t			s_id;	           /* N_Port ID */
 	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
 	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
-	fc_id_t			peer_d_id;	   /* P2P peer D_ID */
+	u32			peer_d_id;	   /* P2P peer D_ID */
 	wwn_t			physical_wwpn;     /* WWPN of physical port */
-	fc_id_t			physical_s_id;     /* local FC port ID */
+	u32			physical_s_id;     /* local FC port ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u8			fc_service_class;
 	u32			fc_topology;	   /* FC topology */
-	u32			fc_link_speed;	   /* FC interface speed */
 	u32			hydra_version;	   /* Hydra version */
 	u32			fsf_lic_version;
 	u32			adapter_features;  /* FCP channel features */
 	u32			connection_features; /* host connection features */
         u32			hardware_version;  /* of FCP channel */
-        u8			serial_number[32]; /* of hardware */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	unsigned short          scsi_host_no;      /* Assigned host number */
 	unsigned char		name[9];
@@ -1006,7 +1000,7 @@ struct zfcp_port {
 	atomic_t	       status;	       /* status of this remote port */
 	wwn_t		       wwnn;	       /* WWNN if known */
 	wwn_t		       wwpn;	       /* WWPN */
-	fc_id_t		       d_id;	       /* D_ID */
+	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;

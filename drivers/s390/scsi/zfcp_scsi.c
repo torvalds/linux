@@ -698,10 +698,16 @@ void
 zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 {
 	struct Scsi_Host *shost;
+	struct zfcp_port *port;
 
 	shost = adapter->scsi_host;
 	if (!shost)
 		return;
+	read_lock_irq(&zfcp_data.config_lock);
+	list_for_each_entry(port, &adapter->port_list_head, list)
+		if (port->rport)
+			port->rport = NULL;
+	read_unlock_irq(&zfcp_data.config_lock);
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
@@ -776,18 +782,6 @@ zfcp_get_node_name(struct scsi_target *starget)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
-void
-zfcp_set_fc_host_attrs(struct zfcp_adapter *adapter)
-{
-	struct Scsi_Host *shost = adapter->scsi_host;
-
-	fc_host_node_name(shost) = adapter->wwnn;
-	fc_host_port_name(shost) = adapter->wwpn;
-	strncpy(fc_host_serial_number(shost), adapter->serial_number,
-                min(FC_SERIAL_NUMBER_SIZE, 32));
-	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
-}
-
 struct fc_function_template zfcp_transport_functions = {
 	.get_starget_port_id = zfcp_get_port_id,
 	.get_starget_port_name = zfcp_get_port_name,
@@ -799,7 +793,10 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
+	.show_host_maxframe_size = 1,
 	.show_host_serial_number = 1,
+	.show_host_speed = 1,
+	.show_host_port_id = 1,
 };
 
 /**

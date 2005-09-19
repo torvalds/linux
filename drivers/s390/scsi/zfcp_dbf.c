@@ -486,8 +486,7 @@ struct debug_view zfcp_hba_dbf_view = {
 
 inline void
 _zfcp_san_dbf_event_common_ct(const char *tag, struct zfcp_fsf_req *fsf_req,
-			      fc_id_t s_id, fc_id_t d_id,
-			      void *buffer, int buflen)
+			      u32 s_id, u32 d_id, void *buffer, int buflen)
 {
 	struct zfcp_send_ct *send_ct = (struct zfcp_send_ct *)fsf_req->data;
 	struct zfcp_port *port = send_ct->port;
@@ -532,9 +531,9 @@ inline void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_port *port = ct->port;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	_zfcp_san_dbf_event_common_ct("octc",
-				      fsf_req, adapter->s_id, port->d_id,
-				      zfcp_sg_to_address(ct->req),
+	_zfcp_san_dbf_event_common_ct("octc", fsf_req,
+				      fc_host_port_id(adapter->scsi_host),
+				      port->d_id, zfcp_sg_to_address(ct->req),
 				      ct->req->length);
 }
 
@@ -544,17 +543,16 @@ inline void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_port *port = ct->port;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	_zfcp_san_dbf_event_common_ct("rctc",
-				      fsf_req, port->d_id, adapter->s_id,
+	_zfcp_san_dbf_event_common_ct("rctc", fsf_req, port->d_id,
+				      fc_host_port_id(adapter->scsi_host),
 				      zfcp_sg_to_address(ct->resp),
 				      ct->resp->length);
 }
 
 static inline void
 _zfcp_san_dbf_event_common_els(const char *tag, int level,
-			       struct zfcp_fsf_req *fsf_req,
-			       fc_id_t s_id, fc_id_t d_id, u8 ls_code,
-			       void *buffer, int buflen)
+			       struct zfcp_fsf_req *fsf_req, u32 s_id,
+			       u32 d_id, u8 ls_code, void *buffer, int buflen)
 {
 	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct zfcp_san_dbf_record *rec = &adapter->san_dbf_buf;
@@ -597,8 +595,9 @@ inline void zfcp_san_dbf_event_els_request(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_els *els = (struct zfcp_send_els *)fsf_req->data;
 
-	_zfcp_san_dbf_event_common_els("oels", 2,
-				       fsf_req, els->adapter->s_id, els->d_id,
+	_zfcp_san_dbf_event_common_els("oels", 2, fsf_req,
+				       fc_host_port_id(els->adapter->scsi_host),
+				       els->d_id,
 				       *(u8 *) zfcp_sg_to_address(els->req),
 				       zfcp_sg_to_address(els->req),
 				       els->req->length);
@@ -608,8 +607,8 @@ inline void zfcp_san_dbf_event_els_response(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_els *els = (struct zfcp_send_els *)fsf_req->data;
 
-	_zfcp_san_dbf_event_common_els("rels", 2,
-				       fsf_req, els->d_id, els->adapter->s_id,
+	_zfcp_san_dbf_event_common_els("rels", 2, fsf_req, els->d_id,
+				       fc_host_port_id(els->adapter->scsi_host),
 				       *(u8 *) zfcp_sg_to_address(els->req),
 				       zfcp_sg_to_address(els->resp),
 				       els->resp->length);
@@ -623,9 +622,8 @@ inline void zfcp_san_dbf_event_incoming_els(struct zfcp_fsf_req *fsf_req)
 	int length = (int)status_buffer->length -
 	    (int)((void *)&status_buffer->payload - (void *)status_buffer);
 
-	_zfcp_san_dbf_event_common_els("iels", 1,
-				       fsf_req, status_buffer->d_id,
-				       adapter->s_id,
+	_zfcp_san_dbf_event_common_els("iels", 1, fsf_req, status_buffer->d_id,
+				       fc_host_port_id(adapter->scsi_host),
 				       *(u8 *) status_buffer->payload,
 				       (void *)status_buffer->payload, length);
 }

@@ -346,13 +346,13 @@ zfcp_erp_adisc(struct zfcp_port *port)
 
 	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
 	   without FC-AL-2 capability, so we don't set it */
-	adisc->wwpn = adapter->wwpn;
-	adisc->wwnn = adapter->wwnn;
-	adisc->nport_id = adapter->s_id;
+	adisc->wwpn = fc_host_port_name(adapter->scsi_host);
+	adisc->wwnn = fc_host_node_name(adapter->scsi_host);
+	adisc->nport_id = fc_host_port_id(adapter->scsi_host);
 	ZFCP_LOG_INFO("ADISC request from s_id 0x%08x to d_id 0x%08x "
 		      "(wwpn=0x%016Lx, wwnn=0x%016Lx, "
 		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
-		      adapter->s_id, send_els->d_id, (wwn_t) adisc->wwpn,
+		      adisc->nport_id, send_els->d_id, (wwn_t) adisc->wwpn,
 		      (wwn_t) adisc->wwnn, adisc->hard_nport_id,
 		      adisc->nport_id);
 
@@ -405,7 +405,7 @@ zfcp_erp_adisc_handler(unsigned long data)
 	struct zfcp_send_els *send_els;
 	struct zfcp_port *port;
 	struct zfcp_adapter *adapter;
-	fc_id_t d_id;
+	u32 d_id;
 	struct zfcp_ls_adisc_acc *adisc;
 
 	send_els = (struct zfcp_send_els *) data;
@@ -436,9 +436,9 @@ zfcp_erp_adisc_handler(unsigned long data)
 	ZFCP_LOG_INFO("ADISC response from d_id 0x%08x to s_id "
 		      "0x%08x (wwpn=0x%016Lx, wwnn=0x%016Lx, "
 		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
-		      d_id, adapter->s_id, (wwn_t) adisc->wwpn,
-		      (wwn_t) adisc->wwnn, adisc->hard_nport_id,
-		      adisc->nport_id);
+		      d_id, fc_host_port_id(adapter->scsi_host),
+		      (wwn_t) adisc->wwpn, (wwn_t) adisc->wwnn,
+		      adisc->hard_nport_id, adisc->nport_id);
 
 	/* set wwnn for port */
 	if (port->wwnn == 0)
