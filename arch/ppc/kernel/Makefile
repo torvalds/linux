@@ -36,3 +36,5 @@ ifndef CONFIG_MATH_EMULATION
 obj-$(CONFIG_8xx)		+= softemu8xx.o
 endif
 
+# These are here while we do the architecture merge
+vecemu-y			+= ../../powerpc/kernel/vecemu.o

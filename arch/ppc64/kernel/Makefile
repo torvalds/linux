@@ -83,3 +83,6 @@ ifeq ($(CONFIG_PPC_ISERIES),y)
 arch/ppc64/kernel/head.o: arch/ppc64/kernel/lparmap.s
 AFLAGS_head.o += -Iarch/ppc64/kernel
 endif
+
+# These are here while we do the architecture merge
+vecemu-y			+= ../../powerpc/kernel/vecemu.o
