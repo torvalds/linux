@@ -59,39 +59,49 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	unsigned long flags;
 	struct buffer_head *first, *tmp;
 	struct page *page;
+	struct inode *vi;
 	ntfs_inode *ni;
 	int page_uptodate = 1;
 
 	page = bh->b_page;
-	ni = NTFS_I(page->mapping->host);
+	vi = page->mapping->host;
+	ni = NTFS_I(vi);
 
 	if (likely(uptodate)) {
-		s64 file_ofs, initialized_size;
+		loff_t i_size;
+		s64 file_ofs, init_size;
 
 		set_buffer_uptodate(bh);
 
 		file_ofs = ((s64)page->index << PAGE_CACHE_SHIFT) +
 				bh_offset(bh);
 		read_lock_irqsave(&ni->size_lock, flags);
-		initialized_size = ni->initialized_size;
+		init_size = ni->initialized_size;
+		i_size = i_size_read(vi);
 		read_unlock_irqrestore(&ni->size_lock, flags);
+		if (unlikely(init_size > i_size)) {
+			/* Race with shrinking truncate. */
+			init_size = i_size;
+		}
 		/* Check for the current buffer head overflowing. */
-		if (file_ofs + bh->b_size > initialized_size) {
-			char *addr;
-			int ofs = 0;
+		if (unlikely(file_ofs + bh->b_size > init_size)) {
+			u8 *kaddr;
+			int ofs;
 
-			if (file_ofs < initialized_size)
-				ofs = initialized_size - file_ofs;
-			addr = kmap_atomic(page, KM_BIO_SRC_IRQ);
-			memset(addr + bh_offset(bh) + ofs, 0, bh->b_size - ofs);
+			ofs = 0;
+			if (file_ofs < init_size)
+				ofs = init_size - file_ofs;
+			kaddr = kmap_atomic(page, KM_BIO_SRC_IRQ);
+			memset(kaddr + bh_offset(bh) + ofs, 0,
+					bh->b_size - ofs);
+			kunmap_atomic(kaddr, KM_BIO_SRC_IRQ);
 			flush_dcache_page(page);
-			kunmap_atomic(addr, KM_BIO_SRC_IRQ);
 		}
 	} else {
 		clear_buffer_uptodate(bh);
 		SetPageError(page);
-		ntfs_error(ni->vol->sb, "Buffer I/O error, logical block %llu.",
-				(unsigned long long)bh->b_blocknr);
+		ntfs_error(ni->vol->sb, "Buffer I/O error, logical block "
+				"0x%llx.", (unsigned long long)bh->b_blocknr);
 	}
 	first = page_buffers(page);
 	local_irq_save(flags);
@@ -124,7 +134,7 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		if (likely(page_uptodate && !PageError(page)))
 			SetPageUptodate(page);
 	} else {
-		char *addr;
+		u8 *kaddr;
 		unsigned int i, recs;
 		u32 rec_size;
 
@@ -132,12 +142,12 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		recs = PAGE_CACHE_SIZE / rec_size;
 		/* Should have been verified before we got here... */
 		BUG_ON(!recs);
-		addr = kmap_atomic(page, KM_BIO_SRC_IRQ);
+		kaddr = kmap_atomic(page, KM_BIO_SRC_IRQ);
 		for (i = 0; i < recs; i++)
-			post_read_mst_fixup((NTFS_RECORD*)(addr +
+			post_read_mst_fixup((NTFS_RECORD*)(kaddr +
 					i * rec_size), rec_size);
+		kunmap_atomic(kaddr, KM_BIO_SRC_IRQ);
 		flush_dcache_page(page);
-		kunmap_atomic(addr, KM_BIO_SRC_IRQ);
 		if (likely(page_uptodate && !PageError(page)))
 			SetPageUptodate(page);
 	}
@@ -168,8 +178,11 @@ still_busy:
  */
 static int ntfs_read_block(struct page *page)
 {
+	loff_t i_size;
 	VCN vcn;
 	LCN lcn;
+	s64 init_size;
+	struct inode *vi;
 	ntfs_inode *ni;
 	ntfs_volume *vol;
 	runlist_element *rl;
@@ -180,7 +193,8 @@ static int ntfs_read_block(struct page *page)
 	int i, nr;
 	unsigned char blocksize_bits;
 
-	ni = NTFS_I(page->mapping->host);
+	vi = page->mapping->host;
+	ni = NTFS_I(vi);
 	vol = ni->vol;
 
 	/* $MFT/$DATA must have its complete runlist in memory at all times. */
@@ -199,11 +213,28 @@ static int ntfs_read_block(struct page *page)
 	bh = head = page_buffers(page);
 	BUG_ON(!bh);
 
+	/*
+	 * We may be racing with truncate.  To avoid some of the problems we
+	 * now take a snapshot of the various sizes and use those for the whole
+	 * of the function.  In case of an extending truncate it just means we
+	 * may leave some buffers unmapped which are now allocated.  This is
+	 * not a problem since these buffers will just get mapped when a write
+	 * occurs.  In case of a shrinking truncate, we will detect this later
+	 * on due to the runlist being incomplete and if the page is being
+	 * fully truncated, truncate will throw it away as soon as we unlock
+	 * it so no need to worry what we do with it.
+	 */
 	iblock = (s64)page->index << (PAGE_CACHE_SHIFT - blocksize_bits);
 	read_lock_irqsave(&ni->size_lock, flags);
 	lblock = (ni->allocated_size + blocksize - 1) >> blocksize_bits;
-	zblock = (ni->initialized_size + blocksize - 1) >> blocksize_bits;
+	init_size = ni->initialized_size;
+	i_size = i_size_read(vi);
 	read_unlock_irqrestore(&ni->size_lock, flags);
+	if (unlikely(init_size > i_size)) {
+		/* Race with shrinking truncate. */
+		init_size = i_size;
+	}
+	zblock = (init_size + blocksize - 1) >> blocksize_bits;
 
 	/* Loop through all the buffers in the page. */
 	rl = NULL;
@@ -366,6 +397,8 @@ handle_zblock:
  */
 static int ntfs_readpage(struct file *file, struct page *page)
 {
+	loff_t i_size;
+	struct inode *vi;
 	ntfs_inode *ni, *base_ni;
 	u8 *kaddr;
 	ntfs_attr_search_ctx *ctx;
@@ -384,7 +417,8 @@ retry_readpage:
 		unlock_page(page);
 		return 0;
 	}
-	ni = NTFS_I(page->mapping->host);
+	vi = page->mapping->host;
+	ni = NTFS_I(vi);
 	/*
 	 * Only $DATA attributes can be encrypted and only unnamed $DATA
 	 * attributes can be compressed.  Index root can have the flags set but
@@ -458,7 +492,12 @@ retry_readpage:
 	read_lock_irqsave(&ni->size_lock, flags);
 	if (unlikely(attr_len > ni->initialized_size))
 		attr_len = ni->initialized_size;
+	i_size = i_size_read(vi);
 	read_unlock_irqrestore(&ni->size_lock, flags);
+	if (unlikely(attr_len > i_size)) {
+		/* Race with shrinking truncate. */
+		attr_len = i_size;
+	}
 	kaddr = kmap_atomic(page, KM_USER0);
 	/* Copy the data to the page. */
 	memcpy(kaddr, (u8*)ctx->attr +
@@ -1383,8 +1422,8 @@ retry_writepage:
 			unsigned int ofs = i_size & ~PAGE_CACHE_MASK;
 			kaddr = kmap_atomic(page, KM_USER0);
 			memset(kaddr + ofs, 0, PAGE_CACHE_SIZE - ofs);
-			flush_dcache_page(page);
 			kunmap_atomic(kaddr, KM_USER0);
+			flush_dcache_page(page);
 		}
 		/* Handle mst protected attributes. */
 		if (NInoMstProtected(ni))
@@ -1447,34 +1486,33 @@ retry_writepage:
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
 	unlock_page(page);
-	/*
-	 * Here, we do not need to zero the out of bounds area everytime
-	 * because the below memcpy() already takes care of the
-	 * mmap-at-end-of-file requirements.  If the file is converted to a
-	 * non-resident one, then the code path use is switched to the
-	 * non-resident one where the zeroing happens on each ntfs_writepage()
-	 * invocation.
-	 */
 	attr_len = le32_to_cpu(ctx->attr->data.resident.value_length);
 	i_size = i_size_read(vi);
 	if (unlikely(attr_len > i_size)) {
+		/* Race with shrinking truncate or a failed truncate. */
 		attr_len = i_size;
-		ctx->attr->data.resident.value_length = cpu_to_le32(attr_len);
+		/*
+		 * If the truncate failed, fix it up now.  If a concurrent
+		 * truncate, we do its job, so it does not have to do anything.
+		 */
+		err = ntfs_resident_attr_value_resize(ctx->mrec, ctx->attr,
+				attr_len);
+		/* Shrinking cannot fail. */
+		BUG_ON(err);
 	}
 	kaddr = kmap_atomic(page, KM_USER0);
 	/* Copy the data from the page to the mft record. */
 	memcpy((u8*)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset),
 			kaddr, attr_len);
-	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	/* Zero out of bounds area in the page cache page. */
 	memset(kaddr + attr_len, 0, PAGE_CACHE_SIZE - attr_len);
-	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
-
+	flush_dcache_mft_record_page(ctx->ntfs_ino);
+	flush_dcache_page(page);
+	/* We are done with the page. */
 	end_page_writeback(page);
-
-	/* Mark the mft record dirty, so it gets written back. */
+	/* Finally, mark the mft record dirty, so it gets written back. */
 	mark_mft_record_dirty(ctx->ntfs_ino);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
