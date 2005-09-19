@@ -34,7 +34,7 @@
 
 
 #define SAS_HOST_ATTRS		0
-#define SAS_PORT_ATTRS		11
+#define SAS_PORT_ATTRS		15
 #define SAS_RPORT_ATTRS		5
 
 struct sas_internal {
@@ -257,6 +257,26 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	sas_phy_show_linkspeed(field)					\
 static CLASS_DEVICE_ATTR(field, S_IRUGO, show_sas_phy_##field, NULL)
 
+#define sas_phy_show_linkerror(field)					\
+static ssize_t								\
+show_sas_phy_##field(struct class_device *cdev, char *buf)		\
+{									\
+	struct sas_phy *phy = transport_class_to_phy(cdev);		\
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);	\
+	struct sas_internal *i = to_sas_internal(shost->transportt);	\
+	int error;							\
+									\
+	error = i->f->get_linkerrors(phy);				\
+	if (error)							\
+		return error;						\
+	return snprintf(buf, 20, "%u\n", phy->field);			\
+}
+
+#define sas_phy_linkerror_attr(field)					\
+	sas_phy_show_linkerror(field)					\
+static CLASS_DEVICE_ATTR(field, S_IRUGO, show_sas_phy_##field, NULL)
+
+
 static ssize_t
 show_sas_device_type(struct class_device *cdev, char *buf)
 {
@@ -282,6 +302,10 @@ sas_phy_linkspeed_attr(minimum_linkrate_hw);
 sas_phy_linkspeed_attr(minimum_linkrate);
 sas_phy_linkspeed_attr(maximum_linkrate_hw);
 sas_phy_linkspeed_attr(maximum_linkrate);
+sas_phy_linkerror_attr(invalid_dword_count);
+sas_phy_linkerror_attr(running_disparity_error_count);
+sas_phy_linkerror_attr(loss_of_dword_sync_count);
+sas_phy_linkerror_attr(phy_reset_problem_count);
 
 
 static DECLARE_TRANSPORT_CLASS(sas_phy_class,
@@ -749,6 +773,11 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_PORT_ATTRIBUTE(minimum_linkrate);
 	SETUP_PORT_ATTRIBUTE(maximum_linkrate_hw);
 	SETUP_PORT_ATTRIBUTE(maximum_linkrate);
+
+	SETUP_PORT_ATTRIBUTE(invalid_dword_count);
+	SETUP_PORT_ATTRIBUTE(running_disparity_error_count);
+	SETUP_PORT_ATTRIBUTE(loss_of_dword_sync_count);
+	SETUP_PORT_ATTRIBUTE(phy_reset_problem_count);
 	i->phy_attrs[count] = NULL;
 
 	count = 0;
