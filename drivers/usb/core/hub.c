@@ -1977,7 +1977,7 @@ int usb_suspend_device(struct usb_device *udev)
 
 int usb_resume_device(struct usb_device *udev)
 {
-	udev->dev.power_state.event = PM_EVENT_ON;
+	udev->dev.power.power_state.event = PM_EVENT_ON;
 	return 0;
 }
 
