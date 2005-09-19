@@ -61,7 +61,7 @@ void (*perf_irq)(struct pt_regs *) = dummy_perf;
 
 /* Grab the interrupt, if it's free.
  * Returns 0 on success, -1 if the interrupt is taken already */
-int request_perfmon_irq(void (*handler)(struct pt_regs *))
+int reserve_pmc_hardware(void (*handler)(struct pt_regs *))
 {
 	int err = 0;
 
@@ -71,7 +71,7 @@ int request_perfmon_irq(void (*handler)(struct pt_regs *))
 		perf_irq = handler;
 	else {
 		pr_info("perfmon irq already handled by %p\n", perf_irq);
-		err = -1;
+		err = -EBUSY;
 	}
 
 	spin_unlock(&perfmon_lock);
@@ -79,7 +79,7 @@ int request_perfmon_irq(void (*handler)(struct pt_regs *))
 	return err;
 }
 
-void free_perfmon_irq(void)
+void release_pmc_hardware(void)
 {
 	spin_lock(&perfmon_lock);
 
@@ -89,5 +89,5 @@ void free_perfmon_irq(void)
 }
 
 EXPORT_SYMBOL(perf_irq);
-EXPORT_SYMBOL(request_perfmon_irq);
-EXPORT_SYMBOL(free_perfmon_irq);
+EXPORT_SYMBOL(reserve_pmc_hardware);
+EXPORT_SYMBOL(release_pmc_hardware);

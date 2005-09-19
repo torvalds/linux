@@ -46,19 +46,12 @@ static void op_handle_interrupt(struct pt_regs *regs)
 
 static int op_powerpc_setup(void)
 {
-#ifdef __powerpc64__
 	int err;
 
 	/* Grab the hardware */
 	err = reserve_pmc_hardware(op_handle_interrupt);
 	if (err)
 		return err;
-#else /* __powerpc64__ */
-	/* Install our interrupt handler into the existing hook.  */
-	if (request_perfmon_irq(&op_handle_interrupt))
-		return -EBUSY;
-	mb();
-#endif /* __powerpc64__ */
 
 	/* Pre-compute the values to stuff in the hardware registers.  */
 	model->reg_setup(ctr, &sys, model->num_counters);
@@ -78,13 +71,7 @@ static int op_powerpc_setup(void)
 
 static void op_powerpc_shutdown(void)
 {
-#ifdef __powerpc64__
 	release_pmc_hardware();
-#else /* __powerpc64__ */
-	mb();
-	/* Remove our interrupt handler. We may be removing this module. */
-	free_perfmon_irq();
-#endif /* __powerpc64__ */
 }
 
 static void op_powerpc_cpu_start(void *dummy)

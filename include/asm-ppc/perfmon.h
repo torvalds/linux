@@ -3,8 +3,8 @@
 
 extern void (*perf_irq)(struct pt_regs *);
 
-int request_perfmon_irq(void (*handler)(struct pt_regs *));
-void free_perfmon_irq(void);
+int reserve_pmc_hardware(void (*handler)(struct pt_regs *));
+void release_pmc_hardware(void);
 
 #ifdef CONFIG_FSL_BOOKE
 void init_pmc_stop(int ctr);
