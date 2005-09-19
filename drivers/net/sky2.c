@@ -76,7 +76,7 @@
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/2 - 1)
 #define RX_DEF_PENDING		128
-#define RX_COPY_THRESHOLD	128
+#define RX_COPY_THRESHOLD	256
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -692,18 +692,10 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 	}
 }
 
-static inline struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2,
-					    unsigned int size,
-					    unsigned int gfp_mask)
+#define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+static inline unsigned sky2_rx_size(const struct sky2_port *sky2)
 {
-	struct sk_buff *skb;
-
-	skb = alloc_skb(size + NET_IP_ALIGN, gfp_mask);
-	if (likely(skb)) {
-		skb->dev = sky2->netdev;
-		skb_reserve(skb, NET_IP_ALIGN);
-	}
-	return skb;
+	return roundup(sky2->netdev->mtu + ETH_HLEN + 4, 8);
 }
 
 /*
@@ -711,22 +703,28 @@ static inline struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2,
  * In case of 64 bit dma, there are 2X as many list elements
  * available as ring entries
  * and need to reserve one list element so we don't wrap around.
+ *
+ * It appears the hardware has a bug in the FIFO logic that
+ * cause it to hang if the FIFO gets overrun and the receive buffer
+ * is not aligned.  This means we can't use skb_reserve to align
+ * the IP header.
  */
 static int sky2_rx_fill(struct sky2_port *sky2)
 {
 	unsigned i;
-	const unsigned rx_buf_size = sky2->netdev->mtu + ETH_HLEN + 8;
+	unsigned size = sky2_rx_size(sky2);
 
+	pr_debug("rx_fill size=%d\n", size);
 	for (i = 0; i < sky2->rx_pending; i++) {
 		struct ring_info *re = sky2->rx_ring + i;
 
-		re->skb = sky2_rx_alloc(sky2, rx_buf_size, GFP_KERNEL);
+		re->skb = dev_alloc_skb(size);
 		if (!re->skb)
 			goto nomem;
 
 		re->mapaddr = pci_map_single(sky2->hw->pdev, re->skb->data,
-					     rx_buf_size, PCI_DMA_FROMDEVICE);
-		re->maplen = rx_buf_size;
+					     size, PCI_DMA_FROMDEVICE);
+		re->maplen = size;
 		sky2_rx_add(sky2, re);
 	}
 
@@ -1408,8 +1406,8 @@ static struct sk_buff *sky2_receive(struct sky2_hw *hw, unsigned port,
 	struct net_device *dev = hw->dev[port];
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct ring_info *re = sky2->rx_ring + sky2->rx_next;
-	struct sk_buff *skb, *nskb;
-	const unsigned int rx_buf_size = dev->mtu + ETH_HLEN + 8;
+	struct sk_buff *skb = NULL;
+	const unsigned int bufsize = sky2_rx_size(sky2);
 
 	if (unlikely(netif_msg_rx_status(sky2)))
 		printk(KERN_DEBUG PFX "%s: rx slot %u status 0x%x len %d\n",
@@ -1417,43 +1415,49 @@ static struct sk_buff *sky2_receive(struct sky2_hw *hw, unsigned port,
 
 	sky2->rx_next = (sky2->rx_next + 1) % sky2->rx_pending;
 
-	skb = NULL;
 	if (!(status & GMR_FS_RX_OK)
 	    || (status & GMR_FS_ANY_ERR)
 	    || (length << 16) != (status & GMR_FS_LEN)
-	    || length > rx_buf_size)
+	    || length > bufsize)
 		goto error;
 
 	if (length < RX_COPY_THRESHOLD) {
-		nskb = sky2_rx_alloc(sky2, length, GFP_ATOMIC);
-		if (!nskb)
+		skb = alloc_skb(length + 2, GFP_ATOMIC);
+		if (!skb)
 			goto resubmit;
 
+		skb_reserve(skb, 2);
 		pci_dma_sync_single_for_cpu(sky2->hw->pdev, re->mapaddr,
 					    length, PCI_DMA_FROMDEVICE);
-		memcpy(nskb->data, re->skb->data, length);
+		memcpy(skb->data, re->skb->data, length);
 		pci_dma_sync_single_for_device(sky2->hw->pdev, re->mapaddr,
 					       length, PCI_DMA_FROMDEVICE);
-		skb = nskb;
 	} else {
-		nskb = sky2_rx_alloc(sky2, rx_buf_size, GFP_ATOMIC);
+		struct sk_buff *nskb;
+
+		nskb = dev_alloc_skb(bufsize);
 		if (!nskb)
 			goto resubmit;
 
 		skb = re->skb;
+		re->skb = nskb;
 		pci_unmap_single(sky2->hw->pdev, re->mapaddr,
 				 re->maplen, PCI_DMA_FROMDEVICE);
 		prefetch(skb->data);
 
-		re->skb = nskb;
 		re->mapaddr = pci_map_single(sky2->hw->pdev, nskb->data,
-					     rx_buf_size, PCI_DMA_FROMDEVICE);
-		re->maplen = rx_buf_size;
+					     bufsize, PCI_DMA_FROMDEVICE);
+		re->maplen = bufsize;
 	}
 
+	skb->dev = dev;
+	skb_put(skb, length);
+	skb->protocol = eth_type_trans(skb, dev);
+	dev->last_rx = jiffies;
+
 resubmit:
-	BUG_ON(re->skb == skb);
 	sky2_rx_add(sky2, re);
+
 	return skb;
 
 error:
@@ -1472,6 +1476,7 @@ error:
 		sky2->net_stats.rx_crc_errors++;
 	if (status & GMR_FS_RX_FF_OV)
 		sky2->net_stats.rx_fifo_errors++;
+
 	goto resubmit;
 }
 
@@ -1502,6 +1507,7 @@ static int sky2_poll(struct net_device *dev, int *budget)
 	unsigned int csum[2];
 
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
+	BUG_ON(hwidx >= STATUS_RING_SIZE);
  	rmb();
 	while (hw->st_idx != hwidx && work_done < to_do) {
 		struct sky2_status_le *le = hw->st_le + hw->st_idx;
@@ -1520,22 +1526,18 @@ static int sky2_poll(struct net_device *dev, int *budget)
 		case OP_RXSTAT:
 			skb = sky2_receive(hw, port, length, status);
 			if (likely(skb)) {
-				__skb_put(skb, length);
-				skb->protocol = eth_type_trans(skb, dev);
-
 				/* Add hw checksum if available */
 				skb->ip_summed = summed[port];
 				skb->csum = csum[port];
 
-				/* Clear for next packet */
-				csum[port] = 0;
-				summed[port] = CHECKSUM_NONE;
-
 				netif_receive_skb(skb);
-
-				dev->last_rx = jiffies;
 				++work_done;
 			}
+
+			/* Clear for next packet */
+			csum[port] = 0;
+			summed[port] = CHECKSUM_NONE;
+
 			break;
 
 		case OP_RXCHKS:
