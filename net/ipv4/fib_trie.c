@@ -2029,7 +2029,7 @@ static struct node *fib_trie_get_first(struct fib_trie_iter *iter,
 		iter->tnode = (struct tnode *) n;
 		iter->trie = t;
 		iter->index = 0;
-		iter->depth = 0;
+		iter->depth = 1;
 		return n;
 	}
 	return NULL;
@@ -2274,11 +2274,12 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 				seq_puts(seq, "<local>:\n");
 			else
 				seq_puts(seq, "<main>:\n");
-		} else {
-			seq_indent(seq, iter->depth-1);
-			seq_printf(seq, "  +-- %d.%d.%d.%d/%d\n",
-				   NIPQUAD(prf), tn->pos);
-		}
+		} 
+		seq_indent(seq, iter->depth-1);
+		seq_printf(seq, "  +-- %d.%d.%d.%d/%d %d %d %d\n",
+			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children, 
+			   tn->empty_children);
+		
 	} else {
 		struct leaf *l = (struct leaf *) n;
 		int i;
