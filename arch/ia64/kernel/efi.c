@@ -923,3 +923,90 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 	*s = (u64)kern_memmap;
 	*e = (u64)++k;
 }
+
+void
+efi_initialize_iomem_resources(struct resource *code_resource,
+			       struct resource *data_resource)
+{
+	struct resource *res;
+	void *efi_map_start, *efi_map_end, *p;
+	efi_memory_desc_t *md;
+	u64 efi_desc_size;
+	char *name;
+	unsigned long flags;
+
+	efi_map_start = __va(ia64_boot_param->efi_memmap);
+	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
+	efi_desc_size = ia64_boot_param->efi_memdesc_size;
+
+	res = NULL;
+
+	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
+		md = p;
+
+		if (md->num_pages == 0) /* should not happen */
+			continue;
+
+		flags = IORESOURCE_MEM;
+		switch (md->type) {
+
+			case EFI_MEMORY_MAPPED_IO:
+			case EFI_MEMORY_MAPPED_IO_PORT_SPACE:
+				continue;
+
+			case EFI_LOADER_CODE:
+			case EFI_LOADER_DATA:
+			case EFI_BOOT_SERVICES_DATA:
+			case EFI_BOOT_SERVICES_CODE:
+			case EFI_CONVENTIONAL_MEMORY:
+				if (md->attribute & EFI_MEMORY_WP) {
+					name = "System ROM";
+					flags |= IORESOURCE_READONLY;
+				} else {
+					name = "System RAM";
+				}
+				break;
+
+			case EFI_ACPI_MEMORY_NVS:
+				name = "ACPI Non-volatile Storage";
+				flags |= IORESOURCE_BUSY;
+				break;
+
+			case EFI_UNUSABLE_MEMORY:
+				name = "reserved";
+				flags |= IORESOURCE_BUSY | IORESOURCE_DISABLED;
+				break;
+
+			case EFI_RESERVED_TYPE:
+			case EFI_RUNTIME_SERVICES_CODE:
+			case EFI_RUNTIME_SERVICES_DATA:
+			case EFI_ACPI_RECLAIM_MEMORY:
+			default:
+				name = "reserved";
+				flags |= IORESOURCE_BUSY;
+				break;
+		}
+
+		if ((res = kcalloc(1, sizeof(struct resource), GFP_KERNEL)) == NULL) {
+			printk(KERN_ERR "failed to alocate resource for iomem\n");
+			return;
+		}
+
+		res->name = name;
+		res->start = md->phys_addr;
+		res->end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1;
+		res->flags = flags;
+
+		if (insert_resource(&iomem_resource, res) < 0)
+			kfree(res);
+		else {
+			/*
+			 * We don't know which region contains
+			 * kernel data so we try it repeatedly and
+			 * let the resource manager test it.
+			 */
+			insert_resource(res, code_resource);
+			insert_resource(res, data_resource);
+		}
+	}
+}

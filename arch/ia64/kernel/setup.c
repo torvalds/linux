@@ -78,6 +78,19 @@ struct screen_info screen_info;
 unsigned long vga_console_iobase;
 unsigned long vga_console_membase;
 
+static struct resource data_resource = {
+	.name	= "Kernel data",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource code_resource = {
+	.name	= "Kernel code",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+extern void efi_initialize_iomem_resources(struct resource *,
+		struct resource *);
+extern char _text[], _edata[], _etext[];
+
 unsigned long ia64_max_cacheline_size;
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
 EXPORT_SYMBOL(ia64_iobase);
@@ -170,6 +183,22 @@ sort_regions (struct rsvd_region *rsvd_region, int max)
 		}
 	}
 }
+
+/*
+ * Request address space for all standard resources
+ */
+static int __init register_memory(void)
+{
+	code_resource.start = ia64_tpa(_text);
+	code_resource.end   = ia64_tpa(_etext) - 1;
+	data_resource.start = ia64_tpa(_etext);
+	data_resource.end   = ia64_tpa(_edata) - 1;
+	efi_initialize_iomem_resources(&code_resource, &data_resource);
+
+	return 0;
+}
+
+__initcall(register_memory);
 
 /**
  * reserve_memory - setup reserved memory areas
