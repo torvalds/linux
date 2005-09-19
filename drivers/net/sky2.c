@@ -2488,33 +2488,30 @@ static int sky2_set_ringparam(struct net_device *dev,
 	return err;
 }
 
-#define SKY2_REGS_LEN	0x1000
 static int sky2_get_regs_len(struct net_device *dev)
 {
-	return SKY2_REGS_LEN;
+	return 0x4000;
 }
 
 /*
  * Returns copy of control register region
- * I/O region is divided into banks and certain regions are unreadable
+ * Note: access to the RAM address register set will cause timeouts.
  */
 static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *p)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
-	unsigned long offs;
 	const void __iomem *io = sky2->hw->regs;
-	static const unsigned long bankmap = 0xfff3f305;
 
+	BUG_ON(regs->len < B3_RI_WTO_R1);
 	regs->version = 1;
-	for (offs = 0; offs < regs->len; offs += 128) {
-		u32 len = min_t(u32, 128, regs->len - offs);
+	memset(p, 0, regs->len);
 
-		if (bankmap & (1 << (offs / 128)))
-			memcpy_fromio(p + offs, io + offs, len);
-		else
-			memset(p + offs, 0, len);
-	}
+	memcpy_fromio(p, io, B3_RAM_ADDR);
+
+	memcpy_fromio(p + B3_RI_WTO_R1,
+		      io + B3_RI_WTO_R1,
+		      regs->len - B3_RI_WTO_R1);
 }
 
 static struct ethtool_ops sky2_ethtool_ops = {
