@@ -1,14 +1,5 @@
-#ifndef __PPC64_A_OUT_H__
-#define __PPC64_A_OUT_H__
-
-/*
- * c 2001 PPC 64 Team, IBM Corp
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- */
+#ifndef _ASM_POWERPC_A_OUT_H
+#define _ASM_POWERPC_A_OUT_H
 
 struct exec
 {
@@ -27,6 +18,7 @@ struct exec
 #define N_SYMSIZE(a)	((a).a_syms)
 
 #ifdef __KERNEL__
+#ifdef __powerpc64__
 
 #define STACK_TOP_USER64 TASK_SIZE_USER64
 #define STACK_TOP_USER32 TASK_SIZE_USER32
@@ -34,6 +26,11 @@ struct exec
 #define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
 		   STACK_TOP_USER32 : STACK_TOP_USER64)
 
+#else /* __powerpc64__ */
+
+#define STACK_TOP TASK_SIZE
+
+#endif /* __powerpc64__ */
 #endif /* __KERNEL__ */
 
-#endif /* __PPC64_A_OUT_H__ */
+#endif /* _ASM_POWERPC_A_OUT_H */
