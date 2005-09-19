@@ -1591,9 +1591,9 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct
 		aes_counter[12] = (u8)(counter >> 24);
 		counter++;
 		memcpy (plain, aes_counter, 16);
-		sg_set_buf(&sg[0], plain, 16);
+		sg_set_buf(sg, plain, 16);
 		crypto_cipher_encrypt(tfm, sg, sg, 16);
-		cipher = kmap(sg[0].page) + sg[0].offset;
+		cipher = kmap(sg->page) + sg->offset;
 		for (j=0; (j<16) && (i< (sizeof(context->coeff)/sizeof(context->coeff[0]))); ) {
 			context->coeff[i++] = ntohl(*(u32 *)&cipher[j]);
 			j += 4;

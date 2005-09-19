@@ -75,7 +75,7 @@ krb5_encrypt(
 		memcpy(local_iv, iv, crypto_tfm_alg_ivsize(tfm));
 
 	memcpy(out, in, length);
-	sg_set_buf(&sg[0], out, length);
+	sg_set_buf(sg, out, length);
 
 	ret = crypto_cipher_encrypt_iv(tfm, sg, sg, length, local_iv);
 
@@ -115,7 +115,7 @@ krb5_decrypt(
 		memcpy(local_iv,iv, crypto_tfm_alg_ivsize(tfm));
 
 	memcpy(out, in, length);
-	sg_set_buf(&sg[0], out, length);
+	sg_set_buf(sg, out, length);
 
 	ret = crypto_cipher_decrypt_iv(tfm, sg, sg, length, local_iv);
 

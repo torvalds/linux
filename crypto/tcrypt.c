@@ -415,12 +415,12 @@ out:
 static int test_cipher_jiffies(struct crypto_tfm *tfm, int enc, char *p,
 			       int blen, int sec)
 {
-	struct scatterlist sg[8];
+	struct scatterlist sg[1];
 	unsigned long start, end;
 	int bcount;
 	int ret;
 
-	sg_set_buf(&sg[0], p, blen);
+	sg_set_buf(sg, p, blen);
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
@@ -441,12 +441,12 @@ static int test_cipher_jiffies(struct crypto_tfm *tfm, int enc, char *p,
 static int test_cipher_cycles(struct crypto_tfm *tfm, int enc, char *p,
 			      int blen)
 {
-	struct scatterlist sg[8];
+	struct scatterlist sg[1];
 	unsigned long cycles = 0;
 	int ret = 0;
 	int i;
 
-	sg_set_buf(&sg[0], p, blen);
+	sg_set_buf(sg, p, blen);
 
 	local_bh_disable();
 	local_irq_disable();
