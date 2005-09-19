@@ -172,6 +172,8 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 			scatter->lkey = cpu_to_be32(MTHCA_INVAL_LKEY);
 	}
 
+	srq->last = get_wqe(srq, srq->max - 1);
+
 	return 0;
 }
 
@@ -263,7 +265,6 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	srq->first_free = 0;
 	srq->last_free  = srq->max - 1;
-	srq->last	= get_wqe(srq, srq->max - 1);
 
 	return 0;
 
