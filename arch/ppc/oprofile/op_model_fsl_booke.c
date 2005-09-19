@@ -176,7 +176,7 @@ static void fsl_booke_handle_interrupt(struct pt_regs *regs,
 	pmc_start_ctrs(1);
 }
 
-struct op_ppc32_model op_model_fsl_booke = {
+struct op_powerpc_model op_model_fsl_booke = {
 	.reg_setup		= fsl_booke_reg_setup,
 	.start			= fsl_booke_start,
 	.stop			= fsl_booke_stop,

@@ -25,7 +25,7 @@
 
 #include "op_impl.h"
 
-static struct op_ppc32_model *model;
+static struct op_powerpc_model *model;
 
 static struct op_counter_config ctr[OP_MAX_COUNTER];
 static struct op_system_config sys;

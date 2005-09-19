@@ -300,7 +300,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	mtspr(SPRN_MMCR0, mmcr0);
 }
 
-struct op_ppc64_model op_model_power4 = {
+struct op_powerpc_model op_model_power4 = {
 	.reg_setup		= power4_reg_setup,
 	.cpu_setup		= power4_cpu_setup,
 	.start			= power4_start,

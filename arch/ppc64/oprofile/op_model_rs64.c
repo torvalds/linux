@@ -209,7 +209,7 @@ static void rs64_handle_interrupt(struct pt_regs *regs,
 	mtspr(SPRN_MMCR0, mmcr0);
 }
 
-struct op_ppc64_model op_model_rs64 = {
+struct op_powerpc_model op_model_rs64 = {
 	.reg_setup		= rs64_reg_setup,
 	.cpu_setup		= rs64_cpu_setup,
 	.start			= rs64_start,

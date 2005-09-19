@@ -37,7 +37,7 @@ struct op_system_config {
 };
 
 /* Per-arch configuration */
-struct op_ppc64_model {
+struct op_powerpc_model {
 	void (*reg_setup) (struct op_counter_config *,
 			   struct op_system_config *,
 			   int num_counters);
@@ -49,8 +49,8 @@ struct op_ppc64_model {
 	int num_counters;
 };
 
-extern struct op_ppc64_model op_model_rs64;
-extern struct op_ppc64_model op_model_power4;
+extern struct op_powerpc_model op_model_rs64;
+extern struct op_powerpc_model op_model_power4;
 
 static inline unsigned int ctr_read(unsigned int i)
 {

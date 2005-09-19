@@ -19,7 +19,7 @@
 #include <asm/cputable.h>
 #include <asm/oprofile_impl.h>
 
-static struct op_ppc64_model *model;
+static struct op_powerpc_model *model;
 
 static struct op_counter_config ctr[OP_MAX_COUNTER];
 static struct op_system_config sys;

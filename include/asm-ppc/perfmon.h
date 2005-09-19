@@ -16,7 +16,7 @@ void pmc_start_ctrs(int enable);
 void pmc_stop_ctrs(void);
 void dump_pmcs(void);
 
-extern struct op_ppc32_model op_model_fsl_booke;
+extern struct op_powerpc_model op_model_fsl_booke;
 #endif
 
 #endif /* __PERFMON_H */

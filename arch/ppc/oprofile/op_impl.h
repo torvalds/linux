@@ -31,7 +31,7 @@ struct op_system_config {
 };
 
 /* Per-arch configuration */
-struct op_ppc32_model {
+struct op_powerpc_model {
 	void (*reg_setup) (struct op_counter_config *,
 			   struct op_system_config *,
 			   int num_counters);
