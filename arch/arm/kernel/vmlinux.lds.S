@@ -26,7 +26,7 @@ SECTIONS
 			*(.proc.info.init)
 		__proc_info_end = .;
 		__arch_info_begin = .;
-			*(.arch.info)
+			*(.arch.info.init)
 		__arch_info_end = .;
 		__tagtable_begin = .;
 			*(.taglist.init)
