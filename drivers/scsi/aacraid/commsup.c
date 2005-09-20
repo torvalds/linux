@@ -271,39 +271,21 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
 	/* Interrupt Moderation, only interrupt for first two entries */
 	if (idx != le32_to_cpu(*(q->headers.consumer))) {
 		if (--idx == 0) {
-			if (qid == AdapHighCmdQueue)
-				idx = ADAP_HIGH_CMD_ENTRIES;
-			else if (qid == AdapNormCmdQueue)
+			if (qid == AdapNormCmdQueue)
 				idx = ADAP_NORM_CMD_ENTRIES;
-			else if (qid == AdapHighRespQueue) 
-	        		idx = ADAP_HIGH_RESP_ENTRIES;
-			else if (qid == AdapNormRespQueue) 
+			else
 				idx = ADAP_NORM_RESP_ENTRIES;
 		}
 		if (idx != le32_to_cpu(*(q->headers.consumer)))
 			*nonotify = 1; 
 	}
 
-	if (qid == AdapHighCmdQueue) {
-	        if (*index >= ADAP_HIGH_CMD_ENTRIES)
-        		*index = 0;
-	} else if (qid == AdapNormCmdQueue) {
+	if (qid == AdapNormCmdQueue) {
 	        if (*index >= ADAP_NORM_CMD_ENTRIES) 
 			*index = 0; /* Wrap to front of the Producer Queue. */
-	}
-	else if (qid == AdapHighRespQueue) 
-	{
-	        if (*index >= ADAP_HIGH_RESP_ENTRIES)
-			*index = 0;
-	}
-	else if (qid == AdapNormRespQueue) 
-	{
+	} else {
 		if (*index >= ADAP_NORM_RESP_ENTRIES) 
 			*index = 0; /* Wrap to front of the Producer Queue. */
-	}
-	else {
-		printk("aacraid: invalid qid\n");
-		BUG();
 	}
 
         if ((*index + 1) == le32_to_cpu(*(q->headers.consumer))) { /* Queue is full */
@@ -336,12 +318,8 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 {
 	struct aac_entry * entry = NULL;
 	int map = 0;
-	struct aac_queue * q = &dev->queues->queue[qid];
-		
-	spin_lock_irqsave(q->lock, q->SavedIrql);
 	    
-	if (qid == AdapHighCmdQueue || qid == AdapNormCmdQueue) 
-	{
+	if (qid == AdapNormCmdQueue) {
 		/*  if no entries wait for some if caller wants to */
         	while (!aac_get_entry(dev, qid, &entry, index, nonotify)) 
         	{
@@ -352,9 +330,7 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 	         */
 	        entry->size = cpu_to_le32(le16_to_cpu(hw_fib->header.Size));
 	        map = 1;
-	}
-	else if (qid == AdapHighRespQueue || qid == AdapNormRespQueue)
-	{
+	} else {
 	        while(!aac_get_entry(dev, qid, &entry, index, nonotify)) 
 	        {
 			/* if no entries wait for some if caller wants to */
@@ -374,42 +350,6 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 	 */
 	if (map)
 		entry->addr = cpu_to_le32(fibptr->hw_fib_pa);
-	return 0;
-}
-
-
-/**
- *	aac_insert_entry	-	insert a queue entry
- *	@dev: Adapter
- *	@index: Index of entry to insert
- *	@qid: Queue number
- *	@nonotify: Suppress adapter notification
- *
- *	Gets the next free QE off the requested priorty adapter command
- *	queue and associates the Fib with the QE. The QE represented by
- *	index is ready to insert on the queue when this routine returns
- *	success.
- */
- 
-static int aac_insert_entry(struct aac_dev * dev, u32 index, u32 qid, unsigned long nonotify) 
-{
-	struct aac_queue * q = &dev->queues->queue[qid];
-
-	if(q == NULL)
-		BUG();
-	*(q->headers.producer) = cpu_to_le32(index + 1);
-	spin_unlock_irqrestore(q->lock, q->SavedIrql);
-
-	if (qid == AdapHighCmdQueue ||
-	    qid == AdapNormCmdQueue ||
-	    qid == AdapHighRespQueue ||
-	    qid == AdapNormRespQueue)
-	{
-		if (!nonotify)
-			aac_adapter_notify(dev, qid);
-	}
-	else
-		printk("Suprise insert!\n");
 	return 0;
 }
 
@@ -441,12 +381,13 @@ static int aac_insert_entry(struct aac_dev * dev, u32 index, u32 qid, unsigned l
 int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority, int wait, int reply, fib_callback callback, void * callback_data)
 {
 	u32 index;
-	u32 qid;
 	struct aac_dev * dev = fibptr->dev;
 	unsigned long nointr = 0;
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_queue * q;
 	unsigned long flags = 0;
+	unsigned long qflags;
+
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
 	/*
@@ -499,26 +440,8 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 	 *	Get a queue entry connect the FIB to it and send an notify
 	 *	the adapter a command is ready.
 	 */
-	if (priority == FsaHigh) {
-		hw_fib->header.XferState |= cpu_to_le32(HighPriority);
-		qid = AdapHighCmdQueue;
-	} else {
-		hw_fib->header.XferState |= cpu_to_le32(NormalPriority);
-		qid = AdapNormCmdQueue;
-	}
-	q = &dev->queues->queue[qid];
+	hw_fib->header.XferState |= cpu_to_le32(NormalPriority);
 
-	if(wait)
-		spin_lock_irqsave(&fibptr->event_lock, flags);
-	if(aac_queue_get( dev, &index, qid, hw_fib, 1, fibptr, &nointr)<0)
-		return -EWOULDBLOCK;
-	dprintk((KERN_DEBUG "fib_send: inserting a queue entry at index %d.\n",index));
-	dprintk((KERN_DEBUG "Fib contents:.\n"));
-	dprintk((KERN_DEBUG "  Command =               %d.\n", hw_fib->header.Command));
-	dprintk((KERN_DEBUG "  XferState  =            %x.\n", hw_fib->header.XferState));
-	dprintk((KERN_DEBUG "  hw_fib va being sent=%p\n",fibptr->hw_fib));
-	dprintk((KERN_DEBUG "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
-	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
 	/*
 	 *	Fill in the Callback and CallbackContext if we are not
 	 *	going to wait.
@@ -527,15 +450,33 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 		fibptr->callback = callback;
 		fibptr->callback_data = callback_data;
 	}
-	FIB_COUNTER_INCREMENT(aac_config.FibsSent);
-	list_add_tail(&fibptr->queue, &q->pendingq);
-	q->numpending++;
 
 	fibptr->done = 0;
 	fibptr->flags = 0;
 
-	if(aac_insert_entry(dev, index, qid, (nointr & aac_config.irq_mod)) < 0)
-		return -EWOULDBLOCK;
+	FIB_COUNTER_INCREMENT(aac_config.FibsSent);
+
+	dprintk((KERN_DEBUG "fib_send: inserting a queue entry at index %d.\n",index));
+	dprintk((KERN_DEBUG "Fib contents:.\n"));
+	dprintk((KERN_DEBUG "  Command =               %d.\n", hw_fib->header.Command));
+	dprintk((KERN_DEBUG "  XferState  =            %x.\n", hw_fib->header.XferState));
+	dprintk((KERN_DEBUG "  hw_fib va being sent=%p\n",fibptr->hw_fib));
+	dprintk((KERN_DEBUG "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
+	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
+
+	q = &dev->queues->queue[AdapNormCmdQueue];
+
+	if(wait)
+		spin_lock_irqsave(&fibptr->event_lock, flags);
+	spin_lock_irqsave(q->lock, qflags);
+	aac_queue_get( dev, &index, AdapNormCmdQueue, hw_fib, 1, fibptr, &nointr);
+
+	list_add_tail(&fibptr->queue, &q->pendingq);
+	q->numpending++;
+	*(q->headers.producer) = cpu_to_le32(index + 1);
+	spin_unlock_irqrestore(q->lock, qflags);
+	if (!(nointr & aac_config.irq_mod))
+		aac_adapter_notify(dev, AdapNormCmdQueue);
 	/*
 	 *	If the caller wanted us to wait for response wait now. 
 	 */
@@ -651,14 +592,8 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
 		case HostNormCmdQueue:
 			notify = HostNormCmdNotFull;
 			break;
-		case HostHighCmdQueue:
-			notify = HostHighCmdNotFull;
-			break;
 		case HostNormRespQueue:
 			notify = HostNormRespNotFull;
-			break;
-		case HostHighRespQueue:
-			notify = HostHighRespNotFull;
 			break;
 		default:
 			BUG();
@@ -681,9 +616,13 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_dev * dev = fibptr->dev;
+	struct aac_queue * q;
 	unsigned long nointr = 0;
-	if (hw_fib->header.XferState == 0)
+	unsigned long qflags;
+
+	if (hw_fib->header.XferState == 0) {
         	return 0;
+	}
 	/*
 	 *	If we plan to do anything check the structure type first.
 	 */ 
@@ -698,37 +637,21 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 	 *	send the completed cdb to the adapter.
 	 */
 	if (hw_fib->header.XferState & cpu_to_le32(SentFromAdapter)) {
+		u32 index;
 	        hw_fib->header.XferState |= cpu_to_le32(HostProcessed);
-	        if (hw_fib->header.XferState & cpu_to_le32(HighPriority)) {
-        		u32 index;
-       			if (size) 
-			{
-				size += sizeof(struct aac_fibhdr);
-				if (size > le16_to_cpu(hw_fib->header.SenderSize))
-					return -EMSGSIZE;
-				hw_fib->header.Size = cpu_to_le16(size);
-			}
-			if(aac_queue_get(dev, &index, AdapHighRespQueue, hw_fib, 1, NULL, &nointr) < 0) {
-				return -EWOULDBLOCK;
-			}
-			if (aac_insert_entry(dev, index, AdapHighRespQueue,  (nointr & (int)aac_config.irq_mod)) != 0) {
-			}
-		} else if (hw_fib->header.XferState & 
-				cpu_to_le32(NormalPriority)) {
-			u32 index;
-
-			if (size) {
-				size += sizeof(struct aac_fibhdr);
-				if (size > le16_to_cpu(hw_fib->header.SenderSize)) 
-					return -EMSGSIZE;
-				hw_fib->header.Size = cpu_to_le16(size);
-			}
-			if (aac_queue_get(dev, &index, AdapNormRespQueue, hw_fib, 1, NULL, &nointr) < 0) 
-				return -EWOULDBLOCK;
-			if (aac_insert_entry(dev, index, AdapNormRespQueue, (nointr & (int)aac_config.irq_mod)) != 0) 
-			{
-			}
+		if (size) {
+			size += sizeof(struct aac_fibhdr);
+			if (size > le16_to_cpu(hw_fib->header.SenderSize)) 
+				return -EMSGSIZE;
+			hw_fib->header.Size = cpu_to_le16(size);
 		}
+		q = &dev->queues->queue[AdapNormRespQueue];
+		spin_lock_irqsave(q->lock, qflags);
+		aac_queue_get(dev, &index, AdapNormRespQueue, hw_fib, 1, NULL, &nointr);
+		*(q->headers.producer) = cpu_to_le32(index + 1);
+		spin_unlock_irqrestore(q->lock, qflags);
+		if (!(nointr & (int)aac_config.irq_mod))
+			aac_adapter_notify(dev, AdapNormRespQueue);
 	}
 	else 
 	{

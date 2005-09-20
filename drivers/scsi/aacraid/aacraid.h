@@ -306,7 +306,6 @@ enum aac_queue_types {
  */
 
 #define		FsaNormal	1
-#define		FsaHigh		2
 
 /*
  * Define the FIB. The FIB is the where all the requested data and
@@ -550,8 +549,6 @@ struct aac_queue {
                   /* This is only valid for adapter to host command queues. */ 
 	spinlock_t	 	*lock;		/* Spinlock for this queue must take this lock before accessing the lock */
 	spinlock_t		lockdata;	/* Actual lock (used only on one side of the lock) */
-	unsigned long		SavedIrql;     	/* Previous IRQL when the spin lock is taken */
-	u32			padding;	/* Padding - FIXME - can remove I believe */
 	struct list_head 	cmdq;	   	/* A queue of FIBs which need to be prcessed by the FS thread. This is */
                                 		/* only valid for command queues which receive entries from the adapter. */
 	struct list_head	pendingq;	/* A queue of outstanding fib's to the adapter. */
