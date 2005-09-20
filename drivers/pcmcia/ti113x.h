@@ -59,6 +59,7 @@
 
 #define  TI122X_SCR_SER_STEP		0xc0000000
 #define  TI122X_SCR_INTRTIE		0x20000000
+#define  TIXX21_SCR_TIEALL		0x10000000
 #define  TI122X_SCR_CBRSVD		0x00400000
 #define  TI122X_SCR_MRBURSTDN		0x00008000
 #define  TI122X_SCR_MRBURSTUP		0x00004000
@@ -624,6 +625,7 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 	int devfn;
 	unsigned int state;
 	int ret = 1;
+	u32 sysctl;
 
 	/* catch the two-slot controllers */
 	switch (socket->dev->device) {
@@ -646,6 +648,24 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 		 */
 		break;
 
+	case PCI_DEVICE_ID_TI_X515:
+	case PCI_DEVICE_ID_TI_X420:
+	case PCI_DEVICE_ID_TI_X620:
+	case PCI_DEVICE_ID_TI_XX21_XX11:
+	case PCI_DEVICE_ID_TI_7410:
+	case PCI_DEVICE_ID_TI_7610:
+		/*
+		 * those are either single or dual slot CB with additional functions
+		 * like 1394, smartcard reader, etc. check the TIEALL flag for them
+		 * the TIEALL flag binds the IRQ of all functions toghether.
+		 * we catch the single slot variants later.
+		 */
+		sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
+		if (sysctl & TIXX21_SCR_TIEALL)
+			return 0;
+
+		break;
+
 	/* single-slot controllers have the 2nd slot empty always :) */
 	default:
 		return 1;
@@ -657,6 +677,15 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 	                    (socket->dev->devfn & 0x07) ? devfn : devfn | 0x01);
 	if (!func)
 		return 1;
+
+	/*
+	 * check that the device id of both slots match. this is needed for the
+	 * XX21 and the XX11 controller that share the same device id for single
+	 * and dual slot controllers. return '2nd slot empty'. we already checked
+	 * if the interrupt is tied to another function.
+	 */
+	if (socket->dev->device != func->device)
+		goto out;
 
 	slot2 = pci_get_drvdata(func);
 	if (!slot2)
