@@ -531,6 +531,9 @@ static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	csc = exca_readb(socket, I365_CSC);
 
+	if (!(cb_event || csc))
+		return IRQ_NONE;
+
 	events = (cb_event & (CB_CD1EVENT | CB_CD2EVENT)) ? SS_DETECT : 0 ;
 	events |= (csc & I365_CSC_DETECT) ? SS_DETECT : 0;
 	if (exca_readb(socket, I365_INTCTL) & I365_PC_IOCARD) {
@@ -544,10 +547,7 @@ static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (events)
 		pcmcia_parse_events(&socket->socket, events);
 
-	if (cb_event || csc)
-		return IRQ_HANDLED;
-
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 static void yenta_interrupt_wrapper(unsigned long data)
