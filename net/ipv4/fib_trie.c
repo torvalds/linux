@@ -43,7 +43,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#define VERSION "0.403"
+#define VERSION "0.404"
 
 #include <linux/config.h>
 #include <asm/uaccess.h>
@@ -224,7 +224,7 @@ static inline int tkey_mismatch(t_key a, int offset, t_key b)
   Consider a node 'n' and its parent 'tp'.
 
   If n is a leaf, every bit in its key is significant. Its presence is 
-  necessitaded by path compression, since during a tree traversal (when 
+  necessitated by path compression, since during a tree traversal (when 
   searching for a leaf - unless we are doing an insertion) we will completely 
   ignore all skipped bits we encounter. Thus we need to verify, at the end of 
   a potentially successful search, that we have indeed been walking the 
@@ -836,11 +836,12 @@ static void trie_init(struct trie *t)
 #endif
 }
 
-/* readside most use rcu_read_lock currently dump routines
+/* readside must use rcu_read_lock currently dump routines
  via get_fa_head and dump */
 
-static struct leaf_info *find_leaf_info(struct hlist_head *head, int plen)
+static struct leaf_info *find_leaf_info(struct leaf *l, int plen)
 {
+	struct hlist_head *head = &l->list;
 	struct hlist_node *node;
 	struct leaf_info *li;
 
@@ -853,7 +854,7 @@ static struct leaf_info *find_leaf_info(struct hlist_head *head, int plen)
 
 static inline struct list_head * get_fa_head(struct leaf *l, int plen)
 {
-	struct leaf_info *li = find_leaf_info(&l->list, plen);
+	struct leaf_info *li = find_leaf_info(l, plen);
 
 	if (!li)
 		return NULL;
@@ -1248,7 +1249,7 @@ err:
 }
 
 
-/* should be clalled with rcu_read_lock */
+/* should be called with rcu_read_lock */
 static inline int check_leaf(struct trie *t, struct leaf *l,
 			     t_key key, int *plen, const struct flowi *flp,
 			     struct fib_result *res)
@@ -1590,7 +1591,7 @@ fn_trie_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa, plen, tb->tb_id, nlhdr, req);
 
 	l = fib_find_node(t, key);
-	li = find_leaf_info(&l->list, plen);
+	li = find_leaf_info(l, plen);
 
 	list_del_rcu(&fa->fa_list);
 
@@ -1714,7 +1715,6 @@ static int fn_trie_flush(struct fib_table *tb)
 
 	t->revision++;
 
-	rcu_read_lock();
 	for (h = 0; (l = nextleaf(t, l)) != NULL; h++) {
 		found += trie_flush_leaf(t, l);
 
@@ -1722,7 +1722,6 @@ static int fn_trie_flush(struct fib_table *tb)
 			trie_leaf_remove(t, ll->key);
 		ll = l;
 	}
-	rcu_read_unlock();  
 
 	if (ll && hlist_empty(&ll->list))
 		trie_leaf_remove(t, ll->key);
@@ -2029,7 +2028,7 @@ static struct node *fib_trie_get_first(struct fib_trie_iter *iter,
 		iter->tnode = (struct tnode *) n;
 		iter->trie = t;
 		iter->index = 0;
-		iter->depth = 0;
+		iter->depth = 1;
 		return n;
 	}
 	return NULL;
@@ -2274,11 +2273,12 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 				seq_puts(seq, "<local>:\n");
 			else
 				seq_puts(seq, "<main>:\n");
-		} else {
-			seq_indent(seq, iter->depth-1);
-			seq_printf(seq, "  +-- %d.%d.%d.%d/%d\n",
-				   NIPQUAD(prf), tn->pos);
-		}
+		} 
+		seq_indent(seq, iter->depth-1);
+		seq_printf(seq, "  +-- %d.%d.%d.%d/%d %d %d %d\n",
+			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children, 
+			   tn->empty_children);
+		
 	} else {
 		struct leaf *l = (struct leaf *) n;
 		int i;
@@ -2287,7 +2287,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 		seq_indent(seq, iter->depth);
 		seq_printf(seq, "  |-- %d.%d.%d.%d\n", NIPQUAD(val));
 		for (i = 32; i >= 0; i--) {
-			struct leaf_info *li = find_leaf_info(&l->list, i);
+			struct leaf_info *li = find_leaf_info(l, i);
 			if (li) {
 				struct fib_alias *fa;
 				list_for_each_entry_rcu(fa, &li->falh, fa_list) {
@@ -2383,7 +2383,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 		return 0;
 
 	for (i=32; i>=0; i--) {
-		struct leaf_info *li = find_leaf_info(&l->list, i);
+		struct leaf_info *li = find_leaf_info(l, i);
 		struct fib_alias *fa;
 		u32 mask, prefix;
 
