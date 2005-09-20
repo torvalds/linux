@@ -725,6 +725,9 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	else
 		tlck->flag = tlckINODELOCK;
 
+	if (S_ISDIR(ip->i_mode))
+		tlck->flag |= tlckDIRECTORY;
+
 	tlck->type = 0;
 
 	/* bind the tlock and the page */
@@ -1009,6 +1012,8 @@ struct tlock *txMaplock(tid_t tid, struct inode *ip, int type)
 
 	/* bind the tlock and the object */
 	tlck->flag = tlckINODELOCK;
+	if (S_ISDIR(ip->i_mode))
+		tlck->flag |= tlckDIRECTORY;
 	tlck->ip = ip;
 	tlck->mp = NULL;
 
@@ -1077,6 +1082,8 @@ struct linelock *txLinelock(struct linelock * tlock)
 	linelock->flag = tlckLINELOCK;
 	linelock->maxcnt = TLOCKLONG;
 	linelock->index = 0;
+	if (tlck->flag & tlckDIRECTORY)
+		linelock->flag |= tlckDIRECTORY;
 
 	/* append linelock after tlock */
 	linelock->next = tlock->next;
@@ -2358,7 +2365,7 @@ static void txUpdateMap(struct tblock * tblk)
 			 */
 			else {	/* (maplock->flag & mlckFREE) */
 
-				if (S_ISDIR(tlck->ip->i_mode))
+				if (tlck->flag & tlckDIRECTORY)
 					txFreeMap(ipimap, maplock,
 						  tblk, COMMIT_PWMAP);
 				else
