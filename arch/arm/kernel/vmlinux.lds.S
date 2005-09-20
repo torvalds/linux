@@ -29,7 +29,7 @@ SECTIONS
 			*(.arch.info)
 		__arch_info_end = .;
 		__tagtable_begin = .;
-			*(.taglist)
+			*(.taglist.init)
 		__tagtable_end = .;
 		. = ALIGN(16);
 		__setup_start = .;
