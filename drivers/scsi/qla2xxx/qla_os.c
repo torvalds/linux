@@ -762,29 +762,19 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		goto eh_dev_reset_done;
 	}
 
-	/*
-	 * If we are coming down the EH path, wait for all commands to
-	 * complete for the device.
-	 */
-	if (cmd->device->host->eh_active) {
-		if (qla2x00_eh_wait_for_pending_target_commands(ha, id))
-			ret = FAILED;
+	/* Flush outstanding commands. */
+	if (qla2x00_eh_wait_for_pending_target_commands(ha, id))
+		ret = FAILED;
+	if (ret == FAILED) {
+		DEBUG3(printk("%s(%ld): failed while waiting for commands\n",
+		    __func__, ha->host_no));
+		qla_printk(KERN_INFO, ha,
+		    "%s: failed while waiting for commands\n", __func__);
+	} else
+		qla_printk(KERN_INFO, ha,
+		    "scsi(%ld:%d:%d): DEVICE RESET SUCCEEDED.\n", ha->host_no,
+		    id, lun);
 
-		if (ret == FAILED) {
-			DEBUG3(printk("%s(%ld): failed while waiting for "
-			    "commands\n", __func__, ha->host_no));
-			qla_printk(KERN_INFO, ha,
-			    "%s: failed while waiting for commands\n",
-			    __func__);
-
-			goto eh_dev_reset_done;
-		}
-	}
-
-	qla_printk(KERN_INFO, ha,
-	    "scsi(%ld:%d:%d): DEVICE RESET SUCCEEDED.\n", ha->host_no, id, lun);
-
-eh_dev_reset_done:
 	return ret;
 }
 
@@ -886,10 +876,9 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	if (ret == FAILED)
 		goto eh_bus_reset_done;
 
-	/* Waiting for our command in done_queue to be returned to OS.*/
-	if (cmd->device->host->eh_active)
-		if (!qla2x00_eh_wait_for_pending_commands(ha))
-			ret = FAILED;
+	/* Flush outstanding commands. */
+	if (!qla2x00_eh_wait_for_pending_commands(ha))
+		ret = FAILED;
 
 eh_bus_reset_done:
 	qla_printk(KERN_INFO, ha, "%s: reset %s\n", __func__,
