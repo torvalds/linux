@@ -893,7 +893,7 @@ static int nvidiafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	int i, set = cursor->set;
 	u16 fg, bg;
 
-	if (!hwcur || cursor->image.width > MAX_CURS || cursor->image.height > MAX_CURS)
+	if (cursor->image.width > MAX_CURS || cursor->image.height > MAX_CURS)
 		return -ENXIO;
 
 	NVShowHideCursor(par, 0);
@@ -1355,6 +1355,9 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	info->pixmap.access_align = 32;
 	info->pixmap.size = 8 * 1024;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
+
+	if (!hwcur)
+	    info->fbops->fb_cursor = soft_cursor;
 
 	info->var.accel_flags = (!noaccel);
 
