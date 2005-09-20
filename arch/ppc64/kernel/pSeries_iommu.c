@@ -60,6 +60,9 @@ static void tce_build_pSeries(struct iommu_table *tbl, long index,
 	union tce_entry t;
 	union tce_entry *tp;
 
+	index <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
+
 	t.te_word = 0;
 	t.te_rdwr = 1; // Read allowed 
 
@@ -70,11 +73,11 @@ static void tce_build_pSeries(struct iommu_table *tbl, long index,
 
 	while (npages--) {
 		/* can't move this out since we might cross LMB boundary */
-		t.te_rpn = (virt_to_abs(uaddr)) >> PAGE_SHIFT;
+		t.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	
 		tp->te_word = t.te_word;
 
-		uaddr += PAGE_SIZE;
+		uaddr += TCE_PAGE_SIZE;
 		tp++;
 	}
 }
@@ -84,6 +87,9 @@ static void tce_free_pSeries(struct iommu_table *tbl, long index, long npages)
 {
 	union tce_entry t;
 	union tce_entry *tp;
+
+	npages <<= TCE_PAGE_FACTOR;
+	index <<= TCE_PAGE_FACTOR;
 
 	t.te_word = 0;
 	tp  = ((union tce_entry *)tbl->it_base) + index;
@@ -104,7 +110,7 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	union tce_entry tce;
 
 	tce.te_word = 0;
-	tce.te_rpn = (virt_to_abs(uaddr)) >> PAGE_SHIFT;
+	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	tce.te_rdwr = 1;
 	if (direction != DMA_TO_DEVICE)
 		tce.te_pciwr = 1;
@@ -137,6 +143,9 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	union tce_entry tce, *tcep;
 	long l, limit;
 
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
+
 	if (npages == 1)
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					   direction);
@@ -156,7 +165,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	}
 
 	tce.te_word = 0;
-	tce.te_rpn = (virt_to_abs(uaddr)) >> PAGE_SHIFT;
+	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	tce.te_rdwr = 1;
 	if (direction != DMA_TO_DEVICE)
 		tce.te_pciwr = 1;
@@ -167,7 +176,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		 * Set up the page with TCE data, looping through and setting
 		 * the values.
 		 */
-		limit = min_t(long, npages, PAGE_SIZE/sizeof(union tce_entry));
+		limit = min_t(long, npages, 4096/sizeof(union tce_entry));
 
 		for (l = 0; l < limit; l++) {
 			tcep[l] = tce;
@@ -197,6 +206,9 @@ static void tce_free_pSeriesLP(struct iommu_table *tbl, long tcenum, long npages
 	u64 rc;
 	union tce_entry tce;
 
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
+
 	tce.te_word = 0;
 
 	while (npages--) {
@@ -221,6 +233,9 @@ static void tce_freemulti_pSeriesLP(struct iommu_table *tbl, long tcenum, long n
 {
 	u64 rc;
 	union tce_entry tce;
+
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
 
 	tce.te_word = 0;
 

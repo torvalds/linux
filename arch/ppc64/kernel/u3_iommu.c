@@ -125,18 +125,21 @@ static void dart_build(struct iommu_table *tbl, long index,
 
 	DBG("dart: build at: %lx, %lx, addr: %x\n", index, npages, uaddr);
 
+	index <<= DART_PAGE_FACTOR;
+	npages <<= DART_PAGE_FACTOR;
+
 	dp = ((unsigned int*)tbl->it_base) + index;
 	
 	/* On U3, all memory is contigous, so we can move this
 	 * out of the loop.
 	 */
 	while (npages--) {
-		rpn = virt_to_abs(uaddr) >> PAGE_SHIFT;
+		rpn = virt_to_abs(uaddr) >> DART_PAGE_SHIFT;
 
 		*(dp++) = DARTMAP_VALID | (rpn & DARTMAP_RPNMASK);
 
 		rpn++;
-		uaddr += PAGE_SIZE;
+		uaddr += DART_PAGE_SIZE;
 	}
 
 	dart_dirty = 1;
@@ -153,6 +156,9 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 	 */
 
 	DBG("dart: free at: %lx, %lx\n", index, npages);
+
+	index <<= DART_PAGE_FACTOR;
+	npages <<= DART_PAGE_FACTOR;
 
 	dp  = ((unsigned int *)tbl->it_base) + index;
 		
@@ -182,10 +188,10 @@ static int dart_init(struct device_node *dart_node)
 	 * that to work around what looks like a problem with the HT bridge
 	 * prefetching into invalid pages and corrupting data
 	 */
-	tmp = lmb_alloc(PAGE_SIZE, PAGE_SIZE);
+	tmp = lmb_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
 	if (!tmp)
 		panic("U3-DART: Cannot allocate spare page!");
-	dart_emptyval = DARTMAP_VALID | ((tmp >> PAGE_SHIFT) & DARTMAP_RPNMASK);
+	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) & DARTMAP_RPNMASK);
 
 	/* Map in DART registers. FIXME: Use device node to get base address */
 	dart = ioremap(DART_BASE, 0x7000);
@@ -196,8 +202,8 @@ static int dart_init(struct device_node *dart_node)
 	 * table size and enable bit
 	 */
 	regword = DARTCNTL_ENABLE | 
-		((dart_tablebase >> PAGE_SHIFT) << DARTCNTL_BASE_SHIFT) |
-		(((dart_tablesize >> PAGE_SHIFT) & DARTCNTL_SIZE_MASK)
+		((dart_tablebase >> DART_PAGE_SHIFT) << DARTCNTL_BASE_SHIFT) |
+		(((dart_tablesize >> DART_PAGE_SHIFT) & DARTCNTL_SIZE_MASK)
 				 << DARTCNTL_SIZE_SHIFT);
 	dart_vbase = ioremap(virt_to_abs(dart_tablebase), dart_tablesize);
 

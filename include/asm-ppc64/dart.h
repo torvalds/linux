@@ -51,5 +51,9 @@
 #define DARTMAP_RPNMASK 0x00ffffff
 
 
+#define DART_SHIFT		12
+#define DART_PAGE_SIZE		(1 << DART_SHIFT)
+#define DART_PAGE_FACTOR	(PAGE_SHIFT - DART_SHIFT)
+
 
 #endif

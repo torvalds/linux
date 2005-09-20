@@ -28,6 +28,13 @@
 #define TCE_VB  0
 #define TCE_PCI 1
 
+/* TCE page size is 4096 bytes (1 << 12) */
+
+#define TCE_SHIFT	12
+#define TCE_PAGE_SIZE	(1 << TCE_SHIFT)
+#define TCE_PAGE_FACTOR	(PAGE_SHIFT - TCE_SHIFT)
+
+
 /* tce_entry
  * Used by pSeries (SMP) and iSeries/pSeries LPAR, but there it's
  * abstracted so layout is irrelevant.
