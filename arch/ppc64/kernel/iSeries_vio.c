@@ -14,6 +14,7 @@
 
 #include <asm/vio.h>
 #include <asm/iommu.h>
+#include <asm/tce.h>
 #include <asm/abs_addr.h>
 #include <asm/page.h>
 #include <asm/iSeries/vio.h>

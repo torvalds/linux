@@ -30,6 +30,7 @@
 #include <linux/list.h>
 
 #include <asm/iommu.h>
+#include <asm/tce.h>
 #include <asm/machdep.h>
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/iSeries_pci.h>

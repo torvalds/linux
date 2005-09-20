@@ -46,6 +46,7 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/systemcfg.h>
 #include <asm/firmware.h>
+#include <asm/tce.h>
 #include "pci.h"
 
 #define DBG(fmt...)

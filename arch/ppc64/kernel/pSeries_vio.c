@@ -22,6 +22,7 @@
 #include <asm/prom.h>
 #include <asm/vio.h>
 #include <asm/hvcall.h>
+#include <asm/tce.h>
 
 extern struct subsystem devices_subsys; /* needed for vio_find_name() */
 

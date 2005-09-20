@@ -44,38 +44,11 @@
 #include <asm/abs_addr.h>
 #include <asm/cacheflush.h>
 #include <asm/lmb.h>
+#include <asm/dart.h>
 
 #include "pci.h"
 
 extern int iommu_force_on;
-
-/* physical base of DART registers */
-#define DART_BASE        0xf8033000UL
-
-/* Offset from base to control register */
-#define DARTCNTL   0
-/* Offset from base to exception register */
-#define DARTEXCP   0x10
-/* Offset from base to TLB tag registers */
-#define DARTTAG    0x1000
-
-
-/* Control Register fields */
-
-/* base address of table (pfn) */
-#define DARTCNTL_BASE_MASK    0xfffff
-#define DARTCNTL_BASE_SHIFT   12
-
-#define DARTCNTL_FLUSHTLB     0x400
-#define DARTCNTL_ENABLE       0x200
-
-/* size of table in pages */
-#define DARTCNTL_SIZE_MASK    0x1ff
-#define DARTCNTL_SIZE_SHIFT   0
-
-/* DART table fields */
-#define DARTMAP_VALID   0x80000000
-#define DARTMAP_RPNMASK 0x00ffffff
 
 /* Physical base address and size of the DART table */
 unsigned long dart_tablebase; /* exported to htab_initialize */
