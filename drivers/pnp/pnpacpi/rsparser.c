@@ -453,6 +453,45 @@ pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
 	return;
 }
 
+static void
+pnpacpi_parse_address_option(struct pnp_option *option, struct acpi_resource *r)
+{
+	struct acpi_resource_address64 addr, *p = &addr;
+	acpi_status status;
+	struct pnp_mem * mem;
+	struct pnp_port * port;
+
+	status = acpi_resource_to_address64(r, p);
+	if (!ACPI_SUCCESS(status)) {
+		pnp_warn("PnPACPI: failed to convert resource type %d", r->id);
+		return;
+	}
+
+	if (p->address_length == 0)
+		return;
+
+	if (p->resource_type == ACPI_MEMORY_RANGE) {
+		mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
+		if (!mem)
+			return;
+		mem->min = mem->max = p->min_address_range;
+		mem->size = p->address_length;
+		mem->align = 0;
+		mem->flags = (p->attribute.memory.read_write_attribute ==
+		    ACPI_READ_WRITE_MEMORY) ? IORESOURCE_MEM_WRITEABLE : 0;
+		pnp_register_mem_resource(option,mem);
+	} else if (p->resource_type == ACPI_IO_RANGE) {
+		port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
+		if (!port)
+			return;
+		port->min = port->max = p->min_address_range;
+		port->size = p->address_length;
+		port->align = 0;
+		port->flags = PNP_PORT_FLAG_FIXED;
+		pnp_register_port_resource(option,port);
+	}
+}
+
 struct acpipnp_parse_option_s {
 	struct pnp_option *option;
 	struct pnp_option *option_independent;
@@ -494,6 +533,11 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		case ACPI_RSTYPE_FIXED_MEM32:
 			pnpacpi_parse_fixed_mem32_option(option,
 				&res->data.fixed_memory32);
+			break;
+		case ACPI_RSTYPE_ADDRESS16:
+		case ACPI_RSTYPE_ADDRESS32:
+		case ACPI_RSTYPE_ADDRESS64:
+			pnpacpi_parse_address_option(option, res);
 			break;
 		case ACPI_RSTYPE_START_DPF:
 			switch (res->data.start_dpf.compatibility_priority) {
@@ -568,11 +612,9 @@ static acpi_status pnpacpi_count_resources(struct acpi_resource *res,
 	case ACPI_RSTYPE_MEM24:
 	case ACPI_RSTYPE_MEM32:
 	case ACPI_RSTYPE_FIXED_MEM32:
-#if 0
 	case ACPI_RSTYPE_ADDRESS16:
 	case ACPI_RSTYPE_ADDRESS32:
 	case ACPI_RSTYPE_ADDRESS64:
-#endif
 		(*res_cnt) ++;
 	default:
 		return AE_OK;
@@ -593,11 +635,9 @@ static acpi_status pnpacpi_type_resources(struct acpi_resource *res,
 	case ACPI_RSTYPE_MEM24:
 	case ACPI_RSTYPE_MEM32:
 	case ACPI_RSTYPE_FIXED_MEM32:
-#if 0
 	case ACPI_RSTYPE_ADDRESS16:
 	case ACPI_RSTYPE_ADDRESS32:
 	case ACPI_RSTYPE_ADDRESS64:
-#endif
 		(*resource)->id = res->id;
 		(*resource)++;
 	default:
