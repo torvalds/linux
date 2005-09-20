@@ -150,7 +150,7 @@ static inline unsigned int csum_tcpudp_nofold(unsigned long saddr,
 	"	daddu	%0, %4		\n"
 	"	dsll32	$1, %0, 0	\n"
 	"	daddu	%0, $1		\n"
-	"	dsrl32	%0, %0, 0	\n"
+	"	dsra32	%0, %0, 0	\n"
 #endif
 	"	.set	pop"
 	: "=r" (sum)
