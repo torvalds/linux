@@ -335,10 +335,9 @@ static void native_hpte_clear(void)
 	local_irq_restore(flags);
 }
 
-static void native_flush_hash_range(unsigned long context,
-				    unsigned long number, int local)
+static void native_flush_hash_range(unsigned long number, int local)
 {
-	unsigned long vsid, vpn, va, hash, secondary, slot, flags, avpn;
+	unsigned long va, vpn, hash, secondary, slot, flags, avpn;
 	int i, j;
 	hpte_t *hptep;
 	unsigned long hpte_v;
@@ -351,13 +350,7 @@ static void native_flush_hash_range(unsigned long context,
 
 	j = 0;
 	for (i = 0; i < number; i++) {
-		if (batch->addr[i] < KERNELBASE)
-			vsid = get_vsid(context, batch->addr[i]);
-		else
-			vsid = get_kernel_vsid(batch->addr[i]);
-
-		va = (vsid << 28) | (batch->addr[i] & 0x0fffffff);
-		batch->vaddr[j] = va;
+		va = batch->vaddr[j];
 		if (large)
 			vpn = va >> HPAGE_SHIFT;
 		else

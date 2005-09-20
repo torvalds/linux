@@ -355,18 +355,11 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	return ret;
 }
 
-void flush_hash_page(unsigned long context, unsigned long ea, pte_t pte,
-		     int local)
+void flush_hash_page(unsigned long va, pte_t pte, int local)
 {
-	unsigned long vsid, vpn, va, hash, secondary, slot;
+	unsigned long vpn, hash, secondary, slot;
 	unsigned long huge = pte_huge(pte);
 
-	if (ea < KERNELBASE)
-		vsid = get_vsid(context, ea);
-	else
-		vsid = get_kernel_vsid(ea);
-
-	va = (vsid << 28) | (ea & 0x0fffffff);
 	if (huge)
 		vpn = va >> HPAGE_SHIFT;
 	else
@@ -381,17 +374,17 @@ void flush_hash_page(unsigned long context, unsigned long ea, pte_t pte,
 	ppc_md.hpte_invalidate(slot, va, huge, local);
 }
 
-void flush_hash_range(unsigned long context, unsigned long number, int local)
+void flush_hash_range(unsigned long number, int local)
 {
 	if (ppc_md.flush_hash_range) {
-		ppc_md.flush_hash_range(context, number, local);
+		ppc_md.flush_hash_range(number, local);
 	} else {
 		int i;
-		struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+		struct ppc64_tlb_batch *batch =
+			&__get_cpu_var(ppc64_tlb_batch);
 
 		for (i = 0; i < number; i++)
-			flush_hash_page(context, batch->addr[i], batch->pte[i],
-					local);
+			flush_hash_page(batch->vaddr[i], batch->pte[i], local);
 	}
 }
 

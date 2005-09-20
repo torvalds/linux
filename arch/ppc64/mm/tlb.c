@@ -128,12 +128,10 @@ void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
 void hpte_update(struct mm_struct *mm, unsigned long addr,
 		 unsigned long pte, int wrprot)
 {
-	int i;
-	unsigned long context = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	unsigned long vsid;
+	int i;
 
-	if (REGION_ID(addr) == USER_REGION_ID)
-		context = mm->context.id;
 	i = batch->index;
 
 	/*
@@ -143,17 +141,19 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	 * up scanning and resetting referenced bits then our batch context
 	 * will change mid stream.
 	 */
-	if (unlikely(i != 0 && context != batch->context)) {
+	if (unlikely(i != 0 && mm != batch->mm)) {
 		flush_tlb_pending();
 		i = 0;
 	}
-
-	if (i == 0) {
-		batch->context = context;
+	if (i == 0)
 		batch->mm = mm;
-	}
+	if (addr < KERNELBASE) {
+		vsid = get_vsid(mm->context.id, addr);
+		WARN_ON(vsid == 0);
+	} else
+		vsid = get_kernel_vsid(addr);
+	batch->vaddr[i] = (vsid << 28 ) | (addr & 0x0fffffff);
 	batch->pte[i] = __pte(pte);
-	batch->addr[i] = addr;
 	batch->index = ++i;
 	if (i >= PPC64_TLB_BATCH_NR)
 		flush_tlb_pending();
@@ -175,10 +175,9 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 		local = 1;
 
 	if (i == 1)
-		flush_hash_page(batch->context, batch->addr[0], batch->pte[0],
-				local);
+		flush_hash_page(batch->vaddr[0], batch->pte[0], local);
 	else
-		flush_hash_range(batch->context, i, local);
+		flush_hash_range(i, local);
 	batch->index = 0;
 	put_cpu();
 }

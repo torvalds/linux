@@ -20,10 +20,8 @@
 struct mm_struct;
 struct ppc64_tlb_batch {
 	unsigned long index;
-	unsigned long context;
 	struct mm_struct *mm;
 	pte_t pte[PPC64_TLB_BATCH_NR];
-	unsigned long addr[PPC64_TLB_BATCH_NR];
 	unsigned long vaddr[PPC64_TLB_BATCH_NR];
 };
 DECLARE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
@@ -47,8 +45,7 @@ static inline void flush_tlb_pending(void)
 #define flush_tlb_kernel_range(start, end)	flush_tlb_pending()
 #define flush_tlb_pgtables(mm, start, end)	do { } while (0)
 
-extern void flush_hash_page(unsigned long context, unsigned long ea, pte_t pte,
-			    int local);
-void flush_hash_range(unsigned long context, unsigned long number, int local);
+extern void flush_hash_page(unsigned long va, pte_t pte, int local);
+void flush_hash_range(unsigned long number, int local);
 
 #endif /* _PPC64_TLBFLUSH_H */

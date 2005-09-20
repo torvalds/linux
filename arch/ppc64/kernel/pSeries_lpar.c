@@ -486,8 +486,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
  * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
  * lock.
  */
-void pSeries_lpar_flush_hash_range(unsigned long context, unsigned long number,
-				   int local)
+void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 {
 	int i;
 	unsigned long flags = 0;
@@ -498,7 +497,7 @@ void pSeries_lpar_flush_hash_range(unsigned long context, unsigned long number,
 		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
 
 	for (i = 0; i < number; i++)
-		flush_hash_page(context, batch->addr[i], batch->pte[i], local);
+		flush_hash_page(batch->vaddr[i], batch->pte[i], local);
 
 	if (lock_tlbie)
 		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
