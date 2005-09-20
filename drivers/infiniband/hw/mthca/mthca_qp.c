@@ -2123,5 +2123,6 @@ void __devexit mthca_cleanup_qp_table(struct mthca_dev *dev)
 	for (i = 0; i < 2; ++i)
 		mthca_CONF_SPECIAL_QP(dev, i, 0, &status);
 
+	mthca_array_cleanup(&dev->qp_table.qp, dev->limits.num_qps);
 	mthca_alloc_cleanup(&dev->qp_table.alloc);
 }
