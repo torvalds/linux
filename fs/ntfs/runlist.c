@@ -158,17 +158,21 @@ static inline BOOL ntfs_are_rl_mergeable(runlist_element *dst,
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	if ((dst->lcn < 0) || (src->lcn < 0)) {   /* Are we merging holes? */
-		if (dst->lcn == LCN_HOLE && src->lcn == LCN_HOLE)
-			return TRUE;
+	/* We can merge unmapped regions even if they are misaligned. */
+	if ((dst->lcn == LCN_RL_NOT_MAPPED) && (src->lcn == LCN_RL_NOT_MAPPED))
+		return TRUE;
+	/* If the runs are misaligned, we cannot merge them. */
+	if ((dst->vcn + dst->length) != src->vcn)
 		return FALSE;
-	}
-	if ((dst->lcn + dst->length) != src->lcn) /* Are the runs contiguous? */
-		return FALSE;
-	if ((dst->vcn + dst->length) != src->vcn) /* Are the runs misaligned? */
-		return FALSE;
-
-	return TRUE;
+	/* If both runs are non-sparse and contiguous, we can merge them. */
+	if ((dst->lcn >= 0) && (src->lcn >= 0) &&
+			((dst->lcn + dst->length) == src->lcn))
+		return TRUE;
+	/* If we are merging two holes, we can merge them. */
+	if ((dst->lcn == LCN_HOLE) && (src->lcn == LCN_HOLE))
+		return TRUE;
+	/* Cannot merge. */
+	return FALSE;
 }
 
 /**
@@ -214,14 +218,15 @@ static inline void __ntfs_rl_merge(runlist_element *dst, runlist_element *src)
 static inline runlist_element *ntfs_rl_append(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
-	BOOL right;	/* Right end of @src needs merging. */
-	int marker;	/* End of the inserted runs. */
+	BOOL right = FALSE;	/* Right end of @src needs merging. */
+	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
 	/* First, check if the right hand end needs merging. */
-	right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
+	if ((loc + 1) < dsize)
+		right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
 
 	/* Space required: @dst size + @src size, less one if we merged. */
 	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - right);
@@ -377,20 +382,21 @@ static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
 	BOOL left = FALSE;	/* Left end of @src needs merging. */
-	BOOL right;		/* Right end of @src needs merging. */
+	BOOL right = FALSE;	/* Right end of @src needs merging. */
 	int tail;		/* Start of tail of @dst. */
 	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	/* First, merge the left and right ends, if necessary. */
-	right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
+	/* First, see if the left and right ends need merging. */
+	if ((loc + 1) < dsize)
+		right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
 	if (loc > 0)
 		left = ntfs_are_rl_mergeable(dst + loc - 1, src);
 	/*
 	 * Allocate some space.  We will need less if the left, right, or both
-	 * ends were merged.
+	 * ends get merged.
 	 */
 	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - left - right);
 	if (IS_ERR(dst))
@@ -399,21 +405,26 @@ static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 	 * We are guaranteed to succeed from here so can start modifying the
 	 * original runlists.
 	 */
+
+	/* First, merge the left and right ends, if necessary. */
 	if (right)
 		__ntfs_rl_merge(src + ssize - 1, dst + loc + 1);
 	if (left)
 		__ntfs_rl_merge(dst + loc - 1, src);
 	/*
-	 * First run of @dst that needs to be moved out of the way to make
-	 * space for the runs to be copied from @src, i.e. the first run of the
-	 * tail of @dst.
+	 * Offset of the tail of @dst.  This needs to be moved out of the way
+	 * to make space for the runs to be copied from @src, i.e. the first
+	 * run of the tail of @dst.
+	 * Nominally, @tail equals @loc + 1, i.e. location, skipping the
+	 * replaced run.  However, if @right, then one of @dst's runs is
+	 * already merged into @src.
 	 */
 	tail = loc + right + 1;
 	/*
 	 * First run after the @src runs that have been inserted, i.e. where
 	 * the tail of @dst needs to be moved to.
-	 * Nominally, marker equals @loc + @ssize, i.e. location + number of
-	 * runs in @src).  However, if @left, then the first run in @src has
+	 * Nominally, @marker equals @loc + @ssize, i.e. location + number of
+	 * runs in @src.  However, if @left, then the first run in @src has
 	 * been merged with one in @dst.
 	 */
 	marker = loc + ssize - left;
