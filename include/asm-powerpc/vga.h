@@ -1,16 +1,14 @@
+#ifndef _ASM_POWERPC_VGA_H_
+#define _ASM_POWERPC_VGA_H_
+
+#ifdef __KERNEL__
+
 /*
  *	Access to VGA videoram
  *
  *	(c) 1998 Martin Mares <mj@ucw.cz>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_ASM_VGA_H_
-#define _LINUX_ASM_VGA_H_
 
 #include <asm/io.h>
 
@@ -42,9 +40,15 @@ static inline u16 scr_readw(volatile const u16 *addr)
 #endif /* !CONFIG_VGA_CONSOLE && !CONFIG_MDA_CONSOLE */
 
 extern unsigned long vgacon_remap_base;
+
+#ifdef __powerpc64__
 #define VGA_MAP_MEM(x) ((unsigned long) ioremap((x), 0))
+#else
+#define VGA_MAP_MEM(x) (x + vgacon_remap_base)
+#endif
 
 #define vga_readb(x) (*(x))
 #define vga_writeb(x,y) (*(y) = (x))
 
-#endif
+#endif	/* __KERNEL__ */
+#endif	/* _ASM_POWERPC_VGA_H_ */
