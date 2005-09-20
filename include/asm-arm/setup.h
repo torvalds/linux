@@ -213,6 +213,6 @@ struct early_params {
 
 #define __early_param(name,fn)					\
 static struct early_params __early_##fn __attribute_used__	\
-__attribute__((__section__("__early_param"))) = { name, fn }
+__attribute__((__section__(".early_param.init"))) = { name, fn }
 
 #endif

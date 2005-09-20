@@ -36,7 +36,7 @@ SECTIONS
 			*(.init.setup)
 		__setup_end = .;
 		__early_begin = .;
-			*(__early_param)
+			*(.early_param.init)
 		__early_end = .;
 		__initcall_start = .;
 			*(.initcall1.init)
