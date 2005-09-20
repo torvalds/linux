@@ -1,5 +1,5 @@
-#ifndef __PPC64_ELF_H
-#define __PPC64_ELF_H
+#ifndef _ASM_POWERPC_ELF_H
+#define _ASM_POWERPC_ELF_H
 
 #include <asm/types.h>
 #include <asm/ptrace.h>
@@ -76,7 +76,7 @@
 #define R_PPC_GOT_DTPREL16_HI	93 /* half16*	(sym+add)@got@dtprel@h */
 #define R_PPC_GOT_DTPREL16_HA	94 /* half16*	(sym+add)@got@dtprel@ha */
 
-/* Keep this the last entry.  */
+/* keep this the last entry. */
 #define R_PPC_NUM		95
 
 /*
@@ -91,8 +91,6 @@
 
 #define ELF_NGREG	48	/* includes nip, msr, lr, etc. */
 #define ELF_NFPREG	33	/* includes fpscr */
-#define ELF_NVRREG32	33	/* includes vscr & vrsave stuffed together */
-#define ELF_NVRREG	34	/* includes vscr & vrsave in split vectors */
 
 typedef unsigned long elf_greg_t64;
 typedef elf_greg_t64 elf_gregset_t64[ELF_NGREG];
@@ -101,8 +99,21 @@ typedef unsigned int elf_greg_t32;
 typedef elf_greg_t32 elf_gregset_t32[ELF_NGREG];
 
 /*
- * These are used to set parameters in the core dumps.
+ * ELF_ARCH, CLASS, and DATA are used to set parameters in the core dumps.
  */
+#ifdef __powerpc64__
+# define ELF_NVRREG32	33	/* includes vscr & vrsave stuffed together */
+# define ELF_NVRREG	34	/* includes vscr & vrsave in split vectors */
+# define ELF_GREG_TYPE	elf_greg_t64
+#else
+# define ELF_NEVRREG	34	/* includes acc (as 2) */
+# define ELF_NVRREG	33	/* includes vscr */
+# define ELF_GREG_TYPE	elf_greg_t32
+# define ELF_ARCH	EM_PPC
+# define ELF_CLASS	ELFCLASS32
+# define ELF_DATA	ELFDATA2MSB
+#endif /* __powerpc64__ */
+
 #ifndef ELF_ARCH
 # define ELF_ARCH	EM_PPC64
 # define ELF_CLASS	ELFCLASS64
@@ -115,8 +126,9 @@ typedef elf_greg_t32 elf_gregset_t32[ELF_NGREG];
   typedef elf_greg_t32 elf_greg_t;
   typedef elf_gregset_t32 elf_gregset_t;
 # define elf_addr_t u32
-#endif
+#endif /* ELF_ARCH */
 
+/* Floating point registers */
 typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
@@ -126,7 +138,9 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  * The entry with index 32 contains the vscr as the last word (offset 12) 
  * within the quadword.  This allows the vscr to be stored as either a 
  * quadword (since it must be copied via a vector register to/from storage) 
- * or as a word.  The entry with index 33 contains the vrsave as the first 
+ * or as a word.  
+ *
+ * 64-bit kernel notes: The entry at index 33 contains the vrsave as the first  
  * word (offset 0) within the quadword.
  *
  * This definition of the VMX state is compatible with the current PPC32 
@@ -139,7 +153,9 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  */
 typedef __vector128 elf_vrreg_t;
 typedef elf_vrreg_t elf_vrregset_t[ELF_NVRREG];
+#ifdef __powerpc64__
 typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
+#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -159,26 +175,30 @@ typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
 #ifdef __KERNEL__
 
 /* Common routine for both 32-bit and 64-bit processes */
-static inline void ppc64_elf_core_copy_regs(elf_gregset_t elf_regs,
+static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 					    struct pt_regs *regs)
 {
 	int i;
-	int gprs = sizeof(struct pt_regs)/sizeof(elf_greg_t64);
+	int gprs = sizeof(struct pt_regs)/sizeof(ELF_GREG_TYPE);
 
 	if (gprs > ELF_NGREG)
 		gprs = ELF_NGREG;
 
 	for (i=0; i < gprs; i++)
-		elf_regs[i] = (elf_greg_t)((elf_greg_t64 *)regs)[i];
+		elf_regs[i] = (elf_greg_t)((ELF_GREG_TYPE *)regs)[i];
+
+	memset((char *)(elf_regs) + sizeof(struct pt_regs), 0,  	\
+	       sizeof(elf_gregset_t) - sizeof(struct pt_regs));
+
 }
-#define ELF_CORE_COPY_REGS(gregs, regs) ppc64_elf_core_copy_regs(gregs, regs);
+#define ELF_CORE_COPY_REGS(gregs, regs) ppc_elf_core_copy_regs(gregs, regs);
 
 static inline int dump_task_regs(struct task_struct *tsk,
 				 elf_gregset_t *elf_regs)
 {
 	struct pt_regs *regs = tsk->thread.regs;
 	if (regs)
-		ppc64_elf_core_copy_regs(*elf_regs, regs);
+		ppc_elf_core_copy_regs(*elf_regs, regs);
 
 	return 1;
 }
@@ -187,15 +207,21 @@ static inline int dump_task_regs(struct task_struct *tsk,
 extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *); 
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
 
-/* XXX Should we define the XFPREGS using altivec ??? */
+#endif /* __KERNEL__ */
 
-#endif
-
-/* This yields a mask that user programs can use to figure out what
+/* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
    but it's not easy, and we've already done it here.  */
-
-#define ELF_HWCAP	(cur_cpu_spec->cpu_user_features)
+#ifdef __powerpc64__
+# define ELF_HWCAP	(cur_cpu_spec->cpu_user_features)
+# define ELF_PLAT_INIT(_r, load_addr)	do { \
+	memset(_r->gpr, 0, sizeof(_r->gpr)); \
+	_r->ctr = _r->link = _r->xer = _r->ccr = 0; \
+	_r->gpr[2] = load_addr; \
+} while (0)
+#else
+# define ELF_HWCAP	(cur_cpu_spec[0]->cpu_user_features)
+#endif /* __powerpc64__ */
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
@@ -206,14 +232,10 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 
 #define ELF_PLATFORM	(NULL)
 
-#define ELF_PLAT_INIT(_r, load_addr)	do { \
-	memset(_r->gpr, 0, sizeof(_r->gpr)); \
-	_r->ctr = _r->link = _r->xer = _r->ccr = 0; \
-	_r->gpr[2] = load_addr; \
-} while (0)
-
 #ifdef __KERNEL__
-#define SET_PERSONALITY(ex, ibcs2)				\
+
+#ifdef __powerpc64__
+# define SET_PERSONALITY(ex, ibcs2)				\
 do {								\
 	unsigned long new_flags = 0;				\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)		\
@@ -226,7 +248,6 @@ do {								\
 	if (personality(current->personality) != PER_LINUX32)	\
 		set_personality(PER_LINUX);			\
 } while (0)
-
 /*
  * An executable for which elf_read_implies_exec() returns TRUE will
  * have the READ_IMPLIES_EXEC personality flag set automatically. This
@@ -234,19 +255,26 @@ do {								\
  * the 64bit ABI has never had these issues dont enable the workaround
  * even if we have an executable stack.
  */
-#define elf_read_implies_exec(ex, exec_stk) (test_thread_flag(TIF_32BIT) ? \
+# define elf_read_implies_exec(ex, exec_stk) (test_thread_flag(TIF_32BIT) ? \
 		(exec_stk != EXSTACK_DISABLE_X) : 0)
+#else 
+# define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
+#endif /* __powerpc64__ */
 
-#endif
+#endif /* __KERNEL__ */
 
 extern int dcache_bsize;
 extern int icache_bsize;
 extern int ucache_bsize;
 
-/* We do have an arch_setup_additional_pages for vDSO matters */
-#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
+#ifdef __powerpc64__
 struct linux_binprm;
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES	/* vDSO has arch_setup_additional_pages */
 extern int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack);
+#define VDSO_AUX_ENT(a,b) NEW_AUX_ENT(a,b);
+#else
+#define VDSO_AUX_ENT(a,b)
+#endif /* __powerpc64__ */
 
 /*
  * The requirements here are:
@@ -266,9 +294,8 @@ do {									\
 	NEW_AUX_ENT(AT_DCACHEBSIZE, dcache_bsize);			\
 	NEW_AUX_ENT(AT_ICACHEBSIZE, icache_bsize);			\
 	NEW_AUX_ENT(AT_UCACHEBSIZE, ucache_bsize);			\
-	/* vDSO base */							\
-	NEW_AUX_ENT(AT_SYSINFO_EHDR, current->thread.vdso_base);       	\
- } while (0)
+	VDSO_AUX_ENT(AT_SYSINFO_EHDR, current->thread.vdso_base)	\
+} while (0)
 
 /* PowerPC64 relocations defined by the ABIs */
 #define R_PPC64_NONE    R_PPC_NONE
@@ -385,4 +412,4 @@ do {									\
 /* Keep this the last entry.  */
 #define R_PPC64_NUM		107
 
-#endif /* __PPC64_ELF_H */
+#endif /* _ASM_POWERPC_ELF_H */
