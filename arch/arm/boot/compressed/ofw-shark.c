@@ -256,5 +256,5 @@ asmlinkage void ofw_init(ofw_handle_t o, int *nomr, int *pointer)
 	temp[11]='\0';
 	mem_len = OF_getproplen(o,phandle, temp);
 	OF_getprop(o,phandle, temp, buffer, mem_len);
-	(unsigned char) pointer[32] = ((unsigned char *) buffer)[mem_len-2];
+	* ((unsigned char *) &pointer[32]) = ((unsigned char *) buffer)[mem_len-2];
 }
