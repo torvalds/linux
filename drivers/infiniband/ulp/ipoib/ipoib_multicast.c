@@ -598,7 +598,7 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	return 0;
 }
 
-int ipoib_mcast_stop_thread(struct net_device *dev)
+int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_mcast *mcast;
@@ -610,7 +610,8 @@ int ipoib_mcast_stop_thread(struct net_device *dev)
 	cancel_delayed_work(&priv->mcast_task);
 	up(&mcast_mutex);
 
-	flush_workqueue(ipoib_workqueue);
+	if (flush)
+		flush_workqueue(ipoib_workqueue);
 
 	if (priv->broadcast && priv->broadcast->query) {
 		ib_sa_cancel_query(priv->broadcast->query_id, priv->broadcast->query);
@@ -832,7 +833,7 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 
 	ipoib_dbg_mcast(priv, "restarting multicast task\n");
 
-	ipoib_mcast_stop_thread(dev);
+	ipoib_mcast_stop_thread(dev, 0);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
