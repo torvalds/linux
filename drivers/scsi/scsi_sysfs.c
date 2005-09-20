@@ -57,6 +57,8 @@ static struct {
 	{ SHOST_CANCEL, "cancel" },
 	{ SHOST_DEL, "deleted" },
 	{ SHOST_RECOVERY, "recovery" },
+	{ SHOST_CANCEL_RECOVERY, "cancel/recovery" },
+	{ SHOST_DEL_RECOVERY, "deleted/recovery", },
 };
 const char *scsi_host_state_name(enum scsi_host_state state)
 {
@@ -707,9 +709,11 @@ void __scsi_remove_device(struct scsi_device *sdev)
  **/
 void scsi_remove_device(struct scsi_device *sdev)
 {
-	down(&sdev->host->scan_mutex);
+	struct Scsi_Host *shost = sdev->host;
+
+	down(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
-	up(&sdev->host->scan_mutex);
+	up(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_remove_device);
 
@@ -717,17 +721,20 @@ void __scsi_remove_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
-	struct scsi_device *sdev, *tmp;
+	struct scsi_device *sdev;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	starget->reap_ref++;
-	list_for_each_entry_safe(sdev, tmp, &shost->__devices, siblings) {
+ restart:
+	list_for_each_entry(sdev, &shost->__devices, siblings) {
 		if (sdev->channel != starget->channel ||
-		    sdev->id != starget->id)
+		    sdev->id != starget->id ||
+		    sdev->sdev_state == SDEV_DEL)
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		scsi_remove_device(sdev);
 		spin_lock_irqsave(shost->host_lock, flags);
+		goto restart;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	scsi_target_reap(starget);
