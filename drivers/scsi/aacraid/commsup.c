@@ -41,6 +41,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <asm/semaphore.h>
+#include <asm/delay.h>
 
 #include "aacraid.h"
 
@@ -541,7 +542,34 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
     
 	if (wait) {
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
-		down(&fibptr->event_wait);
+		/* Only set for first known interruptable command */
+		if (wait < 0) {
+			/*
+			 * *VERY* Dangerous to time out a command, the
+			 * assumption is made that we have no hope of
+			 * functioning because an interrupt routing or other
+			 * hardware failure has occurred.
+			 */
+			unsigned long count = 36000000L; /* 3 minutes */
+			unsigned long qflags;
+			while (down_trylock(&fibptr->event_wait)) {
+				if (--count == 0) {
+					spin_lock_irqsave(q->lock, qflags);
+					q->numpending--;
+					list_del(&fibptr->queue);
+					spin_unlock_irqrestore(q->lock, qflags);
+					if (wait == -1) {
+	        				printk(KERN_ERR "aacraid: fib_send: first asynchronous command timed out.\n"
+						  "Usually a result of a PCI interrupt routing problem;\n"
+						  "update mother board BIOS or consider utilizing one of\n"
+						  "the SAFE mode kernel options (acpi, apic etc)\n");
+					}
+					return -ETIMEDOUT;
+				}
+				udelay(5);
+			}
+		} else
+			down(&fibptr->event_wait);
 		if(fibptr->done == 0)
 			BUG();
 			

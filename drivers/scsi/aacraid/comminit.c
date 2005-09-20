@@ -195,7 +195,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 			  fibctx,
 			  sizeof(struct aac_close),
 			  FsaNormal,
-			  1, 1,
+			  -2 /* Timeout silently */, 1,
 			  NULL, NULL);
 
 	if (status == 0)

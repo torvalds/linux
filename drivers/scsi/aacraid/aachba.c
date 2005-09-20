@@ -692,7 +692,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			 fibptr, 
 			 sizeof(*info),
 			 FsaNormal, 
-			 1, 1, 
+			 -1, 1, /* First `interrupt' command uses special wait */
 			 NULL, 
 			 NULL);
 
