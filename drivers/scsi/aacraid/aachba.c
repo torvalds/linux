@@ -843,8 +843,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if (!(dev->raw_io_interface)) {
 		dev->scsi_host_ptr->sg_tablesize = (dev->max_fib_size -
 			sizeof(struct aac_fibhdr) -
-			sizeof(struct aac_write) + sizeof(struct sgmap)) /
-				sizeof(struct sgmap);
+			sizeof(struct aac_write) + sizeof(struct sgentry)) /
+				sizeof(struct sgentry);
 		if (dev->dac_support) {
 			/* 
 			 * 38 scatter gather elements 
@@ -853,8 +853,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 				(dev->max_fib_size -
 				sizeof(struct aac_fibhdr) -
 				sizeof(struct aac_write64) +
-				sizeof(struct sgmap64)) /
-					sizeof(struct sgmap64);
+				sizeof(struct sgentry64)) /
+					sizeof(struct sgentry64);
 		}
 		dev->scsi_host_ptr->max_sectors = AAC_MAX_32BIT_SGBCOUNT;
 		if(!(dev->adapter_info.options & AAC_OPT_NEW_COMM)) {
