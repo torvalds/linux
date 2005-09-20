@@ -23,7 +23,7 @@ SECTIONS
 			*(.init.text)
 			_einittext = .;
 		__proc_info_begin = .;
-			*(.proc.info)
+			*(.proc.info.init)
 		__proc_info_end = .;
 		__arch_info_begin = .;
 			*(.arch.info)
