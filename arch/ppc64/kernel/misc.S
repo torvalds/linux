@@ -329,7 +329,7 @@ _GLOBAL(__flush_dcache_icache)
 
 /* Flush the dcache */
  	ld	r7,PPC64_CACHES@toc(r2)
-	clrrdi	r3,r3,12           	    /* Page align */
+	clrrdi	r3,r3,PAGE_SHIFT           	    /* Page align */
 	lwz	r4,DCACHEL1LINESPERPAGE(r7)	/* Get # dcache lines per page */
 	lwz	r5,DCACHEL1LINESIZE(r7)		/* Get dcache line size */
 	mr	r6,r3

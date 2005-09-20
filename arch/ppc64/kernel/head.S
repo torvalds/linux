@@ -1992,7 +1992,7 @@ _GLOBAL(smp_release_cpus)
  */
 	.section ".bss"
 
-	.align	12
+	.align	PAGE_SHIFT
 
 	.globl	empty_zero_page
 empty_zero_page:

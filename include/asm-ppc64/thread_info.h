@@ -54,9 +54,9 @@ struct thread_info {
 
 /* thread information allocation */
 
-#define THREAD_ORDER		2
-#define THREAD_SIZE		(PAGE_SIZE << THREAD_ORDER)
-#define THREAD_SHIFT		(PAGE_SHIFT + THREAD_ORDER)
+#define THREAD_SHIFT		14
+#define THREAD_ORDER		(THREAD_SHIFT - PAGE_SHIFT)
+#define THREAD_SIZE		(1 << THREAD_SHIFT)
 #ifdef CONFIG_DEBUG_STACK_USAGE
 #define alloc_thread_info(tsk)					\
 	({							\

@@ -5,6 +5,7 @@
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
 #include <asm/auxvec.h>
+#include <asm/page.h>
 
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0
@@ -146,7 +147,7 @@ typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
 #define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
    use of this is to invoke "./ld.so someprog" to test out a new version of
