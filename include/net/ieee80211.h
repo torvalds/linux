@@ -17,12 +17,19 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See README and COPYING for
  * more details.
+ *
+ * API Version History
+ * 1.0.x -- Initial version
+ * 1.1.x -- Added radiotap, QoS, TIM, ieee80211_geo APIs,
+ *          various structure changes, and crypto API init method
  */
 #ifndef IEEE80211_H
 #define IEEE80211_H
 #include <linux/if_ether.h>	/* ETH_ALEN */
 #include <linux/kernel.h>	/* ARRAY_SIZE */
 #include <linux/wireless.h>
+
+#define IEEE80211_VERSION "git-1.1.5"
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section

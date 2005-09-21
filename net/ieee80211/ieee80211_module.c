@@ -53,12 +53,15 @@
 
 #include <net/ieee80211.h>
 
-MODULE_DESCRIPTION("802.11 data/management/control stack");
-MODULE_AUTHOR
-    ("Copyright (C) 2004 Intel Corporation <jketreno@linux.intel.com>");
-MODULE_LICENSE("GPL");
+#define DRV_DESCRIPTION "802.11 data/management/control stack"
+#define DRV_NAME        "ieee80211"
+#define DRV_VERSION	IEEE80211_VERSION
+#define DRV_COPYRIGHT   "Copyright (C) 2004-2005 Intel Corporation <jketreno@linux.intel.com>"
 
-#define DRV_NAME "ieee80211"
+MODULE_VERSION(DRV_VERSION);
+MODULE_DESCRIPTION(DRV_DESCRIPTION);
+MODULE_AUTHOR(DRV_COPYRIGHT);
+MODULE_LICENSE("GPL");
 
 static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 {
@@ -220,9 +223,11 @@ static int store_debug_level(struct file *file, const char __user * buffer,
 
 	return strnlen(buf, len);
 }
+#endif				/* CONFIG_IEEE80211_DEBUG */
 
 static int __init ieee80211_init(void)
 {
+#ifdef CONFIG_IEEE80211_DEBUG
 	struct proc_dir_entry *e;
 
 	ieee80211_debug_level = debug;
@@ -242,26 +247,33 @@ static int __init ieee80211_init(void)
 	e->read_proc = show_debug_level;
 	e->write_proc = store_debug_level;
 	e->data = NULL;
+#endif				/* CONFIG_IEEE80211_DEBUG */
+
+	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
 
 	return 0;
 }
 
 static void __exit ieee80211_exit(void)
 {
+#ifdef CONFIG_IEEE80211_DEBUG
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
 		remove_proc_entry(DRV_NAME, proc_net);
 		ieee80211_proc = NULL;
 	}
+#endif				/* CONFIG_IEEE80211_DEBUG */
 }
 
+#ifdef CONFIG_IEEE80211_DEBUG
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
+#endif				/* CONFIG_IEEE80211_DEBUG */
 
 module_exit(ieee80211_exit);
 module_init(ieee80211_init);
-#endif
 
 const char *escape_essid(const char *essid, u8 essid_len)
 {
