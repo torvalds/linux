@@ -31,7 +31,7 @@ struct ieee80211_crypto_ops {
 	/* init new crypto context (e.g., allocate private data space,
 	 * select IV, etc.); returns NULL on failure or pointer to allocated
 	 * private data on success */
-	void *(*init) (int keyidx);
+	void *(*init) (struct ieee80211_device * ieee, int keyidx);
 
 	/* deinitialize crypto context and free allocated private data */
 	void (*deinit) (void *priv);

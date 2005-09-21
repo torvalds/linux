@@ -182,7 +182,7 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
 
-	if (ieee->wpa_enabled && network->wpa_ie_len) {
+	if (network->wpa_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 		u8 *p = buf;
@@ -197,7 +197,7 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		start = iwe_stream_add_point(start, stop, &iwe, buf);
 	}
 
-	if (ieee->wpa_enabled && network->rsn_ie_len) {
+	if (network->rsn_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 		u8 *p = buf;
@@ -351,7 +351,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		}
 
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
-			new_crypt->priv = new_crypt->ops->init(key);
+			new_crypt->priv = new_crypt->ops->init(ieee, key);
 
 		if (!new_crypt->ops || !new_crypt->priv) {
 			kfree(new_crypt);

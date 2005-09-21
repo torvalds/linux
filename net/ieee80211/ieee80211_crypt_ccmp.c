@@ -74,7 +74,7 @@ static void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 	crypto_cipher_encrypt(tfm, &dst, &src, AES_BLOCK_LEN);
 }
 
-static void *ieee80211_ccmp_init(int key_idx)
+static void *ieee80211_ccmp_init(struct ieee80211_device *ieee, int key_idx)
 {
 	struct ieee80211_ccmp_data *priv;
 

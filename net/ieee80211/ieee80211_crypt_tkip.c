@@ -59,9 +59,11 @@ struct ieee80211_tkip_data {
 
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 rx_hdr[16], tx_hdr[16];
+
+	struct ieee80211_device *ieee;
 };
 
-static void *ieee80211_tkip_init(int key_idx)
+static void *ieee80211_tkip_init(struct ieee80211_device *ieee, int key_idx)
 {
 	struct ieee80211_tkip_data *priv;
 
@@ -69,6 +71,9 @@ static void *ieee80211_tkip_init(int key_idx)
 	if (priv == NULL)
 		goto fail;
 	memset(priv, 0, sizeof(*priv));
+
+	priv->ieee = ieee;
+
 	priv->key_idx = key_idx;
 
 	priv->tfm_arc4 = crypto_alloc_tfm("arc4", 0);
@@ -264,11 +269,21 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 crc;
 	struct scatterlist sg;
 
+	hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (tkey->ieee->tkip_countermeasures) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			       "TX packet to " MAC_FMT "\n",
+			       tkey->ieee->dev->name, MAC_ARG(hdr->addr1));
+		}
+		return -1;
+	}
+
 	if (skb_headroom(skb) < 8 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
 				   tkey->tx_iv32);
@@ -325,10 +340,20 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct scatterlist sg;
 	int plen;
 
+	hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (tkey->ieee->tkip_countermeasures) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			       "received packet from " MAC_FMT "\n",
+			       tkey->ieee->dev->name, MAC_ARG(hdr->addr2));
+		}
+		return -1;
+	}
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {

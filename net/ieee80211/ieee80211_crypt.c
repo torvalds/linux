@@ -41,7 +41,9 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 {
 	struct list_head *ptr, *n;
 	struct ieee80211_crypt_data *entry;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ieee->lock, flags);
 	for (ptr = ieee->crypt_deinit_list.next, n = ptr->next;
 	     ptr != &ieee->crypt_deinit_list; ptr = n, n = ptr->next) {
 		entry = list_entry(ptr, struct ieee80211_crypt_data, list);
@@ -57,14 +59,13 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 		}
 		kfree(entry);
 	}
+	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
 void ieee80211_crypt_deinit_handler(unsigned long data)
 {
 	struct ieee80211_device *ieee = (struct ieee80211_device *)data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ieee->lock, flags);
 	ieee80211_crypt_deinit_entries(ieee, 0);
 	if (!list_empty(&ieee->crypt_deinit_list)) {
 		printk(KERN_DEBUG "%s: entries remaining in delayed crypt "
@@ -72,7 +73,6 @@ void ieee80211_crypt_deinit_handler(unsigned long data)
 		ieee->crypt_deinit_timer.expires = jiffies + HZ;
 		add_timer(&ieee->crypt_deinit_timer);
 	}
-	spin_unlock_irqrestore(&ieee->lock, flags);
 
 }
 
@@ -182,7 +182,8 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 		return NULL;
 }
 
-static void *ieee80211_crypt_null_init(int keyidx)
+static void *ieee80211_crypt_null_init(struct ieee80211_device *ieee,
+				       int keyidx)
 {
 	return (void *)1;
 }

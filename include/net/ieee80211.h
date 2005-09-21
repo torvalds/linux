@@ -434,6 +434,7 @@ struct ieee80211_device;
 #define SEC_KEY_2         (1<<1)
 #define SEC_KEY_3         (1<<2)
 #define SEC_KEY_4         (1<<3)
+#define SEC_KEY_MASK      (SEC_KEY_1 | SEC_KEY_2 | SEC_KEY_3 | SEC_KEY_4)
 #define SEC_ACTIVE_KEY    (1<<4)
 #define SEC_AUTH_MODE     (1<<5)
 #define SEC_UNICAST_GROUP (1<<6)
