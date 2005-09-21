@@ -233,7 +233,7 @@ struct hostap_tx_data {
 ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx);
 void hostap_handle_sta_release(void *ptr);
 void hostap_handle_sta_tx_exc(local_info_t *local, struct sk_buff *skb);
-int hostap_update_sta_ps(local_info_t *local, struct ieee80211_hdr *hdr);
+int hostap_update_sta_ps(local_info_t *local, struct ieee80211_hdr_4addr *hdr);
 typedef enum {
 	AP_RX_CONTINUE, AP_RX_DROP, AP_RX_EXIT, AP_RX_CONTINUE_NOT_AUTHORIZED
 } ap_rx_ret;
@@ -241,13 +241,13 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 			       struct sk_buff *skb,
 			       struct hostap_80211_rx_status *rx_stats,
 			       int wds);
-int hostap_handle_sta_crypto(local_info_t *local, struct ieee80211_hdr *hdr,
+int hostap_handle_sta_crypto(local_info_t *local, struct ieee80211_hdr_4addr *hdr,
 			     struct ieee80211_crypt_data **crypt,
 			     void **sta_ptr);
 int hostap_is_sta_assoc(struct ap_data *ap, u8 *sta_addr);
 int hostap_is_sta_authorized(struct ap_data *ap, u8 *sta_addr);
 int hostap_add_sta(struct ap_data *ap, u8 *sta_addr);
-int hostap_update_rx_stats(struct ap_data *ap, struct ieee80211_hdr *hdr,
+int hostap_update_rx_stats(struct ap_data *ap, struct ieee80211_hdr_4addr *hdr,
 			   struct hostap_80211_rx_status *rx_stats);
 void hostap_update_rates(local_info_t *local);
 void hostap_add_wds_links(local_info_t *local);
