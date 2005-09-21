@@ -4,13 +4,6 @@
 #include <linux/config.h>
 #include <asm/page.h>
 
-/* Flushing for D-cache alias handling is only needed if
- * the page size is smaller than 16K.
- */
-#if PAGE_SHIFT < 14
-#define DCACHE_ALIASING_POSSIBLE
-#endif
-
 #ifndef __ASSEMBLY__
 
 #include <linux/mm.h>

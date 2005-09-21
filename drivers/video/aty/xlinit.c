@@ -174,7 +174,7 @@ int atyfb_xl_init(struct fb_info *info)
 	const struct xl_card_cfg_t * card = &card_cfg[xl_card];
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	union aty_pll pll;
-	int i, err;
+	int err;
 	u32 temp;
 	
 	aty_st_8(CONFIG_STAT0, 0x85, par);
@@ -252,9 +252,12 @@ int atyfb_xl_init(struct fb_info *info)
 	aty_st_le32(0xEC, 0x00000000, par);
 	aty_st_le32(0xFC, 0x00000000, par);
 
+#if defined (CONFIG_FB_ATY_GENERIC_LCD)
+	int i;
 	for (i=0; i<sizeof(lcd_tbl)/sizeof(lcd_tbl_t); i++) {
 		aty_st_lcd(lcd_tbl[i].lcd_reg, lcd_tbl[i].val, par);
 	}
+#endif
 
 	aty_st_le16(CONFIG_STAT0, 0x00A4, par);
 	mdelay(10);
