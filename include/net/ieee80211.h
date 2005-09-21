@@ -439,7 +439,7 @@ struct ieee80211_device;
 #define SEC_UNICAST_GROUP	(1<<6)
 #define SEC_LEVEL		(1<<7)
 #define SEC_ENABLED		(1<<8)
-#define SEC_TGI_KEY_RESET	(1<<9)
+#define SEC_ENCRYPT		(1<<9)
 
 #define SEC_LEVEL_0		0	/* None */
 #define SEC_LEVEL_1		1	/* WEP 40 and 104 bit */

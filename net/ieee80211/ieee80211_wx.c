@@ -322,7 +322,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			sec.enabled = 0;
 			sec.encrypt = 0;
 			sec.level = SEC_LEVEL_0;
-			sec.flags |= SEC_ENABLED | SEC_LEVEL;
+			sec.flags |= SEC_ENABLED | SEC_LEVEL | SEC_ENCRYPT;
 		}
 
 		goto done;
@@ -330,7 +330,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 
 	sec.enabled = 1;
 	sec.encrypt = 1;
-	sec.flags |= SEC_ENABLED;
+	sec.flags |= SEC_ENABLED | SEC_ENCRYPT;
 
 	if (*crypt != NULL && (*crypt)->ops != NULL &&
 	    strcmp((*crypt)->ops->name, "WEP") != 0) {
@@ -412,8 +412,6 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			sec.flags |= SEC_ACTIVE_KEY;
 		}
 	}
-
-      done:
 	ieee->open_wep = !(erq->flags & IW_ENCODE_RESTRICTED);
 	sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN : WLAN_AUTH_SHARED_KEY;
 	sec.flags |= SEC_AUTH_MODE;
@@ -425,6 +423,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1;	/* 40 and 104 bit WEP */
 
+      done:
 	if (ieee->set_security)
 		ieee->set_security(dev, &sec);
 
