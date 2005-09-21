@@ -503,68 +503,68 @@ enum ieee80211_mfie {
  * information to determine what type of underlying data type is actually
  * stored in the data. */
 struct ieee80211_hdr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 payload[0];
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_1addr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 payload[0];
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_2addr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 payload[0];
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_3addr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 payload[0];
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_4addr {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 	u8 payload[0];
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_3addrqos {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 payload[0];
-	u16 qos_ctl;
+	__le16 qos_ctl;
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_4addrqos {
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 	u8 payload[0];
-	u16 qos_ctl;
+	__le16 qos_ctl;
 } __attribute__ ((packed));
 
 struct ieee80211_info_element {
@@ -600,7 +600,7 @@ struct ieee80211_auth {
 
 struct ieee80211_disassoc {
 	struct ieee80211_hdr_3addr header;
-	u16 reason_code;
+	__le16 reason_code;
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
@@ -622,8 +622,8 @@ struct ieee80211_probe_response {
 
 struct ieee80211_assoc_request {
 	struct ieee80211_hdr_3addr header;
-	u16 capability;
-	u16 listen_interval;
+	__le16 capability;
+	__le16 listen_interval;
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
@@ -648,8 +648,8 @@ struct ieee80211_txb {
 	u8 encrypted;
 	u8 rts_included;
 	u8 reserved;
-	u16 frag_size;
-	u16 payload_size;
+	__le16 frag_size;
+	__le16 payload_size;
 	struct sk_buff *fragments[0];
 };
 
@@ -699,7 +699,7 @@ struct ieee80211_qos_information_element {
 struct ieee80211_qos_ac_parameter {
 	u8 aci_aifsn;
 	u8 ecw_min_max;
-	u16 tx_op_limit;
+	__le16 tx_op_limit;
 } __attribute__ ((packed));
 
 struct ieee80211_qos_parameter_info {
@@ -709,11 +709,11 @@ struct ieee80211_qos_parameter_info {
 } __attribute__ ((packed));
 
 struct ieee80211_qos_parameters {
-	u16 cw_min[QOS_QUEUE_NUM];
-	u16 cw_max[QOS_QUEUE_NUM];
+	__le16 cw_min[QOS_QUEUE_NUM];
+	__le16 cw_max[QOS_QUEUE_NUM];
 	u8 aifs[QOS_QUEUE_NUM];
 	u8 flag[QOS_QUEUE_NUM];
-	u16 tx_op_limit[QOS_QUEUE_NUM];
+	__le16 tx_op_limit[QOS_QUEUE_NUM];
 } __attribute__ ((packed));
 
 struct ieee80211_qos_data {
