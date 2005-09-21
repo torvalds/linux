@@ -929,12 +929,12 @@ struct ieee80211_device {
 #define IEEE_G            (1<<2)
 #define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 
-extern inline void *ieee80211_priv(struct net_device *dev)
+static inline void *ieee80211_priv(struct net_device *dev)
 {
 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
 }
 
-extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
 	if (essid_len == 1 && essid[0] == ' ')
@@ -950,7 +950,7 @@ extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
+static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
 					  int mode)
 {
 	/*
@@ -977,7 +977,7 @@ extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
 	return 0;
 }
 
-extern inline int ieee80211_get_hdrlen(u16 fc)
+static inline int ieee80211_get_hdrlen(u16 fc)
 {
 	int hdrlen = IEEE80211_3ADDR_LEN;
 	u16 stype = WLAN_FC_GET_STYPE(fc);
@@ -1005,7 +1005,7 @@ extern inline int ieee80211_get_hdrlen(u16 fc)
 	return hdrlen;
 }
 
-extern inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
+static inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
 {
 	switch (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl))) {
 	case IEEE80211_1ADDR_LEN:
@@ -1070,12 +1070,12 @@ extern int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 				      union iwreq_data *wrqu, char *extra);
 #endif
 
-extern inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
+static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
 {
 	ieee->scans++;
 }
 
-extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
+static inline int ieee80211_get_scans(struct ieee80211_device *ieee)
 {
 	return ieee->scans;
 }
