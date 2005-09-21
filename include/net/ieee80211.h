@@ -33,33 +33,13 @@
    represents the 2304 bytes of real data, plus a possible 8 bytes of
    WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
 
-#define IEEE80211_HLEN			30
-#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
-
-struct ieee80211_hdr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-} __attribute__ ((packed));
-
 #define IEEE80211_1ADDR_LEN 10
 #define IEEE80211_2ADDR_LEN 16
 #define IEEE80211_3ADDR_LEN 24
 #define IEEE80211_4ADDR_LEN 30
 #define IEEE80211_FCS_LEN    4
+#define IEEE80211_HLEN			(IEEE80211_4ADDR_LEN)
+#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
 
 #define MIN_FRAG_THRESHOLD     256U
 #define	MAX_FRAG_THRESHOLD     2346U
@@ -515,6 +495,51 @@ enum ieee80211_mfie {
 	MFIE_TYPE_GENERIC = 221,
 };
 
+/* Minimal header; can be used for passing 802.11 frames with sufficient
+ * information to determine what type of underlying data type is actually
+ * stored in the data. */
+struct ieee80211_hdr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_1addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_2addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_4addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 addr4[ETH_ALEN];
+	u8 payload[0];
+} __attribute__ ((packed));
+
 struct ieee80211_info_element {
 	u8 id;
 	u8 len;
@@ -538,11 +563,22 @@ struct ieee80211_info_element {
 	u16 status;
 */
 
-struct ieee80211_authentication {
+struct ieee80211_auth {
 	struct ieee80211_hdr_3addr header;
 	__le16 algorithm;
 	__le16 transaction;
 	__le16 status;
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_disassoc {
+	struct ieee80211_hdr_3addr header;
+	u16 reason_code;
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_probe_request {
+	struct ieee80211_hdr_3addr header;
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
@@ -554,14 +590,25 @@ struct ieee80211_probe_response {
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_assoc_request_frame {
+/* Alias beacon for probe_response */
+#define ieee80211_beacon ieee80211_probe_response
+
+struct ieee80211_assoc_request {
+	struct ieee80211_hdr_3addr header;
+	u16 capability;
+	u16 listen_interval;
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_reassoc_request {
+	struct ieee80211_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
 	u8 current_ap[ETH_ALEN];
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_assoc_response_frame {
+struct ieee80211_assoc_response {
 	struct ieee80211_hdr_3addr header;
 	__le16 capability;
 	__le16 status;
@@ -572,7 +619,8 @@ struct ieee80211_assoc_response_frame {
 struct ieee80211_txb {
 	u8 nr_frags;
 	u8 encrypted;
-	u16 reserved;
+	u8 rts_included;
+	u8 reserved;
 	u16 frag_size;
 	u16 payload_size;
 	struct sk_buff *fragments[0];
@@ -803,6 +851,21 @@ extern inline int ieee80211_get_hdrlen(u16 fc)
 	return hdrlen;
 }
 
+extern inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
+{
+	switch (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl))) {
+	case IEEE80211_1ADDR_LEN:
+		return ((struct ieee80211_hdr_1addr *)hdr)->payload;
+	case IEEE80211_2ADDR_LEN:
+		return ((struct ieee80211_hdr_2addr *)hdr)->payload;
+	case IEEE80211_3ADDR_LEN:
+		return ((struct ieee80211_hdr_3addr *)hdr)->payload;
+	case IEEE80211_4ADDR_LEN:
+		return ((struct ieee80211_hdr_4addr *)hdr)->payload;
+	}
+
+}
+
 /* ieee80211.c */
 extern void free_ieee80211(struct net_device *dev);
 extern struct net_device *alloc_ieee80211(int sizeof_priv);
@@ -817,7 +880,7 @@ extern void ieee80211_txb_free(struct ieee80211_txb *);
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
-			     struct ieee80211_hdr *header,
+			     struct ieee80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);
 
 /* ieee80211_wx.c */

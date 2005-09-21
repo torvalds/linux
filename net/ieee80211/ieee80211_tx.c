@@ -227,14 +227,14 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr *frag_hdr;
+	struct ieee80211_hdr_3addr *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
 	int ether_type, encrypt, host_encrypt;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
-	struct ieee80211_hdr header = {	/* Ensure zero initialized */
+	struct ieee80211_hdr_3addr header = {	/* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0
 	};
@@ -352,7 +352,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (host_encrypt)
 			skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
 
-		frag_hdr = (struct ieee80211_hdr *)skb_put(skb_frag, hdr_len);
+		frag_hdr =
+		    (struct ieee80211_hdr_3addr *)skb_put(skb_frag, hdr_len);
 		memcpy(frag_hdr, &header, hdr_len);
 
 		/* If this is not the last fragment, then add the MOREFRAGS

@@ -265,11 +265,11 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct ieee80211_tkip_data *tkey = priv;
 	int len;
 	u8 rc4key[16], *pos, *icv;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u32 crc;
 	struct scatterlist sg;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (tkey->ieee->tkip_countermeasures) {
 		if (net_ratelimit()) {
@@ -334,13 +334,13 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 keyidx, *pos;
 	u32 iv32;
 	u16 iv16;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u8 icv[4];
 	u32 crc;
 	struct scatterlist sg;
 	int plen;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (tkey->ieee->tkip_countermeasures) {
 		if (net_ratelimit()) {
@@ -466,9 +466,9 @@ static int michael_mic(struct ieee80211_tkip_data *tkey, u8 * key, u8 * hdr,
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 {
-	struct ieee80211_hdr *hdr11;
+	struct ieee80211_hdr_4addr *hdr11;
 
-	hdr11 = (struct ieee80211_hdr *)skb->data;
+	hdr11 = (struct ieee80211_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -517,7 +517,8 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 
 #if WIRELESS_EXT >= 18
 static void ieee80211_michael_mic_failure(struct net_device *dev,
-					  struct ieee80211_hdr *hdr, int keyidx)
+					  struct ieee80211_hdr_4addr *hdr,
+					  int keyidx)
 {
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure ev;
@@ -537,7 +538,8 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 }
 #elif WIRELESS_EXT >= 15
 static void ieee80211_michael_mic_failure(struct net_device *dev,
-					  struct ieee80211_hdr *hdr, int keyidx)
+					  struct ieee80211_hdr_4addr *hdr,
+					  int keyidx)
 {
 	union iwreq_data wrqu;
 	char buf[128];
@@ -551,9 +553,8 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
 }
 #else				/* WIRELESS_EXT >= 15 */
-static inline void ieee80211_michael_mic_failure(struct net_device *dev,
-						 struct ieee80211_hdr *hdr,
-						 int keyidx)
+static inline void ieee80211_michael_mic_failure(struct net_device *dev, struct ieee80211_hdr_4addr
+						 *hdr, int keyidx)
 {
 }
 #endif				/* WIRELESS_EXT >= 15 */
@@ -572,8 +573,8 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
-		struct ieee80211_hdr *hdr;
-		hdr = (struct ieee80211_hdr *)skb->data;
+		struct ieee80211_hdr_4addr *hdr;
+		hdr = (struct ieee80211_hdr_4addr *)skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from " MAC_FMT " keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),

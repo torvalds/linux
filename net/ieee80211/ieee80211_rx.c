@@ -87,7 +87,7 @@ static struct ieee80211_frag_entry *ieee80211_frag_cache_find(struct
 
 /* Called only as a tasklet (software IRQ) */
 static struct sk_buff *ieee80211_frag_cache_get(struct ieee80211_device *ieee,
-						struct ieee80211_hdr *hdr)
+						struct ieee80211_hdr_4addr *hdr)
 {
 	struct sk_buff *skb = NULL;
 	u16 sc;
@@ -101,7 +101,7 @@ static struct sk_buff *ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	if (frag == 0) {
 		/* Reserve enough space to fit maximum frame length */
 		skb = dev_alloc_skb(ieee->dev->mtu +
-				    sizeof(struct ieee80211_hdr) +
+				    sizeof(struct ieee80211_hdr_4addr) +
 				    8 /* LLC */  +
 				    2 /* alignment */  +
 				    8 /* WEP */  + ETH_ALEN /* WDS */ );
@@ -138,7 +138,7 @@ static struct sk_buff *ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 
 /* Called only as a tasklet (software IRQ) */
 static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
-					   struct ieee80211_hdr *hdr)
+					   struct ieee80211_hdr_4addr *hdr)
 {
 	u16 sc;
 	unsigned int seq;
@@ -176,7 +176,7 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 		       ieee->dev->name);
 		return 0;
 /*
-  hostap_update_sta_ps(ieee, (struct hostap_ieee80211_hdr *)
+  hostap_update_sta_ps(ieee, (struct hostap_ieee80211_hdr_4addr *)
   skb->data);*/
 	}
 
@@ -232,13 +232,13 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 {
 	struct net_device *dev = ieee->dev;
 	u16 fc, ethertype;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_3addr *hdr;
 	u8 *pos;
 
 	if (skb->len < 24)
 		return 0;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	/* check that the frame is unicast frame to us */
@@ -271,13 +271,13 @@ static inline int
 ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			   struct ieee80211_crypt_data *crypt)
 {
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_3addr *hdr;
 	int res, hdrlen;
 
 	if (crypt == NULL || crypt->ops->decrypt_mpdu == NULL)
 		return 0;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	hdrlen = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
 	atomic_inc(&crypt->refcnt);
@@ -303,13 +303,13 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
 				struct sk_buff *skb, int keyidx,
 				struct ieee80211_crypt_data *crypt)
 {
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_3addr *hdr;
 	int res, hdrlen;
 
 	if (crypt == NULL || crypt->ops->decrypt_msdu == NULL)
 		return 0;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	hdrlen = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
 	atomic_inc(&crypt->refcnt);
@@ -332,7 +332,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		 struct ieee80211_rx_stats *rx_stats)
 {
 	struct net_device *dev = ieee->dev;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	size_t hdrlen;
 	u16 fc, type, stype, sc;
 	struct net_device_stats *stats;
@@ -352,7 +352,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct ieee80211_crypt_data *crypt = NULL;
 	int keyidx = 0;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	stats = &ieee->stats;
 
 	if (skb->len < 10) {
@@ -552,7 +552,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	    (keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt)) < 0)
 		goto rx_dropped;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 	// PR: FIXME: hostap has additional conditions in the "if" below:
@@ -606,7 +606,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		/* this was the last fragment and the frame will be
 		 * delivered, so remove skb from fragment cache */
 		skb = frag_skb;
-		hdr = (struct ieee80211_hdr *)skb->data;
+		hdr = (struct ieee80211_hdr_4addr *)skb->data;
 		ieee80211_frag_cache_invalidate(ieee, hdr);
 	}
 
@@ -616,7 +616,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	    ieee80211_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt))
 		goto rx_dropped;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep) {
 		if (		/*ieee->ieee802_1x && */
 			   ieee80211_is_eapol_frame(ieee, skb)) {
@@ -1148,7 +1148,7 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 }
 
 void ieee80211_rx_mgt(struct ieee80211_device *ieee,
-		      struct ieee80211_hdr *header,
+		      struct ieee80211_hdr_4addr *header,
 		      struct ieee80211_rx_stats *stats)
 {
 	switch (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl))) {
