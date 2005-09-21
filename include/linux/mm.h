@@ -350,7 +350,8 @@ static inline void put_page(struct page *page)
  * only one copy in memory, at most, normally.
  *
  * For the non-reserved pages, page_count(page) denotes a reference count.
- *   page_count() == 0 means the page is free.
+ *   page_count() == 0 means the page is free. page->lru is then used for
+ *   freelist management in the buddy allocator.
  *   page_count() == 1 means the page is used for exactly one purpose
  *   (e.g. a private data page of one process).
  *
@@ -376,10 +377,8 @@ static inline void put_page(struct page *page)
  * attaches, plus 1 if `private' contains something, plus one for
  * the page cache itself.
  *
- * All pages belonging to an inode are in these doubly linked lists:
- * mapping->clean_pages, mapping->dirty_pages and mapping->locked_pages;
- * using the page->list list_head. These fields are also used for
- * freelist managemet (when page_count()==0).
+ * Instead of keeping dirty/clean pages in per address-space lists, we instead
+ * now tag pages as dirty/under writeback in the radix tree.
  *
  * There is also a per-mapping radix tree mapping index to the page
  * in memory if present. The tree is rooted at mapping->root.  
