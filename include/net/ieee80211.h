@@ -225,8 +225,9 @@ struct ieee80211_snap_hdr {
 #define WLAN_CAPABILITY_PBCC (1<<6)
 #define WLAN_CAPABILITY_CHANNEL_AGILITY (1<<7)
 #define WLAN_CAPABILITY_SPECTRUM_MGMT (1<<8)
+#define WLAN_CAPABILITY_QOS (1<<9)
 #define WLAN_CAPABILITY_SHORT_SLOT_TIME (1<<10)
-#define WLAN_CAPABILITY_OSSS_OFDM (1<<13)
+#define WLAN_CAPABILITY_DSSS_OFDM (1<<13)
 
 /* Status codes */
 enum ieee80211_statuscode {
@@ -756,6 +757,7 @@ struct ieee80211_network {
 	u16 beacon_interval;
 	u16 listen_interval;
 	u16 atim_window;
+	u8 erp_value;
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	size_t wpa_ie_len;
 	u8 rsn_ie[MAX_WPA_IE_LEN];
@@ -910,6 +912,9 @@ struct ieee80211_device {
 	int (*handle_probe_response) (struct net_device * dev,
 				      struct ieee80211_probe_response * resp,
 				      struct ieee80211_network * network);
+	int (*handle_probe_request) (struct net_device * dev,
+				     struct ieee80211_probe_request * req,
+				     struct ieee80211_rx_stats * stats);
 	int (*handle_assoc_response) (struct net_device * dev,
 				      struct ieee80211_assoc_response * resp,
 				      struct ieee80211_network * network);

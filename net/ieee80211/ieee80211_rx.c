@@ -1065,6 +1065,8 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	network->ssid_len = 0;
 	network->flags = 0;
 	network->atim_window = 0;
+	network->erp_value = (network->capability & WLAN_CAPABILITY_IBSS) ?
+		0x3 : 0x0;
 
 	if (stats->freq == IEEE80211_52GHZ_BAND) {
 		/* for A band (No DS info) */
@@ -1178,8 +1180,16 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 			IEEE80211_DEBUG_SCAN("MFIE_TYPE_TIM: ignored\n");
 			break;
 
+		case MFIE_TYPE_ERP_INFO:
+			network->erp_value = info_element->data[0];
+			IEEE80211_DEBUG_SCAN("MFIE_TYPE_ERP_SET: %d\n",
+					     network->erp_value);
+			break;
+
 		case MFIE_TYPE_IBSS_SET:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_IBSS_SET: ignored\n");
+			network->atim_window = info_element->data[0];
+			IEEE80211_DEBUG_SCAN("MFIE_TYPE_IBSS_SET: %d\n",
+					     network->atim_window);
 			break;
 
 		case MFIE_TYPE_CHALLENGE:
@@ -1290,6 +1300,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->beacon_interval = src->beacon_interval;
 	dst->listen_interval = src->listen_interval;
 	dst->atim_window = src->atim_window;
+	dst->erp_value = src->erp_value;
 
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
 	dst->wpa_ie_len = src->wpa_ie_len;
@@ -1469,6 +1480,18 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		IEEE80211_DEBUG_MGMT("received REASSOCIATION RESPONSE (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
+		break;
+
+	case IEEE80211_STYPE_PROBE_REQ:
+		IEEE80211_DEBUG_MGMT("recieved auth (%d)\n",
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
+
+		if (ieee->handle_probe_request != NULL)
+			ieee->handle_probe_request(ieee->dev,
+						   (struct
+						    ieee80211_probe_request *)
+						   header, stats);
 		break;
 
 	case IEEE80211_STYPE_PROBE_RESP:
