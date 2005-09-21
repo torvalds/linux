@@ -144,6 +144,7 @@ static int aio_thread(void *arg)
                                "errno = %d\n", errno);
                 }
                 else {
+			/* This is safe as we've just a pointer here. */
 			aio = (struct aio_context *) (long) event.data;
 			if(update_aio(aio, event.res)){
 				do_aio(ctx, aio);
