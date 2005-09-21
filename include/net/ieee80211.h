@@ -769,6 +769,27 @@ struct ieee80211_device {
 	int (*hard_start_xmit) (struct ieee80211_txb * txb,
 				struct net_device * dev);
 	int (*reset_port) (struct net_device * dev);
+	int (*is_queue_full) (struct net_device * dev, int pri);
+
+	/* Typical STA methods */
+	int (*handle_auth) (struct net_device * dev,
+			    struct ieee80211_auth * auth);
+	int (*handle_disassoc) (struct net_device * dev,
+				struct ieee80211_disassoc * assoc);
+	int (*handle_beacon) (struct net_device * dev,
+			      struct ieee80211_beacon * beacon,
+			      struct ieee80211_network * network);
+	int (*handle_probe_response) (struct net_device * dev,
+				      struct ieee80211_probe_response * resp,
+				      struct ieee80211_network * network);
+	int (*handle_assoc_response) (struct net_device * dev,
+				      struct ieee80211_assoc_response * resp,
+				      struct ieee80211_network * network);
+
+	/* Typical AP methods */
+	int (*handle_assoc_request) (struct net_device * dev);
+	int (*handle_reassoc_request) (struct net_device * dev,
+				       struct ieee80211_reassoc_request * req);
 
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_ieee80211 */
@@ -877,6 +898,8 @@ extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
 /* ieee80211_tx.c */
 extern int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
+extern int ieee80211_tx_frame(struct ieee80211_device *ieee,
+			      struct ieee80211_hdr *frame, int len);
 
 /* ieee80211_rx.c */
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,

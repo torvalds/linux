@@ -1029,12 +1029,18 @@ static inline void update_network(struct ieee80211_network *dst,
 	/* dst->last_associate is not overwritten */
 }
 
+static inline int is_beacon(int fc)
+{
+	return (WLAN_FC_GET_STYPE(le16_to_cpu(fc)) == IEEE80211_STYPE_BEACON);
+}
+
 static inline void ieee80211_process_probe_response(struct ieee80211_device
 						    *ieee, struct
 						    ieee80211_probe_response
 						    *beacon, struct ieee80211_rx_stats
 						    *stats)
 {
+	struct net_device *dev = ieee->dev;
 	struct ieee80211_network network;
 	struct ieee80211_network *target;
 	struct ieee80211_network *oldest = NULL;
@@ -1070,11 +1076,10 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     MAC_ARG(beacon->header.addr3),
-				     WLAN_FC_GET_STYPE(le16_to_cpu
-						       (beacon->header.
-							frame_ctl)) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
-				     "PROBE RESPONSE" : "BEACON");
+				     is_beacon(le16_to_cpu
+					       (beacon->header.
+						frame_ctl)) ?
+				     "BEACON" : "PROBE RESPONSE");
 		return;
 	}
 
@@ -1123,11 +1128,10 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(network.ssid,
 						  network.ssid_len),
 				     MAC_ARG(network.bssid),
-				     WLAN_FC_GET_STYPE(le16_to_cpu
-						       (beacon->header.
-							frame_ctl)) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
-				     "PROBE RESPONSE" : "BEACON");
+				     is_beacon(le16_to_cpu
+					       (beacon->header.
+						frame_ctl)) ?
+				     "BEACON" : "PROBE RESPONSE");
 #endif
 		memcpy(target, &network, sizeof(*target));
 		list_add_tail(&target->list, &ieee->network_list);
@@ -1136,15 +1140,22 @@ static inline void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(target->ssid,
 						  target->ssid_len),
 				     MAC_ARG(target->bssid),
-				     WLAN_FC_GET_STYPE(le16_to_cpu
-						       (beacon->header.
-							frame_ctl)) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
-				     "PROBE RESPONSE" : "BEACON");
+				     is_beacon(le16_to_cpu
+					       (beacon->header.
+						frame_ctl)) ?
+				     "BEACON" : "PROBE RESPONSE");
 		update_network(target, &network);
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
+
+	if (is_beacon(le16_to_cpu(beacon->header.frame_ctl))) {
+		if (ieee->handle_beacon != NULL)
+			ieee->handle_beacon(dev, beacon, &network);
+	} else {
+		if (ieee->handle_probe_response != NULL)
+			ieee->handle_probe_response(dev, beacon, &network);
+	}
 }
 
 void ieee80211_rx_mgt(struct ieee80211_device *ieee,
@@ -1184,6 +1195,23 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 						 (struct
 						  ieee80211_probe_response *)
 						 header, stats);
+		break;
+	case IEEE80211_STYPE_AUTH:
+
+		IEEE80211_DEBUG_MGMT("recieved auth (%d)\n",
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
+
+		if (ieee->handle_auth != NULL)
+			ieee->handle_auth(ieee->dev,
+					  (struct ieee80211_auth *)header);
+		break;
+
+	case IEEE80211_STYPE_DISASSOC:
+		if (ieee->handle_disassoc != NULL)
+			ieee->handle_disassoc(ieee->dev,
+					      (struct ieee80211_disassoc *)
+					      header);
 		break;
 
 	default:

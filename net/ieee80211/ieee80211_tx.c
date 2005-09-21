@@ -459,7 +459,71 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	stats->tx_errors++;
 	return 1;
-
 }
 
+/* Incoming 802.11 strucure is converted to a TXB
+ * a block of 802.11 fragment packets (stored as skbs) */
+int ieee80211_tx_frame(struct ieee80211_device *ieee,
+		       struct ieee80211_hdr *frame, int len)
+{
+	struct ieee80211_txb *txb = NULL;
+	unsigned long flags;
+	struct net_device_stats *stats = &ieee->stats;
+	struct sk_buff *skb_frag;
+
+	spin_lock_irqsave(&ieee->lock, flags);
+
+	/* If there is no driver handler to take the TXB, dont' bother
+	 * creating it... */
+	if (!ieee->hard_start_xmit) {
+		printk(KERN_WARNING "%s: No xmit handler.\n", ieee->dev->name);
+		goto success;
+	}
+
+	if (unlikely(len < 24)) {
+		printk(KERN_WARNING "%s: skb too small (%d).\n",
+		       ieee->dev->name, len);
+		goto success;
+	}
+
+	/* When we allocate the TXB we allocate enough space for the reserve
+	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
+	 * postfix, header, FCS, etc.) */
+	txb = ieee80211_alloc_txb(1, len, GFP_ATOMIC);
+	if (unlikely(!txb)) {
+		printk(KERN_WARNING "%s: Could not allocate TXB\n",
+		       ieee->dev->name);
+		goto failed;
+	}
+	txb->encrypted = 0;
+	txb->payload_size = len;
+
+	skb_frag = txb->fragments[0];
+
+	memcpy(skb_put(skb_frag, len), frame, len);
+
+	if (ieee->config &
+	    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
+		skb_put(skb_frag, 4);
+
+      success:
+	spin_unlock_irqrestore(&ieee->lock, flags);
+
+	if (txb) {
+		if ((*ieee->hard_start_xmit) (txb, ieee->dev) == 0) {
+			stats->tx_packets++;
+			stats->tx_bytes += txb->payload_size;
+			return 0;
+		}
+		ieee80211_txb_free(txb);
+	}
+	return 0;
+
+      failed:
+	spin_unlock_irqrestore(&ieee->lock, flags);
+	stats->tx_errors++;
+	return 1;
+}
+
+EXPORT_SYMBOL(ieee80211_tx_frame);
 EXPORT_SYMBOL(ieee80211_txb_free);
