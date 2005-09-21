@@ -1072,7 +1072,7 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	if (bytes_sent > count)
 		bytes_sent = count;
 	pSMB->DataOffset =
-	    cpu_to_le16(offsetof(struct smb_com_write_req,Data) - 4);
+		cpu_to_le16(offsetof(struct smb_com_write_req,Data) - 4);
 	if(buf)
 	    memcpy(pSMB->Data,buf,bytes_sent);
 	else if(ubuf) {
@@ -1080,20 +1080,23 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 			cifs_buf_release(pSMB);
 			return -EFAULT;
 		}
-	} else {
+	} else if (count != 0) {
 		/* No buffer */
 		cifs_buf_release(pSMB);
 		return -EINVAL;
+	} /* else setting file size with write of zero bytes */
+	if(wct == 14)
+		byte_count = bytes_sent + 1; /* pad */
+	else /* wct == 12 */ {
+		byte_count = bytes_sent + 5; /* bigger pad, smaller smb hdr */
 	}
-
-	byte_count = bytes_sent + 1 /* pad */ ; /* BB fix this for sends > 64K */
 	pSMB->DataLengthLow = cpu_to_le16(bytes_sent & 0xFFFF);
 	pSMB->DataLengthHigh = cpu_to_le16(bytes_sent >> 16);
-	pSMB->hdr.smb_buf_length += bytes_sent+1;
+	pSMB->hdr.smb_buf_length += byte_count;
 
 	if(wct == 14)
 		pSMB->ByteCount = cpu_to_le16(byte_count);
-	else { /* old style write has byte count 4 bytes earlier */
+	else { /* old style write has byte count 4 bytes earlier so 4 bytes pad  */
 		struct smb_com_writex_req * pSMBW = 
 			(struct smb_com_writex_req *)pSMB;
 		pSMBW->ByteCount = cpu_to_le16(byte_count);

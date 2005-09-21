@@ -1030,14 +1030,15 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					/* now that we found one valid file
 					   handle no sense continuing to loop
 					   trying others, so break here */
-					/* if(rc == -EINVAL) {
+					if(rc == -EINVAL) {
 						int bytes_written;
 						rc = CIFSSMBWrite(xid, pTcon,
 							nfid, 0,
 							attrs->ia_size, 
-							&bytes_written,
-							NULL, NULL, long_op);
-					} */
+							&bytes_written, NULL,
+							NULL, 1 /* 45 sec */);
+						cFYI(1,("wrt seteof rc %d",rc));
+					}
 					break;
 				}
 			}
@@ -1055,14 +1056,30 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					   cifs_sb->local_nls, 
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			cFYI(1, (" SetEOF by path (setattrs) rc = %d", rc));
-			/* if(rc == -EINVAL)
-				old_style_set_eof_via_write(xid, pTcon, 
-						full_path, 
-						attrs->ia_size,
-						cifs_sb->local_nls,
-						cifs_sb->mnt_cifs_flags &
-						  CIFS_MOUNT_MAP_SPECIAL_CHR);*/
+			cFYI(1, ("SetEOF by path (setattrs) rc = %d", rc));
+			if(rc == -EINVAL) {
+				__u16 netfid;
+				int oplock = FALSE;
+
+				rc = SMBLegacyOpen(xid, pTcon, full_path,
+					FILE_OPEN,
+					SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
+					CREATE_NOT_DIR, &netfid, &oplock,
+					NULL, cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				if (rc==0) {
+					int bytes_written;
+					rc = CIFSSMBWrite(xid, pTcon,
+							netfid, 0,
+							attrs->ia_size,
+							&bytes_written, NULL,
+							NULL, 1 /* 45 sec */);
+					cFYI(1,("wrt seteof rc %d",rc));
+					CIFSSMBClose(xid, pTcon, netfid);
+				}
+
+			}
 		}
 
 		/* Server is ok setting allocation size implicitly - no need
@@ -1075,24 +1092,22 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			rc = vmtruncate(direntry->d_inode, attrs->ia_size);
 			cifs_truncate_page(direntry->d_inode->i_mapping,
 					   direntry->d_inode->i_size);
-		}
+		} else 
+			goto cifs_setattr_exit;
 	}
 	if (attrs->ia_valid & ATTR_UID) {
-		cFYI(1, (" CIFS - UID changed to %d", attrs->ia_uid));
+		cFYI(1, ("UID changed to %d", attrs->ia_uid));
 		uid = attrs->ia_uid;
-		/* entry->uid = cpu_to_le16(attr->ia_uid); */
 	}
 	if (attrs->ia_valid & ATTR_GID) {
-		cFYI(1, (" CIFS - GID changed to %d", attrs->ia_gid));
+		cFYI(1, ("GID changed to %d", attrs->ia_gid));
 		gid = attrs->ia_gid;
-		/* entry->gid = cpu_to_le16(attr->ia_gid); */
 	}
 
 	time_buf.Attributes = 0;
 	if (attrs->ia_valid & ATTR_MODE) {
-		cFYI(1, (" CIFS - Mode changed to 0x%x", attrs->ia_mode));
+		cFYI(1, ("Mode changed to 0x%x", attrs->ia_mode));
 		mode = attrs->ia_mode;
-		/* entry->mode = cpu_to_le16(attr->ia_mode); */
 	}
 
 	if ((cifs_sb->tcon->ses->capabilities & CAP_UNIX)
@@ -1132,18 +1147,24 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
 	} else
 		time_buf.LastWriteTime = 0;
-
-	if (attrs->ia_valid & ATTR_CTIME) {
+	/* Do not set ctime explicitly unless other time
+	   stamps are changed explicitly (i.e. by utime()
+	   since we would then have a mix of client and
+	   server times */
+	   
+	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
 		set_time = TRUE;
-		cFYI(1, (" CIFS - CTIME changed ")); /* BB probably no need */
+		/* Although Samba throws this field away
+		it may be useful to Windows - but we do
+		not want to set ctime unless some other
+		timestamp is changing */
+		cFYI(1, ("CIFS - CTIME changed "));
 		time_buf.ChangeTime =
 		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
 	} else
 		time_buf.ChangeTime = 0;
 
 	if (set_time || time_buf.Attributes) {
-		/* BB what if setting one attribute fails (such as size) but
-		   time setting works? */
 		time_buf.CreationTime = 0;	/* do not change */
 		/* In the future we should experiment - try setting timestamps
 		   via Handle (SetFileInfo) instead of by path */
@@ -1182,12 +1203,21 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
         	        		&time_buf, cifs_sb->local_nls); */
 			}
 		}
+		/* Even if error on time set, no sense failing the call if
+		the server would set the time to a reasonable value anyway,
+		and this check ensures that we are not being called from
+		sys_utimes in which case we ought to fail the call back to
+		the user when the server rejects the call */
+		if((rc) && (attrs->ia_valid &&
+			 (ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
+			rc = 0;
 	}
 
 	/* do not need local check to inode_check_ok since the server does
 	   that */
 	if (!rc)
 		rc = inode_setattr(direntry->d_inode, attrs);
+cifs_setattr_exit:
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
