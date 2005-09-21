@@ -583,6 +583,7 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_rmpp_mad *rmpp_mad;
 	int timeout;
+	u32 paylen;
 
 	rmpp_mad = (struct ib_rmpp_mad *)mad_send_wr->send_wr.wr.ud.mad_hdr;
 	ib_set_rmpp_flags(&rmpp_mad->rmpp_hdr, IB_MGMT_RMPP_FLAG_ACTIVE);
@@ -590,11 +591,9 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 
 	if (mad_send_wr->seg_num == 1) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_FIRST;
-		rmpp_mad->rmpp_hdr.paylen_newwin =
-			cpu_to_be32(mad_send_wr->total_seg *
-				    (sizeof(struct ib_rmpp_mad) -
-				       offsetof(struct ib_rmpp_mad, data)) -
-				    mad_send_wr->pad);
+		paylen = mad_send_wr->total_seg * IB_MGMT_RMPP_DATA -
+			 mad_send_wr->pad;
+		rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
 		mad_send_wr->sg_list[0].length = sizeof(struct ib_rmpp_mad);
 	} else {
 		mad_send_wr->send_wr.num_sge = 2;
@@ -608,10 +607,8 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 
 	if (mad_send_wr->seg_num == mad_send_wr->total_seg) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_LAST;
-		rmpp_mad->rmpp_hdr.paylen_newwin =
-			cpu_to_be32(sizeof(struct ib_rmpp_mad) -
-				    offsetof(struct ib_rmpp_mad, data) -
-				    mad_send_wr->pad);
+		paylen = IB_MGMT_RMPP_DATA - mad_send_wr->pad;
+		rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
 	}
 
 	/* 2 seconds for an ACK until we can find the packet lifetime */
