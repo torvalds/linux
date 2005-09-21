@@ -412,8 +412,8 @@ static inline int get_mad_len(struct mad_rmpp_recv *rmpp_recv)
 
 	hdr_size = data_offset(rmpp_mad->mad_hdr.mgmt_class);
 	data_size = sizeof(struct ib_rmpp_mad) - hdr_size;
-	pad = data_size - be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
-	if (pad > data_size || pad < 0)
+	pad = IB_MGMT_RMPP_DATA - be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
+	if (pad > IB_MGMT_RMPP_DATA || pad < 0)
 		pad = 0;
 
 	return hdr_size + rmpp_recv->seg_num * data_size - pad;
