@@ -245,6 +245,31 @@ static struct platform_device au1x00_pcmcia_device = {
 	.id 		= 0,
 };
 
+#ifdef CONFIG_MIPS_DB1200
+
+static struct resource smc91x_resources[] = {
+	[0] = {
+		.name	= "smc91x-regs",
+		.start	= AU1XXX_SMC91111_PHYS_ADDR,
+		.end	= AU1XXX_SMC91111_PHYS_ADDR + 0xfffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1XXX_SMC91111_IRQ,
+		.end	= AU1XXX_SMC91111_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smc91x_device = {
+	.name		= "smc91x",
+ 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.resource	= smc91x_resources,
+};
+
+#endif
+
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_usb_ohci_device,
 	&au1x00_pcmcia_device,
@@ -260,6 +285,9 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1200_lcd_device,
 	&au1200_ide0_device,
 	&au1xxx_mmc_device,
+#endif
+#ifdef CONFIG_MIPS_DB1200
+ 	&smc91x_device,
 #endif
 };
 
