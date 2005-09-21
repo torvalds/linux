@@ -308,7 +308,7 @@ config HPET_TIMER
 	  present.  The HPET provides a stable time base on SMP
 	  systems, unlike the TSC, but it is more expensive to access,
 	  as it is off-chip.  You can find the HPET spec at
-	  <http://www.intel.com/labs/platcomp/hpet/hpetspec.htm>.
+	  <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
 config X86_PM_TIMER
 	bool "PM timer"
