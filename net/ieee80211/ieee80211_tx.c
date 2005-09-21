@@ -231,7 +231,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
-	int ether_type, encrypt;
+	int ether_type, encrypt, host_encrypt;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
 	struct ieee80211_hdr header = {	/* Ensure zero initialized */
@@ -262,7 +262,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	crypt = ieee->crypt[ieee->tx_keyidx];
 
 	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
-	    ieee->host_encrypt && crypt && crypt->ops;
+	    ieee->sec.encrypt;
+	host_encrypt = ieee->host_encrypt && encrypt;
 
 	if (!encrypt && ieee->ieee802_1x &&
 	    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
@@ -280,7 +281,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Determine total amount of storage required for TXB packets */
 	bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
-	if (encrypt)
+	if (host_encrypt)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		    IEEE80211_FCTL_PROTECTED;
 	else
@@ -320,7 +321,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		bytes_per_frag -= IEEE80211_FCS_LEN;
 
 	/* Each fragment may need to have room for encryptiong pre/postfix */
-	if (encrypt)
+	if (host_encrypt)
 		bytes_per_frag -= crypt->ops->extra_prefix_len +
 		    crypt->ops->extra_postfix_len;
 
@@ -348,7 +349,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < nr_frags; i++) {
 		skb_frag = txb->fragments[i];
 
-		if (encrypt)
+		if (host_encrypt)
 			skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
 
 		frag_hdr = (struct ieee80211_hdr *)skb_put(skb_frag, hdr_len);
@@ -380,8 +381,22 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Encryption routine will move the header forward in order
 		 * to insert the IV between the header and the payload */
-		if (encrypt)
+		if (host_encrypt)
 			ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
+
+		/* ipw2200/2915 Hardware encryption doesn't support TKIP MIC */
+		if (!ieee->host_encrypt && encrypt &&
+		    (ieee->sec.level == SEC_LEVEL_2) &&
+		    crypt && crypt->ops && crypt->ops->encrypt_msdu) {
+			int res = 0;
+			res = crypt->ops->encrypt_msdu(skb_frag, hdr_len,
+						       crypt->priv);
+			if (res < 0) {
+				IEEE80211_ERROR("TKIP MIC encryption failed\n");
+				goto failed;
+			}
+		}
+
 		if (ieee->config &
 		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
 			skb_put(skb_frag, 4);

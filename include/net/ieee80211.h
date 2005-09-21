@@ -430,31 +430,34 @@ struct ieee80211_device;
 
 #include "ieee80211_crypt.h"
 
-#define SEC_KEY_1         (1<<0)
-#define SEC_KEY_2         (1<<1)
-#define SEC_KEY_3         (1<<2)
-#define SEC_KEY_4         (1<<3)
-#define SEC_KEY_MASK      (SEC_KEY_1 | SEC_KEY_2 | SEC_KEY_3 | SEC_KEY_4)
-#define SEC_ACTIVE_KEY    (1<<4)
-#define SEC_AUTH_MODE     (1<<5)
-#define SEC_UNICAST_GROUP (1<<6)
-#define SEC_LEVEL         (1<<7)
-#define SEC_ENABLED       (1<<8)
+#define SEC_KEY_1		(1<<0)
+#define SEC_KEY_2		(1<<1)
+#define SEC_KEY_3		(1<<2)
+#define SEC_KEY_4		(1<<3)
+#define SEC_ACTIVE_KEY		(1<<4)
+#define SEC_AUTH_MODE		(1<<5)
+#define SEC_UNICAST_GROUP	(1<<6)
+#define SEC_LEVEL		(1<<7)
+#define SEC_ENABLED		(1<<8)
+#define SEC_TGI_KEY_RESET	(1<<9)
 
-#define SEC_LEVEL_0      0	/* None */
-#define SEC_LEVEL_1      1	/* WEP 40 and 104 bit */
-#define SEC_LEVEL_2      2	/* Level 1 + TKIP */
-#define SEC_LEVEL_2_CKIP 3	/* Level 1 + CKIP */
-#define SEC_LEVEL_3      4	/* Level 2 + CCMP */
+#define SEC_LEVEL_0		0	/* None */
+#define SEC_LEVEL_1		1	/* WEP 40 and 104 bit */
+#define SEC_LEVEL_2		2	/* Level 1 + TKIP */
+#define SEC_LEVEL_2_CKIP	3	/* Level 1 + CKIP */
+#define SEC_LEVEL_3		4	/* Level 2 + CCMP */
 
-#define WEP_KEYS 4
-#define WEP_KEY_LEN 13
+#define WEP_KEYS		4
+#define WEP_KEY_LEN		13
+#define SCM_KEY_LEN		32
+#define SCM_TEMPORAL_KEY_LENGTH	16
 
 struct ieee80211_security {
 	u16 active_key:2,
-	    enabled:1, auth_mode:2, auth_algo:4, unicast_uses_group:1;
+	    enabled:1,
+	    auth_mode:2, auth_algo:4, unicast_uses_group:1, encrypt:1;
 	u8 key_sizes[WEP_KEYS];
-	u8 keys[WEP_KEYS][WEP_KEY_LEN];
+	u8 keys[WEP_KEYS][SCM_KEY_LEN];
 	u8 level;
 	u16 flags;
 } __attribute__ ((packed));
@@ -636,6 +639,7 @@ enum ieee80211_state {
 
 struct ieee80211_device {
 	struct net_device *dev;
+	struct ieee80211_security sec;
 
 	/* Bookkeeping structures */
 	struct net_device_stats stats;

@@ -278,6 +278,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	};
 	int i, key, key_provided, len;
 	struct ieee80211_crypt_data **crypt;
+	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
 
 	IEEE80211_DEBUG_WX("SET_ENCODE\n");
 
@@ -318,6 +319,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 
 		if (i == WEP_KEYS) {
 			sec.enabled = 0;
+			sec.encrypt = 0;
 			sec.level = SEC_LEVEL_0;
 			sec.flags |= SEC_ENABLED | SEC_LEVEL;
 		}
@@ -326,6 +328,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	}
 
 	sec.enabled = 1;
+	sec.encrypt = 1;
 	sec.flags |= SEC_ENABLED;
 
 	if (*crypt != NULL && (*crypt)->ops != NULL &&
@@ -335,7 +338,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
 	}
 
-	if (*crypt == NULL) {
+	if (*crypt == NULL && host_crypto) {
 		struct ieee80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
@@ -375,31 +378,34 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 				   key, escape_essid(sec.keys[key], len),
 				   erq->length, len);
 		sec.key_sizes[key] = len;
-		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
-				       (*crypt)->priv);
+		if (*crypt)
+			(*crypt)->ops->set_key(sec.keys[key], len, NULL,
+					       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
 		 * explicitely set */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
-	} else {
-		len = (*crypt)->ops->get_key(sec.keys[key], WEP_KEY_LEN,
-					     NULL, (*crypt)->priv);
-		if (len == 0) {
-			/* Set a default key of all 0 */
-			IEEE80211_DEBUG_WX("Setting key %d to all zero.\n",
-					   key);
-			memset(sec.keys[key], 0, 13);
-			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
-					       (*crypt)->priv);
-			sec.key_sizes[key] = 13;
-			sec.flags |= (1 << key);
-		}
 
+	} else {
+		if (host_crypto) {
+			len = (*crypt)->ops->get_key(sec.keys[key], WEP_KEY_LEN,
+						     NULL, (*crypt)->priv);
+			if (len == 0) {
+				/* Set a default key of all 0 */
+				IEEE80211_DEBUG_WX("Setting key %d to all "
+						   "zero.\n", key);
+				memset(sec.keys[key], 0, 13);
+				(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
+						       (*crypt)->priv);
+				sec.key_sizes[key] = 13;
+				sec.flags |= (1 << key);
+			}
+		}
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			IEEE80211_DEBUG_WX
-			    ("Setting key %d to default Tx key.\n", key);
+			IEEE80211_DEBUG_WX("Setting key %d to default Tx "
+					   "key.\n", key);
 			ieee->tx_keyidx = key;
 			sec.active_key = key;
 			sec.flags |= SEC_ACTIVE_KEY;
@@ -442,6 +448,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	struct iw_point *erq = &(wrqu->encoding);
 	int len, key;
 	struct ieee80211_crypt_data *crypt;
+	struct ieee80211_security *sec = &ieee->sec;
 
 	IEEE80211_DEBUG_WX("GET_ENCODE\n");
 
@@ -456,13 +463,13 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	crypt = ieee->crypt[key];
 	erq->flags = key + 1;
 
-	if (crypt == NULL || crypt->ops == NULL) {
+	if (!sec->enabled) {
 		erq->length = 0;
 		erq->flags |= IW_ENCODE_DISABLED;
 		return 0;
 	}
 
-	if (strcmp(crypt->ops->name, "WEP") != 0) {
+	if (sec->level != SEC_LEVEL_1) {
 		/* only WEP is supported with wireless extensions, so just
 		 * report that encryption is used */
 		erq->length = 0;
@@ -470,9 +477,10 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 		return 0;
 	}
 
-	len = crypt->ops->get_key(keybuf, WEP_KEY_LEN, NULL, crypt->priv);
-	erq->length = (len >= 0 ? len : 0);
+	len = sec->key_sizes[key];
+	memcpy(keybuf, sec->keys[key], len);
 
+	erq->length = (len >= 0 ? len : 0);
 	erq->flags |= IW_ENCODE_ENABLED;
 
 	if (ieee->open_wep)
