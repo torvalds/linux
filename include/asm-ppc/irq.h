@@ -24,6 +24,12 @@
  */
 #define ARCH_HAS_IRQ_PER_CPU
 
+#define get_irq_desc(irq) (&irq_desc[(irq)])
+
+/* Define a way to iterate across irqs. */
+#define for_each_irq(i) \
+	for ((i) = 0; (i) < NR_IRQS; ++(i))
+
 #if defined(CONFIG_40x)
 #include <asm/ibm4xx.h>
 
