@@ -4904,7 +4904,7 @@ static void ipw_rx(struct ipw_priv *priv)
 {
 	struct ipw_rx_mem_buffer *rxb;
 	struct ipw_rx_packet *pkt;
-	struct ieee80211_hdr *header;
+	struct ieee80211_hdr_4addr *header;
 	u32 r, w, i;
 	u8 network_packet;
 
@@ -4967,8 +4967,9 @@ static void ipw_rx(struct ipw_priv *priv)
 #endif
 
 				header =
-				    (struct ieee80211_hdr *)(rxb->skb->data +
-							     IPW_RX_FRAME_SIZE);
+				    (struct ieee80211_hdr_4addr *)(rxb->skb->
+								   data +
+								   IPW_RX_FRAME_SIZE);
 				/* TODO: Check Ad-Hoc dest/source and make sure
 				 * that we are actually parsing these packets
 				 * correctly -- we should probably use the
@@ -6325,7 +6326,7 @@ we need to heavily modify the ieee80211_skb_to_txb.
 
 static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)
+	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)
 	    txb->fragments[0]->data;
 	int i = 0;
 	struct tfd_frame *tfd;
