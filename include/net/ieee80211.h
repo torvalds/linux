@@ -781,6 +781,38 @@ enum ieee80211_state {
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
 #define CFG_IEEE80211_RTS (1<<2)
 
+#define IEEE80211_24GHZ_MIN_CHANNEL 1
+#define IEEE80211_24GHZ_MAX_CHANNEL 14
+#define IEEE80211_24GHZ_CHANNELS    14
+
+#define IEEE80211_52GHZ_MIN_CHANNEL 36
+#define IEEE80211_52GHZ_MAX_CHANNEL 165
+#define IEEE80211_52GHZ_CHANNELS    32
+
+enum {
+	IEEE80211_CH_PASSIVE_ONLY = (1 << 0),
+	IEEE80211_CH_B_ONLY = (1 << 2),
+	IEEE80211_CH_NO_IBSS = (1 << 3),
+	IEEE80211_CH_UNIFORM_SPREADING = (1 << 4),
+	IEEE80211_CH_RADAR_DETECT = (1 << 5),
+	IEEE80211_CH_INVALID = (1 << 6),
+};
+
+struct ieee80211_channel {
+	u16 freq;
+	u8 channel;
+	u8 flags;
+	u8 max_power;
+};
+
+struct ieee80211_geo {
+	u8 name[4];
+	u8 bg_channels;
+	u8 a_channels;
+	struct ieee80211_channel bg[IEEE80211_24GHZ_CHANNELS];
+	struct ieee80211_channel a[IEEE80211_52GHZ_CHANNELS];
+};
+
 struct ieee80211_device {
 	struct net_device *dev;
 	struct ieee80211_security sec;
@@ -788,6 +820,8 @@ struct ieee80211_device {
 	/* Bookkeeping structures */
 	struct net_device_stats stats;
 	struct ieee80211_stats ieee_stats;
+
+	struct ieee80211_geo geo;
 
 	/* Probe / Beacon management */
 	struct list_head network_free_list;
@@ -1004,6 +1038,18 @@ extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);
+
+/* ieee80211_geo.c */
+extern const struct ieee80211_geo *ieee80211_get_geo(struct ieee80211_device
+						     *ieee);
+extern int ieee80211_set_geo(struct ieee80211_device *ieee,
+			     const struct ieee80211_geo *geo);
+
+extern int ieee80211_is_valid_channel(struct ieee80211_device *ieee,
+				      u8 channel);
+extern int ieee80211_channel_to_index(struct ieee80211_device *ieee,
+				      u8 channel);
+extern u8 ieee80211_freq_to_channel(struct ieee80211_device *ieee, u32 freq);
 
 /* ieee80211_wx.c */
 extern int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
