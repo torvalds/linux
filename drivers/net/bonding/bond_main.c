@@ -1653,7 +1653,8 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 	int old_features = bond_dev->features;
 	int res = 0;
 
-	if (slave_dev->do_ioctl == NULL) {
+	if (!bond->params.use_carrier && slave_dev->ethtool_ops == NULL &&
+		slave_dev->do_ioctl == NULL) {
 		printk(KERN_WARNING DRV_NAME
 		       ": Warning : no link monitoring support for %s\n",
 		       slave_dev->name);
