@@ -285,7 +285,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	if (phba->SerialNumber[0] == 0) {
 		uint8_t *outptr;
 
-		outptr = (uint8_t *) & phba->fc_nodename.IEEE[0];
+		outptr = &phba->fc_nodename.u.s.IEEE[0];
 		for (i = 0; i < 12; i++) {
 			status = *outptr++;
 			j = ((status & 0xf0) >> 4);
@@ -1523,8 +1523,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	 * Must done after lpfc_sli_hba_setup()
 	 */
 
-	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.wwn);
-	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.wwn);
+	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.u.wwn);
+	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.u.wwn);
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
 
 	memset(fc_host_supported_fc4s(host), 0,
