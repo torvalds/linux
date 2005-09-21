@@ -191,26 +191,18 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	ieee80211_ccmp_aes_encrypt(tfm, b0, s0);
 }
 
-static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int ieee80211_ccmp_hdr(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
-	int data_len, i, blocks, last, len;
-	u8 *pos, *mic;
-	struct ieee80211_hdr_4addr *hdr;
-	u8 *b0 = key->tx_b0;
-	u8 *b = key->tx_b;
-	u8 *e = key->tx_e;
-	u8 *s0 = key->tx_s0;
+	int i;
+	u8 *pos;
 
-	if (skb_headroom(skb) < CCMP_HDR_LEN ||
-	    skb_tailroom(skb) < CCMP_MIC_LEN || skb->len < hdr_len)
+	if (skb_headroom(skb) < CCMP_HDR_LEN || skb->len < hdr_len)
 		return -1;
 
-	data_len = skb->len - hdr_len;
 	pos = skb_push(skb, CCMP_HDR_LEN);
 	memmove(pos, pos + CCMP_HDR_LEN, hdr_len);
 	pos += hdr_len;
-	mic = skb_put(skb, CCMP_MIC_LEN);
 
 	i = CCMP_PN_LEN - 1;
 	while (i >= 0) {
@@ -229,6 +221,30 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[1];
 	*pos++ = key->tx_pn[0];
 
+	return CCMP_HDR_LEN;
+}
+
+static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+{
+	struct ieee80211_ccmp_data *key = priv;
+	int data_len, i, blocks, last, len;
+	u8 *pos, *mic;
+	struct ieee80211_hdr_4addr *hdr;
+	u8 *b0 = key->tx_b0;
+	u8 *b = key->tx_b;
+	u8 *e = key->tx_e;
+	u8 *s0 = key->tx_s0;
+
+	if (skb_tailroom(skb) < CCMP_MIC_LEN || skb->len < hdr_len)
+		return -1;
+
+	data_len = skb->len - hdr_len;
+	len = ieee80211_ccmp_hdr(skb, hdr_len, priv);
+	if (len < 0)
+		return -1;
+
+	pos = skb->data + hdr_len + CCMP_HDR_LEN;
+	mic = skb_put(skb, CCMP_MIC_LEN);
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
 
@@ -429,6 +445,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {
 	.name = "CCMP",
 	.init = ieee80211_ccmp_init,
 	.deinit = ieee80211_ccmp_deinit,
+	.build_iv = ieee80211_ccmp_hdr,
 	.encrypt_mpdu = ieee80211_ccmp_encrypt,
 	.decrypt_mpdu = ieee80211_ccmp_decrypt,
 	.encrypt_msdu = NULL,

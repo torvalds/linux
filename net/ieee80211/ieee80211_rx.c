@@ -1534,6 +1534,12 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 					      header);
 		break;
 
+	case IEEE80211_STYPE_DEAUTH:
+		printk("DEAUTH from AP\n");
+		if (ieee->handle_deauth != NULL)
+			ieee->handle_deauth(ieee->dev, (struct ieee80211_auth *)
+					    header);
+		break;
 	default:
 		IEEE80211_DEBUG_MGMT("received UNKNOWN (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu

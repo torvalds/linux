@@ -36,6 +36,8 @@ struct ieee80211_crypto_ops {
 	/* deinitialize crypto context and free allocated private data */
 	void (*deinit) (void *priv);
 
+	int (*build_iv) (struct sk_buff * skb, int hdr_len, void *priv);
+
 	/* encrypt/decrypt return < 0 on error or >= 0 on success. The return
 	 * value from decrypt_mpdu is passed as the keyidx value for
 	 * decrypt_msdu. skb must have enough head and tail room for the

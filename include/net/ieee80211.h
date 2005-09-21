@@ -808,7 +808,7 @@ enum {
 };
 
 struct ieee80211_channel {
-	u16 freq;
+	u32 freq;
 	u8 channel;
 	u8 flags;
 	u8 max_power;
@@ -862,6 +862,7 @@ struct ieee80211_device {
 	int host_mc_decrypt;
 
 	int host_open_frag;
+	int host_build_iv;
 	int ieee802_1x;		/* is IEEE 802.1X used */
 
 	/* WPA data */
@@ -914,6 +915,8 @@ struct ieee80211_device {
 	/* Typical STA methods */
 	int (*handle_auth) (struct net_device * dev,
 			    struct ieee80211_auth * auth);
+	int (*handle_deauth) (struct net_device * dev,
+			      struct ieee80211_auth * auth);
 	int (*handle_disassoc) (struct net_device * dev,
 				struct ieee80211_disassoc * assoc);
 	int (*handle_beacon) (struct net_device * dev,
