@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright(c) 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 2004-2005 Intel Corporation. All rights reserved.
 
   Portions of this file are based on the WEP enablement code provided by the
   Host AP project hostap-drivers v0.1.3
