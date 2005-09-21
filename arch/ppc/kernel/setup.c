@@ -71,7 +71,8 @@ struct ide_machdep_calls ppc_ide_md;
 unsigned long boot_mem_size;
 
 unsigned long ISA_DMA_THRESHOLD;
-unsigned long DMA_MODE_READ, DMA_MODE_WRITE;
+unsigned int DMA_MODE_READ;
+unsigned int DMA_MODE_WRITE;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 int _machine = 0;

@@ -1,17 +1,13 @@
+#ifndef _ASM_POWERPC_DMA_H
+#define _ASM_POWERPC_DMA_H
+
 /*
- * include/asm-ppc/dma.h: Defines for using and allocating dma channels.
+ * Defines for using and allocating dma channels.
  * Written by Hennus Bergman, 1992.
  * High DMA channel support & info by Hannu Savolainen
  * and John Boyd, Nov. 1992.
  * Changes for ppc sound by Christoph Nadig
  */
-
-#ifdef __KERNEL__
-
-#include <linux/config.h>
-#include <asm/io.h>
-#include <linux/spinlock.h>
-#include <asm/system.h>
 
 /*
  * Note: Adapted for PowerPC by Gary Thomas
@@ -25,8 +21,10 @@
  * with a grain of salt.
  */
 
-#ifndef _ASM_DMA_H
-#define _ASM_DMA_H
+#include <linux/config.h>
+#include <asm/io.h>
+#include <linux/spinlock.h>
+#include <asm/system.h>
 
 #ifndef MAX_DMA_CHANNELS
 #define MAX_DMA_CHANNELS	8
@@ -34,11 +32,9 @@
 
 /* The maximum address that we can perform a DMA transfer to on this platform */
 /* Doesn't really apply... */
-#define MAX_DMA_ADDRESS		0xFFFFFFFF
+#define MAX_DMA_ADDRESS		(~0UL)
 
-/* in arch/ppc/kernel/setup.c -- Cort */
-extern unsigned long DMA_MODE_WRITE, DMA_MODE_READ;
-extern unsigned long ISA_DMA_THRESHOLD;
+#if !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI)
 
 #ifdef HAVE_REALLY_SLOW_DMA_CONTROLLER
 #define dma_outb	outb_p
@@ -171,7 +167,18 @@ extern long ppc_cs4232_dma, ppc_cs4232_dma2;
 #define DMA1_EXT_REG		0x40B
 #define DMA2_EXT_REG		0x4D6
 
+#ifndef __powerpc64__
+    /* in arch/ppc/kernel/setup.c -- Cort */
+    extern unsigned int DMA_MODE_WRITE;
+    extern unsigned int DMA_MODE_READ;
+    extern unsigned long ISA_DMA_THRESHOLD;
+#else
+    #define DMA_MODE_READ	0x44	/* I/O to memory, no autoinit, increment, single mode */
+    #define DMA_MODE_WRITE	0x48	/* memory to I/O, no autoinit, increment, single mode */
+#endif
+
 #define DMA_MODE_CASCADE	0xC0	/* pass thru DREQ->HRQ, DACK<-HLDA only */
+
 #define DMA_AUTOINIT		0x10
 
 extern spinlock_t dma_spin_lock;
@@ -200,8 +207,9 @@ static __inline__ void enable_dma(unsigned int dmanr)
 	if (dmanr <= 3) {
 		dma_outb(dmanr, DMA1_MASK_REG);
 		dma_outb(ucDmaCmd, DMA1_CMD_REG);	/* Enable group */
-	} else
+	} else {
 		dma_outb(dmanr & 3, DMA2_MASK_REG);
+	}
 }
 
 static __inline__ void disable_dma(unsigned int dmanr)
@@ -290,18 +298,25 @@ static __inline__ void set_dma_page(unsigned int dmanr, int pagenr)
 static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int phys)
 {
 	if (dmanr <= 3) {
-		dma_outb(phys & 0xff, ((dmanr & 3) << 1) + IO_DMA1_BASE);
-		dma_outb((phys >> 8) & 0xff, ((dmanr & 3) << 1) + IO_DMA1_BASE);
+		dma_outb(phys & 0xff,
+			 ((dmanr & 3) << 1) + IO_DMA1_BASE);
+		dma_outb((phys >> 8) & 0xff,
+			 ((dmanr & 3) << 1) + IO_DMA1_BASE);
 	} else if (dmanr == SND_DMA1 || dmanr == SND_DMA2) {
-		dma_outb(phys & 0xff, ((dmanr & 3) << 2) + IO_DMA2_BASE);
-		dma_outb((phys >> 8) & 0xff, ((dmanr & 3) << 2) + IO_DMA2_BASE);
+		dma_outb(phys & 0xff,
+			 ((dmanr & 3) << 2) + IO_DMA2_BASE);
+		dma_outb((phys >> 8) & 0xff,
+			 ((dmanr & 3) << 2) + IO_DMA2_BASE);
 		dma_outb((dmanr & 3), DMA2_EXT_REG);
 	} else {
-		dma_outb((phys >> 1) & 0xff, ((dmanr & 3) << 2) + IO_DMA2_BASE);
-		dma_outb((phys >> 9) & 0xff, ((dmanr & 3) << 2) + IO_DMA2_BASE);
+		dma_outb((phys >> 1) & 0xff,
+			 ((dmanr & 3) << 2) + IO_DMA2_BASE);
+		dma_outb((phys >> 9) & 0xff,
+			 ((dmanr & 3) << 2) + IO_DMA2_BASE);
 	}
 	set_dma_page(dmanr, phys >> 16);
 }
+
 
 /* Set transfer size (max 64k for DMA1..3, 128k for DMA5..7) for
  * a specific DMA channel.
@@ -315,20 +330,23 @@ static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 {
 	count--;
 	if (dmanr <= 3) {
-		dma_outb(count & 0xff, ((dmanr & 3) << 1) + 1 + IO_DMA1_BASE);
-		dma_outb((count >> 8) & 0xff, ((dmanr & 3) << 1) + 1 +
-			 IO_DMA1_BASE);
+		dma_outb(count & 0xff,
+			 ((dmanr & 3) << 1) + 1 + IO_DMA1_BASE);
+		dma_outb((count >> 8) & 0xff,
+			 ((dmanr & 3) << 1) + 1 + IO_DMA1_BASE);
 	} else if (dmanr == SND_DMA1 || dmanr == SND_DMA2) {
-		dma_outb(count & 0xff, ((dmanr & 3) << 2) + 2 + IO_DMA2_BASE);
-		dma_outb((count >> 8) & 0xff, ((dmanr & 3) << 2) + 2 +
-			 IO_DMA2_BASE);
+		dma_outb(count & 0xff,
+			 ((dmanr & 3) << 2) + 2 + IO_DMA2_BASE);
+		dma_outb((count >> 8) & 0xff,
+			 ((dmanr & 3) << 2) + 2 + IO_DMA2_BASE);
 	} else {
-		dma_outb((count >> 1) & 0xff, ((dmanr & 3) << 2) + 2 +
-			 IO_DMA2_BASE);
-		dma_outb((count >> 9) & 0xff, ((dmanr & 3) << 2) + 2 +
-			 IO_DMA2_BASE);
+		dma_outb((count >> 1) & 0xff,
+			 ((dmanr & 3) << 2) + 2 + IO_DMA2_BASE);
+		dma_outb((count >> 9) & 0xff,
+			 ((dmanr & 3) << 2) + 2 + IO_DMA2_BASE);
 	}
 }
+
 
 /* Get DMA residue count. After a DMA transfer, this
  * should return zero. Reading this while a DMA transfer is
@@ -340,8 +358,8 @@ static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
  */
 static __inline__ int get_dma_residue(unsigned int dmanr)
 {
-	unsigned int io_port = (dmanr <= 3) ?
-	    ((dmanr & 3) << 1) + 1 + IO_DMA1_BASE
+	unsigned int io_port = (dmanr <= 3)
+	    ? ((dmanr & 3) << 1) + 1 + IO_DMA1_BASE
 	    : ((dmanr & 3) << 2) + 2 + IO_DMA2_BASE;
 
 	/* using short to get 16-bit wrap around */
@@ -352,7 +370,6 @@ static __inline__ int get_dma_residue(unsigned int dmanr)
 
 	return (dmanr <= 3 || dmanr == SND_DMA1 || dmanr == SND_DMA2)
 	    ? count : (count << 1);
-
 }
 
 /* These are in kernel/dma.c: */
@@ -367,5 +384,7 @@ extern int isa_dma_bridge_buggy;
 #else
 #define isa_dma_bridge_buggy	(0)
 #endif
-#endif				/* _ASM_DMA_H */
-#endif				/* __KERNEL__ */
+
+#endif	/* !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI) */
+
+#endif	/* _ASM_POWERPC_DMA_H */
