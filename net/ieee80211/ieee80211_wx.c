@@ -32,6 +32,7 @@
 
 #include <linux/kmod.h>
 #include <linux/module.h>
+#include <linux/jiffies.h>
 
 #include <net/ieee80211.h>
 #include <linux/wireless.h>
@@ -217,8 +218,8 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
-		      " Last beacon: %lums ago",
-		      (jiffies - network->last_scanned) / (HZ / 100));
+		      " Last beacon: %dms ago",
+		      jiffies_to_msecs(jiffies - network->last_scanned));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
@@ -248,13 +249,13 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 			ev = ipw2100_translate_scan(ieee, ev, stop, network);
 		else
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
-					     MAC_FMT ")' due to age (%lums).\n",
+					     MAC_FMT ")' due to age (%dms).\n",
 					     escape_essid(network->ssid,
 							  network->ssid_len),
 					     MAC_ARG(network->bssid),
-					     (jiffies -
-					      network->last_scanned) / (HZ /
-									100));
+					     jiffies_to_msecs(jiffies -
+							      network->
+							      last_scanned));
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
