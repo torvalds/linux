@@ -6449,7 +6449,7 @@ static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb)
 }
 
 static int ipw_net_hard_start_xmit(struct ieee80211_txb *txb,
-				   struct net_device *dev)
+				   struct net_device *dev, int pri)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	unsigned long flags;
