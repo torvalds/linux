@@ -515,7 +515,6 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 	return 0;
 }
 
-#if WIRELESS_EXT >= 18
 static void ieee80211_michael_mic_failure(struct net_device *dev,
 					  struct ieee80211_hdr_4addr *hdr,
 					  int keyidx)
@@ -536,28 +535,6 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	wrqu.data.length = sizeof(ev);
 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
-#elif WIRELESS_EXT >= 15
-static void ieee80211_michael_mic_failure(struct net_device *dev,
-					  struct ieee80211_hdr_4addr *hdr,
-					  int keyidx)
-{
-	union iwreq_data wrqu;
-	char buf[128];
-
-	/* TODO: needed parameters: count, keyid, key type, TSC */
-	sprintf(buf, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-		MAC_FMT ")", keyidx, hdr->addr1[0] & 0x01 ? "broad" : "uni",
-		MAC_ARG(hdr->addr2));
-	memset(&wrqu, 0, sizeof(wrqu));
-	wrqu.data.length = strlen(buf);
-	wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
-}
-#else				/* WIRELESS_EXT >= 15 */
-static inline void ieee80211_michael_mic_failure(struct net_device *dev, struct ieee80211_hdr_4addr
-						 *hdr, int keyidx)
-{
-}
-#endif				/* WIRELESS_EXT >= 15 */
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 					int hdr_len, void *priv)

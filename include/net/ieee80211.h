@@ -1069,14 +1069,12 @@ extern int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-#if WIRELESS_EXT > 17
 extern int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 				      struct iw_request_info *info,
 				      union iwreq_data *wrqu, char *extra);
 extern int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 				      struct iw_request_info *info,
 				      union iwreq_data *wrqu, char *extra);
-#endif
 
 static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
 {

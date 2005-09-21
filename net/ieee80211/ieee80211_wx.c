@@ -488,7 +488,6 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	return 0;
 }
 
-#if WIRELESS_EXT > 17
 int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -722,7 +721,6 @@ int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 
 EXPORT_SYMBOL(ieee80211_wx_set_encodeext);
 EXPORT_SYMBOL(ieee80211_wx_get_encodeext);
-#endif
 
 EXPORT_SYMBOL(ieee80211_wx_get_scan);
 EXPORT_SYMBOL(ieee80211_wx_set_encode);
