@@ -1640,7 +1640,7 @@ static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 /*
  * Get rid of page table information in the indicated region.
  *
- * Called with the page table lock held.
+ * Called with the mm semaphore held.
  */
 static void unmap_region(struct mm_struct *mm,
 		struct vm_area_struct *vma, struct vm_area_struct *prev,
