@@ -412,11 +412,15 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			sec.flags |= SEC_ACTIVE_KEY;
 		}
 	}
-	ieee->open_wep = !(erq->flags & IW_ENCODE_RESTRICTED);
-	sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN : WLAN_AUTH_SHARED_KEY;
-	sec.flags |= SEC_AUTH_MODE;
-	IEEE80211_DEBUG_WX("Auth: %s\n", sec.auth_mode == WLAN_AUTH_OPEN ?
-			   "OPEN" : "SHARED KEY");
+	if (erq->flags & (IW_ENCODE_OPEN | IW_ENCODE_RESTRICTED)) {
+		ieee->open_wep = !(erq->flags & IW_ENCODE_RESTRICTED);
+		sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN :
+		    WLAN_AUTH_SHARED_KEY;
+		sec.flags |= SEC_AUTH_MODE;
+		IEEE80211_DEBUG_WX("Auth: %s\n",
+				   sec.auth_mode == WLAN_AUTH_OPEN ?
+				   "OPEN" : "SHARED KEY");
+	}
 
 	/* For now we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change */
