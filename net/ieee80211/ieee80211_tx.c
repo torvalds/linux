@@ -236,7 +236,11 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	struct ieee80211_crypt_data *crypt;
+	int priority = skb->priority;
 	int snapped = 0;
+
+	if (ieee->is_queue_full && (*ieee->is_queue_full) (dev, priority))
+		return NETDEV_TX_BUSY;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -467,6 +471,14 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_bytes += txb->payload_size;
 			return 0;
 		}
+
+		if (ret == NETDEV_TX_BUSY) {
+			printk(KERN_ERR "%s: NETDEV_TX_BUSY returned; "
+			       "driver should report queue full via "
+			       "ieee_device->is_queue_full.\n",
+			       ieee->dev->name);
+		}
+
 		ieee80211_txb_free(txb);
 	}
 
