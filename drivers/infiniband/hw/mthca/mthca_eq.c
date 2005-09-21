@@ -476,12 +476,8 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	int i;
 	u8 status;
 
-	/* Make sure EQ size is aligned to a power of 2 size. */
-	for (i = 1; i < nent; i <<= 1)
-		; /* nothing */
-	nent = i;
-
-	eq->dev = dev;
+	eq->dev  = dev;
+	eq->nent = roundup_pow_of_two(max(nent, 2));
 
 	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
 				GFP_KERNEL);
@@ -512,7 +508,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 		memset(eq->page_list[i].buf, 0, PAGE_SIZE);
 	}
 
-	for (i = 0; i < nent; ++i)
+	for (i = 0; i < eq->nent; ++i)
 		set_eqe_hw(get_eqe(eq, i));
 
 	eq->eqn = mthca_alloc(&dev->eq_table.alloc);
@@ -528,8 +524,6 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	if (err)
 		goto err_out_free_eq;
 
-	eq->nent = nent;
-
 	memset(eq_context, 0, sizeof *eq_context);
 	eq_context->flags           = cpu_to_be32(MTHCA_EQ_STATUS_OK   |
 						  MTHCA_EQ_OWNER_HW    |
@@ -538,7 +532,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	if (mthca_is_memfree(dev))
 		eq_context->flags  |= cpu_to_be32(MTHCA_EQ_STATE_ARBEL);
 
-	eq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24);
+	eq_context->logsize_usrpage = cpu_to_be32((ffs(eq->nent) - 1) << 24);
 	if (mthca_is_memfree(dev)) {
 		eq_context->arbel_pd = cpu_to_be32(dev->driver_pd.pd_num);
 	} else {
@@ -569,7 +563,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	dev->eq_table.arm_mask |= eq->eqn_mask;
 
 	mthca_dbg(dev, "Allocated EQ %d with %d entries\n",
-		  eq->eqn, nent);
+		  eq->eqn, eq->nent);
 
 	return err;
 
