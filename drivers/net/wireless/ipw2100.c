@@ -3269,7 +3269,8 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data,
 	return IRQ_NONE;
 }
 
-static int ipw2100_tx(struct ieee80211_txb *txb, struct net_device *dev)
+static int ipw2100_tx(struct ieee80211_txb *txb, struct net_device *dev,
+		      int pri)
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct list_head *element;
