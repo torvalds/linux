@@ -690,6 +690,7 @@ enum ieee80211_state {
 
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
+#define CFG_IEEE80211_RTS (1<<2)
 
 struct ieee80211_device {
 	struct net_device *dev;
@@ -747,6 +748,7 @@ struct ieee80211_device {
 	struct ieee80211_frag_entry frag_cache[IEEE80211_FRAG_CACHE_LEN];
 	unsigned int frag_next_idx;
 	u16 fts;		/* Fragmentation Threshold */
+	u16 rts;		/* RTS threshold */
 
 	/* Association info */
 	u8 bssid[ETH_ALEN];

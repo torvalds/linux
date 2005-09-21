@@ -126,6 +126,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;
+	ieee->rts = DEFAULT_FTS;
 	ieee->scan_age = DEFAULT_MAX_SCAN_AGE;
 	ieee->open_wep = 1;
 

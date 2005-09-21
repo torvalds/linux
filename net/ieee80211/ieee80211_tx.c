@@ -222,13 +222,15 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	return txb;
 }
 
-/* SKBs are added to the ieee->tx_queue. */
+/* Incoming skb is converted to a txb which consist of
+ * a block of 802.11 fragment packets (stored as skbs) */
 int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
 	struct ieee80211_hdr_3addr *frag_hdr;
-	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
+	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size,
+	    rts_required;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
 	int ether_type, encrypt, host_encrypt;
@@ -334,6 +336,13 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		bytes_last_frag = bytes_per_frag;
 
+	rts_required = (frag_size > ieee->rts
+			&& ieee->config & CFG_IEEE80211_RTS);
+	if (rts_required)
+		nr_frags++;
+	else
+		bytes_last_frag = bytes_per_frag;
+
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
@@ -346,7 +355,33 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	txb->encrypted = encrypt;
 	txb->payload_size = bytes;
 
-	for (i = 0; i < nr_frags; i++) {
+	if (rts_required) {
+		skb_frag = txb->fragments[0];
+		frag_hdr =
+		    (struct ieee80211_hdr_3addr *)skb_put(skb_frag, hdr_len);
+
+		/*
+		 * Set header frame_ctl to the RTS.
+		 */
+		header.frame_ctl =
+		    cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
+		memcpy(frag_hdr, &header, hdr_len);
+
+		/*
+		 * Restore header frame_ctl to the original data setting.
+		 */
+		header.frame_ctl = cpu_to_le16(fc);
+
+		if (ieee->config &
+		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
+			skb_put(skb_frag, 4);
+
+		txb->rts_included = 1;
+		i = 1;
+	} else
+		i = 0;
+
+	for (; i < nr_frags; i++) {
 		skb_frag = txb->fragments[i];
 
 		if (host_encrypt)
