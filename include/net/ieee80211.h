@@ -603,17 +603,21 @@ struct ieee80211_auth {
 	__le16 algorithm;
 	__le16 transaction;
 	__le16 status;
+	/* challenge */
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
 struct ieee80211_disassoc {
 	struct ieee80211_hdr_3addr header;
-	__le16 reason_code;
-	struct ieee80211_info_element info_element[0];
+	__le16 reason;
 } __attribute__ ((packed));
+
+/* Alias deauth for disassoc */
+#define ieee82011_deauth ieee80211_disassoc
 
 struct ieee80211_probe_request {
 	struct ieee80211_hdr_3addr header;
+	/* SSID, supported rates */
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
@@ -622,6 +626,8 @@ struct ieee80211_probe_response {
 	u32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
+	/* SSID, supported rates, FH params, DS params,
+	 * CF params, IBSS params, TIM (if beacon), RSN */
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
@@ -632,6 +638,7 @@ struct ieee80211_assoc_request {
 	struct ieee80211_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
+	/* SSID, supported rates, RSN */
 	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
@@ -648,7 +655,8 @@ struct ieee80211_assoc_response {
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
-	struct ieee80211_info_element info_element[0];	/* supported rates */
+	/* supported rates */
+	struct ieee80211_info_element info_element[0];
 } __attribute__ ((packed));
 
 struct ieee80211_txb {
