@@ -221,8 +221,8 @@ static struct ieee80211_crypto_ops ieee80211_crypt_null = {
 	.decrypt_msdu = NULL,
 	.set_key = NULL,
 	.get_key = NULL,
-	.extra_prefix_len = 0,
-	.extra_postfix_len = 0,
+	.extra_mpdu_prefix_len = 0,
+	.extra_mpdu_postfix_len = 0,
 	.owner = THIS_MODULE,
 };
 

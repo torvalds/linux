@@ -239,8 +239,8 @@ static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
 	.set_key = prism2_wep_set_key,
 	.get_key = prism2_wep_get_key,
 	.print_stats = prism2_wep_print_stats,
-	.extra_prefix_len = 4,	/* IV */
-	.extra_postfix_len = 4,	/* ICV */
+	.extra_mpdu_prefix_len = 4,	/* IV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.owner = THIS_MODULE,
 };
 

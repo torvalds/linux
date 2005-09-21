@@ -63,7 +63,8 @@ struct ieee80211_crypto_ops {
 	 * extra_postfix_len; encrypt need not use all this space, but
 	 * the result must start at the beginning of the buffer and correct
 	 * length must be returned */
-	int extra_prefix_len, extra_postfix_len;
+	int extra_mpdu_prefix_len, extra_mpdu_postfix_len;
+	int extra_msdu_prefix_len, extra_msdu_postfix_len;
 
 	struct module *owner;
 };

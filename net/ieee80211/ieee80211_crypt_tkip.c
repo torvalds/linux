@@ -690,8 +690,9 @@ static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
 	.set_key = ieee80211_tkip_set_key,
 	.get_key = ieee80211_tkip_get_key,
 	.print_stats = ieee80211_tkip_print_stats,
-	.extra_prefix_len = 4 + 4,	/* IV + ExtIV */
-	.extra_postfix_len = 8 + 4,	/* MIC + ICV */
+	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
+	.extra_msdu_postfix_len = 8,	/* MIC */
 	.owner = THIS_MODULE,
 };
 

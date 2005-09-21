@@ -724,7 +724,9 @@ struct ieee80211_device {
 
 	/* If the host performs {en,de}cryption, then set to 1 */
 	int host_encrypt;
+	int host_encrypt_msdu;
 	int host_decrypt;
+	int host_open_frag;
 	int ieee802_1x;		/* is IEEE 802.1X used */
 
 	/* WPA data */

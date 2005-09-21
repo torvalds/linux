@@ -436,8 +436,8 @@ static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {
 	.set_key = ieee80211_ccmp_set_key,
 	.get_key = ieee80211_ccmp_get_key,
 	.print_stats = ieee80211_ccmp_print_stats,
-	.extra_prefix_len = CCMP_HDR_LEN,
-	.extra_postfix_len = CCMP_MIC_LEN,
+	.extra_mpdu_prefix_len = CCMP_HDR_LEN,
+	.extra_mpdu_postfix_len = CCMP_MIC_LEN,
 	.owner = THIS_MODULE,
 };
 

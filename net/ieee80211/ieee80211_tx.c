@@ -128,7 +128,7 @@ payload of each frame is reduced to 492 bytes.
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-static inline int ieee80211_put_snap(u8 * data, u16 h_proto)
+static inline int ieee80211_copy_snap(u8 * data, u16 h_proto)
 {
 	struct ieee80211_snap_hdr *snap;
 	u8 *oui;
@@ -159,15 +159,9 @@ static inline int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
-
-	// PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption.
-	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
-	 * call both MSDU and MPDU encryption functions from here. */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
-	if (crypt->ops->encrypt_msdu)
-		res = crypt->ops->encrypt_msdu(frag, hdr_len, crypt->priv);
-	if (res == 0 && crypt->ops->encrypt_mpdu)
+	if (crypt->ops->encrypt_mpdu)
 		res = crypt->ops->encrypt_mpdu(frag, hdr_len, crypt->priv);
 
 	atomic_dec(&crypt->refcnt);
@@ -222,7 +216,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	return txb;
 }
 
-/* Incoming skb is converted to a txb which consist of
+/* Incoming skb is converted to a txb which consists of
  * a block of 802.11 fragment packets (stored as skbs) */
 int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -233,7 +227,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	    rts_required;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
-	int ether_type, encrypt, host_encrypt;
+	int ether_type, encrypt, host_encrypt, host_encrypt_msdu;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
 	struct ieee80211_hdr_3addr header = {	/* Ensure zero initialized */
@@ -241,8 +235,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		.seq_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
-
 	struct ieee80211_crypt_data *crypt;
+	int snapped = 0;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -266,6 +260,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
 	    ieee->sec.encrypt;
 	host_encrypt = ieee->host_encrypt && encrypt;
+	host_encrypt_msdu = ieee->host_encrypt_msdu && encrypt;
 
 	if (!encrypt && ieee->ieee802_1x &&
 	    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
@@ -291,14 +286,12 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (ieee->iw_mode == IW_MODE_INFRA) {
 		fc |= IEEE80211_FCTL_TODS;
-		/* To DS: Addr1 = BSSID, Addr2 = SA,
-		   Addr3 = DA */
+		/* To DS: Addr1 = BSSID, Addr2 = SA, Addr3 = DA */
 		memcpy(header.addr1, ieee->bssid, ETH_ALEN);
 		memcpy(header.addr2, src, ETH_ALEN);
 		memcpy(header.addr3, dest, ETH_ALEN);
 	} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-		/* not From/To DS: Addr1 = DA, Addr2 = SA,
-		   Addr3 = BSSID */
+		/* not From/To DS: Addr1 = DA, Addr2 = SA, Addr3 = BSSID */
 		memcpy(header.addr1, dest, ETH_ALEN);
 		memcpy(header.addr2, src, ETH_ALEN);
 		memcpy(header.addr3, ieee->bssid, ETH_ALEN);
@@ -306,42 +299,75 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	header.frame_ctl = cpu_to_le16(fc);
 	hdr_len = IEEE80211_3ADDR_LEN;
 
-	/* Determine fragmentation size based on destination (multicast
-	 * and broadcast are not fragmented) */
-	if (is_multicast_ether_addr(dest) || is_broadcast_ether_addr(dest))
-		frag_size = MAX_FRAG_THRESHOLD;
-	else
-		frag_size = ieee->fts;
+	/* Encrypt msdu first on the whole data packet. */
+	if ((host_encrypt || host_encrypt_msdu) &&
+	    crypt && crypt->ops && crypt->ops->encrypt_msdu) {
+		int res = 0;
+		int len = bytes + hdr_len + crypt->ops->extra_msdu_prefix_len +
+		    crypt->ops->extra_msdu_postfix_len;
+		struct sk_buff *skb_new = dev_alloc_skb(len);
+		if (unlikely(!skb_new))
+			goto failed;
+		skb_reserve(skb_new, crypt->ops->extra_msdu_prefix_len);
+		memcpy(skb_put(skb_new, hdr_len), &header, hdr_len);
+		snapped = 1;
+		ieee80211_copy_snap(skb_put(skb_new, SNAP_SIZE + sizeof(u16)),
+				    ether_type);
+		memcpy(skb_put(skb_new, skb->len), skb->data, skb->len);
+		res = crypt->ops->encrypt_msdu(skb_new, hdr_len, crypt->priv);
+		if (res < 0) {
+			IEEE80211_ERROR("msdu encryption failed\n");
+			dev_kfree_skb_any(skb_new);
+			goto failed;
+		}
+		dev_kfree_skb_any(skb);
+		skb = skb_new;
+		bytes += crypt->ops->extra_msdu_prefix_len +
+		    crypt->ops->extra_msdu_postfix_len;
+		skb_pull(skb, hdr_len);
+	}
 
-	/* Determine amount of payload per fragment.  Regardless of if
-	 * this stack is providing the full 802.11 header, one will
-	 * eventually be affixed to this fragment -- so we must account for
-	 * it when determining the amount of payload space. */
-	bytes_per_frag = frag_size - IEEE80211_3ADDR_LEN;
-	if (ieee->config &
-	    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
-		bytes_per_frag -= IEEE80211_FCS_LEN;
+	if (host_encrypt || ieee->host_open_frag) {
+		/* Determine fragmentation size based on destination (multicast
+		 * and broadcast are not fragmented) */
+		if (is_multicast_ether_addr(dest))
+			frag_size = MAX_FRAG_THRESHOLD;
+		else
+			frag_size = ieee->fts;
 
-	/* Each fragment may need to have room for encryptiong pre/postfix */
-	if (host_encrypt)
-		bytes_per_frag -= crypt->ops->extra_prefix_len +
-		    crypt->ops->extra_postfix_len;
+		/* Determine amount of payload per fragment.  Regardless of if
+		 * this stack is providing the full 802.11 header, one will
+		 * eventually be affixed to this fragment -- so we must account
+		 * for it when determining the amount of payload space. */
+		bytes_per_frag = frag_size - IEEE80211_3ADDR_LEN;
+		if (ieee->config &
+		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
+			bytes_per_frag -= IEEE80211_FCS_LEN;
 
-	/* Number of fragments is the total bytes_per_frag /
-	 * payload_per_fragment */
-	nr_frags = bytes / bytes_per_frag;
-	bytes_last_frag = bytes % bytes_per_frag;
-	if (bytes_last_frag)
-		nr_frags++;
-	else
-		bytes_last_frag = bytes_per_frag;
+		/* Each fragment may need to have room for encryptiong
+		 * pre/postfix */
+		if (host_encrypt)
+			bytes_per_frag -= crypt->ops->extra_mpdu_prefix_len +
+			    crypt->ops->extra_mpdu_postfix_len;
+
+		/* Number of fragments is the total
+		 * bytes_per_frag / payload_per_fragment */
+		nr_frags = bytes / bytes_per_frag;
+		bytes_last_frag = bytes % bytes_per_frag;
+		if (bytes_last_frag)
+			nr_frags++;
+		else
+			bytes_last_frag = bytes_per_frag;
+	} else {
+		nr_frags = 1;
+		bytes_per_frag = bytes_last_frag = bytes;
+		frag_size = bytes + IEEE80211_3ADDR_LEN;
+	}
 
 	rts_required = (frag_size > ieee->rts
 			&& ieee->config & CFG_IEEE80211_RTS);
 	if (rts_required)
 		nr_frags++;
-	else
-		bytes_last_frag = bytes_per_frag;
 
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
@@ -353,7 +379,11 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto failed;
 	}
 	txb->encrypted = encrypt;
-	txb->payload_size = bytes;
+	if (host_encrypt)
+		txb->payload_size = frag_size * (nr_frags - 1) +
+		    bytes_last_frag;
+	else
+		txb->payload_size = bytes;
 
 	if (rts_required) {
 		skb_frag = txb->fragments[0];
@@ -385,7 +415,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_frag = txb->fragments[i];
 
 		if (host_encrypt)
-			skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
+			skb_reserve(skb_frag,
+				    crypt->ops->extra_mpdu_prefix_len);
 
 		frag_hdr =
 		    (struct ieee80211_hdr_3addr *)skb_put(skb_frag, hdr_len);
@@ -402,11 +433,10 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			bytes = bytes_last_frag;
 		}
 
-		/* Put a SNAP header on the first fragment */
-		if (i == 0) {
-			ieee80211_put_snap(skb_put
-					   (skb_frag, SNAP_SIZE + sizeof(u16)),
-					   ether_type);
+		if (i == 0 && !snapped) {
+			ieee80211_copy_snap(skb_put
+					    (skb_frag, SNAP_SIZE + sizeof(u16)),
+					    ether_type);
 			bytes -= SNAP_SIZE + sizeof(u16);
 		}
 
@@ -420,19 +450,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (host_encrypt)
 			ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 
-		/* ipw2200/2915 Hardware encryption doesn't support TKIP MIC */
-		if (!ieee->host_encrypt && encrypt &&
-		    (ieee->sec.level == SEC_LEVEL_2) &&
-		    crypt && crypt->ops && crypt->ops->encrypt_msdu) {
-			int res = 0;
-			res = crypt->ops->encrypt_msdu(skb_frag, hdr_len,
-						       crypt->priv);
-			if (res < 0) {
-				IEEE80211_ERROR("TKIP MIC encryption failed\n");
-				goto failed;
-			}
-		}
-
 		if (ieee->config &
 		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
 			skb_put(skb_frag, 4);
@@ -444,7 +461,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb_any(skb);
 
 	if (txb) {
-		if ((*ieee->hard_start_xmit) (txb, dev) == 0) {
+		int ret = (*ieee->hard_start_xmit) (txb, dev);
+		if (ret == 0) {
 			stats->tx_packets++;
 			stats->tx_bytes += txb->payload_size;
 			return 0;
