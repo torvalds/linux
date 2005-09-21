@@ -465,7 +465,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb_any(skb);
 
 	if (txb) {
-		int ret = (*ieee->hard_start_xmit) (txb, dev);
+		int ret = (*ieee->hard_start_xmit) (txb, dev, priority);
 		if (ret == 0) {
 			stats->tx_packets++;
 			stats->tx_bytes += txb->payload_size;
@@ -500,6 +500,7 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
 	struct sk_buff *skb_frag;
+	int priority = -1;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -540,7 +541,7 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
 	if (txb) {
-		if ((*ieee->hard_start_xmit) (txb, ieee->dev) == 0) {
+		if ((*ieee->hard_start_xmit) (txb, ieee->dev, priority) == 0) {
 			stats->tx_packets++;
 			stats->tx_bytes += txb->payload_size;
 			return 0;

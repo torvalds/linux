@@ -92,6 +92,7 @@
 #define IEEE80211_STYPE_CFACK		0x0050
 #define IEEE80211_STYPE_CFPOLL		0x0060
 #define IEEE80211_STYPE_CFACKPOLL	0x0070
+#define IEEE80211_STYPE_QOS_DATA        0x0080
 
 #define IEEE80211_SCTL_FRAG		0x000F
 #define IEEE80211_SCTL_SEQ		0xFFF0
@@ -153,6 +154,7 @@ const char *escape_essid(const char *essid, u8 essid_len);
 
 #define IEEE80211_DL_TX            (1<<8)
 #define IEEE80211_DL_RX            (1<<9)
+#define IEEE80211_DL_QOS           (1<<31)
 
 #define IEEE80211_ERROR(f, a...) printk(KERN_ERR "ieee80211: " f, ## a)
 #define IEEE80211_WARNING(f, a...) printk(KERN_WARNING "ieee80211: " f, ## a)
@@ -166,6 +168,7 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DEBUG_DROP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_DROP, f, ## a)
 #define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
+#define IEEE80211_DEBUG_QOS(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_QOS, f, ## a)
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <linux/if_arp.h>	/* ARPHRD_ETHER */
@@ -493,6 +496,7 @@ enum ieee80211_mfie {
 	MFIE_TYPE_RSN = 48,
 	MFIE_TYPE_RATES_EX = 50,
 	MFIE_TYPE_GENERIC = 221,
+	MFIE_TYPE_QOS_PARAMETER = 222,
 };
 
 /* Minimal header; can be used for passing 802.11 frames with sufficient
@@ -538,6 +542,29 @@ struct ieee80211_hdr_4addr {
 	u16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addrqos {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 payload[0];
+	u16 qos_ctl;
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_4addrqos {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 addr4[ETH_ALEN];
+	u8 payload[0];
+	u16 qos_ctl;
 } __attribute__ ((packed));
 
 struct ieee80211_info_element {
@@ -641,9 +668,68 @@ struct ieee80211_txb {
 
 #define MAX_WPA_IE_LEN 64
 
-#define NETWORK_EMPTY_ESSID (1<<0)
-#define NETWORK_HAS_OFDM    (1<<1)
-#define NETWORK_HAS_CCK     (1<<2)
+#define NETWORK_EMPTY_ESSID    (1<<0)
+#define NETWORK_HAS_OFDM       (1<<1)
+#define NETWORK_HAS_CCK        (1<<2)
+
+/* QoS structure */
+#define NETWORK_HAS_QOS_PARAMETERS      (1<<3)
+#define NETWORK_HAS_QOS_INFORMATION     (1<<4)
+#define NETWORK_HAS_QOS_MASK            (NETWORK_HAS_QOS_PARAMETERS | NETWORK_HAS_QOS_INFORMATION)
+
+#define QOS_QUEUE_NUM                   4
+#define QOS_OUI_LEN                     3
+#define QOS_OUI_TYPE                    2
+#define QOS_ELEMENT_ID                  221
+#define QOS_OUI_INFO_SUB_TYPE           0
+#define QOS_OUI_PARAM_SUB_TYPE          1
+#define QOS_VERSION_1                   1
+#define QOS_AIFSN_MIN_VALUE             2
+
+struct ieee80211_qos_information_element {
+	u8 elementID;
+	u8 length;
+	u8 qui[QOS_OUI_LEN];
+	u8 qui_type;
+	u8 qui_subtype;
+	u8 version;
+	u8 ac_info;
+} __attribute__ ((packed));
+
+struct ieee80211_qos_ac_parameter {
+	u8 aci_aifsn;
+	u8 ecw_min_max;
+	u16 tx_op_limit;
+} __attribute__ ((packed));
+
+struct ieee80211_qos_parameter_info {
+	struct ieee80211_qos_information_element info_element;
+	u8 reserved;
+	struct ieee80211_qos_ac_parameter ac_params_record[QOS_QUEUE_NUM];
+} __attribute__ ((packed));
+
+struct ieee80211_qos_parameters {
+	u16 cw_min[QOS_QUEUE_NUM];
+	u16 cw_max[QOS_QUEUE_NUM];
+	u8 aifs[QOS_QUEUE_NUM];
+	u8 flag[QOS_QUEUE_NUM];
+	u16 tx_op_limit[QOS_QUEUE_NUM];
+} __attribute__ ((packed));
+
+struct ieee80211_qos_data {
+	struct ieee80211_qos_parameters parameters;
+	int active;
+	int supported;
+	u8 param_count;
+	u8 old_param_count;
+};
+
+struct ieee80211_tim_parameters {
+	u8 tim_count;
+	u8 tim_period;
+} __attribute__ ((packed));
+
+/*******************************************************/
 
 struct ieee80211_network {
 	/* These entries are used to identify a unique network */
@@ -652,6 +738,8 @@ struct ieee80211_network {
 	/* Ensure null-terminated for any debug msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
+
+	struct ieee80211_qos_data qos_data;
 
 	/* These are network statistics */
 	struct ieee80211_rx_stats stats;
@@ -672,6 +760,7 @@ struct ieee80211_network {
 	size_t wpa_ie_len;
 	u8 rsn_ie[MAX_WPA_IE_LEN];
 	size_t rsn_ie_len;
+	struct ieee80211_tim_parameters tim;
 	struct list_head list;
 };
 
@@ -769,9 +858,12 @@ struct ieee80211_device {
 	void (*set_security) (struct net_device * dev,
 			      struct ieee80211_security * sec);
 	int (*hard_start_xmit) (struct ieee80211_txb * txb,
-				struct net_device * dev);
+				struct net_device * dev, int pri);
 	int (*reset_port) (struct net_device * dev);
 	int (*is_queue_full) (struct net_device * dev, int pri);
+
+	int (*handle_management) (struct net_device * dev,
+				  struct ieee80211_network * network, u16 type);
 
 	/* Typical STA methods */
 	int (*handle_auth) (struct net_device * dev,
@@ -854,11 +946,14 @@ extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
 extern inline int ieee80211_get_hdrlen(u16 fc)
 {
 	int hdrlen = IEEE80211_3ADDR_LEN;
+	u16 stype = WLAN_FC_GET_STYPE(fc);
 
 	switch (WLAN_FC_GET_TYPE(fc)) {
 	case IEEE80211_FTYPE_DATA:
 		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
 			hdrlen = IEEE80211_4ADDR_LEN;
+		if (stype & IEEE80211_STYPE_QOS_DATA)
+			hdrlen += 2;
 		break;
 	case IEEE80211_FTYPE_CTL:
 		switch (WLAN_FC_GET_STYPE(fc)) {

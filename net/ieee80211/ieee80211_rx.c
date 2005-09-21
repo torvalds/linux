@@ -534,6 +534,9 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here. */
+
+	stype &= ~IEEE80211_STYPE_QOS_DATA;
+
 	if (stype != IEEE80211_STYPE_DATA &&
 	    stype != IEEE80211_STYPE_DATA_CFACK &&
 	    stype != IEEE80211_STYPE_DATA_CFPOLL &&
@@ -758,6 +761,264 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 #define MGMT_FRAME_FIXED_PART_LENGTH		0x24
 
+static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };
+
+/*
+* Make ther structure we read from the beacon packet has
+* the right values
+*/
+static int ieee80211_verify_qos_info(struct ieee80211_qos_information_element
+				     *info_element, int sub_type)
+{
+
+	if (info_element->qui_subtype != sub_type)
+		return -1;
+	if (memcmp(info_element->qui, qos_oui, QOS_OUI_LEN))
+		return -1;
+	if (info_element->qui_type != QOS_OUI_TYPE)
+		return -1;
+	if (info_element->version != QOS_VERSION_1)
+		return -1;
+
+	return 0;
+}
+
+/*
+ * Parse a QoS parameter element
+ */
+static int ieee80211_read_qos_param_element(struct ieee80211_qos_parameter_info
+					    *element_param, struct ieee80211_info_element
+					    *info_element)
+{
+	int ret = 0;
+	u16 size = sizeof(struct ieee80211_qos_parameter_info) - 2;
+
+	if ((info_element == NULL) || (element_param == NULL))
+		return -1;
+
+	if (info_element->id == QOS_ELEMENT_ID && info_element->len == size) {
+		memcpy(element_param->info_element.qui, info_element->data,
+		       info_element->len);
+		element_param->info_element.elementID = info_element->id;
+		element_param->info_element.length = info_element->len;
+	} else
+		ret = -1;
+	if (ret == 0)
+		ret = ieee80211_verify_qos_info(&element_param->info_element,
+						QOS_OUI_PARAM_SUB_TYPE);
+	return ret;
+}
+
+/*
+ * Parse a QoS information element
+ */
+static int ieee80211_read_qos_info_element(struct
+					   ieee80211_qos_information_element
+					   *element_info, struct ieee80211_info_element
+					   *info_element)
+{
+	int ret = 0;
+	u16 size = sizeof(struct ieee80211_qos_information_element) - 2;
+
+	if (element_info == NULL)
+		return -1;
+	if (info_element == NULL)
+		return -1;
+
+	if ((info_element->id == QOS_ELEMENT_ID) && (info_element->len == size)) {
+		memcpy(element_info->qui, info_element->data,
+		       info_element->len);
+		element_info->elementID = info_element->id;
+		element_info->length = info_element->len;
+	} else
+		ret = -1;
+
+	if (ret == 0)
+		ret = ieee80211_verify_qos_info(element_info,
+						QOS_OUI_INFO_SUB_TYPE);
+	return ret;
+}
+
+/*
+ * Write QoS parameters from the ac parameters.
+ */
+static int ieee80211_qos_convert_ac_to_parameters(struct
+						  ieee80211_qos_parameter_info
+						  *param_elm, struct
+						  ieee80211_qos_parameters
+						  *qos_param)
+{
+	int rc = 0;
+	int i;
+	struct ieee80211_qos_ac_parameter *ac_params;
+	u32 txop;
+	u8 cw_min;
+	u8 cw_max;
+
+	for (i = 0; i < QOS_QUEUE_NUM; i++) {
+		ac_params = &(param_elm->ac_params_record[i]);
+
+		qos_param->aifs[i] = (ac_params->aci_aifsn) & 0x0F;
+		qos_param->aifs[i] -= (qos_param->aifs[i] < 2) ? 0 : 2;
+
+		cw_min = ac_params->ecw_min_max & 0x0F;
+		qos_param->cw_min[i] = (u16) ((1 << cw_min) - 1);
+
+		cw_max = (ac_params->ecw_min_max & 0xF0) >> 4;
+		qos_param->cw_max[i] = (u16) ((1 << cw_max) - 1);
+
+		qos_param->flag[i] =
+		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
+
+		txop = le16_to_cpu(ac_params->tx_op_limit) * 32;
+		qos_param->tx_op_limit[i] = (u16) txop;
+	}
+	return rc;
+}
+
+/*
+ * we have a generic data element which it may contain QoS information or
+ * parameters element. check the information element length to decide
+ * which type to read
+ */
+static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
+					     *info_element,
+					     struct ieee80211_network *network)
+{
+	int rc = 0;
+	struct ieee80211_qos_parameters *qos_param = NULL;
+	struct ieee80211_qos_information_element qos_info_element;
+
+	rc = ieee80211_read_qos_info_element(&qos_info_element, info_element);
+
+	if (rc == 0) {
+		network->qos_data.param_count = qos_info_element.ac_info & 0x0F;
+		network->flags |= NETWORK_HAS_QOS_INFORMATION;
+	} else {
+		struct ieee80211_qos_parameter_info param_element;
+
+		rc = ieee80211_read_qos_param_element(&param_element,
+						      info_element);
+		if (rc == 0) {
+			qos_param = &(network->qos_data.parameters);
+			ieee80211_qos_convert_ac_to_parameters(&param_element,
+							       qos_param);
+			network->flags |= NETWORK_HAS_QOS_PARAMETERS;
+			network->qos_data.param_count =
+			    param_element.info_element.ac_info & 0x0F;
+		}
+	}
+
+	if (rc == 0) {
+		IEEE80211_DEBUG_QOS("QoS is supported\n");
+		network->qos_data.supported = 1;
+	}
+	return rc;
+}
+
+static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct ieee80211_assoc_response
+				       *frame, struct ieee80211_rx_stats *stats)
+{
+	struct ieee80211_network network_resp;
+	struct ieee80211_network *network = &network_resp;
+	struct ieee80211_info_element *info_element;
+	struct net_device *dev = ieee->dev;
+	u16 left;
+
+	network->flags = 0;
+	network->qos_data.active = 0;
+	network->qos_data.supported = 0;
+	network->qos_data.param_count = 0;
+	network->qos_data.old_param_count = 0;
+
+	//network->atim_window = le16_to_cpu(frame->aid) & (0x3FFF);
+	network->atim_window = le16_to_cpu(frame->aid);
+	network->listen_interval = le16_to_cpu(frame->status);
+
+	info_element = frame->info_element;
+	left = stats->len - sizeof(*frame);
+
+	while (left >= sizeof(struct ieee80211_info_element)) {
+		if (sizeof(struct ieee80211_info_element) +
+		    info_element->len > left) {
+			IEEE80211_DEBUG_QOS("ASSOC RESP: parse failed: "
+					    "info_element->len + 2 > left : "
+					    "info_element->len+2=%zd left=%d, id=%d.\n",
+					    info_element->len +
+					    sizeof(struct
+						   ieee80211_info_element),
+					    left, info_element->id);
+			return 1;
+		}
+
+		switch (info_element->id) {
+		case MFIE_TYPE_SSID:
+			if (ieee80211_is_empty_essid(info_element->data,
+						     info_element->len)) {
+				network->flags |= NETWORK_EMPTY_ESSID;
+				break;
+			}
+
+			network->ssid_len = min(info_element->len,
+						(u8) IW_ESSID_MAX_SIZE);
+			memcpy(network->ssid, info_element->data,
+			       network->ssid_len);
+			if (network->ssid_len < IW_ESSID_MAX_SIZE)
+				memset(network->ssid + network->ssid_len, 0,
+				       IW_ESSID_MAX_SIZE - network->ssid_len);
+
+			IEEE80211_DEBUG_QOS("MFIE_TYPE_SSID: '%s' len=%d.\n",
+					    network->ssid, network->ssid_len);
+			break;
+
+		case MFIE_TYPE_TIM:
+			IEEE80211_DEBUG_QOS("MFIE_TYPE_TIM: ignored\n");
+			break;
+
+		case MFIE_TYPE_IBSS_SET:
+			IEEE80211_DEBUG_QOS("MFIE_TYPE_IBSS_SET: ignored\n");
+			break;
+
+		case MFIE_TYPE_CHALLENGE:
+			IEEE80211_DEBUG_QOS("MFIE_TYPE_CHALLENGE: ignored\n");
+			break;
+
+		case MFIE_TYPE_GENERIC:
+			IEEE80211_DEBUG_QOS("MFIE_TYPE_GENERIC: %d bytes\n",
+					    info_element->len);
+			ieee80211_parse_qos_info_param_IE(info_element,
+							  network);
+			break;
+
+		case MFIE_TYPE_RSN:
+			IEEE80211_DEBUG_QOS("MFIE_TYPE_RSN: %d bytes\n",
+					    info_element->len);
+			break;
+
+		case MFIE_TYPE_QOS_PARAMETER:
+			printk("QoS Error need to parse QOS_PARAMETER IE\n");
+			break;
+
+		default:
+			IEEE80211_DEBUG_QOS("unsupported IE %d\n",
+					    info_element->id);
+			break;
+		}
+
+		left -= sizeof(struct ieee80211_info_element) +
+		    info_element->len;
+		info_element = (struct ieee80211_info_element *)
+		    &info_element->data[info_element->len];
+	}
+
+	if (ieee->handle_assoc_response != NULL)
+		ieee->handle_assoc_response(dev, frame, network);
+
+	return 0;
+}
+
+/***************************************************/
+
 static inline int ieee80211_is_ofdm_rate(u8 rate)
 {
 	switch (rate & ~IEEE80211_BASIC_RATE_MASK) {
@@ -786,6 +1047,9 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	struct ieee80211_info_element *info_element;
 	u16 left;
 	u8 i;
+	network->qos_data.active = 0;
+	network->qos_data.supported = 0;
+	network->qos_data.param_count = 0;
 
 	/* Pull out fixed field data */
 	memcpy(network->bssid, beacon->header.addr3, ETH_ALEN);
@@ -813,13 +1077,11 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 
 	info_element = beacon->info_element;
 	left = stats->len - sizeof(*beacon);
-	while (left >= sizeof(struct ieee80211_info_element)) {
-		if (sizeof(struct ieee80211_info_element) + info_element->len >
-		    left) {
+	while (left >= sizeof(*info_element)) {
+		if (sizeof(*info_element) + info_element->len > left) {
 			IEEE80211_DEBUG_SCAN
 			    ("SCAN: parse failed: info_element->len + 2 > left : info_element->len+2=%Zd left=%d.\n",
-			     info_element->len +
-			     sizeof(struct ieee80211_info_element), left);
+			     info_element->len + sizeof(*info_element), left);
 			return 1;
 		}
 
@@ -847,15 +1109,14 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 #ifdef CONFIG_IEEE80211_DEBUG
 			p = rates_str;
 #endif
-			network->rates_len =
-			    min(info_element->len, MAX_RATES_LENGTH);
+			network->rates_len = min(info_element->len,
+						 MAX_RATES_LENGTH);
 			for (i = 0; i < network->rates_len; i++) {
 				network->rates[i] = info_element->data[i];
 #ifdef CONFIG_IEEE80211_DEBUG
-				p += snprintf(p,
-					      sizeof(rates_str) - (p -
-								   rates_str),
-					      "%02X ", network->rates[i]);
+				p += snprintf(p, sizeof(rates_str) -
+					      (p - rates_str), "%02X ",
+					      network->rates[i]);
 #endif
 				if (ieee80211_is_ofdm_rate
 				    (info_element->data[i])) {
@@ -875,15 +1136,14 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 #ifdef CONFIG_IEEE80211_DEBUG
 			p = rates_str;
 #endif
-			network->rates_ex_len =
-			    min(info_element->len, MAX_RATES_EX_LENGTH);
+			network->rates_ex_len = min(info_element->len,
+						    MAX_RATES_EX_LENGTH);
 			for (i = 0; i < network->rates_ex_len; i++) {
 				network->rates_ex[i] = info_element->data[i];
 #ifdef CONFIG_IEEE80211_DEBUG
-				p += snprintf(p,
-					      sizeof(rates_str) - (p -
-								   rates_str),
-					      "%02X ", network->rates[i]);
+				p += snprintf(p, sizeof(rates_str) -
+					      (p - rates_str), "%02X ",
+					      network->rates[i]);
 #endif
 				if (ieee80211_is_ofdm_rate
 				    (info_element->data[i])) {
@@ -929,6 +1189,10 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 		case MFIE_TYPE_GENERIC:
 			IEEE80211_DEBUG_SCAN("MFIE_TYPE_GENERIC: %d bytes\n",
 					     info_element->len);
+			if (!ieee80211_parse_qos_info_param_IE(info_element,
+							       network))
+				break;
+
 			if (info_element->len >= 4 &&
 			    info_element->data[0] == 0x00 &&
 			    info_element->data[1] == 0x50 &&
@@ -950,14 +1214,18 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 			       network->rsn_ie_len);
 			break;
 
+		case MFIE_TYPE_QOS_PARAMETER:
+			printk(KERN_ERR
+			       "QoS Error need to parse QOS_PARAMETER IE\n");
+			break;
+
 		default:
 			IEEE80211_DEBUG_SCAN("unsupported IE %d\n",
 					     info_element->id);
 			break;
 		}
 
-		left -= sizeof(struct ieee80211_info_element) +
-		    info_element->len;
+		left -= sizeof(*info_element) + info_element->len;
 		info_element = (struct ieee80211_info_element *)
 		    &info_element->data[info_element->len];
 	}
@@ -1004,6 +1272,9 @@ static inline int is_same_network(struct ieee80211_network *src,
 static inline void update_network(struct ieee80211_network *dst,
 				  struct ieee80211_network *src)
 {
+	int qos_active;
+	u8 old_param;
+
 	memcpy(&dst->stats, &src->stats, sizeof(struct ieee80211_rx_stats));
 	dst->capability = src->capability;
 	memcpy(dst->rates, src->rates, src->rates_len);
@@ -1026,6 +1297,28 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->rsn_ie_len = src->rsn_ie_len;
 
 	dst->last_scanned = jiffies;
+	qos_active = src->qos_data.active;
+	old_param = dst->qos_data.old_param_count;
+	if (dst->flags & NETWORK_HAS_QOS_MASK)
+		memcpy(&dst->qos_data, &src->qos_data,
+		       sizeof(struct ieee80211_qos_data));
+	else {
+		dst->qos_data.supported = src->qos_data.supported;
+		dst->qos_data.param_count = src->qos_data.param_count;
+	}
+
+	if (dst->qos_data.supported == 1) {
+		if (dst->ssid_len)
+			IEEE80211_DEBUG_QOS
+			    ("QoS the network %s is QoS supported\n",
+			     dst->ssid);
+		else
+			IEEE80211_DEBUG_QOS
+			    ("QoS the network is QoS supported\n");
+	}
+	dst->qos_data.active = qos_active;
+	dst->qos_data.old_param_count = old_param;
+
 	/* dst->last_associate is not overwritten */
 }
 
@@ -1167,6 +1460,9 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		IEEE80211_DEBUG_MGMT("received ASSOCIATION RESPONSE (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
+		ieee80211_handle_assoc_resp(ieee,
+					    (struct ieee80211_assoc_response *)
+					    header, stats);
 		break;
 
 	case IEEE80211_STYPE_REASSOC_RESP:
