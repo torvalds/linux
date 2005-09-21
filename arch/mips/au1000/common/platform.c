@@ -7,6 +7,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -114,6 +115,24 @@ static struct resource au1xxx_usb_gdt_resources[] = {
 	},
 };
 
+static struct resource au1xxx_mmc_resources[] = {
+	[0] = {
+		.start          = SD0_PHYS_ADDR,
+		.end            = SD0_PHYS_ADDR + 0x40,
+		.flags          = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= SD1_PHYS_ADDR,
+		.end 		= SD1_PHYS_ADDR + 0x40,
+		.flags		= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start          = AU1200_SD_INT,
+		.end            = AU1200_SD_INT,
+		.flags          = IORESOURCE_IRQ,
+	}
+};
+
 static u64 udc_dmamask = ~(u32)0;
 
 static struct platform_device au1xxx_usb_gdt_device = {
@@ -207,6 +226,20 @@ static struct platform_device au1200_ide0_device = {
 	.resource	= au1200_ide0_resources,
 };
 
+static u64 au1xxx_mmc_dmamask =  ~(u32)0;
+
+static struct platform_device au1xxx_mmc_device = {
+	.name = "au1xxx-mmc",
+	.id = 0,
+	.dev = {
+		.dma_mask               = &au1xxx_mmc_dmamask,
+		.coherent_dma_mask      = 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(au1xxx_mmc_resources),
+	.resource       = au1xxx_mmc_resources,
+};
+#endif /* #ifdef CONFIG_SOC_AU1200 */
+
 static struct platform_device au1x00_pcmcia_device = {
 	.name 		= "au1x00-pcmcia",
 	.id 		= 0,
@@ -226,6 +259,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_usb_otg_device,
 	&au1200_lcd_device,
 	&au1200_ide0_device,
+	&au1xxx_mmc_device,
 #endif
 };
 
