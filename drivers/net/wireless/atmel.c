@@ -618,12 +618,12 @@ static int atmel_lock_mac(struct atmel_private *priv);
 static void atmel_wmem32(struct atmel_private *priv, u16 pos, u32 data);
 static void atmel_command_irq(struct atmel_private *priv);
 static int atmel_validate_channel(struct atmel_private *priv, int channel);
-static void atmel_management_frame(struct atmel_private *priv, struct ieee80211_hdr *header, 
+static void atmel_management_frame(struct atmel_private *priv, struct ieee80211_hdr_4addr *header, 
 				   u16 frame_len, u8 rssi);
 static void atmel_management_timer(u_long a);
 static void atmel_send_command(struct atmel_private *priv, int command, void *cmd, int cmd_size);
 static int atmel_send_command_wait(struct atmel_private *priv, int command, void *cmd, int cmd_size);
-static void atmel_transmit_management_frame(struct atmel_private *priv, struct ieee80211_hdr *header,
+static void atmel_transmit_management_frame(struct atmel_private *priv, struct ieee80211_hdr_4addr *header,
 					    u8 *body, int body_len);
 
 static u8 atmel_get_mib8(struct atmel_private *priv, u8 type, u8 index);
@@ -827,7 +827,7 @@ static void tx_update_descriptor(struct atmel_private *priv, int is_bcast, u16 l
 static int start_tx (struct sk_buff *skb, struct net_device *dev)
 {
 	struct atmel_private *priv = netdev_priv(dev);
-	struct ieee80211_hdr header;
+	struct ieee80211_hdr_4addr header;
 	unsigned long flags;
 	u16 buff, frame_ctl, len = (ETH_ZLEN < skb->len) ? skb->len : ETH_ZLEN;
 	u8 SNAP_RFC1024[6] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
@@ -902,7 +902,7 @@ static int start_tx (struct sk_buff *skb, struct net_device *dev)
 }
 
 static void atmel_transmit_management_frame(struct atmel_private *priv, 
-					    struct ieee80211_hdr *header,
+					    struct ieee80211_hdr_4addr *header,
 					    u8 *body, int body_len)
 {
 	u16 buff;
@@ -917,7 +917,7 @@ static void atmel_transmit_management_frame(struct atmel_private *priv,
 	tx_update_descriptor(priv, header->addr1[0] & 0x01, len, buff, TX_PACKET_TYPE_MGMT);
 }
 	
-static void fast_rx_path(struct atmel_private *priv, struct ieee80211_hdr *header, 
+static void fast_rx_path(struct atmel_private *priv, struct ieee80211_hdr_4addr *header, 
 			 u16 msdu_size, u16 rx_packet_loc, u32 crc)
 {
 	/* fast path: unfragmented packet copy directly into skbuf */
@@ -990,7 +990,7 @@ static int probe_crc(struct atmel_private *priv, u16 packet_loc, u16 msdu_size)
 	return (crc ^ 0xffffffff) == netcrc;
 }
 
-static void frag_rx_path(struct atmel_private *priv, struct ieee80211_hdr *header, 
+static void frag_rx_path(struct atmel_private *priv, struct ieee80211_hdr_4addr *header, 
 			 u16 msdu_size, u16 rx_packet_loc, u32 crc, u16 seq_no, u8 frag_no, int more_frags)
 {
 	u8 mac4[6]; 
@@ -1082,7 +1082,7 @@ static void frag_rx_path(struct atmel_private *priv, struct ieee80211_hdr *heade
 static void rx_done_irq(struct atmel_private *priv)
 {
 	int i;
-	struct ieee80211_hdr header;
+	struct ieee80211_hdr_4addr header;
 	
 	for (i = 0; 
 	     atmel_rmem8(priv, atmel_rx(priv, RX_DESC_FLAGS_OFFSET, priv->rx_desc_head)) == RX_DESC_FLAG_VALID &&
@@ -2650,7 +2650,7 @@ static void handle_beacon_probe(struct atmel_private *priv, u16 capability, u8 c
  
 static void send_authentication_request(struct atmel_private *priv, u8 *challenge, int challenge_len)
 {
-	struct ieee80211_hdr header;
+	struct ieee80211_hdr_4addr header;
 	struct auth_body auth;
 	
 	header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH); 
@@ -2688,7 +2688,7 @@ static void send_association_request(struct atmel_private *priv, int is_reassoc)
 {
 	u8 *ssid_el_p;
 	int bodysize;
-	struct ieee80211_hdr header;
+	struct ieee80211_hdr_4addr header;
 	struct ass_req_format {
 		u16 capability;
 		u16 listen_interval; 
@@ -2738,7 +2738,7 @@ static void send_association_request(struct atmel_private *priv, int is_reassoc)
 	atmel_transmit_management_frame(priv, &header, (void *)&body, bodysize);
 }
 
-static int is_frame_from_current_bss(struct atmel_private *priv, struct ieee80211_hdr *header)
+static int is_frame_from_current_bss(struct atmel_private *priv, struct ieee80211_hdr_4addr *header)
 {
 	if (le16_to_cpu(header->frame_ctl) & IEEE80211_FCTL_FROMDS)
 		return memcmp(header->addr3, priv->CurrentBSSID, 6) == 0;
@@ -2788,7 +2788,7 @@ static int retrieve_bss(struct atmel_private *priv)
 }
 
 
-static void store_bss_info(struct atmel_private *priv, struct ieee80211_hdr *header,
+static void store_bss_info(struct atmel_private *priv, struct ieee80211_hdr_4addr *header,
 			   u16 capability, u16 beacon_period, u8 channel, u8 rssi, 
 			   u8 ssid_len, u8 *ssid, int is_beacon)
 {
@@ -3072,7 +3072,7 @@ static void atmel_smooth_qual(struct atmel_private *priv)
 }
 
 /* deals with incoming managment frames. */
-static void atmel_management_frame(struct atmel_private *priv, struct ieee80211_hdr *header, 
+static void atmel_management_frame(struct atmel_private *priv, struct ieee80211_hdr_4addr *header, 
 		      u16 frame_len, u8 rssi)
 {
 	u16 subtype;
