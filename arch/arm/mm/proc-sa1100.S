@@ -280,7 +280,7 @@ cpu_sa1110_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__sa1100_proc_info,#object
 __sa1100_proc_info:
