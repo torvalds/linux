@@ -1256,14 +1256,14 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 	}
 
 	skb = dev_alloc_skb(WLAN_AUTH_CHALLENGE_LEN +
-			    ap->crypt->extra_prefix_len +
-			    ap->crypt->extra_postfix_len);
+			    ap->crypt->extra_mpdu_prefix_len +
+			    ap->crypt->extra_mpdu_postfix_len);
 	if (skb == NULL) {
 		kfree(tmpbuf);
 		return NULL;
 	}
 
-	skb_reserve(skb, ap->crypt->extra_prefix_len);
+	skb_reserve(skb, ap->crypt->extra_mpdu_prefix_len);
 	memset(skb_put(skb, WLAN_AUTH_CHALLENGE_LEN), 0,
 	       WLAN_AUTH_CHALLENGE_LEN);
 	if (ap->crypt->encrypt_mpdu(skb, 0, ap->crypt_priv)) {
@@ -1272,7 +1272,7 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 		return NULL;
 	}
 
-	memcpy(tmpbuf, skb->data + ap->crypt->extra_prefix_len,
+	memcpy(tmpbuf, skb->data + ap->crypt->extra_mpdu_prefix_len,
 	       WLAN_AUTH_CHALLENGE_LEN);
 	dev_kfree_skb(skb);
 

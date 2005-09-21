@@ -317,10 +317,10 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 	if (skb == NULL)
 		return NULL;
 
-	if ((skb_headroom(skb) < crypt->ops->extra_prefix_len ||
-	     skb_tailroom(skb) < crypt->ops->extra_postfix_len) &&
-	    pskb_expand_head(skb, crypt->ops->extra_prefix_len,
-			     crypt->ops->extra_postfix_len, GFP_ATOMIC)) {
+	if ((skb_headroom(skb) < crypt->ops->extra_mpdu_prefix_len ||
+	     skb_tailroom(skb) < crypt->ops->extra_mpdu_postfix_len) &&
+	    pskb_expand_head(skb, crypt->ops->extra_mpdu_prefix_len,
+			     crypt->ops->extra_mpdu_postfix_len, GFP_ATOMIC)) {
 		kfree_skb(skb);
 		return NULL;
 	}
