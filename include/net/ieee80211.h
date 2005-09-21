@@ -447,6 +447,11 @@ struct ieee80211_device;
 #define SEC_LEVEL_2_CKIP	3	/* Level 1 + CKIP */
 #define SEC_LEVEL_3		4	/* Level 2 + CCMP */
 
+#define SEC_ALG_NONE		0
+#define SEC_ALG_WEP		1
+#define SEC_ALG_TKIP		2
+#define SEC_ALG_CCMP		3
+
 #define WEP_KEYS		4
 #define WEP_KEY_LEN		13
 #define SCM_KEY_LEN		32
@@ -456,6 +461,7 @@ struct ieee80211_security {
 	u16 active_key:2,
 	    enabled:1,
 	    auth_mode:2, auth_algo:4, unicast_uses_group:1, encrypt:1;
+	u8 encode_alg[WEP_KEYS];
 	u8 key_sizes[WEP_KEYS];
 	u8 keys[WEP_KEYS][SCM_KEY_LEN];
 	u8 level;
@@ -824,6 +830,14 @@ extern int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
+#if WIRELESS_EXT > 17
+extern int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
+				      struct iw_request_info *info,
+				      union iwreq_data *wrqu, char *extra);
+extern int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
+				      struct iw_request_info *info,
+				      union iwreq_data *wrqu, char *extra);
+#endif
 
 extern inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
 {
