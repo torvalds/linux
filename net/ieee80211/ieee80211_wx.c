@@ -493,6 +493,7 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	int i, idx, ret = 0;
+	int group_key = 0;
 	const char *alg, *module;
 	struct ieee80211_crypto_ops *ops;
 	struct ieee80211_crypt_data **crypt;
@@ -509,9 +510,10 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 	} else
 		idx = ieee->tx_keyidx;
 
-	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
+	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 		crypt = &ieee->crypt[idx];
-	else {
+		group_key = 1;
+	} else {
 		if (idx != 0)
 			return -EINVAL;
 		if (ieee->iw_mode == IW_MODE_INFRA)
@@ -542,7 +544,9 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 	sec.enabled = 1;
 	sec.encrypt = 1;
 
-	if (!(ieee->host_encrypt || ieee->host_decrypt))
+	if (group_key ? !ieee->host_mc_decrypt :
+	    !(ieee->host_encrypt || ieee->host_decrypt ||
+	      ieee->host_encrypt_msdu))
 		goto skip_host_crypt;
 
 	switch (ext->alg) {
@@ -632,6 +636,9 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_3;
 		}
+		/* Don't set sec level for group keys. */
+		if (group_key)
+			sec.flags &= ~SEC_LEVEL;
 	}
       done:
 	if (ieee->set_security)

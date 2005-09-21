@@ -409,7 +409,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 1;
 	}
 
-	if (ieee->host_decrypt) {
+	if (is_multicast_ether_addr(hdr->addr1) ? ieee->host_mc_decrypt :
+	    ieee->host_decrypt) {
 		int idx = 0;
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;
@@ -1066,7 +1067,7 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	network->flags = 0;
 	network->atim_window = 0;
 	network->erp_value = (network->capability & WLAN_CAPABILITY_IBSS) ?
-		0x3 : 0x0;
+	    0x3 : 0x0;
 
 	if (stats->freq == IEEE80211_52GHZ_BAND) {
 		/* for A band (No DS info) */

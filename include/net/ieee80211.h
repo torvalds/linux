@@ -851,6 +851,9 @@ struct ieee80211_device {
 	int host_encrypt;
 	int host_encrypt_msdu;
 	int host_decrypt;
+	/* host performs multicast decryption */
+	int host_mc_decrypt;
+
 	int host_open_frag;
 	int ieee802_1x;		/* is IEEE 802.1X used */
 

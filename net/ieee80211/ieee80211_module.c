@@ -133,6 +133,8 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	/* Default to enabling full open WEP with host based encrypt/decrypt */
 	ieee->host_encrypt = 1;
 	ieee->host_decrypt = 1;
+	ieee->host_mc_decrypt = 1;
+
 	/* Host fragementation in Open mode. Default is enabled.
 	 * Note: host fragmentation is always enabled if host encryption
 	 * is enabled. For cards can do hardware encryption, they must do
