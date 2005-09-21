@@ -1086,7 +1086,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 	}
 
 	if (tp && tp->pos + tp->bits > 32)
-		printk("ERROR tp=%p pos=%d, bits=%d, key=%0x plen=%d\n",
+		printk(KERN_WARNING "fib_trie tp=%p pos=%d, bits=%d, key=%0x plen=%d\n",
 		       tp, tp->pos, tp->bits, key, plen);
 
 	/* Rebalance the trie */
@@ -1832,16 +1832,7 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 			i++;
 			continue;
 		}
-		if (fa->fa_info->fib_nh == NULL) {
-			printk("Trie error _fib_nh=NULL in fa[%d] k=%08x plen=%d\n", i, key, plen);
-			i++;
-			continue;
-		}
-		if (fa->fa_info == NULL) {
-			printk("Trie error fa_info=NULL in fa[%d] k=%08x plen=%d\n", i, key, plen);
-			i++;
-			continue;
-		}
+		BUG_ON(!fa->fa_info);
 
 		if (fib_dump_info(skb, NETLINK_CB(cb->skb).pid,
 				  cb->nlh->nlmsg_seq,
@@ -1964,7 +1955,7 @@ struct fib_table * __init fib_hash_init(int id)
 		trie_main = t;
 
 	if (id == RT_TABLE_LOCAL)
-		printk("IPv4 FIB: Using LC-trie version %s\n", VERSION);
+		printk(KERN_INFO "IPv4 FIB: Using LC-trie version %s\n", VERSION);
 
 	return tb;
 }
