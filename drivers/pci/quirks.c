@@ -950,6 +950,7 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		if (dev->device == PCI_DEVICE_ID_INTEL_82865_HB)
 			switch (dev->subsystem_device) {
 			case 0x12bc: /* HP D330L */
+			case 0x12bd: /* HP D530 */
 				asus_hides_smbus = 1;
 			}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_TOSHIBA)) {
