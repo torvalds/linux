@@ -2948,7 +2948,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 	int next = txq->next;
         int i = 0;
 	struct ipw2100_data_header *ipw_hdr;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_3addr *hdr;
 
 	while (!list_empty(&priv->tx_pend_list)) {
 		/* if there isn't enough space in TBD queue, then
@@ -2984,7 +2984,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 		packet->index = txq->next;
 
 		ipw_hdr = packet->info.d_struct.data;
-		hdr = (struct ieee80211_hdr *)packet->info.d_struct.txb->
+		hdr = (struct ieee80211_hdr_3addr *)packet->info.d_struct.txb->
 			fragments[0]->data;
 
 		if (priv->ieee->iw_mode == IW_MODE_INFRA) {

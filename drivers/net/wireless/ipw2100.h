@@ -808,7 +808,7 @@ struct ipw2100_priv {
 struct ipw2100_rx {
 	union {
 		unsigned char payload[IPW_RX_NIC_BUFFER_LENGTH];
-		struct ieee80211_hdr header;
+		struct ieee80211_hdr_4addr header;
 		u32 status;
 		struct ipw2100_notification notification;
 		struct ipw2100_cmd_header command;
