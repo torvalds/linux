@@ -747,13 +747,12 @@ config CPM2
 	  on it (826x, 827x, 8560).
 
 config PPC_CHRP
-	bool "  Common Hardware Reference Platform (CHRP) based machines"
 	bool
 	depends on PPC_MULTIPLATFORM
 	default y
 
 config PPC_PMAC
-	bool "  Apple PowerMac based machines"
+	bool
 	depends on PPC_MULTIPLATFORM
 	default y
 
@@ -763,7 +762,6 @@ config PPC_PMAC64
 	default y
 
 config PPC_PREP
-	bool "  PowerPC Reference Platform (PREP) based machines"
 	bool
 	depends on PPC_MULTIPLATFORM
 	default y
