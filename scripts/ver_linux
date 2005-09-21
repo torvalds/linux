@@ -39,10 +39,10 @@ tune2fs 2>&1 | grep "^tune2fs" | sed 's/,//' |  awk \
 fsck.jfs -V 2>&1 | grep version | sed 's/,//' |  awk \
 'NR==1 {print "jfsutils              ", $3}'
 
-reiserfsck -V 2>&1 | grep reiserfsck | awk \
+reiserfsck -V 2>&1 | grep ^reiserfsck | awk \
 'NR==1{print "reiserfsprogs         ", $2}'
 
-fsck.reiser4 -V 2>&1 | grep fsck.reiser4 | awk \
+fsck.reiser4 -V 2>&1 | grep ^fsck.reiser4 | awk \
 'NR==1{print "reiser4progs          ", $2}'
 
 xfs_db -V 2>&1 | grep version | awk \
