@@ -138,6 +138,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	init_timer(&ieee->crypt_deinit_timer);
 	ieee->crypt_deinit_timer.data = (unsigned long)ieee;
 	ieee->crypt_deinit_timer.function = ieee80211_crypt_deinit_handler;
+	ieee->crypt_quiesced = 0;
 
 	spin_lock_init(&ieee->lock);
 
@@ -161,6 +162,7 @@ void free_ieee80211(struct net_device *dev)
 
 	int i;
 
+	ieee80211_crypt_quiescing(ieee);
 	del_timer_sync(&ieee->crypt_deinit_timer);
 	ieee80211_crypt_deinit_entries(ieee, 1);
 

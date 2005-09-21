@@ -82,5 +82,6 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *, int);
 void ieee80211_crypt_deinit_handler(unsigned long);
 void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,
 				    struct ieee80211_crypt_data **crypt);
+void ieee80211_crypt_quiescing(struct ieee80211_device *ieee);
 
 #endif

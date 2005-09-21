@@ -44,6 +44,10 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->lock, flags);
+
+	if (list_empty(&ieee->crypt_deinit_list))
+		goto unlock;
+
 	for (ptr = ieee->crypt_deinit_list.next, n = ptr->next;
 	     ptr != &ieee->crypt_deinit_list; ptr = n, n = ptr->next) {
 		entry = list_entry(ptr, struct ieee80211_crypt_data, list);
@@ -59,21 +63,35 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 		}
 		kfree(entry);
 	}
+      unlock:
+	spin_unlock_irqrestore(&ieee->lock, flags);
+}
+
+/* After this, crypt_deinit_list won't accept new members */
+void ieee80211_crypt_quiescing(struct ieee80211_device *ieee)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ieee->lock, flags);
+	ieee->crypt_quiesced = 1;
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
 void ieee80211_crypt_deinit_handler(unsigned long data)
 {
 	struct ieee80211_device *ieee = (struct ieee80211_device *)data;
+	unsigned long flags;
 
 	ieee80211_crypt_deinit_entries(ieee, 0);
-	if (!list_empty(&ieee->crypt_deinit_list)) {
+
+	spin_lock_irqsave(&ieee->lock, flags);
+	if (!list_empty(&ieee->crypt_deinit_list) && !ieee->crypt_quiesced) {
 		printk(KERN_DEBUG "%s: entries remaining in delayed crypt "
 		       "deletion list\n", ieee->dev->name);
 		ieee->crypt_deinit_timer.expires = jiffies + HZ;
 		add_timer(&ieee->crypt_deinit_timer);
 	}
-
+	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
 void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,
@@ -93,10 +111,12 @@ void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,
 	 * locking. */
 
 	spin_lock_irqsave(&ieee->lock, flags);
-	list_add(&tmp->list, &ieee->crypt_deinit_list);
-	if (!timer_pending(&ieee->crypt_deinit_timer)) {
-		ieee->crypt_deinit_timer.expires = jiffies + HZ;
-		add_timer(&ieee->crypt_deinit_timer);
+	if (!ieee->crypt_quiesced) {
+		list_add(&tmp->list, &ieee->crypt_deinit_list);
+		if (!timer_pending(&ieee->crypt_deinit_timer)) {
+			ieee->crypt_deinit_timer.expires = jiffies + HZ;
+			add_timer(&ieee->crypt_deinit_timer);
+		}
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
@@ -250,6 +270,7 @@ static void __exit ieee80211_crypto_deinit(void)
 EXPORT_SYMBOL(ieee80211_crypt_deinit_entries);
 EXPORT_SYMBOL(ieee80211_crypt_deinit_handler);
 EXPORT_SYMBOL(ieee80211_crypt_delayed_deinit);
+EXPORT_SYMBOL(ieee80211_crypt_quiescing);
 
 EXPORT_SYMBOL(ieee80211_register_crypto_ops);
 EXPORT_SYMBOL(ieee80211_unregister_crypto_ops);
