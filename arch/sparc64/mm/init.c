@@ -324,14 +324,59 @@ unsigned long kern_locked_tte_data;
 unsigned long prom_pmd_phys __read_mostly;
 unsigned int swapper_pgd_zero __read_mostly;
 
-void __init early_pgtable_allocfail(char *type)
+/* Allocate power-of-2 aligned chunks from the end of the
+ * kernel image.  Return physical address.
+ */
+static inline unsigned long early_alloc_phys(unsigned long size)
 {
-	prom_printf("inherit_prom_mappings: Cannot alloc kernel %s.\n", type);
-	prom_halt();
+	unsigned long base;
+
+	BUILD_BUG_ON(size & (size - 1));
+
+	kern_size = (kern_size + (size - 1)) & ~(size - 1);
+	base = kern_base + kern_size;
+	kern_size += size;
+
+	return base;
+}
+
+static inline unsigned long load_phys32(unsigned long pa)
+{
+	unsigned long val;
+
+	__asm__ __volatile__("lduwa	[%1] %2, %0"
+			     : "=&r" (val)
+			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
+
+	return val;
+}
+
+static inline unsigned long load_phys64(unsigned long pa)
+{
+	unsigned long val;
+
+	__asm__ __volatile__("ldxa	[%1] %2, %0"
+			     : "=&r" (val)
+			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
+
+	return val;
+}
+
+static inline void store_phys32(unsigned long pa, unsigned long val)
+{
+	__asm__ __volatile__("stwa	%0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (val), "r" (pa), "i" (ASI_PHYS_USE_EC));
+}
+
+static inline void store_phys64(unsigned long pa, unsigned long val)
+{
+	__asm__ __volatile__("stxa	%0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (val), "r" (pa), "i" (ASI_PHYS_USE_EC));
 }
 
 #define BASE_PAGE_SIZE 8192
-static pmd_t *prompmd;
 
 /*
  * Translate PROM's mapping we capture at boot time into physical address.
@@ -339,33 +384,34 @@ static pmd_t *prompmd;
  */
 unsigned long prom_virt_to_phys(unsigned long promva, int *error)
 {
-	pmd_t *pmdp = prompmd + ((promva >> 23) & 0x7ff);
-	pte_t *ptep;
+	unsigned long pmd_phys = (prom_pmd_phys +
+				  ((promva >> 23) & 0x7ff) * sizeof(pmd_t));
+	unsigned long pte_phys;
+	pmd_t pmd_ent;
+	pte_t pte_ent;
 	unsigned long base;
 
-	if (pmd_none(*pmdp)) {
+	pmd_val(pmd_ent) = load_phys32(pmd_phys);
+	if (pmd_none(pmd_ent)) {
 		if (error)
 			*error = 1;
-		return(0);
+		return 0;
 	}
-	ptep = (pte_t *)__pmd_page(*pmdp) + ((promva >> 13) & 0x3ff);
-	if (!pte_present(*ptep)) {
+
+	pte_phys = (unsigned long)pmd_val(pmd_ent) << 11UL;
+	pte_phys += ((promva >> 13) & 0x3ff) * sizeof(pte_t);
+	pte_val(pte_ent) = load_phys64(pte_phys);
+	if (!pte_present(pte_ent)) {
 		if (error)
 			*error = 1;
-		return(0);
+		return 0;
 	}
 	if (error) {
 		*error = 0;
-		return(pte_val(*ptep));
+		return pte_val(pte_ent);
 	}
-	base = pte_val(*ptep) & _PAGE_PADDR;
-	return(base + (promva & (BASE_PAGE_SIZE - 1)));
-}
-
-static inline int in_obp_range(unsigned long vaddr)
-{
-	return (vaddr >= LOW_OBP_ADDRESS &&
-		vaddr < HI_OBP_ADDRESS);
+	base = pte_val(pte_ent) & _PAGE_PADDR;
+	return (base + (promva & (BASE_PAGE_SIZE - 1)));
 }
 
 /* The obp translations are saved based on 8k pagesize, since obp can
@@ -378,22 +424,25 @@ static void build_obp_range(unsigned long start, unsigned long end, unsigned lon
 	unsigned long vaddr;
 
 	for (vaddr = start; vaddr < end; vaddr += BASE_PAGE_SIZE) {
-		unsigned long val;
-		pmd_t *pmdp;
-		pte_t *ptep;
+		unsigned long val, pte_phys, pmd_phys;
+		pmd_t pmd_ent;
+		int i;
 
-		pmdp = prompmd + ((vaddr >> 23) & 0x7ff);
-		if (pmd_none(*pmdp)) {
-			ptep = __alloc_bootmem(BASE_PAGE_SIZE,
-					       BASE_PAGE_SIZE,
-					       bootmap_base);
-			if (ptep == NULL)
-				early_pgtable_allocfail("pte");
-			memset(ptep, 0, BASE_PAGE_SIZE);
-			pmd_set(pmdp, ptep);
+		pmd_phys = (prom_pmd_phys +
+			    (((vaddr >> 23) & 0x7ff) * sizeof(pmd_t)));
+		pmd_val(pmd_ent) = load_phys32(pmd_phys);
+		if (pmd_none(pmd_ent)) {
+			pte_phys = early_alloc_phys(BASE_PAGE_SIZE);
+
+			for (i = 0; i < BASE_PAGE_SIZE / sizeof(pte_t); i++)
+				store_phys64(pte_phys+i*sizeof(pte_t),0);
+
+			pmd_val(pmd_ent) = pte_phys >> 11UL;
+			store_phys32(pmd_phys, pmd_val(pmd_ent));
 		}
-		ptep = (pte_t *)__pmd_page(*pmdp) +
-			((vaddr >> 13) & 0x3ff);
+
+		pte_phys = (unsigned long)pmd_val(pmd_ent) << 11UL;
+		pte_phys += (((vaddr >> 13) & 0x3ff) * sizeof(pte_t));
 
 		val = data;
 
@@ -401,22 +450,27 @@ static void build_obp_range(unsigned long start, unsigned long end, unsigned lon
 		if (tlb_type == spitfire)
 			val &= ~0x0003fe0000000000UL;
 
-		set_pte_at(&init_mm, vaddr,
-			   ptep, __pte(val | _PAGE_MODIFIED));
+		store_phys64(pte_phys, val | _PAGE_MODIFIED);
+
 		data += BASE_PAGE_SIZE;
 	}
+}
+
+static inline int in_obp_range(unsigned long vaddr)
+{
+	return (vaddr >= LOW_OBP_ADDRESS &&
+		vaddr < HI_OBP_ADDRESS);
 }
 
 #define OBP_PMD_SIZE 2048
 static void build_obp_pgtable(int prom_trans_ents)
 {
-	int i;
+	unsigned long i;
 
-	prompmd = __alloc_bootmem(OBP_PMD_SIZE, OBP_PMD_SIZE,
-				  bootmap_base);
-	if (prompmd == NULL)
-		early_pgtable_allocfail("pmd");
-	memset(prompmd, 0, OBP_PMD_SIZE);
+	prom_pmd_phys = early_alloc_phys(OBP_PMD_SIZE);
+	for (i = 0; i < OBP_PMD_SIZE; i += 4)
+		store_phys32(prom_pmd_phys + i, 0);
+
 	for (i = 0; i < prom_trans_ents; i++) {
 		unsigned long start, end;
 
@@ -430,7 +484,6 @@ static void build_obp_pgtable(int prom_trans_ents)
 
 		build_obp_range(start, end, prom_trans[i].data);
 	}
-	prom_pmd_phys = __pa(prompmd);
 }
 
 /* Read OBP translations property into 'prom_trans[]'.
@@ -1517,13 +1570,13 @@ void __init paging_init(void)
 	
 	swapper_pgd_zero = pgd_val(init_mm.pgd[0]);
 	
+	/* Inherit non-locked OBP mappings. */
+	inherit_prom_mappings();
+	
 	/* Setup bootmem... */
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
 
-	/* Inherit non-locked OBP mappings. */
-	inherit_prom_mappings();
-	
 	/* Ok, we can use our TLB miss and window trap handlers safely.
 	 * We need to do a quick peek here to see if we are on StarFire
 	 * or not, so setup_tba can setup the IRQ globals correctly (it
