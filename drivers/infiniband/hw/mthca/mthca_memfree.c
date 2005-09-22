@@ -529,12 +529,25 @@ int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, __be32 **db)
 			goto found;
 		}
 
+	for (i = start; i != end; i += dir)
+		if (!dev->db_tab->page[i].db_rec) {
+			page = dev->db_tab->page + i;
+			goto alloc;
+		}
+
 	if (dev->db_tab->max_group1 >= dev->db_tab->min_group2 - 1) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
+	if (group == 0)
+		++dev->db_tab->max_group1;
+	else
+		--dev->db_tab->min_group2;
+
 	page = dev->db_tab->page + end;
+
+alloc:
 	page->db_rec = dma_alloc_coherent(&dev->pdev->dev, 4096,
 					  &page->mapping, GFP_KERNEL);
 	if (!page->db_rec) {
@@ -554,10 +567,6 @@ int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, __be32 **db)
 	}
 
 	bitmap_zero(page->used, MTHCA_DB_REC_PER_PAGE);
-	if (group == 0)
-		++dev->db_tab->max_group1;
-	else
-		--dev->db_tab->min_group2;
 
 found:
 	j = find_first_zero_bit(page->used, MTHCA_DB_REC_PER_PAGE);
