@@ -120,8 +120,8 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 			sk->sk_socket->state  = SS_UNCONNECTED;
 			sk->sk_state          = TCP_CLOSE;
 			if (!sock_flag(sk, SOCK_DEAD)) {
-				sk->sk_state_change(sk);
 				sock_set_flag(sk, SOCK_DEAD);
+				sk->sk_state_change(sk);
 			}
 		}
 		kfree_skb(skb);
