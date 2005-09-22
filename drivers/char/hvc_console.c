@@ -839,9 +839,6 @@ int __init hvc_init(void)
 	hvc_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(hvc_driver, &hvc_ops);
 
-	if (tty_register_driver(hvc_driver))
-		panic("Couldn't register hvc console driver\n");
-
 	/* Always start the kthread because there can be hotplug vty adapters
 	 * added later. */
 	hvc_task = kthread_run(khvcd, NULL, "khvcd");
@@ -850,6 +847,9 @@ int __init hvc_init(void)
 		put_tty_driver(hvc_driver);
 		return -EIO;
 	}
+
+	if (tty_register_driver(hvc_driver))
+		panic("Couldn't register hvc console driver\n");
 
 	return 0;
 }

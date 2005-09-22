@@ -180,6 +180,7 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct		 ahc_pci_identity *entry;
 	char		*name;
 	int		 error;
+	struct device	*dev = &pdev->dev;
 
 	pci = pdev;
 	entry = ahc_find_pci_device(pci);
@@ -209,11 +210,12 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	if (sizeof(dma_addr_t) > 4
-	 && ahc_linux_get_memsize() > 0x80000000
-	 && pci_set_dma_mask(pdev, mask_39bit) == 0) {
+	    && ahc->features & AHC_LARGE_SCBS
+	    && dma_set_mask(dev, mask_39bit) == 0
+	    && dma_get_required_mask(dev) > DMA_32BIT_MASK) {
 		ahc->flags |= AHC_39BIT_ADDRESSING;
 	} else {
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+		if (dma_set_mask(dev, DMA_32BIT_MASK)) {
 			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
                 	return (-ENODEV);
 		}

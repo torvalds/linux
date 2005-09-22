@@ -1951,7 +1951,7 @@ config SKGE
 	---help---
 	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
 	  and related Gigabit Ethernet adapters. It is a new smaller driver
-	  driver with better performance and more complete ethtool support.
+	  with better performance and more complete ethtool support.
 
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.

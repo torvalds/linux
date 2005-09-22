@@ -18,6 +18,7 @@
  *	22-Feb-2005 BJD   Updated for 2.6.11-rc5 relesa
  *	10-Mar-2005 LCVR  Replaced S3C2410_VA by S3C24XX_VA
  *	14-Mar-2005 BJD	  void __iomem fixes
+ *	20-Sep-2005 BJD   Added static to non-exported items
 */
 
 #include <linux/kernel.h>
@@ -98,7 +99,7 @@ static struct s3c24xx_board smdk2440_board __initdata = {
 	.devices_count = ARRAY_SIZE(smdk2440_devices)
 };
 
-void __init smdk2440_map_io(void)
+static void __init smdk2440_map_io(void)
 {
 	s3c24xx_init_io(smdk2440_iodesc, ARRAY_SIZE(smdk2440_iodesc));
 	s3c24xx_init_clocks(16934400);
@@ -106,7 +107,7 @@ void __init smdk2440_map_io(void)
 	s3c24xx_set_board(&smdk2440_board);
 }
 
-void __init smdk2440_machine_init(void)
+static void __init smdk2440_machine_init(void)
 {
 	/* Configure the LEDs (even if we have no LED support)*/
 

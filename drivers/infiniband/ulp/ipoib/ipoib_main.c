@@ -1005,6 +1005,7 @@ debug_failed:
 
 register_failed:
 	ib_unregister_event_handler(&priv->event_handler);
+	flush_scheduled_work();
 
 event_failed:
 	ipoib_dev_cleanup(priv->dev);
@@ -1057,6 +1058,7 @@ static void ipoib_remove_one(struct ib_device *device)
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ib_unregister_event_handler(&priv->event_handler);
+		flush_scheduled_work();
 
 		unregister_netdev(priv->dev);
 		ipoib_dev_cleanup(priv->dev);

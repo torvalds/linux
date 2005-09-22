@@ -26,10 +26,6 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
-config HAVE_DEC_LOCK
-	bool
-	default y
-
 config GENERIC_HARDIRQS
 	bool
 	default y

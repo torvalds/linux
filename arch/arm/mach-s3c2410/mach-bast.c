@@ -31,6 +31,7 @@
  *     17-Jul-2005 BJD  Changed to platform device for SuperIO 16550s
  *     25-Jul-2005 BJD  Removed ASIX static mappings
  *     27-Jul-2005 BJD  Ensure maximum frequency of i2c bus
+ *     20-Sep-2005 BJD  Added static to non-exported items
 */
 
 #include <linux/kernel.h>
@@ -428,7 +429,7 @@ static struct s3c24xx_board bast_board __initdata = {
 	.clocks_count  = ARRAY_SIZE(bast_clocks)
 };
 
-void __init bast_map_io(void)
+static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
 

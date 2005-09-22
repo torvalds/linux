@@ -23,12 +23,13 @@ static struct i2c_driver pcf8583_driver;
 
 static unsigned short ignore[] = { I2C_CLIENT_END };
 static unsigned short normal_addr[] = { 0x50, I2C_CLIENT_END };
+static unsigned short *forces[] = { NULL };
 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_addr,
 	.probe			= ignore,
 	.ignore			= ignore,
-	.force			= ignore,
+	.forces			= forces,
 };
 
 #define DAT(x) ((unsigned int)(x->dev.driver_data))

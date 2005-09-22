@@ -105,7 +105,7 @@ static struct s3c24xx_board otom11_board __initdata = {
 };
 
 
-void __init otom11_map_io(void)
+static void __init otom11_map_io(void)
 {
 	s3c24xx_init_io(otom11_iodesc, ARRAY_SIZE(otom11_iodesc));
 	s3c24xx_init_clocks(0);

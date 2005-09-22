@@ -432,7 +432,7 @@ int ipoib_ib_dev_down(struct net_device *dev)
 		flush_workqueue(ipoib_workqueue);
 	}
 
-	ipoib_mcast_stop_thread(dev);
+	ipoib_mcast_stop_thread(dev, 1);
 
 	/*
 	 * Flush the multicast groups first so we stop any multicast joins. The
@@ -599,7 +599,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
 
-	ipoib_mcast_stop_thread(dev);
+	ipoib_mcast_stop_thread(dev, 1);
 
 	/* Delete the broadcast address and the local address */
 	ipoib_mcast_dev_down(dev);

@@ -1617,8 +1617,6 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 	    adapter->stats.icbc +
 	    adapter->stats.ecbc + adapter->stats.mpc;
 
-	adapter->net_stats.rx_dropped = adapter->stats.mpc;
-
 	/* see above
 	 * adapter->net_stats.rx_length_errors = adapter->stats.rlec;
 	 */

@@ -36,6 +36,11 @@
  *	Michal Ostrowski        :       Module initialization cleanup.
  *         Ulises Alonso        :       Frame number limit removal and 
  *                                      packet_set_ring memory leak.
+ *		Eric Biederman	:	Allow for > 8 byte hardware addresses.
+ *					The convention is that longer addresses
+ *					will simply extend the hardware address
+ *					byte arrays at the end of sockaddr_ll 
+ *					and packet_mreq.
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -161,7 +166,17 @@ struct packet_mclist
 	int			count;
 	unsigned short		type;
 	unsigned short		alen;
-	unsigned char		addr[8];
+	unsigned char		addr[MAX_ADDR_LEN];
+};
+/* identical to struct packet_mreq except it has
+ * a longer address field.
+ */
+struct packet_mreq_max
+{
+	int		mr_ifindex;
+	unsigned short	mr_type;
+	unsigned short	mr_alen;
+	unsigned char	mr_address[MAX_ADDR_LEN];
 };
 #endif
 #ifdef CONFIG_PACKET_MMAP
@@ -716,6 +731,8 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		err = -EINVAL;
 		if (msg->msg_namelen < sizeof(struct sockaddr_ll))
 			goto out;
+		if (msg->msg_namelen < (saddr->sll_halen + offsetof(struct sockaddr_ll, sll_addr)))
+			goto out;
 		ifindex	= saddr->sll_ifindex;
 		proto	= saddr->sll_protocol;
 		addr	= saddr->sll_addr;
@@ -744,6 +761,12 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (dev->hard_header) {
 		int res;
 		err = -EINVAL;
+		if (saddr) {
+			if (saddr->sll_halen != dev->addr_len)
+				goto out_free;
+			if (saddr->sll_hatype != dev->type)
+				goto out_free;
+		}
 		res = dev->hard_header(skb, dev, ntohs(proto), addr, NULL, len);
 		if (sock->type != SOCK_DGRAM) {
 			skb->tail = skb->data;
@@ -1045,6 +1068,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied, err;
+	struct sockaddr_ll *sll;
 
 	err = -EINVAL;
 	if (flags & ~(MSG_PEEK|MSG_DONTWAIT|MSG_TRUNC|MSG_CMSG_COMPAT))
@@ -1055,16 +1079,6 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (pkt_sk(sk)->ifindex < 0)
 		return -ENODEV;
 #endif
-
-	/*
-	 *	If the address length field is there to be filled in, we fill
-	 *	it in now.
-	 */
-
-	if (sock->type == SOCK_PACKET)
-		msg->msg_namelen = sizeof(struct sockaddr_pkt);
-	else
-		msg->msg_namelen = sizeof(struct sockaddr_ll);
 
 	/*
 	 *	Call the generic datagram receiver. This handles all sorts
@@ -1085,6 +1099,17 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if(skb==NULL)
 		goto out;
+
+	/*
+	 *	If the address length field is there to be filled in, we fill
+	 *	it in now.
+	 */
+
+	sll = (struct sockaddr_ll*)skb->cb;
+	if (sock->type == SOCK_PACKET)
+		msg->msg_namelen = sizeof(struct sockaddr_pkt);
+	else
+		msg->msg_namelen = sll->sll_halen + offsetof(struct sockaddr_ll, sll_addr);
 
 	/*
 	 *	You lose any data beyond the buffer you gave. If it worries a
@@ -1166,7 +1191,7 @@ static int packet_getname(struct socket *sock, struct sockaddr *uaddr,
 		sll->sll_hatype = 0;	/* Bad: we have no ARPHRD_UNSPEC */
 		sll->sll_halen = 0;
 	}
-	*uaddr_len = sizeof(*sll);
+	*uaddr_len = offsetof(struct sockaddr_ll, sll_addr) + sll->sll_halen;
 
 	return 0;
 }
@@ -1199,7 +1224,7 @@ static void packet_dev_mclist(struct net_device *dev, struct packet_mclist *i, i
 	}
 }
 
-static int packet_mc_add(struct sock *sk, struct packet_mreq *mreq)
+static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 {
 	struct packet_sock *po = pkt_sk(sk);
 	struct packet_mclist *ml, *i;
@@ -1249,7 +1274,7 @@ done:
 	return err;
 }
 
-static int packet_mc_drop(struct sock *sk, struct packet_mreq *mreq)
+static int packet_mc_drop(struct sock *sk, struct packet_mreq_max *mreq)
 {
 	struct packet_mclist *ml, **mlp;
 
@@ -1315,11 +1340,17 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 	case PACKET_ADD_MEMBERSHIP:	
 	case PACKET_DROP_MEMBERSHIP:
 	{
-		struct packet_mreq mreq;
-		if (optlen<sizeof(mreq))
+		struct packet_mreq_max mreq;
+		int len = optlen;
+		memset(&mreq, 0, sizeof(mreq));
+		if (len < sizeof(struct packet_mreq))
 			return -EINVAL;
-		if (copy_from_user(&mreq,optval,sizeof(mreq)))
+		if (len > sizeof(mreq))
+			len = sizeof(mreq);
+		if (copy_from_user(&mreq,optval,len))
 			return -EFAULT;
+		if (len < (mreq.mr_alen + offsetof(struct packet_mreq, mr_address)))
+			return -EINVAL;
 		if (optname == PACKET_ADD_MEMBERSHIP)
 			ret = packet_mc_add(sk, &mreq);
 		else

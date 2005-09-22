@@ -108,7 +108,7 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	bl	BASED(0f)
 	l	%r14,BASED(.Lcleanup_critical)
 	basr	%r14,%r14
-	tm	0(%r12),0x01		# retest problem state after cleanup
+	tm	1(%r12),0x01		# retest problem state after cleanup
 	bnz	BASED(1f)
 0:	l	%r14,__LC_ASYNC_STACK	# are we already on the async stack ?
 	slr	%r14,%r15

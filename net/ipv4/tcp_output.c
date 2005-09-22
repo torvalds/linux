@@ -435,6 +435,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	int nsize, old_factor;
 	u16 flags;
 
+	BUG_ON(len >= skb->len);
+
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
 		nsize = 0;
@@ -459,9 +461,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	flags = TCP_SKB_CB(skb)->flags;
 	TCP_SKB_CB(skb)->flags = flags & ~(TCPCB_FLAG_FIN|TCPCB_FLAG_PSH);
 	TCP_SKB_CB(buff)->flags = flags;
-	TCP_SKB_CB(buff)->sacked =
-		(TCP_SKB_CB(skb)->sacked &
-		 (TCPCB_LOST | TCPCB_EVER_RETRANS | TCPCB_AT_TAIL));
+	TCP_SKB_CB(buff)->sacked = TCP_SKB_CB(skb)->sacked;
 	TCP_SKB_CB(skb)->sacked &= ~TCPCB_AT_TAIL;
 
 	if (!skb_shinfo(skb)->nr_frags && skb->ip_summed != CHECKSUM_HW) {
@@ -499,6 +499,12 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 			tcp_skb_pcount(buff);
 
 		tp->packets_out -= diff;
+
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
+			tp->sacked_out -= diff;
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
+			tp->retrans_out -= diff;
+
 		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
 			tp->lost_out -= diff;
 			tp->left_out -= diff;

@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"0.9"
+#define DRV_VERSION		"1.0"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -669,7 +669,7 @@ static void skge_led(struct skge_port *skge, enum led_mode mode)
 				     PHY_M_LED_BLINK_RT(BLINK_84MS) |
 				     PHY_M_LEDC_TX_CTRL |
 				     PHY_M_LEDC_DP_CTRL);
-		
+
 			gm_phy_write(hw, port, PHY_MARV_LED_OVER,
 				     PHY_M_LED_MO_RX(MO_LED_OFF) |
 				     (skge->speed == SPEED_100 ?
@@ -877,7 +877,7 @@ static int skge_rx_fill(struct skge_port *skge)
 
 static void skge_link_up(struct skge_port *skge)
 {
-	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), 
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG),
 		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
 
 	netif_carrier_on(skge->netdev);
@@ -988,6 +988,8 @@ static void genesis_reset(struct skge_hw *hw, int port)
 {
 	const u8 zero[8]  = { 0 };
 
+	skge_write8(hw, SK_REG(port, GMAC_IRQ_MSK), 0);
+
 	/* reset the statistics module */
 	xm_write32(hw, port, XM_GP_PORT, XM_GP_RES_STAT);
 	xm_write16(hw, port, XM_IMSK, 0xffff);	/* disable XMAC IRQs */
@@ -1021,8 +1023,6 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 	/* read twice because of latch */
 	(void) xm_phy_read(hw, port, PHY_BCOM_STAT);
 	status = xm_phy_read(hw, port, PHY_BCOM_STAT);
-
-	pr_debug("bcom_check_link status=0x%x\n", status);
 
 	if ((status & PHY_ST_LSYNC) == 0) {
 		u16 cmd = xm_read16(hw, port, XM_MMU_CMD);
@@ -1106,8 +1106,6 @@ static void bcom_phy_init(struct skge_port *skge, int jumbo)
 		{ 0x18, 0x0c20 }, { 0x17, 0x0012 }, { 0x15, 0x1204 },
 		{ 0x17, 0x0013 }, { 0x15, 0x0A04 }, { 0x18, 0x0420 },
 	};
-
-	pr_debug("bcom_phy_init\n");
 
 	/* read Id from external PHY (all have the same address) */
 	id1 = xm_phy_read(hw, port, PHY_XMAC_ID1);
@@ -1341,6 +1339,8 @@ static void genesis_stop(struct skge_port *skge)
 	int port = skge->port;
 	u32 reg;
 
+	genesis_reset(hw, port);
+
 	/* Clear Tx packet arbiter timeout IRQ */
 	skge_write16(hw, B3_PA_CTRL,
 		     port == 0 ? PA_CLR_TO_TX1 : PA_CLR_TO_TX2);
@@ -1466,7 +1466,6 @@ static void genesis_link_up(struct skge_port *skge)
 	u16 cmd;
 	u32 mode, msk;
 
-	pr_debug("genesis_link_up\n");
 	cmd = xm_read16(hw, port, XM_MMU_CMD);
 
 	/*
@@ -1579,7 +1578,6 @@ static void yukon_init(struct skge_hw *hw, int port)
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
 	u16 ctrl, ct1000, adv;
 
-	pr_debug("yukon_init\n");
 	if (skge->autoneg == AUTONEG_ENABLE) {
 		u16 ectrl = gm_phy_read(hw, port, PHY_MARV_EXT_CTRL);
 
@@ -1678,9 +1676,11 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 	/* WA code for COMA mode -- set PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev >= CHIP_REV_YU_LITE_A3)
-		skge_write32(hw, B2_GP_IO,
-			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9));
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3) {
+		reg = skge_read32(hw, B2_GP_IO);
+		reg |= GP_DIR_9 | GP_IO_9;
+		skge_write32(hw, B2_GP_IO, reg);
+	}
 
 	/* hard reset */
 	skge_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
@@ -1688,10 +1688,12 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 	/* WA code for COMA mode -- clear PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev >= CHIP_REV_YU_LITE_A3)
-		skge_write32(hw, B2_GP_IO,
-			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9)
-			     & ~GP_IO_9);
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3) {
+		reg = skge_read32(hw, B2_GP_IO);
+		reg |= GP_DIR_9;
+		reg &= ~GP_IO_9;
+		skge_write32(hw, B2_GP_IO, reg);
+	}
 
 	/* Set hardware config mode */
 	reg = GPC_INT_POL_HI | GPC_DIS_FC | GPC_DIS_SLEEP |
@@ -1730,7 +1732,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	}
 
 	gma_write16(hw, port, GM_GP_CTRL, reg);
-	skge_read16(hw, GMAC_IRQ_SRC);
+	skge_read16(hw, SK_REG(port, GMAC_IRQ_SRC));
 
 	yukon_init(hw, port);
 
@@ -1802,20 +1804,26 @@ static void yukon_stop(struct skge_port *skge)
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
 
-	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev >= CHIP_REV_YU_LITE_A3) {
-		skge_write32(hw, B2_GP_IO,
-			     skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9);
-	}
+	skge_write8(hw, SK_REG(port, GMAC_IRQ_MSK), 0);
+	yukon_reset(hw, port);
 
 	gma_write16(hw, port, GM_GP_CTRL,
 			 gma_read16(hw, port, GM_GP_CTRL)
 			 & ~(GM_GPCR_TX_ENA|GM_GPCR_RX_ENA));
 	gma_read16(hw, port, GM_GP_CTRL);
 
+	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3) {
+		u32 io = skge_read32(hw, B2_GP_IO);
+
+		io |= GP_DIR_9 | GP_IO_9;
+		skge_write32(hw, B2_GP_IO, io);
+		skge_read32(hw, B2_GP_IO);
+	}
+
 	/* set GPHY Control reset */
-	skge_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
-	skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_RST_SET);
+	skge_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
+	skge_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_SET);
 }
 
 static void yukon_get_stats(struct skge_port *skge, u64 *data)
@@ -1874,10 +1882,8 @@ static void yukon_link_up(struct skge_port *skge)
 	int port = skge->port;
 	u16 reg;
 
-	pr_debug("yukon_link_up\n");
-
 	/* Enable Transmit FIFO Underrun */
-	skge_write8(hw, GMAC_IRQ_MSK, GMAC_DEF_MSK);
+	skge_write8(hw, SK_REG(port, GMAC_IRQ_MSK), GMAC_DEF_MSK);
 
 	reg = gma_read16(hw, port, GM_GP_CTRL);
 	if (skge->duplex == DUPLEX_FULL || skge->autoneg == AUTONEG_ENABLE)
@@ -1897,7 +1903,6 @@ static void yukon_link_down(struct skge_port *skge)
 	int port = skge->port;
 	u16 ctrl;
 
-	pr_debug("yukon_link_down\n");
 	gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);
 
 	ctrl = gma_read16(hw, port, GM_GP_CTRL);
@@ -2113,7 +2118,6 @@ static int skge_up(struct net_device *dev)
 	skge_write8(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_START | CSR_IRQ_CL_F);
 	skge_led(skge, LED_MODE_ON);
 
-	pr_debug("skge_up completed\n");
 	return 0;
 
  free_rx_ring:
@@ -2136,15 +2140,20 @@ static int skge_down(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
+	if (hw->chip_id == CHIP_ID_GENESIS)
+		genesis_stop(skge);
+	else
+		yukon_stop(skge);
+
+	hw->intr_mask &= ~portirqmask[skge->port];
+	skge_write32(hw, B0_IMSK, hw->intr_mask);
+
 	/* Stop transmitter */
 	skge_write8(hw, Q_ADDR(txqaddr[port], Q_CSR), CSR_STOP);
 	skge_write32(hw, RB_ADDR(txqaddr[port], RB_CTRL),
 		     RB_RST_SET|RB_DIS_OP_MD);
 
-	if (hw->chip_id == CHIP_ID_GENESIS)
-		genesis_stop(skge);
-	else
-		yukon_stop(skge);
 
 	/* Disable Force Sync bit and Enable Alloc bit */
 	skge_write8(hw, SK_REG(port, TXA_CTRL),
@@ -2368,8 +2377,6 @@ static void genesis_set_multicast(struct net_device *dev)
 	u32 mode;
 	u8 filter[8];
 
-	pr_debug("genesis_set_multicast flags=%x count=%d\n", dev->flags, dev->mc_count);
-
 	mode = xm_read32(hw, port, XM_MODE);
 	mode |= XM_MD_ENA_HASH;
 	if (dev->flags & IFF_PROMISC)
@@ -2531,8 +2538,6 @@ static int skge_poll(struct net_device *dev, int *budget)
 	unsigned int to_do = min(dev->quota, *budget);
 	unsigned int work_done = 0;
 
-	pr_debug("skge_poll\n");
-
 	for (e = ring->to_clean; work_done < to_do; e = e->next) {
 		struct skge_rx_desc *rd = e->desc;
 		struct sk_buff *skb;
@@ -2673,9 +2678,9 @@ static void skge_error_irq(struct skge_hw *hw)
 	if (hw->chip_id == CHIP_ID_GENESIS) {
 		/* clear xmac errors */
 		if (hwstatus & (IS_NO_STAT_M1|IS_NO_TIST_M1))
-			skge_write16(hw, SK_REG(0, RX_MFF_CTRL1), MFF_CLR_INSTAT);
+			skge_write16(hw, RX_MFF_CTRL1, MFF_CLR_INSTAT);
 		if (hwstatus & (IS_NO_STAT_M2|IS_NO_TIST_M2))
-			skge_write16(hw, SK_REG(0, RX_MFF_CTRL2), MFF_CLR_INSTAT);
+			skge_write16(hw, RX_MFF_CTRL2, MFF_CLR_INSTAT);
 	} else {
 		/* Timestamp (unused) overflow */
 		if (hwstatus & IS_IRQ_TIST_OV)
@@ -3001,9 +3006,6 @@ static int skge_reset(struct skge_hw *hw)
 
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
-	if (hw->chip_id != CHIP_ID_GENESIS)
-		skge_write8(hw, GMAC_IRQ_MSK, 0);
-
 	spin_lock_bh(&hw->phy_lock);
 	for (i = 0; i < hw->ports; i++) {
 		if (hw->chip_id == CHIP_ID_GENESIS)
@@ -3232,6 +3234,11 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	dev0 = hw->dev[0];
 	unregister_netdev(dev0);
 
+	skge_write32(hw, B0_IMSK, 0);
+	skge_write16(hw, B0_LED, LED_STAT_OFF);
+	skge_pci_clear(hw);
+	skge_write8(hw, B0_CTST, CS_RST_SET);
+
 	tasklet_kill(&hw->ext_tasklet);
 
 	free_irq(pdev->irq, hw);
@@ -3240,7 +3247,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	if (dev1)
 		free_netdev(dev1);
 	free_netdev(dev0);
-	skge_write16(hw, B0_LED, LED_STAT_OFF);
+
 	iounmap(hw->regs);
 	kfree(hw);
 	pci_set_drvdata(pdev, NULL);
@@ -3259,7 +3266,10 @@ static int skge_suspend(struct pci_dev *pdev, pm_message_t state)
 			struct skge_port *skge = netdev_priv(dev);
 			if (netif_running(dev)) {
 				netif_carrier_off(dev);
-				skge_down(dev);
+				if (skge->wol)
+					netif_stop_queue(dev);
+				else
+					skge_down(dev);
 			}
 			netif_device_detach(dev);
 			wol |= skge->wol;

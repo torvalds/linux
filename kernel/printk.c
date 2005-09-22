@@ -488,6 +488,11 @@ static int __init printk_time_setup(char *str)
 
 __setup("time", printk_time_setup);
 
+__attribute__((weak)) unsigned long long printk_clock(void)
+{
+	return sched_clock();
+}
+
 /*
  * This is printk.  It can be called from any context.  We want it to work.
  * 
@@ -565,7 +570,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 					loglev_char = default_message_loglevel
 						+ '0';
 				}
-				t = sched_clock();
+				t = printk_clock();
 				nanosec_rem = do_div(t, 1000000000);
 				tlen = sprintf(tbuf,
 						"<%c>[%5lu.%06lu] ",

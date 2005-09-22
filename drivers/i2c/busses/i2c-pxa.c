@@ -914,19 +914,23 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 	return ret;
 }
 
+static u32 i2c_pxa_functionality(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
 static struct i2c_algorithm i2c_pxa_algorithm = {
-	.name		= "PXA-I2C-Algorithm",
-	.id		= I2C_ALGO_PXA,
 	.master_xfer	= i2c_pxa_xfer,
+	.functionality	= i2c_pxa_functionality,
 };
 
 static struct pxa_i2c i2c_pxa = {
 	.lock	= SPIN_LOCK_UNLOCKED,
 	.wait	= __WAIT_QUEUE_HEAD_INITIALIZER(i2c_pxa.wait),
 	.adap	= {
-		.name		= "pxa2xx-i2c",
-		.id		= I2C_ALGO_PXA,
+		.owner		= THIS_MODULE,
 		.algo		= &i2c_pxa_algorithm,
+		.name		= "pxa2xx-i2c",
 		.retries	= 5,
 	},
 };

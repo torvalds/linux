@@ -60,8 +60,6 @@
 
 #define S3_SAVAGE_SERIES(chip)    ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE2000))
 
-#define S3_MOBILE_TWISTER_SERIES(chip) ((chip==S3_TWISTER) || (chip == S3_PROSAVAGEDDR))
-
 /* Chip tags.  These are used to group the adapters into
  * related families.
  */
@@ -74,8 +72,6 @@ typedef enum {
   S3_PROSAVAGE,
   S3_SUPERSAVAGE,
   S3_SAVAGE2000,
-  S3_PROSAVAGEDDR,
-  S3_TWISTER,
   S3_LAST
 } savage_chipset;
 

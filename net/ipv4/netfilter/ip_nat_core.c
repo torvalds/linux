@@ -578,6 +578,8 @@ ip_nat_port_nfattr_to_range(struct nfattr *tb[], struct ip_nat_range *range)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ip_nat_port_nfattr_to_range);
+EXPORT_SYMBOL_GPL(ip_nat_port_range_to_nfattr);
 #endif
 
 int __init ip_nat_init(void)

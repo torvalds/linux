@@ -2008,7 +2008,7 @@ enum {
 	GM_IS_RX_FF_OR	= 1<<1,	/* Receive FIFO Overrun */
 	GM_IS_RX_COMPL	= 1<<0,	/* Frame Reception Complete */
 
-#define GMAC_DEF_MSK	(GM_IS_TX_CO_OV | GM_IS_RX_CO_OV | GM_IS_TX_FF_UR)
+#define GMAC_DEF_MSK	(GM_IS_RX_FF_OR | GM_IS_TX_FF_UR)
 
 /*	GMAC_LINK_CTRL	16 bit	GMAC Link Control Reg (YUKON only) */
 						/* Bits 15.. 2:	reserved */

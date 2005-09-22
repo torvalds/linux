@@ -198,13 +198,10 @@ static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	if (( 1 << vdd) & p_d->ocr_mask) {
-		printk(KERN_DEBUG "%s: on\n", __FUNCTION__);
+	if (( 1 << vdd) & p_d->ocr_mask)
 		GPSR1 = GPIO_bit(CORGI_GPIO_SD_PWR);
-	} else {
-		printk(KERN_DEBUG "%s: off\n", __FUNCTION__);
+	else
 		GPCR1 = GPIO_bit(CORGI_GPIO_SD_PWR);
-	}
 }
 
 static int corgi_mci_get_ro(struct device *dev)
@@ -259,6 +256,16 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init corgi_init(void)
 {
+	/* setup sleep mode values */
+	PWER  = 0x00000002;
+	PFER  = 0x00000000;
+	PRER  = 0x00000002;
+	PGSR0 = 0x0158C000;
+	PGSR1 = 0x00FF0080;
+	PGSR2 = 0x0001C004;
+	/* Stop 3.6MHz and drive HIGH to PCMCIA and CS */
+	PCFR |= PCFR_OPDE;
+
 	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
 
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
@@ -285,42 +292,14 @@ static void __init fixup_corgi(struct machine_desc *desc,
 		mi->bank[0].size = (64*1024*1024);
 }
 
-static void __init corgi_init_irq(void)
-{
-	pxa_init_irq();
-}
-
-static struct map_desc corgi_io_desc[] __initdata = {
-/*    virtual     physical    length      */
-/*	{ 0xf1000000, 0x08000000, 0x01000000, MT_DEVICE },*/ /* LCDC (readable for Qt driver) */
-/*	{ 0xef700000, 0x10800000, 0x00001000, MT_DEVICE },*/  /* SCOOP */
-	{ 0xef800000, 0x00000000, 0x00800000, MT_DEVICE }, /* Boot Flash */
-};
-
-static void __init corgi_map_io(void)
-{
-	pxa_map_io();
-	iotable_init(corgi_io_desc,ARRAY_SIZE(corgi_io_desc));
-
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x0158C000;
-	PGSR1 = 0x00FF0080;
-	PGSR2 = 0x0001C004;
-	/* Stop 3.6MHz and drive HIGH to PCMCIA and CS */
-	PCFR |= PCFR_OPDE;
-}
-
 #ifdef CONFIG_MACH_CORGI
 MACHINE_START(CORGI, "SHARP Corgi")
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
-	.map_io		= corgi_map_io,
-	.init_irq	= corgi_init_irq,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa_init_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -332,8 +311,8 @@ MACHINE_START(SHEPHERD, "SHARP Shepherd")
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
-	.map_io		= corgi_map_io,
-	.init_irq	= corgi_init_irq,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa_init_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -345,8 +324,8 @@ MACHINE_START(HUSKY, "SHARP Husky")
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
-	.map_io		= corgi_map_io,
-	.init_irq	= corgi_init_irq,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa_init_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
 MACHINE_END
