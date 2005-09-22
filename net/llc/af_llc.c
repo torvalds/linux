@@ -231,20 +231,13 @@ out:
 }
 
 /**
- *	llc_ui_autobind - Bind a socket to a specific address.
- *	@sk: Socket to bind an address to.
- *	@addr: Address the user wants the socket bound to.
+ *	llc_ui_autobind - automatically bind a socket to a sap
+ *	@sock: socket to bind
+ *	@addr: address to connect to
  *
- *	Bind a socket to a specific address. For llc a user is able to bind to
- *	a specific sap only or mac + sap. If the user only specifies a sap and
- *	a null dmac (all zeros) the user is attempting to bind to an entire
- *	sap. This will stop anyone else on the local system from using that
- *	sap.  If someone else has a mac + sap open the bind to null + sap will
- *	fail.
- *	If the user desires to bind to a specific mac + sap, it is possible to
- *	have multiple sap connections via multiple macs.
- *	Bind and autobind for that matter must enforce the correct sap usage
- *	otherwise all hell will break loose.
+ * 	Used by llc_ui_connect and llc_ui_sendmsg when the user hasn't
+ * 	specifically used llc_ui_bind to bind to an specific address/sap
+ *
  *	Returns: 0 upon success, negative otherwise.
  */
 static int llc_ui_autobind(struct socket *sock, struct sockaddr_llc *addr)
@@ -285,11 +278,7 @@ out:
  *	@addrlen: Length of the uaddr structure.
  *
  *	Bind a socket to a specific address. For llc a user is able to bind to
- *	a specific sap only or mac + sap. If the user only specifies a sap and
- *	a null dmac (all zeros) the user is attempting to bind to an entire
- *	sap. This will stop anyone else on the local system from using that
- *	sap. If someone else has a mac + sap open the bind to null + sap will
- *	fail.
+ *	a specific sap only or mac + sap.
  *	If the user desires to bind to a specific mac + sap, it is possible to
  *	have multiple sap connections via multiple macs.
  *	Bind and autobind for that matter must enforce the correct sap usage
