@@ -43,22 +43,13 @@ extern void device_scan(void);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
 
-unsigned long *sparc64_valid_addr_bitmap;
+unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 
 /* Ugly, but necessary... -DaveM */
 unsigned long phys_base __read_mostly;
 unsigned long kern_base __read_mostly;
 unsigned long kern_size __read_mostly;
 unsigned long pfn_base __read_mostly;
-
-/* This is even uglier. We have a problem where the kernel may not be
- * located at phys_base. However, initial __alloc_bootmem() calls need to
- * be adjusted to be within the 4-8Megs that the kernel is mapped to, else
- * those page mappings wont work. Things are ok after inherit_prom_mappings
- * is called though. Dave says he'll clean this up some other time.
- * -- BenC
- */
-static unsigned long bootmap_base;
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
@@ -1415,8 +1406,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 #endif
 	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn, pfn_base, end_pfn);
 
-	bootmap_base = bootmap_pfn << PAGE_SHIFT;
-
 	/* Now register the available physical memory with the
 	 * allocator.
 	 */
@@ -1475,89 +1464,22 @@ static unsigned long last_valid_pfn;
 void __init paging_init(void)
 {
 	extern pmd_t swapper_pmd_dir[1024];
-	unsigned long alias_base = kern_base + PAGE_OFFSET;
-	unsigned long second_alias_page = 0;
-	unsigned long pt, flags, end_pfn, pages_avail;
-	unsigned long shift = alias_base - ((unsigned long)KERNBASE);
+	unsigned long end_pfn, pages_avail, shift;
 	unsigned long real_end;
 
 	set_bit(0, mmu_context_bmap);
 
+	shift = kern_base + PAGE_OFFSET - ((unsigned long)KERNBASE);
+
 	real_end = (unsigned long)_end;
 	if ((real_end > ((unsigned long)KERNBASE + 0x400000)))
 		bigkernel = 1;
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (sparc_ramdisk_image || sparc_ramdisk_image64)
-		real_end = (PAGE_ALIGN(real_end) + PAGE_ALIGN(sparc_ramdisk_size));
-#endif
-
-	/* We assume physical memory starts at some 4mb multiple,
-	 * if this were not true we wouldn't boot up to this point
-	 * anyways.
-	 */
-	pt  = kern_base | _PAGE_VALID | _PAGE_SZ4MB;
-	pt |= _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W;
-	local_irq_save(flags);
-	if (tlb_type == spitfire) {
-		__asm__ __volatile__(
-	"	stxa	%1, [%0] %3\n"
-	"	stxa	%2, [%5] %4\n"
-	"	membar	#Sync\n"
-	"	flush	%%g6\n"
-	"	nop\n"
-	"	nop\n"
-	"	nop\n"
-		: /* No outputs */
-		: "r" (TLB_TAG_ACCESS), "r" (alias_base), "r" (pt),
-		  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" (61 << 3)
-		: "memory");
-		if (real_end >= KERNBASE + 0x340000) {
-			second_alias_page = alias_base + 0x400000;
-			__asm__ __volatile__(
-		"	stxa	%1, [%0] %3\n"
-		"	stxa	%2, [%5] %4\n"
-		"	membar	#Sync\n"
-		"	flush	%%g6\n"
-		"	nop\n"
-		"	nop\n"
-		"	nop\n"
-			: /* No outputs */
-			: "r" (TLB_TAG_ACCESS), "r" (second_alias_page), "r" (pt + 0x400000),
-			  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" (60 << 3)
-			: "memory");
-		}
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		__asm__ __volatile__(
-	"	stxa	%1, [%0] %3\n"
-	"	stxa	%2, [%5] %4\n"
-	"	membar	#Sync\n"
-	"	flush	%%g6\n"
-	"	nop\n"
-	"	nop\n"
-	"	nop\n"
-		: /* No outputs */
-		: "r" (TLB_TAG_ACCESS), "r" (alias_base), "r" (pt),
-		  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" ((0<<16) | (13<<3))
-		: "memory");
-		if (real_end >= KERNBASE + 0x340000) {
-			second_alias_page = alias_base + 0x400000;
-			__asm__ __volatile__(
-		"	stxa	%1, [%0] %3\n"
-		"	stxa	%2, [%5] %4\n"
-		"	membar	#Sync\n"
-		"	flush	%%g6\n"
-		"	nop\n"
-		"	nop\n"
-		"	nop\n"
-			: /* No outputs */
-			: "r" (TLB_TAG_ACCESS), "r" (second_alias_page), "r" (pt + 0x400000),
-			  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" ((0<<16) | (12<<3))
-			: "memory");
-		}
+	if ((real_end > ((unsigned long)KERNBASE + 0x800000))) {
+		prom_printf("paging_init: Kernel > 8MB, too large.\n");
+		prom_halt();
 	}
-	local_irq_restore(flags);
-	
-	/* Now set kernel pgd to upper alias so physical page computations
+
+	/* Set kernel pgd to upper alias so physical page computations
 	 * work.
 	 */
 	init_mm.pgd += ((shift) / (sizeof(pgd_t)));
@@ -1568,15 +1490,11 @@ void __init paging_init(void)
 	pud_set(pud_offset(&swapper_pg_dir[0], 0),
 		swapper_pmd_dir + (shift / sizeof(pgd_t)));
 	
-	swapper_pgd_zero = pgd_val(init_mm.pgd[0]);
+	swapper_pgd_zero = pgd_val(swapper_pg_dir[0]);
 	
 	/* Inherit non-locked OBP mappings. */
 	inherit_prom_mappings();
 	
-	/* Setup bootmem... */
-	pages_avail = 0;
-	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
-
 	/* Ok, we can use our TLB miss and window trap handlers safely.
 	 * We need to do a quick peek here to see if we are on StarFire
 	 * or not, so setup_tba can setup the IRQ globals correctly (it
@@ -1589,12 +1507,11 @@ void __init paging_init(void)
 
 	inherit_locked_prom_mappings(1);
 
-	/* We only created DTLB mapping of this stuff. */
-	spitfire_flush_dtlb_nucleus_page(alias_base);
-	if (second_alias_page)
-		spitfire_flush_dtlb_nucleus_page(second_alias_page);
-
 	__flush_tlb_all();
+
+	/* Setup bootmem... */
+	pages_avail = 0;
+	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
@@ -1757,8 +1674,7 @@ void __init mem_init(void)
 
 	i = last_valid_pfn >> ((22 - PAGE_SHIFT) + 6);
 	i += 1;
-	sparc64_valid_addr_bitmap = (unsigned long *)
-		__alloc_bootmem(i << 3, SMP_CACHE_BYTES, bootmap_base);
+	sparc64_valid_addr_bitmap = (unsigned long *) alloc_bootmem(i << 3);
 	if (sparc64_valid_addr_bitmap == NULL) {
 		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
 		prom_halt();
