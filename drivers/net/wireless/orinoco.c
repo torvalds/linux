@@ -636,7 +636,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	/* Read the frame header */
 	err = hermes_bap_pread(hw, IRQ_BAP, &hdr,
 			       sizeof(struct hermes_tx_descriptor) +
-			       sizeof(struct ieee80211_hdr),
+			       sizeof(struct ieee80211_hdr_4addr),
 			       fid, 0);
 
 	hermes_write_regn(hw, TXCOMPLFID, DUMMY_FID);
