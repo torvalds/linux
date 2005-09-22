@@ -62,7 +62,7 @@ static ssize_t add_slot_store(struct dlpar_io_attr *dlpar_attr,
 	char drc_name[MAX_DRC_NAME_LEN];
 	char *end;
 
-	if (nbytes > MAX_DRC_NAME_LEN)
+	if (nbytes >= MAX_DRC_NAME_LEN)
 		return 0;
 
 	memcpy(drc_name, buf, nbytes);
@@ -83,7 +83,7 @@ static ssize_t remove_slot_store(struct dlpar_io_attr *dlpar_attr,
 	char drc_name[MAX_DRC_NAME_LEN];
 	char *end;
 
-	if (nbytes > MAX_DRC_NAME_LEN)
+	if (nbytes >= MAX_DRC_NAME_LEN)
 		return 0;
 
 	memcpy(drc_name, buf, nbytes);

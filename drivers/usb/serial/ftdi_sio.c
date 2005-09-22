@@ -1846,10 +1846,12 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_
 	} else {
 		/* set the baudrate determined before */
 		if (change_speed(port)) {
-			err("%s urb failed to set baurdrate", __FUNCTION__);
+			err("%s urb failed to set baudrate", __FUNCTION__);
 		}
-		/* Ensure  RTS and DTR are raised */
-		set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+		/* Ensure RTS and DTR are raised when baudrate changed from 0 */
+		if ((old_termios->c_cflag & CBAUD) == B0) {
+			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+		}
 	}
 
 	/* Set flow control */

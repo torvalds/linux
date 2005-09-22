@@ -100,11 +100,11 @@ VERSION 2.2LK	<2005/01/25>
 
 #ifdef CONFIG_R8169_NAPI
 #define rtl8169_rx_skb			netif_receive_skb
-#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_rx
+#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_receive_skb
 #define rtl8169_rx_quota(count, quota)	min(count, quota)
 #else
 #define rtl8169_rx_skb			netif_rx
-#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_receive_skb
+#define rtl8169_rx_hwaccel_skb		vlan_hwaccel_rx
 #define rtl8169_rx_quota(count, quota)	count
 #endif
 

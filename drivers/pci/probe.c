@@ -165,7 +165,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		if (l == 0xffffffff)
 			l = 0;
 		if ((l & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY) {
-			sz = pci_size(l, sz, PCI_BASE_ADDRESS_MEM_MASK);
+			sz = pci_size(l, sz, (u32)PCI_BASE_ADDRESS_MEM_MASK);
 			if (!sz)
 				continue;
 			res->start = l & PCI_BASE_ADDRESS_MEM_MASK;
@@ -215,7 +215,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		if (l == 0xffffffff)
 			l = 0;
 		if (sz && sz != 0xffffffff) {
-			sz = pci_size(l, sz, PCI_ROM_ADDRESS_MASK);
+			sz = pci_size(l, sz, (u32)PCI_ROM_ADDRESS_MASK);
 			if (sz) {
 				res->flags = (l & IORESOURCE_ROM_ENABLE) |
 				  IORESOURCE_MEM | IORESOURCE_PREFETCH |
