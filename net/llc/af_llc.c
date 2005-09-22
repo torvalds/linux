@@ -296,6 +296,12 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	rc = -EAFNOSUPPORT;
 	if (unlikely(addr->sllc_family != AF_LLC))
 		goto out;
+	rc = -ENODEV;
+	rtnl_lock();
+	llc->dev = dev_getbyhwaddr(addr->sllc_arphrd, addr->sllc_mac);
+	rtnl_unlock();
+	if (!llc->dev)
+		goto out;
 	if (!addr->sllc_sap) {
 		rc = -EUSERS;
 		addr->sllc_sap = llc_ui_autoport();

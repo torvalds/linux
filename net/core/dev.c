@@ -574,6 +574,8 @@ struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
 	return dev;
 }
 
+EXPORT_SYMBOL(dev_getbyhwaddr);
+
 struct net_device *dev_getfirstbyhwtype(unsigned short type)
 {
 	struct net_device *dev;
