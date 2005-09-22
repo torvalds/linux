@@ -205,6 +205,10 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 #endif /* CIFS_EXPERIMENTAL */
 	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
+	/* Old Windows servers do not support level 103, retry with level 
+	   one if old server failed the previous call */ 
+	if(rc)
+		rc = SMBOldQFSInfo(xid, pTcon, buf);
 	/*     
 	   int f_type;
 	   __fsid_t f_fsid;

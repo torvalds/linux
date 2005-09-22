@@ -3,7 +3,8 @@ Version 1.37
 Fix readdir caching when unlink removes file in current search buffer,
 and this is followed by a rewind search to just before the deleted entry.
 Do not attempt to set ctime unless atime and/or mtime change requested
-(most servers throw it away anyway).
+(most servers throw it away anyway). Fix length check of received smbs
+to be more accurate.
 
 Version 1.36
 ------------

@@ -868,7 +868,7 @@ unsigned int
 smbCalcSize(struct smb_hdr *ptr)
 {
 	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
-		BCC(ptr));
+		2 /* size of the bcc field itself */ + BCC(ptr));
 }
 
 /* The following are taken from fs/ntfs/util.c */

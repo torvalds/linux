@@ -1684,6 +1684,14 @@ typedef struct {
 } FILE_SYSTEM_INFO;		/* size info, level 0x103 */
 
 typedef struct {
+	__le32 fsid;
+	__le32 SectorsPerAllocationUnit;
+	__le32 TotalAllocationUnits;
+	__le32 FreeAllocationUnits;
+	__le16  BytesPerSector;
+} FILE_SYSTEM_ALLOC_INFO;
+
+typedef struct {
 	__le16 MajorVersionNumber;
 	__le16 MinorVersionNumber;
 	__le64 Capability;

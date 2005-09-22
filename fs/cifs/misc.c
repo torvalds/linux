@@ -450,13 +450,12 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 
 	if ((4 + len != smbCalcSize(smb))
 	    || (4 + len != (unsigned int)length)) {
-		return 0;
-	} else {
 		cERROR(1, ("smbCalcSize %x ", smbCalcSize(smb)));
 		cERROR(1,
 		       ("bad smb size detected. The Mid=%d", smb->Mid));
 		return 1;
 	}
+	return 0;
 }
 int
 is_valid_oplock_break(struct smb_hdr *buf)
