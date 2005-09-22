@@ -15,8 +15,6 @@
 	.text
 	.align		32
 
-	.globl		sparc64_vpte_patchme1
-	.globl		sparc64_vpte_patchme2
 /*
  * On a second level vpte miss, check whether the original fault is to the OBP 
  * range (note that this is only possible for instruction miss, data misses to
@@ -33,18 +31,17 @@ sparc64_vpte_nucleus:
 	 */
 	sethi		%hi(LOW_OBP_ADDRESS), %g5
 	cmp		%g4, %g5
-	blu,pn		%xcc, sparc64_vpte_patchme1
+	blu,pn		%xcc, kern_vpte
 	 mov		0x1, %g5
 	sllx		%g5, 32, %g5
 	cmp		%g4, %g5
-	blu,pn		%xcc, obp_iaddr_patch
+	blu,pn		%xcc, vpte_insn_obp
 	 nop
 
 	/* These two instructions are patched by paginig_init().  */
-sparc64_vpte_patchme1:
-	sethi		%hi(0), %g5
-sparc64_vpte_patchme2:
-	or		%g5, %lo(0), %g5
+kern_vpte:
+	sethi		%hi(swapper_pgd_zero), %g5
+	lduw		[%g5 + %lo(swapper_pgd_zero)], %g5
 
 	/* With kernel PGD in %g5, branch back into dtlb_backend.  */
 	ba,pt		%xcc, sparc64_kpte_continue
@@ -60,11 +57,9 @@ vpte_noent:
 	stxa		%g4, [%g1 + %g1] ASI_DMMU
 	done
 
-	.globl		obp_iaddr_patch
-obp_iaddr_patch:
-	/* These two instructions patched by inherit_prom_mappings().  */
-	sethi		%hi(0), %g5
-	or		%g5, %lo(0), %g5
+vpte_insn_obp:
+	sethi		%hi(prom_pmd_phys), %g5
+	ldx		[%g5 + %lo(prom_pmd_phys)], %g5
 
 	/* Behave as if we are at TL0.  */
 	wrpr		%g0, 1, %tl
@@ -100,11 +95,9 @@ obp_iaddr_patch:
 	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
 
-	.globl		obp_daddr_patch
-obp_daddr_patch:
-	/* These two instructions patched by inherit_prom_mappings().  */
-	sethi		%hi(0), %g5
-	or		%g5, %lo(0), %g5
+kvmap_do_obp:
+	sethi		%hi(prom_pmd_phys), %g5
+	ldx		[%g5 + %lo(prom_pmd_phys)], %g5
 
 	/* Get PMD offset.  */
 	srlx		%g4, 23, %g6
@@ -159,7 +152,7 @@ kvmap_check_obp:
 	 mov		0x1, %g5
 	sllx		%g5, 32, %g5
 	cmp		%g4, %g5
-	blu,pn		%xcc, obp_daddr_patch
+	blu,pn		%xcc, kvmap_do_obp
 	 nop
 
 kvmap_vmalloc_addr:

@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/kprobes.h>
+#include <linux/cache.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -45,10 +46,10 @@ struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
 unsigned long *sparc64_valid_addr_bitmap;
 
 /* Ugly, but necessary... -DaveM */
-unsigned long phys_base;
-unsigned long kern_base;
-unsigned long kern_size;
-unsigned long pfn_base;
+unsigned long phys_base __read_mostly;
+unsigned long kern_base __read_mostly;
+unsigned long kern_size __read_mostly;
+unsigned long pfn_base __read_mostly;
 
 /* This is even uglier. We have a problem where the kernel may not be
  * located at phys_base. However, initial __alloc_bootmem() calls need to
@@ -73,7 +74,7 @@ extern unsigned long sparc_ramdisk_image64;
 extern unsigned int sparc_ramdisk_image;
 extern unsigned int sparc_ramdisk_size;
 
-struct page *mem_map_zero;
+struct page *mem_map_zero __read_mostly;
 
 int bigkernel = 0;
 
@@ -318,6 +319,10 @@ extern void register_prom_callbacks(void);
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
 
+/* Exported for kernel TLB miss handling in ktlb.S */
+unsigned long prom_pmd_phys __read_mostly;
+unsigned int swapper_pgd_zero __read_mostly;
+
 void __init early_pgtable_allocfail(char *type)
 {
 	prom_printf("inherit_prom_mappings: Cannot alloc kernel %s.\n", type);
@@ -364,7 +369,6 @@ static void inherit_prom_mappings(void)
 	pmd_t *pmdp;
 	pte_t *ptep;
 	int node, n, i, tsz;
-	extern unsigned int obp_iaddr_patch[2], obp_daddr_patch[2];
 
 	node = prom_finddevice("/virtual-memory");
 	n = prom_getproplen(node, "translations");
@@ -434,13 +438,7 @@ static void inherit_prom_mappings(void)
 			}
 		}
 	}
-	phys_page = __pa(prompmd);
-	obp_iaddr_patch[0] |= (phys_page >> 10);
-	obp_iaddr_patch[1] |= (phys_page & 0x3ff);
-	flushi((long)&obp_iaddr_patch[0]);
-	obp_daddr_patch[0] |= (phys_page >> 10);
-	obp_daddr_patch[1] |= (phys_page & 0x3ff);
-	flushi((long)&obp_daddr_patch[0]);
+	prom_pmd_phys = __pa(prompmd);
 
 	/* Now fixup OBP's idea about where we really are mapped. */
 	prom_printf("Remapping the kernel... ");
@@ -1407,8 +1405,6 @@ static unsigned long last_valid_pfn;
 void __init paging_init(void)
 {
 	extern pmd_t swapper_pmd_dir[1024];
-	extern unsigned int sparc64_vpte_patchme1[1];
-	extern unsigned int sparc64_vpte_patchme2[1];
 	unsigned long alias_base = kern_base + PAGE_OFFSET;
 	unsigned long second_alias_page = 0;
 	unsigned long pt, flags, end_pfn, pages_avail;
@@ -1502,11 +1498,7 @@ void __init paging_init(void)
 	pud_set(pud_offset(&swapper_pg_dir[0], 0),
 		swapper_pmd_dir + (shift / sizeof(pgd_t)));
 	
-	sparc64_vpte_patchme1[0] |=
-		(((unsigned long)pgd_val(init_mm.pgd[0])) >> 10);
-	sparc64_vpte_patchme2[0] |=
-		(((unsigned long)pgd_val(init_mm.pgd[0])) & 0x3ff);
-	flushi((long)&sparc64_vpte_patchme1[0]);
+	swapper_pgd_zero = pgd_val(init_mm.pgd[0]);
 	
 	/* Setup bootmem... */
 	pages_avail = 0;
