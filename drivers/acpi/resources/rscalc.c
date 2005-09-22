@@ -78,51 +78,50 @@ static u8 acpi_gbl_stream_sizes[] = {
  * Base sizes of resource descriptors, both the actual AML stream length and
  * size of the internal struct representation.
  */
-typedef struct acpi_resource_sizes {
+struct acpi_resource_sizes {
 	u8 minimum_stream_size;
 	u8 minimum_struct_size;
-
-} ACPI_RESOURCE_SIZES;
-
-static ACPI_RESOURCE_SIZES acpi_gbl_sm_resource_sizes[] = {
-	0, 0,			/* 0x00, Reserved */
-	0, 0,			/* 0x01, Reserved */
-	0, 0,			/* 0x02, Reserved */
-	0, 0,			/* 0x03, Reserved */
-	3, ACPI_SIZEOF_RESOURCE(struct acpi_resource_irq),	/* ACPI_RDESC_TYPE_IRQ_FORMAT */
-	3, ACPI_SIZEOF_RESOURCE(struct acpi_resource_dma),	/* ACPI_RDESC_TYPE_DMA_FORMAT */
-	1, ACPI_SIZEOF_RESOURCE(struct acpi_resource_start_dpf),	/* ACPI_RDESC_TYPE_START_DEPENDENT */
-	1, ACPI_RESOURCE_LENGTH,	/* ACPI_RDESC_TYPE_END_DEPENDENT */
-	8, ACPI_SIZEOF_RESOURCE(struct acpi_resource_io),	/* ACPI_RDESC_TYPE_IO_PORT */
-	4, ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_io),	/* ACPI_RDESC_TYPE_FIXED_IO_PORT */
-	0, 0,			/* 0x0A, Reserved */
-	0, 0,			/* 0x0B, Reserved */
-	0, 0,			/* 0x0C, Reserved */
-	0, 0,			/* 0x0D, Reserved */
-	1, ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor),	/* ACPI_RDESC_TYPE_SMALL_VENDOR */
-	2, ACPI_RESOURCE_LENGTH,	/* ACPI_RDESC_TYPE_END_TAG */
 };
 
-static ACPI_RESOURCE_SIZES acpi_gbl_lg_resource_sizes[] = {
-	0, 0,			/* 0x00, Reserved */
-	12, ACPI_SIZEOF_RESOURCE(struct acpi_resource_mem24),	/* ACPI_RDESC_TYPE_MEMORY_24 */
-	15, ACPI_SIZEOF_RESOURCE(struct acpi_resource_generic_reg),	/* ACPI_RDESC_TYPE_GENERIC_REGISTER */
-	0, 0,			/* 0x03, Reserved */
-	3, ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor),	/* ACPI_RDESC_TYPE_LARGE_VENDOR */
-	20, ACPI_SIZEOF_RESOURCE(struct acpi_resource_mem32),	/* ACPI_RDESC_TYPE_MEMORY_32 */
-	12, ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_mem32),	/* ACPI_RDESC_TYPE_FIXED_MEMORY_32 */
-	26, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address32),	/* ACPI_RDESC_TYPE_DWORD_ADDRESS_SPACE */
-	16, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address16),	/* ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE */
-	9, ACPI_SIZEOF_RESOURCE(struct acpi_resource_ext_irq),	/* ACPI_RDESC_TYPE_EXTENDED_XRUPT */
-	46, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address64),	/* ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE */
-	56, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address64),	/* ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE */
+static struct acpi_resource_sizes acpi_gbl_sm_resource_sizes[] = {
+	{0, 0},			/* 0x00, Reserved */
+	{0, 0},			/* 0x01, Reserved */
+	{0, 0},			/* 0x02, Reserved */
+	{0, 0},			/* 0x03, Reserved */
+	{3, ACPI_SIZEOF_RESOURCE(struct acpi_resource_irq)},	/* ACPI_RDESC_TYPE_IRQ_FORMAT */
+	{3, ACPI_SIZEOF_RESOURCE(struct acpi_resource_dma)},	/* ACPI_RDESC_TYPE_DMA_FORMAT */
+	{1, ACPI_SIZEOF_RESOURCE(struct acpi_resource_start_dpf)},	/* ACPI_RDESC_TYPE_START_DEPENDENT */
+	{1, ACPI_RESOURCE_LENGTH},	/* ACPI_RDESC_TYPE_END_DEPENDENT */
+	{8, ACPI_SIZEOF_RESOURCE(struct acpi_resource_io)},	/* ACPI_RDESC_TYPE_IO_PORT */
+	{4, ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_io)},	/* ACPI_RDESC_TYPE_FIXED_IO_PORT */
+	{0, 0},			/* 0x0A, Reserved */
+	{0, 0},			/* 0x0B, Reserved */
+	{0, 0},			/* 0x0C, Reserved */
+	{0, 0},			/* 0x0D, Reserved */
+	{1, ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor)},	/* ACPI_RDESC_TYPE_SMALL_VENDOR */
+	{2, ACPI_RESOURCE_LENGTH},	/* ACPI_RDESC_TYPE_END_TAG */
+};
+
+static struct acpi_resource_sizes acpi_gbl_lg_resource_sizes[] = {
+	{0, 0},			/* 0x00, Reserved */
+	{12, ACPI_SIZEOF_RESOURCE(struct acpi_resource_mem24)},	/* ACPI_RDESC_TYPE_MEMORY_24 */
+	{15, ACPI_SIZEOF_RESOURCE(struct acpi_resource_generic_reg)},	/* ACPI_RDESC_TYPE_GENERIC_REGISTER */
+	{0, 0},			/* 0x03, Reserved */
+	{3, ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor)},	/* ACPI_RDESC_TYPE_LARGE_VENDOR */
+	{20, ACPI_SIZEOF_RESOURCE(struct acpi_resource_mem32)},	/* ACPI_RDESC_TYPE_MEMORY_32 */
+	{12, ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_mem32)},	/* ACPI_RDESC_TYPE_FIXED_MEMORY_32 */
+	{26, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address32)},	/* ACPI_RDESC_TYPE_DWORD_ADDRESS_SPACE */
+	{16, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address16)},	/* ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE */
+	{9, ACPI_SIZEOF_RESOURCE(struct acpi_resource_ext_irq)},	/* ACPI_RDESC_TYPE_EXTENDED_XRUPT */
+	{46, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address64)},	/* ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE */
+	{56, ACPI_SIZEOF_RESOURCE(struct acpi_resource_address64)},	/* ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE */
 };
 
 /* Local prototypes */
 
 static u8 acpi_rs_count_set_bits(u16 bit_field);
 
-static ACPI_RESOURCE_SIZES *acpi_rs_get_resource_sizes(u8 resource_type);
+static struct acpi_resource_sizes *acpi_rs_get_resource_sizes(u8 resource_type);
 
 static u16 acpi_rs_get_resource_length(u8 * resource);
 
@@ -173,9 +172,9 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
  *
  ******************************************************************************/
 
-static ACPI_RESOURCE_SIZES *acpi_rs_get_resource_sizes(u8 resource_type)
+static struct acpi_resource_sizes *acpi_rs_get_resource_sizes(u8 resource_type)
 {
-	ACPI_RESOURCE_SIZES *size_info;
+	struct acpi_resource_sizes *size_info;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -489,7 +488,7 @@ acpi_rs_get_list_length(u8 * byte_stream_buffer,
 			u32 byte_stream_buffer_length, acpi_size * size_needed)
 {
 	u8 *buffer;
-	ACPI_RESOURCE_SIZES *resource_info;
+	struct acpi_resource_sizes *resource_info;
 	u32 buffer_size = 0;
 	u32 bytes_parsed = 0;
 	u8 resource_type;
@@ -759,7 +758,8 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 						     (*sub_object_list)->string.
 						     length + 1);
 			} else {
-				temp_size_needed += acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
+				temp_size_needed +=
+				    acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
 			}
 		} else {
 			/*
