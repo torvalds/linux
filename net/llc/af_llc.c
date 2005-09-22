@@ -418,9 +418,9 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 		rc = llc_ui_autobind(sock, addr);
 		if (rc)
 			goto out;
-		llc->daddr.lsap = addr->sllc_sap;
-		memcpy(llc->daddr.mac, addr->sllc_mac, IFHWADDRLEN);
 	}
+	llc->daddr.lsap = addr->sllc_sap;
+	memcpy(llc->daddr.mac, addr->sllc_mac, IFHWADDRLEN);
 	sock->state = SS_CONNECTING;
 	sk->sk_state   = TCP_SYN_SENT;
 	llc->link   = llc_ui_next_link_no(llc->sap->laddr.lsap);
