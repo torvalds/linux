@@ -4,17 +4,17 @@ Supported adapters:
   * VIA Technologies, Inc. VT82C596A/B
     Datasheet: Sometimes available at the VIA website
 
-  * VIA Technologies, Inc. VT82C686A/B 
+  * VIA Technologies, Inc. VT82C686A/B
     Datasheet: Sometimes available at the VIA website
 
   * VIA Technologies, Inc. VT8231, VT8233, VT8233A, VT8235, VT8237
     Datasheet: available on request from Via
 
 Authors:
-	Frodo Looijaard <frodol@dds.nl>,  
-	Philip Edelbrock <phil@netroedge.com>, 
-	Kyösti Mälkki <kmalkki@cc.hut.fi>, 
-	Mark D. Studebaker <mdsxyz123@yahoo.com> 
+	Frodo Looijaard <frodol@dds.nl>,
+	Philip Edelbrock <phil@netroedge.com>,
+	Kyösti Mälkki <kmalkki@cc.hut.fi>,
+	Mark D. Studebaker <mdsxyz123@yahoo.com>
 
 Module Parameters
 -----------------
@@ -43,5 +43,3 @@ Your lspci -n listing must show one of these :
 
 If none of these show up, you should look in the BIOS for settings like
 enable ACPI / SMBus or even USB.
-
-
