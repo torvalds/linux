@@ -99,15 +99,19 @@ out:
 static inline int llc_fixup_skb(struct sk_buff *skb)
 {
 	u8 llc_len = 2;
-	struct llc_pdu_sn *pdu;
+	struct llc_pdu_un *pdu;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*pdu))))
 		return 0;
 
-	pdu = (struct llc_pdu_sn *)skb->data;
+	pdu = (struct llc_pdu_un *)skb->data;
 	if ((pdu->ctrl_1 & LLC_PDU_TYPE_MASK) == LLC_PDU_TYPE_U)
 		llc_len = 1;
 	llc_len += 2;
+
+	if (unlikely(!pskb_may_pull(skb, llc_len)))
+		return 0;
+
 	skb->h.raw += llc_len;
 	skb_pull(skb, llc_len);
 	if (skb->protocol == htons(ETH_P_802_2)) {
