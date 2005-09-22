@@ -267,11 +267,10 @@ int llc_conn_ac_send_dm_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 1;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_dm_rsp(nskb, f_bit);
+		llc_pdu_init_as_dm_rsp(nskb, 1);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
 			goto free;
@@ -324,13 +323,12 @@ int llc_conn_ac_resend_frmr_rsp_f_set_0(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame(llc->dev);
 
 	if (nskb) {
-		u8 f_bit = 0;
 		struct llc_sap *sap = llc->sap;
 		struct llc_pdu_sn *pdu = (struct llc_pdu_sn *)&llc->rx_pdu_hdr;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_frmr_rsp(nskb, pdu, f_bit, llc->vS,
+		llc_pdu_init_as_frmr_rsp(nskb, pdu, 0, llc->vS,
 					 llc->vR, INCORRECT);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
@@ -502,12 +500,11 @@ int llc_conn_ac_send_rej_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame(llc->dev);
 
 	if (nskb) {
-		u8 f_bit = 1;
 		struct llc_sap *sap = llc->sap;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rej_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rej_rsp(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
 			goto free;
@@ -528,11 +525,10 @@ int llc_conn_ac_send_rej_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 0;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rej_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rej_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
 			goto free;
@@ -577,11 +573,10 @@ int llc_conn_ac_send_rnr_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 1;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rnr_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rnr_rsp(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
 			goto free;
@@ -601,12 +596,11 @@ int llc_conn_ac_send_rnr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *nskb = llc_alloc_frame(llc->dev);
 
 	if (nskb) {
-		u8 f_bit = 0;
 		struct llc_sap *sap = llc->sap;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rnr_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rnr_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
 			goto free;
@@ -712,11 +706,10 @@ int llc_conn_ac_send_ack_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 1;
 
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rr_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rr_rsp(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
 		if (rc)
 			goto free;
