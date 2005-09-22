@@ -1326,7 +1326,7 @@ int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-void llc_conn_pf_cycle_tmr_cb(unsigned long timeout_data)
+static void llc_conn_tmr_common_cb(unsigned long timeout_data, u8 type)
 {
 	struct sock *sk = (struct sock *)timeout_data;
 	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
@@ -1336,58 +1336,30 @@ void llc_conn_pf_cycle_tmr_cb(unsigned long timeout_data)
 		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
 		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_P_TMR;
+		ev->type = type;
 		llc_process_tmr_ev(sk, skb);
 	}
 	bh_unlock_sock(sk);
+}
+
+void llc_conn_pf_cycle_tmr_cb(unsigned long timeout_data)
+{
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_P_TMR);
 }
 
 void llc_conn_busy_tmr_cb(unsigned long timeout_data)
 {
-	struct sock *sk = (struct sock *)timeout_data;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	bh_lock_sock(sk);
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_BUSY_TMR;
-		llc_process_tmr_ev(sk, skb);
-	}
-	bh_unlock_sock(sk);
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_BUSY_TMR);
 }
 
 void llc_conn_ack_tmr_cb(unsigned long timeout_data)
 {
-	struct sock* sk = (struct sock *)timeout_data;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	bh_lock_sock(sk);
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_ACK_TMR;
-		llc_process_tmr_ev(sk, skb);
-	}
-	bh_unlock_sock(sk);
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_ACK_TMR);
 }
 
 void llc_conn_rej_tmr_cb(unsigned long timeout_data)
 {
-	struct sock *sk = (struct sock *)timeout_data;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	bh_lock_sock(sk);
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_REJ_TMR;
-		llc_process_tmr_ev(sk, skb);
-	}
-	bh_unlock_sock(sk);
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_REJ_TMR);
 }
 
 int llc_conn_ac_rst_vs(struct sock *sk, struct sk_buff *skb)
