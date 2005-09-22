@@ -9,7 +9,7 @@
  * (the type definitions are in asm/raw_spinlock_types.h)
  */
 
-#define __raw_spin_is_locked(x)		((x)->lock != 0)
+#define __raw_spin_is_locked(x)		((x)->slock != 0)
 #define __raw_spin_unlock_wait(lock) \
 	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
@@ -31,17 +31,17 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	bne-	2b\n\
 	isync"
 	: "=&r"(tmp)
-	: "r"(&lock->lock), "r"(1)
+	: "r"(&lock->slock), "r"(1)
 	: "cr0", "memory");
 }
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__("eieio	# __raw_spin_unlock": : :"memory");
-	lock->lock = 0;
+	lock->slock = 0;
 }
 
-#define __raw_spin_trylock(l) (!test_and_set_bit(0,&(l)->lock))
+#define __raw_spin_trylock(l) (!test_and_set_bit(0,(volatile unsigned long *)(&(l)->slock)))
 
 /*
  * Read-write spinlocks, allowing multiple readers
