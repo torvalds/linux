@@ -310,6 +310,7 @@ struct linux_prom_translation {
 	unsigned long size;
 	unsigned long data;
 };
+static struct linux_prom_translation prom_trans[512] __initdata;
 
 extern unsigned long prom_boot_page;
 extern void prom_remap(unsigned long physpage, unsigned long virtpage, int mmu_ihandle);
@@ -363,7 +364,6 @@ unsigned long prom_virt_to_phys(unsigned long promva, int *error)
 
 static void inherit_prom_mappings(void)
 {
-	struct linux_prom_translation *trans;
 	unsigned long phys_page, tte_vaddr, tte_data;
 	void (*remap_func)(unsigned long, unsigned long, int);
 	pmd_t *pmdp;
@@ -373,30 +373,27 @@ static void inherit_prom_mappings(void)
 	node = prom_finddevice("/virtual-memory");
 	n = prom_getproplen(node, "translations");
 	if (n == 0 || n == -1) {
-		prom_printf("Couldn't get translation property\n");
+		prom_printf("prom_mappings: Couldn't get size.\n");
 		prom_halt();
 	}
-	n += 5 * sizeof(struct linux_prom_translation);
-	for (tsz = 1; tsz < n; tsz <<= 1)
-		/* empty */;
-	trans = __alloc_bootmem(tsz, SMP_CACHE_BYTES, bootmap_base);
-	if (trans == NULL) {
-		prom_printf("inherit_prom_mappings: Cannot alloc translations.\n");
+	n += 24 * sizeof(struct linux_prom_translation);
+	if (n > sizeof(prom_trans)) {
+		prom_printf("prom_mappings: prom_trans too small, "
+			    "need %Zd bytes\n", n);
 		prom_halt();
 	}
-	memset(trans, 0, tsz);
+	tsz = n;
+	if ((n = prom_getproperty(node, "translations",
+				  (char *)&prom_trans[0], tsz)) == -1) {
+		prom_printf("prom_mappings: Couldn't get property.\n");
+		prom_halt();
+	}
+	n = n / sizeof(struct linux_prom_translation);
 
-	if ((n = prom_getproperty(node, "translations", (char *)trans, tsz)) == -1) {
-		prom_printf("Couldn't get translation property\n");
-		prom_halt();
-	}
-	n = n / sizeof(*trans);
-
-	/*
-	 * The obp translations are saved based on 8k pagesize, since obp can
-	 * use a mixture of pagesizes. Misses to the 0xf0000000 - 0x100000000,
-	 * ie obp range, are handled in entry.S and do not use the vpte scheme
-	 * (see rant in inherit_locked_prom_mappings()).
+	/* The obp translations are saved based on 8k pagesize, since obp
+	 * can use a mixture of pagesizes. Misses to the 0xf0000000 ->
+	 * 0x100000000, ie obp range, are handled in entry.S and do not
+	 * use the vpte scheme (see rant: inherit_locked_prom_mappings).
 	 */
 #define OBP_PMD_SIZE 2048
 	prompmd = __alloc_bootmem(OBP_PMD_SIZE, OBP_PMD_SIZE, bootmap_base);
@@ -406,9 +403,9 @@ static void inherit_prom_mappings(void)
 	for (i = 0; i < n; i++) {
 		unsigned long vaddr;
 
-		if (trans[i].virt >= LOW_OBP_ADDRESS && trans[i].virt < HI_OBP_ADDRESS) {
-			for (vaddr = trans[i].virt;
-			     ((vaddr < trans[i].virt + trans[i].size) && 
+		if (prom_trans[i].virt >= LOW_OBP_ADDRESS && prom_trans[i].virt < HI_OBP_ADDRESS) {
+			for (vaddr = prom_trans[i].virt;
+			     ((vaddr < prom_trans[i].virt + prom_trans[i].size) && 
 			     (vaddr < HI_OBP_ADDRESS));
 			     vaddr += BASE_PAGE_SIZE) {
 				unsigned long val;
@@ -426,7 +423,7 @@ static void inherit_prom_mappings(void)
 				ptep = (pte_t *)__pmd_page(*pmdp) +
 						((vaddr >> 13) & 0x3ff);
 
-				val = trans[i].data;
+				val = prom_trans[i].data;
 
 				/* Clear diag TTE bits. */
 				if (tlb_type == spitfire)
@@ -434,7 +431,7 @@ static void inherit_prom_mappings(void)
 
 				set_pte_at(&init_mm, vaddr,
 					   ptep, __pte(val | _PAGE_MODIFIED));
-				trans[i].data += BASE_PAGE_SIZE;
+				prom_trans[i].data += BASE_PAGE_SIZE;
 			}
 		}
 	}
@@ -571,15 +568,16 @@ static void inherit_prom_mappings(void)
 	}
 
 	/* Re-read translations property. */
-	if ((n = prom_getproperty(node, "translations", (char *)trans, tsz)) == -1) {
-		prom_printf("Couldn't get translation property\n");
+	if ((n = prom_getproperty(node, "translations",
+				  (char *)&prom_trans[0], tsz)) == -1) {
+		prom_printf("prom_mappings: Can't reread prom_trans.\n");
 		prom_halt();
 	}
-	n = n / sizeof(*trans);
+	n = n / sizeof(struct linux_prom_translation);
 
 	for (i = 0; i < n; i++) {
-		unsigned long vaddr = trans[i].virt;
-		unsigned long size = trans[i].size;
+		unsigned long vaddr = prom_trans[i].virt;
+		unsigned long size = prom_trans[i].size;
 
 		if (vaddr < 0xf0000000UL) {
 			unsigned long avoid_start = (unsigned long) KERNBASE;
