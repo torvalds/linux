@@ -17,6 +17,8 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+#include <asm/atomic.h>
+
 struct net_device;
 struct packet_type;
 struct sk_buff;
@@ -44,6 +46,7 @@ struct llc_sap {
 	unsigned char	 state;
 	unsigned char	 p_bit;
 	unsigned char	 f_bit;
+	atomic_t         refcnt;
 	int		 (*rcv_func)(struct sk_buff *skb,
 				     struct net_device *dev,
 				     struct packet_type *pt,
@@ -81,7 +84,18 @@ extern struct llc_sap *llc_sap_open(unsigned char lsap,
 					       struct net_device *dev,
 					       struct packet_type *pt,
 					       struct net_device *orig_dev));
-extern void llc_sap_close(struct llc_sap *sap);
+static inline void llc_sap_hold(struct llc_sap *sap)
+{
+	atomic_inc(&sap->refcnt);
+}
+
+static inline void llc_sap_put(struct llc_sap *sap)
+{
+	extern void llc_sap_close(struct llc_sap *sap);
+
+	if (atomic_dec_and_test(&sap->refcnt))
+		llc_sap_close(sap);
+}
 
 extern struct llc_sap *llc_sap_find(unsigned char sap_value);
 

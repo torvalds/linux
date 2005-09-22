@@ -21,6 +21,7 @@
  * See the GNU General Public License for more details.
  */
 #include <linux/config.h>
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
@@ -188,10 +189,6 @@ static int llc_ui_release(struct socket *sock)
 	if (!sock_flag(sk, SOCK_ZAPPED))
 		llc_sap_remove_socket(llc->sap, sk);
 	release_sock(sk);
-	if (llc->sap && hlist_empty(&llc->sap->sk_list.list)) {
-		llc_release_sockets(llc->sap);
-		llc_sap_close(llc->sap);
-	}
 	if (llc->dev)
 		dev_put(llc->dev);
 	sock_put(sk);
@@ -220,6 +217,7 @@ static int llc_ui_autoport(void)
 				llc_ui_sap_last_autoport = i + 2;
 				goto out;
 			}
+			llc_sap_put(sap);
 		}
 		llc_ui_sap_last_autoport = LLC_SAP_DYN_START;
 		tries++;
@@ -310,6 +308,7 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 		rc = -EBUSY; /* some other network layer is using the sap */
 		if (!sap)
 			goto out;
+		llc_sap_hold(sap);
 	} else {
 		struct llc_addr laddr, daddr;
 		struct sock *ask;
@@ -326,7 +325,7 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 		ask = llc_lookup_established(sap, &daddr, &laddr);
 		if (ask) {
 			sock_put(ask);
-			goto out;
+			goto out_put;
 		}
 	}
 	llc->laddr.lsap = addr->sllc_sap;
@@ -336,6 +335,8 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	llc_sap_add_socket(sap, sk);
 	sock_reset_flag(sk, SOCK_ZAPPED);
 	rc = 0;
+out_put:
+	llc_sap_put(sap);
 out:
 	return rc;
 }

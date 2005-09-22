@@ -633,6 +633,7 @@ static int llc_find_offset(int state, int ev_type)
  */
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
 {
+	llc_sap_hold(sap);
 	write_lock_bh(&sap->sk_list.lock);
 	llc_sk(sk)->sap = sap;
 	sk_add_node(sk, &sap->sk_list.list);
@@ -652,6 +653,7 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 	write_lock_bh(&sap->sk_list.lock);
 	sk_del_node_init(sk);
 	write_unlock_bh(&sap->sk_list.lock);
+	llc_sap_put(sap);
 }
 
 /**
@@ -729,32 +731,6 @@ drop:
 #ifdef LLC_REFCNT_DEBUG
 static atomic_t llc_sock_nr;
 #endif
-
-/**
- *	llc_release_sockets - releases all sockets in a sap
- *	@sap: sap to release its sockets
- *
- *	Releases all connections of a sap. Returns 0 if all actions complete
- *	successfully, nonzero otherwise
- */
-int llc_release_sockets(struct llc_sap *sap)
-{
-	int rc = 0;
-	struct sock *sk;
-	struct hlist_node *node;
-
-	write_lock_bh(&sap->sk_list.lock);
-
-	sk_for_each(sk, node, &sap->sk_list.list) {
-		llc_sk(sk)->state = LLC_CONN_STATE_TEMP;
-
-		if (llc_send_disc(sk))
-			rc = 1;
-	}
-
-	write_unlock_bh(&sap->sk_list.lock);
-	return rc;
-}
 
 /**
  *	llc_backlog_rcv - Processes rx frames and expired timers.

@@ -75,6 +75,7 @@ int llc_conn_ac_conn_ind(struct sock *sk, struct sk_buff *skb)
 		llc->dev = skb->dev;
 		ev->ind_prim = LLC_CONN_PRIM;
 		rc = 0;
+		llc_sap_put(sap);
 	}
 	return rc;
 }

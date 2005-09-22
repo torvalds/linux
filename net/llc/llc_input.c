@@ -166,17 +166,22 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	if (sap->rcv_func) {
 		sap->rcv_func(skb, dev, pt, orig_dev);
-		goto out;
+		goto out_put;
 	}
 	dest = llc_pdu_type(skb);
 	if (unlikely(!dest || !llc_type_handlers[dest - 1]))
-		goto drop;
+		goto drop_put;
 	llc_type_handlers[dest - 1](sap, skb);
+out_put:
+	llc_sap_put(sap);
 out:
 	return 0;
 drop:
 	kfree_skb(skb);
 	goto out;
+drop_put:
+	kfree_skb(skb);
+	goto out_put;
 handle_station:
 	if (!llc_station_handler)
 		goto drop;
