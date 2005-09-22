@@ -126,6 +126,8 @@ static void vt596_dump_regs(const char *msg, u8 size)
 		printk("%02x\n", inb_p(SMBBLKDAT));
 	}
 }
+#else
+static inline void vt596_dump_regs(const char *msg, u8 size) { }
 #endif
 
 /* Return -1 on error, 0 on success */
@@ -135,9 +137,7 @@ static int vt596_transaction(u8 size)
 	int result = 0;
 	int timeout = 0;
 
-#ifdef DEBUG
 	vt596_dump_regs("Transaction (pre)", size);
-#endif
 
 	/* Make sure the SMBus host is ready to start transmitting */
 	if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
@@ -192,9 +192,7 @@ static int vt596_transaction(u8 size)
 	if (temp & 0x1F)
 		outb_p(temp, SMBHSTSTS);
 
-#ifdef DEBUG
 	vt596_dump_regs("Transaction (post)", size);
-#endif
 
 	return result;
 }
