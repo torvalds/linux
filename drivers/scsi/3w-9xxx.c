@@ -60,6 +60,7 @@
                  Remove un-needed eh_abort handler.
                  Add support for embedded firmware error strings.
    2.26.02.003 - Correctly handle single sgl's with use_sg=1.
+   2.26.02.004 - Add support for 9550SX controllers.
 */
 
 #include <linux/module.h>
@@ -82,7 +83,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.003"
+#define TW_DRIVER_VERSION "2.26.02.004"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -892,11 +893,6 @@ static int twa_decode_bits(TW_Device_Extension *tw_dev, u32 status_reg_value)
 		writel(TW_CONTROL_CLEAR_QUEUE_ERROR, TW_CONTROL_REG_ADDR(tw_dev));
 	}
 
-	if (status_reg_value & TW_STATUS_SBUF_WRITE_ERROR) {
-		TW_PRINTK(tw_dev->host, TW_DRIVER, 0xf, "SBUF Write Error: clearing");
-		writel(TW_CONTROL_CLEAR_SBUF_WRITE_ERROR, TW_CONTROL_REG_ADDR(tw_dev));
-	}
-
 	if (status_reg_value & TW_STATUS_MICROCONTROLLER_ERROR) {
 		if (tw_dev->reset_print == 0) {
 			TW_PRINTK(tw_dev->host, TW_DRIVER, 0x10, "Microcontroller Error: clearing");
@@ -929,6 +925,36 @@ static int twa_empty_response_queue(TW_Device_Extension *tw_dev)
 out:
 	return retval;
 } /* End twa_empty_response_queue() */
+
+/* This function will clear the pchip/response queue on 9550SX */
+static int twa_empty_response_queue_large(TW_Device_Extension *tw_dev)
+{
+	u32 status_reg_value, response_que_value;
+	int count = 0, retval = 1;
+
+	if (tw_dev->tw_pci_dev->device == PCI_DEVICE_ID_3WARE_9550SX) {
+		status_reg_value = readl(TW_STATUS_REG_ADDR(tw_dev));
+
+		while (((status_reg_value & TW_STATUS_RESPONSE_QUEUE_EMPTY) == 0) && (count < TW_MAX_RESPONSE_DRAIN)) {
+			response_que_value = readl(TW_RESPONSE_QUEUE_REG_ADDR_LARGE(tw_dev));
+			if ((response_que_value & TW_9550SX_DRAIN_COMPLETED) == TW_9550SX_DRAIN_COMPLETED) {
+				/* P-chip settle time */
+				msleep(500);
+				retval = 0;
+				goto out;
+			}
+			status_reg_value = readl(TW_STATUS_REG_ADDR(tw_dev));
+			count++;
+		}
+		if (count == TW_MAX_RESPONSE_DRAIN)
+			goto out;
+		
+		retval = 0;
+	} else
+		retval = 0;
+out:
+	return retval;
+} /* End twa_empty_response_queue_large() */
 
 /* This function passes sense keys from firmware to scsi layer */
 static int twa_fill_sense(TW_Device_Extension *tw_dev, int request_id, int copy_sense, int print_host)
@@ -1613,8 +1639,16 @@ static int twa_reset_sequence(TW_Device_Extension *tw_dev, int soft_reset)
 	int tries = 0, retval = 1, flashed = 0, do_soft_reset = soft_reset;
 
 	while (tries < TW_MAX_RESET_TRIES) {
-		if (do_soft_reset)
+		if (do_soft_reset) {
 			TW_SOFT_RESET(tw_dev);
+			/* Clear pchip/response queue on 9550SX */
+			if (twa_empty_response_queue_large(tw_dev)) {
+				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x36, "Response queue (large) empty failed during reset sequence");
+				do_soft_reset = 1;
+				tries++;
+				continue;
+			}
+		}
 
 		/* Make sure controller is in a good state */
 		if (twa_poll_status(tw_dev, TW_STATUS_MICROCONTROLLER_READY | (do_soft_reset == 1 ? TW_STATUS_ATTENTION_INTERRUPT : 0), 60)) {
@@ -2034,7 +2068,10 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 		goto out_free_device_extension;
 	}
 
-	mem_addr = pci_resource_start(pdev, 1);
+	if (pdev->device == PCI_DEVICE_ID_3WARE_9000)
+		mem_addr = pci_resource_start(pdev, 1);
+	else
+		mem_addr = pci_resource_start(pdev, 2);
 
 	/* Save base address */
 	tw_dev->base_addr = ioremap(mem_addr, PAGE_SIZE);
@@ -2147,6 +2184,8 @@ static void twa_remove(struct pci_dev *pdev)
 /* PCI Devices supported by this driver */
 static struct pci_device_id twa_pci_tbl[] __devinitdata = {
 	{ PCI_VENDOR_ID_3WARE, PCI_DEVICE_ID_3WARE_9000,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_3WARE, PCI_DEVICE_ID_3WARE_9550SX,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
 };
