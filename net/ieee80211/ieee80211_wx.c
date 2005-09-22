@@ -355,7 +355,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		}
 
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
-			new_crypt->priv = new_crypt->ops->init(ieee, key);
+			new_crypt->priv = new_crypt->ops->init(key);
 
 		if (!new_crypt->ops || !new_crypt->priv) {
 			kfree(new_crypt);
@@ -598,7 +598,7 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ops;
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
-			new_crypt->priv = new_crypt->ops->init(ieee, idx);
+			new_crypt->priv = new_crypt->ops->init(idx);
 		if (new_crypt->priv == NULL) {
 			kfree(new_crypt);
 			ret = -EINVAL;

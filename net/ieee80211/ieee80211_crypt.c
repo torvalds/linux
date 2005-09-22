@@ -202,8 +202,7 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 		return NULL;
 }
 
-static void *ieee80211_crypt_null_init(struct ieee80211_device *ieee,
-				       int keyidx)
+static void *ieee80211_crypt_null_init(int keyidx)
 {
 	return (void *)1;
 }

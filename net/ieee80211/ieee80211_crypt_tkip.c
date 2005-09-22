@@ -60,10 +60,24 @@ struct ieee80211_tkip_data {
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 rx_hdr[16], tx_hdr[16];
 
-	struct ieee80211_device *ieee;
+	unsigned long flags;
 };
 
-static void *ieee80211_tkip_init(struct ieee80211_device *ieee, int key_idx)
+static unsigned long ieee80211_tkip_set_flags(unsigned long flags, void *priv)
+{
+	struct ieee80211_tkip_data *_priv = priv;
+	unsigned long old_flags = _priv->flags;
+	_priv->flags = flags;
+	return old_flags;
+}
+
+static unsigned long ieee80211_tkip_get_flags(void *priv)
+{
+	struct ieee80211_tkip_data *_priv = priv;
+	return _priv->flags;
+}
+
+static void *ieee80211_tkip_init(int key_idx)
 {
 	struct ieee80211_tkip_data *priv;
 
@@ -71,8 +85,6 @@ static void *ieee80211_tkip_init(struct ieee80211_device *ieee, int key_idx)
 	if (priv == NULL)
 		goto fail;
 	memset(priv, 0, sizeof(*priv));
-
-	priv->ieee = ieee;
 
 	priv->key_idx = key_idx;
 
@@ -315,13 +327,13 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 *pos;
 	struct scatterlist sg;
 
-	if (tkey->ieee->tkip_countermeasures) {
+	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		if (net_ratelimit()) {
 			struct ieee80211_hdr_4addr *hdr =
 			    (struct ieee80211_hdr_4addr *)skb->data;
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			printk(KERN_DEBUG "TKIP countermeasures: dropped "
 			       "TX packet to " MAC_FMT "\n",
-			       tkey->ieee->dev->name, MAC_ARG(hdr->addr1));
+			       MAC_ARG(hdr->addr1));
 		}
 		return -1;
 	}
@@ -366,11 +378,11 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
-	if (tkey->ieee->tkip_countermeasures) {
+	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			printk(KERN_DEBUG "TKIP countermeasures: dropped "
 			       "received packet from " MAC_FMT "\n",
-			       tkey->ieee->dev->name, MAC_ARG(hdr->addr2));
+			       MAC_ARG(hdr->addr2));
 		}
 		return -1;
 	}
@@ -694,6 +706,8 @@ static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
 	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
 	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.extra_msdu_postfix_len = 8,	/* MIC */
+	.get_flags = ieee80211_tkip_get_flags,
+	.set_flags = ieee80211_tkip_set_flags,
 	.owner = THIS_MODULE,
 };
 

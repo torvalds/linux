@@ -876,7 +876,6 @@ struct ieee80211_device {
 	/* WPA data */
 	int wpa_enabled;
 	int drop_unencrypted;
-	int tkip_countermeasures;
 	int privacy_invoked;
 	size_t wpa_ie_len;
 	u8 *wpa_ie;

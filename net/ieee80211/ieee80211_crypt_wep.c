@@ -37,7 +37,7 @@ struct prism2_wep_data {
 	struct crypto_tfm *tfm;
 };
 
-static void *prism2_wep_init(struct ieee80211_device *ieee, int keyidx)
+static void *prism2_wep_init(int keyidx)
 {
 	struct prism2_wep_data *priv;
 

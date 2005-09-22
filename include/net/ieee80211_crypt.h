@@ -25,13 +25,17 @@
 
 #include <linux/skbuff.h>
 
+enum {
+	IEEE80211_CRYPTO_TKIP_COUNTERMEASURES = (1<<0),
+};
+
 struct ieee80211_crypto_ops {
 	const char *name;
 
 	/* init new crypto context (e.g., allocate private data space,
 	 * select IV, etc.); returns NULL on failure or pointer to allocated
 	 * private data on success */
-	void *(*init) (struct ieee80211_device * ieee, int keyidx);
+	void *(*init) (int keyidx);
 
 	/* deinitialize crypto context and free allocated private data */
 	void (*deinit) (void *priv);
@@ -59,6 +63,10 @@ struct ieee80211_crypto_ops {
 	/* procfs handler for printing out key information and possible
 	 * statistics */
 	char *(*print_stats) (char *p, void *priv);
+
+	/* Crypto specific flag get/set for configuration settings */
+	unsigned long (*get_flags)(void *priv);
+	unsigned long (*set_flags)(unsigned long flags, void *priv);
 
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
