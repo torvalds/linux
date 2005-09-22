@@ -26,6 +26,8 @@
                      killed end-of-line whitespace
   2005-07-15  v0.4.2 rename WLAN product to FUSION, add FUSION2
   2005-09-10  v0.4.3 added HUAWEI E600 card and Audiovox AirCard
+  2005-09-20  v0.4.4 increased recv buffer size: the card sometimes
+                     wants to send >2000 bytes.
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
@@ -139,7 +141,7 @@ static int debug;
 
 #define N_IN_URB 4
 #define N_OUT_URB 1
-#define IN_BUFLEN 1024
+#define IN_BUFLEN 4096
 #define OUT_BUFLEN 128
 
 struct option_port_private {
