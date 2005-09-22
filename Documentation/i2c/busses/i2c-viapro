@@ -14,7 +14,8 @@ Authors:
 	Frodo Looijaard <frodol@dds.nl>,
 	Philip Edelbrock <phil@netroedge.com>,
 	Kyösti Mälkki <kmalkki@cc.hut.fi>,
-	Mark D. Studebaker <mdsxyz123@yahoo.com>
+	Mark D. Studebaker <mdsxyz123@yahoo.com>,
+	Jean Delvare <khali@linux-fr.org>
 
 Module Parameters
 -----------------
@@ -43,3 +44,7 @@ Your lspci -n listing must show one of these :
 
 If none of these show up, you should look in the BIOS for settings like
 enable ACPI / SMBus or even USB.
+
+Except for the oldest chips (VT82C596A/B, VT82C686A and most probably
+VT8231), this driver supports I2C block transactions. Such transactions
+are mainly useful to read from and write to EEPROMs.
