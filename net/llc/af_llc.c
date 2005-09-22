@@ -39,7 +39,6 @@ static struct proto_ops llc_ui_ops;
 
 static int llc_ui_wait_for_conn(struct sock *sk, long timeout);
 static int llc_ui_wait_for_disc(struct sock *sk, long timeout);
-static int llc_ui_wait_for_data(struct sock *sk, long timeout);
 static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 
 #if 0
@@ -524,29 +523,6 @@ static int llc_ui_wait_for_conn(struct sock *sk, long timeout)
 	return timeout;
 }
 
-static int llc_ui_wait_for_data(struct sock *sk, long timeout)
-{
-	DEFINE_WAIT(wait);
-	int rc = 0;
-
-	while (1) {
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
-		if (sk_wait_event(sk, &timeout,
-				  (sk->sk_shutdown & RCV_SHUTDOWN) ||
-				  (!skb_queue_empty(&sk->sk_receive_queue))))
-			break;
-		rc = -ERESTARTSYS;
-		if (signal_pending(current))
-			break;
-		rc = -EAGAIN;
-		if (!timeout)
-			break;
-		rc = 0;
-	}
-	finish_wait(sk->sk_sleep, &wait);
-	return rc;
-}
-
 static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 {
 	DEFINE_WAIT(wait);
@@ -569,6 +545,34 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 			break;
 	}
 	finish_wait(sk->sk_sleep, &wait);
+	return rc;
+}
+
+int llc_wait_data(struct sock *sk, long timeo)
+{
+	int rc;
+
+	while (1) {
+		/*
+		 * POSIX 1003.1g mandates this order.
+		 */
+		if (sk->sk_err) {
+			rc = sock_error(sk);
+			break;
+		}
+		rc = 0;
+		if (sk->sk_shutdown & RCV_SHUTDOWN)
+			break;
+		rc = -EAGAIN;
+		if (!timeo)
+			break;
+		rc = sock_intr_errno(timeo);
+		if (signal_pending(current))
+			break;
+		rc = 0;
+		if (sk_wait_data(sk, &timeo))
+			break;
+	}
 	return rc;
 }
 
@@ -599,7 +603,7 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags)
 		goto out;
 	/* wait for a connection to arrive. */
 	if (skb_queue_empty(&sk->sk_receive_queue)) {
-		rc = llc_ui_wait_for_data(sk, sk->sk_rcvtimeo);
+		rc = llc_wait_data(sk, sk->sk_rcvtimeo);
 		if (rc)
 			goto out;
 	}
@@ -658,7 +662,7 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 		llc_sk(sk)->laddr.lsap, llc_sk(sk)->daddr.lsap);
 	lock_sock(sk);
 	if (skb_queue_empty(&sk->sk_receive_queue)) {
-		rc = llc_ui_wait_for_data(sk, sock_rcvtimeo(sk, noblock));
+		rc = llc_wait_data(sk, sock_rcvtimeo(sk, noblock));
 		if (rc)
 			goto out;
 	}
