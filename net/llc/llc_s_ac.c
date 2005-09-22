@@ -103,7 +103,7 @@ int llc_sap_action_send_xid_r(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_sa(skb, mac_da);
 	llc_pdu_decode_da(skb, mac_sa);
 	llc_pdu_decode_ssap(skb, &dsap);
-	nskb = llc_alloc_frame(skb->dev);
+	nskb = llc_alloc_frame(NULL, skb->dev);
 	if (!nskb)
 		goto out;
 	llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap, dsap,
@@ -148,7 +148,7 @@ int llc_sap_action_send_test_r(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_sa(skb, mac_da);
 	llc_pdu_decode_da(skb, mac_sa);
 	llc_pdu_decode_ssap(skb, &dsap);
-	nskb = llc_alloc_frame(skb->dev);
+	nskb = llc_alloc_frame(NULL, skb->dev);
 	if (!nskb)
 		goto out;
 	llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap, dsap,

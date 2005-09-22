@@ -58,7 +58,7 @@ int sysctl_llc2_busy_timeout = LLC2_BUSY_TIME * HZ;
 int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
-	struct llc_sock *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(skb->sk);
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
 	/*
@@ -68,7 +68,10 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	 */
 	skb_get(skb);
 	ev->ind_prim = ev->cfm_prim = 0;
-	rc = llc_conn_service(sk, skb); /* sending event to state machine */
+	/*
+	 * Send event to state machine
+	 */
+	rc = llc_conn_service(skb->sk, skb);
 	if (unlikely(rc != 0)) {
 		printk(KERN_ERR "%s: llc_conn_service failed\n", __FUNCTION__);
 		goto out_kfree_skb;
@@ -100,18 +103,14 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 			kfree_skb(skb);
 		}
 		break;
-	case LLC_CONN_PRIM: {
-		struct sock *parent = skb->sk;
-
-		skb_orphan(skb);
+	case LLC_CONN_PRIM:
 		/*
-		 * Set the skb->sk to the new struct sock, so that at accept
-		 * type the upper layer can get the newly created struct sock.
+		 * Can't be sock_queue_rcv_skb, because we have to leave the
+		 * skb->sk pointing to the newly created struct sock in
+		 * llc_conn_handler. -acme
 		 */
-		skb->sk = sk;
-		skb_queue_tail(&parent->sk_receive_queue, skb);
-		sk->sk_state_change(parent);
-	}
+		skb_queue_tail(&sk->sk_receive_queue, skb);
+		sk->sk_state_change(sk);
 		break;
 	case LLC_DISC_PRIM:
 		sock_hold(sk);
@@ -475,7 +474,7 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
 }
 
 /**
- *	llc_lookup_established - Finds connection for the remote/local sap/mac
+ *	__llc_lookup_established - Finds connection for the remote/local sap/mac
  *	@sap: SAP
  *	@daddr: address of remote LLC (MAC + SAP)
  *	@laddr: address of local LLC (MAC + SAP)
@@ -483,14 +482,16 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
  *	Search connection list of the SAP and finds connection using the remote
  *	mac, remote sap, local mac, and local sap. Returns pointer for
  *	connection found, %NULL otherwise.
+ *	Caller has to make sure local_bh is disabled.
  */
-struct sock *llc_lookup_established(struct llc_sap *sap, struct llc_addr *daddr,
-				    struct llc_addr *laddr)
+static struct sock *__llc_lookup_established(struct llc_sap *sap,
+					     struct llc_addr *daddr,
+					     struct llc_addr *laddr)
 {
 	struct sock *rc;
 	struct hlist_node *node;
 
-	read_lock_bh(&sap->sk_list.lock);
+	read_lock(&sap->sk_list.lock);
 	sk_for_each(rc, node, &sap->sk_list.list) {
 		struct llc_sock *llc = llc_sk(rc);
 
@@ -504,8 +505,20 @@ struct sock *llc_lookup_established(struct llc_sap *sap, struct llc_addr *daddr,
 	}
 	rc = NULL;
 found:
-	read_unlock_bh(&sap->sk_list.lock);
+	read_unlock(&sap->sk_list.lock);
 	return rc;
+}
+
+struct sock *llc_lookup_established(struct llc_sap *sap,
+				    struct llc_addr *daddr,
+				    struct llc_addr *laddr)
+{
+	struct sock *sk;
+
+	local_bh_disable();
+	sk = __llc_lookup_established(sap, daddr, laddr);
+	local_bh_enable();
+	return sk;
 }
 
 /**
@@ -516,6 +529,7 @@ found:
  *	Search connection list of the SAP and finds connection listening on
  *	local mac, and local sap. Returns pointer for parent socket found,
  *	%NULL otherwise.
+ *	Caller has to make sure local_bh is disabled.
  */
 static struct sock *llc_lookup_listener(struct llc_sap *sap,
 					struct llc_addr *laddr)
@@ -523,7 +537,7 @@ static struct sock *llc_lookup_listener(struct llc_sap *sap,
 	struct sock *rc;
 	struct hlist_node *node;
 
-	read_lock_bh(&sap->sk_list.lock);
+	read_lock(&sap->sk_list.lock);
 	sk_for_each(rc, node, &sap->sk_list.list) {
 		struct llc_sock *llc = llc_sk(rc);
 
@@ -537,8 +551,17 @@ static struct sock *llc_lookup_listener(struct llc_sap *sap,
 	}
 	rc = NULL;
 found:
-	read_unlock_bh(&sap->sk_list.lock);
+	read_unlock(&sap->sk_list.lock);
 	return rc;
+}
+
+static struct sock *__llc_lookup(struct llc_sap *sap,
+				 struct llc_addr *daddr,
+				 struct llc_addr *laddr)
+{
+	struct sock *sk = __llc_lookup_established(sap, daddr, laddr);
+
+	return sk ? : llc_lookup_listener(sap, laddr);
 }
 
 /**
@@ -666,13 +689,32 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 static int llc_conn_rcv(struct sock* sk, struct sk_buff *skb)
 {
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-	struct llc_sock *llc = llc_sk(sk);
 
-	if (!llc->dev)
-		llc->dev = skb->dev;
 	ev->type   = LLC_CONN_EV_TYPE_PDU;
 	ev->reason = 0;
 	return llc_conn_state_process(sk, skb);
+}
+
+static struct sock *llc_create_incoming_sock(struct sock *sk,
+					     struct net_device *dev,
+					     struct llc_addr *saddr,
+					     struct llc_addr *daddr)
+{
+	struct sock *newsk = llc_sk_alloc(sk->sk_family, GFP_ATOMIC,
+					  sk->sk_prot);
+	struct llc_sock *newllc, *llc = llc_sk(sk);
+
+	if (!newsk)
+		goto out;
+	newllc = llc_sk(newsk);
+	memcpy(&newllc->laddr, daddr, sizeof(newllc->laddr));
+	memcpy(&newllc->daddr, saddr, sizeof(newllc->daddr));
+	newllc->dev = dev;
+	dev_hold(dev);
+	llc_sap_add_socket(llc->sap, newsk);
+	llc_sap_hold(llc->sap);
+out:
+	return newsk;
 }
 
 void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
@@ -685,34 +727,35 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_da(skb, daddr.mac);
 	llc_pdu_decode_dsap(skb, &daddr.lsap);
 
-	sk = llc_lookup_established(sap, &saddr, &daddr);
-	if (!sk) {
-		/*
-		 * Didn't find an active connection; verify if there
-		 * is a listening socket for this llc addr
-		 */
-		struct llc_sock *llc;
-		struct sock *parent = llc_lookup_listener(sap, &daddr);
+	sk = __llc_lookup(sap, &saddr, &daddr);
+	if (!sk)
+		goto drop;
 
-		if (!parent) {
-			dprintk("llc_lookup_listener failed!\n");
-			goto drop;
-		}
-
-		sk = llc_sk_alloc(parent->sk_family, GFP_ATOMIC, parent->sk_prot);
-		if (!sk) {
-			sock_put(parent);
-			goto drop;
-		}
-		llc = llc_sk(sk);
-		memcpy(&llc->laddr, &daddr, sizeof(llc->laddr));
-		memcpy(&llc->daddr, &saddr, sizeof(llc->daddr));
-		llc_sap_add_socket(sap, sk);
-		sock_hold(sk);
-		skb_set_owner_r(skb, parent);
-		sock_put(parent);
-	}
 	bh_lock_sock(sk);
+	/*
+	 * This has to be done here and not at the upper layer ->accept
+	 * method because of the way the PROCOM state machine works:
+	 * it needs to set several state variables (see, for instance,
+	 * llc_adm_actions_2 in net/llc/llc_c_st.c) and send a packet to
+	 * the originator of the new connection, and this state has to be
+	 * in the newly created struct sock private area. -acme
+	 */
+	if (unlikely(sk->sk_state == TCP_LISTEN)) {
+		struct sock *newsk = llc_create_incoming_sock(sk, skb->dev,
+							      &saddr, &daddr);
+		if (!newsk)
+			goto drop_unlock;
+		skb_set_owner_r(skb, newsk);
+	} else {
+		/*
+		 * Can't be skb_set_owner_r, this will be done at the
+		 * llc_conn_state_process function, later on, when we will use
+		 * skb_queue_rcv_skb to send it to upper layers, this is
+		 * another trick required to cope with how the PROCOM state
+		 * machine works. -acme
+		 */
+		skb->sk = sk;
+	}
 	if (!sock_owned_by_user(sk))
 		llc_conn_rcv(sk, skb);
 	else {
@@ -720,11 +763,16 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 		llc_set_backlog_type(skb, LLC_PACKET);
 		sk_add_backlog(sk, skb);
 	}
+out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
 	return;
 drop:
 	kfree_skb(skb);
+	return;
+drop_unlock:
+	kfree_skb(skb);
+	goto out;
 }
 
 #undef LLC_REFCNT_DEBUG

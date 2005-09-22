@@ -31,7 +31,7 @@
  *	Allocates an sk_buff for frame and initializes sk_buff fields.
  *	Returns allocated skb or %NULL when out of memory.
  */
-struct sk_buff *llc_alloc_frame(struct net_device *dev)
+struct sk_buff *llc_alloc_frame(struct sock *sk, struct net_device *dev)
 {
 	struct sk_buff *skb = alloc_skb(128, GFP_ATOMIC);
 
@@ -41,6 +41,8 @@ struct sk_buff *llc_alloc_frame(struct net_device *dev)
 		skb->protocol = htons(ETH_P_802_2);
 		skb->dev      = dev;
 		skb->mac.raw  = skb->head;
+		if (sk != NULL)
+			skb_set_owner_w(skb, sk);
 	}
 	return skb;
 }
