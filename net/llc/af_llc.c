@@ -37,10 +37,10 @@ static u16 llc_ui_sap_link_no_max[256];
 static struct sockaddr_llc llc_ui_addrnull;
 static struct proto_ops llc_ui_ops;
 
-static int llc_ui_wait_for_conn(struct sock *sk, int timeout);
-static int llc_ui_wait_for_disc(struct sock *sk, int timeout);
-static int llc_ui_wait_for_data(struct sock *sk, int timeout);
-static int llc_ui_wait_for_busy_core(struct sock *sk, int timeout);
+static int llc_ui_wait_for_conn(struct sock *sk, long timeout);
+static int llc_ui_wait_for_disc(struct sock *sk, long timeout);
+static int llc_ui_wait_for_data(struct sock *sk, long timeout);
+static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 
 #if 0
 #define dprintk(args...) printk(KERN_DEBUG args)
@@ -117,7 +117,7 @@ static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
 	int rc = 0;
 
 	if (llc_data_accept_state(llc->state) || llc->p_flag) {
-		int timeout = sock_sndtimeo(sk, noblock);
+		long timeout = sock_sndtimeo(sk, noblock);
 
 		rc = llc_ui_wait_for_busy_core(sk, timeout);
 	}
@@ -428,7 +428,7 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	}
 
 	if (sk->sk_state == TCP_SYN_SENT) {
-		const int timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+		const long timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
 		if (!timeo || !llc_ui_wait_for_conn(sk, timeo))
 			goto out;
@@ -488,16 +488,15 @@ out:
 	return rc;
 }
 
-static int llc_ui_wait_for_disc(struct sock *sk, int timeout)
+static int llc_ui_wait_for_disc(struct sock *sk, long timeout)
 {
 	DEFINE_WAIT(wait);
 	int rc = 0;
 
-	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
-	while (sk->sk_state != TCP_CLOSE) {
-		release_sock(sk);
-		timeout = schedule_timeout(timeout);
-		lock_sock(sk);
+	while (1) {
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		if (sk_wait_event(sk, &timeout, sk->sk_state == TCP_CLOSE))
+			break;
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
@@ -505,44 +504,37 @@ static int llc_ui_wait_for_disc(struct sock *sk, int timeout)
 		if (!timeout)
 			break;
 		rc = 0;
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 	}
 	finish_wait(sk->sk_sleep, &wait);
 	return rc;
 }
 
-static int llc_ui_wait_for_conn(struct sock *sk, int timeout)
+static int llc_ui_wait_for_conn(struct sock *sk, long timeout)
 {
 	DEFINE_WAIT(wait);
 
-	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
-
-	while (sk->sk_state == TCP_SYN_SENT) {
-		release_sock(sk);
-		timeout = schedule_timeout(timeout);
-		lock_sock(sk);
+	while (1) {
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		if (sk_wait_event(sk, &timeout, sk->sk_state != TCP_SYN_SENT))
+			break;
 		if (signal_pending(current) || !timeout)
 			break;
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 	}
 	finish_wait(sk->sk_sleep, &wait);
 	return timeout;
 }
 
-static int llc_ui_wait_for_data(struct sock *sk, int timeout)
+static int llc_ui_wait_for_data(struct sock *sk, long timeout)
 {
 	DEFINE_WAIT(wait);
 	int rc = 0;
 
-	for (;;) {
+	while (1) {
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
-		if (sk->sk_shutdown & RCV_SHUTDOWN)
+		if (sk_wait_event(sk, &timeout,
+				  (sk->sk_shutdown & RCV_SHUTDOWN) ||
+				  (!skb_queue_empty(&sk->sk_receive_queue))))
 			break;
-		if (!skb_queue_empty(&sk->sk_receive_queue))
-			break;
-		release_sock(sk);
-		timeout = schedule_timeout(timeout);
-		lock_sock(sk);
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
@@ -555,23 +547,20 @@ static int llc_ui_wait_for_data(struct sock *sk, int timeout)
 	return rc;
 }
 
-static int llc_ui_wait_for_busy_core(struct sock *sk, int timeout)
+static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 {
 	DEFINE_WAIT(wait);
 	struct llc_sock *llc = llc_sk(sk);
 	int rc;
 
-	for (;;) {
+	while (1) {
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
-		rc = -ENOTCONN;
-		if (sk->sk_shutdown & RCV_SHUTDOWN)
-			break;
 		rc = 0;
-		if (!llc_data_accept_state(llc->state) && !llc->p_flag)
+		if (sk_wait_event(sk, &timeout,
+				  (sk->sk_shutdown & RCV_SHUTDOWN) ||
+				  (!llc_data_accept_state(llc->state) &&
+				   !llc->p_flag)))
 			break;
-		release_sock(sk);
-		timeout = schedule_timeout(timeout);
-		lock_sock(sk);
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
