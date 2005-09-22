@@ -8,7 +8,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: summary.c,v 1.1 2005/09/07 08:34:54 havasi Exp $
+ * $Id: summary.c,v 1.3 2005/09/21 14:43:07 dedekind Exp $
  *
  */
 
@@ -38,17 +38,18 @@ int jffs2_sum_init(struct jffs2_sb_info *c)
 
 	if (!c->summary->sum_buf) {
 		JFFS2_WARNING("Can't allocate buffer for writing out summary information!\n");
+		kfree(c->summary);
 		return -ENOMEM;
 	}
 
-	JFFS2_DBG_SUMMARY("returned succesfully\n");
+	dbg_summary("returned succesfully\n");
 
 	return 0;
 }
 
 void jffs2_sum_exit(struct jffs2_sb_info *c)
 {
-	JFFS2_DBG_SUMMARY("called\n");
+	dbg_summary("called\n");
 
 	jffs2_sum_disable_collecting(c->summary);
 
@@ -71,13 +72,13 @@ static int jffs2_sum_add_mem(struct jffs2_summary *s, union jffs2_sum_mem *item)
 		case JFFS2_NODETYPE_INODE:
 			s->sum_size += JFFS2_SUMMARY_INODE_SIZE;
 			s->sum_num++;
-			JFFS2_DBG_SUMMARY("inode (%u) added to summary\n",
+			dbg_summary("inode (%u) added to summary\n",
 						je32_to_cpu(item->i.inode));
 			break;
 		case JFFS2_NODETYPE_DIRENT:
 			s->sum_size += JFFS2_SUMMARY_DIRENT_SIZE(item->d.nsize);
 			s->sum_num++;
-			JFFS2_DBG_SUMMARY("dirent (%u) added to summary\n",
+			dbg_summary("dirent (%u) added to summary\n",
 						je32_to_cpu(item->d.ino));
 			break;
 		default:
@@ -93,7 +94,7 @@ static int jffs2_sum_add_mem(struct jffs2_summary *s, union jffs2_sum_mem *item)
 
 int jffs2_sum_add_padding_mem(struct jffs2_summary *s, uint32_t size)
 {
-	JFFS2_DBG_SUMMARY("called with %u\n", size);
+	dbg_summary("called with %u\n", size);
 	s->sum_padded += size;
 	return 0;
 }
@@ -147,7 +148,7 @@ static void jffs2_sum_clean_collected(struct jffs2_summary *s)
 	union jffs2_sum_mem *temp;
 
 	if (!s->sum_list_head) {
-		JFFS2_DBG_SUMMARY("already empty\n");
+		dbg_summary("already empty\n");
 	}
 	while (s->sum_list_head) {
 		temp = s->sum_list_head;
@@ -161,14 +162,14 @@ static void jffs2_sum_clean_collected(struct jffs2_summary *s)
 
 void jffs2_sum_reset_collected(struct jffs2_summary *s)
 {
-	JFFS2_DBG_SUMMARY("called\n");
+	dbg_summary("called\n");
 	jffs2_sum_clean_collected(s);
 	s->sum_size = 0;
 }
 
 void jffs2_sum_disable_collecting(struct jffs2_summary *s)
 {
-	JFFS2_DBG_SUMMARY("called\n");
+	dbg_summary("called\n");
 	jffs2_sum_clean_collected(s);
 	s->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
 }
@@ -182,7 +183,7 @@ int jffs2_sum_is_disabled(struct jffs2_summary *s)
 
 void jffs2_sum_move_collected(struct jffs2_sb_info *c, struct jffs2_summary *s)
 {
-	JFFS2_DBG_SUMMARY("oldsize=0x%x oldnum=%u => newsize=0x%x newnum=%u\n",
+	dbg_summary("oldsize=0x%x oldnum=%u => newsize=0x%x newnum=%u\n",
 				c->summary->sum_size, c->summary->sum_num,
 				s->sum_size, s->sum_num);
 
@@ -260,16 +261,16 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 		}
 
 		case JFFS2_NODETYPE_PADDING:
-			JFFS2_DBG_SUMMARY("node PADDING\n");
+			dbg_summary("node PADDING\n");
 			c->summary->sum_padded += je32_to_cpu(node->u.totlen);
 			break;
 
 		case JFFS2_NODETYPE_CLEANMARKER:
-			JFFS2_DBG_SUMMARY("node CLEANMARKER\n");
+			dbg_summary("node CLEANMARKER\n");
 			break;
 
 		case JFFS2_NODETYPE_SUMMARY:
-			JFFS2_DBG_SUMMARY("node SUMMARY\n");
+			dbg_summary("node SUMMARY\n");
 			break;
 
 		default:
@@ -302,7 +303,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 	sp = summary->sum;
 
 	for (i=0; i<je32_to_cpu(summary->sum_num); i++) {
-		JFFS2_DBG_SUMMARY("processing summary index %d\n", i);
+		dbg_summary("processing summary index %d\n", i);
 
 		switch (je16_to_cpu(((struct jffs2_sum_unknown_flash *)sp)->nodetype)) {
 			case JFFS2_NODETYPE_INODE: {
@@ -311,7 +312,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 				ino = je32_to_cpu(spi->inode);
 
-				JFFS2_DBG_SUMMARY("Inode at 0x%08x\n",
+				dbg_summary("Inode at 0x%08x\n",
 							jeb->offset + je32_to_cpu(spi->offset));
 
 				raw = jffs2_alloc_raw_node_ref();
@@ -353,7 +354,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				struct jffs2_sum_dirent_flash *spd;
 				spd = sp;
 
-				JFFS2_DBG_SUMMARY("Dirent at 0x%08x\n",
+				dbg_summary("Dirent at 0x%08x\n",
 							jeb->offset + je32_to_cpu(spd->offset));
 
 				fd = jffs2_alloc_full_dirent(spd->nsize+1);
@@ -434,7 +435,7 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	sumsize = c->sector_size - ofs;
 	ofs += jeb->offset;
 
-	JFFS2_DBG_SUMMARY("summary found for 0x%08x at 0x%08x (0x%x bytes)\n",
+	dbg_summary("summary found for 0x%08x at 0x%08x (0x%x bytes)\n",
 				jeb->offset, ofs, sumsize);
 
 	summary = kmalloc(sumsize, GFP_KERNEL);
@@ -457,40 +458,40 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	crc = crc32(0, &crcnode, sizeof(crcnode)-4);
 
 	if (je32_to_cpu(summary->hdr_crc) != crc) {
-		JFFS2_DBG_SUMMARY("Summary node header is corrupt (bad CRC or "
+		dbg_summary("Summary node header is corrupt (bad CRC or "
 				"no summary at all)\n");
 		goto crc_err;
 	}
 
 	if (je32_to_cpu(summary->totlen) != sumsize) {
-		JFFS2_DBG_SUMMARY("Summary node is corrupt (wrong erasesize?)\n");
+		dbg_summary("Summary node is corrupt (wrong erasesize?)\n");
 		goto crc_err;
 	}
 
 	crc = crc32(0, summary, sizeof(struct jffs2_summary_node)-8);
 
 	if (je32_to_cpu(summary->node_crc) != crc) {
-		JFFS2_DBG_SUMMARY("Summary node is corrupt (bad CRC)\n");
+		dbg_summary("Summary node is corrupt (bad CRC)\n");
 		goto crc_err;
 	}
 
 	crc = crc32(0, summary->sum, sumsize - sizeof(struct jffs2_summary_node));
 
 	if (je32_to_cpu(summary->sum_crc) != crc) {
-		JFFS2_DBG_SUMMARY("Summary node data is corrupt (bad CRC)\n");
+		dbg_summary("Summary node data is corrupt (bad CRC)\n");
 		goto crc_err;
 	}
 
 	if ( je32_to_cpu(summary->cln_mkr) ) {
 
-		JFFS2_DBG_SUMMARY("Summary : CLEANMARKER node \n");
+		dbg_summary("Summary : CLEANMARKER node \n");
 
 		if (je32_to_cpu(summary->cln_mkr) != c->cleanmarker_size) {
-			JFFS2_DBG_SUMMARY("CLEANMARKER node has totlen 0x%x != normal 0x%x\n",
+			dbg_summary("CLEANMARKER node has totlen 0x%x != normal 0x%x\n",
 				je32_to_cpu(summary->cln_mkr), c->cleanmarker_size);
 			UNCHECKED_SPACE(PAD(je32_to_cpu(summary->cln_mkr)));
 		} else if (jeb->first_node) {
-			JFFS2_DBG_SUMMARY("CLEANMARKER node not first node in block "
+			dbg_summary("CLEANMARKER node not first node in block "
 					"(0x%08x)\n", jeb->offset);
 			UNCHECKED_SPACE(PAD(je32_to_cpu(summary->cln_mkr)));
 		} else {
@@ -644,7 +645,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	vecs[1].iov_base = c->summary->sum_buf;
 	vecs[1].iov_len = datasize;
 
-	JFFS2_DBG_SUMMARY("JFFS2: writing out data to flash to pos : 0x%08x\n",
+	dbg_summary("JFFS2: writing out data to flash to pos : 0x%08x\n",
 			jeb->offset + c->sector_size - jeb->free_size);
 
 	spin_unlock(&c->erase_completion_lock);
@@ -674,7 +675,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	int datasize, infosize, padsize, ret;
 	struct jffs2_eraseblock *jeb;
 
-	JFFS2_DBG_SUMMARY("called\n");
+	dbg_summary("called\n");
 
 	jeb = c->nextblock;
 

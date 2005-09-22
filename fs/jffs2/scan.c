@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: scan.c,v 1.122 2005/09/07 08:34:54 havasi Exp $
+ * $Id: scan.c,v 1.124 2005/09/21 13:05:22 dedekind Exp $
  *
  */
 #include <linux/kernel.h>
@@ -429,7 +429,7 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 
 	noise = 10;
 
-	JFFS2_DBG_SUMMARY("no summary found in jeb 0x%08x. Apply original scan.\n",jeb->offset);
+	dbg_summary("no summary found in jeb 0x%08x. Apply original scan.\n",jeb->offset);
 
 scan_more:	
 	while(ofs < jeb->offset + c->sector_size) {
@@ -684,7 +684,7 @@ scan_more:
 
 	if (jffs2_sum_active()) {
 		if (PAD(s->sum_size + JFFS2_SUMMARY_FRAME_SIZE) > jeb->free_size) {
-			JFFS2_DBG_SUMMARY("There is not enough space for "
+			dbg_summary("There is not enough space for "
 				"summary information, disabling for this jeb!\n");
 			jffs2_sum_disable_collecting(s);
 		}
@@ -920,76 +920,34 @@ void jffs2_rotate_lists(struct jffs2_sb_info *c)
 	x = count_list(&c->clean_list);
 	if (x) {
 		rotateby = pseudo_random % x;
-		D1(printk(KERN_DEBUG "Rotating clean_list by %d\n", rotateby));
-
 		rotate_list((&c->clean_list), rotateby);
-
-		D1(printk(KERN_DEBUG "Erase block at front of clean_list is at %08x\n",
-			  list_entry(c->clean_list.next, struct jffs2_eraseblock, list)->offset));
-	} else {
-		D1(printk(KERN_DEBUG "Not rotating empty clean_list\n"));
 	}
 
 	x = count_list(&c->very_dirty_list);
 	if (x) {
 		rotateby = pseudo_random % x;
-		D1(printk(KERN_DEBUG "Rotating very_dirty_list by %d\n", rotateby));
-
 		rotate_list((&c->very_dirty_list), rotateby);
-
-		D1(printk(KERN_DEBUG "Erase block at front of very_dirty_list is at %08x\n",
-			  list_entry(c->very_dirty_list.next, struct jffs2_eraseblock, list)->offset));
-	} else {
-		D1(printk(KERN_DEBUG "Not rotating empty very_dirty_list\n"));
 	}
 
 	x = count_list(&c->dirty_list);
 	if (x) {
 		rotateby = pseudo_random % x;
-		D1(printk(KERN_DEBUG "Rotating dirty_list by %d\n", rotateby));
-
 		rotate_list((&c->dirty_list), rotateby);
-
-		D1(printk(KERN_DEBUG "Erase block at front of dirty_list is at %08x\n",
-			  list_entry(c->dirty_list.next, struct jffs2_eraseblock, list)->offset));
-	} else {
-		D1(printk(KERN_DEBUG "Not rotating empty dirty_list\n"));
 	}
 
 	x = count_list(&c->erasable_list);
 	if (x) {
 		rotateby = pseudo_random % x;
-		D1(printk(KERN_DEBUG "Rotating erasable_list by %d\n", rotateby));
-
 		rotate_list((&c->erasable_list), rotateby);
-
-		D1(printk(KERN_DEBUG "Erase block at front of erasable_list is at %08x\n",
-			  list_entry(c->erasable_list.next, struct jffs2_eraseblock, list)->offset));
-	} else {
-		D1(printk(KERN_DEBUG "Not rotating empty erasable_list\n"));
 	}
 
 	if (c->nr_erasing_blocks) {
 		rotateby = pseudo_random % c->nr_erasing_blocks;
-		D1(printk(KERN_DEBUG "Rotating erase_pending_list by %d\n", rotateby));
-
 		rotate_list((&c->erase_pending_list), rotateby);
-
-		D1(printk(KERN_DEBUG "Erase block at front of erase_pending_list is at %08x\n",
-			  list_entry(c->erase_pending_list.next, struct jffs2_eraseblock, list)->offset));
-	} else {
-		D1(printk(KERN_DEBUG "Not rotating empty erase_pending_list\n"));
 	}
 
 	if (c->nr_free_blocks) {
 		rotateby = pseudo_random % c->nr_free_blocks;
-		D1(printk(KERN_DEBUG "Rotating free_list by %d\n", rotateby));
-
 		rotate_list((&c->free_list), rotateby);
-
-		D1(printk(KERN_DEBUG "Erase block at front of free_list is at %08x\n",
-			  list_entry(c->free_list.next, struct jffs2_eraseblock, list)->offset));
-	} else {
-		D1(printk(KERN_DEBUG "Not rotating empty free_list\n"));
 	}
 }

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.16 2005/09/14 16:57:32 dedekind Exp $
+ * $Id: debug.h,v 1.18 2005/09/21 10:26:26 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -23,16 +23,23 @@
 /* Enable "paranoia" checks and dumps */
 #define JFFS2_DBG_PARANOIA_CHECKS
 #define JFFS2_DBG_DUMPS
+
+/* 
+ * By defining/undefining the below macros one may select debugging messages
+ * fro specific JFFS2 subsystems.
+ */
 #define JFFS2_DBG_READINODE_MESSAGES
 #define JFFS2_DBG_FRAGTREE_MESSAGES
 #define JFFS2_DBG_DENTLIST_MESSAGES
 #define JFFS2_DBG_NODEREF_MESSAGES
 #define JFFS2_DBG_INOCACHE_MESSAGES
 #define JFFS2_DBG_SUMMARY_MESSAGES
+#define JFFS2_DBG_FSBUILD_MESSAGES
 #endif
 
 #if CONFIG_JFFS2_FS_DEBUG == 2
 #define JFFS2_DBG_FRAGTREE2_MESSAGES
+#define JFFS2_DBG_MEMALLOC_MESSAGES
 #endif
 
 /* Sanity checks are supposed to be light-weight and enabled by default */
@@ -40,7 +47,7 @@
 
 /* 
  * Dx() are mainly used for debugging messages, they must go away and be
- * superseded by nicer JFFS2_DBG_XXX() macros...
+ * superseded by nicer dbg_xxx() macros...
  */
 #if CONFIG_JFFS2_FS_DEBUG > 0
 #define D1(x) x
@@ -105,56 +112,63 @@
  */
 /* Read inode debugging messages */
 #ifdef JFFS2_DBG_READINODE_MESSAGES
-#define JFFS2_DBG_READINODE(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_readinode(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_READINODE(fmt, ...)
+#define dbg_readinode(fmt, ...)
 #endif
 
 /* Fragtree build debugging messages */
 #ifdef JFFS2_DBG_FRAGTREE_MESSAGES
-#define JFFS2_DBG_FRAGTREE(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_fragtree(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_FRAGTREE(fmt, ...)
+#define dbg_fragtree(fmt, ...)
 #endif
 #ifdef JFFS2_DBG_FRAGTREE2_MESSAGES
-#define JFFS2_DBG_FRAGTREE2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_fragtree2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_FRAGTREE2(fmt, ...)
+#define dbg_fragtree2(fmt, ...)
 #endif
 
 /* Directory entry list manilulation debugging messages */
 #ifdef JFFS2_DBG_DENTLIST_MESSAGES
-#define JFFS2_DBG_DENTLIST(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_dentlist(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_DENTLIST(fmt, ...)
+#define dbg_dentlist(fmt, ...)
 #endif
 
 /* Print the messages about manipulating node_refs */
 #ifdef JFFS2_DBG_NODEREF_MESSAGES
-#define JFFS2_DBG_NODEREF(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_noderef(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_NODEREF(fmt, ...)
+#define dbg_noderef(fmt, ...)
 #endif
 
 /* Manipulations with the list of inodes (JFFS2 inocache) */
 #ifdef JFFS2_DBG_INOCACHE_MESSAGES
-#define JFFS2_DBG_INOCACHE(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_inocache(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_INOCACHE(fmt, ...)
+#define dbg_inocache(fmt, ...)
 #endif
 
 /* Summary debugging messages */
 #ifdef JFFS2_DBG_SUMMARY_MESSAGES
-#define JFFS2_DBG_SUMMARY(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_summary(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_SUMMARY(fmt, ...)
+#define dbg_summary(fmt, ...)
+#endif
+
+/* File system build messages */
+#ifdef JFFS2_DBG_FSBUILD_MESSAGES
+#define dbg_fsbuild(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#else
+#define dbg_fsbuild(fmt, ...)
 #endif
 
 /* Watch the object allocations */
 #ifdef JFFS2_DBG_MEMALLOC_MESSAGES
-#define JFFS2_DBG_MEMALLOC(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_memalloc(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define JFFS2_DBG_MEMALLOC(fmt, ...)
+#define dbg_memalloc(fmt, ...)
 #endif
 
 

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.83 2005/07/22 10:32:08 dedekind Exp $
+ * $Id: erase.c,v 1.85 2005/09/20 14:53:15 dedekind Exp $
  *
  */
 

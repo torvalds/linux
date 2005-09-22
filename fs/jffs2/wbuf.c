@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.98 2005/09/07 08:34:55 havasi Exp $
+ * $Id: wbuf.c,v 1.99 2005/09/21 16:11:04 dedekind Exp $
  *
  */
 
@@ -32,9 +32,6 @@ static unsigned char *brokenbuf;
 
 /* max. erase failures before we mark a block bad */
 #define MAX_ERASE_FAILURES 	2
-
-/* two seconds timeout for timed wbuf-flushing */
-#define WBUF_FLUSH_TIMEOUT	2 * HZ
 
 struct jffs2_inodirty {
 	uint32_t ino;

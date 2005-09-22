@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.126 2005/09/16 12:58:17 havasi Exp $
+ * $Id: nodemgmt.c,v 1.127 2005/09/20 15:49:12 dedekind Exp $
  *
  */
 
@@ -273,7 +273,7 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
 
 		if (jeb) {
 			reserved_size = PAD(sumsize + c->summary->sum_size + JFFS2_SUMMARY_FRAME_SIZE);
-			JFFS2_DBG_SUMMARY("minsize=%d , jeb->free=%d ,"
+			dbg_summary("minsize=%d , jeb->free=%d ,"
 						"summary->size=%d , sumsize=%d\n",
 						minsize, jeb->free_size,
 						c->summary->sum_size, sumsize);
@@ -291,7 +291,7 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
 			}
 
 			/* Writing out the collected summary information */
-			JFFS2_DBG_SUMMARY("generating summary for 0x%08x.\n", jeb->offset);
+			dbg_summary("generating summary for 0x%08x.\n", jeb->offset);
 			ret = jffs2_sum_write_sumnode(c);
 
 			if (ret)

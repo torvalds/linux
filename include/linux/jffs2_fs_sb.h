@@ -1,4 +1,4 @@
-/* $Id: jffs2_fs_sb.h,v 1.53 2005/09/07 08:34:56 havasi Exp $ */
+/* $Id: jffs2_fs_sb.h,v 1.54 2005/09/21 13:37:34 dedekind Exp $ */
 
 #ifndef _JFFS2_FS_SB
 #define _JFFS2_FS_SB
@@ -95,12 +95,13 @@ struct jffs2_sb_info {
 	   to an obsoleted node. I don't like this. Alternatives welcomed. */
 	struct semaphore erase_free_sem;
 
+	uint32_t wbuf_pagesize; /* 0 for NOR and other flashes with no wbuf */
+	
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	/* Write-behind buffer for NAND flash */
 	unsigned char *wbuf;
 	uint32_t wbuf_ofs;
 	uint32_t wbuf_len;
-	uint32_t wbuf_pagesize;
 	struct jffs2_inodirty *wbuf_inodes;
 
 	struct rw_semaphore wbuf_sem;	/* Protects the write buffer */
