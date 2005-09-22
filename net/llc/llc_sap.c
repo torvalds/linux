@@ -45,12 +45,12 @@ struct sk_buff *llc_alloc_frame(struct net_device *dev)
 	return skb;
 }
 
-void llc_save_primitive(struct sk_buff* skb, u8 prim)
+void llc_save_primitive(struct sock *sk, struct sk_buff* skb, u8 prim)
 {
 	struct sockaddr_llc *addr = llc_ui_skb_cb(skb);
 
        /* save primitive for use by the user. */
-	addr->sllc_family = skb->sk->sk_family;
+	addr->sllc_family = sk->sk_family;
 	addr->sllc_arphrd = skb->dev->type;
 	addr->sllc_test   = prim == LLC_TEST_PRIM;
 	addr->sllc_xid    = prim == LLC_XID_PRIM;
@@ -190,7 +190,7 @@ static void llc_sap_state_process(struct llc_sap *sap, struct sk_buff *skb)
 		if (skb->sk->sk_state == TCP_LISTEN)
 			kfree_skb(skb);
 		else {
-			llc_save_primitive(skb, ev->prim);
+			llc_save_primitive(skb->sk, skb, ev->prim);
 
 			/* queue skb to the user. */
 			if (sock_queue_rcv_skb(skb->sk, skb))
@@ -309,7 +309,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 
 	sk = llc_lookup_dgram(sap, &laddr);
 	if (sk) {
-		skb->sk = sk;
+		skb_set_owner_r(skb, sk);
 		llc_sap_rcv(sap, skb);
 		sock_put(sk);
 	} else

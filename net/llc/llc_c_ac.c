@@ -1335,7 +1335,7 @@ static void llc_conn_tmr_common_cb(unsigned long timeout_data, u8 type)
 	if (skb) {
 		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
-		skb->sk  = sk;
+		skb_set_owner_r(skb, sk);
 		ev->type = type;
 		llc_process_tmr_ev(sk, skb);
 	}

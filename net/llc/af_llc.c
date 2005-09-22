@@ -628,7 +628,6 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags)
 	/* put original socket back into a clean listen state. */
 	sk->sk_state = TCP_LISTEN;
 	sk->sk_ack_backlog--;
-	skb->sk = NULL;
 	dprintk("%s: ok success on %02X, client on %02X\n", __FUNCTION__,
 		llc_sk(sk)->addr.sllc_sap, newllc->daddr.lsap);
 frees:
@@ -740,7 +739,6 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 	lock_sock(sk);
 	if (!skb)
 		goto release;
-	skb->sk	      = sk;
 	skb->dev      = llc->dev;
 	skb->protocol = llc_proto_type(addr->sllc_arphrd);
 	skb_reserve(skb, hdrlen); 

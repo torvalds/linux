@@ -90,8 +90,8 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 
 	switch (ev->ind_prim) {
 	case LLC_DATA_PRIM:
-		llc_save_primitive(skb, LLC_DATA_PRIM);
-		if (sock_queue_rcv_skb(sk, skb)) {
+		llc_save_primitive(sk, skb, LLC_DATA_PRIM);
+		if (unlikely(sock_queue_rcv_skb(sk, skb))) {
 			/*
 			 * shouldn't happen
 			 */
@@ -103,6 +103,11 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	case LLC_CONN_PRIM: {
 		struct sock *parent = skb->sk;
 
+		skb_orphan(skb);
+		/*
+		 * Set the skb->sk to the new struct sock, so that at accept
+		 * type the upper layer can get the newly created struct sock.
+		 */
 		skb->sk = sk;
 		skb_queue_tail(&parent->sk_receive_queue, skb);
 		sk->sk_state_change(parent);
@@ -702,10 +707,9 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 		memcpy(&llc->daddr, &saddr, sizeof(llc->daddr));
 		llc_sap_add_socket(sap, sk);
 		sock_hold(sk);
+		skb_set_owner_r(skb, parent);
 		sock_put(parent);
-		skb->sk = parent;
-	} else
-		skb->sk = sk;
+	}
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		llc_conn_rcv(sk, skb);
