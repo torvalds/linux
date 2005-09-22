@@ -47,14 +47,11 @@ int llc_build_and_send_pkt(struct sock *sk, struct sk_buff *skb)
 	int rc = -ECONNABORTED;
 	struct llc_sock *llc = llc_sk(sk);
 
-	if (llc->state == LLC_CONN_STATE_ADM)
+	if (unlikely(llc->state == LLC_CONN_STATE_ADM))
 		goto out;
 	rc = -EBUSY;
-	if (llc_data_accept_state(llc->state)) { /* data_conn_refuse */
-		llc->failed_data_req = 1;
-		goto out;
-	}
-	if (llc->p_flag) {
+	if (unlikely(llc_data_accept_state(llc->state) || /* data_conn_refuse */
+		     llc->p_flag)) {
 		llc->failed_data_req = 1;
 		goto out;
 	}

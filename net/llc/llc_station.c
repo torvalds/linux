@@ -261,7 +261,7 @@ static int llc_station_ac_send_null_dsap_xid_c(struct sk_buff *skb)
 	llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, 0, 0, LLC_PDU_CMD);
 	llc_pdu_init_as_xid_cmd(nskb, LLC_XID_NULL_CLASS_2, 127);
 	rc = llc_mac_hdr_init(nskb, llc_station_mac_sa, llc_station_mac_sa);
-	if (rc)
+	if (unlikely(rc))
 		goto free;
 	llc_station_send_pdu(nskb);
 out:
@@ -285,7 +285,7 @@ static int llc_station_ac_send_xid_r(struct sk_buff *skb)
 	llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, 0, dsap, LLC_PDU_RSP);
 	llc_pdu_init_as_xid_rsp(nskb, LLC_XID_NULL_CLASS_2, 127);
 	rc = llc_mac_hdr_init(nskb, llc_station_mac_sa, mac_da);
-	if (rc)
+	if (unlikely(rc))
 		goto free;
 	llc_station_send_pdu(nskb);
 out:
@@ -309,7 +309,7 @@ static int llc_station_ac_send_test_r(struct sk_buff *skb)
 	llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, 0, dsap, LLC_PDU_RSP);
        	llc_pdu_init_as_test_rsp(nskb, skb);
 	rc = llc_mac_hdr_init(nskb, llc_station_mac_sa, mac_da);
-	if (rc)
+	if (unlikely(rc))
 		goto free;
 	llc_station_send_pdu(nskb);
 out:

@@ -116,12 +116,12 @@ static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
 	struct llc_sock* llc = llc_sk(sk);
 	int rc = 0;
 
-	if (llc_data_accept_state(llc->state) || llc->p_flag) {
+	if (unlikely(llc_data_accept_state(llc->state) || llc->p_flag)) {
 		long timeout = sock_sndtimeo(sk, noblock);
 
 		rc = llc_ui_wait_for_busy_core(sk, timeout);
 	}
-	if (!rc)
+	if (unlikely(!rc))
 		rc = llc_build_and_send_pkt(sk, skb);
 	return rc;
 }
@@ -762,15 +762,13 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!(sk->sk_type == SOCK_STREAM && !addr->sllc_ua))
 		goto out;
 	rc = llc_ui_send_data(sk, skb, noblock);
-	if (rc)
-		dprintk("%s: llc_ui_send_data failed: %d\n", __FUNCTION__, rc);
 out:
-	if (rc)
+	if (rc) {
 		kfree_skb(skb);
 release:
-	if (rc)
 		dprintk("%s: failed sending from %02X to %02X: %d\n",
 			__FUNCTION__, llc->laddr.lsap, llc->daddr.lsap, rc);
+	}
 	release_sock(sk);
 	return rc ? : copied;
 }
