@@ -22,15 +22,19 @@
 */
 
 /*
-   Supports Via devices:
-	82C596A/B (0x3050)
-	82C596B (0x3051)
-	82C686A/B
-	8231
-	8233
-	8233A (0x3147 and 0x3177)
-	8235
-	8237
+   Supports the following VIA south bridges:
+
+   Chip name          PCI ID  REV     I2C block
+   VT82C596A          0x3050             no
+   VT82C596B          0x3051             no
+   VT82C686A          0x3057  0x30       no
+   VT82C686B          0x3057  0x40       yes
+   VT8231             0x8235             no?
+   VT8233             0x3074             yes
+   VT8233A            0x3147             yes?
+   VT8235             0x3177             yes
+   VT8237R            0x3227             yes
+
    Note: we assume there can only be one device, with one SMBus interface.
 */
 
