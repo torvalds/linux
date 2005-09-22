@@ -101,7 +101,7 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
 	u8 llc_len = 2;
 	struct llc_pdu_sn *pdu;
 
-	if (!pskb_may_pull(skb, sizeof(*pdu)))
+	if (unlikely(!pskb_may_pull(skb, sizeof(*pdu))))
 		return 0;
 
 	pdu = (struct llc_pdu_sn *)skb->data;

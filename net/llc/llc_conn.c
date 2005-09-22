@@ -64,12 +64,12 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	skb_get(skb);
 	ev->ind_prim = ev->cfm_prim = 0;
 	rc = llc_conn_service(sk, skb); /* sending event to state machine */
-	if (rc) {
+	if (unlikely(rc != 0)) {
 		printk(KERN_ERR "%s: llc_conn_service failed\n", __FUNCTION__);
 		goto out_kfree_skb;
 	}
 
-	if (!ev->ind_prim && !ev->cfm_prim) {
+	if (unlikely(!ev->ind_prim && !ev->cfm_prim)) {
 		/* indicate or confirm not required */
 		/* XXX this is not very pretty, perhaps we should store
 		 * XXX indicate/confirm-needed state in the llc_conn_state_ev
@@ -80,7 +80,7 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 		goto out_skb_put;
 	}
 
-	if (ev->ind_prim && ev->cfm_prim) /* Paranoia */
+	if (unlikely(ev->ind_prim && ev->cfm_prim)) /* Paranoia */
 		skb_get(skb);
 
 	switch (ev->ind_prim) {
@@ -762,14 +762,14 @@ static int llc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	int rc = 0;
 	struct llc_sock *llc = llc_sk(sk);
 
-	if (llc_backlog_type(skb) == LLC_PACKET) {
-		if (llc->state > 1) /* not closed */
+	if (likely(llc_backlog_type(skb) == LLC_PACKET)) {
+		if (likely(llc->state > 1)) /* not closed */
 			rc = llc_conn_rcv(sk, skb);
 		else
 			goto out_kfree_skb;
 	} else if (llc_backlog_type(skb) == LLC_EVENT) {
 		/* timer expiration event */
-		if (llc->state > 1)  /* not closed */
+		if (likely(llc->state > 1))  /* not closed */
 			rc = llc_conn_state_process(sk, skb);
 		else
 			goto out_kfree_skb;

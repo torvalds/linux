@@ -155,7 +155,7 @@ static int llc_ui_create(struct socket *sock, int protocol)
 	struct sock *sk;
 	int rc = -ESOCKTNOSUPPORT;
 
-	if (sock->type == SOCK_DGRAM || sock->type == SOCK_STREAM) {
+	if (likely(sock->type == SOCK_DGRAM || sock->type == SOCK_STREAM)) {
 		rc = -ENOMEM;
 		sk = llc_sk_alloc(PF_LLC, GFP_KERNEL, &llc_proto);
 		if (sk) {
@@ -177,7 +177,7 @@ static int llc_ui_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc;
 
-	if (!sk)
+	if (unlikely(sk == NULL))
 		goto out;
 	sock_hold(sk);
 	lock_sock(sk);
@@ -294,10 +294,10 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	int rc = -EINVAL;
 
 	dprintk("%s: binding %02X\n", __FUNCTION__, addr->sllc_sap);
-	if (!sock_flag(sk, SOCK_ZAPPED) || addrlen != sizeof(*addr))
+	if (unlikely(!sock_flag(sk, SOCK_ZAPPED) || addrlen != sizeof(*addr)))
 		goto out;
 	rc = -EAFNOSUPPORT;
-	if (addr->sllc_family != AF_LLC)
+	if (unlikely(addr->sllc_family != AF_LLC))
 		goto out;
 	if (!addr->sllc_sap) {
 		rc = -EUSERS;
@@ -358,7 +358,7 @@ static int llc_ui_shutdown(struct socket *sock, int how)
 	int rc = -ENOTCONN;
 
 	lock_sock(sk);
-	if (sk->sk_state != TCP_ESTABLISHED)
+	if (unlikely(sk->sk_state != TCP_ESTABLISHED))
 		goto out;
 	rc = -EINVAL;
 	if (how != 2)
@@ -396,10 +396,15 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	int rc = -EINVAL;
 
 	lock_sock(sk);
-	if (addrlen != sizeof(*addr))
+	if (unlikely(addrlen != sizeof(*addr)))
 		goto out;
 	rc = -EAFNOSUPPORT;
-	if (addr->sllc_family != AF_LLC)
+	if (unlikely(addr->sllc_family != AF_LLC))
+		goto out;
+	if (unlikely(sk->sk_type != SOCK_STREAM))
+		goto out;
+	rc = -EALREADY;
+	if (unlikely(sock->state == SS_CONNECTING))
 		goto out;
 	/* bind connection to sap if user hasn't done it. */
 	if (sock_flag(sk, SOCK_ZAPPED)) {
@@ -410,11 +415,6 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 		llc->daddr.lsap = addr->sllc_sap;
 		memcpy(llc->daddr.mac, addr->sllc_mac, IFHWADDRLEN);
 	}
-	if (sk->sk_type != SOCK_STREAM)
-		goto out;
-	rc = -EALREADY;
-	if (sock->state == SS_CONNECTING)
-		goto out;
 	sock->state = SS_CONNECTING;
 	sk->sk_state   = TCP_SYN_SENT;
 	llc->link   = llc_ui_next_link_no(llc->sap->laddr.lsap);
@@ -448,10 +448,10 @@ static int llc_ui_listen(struct socket *sock, int backlog)
 	int rc = -EINVAL;
 
 	lock_sock(sk);
-	if (sock->state != SS_UNCONNECTED)
+	if (unlikely(sock->state != SS_UNCONNECTED))
 		goto out;
 	rc = -EOPNOTSUPP;
-	if (sk->sk_type != SOCK_STREAM)
+	if (unlikely(sk->sk_type != SOCK_STREAM))
 		goto out;
 	rc = -EAGAIN;
 	if (sock_flag(sk, SOCK_ZAPPED))
@@ -614,10 +614,11 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags)
 	dprintk("%s: accepting on %02X\n", __FUNCTION__,
 	        llc_sk(sk)->laddr.lsap);
 	lock_sock(sk);
-	if (sk->sk_type != SOCK_STREAM)
+	if (unlikely(sk->sk_type != SOCK_STREAM))
 		goto out;
 	rc = -EINVAL;
-	if (sock->state != SS_UNCONNECTED || sk->sk_state != TCP_LISTEN)
+	if (unlikely(sock->state != SS_UNCONNECTED ||
+		     sk->sk_state != TCP_LISTEN))
 		goto out;
 	/* wait for a connection to arrive. */
 	rc = llc_ui_wait_for_data(sk, sk->sk_rcvtimeo);
@@ -880,7 +881,7 @@ static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
 	int rc = -EINVAL, opt;
 
 	lock_sock(sk);
-	if (level != SOL_LLC || optlen != sizeof(int))
+	if (unlikely(level != SOL_LLC || optlen != sizeof(int)))
 		goto out;
 	rc = get_user(opt, (int __user *)optval);
 	if (rc)
@@ -955,7 +956,7 @@ static int llc_ui_getsockopt(struct socket *sock, int level, int optname,
 	int val = 0, len = 0, rc = -EINVAL;
 
 	lock_sock(sk);
-	if (level != SOL_LLC)
+	if (unlikely(level != SOL_LLC))
 		goto out;
 	rc = get_user(len, optlen);
 	if (rc)
