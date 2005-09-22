@@ -13,7 +13,7 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/hw_irq.h>
-#include <asm/memory.h>
+#include <asm/synch.h>
 
 /*
  * Memory barrier.
@@ -48,7 +48,7 @@
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	__asm__ __volatile__ ("eieio" : : : "memory")
+#define smp_wmb()	eieio()
 #define smp_read_barrier_depends()  read_barrier_depends()
 #else
 #define smp_mb()	__asm__ __volatile__("": : :"memory")

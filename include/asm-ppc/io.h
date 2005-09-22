@@ -8,6 +8,7 @@
 
 #include <asm/page.h>
 #include <asm/byteorder.h>
+#include <asm/synch.h>
 #include <asm/mmu.h>
 
 #define SIO_CONFIG_RA	0x398
@@ -439,16 +440,6 @@ extern inline void * phys_to_virt(unsigned long address)
  */
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define page_to_bus(page)	(page_to_phys(page) + PCI_DRAM_OFFSET)
-
-/*
- * Enforce In-order Execution of I/O:
- * Acts as a barrier to ensure all previous I/O accesses have
- * completed before any further ones are issued.
- */
-extern inline void eieio(void)
-{
-	__asm__ __volatile__ ("eieio" : : : "memory");
-}
 
 /* Enforce in-order execution of data I/O.
  * No distinction between read/write on PPC; use eieio for all three.
