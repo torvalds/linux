@@ -40,6 +40,11 @@ static struct llc_conn_state_trans *llc_qualify_conn_ev(struct sock *sk,
 /* Offset table on connection states transition diagram */
 static int llc_offset_table[NBR_CONN_STATES][NBR_CONN_EV];
 
+int sysctl_llc2_ack_timeout = LLC2_ACK_TIME * HZ;
+int sysctl_llc2_p_timeout = LLC2_P_TIME * HZ;
+int sysctl_llc2_rej_timeout = LLC2_REJ_TIME * HZ;
+int sysctl_llc2_busy_timeout = LLC2_BUSY_TIME * HZ;
+
 /**
  *	llc_conn_state_process - sends event to connection state machine
  *	@sk: connection
@@ -799,22 +804,22 @@ static void llc_sk_init(struct sock* sk)
 	llc->dec_step = llc->connect_step = 1;
 
 	init_timer(&llc->ack_timer.timer);
-	llc->ack_timer.expire	      = LLC_ACK_TIME;
+	llc->ack_timer.expire	      = sysctl_llc2_ack_timeout;
 	llc->ack_timer.timer.data     = (unsigned long)sk;
 	llc->ack_timer.timer.function = llc_conn_ack_tmr_cb;
 
 	init_timer(&llc->pf_cycle_timer.timer);
-	llc->pf_cycle_timer.expire	   = LLC_P_TIME;
+	llc->pf_cycle_timer.expire	   = sysctl_llc2_p_timeout;
 	llc->pf_cycle_timer.timer.data     = (unsigned long)sk;
 	llc->pf_cycle_timer.timer.function = llc_conn_pf_cycle_tmr_cb;
 
 	init_timer(&llc->rej_sent_timer.timer);
-	llc->rej_sent_timer.expire	   = LLC_REJ_TIME;
+	llc->rej_sent_timer.expire	   = sysctl_llc2_rej_timeout;
 	llc->rej_sent_timer.timer.data     = (unsigned long)sk;
 	llc->rej_sent_timer.timer.function = llc_conn_rej_tmr_cb;
 
 	init_timer(&llc->busy_state_timer.timer);
-	llc->busy_state_timer.expire	     = LLC_BUSY_TIME;
+	llc->busy_state_timer.expire	     = sysctl_llc2_busy_timeout;
 	llc->busy_state_timer.timer.data     = (unsigned long)sk;
 	llc->busy_state_timer.timer.function = llc_conn_busy_tmr_cb;
 

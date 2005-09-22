@@ -50,6 +50,10 @@ struct llc_station {
 	struct sk_buff_head	    mac_pdu_q;
 };
 
+#define LLC_STATION_ACK_TIME (3 * HZ)
+
+int sysctl_llc_station_ack_timeout = LLC_STATION_ACK_TIME;
+
 /* Types of events (possible values in 'ev->type') */
 #define LLC_STATION_EV_TYPE_SIMPLE	1
 #define LLC_STATION_EV_TYPE_CONDITION	2
@@ -218,7 +222,8 @@ static void llc_station_send_pdu(struct sk_buff *skb)
 
 static int llc_station_ac_start_ack_timer(struct sk_buff *skb)
 {
-	mod_timer(&llc_main_station.ack_timer, jiffies + LLC_ACK_TIME * HZ);
+	mod_timer(&llc_main_station.ack_timer,
+		  jiffies + sysctl_llc_station_ack_timeout);
 	return 0;
 }
 
@@ -687,7 +692,8 @@ int __init llc_station_init(void)
 	init_timer(&llc_main_station.ack_timer);
 	llc_main_station.ack_timer.data     = (unsigned long)&llc_main_station;
 	llc_main_station.ack_timer.function = llc_station_ack_tmr_cb;
-
+	llc_main_station.ack_timer.expires  = jiffies +
+						sysctl_llc_station_ack_timeout;
 	skb = alloc_skb(0, GFP_ATOMIC);
 	if (!skb)
 		goto out;
@@ -695,7 +701,6 @@ int __init llc_station_init(void)
 	llc_set_station_handler(llc_station_rcv);
 	ev = llc_station_ev(skb);
 	memset(ev, 0, sizeof(*ev));
-	llc_main_station.ack_timer.expires = jiffies + 3 * HZ;
 	llc_main_station.maximum_retry	= 1;
 	llc_main_station.state		= LLC_STATION_STATE_DOWN;
 	ev->type	= LLC_STATION_EV_TYPE_SIMPLE;

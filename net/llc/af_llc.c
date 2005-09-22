@@ -877,22 +877,22 @@ static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
 	case LLC_OPT_ACK_TMR_EXP:
 		if (opt > LLC_OPT_MAX_ACK_TMR_EXP)
 			goto out;
-		llc->ack_timer.expire = opt;
+		llc->ack_timer.expire = opt * HZ;
 		break;
 	case LLC_OPT_P_TMR_EXP:
 		if (opt > LLC_OPT_MAX_P_TMR_EXP)
 			goto out;
-		llc->pf_cycle_timer.expire = opt;
+		llc->pf_cycle_timer.expire = opt * HZ;
 		break;
 	case LLC_OPT_REJ_TMR_EXP:
 		if (opt > LLC_OPT_MAX_REJ_TMR_EXP)
 			goto out;
-		llc->rej_sent_timer.expire = opt;
+		llc->rej_sent_timer.expire = opt * HZ;
 		break;
 	case LLC_OPT_BUSY_TMR_EXP:
 		if (opt > LLC_OPT_MAX_BUSY_TMR_EXP)
 			goto out;
-		llc->busy_state_timer.expire = opt;
+		llc->busy_state_timer.expire = opt * HZ;
 		break;
 	case LLC_OPT_TX_WIN:
 		if (opt > LLC_OPT_MAX_WIN)
@@ -942,17 +942,17 @@ static int llc_ui_getsockopt(struct socket *sock, int level, int optname,
 		goto out;
 	switch (optname) {
 	case LLC_OPT_RETRY:
-		val = llc->n2;				break;
+		val = llc->n2;					break;
 	case LLC_OPT_SIZE:
-		val = llc->n1;				break;
+		val = llc->n1;					break;
 	case LLC_OPT_ACK_TMR_EXP:
-		val = llc->ack_timer.expire;		break;
+		val = llc->ack_timer.expire / HZ;		break;
 	case LLC_OPT_P_TMR_EXP:
-		val = llc->pf_cycle_timer.expire;	break;
+		val = llc->pf_cycle_timer.expire / HZ;		break;
 	case LLC_OPT_REJ_TMR_EXP:
-		val = llc->rej_sent_timer.expire;	break;
+		val = llc->rej_sent_timer.expire / HZ;		break;
 	case LLC_OPT_BUSY_TMR_EXP:
-		val = llc->busy_state_timer.expire;	break;
+		val = llc->busy_state_timer.expire / HZ;	break;
 	case LLC_OPT_TX_WIN:
 		val = llc->k;				break;
 	case LLC_OPT_RX_WIN:
@@ -999,6 +999,13 @@ static struct proto_ops llc_ui_ops = {
 extern void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb);
 extern void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb);
 
+static char llc_proc_err_msg[] __initdata =
+        KERN_CRIT "LLC: Unable to register the proc_fs entries\n";
+static char llc_sysctl_err_msg[] __initdata =
+        KERN_CRIT "LLC: Unable to register the sysctl entries\n";
+static char llc_sock_err_msg[] __initdata =
+        KERN_CRIT "LLC: Unable to register the network family\n";
+
 static int __init llc2_init(void)
 {
 	int rc = proto_register(&llc_proto, 0);
@@ -1010,13 +1017,28 @@ static int __init llc2_init(void)
 	llc_station_init();
 	llc_ui_sap_last_autoport = LLC_SAP_DYN_START;
 	rc = llc_proc_init();
-	if (rc != 0)
+	if (rc != 0) {
+		printk(llc_proc_err_msg);
 		goto out_unregister_llc_proto;
-	sock_register(&llc_ui_family_ops);
+	}
+	rc = llc_sysctl_init();
+	if (rc) {
+		printk(llc_sysctl_err_msg);
+		goto out_proc;
+	}
+	rc = sock_register(&llc_ui_family_ops);
+	if (rc) {
+		printk(llc_sock_err_msg);
+		goto out_sysctl;
+	}
 	llc_add_pack(LLC_DEST_SAP, llc_sap_handler);
 	llc_add_pack(LLC_DEST_CONN, llc_conn_handler);
 out:
 	return rc;
+out_sysctl:
+	llc_sysctl_exit();
+out_proc:
+	llc_proc_exit();
 out_unregister_llc_proto:
 	proto_unregister(&llc_proto);
 	goto out;
@@ -1029,6 +1051,7 @@ static void __exit llc2_exit(void)
 	llc_remove_pack(LLC_DEST_CONN);
 	sock_unregister(PF_LLC);
 	llc_proc_exit();
+	llc_sysctl_exit();
 	proto_unregister(&llc_proto);
 }
 

@@ -19,14 +19,14 @@
 #define LLC_EVENT                1
 #define LLC_PACKET               2
 
-#define LLC_P_TIME               2
-#define LLC_ACK_TIME             1
-#define LLC_REJ_TIME             3
-#define LLC_BUSY_TIME            3
+#define LLC2_P_TIME               2
+#define LLC2_ACK_TIME             1
+#define LLC2_REJ_TIME             3
+#define LLC2_BUSY_TIME            3
 
 struct llc_timer {
 	struct timer_list timer;
-	u16		  expire;	/* timer expire time */
+	unsigned long	  expire;	/* timer expire time */
 };
 
 struct llc_sock {

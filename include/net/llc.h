@@ -98,4 +98,11 @@ extern void llc_proc_exit(void);
 #define llc_proc_init()	(0)
 #define llc_proc_exit()	do { } while(0)
 #endif /* CONFIG_PROC_FS */
+#ifdef CONFIG_SYSCTL
+extern int llc_sysctl_init(void);
+extern void llc_sysctl_exit(void);
+#else
+#define llc_sysctl_init() (0)
+#define llc_sysctl_exit() do { } while(0)
+#endif /* CONFIG_SYSCTL */
 #endif /* LLC_H */

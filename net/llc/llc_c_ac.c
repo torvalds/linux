@@ -620,7 +620,7 @@ int llc_conn_ac_set_remote_busy(struct sock *sk, struct sk_buff *skb)
 	if (!llc->remote_busy_flag) {
 		llc->remote_busy_flag = 1;
 		mod_timer(&llc->busy_state_timer.timer,
-			 jiffies + llc->busy_state_timer.expire * HZ);
+			 jiffies + llc->busy_state_timer.expire);
 	}
 	return 0;
 }
@@ -853,7 +853,7 @@ int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb)
 
 	llc_conn_set_p_flag(sk, 1);
 	mod_timer(&llc->pf_cycle_timer.timer,
-		  jiffies + llc->pf_cycle_timer.expire * HZ);
+		  jiffies + llc->pf_cycle_timer.expire);
 	return 0;
 }
 
@@ -1131,7 +1131,7 @@ int llc_conn_ac_start_ack_timer(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_sock *llc = llc_sk(sk);
 
-	mod_timer(&llc->ack_timer.timer, jiffies + llc->ack_timer.expire * HZ);
+	mod_timer(&llc->ack_timer.timer, jiffies + llc->ack_timer.expire);
 	return 0;
 }
 
@@ -1140,7 +1140,7 @@ int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb)
 	struct llc_sock *llc = llc_sk(sk);
 
 	mod_timer(&llc->rej_sent_timer.timer,
-		  jiffies + llc->rej_sent_timer.expire * HZ);
+		  jiffies + llc->rej_sent_timer.expire);
 	return 0;
 }
 
@@ -1151,7 +1151,7 @@ int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
 
 	if (!timer_pending(&llc->ack_timer.timer))
 		mod_timer(&llc->ack_timer.timer,
-			  jiffies + llc->ack_timer.expire * HZ);
+			  jiffies + llc->ack_timer.expire);
 	return 0;
 }
 
@@ -1199,7 +1199,7 @@ int llc_conn_ac_upd_nr_received(struct sock *sk, struct sk_buff *skb)
 		}
 		if (unacked)
 			mod_timer(&llc->ack_timer.timer,
-				  jiffies + llc->ack_timer.expire * HZ);
+				  jiffies + llc->ack_timer.expire);
 	} else if (llc->failed_data_req) {
 		u8 f_bit;
 
