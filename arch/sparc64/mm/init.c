@@ -619,39 +619,6 @@ static void remap_kernel(void)
 	}
 }
 
-static void readjust_prom_translations(void)
-{
-	int nents, i;
-
-	nents = read_obp_translations();
-	for (i = 0; i < nents; i++) {
-		unsigned long vaddr = prom_trans[i].virt;
-		unsigned long size = prom_trans[i].size;
-
-		if (vaddr < 0xf0000000UL) {
-			unsigned long avoid_start = (unsigned long) KERNBASE;
-			unsigned long avoid_end = avoid_start + (4 * 1024 * 1024);
-
-			if (bigkernel)
-				avoid_end += (4 * 1024 * 1024);
-			if (vaddr < avoid_start) {
-				unsigned long top = vaddr + size;
-
-				if (top > avoid_start)
-					top = avoid_start;
-				prom_unmap(top - vaddr, vaddr);
-			}
-			if ((vaddr + size) > avoid_end) {
-				unsigned long bottom = vaddr;
-
-				if (bottom < avoid_end)
-					bottom = avoid_end;
-				prom_unmap((vaddr + size) - bottom, bottom);
-			}
-		}
-	}
-}
-
 static void inherit_prom_mappings(void)
 {
 	int n;
@@ -662,8 +629,6 @@ static void inherit_prom_mappings(void)
 	/* Now fixup OBP's idea about where we really are mapped. */
 	prom_printf("Remapping the kernel... ");
 	remap_kernel();
-
-	readjust_prom_translations();
 
 	prom_printf("done.\n");
 
