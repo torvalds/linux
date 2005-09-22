@@ -426,12 +426,30 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 		sk->sk_state = TCP_CLOSE;
 		goto out;
 	}
-	rc = llc_ui_wait_for_conn(sk, sk->sk_rcvtimeo);
-	if (rc)
-		dprintk("%s: llc_ui_wait_for_conn failed=%d\n", __FUNCTION__, rc);
+
+	if (sk->sk_state == TCP_SYN_SENT) {
+		const int timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+
+		if (!timeo || !llc_ui_wait_for_conn(sk, timeo))
+			goto out;
+
+		rc = sock_intr_errno(timeo);
+		if (signal_pending(current))
+			goto out;
+	}
+
+	if (sk->sk_state == TCP_CLOSE)
+		goto sock_error;
+
+	sock->state = SS_CONNECTED;
+	rc = 0;
 out:
 	release_sock(sk);
 	return rc;
+sock_error:
+	rc = sock_error(sk) ? : -ECONNABORTED;
+	sock->state = SS_UNCONNECTED;
+	goto out;
 }
 
 /**
@@ -472,117 +490,88 @@ out:
 
 static int llc_ui_wait_for_disc(struct sock *sk, int timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	int rc;
+	DEFINE_WAIT(wait);
+	int rc = 0;
 
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
-	for (;;) {
-		__set_current_state(TASK_INTERRUPTIBLE);
-		rc = 0;
-		if (sk->sk_state != TCP_CLOSE) {
-			release_sock(sk);
-			timeout = schedule_timeout(timeout);
-			lock_sock(sk);
-		} else
-			break;
+	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	while (sk->sk_state != TCP_CLOSE) {
+		release_sock(sk);
+		timeout = schedule_timeout(timeout);
+		lock_sock(sk);
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
 		rc = -EAGAIN;
 		if (!timeout)
 			break;
+		rc = 0;
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 	}
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	finish_wait(sk->sk_sleep, &wait);
 	return rc;
 }
 
 static int llc_ui_wait_for_conn(struct sock *sk, int timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	int rc;
+	DEFINE_WAIT(wait);
 
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
-	for (;;) {
-		__set_current_state(TASK_INTERRUPTIBLE);
-		rc = -EAGAIN;
-		if (sk->sk_state == TCP_CLOSE)
+	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+
+	while (sk->sk_state == TCP_SYN_SENT) {
+		release_sock(sk);
+		timeout = schedule_timeout(timeout);
+		lock_sock(sk);
+		if (signal_pending(current) || !timeout)
 			break;
-		rc = 0;
-		if (sk->sk_state != TCP_ESTABLISHED) {
-			release_sock(sk);
-			timeout = schedule_timeout(timeout);
-			lock_sock(sk);
-		} else
-			break;
-		rc = -ERESTARTSYS;
-		if (signal_pending(current))
-			break;
-		rc = -EAGAIN;
-		if (!timeout)
-			break;
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 	}
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
-	return rc;
+	finish_wait(sk->sk_sleep, &wait);
+	return timeout;
 }
 
 static int llc_ui_wait_for_data(struct sock *sk, int timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT(wait);
 	int rc = 0;
 
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
 	for (;;) {
-		__set_current_state(TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
-		/*
-		 * Well, if we have backlog, try to process it now.
-		 */
-                if (sk->sk_backlog.tail) {
-			release_sock(sk);
-			lock_sock(sk);
-		}
-		rc = 0;
-		if (skb_queue_empty(&sk->sk_receive_queue)) {
-			release_sock(sk);
-			timeout = schedule_timeout(timeout);
-			lock_sock(sk);
-		} else
+		if (!skb_queue_empty(&sk->sk_receive_queue))
 			break;
+		release_sock(sk);
+		timeout = schedule_timeout(timeout);
+		lock_sock(sk);
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
 		rc = -EAGAIN;
 		if (!timeout)
 			break;
+		rc = 0;
 	}
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	finish_wait(sk->sk_sleep, &wait);
 	return rc;
 }
 
 static int llc_ui_wait_for_busy_core(struct sock *sk, int timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT(wait);
 	struct llc_sock *llc = llc_sk(sk);
 	int rc;
 
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
 	for (;;) {
-		dprintk("%s: looping...\n", __FUNCTION__);
-		__set_current_state(TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 		rc = -ENOTCONN;
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
 		rc = 0;
-		if (llc_data_accept_state(llc->state) || llc->p_flag) {
-			release_sock(sk);
-			timeout = schedule_timeout(timeout);
-			lock_sock(sk);
-		} else
+		if (!llc_data_accept_state(llc->state) && !llc->p_flag)
 			break;
+		release_sock(sk);
+		timeout = schedule_timeout(timeout);
+		lock_sock(sk);
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
@@ -590,8 +579,7 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, int timeout)
 		if (!timeout)
 			break;
 	}
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	finish_wait(sk->sk_sleep, &wait);
 	return rc;
 }
 
@@ -621,9 +609,11 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags)
 		     sk->sk_state != TCP_LISTEN))
 		goto out;
 	/* wait for a connection to arrive. */
-	rc = llc_ui_wait_for_data(sk, sk->sk_rcvtimeo);
-	if (rc)
-		goto out;
+	if (skb_queue_empty(&sk->sk_receive_queue)) {
+		rc = llc_ui_wait_for_data(sk, sk->sk_rcvtimeo);
+		if (rc)
+			goto out;
+	}
 	dprintk("%s: got a new connection on %02X\n", __FUNCTION__,
 	        llc_sk(sk)->laddr.lsap);
 	skb = skb_dequeue(&sk->sk_receive_queue);
@@ -672,19 +662,16 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sockaddr_llc *uaddr = (struct sockaddr_llc *)msg->msg_name;
 	struct sk_buff *skb;
 	size_t copied = 0;
-	int rc = -ENOMEM, timeout;
+	int rc = -ENOMEM;
 	int noblock = flags & MSG_DONTWAIT;
 
 	dprintk("%s: receiving in %02X from %02X\n", __FUNCTION__,
 		llc_sk(sk)->laddr.lsap, llc_sk(sk)->daddr.lsap);
 	lock_sock(sk);
-	timeout = sock_rcvtimeo(sk, noblock);
-	rc = llc_ui_wait_for_data(sk, timeout);
-	if (rc) {
-		dprintk("%s: llc_ui_wait_for_data failed recv "
-			"in %02X from %02X\n", __FUNCTION__,
-			llc_sk(sk)->laddr.lsap, llc_sk(sk)->daddr.lsap);
-		goto out;
+	if (skb_queue_empty(&sk->sk_receive_queue)) {
+		rc = llc_ui_wait_for_data(sk, sock_rcvtimeo(sk, noblock));
+		if (rc)
+			goto out;
 	}
 	skb = skb_dequeue(&sk->sk_receive_queue);
 	if (!skb) /* shutdown */
