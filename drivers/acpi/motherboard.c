@@ -54,7 +54,7 @@ static acpi_status acpi_reserve_io_ranges(struct acpi_resource *res, void *data)
 
 	ACPI_FUNCTION_TRACE("acpi_reserve_io_ranges");
 
-	if (res->id == ACPI_RSTYPE_IO) {
+	if (res->type == ACPI_RSTYPE_IO) {
 		struct acpi_resource_io *io_res = &res->data.io;
 
 		if (io_res->min_base_address != io_res->max_base_address)
@@ -70,7 +70,7 @@ static acpi_status acpi_reserve_io_ranges(struct acpi_resource *res, void *data)
 			    request_region(io_res->min_base_address,
 					   io_res->range_length, "motherboard");
 		}
-	} else if (res->id == ACPI_RSTYPE_FIXED_IO) {
+	} else if (res->type == ACPI_RSTYPE_FIXED_IO) {
 		struct acpi_resource_fixed_io *fixed_io_res =
 		    &res->data.fixed_io;
 

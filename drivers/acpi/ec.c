@@ -1151,7 +1151,7 @@ acpi_ec_io_ports(struct acpi_resource *resource, void *context)
 	union acpi_ec *ec = (union acpi_ec *)context;
 	struct acpi_generic_address *addr;
 
-	if (resource->id != ACPI_RSTYPE_IO) {
+	if (resource->type != ACPI_RSTYPE_IO) {
 		return AE_OK;
 	}
 

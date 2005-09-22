@@ -897,7 +897,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
 			if (hpetp->hp_hpet == hdp->hd_address)
 				return -EBUSY;
-	} else if (res->id == ACPI_RSTYPE_EXT_IRQ) {
+	} else if (res->type == ACPI_RSTYPE_EXT_IRQ) {
 		struct acpi_resource_ext_irq *irqp;
 		int i;
 

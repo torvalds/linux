@@ -99,9 +99,9 @@ do_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 	int *busnr = (int *)data;
 	struct acpi_resource_address64 address;
 
-	if (resource->id != ACPI_RSTYPE_ADDRESS16 &&
-	    resource->id != ACPI_RSTYPE_ADDRESS32 &&
-	    resource->id != ACPI_RSTYPE_ADDRESS64)
+	if (resource->type != ACPI_RSTYPE_ADDRESS16 &&
+	    resource->type != ACPI_RSTYPE_ADDRESS32 &&
+	    resource->type != ACPI_RSTYPE_ADDRESS64)
 		return AE_OK;
 
 	acpi_resource_to_address64(resource, &address);

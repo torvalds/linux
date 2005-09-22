@@ -163,7 +163,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct pnp_resource_table * res_table = (struct pnp_resource_table *)data;
 	int i;
 
-	switch (res->id) {
+	switch (res->type) {
 	case ACPI_RSTYPE_IRQ:
 		/*
 		 * Per spec, only one interrupt per descriptor is allowed in
@@ -233,7 +233,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	case ACPI_RSTYPE_VENDOR:
 		break;
 	default:
-		pnp_warn("PnPACPI: unknown resource type %d", res->id);
+		pnp_warn("PnPACPI: unknown resource type %d", res->type);
 		return AE_ERROR;
 	}
 			
@@ -467,7 +467,7 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 	struct pnp_dev *dev = parse_data->dev;
 	struct pnp_option *option = parse_data->option;
 
-	switch (res->id) {
+	switch (res->type) {
 		case ACPI_RSTYPE_IRQ:
 			pnpacpi_parse_irq_option(option, &res->data.irq);
 			break;
@@ -528,7 +528,7 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 			parse_data->option_independent = NULL;
 			break;
 		default:
-			pnp_warn("PnPACPI: unknown resource type %d", res->id);
+			pnp_warn("PnPACPI: unknown resource type %d", res->type);
 			return AE_ERROR;
 	}
 			
@@ -559,7 +559,7 @@ static acpi_status pnpacpi_count_resources(struct acpi_resource *res,
 	void *data)
 {
 	int *res_cnt = (int *)data;
-	switch (res->id) {
+	switch (res->type) {
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
 	case ACPI_RSTYPE_DMA:
@@ -584,7 +584,7 @@ static acpi_status pnpacpi_type_resources(struct acpi_resource *res,
 	void *data)
 {
 	struct acpi_resource **resource = (struct acpi_resource **)data;	
-	switch (res->id) {
+	switch (res->type) {
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
 	case ACPI_RSTYPE_DMA:
@@ -598,7 +598,7 @@ static acpi_status pnpacpi_type_resources(struct acpi_resource *res,
 	case ACPI_RSTYPE_ADDRESS32:
 	case ACPI_RSTYPE_ADDRESS64:
 #endif
-		(*resource)->id = res->id;
+		(*resource)->type = res->type;
 		(*resource)++;
 	default:
 		return AE_OK;
@@ -636,7 +636,7 @@ int pnpacpi_build_resource_template(acpi_handle handle,
 		return -EINVAL;
 	}
 	/* resource will pointer the end resource now */
-	resource->id = ACPI_RSTYPE_END_TAG;
+	resource->type = ACPI_RSTYPE_END_TAG;
 
 	return 0;
 }
@@ -648,7 +648,7 @@ static void pnpacpi_encode_irq(struct acpi_resource *resource,
 	
 	decode_irq_flags(p->flags & IORESOURCE_BITS, &edge_level, 
 		&active_high_low);
-	resource->id = ACPI_RSTYPE_IRQ;
+	resource->type = ACPI_RSTYPE_IRQ;
 	resource->length = sizeof(struct acpi_resource);
 	resource->data.irq.edge_level = edge_level;
 	resource->data.irq.active_high_low = active_high_low;
@@ -667,7 +667,7 @@ static void pnpacpi_encode_ext_irq(struct acpi_resource *resource,
 	
 	decode_irq_flags(p->flags & IORESOURCE_BITS, &edge_level, 
 		&active_high_low);
-	resource->id = ACPI_RSTYPE_EXT_IRQ;
+	resource->type = ACPI_RSTYPE_EXT_IRQ;
 	resource->length = sizeof(struct acpi_resource);
 	resource->data.extended_irq.producer_consumer = ACPI_CONSUMER;
 	resource->data.extended_irq.edge_level = edge_level;
@@ -683,7 +683,7 @@ static void pnpacpi_encode_ext_irq(struct acpi_resource *resource,
 static void pnpacpi_encode_dma(struct acpi_resource *resource,
 	struct resource *p)
 {
-	resource->id = ACPI_RSTYPE_DMA;
+	resource->type = ACPI_RSTYPE_DMA;
 	resource->length = sizeof(struct acpi_resource);
 	/* Note: pnp_assign_dma will copy pnp_dma->flags into p->flags */
 	if (p->flags & IORESOURCE_DMA_COMPATIBLE)
@@ -708,7 +708,7 @@ static void pnpacpi_encode_dma(struct acpi_resource *resource,
 static void pnpacpi_encode_io(struct acpi_resource *resource,
 	struct resource *p)
 {
-	resource->id = ACPI_RSTYPE_IO;
+	resource->type = ACPI_RSTYPE_IO;
 	resource->length = sizeof(struct acpi_resource);
 	/* Note: pnp_assign_port will copy pnp_port->flags into p->flags */
 	resource->data.io.io_decode = (p->flags & PNP_PORT_FLAG_16BITADDR)?
@@ -722,7 +722,7 @@ static void pnpacpi_encode_io(struct acpi_resource *resource,
 static void pnpacpi_encode_fixed_io(struct acpi_resource *resource,
 	struct resource *p)
 {
-	resource->id = ACPI_RSTYPE_FIXED_IO;
+	resource->type = ACPI_RSTYPE_FIXED_IO;
 	resource->length = sizeof(struct acpi_resource);
 	resource->data.fixed_io.base_address = p->start;
 	resource->data.fixed_io.range_length = p->end - p->start + 1;
@@ -731,7 +731,7 @@ static void pnpacpi_encode_fixed_io(struct acpi_resource *resource,
 static void pnpacpi_encode_mem24(struct acpi_resource *resource,
 	struct resource *p)
 {
-	resource->id = ACPI_RSTYPE_MEM24;
+	resource->type = ACPI_RSTYPE_MEM24;
 	resource->length = sizeof(struct acpi_resource);
 	/* Note: pnp_assign_mem will copy pnp_mem->flags into p->flags */
 	resource->data.memory24.read_write_attribute =
@@ -746,7 +746,7 @@ static void pnpacpi_encode_mem24(struct acpi_resource *resource,
 static void pnpacpi_encode_mem32(struct acpi_resource *resource,
 	struct resource *p)
 {
-	resource->id = ACPI_RSTYPE_MEM32;
+	resource->type = ACPI_RSTYPE_MEM32;
 	resource->length = sizeof(struct acpi_resource);
 	resource->data.memory32.read_write_attribute =
 		(p->flags & IORESOURCE_MEM_WRITEABLE) ?
@@ -760,7 +760,7 @@ static void pnpacpi_encode_mem32(struct acpi_resource *resource,
 static void pnpacpi_encode_fixed_mem32(struct acpi_resource *resource,
 	struct resource *p)
 {
-	resource->id = ACPI_RSTYPE_FIXED_MEM32;
+	resource->type = ACPI_RSTYPE_FIXED_MEM32;
 	resource->length = sizeof(struct acpi_resource);
 	resource->data.fixed_memory32.read_write_attribute =
 		(p->flags & IORESOURCE_MEM_WRITEABLE) ?
@@ -780,7 +780,7 @@ int pnpacpi_encode_resources(struct pnp_resource_table *res_table,
 
 	pnp_dbg("res cnt %d", res_cnt);
 	while (i < res_cnt) {
-		switch(resource->id) {
+		switch(resource->type) {
 		case ACPI_RSTYPE_IRQ:
 			pnp_dbg("Encode irq");
 			pnpacpi_encode_irq(resource, 
@@ -831,7 +831,7 @@ int pnpacpi_encode_resources(struct pnp_resource_table *res_table,
 			mem ++;
 			break;
 		default: /* other type */
-			pnp_warn("unknown resource type %d", resource->id);
+			pnp_warn("unknown resource type %d", resource->type);
 			return -EINVAL;
 		}
 		resource ++;

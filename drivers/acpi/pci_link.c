@@ -108,7 +108,7 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 
 	ACPI_FUNCTION_TRACE("acpi_pci_link_check_possible");
 
-	switch (resource->id) {
+	switch (resource->type) {
 	case ACPI_RSTYPE_START_DPF:
 		return_ACPI_STATUS(AE_OK);
 	case ACPI_RSTYPE_IRQ:
@@ -201,7 +201,7 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 
 	ACPI_FUNCTION_TRACE("acpi_pci_link_check_current");
 
-	switch (resource->id) {
+	switch (resource->type) {
 	case ACPI_RSTYPE_IRQ:
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
@@ -326,7 +326,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 
 	switch (link->irq.resource_type) {
 	case ACPI_RSTYPE_IRQ:
-		resource->res.id = ACPI_RSTYPE_IRQ;
+		resource->res.type = ACPI_RSTYPE_IRQ;
 		resource->res.length = sizeof(struct acpi_resource);
 		resource->res.data.irq.edge_level = link->irq.edge_level;
 		resource->res.data.irq.active_high_low =
@@ -341,7 +341,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		break;
 
 	case ACPI_RSTYPE_EXT_IRQ:
-		resource->res.id = ACPI_RSTYPE_EXT_IRQ;
+		resource->res.type = ACPI_RSTYPE_EXT_IRQ;
 		resource->res.length = sizeof(struct acpi_resource);
 		resource->res.data.extended_irq.producer_consumer =
 		    ACPI_CONSUMER;
@@ -364,7 +364,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		goto end;
 
 	}
-	resource->end.id = ACPI_RSTYPE_END_TAG;
+	resource->end.type = ACPI_RSTYPE_END_TAG;
 
 	/* Attempt to set the resource */
 	status = acpi_set_current_resources(link->handle, &buffer);
