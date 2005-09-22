@@ -1,6 +1,10 @@
 #if (!defined(dprintk))
 # define dprintk(x)
 #endif
+/* eg: if (nblank(dprintk(x))) */
+#define _nblank(x) #x
+#define nblank(x) _nblank(x)[0]
+
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -1012,6 +1016,7 @@ struct aac_dev
 	/* macro side-effects BEWARE */
 #	define			raw_io_interface \
 	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
+	u8			raw_io_64;
 	u8			printf_enabled;
 };
 
@@ -1362,8 +1367,10 @@ struct aac_srb_reply
 #define		VM_CtBlockVerify64	18
 #define		VM_CtHostRead64		19
 #define		VM_CtHostWrite64	20
+#define		VM_DrvErrTblLog		21
+#define		VM_NameServe64		22
 
-#define		MAX_VMCOMMAND_NUM	21	/* used for sizing stats array - leave last */
+#define		MAX_VMCOMMAND_NUM	23	/* used for sizing stats array - leave last */
 
 /*
  *	Descriptive information (eg, vital stats)
@@ -1472,6 +1479,7 @@ struct aac_mntent {
 						   manager (eg, filesystem) */
 	__le32			altoid;		/* != oid <==> snapshot or 
 						   broken mirror exists */
+	__le32			capacityhigh;
 };
 
 #define FSCS_NOTCLEAN	0x0001  /* fsck is neccessary before mounting */

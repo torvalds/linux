@@ -772,6 +772,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	shost->irq = pdev->irq;
 	shost->base = pci_resource_start(pdev, 0);
 	shost->unique_id = unique_id;
+	shost->max_cmd_len = 16;
 
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->scsi_host_ptr = shost;	
