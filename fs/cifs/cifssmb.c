@@ -779,7 +779,7 @@ OldOpenRetry:
 	/* BB FIXME END BB */
 
 	pSMB->Sattr = cpu_to_le16(ATTR_HIDDEN | ATTR_SYSTEM | ATTR_DIRECTORY);
-	pSMB->OpenFunction = convert_disposition(openDisposition);
+	pSMB->OpenFunction = cpu_to_le16(convert_disposition(openDisposition));
 	count += name_len;
 	pSMB->hdr.smb_buf_length += count;
 
@@ -808,10 +808,12 @@ OldOpenRetry:
 			pfile_info->LastAccessTime = 0; /* BB fixme */
 			pfile_info->LastWriteTime = 0; /* BB fixme */
 			pfile_info->ChangeTime = 0;  /* BB fixme */
-			pfile_info->Attributes = pSMBr->FileAttributes; 
+			pfile_info->Attributes =
+				cpu_to_le32(le16_to_cpu(pSMBr->FileAttributes)); 
 			/* the file_info buf is endian converted by caller */
-			pfile_info->AllocationSize = pSMBr->EndOfFile;
-			pfile_info->EndOfFile = pSMBr->EndOfFile;
+			pfile_info->AllocationSize =
+				cpu_to_le64(le32_to_cpu(pSMBr->EndOfFile));
+			pfile_info->EndOfFile = pfile_info->AllocationSize;
 			pfile_info->NumberOfLinks = cpu_to_le32(1);
 		}
 	}
@@ -2390,9 +2392,11 @@ QInfRetry:
 		cFYI(1, ("Send error in QueryInfo = %d", rc));
 	} else if (pFinfo) {            /* decode response */
 		memset(pFinfo, 0, sizeof(FILE_ALL_INFO));
-		pFinfo->AllocationSize = (__le64) pSMBr->size;
-		pFinfo->EndOfFile = (__le64) pSMBr->size;
-		pFinfo->Attributes = (__le32) pSMBr->attr;
+		pFinfo->AllocationSize =
+			cpu_to_le64(le32_to_cpu(pSMBr->size));
+		pFinfo->EndOfFile = pFinfo->AllocationSize;
+		pFinfo->Attributes =
+			cpu_to_le32(le16_to_cpu(pSMBr->attr));
 	} else
 		rc = -EIO; /* bad buffer passed in */
 
@@ -3722,16 +3726,16 @@ QFSPosixRetry:
 					le64_to_cpu(response_data->TotalBlocks);
 			FSData->f_bfree =
 			    le64_to_cpu(response_data->BlocksAvail);
-			if(response_data->UserBlocksAvail == -1) {
+			if(response_data->UserBlocksAvail == cpu_to_le64(-1)) {
 				FSData->f_bavail = FSData->f_bfree;
 			} else {
 				FSData->f_bavail =
 					le64_to_cpu(response_data->UserBlocksAvail);
 			}
-			if(response_data->TotalFileNodes != -1)
+			if(response_data->TotalFileNodes != cpu_to_le64(-1))
 				FSData->f_files =
 					le64_to_cpu(response_data->TotalFileNodes);
-			if(response_data->FreeFileNodes != -1)
+			if(response_data->FreeFileNodes != cpu_to_le64(-1))
 				FSData->f_ffree =
 					le64_to_cpu(response_data->FreeFileNodes);
 		}

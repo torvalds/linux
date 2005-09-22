@@ -868,7 +868,14 @@ unsigned int
 smbCalcSize(struct smb_hdr *ptr)
 {
 	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
-		2 /* size of the bcc field itself */ + BCC(ptr));
+		2 /* size of the bcc field */ + BCC(ptr));
+}
+
+unsigned int
+smbCalcSize_LE(struct smb_hdr *ptr)
+{
+	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
+		2 /* size of the bcc field */ + le16_to_cpu(BCC_LE(ptr)));
 }
 
 /* The following are taken from fs/ntfs/util.c */

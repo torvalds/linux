@@ -414,7 +414,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	spin_lock(&GlobalMid_Lock);
 	if (midQ->resp_buf) {
 		spin_unlock(&GlobalMid_Lock);
-		receive_len = be32_to_cpu(*(__be32 *)midQ->resp_buf);
+		receive_len = midQ->resp_buf->smb_buf_length;
 	} else {
 		cERROR(1,("No response buffer"));
 		if(midQ->midState == MID_REQUEST_SUBMITTED) {
@@ -665,7 +665,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	spin_lock(&GlobalMid_Lock);
 	if (midQ->resp_buf) {
 		spin_unlock(&GlobalMid_Lock);
-		receive_len = be32_to_cpu(*(__be32 *)midQ->resp_buf);
+		receive_len = midQ->resp_buf->smb_buf_length;
 	} else {
 		cERROR(1,("No response buffer"));
 		if(midQ->midState == MID_REQUEST_SUBMITTED) {

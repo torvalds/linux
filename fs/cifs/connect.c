@@ -303,12 +303,12 @@ static int coalesce_t2(struct smb_hdr * psecond, struct smb_hdr *pTargetSMB)
 	byte_count += total_in_buf2;
 	BCC_LE(pTargetSMB) = cpu_to_le16(byte_count);
 
-	byte_count = be32_to_cpu(pTargetSMB->smb_buf_length);
+	byte_count = pTargetSMB->smb_buf_length;
 	byte_count += total_in_buf2;
 
 	/* BB also add check that we are not beyond maximum buffer size */
 		
-	pTargetSMB->smb_buf_length = cpu_to_be32(byte_count);
+	pTargetSMB->smb_buf_length = byte_count;
 
 	if(remaining == total_in_buf2) {
 		cFYI(1,("found the last secondary response"));
@@ -333,7 +333,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct cifsSesInfo *ses;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
-	char *temp;
+	char temp;
 	int isLargeBuf = FALSE;
 	int isMultiRsp;
 	int reconnect;
@@ -435,22 +435,32 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			continue;
 		}
 
-		/* the right amount was read from socket - 4 bytes */
+		/* The right amount was read from socket - 4 bytes */
+		/* so we can now interpret the length field */
 
+		/* the first byte big endian of the length field,
+		is actually not part of the length but the type
+		with the most common, zero, as regular data */
+		temp = *((char *) smb_buffer);
+
+		/* Note that FC 1001 length is big endian on the wire, 
+		but we convert it here so it is always manipulated
+		as host byte order */
 		pdu_length = ntohl(smb_buffer->smb_buf_length);
-		cFYI(1,("rfc1002 length(big endian)0x%x)", pdu_length+4));
+		smb_buffer->smb_buf_length = pdu_length;
 
-		temp = (char *) smb_buffer;
-		if (temp[0] == (char) RFC1002_SESSION_KEEP_ALIVE) {
+		cFYI(1,("rfc1002 length 0x%x)", pdu_length+4));
+
+		if (temp == (char) RFC1002_SESSION_KEEP_ALIVE) {
 			continue; 
-		} else if (temp[0] == (char)RFC1002_POSITIVE_SESSION_RESPONSE) {
+		} else if (temp == (char)RFC1002_POSITIVE_SESSION_RESPONSE) {
 			cFYI(1,("Good RFC 1002 session rsp"));
 			continue;
-		} else if (temp[0] == (char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
+		} else if (temp == (char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
 			/* we get this from Windows 98 instead of 
 			   an error on SMB negprot response */
 			cFYI(1,("Negative RFC1002 Session Response Error 0x%x)",
-				temp[4]));
+				pdu_length));
 			if(server->tcpStatus == CifsNew) {
 				/* if nack on negprot (rather than 
 				ret of smb negprot error) reconnecting
@@ -472,9 +482,10 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				wake_up(&server->response_q);
 				continue;
 			}
-		} else if (temp[0] != (char) 0) {
+		} else if (temp != (char) 0) {
 			cERROR(1,("Unknown RFC 1002 frame"));
-			cifs_dump_mem(" Received Data: ", temp, length);
+			cifs_dump_mem(" Received Data: ", (char *)smb_buffer,
+				      length);
 			cifs_reconnect(server);
 			csocket = server->ssocket;
 			continue;
@@ -609,7 +620,8 @@ multi_t2_fnd:
 		} else if ((is_valid_oplock_break(smb_buffer) == FALSE)
 		    && (isMultiRsp == FALSE)) {                          
 			cERROR(1, ("No task to wake, unknown frame rcvd!"));
-			cifs_dump_mem("Received Data is: ",temp,sizeof(struct smb_hdr));
+			cifs_dump_mem("Received Data is: ",(char *)smb_buffer,
+				      sizeof(struct smb_hdr));
 		}
 	} /* end while !EXITING */
 

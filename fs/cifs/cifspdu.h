@@ -697,7 +697,7 @@ typedef struct smb_com_openx_req {
 	__le32 EndOfFile;
 	__le32 Timeout;
 	__le32 Reserved;
-	__u16  ByteCount;  /* file name follows */
+	__le16  ByteCount;  /* file name follows */
 	char   fileName[1];
 } OPENX_REQ;
 

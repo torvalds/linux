@@ -419,7 +419,7 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 int
 checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 {
-	__u32 len = be32_to_cpu(smb->smb_buf_length);
+	__u32 len = smb->smb_buf_length;
 	cFYI(0,
 	     ("Entering checkSMB with Length: %x, smb_buf_length: %x ",
 	      length, len));
@@ -448,9 +448,9 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 	if (checkSMBhdr(smb, mid))
 		return 1;
 
-	if ((4 + len != smbCalcSize(smb))
+	if ((4 + len != smbCalcSize_LE(smb))
 	    || (4 + len != (unsigned int)length)) {
-		cERROR(1, ("smbCalcSize %x ", smbCalcSize(smb)));
+		cERROR(1, ("smbCalcSize %x ", smbCalcSize_LE(smb)));
 		cERROR(1,
 		       ("bad smb size detected. The Mid=%d", smb->Mid));
 		return 1;
@@ -672,6 +672,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 	int i,j,charlen;
 	int len_remaining = maxlen;
 	char src_char;
+	__u16 temp;
 
 	if(!mapChars) 
 		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);
@@ -708,13 +709,14 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 				break;*/
 			default:
 				charlen = cp->char2uni(source+i,
-					len_remaining, target+j);
+					len_remaining, &temp);
 				/* if no match, use question mark, which
 				at least in some cases servers as wild card */
 				if(charlen < 1) {
 					target[j] = cpu_to_le16(0x003f);
 					charlen = 1;
-				}
+				} else
+					target[j] = cpu_to_le16(temp);
 				len_remaining -= charlen;
 				/* character may take more than one byte in the
 				   the source string, but will take exactly two
