@@ -544,14 +544,14 @@ u8 llc_data_accept_state(u8 state)
 }
 
 /**
- *	find_next_offset - finds offset for next category of transitions
+ *	llc_find_next_offset - finds offset for next category of transitions
  *	@state: state table.
  *	@offset: start offset.
  *
  *	Finds offset of next category of transitions in transition table.
  *	Returns the start index of next category.
  */
-static u16 find_next_offset(struct llc_conn_state *state, u16 offset)
+static u16 __init llc_find_next_offset(struct llc_conn_state *state, u16 offset)
 {
 	u16 cnt = 0;
 	struct llc_conn_state_trans **next_trans;
@@ -578,8 +578,8 @@ void __init llc_build_offset_table(void)
 		next_offset = 0;
 		for (ev_type = 0; ev_type < NBR_CONN_EV; ev_type++) {
 			llc_offset_table[state][ev_type] = next_offset;
-			next_offset += find_next_offset(curr_state,
-							next_offset) + 1;
+			next_offset += llc_find_next_offset(curr_state,
+							    next_offset) + 1;
 		}
 	}
 }
