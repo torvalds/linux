@@ -37,6 +37,7 @@
 #include <net/llc_conn.h>
 #include <net/llc_sap.h>
 #include <net/sock.h>
+#include <net/llc_c_ac.h>
 #include <net/llc_c_ev.h>
 #include <net/llc_pdu.h>
 
@@ -45,8 +46,6 @@
 #else
 #define dprintk(args...)
 #endif
-
-extern u16 llc_circular_between(u8 a, u8 b, u8 c);
 
 /**
  *	llc_util_ns_inside_rx_window - check if sequence number is in rx window
@@ -473,28 +472,6 @@ int llc_conn_ev_rx_xxx_cmd_pbit_set_x(struct sock *sk, struct sk_buff *skb)
 			case LLC_2_PDU_CMD_SABME:
 			case LLC_2_PDU_CMD_DISC:
 				rc = 0;
-				break;
-			}
-	}
-	return rc;
-}
-
-int llc_conn_ev_rx_xxx_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb)
-{
-	u16 rc = 1;
-	const struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
-
-	if (LLC_PDU_IS_RSP(pdu)) {
-		if (LLC_PDU_TYPE_IS_I(pdu) || LLC_PDU_TYPE_IS_S(pdu)) {
-			if (LLC_I_PF_IS_1(pdu))
-				rc = 0;
-		} else if (LLC_PDU_TYPE_IS_U(pdu))
-			switch (LLC_U_PDU_RSP(pdu)) {
-			case LLC_2_PDU_RSP_UA:
-			case LLC_2_PDU_RSP_DM:
-			case LLC_2_PDU_RSP_FRMR:
-				if (LLC_U_PF_IS_1(pdu))
-					rc = 0;
 				break;
 			}
 	}
