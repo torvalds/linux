@@ -762,6 +762,7 @@ bootup_user_stack_end:
 swapper_pg_dir:
 	.word	0
 
+#include "ktlb.S"
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"
