@@ -105,7 +105,7 @@ static struct i2c_adapter vt596_adapter;
 static unsigned int vt596_features;
 
 /* Return -1 on error, 0 on success */
-static int vt596_transaction(void)
+static int vt596_transaction(u8 size)
 {
 	int temp;
 	int result = 0;
@@ -131,7 +131,7 @@ static int vt596_transaction(void)
 	}
 
 	/* Start the transaction by setting bit 6 */
-	outb_p(inb(SMBHSTCNT) | 0x40, SMBHSTCNT);
+	outb_p(0x40 | (size & 0x3C), SMBHSTCNT);
 
 	/* We will always wait for a fraction of a second */
 	do {
@@ -232,9 +232,8 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 	}
 
 	outb_p(((addr & 0x7f) << 1) | read_write, SMBHSTADD);
-	outb_p((size & 0x3C), SMBHSTCNT);
 
-	if (vt596_transaction()) /* Error in transaction */
+	if (vt596_transaction(size)) /* Error in transaction */
 		return -1;
 
 	if ((read_write == I2C_SMBUS_WRITE) || (size == VT596_QUICK))
