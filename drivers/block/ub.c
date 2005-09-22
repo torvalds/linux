@@ -2217,8 +2217,10 @@ static int ub_probe(struct usb_interface *intf,
 	 * This is needed to clear toggles. It is a problem only if we do
 	 * `rmmod ub && modprobe ub` without disconnects, but we like that.
 	 */
+#if 0 /* iPod Mini fails if we do this (big white iPod works) */
 	ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
 	ub_probe_clear_stall(sc, sc->send_bulk_pipe);
+#endif
 
 	/*
 	 * The way this is used by the startup code is a little specific.
