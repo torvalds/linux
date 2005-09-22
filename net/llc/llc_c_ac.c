@@ -120,10 +120,8 @@ int llc_conn_ac_disc_ind(struct sock *sk, struct sk_buff *skb)
 			reason = LLC_DISC_REASON_RX_DISC_CMD_PDU;
 	} else if (ev->type == LLC_CONN_EV_TYPE_ACK_TMR)
 		reason = LLC_DISC_REASON_ACK_TMR_EXP;
-	else {
-		reason = 0;
+	else
 		rc = -EINVAL;
-	}
 	if (!rc) {
 		ev->reason   = reason;
 		ev->ind_prim = LLC_DISC_PRIM;
@@ -160,9 +158,6 @@ int llc_conn_ac_rst_ind(struct sock *sk, struct sk_buff *skb)
 			   LLC_U_PDU_CMD(pdu) == LLC_2_PDU_CMD_SABME) {
 			reason = LLC_RESET_REASON_REMOTE;
 			rc = 0;
-		} else {
-			reason = 0;
-			rc  = 1;
 		}
 		break;
 	case LLC_CONN_EV_TYPE_ACK_TMR:
@@ -172,8 +167,7 @@ int llc_conn_ac_rst_ind(struct sock *sk, struct sk_buff *skb)
 		if (llc->retry_count > llc->n2) {
 			reason = LLC_RESET_REASON_LOCAL;
 			rc = 0;
-		} else
-			rc = 1;
+		}
 		break;
 	}
 	if (!rc) {
