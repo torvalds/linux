@@ -404,7 +404,6 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
 	struct sockaddr_llc *addr = (struct sockaddr_llc *)uaddr;
-	struct net_device *dev;
 	int rc = -EINVAL;
 
 	lock_sock(sk);
@@ -422,7 +421,6 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 		llc->daddr.lsap = addr->sllc_sap;
 		memcpy(llc->daddr.mac, addr->sllc_mac, IFHWADDRLEN);
 	}
-	dev = llc->dev;
 	if (sk->sk_type != SOCK_STREAM)
 		goto out;
 	rc = -EALREADY;
@@ -431,7 +429,7 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	sock->state = SS_CONNECTING;
 	sk->sk_state   = TCP_SYN_SENT;
 	llc->link   = llc_ui_next_link_no(llc->sap->laddr.lsap);
-	rc = llc_establish_connection(sk, dev->dev_addr,
+	rc = llc_establish_connection(sk, llc->dev->dev_addr,
 				      addr->sllc_mac, addr->sllc_sap);
 	if (rc) {
 		dprintk("%s: llc_ui_send_conn failed :-(\n", __FUNCTION__);
@@ -740,7 +738,6 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sockaddr_llc *addr = (struct sockaddr_llc *)msg->msg_name;
 	int flags = msg->msg_flags;
 	int noblock = flags & MSG_DONTWAIT;
-	struct net_device *dev;
 	struct sk_buff *skb;
 	size_t size = 0;
 	int rc = -EINVAL, copied = 0, hdrlen;
@@ -763,11 +760,10 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 		if (rc)
 			goto release;
 	}
-	dev = llc->dev;
-	hdrlen = dev->hard_header_len + llc_ui_header_len(sk, addr);
+	hdrlen = llc->dev->hard_header_len + llc_ui_header_len(sk, addr);
 	size = hdrlen + len;
-	if (size > dev->mtu)
-		size = dev->mtu;
+	if (size > llc->dev->mtu)
+		size = llc->dev->mtu;
 	copied = size - hdrlen;
 	release_sock(sk);
 	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
@@ -775,7 +771,7 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		goto release;
 	skb->sk	      = sk;
-	skb->dev      = dev;
+	skb->dev      = llc->dev;
 	skb->protocol = llc_proto_type(addr->sllc_arphrd);
 	skb_reserve(skb, hdrlen); 
 	rc = memcpy_fromiovec(skb_put(skb, copied), msg->msg_iov, copied);
