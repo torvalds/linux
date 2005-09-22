@@ -1262,11 +1262,6 @@ static int __devinit create_sscape(const struct params *params, snd_card_t **rca
 	 */
 	sscape_write(sscape, GA_INTENA_REG, 0x80);
 
-	if ((err = snd_card_register(card)) < 0) {
-		printk(KERN_ERR "sscape: Failed to register sound card\n");
-		goto _release_card;
-	}
-
 	/*
 	 * Initialize mixer
 	 */
@@ -1396,6 +1391,13 @@ static int __devinit sscape_pnp_detect(struct pnp_card_link *pcard,
 			if (ret < 0)
 				return ret;
 			snd_card_set_dev(card, &pcard->card->dev);
+
+			if ((ret = snd_card_register(card)) < 0) {
+				printk(KERN_ERR "sscape: Failed to register sound card\n");
+				snd_card_free(card);
+				return ret;
+			}
+
 			pnp_set_card_drvdata(pcard, card);
 			++sscape_cards;
 			++idx;
@@ -1459,6 +1461,16 @@ static int __init sscape_manual_probe(struct params *params)
 		ret = create_sscape(params, &card);
 		if (ret < 0)
 			return ret;
+
+		if ((ret = snd_card_set_generic_dev(card)) < 0) {
+			snd_card_free(card);
+			return ret;
+		}
+		if ((ret = snd_card_register(card)) < 0) {
+			printk(KERN_ERR "sscape: Failed to register sound card\n");
+			snd_card_free(card);
+			return ret;
+		}
 
 		sscape_card[sscape_cards] = card;
 		params++;

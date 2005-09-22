@@ -60,7 +60,7 @@ seq_timer_t *snd_seq_timer_new(void)
 {
 	seq_timer_t *tmr;
 	
-	tmr = kcalloc(1, sizeof(*tmr), GFP_KERNEL);
+	tmr = kzalloc(sizeof(*tmr), GFP_KERNEL);
 	if (tmr == NULL) {
 		snd_printd("malloc failed for snd_seq_timer_new() \n");
 		return NULL;

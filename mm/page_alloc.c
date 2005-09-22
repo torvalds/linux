@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/pagevec.h>
@@ -117,7 +118,7 @@ static void bad_page(const char *function, struct page *page)
 	set_page_count(page, 0);
 	reset_page_mapcount(page);
 	page->mapping = NULL;
-	tainted |= TAINT_BAD_PAGE;
+	add_taint(TAINT_BAD_PAGE);
 }
 
 #ifndef CONFIG_HUGETLB_PAGE

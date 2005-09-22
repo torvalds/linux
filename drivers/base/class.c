@@ -189,12 +189,11 @@ struct class *class_create(struct module *owner, char *name)
 	struct class *cls;
 	int retval;
 
-	cls = kmalloc(sizeof(struct class), GFP_KERNEL);
+	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
 	if (!cls) {
 		retval = -ENOMEM;
 		goto error;
 	}
-	memset(cls, 0x00, sizeof(struct class));
 
 	cls->name = name;
 	cls->owner = owner;
@@ -500,13 +499,13 @@ int class_device_add(struct class_device *class_dev)
 	/* add the needed attributes to this device */
 	if (MAJOR(class_dev->devt)) {
 		struct class_device_attribute *attr;
-		attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 		if (!attr) {
 			error = -ENOMEM;
 			kobject_del(&class_dev->kobj);
 			goto register_done;
 		}
-		memset(attr, sizeof(*attr), 0x00);
+
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
 		attr->attr.owner = parent->owner;
@@ -577,12 +576,11 @@ struct class_device *class_device_create(struct class *cls, dev_t devt,
 	if (cls == NULL || IS_ERR(cls))
 		goto error;
 
-	class_dev = kmalloc(sizeof(struct class_device), GFP_KERNEL);
+	class_dev = kzalloc(sizeof(*class_dev), GFP_KERNEL);
 	if (!class_dev) {
 		retval = -ENOMEM;
 		goto error;
 	}
-	memset(class_dev, 0x00, sizeof(struct class_device));
 
 	class_dev->devt = devt;
 	class_dev->dev = device;

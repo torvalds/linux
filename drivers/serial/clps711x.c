@@ -525,7 +525,7 @@ static int __init clps711xuart_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver clps711x_reg;
+static struct uart_driver clps711x_reg;
 static struct console clps711x_console = {
 	.name		= "ttyCL",
 	.write		= clps711xuart_console_write,

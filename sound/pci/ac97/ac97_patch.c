@@ -2134,7 +2134,13 @@ int patch_alc655(ac97_t * ac97)
 {
 	unsigned int val;
 
-	ac97->spec.dev_flags = (ac97->id == 0x414c4780); /* ALC658 */
+	if (ac97->id == AC97_ID_ALC658) {
+		ac97->spec.dev_flags = 1; /* ALC658 */
+		if ((snd_ac97_read(ac97, AC97_ALC650_REVISION) & 0x3f) == 2) {
+			ac97->id = AC97_ID_ALC658D;
+			ac97->spec.dev_flags = 2;
+		}
+	}
 
 	ac97->build_ops = &patch_alc655_ops;
 
@@ -2143,10 +2149,15 @@ int patch_alc655(ac97_t * ac97)
 
 	/* adjust default values */
 	val = snd_ac97_read(ac97, 0x7a); /* misc control */
-	if (ac97->id == 0x414c4780) /* ALC658 */
+	if (ac97->spec.dev_flags) /* ALC658 */
 		val &= ~(1 << 1); /* Pin 47 is spdif input pin */
-	else /* ALC655 */
-		val |= (1 << 1); /* Pin 47 is spdif input pin */
+	else { /* ALC655 */
+		if (ac97->subsystem_vendor == 0x1462 &&
+		    ac97->subsystem_device == 0x0131) /* MSI S270 laptop */
+			val &= ~(1 << 1); /* Pin 47 is EAPD (for internal speaker) */
+		else
+			val |= (1 << 1); /* Pin 47 is spdif input pin */
+	}
 	val &= ~(1 << 12); /* vref enable */
 	snd_ac97_write_cache(ac97, 0x7a, val);
 	/* set default: spdif-in enabled,
@@ -2159,6 +2170,11 @@ int patch_alc655(ac97_t * ac97)
 	/* full DAC volume */
 	snd_ac97_write_cache(ac97, AC97_ALC650_SURR_DAC_VOL, 0x0808);
 	snd_ac97_write_cache(ac97, AC97_ALC650_LFE_DAC_VOL, 0x0808);
+
+	/* update undocumented bit... */
+	if (ac97->id == AC97_ID_ALC658D)
+		snd_ac97_update_bits(ac97, 0x74, 0x0800, 0x0800);
+
 	return 0;
 }
 

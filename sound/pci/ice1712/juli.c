@@ -182,7 +182,7 @@ static int __devinit juli_init(ice1712_t *ice)
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;
 
-		ak = ice->akm = kcalloc(1, sizeof(akm4xxx_t), GFP_KERNEL);
+		ak = ice->akm = kzalloc(sizeof(akm4xxx_t), GFP_KERNEL);
 		if (! ak)
 			return -ENOMEM;
 		ice->akm_codecs = 1;

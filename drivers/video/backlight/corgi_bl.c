@@ -19,17 +19,18 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 
-#include <asm/arch-pxa/corgi.h>
-#include <asm/hardware/scoop.h>
+#include <asm/mach-types.h>
+#include <asm/arch/sharpsl.h>
 
-#define CORGI_MAX_INTENSITY 		0x3e
 #define CORGI_DEFAULT_INTENSITY		0x1f
-#define CORGI_LIMIT_MASK			0x0b
+#define CORGI_LIMIT_MASK		0x0b
 
 static int corgibl_powermode = FB_BLANK_UNBLANK;
 static int current_intensity = 0;
 static int corgibl_limit = 0;
+static void (*corgibl_mach_set_intensity)(int intensity);
 static spinlock_t bl_lock = SPIN_LOCK_UNLOCKED;
+static struct backlight_properties corgibl_data;
 
 static void corgibl_send_intensity(int intensity)
 {
@@ -43,18 +44,10 @@ static void corgibl_send_intensity(int intensity)
 			intensity &= CORGI_LIMIT_MASK;
 	}
 
-	/* Skip 0x20 as it will blank the display */
-	if (intensity >= 0x20)
-		intensity++;
-
 	spin_lock_irqsave(&bl_lock, flags);
-	/* Bits 0-4 are accessed via the SSP interface */
-	corgi_ssp_blduty_set(intensity & 0x1f);
-	/* Bit 5 is via SCOOP */
-	if (intensity & 0x0020)
-		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
-	else
-		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
+
+	corgibl_mach_set_intensity(intensity);
+
 	spin_unlock_irqrestore(&bl_lock, flags);
 }
 
@@ -113,8 +106,8 @@ static int corgibl_get_power(struct backlight_device *bd)
 
 static int corgibl_set_intensity(struct backlight_device *bd, int intensity)
 {
-	if (intensity > CORGI_MAX_INTENSITY)
-		intensity = CORGI_MAX_INTENSITY;
+	if (intensity > corgibl_data.max_brightness)
+		intensity = corgibl_data.max_brightness;
 	corgibl_send_intensity(intensity);
 	current_intensity=intensity;
 	return 0;
@@ -141,7 +134,6 @@ static struct backlight_properties corgibl_data = {
 	.owner		= THIS_MODULE,
 	.get_power      = corgibl_get_power,
 	.set_power      = corgibl_set_power,
-	.max_brightness = CORGI_MAX_INTENSITY,
 	.get_brightness = corgibl_get_intensity,
 	.set_brightness = corgibl_set_intensity,
 };
@@ -150,12 +142,18 @@ static struct backlight_device *corgi_backlight_device;
 
 static int __init corgibl_probe(struct device *dev)
 {
+	struct corgibl_machinfo *machinfo = dev->platform_data;
+
+	corgibl_data.max_brightness = machinfo->max_intensity;
+	corgibl_mach_set_intensity = machinfo->set_bl_intensity;
+
 	corgi_backlight_device = backlight_device_register ("corgi-bl",
 		NULL, &corgibl_data);
 	if (IS_ERR (corgi_backlight_device))
 		return PTR_ERR (corgi_backlight_device);
 
 	corgibl_set_intensity(NULL, CORGI_DEFAULT_INTENSITY);
+	corgibl_limit_intensity(0);
 
 	printk("Corgi Backlight Driver Initialized.\n");
 	return 0;

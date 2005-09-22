@@ -29,27 +29,29 @@
  *	Includes, defines, variables, module parameters, ...
  */
 
-#include <linux/config.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/miscdevice.h>
-#include <linux/watchdog.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/pci.h>
-#include <linux/ioport.h>
-#include <linux/spinlock.h>
+#include <linux/config.h>	/* For CONFIG_WATCHDOG_NOWAYOUT/... */
+#include <linux/module.h>	/* For module specific items */
+#include <linux/moduleparam.h>	/* For new moduleparam's */
+#include <linux/types.h>	/* For standard types (like size_t) */
+#include <linux/errno.h>	/* For the -ENODEV/... values */
+#include <linux/kernel.h>	/* For printk/panic/... */
+#include <linux/delay.h>	/* For mdelay function */
+#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/watchdog.h>	/* For the watchdog specific items */
+#include <linux/notifier.h>	/* For notifier support */
+#include <linux/reboot.h>	/* For reboot_notifier stuff */
+#include <linux/init.h>		/* For __init/__exit/... */
+#include <linux/fs.h>		/* For file operations */
+#include <linux/pci.h>		/* For pci functions */
+#include <linux/ioport.h>	/* For io-port access */
+#include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
 
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
+#include <asm/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
 #define WATCHDOG_VERSION "1.01"
-#define WATCHDOG_DATE "15 Mar 2005"
+#define WATCHDOG_DATE "02 Sep 2005"
 #define WATCHDOG_DRIVER_NAME "PCI-PC Watchdog"
 #define WATCHDOG_NAME "pcwd_pci"
 #define PFX WATCHDOG_NAME ": "
@@ -335,12 +337,14 @@ static int pcipcwd_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 
 			if (new_options & WDIOS_DISABLECARD) {
-				pcipcwd_stop();
+				if (pcipcwd_stop())
+					return -EIO;
 				retval = 0;
 			}
 
 			if (new_options & WDIOS_ENABLECARD) {
-				pcipcwd_start();
+				if (pcipcwd_start())
+					return -EIO;
 				retval = 0;
 			}
 

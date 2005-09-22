@@ -172,6 +172,8 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 			scatter->lkey = cpu_to_be32(MTHCA_INVAL_LKEY);
 	}
 
+	srq->last = get_wqe(srq, srq->max - 1);
+
 	return 0;
 }
 
@@ -189,7 +191,6 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	srq->max      = attr->max_wr;
 	srq->max_gs   = attr->max_sge;
-	srq->last     = NULL;
 	srq->counter  = 0;
 
 	if (mthca_is_memfree(dev))
@@ -409,7 +410,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
-			return nreq;
+			break;
 		}
 
 		wqe       = get_wqe(srq, ind);
@@ -427,7 +428,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			err = -EINVAL;
 			*bad_wr = wr;
 			srq->last = prev_wqe;
-			return nreq;
+			break;
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {
@@ -446,19 +447,15 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			((struct mthca_data_seg *) wqe)->addr = 0;
 		}
 
-		if (likely(prev_wqe)) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32((ind << srq->wqe_shift) | 1);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32(MTHCA_NEXT_DBD);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32((ind << srq->wqe_shift) | 1);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32(MTHCA_NEXT_DBD);
 
 		srq->wrid[ind]  = wr->wr_id;
 		srq->first_free = next_ind;
 	}
-
-	return nreq;
 
 	if (likely(nreq)) {
 		__be32 doorbell[2];
@@ -503,7 +500,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
-			return nreq;
+			break;
 		}
 
 		wqe       = get_wqe(srq, ind);
@@ -519,7 +516,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		if (unlikely(wr->num_sge > srq->max_gs)) {
 			err = -EINVAL;
 			*bad_wr = wr;
-			return nreq;
+			break;
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {

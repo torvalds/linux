@@ -312,7 +312,12 @@ static int
 mpt_lan_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
 	struct net_device *dev = ioc->netdev;
-	struct mpt_lan_priv *priv = netdev_priv(dev);
+	struct mpt_lan_priv *priv;
+
+	if (dev == NULL)
+		return(1);
+	else
+		priv = netdev_priv(dev);
 
 	dlprintk((KERN_INFO MYNAM ": IOC %s_reset routed to LAN driver!\n",
 			reset_phase==MPT_IOC_SETUP_RESET ? "setup" : (

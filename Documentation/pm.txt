@@ -38,6 +38,12 @@ system the associated daemon will exit gracefully.
 
 Driver Interface -- OBSOLETE, DO NOT USE!
 ----------------*************************
+
+Note: pm_register(), pm_access(), pm_dev_idle() and friends are
+obsolete. Please do not use them. Instead you should properly hook
+your driver into the driver model, and use its suspend()/resume()
+callbacks to do this kind of stuff.
+
 If you are writing a new driver or maintaining an old driver, it
 should include power management support.  Without power management
 support, a single driver may prevent a system with power management

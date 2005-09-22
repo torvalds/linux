@@ -78,15 +78,7 @@ MODULE_PARM_DESC(spdif, "Support SPDIF I/O");
  *  Constants definition
  */
 
-#ifndef PCI_VENDOR_ID_ALI
-#define PCI_VENDOR_ID_ALI	0x10b9
-#endif
-
-#ifndef PCI_DEVICE_ID_ALI_5451
-#define PCI_DEVICE_ID_ALI_5451	0x5451
-#endif
-
-#define DEVICE_ID_ALI5451	((PCI_VENDOR_ID_ALI<<16)|PCI_DEVICE_ID_ALI_5451)
+#define DEVICE_ID_ALI5451	((PCI_VENDOR_ID_AL<<16)|PCI_DEVICE_ID_AL_M5451)
 
 
 #define ALI_CHANNELS		32
@@ -326,13 +318,12 @@ static void ali_read_regs(ali_t *codec, int channel)
 static void ali_read_cfg(unsigned int vendor, unsigned deviceid)
 {
 	unsigned int dwVal;
-	struct pci_dev *pci_dev = NULL;
+	struct pci_dev *pci_dev;
 	int i,j;
 
-
-        pci_dev = pci_find_device(vendor, deviceid, pci_dev);
-        if (pci_dev == NULL)
-                return ;
+	pci_dev = pci_get_device(vendor, deviceid, NULL);
+	if (pci_dev == NULL)
+		return ;
 
 	printk("\nM%x PCI CFG\n", deviceid);
 	printk("    ");
@@ -349,6 +340,7 @@ static void ali_read_cfg(unsigned int vendor, unsigned deviceid)
 		}
 		printk("\n");
 	}
+	pci_dev_put(pci_dev);
  }
 static void ali_read_ac97regs(ali_t *codec, int secondary)
 {
@@ -2116,6 +2108,8 @@ static int snd_ali_free(ali_t * codec)
 #ifdef CONFIG_PM
 	kfree(codec->image);
 #endif
+	pci_dev_put(codec->pci_m1533);
+	pci_dev_put(codec->pci_m7101);
 	kfree(codec);
 	return 0;
 }
@@ -2305,7 +2299,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 	codec->chregs.data.ainten = 0x00;
 
 	/* M1533: southbridge */
-       	pci_dev = pci_find_device(0x10b9, 0x1533, NULL);
+	pci_dev = pci_get_device(0x10b9, 0x1533, NULL);
 	codec->pci_m1533 = pci_dev;
 	if (! codec->pci_m1533) {
 		snd_printk(KERN_ERR "ali5451: cannot find ALi 1533 chip.\n");
@@ -2313,7 +2307,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 		return -ENODEV;
 	}
 	/* M7101: power management */
-       	pci_dev = pci_find_device(0x10b9, 0x7101, NULL);
+	pci_dev = pci_get_device(0x10b9, 0x7101, NULL);
 	codec->pci_m7101 = pci_dev;
 	if (! codec->pci_m7101 && codec->revision == ALI_5451_V02) {
 		snd_printk(KERN_ERR "ali5451: cannot find ALi 7101 chip.\n");
@@ -2417,6 +2411,7 @@ static void __devexit snd_ali_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ALI 5451",
+	.owner = THIS_MODULE,
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),

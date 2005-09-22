@@ -1048,7 +1048,7 @@ int fastcall path_lookup(const char *name, unsigned int flags, struct nameidata 
 out:
 	if (unlikely(current->audit_context
 		     && nd && nd->dentry && nd->dentry->d_inode))
-		audit_inode(name, nd->dentry->d_inode);
+		audit_inode(name, nd->dentry->d_inode, flags);
 	return retval;
 }
 

@@ -35,13 +35,6 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 
-#ifndef PCI_VENDOR_ID_CREATIVE
-#define PCI_VENDOR_ID_CREATIVE		0x1102
-#endif
-#ifndef PCI_DEVICE_ID_CREATIVE_EMU10K1
-#define PCI_DEVICE_ID_CREATIVE_EMU10K1	0x0002
-#endif
-
 /* ------------------- DEFINES -------------------- */
 
 #define EMUPAGESIZE     4096

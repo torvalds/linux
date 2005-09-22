@@ -371,6 +371,12 @@ static inline void close_files(struct files_struct * files)
 	struct fdtable *fdt;
 
 	j = 0;
+
+	/*
+	 * It is safe to dereference the fd table without RCU or
+	 * ->file_lock because this is the last reference to the
+	 * files structure.
+	 */
 	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;

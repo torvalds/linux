@@ -11,7 +11,7 @@
 #include "asm/ptrace.h"
 #include "asm/uaccess.h"
 
-extern void *switch_to_tt(void *prev, void *next);
+extern void switch_to_tt(void *prev, void *next);
 extern void flush_thread_tt(void);
 extern void start_thread_tt(struct pt_regs *regs, unsigned long eip,
 			   unsigned long esp);

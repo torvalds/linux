@@ -35,7 +35,13 @@ typedef struct _drive_info_struct
 	int 	heads;
 	int	sectors;
 	int 	cylinders;
-	int	raid_level;
+	int	raid_level; /* set to -1 to indicate that
+			     * the drive is not in use/configured
+			    */
+	int	busy_configuring; /*This is set when the drive is being removed
+				   *to prevent it from being opened or it's queue
+				   *from being started.
+				  */
 } drive_info_struct;
 
 struct ctlr_info 
@@ -83,6 +89,7 @@ struct ctlr_info
 	int			nr_allocs;
 	int			nr_frees; 
 	int			busy_configuring;
+	int			busy_initializing;
 
 	/* This element holds the zero based queue number of the last
 	 * queue to be started.  It is used for fairness.
@@ -94,6 +101,7 @@ struct ctlr_info
 #ifdef CONFIG_CISS_SCSI_TAPE
 	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
 #endif
+	unsigned char alive;
 };
 
 /*  Defining the diffent access_menthods */

@@ -10,6 +10,7 @@
 #include <asm/spitfire.h>
 #include <asm/cpudata.h>
 #include <asm/cacheflush.h>
+#include <asm/page.h>
 
 /* Page table allocation/freeing. */
 #ifdef CONFIG_SMP

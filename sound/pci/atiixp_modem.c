@@ -1208,7 +1208,7 @@ static int __devinit snd_atiixp_create(snd_card_t *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1318,6 +1318,7 @@ static void __devexit snd_atiixp_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ATI IXP MC97 controller",
+	.owner = THIS_MODULE,
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
 	.remove = __devexit_p(snd_atiixp_remove),

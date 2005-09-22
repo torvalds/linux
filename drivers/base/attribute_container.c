@@ -152,12 +152,13 @@ attribute_container_add_device(struct device *dev,
 
 		if (!cont->match(cont, dev))
 			continue;
-		ic = kmalloc(sizeof(struct internal_container), GFP_KERNEL);
+
+		ic = kzalloc(sizeof(*ic), GFP_KERNEL);
 		if (!ic) {
 			dev_printk(KERN_ERR, dev, "failed to allocate class container\n");
 			continue;
 		}
-		memset(ic, 0, sizeof(struct internal_container));
+
 		ic->cont = cont;
 		class_device_initialize(&ic->classdev);
 		ic->classdev.dev = get_device(dev);

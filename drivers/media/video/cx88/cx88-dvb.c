@@ -221,9 +221,7 @@ static int lgdt330x_pll_set(struct dvb_frontend* fe,
 	int err;
 
 	/* Put the analog decoder in standby to keep it quiet */
-	if (core->tda9887_conf) {
-		cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
-	}
+	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	dvb_pll_configure(core->pll_desc, buf, params->frequency, 0);
 	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
@@ -401,6 +399,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend->ops->info.frequency_min = dev->core->pll_desc->min;
 		dev->dvb.frontend->ops->info.frequency_max = dev->core->pll_desc->max;
 	}
+
+	/* Put the analog decoder in standby to keep it quiet */
+	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	/* register everything */
 	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev);

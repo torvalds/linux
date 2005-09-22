@@ -21,6 +21,13 @@
 #define PAGE_SIZE    (_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK    (~(PAGE_SIZE-1))
 
+/* Flushing for D-cache alias handling is only needed if
+ * the page size is smaller than 16K.
+ */
+#if PAGE_SHIFT < 14
+#define DCACHE_ALIASING_POSSIBLE
+#endif
+
 #ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__

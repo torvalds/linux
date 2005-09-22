@@ -120,7 +120,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	unsigned short vid;
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
-	unsigned short proto;
+	__be16 proto;
 
 	/* vlan_TCI = ntohs(get_unaligned(&vhdr->h_vlan_TCI)); */
 	vlan_TCI = ntohs(vhdr->h_vlan_TCI);

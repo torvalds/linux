@@ -387,6 +387,12 @@ static void snd_card_cs4236_free(snd_card_t *card)
 	}
 }
 
+#ifdef CONFIG_PNP
+#define is_isapnp_selected(dev)		isapnp[dev]
+#else
+#define is_isapnp_selected(dev)		0
+#endif
+
 static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 					   const struct pnp_card_device_id *pid)
 {
@@ -397,20 +403,16 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 	opl3_t *opl3;
 	int err;
 
-#ifdef CONFIG_PNP
-	if (!isapnp[dev]) {
-#endif
+	if (! is_isapnp_selected(dev)) {
 		if (port[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify port\n");
+			snd_printk(KERN_ERR "specify port\n");
 			return -EINVAL;
 		}
 		if (cport[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify cport\n");
+			snd_printk(KERN_ERR "specify cport\n");
 			return -EINVAL;
 		}
-#ifdef CONFIG_PNP
 	}
-#endif
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 			    sizeof(struct snd_card_cs4236));
 	if (card == NULL)
@@ -421,8 +423,7 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 	if (isapnp[dev]) {
 		if ((err = snd_card_cs4236_pnp(dev, acard, pcard, pid))<0) {
 			printk(KERN_ERR "isapnp detection failed and probing for " IDENT " is not supported\n");
-			snd_card_free(card);
-			return -ENXIO;
+			goto _err;
 		}
 		snd_card_set_dev(card, &pcard->card->dev);
 	}
@@ -430,8 +431,8 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT)
 		if ((acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB")) == NULL) {
 			printk(KERN_ERR IDENT ": unable to register SB port at 0x%lx\n", sb_port[dev]);
-			snd_card_free(card);
-			return -ENOMEM;
+			err = -EBUSY;
+			goto _err;
 		}
 
 #ifdef CS4232
@@ -443,18 +444,14 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 				     dma2[dev],
 				     CS4231_HW_DETECT,
 				     0,
-				     &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_cs4231_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     &chip)) < 0)
+		goto _err;
+
+	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0)
+		goto _err;
+
+	if ((err = snd_cs4231_mixer(chip)) < 0)
+		goto _err;
 
 #else /* CS4236 */
 	if ((err = snd_cs4236_create(card,
@@ -465,18 +462,14 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 				     dma2[dev],
 				     CS4231_HW_DETECT,
 				     0,
-				     &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_cs4236_pcm(chip, 0, &pcm)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_cs4236_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     &chip)) < 0)
+		goto _err;
+
+	if ((err = snd_cs4236_pcm(chip, 0, &pcm)) < 0)
+		goto _err;
+
+	if ((err = snd_cs4236_mixer(chip)) < 0)
+		goto _err;
 #endif
 	strcpy(card->driver, pcm->name);
 	strcpy(card->shortname, pcm->name);
@@ -488,21 +481,17 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 	if (dma2[dev] >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
 
-	if ((err = snd_cs4231_timer(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_cs4231_timer(chip, 0, NULL)) < 0)
+		goto _err;
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_OPL3_CS, 0, &opl3) < 0) {
-			printk(KERN_ERR IDENT ": OPL3 not detected\n");
+			printk(KERN_WARNING IDENT ": OPL3 not detected\n");
 		} else {
-			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-				snd_card_free(card);
-				return err;
-			}
+			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+				goto _err;
 		}
 	}
 
@@ -513,17 +502,23 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 					mpu_port[dev], 0,
 					mpu_irq[dev],
 					mpu_irq[dev] >= 0 ? SA_INTERRUPT : 0, NULL) < 0)
-			printk(KERN_ERR IDENT ": MPU401 not detected\n");
+			printk(KERN_WARNING IDENT ": MPU401 not detected\n");
 	}
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
 	if (pcard)
 		pnp_set_card_drvdata(pcard, card);
 	else
 		snd_cs4236_legacy[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 #ifdef CONFIG_PNP
@@ -569,10 +564,8 @@ static int __init alsa_card_cs423x_init(void)
 	for (dev = 0; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev])
 			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[dev])
+		if (is_isapnp_selected(dev))
 			continue;
-#endif
 		if (snd_card_cs423x_probe(dev, NULL, NULL) >= 0)
 			cards++;
 	}

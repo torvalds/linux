@@ -2879,6 +2879,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 * This target is not on a VLAN
 		 */
 		if (rt->u.dst.dev == bond->dev) {
+			ip_rt_put(rt);
 			dprintk("basa: rtdev == bond->dev: arp_send\n");
 			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
 				      bond->master_ip, 0);
@@ -2898,6 +2899,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		}
 
 		if (vlan_id) {
+			ip_rt_put(rt);
 			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
 				      vlan->vlan_ip, vlan_id);
 			continue;
@@ -2909,6 +2911,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			       bond->dev->name, NIPQUAD(fl.fl4_dst),
 			       rt->u.dst.dev ? rt->u.dst.dev->name : "NULL");
 		}
+		ip_rt_put(rt);
 	}
 }
 
@@ -5036,6 +5039,14 @@ static int __init bonding_init(void)
 	return 0;
 
 out_err:
+	/*
+	 * rtnl_unlock() will run netdev_run_todo(), putting the
+	 * thus-far-registered bonding devices into a state which
+	 * unregigister_netdevice() will accept
+	 */
+	rtnl_unlock();
+	rtnl_lock();
+
 	/* free and unregister all bonds that were successfully added */
 	bond_free_all();
 

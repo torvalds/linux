@@ -35,6 +35,7 @@ config KEYS_DEBUG_PROC_KEYS
 
 config SECURITY
 	bool "Enable different security models"
+	depends on SYSFS
 	help
 	  This allows you to choose different security modules to be
 	  configured into your kernel.

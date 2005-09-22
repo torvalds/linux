@@ -38,6 +38,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/kdebug.h>
+#include <asm/siginfo.h>
 
 /*
  * Check whether the instruction at regs->nip is a store using

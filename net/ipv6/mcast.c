@@ -1968,7 +1968,7 @@ static void ip6_mc_clear_src(struct ifmcaddr6 *pmc)
 	}
 	pmc->mca_sources = NULL;
 	pmc->mca_sfmode = MCAST_EXCLUDE;
-	pmc->mca_sfcount[MCAST_EXCLUDE] = 0;
+	pmc->mca_sfcount[MCAST_INCLUDE] = 0;
 	pmc->mca_sfcount[MCAST_EXCLUDE] = 1;
 }
 

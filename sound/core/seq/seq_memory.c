@@ -452,7 +452,7 @@ pool_t *snd_seq_pool_new(int poolsize)
 	pool_t *pool;
 
 	/* create pool block */
-	pool = kcalloc(1, sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (pool == NULL) {
 		snd_printd("seq: malloc failed for pool\n");
 		return NULL;

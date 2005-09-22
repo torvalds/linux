@@ -214,9 +214,11 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 				     .tos = RT_TOS(iph->tos)} }, .proto = 0};
 
 			if (!ip_route_output_key(&rt, &fl)) {
-				/* Bridged-and-DNAT'ed traffic doesn't
-				 * require ip_forwarding. */
-				if (((struct dst_entry *)rt)->dev == dev) {
+				/* - Bridged-and-DNAT'ed traffic doesn't
+				 *   require ip_forwarding.
+				 * - Deal with redirected traffic. */
+				if (((struct dst_entry *)rt)->dev == dev ||
+				    rt->rt_type == RTN_LOCAL) {
 					skb->dst = (struct dst_entry *)rt;
 					goto bridged_dnat;
 				}

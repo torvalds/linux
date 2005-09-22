@@ -57,7 +57,9 @@
 #include <linux/config.h>
 
 #include <asm/fpu.h>
+#ifndef ASM_OFFSETS_C
 #include <asm/asm-offsets.h>
+#endif
 
 /*
  * Base-2 logarithm of number of pages to allocate per task structure

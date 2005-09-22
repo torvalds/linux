@@ -131,7 +131,7 @@ __syscall_start:
 		.long	sys_wait4
 /* 115 */	.long	sys_swapoff
 		.long	sys_sysinfo
-		.long	sys_ipc
+		.long	sys_ipc_wrapper
 		.long	sys_fsync
 		.long	sys_sigreturn_wrapper
 /* 120 */	.long	sys_clone_wrapper

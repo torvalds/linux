@@ -149,6 +149,9 @@ CONFIGURING the kernel:
 	"make gconfig"     X windows (Gtk) based configuration tool.
 	"make oldconfig"   Default all questions based on the contents of
 			   your existing ./.config file.
+	"make silentoldconfig"
+			   Like above, but avoids cluttering the screen
+			   with question already answered.
    
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can
@@ -168,9 +171,6 @@ CONFIGURING the kernel:
 	  break bad code to find kernel problems (kmalloc()).  Thus you
 	  should probably answer 'n' to the questions for
           "development", "experimental", or "debugging" features.
-
- - Check the top Makefile for further site-dependent configuration
-   (default SVGA mode etc). 
 
 COMPILING the kernel:
 
@@ -199,6 +199,9 @@ COMPILING the kernel:
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
    do a "make modules_install".
+   In alternative, before compiling, edit your Makefile and change the
+   "EXTRAVERSION" line - its content is appended to the regular kernel
+   version.
 
  - In order to boot your new kernel, you'll need to copy the kernel
    image (e.g. .../linux/arch/i386/boot/bzImage after compilation)

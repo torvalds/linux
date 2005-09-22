@@ -578,7 +578,7 @@ cpu_pxa270_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__80200_proc_info,#object
 __80200_proc_info:

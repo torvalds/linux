@@ -207,6 +207,8 @@ static void print_codec_info(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 	snd_iprintf(buffer, "Vendor Id: 0x%x\n", codec->vendor_id);
 	snd_iprintf(buffer, "Subsystem Id: 0x%x\n", codec->subsystem_id);
 	snd_iprintf(buffer, "Revision Id: 0x%x\n", codec->revision_id);
+	if (! codec->afg)
+		return;
 	snd_iprintf(buffer, "Default PCM: ");
 	print_pcm_caps(buffer, codec, codec->afg);
 	snd_iprintf(buffer, "Default Amp-In caps: ");

@@ -395,7 +395,7 @@ static int snd_emu10k1x_playback_open(snd_pcm_substream_t *substream)
 	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
                 return err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = chip;
@@ -571,7 +571,7 @@ static int snd_emu10k1x_pcm_open_capture(snd_pcm_substream_t *substream)
 	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
                 return err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 
@@ -920,7 +920,7 @@ static int __devinit snd_emu10k1x_create(snd_card_t *card,
 		return -ENXIO;
 	}
   
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1615,6 +1615,7 @@ MODULE_DEVICE_TABLE(pci, snd_emu10k1x_ids);
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = "EMU10K1X",
+	.owner = THIS_MODULE,
 	.id_table = snd_emu10k1x_ids,
 	.probe = snd_emu10k1x_probe,
 	.remove = __devexit_p(snd_emu10k1x_remove),
