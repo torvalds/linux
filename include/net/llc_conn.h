@@ -92,7 +92,8 @@ static __inline__ char llc_backlog_type(struct sk_buff *skb)
 	return skb->cb[sizeof(skb->cb) - 1];
 }
 
-extern struct sock *llc_sk_alloc(int family, int priority, struct proto *prot);
+extern struct sock *llc_sk_alloc(int family, unsigned int __nocast priority,
+				 struct proto *prot);
 extern void llc_sk_free(struct sock *sk);
 
 extern void llc_sk_reset(struct sock *sk);

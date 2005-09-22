@@ -8,16 +8,11 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
+#include <net/llc.h>
 
 #ifndef CONFIG_SYSCTL
 #error This file should not be compiled without CONFIG_SYSCTL defined
 #endif
-
-extern int sysctl_llc2_ack_timeout;
-extern int sysctl_llc2_busy_timeout;
-extern int sysctl_llc2_p_timeout;
-extern int sysctl_llc2_rej_timeout;
-extern int sysctl_llc_station_ack_timeout;
 
 static struct ctl_table llc2_timeout_table[] = {
 	{

@@ -1321,7 +1321,7 @@ int llc_conn_ac_set_vs_nr(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
 {
 	llc_sk(sk)->vS = (llc_sk(sk)->vS + 1) % 128;
 	return 0;

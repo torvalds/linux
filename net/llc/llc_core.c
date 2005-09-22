@@ -69,7 +69,7 @@ static void llc_del_sap(struct llc_sap *sap)
 	write_unlock_bh(&llc_sap_list_lock);
 }
 
-struct llc_sap *__llc_sap_find(unsigned char sap_value)
+static struct llc_sap *__llc_sap_find(unsigned char sap_value)
 {
 	struct llc_sap* sap;
 

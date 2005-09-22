@@ -555,7 +555,7 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 	return rc;
 }
 
-int llc_wait_data(struct sock *sk, long timeo)
+static int llc_wait_data(struct sock *sk, long timeo)
 {
 	int rc;
 
@@ -1002,9 +1002,6 @@ static struct proto_ops llc_ui_ops = {
 	.mmap	     = sock_no_mmap,
 	.sendpage    = sock_no_sendpage,
 };
-
-extern void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb);
-extern void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb);
 
 static char llc_proc_err_msg[] __initdata =
         KERN_CRIT "LLC: Unable to register the proc_fs entries\n";

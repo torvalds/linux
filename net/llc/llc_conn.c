@@ -819,7 +819,8 @@ static void llc_sk_init(struct sock* sk)
  *	Allocates a LLC sock and initializes it. Returns the new LLC sock
  *	or %NULL if there's no memory available for one
  */
-struct sock *llc_sk_alloc(int family, int priority, struct proto *prot)
+struct sock *llc_sk_alloc(int family, unsigned int __nocast priority,
+			 struct proto *prot)
 {
 	struct sock *sk = sk_alloc(family, priority, prot, 1);
 
