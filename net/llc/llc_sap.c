@@ -26,11 +26,12 @@
 
 /**
  *	llc_alloc_frame - allocates sk_buff for frame
+ *	@dev: network device this skb will be sent over
  *
  *	Allocates an sk_buff for frame and initializes sk_buff fields.
  *	Returns allocated skb or %NULL when out of memory.
  */
-struct sk_buff *llc_alloc_frame(void)
+struct sk_buff *llc_alloc_frame(struct net_device *dev)
 {
 	struct sk_buff *skb = alloc_skb(128, GFP_ATOMIC);
 
@@ -38,7 +39,7 @@ struct sk_buff *llc_alloc_frame(void)
 		skb_reserve(skb, 50);
 		skb->nh.raw   = skb->h.raw = skb->data;
 		skb->protocol = htons(ETH_P_802_2);
-		skb->dev      = dev_base->next;
+		skb->dev      = dev;
 		skb->mac.raw  = skb->head;
 	}
 	return skb;

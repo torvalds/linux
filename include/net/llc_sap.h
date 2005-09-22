@@ -13,10 +13,11 @@
  */
 struct llc_sap;
 struct sk_buff;
+struct net_device;
 
 extern void llc_sap_rtn_pdu(struct llc_sap *sap, struct sk_buff *skb);
 extern void llc_save_primitive(struct sk_buff* skb, unsigned char prim);
-extern struct sk_buff *llc_alloc_frame(void);
+extern struct sk_buff *llc_alloc_frame(struct net_device *dev);
 
 extern void llc_build_and_send_test_pkt(struct llc_sap *sap,
 				        struct sk_buff *skb,
