@@ -1046,7 +1046,7 @@ static void orinoco_join_ap(struct net_device *dev)
 		return;
 
 	if (orinoco_lock(priv, &flags) != 0)
-		goto out;
+		goto fail_lock;
 
 	/* Sanity checks in case user changed something in the meantime */
 	if (! priv->bssid_fixed)
@@ -1091,8 +1091,10 @@ static void orinoco_join_ap(struct net_device *dev)
 		printk(KERN_ERR "%s: Error issuing join request\n", dev->name);
 
  out:
-	kfree(buf);
 	orinoco_unlock(priv, &flags);
+
+ fail_lock:
+	kfree(buf);
 }
 
 /* Send new BSSID to userspace */
