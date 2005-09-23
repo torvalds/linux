@@ -1112,12 +1112,14 @@ static void orinoco_send_wevents(struct net_device *dev)
 	err = hermes_read_ltv(hw, IRQ_BAP, HERMES_RID_CURRENTBSSID,
 			      ETH_ALEN, NULL, wrqu.ap_addr.sa_data);
 	if (err != 0)
-		return;
+		goto out;
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 
 	/* Send event to user space */
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
+
+ out:
 	orinoco_unlock(priv, &flags);
 }
 
