@@ -76,6 +76,8 @@ extern void ppcdbg_initialize(void);
 static void build_iSeries_Memory_Map(void);
 static void setup_iSeries_cache_sizes(void);
 static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
+static int iseries_shared_idle(void);
+static int iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
 extern void iSeries_pci_final_fixup(void);
 #else
@@ -695,6 +697,14 @@ static void __init iSeries_setup_arch(void)
 {
 	unsigned procIx = get_paca()->lppaca.dyn_hv_phys_proc_index;
 
+	if (get_paca()->lppaca.shared_proc) {
+		ppc_md.idle_loop = iseries_shared_idle;
+		printk(KERN_INFO "Using shared processor idle loop\n");
+	} else {
+		ppc_md.idle_loop = iseries_dedicated_idle;
+		printk(KERN_INFO "Using dedicated idle loop\n");
+	}
+
 	/* Add an eye catcher and the systemcfg layout version number */
 	strcpy(systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
 	systemcfg->version.major = SYSTEMCFG_MAJOR;
@@ -942,36 +952,25 @@ static int iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
+struct machdep_calls __initdata iseries_md = {
+	.setup_arch	= iSeries_setup_arch,
+	.get_cpuinfo	= iSeries_get_cpuinfo,
+	.init_IRQ	= iSeries_init_IRQ,
+	.get_irq	= iSeries_get_irq,
+	.init_early	= iSeries_init_early,
+	.pcibios_fixup	= iSeries_pci_final_fixup,
+	.restart	= iSeries_restart,
+	.power_off	= iSeries_power_off,
+	.halt		= iSeries_halt,
+	.get_boot_time	= iSeries_get_boot_time,
+	.set_rtc_time	= iSeries_set_rtc_time,
+	.get_rtc_time	= iSeries_get_rtc_time,
+	.calibrate_decr	= iSeries_calibrate_decr,
+	.progress	= iSeries_progress,
+	/* XXX Implement enable_pmcs for iSeries */
+};
+
 void __init iSeries_early_setup(void)
 {
 	iSeries_fixup_klimit();
-
-	ppc_md.setup_arch = iSeries_setup_arch;
-	ppc_md.get_cpuinfo = iSeries_get_cpuinfo;
-	ppc_md.init_IRQ = iSeries_init_IRQ;
-	ppc_md.get_irq = iSeries_get_irq;
-	ppc_md.init_early = iSeries_init_early,
-
-	ppc_md.pcibios_fixup  = iSeries_pci_final_fixup;
-
-	ppc_md.restart = iSeries_restart;
-	ppc_md.power_off = iSeries_power_off;
-	ppc_md.halt = iSeries_halt;
-
-	ppc_md.get_boot_time = iSeries_get_boot_time;
-	ppc_md.set_rtc_time = iSeries_set_rtc_time;
-	ppc_md.get_rtc_time = iSeries_get_rtc_time;
-	ppc_md.calibrate_decr = iSeries_calibrate_decr;
-	ppc_md.progress = iSeries_progress;
-
-	/* XXX Implement enable_pmcs for iSeries */
-
-	if (get_paca()->lppaca.shared_proc) {
-		ppc_md.idle_loop = iseries_shared_idle;
-		printk(KERN_INFO "Using shared processor idle loop\n");
-	} else {
-		ppc_md.idle_loop = iseries_dedicated_idle;
-		printk(KERN_INFO "Using dedicated idle loop\n");
-	}
 }
-
