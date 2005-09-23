@@ -60,6 +60,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_2,	qui
 #define OHCI_INTRENABLE		0x10
 #define OHCI_INTRDISABLE	0x14
 #define OHCI_OCR		(1 << 3)	/* ownership change request */
+#define OHCI_CTRL_RWC		(1 << 9)	/* remote wakeup connected */
 #define OHCI_CTRL_IR		(1 << 8)	/* interrupt routing */
 #define OHCI_INTR_OC		(1 << 30)	/* ownership change */
 
@@ -140,13 +141,17 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 {
 	void __iomem *base;
 	int wait_time;
+	u32 control;
 
 	base = ioremap_nocache(pci_resource_start(pdev, 0),
 				     pci_resource_len(pdev, 0));
 	if (base == NULL) return;
 
-	if (readl(base + OHCI_CONTROL) & OHCI_CTRL_IR) {
-		wait_time = 500; /* 0.5 seconds */
+/* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
+#ifndef __hppa__
+	control = readl(base + OHCI_CONTROL);
+	if (control & OHCI_CTRL_IR) {
+		wait_time = 500; /* arbitrary; 5 seconds */
 		writel(OHCI_INTR_OC, base + OHCI_INTRENABLE);
 		writel(OHCI_OCR, base + OHCI_CMDSTATUS);
 		while (wait_time > 0 &&
@@ -154,7 +159,15 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			wait_time -= 10;
 			msleep(10);
 		}
+		if (wait_time <= 0)
+			printk(KERN_WARNING "%s %s: early BIOS handoff "
+					"failed (BIOS bug ?)\n",
+					pdev->dev.bus_id, "OHCI");
+
+		/* reset controller, preserving RWC */
+		writel(control & OHCI_CTRL_RWC, base + OHCI_CONTROL);
 	}
+#endif
 
 	/*
 	 * disable interrupts
@@ -211,8 +224,9 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 				/*
 				 * well, possibly buggy BIOS...
 				 */
-				printk(KERN_WARNING "EHCI early BIOS handoff "
-						"failed (BIOS bug ?)\n");
+				printk(KERN_WARNING "%s %s: early BIOS handoff "
+						"failed (BIOS bug ?)\n",
+					pdev->dev.bus_id, "EHCI");
 				pci_write_config_dword(pdev,
 						hcc_params + EHCI_USBLEGSUP,
 						EHCI_USBLEGSUP_OS);
