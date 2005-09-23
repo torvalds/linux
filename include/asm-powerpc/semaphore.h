@@ -1,13 +1,7 @@
-#ifndef _PPC_SEMAPHORE_H
-#define _PPC_SEMAPHORE_H
+#ifndef _ASM_POWERPC_SEMAPHORE_H
+#define _ASM_POWERPC_SEMAPHORE_H
 
 /*
- * Swiped from asm-sparc/semaphore.h and modified
- * -- Cort (cort@cs.nmt.edu)
- *
- * Stole some rw spinlock-based semaphore stuff from asm-alpha/semaphore.h
- * -- Ani Joshi (ajoshi@unixbox.com)
- *
  * Remove spinlock-based RW semaphores; RW semaphore definitions are
  * now in rwsem.h and we use the generic lib/rwsem.c implementation.
  * Rework semaphores to use atomic_dec_if_positive.
@@ -66,46 +60,39 @@ extern void __down(struct semaphore * sem);
 extern int  __down_interruptible(struct semaphore * sem);
 extern void __up(struct semaphore * sem);
 
-extern inline void down(struct semaphore * sem)
+static inline void down(struct semaphore * sem)
 {
 	might_sleep();
 
 	/*
 	 * Try to get the semaphore, take the slow path if we fail.
 	 */
-	if (atomic_dec_return(&sem->count) < 0)
+	if (unlikely(atomic_dec_return(&sem->count) < 0))
 		__down(sem);
-	smp_wmb();
 }
 
-extern inline int down_interruptible(struct semaphore * sem)
+static inline int down_interruptible(struct semaphore * sem)
 {
 	int ret = 0;
 
 	might_sleep();
 
-	if (atomic_dec_return(&sem->count) < 0)
+	if (unlikely(atomic_dec_return(&sem->count) < 0))
 		ret = __down_interruptible(sem);
-	smp_wmb();
 	return ret;
 }
 
-extern inline int down_trylock(struct semaphore * sem)
+static inline int down_trylock(struct semaphore * sem)
 {
-	int ret;
-
-	ret = atomic_dec_if_positive(&sem->count) < 0;
-	smp_wmb();
-	return ret;
+	return atomic_dec_if_positive(&sem->count) < 0;
 }
 
-extern inline void up(struct semaphore * sem)
+static inline void up(struct semaphore * sem)
 {
-	smp_wmb();
-	if (atomic_inc_return(&sem->count) <= 0)
+	if (unlikely(atomic_inc_return(&sem->count) <= 0))
 		__up(sem);
 }
 
 #endif /* __KERNEL__ */
 
-#endif /* !(_PPC_SEMAPHORE_H) */
+#endif /* _ASM_POWERPC_SEMAPHORE_H */
