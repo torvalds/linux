@@ -308,12 +308,12 @@ struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
 #define	SIZE_L3 (1 + MAX_NUMNODES)
 
 /*
- * This function may be completely optimized away if
+ * This function must be completely optimized away if
  * a constant is passed to it. Mostly the same as
  * what is in linux/slab.h except it returns an
  * index.
  */
-static inline int index_of(const size_t size)
+static __always_inline int index_of(const size_t size)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
@@ -329,7 +329,8 @@ static inline int index_of(const size_t size)
 			extern void __bad_size(void);
 			__bad_size();
 		}
-	}
+	} else
+		BUG();
 	return 0;
 }
 
