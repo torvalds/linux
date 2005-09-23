@@ -410,7 +410,7 @@ unsigned long prom_virt_to_phys(unsigned long promva, int *error)
  * HI_OBP_ADDRESS range are handled in entry.S and do not use the vpte
  * scheme (also, see rant in inherit_locked_prom_mappings()).
  */
-static void build_obp_range(unsigned long start, unsigned long end, unsigned long data)
+static void __init build_obp_range(unsigned long start, unsigned long end, unsigned long data)
 {
 	unsigned long vaddr;
 
@@ -454,7 +454,7 @@ static inline int in_obp_range(unsigned long vaddr)
 }
 
 #define OBP_PMD_SIZE 2048
-static void build_obp_pgtable(int prom_trans_ents)
+static void __init build_obp_pgtable(int prom_trans_ents)
 {
 	unsigned long i;
 
@@ -480,7 +480,7 @@ static void build_obp_pgtable(int prom_trans_ents)
 /* Read OBP translations property into 'prom_trans[]'.
  * Return the number of entries.
  */
-static int read_obp_translations(void)
+static int __init read_obp_translations(void)
 {
 	int n, node;
 
@@ -505,7 +505,7 @@ static int read_obp_translations(void)
 	return n;
 }
 
-static void remap_kernel(void)
+static void __init remap_kernel(void)
 {
 	unsigned long phys_page, tte_vaddr, tte_data;
 	int tlb_ent = sparc64_highest_locked_tlbent();
@@ -531,7 +531,7 @@ static void remap_kernel(void)
 	}
 }
 
-static void inherit_prom_mappings(void)
+static void __init inherit_prom_mappings(void)
 {
 	int n;
 
@@ -1604,7 +1604,7 @@ void __init mem_init(void)
 		cheetah_ecache_flush_init();
 }
 
-void free_initmem (void)
+void free_initmem(void)
 {
 	unsigned long addr, initend;
 
