@@ -224,7 +224,6 @@ struct dev_pm_info {
 	unsigned		should_wakeup:1;
 	pm_message_t		prev_state;
 	void			* saved_state;
-	atomic_t		pm_users;
 	struct device		* pm_parent;
 	struct list_head	entry;
 #endif
