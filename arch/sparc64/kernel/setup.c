@@ -496,7 +496,6 @@ extern void paging_init(void);
 
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long highest_paddr;
 	int i;
 
 	/* Initialize PROM console and command line. */
@@ -519,11 +518,7 @@ void __init setup_arch(char **cmdline_p)
 	idprom_init();
 	(void) prom_probe_memory();
 
-	/* In paging_init() we tip off this value to see if we need
-	 * to change init_mm.pgd to point to the real alias mapping.
-	 */
 	phys_base = 0xffffffffffffffffUL;
-	highest_paddr = 0UL;
 	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
 		unsigned long top;
 
@@ -531,8 +526,6 @@ void __init setup_arch(char **cmdline_p)
 			phys_base = sp_banks[i].base_addr;
 		top = sp_banks[i].base_addr +
 			sp_banks[i].num_bytes;
-		if (highest_paddr < top)
-			highest_paddr = top;
 	}
 	pfn_base = phys_base >> PAGE_SHIFT;
 
