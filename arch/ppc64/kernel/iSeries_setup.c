@@ -953,9 +953,6 @@ void dt_cpus(struct iseries_flat_dt *dt)
 
 		dt_prop_u32(dt, "reg", i);
 
-		if (dt->header.boot_cpuid_phys == i)
-			dt_prop_empty(dt, "linux,boot-cpu");
-
 		dt_end_node(dt);
 	}
 
