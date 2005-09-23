@@ -485,7 +485,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 
 		if (info->pns_call_id != ntohs(*pcid)) {
 			DEBUGP("%s for unknown CallID %u\n", 
-				pptp_msg_name[msg], ntohs(*cid));
+				pptp_msg_name[msg], ntohs(*pcid));
 			break;
 		}
 
