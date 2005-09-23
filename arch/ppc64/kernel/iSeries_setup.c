@@ -1052,6 +1052,11 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	dt_prop_u64_list(dt, "reg", tmp, 2);
 	dt_end_node(dt);
 
+	/* /chosen */
+	dt_start_node(dt, "chosen");
+	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
+	dt_end_node(dt);
+
 	dt_end_node(dt);
 
 	dt_push_u32(dt, OF_DT_END);

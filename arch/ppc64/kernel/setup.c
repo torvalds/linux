@@ -543,14 +543,6 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
-#ifdef CONFIG_PPC_ISERIES
-	/* pSeries systems are identified in prom.c via OF. */
-	if (itLpNaca.xLparInstalled == 1)
-		systemcfg->platform = PLATFORM_ISERIES_LPAR;
-
-	ppc_md.init_early();
-#else /* CONFIG_PPC_ISERIES */
-
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
 	 */
@@ -608,7 +600,6 @@ void __init setup_system(void)
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
 
 	parse_early_param();
-#endif /* !CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_SMP
 	/*
