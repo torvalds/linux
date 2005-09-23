@@ -237,16 +237,13 @@ static int __init make_uml_dir(void)
 		strlcpy(dir, home, sizeof(dir));
 		uml_dir++;
 	}
+	strlcat(dir, uml_dir, sizeof(dir));
 	len = strlen(dir);
-	strncat(dir, uml_dir, sizeof(dir) - len);
-	len = strlen(dir);
-	if((len > 0) && (len < sizeof(dir) - 1) && (dir[len - 1] != '/')){
-		dir[len] = '/';
-		dir[len + 1] = '\0';
-	}
+	if (len > 0 && dir[len - 1] != '/')
+		strlcat(dir, "/", sizeof(dir));
 
 	uml_dir = malloc(strlen(dir) + 1);
-	if(uml_dir == NULL){
+	if (uml_dir == NULL) {
 		printf("make_uml_dir : malloc failed, errno = %d\n", errno);
 		exit(1);
 	}
