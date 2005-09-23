@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2001 Mike Corrigan, IBM Corp
  *
  * This program is free software; you can redistribute it and/or
@@ -29,8 +29,8 @@
 #include <asm/iSeries/ItSpCommArea.h>
 
 
-/* The HvReleaseData is the root of the information shared between 
- * the hypervisor and Linux.  
+/* The HvReleaseData is the root of the information shared between
+ * the hypervisor and Linux.
  */
 struct HvReleaseData hvReleaseData = {
 	.xDesc = 0xc8a5d9c4,	/* "HvRD" ebcdic */
@@ -79,7 +79,7 @@ extern void trap_0e_iSeries(void);
 extern void performance_monitor_iSeries(void);
 extern void data_access_slb_iSeries(void);
 extern void instruction_access_slb_iSeries(void);
-	
+
 struct ItLpNaca itLpNaca = {
 	.xDesc = 0xd397d581,		/* "LpNa" ebcdic */
 	.xSize = 0x0400,		/* size of ItLpNaca */
@@ -106,7 +106,7 @@ struct ItLpNaca itLpNaca = {
 	.xLoadAreaChunks = 0,		/* chunks for load area */
 	.xPaseSysCallCRMask = 0,	/* PASE mask */
 	.xSlicSegmentTablePtr = 0,	/* seg table */
-	.xOldLpQueue = { 0 }, 		/* Old LP Queue */
+	.xOldLpQueue = { 0 },		/* Old LP Queue */
 	.xInterruptHdlr = {
 		(u64)system_reset_iSeries,	/* 0x100 System Reset */
 		(u64)machine_check_iSeries,	/* 0x200 Machine Check */
@@ -134,7 +134,7 @@ struct ItLpNaca itLpNaca = {
 EXPORT_SYMBOL(itLpNaca);
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
-struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data"))); 
+struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
 struct ItExtVpdPanel xItExtVpdPanel __attribute__((__section__(".data")));
@@ -151,7 +151,7 @@ struct IoHriProcessorVpd xIoHriProcessorVpd[maxPhysicalProcessors] = {
 		.xPVR = 0x3600
 	}
 };
-	
+
 /* Space for Main Store Vpd 27,200 bytes */
 /* May be filled in by the hypervisor so cannot end up in the BSS */
 u64    xMsVpd[3400] __attribute__((__section__(".data")));
@@ -197,7 +197,7 @@ struct ItVpdAreas itVpdAreas = {
 		26992,			/*	 7 length of MS VPD */
 		0,			/*       8 */
 		sizeof(struct ItLpNaca),/*       9 length of LP Naca */
-		0, 			/*	10 */
+		0,			/*	10 */
 		256,			/*	11 length of Recovery Log Buf */
 		sizeof(struct SpCommArea), /*   12 length of SP Comm Area */
 		0,0,0,			/* 13 - 15 */
@@ -207,7 +207,7 @@ struct ItVpdAreas itVpdAreas = {
 		0,0			/* 24 - 25 */
 		},
 	.xSlicVpdAdrs = {			/* VPD addresses */
-		0,0,0,  		/*	 0 -  2 */
+		0,0,0,			/*	 0 -  2 */
 		&xItExtVpdPanel,        /*       3 Extended VPD */
 		&paca[0],		/*       4 first Paca */
 		0,			/*       5 */
