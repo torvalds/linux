@@ -918,6 +918,7 @@ static int swsusp_alloc(void)
 
 	pagedir_nosave = NULL;
 	nr_copy_pages = calc_nr(nr_copy_pages);
+	nr_copy_pages_check = nr_copy_pages;
 
 	pr_debug("suspend: (pages needed: %d + %d free: %d)\n",
 		 nr_copy_pages, PAGES_FOR_IO, nr_free_pages());
@@ -940,7 +941,6 @@ static int swsusp_alloc(void)
 		return error;
 	}
 
-	nr_copy_pages_check = nr_copy_pages;
 	return 0;
 }
 
