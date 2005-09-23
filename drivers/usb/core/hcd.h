@@ -182,12 +182,12 @@ struct hc_driver {
 	int	(*start) (struct usb_hcd *hcd);
 
 	/* NOTE:  these suspend/resume calls relate to the HC as
-	 * a whole, not just the root hub; they're for bus glue.
+	 * a whole, not just the root hub; they're for PCI bus glue.
 	 */
-	/* called after all devices were suspended */
+	/* called after suspending the hub, before entering D3 etc */
 	int	(*suspend) (struct usb_hcd *hcd, pm_message_t message);
 
-	/* called before any devices get resumed */
+	/* called after entering D0 (etc), before resuming the hub */
 	int	(*resume) (struct usb_hcd *hcd);
 
 	/* cleanly make HCD stop writing memory and doing I/O */
