@@ -638,7 +638,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 				  + msecs_to_jiffies(20) + 1);
 		if (intstat & HCINT_RD) {
 			DBG("---- remote wakeup\n");
-			schedule_work(&isp116x->rh_resume);
+			usb_hcd_resume_root_hub(hcd);
 			ret = IRQ_HANDLED;
 		}
 		irqstat &= ~HCuPINT_OPR;
@@ -1263,21 +1263,11 @@ static int isp116x_hub_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-static void isp116x_rh_resume(void *_hcd)
-{
-	struct usb_hcd *hcd = _hcd;
-
-	usb_resume_device(hcd->self.root_hub);
-}
 
 #else
 
 #define	isp116x_hub_suspend	NULL
 #define	isp116x_hub_resume	NULL
-
-static void isp116x_rh_resume(void *_hcd)
-{
-}
 
 #endif
 
@@ -1732,7 +1722,6 @@ static int __init isp116x_probe(struct device *dev)
 	isp116x->addr_reg = addr_reg;
 	spin_lock_init(&isp116x->lock);
 	INIT_LIST_HEAD(&isp116x->async);
-	INIT_WORK(&isp116x->rh_resume, isp116x_rh_resume, hcd);
 	isp116x->board = dev->platform_data;
 
 	if (!isp116x->board) {
@@ -1777,16 +1766,10 @@ static int __init isp116x_probe(struct device *dev)
 static int isp116x_suspend(struct device *dev, pm_message_t state)
 {
 	int ret = 0;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	VDBG("%s: state %x\n", __func__, state);
 
-	ret = usb_suspend_device(hcd->self.root_hub);
-	if (!ret) {
-		dev->power.power_state = state;
-		INFO("%s suspended\n", hcd_name);
-	} else
-		ERR("%s suspend failed\n", hcd_name);
+	dev->power.power_state = state;
 
 	return ret;
 }
@@ -1797,15 +1780,11 @@ static int isp116x_suspend(struct device *dev, pm_message_t state)
 static int isp116x_resume(struct device *dev)
 {
 	int ret = 0;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	VDBG("%s:  state %x\n", __func__, dev->power.power_state);
 
-	ret = usb_resume_device(hcd->self.root_hub);
-	if (!ret) {
-		dev->power.power_state = PMSG_ON;
-		VDBG("%s resumed\n", (char *)hcd_name);
-	}
+	dev->power.power_state = PMSG_ON;
+
 	return ret;
 }
 
