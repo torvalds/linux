@@ -202,31 +202,32 @@ static struct {
 /********************************************************************/
 
 /* Used in Event handling.
- * We avoid nested structres as they break on ARM -- Moustafa */
+ * We avoid nested structures as they break on ARM -- Moustafa */
 struct hermes_tx_descriptor_802_11 {
 	/* hermes_tx_descriptor */
-	u16 status;
-	u16 reserved1;
-	u16 reserved2;
-	u32 sw_support;
+	__le16 status;
+	__le16 reserved1;
+	__le16 reserved2;
+	__le32 sw_support;
 	u8 retry_count;
 	u8 tx_rate;
-	u16 tx_control;
+	__le16 tx_control;
 
-	/* ieee802_11_hdr */
-	u16 frame_ctl;
-	u16 duration_id;
+	/* ieee80211_hdr */
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
-	u16 data_len;
+
+	__le16 data_len;
 
 	/* ethhdr */
-	unsigned char   h_dest[ETH_ALEN];       /* destination eth addr */
-	unsigned char   h_source[ETH_ALEN];     /* source ether addr    */
-	unsigned short  h_proto;                /* packet type ID field */
+	u8 h_dest[ETH_ALEN];	/* destination eth addr */
+	u8 h_source[ETH_ALEN];	/* source ether addr    */
+	__be16 h_proto;		/* packet type ID field */
 
 	/* p8022_hdr */
 	u8 dsap;
@@ -234,31 +235,31 @@ struct hermes_tx_descriptor_802_11 {
 	u8 ctrl;
 	u8 oui[3];
 
-	u16 ethertype;
+	__be16 ethertype;
 } __attribute__ ((packed));
 
 /* Rx frame header except compatibility 802.3 header */
 struct hermes_rx_descriptor {
 	/* Control */
-	u16 status;
-	u32 time;
+	__le16 status;
+	__le32 time;
 	u8 silence;
 	u8 signal;
 	u8 rate;
 	u8 rxflow;
-	u32 reserved;
+	__le32 reserved;
 
 	/* 802.11 header */
-	u16 frame_ctl;
-	u16 duration_id;
+	__le16 frame_ctl;
+	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
+	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 
 	/* Data length */
-	u16 data_len;
+	__le16 data_len;
 } __attribute__ ((packed));
 
 /********************************************************************/
@@ -389,7 +390,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 		}
 	} else {
 		struct {
-			u16 qual, signal, noise;
+			__le16 qual, signal, noise;
 		} __attribute__ ((packed)) cq;
 
 		err = HERMES_READ_RECORD(hw, USER_BAP,
@@ -615,6 +616,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
+	u16 status;
 	struct hermes_tx_descriptor_802_11 hdr;
 	int err = 0;
 
@@ -644,8 +646,8 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	 * exceeded, because that's the only status that really mean
 	 * that this particular node went away.
 	 * Other errors means that *we* screwed up. - Jean II */
-	hdr.status = le16_to_cpu(hdr.status);
-	if (hdr.status & (HERMES_TXSTAT_RETRYERR | HERMES_TXSTAT_AGEDERR)) {
+	status = le16_to_cpu(hdr.status);
+	if (status & (HERMES_TXSTAT_RETRYERR | HERMES_TXSTAT_AGEDERR)) {
 		union iwreq_data	wrqu;
 
 		/* Copy 802.11 dest address.
@@ -1031,7 +1033,7 @@ static void orinoco_join_ap(struct net_device *dev)
 	unsigned long flags;
 	struct join_req {
 		u8 bssid[ETH_ALEN];
-		u16 channel;
+		__le16 channel;
 	} __attribute__ ((packed)) req;
 	const int atom_len = offsetof(struct prism2_scan_apinfo, atim);
 	struct prism2_scan_apinfo *atom = NULL;
@@ -1128,8 +1130,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 	struct orinoco_private *priv = netdev_priv(dev);
 	u16 infofid;
 	struct {
-		u16 len;
-		u16 type;
+		__le16 len;
+		__le16 type;
 	} __attribute__ ((packed)) info;
 	int len, type;
 	int err;
@@ -3905,7 +3907,7 @@ static int orinoco_ioctl_setscan(struct net_device *dev,
 						   HERMES_HOSTSCAN_SYMBOL_BCAST);
 			break;
 		case FIRMWARE_TYPE_INTERSIL: {
-			u16 req[3];
+			__le16 req[3];
 
 			req[0] = cpu_to_le16(0x3fff);	/* All channels */
 			req[1] = cpu_to_le16(0x0001);	/* rate 1 Mbps */
@@ -3979,7 +3981,7 @@ static inline int orinoco_translate_scan(struct net_device *dev,
 	case FIRMWARE_TYPE_INTERSIL:
 		offset = 4;
 		if (priv->has_hostscan) {
-			atom_len = le16_to_cpup((u16 *)scan);
+			atom_len = le16_to_cpup((__le16 *)scan);
 			/* Sanity check for atom_len */
 			if (atom_len < sizeof(struct prism2_scan_apinfo)) {
 				printk(KERN_ERR "%s: Invalid atom_len in scan data: %d\n",

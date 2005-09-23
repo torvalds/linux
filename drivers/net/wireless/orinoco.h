@@ -27,7 +27,7 @@
 #define ORINOCO_MAX_KEYS	4
 
 struct orinoco_key {
-	u16 len;	/* always stored as little-endian */
+	__le16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
 } __attribute__ ((packed));
 
@@ -35,14 +35,14 @@ struct header_struct {
 	/* 802.3 */
 	u8 dest[ETH_ALEN];
 	u8 src[ETH_ALEN];
-	u16 len;
+	__be16 len;
 	/* 802.2 */
 	u8 dsap;
 	u8 ssap;
 	u8 ctrl;
 	/* SNAP */
 	u8 oui[3];
-	u16 ethertype;
+	unsigned short ethertype;
 } __attribute__ ((packed));
 
 typedef enum {

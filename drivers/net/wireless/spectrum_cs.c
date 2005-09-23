@@ -138,8 +138,8 @@ static void spectrum_cs_detach(dev_link_t *link);
  * Each block has the following structure.
  */
 struct dblock {
-	u32 _addr;		/* adapter address where to write the block */
-	u16 _len;		/* length of the data only, in bytes */
+	__le32 _addr;		/* adapter address where to write the block */
+	__le16 _len;		/* length of the data only, in bytes */
 	char data[0];		/* data to be written */
 } __attribute__ ((packed));
 
@@ -149,9 +149,9 @@ struct dblock {
  * items with matching ID should be written.
  */
 struct pdr {
-	u32 _id;		/* record ID */
-	u32 _addr;		/* adapter address where to write the data */
-	u32 _len;		/* expected length of the data, in bytes */
+	__le32 _id;		/* record ID */
+	__le32 _addr;		/* adapter address where to write the data */
+	__le32 _len;		/* expected length of the data, in bytes */
 	char next[0];		/* next PDR starts here */
 } __attribute__ ((packed));
 
@@ -162,8 +162,8 @@ struct pdr {
  * be plugged into the secondary firmware.
  */
 struct pdi {
-	u16 _len;		/* length of ID and data, in words */
-	u16 _id;		/* record ID */
+	__le16 _len;		/* length of ID and data, in words */
+	__le16 _id;		/* record ID */
 	char data[0];		/* plug data */
 } __attribute__ ((packed));;
 
@@ -370,7 +370,7 @@ spectrum_plug_pdi(hermes_t *hw, struct pdr *first_pdr, struct pdi *pdi)
 
 /* Read PDA from the adapter */
 static int
-spectrum_read_pda(hermes_t *hw, u16 *pda, int pda_len)
+spectrum_read_pda(hermes_t *hw, __le16 *pda, int pda_len)
 {
 	int ret;
 	int pda_size;
@@ -401,7 +401,7 @@ spectrum_read_pda(hermes_t *hw, u16 *pda, int pda_len)
 /* Parse PDA and write the records into the adapter */
 static int
 spectrum_apply_pda(hermes_t *hw, const struct dblock *first_block,
-		   u16 *pda)
+		   __le16 *pda)
 {
 	int ret;
 	struct pdi *pdi;
@@ -467,7 +467,7 @@ spectrum_dl_image(hermes_t *hw, dev_link_t *link,
 	const struct dblock *first_block;
 
 	/* Plug Data Area (PDA) */
-	u16 pda[PDA_WORDS];
+	__le16 pda[PDA_WORDS];
 
 	/* Binary block begins after the 0x1A marker */
 	ptr = image;
