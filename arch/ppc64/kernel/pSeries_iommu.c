@@ -364,7 +364,8 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 
 		while (pci->phb->dma_window_size * children > 0x80000000ul)
 			pci->phb->dma_window_size >>= 1;
-		DBG("No ISA/IDE, window size is %x\n", pci->phb->dma_window_size);
+		DBG("No ISA/IDE, window size is 0x%lx\n",
+			pci->phb->dma_window_size);
 		pci->phb->dma_window_base_cur = 0;
 
 		return;
@@ -388,7 +389,7 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 	while (pci->phb->dma_window_size * children > 0x70000000ul)
 		pci->phb->dma_window_size >>= 1;
 
-	DBG("ISA/IDE, window size is %x\n", pci->phb->dma_window_size);
+	DBG("ISA/IDE, window size is 0x%lx\n", pci->phb->dma_window_size);
 
 }
 
@@ -442,7 +443,7 @@ static void iommu_dev_setup_pSeries(struct pci_dev *dev)
 	struct device_node *dn, *mydn;
 	struct iommu_table *tbl;
 
-	DBG("iommu_dev_setup_pSeries, dev %p (%s)\n", dev, dev->pretty_name);
+	DBG("iommu_dev_setup_pSeries, dev %p (%s)\n", dev, pci_name(dev));
 
 	mydn = dn = pci_device_to_OF_node(dev);
 
@@ -469,7 +470,7 @@ static void iommu_dev_setup_pSeries(struct pci_dev *dev)
 	if (dn && dn->data) {
 		PCI_DN(mydn)->iommu_table = PCI_DN(dn)->iommu_table;
 	} else {
-		DBG("iommu_dev_setup_pSeries, dev %p (%s) has no iommu table\n", dev, dev->pretty_name);
+		DBG("iommu_dev_setup_pSeries, dev %p (%s) has no iommu table\n", dev, pci_name(dev));
 	}
 }
 
@@ -503,7 +504,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	int *dma_window = NULL;
 	struct pci_dn *pci;
 
-	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, dev->pretty_name);
+	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, pci_name(dev));
 
 	/* dev setup for LPAR is a little tricky, since the device tree might
 	 * contain the dma-window properties per-device and not neccesarily
