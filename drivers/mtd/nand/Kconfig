@@ -1,5 +1,5 @@
 # drivers/mtd/nand/Kconfig
-# $Id: Kconfig,v 1.31 2005/06/20 12:03:21 bjd Exp $
+# $Id: Kconfig,v 1.34 2005/09/23 01:44:55 ppopov Exp $
 
 menu "NAND Flash Device Drivers"
 	depends on MTD!=n
@@ -59,8 +59,8 @@ config MTD_NAND_IDS
 	tristate
 
 config MTD_NAND_AU1550
-	tristate "Au1550 NAND support"
-	depends on SOC_AU1550 && MTD_NAND
+	tristate "Au1550/1200 NAND support"
+	depends on (SOC_AU1200 || SOC_AU1550) && MTD_NAND
 	help
 	  This enables the driver for the NAND flash controller on the
 	  AMD/Alchemy 1550 SOC.
