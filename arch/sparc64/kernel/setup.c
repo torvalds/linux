@@ -536,20 +536,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 	pfn_base = phys_base >> PAGE_SHIFT;
 
-	switch (tlb_type) {
-	default:
-	case spitfire:
-		kern_base = spitfire_get_itlb_data(sparc64_highest_locked_tlbent());
-		kern_base &= _PAGE_PADDR_SF;
-		break;
-
-	case cheetah:
-	case cheetah_plus:
-		kern_base = cheetah_get_litlb_data(sparc64_highest_locked_tlbent());
-		kern_base &= _PAGE_PADDR;
-		break;
-	};
-
+	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	if (!root_flags)

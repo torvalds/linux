@@ -505,108 +505,20 @@ static int read_obp_translations(void)
 	return n;
 }
 
-static inline void early_spitfire_errata32(void)
-{
-	/* Spitfire Errata #32 workaround */
-	/* NOTE: Using plain zero for the context value is
-	 *       correct here, we are not using the Linux trap
-	 *       tables yet so we should not use the special
-	 *       UltraSPARC-III+ page size encodings yet.
-	 */
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-			     "flush	%%g6"
-			     : /* No outputs */
-			     : "r" (0), "r" (PRIMARY_CONTEXT),
-			       "i" (ASI_DMMU));
-}
-
-static void lock_remap_func_page(unsigned long phys_page)
-{
-	unsigned long tte_data = (phys_page | pgprot_val(PAGE_KERNEL));
-
-	if (tlb_type == spitfire) {
-		/* Lock this into i/d tlb entry 59 */
-		__asm__ __volatile__(
-			"stxa	%%g0, [%2] %3\n\t"
-			"stxa	%0, [%1] %4\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6\n\t"
-			"stxa	%%g0, [%2] %5\n\t"
-			"stxa	%0, [%1] %6\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6"
-		: /* no outputs */
-		: "r" (tte_data), "r" (59 << 3), "r" (TLB_TAG_ACCESS),
-		  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS),
-		  "i" (ASI_IMMU), "i" (ASI_ITLB_DATA_ACCESS)
-		: "memory");
-	} else {
-		/* Lock this into i/d tlb-0 entry 11 */
-		__asm__ __volatile__(
-			"stxa	%%g0, [%2] %3\n\t"
-			"stxa	%0, [%1] %4\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6\n\t"
-			"stxa	%%g0, [%2] %5\n\t"
-			"stxa	%0, [%1] %6\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6"
-			: /* no outputs */
-			: "r" (tte_data), "r" ((0 << 16) | (11 << 3)),
-			  "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU),
-			  "i" (ASI_DTLB_DATA_ACCESS), "i" (ASI_IMMU),
-			  "i" (ASI_ITLB_DATA_ACCESS)
-			: "memory");
-	}
-}
-
 static void remap_kernel(void)
 {
 	unsigned long phys_page, tte_vaddr, tte_data;
-	void (*remap_func)(unsigned long, unsigned long, int);
 	int tlb_ent = sparc64_highest_locked_tlbent();
 
-	early_spitfire_errata32();
-
-	if (tlb_type == spitfire)
-		phys_page = spitfire_get_dtlb_data(tlb_ent);
-	else
-		phys_page = cheetah_get_ldtlb_data(tlb_ent);
-
-	phys_page &= _PAGE_PADDR;
-	phys_page += ((unsigned long)&prom_boot_page -
-		      (unsigned long)KERNBASE);
-
-	lock_remap_func_page(phys_page);
-
 	tte_vaddr = (unsigned long) KERNBASE;
-
-	early_spitfire_errata32();
-
-	if (tlb_type == spitfire)
-		tte_data = spitfire_get_dtlb_data(tlb_ent);
-	else
-		tte_data = cheetah_get_ldtlb_data(tlb_ent);
+	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	tte_data = (phys_page | (_PAGE_VALID | _PAGE_SZ4MB |
+				 _PAGE_CP | _PAGE_CV | _PAGE_P |
+				 _PAGE_L | _PAGE_W));
 
 	kern_locked_tte_data = tte_data;
 
-	remap_func = (void *)  ((unsigned long) &prom_remap -
-				(unsigned long) &prom_boot_page);
-
-	early_spitfire_errata32();
-
-	phys_page = tte_data & _PAGE_PADDR;
-	remap_func(phys_page, KERNBASE, prom_get_mmu_ihandle());
-	if (bigkernel)
-		remap_func(phys_page + 0x400000,
-			   KERNBASE + 0x400000,
-			   prom_get_mmu_ihandle());
-
-	/* Flush out that temporary mapping. */
-	spitfire_flush_dtlb_nucleus_page(0x0);
-	spitfire_flush_itlb_nucleus_page(0x0);
-
-	/* Now lock us back into the TLBs via OBP. */
+	/* Now lock us into the TLBs via OBP. */
 	prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
 	prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
 	if (bigkernel) {
