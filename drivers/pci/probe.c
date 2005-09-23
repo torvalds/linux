@@ -402,6 +402,12 @@ static void pci_enable_crs(struct pci_dev *dev)
 static void __devinit pci_fixup_parent_subordinate_busnr(struct pci_bus *child, int max)
 {
 	struct pci_bus *parent = child->parent;
+
+	/* Attempts to fix that up are really dangerous unless
+	   we're going to re-assign all bus numbers. */
+	if (!pcibios_assign_all_busses())
+		return;
+
 	while (parent->parent && parent->subordinate < max) {
 		parent->subordinate = max;
 		pci_write_config_byte(parent->self, PCI_SUBORDINATE_BUS, max);
@@ -478,8 +484,18 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		 * We need to assign a number to this bus which we always
 		 * do in the second pass.
 		 */
-		if (!pass)
+		if (!pass) {
+			if (pcibios_assign_all_busses())
+				/* Temporarily disable forwarding of the
+				   configuration cycles on all bridges in
+				   this bus segment to avoid possible
+				   conflicts in the second pass between two
+				   bridges programmed with overlapping
+				   bus ranges. */
+				pci_write_config_dword(dev, PCI_PRIMARY_BUS,
+						       buses & ~0xffffff);
 			return max;
+		}
 
 		/* Clear errors */
 		pci_write_config_word(dev, PCI_STATUS, 0xffff);
