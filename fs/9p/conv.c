@@ -651,7 +651,7 @@ v9fs_deserialize_fcall(struct v9fs_session_info *v9ses, u32 msgsize,
 		break;
 	case RWALK:
 		rcall->params.rwalk.nwqid = buf_get_int16(bufp);
-		rcall->params.rwalk.wqids = buf_alloc(bufp,
+		rcall->params.rwalk.wqids = buf_alloc(dbufp,
 		      rcall->params.rwalk.nwqid * sizeof(struct v9fs_qid));
 		if (rcall->params.rwalk.wqids)
 			for (i = 0; i < rcall->params.rwalk.nwqid; i++) {
