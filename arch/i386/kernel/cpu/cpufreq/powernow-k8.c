@@ -453,7 +453,6 @@ static int check_supported_cpu(unsigned int cpu)
 
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
-	schedule();
 
 	if (smp_processor_id() != cpu) {
 		printk(KERN_ERR "limiting to cpu %u failed\n", cpu);
@@ -488,9 +487,7 @@ static int check_supported_cpu(unsigned int cpu)
 
 out:
 	set_cpus_allowed(current, oldmask);
-	schedule();
 	return rc;
-
 }
 
 static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst, u8 maxvid)
@@ -904,7 +901,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
-	schedule();
 
 	if (smp_processor_id() != pol->cpu) {
 		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
@@ -959,8 +955,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 
 err_out:
 	set_cpus_allowed(current, oldmask);
-	schedule();
-
 	return ret;
 }
 
@@ -1017,7 +1011,6 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
-	schedule();
 
 	if (smp_processor_id() != pol->cpu) {
 		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
@@ -1036,7 +1029,6 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	/* run on any CPU again */
 	set_cpus_allowed(current, oldmask);
-	schedule();
 
 	pol->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	pol->cpus = cpu_core_map[pol->cpu];
@@ -1071,7 +1063,6 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 err_out:
 	set_cpus_allowed(current, oldmask);
-	schedule();
 	powernow_k8_cpu_exit_acpi(data);
 
 	kfree(data);
@@ -1107,17 +1098,14 @@ static unsigned int powernowk8_get (unsigned int cpu)
 		set_cpus_allowed(current, oldmask);
 		return 0;
 	}
-	preempt_disable();
-	
+
 	if (query_current_values_with_pending_wait(data))
 		goto out;
 
 	khz = find_khz_freq_from_fid(data->currfid);
 
- out:
-	preempt_enable_no_resched();
+out:
 	set_cpus_allowed(current, oldmask);
-
 	return khz;
 }
 
