@@ -164,13 +164,11 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
 #ifdef CONFIG_ALTIVEC
-	asm volatile (
- BEGIN_FTR_SECTION
-	"dssall;\n"
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+	asm volatile ("dssall;\n"
 #ifndef CONFIG_POWER4
 	 "sync;\n" /* G4 needs a sync here, G5 apparently not */
 #endif
- END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	 : : );
 #endif /* CONFIG_ALTIVEC */
 

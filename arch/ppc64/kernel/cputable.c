@@ -37,26 +37,13 @@ extern void __setup_cpu_power4(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_be(unsigned long offset, struct cpu_spec* spec);
 
-
-/* We only set the altivec features if the kernel was compiled with altivec
- * support
- */
-#ifdef CONFIG_ALTIVEC
-#define CPU_FTR_ALTIVEC_COMP	CPU_FTR_ALTIVEC
-#define PPC_FEATURE_HAS_ALTIVEC_COMP PPC_FEATURE_HAS_ALTIVEC
-#else
-#define CPU_FTR_ALTIVEC_COMP	0
-#define PPC_FEATURE_HAS_ALTIVEC_COMP    0
-#endif
-
 struct cpu_spec	cpu_specs[] = {
 	{	/* Power3 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00400000,
 		.cpu_name		= "POWER3 (630)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR,
-		.cpu_user_features = COMMON_USER_PPC64,
+		.cpu_features		= CPU_FTRS_POWER3,
+		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
@@ -70,8 +57,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00410000,
 		.cpu_name		= "POWER3 (630+)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR,
+		.cpu_features		= CPU_FTRS_POWER3,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -86,9 +72,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00330000,
 		.cpu_name		= "RS64-II (northstar)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_MMCRA | CPU_FTR_CTRL,
+		.cpu_features		= CPU_FTRS_RS64,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -103,9 +87,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00340000,
 		.cpu_name		= "RS64-III (pulsar)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_MMCRA | CPU_FTR_CTRL,
+		.cpu_features		= CPU_FTRS_RS64,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -120,9 +102,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00360000,
 		.cpu_name		= "RS64-III (icestar)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_MMCRA | CPU_FTR_CTRL,
+		.cpu_features		= CPU_FTRS_RS64,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -137,9 +117,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00370000,
 		.cpu_name		= "RS64-IV (sstar)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_MMCRA | CPU_FTR_CTRL,
+		.cpu_features		= CPU_FTRS_RS64,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -154,9 +132,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00350000,
 		.cpu_name		= "POWER4 (gp)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA,
+		.cpu_features		= CPU_FTRS_POWER4,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -171,9 +147,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00380000,
 		.cpu_name		= "POWER4+ (gq)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA,
+		.cpu_features		= CPU_FTRS_POWER4,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -188,10 +162,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00390000,
 		.cpu_name		= "PPC970",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
+		.cpu_features		= CPU_FTRS_PPC970,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -207,10 +178,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003c0000,
 		.cpu_name		= "PPC970FX",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
+		.cpu_features		= CPU_FTRS_PPC970,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -226,10 +194,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00440000,
 		.cpu_name		= "PPC970MP",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_CAN_NAP | CPU_FTR_MMCRA,
+		.cpu_features		= CPU_FTRS_PPC970,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -244,11 +209,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003a0000,
 		.cpu_name		= "POWER5 (gr)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA | CPU_FTR_SMT |
-			CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE |
-			CPU_FTR_MMCRA_SIHV,
+		.cpu_features		= CPU_FTRS_POWER5,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -263,11 +224,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003b0000,
 		.cpu_name		= "POWER5 (gs)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA | CPU_FTR_SMT |
-			CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE |
-			CPU_FTR_MMCRA_SIHV,
+		.cpu_features		= CPU_FTRS_POWER5,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -281,11 +238,8 @@ struct cpu_spec	cpu_specs[] = {
 	{	/* BE DD1.x */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00700000,
-		.cpu_name		= "Broadband Engine",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
-			CPU_FTR_SMT,
+		.cpu_name		= "Cell Broadband Engine",
+		.cpu_features		= CPU_FTRS_CELL,
 		.cpu_user_features	= COMMON_USER_PPC64 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -296,9 +250,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
 		.cpu_name		= "POWER4 (compatible)",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-			CPU_FTR_PPCAS_ARCH_V2,
+		.cpu_features		= CPU_FTRS_COMPATIBLE,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
