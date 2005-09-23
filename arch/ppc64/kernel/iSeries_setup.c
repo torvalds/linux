@@ -359,12 +359,6 @@ static void __init iSeries_init_early(void)
 	 */
 	iommu_init_early_iSeries();
 
-	/*
-	 * Initialize the table which translate Linux physical addresses to
-	 * AS/400 absolute addresses
-	 */
-	build_iSeries_Memory_Map();
-
 	iSeries_get_cmdline();
 
 	/* Save unparsed command line copy for /proc/cmdline */
@@ -894,6 +888,11 @@ static int iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
+static int __init iseries_probe(int platform)
+{
+	return PLATFORM_ISERIES_LPAR == platform;
+}
+
 struct machdep_calls __initdata iseries_md = {
 	.setup_arch	= iSeries_setup_arch,
 	.get_cpuinfo	= iSeries_get_cpuinfo,
@@ -909,6 +908,7 @@ struct machdep_calls __initdata iseries_md = {
 	.get_rtc_time	= iSeries_get_rtc_time,
 	.calibrate_decr	= iSeries_calibrate_decr,
 	.progress	= iSeries_progress,
+	.probe		= iseries_probe,
 	/* XXX Implement enable_pmcs for iSeries */
 };
 
@@ -1047,9 +1047,17 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	dt_push_u32(dt, OF_DT_END);
 }
 
-void __init iSeries_early_setup(void)
+void * __init iSeries_early_setup(void)
 {
 	iSeries_fixup_klimit();
 
+	/*
+	 * Initialize the table which translate Linux physical addresses to
+	 * AS/400 absolute addresses
+	 */
+	build_iSeries_Memory_Map();
+
 	build_flat_dt(&iseries_dt);
+
+	return (void *) __pa(&iseries_dt);
 }

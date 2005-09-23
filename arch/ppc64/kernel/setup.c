@@ -309,13 +309,11 @@ static void __init setup_cpu_maps(void)
 }
 #endif /* CONFIG_SMP */
 
-
-#ifdef CONFIG_PPC_MULTIPLATFORM
-
 extern struct machdep_calls pSeries_md;
 extern struct machdep_calls pmac_md;
 extern struct machdep_calls maple_md;
 extern struct machdep_calls bpa_md;
+extern struct machdep_calls iseries_md;
 
 /* Ultimately, stuff them in an elf section like initcalls... */
 static struct machdep_calls __initdata *machines[] = {
@@ -330,6 +328,9 @@ static struct machdep_calls __initdata *machines[] = {
 #endif /* CONFIG_PPC_MAPLE */
 #ifdef CONFIG_PPC_BPA
 	&bpa_md,
+#endif
+#ifdef CONFIG_PPC_ISERIES
+	&iseries_md,
 #endif
 	NULL
 };
@@ -533,8 +534,6 @@ static void __init check_for_initrd(void)
 	DBG(" <- check_for_initrd()\n");
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
-
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 /*
  * Do some initial setup of the system.  The parameters are those which 

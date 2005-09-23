@@ -1364,6 +1364,7 @@ _STATIC(__start_initialization_iSeries)
 	addi	r2,r2,0x4000
 
 	bl	.iSeries_early_setup
+	bl	.early_setup
 
 	/* relocation is on at this point */
 

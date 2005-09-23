@@ -11,7 +11,7 @@ obj-y               :=	setup.o entry.o traps.o irq.o idle.o dma.o \
 			udbg.o binfmt_elf32.o sys_ppc32.o ioctl32.o \
 			ptrace32.o signal32.o rtc.o init_task.o \
 			lmb.o cputable.o cpu_setup_power4.o idle_power4.o \
-			iommu.o sysfs.o vdso.o pmc.o firmware.o
+			iommu.o sysfs.o vdso.o pmc.o firmware.o prom.o
 obj-y += vdso32/ vdso64/
 
 obj-$(CONFIG_PPC_OF) +=	of_device.o
@@ -27,7 +27,7 @@ obj-$(CONFIG_PPC_ISERIES) += HvCall.o HvLpConfig.o LparData.o \
 			     mf.o HvLpEvent.o iSeries_proc.o iSeries_htab.o \
 			     iSeries_iommu.o
 
-obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o prom.o
+obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o
 
 obj-$(CONFIG_PPC_PSERIES) += pSeries_pci.o pSeries_lpar.o pSeries_hvCall.o \
 			     pSeries_nvram.o rtasd.o ras.o pSeries_reconfig.o \
