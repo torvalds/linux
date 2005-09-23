@@ -217,7 +217,7 @@ prom_boot_mapping_phys_low:
 	mov	7, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 7
 	mov	1, %l3
-	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 7
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
 	mov	(1b - prom_map_name), %l3
 	sub	%l0, %l3, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x18]	! arg1: "map"
