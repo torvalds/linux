@@ -242,13 +242,27 @@ static int serverworks_fetch_size(void)
  */
 static void serverworks_tlbflush(struct agp_memory *temp)
 {
+	unsigned long timeout;
+
 	writeb(1, serverworks_private.registers+SVWRKS_POSTFLUSH);
-	while (readb(serverworks_private.registers+SVWRKS_POSTFLUSH) == 1)
+	timeout = jiffies + 3*HZ;
+	while (readb(serverworks_private.registers+SVWRKS_POSTFLUSH) == 1) {
 		cpu_relax();
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR PFX "TLB post flush took more than 3 seconds\n");
+			break;
+		}
+	}
 
 	writel(1, serverworks_private.registers+SVWRKS_DIRFLUSH);
-	while(readl(serverworks_private.registers+SVWRKS_DIRFLUSH) == 1)
+	timeout = jiffies + 3*HZ;
+	while (readl(serverworks_private.registers+SVWRKS_DIRFLUSH) == 1) {
 		cpu_relax();
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR PFX "TLB Dir flush took more than 3 seconds\n");
+			break;
+		}
+	}
 }
 
 static int serverworks_configure(void)
