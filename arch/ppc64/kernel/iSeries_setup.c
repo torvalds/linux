@@ -912,7 +912,144 @@ struct machdep_calls __initdata iseries_md = {
 	/* XXX Implement enable_pmcs for iSeries */
 };
 
+struct blob {
+	unsigned char data[PAGE_SIZE];
+	unsigned long next;
+};
+
+struct iseries_flat_dt {
+	struct boot_param_header header;
+	u64 reserve_map[2];
+	struct blob dt;
+	struct blob strings;
+};
+
+struct iseries_flat_dt iseries_dt;
+
+void dt_init(struct iseries_flat_dt *dt)
+{
+	dt->header.off_mem_rsvmap =
+		offsetof(struct iseries_flat_dt, reserve_map);
+	dt->header.off_dt_struct = offsetof(struct iseries_flat_dt, dt);
+	dt->header.off_dt_strings = offsetof(struct iseries_flat_dt, strings);
+	dt->header.totalsize = sizeof(struct iseries_flat_dt);
+	dt->header.dt_strings_size = sizeof(struct blob);
+
+	/* There is no notion of hardware cpu id on iSeries */
+	dt->header.boot_cpuid_phys = smp_processor_id();
+
+	dt->dt.next = (unsigned long)&dt->dt.data;
+	dt->strings.next = (unsigned long)&dt->strings.data;
+
+	dt->header.magic = OF_DT_HEADER;
+	dt->header.version = 0x10;
+	dt->header.last_comp_version = 0x10;
+
+	dt->reserve_map[0] = 0;
+	dt->reserve_map[1] = 0;
+}
+
+void dt_check_blob(struct blob *b)
+{
+	if (b->next >= (unsigned long)&b->next) {
+		DBG("Ran out of space in flat device tree blob!\n");
+		BUG();
+	}
+}
+
+void dt_push_u32(struct iseries_flat_dt *dt, u32 value)
+{
+	*((u32*)dt->dt.next) = value;
+	dt->dt.next += sizeof(u32);
+
+	dt_check_blob(&dt->dt);
+}
+
+void dt_push_u64(struct iseries_flat_dt *dt, u64 value)
+{
+	*((u64*)dt->dt.next) = value;
+	dt->dt.next += sizeof(u64);
+
+	dt_check_blob(&dt->dt);
+}
+
+unsigned long dt_push_bytes(struct blob *blob, char *data, int len)
+{
+	unsigned long start = blob->next - (unsigned long)blob->data;
+
+	memcpy((char *)blob->next, data, len);
+	blob->next = _ALIGN(blob->next + len, 4);
+
+	dt_check_blob(blob);
+
+	return start;
+}
+
+void dt_start_node(struct iseries_flat_dt *dt, char *name)
+{
+	dt_push_u32(dt, OF_DT_BEGIN_NODE);
+	dt_push_bytes(&dt->dt, name, strlen(name) + 1);
+}
+
+#define dt_end_node(dt) dt_push_u32(dt, OF_DT_END_NODE)
+
+void dt_prop(struct iseries_flat_dt *dt, char *name, char *data, int len)
+{
+	unsigned long offset;
+
+	dt_push_u32(dt, OF_DT_PROP);
+
+	/* Length of the data */
+	dt_push_u32(dt, len);
+
+	/* Put the property name in the string blob. */
+	offset = dt_push_bytes(&dt->strings, name, strlen(name) + 1);
+
+	/* The offset of the properties name in the string blob. */
+	dt_push_u32(dt, (u32)offset);
+
+	/* The actual data. */
+	dt_push_bytes(&dt->dt, data, len);
+}
+
+void dt_prop_str(struct iseries_flat_dt *dt, char *name, char *data)
+{
+	dt_prop(dt, name, data, strlen(data) + 1); /* + 1 for NULL */
+}
+
+void dt_prop_u32(struct iseries_flat_dt *dt, char *name, u32 data)
+{
+	dt_prop(dt, name, (char *)&data, sizeof(u32));
+}
+
+void dt_prop_u64(struct iseries_flat_dt *dt, char *name, u64 data)
+{
+	dt_prop(dt, name, (char *)&data, sizeof(u64));
+}
+
+void dt_prop_u64_list(struct iseries_flat_dt *dt, char *name, u64 *data, int n)
+{
+	dt_prop(dt, name, (char *)data, sizeof(u64) * n);
+}
+
+void dt_prop_empty(struct iseries_flat_dt *dt, char *name)
+{
+	dt_prop(dt, name, NULL, 0);
+}
+
+void build_flat_dt(struct iseries_flat_dt *dt)
+{
+	dt_init(dt);
+
+	dt_start_node(dt, "");
+	dt_end_node(dt);
+
+	dt_push_u32(dt, OF_DT_END);
+}
+
 void __init iSeries_early_setup(void)
 {
 	iSeries_fixup_klimit();
+
+	build_flat_dt(&iseries_dt);
 }
