@@ -376,11 +376,6 @@ static void __init iSeries_init_early(void)
 		}
 	}
 
-	lmb_init();
-	lmb_add(0, systemcfg->physicalMemorySize);
-	lmb_analyze();
-	lmb_reserve(0, __pa(klimit));
-
 	/* Initialize machine-dependency vectors */
 #ifdef CONFIG_SMP
 	smp_init_iSeries();
@@ -1039,9 +1034,24 @@ void dt_prop_empty(struct iseries_flat_dt *dt, char *name)
 
 void build_flat_dt(struct iseries_flat_dt *dt)
 {
+	u64 tmp[2];
+
 	dt_init(dt);
 
 	dt_start_node(dt, "");
+
+	dt_prop_u32(dt, "#address-cells", 2);
+	dt_prop_u32(dt, "#size-cells", 2);
+
+	/* /memory */
+	dt_start_node(dt, "memory@0");
+	dt_prop_str(dt, "name", "memory");
+	dt_prop_str(dt, "device_type", "memory");
+	tmp[0] = 0;
+	tmp[1] = systemcfg->physicalMemorySize;
+	dt_prop_u64_list(dt, "reg", tmp, 2);
+	dt_end_node(dt);
+
 	dt_end_node(dt);
 
 	dt_push_u32(dt, OF_DT_END);
