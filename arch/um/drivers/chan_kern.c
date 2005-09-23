@@ -465,7 +465,7 @@ static struct chan *parse_chan(char *str, int pri, int device,
 	data = (*ops->init)(str, device, opts);
 	if(data == NULL) return(NULL);
 
-	chan = kmalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kmalloc(sizeof(*chan), GFP_ATOMIC);
 	if(chan == NULL) return(NULL);
 	*chan = ((struct chan) { .list	 	= LIST_HEAD_INIT(chan->list),
 				 .primary	= 1,
