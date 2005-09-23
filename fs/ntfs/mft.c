@@ -1953,7 +1953,7 @@ restore_undo_alloc:
 	a = ctx->attr;
 	a->data.non_resident.highest_vcn = cpu_to_sle64(old_last_vcn - 1);
 undo_alloc:
-	if (ntfs_cluster_free(vol->mft_ino, old_last_vcn, -1, TRUE) < 0) {
+	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1) < 0) {
 		ntfs_error(vol->sb, "Failed to free clusters from mft data "
 				"attribute.%s", es);
 		NVolSetErrors(vol);

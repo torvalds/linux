@@ -25,6 +25,10 @@ ToDo/Notes:
 2.1.25-WIP
 
 	- Fix sparse warnings that have crept in over time.
+	- Change ntfs_cluster_free() to require a write locked runlist on entry
+	  since we otherwise get into a lock reversal deadlock if a read locked
+	  runlist is passed in. In the process also change it to take an ntfs
+	  inode instead of a vfs inode as parameter.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 

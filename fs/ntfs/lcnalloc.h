@@ -2,7 +2,7 @@
  * lcnalloc.h - Exports for NTFS kernel cluster (de)allocation.  Part of the
  *		Linux-NTFS project.
  *
- * Copyright (c) 2004 Anton Altaparmakov
+ * Copyright (c) 2004-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 
 #include "types.h"
+#include "inode.h"
 #include "runlist.h"
 #include "volume.h"
 
@@ -42,18 +43,17 @@ extern runlist_element *ntfs_cluster_alloc(ntfs_volume *vol,
 		const VCN start_vcn, const s64 count, const LCN start_lcn,
 		const NTFS_CLUSTER_ALLOCATION_ZONES zone);
 
-extern s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn,
-		s64 count, const BOOL write_locked, const BOOL is_rollback);
+extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
+		s64 count, const BOOL is_rollback);
 
 /**
  * ntfs_cluster_free - free clusters on an ntfs volume
- * @vi:		vfs inode whose runlist describes the clusters to free
- * @start_vcn:	vcn in the runlist of @vi at which to start freeing clusters
+ * @ni:		ntfs inode whose runlist describes the clusters to free
+ * @start_vcn:	vcn in the runlist of @ni at which to start freeing clusters
  * @count:	number of clusters to free or -1 for all clusters
- * @write_locked:	true if the runlist is locked for writing
  *
  * Free @count clusters starting at the cluster @start_vcn in the runlist
- * described by the vfs inode @vi.
+ * described by the ntfs inode @ni.
  *
  * If @count is -1, all clusters from @start_vcn to the end of the runlist are
  * deallocated.  Thus, to completely free all clusters in a runlist, use
@@ -65,19 +65,18 @@ extern s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn,
  * Return the number of deallocated clusters (not counting sparse ones) on
  * success and -errno on error.
  *
- * Locking: - The runlist described by @vi must be locked on entry and is
- *	      locked on return.  Note if the runlist is locked for reading the
- *	      lock may be dropped and reacquired.  Note the runlist may be
- *	      modified when needed runlist fragments need to be mapped.
+ * Locking: - The runlist described by @ni must be locked for writing on entry
+ *	      and is locked on return.  Note the runlist may be modified when
+ *	      needed runlist fragments need to be mapped.
  *	    - The volume lcn bitmap must be unlocked on entry and is unlocked
  *	      on return.
  *	    - This function takes the volume lcn bitmap lock for writing and
  *	      modifies the bitmap contents.
  */
-static inline s64 ntfs_cluster_free(struct inode *vi, const VCN start_vcn,
-		s64 count, const BOOL write_locked)
+static inline s64 ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
+		s64 count)
 {
-	return __ntfs_cluster_free(vi, start_vcn, count, write_locked, FALSE);
+	return __ntfs_cluster_free(ni, start_vcn, count, FALSE);
 }
 
 extern int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
