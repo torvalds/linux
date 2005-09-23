@@ -525,9 +525,8 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 * slots on POWER4 machines.
 	 */
 	if (dma_window == NULL || pdn->parent == NULL) {
-		/* Fall back to regular (non-LPAR) dev setup */
-		DBG("No dma window for device, falling back to regular setup\n");
-		iommu_dev_setup_pSeries(dev);
+		DBG("No dma window for device, linking to parent\n");
+		PCI_DN(dn)->iommu_table = PCI_DN(pdn)->iommu_table;
 		return;
 	} else {
 		DBG("Found DMA window, allocating table\n");
