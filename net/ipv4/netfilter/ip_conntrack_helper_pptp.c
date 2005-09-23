@@ -223,8 +223,8 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 static inline int
 exp_gre(struct ip_conntrack *master,
 	u_int32_t seq,
-	u_int16_t callid,
-	u_int16_t peer_callid)
+	__be16 callid,
+	__be16 peer_callid)
 {
 	struct ip_conntrack_tuple inv_tuple;
 	struct ip_conntrack_tuple exp_tuples[] = {
@@ -263,7 +263,7 @@ exp_gre(struct ip_conntrack *master,
 	exp_orig->mask.src.ip = 0xffffffff;
 	exp_orig->mask.src.u.all = 0;
 	exp_orig->mask.dst.u.all = 0;
-	exp_orig->mask.dst.u.gre.key = 0xffff;
+	exp_orig->mask.dst.u.gre.key = htons(0xffff);
 	exp_orig->mask.dst.ip = 0xffffffff;
 	exp_orig->mask.dst.protonum = 0xff;
 		
@@ -340,7 +340,8 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	unsigned int reqlen;
 	union pptp_ctrl_union _pptpReq, *pptpReq;
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
-	u_int16_t msg, *cid, *pcid;
+	u_int16_t msg;
+	__be16 *cid, *pcid;
 	u_int32_t seq;	
 
 	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
@@ -551,7 +552,8 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	unsigned int reqlen;
 	union pptp_ctrl_union _pptpReq, *pptpReq;
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
-	u_int16_t msg, *cid, *pcid;
+	u_int16_t msg;
+	__be16 *cid, *pcid;
 
 	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
 	if (!ctlh)
@@ -755,7 +757,7 @@ static struct ip_conntrack_helper pptp = {
 			  } 
 		 },
 	.mask = { .src = { .ip = 0, 
-			   .u = { .tcp = { .port = 0xffff } } 
+			   .u = { .tcp = { .port = __constant_htons(0xffff) } } 
 			 }, 
 		  .dst = { .ip = 0, 
 			   .u = { .all = 0 },
