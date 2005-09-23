@@ -231,8 +231,9 @@ struct ep_pqueue {
 
 static void ep_poll_safewake_init(struct poll_safewake *psw);
 static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq);
-static int ep_getfd(int *efd, struct inode **einode, struct file **efile);
-static int ep_file_init(struct file *file);
+static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
+		    struct eventpoll *ep);
+static int ep_alloc(struct eventpoll **pep);
 static void ep_free(struct eventpoll *ep);
 static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd);
 static void ep_use_epitem(struct epitem *epi);
@@ -501,30 +502,28 @@ void eventpoll_release_file(struct file *file)
 asmlinkage long sys_epoll_create(int size)
 {
 	int error, fd;
+	struct eventpoll *ep;
 	struct inode *inode;
 	struct file *file;
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d)\n",
 		     current, size));
 
-	/* Sanity check on the size parameter */
+	/*
+	 * Sanity check on the size parameter, and create the internal data
+	 * structure ( "struct eventpoll" ).
+	 */
 	error = -EINVAL;
-	if (size <= 0)
+	if (size <= 0 || (error = ep_alloc(&ep)) != 0)
 		goto eexit_1;
 
 	/*
 	 * Creates all the items needed to setup an eventpoll file. That is,
 	 * a file structure, and inode and a free file descriptor.
 	 */
-	error = ep_getfd(&fd, &inode, &file);
-	if (error)
-		goto eexit_1;
-
-	/* Setup the file internal data structure ( "struct eventpoll" ) */
-	error = ep_file_init(file);
+	error = ep_getfd(&fd, &inode, &file, ep);
 	if (error)
 		goto eexit_2;
-
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
 		     current, size, fd));
@@ -532,7 +531,8 @@ asmlinkage long sys_epoll_create(int size)
 	return fd;
 
 eexit_2:
-	sys_close(fd);
+	ep_free(ep);
+	kfree(ep);
 eexit_1:
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
 		     current, size, error));
@@ -706,7 +706,8 @@ eexit_1:
 /*
  * Creates the file descriptor to be used by the epoll interface.
  */
-static int ep_getfd(int *efd, struct inode **einode, struct file **efile)
+static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
+		    struct eventpoll *ep)
 {
 	struct qstr this;
 	char name[32];
@@ -756,7 +757,7 @@ static int ep_getfd(int *efd, struct inode **einode, struct file **efile)
 	file->f_op = &eventpoll_fops;
 	file->f_mode = FMODE_READ;
 	file->f_version = 0;
-	file->private_data = NULL;
+	file->private_data = ep;
 
 	/* Install the new setup file into the allocated fd. */
 	fd_install(fd, file);
@@ -777,14 +778,13 @@ eexit_1:
 }
 
 
-static int ep_file_init(struct file *file)
+static int ep_alloc(struct eventpoll **pep)
 {
-	struct eventpoll *ep;
+	struct eventpoll *ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 
-	if (!(ep = kmalloc(sizeof(struct eventpoll), GFP_KERNEL)))
+	if (!ep)
 		return -ENOMEM;
 
-	memset(ep, 0, sizeof(*ep));
 	rwlock_init(&ep->lock);
 	init_rwsem(&ep->sem);
 	init_waitqueue_head(&ep->wq);
@@ -792,9 +792,9 @@ static int ep_file_init(struct file *file)
 	INIT_LIST_HEAD(&ep->rdllist);
 	ep->rbr = RB_ROOT;
 
-	file->private_data = ep;
+	*pep = ep;
 
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_file_init() ep=%p\n",
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_alloc() ep=%p\n",
 		     current, ep));
 	return 0;
 }

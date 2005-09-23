@@ -15,7 +15,6 @@ lib-$(CONFIG_ITANIUM)	+= copy_page.o copy_user.o memcpy.o
 lib-$(CONFIG_MCKINLEY)	+= copy_page_mck.o memcpy_mck.o
 lib-$(CONFIG_PERFMON)	+= carta_random.o
 lib-$(CONFIG_MD_RAID5)	+= xor.o
-lib-$(CONFIG_HAVE_DEC_LOCK) += dec_and_lock.o
 
 AFLAGS___divdi3.o	=
 AFLAGS___udivdi3.o	= -DUNSIGNED

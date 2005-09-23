@@ -1603,7 +1603,7 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 	}
 	pmc->sources = NULL;
 	pmc->sfmode = MCAST_EXCLUDE;
-	pmc->sfcount[MCAST_EXCLUDE] = 0;
+	pmc->sfcount[MCAST_INCLUDE] = 0;
 	pmc->sfcount[MCAST_EXCLUDE] = 1;
 }
 

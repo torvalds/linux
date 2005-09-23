@@ -307,7 +307,7 @@ int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
                 }
                 else if(pte_newprot(*pte)){
                         updated = 1;
-                        protect_memory(addr, PAGE_SIZE, 1, 1, 1, 1);
+                        os_protect_memory((void *) addr, PAGE_SIZE, 1, 1, 1);
                 }
                 addr += PAGE_SIZE;
         }

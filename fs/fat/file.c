@@ -12,39 +12,6 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 
-static ssize_t fat_file_aio_write(struct kiocb *iocb, const char __user *buf,
-				  size_t count, loff_t pos)
-{
-	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
-	int retval;
-
-	retval = generic_file_aio_write(iocb, buf, count, pos);
-	if (retval > 0) {
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
-		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
-		mark_inode_dirty(inode);
-//		check the locking rules
-//		if (IS_SYNC(inode))
-//			fat_sync_inode(inode);
-	}
-	return retval;
-}
-
-static ssize_t fat_file_writev(struct file *filp, const struct iovec *iov,
-			       unsigned long nr_segs, loff_t *ppos)
-{
-	struct inode *inode = filp->f_dentry->d_inode;
-	int retval;
-
-	retval = generic_file_writev(filp, iov, nr_segs, ppos);
-	if (retval > 0) {
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
-		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
-		mark_inode_dirty(inode);
-	}
-	return retval;
-}
-
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)
 {
@@ -148,9 +115,9 @@ struct file_operations fat_file_operations = {
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.readv		= generic_file_readv,
-	.writev		= fat_file_writev,
+	.writev		= generic_file_writev,
 	.aio_read	= generic_file_aio_read,
-	.aio_write	= fat_file_aio_write,
+	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
 	.ioctl		= fat_generic_ioctl,
 	.fsync		= file_fsync,

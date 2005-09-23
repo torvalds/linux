@@ -1773,8 +1773,7 @@ static int __devinit savage_init_hw (struct savagefb_par *par)
 		}
 	}
 
-	if (S3_SAVAGE_MOBILE_SERIES(par->chip) ||
-	    (S3_MOBILE_TWISTER_SERIES(par->chip) && !par->crtonly))
+	if (S3_SAVAGE_MOBILE_SERIES(par->chip) && !par->crtonly)
 		par->display_type = DISP_LCD;
 	else if (dvi || (par->chip == S3_SAVAGE4 && par->dvi))
 		par->display_type = DISP_DFP;
@@ -1783,7 +1782,7 @@ static int __devinit savage_init_hw (struct savagefb_par *par)
 
 	/* Check LCD panel parrmation */
 
-	if (par->chip == S3_SAVAGE_MX) {
+	if (par->display_type == DISP_LCD) {
 		unsigned char cr6b = VGArCR( 0x6b );
 
 		int panelX = (VGArSEQ (0x61) +
@@ -1922,15 +1921,15 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 		snprintf (info->fix.id, 16, "ProSavageKM");
 		break;
 	case FB_ACCEL_S3TWISTER_P:
-		par->chip = S3_TWISTER;
+		par->chip = S3_PROSAVAGE;
 		snprintf (info->fix.id, 16, "TwisterP");
 		break;
 	case FB_ACCEL_S3TWISTER_K:
-		par->chip = S3_TWISTER;
+		par->chip = S3_PROSAVAGE;
 		snprintf (info->fix.id, 16, "TwisterK");
 		break;
 	case FB_ACCEL_PROSAVAGE_DDR:
-		par->chip = S3_PROSAVAGEDDR;
+		par->chip = S3_PROSAVAGE;
 		snprintf (info->fix.id, 16, "ProSavageDDR");
 		break;
 	case FB_ACCEL_PROSAVAGE_DDRK:

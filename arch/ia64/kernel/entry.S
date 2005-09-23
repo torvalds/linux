@@ -491,7 +491,7 @@ GLOBAL_ENTRY(prefetch_stack)
 	;;
 	lfetch.fault [r16], 128
 	br.ret.sptk.many rp
-END(prefetch_switch_stack)
+END(prefetch_stack)
 
 GLOBAL_ENTRY(execve)
 	mov r15=__NR_execve			// put syscall number in place

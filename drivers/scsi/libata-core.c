@@ -2465,9 +2465,12 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
+ *
+ *	RETURNS:
+ *	Non-zero if qc completed, zero otherwise.
  */
 
-static void ata_pio_complete (struct ata_port *ap)
+static int ata_pio_complete (struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	u8 drv_stat;
@@ -2486,14 +2489,14 @@ static void ata_pio_complete (struct ata_port *ap)
 		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
 			ap->pio_task_state = PIO_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
-			return;
+			return 0;
 		}
 	}
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
 		ap->pio_task_state = PIO_ST_ERR;
-		return;
+		return 0;
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -2502,6 +2505,10 @@ static void ata_pio_complete (struct ata_port *ap)
 	ap->pio_task_state = PIO_ST_IDLE;
 
 	ata_poll_qc_complete(qc, drv_stat);
+
+	/* another command may start at this point */
+
+	return 1;
 }
 
 
@@ -2709,7 +2716,7 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 
 next_sg:
 	if (unlikely(qc->cursg >= qc->n_elem)) {
-		/* 
+		/*
 		 * The end of qc->sg is reached and the device expects
 		 * more data to transfer. In order not to overrun qc->sg
 		 * and fulfill length specified in the byte count register,
@@ -2721,7 +2728,7 @@ next_sg:
 		unsigned int i;
 
 		if (words) /* warning if bytes > 1 */
-			printk(KERN_WARNING "ata%u: %u bytes trailing data\n", 
+			printk(KERN_WARNING "ata%u: %u bytes trailing data\n",
 			       ap->id, bytes);
 
 		for (i = 0; i < words; i++)
@@ -2849,9 +2856,7 @@ static void ata_pio_block(struct ata_port *ap)
 	if (is_atapi_taskfile(&qc->tf)) {
 		/* no more data to transfer or unsupported ATAPI command */
 		if ((status & ATA_DRQ) == 0) {
-			ap->pio_task_state = PIO_ST_IDLE;
-
-			ata_poll_qc_complete(qc, status);
+			ap->pio_task_state = PIO_ST_LAST;
 			return;
 		}
 
@@ -2887,7 +2892,12 @@ static void ata_pio_error(struct ata_port *ap)
 static void ata_pio_task(void *_data)
 {
 	struct ata_port *ap = _data;
-	unsigned long timeout = 0;
+	unsigned long timeout;
+	int qc_completed;
+
+fsm_start:
+	timeout = 0;
+	qc_completed = 0;
 
 	switch (ap->pio_task_state) {
 	case PIO_ST_IDLE:
@@ -2898,7 +2908,7 @@ static void ata_pio_task(void *_data)
 		break;
 
 	case PIO_ST_LAST:
-		ata_pio_complete(ap);
+		qc_completed = ata_pio_complete(ap);
 		break;
 
 	case PIO_ST_POLL:
@@ -2913,10 +2923,9 @@ static void ata_pio_task(void *_data)
 	}
 
 	if (timeout)
-		queue_delayed_work(ata_wq, &ap->pio_task,
-				   timeout);
-	else
-		queue_work(ata_wq, &ap->pio_task);
+		queue_delayed_work(ata_wq, &ap->pio_task, timeout);
+	else if (!qc_completed)
+		goto fsm_start;
 }
 
 static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,

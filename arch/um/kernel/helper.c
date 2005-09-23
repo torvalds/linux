@@ -85,8 +85,8 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 	data.fd = fds[1];
 	pid = clone(helper_child, (void *) sp, CLONE_VM | SIGCHLD, &data);
 	if(pid < 0){
-		printk("run_helper : clone failed, errno = %d\n", errno);
 		ret = -errno;
+		printk("run_helper : clone failed, errno = %d\n", errno);
 		goto out_close;
 	}
 
@@ -122,7 +122,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 		      unsigned long *stack_out, int stack_order)
 {
 	unsigned long stack, sp;
-	int pid, status;
+	int pid, status, err;
 
 	stack = alloc_stack(stack_order, um_in_interrupt());
 	if(stack == 0) return(-ENOMEM);
@@ -130,16 +130,18 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	sp = stack + (page_size() << stack_order) - sizeof(void *);
 	pid = clone(proc, (void *) sp, flags | SIGCHLD, arg);
 	if(pid < 0){
+		err = -errno;
 		printk("run_helper_thread : clone failed, errno = %d\n", 
 		       errno);
-		return(-errno);
+		return err;
 	}
 	if(stack_out == NULL){
 		CATCH_EINTR(pid = waitpid(pid, &status, 0));
 		if(pid < 0){
+			err = -errno;
 			printk("run_helper_thread - wait failed, errno = %d\n",
 			       errno);
-			pid = -errno;
+			pid = err;
 		}
 		if(!WIFEXITED(status) || (WEXITSTATUS(status) != 0))
 			printk("run_helper_thread - thread returned status "
@@ -156,8 +158,8 @@ int helper_wait(int pid)
 
 	CATCH_EINTR(ret = waitpid(pid, NULL, WNOHANG));
 	if(ret < 0){
+		ret = -errno;
 		printk("helper_wait : waitpid failed, errno = %d\n", errno);
-		return(-errno);
 	}
 	return(ret);
 }

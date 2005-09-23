@@ -40,6 +40,9 @@
  */
 void device_bind_driver(struct device * dev)
 {
+	if (klist_node_attached(&dev->knode_driver))
+		return;
+
 	pr_debug("bound device '%s' to driver '%s'\n",
 		 dev->bus_id, dev->driver->name);
 	klist_add_tail(&dev->knode_driver, &dev->driver->klist_devices);

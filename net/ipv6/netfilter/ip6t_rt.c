@@ -50,97 +50,28 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
-       struct ipv6_rt_hdr _route, *rh = NULL;
+       struct ipv6_rt_hdr _route, *rh;
        const struct ip6t_rt *rtinfo = matchinfo;
        unsigned int temp;
-       unsigned int len;
-       u8 nexthdr;
        unsigned int ptr;
        unsigned int hdrlen = 0;
        unsigned int ret = 0;
        struct in6_addr *ap, _addr;
 
-       /* type of the 1st exthdr */
-       nexthdr = skb->nh.ipv6h->nexthdr;
-       /* pointer to the 1st exthdr */
-       ptr = sizeof(struct ipv6hdr);
-       /* available length */
-       len = skb->len - ptr;
-       temp = 0;
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_ROUTING) < 0)
+		return 0;
 
-        while (ip6t_ext_hdr(nexthdr)) {
-               struct ipv6_opt_hdr _hdr, *hp;
-
-              DEBUGP("ipv6_rt header iteration \n");
-
-              /* Is there enough space for the next ext header? */
-                if (len < (int)sizeof(struct ipv6_opt_hdr))
-                        return 0;
-              /* No more exthdr -> evaluate */
-                if (nexthdr == NEXTHDR_NONE) {
-                     break;
-              }
-              /* ESP -> evaluate */
-                if (nexthdr == NEXTHDR_ESP) {
-                     break;
-              }
-
-	      hp = skb_header_pointer(skb, ptr, sizeof(_hdr), &_hdr);
-	      BUG_ON(hp == NULL);
-
-              /* Calculate the header length */
-                if (nexthdr == NEXTHDR_FRAGMENT) {
-                        hdrlen = 8;
-                } else if (nexthdr == NEXTHDR_AUTH)
-                        hdrlen = (hp->hdrlen+2)<<2;
-                else
-                        hdrlen = ipv6_optlen(hp);
-
-              /* ROUTING -> evaluate */
-                if (nexthdr == NEXTHDR_ROUTING) {
-                     temp |= MASK_ROUTING;
-                     break;
-              }
-
-
-              /* set the flag */
-              switch (nexthdr){
-                     case NEXTHDR_HOP:
-                     case NEXTHDR_ROUTING:
-                     case NEXTHDR_FRAGMENT:
-                     case NEXTHDR_AUTH:
-                     case NEXTHDR_DEST:
-                            break;
-                     default:
-                            DEBUGP("ipv6_rt match: unknown nextheader %u\n",nexthdr);
-                            return 0;
-                            break;
-              }
-
-                nexthdr = hp->nexthdr;
-                len -= hdrlen;
-                ptr += hdrlen;
-		if ( ptr > skb->len ) {
-			DEBUGP("ipv6_rt: new pointer is too large! \n");
-			break;
-		}
-        }
-
-       /* ROUTING header not found */
-       if ( temp != MASK_ROUTING ) return 0;
-
-       if (len < (int)sizeof(struct ipv6_rt_hdr)){
+       rh = skb_header_pointer(skb, ptr, sizeof(_route), &_route);
+       if (rh == NULL){
 	       *hotdrop = 1;
        		return 0;
        }
 
-       if (len < hdrlen){
+       hdrlen = ipv6_optlen(rh);
+       if (skb->len - ptr < hdrlen){
 	       /* Pcket smaller than its length field */
        		return 0;
        }
-
-       rh = skb_header_pointer(skb, ptr, sizeof(_route), &_route);
-       BUG_ON(rh == NULL);
 
        DEBUGP("IPv6 RT LEN %u %u ", hdrlen, rh->hdrlen);
        DEBUGP("TYPE %04X ", rh->type);

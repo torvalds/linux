@@ -69,13 +69,9 @@ void free_fd_array(struct file **array, int num)
 
 static void __free_fdtable(struct fdtable *fdt)
 {
-	int fdset_size, fdarray_size;
-
-	fdset_size = fdt->max_fdset / 8;
-	fdarray_size = fdt->max_fds * sizeof(struct file *);
-	free_fdset(fdt->open_fds, fdset_size);
-	free_fdset(fdt->close_on_exec, fdset_size);
-	free_fd_array(fdt->fd, fdarray_size);
+	free_fdset(fdt->open_fds, fdt->max_fdset);
+	free_fdset(fdt->close_on_exec, fdt->max_fdset);
+	free_fd_array(fdt->fd, fdt->max_fds);
 	kfree(fdt);
 }
 

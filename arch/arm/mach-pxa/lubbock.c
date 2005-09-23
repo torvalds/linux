@@ -146,6 +146,11 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	// no D+ pullup; lubbock can't connect/disconnect in software
 };
 
+static struct platform_device lub_audio_device = {
+	.name		= "pxa2xx-ac97",
+	.id		= -1,
+};
+
 static struct resource sa1111_resources[] = {
 	[0] = {
 		.start	= 0x10000000,
@@ -195,6 +200,7 @@ static struct platform_device smc91x_device = {
 
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
+	&lub_audio_device,
 	&smc91x_device,
 };
 

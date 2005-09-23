@@ -233,7 +233,7 @@ __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 
 /* Just find a expectation corresponding to a tuple. */
 struct ip_conntrack_expect *
-ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple)
+ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_expect *i;
 	
@@ -1143,7 +1143,10 @@ void ip_ct_refresh_acct(struct ip_conntrack *ct,
 		if (del_timer(&ct->timeout)) {
 			ct->timeout.expires = jiffies + extra_jiffies;
 			add_timer(&ct->timeout);
-			ip_conntrack_event_cache(IPCT_REFRESH, skb);
+			/* FIXME: We loose some REFRESH events if this function
+			 * is called without an skb.  I'll fix this later -HW */
+			if (skb)
+				ip_conntrack_event_cache(IPCT_REFRESH, skb);
 		}
 		ct_add_counters(ct, ctinfo, skb);
 		write_unlock_bh(&ip_conntrack_lock);

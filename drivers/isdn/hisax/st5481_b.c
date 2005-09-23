@@ -172,14 +172,18 @@ static void usb_b_out_complete(struct urb *urb, struct pt_regs *regs)
 	test_and_clear_bit(buf_nr, &b_out->busy);
 
 	if (unlikely(urb->status < 0)) {
-		if (urb->status != -ENOENT && urb->status != -ESHUTDOWN) {
-			WARN("urb status %d",urb->status);
-			if (b_out->busy == 0) {
-				st5481_usb_pipe_reset(adapter, (bcs->channel+1)*2 | USB_DIR_OUT, NULL, NULL);
-			}
-		} else {
-			DBG(1,"urb killed"); 
-			return; // Give up
+		switch (urb->status) {
+			case -ENOENT:
+			case -ESHUTDOWN:
+			case -ECONNRESET:
+				DBG(4,"urb killed status %d", urb->status);
+				return; // Give up
+			default: 
+				WARN("urb status %d",urb->status);
+				if (b_out->busy == 0) {
+					st5481_usb_pipe_reset(adapter, (bcs->channel+1)*2 | USB_DIR_OUT, NULL, NULL);
+				}
+				break;
 		}
 	}
 
@@ -205,7 +209,9 @@ static void st5481B_mode(struct st5481_bcs *bcs, int mode)
 	bcs->mode = mode;
 
 	// Cancel all USB transfers on this B channel
+	b_out->urb[0]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(b_out->urb[0]);
+	b_out->urb[1]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(b_out->urb[1]);
 	b_out->busy = 0;
 
