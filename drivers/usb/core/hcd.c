@@ -1431,28 +1431,44 @@ rescan:
 
 /*-------------------------------------------------------------------------*/
 
-/* FIXME make this #ifdef CONFIG_PM ... update root hubs, retest */
-
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM
 
 static int hcd_hub_suspend (struct usb_bus *bus)
 {
 	struct usb_hcd		*hcd;
+	int			status;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_suspend)
-		return hcd->driver->hub_suspend (hcd);
-	return 0;
+	if (!hcd->driver->hub_suspend)
+		return -ENOENT;
+	hcd->state = HC_STATE_QUIESCING;
+	status = hcd->driver->hub_suspend (hcd);
+	if (status == 0)
+		hcd->state = HC_STATE_SUSPENDED;
+	else
+		dev_dbg(&bus->root_hub->dev, "%s fail, err %d\n",
+				"suspend", status);
+	return status;
 }
 
 static int hcd_hub_resume (struct usb_bus *bus)
 {
 	struct usb_hcd		*hcd;
+	int			status;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_resume)
-		return hcd->driver->hub_resume (hcd);
-	return 0;
+	if (!hcd->driver->hub_resume)
+		return -ENOENT;
+	hcd->state = HC_STATE_RESUMING;
+	status = hcd->driver->hub_resume (hcd);
+	if (status == 0)
+		hcd->state = HC_STATE_RUNNING;
+	else {
+		dev_dbg(&bus->root_hub->dev, "%s fail, err %d\n",
+				"resume", status);
+		usb_hc_died(hcd);
+	}
+	return status;
 }
 
 /**
@@ -1473,13 +1489,9 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 		usb_resume_root_hub (hcd->self.root_hub);
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 }
-
-#else
-void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
-{
-}
-#endif
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1532,7 +1544,7 @@ static struct usb_operations usb_hcd_operations = {
 	.buffer_alloc =		hcd_buffer_alloc,
 	.buffer_free =		hcd_buffer_free,
 	.disable =		hcd_endpoint_disable,
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM
 	.hub_suspend =		hcd_hub_suspend,
 	.hub_resume =		hcd_hub_resume,
 #endif

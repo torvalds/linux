@@ -282,6 +282,7 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	.hub_suspend =		ohci_hub_suspend,
 	.hub_resume =		ohci_hub_resume,
 #endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /*-------------------------------------------------------------------------*/
