@@ -7,7 +7,7 @@
 #ifndef _ORINOCO_H
 #define _ORINOCO_H
 
-#define DRIVER_VERSION "0.15rc2"
+#define DRIVER_VERSION "0.15rc3"
 
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
