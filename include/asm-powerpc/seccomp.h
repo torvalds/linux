@@ -1,11 +1,6 @@
-#ifndef _ASM_SECCOMP_H
+#ifndef _ASM_POWERPC_SECCOMP_H
 
-#include <linux/thread_info.h> /* already defines TIF_32BIT */
-
-#ifndef TIF_32BIT
-#error "unexpected TIF_32BIT on ppc64"
-#endif
-
+#include <linux/thread_info.h>
 #include <linux/unistd.h>
 
 #define __NR_seccomp_read __NR_read
@@ -18,4 +13,4 @@
 #define __NR_seccomp_exit_32 __NR_exit
 #define __NR_seccomp_sigreturn_32 __NR_sigreturn
 
-#endif /* _ASM_SECCOMP_H */
+#endif	/* _ASM_POWERPC_SECCOMP_H */
