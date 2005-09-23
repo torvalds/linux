@@ -29,6 +29,10 @@ extern void usb_major_cleanup(void);
 extern int usb_host_init(void);
 extern void usb_host_cleanup(void);
 
+extern int usb_suspend_device(struct usb_device *dev);
+extern int usb_resume_device(struct usb_device *dev);
+
+
 /* Interfaces and their "power state" are owned by usbcore */
 
 static inline void mark_active(struct usb_interface *f)

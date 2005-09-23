@@ -975,11 +975,6 @@ extern int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 	void *data, int len, int *actual_length,
 	int timeout);
 
-/* selective suspend/resume */
-extern int usb_suspend_device(struct usb_device *dev);
-extern int usb_resume_device(struct usb_device *dev);
-
-
 /* wrappers around usb_control_msg() for the most common standard requests */
 extern int usb_get_descriptor(struct usb_device *dev, unsigned char desctype,
 	unsigned char descindex, void *buf, int size);

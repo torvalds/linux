@@ -1652,10 +1652,10 @@ static int __usb_suspend_device (struct usb_device *udev, int port1)
 
 #endif
 
-/**
+/*
  * usb_suspend_device - suspend a usb device
  * @udev: device that's no longer in active use
- * Context: must be able to sleep; device not locked
+ * Context: must be able to sleep; device not locked; pm locks held
  *
  * Suspends a USB device that isn't in active use, conserving power.
  * Devices may wake out of a suspend, if anything important happens,
@@ -1820,10 +1820,10 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 
 #endif
 
-/**
+/*
  * usb_resume_device - re-activate a suspended usb device
  * @udev: device to re-activate
- * Context: must be able to sleep; device not locked
+ * Context: must be able to sleep; device not locked; pm locks held
  *
  * This will re-activate the suspended device, increasing power usage
  * while letting drivers communicate again with its endpoints.
@@ -2023,10 +2023,6 @@ void usb_resume_root_hub(struct usb_device *hdev)
 	hub->resume_root_hub = 1;
 	kick_khubd(hub);
 }
-
-EXPORT_SYMBOL(usb_suspend_device);
-EXPORT_SYMBOL(usb_resume_device);
-
 
 
 /* USB 2.0 spec, 7.1.7.3 / fig 7-29:
