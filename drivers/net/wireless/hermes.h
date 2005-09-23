@@ -30,9 +30,8 @@
  * access to the hermes_t structure, and to the hardware
 */
 
-#include <linux/delay.h>
 #include <linux/if_ether.h>
-#include <asm/byteorder.h>
+#include <asm/io.h>
 
 /*
  * Limits and constants

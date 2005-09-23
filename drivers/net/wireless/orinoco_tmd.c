@@ -53,29 +53,13 @@
 #define PFX DRIVER_NAME ": "
 
 #include <linux/config.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/timer.h>
-#include <linux/ioport.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/system.h>
-#include <linux/netdevice.h>
-#include <linux/if_arp.h>
-#include <linux/etherdevice.h>
-#include <linux/list.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/fcntl.h>
-
 #include <pcmcia/cisreg.h>
 
-#include "hermes.h"
 #include "orinoco.h"
 
 #define COR_VALUE	(COR_LEVEL_REQ | COR_FUNC_ENA) /* Enable PC card with interrupt in level trigger */

@@ -9,8 +9,6 @@
 
 #define DRIVER_VERSION "0.15rc2"
 
-#include <linux/types.h>
-#include <linux/spinlock.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
