@@ -623,10 +623,10 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	if (fid == DUMMY_FID)
 		return; /* Nothing's really happened */
 
-	/* Read the frame header */
+	/* Read part of the frame header - we need status and addr1 */
 	err = hermes_bap_pread(hw, IRQ_BAP, &hdr,
-			       sizeof(struct hermes_tx_descriptor) +
-			       sizeof(struct ieee80211_hdr_4addr),
+			       offsetof(struct hermes_tx_descriptor_802_11,
+					addr2),
 			       fid, 0);
 
 	hermes_write_regn(hw, TXCOMPLFID, DUMMY_FID);
