@@ -40,6 +40,12 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	int err = -EFAULT;
 
 	*code_out = SEGV_MAPERR;
+
+	/* If the fault was during atomic operation, don't take the fault, just
+	 * fail. */
+	if (in_atomic())
+		goto out_nosemaphore;
+
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
 	if(!vma) 
@@ -90,6 +96,7 @@ survive:
 	flush_tlb_page(vma, address);
 out:
 	up_read(&mm->mmap_sem);
+out_nosemaphore:
 	return(err);
 
 /*
