@@ -174,7 +174,7 @@ static __inline__ int test_bit(int nr, const volatile void *addr)
 	return 1UL & (((const volatile unsigned int *)addr)[nr>>5] >> (nr&31));
 }
 
-#if XCHAL_HAVE_NSAU
+#if XCHAL_HAVE_NSA
 
 static __inline__ int __cntlz (unsigned long x)
 {

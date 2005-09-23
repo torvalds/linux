@@ -22,7 +22,7 @@ typedef struct { volatile int counter; } atomic_t;
 #include <asm/processor.h>
 #include <asm/system.h>
 
-#define ATOMIC_INIT(i)	( (atomic_t) { (i) } )
+#define ATOMIC_INIT(i)	{ (i) }
 
 /*
  * This Xtensa implementation assumes that the right mechanism
