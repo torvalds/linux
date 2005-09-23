@@ -206,6 +206,10 @@ extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			       unsigned long prpn,
 			       unsigned long vflags, unsigned long rflags);
 
+extern long iSeries_hpte_bolt_or_insert(unsigned long hpte_group,
+		unsigned long va, unsigned long prpn,
+		unsigned long vflags, unsigned long rflags);
+
 extern void stabs_alloc(void);
 
 #endif /* __ASSEMBLY__ */

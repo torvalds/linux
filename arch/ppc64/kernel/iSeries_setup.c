@@ -75,7 +75,6 @@ extern void ppcdbg_initialize(void);
 
 static void build_iSeries_Memory_Map(void);
 static void setup_iSeries_cache_sizes(void);
-static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
 static int iseries_shared_idle(void);
 static int iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
@@ -383,9 +382,6 @@ static void __init iSeries_init_early(void)
 		}
 	}
 
-	/* Bolt kernel mappings for all of memory (or just a bit if we've got a limit) */
-	iSeries_bolt_kernel(0, systemcfg->physicalMemorySize);
-
 	lmb_init();
 	lmb_add(0, systemcfg->physicalMemorySize);
 	lmb_analyze();
@@ -634,62 +630,6 @@ static void __init setup_iSeries_cache_sizes(void)
 			(unsigned int)ppc64_caches.dline_size);
 	printk("I-cache line size = %d\n",
 			(unsigned int)ppc64_caches.iline_size);
-}
-
-/*
- * Create a pte. Used during initialization only.
- */
-static void iSeries_make_pte(unsigned long va, unsigned long pa,
-			     int mode)
-{
-	hpte_t local_hpte, rhpte;
-	unsigned long hash, vpn;
-	long slot;
-
-	vpn = va >> PAGE_SHIFT;
-	hash = hpt_hash(vpn, 0);
-
-	local_hpte.r = pa | mode;
-	local_hpte.v = ((va >> 23) << HPTE_V_AVPN_SHIFT)
-		| HPTE_V_BOLTED | HPTE_V_VALID;
-
-	slot = HvCallHpt_findValid(&rhpte, vpn);
-	if (slot < 0) {
-		/* Must find space in primary group */
-		panic("hash_page: hpte already exists\n");
-	}
-	HvCallHpt_addValidate(slot, 0, &local_hpte);
-}
-
-/*
- * Bolt the kernel addr space into the HPT
- */
-static void __init iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr)
-{
-	unsigned long pa;
-	unsigned long mode_rw = _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX;
-	hpte_t hpte;
-
-	for (pa = saddr; pa < eaddr ;pa += PAGE_SIZE) {
-		unsigned long ea = (unsigned long)__va(pa);
-		unsigned long vsid = get_kernel_vsid(ea);
-		unsigned long va = (vsid << 28) | (pa & 0xfffffff);
-		unsigned long vpn = va >> PAGE_SHIFT;
-		unsigned long slot = HvCallHpt_findValid(&hpte, vpn);
-
-		/* Make non-kernel text non-executable */
-		if (!in_kernel_text(ea))
-			mode_rw |= HW_NO_EXEC;
-
-		if (hpte.v & HPTE_V_VALID) {
-			/* HPTE exists, so just bolt it */
-			HvCallHpt_setSwBits(slot, 0x10, 0);
-			/* And make sure the pp bits are correct */
-			HvCallHpt_setPp(slot, PP_RWXX);
-		} else
-			/* No HPTE exists, so create a new bolted one */
-			iSeries_make_pte(va, phys_to_abs(pa), mode_rw);
-	}
 }
 
 /*

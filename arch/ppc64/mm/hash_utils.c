@@ -90,7 +90,6 @@ static inline void loop_forever(void)
 		;
 }
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 static inline void create_pte_mapping(unsigned long start, unsigned long end,
 				      unsigned long mode, int large)
 {
@@ -111,7 +110,7 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 		unsigned long vpn, hash, hpteg;
 		unsigned long vsid = get_kernel_vsid(addr);
 		unsigned long va = (vsid << 28) | (addr & 0xfffffff);
-		int ret;
+		int ret = -1;
 
 		if (large)
 			vpn = va >> HPAGE_SHIFT;
@@ -129,16 +128,25 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
+#ifdef CONFIG_PPC_ISERIES
+		if (systemcfg->platform & PLATFORM_ISERIES_LPAR)
+			ret = iSeries_hpte_bolt_or_insert(hpteg, va,
+				virt_to_abs(addr) >> PAGE_SHIFT,
+				vflags, tmp_mode);
+		else
+#endif
 #ifdef CONFIG_PPC_PSERIES
 		if (systemcfg->platform & PLATFORM_LPAR)
 			ret = pSeries_lpar_hpte_insert(hpteg, va,
 				virt_to_abs(addr) >> PAGE_SHIFT,
 				vflags, tmp_mode);
 		else
-#endif /* CONFIG_PPC_PSERIES */
+#endif
+#ifdef CONFIG_PPC_MULTIPLATFORM
 			ret = native_hpte_insert(hpteg, va,
 				virt_to_abs(addr) >> PAGE_SHIFT,
 				vflags, tmp_mode);
+#endif
 
 		if (ret == -1) {
 			ppc64_terminate_msg(0x20, "create_pte_mapping");
@@ -261,7 +269,6 @@ void __init htab_initialize(void)
 }
 #undef KB
 #undef MB
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 /*
  * Called by asm hashtable.S for doing lazy icache flush
