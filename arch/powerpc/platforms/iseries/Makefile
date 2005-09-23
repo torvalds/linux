@@ -1,0 +1,1 @@
+obj-$(CONFIG_PPC_ISERIES) += hvcall.o
