@@ -762,11 +762,6 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	if (uhci->hc_inaccessible)	/* Dead or already suspended */
 		goto done;
 
-#ifndef CONFIG_USB_SUSPEND
-	/* Otherwise this would never happen */
-	suspend_rh(uhci, UHCI_RH_SUSPENDED);
-#endif
-
 	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
 		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
 		hcd->state = HC_STATE_RUNNING;
@@ -808,10 +803,6 @@ static int uhci_resume(struct usb_hcd *hcd)
 	check_and_reset_hc(uhci);
 	configure_hc(uhci);
 
-#ifndef CONFIG_USB_SUSPEND
-	/* Otherwise this would never happen */
-	wakeup_rh(uhci);
-#endif
 	if (uhci->rh_state == UHCI_RH_RESET)
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
 
