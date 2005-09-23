@@ -343,7 +343,8 @@ static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vf
 
 /* Same as proc_root_link, but this addionally tries to get fs from other
  * threads in the group */
-static int proc_task_root_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+static int proc_task_root_link(struct inode *inode, struct dentry **dentry,
+				struct vfsmount **mnt)
 {
 	struct fs_struct *fs;
 	int result = -ENOENT;
@@ -357,9 +358,10 @@ static int proc_task_root_link(struct inode *inode, struct dentry **dentry, stru
 	} else {
 		/* Try to get fs from other threads */
 		task_unlock(leader);
-		struct task_struct *task = leader;
 		read_lock(&tasklist_lock);
-		if (pid_alive(task)) {
+		if (pid_alive(leader)) {
+			struct task_struct *task = leader;
+
 			while ((task = next_thread(task)) != leader) {
 				task_lock(task);
 				fs = task->fs;
