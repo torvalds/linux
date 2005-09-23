@@ -284,13 +284,6 @@ struct PptpSetLinkInfo {
 	__be32	recvAccm;
 };
 
-
-struct pptp_priv_data {
-	__u16	call_id;
-	__u16	mcall_id;
-	__u16	pcall_id;
-};
-
 union pptp_ctrl_union {
 		struct PptpStartSessionRequest	sreq;
 		struct PptpStartSessionReply	srep;
