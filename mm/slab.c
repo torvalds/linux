@@ -2907,7 +2907,8 @@ void *__kmalloc(size_t size, unsigned int __nocast flags)
 	 * functions.
 	 */
 	cachep = __find_general_cachep(size, flags);
-	BUG_ON(!cachep);		/* Allocation size too large for kmalloc */
+	if (unlikely(cachep == NULL))
+		return NULL;
 	return __cache_alloc(cachep, flags);
 }
 EXPORT_SYMBOL(__kmalloc);
