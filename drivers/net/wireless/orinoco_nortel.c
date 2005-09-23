@@ -92,7 +92,7 @@ static int nortel_pci_cor_reset(struct orinoco_private *priv)
 	return 0;
 }
 
-int nortel_pci_hw_init(struct nortel_pci_card *card)
+static int nortel_pci_hw_init(struct nortel_pci_card *card)
 {
 	int i;
 	u32 reg;
