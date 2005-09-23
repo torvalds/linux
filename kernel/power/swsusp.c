@@ -363,7 +363,7 @@ static void lock_swapdevices(void)
 }
 
 /**
- *	write_swap_page - Write one page to a fresh swap location.
+ *	write_page - Write one page to a fresh swap location.
  *	@addr:	Address we're writing.
  *	@loc:	Place to store the entry we used.
  *
@@ -863,6 +863,9 @@ static int alloc_image_pages(void)
 	return 0;
 }
 
+/* Free pages we allocated for suspend. Suspend pages are alocated
+ * before atomic copy, so we need to free them after resume.
+ */
 void swsusp_free(void)
 {
 	BUG_ON(PageNosave(virt_to_page(pagedir_save)));
@@ -1213,8 +1216,9 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 		free_pagedir(pblist);
 		free_eaten_memory();
 		pblist = NULL;
-	}
-	else
+		/* Is this even worth handling? It should never ever happen, and we
+		   have just lost user's state, anyway... */
+	} else
 		printk("swsusp: Relocated %d pages\n", rel);
 
 	return pblist;

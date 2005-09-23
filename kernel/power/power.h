@@ -1,7 +1,7 @@
 #include <linux/suspend.h>
 #include <linux/utsname.h>
 
-/* With SUSPEND_CONSOLE defined, it suspend looks *really* cool, but
+/* With SUSPEND_CONSOLE defined suspend looks *really* cool, but
    we probably do not take enough locks for switching consoles, etc,
    so bad things might happen.
 */
