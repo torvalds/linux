@@ -80,17 +80,8 @@ static dev_link_t *dev_list; /* = NULL */
 /* Function prototypes						    */
 /********************************************************************/
 
-/* device methods */
-static int orinoco_cs_hard_reset(struct orinoco_private *priv);
-
-/* PCMCIA gumpf */
-static void orinoco_cs_config(dev_link_t * link);
-static void orinoco_cs_release(dev_link_t * link);
-static int orinoco_cs_event(event_t event, int priority,
-			    event_callback_args_t * args);
-
-static dev_link_t *orinoco_cs_attach(void);
-static void orinoco_cs_detach(dev_link_t *);
+static void orinoco_cs_release(dev_link_t *link);
+static void orinoco_cs_detach(dev_link_t *link);
 
 /********************************************************************/
 /* Device methods     						    */
@@ -675,8 +666,8 @@ static struct pcmcia_driver orinoco_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.attach		= orinoco_cs_attach,
-	.event		= orinoco_cs_event,
 	.detach		= orinoco_cs_detach,
+	.event		= orinoco_cs_event,
 	.id_table       = orinoco_cs_ids,
 };
 

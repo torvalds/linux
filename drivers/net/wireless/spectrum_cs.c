@@ -89,17 +89,8 @@ static dev_link_t *dev_list; /* = NULL */
 /* Function prototypes						    */
 /********************************************************************/
 
-/* device methods */
-static int spectrum_cs_hard_reset(struct orinoco_private *priv);
-
-/* PCMCIA gumpf */
-static void spectrum_cs_config(dev_link_t * link);
-static void spectrum_cs_release(dev_link_t * link);
-static int spectrum_cs_event(event_t event, int priority,
-			    event_callback_args_t * args);
-
-static dev_link_t *spectrum_cs_attach(void);
-static void spectrum_cs_detach(dev_link_t *);
+static void spectrum_cs_release(dev_link_t *link);
+static void spectrum_cs_detach(dev_link_t *link);
 
 /********************************************************************/
 /* Firmware downloader						    */
@@ -1058,8 +1049,8 @@ static struct pcmcia_driver orinoco_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.attach		= spectrum_cs_attach,
-	.event		= spectrum_cs_event,
 	.detach		= spectrum_cs_detach,
+	.event		= spectrum_cs_event,
 	.id_table       = spectrum_cs_ids,
 };
 
