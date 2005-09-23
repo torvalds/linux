@@ -387,11 +387,11 @@ static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
 									\
 	__val = pfx##ioswab##bwlq(val);					\
 									\
-	if (sizeof(type) != sizeof(u64)) {				\
-		*__addr = __val;					\
-		slow;							\
-	} else								\
-		BUILD_BUG();						\
+	/* Really, we want this to be atomic */				\
+	BUILD_BUG_ON(sizeof(type) > sizeof(unsigned long));		\
+									\
+	*__addr = __val;						\
+	slow;								\
 }									\
 									\
 static inline type pfx##in##bwlq##p(unsigned long port)			\
@@ -402,13 +402,10 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 	port = __swizzle_addr_##bwlq(port);				\
 	__addr = (void *)(mips_io_port_base + port);			\
 									\
-	if (sizeof(type) != sizeof(u64)) {				\
-		__val = *__addr;					\
-		slow;							\
-	} else {							\
-		__val = 0;						\
-		BUILD_BUG();						\
-	}								\
+	BUILD_BUG_ON(sizeof(type) > sizeof(unsigned long));		\
+									\
+	__val = *__addr;						\
+	slow;								\
 									\
 	return pfx##ioswab##bwlq(__val);				\
 }
@@ -417,27 +414,35 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 									\
 __BUILD_MEMORY_SINGLE(bus, bwlq, type, 1)
 
-#define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
-									\
-__BUILD_IOPORT_SINGLE(bus, bwlq, type, ,)				\
-__BUILD_IOPORT_SINGLE(bus, bwlq, type, _p, SLOW_DOWN_IO)
-
-#define BUILDIO(bwlq, type)						\
+#define BUILDIO_MEM(bwlq, type)						\
 									\
 __BUILD_MEMORY_PFX(__raw_, bwlq, type)					\
 __BUILD_MEMORY_PFX(, bwlq, type)					\
 __BUILD_MEMORY_PFX(mem_, bwlq, type)					\
-__BUILD_IOPORT_PFX(, bwlq, type)					\
-__BUILD_IOPORT_PFX(mem_, bwlq, type)
+
+BUILDIO_MEM(b, u8)
+BUILDIO_MEM(w, u16)
+BUILDIO_MEM(l, u32)
+BUILDIO_MEM(q, u64)
+
+#define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, ,)			\
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, _p, SLOW_DOWN_IO)
+
+#define BUILDIO_IOPORT(bwlq, type)					\
+	__BUILD_IOPORT_PFX(, bwlq, type)				\
+	__BUILD_IOPORT_PFX(mem_, bwlq, type)
+
+BUILDIO_IOPORT(b, u8)
+BUILDIO_IOPORT(w, u16)
+BUILDIO_IOPORT(l, u32)
+#ifdef CONFIG_64BIT
+BUILDIO_IOPORT(q, u64)
+#endif
 
 #define __BUILDIO(bwlq, type)						\
 									\
 __BUILD_MEMORY_SINGLE(____raw_, bwlq, type, 0)
-
-BUILDIO(b, u8)
-BUILDIO(w, u16)
-BUILDIO(l, u32)
-BUILDIO(q, u64)
 
 __BUILDIO(q, u64)
 
@@ -508,7 +513,9 @@ __BUILD_IOPORT_STRING(bwlq, type)
 BUILDSTRING(b, u8)
 BUILDSTRING(w, u16)
 BUILDSTRING(l, u32)
+#ifdef CONFIG_64BIT
 BUILDSTRING(q, u64)
+#endif
 
 
 /* Depends on MIPS II instruction set */
