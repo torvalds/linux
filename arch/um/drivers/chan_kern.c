@@ -19,18 +19,44 @@
 #include "line.h"
 #include "os.h"
 
-#ifdef CONFIG_NOCONFIG_CHAN
+/* XXX: could well be moved to somewhere else, if needed. */
+static int my_printf(const char * fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 
-/* The printk's here are wrong because we are complaining that there is no
- * output device, but printk is printing to that output device.  The user will
- * never see the error.  printf would be better, except it can't run on a
- * kernel stack because it will overflow it.
- * Use printk for now since that will avoid crashing.
- */
+static int my_printf(const char * fmt, ...)
+{
+	/* Yes, can be called on atomic context.*/
+	char *buf = kmalloc(4096, GFP_ATOMIC);
+	va_list args;
+	int r;
+
+	if (!buf) {
+		/* We print directly fmt.
+		 * Yes, yes, yes, feel free to complain. */
+		r = strlen(fmt);
+	} else {
+		va_start(args, fmt);
+		r = vsprintf(buf, fmt, args);
+		va_end(args);
+		fmt = buf;
+	}
+
+	if (r)
+		r = os_write_file(1, fmt, r);
+	return r;
+
+}
+
+#ifdef CONFIG_NOCONFIG_CHAN
+/* Despite its name, there's no added trailing newline. */
+static int my_puts(const char * buf)
+{
+	return os_write_file(1, buf, strlen(buf));
+}
 
 static void *not_configged_init(char *str, int device, struct chan_opts *opts)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 	return(NULL);
 }
@@ -38,27 +64,27 @@ static void *not_configged_init(char *str, int device, struct chan_opts *opts)
 static int not_configged_open(int input, int output, int primary, void *data,
 			      char **dev_out)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 	return(-ENODEV);
 }
 
 static void not_configged_close(int fd, void *data)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 }
 
 static int not_configged_read(int fd, char *c_out, void *data)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 	return(-EIO);
 }
 
 static int not_configged_write(int fd, const char *buf, int len, void *data)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 	return(-EIO);
 }
@@ -66,7 +92,7 @@ static int not_configged_write(int fd, const char *buf, int len, void *data)
 static int not_configged_console_write(int fd, const char *buf, int len,
 				       void *data)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 	return(-EIO);
 }
@@ -74,14 +100,14 @@ static int not_configged_console_write(int fd, const char *buf, int len,
 static int not_configged_window_size(int fd, void *data, unsigned short *rows,
 				     unsigned short *cols)
 {
-	printk(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 	return(-ENODEV);
 }
 
 static void not_configged_free(void *data)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
 }
 
@@ -457,7 +483,7 @@ static struct chan *parse_chan(char *str, int pri, int device,
 		}
 	}
 	if(ops == NULL){
-		printk(KERN_ERR "parse_chan couldn't parse \"%s\"\n", 
+		my_printf("parse_chan couldn't parse \"%s\"\n",
 		       str);
 		return(NULL);
 	}
