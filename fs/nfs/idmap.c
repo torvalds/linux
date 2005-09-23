@@ -66,6 +66,7 @@ struct idmap_hashtable {
 };
 
 struct idmap {
+	char                  idmap_path[48];
 	struct dentry        *idmap_dentry;
 	wait_queue_head_t     idmap_wq;
 	struct idmap_msg      idmap_im;
@@ -101,8 +102,11 @@ nfs_idmap_new(struct nfs4_client *clp)
 
 	memset(idmap, 0, sizeof(*idmap));
 
-	idmap->idmap_dentry = rpc_mkpipe(clp->cl_rpcclient->cl_dentry,
-			"idmap", idmap, &idmap_upcall_ops, 0);
+	snprintf(idmap->idmap_path, sizeof(idmap->idmap_path),
+	    "%s/idmap", clp->cl_rpcclient->cl_pathname);
+
+        idmap->idmap_dentry = rpc_mkpipe(idmap->idmap_path,
+	    idmap, &idmap_upcall_ops, 0);
         if (IS_ERR(idmap->idmap_dentry)) {
 		kfree(idmap);
 		return;
@@ -124,7 +128,7 @@ nfs_idmap_delete(struct nfs4_client *clp)
 
 	if (!idmap)
 		return;
-	rpc_unlink(idmap->idmap_dentry);
+	rpc_unlink(idmap->idmap_path);
 	clp->cl_idmap = NULL;
 	kfree(idmap);
 }

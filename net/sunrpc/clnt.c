@@ -67,42 +67,26 @@ static u32 *	call_verify(struct rpc_task *task);
 static int
 rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 {
-	static unsigned int clntid;
-	char name[128];
+	static uint32_t clntid;
 	int error;
 
 	if (dir_name == NULL)
 		return 0;
-
- retry_parent:
-	clnt->__cl_parent_dentry = rpc_mkdir(NULL, dir_name, NULL);
-	if (IS_ERR(clnt->__cl_parent_dentry)) {
-		error = PTR_ERR(clnt->__cl_parent_dentry);
-		if (error == -EEXIST)
-			goto retry_parent; /* XXX(hch): WTF? */
-	
-		printk(KERN_INFO "RPC: Couldn't create pipefs entry %s, error %d\n",
-				dir_name, error);
-		return error;
-	}
-
-
- retry_child:
-	snprintf(name, sizeof(name), "clnt%x", clntid++);
-	name[sizeof(name) - 1] = '\0';
-
-	clnt->cl_dentry = rpc_mkdir(clnt->__cl_parent_dentry, name, clnt);
-	if (IS_ERR(clnt->cl_dentry)) {
+	for (;;) {
+		snprintf(clnt->cl_pathname, sizeof(clnt->cl_pathname),
+				"%s/clnt%x", dir_name,
+				(unsigned int)clntid++);
+		clnt->cl_pathname[sizeof(clnt->cl_pathname) - 1] = '\0';
+		clnt->cl_dentry = rpc_mkdir(clnt->cl_pathname, clnt);
+		if (!IS_ERR(clnt->cl_dentry))
+			return 0;
 		error = PTR_ERR(clnt->cl_dentry);
-		if (error == -EEXIST)
-			goto retry_child;
-		printk(KERN_INFO "RPC: Couldn't create pipefs entry %s, error %d\n",
-				name, error);
-		rpc_rmdir(clnt->__cl_parent_dentry);
-		return error;
+		if (error != -EEXIST) {
+			printk(KERN_INFO "RPC: Couldn't create pipefs entry %s, error %d\n",
+					clnt->cl_pathname, error);
+			return error;
+		}
 	}
-
-	return 0;
 }
 
 /*
@@ -190,8 +174,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	return clnt;
 
 out_no_auth:
-	rpc_rmdir(clnt->cl_dentry);
-	rpc_rmdir(clnt->__cl_parent_dentry);
+	rpc_rmdir(clnt->cl_pathname);
 out_no_path:
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
@@ -319,10 +302,8 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 		rpc_destroy_client(clnt->cl_parent);
 		goto out_free;
 	}
-	if (clnt->cl_dentry)
-		rpc_rmdir(clnt->cl_dentry);
-	if (clnt->__cl_parent_dentry)
-		rpc_rmdir(clnt->__cl_parent_dentry);
+	if (clnt->cl_pathname[0])
+		rpc_rmdir(clnt->cl_pathname);
 	if (clnt->cl_xprt) {
 		xprt_destroy(clnt->cl_xprt);
 		clnt->cl_xprt = NULL;

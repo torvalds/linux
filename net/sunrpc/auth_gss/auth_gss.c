@@ -87,6 +87,7 @@ struct gss_auth {
 	struct list_head upcalls;
 	struct rpc_clnt *client;
 	struct dentry *dentry;
+	char path[48];
 	spinlock_t lock;
 };
 
@@ -689,8 +690,10 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	if (err)
 		goto err_put_mech;
 
-	gss_auth->dentry = rpc_mkpipe(clnt->cl_dentry, gss_auth->mech->gm_name,
-			clnt, &gss_upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
+	snprintf(gss_auth->path, sizeof(gss_auth->path), "%s/%s",
+			clnt->cl_pathname,
+			gss_auth->mech->gm_name);
+	gss_auth->dentry = rpc_mkpipe(gss_auth->path, clnt, &gss_upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
 	if (IS_ERR(gss_auth->dentry)) {
 		err = PTR_ERR(gss_auth->dentry);
 		goto err_put_mech;
@@ -715,7 +718,7 @@ gss_destroy(struct rpc_auth *auth)
 		auth, auth->au_flavor);
 
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	rpc_unlink(gss_auth->dentry);
+	rpc_unlink(gss_auth->path);
 	gss_mech_put(gss_auth->mech);
 
 	rpcauth_free_credcache(auth);
