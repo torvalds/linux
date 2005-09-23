@@ -58,6 +58,7 @@
 #include <asm/mmu.h>
 #include <asm/lmb.h>
 #include <asm/iSeries/ItLpNaca.h>
+#include <asm/firmware.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -401,7 +402,8 @@ void __init early_setup(unsigned long dt_ptr)
 	/*
 	 * Initialize stab / SLB management
 	 */
-	stab_initialize(lpaca->stab_real);
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		stab_initialize(lpaca->stab_real);
 
 	/*
 	 * Initialize the MMU Hash table and create the linear mapping
