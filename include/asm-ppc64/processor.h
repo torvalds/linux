@@ -291,6 +291,7 @@
 #define IC_OPEN_PIC   1
 #define IC_PPC_XIC    2
 #define IC_BPA_IIC    3
+#define IC_ISERIES    4
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)

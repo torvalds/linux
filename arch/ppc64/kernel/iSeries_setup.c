@@ -321,6 +321,8 @@ static void __init iSeries_init_early(void)
 
 	ppcdbg_initialize();
 
+	ppc64_interrupt_controller = IC_ISERIES;
+
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/*
 	 * If the init RAM disk has been configured and there is

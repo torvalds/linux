@@ -351,3 +351,16 @@ int __init iSeries_allocate_IRQ(HvBusNumber busNumber,
 	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
 	return virtirq;
 }
+
+int virt_irq_create_mapping(unsigned int real_irq)
+{
+	BUG(); /* Don't call this on iSeries, yet */
+
+	return 0;
+}
+
+void virt_irq_init(void)
+{
+	return;
+}
+
