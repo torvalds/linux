@@ -465,7 +465,7 @@ int do_settimeofday(struct timespec *tv)
 
 EXPORT_SYMBOL(do_settimeofday);
 
-#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_MAPLE) || defined(CONFIG_PPC_BPA)
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_MAPLE) || defined(CONFIG_PPC_BPA) || defined(CONFIG_PPC_ISERIES)
 void __init generic_calibrate_decr(void)
 {
 	struct device_node *cpu;

@@ -74,7 +74,6 @@ extern void hvlog(char *fmt, ...);
 extern void ppcdbg_initialize(void);
 
 static void build_iSeries_Memory_Map(void);
-static void setup_iSeries_cache_sizes(void);
 static int iseries_shared_idle(void);
 static int iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
@@ -84,14 +83,6 @@ static void iSeries_pci_final_fixup(void) { }
 #endif
 
 /* Global Variables */
-static unsigned long procFreqHz;
-static unsigned long procFreqMhz;
-static unsigned long procFreqMhzHundreths;
-
-static unsigned long tbFreqHz;
-static unsigned long tbFreqMhz;
-static unsigned long tbFreqMhzHundreths;
-
 int piranha_simulator;
 
 extern int rd_size;		/* Defined in drivers/block/rd.c */
@@ -344,12 +335,6 @@ static void __init iSeries_init_early(void)
 	iSeries_recal_titan = HvCallXm_loadTod();
 
 	/*
-	 * Cache sizes must be initialized before hpte_init_iSeries is called
-	 * as the later need them for flush_icache_range()
-	 */
-	setup_iSeries_cache_sizes();
-
-	/*
 	 * Initialize the hash table management pointers
 	 */
 	hpte_init_iSeries();
@@ -581,47 +566,6 @@ static void __init build_iSeries_Memory_Map(void)
 }
 
 /*
- * Set up the variables that describe the cache line sizes
- * for this machine.
- */
-static void __init setup_iSeries_cache_sizes(void)
-{
-	unsigned int i, n;
-	unsigned int procIx = get_paca()->lppaca.dyn_hv_phys_proc_index;
-
-	systemcfg->icache_size =
-	ppc64_caches.isize = xIoHriProcessorVpd[procIx].xInstCacheSize * 1024;
-	systemcfg->icache_line_size =
-	ppc64_caches.iline_size =
-		xIoHriProcessorVpd[procIx].xInstCacheOperandSize;
-	systemcfg->dcache_size =
-	ppc64_caches.dsize =
-		xIoHriProcessorVpd[procIx].xDataL1CacheSizeKB * 1024;
-	systemcfg->dcache_line_size =
-	ppc64_caches.dline_size =
-		xIoHriProcessorVpd[procIx].xDataCacheOperandSize;
-	ppc64_caches.ilines_per_page = PAGE_SIZE / ppc64_caches.iline_size;
-	ppc64_caches.dlines_per_page = PAGE_SIZE / ppc64_caches.dline_size;
-
-	i = ppc64_caches.iline_size;
-	n = 0;
-	while ((i = (i / 2)))
-		++n;
-	ppc64_caches.log_iline_size = n;
-
-	i = ppc64_caches.dline_size;
-	n = 0;
-	while ((i = (i / 2)))
-		++n;
-	ppc64_caches.log_dline_size = n;
-
-	printk("D-cache line size = %d\n",
-			(unsigned int)ppc64_caches.dline_size);
-	printk("I-cache line size = %d\n",
-			(unsigned int)ppc64_caches.iline_size);
-}
-
-/*
  * Document me.
  */
 static void __init iSeries_setup_arch(void)
@@ -636,36 +580,14 @@ static void __init iSeries_setup_arch(void)
 		printk(KERN_INFO "Using dedicated idle loop\n");
 	}
 
-	/* Add an eye catcher and the systemcfg layout version number */
-	strcpy(systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
-	systemcfg->version.major = SYSTEMCFG_MAJOR;
-	systemcfg->version.minor = SYSTEMCFG_MINOR;
-
 	/* Setup the Lp Event Queue */
 	setup_hvlpevent_queue();
-
-	/* Compute processor frequency */
-	procFreqHz = ((1UL << 34) * 1000000) /
-			xIoHriProcessorVpd[procIx].xProcFreq;
-	procFreqMhz = procFreqHz / 1000000;
-	procFreqMhzHundreths = (procFreqHz / 10000) - (procFreqMhz * 100);
-	ppc_proc_freq = procFreqHz;
-
-	/* Compute time base frequency */
-	tbFreqHz = ((1UL << 32) * 1000000) /
-		xIoHriProcessorVpd[procIx].xTimeBaseFreq;
-	tbFreqMhz = tbFreqHz / 1000000;
-	tbFreqMhzHundreths = (tbFreqHz / 10000) - (tbFreqMhz * 100);
-	ppc_tb_freq = tbFreqHz;
 
 	printk("Max  logical processors = %d\n",
 			itVpdAreas.xSlicMaxLogicalProcs);
 	printk("Max physical processors = %d\n",
 			itVpdAreas.xSlicMaxPhysicalProcs);
-	printk("Processor frequency = %lu.%02lu\n", procFreqMhz,
-			procFreqMhzHundreths);
-	printk("Time base frequency = %lu.%02lu\n", tbFreqMhz,
-			tbFreqMhzHundreths);
+
 	systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
 	printk("Processor version = %x\n", systemcfg->processor);
 }
@@ -707,49 +629,6 @@ static void iSeries_power_off(void)
 static void iSeries_halt(void)
 {
 	mf_power_off();
-}
-
-/*
- * void __init iSeries_calibrate_decr()
- *
- * Description:
- *   This routine retrieves the internal processor frequency from the VPD,
- *   and sets up the kernel timer decrementer based on that value.
- *
- */
-static void __init iSeries_calibrate_decr(void)
-{
-	unsigned long	cyclesPerUsec;
-	struct div_result divres;
-
-	/* Compute decrementer (and TB) frequency in cycles/sec */
-	cyclesPerUsec = ppc_tb_freq / 1000000;
-
-	/*
-	 * Set the amount to refresh the decrementer by.  This
-	 * is the number of decrementer ticks it takes for
-	 * 1/HZ seconds.
-	 */
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-
-#if 0
-	/* TEST CODE FOR ADJTIME */
-	tb_ticks_per_jiffy += tb_ticks_per_jiffy / 5000;
-	/* END OF TEST CODE */
-#endif
-
-	/*
-	 * tb_ticks_per_sec = freq; would give better accuracy
-	 * but tb_ticks_per_sec = tb_ticks_per_jiffy*HZ; assures
-	 * that jiffies (and xtime) will match the time returned
-	 * by do_gettimeofday.
-	 */
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = cyclesPerUsec;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024 * 1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
-	setup_default_decr();
 }
 
 static void __init iSeries_progress(char * st, unsigned short code)
@@ -901,7 +780,7 @@ struct machdep_calls __initdata iseries_md = {
 	.get_boot_time	= iSeries_get_boot_time,
 	.set_rtc_time	= iSeries_set_rtc_time,
 	.get_rtc_time	= iSeries_get_rtc_time,
-	.calibrate_decr	= iSeries_calibrate_decr,
+	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= iSeries_progress,
 	.probe		= iseries_probe,
 	/* XXX Implement enable_pmcs for iSeries */
@@ -1032,6 +911,57 @@ void dt_prop_empty(struct iseries_flat_dt *dt, char *name)
 	dt_prop(dt, name, NULL, 0);
 }
 
+void dt_cpus(struct iseries_flat_dt *dt)
+{
+	unsigned char buf[32];
+	unsigned char *p;
+	unsigned int i, index;
+	struct IoHriProcessorVpd *d;
+
+	/* yuck */
+	snprintf(buf, 32, "PowerPC,%s", cur_cpu_spec->cpu_name);
+	p = strchr(buf, ' ');
+	if (!p) p = buf + strlen(buf);
+
+	dt_start_node(dt, "cpus");
+	dt_prop_u32(dt, "#address-cells", 1);
+	dt_prop_u32(dt, "#size-cells", 0);
+
+	for (i = 0; i < NR_CPUS; i++) {
+		if (paca[i].lppaca.dyn_proc_status >= 2)
+			continue;
+
+		snprintf(p, 32 - (p - buf), "@%d", i);
+		dt_start_node(dt, buf);
+
+		dt_prop_str(dt, "device_type", "cpu");
+
+		index = paca[i].lppaca.dyn_hv_phys_proc_index;
+		d = &xIoHriProcessorVpd[index];
+
+		dt_prop_u32(dt, "i-cache-size", d->xInstCacheSize * 1024);
+		dt_prop_u32(dt, "i-cache-line-size", d->xInstCacheOperandSize);
+
+		dt_prop_u32(dt, "d-cache-size", d->xDataL1CacheSizeKB * 1024);
+		dt_prop_u32(dt, "d-cache-line-size", d->xDataCacheOperandSize);
+
+		/* magic conversions to Hz copied from old code */
+		dt_prop_u32(dt, "clock-frequency",
+			((1UL << 34) * 1000000) / d->xProcFreq);
+		dt_prop_u32(dt, "timebase-frequency",
+			((1UL << 32) * 1000000) / d->xTimeBaseFreq);
+
+		dt_prop_u32(dt, "reg", i);
+
+		if (dt->header.boot_cpuid_phys == i)
+			dt_prop_empty(dt, "linux,boot-cpu");
+
+		dt_end_node(dt);
+	}
+
+	dt_end_node(dt);
+}
+
 void build_flat_dt(struct iseries_flat_dt *dt)
 {
 	u64 tmp[2];
@@ -1056,6 +986,8 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	dt_start_node(dt, "chosen");
 	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
 	dt_end_node(dt);
+
+	dt_cpus(dt);
 
 	dt_end_node(dt);
 
