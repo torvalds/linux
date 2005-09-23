@@ -91,7 +91,7 @@ static int help(struct sk_buff **pskb,
 	ip_conntrack_expect_related(exp);
 	ip_conntrack_expect_put(exp);
 
-	ip_ct_refresh_acct(ct, ctinfo, NULL, timeout * HZ);
+	ip_ct_refresh(ct, *pskb, timeout * HZ);
 out:
 	return NF_ACCEPT;
 }

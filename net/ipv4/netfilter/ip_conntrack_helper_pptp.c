@@ -172,7 +172,6 @@ static int destroy_sibling_or_exp(const struct ip_conntrack_tuple *t)
 		DEBUGP("setting timeout of conntrack %p to 0\n", sibling);
 		sibling->proto.gre.timeout = 0;
 		sibling->proto.gre.stream_timeout = 0;
-		/* refresh_acct will not modify counters if skb == NULL */
 		if (del_timer(&sibling->timeout))
 			sibling->timeout.function((unsigned long)sibling);
 		ip_conntrack_put(sibling);
