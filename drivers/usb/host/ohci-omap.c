@@ -458,41 +458,29 @@ static int ohci_hcd_omap_drv_remove(struct device *dev)
 static int ohci_omap_suspend(struct device *dev, pm_message_t message)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
-	int		status = -EINVAL;
 
-	down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-	status = ohci_hub_suspend(ohci_to_hcd(ohci));
-	if (status == 0) {
-		omap_ohci_clock_power(0);
-		ohci_to_hcd(ohci)->self.root_hub->state =
-			USB_STATE_SUSPENDED;
-		ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
-		dev->power.power_state = PMSG_SUSPEND;
-	}
-	up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-	return status;
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+	omap_ohci_clock_power(0);
+	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
+	dev->power.power_state = PMSG_SUSPEND;
+	return 0;
 }
 
 static int ohci_omap_resume(struct device *dev)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
-	int		status = 0;
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
+
 	omap_ohci_clock_power(1);
-#ifdef	CONFIG_USB_SUSPEND
-	/* get extra cleanup even if remote wakeup isn't in use */
-	status = usb_resume_device(ohci_to_hcd(ohci)->self.root_hub);
-#else
-	down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-	status = ohci_hub_resume(ohci_to_hcd(ohci));
-	up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-#endif
-	if (status == 0)
-		dev->power.power_state = PMSG_ON;
-	return status;
+	dev->power.power_state = PMSG_ON;
+	usb_hcd_resume_root_hub(dev_get_drvdata(dev));
+	return 0;
 }
 
 #endif
