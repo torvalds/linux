@@ -449,11 +449,18 @@ static void hub_power_on(struct usb_hub *hub)
 	msleep(max(pgood_delay, (unsigned) 100));
 }
 
-static void hub_quiesce(struct usb_hub *hub)
+static inline void __hub_quiesce(struct usb_hub *hub)
 {
-	/* stop khubd and related activity */
+	/* (nonblocking) khubd and related activity won't re-trigger */
 	hub->quiescing = 1;
 	hub->activating = 0;
+	hub->resume_root_hub = 0;
+}
+
+static void hub_quiesce(struct usb_hub *hub)
+{
+	/* (blocking) stop khubd and related activity */
+	__hub_quiesce(hub);
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
 		cancel_delayed_work(&hub->leds);
@@ -467,6 +474,7 @@ static void hub_activate(struct usb_hub *hub)
 
 	hub->quiescing = 0;
 	hub->activating = 1;
+	hub->resume_root_hub = 0;
 	status = usb_submit_urb(hub->urb, GFP_NOIO);
 	if (status < 0)
 		dev_err(hub->intfdev, "activate --> %d\n", status);
@@ -1959,6 +1967,18 @@ static int hub_resume(struct usb_interface *intf)
 	return 0;
 }
 
+void usb_suspend_root_hub(struct usb_device *hdev)
+{
+	struct usb_hub *hub = hdev_to_hub(hdev);
+
+	/* This also makes any led blinker stop retriggering.  We're called
+	 * from irq, so the blinker might still be scheduled.  Caller promises
+	 * that the root hub status URB will be canceled.
+	 */
+	__hub_quiesce(hub);
+	mark_quiesced(to_usb_interface(hub->intfdev));
+}
+
 void usb_resume_root_hub(struct usb_device *hdev)
 {
 	struct usb_hub *hub = hdev_to_hub(hdev);
@@ -2616,21 +2636,30 @@ static void hub_events(void)
 		intf = to_usb_interface(hub->intfdev);
 		hub_dev = &intf->dev;
 
-		dev_dbg(hub_dev, "state %d ports %d chg %04x evt %04x\n",
+		i = hub->resume_root_hub;
+
+		dev_dbg(hub_dev, "state %d ports %d chg %04x evt %04x%s\n",
 				hdev->state, hub->descriptor
 					? hub->descriptor->bNbrPorts
 					: 0,
 				/* NOTE: expects max 15 ports... */
 				(u16) hub->change_bits[0],
-				(u16) hub->event_bits[0]);
+				(u16) hub->event_bits[0],
+				i ? ", resume root" : "");
 
 		usb_get_intf(intf);
-		i = hub->resume_root_hub;
 		spin_unlock_irq(&hub_event_lock);
 
-		/* Is this is a root hub wanting to be resumed? */
-		if (i)
-			usb_resume_device(hdev);
+		/* Is this is a root hub wanting to reactivate the downstream
+		 * ports?  If so, be sure the interface resumes even if its
+		 * stub "device" node was never suspended.
+		 */
+		if (i) {
+			extern void dpm_runtime_resume(struct device *);
+
+			dpm_runtime_resume(&hdev->dev);
+			dpm_runtime_resume(&intf->dev);
+		}
 
 		/* Lock the device, then check to see if we were
 		 * disconnected while waiting for the lock to succeed. */

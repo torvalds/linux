@@ -1427,6 +1427,7 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 
 	/* USB devices enter SUSPEND state through their hubs, but can be
 	 * marked for FREEZE as soon as their children are already idled.
+	 * But those semantics are useless, so we equate the two (sigh).
 	 */
 	if (dev->driver == &usb_generic_driver) {
 		if (dev->power.power_state.event == message.event)
@@ -1435,10 +1436,6 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 		status = device_for_each_child(dev, NULL, verify_suspended);
 		if (status)
 			return status;
-		if (message.event == PM_EVENT_FREEZE) {
-			dev->power.power_state = message;
-			return 0;
-		}
  		return usb_suspend_device (to_usb_device(dev));
 	}
 
@@ -1471,14 +1468,22 @@ static int usb_generic_resume(struct device *dev)
 {
 	struct usb_interface	*intf;
 	struct usb_driver	*driver;
+	struct usb_device	*udev;
 	int			status;
 
 	if (dev->power.power_state.event == PM_EVENT_ON)
 		return 0;
 
+	/* mark things as "on" immediately, no matter what errors crop up */
+	dev->power.power_state.event = PM_EVENT_ON;
+
 	/* devices resume through their hubs */
-	if (dev->driver == &usb_generic_driver)
+	if (dev->driver == &usb_generic_driver) {
+		udev = to_usb_device(dev);
+		if (udev->state == USB_STATE_NOTATTACHED)
+			return 0;
 		return usb_resume_device (to_usb_device(dev));
+	}
 
 	if ((dev->driver == NULL) ||
 	    (dev->driver_data == &usb_generic_driver_data))
@@ -1487,11 +1492,14 @@ static int usb_generic_resume(struct device *dev)
 	intf = to_usb_interface(dev);
 	driver = to_usb_driver(dev->driver);
 
+	udev = interface_to_usbdev(intf);
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return 0;
+
 	/* if driver was suspended, it has a resume method;
 	 * however, sysfs can wrongly mark things as suspended
 	 * (on the "no suspend method" FIXME path above)
 	 */
-	mark_active(intf);
 	if (driver->resume) {
 		status = driver->resume(intf);
 		if (status) {
