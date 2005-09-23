@@ -2440,7 +2440,7 @@ int
 sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 {
 	int ret = 0, slot = sisusb->font_slot, i;
-	struct font_desc *myfont;
+	const struct font_desc *myfont;
 	u8 *tempbuf;
 	u16 *tempbufb;
 	size_t written;
