@@ -1970,20 +1970,22 @@ _GLOBAL(hmt_start_secondary)
 	blr
 #endif
 
-#if defined(CONFIG_KEXEC) || (defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES))
+#if defined(CONFIG_KEXEC) || defined(CONFIG_SMP)
 _GLOBAL(smp_release_cpus)
 	/* All secondary cpus are spinning on a common
 	 * spinloop, release them all now so they can start
 	 * to spin on their individual paca spinloops.
 	 * For non SMP kernels, the secondary cpus never
 	 * get out of the common spinloop.
+	 * XXX This does nothing useful on iSeries, secondaries are
+	 * already waiting on their paca.
 	 */
 	li	r3,1
 	LOADADDR(r5,__secondary_hold_spinloop)
 	std	r3,0(r5)
 	sync
 	blr
-#endif /* CONFIG_SMP && !CONFIG_PPC_ISERIES */
+#endif /* CONFIG_SMP */
 
 
 /*

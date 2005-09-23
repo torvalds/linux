@@ -154,7 +154,7 @@ struct screen_info screen_info = {
 	.orig_video_points = 16
 };
 
-#if defined(CONFIG_PPC_MULTIPLATFORM) && defined(CONFIG_SMP)
+#ifdef CONFIG_SMP
 
 static int smt_enabled_cmdline;
 
@@ -307,7 +307,7 @@ static void __init setup_cpu_maps(void)
 
 	systemcfg->processorCount = num_present_cpus();
 }
-#endif /* defined(CONFIG_PPC_MULTIPLATFORM) && defined(CONFIG_SMP) */
+#endif /* CONFIG_SMP */
 
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
@@ -611,7 +611,7 @@ void __init setup_system(void)
 	parse_early_param();
 #endif /* !CONFIG_PPC_ISERIES */
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES)
+#ifdef CONFIG_SMP
 	/*
 	 * iSeries has already initialized the cpu maps at this point.
 	 */
@@ -621,7 +621,7 @@ void __init setup_system(void)
 	 * we can map physical -> logical CPU ids
 	 */
 	smp_release_cpus();
-#endif /* defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES) */
+#endif
 
 	printk("Starting Linux PPC64 %s\n", system_utsname.version);
 
