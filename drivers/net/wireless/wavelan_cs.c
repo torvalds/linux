@@ -415,7 +415,6 @@ fee_read(u_long		base,	/* i/o port of the card */
     }
 }
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 
 /*------------------------------------------------------------------*/
 /*
@@ -500,7 +499,6 @@ fee_write(u_long	base,	/* i/o port of the card */
   fee_wait(base, 10, 100);
 #endif	/* EEPROM_IS_PROTECTED */
 }
-#endif	/* WIRELESS_EXT */
 
 /******************* WaveLAN Roaming routines... ********************/
 
@@ -1161,10 +1159,8 @@ wv_mmc_show(struct net_device *	dev)
   mmc_read(base, 0, (u_char *)&m, sizeof(m));
   mmc_out(base, mmwoff(0, mmw_freeze), 0);
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
   /* Don't forget to update statistics */
   lp->wstats.discard.nwid += (m.mmr_wrong_nwid_h << 8) | m.mmr_wrong_nwid_l;
-#endif	/* WIRELESS_EXT */
 
   spin_unlock_irqrestore(&lp->spinlock, flags);
 
@@ -1550,7 +1546,6 @@ wavelan_set_mac_address(struct net_device *	dev,
 }
 #endif	/* SET_MAC_ADDRESS */
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 
 /*------------------------------------------------------------------*/
 /*
@@ -2793,7 +2788,6 @@ wavelan_get_wireless_stats(struct net_device *	dev)
 #endif
   return &lp->wstats;
 }
-#endif	/* WIRELESS_EXT */
 
 /************************* PACKET RECEPTION *************************/
 /*
@@ -4679,11 +4673,9 @@ wavelan_attach(void)
   dev->watchdog_timeo	= WATCHDOG_JIFFIES;
   SET_ETHTOOL_OPS(dev, &ops);
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
   dev->wireless_handlers = &wavelan_handler_def;
   lp->wireless_data.spy_data = &lp->spy_data;
   dev->wireless_data = &lp->wireless_data;
-#endif
 
   /* Other specific data */
   dev->mtu = WAVELAN_MTU;

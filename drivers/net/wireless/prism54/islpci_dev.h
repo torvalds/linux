@@ -100,9 +100,7 @@ typedef struct {
 
 	struct iw_spy_data spy_data; /* iwspy support */
 
-#if WIRELESS_EXT > 16
 	struct iw_public_data wireless_data;
-#endif /* WIRELESS_EXT > 16 */
 
 	int monitor_type; /* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_PRISM */
 

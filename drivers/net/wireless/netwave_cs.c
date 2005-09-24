@@ -57,9 +57,7 @@
 #include <linux/bitops.h>
 #ifdef CONFIG_NET_RADIO
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif	/* WIRELESS_EXT > 12 */
 #endif
 
 #include <pcmcia/cs_types.h>
@@ -225,10 +223,7 @@ static void update_stats(struct net_device *dev);
 static struct net_device_stats *netwave_get_stats(struct net_device *dev);
 
 /* Wireless extensions */
-#ifdef WIRELESS_EXT
 static struct iw_statistics* netwave_get_wireless_stats(struct net_device *dev);
-#endif
-static int netwave_ioctl(struct net_device *, struct ifreq *, int);
 
 static void set_multicast_list(struct net_device *dev);
 
@@ -260,26 +255,7 @@ static dev_link_t *dev_list;
    because they generally can't be allocated dynamically.
 */
 
-#if WIRELESS_EXT <= 12
-/* Wireless extensions backward compatibility */
-
-/* Part of iw_handler prototype we need */
-struct iw_request_info
-{
-	__u16		cmd;		/* Wireless Extension command */
-	__u16		flags;		/* More to come ;-) */
-};
-
-/* Wireless Extension Backward compatibility - Jean II
- * If the new wireless device private ioctl range is not defined,
- * default to standard device private ioctl range */
-#ifndef SIOCIWFIRSTPRIV
-#define SIOCIWFIRSTPRIV	SIOCDEVPRIVATE
-#endif /* SIOCIWFIRSTPRIV */
-
-#else	/* WIRELESS_EXT <= 12 */
 static const struct iw_handler_def	netwave_handler_def;
-#endif	/* WIRELESS_EXT <= 12 */
 
 #define SIOCGIPSNAP	SIOCIWFIRSTPRIV	+ 1	/* Site Survey Snapshot */
 
@@ -319,9 +295,7 @@ typedef struct netwave_private {
     struct timer_list      watchdog;	/* To avoid blocking state */
     struct site_survey     nss;
     struct net_device_stats stats;
-#ifdef WIRELESS_EXT
     struct iw_statistics   iw_stats;    /* Wireless stats */
-#endif
 } netwave_private;
 
 #ifdef NETWAVE_STATS
@@ -353,7 +327,6 @@ static inline void wait_WOC(unsigned int iobase)
     while ((inb(iobase + NETWAVE_REG_ASR) & 0x8) != 0x8) ; 
 }
 
-#ifdef WIRELESS_EXT
 static void netwave_snapshot(netwave_private *priv, u_char __iomem *ramBase, 
 			     kio_addr_t iobase) {
     u_short resultBuffer;
@@ -376,9 +349,7 @@ static void netwave_snapshot(netwave_private *priv, u_char __iomem *ramBase,
 		      sizeof(struct site_survey)); 
     } 
 }
-#endif
 
-#ifdef WIRELESS_EXT
 /*
  * Function netwave_get_wireless_stats (dev)
  *
@@ -411,7 +382,6 @@ static struct iw_statistics *netwave_get_wireless_stats(struct net_device *dev)
     
     return &priv->iw_stats;
 }
-#endif
 
 /*
  * Function netwave_attach (void)
@@ -471,13 +441,7 @@ static dev_link_t *netwave_attach(void)
     dev->get_stats  = &netwave_get_stats;
     dev->set_multicast_list = &set_multicast_list;
     /* wireless extensions */
-#if WIRELESS_EXT <= 16
-    dev->get_wireless_stats = &netwave_get_wireless_stats;
-#endif /* WIRELESS_EXT <= 16 */
-#if WIRELESS_EXT > 12
     dev->wireless_handlers = (struct iw_handler_def *)&netwave_handler_def;
-#endif /* WIRELESS_EXT > 12 */
-    dev->do_ioctl = &netwave_ioctl;
 
     dev->tx_timeout = &netwave_watchdog;
     dev->watchdog_timeo = TX_TIMEOUT;
@@ -576,13 +540,8 @@ static int netwave_set_nwid(struct net_device *dev,
 	/* Disable interrupts & save flags */
 	spin_lock_irqsave(&priv->spinlock, flags);
 
-#if WIRELESS_EXT > 8
 	if(!wrqu->nwid.disabled) {
 	    domain = wrqu->nwid.value;
-#else	/* WIRELESS_EXT > 8 */
-	if(wrqu->nwid.on) {
-	    domain = wrqu->nwid.nwid;
-#endif	/* WIRELESS_EXT > 8 */
 	    printk( KERN_DEBUG "Setting domain to 0x%x%02x\n", 
 		    (domain >> 8) & 0x01, domain & 0xff);
 	    wait_WOC(iobase);
@@ -606,15 +565,9 @@ static int netwave_get_nwid(struct net_device *dev,
 			    union iwreq_data *wrqu,
 			    char *extra)
 {
-#if WIRELESS_EXT > 8
 	wrqu->nwid.value = domain;
 	wrqu->nwid.disabled = 0;
 	wrqu->nwid.fixed = 1;
-#else	/* WIRELESS_EXT > 8 */
-	wrqu->nwid.nwid = domain;
-	wrqu->nwid.on = 1;
-#endif	/* WIRELESS_EXT > 8 */
-
 	return 0;
 }
 
@@ -657,17 +610,11 @@ static int netwave_get_scramble(struct net_device *dev,
 {
 	key[1] = scramble_key & 0xff;
 	key[0] = (scramble_key>>8) & 0xff;
-#if WIRELESS_EXT > 8
 	wrqu->encoding.flags = IW_ENCODE_ENABLED;
 	wrqu->encoding.length = 2;
-#else /* WIRELESS_EXT > 8 */
-	wrqu->encoding.method = 1;
-#endif	/* WIRELESS_EXT > 8 */
-
 	return 0;
 }
 
-#if WIRELESS_EXT > 8
 /*
  * Wireless Handler : get mode
  */
@@ -683,7 +630,6 @@ static int netwave_get_mode(struct net_device *dev,
 
 	return 0;
 }
-#endif	/* WIRELESS_EXT > 8 */
 
 /*
  * Wireless Handler : get range info
@@ -702,11 +648,9 @@ static int netwave_get_range(struct net_device *dev,
 	/* Set all the info we don't care or don't know about to zero */
 	memset(range, 0, sizeof(struct iw_range));
 
-#if WIRELESS_EXT > 10
 	/* Set the Wireless Extension versions */
 	range->we_version_compiled = WIRELESS_EXT;
 	range->we_version_source = 9;	/* Nothing for us in v10 and v11 */
-#endif /* WIRELESS_EXT > 10 */
 		   
 	/* Set information in the range struct */
 	range->throughput = 450 * 1000;	/* don't argue on this ! */
@@ -720,16 +664,12 @@ static int netwave_get_range(struct net_device *dev,
 	range->max_qual.level = 255;
 	range->max_qual.noise = 0;
 		   
-#if WIRELESS_EXT > 7
 	range->num_bitrates = 1;
 	range->bitrate[0] = 1000000;	/* 1 Mb/s */
-#endif /* WIRELESS_EXT > 7 */
 
-#if WIRELESS_EXT > 8
 	range->encoding_size[0] = 2;		/* 16 bits scrambling */
 	range->num_encoding_sizes = 1;
 	range->max_encoding_tokens = 1;	/* Only one key possible */
-#endif /* WIRELESS_EXT > 8 */
 
 	return ret;
 }
@@ -774,8 +714,6 @@ static const struct iw_priv_args netwave_private_args[] = {
     IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | sizeof(struct site_survey), 
     "getsitesurvey" },
 };
-
-#if WIRELESS_EXT > 12
 
 static const iw_handler		netwave_handler[] =
 {
@@ -839,131 +777,8 @@ static const struct iw_handler_def	netwave_handler_def =
 	.standard	= (iw_handler *) netwave_handler,
 	.private	= (iw_handler *) netwave_private_handler,
 	.private_args	= (struct iw_priv_args *) netwave_private_args,
-#if WIRELESS_EXT > 16
 	.get_wireless_stats = netwave_get_wireless_stats,
-#endif /* WIRELESS_EXT > 16 */
 };
-#endif /* WIRELESS_EXT > 12 */
-
-/*
- * Function netwave_ioctl (dev, rq, cmd)
- *
- *     Perform ioctl : config & info stuff
- *     This is the stuff that are treated the wireless extensions (iwconfig)
- *
- */
-static int netwave_ioctl(struct net_device *dev, /* ioctl device */
-			 struct ifreq *rq,	 /* Data passed */
-			 int	cmd)	     /* Ioctl number */
-{
-    int			ret = 0;
-#ifdef WIRELESS_EXT
-#if WIRELESS_EXT <= 12
-    struct iwreq *wrq = (struct iwreq *) rq;
-#endif
-#endif
-	
-    DEBUG(0, "%s: ->netwave_ioctl(cmd=0x%X)\n", dev->name, cmd);
-	
-    /* Look what is the request */
-    switch(cmd) {
-	/* --------------- WIRELESS EXTENSIONS --------------- */
-#ifdef WIRELESS_EXT
-#if WIRELESS_EXT <= 12
-    case SIOCGIWNAME:
-	netwave_get_name(dev, NULL, &(wrq->u), NULL);
-	break;
-    case SIOCSIWNWID:
-	ret = netwave_set_nwid(dev, NULL, &(wrq->u), NULL);
-	break;
-    case SIOCGIWNWID:
-	ret = netwave_get_nwid(dev, NULL, &(wrq->u), NULL);
-	break;
-#if WIRELESS_EXT > 8	/* Note : The API did change... */
-    case SIOCGIWENCODE:
-	/* Get scramble key */
-	if(wrq->u.encoding.pointer != (caddr_t) 0)
-	  {
-	    char	key[2];
-	    ret = netwave_get_scramble(dev, NULL, &(wrq->u), key);
-	    if(copy_to_user(wrq->u.encoding.pointer, key, 2))
-	      ret = -EFAULT;
-	  }
-	break;
-    case SIOCSIWENCODE:
-	/* Set  scramble key */
-	if(wrq->u.encoding.pointer != (caddr_t) 0)
-	  {
-	    char	key[2];
-	    if(copy_from_user(key, wrq->u.encoding.pointer, 2))
-	      {
-		ret = -EFAULT;
-		break;
-	      }
-	    ret = netwave_set_scramble(dev, NULL, &(wrq->u), key);
-	  }
-	break;
-    case SIOCGIWMODE:
-	/* Mode of operation */
-	ret = netwave_get_mode(dev, NULL, &(wrq->u), NULL);
-	break;
-#else /* WIRELESS_EXT > 8 */
-    case SIOCGIWENCODE:
-	/* Get scramble key */
-	ret = netwave_get_scramble(dev, NULL, &(wrq->u),
-				   (char *) &wrq->u.encoding.code);
-	break;
-    case SIOCSIWENCODE:
-	/* Set  scramble key */
-	ret = netwave_set_scramble(dev, NULL, &(wrq->u),
-				   (char *) &wrq->u.encoding.code);
-	break;
-#endif /* WIRELESS_EXT > 8 */
-   case SIOCGIWRANGE:
-       /* Basic checking... */
-       if(wrq->u.data.pointer != (caddr_t) 0) {
-           struct iw_range range;
-	   ret = netwave_get_range(dev, NULL, &(wrq->u), (char *) &range);
-	   if (copy_to_user(wrq->u.data.pointer, &range,
-			    sizeof(struct iw_range)))
-	       ret = -EFAULT;
-       }
-       break;
-    case SIOCGIWPRIV:
-	/* Basic checking... */
-	if(wrq->u.data.pointer != (caddr_t) 0) {
-	    /* Set the number of ioctl available */
-	    wrq->u.data.length = sizeof(netwave_private_args) / sizeof(netwave_private_args[0]);
-			
-	    /* Copy structure to the user buffer */
-	    if(copy_to_user(wrq->u.data.pointer,
-			    (u_char *) netwave_private_args,
-			    sizeof(netwave_private_args)))
-	      ret = -EFAULT;
-	} 
-	break;
-    case SIOCGIPSNAP:
-	if(wrq->u.data.pointer != (caddr_t) 0) {
-	    char buffer[sizeof( struct site_survey)];
-	    ret = netwave_get_snap(dev, NULL, &(wrq->u), buffer);
-	    /* Copy structure to the user buffer */
-	    if(copy_to_user(wrq->u.data.pointer, 
-			    buffer,
-			    sizeof( struct site_survey)))
-	      {
-		printk(KERN_DEBUG "Bad buffer!\n");
-		break;
-	      }
-	}
-	break;
-#endif /* WIRELESS_EXT <= 12 */
-#endif /* WIRELESS_EXT */
-    default:
-	ret = -EOPNOTSUPP;
-    }
-	
-    return ret;
-}
 
 /*
  * Function netwave_pcmcia_config (link)
