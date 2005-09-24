@@ -737,7 +737,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		struct iw_quality wstats;
 		wstats.level = rx_stats->signal;
 		wstats.noise = rx_stats->noise;
-		wstats.updated = 6;	/* No qual value */
+		wstats.updated = IW_QUAL_LEVEL_UPDATED | IW_QUAL_NOISE_UPDATED
+			| IW_QUAL_QUAL_INVALID | IW_QUAL_DBM;
 		/* Update spy records */
 		wireless_spy_update(dev, hdr->addr2, &wstats);
 	}

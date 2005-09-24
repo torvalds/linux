@@ -50,7 +50,8 @@ static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 #endif /* in_atomic */
 
 		if (update && prism2_update_comms_qual(dev) == 0)
-			wstats->qual.updated = 7;
+			wstats->qual.updated = IW_QUAL_ALL_UPDATED |
+				IW_QUAL_DBM;
 
 		wstats->qual.qual = local->comms_qual;
 		wstats->qual.level = local->avg_signal;
@@ -59,7 +60,7 @@ static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
 		wstats->qual.noise = 0;
-		wstats->qual.updated = 0;
+		wstats->qual.updated = IW_QUAL_ALL_INVALID;
 	}
 
 	return wstats;
@@ -1894,6 +1895,10 @@ static char * __prism2_translate_scan(local_info_t *local,
 			iwe.u.qual.noise =
 				HFA384X_LEVEL_TO_dBm(le16_to_cpu(scan->anl));
 		}
+		iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED
+			| IW_QUAL_NOISE_UPDATED
+			| IW_QUAL_QUAL_INVALID
+			| IW_QUAL_DBM;
 		iwe.len = IW_EV_QUAL_LEN;
 		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
 						  IW_EV_QUAL_LEN);

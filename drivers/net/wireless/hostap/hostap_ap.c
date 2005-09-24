@@ -2349,7 +2349,7 @@ static int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 		qual[count].noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
 		qual[count].updated = sta->last_rx_updated;
 
-		sta->last_rx_updated = 0;
+		sta->last_rx_updated = IW_QUAL_DBM;
 
 		count++;
 		if (count >= buf_size)
@@ -2467,7 +2467,7 @@ static int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 		}
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
-		sta->last_rx_updated = 0;
+		sta->last_rx_updated = IW_QUAL_DBM;
 
 		/* To be continued, we should make good use of IWEVCUSTOM */
 	}
@@ -3174,7 +3174,7 @@ int hostap_update_rx_stats(struct ap_data *ap,
 		sta->last_rx_silence = rx_stats->noise;
 		sta->last_rx_signal = rx_stats->signal;
 		sta->last_rx_rate = rx_stats->rate;
-		sta->last_rx_updated = 7;
+		sta->last_rx_updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		if (rx_stats->rate == 10)
 			sta->rx_count[0]++;
 		else if (rx_stats->rate == 20)
