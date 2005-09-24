@@ -266,7 +266,7 @@ newsf(snd_sf_list_t *sflist, int type, char *name)
 	}
 
 	/* not found -- create a new one */
-	sf = kcalloc(1, sizeof(*sf), GFP_KERNEL);
+	sf = kzalloc(sizeof(*sf), GFP_KERNEL);
 	if (sf == NULL)
 		return NULL;
 	sf->id = sflist->fonts_size;
@@ -346,7 +346,7 @@ sf_zone_new(snd_sf_list_t *sflist, snd_soundfont_t *sf)
 {
 	snd_sf_zone_t *zp;
 
-	if ((zp = kcalloc(1, sizeof(*zp), GFP_KERNEL)) == NULL)
+	if ((zp = kzalloc(sizeof(*zp), GFP_KERNEL)) == NULL)
 		return NULL;
 	zp->next = sf->zones;
 	sf->zones = zp;
@@ -377,7 +377,7 @@ sf_sample_new(snd_sf_list_t *sflist, snd_soundfont_t *sf)
 {
 	snd_sf_sample_t *sp;
 
-	if ((sp = kcalloc(1, sizeof(*sp), GFP_KERNEL)) == NULL)
+	if ((sp = kzalloc(sizeof(*sp), GFP_KERNEL)) == NULL)
 		return NULL;
 
 	sp->next = sf->samples;
@@ -1362,7 +1362,7 @@ snd_sf_new(snd_sf_callback_t *callback, snd_util_memhdr_t *hdr)
 {
 	snd_sf_list_t *sflist;
 
-	if ((sflist = kcalloc(1, sizeof(*sflist), GFP_KERNEL)) == NULL)
+	if ((sflist = kzalloc(sizeof(*sflist), GFP_KERNEL)) == NULL)
 		return NULL;
 
 	init_MUTEX(&sflist->presets_mutex);

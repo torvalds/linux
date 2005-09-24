@@ -405,9 +405,8 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 				continue;
 
 			if (!ipv6_addr_any(&np->rcv_saddr)) {
-				if (ipv6_addr_equal(&np->rcv_saddr, loc_addr))
-					return s;
-				continue;
+				if (!ipv6_addr_equal(&np->rcv_saddr, loc_addr))
+					continue;
 			}
 			if(!inet6_mc_check(s, loc_addr, rmt_addr))
 				continue;
@@ -640,6 +639,7 @@ static int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int tclass = -1;
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int err;
+	int connected = 0;
 
 	/* destination address check */
 	if (sin6) {
@@ -749,6 +749,7 @@ do_udp_sendmsg:
 		fl->fl_ip_dport = inet->dport;
 		daddr = &np->daddr;
 		fl->fl6_flowlabel = np->flow_label;
+		connected = 1;
 	}
 
 	if (!fl->oif)
@@ -771,6 +772,7 @@ do_udp_sendmsg:
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
+		connected = 0;
 	}
 	if (opt == NULL)
 		opt = np->opt;
@@ -788,10 +790,13 @@ do_udp_sendmsg:
 		ipv6_addr_copy(&final, &fl->fl6_dst);
 		ipv6_addr_copy(&fl->fl6_dst, rt0->addr);
 		final_p = &final;
+		connected = 0;
 	}
 
-	if (!fl->oif && ipv6_addr_is_multicast(&fl->fl6_dst))
+	if (!fl->oif && ipv6_addr_is_multicast(&fl->fl6_dst)) {
 		fl->oif = np->mcast_oif;
+		connected = 0;
+	}
 
 	err = ip6_dst_lookup(sk, &dst, fl);
 	if (err)
@@ -847,7 +852,7 @@ do_append_data:
 	else if (!corkreq)
 		err = udp_v6_push_pending_frames(sk, up);
 
-	if (dst)
+	if (dst && connected)
 		ip6_dst_store(sk, dst,
 			      ipv6_addr_equal(&fl->fl6_dst, &np->daddr) ?
 			      &np->daddr : NULL);

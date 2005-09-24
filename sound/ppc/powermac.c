@@ -131,6 +131,9 @@ static int __init snd_pmac_probe(void)
 	if (enable_beep)
 		snd_pmac_attach_beep(chip);
 
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto __error;
+
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;
 

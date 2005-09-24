@@ -178,10 +178,6 @@ EXPORT_SYMBOL(rwsem_down_write_failed_thunk);
 
 EXPORT_SYMBOL(empty_zero_page);
 
-#ifdef CONFIG_HAVE_DEC_LOCK
-EXPORT_SYMBOL(_atomic_dec_and_lock);
-#endif
-
 EXPORT_SYMBOL(die_chain);
 EXPORT_SYMBOL(register_die_notifier);
 

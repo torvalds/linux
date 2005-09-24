@@ -316,6 +316,18 @@ config SND_YMFPCI
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ymfpci.
 
+config SND_AD1889
+	tristate "Analog Devices AD1889"
+	depends on SND
+	select SND_AC97_CODEC
+	help
+	  Say Y here to include support for the integrated AC97 sound
+	  device found in particular on the Hewlett-Packard [BCJ]-xxx0
+	  class PA-RISC workstations, using the AD1819 codec.
+
+	  To compile this as a module, choose M here: the module
+	  will be called snd-ad1889.
+
 config SND_ALS4000
 	tristate "Avance Logic ALS4000"
 	depends on SND && ISA_DMA_API

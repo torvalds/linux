@@ -301,18 +301,6 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define UNITY_GAIN          32768	/* = 65536/2 */
 #define MINUS_INFINITY_GAIN 0
 
-/* PCI info */
-#ifndef PCI_VENDOR_ID_XILINX
-#define PCI_VENDOR_ID_XILINX		0x10ee
-#endif
-#ifndef PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP
-#define PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP 0x3fc5
-#endif
-#ifndef PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI
-#define PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI 0x3fc6
-#endif
-
-
 /* Number of channels for different Speed Modes */
 #define MADI_SS_CHANNELS       64
 #define MADI_DS_CHANNELS       32
@@ -3652,6 +3640,7 @@ static void __devexit snd_hdspm_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "RME Hammerfall DSP MADI",
+	.owner = THIS_MODULE,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
 	.remove = __devexit_p(snd_hdspm_remove),

@@ -23,13 +23,14 @@ static struct mconsole_command commands[] = {
 	{ "reboot", mconsole_reboot, MCONSOLE_PROC },
 	{ "config", mconsole_config, MCONSOLE_PROC },
 	{ "remove", mconsole_remove, MCONSOLE_PROC },
-	{ "sysrq", mconsole_sysrq, MCONSOLE_INTR },
+	{ "sysrq", mconsole_sysrq, MCONSOLE_PROC },
 	{ "help", mconsole_help, MCONSOLE_INTR },
 	{ "cad", mconsole_cad, MCONSOLE_INTR },
 	{ "stop", mconsole_stop, MCONSOLE_PROC },
 	{ "go", mconsole_go, MCONSOLE_INTR },
 	{ "log", mconsole_log, MCONSOLE_INTR },
 	{ "proc", mconsole_proc, MCONSOLE_PROC },
+        { "stack", mconsole_stack, MCONSOLE_INTR },
 };
 
 /* Initialized in mconsole_init, which is an initcall */
@@ -172,9 +173,9 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	if(notify_sock < 0){
 		notify_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
 		if(notify_sock < 0){
-			printk("mconsole_notify - socket failed, errno = %d\n",
-			       errno);
 			err = -errno;
+			printk("mconsole_notify - socket failed, errno = %d\n",
+			       err);
 		}
 	}
 	unlock_notify();
@@ -197,8 +198,8 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	n = sendto(notify_sock, &packet, len, 0, (struct sockaddr *) &target, 
 		   sizeof(target));
 	if(n < 0){
-		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
 		err = -errno;
+		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
 	}
 	return(err);
 }

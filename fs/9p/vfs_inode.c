@@ -1063,8 +1063,8 @@ static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
 	int ret;
 	char *link = __getname();
 
-	if (strlen(link) < buflen)
-		buflen = strlen(link);
+	if (buflen > PATH_MAX)
+		buflen = PATH_MAX;
 
 	dprintk(DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
 

@@ -17,6 +17,8 @@
 #include <linux/ioport.h>
 #include <linux/string.h>
 #include <linux/kexec.h>
+#include <linux/module.h>
+
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -28,6 +30,7 @@ extern char _end[];
  * PFN of last memory page.
  */
 unsigned long end_pfn; 
+EXPORT_SYMBOL(end_pfn);
 
 /* 
  * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.

@@ -129,8 +129,8 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	if ((newfid = v9fs_session_init(v9ses, dev_name, data)) < 0) {
 		dprintk(DEBUG_ERROR, "problem initiating session\n");
-		retval = newfid;
-		goto free_session;
+		kfree(v9ses);
+		return ERR_PTR(newfid);
 	}
 
 	sb = sget(fs_type, NULL, v9fs_set_super, v9ses);
@@ -150,7 +150,7 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	if (!root) {
 		retval = -ENOMEM;
-		goto release_inode;
+		goto put_back_sb;
 	}
 
 	sb->s_root = root;
@@ -159,7 +159,7 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 	root_fid = v9fs_fid_create(root);
 	if (root_fid == NULL) {
 		retval = -ENOMEM;
-		goto release_dentry;
+		goto put_back_sb;
 	}
 
 	root_fid->fidopen = 0;
@@ -182,25 +182,15 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	if (stat_result < 0) {
 		retval = stat_result;
-		goto release_dentry;
+		goto put_back_sb;
 	}
 
 	return sb;
 
-      release_dentry:
-	dput(sb->s_root);
-
-      release_inode:
-	iput(inode);
-
-      put_back_sb:
+put_back_sb:
+	/* deactivate_super calls v9fs_kill_super which will frees the rest */
 	up_write(&sb->s_umount);
 	deactivate_super(sb);
-	v9fs_session_close(v9ses);
-
-      free_session:
-	kfree(v9ses);
-
 	return ERR_PTR(retval);
 }
 

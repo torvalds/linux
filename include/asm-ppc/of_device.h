@@ -2,6 +2,7 @@
 #define __OF_DEVICE_H__
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #include <asm/prom.h>
 
 /*
@@ -55,7 +56,9 @@ extern int of_register_driver(struct of_platform_driver *drv);
 extern void of_unregister_driver(struct of_platform_driver *drv);
 extern int of_device_register(struct of_device *ofdev);
 extern void of_device_unregister(struct of_device *ofdev);
-extern struct of_device *of_platform_device_create(struct device_node *np, const char *bus_id);
+extern struct of_device *of_platform_device_create(struct device_node *np,
+						   const char *bus_id,
+						   struct device *parent);
 extern void of_release_dev(struct device *dev);
 
 #endif /* __OF_DEVICE_H__ */

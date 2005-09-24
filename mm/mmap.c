@@ -1640,7 +1640,7 @@ static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 /*
  * Get rid of page table information in the indicated region.
  *
- * Called with the page table lock held.
+ * Called with the mm semaphore held.
  */
 static void unmap_region(struct mm_struct *mm,
 		struct vm_area_struct *vma, struct vm_area_struct *prev,
@@ -1992,6 +1992,9 @@ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
 	}
 	__vma = find_vma_prepare(mm,vma->vm_start,&prev,&rb_link,&rb_parent);
 	if (__vma && __vma->vm_start < vma->vm_end)
+		return -ENOMEM;
+	if ((vma->vm_flags & VM_ACCOUNT) &&
+	     security_vm_enough_memory(vma_pages(vma)))
 		return -ENOMEM;
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 	return 0;

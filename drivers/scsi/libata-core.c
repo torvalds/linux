@@ -2551,9 +2551,12 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
+ *
+ *	RETURNS:
+ *	Non-zero if qc completed, zero otherwise.
  */
 
-static void ata_pio_complete (struct ata_port *ap)
+static int ata_pio_complete (struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	u8 drv_stat;
@@ -2572,14 +2575,14 @@ static void ata_pio_complete (struct ata_port *ap)
 		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
 			ap->pio_task_state = PIO_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
-			return;
+			return 0;
 		}
 	}
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
 		ap->pio_task_state = PIO_ST_ERR;
-		return;
+		return 0;
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -2588,6 +2591,10 @@ static void ata_pio_complete (struct ata_port *ap)
 	ap->pio_task_state = PIO_ST_IDLE;
 
 	ata_poll_qc_complete(qc, drv_stat);
+
+	/* another command may start at this point */
+
+	return 1;
 }
 
 
@@ -2795,7 +2802,7 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 
 next_sg:
 	if (unlikely(qc->cursg >= qc->n_elem)) {
-		/* 
+		/*
 		 * The end of qc->sg is reached and the device expects
 		 * more data to transfer. In order not to overrun qc->sg
 		 * and fulfill length specified in the byte count register,
@@ -2807,7 +2814,7 @@ next_sg:
 		unsigned int i;
 
 		if (words) /* warning if bytes > 1 */
-			printk(KERN_WARNING "ata%u: %u bytes trailing data\n", 
+			printk(KERN_WARNING "ata%u: %u bytes trailing data\n",
 			       ap->id, bytes);
 
 		for (i = 0; i < words; i++)
@@ -2935,9 +2942,7 @@ static void ata_pio_block(struct ata_port *ap)
 	if (is_atapi_taskfile(&qc->tf)) {
 		/* no more data to transfer or unsupported ATAPI command */
 		if ((status & ATA_DRQ) == 0) {
-			ap->pio_task_state = PIO_ST_IDLE;
-
-			ata_poll_qc_complete(qc, status);
+			ap->pio_task_state = PIO_ST_LAST;
 			return;
 		}
 
@@ -2973,7 +2978,12 @@ static void ata_pio_error(struct ata_port *ap)
 static void ata_pio_task(void *_data)
 {
 	struct ata_port *ap = _data;
-	unsigned long timeout = 0;
+	unsigned long timeout;
+	int qc_completed;
+
+fsm_start:
+	timeout = 0;
+	qc_completed = 0;
 
 	switch (ap->pio_task_state) {
 	case PIO_ST_IDLE:
@@ -2984,7 +2994,7 @@ static void ata_pio_task(void *_data)
 		break;
 
 	case PIO_ST_LAST:
-		ata_pio_complete(ap);
+		qc_completed = ata_pio_complete(ap);
 		break;
 
 	case PIO_ST_POLL:
@@ -2999,10 +3009,9 @@ static void ata_pio_task(void *_data)
 	}
 
 	if (timeout)
-		queue_delayed_work(ata_wq, &ap->pio_task,
-				   timeout);
-	else
-		queue_work(ata_wq, &ap->pio_task);
+		queue_delayed_work(ata_wq, &ap->pio_task, timeout);
+	else if (!qc_completed)
+		goto fsm_start;
 }
 
 static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
@@ -4213,6 +4222,53 @@ err_out:
 }
 
 /**
+ *	ata_host_set_remove - PCI layer callback for device removal
+ *	@host_set: ATA host set that was removed
+ *
+ *	Unregister all objects associated with this host set. Free those 
+ *	objects.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+
+
+void ata_host_set_remove(struct ata_host_set *host_set)
+{
+	struct ata_port *ap;
+	unsigned int i;
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		ap = host_set->ports[i];
+		scsi_remove_host(ap->host);
+	}
+
+	free_irq(host_set->irq, host_set);
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		ap = host_set->ports[i];
+
+		ata_scsi_release(ap->host);
+
+		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
+			struct ata_ioports *ioaddr = &ap->ioaddr;
+
+			if (ioaddr->cmd_addr == 0x1f0)
+				release_region(0x1f0, 8);
+			else if (ioaddr->cmd_addr == 0x170)
+				release_region(0x170, 8);
+		}
+
+		scsi_host_put(ap->host);
+	}
+
+	if (host_set->ops->host_stop)
+		host_set->ops->host_stop(host_set);
+
+	kfree(host_set);
+}
+
+/**
  *	ata_scsi_release - SCSI layer callback hook for host unload
  *	@host: libata host to be unloaded
  *
@@ -4552,39 +4608,8 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host_set *host_set = dev_get_drvdata(dev);
-	struct ata_port *ap;
-	unsigned int i;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		scsi_remove_host(ap->host);
-	}
-
-	free_irq(host_set->irq, host_set);
-
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		ata_scsi_release(ap->host);
-
-		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
-			struct ata_ioports *ioaddr = &ap->ioaddr;
-
-			if (ioaddr->cmd_addr == 0x1f0)
-				release_region(0x1f0, 8);
-			else if (ioaddr->cmd_addr == 0x170)
-				release_region(0x170, 8);
-		}
-
-		scsi_host_put(ap->host);
-	}
-
-	if (host_set->ops->host_stop)
-		host_set->ops->host_stop(host_set);
-
-	kfree(host_set);
-
+	ata_host_set_remove(host_set);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	dev_set_drvdata(dev, NULL);
@@ -4654,6 +4679,7 @@ module_exit(ata_exit);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
+EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
 EXPORT_SYMBOL_GPL(ata_qc_complete);

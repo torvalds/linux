@@ -295,7 +295,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 		    	goto __error;
 		}
 	}
-	data = kcalloc(1, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
 		err = -ENOMEM;
 		goto __error;
@@ -304,7 +304,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 	switch (entry->content) {
 	case SNDRV_INFO_CONTENT_TEXT:
 		if (mode == O_RDONLY || mode == O_RDWR) {
-			buffer = kcalloc(1, sizeof(*buffer), GFP_KERNEL);
+			buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 			if (buffer == NULL) {
 				kfree(data);
 				err = -ENOMEM;
@@ -323,7 +323,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 			data->rbuffer = buffer;
 		}
 		if (mode == O_WRONLY || mode == O_RDWR) {
-			buffer = kcalloc(1, sizeof(*buffer), GFP_KERNEL);
+			buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 			if (buffer == NULL) {
 				if (mode == O_RDWR) {
 					vfree(data->rbuffer->buffer);
@@ -752,7 +752,7 @@ char *snd_info_get_str(char *dest, char *src, int len)
 static snd_info_entry_t *snd_info_create_entry(const char *name)
 {
 	snd_info_entry_t *entry;
-	entry = kcalloc(1, sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return NULL;
 	entry->name = kstrdup(name, GFP_KERNEL);

@@ -29,7 +29,7 @@ config FLATMEM_MANUAL
 	  If unsure, choose this option (Flat Memory) over any other.
 
 config DISCONTIGMEM_MANUAL
-	bool "Discontigious Memory"
+	bool "Discontiguous Memory"
 	depends on ARCH_DISCONTIGMEM_ENABLE
 	help
 	  This option provides enhanced support for discontiguous
@@ -52,7 +52,7 @@ config SPARSEMEM_MANUAL
 	  memory hotplug systems.  This is normal.
 
 	  For many other systems, this will be an alternative to
-	  "Discontigious Memory".  This option provides some potential
+	  "Discontiguous Memory".  This option provides some potential
 	  performance benefits, along with decreased code complexity,
 	  but it is newer, and more experimental.
 

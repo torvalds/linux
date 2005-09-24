@@ -184,13 +184,14 @@ extern void do_int_load(unsigned long *dest_reg, int size,
 			unsigned long *saddr, int is_signed, int asi);
 	
 extern void __do_int_store(unsigned long *dst_addr, int size,
-			   unsigned long *src_val, int asi);
+			   unsigned long src_val, int asi);
 
 static inline void do_int_store(int reg_num, int size, unsigned long *dst_addr,
-				struct pt_regs *regs, int asi)
+				struct pt_regs *regs, int asi, int orig_asi)
 {
 	unsigned long zero = 0;
-	unsigned long *src_val = &zero;
+	unsigned long *src_val_p = &zero;
+	unsigned long src_val;
 
 	if (size == 16) {
 		size = 8;
@@ -198,7 +199,25 @@ static inline void do_int_store(int reg_num, int size, unsigned long *dst_addr,
 		        (unsigned)fetch_reg(reg_num, regs) : 0)) << 32) |
 			(unsigned)fetch_reg(reg_num + 1, regs);
 	} else if (reg_num) {
-		src_val = fetch_reg_addr(reg_num, regs);
+		src_val_p = fetch_reg_addr(reg_num, regs);
+	}
+	src_val = *src_val_p;
+	if (unlikely(asi != orig_asi)) {
+		switch (size) {
+		case 2:
+			src_val = swab16(src_val);
+			break;
+		case 4:
+			src_val = swab32(src_val);
+			break;
+		case 8:
+			src_val = swab64(src_val);
+			break;
+		case 16:
+		default:
+			BUG();
+			break;
+		};
 	}
 	__do_int_store(dst_addr, size, src_val, asi);
 }
@@ -276,6 +295,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 		kernel_mna_trap_fault();
 	} else {
 		unsigned long addr;
+		int orig_asi, asi;
 
 		addr = compute_effective_address(regs, insn,
 						 ((insn >> 25) & 0x1f));
@@ -285,18 +305,48 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 		       regs->tpc, dirstrings[dir], addr, size,
 		       regs->u_regs[UREG_RETPC]);
 #endif
+		orig_asi = asi = decode_asi(insn, regs);
+		switch (asi) {
+		case ASI_NL:
+		case ASI_AIUPL:
+		case ASI_AIUSL:
+		case ASI_PL:
+		case ASI_SL:
+		case ASI_PNFL:
+		case ASI_SNFL:
+			asi &= ~0x08;
+			break;
+		};
 		switch (dir) {
 		case load:
 			do_int_load(fetch_reg_addr(((insn>>25)&0x1f), regs),
 				    size, (unsigned long *) addr,
-				    decode_signedness(insn),
-				    decode_asi(insn, regs));
+				    decode_signedness(insn), asi);
+			if (unlikely(asi != orig_asi)) {
+				unsigned long val_in = *(unsigned long *) addr;
+				switch (size) {
+				case 2:
+					val_in = swab16(val_in);
+					break;
+				case 4:
+					val_in = swab32(val_in);
+					break;
+				case 8:
+					val_in = swab64(val_in);
+					break;
+				case 16:
+				default:
+					BUG();
+					break;
+				};
+				*(unsigned long *) addr = val_in;
+			}
 			break;
 
 		case store:
 			do_int_store(((insn>>25)&0x1f), size,
 				     (unsigned long *) addr, regs,
-				     decode_asi(insn, regs));
+				     asi, orig_asi);
 			break;
 
 		default:

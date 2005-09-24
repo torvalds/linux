@@ -1304,7 +1304,7 @@ static int _cs46xx_playback_open_channel (snd_pcm_substream_t * substream,int pc
 	cs46xx_pcm_t * cpcm;
 	snd_pcm_runtime_t *runtime = substream->runtime;
 
-	cpcm = kcalloc(1, sizeof(*cpcm), GFP_KERNEL);
+	cpcm = kzalloc(sizeof(*cpcm), GFP_KERNEL);
 	if (cpcm == NULL)
 		return -ENOMEM;
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
@@ -3525,17 +3525,6 @@ static void amp_voyetra_4294(cs46xx_t *chip, int change)
 
 
 /*
- * piix4 pci ids
- */
-#ifndef PCI_VENDOR_ID_INTEL
-#define PCI_VENDOR_ID_INTEL 0x8086
-#endif /* PCI_VENDOR_ID_INTEL */
-
-#ifndef PCI_DEVICE_ID_INTEL_82371AB_3
-#define PCI_DEVICE_ID_INTEL_82371AB_3 0x7113
-#endif /* PCI_DEVICE_ID_INTEL_82371AB_3 */
-
-/*
  *	Handle the CLKRUN on a thinkpad. We must disable CLKRUN support
  *	whenever we need to beat on the chip.
  *
@@ -3548,7 +3537,7 @@ static void clkrun_hack(cs46xx_t *chip, int change)
 {
 	u16 control, nval;
 	
-	if (chip->acpi_dev == NULL)
+	if (!chip->acpi_port)
 		return;
 
 	chip->amplifier += change;
@@ -3571,15 +3560,20 @@ static void clkrun_hack(cs46xx_t *chip, int change)
  */
 static void clkrun_init(cs46xx_t *chip)
 {
+	struct pci_dev *pdev;
 	u8 pp;
 
-	chip->acpi_dev = pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
-	if (chip->acpi_dev == NULL)
+	chip->acpi_port = 0;
+	
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+		PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
+	if (pdev == NULL)
 		return;		/* Not a thinkpad thats for sure */
 
 	/* Find the control port */		
-	pci_read_config_byte(chip->acpi_dev, 0x41, &pp);
+	pci_read_config_byte(pdev, 0x41, &pp);
 	chip->acpi_port = pp << 8;
+	pci_dev_put(pdev);
 }
 
 
@@ -3780,7 +3774,7 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

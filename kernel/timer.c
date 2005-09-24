@@ -1151,19 +1151,22 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
  out:
 	return timeout < 0 ? 0 : timeout;
 }
-
 EXPORT_SYMBOL(schedule_timeout);
 
+/*
+ * We can use __set_current_state() here because schedule_timeout() calls
+ * schedule() unconditionally.
+ */
 signed long __sched schedule_timeout_interruptible(signed long timeout)
 {
-       set_current_state(TASK_INTERRUPTIBLE);
+       __set_current_state(TASK_INTERRUPTIBLE);
        return schedule_timeout(timeout);
 }
 EXPORT_SYMBOL(schedule_timeout_interruptible);
 
 signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 {
-       set_current_state(TASK_UNINTERRUPTIBLE);
+       __set_current_state(TASK_UNINTERRUPTIBLE);
        return schedule_timeout(timeout);
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);

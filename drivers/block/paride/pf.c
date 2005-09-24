@@ -750,6 +750,14 @@ static int pf_ready(void)
 
 static struct request_queue *pf_queue;
 
+static void pf_end_request(int uptodate)
+{
+	if (pf_req) {
+		end_request(pf_req, uptodate);
+		pf_req = NULL;
+	}
+}
+
 static void do_pf_request(request_queue_t * q)
 {
 	if (pf_busy)
@@ -765,7 +773,7 @@ repeat:
 	pf_count = pf_req->current_nr_sectors;
 
 	if (pf_block + pf_count > get_capacity(pf_req->rq_disk)) {
-		end_request(pf_req, 0);
+		pf_end_request(0);
 		goto repeat;
 	}
 
@@ -780,7 +788,7 @@ repeat:
 		pi_do_claimed(pf_current->pi, do_pf_write);
 	else {
 		pf_busy = 0;
-		end_request(pf_req, 0);
+		pf_end_request(0);
 		goto repeat;
 	}
 }
@@ -798,9 +806,11 @@ static int pf_next_buf(void)
 	if (!pf_count)
 		return 1;
 	spin_lock_irqsave(&pf_spin_lock, saved_flags);
-	end_request(pf_req, 1);
-	pf_count = pf_req->current_nr_sectors;
-	pf_buf = pf_req->buffer;
+	pf_end_request(1);
+	if (pf_req) {
+		pf_count = pf_req->current_nr_sectors;
+		pf_buf = pf_req->buffer;
+	}
 	spin_unlock_irqrestore(&pf_spin_lock, saved_flags);
 	return 1;
 }
@@ -810,7 +820,7 @@ static inline void next_request(int success)
 	unsigned long saved_flags;
 
 	spin_lock_irqsave(&pf_spin_lock, saved_flags);
-	end_request(pf_req, success);
+	pf_end_request(success);
 	pf_busy = 0;
 	do_pf_request(pf_queue);
 	spin_unlock_irqrestore(&pf_spin_lock, saved_flags);

@@ -14,7 +14,7 @@
 #include <linux/major.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/ioport.h>		/* request_region, check_region */
+#include <linux/ioport.h>		/* request_region */
 #include <asm/atomic.h>
 #include <asm/ebus.h>			/* EBus device					*/
 #include <asm/oplib.h>			/* OpenProm Library 			*/

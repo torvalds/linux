@@ -15,6 +15,7 @@
 #include <asm/io.h>
 #include <asm/spitfire.h>
 #include <asm/cacheflush.h>
+#include <asm/page.h>
 
 #ifndef MAX_HWIFS
 # ifdef CONFIG_BLK_DEV_IDEPCI

@@ -53,9 +53,13 @@ SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
 
 # -Dvmap=kernel_vmap affects everything, and prevents anything from
 # referencing the libpcap.o symbol so named.
+#
+# Same things for in6addr_loopback - found in libc.
 
 CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
-	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap
+	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap \
+	-Din6addr_loopback=kernel_in6addr_loopback
+
 AFLAGS += $(ARCH_INCLUDE)
 
 USER_CFLAGS := $(patsubst -I%,,$(CFLAGS))

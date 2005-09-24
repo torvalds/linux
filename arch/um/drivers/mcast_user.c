@@ -13,7 +13,6 @@
 
 #include <errno.h>
 #include <unistd.h>
-#include <linux/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/time.h>
@@ -55,7 +54,7 @@ static int mcast_open(void *data)
 	struct mcast_data *pri = data;
 	struct sockaddr_in *sin = pri->mcast_addr;
 	struct ip_mreq mreq;
-	int fd = -EINVAL, yes = 1, err = -EINVAL;;
+	int fd, yes = 1, err = 0;
 
 
 	if ((sin->sin_addr.s_addr == 0) || (sin->sin_port == 0))
@@ -66,13 +65,14 @@ static int mcast_open(void *data)
 	if (fd < 0){
 		printk("mcast_open : data socket failed, errno = %d\n", 
 		       errno);
-		fd = -errno;
+		err = -errno;
 		goto out;
 	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
 		printk("mcast_open: SO_REUSEADDR failed, errno = %d\n",
 			errno);
+		err = -errno;
 		goto out_close;
 	}
 
@@ -81,6 +81,7 @@ static int mcast_open(void *data)
 		       sizeof(pri->ttl)) < 0) {
 		printk("mcast_open: IP_MULTICAST_TTL failed, error = %d\n",
 			errno);
+		err = -errno;
 		goto out_close;
 	}
 
@@ -88,12 +89,14 @@ static int mcast_open(void *data)
 	if (setsockopt(fd, SOL_IP, IP_MULTICAST_LOOP, &yes, sizeof(yes)) < 0) {
 		printk("mcast_open: IP_MULTICAST_LOOP failed, error = %d\n",
 			errno);
+		err = -errno;
 		goto out_close;
 	}
 
 	/* bind socket to mcast address */
 	if (bind(fd, (struct sockaddr *) sin, sizeof(*sin)) < 0) {
 		printk("mcast_open : data bind failed, errno = %d\n", errno);
+		err = -errno;
 		goto out_close;
 	}		
 	
@@ -108,14 +111,15 @@ static int mcast_open(void *data)
 		       "interface on the host.\n");
 		printk("eth0 should be configured in order to use the "
 		       "multicast transport.\n");
+		err = -errno;
                 goto out_close;
 	}
 
- out:
 	return fd;
 
  out_close:
         os_close_file(fd);
+ out:
         return err;
 }
 

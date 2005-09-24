@@ -66,7 +66,7 @@
 /********************* GENERAL DEFINES *********************************/
 
 /* zfcp version number, it consists of major, minor, and patch-level number */
-#define ZFCP_VERSION		"4.3.0"
+#define ZFCP_VERSION		"4.5.0"
 
 /**
  * zfcp_sg_to_address - determine kernel address from struct scatterlist
@@ -154,13 +154,17 @@ typedef u32 scsi_lun_t;
 #define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
+/* Retry 5 times every 2 second, then every minute */
+#define ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES	5
+#define ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP	200
+#define ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP	6000
+
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);
 
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
 typedef unsigned long long wwn_t;
-typedef unsigned int       fc_id_t;
 typedef unsigned long long fcp_lun_t;
 /* data length field may be at variable position in FCP-2 FCP_CMND IU */
 typedef unsigned int       fcp_dl_t;
@@ -281,6 +285,171 @@ struct fcp_logo {
 } __attribute__((packed));
 
 /*
+ * DBF stuff
+ */
+#define ZFCP_DBF_TAG_SIZE      4
+
+struct zfcp_dbf_dump {
+	u8 tag[ZFCP_DBF_TAG_SIZE];
+	u32 total_size;		/* size of total dump data */
+	u32 offset;		/* how much data has being already dumped */
+	u32 size;		/* how much data comes with this record */
+	u8 data[];		/* dump data */
+} __attribute__ ((packed));
+
+/* FIXME: to be inflated when reworking the erp dbf */
+struct zfcp_erp_dbf_record {
+	u8 dummy[16];
+} __attribute__ ((packed));
+
+struct zfcp_hba_dbf_record_response {
+	u32 fsf_command;
+	u64 fsf_reqid;
+	u32 fsf_seqno;
+	u64 fsf_issued;
+	u32 fsf_prot_status;
+	u32 fsf_status;
+	u8 fsf_prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
+	u8 fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
+	u32 fsf_req_status;
+	u8 sbal_first;
+	u8 sbal_curr;
+	u8 sbal_last;
+	u8 pool;
+	u64 erp_action;
+	union {
+		struct {
+			u64 scsi_cmnd;
+			u64 scsi_serial;
+		} send_fcp;
+		struct {
+			u64 wwpn;
+			u32 d_id;
+			u32 port_handle;
+		} port;
+		struct {
+			u64 wwpn;
+			u64 fcp_lun;
+			u32 port_handle;
+			u32 lun_handle;
+		} unit;
+		struct {
+			u32 d_id;
+			u8 ls_code;
+		} send_els;
+	} data;
+} __attribute__ ((packed));
+
+struct zfcp_hba_dbf_record_status {
+	u8 failed;
+	u32 status_type;
+	u32 status_subtype;
+	struct fsf_queue_designator
+	 queue_designator;
+	u32 payload_size;
+#define ZFCP_DBF_UNSOL_PAYLOAD				80
+#define ZFCP_DBF_UNSOL_PAYLOAD_SENSE_DATA_AVAIL		32
+#define ZFCP_DBF_UNSOL_PAYLOAD_BIT_ERROR_THRESHOLD	56
+#define ZFCP_DBF_UNSOL_PAYLOAD_FEATURE_UPDATE_ALERT	2 * sizeof(u32)
+	u8 payload[ZFCP_DBF_UNSOL_PAYLOAD];
+} __attribute__ ((packed));
+
+struct zfcp_hba_dbf_record_qdio {
+	u32 status;
+	u32 qdio_error;
+	u32 siga_error;
+	u8 sbal_index;
+	u8 sbal_count;
+} __attribute__ ((packed));
+
+struct zfcp_hba_dbf_record {
+	u8 tag[ZFCP_DBF_TAG_SIZE];
+	u8 tag2[ZFCP_DBF_TAG_SIZE];
+	union {
+		struct zfcp_hba_dbf_record_response response;
+		struct zfcp_hba_dbf_record_status status;
+		struct zfcp_hba_dbf_record_qdio qdio;
+	} type;
+} __attribute__ ((packed));
+
+struct zfcp_san_dbf_record_ct {
+	union {
+		struct {
+			u16 cmd_req_code;
+			u8 revision;
+			u8 gs_type;
+			u8 gs_subtype;
+			u8 options;
+			u16 max_res_size;
+		} request;
+		struct {
+			u16 cmd_rsp_code;
+			u8 revision;
+			u8 reason_code;
+			u8 reason_code_expl;
+			u8 vendor_unique;
+		} response;
+	} type;
+	u32 payload_size;
+#define ZFCP_DBF_CT_PAYLOAD	24
+	u8 payload[ZFCP_DBF_CT_PAYLOAD];
+} __attribute__ ((packed));
+
+struct zfcp_san_dbf_record_els {
+	u8 ls_code;
+	u32 payload_size;
+#define ZFCP_DBF_ELS_PAYLOAD	32
+#define ZFCP_DBF_ELS_MAX_PAYLOAD 1024
+	u8 payload[ZFCP_DBF_ELS_PAYLOAD];
+} __attribute__ ((packed));
+
+struct zfcp_san_dbf_record {
+	u8 tag[ZFCP_DBF_TAG_SIZE];
+	u64 fsf_reqid;
+	u32 fsf_seqno;
+	u32 s_id;
+	u32 d_id;
+	union {
+		struct zfcp_san_dbf_record_ct ct;
+		struct zfcp_san_dbf_record_els els;
+	} type;
+} __attribute__ ((packed));
+
+struct zfcp_scsi_dbf_record {
+	u8 tag[ZFCP_DBF_TAG_SIZE];
+	u8 tag2[ZFCP_DBF_TAG_SIZE];
+	u32 scsi_id;
+	u32 scsi_lun;
+	u32 scsi_result;
+	u64 scsi_cmnd;
+	u64 scsi_serial;
+#define ZFCP_DBF_SCSI_OPCODE	16
+	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
+	u8 scsi_retries;
+	u8 scsi_allowed;
+	u64 fsf_reqid;
+	u32 fsf_seqno;
+	u64 fsf_issued;
+	union {
+		struct {
+			u64 fsf_reqid;
+			u32 fsf_seqno;
+			u64 fsf_issued;
+		} new_fsf_req;
+		struct {
+			u8 rsp_validity;
+			u8 rsp_scsi_status;
+			u32 rsp_resid;
+			u8 rsp_code;
+#define ZFCP_DBF_SCSI_FCP_SNS_INFO	16
+#define ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO	256
+			u32 sns_info_len;
+			u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
+		} fcp;
+	} type;
+} __attribute__ ((packed));
+
+/*
  * FC-FS stuff
  */
 #define R_A_TOV				10 /* seconds */
@@ -338,34 +507,6 @@ struct zfcp_rc_entry {
  * FC-GS-4 stuff
  */
 #define ZFCP_CT_TIMEOUT			(3 * R_A_TOV)
-
-
-/***************** S390 DEBUG FEATURE SPECIFIC DEFINES ***********************/
-
-/* debug feature entries per adapter */
-#define ZFCP_ERP_DBF_INDEX     1 
-#define ZFCP_ERP_DBF_AREAS     2
-#define ZFCP_ERP_DBF_LENGTH    16
-#define ZFCP_ERP_DBF_LEVEL     3
-#define ZFCP_ERP_DBF_NAME      "zfcperp"
-
-#define ZFCP_CMD_DBF_INDEX     2
-#define ZFCP_CMD_DBF_AREAS     1
-#define ZFCP_CMD_DBF_LENGTH    8
-#define ZFCP_CMD_DBF_LEVEL     3
-#define ZFCP_CMD_DBF_NAME      "zfcpcmd"
-
-#define ZFCP_ABORT_DBF_INDEX   2
-#define ZFCP_ABORT_DBF_AREAS   1
-#define ZFCP_ABORT_DBF_LENGTH  8
-#define ZFCP_ABORT_DBF_LEVEL   6
-#define ZFCP_ABORT_DBF_NAME    "zfcpabt"
-
-#define ZFCP_IN_ELS_DBF_INDEX  2
-#define ZFCP_IN_ELS_DBF_AREAS  1
-#define ZFCP_IN_ELS_DBF_LENGTH 8
-#define ZFCP_IN_ELS_DBF_LEVEL  6
-#define ZFCP_IN_ELS_DBF_NAME   "zfcpels"
 
 /******************** LOGGING MACROS AND DEFINES *****************************/
 
@@ -501,6 +642,7 @@ do { \
 #define ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL	0x00000080
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
+#define ZFCP_STATUS_ADAPTER_XPORT_OK		0x00000800
 
 #define ZFCP_STATUS_ADAPTER_SCSI_UP			\
 		(ZFCP_STATUS_COMMON_UNBLOCKED |	\
@@ -635,45 +777,6 @@ struct zfcp_adapter_mempool {
 	mempool_t *data_gid_pn;
 };
 
-struct  zfcp_exchange_config_data{
-};
-
-struct zfcp_open_port {
-        struct zfcp_port *port;
-};
-
-struct zfcp_close_port {
-	struct zfcp_port *port;
-};
-
-struct zfcp_open_unit {
-	struct zfcp_unit *unit;
-};
-
-struct zfcp_close_unit {
-	struct zfcp_unit *unit;
-};
-
-struct zfcp_close_physical_port {
-        struct zfcp_port *port;
-};
-
-struct zfcp_send_fcp_command_task {
-	struct zfcp_fsf_req *fsf_req;
-	struct zfcp_unit *unit;
- 	struct scsi_cmnd *scsi_cmnd;
-	unsigned long start_jiffies;
-};
-
-struct zfcp_send_fcp_command_task_management {
-	struct zfcp_unit *unit;
-};
-
-struct zfcp_abort_fcp_command {
-	struct zfcp_fsf_req *fsf_req;
-	struct zfcp_unit *unit;
-};
-
 /*
  * header for CT_IU
  */
@@ -702,7 +805,7 @@ struct ct_iu_gid_pn_req {
 /* FS_ACC IU and data unit for GID_PN nameserver request */
 struct ct_iu_gid_pn_resp {
 	struct ct_hdr header;
-	fc_id_t d_id;
+	u32 d_id;
 } __attribute__ ((packed));
 
 typedef void (*zfcp_send_ct_handler_t)(unsigned long);
@@ -768,7 +871,7 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
 struct zfcp_send_els {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
-	fc_id_t d_id;
+	u32 d_id;
 	struct scatterlist *req;
 	struct scatterlist *resp;
 	unsigned int req_count;
@@ -779,33 +882,6 @@ struct zfcp_send_els {
 	struct completion *completion;
 	int ls_code;
 	int status;
-};
-
-struct zfcp_status_read {
-	struct fsf_status_read_buffer *buffer;
-};
-
-struct zfcp_fsf_done {
-	struct completion *complete;
-	int status;
-};
-
-/* request specific data */
-union zfcp_req_data {
-	struct zfcp_exchange_config_data exchange_config_data;
-	struct zfcp_open_port		  open_port;
-	struct zfcp_close_port		  close_port;
-	struct zfcp_open_unit		  open_unit;
-	struct zfcp_close_unit		  close_unit;
-	struct zfcp_close_physical_port	  close_physical_port;
-	struct zfcp_send_fcp_command_task send_fcp_command_task;
-        struct zfcp_send_fcp_command_task_management
-					  send_fcp_command_task_management;
-	struct zfcp_abort_fcp_command	  abort_fcp_command;
-	struct zfcp_send_ct *send_ct;
-	struct zfcp_send_els *send_els;
-	struct zfcp_status_read 	  status_read;
-	struct fsf_qtcb_bottom_port *port_data;
 };
 
 struct zfcp_qdio_queue {
@@ -838,21 +914,19 @@ struct zfcp_adapter {
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
 						      refcount drop to zero */
-	wwn_t			wwnn;	           /* WWNN */
-	wwn_t			wwpn;	           /* WWPN */
-	fc_id_t			s_id;	           /* N_Port ID */
 	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
 	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
-	fc_id_t			peer_d_id;	   /* P2P peer D_ID */
+	u32			peer_d_id;	   /* P2P peer D_ID */
+	wwn_t			physical_wwpn;     /* WWPN of physical port */
+	u32			physical_s_id;     /* local FC port ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u8			fc_service_class;
 	u32			fc_topology;	   /* FC topology */
-	u32			fc_link_speed;	   /* FC interface speed */
 	u32			hydra_version;	   /* Hydra version */
 	u32			fsf_lic_version;
-        u32			supported_features;/* of FCP channel */
+	u32			adapter_features;  /* FCP channel features */
+	u32			connection_features; /* host connection features */
         u32			hardware_version;  /* of FCP channel */
-        u8			serial_number[32]; /* of hardware */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	unsigned short          scsi_host_no;      /* Assigned host number */
 	unsigned char		name[9];
@@ -889,11 +963,18 @@ struct zfcp_adapter {
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
 	struct zfcp_port	*nameserver_port;  /* adapter's nameserver */
-        debug_info_t            *erp_dbf;          /* S/390 debug features */
-	debug_info_t            *abort_dbf;
-	debug_info_t            *in_els_dbf;
-	debug_info_t            *cmd_dbf;
-	spinlock_t              dbf_lock;
+	debug_info_t		*erp_dbf;
+	debug_info_t		*hba_dbf;
+	debug_info_t		*san_dbf;          /* debug feature areas */
+	debug_info_t		*scsi_dbf;
+	spinlock_t		erp_dbf_lock;
+	spinlock_t		hba_dbf_lock;
+	spinlock_t		san_dbf_lock;
+	spinlock_t		scsi_dbf_lock;
+	struct zfcp_erp_dbf_record	erp_dbf_buf;
+	struct zfcp_hba_dbf_record	hba_dbf_buf;
+	struct zfcp_san_dbf_record	san_dbf_buf;
+	struct zfcp_scsi_dbf_record	scsi_dbf_buf;
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
 	struct device           generic_services;  /* directory for WKA ports */
@@ -919,7 +1000,7 @@ struct zfcp_port {
 	atomic_t	       status;	       /* status of this remote port */
 	wwn_t		       wwnn;	       /* WWNN if known */
 	wwn_t		       wwpn;	       /* WWPN */
-	fc_id_t		       d_id;	       /* D_ID */
+	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;
@@ -963,11 +1044,13 @@ struct zfcp_fsf_req {
 	u32		       fsf_command;    /* FSF Command copy */
 	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
 	u32		       seq_no;         /* Sequence number of request */
-        union zfcp_req_data    data;           /* Info fields of request */ 
+        unsigned long          data;           /* private data of request */ 
 	struct zfcp_erp_action *erp_action;    /* used if this request is
 						  issued on behalf of erp */
 	mempool_t	       *pool;	       /* used if request was alloacted
 						  from emergency pool */
+	unsigned long long     issued;         /* request sent time (STCK) */
+	struct zfcp_unit       *unit;
 };
 
 typedef void zfcp_fsf_req_handler_t(struct zfcp_fsf_req*);

@@ -509,7 +509,7 @@ cpu_arm1020_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__arm1020_proc_info,#object
 __arm1020_proc_info:

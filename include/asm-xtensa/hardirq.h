@@ -23,6 +23,7 @@ typedef struct {
 	unsigned int __nmi_count;	       /* arch dependent */
 } ____cacheline_aligned irq_cpustat_t;
 
+void ack_bad_irq(unsigned int irq);
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
 
 #endif	/* _XTENSA_HARDIRQ_H */

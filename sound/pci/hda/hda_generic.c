@@ -98,7 +98,7 @@ static int add_new_node(struct hda_codec *codec, struct hda_gspec *spec, hda_nid
 	struct hda_gnode *node;
 	int nconns;
 
-	node = kcalloc(1, sizeof(*node), GFP_KERNEL);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node == NULL)
 		return -ENOMEM;
 	node->nid = nid;
@@ -886,7 +886,7 @@ int snd_hda_parse_generic_codec(struct hda_codec *codec)
 		return -ENODEV;
 	}
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL) {
 		printk(KERN_ERR "hda_generic: can't allocate spec\n");
 		return -ENOMEM;

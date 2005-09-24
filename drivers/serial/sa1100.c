@@ -799,7 +799,7 @@ sa1100_console_setup(struct console *co, char *options)
 	return uart_set_options(&sport->port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver sa1100_reg;
+static struct uart_driver sa1100_reg;
 static struct console sa1100_console = {
 	.name		= "ttySA",
 	.write		= sa1100_console_write,
