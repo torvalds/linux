@@ -100,6 +100,7 @@ int __init irttp_init(void)
 	if (!irttp->tsaps) {
 		IRDA_ERROR("%s: can't allocate IrTTP hashbin!\n",
 			   __FUNCTION__);
+		kfree(irttp);
 		return -ENOMEM;
 	}
 
