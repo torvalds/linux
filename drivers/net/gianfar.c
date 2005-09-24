@@ -29,12 +29,7 @@
  *  define the configuration needed by the board are defined in a
  *  board structure in arch/ppc/platforms (though I do not
  *  discount the possibility that other architectures could one
- *  day be supported.  One assumption the driver currently makes
- *  is that the PHY is configured in such a way to advertise all
- *  capabilities.  This is a sensible default, and on certain
- *  PHYs, changing this default encounters substantial errata
- *  issues.  Future versions may remove this requirement, but for
- *  now, it is best for the firmware to ensure this is the case.
+ *  day be supported.
  *
  *  The Gianfar Ethernet Controller uses a ring of buffer
  *  descriptors.  The beginning is indicated by a register
@@ -47,7 +42,7 @@
  *  corresponding bit in the IMASK register is also set (if
  *  interrupt coalescing is active, then the interrupt may not
  *  happen immediately, but will wait until either a set number
- *  of frames or amount of time have passed.).  In NAPI, the
+ *  of frames or amount of time have passed).  In NAPI, the
  *  interrupt handler will signal there is work to be done, and
  *  exit.  Without NAPI, the packet(s) will be handled
  *  immediately.  Both methods will start at the last known empty
@@ -75,6 +70,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -97,9 +93,11 @@
 #include <linux/version.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
+#include <linux/mii.h>
+#include <linux/phy.h>
 
 #include "gianfar.h"
-#include "gianfar_phy.h"
+#include "gianfar_mii.h"
 
 #define TX_TIMEOUT      (1*HZ)
 #define SKB_ALLOC_TIMEOUT 1000000
@@ -113,9 +111,8 @@
 #endif
 
 const char gfar_driver_name[] = "Gianfar Ethernet";
-const char gfar_driver_version[] = "1.1";
+const char gfar_driver_version[] = "1.2";
 
-int startup_gfar(struct net_device *dev);
 static int gfar_enet_open(struct net_device *dev);
 static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void gfar_timeout(struct net_device *dev);
@@ -126,17 +123,13 @@ static int gfar_set_mac_address(struct net_device *dev);
 static int gfar_change_mtu(struct net_device *dev, int new_mtu);
 static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs);
 static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs);
 static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t phy_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static void gfar_phy_change(void *data);
-static void gfar_phy_timer(unsigned long data);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
 static int gfar_probe(struct device *device);
 static int gfar_remove(struct device *device);
-void free_skb_resources(struct gfar_private *priv);
+static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
 #ifdef CONFIG_GFAR_NAPI
@@ -144,7 +137,6 @@ static int gfar_poll(struct net_device *dev, int *budget);
 #endif
 int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
 static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int length);
-static void gfar_phy_startup_timer(unsigned long data);
 static void gfar_vlan_rx_register(struct net_device *netdev,
 		                struct vlan_group *grp);
 static void gfar_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
@@ -162,6 +154,9 @@ int gfar_uses_fcb(struct gfar_private *priv)
 	else
 		return 0;
 }
+
+/* Set up the ethernet device structure, private data,
+ * and anything else we need before we start */
 static int gfar_probe(struct device *device)
 {
 	u32 tempval;
@@ -175,7 +170,7 @@ static int gfar_probe(struct device *device)
 
 	einfo = (struct gianfar_platform_data *) pdev->dev.platform_data;
 
-	if (einfo == NULL) {
+	if (NULL == einfo) {
 		printk(KERN_ERR "gfar %d: Missing additional data!\n",
 		       pdev->id);
 
@@ -185,7 +180,7 @@ static int gfar_probe(struct device *device)
 	/* Create an ethernet device instance */
 	dev = alloc_etherdev(sizeof (*priv));
 
-	if (dev == NULL)
+	if (NULL == dev)
 		return -ENOMEM;
 
 	priv = netdev_priv(dev);
@@ -207,18 +202,9 @@ static int gfar_probe(struct device *device)
 	priv->regs = (struct gfar *)
 		ioremap(r->start, sizeof (struct gfar));
 
-	if (priv->regs == NULL) {
+	if (NULL == priv->regs) {
 		err = -ENOMEM;
 		goto regs_fail;
-	}
-
-	/* Set the PHY base address */
-	priv->phyregs = (struct gfar *)
-	    ioremap(einfo->phy_reg_addr, sizeof (struct gfar));
-
-	if (priv->phyregs == NULL) {
-		err = -ENOMEM;
-		goto phy_regs_fail;
 	}
 
 	spin_lock_init(&priv->lock);
@@ -386,12 +372,10 @@ static int gfar_probe(struct device *device)
 	return 0;
 
 register_fail:
-	iounmap((void *) priv->phyregs);
-phy_regs_fail:
 	iounmap((void *) priv->regs);
 regs_fail:
 	free_netdev(dev);
-	return -ENOMEM;
+	return err;
 }
 
 static int gfar_remove(struct device *device)
@@ -402,108 +386,41 @@ static int gfar_remove(struct device *device)
 	dev_set_drvdata(device, NULL);
 
 	iounmap((void *) priv->regs);
-	iounmap((void *) priv->phyregs);
 	free_netdev(dev);
 
 	return 0;
 }
 
 
-/* Configure the PHY for dev.
- * returns 0 if success.  -1 if failure
+/* Initializes driver's PHY state, and attaches to the PHY.
+ * Returns 0 on success.
  */
 static int init_phy(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_info *curphy;
-	unsigned int timeout = PHY_INIT_TIMEOUT;
-	struct gfar *phyregs = priv->phyregs;
-	struct gfar_mii_info *mii_info;
-	int err;
+	uint gigabit_support =
+		priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
+		SUPPORTED_1000baseT_Full : 0;
+	struct phy_device *phydev;
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	mii_info = kmalloc(sizeof(struct gfar_mii_info),
-			GFP_KERNEL);
+	phydev = phy_connect(dev, priv->einfo->bus_id, &adjust_link, 0);
 
-	if(NULL == mii_info) {
-		if (netif_msg_ifup(priv))
-			printk(KERN_ERR "%s: Could not allocate mii_info\n",
-					dev->name);
-		return -ENOMEM;
+	if (IS_ERR(phydev)) {
+		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
+		return PTR_ERR(phydev);
 	}
 
-	mii_info->speed = SPEED_1000;
-	mii_info->duplex = DUPLEX_FULL;
-	mii_info->pause = 0;
-	mii_info->link = 1;
+	/* Remove any features not supported by the controller */
+	phydev->supported &= (GFAR_SUPPORTED | gigabit_support);
+	phydev->advertising = phydev->supported;
 
-	mii_info->advertising = (ADVERTISED_10baseT_Half |
-			ADVERTISED_10baseT_Full |
-			ADVERTISED_100baseT_Half |
-			ADVERTISED_100baseT_Full |
-			ADVERTISED_1000baseT_Full);
-	mii_info->autoneg = 1;
-
-	spin_lock_init(&mii_info->mdio_lock);
-
-	mii_info->mii_id = priv->einfo->phyid;
-
-	mii_info->dev = dev;
-
-	mii_info->mdio_read = &read_phy_reg;
-	mii_info->mdio_write = &write_phy_reg;
-
-	priv->mii_info = mii_info;
-
-	/* Reset the management interface */
-	gfar_write(&phyregs->miimcfg, MIIMCFG_RESET);
-
-	/* Setup the MII Mgmt clock speed */
-	gfar_write(&phyregs->miimcfg, MIIMCFG_INIT_VALUE);
-
-	/* Wait until the bus is free */
-	while ((gfar_read(&phyregs->miimind) & MIIMIND_BUSY) &&
-			timeout--)
-		cpu_relax();
-
-	if(timeout <= 0) {
-		printk(KERN_ERR "%s: The MII Bus is stuck!\n",
-				dev->name);
-		err = -1;
-		goto bus_fail;
-	}
-
-	/* get info for this PHY */
-	curphy = get_phy_info(priv->mii_info);
-
-	if (curphy == NULL) {
-		if (netif_msg_ifup(priv))
-			printk(KERN_ERR "%s: No PHY found\n", dev->name);
-		err = -1;
-		goto no_phy;
-	}
-
-	mii_info->phyinfo = curphy;
-
-	/* Run the commands which initialize the PHY */
-	if(curphy->init) {
-		err = curphy->init(priv->mii_info);
-
-		if (err)
-			goto phy_init_fail;
-	}
+	priv->phydev = phydev;
 
 	return 0;
-
-phy_init_fail:
-no_phy:
-bus_fail:
-	kfree(mii_info);
-
-	return err;
 }
 
 static void init_registers(struct net_device *dev)
@@ -603,23 +520,12 @@ void stop_gfar(struct net_device *dev)
 	struct gfar *regs = priv->regs;
 	unsigned long flags;
 
+	phy_stop(priv->phydev);
+
 	/* Lock it down */
 	spin_lock_irqsave(&priv->lock, flags);
 
-	/* Tell the kernel the link is down */
-	priv->mii_info->link = 0;
-	adjust_link(dev);
-
 	gfar_halt(dev);
-
-	if (priv->einfo->board_flags & FSL_GIANFAR_BRD_HAS_PHY_INTR) {
-		/* Clear any pending interrupts */
-		mii_clear_phy_interrupt(priv->mii_info);
-
-		/* Disable PHY Interrupts */
-		mii_configure_phy_interrupt(priv->mii_info,
-				MII_INTERRUPT_DISABLED);
-	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -629,13 +535,7 @@ void stop_gfar(struct net_device *dev)
 		free_irq(priv->interruptTransmit, dev);
 		free_irq(priv->interruptReceive, dev);
 	} else {
-		free_irq(priv->interruptTransmit, dev);
-	}
-
-	if (priv->einfo->board_flags & FSL_GIANFAR_BRD_HAS_PHY_INTR) {
-		free_irq(priv->einfo->interruptPHY, dev);
-	} else {
-		del_timer_sync(&priv->phy_info_timer);
+ 		free_irq(priv->interruptTransmit, dev);
 	}
 
 	free_skb_resources(priv);
@@ -649,7 +549,7 @@ void stop_gfar(struct net_device *dev)
 
 /* If there are any tx skbs or rx skbs still around, free them.
  * Then free tx_skbuff and rx_skbuff */
-void free_skb_resources(struct gfar_private *priv)
+static void free_skb_resources(struct gfar_private *priv)
 {
 	struct rxbd8 *rxbdp;
 	struct txbd8 *txbdp;
@@ -770,7 +670,7 @@ int startup_gfar(struct net_device *dev)
 	    (struct sk_buff **) kmalloc(sizeof (struct sk_buff *) *
 					priv->tx_ring_size, GFP_KERNEL);
 
-	if (priv->tx_skbuff == NULL) {
+	if (NULL == priv->tx_skbuff) {
 		if (netif_msg_ifup(priv))
 			printk(KERN_ERR "%s: Could not allocate tx_skbuff\n",
 					dev->name);
@@ -785,7 +685,7 @@ int startup_gfar(struct net_device *dev)
 	    (struct sk_buff **) kmalloc(sizeof (struct sk_buff *) *
 					priv->rx_ring_size, GFP_KERNEL);
 
-	if (priv->rx_skbuff == NULL) {
+	if (NULL == priv->rx_skbuff) {
 		if (netif_msg_ifup(priv))
 			printk(KERN_ERR "%s: Could not allocate rx_skbuff\n",
 					dev->name);
@@ -879,13 +779,7 @@ int startup_gfar(struct net_device *dev)
 		}
 	}
 
-	/* Set up the PHY change work queue */
-	INIT_WORK(&priv->tq, gfar_phy_change, dev);
-
-	init_timer(&priv->phy_info_timer);
-	priv->phy_info_timer.function = &gfar_phy_startup_timer;
-	priv->phy_info_timer.data = (unsigned long) priv->mii_info;
-	mod_timer(&priv->phy_info_timer, jiffies + HZ);
+	phy_start(priv->phydev);
 
 	/* Configure the coalescing support */
 	if (priv->txcoalescing)
@@ -932,11 +826,6 @@ tx_skb_fail:
 			+ sizeof(struct rxbd8)*priv->rx_ring_size,
 			priv->tx_bd_base,
 			gfar_read(&regs->tbase0));
-
-	if (priv->mii_info->phyinfo->close)
-		priv->mii_info->phyinfo->close(priv->mii_info);
-
-	kfree(priv->mii_info);
 
 	return err;
 }
@@ -1035,7 +924,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	txbdp->status &= TXBD_WRAP;
 
 	/* Set up checksumming */
-	if ((dev->features & NETIF_F_IP_CSUM) 
+	if ((dev->features & NETIF_F_IP_CSUM)
 			&& (CHECKSUM_HW == skb->ip_summed)) {
 		fcb = gfar_add_fcb(skb, txbdp);
 		gfar_tx_checksum(skb, fcb);
@@ -1103,11 +992,9 @@ static int gfar_close(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	stop_gfar(dev);
 
-	/* Shutdown the PHY */
-	if (priv->mii_info->phyinfo->close)
-		priv->mii_info->phyinfo->close(priv->mii_info);
-
-	kfree(priv->mii_info);
+	/* Disconnect from the PHY */
+	phy_disconnect(priv->phydev);
+	priv->phydev = NULL;
 
 	netif_stop_queue(dev);
 
@@ -1343,7 +1230,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 	while ((!skb) && timeout--)
 		skb = dev_alloc_skb(priv->rx_buffer_size + RXBUF_ALIGNMENT);
 
-	if (skb == NULL)
+	if (NULL == skb)
 		return NULL;
 
 	/* We need the data buffer to be aligned properly.  We will reserve
@@ -1490,7 +1377,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct rxfcb *fcb = NULL;
 
-	if (skb == NULL) {
+	if (NULL == skb) {
 		if (netif_msg_rx_err(priv))
 			printk(KERN_WARNING "%s: Missing skb!!.\n", dev->name);
 		priv->stats.rx_dropped++;
@@ -1718,131 +1605,9 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t phy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
-{
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct gfar_private *priv = netdev_priv(dev);
-
-	/* Clear the interrupt */
-	mii_clear_phy_interrupt(priv->mii_info);
-
-	/* Disable PHY interrupts */
-	mii_configure_phy_interrupt(priv->mii_info,
-			MII_INTERRUPT_DISABLED);
-
-	/* Schedule the phy change */
-	schedule_work(&priv->tq);
-
-	return IRQ_HANDLED;
-}
-
-/* Scheduled by the phy_interrupt/timer to handle PHY changes */
-static void gfar_phy_change(void *data)
-{
-	struct net_device *dev = (struct net_device *) data;
-	struct gfar_private *priv = netdev_priv(dev);
-	int result = 0;
-
-	/* Delay to give the PHY a chance to change the
-	 * register state */
-	msleep(1);
-
-	/* Update the link, speed, duplex */
-	result = priv->mii_info->phyinfo->read_status(priv->mii_info);
-
-	/* Adjust the known status as long as the link
-	 * isn't still coming up */
-	if((0 == result) || (priv->mii_info->link == 0))
-		adjust_link(dev);
-
-	/* Reenable interrupts, if needed */
-	if (priv->einfo->board_flags & FSL_GIANFAR_BRD_HAS_PHY_INTR)
-		mii_configure_phy_interrupt(priv->mii_info,
-				MII_INTERRUPT_ENABLED);
-}
-
-/* Called every so often on systems that don't interrupt
- * the core for PHY changes */
-static void gfar_phy_timer(unsigned long data)
-{
-	struct net_device *dev = (struct net_device *) data;
-	struct gfar_private *priv = netdev_priv(dev);
-
-	schedule_work(&priv->tq);
-
-	mod_timer(&priv->phy_info_timer, jiffies +
-			GFAR_PHY_CHANGE_TIME * HZ);
-}
-
-/* Keep trying aneg for some time
- * If, after GFAR_AN_TIMEOUT seconds, it has not
- * finished, we switch to forced.
- * Either way, once the process has completed, we either
- * request the interrupt, or switch the timer over to
- * using gfar_phy_timer to check status */
-static void gfar_phy_startup_timer(unsigned long data)
-{
-	int result;
-	static int secondary = GFAR_AN_TIMEOUT;
-	struct gfar_mii_info *mii_info = (struct gfar_mii_info *)data;
-	struct gfar_private *priv = netdev_priv(mii_info->dev);
-
-	/* Configure the Auto-negotiation */
-	result = mii_info->phyinfo->config_aneg(mii_info);
-
-	/* If autonegotiation failed to start, and
-	 * we haven't timed out, reset the timer, and return */
-	if (result && secondary--) {
-		mod_timer(&priv->phy_info_timer, jiffies + HZ);
-		return;
-	} else if (result) {
-		/* Couldn't start autonegotiation.
-		 * Try switching to forced */
-		mii_info->autoneg = 0;
-		result = mii_info->phyinfo->config_aneg(mii_info);
-
-		/* Forcing failed!  Give up */
-		if(result) {
-			if (netif_msg_link(priv))
-				printk(KERN_ERR "%s: Forcing failed!\n",
-						mii_info->dev->name);
-			return;
-		}
-	}
-
-	/* Kill the timer so it can be restarted */
-	del_timer_sync(&priv->phy_info_timer);
-
-	/* Grab the PHY interrupt, if necessary/possible */
-	if (priv->einfo->board_flags & FSL_GIANFAR_BRD_HAS_PHY_INTR) {
-		if (request_irq(priv->einfo->interruptPHY,
-					phy_interrupt,
-					SA_SHIRQ,
-					"phy_interrupt",
-					mii_info->dev) < 0) {
-			if (netif_msg_intr(priv))
-				printk(KERN_ERR "%s: Can't get IRQ %d (PHY)\n",
-						mii_info->dev->name,
-					priv->einfo->interruptPHY);
-		} else {
-			mii_configure_phy_interrupt(priv->mii_info,
-					MII_INTERRUPT_ENABLED);
-			return;
-		}
-	}
-
-	/* Start the timer again, this time in order to
-	 * handle a change in status */
-	init_timer(&priv->phy_info_timer);
-	priv->phy_info_timer.function = &gfar_phy_timer;
-	priv->phy_info_timer.data = (unsigned long) mii_info->dev;
-	mod_timer(&priv->phy_info_timer, jiffies +
-			GFAR_PHY_CHANGE_TIME * HZ);
-}
-
 /* Called every time the controller might need to be made
  * aware of new link state.  The PHY code conveys this
- * information through variables in the priv structure, and this
+ * information through variables in the phydev structure, and this
  * function converts those variables into the appropriate
  * register values, and can bring down the device if needed.
  */
@@ -1850,84 +1615,68 @@ static void adjust_link(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar *regs = priv->regs;
-	u32 tempval;
-	struct gfar_mii_info *mii_info = priv->mii_info;
+	unsigned long flags;
+	struct phy_device *phydev = priv->phydev;
+	int new_state = 0;
 
-	if (mii_info->link) {
+	spin_lock_irqsave(&priv->lock, flags);
+	if (phydev->link) {
+		u32 tempval = gfar_read(&regs->maccfg2);
+
 		/* Now we make sure that we can be in full duplex mode.
 		 * If not, we operate in half-duplex mode. */
-		if (mii_info->duplex != priv->oldduplex) {
-			if (!(mii_info->duplex)) {
-				tempval = gfar_read(&regs->maccfg2);
+		if (phydev->duplex != priv->oldduplex) {
+			new_state = 1;
+			if (!(phydev->duplex))
 				tempval &= ~(MACCFG2_FULL_DUPLEX);
-				gfar_write(&regs->maccfg2, tempval);
-
-				if (netif_msg_link(priv))
-					printk(KERN_INFO "%s: Half Duplex\n",
-							dev->name);
-			} else {
-				tempval = gfar_read(&regs->maccfg2);
+			else
 				tempval |= MACCFG2_FULL_DUPLEX;
-				gfar_write(&regs->maccfg2, tempval);
 
-				if (netif_msg_link(priv))
-					printk(KERN_INFO "%s: Full Duplex\n",
-							dev->name);
-			}
-
-			priv->oldduplex = mii_info->duplex;
+			priv->oldduplex = phydev->duplex;
 		}
 
-		if (mii_info->speed != priv->oldspeed) {
-			switch (mii_info->speed) {
+		if (phydev->speed != priv->oldspeed) {
+			new_state = 1;
+			switch (phydev->speed) {
 			case 1000:
-				tempval = gfar_read(&regs->maccfg2);
 				tempval =
 				    ((tempval & ~(MACCFG2_IF)) | MACCFG2_GMII);
-				gfar_write(&regs->maccfg2, tempval);
 				break;
 			case 100:
 			case 10:
-				tempval = gfar_read(&regs->maccfg2);
 				tempval =
 				    ((tempval & ~(MACCFG2_IF)) | MACCFG2_MII);
-				gfar_write(&regs->maccfg2, tempval);
 				break;
 			default:
 				if (netif_msg_link(priv))
 					printk(KERN_WARNING
-							"%s: Ack!  Speed (%d) is not 10/100/1000!\n",
-							dev->name, mii_info->speed);
+						"%s: Ack!  Speed (%d) is not 10/100/1000!\n",
+						dev->name, phydev->speed);
 				break;
 			}
 
-			if (netif_msg_link(priv))
-				printk(KERN_INFO "%s: Speed %dBT\n", dev->name,
-						mii_info->speed);
-
-			priv->oldspeed = mii_info->speed;
+			priv->oldspeed = phydev->speed;
 		}
+
+		gfar_write(&regs->maccfg2, tempval);
 
 		if (!priv->oldlink) {
-			if (netif_msg_link(priv))
-				printk(KERN_INFO "%s: Link is up\n", dev->name);
+			new_state = 1;
 			priv->oldlink = 1;
-			netif_carrier_on(dev);
 			netif_schedule(dev);
 		}
-	} else {
-		if (priv->oldlink) {
-			if (netif_msg_link(priv))
-				printk(KERN_INFO "%s: Link is down\n",
-						dev->name);
-			priv->oldlink = 0;
-			priv->oldspeed = 0;
-			priv->oldduplex = -1;
-			netif_carrier_off(dev);
-		}
+	} else if (priv->oldlink) {
+		new_state = 1;
+		priv->oldlink = 0;
+		priv->oldspeed = 0;
+		priv->oldduplex = -1;
 	}
-}
 
+	if (new_state && netif_msg_link(priv))
+		phy_print_status(phydev);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
 
 /* Update the hash table based on the current list of multicast
  * addresses we subscribe to.  Also, change the promiscuity of
@@ -2122,12 +1871,23 @@ static struct device_driver gfar_driver = {
 
 static int __init gfar_init(void)
 {
-	return driver_register(&gfar_driver);
+	int err = gfar_mdio_init();
+
+	if (err)
+		return err;
+
+	err = driver_register(&gfar_driver);
+
+	if (err)
+		gfar_mdio_exit();
+	
+	return err;
 }
 
 static void __exit gfar_exit(void)
 {
 	driver_unregister(&gfar_driver);
+	gfar_mdio_exit();
 }
 
 module_init(gfar_init);

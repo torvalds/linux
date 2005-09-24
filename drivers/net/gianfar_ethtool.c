@@ -39,17 +39,18 @@
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <linux/ethtool.h>
+#include <linux/mii.h>
+#include <linux/phy.h>
 
 #include "gianfar.h"
 
 #define is_power_of_2(x)        ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-extern int startup_gfar(struct net_device *dev);
-extern void stop_gfar(struct net_device *dev);
-extern void gfar_halt(struct net_device *dev);
 extern void gfar_start(struct net_device *dev);
 extern int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
 
+#define GFAR_MAX_COAL_USECS 0xffff
+#define GFAR_MAX_COAL_FRAMES 0xff
 static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 		     u64 * buf);
 static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf);
@@ -182,38 +183,32 @@ static void gfar_gdrvinfo(struct net_device *dev, struct
 	drvinfo->eedump_len = 0;
 }
 
+
+static int gfar_ssettings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct phy_device *phydev = priv->phydev;
+
+	if (NULL == phydev)
+		return -ENODEV;
+
+	return phy_ethtool_sset(phydev, cmd);
+}
+
+
 /* Return the current settings in the ethtool_cmd structure */
 static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	uint gigabit_support = 
-		priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-			SUPPORTED_1000baseT_Full : 0;
-	uint gigabit_advert = 
-		priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-			ADVERTISED_1000baseT_Full: 0;
+	struct phy_device *phydev = priv->phydev;
 
-	cmd->supported = (SUPPORTED_10baseT_Half
-			  | SUPPORTED_100baseT_Half
-			  | SUPPORTED_100baseT_Full
-			  | gigabit_support | SUPPORTED_Autoneg);
-
-	/* For now, we always advertise everything */
-	cmd->advertising = (ADVERTISED_10baseT_Half
-			    | ADVERTISED_100baseT_Half
-			    | ADVERTISED_100baseT_Full
-			    | gigabit_advert | ADVERTISED_Autoneg);
-
-	cmd->speed = priv->mii_info->speed;
-	cmd->duplex = priv->mii_info->duplex;
-	cmd->port = PORT_MII;
-	cmd->phy_address = priv->mii_info->mii_id;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->autoneg = AUTONEG_ENABLE;
+	if (NULL == phydev)
+		return -ENODEV;
+	
 	cmd->maxtxpkt = priv->txcount;
 	cmd->maxrxpkt = priv->rxcount;
 
-	return 0;
+	return phy_ethtool_gset(phydev, cmd);
 }
 
 /* Return the length of the register structure */
@@ -241,14 +236,14 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv, unsigned int use
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->mii_info->speed) {
-	case 1000:
+	switch (priv->phydev->speed) {
+	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
-	case 100:
+	case SPEED_100:
 		count = GFAR_100_TIME;
 		break;
-	case 10:
+	case SPEED_10:
 	default:
 		count = GFAR_10_TIME;
 		break;
@@ -265,14 +260,14 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->mii_info->speed) {
-	case 1000:
+	switch (priv->phydev->speed) {
+	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
-	case 100:
+	case SPEED_100:
 		count = GFAR_100_TIME;
 		break;
-	case 10:
+	case SPEED_10:
 	default:
 		count = GFAR_10_TIME;
 		break;
@@ -291,6 +286,9 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	
 	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
+
+	if (NULL == priv->phydev)
+		return -ENODEV;
 
 	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, priv->rxtime);
 	cvals->rx_max_coalesced_frames = priv->rxcount;
@@ -348,6 +346,22 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	else
 		priv->rxcoalescing = 1;
 
+	if (NULL == priv->phydev)
+		return -ENODEV;
+
+	/* Check the bounds of the values */
+	if (cvals->rx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		pr_info("Coalescing is limited to %d microseconds\n",
+				GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->rx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		pr_info("Coalescing is limited to %d frames\n",
+				GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
+
 	priv->rxtime = gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs);
 	priv->rxcount = cvals->rx_max_coalesced_frames;
 
@@ -357,6 +371,19 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		priv->txcoalescing = 0;
 	else
 		priv->txcoalescing = 1;
+
+	/* Check the bounds of the values */
+	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		pr_info("Coalescing is limited to %d microseconds\n",
+				GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		pr_info("Coalescing is limited to %d frames\n",
+				GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
 
 	priv->txtime = gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs);
 	priv->txcount = cvals->tx_max_coalesced_frames;
@@ -536,6 +563,7 @@ static void gfar_set_msglevel(struct net_device *dev, uint32_t data)
 
 struct ethtool_ops gfar_ethtool_ops = {
 	.get_settings = gfar_gsettings,
+	.set_settings = gfar_ssettings,
 	.get_drvinfo = gfar_gdrvinfo,
 	.get_regs_len = gfar_reglen,
 	.get_regs = gfar_get_regs,

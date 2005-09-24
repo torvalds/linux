@@ -17,7 +17,6 @@
  *
  *  Still left to do:
  *      -Add support for module parameters
- *	-Add support for ethtool -s
  *	-Add patch for ethtool phys id
  */
 #ifndef __GIANFAR_H
@@ -37,7 +36,8 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
-#include <linux/fsl_devices.h>
+#include <linux/mii.h>
+#include <linux/phy.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -48,7 +48,8 @@
 #include <linux/workqueue.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
-#include "gianfar_phy.h"
+#include <linux/fsl_devices.h>
+#include "gianfar_mii.h"
 
 /* The maximum number of packets to be handled in one call of gfar_poll */
 #define GFAR_DEV_WEIGHT 64
@@ -73,7 +74,7 @@
 #define PHY_INIT_TIMEOUT 100000
 #define GFAR_PHY_CHANGE_TIME 2
 
-#define DEVICE_NAME "%s: Gianfar Ethernet Controller Version 1.1, "
+#define DEVICE_NAME "%s: Gianfar Ethernet Controller Version 1.2, "
 #define DRV_NAME "gfar-enet"
 extern const char gfar_driver_name[];
 extern const char gfar_driver_version[];
@@ -578,12 +579,7 @@ struct gfar {
 	u32	hafdup;		/* 0x.50c - Half Duplex Register */
 	u32	maxfrm;		/* 0x.510 - Maximum Frame Length Register */
 	u8	res18[12];
-	u32	miimcfg;	/* 0x.520 - MII Management Configuration Register */
-	u32	miimcom;	/* 0x.524 - MII Management Command Register */
-	u32	miimadd;	/* 0x.528 - MII Management Address Register */
-	u32	miimcon;	/* 0x.52c - MII Management Control Register */
-	u32	miimstat;	/* 0x.530 - MII Management Status Register */
-	u32	miimind;	/* 0x.534 - MII Management Indicator Register */
+	u8	gfar_mii_regs[24];	/* See gianfar_phy.h */
 	u8	res19[4];
 	u32	ifstat;		/* 0x.53c - Interface Status Register */
 	u32	macstnaddr1;	/* 0x.540 - Station Address Part 1 Register */
@@ -688,9 +684,6 @@ struct gfar_private {
 	struct gfar *regs;	/* Pointer to the GFAR memory mapped Registers */
 	u32 *hash_regs[16];
 	int hash_width;
-	struct gfar *phyregs;
-	struct work_struct tq;
-	struct timer_list phy_info_timer;
 	struct net_device_stats stats; /* linux network statistics */
 	struct gfar_extra_stats extra_stats;
 	spinlock_t lock;
@@ -710,7 +703,8 @@ struct gfar_private {
 	unsigned int interruptError;
 	struct gianfar_platform_data *einfo;
 
-	struct gfar_mii_info *mii_info;
+	struct phy_device *phydev;
+	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
@@ -731,5 +725,13 @@ extern inline void gfar_write(volatile unsigned *addr, u32 val)
 }
 
 extern struct ethtool_ops *gfar_op_array[];
+
+extern irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs);
+extern int startup_gfar(struct net_device *dev);
+extern void stop_gfar(struct net_device *dev);
+extern void gfar_halt(struct net_device *dev);
+extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
+		int enable, u32 regnum, u32 read);
+void gfar_setup_stashing(struct net_device *dev);
 
 #endif /* __GIANFAR_H */
