@@ -1828,13 +1828,6 @@ static char * __prism2_translate_scan(local_info_t *local,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bssid, ETH_ALEN);
-	/* FIX:
-	 * I do not know how this is possible, but iwe_stream_add_event
-	 * seems to re-order memcpy execution so that len is set only
-	 * after copying.. Pre-setting len here "fixes" this, but real
-	 * problems should be solved (after which these iwe.len
-	 * settings could be removed from this function). */
-	iwe.len = IW_EV_ADDR_LEN;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
 					  IW_EV_ADDR_LEN);
 
@@ -1844,7 +1837,6 @@ static char * __prism2_translate_scan(local_info_t *local,
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.length = ssid_len;
 	iwe.u.data.flags = 1;
-	iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
 	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, ssid);
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -1860,7 +1852,6 @@ static char * __prism2_translate_scan(local_info_t *local,
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		iwe.len = IW_EV_UINT_LEN;
 		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
 						  IW_EV_UINT_LEN);
 	}
@@ -1878,7 +1869,6 @@ static char * __prism2_translate_scan(local_info_t *local,
 	if (chan > 0) {
 		iwe.u.freq.m = freq_list[le16_to_cpu(chan - 1)] * 100000;
 		iwe.u.freq.e = 1;
-		iwe.len = IW_EV_FREQ_LEN;
 		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
 						  IW_EV_FREQ_LEN);
 	}
@@ -1899,7 +1889,6 @@ static char * __prism2_translate_scan(local_info_t *local,
 			| IW_QUAL_NOISE_UPDATED
 			| IW_QUAL_QUAL_INVALID
 			| IW_QUAL_DBM;
-		iwe.len = IW_EV_QUAL_LEN;
 		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
 						  IW_EV_QUAL_LEN);
 	}
@@ -1911,7 +1900,6 @@ static char * __prism2_translate_scan(local_info_t *local,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
 	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, "");
 
 	/* TODO: add SuppRates into BSS table */
