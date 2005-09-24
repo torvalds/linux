@@ -332,7 +332,7 @@ cpu_arm710_name:
 
 		.align
 
-		.section ".proc.info", #alloc, #execinstr
+		.section ".proc.info.init", #alloc, #execinstr
 
 		.type	__arm6_proc_info, #object
 __arm6_proc_info:

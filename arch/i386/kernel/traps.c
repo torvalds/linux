@@ -807,8 +807,9 @@ void math_error(void __user *eip)
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
 	switch (swd & ~cwd & 0x3f) {
-		case 0x000:
-		default:
+		case 0x000: /* No unmasked exception */
+			return;
+		default:    /* Multiple exceptions */
 			break;
 		case 0x001: /* Invalid Op */
 			/*

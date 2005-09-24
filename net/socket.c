@@ -1862,7 +1862,8 @@ asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg, unsigned int flag
 		if (err < 0)
 			goto out_freeiov;
 	}
-	err = __put_user(msg_sys.msg_flags, COMPAT_FLAGS(msg));
+	err = __put_user((msg_sys.msg_flags & ~MSG_CMSG_COMPAT),
+			 COMPAT_FLAGS(msg));
 	if (err)
 		goto out_freeiov;
 	if (MSG_CMSG_COMPAT & flags)

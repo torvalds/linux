@@ -810,13 +810,14 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 			 * from the top and bottom of cursor position
 			 */
 			old_origin += (vc->vc_y - new_rows/2) * old_row_size;
-			end = old_origin + new_screen_size;
+			end = old_origin + (old_row_size * new_rows);
 		}
 	} else
 		/*
 		 * Cursor near the top, copy contents from the top of buffer
 		 */
-		end = (old_rows > new_rows) ? old_origin + new_screen_size :
+		end = (old_rows > new_rows) ? old_origin +
+			(old_row_size * new_rows) :
 			vc->vc_scr_end;
 
 	update_attr(vc);

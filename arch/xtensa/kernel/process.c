@@ -457,7 +457,7 @@ int
 dump_task_fpu(struct pt_regs *regs, struct task_struct *task, elf_fpregset_t *r)
 {
 /* see asm/coprocessor.h for this magic number 16 */
-#if TOTAL_CPEXTRA_SIZE > 16
+#if XTENSA_CP_EXTRA_SIZE > 16
 	do_save_fpregs (r, regs, task);
 
 	/*  For now, bit 16 means some extra state may be present:  */

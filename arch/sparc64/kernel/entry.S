@@ -42,19 +42,15 @@
  * executing (see inherit_locked_prom_mappings() rant).
  */
 sparc64_vpte_nucleus:
-	/* Load 0xf0000000, which is LOW_OBP_ADDRESS.  */
-	mov		0xf, %g5
-	sllx		%g5, 28, %g5
-
-	/* Is addr >= LOW_OBP_ADDRESS?  */
+	/* Note that kvmap below has verified that the address is
+	 * in the range MODULES_VADDR --> VMALLOC_END already.  So
+	 * here we need only check if it is an OBP address or not.
+	 */
+	sethi		%hi(LOW_OBP_ADDRESS), %g5
 	cmp		%g4, %g5
 	blu,pn		%xcc, sparc64_vpte_patchme1
 	 mov		0x1, %g5
-
-	/* Load 0x100000000, which is HI_OBP_ADDRESS.  */
 	sllx		%g5, 32, %g5
-
-	/* Is addr < HI_OBP_ADDRESS?  */
 	cmp		%g4, %g5
 	blu,pn		%xcc, obp_iaddr_patch
 	 nop
@@ -156,26 +152,29 @@ obp_daddr_patch:
  * rather, use information saved during inherit_prom_mappings() using 8k
  * pagesize.
  */
+	.align		32
 kvmap:
-	/* Load 0xf0000000, which is LOW_OBP_ADDRESS.  */
-	mov		0xf, %g5
-	sllx		%g5, 28, %g5
-
-	/* Is addr >= LOW_OBP_ADDRESS?  */
+	sethi		%hi(MODULES_VADDR), %g5
 	cmp		%g4, %g5
-	blu,pn		%xcc, vmalloc_addr
+	blu,pn		%xcc, longpath
+	 mov		(VMALLOC_END >> 24), %g5
+	sllx		%g5, 24, %g5
+	cmp		%g4, %g5
+	bgeu,pn		%xcc, longpath
+	 nop
+
+kvmap_check_obp:
+	sethi		%hi(LOW_OBP_ADDRESS), %g5
+	cmp		%g4, %g5
+	blu,pn		%xcc, kvmap_vmalloc_addr
 	 mov		0x1, %g5
-
-	/* Load 0x100000000, which is HI_OBP_ADDRESS.  */
 	sllx		%g5, 32, %g5
-
-	/* Is addr < HI_OBP_ADDRESS?  */
 	cmp		%g4, %g5
 	blu,pn		%xcc, obp_daddr_patch
 	 nop
 
-vmalloc_addr:
-	/* If we get here, a vmalloc addr accessed, load kernel VPTE.  */
+kvmap_vmalloc_addr:
+	/* If we get here, a vmalloc addr was accessed, load kernel VPTE.  */
 	ldxa		[%g3 + %g6] ASI_N, %g5
 	brgez,pn	%g5, longpath
 	 nop

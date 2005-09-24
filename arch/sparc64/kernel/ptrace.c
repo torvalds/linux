@@ -30,6 +30,7 @@
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>
 #include <asm/spitfire.h>
+#include <asm/page.h>
 
 /* Returning from ptrace is a bit tricky because the syscall return
  * low level code assumes any value returned which is negative and
@@ -128,20 +129,20 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	 * is mapped to in the user's address space, we can skip the
 	 * D-cache flush.
 	 */
-	if ((uaddr ^ kaddr) & (1UL << 13)) {
+	if ((uaddr ^ (unsigned long) kaddr) & (1UL << 13)) {
 		unsigned long start = __pa(kaddr);
 		unsigned long end = start + len;
 
 		if (tlb_type == spitfire) {
 			for (; start < end; start += 32)
-				spitfire_put_dcache_tag(va & 0x3fe0, 0x0);
+				spitfire_put_dcache_tag(start & 0x3fe0, 0x0);
 		} else {
 			for (; start < end; start += 32)
 				__asm__ __volatile__(
 					"stxa %%g0, [%0] %1\n\t"
 					"membar #Sync"
 					: /* no outputs */
-					: "r" (va),
+					: "r" (start),
 					"i" (ASI_DCACHE_INVALIDATE));
 		}
 	}

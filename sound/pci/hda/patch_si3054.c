@@ -214,6 +214,7 @@ static int si3054_build_pcms(struct hda_codec *codec)
 	info->name = "Si3054 Modem";
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
+	info->is_modem = 1;
 	return 0;
 }
 
@@ -282,7 +283,7 @@ static struct hda_codec_ops si3054_patch_ops = {
 
 static int patch_si3054(struct hda_codec *codec)
 {
-	struct si3054_spec *spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	struct si3054_spec *spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 	codec->spec = spec;

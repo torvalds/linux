@@ -17,7 +17,7 @@
  * 2002-05-12   Tomas Kasparek  another code cleanup
  */
 
-/* $Id: uda1341.c,v 1.15 2005/01/03 12:05:20 tiwai Exp $ */
+/* $Id: uda1341.c,v 1.16 2005/09/09 13:22:34 tiwai Exp $ */
 
 #include <sound/driver.h>
 #include <linux/module.h>
@@ -670,7 +670,7 @@ int __init snd_chip_uda1341_mixer_new(snd_card_t *card, struct l3_client **clnt)
 
 	snd_assert(card != NULL, return -EINVAL);
 
-	uda1341 = kcalloc(1, sizeof(*uda1341), GFP_KERNEL);
+	uda1341 = kzalloc(sizeof(*uda1341), GFP_KERNEL);
 	if (uda1341 == NULL)
 		return -ENOMEM;
          
@@ -707,7 +707,7 @@ static int uda1341_attach(struct l3_client *clnt)
 {
 	struct uda1341 *uda;
 
-	uda = kcalloc(1, sizeof(*uda), 0, GFP_KERNEL);
+	uda = kzalloc(sizeof(*uda), 0, GFP_KERNEL);
 	if (!uda)
 		return -ENOMEM;
 

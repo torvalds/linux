@@ -168,6 +168,9 @@ struct _snd_card {
 	wait_queue_head_t shutdown_sleep;
 	struct work_struct free_workq;	/* for free in workqueue */
 	struct device *dev;
+#ifdef CONFIG_SND_GENERIC_DRIVER
+	struct snd_generic_device *generic_dev;
+#endif
 
 #ifdef CONFIG_PM
 	int (*pm_suspend)(snd_card_t *card, pm_message_t state);
@@ -176,9 +179,6 @@ struct _snd_card {
 	unsigned int power_state;	/* power state */
 	struct semaphore power_lock;	/* power lock */
 	wait_queue_head_t power_sleep;
-#ifdef CONFIG_SND_GENERIC_PM
-	struct snd_generic_device *pm_dev;	/* for ISA */
-#endif
 #endif
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
@@ -348,6 +348,8 @@ int snd_card_file_remove(snd_card_t *card, struct file *file);
 #ifndef snd_card_set_dev
 #define snd_card_set_dev(card,devptr) ((card)->dev = (devptr))
 #endif
+/* register a generic device (for ISA, etc) */
+int snd_card_set_generic_dev(snd_card_t *card);
 
 /* device.c */
 

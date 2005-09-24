@@ -12,6 +12,7 @@
  *
  * Modifications:
  *	02-May-2005 BJD  Copied from mach-bast.c
+ *	20-Sep-2005 BJD  Added static to non-exported items
 */
 
 #include <linux/kernel.h>
@@ -232,7 +233,7 @@ static struct s3c24xx_board anubis_board __initdata = {
 	.clocks_count  = ARRAY_SIZE(anubis_clocks)
 };
 
-void __init anubis_map_io(void)
+static void __init anubis_map_io(void)
 {
 	/* initialise the clocks */
 

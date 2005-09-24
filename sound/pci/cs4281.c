@@ -57,17 +57,6 @@ module_param_array(dual_codec, bool, NULL, 0444);
 MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 
 /*
- *
- */
-
-#ifndef PCI_VENDOR_ID_CIRRUS
-#define PCI_VENDOR_ID_CIRRUS            0x1013
-#endif
-#ifndef PCI_DEVICE_ID_CIRRUS_4281
-#define PCI_DEVICE_ID_CIRRUS_4281	0x6005
-#endif
-
-/*
  *  Direct registers
  */
 
@@ -1394,7 +1383,7 @@ static int __devinit snd_cs4281_create(snd_card_t * card,
 	*rchip = NULL;
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2119,6 +2108,7 @@ static int cs4281_resume(snd_card_t *card)
 
 static struct pci_driver driver = {
 	.name = "CS4281",
+	.owner = THIS_MODULE,
 	.id_table = snd_cs4281_ids,
 	.probe = snd_cs4281_probe,
 	.remove = __devexit_p(snd_cs4281_remove),

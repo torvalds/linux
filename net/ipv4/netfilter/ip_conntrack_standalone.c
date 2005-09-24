@@ -989,15 +989,15 @@ EXPORT_SYMBOL(need_ip_conntrack);
 EXPORT_SYMBOL(ip_conntrack_helper_register);
 EXPORT_SYMBOL(ip_conntrack_helper_unregister);
 EXPORT_SYMBOL(ip_ct_iterate_cleanup);
-EXPORT_SYMBOL(ip_ct_refresh_acct);
+EXPORT_SYMBOL(__ip_ct_refresh_acct);
 
 EXPORT_SYMBOL(ip_conntrack_expect_alloc);
 EXPORT_SYMBOL(ip_conntrack_expect_put);
-EXPORT_SYMBOL_GPL(ip_conntrack_expect_find_get);
+EXPORT_SYMBOL_GPL(__ip_conntrack_expect_find);
+EXPORT_SYMBOL_GPL(ip_conntrack_expect_find);
 EXPORT_SYMBOL(ip_conntrack_expect_related);
 EXPORT_SYMBOL(ip_conntrack_unexpect_related);
 EXPORT_SYMBOL_GPL(ip_conntrack_expect_list);
-EXPORT_SYMBOL_GPL(__ip_conntrack_expect_find);
 EXPORT_SYMBOL_GPL(ip_ct_unlink_expect);
 
 EXPORT_SYMBOL(ip_conntrack_tuple_taken);

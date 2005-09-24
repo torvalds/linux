@@ -361,17 +361,35 @@ out_unlock:
 	return retval;
 }
 
+/**
+ *	emergency_restart - reboot the system
+ *
+ *	Without shutting down any hardware or taking any locks
+ *	reboot the system.  This is called when we know we are in
+ *	trouble so this is our best effort to reboot.  This is
+ *	safe to call in interrupt context.
+ */
 void emergency_restart(void)
 {
 	machine_emergency_restart();
 }
 EXPORT_SYMBOL_GPL(emergency_restart);
 
-void kernel_restart(char *cmd)
+/**
+ *	kernel_restart - reboot the system
+ *
+ *	Shutdown everything and perform a clean reboot.
+ *	This is not safe to call in interrupt context.
+ */
+void kernel_restart_prepare(char *cmd)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
 	device_shutdown();
+}
+void kernel_restart(char *cmd)
+{
+	kernel_restart_prepare(cmd);
 	if (!cmd) {
 		printk(KERN_EMERG "Restarting system.\n");
 	} else {
@@ -382,6 +400,12 @@ void kernel_restart(char *cmd)
 }
 EXPORT_SYMBOL_GPL(kernel_restart);
 
+/**
+ *	kernel_kexec - reboot the system
+ *
+ *	Move into place and start executing a preloaded standalone
+ *	executable.  If nothing was preloaded return an error.
+ */
 void kernel_kexec(void)
 {
 #ifdef CONFIG_KEXEC
@@ -390,9 +414,7 @@ void kernel_kexec(void)
 	if (!image) {
 		return;
 	}
-	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
-	system_state = SYSTEM_RESTART;
-	device_shutdown();
+	kernel_restart_prepare(NULL);
 	printk(KERN_EMERG "Starting new kernel\n");
 	machine_shutdown();
 	machine_kexec(image);
@@ -400,21 +422,39 @@ void kernel_kexec(void)
 }
 EXPORT_SYMBOL_GPL(kernel_kexec);
 
-void kernel_halt(void)
+/**
+ *	kernel_halt - halt the system
+ *
+ *	Shutdown everything and perform a clean system halt.
+ */
+void kernel_halt_prepare(void)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
 	system_state = SYSTEM_HALT;
 	device_shutdown();
+}
+void kernel_halt(void)
+{
+	kernel_halt_prepare();
 	printk(KERN_EMERG "System halted.\n");
 	machine_halt();
 }
 EXPORT_SYMBOL_GPL(kernel_halt);
 
-void kernel_power_off(void)
+/**
+ *	kernel_power_off - power_off the system
+ *
+ *	Shutdown everything and perform a clean system power_off.
+ */
+void kernel_power_off_prepare(void)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_POWER_OFF, NULL);
 	system_state = SYSTEM_POWER_OFF;
 	device_shutdown();
+}
+void kernel_power_off(void)
+{
+	kernel_power_off_prepare();
 	printk(KERN_EMERG "Power down.\n");
 	machine_power_off();
 }
@@ -1728,8 +1768,7 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			error = put_user(current->pdeath_signal, (int __user *)arg2);
 			break;
 		case PR_GET_DUMPABLE:
-			if (current->mm->dumpable)
-				error = 1;
+			error = current->mm->dumpable;
 			break;
 		case PR_SET_DUMPABLE:
 			if (arg2 < 0 || arg2 > 2) {

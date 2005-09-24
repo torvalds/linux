@@ -667,7 +667,7 @@ static int patch_cmi9880(struct hda_codec *codec)
 {
 	struct cmi_spec *spec;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 

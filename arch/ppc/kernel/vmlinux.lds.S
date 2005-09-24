@@ -96,6 +96,9 @@ SECTIONS
 	*(.init.text)
 	_einittext = .;
   }
+  /* .exit.text is discarded at runtime, not link time,
+     to deal with references from __bug_table */
+  .exit.text : { *(.exit.text) }
   .init.data : {
     *(.init.data);
     __vtop_table_begin = .;
@@ -190,5 +193,6 @@ SECTIONS
   /* Sections to be discarded. */
   /DISCARD/ : {
     *(.exitcall.exit)
+    *(.exit.data)
   }
 }

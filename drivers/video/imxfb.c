@@ -425,7 +425,7 @@ static void imxfb_setup_gpio(struct imxfb_info *fbi)
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int imxfb_suspend(struct device *dev, u32 state, u32 level)
+static int imxfb_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct imxfb_info *fbi = dev_get_drvdata(dev);
 	pr_debug("%s\n",__FUNCTION__);

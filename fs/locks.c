@@ -124,6 +124,7 @@
 #include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/time.h>
+#include <linux/rcupdate.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -2205,6 +2206,7 @@ void steal_locks(fl_owner_t from)
 
 	lock_kernel();
 	j = 0;
+	rcu_read_lock();
 	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
@@ -2222,6 +2224,7 @@ void steal_locks(fl_owner_t from)
 			set >>= 1;
 		}
 	}
+	rcu_read_unlock();
 	unlock_kernel();
 }
 EXPORT_SYMBOL(steal_locks);

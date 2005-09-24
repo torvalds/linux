@@ -202,7 +202,7 @@ static void __devinit smp_store_cpu_info(int id)
 				goto valid_k7;
 
 		/* If we get here, it's not a certified SMP capable AMD system. */
-		tainted |= TAINT_UNSAFE_SMP;
+		add_taint(TAINT_UNSAFE_SMP);
 	}
 
 valid_k7:

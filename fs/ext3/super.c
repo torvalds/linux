@@ -512,15 +512,14 @@ static void ext3_clear_inode(struct inode *inode)
 
 static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
-	struct ext3_sb_info *sbi = EXT3_SB(vfs->mnt_sb);
+	struct super_block *sb = vfs->mnt_sb;
+	struct ext3_sb_info *sbi = EXT3_SB(sb);
 
-	if (sbi->s_mount_opt & EXT3_MOUNT_JOURNAL_DATA)
+	if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
 		seq_puts(seq, ",data=journal");
-
-	if (sbi->s_mount_opt & EXT3_MOUNT_ORDERED_DATA)
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
 		seq_puts(seq, ",data=ordered");
-
-	if (sbi->s_mount_opt & EXT3_MOUNT_WRITEBACK_DATA)
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
 		seq_puts(seq, ",data=writeback");
 
 #if defined(CONFIG_QUOTA)

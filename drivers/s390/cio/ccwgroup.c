@@ -437,7 +437,7 @@ __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 	if (cdev->dev.driver_data) {
 		gdev = (struct ccwgroup_device *)cdev->dev.driver_data;
 		if (get_device(&gdev->dev)) {
-			if (klist_node_attached(&gdev->dev.knode_bus))
+			if (device_is_registered(&gdev->dev))
 				return gdev;
 			put_device(&gdev->dev);
 		}

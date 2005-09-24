@@ -227,7 +227,6 @@ static void mthca_wq_init(struct mthca_wq *wq)
 	wq->last_comp = wq->max - 1;
 	wq->head      = 0;
 	wq->tail      = 0;
-	wq->last      = NULL;
 }
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
@@ -687,7 +686,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_TIMEOUT) {
-		qp_context->pri_path.ackto = attr->timeout;
+		qp_context->pri_path.ackto = attr->timeout << 3;
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_ACK_TIMEOUT);
 	}
 
@@ -1102,6 +1101,9 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 						   qp->send_wqe_offset);
 		}
 	}
+
+	qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
+	qp->rq.last = get_recv_wqe(qp, qp->rq.max - 1);
 
 	return 0;
 }
@@ -1583,15 +1585,13 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			goto out;
 		}
 
-		if (prev_wqe) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32(((ind << qp->sq.wqe_shift) +
-					     qp->send_wqe_offset) |
-					    mthca_opcode[wr->opcode]);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32(((ind << qp->sq.wqe_shift) +
+				     qp->send_wqe_offset) |
+				    mthca_opcode[wr->opcode]);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size);
 
 		if (!size0) {
 			size0 = size;
@@ -1688,13 +1688,11 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		qp->wrid[ind] = wr->wr_id;
 
-		if (likely(prev_wqe)) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32((ind << qp->rq.wqe_shift) | 1);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32(MTHCA_NEXT_DBD | size);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32((ind << qp->rq.wqe_shift) | 1);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32(MTHCA_NEXT_DBD | size);
 
 		if (!size0)
 			size0 = size;
@@ -1905,15 +1903,13 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			goto out;
 		}
 
-		if (likely(prev_wqe)) {
-			((struct mthca_next_seg *) prev_wqe)->nda_op =
-				cpu_to_be32(((ind << qp->sq.wqe_shift) +
-					     qp->send_wqe_offset) |
-					    mthca_opcode[wr->opcode]);
-			wmb();
-			((struct mthca_next_seg *) prev_wqe)->ee_nds =
-				cpu_to_be32(MTHCA_NEXT_DBD | size);
-		}
+		((struct mthca_next_seg *) prev_wqe)->nda_op =
+			cpu_to_be32(((ind << qp->sq.wqe_shift) +
+				     qp->send_wqe_offset) |
+				    mthca_opcode[wr->opcode]);
+		wmb();
+		((struct mthca_next_seg *) prev_wqe)->ee_nds =
+			cpu_to_be32(MTHCA_NEXT_DBD | size);
 
 		if (!size0) {
 			size0 = size;
@@ -2127,5 +2123,6 @@ void __devexit mthca_cleanup_qp_table(struct mthca_dev *dev)
 	for (i = 0; i < 2; ++i)
 		mthca_CONF_SPECIAL_QP(dev, i, 0, &status);
 
+	mthca_array_cleanup(&dev->qp_table.qp, dev->limits.num_qps);
 	mthca_alloc_cleanup(&dev->qp_table.alloc);
 }

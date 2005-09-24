@@ -117,6 +117,8 @@ static int do_aio(aio_context_t ctx, struct aio_context *aio)
         err = io_submit(ctx, 1, &iocbp);
         if(err > 0)
                 err = 0;
+	else
+		err = -errno;
 
  out:
         return err;
@@ -142,7 +144,8 @@ static int aio_thread(void *arg)
                                "errno = %d\n", errno);
                 }
                 else {
-			aio = (struct aio_context *) event.data;
+			/* This is safe as we've just a pointer here. */
+			aio = (struct aio_context *) (long) event.data;
 			if(update_aio(aio, event.res)){
 				do_aio(ctx, aio);
 				continue;
@@ -313,15 +316,16 @@ static int init_aio_26(void)
         int err;
 
         if(io_setup(256, &ctx)){
+		err = -errno;
                 printk("aio_thread failed to initialize context, err = %d\n",
                        errno);
-                return -errno;
+                return err;
         }
 
         err = run_helper_thread(aio_thread, NULL,
                                 CLONE_FILES | CLONE_VM | SIGCHLD, &stack, 0);
         if(err < 0)
-                return -errno;
+                return err;
 
         aio_pid = err;
 

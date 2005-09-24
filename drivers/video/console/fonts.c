@@ -23,7 +23,7 @@
 
 #define NO_FONTS
 
-static struct font_desc *fonts[] = {
+static const struct font_desc *fonts[] = {
 #ifdef CONFIG_FONT_8x8
 #undef NO_FONTS
     &font_vga_8x8,
@@ -84,7 +84,7 @@ static struct font_desc *fonts[] = {
  *
  */
 
-struct font_desc *find_font(char *name)
+const struct font_desc *find_font(const char *name)
 {
    unsigned int i;
 
@@ -108,10 +108,10 @@ struct font_desc *find_font(char *name)
  *
  */
 
-struct font_desc *get_default_font(int xres, int yres)
+const struct font_desc *get_default_font(int xres, int yres)
 {
     int i, c, cc;
-    struct font_desc *f, *g;
+    const struct font_desc *f, *g;
 
     g = NULL;
     cc = -10000;
@@ -138,7 +138,6 @@ struct font_desc *get_default_font(int xres, int yres)
     return g;
 }
 
-EXPORT_SYMBOL(fonts);
 EXPORT_SYMBOL(find_font);
 EXPORT_SYMBOL(get_default_font);
 

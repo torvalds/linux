@@ -51,6 +51,14 @@ config IP_NF_CONNTRACK_EVENTS
 	  
 	  IF unsure, say `N'.
 
+config IP_NF_CONNTRACK_NETLINK
+	tristate 'Connection tracking netlink interface'
+	depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
+	depends on IP_NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	help
+	  This option enables support for a netlink-based userspace interface
+
+
 config IP_NF_CT_PROTO_SCTP
 	tristate  'SCTP protocol connection tracking support (EXPERIMENTAL)'
 	depends on IP_NF_CONNTRACK && EXPERIMENTAL
@@ -128,6 +136,22 @@ config IP_NF_AMANDA
 	  index.
 
 	  To compile it as a module, choose M here.  If unsure, say Y.
+
+config IP_NF_PPTP
+	tristate  'PPTP protocol support'
+	help
+	  This module adds support for PPTP (Point to Point Tunnelling
+	  Protocol, RFC2637) conncection tracking and NAT. 
+	
+	  If you are running PPTP sessions over a stateful firewall or NAT
+	  box, you may want to enable this feature.  
+	
+	  Please note that not all PPTP modes of operation are supported yet.
+	  For more info, read top of the file
+	  net/ipv4/netfilter/ip_conntrack_pptp.c
+	
+	  If you want to compile it as a module, say M here and read
+	  Documentation/modules.txt.  If unsure, say `N'.
 
 config IP_NF_QUEUE
 	tristate "IP Userspace queueing via NETLINK (OBSOLETE)"
@@ -613,6 +637,12 @@ config IP_NF_NAT_AMANDA
 	default IP_NF_NAT if IP_NF_AMANDA=y
 	default m if IP_NF_AMANDA=m
 
+config IP_NF_NAT_PPTP
+	tristate
+	depends on IP_NF_NAT!=n && IP_NF_PPTP!=n
+	default IP_NF_NAT if IP_NF_PPTP=y
+	default m if IP_NF_PPTP=m
+
 # mangle + specific targets
 config IP_NF_MANGLE
 	tristate "Packet mangling"
@@ -773,12 +803,6 @@ config IP_NF_ARP_MANGLE
 	help
 	  Allows altering the ARP packet payload: source and destination
 	  hardware and network addresses.
-
-config IP_NF_CONNTRACK_NETLINK
-        tristate 'Connection tracking netlink interface'
-        depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
-        help
-          This option enables support for a netlink-based userspace interface
 
 endmenu
 

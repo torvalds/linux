@@ -463,6 +463,17 @@ struct inquiry_info_with_rssi_and_pscan_mode {
 	__s8     rssi;
 } __attribute__ ((packed));
 
+#define HCI_EV_EXTENDED_INQUIRY_RESULT	0x2F
+struct extended_inquiry_info {
+	bdaddr_t bdaddr;
+	__u8     pscan_rep_mode;
+	__u8     pscan_period_mode;
+	__u8     dev_class[3];
+	__u16    clock_offset;
+	__s8     rssi;
+	__u8     data[240];
+} __attribute__ ((packed));
+
 #define HCI_EV_CONN_COMPLETE 	0x03
 struct hci_ev_conn_complete {
 	__u8     status;

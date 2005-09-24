@@ -111,7 +111,7 @@ static queue_t *queue_new(int owner, int locked)
 {
 	queue_t *q;
 
-	q = kcalloc(1, sizeof(*q), GFP_KERNEL);
+	q = kzalloc(sizeof(*q), GFP_KERNEL);
 	if (q == NULL) {
 		snd_printd("malloc failed for snd_seq_queue_new()\n");
 		return NULL;

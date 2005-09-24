@@ -88,14 +88,18 @@ redirect_target(struct sk_buff **pskb,
 		newdst = htonl(0x7F000001);
 	else {
 		struct in_device *indev;
+		struct in_ifaddr *ifa;
 
-		/* Device might not have an associated in_device. */
-		indev = (struct in_device *)(*pskb)->dev->ip_ptr;
-		if (indev == NULL || indev->ifa_list == NULL)
+		newdst = 0;
+		
+		rcu_read_lock();
+		indev = __in_dev_get((*pskb)->dev);
+		if (indev && (ifa = indev->ifa_list))
+			newdst = ifa->ifa_local;
+		rcu_read_unlock();
+
+		if (!newdst)
 			return NF_DROP;
-
-		/* Grab first address on interface. */
-		newdst = indev->ifa_list->ifa_local;
 	}
 
 	/* Transfer from original range. */

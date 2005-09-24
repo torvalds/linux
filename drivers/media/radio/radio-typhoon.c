@@ -31,7 +31,7 @@
 
 #include <linux/module.h>	/* Modules                        */
 #include <linux/init.h>		/* Initdata                       */
-#include <linux/ioport.h>	/* check_region, request_region   */
+#include <linux/ioport.h>	/* request_region		  */
 #include <linux/proc_fs.h>	/* radio card status report	  */
 #include <asm/io.h>		/* outb, outb_p                   */
 #include <asm/uaccess.h>	/* copy to/from user              */

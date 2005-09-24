@@ -370,7 +370,10 @@ W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 
 AUDIT SUBSYSTEM
-L:	linux-audit@redhat.com (subscribers-only)
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	linux-audit@redhat.com
+W:	http://people.redhat.com/sgrubb/audit/
 S:	Maintained
 
 AX.25 NETWORK LAYER
@@ -681,6 +684,13 @@ M:	garloff@suse.de
 W:	http://www.garloff.de/kurt/linux/dc390/
 P:	Guennadi Liakhovetski
 M:	g.liakhovetski@gmx.de
+S:	Maintained
+
+DCCP PROTOCOL
+P:	Arnaldo Carvalho de Melo
+M:	acme@mandriva.com
+L:	dccp@vger.kernel.org
+W:	http://www.wlug.org.nz/DCCP
 S:	Maintained
 
 DECnet NETWORK LAYER
@@ -1053,8 +1063,6 @@ M:	wli@holomorphy.com
 S:	Maintained
 
 I2C SUBSYSTEM
-P:	Greg Kroah-Hartman
-M:	greg@kroah.com
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
@@ -1392,6 +1400,18 @@ M:	rddunlap@osdl.org
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
 L:	fastboot@osdl.org
+S:	Maintained
+
+KPROBES
+P:	Prasanna S Panchamukhi
+M:	prasanna@in.ibm.com
+P:	Ananth N Mavinakayanahalli
+M:	ananth@in.ibm.com
+P:	Anil S Keshavamurthy
+M:	anil.s.keshavamurthy@intel.com
+P:	David S. Miller
+M:	davem@davemloft.net
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 LANMEDIA WAN CARD DRIVER
@@ -2256,6 +2276,12 @@ M:	kristen.c.accardi@intel.com
 L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
+SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
+P:	Stephen Hemminger
+M:	shemminger@osdl.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 SPARC (sparc32):
 P:	William L. Irwin
 M:	wli@holomorphy.com
@@ -2266,12 +2292,6 @@ SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 P:	Roger Wolff
 M:	R.E.Wolff@BitWizard.nl
 L:	linux-kernel@vger.kernel.org ?
-S:	Supported
-
-SPX NETWORK LAYER
-P:	Jay Schulist
-M:	jschlst@samba.org
-L:	netdev@vger.kernel.org
 S:	Supported
 
 SRM (Alpha) environment access

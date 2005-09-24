@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/bcd.h>
 
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/nvram.h>
 #include <asm/prom.h>

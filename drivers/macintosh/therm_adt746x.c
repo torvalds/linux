@@ -599,7 +599,7 @@ thermostat_init(void)
 		sensor_location[2] = "?";
 	}
 
-	of_dev = of_platform_device_create(np, "temperatures");
+	of_dev = of_platform_device_create(np, "temperatures", NULL);
 	
 	if (of_dev == NULL) {
 		printk(KERN_ERR "Can't register temperatures device !\n");

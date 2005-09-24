@@ -1045,7 +1045,18 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 {
 	struct yenta_socket *socket;
 	int ret;
-	
+
+	/*
+	 * If we failed to assign proper bus numbers for this cardbus
+	 * controller during PCI probe, its subordinate pci_bus is NULL.
+	 * Bail out if so.
+	 */
+	if (!dev->subordinate) {
+		printk(KERN_ERR "Yenta: no bus associated with %s! "
+			"(try 'pci=assign-busses')\n", pci_name(dev));
+		return -ENODEV;
+	}
+
 	socket = kmalloc(sizeof(struct yenta_socket), GFP_KERNEL);
 	if (!socket)
 		return -ENOMEM;

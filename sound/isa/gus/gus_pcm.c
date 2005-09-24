@@ -666,7 +666,7 @@ static int snd_gf1_pcm_playback_open(snd_pcm_substream_t *substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err;
 
-	pcmp = kcalloc(1, sizeof(*pcmp), GFP_KERNEL);
+	pcmp = kzalloc(sizeof(*pcmp), GFP_KERNEL);
 	if (pcmp == NULL)
 		return -ENOMEM;
 	pcmp->gus = gus;

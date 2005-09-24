@@ -55,6 +55,7 @@ aic7*seq.h*
 aicasm
 aicdb.h*
 asm
+asm-offsets.*
 asm_offsets.*
 autoconf.h*
 bbootsect
