@@ -2521,7 +2521,8 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	unsigned long mem_start, mem_len, aux_start, aux_len;
 	int rc = -1;
 	int i;
-	unsigned char *busaddroff,*vpackoff;
+	dma_addr_t busaddroff;
+	unsigned char *vpackoff;
 	unsigned char __iomem *pciaddroff;
 
 	mem_start = pci_resource_start(pci, 1);
@@ -2564,7 +2565,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	/*
 	 * Setup descriptor RX, TX, CONFIG
 	 */
-	busaddroff = (unsigned char *)ai->shared_dma;
+	busaddroff = ai->shared_dma;
 	pciaddroff = ai->pciaux + AUX_OFFSET;
 	vpackoff   = ai->shared;
 
@@ -2573,7 +2574,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 		ai->rxfids[i].pending = 0;
 		ai->rxfids[i].card_ram_off = pciaddroff;
 		ai->rxfids[i].virtual_host_addr = vpackoff;
-		ai->rxfids[i].rx_desc.host_addr = (dma_addr_t) busaddroff;
+		ai->rxfids[i].rx_desc.host_addr = busaddroff;
 		ai->rxfids[i].rx_desc.valid = 1;
 		ai->rxfids[i].rx_desc.len = PKTSIZE;
 		ai->rxfids[i].rx_desc.rdy = 0;
@@ -2588,7 +2589,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 		ai->txfids[i].card_ram_off = pciaddroff;
 		ai->txfids[i].virtual_host_addr = vpackoff;
 		ai->txfids[i].tx_desc.valid = 1;
-		ai->txfids[i].tx_desc.host_addr = (dma_addr_t) busaddroff;
+		ai->txfids[i].tx_desc.host_addr = busaddroff;
 		memcpy(ai->txfids[i].virtual_host_addr,
 			&wifictlhdr8023, sizeof(wifictlhdr8023));
 
@@ -2601,8 +2602,8 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	/* Rid descriptor setup */
 	ai->config_desc.card_ram_off = pciaddroff;
 	ai->config_desc.virtual_host_addr = vpackoff;
-	ai->config_desc.rid_desc.host_addr = (dma_addr_t) busaddroff;
-	ai->ridbus = (dma_addr_t)busaddroff;
+	ai->config_desc.rid_desc.host_addr = busaddroff;
+	ai->ridbus = busaddroff;
 	ai->config_desc.rid_desc.rid = 0;
 	ai->config_desc.rid_desc.len = RIDSIZE;
 	ai->config_desc.rid_desc.valid = 1;
