@@ -242,10 +242,6 @@ EXPORT_SYMBOL(phy_sanitize_settings);
  *   choose the next best ones from the ones selected, so we don't
  *   care if ethtool tries to give us bad values
  *
- * A note about the PHYCONTROL Layer.  If you turn off
- * CONFIG_PHYCONTROL, you will need to read the PHY status
- * registers after this function completes, and update your
- * controller manually.
  */
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 {
@@ -380,7 +376,6 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	err = phydev->drv->config_aneg(phydev);
 
-#ifdef CONFIG_PHYCONTROL
 	if (err < 0)
 		goto out_unlock;
 
@@ -395,14 +390,12 @@ int phy_start_aneg(struct phy_device *phydev)
 	}
 
 out_unlock:
-#endif
 	spin_unlock(&phydev->lock);
 	return err;
 }
 EXPORT_SYMBOL(phy_start_aneg);
 
 
-#ifdef CONFIG_PHYCONTROL
 static void phy_change(void *data);
 static void phy_timer(unsigned long data);
 
@@ -868,4 +861,3 @@ static void phy_timer(unsigned long data)
 	mod_timer(&phydev->phy_timer, jiffies + PHY_STATE_TIME * HZ);
 }
 
-#endif /* CONFIG_PHYCONTROL */

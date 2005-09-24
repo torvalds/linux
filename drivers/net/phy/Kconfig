@@ -12,14 +12,6 @@ config PHYLIB
 	  devices.  This option provides infrastructure for
 	  managing PHY devices.
 
-config PHYCONTROL
-	bool "  Support for automatically handling PHY state changes"
-	depends on PHYLIB
-	help
-	  Adds code to perform all the work for keeping PHY link
-	  state (speed/duplex/etc) up-to-date.  Also handles
-	  interrupts.
-
 comment "MII PHY device drivers"
 	depends on PHYLIB
 
