@@ -441,7 +441,7 @@ static int prism2_pci_resume(struct pci_dev *pdev)
 MODULE_DEVICE_TABLE(pci, prism2_pci_id_table);
 
 static struct pci_driver prism2_pci_drv_id = {
-	.name		= "prism2_pci",
+	.name		= "hostap_pci",
 	.id_table	= prism2_pci_id_table,
 	.probe		= prism2_pci_probe,
 	.remove		= prism2_pci_remove,

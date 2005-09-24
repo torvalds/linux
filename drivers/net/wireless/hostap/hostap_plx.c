@@ -616,7 +616,7 @@ static void prism2_plx_remove(struct pci_dev *pdev)
 MODULE_DEVICE_TABLE(pci, prism2_plx_id_table);
 
 static struct pci_driver prism2_plx_drv_id = {
-	.name		= "prism2_plx",
+	.name		= "hostap_plx",
 	.id_table	= prism2_plx_id_table,
 	.probe		= prism2_plx_probe,
 	.remove		= prism2_plx_remove,
