@@ -247,6 +247,7 @@ static int gre_packet(struct ip_conntrack *ct,
 				   ct->proto.gre.stream_timeout);
 		/* Also, more likely to be important, and not a probe. */
 		set_bit(IPS_ASSURED_BIT, &ct->status);
+		ip_conntrack_event_cache(IPCT_STATUS, skb);
 	} else
 		ip_ct_refresh_acct(ct, conntrackinfo, skb,
 				   ct->proto.gre.timeout);
