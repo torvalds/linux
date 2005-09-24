@@ -1935,7 +1935,7 @@ static char * __prism2_translate_scan(local_info_t *local,
 	}
 
 	/* TODO: add BeaconInt,resp_rate,atim into BSS table */
-	buf = kmalloc(MAX_WPA_IE_LEN * 2 + 30, GFP_KERNEL);
+	buf = kmalloc(MAX_WPA_IE_LEN * 2 + 30, GFP_ATOMIC);
 	if (buf && scan) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
