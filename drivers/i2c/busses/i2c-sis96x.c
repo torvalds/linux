@@ -83,7 +83,7 @@
 #define SIS96x_BLOCK_DATA 0x05
 
 static struct i2c_adapter sis96x_adapter;
-static u16 sis96x_smbus_base = 0;
+static u16 sis96x_smbus_base;
 
 static inline u8 sis96x_read(u8 reg)
 {

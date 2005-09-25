@@ -123,11 +123,11 @@ static int blacklist[] = {
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static u16 force_addr = 0;
+static u16 force_addr;
 module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr, "Initialize the base address of the i2c controller");
 
-static unsigned short sis5595_base = 0;
+static unsigned short sis5595_base;
 
 static u8 sis5595_read(u8 reg)
 {

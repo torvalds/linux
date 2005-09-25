@@ -86,7 +86,7 @@
 #define AMD756_BLOCK_DATA	0x05
 
 
-static unsigned short amd756_ioport = 0;
+static unsigned short amd756_ioport;
 
 /* 
   SMBUS event = I/O 28-29 bit 11

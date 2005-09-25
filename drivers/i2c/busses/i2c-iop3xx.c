@@ -43,7 +43,7 @@
 #include "i2c-iop3xx.h"
 
 /* global unit counter */
-static int i2c_id = 0;
+static int i2c_id;
 
 static inline unsigned char 
 iic_cook_addr(struct i2c_msg *msg) 

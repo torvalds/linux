@@ -45,7 +45,7 @@
 #define IOSPACE		0x06
 #define IOTEXT		"via-i2c"
 
-static u16 pm_io_base = 0;
+static u16 pm_io_base;
 
 /*
    It does not appear from the datasheet that the GPIO pins are

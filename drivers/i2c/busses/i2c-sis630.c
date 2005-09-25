@@ -101,7 +101,7 @@ module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Forcibly enable the SIS630. DANGEROUS!");
 
 /* acpi base address */
-static unsigned short acpi_base = 0;
+static unsigned short acpi_base;
 
 /* supported chips */
 static int supported[] = {
