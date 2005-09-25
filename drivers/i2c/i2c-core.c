@@ -864,7 +864,7 @@ static int i2c_smbus_add_pec(u16 addr, u8 command, int size,
 			break;
 		case I2C_SMBUS_BYTE_DATA:
 			buf[2] = data->byte;
-			data->word = buf[2] ||
+			data->word = buf[2] |
 			            (i2c_smbus_pec(3, buf, NULL) << 8);
 			size = I2C_SMBUS_WORD_DATA;
 			break;
@@ -1033,8 +1033,8 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 	  need to use only one message; when reading, we need two. We initialize
 	  most things with sane defaults, to keep the code below somewhat
 	  simpler. */
-	unsigned char msgbuf0[34];
-	unsigned char msgbuf1[34];
+	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX+3];
+	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX+2];
 	int num = read_write == I2C_SMBUS_READ?2:1;
 	struct i2c_msg msg[2] = { { addr, flags, 1, msgbuf0 }, 
 	                          { addr, flags | I2C_M_RD, 0, msgbuf1 }
@@ -1097,7 +1097,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 			}
 			if(size == I2C_SMBUS_BLOCK_DATA_PEC)
 				(msg[0].len)++;
-			for (i = 1; i <= msg[0].len; i++)
+			for (i = 1; i < msg[0].len; i++)
 				msgbuf0[i] = data->block[i-1];
 		}
 		break;
