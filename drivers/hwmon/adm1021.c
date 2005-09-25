@@ -121,7 +121,7 @@ static int adm1021_write_value(struct i2c_client *client, u8 reg,
 static struct adm1021_data *adm1021_update_device(struct device *dev);
 
 /* (amalysh) read only mode, otherwise any limit's writing confuse BIOS */
-static int read_only = 0;
+static int read_only;
 
 
 /* This is the driver that will be inserted */
