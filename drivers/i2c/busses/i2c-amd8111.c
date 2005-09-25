@@ -244,7 +244,6 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr, unsigned short fl
 			break;
 
 		case I2C_SMBUS_BLOCK_PROC_CALL:
-			protocol |= pec;
 			len = min_t(u8, data->block[0], 31);
 			amd_ec_write(smbus, AMD_SMB_CMD, command);
 			amd_ec_write(smbus, AMD_SMB_BCNT, len);
