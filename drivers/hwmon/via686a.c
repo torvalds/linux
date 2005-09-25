@@ -712,7 +712,6 @@ static int via686a_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* Called when we have found a new VIA686A. Set limits, etc. */
 static void via686a_init_client(struct i2c_client *client)
 {
 	u8 reg;

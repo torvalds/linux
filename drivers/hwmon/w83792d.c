@@ -1429,7 +1429,6 @@ w83792d_write_value(struct i2c_client *client, u8 reg, u8 value)
 	return 0;
 }
 
-/* Called when we have found a new W83792D. It should set limits, etc. */
 static void
 w83792d_init_client(struct i2c_client *client)
 {
