@@ -110,6 +110,7 @@ static int i801_block_transaction(union i2c_smbus_data *data,
 				  char read_write, int command);
 
 static unsigned short i801_smba;
+static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
 
@@ -143,7 +144,7 @@ static int i801_setup(struct pci_dev *dev)
 		}
 	}
 
-	if (!request_region(i801_smba, (isich4 ? 16 : 8), "i801-smbus")) {
+	if (!request_region(i801_smba, (isich4 ? 16 : 8), i801_driver.name)) {
 		dev_err(&dev->dev, "I801_smb region 0x%x already in use!\n",
 			i801_smba);
 		error_return = -EBUSY;
@@ -543,7 +544,6 @@ static struct i2c_adapter i801_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id i801_ids[] = {

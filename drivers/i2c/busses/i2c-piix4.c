@@ -112,6 +112,7 @@ MODULE_PARM_DESC(fix_hstcfg,
 static int piix4_transaction(void);
 
 static unsigned short piix4_smba;
+static struct pci_driver piix4_driver;
 static struct i2c_adapter piix4_adapter;
 
 static struct dmi_system_id __devinitdata piix4_dmi_table[] = {
@@ -157,7 +158,7 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 		}
 	}
 
-	if (!request_region(piix4_smba, SMBIOSIZE, "piix4-smbus")) {
+	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
 		dev_err(&PIIX4_dev->dev, "SMB region 0x%x already in use!\n",
 			piix4_smba);
 		return -ENODEV;
@@ -407,7 +408,6 @@ static struct i2c_adapter piix4_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id piix4_ids[] = {

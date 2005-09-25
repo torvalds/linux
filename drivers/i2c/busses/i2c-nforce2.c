@@ -97,6 +97,7 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_PRTCL_I2C_BLOCK_DATA		0x4a
 #define NVIDIA_SMB_PRTCL_PEC			0x80
 
+static struct pci_driver nforce2_driver;
 
 static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write,
@@ -113,7 +114,6 @@ static struct i2c_adapter nforce2_adapter = {
 	.owner          = THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo           = &smbus_algorithm,
-	.name   	= "unset",
 };
 
 /* Return -1 on error. See smbus.h for more information */
@@ -285,7 +285,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int reg,
 	smbus->base = iobase & 0xfffc;
 	smbus->size = 8;
 
-	if (!request_region(smbus->base, smbus->size, "nForce2 SMBus")) {
+	if (!request_region(smbus->base, smbus->size, nforce2_driver.name)) {
 		dev_err(&smbus->adapter.dev, "Error requesting region %02x .. %02X for %s\n",
 			smbus->base, smbus->base+smbus->size-1, name);
 		return -1;

@@ -30,6 +30,8 @@ struct amd_smbus {
 	int size;
 };
 
+static struct pci_driver amd8111_driver;
+
 /*
  * AMD PCI control registers definitions.
  */
@@ -352,7 +354,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev, const struct pci_device_
 	smbus->base = pci_resource_start(dev, 0);
 	smbus->size = pci_resource_len(dev, 0);
 
-	if (!request_region(smbus->base, smbus->size, "amd8111 SMBus 2.0"))
+	if (!request_region(smbus->base, smbus->size, amd8111_driver.name))
 		goto out_kfree;
 
 	smbus->adapter.owner = THIS_MODULE;
