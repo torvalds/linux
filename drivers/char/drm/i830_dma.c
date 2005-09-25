@@ -1544,32 +1544,19 @@ int i830_driver_dma_quiescent(drm_device_t * dev)
 }
 
 drm_ioctl_desc_t i830_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_I830_INIT)] = {i830_dma_init, 1, 1}
-	,
-	[DRM_IOCTL_NR(DRM_I830_VERTEX)] = {i830_dma_vertex, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_CLEAR)] = {i830_clear_bufs, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_FLUSH)] = {i830_flush_ioctl, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_GETAGE)] = {i830_getage, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_GETBUF)] = {i830_getbuf, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_SWAP)] = {i830_swap_bufs, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_COPY)] = {i830_copybuf, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_DOCOPY)] = {i830_docopy, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_FLIP)] = {i830_flip_bufs, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_IRQ_EMIT)] = {i830_irq_emit, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_IRQ_WAIT)] = {i830_irq_wait, 1, 0}
-	,
-	[DRM_IOCTL_NR(DRM_I830_GETPARAM)] = {i830_getparam, 1, 0}
-	,
+	[DRM_IOCTL_NR(DRM_I830_INIT)] = {i830_dma_init, 1, 1},
+	[DRM_IOCTL_NR(DRM_I830_VERTEX)] = {i830_dma_vertex, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_CLEAR)] = {i830_clear_bufs, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_FLUSH)] = {i830_flush_ioctl, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_GETAGE)] = {i830_getage, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_GETBUF)] = {i830_getbuf, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_SWAP)] = {i830_swap_bufs, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_COPY)] = {i830_copybuf, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_DOCOPY)] = {i830_docopy, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_FLIP)] = {i830_flip_bufs, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_IRQ_EMIT)] = {i830_irq_emit, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_IRQ_WAIT)] = {i830_irq_wait, 1, 0},
+	[DRM_IOCTL_NR(DRM_I830_GETPARAM)] = {i830_getparam, 1, 0},
 	[DRM_IOCTL_NR(DRM_I830_SETPARAM)] = {i830_setparam, 1, 0}
 };
 
