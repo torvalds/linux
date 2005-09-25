@@ -37,6 +37,7 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 
 /* How many retries on register read error */
@@ -111,27 +112,24 @@ struct w83l785ts_data {
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
-	u8 temp, temp_over;
+	u8 temp[2]; /* 0: input
+		       1: critical limit */
 };
 
 /*
  * Sysfs stuff
  */
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+	char *buf)
 {
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct w83l785ts_data *data = w83l785ts_update_device(dev);
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp));
+	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-static ssize_t show_temp_over(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w83l785ts_data *data = w83l785ts_update_device(dev);
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_over));
-}
-
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL);
-static DEVICE_ATTR(temp1_max, S_IRUGO, show_temp_over, NULL);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
 
 /*
  * Real code
@@ -228,7 +226,7 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 	init_MUTEX(&data->update_lock);
 
 	/* Default values in case the first read fails (unlikely). */
-	data->temp_over = data->temp = 0;
+	data->temp[1] = data->temp[0] = 0;
 
 	/* Tell the I2C layer a new client has arrived. */
 	if ((err = i2c_attach_client(new_client))) 
@@ -246,8 +244,10 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_detach;
 	}
 
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_input.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_max.dev_attr);
 
 	return 0;
 
@@ -305,10 +305,10 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev)
 
 	if (!data->valid || time_after(jiffies, data->last_updated + HZ * 2)) {
 		dev_dbg(&client->dev, "Updating w83l785ts data.\n");
-		data->temp = w83l785ts_read_value(client,
-			     W83L785TS_REG_TEMP, data->temp);
-		data->temp_over = w83l785ts_read_value(client,
-				  W83L785TS_REG_TEMP_OVER, data->temp_over);
+		data->temp[0] = w83l785ts_read_value(client,
+				W83L785TS_REG_TEMP, data->temp[0]);
+		data->temp[1] = w83l785ts_read_value(client,
+				W83L785TS_REG_TEMP_OVER, data->temp[1]);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
