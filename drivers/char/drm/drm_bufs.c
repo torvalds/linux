@@ -309,7 +309,7 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 
 	if (copy_to_user(argp, maplist->map, sizeof(drm_map_t)))
 		return -EFAULT;
-	if (put_user(maplist->user_token, &argp->handle))
+	if (put_user((void *)maplist->user_token, &argp->handle))
 		return -EFAULT;
 	return 0;
 }
