@@ -145,15 +145,16 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned long flags;
-	int status;
+	int status = 0;
 
 	spin_lock_irqsave(&uhci->lock, flags);
-	if (uhci->hc_inaccessible) {
-		status = 0;
-		goto done;
-	}
 
+	uhci_scan_schedule(uhci, NULL);
+	if (uhci->hc_inaccessible)
+		goto done;
+	check_fsbr(uhci);
 	uhci_check_ports(uhci);
+
 	status = get_hub_status_data(uhci, buf);
 
 	switch (uhci->rh_state) {

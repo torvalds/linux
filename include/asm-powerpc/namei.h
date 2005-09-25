@@ -1,13 +1,13 @@
+#ifndef _ASM_POWERPC_NAMEI_H
+#define _ASM_POWERPC_NAMEI_H
+
+#ifdef __KERNEL__
+
 /*
- * include/asm-ppc/namei.h
  * Adapted from include/asm-alpha/namei.h
  *
  * Included from fs/namei.c
  */
-
-#ifdef __KERNEL__
-#ifndef __PPC_NAMEI_H
-#define __PPC_NAMEI_H
 
 /* This dummy routine maybe changed to something useful
  * for /usr/gnemul/ emulation stuff.
@@ -16,5 +16,5 @@
 
 #define __emul_prefix() NULL
 
-#endif /* __PPC_NAMEI_H */
-#endif /* __KERNEL__ */
+#endif	/* __KERNEL__ */
+#endif	/* _ASM_POWERPC_NAMEI_H */

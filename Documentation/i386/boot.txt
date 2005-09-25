@@ -2,7 +2,7 @@
 		     ----------------------------
 
 		    H. Peter Anvin <hpa@zytor.com>
-			Last update 2002-01-01
+			Last update 2005-09-02
 
 On the i386 platform, the Linux kernel uses a rather complicated boot
 convention.  This has evolved partially due to historical aspects, as
@@ -33,6 +33,8 @@ Protocol 2.02:	(Kernel 2.4.0-test3-pre3) New command line protocol.
 
 Protocol 2.03:	(Kernel 2.4.18-pre1) Explicitly makes the highest possible
 		initrd address available to the bootloader.
+
+Protocol 2.04:	(Kernel 2.6.14) Extend the syssize field to four bytes.
 
 
 **** MEMORY LAYOUT
@@ -103,10 +105,9 @@ The header looks like:
 Offset	Proto	Name		Meaning
 /Size
 
-01F1/1	ALL	setup_sects	The size of the setup in sectors
+01F1/1	ALL(1	setup_sects	The size of the setup in sectors
 01F2/2	ALL	root_flags	If set, the root is mounted readonly
-01F4/2	ALL	syssize		DO NOT USE - for bootsect.S use only
-01F6/2	ALL	swap_dev	DO NOT USE - obsolete
+01F4/4	2.04+(2	syssize		The size of the 32-bit code in 16-byte paras
 01F8/2	ALL	ram_size	DO NOT USE - for bootsect.S use only
 01FA/2	ALL	vid_mode	Video mode control
 01FC/2	ALL	root_dev	Default root device number
@@ -129,8 +130,12 @@ Offset	Proto	Name		Meaning
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
 022C/4	2.03+	initrd_addr_max	Highest legal initrd address
 
-For backwards compatibility, if the setup_sects field contains 0, the
-real value is 4.
+(1) For backwards compatibility, if the setup_sects field contains 0, the
+    real value is 4.
+
+(2) For boot protocol prior to 2.04, the upper two bytes of the syssize
+    field are unusable, which means the size of a bzImage kernel
+    cannot be determined.
 
 If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
 the boot protocol version is "old".  Loading an old kernel, the
@@ -230,12 +235,16 @@ loader to communicate with the kernel.  Some of its options are also
 relevant to the boot loader itself, see "special command line options"
 below.
 
-The kernel command line is a null-terminated string up to 255
-characters long, plus the final null.
+The kernel command line is a null-terminated string currently up to
+255 characters long, plus the final null.  A string that is too long
+will be automatically truncated by the kernel, a boot loader may allow
+a longer command line to be passed to permit future kernels to extend
+this limit.
 
 If the boot protocol version is 2.02 or later, the address of the
 kernel command line is given by the header field cmd_line_ptr (see
-above.)
+above.)  This address can be anywhere between the end of the setup
+heap and 0xA0000.
 
 If the protocol version is *not* 2.02 or higher, the kernel
 command line is entered using the following protocol:
@@ -255,7 +264,7 @@ command line is entered using the following protocol:
 **** SAMPLE BOOT CONFIGURATION
 
 As a sample configuration, assume the following layout of the real
-mode segment:
+mode segment (this is a typical, and recommended layout):
 
 	0x0000-0x7FFF	Real mode kernel
 	0x8000-0x8FFF	Stack and heap
@@ -312,9 +321,9 @@ Such a boot loader should enter the following fields in the header:
 
 **** LOADING THE REST OF THE KERNEL
 
-The non-real-mode kernel starts at offset (setup_sects+1)*512 in the
-kernel file (again, if setup_sects == 0 the real value is 4.)  It
-should be loaded at address 0x10000 for Image/zImage kernels and
+The 32-bit (non-real-mode) kernel starts at offset (setup_sects+1)*512
+in the kernel file (again, if setup_sects == 0 the real value is 4.)
+It should be loaded at address 0x10000 for Image/zImage kernels and
 0x100000 for bzImage kernels.
 
 The kernel is a bzImage kernel if the protocol >= 2.00 and the 0x01

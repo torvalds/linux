@@ -264,7 +264,7 @@ static inline int flag_low(int flag, unsigned long timeout)
 static int sleep_timeout;	/* max # of ticks to sleep */
 static DECLARE_WAIT_QUEUE_HEAD(waitq);
 static void sleep_timer(unsigned long data);
-static struct timer_list delay_timer = TIMER_INITIALIZER(sleep_timer, 0, 0);
+static DEFINE_TIMER(delay_timer, sleep_timer, 0, 0);
 static DEFINE_SPINLOCK(optcd_lock);
 static struct request_queue *opt_queue;
 

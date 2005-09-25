@@ -46,15 +46,36 @@
 #endif
 #endif
 
+/* For older kernels, support for text consoles is by default
+ * off. To ensable text console support, change the following:
+ */
+#if 0
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13)
+#define CONFIG_USB_SISUSBVGA_CON
+#endif
+#endif
+
 /* Version Information */
 
 #define SISUSB_VERSION		0
 #define SISUSB_REVISION 	0
-#define SISUSB_PATCHLEVEL	7
+#define SISUSB_PATCHLEVEL	8
+
+/* Include console and mode switching code? */
+
+#ifdef CONFIG_USB_SISUSBVGA_CON
+#define INCL_SISUSB_CON		1
+#endif
+
+#ifdef INCL_SISUSB_CON
+#include <linux/console.h>
+#include <linux/vt_kern.h>
+#include "sisusb_struct.h"
+#endif
 
 /* USB related */
 
-#define SISUSB_MINOR	133		/* FIXME */
+#define SISUSB_MINOR		133	/* official */
 
 /* Size of the sisusb input/output buffers */
 #define SISUSB_IBUF_SIZE  0x01000
@@ -131,6 +152,26 @@ struct sisusb_usb_data {
 	unsigned char gfxinit;		/* graphics core initialized? */
 	unsigned short chipid, chipvendor;
 	unsigned short chiprevision;
+#ifdef INCL_SISUSB_CON
+	struct SiS_Private *SiS_Pr;
+	unsigned long scrbuf;
+	unsigned int scrbuf_size;
+	int haveconsole, con_first, con_last;
+	int havethisconsole[MAX_NR_CONSOLES];
+	int textmodedestroyed;
+	unsigned int sisusb_num_columns; /* real number, not vt's idea */
+	int cur_start_addr, con_rolled_over;
+	int sisusb_cursor_loc, bad_cursor_pos;
+	int sisusb_cursor_size_from;
+	int sisusb_cursor_size_to;
+	int current_font_height, current_font_512;
+	int font_backup_size, font_backup_height, font_backup_512;
+	char *font_backup;
+	int font_slot;
+	struct vc_data *sisusb_display_fg;
+	int is_gfx;
+	int con_blanked;
+#endif
 };
 
 #define to_sisusb_dev(d) container_of(d, struct sisusb_usb_data, kref)
@@ -249,7 +290,9 @@ struct sisusb_info {
 
 	__u32   sisusb_fbdevactive;	/* != 0 if framebuffer device active */
 
-	__u8	sisusb_reserved[32];	/* for future use */
+	__u32   sisusb_conactive;	/* != 0 if console driver active */
+
+	__u8	sisusb_reserved[28];	/* for future use */
 };
 
 struct sisusb_command {
@@ -261,18 +304,24 @@ struct sisusb_command {
 	__u32  data4;		/* for future use */
 };
 
-#define SUCMD_GET      0x01	/* for all: data0 = index, data3 = port */
-#define SUCMD_SET      0x02	/* data1 = value */
-#define SUCMD_SETOR    0x03	/* data1 = or */
-#define SUCMD_SETAND   0x04	/* data1 = and */
-#define SUCMD_SETANDOR 0x05	/* data1 = and, data2 = or */
-#define SUCMD_SETMASK  0x06	/* data1 = data, data2 = mask */
+#define SUCMD_GET	0x01	/* for all: data0 = index, data3 = port */
+#define SUCMD_SET	0x02	/* data1 = value */
+#define SUCMD_SETOR	0x03	/* data1 = or */
+#define SUCMD_SETAND	0x04	/* data1 = and */
+#define SUCMD_SETANDOR	0x05	/* data1 = and, data2 = or */
+#define SUCMD_SETMASK	0x06	/* data1 = data, data2 = mask */
 
-#define SUCMD_CLRSCR   0x07	/* data0:1:2 = length, data3 = address */
+#define SUCMD_CLRSCR	0x07	/* data0:1:2 = length, data3 = address */
+
+#define SUCMD_HANDLETEXTMODE 0x08 /* Reset/destroy text mode */
+
+#define SUCMD_SETMODE	0x09	/* Set a display mode (data3 = SiS mode) */
+#define SUCMD_SETVESAMODE 0x0a	/* Set a display mode (data3 = VESA mode) */
 
 #define SISUSB_COMMAND		_IOWR(0xF3,0x3D,struct sisusb_command)
-#define SISUSB_GET_CONFIG_SIZE 	_IOR(0xF3,0x3E,__u32)
-#define SISUSB_GET_CONFIG  	_IOR(0xF3,0x3F,struct sisusb_info)
+#define SISUSB_GET_CONFIG_SIZE	_IOR(0xF3,0x3E,__u32)
+#define SISUSB_GET_CONFIG	_IOR(0xF3,0x3F,struct sisusb_info)
+
 
 #endif /* SISUSB_H */
 

@@ -1013,41 +1013,50 @@ skip_large_dir_stuff:
 		}
 		a = ctx->attr;
 		/* Setup the state. */
-		if (a->non_resident) {
-			NInoSetNonResident(ni);
-			if (a->flags & (ATTR_COMPRESSION_MASK |
-					ATTR_IS_SPARSE)) {
-				if (a->flags & ATTR_COMPRESSION_MASK) {
-					NInoSetCompressed(ni);
-					if (vol->cluster_size > 4096) {
-						ntfs_error(vi->i_sb, "Found "
+		if (a->flags & (ATTR_COMPRESSION_MASK | ATTR_IS_SPARSE)) {
+			if (a->flags & ATTR_COMPRESSION_MASK) {
+				NInoSetCompressed(ni);
+				if (vol->cluster_size > 4096) {
+					ntfs_error(vi->i_sb, "Found "
 							"compressed data but "
 							"compression is "
 							"disabled due to "
 							"cluster size (%i) > "
 							"4kiB.",
 							vol->cluster_size);
-						goto unm_err_out;
-					}
-					if ((a->flags & ATTR_COMPRESSION_MASK)
-							!= ATTR_IS_COMPRESSED) {
-						ntfs_error(vi->i_sb, "Found "
-							"unknown compression "
-							"method or corrupt "
-							"file.");
-						goto unm_err_out;
-					}
+					goto unm_err_out;
 				}
-				if (a->flags & ATTR_IS_SPARSE)
-					NInoSetSparse(ni);
+				if ((a->flags & ATTR_COMPRESSION_MASK)
+						!= ATTR_IS_COMPRESSED) {
+					ntfs_error(vi->i_sb, "Found unknown "
+							"compression method "
+							"or corrupt file.");
+					goto unm_err_out;
+				}
+			}
+			if (a->flags & ATTR_IS_SPARSE)
+				NInoSetSparse(ni);
+		}
+		if (a->flags & ATTR_IS_ENCRYPTED) {
+			if (NInoCompressed(ni)) {
+				ntfs_error(vi->i_sb, "Found encrypted and "
+						"compressed data.");
+				goto unm_err_out;
+			}
+			NInoSetEncrypted(ni);
+		}
+		if (a->non_resident) {
+			NInoSetNonResident(ni);
+			if (NInoCompressed(ni) || NInoSparse(ni)) {
 				if (a->data.non_resident.compression_unit !=
 						4) {
 					ntfs_error(vi->i_sb, "Found "
-						"nonstandard compression unit "
-						"(%u instead of 4).  Cannot "
-						"handle this.",
-						a->data.non_resident.
-						compression_unit);
+							"nonstandard "
+							"compression unit (%u "
+							"instead of 4).  "
+							"Cannot handle this.",
+							a->data.non_resident.
+							compression_unit);
 					err = -EOPNOTSUPP;
 					goto unm_err_out;
 				}
@@ -1064,14 +1073,6 @@ skip_large_dir_stuff:
 				ni->itype.compressed.size = sle64_to_cpu(
 						a->data.non_resident.
 						compressed_size);
-			}
-			if (a->flags & ATTR_IS_ENCRYPTED) {
-				if (a->flags & ATTR_COMPRESSION_MASK) {
-					ntfs_error(vi->i_sb, "Found encrypted "
-							"and compressed data.");
-					goto unm_err_out;
-				}
-				NInoSetEncrypted(ni);
 			}
 			if (a->data.non_resident.lowest_vcn) {
 				ntfs_error(vi->i_sb, "First extent of $DATA "
@@ -1165,6 +1166,8 @@ err_out:
  *
  * Return 0 on success and -errno on error.  In the error case, the inode will
  * have had make_bad_inode() executed on it.
+ *
+ * Note this cannot be called for AT_INDEX_ALLOCATION.
  */
 static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 {
@@ -1212,6 +1215,75 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	if (unlikely(err))
 		goto unm_err_out;
 	a = ctx->attr;
+	if (a->flags & (ATTR_COMPRESSION_MASK | ATTR_IS_SPARSE)) {
+		if (a->flags & ATTR_COMPRESSION_MASK) {
+			NInoSetCompressed(ni);
+			if ((ni->type != AT_DATA) || (ni->type == AT_DATA &&
+					ni->name_len)) {
+				ntfs_error(vi->i_sb, "Found compressed "
+						"non-data or named data "
+						"attribute.  Please report "
+						"you saw this message to "
+						"linux-ntfs-dev@lists."
+						"sourceforge.net");
+				goto unm_err_out;
+			}
+			if (vol->cluster_size > 4096) {
+				ntfs_error(vi->i_sb, "Found compressed "
+						"attribute but compression is "
+						"disabled due to cluster size "
+						"(%i) > 4kiB.",
+						vol->cluster_size);
+				goto unm_err_out;
+			}
+			if ((a->flags & ATTR_COMPRESSION_MASK) !=
+					ATTR_IS_COMPRESSED) {
+				ntfs_error(vi->i_sb, "Found unknown "
+						"compression method.");
+				goto unm_err_out;
+			}
+		}
+		/*
+		 * The compressed/sparse flag set in an index root just means
+		 * to compress all files.
+		 */
+		if (NInoMstProtected(ni) && ni->type != AT_INDEX_ROOT) {
+			ntfs_error(vi->i_sb, "Found mst protected attribute "
+					"but the attribute is %s.  Please "
+					"report you saw this message to "
+					"linux-ntfs-dev@lists.sourceforge.net",
+					NInoCompressed(ni) ? "compressed" :
+					"sparse");
+			goto unm_err_out;
+		}
+		if (a->flags & ATTR_IS_SPARSE)
+			NInoSetSparse(ni);
+	}
+	if (a->flags & ATTR_IS_ENCRYPTED) {
+		if (NInoCompressed(ni)) {
+			ntfs_error(vi->i_sb, "Found encrypted and compressed "
+					"data.");
+			goto unm_err_out;
+		}
+		/*
+		 * The encryption flag set in an index root just means to
+		 * encrypt all files.
+		 */
+		if (NInoMstProtected(ni) && ni->type != AT_INDEX_ROOT) {
+			ntfs_error(vi->i_sb, "Found mst protected attribute "
+					"but the attribute is encrypted.  "
+					"Please report you saw this message "
+					"to linux-ntfs-dev@lists.sourceforge."
+					"net");
+			goto unm_err_out;
+		}
+		if (ni->type != AT_DATA) {
+			ntfs_error(vi->i_sb, "Found encrypted non-data "
+					"attribute.");
+			goto unm_err_out;
+		}
+		NInoSetEncrypted(ni);
+	}
 	if (!a->non_resident) {
 		/* Ensure the attribute name is placed before the value. */
 		if (unlikely(a->name_length && (le16_to_cpu(a->name_offset) >=
@@ -1220,11 +1292,10 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 					"the attribute value.");
 			goto unm_err_out;
 		}
-		if (NInoMstProtected(ni) || a->flags) {
+		if (NInoMstProtected(ni)) {
 			ntfs_error(vi->i_sb, "Found mst protected attribute "
-					"or attribute with non-zero flags but "
-					"the attribute is resident.  Please "
-					"report you saw this message to "
+					"but the attribute is resident.  "
+					"Please report you saw this message to "
 					"linux-ntfs-dev@lists.sourceforge.net");
 			goto unm_err_out;
 		}
@@ -1250,50 +1321,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 					"the mapping pairs array.");
 			goto unm_err_out;
 		}
-		if (a->flags & (ATTR_COMPRESSION_MASK | ATTR_IS_SPARSE)) {
-			if (a->flags & ATTR_COMPRESSION_MASK) {
-				NInoSetCompressed(ni);
-				if ((ni->type != AT_DATA) || (ni->type ==
-						AT_DATA && ni->name_len)) {
-					ntfs_error(vi->i_sb, "Found compressed "
-							"non-data or named "
-							"data attribute.  "
-							"Please report you "
-							"saw this message to "
-							"linux-ntfs-dev@lists."
-							"sourceforge.net");
-					goto unm_err_out;
-				}
-				if (vol->cluster_size > 4096) {
-					ntfs_error(vi->i_sb, "Found compressed "
-							"attribute but "
-							"compression is "
-							"disabled due to "
-							"cluster size (%i) > "
-							"4kiB.",
-							vol->cluster_size);
-					goto unm_err_out;
-				}
-				if ((a->flags & ATTR_COMPRESSION_MASK) !=
-						ATTR_IS_COMPRESSED) {
-					ntfs_error(vi->i_sb, "Found unknown "
-							"compression method.");
-					goto unm_err_out;
-				}
-			}
-			if (NInoMstProtected(ni)) {
-				ntfs_error(vi->i_sb, "Found mst protected "
-						"attribute but the attribute "
-						"is %s.  Please report you "
-						"saw this message to "
-						"linux-ntfs-dev@lists."
-						"sourceforge.net",
-						NInoCompressed(ni) ?
-						"compressed" : "sparse");
-				goto unm_err_out;
-			}
-			if (a->flags & ATTR_IS_SPARSE)
-				NInoSetSparse(ni);
+		if (NInoCompressed(ni) || NInoSparse(ni)) {
 			if (a->data.non_resident.compression_unit != 4) {
 				ntfs_error(vi->i_sb, "Found nonstandard "
 						"compression unit (%u instead "
@@ -1313,23 +1341,6 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 			ni->itype.compressed.size = sle64_to_cpu(
 					a->data.non_resident.compressed_size);
 		}
-		if (a->flags & ATTR_IS_ENCRYPTED) {
-			if (a->flags & ATTR_COMPRESSION_MASK) {
-				ntfs_error(vi->i_sb, "Found encrypted and "
-						"compressed data.");
-				goto unm_err_out;
-			}
-			if (NInoMstProtected(ni)) {
-				ntfs_error(vi->i_sb, "Found mst protected "
-						"attribute but the attribute "
-						"is encrypted.  Please report "
-						"you saw this message to "
-						"linux-ntfs-dev@lists."
-						"sourceforge.net");
-				goto unm_err_out;
-			}
-			NInoSetEncrypted(ni);
-		}
 		if (a->data.non_resident.lowest_vcn) {
 			ntfs_error(vi->i_sb, "First extent of attribute has "
 					"non-zero lowest_vcn.");
@@ -1348,12 +1359,12 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		vi->i_mapping->a_ops = &ntfs_mst_aops;
 	else
 		vi->i_mapping->a_ops = &ntfs_aops;
-	if (NInoCompressed(ni) || NInoSparse(ni))
+	if ((NInoCompressed(ni) || NInoSparse(ni)) && ni->type != AT_INDEX_ROOT)
 		vi->i_blocks = ni->itype.compressed.size >> 9;
 	else
 		vi->i_blocks = ni->allocated_size >> 9;
 	/*
-	 * Make sure the base inode doesn't go away and attach it to the
+	 * Make sure the base inode does not go away and attach it to the
 	 * attribute inode.
 	 */
 	igrab(base_vi);
@@ -1480,7 +1491,10 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 				"after the attribute value.");
 		goto unm_err_out;
 	}
-	/* Compressed/encrypted/sparse index root is not allowed. */
+	/*
+	 * Compressed/encrypted/sparse index root is not allowed, except for
+	 * directories of course but those are not dealt with here.
+	 */
 	if (a->flags & (ATTR_COMPRESSION_MASK | ATTR_IS_ENCRYPTED |
 			ATTR_IS_SPARSE)) {
 		ntfs_error(vi->i_sb, "Found compressed/encrypted/sparse index "
@@ -2430,16 +2444,18 @@ int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 			 * We skipped the truncate but must still update
 			 * timestamps.
 			 */
-			ia_valid |= ATTR_MTIME|ATTR_CTIME;
+			ia_valid |= ATTR_MTIME | ATTR_CTIME;
 		}
 	}
-
 	if (ia_valid & ATTR_ATIME)
-		vi->i_atime = attr->ia_atime;
+		vi->i_atime = timespec_trunc(attr->ia_atime,
+				vi->i_sb->s_time_gran);
 	if (ia_valid & ATTR_MTIME)
-		vi->i_mtime = attr->ia_mtime;
+		vi->i_mtime = timespec_trunc(attr->ia_mtime,
+				vi->i_sb->s_time_gran);
 	if (ia_valid & ATTR_CTIME)
-		vi->i_ctime = attr->ia_ctime;
+		vi->i_ctime = timespec_trunc(attr->ia_ctime,
+				vi->i_sb->s_time_gran);
 	mark_inode_dirty(vi);
 out:
 	return err;

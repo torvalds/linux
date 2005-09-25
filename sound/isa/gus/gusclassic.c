@@ -72,40 +72,24 @@ MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Classic driver.");
 
 static snd_card_t *snd_gusclassic_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
+#define PFX	"gusclassic: "
 
 static int __init snd_gusclassic_detect(snd_gus_card_t * gus)
 {
-	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
-#ifdef CONFIG_SND_DEBUG_DETECT
-	{
-		unsigned char d;
+	unsigned char d;
 
-		if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
-			snd_printk("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
-			return -ENODEV;
-		}
-	}
-#else
-	if ((snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET) & 0x07) != 0)
+	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
+	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
+		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
-#endif
+	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
 	udelay(160);
-#ifdef CONFIG_SND_DEBUG_DETECT
-	{
-		unsigned char d;
-
-		if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
-			snd_printk("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
-			return -ENODEV;
-		}
-	}
-#else
-	if ((snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET) & 0x07) != 1)
+	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
+		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
-#endif
-
+	}
 	return 0;
 }
 
@@ -137,25 +121,25 @@ static int __init snd_gusclassic_probe(int dev)
 	xirq = irq[dev];
 	if (xirq == SNDRV_AUTO_IRQ) {
 		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free IRQ\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 	xdma1 = dma1[dev];
 	if (xdma1 == SNDRV_AUTO_DMA) {
 		if ((xdma1 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free DMA1\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free DMA1\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 	xdma2 = dma2[dev];
 	if (xdma2 == SNDRV_AUTO_DMA) {
 		if ((xdma2 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free DMA2\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free DMA2\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 
@@ -164,47 +148,48 @@ static int __init snd_gusclassic_probe(int dev)
 				  port[dev],
 				  xirq, xdma1, xdma2,
 			          0, channels[dev], pcm_channels[dev],
-			          0, &gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_gusclassic_detect(gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+			          0, &gus)) < 0)
+		goto _err;
+
+	if ((err = snd_gusclassic_detect(gus)) < 0)
+		goto _err;
+
 	snd_gusclassic_init(dev, gus);
-	if ((err = snd_gus_initialize(gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_gus_initialize(gus)) < 0)
+		goto _err;
+
 	if (gus->max_flag || gus->ess_flag) {
-		snd_printdd("GUS Classic or ACE soundcard was not detected at 0x%lx\n", gus->gf1.port);
-		snd_card_free(card);
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "GUS Classic or ACE soundcard was not detected at 0x%lx\n", gus->gf1.port);
+		err = -ENODEV;
+		goto _err;
 	}
-	if ((err = snd_gf1_new_mixer(gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_gf1_pcm_new(gus, 0, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_gf1_new_mixer(gus)) < 0)
+		goto _err;
+
+	if ((err = snd_gf1_pcm_new(gus, 0, 0, NULL)) < 0)
+		goto _err;
+
 	if (!gus->ace_flag) {
-		if ((err = snd_gf1_rawmidi_new(gus, 0, NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if ((err = snd_gf1_rawmidi_new(gus, 0, NULL)) < 0)
+			goto _err;
 	}
 	sprintf(card->longname + strlen(card->longname), " at 0x%lx, irq %d, dma %d", gus->gf1.port, xirq, xdma1);
 	if (dma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", xdma2);
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	snd_gusclassic_cards[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init snd_gusclassic_legacy_auto_probe(unsigned long xport)

@@ -64,6 +64,9 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_BUST_SPINLOCK
 	bool
 
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+
 config GENERIC_ISA_DMA
 	bool
 
@@ -150,6 +153,7 @@ config ARCH_RPC
 	select ARCH_ACORN
 	select FIQ
 	select TIMER_ACORN
+	select ARCH_MAY_HAVE_PC_FDC
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -322,8 +326,8 @@ config SMP
 	  processor machines. On a single processor machine, the kernel will
 	  run faster if you say N here.
 
-	  See also the <file:Documentation/smp.tex>,
-	  <file:Documentation/smp.txt>, <file:Documentation/i386/IO-APIC.txt>,
+	  See also the <file:Documentation/smp.txt>,
+	  <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.linuxdoc.org/docs.html#howto>.
 

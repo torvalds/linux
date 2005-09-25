@@ -119,6 +119,14 @@ extern spinlock_t mv64x60_lock;
 
 #define	MV64x60_64BIT_WIN_COUNT			24
 
+/* Watchdog Platform Device, Driver Data */
+#define	MV64x60_WDT_NAME			"wdt"
+
+struct mv64x60_wdt_pdata {
+	int	timeout;	/* watchdog expiry in seconds, default 10 */
+	int	bus_clk;	/* bus clock in MHz, default 133 */
+};
+
 /*
  * Define a structure that's used to pass in config information to the
  * core routines.
@@ -278,6 +286,13 @@ mv64x60_modify(struct mv64x60_handle *bh, u32 offs, u32 data, u32 mask)
 #define	mv64x60_set_bits(bh, offs, bits) mv64x60_modify(bh, offs, ~0, bits)
 #define	mv64x60_clr_bits(bh, offs, bits) mv64x60_modify(bh, offs, 0, bits)
 
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+#define	MV64XXX_DEV_NAME	"mv64xxx"
+
+struct mv64xxx_pdata {
+	u32	hs_reg_valid;
+};
+#endif
 
 /* Externally visible function prototypes */
 int mv64x60_init(struct mv64x60_handle *bh, struct mv64x60_setup_info *si);

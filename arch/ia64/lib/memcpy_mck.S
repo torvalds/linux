@@ -625,7 +625,10 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
 	clrrrb
 	;;
 	alloc	saved_pfs_stack=ar.pfs,3,3,3,0
+	cmp.lt	p8,p0=A,r0
 	sub	B = dst0, saved_in0	// how many byte copied so far
+	;;
+(p8)	mov	A = 0;			// A shouldn't be negative, cap it
 	;;
 	sub	C = A, B
 	sub	D = saved_in2, A

@@ -34,7 +34,7 @@
 #include <linux/moduleparam.h>
 
 #define MAX_PORTS 8
-static int ports[MAX_PORTS];
+static short ports[MAX_PORTS];
 static int ports_c;
 static int max_dcc_channels = 8;
 static unsigned int dcc_timeout = 300;
@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(ip_nat_irc_hook);
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
 MODULE_LICENSE("GPL");
-module_param_array(ports, int, &ports_c, 0400);
+module_param_array(ports, short, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of IRC servers");
 module_param(max_dcc_channels, int, 0400);
 MODULE_PARM_DESC(max_dcc_channels, "max number of expected DCC channels per IRC session");
@@ -221,6 +221,7 @@ static int help(struct sk_buff **pskb,
 				{ { 0, { 0 } },
 				  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 			exp->expectfn = NULL;
+			exp->flags = 0;
 			if (ip_nat_irc_hook)
 				ret = ip_nat_irc_hook(pskb, ctinfo, 
 						      addr_beg_p - ib_ptr,
@@ -239,7 +240,7 @@ static int help(struct sk_buff **pskb,
 }
 
 static struct ip_conntrack_helper irc_helpers[MAX_PORTS];
-static char irc_names[MAX_PORTS][10];
+static char irc_names[MAX_PORTS][sizeof("irc-65535")];
 
 static void fini(void);
 

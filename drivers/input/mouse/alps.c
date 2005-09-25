@@ -170,7 +170,7 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	input_report_key(dev, BTN_TOOL_FINGER, z > 0);
 
 	if (priv->i->flags & ALPS_WHEEL)
-		input_report_rel(dev, REL_WHEEL, ((packet[0] >> 4) & 0x07) | ((packet[2] >> 2) & 0x08));
+		input_report_rel(dev, REL_WHEEL, ((packet[2] << 1) & 0x08) - ((packet[0] >> 4) & 0x07));
 
 	if (priv->i->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
 		input_report_key(dev, BTN_FORWARD, forward);

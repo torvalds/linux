@@ -948,7 +948,7 @@ static void openpic_cached_disable_irq(u_int irq)
  * we need something better to deal with that... Maybe switch to S1 for
  * cpufreq changes
  */
-int openpic_suspend(struct sys_device *sysdev, u32 state)
+int openpic_suspend(struct sys_device *sysdev, pm_message_t state)
 {
 	int	i;
 	unsigned long flags;

@@ -265,8 +265,10 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	tbl->it_offset = phb->dma_window_base_cur >> PAGE_SHIFT;
 	
 	/* Test if we are going over 2GB of DMA space */
-	if (phb->dma_window_base_cur + phb->dma_window_size > (1L << 31))
+	if (phb->dma_window_base_cur + phb->dma_window_size > 0x80000000ul) {
+		udbg_printf("PCI_DMA: Unexpected number of IOAs under this PHB.\n");
 		panic("PCI_DMA: Unexpected number of IOAs under this PHB.\n"); 
+	}
 	
 	phb->dma_window_base_cur += phb->dma_window_size;
 
@@ -295,7 +297,7 @@ static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct iommu_table *tbl,
 				      unsigned int *dma_window)
 {
-	tbl->it_busno  = dn->bussubno;
+	tbl->it_busno  = PCI_DN(dn)->bussubno;
 
 	/* TODO: Parse field size properties properly. */
 	tbl->it_size   = (((unsigned long)dma_window[4] << 32) |
@@ -310,90 +312,85 @@ static void iommu_table_setparms_lpar(struct pci_controller *phb,
 
 static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 {
-	struct device_node *dn, *pdn;
+	struct device_node *dn;
 	struct iommu_table *tbl;
+	struct device_node *isa_dn, *isa_dn_orig;
+	struct device_node *tmp;
+	struct pci_dn *pci;
+	int children;
 
 	DBG("iommu_bus_setup_pSeries, bus %p, bus->self %p\n", bus, bus->self);
 
-	/* For each (root) bus, we carve up the available DMA space in 256MB
-	 * pieces. Since each piece is used by one (sub) bus/device, that would
-	 * give a maximum of 7 devices per PHB. In most cases, this is plenty.
+	dn = pci_bus_to_OF_node(bus);
+	pci = PCI_DN(dn);
+
+	if (bus->self) {
+		/* This is not a root bus, any setup will be done for the
+		 * device-side of the bridge in iommu_dev_setup_pSeries().
+		 */
+		return;
+	}
+
+	/* Check if the ISA bus on the system is under
+	 * this PHB.
+	 */
+	isa_dn = isa_dn_orig = of_find_node_by_type(NULL, "isa");
+
+	while (isa_dn && isa_dn != dn)
+		isa_dn = isa_dn->parent;
+
+	if (isa_dn_orig)
+		of_node_put(isa_dn_orig);
+
+	/* Count number of direct PCI children of the PHB.
+	 * All PCI device nodes have class-code property, so it's
+	 * an easy way to find them.
+	 */
+	for (children = 0, tmp = dn->child; tmp; tmp = tmp->sibling)
+		if (get_property(tmp, "class-code", NULL))
+			children++;
+
+	DBG("Children: %d\n", children);
+
+	/* Calculate amount of DMA window per slot. Each window must be
+	 * a power of two (due to pci_alloc_consistent requirements).
 	 *
-	 * The exception is on Python PHBs (pre-POWER4). Here we don't have EADS
-	 * bridges below the PHB to allocate the sectioned tables to, so instead
-	 * we allocate a 1GB table at the PHB level.
+	 * Keep 256MB aside for PHBs with ISA.
 	 */
 
-	dn = pci_bus_to_OF_node(bus);
+	if (!isa_dn) {
+		/* No ISA/IDE - just set window size and return */
+		pci->phb->dma_window_size = 0x80000000ul; /* To be divided */
 
-	if (!bus->self) {
-		/* Root bus */
-		if (is_python(dn)) {
-			unsigned int *iohole;
+		while (pci->phb->dma_window_size * children > 0x80000000ul)
+			pci->phb->dma_window_size >>= 1;
+		DBG("No ISA/IDE, window size is 0x%lx\n",
+			pci->phb->dma_window_size);
+		pci->phb->dma_window_base_cur = 0;
 
-			DBG("Python root bus %s\n", bus->name);
-
-			iohole = (unsigned int *)get_property(dn, "io-hole", 0);
-
-			if (iohole) {
-				/* On first bus we need to leave room for the
-				 * ISA address space. Just skip the first 256MB
-				 * alltogether. This leaves 768MB for the window.
-				 */
-				DBG("PHB has io-hole, reserving 256MB\n");
-				dn->phb->dma_window_size = 3 << 28;
-				dn->phb->dma_window_base_cur = 1 << 28;
-			} else {
-				/* 1GB window by default */
-				dn->phb->dma_window_size = 1 << 30;
-				dn->phb->dma_window_base_cur = 0;
-			}
-
-			tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
-
-			iommu_table_setparms(dn->phb, dn, tbl);
-			dn->iommu_table = iommu_init_table(tbl);
-		} else {
-			/* Do a 128MB table at root. This is used for the IDE
-			 * controller on some SMP-mode POWER4 machines. It
-			 * doesn't hurt to allocate it on other machines
-			 * -- it'll just be unused since new tables are
-			 * allocated on the EADS level.
-			 *
-			 * Allocate at offset 128MB to avoid having to deal
-			 * with ISA holes; 128MB table for IDE is plenty.
-			 */
-			dn->phb->dma_window_size = 1 << 27;
-			dn->phb->dma_window_base_cur = 1 << 27;
-
-			tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
-
-			iommu_table_setparms(dn->phb, dn, tbl);
-			dn->iommu_table = iommu_init_table(tbl);
-
-			/* All child buses have 256MB tables */
-			dn->phb->dma_window_size = 1 << 28;
-		}
-	} else {
-		pdn = pci_bus_to_OF_node(bus->parent);
-
-		if (!bus->parent->self && !is_python(pdn)) {
-			struct iommu_table *tbl;
-			/* First child and not python means this is the EADS
-			 * level. Allocate new table for this slot with 256MB
-			 * window.
-			 */
-
-			tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
-
-			iommu_table_setparms(dn->phb, dn, tbl);
-
-			dn->iommu_table = iommu_init_table(tbl);
-		} else {
-			/* Lower than first child or under python, use parent table */
-			dn->iommu_table = pdn->iommu_table;
-		}
+		return;
 	}
+
+	/* If we have ISA, then we probably have an IDE
+	 * controller too. Allocate a 128MB table but
+	 * skip the first 128MB to avoid stepping on ISA
+	 * space.
+	 */
+	pci->phb->dma_window_size = 0x8000000ul;
+	pci->phb->dma_window_base_cur = 0x8000000ul;
+
+	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+
+	iommu_table_setparms(pci->phb, dn, tbl);
+	pci->iommu_table = iommu_init_table(tbl);
+
+	/* Divide the rest (1.75GB) among the children */
+	pci->phb->dma_window_size = 0x80000000ul;
+	while (pci->phb->dma_window_size * children > 0x70000000ul)
+		pci->phb->dma_window_size >>= 1;
+
+	DBG("ISA/IDE, window size is 0x%lx\n", pci->phb->dma_window_size);
+
 }
 
 
@@ -401,6 +398,7 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 {
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
+	struct pci_dn *ppci;
 	unsigned int *dma_window = NULL;
 
 	DBG("iommu_bus_setup_pSeriesLP, bus %p, bus->self %p\n", bus, bus->self);
@@ -419,43 +417,60 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 		return;
 	}
 
-	if (!pdn->iommu_table) {
+	ppci = pdn->data;
+	if (!ppci->iommu_table) {
 		/* Bussubno hasn't been copied yet.
 		 * Do it now because iommu_table_setparms_lpar needs it.
 		 */
-		pdn->bussubno = bus->number;
+
+		ppci->bussubno = bus->number;
 
 		tbl = (struct iommu_table *)kmalloc(sizeof(struct iommu_table),
 						    GFP_KERNEL);
 	
-		iommu_table_setparms_lpar(pdn->phb, pdn, tbl, dma_window);
+		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 
-		pdn->iommu_table = iommu_init_table(tbl);
+		ppci->iommu_table = iommu_init_table(tbl);
 	}
 
 	if (pdn != dn)
-		dn->iommu_table = pdn->iommu_table;
+		PCI_DN(dn)->iommu_table = ppci->iommu_table;
 }
 
 
 static void iommu_dev_setup_pSeries(struct pci_dev *dev)
 {
 	struct device_node *dn, *mydn;
+	struct iommu_table *tbl;
 
-	DBG("iommu_dev_setup_pSeries, dev %p (%s)\n", dev, dev->pretty_name);
-	/* Now copy the iommu_table ptr from the bus device down to the
-	 * pci device_node.  This means get_iommu_table() won't need to search
-	 * up the device tree to find it.
-	 */
+	DBG("iommu_dev_setup_pSeries, dev %p (%s)\n", dev, pci_name(dev));
+
 	mydn = dn = pci_device_to_OF_node(dev);
 
-	while (dn && dn->iommu_table == NULL)
+	/* If we're the direct child of a root bus, then we need to allocate
+	 * an iommu table ourselves. The bus setup code should have setup
+	 * the window sizes already.
+	 */
+	if (!dev->bus->self) {
+		DBG(" --> first child, no bridge. Allocating iommu table.\n");
+		tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+		iommu_table_setparms(PCI_DN(dn)->phb, dn, tbl);
+		PCI_DN(mydn)->iommu_table = iommu_init_table(tbl);
+
+		return;
+	}
+
+	/* If this device is further down the bus tree, search upwards until
+	 * an already allocated iommu table is found and use that.
+	 */
+
+	while (dn && dn->data && PCI_DN(dn)->iommu_table == NULL)
 		dn = dn->parent;
 
-	if (dn) {
-		mydn->iommu_table = dn->iommu_table;
+	if (dn && dn->data) {
+		PCI_DN(mydn)->iommu_table = PCI_DN(dn)->iommu_table;
 	} else {
-		DBG("iommu_dev_setup_pSeries, dev %p (%s) has no iommu table\n", dev, dev->pretty_name);
+		DBG("iommu_dev_setup_pSeries, dev %p (%s) has no iommu table\n", dev, pci_name(dev));
 	}
 }
 
@@ -463,10 +478,11 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 {
 	int err = NOTIFY_OK;
 	struct device_node *np = node;
+	struct pci_dn *pci = np->data;
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
-		if (np->iommu_table &&
+		if (pci->iommu_table &&
 		    get_property(np, "ibm,dma-window", NULL))
 			iommu_free_table(np);
 		break;
@@ -486,8 +502,9 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
 	int *dma_window = NULL;
+	struct pci_dn *pci;
 
-	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, dev->pretty_name);
+	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, pci_name(dev));
 
 	/* dev setup for LPAR is a little tricky, since the device tree might
 	 * contain the dma-window properties per-device and not neccesarily
@@ -497,8 +514,10 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 */
 	dn = pci_device_to_OF_node(dev);
 
-	for (pdn = dn; pdn && !pdn->iommu_table; pdn = pdn->parent) {
-		dma_window = (unsigned int *)get_property(pdn, "ibm,dma-window", NULL);
+	for (pdn = dn; pdn && pdn->data && !PCI_DN(pdn)->iommu_table;
+	     pdn = pdn->parent) {
+		dma_window = (unsigned int *)
+			get_property(pdn, "ibm,dma-window", NULL);
 		if (dma_window)
 			break;
 	}
@@ -507,28 +526,28 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 * slots on POWER4 machines.
 	 */
 	if (dma_window == NULL || pdn->parent == NULL) {
-		/* Fall back to regular (non-LPAR) dev setup */
-		DBG("No dma window for device, falling back to regular setup\n");
-		iommu_dev_setup_pSeries(dev);
+		DBG("No dma window for device, linking to parent\n");
+		PCI_DN(dn)->iommu_table = PCI_DN(pdn)->iommu_table;
 		return;
 	} else {
 		DBG("Found DMA window, allocating table\n");
 	}
 
-	if (!pdn->iommu_table) {
+	pci = pdn->data;
+	if (!pci->iommu_table) {
 		/* iommu_table_setparms_lpar needs bussubno. */
-		pdn->bussubno = pdn->phb->bus->number;
+		pci->bussubno = pci->phb->bus->number;
 
 		tbl = (struct iommu_table *)kmalloc(sizeof(struct iommu_table),
 						    GFP_KERNEL);
 
-		iommu_table_setparms_lpar(pdn->phb, pdn, tbl, dma_window);
+		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 
-		pdn->iommu_table = iommu_init_table(tbl);
+		pci->iommu_table = iommu_init_table(tbl);
 	}
 
 	if (pdn != dn)
-		dn->iommu_table = pdn->iommu_table;
+		PCI_DN(dn)->iommu_table = pci->iommu_table;
 }
 
 static void iommu_bus_setup_null(struct pci_bus *b) { }

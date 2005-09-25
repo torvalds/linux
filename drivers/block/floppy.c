@@ -493,6 +493,8 @@ static struct floppy_struct user_params[N_DRIVE];
 
 static sector_t floppy_sizes[256];
 
+static char floppy_device_name[] = "floppy";
+
 /*
  * The driver is trying to determine the correct media format
  * while probing is set. rw_interrupt() clears it after a
@@ -626,7 +628,7 @@ static inline void debugt(const char *message) { }
 #endif /* DEBUGT */
 
 typedef void (*timeout_fn) (unsigned long);
-static struct timer_list fd_timeout = TIMER_INITIALIZER(floppy_shutdown, 0, 0);
+static DEFINE_TIMER(fd_timeout, floppy_shutdown, 0, 0);
 
 static const char *timeout_message;
 
@@ -1010,7 +1012,7 @@ static void schedule_bh(void (*handler) (void))
 	schedule_work(&floppy_work);
 }
 
-static struct timer_list fd_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(fd_timer, NULL, 0, 0);
 
 static void cancel_activity(void)
 {
@@ -4191,18 +4193,24 @@ static int __init floppy_setup(char *str)
 
 static int have_no_fdc = -ENODEV;
 
+static ssize_t floppy_cmos_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct platform_device *p;
+	int drive;
+
+	p = container_of(dev, struct platform_device,dev);
+	drive = p->id;
+	return sprintf(buf, "%X\n", UDP->cmos);
+}
+DEVICE_ATTR(cmos,S_IRUGO,floppy_cmos_show,NULL);
+
 static void floppy_device_release(struct device *dev)
 {
 	complete(&device_release);
 }
 
-static struct platform_device floppy_device = {
-	.name		= "floppy",
-	.id		= 0,
-	.dev		= {
-			.release = floppy_device_release,
-			}
-};
+static struct platform_device floppy_device[N_DRIVE];
 
 static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 {
@@ -4370,20 +4378,26 @@ static int __init floppy_init(void)
 		goto out_flush_work;
 	}
 
-	err = platform_device_register(&floppy_device);
-	if (err)
-		goto out_flush_work;
-
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		if (!(allowed_drive_mask & (1 << drive)))
 			continue;
 		if (fdc_state[FDC(drive)].version == FDC_NONE)
 			continue;
+
+		floppy_device[drive].name = floppy_device_name;
+		floppy_device[drive].id = drive;
+		floppy_device[drive].dev.release = floppy_device_release;
+
+		err = platform_device_register(&floppy_device[drive]);
+		if (err)
+			goto out_flush_work;
+
+		device_create_file(&floppy_device[drive].dev,&dev_attr_cmos);
 		/* to be cleaned up... */
 		disks[drive]->private_data = (void *)(long)drive;
 		disks[drive]->queue = floppy_queue;
 		disks[drive]->flags |= GENHD_FL_REMOVABLE;
-		disks[drive]->driverfs_dev = &floppy_device.dev;
+		disks[drive]->driverfs_dev = &floppy_device[drive].dev;
 		add_disk(disks[drive]);
 	}
 
@@ -4603,10 +4617,11 @@ void cleanup_module(void)
 		    fdc_state[FDC(drive)].version != FDC_NONE) {
 			del_gendisk(disks[drive]);
 			unregister_devfs_entries(drive);
+			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
+			platform_device_unregister(&floppy_device[drive]);
 		}
 		put_disk(disks[drive]);
 	}
-	platform_device_unregister(&floppy_device);
 	devfs_remove("floppy");
 
 	del_timer_sync(&fd_timeout);

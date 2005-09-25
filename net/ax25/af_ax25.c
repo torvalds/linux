@@ -1695,16 +1695,12 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		/* These two are safe on a single CPU system as only user tasks fiddle here */
 		if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 			amount = skb->len;
-		res = put_user(amount, (int __user *)argp);
+		res = put_user(amount, (int __user *) argp);
 		break;
 	}
 
 	case SIOCGSTAMP:
-		if (sk != NULL) {
-			res = sock_get_timestamp(sk, argp);
-			break;
-	 	}
-		res = -EINVAL;
+		res = sock_get_timestamp(sk, argp);
 		break;
 
 	case SIOCAX25ADDUID:	/* Add a uid to the uid/call map table */
@@ -1874,6 +1870,7 @@ static void ax25_info_stop(struct seq_file *seq, void *v)
 static int ax25_info_show(struct seq_file *seq, void *v)
 {
 	ax25_cb *ax25 = v;
+	char buf[11];
 	int k;
 
 
@@ -1885,13 +1882,13 @@ static int ax25_info_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%8.8lx %s %s%s ",
 		   (long) ax25,
 		   ax25->ax25_dev == NULL? "???" : ax25->ax25_dev->dev->name,
-		   ax2asc(&ax25->source_addr),
+		   ax2asc(buf, &ax25->source_addr),
 		   ax25->iamdigi? "*":"");
-	seq_printf(seq, "%s", ax2asc(&ax25->dest_addr));
+	seq_printf(seq, "%s", ax2asc(buf, &ax25->dest_addr));
 
 	for (k=0; (ax25->digipeat != NULL) && (k < ax25->digipeat->ndigi); k++) {
 		seq_printf(seq, ",%s%s",
-			   ax2asc(&ax25->digipeat->calls[k]),
+			   ax2asc(buf, &ax25->digipeat->calls[k]),
 			   ax25->digipeat->repeated[k]? "*":"");
 	}
 
@@ -1950,24 +1947,24 @@ static struct net_proto_family ax25_family_ops = {
 };
 
 static struct proto_ops ax25_proto_ops = {
-	.family =	PF_AX25,
-	.owner =	THIS_MODULE,
-	.release =	ax25_release,
-	.bind =		ax25_bind,
-	.connect =	ax25_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	ax25_accept,
-	.getname =	ax25_getname,
-	.poll =		datagram_poll,
-	.ioctl =	ax25_ioctl,
-	.listen =	ax25_listen,
-	.shutdown =	ax25_shutdown,
-	.setsockopt =	ax25_setsockopt,
-	.getsockopt =	ax25_getsockopt,
-	.sendmsg =	ax25_sendmsg,
-	.recvmsg =	ax25_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.family		= PF_AX25,
+	.owner		= THIS_MODULE,
+	.release	= ax25_release,
+	.bind		= ax25_bind,
+	.connect	= ax25_connect,
+	.socketpair	= sock_no_socketpair,
+	.accept		= ax25_accept,
+	.getname	= ax25_getname,
+	.poll		= datagram_poll,
+	.ioctl		= ax25_ioctl,
+	.listen		= ax25_listen,
+	.shutdown	= ax25_shutdown,
+	.setsockopt	= ax25_setsockopt,
+	.getsockopt	= ax25_getsockopt,
+	.sendmsg	= ax25_sendmsg,
+	.recvmsg	= ax25_recvmsg,
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage,
 };
 
 /*
@@ -1983,7 +1980,7 @@ static struct notifier_block ax25_dev_notifier = {
 	.notifier_call =ax25_device_event,
 };
 
-EXPORT_SYMBOL(ax25_encapsulate);
+EXPORT_SYMBOL(ax25_hard_header);
 EXPORT_SYMBOL(ax25_rebuild_header);
 EXPORT_SYMBOL(ax25_findbyuid);
 EXPORT_SYMBOL(ax25_find_cb);

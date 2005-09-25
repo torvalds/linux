@@ -1489,7 +1489,7 @@ static int isp1301_probe(struct i2c_adapter *bus, int address, int kind)
 	if (the_transceiver)
 		return 0;
 
-	isp = kcalloc(1, sizeof *isp, GFP_KERNEL);
+	isp = kzalloc(sizeof *isp, GFP_KERNEL);
 	if (!isp)
 		return 0;
 

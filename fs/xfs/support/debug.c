@@ -31,6 +31,7 @@
  */
 
 #include "debug.h"
+#include "spin.h"
 
 #include <asm/page.h>
 #include <linux/sched.h>

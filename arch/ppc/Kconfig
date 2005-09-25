@@ -26,10 +26,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config HAVE_DEC_LOCK
-	bool
-	default y
-
 config PPC
 	bool
 	default y
@@ -44,6 +40,10 @@ config GENERIC_NVRAM
 	default y
 
 config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
@@ -261,6 +261,15 @@ config PPC601_SYNC_FIX
 
 	  If in doubt, say Y here.
 
+config HOTPLUG_CPU
+	bool "Support for enabling/disabling CPUs"
+	depends on SMP && HOTPLUG && EXPERIMENTAL && PPC_PMAC
+	---help---
+	  Say Y here to be able to disable and re-enable individual
+	  CPUs at runtime on SMP machines.
+
+	  Say N if you are unsure.
+
 source arch/ppc/platforms/4xx/Kconfig
 source arch/ppc/platforms/85xx/Kconfig
 
@@ -330,14 +339,6 @@ config RPXLITE
 	  End of life: end 2000 ?
 	  URL: see TQM850L
 
-	  SPD823TS:
-	  MPC823 based board used in the "Tele Server" product
-	  Manufacturer: Speech Design, <http://www.speech-design.de/>
-	  Date of Release: Mid 2000 (?)
-	  End of life: -
-	  URL: <http://www.speech-design.de/>
-	  select "English", then "Teleteam Solutions", then "TeleServer"
-
 	  IVMS8:
 	  MPC860 based board used in the "Integrated Voice Mail System",
 	  Small Version (8 voice channels)
@@ -353,13 +354,6 @@ config RPXLITE
 	  Date of Release: March 2001  (?)
 	  End of life: -
 	  URL: <http://www.speech-design.de/>
-
-	  SM850:
-	  Service Module (based on TQM850L)
-	  Manufacturer: Dependable Computer Systems, <http://www.decomsys.com/>
-	  Date of Release: end 2000 (?)
-	  End of life: mid 2001 (?)
-	  URL: <http://www.tz-mikroelektronik.de/ServiceModule/index.html>
 
 	  HERMES:
 	  Hermes-Pro ISDN/LAN router with integrated 8 x hub
@@ -464,13 +458,6 @@ config TQM860L
 config FPS850L
 	bool "FPS850L"
 
-config SPD823TS
-	bool "SPD823TS"
-	help
-	  Say Y here to support the Speech Design 823 Tele-Server from Speech
-	  Design, released in 2000.  The manufacturer's website is at
-	  <http://www.speech-design.de/>.
-
 config IVMS8
 	bool "IVMS8"
 	help
@@ -484,14 +471,6 @@ config IVML24
 	  Say Y here to support the Integrated Voice-Mail Large 24-channel SBC
 	  from Speech Design, released March 2001.  The manufacturer's website
 	  is at <http://www.speech-design.de/>.
-
-config SM850
-	bool "SM850"
-	help
-	  Say Y here to support the Service Module 850 from Dependable
-	  Computer Systems, an SBC based on the TQM850L module by TQ
-	  Components.  This board is no longer in production.  The
-	  manufacturer's website is at <http://www.decomsys.com/>.
 
 config HERMES_PRO
 	bool "HERMES"
@@ -578,9 +557,6 @@ config CPCI690
 	help
 	  Select CPCI690 if configuring a Force CPCI690 cPCI board.
 
-config PCORE
-	bool "Force-PowerCore"
-
 config POWERPMC250
 	bool "Force-PowerPMC250"
 
@@ -613,9 +589,6 @@ config EV64260
 config LOPEC
 	bool "Motorola-LoPEC"
 
-config MCPN765
-	bool "Motorola-MCPN765"
-
 config MVME5100
 	bool "Motorola-MVME5100"
 
@@ -636,12 +609,6 @@ config SANDPOINT
 
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
-
-config ADIR
-	bool "SBS-Adirondack"
-
-config K2
-	bool "SBS-K2"
 
 config PAL4
 	bool "SBS-Palomar4"
@@ -713,6 +680,16 @@ config MPC834x_SYS
 	help
 	  This option enables support for the MPC 834x SYS evaluation board.
 
+	  Be aware that PCI buses can only function when SYS board is plugged
+	  into the PIB (Platform IO Board) board from Freescale which provide
+	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
+	  responsiblilty.
+
+config EV64360
+	bool "Marvell-EV64360BP"
+	help
+	  Select EV64360 if configuring a Marvell EV64360BP Evaluation
+	  platform.
 endchoice
 
 config PQ2ADS
@@ -722,7 +699,7 @@ config PQ2ADS
 
 config TQM8xxL
 	bool
-	depends on 8xx && (TQM823L || TQM850L || FPS850L || TQM855L || TQM860L || SM850)
+	depends on 8xx && (TQM823L || TQM850L || FPS850L || TQM855L || TQM860L)
 	default y
 
 config EMBEDDEDBOOT
@@ -796,15 +773,15 @@ config PPC_OF
 
 config PPC_GEN550
 	bool
-	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || \
-		PRPMC750 || K2 || PRPMC800 || LOPEC || \
+	depends on SANDPOINT || SPRUCE || PPLUS || \
+		PRPMC750 || PRPMC800 || LOPEC || \
 		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
 		83xx
 	default y
 
 config FORCE
 	bool
-	depends on 6xx && (PCORE || POWERPMC250)
+	depends on 6xx && POWERPMC250
 	default y
 
 config GT64260
@@ -814,7 +791,7 @@ config GT64260
 
 config MV64360		# Really MV64360 & MV64460
 	bool
-	depends on CHESTNUT || KATANA || RADSTONE_PPC7D || HDPU
+	depends on CHESTNUT || KATANA || RADSTONE_PPC7D || HDPU || EV64360
 	default y
 
 config MV64X60
@@ -867,7 +844,7 @@ config EPIC_SERIAL_MODE
 
 config MPC10X_BRIDGE
 	bool
-	depends on PCORE || POWERPMC250 || LOPEC || SANDPOINT
+	depends on POWERPMC250 || LOPEC || SANDPOINT
 	default y
 
 config MPC10X_OPENPIC
@@ -885,10 +862,6 @@ config SANDPOINT_ENABLE_UART1
 	help
 	  If this option is enabled then the MPC824x processor will run
 	  in DUART mode instead of UART mode.
-
-config CPC710_DATA_GATHERING
-	bool "Enable CPC710 data gathering"
-	depends on K2
 
 config HARRIER_STORE_GATHERING
 	bool "Enable Harrier store gathering"
@@ -1193,6 +1166,11 @@ config PCI
 config PCI_DOMAINS
 	bool
 	default PCI
+
+config MPC83xx_PCI2
+	bool "  Supprt for 2nd PCI host controller"
+	depends on PCI && MPC834x
+	default y if MPC834x_SYS
 
 config PCI_QSPAN
 	bool "QSpan PCI"

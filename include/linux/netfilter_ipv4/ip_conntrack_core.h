@@ -52,7 +52,7 @@ static inline int ip_conntrack_confirm(struct sk_buff **pskb)
 	return ret;
 }
 
-extern void __ip_ct_expect_unlink_destroy(struct ip_conntrack_expect *exp);
+extern void ip_ct_unlink_expect(struct ip_conntrack_expect *exp);
 
 extern struct list_head *ip_conntrack_hash;
 extern struct list_head ip_conntrack_expect_list;

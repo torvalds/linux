@@ -14,6 +14,11 @@
 #define NR_IRQS		256
 #define NR_IRQ_VECTORS	NR_IRQS
 
+/*
+ * IRQ line status macro IRQ_PER_CPU is used
+ */
+#define ARCH_HAS_IRQ_PER_CPU
+
 static __inline__ int
 irq_canonicalize (int irq)
 {
@@ -29,15 +34,5 @@ extern void disable_irq (unsigned int);
 extern void disable_irq_nosync (unsigned int);
 extern void enable_irq (unsigned int);
 extern void set_irq_affinity_info (unsigned int irq, int dest, int redir);
-
-#ifdef CONFIG_SMP
-extern void move_irq(int irq);
-#else
-#define move_irq(irq)
-#endif
-
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _ASM_IA64_IRQ_H */

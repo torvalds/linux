@@ -76,20 +76,28 @@ struct ib_uverbs_file {
 	struct ib_uverbs_event_file	        comp_file[1];
 };
 
-struct ib_uverbs_async_event {
-	struct ib_uverbs_async_event_desc	desc;
+struct ib_uverbs_event {
+	union {
+		struct ib_uverbs_async_event_desc	async;
+		struct ib_uverbs_comp_event_desc	comp;
+	}					desc;
 	struct list_head			list;
+	struct list_head			obj_list;
+	u32				       *counter;
 };
 
-struct ib_uverbs_comp_event {
-	struct ib_uverbs_comp_event_desc	desc;
-	struct list_head			list;
+struct ib_uevent_object {
+	struct ib_uobject	uobject;
+	struct list_head	event_list;
+	u32			events_reported;
 };
 
-struct ib_uobject_mr {
-	struct ib_uobject			uobj;
-	struct page			       *page_list;
-	struct scatterlist		       *sg_list;
+struct ib_ucq_object {
+	struct ib_uobject	uobject;
+	struct list_head	comp_list;
+	struct list_head	async_list;
+	u32			comp_events_reported;
+	u32			async_events_reported;
 };
 
 extern struct semaphore ib_uverbs_idr_mutex;

@@ -6,7 +6,7 @@
  *          Title:  MPI initiator mode messages and structures
  *  Creation Date:  June 8, 2000
  *
- *    mpi_init.h Version:  01.05.04
+ *    mpi_init.h Version:  01.05.05
  *
  *  Version History
  *  ---------------
@@ -48,6 +48,8 @@
  *                      Modified SCSI Enclosure Processor Request and Reply to
  *                      support Enclosure/Slot addressing rather than WWID
  *                      addressing.
+ *  06-24-05  01.05.05  Added SCSI IO 32 structures and defines.
+ *                      Added four new defines for SEP SlotStatus.
  *  --------------------------------------------------------------------------
  */
 
@@ -203,6 +205,197 @@ typedef struct _MSG_SCSI_IO_REPLY
 
 
 /****************************************************************************/
+/*  SCSI IO 32 messages and associated structures                           */
+/****************************************************************************/
+
+typedef struct
+{
+    U8                      CDB[20];                    /* 00h */
+    U32                     PrimaryReferenceTag;        /* 14h */
+    U16                     PrimaryApplicationTag;      /* 18h */
+    U16                     PrimaryApplicationTagMask;  /* 1Ah */
+    U32                     TransferLength;             /* 1Ch */
+} MPI_SCSI_IO32_CDB_EEDP32, MPI_POINTER PTR_MPI_SCSI_IO32_CDB_EEDP32,
+  MpiScsiIo32CdbEedp32_t, MPI_POINTER pMpiScsiIo32CdbEedp32_t;
+
+typedef struct
+{
+    U8                      CDB[16];                    /* 00h */
+    U32                     DataLength;                 /* 10h */
+    U32                     PrimaryReferenceTag;        /* 14h */
+    U16                     PrimaryApplicationTag;      /* 18h */
+    U16                     PrimaryApplicationTagMask;  /* 1Ah */
+    U32                     TransferLength;             /* 1Ch */
+} MPI_SCSI_IO32_CDB_EEDP16, MPI_POINTER PTR_MPI_SCSI_IO32_CDB_EEDP16,
+  MpiScsiIo32CdbEedp16_t, MPI_POINTER pMpiScsiIo32CdbEedp16_t;
+
+typedef union
+{
+    U8                       CDB32[32];
+    MPI_SCSI_IO32_CDB_EEDP32 EEDP32;
+    MPI_SCSI_IO32_CDB_EEDP16 EEDP16;
+    SGE_SIMPLE_UNION         SGE;
+} MPI_SCSI_IO32_CDB_UNION, MPI_POINTER PTR_MPI_SCSI_IO32_CDB_UNION,
+  MpiScsiIo32Cdb_t, MPI_POINTER pMpiScsiIo32Cdb_t;
+
+typedef struct
+{
+    U8                      TargetID;           /* 00h */
+    U8                      Bus;                /* 01h */
+    U16                     Reserved1;          /* 02h */
+    U32                     Reserved2;          /* 04h */
+} MPI_SCSI_IO32_BUS_TARGET_ID_FORM, MPI_POINTER PTR_MPI_SCSI_IO32_BUS_TARGET_ID_FORM,
+  MpiScsiIo32BusTargetIdForm_t, MPI_POINTER pMpiScsiIo32BusTargetIdForm_t;
+
+typedef union
+{
+    MPI_SCSI_IO32_BUS_TARGET_ID_FORM    SCSIID;
+    U64                                 WWID;
+} MPI_SCSI_IO32_ADDRESS, MPI_POINTER PTR_MPI_SCSI_IO32_ADDRESS,
+  MpiScsiIo32Address_t, MPI_POINTER pMpiScsiIo32Address_t;
+
+typedef struct _MSG_SCSI_IO32_REQUEST
+{
+    U8                          Port;                           /* 00h */
+    U8                          Reserved1;                      /* 01h */
+    U8                          ChainOffset;                    /* 02h */
+    U8                          Function;                       /* 03h */
+    U8                          CDBLength;                      /* 04h */
+    U8                          SenseBufferLength;              /* 05h */
+    U8                          Flags;                          /* 06h */
+    U8                          MsgFlags;                       /* 07h */
+    U32                         MsgContext;                     /* 08h */
+    U8                          LUN[8];                         /* 0Ch */
+    U32                         Control;                        /* 14h */
+    MPI_SCSI_IO32_CDB_UNION     CDB;                            /* 18h */
+    U32                         DataLength;                     /* 38h */
+    U32                         BidirectionalDataLength;        /* 3Ch */
+    U32                         SecondaryReferenceTag;          /* 40h */
+    U16                         SecondaryApplicationTag;        /* 44h */
+    U16                         Reserved2;                      /* 46h */
+    U16                         EEDPFlags;                      /* 48h */
+    U16                         ApplicationTagTranslationMask;  /* 4Ah */
+    U32                         EEDPBlockSize;                  /* 4Ch */
+    MPI_SCSI_IO32_ADDRESS       DeviceAddress;                  /* 50h */
+    U8                          SGLOffset0;                     /* 58h */
+    U8                          SGLOffset1;                     /* 59h */
+    U8                          SGLOffset2;                     /* 5Ah */
+    U8                          SGLOffset3;                     /* 5Bh */
+    U32                         Reserved3;                      /* 5Ch */
+    U32                         Reserved4;                      /* 60h */
+    U32                         SenseBufferLowAddr;             /* 64h */
+    SGE_IO_UNION                SGL;                            /* 68h */
+} MSG_SCSI_IO32_REQUEST, MPI_POINTER PTR_MSG_SCSI_IO32_REQUEST,
+  SCSIIO32Request_t, MPI_POINTER pSCSIIO32Request_t;
+
+/* SCSI IO 32 MsgFlags bits */
+#define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH                (0x01)
+#define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH_32             (0x00)
+#define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH_64             (0x01)
+
+#define MPI_SCSIIO32_MSGFLGS_SENSE_LOCATION             (0x02)
+#define MPI_SCSIIO32_MSGFLGS_SENSE_LOC_HOST             (0x00)
+#define MPI_SCSIIO32_MSGFLGS_SENSE_LOC_IOC              (0x02)
+
+#define MPI_SCSIIO32_MSGFLGS_CMD_DETERMINES_DATA_DIR    (0x04)
+#define MPI_SCSIIO32_MSGFLGS_SGL_OFFSETS_CHAINS         (0x08)
+#define MPI_SCSIIO32_MSGFLGS_MULTICAST                  (0x10)
+#define MPI_SCSIIO32_MSGFLGS_BIDIRECTIONAL              (0x20)
+#define MPI_SCSIIO32_MSGFLGS_LARGE_CDB                  (0x40)
+
+/* SCSI IO 32 Flags bits */
+#define MPI_SCSIIO32_FLAGS_FORM_MASK                    (0x03)
+#define MPI_SCSIIO32_FLAGS_FORM_SCSIID                  (0x00)
+#define MPI_SCSIIO32_FLAGS_FORM_WWID                    (0x01)
+
+/* SCSI IO 32 LUN fields */
+#define MPI_SCSIIO32_LUN_FIRST_LEVEL_ADDRESSING     (0x0000FFFF)
+#define MPI_SCSIIO32_LUN_SECOND_LEVEL_ADDRESSING    (0xFFFF0000)
+#define MPI_SCSIIO32_LUN_THIRD_LEVEL_ADDRESSING     (0x0000FFFF)
+#define MPI_SCSIIO32_LUN_FOURTH_LEVEL_ADDRESSING    (0xFFFF0000)
+#define MPI_SCSIIO32_LUN_LEVEL_1_WORD               (0xFF00)
+#define MPI_SCSIIO32_LUN_LEVEL_1_DWORD              (0x0000FF00)
+
+/* SCSI IO 32 Control bits */
+#define MPI_SCSIIO32_CONTROL_DATADIRECTION_MASK     (0x03000000)
+#define MPI_SCSIIO32_CONTROL_NODATATRANSFER         (0x00000000)
+#define MPI_SCSIIO32_CONTROL_WRITE                  (0x01000000)
+#define MPI_SCSIIO32_CONTROL_READ                   (0x02000000)
+#define MPI_SCSIIO32_CONTROL_BIDIRECTIONAL          (0x03000000)
+
+#define MPI_SCSIIO32_CONTROL_ADDCDBLEN_MASK         (0xFC000000)
+#define MPI_SCSIIO32_CONTROL_ADDCDBLEN_SHIFT        (26)
+
+#define MPI_SCSIIO32_CONTROL_TASKATTRIBUTE_MASK     (0x00000700)
+#define MPI_SCSIIO32_CONTROL_SIMPLEQ                (0x00000000)
+#define MPI_SCSIIO32_CONTROL_HEADOFQ                (0x00000100)
+#define MPI_SCSIIO32_CONTROL_ORDEREDQ               (0x00000200)
+#define MPI_SCSIIO32_CONTROL_ACAQ                   (0x00000400)
+#define MPI_SCSIIO32_CONTROL_UNTAGGED               (0x00000500)
+#define MPI_SCSIIO32_CONTROL_NO_DISCONNECT          (0x00000700)
+
+#define MPI_SCSIIO32_CONTROL_TASKMANAGE_MASK        (0x00FF0000)
+#define MPI_SCSIIO32_CONTROL_OBSOLETE               (0x00800000)
+#define MPI_SCSIIO32_CONTROL_CLEAR_ACA_RSV          (0x00400000)
+#define MPI_SCSIIO32_CONTROL_TARGET_RESET           (0x00200000)
+#define MPI_SCSIIO32_CONTROL_LUN_RESET_RSV          (0x00100000)
+#define MPI_SCSIIO32_CONTROL_RESERVED               (0x00080000)
+#define MPI_SCSIIO32_CONTROL_CLR_TASK_SET_RSV       (0x00040000)
+#define MPI_SCSIIO32_CONTROL_ABORT_TASK_SET         (0x00020000)
+#define MPI_SCSIIO32_CONTROL_RESERVED2              (0x00010000)
+
+/* SCSI IO 32 EEDPFlags */
+#define MPI_SCSIIO32_EEDPFLAGS_MASK_OP              (0x0007)
+#define MPI_SCSIIO32_EEDPFLAGS_NOOP_OP              (0x0000)
+#define MPI_SCSIIO32_EEDPFLAGS_CHK_OP               (0x0001)
+#define MPI_SCSIIO32_EEDPFLAGS_STRIP_OP             (0x0002)
+#define MPI_SCSIIO32_EEDPFLAGS_CHKRM_OP             (0x0003)
+#define MPI_SCSIIO32_EEDPFLAGS_INSERT_OP            (0x0004)
+#define MPI_SCSIIO32_EEDPFLAGS_REPLACE_OP           (0x0006)
+#define MPI_SCSIIO32_EEDPFLAGS_CHKREGEN_OP          (0x0007)
+
+#define MPI_SCSIIO32_EEDPFLAGS_PASS_REF_TAG         (0x0008)
+#define MPI_SCSIIO32_EEDPFLAGS_8_9THS_MODE          (0x0010)
+
+#define MPI_SCSIIO32_EEDPFLAGS_T10_CHK_MASK         (0x0700)
+#define MPI_SCSIIO32_EEDPFLAGS_T10_CHK_GUARD        (0x0100)
+#define MPI_SCSIIO32_EEDPFLAGS_T10_CHK_REFTAG       (0x0200)
+#define MPI_SCSIIO32_EEDPFLAGS_T10_CHK_LBATAG       (0x0400)
+#define MPI_SCSIIO32_EEDPFLAGS_T10_CHK_SHIFT        (8)
+
+#define MPI_SCSIIO32_EEDPFLAGS_INC_SEC_APPTAG       (0x1000)
+#define MPI_SCSIIO32_EEDPFLAGS_INC_PRI_APPTAG       (0x2000)
+#define MPI_SCSIIO32_EEDPFLAGS_INC_SEC_REFTAG       (0x4000)
+#define MPI_SCSIIO32_EEDPFLAGS_INC_PRI_REFTAG       (0x8000)
+
+
+/* SCSIIO32 IO reply structure */
+typedef struct _MSG_SCSIIO32_IO_REPLY
+{
+    U8                      Port;                       /* 00h */
+    U8                      Reserved1;                  /* 01h */
+    U8                      MsgLength;                  /* 02h */
+    U8                      Function;                   /* 03h */
+    U8                      CDBLength;                  /* 04h */
+    U8                      SenseBufferLength;          /* 05h */
+    U8                      Flags;                      /* 06h */
+    U8                      MsgFlags;                   /* 07h */
+    U32                     MsgContext;                 /* 08h */
+    U8                      SCSIStatus;                 /* 0Ch */
+    U8                      SCSIState;                  /* 0Dh */
+    U16                     IOCStatus;                  /* 0Eh */
+    U32                     IOCLogInfo;                 /* 10h */
+    U32                     TransferCount;              /* 14h */
+    U32                     SenseCount;                 /* 18h */
+    U32                     ResponseInfo;               /* 1Ch */
+    U16                     TaskTag;                    /* 20h */
+    U16                     Reserved2;                  /* 22h */
+    U32                     BidirectionalTransferCount; /* 24h */
+} MSG_SCSIIO32_IO_REPLY, MPI_POINTER PTR_MSG_SCSIIO32_IO_REPLY,
+  SCSIIO32Reply_t, MPI_POINTER pSCSIIO32Reply_t;
+
+
+/****************************************************************************/
 /*  SCSI Task Management messages                                           */
 /****************************************************************************/
 
@@ -310,10 +503,14 @@ typedef struct _MSG_SEP_REQUEST
 #define MPI_SEP_REQ_SLOTSTATUS_UNCONFIGURED             (0x00000080)
 #define MPI_SEP_REQ_SLOTSTATUS_HOT_SPARE                (0x00000100)
 #define MPI_SEP_REQ_SLOTSTATUS_REBUILD_STOPPED          (0x00000200)
+#define MPI_SEP_REQ_SLOTSTATUS_REQ_CONSISTENCY_CHECK    (0x00001000)
+#define MPI_SEP_REQ_SLOTSTATUS_DISABLE                  (0x00002000)
+#define MPI_SEP_REQ_SLOTSTATUS_REQ_RESERVED_DEVICE      (0x00004000)
 #define MPI_SEP_REQ_SLOTSTATUS_IDENTIFY_REQUEST         (0x00020000)
 #define MPI_SEP_REQ_SLOTSTATUS_REQUEST_REMOVE           (0x00040000)
 #define MPI_SEP_REQ_SLOTSTATUS_REQUEST_INSERT           (0x00080000)
 #define MPI_SEP_REQ_SLOTSTATUS_DO_NOT_MOVE              (0x00400000)
+#define MPI_SEP_REQ_SLOTSTATUS_ACTIVE                   (0x00800000)
 #define MPI_SEP_REQ_SLOTSTATUS_B_ENABLE_BYPASS          (0x04000000)
 #define MPI_SEP_REQ_SLOTSTATUS_A_ENABLE_BYPASS          (0x08000000)
 #define MPI_SEP_REQ_SLOTSTATUS_DEV_OFF                  (0x10000000)
@@ -352,11 +549,15 @@ typedef struct _MSG_SEP_REPLY
 #define MPI_SEP_REPLY_SLOTSTATUS_UNCONFIGURED           (0x00000080)
 #define MPI_SEP_REPLY_SLOTSTATUS_HOT_SPARE              (0x00000100)
 #define MPI_SEP_REPLY_SLOTSTATUS_REBUILD_STOPPED        (0x00000200)
+#define MPI_SEP_REPLY_SLOTSTATUS_CONSISTENCY_CHECK      (0x00001000)
+#define MPI_SEP_REPLY_SLOTSTATUS_DISABLE                (0x00002000)
+#define MPI_SEP_REPLY_SLOTSTATUS_RESERVED_DEVICE        (0x00004000)
 #define MPI_SEP_REPLY_SLOTSTATUS_REPORT                 (0x00010000)
 #define MPI_SEP_REPLY_SLOTSTATUS_IDENTIFY_REQUEST       (0x00020000)
 #define MPI_SEP_REPLY_SLOTSTATUS_REMOVE_READY           (0x00040000)
 #define MPI_SEP_REPLY_SLOTSTATUS_INSERT_READY           (0x00080000)
 #define MPI_SEP_REPLY_SLOTSTATUS_DO_NOT_REMOVE          (0x00400000)
+#define MPI_SEP_REPLY_SLOTSTATUS_ACTIVE                 (0x00800000)
 #define MPI_SEP_REPLY_SLOTSTATUS_B_BYPASS_ENABLED       (0x01000000)
 #define MPI_SEP_REPLY_SLOTSTATUS_A_BYPASS_ENABLED       (0x02000000)
 #define MPI_SEP_REPLY_SLOTSTATUS_B_ENABLE_BYPASS        (0x04000000)

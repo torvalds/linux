@@ -667,7 +667,7 @@ static ssize_t sock_aio_read(struct kiocb *iocb, char __user *ubuf,
 	}
 	iocb->private = x;
 	x->kiocb = iocb;
-	sock = SOCKET_I(iocb->ki_filp->f_dentry->d_inode); 
+	sock = iocb->ki_filp->private_data; 
 
 	x->async_msg.msg_name = NULL;
 	x->async_msg.msg_namelen = 0;
@@ -709,7 +709,7 @@ static ssize_t sock_aio_write(struct kiocb *iocb, const char __user *ubuf,
 	}
 	iocb->private = x;
 	x->kiocb = iocb;
-	sock = SOCKET_I(iocb->ki_filp->f_dentry->d_inode); 
+	sock = iocb->ki_filp->private_data; 
 
 	x->async_msg.msg_name = NULL;
 	x->async_msg.msg_namelen = 0;
@@ -732,7 +732,7 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
 	struct socket *sock;
 	int flags;
 
-	sock = SOCKET_I(file->f_dentry->d_inode);
+	sock = file->private_data;
 
 	flags = !(file->f_flags & O_NONBLOCK) ? 0 : MSG_DONTWAIT;
 	if (more)
@@ -741,14 +741,14 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
 	return sock->ops->sendpage(sock, page, offset, size, flags);
 }
 
-static int sock_readv_writev(int type, struct inode * inode,
+static int sock_readv_writev(int type,
 			     struct file * file, const struct iovec * iov,
 			     long count, size_t size)
 {
 	struct msghdr msg;
 	struct socket *sock;
 
-	sock = SOCKET_I(inode);
+	sock = file->private_data;
 
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
@@ -775,7 +775,7 @@ static ssize_t sock_readv(struct file *file, const struct iovec *vector,
 	int i;
         for (i = 0 ; i < count ; i++)
                 tot_len += vector[i].iov_len;
-	return sock_readv_writev(VERIFY_WRITE, file->f_dentry->d_inode,
+	return sock_readv_writev(VERIFY_WRITE,
 				 file, vector, count, tot_len);
 }
 	
@@ -786,7 +786,7 @@ static ssize_t sock_writev(struct file *file, const struct iovec *vector,
 	int i;
         for (i = 0 ; i < count ; i++)
                 tot_len += vector[i].iov_len;
-	return sock_readv_writev(VERIFY_READ, file->f_dentry->d_inode,
+	return sock_readv_writev(VERIFY_READ,
 				 file, vector, count, tot_len);
 }
 
@@ -840,7 +840,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	int pid, err;
 
-	sock = SOCKET_I(file->f_dentry->d_inode);
+	sock = file->private_data;
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		err = dev_ioctl(cmd, argp);
 	} else
@@ -939,13 +939,13 @@ static unsigned int sock_poll(struct file *file, poll_table * wait)
 	/*
 	 *	We can't return errors to poll, so it's either yes or no. 
 	 */
-	sock = SOCKET_I(file->f_dentry->d_inode);
+	sock = file->private_data;
 	return sock->ops->poll(file, sock, wait);
 }
 
 static int sock_mmap(struct file * file, struct vm_area_struct * vma)
 {
-	struct socket *sock = SOCKET_I(file->f_dentry->d_inode);
+	struct socket *sock = file->private_data;
 
 	return sock->ops->mmap(file, sock, vma);
 }
@@ -995,7 +995,7 @@ static int sock_fasync(int fd, struct file *filp, int on)
 			return -ENOMEM;
 	}
 
-	sock = SOCKET_I(filp->f_dentry->d_inode);
+	sock = filp->private_data;
 
 	if ((sk=sock->sk) == NULL) {
 		kfree(fna);
@@ -1745,10 +1745,11 @@ asmlinkage long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
 		goto out_freeiov;
 	ctl_len = msg_sys.msg_controllen; 
 	if ((MSG_CMSG_COMPAT & flags) && ctl_len) {
-		err = cmsghdr_from_user_compat_to_kern(&msg_sys, ctl, sizeof(ctl));
+		err = cmsghdr_from_user_compat_to_kern(&msg_sys, sock->sk, ctl, sizeof(ctl));
 		if (err)
 			goto out_freeiov;
 		ctl_buf = msg_sys.msg_control;
+		ctl_len = msg_sys.msg_controllen;
 	} else if (ctl_len) {
 		if (ctl_len > sizeof(ctl))
 		{
@@ -1861,7 +1862,8 @@ asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg, unsigned int flag
 		if (err < 0)
 			goto out_freeiov;
 	}
-	err = __put_user(msg_sys.msg_flags, COMPAT_FLAGS(msg));
+	err = __put_user((msg_sys.msg_flags & ~MSG_CMSG_COMPAT),
+			 COMPAT_FLAGS(msg));
 	if (err)
 		goto out_freeiov;
 	if (MSG_CMSG_COMPAT & flags)

@@ -13,14 +13,12 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {0x74, 0x75, 0x76, 0x77, I2C_CLIENT_END};
-static unsigned int normal_isa[] = {I2C_CLIENT_ISA_END};
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(pca9539);
+I2C_CLIENT_INSMOD_1(pca9539);
 
 enum pca9539_cmd
 {
@@ -109,10 +107,10 @@ static struct attribute_group pca9539_defattr_group = {
 
 static int pca9539_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, pca9539_detect);
+	return i2c_probe(adapter, &addr_data, pca9539_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;
@@ -164,10 +162,8 @@ static int pca9539_detach_client(struct i2c_client *client)
 {
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	kfree(i2c_get_clientdata(client));
 	return 0;

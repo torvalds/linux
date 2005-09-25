@@ -754,7 +754,7 @@ static int idedisk_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	idedisk_prepare_flush(q, rq);
 
-	ret = blk_execute_rq(q, disk, rq);
+	ret = blk_execute_rq(q, disk, rq, 0);
 
 	/*
 	 * if we failed and caller wants error offset, get it

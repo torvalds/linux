@@ -85,7 +85,7 @@ static inline void set_pud(pud_t *dst, pud_t val)
 	pud_val(*dst) = pud_val(val);
 }
 
-extern inline void pud_clear (pud_t *pud)
+static inline void pud_clear (pud_t *pud)
 {
 	set_pud(pud, __pud(0));
 }
@@ -95,7 +95,7 @@ static inline void set_pgd(pgd_t *dst, pgd_t val)
 	pgd_val(*dst) = pgd_val(val); 
 } 
 
-extern inline void pgd_clear (pgd_t * pgd)
+static inline void pgd_clear (pgd_t * pgd)
 {
 	set_pgd(pgd, __pgd(0));
 }
@@ -104,6 +104,19 @@ extern inline void pgd_clear (pgd_t * pgd)
 ((unsigned long) __va(pud_val(pud) & PHYSICAL_PAGE_MASK))
 
 #define ptep_get_and_clear(mm,addr,xp)	__pte(xchg(&(xp)->pte, 0))
+
+static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
+{
+	pte_t pte;
+	if (full) {
+		pte = *ptep;
+		*ptep = __pte(0);
+	} else {
+		pte = ptep_get_and_clear(mm, addr, ptep);
+	}
+	return pte;
+}
+
 #define pte_same(a, b)		((a).pte == (b).pte)
 
 #define PMD_SIZE	(1UL << PMD_SHIFT)
@@ -143,7 +156,7 @@ extern inline void pgd_clear (pgd_t * pgd)
 #define _PAGE_ACCESSED	0x020
 #define _PAGE_DIRTY	0x040
 #define _PAGE_PSE	0x080	/* 2MB page */
-#define _PAGE_FILE	0x040	/* set:pagecache, unset:swap */
+#define _PAGE_FILE	0x040	/* nonlinear file mapping, saved PTE; unset:swap */
 #define _PAGE_GLOBAL	0x100	/* Global TLB entry */
 
 #define _PAGE_PROTNONE	0x080	/* If not present */
@@ -247,6 +260,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
+#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
 static inline int pte_user(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
 extern inline int pte_read(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
 extern inline int pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_USER; }
@@ -254,8 +268,8 @@ extern inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 extern inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
+static inline int pte_huge(pte_t pte)		{ return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
 
-#define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
 extern inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
 extern inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
 extern inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
@@ -361,7 +375,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 }
  
 /* Change flags of a PTE */
-extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { 
 	pte_val(pte) &= _PAGE_CHG_MASK;
 	pte_val(pte) |= pgprot_val(newprot);
@@ -407,9 +421,6 @@ extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 extern int kern_addr_valid(unsigned long addr); 
 
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
-
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
@@ -433,6 +444,7 @@ extern int kern_addr_valid(unsigned long addr);
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
 #include <asm-generic/pgtable.h>

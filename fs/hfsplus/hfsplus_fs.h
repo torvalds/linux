@@ -343,8 +343,9 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 /* options.c */
-int parse_options(char *, struct hfsplus_sb_info *);
-void fill_defaults(struct hfsplus_sb_info *);
+int hfsplus_parse_options(char *, struct hfsplus_sb_info *);
+void hfsplus_fill_defaults(struct hfsplus_sb_info *);
+int hfsplus_show_options(struct seq_file *, struct vfsmount *);
 
 /* tables.c */
 extern u16 hfsplus_case_fold_table[];

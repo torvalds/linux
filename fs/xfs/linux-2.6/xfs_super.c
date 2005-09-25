@@ -70,11 +70,15 @@
 #include <linux/namei.h>
 #include <linux/init.h>
 #include <linux/mount.h>
+#include <linux/mempool.h>
 #include <linux/writeback.h>
+#include <linux/kthread.h>
 
 STATIC struct quotactl_ops linvfs_qops;
 STATIC struct super_operations linvfs_sops;
-STATIC kmem_zone_t *linvfs_inode_zone;
+STATIC kmem_zone_t *xfs_vnode_zone;
+STATIC kmem_zone_t *xfs_ioend_zone;
+mempool_t *xfs_ioend_pool;
 
 STATIC struct xfs_mount_args *
 xfs_args_allocate(
@@ -138,24 +142,25 @@ STATIC __inline__ void
 xfs_set_inodeops(
 	struct inode		*inode)
 {
-	vnode_t			*vp = LINVFS_GET_VP(inode);
-
-	if (vp->v_type == VNON) {
-		vn_mark_bad(vp);
-	} else if (S_ISREG(inode->i_mode)) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
 		inode->i_op = &linvfs_file_inode_operations;
 		inode->i_fop = &linvfs_file_operations;
 		inode->i_mapping->a_ops = &linvfs_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
+		break;
+	case S_IFDIR:
 		inode->i_op = &linvfs_dir_inode_operations;
 		inode->i_fop = &linvfs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
+		break;
+	case S_IFLNK:
 		inode->i_op = &linvfs_symlink_inode_operations;
 		if (inode->i_blocks)
 			inode->i_mapping->a_ops = &linvfs_aops;
-	} else {
+		break;
+	default:
 		inode->i_op = &linvfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
 	}
 }
 
@@ -167,16 +172,23 @@ xfs_revalidate_inode(
 {
 	struct inode		*inode = LINVFS_GET_IP(vp);
 
-	inode->i_mode	= (ip->i_d.di_mode & MODEMASK) | VTTOIF(vp->v_type);
+	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;
 	inode->i_uid	= ip->i_d.di_uid;
 	inode->i_gid	= ip->i_d.di_gid;
-	if (((1 << vp->v_type) & ((1<<VBLK) | (1<<VCHR))) == 0) {
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		inode->i_rdev =
+			MKDEV(sysv_major(ip->i_df.if_u2.if_rdev) & 0x1ff,
+			      sysv_minor(ip->i_df.if_u2.if_rdev));
+		break;
+	default:
 		inode->i_rdev = 0;
-	} else {
-		xfs_dev_t dev = ip->i_df.if_u2.if_rdev;
-		inode->i_rdev = MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+		break;
 	}
+
 	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
@@ -231,7 +243,6 @@ xfs_initialize_vnode(
 	 * finish our work.
 	 */
 	if (ip->i_d.di_mode != 0 && unlock && (inode->i_state & I_NEW)) {
-		vp->v_type = IFTOVT(ip->i_d.di_mode);
 		xfs_revalidate_inode(XFS_BHVTOM(bdp), vp, ip);
 		xfs_set_inodeops(inode);
 	
@@ -274,8 +285,7 @@ linvfs_alloc_inode(
 {
 	vnode_t			*vp;
 
-	vp = (vnode_t *)kmem_cache_alloc(linvfs_inode_zone, 
-                kmem_flags_convert(KM_SLEEP));
+	vp = kmem_cache_alloc(xfs_vnode_zone, kmem_flags_convert(KM_SLEEP));
 	if (!vp)
 		return NULL;
 	return LINVFS_GET_IP(vp);
@@ -285,11 +295,11 @@ STATIC void
 linvfs_destroy_inode(
 	struct inode		*inode)
 {
-	kmem_cache_free(linvfs_inode_zone, LINVFS_GET_VP(inode));
+	kmem_zone_free(xfs_vnode_zone, LINVFS_GET_VP(inode));
 }
 
 STATIC void
-init_once(
+linvfs_inode_init_once(
 	void			*data,
 	kmem_cache_t		*cachep,
 	unsigned long		flags)
@@ -302,21 +312,41 @@ init_once(
 }
 
 STATIC int
-init_inodecache( void )
+linvfs_init_zones(void)
 {
-	linvfs_inode_zone = kmem_cache_create("linvfs_icache",
+	xfs_vnode_zone = kmem_cache_create("xfs_vnode",
 				sizeof(vnode_t), 0, SLAB_RECLAIM_ACCOUNT,
-				init_once, NULL);
-	if (linvfs_inode_zone == NULL)
-		return -ENOMEM;
+				linvfs_inode_init_once, NULL);
+	if (!xfs_vnode_zone)
+		goto out;
+
+	xfs_ioend_zone = kmem_zone_init(sizeof(xfs_ioend_t), "xfs_ioend");
+	if (!xfs_ioend_zone)
+		goto out_destroy_vnode_zone;
+
+	xfs_ioend_pool = mempool_create(4 * MAX_BUF_PER_PAGE,
+			mempool_alloc_slab, mempool_free_slab,
+			xfs_ioend_zone);
+	if (!xfs_ioend_pool)
+		goto out_free_ioend_zone;
+
 	return 0;
+
+
+ out_free_ioend_zone:
+	kmem_zone_destroy(xfs_ioend_zone);
+ out_destroy_vnode_zone:
+	kmem_zone_destroy(xfs_vnode_zone);
+ out:
+	return -ENOMEM;
 }
 
 STATIC void
-destroy_inodecache( void )
+linvfs_destroy_zones(void)
 {
-	if (kmem_cache_destroy(linvfs_inode_zone))
-		printk(KERN_WARNING "%s: cache still in use!\n", __FUNCTION__);
+	mempool_destroy(xfs_ioend_pool);
+	kmem_zone_destroy(xfs_vnode_zone);
+	kmem_zone_destroy(xfs_ioend_zone);
 }
 
 /*
@@ -354,17 +384,38 @@ linvfs_clear_inode(
 	struct inode		*inode)
 {
 	vnode_t			*vp = LINVFS_GET_VP(inode);
+	int			error, cache;
 
-	if (vp) {
-		vn_rele(vp);
-		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-		/*
-		 * Do all our cleanup, and remove this vnode.
-		 */
-		vn_remove(vp);
+	vn_trace_entry(vp, "clear_inode", (inst_t *)__return_address);
+
+	XFS_STATS_INC(vn_rele);
+	XFS_STATS_INC(vn_remove);
+	XFS_STATS_INC(vn_reclaim);
+	XFS_STATS_DEC(vn_active);
+
+	/*
+	 * This can happen because xfs_iget_core calls xfs_idestroy if we
+	 * find an inode with di_mode == 0 but without IGET_CREATE set.
+	 */
+	if (vp->v_fbhv)
+		VOP_INACTIVE(vp, NULL, cache);
+
+	VN_LOCK(vp);
+	vp->v_flag &= ~VMODIFIED;
+	VN_UNLOCK(vp, 0);
+
+	if (vp->v_fbhv) {
+		VOP_RECLAIM(vp, error);
+		if (error)
+			panic("vn_purge: cannot reclaim");
 	}
-}
 
+	ASSERT(vp->v_fbhv == NULL);
+
+#ifdef XFS_VNODE_TRACE
+	ktrace_free(vp->v_trace);
+#endif
+}
 
 /*
  * Enqueue a work item to be picked up by the vfs xfssyncd thread.
@@ -416,7 +467,7 @@ xfs_flush_inode(
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_inode_work);
-	delay(HZ/2);
+	delay(msecs_to_jiffies(500));
 }
 
 /*
@@ -441,7 +492,7 @@ xfs_flush_device(
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_device_work);
-	delay(HZ/2);
+	delay(msecs_to_jiffies(500));
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
@@ -466,25 +517,15 @@ xfssyncd(
 {
 	long			timeleft;
 	vfs_t			*vfsp = (vfs_t *) arg;
-	struct list_head	tmp;
 	struct vfs_sync_work	*work, *n;
+	LIST_HEAD		(tmp);
 
-	daemonize("xfssyncd");
-
-	vfsp->vfs_sync_work.w_vfs = vfsp;
-	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
-	vfsp->vfs_sync_task = current;
-	wmb();
-	wake_up(&vfsp->vfs_wait_sync_task);
-
-	INIT_LIST_HEAD(&tmp);
-	timeleft = (xfs_syncd_centisecs * HZ) / 100;
+	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		timeleft = schedule_timeout(timeleft);
+		timeleft = schedule_timeout_interruptible(timeleft);
 		/* swsusp */
 		try_to_freeze();
-		if (vfsp->vfs_flag & VFS_UMOUNT)
+		if (kthread_should_stop())
 			break;
 
 		spin_lock(&vfsp->vfs_sync_lock);
@@ -495,7 +536,8 @@ xfssyncd(
 		 */
 		if (!timeleft || list_empty(&vfsp->vfs_sync_list)) {
 			if (!timeleft)
-				timeleft = (xfs_syncd_centisecs * HZ) / 100;
+				timeleft = xfs_syncd_centisecs *
+							msecs_to_jiffies(10);
 			INIT_LIST_HEAD(&vfsp->vfs_sync_work.w_list);
 			list_add_tail(&vfsp->vfs_sync_work.w_list,
 					&vfsp->vfs_sync_list);
@@ -513,10 +555,6 @@ xfssyncd(
 		}
 	}
 
-	vfsp->vfs_sync_task = NULL;
-	wmb();
-	wake_up(&vfsp->vfs_wait_sync_task);
-
 	return 0;
 }
 
@@ -524,13 +562,11 @@ STATIC int
 linvfs_start_syncd(
 	vfs_t			*vfsp)
 {
-	int			pid;
-
-	pid = kernel_thread(xfssyncd, (void *) vfsp,
-			CLONE_VM | CLONE_FS | CLONE_FILES);
-	if (pid < 0)
-		return -pid;
-	wait_event(vfsp->vfs_wait_sync_task, vfsp->vfs_sync_task);
+	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
+	vfsp->vfs_sync_work.w_vfs = vfsp;
+	vfsp->vfs_sync_task = kthread_run(xfssyncd, vfsp, "xfssyncd");
+	if (IS_ERR(vfsp->vfs_sync_task))
+		return -PTR_ERR(vfsp->vfs_sync_task);
 	return 0;
 }
 
@@ -538,11 +574,7 @@ STATIC void
 linvfs_stop_syncd(
 	vfs_t			*vfsp)
 {
-	vfsp->vfs_flag |= VFS_UMOUNT;
-	wmb();
-
-	wake_up_process(vfsp->vfs_sync_task);
-	wait_event(vfsp->vfs_wait_sync_task, !vfsp->vfs_sync_task);
+	kthread_stop(vfsp->vfs_sync_task);
 }
 
 STATIC void
@@ -866,9 +898,9 @@ init_xfs_fs( void )
 
 	ktrace_init(64);
 
-	error = init_inodecache();
+	error = linvfs_init_zones();
 	if (error < 0)
-		goto undo_inodecache;
+		goto undo_zones;
 
 	error = pagebuf_init();
 	if (error < 0)
@@ -889,9 +921,9 @@ undo_register:
 	pagebuf_terminate();
 
 undo_pagebuf:
-	destroy_inodecache();
+	linvfs_destroy_zones();
 
-undo_inodecache:
+undo_zones:
 	return error;
 }
 
@@ -903,7 +935,7 @@ exit_xfs_fs( void )
 	unregister_filesystem(&xfs_fs_type);
 	xfs_cleanup();
 	pagebuf_terminate();
-	destroy_inodecache();
+	linvfs_destroy_zones();
 	ktrace_uninit();
 }
 

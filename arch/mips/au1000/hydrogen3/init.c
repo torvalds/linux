@@ -63,7 +63,7 @@ int __init prom_init(int argc, char **argv, char **envp, int *prom_vec)
 	prom_envp = envp;
 
 	mips_machgroup = MACH_GROUP_ALCHEMY;
-	mips_machtype = MACH_DB1000;	/* set the platform # */   
+	mips_machtype = MACH_DB1000;	/* set the platform # */
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");

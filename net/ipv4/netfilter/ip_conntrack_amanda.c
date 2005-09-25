@@ -65,7 +65,7 @@ static int help(struct sk_buff **pskb,
 
 	/* increase the UDP timeout of the master connection as replies from
 	 * Amanda clients to the server can be quite delayed */
-	ip_ct_refresh_acct(ct, ctinfo, NULL, master_timeout * HZ);
+	ip_ct_refresh(ct, *pskb, master_timeout * HZ);
 
 	/* No data? */
 	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
@@ -108,6 +108,7 @@ static int help(struct sk_buff **pskb,
 		}
 
 		exp->expectfn = NULL;
+		exp->flags = 0;
 
 		exp->tuple.src.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
 		exp->tuple.src.u.tcp.port = 0;

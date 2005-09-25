@@ -31,7 +31,7 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 #ifdef CONFIG_APUS
 #include <asm/amigappc.h>
@@ -1023,23 +1023,21 @@ __secondary_start_gemini:
         andc    r4,r4,r3
         mtspr   SPRN_HID0,r4
         sync
-        bl      gemini_prom_init
         b       __secondary_start
 #endif /* CONFIG_GEMINI */
-	.globl	__secondary_start_psurge
-__secondary_start_psurge:
-	li	r24,1			/* cpu # */
-	b	__secondary_start_psurge99
-	.globl	__secondary_start_psurge2
-__secondary_start_psurge2:
-	li	r24,2			/* cpu # */
-	b	__secondary_start_psurge99
-	.globl	__secondary_start_psurge3
-__secondary_start_psurge3:
-	li	r24,3			/* cpu # */
-	b	__secondary_start_psurge99
-__secondary_start_psurge99:
-	/* we come in here with IR=0 and DR=1, and DBAT 0
+
+	.globl	__secondary_start_pmac_0
+__secondary_start_pmac_0:
+	/* NB the entries for cpus 0, 1, 2 must each occupy 8 bytes. */
+	li	r24,0
+	b	1f
+	li	r24,1
+	b	1f
+	li	r24,2
+	b	1f
+	li	r24,3
+1:
+	/* on powersurge, we come in here with IR=0 and DR=1, and DBAT 0
 	   set to map the 0xf0000000 - 0xffffffff region */
 	mfmsr	r0
 	rlwinm	r0,r0,0,28,26		/* clear DR (0x10) */

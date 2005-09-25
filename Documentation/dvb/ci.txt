@@ -23,7 +23,6 @@ This application requires the following to function properly as of now.
 	  eg: $ szap -c channels.conf -r "TMC" -x
 
 	(b) a channels.conf containing a valid PMT PID
-
 	  eg: TMC:11996:h:0:27500:278:512:650:321
 
 	  here 278 is a valid PMT PID. the rest of the values are the
@@ -31,13 +30,7 @@ This application requires the following to function properly as of now.
 
 	(c) after running a szap, you have to run ca_zap, for the
 	  descrambler to function,
-
-	  eg: $ ca_zap patched_channels.conf "TMC"
-
-	  The patched means a patch to apply to scan, such that scan can
-	  generate a channels.conf_with pmt, which has this PMT PID info
-	  (NOTE: szap cannot use this channels.conf with the PMT_PID)
-
+	  eg: $ ca_zap channels.conf "TMC"
 
 	(d) Hopeflly Enjoy your favourite subscribed channel as you do with
 	  a FTA card.

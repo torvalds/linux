@@ -613,10 +613,15 @@ static struct miscdevice lcd_dev = {
 
 static int lcd_init(void)
 {
+	int ret;
 	unsigned long data;
 
 	pr_info("%s\n", LCD_DRIVER);
-	misc_register(&lcd_dev);
+	ret = misc_register(&lcd_dev);
+	if (ret) {
+		printk(KERN_WARNING LCD "Unable to register misc device.\n");
+		return ret;
+	}
 
 	/* Check region? Naaah! Just snarf it up. */
 /*	request_region(RTC_PORT(0), RTC_IO_EXTENT, "lcd");*/

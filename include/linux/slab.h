@@ -99,12 +99,27 @@ found:
 	return __kmalloc(size, flags);
 }
 
-extern void *kcalloc(size_t, size_t, unsigned int __nocast);
+extern void *kzalloc(size_t, unsigned int __nocast);
+
+/**
+ * kcalloc - allocate memory for an array. The memory is set to zero.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate.
+ */
+static inline void *kcalloc(size_t n, size_t size, unsigned int __nocast flags)
+{
+	if (n != 0 && size > INT_MAX / n)
+		return NULL;
+	return kzalloc(n * size, flags);
+}
+
 extern void kfree(const void *);
 extern unsigned int ksize(const void *);
 
 #ifdef CONFIG_NUMA
-extern void *kmem_cache_alloc_node(kmem_cache_t *, int flags, int node);
+extern void *kmem_cache_alloc_node(kmem_cache_t *,
+			unsigned int __nocast flags, int node);
 extern void *kmalloc_node(size_t size, unsigned int __nocast flags, int node);
 #else
 static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int node)

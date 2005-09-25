@@ -74,13 +74,13 @@ static void end_hs7751rvoip_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type hs7751rvoip_irq_type = {
-	"HS7751RVoIP IRQ",
-	startup_hs7751rvoip_irq,
-	shutdown_hs7751rvoip_irq,
-	enable_hs7751rvoip_irq,
-	disable_hs7751rvoip_irq,
-	ack_hs7751rvoip_irq,
-	end_hs7751rvoip_irq,
+	.typename =  "HS7751RVoIP IRQ",
+	.startup = startup_hs7751rvoip_irq,
+	.shutdown = shutdown_hs7751rvoip_irq,
+	.enable = enable_hs7751rvoip_irq,
+	.disable = disable_hs7751rvoip_irq,
+	.ack = ack_hs7751rvoip_irq,
+	.end = end_hs7751rvoip_irq,
 };
 
 static void make_hs7751rvoip_irq(unsigned int irq)

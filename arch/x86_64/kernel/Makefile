@@ -4,15 +4,15 @@
 
 extra-y 	:= head.o head64.o init_task.o vmlinux.lds
 EXTRA_AFLAGS	:= -traditional
-obj-y	:= process.o semaphore.o signal.o entry.o traps.o irq.o \
+obj-y	:= process.o signal.o entry.o traps.o irq.o \
 		ptrace.o time.o ioport.o ldt.o setup.o i8259.o sys_x86_64.o \
 		x8664_ksyms.o i387.o syscall.o vsyscall.o \
-		setup64.o bootflag.o e820.o reboot.o quirks.o
+		setup64.o bootflag.o e820.o reboot.o quirks.o i8237.o
 
 obj-$(CONFIG_X86_MCE)         += mce.o
 obj-$(CONFIG_X86_MCE_INTEL)	+= mce_intel.o
 obj-$(CONFIG_MTRR)		+= ../../i386/kernel/cpu/mtrr/
-obj-$(CONFIG_ACPI_BOOT)		+= acpi/
+obj-$(CONFIG_ACPI)		+= acpi/
 obj-$(CONFIG_X86_MSR)		+= msr.o
 obj-$(CONFIG_MICROCODE)		+= microcode.o
 obj-$(CONFIG_X86_CPUID)		+= cpuid.o
@@ -45,3 +45,5 @@ swiotlb-$(CONFIG_SWIOTLB)      += ../../ia64/lib/swiotlb.o
 microcode-$(subst m,y,$(CONFIG_MICROCODE))  += ../../i386/kernel/microcode.o
 intel_cacheinfo-y		+= ../../i386/kernel/cpu/intel_cacheinfo.o
 quirks-y			+= ../../i386/kernel/quirks.o
+i8237-y				+= ../../i386/kernel/i8237.o
+msr-$(subst m,y,$(CONFIG_X86_MSR))  += ../../i386/kernel/msr.o

@@ -150,7 +150,7 @@ static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 s
 
 	switch (rq->pm->pm_step) {
 	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) complete */
-		if (rq->pm->pm_state == 4)
+		if (rq->pm->pm_state == PM_EVENT_FREEZE)
 			rq->pm->pm_step = ide_pm_state_completed;
 		else
 			rq->pm->pm_step = idedisk_pm_standby;
@@ -560,7 +560,7 @@ ide_startstop_t __ide_abort(ide_drive_t *drive, struct request *rq)
 EXPORT_SYMBOL_GPL(__ide_abort);
 
 /**
- *	ide_abort	-	abort pending IDE operatins
+ *	ide_abort	-	abort pending IDE operations
  *	@drive: drive the error occurred on
  *	@msg: message to report
  *
@@ -623,7 +623,7 @@ static void ide_cmd (ide_drive_t *drive, u8 cmd, u8 nsect,
  *	@drive: drive the completion interrupt occurred on
  *
  *	drive_cmd_intr() is invoked on completion of a special DRIVE_CMD.
- *	We do any necessary daya reading and then wait for the drive to
+ *	We do any necessary data reading and then wait for the drive to
  *	go non busy. At that point we may read the error data and complete
  *	the request
  */
@@ -773,7 +773,7 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 
 /**
  *	execute_drive_command	-	issue special drive command
- *	@drive: the drive to issue th command on
+ *	@drive: the drive to issue the command on
  *	@rq: the request structure holding the command
  *
  *	execute_drive_cmd() issues a special drive command,  usually 

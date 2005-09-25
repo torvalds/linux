@@ -28,6 +28,7 @@
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
  *     14-Mar-2006 BJD  void __iomem fixes
  *     22-Jun-2006 BJD  Added DM9000 platform information
+ *     20-Sep-2005 BJD  Added static to non-exported items
 */
 
 #include <linux/kernel.h>
@@ -221,7 +222,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -347,7 +348,7 @@ static void vr1000_power_off(void)
 	s3c2410_gpio_setpin(S3C2410_GPB9, 1);
 }
 
-void __init vr1000_map_io(void)
+static void __init vr1000_map_io(void)
 {
 	/* initialise clock sources */
 

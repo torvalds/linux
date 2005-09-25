@@ -434,21 +434,25 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 /* used by selection: complement pointer position */
 void complement_pos(struct vc_data *vc, int offset)
 {
-	static unsigned short *p;
+	static int old_offset = -1;
 	static unsigned short old;
 	static unsigned short oldx, oldy;
 
 	WARN_CONSOLE_UNLOCKED();
 
-	if (p) {
-		scr_writew(old, p);
+	if (old_offset != -1 && old_offset >= 0 &&
+	    old_offset < vc->vc_screenbuf_size) {
+		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (DO_UPDATE(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
 	}
-	if (offset == -1)
-		p = NULL;
-	else {
+
+	old_offset = offset;
+
+	if (offset != -1 && offset >= 0 &&
+	    offset < vc->vc_screenbuf_size) {
 		unsigned short new;
+		unsigned short *p;
 		p = screenpos(vc, offset, 1);
 		old = scr_readw(p);
 		new = old ^ vc->vc_complement_mask;
@@ -459,6 +463,7 @@ void complement_pos(struct vc_data *vc, int offset)
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
 		}
 	}
+
 }
 
 static void insert_char(struct vc_data *vc, unsigned int nr)
@@ -746,6 +751,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
+	unsigned int end;
 	unsigned short *newscreen;
 
 	WARN_CONSOLE_UNLOCKED();
@@ -789,20 +795,45 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	old_origin = vc->vc_origin;
 	new_origin = (long) newscreen;
 	new_scr_end = new_origin + new_screen_size;
-	if (new_rows < old_rows)
-		old_origin += (old_rows - new_rows) * old_row_size;
+
+	if (vc->vc_y > new_rows) {
+		if (old_rows - vc->vc_y < new_rows) {
+			/*
+			 * Cursor near the bottom, copy contents from the
+			 * bottom of buffer
+			 */
+			old_origin += (old_rows - new_rows) * old_row_size;
+			end = vc->vc_scr_end;
+		} else {
+			/*
+			 * Cursor is in no man's land, copy 1/2 screenful
+			 * from the top and bottom of cursor position
+			 */
+			old_origin += (vc->vc_y - new_rows/2) * old_row_size;
+			end = old_origin + (old_row_size * new_rows);
+		}
+	} else
+		/*
+		 * Cursor near the top, copy contents from the top of buffer
+		 */
+		end = (old_rows > new_rows) ? old_origin +
+			(old_row_size * new_rows) :
+			vc->vc_scr_end;
 
 	update_attr(vc);
 
-	while (old_origin < vc->vc_scr_end) {
-		scr_memcpyw((unsigned short *) new_origin, (unsigned short *) old_origin, rlth);
+	while (old_origin < end) {
+		scr_memcpyw((unsigned short *) new_origin,
+			    (unsigned short *) old_origin, rlth);
 		if (rrem)
-			scr_memsetw((void *)(new_origin + rlth), vc->vc_video_erase_char, rrem);
+			scr_memsetw((void *)(new_origin + rlth),
+				    vc->vc_video_erase_char, rrem);
 		old_origin += old_row_size;
 		new_origin += new_row_size;
 	}
 	if (new_scr_end > new_origin)
-		scr_memsetw((void *)new_origin, vc->vc_video_erase_char, new_scr_end - new_origin);
+		scr_memsetw((void *)new_origin, vc->vc_video_erase_char,
+			    new_scr_end - new_origin);
 	if (vc->vc_kmalloced)
 		kfree(vc->vc_screenbuf);
 	vc->vc_screenbuf = newscreen;
@@ -2272,7 +2303,9 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = paste_selection(tty);
 			break;
 		case TIOCL_UNBLANKSCREEN:
+			acquire_console_sem();
 			unblank_screen();
+			release_console_sem();
 			break;
 		case TIOCL_SELLOADLUT:
 			ret = sel_loadlut(p);
@@ -2317,8 +2350,10 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			}
 			break;
 		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
+			acquire_console_sem();
 			ignore_poke = 1;
 			do_blank_screen(0);
+			release_console_sem();
 			break;
 		case TIOCL_BLANKEDSCREEN:
 			ret = console_blanked;

@@ -74,7 +74,7 @@ static inline int is_IF_modifier(kprobe_opcode_t *insn)
 	return 0;
 }
 
-int arch_prepare_kprobe(struct kprobe *p)
+int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	/* insn: must be on special executable page on x86_64. */
 	up(&kprobe_mutex);
@@ -189,7 +189,7 @@ static inline s32 *is_riprel(u8 *insn)
 	return NULL;
 }
 
-void arch_copy_kprobe(struct kprobe *p)
+void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
 	s32 *ripdisp;
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE);
@@ -215,21 +215,21 @@ void arch_copy_kprobe(struct kprobe *p)
 	p->opcode = *p->addr;
 }
 
-void arch_arm_kprobe(struct kprobe *p)
+void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
 	*p->addr = BREAKPOINT_INSTRUCTION;
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void arch_disarm_kprobe(struct kprobe *p)
+void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	*p->addr = p->opcode;
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void arch_remove_kprobe(struct kprobe *p)
+void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	up(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
@@ -261,7 +261,7 @@ static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs)
 		kprobe_saved_rflags &= ~IF_MASK;
 }
 
-static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
 	regs->eflags |= TF_MASK;
 	regs->eflags &= ~IF_MASK;
@@ -272,7 +272,8 @@ static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 		regs->rip = (unsigned long)p->ainsn.insn;
 }
 
-void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+				      struct pt_regs *regs)
 {
 	unsigned long *sara = (unsigned long *)regs->rsp;
         struct kretprobe_instance *ri;
@@ -295,7 +296,7 @@ void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
  * Interrupts are disabled on entry as trap3 is an interrupt gate and they
  * remain disabled thorough out this function.
  */
-int kprobe_handler(struct pt_regs *regs)
+int __kprobes kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
 	int ret = 0;
@@ -310,7 +311,8 @@ int kprobe_handler(struct pt_regs *regs)
 		   Disarm the probe we just hit, and ignore it. */
 		p = get_kprobe(addr);
 		if (p) {
-			if (kprobe_status == KPROBE_HIT_SS) {
+			if (kprobe_status == KPROBE_HIT_SS &&
+				*p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
 				regs->eflags &= ~TF_MASK;
 				regs->eflags |= kprobe_saved_rflags;
 				unlock_kprobes();
@@ -360,7 +362,10 @@ int kprobe_handler(struct pt_regs *regs)
 			 * either a probepoint or a debugger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
+			 * Back up over the (now missing) int3 and run
+			 * the original instruction.
 			 */
+			regs->rip = (unsigned long)addr;
 			ret = 1;
 		}
 		/* Not one of ours: let kernel handle it */
@@ -399,7 +404,7 @@ no_kprobe:
 /*
  * Called when we hit the probe point at kretprobe_trampoline
  */
-int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
         struct kretprobe_instance *ri = NULL;
         struct hlist_head *head;
@@ -478,7 +483,7 @@ int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
  * that is atop the stack is the address following the copied instruction.
  * We need to make it the address following the original instruction.
  */
-static void resume_execution(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	unsigned long *tos = (unsigned long *)regs->rsp;
 	unsigned long next_rip = 0;
@@ -536,7 +541,7 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
  * Interrupts are disabled on entry as trap1 is an interrupt gate and they
  * remain disabled thoroughout this function.  And we hold kprobe lock.
  */
-int post_kprobe_handler(struct pt_regs *regs)
+int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
 	if (!kprobe_running())
 		return 0;
@@ -571,7 +576,7 @@ out:
 }
 
 /* Interrupts disabled, kprobe_lock held. */
-int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	if (current_kprobe->fault_handler
 	    && current_kprobe->fault_handler(current_kprobe, regs, trapnr))
@@ -590,8 +595,8 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
-			     void *data)
+int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	switch (val) {
@@ -619,7 +624,7 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 	unsigned long addr;
@@ -640,7 +645,7 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
-void jprobe_return(void)
+void __kprobes jprobe_return(void)
 {
 	preempt_enable_no_resched();
 	asm volatile ("       xchg   %%rbx,%%rsp     \n"
@@ -651,7 +656,7 @@ void jprobe_return(void)
 		      (jprobe_saved_rsp):"memory");
 }
 
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
+int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	u8 *addr = (u8 *) (regs->rip - 1);
 	unsigned long stack_addr = (unsigned long)jprobe_saved_rsp;

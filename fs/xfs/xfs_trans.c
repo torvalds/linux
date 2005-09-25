@@ -276,7 +276,7 @@ xfs_trans_reserve(
 
 		error = xfs_log_reserve(tp->t_mountp, logspace, logcount,
 					&tp->t_ticket,
-					XFS_TRANSACTION, log_flags);
+					XFS_TRANSACTION, log_flags, tp->t_type);
 		if (error) {
 			goto undo_blocks;
 		}
@@ -1032,6 +1032,7 @@ xfs_trans_fill_vecs(
 	tp->t_header.th_num_items = nitems;
 	log_vector->i_addr = (xfs_caddr_t)&tp->t_header;
 	log_vector->i_len = sizeof(xfs_trans_header_t);
+	XLOG_VEC_SET_TYPE(log_vector, XLOG_REG_TYPE_TRANSHDR);
 }
 
 

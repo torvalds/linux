@@ -2327,7 +2327,7 @@ sys32_sendfile (int out_fd, int in_fd, int __user *offset, unsigned int count)
 	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *) &of : NULL, count);
 	set_fs(old_fs);
 
-	if (!ret && offset && put_user(of, offset))
+	if (offset && put_user(of, offset))
 		return -EFAULT;
 
 	return ret;
@@ -2357,37 +2357,6 @@ sys32_brk (unsigned int brk)
 	if (ret < obrk)
 		clear_user(compat_ptr(ret), PAGE_ALIGN(ret) - ret);
 	return ret;
-}
-
-/*
- * Exactly like fs/open.c:sys_open(), except that it doesn't set the O_LARGEFILE flag.
- */
-asmlinkage long
-sys32_open (const char __user * filename, int flags, int mode)
-{
-	char * tmp;
-	int fd, error;
-
-	tmp = getname(filename);
-	fd = PTR_ERR(tmp);
-	if (!IS_ERR(tmp)) {
-		fd = get_unused_fd();
-		if (fd >= 0) {
-			struct file *f = filp_open(tmp, flags, mode);
-			error = PTR_ERR(f);
-			if (IS_ERR(f))
-				goto out_error;
-			fd_install(fd, f);
-		}
-out:
-		putname(tmp);
-	}
-	return fd;
-
-out_error:
-	put_unused_fd(fd);
-	fd = error;
-	goto out;
 }
 
 /* Structure for ia32 emulation on ia64 */

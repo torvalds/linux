@@ -6,16 +6,17 @@ menu "ISA devices"
 config SND_AD1848_LIB
         tristate
         select SND_PCM
-	select SND_GENERIC_PM
+	select SND_GENERIC_DRIVER
 
 config SND_CS4231_LIB
         tristate
         select SND_PCM
-	select SND_GENERIC_PM
+	select SND_GENERIC_DRIVER
 
 config SND_AD1816A
 	tristate "Analog Devices SoundPort AD1816A"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
@@ -80,7 +81,8 @@ config SND_CS4236
 
 config SND_ES968
 	tristate "Generic ESS ES968 driver"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_MPU401_UART
 	select SND_PCM
 	help
@@ -95,6 +97,7 @@ config SND_ES1688
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for ESS AudioDrive ES688 or
 	  ES1688 chips.
@@ -108,7 +111,7 @@ config SND_ES18XX
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
-	select SND_GENERIC_PM
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for ESS AudioDrive ES18xx chips.
 
@@ -124,6 +127,7 @@ config SND_GUSCLASSIC
 	select SND_RAWMIDI
 	select SND_PCM
 	select SND_GUS_SYNTH
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for Gravis UltraSound Classic
 	  soundcards.
@@ -138,6 +142,7 @@ config SND_GUSEXTREME
 	select SND_MPU401_UART
 	select SND_PCM
 	select SND_GUS_SYNTH
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for Gravis UltraSound Extreme
 	  soundcards.
@@ -151,6 +156,7 @@ config SND_GUSMAX
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
 	select SND_GUS_SYNTH
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for Gravis UltraSound MAX
 	  soundcards.
@@ -160,11 +166,11 @@ config SND_GUSMAX
 
 config SND_INTERWAVE
 	tristate "AMD InterWave, Gravis UltraSound PnP"
-	depends on SND
+	depends on SND && PNP && ISA
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
 	select SND_GUS_SYNTH
-	select ISAPNP
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards (Gravis UltraSound Plug & Play, STB SoundRage32,
@@ -175,11 +181,11 @@ config SND_INTERWAVE
 
 config SND_INTERWAVE_STB
 	tristate "AMD InterWave + TEA6330T (UltraSound 32-Pro)"
-	depends on SND
+	depends on SND && PNP && ISA
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
 	select SND_GUS_SYNTH
-	select ISAPNP
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards with a TEA6330T bass and treble regulator
@@ -222,6 +228,7 @@ config SND_OPTI93X
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for soundcards based on Opti
 	  82C93x chips.
@@ -235,6 +242,7 @@ config SND_SB8
 	select SND_OPL3_LIB
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for Creative Sound Blaster 1.0/
 	  2.0/Pro (8-bit) or 100% compatible soundcards.
@@ -248,6 +256,7 @@ config SND_SB16
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for Sound Blaster 16 soundcards
 	  (including the Plug and Play version).
@@ -261,6 +270,7 @@ config SND_SBAWE
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for Sound Blaster AWE soundcards
 	  (including the Plug and Play version).
@@ -291,7 +301,8 @@ config SND_WAVEFRONT
 
 config SND_ALS100
 	tristate "Avance Logic ALS100/ALS120"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
@@ -304,7 +315,8 @@ config SND_ALS100
 
 config SND_AZT2320
 	tristate "Aztech Systems AZT2320"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_CS4231_LIB
@@ -328,7 +340,8 @@ config SND_CMI8330
 
 config SND_DT019X
 	tristate "Diamond Technologies DT-019X, Avance Logic ALS-007"
-	depends on SND && ISAPNP
+	depends on SND && PNP && ISA
+	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM

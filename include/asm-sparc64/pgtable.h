@@ -24,21 +24,23 @@
 #include <asm/processor.h>
 #include <asm/const.h>
 
-/* The kernel image occupies 0x4000000 to 0x1000000 (4MB --> 16MB).
- * The page copy blockops use 0x1000000 to 0x18000000 (16MB --> 24MB).
+/* The kernel image occupies 0x4000000 to 0x1000000 (4MB --> 32MB).
+ * The page copy blockops can use 0x2000000 to 0x10000000.
  * The PROM resides in an area spanning 0xf0000000 to 0x100000000.
- * The vmalloc area spans 0x140000000 to 0x200000000.
+ * The vmalloc area spans 0x100000000 to 0x200000000.
+ * Since modules need to be in the lowest 32-bits of the address space,
+ * we place them right before the OBP area from 0x10000000 to 0xf0000000.
  * There is a single static kernel PMD which maps from 0x0 to address
  * 0x400000000.
  */
-#define	TLBTEMP_BASE		_AC(0x0000000001000000,UL)
-#define MODULES_VADDR		_AC(0x0000000002000000,UL)
-#define MODULES_LEN		_AC(0x000000007e000000,UL)
-#define MODULES_END		_AC(0x0000000080000000,UL)
-#define VMALLOC_START		_AC(0x0000000140000000,UL)
-#define VMALLOC_END		_AC(0x0000000200000000,UL)
+#define	TLBTEMP_BASE		_AC(0x0000000002000000,UL)
+#define MODULES_VADDR		_AC(0x0000000010000000,UL)
+#define MODULES_LEN		_AC(0x00000000e0000000,UL)
+#define MODULES_END		_AC(0x00000000f0000000,UL)
 #define LOW_OBP_ADDRESS		_AC(0x00000000f0000000,UL)
 #define HI_OBP_ADDRESS		_AC(0x0000000100000000,UL)
+#define VMALLOC_START		_AC(0x0000000100000000,UL)
+#define VMALLOC_END		_AC(0x0000000200000000,UL)
 
 /* XXX All of this needs to be rethought so we can take advantage
  * XXX cheetah's full 64-bit virtual address space, ie. no more hole
@@ -410,9 +412,6 @@ extern unsigned long *sparc64_valid_addr_bitmap;
 #define kern_addr_valid(addr)	\
 	(test_bit(__pa((unsigned long)(addr))>>22, sparc64_valid_addr_bitmap))
 
-extern int io_remap_page_range(struct vm_area_struct *vma, unsigned long from,
-			       unsigned long offset,
-			       unsigned long size, pgprot_t prot, int space);
 extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			       unsigned long pfn,
 			       unsigned long size, pgprot_t prot);

@@ -2,8 +2,8 @@
     smsc47m1.c - Part of lm_sensors, Linux kernel modules
                  for hardware monitoring
 
-    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M13x and LPC47M14x
-    Super-I/O chips.
+    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M13x, LPC47M14x,
+    LPC47M15x and LPC47M192 Super-I/O chips.
 
     Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
     Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
@@ -30,21 +30,14 @@
 #include <linux/ioport.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/i2c-isa.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <asm/io.h>
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
 /* Address is autodetected, there is no default value */
-static unsigned int normal_isa[] = { 0x0000, I2C_CLIENT_ISA_END };
-static struct i2c_force_data forces[] = {{NULL}};
-
-enum chips { any_chip, smsc47m1 };
-static struct i2c_address_data addr_data = {
-	.normal_i2c		= normal_i2c,
-	.normal_isa		= normal_isa,
-	.forces			= forces,
-};
+static unsigned short address;
 
 /* Super-I/0 registers and commands */
 
@@ -108,6 +101,7 @@ superio_exit(void)
 
 struct smsc47m1_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 
 	struct semaphore update_lock;
@@ -121,9 +115,7 @@ struct smsc47m1_data {
 };
 
 
-static int smsc47m1_attach_adapter(struct i2c_adapter *adapter);
-static int smsc47m1_find(int *address);
-static int smsc47m1_detect(struct i2c_adapter *adapter, int address, int kind);
+static int smsc47m1_detect(struct i2c_adapter *adapter);
 static int smsc47m1_detach_client(struct i2c_client *client);
 
 static int smsc47m1_read_value(struct i2c_client *client, u8 reg);
@@ -136,9 +128,7 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 static struct i2c_driver smsc47m1_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "smsc47m1",
-	.id		= I2C_DRIVERID_SMSC47M1,
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= smsc47m1_attach_adapter,
+	.attach_adapter	= smsc47m1_detect,
 	.detach_client	= smsc47m1_detach_client,
 };
 
@@ -354,14 +344,7 @@ fan_present(2);
 
 static DEVICE_ATTR(alarms, S_IRUGO, get_alarms, NULL);
 
-static int smsc47m1_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_detect(adapter, &addr_data, smsc47m1_detect);
-}
-
-static int smsc47m1_find(int *address)
+static int __init smsc47m1_find(unsigned short *addr)
 {
 	u8 val;
 
@@ -388,10 +371,10 @@ static int smsc47m1_find(int *address)
 	}
 
 	superio_select();
-	*address = (superio_inb(SUPERIO_REG_BASE) << 8)
-		 |  superio_inb(SUPERIO_REG_BASE + 1);
+	*addr = (superio_inb(SUPERIO_REG_BASE) << 8)
+	      |  superio_inb(SUPERIO_REG_BASE + 1);
 	val = superio_inb(SUPERIO_REG_ACT);
-	if (*address == 0 || (val & 0x01) == 0) {
+	if (*addr == 0 || (val & 0x01) == 0) {
 		printk(KERN_INFO "smsc47m1: Device is disabled, will not use\n");
 		superio_exit();
 		return -ENODEV;
@@ -401,16 +384,12 @@ static int smsc47m1_find(int *address)
 	return 0;
 }
 
-static int smsc47m1_detect(struct i2c_adapter *adapter, int address, int kind)
+static int smsc47m1_detect(struct i2c_adapter *adapter)
 {
 	struct i2c_client *new_client;
 	struct smsc47m1_data *data;
 	int err = 0;
 	int fan1, fan2, pwm1, pwm2;
-
-	if (!i2c_is_isa_adapter(adapter)) {
-		return 0;
-	}
 
 	if (!request_region(address, SMSC_EXTENT, smsc47m1_driver.name)) {
 		dev_err(&adapter->dev, "Region 0x%x already in use!\n", address);
@@ -461,6 +440,13 @@ static int smsc47m1_detect(struct i2c_adapter *adapter, int address, int kind)
 	   function. */
 	smsc47m1_update_device(&new_client->dev, 1);
 
+	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto error_detach;
+	}
+
 	if (fan1) {
 		device_create_file(&new_client->dev, &dev_attr_fan1_input);
 		device_create_file(&new_client->dev, &dev_attr_fan1_min);
@@ -494,6 +480,8 @@ static int smsc47m1_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+error_detach:
+	i2c_detach_client(new_client);
 error_free:
 	kfree(data);
 error_release:
@@ -503,16 +491,16 @@ error_release:
 
 static int smsc47m1_detach_client(struct i2c_client *client)
 {
+	struct smsc47m1_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
+	hwmon_device_unregister(data->class_dev);
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	release_region(client->addr, SMSC_EXTENT);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }
@@ -573,16 +561,16 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 
 static int __init sm_smsc47m1_init(void)
 {
-	if (smsc47m1_find(normal_isa)) {
+	if (smsc47m1_find(&address)) {
 		return -ENODEV;
 	}
 
-	return i2c_add_driver(&smsc47m1_driver);
+	return i2c_isa_add_driver(&smsc47m1_driver);
 }
 
 static void __exit sm_smsc47m1_exit(void)
 {
-	i2c_del_driver(&smsc47m1_driver);
+	i2c_isa_del_driver(&smsc47m1_driver);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");

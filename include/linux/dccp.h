@@ -4,16 +4,6 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
-/* Structure describing an Internet (DCCP) socket address. */
-struct sockaddr_dccp {
-	__u16	sdccp_family;	/* Address family   */
-	__u16	sdccp_port;	/* Port number	    */
-	__u32	sdccp_addr;	/* Internet address */
-	__u32	sdccp_service;	/* Service	    */
-	/* Pad to size of `struct sockaddr': 16 bytes . */
-	__u32	sdccp_pad;
-};
-
 /**
  * struct dccp_hdr - generic part of DCCP packet header
  *
@@ -188,6 +178,11 @@ enum {
 
 /* DCCP socket options */
 #define DCCP_SOCKOPT_PACKET_SIZE	1
+#define DCCP_SOCKOPT_SERVICE		2
+#define DCCP_SOCKOPT_CCID_RX_INFO	128
+#define DCCP_SOCKOPT_CCID_TX_INFO	192
+
+#define DCCP_SERVICE_LIST_MAX_LEN      32
 
 #ifdef __KERNEL__
 
@@ -337,7 +332,8 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   */
 struct dccp_options {
 	__u64	dccpo_sequence_window;
-	__u8	dccpo_ccid;
+	__u8	dccpo_rx_ccid;
+	__u8	dccpo_tx_ccid;
 	__u8	dccpo_send_ack_vector;
 	__u8	dccpo_send_ndp_count;
 };
@@ -360,14 +356,8 @@ static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
 
 extern struct inet_timewait_death_row dccp_death_row;
 
-/* Read about the ECN nonce to see why it is 253 */
-#define DCCP_MAX_ACK_VECTOR_LEN 253
-
 struct dccp_options_received {
-	u32	dccpor_ndp:24,
-		dccpor_ack_vector_len:8;
-	u32	dccpor_ack_vector_idx:10;
-	/* 22 bits hole, try to pack */
+	u32	dccpor_ndp; /* only 24 bits */
 	u32	dccpor_timestamp;
 	u32	dccpor_timestamp_echo;
 	u32	dccpor_elapsed_time;
@@ -381,6 +371,27 @@ enum dccp_role {
 	DCCP_ROLE_CLIENT,
 	DCCP_ROLE_SERVER,
 };
+
+struct dccp_service_list {
+	__u32	dccpsl_nr;
+	__u32	dccpsl_list[0];
+};
+
+#define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
+
+static inline int dccp_list_has_service(const struct dccp_service_list *sl,
+					const u32 service)
+{
+	if (likely(sl != NULL)) {
+		u32 i = sl->dccpsl_nr;
+		while (i--)
+			if (sl->dccpsl_list[i] == service)
+				return 1; 
+	}
+	return 0;
+}
+
+struct dccp_ackvec;
 
 /**
  * struct dccp_sock - DCCP socket state
@@ -402,7 +413,7 @@ enum dccp_role {
  * @dccps_packet_size - Set thru setsockopt
  * @dccps_role - Role of this sock, one of %dccp_role
  * @dccps_ndp_count - number of Non Data Packets since last data packet
- * @dccps_hc_rx_ackpkts - receiver half connection acked packets
+ * @dccps_hc_rx_ackvec - rx half connection ack vector
  */
 struct dccp_sock {
 	/* inet_connection_sock has to be the first member of dccp_sock */
@@ -417,7 +428,8 @@ struct dccp_sock {
 	__u64				dccps_gss;
 	__u64				dccps_gsr;
 	__u64				dccps_gar;
-	unsigned long			dccps_service;
+	__u32				dccps_service;
+	struct dccp_service_list	*dccps_service_list;
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_packet_size;
@@ -426,18 +438,26 @@ struct dccp_sock {
 	__u32				dccps_pmtu_cookie;
 	__u32				dccps_mss_cache;
 	struct dccp_options		dccps_options;
-	struct dccp_ackpkts		*dccps_hc_rx_ackpkts;
+	struct dccp_ackvec		*dccps_hc_rx_ackvec;
 	void				*dccps_hc_rx_ccid_private;
 	void				*dccps_hc_tx_ccid_private;
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
 	struct dccp_options_received	dccps_options_received;
+	struct timeval			dccps_epoch;
 	enum dccp_role			dccps_role:2;
+	__u8				dccps_hc_rx_insert_options:1;
+	__u8				dccps_hc_tx_insert_options:1;
 };
  
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;
+}
+
+static inline int dccp_service_not_initialized(const struct sock *sk)
+{
+	return dccp_sk(sk)->dccps_service == DCCP_SERVICE_INVALID_VALUE;
 }
 
 static inline const char *dccp_role(const struct sock *sk)

@@ -30,35 +30,6 @@
 #include <asm/rtas.h>
 #include "rpaphp.h"
 
-static ssize_t removable_read_file (struct hotplug_slot *php_slot, char *buf)
-{
-	u8 value;
-	int retval = -ENOENT;
-	struct slot *slot = (struct slot *)php_slot->private;
-
-	if (!slot)
-		return retval;
-
-	value = slot->removable;
-	retval = sprintf (buf, "%d\n", value);
-	return retval;
-}
-
-static struct hotplug_slot_attribute hotplug_slot_attr_removable = {
-	.attr = {.name = "phy_removable", .mode = S_IFREG | S_IRUGO},
-	.show = removable_read_file,
-};
-
-static void rpaphp_sysfs_add_attr_removable (struct hotplug_slot *slot)
-{
-	sysfs_create_file(&slot->kobj, &hotplug_slot_attr_removable.attr);
-}
-
-static void rpaphp_sysfs_remove_attr_removable (struct hotplug_slot *slot)
-{
-	sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_removable.attr);
-}
-
 static ssize_t location_read_file (struct hotplug_slot *php_slot, char *buf)
 {
         char *value;
@@ -176,9 +147,6 @@ int deregister_slot(struct slot *slot)
 	/* remove "phy_location" file */
 	rpaphp_sysfs_remove_attr_location(php_slot);
 
-	/* remove "phy_removable" file */
-	rpaphp_sysfs_remove_attr_removable(php_slot);
-
 	retval = pci_hp_deregister(php_slot);
 	if (retval)
 		err("Problem unregistering a slot %s\n", slot->name);
@@ -212,21 +180,13 @@ int register_slot(struct slot *slot)
 	/* create "phy_locatoin" file */
 	rpaphp_sysfs_add_attr_location(slot->hotplug_slot);	
 
-	/* create "phy_removable" file */
-	rpaphp_sysfs_add_attr_removable(slot->hotplug_slot);	
-
 	/* add slot to our internal list */
 	dbg("%s adding slot[%s] to rpaphp_slot_list\n",
 	    __FUNCTION__, slot->name);
 
 	list_add(&slot->rpaphp_slot_list, &rpaphp_slot_head);
-
-	if (slot->dev_type == VIO_DEV)
-		info("Slot [%s](VIO location=%s) registered\n",
-		     slot->name, slot->location);
-	else
-		info("Slot [%s](PCI location=%s) registered\n",
-		     slot->name, slot->location);
+	info("Slot [%s](PCI location=%s) registered\n", slot->name,
+			slot->location);
 	num_slots++;
 	return 0;
 }
@@ -235,20 +195,16 @@ int rpaphp_get_power_status(struct slot *slot, u8 * value)
 {
 	int rc = 0, level;
 	
-	if (slot->type == HOTPLUG) {
-		rc = rtas_get_power_level(slot->power_domain, &level);
-		if (!rc) {
-			dbg("%s the power level of slot %s(pwd-domain:0x%x) is %d\n",
-				__FUNCTION__, slot->name, slot->power_domain, level);
-			*value = level;
-		} else
-			err("failed to get power-level for slot(%s), rc=0x%x\n",
-				slot->location, rc);
-	} else {
-		dbg("%s report POWER_ON for EMBEDDED or PHB slot %s\n",
-			__FUNCTION__, slot->location);
-		*value = (u8) POWER_ON;
+	rc = rtas_get_power_level(slot->power_domain, &level);
+	if (rc < 0) {
+		err("failed to get power-level for slot(%s), rc=0x%x\n",
+			slot->location, rc);
+		return rc;
 	}
+
+	dbg("%s the power level of slot %s(pwd-domain:0x%x) is %d\n",
+		__FUNCTION__, slot->name, slot->power_domain, level);
+	*value = level;
 
 	return rc;
 }

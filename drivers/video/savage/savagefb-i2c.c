@@ -137,7 +137,6 @@ static int prosavage_gpio_getsda(void* data)
 	return (0 != (GET_CR_DATA(chan->ioaddr) & PROSAVAGE_I2C_SDA_IN));
 }
 
-#define I2C_ALGO_SAVAGE   0x0f0000
 static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 				const char *name)
 {
@@ -147,7 +146,7 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 	if (add_bus && chan->par) {
 		strcpy(chan->adapter.name, name);
 		chan->adapter.owner		= THIS_MODULE;
-		chan->adapter.id		= I2C_ALGO_SAVAGE;
+		chan->adapter.id		= I2C_HW_B_SAVAGE;
 		chan->adapter.algo_data		= &chan->algo;
 		chan->adapter.dev.parent	= &chan->par->pcidev->dev;
 		chan->algo.udelay		= 40;
@@ -260,8 +259,9 @@ static u8 *savage_do_probe_i2c_edid(struct savagefb_i2c_chan *chan)
 	return buf;
 }
 
-int savagefb_probe_i2c_connector(struct savagefb_par *par, u8 **out_edid)
+int savagefb_probe_i2c_connector(struct fb_info *info, u8 **out_edid)
 {
+	struct savagefb_par *par = info->par;
 	u8 *edid = NULL;
 	int i;
 
@@ -271,12 +271,22 @@ int savagefb_probe_i2c_connector(struct savagefb_par *par, u8 **out_edid)
 		if (edid)
 			break;
 	}
+
+	if (!edid) {
+		/* try to get from firmware */
+		const u8 *e = fb_firmware_edid(info->device);
+
+		if (e) {
+			edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+			if (edid)
+				memcpy(edid, e, EDID_LENGTH);
+		}
+	}
+
 	if (out_edid)
 		*out_edid = edid;
-	if (!edid)
-		return 1;
 
-	return 0;
+	return (edid) ? 0 : 1;
 }
 
 MODULE_LICENSE("GPL");

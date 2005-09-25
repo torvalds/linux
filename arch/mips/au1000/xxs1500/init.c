@@ -55,7 +55,7 @@ void __init prom_init(void)
 	prom_envp = (char **) fw_arg2;
 
 	mips_machgroup = MACH_GROUP_ALCHEMY;
-	mips_machtype = MACH_XXS1500;	/* set the platform # */   
+	mips_machtype = MACH_XXS1500;	/* set the platform # */
 
 	prom_init_cmdline();
 

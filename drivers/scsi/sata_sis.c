@@ -52,7 +52,10 @@ enum {
 	/* PCI configuration registers */
 	SIS_GENCTL		= 0x54, /* IDE General Control register */
 	SIS_SCR_BASE		= 0xc0, /* sata0 phy SCR registers */
-	SIS_SATA1_OFS		= 0x10, /* offset from sata0->sata1 phy regs */
+	SIS180_SATA1_OFS	= 0x10, /* offset from sata0->sata1 phy regs */
+	SIS182_SATA1_OFS	= 0x20, /* offset from sata0->sata1 phy regs */
+	SIS_PMR			= 0x90, /* port mapping register */
+	SIS_PMR_COMBINED	= 0x30,
 
 	/* random bits */
 	SIS_FLAG_CFGSCR		= (1 << 30), /* host flag: SCRs via PCI cfg */
@@ -67,6 +70,7 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static struct pci_device_id sis_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SI, 0x180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
 	{ PCI_VENDOR_ID_SI, 0x181, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
+	{ PCI_VENDOR_ID_SI, 0x182, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
 	{ }	/* terminate list */
 };
 
@@ -139,67 +143,95 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sis_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static unsigned int get_scr_cfg_addr(unsigned int port_no, unsigned int sc_reg)
+static unsigned int get_scr_cfg_addr(unsigned int port_no, unsigned int sc_reg, int device)
 {
 	unsigned int addr = SIS_SCR_BASE + (4 * sc_reg);
 
-	if (port_no)
-		addr += SIS_SATA1_OFS;
+	if (port_no)  {
+		if (device == 0x182)
+			addr += SIS182_SATA1_OFS;
+		else
+			addr += SIS180_SATA1_OFS;
+	}
+
 	return addr;
 }
 
 static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
-	unsigned int cfg_addr = get_scr_cfg_addr(ap->port_no, sc_reg);
-	u32 val;
+	unsigned int cfg_addr = get_scr_cfg_addr(ap->port_no, sc_reg, pdev->device);
+	u32 val, val2 = 0;
+	u8 pmr;
 
 	if (sc_reg == SCR_ERROR) /* doesn't exist in PCI cfg space */
 		return 0xffffffff;
+
+	pci_read_config_byte(pdev, SIS_PMR, &pmr);
+
 	pci_read_config_dword(pdev, cfg_addr, &val);
-	return val;
+
+	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
+		pci_read_config_dword(pdev, cfg_addr+0x10, &val2);
+
+	return val|val2;
 }
 
 static void sis_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
-	unsigned int cfg_addr = get_scr_cfg_addr(ap->port_no, scr);
+	unsigned int cfg_addr = get_scr_cfg_addr(ap->port_no, scr, pdev->device);
+	u8 pmr;
 
 	if (scr == SCR_ERROR) /* doesn't exist in PCI cfg space */
 		return;
+
+	pci_read_config_byte(pdev, SIS_PMR, &pmr);
+
 	pci_write_config_dword(pdev, cfg_addr, val);
+
+	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
+		pci_write_config_dword(pdev, cfg_addr+0x10, val);
 }
 
 static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
+	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
+	u32 val, val2 = 0;
+	u8 pmr;
+
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
 
 	if (ap->flags & SIS_FLAG_CFGSCR)
 		return sis_scr_cfg_read(ap, sc_reg);
-	return inl(ap->ioaddr.scr_addr + (sc_reg * 4));
+
+	pci_read_config_byte(pdev, SIS_PMR, &pmr);
+
+	val = inl(ap->ioaddr.scr_addr + (sc_reg * 4));
+
+	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
+		val2 = inl(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
+
+	return val | val2;
 }
 
 static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
+	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
+	u8 pmr;
+
 	if (sc_reg > SCR_CONTROL)
 		return;
 
+	pci_read_config_byte(pdev, SIS_PMR, &pmr);
+
 	if (ap->flags & SIS_FLAG_CFGSCR)
 		sis_scr_cfg_write(ap, sc_reg, val);
-	else
+	else {
 		outl(val, ap->ioaddr.scr_addr + (sc_reg * 4));
-}
-
-/* move to PCI layer, integrate w/ MSI stuff */
-static void pci_enable_intx(struct pci_dev *pdev)
-{
-	u16 pci_command;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-	if (pci_command & PCI_COMMAND_INTX_DISABLE) {
-		pci_command &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
+		if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
+			outl(val, ap->ioaddr.scr_addr + (sc_reg * 4)+0x10);
 	}
 }
 
@@ -210,6 +242,8 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 genctl;
 	struct ata_port_info *ppi;
 	int pci_dev_busy = 0;
+	u8 pmr;
+	u8 port2_start;
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -251,15 +285,31 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		probe_ent->host_flags |= SIS_FLAG_CFGSCR;
 	}
 
+	pci_read_config_byte(pdev, SIS_PMR, &pmr);
+	if (ent->device != 0x182) {
+		if ((pmr & SIS_PMR_COMBINED) == 0) {
+			printk(KERN_INFO "sata_sis: Detected SiS 180/181 chipset in SATA mode\n");
+			port2_start = 64;
+		}
+		else {
+			printk(KERN_INFO "sata_sis: Detected SiS 180/181 chipset in combined mode\n");
+			port2_start=0;
+		}
+	}
+	else {
+		printk(KERN_INFO "sata_sis: Detected SiS 182 chipset\n");
+		port2_start = 0x20;
+	}
+
 	if (!(probe_ent->host_flags & SIS_FLAG_CFGSCR)) {
 		probe_ent->port[0].scr_addr =
 			pci_resource_start(pdev, SIS_SCR_PCI_BAR);
 		probe_ent->port[1].scr_addr =
-			pci_resource_start(pdev, SIS_SCR_PCI_BAR) + 64;
+			pci_resource_start(pdev, SIS_SCR_PCI_BAR) + port2_start;
 	}
 
 	pci_set_master(pdev);
-	pci_enable_intx(pdev);
+	pci_intx(pdev, 1);
 
 	/* FIXME: check ata_device_add return value */
 	ata_device_add(probe_ent);

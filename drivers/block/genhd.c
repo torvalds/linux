@@ -45,7 +45,7 @@ int get_blkdev_list(char *p, int used)
 	struct blk_major_name *n;
 	int i, len;
 
-	len = sprintf(p, "\nBlock devices:\n");
+	len = snprintf(p, (PAGE_SIZE-used), "\nBlock devices:\n");
 
 	down(&block_subsys_sem);
 	for (i = 0; i < ARRAY_SIZE(major_names); i++) {

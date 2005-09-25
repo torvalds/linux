@@ -311,6 +311,20 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
+#define _KPROBE(name) \
+	.section ".kprobes.text","a"; \
+	.align 2 ; \
+	.globl name; \
+	.globl GLUE(.,name); \
+	.section ".opd","aw"; \
+name: \
+	.quad GLUE(.,name); \
+	.quad .TOC.@tocbase; \
+	.quad 0; \
+	.previous; \
+	.type GLUE(.,name),@function; \
+GLUE(.,name):
+
 #define _STATIC(name) \
 	.section ".text"; \
 	.align 2 ; \
@@ -419,6 +433,7 @@ struct thread_struct {
 	unsigned long	start_tb;	/* Start purr when proc switched in */
 	unsigned long	accum_tb;	/* Total accumilated purr for process */
 	unsigned long	vdso_base;	/* base of the vDSO library */
+	unsigned long	dabr;		/* Data address breakpoint register */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
 	vector128	vr[32] __attribute((aligned(16)));

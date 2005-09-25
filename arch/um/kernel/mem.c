@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
  * Licensed under the GPL
  */
@@ -19,6 +19,10 @@
 #include "mem_user.h"
 #include "uml_uaccess.h"
 #include "os.h"
+#include "linux/types.h"
+#include "linux/string.h"
+#include "init.h"
+#include "kern_constants.h"
 
 extern char __binary_start;
 
@@ -196,7 +200,7 @@ static void init_highmem(void)
 
 static void __init fixaddr_user_init( void)
 {
-#if CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
+#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 	long size = FIXADDR_USER_END - FIXADDR_USER_START;
 	pgd_t *pgd;
 	pud_t *pud;
@@ -367,6 +371,16 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	pte = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
 	return pte;
 }
+
+struct iomem_region *iomem_regions = NULL;
+int iomem_size = 0;
+
+extern int parse_iomem(char *str, int *add) __init;
+
+__uml_setup("iomem=", parse_iomem,
+"iomem=<name>,<file>\n"
+"    Configure <file> as an IO memory region named <name>.\n\n"
+);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

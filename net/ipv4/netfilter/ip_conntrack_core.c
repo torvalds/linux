@@ -197,7 +197,7 @@ ip_ct_invert_tuple(struct ip_conntrack_tuple *inverse,
 
 
 /* ip_conntrack_expect helper functions */
-static void unlink_expect(struct ip_conntrack_expect *exp)
+void ip_ct_unlink_expect(struct ip_conntrack_expect *exp)
 {
 	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
 	IP_NF_ASSERT(!timer_pending(&exp->timeout));
@@ -207,18 +207,12 @@ static void unlink_expect(struct ip_conntrack_expect *exp)
 	ip_conntrack_expect_put(exp);
 }
 
-void __ip_ct_expect_unlink_destroy(struct ip_conntrack_expect *exp)
-{
-	unlink_expect(exp);
-	ip_conntrack_expect_put(exp);
-}
-
 static void expectation_timed_out(unsigned long ul_expect)
 {
 	struct ip_conntrack_expect *exp = (void *)ul_expect;
 
 	write_lock_bh(&ip_conntrack_lock);
-	unlink_expect(exp);
+	ip_ct_unlink_expect(exp);
 	write_unlock_bh(&ip_conntrack_lock);
 	ip_conntrack_expect_put(exp);
 }
@@ -239,7 +233,7 @@ __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 
 /* Just find a expectation corresponding to a tuple. */
 struct ip_conntrack_expect *
-ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple)
+ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_expect *i;
 	
@@ -264,10 +258,14 @@ find_expectation(const struct ip_conntrack_tuple *tuple)
 		   master ct never got confirmed, we'd hold a reference to it
 		   and weird things would happen to future packets). */
 		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)
-		    && is_confirmed(i->master)
-		    && del_timer(&i->timeout)) {
-			unlink_expect(i);
-			return i;
+		    && is_confirmed(i->master)) {
+			if (i->flags & IP_CT_EXPECT_PERMANENT) {
+				atomic_inc(&i->use);
+				return i;
+			} else if (del_timer(&i->timeout)) {
+				ip_ct_unlink_expect(i);
+				return i;
+			}
 		}
 	}
 	return NULL;
@@ -284,7 +282,7 @@ void ip_ct_remove_expectations(struct ip_conntrack *ct)
 
 	list_for_each_entry_safe(i, tmp, &ip_conntrack_expect_list, list) {
 		if (i->master == ct && del_timer(&i->timeout)) {
-			unlink_expect(i);
+			ip_ct_unlink_expect(i);
 			ip_conntrack_expect_put(i);
 		}
 	}
@@ -925,7 +923,7 @@ void ip_conntrack_unexpect_related(struct ip_conntrack_expect *exp)
 	/* choose the the oldest expectation to evict */
 	list_for_each_entry_reverse(i, &ip_conntrack_expect_list, list) {
 		if (expect_matches(i, exp) && del_timer(&i->timeout)) {
-			unlink_expect(i);
+			ip_ct_unlink_expect(i);
 			write_unlock_bh(&ip_conntrack_lock);
 			ip_conntrack_expect_put(i);
 			return;
@@ -934,6 +932,9 @@ void ip_conntrack_unexpect_related(struct ip_conntrack_expect *exp)
 	write_unlock_bh(&ip_conntrack_lock);
 }
 
+/* We don't increase the master conntrack refcount for non-fulfilled
+ * conntracks. During the conntrack destruction, the expectations are 
+ * always killed before the conntrack itself */
 struct ip_conntrack_expect *ip_conntrack_expect_alloc(struct ip_conntrack *me)
 {
 	struct ip_conntrack_expect *new;
@@ -944,17 +945,14 @@ struct ip_conntrack_expect *ip_conntrack_expect_alloc(struct ip_conntrack *me)
 		return NULL;
 	}
 	new->master = me;
-	atomic_inc(&new->master->ct_general.use);
 	atomic_set(&new->use, 1);
 	return new;
 }
 
 void ip_conntrack_expect_put(struct ip_conntrack_expect *exp)
 {
-	if (atomic_dec_and_test(&exp->use)) {
-		ip_conntrack_put(exp->master);
+	if (atomic_dec_and_test(&exp->use))
 		kmem_cache_free(ip_conntrack_expect_cachep, exp);
-	}
 }
 
 static void ip_conntrack_expect_insert(struct ip_conntrack_expect *exp)
@@ -982,7 +980,7 @@ static void evict_oldest_expect(struct ip_conntrack *master)
 	list_for_each_entry_reverse(i, &ip_conntrack_expect_list, list) {
 		if (i->master == master) {
 			if (del_timer(&i->timeout)) {
-				unlink_expect(i);
+				ip_ct_unlink_expect(i);
 				ip_conntrack_expect_put(i);
 			}
 			break;
@@ -1099,7 +1097,7 @@ void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 	/* Get rid of expectations */
 	list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list, list) {
 		if (exp->master->helper == me && del_timer(&exp->timeout)) {
-			unlink_expect(exp);
+			ip_ct_unlink_expect(exp);
 			ip_conntrack_expect_put(exp);
 		}
 	}
@@ -1114,42 +1112,46 @@ void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 	synchronize_net();
 }
 
-static inline void ct_add_counters(struct ip_conntrack *ct,
-				   enum ip_conntrack_info ctinfo,
-				   const struct sk_buff *skb)
-{
-#ifdef CONFIG_IP_NF_CT_ACCT
-	if (skb) {
-		ct->counters[CTINFO2DIR(ctinfo)].packets++;
-		ct->counters[CTINFO2DIR(ctinfo)].bytes += 
-					ntohs(skb->nh.iph->tot_len);
-	}
-#endif
-}
-
-/* Refresh conntrack for this many jiffies and do accounting (if skb != NULL) */
-void ip_ct_refresh_acct(struct ip_conntrack *ct, 
+/* Refresh conntrack for this many jiffies and do accounting if do_acct is 1 */
+void __ip_ct_refresh_acct(struct ip_conntrack *ct, 
 		        enum ip_conntrack_info ctinfo,
 			const struct sk_buff *skb,
-			unsigned long extra_jiffies)
+			unsigned long extra_jiffies,
+			int do_acct)
 {
+	int do_event = 0;
+
 	IP_NF_ASSERT(ct->timeout.data == (unsigned long)ct);
+	IP_NF_ASSERT(skb);
+
+	write_lock_bh(&ip_conntrack_lock);
 
 	/* If not in hash table, timer will not be active yet */
 	if (!is_confirmed(ct)) {
 		ct->timeout.expires = extra_jiffies;
-		ct_add_counters(ct, ctinfo, skb);
+		do_event = 1;
 	} else {
-		write_lock_bh(&ip_conntrack_lock);
 		/* Need del_timer for race avoidance (may already be dying). */
 		if (del_timer(&ct->timeout)) {
 			ct->timeout.expires = jiffies + extra_jiffies;
 			add_timer(&ct->timeout);
-			ip_conntrack_event_cache(IPCT_REFRESH, skb);
+			do_event = 1;
 		}
-		ct_add_counters(ct, ctinfo, skb);
-		write_unlock_bh(&ip_conntrack_lock);
 	}
+
+#ifdef CONFIG_IP_NF_CT_ACCT
+	if (do_acct) {
+		ct->counters[CTINFO2DIR(ctinfo)].packets++;
+		ct->counters[CTINFO2DIR(ctinfo)].bytes += 
+						ntohs(skb->nh.iph->tot_len);
+	}
+#endif
+
+	write_unlock_bh(&ip_conntrack_lock);
+
+	/* must be unlocked when calling event cache */
+	if (do_event)
+		ip_conntrack_event_cache(IPCT_REFRESH, skb);
 }
 
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \

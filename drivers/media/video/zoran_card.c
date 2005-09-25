@@ -737,7 +737,7 @@ static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 };
 
 static struct i2c_adapter zoran_i2c_adapter_template = {
-	I2C_DEVNAME("zr36057"),
+	.name = "zr36057",
 	.id = I2C_HW_B_ZR36067,
 	.algo = NULL,
 	.client_register = zoran_i2c_client_register,

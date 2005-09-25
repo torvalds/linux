@@ -552,8 +552,7 @@ new_segment:
 			tcp_mark_push(tp, skb);
 			goto new_segment;
 		}
-		if (sk->sk_forward_alloc < copy &&
-		    !sk_stream_mem_schedule(sk, copy, 0))
+		if (!sk_stream_wmem_schedule(sk, copy))
 			goto wait_for_memory;
 		
 		if (can_coalesce) {
@@ -770,18 +769,22 @@ new_segment:
 					if (off == PAGE_SIZE) {
 						put_page(page);
 						TCP_PAGE(sk) = page = NULL;
+						off = 0;
 					}
-				}
+				} else
+					off = 0;
+
+				if (copy > PAGE_SIZE - off)
+					copy = PAGE_SIZE - off;
+
+				if (!sk_stream_wmem_schedule(sk, copy))
+					goto wait_for_memory;
 
 				if (!page) {
 					/* Allocate new cache page. */
 					if (!(page = sk_stream_alloc_page(sk)))
 						goto wait_for_memory;
-					off = 0;
 				}
-
-				if (copy > PAGE_SIZE - off)
-					copy = PAGE_SIZE - off;
 
 				/* Time to copy data. We are close to
 				 * the end! */

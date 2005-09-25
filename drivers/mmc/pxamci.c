@@ -362,6 +362,16 @@ static void pxamci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	pxamci_start_cmd(host, mrq->cmd, cmdat);
 }
 
+static int pxamci_get_ro(struct mmc_host *mmc)
+{
+	struct pxamci_host *host = mmc_priv(mmc);
+
+	if (host->pdata && host->pdata->get_ro)
+		return host->pdata->get_ro(mmc->dev);
+	/* Host doesn't support read only detection so assume writeable */
+	return 0;
+}
+
 static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct pxamci_host *host = mmc_priv(mmc);
@@ -401,6 +411,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 static struct mmc_host_ops pxamci_ops = {
 	.request	= pxamci_request,
+	.get_ro		= pxamci_get_ro,
 	.set_ios	= pxamci_set_ios,
 };
 
@@ -412,7 +423,9 @@ static void pxamci_dma_irq(int dma, void *devid, struct pt_regs *regs)
 
 static irqreturn_t pxamci_detect_irq(int irq, void *devid, struct pt_regs *regs)
 {
-	mmc_detect_change(devid);
+	struct pxamci_host *host = mmc_priv(devid);
+
+	mmc_detect_change(devid, host->pdata->detect_delay);
 	return IRQ_HANDLED;
 }
 

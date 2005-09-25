@@ -29,7 +29,7 @@
 #define	MCFUART_BASE1		0x140		/* Base address of UART1 */
 #define	MCFUART_BASE2		0x180		/* Base address of UART2 */
 #endif
-#elif defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#elif defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 #define MCFUART_BASE1		0x200           /* Base address of UART1 */
 #define MCFUART_BASE2		0x240           /* Base address of UART2 */
 #define MCFUART_BASE3		0x280           /* Base address of UART3 */

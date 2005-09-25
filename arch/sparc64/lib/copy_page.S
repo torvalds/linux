@@ -87,7 +87,7 @@ copy_user_page:		/* %o0=dest, %o1=src, %o2=vaddr */
 	membar		#Sync
 	wrpr		%o2, 0x0, %pstate
 
-	BRANCH_IF_ANY_CHEETAH(g3,o2,1f)
+cheetah_copy_page_insn:
 	ba,pt		%xcc, 9f
 	 nop
 
@@ -240,3 +240,14 @@ copy_user_page:		/* %o0=dest, %o1=src, %o2=vaddr */
 	 stw		%o4, [%g6 + TI_PRE_COUNT]
 
 	.size		copy_user_page, .-copy_user_page
+
+	.globl		cheetah_patch_copy_page
+cheetah_patch_copy_page:
+	sethi		%hi(0x01000000), %o1	! NOP
+	sethi		%hi(cheetah_copy_page_insn), %o0
+	or		%o0, %lo(cheetah_copy_page_insn), %o0
+	stw		%o1, [%o0]
+	membar		#StoreStore
+	flush		%o0
+	retl
+	 nop

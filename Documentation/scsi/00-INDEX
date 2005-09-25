@@ -60,6 +60,8 @@ scsi.txt
 	- short blurb on using SCSI support as a module.
 scsi_mid_low_api.txt
 	- info on API between SCSI layer and low level drivers
+scsi_eh.txt
+	- info on SCSI midlayer error handling infrastructure
 st.txt
 	- info on scsi tape driver
 sym53c500_cs.txt

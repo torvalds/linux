@@ -1,0 +1,362 @@
+
+relayfs - a high-speed data relay filesystem
+============================================
+
+relayfs is a filesystem designed to provide an efficient mechanism for
+tools and facilities to relay large and potentially sustained streams
+of data from kernel space to user space.
+
+The main abstraction of relayfs is the 'channel'.  A channel consists
+of a set of per-cpu kernel buffers each represented by a file in the
+relayfs filesystem.  Kernel clients write into a channel using
+efficient write functions which automatically log to the current cpu's
+channel buffer.  User space applications mmap() the per-cpu files and
+retrieve the data as it becomes available.
+
+The format of the data logged into the channel buffers is completely
+up to the relayfs client; relayfs does however provide hooks which
+allow clients to impose some structure on the buffer data.  Nor does
+relayfs implement any form of data filtering - this also is left to
+the client.  The purpose is to keep relayfs as simple as possible.
+
+This document provides an overview of the relayfs API.  The details of
+the function parameters are documented along with the functions in the
+filesystem code - please see that for details.
+
+Semantics
+=========
+
+Each relayfs channel has one buffer per CPU, each buffer has one or
+more sub-buffers. Messages are written to the first sub-buffer until
+it is too full to contain a new message, in which case it it is
+written to the next (if available).  Messages are never split across
+sub-buffers.  At this point, userspace can be notified so it empties
+the first sub-buffer, while the kernel continues writing to the next.
+
+When notified that a sub-buffer is full, the kernel knows how many
+bytes of it are padding i.e. unused.  Userspace can use this knowledge
+to copy only valid data.
+
+After copying it, userspace can notify the kernel that a sub-buffer
+has been consumed.
+
+relayfs can operate in a mode where it will overwrite data not yet
+collected by userspace, and not wait for it to consume it.
+
+relayfs itself does not provide for communication of such data between
+userspace and kernel, allowing the kernel side to remain simple and not
+impose a single interface on userspace. It does provide a separate
+helper though, described below.
+
+klog, relay-app & librelay
+==========================
+
+relayfs itself is ready to use, but to make things easier, two
+additional systems are provided.  klog is a simple wrapper to make
+writing formatted text or raw data to a channel simpler, regardless of
+whether a channel to write into exists or not, or whether relayfs is
+compiled into the kernel or is configured as a module.  relay-app is
+the kernel counterpart of userspace librelay.c, combined these two
+files provide glue to easily stream data to disk, without having to
+bother with housekeeping.  klog and relay-app can be used together,
+with klog providing high-level logging functions to the kernel and
+relay-app taking care of kernel-user control and disk-logging chores.
+
+It is possible to use relayfs without relay-app & librelay, but you'll
+have to implement communication between userspace and kernel, allowing
+both to convey the state of buffers (full, empty, amount of padding).
+
+klog, relay-app and librelay can be found in the relay-apps tarball on
+http://relayfs.sourceforge.net
+
+The relayfs user space API
+==========================
+
+relayfs implements basic file operations for user space access to
+relayfs channel buffer data.  Here are the file operations that are
+available and some comments regarding their behavior:
+
+open()	 enables user to open an _existing_ buffer.
+
+mmap()	 results in channel buffer being mapped into the caller's
+	 memory space. Note that you can't do a partial mmap - you must
+	 map the entire file, which is NRBUF * SUBBUFSIZE.
+
+read()	 read the contents of a channel buffer.  The bytes read are
+	 'consumed' by the reader i.e. they won't be available again
+	 to subsequent reads.  If the channel is being used in
+	 no-overwrite mode (the default), it can be read at any time
+	 even if there's an active kernel writer.  If the channel is
+	 being used in overwrite mode and there are active channel
+	 writers, results may be unpredictable - users should make
+	 sure that all logging to the channel has ended before using
+	 read() with overwrite mode.
+
+poll()	 POLLIN/POLLRDNORM/POLLERR supported.  User applications are
+	 notified when sub-buffer boundaries are crossed.
+
+close() decrements the channel buffer's refcount.  When the refcount
+	reaches 0 i.e. when no process or kernel client has the buffer
+	open, the channel buffer is freed.
+
+
+In order for a user application to make use of relayfs files, the
+relayfs filesystem must be mounted.  For example,
+
+	mount -t relayfs relayfs /mnt/relay
+
+NOTE:	relayfs doesn't need to be mounted for kernel clients to create
+	or use channels - it only needs to be mounted when user space
+	applications need access to the buffer data.
+
+
+The relayfs kernel API
+======================
+
+Here's a summary of the API relayfs provides to in-kernel clients:
+
+
+  channel management functions:
+
+    relay_open(base_filename, parent, subbuf_size, n_subbufs,
+               callbacks)
+    relay_close(chan)
+    relay_flush(chan)
+    relay_reset(chan)
+    relayfs_create_dir(name, parent)
+    relayfs_remove_dir(dentry)
+
+  channel management typically called on instigation of userspace:
+
+    relay_subbufs_consumed(chan, cpu, subbufs_consumed)
+
+  write functions:
+
+    relay_write(chan, data, length)
+    __relay_write(chan, data, length)
+    relay_reserve(chan, length)
+
+  callbacks:
+
+    subbuf_start(buf, subbuf, prev_subbuf, prev_padding)
+    buf_mapped(buf, filp)
+    buf_unmapped(buf, filp)
+
+  helper functions:
+
+    relay_buf_full(buf)
+    subbuf_start_reserve(buf, length)
+
+
+Creating a channel
+------------------
+
+relay_open() is used to create a channel, along with its per-cpu
+channel buffers.  Each channel buffer will have an associated file
+created for it in the relayfs filesystem, which can be opened and
+mmapped from user space if desired.  The files are named
+basename0...basenameN-1 where N is the number of online cpus, and by
+default will be created in the root of the filesystem.  If you want a
+directory structure to contain your relayfs files, you can create it
+with relayfs_create_dir() and pass the parent directory to
+relay_open().  Clients are responsible for cleaning up any directory
+structure they create when the channel is closed - use
+relayfs_remove_dir() for that.
+
+The total size of each per-cpu buffer is calculated by multiplying the
+number of sub-buffers by the sub-buffer size passed into relay_open().
+The idea behind sub-buffers is that they're basically an extension of
+double-buffering to N buffers, and they also allow applications to
+easily implement random-access-on-buffer-boundary schemes, which can
+be important for some high-volume applications.  The number and size
+of sub-buffers is completely dependent on the application and even for
+the same application, different conditions will warrant different
+values for these parameters at different times.  Typically, the right
+values to use are best decided after some experimentation; in general,
+though, it's safe to assume that having only 1 sub-buffer is a bad
+idea - you're guaranteed to either overwrite data or lose events
+depending on the channel mode being used.
+
+Channel 'modes'
+---------------
+
+relayfs channels can be used in either of two modes - 'overwrite' or
+'no-overwrite'.  The mode is entirely determined by the implementation
+of the subbuf_start() callback, as described below.  In 'overwrite'
+mode, also known as 'flight recorder' mode, writes continuously cycle
+around the buffer and will never fail, but will unconditionally
+overwrite old data regardless of whether it's actually been consumed.
+In no-overwrite mode, writes will fail i.e. data will be lost, if the
+number of unconsumed sub-buffers equals the total number of
+sub-buffers in the channel.  It should be clear that if there is no
+consumer or if the consumer can't consume sub-buffers fast enought,
+data will be lost in either case; the only difference is whether data
+is lost from the beginning or the end of a buffer.
+
+As explained above, a relayfs channel is made of up one or more
+per-cpu channel buffers, each implemented as a circular buffer
+subdivided into one or more sub-buffers.  Messages are written into
+the current sub-buffer of the channel's current per-cpu buffer via the
+write functions described below.  Whenever a message can't fit into
+the current sub-buffer, because there's no room left for it, the
+client is notified via the subbuf_start() callback that a switch to a
+new sub-buffer is about to occur.  The client uses this callback to 1)
+initialize the next sub-buffer if appropriate 2) finalize the previous
+sub-buffer if appropriate and 3) return a boolean value indicating
+whether or not to actually go ahead with the sub-buffer switch.
+
+To implement 'no-overwrite' mode, the userspace client would provide
+an implementation of the subbuf_start() callback something like the
+following:
+
+static int subbuf_start(struct rchan_buf *buf,
+                        void *subbuf,
+			void *prev_subbuf,
+			unsigned int prev_padding)
+{
+	if (prev_subbuf)
+		*((unsigned *)prev_subbuf) = prev_padding;
+
+	if (relay_buf_full(buf))
+		return 0;
+
+	subbuf_start_reserve(buf, sizeof(unsigned int));
+
+	return 1;
+}
+
+If the current buffer is full i.e. all sub-buffers remain unconsumed,
+the callback returns 0 to indicate that the buffer switch should not
+occur yet i.e. until the consumer has had a chance to read the current
+set of ready sub-buffers.  For the relay_buf_full() function to make
+sense, the consumer is reponsible for notifying relayfs when
+sub-buffers have been consumed via relay_subbufs_consumed().  Any
+subsequent attempts to write into the buffer will again invoke the
+subbuf_start() callback with the same parameters; only when the
+consumer has consumed one or more of the ready sub-buffers will
+relay_buf_full() return 0, in which case the buffer switch can
+continue.
+
+The implementation of the subbuf_start() callback for 'overwrite' mode
+would be very similar:
+
+static int subbuf_start(struct rchan_buf *buf,
+                        void *subbuf,
+			void *prev_subbuf,
+			unsigned int prev_padding)
+{
+	if (prev_subbuf)
+		*((unsigned *)prev_subbuf) = prev_padding;
+
+	subbuf_start_reserve(buf, sizeof(unsigned int));
+
+	return 1;
+}
+
+In this case, the relay_buf_full() check is meaningless and the
+callback always returns 1, causing the buffer switch to occur
+unconditionally.  It's also meaningless for the client to use the
+relay_subbufs_consumed() function in this mode, as it's never
+consulted.
+
+The default subbuf_start() implementation, used if the client doesn't
+define any callbacks, or doesn't define the subbuf_start() callback,
+implements the simplest possible 'no-overwrite' mode i.e. it does
+nothing but return 0.
+
+Header information can be reserved at the beginning of each sub-buffer
+by calling the subbuf_start_reserve() helper function from within the
+subbuf_start() callback.  This reserved area can be used to store
+whatever information the client wants.  In the example above, room is
+reserved in each sub-buffer to store the padding count for that
+sub-buffer.  This is filled in for the previous sub-buffer in the
+subbuf_start() implementation; the padding value for the previous
+sub-buffer is passed into the subbuf_start() callback along with a
+pointer to the previous sub-buffer, since the padding value isn't
+known until a sub-buffer is filled.  The subbuf_start() callback is
+also called for the first sub-buffer when the channel is opened, to
+give the client a chance to reserve space in it.  In this case the
+previous sub-buffer pointer passed into the callback will be NULL, so
+the client should check the value of the prev_subbuf pointer before
+writing into the previous sub-buffer.
+
+Writing to a channel
+--------------------
+
+kernel clients write data into the current cpu's channel buffer using
+relay_write() or __relay_write().  relay_write() is the main logging
+function - it uses local_irqsave() to protect the buffer and should be
+used if you might be logging from interrupt context.  If you know
+you'll never be logging from interrupt context, you can use
+__relay_write(), which only disables preemption.  These functions
+don't return a value, so you can't determine whether or not they
+failed - the assumption is that you wouldn't want to check a return
+value in the fast logging path anyway, and that they'll always succeed
+unless the buffer is full and no-overwrite mode is being used, in
+which case you can detect a failed write in the subbuf_start()
+callback by calling the relay_buf_full() helper function.
+
+relay_reserve() is used to reserve a slot in a channel buffer which
+can be written to later.  This would typically be used in applications
+that need to write directly into a channel buffer without having to
+stage data in a temporary buffer beforehand.  Because the actual write
+may not happen immediately after the slot is reserved, applications
+using relay_reserve() can keep a count of the number of bytes actually
+written, either in space reserved in the sub-buffers themselves or as
+a separate array.  See the 'reserve' example in the relay-apps tarball
+at http://relayfs.sourceforge.net for an example of how this can be
+done.  Because the write is under control of the client and is
+separated from the reserve, relay_reserve() doesn't protect the buffer
+at all - it's up to the client to provide the appropriate
+synchronization when using relay_reserve().
+
+Closing a channel
+-----------------
+
+The client calls relay_close() when it's finished using the channel.
+The channel and its associated buffers are destroyed when there are no
+longer any references to any of the channel buffers.  relay_flush()
+forces a sub-buffer switch on all the channel buffers, and can be used
+to finalize and process the last sub-buffers before the channel is
+closed.
+
+Misc
+----
+
+Some applications may want to keep a channel around and re-use it
+rather than open and close a new channel for each use.  relay_reset()
+can be used for this purpose - it resets a channel to its initial
+state without reallocating channel buffer memory or destroying
+existing mappings.  It should however only be called when it's safe to
+do so i.e. when the channel isn't currently being written to.
+
+Finally, there are a couple of utility callbacks that can be used for
+different purposes.  buf_mapped() is called whenever a channel buffer
+is mmapped from user space and buf_unmapped() is called when it's
+unmapped.  The client can use this notification to trigger actions
+within the kernel application, such as enabling/disabling logging to
+the channel.
+
+
+Resources
+=========
+
+For news, example code, mailing list, etc. see the relayfs homepage:
+
+    http://relayfs.sourceforge.net
+
+
+Credits
+=======
+
+The ideas and specs for relayfs came about as a result of discussions
+on tracing involving the following:
+
+Michel Dagenais		<michel.dagenais@polymtl.ca>
+Richard Moore		<richardj_moore@uk.ibm.com>
+Bob Wisniewski		<bob@watson.ibm.com>
+Karim Yaghmour		<karim@opersys.com>
+Tom Zanussi		<zanussi@us.ibm.com>
+
+Also thanks to Hubertus Franke for a lot of useful suggestions and bug
+reports.

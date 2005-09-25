@@ -1953,7 +1953,8 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
 		kfree(d->rcvcount);
 	if (!(d->rcvcount = kmalloc(sizeof(int) * m, GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcvcount\n");
-		if (!adding) kfree(d->rcverr);
+		if (!adding)
+			kfree(d->rcverr);
 		return -1;
 	}
 	memset((char *) d->rcvcount, 0, sizeof(int) * m);

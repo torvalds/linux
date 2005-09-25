@@ -235,8 +235,8 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	 * set defaults
 	 */
 	q->nr_requests = BLKDEV_MAX_RQ;
-	q->max_phys_segments = MAX_PHYS_SEGMENTS;
-	q->max_hw_segments = MAX_HW_SEGMENTS;
+	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
+	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
 	q->make_request_fn = mfn;
 	q->backing_dev_info.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	q->backing_dev_info.state = 0;
@@ -284,6 +284,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 	rq->special = NULL;
 	rq->data_len = 0;
 	rq->data = NULL;
+	rq->nr_phys_segments = 0;
 	rq->sense = NULL;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
@@ -2115,7 +2116,7 @@ EXPORT_SYMBOL(blk_insert_request);
 /**
  * blk_rq_map_user - map user data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
- * @rw:		READ or WRITE data
+ * @rq:		request structure to fill
  * @ubuf:	the user buffer
  * @len:	length of user data
  *
@@ -2132,21 +2133,19 @@ EXPORT_SYMBOL(blk_insert_request);
  *    original bio must be passed back in to blk_rq_unmap_user() for proper
  *    unmapping.
  */
-struct request *blk_rq_map_user(request_queue_t *q, int rw, void __user *ubuf,
-				unsigned int len)
+int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
+		    unsigned int len)
 {
 	unsigned long uaddr;
-	struct request *rq;
 	struct bio *bio;
+	int reading;
 
 	if (len > (q->max_sectors << 9))
-		return ERR_PTR(-EINVAL);
-	if ((!len && ubuf) || (len && !ubuf))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
+	if (!len || !ubuf)
+		return -EINVAL;
 
-	rq = blk_get_request(q, rw, __GFP_WAIT);
-	if (!rq)
-		return ERR_PTR(-ENOMEM);
+	reading = rq_data_dir(rq) == READ;
 
 	/*
 	 * if alignment requirement is satisfied, map in user pages for
@@ -2154,9 +2153,9 @@ struct request *blk_rq_map_user(request_queue_t *q, int rw, void __user *ubuf,
 	 */
 	uaddr = (unsigned long) ubuf;
 	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
-		bio = bio_map_user(q, NULL, uaddr, len, rw == READ);
+		bio = bio_map_user(q, NULL, uaddr, len, reading);
 	else
-		bio = bio_copy_user(q, uaddr, len, rw == READ);
+		bio = bio_copy_user(q, uaddr, len, reading);
 
 	if (!IS_ERR(bio)) {
 		rq->bio = rq->biotail = bio;
@@ -2164,28 +2163,70 @@ struct request *blk_rq_map_user(request_queue_t *q, int rw, void __user *ubuf,
 
 		rq->buffer = rq->data = NULL;
 		rq->data_len = len;
-		return rq;
+		return 0;
 	}
 
 	/*
 	 * bio is the err-ptr
 	 */
-	blk_put_request(rq);
-	return (struct request *) bio;
+	return PTR_ERR(bio);
 }
 
 EXPORT_SYMBOL(blk_rq_map_user);
 
 /**
+ * blk_rq_map_user_iov - map user data to a request, for REQ_BLOCK_PC usage
+ * @q:		request queue where request should be inserted
+ * @rq:		request to map data to
+ * @iov:	pointer to the iovec
+ * @iov_count:	number of elements in the iovec
+ *
+ * Description:
+ *    Data will be mapped directly for zero copy io, if possible. Otherwise
+ *    a kernel bounce buffer is used.
+ *
+ *    A matching blk_rq_unmap_user() must be issued at the end of io, while
+ *    still in process context.
+ *
+ *    Note: The mapped bio may need to be bounced through blk_queue_bounce()
+ *    before being submitted to the device, as pages mapped may be out of
+ *    reach. It's the callers responsibility to make sure this happens. The
+ *    original bio must be passed back in to blk_rq_unmap_user() for proper
+ *    unmapping.
+ */
+int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
+			struct sg_iovec *iov, int iov_count)
+{
+	struct bio *bio;
+
+	if (!iov || iov_count <= 0)
+		return -EINVAL;
+
+	/* we don't allow misaligned data like bio_map_user() does.  If the
+	 * user is using sg, they're expected to know the alignment constraints
+	 * and respect them accordingly */
+	bio = bio_map_user_iov(q, NULL, iov, iov_count, rq_data_dir(rq)== READ);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	rq->bio = rq->biotail = bio;
+	blk_rq_bio_prep(q, rq, bio);
+	rq->buffer = rq->data = NULL;
+	rq->data_len = bio->bi_size;
+	return 0;
+}
+
+EXPORT_SYMBOL(blk_rq_map_user_iov);
+
+/**
  * blk_rq_unmap_user - unmap a request with user data
- * @rq:		request to be unmapped
- * @bio:	bio for the request
+ * @bio:	bio to be unmapped
  * @ulen:	length of user buffer
  *
  * Description:
- *    Unmap a request previously mapped by blk_rq_map_user().
+ *    Unmap a bio previously mapped by blk_rq_map_user().
  */
-int blk_rq_unmap_user(struct request *rq, struct bio *bio, unsigned int ulen)
+int blk_rq_unmap_user(struct bio *bio, unsigned int ulen)
 {
 	int ret = 0;
 
@@ -2196,30 +2237,88 @@ int blk_rq_unmap_user(struct request *rq, struct bio *bio, unsigned int ulen)
 			ret = bio_uncopy_user(bio);
 	}
 
-	blk_put_request(rq);
-	return ret;
+	return 0;
 }
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
+
+/**
+ * blk_rq_map_kern - map kernel data to a request, for REQ_BLOCK_PC usage
+ * @q:		request queue where request should be inserted
+ * @rq:		request to fill
+ * @kbuf:	the kernel buffer
+ * @len:	length of user data
+ * @gfp_mask:	memory allocation flags
+ */
+int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
+		    unsigned int len, unsigned int gfp_mask)
+{
+	struct bio *bio;
+
+	if (len > (q->max_sectors << 9))
+		return -EINVAL;
+	if (!len || !kbuf)
+		return -EINVAL;
+
+	bio = bio_map_kern(q, kbuf, len, gfp_mask);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	if (rq_data_dir(rq) == WRITE)
+		bio->bi_rw |= (1 << BIO_RW);
+
+	rq->bio = rq->biotail = bio;
+	blk_rq_bio_prep(q, rq, bio);
+
+	rq->buffer = rq->data = NULL;
+	rq->data_len = len;
+	return 0;
+}
+
+EXPORT_SYMBOL(blk_rq_map_kern);
+
+/**
+ * blk_execute_rq_nowait - insert a request into queue for execution
+ * @q:		queue to insert the request in
+ * @bd_disk:	matching gendisk
+ * @rq:		request to insert
+ * @at_head:    insert request at head or tail of queue
+ * @done:	I/O completion handler
+ *
+ * Description:
+ *    Insert a fully prepared request at the back of the io scheduler queue
+ *    for execution.  Don't wait for completion.
+ */
+void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
+			   struct request *rq, int at_head,
+			   void (*done)(struct request *))
+{
+	int where = at_head ? ELEVATOR_INSERT_FRONT : ELEVATOR_INSERT_BACK;
+
+	rq->rq_disk = bd_disk;
+	rq->flags |= REQ_NOMERGE;
+	rq->end_io = done;
+	elv_add_request(q, rq, where, 1);
+	generic_unplug_device(q);
+}
 
 /**
  * blk_execute_rq - insert a request into queue for execution
  * @q:		queue to insert the request in
  * @bd_disk:	matching gendisk
  * @rq:		request to insert
+ * @at_head:    insert request at head or tail of queue
  *
  * Description:
  *    Insert a fully prepared request at the back of the io scheduler queue
- *    for execution.
+ *    for execution and wait for completion.
  */
 int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
-		   struct request *rq)
+		   struct request *rq, int at_head)
 {
 	DECLARE_COMPLETION(wait);
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	int err = 0;
-
-	rq->rq_disk = bd_disk;
 
 	/*
 	 * we need an extra reference to the request, so we can look at
@@ -2233,11 +2332,8 @@ int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 		rq->sense_len = 0;
 	}
 
-	rq->flags |= REQ_NOMERGE;
 	rq->waiting = &wait;
-	rq->end_io = blk_end_sync_rq;
-	elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 1);
-	generic_unplug_device(q);
+	blk_execute_rq_nowait(q, bd_disk, rq, at_head, blk_end_sync_rq);
 	wait_for_completion(&wait);
 	rq->waiting = NULL;
 

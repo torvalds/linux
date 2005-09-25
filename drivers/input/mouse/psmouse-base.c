@@ -25,6 +25,7 @@
 #include "logips2pp.h"
 #include "alps.h"
 #include "lifebook.h"
+#include "trackpoint.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -57,10 +58,30 @@ static unsigned int psmouse_resetafter;
 module_param_named(resetafter, psmouse_resetafter, uint, 0644);
 MODULE_PARM_DESC(resetafter, "Reset device after so many bad packets (0 = never).");
 
-PSMOUSE_DEFINE_ATTR(protocol);
-PSMOUSE_DEFINE_ATTR(rate);
-PSMOUSE_DEFINE_ATTR(resolution);
-PSMOUSE_DEFINE_ATTR(resetafter);
+PSMOUSE_DEFINE_ATTR(protocol, S_IWUSR | S_IRUGO,
+			NULL,
+			psmouse_attr_show_protocol, psmouse_attr_set_protocol);
+PSMOUSE_DEFINE_ATTR(rate, S_IWUSR | S_IRUGO,
+			(void *) offsetof(struct psmouse, rate),
+			psmouse_show_int_attr, psmouse_attr_set_rate);
+PSMOUSE_DEFINE_ATTR(resolution, S_IWUSR | S_IRUGO,
+			(void *) offsetof(struct psmouse, resolution),
+			psmouse_show_int_attr, psmouse_attr_set_resolution);
+PSMOUSE_DEFINE_ATTR(resetafter, S_IWUSR | S_IRUGO,
+			(void *) offsetof(struct psmouse, resetafter),
+			psmouse_show_int_attr, psmouse_set_int_attr);
+
+static struct attribute *psmouse_attributes[] = {
+	&psmouse_attr_protocol.dattr.attr,
+	&psmouse_attr_rate.dattr.attr,
+	&psmouse_attr_resolution.dattr.attr,
+	&psmouse_attr_resetafter.dattr.attr,
+	NULL
+};
+
+static struct attribute_group psmouse_attribute_group = {
+	.attrs	= psmouse_attributes,
+};
 
 __obsolete_setup("psmouse_noext");
 __obsolete_setup("psmouse_resolution=");
@@ -520,6 +541,12 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		return PSMOUSE_IMPS;
 
 /*
+ * Try to initialize the IBM TrackPoint
+ */
+	if (max_proto > PSMOUSE_IMEX && trackpoint_detect(psmouse, set_properties) == 0)
+		return PSMOUSE_TRACKPOINT;
+
+/*
  * Okay, all failed, we have a standard mouse here. The number of the buttons
  * is still a question, though. We assume 3.
  */
@@ -598,6 +625,12 @@ static struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "LBPS/2",
 		.alias		= "lifebook",
 		.init		= lifebook_init,
+	},
+	{
+		.type		= PSMOUSE_TRACKPOINT,
+		.name		= "TPPS/2",
+		.alias		= "trackpoint",
+		.detect		= trackpoint_detect,
 	},
 	{
 		.type		= PSMOUSE_AUTO,
@@ -787,10 +820,7 @@ static void psmouse_disconnect(struct serio *serio)
 
 	psmouse = serio_get_drvdata(serio);
 
-	device_remove_file(&serio->dev, &psmouse_attr_protocol);
-	device_remove_file(&serio->dev, &psmouse_attr_rate);
-	device_remove_file(&serio->dev, &psmouse_attr_resolution);
-	device_remove_file(&serio->dev, &psmouse_attr_resetafter);
+	sysfs_remove_group(&serio->dev.kobj, &psmouse_attribute_group);
 
 	down(&psmouse_sem);
 
@@ -883,7 +913,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		psmouse_deactivate(parent);
 	}
 
-	if (!(psmouse = kcalloc(1, sizeof(struct psmouse), GFP_KERNEL))) {
+	if (!(psmouse = kzalloc(sizeof(struct psmouse), GFP_KERNEL))) {
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -927,10 +957,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	if (parent && parent->pt_activate)
 		parent->pt_activate(parent);
 
-	device_create_file(&serio->dev, &psmouse_attr_protocol);
-	device_create_file(&serio->dev, &psmouse_attr_rate);
-	device_create_file(&serio->dev, &psmouse_attr_resolution);
-	device_create_file(&serio->dev, &psmouse_attr_resetafter);
+	sysfs_create_group(&serio->dev.kobj, &psmouse_attribute_group);
 
 	psmouse_activate(psmouse);
 
@@ -1027,10 +1054,12 @@ static struct serio_driver psmouse_drv = {
 	.cleanup	= psmouse_cleanup,
 };
 
-ssize_t psmouse_attr_show_helper(struct device *dev, char *buf,
-				 ssize_t (*handler)(struct psmouse *, char *))
+ssize_t psmouse_attr_show_helper(struct device *dev, struct device_attribute *devattr,
+				 char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
+	struct psmouse_attribute *attr = to_psmouse_attr(devattr);
+	struct psmouse *psmouse;
 	int retval;
 
 	retval = serio_pin_driver(serio);
@@ -1042,19 +1071,21 @@ ssize_t psmouse_attr_show_helper(struct device *dev, char *buf,
 		goto out;
 	}
 
-	retval = handler(serio_get_drvdata(serio), buf);
+	psmouse = serio_get_drvdata(serio);
+
+	retval = attr->show(psmouse, attr->data, buf);
 
 out:
 	serio_unpin_driver(serio);
 	return retval;
 }
 
-ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t count,
-				ssize_t (*handler)(struct psmouse *, const char *, size_t))
+ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *devattr,
+				const char *buf, size_t count)
 {
 	struct serio *serio = to_serio_port(dev);
-	struct psmouse *psmouse = serio_get_drvdata(serio);
-	struct psmouse *parent = NULL;
+	struct psmouse_attribute *attr = to_psmouse_attr(devattr);
+	struct psmouse *psmouse, *parent = NULL;
 	int retval;
 
 	retval = serio_pin_driver(serio);
@@ -1070,6 +1101,8 @@ ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t coun
 	if (retval)
 		goto out_unpin;
 
+	psmouse = serio_get_drvdata(serio);
+
 	if (psmouse->state == PSMOUSE_IGNORE) {
 		retval = -ENODEV;
 		goto out_up;
@@ -1082,7 +1115,7 @@ ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t coun
 
 	psmouse_deactivate(psmouse);
 
-	retval = handler(psmouse, buf, count);
+	retval = attr->set(psmouse, attr->data, buf, count);
 
 	if (retval != -ENODEV)
 		psmouse_activate(psmouse);
@@ -1097,12 +1130,34 @@ ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t coun
 	return retval;
 }
 
-static ssize_t psmouse_attr_show_protocol(struct psmouse *psmouse, char *buf)
+static ssize_t psmouse_show_int_attr(struct psmouse *psmouse, void *offset, char *buf)
+{
+	unsigned long *field = (unsigned long *)((char *)psmouse + (size_t)offset);
+
+	return sprintf(buf, "%lu\n", *field);
+}
+
+static ssize_t psmouse_set_int_attr(struct psmouse *psmouse, void *offset, const char *buf, size_t count)
+{
+	unsigned long *field = (unsigned long *)((char *)psmouse + (size_t)offset);
+	unsigned long value;
+	char *rest;
+
+	value = simple_strtoul(buf, &rest, 10);
+	if (*rest)
+		return -EINVAL;
+
+	*field = value;
+
+	return count;
+}
+
+static ssize_t psmouse_attr_show_protocol(struct psmouse *psmouse, void *data, char *buf)
 {
 	return sprintf(buf, "%s\n", psmouse_protocol_by_type(psmouse->type)->name);
 }
 
-static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, const char *buf, size_t count)
+static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	struct serio *serio = psmouse->ps2dev.serio;
 	struct psmouse *parent = NULL;
@@ -1166,12 +1221,7 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, const char *bu
 	return count;
 }
 
-static ssize_t psmouse_attr_show_rate(struct psmouse *psmouse, char *buf)
-{
-	return sprintf(buf, "%d\n", psmouse->rate);
-}
-
-static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, const char *buf, size_t count)
+static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
 	char *rest;
@@ -1184,12 +1234,7 @@ static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, const char *buf, s
 	return count;
 }
 
-static ssize_t psmouse_attr_show_resolution(struct psmouse *psmouse, char *buf)
-{
-	return sprintf(buf, "%d\n", psmouse->resolution);
-}
-
-static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, const char *buf, size_t count)
+static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
 	char *rest;
@@ -1202,23 +1247,6 @@ static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, const char *
 	return count;
 }
 
-static ssize_t psmouse_attr_show_resetafter(struct psmouse *psmouse, char *buf)
-{
-	return sprintf(buf, "%d\n", psmouse->resetafter);
-}
-
-static ssize_t psmouse_attr_set_resetafter(struct psmouse *psmouse, const char *buf, size_t count)
-{
-	unsigned long value;
-	char *rest;
-
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest)
-		return -EINVAL;
-
-	psmouse->resetafter = value;
-	return count;
-}
 
 static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 {
@@ -1234,7 +1262,7 @@ static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 
 	*((unsigned int *)kp->arg) = proto->type;
 
-	return 0;					\
+	return 0;
 }
 
 static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp)

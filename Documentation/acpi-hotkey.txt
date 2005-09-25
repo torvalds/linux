@@ -35,4 +35,4 @@ created.  Please use command "cat /proc/acpi/hotkey/polling_method"
 to retrieve it.
 
 Note: Use cmdline "acpi_generic_hotkey" to over-ride
-loading any platform specific drivers.
+platform-specific with generic driver.

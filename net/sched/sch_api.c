@@ -1194,7 +1194,7 @@ EXPORT_SYMBOL(psched_time_base);
  * with 32-bit get_cycles(). Safe up to 4GHz CPU.
  */
 static void psched_tick(unsigned long);
-static struct timer_list psched_timer = TIMER_INITIALIZER(psched_tick, 0, 0);
+static DEFINE_TIMER(psched_timer, psched_tick, 0, 0);
 
 static void psched_tick(unsigned long dummy)
 {

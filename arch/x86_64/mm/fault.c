@@ -23,6 +23,7 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/compiler.h>
 #include <linux/module.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -220,12 +221,13 @@ int unhandled_signal(struct task_struct *tsk, int sig)
 static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
 {
-	oops_begin();
+	unsigned long flags = oops_begin();
+
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
 	       current->comm, address);
 	dump_pagetable(address);
 	__die("Bad pagetable", regs, error_code);
-	oops_end();
+	oops_end(flags);
 	do_exit(SIGKILL);
 }
 
@@ -294,7 +296,8 @@ int exception_trace = 1;
  *	bit 2 == 0 means kernel, 1 means user-mode
  *      bit 3 == 1 means fault was an instruction fetch
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code)
+asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
+					unsigned long error_code)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
@@ -302,6 +305,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	unsigned long address;
 	const struct exception_table_entry *fixup;
 	int write;
+	unsigned long flags;
 	siginfo_t info;
 
 #ifdef CONFIG_CHECKING
@@ -519,7 +523,7 @@ no_context:
  * terminate things with extreme prejudice.
  */
 
-	oops_begin(); 
+	flags = oops_begin();
 
 	if (address < PAGE_SIZE)
 		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
@@ -532,7 +536,7 @@ no_context:
 	__die("Oops", regs, error_code);
 	/* Executive summary in case the body of the oops scrolled away */
 	printk(KERN_EMERG "CR2: %016lx\n", address);
-	oops_end(); 
+	oops_end(flags);
 	do_exit(SIGKILL);
 
 /*

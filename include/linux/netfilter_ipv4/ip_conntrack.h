@@ -133,11 +133,13 @@ enum ip_conntrack_expect_events {
 
 #include <linux/netfilter_ipv4/ip_conntrack_tcp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_icmp.h>
+#include <linux/netfilter_ipv4/ip_conntrack_proto_gre.h>
 #include <linux/netfilter_ipv4/ip_conntrack_sctp.h>
 
 /* per conntrack: protocol private data */
 union ip_conntrack_proto {
 	/* insert conntrack proto private data here */
+	struct ip_ct_gre gre;
 	struct ip_ct_sctp sctp;
 	struct ip_ct_tcp tcp;
 	struct ip_ct_icmp icmp;
@@ -148,6 +150,7 @@ union ip_conntrack_expect_proto {
 };
 
 /* Add protocol helper include file here */
+#include <linux/netfilter_ipv4/ip_conntrack_pptp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_amanda.h>
 #include <linux/netfilter_ipv4/ip_conntrack_ftp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_irc.h>
@@ -155,12 +158,20 @@ union ip_conntrack_expect_proto {
 /* per conntrack: application helper private data */
 union ip_conntrack_help {
 	/* insert conntrack helper private data (master) here */
+	struct ip_ct_pptp_master ct_pptp_info;
 	struct ip_ct_ftp_master ct_ftp_info;
 	struct ip_ct_irc_master ct_irc_info;
 };
 
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 #include <linux/netfilter_ipv4/ip_nat.h>
+#include <linux/netfilter_ipv4/ip_nat_pptp.h>
+
+/* per conntrack: nat application helper private data */
+union ip_conntrack_nat_help {
+	/* insert nat helper private data here */
+	struct ip_nat_pptp nat_pptp_info;
+};
 #endif
 
 #include <linux/types.h>
@@ -223,6 +234,7 @@ struct ip_conntrack
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 	struct {
 		struct ip_nat_info info;
+		union ip_conntrack_nat_help help;
 #if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
 	defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
 		int masq_index;
@@ -263,6 +275,9 @@ struct ip_conntrack_expect
 	/* Unique ID */
 	unsigned int id;
 
+	/* Flags */
+	unsigned int flags;
+
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
@@ -271,6 +286,8 @@ struct ip_conntrack_expect
 	enum ip_conntrack_dir dir;
 #endif
 };
+
+#define IP_CT_EXPECT_PERMANENT	0x1
 
 static inline struct ip_conntrack *
 tuplehash_to_ctrack(const struct ip_conntrack_tuple_hash *hash)
@@ -315,11 +332,28 @@ extern void need_ip_conntrack(void);
 extern int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 			  const struct ip_conntrack_tuple *orig);
 
+extern void __ip_ct_refresh_acct(struct ip_conntrack *ct,
+			         enum ip_conntrack_info ctinfo,
+			         const struct sk_buff *skb,
+			         unsigned long extra_jiffies,
+				 int do_acct);
+
+/* Refresh conntrack for this many jiffies and do accounting */
+static inline void ip_ct_refresh_acct(struct ip_conntrack *ct, 
+				      enum ip_conntrack_info ctinfo,
+				      const struct sk_buff *skb,
+				      unsigned long extra_jiffies)
+{
+	__ip_ct_refresh_acct(ct, ctinfo, skb, extra_jiffies, 1);
+}
+
 /* Refresh conntrack for this many jiffies */
-extern void ip_ct_refresh_acct(struct ip_conntrack *ct,
-			       enum ip_conntrack_info ctinfo,
-			       const struct sk_buff *skb,
-			       unsigned long extra_jiffies);
+static inline void ip_ct_refresh(struct ip_conntrack *ct,
+				 const struct sk_buff *skb,
+				 unsigned long extra_jiffies)
+{
+	__ip_ct_refresh_acct(ct, 0, skb, extra_jiffies, 0);
+}
 
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */
@@ -367,7 +401,7 @@ extern struct ip_conntrack_expect *
 __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple);
 
 extern struct ip_conntrack_expect *
-ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple);
+ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple);
 
 extern struct ip_conntrack_tuple_hash *
 __ip_conntrack_find(const struct ip_conntrack_tuple *tuple,

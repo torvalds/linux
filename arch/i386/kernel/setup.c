@@ -82,19 +82,19 @@ EXPORT_SYMBOL(efi_enabled);
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __initdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 /* common cpu data for all cpus */
-struct cpuinfo_x86 boot_cpu_data = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
+struct cpuinfo_x86 boot_cpu_data __read_mostly = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-#ifdef	CONFIG_ACPI_INTERPRETER
+#ifdef	CONFIG_ACPI
 	int acpi_disabled = 0;
 #else
 	int acpi_disabled = 1;
 #endif
 EXPORT_SYMBOL(acpi_disabled);
 
-#ifdef	CONFIG_ACPI_BOOT
+#ifdef	CONFIG_ACPI
 int __initdata acpi_force = 0;
 extern acpi_interrupt_flags	acpi_sci_flags;
 #endif
@@ -139,6 +139,7 @@ struct sys_desc_table_struct {
 	unsigned char table[0];
 };
 struct edid_info edid_info;
+EXPORT_SYMBOL_GPL(edid_info);
 struct ist_info ist_info;
 #if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
 	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
@@ -370,12 +371,16 @@ static void __init limit_regions(unsigned long long size)
 	int i;
 
 	if (efi_enabled) {
-		for (i = 0; i < memmap.nr_map; i++) {
-			current_addr = memmap.map[i].phys_addr +
-				       (memmap.map[i].num_pages << 12);
-			if (memmap.map[i].type == EFI_CONVENTIONAL_MEMORY) {
+		efi_memory_desc_t *md;
+		void *p;
+
+		for (p = memmap.map, i = 0; p < memmap.map_end;
+			p += memmap.desc_size, i++) {
+			md = p;
+			current_addr = md->phys_addr + (md->num_pages << 12);
+			if (md->type == EFI_CONVENTIONAL_MEMORY) {
 				if (current_addr >= size) {
-					memmap.map[i].num_pages -=
+					md->num_pages -=
 						(((current_addr-size) + PAGE_SIZE-1) >> PAGE_SHIFT);
 					memmap.nr_map = i + 1;
 					return;
@@ -794,7 +799,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		}
 #endif
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter */
 		else if (!memcmp(from, "acpi=off", 8)) {
 			disable_acpi();
@@ -843,14 +848,17 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 #ifdef CONFIG_X86_IO_APIC
 		else if (!memcmp(from, "acpi_skip_timer_override", 24))
 			acpi_skip_timer_override = 1;
-#endif
 
-#ifdef CONFIG_X86_LOCAL_APIC
+		if (!memcmp(from, "disable_timer_pin_1", 19))
+			disable_timer_pin_1 = 1;
+		if (!memcmp(from, "enable_timer_pin_1", 18))
+			disable_timer_pin_1 = -1;
+
 		/* disable IO-APIC */
 		else if (!memcmp(from, "noapic", 6))
 			disable_ioapic_setup();
-#endif /* CONFIG_X86_LOCAL_APIC */
-#endif /* CONFIG_ACPI_BOOT */
+#endif /* CONFIG_X86_IO_APIC */
+#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_X86_LOCAL_APIC
 		/* enable local APIC */
@@ -1295,7 +1303,7 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
  */
 static void __init register_memory(void)
 {
-	unsigned long gapstart, gapsize;
+	unsigned long gapstart, gapsize, round;
 	unsigned long long last;
 	int	      i;
 
@@ -1340,14 +1348,14 @@ static void __init register_memory(void)
 	}
 
 	/*
-	 * Start allocating dynamic PCI memory a bit into the gap,
-	 * aligned up to the nearest megabyte.
-	 *
-	 * Question: should we try to pad it up a bit (do something
-	 * like " + (gapsize >> 3)" in there too?). We now have the
-	 * technology.
+	 * See how much we want to round up: start off with
+	 * rounding to the next 1MB area.
 	 */
-	pci_mem_start = (gapstart + 0xfffff) & ~0xfffff;
+	round = 0x100000;
+	while ((gapsize >> 4) > round)
+		round += round;
+	/* Fun with two's complement */
+	pci_mem_start = (gapstart + round) & -round;
 
 	printk("Allocating PCI resources starting at %08lx (gap: %08lx:%08lx)\n",
 		pci_mem_start, gapstart, gapsize);
@@ -1575,14 +1583,20 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_map_memmap();
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
 	acpi_boot_table_init();
 	acpi_boot_init();
-#endif
 
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_PC)
+	if (def_to_bigsmp)
+		printk(KERN_WARNING "More than 8 CPUs detected and "
+			"CONFIG_X86_PC cannot handle it.\nUse "
+			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
+#endif
+#endif
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (smp_found_config)
 		get_smp_config();

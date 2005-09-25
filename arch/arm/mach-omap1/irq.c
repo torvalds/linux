@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/irq.c
+ * linux/arch/arm/mach-omap1/irq.c
  *
  * Interrupt handler for all OMAP boards
  *
@@ -165,10 +165,10 @@ static struct omap_irq_bank omap1610_irq_banks[] = {
 #endif
 
 static struct irqchip omap_irq_chip = {
-	.ack    = omap_mask_ack_irq,
-	.mask   = omap_mask_irq,
-	.unmask = omap_unmask_irq,
-	.wake	= omap_wake_irq,
+	.ack		= omap_mask_ack_irq,
+	.mask		= omap_mask_irq,
+	.unmask		= omap_unmask_irq,
+	.set_wake	= omap_wake_irq,
 };
 
 void __init omap_init_irq(void)

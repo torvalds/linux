@@ -923,14 +923,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int flag = 0;
 	int i;
 
-	/* So, SACKs for already sent large segments will be lost.
-	 * Not good, but alternative is to resegment the queue. */
-	if (sk->sk_route_caps & NETIF_F_TSO) {
-		sk->sk_route_caps &= ~NETIF_F_TSO;
-		sock_set_flag(sk, SOCK_NO_LARGESEND);
-		tp->mss_cache = tp->mss_cache;
-	}
-
 	if (!tp->sacked_out)
 		tp->fackets_out = 0;
 	prior_fackets = tp->fackets_out;
@@ -978,19 +970,41 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			flag |= FLAG_DATA_LOST;
 
 		sk_stream_for_retrans_queue(skb, sk) {
-			u8 sacked = TCP_SKB_CB(skb)->sacked;
-			int in_sack;
+			int in_sack, pcount;
+			u8 sacked;
 
 			/* The retransmission queue is always in order, so
 			 * we can short-circuit the walk early.
 			 */
-			if(!before(TCP_SKB_CB(skb)->seq, end_seq))
+			if (!before(TCP_SKB_CB(skb)->seq, end_seq))
 				break;
-
-			fack_count += tcp_skb_pcount(skb);
 
 			in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
 				!before(end_seq, TCP_SKB_CB(skb)->end_seq);
+
+			pcount = tcp_skb_pcount(skb);
+
+			if (pcount > 1 && !in_sack &&
+			    after(TCP_SKB_CB(skb)->end_seq, start_seq)) {
+				unsigned int pkt_len;
+
+				in_sack = !after(start_seq,
+						 TCP_SKB_CB(skb)->seq);
+
+				if (!in_sack)
+					pkt_len = (start_seq -
+						   TCP_SKB_CB(skb)->seq);
+				else
+					pkt_len = (end_seq -
+						   TCP_SKB_CB(skb)->seq);
+				if (tcp_fragment(sk, skb, pkt_len, skb_shinfo(skb)->tso_size))
+					break;
+				pcount = tcp_skb_pcount(skb);
+			}
+
+			fack_count += pcount;
+
+			sacked = TCP_SKB_CB(skb)->sacked;
 
 			/* Account D-SACK for retransmitted packet. */
 			if ((dup_sack && in_sack) &&

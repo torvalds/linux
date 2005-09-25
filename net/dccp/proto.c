@@ -94,7 +94,15 @@ EXPORT_SYMBOL_GPL(dccp_state_name);
 
 static inline int dccp_listen_start(struct sock *sk)
 {
-	dccp_sk(sk)->dccps_role = DCCP_ROLE_LISTEN;
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	dp->dccps_role = DCCP_ROLE_LISTEN;
+	/*
+	 * Apps need to use setsockopt(DCCP_SOCKOPT_SERVICE)
+	 * before calling listen()
+	 */
+	if (dccp_service_not_initialized(sk))
+		return -EPROTO;
 	return inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
 }
 
@@ -202,6 +210,42 @@ int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	return -ENOIOCTLCMD;
 }
 
+static int dccp_setsockopt_service(struct sock *sk, const u32 service,
+				   char __user *optval, int optlen)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_service_list *sl = NULL;
+
+	if (service == DCCP_SERVICE_INVALID_VALUE || 
+	    optlen > DCCP_SERVICE_LIST_MAX_LEN * sizeof(u32))
+		return -EINVAL;
+
+	if (optlen > sizeof(service)) {
+		sl = kmalloc(optlen, GFP_KERNEL);
+		if (sl == NULL)
+			return -ENOMEM;
+
+		sl->dccpsl_nr = optlen / sizeof(u32) - 1;
+		if (copy_from_user(sl->dccpsl_list,
+				   optval + sizeof(service),
+				   optlen - sizeof(service)) ||
+		    dccp_list_has_service(sl, DCCP_SERVICE_INVALID_VALUE)) {
+			kfree(sl);
+			return -EFAULT;
+		}
+	}
+
+	lock_sock(sk);
+	dp->dccps_service = service;
+
+	if (dp->dccps_service_list != NULL)
+		kfree(dp->dccps_service_list);
+
+	dp->dccps_service_list = sl;
+	release_sock(sk);
+	return 0;
+}
+
 int dccp_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
@@ -218,8 +262,10 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
 
-	lock_sock(sk);
+	if (optname == DCCP_SOCKOPT_SERVICE)
+		return dccp_setsockopt_service(sk, val, optval, optlen);
 
+	lock_sock(sk);
 	dp = dccp_sk(sk);
 	err = 0;
 
@@ -236,6 +282,37 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
+static int dccp_getsockopt_service(struct sock *sk, int len,
+				   u32 __user *optval,
+				   int __user *optlen)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+	const struct dccp_service_list *sl;
+	int err = -ENOENT, slen = 0, total_len = sizeof(u32);
+
+	lock_sock(sk);
+	if (dccp_service_not_initialized(sk))
+		goto out;
+
+	if ((sl = dp->dccps_service_list) != NULL) {
+		slen = sl->dccpsl_nr * sizeof(u32);
+		total_len += slen;
+	}
+
+	err = -EINVAL;
+	if (total_len > len)
+		goto out;
+
+	err = 0;
+	if (put_user(total_len, optlen) ||
+	    put_user(dp->dccps_service, optval) ||
+	    (sl != NULL && copy_to_user(optval + 1, sl->dccpsl_list, slen)))
+		err = -EFAULT;
+out:
+	release_sock(sk);
+	return err;
+}
+
 int dccp_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
@@ -248,8 +325,7 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	if (get_user(len, optlen))
 		return -EFAULT;
 
-	len = min_t(unsigned int, len, sizeof(int));
-	if (len < 0)
+	if (len < sizeof(int))
 		return -EINVAL;
 
 	dp = dccp_sk(sk);
@@ -257,7 +333,17 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		val = dp->dccps_packet_size;
+		len = sizeof(dp->dccps_packet_size);
 		break;
+	case DCCP_SOCKOPT_SERVICE:
+		return dccp_getsockopt_service(sk, len,
+					       (u32 __user *)optval, optlen);
+	case 128 ... 191:
+		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
+					     len, (u32 __user *)optval, optlen);
+	case 192 ... 255:
+		return ccid_hc_tx_getsockopt(dp->dccps_hc_tx_ccid, sk, optname,
+					     len, (u32 __user *)optval, optlen);
 	default:
 		return -ENOPROTOOPT;
 	}

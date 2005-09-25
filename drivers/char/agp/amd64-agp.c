@@ -429,7 +429,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	struct pci_dev *dev1;
 	int i;
 	unsigned size = amd64_fetch_size();
-	printk(KERN_INFO "Setting up ULi AGP. \n");
+	printk(KERN_INFO "Setting up ULi AGP.\n");
 	dev1 = pci_find_slot ((unsigned int)pdev->bus->number,PCI_DEVFN(0,0));
 	if (dev1 == NULL) {
 		printk(KERN_INFO PFX "Detected a ULi chipset, "

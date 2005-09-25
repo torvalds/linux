@@ -27,7 +27,10 @@
  *				Fixed tmr_count / wdt_count confusion
  *				Added configurable debug
  *
- *	11-Jan-2004	BJD	Fixed divide-by-2 in timeout code
+ *	11-Jan-2005	BJD	Fixed divide-by-2 in timeout code
+ *
+ *	25-Jan-2005	DA	Added suspend/resume support
+ *				Replaced reboot notifier with .shutdown method
  *
  *	10-Mar-2005	LCVR	Changed S3C2410_VA to S3C24XX_VA
 */
@@ -40,8 +43,6 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/fs.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -317,20 +318,6 @@ static int s3c2410wdt_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-/*
- *	Notifier for system down
- */
-
-static int s3c2410wdt_notify_sys(struct notifier_block *this, unsigned long code,
-			      void *unused)
-{
-	if(code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		s3c2410wdt_stop();
-	}
-	return NOTIFY_DONE;
-}
-
 /* kernel interface */
 
 static struct file_operations s3c2410wdt_fops = {
@@ -346,10 +333,6 @@ static struct miscdevice s3c2410wdt_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &s3c2410wdt_fops,
-};
-
-static struct notifier_block s3c2410wdt_notifier = {
-	.notifier_call	= s3c2410wdt_notify_sys,
 };
 
 /* interrupt handler code */
@@ -432,18 +415,10 @@ static int s3c2410wdt_probe(struct device *dev)
 		}
 	}
 
-	ret = register_reboot_notifier(&s3c2410wdt_notifier);
-	if (ret) {
-		printk (KERN_ERR PFX "cannot register reboot notifier (%d)\n",
-			ret);
-		return ret;
-	}
-
 	ret = misc_register(&s3c2410wdt_miscdev);
 	if (ret) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&s3c2410wdt_notifier);
 		return ret;
 	}
 
@@ -479,13 +454,61 @@ static int s3c2410wdt_remove(struct device *dev)
 	return 0;
 }
 
+static void s3c2410wdt_shutdown(struct device *dev)
+{
+	s3c2410wdt_stop();	
+}
+
+#ifdef CONFIG_PM
+
+static unsigned long wtcon_save;
+static unsigned long wtdat_save;
+
+static int s3c2410wdt_suspend(struct device *dev, pm_message_t state, u32 level)
+{
+	if (level == SUSPEND_POWER_DOWN) {
+		/* Save watchdog state, and turn it off. */
+		wtcon_save = readl(wdt_base + S3C2410_WTCON);
+		wtdat_save = readl(wdt_base + S3C2410_WTDAT);
+
+		/* Note that WTCNT doesn't need to be saved. */
+		s3c2410wdt_stop();
+	}
+
+	return 0;
+}
+
+static int s3c2410wdt_resume(struct device *dev, u32 level)
+{
+	if (level == RESUME_POWER_ON) {
+		/* Restore watchdog state. */
+
+		writel(wtdat_save, wdt_base + S3C2410_WTDAT);
+		writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
+		writel(wtcon_save, wdt_base + S3C2410_WTCON);
+
+		printk(KERN_INFO PFX "watchdog %sabled\n",
+		       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
+	}
+
+	return 0;
+}
+
+#else
+#define s3c2410wdt_suspend NULL
+#define s3c2410wdt_resume  NULL
+#endif /* CONFIG_PM */
+
+
 static struct device_driver s3c2410wdt_driver = {
 	.name		= "s3c2410-wdt",
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410wdt_probe,
 	.remove		= s3c2410wdt_remove,
+	.shutdown	= s3c2410wdt_shutdown,
+	.suspend	= s3c2410wdt_suspend,
+	.resume		= s3c2410wdt_resume,
 };
-
 
 
 static char banner[] __initdata = KERN_INFO "S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n";
@@ -499,13 +522,13 @@ static int __init watchdog_init(void)
 static void __exit watchdog_exit(void)
 {
 	driver_unregister(&s3c2410wdt_driver);
-	unregister_reboot_notifier(&s3c2410wdt_notifier);
 }
 
 module_init(watchdog_init);
 module_exit(watchdog_exit);
 
-MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
+MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
+	      "Dimitry Andric <dimitry.andric@tomtom.com>");
 MODULE_DESCRIPTION("S3C2410 Watchdog Device Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -735,10 +735,9 @@ static int deactivate_urbs(snd_usb_substream_t *subs, int force, int can_sleep)
 		if (test_bit(i, &subs->active_mask)) {
 			if (! test_and_set_bit(i, &subs->unlink_mask)) {
 				struct urb *u = subs->dataurb[i].urb;
-				if (async) {
-					u->transfer_flags |= URB_ASYNC_UNLINK;
+				if (async)
 					usb_unlink_urb(u);
-				} else
+				else
 					usb_kill_urb(u);
 			}
 		}
@@ -748,10 +747,9 @@ static int deactivate_urbs(snd_usb_substream_t *subs, int force, int can_sleep)
 			if (test_bit(i+16, &subs->active_mask)) {
  				if (! test_and_set_bit(i+16, &subs->unlink_mask)) {
 					struct urb *u = subs->syncurb[i].urb;
-					if (async) {
-						u->transfer_flags |= URB_ASYNC_UNLINK;
+					if (async)
 						usb_unlink_urb(u);
-					} else
+					else
 						usb_kill_urb(u);
 				}
 			}
@@ -1441,9 +1439,11 @@ static int snd_usb_pcm_prepare(snd_pcm_substream_t *substream)
 
 static snd_pcm_hardware_t snd_usb_playback =
 {
-	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_BATCH |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER,
 	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
@@ -1453,9 +1453,11 @@ static snd_pcm_hardware_t snd_usb_playback =
 
 static snd_pcm_hardware_t snd_usb_capture =
 {
-	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_BATCH |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER,
 	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
@@ -3134,7 +3136,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		return -ENOMEM;
 	}
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
 		snd_card_free(card);
 		return -ENOMEM;

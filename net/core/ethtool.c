@@ -695,7 +695,7 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static int ethtool_get_perm_addr(struct net_device *dev, void *useraddr)
+static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_perm_addr epaddr;
 	u8 *data;

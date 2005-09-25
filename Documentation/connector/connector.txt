@@ -1,0 +1,133 @@
+/*****************************************/
+Kernel Connector.
+/*****************************************/
+
+Kernel connector - new netlink based userspace <-> kernel space easy
+to use communication module.
+
+Connector driver adds possibility to connect various agents using
+netlink based network.  One must register callback and
+identifier. When driver receives special netlink message with
+appropriate identifier, appropriate callback will be called.
+
+From the userspace point of view it's quite straightforward:
+
+	socket();
+	bind();
+	send();
+	recv();
+
+But if kernelspace want to use full power of such connections, driver
+writer must create special sockets, must know about struct sk_buff
+handling...  Connector allows any kernelspace agents to use netlink
+based networking for inter-process communication in a significantly
+easier way:
+
+int cn_add_callback(struct cb_id *id, char *name, void (*callback) (void *));
+void cn_netlink_send(struct cn_msg *msg, u32 __group, int gfp_mask);
+
+struct cb_id
+{
+	__u32			idx;
+	__u32			val;
+};
+
+idx and val are unique identifiers which must be registered in
+connector.h for in-kernel usage.  void (*callback) (void *) - is a
+callback function which will be called when message with above idx.val
+will be received by connector core.  Argument for that function must
+be dereferenced to struct cn_msg *.
+
+struct cn_msg
+{
+	struct cb_id 		id;
+
+	__u32			seq;
+	__u32			ack;
+
+	__u32			len;		/* Length of the following data */
+	__u8			data[0];
+};
+
+/*****************************************/
+Connector interfaces.
+/*****************************************/
+
+int cn_add_callback(struct cb_id *id, char *name, void (*callback) (void *));
+
+Registers new callback with connector core.
+
+struct cb_id *id 		- unique connector's user identifier.
+			  	  It must be registered in connector.h for legal in-kernel users.
+char *name 			- connector's callback symbolic name.
+void (*callback) (void *)	- connector's callback.
+				  Argument must be dereferenced to struct cn_msg *.
+
+void cn_del_callback(struct cb_id *id);
+
+Unregisters new callback with connector core.
+
+struct cb_id *id 		- unique connector's user identifier.
+
+void cn_netlink_send(struct cn_msg *msg, u32 __groups, int gfp_mask);
+
+Sends message to the specified groups.  It can be safely called from
+any context, but may silently fail under strong memory pressure.
+
+struct cn_msg *			- message header(with attached data).
+u32 __group			- destination group.
+				  If __group is zero, then appropriate group will
+				  be searched through all registered connector users,
+				  and message will be delivered to the group which was
+				  created for user with the same ID as in msg.
+				  If __group is not zero, then message will be delivered
+				  to the specified group.
+int gfp_mask			- GFP mask.
+
+Note: When registering new callback user, connector core assigns
+netlink group to the user which is equal to it's id.idx.
+
+/*****************************************/
+Protocol description.
+/*****************************************/
+
+Current offers transport layer with fixed header.  Recommended
+protocol which uses such header is following:
+
+msg->seq and msg->ack are used to determine message genealogy.  When
+someone sends message it puts there locally unique sequence and random
+acknowledge numbers.  Sequence number may be copied into
+nlmsghdr->nlmsg_seq too.
+
+Sequence number is incremented with each message to be sent.
+
+If we expect reply to our message, then sequence number in received
+message MUST be the same as in original message, and acknowledge
+number MUST be the same + 1.
+
+If we receive message and it's sequence number is not equal to one we
+are expecting, then it is new message.  If we receive message and it's
+sequence number is the same as one we are expecting, but it's
+acknowledge is not equal acknowledge number in original message + 1,
+then it is new message.
+
+Obviously, protocol header contains above id.
+
+connector allows event notification in the following form: kernel
+driver or userspace process can ask connector to notify it when
+selected id's will be turned on or off(registered or unregistered it's
+callback). It is done by sending special command to connector
+driver(it also registers itself with id={-1, -1}).
+
+As example of usage Documentation/connector now contains cn_test.c -
+testing module which uses connector to request notification and to
+send messages.
+
+/*****************************************/
+Reliability.
+/*****************************************/
+
+Netlink itself is not reliable protocol, that means that messages can
+be lost due to memory pressure or process' receiving queue overflowed,
+so caller is warned must be prepared. That is why struct cn_msg [main
+connector's message header] contains u32 seq and u32 ack fields.

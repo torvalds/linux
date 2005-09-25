@@ -54,6 +54,7 @@
 #include <linux/major.h>
 #include <linux/root_dev.h>
 #include <linux/delay.h>
+#include <linux/nfs_fs.h>
 #include <net/arp.h>
 #include <net/ip.h>
 #include <net/ipconfig.h>
@@ -1102,10 +1103,8 @@ static int __init ic_dynamic(void)
 #endif
 
 		jiff = jiffies + (d->next ? CONF_INTER_TIMEOUT : timeout);
-		while (time_before(jiffies, jiff) && !ic_got_reply) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		while (time_before(jiffies, jiff) && !ic_got_reply)
+			schedule_timeout_uninterruptible(1);
 #ifdef IPCONFIG_DHCP
 		/* DHCP isn't done until we get a DHCPACK. */
 		if ((ic_got_reply & IC_BOOTP)

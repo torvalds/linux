@@ -525,6 +525,22 @@ static inline int __do_follow_link(struct path *path, struct nameidata *nd)
 	return error;
 }
 
+static inline void dput_path(struct path *path, struct nameidata *nd)
+{
+	dput(path->dentry);
+	if (path->mnt != nd->mnt)
+		mntput(path->mnt);
+}
+
+static inline void path_to_nameidata(struct path *path, struct nameidata *nd)
+{
+	dput(nd->dentry);
+	if (nd->mnt != path->mnt)
+		mntput(nd->mnt);
+	nd->mnt = path->mnt;
+	nd->dentry = path->dentry;
+}
+
 /*
  * This limits recursive symlink follows to 8, while
  * limiting consecutive symlinks to 40.
@@ -552,9 +568,7 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	nd->depth--;
 	return err;
 loop:
-	dput(path->dentry);
-	if (path->mnt != nd->mnt)
-		mntput(path->mnt);
+	dput_path(path, nd);
 	path_release(nd);
 	return err;
 }
@@ -813,13 +827,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			err = -ENOTDIR; 
 			if (!inode->i_op)
 				break;
-		} else {
-			dput(nd->dentry);
-			if (nd->mnt != next.mnt)
-				mntput(nd->mnt);
-			nd->mnt = next.mnt;
-			nd->dentry = next.dentry;
-		}
+		} else
+			path_to_nameidata(&next, nd);
 		err = -ENOTDIR; 
 		if (!inode->i_op->lookup)
 			break;
@@ -859,13 +868,8 @@ last_component:
 			if (err)
 				goto return_err;
 			inode = nd->dentry->d_inode;
-		} else {
-			dput(nd->dentry);
-			if (nd->mnt != next.mnt)
-				mntput(nd->mnt);
-			nd->mnt = next.mnt;
-			nd->dentry = next.dentry;
-		}
+		} else
+			path_to_nameidata(&next, nd);
 		err = -ENOENT;
 		if (!inode)
 			break;
@@ -901,9 +905,7 @@ return_reval:
 return_base:
 		return 0;
 out_dput:
-		dput(next.dentry);
-		if (nd->mnt != next.mnt)
-			mntput(next.mnt);
+		dput_path(&next, nd);
 		break;
 	}
 	path_release(nd);
@@ -1046,7 +1048,7 @@ int fastcall path_lookup(const char *name, unsigned int flags, struct nameidata 
 out:
 	if (unlikely(current->audit_context
 		     && nd && nd->dentry && nd->dentry->d_inode))
-		audit_inode(name, nd->dentry->d_inode);
+		audit_inode(name, nd->dentry->d_inode, flags);
 	return retval;
 }
 
@@ -1314,10 +1316,8 @@ int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		return error;
 	DQUOT_INIT(dir);
 	error = dir->i_op->create(dir, dentry, mode, nd);
-	if (!error) {
+	if (!error)
 		fsnotify_create(dir, dentry->d_name.name);
-		security_inode_post_create(dir, dentry, mode);
-	}
 	return error;
 }
 
@@ -1507,11 +1507,7 @@ do_last:
 	if (path.dentry->d_inode->i_op && path.dentry->d_inode->i_op->follow_link)
 		goto do_link;
 
-	dput(nd->dentry);
-	nd->dentry = path.dentry;
-	if (nd->mnt != path.mnt)
-		mntput(nd->mnt);
-	nd->mnt = path.mnt;
+	path_to_nameidata(&path, nd);
 	error = -EISDIR;
 	if (path.dentry->d_inode && S_ISDIR(path.dentry->d_inode->i_mode))
 		goto exit;
@@ -1522,9 +1518,7 @@ ok:
 	return 0;
 
 exit_dput:
-	dput(path.dentry);
-	if (nd->mnt != path.mnt)
-		mntput(path.mnt);
+	dput_path(&path, nd);
 exit:
 	path_release(nd);
 	return error;
@@ -1639,10 +1633,8 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 
 	DQUOT_INIT(dir);
 	error = dir->i_op->mknod(dir, dentry, mode, dev);
-	if (!error) {
+	if (!error)
 		fsnotify_create(dir, dentry->d_name.name);
-		security_inode_post_mknod(dir, dentry, mode, dev);
-	}
 	return error;
 }
 
@@ -1712,10 +1704,8 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	DQUOT_INIT(dir);
 	error = dir->i_op->mkdir(dir, dentry, mode);
-	if (!error) {
+	if (!error)
 		fsnotify_mkdir(dir, dentry->d_name.name);
-		security_inode_post_mkdir(dir,dentry, mode);
-	}
 	return error;
 }
 
@@ -1951,10 +1941,8 @@ int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname, i
 
 	DQUOT_INIT(dir);
 	error = dir->i_op->symlink(dir, dentry, oldname);
-	if (!error) {
+	if (!error)
 		fsnotify_create(dir, dentry->d_name.name);
-		security_inode_post_symlink(dir, dentry, oldname);
-	}
 	return error;
 }
 
@@ -2024,10 +2012,8 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 	DQUOT_INIT(dir);
 	error = dir->i_op->link(old_dentry, dir, new_dentry);
 	up(&old_dentry->d_inode->i_sem);
-	if (!error) {
+	if (!error)
 		fsnotify_create(dir, new_dentry->d_name.name);
-		security_inode_post_link(old_dentry, dir, new_dentry);
-	}
 	return error;
 }
 
@@ -2146,11 +2132,8 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 			d_rehash(new_dentry);
 		dput(new_dentry);
 	}
-	if (!error) {
+	if (!error)
 		d_move(old_dentry,new_dentry);
-		security_inode_post_rename(old_dir, old_dentry,
-					   new_dir, new_dentry);
-	}
 	return error;
 }
 
@@ -2176,7 +2159,6 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 		/* The following d_move() should become unconditional */
 		if (!(old_dir->i_sb->s_type->fs_flags & FS_ODD_RENAME))
 			d_move(old_dentry, new_dentry);
-		security_inode_post_rename(old_dir, old_dentry, new_dir, new_dentry);
 	}
 	if (target)
 		up(&target->i_sem);

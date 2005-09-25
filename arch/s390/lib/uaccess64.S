@@ -11,7 +11,7 @@
 
 #include <linux/errno.h>
 #include <asm/lowcore.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
         .text
         .align 4

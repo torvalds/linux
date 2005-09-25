@@ -268,6 +268,7 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
 	} else
 		put_device(&dev->sdev_gendev);
 
+	cmd->jiffies_at_alloc = jiffies;
 	return cmd;
 }				
 EXPORT_SYMBOL(scsi_get_command);
@@ -627,7 +628,7 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	spin_lock_irqsave(host->host_lock, flags);
 	scsi_cmd_get_serial(host, cmd); 
 
-	if (unlikely(test_bit(SHOST_CANCEL, &host->shost_state))) {
+	if (unlikely(host->shost_state == SHOST_DEL)) {
 		cmd->result = (DID_NO_CONNECT << 16);
 		scsi_done(cmd);
 	} else {
@@ -798,9 +799,23 @@ static void scsi_softirq(struct softirq_action *h)
 	while (!list_empty(&local_q)) {
 		struct scsi_cmnd *cmd = list_entry(local_q.next,
 						   struct scsi_cmnd, eh_entry);
+		/* The longest time any command should be outstanding is the
+		 * per command timeout multiplied by the number of retries.
+		 *
+		 * For a typical command, this is 2.5 minutes */
+		unsigned long wait_for 
+			= cmd->allowed * cmd->timeout_per_command;
 		list_del_init(&cmd->eh_entry);
 
 		disposition = scsi_decide_disposition(cmd);
+		if (disposition != SUCCESS &&
+		    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+			dev_printk(KERN_ERR, &cmd->device->sdev_gendev, 
+				   "timing out command, waited %lus\n",
+				   wait_for/HZ);
+			disposition = SUCCESS;
+		}
+			
 		scsi_log_completion(cmd, disposition);
 		switch (disposition) {
 		case SUCCESS:
@@ -1250,9 +1265,8 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 		list_for_each_safe(lh, lh_sf, &active_list) {
 			scmd = list_entry(lh, struct scsi_cmnd, eh_entry);
 			list_del_init(lh);
-			if (recovery) {
-				scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD);
-			} else {
+			if (recovery &&
+			    !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD)) {
 				scmd->result = (DID_ABORT << 16);
 				scsi_finish_command(scmd);
 			}

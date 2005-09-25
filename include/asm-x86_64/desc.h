@@ -8,6 +8,8 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/string.h>
+#include <linux/smp.h>
+
 #include <asm/segment.h>
 #include <asm/mmu.h>
 
@@ -191,7 +193,7 @@ static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 /*
  * load one particular LDT into the current CPU
  */
-extern inline void load_LDT_nolock (mm_context_t *pc, int cpu)
+static inline void load_LDT_nolock (mm_context_t *pc, int cpu)
 {
 	int count = pc->size;
 

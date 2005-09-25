@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/time.h>
 #include <linux/types.h>
+#include <linux/tfrc.h>
 
 #define TFRC_MIN_PACKET_SIZE	   16
 #define TFRC_STD_PACKET_SIZE	  256
@@ -47,6 +48,8 @@
 
 /* Two seconds as per CCID3 spec */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
+
+#define TFRC_INITIAL_IPI	   (USEC_PER_SEC / 4)
 
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */
 #define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
@@ -91,12 +94,15 @@ struct ccid3_options_received {
   * @ccid3hctx_hist - Packet history
   */
 struct ccid3_hc_tx_sock {
-	u32				ccid3hctx_x;
-	u32				ccid3hctx_x_recv;
-	u32				ccid3hctx_x_calc;
+	struct tfrc_tx_info		ccid3hctx_tfrc;
+#define ccid3hctx_x			ccid3hctx_tfrc.tfrctx_x
+#define ccid3hctx_x_recv		ccid3hctx_tfrc.tfrctx_x_recv
+#define ccid3hctx_x_calc		ccid3hctx_tfrc.tfrctx_x_calc
+#define ccid3hctx_rtt			ccid3hctx_tfrc.tfrctx_rtt
+#define ccid3hctx_p			ccid3hctx_tfrc.tfrctx_p
+#define ccid3hctx_t_rto			ccid3hctx_tfrc.tfrctx_rto
+#define ccid3hctx_t_ipi			ccid3hctx_tfrc.tfrctx_ipi
 	u16				ccid3hctx_s;
-	u32				ccid3hctx_rtt;
-	u32				ccid3hctx_p;
   	u8				ccid3hctx_state;
 	u8				ccid3hctx_last_win_count;
 	u8				ccid3hctx_idle;
@@ -104,19 +110,19 @@ struct ccid3_hc_tx_sock {
 	struct timer_list		ccid3hctx_no_feedback_timer;
 	struct timeval			ccid3hctx_t_ld;
 	struct timeval			ccid3hctx_t_nom;
-	u32				ccid3hctx_t_rto;
-	u32				ccid3hctx_t_ipi;
 	u32				ccid3hctx_delta;
 	struct list_head		ccid3hctx_hist;
 	struct ccid3_options_received	ccid3hctx_options_received;
 };
 
 struct ccid3_hc_rx_sock {
+	struct tfrc_rx_info	ccid3hcrx_tfrc;
+#define ccid3hcrx_x_recv	ccid3hcrx_tfrc.tfrcrx_x_recv
+#define ccid3hcrx_rtt		ccid3hcrx_tfrc.tfrcrx_rtt
+#define ccid3hcrx_p		ccid3hcrx_tfrc.tfrcrx_p
   	u64			ccid3hcrx_seqno_last_counter:48,
 				ccid3hcrx_state:8,
 				ccid3hcrx_last_counter:4;
-	unsigned long		ccid3hcrx_rtt;
-  	u32			ccid3hcrx_p;
   	u32			ccid3hcrx_bytes_recv;
   	struct timeval		ccid3hcrx_tstamp_last_feedback;
   	struct timeval		ccid3hcrx_tstamp_last_ack;
@@ -125,13 +131,16 @@ struct ccid3_hc_rx_sock {
   	u16			ccid3hcrx_s;
   	u32			ccid3hcrx_pinv;
   	u32			ccid3hcrx_elapsed_time;
-  	u32			ccid3hcrx_x_recv;
 };
 
-#define ccid3_hc_tx_field(s,field) (s->dccps_hc_tx_ccid_private == NULL ? 0 : \
-    ((struct ccid3_hc_tx_sock *)s->dccps_hc_tx_ccid_private)->ccid3hctx_##field)
+static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
+{
+    return dccp_sk(sk)->dccps_hc_tx_ccid_private;
+}
 
-#define ccid3_hc_rx_field(s,field) (s->dccps_hc_rx_ccid_private == NULL ? 0 : \
-    ((struct ccid3_hc_rx_sock *)s->dccps_hc_rx_ccid_private)->ccid3hcrx_##field)
+static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
+{
+    return dccp_sk(sk)->dccps_hc_rx_ccid_private;
+}
 
 #endif /* _DCCP_CCID3_H_ */

@@ -709,6 +709,12 @@ static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
 		sk_stream_mem_schedule(sk, skb->truesize, 1);
 }
 
+static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
+{
+	return size <= sk->sk_forward_alloc ||
+	       sk_stream_mem_schedule(sk, size, 0);
+}
+
 /* Used by processes to "lock" a socket state, so that
  * interrupts and bottom half handlers won't change it
  * from under us. It essentially blocks any incoming
@@ -1203,8 +1209,7 @@ static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 	skb = alloc_skb_fclone(size + hdr_len, gfp);
 	if (skb) {
 		skb->truesize += mem;
-		if (sk->sk_forward_alloc >= (int)skb->truesize ||
-		    sk_stream_mem_schedule(sk, skb->truesize, 0)) {
+		if (sk_stream_wmem_schedule(sk, skb->truesize)) {
 			skb_reserve(skb, hdr_len);
 			return skb;
 		}
@@ -1227,10 +1232,8 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 {
 	struct page *page = NULL;
 
-	if (sk->sk_forward_alloc >= (int)PAGE_SIZE ||
-	    sk_stream_mem_schedule(sk, PAGE_SIZE, 0))
-		page = alloc_pages(sk->sk_allocation, 0);
-	else {
+	page = alloc_pages(sk->sk_allocation, 0);
+	if (!page) {
 		sk->sk_prot->enter_memory_pressure();
 		sk_stream_moderate_sndbuf(sk);
 	}
@@ -1374,8 +1377,9 @@ extern void sk_init(void);
 
 #ifdef CONFIG_SYSCTL
 extern struct ctl_table core_table[];
-extern int sysctl_optmem_max;
 #endif
+
+extern int sysctl_optmem_max;
 
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;

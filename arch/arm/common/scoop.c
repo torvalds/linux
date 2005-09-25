@@ -17,6 +17,12 @@
 
 #define SCOOP_REG(d,adr) (*(volatile unsigned short*)(d +(adr)))
 
+/* PCMCIA to Scoop linkage structures for pxa2xx_sharpsl.c
+   There is no easy way to link multiple scoop devices into one
+   single entity for the pxa2xx_pcmcia device */
+int scoop_num;
+struct scoop_pcmcia_dev *scoop_devs;
+
 struct  scoop_dev {
 	void  *base;
 	spinlock_t scoop_lock;
@@ -85,7 +91,7 @@ EXPORT_SYMBOL(read_scoop_reg);
 EXPORT_SYMBOL(write_scoop_reg);
 
 #ifdef CONFIG_PM
-static int scoop_suspend(struct device *dev, uint32_t state, uint32_t level)
+static int scoop_suspend(struct device *dev, pm_message_t state, uint32_t level)
 {
 	if (level == SUSPEND_POWER_DOWN) {
 		struct scoop_dev *sdev = dev_get_drvdata(dev);

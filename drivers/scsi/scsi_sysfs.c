@@ -48,6 +48,32 @@ const char *scsi_device_state_name(enum scsi_device_state state)
 	return name;
 }
 
+static struct {
+	enum scsi_host_state	value;
+	char			*name;
+} shost_states[] = {
+	{ SHOST_CREATED, "created" },
+	{ SHOST_RUNNING, "running" },
+	{ SHOST_CANCEL, "cancel" },
+	{ SHOST_DEL, "deleted" },
+	{ SHOST_RECOVERY, "recovery" },
+	{ SHOST_CANCEL_RECOVERY, "cancel/recovery" },
+	{ SHOST_DEL_RECOVERY, "deleted/recovery", },
+};
+const char *scsi_host_state_name(enum scsi_host_state state)
+{
+	int i;
+	char *name = NULL;
+
+	for (i = 0; i < sizeof(shost_states)/sizeof(shost_states[0]); i++) {
+		if (shost_states[i].value == state) {
+			name = shost_states[i].name;
+			break;
+		}
+	}
+	return name;
+}
+
 static int check_set(unsigned int *val, char *src)
 {
 	char *last;
@@ -124,6 +150,43 @@ static ssize_t store_scan(struct class_device *class_dev, const char *buf,
 };
 static CLASS_DEVICE_ATTR(scan, S_IWUSR, NULL, store_scan);
 
+static ssize_t
+store_shost_state(struct class_device *class_dev, const char *buf, size_t count)
+{
+	int i;
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+	enum scsi_host_state state = 0;
+
+	for (i = 0; i < sizeof(shost_states)/sizeof(shost_states[0]); i++) {
+		const int len = strlen(shost_states[i].name);
+		if (strncmp(shost_states[i].name, buf, len) == 0 &&
+		   buf[len] == '\n') {
+			state = shost_states[i].value;
+			break;
+		}
+	}
+	if (!state)
+		return -EINVAL;
+
+	if (scsi_host_set_state(shost, state))
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t
+show_shost_state(struct class_device *class_dev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+	const char *name = scsi_host_state_name(shost->shost_state);
+
+	if (!name)
+		return -EINVAL;
+
+	return snprintf(buf, 20, "%s\n", name);
+}
+
+static CLASS_DEVICE_ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost_state);
+
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
@@ -139,6 +202,7 @@ static struct class_device_attribute *scsi_sysfs_shost_attrs[] = {
 	&class_device_attr_unchecked_isa_dma,
 	&class_device_attr_proc_name,
 	&class_device_attr_scan,
+	&class_device_attr_state,
 	NULL
 };
 
@@ -591,7 +655,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 			error = attr_add(&sdev->sdev_gendev,
 					sdev->host->hostt->sdev_attrs[i]);
 			if (error) {
-				scsi_remove_device(sdev);
+				__scsi_remove_device(sdev);
 				goto out;
 			}
 		}
@@ -605,7 +669,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 							scsi_sysfs_sdev_attrs[i]);
 			error = device_create_file(&sdev->sdev_gendev, attr);
 			if (error) {
-				scsi_remove_device(sdev);
+				__scsi_remove_device(sdev);
 				goto out;
 			}
 		}
@@ -625,6 +689,20 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	return error;
 }
 
+void __scsi_remove_device(struct scsi_device *sdev)
+{
+	if (scsi_device_set_state(sdev, SDEV_CANCEL) != 0)
+		return;
+
+	class_device_unregister(&sdev->sdev_classdev);
+	device_del(&sdev->sdev_gendev);
+	scsi_device_set_state(sdev, SDEV_DEL);
+	if (sdev->host->hostt->slave_destroy)
+		sdev->host->hostt->slave_destroy(sdev);
+	transport_unregister_device(&sdev->sdev_gendev);
+	put_device(&sdev->sdev_gendev);
+}
+
 /**
  * scsi_remove_device - unregister a device from the scsi bus
  * @sdev:	scsi_device to unregister
@@ -634,17 +712,7 @@ void scsi_remove_device(struct scsi_device *sdev)
 	struct Scsi_Host *shost = sdev->host;
 
 	down(&shost->scan_mutex);
-	if (scsi_device_set_state(sdev, SDEV_CANCEL) != 0)
-		goto out;
-
-	class_device_unregister(&sdev->sdev_classdev);
-	device_del(&sdev->sdev_gendev);
-	scsi_device_set_state(sdev, SDEV_DEL);
-	if (sdev->host->hostt->slave_destroy)
-		sdev->host->hostt->slave_destroy(sdev);
-	transport_unregister_device(&sdev->sdev_gendev);
-	put_device(&sdev->sdev_gendev);
-out:
+	__scsi_remove_device(sdev);
 	up(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_remove_device);
@@ -653,17 +721,20 @@ void __scsi_remove_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
-	struct scsi_device *sdev, *tmp;
+	struct scsi_device *sdev;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	starget->reap_ref++;
-	list_for_each_entry_safe(sdev, tmp, &shost->__devices, siblings) {
+ restart:
+	list_for_each_entry(sdev, &shost->__devices, siblings) {
 		if (sdev->channel != starget->channel ||
-		    sdev->id != starget->id)
+		    sdev->id != starget->id ||
+		    sdev->sdev_state == SDEV_DEL)
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		scsi_remove_device(sdev);
 		spin_lock_irqsave(shost->host_lock, flags);
+		goto restart;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	scsi_target_reap(starget);

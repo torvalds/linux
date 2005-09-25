@@ -14,8 +14,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.2.20"
-#define DRV_MODULE_RELDATE	"August 22, 2005"
+#define DRV_MODULE_VERSION	"1.2.21"
+#define DRV_MODULE_RELDATE	"September 7, 2005"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1533,6 +1533,7 @@ bnx2_msi(int irq, void *dev_instance, struct pt_regs *regs)
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = dev->priv;
 
+	prefetch(bp->status_blk);
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 		BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
@@ -1558,7 +1559,7 @@ bnx2_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	 * When using MSI, the MSI message will always complete after
 	 * the status block write.
 	 */
-	if ((bp->status_blk->status_idx == bp->last_status_idx) ||
+	if ((bp->status_blk->status_idx == bp->last_status_idx) &&
 	    (REG_RD(bp, BNX2_PCICFG_MISC_STATUS) &
 	     BNX2_PCICFG_MISC_STATUS_INTA_VALUE))
 		return IRQ_NONE;
@@ -2004,14 +2005,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 }
 
 static int
-bnx2_set_power_state(struct bnx2 *bp, int state)
+bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 {
 	u16 pmcsr;
 
 	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmcsr);
 
 	switch (state) {
-	case 0: {
+	case PCI_D0: {
 		u32 val;
 
 		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL,
@@ -2032,7 +2033,7 @@ bnx2_set_power_state(struct bnx2 *bp, int state)
 		REG_WR(bp, BNX2_RPM_CONFIG, val);
 		break;
 	}
-	case 3: {
+	case PCI_D3hot: {
 		int i;
 		u32 val, wol_msg;
 
@@ -3886,7 +3887,7 @@ bnx2_open(struct net_device *dev)
 	struct bnx2 *bp = dev->priv;
 	int rc;
 
-	bnx2_set_power_state(bp, 0);
+	bnx2_set_power_state(bp, PCI_D0);
 	bnx2_disable_int(bp);
 
 	rc = bnx2_alloc_mem(bp);
@@ -4197,7 +4198,7 @@ bnx2_close(struct net_device *dev)
 	bnx2_free_mem(bp);
 	bp->link_up = 0;
 	netif_carrier_off(bp->dev);
-	bnx2_set_power_state(bp, 3);
+	bnx2_set_power_state(bp, PCI_D3hot);
 	return 0;
 }
 
@@ -5014,6 +5015,7 @@ static struct ethtool_ops bnx2_ethtool_ops = {
 	.phys_id		= bnx2_phys_id,
 	.get_stats_count	= bnx2_get_stats_count,
 	.get_ethtool_stats	= bnx2_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 /* Called with rtnl_lock */
@@ -5203,7 +5205,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			       BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
 			       BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP);
 
-	bnx2_set_power_state(bp, 0);
+	bnx2_set_power_state(bp, PCI_D0);
 
 	bp->chip_id = REG_RD(bp, BNX2_MISC_ID);
 
@@ -5441,6 +5443,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	memcpy(dev->dev_addr, bp->mac_addr, 6);
+	memcpy(dev->perm_addr, bp->mac_addr, 6);
 	bp->name = board_info[ent->driver_data].name,
 	printk(KERN_INFO "%s: %s (%c%d) PCI%s %s %dMHz found at mem %lx, "
 		"IRQ %d, ",
@@ -5495,7 +5498,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 }
 
 static int
-bnx2_suspend(struct pci_dev *pdev, u32 state)
+bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = dev->priv;
@@ -5513,7 +5516,7 @@ bnx2_suspend(struct pci_dev *pdev, u32 state)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 	bnx2_reset_chip(bp, reset_code);
 	bnx2_free_skbs(bp);
-	bnx2_set_power_state(bp, state);
+	bnx2_set_power_state(bp, pci_choose_state(pdev, state));
 	return 0;
 }
 
@@ -5526,7 +5529,7 @@ bnx2_resume(struct pci_dev *pdev)
 	if (!netif_running(dev))
 		return 0;
 
-	bnx2_set_power_state(bp, 0);
+	bnx2_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 	bnx2_init_nic(bp);
 	bnx2_netif_start(bp);

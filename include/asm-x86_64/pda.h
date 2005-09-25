@@ -10,10 +10,8 @@
 struct x8664_pda {
 	struct task_struct *pcurrent;	/* Current process */
 	unsigned long data_offset;	/* Per cpu data offset from linker address */
-	struct x8664_pda *me;	    /* Pointer to itself */  
 	unsigned long kernelstack;  /* top of kernel stack for current */ 
 	unsigned long oldrsp; 	    /* user rsp for system call */
-	unsigned long irqrsp;	    /* Old rsp for interrupts. */ 
         int irqcount;		    /* Irq nesting counter. Starts with -1 */  	
 	int cpunumber;		    /* Logical CPU number */
 	char *irqstackptr;	/* top of irqstack */
@@ -22,7 +20,7 @@ struct x8664_pda {
 	struct mm_struct *active_mm;
 	int mmu_state;     
 	unsigned apic_timer_irqs;
-} ____cacheline_aligned;
+} ____cacheline_aligned_in_smp;
 
 
 #define IRQSTACK_ORDER 2
@@ -42,13 +40,14 @@ extern void __bad_pda_field(void);
 #define pda_offset(field) offsetof(struct x8664_pda, field)
 
 #define pda_to_op(op,field,val) do { \
+	typedef typeof_field(struct x8664_pda, field) T__; \
        switch (sizeof_field(struct x8664_pda, field)) { 		\
 case 2: \
-asm volatile(op "w %0,%%gs:%P1"::"r" (val),"i"(pda_offset(field)):"memory"); break; \
+asm volatile(op "w %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
 case 4: \
-asm volatile(op "l %0,%%gs:%P1"::"r" (val),"i"(pda_offset(field)):"memory"); break; \
+asm volatile(op "l %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
 case 8: \
-asm volatile(op "q %0,%%gs:%P1"::"r" (val),"i"(pda_offset(field)):"memory"); break; \
+asm volatile(op "q %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
        default: __bad_pda_field(); 					\
        } \
        } while (0)
@@ -58,7 +57,7 @@ asm volatile(op "q %0,%%gs:%P1"::"r" (val),"i"(pda_offset(field)):"memory"); bre
  * Unfortunately removing them causes all hell to break lose currently.
  */
 #define pda_from_op(op,field) ({ \
-       typedef typeof_field(struct x8664_pda, field) T__; T__ ret__; \
+       typeof_field(struct x8664_pda, field) ret__; \
        switch (sizeof_field(struct x8664_pda, field)) { 		\
 case 2: \
 asm volatile(op "w %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
@@ -75,6 +74,7 @@ asm volatile(op "q %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); b
 #define write_pda(field,val) pda_to_op("mov",field,val)
 #define add_pda(field,val) pda_to_op("add",field,val)
 #define sub_pda(field,val) pda_to_op("sub",field,val)
+#define or_pda(field,val) pda_to_op("or",field,val)
 
 #endif
 

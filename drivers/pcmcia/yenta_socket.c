@@ -72,6 +72,7 @@ static inline void cb_writel(struct yenta_socket *socket, unsigned reg, u32 val)
 {
 	debug("%p %04x %08x\n", socket, reg, val);
 	writel(val, socket->base + reg);
+	readl(socket->base + reg); /* avoid problems with PCI write posting */
 }
 
 static inline u8 config_readb(struct yenta_socket *socket, unsigned offset)
@@ -136,6 +137,7 @@ static inline void exca_writeb(struct yenta_socket *socket, unsigned reg, u8 val
 {
 	debug("%p %04x %02x\n", socket, reg, val);
 	writeb(val, socket->base + 0x800 + reg);
+	readb(socket->base + 0x800 + reg); /* PCI write posting... */
 }
 
 static void exca_writew(struct yenta_socket *socket, unsigned reg, u16 val)
@@ -143,6 +145,10 @@ static void exca_writew(struct yenta_socket *socket, unsigned reg, u16 val)
 	debug("%p %04x %04x\n", socket, reg, val);
 	writeb(val, socket->base + 0x800 + reg);
 	writeb(val >> 8, socket->base + 0x800 + reg + 1);
+
+	/* PCI write posting... */
+	readb(socket->base + 0x800 + reg);
+	readb(socket->base + 0x800 + reg + 1);
 }
 
 /*
@@ -184,22 +190,52 @@ static int yenta_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	return 0;
 }
 
-static int yenta_Vcc_power(u32 control)
+static void yenta_get_power(struct yenta_socket *socket, socket_state_t *state)
 {
-	switch (control & CB_SC_VCC_MASK) {
-	case CB_SC_VCC_5V: return 50;
-	case CB_SC_VCC_3V: return 33;
-	default: return 0;
-	}
-}
+	if (!(cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) &&
+	    (socket->flags & YENTA_16BIT_POWER_EXCA)) {
+		u8 reg, vcc, vpp;
 
-static int yenta_Vpp_power(u32 control)
-{
-	switch (control & CB_SC_VPP_MASK) {
-	case CB_SC_VPP_12V: return 120;
-	case CB_SC_VPP_5V: return 50;
-	case CB_SC_VPP_3V: return 33;
-	default: return 0;
+		reg = exca_readb(socket, I365_POWER);
+		vcc = reg & I365_VCC_MASK;
+		vpp = reg & I365_VPP1_MASK;
+		state->Vcc = state->Vpp = 0;
+
+		if (socket->flags & YENTA_16BIT_POWER_DF) {
+			if (vcc == I365_VCC_3V)
+				state->Vcc = 33;
+			if (vcc == I365_VCC_5V)
+				state->Vcc = 50;
+			if (vpp == I365_VPP1_5V)
+				state->Vpp = state->Vcc;
+			if (vpp == I365_VPP1_12V)
+				state->Vpp = 120;
+		} else {
+			if (reg & I365_VCC_5V) {
+				state->Vcc = 50;
+				if (vpp == I365_VPP1_5V)
+					state->Vpp = 50;
+				if (vpp == I365_VPP1_12V)
+					state->Vpp = 120;
+			}
+		}
+	} else {
+		u32 control;
+
+		control = cb_readl(socket, CB_SOCKET_CONTROL);
+
+		switch (control & CB_SC_VCC_MASK) {
+		case CB_SC_VCC_5V: state->Vcc = 50; break;
+		case CB_SC_VCC_3V: state->Vcc = 33; break;
+		default: state->Vcc = 0;
+		}
+
+		switch (control & CB_SC_VPP_MASK) {
+		case CB_SC_VPP_12V: state->Vpp = 120; break;
+		case CB_SC_VPP_5V: state->Vpp = 50; break;
+		case CB_SC_VPP_3V: state->Vpp = 33; break;
+		default: state->Vpp = 0;
+		}
 	}
 }
 
@@ -211,8 +247,7 @@ static int yenta_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
 
 	control = cb_readl(socket, CB_SOCKET_CONTROL);
 
-	state->Vcc = yenta_Vcc_power(control);
-	state->Vpp = yenta_Vpp_power(control);
+	yenta_get_power(socket, state);
 	state->io_irq = socket->io_irq;
 
 	if (cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) {
@@ -246,19 +281,54 @@ static int yenta_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
 
 static void yenta_set_power(struct yenta_socket *socket, socket_state_t *state)
 {
-	u32 reg = 0;	/* CB_SC_STPCLK? */
-	switch (state->Vcc) {
-	case 33: reg = CB_SC_VCC_3V; break;
-	case 50: reg = CB_SC_VCC_5V; break;
-	default: reg = 0; break;
+	/* some birdges require to use the ExCA registers to power 16bit cards */
+	if (!(cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) &&
+	    (socket->flags & YENTA_16BIT_POWER_EXCA)) {
+		u8 reg, old;
+		reg = old = exca_readb(socket, I365_POWER);
+		reg &= ~(I365_VCC_MASK | I365_VPP1_MASK | I365_VPP2_MASK);
+
+		/* i82365SL-DF style */
+		if (socket->flags & YENTA_16BIT_POWER_DF) {
+			switch (state->Vcc) {
+			case 33: reg |= I365_VCC_3V; break;
+			case 50: reg |= I365_VCC_5V; break;
+			default: reg = 0; break;
+			}
+			switch (state->Vpp) {
+			case 33:
+			case 50: reg |= I365_VPP1_5V; break;
+			case 120: reg |= I365_VPP1_12V; break;
+			}
+		} else {
+			/* i82365SL-B style */
+			switch (state->Vcc) {
+			case 50: reg |= I365_VCC_5V; break;
+			default: reg = 0; break;
+			}
+			switch (state->Vpp) {
+			case 50: reg |= I365_VPP1_5V | I365_VPP2_5V; break;
+			case 120: reg |= I365_VPP1_12V | I365_VPP2_12V; break;
+			}
+		}
+
+		if (reg != old)
+			exca_writeb(socket, I365_POWER, reg);
+	} else {
+		u32 reg = 0;	/* CB_SC_STPCLK? */
+		switch (state->Vcc) {
+		case 33: reg = CB_SC_VCC_3V; break;
+		case 50: reg = CB_SC_VCC_5V; break;
+		default: reg = 0; break;
+		}
+		switch (state->Vpp) {
+		case 33:  reg |= CB_SC_VPP_3V; break;
+		case 50:  reg |= CB_SC_VPP_5V; break;
+		case 120: reg |= CB_SC_VPP_12V; break;
+		}
+		if (reg != cb_readl(socket, CB_SOCKET_CONTROL))
+			cb_writel(socket, CB_SOCKET_CONTROL, reg);
 	}
-	switch (state->Vpp) {
-	case 33:  reg |= CB_SC_VPP_3V; break;
-	case 50:  reg |= CB_SC_VPP_5V; break;
-	case 120: reg |= CB_SC_VPP_12V; break;
-	}
-	if (reg != cb_readl(socket, CB_SOCKET_CONTROL))
-		cb_writel(socket, CB_SOCKET_CONTROL, reg);
 }
 
 static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
@@ -603,7 +673,7 @@ static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 	return 0;
 }
 
-static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
+static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
 	struct resource *root, *res;
 	struct pci_bus_region region;
@@ -612,7 +682,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
 	/* Already allocated? */
 	if (res->parent)
-		return;
+		return 0;
 
 	/* The granularity of the memory limit is 4kB, on IO it's 4 bytes */
 	mask = ~0xfff;
@@ -628,7 +698,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 		pcibios_bus_to_resource(socket->dev, res, &region);
 		root = pci_find_parent_resource(socket->dev, res);
 		if (root && (request_resource(root, res) == 0))
-			return;
+			return 0;
 		printk(KERN_INFO "yenta %s: Preassigned resource %d busy or not available, reconfiguring...\n",
 				pci_name(socket->dev), nr);
 	}
@@ -636,35 +706,27 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	if (type & IORESOURCE_IO) {
 		if ((yenta_search_res(socket, res, BRIDGE_IO_MAX)) ||
 		    (yenta_search_res(socket, res, BRIDGE_IO_ACC)) ||
-		    (yenta_search_res(socket, res, BRIDGE_IO_MIN))) {
-			config_writel(socket, addr_start, res->start);
-			config_writel(socket, addr_end, res->end);
-			return;
-		}
+		    (yenta_search_res(socket, res, BRIDGE_IO_MIN)))
+			return 1;
 	} else {
 		if (type & IORESOURCE_PREFETCH) {
 			if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
 			    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
-			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
-				config_writel(socket, addr_start, res->start);
-				config_writel(socket, addr_end, res->end);
-				return;
-			}
+			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN)))
+				return 1;
 			/* Approximating prefetchable by non-prefetchable */
 			res->flags = IORESOURCE_MEM;
 		}
 		if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
 		    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
-		    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
-			config_writel(socket, addr_start, res->start);
-			config_writel(socket, addr_end, res->end);
-			return;
-		}
+		    (yenta_search_res(socket, res, BRIDGE_MEM_MIN)))
+			return 1;
 	}
 
 	printk(KERN_INFO "yenta %s: no resource of type %x available, trying to continue...\n",
 	       pci_name(socket->dev), type);
 	res->start = res->end = res->flags = 0;
+	return 0;
 }
 
 /*
@@ -672,14 +734,17 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
  */
 static void yenta_allocate_resources(struct yenta_socket *socket)
 {
-	yenta_allocate_res(socket, 0, IORESOURCE_IO,
+	int program = 0;
+	program += yenta_allocate_res(socket, 0, IORESOURCE_IO,
 			   PCI_CB_IO_BASE_0, PCI_CB_IO_LIMIT_0);
-	yenta_allocate_res(socket, 1, IORESOURCE_IO,
+	program += yenta_allocate_res(socket, 1, IORESOURCE_IO,
 			   PCI_CB_IO_BASE_1, PCI_CB_IO_LIMIT_1);
-	yenta_allocate_res(socket, 2, IORESOURCE_MEM|IORESOURCE_PREFETCH,
+	program += yenta_allocate_res(socket, 2, IORESOURCE_MEM|IORESOURCE_PREFETCH,
 			   PCI_CB_MEMORY_BASE_0, PCI_CB_MEMORY_LIMIT_0);
-	yenta_allocate_res(socket, 3, IORESOURCE_MEM,
+	program += yenta_allocate_res(socket, 3, IORESOURCE_MEM,
 			   PCI_CB_MEMORY_BASE_1, PCI_CB_MEMORY_LIMIT_1);
+	if (program)
+		pci_setup_cardbus(socket->dev->subordinate);
 }
 
 
@@ -694,7 +759,7 @@ static void yenta_free_resources(struct yenta_socket *socket)
 		res = socket->dev->resource + PCI_BRIDGE_RESOURCES + i;
 		if (res->start != 0 && res->end != 0)
 			release_resource(res);
-		res->start = res->end = 0;
+		res->start = res->end = res->flags = 0;
 	}
 }
 
@@ -751,6 +816,7 @@ enum {
 	CARDBUS_TYPE_TI12XX,
 	CARDBUS_TYPE_TI1250,
 	CARDBUS_TYPE_RICOH,
+	CARDBUS_TYPE_TOPIC95,
 	CARDBUS_TYPE_TOPIC97,
 	CARDBUS_TYPE_O2MICRO,
 };
@@ -788,6 +854,9 @@ static struct cardbus_type cardbus_type[] = {
 		.override	= ricoh_override,
 		.save_state	= ricoh_save_state,
 		.restore_state	= ricoh_restore_state,
+	},
+	[CARDBUS_TYPE_TOPIC95]	= {
+		.override	= topic95_override,
 	},
 	[CARDBUS_TYPE_TOPIC97]	= {
 		.override	= topic97_override,
@@ -976,7 +1045,18 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 {
 	struct yenta_socket *socket;
 	int ret;
-	
+
+	/*
+	 * If we failed to assign proper bus numbers for this cardbus
+	 * controller during PCI probe, its subordinate pci_bus is NULL.
+	 * Bail out if so.
+	 */
+	if (!dev->subordinate) {
+		printk(KERN_ERR "Yenta: no bus associated with %s! "
+			"(try 'pci=assign-busses')\n", pci_name(dev));
+		return -ENODEV;
+	}
+
 	socket = kmalloc(sizeof(struct yenta_socket), GFP_KERNEL);
 	if (!socket)
 		return -ENOMEM;
@@ -1196,6 +1276,7 @@ static struct pci_device_id yenta_table [] = {
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C478, RICOH),
 
+	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95, TOPIC95),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC97, TOPIC97),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC100, TOPIC97),
 

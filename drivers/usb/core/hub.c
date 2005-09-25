@@ -435,6 +435,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 static void hub_power_on(struct usb_hub *hub)
 {
 	int port1;
+	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
 
 	/* if hub supports power switching, enable power on each port */
 	if ((hub->descriptor->wHubCharacteristics & HUB_CHAR_LPSM) < 2) {
@@ -444,8 +445,8 @@ static void hub_power_on(struct usb_hub *hub)
 					USB_PORT_FEAT_POWER);
 	}
 
-	/* Wait for power to be enabled */
-	msleep(hub->descriptor->bPwrOn2PwrGood * 2);
+	/* Wait at least 100 msec for power to become stable */
+	msleep(max(pgood_delay, (unsigned) 100));
 }
 
 static void hub_quiesce(struct usb_hub *hub)
@@ -489,6 +490,23 @@ static int hub_hub_status(struct usb_hub *hub,
 		*change = le16_to_cpu(hub->status->hub.wHubChange); 
 		ret = 0;
 	}
+	return ret;
+}
+
+static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
+{
+	struct usb_device *hdev = hub->hdev;
+	int ret;
+
+	if (hdev->children[port1-1] && set_state) {
+		usb_set_device_state(hdev->children[port1-1],
+				USB_STATE_NOTATTACHED);
+	}
+	ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
+	if (ret)
+		dev_err(hub->intfdev, "cannot disable port %d (err = %d)\n",
+			port1, ret);
+
 	return ret;
 }
 
@@ -610,19 +628,33 @@ static int hub_configure(struct usb_hub *hub,
 			break;
 	}
 
+	/* Note 8 FS bit times == (8 bits / 12000000 bps) ~= 666ns */
 	switch (hub->descriptor->wHubCharacteristics & HUB_CHAR_TTTT) {
-		case 0x00:
-			if (hdev->descriptor.bDeviceProtocol != 0)
-				dev_dbg(hub_dev, "TT requires at most 8 FS bit times\n");
+		case HUB_TTTT_8_BITS:
+			if (hdev->descriptor.bDeviceProtocol != 0) {
+				hub->tt.think_time = 666;
+				dev_dbg(hub_dev, "TT requires at most %d "
+						"FS bit times (%d ns)\n",
+					8, hub->tt.think_time);
+			}
 			break;
-		case 0x20:
-			dev_dbg(hub_dev, "TT requires at most 16 FS bit times\n");
+		case HUB_TTTT_16_BITS:
+			hub->tt.think_time = 666 * 2;
+			dev_dbg(hub_dev, "TT requires at most %d "
+					"FS bit times (%d ns)\n",
+				16, hub->tt.think_time);
 			break;
-		case 0x40:
-			dev_dbg(hub_dev, "TT requires at most 24 FS bit times\n");
+		case HUB_TTTT_24_BITS:
+			hub->tt.think_time = 666 * 3;
+			dev_dbg(hub_dev, "TT requires at most %d "
+					"FS bit times (%d ns)\n",
+				24, hub->tt.think_time);
 			break;
-		case 0x60:
-			dev_dbg(hub_dev, "TT requires at most 32 FS bit times\n");
+		case HUB_TTTT_32_BITS:
+			hub->tt.think_time = 666 * 4;
+			dev_dbg(hub_dev, "TT requires at most %d "
+					"FS bit times (%d ns)\n",
+				32, hub->tt.think_time);
 			break;
 	}
 
@@ -712,19 +744,35 @@ fail:
 
 static unsigned highspeed_hubs;
 
+/* Called after the hub driver is unbound from a hub with children */
+static void hub_remove_children_work(void *__hub)
+{
+	struct usb_hub		*hub = __hub;
+	struct usb_device	*hdev = hub->hdev;
+	int			i;
+
+	kfree(hub);
+
+	usb_lock_device(hdev);
+	for (i = 0; i < hdev->maxchild; ++i) {
+		if (hdev->children[i])
+			usb_disconnect(&hdev->children[i]);
+	}
+	usb_unlock_device(hdev);
+	usb_put_dev(hdev);
+}
+
 static void hub_disconnect(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata (intf);
 	struct usb_device *hdev;
+	int n, port1;
 
-	if (!hub)
-		return;
+	usb_set_intfdata (intf, NULL);
 	hdev = hub->hdev;
 
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
-
-	usb_set_intfdata (intf, NULL);
 
 	hub_quiesce(hub);
 	usb_free_urb(hub->urb);
@@ -746,8 +794,27 @@ static void hub_disconnect(struct usb_interface *intf)
 		hub->buffer = NULL;
 	}
 
-	/* Free the memory */
-	kfree(hub);
+	/* If there are any children then this is an unbind only, not a
+	 * physical disconnection.  The active ports must be disabled
+	 * and later on we must call usb_disconnect().  We can't call
+	 * it now because we may not hold the hub's device lock.
+	 */
+	n = 0;
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		if (hdev->children[port1 - 1]) {
+			++n;
+			hub_port_disable(hub, port1, 1);
+		}
+	}
+
+	if (n == 0)
+		kfree(hub);
+	else {
+		/* Reuse the hub->leds work_struct for our own purposes */
+		INIT_WORK(&hub->leds, hub_remove_children_work, hub);
+		schedule_work(&hub->leds);
+		usb_get_dev(hdev);
+	}
 }
 
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1051,6 +1118,7 @@ void usb_disconnect(struct usb_device **pdev)
 	dev_dbg (&udev->dev, "unregistering device\n");
 	release_address(udev);
 	usbfs_remove_device(udev);
+	usbdev_remove(udev);
 	usb_remove_sysfs_dev_files(udev);
 
 	/* Avoid races with recursively_mark_NOTATTACHED() */
@@ -1290,6 +1358,7 @@ int usb_new_device(struct usb_device *udev)
 	/* USB device state == configured ... usable */
 
 	/* add a /proc/bus/usb entry */
+	usbdev_add(udev);
 	usbfs_add_device(udev);
 	return 0;
 
@@ -1392,7 +1461,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 					port1, status);
 		else {
 			status = hub_port_wait_reset(hub, port1, udev, delay);
-			if (status)
+			if (status && status != -ENOTCONN)
 				dev_dbg(hub->intfdev,
 						"port_wait_reset: err = %d\n",
 						status);
@@ -1401,8 +1470,8 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		/* return on disconnect or reset */
 		switch (status) {
 		case 0:
-			/* TRSTRCY = 10 ms */
-			msleep(10);
+			/* TRSTRCY = 10 ms; plus some extra */
+			msleep(10 + 40);
 			/* FALL THROUGH */
 		case -ENOTCONN:
 		case -ENODEV:
@@ -1426,23 +1495,6 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		port1);
 
 	return status;
-}
-
-static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
-{
-	struct usb_device *hdev = hub->hdev;
-	int ret;
-
-	if (hdev->children[port1-1] && set_state) {
-		usb_set_device_state(hdev->children[port1-1],
-				USB_STATE_NOTATTACHED);
-	}
-	ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
-	if (ret)
-		dev_err(hub->intfdev, "cannot disable port %d (err = %d)\n",
-			port1, ret);
-
-	return ret;
 }
 
 /*
@@ -1570,7 +1622,7 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (state <= intf->dev.power.power_state)
+			if (state.event <= intf->dev.power.power_state.event)
 				continue;
 			if (!intf->dev.driver)
 				continue;
@@ -1578,11 +1630,11 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 
 			if (driver->suspend) {
 				status = driver->suspend(intf, state);
-				if (intf->dev.power.power_state != state
+				if (intf->dev.power.power_state.event != state.event
 						|| status)
 					dev_err(&intf->dev,
 						"suspend %d fail, code %d\n",
-						state, status);
+						state.event, status);
 			}
 
 			/* only drivers with suspend() can ever resume();
@@ -1595,7 +1647,7 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 			 * since we know every driver's probe/disconnect works
 			 * even for drivers that can't suspend.
 			 */
-			if (!driver->suspend || state > PM_SUSPEND_MEM) {
+			if (!driver->suspend || state.event > PM_EVENT_FREEZE) {
 #if 1
 				dev_warn(&intf->dev, "resume is unsafe!\n");
 #else
@@ -1616,7 +1668,7 @@ static int __usb_suspend_device (struct usb_device *udev, int port1,
 	 * policies (when HNP doesn't apply) once we have mechanisms to
 	 * turn power back on!  (Likely not before 2.7...)
 	 */
-	if (state > PM_SUSPEND_MEM) {
+	if (state.event > PM_EVENT_FREEZE) {
 		dev_warn(&udev->dev, "no poweroff yet, suspending instead\n");
 	}
 
@@ -1733,7 +1785,7 @@ static int finish_port_resume(struct usb_device *udev)
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (intf->dev.power.power_state == PMSG_ON)
+			if (intf->dev.power.power_state.event == PM_EVENT_ON)
 				continue;
 			if (!intf->dev.driver) {
 				/* FIXME maybe force to alt 0 */
@@ -1747,11 +1799,11 @@ static int finish_port_resume(struct usb_device *udev)
 
 			/* can we do better than just logging errors? */
 			status = driver->resume(intf);
-			if (intf->dev.power.power_state != PMSG_ON
+			if (intf->dev.power.power_state.event != PM_EVENT_ON
 					|| status)
 				dev_dbg(&intf->dev,
 					"resume fail, state %d code %d\n",
-					intf->dev.power.power_state, status);
+					intf->dev.power.power_state.event, status);
 		}
 		status = 0;
 
@@ -1934,7 +1986,7 @@ static int hub_resume(struct usb_interface *intf)
 	unsigned		port1;
 	int			status;
 
-	if (intf->dev.power.power_state == PM_SUSPEND_ON)
+	if (intf->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	for (port1 = 1; port1 <= hdev->maxchild; port1++) {

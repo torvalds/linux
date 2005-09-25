@@ -203,7 +203,7 @@ sysenter_past_esp:
 	GET_THREAD_INFO(%ebp)
 
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),TI_flags(%ebp)
+	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -226,9 +226,9 @@ ENTRY(system_call)
 	pushl %eax			# save orig_eax
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
-					# system call tracing in operation
+					# system call tracing in operation / emulation
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),TI_flags(%ebp)
+	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -319,7 +319,7 @@ work_notifysig:				# deal with pending signals and
 					# vm86-space
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp restore_all
+	jmp resume_userspace
 
 	ALIGN
 work_notifysig_v86:
@@ -329,7 +329,7 @@ work_notifysig_v86:
 	movl %eax, %esp
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp restore_all
+	jmp resume_userspace
 
 	# perform syscall exit tracing
 	ALIGN
@@ -338,6 +338,9 @@ syscall_trace_entry:
 	movl %esp, %eax
 	xorl %edx,%edx
 	call do_syscall_trace
+	cmpl $0, %eax
+	jne resume_userspace		# ret != 0 -> running under PTRACE_SYSEMU,
+					# so must skip actual syscall
 	movl ORIG_EAX(%esp), %eax
 	cmpl $(nr_syscalls), %eax
 	jnae syscall_call
@@ -504,7 +507,7 @@ label:						\
 	pushl $__KERNEL_CS;			\
 	pushl $sysenter_past_esp
 
-ENTRY(debug)
+KPROBE_ENTRY(debug)
 	cmpl $sysenter_entry,(%esp)
 	jne debug_stack_correct
 	FIX_STACK(12, debug_stack_correct, debug_esp_fix_insn)
@@ -515,7 +518,7 @@ debug_stack_correct:
 	movl %esp,%eax			# pt_regs pointer
 	call do_debug
 	jmp ret_from_exception
-
+	.previous .text
 /*
  * NMI is doubly nasty. It can happen _while_ we're handling
  * a debug fault, and the debug fault hasn't yet been able to
@@ -588,13 +591,14 @@ nmi_16bit_stack:
 	.long 1b,iret_exc
 .previous
 
-ENTRY(int3)
+KPROBE_ENTRY(int3)
 	pushl $-1			# mark this as an int
 	SAVE_ALL
 	xorl %edx,%edx		# zero error code
 	movl %esp,%eax		# pt_regs pointer
 	call do_int3
 	jmp ret_from_exception
+	.previous .text
 
 ENTRY(overflow)
 	pushl $0
@@ -628,17 +632,19 @@ ENTRY(stack_segment)
 	pushl $do_stack_segment
 	jmp error_code
 
-ENTRY(general_protection)
+KPROBE_ENTRY(general_protection)
 	pushl $do_general_protection
 	jmp error_code
+	.previous .text
 
 ENTRY(alignment_check)
 	pushl $do_alignment_check
 	jmp error_code
 
-ENTRY(page_fault)
+KPROBE_ENTRY(page_fault)
 	pushl $do_page_fault
 	jmp error_code
+	.previous .text
 
 #ifdef CONFIG_X86_MCE
 ENTRY(machine_check)

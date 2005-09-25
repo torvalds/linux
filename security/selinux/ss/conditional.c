@@ -100,18 +100,18 @@ int evaluate_cond_node(struct policydb *p, struct cond_node *node)
 		/* turn the rules on or off */
 		for (cur = node->true_list; cur != NULL; cur = cur->next) {
 			if (new_state <= 0) {
-				cur->node->datum.specified &= ~AVTAB_ENABLED;
+				cur->node->key.specified &= ~AVTAB_ENABLED;
 			} else {
-				cur->node->datum.specified |= AVTAB_ENABLED;
+				cur->node->key.specified |= AVTAB_ENABLED;
 			}
 		}
 
 		for (cur = node->false_list; cur != NULL; cur = cur->next) {
 			/* -1 or 1 */
 			if (new_state) {
-				cur->node->datum.specified &= ~AVTAB_ENABLED;
+				cur->node->key.specified &= ~AVTAB_ENABLED;
 			} else {
-				cur->node->datum.specified |= AVTAB_ENABLED;
+				cur->node->key.specified |= AVTAB_ENABLED;
 			}
 		}
 	}
@@ -216,7 +216,8 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 {
 	char *key = NULL;
 	struct cond_bool_datum *booldatum;
-	u32 buf[3], len;
+	__le32 buf[3];
+	u32 len;
 	int rc;
 
 	booldatum = kmalloc(sizeof(struct cond_bool_datum), GFP_KERNEL);
@@ -252,21 +253,104 @@ err:
 	return -1;
 }
 
-static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list **ret_list,
-			     struct cond_av_list *other)
+struct cond_insertf_data
 {
-	struct cond_av_list *list, *last = NULL, *cur;
-	struct avtab_key key;
-	struct avtab_datum datum;
+	struct policydb *p;
+	struct cond_av_list *other;
+	struct cond_av_list *head;
+	struct cond_av_list *tail;
+};
+
+static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum *d, void *ptr)
+{
+	struct cond_insertf_data *data = ptr;
+	struct policydb *p = data->p;
+	struct cond_av_list *other = data->other, *list, *cur;
 	struct avtab_node *node_ptr;
-	int rc;
-	u32 buf[1], i, len;
 	u8 found;
+
+
+	/*
+	 * For type rules we have to make certain there aren't any
+	 * conflicting rules by searching the te_avtab and the
+	 * cond_te_avtab.
+	 */
+	if (k->specified & AVTAB_TYPE) {
+		if (avtab_search(&p->te_avtab, k)) {
+			printk("security: type rule already exists outside of a conditional.");
+			goto err;
+		}
+		/*
+		 * If we are reading the false list other will be a pointer to
+		 * the true list. We can have duplicate entries if there is only
+		 * 1 other entry and it is in our true list.
+		 *
+		 * If we are reading the true list (other == NULL) there shouldn't
+		 * be any other entries.
+		 */
+		if (other) {
+			node_ptr = avtab_search_node(&p->te_cond_avtab, k);
+			if (node_ptr) {
+				if (avtab_search_node_next(node_ptr, k->specified)) {
+					printk("security: too many conflicting type rules.");
+					goto err;
+				}
+				found = 0;
+				for (cur = other; cur != NULL; cur = cur->next) {
+					if (cur->node == node_ptr) {
+						found = 1;
+						break;
+					}
+				}
+				if (!found) {
+					printk("security: conflicting type rules.\n");
+					goto err;
+				}
+			}
+		} else {
+			if (avtab_search(&p->te_cond_avtab, k)) {
+				printk("security: conflicting type rules when adding type rule for true.\n");
+				goto err;
+			}
+		}
+	}
+
+	node_ptr = avtab_insert_nonunique(&p->te_cond_avtab, k, d);
+	if (!node_ptr) {
+		printk("security: could not insert rule.");
+		goto err;
+	}
+
+	list = kmalloc(sizeof(struct cond_av_list), GFP_KERNEL);
+	if (!list)
+		goto err;
+	memset(list, 0, sizeof(*list));
+
+	list->node = node_ptr;
+	if (!data->head)
+		data->head = list;
+	else
+		data->tail->next = list;
+	data->tail = list;
+	return 0;
+
+err:
+	cond_av_list_destroy(data->head);
+	data->head = NULL;
+	return -1;
+}
+
+static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list **ret_list, struct cond_av_list *other)
+{
+	int i, rc;
+	__le32 buf[1];
+	u32 len;
+	struct cond_insertf_data data;
 
 	*ret_list = NULL;
 
 	len = 0;
-	rc = next_entry(buf, fp, sizeof buf);
+	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc < 0)
 		return -1;
 
@@ -275,79 +359,19 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 		return 0;
 	}
 
+	data.p = p;
+	data.other = other;
+	data.head = NULL;
+	data.tail = NULL;
 	for (i = 0; i < len; i++) {
-		if (avtab_read_item(fp, &datum, &key))
-			goto err;
-
-		/*
-		 * For type rules we have to make certain there aren't any
-		 * conflicting rules by searching the te_avtab and the
-		 * cond_te_avtab.
-		 */
-		if (datum.specified & AVTAB_TYPE) {
-			if (avtab_search(&p->te_avtab, &key, AVTAB_TYPE)) {
-				printk("security: type rule already exists outside of a conditional.");
-				goto err;
-			}
-			/*
-			 * If we are reading the false list other will be a pointer to
-			 * the true list. We can have duplicate entries if there is only
-			 * 1 other entry and it is in our true list.
-			 *
-			 * If we are reading the true list (other == NULL) there shouldn't
-			 * be any other entries.
-			 */
-			if (other) {
-				node_ptr = avtab_search_node(&p->te_cond_avtab, &key, AVTAB_TYPE);
-				if (node_ptr) {
-					if (avtab_search_node_next(node_ptr, AVTAB_TYPE)) {
-						printk("security: too many conflicting type rules.");
-						goto err;
-					}
-					found = 0;
-					for (cur = other; cur != NULL; cur = cur->next) {
-						if (cur->node == node_ptr) {
-							found = 1;
-							break;
-						}
-					}
-					if (!found) {
-						printk("security: conflicting type rules.");
-						goto err;
-					}
-				}
-			} else {
-				if (avtab_search(&p->te_cond_avtab, &key, AVTAB_TYPE)) {
-					printk("security: conflicting type rules when adding type rule for true.");
-					goto err;
-				}
-			}
-		}
-		node_ptr = avtab_insert_nonunique(&p->te_cond_avtab, &key, &datum);
-		if (!node_ptr) {
-			printk("security: could not insert rule.");
-			goto err;
-		}
-
-		list = kmalloc(sizeof(struct cond_av_list), GFP_KERNEL);
-		if (!list)
-			goto err;
-		memset(list, 0, sizeof(struct cond_av_list));
-
-		list->node = node_ptr;
-		if (i == 0)
-			*ret_list = list;
-		else
-			last->next = list;
-		last = list;
+		rc = avtab_read_item(fp, p->policyvers, &p->te_cond_avtab, cond_insertf, &data);
+		if (rc)
+			return rc;
 
 	}
 
+	*ret_list = data.head;
 	return 0;
-err:
-	cond_av_list_destroy(*ret_list);
-	*ret_list = NULL;
-	return -1;
 }
 
 static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
@@ -366,7 +390,8 @@ static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
 
 static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 {
-	u32 buf[2], len, i;
+	__le32 buf[2];
+	u32 len, i;
 	int rc;
 	struct cond_expr *expr = NULL, *last = NULL;
 
@@ -424,7 +449,8 @@ err:
 int cond_read_list(struct policydb *p, void *fp)
 {
 	struct cond_node *node, *last = NULL;
-	u32 buf[1], i, len;
+	__le32 buf[1];
+	u32 i, len;
 	int rc;
 
 	rc = next_entry(buf, fp, sizeof buf);
@@ -452,6 +478,7 @@ int cond_read_list(struct policydb *p, void *fp)
 	return 0;
 err:
 	cond_list_destroy(p->cond_list);
+	p->cond_list = NULL;
 	return -1;
 }
 
@@ -465,22 +492,22 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key, struct av_decisi
 	if(!ctab || !key || !avd)
 		return;
 
-	for(node = avtab_search_node(ctab, key, AVTAB_AV); node != NULL;
-				node = avtab_search_node_next(node, AVTAB_AV)) {
-		if ( (__u32) (AVTAB_ALLOWED|AVTAB_ENABLED) ==
-		     (node->datum.specified & (AVTAB_ALLOWED|AVTAB_ENABLED)))
-			avd->allowed |= avtab_allowed(&node->datum);
-		if ( (__u32) (AVTAB_AUDITDENY|AVTAB_ENABLED) ==
-		     (node->datum.specified & (AVTAB_AUDITDENY|AVTAB_ENABLED)))
+	for(node = avtab_search_node(ctab, key); node != NULL;
+				node = avtab_search_node_next(node, key->specified)) {
+		if ( (u16) (AVTAB_ALLOWED|AVTAB_ENABLED) ==
+		     (node->key.specified & (AVTAB_ALLOWED|AVTAB_ENABLED)))
+			avd->allowed |= node->datum.data;
+		if ( (u16) (AVTAB_AUDITDENY|AVTAB_ENABLED) ==
+		     (node->key.specified & (AVTAB_AUDITDENY|AVTAB_ENABLED)))
 			/* Since a '0' in an auditdeny mask represents a
 			 * permission we do NOT want to audit (dontaudit), we use
 			 * the '&' operand to ensure that all '0's in the mask
 			 * are retained (much unlike the allow and auditallow cases).
 			 */
-			avd->auditdeny &= avtab_auditdeny(&node->datum);
-		if ( (__u32) (AVTAB_AUDITALLOW|AVTAB_ENABLED) ==
-		     (node->datum.specified & (AVTAB_AUDITALLOW|AVTAB_ENABLED)))
-			avd->auditallow |= avtab_auditallow(&node->datum);
+			avd->auditdeny &= node->datum.data;
+		if ( (u16) (AVTAB_AUDITALLOW|AVTAB_ENABLED) ==
+		     (node->key.specified & (AVTAB_AUDITALLOW|AVTAB_ENABLED)))
+			avd->auditallow |= node->datum.data;
 	}
 	return;
 }

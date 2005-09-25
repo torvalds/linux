@@ -109,6 +109,10 @@ static inline void flush_tlb_range(struct vm_area_struct * vma, unsigned long st
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
 
+/* Roughly an IPI every 20MB with 4k pages for freeing page table
+   ranges. Cost is about 42k of memory for each CPU. */
+#define ARCH_FREE_PTE_NR 5350	
+
 #endif
 
 #define flush_tlb_kernel_range(start, end) flush_tlb_all()

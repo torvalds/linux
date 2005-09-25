@@ -383,8 +383,7 @@ static int pt_atapi(struct pt_unit *tape, char *cmd, int dlen, char *buf, char *
 
 static void pt_sleep(int cs)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(cs);
+	schedule_timeout_interruptible(cs);
 }
 
 static int pt_poll_dsc(struct pt_unit *tape, int pause, int tmo, char *msg)

@@ -75,6 +75,10 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc);
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
 
+int atapi_enabled = 0;
+module_param(atapi_enabled, int, 0444);
+MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -2461,9 +2465,12 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
+ *
+ *	RETURNS:
+ *	Non-zero if qc completed, zero otherwise.
  */
 
-static void ata_pio_complete (struct ata_port *ap)
+static int ata_pio_complete (struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	u8 drv_stat;
@@ -2482,14 +2489,14 @@ static void ata_pio_complete (struct ata_port *ap)
 		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
 			ap->pio_task_state = PIO_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
-			return;
+			return 0;
 		}
 	}
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
 		ap->pio_task_state = PIO_ST_ERR;
-		return;
+		return 0;
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -2498,6 +2505,10 @@ static void ata_pio_complete (struct ata_port *ap)
 	ap->pio_task_state = PIO_ST_IDLE;
 
 	ata_poll_qc_complete(qc, drv_stat);
+
+	/* another command may start at this point */
+
+	return 1;
 }
 
 
@@ -2527,7 +2538,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	@ap: port to read/write
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@do_write: read/write
+ *	@write_data: read/write
  *
  *	Transfer data from/to the device data register by MMIO.
  *
@@ -2573,7 +2584,7 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *	@ap: port to read/write
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@do_write: read/write
+ *	@write_data: read/write
  *
  *	Transfer data from/to the device data register by PIO.
  *
@@ -2705,7 +2716,7 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 
 next_sg:
 	if (unlikely(qc->cursg >= qc->n_elem)) {
-		/* 
+		/*
 		 * The end of qc->sg is reached and the device expects
 		 * more data to transfer. In order not to overrun qc->sg
 		 * and fulfill length specified in the byte count register,
@@ -2717,7 +2728,7 @@ next_sg:
 		unsigned int i;
 
 		if (words) /* warning if bytes > 1 */
-			printk(KERN_WARNING "ata%u: %u bytes trailing data\n", 
+			printk(KERN_WARNING "ata%u: %u bytes trailing data\n",
 			       ap->id, bytes);
 
 		for (i = 0; i < words; i++)
@@ -2845,9 +2856,7 @@ static void ata_pio_block(struct ata_port *ap)
 	if (is_atapi_taskfile(&qc->tf)) {
 		/* no more data to transfer or unsupported ATAPI command */
 		if ((status & ATA_DRQ) == 0) {
-			ap->pio_task_state = PIO_ST_IDLE;
-
-			ata_poll_qc_complete(qc, status);
+			ap->pio_task_state = PIO_ST_LAST;
 			return;
 		}
 
@@ -2883,7 +2892,12 @@ static void ata_pio_error(struct ata_port *ap)
 static void ata_pio_task(void *_data)
 {
 	struct ata_port *ap = _data;
-	unsigned long timeout = 0;
+	unsigned long timeout;
+	int qc_completed;
+
+fsm_start:
+	timeout = 0;
+	qc_completed = 0;
 
 	switch (ap->pio_task_state) {
 	case PIO_ST_IDLE:
@@ -2894,7 +2908,7 @@ static void ata_pio_task(void *_data)
 		break;
 
 	case PIO_ST_LAST:
-		ata_pio_complete(ap);
+		qc_completed = ata_pio_complete(ap);
 		break;
 
 	case PIO_ST_POLL:
@@ -2909,10 +2923,9 @@ static void ata_pio_task(void *_data)
 	}
 
 	if (timeout)
-		queue_delayed_work(ata_wq, &ap->pio_task,
-				   timeout);
-	else
-		queue_work(ata_wq, &ap->pio_task);
+		queue_delayed_work(ata_wq, &ap->pio_task, timeout);
+	else if (!qc_completed)
+		goto fsm_start;
 }
 
 static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
@@ -4119,6 +4132,53 @@ err_out:
 }
 
 /**
+ *	ata_host_set_remove - PCI layer callback for device removal
+ *	@host_set: ATA host set that was removed
+ *
+ *	Unregister all objects associated with this host set. Free those 
+ *	objects.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+
+
+void ata_host_set_remove(struct ata_host_set *host_set)
+{
+	struct ata_port *ap;
+	unsigned int i;
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		ap = host_set->ports[i];
+		scsi_remove_host(ap->host);
+	}
+
+	free_irq(host_set->irq, host_set);
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		ap = host_set->ports[i];
+
+		ata_scsi_release(ap->host);
+
+		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
+			struct ata_ioports *ioaddr = &ap->ioaddr;
+
+			if (ioaddr->cmd_addr == 0x1f0)
+				release_region(0x1f0, 8);
+			else if (ioaddr->cmd_addr == 0x170)
+				release_region(0x170, 8);
+		}
+
+		scsi_host_put(ap->host);
+	}
+
+	if (host_set->ops->host_stop)
+		host_set->ops->host_stop(host_set);
+
+	kfree(host_set);
+}
+
+/**
  *	ata_scsi_release - SCSI layer callback hook for host unload
  *	@host: libata host to be unloaded
  *
@@ -4200,6 +4260,15 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
 
 
 
+#ifdef CONFIG_PCI
+
+void ata_pci_host_stop (struct ata_host_set *host_set)
+{
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+
+	pci_iounmap(pdev, host_set->mmio_base);
+}
+
 /**
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
@@ -4212,7 +4281,6 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
  *	ata_probe_ent structure should then be freed with kfree().
  */
 
-#ifdef CONFIG_PCI
 struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port)
 {
@@ -4450,39 +4518,8 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host_set *host_set = dev_get_drvdata(dev);
-	struct ata_port *ap;
-	unsigned int i;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		scsi_remove_host(ap->host);
-	}
-
-	free_irq(host_set->irq, host_set);
-
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		ata_scsi_release(ap->host);
-
-		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
-			struct ata_ioports *ioaddr = &ap->ioaddr;
-
-			if (ioaddr->cmd_addr == 0x1f0)
-				release_region(0x1f0, 8);
-			else if (ioaddr->cmd_addr == 0x170)
-				release_region(0x170, 8);
-		}
-
-		scsi_host_put(ap->host);
-	}
-
-	if (host_set->ops->host_stop)
-		host_set->ops->host_stop(host_set);
-
-	kfree(host_set);
-
+	ata_host_set_remove(host_set);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	dev_set_drvdata(dev, NULL);
@@ -4552,6 +4589,7 @@ module_exit(ata_exit);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
+EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
 EXPORT_SYMBOL_GPL(ata_qc_complete);
@@ -4595,6 +4633,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
+EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);

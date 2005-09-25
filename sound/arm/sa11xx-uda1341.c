@@ -21,7 +21,7 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.21 2005/01/28 19:34:04 tiwai Exp $ */
+/* $Id: sa11xx-uda1341.c,v 1.23 2005/09/09 13:22:34 tiwai Exp $ */
 
 /***************************************************************************************************
 *
@@ -918,7 +918,7 @@ static int __init sa11xx_uda1341_init(void)
 	if (card == NULL)
 		return -ENOMEM;
 
-	sa11xx_uda1341 = kcalloc(1, sizeof(*sa11xx_uda1341), GFP_KERNEL);
+	sa11xx_uda1341 = kzalloc(sizeof(*sa11xx_uda1341), GFP_KERNEL);
 	if (sa11xx_uda1341 == NULL)
 		return -ENOMEM;	
 	spin_lock_init(&chip->s[0].dma_lock);
@@ -946,6 +946,9 @@ static int __init sa11xx_uda1341_init(void)
 	strcpy(card->shortname, "H3600 UDA1341TS");
 	sprintf(card->longname, "Compaq iPAQ H3600 with Philips UDA1341TS");
         
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto nodev;
+
 	if ((err = snd_card_register(card)) == 0) {
 		printk( KERN_INFO "iPAQ audio support initialized\n" );
 		return 0;

@@ -55,7 +55,9 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/i2c-isa.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <asm/io.h>
@@ -68,14 +70,10 @@ module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Initialize the base address of the sensors");
 
-/* Addresses to scan.
+/* Device address
    Note that we can't determine the ISA address until we have initialized
    our module */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0000, I2C_CLIENT_ISA_END };
-
-/* Insmod parameters */
-SENSORS_INSMOD_1(sis5595);
+static unsigned short address;
 
 /* Many SIS5595 constants specified below */
 
@@ -168,6 +166,7 @@ static inline u8 DIV_TO_REG(int val)
    allocated. */
 struct sis5595_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 
 	struct semaphore update_lock;
@@ -190,8 +189,7 @@ struct sis5595_data {
 
 static struct pci_dev *s_bridge;	/* pointer to the (only) sis5595 */
 
-static int sis5595_attach_adapter(struct i2c_adapter *adapter);
-static int sis5595_detect(struct i2c_adapter *adapter, int address, int kind);
+static int sis5595_detect(struct i2c_adapter *adapter);
 static int sis5595_detach_client(struct i2c_client *client);
 
 static int sis5595_read_value(struct i2c_client *client, u8 register);
@@ -202,9 +200,7 @@ static void sis5595_init_client(struct i2c_client *client);
 static struct i2c_driver sis5595_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "sis5595",
-	.id		= I2C_DRIVERID_SIS5595,
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= sis5595_attach_adapter,
+	.attach_adapter	= sis5595_detect,
 	.detach_client	= sis5595_detach_client,
 };
 
@@ -476,14 +472,7 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, ch
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
  
 /* This is called when the module is loaded */
-static int sis5595_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_detect(adapter, &addr_data, sis5595_detect);
-}
-
-int sis5595_detect(struct i2c_adapter *adapter, int address, int kind)
+static int sis5595_detect(struct i2c_adapter *adapter)
 {
 	int err = 0;
 	int i;
@@ -491,10 +480,6 @@ int sis5595_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct sis5595_data *data;
 	char val;
 	u16 a;
-
-	/* Make sure we are probing the ISA bus!!  */
-	if (!i2c_is_isa_adapter(adapter))
-		goto exit;
 
 	if (force_addr)
 		address = force_addr & ~(SIS5595_EXTENT - 1);
@@ -578,6 +563,12 @@ int sis5595_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in0_min);
 	device_create_file(&new_client->dev, &dev_attr_in0_max);
@@ -608,7 +599,9 @@ int sis5595_detect(struct i2c_adapter *adapter, int address, int kind)
 		device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
 	}
 	return 0;
-	
+
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit_release:
@@ -619,18 +612,17 @@ exit:
 
 static int sis5595_detach_client(struct i2c_client *client)
 {
+	struct sis5595_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-		    "Client deregistration failed, client not detached.\n");
+	hwmon_device_unregister(data->class_dev);
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
-	if (i2c_is_isa_client(client))
-		release_region(client->addr, SIS5595_EXTENT);
+	release_region(client->addr, SIS5595_EXTENT);
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }
@@ -745,7 +737,6 @@ static int __devinit sis5595_pci_probe(struct pci_dev *dev,
 {
 	u16 val;
 	int *i;
-	int addr = 0;
 
 	for (i = blacklist; *i != 0; i++) {
 		struct pci_dev *dev;
@@ -761,22 +752,14 @@ static int __devinit sis5595_pci_probe(struct pci_dev *dev,
 	    pci_read_config_word(dev, SIS5595_BASE_REG, &val))
 		return -ENODEV;
 	
-	addr = val & ~(SIS5595_EXTENT - 1);
-	if (addr == 0 && force_addr == 0) {
+	address = val & ~(SIS5595_EXTENT - 1);
+	if (address == 0 && force_addr == 0) {
 		dev_err(&dev->dev, "Base address not set - upgrade BIOS or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
-	if (force_addr)
-		addr = force_addr;	/* so detect will get called */
-
-	if (!addr) {
-		dev_err(&dev->dev,"No SiS 5595 sensors found.\n");
-		return -ENODEV;
-	}
-	normal_isa[0] = addr;
 
 	s_bridge = pci_dev_get(dev);
-	if (i2c_add_driver(&sis5595_driver)) {
+	if (i2c_isa_add_driver(&sis5595_driver)) {
 		pci_dev_put(s_bridge);
 		s_bridge = NULL;
 	}
@@ -803,7 +786,7 @@ static void __exit sm_sis5595_exit(void)
 {
 	pci_unregister_driver(&sis5595_pci_driver);
 	if (s_bridge != NULL) {
-		i2c_del_driver(&sis5595_driver);
+		i2c_isa_del_driver(&sis5595_driver);
 		pci_dev_put(s_bridge);
 		s_bridge = NULL;
 	}

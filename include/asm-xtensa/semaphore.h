@@ -20,46 +20,28 @@ struct semaphore {
 	atomic_t count;
 	int sleepers;
 	wait_queue_head_t wait;
-#if WAITQUEUE_DEBUG
-	long __magic;
-#endif
 };
 
-#if WAITQUEUE_DEBUG
-# define __SEM_DEBUG_INIT(name) \
-		, (int)&(name).__magic
-#else
-# define __SEM_DEBUG_INIT(name)
-#endif
+#define __SEMAPHORE_INITIALIZER(name,n)					\
+{									\
+	.count		= ATOMIC_INIT(n),				\
+	.sleepers	= 0,						\
+	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER((name).wait)	\
+}
 
-#define __SEMAPHORE_INITIALIZER(name,count)			\
-	{ ATOMIC_INIT(count), 					\
-	  0,							\
-	  __WAIT_QUEUE_HEAD_INITIALIZER((name).wait)		\
-	__SEM_DEBUG_INIT(name) }
-
-#define __MUTEX_INITIALIZER(name) \
+#define __MUTEX_INITIALIZER(name) 					\
 	__SEMAPHORE_INITIALIZER(name, 1)
 
-#define __DECLARE_SEMAPHORE_GENERIC(name,count) \
+#define __DECLARE_SEMAPHORE_GENERIC(name,count) 			\
 	struct semaphore name = __SEMAPHORE_INITIALIZER(name,count)
 
 #define DECLARE_MUTEX(name) __DECLARE_SEMAPHORE_GENERIC(name,1)
 #define DECLARE_MUTEX_LOCKED(name) __DECLARE_SEMAPHORE_GENERIC(name,0)
 
-extern inline void sema_init (struct semaphore *sem, int val)
+static inline void sema_init (struct semaphore *sem, int val)
 {
-/*
- *	*sem = (struct semaphore)__SEMAPHORE_INITIALIZER((*sem),val);
- *
- * i'd rather use the more flexible initialization above, but sadly
- * GCC 2.7.2.3 emits a bogus warning. EGCS doesnt. Oh well.
- */
 	atomic_set(&sem->count, val);
 	init_waitqueue_head(&sem->wait);
-#if WAITQUEUE_DEBUG
-	sem->__magic = (int)&sem->__magic;
-#endif
 }
 
 static inline void init_MUTEX (struct semaphore *sem)
@@ -79,34 +61,28 @@ asmlinkage void __up(struct semaphore * sem);
 
 extern spinlock_t semaphore_wake_lock;
 
-extern __inline__ void down(struct semaphore * sem)
+static inline void down(struct semaphore * sem)
 {
-#if WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
+	might_sleep();
 
 	if (atomic_sub_return(1, &sem->count) < 0)
 		__down(sem);
 }
 
-extern __inline__ int down_interruptible(struct semaphore * sem)
+static inline int down_interruptible(struct semaphore * sem)
 {
 	int ret = 0;
-#if WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
+
+	might_sleep();
 
 	if (atomic_sub_return(1, &sem->count) < 0)
 		ret = __down_interruptible(sem);
 	return ret;
 }
 
-extern __inline__ int down_trylock(struct semaphore * sem)
+static inline int down_trylock(struct semaphore * sem)
 {
 	int ret = 0;
-#if WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
 
 	if (atomic_sub_return(1, &sem->count) < 0)
 		ret = __down_trylock(sem);
@@ -117,11 +93,8 @@ extern __inline__ int down_trylock(struct semaphore * sem)
  * Note! This is subtle. We jump to wake people up only if
  * the semaphore was negative (== somebody was waiting on it).
  */
-extern __inline__ void up(struct semaphore * sem)
+static inline void up(struct semaphore * sem)
 {
-#if WAITQUEUE_DEBUG
-	CHECK_MAGIC(sem->__magic);
-#endif
 	if (atomic_add_return(1, &sem->count) <= 0)
 		__up(sem);
 }

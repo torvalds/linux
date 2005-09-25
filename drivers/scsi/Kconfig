@@ -1,5 +1,11 @@
 menu "SCSI device support"
 
+config RAID_ATTRS
+	tristate "RAID Transport Class"
+	default n
+	---help---
+	  Provides RAID
+
 config SCSI
 	tristate "SCSI device support"
 	---help---
@@ -229,6 +235,13 @@ config SCSI_ISCSI_ATTRS
 	  each attached iSCSI device to sysfs, say Y.
 	  Otherwise, say N.
 
+config SCSI_SAS_ATTRS
+	tristate "SAS Transport Attributes"
+	depends on SCSI
+	help
+	  If you wish to export transport-specific information about
+	  each attached SAS device to sysfs, say Y.
+
 endmenu
 
 menu "SCSI low-level drivers"
@@ -250,7 +263,7 @@ config SCSI_DECNCR
 
 config SCSI_DECSII
 	tristate "DEC SII Scsi Driver"
-	depends on MACH_DECSTATION && SCSI && MIPS32
+	depends on MACH_DECSTATION && SCSI && 32BIT
 
 config BLK_DEV_3W_XXXX_RAID
 	tristate "3ware 5/6/7/8xxx ATA-RAID support"
@@ -456,6 +469,15 @@ config SCSI_ATA_PIIX
 	  This option enables support for ICH5 Serial ATA.
 	  If PATA support was enabled previously, this enables
 	  support for select Intel PIIX/ICH PATA host controllers.
+
+	  If unsure, say N.
+
+config SCSI_SATA_MV
+	tristate "Marvell SATA support"
+	depends on SCSI_SATA && PCI && EXPERIMENTAL
+	help
+	  This option enables support for the Marvell Serial ATA family.
+	  Currently supports 88SX[56]0[48][01] chips.
 
 	  If unsure, say N.
 

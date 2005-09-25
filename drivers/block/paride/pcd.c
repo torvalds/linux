@@ -516,8 +516,7 @@ static int pcd_tray_move(struct cdrom_device_info *cdi, int position)
 
 static void pcd_sleep(int cs)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(cs);
+	schedule_timeout_interruptible(cs);
 }
 
 static int pcd_reset(struct pcd_unit *cd)

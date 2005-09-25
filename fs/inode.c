@@ -1034,19 +1034,21 @@ void generic_delete_inode(struct inode *inode)
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
-	if (inode->i_data.nrpages)
-		truncate_inode_pages(&inode->i_data, 0);
-
 	security_inode_delete(inode);
 
 	if (op->delete_inode) {
 		void (*delete)(struct inode *) = op->delete_inode;
 		if (!is_bad_inode(inode))
 			DQUOT_INIT(inode);
-		/* s_op->delete_inode internally recalls clear_inode() */
+		/* Filesystems implementing their own
+		 * s_op->delete_inode are required to call
+		 * truncate_inode_pages and clear_inode()
+		 * internally */
 		delete(inode);
-	} else
+	} else {
+		truncate_inode_pages(&inode->i_data, 0);
 		clear_inode(inode);
+	}
 	spin_lock(&inode_lock);
 	hlist_del_init(&inode->i_hash);
 	spin_unlock(&inode_lock);
@@ -1195,9 +1197,6 @@ void update_atime(struct inode *inode)
 	if (!timespec_equal(&inode->i_atime, &now)) {
 		inode->i_atime = now;
 		mark_inode_dirty_sync(inode);
-	} else {
-		if (!timespec_equal(&inode->i_atime, &now))
-			inode->i_atime = now;
 	}
 }
 

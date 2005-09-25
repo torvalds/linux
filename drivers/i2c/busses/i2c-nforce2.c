@@ -98,11 +98,6 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_PRTCL_PEC			0x80
 
 
-/* Other settings */
-#define MAX_TIMEOUT 256
-
-
-
 static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write,
 		       u8 command, int size, union i2c_smbus_data *data);
@@ -110,8 +105,6 @@ static u32 nforce2_func(struct i2c_adapter *adapter);
 
 
 static struct i2c_algorithm smbus_algorithm = {
-	.name = "Non-I2C SMBus adapter",
-	.id = I2C_ALGO_SMBUS,
 	.smbus_xfer = nforce2_access,
 	.functionality = nforce2_func,
 };
@@ -131,7 +124,6 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 	struct nforce2_smbus *smbus = adap->algo_data;
 	unsigned char protocol, pec, temp;
 	unsigned char len = 0; /* to keep the compiler quiet */
-	int timeout = 0;
 	int i;
 
 	protocol = (read_write == I2C_SMBUS_READ) ? NVIDIA_SMB_PRTCL_READ :
@@ -191,29 +183,10 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 		case I2C_SMBUS_PROC_CALL:
 			dev_err(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
 			return -1;
-			/*
-			outb_p(command, NVIDIA_SMB_CMD);
-			outb_p(data->word, NVIDIA_SMB_DATA);
-			outb_p(data->word >> 8, NVIDIA_SMB_DATA + 1);
-			protocol = NVIDIA_SMB_PRTCL_PROC_CALL | pec;
-			read_write = I2C_SMBUS_READ;
-			break;
-			 */
 
 		case I2C_SMBUS_BLOCK_PROC_CALL:
 			dev_err(&adap->dev, "I2C_SMBUS_BLOCK_PROC_CALL not supported!\n");
 			return -1;
-			/*
-			protocol |= pec;
-			len = min_t(u8, data->block[0], 31);
-			outb_p(command, NVIDIA_SMB_CMD);
-			outb_p(len, NVIDIA_SMB_BCNT);
-			for (i = 0; i < len; i++)
-				outb_p(data->block[i + 1], NVIDIA_SMB_DATA + i);
-			protocol = NVIDIA_SMB_PRTCL_BLOCK_PROC_CALL | pec;
-			read_write = I2C_SMBUS_READ;
-			break;
-			*/
 
 		case I2C_SMBUS_WORD_DATA_PEC:
 		case I2C_SMBUS_BLOCK_DATA_PEC:
@@ -232,12 +205,6 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 
 	temp = inb_p(NVIDIA_SMB_STS);
 
-#if 0
-	do {
-		i2c_do_pause(1);
-		temp = inb_p(NVIDIA_SMB_STS);
-	} while (((temp & NVIDIA_SMB_STS_DONE) == 0) && (timeout++ < MAX_TIMEOUT));
-#endif
 	if (~temp & NVIDIA_SMB_STS_DONE) {
 		udelay(500);
 		temp = inb_p(NVIDIA_SMB_STS);
@@ -247,9 +214,10 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 		temp = inb_p(NVIDIA_SMB_STS);
 	}
 
-	if ((timeout >= MAX_TIMEOUT) || (~temp & NVIDIA_SMB_STS_DONE)
-		|| (temp & NVIDIA_SMB_STS_STATUS))
+	if ((~temp & NVIDIA_SMB_STS_DONE) || (temp & NVIDIA_SMB_STS_STATUS)) {
+		dev_dbg(&adap->dev, "SMBus Timeout! (0x%02x)\n", temp);
 		return -1;
+	}
 
 	if (read_write == I2C_SMBUS_WRITE)
 		return 0;

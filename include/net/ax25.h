@@ -26,11 +26,20 @@
 
 /* AX.25 Protocol IDs */
 #define AX25_P_ROSE			0x01
-#define AX25_P_IP			0xCC
-#define AX25_P_ARP			0xCD
-#define AX25_P_TEXT 			0xF0
-#define AX25_P_NETROM 			0xCF
-#define	AX25_P_SEGMENT			0x08
+#define AX25_P_VJCOMP			0x06	/* Compressed TCP/IP packet   */
+						/* Van Jacobsen (RFC 1144)    */
+#define AX25_P_VJUNCOMP			0x07	/* Uncompressed TCP/IP packet */
+						/* Van Jacobsen (RFC 1144)    */
+#define	AX25_P_SEGMENT			0x08	/* Segmentation fragment      */
+#define AX25_P_TEXNET			0xc3	/* TEXTNET datagram protocol  */
+#define AX25_P_LQ			0xc4	/* Link Quality Protocol      */
+#define AX25_P_ATALK			0xca	/* Appletalk                  */
+#define AX25_P_ATALK_ARP		0xcb	/* Appletalk ARP              */
+#define AX25_P_IP			0xcc	/* ARPA Internet Protocol     */
+#define AX25_P_ARP			0xcd	/* ARPA Adress Resolution     */
+#define AX25_P_FLEXNET			0xce	/* FlexNet                    */
+#define AX25_P_NETROM 			0xcf	/* NET/ROM                    */
+#define AX25_P_TEXT 			0xF0	/* No layer 3 protocol impl.  */
 
 /* AX.25 Segment control values */
 #define	AX25_SEG_REM			0x7F
@@ -88,11 +97,11 @@
 /* Define Link State constants. */
 
 enum { 
-	AX25_STATE_0,
-	AX25_STATE_1,
-	AX25_STATE_2,
-	AX25_STATE_3,
-	AX25_STATE_4
+	AX25_STATE_0,			/* Listening */
+	AX25_STATE_1,			/* SABM sent */
+	AX25_STATE_2,			/* DISC sent */
+	AX25_STATE_3,			/* Established */
+	AX25_STATE_4			/* Recovery */
 };
 
 #define AX25_MODULUS 		8	/*  Standard AX.25 modulus */
@@ -257,8 +266,8 @@ extern struct sock *ax25_make_new(struct sock *, struct ax25_dev *);
 
 /* ax25_addr.c */
 extern ax25_address null_ax25_address;
-extern char *ax2asc(ax25_address *);
-extern ax25_address *asc2ax(char *);
+extern char *ax2asc(char *buf, ax25_address *);
+extern void asc2ax(ax25_address *addr, char *callsign);
 extern int  ax25cmp(ax25_address *, ax25_address *);
 extern int  ax25digicmp(ax25_digi *, ax25_digi *);
 extern unsigned char *ax25_addr_parse(unsigned char *, int, ax25_address *, ax25_address *, ax25_digi *, int *, int *);
@@ -319,7 +328,7 @@ extern int  ax25_rx_iframe(ax25_cb *, struct sk_buff *);
 extern int  ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
 /* ax25_ip.c */
-extern int  ax25_encapsulate(struct sk_buff *, struct net_device *, unsigned short, void *, void *, unsigned int);
+extern int  ax25_hard_header(struct sk_buff *, struct net_device *, unsigned short, void *, void *, unsigned int);
 extern int  ax25_rebuild_header(struct sk_buff *);
 
 /* ax25_out.c */

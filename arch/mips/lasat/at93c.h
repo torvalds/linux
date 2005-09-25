@@ -1,7 +1,7 @@
-/* 
+/*
  * Atmel AT93C46 serial eeprom driver
  *
- * Brian Murphy <brian.murphy@eicon.com> 
+ * Brian Murphy <brian.murphy@eicon.com>
  *
  */
 

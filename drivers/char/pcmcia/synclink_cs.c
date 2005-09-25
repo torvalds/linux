@@ -1,7 +1,7 @@
 /*
  * linux/drivers/char/pcmcia/synclink_cs.c
  *
- * $Id: synclink_cs.c,v 4.26 2004/08/11 19:30:02 paulkf Exp $
+ * $Id: synclink_cs.c,v 4.34 2005/09/08 13:20:54 paulkf Exp $
  *
  * Device driver for Microgate SyncLink PC Card
  * multiprotocol serial adapter.
@@ -472,7 +472,7 @@ module_param_array(dosyncppp, int, NULL, 0);
 MODULE_LICENSE("GPL");
 
 static char *driver_name = "SyncLink PC Card driver";
-static char *driver_version = "$Revision: 4.26 $";
+static char *driver_version = "$Revision: 4.34 $";
 
 static struct tty_driver *serial_driver;
 
@@ -1457,6 +1457,8 @@ static int startup(MGSLPC_INFO * info)
 
 	info->pending_bh = 0;
 	
+	memset(&info->icount, 0, sizeof(info->icount));
+
 	init_timer(&info->tx_timer);
 	info->tx_timer.data = (unsigned long)info;
 	info->tx_timer.function = tx_timeout;
@@ -1946,9 +1948,13 @@ static int get_stats(MGSLPC_INFO * info, struct mgsl_icount __user *user_icount)
 	int err;
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("get_params(%s)\n", info->device_name);
-	COPY_TO_USER(err,user_icount, &info->icount, sizeof(struct mgsl_icount));
-	if (err)
-		return -EFAULT;
+	if (!user_icount) {
+		memset(&info->icount, 0, sizeof(info->icount));
+	} else {
+		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		if (err)
+			return -EFAULT;
+	}
 	return 0;
 }
 

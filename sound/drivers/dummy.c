@@ -337,7 +337,7 @@ static int snd_card_dummy_playback_open(snd_pcm_substream_t * substream)
 	snd_card_dummy_pcm_t *dpcm;
 	int err;
 
-	dpcm = kcalloc(1, sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (dpcm == NULL)
 		return -ENOMEM;
 	init_timer(&dpcm->timer);
@@ -368,7 +368,7 @@ static int snd_card_dummy_capture_open(snd_pcm_substream_t * substream)
 	snd_card_dummy_pcm_t *dpcm;
 	int err;
 
-	dpcm = kcalloc(1, sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (dpcm == NULL)
 		return -ENOMEM;
 	init_timer(&dpcm->timer);
@@ -600,6 +600,10 @@ static int __init snd_card_dummy_probe(int dev)
 	strcpy(card->driver, "Dummy");
 	strcpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto __nodev;
+
 	if ((err = snd_card_register(card)) == 0) {
 		snd_dummy_cards[dev] = card;
 		return 0;

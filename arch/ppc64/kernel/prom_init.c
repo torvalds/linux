@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -1712,6 +1711,7 @@ static void __init flatten_device_tree(void)
 	unsigned long offset = reloc_offset();
 	unsigned long mem_start, mem_end, room;
 	struct boot_param_header *hdr;
+	struct prom_t *_prom = PTRRELOC(&prom);
 	char *namep;
 	u64 *rsvmap;
 
@@ -1766,6 +1766,7 @@ static void __init flatten_device_tree(void)
 	RELOC(dt_struct_end) = PAGE_ALIGN(mem_start);
 
 	/* Finish header */
+	hdr->boot_cpuid_phys = _prom->cpu;
 	hdr->magic = OF_DT_HEADER;
 	hdr->totalsize = RELOC(dt_struct_end) - RELOC(dt_header_start);
 	hdr->off_dt_struct = RELOC(dt_struct_start) - RELOC(dt_header_start);
@@ -1855,7 +1856,6 @@ static void __init prom_find_boot_cpu(void)
 
 	cpu_pkg = call_prom("instance-to-package", 1, 1, prom_cpu);
 
-	prom_setprop(cpu_pkg, "linux,boot-cpu", NULL, 0);
 	prom_getprop(cpu_pkg, "reg", &getprop_rval, sizeof(getprop_rval));
 	_prom->cpu = getprop_rval;
 

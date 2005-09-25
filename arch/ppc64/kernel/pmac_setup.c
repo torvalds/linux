@@ -274,16 +274,6 @@ static void __pmac pmac_halt(void)
 }
 
 #ifdef CONFIG_BOOTX_TEXT
-static int dummy_getc_poll(void)
-{
-	return -1;
-}
-
-static unsigned char dummy_getc(void)
-{
-	return 0;
-}
-
 static void btext_putc(unsigned char c)
 {
 	btext_drawchar(c);
@@ -342,16 +332,13 @@ static void __init pmac_init_early(void)
 		sccdbg = 1;
        		udbg_init_scc(NULL);
        	}
-
-	else {
 #ifdef CONFIG_BOOTX_TEXT
+	else {
 		init_boot_display();
 
-		ppc_md.udbg_putc = btext_putc;
-		ppc_md.udbg_getc = dummy_getc;
-		ppc_md.udbg_getc_poll = dummy_getc_poll;
-#endif /* CONFIG_BOOTX_TEXT */
+		udbg_putc = btext_putc;
 	}
+#endif /* CONFIG_BOOTX_TEXT */
 
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
@@ -447,15 +434,23 @@ static int pmac_check_legacy_ioport(unsigned int baseport)
 
 static int __init pmac_declare_of_platform_devices(void)
 {
-	struct device_node *np;
+	struct device_node *np, *npp;
 
-	np = find_devices("u3");
-	if (np) {
-		for (np = np->child; np != NULL; np = np->sibling)
+	npp = of_find_node_by_name(NULL, "u3");
+	if (npp) {
+		for (np = NULL; (np = of_get_next_child(npp, np)) != NULL;) {
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c");
+				of_platform_device_create(np, "u3-i2c", NULL);
+				of_node_put(np);
 				break;
 			}
+		}
+		of_node_put(npp);
+	}
+        npp = of_find_node_by_type(NULL, "smu");
+        if (npp) {
+		of_platform_device_create(npp, "smu", NULL);
+		of_node_put(npp);
 	}
 
 	return 0;
@@ -490,6 +485,18 @@ static int __init pmac_probe(int platform)
 	return 1;
 }
 
+static int pmac_probe_mode(struct pci_bus *bus)
+{
+	struct device_node *node = bus->sysdata;
+
+	/* We need to use normal PCI probing for the AGP bus,
+	   since the device for the AGP bridge isn't in the tree. */
+	if (bus->self == NULL && device_is_compatible(node, "u3-agp"))
+		return PCI_PROBE_NORMAL;
+
+	return PCI_PROBE_DEVTREE;
+}
+
 struct machdep_calls __initdata pmac_md = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= generic_mach_cpu_die,
@@ -501,6 +508,7 @@ struct machdep_calls __initdata pmac_md = {
 	.init_IRQ		= pmac_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.pcibios_fixup		= pmac_pcibios_fixup,
+	.pci_probe_mode		= pmac_probe_mode,
 	.restart		= pmac_restart,
 	.power_off		= pmac_power_off,
 	.halt			= pmac_halt,

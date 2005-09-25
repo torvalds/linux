@@ -22,11 +22,20 @@ config VIDEO_BT848
 	  the Miro, Hauppauge and STB boards. Please read the material in
 	  <file:Documentation/video4linux/bttv/> for more information.
 
-	  If you say Y or M here, you need to say Y or M to "I2C support" and
-	  "I2C bit-banging interfaces" in the device drivers section.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called bttv.
+
+config VIDEO_SAA6588
+	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
+	depends on VIDEO_DEV && I2C && VIDEO_BT848
+
+	help
+	  Support for  Radio Data System (RDS) decoder. This allows seeing
+	  radio station identification transmitted using this standard.
+	  Currentlly, it works only with bt8x8 chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa6588.
 
 config VIDEO_PMS
 	tristate "Mediavision Pro Movie Studio Video For Linux"
@@ -254,6 +263,7 @@ config VIDEO_SAA7134_DVB
 	select VIDEO_BUF_DVB
 	select DVB_MT352
 	select DVB_CX22702
+	select DVB_TDA1004X
 	---help---
 	  This adds support for DVB cards based on the
 	  Philips saa7134 chip.

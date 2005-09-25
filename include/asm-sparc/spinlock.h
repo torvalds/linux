@@ -12,96 +12,12 @@
 
 #include <asm/psr.h>
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-struct _spinlock_debug {
-	unsigned char lock;
-	unsigned long owner_pc;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-};
-typedef struct _spinlock_debug spinlock_t;
+#define __raw_spin_is_locked(lock) (*((volatile unsigned char *)(lock)) != 0)
 
-#define SPIN_LOCK_UNLOCKED	(spinlock_t) { 0, 0 }
-#define spin_lock_init(lp)	do { *(lp)= SPIN_LOCK_UNLOCKED; } while(0)
-#define spin_is_locked(lp)  (*((volatile unsigned char *)(&((lp)->lock))) != 0)
-#define spin_unlock_wait(lp)	do { barrier(); } while(*(volatile unsigned char *)(&(lp)->lock))
+#define __raw_spin_unlock_wait(lock) \
+	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
 
-extern void _do_spin_lock(spinlock_t *lock, char *str);
-extern int _spin_trylock(spinlock_t *lock);
-extern void _do_spin_unlock(spinlock_t *lock);
-
-#define _raw_spin_trylock(lp)	_spin_trylock(lp)
-#define _raw_spin_lock(lock)	_do_spin_lock(lock, "spin_lock")
-#define _raw_spin_unlock(lock)	_do_spin_unlock(lock)
-
-struct _rwlock_debug {
-	volatile unsigned int lock;
-	unsigned long owner_pc;
-	unsigned long reader_pc[NR_CPUS];
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-};
-typedef struct _rwlock_debug rwlock_t;
-
-#define RW_LOCK_UNLOCKED (rwlock_t) { 0, 0, {0} }
-
-#define rwlock_init(lp)	do { *(lp)= RW_LOCK_UNLOCKED; } while(0)
-
-extern void _do_read_lock(rwlock_t *rw, char *str);
-extern void _do_read_unlock(rwlock_t *rw, char *str);
-extern void _do_write_lock(rwlock_t *rw, char *str);
-extern void _do_write_unlock(rwlock_t *rw);
-
-#define _raw_read_lock(lock)	\
-do {	unsigned long flags; \
-	local_irq_save(flags); \
-	_do_read_lock(lock, "read_lock"); \
-	local_irq_restore(flags); \
-} while(0)
-
-#define _raw_read_unlock(lock) \
-do {	unsigned long flags; \
-	local_irq_save(flags); \
-	_do_read_unlock(lock, "read_unlock"); \
-	local_irq_restore(flags); \
-} while(0)
-
-#define _raw_write_lock(lock) \
-do {	unsigned long flags; \
-	local_irq_save(flags); \
-	_do_write_lock(lock, "write_lock"); \
-	local_irq_restore(flags); \
-} while(0)
-
-#define _raw_write_unlock(lock) \
-do {	unsigned long flags; \
-	local_irq_save(flags); \
-	_do_write_unlock(lock); \
-	local_irq_restore(flags); \
-} while(0)
-
-#else /* !CONFIG_DEBUG_SPINLOCK */
-
-typedef struct {
-	unsigned char lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
-
-#define SPIN_LOCK_UNLOCKED	(spinlock_t) { 0 }
-
-#define spin_lock_init(lock)   (*((unsigned char *)(lock)) = 0)
-#define spin_is_locked(lock)    (*((volatile unsigned char *)(lock)) != 0)
-
-#define spin_unlock_wait(lock) \
-do { \
-	barrier(); \
-} while(*((volatile unsigned char *)lock))
-
-extern __inline__ void _raw_spin_lock(spinlock_t *lock)
+extern __inline__ void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__(
 	"\n1:\n\t"
@@ -121,7 +37,7 @@ extern __inline__ void _raw_spin_lock(spinlock_t *lock)
 	: "g2", "memory", "cc");
 }
 
-extern __inline__ int _raw_spin_trylock(spinlock_t *lock)
+extern __inline__ int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned int result;
 	__asm__ __volatile__("ldstub [%1], %0"
@@ -131,7 +47,7 @@ extern __inline__ int _raw_spin_trylock(spinlock_t *lock)
 	return (result == 0);
 }
 
-extern __inline__ void _raw_spin_unlock(spinlock_t *lock)
+extern __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__("stb %%g0, [%0]" : : "r" (lock) : "memory");
 }
@@ -147,23 +63,11 @@ extern __inline__ void _raw_spin_unlock(spinlock_t *lock)
  *
  * XXX This might create some problems with my dual spinlock
  * XXX scheme, deadlocks etc. -DaveM
- */
-typedef struct {
-	volatile unsigned int lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} rwlock_t;
-
-#define RW_LOCK_UNLOCKED (rwlock_t) { 0 }
-
-#define rwlock_init(lp)	do { *(lp)= RW_LOCK_UNLOCKED; } while(0)
-
-
-/* Sort of like atomic_t's on Sparc, but even more clever.
+ *
+ * Sort of like atomic_t's on Sparc, but even more clever.
  *
  *	------------------------------------
- *	| 24-bit counter           | wlock |  rwlock_t
+ *	| 24-bit counter           | wlock |  raw_rwlock_t
  *	------------------------------------
  *	 31                       8 7     0
  *
@@ -174,9 +78,9 @@ typedef struct {
  *
  * Unfortunately this scheme limits us to ~16,000,000 cpus.
  */
-extern __inline__ void _read_lock(rwlock_t *rw)
+extern __inline__ void __read_lock(raw_rwlock_t *rw)
 {
-	register rwlock_t *lp asm("g1");
+	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
 	__asm__ __volatile__(
 	"mov	%%o7, %%g4\n\t"
@@ -187,16 +91,16 @@ extern __inline__ void _read_lock(rwlock_t *rw)
 	: "g2", "g4", "memory", "cc");
 }
 
-#define _raw_read_lock(lock) \
+#define __raw_read_lock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	_read_lock(lock); \
+	__raw_read_lock(lock); \
 	local_irq_restore(flags); \
 } while(0)
 
-extern __inline__ void _read_unlock(rwlock_t *rw)
+extern __inline__ void __read_unlock(raw_rwlock_t *rw)
 {
-	register rwlock_t *lp asm("g1");
+	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
 	__asm__ __volatile__(
 	"mov	%%o7, %%g4\n\t"
@@ -207,16 +111,16 @@ extern __inline__ void _read_unlock(rwlock_t *rw)
 	: "g2", "g4", "memory", "cc");
 }
 
-#define _raw_read_unlock(lock) \
+#define __raw_read_unlock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	_read_unlock(lock); \
+	__raw_read_unlock(lock); \
 	local_irq_restore(flags); \
 } while(0)
 
-extern __inline__ void _raw_write_lock(rwlock_t *rw)
+extern __inline__ void __raw_write_lock(raw_rwlock_t *rw)
 {
-	register rwlock_t *lp asm("g1");
+	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
 	__asm__ __volatile__(
 	"mov	%%o7, %%g4\n\t"
@@ -227,11 +131,9 @@ extern __inline__ void _raw_write_lock(rwlock_t *rw)
 	: "g2", "g4", "memory", "cc");
 }
 
-#define _raw_write_unlock(rw)	do { (rw)->lock = 0; } while(0)
+#define __raw_write_unlock(rw)	do { (rw)->lock = 0; } while(0)
 
-#endif /* CONFIG_DEBUG_SPINLOCK */
-
-#define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
 #endif /* !(__ASSEMBLY__) */
 

@@ -61,11 +61,11 @@
 # endif
 static inline void add_usec_to_timer(struct timer_list *t, long v)
 {
-	t->sub_expires += nsec_to_arch_cycle(v * 1000);
-	while (t->sub_expires >= arch_cycles_per_jiffy)
+	t->arch_cycle_expires += nsec_to_arch_cycle(v * 1000);
+	while (t->arch_cycle_expires >= arch_cycles_per_jiffy)
 	{
 		t->expires++;
-		t->sub_expires -= arch_cycles_per_jiffy;
+		t->arch_cycle_expires -= arch_cycles_per_jiffy;
 	}
 }
 #endif
@@ -75,8 +75,7 @@ static inline void add_usec_to_timer(struct timer_list *t, long v)
 #include <asm/io.h>
 #include "ipmi_si_sm.h"
 #include <linux/init.h>
-
-#define IPMI_SI_VERSION "v33"
+#include <linux/dmi.h>
 
 /* Measure times between events in the driver. */
 #undef DEBUG_TIMING
@@ -109,6 +108,21 @@ enum si_type {
     SI_KCS, SI_SMIC, SI_BT
 };
 
+struct ipmi_device_id {
+	unsigned char device_id;
+	unsigned char device_revision;
+	unsigned char firmware_revision_1;
+	unsigned char firmware_revision_2;
+	unsigned char ipmi_version;
+	unsigned char additional_device_support;
+	unsigned char manufacturer_id[3];
+	unsigned char product_id[2];
+	unsigned char aux_firmware_revision[4];
+} __attribute__((packed));
+
+#define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
+#define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
+
 struct smi_info
 {
 	ipmi_smi_t             intf;
@@ -131,12 +145,24 @@ struct smi_info
 	void (*irq_cleanup)(struct smi_info *info);
 	unsigned int io_size;
 
+	/* Per-OEM handler, called from handle_flags().
+	   Returns 1 when handle_flags() needs to be re-run
+	   or 0 indicating it set si_state itself.
+	*/
+	int (*oem_data_avail_handler)(struct smi_info *smi_info);
+
 	/* Flags from the last GET_MSG_FLAGS command, used when an ATTN
 	   is set to hold the flags until we are done handling everything
 	   from the flags. */
 #define RECEIVE_MSG_AVAIL	0x01
 #define EVENT_MSG_BUFFER_FULL	0x02
 #define WDT_PRE_TIMEOUT_INT	0x08
+#define OEM0_DATA_AVAIL     0x20
+#define OEM1_DATA_AVAIL     0x40
+#define OEM2_DATA_AVAIL     0x80
+#define OEM_DATA_AVAIL      (OEM0_DATA_AVAIL | \
+                             OEM1_DATA_AVAIL | \
+                             OEM2_DATA_AVAIL)
 	unsigned char       msg_flags;
 
 	/* If set to true, this will request events the next time the
@@ -175,11 +201,7 @@ struct smi_info
 	   interrupts. */
 	int interrupt_disabled;
 
-	unsigned char ipmi_si_dev_rev;
-	unsigned char ipmi_si_fw_rev_major;
-	unsigned char ipmi_si_fw_rev_minor;
-	unsigned char ipmi_version_major;
-	unsigned char ipmi_version_minor;
+	struct ipmi_device_id device_id;
 
 	/* Slave address, could be reported from DMI. */
 	unsigned char slave_addr;
@@ -245,7 +267,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 		entry = smi_info->xmit_msgs.next;
 	}
 
-	if (!entry) {
+	if (! entry) {
 		smi_info->curr_msg = NULL;
 		rv = SI_SM_IDLE;
 	} else {
@@ -306,7 +328,7 @@ static void start_clear_flags(struct smi_info *smi_info)
    memory, we will re-enable the interrupt. */
 static inline void disable_si_irq(struct smi_info *smi_info)
 {
-	if ((smi_info->irq) && (!smi_info->interrupt_disabled)) {
+	if ((smi_info->irq) && (! smi_info->interrupt_disabled)) {
 		disable_irq_nosync(smi_info->irq);
 		smi_info->interrupt_disabled = 1;
 	}
@@ -322,6 +344,7 @@ static inline void enable_si_irq(struct smi_info *smi_info)
 
 static void handle_flags(struct smi_info *smi_info)
 {
+ retry:
 	if (smi_info->msg_flags & WDT_PRE_TIMEOUT_INT) {
 		/* Watchdog pre-timeout */
 		spin_lock(&smi_info->count_lock);
@@ -336,7 +359,7 @@ static void handle_flags(struct smi_info *smi_info)
 	} else if (smi_info->msg_flags & RECEIVE_MSG_AVAIL) {
 		/* Messages available. */
 		smi_info->curr_msg = ipmi_alloc_smi_msg();
-		if (!smi_info->curr_msg) {
+		if (! smi_info->curr_msg) {
 			disable_si_irq(smi_info);
 			smi_info->si_state = SI_NORMAL;
 			return;
@@ -355,7 +378,7 @@ static void handle_flags(struct smi_info *smi_info)
 	} else if (smi_info->msg_flags & EVENT_MSG_BUFFER_FULL) {
 		/* Events available. */
 		smi_info->curr_msg = ipmi_alloc_smi_msg();
-		if (!smi_info->curr_msg) {
+		if (! smi_info->curr_msg) {
 			disable_si_irq(smi_info);
 			smi_info->si_state = SI_NORMAL;
 			return;
@@ -371,6 +394,10 @@ static void handle_flags(struct smi_info *smi_info)
 			smi_info->curr_msg->data,
 			smi_info->curr_msg->data_size);
 		smi_info->si_state = SI_GETTING_EVENTS;
+	} else if (smi_info->msg_flags & OEM_DATA_AVAIL) {
+		if (smi_info->oem_data_avail_handler)
+			if (smi_info->oem_data_avail_handler(smi_info))
+				goto retry;
 	} else {
 		smi_info->si_state = SI_NORMAL;
 	}
@@ -387,7 +414,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 #endif
 	switch (smi_info->si_state) {
 	case SI_NORMAL:
-		if (!smi_info->curr_msg)
+		if (! smi_info->curr_msg)
 			break;
 
 		smi_info->curr_msg->rsp_size
@@ -761,18 +788,20 @@ static void si_restart_short_timer(struct smi_info *smi_info)
 #if defined(CONFIG_HIGH_RES_TIMERS)
 	unsigned long flags;
 	unsigned long jiffies_now;
+	unsigned long seq;
 
 	if (del_timer(&(smi_info->si_timer))) {
 		/* If we don't delete the timer, then it will go off
 		   immediately, anyway.  So we only process if we
 		   actually delete the timer. */
 
-		/* We already have irqsave on, so no need for it
-                   here. */
-		read_lock(&xtime_lock);
-		jiffies_now = jiffies;
-		smi_info->si_timer.expires = jiffies_now;
-		smi_info->si_timer.sub_expires = get_arch_cycles(jiffies_now);
+		do {
+			seq = read_seqbegin_irqsave(&xtime_lock, flags);
+			jiffies_now = jiffies;
+			smi_info->si_timer.expires = jiffies_now;
+			smi_info->si_timer.arch_cycle_expires
+				= get_arch_cycles(jiffies_now);
+		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
 		add_usec_to_timer(&smi_info->si_timer, SI_SHORT_TIMEOUT_USEC);
 
@@ -826,15 +855,19 @@ static void smi_timeout(unsigned long data)
 	/* If the state machine asks for a short delay, then shorten
            the timer timeout. */
 	if (smi_result == SI_SM_CALL_WITH_DELAY) {
+#if defined(CONFIG_HIGH_RES_TIMERS)
+		unsigned long seq;
+#endif
 		spin_lock_irqsave(&smi_info->count_lock, flags);
 		smi_info->short_timeouts++;
 		spin_unlock_irqrestore(&smi_info->count_lock, flags);
 #if defined(CONFIG_HIGH_RES_TIMERS)
-		read_lock(&xtime_lock);
-                smi_info->si_timer.expires = jiffies;
-                smi_info->si_timer.sub_expires
-                        = get_arch_cycles(smi_info->si_timer.expires);
-                read_unlock(&xtime_lock);
+		do {
+			seq = read_seqbegin_irqsave(&xtime_lock, flags);
+			smi_info->si_timer.expires = jiffies;
+			smi_info->si_timer.arch_cycle_expires
+				= get_arch_cycles(smi_info->si_timer.expires);
+		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 		add_usec_to_timer(&smi_info->si_timer, SI_SHORT_TIMEOUT_USEC);
 #else
 		smi_info->si_timer.expires = jiffies + 1;
@@ -845,7 +878,7 @@ static void smi_timeout(unsigned long data)
 		spin_unlock_irqrestore(&smi_info->count_lock, flags);
 		smi_info->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
 #if defined(CONFIG_HIGH_RES_TIMERS)
-		smi_info->si_timer.sub_expires = 0;
+		smi_info->si_timer.arch_cycle_expires = 0;
 #endif
 	}
 
@@ -986,7 +1019,7 @@ MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 #define IPMI_MEM_ADDR_SPACE 1
 #define IPMI_IO_ADDR_SPACE  2
 
-#if defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_X86) || defined(CONFIG_PCI)
+#if defined(CONFIG_ACPI) || defined(CONFIG_X86) || defined(CONFIG_PCI)
 static int is_new_interface(int intf, u8 addr_space, unsigned long base_addr)
 {
 	int i;
@@ -1014,7 +1047,7 @@ static int std_irq_setup(struct smi_info *info)
 {
 	int rv;
 
-	if (!info->irq)
+	if (! info->irq)
 		return 0;
 
 	if (info->si_type == SI_BT) {
@@ -1023,7 +1056,7 @@ static int std_irq_setup(struct smi_info *info)
 				 SA_INTERRUPT,
 				 DEVICE_NAME,
 				 info);
-		if (!rv)
+		if (! rv)
 			/* Enable the interrupt in the BT interface. */
 			info->io.outputb(&info->io, IPMI_BT_INTMASK_REG,
 					 IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
@@ -1048,7 +1081,7 @@ static int std_irq_setup(struct smi_info *info)
 
 static void std_irq_cleanup(struct smi_info *info)
 {
-	if (!info->irq)
+	if (! info->irq)
 		return;
 
 	if (info->si_type == SI_BT)
@@ -1121,7 +1154,7 @@ static int port_setup(struct smi_info *info)
 	unsigned int *addr = info->io.info;
 	int           mapsize;
 
-	if (!addr || (!*addr))
+	if (! addr || (! *addr))
 		return -ENODEV;
 
 	info->io_cleanup = port_cleanup;
@@ -1164,15 +1197,15 @@ static int try_init_port(int intf_num, struct smi_info **new_info)
 {
 	struct smi_info *info;
 
-	if (!ports[intf_num])
+	if (! ports[intf_num])
 		return -ENODEV;
 
-	if (!is_new_interface(intf_num, IPMI_IO_ADDR_SPACE,
+	if (! is_new_interface(intf_num, IPMI_IO_ADDR_SPACE,
 			      ports[intf_num]))
 		return -ENODEV;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
+	if (! info) {
 		printk(KERN_ERR "ipmi_si: Could not allocate SI data (1)\n");
 		return -ENOMEM;
 	}
@@ -1182,10 +1215,10 @@ static int try_init_port(int intf_num, struct smi_info **new_info)
 	info->io.info = &(ports[intf_num]);
 	info->io.addr = NULL;
 	info->io.regspacing = regspacings[intf_num];
-	if (!info->io.regspacing)
+	if (! info->io.regspacing)
 		info->io.regspacing = DEFAULT_REGSPACING;
 	info->io.regsize = regsizes[intf_num];
-	if (!info->io.regsize)
+	if (! info->io.regsize)
 		info->io.regsize = DEFAULT_REGSPACING;
 	info->io.regshift = regshifts[intf_num];
 	info->irq = 0;
@@ -1270,7 +1303,7 @@ static int mem_setup(struct smi_info *info)
 	unsigned long *addr = info->io.info;
 	int           mapsize;
 
-	if (!addr || (!*addr))
+	if (! addr || (! *addr))
 		return -ENODEV;
 
 	info->io_cleanup = mem_cleanup;
@@ -1325,15 +1358,15 @@ static int try_init_mem(int intf_num, struct smi_info **new_info)
 {
 	struct smi_info *info;
 
-	if (!addrs[intf_num])
+	if (! addrs[intf_num])
 		return -ENODEV;
 
-	if (!is_new_interface(intf_num, IPMI_MEM_ADDR_SPACE,
+	if (! is_new_interface(intf_num, IPMI_MEM_ADDR_SPACE,
 			      addrs[intf_num]))
 		return -ENODEV;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
+	if (! info) {
 		printk(KERN_ERR "ipmi_si: Could not allocate SI data (2)\n");
 		return -ENOMEM;
 	}
@@ -1343,10 +1376,10 @@ static int try_init_mem(int intf_num, struct smi_info **new_info)
 	info->io.info = &addrs[intf_num];
 	info->io.addr = NULL;
 	info->io.regspacing = regspacings[intf_num];
-	if (!info->io.regspacing)
+	if (! info->io.regspacing)
 		info->io.regspacing = DEFAULT_REGSPACING;
 	info->io.regsize = regsizes[intf_num];
-	if (!info->io.regsize)
+	if (! info->io.regsize)
 		info->io.regsize = DEFAULT_REGSPACING;
 	info->io.regshift = regshifts[intf_num];
 	info->irq = 0;
@@ -1362,7 +1395,7 @@ static int try_init_mem(int intf_num, struct smi_info **new_info)
 }
 
 
-#ifdef CONFIG_ACPI_INTERPRETER
+#ifdef CONFIG_ACPI
 
 #include <linux/acpi.h>
 
@@ -1404,7 +1437,7 @@ static int acpi_gpe_irq_setup(struct smi_info *info)
 {
 	acpi_status status;
 
-	if (!info->irq)
+	if (! info->irq)
 		return 0;
 
 	/* FIXME - is level triggered right? */
@@ -1428,7 +1461,7 @@ static int acpi_gpe_irq_setup(struct smi_info *info)
 
 static void acpi_gpe_irq_cleanup(struct smi_info *info)
 {
-	if (!info->irq)
+	if (! info->irq)
 		return;
 
 	acpi_remove_gpe_handler(NULL, info->irq, &ipmi_acpi_gpe);
@@ -1484,6 +1517,9 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 	char             *io_type;
 	u8 		 addr_space;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	if (acpi_failure)
 		return -ENODEV;
 
@@ -1504,10 +1540,10 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 		addr_space = IPMI_MEM_ADDR_SPACE;
 	else
 		addr_space = IPMI_IO_ADDR_SPACE;
-	if (!is_new_interface(-1, addr_space, spmi->addr.address))
+	if (! is_new_interface(-1, addr_space, spmi->addr.address))
 		return -ENODEV;
 
-	if (!spmi->addr.register_bit_width) {
+	if (! spmi->addr.register_bit_width) {
 		acpi_failure = 1;
 		return -ENODEV;
 	}
@@ -1534,7 +1570,7 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 	}
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
+	if (! info) {
 		printk(KERN_ERR "ipmi_si: Could not allocate SI data (3)\n");
 		return -ENOMEM;
 	}
@@ -1610,22 +1646,15 @@ typedef struct dmi_ipmi_data
 static dmi_ipmi_data_t dmi_data[SI_MAX_DRIVERS];
 static int dmi_data_entries;
 
-typedef struct dmi_header
+static int __init decode_dmi(struct dmi_header *dm, int intf_num)
 {
-	u8	type;
-	u8	length;
-	u16	handle;
-} dmi_header_t;
-
-static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
-{
-	u8		__iomem *data = (u8 __iomem *)dm;
+	u8              *data = (u8 *)dm;
 	unsigned long  	base_addr;
 	u8		reg_spacing;
-	u8              len = readb(&dm->length);
+	u8              len = dm->length;
 	dmi_ipmi_data_t *ipmi_data = dmi_data+intf_num;
 
-	ipmi_data->type = readb(&data[4]);
+	ipmi_data->type = data[4];
 
 	memcpy(&base_addr, data+8, sizeof(unsigned long));
 	if (len >= 0x11) {
@@ -1640,12 +1669,12 @@ static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 		}
 		/* If bit 4 of byte 0x10 is set, then the lsb for the address
 		   is odd. */
-		ipmi_data->base_addr = base_addr | ((readb(&data[0x10]) & 0x10) >> 4);
+		ipmi_data->base_addr = base_addr | ((data[0x10] & 0x10) >> 4);
 
-		ipmi_data->irq = readb(&data[0x11]);
+		ipmi_data->irq = data[0x11];
 
 		/* The top two bits of byte 0x10 hold the register spacing. */
-		reg_spacing = (readb(&data[0x10]) & 0xC0) >> 6;
+		reg_spacing = (data[0x10] & 0xC0) >> 6;
 		switch(reg_spacing){
 		case 0x00: /* Byte boundaries */
 		    ipmi_data->offset = 1;
@@ -1673,7 +1702,7 @@ static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 		ipmi_data->offset = 1;
 	}
 
-	ipmi_data->slave_addr = readb(&data[6]);
+	ipmi_data->slave_addr = data[6];
 
 	if (is_new_interface(-1, ipmi_data->addr_space,ipmi_data->base_addr)) {
 		dmi_data_entries++;
@@ -1685,94 +1714,29 @@ static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 	return -1;
 }
 
-static int dmi_table(u32 base, int len, int num)
+static void __init dmi_find_bmc(void)
 {
-	u8 		  __iomem *buf;
-	struct dmi_header __iomem *dm;
-	u8 		  __iomem *data;
-	int 		  i=1;
-	int		  status=-1;
+	struct dmi_device *dev = NULL;
 	int               intf_num = 0;
 
-	buf = ioremap(base, len);
-	if(buf==NULL)
-		return -1;
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_IPMI, NULL, dev))) {
+		if (intf_num >= SI_MAX_DRIVERS)
+			break;
 
-	data = buf;
-
-	while(i<num && (data - buf) < len)
-	{
-		dm=(dmi_header_t __iomem *)data;
-
-		if((data-buf+readb(&dm->length)) >= len)
-        		break;
-
-		if (readb(&dm->type) == 38) {
-			if (decode_dmi(dm, intf_num) == 0) {
-				intf_num++;
-				if (intf_num >= SI_MAX_DRIVERS)
-					break;
-			}
-		}
-
-	        data+=readb(&dm->length);
-		while((data-buf) < len && (readb(data)||readb(data+1)))
-			data++;
-		data+=2;
-		i++;
+		decode_dmi((struct dmi_header *) dev->device_data, intf_num++);
 	}
-	iounmap(buf);
-
-	return status;
-}
-
-static inline int dmi_checksum(u8 *buf)
-{
-	u8   sum=0;
-	int  a;
-
-	for(a=0; a<15; a++)
-		sum+=buf[a];
-	return (sum==0);
-}
-
-static int dmi_decode(void)
-{
-	u8   buf[15];
-	u32  fp=0xF0000;
-
-#ifdef CONFIG_SIMNOW
-	return -1;
-#endif
-
-	while(fp < 0xFFFFF)
-	{
-		isa_memcpy_fromio(buf, fp, 15);
-		if(memcmp(buf, "_DMI_", 5)==0 && dmi_checksum(buf))
-		{
-			u16 num=buf[13]<<8|buf[12];
-			u16 len=buf[7]<<8|buf[6];
-			u32 base=buf[11]<<24|buf[10]<<16|buf[9]<<8|buf[8];
-
-			if(dmi_table(base, len, num) == 0)
-				return 0;
-		}
-		fp+=16;
-	}
-
-	return -1;
 }
 
 static int try_init_smbios(int intf_num, struct smi_info **new_info)
 {
-	struct smi_info   *info;
-	dmi_ipmi_data_t   *ipmi_data = dmi_data+intf_num;
-	char              *io_type;
+	struct smi_info *info;
+	dmi_ipmi_data_t *ipmi_data = dmi_data+intf_num;
+	char            *io_type;
 
 	if (intf_num >= dmi_data_entries)
 		return -ENODEV;
 
-	switch(ipmi_data->type) {
+	switch (ipmi_data->type) {
 		case 0x01: /* KCS */
 			si_type[intf_num] = "kcs";
 			break;
@@ -1787,7 +1751,7 @@ static int try_init_smbios(int intf_num, struct smi_info **new_info)
 	}
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
+	if (! info) {
 		printk(KERN_ERR "ipmi_si: Could not allocate SI data (4)\n");
 		return -ENOMEM;
 	}
@@ -1811,7 +1775,7 @@ static int try_init_smbios(int intf_num, struct smi_info **new_info)
 
 	regspacings[intf_num] = ipmi_data->offset;
 	info->io.regspacing = regspacings[intf_num];
-	if (!info->io.regspacing)
+	if (! info->io.regspacing)
 		info->io.regspacing = DEFAULT_REGSPACING;
 	info->io.regsize = DEFAULT_REGSPACING;
 	info->io.regshift = regshifts[intf_num];
@@ -1853,14 +1817,14 @@ static int find_pci_smic(int intf_num, struct smi_info **new_info)
 
 	pci_smic_checked = 1;
 
-	if ((pci_dev = pci_get_device(PCI_HP_VENDOR_ID, PCI_MMC_DEVICE_ID,
-				       NULL)))
-		;
-	else if ((pci_dev = pci_get_class(PCI_ERMC_CLASSCODE, NULL)) &&
-		 pci_dev->subsystem_vendor == PCI_HP_VENDOR_ID)
-		fe_rmc = 1;
-	else
-		return -ENODEV;
+	pci_dev = pci_get_device(PCI_HP_VENDOR_ID, PCI_MMC_DEVICE_ID, NULL);
+	if (! pci_dev) {
+		pci_dev = pci_get_class(PCI_ERMC_CLASSCODE, NULL);
+		if (pci_dev && (pci_dev->subsystem_vendor == PCI_HP_VENDOR_ID))
+			fe_rmc = 1;
+		else
+			return -ENODEV;
+	}
 
 	error = pci_read_config_word(pci_dev, PCI_MMC_ADDR_CW, &base_addr);
 	if (error)
@@ -1873,7 +1837,7 @@ static int find_pci_smic(int intf_num, struct smi_info **new_info)
 	}
 
 	/* Bit 0: 1 specifies programmed I/O, 0 specifies memory mapped I/O */
-	if (!(base_addr & 0x0001))
+	if (! (base_addr & 0x0001))
 	{
 		pci_dev_put(pci_dev);
 		printk(KERN_ERR
@@ -1883,17 +1847,17 @@ static int find_pci_smic(int intf_num, struct smi_info **new_info)
 	}
 
 	base_addr &= 0xFFFE;
-	if (!fe_rmc)
+	if (! fe_rmc)
 		/* Data register starts at base address + 1 in eRMC */
 		++base_addr;
 
-	if (!is_new_interface(-1, IPMI_IO_ADDR_SPACE, base_addr)) {
+	if (! is_new_interface(-1, IPMI_IO_ADDR_SPACE, base_addr)) {
 		pci_dev_put(pci_dev);
 		return -ENODEV;
 	}
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
+	if (! info) {
 		pci_dev_put(pci_dev);
 		printk(KERN_ERR "ipmi_si: Could not allocate SI data (5)\n");
 		return -ENOMEM;
@@ -1904,7 +1868,7 @@ static int find_pci_smic(int intf_num, struct smi_info **new_info)
 	ports[intf_num] = base_addr;
 	info->io.info = &(ports[intf_num]);
 	info->io.regspacing = regspacings[intf_num];
-	if (!info->io.regspacing)
+	if (! info->io.regspacing)
 		info->io.regspacing = DEFAULT_REGSPACING;
 	info->io.regsize = DEFAULT_REGSPACING;
 	info->io.regshift = regshifts[intf_num];
@@ -1925,7 +1889,7 @@ static int find_pci_smic(int intf_num, struct smi_info **new_info)
 static int try_init_plug_and_play(int intf_num, struct smi_info **new_info)
 {
 #ifdef CONFIG_PCI
-	if (find_pci_smic(intf_num, new_info)==0)
+	if (find_pci_smic(intf_num, new_info) == 0)
 		return 0;
 #endif
 	/* Include other methods here. */
@@ -1943,7 +1907,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	int               rv = 0;
 
 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
-	if (!resp)
+	if (! resp)
 		return -ENOMEM;
 
 	/* Do a Get Device ID command, since it comes back with some
@@ -1956,8 +1920,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	for (;;)
 	{
 		if (smi_result == SI_SM_CALL_WITH_DELAY) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 			smi_result = smi_info->handlers->event(
 				smi_info->si_sm, 100);
 		}
@@ -1992,11 +1955,8 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	}
 
 	/* Record info from the get device id, in case we need it. */
-	smi_info->ipmi_si_dev_rev = resp[4] & 0xf;
-	smi_info->ipmi_si_fw_rev_major = resp[5] & 0x7f;
-	smi_info->ipmi_si_fw_rev_minor = resp[6];
-	smi_info->ipmi_version_major = resp[7] & 0xf;
-	smi_info->ipmi_version_minor = resp[7] >> 4;
+	memcpy(&smi_info->device_id, &resp[3],
+	       min_t(unsigned long, resp_len-3, sizeof(smi_info->device_id)));
 
  out:
 	kfree(resp);
@@ -2028,7 +1988,7 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 	struct smi_info *smi = data;
 
 	out += sprintf(out, "interrupts_enabled:    %d\n",
-		       smi->irq && !smi->interrupt_disabled);
+		       smi->irq && ! smi->interrupt_disabled);
 	out += sprintf(out, "short_timeouts:        %ld\n",
 		       smi->short_timeouts);
 	out += sprintf(out, "long_timeouts:         %ld\n",
@@ -2057,6 +2017,73 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 	return (out - ((char *) page));
 }
 
+/*
+ * oem_data_avail_to_receive_msg_avail
+ * @info - smi_info structure with msg_flags set
+ *
+ * Converts flags from OEM_DATA_AVAIL to RECEIVE_MSG_AVAIL
+ * Returns 1 indicating need to re-run handle_flags().
+ */
+static int oem_data_avail_to_receive_msg_avail(struct smi_info *smi_info)
+{
+	smi_info->msg_flags = ((smi_info->msg_flags & ~OEM_DATA_AVAIL) |
+			      	RECEIVE_MSG_AVAIL);
+	return 1;
+}
+
+/*
+ * setup_dell_poweredge_oem_data_handler
+ * @info - smi_info.device_id must be populated
+ *
+ * Systems that match, but have firmware version < 1.40 may assert
+ * OEM0_DATA_AVAIL on their own, without being told via Set Flags that
+ * it's safe to do so.  Such systems will de-assert OEM1_DATA_AVAIL
+ * upon receipt of IPMI_GET_MSG_CMD, so we should treat these flags
+ * as RECEIVE_MSG_AVAIL instead.
+ *
+ * As Dell has no plans to release IPMI 1.5 firmware that *ever*
+ * assert the OEM[012] bits, and if it did, the driver would have to
+ * change to handle that properly, we don't actually check for the
+ * firmware version.
+ * Device ID = 0x20                BMC on PowerEdge 8G servers
+ * Device Revision = 0x80
+ * Firmware Revision1 = 0x01       BMC version 1.40
+ * Firmware Revision2 = 0x40       BCD encoded
+ * IPMI Version = 0x51             IPMI 1.5
+ * Manufacturer ID = A2 02 00      Dell IANA
+ *
+ */
+#define DELL_POWEREDGE_8G_BMC_DEVICE_ID  0x20
+#define DELL_POWEREDGE_8G_BMC_DEVICE_REV 0x80
+#define DELL_POWEREDGE_8G_BMC_IPMI_VERSION 0x51
+#define DELL_IANA_MFR_ID {0xA2, 0x02, 0x00}
+static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
+{
+	struct ipmi_device_id *id = &smi_info->device_id;
+	const char mfr[3]=DELL_IANA_MFR_ID;
+	if (! memcmp(mfr, id->manufacturer_id, sizeof(mfr))
+	    && (id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID)
+	    && (id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV)
+	    && (id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION))
+	{
+		smi_info->oem_data_avail_handler =
+			oem_data_avail_to_receive_msg_avail;
+	}
+}
+
+/*
+ * setup_oem_data_handler
+ * @info - smi_info.device_id must be filled in already
+ *
+ * Fills in smi_info.device_id.oem_data_available_handler
+ * when we know what function to use there.
+ */
+
+static void setup_oem_data_handler(struct smi_info *smi_info)
+{
+	setup_dell_poweredge_oem_data_handler(smi_info);
+}
+
 /* Returns 0 if initialized, or negative on an error. */
 static int init_one_smi(int intf_num, struct smi_info **smi)
 {
@@ -2067,20 +2094,16 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	rv = try_init_mem(intf_num, &new_smi);
 	if (rv)
 		rv = try_init_port(intf_num, &new_smi);
-#ifdef CONFIG_ACPI_INTERPRETER
-	if ((rv) && (si_trydefaults)) {
+#ifdef CONFIG_ACPI
+	if (rv && si_trydefaults)
 		rv = try_init_acpi(intf_num, &new_smi);
-	}
 #endif
 #ifdef CONFIG_X86
-	if ((rv) && (si_trydefaults)) {
+	if (rv && si_trydefaults)
 		rv = try_init_smbios(intf_num, &new_smi);
-        }
 #endif
-	if ((rv) && (si_trydefaults)) {
+	if (rv && si_trydefaults)
 		rv = try_init_plug_and_play(intf_num, &new_smi);
-	}
-
 
 	if (rv)
 		return rv;
@@ -2090,7 +2113,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	new_smi->si_sm = NULL;
 	new_smi->handlers = NULL;
 
-	if (!new_smi->irq_setup) {
+	if (! new_smi->irq_setup) {
 		new_smi->irq = irqs[intf_num];
 		new_smi->irq_setup = std_irq_setup;
 		new_smi->irq_cleanup = std_irq_cleanup;
@@ -2124,7 +2147,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 
 	/* Allocate the state machine's data and initialize it. */
 	new_smi->si_sm = kmalloc(new_smi->handlers->size(), GFP_KERNEL);
-	if (!new_smi->si_sm) {
+	if (! new_smi->si_sm) {
 		printk(" Could not allocate state machine memory\n");
 		rv = -ENOMEM;
 		goto out_err;
@@ -2154,6 +2177,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	rv = try_get_dev_id(new_smi);
 	if (rv)
 		goto out_err;
+
+	setup_oem_data_handler(new_smi);
 
 	/* Try to claim any interrupts. */
 	new_smi->irq_setup(new_smi);
@@ -2188,8 +2213,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
-			       new_smi->ipmi_version_major,
-			       new_smi->ipmi_version_minor,
+			       ipmi_version_major(&new_smi->device_id),
+			       ipmi_version_minor(&new_smi->device_id),
 			       new_smi->slave_addr,
 			       &(new_smi->intf));
 	if (rv) {
@@ -2230,10 +2255,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */
-	while (!new_smi->timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (!new_smi->timer_stopped)
+		schedule_timeout_uninterruptible(1);
 
  out_err:
 	if (new_smi->intf)
@@ -2270,7 +2293,7 @@ static __init int init_ipmi_si(void)
 	/* Parse out the si_type string into its components. */
 	str = si_type_str;
 	if (*str != '\0') {
-		for (i=0; (i<SI_MAX_PARMS) && (*str != '\0'); i++) {
+		for (i = 0; (i < SI_MAX_PARMS) && (*str != '\0'); i++) {
 			si_type[i] = str;
 			str = strchr(str, ',');
 			if (str) {
@@ -2282,22 +2305,14 @@ static __init int init_ipmi_si(void)
 		}
 	}
 
-	printk(KERN_INFO "IPMI System Interface driver version "
-	       IPMI_SI_VERSION);
-	if (kcs_smi_handlers.version)
-		printk(", KCS version %s", kcs_smi_handlers.version);
-	if (smic_smi_handlers.version)
-		printk(", SMIC version %s", smic_smi_handlers.version);
-	if (bt_smi_handlers.version)
-   	        printk(", BT version %s", bt_smi_handlers.version);
-	printk("\n");
+	printk(KERN_INFO "IPMI System Interface driver.\n");
 
 #ifdef CONFIG_X86
-	dmi_decode();
+	dmi_find_bmc();
 #endif
 
 	rv = init_one_smi(0, &(smi_infos[pos]));
-	if (rv && !ports[0] && si_trydefaults) {
+	if (rv && ! ports[0] && si_trydefaults) {
 		/* If we are trying defaults and the initial port is
                    not set, then set it. */
 		si_type[0] = "kcs";
@@ -2319,7 +2334,7 @@ static __init int init_ipmi_si(void)
 	if (rv == 0)
 		pos++;
 
-	for (i=1; i < SI_MAX_PARMS; i++) {
+	for (i = 1; i < SI_MAX_PARMS; i++) {
 		rv = init_one_smi(i, &(smi_infos[pos]));
 		if (rv == 0)
 			pos++;
@@ -2361,17 +2376,14 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */
-	while (!to_clean->timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (!to_clean->timer_stopped)
+		schedule_timeout_uninterruptible(1);
 
 	/* Interrupts and timeouts are stopped, now make sure the
 	   interface is in a clean state. */
-	while ((to_clean->curr_msg) || (to_clean->si_state != SI_NORMAL)) {
+	while (to_clean->curr_msg || (to_clean->si_state != SI_NORMAL)) {
 		poll(to_clean);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	rv = ipmi_unregister_smi(to_clean->intf);
@@ -2392,13 +2404,15 @@ static __exit void cleanup_ipmi_si(void)
 {
 	int i;
 
-	if (!initialized)
+	if (! initialized)
 		return;
 
-	for (i=0; i<SI_MAX_DRIVERS; i++) {
+	for (i = 0; i < SI_MAX_DRIVERS; i++) {
 		cleanup_one_si(smi_infos[i]);
 	}
 }
 module_exit(cleanup_ipmi_si);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("Interface to the IPMI driver for the KCS, SMIC, and BT system interfaces.");

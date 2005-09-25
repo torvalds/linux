@@ -338,8 +338,7 @@ static int swimiop_eject(struct floppy_state *fs)
 			err = -EINTR;
 			break;
 		}
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 	}
 	release_drive(fs);
 	return cmd->error;

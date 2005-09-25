@@ -194,10 +194,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 	return 0;
@@ -252,8 +249,7 @@ EXPORT_SYMBOL(profile_pc);
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static inline void do_timer_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_IO_APIC
 	if (timer_ack) {
@@ -307,7 +303,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	cur_timer->mark_offset();
  
-	do_timer_interrupt(irq, NULL, regs);
+	do_timer_interrupt(irq, regs);
 
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
@@ -333,8 +329,7 @@ EXPORT_SYMBOL(get_cmos_time);
 
 static void sync_cmos_clock(unsigned long dummy);
 
-static struct timer_list sync_cmos_timer =
-                                      TIMER_INITIALIZER(sync_cmos_clock, 0, 0);
+static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
 
 static void sync_cmos_clock(unsigned long dummy)
 {
@@ -348,7 +343,7 @@ static void sync_cmos_clock(unsigned long dummy)
 	 * This code is run on a timer.  If the clock is set, that timer
 	 * may not expire at the correct time.  Thus, we adjust...
 	 */
-	if ((time_status & STA_UNSYNC) != 0)
+	if (!ntp_synced())
 		/*
 		 * Not synced, exit, do not restart a timer (if one is
 		 * running, let it run out).
@@ -383,6 +378,7 @@ void notify_arch_cmos_timer(void)
 
 static long clock_cmos_diff, sleep_start;
 
+static struct timer_opts *last_timer;
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
@@ -391,6 +387,10 @@ static int timer_suspend(struct sys_device *dev, pm_message_t state)
 	clock_cmos_diff = -get_cmos_time();
 	clock_cmos_diff += get_seconds();
 	sleep_start = get_cmos_time();
+	last_timer = cur_timer;
+	cur_timer = &timer_none;
+	if (last_timer->suspend)
+		last_timer->suspend(state);
 	return 0;
 }
 
@@ -404,6 +404,7 @@ static int timer_resume(struct sys_device *dev)
 	if (is_hpet_enabled())
 		hpet_reenable();
 #endif
+	setup_pit_timer();
 	sec = get_cmos_time() + clock_cmos_diff;
 	sleep_length = (get_cmos_time() - sleep_start) * HZ;
 	write_seqlock_irqsave(&xtime_lock, flags);
@@ -412,6 +413,11 @@ static int timer_resume(struct sys_device *dev)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	jiffies += sleep_length;
 	wall_jiffies += sleep_length;
+	if (last_timer->resume)
+		last_timer->resume();
+	cur_timer = last_timer;
+	last_timer = NULL;
+	touch_softlockup_watchdog();
 	return 0;
 }
 

@@ -581,18 +581,13 @@ asmlinkage int irix_brk(unsigned long brk)
 	}
 
 	/*
-	 * Check if we have enough memory..
+	 * Ok, looks good - let it rip.
 	 */
-	if (security_vm_enough_memory((newbrk-oldbrk) >> PAGE_SHIFT)) {
+	if (do_brk(oldbrk, newbrk-oldbrk) != oldbrk) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	/*
-	 * Ok, looks good - let it rip.
-	 */
 	mm->brk = brk;
-	do_brk(oldbrk, newbrk-oldbrk);
 	ret = 0;
 
 out:
@@ -632,10 +627,7 @@ asmlinkage int irix_stime(int value)
 	write_seqlock_irq(&xtime_lock);
 	xtime.tv_sec = value;
 	xtime.tv_nsec = 0;
-	time_adjust = 0;			/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 
 	return 0;
@@ -1035,8 +1027,7 @@ bad:
 
 asmlinkage int irix_sginap(int ticks)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(ticks);
+	schedule_timeout_interruptible(ticks);
 	return 0;
 }
 

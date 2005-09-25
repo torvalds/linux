@@ -106,6 +106,8 @@
 #define WBSD_CLK_16M		0x02
 #define WBSD_CLK_24M		0x03
 
+#define WBSD_DATA_WIDTH		0x01
+
 #define WBSD_DAT3_H		0x08
 #define WBSD_FIFO_RESET		0x04
 #define WBSD_SOFT_RESET		0x02
@@ -137,49 +139,50 @@
 struct wbsd_host
 {
 	struct mmc_host*	mmc;		/* MMC structure */
-	
+
 	spinlock_t		lock;		/* Mutex */
 
 	int			flags;		/* Driver states */
 
 #define WBSD_FCARD_PRESENT	(1<<0)		/* Card is present */
 #define WBSD_FIGNORE_DETECT	(1<<1)		/* Ignore card detection */
-	
+
 	struct mmc_request*	mrq;		/* Current request */
-	
+
 	u8			isr;		/* Accumulated ISR */
-	
+
 	struct scatterlist*	cur_sg;		/* Current SG entry */
 	unsigned int		num_sg;		/* Number of entries left */
 	void*			mapped_sg;	/* vaddr of mapped sg */
-	
+
 	unsigned int		offset;		/* Offset into current entry */
 	unsigned int		remain;		/* Data left in curren entry */
 
 	int			size;		/* Total size of transfer */
-	
+
 	char*			dma_buffer;	/* ISA DMA buffer */
 	dma_addr_t		dma_addr;	/* Physical address for same */
 
 	int			firsterr;	/* See fifo functions */
-	
+
 	u8			clk;		/* Current clock speed */
-	
+	unsigned char		bus_width;	/* Current bus width */
+
 	int			config;		/* Config port */
 	u8			unlock_code;	/* Code to unlock config */
 
 	int			chip_id;	/* ID of controller */
-	
+
 	int			base;		/* I/O port base */
 	int			irq;		/* Interrupt */
 	int			dma;		/* DMA channel */
-	
+
 	struct tasklet_struct	card_tasklet;	/* Tasklet structures */
 	struct tasklet_struct	fifo_tasklet;
 	struct tasklet_struct	crc_tasklet;
 	struct tasklet_struct	timeout_tasklet;
 	struct tasklet_struct	finish_tasklet;
 	struct tasklet_struct	block_tasklet;
-	
-	struct timer_list	timer;		/* Card detection timer */
+
+	struct timer_list	ignore_timer;	/* Ignore detection timer */
 };

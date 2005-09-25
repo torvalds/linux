@@ -638,7 +638,7 @@ iso_stream_alloc (unsigned mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
-	stream = kcalloc(1, sizeof *stream, mem_flags);
+	stream = kzalloc(sizeof *stream, mem_flags);
 	if (likely (stream != NULL)) {
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
@@ -700,6 +700,7 @@ iso_stream_init (
 
 	} else {
 		u32		addr;
+		int		think_time;
 
 		addr = dev->ttport << 24;
 		if (!ehci_is_TDI(ehci)
@@ -709,6 +710,9 @@ iso_stream_init (
 		addr |= epnum << 8;
 		addr |= dev->devnum;
 		stream->usecs = HS_USECS_ISO (maxp);
+		think_time = dev->tt ? dev->tt->think_time : 0;
+		stream->tt_usecs = NS_TO_US (think_time + usb_calc_bus_time (
+				dev->speed, is_input, 1, maxp));
 		if (is_input) {
 			u32	tmp;
 

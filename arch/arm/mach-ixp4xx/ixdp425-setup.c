@@ -96,7 +96,7 @@ static struct plat_serial8250_port ixdp425_uart_data[] = {
 
 static struct platform_device ixdp425_uart = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev.platform_data	= ixdp425_uart_data,
 	.num_resources		= 2,
 	.resource		= ixdp425_uart_resources
@@ -123,6 +123,7 @@ static void __init ixdp425_init(void)
 	platform_add_devices(ixdp425_devices, ARRAY_SIZE(ixdp425_devices));
 }
 
+#ifdef CONFIG_ARCH_IXDP465
 MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
 	.phys_ram	= PHYS_OFFSET,
@@ -134,7 +135,9 @@ MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
 	.boot_params	= 0x0100,
 	.init_machine	= ixdp425_init,
 MACHINE_END
+#endif
 
+#ifdef CONFIG_MACH_IXDP465
 MACHINE_START(IXDP465, "Intel IXDP465 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
 	.phys_ram	= PHYS_OFFSET,
@@ -146,7 +149,9 @@ MACHINE_START(IXDP465, "Intel IXDP465 Development Platform")
 	.boot_params	= 0x0100,
 	.init_machine	= ixdp425_init,
 MACHINE_END
+#endif
 
+#ifdef CONFIG_ARCH_PRPMC1100
 MACHINE_START(IXCDP1100, "Intel IXCDP1100 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
 	.phys_ram	= PHYS_OFFSET,
@@ -158,6 +163,7 @@ MACHINE_START(IXCDP1100, "Intel IXCDP1100 Development Platform")
 	.boot_params	= 0x0100,
 	.init_machine	= ixdp425_init,
 MACHINE_END
+#endif
 
 /*
  * Avila is functionally equivalent to IXDP425 except that it adds

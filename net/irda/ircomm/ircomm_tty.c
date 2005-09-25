@@ -567,10 +567,8 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	self->tty = NULL;
 
 	if (self->blocked_open) {
-		if (self->close_delay) {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(self->close_delay);
-		}
+		if (self->close_delay)
+			schedule_timeout_interruptible(self->close_delay);
 		wake_up_interruptible(&self->open_wait);
 	}
 
@@ -863,8 +861,7 @@ static void ircomm_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 	spin_lock_irqsave(&self->spinlock, flags);
 	while (self->tx_skb && self->tx_skb->len) {
 		spin_unlock_irqrestore(&self->spinlock, flags);
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(poll_time);
+		schedule_timeout_interruptible(poll_time);
 		spin_lock_irqsave(&self->spinlock, flags);
 		if (signal_pending(current))
 			break;

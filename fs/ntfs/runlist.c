@@ -2,7 +2,7 @@
  * runlist.c - NTFS runlist handling code.  Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001-2005 Anton Altaparmakov
- * Copyright (c) 2002 Richard Russon
+ * Copyright (c) 2002-2005 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -35,7 +35,7 @@ static inline void ntfs_rl_mm(runlist_element *base, int dst, int src,
 		int size)
 {
 	if (likely((dst != src) && (size > 0)))
-		memmove(base + dst, base + src, size * sizeof (*base));
+		memmove(base + dst, base + src, size * sizeof(*base));
 }
 
 /**
@@ -95,6 +95,51 @@ static inline runlist_element *ntfs_rl_realloc(runlist_element *rl,
 }
 
 /**
+ * ntfs_rl_realloc_nofail - Reallocate memory for runlists
+ * @rl:		original runlist
+ * @old_size:	number of runlist elements in the original runlist @rl
+ * @new_size:	number of runlist elements we need space for
+ *
+ * As the runlists grow, more memory will be required.  To prevent the
+ * kernel having to allocate and reallocate large numbers of small bits of
+ * memory, this function returns an entire page of memory.
+ *
+ * This function guarantees that the allocation will succeed.  It will sleep
+ * for as long as it takes to complete the allocation.
+ *
+ * It is up to the caller to serialize access to the runlist @rl.
+ *
+ * N.B.  If the new allocation doesn't require a different number of pages in
+ *       memory, the function will return the original pointer.
+ *
+ * On success, return a pointer to the newly allocated, or recycled, memory.
+ * On error, return -errno. The following error codes are defined:
+ *	-ENOMEM	- Not enough memory to allocate runlist array.
+ *	-EINVAL	- Invalid parameters were passed in.
+ */
+static inline runlist_element *ntfs_rl_realloc_nofail(runlist_element *rl,
+		int old_size, int new_size)
+{
+	runlist_element *new_rl;
+
+	old_size = PAGE_ALIGN(old_size * sizeof(*rl));
+	new_size = PAGE_ALIGN(new_size * sizeof(*rl));
+	if (old_size == new_size)
+		return rl;
+
+	new_rl = ntfs_malloc_nofs_nofail(new_size);
+	BUG_ON(!new_rl);
+
+	if (likely(rl != NULL)) {
+		if (unlikely(old_size > new_size))
+			old_size = new_size;
+		memcpy(new_rl, rl, old_size);
+		ntfs_free(rl);
+	}
+	return new_rl;
+}
+
+/**
  * ntfs_are_rl_mergeable - test if two runlists can be joined together
  * @dst:	original runlist
  * @src:	new runlist to test for mergeability with @dst
@@ -113,17 +158,21 @@ static inline BOOL ntfs_are_rl_mergeable(runlist_element *dst,
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	if ((dst->lcn < 0) || (src->lcn < 0)) {   /* Are we merging holes? */
-		if (dst->lcn == LCN_HOLE && src->lcn == LCN_HOLE)
-			return TRUE;
+	/* We can merge unmapped regions even if they are misaligned. */
+	if ((dst->lcn == LCN_RL_NOT_MAPPED) && (src->lcn == LCN_RL_NOT_MAPPED))
+		return TRUE;
+	/* If the runs are misaligned, we cannot merge them. */
+	if ((dst->vcn + dst->length) != src->vcn)
 		return FALSE;
-	}
-	if ((dst->lcn + dst->length) != src->lcn) /* Are the runs contiguous? */
-		return FALSE;
-	if ((dst->vcn + dst->length) != src->vcn) /* Are the runs misaligned? */
-		return FALSE;
-
-	return TRUE;
+	/* If both runs are non-sparse and contiguous, we can merge them. */
+	if ((dst->lcn >= 0) && (src->lcn >= 0) &&
+			((dst->lcn + dst->length) == src->lcn))
+		return TRUE;
+	/* If we are merging two holes, we can merge them. */
+	if ((dst->lcn == LCN_HOLE) && (src->lcn == LCN_HOLE))
+		return TRUE;
+	/* Cannot merge. */
+	return FALSE;
 }
 
 /**
@@ -169,14 +218,15 @@ static inline void __ntfs_rl_merge(runlist_element *dst, runlist_element *src)
 static inline runlist_element *ntfs_rl_append(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
-	BOOL right;
-	int magic;
+	BOOL right = FALSE;	/* Right end of @src needs merging. */
+	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
 	/* First, check if the right hand end needs merging. */
-	right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
+	if ((loc + 1) < dsize)
+		right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
 
 	/* Space required: @dst size + @src size, less one if we merged. */
 	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - right);
@@ -191,18 +241,19 @@ static inline runlist_element *ntfs_rl_append(runlist_element *dst,
 	if (right)
 		__ntfs_rl_merge(src + ssize - 1, dst + loc + 1);
 
-	magic = loc + ssize;
+	/* First run after the @src runs that have been inserted. */
+	marker = loc + ssize + 1;
 
 	/* Move the tail of @dst out of the way, then copy in @src. */
-	ntfs_rl_mm(dst, magic + 1, loc + 1 + right, dsize - loc - 1 - right);
+	ntfs_rl_mm(dst, marker, loc + 1 + right, dsize - (loc + 1 + right));
 	ntfs_rl_mc(dst, loc + 1, src, 0, ssize);
 
 	/* Adjust the size of the preceding hole. */
 	dst[loc].length = dst[loc + 1].vcn - dst[loc].vcn;
 
 	/* We may have changed the length of the file, so fix the end marker */
-	if (dst[magic + 1].lcn == LCN_ENOENT)
-		dst[magic + 1].vcn = dst[magic].vcn + dst[magic].length;
+	if (dst[marker].lcn == LCN_ENOENT)
+		dst[marker].vcn = dst[marker - 1].vcn + dst[marker - 1].length;
 
 	return dst;
 }
@@ -234,18 +285,17 @@ static inline runlist_element *ntfs_rl_append(runlist_element *dst,
 static inline runlist_element *ntfs_rl_insert(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
-	BOOL left = FALSE;
-	BOOL disc = FALSE;	/* Discontinuity */
-	BOOL hole = FALSE;	/* Following a hole */
-	int magic;
+	BOOL left = FALSE;	/* Left end of @src needs merging. */
+	BOOL disc = FALSE;	/* Discontinuity between @dst and @src. */
+	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	/* disc => Discontinuity between the end of @dst and the start of @src.
-	 *	   This means we might need to insert a hole.
-	 * hole => @dst ends with a hole or an unmapped region which we can
-	 *	   extend to match the discontinuity. */
+	/*
+	 * disc => Discontinuity between the end of @dst and the start of @src.
+	 *	   This means we might need to insert a "not mapped" run.
+	 */
 	if (loc == 0)
 		disc = (src[0].vcn > 0);
 	else {
@@ -258,58 +308,49 @@ static inline runlist_element *ntfs_rl_insert(runlist_element *dst,
 			merged_length += src->length;
 
 		disc = (src[0].vcn > dst[loc - 1].vcn + merged_length);
-		if (disc)
-			hole = (dst[loc - 1].lcn == LCN_HOLE);
 	}
-
-	/* Space required: @dst size + @src size, less one if we merged, plus
-	 * one if there was a discontinuity, less one for a trailing hole. */
-	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - left + disc - hole);
+	/*
+	 * Space required: @dst size + @src size, less one if we merged, plus
+	 * one if there was a discontinuity.
+	 */
+	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - left + disc);
 	if (IS_ERR(dst))
 		return dst;
 	/*
 	 * We are guaranteed to succeed from here so can start modifying the
 	 * original runlist.
 	 */
-
 	if (left)
 		__ntfs_rl_merge(dst + loc - 1, src);
-
-	magic = loc + ssize - left + disc - hole;
+	/*
+	 * First run after the @src runs that have been inserted.
+	 * Nominally,  @marker equals @loc + @ssize, i.e. location + number of
+	 * runs in @src.  However, if @left, then the first run in @src has
+	 * been merged with one in @dst.  And if @disc, then @dst and @src do
+	 * not meet and we need an extra run to fill the gap.
+	 */
+	marker = loc + ssize - left + disc;
 
 	/* Move the tail of @dst out of the way, then copy in @src. */
-	ntfs_rl_mm(dst, magic, loc, dsize - loc);
-	ntfs_rl_mc(dst, loc + disc - hole, src, left, ssize - left);
+	ntfs_rl_mm(dst, marker, loc, dsize - loc);
+	ntfs_rl_mc(dst, loc + disc, src, left, ssize - left);
 
-	/* Adjust the VCN of the last run ... */
-	if (dst[magic].lcn <= LCN_HOLE)
-		dst[magic].vcn = dst[magic - 1].vcn + dst[magic - 1].length;
+	/* Adjust the VCN of the first run after the insertion... */
+	dst[marker].vcn = dst[marker - 1].vcn + dst[marker - 1].length;
 	/* ... and the length. */
-	if (dst[magic].lcn == LCN_HOLE || dst[magic].lcn == LCN_RL_NOT_MAPPED)
-		dst[magic].length = dst[magic + 1].vcn - dst[magic].vcn;
+	if (dst[marker].lcn == LCN_HOLE || dst[marker].lcn == LCN_RL_NOT_MAPPED)
+		dst[marker].length = dst[marker + 1].vcn - dst[marker].vcn;
 
-	/* Writing beyond the end of the file and there's a discontinuity. */
+	/* Writing beyond the end of the file and there is a discontinuity. */
 	if (disc) {
-		if (hole)
-			dst[loc - 1].length = dst[loc].vcn - dst[loc - 1].vcn;
-		else {
-			if (loc > 0) {
-				dst[loc].vcn = dst[loc - 1].vcn +
-						dst[loc - 1].length;
-				dst[loc].length = dst[loc + 1].vcn -
-						dst[loc].vcn;
-			} else {
-				dst[loc].vcn = 0;
-				dst[loc].length = dst[loc + 1].vcn;
-			}
-			dst[loc].lcn = LCN_RL_NOT_MAPPED;
+		if (loc > 0) {
+			dst[loc].vcn = dst[loc - 1].vcn + dst[loc - 1].length;
+			dst[loc].length = dst[loc + 1].vcn - dst[loc].vcn;
+		} else {
+			dst[loc].vcn = 0;
+			dst[loc].length = dst[loc + 1].vcn;
 		}
-
-		magic += hole;
-
-		if (dst[magic].lcn == LCN_ENOENT)
-			dst[magic].vcn = dst[magic - 1].vcn +
-					dst[magic - 1].length;
+		dst[loc].lcn = LCN_RL_NOT_MAPPED;
 	}
 	return dst;
 }
@@ -340,20 +381,23 @@ static inline runlist_element *ntfs_rl_insert(runlist_element *dst,
 static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
-	BOOL left = FALSE;
-	BOOL right;
-	int magic;
+	BOOL left = FALSE;	/* Left end of @src needs merging. */
+	BOOL right = FALSE;	/* Right end of @src needs merging. */
+	int tail;		/* Start of tail of @dst. */
+	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	/* First, merge the left and right ends, if necessary. */
-	right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
+	/* First, see if the left and right ends need merging. */
+	if ((loc + 1) < dsize)
+		right = ntfs_are_rl_mergeable(src + ssize - 1, dst + loc + 1);
 	if (loc > 0)
 		left = ntfs_are_rl_mergeable(dst + loc - 1, src);
-
-	/* Allocate some space. We'll need less if the left, right, or both
-	 * ends were merged. */
+	/*
+	 * Allocate some space.  We will need less if the left, right, or both
+	 * ends get merged.
+	 */
 	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - left - right);
 	if (IS_ERR(dst))
 		return dst;
@@ -361,21 +405,37 @@ static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 	 * We are guaranteed to succeed from here so can start modifying the
 	 * original runlists.
 	 */
+
+	/* First, merge the left and right ends, if necessary. */
 	if (right)
 		__ntfs_rl_merge(src + ssize - 1, dst + loc + 1);
 	if (left)
 		__ntfs_rl_merge(dst + loc - 1, src);
-
-	/* FIXME: What does this mean? (AIA) */
-	magic = loc + ssize - left;
+	/*
+	 * Offset of the tail of @dst.  This needs to be moved out of the way
+	 * to make space for the runs to be copied from @src, i.e. the first
+	 * run of the tail of @dst.
+	 * Nominally, @tail equals @loc + 1, i.e. location, skipping the
+	 * replaced run.  However, if @right, then one of @dst's runs is
+	 * already merged into @src.
+	 */
+	tail = loc + right + 1;
+	/*
+	 * First run after the @src runs that have been inserted, i.e. where
+	 * the tail of @dst needs to be moved to.
+	 * Nominally, @marker equals @loc + @ssize, i.e. location + number of
+	 * runs in @src.  However, if @left, then the first run in @src has
+	 * been merged with one in @dst.
+	 */
+	marker = loc + ssize - left;
 
 	/* Move the tail of @dst out of the way, then copy in @src. */
-	ntfs_rl_mm(dst, magic, loc + right + 1, dsize - loc - right - 1);
+	ntfs_rl_mm(dst, marker, tail, dsize - tail);
 	ntfs_rl_mc(dst, loc, src, left, ssize - left);
 
-	/* We may have changed the length of the file, so fix the end marker */
-	if (dst[magic].lcn == LCN_ENOENT)
-		dst[magic].vcn = dst[magic - 1].vcn + dst[magic - 1].length;
+	/* We may have changed the length of the file, so fix the end marker. */
+	if (dsize - tail > 0 && dst[marker].lcn == LCN_ENOENT)
+		dst[marker].vcn = dst[marker - 1].vcn + dst[marker - 1].length;
 	return dst;
 }
 
@@ -497,6 +557,7 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 			/* Scan to the end of the source runlist. */
 			for (dend = 0; likely(drl[dend].length); dend++)
 				;
+			dend++;
 			drl = ntfs_rl_realloc(drl, dend, dend + 1);
 			if (IS_ERR(drl))
 				return drl;
@@ -566,8 +627,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 		 ((drl[dins].vcn + drl[dins].length) <=      /* End of hole   */
 		  (srl[send - 1].vcn + srl[send - 1].length)));
 
-	/* Or we'll lose an end marker */
-	if (start && finish && (drl[dins].length == 0))
+	/* Or we will lose an end marker. */
+	if (finish && !drl[dins].length)
 		ss++;
 	if (marker && (drl[dins].vcn + drl[dins].length > srl[send - 1].vcn))
 		finish = FALSE;
@@ -621,11 +682,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 			if (drl[ds].lcn != LCN_RL_NOT_MAPPED) {
 				/* Add an unmapped runlist element. */
 				if (!slots) {
-					/* FIXME/TODO: We need to have the
-					 * extra memory already! (AIA) */
-					drl = ntfs_rl_realloc(drl, ds, ds + 2);
-					if (!drl)
-						goto critical_error;
+					drl = ntfs_rl_realloc_nofail(drl, ds,
+							ds + 2);
 					slots = 2;
 				}
 				ds++;
@@ -640,13 +698,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 			drl[ds].length = marker_vcn - drl[ds].vcn;
 			/* Finally add the ENOENT terminator. */
 			ds++;
-			if (!slots) {
-				/* FIXME/TODO: We need to have the extra
-				 * memory already! (AIA) */
-				drl = ntfs_rl_realloc(drl, ds, ds + 1);
-				if (!drl)
-					goto critical_error;
-			}
+			if (!slots)
+				drl = ntfs_rl_realloc_nofail(drl, ds, ds + 1);
 			drl[ds].vcn = marker_vcn;
 			drl[ds].lcn = LCN_ENOENT;
 			drl[ds].length = (s64)0;
@@ -659,11 +712,6 @@ finished:
 	ntfs_debug("Merged runlist:");
 	ntfs_debug_dump_runlist(drl);
 	return drl;
-
-critical_error:
-	/* Critical error! We cannot afford to fail here. */
-	ntfs_error(NULL, "Critical error! Not enough memory.");
-	panic("NTFS: Cannot continue.");
 }
 
 /**
@@ -727,6 +775,9 @@ runlist_element *ntfs_mapping_pairs_decompress(const ntfs_volume *vol,
 		ntfs_error(vol->sb, "Corrupt attribute.");
 		return ERR_PTR(-EIO);
 	}
+	/* If the mapping pairs array is valid but empty, nothing to do. */
+	if (!vcn && !*buf)
+		return old_rl;
 	/* Current position in runlist array. */
 	rlpos = 0;
 	/* Allocate first page and set current runlist size to one page. */
@@ -1419,6 +1470,7 @@ err_out:
 
 /**
  * ntfs_rl_truncate_nolock - truncate a runlist starting at a specified vcn
+ * @vol:	ntfs volume (needed for error output)
  * @runlist:	runlist to truncate
  * @new_length:	the new length of the runlist in VCNs
  *
@@ -1426,11 +1478,15 @@ err_out:
  * holding the runlist elements to a length of @new_length VCNs.
  *
  * If @new_length lies within the runlist, the runlist elements with VCNs of
- * @new_length and above are discarded.
+ * @new_length and above are discarded.  As a special case if @new_length is
+ * zero, the runlist is discarded and set to NULL.
  *
  * If @new_length lies beyond the runlist, a sparse runlist element is added to
  * the end of the runlist @runlist or if the last runlist element is a sparse
  * one already, this is extended.
+ *
+ * Note, no checking is done for unmapped runlist elements.  It is assumed that
+ * the caller has mapped any elements that need to be mapped already.
  *
  * Return 0 on success and -errno on error.
  *
@@ -1446,6 +1502,13 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 	BUG_ON(!runlist);
 	BUG_ON(new_length < 0);
 	rl = runlist->rl;
+	if (!new_length) {
+		ntfs_debug("Freeing runlist.");
+		runlist->rl = NULL;
+		if (rl)
+			ntfs_free(rl);
+		return 0;
+	}
 	if (unlikely(!rl)) {
 		/*
 		 * Create a runlist consisting of a sparse runlist element of
@@ -1551,6 +1614,290 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 	}
 	ntfs_debug("Done.");
 	return 0;
+}
+
+/**
+ * ntfs_rl_punch_nolock - punch a hole into a runlist
+ * @vol:	ntfs volume (needed for error output)
+ * @runlist:	runlist to punch a hole into
+ * @start:	starting VCN of the hole to be created
+ * @length:	size of the hole to be created in units of clusters
+ *
+ * Punch a hole into the runlist @runlist starting at VCN @start and of size
+ * @length clusters.
+ *
+ * Return 0 on success and -errno on error, in which case @runlist has not been
+ * modified.
+ *
+ * If @start and/or @start + @length are outside the runlist return error code
+ * -ENOENT.
+ *
+ * If the runlist contains unmapped or error elements between @start and @start
+ * + @length return error code -EINVAL.
+ *
+ * Locking: The caller must hold @runlist->lock for writing.
+ */
+int ntfs_rl_punch_nolock(const ntfs_volume *vol, runlist *const runlist,
+		const VCN start, const s64 length)
+{
+	const VCN end = start + length;
+	s64 delta;
+	runlist_element *rl, *rl_end, *rl_real_end, *trl;
+	int old_size;
+	BOOL lcn_fixup = FALSE;
+
+	ntfs_debug("Entering for start 0x%llx, length 0x%llx.",
+			(long long)start, (long long)length);
+	BUG_ON(!runlist);
+	BUG_ON(start < 0);
+	BUG_ON(length < 0);
+	BUG_ON(end < 0);
+	rl = runlist->rl;
+	if (unlikely(!rl)) {
+		if (likely(!start && !length))
+			return 0;
+		return -ENOENT;
+	}
+	/* Find @start in the runlist. */
+	while (likely(rl->length && start >= rl[1].vcn))
+		rl++;
+	rl_end = rl;
+	/* Find @end in the runlist. */
+	while (likely(rl_end->length && end >= rl_end[1].vcn)) {
+		/* Verify there are no unmapped or error elements. */
+		if (unlikely(rl_end->lcn < LCN_HOLE))
+			return -EINVAL;
+		rl_end++;
+	}
+	/* Check the last element. */
+	if (unlikely(rl_end->length && rl_end->lcn < LCN_HOLE))
+		return -EINVAL;
+	/* This covers @start being out of bounds, too. */
+	if (!rl_end->length && end > rl_end->vcn)
+		return -ENOENT;
+	if (!length)
+		return 0;
+	if (!rl->length)
+		return -ENOENT;
+	rl_real_end = rl_end;
+	/* Determine the runlist size. */
+	while (likely(rl_real_end->length))
+		rl_real_end++;
+	old_size = rl_real_end - runlist->rl + 1;
+	/* If @start is in a hole simply extend the hole. */
+	if (rl->lcn == LCN_HOLE) {
+		/*
+		 * If both @start and @end are in the same sparse run, we are
+		 * done.
+		 */
+		if (end <= rl[1].vcn) {
+			ntfs_debug("Done (requested hole is already sparse).");
+			return 0;
+		}
+extend_hole:
+		/* Extend the hole. */
+		rl->length = end - rl->vcn;
+		/* If @end is in a hole, merge it with the current one. */
+		if (rl_end->lcn == LCN_HOLE) {
+			rl_end++;
+			rl->length = rl_end->vcn - rl->vcn;
+		}
+		/* We have done the hole.  Now deal with the remaining tail. */
+		rl++;
+		/* Cut out all runlist elements up to @end. */
+		if (rl < rl_end)
+			memmove(rl, rl_end, (rl_real_end - rl_end + 1) *
+					sizeof(*rl));
+		/* Adjust the beginning of the tail if necessary. */
+		if (end > rl->vcn) {
+			s64 delta = end - rl->vcn;
+			rl->vcn = end;
+			rl->length -= delta;
+			/* Only adjust the lcn if it is real. */
+			if (rl->lcn >= 0)
+				rl->lcn += delta;
+		}
+shrink_allocation:
+		/* Reallocate memory if the allocation changed. */
+		if (rl < rl_end) {
+			rl = ntfs_rl_realloc(runlist->rl, old_size,
+					old_size - (rl_end - rl));
+			if (IS_ERR(rl))
+				ntfs_warning(vol->sb, "Failed to shrink "
+						"runlist buffer.  This just "
+						"wastes a bit of memory "
+						"temporarily so we ignore it "
+						"and return success.");
+			else
+				runlist->rl = rl;
+		}
+		ntfs_debug("Done (extend hole).");
+		return 0;
+	}
+	/*
+	 * If @start is at the beginning of a run things are easier as there is
+	 * no need to split the first run.
+	 */
+	if (start == rl->vcn) {
+		/*
+		 * @start is at the beginning of a run.
+		 *
+		 * If the previous run is sparse, extend its hole.
+		 *
+		 * If @end is not in the same run, switch the run to be sparse
+		 * and extend the newly created hole.
+		 *
+		 * Thus both of these cases reduce the problem to the above
+		 * case of "@start is in a hole".
+		 */
+		if (rl > runlist->rl && (rl - 1)->lcn == LCN_HOLE) {
+			rl--;
+			goto extend_hole;
+		}
+		if (end >= rl[1].vcn) {
+			rl->lcn = LCN_HOLE;
+			goto extend_hole;
+		}
+		/*
+		 * The final case is when @end is in the same run as @start.
+		 * For this need to split the run into two.  One run for the
+		 * sparse region between the beginning of the old run, i.e.
+		 * @start, and @end and one for the remaining non-sparse
+		 * region, i.e. between @end and the end of the old run.
+		 */
+		trl = ntfs_rl_realloc(runlist->rl, old_size, old_size + 1);
+		if (IS_ERR(trl))
+			goto enomem_out;
+		old_size++;
+		if (runlist->rl != trl) {
+			rl = trl + (rl - runlist->rl);
+			rl_end = trl + (rl_end - runlist->rl);
+			rl_real_end = trl + (rl_real_end - runlist->rl);
+			runlist->rl = trl;
+		}
+split_end:
+		/* Shift all the runs up by one. */
+		memmove(rl + 1, rl, (rl_real_end - rl + 1) * sizeof(*rl));
+		/* Finally, setup the two split runs. */
+		rl->lcn = LCN_HOLE;
+		rl->length = length;
+		rl++;
+		rl->vcn += length;
+		/* Only adjust the lcn if it is real. */
+		if (rl->lcn >= 0 || lcn_fixup)
+			rl->lcn += length;
+		rl->length -= length;
+		ntfs_debug("Done (split one).");
+		return 0;
+	}
+	/*
+	 * @start is neither in a hole nor at the beginning of a run.
+	 *
+	 * If @end is in a hole, things are easier as simply truncating the run
+	 * @start is in to end at @start - 1, deleting all runs after that up
+	 * to @end, and finally extending the beginning of the run @end is in
+	 * to be @start is all that is needed.
+	 */
+	if (rl_end->lcn == LCN_HOLE) {
+		/* Truncate the run containing @start. */
+		rl->length = start - rl->vcn;
+		rl++;
+		/* Cut out all runlist elements up to @end. */
+		if (rl < rl_end)
+			memmove(rl, rl_end, (rl_real_end - rl_end + 1) *
+					sizeof(*rl));
+		/* Extend the beginning of the run @end is in to be @start. */
+		rl->vcn = start;
+		rl->length = rl[1].vcn - start;
+		goto shrink_allocation;
+	}
+	/* 
+	 * If @end is not in a hole there are still two cases to distinguish.
+	 * Either @end is or is not in the same run as @start.
+	 *
+	 * The second case is easier as it can be reduced to an already solved
+	 * problem by truncating the run @start is in to end at @start - 1.
+	 * Then, if @end is in the next run need to split the run into a sparse
+	 * run followed by a non-sparse run (already covered above) and if @end
+	 * is not in the next run switching it to be sparse, again reduces the
+	 * problem to the already covered case of "@start is in a hole".
+	 */
+	if (end >= rl[1].vcn) {
+		/*
+		 * If @end is not in the next run, reduce the problem to the
+		 * case of "@start is in a hole".
+		 */
+		if (rl[1].length && end >= rl[2].vcn) {
+			/* Truncate the run containing @start. */
+			rl->length = start - rl->vcn;
+			rl++;
+			rl->vcn = start;
+			rl->lcn = LCN_HOLE;
+			goto extend_hole;
+		}
+		trl = ntfs_rl_realloc(runlist->rl, old_size, old_size + 1);
+		if (IS_ERR(trl))
+			goto enomem_out;
+		old_size++;
+		if (runlist->rl != trl) {
+			rl = trl + (rl - runlist->rl);
+			rl_end = trl + (rl_end - runlist->rl);
+			rl_real_end = trl + (rl_real_end - runlist->rl);
+			runlist->rl = trl;
+		}
+		/* Truncate the run containing @start. */
+		rl->length = start - rl->vcn;
+		rl++;
+		/*
+		 * @end is in the next run, reduce the problem to the case
+		 * where "@start is at the beginning of a run and @end is in
+		 * the same run as @start".
+		 */
+		delta = rl->vcn - start;
+		rl->vcn = start;
+		if (rl->lcn >= 0) {
+			rl->lcn -= delta;
+			/* Need this in case the lcn just became negative. */
+			lcn_fixup = TRUE;
+		}
+		rl->length += delta;
+		goto split_end;
+	}
+	/*
+	 * The first case from above, i.e. @end is in the same run as @start.
+	 * We need to split the run into three.  One run for the non-sparse
+	 * region between the beginning of the old run and @start, one for the
+	 * sparse region between @start and @end, and one for the remaining
+	 * non-sparse region, i.e. between @end and the end of the old run.
+	 */
+	trl = ntfs_rl_realloc(runlist->rl, old_size, old_size + 2);
+	if (IS_ERR(trl))
+		goto enomem_out;
+	old_size += 2;
+	if (runlist->rl != trl) {
+		rl = trl + (rl - runlist->rl);
+		rl_end = trl + (rl_end - runlist->rl);
+		rl_real_end = trl + (rl_real_end - runlist->rl);
+		runlist->rl = trl;
+	}
+	/* Shift all the runs up by two. */
+	memmove(rl + 2, rl, (rl_real_end - rl + 1) * sizeof(*rl));
+	/* Finally, setup the three split runs. */
+	rl->length = start - rl->vcn;
+	rl++;
+	rl->vcn = start;
+	rl->lcn = LCN_HOLE;
+	rl->length = length;
+	rl++;
+	delta = end - rl->vcn;
+	rl->vcn = end;
+	rl->lcn += delta;
+	rl->length -= delta;
+	ntfs_debug("Done (split both).");
+	return 0;
+enomem_out:
+	ntfs_error(vol->sb, "Not enough memory to extend runlist buffer.");
+	return -ENOMEM;
 }
 
 #endif /* NTFS_RW */

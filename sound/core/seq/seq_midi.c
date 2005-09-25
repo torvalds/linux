@@ -322,7 +322,7 @@ snd_seq_midisynth_register_port(snd_seq_device_t *dev)
 	client = synths[card->number];
 	if (client == NULL) {
 		newclient = 1;
-		client = kcalloc(1, sizeof(*client), GFP_KERNEL);
+		client = kzalloc(sizeof(*client), GFP_KERNEL);
 		if (client == NULL) {
 			up(&register_mutex);
 			kfree(info);

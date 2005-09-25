@@ -16,13 +16,7 @@ semaphore.c-dir = kernel
 highmem.c-dir = mm
 module.c-dir = kernel
 
-STUB_CFLAGS = -Wp,-MD,$(depfile) $(call unprofile,$(USER_CFLAGS))
-
-# _cflags works with kernel files, not with userspace ones, but c_flags does,
-# why ask why?
-$(obj)/stub_segv.o : c_flags = $(STUB_CFLAGS)
-
-$(obj)/stub.o : a_flags = $(STUB_CFLAGS)
+$(obj)/stub_segv.o : _c_flags = $(call unprofile,$(CFLAGS))
 
 subdir- := util
 

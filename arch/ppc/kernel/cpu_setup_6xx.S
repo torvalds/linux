@@ -12,10 +12,9 @@
 #include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-#include <asm/ppc_asm.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/cache.h>
 
 _GLOBAL(__setup_cpu_601)
@@ -327,6 +326,7 @@ _GLOBAL(__save_cpu_setup)
 	cmplwi	cr4,r3,0x8002	/* 7457 */
 	cmplwi	cr5,r3,0x8003	/* 7447A */
 	cmplwi	cr6,r3,0x7000	/* 750FX */
+	cmplwi	cr7,r3,0x8004	/* 7448 */
 	/* cr1 is 7400 || 7410 */
 	cror	4*cr1+eq,4*cr1+eq,4*cr2+eq
 	/* cr0 is 74xx */
@@ -334,6 +334,7 @@ _GLOBAL(__save_cpu_setup)
 	cror	4*cr0+eq,4*cr0+eq,4*cr4+eq
 	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq
 	cror	4*cr0+eq,4*cr0+eq,4*cr5+eq
+	cror	4*cr0+eq,4*cr0+eq,4*cr7+eq
 	bne	1f
 	/* Backup 74xx specific regs */
 	mfspr	r4,SPRN_MSSCR0
@@ -396,6 +397,7 @@ _GLOBAL(__restore_cpu_setup)
 	cmplwi	cr4,r3,0x8002	/* 7457 */
 	cmplwi	cr5,r3,0x8003	/* 7447A */
 	cmplwi	cr6,r3,0x7000	/* 750FX */
+	cmplwi	cr7,r3,0x8004	/* 7448 */
 	/* cr1 is 7400 || 7410 */
 	cror	4*cr1+eq,4*cr1+eq,4*cr2+eq
 	/* cr0 is 74xx */
@@ -403,6 +405,7 @@ _GLOBAL(__restore_cpu_setup)
 	cror	4*cr0+eq,4*cr0+eq,4*cr4+eq
 	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq
 	cror	4*cr0+eq,4*cr0+eq,4*cr5+eq
+	cror	4*cr0+eq,4*cr0+eq,4*cr7+eq
 	bne	2f
 	/* Restore 74xx specific regs */
 	lwz	r4,CS_MSSCR0(r5)

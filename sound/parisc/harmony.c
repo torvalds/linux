@@ -880,6 +880,8 @@ snd_harmony_create(snd_card_t *card,
                 goto free_and_ret;
         }
 
+	snd_card_set_dev(card, &padev->dev);
+
 	*rchip = h;
 
 	return 0;

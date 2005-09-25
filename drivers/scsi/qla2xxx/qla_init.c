@@ -88,6 +88,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 	ha->mbx_flags = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
+	set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 
 	qla_printk(KERN_INFO, ha, "Configuring PCI space...\n");
 	rval = ha->isp_ops.pci_config(ha);
@@ -200,6 +201,7 @@ int
 qla2100_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w, mwi;
+	uint32_t d;
 	unsigned long flags;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
@@ -214,9 +216,9 @@ qla2100_pci_config(scsi_qla_host_t *ha)
 	pci_write_config_word(ha->pdev, PCI_COMMAND, w);
 
 	/* Reset expansion ROM address decode enable */
-	pci_read_config_word(ha->pdev, PCI_ROM_ADDRESS, &w);
-	w &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_word(ha->pdev, PCI_ROM_ADDRESS, w);
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -236,6 +238,7 @@ int
 qla2300_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t	w, mwi;
+	uint32_t	d;
 	unsigned long   flags = 0;
 	uint32_t	cnt;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
@@ -301,9 +304,9 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 	pci_write_config_byte(ha->pdev, PCI_LATENCY_TIMER, 0x80);
 
 	/* Reset expansion ROM address decode enable */
-	pci_read_config_word(ha->pdev, PCI_ROM_ADDRESS, &w);
-	w &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_word(ha->pdev, PCI_ROM_ADDRESS, w);
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -323,6 +326,7 @@ int
 qla24xx_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w, mwi;
+	uint32_t d;
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	int pcix_cmd_reg, pcie_dctl_reg;
@@ -365,9 +369,9 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	}
 
 	/* Reset expansion ROM address decode enable */
-	pci_read_config_word(ha->pdev, PCI_ROM_ADDRESS, &w);
-	w &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_word(ha->pdev, PCI_ROM_ADDRESS, w);
+	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
+	d &= ~PCI_ROM_ADDRESS_ENABLE;
+	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1563,7 +1567,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	ha->flags.enable_lip_reset = ((nv->host_p[1] & BIT_1) ? 1 : 0);
 	ha->flags.enable_lip_full_login = ((nv->host_p[1] & BIT_2) ? 1 : 0);
 	ha->flags.enable_target_reset = ((nv->host_p[1] & BIT_3) ? 1 : 0);
-	ha->flags.enable_led_scheme = ((nv->efi_parameters & BIT_3) ? 1 : 0);
+	ha->flags.enable_led_scheme = (nv->special_options[1] & BIT_4) ? 1 : 0;
 
 	ha->operating_mode =
 	    (icb->add_firmware_options[0] & (BIT_6 | BIT_5 | BIT_4)) >> 4;
@@ -1697,6 +1701,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, int flags)
 	fcport->iodesc_idx_sent = IODESC_INVALID_INDEX;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
+	fcport->supported_classes = FC_COS_UNSPECIFIED;
 
 	return (fcport);
 }
@@ -1898,7 +1903,8 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 			continue;
 
 		/* Bypass if not same domain and area of adapter. */
-		if (area != ha->d_id.b.area || domain != ha->d_id.b.domain)
+		if (area && domain &&
+		    (area != ha->d_id.b.area || domain != ha->d_id.b.domain))
 			continue;
 
 		/* Bypass invalid local loop ID. */
@@ -2063,8 +2069,8 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 		return;
 	}
 
-	rport_ids.node_name = be64_to_cpu(*(uint64_t *)fcport->node_name);
-	rport_ids.port_name = be64_to_cpu(*(uint64_t *)fcport->port_name);
+	rport_ids.node_name = wwn_to_u64(fcport->node_name);
+	rport_ids.port_name = wwn_to_u64(fcport->port_name);
 	rport_ids.port_id = fcport->d_id.b.domain << 16 |
 	    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
@@ -2075,6 +2081,7 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 		return;
 	}
 	rport->dd_data = fcport;
+	rport->supported_classes = fcport->supported_classes;
 
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 	if (fcport->port_type == FCT_INITIATOR)
@@ -2130,6 +2137,11 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		return (QLA_SUCCESS);
 	}
 	do {
+		/* FDMI support. */
+		if (ql2xfdmienable &&
+		    test_and_clear_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags))
+			qla2x00_fdmi_register(ha);
+
 		/* Ensure we are logged into the SNS. */
 		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
 			loop_id = NPH_SNS;
@@ -2391,6 +2403,12 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		/* Bypass if host adapter. */
 		if (new_fcport->d_id.b24 == ha->d_id.b24)
 			continue;
+
+		/* Bypass if same domain and area of adapter. */
+		if (((new_fcport->d_id.b24 & 0xffff00) ==
+		    (ha->d_id.b24 & 0xffff00)) && ha->current_topology ==
+			ISP_CFG_FL)
+			    continue;
 
 		/* Bypass reserved domain fields. */
 		if ((new_fcport->d_id.b.domain & 0xf0) == 0xf0)
@@ -2793,6 +2811,11 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 					fcport->flags |= FCF_TAPE_PRESENT;
 				}
 			}
+
+			if (mb[10] & BIT_0)
+				fcport->supported_classes |= FC_COS_CLASS2;
+			if (mb[10] & BIT_1)
+				fcport->supported_classes |= FC_COS_CLASS3;
 
 			rval = QLA_SUCCESS;
 			break;

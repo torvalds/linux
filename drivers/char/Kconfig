@@ -80,7 +80,7 @@ config SERIAL_NONSTANDARD
 
 config COMPUTONE
 	tristate "Computone IntelliPort Plus serial support"
-	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP && (BROKEN || !SPARC32)
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
 	---help---
 	  This driver supports the entire family of Intelliport II/Plus
 	  controllers with the exception of the MicroChannel controllers and
@@ -138,7 +138,7 @@ config CYZ_INTR
 
 config DIGIEPCA
 	tristate "Digiboard Intelligent Async Support"
-	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP && (!64BIT || BROKEN)
+	depends on SERIAL_NONSTANDARD
 	---help---
 	  This is a driver for Digi International's Xx, Xeve, and Xem series
 	  of cards which provide multiple serial ports. You would need
@@ -208,7 +208,7 @@ config SYNCLINK
 
 config SYNCLINKMP
 	tristate "SyncLink Multiport support"
-	depends on SERIAL_NONSTANDARD && (BROKEN || !SPARC32)
+	depends on SERIAL_NONSTANDARD
 	help
 	  Enable support for the SyncLink Multiport (2 or 4 ports)
 	  serial adapter, running asynchronous and HDLC communications up
@@ -735,7 +735,7 @@ config SGI_IP27_RTC
 
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64 && !ARM && !PPC64 && !M32R && !SPARC32
+	depends on RTC!=y && !IA64 && !ARM && !PPC64 && !M32R && !SPARC32 && !SPARC64
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -842,8 +842,7 @@ config SONYPI
 
 config TANBAC_TB0219
 	tristate "TANBAC TB0219 base board support"
-	depends TANBAC_TB0229
-
+	depends TANBAC_TB022X
 
 menu "Ftape, the floppy tape device driver"
 

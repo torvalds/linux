@@ -1934,8 +1934,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 			if (SB_AP_BITMAP(s))
 				brelse(SB_AP_BITMAP(s)[j].bh);
 		}
-		if (SB_AP_BITMAP(s))
-			vfree(SB_AP_BITMAP(s));
+		vfree(SB_AP_BITMAP(s));
 	}
 	if (SB_BUFFER_WITH_SB(s))
 		brelse(SB_BUFFER_WITH_SB(s));

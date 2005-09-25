@@ -275,6 +275,7 @@ extern void ia64_load_extra (struct task_struct *task);
  */
 #define __ARCH_WANT_UNLOCKED_CTXSW
 
+#define ARCH_HAS_PREFETCH_SWITCH_STACK
 #define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
 
 void cpu_idle_wait(void);

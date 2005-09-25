@@ -97,7 +97,7 @@ static struct s3c24xx_board n30_board __initdata = {
 	.devices_count = ARRAY_SIZE(n30_devices)
 };
 
-void __init n30_map_io(void)
+static void __init n30_map_io(void)
 {
 	s3c24xx_init_io(n30_iodesc, ARRAY_SIZE(n30_iodesc));
 	s3c24xx_init_clocks(0);
@@ -105,39 +105,29 @@ void __init n30_map_io(void)
 	s3c24xx_set_board(&n30_board);
 }
 
-void __init n30_init_irq(void)
+static void __init n30_init_irq(void)
 {
 	s3c24xx_init_irq();
 }
 
+/* GPB3 is the line that controls the pull-up for the USB D+ line */
 
-static int n30_usbstart_thread(void *unused)
-{
-	/* Turn off suspend on both USB ports, and switch the
-	 * selectable USB port to USB device mode. */
-	writel(readl(S3C2410_MISCCR) & ~0x00003008, S3C2410_MISCCR);
-
-	/* Turn off the D+ pull up for 3 seconds so that the USB host
-	 * at the other end will do a rescan of the USB bus.  */
-	s3c2410_gpio_setpin(S3C2410_GPB3, 0);
-
-	msleep_interruptible(3*HZ);
-
-	s3c2410_gpio_setpin(S3C2410_GPB3, 1);
-
-	return 0;
-}
-
-
-void __init n30_init(void)
+static void __init n30_init(void)
 {
 	s3c_device_i2c.dev.platform_data = &n30_i2ccfg;
 
-	kthread_run(n30_usbstart_thread, NULL, "n30_usbstart");
+	/* Turn off suspend on both USB ports, and switch the
+	 * selectable USB port to USB device mode. */
+
+	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
+			      S3C2410_MISCCR_USBSUSPND0 |
+			      S3C2410_MISCCR_USBSUSPND1, 0x0);
 }
 
 MACHINE_START(N30, "Acer-N30")
-	/* Maintainer: Christer Weinigel <christer@weinigel.se>, Ben Dooks <ben-linux@fluff.org> */
+	/* Maintainer: Christer Weinigel <christer@weinigel.se>,
+				Ben Dooks <ben-linux@fluff.org>
+	*/
 	.phys_ram	= S3C2410_SDRAM_PA,
 	.phys_io	= S3C2410_PA_UART,
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,

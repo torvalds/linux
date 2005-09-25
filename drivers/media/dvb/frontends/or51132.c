@@ -370,22 +370,19 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 		or51132_setmode(fe);
 	}
 
-	/* Change only if we are actually changing the channel */
-	if (state->current_frequency != param->frequency) {
-		dvb_pll_configure(state->config->pll_desc, buf,
-				  param->frequency, 0);
-		dprintk("set_parameters tuner bytes: 0x%02x 0x%02x "
-			"0x%02x 0x%02x\n",buf[0],buf[1],buf[2],buf[3]);
-		if (i2c_writebytes(state, state->config->pll_address ,buf, 4))
-			printk(KERN_WARNING "or51132: set_parameters error "
-			       "writing to tuner\n");
+	dvb_pll_configure(state->config->pll_desc, buf,
+			  param->frequency, 0);
+	dprintk("set_parameters tuner bytes: 0x%02x 0x%02x "
+		"0x%02x 0x%02x\n",buf[0],buf[1],buf[2],buf[3]);
+	if (i2c_writebytes(state, state->config->pll_address ,buf, 4))
+		printk(KERN_WARNING "or51132: set_parameters error "
+		       "writing to tuner\n");
 
-		/* Set to current mode */
-		or51132_setmode(fe);
+	/* Set to current mode */
+	or51132_setmode(fe);
 
-		/* Update current frequency */
-		state->current_frequency = param->frequency;
-	}
+	/* Update current frequency */
+	state->current_frequency = param->frequency;
 	return 0;
 }
 

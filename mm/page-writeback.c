@@ -368,10 +368,8 @@ int wakeup_pdflush(long nr_pages)
 static void wb_timer_fn(unsigned long unused);
 static void laptop_timer_fn(unsigned long unused);
 
-static struct timer_list wb_timer =
-			TIMER_INITIALIZER(wb_timer_fn, 0, 0);
-static struct timer_list laptop_mode_wb_timer =
-			TIMER_INITIALIZER(laptop_timer_fn, 0, 0);
+static DEFINE_TIMER(wb_timer, wb_timer_fn, 0, 0);
+static DEFINE_TIMER(laptop_mode_wb_timer, laptop_timer_fn, 0, 0);
 
 /*
  * Periodic writeback of "old" data.

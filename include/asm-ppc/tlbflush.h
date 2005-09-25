@@ -72,7 +72,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
 					 unsigned long vmaddr)
 	{ _tlbie(vmaddr); }
-static inline void flush_tlb_range(struct mm_struct *mm,
+static inline void flush_tlb_range(struct vm_area_struct *vma,
 				unsigned long start, unsigned long end)
 	{ __tlbia(); }
 static inline void flush_tlb_kernel_range(unsigned long start,

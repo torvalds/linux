@@ -45,10 +45,12 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	unsigned long prevbase;
 	struct node nodes[8];
 	int nodeid, i, nb; 
+	unsigned char nodeids[8];
 	int found = 0;
 	u32 reg;
 	unsigned numnodes;
 	nodemask_t nodes_parsed;
+	unsigned dualcore = 0;
 
 	nodes_clear(nodes_parsed);
 
@@ -67,11 +69,15 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	prevbase = 0;
 	for (i = 0; i < 8; i++) { 
 		unsigned long base,limit; 
-
+		u32 nodeid;
+		
+		/* Undefined before E stepping, but hopefully 0 */
+		dualcore |= ((read_pci_config(0, nb, 3, 0xe8) >> 12) & 3) == 1;
 		base = read_pci_config(0, nb, 1, 0x40 + i*8);
 		limit = read_pci_config(0, nb, 1, 0x44 + i*8);
 
 		nodeid = limit & 7; 
+		nodeids[i] = nodeid;
 		if ((base & 3) == 0) { 
 			if (i < numnodes)
 				printk("Skipping disabled node %d\n", i); 
@@ -157,8 +163,9 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 	for (i = 0; i < 8; i++) {
 		if (nodes[i].start != nodes[i].end) { 
-			/* assume 1:1 NODE:CPU */
-			cpu_to_node[i] = i; 
+			nodeid = nodeids[i];
+			apicid_to_node[nodeid << dualcore] = i;
+			apicid_to_node[(nodeid << dualcore) + dualcore] = i;
 			setup_node_bootmem(i, nodes[i].start, nodes[i].end); 
 		} 
 	}

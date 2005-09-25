@@ -68,7 +68,7 @@ void __init time_init(void)
 	 * speed for the CALIBRATE.
 	 */
 
-#if CONFIG_XTENSA_CALIBRATE_CCOUNT
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	printk("Calibrating CPU frequency ");
 	platform_calibrate_ccount();
 	printk("%d.%02d MHz\n", (int)ccount_per_jiffy/(1000000/HZ),
@@ -122,10 +122,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;                /* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	return 0;
 }
@@ -184,7 +181,7 @@ again:
 		next += CCOUNT_PER_JIFFY;
 		do_timer (regs); /* Linux handler in kernel/timer.c */
 
-		if ((time_status & STA_UNSYNC) == 0 &&
+		if (ntp_synced() &&
 		    xtime.tv_sec - last_rtc_update >= 659 &&
 		    abs((xtime.tv_nsec/1000)-(1000000-1000000/HZ))<5000000/HZ &&
 		    jiffies - wall_jiffies == 1) {

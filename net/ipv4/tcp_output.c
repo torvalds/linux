@@ -428,12 +428,14 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
  * packet to the list.  This won't be called frequently, I hope. 
  * Remember, these are still headerless SKBs at this point.
  */
-static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss_now)
+int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss_now)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
-	int nsize;
+	int nsize, old_factor;
 	u16 flags;
+
+	BUG_ON(len >= skb->len);
 
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
@@ -459,9 +461,7 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned 
 	flags = TCP_SKB_CB(skb)->flags;
 	TCP_SKB_CB(skb)->flags = flags & ~(TCPCB_FLAG_FIN|TCPCB_FLAG_PSH);
 	TCP_SKB_CB(buff)->flags = flags;
-	TCP_SKB_CB(buff)->sacked =
-		(TCP_SKB_CB(skb)->sacked &
-		 (TCPCB_LOST | TCPCB_EVER_RETRANS | TCPCB_AT_TAIL));
+	TCP_SKB_CB(buff)->sacked = TCP_SKB_CB(skb)->sacked;
 	TCP_SKB_CB(skb)->sacked &= ~TCPCB_AT_TAIL;
 
 	if (!skb_shinfo(skb)->nr_frags && skb->ip_summed != CHECKSUM_HW) {
@@ -485,23 +485,44 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned 
 	TCP_SKB_CB(buff)->when = TCP_SKB_CB(skb)->when;
 	buff->tstamp = skb->tstamp;
 
-	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
-		tp->lost_out -= tcp_skb_pcount(skb);
-		tp->left_out -= tcp_skb_pcount(skb);
-	}
+	old_factor = tcp_skb_pcount(skb);
 
 	/* Fix up tso_factor for both original and new SKB.  */
 	tcp_set_skb_tso_segs(sk, skb, mss_now);
 	tcp_set_skb_tso_segs(sk, buff, mss_now);
 
-	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
-		tp->lost_out += tcp_skb_pcount(skb);
-		tp->left_out += tcp_skb_pcount(skb);
-	}
+	/* If this packet has been sent out already, we must
+	 * adjust the various packet counters.
+	 */
+	if (!before(tp->snd_nxt, TCP_SKB_CB(buff)->end_seq)) {
+		int diff = old_factor - tcp_skb_pcount(skb) -
+			tcp_skb_pcount(buff);
 
-	if (TCP_SKB_CB(buff)->sacked&TCPCB_LOST) {
-		tp->lost_out += tcp_skb_pcount(buff);
-		tp->left_out += tcp_skb_pcount(buff);
+		tp->packets_out -= diff;
+
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
+			tp->sacked_out -= diff;
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
+			tp->retrans_out -= diff;
+
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
+			tp->lost_out -= diff;
+			tp->left_out -= diff;
+		}
+
+		if (diff > 0) {
+			/* Adjust Reno SACK estimate. */
+			if (!tp->rx_opt.sack_ok) {
+				tp->sacked_out -= diff;
+				if ((int)tp->sacked_out < 0)
+					tp->sacked_out = 0;
+				tcp_sync_left_out(tp);
+			}
+
+			tp->fackets_out -= diff;
+			if ((int)tp->fackets_out < 0)
+				tp->fackets_out = 0;
+		}
 	}
 
 	/* Link BUFF into the send queue. */
@@ -1350,12 +1371,6 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	if (before(TCP_SKB_CB(skb)->seq, tp->snd_una)) {
 		if (before(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
 			BUG();
-
-		if (sk->sk_route_caps & NETIF_F_TSO) {
-			sk->sk_route_caps &= ~NETIF_F_TSO;
-			sock_set_flag(sk, SOCK_NO_LARGESEND);
-		}
-
 		if (tcp_trim_head(sk, skb, tp->snd_una - TCP_SKB_CB(skb)->seq))
 			return -ENOMEM;
 	}
@@ -1370,22 +1385,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		return -EAGAIN;
 
 	if (skb->len > cur_mss) {
-		int old_factor = tcp_skb_pcount(skb);
-		int diff;
-
 		if (tcp_fragment(sk, skb, cur_mss, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
-
-		/* New SKB created, account for it. */
-		diff = old_factor - tcp_skb_pcount(skb) -
-		       tcp_skb_pcount(skb->next);
-		tp->packets_out -= diff;
-
-		if (diff > 0) {
-			tp->fackets_out -= diff;
-			if ((int)tp->fackets_out < 0)
-				tp->fackets_out = 0;
-		}
 	}
 
 	/* Collapse two adjacent packets if worthwhile and we can. */
@@ -1993,12 +1994,6 @@ int tcp_write_wakeup(struct sock *sk)
 				TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
 				if (tcp_fragment(sk, skb, seg_size, mss))
 					return -1;
-				/* SWS override triggered forced fragmentation.
-				 * Disable TSO, the connection is too sick. */
-				if (sk->sk_route_caps & NETIF_F_TSO) {
-					sock_set_flag(sk, SOCK_NO_LARGESEND);
-					sk->sk_route_caps &= ~NETIF_F_TSO;
-				}
 			} else if (!tcp_skb_pcount(skb))
 				tcp_set_skb_tso_segs(sk, skb, mss);
 

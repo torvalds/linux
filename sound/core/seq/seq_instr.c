@@ -53,7 +53,7 @@ static snd_seq_kinstr_t *snd_seq_instr_new(int add_len, int atomic)
 {
 	snd_seq_kinstr_t *instr;
 	
-	instr = kcalloc(1, sizeof(snd_seq_kinstr_t) + add_len, atomic ? GFP_ATOMIC : GFP_KERNEL);
+	instr = kzalloc(sizeof(snd_seq_kinstr_t) + add_len, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (instr == NULL)
 		return NULL;
 	instr->add_len = add_len;
@@ -77,7 +77,7 @@ snd_seq_kinstr_list_t *snd_seq_instr_list_new(void)
 {
 	snd_seq_kinstr_list_t *list;
 
-	list = kcalloc(1, sizeof(snd_seq_kinstr_list_t), GFP_KERNEL);
+	list = kzalloc(sizeof(snd_seq_kinstr_list_t), GFP_KERNEL);
 	if (list == NULL)
 		return NULL;
 	spin_lock_init(&list->lock);

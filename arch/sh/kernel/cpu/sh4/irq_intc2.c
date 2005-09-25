@@ -48,13 +48,13 @@ static unsigned int startup_intc2_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type intc2_irq_type = {
-	"INTC2-IRQ",
-	startup_intc2_irq,
-	shutdown_intc2_irq,
-	enable_intc2_irq,
-	disable_intc2_irq,
-	mask_and_ack_intc2,
-	end_intc2_irq
+	.typename = "INTC2-IRQ",
+	.startup = startup_intc2_irq,
+	.shutdown = shutdown_intc2_irq,
+	.enable = enable_intc2_irq,
+	.disable = disable_intc2_irq,
+	.ack = mask_and_ack_intc2,
+	.end = end_intc2_irq
 };
 
 static void disable_intc2_irq(unsigned int irq)

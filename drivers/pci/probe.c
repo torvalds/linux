@@ -72,11 +72,13 @@ void pci_remove_legacy_files(struct pci_bus *bus) { return; }
 /*
  * PCI Bus Class Devices
  */
-static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev, char *buf)
+static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev,
+					char *buf)
 {
-	cpumask_t cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
 	int ret;
+	cpumask_t cpumask;
 
+	cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
 	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
 	if (ret < PAGE_SIZE)
 		buf[ret++] = '\n';
@@ -163,7 +165,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		if (l == 0xffffffff)
 			l = 0;
 		if ((l & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY) {
-			sz = pci_size(l, sz, PCI_BASE_ADDRESS_MEM_MASK);
+			sz = pci_size(l, sz, (u32)PCI_BASE_ADDRESS_MEM_MASK);
 			if (!sz)
 				continue;
 			res->start = l & PCI_BASE_ADDRESS_MEM_MASK;
@@ -213,7 +215,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		if (l == 0xffffffff)
 			l = 0;
 		if (sz && sz != 0xffffffff) {
-			sz = pci_size(l, sz, PCI_ROM_ADDRESS_MASK);
+			sz = pci_size(l, sz, (u32)PCI_ROM_ADDRESS_MASK);
 			if (sz) {
 				res->flags = (l & IORESOURCE_ROM_ENABLE) |
 				  IORESOURCE_MEM | IORESOURCE_PREFETCH |
@@ -400,6 +402,12 @@ static void pci_enable_crs(struct pci_dev *dev)
 static void __devinit pci_fixup_parent_subordinate_busnr(struct pci_bus *child, int max)
 {
 	struct pci_bus *parent = child->parent;
+
+	/* Attempts to fix that up are really dangerous unless
+	   we're going to re-assign all bus numbers. */
+	if (!pcibios_assign_all_busses())
+		return;
+
 	while (parent->parent && parent->subordinate < max) {
 		parent->subordinate = max;
 		pci_write_config_byte(parent->self, PCI_SUBORDINATE_BUS, max);
@@ -476,8 +484,18 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		 * We need to assign a number to this bus which we always
 		 * do in the second pass.
 		 */
-		if (!pass)
+		if (!pass) {
+			if (pcibios_assign_all_busses())
+				/* Temporarily disable forwarding of the
+				   configuration cycles on all bridges in
+				   this bus segment to avoid possible
+				   conflicts in the second pass between two
+				   bridges programmed with overlapping
+				   bus ranges. */
+				pci_write_config_dword(dev, PCI_PRIMARY_BUS,
+						       buses & ~0xffffff);
 			return max;
+		}
 
 		/* Clear errors */
 		pci_write_config_word(dev, PCI_STATUS, 0xffff);
@@ -584,7 +602,7 @@ static int pci_setup_device(struct pci_dev * dev)
 		 dev->vendor, dev->device, class, dev->hdr_type);
 
 	/* "Unknown power state" */
-	dev->current_state = 4;
+	dev->current_state = PCI_UNKNOWN;
 
 	/* Early fixups, before probing the BARs */
 	pci_fixup_device(pci_fixup_early, dev);
@@ -753,29 +771,19 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 		kfree(dev);
 		return NULL;
 	}
-	device_initialize(&dev->dev);
-	dev->dev.release = pci_release_dev;
-	pci_dev_get(dev);
-
-	pci_name_device(dev);
-
-	dev->dev.dma_mask = &dev->dma_mask;
-	dev->dev.coherent_dma_mask = 0xffffffffull;
 
 	return dev;
 }
 
-struct pci_dev * __devinit
-pci_scan_single_device(struct pci_bus *bus, int devfn)
+void __devinit pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 {
-	struct pci_dev *dev;
+	device_initialize(&dev->dev);
+	dev->dev.release = pci_release_dev;
+	pci_dev_get(dev);
 
-	dev = pci_scan_device(bus, devfn);
-	pci_scan_msi_device(dev);
+	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dev.coherent_dma_mask = 0xffffffffull;
 
-	if (!dev)
-		return NULL;
-	
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
 
@@ -787,6 +795,19 @@ pci_scan_single_device(struct pci_bus *bus, int devfn)
 	spin_lock(&pci_bus_lock);
 	list_add_tail(&dev->bus_list, &bus->devices);
 	spin_unlock(&pci_bus_lock);
+}
+
+struct pci_dev * __devinit
+pci_scan_single_device(struct pci_bus *bus, int devfn)
+{
+	struct pci_dev *dev;
+
+	dev = pci_scan_device(bus, devfn);
+	if (!dev)
+		return NULL;
+
+	pci_device_add(dev, bus);
+	pci_scan_msi_device(dev);
 
 	return dev;
 }
@@ -883,7 +904,8 @@ unsigned int __devinit pci_do_scan_bus(struct pci_bus *bus)
 	return max;
 }
 
-struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent, int bus, struct pci_ops *ops, void *sysdata)
+struct pci_bus * __devinit pci_create_bus(struct device *parent,
+		int bus, struct pci_ops *ops, void *sysdata)
 {
 	int error;
 	struct pci_bus *b;
@@ -940,8 +962,6 @@ struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent, int bus,
 	b->resource[0] = &ioport_resource;
 	b->resource[1] = &iomem_resource;
 
-	b->subordinate = pci_scan_child_bus(b);
-
 	return b;
 
 sys_create_link_err:
@@ -958,6 +978,18 @@ err_out:
 	kfree(dev);
 	kfree(b);
 	return NULL;
+}
+EXPORT_SYMBOL_GPL(pci_create_bus);
+
+struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
+		int bus, struct pci_ops *ops, void *sysdata)
+{
+	struct pci_bus *b;
+
+	b = pci_create_bus(parent, bus, ops, sysdata);
+	if (b)
+		b->subordinate = pci_scan_child_bus(b);
+	return b;
 }
 EXPORT_SYMBOL(pci_scan_bus_parented);
 

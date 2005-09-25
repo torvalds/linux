@@ -327,38 +327,38 @@ static struct iw_handler_def ipw2100_wx_handler_def;
 
 static inline void read_register(struct net_device *dev, u32 reg, u32 *val)
 {
-	*val = readl((void *)(dev->base_addr + reg));
+	*val = readl((void __iomem *)(dev->base_addr + reg));
 	IPW_DEBUG_IO("r: 0x%08X => 0x%08X\n", reg, *val);
 }
 
 static inline void write_register(struct net_device *dev, u32 reg, u32 val)
 {
-	writel(val, (void *)(dev->base_addr + reg));
+	writel(val, (void __iomem *)(dev->base_addr + reg));
 	IPW_DEBUG_IO("w: 0x%08X <= 0x%08X\n", reg, val);
 }
 
 static inline void read_register_word(struct net_device *dev, u32 reg, u16 *val)
 {
-	*val = readw((void *)(dev->base_addr + reg));
+	*val = readw((void __iomem *)(dev->base_addr + reg));
 	IPW_DEBUG_IO("r: 0x%08X => %04X\n", reg, *val);
 }
 
 static inline void read_register_byte(struct net_device *dev, u32 reg, u8 *val)
 {
-	*val = readb((void *)(dev->base_addr + reg));
+	*val = readb((void __iomem *)(dev->base_addr + reg));
 	IPW_DEBUG_IO("r: 0x%08X => %02X\n", reg, *val);
 }
 
 static inline void write_register_word(struct net_device *dev, u32 reg, u16 val)
 {
-	writew(val, (void *)(dev->base_addr + reg));
+	writew(val, (void __iomem *)(dev->base_addr + reg));
 	IPW_DEBUG_IO("w: 0x%08X <= %04X\n", reg, val);
 }
 
 
 static inline void write_register_byte(struct net_device *dev, u32 reg, u8 val)
 {
-	writeb(val, (void *)(dev->base_addr + reg));
+	writeb(val, (void __iomem *)(dev->base_addr + reg));
 	IPW_DEBUG_IO("w: 0x%08X =< %02X\n", reg, val);
 }
 
@@ -498,7 +498,7 @@ static inline void read_nic_memory(struct net_device *dev, u32 addr, u32 len,
 static inline int ipw2100_hw_is_adapter_in_system(struct net_device *dev)
 {
 	return (dev->base_addr &&
-		(readl((void *)(dev->base_addr + IPW_REG_DOA_DEBUG_AREA_START))
+		(readl((void __iomem *)(dev->base_addr + IPW_REG_DOA_DEBUG_AREA_START))
 		 == IPW_DATA_DOA_DEBUG_VALUE));
 }
 
@@ -2125,19 +2125,19 @@ static void isr_indicate_scanning(struct ipw2100_priv *priv, u32 status)
 }
 
 static const struct ipw2100_status_indicator status_handlers[] = {
-	IPW2100_HANDLER(IPW_STATE_INITIALIZED, 0),
-	IPW2100_HANDLER(IPW_STATE_COUNTRY_FOUND, 0),
+	IPW2100_HANDLER(IPW_STATE_INITIALIZED, NULL),
+	IPW2100_HANDLER(IPW_STATE_COUNTRY_FOUND, NULL),
 	IPW2100_HANDLER(IPW_STATE_ASSOCIATED, isr_indicate_associated),
 	IPW2100_HANDLER(IPW_STATE_ASSN_LOST, isr_indicate_association_lost),
-	IPW2100_HANDLER(IPW_STATE_ASSN_CHANGED, 0),
+	IPW2100_HANDLER(IPW_STATE_ASSN_CHANGED, NULL),
 	IPW2100_HANDLER(IPW_STATE_SCAN_COMPLETE, isr_scan_complete),
-	IPW2100_HANDLER(IPW_STATE_ENTERED_PSP, 0),
-	IPW2100_HANDLER(IPW_STATE_LEFT_PSP, 0),
+	IPW2100_HANDLER(IPW_STATE_ENTERED_PSP, NULL),
+	IPW2100_HANDLER(IPW_STATE_LEFT_PSP, NULL),
 	IPW2100_HANDLER(IPW_STATE_RF_KILL, isr_indicate_rf_kill),
-	IPW2100_HANDLER(IPW_STATE_DISABLED, 0),
-	IPW2100_HANDLER(IPW_STATE_POWER_DOWN, 0),
+	IPW2100_HANDLER(IPW_STATE_DISABLED, NULL),
+	IPW2100_HANDLER(IPW_STATE_POWER_DOWN, NULL),
 	IPW2100_HANDLER(IPW_STATE_SCANNING, isr_indicate_scanning),
-	IPW2100_HANDLER(-1, 0)
+	IPW2100_HANDLER(-1, NULL)
 };
 
 
@@ -6327,7 +6327,7 @@ static void ipw2100_irq_tasklet(struct ipw2100_priv *priv);
 
 static struct net_device *ipw2100_alloc_device(
 	struct pci_dev *pci_dev,
-	char *base_addr,
+	void __iomem *base_addr,
 	unsigned long mem_start,
 	unsigned long mem_len)
 {
@@ -6474,7 +6474,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 				const struct pci_device_id *ent)
 {
 	unsigned long mem_start, mem_len, mem_flags;
-	char *base_addr = NULL;
+	void __iomem *base_addr = NULL;
 	struct net_device *dev = NULL;
 	struct ipw2100_priv *priv = NULL;
 	int err = 0;
@@ -6664,7 +6664,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	}
 
 	if (base_addr)
-		iounmap((char*)base_addr);
+		iounmap(base_addr);
 
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
@@ -6714,7 +6714,7 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 			free_irq(dev->irq, priv);
 
 		if (dev->base_addr)
-			iounmap((unsigned char *)dev->base_addr);
+			iounmap((void __iomem *)dev->base_addr);
 
 		free_ieee80211(dev);
 	}
@@ -8574,6 +8574,7 @@ static int ipw2100_ucode_download(struct ipw2100_priv *priv,
 	struct net_device *dev = priv->net_dev;
 	const unsigned char *microcode_data = fw->uc.data;
 	unsigned int microcode_data_left = fw->uc.size;
+	void __iomem *reg = (void __iomem *)dev->base_addr;
 
 	struct symbol_alive_response response;
 	int i, j;
@@ -8581,23 +8582,23 @@ static int ipw2100_ucode_download(struct ipw2100_priv *priv,
 
 	/* Symbol control */
 	write_nic_word(dev, IPW2100_CONTROL_REG, 0x703);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_word(dev, IPW2100_CONTROL_REG, 0x707);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* HW config */
 	write_nic_byte(dev, 0x210014, 0x72);	/* fifo width =16 */
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_byte(dev, 0x210014, 0x72);	/* fifo width =16 */
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* EN_CS_ACCESS bit to reset control store pointer */
 	write_nic_byte(dev, 0x210000, 0x40);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_byte(dev, 0x210000, 0x0);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_byte(dev, 0x210000, 0x40);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* copy microcode from buffer into Symbol */
 
@@ -8609,31 +8610,31 @@ static int ipw2100_ucode_download(struct ipw2100_priv *priv,
 
 	/* EN_CS_ACCESS bit to reset the control store pointer */
 	write_nic_byte(dev, 0x210000, 0x0);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* Enable System (Reg 0)
 	 * first enable causes garbage in RX FIFO */
 	write_nic_byte(dev, 0x210000, 0x0);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_byte(dev, 0x210000, 0x80);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* Reset External Baseband Reg */
 	write_nic_word(dev, IPW2100_CONTROL_REG, 0x703);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_word(dev, IPW2100_CONTROL_REG, 0x707);
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* HW Config (Reg 5) */
 	write_nic_byte(dev, 0x210014, 0x72);	// fifo width =16
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_byte(dev, 0x210014, 0x72);	// fifo width =16
-	readl((void *)(dev->base_addr));
+	readl(reg);
 
 	/* Enable System (Reg 0)
 	 * second enable should be OK */
 	write_nic_byte(dev, 0x210000, 0x00);	// clear enable system
-	readl((void *)(dev->base_addr));
+	readl(reg);
 	write_nic_byte(dev, 0x210000, 0x80);	// set enable system
 
 	/* check Symbol is enabled - upped this from 5 as it wasn't always

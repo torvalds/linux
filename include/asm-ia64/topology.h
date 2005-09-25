@@ -98,29 +98,6 @@ void build_cpu_to_node_map(void);
 	.nr_balance_failed	= 0,			\
 }
 
-/* sched_domains SD_ALLNODES_INIT for IA64 NUMA machines */
-#define SD_ALLNODES_INIT (struct sched_domain) {	\
-	.span			= CPU_MASK_NONE,	\
-	.parent			= NULL,			\
-	.groups			= NULL,			\
-	.min_interval		= 64,			\
-	.max_interval		= 64*num_online_cpus(),	\
-	.busy_factor		= 128,			\
-	.imbalance_pct		= 133,			\
-	.cache_hot_time		= (10*1000000),		\
-	.cache_nice_tries	= 1,			\
-	.busy_idx		= 3,			\
-	.idle_idx		= 3,			\
-	.newidle_idx		= 0, /* unused */	\
-	.wake_idx		= 0, /* unused */	\
-	.forkexec_idx		= 0, /* unused */	\
-	.per_cpu_gain		= 100,			\
-	.flags			= SD_LOAD_BALANCE,	\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 64,			\
-	.nr_balance_failed	= 0,			\
-}
-
 #endif /* CONFIG_NUMA */
 
 #include <asm-generic/topology.h>

@@ -249,6 +249,18 @@ out:
 	return error;
 }
 
+static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct proc_dir_entry *de = PROC_I(inode)->pde;
+	if (de && de->nlink)
+		inode->i_nlink = de->nlink;
+
+	generic_fillattr(inode, stat);
+	return 0;
+}
+
 static struct inode_operations proc_file_inode_operations = {
 	.setattr	= proc_notify_change,
 };
@@ -475,6 +487,7 @@ static struct file_operations proc_dir_operations = {
  */
 static struct inode_operations proc_dir_inode_operations = {
 	.lookup		= proc_lookup,
+	.getattr	= proc_getattr,
 	.setattr	= proc_notify_change,
 };
 

@@ -91,11 +91,7 @@ foreach $object (keys(%object)) {
 		     $from !~ /\.exit\.data$/ &&
 		     $from !~ /\.altinstructions$/ &&
 		     $from !~ /\.pdr$/ &&
-		     $from !~ /\.debug_info$/ &&
-		     $from !~ /\.debug_aranges$/ &&
-		     $from !~ /\.debug_ranges$/ &&
-		     $from !~ /\.debug_line$/ &&
-		     $from !~ /\.debug_frame$/ &&
+		     $from !~ /\.debug_.*$/ &&
 		     $from !~ /\.exitcall\.exit$/ &&
 		     $from !~ /\.eh_frame$/ &&
 		     $from !~ /\.stab$/)) {

@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
@@ -965,21 +966,21 @@ static void
 lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata[0];
-	u64 nodename;
+	u64 node_name;
 
 	spin_lock_irq(shost->host_lock);
 
 	if ((phba->fc_flag & FC_FABRIC) ||
 	    ((phba->fc_topology == TOPOLOGY_LOOP) &&
 	     (phba->fc_flag & FC_PUBLIC_LOOP)))
-		memcpy(&nodename, &phba->fc_fabparam.nodeName, sizeof(u64));
+		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
-		memcpy(&nodename, &phba->fc_nodename, sizeof(u64));
+		node_name = wwn_to_u64(phba->fc_nodename.wwn);
 
 	spin_unlock_irq(shost->host_lock);
 
-	fc_host_fabric_name(shost) = be64_to_cpu(nodename);
+	fc_host_fabric_name(shost) = node_name;
 }
 
 
@@ -988,8 +989,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
 	struct lpfc_sli *psli = &phba->sli;
-	struct fc_host_statistics *hs =
-			(struct fc_host_statistics *)phba->link_stats;
+	struct fc_host_statistics *hs = &phba->link_stats;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc=0;
@@ -1019,6 +1019,8 @@ lpfc_get_stats(struct Scsi_Host *shost)
 		}
 		return NULL;
 	}
+
+	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
 	hs->tx_words = (pmb->un.varRdStatus.xmitByteCnt * 256);
@@ -1101,21 +1103,20 @@ lpfc_get_starget_node_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata[0];
-	uint64_t node_name = 0;
+	u64 node_name = 0;
 	struct lpfc_nodelist *ndlp = NULL;
 
 	spin_lock_irq(shost->host_lock);
 	/* Search the mapped list for this target ID */
 	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
 		if (starget->id == ndlp->nlp_sid) {
-			memcpy(&node_name, &ndlp->nlp_nodename,
-						sizeof(struct lpfc_name));
+			node_name = wwn_to_u64(ndlp->nlp_nodename.wwn);
 			break;
 		}
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	fc_starget_node_name(starget) = be64_to_cpu(node_name);
+	fc_starget_node_name(starget) = node_name;
 }
 
 static void
@@ -1123,21 +1124,20 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata[0];
-	uint64_t port_name = 0;
+	u64 port_name = 0;
 	struct lpfc_nodelist *ndlp = NULL;
 
 	spin_lock_irq(shost->host_lock);
 	/* Search the mapped list for this target ID */
 	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
 		if (starget->id == ndlp->nlp_sid) {
-			memcpy(&port_name, &ndlp->nlp_portname,
-						sizeof(struct lpfc_name));
+			port_name = wwn_to_u64(ndlp->nlp_portname.wwn);
 			break;
 		}
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	fc_starget_port_name(starget) = be64_to_cpu(port_name);
+	fc_starget_port_name(starget) = port_name;
 }
 
 static void

@@ -22,14 +22,19 @@
 #define Dprintk(x...)
 #endif
 
-struct pglist_data *node_data[MAX_NUMNODES];
+struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 int memnode_shift;
 u8  memnodemap[NODEMAPSIZE];
 
-unsigned char cpu_to_node[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
-cpumask_t     node_to_cpumask[MAX_NUMNODES];
+unsigned char cpu_to_node[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+};
+unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
+cpumask_t node_to_cpumask[MAX_NUMNODES] __read_mostly;
 
 int numa_off __initdata;
 

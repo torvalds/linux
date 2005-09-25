@@ -128,21 +128,22 @@ void jfs_delete_inode(struct inode *inode)
 {
 	jfs_info("In jfs_delete_inode, inode = 0x%p", inode);
 
-	if (is_bad_inode(inode) ||
-	    (JFS_IP(inode)->fileset != cpu_to_le32(FILESYSTEM_I)))
-			return;
+	if (!is_bad_inode(inode) &&
+	    (JFS_IP(inode)->fileset == FILESYSTEM_I)) {
+		truncate_inode_pages(&inode->i_data, 0);
 
-	if (test_cflag(COMMIT_Freewmap, inode))
-		jfs_free_zero_link(inode);
+		if (test_cflag(COMMIT_Freewmap, inode))
+			jfs_free_zero_link(inode);
 
-	diFree(inode);
+		diFree(inode);
 
-	/*
-	 * Free the inode from the quota allocation.
-	 */
-	DQUOT_INIT(inode);
-	DQUOT_FREE_INODE(inode);
-	DQUOT_DROP(inode);
+		/*
+		 * Free the inode from the quota allocation.
+		 */
+		DQUOT_INIT(inode);
+		DQUOT_FREE_INODE(inode);
+		DQUOT_DROP(inode);
+	}
 
 	clear_inode(inode);
 }

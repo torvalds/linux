@@ -48,10 +48,6 @@ static unsigned char	hd64465_iomap_lo_shift[HD64465_IOMAP_LO_NMAP];
 static unsigned long	hd64465_iomap_hi[HD64465_IOMAP_HI_NMAP];
 static unsigned char	hd64465_iomap_hi_shift[HD64465_IOMAP_HI_NMAP];
 
-#ifndef MAX
-#define MAX(a,b)    ((a)>(b)?(a):(b))
-#endif
-
 #define PORT2ADDR(x) (sh_mv.mv_isa_port2addr(x))
 
 void hd64465_port_map(unsigned short baseport, unsigned int nports,
@@ -71,7 +67,7 @@ void hd64465_port_map(unsigned short baseport, unsigned int nports,
 	    addr += (1<<(HD64465_IOMAP_LO_SHIFT));
 	}
 
-	for (port = MAX(baseport, HD64465_IOMAP_LO_THRESH) ;
+	for (port = max_t(unsigned int, baseport, HD64465_IOMAP_LO_THRESH);
 	     port < endport && port < HD64465_IOMAP_HI_THRESH ;
 	     port += (1<<HD64465_IOMAP_HI_SHIFT)) {
 	    DPRINTK("    maphi[0x%x] = 0x%08lx\n", port, addr);
@@ -95,7 +91,7 @@ void hd64465_port_unmap(unsigned short baseport, unsigned int nports)
     	    hd64465_iomap_lo[port>>HD64465_IOMAP_LO_SHIFT] = 0;
 	}
 
-	for (port = MAX(baseport, HD64465_IOMAP_LO_THRESH) ;
+	for (port = max_t(unsigned int, baseport, HD64465_IOMAP_LO_THRESH);
 	     port < endport && port < HD64465_IOMAP_HI_THRESH ;
 	     port += (1<<HD64465_IOMAP_HI_SHIFT)) {
     	    hd64465_iomap_hi[port>>HD64465_IOMAP_HI_SHIFT] = 0;

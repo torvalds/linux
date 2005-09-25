@@ -429,13 +429,18 @@ struct scsi_host_template {
 };
 
 /*
- * shost states
+ * shost state: If you alter this, you also need to alter scsi_sysfs.c
+ * (for the ascii descriptions) and the state model enforcer:
+ * scsi_host_set_state()
  */
-enum {
-	SHOST_ADD,
-	SHOST_DEL,
+enum scsi_host_state {
+	SHOST_CREATED = 1,
+	SHOST_RUNNING,
 	SHOST_CANCEL,
+	SHOST_DEL,
 	SHOST_RECOVERY,
+	SHOST_CANCEL_RECOVERY,
+	SHOST_DEL_RECOVERY,
 };
 
 struct Scsi_Host {
@@ -462,14 +467,10 @@ struct Scsi_Host {
 
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */
-	struct semaphore      * eh_wait;   /* The error recovery thread waits
-					      on this. */
-	struct completion     * eh_notify; /* wait for eh to begin or end */
 	struct semaphore      * eh_action; /* Wait for specific actions on the
                                           host. */
 	unsigned int            eh_active:1; /* Indicates the eh thread is awake and active if
                                           this is true. */
-	unsigned int            eh_kill:1; /* set when killing the eh thread */
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
@@ -575,7 +576,7 @@ struct Scsi_Host {
 	unsigned int  irq;
 	
 
-	unsigned long shost_state;
+	enum scsi_host_state shost_state;
 
 	/* ldm bits */
 	struct device		shost_gendev;
@@ -620,6 +621,13 @@ static inline struct Scsi_Host *dev_to_shost(struct device *dev)
 	return container_of(dev, struct Scsi_Host, shost_gendev);
 }
 
+static inline int scsi_host_in_recovery(struct Scsi_Host *shost)
+{
+	return shost->shost_state == SHOST_RECOVERY ||
+		shost->shost_state == SHOST_CANCEL_RECOVERY ||
+		shost->shost_state == SHOST_DEL_RECOVERY;
+}
+
 extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);
 extern void scsi_flush_work(struct Scsi_Host *);
 
@@ -633,6 +641,7 @@ extern void scsi_remove_host(struct Scsi_Host *);
 extern struct Scsi_Host *scsi_host_get(struct Scsi_Host *);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
+extern const char *scsi_host_state_name(enum scsi_host_state);
 
 extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
 
@@ -644,6 +653,15 @@ static inline void scsi_assign_lock(struct Scsi_Host *shost, spinlock_t *lock)
 static inline struct device *scsi_get_device(struct Scsi_Host *shost)
 {
         return shost->shost_gendev.parent;
+}
+
+/**
+ * scsi_host_scan_allowed - Is scanning of this host allowed
+ * @shost:	Pointer to Scsi_Host.
+ **/
+static inline int scsi_host_scan_allowed(struct Scsi_Host *shost)
+{
+	return shost->shost_state == SHOST_RUNNING;
 }
 
 extern void scsi_unblock_requests(struct Scsi_Host *);
@@ -663,5 +681,6 @@ extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
 /* legacy interfaces */
 extern struct Scsi_Host *scsi_register(struct scsi_host_template *, int);
 extern void scsi_unregister(struct Scsi_Host *);
+extern int scsi_host_set_state(struct Scsi_Host *, enum scsi_host_state);
 
 #endif /* _SCSI_SCSI_HOST_H */

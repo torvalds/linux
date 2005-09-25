@@ -65,6 +65,7 @@
 #include "lsi/mpi_fc.h"		/* Fibre Channel (lowlevel) support */
 #include "lsi/mpi_targ.h"	/* SCSI/FCP Target protcol support */
 #include "lsi/mpi_tool.h"	/* Tools support */
+#include "lsi/mpi_sas.h"	/* SAS support */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
@@ -76,8 +77,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.02"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.02"
+#define MPT_LINUX_VERSION_COMMON	"3.03.03"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.03"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -423,7 +424,7 @@ typedef struct _MPT_IOCTL {
 /*
  *  Event Structure and define
  */
-#define MPTCTL_EVENT_LOG_SIZE		(0x0000000A)
+#define MPTCTL_EVENT_LOG_SIZE		(0x000000032)
 typedef struct _mpt_ioctl_events {
 	u32	event;		/* Specified by define above */
 	u32	eventContext;	/* Index or counter */
@@ -451,16 +452,13 @@ typedef struct _mpt_ioctl_events {
 #define MPT_SCSICFG_ALL_IDS		0x02	/* WriteSDP1 to all IDS */
 /* #define MPT_SCSICFG_BLK_NEGO		0x10	   WriteSDP1 with WDTR and SDTR disabled */
 
-typedef	struct _ScsiCfgData {
+typedef	struct _SpiCfgData {
 	u32		 PortFlags;
 	int		*nvram;			/* table of device NVRAM values */
-	IOCPage2_t	*pIocPg2;		/* table of Raid Volumes */
-	IOCPage3_t	*pIocPg3;		/* table of physical disks */
 	IOCPage4_t	*pIocPg4;		/* SEP devices addressing */
 	dma_addr_t	 IocPg4_dma;		/* Phys Addr of IOCPage4 data */
 	int		 IocPg4Sz;		/* IOCPage4 size */
 	u8		 dvStatus[MPT_MAX_SCSI_DEVICES];
-	int		 isRaid;		/* bit field, 1 if RAID */
 	u8		 minSyncFactor;		/* 0xFF if async */
 	u8		 maxSyncOffset;		/* 0 if async */
 	u8		 maxBusWidth;		/* 0 if narrow, 1 if wide */
@@ -472,10 +470,28 @@ typedef	struct _ScsiCfgData {
 	u8		 dvScheduled;		/* 1 if scheduled */
 	u8		 forceDv;		/* 1 to force DV scheduling */
 	u8		 noQas;			/* Disable QAS for this adapter */
-	u8		 Saf_Te;		/* 1 to force all Processors as SAF-TE if Inquiry data length is too short to check for SAF-TE */
+	u8		 Saf_Te;		/* 1 to force all Processors as
+						 * SAF-TE if Inquiry data length
+						 * is too short to check for SAF-TE
+						 */
 	u8		 mpt_dv;		/* command line option: enhanced=1, basic=0 */
+	u8		 bus_reset;		/* 1 to allow bus reset */
 	u8		 rsvd[1];
-} ScsiCfgData;
+}SpiCfgData;
+
+typedef	struct _SasCfgData {
+	u8		 ptClear;		/* 1 to automatically clear the
+						 * persistent table.
+						 * 0 to disable
+						 * automatic clearing.
+						 */
+}SasCfgData;
+
+typedef	struct _RaidCfgData {
+	IOCPage2_t	*pIocPg2;		/* table of Raid Volumes */
+	IOCPage3_t	*pIocPg3;		/* table of physical disks */
+	int		 isRaid;		/* bit field, 1 if RAID */
+}RaidCfgData;
 
 /*
  *  Adapter Structure - pci_dev specific. Maximum: MPT_MAX_ADAPTERS
@@ -530,11 +546,16 @@ typedef struct _MPT_ADAPTER
 	u8			*sense_buf_pool;
 	dma_addr_t		 sense_buf_pool_dma;
 	u32			 sense_buf_low_dma;
+	u8			*HostPageBuffer; /* SAS - host page buffer support */
+	u32			HostPageBuffer_sz;
+	dma_addr_t		HostPageBuffer_dma;
 	int			 mtrr_reg;
 	struct pci_dev		*pcidev;	/* struct pci_dev pointer */
 	u8			__iomem *memmap;	/* mmap address */
 	struct Scsi_Host	*sh;		/* Scsi Host pointer */
-	ScsiCfgData		spi_data;	/* Scsi config. data */
+	SpiCfgData		spi_data;	/* Scsi config. data */
+	RaidCfgData		raid_data;	/* Raid config. data */
+	SasCfgData		sas_data;	/* Sas config. data */
 	MPT_IOCTL		*ioctl;		/* ioctl data pointer */
 	struct proc_dir_entry	*ioc_dentry;
 	struct _MPT_ADAPTER	*alt_ioc;	/* ptr to 929 bound adapter port */
@@ -554,31 +575,35 @@ typedef struct _MPT_ADAPTER
 #else
 	u32			 mfcnt;
 #endif
-	u32			 NB_for_64_byte_frame;       
+	u32			 NB_for_64_byte_frame;
 	u32			 hs_req[MPT_MAX_FRAME_SIZE/sizeof(u32)];
 	u16			 hs_reply[MPT_MAX_FRAME_SIZE/sizeof(u16)];
 	IOCFactsReply_t		 facts;
 	PortFactsReply_t	 pfacts[2];
 	FCPortPage0_t		 fc_port_page0[2];
+	struct timer_list	 persist_timer;	/* persist table timer */
+	int			 persist_wait_done; /* persist completion flag */
+	u8			 persist_reply_frame[MPT_DEFAULT_FRAME_SIZE]; /* persist reply */
 	LANPage0_t		 lan_cnfg_page0;
 	LANPage1_t		 lan_cnfg_page1;
-	/*  
+	/*
 	 * Description: errata_flag_1064
 	 * If a PCIX read occurs within 1 or 2 cycles after the chip receives
 	 * a split completion for a read data, an internal address pointer incorrectly
 	 * increments by 32 bytes
 	 */
-	int			 errata_flag_1064;	
+	int			 errata_flag_1064;
 	u8			 FirstWhoInit;
 	u8			 upload_fw;	/* If set, do a fw upload */
 	u8			 reload_fw;	/* Force a FW Reload on next reset */
-	u8			 NBShiftFactor;  /* NB Shift Factor based on Block Size (Facts)  */     
+	u8			 NBShiftFactor;  /* NB Shift Factor based on Block Size (Facts)  */
 	u8			 pad1[4];
 	int			 DoneCtx;
 	int			 TaskCtx;
 	int			 InternalCtx;
-	struct list_head	 list; 
+	struct list_head	 list;
 	struct net_device	*netdev;
+	struct list_head	 sas_topology;
 } MPT_ADAPTER;
 
 /*
@@ -915,7 +940,10 @@ struct scsi_cmnd;
 typedef struct _x_config_parms {
 	struct list_head	 linkage;	/* linked list */
 	struct timer_list	 timer;		/* timer function for this request  */
-	ConfigPageHeader_t	*hdr;
+	union {
+		ConfigExtendedPageHeader_t	*ehdr;
+		ConfigPageHeader_t	*hdr;
+	} cfghdr;
 	dma_addr_t		 physAddr;
 	int			 wait_done;	/* wait for this request */
 	u32			 pageAddr;	/* properly formatted */
@@ -961,6 +989,7 @@ extern void	 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size);
 extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
+extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
 
 /*
  *  Public data decl's...

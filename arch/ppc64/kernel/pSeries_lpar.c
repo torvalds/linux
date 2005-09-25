@@ -192,9 +192,9 @@ static unsigned char udbg_getcLP(void)
 void udbg_init_debug_lpar(void)
 {
 	vtermno = 0;
-	ppc_md.udbg_putc = udbg_putcLP;
-	ppc_md.udbg_getc = udbg_getcLP;
-	ppc_md.udbg_getc_poll = udbg_getc_pollLP;
+	udbg_putc = udbg_putcLP;
+	udbg_getc = udbg_getcLP;
+	udbg_getc_poll = udbg_getc_pollLP;
 }
 
 /* returns 0 if couldn't find or use /chosen/stdout as console */
@@ -227,18 +227,18 @@ int find_udbg_vterm(void)
 			termno = (u32 *)get_property(stdout_node, "reg", NULL);
 			if (termno) {
 				vtermno = termno[0];
-				ppc_md.udbg_putc = udbg_putcLP;
-				ppc_md.udbg_getc = udbg_getcLP;
-				ppc_md.udbg_getc_poll = udbg_getc_pollLP;
+				udbg_putc = udbg_putcLP;
+				udbg_getc = udbg_getcLP;
+				udbg_getc_poll = udbg_getc_pollLP;
 				found = 1;
 			}
 		} else if (device_is_compatible(stdout_node, "hvterm-protocol")) {
 			termno = (u32 *)get_property(stdout_node, "reg", NULL);
 			if (termno) {
 				vtermno = termno[0];
-				ppc_md.udbg_putc = udbg_hvsi_putc;
-				ppc_md.udbg_getc = udbg_hvsi_getc;
-				ppc_md.udbg_getc_poll = udbg_hvsi_getc_poll;
+				udbg_putc = udbg_hvsi_putc;
+				udbg_getc = udbg_hvsi_getc;
+				udbg_getc_poll = udbg_hvsi_getc_poll;
 				found = 1;
 			}
 		}
@@ -266,6 +266,10 @@ void vpa_init(int cpu)
 
 	/* Register the Virtual Processor Area (VPA) */
 	flags = 1UL << (63 - 18);
+
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		paca[cpu].lppaca.vmxregs_in_use = 1;
+
 	ret = register_vpa(flags, hwcpu, __pa(vpa));
 
 	if (ret)

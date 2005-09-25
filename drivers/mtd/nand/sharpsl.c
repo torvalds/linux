@@ -221,10 +221,16 @@ sharpsl_nand_init(void)
 			sharpsl_partition_info[1].size=25 * 1024 * 1024;
 		} else if (machine_is_husky()) {
 			sharpsl_partition_info[1].size=53 * 1024 * 1024;
-		} 		
+		} else if (machine_is_spitz()) {
+			sharpsl_partition_info[1].size=5 * 1024 * 1024;
+		} else if (machine_is_akita()) {
+			sharpsl_partition_info[1].size=58 * 1024 * 1024;
+		} else if (machine_is_borzoi()) {
+			sharpsl_partition_info[1].size=32 * 1024 * 1024;
+		}
 	}
 
-	if (machine_is_husky()) {
+	if (machine_is_husky() || machine_is_borzoi()) {
 		/* Need to use small eraseblock size for backward compatibility */
 		sharpsl_mtd->flags |= MTD_NO_VIRTBLOCKS;
 	}

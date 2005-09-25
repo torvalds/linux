@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
 #include <linux/ext2_fs.h>
+#include <linux/security.h>
 #include "xattr.h"
 
 static size_t
@@ -43,6 +44,27 @@ ext2_xattr_security_set(struct inode *inode, const char *name,
 		return -EINVAL;
 	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY, name,
 			      value, size, flags);
+}
+
+int
+ext2_init_security(struct inode *inode, struct inode *dir)
+{
+	int err;
+	size_t len;
+	void *value;
+	char *name;
+
+	err = security_inode_init_security(inode, dir, &name, &value, &len);
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			return 0;
+		return err;
+	}
+	err = ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY,
+			     name, value, len, 0);
+	kfree(name);
+	kfree(value);
+	return err;
 }
 
 struct xattr_handler ext2_xattr_security_handler = {

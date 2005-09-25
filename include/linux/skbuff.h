@@ -1167,7 +1167,7 @@ static inline void skb_postpull_rcsum(struct sk_buff *skb,
 
 static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 {
-	if (len >= skb->len)
+	if (likely(len >= skb->len))
 		return 0;
 	if (skb->ip_summed == CHECKSUM_HW)
 		skb->ip_summed = CHECKSUM_NONE;
@@ -1251,7 +1251,7 @@ extern void skb_add_mtu(int mtu);
  *	This function converts the offset back to a struct timeval and stores
  *	it in stamp.
  */
-static inline void skb_get_timestamp(struct sk_buff *skb, struct timeval *stamp)
+static inline void skb_get_timestamp(const struct sk_buff *skb, struct timeval *stamp)
 {
 	stamp->tv_sec  = skb->tstamp.off_sec;
 	stamp->tv_usec = skb->tstamp.off_usec;
@@ -1270,7 +1270,7 @@ static inline void skb_get_timestamp(struct sk_buff *skb, struct timeval *stamp)
  *	This function converts a struct timeval to an offset and stores
  *	it in the skb.
  */
-static inline void skb_set_timestamp(struct sk_buff *skb, struct timeval *stamp)
+static inline void skb_set_timestamp(struct sk_buff *skb, const struct timeval *stamp)
 {
 	skb->tstamp.off_sec  = stamp->tv_sec - skb_tv_base.tv_sec;
 	skb->tstamp.off_usec = stamp->tv_usec - skb_tv_base.tv_usec;

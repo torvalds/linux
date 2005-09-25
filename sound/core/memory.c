@@ -116,15 +116,21 @@ void *snd_hidden_kmalloc(size_t size, unsigned int __nocast flags)
 	return _snd_kmalloc(size, flags);
 }
 
+void *snd_hidden_kzalloc(size_t size, unsigned int __nocast flags)
+{
+	void *ret = _snd_kmalloc(size, flags);
+	if (ret)
+		memset(ret, 0, size);
+	return ret;
+}
+EXPORT_SYMBOL(snd_hidden_kzalloc);
+
 void *snd_hidden_kcalloc(size_t n, size_t size, unsigned int __nocast flags)
 {
 	void *ret = NULL;
 	if (n != 0 && size > INT_MAX / n)
 		return ret;
-	ret = _snd_kmalloc(n * size, flags);
-	if (ret)
-		memset(ret, 0, n * size);
-	return ret;
+	return snd_hidden_kzalloc(n * size, flags);
 }
 
 void snd_hidden_kfree(const void *obj)
@@ -243,7 +249,7 @@ int __exit snd_memory_info_done(void)
 int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count)
 {
 #if defined(__i386__) || defined(CONFIG_SPARC32)
-	return copy_to_user(dst, (const void*)src, count) ? -EFAULT : 0;
+	return copy_to_user(dst, (const void __force*)src, count) ? -EFAULT : 0;
 #else
 	char buf[256];
 	while (count) {
@@ -274,7 +280,7 @@ int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size
 int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count)
 {
 #if defined(__i386__) || defined(CONFIG_SPARC32)
-	return copy_from_user((void*)dst, src, count) ? -EFAULT : 0;
+	return copy_from_user((void __force *)dst, src, count) ? -EFAULT : 0;
 #else
 	char buf[256];
 	while (count) {

@@ -22,6 +22,79 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
+2.1.24 - Lots of bug fixes and support more clean journal states.
+
+	- Support journals ($LogFile) which have been modified by chkdsk.  This
+	  means users can boot into Windows after we marked the volume dirty.
+	  The Windows boot will run chkdsk and then reboot.  The user can then
+	  immediately boot into Linux rather than having to do a full Windows
+	  boot first before rebooting into Linux and we will recognize such a
+	  journal and empty it as it is clean by definition.
+	- Support journals ($LogFile) with only one restart page as well as
+	  journals with two different restart pages.  We sanity check both and
+	  either use the only sane one or the more recent one of the two in the
+	  case that both are valid.
+	- Add fs/ntfs/malloc.h::ntfs_malloc_nofs_nofail() which is analogous to
+	  ntfs_malloc_nofs() but it performs allocations with __GFP_NOFAIL and
+	  hence cannot fail.
+	- Use ntfs_malloc_nofs_nofail() in the two critical regions in
+	  fs/ntfs/runlist.c::ntfs_runlists_merge().  This means we no longer
+	  need to panic() if the allocation fails as it now cannot fail.
+	- Fix two nasty runlist merging bugs that had gone unnoticed so far.
+	  Thanks to Stefano Picerno for the bug report.
+	- Remove two bogus BUG_ON()s from fs/ntfs/mft.c.
+	- Fix handling of valid but empty mapping pairs array in
+	  fs/ntfs/runlist.c::ntfs_mapping_pairs_decompress().
+	- Report unrepresentable inodes during ntfs_readdir() as KERN_WARNING
+	  messages and include the inode number.  Thanks to Yura Pakhuchiy for
+	  pointing this out.
+	- Change ntfs_rl_truncate_nolock() to throw away the runlist if the new
+	  length is zero.
+	- Add runlist.[hc]::ntfs_rl_punch_nolock() which punches a caller
+	  specified hole into a runlist.
+	- Fix a bug in fs/ntfs/index.c::ntfs_index_lookup().  When the returned
+	  index entry is in the index root, we forgot to set the @ir pointer in
+	  the index context.  Thanks to Yura Pakhuchiy for finding this bug.
+	- Remove bogus setting of PageError in ntfs_read_compressed_block().
+	- Add fs/ntfs/attrib.[hc]::ntfs_resident_attr_value_resize().
+	- Fix a bug in ntfs_map_runlist_nolock() where we forgot to protect
+	  access to the allocated size in the ntfs inode with the size lock.
+	- Fix ntfs_attr_vcn_to_lcn_nolock() and ntfs_attr_find_vcn_nolock() to
+	  return LCN_ENOENT when there is no runlist and the allocated size is
+	  zero.
+	- Fix load_attribute_list() to handle the case of a NULL runlist.
+	- Fix handling of sparse attributes in ntfs_attr_make_non_resident().
+	- Add BUG() checks to ntfs_attr_make_non_resident() and ntfs_attr_set()
+	  to ensure that these functions are never called for compressed or
+	  encrypted attributes.
+	- Fix cluster (de)allocators to work when the runlist is NULL and more
+	  importantly to take a locked runlist rather than them locking it
+	  which leads to lock reversal.
+	- Truncate {a,c,m}time to the ntfs supported time granularity when
+	  updating the times in the inode in ntfs_setattr().
+	- Fixup handling of sparse, compressed, and encrypted attributes in
+	  fs/ntfs/inode.c::ntfs_read_locked_{,attr_,index_}inode(),
+	  fs/ntfs/aops.c::ntfs_{read,write}page().
+	- Make ntfs_write_block() not instantiate sparse blocks if they contain
+	  only zeroes.
+	- Optimize fs/ntfs/aops.c::ntfs_write_block() by extending the page
+	  lock protection over the buffer submission for i/o which allows the
+	  removal of the get_bh()/put_bh() pairs for each buffer.
+	- Fix fs/ntfs/aops.c::ntfs_{read,write}_block() to handle the case
+	  where a concurrent truncate has truncated the runlist under our feet.
+	- Fix page_has_buffers()/page_buffers() handling in fs/ntfs/aops.c.
+	- In fs/ntfs/aops.c::ntfs_end_buffer_async_read(), use a bit spin lock
+	  in the first buffer head instead of a driver global spin lock to
+	  improve scalability.
+	- Minor fix to error handling and error message display in
+	  fs/ntfs/aops.c::ntfs_prepare_nonresident_write().
+	- Change the mount options {u,f,d}mask to always parse the number as
+	  an octal number to conform to how chmod(1) works, too.  Thanks to
+	  Giuseppe Bilotta and Horst von Brand for pointing out the errors of
+	  my ways.
+	- Fix various bugs in the runlist merging code.  (Based on libntfs
+	  changes by Richard Russon.)
+
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...
 

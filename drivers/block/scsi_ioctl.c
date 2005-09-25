@@ -123,6 +123,7 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_read(READ_12),
 		safe_for_read(READ_16),
 		safe_for_read(READ_BUFFER),
+		safe_for_read(READ_DEFECT_DATA),
 		safe_for_read(READ_LONG),
 		safe_for_read(INQUIRY),
 		safe_for_read(MODE_SENSE),
@@ -167,6 +168,7 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_write(WRITE_VERIFY_12),
 		safe_for_write(WRITE_16),
 		safe_for_write(WRITE_LONG),
+		safe_for_write(WRITE_LONG_2),
 		safe_for_write(ERASE),
 		safe_for_write(GPCMD_MODE_SELECT_10),
 		safe_for_write(MODE_SELECT),
@@ -216,7 +218,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
 {
 	unsigned long start_time;
-	int reading, writing;
+	int writing = 0, ret = 0;
 	struct request *rq;
 	struct bio *bio;
 	char sense[SCSI_SENSE_BUFFERSIZE];
@@ -231,38 +233,48 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (verify_command(file, cmd))
 		return -EPERM;
 
-	/*
-	 * we'll do that later
-	 */
-	if (hdr->iovec_count)
-		return -EOPNOTSUPP;
-
 	if (hdr->dxfer_len > (q->max_sectors << 9))
 		return -EIO;
 
-	reading = writing = 0;
-	if (hdr->dxfer_len) {
+	if (hdr->dxfer_len)
 		switch (hdr->dxfer_direction) {
 		default:
 			return -EINVAL;
 		case SG_DXFER_TO_FROM_DEV:
-			reading = 1;
-			/* fall through */
 		case SG_DXFER_TO_DEV:
 			writing = 1;
 			break;
 		case SG_DXFER_FROM_DEV:
-			reading = 1;
 			break;
 		}
 
-		rq = blk_rq_map_user(q, writing ? WRITE : READ, hdr->dxferp,
-				     hdr->dxfer_len);
+	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
+	if (!rq)
+		return -ENOMEM;
 
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
-	} else
-		rq = blk_get_request(q, READ, __GFP_WAIT);
+	if (hdr->iovec_count) {
+		const int size = sizeof(struct sg_iovec) * hdr->iovec_count;
+		struct sg_iovec *iov;
+
+		iov = kmalloc(size, GFP_KERNEL);
+		if (!iov) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		if (copy_from_user(iov, hdr->dxferp, size)) {
+			kfree(iov);
+			ret = -EFAULT;
+			goto out;
+		}
+
+		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count);
+		kfree(iov);
+	} else if (hdr->dxfer_len)
+		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
+
+	if (ret)
+		goto out;
 
 	/*
 	 * fill in request structure
@@ -298,7 +310,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	 * (if he doesn't check that is his problem).
 	 * N.B. a non-zero SCSI status is _not_ necessarily an error.
 	 */
-	blk_execute_rq(q, bd_disk, rq);
+	blk_execute_rq(q, bd_disk, rq, 0);
 
 	/* write to all output members */
 	hdr->status = 0xff & rq->errors;
@@ -320,12 +332,14 @@ static int sg_io(struct file *file, request_queue_t *q,
 			hdr->sb_len_wr = len;
 	}
 
-	if (blk_rq_unmap_user(rq, bio, hdr->dxfer_len))
-		return -EFAULT;
+	if (blk_rq_unmap_user(bio, hdr->dxfer_len))
+		ret = -EFAULT;
 
 	/* may not have succeeded, but output values written to control
 	 * structure (struct sg_io_hdr).  */
-	return 0;
+out:
+	blk_put_request(rq);
+	return ret;
 }
 
 #define OMAX_SB_LEN 16          /* For backward compatibility */
@@ -408,7 +422,7 @@ static int sg_scsi_ioctl(struct file *file, request_queue_t *q,
 	rq->data_len = bytes;
 	rq->flags |= REQ_BLOCK_PC;
 
-	blk_execute_rq(q, bd_disk, rq);
+	blk_execute_rq(q, bd_disk, rq, 0);
 	err = rq->errors & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
 		if (rq->sense_len && rq->sense) {
@@ -561,7 +575,7 @@ int scsi_cmd_ioctl(struct file *file, struct gendisk *bd_disk, unsigned int cmd,
 			rq->cmd[0] = GPCMD_START_STOP_UNIT;
 			rq->cmd[4] = 0x02 + (close != 0);
 			rq->cmd_len = 6;
-			err = blk_execute_rq(q, bd_disk, rq);
+			err = blk_execute_rq(q, bd_disk, rq, 0);
 			blk_put_request(rq);
 			break;
 		default:

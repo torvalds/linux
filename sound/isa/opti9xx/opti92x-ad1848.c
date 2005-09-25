@@ -1038,8 +1038,7 @@ static int snd_opti93x_capture_prepare(snd_pcm_substream_t *substream)
 
 	chip->c_dma_size = size;
 	snd_opti93x_out_mask(chip, OPTi93X_IFACE_CONF,
-		OPTi93X_CAPTURE_ENABLE | OPTi93X_CAPTURE_PIO,
-		(unsigned char)~(OPTi93X_CAPTURE_ENABLE | OPTi93X_CAPTURE_PIO));
+		OPTi93X_CAPTURE_ENABLE | OPTi93X_CAPTURE_PIO, 0);
 
 	snd_dma_program(chip->dma2, runtime->dma_addr, size,
 		DMA_MODE_READ | DMA_AUTOINIT);
@@ -1274,7 +1273,7 @@ static int snd_opti93x_create(snd_card_t *card, opti9xx_t *chip,
 	opti93x_t *codec;
 
 	*rcodec = NULL;
-	codec = kcalloc(1, sizeof(*codec), GFP_KERNEL);
+	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
 	if (codec == NULL)
 		return -ENOMEM;
 	codec->irq = -1;
@@ -1895,8 +1894,8 @@ static void snd_card_opti9xx_free(snd_card_t *card)
 	}
 }
 
-static int __devinit snd_card_opti9xx_probe(struct pnp_card_link *pcard,
-					    const struct pnp_card_device_id *pid)
+static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,
+				  const struct pnp_card_device_id *pid)
 {
 	static long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
 	static long possible_mpu_ports[] = {0x300, 0x310, 0x320, 0x330, -1};
@@ -1963,6 +1962,10 @@ static int __devinit snd_card_opti9xx_probe(struct pnp_card_link *pcard,
 	} else {
 #endif	/* CONFIG_PNP */
 		if ((error = snd_card_opti9xx_detect(card, chip)) < 0) {
+			snd_card_free(card);
+			return error;
+		}
+		if ((error = snd_card_set_generic_dev(card)) < 0) {
 			snd_card_free(card);
 			return error;
 		}

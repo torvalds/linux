@@ -96,7 +96,7 @@ struct changer_position {
  */
 struct changer_element_status {
 	int             ces_type;
-	unsigned char   *ces_data;
+	unsigned char   __user *ces_data;
 };
 #define CESTATUS_FULL     0x01 /* full */
 #define CESTATUS_IMPEXP   0x02	/* media was imported (inserted by sysop) */

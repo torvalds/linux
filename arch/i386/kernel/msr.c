@@ -46,23 +46,13 @@
 
 static struct class *msr_class;
 
-/* Note: "err" is handled in a funny way below.  Otherwise one version
-   of gcc or another breaks. */
-
 static inline int wrmsr_eio(u32 reg, u32 eax, u32 edx)
 {
 	int err;
 
-	asm volatile ("1:	wrmsr\n"
-		      "2:\n"
-		      ".section .fixup,\"ax\"\n"
-		      "3:	movl %4,%0\n"
-		      "	jmp 2b\n"
-		      ".previous\n"
-		      ".section __ex_table,\"a\"\n"
-		      "	.align 4\n" "	.long 1b,3b\n" ".previous":"=&bDS" (err)
-		      :"a"(eax), "d"(edx), "c"(reg), "i"(-EIO), "0"(0));
-
+	err = wrmsr_safe(reg, eax, edx);
+	if (err)
+		err = -EIO;
 	return err;
 }
 
@@ -70,18 +60,9 @@ static inline int rdmsr_eio(u32 reg, u32 *eax, u32 *edx)
 {
 	int err;
 
-	asm volatile ("1:	rdmsr\n"
-		      "2:\n"
-		      ".section .fixup,\"ax\"\n"
-		      "3:	movl %4,%0\n"
-		      "	jmp 2b\n"
-		      ".previous\n"
-		      ".section __ex_table,\"a\"\n"
-		      "	.align 4\n"
-		      "	.long 1b,3b\n"
-		      ".previous":"=&bDS" (err), "=a"(*eax), "=d"(*edx)
-		      :"c"(reg), "i"(-EIO), "0"(0));
-
+	err = rdmsr_safe(reg, eax, edx);
+	if (err)
+		err = -EIO;
 	return err;
 }
 

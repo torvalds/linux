@@ -16,10 +16,10 @@
 #include <linux/config.h>
 #include <linux/errno.h>
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #define __PA_ADDR	".word"
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define __PA_ADDR	".dword"
 #endif
 

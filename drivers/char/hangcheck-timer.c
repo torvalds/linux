@@ -149,8 +149,7 @@ static unsigned long long hangcheck_tsc, hangcheck_tsc_margin;
 
 static void hangcheck_fire(unsigned long);
 
-static struct timer_list hangcheck_ticktock =
-		TIMER_INITIALIZER(hangcheck_fire, 0, 0);
+static DEFINE_TIMER(hangcheck_ticktock, hangcheck_fire, 0, 0);
 
 
 static void hangcheck_fire(unsigned long data)

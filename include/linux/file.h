@@ -9,6 +9,7 @@
 #include <linux/posix_types.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
+#include <linux/rcupdate.h>
 
 /*
  * The default fd array needs to be at least BITS_PER_LONG,
@@ -16,22 +17,32 @@
  */
 #define NR_OPEN_DEFAULT BITS_PER_LONG
 
+struct fdtable {
+	unsigned int max_fds;
+	int max_fdset;
+	int next_fd;
+	struct file ** fd;      /* current fd array */
+	fd_set *close_on_exec;
+	fd_set *open_fds;
+	struct rcu_head rcu;
+	struct files_struct *free_files;
+	struct fdtable *next;
+};
+
 /*
  * Open file table structure
  */
 struct files_struct {
         atomic_t count;
         spinlock_t file_lock;     /* Protects all the below members.  Nests inside tsk->alloc_lock */
-        int max_fds;
-        int max_fdset;
-        int next_fd;
-        struct file ** fd;      /* current fd array */
-        fd_set *close_on_exec;
-        fd_set *open_fds;
+	struct fdtable *fdt;
+	struct fdtable fdtab;
         fd_set close_on_exec_init;
         fd_set open_fds_init;
         struct file * fd_array[NR_OPEN_DEFAULT];
 };
+
+#define files_fdtable(files) (rcu_dereference((files)->fdt))
 
 extern void FASTCALL(__fput(struct file *));
 extern void FASTCALL(fput(struct file *));
@@ -59,13 +70,16 @@ extern fd_set *alloc_fdset(int);
 extern void free_fdset(fd_set *, int);
 
 extern int expand_files(struct files_struct *, int nr);
+extern void free_fdtable(struct fdtable *fdt);
+extern void __init files_defer_init(void);
 
 static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)
 {
 	struct file * file = NULL;
+	struct fdtable *fdt = files_fdtable(files);
 
-	if (fd < files->max_fds)
-		file = files->fd[fd];
+	if (fd < fdt->max_fds)
+		file = rcu_dereference(fdt->fd[fd]);
 	return file;
 }
 

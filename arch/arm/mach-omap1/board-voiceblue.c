@@ -25,13 +25,14 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
 #include <asm/arch/common.h>
+#include <asm/arch/gpio.h>
+#include <asm/arch/mux.h>
+#include <asm/arch/tc.h>
+#include <asm/arch/usb.h>
 
 extern void omap_init_time(void);
 extern int omap_gpio_init(void);
@@ -74,7 +75,7 @@ static struct plat_serial8250_port voiceblue_ports[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
 		.platform_data	= voiceblue_ports,
 	},
@@ -85,6 +86,27 @@ static int __init ext_uart_init(void)
 	return platform_device_register(&serial_device);
 }
 arch_initcall(ext_uart_init);
+
+static struct flash_platform_data voiceblue_flash_data = {
+	.map_name	= "cfi_probe",
+	.width		= 2,
+};
+
+static struct resource voiceblue_flash_resource = {
+	.start	= OMAP_CS0_PHYS,
+	.end	= OMAP_CS0_PHYS + SZ_32M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device voiceblue_flash_device = {
+	.name		= "omapflash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &voiceblue_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &voiceblue_flash_resource,
+};
 
 static struct resource voiceblue_smc91x_resources[] = {
 	[0] = {
@@ -107,6 +129,7 @@ static struct platform_device voiceblue_smc91x_device = {
 };
 
 static struct platform_device *voiceblue_devices[] __initdata = {
+	&voiceblue_flash_device,
 	&voiceblue_smc91x_device,
 };
 
@@ -119,8 +142,17 @@ static struct omap_usb_config voiceblue_usb_config __initdata = {
 	.pins[2]	= 6,
 };
 
+static struct omap_mmc_config voiceblue_mmc_config __initdata = {
+	.mmc[0] = {
+		.enabled	= 1,
+		.power_pin	= 2,
+		.switch_pin	= -1,
+	},
+};
+
 static struct omap_board_config_kernel voiceblue_config[] = {
 	{ OMAP_TAG_USB, &voiceblue_usb_config },
+	{ OMAP_TAG_MMC, &voiceblue_mmc_config },
 };
 
 static void __init voiceblue_init_irq(void)
@@ -131,9 +163,6 @@ static void __init voiceblue_init_irq(void)
 
 static void __init voiceblue_init(void)
 {
-	/* There is a good chance board is going up, so enable Power LED
-	 * (it is connected through invertor) */
-	omap_writeb(0x00, OMAP_LPG1_LCR);
 	/* Watchdog */
 	omap_request_gpio(0);
 	/* smc91x reset */
@@ -145,7 +174,6 @@ static void __init voiceblue_init(void)
 	mdelay(50);	/* 50ms until PHY ready */
 	/* smc91x interrupt pin */
 	omap_request_gpio(8);
-	omap_set_gpio_edge_ctrl(8, OMAP_GPIO_RISING_EDGE);
 	/* 16C554 reset*/
 	omap_request_gpio(6);
 	omap_set_gpio_direction(6, 0);
@@ -155,14 +183,19 @@ static void __init voiceblue_init(void)
 	omap_request_gpio(13);
 	omap_request_gpio(14);
 	omap_request_gpio(15);
-	omap_set_gpio_edge_ctrl(12, OMAP_GPIO_RISING_EDGE);
-	omap_set_gpio_edge_ctrl(13, OMAP_GPIO_RISING_EDGE);
-	omap_set_gpio_edge_ctrl(14, OMAP_GPIO_RISING_EDGE);
-	omap_set_gpio_edge_ctrl(15, OMAP_GPIO_RISING_EDGE);
+	set_irq_type(OMAP_GPIO_IRQ(12), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(14), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(15), IRQT_RISING);
 
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
 	omap_board_config = voiceblue_config;
 	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
+
+	/* There is a good chance board is going up, so enable power LED
+	 * (it is connected through invertor) */
+	omap_writeb(0x00, OMAP_LPG1_LCR);
+	omap_writeb(0x00, OMAP_LPG1_PMR);	/* Disable clock */
 }
 
 static int __initdata omap_serial_ports[OMAP_MAX_NR_PORTS] = {1, 1, 1};
@@ -184,9 +217,9 @@ static int panic_event(struct notifier_block *this, unsigned long event,
 	if (test_and_set_bit(MACHINE_PANICED, &machine_state))
 		return NOTIFY_DONE;
 
-	/* Flash Power LED
-	 * (TODO: Enable clock right way (enabled in bootloader already)) */
+	/* Flash power LED */
 	omap_writeb(0x78, OMAP_LPG1_LCR);
+	omap_writeb(0x01, OMAP_LPG1_PMR);	/* Enable clock */
 
 	return NOTIFY_DONE;
 }
@@ -195,15 +228,14 @@ static struct notifier_block panic_block = {
 	.notifier_call	= panic_event,
 };
 
-static int __init setup_notifier(void)
+static int __init voiceblue_setup(void)
 {
 	/* Setup panic notifier */
 	notifier_chain_register(&panic_notifier_list, &panic_block);
 
 	return 0;
 }
-
-postcore_initcall(setup_notifier);
+postcore_initcall(voiceblue_setup);
 
 static int wdt_gpio_state;
 

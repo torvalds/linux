@@ -82,13 +82,11 @@ static void openpic2_end_irq(unsigned int irq_nr);
 static void openpic2_ack_irq(unsigned int irq_nr);
 
 struct hw_interrupt_type open_pic2 = {
-	" OpenPIC2 ",
-	NULL,
-	NULL,
-	openpic2_enable_irq,
-	openpic2_disable_irq,
-	openpic2_ack_irq,
-	openpic2_end_irq,
+	.typename = " OpenPIC2 ",
+	.enable = openpic2_enable_irq,
+	.disable = openpic2_disable_irq,
+	.ack = openpic2_ack_irq,
+	.end = openpic2_end_irq,
 };
 
 /*
@@ -577,7 +575,7 @@ static void openpic2_cached_disable_irq(u_int irq)
  * we need something better to deal with that... Maybe switch to S1 for
  * cpufreq changes
  */
-int openpic2_suspend(struct sys_device *sysdev, u32 state)
+int openpic2_suspend(struct sys_device *sysdev, pm_message_t state)
 {
 	int	i;
 	unsigned long flags;

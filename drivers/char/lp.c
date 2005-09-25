@@ -128,6 +128,7 @@
 #include <linux/console.h>
 #include <linux/device.h>
 #include <linux/wait.h>
+#include <linux/jiffies.h>
 
 #include <linux/parport.h>
 #undef LP_STATS
@@ -307,7 +308,7 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
 			(LP_F(minor) & LP_ABORT));
 
 #ifdef LP_STATS
-	if (jiffies-lp_table[minor].lastcall > LP_TIME(minor))
+	if (time_after(jiffies, lp_table[minor].lastcall + LP_TIME(minor)))
 		lp_table[minor].runchars = 0;
 
 	lp_table[minor].lastcall = jiffies;

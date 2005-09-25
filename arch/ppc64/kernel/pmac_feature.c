@@ -674,6 +674,7 @@ void __init pmac_check_ht_link(void)
 #if 0 /* Disabled for now */
 	u32	ufreq, freq, ucfg, cfg;
 	struct device_node *pcix_node;
+	struct pci_dn *pdn;
 	u8  	px_bus, px_devfn;
 	struct pci_controller *px_hose;
 
@@ -687,9 +688,10 @@ void __init pmac_check_ht_link(void)
 		printk("No PCI-X bridge found\n");
 		return;
 	}
-	px_hose = pcix_node->phb;
-	px_bus = pcix_node->busno;
-	px_devfn = pcix_node->devfn;
+	pdn = pcix_node->data;
+	px_hose = pdn->phb;
+	px_bus = pdn->busno;
+	px_devfn = pdn->devfn;
 	
 	early_read_config_dword(px_hose, px_bus, px_devfn, 0xc4, &cfg);
 	early_read_config_dword(px_hose, px_bus, px_devfn, 0xcc, &freq);

@@ -19,6 +19,7 @@
 #include <linux/pagemap.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/kprobes.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -250,7 +251,7 @@ out:
 	put_cpu();
 }
 
-void flush_icache_range(unsigned long start, unsigned long end)
+void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 {
 	/* Cheetah has coherent I-cache. */
 	if (tlb_type == spitfire) {

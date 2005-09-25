@@ -438,33 +438,37 @@ static int __devinit snd_cmi8330_pcm(snd_card_t *card, struct snd_cmi8330 *chip)
 /*
  */
 
+#ifdef CONFIG_PNP
+#define is_isapnp_selected(dev)		isapnp[dev]
+#else
+#define is_isapnp_selected(dev)		0
+#endif
+
+#define PFX	"cmi8330: "
+
 static int __devinit snd_cmi8330_probe(int dev,
 				       struct pnp_card_link *pcard,
 				       const struct pnp_card_device_id *pid)
 {
 	snd_card_t *card;
 	struct snd_cmi8330 *acard;
-	unsigned long flags;
 	int i, err;
 
-#ifdef CONFIG_PNP
-	if (!isapnp[dev]) {
-#endif
+	if (! is_isapnp_selected(dev)) {
 		if (wssport[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify wssport\n");
+			snd_printk(KERN_ERR PFX "specify wssport\n");
 			return -EINVAL;
 		}
 		if (sbport[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify sbport\n");
+			snd_printk(KERN_ERR PFX "specify sbport\n");
 			return -EINVAL;
 		}
-#ifdef CONFIG_PNP
 	}
-#endif
+
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 			    sizeof(struct snd_cmi8330));
 	if (card == NULL) {
-		snd_printk("could not get a new card\n");
+		snd_printk(KERN_ERR PFX "could not get a new card\n");
 		return -ENOMEM;
 	}
 	acard = (struct snd_cmi8330 *)card->private_data;
@@ -473,9 +477,8 @@ static int __devinit snd_cmi8330_probe(int dev,
 #ifdef CONFIG_PNP
 	if (isapnp[dev]) {
 		if ((err = snd_cmi8330_pnp(dev, acard, pcard, pid)) < 0) {
-			snd_printk("PnP detection failed\n");
-			snd_card_free(card);
-			return err;
+			snd_printk(KERN_ERR PFX "PnP detection failed\n");
+			goto _err;
 		}
 		snd_card_set_dev(card, &pcard->card->dev);
 	}
@@ -487,14 +490,13 @@ static int __devinit snd_cmi8330_probe(int dev,
 				     wssdma[dev],
 				     AD1848_HW_DETECT,
 				     &acard->wss)) < 0) {
-		snd_printk("(AD1848) device busy??\n");
-		snd_card_free(card);
-		return err;
+		snd_printk(KERN_ERR PFX "(AD1848) device busy??\n");
+		goto _err;
 	}
 	if (acard->wss->hardware != AD1848_HW_CMI8330) {
-		snd_printk("(AD1848) not found during probe\n");
-		snd_card_free(card);
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "(AD1848) not found during probe\n");
+		err = -ENODEV;
+		goto _err;
 	}
 
 	if ((err = snd_sbdsp_create(card, sbport[dev],
@@ -503,32 +505,26 @@ static int __devinit snd_cmi8330_probe(int dev,
 				    sbdma8[dev],
 				    sbdma16[dev],
 				    SB_HW_AUTO, &acard->sb)) < 0) {
-		snd_printk("(SB16) device busy??\n");
-		snd_card_free(card);
-		return err;
+		snd_printk(KERN_ERR PFX "(SB16) device busy??\n");
+		goto _err;
 	}
 	if (acard->sb->hardware != SB_HW_16) {
-		snd_printk("(SB16) not found during probe\n");
-		snd_card_free(card);
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "(SB16) not found during probe\n");
+		goto _err;
 	}
 
-	spin_lock_irqsave(&acard->wss->reg_lock, flags);
 	snd_ad1848_out(acard->wss, AD1848_MISC_INFO, 0x40); /* switch on MODE2 */
 	for (i = CMI8330_RMUX3D; i <= CMI8330_CDINGAIN; i++)
 		snd_ad1848_out(acard->wss, i, snd_cmi8330_image[i - CMI8330_RMUX3D]);
-	spin_unlock_irqrestore(&acard->wss->reg_lock, flags);
 
 	if ((err = snd_cmi8330_mixer(card, acard)) < 0) {
-		snd_printk("failed to create mixers\n");
-		snd_card_free(card);
-		return err;
+		snd_printk(KERN_ERR PFX "failed to create mixers\n");
+		goto _err;
 	}
 
 	if ((err = snd_cmi8330_pcm(card, acard)) < 0) {
-		snd_printk("failed to create pcms\n");
-		snd_card_free(card);
-		return err;
+		snd_printk(KERN_ERR PFX "failed to create pcms\n");
+		goto _err;
 	}
 
 	strcpy(card->driver, "CMI8330/C3D");
@@ -539,16 +535,21 @@ static int __devinit snd_cmi8330_probe(int dev,
 		wssirq[dev],
 		wssdma[dev]);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
 
 	if (pcard)
 		pnp_set_card_drvdata(pcard, card);
 	else
 		snd_cmi8330_legacy[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 #ifdef CONFIG_PNP
@@ -594,10 +595,8 @@ static int __init alsa_card_cmi8330_init(void)
 	for (dev = 0; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev])
 			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[dev])
+		if (is_isapnp_selected(dev))
 			continue;
-#endif
 		if (snd_cmi8330_probe(dev, NULL, NULL) >= 0)
 			cards++;
 	}

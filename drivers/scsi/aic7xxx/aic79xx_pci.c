@@ -283,7 +283,6 @@ int
 ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 {
 	struct scb_data *shared_scb_data;
-	u_long		 l;
 	u_int		 command;
 	uint32_t	 devconfig;
 	uint16_t	 subvendor; 
@@ -373,16 +372,9 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	 * Allow interrupts now that we are completely setup.
 	 */
 	error = ahd_pci_map_int(ahd);
-	if (error != 0)
-		return (error);
-
-	ahd_list_lock(&l);
-	/*
-	 * Link this softc in with all other ahd instances.
-	 */
-	ahd_softc_insert(ahd);
-	ahd_list_unlock(&l);
-	return (0);
+	if (!error)
+		ahd->init_level++;
+	return error;
 }
 
 /*

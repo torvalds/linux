@@ -18,6 +18,7 @@
 #include "asm/a.out.h"
 #include "asm/current.h"
 #include "asm/irq.h"
+#include "sysdep/sigcontext.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
@@ -26,6 +27,7 @@
 #include "mem.h"
 #include "mem_kern.h"
 
+/* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
 int handle_page_fault(unsigned long address, unsigned long ip, 
 		      int is_write, int is_user, int *code_out)
 {
@@ -35,10 +37,15 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	unsigned long page;
 	int err = -EFAULT;
 
 	*code_out = SEGV_MAPERR;
+
+	/* If the fault was during atomic operation, don't take the fault, just
+	 * fail. */
+	if (in_atomic())
+		goto out_nosemaphore;
+
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
 	if(!vma) 
@@ -52,17 +59,17 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	else if(expand_stack(vma, address)) 
 		goto out;
 
- good_area:
+good_area:
 	*code_out = SEGV_ACCERR;
 	if(is_write && !(vma->vm_flags & VM_WRITE)) 
 		goto out;
 
-        if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
+	/* Don't require VM_READ|VM_EXEC for write faults! */
+        if(!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
                 goto out;
 
-	page = address & PAGE_MASK;
 	do {
- survive:
+survive:
 		switch (handle_mm_fault(mm, vma, address, is_write)){
 		case VM_FAULT_MINOR:
 			current->min_flt++;
@@ -79,17 +86,17 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 		default:
 			BUG();
 		}
-		pgd = pgd_offset(mm, page);
-		pud = pud_offset(pgd, page);
-		pmd = pmd_offset(pud, page);
-		pte = pte_offset_kernel(pmd, page);
+		pgd = pgd_offset(mm, address);
+		pud = pud_offset(pgd, address);
+		pmd = pmd_offset(pud, address);
+		pte = pte_offset_kernel(pmd, address);
 	} while(!pte_present(*pte));
 	err = 0;
-	*pte = pte_mkyoung(*pte);
-	if(pte_write(*pte)) *pte = pte_mkdirty(*pte);
-	flush_tlb_page(vma, page);
- out:
+	WARN_ON(!pte_young(*pte) || (is_write && !pte_dirty(*pte)));
+	flush_tlb_page(vma, address);
+out:
 	up_read(&mm->mmap_sem);
+out_nosemaphore:
 	return(err);
 
 /*
@@ -126,7 +133,15 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
         }
 	else if(current->mm == NULL)
 		panic("Segfault with no mm");
-	err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
+
+	if (SEGV_IS_FIXABLE(&fi))
+		err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
+	else {
+		err = -EFAULT;
+		/* A thread accessed NULL, we get a fault, but CR2 is invalid.
+		 * This code is used in __do_copy_from_user() of TT mode. */
+		address = 0;
+	}
 
 	catcher = current->thread.fault_catcher;
 	if(!err)
@@ -144,19 +159,18 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx", 
 		      address, ip);
 
-	if(err == -EACCES){
+	if (err == -EACCES) {
 		si.si_signo = SIGBUS;
 		si.si_errno = 0;
 		si.si_code = BUS_ADRERR;
 		si.si_addr = (void *)address;
                 current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
-	}
-	else if(err == -ENOMEM){
+	} else if (err == -ENOMEM) {
 		printk("VM: killing process %s\n", current->comm);
 		do_exit(SIGKILL);
-	}
-	else {
+	} else {
+		BUG_ON(err != -EFAULT);
 		si.si_signo = SIGSEGV;
 		si.si_addr = (void *) address;
                 current->thread.arch.faultinfo = fi;
@@ -200,30 +214,3 @@ void winch(int sig, union uml_pt_regs *regs)
 void trap_init(void)
 {
 }
-
-DEFINE_SPINLOCK(trap_lock);
-
-static int trap_index = 0;
-
-int next_trap_index(int limit)
-{
-	int ret;
-
-	spin_lock(&trap_lock);
-	ret = trap_index;
-	if(++trap_index == limit)
-		trap_index = 0;
-	spin_unlock(&trap_lock);
-	return(ret);
-}
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

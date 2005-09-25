@@ -17,7 +17,7 @@ config TCG_TPM
 	  obtained at: <http://sourceforge.net/projects/trousers>.  To 
 	  compile this driver as a module, choose M here; the module 
 	  will be called tpm. If unsure, say N.
-	  Note: For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI_BUS
+	  Note: For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI
 	  and CONFIG_PNPACPI.
 
 config TCG_NSC

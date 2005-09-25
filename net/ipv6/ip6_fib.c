@@ -92,7 +92,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn);
 
 static __u32 rt_sernum;
 
-static struct timer_list ip6_fib_timer = TIMER_INITIALIZER(fib6_run_gc, 0, 0);
+static DEFINE_TIMER(ip6_fib_timer, fib6_run_gc, 0, 0);
 
 struct fib6_walker_t fib6_walker_list = {
 	.prev	= &fib6_walker_list,

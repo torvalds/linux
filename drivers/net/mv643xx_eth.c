@@ -58,11 +58,10 @@
 
 #define INT_CAUSE_UNMASK_ALL		0x0007ffff
 #define INT_CAUSE_UNMASK_ALL_EXT	0x0011ffff
-#ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
 #define INT_CAUSE_MASK_ALL		0x00000000
+#define INT_CAUSE_MASK_ALL_EXT		0x00000000
 #define INT_CAUSE_CHECK_BITS		INT_CAUSE_UNMASK_ALL
 #define INT_CAUSE_CHECK_BITS_EXT	INT_CAUSE_UNMASK_ALL_EXT
-#endif
 
 #ifdef MV643XX_CHECKSUM_OFFLOAD_TX
 #define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
@@ -95,7 +94,7 @@ static char mv643xx_driver_version[] = "1.0";
 static void __iomem *mv643xx_eth_shared_base;
 
 /* used to protect MV643XX_ETH_SMI_REG, which is shared across ports */
-static spinlock_t mv643xx_eth_phy_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mv643xx_eth_phy_lock);
 
 static inline u32 mv_read(int offset)
 {
@@ -259,14 +258,13 @@ static void mv643xx_eth_update_mac_address(struct net_device *dev)
 static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
-	u32 config_reg;
 
-	config_reg = ethernet_get_config_reg(mp->port_num);
 	if (dev->flags & IFF_PROMISC)
-		config_reg |= (u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
+		mp->port_config |= (u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
 	else
-		config_reg &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
-	ethernet_set_config_reg(mp->port_num, config_reg);
+		mp->port_config &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
+
+	mv_write(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num), mp->port_config);
 }
 
 /*
@@ -369,15 +367,6 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 
 			dev_kfree_skb_irq(pkt_info.return_info);
 			released = 0;
-
-			/*
-			 * Decrement the number of outstanding skbs counter on
-			 * the TX queue.
-			 */
-			if (mp->tx_ring_skbs == 0)
-				panic("ERROR - TX outstanding SKBs"
-						" counter is corrupted");
-			mp->tx_ring_skbs--;
 		} else
 			dma_unmap_page(NULL, pkt_info.buf_ptr,
 					pkt_info.byte_cnt, DMA_TO_DEVICE);
@@ -412,15 +401,13 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
 	struct pkt_info pkt_info;
 
 #ifdef MV643XX_NAPI
-	while (eth_port_receive(mp, &pkt_info) == ETH_OK && budget > 0) {
+	while (budget-- > 0 && eth_port_receive(mp, &pkt_info) == ETH_OK) {
 #else
 	while (eth_port_receive(mp, &pkt_info) == ETH_OK) {
 #endif
 		mp->rx_ring_skbs--;
 		received_packets++;
-#ifdef MV643XX_NAPI
-		budget--;
-#endif
+
 		/* Update statistics. Note byte count includes 4 byte CRC count */
 		stats->rx_packets++;
 		stats->rx_bytes += pkt_info.byte_cnt;
@@ -1044,9 +1031,6 @@ static void mv643xx_tx(struct net_device *dev)
 						DMA_TO_DEVICE);
 
 			dev_kfree_skb_irq(pkt_info.return_info);
-
-			if (mp->tx_ring_skbs)
-				mp->tx_ring_skbs--;
 		} else
 			dma_unmap_page(NULL, pkt_info.buf_ptr,
 					pkt_info.byte_cnt, DMA_TO_DEVICE);
@@ -1189,7 +1173,6 @@ linear:
 		pkt_info.buf_ptr = dma_map_single(NULL, skb->data, skb->len,
 							DMA_TO_DEVICE);
 		pkt_info.return_info = skb;
-		mp->tx_ring_skbs++;
 		status = eth_port_send(mp, &pkt_info);
 		if ((status == ETH_ERROR) || (status == ETH_QUEUE_FULL))
 			printk(KERN_ERR "%s: Error on transmitting packet\n",
@@ -1274,7 +1257,6 @@ linear:
 				pkt_info.cmd_sts |= ETH_TX_ENABLE_INTERRUPT |
 							ETH_TX_LAST_DESC;
 				pkt_info.return_info = skb;
-				mp->tx_ring_skbs++;
 			} else {
 				pkt_info.return_info = 0;
 			}
@@ -1311,7 +1293,6 @@ linear:
 	pkt_info.buf_ptr = dma_map_single(NULL, skb->data, skb->len,
 								DMA_TO_DEVICE);
 	pkt_info.return_info = skb;
-	mp->tx_ring_skbs++;
 	status = eth_port_send(mp, &pkt_info);
 	if ((status == ETH_ERROR) || (status == ETH_QUEUE_FULL))
 		printk(KERN_ERR "%s: Error on transmitting packet\n",
@@ -1355,6 +1336,43 @@ static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 
 	return &mp->stats;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static inline void mv643xx_enable_irq(struct mv643xx_private *mp)
+{
+	int port_num = mp->port_num;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+					INT_CAUSE_UNMASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
+					INT_CAUSE_UNMASK_ALL_EXT);
+	spin_unlock_irqrestore(&mp->lock, flags);
+}
+
+static inline void mv643xx_disable_irq(struct mv643xx_private *mp)
+{
+	int port_num = mp->port_num;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+					INT_CAUSE_MASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
+					INT_CAUSE_MASK_ALL_EXT);
+	spin_unlock_irqrestore(&mp->lock, flags);
+}
+
+static void mv643xx_netpoll(struct net_device *netdev)
+{
+	struct mv643xx_private *mp = netdev_priv(netdev);
+
+	mv643xx_disable_irq(mp);
+	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
+	mv643xx_enable_irq(mp);
+}
+#endif
 
 /*/
  * mv643xx_eth_probe
@@ -1404,6 +1422,10 @@ static int mv643xx_eth_probe(struct device *ddev)
 #ifdef MV643XX_NAPI
 	dev->poll = mv643xx_poll;
 	dev->weight = 64;
+#endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = mv643xx_netpoll;
 #endif
 
 	dev->watchdog_timeo = 2 * HZ;
@@ -1883,6 +1905,9 @@ static void eth_port_start(struct mv643xx_private *mp)
 	/* Enable port Rx. */
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
 						mp->port_rx_queue_command);
+
+	/* Disable port bandwidth limits by clearing MTU register */
+	mv_write(MV643XX_ETH_MAXIMUM_TRANSMIT_UNIT(port_num), 0);
 }
 
 /*
@@ -2292,34 +2317,6 @@ static void eth_port_reset(unsigned int port_num)
 	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), reg_data);
 }
 
-/*
- * ethernet_set_config_reg - Set specified bits in configuration register.
- *
- * DESCRIPTION:
- *	This function sets specified bits in the given ethernet
- *	configuration register.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Ethernet Port number.
- *	unsigned int	value		32 bit value.
- *
- * OUTPUT:
- *	The set bits in the value parameter are set in the configuration
- *	register.
- *
- * RETURN:
- *	None.
- *
- */
-static void ethernet_set_config_reg(unsigned int eth_port_num,
-							unsigned int value)
-{
-	unsigned int eth_config_reg;
-
-	eth_config_reg = mv_read(MV643XX_ETH_PORT_CONFIG_REG(eth_port_num));
-	eth_config_reg |= value;
-	mv_write(MV643XX_ETH_PORT_CONFIG_REG(eth_port_num), eth_config_reg);
-}
 
 static int eth_port_autoneg_supported(unsigned int eth_port_num)
 {
@@ -2343,31 +2340,6 @@ static int eth_port_link_is_up(unsigned int eth_port_num)
 		return 1;
 
 	return 0;
-}
-
-/*
- * ethernet_get_config_reg - Get the port configuration register
- *
- * DESCRIPTION:
- *	This function returns the configuration register value of the given
- *	ethernet port.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Ethernet Port number.
- *
- * OUTPUT:
- *	None.
- *
- * RETURN:
- *	Port configuration register value.
- */
-static unsigned int ethernet_get_config_reg(unsigned int eth_port_num)
-{
-	unsigned int eth_config_reg;
-
-	eth_config_reg = mv_read(MV643XX_ETH_PORT_CONFIG_EXTEND_REG
-								(eth_port_num));
-	return eth_config_reg;
 }
 
 /*
@@ -2528,6 +2500,9 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		return ETH_ERROR;
 	}
 
+	mp->tx_ring_skbs++;
+	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
+
 	/* Get the Tx Desc ring indexes */
 	tx_desc_curr = mp->tx_curr_desc_q;
 	tx_desc_used = mp->tx_used_desc_q;
@@ -2593,6 +2568,9 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
 		return ETH_QUEUE_FULL;
+
+	mp->tx_ring_skbs++;
+	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_curr = mp->tx_curr_desc_q;
@@ -2693,6 +2671,9 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 
 	/* Any Tx return cancels the Tx resource error status */
 	mp->tx_resource_err = 0;
+
+	BUG_ON(mp->tx_ring_skbs == 0);
+	mp->tx_ring_skbs--;
 
 	return ETH_OK;
 }

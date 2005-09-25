@@ -11,7 +11,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/procinfo.h>
 #include <asm/pgtable.h>
 
@@ -240,7 +240,7 @@ cpu_elf_name:
 	.size	cpu_elf_name, . - cpu_elf_name
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	/*
 	 * Match any ARMv6 processor core.

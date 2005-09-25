@@ -11,7 +11,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 
 	.text
 	.align	5

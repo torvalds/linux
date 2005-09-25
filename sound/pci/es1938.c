@@ -76,13 +76,6 @@ MODULE_SUPPORTED_DEVICE("{{ESS,ES1938},"
 #define SUPPORT_JOYSTICK 1
 #endif
 
-#ifndef PCI_VENDOR_ID_ESS
-#define PCI_VENDOR_ID_ESS		0x125d
-#endif
-#ifndef PCI_DEVICE_ID_ESS_ES1938
-#define PCI_DEVICE_ID_ESS_ES1938	0x1969
-#endif
-
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
@@ -1501,7 +1494,7 @@ static int __devinit snd_es1938_create(snd_card_t * card,
                 return -ENXIO;
         }
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1753,6 +1746,7 @@ static void __devexit snd_es1938_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ESS ES1938 (Solo-1)",
+	.owner = THIS_MODULE,
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),

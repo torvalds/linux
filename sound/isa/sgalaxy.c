@@ -67,6 +67,8 @@ MODULE_PARM_DESC(dma1, "DMA1 # for Sound Galaxy driver.");
 
 static snd_card_t *snd_sgalaxy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
+#define PFX	"sgalaxy: "
+
 /*
 
  */
@@ -135,7 +137,7 @@ static int __init snd_sgalaxy_setup_wss(unsigned long port, int irq, int dma)
 	}
 
 #if 0
-	snd_printdd("sgalaxy - setting up IRQ/DMA for WSS\n");
+	snd_printdd(PFX "setting up IRQ/DMA for WSS\n");
 #endif
 
         /* initialize IRQ for WSS codec */
@@ -160,7 +162,7 @@ static int __init snd_sgalaxy_setup_wss(unsigned long port, int irq, int dma)
 static int __init snd_sgalaxy_detect(int dev, int irq, int dma)
 {
 #if 0
-	snd_printdd("sgalaxy - switching to WSS mode\n");
+	snd_printdd(PFX "switching to WSS mode\n");
 #endif
 
 	/* switch to WSS mode */
@@ -223,11 +225,11 @@ static int __init snd_sgalaxy_probe(int dev)
 	ad1848_t *chip;
 
 	if (sbport[dev] == SNDRV_AUTO_PORT) {
-		snd_printk("specify SB port\n");
+		snd_printk(KERN_ERR PFX "specify SB port\n");
 		return -EINVAL;
 	}
 	if (wssport[dev] == SNDRV_AUTO_PORT) {
-		snd_printk("specify WSS port\n");
+		snd_printk(KERN_ERR PFX "specify WSS port\n");
 		return -EINVAL;
 	}
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
@@ -237,46 +239,39 @@ static int __init snd_sgalaxy_probe(int dev)
 	xirq = irq[dev];
 	if (xirq == SNDRV_AUTO_IRQ) {
 		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free IRQ\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 	xdma1 = dma1[dev];
         if (xdma1 == SNDRV_AUTO_DMA) {
 		if ((xdma1 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free DMA\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free DMA\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 
-	if ((err = snd_sgalaxy_detect(dev, xirq, xdma1)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_sgalaxy_detect(dev, xirq, xdma1)) < 0)
+		goto _err;
 
 	if ((err = snd_ad1848_create(card, wssport[dev] + 4,
 				     xirq, xdma1,
-				     AD1848_HW_DETECT, &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     AD1848_HW_DETECT, &chip)) < 0)
+		goto _err;
 
 	if ((err = snd_ad1848_pcm(chip, 0, NULL)) < 0) {
-		snd_printdd("sgalaxy - error creating new ad1848 PCM device\n");
-		snd_card_free(card);
-		return err;
+		snd_printdd(PFX "error creating new ad1848 PCM device\n");
+		goto _err;
 	}
 	if ((err = snd_ad1848_mixer(chip)) < 0) {
-		snd_printdd("sgalaxy - error creating new ad1848 mixer\n");
-		snd_card_free(card);
-		return err;
+		snd_printdd(PFX "error creating new ad1848 mixer\n");
+		goto _err;
 	}
-	if (snd_sgalaxy_mixer(chip) < 0) {
-		snd_printdd("sgalaxy - the mixer rewrite failed\n");
-		snd_card_free(card);
-		return err;
+	if ((err = snd_sgalaxy_mixer(chip)) < 0) {
+		snd_printdd(PFX "the mixer rewrite failed\n");
+		goto _err;
 	}
 
 	strcpy(card->driver, "Sound Galaxy");
@@ -284,12 +279,18 @@ static int __init snd_sgalaxy_probe(int dev)
 	sprintf(card->longname, "Sound Galaxy at 0x%lx, irq %d, dma %d",
 		wssport[dev], xirq, xdma1);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	snd_sgalaxy_cards[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init alsa_card_sgalaxy_init(void)

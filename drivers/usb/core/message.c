@@ -48,7 +48,6 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int* actual_length)
 
 	init_completion(&done); 	
 	urb->context = &done;
-	urb->transfer_flags |= URB_ASYNC_UNLINK;
 	urb->actual_length = 0;
 	status = usb_submit_urb(urb, GFP_NOIO);
 
@@ -266,7 +265,9 @@ static void sg_complete (struct urb *urb, struct pt_regs *regs)
 				continue;
 			if (found) {
 				status = usb_unlink_urb (io->urbs [i]);
-				if (status != -EINPROGRESS && status != -EBUSY)
+				if (status != -EINPROGRESS
+						&& status != -ENODEV
+						&& status != -EBUSY)
 					dev_err (&io->dev->dev,
 						"%s, unlink --> %d\n",
 						__FUNCTION__, status);
@@ -357,8 +358,7 @@ int usb_sg_init (
 	if (!io->urbs)
 		goto nomem;
 
-	urb_flags = URB_ASYNC_UNLINK | URB_NO_TRANSFER_DMA_MAP
-			| URB_NO_INTERRUPT;
+	urb_flags = URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT;
 	if (usb_pipein (pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
@@ -987,7 +987,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 
 			/* remove this interface if it has been registered */
 			interface = dev->actconfig->interface[i];
-			if (!klist_node_attached(&interface->dev.knode_bus))
+			if (!device_is_registered(&interface->dev))
 				continue;
 			dev_dbg (&dev->dev, "unregistering interface %s\n",
 				interface->dev.bus_id);

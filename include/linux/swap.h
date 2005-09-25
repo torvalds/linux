@@ -107,6 +107,8 @@ enum {
 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
 	SWP_ACTIVE	= (SWP_USED | SWP_WRITEOK),
+					/* add others here before... */
+	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
 };
 
 #define SWAP_CLUSTER_MAX 32
@@ -116,16 +118,13 @@ enum {
 
 /*
  * The in-memory structure used to track swap areas.
- * extent_list.prev points at the lowest-index extent.  That list is
- * sorted.
  */
 struct swap_info_struct {
 	unsigned int flags;
-	spinlock_t sdev_lock;
+	int prio;			/* swap priority */
 	struct file *swap_file;
 	struct block_device *bdev;
 	struct list_head extent_list;
-	int nr_extents;
 	struct swap_extent *curr_swap_extent;
 	unsigned old_block_size;
 	unsigned short * swap_map;
@@ -133,10 +132,9 @@ struct swap_info_struct {
 	unsigned int highest_bit;
 	unsigned int cluster_next;
 	unsigned int cluster_nr;
-	int prio;			/* swap priority */
-	int pages;
-	unsigned long max;
-	unsigned long inuse_pages;
+	unsigned int pages;
+	unsigned int max;
+	unsigned int inuse_pages;
 	int next;			/* next entry on swap list */
 };
 
@@ -222,13 +220,7 @@ extern int can_share_swap_page(struct page *);
 extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
 
-extern struct swap_list_t swap_list;
-extern spinlock_t swaplock;
-
-#define swap_list_lock()	spin_lock(&swaplock)
-#define swap_list_unlock()	spin_unlock(&swaplock)
-#define swap_device_lock(p)	spin_lock(&p->sdev_lock)
-#define swap_device_unlock(p)	spin_unlock(&p->sdev_lock)
+extern spinlock_t swap_lock;
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;

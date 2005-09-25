@@ -60,6 +60,18 @@ all of the cpus in the system. This removes any overhead due to
 load balancing code trying to pull tasks outside of the cpu exclusive
 cpuset only to be prevented by the tasks' cpus_allowed mask.
 
+A cpuset that is mem_exclusive restricts kernel allocations for
+page, buffer and other data commonly shared by the kernel across
+multiple users.  All cpusets, whether mem_exclusive or not, restrict
+allocations of memory for user space.  This enables configuring a
+system so that several independent jobs can share common kernel
+data, such as file system pages, while isolating each jobs user
+allocation in its own cpuset.  To do this, construct a large
+mem_exclusive cpuset to hold all the jobs, and construct child,
+non-mem_exclusive cpusets for each individual job.  Only a small
+amount of typical kernel memory, such as requests from interrupt
+handlers, is allowed to be taken outside even a mem_exclusive cpuset.
+
 User level code may create and destroy cpusets by name in the cpuset
 virtual file system, manage the attributes and permissions of these
 cpusets and which CPUs and Memory Nodes are assigned to each cpuset,
@@ -265,7 +277,7 @@ rewritten to the 'tasks' file of its cpuset.  This is done to avoid
 impacting the scheduler code in the kernel with a check for changes
 in a tasks processor placement.
 
-There is an exception to the above.  If hotplug funtionality is used
+There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
 then the kernel will automatically update the cpus_allowed of all
 tasks attached to CPUs in that cpuset to allow all CPUs.  When memory

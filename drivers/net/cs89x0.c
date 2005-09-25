@@ -247,6 +247,9 @@ static int get_eeprom_data(struct net_device *dev, int off, int len, int *buffer
 static int get_eeprom_cksum(int off, int len, int *buffer);
 static int set_mac_address(struct net_device *dev, void *addr);
 static void count_rx_errors(int status, struct net_local *lp);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void net_poll_controller(struct net_device *dev);
+#endif
 #if ALLOW_DMA
 static void get_dma_channel(struct net_device *dev);
 static void release_dma_buff(struct net_local *lp);
@@ -404,6 +407,19 @@ get_eeprom_cksum(int off, int len, int *buffer)
 		return 0;
 	return -1;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling receive - used by netconsole and other diagnostic tools
+ * to allow network i/o with interrupts disabled.
+ */
+static void net_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	net_interrupt(dev->irq, dev, NULL);
+	enable_irq(dev->irq);
+}
+#endif
 
 /* This is the real probe routine.  Linux has a history of friendly device
    probes on the ISA bus.  A good device probes avoids doing writes, and
@@ -760,6 +776,9 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	dev->get_stats		= net_get_stats;
 	dev->set_multicast_list = set_multicast_list;
 	dev->set_mac_address 	= set_mac_address;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller	= net_poll_controller;
+#endif
 
 	printk("\n");
 	if (net_debug)

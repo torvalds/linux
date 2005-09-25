@@ -69,9 +69,13 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define __init
 #define __exit
 #define __attribute_const__ __attribute__((const))
+#define noinline __attribute__((noinline))
 
 #define preempt_enable()
 #define preempt_disable()
+#define cpu_has_feature(x) 1
+#define enable_kernel_altivec()
+#define disable_kernel_altivec()
 
 #endif /* __KERNEL__ */
 

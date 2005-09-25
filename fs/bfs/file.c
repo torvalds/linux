@@ -40,8 +40,8 @@ static int bfs_move_block(unsigned long from, unsigned long to, struct super_blo
 	return 0;
 }
 
-static int bfs_move_blocks(struct super_block *sb, unsigned long start, unsigned long end, 
-				unsigned long where)
+static int bfs_move_blocks(struct super_block *sb, unsigned long start,
+                           unsigned long end, unsigned long where)
 {
 	unsigned long i;
 
@@ -57,20 +57,21 @@ static int bfs_move_blocks(struct super_block *sb, unsigned long start, unsigned
 static int bfs_get_block(struct inode * inode, sector_t block, 
 	struct buffer_head * bh_result, int create)
 {
-	long phys;
+	unsigned long phys;
 	int err;
 	struct super_block *sb = inode->i_sb;
 	struct bfs_sb_info *info = BFS_SB(sb);
 	struct bfs_inode_info *bi = BFS_I(inode);
 	struct buffer_head *sbh = info->si_sbh;
 
-	if (block < 0 || block > info->si_blocks)
+	if (block > info->si_blocks)
 		return -EIO;
 
 	phys = bi->i_sblock + block;
 	if (!create) {
 		if (phys <= bi->i_eblock) {
-			dprintf("c=%d, b=%08lx, phys=%08lx (granted)\n", create, block, phys);
+			dprintf("c=%d, b=%08lx, phys=%09lx (granted)\n",
+                                create, (unsigned long)block, phys);
 			map_bh(bh_result, sb, phys);
 		}
 		return 0;
@@ -80,7 +81,7 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 	   of blocks allocated for this file, we can grant it */
 	if (inode->i_size && phys <= bi->i_eblock) {
 		dprintf("c=%d, b=%08lx, phys=%08lx (interim block granted)\n", 
-				create, block, phys);
+				create, (unsigned long)block, phys);
 		map_bh(bh_result, sb, phys);
 		return 0;
 	}
@@ -88,11 +89,12 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 	/* the rest has to be protected against itself */
 	lock_kernel();
 
-	/* if the last data block for this file is the last allocated block, we can
-	   extend the file trivially, without moving it anywhere */
+	/* if the last data block for this file is the last allocated
+	   block, we can extend the file trivially, without moving it
+	   anywhere */
 	if (bi->i_eblock == info->si_lf_eblk) {
 		dprintf("c=%d, b=%08lx, phys=%08lx (simple extension)\n", 
-				create, block, phys);
+				create, (unsigned long)block, phys);
 		map_bh(bh_result, sb, phys);
 		info->si_freeb -= phys - bi->i_eblock;
 		info->si_lf_eblk = bi->i_eblock = phys;
@@ -114,7 +116,8 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 	} else
 		err = 0;
 
-	dprintf("c=%d, b=%08lx, phys=%08lx (moved)\n", create, block, phys);
+	dprintf("c=%d, b=%08lx, phys=%08lx (moved)\n",
+                create, (unsigned long)block, phys);
 	bi->i_sblock = phys;
 	phys += block;
 	info->si_lf_eblk = bi->i_eblock = phys;

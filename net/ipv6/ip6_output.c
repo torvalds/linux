@@ -166,7 +166,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	struct ipv6hdr *hdr;
 	u8  proto = fl->proto;
 	int seg_len = skb->len;
-	int hlimit;
+	int hlimit, tclass;
 	u32 mtu;
 
 	if (opt) {
@@ -202,7 +202,6 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	 *	Fill in the IPv6 header
 	 */
 
-	*(u32*)hdr = htonl(0x60000000) | fl->fl6_flowlabel;
 	hlimit = -1;
 	if (np)
 		hlimit = np->hop_limit;
@@ -210,6 +209,14 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 		hlimit = dst_metric(dst, RTAX_HOPLIMIT);
 	if (hlimit < 0)
 		hlimit = ipv6_get_hoplimit(dst->dev);
+
+	tclass = -1;
+	if (np)
+		tclass = np->tclass;
+	if (tclass < 0)
+		tclass = 0;
+
+	*(u32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl->fl6_flowlabel;
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -762,10 +769,11 @@ out_err_release:
 	return err;
 }
 
-int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb),
-		    void *from, int length, int transhdrlen,
-		    int hlimit, struct ipv6_txoptions *opt, struct flowi *fl, struct rt6_info *rt,
-		    unsigned int flags)
+int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
+	int offset, int len, int odd, struct sk_buff *skb),
+	void *from, int length, int transhdrlen,
+	int hlimit, int tclass, struct ipv6_txoptions *opt, struct flowi *fl,
+	struct rt6_info *rt, unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -803,6 +811,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to, int offse
 		np->cork.rt = rt;
 		inet->cork.fl = *fl;
 		np->cork.hop_limit = hlimit;
+		np->cork.tclass = tclass;
 		inet->cork.fragsize = mtu = dst_mtu(rt->u.dst.path);
 		if (dst_allfrag(rt->u.dst.path))
 			inet->cork.flags |= IPCORK_ALLFRAG;
@@ -1084,7 +1093,8 @@ int ip6_push_pending_frames(struct sock *sk)
 
 	skb->nh.ipv6h = hdr = (struct ipv6hdr*) skb_push(skb, sizeof(struct ipv6hdr));
 	
-	*(u32*)hdr = fl->fl6_flowlabel | htonl(0x60000000);
+	*(u32*)hdr = fl->fl6_flowlabel |
+		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
 
 	if (skb->len <= sizeof(struct ipv6hdr) + IPV6_MAXPLEN)
 		hdr->payload_len = htons(skb->len - sizeof(struct ipv6hdr));

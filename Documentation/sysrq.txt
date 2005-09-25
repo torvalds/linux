@@ -171,7 +171,7 @@ the header 'include/linux/sysrq.h', this will define everything else you need.
 Next, you must create a sysrq_key_op struct, and populate it with A) the key
 handler function you will use, B) a help_msg string, that will print when SysRQ
 prints help, and C) an action_msg string, that will print right before your
-handler is called. Your handler must conform to the protoype in 'sysrq.h'.
+handler is called. Your handler must conform to the prototype in 'sysrq.h'.
 
 After the sysrq_key_op is created, you can call the macro 
 register_sysrq_key(int key, struct sysrq_key_op *op_p) that is defined in

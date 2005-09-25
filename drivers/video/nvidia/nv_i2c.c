@@ -90,14 +90,13 @@ static int nvidia_gpio_getsda(void *data)
 	return val;
 }
 
-#define I2C_ALGO_NVIDIA   0x0e0000
 static int nvidia_setup_i2c_bus(struct nvidia_i2c_chan *chan, const char *name)
 {
 	int rc;
 
 	strcpy(chan->adapter.name, name);
 	chan->adapter.owner = THIS_MODULE;
-	chan->adapter.id = I2C_ALGO_NVIDIA;
+	chan->adapter.id = I2C_HW_B_NVIDIA;
 	chan->adapter.algo_data = &chan->algo;
 	chan->adapter.dev.parent = &chan->par->pci_dev->dev;
 	chan->algo.setsda = nvidia_gpio_setsda;
@@ -195,8 +194,9 @@ static u8 *nvidia_do_probe_i2c_edid(struct nvidia_i2c_chan *chan)
 	return NULL;
 }
 
-int nvidia_probe_i2c_connector(struct nvidia_par *par, int conn, u8 **out_edid)
+int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 {
+	struct nvidia_par *par = info->par;
 	u8 *edid = NULL;
 	int i;
 
@@ -206,10 +206,20 @@ int nvidia_probe_i2c_connector(struct nvidia_par *par, int conn, u8 **out_edid)
 		if (edid)
 			break;
 	}
+
+	if (!edid && conn == 1) {
+		/* try to get from firmware */
+		const u8 *e = fb_firmware_edid(info->device);
+
+		if (e != NULL) {
+			edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+			if (edid)
+				memcpy(edid, e, EDID_LENGTH);
+		}
+	}
+
 	if (out_edid)
 		*out_edid = edid;
-	if (!edid)
-		return 1;
 
-	return 0;
+	return (edid) ? 0 : 1;
 }

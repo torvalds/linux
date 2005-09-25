@@ -18,7 +18,7 @@
  * so, for 64bit IP32 kernel we just don't use ll/sc.
  * This does not affect luserland.
  */
-#if defined(CONFIG_CPU_R5000) && defined(CONFIG_MIPS64)
+#if defined(CONFIG_CPU_R5000) && defined(CONFIG_64BIT)
 #define cpu_has_llsc		0
 #else
 #define cpu_has_llsc		1

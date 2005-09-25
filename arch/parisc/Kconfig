@@ -49,6 +49,10 @@ config ISA_DMA_API
 	bool
 	default y
 
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
 source "init/Kconfig"
 
 

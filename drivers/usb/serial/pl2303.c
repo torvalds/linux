@@ -95,6 +95,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_PRODUCT_ID) },
 	{ USB_DEVICE(SIEMENS_VENDOR_ID, SIEMENS_PRODUCT_ID_X65) },
 	{ USB_DEVICE(SYNTECH_VENDOR_ID, SYNTECH_PRODUCT_ID) },
+	{ USB_DEVICE( NOKIA_CA42_VENDOR_ID, NOKIA_CA42_PRODUCT_ID ) },
 	{ }					/* Terminating entry */
 };
 
@@ -538,8 +539,10 @@ static int pl2303_open (struct usb_serial_port *port, struct file *filp)
 
 	dbg("%s -  port %d", __FUNCTION__, port->number);
 
-	usb_clear_halt(serial->dev, port->write_urb->pipe);
-	usb_clear_halt(serial->dev, port->read_urb->pipe);
+	if (priv->type != HX) {
+		usb_clear_halt(serial->dev, port->write_urb->pipe);
+		usb_clear_halt(serial->dev, port->read_urb->pipe);
+	}
 
 	buf = kmalloc(10, GFP_KERNEL);
 	if (buf==NULL)
@@ -650,8 +653,7 @@ static void pl2303_close (struct usb_serial_port *port, struct file *filp)
 		timeout = max((HZ*2560)/bps,HZ/10);
 	else
 		timeout = 2*HZ;
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(timeout);
+	schedule_timeout_interruptible(timeout);
 
 	/* shutdown our urbs */
 	dbg("%s - shutting down urbs", __FUNCTION__);

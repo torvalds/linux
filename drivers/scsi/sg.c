@@ -61,7 +61,7 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20050328";
+static char *sg_version_date = "20050908";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -1027,8 +1027,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 		if (sdp->detached)
 			return -ENODEV;
 		if (filp->f_flags & O_NONBLOCK) {
-			if (test_bit(SHOST_RECOVERY,
-				     &sdp->device->host->shost_state))
+			if (scsi_host_in_recovery(sdp->device->host))
 				return -EBUSY;
 		} else if (!scsi_block_when_processing_errors(sdp->device))
 			return -EBUSY;
@@ -1300,7 +1299,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 		sg_rb_correct4mmap(rsv_schp, 1);	/* do only once per fd lifetime */
 		sfp->mmap_called = 1;
 	}
-	vma->vm_flags |= (VM_RESERVED | VM_IO);
+	vma->vm_flags |= VM_RESERVED;
 	vma->vm_private_data = sfp;
 	vma->vm_ops = &sg_mmap_vm_ops;
 	return 0;
@@ -1795,11 +1794,11 @@ st_map_user_pages(struct scatterlist *sgl, const unsigned int max_pages,
 	          unsigned long uaddr, size_t count, int rw,
 	          unsigned long max_pfn)
 {
+	unsigned long end = (uaddr + count + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned long start = uaddr >> PAGE_SHIFT;
+	const int nr_pages = end - start;
 	int res, i, j;
-	unsigned int nr_pages;
 	struct page **pages;
-
-	nr_pages = ((uaddr & ~PAGE_MASK) + count + ~PAGE_MASK) >> PAGE_SHIFT;
 
 	/* User attempted Overflow! */
 	if ((uaddr + count) < uaddr)

@@ -40,7 +40,6 @@
 #undef ATA_VERBOSE_DEBUG	/* yet more debugging output */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
 #undef ATA_NDEBUG		/* define to disable quick runtime checks */
-#undef ATA_ENABLE_ATAPI		/* define to enable ATAPI support */
 #undef ATA_ENABLE_PATA		/* define to enable PATA support in some
 				 * low-level drivers */
 #undef ATAPI_ENABLE_DMADIR	/* enables ATAPI DMADIR bridge support */
@@ -394,6 +393,7 @@ extern int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_i
 extern void ata_pci_remove_one (struct pci_dev *pdev);
 #endif /* CONFIG_PCI */
 extern int ata_device_add(struct ata_probe_ent *ent);
+extern void ata_host_set_remove(struct ata_host_set *host_set);
 extern int ata_scsi_detect(Scsi_Host_Template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));
@@ -450,6 +450,7 @@ struct pci_bits {
 	unsigned long		val;
 };
 
+extern void ata_pci_host_stop (struct ata_host_set *host_set);
 extern struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port);
 extern int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits);

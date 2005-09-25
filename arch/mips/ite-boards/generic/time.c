@@ -72,7 +72,7 @@ static inline int rtc_dm_binary(void) { return saved_control & RTC_DM_BINARY; }
 static inline unsigned char
 bin_to_hw(unsigned char c)
 {
-	if (rtc_dm_binary()) 
+	if (rtc_dm_binary())
 		return c;
 	else
 		return ((c/10) << 4) + (c%10);
@@ -91,9 +91,9 @@ hw_to_bin(unsigned char c)
 static inline unsigned char
 hour_bin_to_hw(unsigned char c)
 {
-	if (rtc_24h()) 
+	if (rtc_24h())
 		return bin_to_hw(c);
-	if (c >= 12) 
+	if (c >= 12)
 		return 0x80 | bin_to_hw((c==12)?12:c-12);  /* 12 is 12pm */
 	else
 		return bin_to_hw((c==0)?12:c);	/* 0 is 12 AM, not 0 am */
@@ -105,9 +105,9 @@ hour_hw_to_bin(unsigned char c)
 	unsigned char tmp = hw_to_bin(c&0x3f);
 	if (rtc_24h())
 		return tmp;
-	if (c & 0x80) 
+	if (c & 0x80)
 		return (tmp==12)?12:tmp+12;  	/* 12pm is 12, not 24 */
-	else 
+	else
 		return (tmp==12)?0:tmp;		/* 12am is 0 */
 }
 
@@ -145,7 +145,7 @@ static unsigned long __init cal_r4koff(void)
 	return (mips_hpt_frequency / HZ);
 }
 
-static unsigned long 
+static unsigned long
 it8172_rtc_get_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
@@ -166,12 +166,12 @@ it8172_rtc_get_time(void)
 	hour = hour_hw_to_bin(CMOS_READ(RTC_HOURS));
 	day = hw_to_bin(CMOS_READ(RTC_DAY_OF_MONTH));
 	mon = hw_to_bin(CMOS_READ(RTC_MONTH));
-	year = hw_to_bin(CMOS_READ(RTC_YEAR)) + 
+	year = hw_to_bin(CMOS_READ(RTC_YEAR)) +
 		hw_to_bin(*rtc_century_reg) * 100;
 
 	/* restore interrupts */
 	local_irq_restore(flags);
-		
+
 	return mktime(year, mon, day, hour, min, sec);
 }
 

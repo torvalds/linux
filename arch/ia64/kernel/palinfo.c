@@ -307,11 +307,9 @@ vm_info(char *page)
 
 	if ((status = ia64_pal_vm_summary(&vm_info_1, &vm_info_2)) !=0) {
 		printk(KERN_ERR "ia64_pal_vm_summary=%ld\n", status);
-		return 0;
-	}
+	} else {
 
-
-	p += sprintf(p,
+		p += sprintf(p,
 		     "Physical Address Space         : %d bits\n"
 		     "Virtual Address Space          : %d bits\n"
 		     "Protection Key Registers(PKR)  : %d\n"
@@ -319,92 +317,99 @@ vm_info(char *page)
 		     "Hash Tag ID                    : 0x%x\n"
 		     "Size of RR.rid                 : %d\n",
 		     vm_info_1.pal_vm_info_1_s.phys_add_size,
-		     vm_info_2.pal_vm_info_2_s.impl_va_msb+1, vm_info_1.pal_vm_info_1_s.max_pkr+1,
-		     vm_info_1.pal_vm_info_1_s.key_size, vm_info_1.pal_vm_info_1_s.hash_tag_id,
+		     vm_info_2.pal_vm_info_2_s.impl_va_msb+1,
+		     vm_info_1.pal_vm_info_1_s.max_pkr+1,
+		     vm_info_1.pal_vm_info_1_s.key_size,
+		     vm_info_1.pal_vm_info_1_s.hash_tag_id,
 		     vm_info_2.pal_vm_info_2_s.rid_size);
-
-	if (ia64_pal_mem_attrib(&attrib) != 0)
-		return 0;
-
-	p += sprintf(p, "Supported memory attributes    : ");
-	sep = "";
-	for (i = 0; i < 8; i++) {
-		if (attrib & (1 << i)) {
-			p += sprintf(p, "%s%s", sep, mem_attrib[i]);
-			sep = ", ";
-		}
 	}
-	p += sprintf(p, "\n");
+
+	if (ia64_pal_mem_attrib(&attrib) == 0) {
+		p += sprintf(p, "Supported memory attributes    : ");
+		sep = "";
+		for (i = 0; i < 8; i++) {
+			if (attrib & (1 << i)) {
+				p += sprintf(p, "%s%s", sep, mem_attrib[i]);
+				sep = ", ";
+			}
+		}
+		p += sprintf(p, "\n");
+	}
 
 	if ((status = ia64_pal_vm_page_size(&tr_pages, &vw_pages)) !=0) {
 		printk(KERN_ERR "ia64_pal_vm_page_size=%ld\n", status);
-		return 0;
+	} else {
+
+		p += sprintf(p,
+			     "\nTLB walker                     : %simplemented\n"
+			     "Number of DTR                  : %d\n"
+			     "Number of ITR                  : %d\n"
+			     "TLB insertable page sizes      : ",
+			     vm_info_1.pal_vm_info_1_s.vw ? "" : "not ",
+			     vm_info_1.pal_vm_info_1_s.max_dtr_entry+1,
+			     vm_info_1.pal_vm_info_1_s.max_itr_entry+1);
+
+
+		p = bitvector_process(p, tr_pages);
+
+		p += sprintf(p, "\nTLB purgeable page sizes       : ");
+
+		p = bitvector_process(p, vw_pages);
 	}
-
-	p += sprintf(p,
-		     "\nTLB walker                     : %simplemented\n"
-		     "Number of DTR                  : %d\n"
-		     "Number of ITR                  : %d\n"
-		     "TLB insertable page sizes      : ",
-		     vm_info_1.pal_vm_info_1_s.vw ? "" : "not ",
-		     vm_info_1.pal_vm_info_1_s.max_dtr_entry+1,
-		     vm_info_1.pal_vm_info_1_s.max_itr_entry+1);
-
-
-	p = bitvector_process(p, tr_pages);
-
-	p += sprintf(p, "\nTLB purgeable page sizes       : ");
-
-	p = bitvector_process(p, vw_pages);
-
 	if ((status=ia64_get_ptce(&ptce)) != 0) {
 		printk(KERN_ERR "ia64_get_ptce=%ld\n", status);
-		return 0;
-	}
-
-	p += sprintf(p,
+	} else {
+		p += sprintf(p,
 		     "\nPurge base address             : 0x%016lx\n"
 		     "Purge outer loop count         : %d\n"
 		     "Purge inner loop count         : %d\n"
 		     "Purge outer loop stride        : %d\n"
 		     "Purge inner loop stride        : %d\n",
-		     ptce.base, ptce.count[0], ptce.count[1], ptce.stride[0], ptce.stride[1]);
+		     ptce.base, ptce.count[0], ptce.count[1],
+		     ptce.stride[0], ptce.stride[1]);
 
-	p += sprintf(p,
+		p += sprintf(p,
 		     "TC Levels                      : %d\n"
 		     "Unique TC(s)                   : %d\n",
 		     vm_info_1.pal_vm_info_1_s.num_tc_levels,
 		     vm_info_1.pal_vm_info_1_s.max_unique_tcs);
 
-	for(i=0; i < vm_info_1.pal_vm_info_1_s.num_tc_levels; i++) {
-		for (j=2; j>0 ; j--) {
-			tc_pages = 0; /* just in case */
+		for(i=0; i < vm_info_1.pal_vm_info_1_s.num_tc_levels; i++) {
+			for (j=2; j>0 ; j--) {
+				tc_pages = 0; /* just in case */
 
 
-			/* even without unification, some levels may not be present */
-			if ((status=ia64_pal_vm_info(i,j, &tc_info, &tc_pages)) != 0) {
-				continue;
-			}
+				/* even without unification, some levels may not be present */
+				if ((status=ia64_pal_vm_info(i,j, &tc_info, &tc_pages)) != 0) {
+					continue;
+				}
 
-			p += sprintf(p,
+				p += sprintf(p,
 				     "\n%s Translation Cache Level %d:\n"
 				     "\tHash sets           : %d\n"
 				     "\tAssociativity       : %d\n"
 				     "\tNumber of entries   : %d\n"
 				     "\tFlags               : ",
-				     cache_types[j+tc_info.tc_unified], i+1, tc_info.tc_num_sets,
-				     tc_info.tc_associativity, tc_info.tc_num_entries);
+				     cache_types[j+tc_info.tc_unified], i+1,
+				     tc_info.tc_num_sets,
+				     tc_info.tc_associativity,
+				     tc_info.tc_num_entries);
 
-			if (tc_info.tc_pf) p += sprintf(p, "PreferredPageSizeOptimized ");
-			if (tc_info.tc_unified) p += sprintf(p, "Unified ");
-			if (tc_info.tc_reduce_tr) p += sprintf(p, "TCReduction");
+				if (tc_info.tc_pf)
+					p += sprintf(p, "PreferredPageSizeOptimized ");
+				if (tc_info.tc_unified)
+					p += sprintf(p, "Unified ");
+				if (tc_info.tc_reduce_tr)
+					p += sprintf(p, "TCReduction");
 
-			p += sprintf(p, "\n\tSupported page sizes: ");
+				p += sprintf(p, "\n\tSupported page sizes: ");
 
-			p = bitvector_process(p, tc_pages);
+				p = bitvector_process(p, tc_pages);
 
-			/* when unified date (j=2) is enough */
-			if (tc_info.tc_unified) break;
+				/* when unified date (j=2) is enough */
+				if (tc_info.tc_unified)
+					break;
+			}
 		}
 	}
 	p += sprintf(p, "\n");
@@ -440,14 +445,14 @@ register_info(char *page)
 		p += sprintf(p, "\n");
 	}
 
-	if (ia64_pal_rse_info(&phys_stacked, &hints) != 0) return 0;
+	if (ia64_pal_rse_info(&phys_stacked, &hints) == 0) {
 
 	p += sprintf(p,
 		     "RSE stacked physical registers   : %ld\n"
 		     "RSE load/store hints             : %ld (%s)\n",
 		     phys_stacked, hints.ph_data,
 		     hints.ph_data < RSE_HINTS_COUNT ? rse_hints[hints.ph_data]: "(??)");
-
+	}
 	if (ia64_pal_debug_info(&iregs, &dregs))
 		return 0;
 

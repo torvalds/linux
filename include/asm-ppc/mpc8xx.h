@@ -36,10 +36,6 @@
 #include <platforms/tqm8xx.h>
 #endif
 
-#if defined(CONFIG_SPD823TS)
-#include <platforms/spd8xx.h>
-#endif
-
 #if defined(CONFIG_IVMS8) || defined(CONFIG_IVML24)
 #include <platforms/ivms8.h>
 #endif
@@ -100,6 +96,22 @@
 extern unsigned char __res[];
 
 struct pt_regs;
+
+enum ppc_sys_devices {
+	MPC8xx_CPM_FEC1,
+	MPC8xx_CPM_FEC2,
+	MPC8xx_CPM_I2C,
+	MPC8xx_CPM_SCC1,
+	MPC8xx_CPM_SCC2,
+	MPC8xx_CPM_SCC3,
+	MPC8xx_CPM_SCC4,
+	MPC8xx_CPM_SPI,
+	MPC8xx_CPM_MCC1,
+	MPC8xx_CPM_MCC2,
+	MPC8xx_CPM_SMC1,
+	MPC8xx_CPM_SMC2,
+	MPC8xx_CPM_USB,
+};
 
 #endif /* !__ASSEMBLY__ */
 #endif /* CONFIG_8xx */

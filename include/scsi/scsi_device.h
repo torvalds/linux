@@ -8,8 +8,17 @@
 
 struct request_queue;
 struct scsi_cmnd;
-struct scsi_mode_data;
 struct scsi_lun;
+struct scsi_sense_hdr;
+
+struct scsi_mode_data {
+	__u32	length;
+	__u16	block_descriptor_length;
+	__u8	medium_type;
+	__u8	device_specific;
+	__u8	header_length;
+	__u8	longlba:1;
+};
 
 /*
  * sdev state: If you alter this, you also need to alter scsi_sysfs.c
@@ -169,8 +178,8 @@ static inline struct scsi_target *scsi_target(struct scsi_device *sdev)
 
 extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 		uint, uint, uint, void *hostdata);
-#define scsi_add_device(host, channel, target, lun) \
-	__scsi_add_device(host, channel, target, lun, NULL)
+extern int scsi_add_device(struct Scsi_Host *host, uint channel,
+			   uint target, uint lun);
 extern void scsi_remove_device(struct scsi_device *);
 extern int scsi_device_cancel(struct scsi_device *, int);
 
@@ -228,7 +237,8 @@ extern int scsi_set_medium_removal(struct scsi_device *, char);
 
 extern int scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 			   unsigned char *buffer, int len, int timeout,
-			   int retries, struct scsi_mode_data *data);
+			   int retries, struct scsi_mode_data *data,
+			   struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries);
 extern int scsi_device_set_state(struct scsi_device *sdev,
@@ -247,6 +257,14 @@ extern void int_to_scsilun(unsigned int, struct scsi_lun *);
 extern const char *scsi_device_state_name(enum scsi_device_state);
 extern int scsi_is_sdev_device(const struct device *);
 extern int scsi_is_target_device(const struct device *);
+extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
+			int data_direction, void *buffer, unsigned bufflen,
+			unsigned char *sense, int timeout, int retries,
+			int flag);
+extern int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
+			    int data_direction, void *buffer, unsigned bufflen,
+			    struct scsi_sense_hdr *, int timeout, int retries);
+
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
 	return sdev->sdev_state != SDEV_OFFLINE;

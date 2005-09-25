@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.51 $)
+ * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.54 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  * This file contains code related to sysfs.
@@ -20,7 +20,7 @@
 #include "qeth_mpc.h"
 #include "qeth_fs.h"
 
-const char *VERSION_QETH_SYS_C = "$Revision: 1.51 $";
+const char *VERSION_QETH_SYS_C = "$Revision: 1.54 $";
 
 /*****************************************************************************/
 /*                                                                           */
@@ -722,10 +722,13 @@ qeth_dev_layer2_store(struct device *dev, struct device_attribute *attr, const c
 
 	if (!card)
 		return -EINVAL;
+	if (card->info.type == QETH_CARD_TYPE_IQD) {
+                PRINT_WARN("Layer2 on Hipersockets is not supported! \n");
+                return -EPERM;
+        }
 
 	if (((card->state != CARD_STATE_DOWN) &&
-	     (card->state != CARD_STATE_RECOVER)) ||
-	    (card->info.type != QETH_CARD_TYPE_OSAE))
+	     (card->state != CARD_STATE_RECOVER)))
 		return -EPERM;
 
 	i = simple_strtoul(buf, &tmp, 16);
@@ -771,9 +774,7 @@ qeth_dev_large_send_store(struct device *dev, struct device_attribute *attr, con
 
 	if (!card)
 		return -EINVAL;
-
 	tmp = strsep((char **) &buf, "\n");
-
 	if (!strcmp(tmp, "no")){
 		type = QETH_LARGE_SEND_NO;
 	} else if (!strcmp(tmp, "EDDP")) {
@@ -786,10 +787,8 @@ qeth_dev_large_send_store(struct device *dev, struct device_attribute *attr, con
 	}
 	if (card->options.large_send == type)
 		return count;
-	card->options.large_send = type;
-	if ((rc = qeth_set_large_send(card)))
+	if ((rc = qeth_set_large_send(card, type)))	
 		return rc;
-
 	return count;
 }
 

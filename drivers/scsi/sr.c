@@ -50,10 +50,10 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_driver.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>	/* For the door lock/unlock commands */
-#include <scsi/scsi_request.h>
 
 #include "scsi_logging.h"
 #include "sr.h"
@@ -199,15 +199,7 @@ int sr_media_change(struct cdrom_device_info *cdi, int slot)
 		/* check multisession offset etc */
 		sr_cd_check(cdi);
 
-		/* 
-		 * If the disk changed, the capacity will now be different,
-		 * so we force a re-read of this information 
-		 * Force 2048 for the sector size so that filesystems won't
-		 * be trying to use something that is too small if the disc
-		 * has changed.
-		 */
-		cd->needs_sector_size = 1;
-		cd->device->sector_size = 2048;
+		get_sectorsize(cd);
 	}
 	return retval;
 }
@@ -334,6 +326,7 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 			return 0;
 
 		memcpy(SCpnt->cmnd, rq->cmd, sizeof(SCpnt->cmnd));
+		SCpnt->cmd_len = rq->cmd_len;
 		if (!rq->data_len)
 			SCpnt->sc_data_direction = DMA_NONE;
 		else if (rq_data_dir(rq) == WRITE)
@@ -538,13 +531,6 @@ static int sr_open(struct cdrom_device_info *cdi, int purpose)
 	if (!scsi_block_when_processing_errors(sdev))
 		goto error_out;
 
-	/*
-	 * If this device did not have media in the drive at boot time, then
-	 * we would have been unable to get the sector size.  Check to see if
-	 * this is the case, and try again.
-	 */
-	if (cd->needs_sector_size)
-		get_sectorsize(cd);
 	return 0;
 
 error_out:
@@ -604,7 +590,6 @@ static int sr_probe(struct device *dev)
 	cd->driver = &sr_template;
 	cd->disk = disk;
 	cd->capacity = 0x1fffff;
-	cd->needs_sector_size = 1;
 	cd->device->changed = 1;	/* force recheck CD type */
 	cd->use = 1;
 	cd->readcd_known = 0;
@@ -658,43 +643,30 @@ static void get_sectorsize(struct scsi_cd *cd)
 	unsigned char *buffer;
 	int the_result, retries = 3;
 	int sector_size;
-	struct scsi_request *SRpnt = NULL;
 	request_queue_t *queue;
 
 	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
 	if (!buffer)
 		goto Enomem;
-	SRpnt = scsi_allocate_request(cd->device, GFP_KERNEL);
-	if (!SRpnt)
-		goto Enomem;
 
 	do {
 		cmd[0] = READ_CAPACITY;
 		memset((void *) &cmd[1], 0, 9);
-		/* Mark as really busy */
-		SRpnt->sr_request->rq_status = RQ_SCSI_BUSY;
-		SRpnt->sr_cmd_len = 0;
-
 		memset(buffer, 0, 8);
 
 		/* Do the command and wait.. */
-		SRpnt->sr_data_direction = DMA_FROM_DEVICE;
-		scsi_wait_req(SRpnt, (void *) cmd, (void *) buffer,
-			      8, SR_TIMEOUT, MAX_RETRIES);
+		the_result = scsi_execute_req(cd->device, cmd, DMA_FROM_DEVICE,
+					      buffer, 8, NULL, SR_TIMEOUT,
+					      MAX_RETRIES);
 
-		the_result = SRpnt->sr_result;
 		retries--;
 
 	} while (the_result && retries);
 
 
-	scsi_release_request(SRpnt);
-	SRpnt = NULL;
-
 	if (the_result) {
 		cd->capacity = 0x1fffff;
 		sector_size = 2048;	/* A guess, just in case */
-		cd->needs_sector_size = 1;
 	} else {
 #if 0
 		if (cdrom_get_last_written(&cd->cdi,
@@ -727,7 +699,6 @@ static void get_sectorsize(struct scsi_cd *cd)
 			printk("%s: unsupported sector size %d.\n",
 			       cd->cdi.name, sector_size);
 			cd->capacity = 0;
-			cd->needs_sector_size = 1;
 		}
 
 		cd->device->sector_size = sector_size;
@@ -736,7 +707,6 @@ static void get_sectorsize(struct scsi_cd *cd)
 		 * Add this so that we have the ability to correctly gauge
 		 * what the device is capable of.
 		 */
-		cd->needs_sector_size = 0;
 		set_capacity(cd->disk, cd->capacity);
 	}
 
@@ -748,10 +718,7 @@ out:
 
 Enomem:
 	cd->capacity = 0x1fffff;
-	sector_size = 2048;	/* A guess, just in case */
-	cd->needs_sector_size = 1;
-	if (SRpnt)
-		scsi_release_request(SRpnt);
+	cd->device->sector_size = 2048;	/* A guess, just in case */
 	goto out;
 }
 
@@ -759,8 +726,8 @@ static void get_capabilities(struct scsi_cd *cd)
 {
 	unsigned char *buffer;
 	struct scsi_mode_data data;
-	struct scsi_request *SRpnt;
 	unsigned char cmd[MAX_COMMAND_SIZE];
+	struct scsi_sense_hdr sshdr;
 	unsigned int the_result;
 	int retries, rc, n;
 
@@ -776,19 +743,11 @@ static void get_capabilities(struct scsi_cd *cd)
 		""
 	};
 
-	/* allocate a request for the TEST_UNIT_READY */
-	SRpnt = scsi_allocate_request(cd->device, GFP_KERNEL);
-	if (!SRpnt) {
-		printk(KERN_WARNING "(get_capabilities:) Request allocation "
-		       "failure.\n");
-		return;
-	}
 
 	/* allocate transfer buffer */
 	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
 	if (!buffer) {
 		printk(KERN_ERR "sr: out of memory.\n");
-		scsi_release_request(SRpnt);
 		return;
 	}
 
@@ -800,24 +759,19 @@ static void get_capabilities(struct scsi_cd *cd)
 		memset((void *)cmd, 0, MAX_COMMAND_SIZE);
 		cmd[0] = TEST_UNIT_READY;
 
-		SRpnt->sr_cmd_len = 0;
-		SRpnt->sr_sense_buffer[0] = 0;
-		SRpnt->sr_sense_buffer[2] = 0;
-		SRpnt->sr_data_direction = DMA_NONE;
+		the_result = scsi_execute_req (cd->device, cmd, DMA_NONE, NULL,
+					       0, &sshdr, SR_TIMEOUT,
+					       MAX_RETRIES);
 
-		scsi_wait_req (SRpnt, (void *) cmd, buffer,
-			       0, SR_TIMEOUT, MAX_RETRIES);
-
-		the_result = SRpnt->sr_result;
 		retries++;
 	} while (retries < 5 && 
 		 (!scsi_status_is_good(the_result) ||
-		  ((driver_byte(the_result) & DRIVER_SENSE) &&
-		   SRpnt->sr_sense_buffer[2] == UNIT_ATTENTION)));
+		  (scsi_sense_valid(&sshdr) &&
+		   sshdr.sense_key == UNIT_ATTENTION)));
 
 	/* ask for mode page 0x2a */
 	rc = scsi_mode_sense(cd->device, 0, 0x2a, buffer, 128,
-			     SR_TIMEOUT, 3, &data);
+			     SR_TIMEOUT, 3, &data, NULL);
 
 	if (!scsi_status_is_good(rc)) {
 		/* failed, drive doesn't have capabilities mode page */
@@ -825,7 +779,6 @@ static void get_capabilities(struct scsi_cd *cd)
 		cd->cdi.mask |= (CDC_CD_R | CDC_CD_RW | CDC_DVD_R |
 					 CDC_DVD | CDC_DVD_RAM |
 					 CDC_SELECT_DISC | CDC_SELECT_SPEED);
-		scsi_release_request(SRpnt);
 		kfree(buffer);
 		printk("%s: scsi-1 drive\n", cd->cdi.name);
 		return;
@@ -885,7 +838,6 @@ static void get_capabilities(struct scsi_cd *cd)
 		cd->device->writeable = 1;
 	}
 
-	scsi_release_request(SRpnt);
 	kfree(buffer);
 }
 

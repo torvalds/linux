@@ -1270,7 +1270,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	exp = ip_conntrack_expect_find_get(&tuple);
+	exp = ip_conntrack_expect_find(&tuple);
 	if (!exp)
 		return -ENOENT;
 
@@ -1318,7 +1318,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 
 		/* bump usage count to 2 */
-		exp = ip_conntrack_expect_find_get(&tuple);
+		exp = ip_conntrack_expect_find(&tuple);
 		if (!exp)
 			return -ENOENT;
 
@@ -1349,8 +1349,10 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list,
 					 list) {
 			if (exp->master->helper == h 
-			    && del_timer(&exp->timeout))
-				__ip_ct_expect_unlink_destroy(exp);
+			    && del_timer(&exp->timeout)) {
+				ip_ct_unlink_expect(exp);
+				ip_conntrack_expect_put(exp);
+			}
 		}
 		write_unlock(&ip_conntrack_lock);
 	} else {
@@ -1358,8 +1360,10 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		write_lock_bh(&ip_conntrack_lock);
 		list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list,
 					 list) {
-			if (del_timer(&exp->timeout))
-				__ip_ct_expect_unlink_destroy(exp);
+			if (del_timer(&exp->timeout)) {
+				ip_ct_unlink_expect(exp);
+				ip_conntrack_expect_put(exp);
+			}
 		}
 		write_unlock_bh(&ip_conntrack_lock);
 	}
@@ -1413,6 +1417,7 @@ ctnetlink_create_expect(struct nfattr *cda[])
 	}
 	
 	exp->expectfn = NULL;
+	exp->flags = 0;
 	exp->master = ct;
 	memcpy(&exp->tuple, &tuple, sizeof(struct ip_conntrack_tuple));
 	memcpy(&exp->mask, &mask, sizeof(struct ip_conntrack_tuple));

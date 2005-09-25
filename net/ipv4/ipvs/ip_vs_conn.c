@@ -196,6 +196,7 @@ static inline struct ip_vs_conn *__ip_vs_conn_in_get
 	list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 		if (s_addr==cp->caddr && s_port==cp->cport &&
 		    d_port==cp->vport && d_addr==cp->vaddr &&
+		    ((!s_port) ^ (!(cp->flags & IP_VS_CONN_F_NO_CPORT))) &&
 		    protocol==cp->protocol) {
 			/* HIT */
 			atomic_inc(&cp->refcnt);
@@ -227,6 +228,40 @@ struct ip_vs_conn *ip_vs_conn_in_get
 	return cp;
 }
 
+/* Get reference to connection template */
+struct ip_vs_conn *ip_vs_ct_in_get
+(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port)
+{
+	unsigned hash;
+	struct ip_vs_conn *cp;
+
+	hash = ip_vs_conn_hashkey(protocol, s_addr, s_port);
+
+	ct_read_lock(hash);
+
+	list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
+		if (s_addr==cp->caddr && s_port==cp->cport &&
+		    d_port==cp->vport && d_addr==cp->vaddr &&
+		    cp->flags & IP_VS_CONN_F_TEMPLATE &&
+		    protocol==cp->protocol) {
+			/* HIT */
+			atomic_inc(&cp->refcnt);
+			goto out;
+		}
+	}
+	cp = NULL;
+
+  out:
+	ct_read_unlock(hash);
+
+	IP_VS_DBG(7, "template lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+		  ip_vs_proto_name(protocol),
+		  NIPQUAD(s_addr), ntohs(s_port),
+		  NIPQUAD(d_addr), ntohs(d_port),
+		  cp?"hit":"not hit");
+
+	return cp;
+}
 
 /*
  *  Gets ip_vs_conn associated with supplied parameters in the ip_vs_conn_tab.
@@ -367,7 +402,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 		  atomic_read(&dest->refcnt));
 
 	/* Update the connection counters */
-	if (cp->cport || (cp->flags & IP_VS_CONN_F_NO_CPORT)) {
+	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
 		/* It is a normal connection, so increase the inactive
 		   connection counter because it is in TCP SYNRECV
 		   state (inactive) or other protocol inacive state */
@@ -406,7 +441,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 		  atomic_read(&dest->refcnt));
 
 	/* Update the connection counters */
-	if (cp->cport || (cp->flags & IP_VS_CONN_F_NO_CPORT)) {
+	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
 		/* It is a normal connection, so decrease the inactconns
 		   or activeconns counter */
 		if (cp->flags & IP_VS_CONN_F_INACTIVE) {
@@ -467,7 +502,7 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 		/*
 		 * Invalidate the connection template
 		 */
-		if (ct->cport) {
+		if (ct->vport != 65535) {
 			if (ip_vs_conn_unhash(ct)) {
 				ct->dport = 65535;
 				ct->vport = 65535;
@@ -776,7 +811,7 @@ void ip_vs_random_dropentry(void)
 		ct_write_lock_bh(hash);
 
 		list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
-			if (!cp->cport && !(cp->flags & IP_VS_CONN_F_NO_CPORT))
+			if (cp->flags & IP_VS_CONN_F_TEMPLATE)
 				/* connection template */
 				continue;
 

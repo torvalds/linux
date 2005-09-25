@@ -28,6 +28,7 @@
 #include <linux/buffer_head.h>
 #include <linux/journal-head.h>
 #include <linux/stddef.h>
+#include <linux/bit_spinlock.h>
 #include <asm/semaphore.h>
 #endif
 
@@ -914,7 +915,6 @@ extern int	   journal_wipe       (journal_t *, int);
 extern int	   journal_skip_recovery	(journal_t *);
 extern void	   journal_update_superblock	(journal_t *, int);
 extern void	   __journal_abort_hard	(journal_t *);
-extern void	   __journal_abort_soft	(journal_t *, int);
 extern void	   journal_abort      (journal_t *, int);
 extern int	   journal_errno      (journal_t *);
 extern void	   journal_ack_err    (journal_t *);

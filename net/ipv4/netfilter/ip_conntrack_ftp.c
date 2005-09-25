@@ -29,9 +29,9 @@ static char *ftp_buffer;
 static DEFINE_SPINLOCK(ip_ftp_lock);
 
 #define MAX_PORTS 8
-static int ports[MAX_PORTS];
+static short ports[MAX_PORTS];
 static int ports_c;
-module_param_array(ports, int, &ports_c, 0400);
+module_param_array(ports, short, &ports_c, 0400);
 
 static int loose;
 module_param(loose, int, 0600);
@@ -421,6 +421,7 @@ static int help(struct sk_buff **pskb,
 		  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 
 	exp->expectfn = NULL;
+	exp->flags = 0;
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
@@ -449,7 +450,7 @@ out_update_nl:
 }
 
 static struct ip_conntrack_helper ftp[MAX_PORTS];
-static char ftp_names[MAX_PORTS][10];
+static char ftp_names[MAX_PORTS][sizeof("ftp-65535")];
 
 /* Not __exit: called from init() */
 static void fini(void)

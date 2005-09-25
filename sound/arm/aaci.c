@@ -650,7 +650,7 @@ static int aaci_do_resume(snd_card_t *card, unsigned int state)
 	return 0;
 }
 
-static int aaci_suspend(struct amba_device *dev, u32 state)
+static int aaci_suspend(struct amba_device *dev, pm_message_t state)
 {
 	snd_card_t *card = amba_get_drvdata(dev);
 	return card ? aaci_do_suspend(card) : 0;
@@ -821,7 +821,7 @@ static int __devinit aaci_init_pcm(struct aaci *aaci)
 
 static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 {
-	void *base = aaci->base + AACI_CSCH1;
+	void __iomem *base = aaci->base + AACI_CSCH1;
 	int i;
 
 	writel(TXCR_FEN | TXCR_TSZ16 | TXCR_TXEN, base + AACI_TXCR);
@@ -877,7 +877,7 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 	aaci->playback.fifo = aaci->base + AACI_DR1;
 
 	for (i = 0; i < 4; i++) {
-		void *base = aaci->base + i * 0x14;
+		void __iomem *base = aaci->base + i * 0x14;
 
 		writel(0, base + AACI_IE);
 		writel(0, base + AACI_TXCR);
@@ -899,6 +899,8 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 	ret = aaci_init_pcm(aaci);
 	if (ret)
 		goto out;
+
+	snd_card_set_dev(aaci->card, &dev->dev);
 
 	ret = snd_card_register(aaci->card);
 	if (ret == 0) {

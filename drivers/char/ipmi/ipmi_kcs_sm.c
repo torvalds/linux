@@ -42,8 +42,6 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-#define IPMI_KCS_VERSION "v33"
-
 /* Set this if you want a printout of why the state machine was hosed
    when it gets hosed. */
 #define DEBUG_HOSED_REASON
@@ -489,7 +487,6 @@ static void kcs_cleanup(struct si_sm_data *kcs)
 
 struct si_sm_handlers kcs_smi_handlers =
 {
-	.version           = IPMI_KCS_VERSION,
 	.init_data         = init_kcs_data,
 	.start_transaction = start_kcs_transaction,
 	.get_result        = get_kcs_result,

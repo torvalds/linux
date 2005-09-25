@@ -457,7 +457,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 
 	if (pskb_pull(skb, ihl) == NULL)
 		goto err;
-	if (pskb_trim(skb, end-offset))
+	if (pskb_trim_rcsum(skb, end-offset))
 		goto err;
 
 	/* Find out which fragments are in front and at the back of us

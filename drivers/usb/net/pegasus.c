@@ -648,6 +648,13 @@ static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	}
 
 	/*
+	 * If the packet is unreasonably long, quietly drop it rather than
+	 * kernel panicing by calling skb_put.
+	 */
+	if (pkt_len > PEGASUS_MTU)
+		goto goon;
+
+	/*
 	 * at this point we are sure pegasus->rx_skb != NULL
 	 * so we go ahead and pass up the packet.
 	 */
@@ -825,7 +832,6 @@ static void pegasus_tx_timeout(struct net_device *net)
 	pegasus_t *pegasus = netdev_priv(net);
 	if (netif_msg_timer(pegasus))
 		printk(KERN_WARNING "%s: tx timeout\n", net->name);
-	pegasus->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(pegasus->tx_urb);
 	pegasus->stats.tx_errors++;
 }
@@ -887,15 +893,17 @@ static inline void get_interrupt_interval(pegasus_t * pegasus)
 	__u8 data[2];
 
 	read_eprom_word(pegasus, 4, (__u16 *) data);
-	if (data[1] < 0x80) {
-		if (netif_msg_timer(pegasus))
-			dev_info(&pegasus->intf->dev,
-				"intr interval changed from %ums to %ums\n",
-				data[1], 0x80);
-		data[1] = 0x80;
-#ifdef	PEGASUS_WRITE_EEPROM
-		write_eprom_word(pegasus, 4, *(__u16 *) data);
+	if (pegasus->usb->speed != USB_SPEED_HIGH) {
+		if (data[1] < 0x80) {
+			if (netif_msg_timer(pegasus))
+				dev_info(&pegasus->intf->dev, "intr interval "
+					"changed from %ums to %ums\n",
+					data[1], 0x80);
+			data[1] = 0x80;
+#ifdef PEGASUS_WRITE_EEPROM
+			write_eprom_word(pegasus, 4, *(__u16 *) data);
 #endif
+		}
 	}
 	pegasus->intr_interval = data[1];
 }
@@ -905,8 +913,9 @@ static void set_carrier(struct net_device *net)
 	pegasus_t *pegasus = netdev_priv(net);
 	u16 tmp;
 
-	if (read_mii_word(pegasus, pegasus->phy, MII_BMSR, &tmp))
+	if (!read_mii_word(pegasus, pegasus->phy, MII_BMSR, &tmp))
 		return;
+
 	if (tmp & BMSR_LSTATUS)
 		netif_carrier_on(net);
 	else
@@ -1356,6 +1365,7 @@ static void pegasus_disconnect(struct usb_interface *intf)
 	cancel_delayed_work(&pegasus->carrier_check);
 	unregister_netdev(pegasus->net);
 	usb_put_dev(interface_to_usbdev(intf));
+	unlink_all_urbs(pegasus);
 	free_all_urbs(pegasus);
 	free_skb_pool(pegasus);
 	if (pegasus->rx_skb)

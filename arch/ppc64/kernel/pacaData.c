@@ -59,6 +59,7 @@ extern unsigned long __toc_start;
 		.fpregs_in_use = 1,					    \
 		.end_of_quantum = 0xfffffffffffffffful,			    \
 		.slb_count = 64,					    \
+		.vmxregs_in_use = 0,					    \
 	},								    \
 
 #ifdef CONFIG_PPC_ISERIES

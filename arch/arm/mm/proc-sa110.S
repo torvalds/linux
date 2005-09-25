@@ -15,7 +15,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/procinfo.h>
 #include <asm/hardware.h>
 #include <asm/pgtable.h>
@@ -249,7 +249,7 @@ cpu_sa110_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__sa110_proc_info,#object
 __sa110_proc_info:

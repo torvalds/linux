@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
@@ -1332,21 +1333,18 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	unsigned long bar0map_len, bar2map_len;
 	int error = -ENODEV, retval;
 	int i;
-	u64 wwname;
 
 	if (pci_enable_device(pdev))
 		goto out;
 	if (pci_request_regions(pdev, LPFC_DRIVER_NAME))
 		goto out_disable_device;
 
-	host = scsi_host_alloc(&lpfc_template,
-			sizeof (struct lpfc_hba) + sizeof (unsigned long));
+	host = scsi_host_alloc(&lpfc_template, sizeof (struct lpfc_hba));
 	if (!host)
 		goto out_release_regions;
 
 	phba = (struct lpfc_hba*)host->hostdata;
 	memset(phba, 0, sizeof (struct lpfc_hba));
-	phba->link_stats = (void *)&phba[1];
 	phba->host = host;
 
 	phba->fc_flag |= FC_LOADING;
@@ -1525,10 +1523,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	 * Must done after lpfc_sli_hba_setup()
 	 */
 
-	memcpy(&wwname, &phba->fc_nodename, sizeof(u64));
-	fc_host_node_name(host) = be64_to_cpu(wwname);
-	memcpy(&wwname, &phba->fc_portname, sizeof(u64));
-	fc_host_port_name(host) = be64_to_cpu(wwname);
+	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.wwn);
+	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.wwn);
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
 
 	memset(fc_host_supported_fc4s(host), 0,

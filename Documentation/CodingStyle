@@ -236,6 +236,9 @@ ugly), but try to avoid excess.  Instead, put the comments at the head
 of the function, telling people what it does, and possibly WHY it does
 it.
 
+When commenting the kernel API functions, please use the kerneldoc format.
+See the files Documentation/kernel-doc-nano-HOWTO.txt and scripts/kernel-doc
+for details.
 
 		Chapter 8: You've made a mess of it
 
@@ -407,7 +410,26 @@ Kernel messages do not have to be terminated with a period.
 Printing numbers in parentheses (%d) adds no value and should be avoided.
 
 
-		Chapter 13: References
+		Chapter 13: Allocating memory
+
+The kernel provides the following general purpose memory allocators:
+kmalloc(), kzalloc(), kcalloc(), and vmalloc().  Please refer to the API
+documentation for further information about them.
+
+The preferred form for passing a size of a struct is the following:
+
+	p = kmalloc(sizeof(*p), ...);
+
+The alternative form where struct name is spelled out hurts readability and
+introduces an opportunity for a bug when the pointer variable type is changed
+but the corresponding sizeof that is passed to a memory allocator is not.
+
+Casting the return value which is a void pointer is redundant. The conversion
+from void pointer to any other pointer type is guaranteed by the C programming
+language.
+
+
+		Chapter 14: References
 
 The C Programming Language, Second Edition
 by Brian W. Kernighan and Dennis M. Ritchie.

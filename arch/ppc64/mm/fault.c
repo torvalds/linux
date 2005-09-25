@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/kprobes.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -37,6 +38,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/kdebug.h>
+#include <asm/siginfo.h>
 
 /*
  * Check whether the instruction at regs->nip is a store using
@@ -76,6 +78,28 @@ static int store_updates_sp(struct pt_regs *regs)
 	return 0;
 }
 
+static void do_dabr(struct pt_regs *regs, unsigned long error_code)
+{
+	siginfo_t info;
+
+	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
+			11, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (debugger_dabr_match(regs))
+		return;
+
+	/* Clear the DABR */
+	set_dabr(0);
+
+	/* Deliver the signal to userspace */
+	info.si_signo = SIGTRAP;
+	info.si_errno = 0;
+	info.si_code = TRAP_HWBKPT;
+	info.si_addr = (void __user *)regs->nip;
+	force_sig_info(SIGTRAP, &info, current);
+}
+
 /*
  * The error_code parameter is
  *  - DSISR for a non-SLB data access fault,
@@ -84,8 +108,8 @@ static int store_updates_sp(struct pt_regs *regs)
  * The return value is 0 if the fault was handled, or the signal
  * number if this is a kernel fault that can't be handled here.
  */
-int do_page_fault(struct pt_regs *regs, unsigned long address,
-		  unsigned long error_code)
+int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
+			    unsigned long error_code)
 {
 	struct vm_area_struct * vma;
 	struct mm_struct *mm = current->mm;
@@ -110,12 +134,9 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (!user_mode(regs) && (address >= TASK_SIZE))
 		return SIGSEGV;
 
-	if (error_code & DSISR_DABRMATCH) {
-		if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
-					11, SIGSEGV) == NOTIFY_STOP)
-			return 0;
-		if (debugger_dabr_match(regs))
-			return 0;
+  	if (error_code & DSISR_DABRMATCH) {
+		do_dabr(regs, error_code);
+		return 0;
 	}
 
 	if (in_atomic() || mm == NULL) {

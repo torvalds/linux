@@ -23,6 +23,7 @@
 #include <net/tcp_states.h>
 #include <net/xfrm.h>
 
+#include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
 
@@ -245,6 +246,9 @@ static int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 	int err;
 
 	dp->dccps_role = DCCP_ROLE_CLIENT;
+
+	if (dccp_service_not_initialized(sk))
+		return -EPROTO;
 
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
@@ -641,16 +645,12 @@ int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 
 	skb = dccp_make_reset(sk, sk->sk_dst_cache, code);
 	if (skb != NULL) {
-		const struct dccp_sock *dp = dccp_sk(sk);
 		const struct inet_sock *inet = inet_sk(sk);
 
 		err = ip_build_and_send_pkt(skb, sk,
 					    inet->saddr, inet->daddr, NULL);
 		if (err == NET_XMIT_CN)
 			err = 0;
-
-		ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-		ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
 	}
 
 	return err;
@@ -665,6 +665,16 @@ static inline u64 dccp_v4_init_sequence(const struct sock *sk,
 					   dccp_hdr(skb)->dccph_sport);
 }
 
+static inline int dccp_bad_service_code(const struct sock *sk,
+					const __u32 service)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+
+	if (dp->dccps_service == service)
+		return 0;
+	return !dccp_list_has_service(dp->dccps_service_list, service);
+}
+
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq;
@@ -673,13 +683,22 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_request_sock *dreq;
 	const __u32 saddr = skb->nh.iph->saddr;
 	const __u32 daddr = skb->nh.iph->daddr;
+ 	const __u32 service = dccp_hdr_request(skb)->dccph_req_service;
+	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
+	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 	struct dst_entry *dst = NULL;
 
 	/* Never answer to DCCP_PKT_REQUESTs send to broadcast or multicast */
 	if (((struct rtable *)skb->dst)->rt_flags &
-	    (RTCF_BROADCAST | RTCF_MULTICAST))
+	    (RTCF_BROADCAST | RTCF_MULTICAST)) {
+		reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		goto drop;
+	}
 
+	if (dccp_bad_service_code(sk, service)) {
+		reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
+		goto drop;
+ 	}
 	/*
 	 * TW buckets are converted to open requests without
 	 * limitations, they conserve resources and peer is
@@ -722,9 +741,9 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * dccp_create_openreq_child.
 	 */
 	dreq = dccp_rsk(req);
-	dreq->dreq_isr = DCCP_SKB_CB(skb)->dccpd_seq;
-	dreq->dreq_iss = dccp_v4_init_sequence(sk, skb);
-	dreq->dreq_service = dccp_hdr_request(skb)->dccph_req_service;
+	dreq->dreq_isr	   = dcb->dccpd_seq;
+	dreq->dreq_iss	   = dccp_v4_init_sequence(sk, skb);
+	dreq->dreq_service = service;
 
 	if (dccp_v4_send_response(sk, req, dst))
 		goto drop_and_free;
@@ -739,6 +758,7 @@ drop_and_free:
 	__reqsk_free(req);
 drop:
 	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
+	dcb->dccpd_reset_code = reset_code;
 	return -1;
 }
 
@@ -1009,7 +1029,6 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 reset:
-	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 	dccp_v4_ctl_send_reset(skb);
 discard:
 	kfree_skb(skb);
@@ -1094,45 +1113,7 @@ int dccp_v4_rcv(struct sk_buff *skb)
 		goto discard_it;
 
 	dh = dccp_hdr(skb);
-#if 0
-	/*
-	 * Use something like this to simulate some DATA/DATAACK loss to test
-	 * dccp_ackpkts_add, you'll get something like this on a session that
-	 * sends 10 DATA/DATAACK packets:
-	 *
-	 * ackpkts_print: 281473596467422 |0,0|3,0|0,0|3,0|0,0|3,0|0,0|3,0|0,1|
-	 *
-	 * 0, 0 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == just this packet
-	 * 0, 1 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == two adjacent packets
-	 * 						   with the same state
-	 * 3, 0 means: DCCP_ACKPKTS_STATE_NOT_RECEIVED, RLE == just this packet
-	 *
-	 * So...
-	 *
-	 * 281473596467422 was received
-	 * 281473596467421 was not received
-	 * 281473596467420 was received
-	 * 281473596467419 was not received
-	 * 281473596467418 was received
-	 * 281473596467417 was not received
-	 * 281473596467416 was received
-	 * 281473596467415 was not received
-	 * 281473596467414 was received
-	 * 281473596467413 was received (this one was the 3way handshake
-	 * 				 RESPONSE)
-	 *
-	 */
-	if (dh->dccph_type == DCCP_PKT_DATA ||
-	    dh->dccph_type == DCCP_PKT_DATAACK) {
-		static int discard = 0;
 
-		if (discard) {
-			discard = 0;
-			goto discard_it;
-		}
-		discard = 1;
-	}
-#endif
 	DCCP_SKB_CB(skb)->dccpd_seq  = dccp_hdr_seq(skb);
 	DCCP_SKB_CB(skb)->dccpd_type = dh->dccph_type;
 
@@ -1243,13 +1224,12 @@ static int dccp_v4_init_sock(struct sock *sk)
 	static int dccp_ctl_socket_init = 1;
 
 	dccp_options_init(&dp->dccps_options);
+	do_gettimeofday(&dp->dccps_epoch);
 
 	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dp->dccps_hc_rx_ackpkts =
-			dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
-					   GFP_KERNEL);
-
-		if (dp->dccps_hc_rx_ackpkts == NULL)
+		dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
+							   GFP_KERNEL);
+		if (dp->dccps_hc_rx_ackvec == NULL)
 			return -ENOMEM;
 	}
 
@@ -1261,16 +1241,18 @@ static int dccp_v4_init_sock(struct sock *sk)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(!dccp_ctl_socket_init)) {
-		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_ccid,
+		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_rx_ccid,
 						 sk);
-		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_ccid,
+		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_tx_ccid,
 						 sk);
 	    	if (dp->dccps_hc_rx_ccid == NULL ||
 		    dp->dccps_hc_tx_ccid == NULL) {
 			ccid_exit(dp->dccps_hc_rx_ccid, sk);
 			ccid_exit(dp->dccps_hc_tx_ccid, sk);
-			dccp_ackpkts_free(dp->dccps_hc_rx_ackpkts);
-			dp->dccps_hc_rx_ackpkts = NULL;
+			if (dp->dccps_options.dccpo_send_ack_vector) {
+				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
+				dp->dccps_hc_rx_ackvec = NULL;
+			}
 			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
 			return -ENOMEM;
 		}
@@ -1283,6 +1265,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	sk->sk_write_space = dccp_write_space;
 	dp->dccps_mss_cache = 536;
 	dp->dccps_role = DCCP_ROLE_UNDEFINED;
+	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;
 
 	return 0;
 }
@@ -1304,10 +1287,17 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash != NULL)
 		inet_put_port(&dccp_hashinfo, sk);
 
+	if (dp->dccps_service_list != NULL) {
+		kfree(dp->dccps_service_list);
+		dp->dccps_service_list = NULL;
+	}
+
 	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
-	dccp_ackpkts_free(dp->dccps_hc_rx_ackpkts);
-	dp->dccps_hc_rx_ackpkts = NULL;
+	if (dp->dccps_options.dccpo_send_ack_vector) {
+		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
+		dp->dccps_hc_rx_ackvec = NULL;
+	}
 	ccid_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_exit(dp->dccps_hc_tx_ccid, sk);
 	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;

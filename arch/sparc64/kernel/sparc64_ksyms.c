@@ -88,8 +88,6 @@ extern int svr4_setcontext(svr4_ucontext_t *uc, struct pt_regs *regs);
 extern int compat_sys_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
 extern int (*handle_mathemu)(struct pt_regs *, struct fpustate *);
 extern long sparc32_open(const char __user * filename, int flags, int mode);
-extern int io_remap_page_range(struct vm_area_struct *vma, unsigned long from,
-	unsigned long offset, unsigned long size, pgprot_t prot, int space);
 extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	unsigned long pfn, unsigned long size, pgprot_t prot);
 extern void (*prom_palette)(int);
@@ -117,17 +115,12 @@ EXPORT_PER_CPU_SYMBOL(__cpu_data);
 
 /* used by various drivers */
 #ifdef CONFIG_SMP
-#ifndef CONFIG_DEBUG_SPINLOCK
 /* Out of line rw-locking implementation. */
 EXPORT_SYMBOL(__read_lock);
 EXPORT_SYMBOL(__read_unlock);
 EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
-/* Out of line spin-locking implementation. */
-EXPORT_SYMBOL(_raw_spin_lock);
-EXPORT_SYMBOL(_raw_spin_lock_flags);
-#endif
 
 /* Hard IRQ locking */
 EXPORT_SYMBOL(synchronize_irq);
@@ -170,9 +163,6 @@ EXPORT_SYMBOL(atomic64_add);
 EXPORT_SYMBOL(atomic64_add_ret);
 EXPORT_SYMBOL(atomic64_sub);
 EXPORT_SYMBOL(atomic64_sub_ret);
-#ifdef CONFIG_SMP
-EXPORT_SYMBOL(_atomic_dec_and_lock);
-#endif
 
 /* Atomic bit operations. */
 EXPORT_SYMBOL(test_and_set_bit);
@@ -245,7 +235,6 @@ EXPORT_SYMBOL(pci_dma_supported);
 #endif
 
 /* I/O device mmaping on Sparc64. */
-EXPORT_SYMBOL(io_remap_page_range);
 EXPORT_SYMBOL(io_remap_pfn_range);
 
 /* Solaris/SunOS binary compatibility */
@@ -406,12 +395,3 @@ EXPORT_SYMBOL(xor_vis_4);
 EXPORT_SYMBOL(xor_vis_5);
 
 EXPORT_SYMBOL(prom_palette);
-
-/* memory barriers */
-EXPORT_SYMBOL(mb);
-EXPORT_SYMBOL(rmb);
-EXPORT_SYMBOL(wmb);
-EXPORT_SYMBOL(membar_storeload);
-EXPORT_SYMBOL(membar_storeload_storestore);
-EXPORT_SYMBOL(membar_storeload_loadload);
-EXPORT_SYMBOL(membar_storestore_loadstore);

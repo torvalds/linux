@@ -1241,7 +1241,7 @@ traffic while still maintaining carrier on.
 
 	If running SNMP agents, the bonding driver should be loaded
 before any network drivers participating in a bond.  This requirement
-is due to the the interface index (ipAdEntIfIndex) being associated to
+is due to the interface index (ipAdEntIfIndex) being associated to
 the first interface found with a given IP address.  That is, there is
 only one ipAdEntIfIndex for each IP address.  For example, if eth0 and
 eth1 are slaves of bond0 and the driver for eth0 is loaded before the
@@ -1937,7 +1937,7 @@ switches currently available support 802.3ad.
 	If not explicitly configured (with ifconfig or ip link), the
 MAC address of the bonding device is taken from its first slave
 device.  This MAC address is then passed to all following slaves and
-remains persistent (even if the the first slave is removed) until the
+remains persistent (even if the first slave is removed) until the
 bonding device is brought down or reconfigured.
 
 	If you wish to change the MAC address, you can set it with

@@ -667,6 +667,11 @@ au1000_init(void)
 	strcpy(au1000->card->shortname, "Au1000-AC97");
 	sprintf(au1000->card->longname, "AMD Au1000--AC97 ALSA Driver");
 
+	if ((err = snd_card_set_generic_dev(au1000->card)) < 0) {
+		snd_card_free(au1000->card);
+		return err;
+	}
+
 	if ((err = snd_card_register(au1000->card)) < 0) {
 		snd_card_free(au1000->card);
 		return err;

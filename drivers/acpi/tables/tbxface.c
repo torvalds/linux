@@ -48,10 +48,8 @@
 #include <acpi/acnamesp.h>
 #include <acpi/actables.h>
 
-
 #define _COMPONENT          ACPI_TABLES
-	 ACPI_MODULE_NAME    ("tbxface")
-
+ACPI_MODULE_NAME("tbxface")
 
 /*******************************************************************************
  *
@@ -65,25 +63,20 @@
  *              provided RSDT
  *
  ******************************************************************************/
-
-acpi_status
-acpi_load_tables (
-	void)
+acpi_status acpi_load_tables(void)
 {
-	struct acpi_pointer             rsdp_address;
-	acpi_status                     status;
+	struct acpi_pointer rsdp_address;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_load_tables");
-
+	ACPI_FUNCTION_TRACE("acpi_load_tables");
 
 	/* Get the RSDP */
 
-	status = acpi_os_get_root_pointer (ACPI_LOGICAL_ADDRESSING,
-			  &rsdp_address);
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("acpi_load_tables: Could not get RSDP, %s\n",
-			acpi_format_exception (status)));
+	status = acpi_os_get_root_pointer(ACPI_LOGICAL_ADDRESSING,
+					  &rsdp_address);
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("acpi_load_tables: Could not get RSDP, %s\n",
+				   acpi_format_exception(status)));
 		goto error_exit;
 	}
 
@@ -91,53 +84,46 @@ acpi_load_tables (
 
 	acpi_gbl_table_flags = rsdp_address.pointer_type;
 
-	status = acpi_tb_verify_rsdp (&rsdp_address);
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("acpi_load_tables: RSDP Failed validation: %s\n",
-			acpi_format_exception (status)));
+	status = acpi_tb_verify_rsdp(&rsdp_address);
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("acpi_load_tables: RSDP Failed validation: %s\n", acpi_format_exception(status)));
 		goto error_exit;
 	}
 
 	/* Get the RSDT via the RSDP */
 
-	status = acpi_tb_get_table_rsdt ();
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("acpi_load_tables: Could not load RSDT: %s\n",
-			acpi_format_exception (status)));
+	status = acpi_tb_get_table_rsdt();
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("acpi_load_tables: Could not load RSDT: %s\n", acpi_format_exception(status)));
 		goto error_exit;
 	}
 
 	/* Now get the tables needed by this subsystem (FADT, DSDT, etc.) */
 
-	status = acpi_tb_get_required_tables ();
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR ((
-			"acpi_load_tables: Error getting required tables (DSDT/FADT/FACS): %s\n",
-			acpi_format_exception (status)));
+	status = acpi_tb_get_required_tables();
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("acpi_load_tables: Error getting required tables (DSDT/FADT/FACS): %s\n", acpi_format_exception(status)));
 		goto error_exit;
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
 
 	/* Load the namespace from the tables */
 
-	status = acpi_ns_load_namespace ();
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("acpi_load_tables: Could not load namespace: %s\n",
-			acpi_format_exception (status)));
+	status = acpi_ns_load_namespace();
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("acpi_load_tables: Could not load namespace: %s\n", acpi_format_exception(status)));
 		goto error_exit;
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 
+      error_exit:
+	ACPI_REPORT_ERROR(("acpi_load_tables: Could not load tables: %s\n",
+			   acpi_format_exception(status)));
 
-error_exit:
-	ACPI_REPORT_ERROR (("acpi_load_tables: Could not load tables: %s\n",
-			  acpi_format_exception (status)));
-
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
@@ -156,40 +142,49 @@ error_exit:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_load_table (
-	struct acpi_table_header        *table_ptr)
+acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 {
-	acpi_status                     status;
-	struct acpi_table_desc          table_info;
-	struct acpi_pointer             address;
+	acpi_status status;
+	struct acpi_table_desc table_info;
+	struct acpi_pointer address;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_load_table");
-
+	ACPI_FUNCTION_TRACE("acpi_load_table");
 
 	if (!table_ptr) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Copy the table to a local buffer */
 
-	address.pointer_type    = ACPI_LOGICAL_POINTER | ACPI_LOGICAL_ADDRESSING;
+	address.pointer_type = ACPI_LOGICAL_POINTER | ACPI_LOGICAL_ADDRESSING;
 	address.pointer.logical = table_ptr;
 
-	status = acpi_tb_get_table_body (&address, table_ptr, &table_info);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_get_table_body(&address, table_ptr, &table_info);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Check signature for a valid table type */
+
+	status = acpi_tb_recognize_table(&table_info, ACPI_TABLE_ALL);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Install the new table into the local data structures */
 
-	status = acpi_tb_install_table (&table_info);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_tb_install_table(&table_info);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_ALREADY_EXISTS) {
+			/* Table already exists, no error */
+
+			status = AE_OK;
+		}
+
 		/* Free table allocated by acpi_tb_get_table_body */
 
-		acpi_tb_delete_single_table (&table_info);
-		return_ACPI_STATUS (status);
+		acpi_tb_delete_single_table(&table_info);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Convert the table to common format if necessary */
@@ -197,30 +192,31 @@ acpi_load_table (
 	switch (table_info.type) {
 	case ACPI_TABLE_FADT:
 
-		status = acpi_tb_convert_table_fadt ();
+		status = acpi_tb_convert_table_fadt();
 		break;
 
 	case ACPI_TABLE_FACS:
 
-		status = acpi_tb_build_common_facs (&table_info);
+		status = acpi_tb_build_common_facs(&table_info);
 		break;
 
 	default:
 		/* Load table into namespace if it contains executable AML */
 
-		status = acpi_ns_load_table (table_info.installed_desc, acpi_gbl_root_node);
+		status =
+		    acpi_ns_load_table(table_info.installed_desc,
+				       acpi_gbl_root_node);
 		break;
 	}
 
-	if (ACPI_FAILURE (status)) {
+	if (ACPI_FAILURE(status)) {
 		/* Uninstall table and free the buffer */
 
-		(void) acpi_tb_uninstall_table (table_info.installed_desc);
+		(void)acpi_tb_uninstall_table(table_info.installed_desc);
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -234,20 +230,16 @@ acpi_load_table (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_unload_table (
-	acpi_table_type                 table_type)
+acpi_status acpi_unload_table(acpi_table_type table_type)
 {
-	struct acpi_table_desc          *table_desc;
+	struct acpi_table_desc *table_desc;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_unload_table");
-
+	ACPI_FUNCTION_TRACE("acpi_unload_table");
 
 	/* Parameter validation */
 
 	if (table_type > ACPI_TABLE_MAX) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Find all tables of the requested type */
@@ -260,17 +252,16 @@ acpi_unload_table (
 		 * "Scope" operator.  Thus, we need to track ownership by an ID, not
 		 * simply a position within the hierarchy
 		 */
-		acpi_ns_delete_namespace_by_owner (table_desc->table_id);
-
+		acpi_ns_delete_namespace_by_owner(table_desc->owner_id);
+		acpi_ut_release_owner_id(&table_desc->owner_id);
 		table_desc = table_desc->next;
 	}
 
 	/* Delete (or unmap) all tables of this type */
 
-	acpi_tb_delete_tables_by_type (table_type);
-	return_ACPI_STATUS (AE_OK);
+	acpi_tb_delete_tables_by_type(table_type);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -294,54 +285,49 @@ acpi_unload_table (
  ******************************************************************************/
 
 acpi_status
-acpi_get_table_header (
-	acpi_table_type                 table_type,
-	u32                             instance,
-	struct acpi_table_header        *out_table_header)
+acpi_get_table_header(acpi_table_type table_type,
+		      u32 instance, struct acpi_table_header *out_table_header)
 {
-	struct acpi_table_header        *tbl_ptr;
-	acpi_status                     status;
+	struct acpi_table_header *tbl_ptr;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("acpi_get_table_header");
 
-	ACPI_FUNCTION_TRACE ("acpi_get_table_header");
-
-
-	if ((instance == 0)                 ||
-		(table_type == ACPI_TABLE_RSDP) ||
-		(!out_table_header)) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	if ((instance == 0) ||
+	    (table_type == ACPI_TABLE_RSDP) || (!out_table_header)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Check the table type and instance */
 
-	if ((table_type > ACPI_TABLE_MAX)   ||
-		(ACPI_IS_SINGLE_TABLE (acpi_gbl_table_data[table_type].flags) &&
-		 instance > 1)) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	if ((table_type > ACPI_TABLE_MAX) ||
+	    (ACPI_IS_SINGLE_TABLE(acpi_gbl_table_data[table_type].flags) &&
+	     instance > 1)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Get a pointer to the entire table */
 
-	status = acpi_tb_get_table_ptr (table_type, instance, &tbl_ptr);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_get_table_ptr(table_type, instance, &tbl_ptr);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* The function will return a NULL pointer if the table is not loaded */
 
 	if (tbl_ptr == NULL) {
-		return_ACPI_STATUS (AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
 	/* Copy the header to the caller's buffer */
 
-	ACPI_MEMCPY ((void *) out_table_header, (void *) tbl_ptr,
-		sizeof (struct acpi_table_header));
+	ACPI_MEMCPY((void *)out_table_header, (void *)tbl_ptr,
+		    sizeof(struct acpi_table_header));
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
 
-#endif  /*  ACPI_FUTURE_USAGE  */
+#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
  *
@@ -367,43 +353,39 @@ acpi_get_table_header (
  ******************************************************************************/
 
 acpi_status
-acpi_get_table (
-	acpi_table_type                 table_type,
-	u32                             instance,
-	struct acpi_buffer              *ret_buffer)
+acpi_get_table(acpi_table_type table_type,
+	       u32 instance, struct acpi_buffer *ret_buffer)
 {
-	struct acpi_table_header        *tbl_ptr;
-	acpi_status                     status;
-	acpi_size                       table_length;
+	struct acpi_table_header *tbl_ptr;
+	acpi_status status;
+	acpi_size table_length;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_table");
-
+	ACPI_FUNCTION_TRACE("acpi_get_table");
 
 	/* Parameter validation */
 
 	if (instance == 0) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ut_validate_buffer (ret_buffer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_validate_buffer(ret_buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Check the table type and instance */
 
-	if ((table_type > ACPI_TABLE_MAX)   ||
-		(ACPI_IS_SINGLE_TABLE (acpi_gbl_table_data[table_type].flags) &&
-		 instance > 1)) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	if ((table_type > ACPI_TABLE_MAX) ||
+	    (ACPI_IS_SINGLE_TABLE(acpi_gbl_table_data[table_type].flags) &&
+	     instance > 1)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Get a pointer to the entire table */
 
-	status = acpi_tb_get_table_ptr (table_type, instance, &tbl_ptr);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_get_table_ptr(table_type, instance, &tbl_ptr);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -411,7 +393,7 @@ acpi_get_table (
 	 * table is not loaded.
 	 */
 	if (tbl_ptr == NULL) {
-		return_ACPI_STATUS (AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
 	/* Get the table length */
@@ -419,23 +401,22 @@ acpi_get_table (
 	if (table_type == ACPI_TABLE_RSDP) {
 		/* RSD PTR is the only "table" without a header */
 
-		table_length = sizeof (struct rsdp_descriptor);
-	}
-	else {
+		table_length = sizeof(struct rsdp_descriptor);
+	} else {
 		table_length = (acpi_size) tbl_ptr->length;
 	}
 
 	/* Validate/Allocate/Clear caller buffer */
 
-	status = acpi_ut_initialize_buffer (ret_buffer, table_length);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_initialize_buffer(ret_buffer, table_length);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Copy the table to the buffer */
 
-	ACPI_MEMCPY ((void *) ret_buffer->pointer, (void *) tbl_ptr, table_length);
-	return_ACPI_STATUS (AE_OK);
+	ACPI_MEMCPY((void *)ret_buffer->pointer, (void *)tbl_ptr, table_length);
+	return_ACPI_STATUS(AE_OK);
 }
-EXPORT_SYMBOL(acpi_get_table);
 
+EXPORT_SYMBOL(acpi_get_table);

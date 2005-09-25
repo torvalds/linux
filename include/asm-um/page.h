@@ -96,8 +96,7 @@ extern unsigned long uml_physmem;
 
 #define __va_space (8*1024*1024)
 
-extern unsigned long to_phys(void *virt);
-extern void *to_virt(unsigned long phys);
+#include "mem.h"
 
 /* Cast to unsigned long before casting to void * to avoid a warning from
  * mmap_kmem about cutting a long long down to a void *.  Not sure that
@@ -116,24 +115,12 @@ extern void *to_virt(unsigned long phys);
 #define pfn_valid(pfn) ((pfn) < max_mapnr)
 #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
 
-/* Pure 2^n version of get_order */
-static __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 extern struct page *arch_validate(struct page *page, int mask, int order);
 #define HAVE_ARCH_VALIDATE
 
 extern void arch_free_page(struct page *page, int order);
 #define HAVE_ARCH_FREE_PAGE
+
+#include <asm-generic/page.h>
 
 #endif

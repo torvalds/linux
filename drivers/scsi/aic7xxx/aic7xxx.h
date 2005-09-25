@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#79 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#85 $
  *
  * $FreeBSD$
  */
@@ -243,7 +243,7 @@ typedef enum {
 	 */
 	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE|AHC_TARGETMODE|AHC_ULTRA,
 	AHC_AIC7860_FE	= AHC_AIC7850_FE,
-	AHC_AIC7870_FE	= AHC_TARGETMODE,
+	AHC_AIC7870_FE	= AHC_TARGETMODE|AHC_AUTOPAUSE,
 	AHC_AIC7880_FE	= AHC_AIC7870_FE|AHC_ULTRA,
 	/*
 	 * Although we have space for both the initiator and

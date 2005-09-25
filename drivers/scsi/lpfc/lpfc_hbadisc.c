@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
@@ -1016,13 +1017,10 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	struct fc_rport *rport;
 	struct lpfc_rport_data *rdata;
 	struct fc_rport_identifiers rport_ids;
-	uint64_t wwn;
 
 	/* Remote port has reappeared. Re-register w/ FC transport */
-	memcpy(&wwn, &ndlp->nlp_nodename, sizeof(uint64_t));
-	rport_ids.node_name = be64_to_cpu(wwn);
-	memcpy(&wwn, &ndlp->nlp_portname, sizeof(uint64_t));
-	rport_ids.port_name = be64_to_cpu(wwn);
+	rport_ids.node_name = wwn_to_u64(ndlp->nlp_nodename.wwn);
+	rport_ids.port_name = wwn_to_u64(ndlp->nlp_portname.wwn);
 	rport_ids.port_id = ndlp->nlp_DID;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
@@ -1135,6 +1133,8 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 	switch(list) {
 	case NLP_NO_LIST: /* No list, just remove it */
 		lpfc_nlp_remove(phba, nlp);
+		/* as node removed - stop further transport calls */
+		rport_del = none;
 		break;
 	case NLP_UNUSED_LIST:
 		spin_lock_irq(phba->host->host_lock);

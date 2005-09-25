@@ -141,7 +141,7 @@ client_port_t *snd_seq_create_port(client_t *client, int port)
 	}
 
 	/* create a new port */
-	new_port = kcalloc(1, sizeof(*new_port), GFP_KERNEL);
+	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
 	if (! new_port) {
 		snd_printd("malloc failed for registering client port\n");
 		return NULL;	/* failure, out of memory */
@@ -488,7 +488,7 @@ int snd_seq_port_connect(client_t *connector,
 	unsigned long flags;
 	int exclusive;
 
-	subs = kcalloc(1, sizeof(*subs), GFP_KERNEL);
+	subs = kzalloc(sizeof(*subs), GFP_KERNEL);
 	if (! subs)
 		return -ENOMEM;
 

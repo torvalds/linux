@@ -17,6 +17,8 @@
 #include <linux/ioport.h>
 #include <linux/string.h>
 #include <linux/kexec.h>
+#include <linux/module.h>
+
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -28,6 +30,7 @@ extern char _end[];
  * PFN of last memory page.
  */
 unsigned long end_pfn; 
+EXPORT_SYMBOL(end_pfn);
 
 /* 
  * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.
@@ -85,7 +88,7 @@ int __init e820_mapped(unsigned long start, unsigned long end, unsigned type)
 		struct e820entry *ei = &e820.map[i]; 
 		if (type && ei->type != type) 
 			continue;
-		if (ei->addr >= end || ei->addr + ei->size < start) 
+		if (ei->addr >= end || ei->addr + ei->size <= start)
 			continue; 
 		return 1; 
 	} 
@@ -131,7 +134,7 @@ void __init e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned lon
 
 		if (ei->type != E820_RAM || 
 		    ei->addr+ei->size <= start || 
-		    ei->addr > end)
+		    ei->addr >= end)
 			continue;
 
 		addr = round_up(ei->addr, PAGE_SIZE);
@@ -567,7 +570,7 @@ unsigned long pci_mem_start = 0xaeedbabe;
  */
 __init void e820_setup_gap(void)
 {
-	unsigned long gapstart, gapsize;
+	unsigned long gapstart, gapsize, round;
 	unsigned long last;
 	int i;
 	int found = 0;
@@ -604,14 +607,14 @@ __init void e820_setup_gap(void)
 	}
 
 	/*
-	 * Start allocating dynamic PCI memory a bit into the gap,
-	 * aligned up to the nearest megabyte.
-	 *
-	 * Question: should we try to pad it up a bit (do something
-	 * like " + (gapsize >> 3)" in there too?). We now have the
-	 * technology.
+	 * See how much we want to round up: start off with
+	 * rounding to the next 1MB area.
 	 */
-	pci_mem_start = (gapstart + 0xfffff) & ~0xfffff;
+	round = 0x100000;
+	while ((gapsize >> 4) > round)
+		round += round;
+	/* Fun with two's complement */
+	pci_mem_start = (gapstart + round) & -round;
 
 	printk(KERN_INFO "Allocating PCI resources starting at %lx (gap: %lx:%lx)\n",
 		pci_mem_start, gapstart, gapsize);

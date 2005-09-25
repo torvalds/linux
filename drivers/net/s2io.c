@@ -1,5 +1,5 @@
 /************************************************************************
- * s2io.c: A Linux PCI-X Ethernet driver for S2IO 10GbE Server NIC
+ * s2io.c: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
  * Copyright(c) 2002-2005 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
@@ -28,7 +28,7 @@
  * explaination of all the variables.
  * rx_ring_num : This can be used to program the number of receive rings used
  * in the driver.
- * rx_ring_len: This defines the number of descriptors each ring can have. This
+ * rx_ring_sz: This defines the number of descriptors each ring can have. This
  * is also an array of size 8.
  * tx_fifo_num: This defines the number of Tx FIFOs thats used int the driver.
  * tx_fifo_len: This too is an array of 8. Each element defines the number of
@@ -67,7 +67,7 @@
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
-static char s2io_driver_version[] = "Version 2.0.3.1";
+static char s2io_driver_version[] = "Version 2.0.8.1";
 
 static inline int RXD_IS_UP2DT(RxD_t *rxdp)
 {
@@ -354,7 +354,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 	int lst_size, lst_per_page;
 	struct net_device *dev = nic->dev;
 #ifdef CONFIG_2BUFF_MODE
-	u64 tmp;
+	unsigned long tmp;
 	buffAdd_t *ba;
 #endif
 
@@ -404,7 +404,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		    config->tx_cfg[i].fifo_len - 1;
 		mac_control->fifos[i].fifo_no = i;
 		mac_control->fifos[i].nic = nic;
-		mac_control->fifos[i].max_txds = MAX_SKB_FRAGS;
+		mac_control->fifos[i].max_txds = MAX_SKB_FRAGS + 1;
 
 		for (j = 0; j < page_num; j++) {
 			int k = 0;
@@ -417,6 +417,26 @@ static int init_shared_mem(struct s2io_nic *nic)
 					  "pci_alloc_consistent ");
 				DBG_PRINT(ERR_DBG, "failed for TxDL\n");
 				return -ENOMEM;
+			}
+			/* If we got a zero DMA address(can happen on
+			 * certain platforms like PPC), reallocate.
+			 * Store virtual address of page we don't want,
+			 * to be freed later.
+			 */
+			if (!tmp_p) {
+				mac_control->zerodma_virt_addr = tmp_v;
+				DBG_PRINT(INIT_DBG, 
+				"%s: Zero DMA address for TxDL. ", dev->name);
+				DBG_PRINT(INIT_DBG, 
+				"Virtual address %p\n", tmp_v);
+				tmp_v = pci_alloc_consistent(nic->pdev,
+						     PAGE_SIZE, &tmp_p);
+				if (!tmp_v) {
+					DBG_PRINT(ERR_DBG,
+					  "pci_alloc_consistent ");
+					DBG_PRINT(ERR_DBG, "failed for TxDL\n");
+					return -ENOMEM;
+				}
 			}
 			while (k < lst_per_page) {
 				int l = (j * lst_per_page) + k;
@@ -542,18 +562,18 @@ static int init_shared_mem(struct s2io_nic *nic)
 				    (BUF0_LEN + ALIGN_SIZE, GFP_KERNEL);
 				if (!ba->ba_0_org)
 					return -ENOMEM;
-				tmp = (u64) ba->ba_0_org;
+				tmp = (unsigned long) ba->ba_0_org;
 				tmp += ALIGN_SIZE;
-				tmp &= ~((u64) ALIGN_SIZE);
+				tmp &= ~((unsigned long) ALIGN_SIZE);
 				ba->ba_0 = (void *) tmp;
 
 				ba->ba_1_org = (void *) kmalloc
 				    (BUF1_LEN + ALIGN_SIZE, GFP_KERNEL);
 				if (!ba->ba_1_org)
 					return -ENOMEM;
-				tmp = (u64) ba->ba_1_org;
+				tmp = (unsigned long) ba->ba_1_org;
 				tmp += ALIGN_SIZE;
-				tmp &= ~((u64) ALIGN_SIZE);
+				tmp &= ~((unsigned long) ALIGN_SIZE);
 				ba->ba_1 = (void *) tmp;
 				k++;
 			}
@@ -600,7 +620,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 	mac_info_t *mac_control;
 	struct config_param *config;
 	int lst_size, lst_per_page;
-
+	struct net_device *dev = nic->dev;
 
 	if (!nic)
 		return;
@@ -616,9 +636,10 @@ static void free_shared_mem(struct s2io_nic *nic)
 						lst_per_page);
 		for (j = 0; j < page_num; j++) {
 			int mem_blks = (j * lst_per_page);
-			if ((!mac_control->fifos[i].list_info) ||
-				(!mac_control->fifos[i].list_info[mem_blks].
-				 list_virt_addr))
+			if (!mac_control->fifos[i].list_info)
+				return;	
+			if (!mac_control->fifos[i].list_info[mem_blks].
+				 list_virt_addr)
 				break;
 			pci_free_consistent(nic->pdev, PAGE_SIZE,
 					    mac_control->fifos[i].
@@ -627,6 +648,19 @@ static void free_shared_mem(struct s2io_nic *nic)
 					    mac_control->fifos[i].
 					    list_info[mem_blks].
 					    list_phy_addr);
+		}
+		/* If we got a zero DMA address during allocation,
+		 * free the page now
+		 */
+		if (mac_control->zerodma_virt_addr) {
+			pci_free_consistent(nic->pdev, PAGE_SIZE,
+					    mac_control->zerodma_virt_addr,
+					    (dma_addr_t)0);
+			DBG_PRINT(INIT_DBG, 
+			  	"%s: Freeing TxDL with zero DMA addr. ",
+				dev->name);
+			DBG_PRINT(INIT_DBG, "Virtual address %p\n",
+				mac_control->zerodma_virt_addr);
 		}
 		kfree(mac_control->fifos[i].list_info);
 	}
@@ -686,7 +720,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 
 static int s2io_verify_pci_mode(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	register u64 val64 = 0;
 	int     mode;
 
@@ -704,7 +738,7 @@ static int s2io_verify_pci_mode(nic_t *nic)
  */
 static int s2io_print_pci_mode(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	register u64 val64 = 0;
 	int	mode;
 	struct config_param *config = &nic->config;
@@ -1403,7 +1437,7 @@ static int init_nic(struct s2io_nic *nic)
 	writeq(0xffbbffbbffbbffbbULL, &bar0->mc_pause_thresh_q4q7);
 
 	/* Disable RMAC PAD STRIPPING */
-	add = (void *) &bar0->mac_cfg;
+	add = &bar0->mac_cfg;
 	val64 = readq(&bar0->mac_cfg);
 	val64 &= ~(MAC_CFG_RMAC_STRIP_PAD);
 	writeq(RMAC_CFG_KEY(0x4C0D), &bar0->rmac_cfg_key);
@@ -1934,7 +1968,7 @@ static int start_nic(struct s2io_nic *nic)
 		val64 |= 0x0000800000000000ULL;
 		writeq(val64, &bar0->gpio_control);
 		val64 = 0x0411040400000000ULL;
-		writeq(val64, (void __iomem *) ((u8 *) bar0 + 0x2700));
+		writeq(val64, (void __iomem *)bar0 + 0x2700);
 	}
 
 	/*
@@ -2395,7 +2429,7 @@ static int s2io_poll(struct net_device *dev, int *budget)
 	int pkt_cnt = 0, org_pkts_to_process;
 	mac_info_t *mac_control;
 	struct config_param *config;
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 val64;
 	int i;
 
@@ -2479,9 +2513,10 @@ static void rx_intr_handler(ring_info_t *ring_data)
 #endif
 	spin_lock(&nic->rx_lock);
 	if (atomic_read(&nic->card_state) == CARD_DOWN) {
-		DBG_PRINT(ERR_DBG, "%s: %s going down for reset\n",
+		DBG_PRINT(INTR_DBG, "%s: %s going down for reset\n",
 			  __FUNCTION__, dev->name);
 		spin_unlock(&nic->rx_lock);
+		return;
 	}
 
 	get_info = ring_data->rx_curr_get_info;
@@ -2596,8 +2631,14 @@ static void tx_intr_handler(fifo_info_t *fifo_data)
 		if (txdlp->Control_1 & TXD_T_CODE) {
 			unsigned long long err;
 			err = txdlp->Control_1 & TXD_T_CODE;
-			DBG_PRINT(ERR_DBG, "***TxD error %llx\n",
-				  err);
+			if ((err >> 48) == 0xA) {
+				DBG_PRINT(TX_DBG, "TxD returned due \
+						to loss of link\n");
+			}
+			else {
+				DBG_PRINT(ERR_DBG, "***TxD error \
+						%llx\n", err);
+			}
 		}
 
 		skb = (struct sk_buff *) ((unsigned long)
@@ -2689,12 +2730,16 @@ static void alarm_intr_handler(struct s2io_nic *nic)
 		if (val64 & MC_ERR_REG_ECC_ALL_DBL) {
 			nic->mac_control.stats_info->sw_stat.
 				double_ecc_errs++;
-			DBG_PRINT(ERR_DBG, "%s: Device indicates ",
+			DBG_PRINT(INIT_DBG, "%s: Device indicates ",
 				  dev->name);
-			DBG_PRINT(ERR_DBG, "double ECC error!!\n");
+			DBG_PRINT(INIT_DBG, "double ECC error!!\n");
 			if (nic->device_type != XFRAME_II_DEVICE) {
-				netif_stop_queue(dev);
-				schedule_work(&nic->rst_timer_task);
+				/* Reset XframeI only if critical error */
+				if (val64 & (MC_ERR_REG_MIRI_ECC_DB_ERR_0 |
+					     MC_ERR_REG_MIRI_ECC_DB_ERR_1)) {
+					netif_stop_queue(dev);
+					schedule_work(&nic->rst_timer_task);
+				}
 			}
 		} else {
 			nic->mac_control.stats_info->sw_stat.
@@ -2706,7 +2751,8 @@ static void alarm_intr_handler(struct s2io_nic *nic)
 	val64 = readq(&bar0->serr_source);
 	if (val64 & SERR_SOURCE_ANY) {
 		DBG_PRINT(ERR_DBG, "%s: Device indicates ", dev->name);
-		DBG_PRINT(ERR_DBG, "serious error!!\n");
+		DBG_PRINT(ERR_DBG, "serious error %llx!!\n", 
+			  (unsigned long long)val64);
 		netif_stop_queue(dev);
 		schedule_work(&nic->rst_timer_task);
 	}
@@ -2831,7 +2877,7 @@ void s2io_reset(nic_t * sp)
 		val64 |= 0x0000800000000000ULL;
 		writeq(val64, &bar0->gpio_control);
 		val64 = 0x0411040400000000ULL;
-		writeq(val64, (void __iomem *) ((u8 *) bar0 + 0x2700));
+		writeq(val64, (void __iomem *)bar0 + 0x2700);
 	}
 
 	/*
@@ -3130,7 +3176,7 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	queue_len = mac_control->fifos[queue].tx_curr_put_info.fifo_len + 1;
 	/* Avoid "put" pointer going beyond "get" pointer */
 	if (txdp->Host_Control || (((put_off + 1) % queue_len) == get_off)) {
-		DBG_PRINT(ERR_DBG, "Error in xmit, No free TXDs.\n");
+		DBG_PRINT(TX_DBG, "Error in xmit, No free TXDs.\n");
 		netif_stop_queue(dev);
 		dev_kfree_skb(skb);
 		spin_unlock_irqrestore(&sp->tx_lock, flags);
@@ -3234,7 +3280,7 @@ s2io_alarm_handle(unsigned long data)
 
 static void s2io_txpic_intr_handle(nic_t *sp)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) sp->bar0;
+	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	u64 val64;
 
 	val64 = readq(&bar0->pic_int_status);
@@ -3528,7 +3574,7 @@ static void s2io_set_multicast(struct net_device *dev)
 
 		val64 = readq(&bar0->mac_cfg);
 		sp->promisc_flg = 1;
-		DBG_PRINT(ERR_DBG, "%s: entered promiscuous mode\n",
+		DBG_PRINT(INFO_DBG, "%s: entered promiscuous mode\n",
 			  dev->name);
 	} else if (!(dev->flags & IFF_PROMISC) && (sp->promisc_flg)) {
 		/*  Remove the NIC from promiscuous mode */
@@ -3543,7 +3589,7 @@ static void s2io_set_multicast(struct net_device *dev)
 
 		val64 = readq(&bar0->mac_cfg);
 		sp->promisc_flg = 0;
-		DBG_PRINT(ERR_DBG, "%s: left promiscuous mode\n",
+		DBG_PRINT(INFO_DBG, "%s: left promiscuous mode\n",
 			  dev->name);
 	}
 
@@ -5325,7 +5371,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 			break;
 		}
 	}
-	config->max_txds = MAX_SKB_FRAGS;
+	config->max_txds = MAX_SKB_FRAGS + 1;
 
 	/* Rx side parameters. */
 	if (rx_ring_sz[0] == 0)
@@ -5525,9 +5571,14 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		DBG_PRINT(ERR_DBG, "%s: Neterion Xframe II 10GbE adapter ",
 			  dev->name);
-		DBG_PRINT(ERR_DBG, "(rev %d), Driver %s\n",
+		DBG_PRINT(ERR_DBG, "(rev %d), %s",
 				get_xena_rev_id(sp->pdev),
 				s2io_driver_version);
+#ifdef CONFIG_2BUFF_MODE
+		DBG_PRINT(ERR_DBG, ", Buffer mode %d",2);
+#endif
+
+		DBG_PRINT(ERR_DBG, "\nCopyright(c) 2002-2005 Neterion Inc.\n");
 		DBG_PRINT(ERR_DBG, "MAC ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			  sp->def_mac_addr[0].mac_addr[0],
 			  sp->def_mac_addr[0].mac_addr[1],
@@ -5544,9 +5595,13 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	} else {
 		DBG_PRINT(ERR_DBG, "%s: Neterion Xframe I 10GbE adapter ",
 			  dev->name);
-		DBG_PRINT(ERR_DBG, "(rev %d), Driver %s\n",
+		DBG_PRINT(ERR_DBG, "(rev %d), %s",
 					get_xena_rev_id(sp->pdev),
 					s2io_driver_version);
+#ifdef CONFIG_2BUFF_MODE
+		DBG_PRINT(ERR_DBG, ", Buffer mode %d",2);
+#endif
+		DBG_PRINT(ERR_DBG, "\nCopyright(c) 2002-2005 Neterion Inc.\n");
 		DBG_PRINT(ERR_DBG, "MAC ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			  sp->def_mac_addr[0].mac_addr[0],
 			  sp->def_mac_addr[0].mac_addr[1],

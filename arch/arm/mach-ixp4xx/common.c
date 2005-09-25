@@ -179,17 +179,17 @@ static void ixp4xx_irq_level_unmask(unsigned int irq)
 }
 
 static struct irqchip ixp4xx_irq_level_chip = {
-	.ack	= ixp4xx_irq_mask,
-	.mask	= ixp4xx_irq_mask,
-	.unmask	= ixp4xx_irq_level_unmask,
-	.type	= ixp4xx_set_irq_type
+	.ack		= ixp4xx_irq_mask,
+	.mask		= ixp4xx_irq_mask,
+	.unmask		= ixp4xx_irq_level_unmask,
+	.set_type	= ixp4xx_set_irq_type,
 };
 
 static struct irqchip ixp4xx_irq_edge_chip = {
-	.ack	= ixp4xx_irq_ack,
-	.mask	= ixp4xx_irq_mask,
-	.unmask	= ixp4xx_irq_unmask,
-	.type	= ixp4xx_set_irq_type
+	.ack		= ixp4xx_irq_ack,
+	.mask		= ixp4xx_irq_mask,
+	.unmask		= ixp4xx_irq_unmask,
+	.set_type	= ixp4xx_set_irq_type,
 };
 
 static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type)

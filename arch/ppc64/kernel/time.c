@@ -51,7 +51,6 @@
 #include <linux/cpu.h>
 #include <linux/security.h>
 
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/nvram.h>
@@ -129,7 +128,7 @@ static __inline__ void timer_check_rtc(void)
          * We should have an rtc call that only sets the minutes and
          * seconds like on Intel to avoid problems with non UTC clocks.
          */
-        if ( (time_status & STA_UNSYNC) == 0 &&
+        if (ntp_synced() &&
              xtime.tv_sec - last_rtc_update >= 659 &&
              abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ &&
              jiffies - wall_jiffies == 1) {
@@ -436,10 +435,7 @@ int do_settimeofday(struct timespec *tv)
 	 */
 	last_rtc_update = new_sec - 658;
 
-	time_adjust = 0;                /* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 
 	delta_xsec = mulhdu( (tb_last_stamp-do_gtod.varp->tb_orig_stamp),
 			     do_gtod.varp->tb_to_xs );

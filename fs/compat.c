@@ -44,6 +44,8 @@
 #include <linux/nfsd/syscall.h>
 #include <linux/personality.h>
 #include <linux/rwsem.h>
+#include <linux/acct.h>
+#include <linux/mm.h>
 
 #include <net/sock.h>		/* siocdevprivate_ioctl */
 
@@ -309,96 +311,6 @@ static int __init init_sys32_ioctl(void)
 }
 
 __initcall(init_sys32_ioctl);
-
-int register_ioctl32_conversion(unsigned int cmd,
-				ioctl_trans_handler_t handler)
-{
-	struct ioctl_trans *t;
-	struct ioctl_trans *new_t;
-	unsigned long hash = ioctl32_hash(cmd);
-
-	new_t = kmalloc(sizeof(*new_t), GFP_KERNEL);
-	if (!new_t)
-		return -ENOMEM;
-
-	down_write(&ioctl32_sem);
-	for (t = ioctl32_hash_table[hash]; t; t = t->next) {
-		if (t->cmd == cmd) {
-			printk(KERN_ERR "Trying to register duplicated ioctl32 "
-					"handler %x\n", cmd);
-			up_write(&ioctl32_sem);
-			kfree(new_t);
-			return -EINVAL; 
-		}
-	}
-	new_t->next = NULL;
-	new_t->cmd = cmd;
-	new_t->handler = handler;
-	ioctl32_insert_translation(new_t);
-
-	up_write(&ioctl32_sem);
-	return 0;
-}
-EXPORT_SYMBOL(register_ioctl32_conversion);
-
-static inline int builtin_ioctl(struct ioctl_trans *t)
-{ 
-	return t >= ioctl_start && t < (ioctl_start + ioctl_table_size);
-} 
-
-/* Problem: 
-   This function cannot unregister duplicate ioctls, because they are not
-   unique.
-   When they happen we need to extend the prototype to pass the handler too. */
-
-int unregister_ioctl32_conversion(unsigned int cmd)
-{
-	unsigned long hash = ioctl32_hash(cmd);
-	struct ioctl_trans *t, *t1;
-
-	down_write(&ioctl32_sem);
-
-	t = ioctl32_hash_table[hash];
-	if (!t) { 
-		up_write(&ioctl32_sem);
-		return -EINVAL;
-	} 
-
-	if (t->cmd == cmd) { 
-		if (builtin_ioctl(t)) {
-			printk("%p tried to unregister builtin ioctl %x\n",
-			       __builtin_return_address(0), cmd);
-		} else { 
-			ioctl32_hash_table[hash] = t->next;
-			up_write(&ioctl32_sem);
-			kfree(t);
-			return 0;
-		}
-	} 
-	while (t->next) {
-		t1 = t->next;
-		if (t1->cmd == cmd) { 
-			if (builtin_ioctl(t1)) {
-				printk("%p tried to unregister builtin "
-					"ioctl %x\n",
-					__builtin_return_address(0), cmd);
-				goto out;
-			} else { 
-				t->next = t1->next;
-				up_write(&ioctl32_sem);
-				kfree(t1);
-				return 0;
-			}
-		}
-		t = t1;
-	}
-	printk(KERN_ERR "Trying to free unknown 32bit ioctl handler %x\n",
-				cmd);
-out:
-	up_write(&ioctl32_sem);
-	return -EINVAL;
-}
-EXPORT_SYMBOL(unregister_ioctl32_conversion); 
 
 static void compat_ioctl_error(struct file *filp, unsigned int fd,
 		unsigned int cmd, unsigned long arg)
@@ -720,14 +632,14 @@ compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
 struct compat_ncp_mount_data {
 	compat_int_t version;
 	compat_uint_t ncp_fd;
-	compat_uid_t mounted_uid;
+	__compat_uid_t mounted_uid;
 	compat_pid_t wdog_pid;
 	unsigned char mounted_vol[NCP_VOLNAME_LEN + 1];
 	compat_uint_t time_out;
 	compat_uint_t retry_count;
 	compat_uint_t flags;
-	compat_uid_t uid;
-	compat_gid_t gid;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
 	compat_mode_t file_mode;
 	compat_mode_t dir_mode;
 };
@@ -784,9 +696,9 @@ static void *do_ncp_super_data_conv(void *raw_data)
 
 struct compat_smb_mount_data {
 	compat_int_t version;
-	compat_uid_t mounted_uid;
-	compat_uid_t uid;
-	compat_gid_t gid;
+	__compat_uid_t mounted_uid;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
 	compat_mode_t file_mode;
 	compat_mode_t dir_mode;
 };
@@ -1365,6 +1277,16 @@ out:
 }
 
 /*
+ * Exactly like fs/open.c:sys_open(), except that it doesn't set the
+ * O_LARGEFILE flag.
+ */
+asmlinkage long
+compat_sys_open(const char __user *filename, int flags, int mode)
+{
+	return do_sys_open(filename, flags, mode);
+}
+
+/*
  * compat_count() counts the number of arguments/envelopes. It is basically
  * a copy of count() from fs/exec.c, except that it works with 32 bit argv
  * and envp pointers.
@@ -1567,6 +1489,8 @@ int compat_do_execve(char * filename,
 
 		/* execve success */
 		security_bprm_free(bprm);
+		acct_update_integrals(current);
+		update_mem_hiwater(current);
 		kfree(bprm);
 		return retval;
 	}
@@ -1699,6 +1623,7 @@ compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp
 	char *bits;
 	long timeout;
 	int size, max_fdset, ret = -EINVAL;
+	struct fdtable *fdt;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
@@ -1724,7 +1649,10 @@ compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp
 		goto out_nofds;
 
 	/* max_fdset can increase, so grab it once to avoid race */
-	max_fdset = current->files->max_fdset;
+	rcu_read_lock();
+	fdt = files_fdtable(current->files);
+	max_fdset = fdt->max_fdset;
+	rcu_read_unlock();
 	if (n > max_fdset)
 		n = max_fdset;
 
@@ -1808,8 +1736,8 @@ struct compat_nfsctl_export {
 	compat_dev_t	ex32_dev;
 	compat_ino_t	ex32_ino;
 	compat_int_t	ex32_flags;
-	compat_uid_t	ex32_anon_uid;
-	compat_gid_t	ex32_anon_gid;
+	__compat_uid_t	ex32_anon_uid;
+	__compat_gid_t	ex32_anon_gid;
 };
 
 struct compat_nfsctl_fdparm {

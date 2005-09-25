@@ -152,17 +152,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	int retval = 0;
 
 	down(&rpaphp_sem);
-	/*  have to go through this */
-	switch (slot->dev_type) {
-	case PCI_DEV:
-		retval = rpaphp_get_pci_adapter_status(slot, 0, value);
-		break;
-	case VIO_DEV:
-		retval = rpaphp_get_vio_adapter_status(slot, 0, value);
-		break;
-	default:
-		retval = -EINVAL;
-	}
+	retval = rpaphp_get_pci_adapter_status(slot, 0, value);
 	up(&rpaphp_sem);
 	return retval;
 }
@@ -317,34 +307,6 @@ static int is_php_dn(struct device_node *dn, int **indexes, int **names,
 	return 0;
 }
 
-static int is_dr_dn(struct device_node *dn, int **indexes, int **names,
-		int **types, int **power_domains, int **my_drc_index)
-{
-	int rc;
-
-	*my_drc_index = (int *) get_property(dn, "ibm,my-drc-index", NULL);
-	if(!*my_drc_index)
-		return (0);
-
-	if (!dn->parent)
-		return (0);
-
-	rc = get_children_props(dn->parent, indexes, names, types,
-				power_domains);
-	return (rc >= 0);
-}
-
-static inline int is_vdevice_root(struct device_node *dn)
-{
-	return !strcmp(dn->name, "vdevice");
-}
-
-int is_dlpar_type(const char *type_str)
-{
-	/* Only register DLPAR-capable nodes of drc-type PHB or SLOT */
-	return (!strcmp(type_str, "PHB") || !strcmp(type_str, "SLOT"));
-}
-
 /****************************************************************
  *	rpaphp not only registers PCI hotplug slots(HOTPLUG), 
  *	but also logical DR slots(EMBEDDED).
@@ -356,85 +318,39 @@ int rpaphp_add_slot(struct device_node *dn)
 {
 	struct slot *slot;
 	int retval = 0;
-	int i, *my_drc_index, slot_type;
+	int i;
 	int *indexes, *names, *types, *power_domains;
 	char *name, *type;
 
 	dbg("Entry %s: dn->full_name=%s\n", __FUNCTION__, dn->full_name);
 
-	if (dn->parent && is_vdevice_root(dn->parent)) {
-		/* register a VIO device */
-		retval = register_vio_slot(dn);
-		goto exit;
-	}
-
 	/* register PCI devices */
 	if (dn->name != 0 && strcmp(dn->name, "pci") == 0) {
-		if (is_php_dn(dn, &indexes, &names, &types, &power_domains))  
-			slot_type = HOTPLUG;
-		else if (is_dr_dn(dn, &indexes, &names, &types, &power_domains, &my_drc_index)) 
-			slot_type = EMBEDDED;
-		else goto exit;
+		if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
+			goto exit;
 
 		name = (char *) &names[1];
 		type = (char *) &types[1];
 		for (i = 0; i < indexes[0]; i++,
-	     		name += (strlen(name) + 1), type += (strlen(type) + 1)) {
+	     		name += (strlen(name) + 1), type += (strlen(type) + 1)) 		{
 
-			if (slot_type == HOTPLUG ||
-			    (slot_type == EMBEDDED &&
-			     indexes[i + 1] == my_drc_index[0] &&
-			     is_dlpar_type(type))) {
-				if (!(slot = alloc_slot_struct(dn, indexes[i + 1], name,
-					       power_domains[i + 1]))) {
-					retval = -ENOMEM;
-					goto exit;
-				}
-				if (!strcmp(type, "PHB"))
-					slot->type = PHB;
-				else if (slot_type == EMBEDDED)
-					slot->type = EMBEDDED;
-				else
-					slot->type = simple_strtoul(type, NULL, 10);
+			if (!(slot = alloc_slot_struct(dn, indexes[i + 1], name,
+				       power_domains[i + 1]))) {
+				retval = -ENOMEM;
+				goto exit;
+			}
+			slot->type = simple_strtoul(type, NULL, 10);
 				
-				dbg("    Found drc-index:0x%x drc-name:%s drc-type:%s\n",
+			dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
 					indexes[i + 1], name, type);
 
-				retval = register_pci_slot(slot);
-				if (slot_type == EMBEDDED)
-					goto exit;
-			}
+			retval = register_pci_slot(slot);
 		}
 	}
 exit:
 	dbg("%s - Exit: num_slots=%d rc[%d]\n",
 	    __FUNCTION__, num_slots, retval);
 	return retval;
-}
-
-/*
- * init_slots - initialize 'struct slot' structures for each slot
- *
- */
-static void init_slots(void)
-{
-	struct device_node *dn;
-
-	for (dn = find_all_nodes(); dn; dn = dn->next)
-		rpaphp_add_slot(dn);
-}
-
-static int __init init_rpa(void)
-{
-
-	init_MUTEX(&rpaphp_sem);
-
-	/* initialize internal data structure etc. */
-	init_slots();
-	if (!num_slots)
-		return -ENODEV;
-
-	return 0;
 }
 
 static void __exit cleanup_slots(void)
@@ -458,10 +374,18 @@ static void __exit cleanup_slots(void)
 
 static int __init rpaphp_init(void)
 {
-	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	struct device_node *dn = NULL;
 
-	/* read all the PRA info from the system */
-	return init_rpa();
+	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	init_MUTEX(&rpaphp_sem);
+
+	while ((dn = of_find_node_by_type(dn, "pci")))
+		rpaphp_add_slot(dn);
+
+	if (!num_slots)
+		return -ENODEV;
+
+	return 0;
 }
 
 static void __exit rpaphp_exit(void)
@@ -481,16 +405,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 
 	dbg("ENABLING SLOT %s\n", slot->name);
 	down(&rpaphp_sem);
-	switch (slot->dev_type) {
-	case PCI_DEV:
-		retval = rpaphp_enable_pci_slot(slot);
-		break;
-	case VIO_DEV:
-		retval = rpaphp_enable_vio_slot(slot);
-		break;
-	default:
-		retval = -EINVAL;
-	}
+	retval = rpaphp_enable_pci_slot(slot);
 	up(&rpaphp_sem);
 exit:
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
@@ -511,16 +426,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 
 	dbg("DISABLING SLOT %s\n", slot->name);
 	down(&rpaphp_sem);
-	switch (slot->dev_type) {
-	case PCI_DEV:
-		retval = rpaphp_unconfig_pci_adapter(slot);
-		break;
-	case VIO_DEV:
-		retval = rpaphp_unconfig_vio_adapter(slot);
-		break;
-	default:
-		retval = -ENODEV;
-	}
+	retval = rpaphp_unconfig_pci_adapter(slot);
 	up(&rpaphp_sem);
 exit:
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);

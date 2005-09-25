@@ -17,7 +17,7 @@
 #include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
@@ -473,7 +473,7 @@ cpu_arm1022_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__arm1022_proc_info,#object
 __arm1022_proc_info:

@@ -151,7 +151,7 @@ static char __devinit *table_lookup_model(struct cpuinfo_x86 *c)
 }
 
 
-void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
+static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 {
 	char *v = c->x86_vendor_id;
 	int i;
@@ -613,8 +613,8 @@ void __devinit cpu_init(void)
 	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
 		GDT_ENTRY_TLS_ENTRIES * 8);
 
-	__asm__ __volatile__("lgdt %0" : : "m" (cpu_gdt_descr[cpu]));
-	__asm__ __volatile__("lidt %0" : : "m" (idt_descr));
+	load_gdt(&cpu_gdt_descr[cpu]);
+	load_idt(&idt_descr);
 
 	/*
 	 * Delete NT
@@ -642,12 +642,12 @@ void __devinit cpu_init(void)
 	asm volatile ("xorl %eax, %eax; movl %eax, %fs; movl %eax, %gs");
 
 	/* Clear all 6 debug registers: */
-
-#define CD(register) set_debugreg(0, register)
-
-	CD(0); CD(1); CD(2); CD(3); /* no db4 and db5 */; CD(6); CD(7);
-
-#undef CD
+	set_debugreg(0, 0);
+	set_debugreg(0, 1);
+	set_debugreg(0, 2);
+	set_debugreg(0, 3);
+	set_debugreg(0, 6);
+	set_debugreg(0, 7);
 
 	/*
 	 * Force FPU initialization:

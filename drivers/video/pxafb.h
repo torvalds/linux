@@ -83,6 +83,8 @@ struct pxafb_info {
 	u_int			reg_lccr2;
 	u_int			reg_lccr3;
 
+	unsigned long	hsync_time;
+
 	volatile u_char		state;
 	volatile u_char		task_state;
 	struct semaphore	ctrlr_sem;

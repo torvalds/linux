@@ -189,12 +189,11 @@ struct class *class_create(struct module *owner, char *name)
 	struct class *cls;
 	int retval;
 
-	cls = kmalloc(sizeof(struct class), GFP_KERNEL);
+	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
 	if (!cls) {
 		retval = -ENOMEM;
 		goto error;
 	}
-	memset(cls, 0x00, sizeof(struct class));
 
 	cls->name = name;
 	cls->owner = owner;
@@ -299,10 +298,8 @@ static void class_dev_release(struct kobject * kobj)
 
 	pr_debug("device class '%s': release.\n", cd->class_id);
 
-	if (cd->devt_attr) {
-		kfree(cd->devt_attr);
-		cd->devt_attr = NULL;
-	}
+	kfree(cd->devt_attr);
+	cd->devt_attr = NULL;
 
 	if (cls->release)
 		cls->release(cd);
@@ -452,10 +449,29 @@ void class_device_initialize(struct class_device *class_dev)
 	INIT_LIST_HEAD(&class_dev->node);
 }
 
+static char *make_class_name(struct class_device *class_dev)
+{
+	char *name;
+	int size;
+
+	size = strlen(class_dev->class->name) +
+		strlen(kobject_name(&class_dev->kobj)) + 2;
+
+	name = kmalloc(size, GFP_KERNEL);
+	if (!name)
+		return ERR_PTR(-ENOMEM);
+
+	strcpy(name, class_dev->class->name);
+	strcat(name, ":");
+	strcat(name, kobject_name(&class_dev->kobj));
+	return name;
+}
+
 int class_device_add(struct class_device *class_dev)
 {
 	struct class * parent = NULL;
 	struct class_interface * class_intf;
+	char *class_name = NULL;
 	int error;
 
 	class_dev = class_device_get(class_dev);
@@ -483,13 +499,13 @@ int class_device_add(struct class_device *class_dev)
 	/* add the needed attributes to this device */
 	if (MAJOR(class_dev->devt)) {
 		struct class_device_attribute *attr;
-		attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 		if (!attr) {
 			error = -ENOMEM;
 			kobject_del(&class_dev->kobj);
 			goto register_done;
 		}
-		memset(attr, sizeof(*attr), 0x00);
+
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
 		attr->attr.owner = parent->owner;
@@ -500,9 +516,13 @@ int class_device_add(struct class_device *class_dev)
 	}
 
 	class_device_add_attrs(class_dev);
-	if (class_dev->dev)
+	if (class_dev->dev) {
+		class_name = make_class_name(class_dev);
 		sysfs_create_link(&class_dev->kobj,
 				  &class_dev->dev->kobj, "device");
+		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
+				  class_name);
+	}
 
 	/* notify any interfaces this device is now here */
 	if (parent) {
@@ -519,6 +539,7 @@ int class_device_add(struct class_device *class_dev)
 	if (error && parent)
 		class_put(parent);
 	class_device_put(class_dev);
+	kfree(class_name);
 	return error;
 }
 
@@ -555,12 +576,11 @@ struct class_device *class_device_create(struct class *cls, dev_t devt,
 	if (cls == NULL || IS_ERR(cls))
 		goto error;
 
-	class_dev = kmalloc(sizeof(struct class_device), GFP_KERNEL);
+	class_dev = kzalloc(sizeof(*class_dev), GFP_KERNEL);
 	if (!class_dev) {
 		retval = -ENOMEM;
 		goto error;
 	}
-	memset(class_dev, 0x00, sizeof(struct class_device));
 
 	class_dev->devt = devt;
 	class_dev->dev = device;
@@ -584,6 +604,7 @@ void class_device_del(struct class_device *class_dev)
 {
 	struct class * parent = class_dev->class;
 	struct class_interface * class_intf;
+	char *class_name = NULL;
 
 	if (parent) {
 		down(&parent->sem);
@@ -594,8 +615,11 @@ void class_device_del(struct class_device *class_dev)
 		up(&parent->sem);
 	}
 
-	if (class_dev->dev)
+	if (class_dev->dev) {
+		class_name = make_class_name(class_dev);
 		sysfs_remove_link(&class_dev->kobj, "device");
+		sysfs_remove_link(&class_dev->dev->kobj, class_name);
+	}
 	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
 	class_device_remove_attrs(class_dev);
@@ -605,6 +629,7 @@ void class_device_del(struct class_device *class_dev)
 
 	if (parent)
 		class_put(parent);
+	kfree(class_name);
 }
 
 void class_device_unregister(struct class_device *class_dev)
@@ -644,6 +669,7 @@ void class_device_destroy(struct class *cls, dev_t devt)
 int class_device_rename(struct class_device *class_dev, char *new_name)
 {
 	int error = 0;
+	char *old_class_name = NULL, *new_class_name = NULL;
 
 	class_dev = class_device_get(class_dev);
 	if (!class_dev)
@@ -652,11 +678,23 @@ int class_device_rename(struct class_device *class_dev, char *new_name)
 	pr_debug("CLASS: renaming '%s' to '%s'\n", class_dev->class_id,
 		 new_name);
 
+	if (class_dev->dev)
+		old_class_name = make_class_name(class_dev);
+
 	strlcpy(class_dev->class_id, new_name, KOBJ_NAME_LEN);
 
 	error = kobject_rename(&class_dev->kobj, new_name);
 
+	if (class_dev->dev) {
+		new_class_name = make_class_name(class_dev);
+		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
+				  new_class_name);
+		sysfs_remove_link(&class_dev->dev->kobj, old_class_name);
+	}
 	class_device_put(class_dev);
+
+	kfree(old_class_name);
+	kfree(new_class_name);
 
 	return error;
 }

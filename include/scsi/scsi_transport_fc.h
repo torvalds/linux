@@ -103,8 +103,8 @@ enum fc_port_state {
 					     incapable of reporting */
 #define FC_PORTSPEED_1GBIT		1
 #define FC_PORTSPEED_2GBIT		2
-#define FC_PORTSPEED_10GBIT		4
-#define FC_PORTSPEED_4GBIT		8
+#define FC_PORTSPEED_4GBIT		4
+#define FC_PORTSPEED_10GBIT		8
 #define FC_PORTSPEED_NOT_NEGOTIATED	(1 << 15) /* Speed not established */
 
 /*
@@ -438,5 +438,13 @@ void fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles);
 int fc_remote_port_block(struct fc_rport *rport);
 void fc_remote_port_unblock(struct fc_rport *rport);
 int scsi_is_fc_rport(const struct device *);
+
+static inline u64 wwn_to_u64(u8 *wwn)
+{
+	return (u64)wwn[0] << 56 | (u64)wwn[1] << 48 |
+	    (u64)wwn[2] << 40 | (u64)wwn[3] << 32 |
+	    (u64)wwn[4] << 24 | (u64)wwn[5] << 16 |
+	    (u64)wwn[6] <<  8 | (u64)wwn[7];
+}
 
 #endif /* SCSI_TRANSPORT_FC_H */

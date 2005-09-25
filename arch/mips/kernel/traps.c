@@ -924,7 +924,7 @@ void __init per_cpu_trap_init(void)
 	 * flag that some firmware may have left set and the TS bit (for
 	 * IP27).  Set XX for ISA IV code to work.
 	 */
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	status_set |= ST0_FR|ST0_KX|ST0_SX|ST0_UX;
 #endif
 	if (current_cpu_data.isa_level == MIPS_CPU_ISA_IV)

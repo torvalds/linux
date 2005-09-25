@@ -34,19 +34,19 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/init.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /*
  * Addresses to scan
  */
 static unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /*
  * Insmod parameters
  */
-SENSORS_INSMOD_1(fscpos);
+I2C_CLIENT_INSMOD_1(fscpos);
 
 /*
  * The FSCPOS registers
@@ -113,6 +113,7 @@ static struct i2c_driver fscpos_driver = {
  */
 struct fscpos_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; 		/* 0 until following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -434,7 +435,7 @@ static int fscpos_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, fscpos_detect);
+	return i2c_probe(adapter, &addr_data, fscpos_detect);
 }
 
 int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
@@ -496,6 +497,12 @@ int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 	dev_info(&new_client->dev, "Found fscpos chip, rev %u\n", data->revision);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_event);
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in1_input);
@@ -526,6 +533,8 @@ int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -534,14 +543,14 @@ exit:
 
 static int fscpos_detach_client(struct i2c_client *client)
 {
+	struct fscpos_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, client"
-							" not detached.\n");
+	hwmon_device_unregister(data->class_dev);
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

@@ -241,7 +241,7 @@ static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
 		}
 
 		size = sizeof(*put) + sizeof(fm_xinstrument_t);
-		put = kcalloc(1, size, GFP_KERNEL);
+		put = kzalloc(size, GFP_KERNEL);
 		if (put == NULL)
 			return -ENOMEM;
 		/* build header */

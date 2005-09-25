@@ -54,7 +54,7 @@ NESTED(except_vec3_generic, 0, sp)
 #endif
 	mfc0	k1, CP0_CAUSE
 	andi	k1, k1, 0x7c
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	dsll	k1, k1, 1
 #endif
 	PTR_L	k0, exception_handlers(k1)
@@ -81,7 +81,7 @@ NESTED(except_vec3_r4000, 0, sp)
 	beq	k1, k0, handle_vced
 	 li	k0, 14<<2
 	beq	k1, k0, handle_vcei
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	dsll	k1, k1, 1
 #endif
 	.set	pop
@@ -244,12 +244,12 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	   start with an n and gas will believe \n is ok ...  */
 	.macro	__BUILD_verbose	nexception
 	LONG_L	a1, PT_EPC(sp)
-#if CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	PRINT("Got \nexception at %08lx\012")
-#endif	
-#if CONFIG_MIPS64
+#endif
+#ifdef CONFIG_64BIT
 	PRINT("Got \nexception at %016lx\012")
-#endif	
+#endif
 	.endm
 
 	.macro	__BUILD_count exception
@@ -293,7 +293,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER mcheck mcheck cli verbose		/* #24 */
 	BUILD_HANDLER reserved reserved sti verbose	/* others */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 /* A temporary overflow handler used by check_daddi(). */
 
 	__INIT

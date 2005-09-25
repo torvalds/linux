@@ -15,7 +15,7 @@ SECTIONS
   /* This is the value for an Origin kernel, taken from an IRIX kernel.  */
   /* . = 0xc00000000001c000; */
 
-  /* Set the vaddr for the text segment to a value 
+  /* Set the vaddr for the text segment to a value
         >= 0xa800 0000 0001 9000 if no symmon is going to configured
         >= 0xa800 0000 0030 0000 otherwise  */
 

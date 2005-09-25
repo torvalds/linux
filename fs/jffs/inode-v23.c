@@ -1629,9 +1629,6 @@ static int jffs_fsync(struct file *f, struct dentry *d, int datasync)
 }
 
 
-extern int generic_file_open(struct inode *, struct file *) __attribute__((weak));
-extern loff_t generic_file_llseek(struct file *, loff_t, int) __attribute__((weak));
-
 static struct file_operations jffs_file_operations =
 {
 	.open		= generic_file_open,
@@ -1747,6 +1744,7 @@ jffs_delete_inode(struct inode *inode)
 	D3(printk("jffs_delete_inode(): inode->i_ino == %lu\n",
 		  inode->i_ino));
 
+	truncate_inode_pages(&inode->i_data, 0);
 	lock_kernel();
 	inode->i_size = 0;
 	inode->i_blocks = 0;

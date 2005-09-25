@@ -269,7 +269,10 @@ static void sunsu_stop_tx(struct uart_port *port)
 
 	__stop_tx(up);
 
-	if (up->port.type == PORT_16C950 && tty_stop /*FIXME*/) {
+	/*
+	 * We really want to stop the transmitter from sending.
+	 */
+	if (up->port.type == PORT_16C950) {
 		up->acr |= UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}
@@ -283,10 +286,11 @@ static void sunsu_start_tx(struct uart_port *port)
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
 	}
+
 	/*
-	 * We only do this from uart_start
+	 * Re-enable the transmitter if we disabled it.
 	 */
-	if (tty_start && up->port.type == PORT_16C950 /*FIXME*/) {
+	if (up->port.type == PORT_16C950 && up->acr & UART_ACR_TXDIS) {
 		up->acr &= ~UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}

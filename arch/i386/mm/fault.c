@@ -21,6 +21,7 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -199,6 +200,18 @@ static inline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	return 0;
 } 
 
+static noinline void force_sig_info_fault(int si_signo, int si_code,
+	unsigned long address, struct task_struct *tsk)
+{
+	siginfo_t info;
+
+	info.si_signo = si_signo;
+	info.si_errno = 0;
+	info.si_code = si_code;
+	info.si_addr = (void __user *)address;
+	force_sig_info(si_signo, &info, tsk);
+}
+
 fastcall void do_invalid_op(struct pt_regs *, unsigned long);
 
 /*
@@ -211,18 +224,18 @@ fastcall void do_invalid_op(struct pt_regs *, unsigned long);
  *	bit 1 == 0 means read, 1 means write
  *	bit 2 == 0 means kernel, 1 means user-mode
  */
-fastcall void do_page_fault(struct pt_regs *regs, unsigned long error_code)
+fastcall void __kprobes do_page_fault(struct pt_regs *regs,
+				      unsigned long error_code)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	unsigned long address;
 	unsigned long page;
-	int write;
-	siginfo_t info;
+	int write, si_code;
 
 	/* get the address */
-	__asm__("movl %%cr2,%0":"=r" (address));
+        address = read_cr2();
 
 	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
 					SIGSEGV) == NOTIFY_STOP)
@@ -233,7 +246,7 @@ fastcall void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	tsk = current;
 
-	info.si_code = SEGV_MAPERR;
+	si_code = SEGV_MAPERR;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -313,7 +326,7 @@ fastcall void do_page_fault(struct pt_regs *regs, unsigned long error_code)
  * we can handle it..
  */
 good_area:
-	info.si_code = SEGV_ACCERR;
+	si_code = SEGV_ACCERR;
 	write = 0;
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
@@ -387,11 +400,7 @@ bad_area_nosemaphore:
 		/* Kernel addresses are always protection faults */
 		tsk->thread.error_code = error_code | (address >= TASK_SIZE);
 		tsk->thread.trap_no = 14;
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		/* info.si_code has been set above */
-		info.si_addr = (void __user *)address;
-		force_sig_info(SIGSEGV, &info, tsk);
+		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
 		return;
 	}
 
@@ -446,7 +455,7 @@ no_context:
 	printk(" at virtual address %08lx\n",address);
 	printk(KERN_ALERT " printing eip:\n");
 	printk("%08lx\n", regs->eip);
-	asm("movl %%cr3,%0":"=r" (page));
+	page = read_cr3();
 	page = ((unsigned long *) __va(page))[address >> 22];
 	printk(KERN_ALERT "*pde = %08lx\n", page);
 	/*
@@ -500,11 +509,7 @@ do_sigbus:
 	tsk->thread.cr2 = address;
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = 14;
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRERR;
-	info.si_addr = (void __user *)address;
-	force_sig_info(SIGBUS, &info, tsk);
+	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 	return;
 
 vmalloc_fault:
@@ -523,7 +528,7 @@ vmalloc_fault:
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
 
-		asm("movl %%cr3,%0":"=r" (pgd_paddr));
+		pgd_paddr = read_cr3();
 		pgd = index + (pgd_t *)__va(pgd_paddr);
 		pgd_k = init_mm.pgd + index;
 

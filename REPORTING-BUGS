@@ -9,7 +9,7 @@ screen please read "Documentation/oops-tracing.txt" before posting your
 bug report. This explains what you should do with the "Oops" information
 to make it useful to the recipient.
 
-      Send the output the maintainer of the kernel area that seems to
+      Send the output to the maintainer of the kernel area that seems to
 be involved with the problem. Don't worry too much about getting the
 wrong person. If you are unsure send it to the person responsible for the
 code relevant to what you were doing. If it occurs repeatably try and
@@ -18,15 +18,15 @@ The list of maintainers is in the MAINTAINERS file in this directory.
 
       If it is a security bug, please copy the Security Contact listed
 in the MAINTAINERS file.  They can help coordinate bugfix and disclosure.
-See Documentation/SecurityBugs for more infomation.
+See Documentation/SecurityBugs for more information.
 
       If you are totally stumped as to whom to send the report, send it to
 linux-kernel@vger.kernel.org. (For more information on the linux-kernel
 mailing list see http://www.tux.org/lkml/).
 
-This is a suggested format for a bug report sent to the Linux kernel mailing 
-list. Having a standardized bug report form makes it easier  for you not to 
-overlook things, and easier for the developers to find the pieces of 
+This is a suggested format for a bug report sent to the Linux kernel mailing
+list. Having a standardized bug report form makes it easier for you not to
+overlook things, and easier for the developers to find the pieces of
 information they're really interested in. Don't feel you have to follow it.
 
       First run the ver_linux script included as scripts/ver_linux, which
@@ -35,9 +35,9 @@ the command "sh scripts/ver_linux".
 
 Use that information to fill in all fields of the bug report form, and
 post it to the mailing list with a subject of "PROBLEM: <one line
-summary from [1.]>" for easy identification by the developers    
+summary from [1.]>" for easy identification by the developers.
 
-[1.] One line summary of the problem:    
+[1.] One line summary of the problem:
 [2.] Full description of the problem/report:
 [3.] Keywords (i.e., modules, networking, kernel):
 [4.] Kernel version (from /proc/version):

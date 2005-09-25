@@ -385,11 +385,11 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 /*
  * The following are helper functions for the low level drivers.
  */
-#ifdef SUPPORT_SYSRQ
 static inline int
 uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 		       struct pt_regs *regs)
 {
+#ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
 			handle_sysrq(ch, regs, NULL);
@@ -398,10 +398,11 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 		}
 		port->sysrq = 0;
 	}
+#endif
 	return 0;
 }
-#else
-#define uart_handle_sysrq_char(port,ch,regs)	(0)
+#ifndef SUPPORT_SYSRQ
+#define uart_handle_sysrq_char(port,ch,regs) uart_handle_sysrq_char(port, 0, NULL)
 #endif
 
 /*

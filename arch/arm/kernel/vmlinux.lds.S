@@ -23,20 +23,20 @@ SECTIONS
 			*(.init.text)
 			_einittext = .;
 		__proc_info_begin = .;
-			*(.proc.info)
+			*(.proc.info.init)
 		__proc_info_end = .;
 		__arch_info_begin = .;
-			*(.arch.info)
+			*(.arch.info.init)
 		__arch_info_end = .;
 		__tagtable_begin = .;
-			*(.taglist)
+			*(.taglist.init)
 		__tagtable_end = .;
 		. = ALIGN(16);
 		__setup_start = .;
 			*(.init.setup)
 		__setup_end = .;
 		__early_begin = .;
-			*(__early_param)
+			*(.early_param.init)
 		__early_end = .;
 		__initcall_start = .;
 			*(.initcall1.init)

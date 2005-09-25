@@ -156,6 +156,14 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->flags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
 
+		/* Some devices report a SCSI revision level above 2 but are
+		 * unable to handle the REPORT LUNS command (for which
+		 * support is mandatory at level 3).  Since we already have
+		 * a Get-Max-LUN request, we won't lose much by setting the
+		 * revision level down to 2.  The only devices that would be
+		 * affected are those with sparse LUNs. */
+		sdev->scsi_level = SCSI_2;
+
 		/* USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
 		 * Hardware Error) when any low-level error occurs,
 		 * recoverable or not.  Setting this flag tells the SCSI
@@ -219,42 +227,42 @@ static int queuecommand(struct scsi_cmnd *srb,
  ***********************************************************************/
 
 /* Command timeout and abort */
-/* This is always called with scsi_lock(host) held */
 static int command_abort(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
+	/* us->srb together with the TIMED_OUT, RESETTING, and ABORTING
+	 * bits are protected by the host lock. */
+	scsi_lock(us_to_host(us));
+
 	/* Is this command still active? */
 	if (us->srb != srb) {
+		scsi_unlock(us_to_host(us));
 		US_DEBUGP ("-- nothing to abort\n");
 		return FAILED;
 	}
 
 	/* Set the TIMED_OUT bit.  Also set the ABORTING bit, but only if
 	 * a device reset isn't already in progress (to avoid interfering
-	 * with the reset).  To prevent races with auto-reset, we must
-	 * stop any ongoing USB transfers while still holding the host
-	 * lock. */
+	 * with the reset).  Note that we must retain the host lock while
+	 * calling usb_stor_stop_transport(); otherwise it might interfere
+	 * with an auto-reset that begins as soon as we release the lock. */
 	set_bit(US_FLIDX_TIMED_OUT, &us->flags);
 	if (!test_bit(US_FLIDX_RESETTING, &us->flags)) {
 		set_bit(US_FLIDX_ABORTING, &us->flags);
 		usb_stor_stop_transport(us);
 	}
+	scsi_unlock(us_to_host(us));
 
 	/* Wait for the aborted command to finish */
 	wait_for_completion(&us->notify);
-
-	/* Reacquire the lock and allow USB transfers to resume */
-	clear_bit(US_FLIDX_ABORTING, &us->flags);
-	clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
 	return SUCCESS;
 }
 
 /* This invokes the transport reset mechanism to reset the state of the
  * device */
-/* This is always called with scsi_lock(host) held */
 static int device_reset(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
@@ -271,7 +279,6 @@ static int device_reset(struct scsi_cmnd *srb)
 }
 
 /* Simulate a SCSI bus reset by resetting the device's USB port. */
-/* This is always called with scsi_lock(host) held */
 static int bus_reset(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
@@ -283,7 +290,6 @@ static int bus_reset(struct scsi_cmnd *srb)
 	result = usb_stor_port_reset(us);
 	up(&(us->dev_semaphore));
 
-	/* lock the host for the return */
 	return result < 0 ? FAILED : SUCCESS;
 }
 

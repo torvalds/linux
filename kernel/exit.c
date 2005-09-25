@@ -368,17 +368,25 @@ EXPORT_SYMBOL(daemonize);
 static inline void close_files(struct files_struct * files)
 {
 	int i, j;
+	struct fdtable *fdt;
 
 	j = 0;
+
+	/*
+	 * It is safe to dereference the fd table without RCU or
+	 * ->file_lock because this is the last reference to the
+	 * files structure.
+	 */
+	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
 		i = j * __NFDBITS;
-		if (i >= files->max_fdset || i >= files->max_fds)
+		if (i >= fdt->max_fdset || i >= fdt->max_fds)
 			break;
-		set = files->open_fds->fds_bits[j++];
+		set = fdt->open_fds->fds_bits[j++];
 		while (set) {
 			if (set & 1) {
-				struct file * file = xchg(&files->fd[i], NULL);
+				struct file * file = xchg(&fdt->fd[i], NULL);
 				if (file)
 					filp_close(file, files);
 			}
@@ -403,18 +411,22 @@ struct files_struct *get_files_struct(struct task_struct *task)
 
 void fastcall put_files_struct(struct files_struct *files)
 {
+	struct fdtable *fdt;
+
 	if (atomic_dec_and_test(&files->count)) {
 		close_files(files);
 		/*
 		 * Free the fd and fdset arrays if we expanded them.
+		 * If the fdtable was embedded, pass files for freeing
+		 * at the end of the RCU grace period. Otherwise,
+		 * you can free files immediately.
 		 */
-		if (files->fd != &files->fd_array[0])
-			free_fd_array(files->fd, files->max_fds);
-		if (files->max_fdset > __FD_SETSIZE) {
-			free_fdset(files->open_fds, files->max_fdset);
-			free_fdset(files->close_on_exec, files->max_fdset);
-		}
-		kmem_cache_free(files_cachep, files);
+		fdt = files_fdtable(files);
+		if (fdt == &files->fdtab)
+			fdt->free_files = files;
+		else
+			kmem_cache_free(files_cachep, files);
+		free_fdtable(fdt);
 	}
 }
 

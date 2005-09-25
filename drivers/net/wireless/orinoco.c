@@ -1053,8 +1053,9 @@ static void orinoco_join_ap(struct net_device *dev)
 		u16 channel;
 	} __attribute__ ((packed)) req;
 	const int atom_len = offsetof(struct prism2_scan_apinfo, atim);
-	struct prism2_scan_apinfo *atom;
+	struct prism2_scan_apinfo *atom = NULL;
 	int offset = 4;
+	int found = 0;
 	u8 *buf;
 	u16 len;
 
@@ -1089,15 +1090,18 @@ static void orinoco_join_ap(struct net_device *dev)
 	 * we were requested to join */
 	for (; offset + atom_len <= len; offset += atom_len) {
 		atom = (struct prism2_scan_apinfo *) (buf + offset);
-		if (memcmp(&atom->bssid, priv->desired_bssid, ETH_ALEN) == 0)
-			goto found;
+		if (memcmp(&atom->bssid, priv->desired_bssid, ETH_ALEN) == 0) {
+			found = 1;
+			break;
+		}
 	}
 
-	DEBUG(1, "%s: Requested AP not found in scan results\n",
-	      dev->name);
-	goto out;
+	if (! found) {
+		DEBUG(1, "%s: Requested AP not found in scan results\n",
+		      dev->name);
+		goto out;
+	}
 
- found:
 	memcpy(req.bssid, priv->desired_bssid, ETH_ALEN);
 	req.channel = atom->channel;	/* both are little-endian */
 	err = HERMES_WRITE_RECORD(hw, USER_BAP, HERMES_RID_CNFJOINREQUEST,
@@ -1284,8 +1288,10 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		/* Read scan data */
 		err = hermes_bap_pread(hw, IRQ_BAP, (void *) buf, len,
 				       infofid, sizeof(info));
-		if (err)
+		if (err) {
+			kfree(buf);
 			break;
+		}
 
 #ifdef ORINOCO_DEBUG
 		{
@@ -4021,7 +4027,8 @@ static int orinoco_ioctl_setscan(struct net_device *dev,
 }
 
 /* Translate scan data returned from the card to a card independant
- * format that the Wireless Tools will understand - Jean II */
+ * format that the Wireless Tools will understand - Jean II
+ * Return message length or -errno for fatal errors */
 static inline int orinoco_translate_scan(struct net_device *dev,
 					 char *buffer,
 					 char *scan,
@@ -4061,13 +4068,19 @@ static inline int orinoco_translate_scan(struct net_device *dev,
 		break;
 	case FIRMWARE_TYPE_INTERSIL:
 		offset = 4;
-		if (priv->has_hostscan)
-			atom_len = scan[0] + (scan[1] << 8);
-		else
+		if (priv->has_hostscan) {
+			atom_len = le16_to_cpup((u16 *)scan);
+			/* Sanity check for atom_len */
+			if (atom_len < sizeof(struct prism2_scan_apinfo)) {
+				printk(KERN_ERR "%s: Invalid atom_len in scan data: %d\n",
+				dev->name, atom_len);
+				return -EIO;
+			}
+		} else
 			atom_len = offsetof(struct prism2_scan_apinfo, atim);
 		break;
 	default:
-		return 0;
+		return -EOPNOTSUPP;
 	}
 
 	/* Check that we got an whole number of atoms */
@@ -4075,7 +4088,7 @@ static inline int orinoco_translate_scan(struct net_device *dev,
 		printk(KERN_ERR "%s: Unexpected scan data length %d, "
 		       "atom_len %d, offset %d\n", dev->name, scan_len,
 		       atom_len, offset);
-		return 0;
+		return -EIO;
 	}
 
 	/* Read the entries one by one */
@@ -4210,33 +4223,41 @@ static int orinoco_ioctl_getscan(struct net_device *dev,
 		/* We have some results to push back to user space */
 
 		/* Translate to WE format */
-		srq->length = orinoco_translate_scan(dev, extra,
-						     priv->scan_result,
-						     priv->scan_len);
+		int ret = orinoco_translate_scan(dev, extra,
+						 priv->scan_result,
+						 priv->scan_len);
 
-		/* Return flags */
-		srq->flags = (__u16) priv->scan_mode;
+		if (ret < 0) {
+			err = ret;
+			kfree(priv->scan_result);
+			priv->scan_result = NULL;
+		} else {
+			srq->length = ret;
 
-		/* Results are here, so scan no longer in progress */
-		priv->scan_inprogress = 0;
+			/* Return flags */
+			srq->flags = (__u16) priv->scan_mode;
 
-		/* In any case, Scan results will be cleaned up in the
-		 * reset function and when exiting the driver.
-		 * The person triggering the scanning may never come to
-		 * pick the results, so we need to do it in those places.
-		 * Jean II */
+			/* In any case, Scan results will be cleaned up in the
+			 * reset function and when exiting the driver.
+			 * The person triggering the scanning may never come to
+			 * pick the results, so we need to do it in those places.
+			 * Jean II */
 
 #ifdef SCAN_SINGLE_READ
-		/* If you enable this option, only one client (the first
-		 * one) will be able to read the result (and only one
-		 * time). If there is multiple concurent clients that
-		 * want to read scan results, this behavior is not
-		 * advisable - Jean II */
-		kfree(priv->scan_result);
-		priv->scan_result = NULL;
+			/* If you enable this option, only one client (the first
+			 * one) will be able to read the result (and only one
+			 * time). If there is multiple concurent clients that
+			 * want to read scan results, this behavior is not
+			 * advisable - Jean II */
+			kfree(priv->scan_result);
+			priv->scan_result = NULL;
 #endif /* SCAN_SINGLE_READ */
-		/* Here, if too much time has elapsed since last scan,
-		 * we may want to clean up scan results... - Jean II */
+			/* Here, if too much time has elapsed since last scan,
+			 * we may want to clean up scan results... - Jean II */
+		}
+
+		/* Scan is no longer in progress */
+		priv->scan_inprogress = 0;
 	}
 	  
 	orinoco_unlock(priv, &flags);

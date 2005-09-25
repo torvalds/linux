@@ -80,6 +80,9 @@
 #define SN_SAL_RESERVED_DO_NOT_USE		   0x02000062
 #define SN_SAL_IOIF_GET_PCI_TOPOLOGY		   0x02000064
 
+#define  SN_SAL_GET_PROM_FEATURE_SET		   0x02000065
+#define  SN_SAL_SET_OS_FEATURE_SET		   0x02000066
+
 /*
  * Service-specific constants
  */
@@ -118,8 +121,8 @@
 /*
  * Error Handling Features
  */
-#define SAL_ERR_FEAT_MCA_SLV_TO_OS_INIT_SLV	0x1
-#define SAL_ERR_FEAT_LOG_SBES			0x2
+#define SAL_ERR_FEAT_MCA_SLV_TO_OS_INIT_SLV	0x1	// obsolete
+#define SAL_ERR_FEAT_LOG_SBES			0x2	// obsolete
 #define SAL_ERR_FEAT_MFR_OVERRIDE		0x4
 #define SAL_ERR_FEAT_SBE_THRESHOLD		0xffff0000
 
@@ -150,12 +153,6 @@ sn_sal_rev(void)
 
 	return (u32)(systab->sal_b_rev_major << 8 | systab->sal_b_rev_minor);
 }
-
-/*
- * Specify the minimum PROM revsion required for this kernel.
- * Note that they're stored in hex format...
- */
-#define SN_SAL_MIN_VERSION	0x0404
 
 /*
  * Returns the master console nasid, if the call fails, return an illegal
@@ -336,7 +333,7 @@ ia64_sn_plat_cpei_handler(void)
 }
 
 /*
- * Set Error Handling Features
+ * Set Error Handling Features	(Obsolete)
  */
 static inline u64
 ia64_sn_plat_set_error_handling_features(void)
@@ -1050,6 +1047,27 @@ ia64_sn_is_fake_prom(void)
 	struct ia64_sal_retval rv;
 	SAL_CALL_NOLOCK(rv, SN_SAL_FAKE_PROM, 0, 0, 0, 0, 0, 0, 0);
 	return (rv.status == 0);
+}
+
+static inline int
+ia64_sn_get_prom_feature_set(int set, unsigned long *feature_set)
+{
+	struct ia64_sal_retval rv;
+
+	SAL_CALL_NOLOCK(rv, SN_SAL_GET_PROM_FEATURE_SET, set, 0, 0, 0, 0, 0, 0);
+	if (rv.status != 0)
+		return rv.status;
+	*feature_set = rv.v0;
+	return 0;
+}
+
+static inline int
+ia64_sn_set_os_feature(int feature)
+{
+	struct ia64_sal_retval rv;
+
+	SAL_CALL_NOLOCK(rv, SN_SAL_SET_OS_FEATURE_SET, feature, 0, 0, 0, 0, 0, 0);
+	return rv.status;
 }
 
 #endif /* _ASM_IA64_SN_SN_SAL_H */

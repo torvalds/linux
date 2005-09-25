@@ -61,7 +61,7 @@ pgprot_t protection_map[16] = {
 
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS;  /* heuristic overcommit */
 int sysctl_overcommit_ratio = 50;	/* default is 50% */
-int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
+int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 atomic_t vm_committed_space = ATOMIC_INIT(0);
 
 /*
@@ -203,13 +203,6 @@ static void remove_vm_struct(struct vm_area_struct *vma)
 	kmem_cache_free(vm_area_cachep, vma);
 }
 
-/*
- *  sys_brk() for the most part doesn't need the global kernel
- *  lock, except when an application is doing something nasty
- *  like trying to un-brk an area that has already been mapped
- *  to a regular file.  in this case, the unmapping will need
- *  to invoke file system routines that need the global lock.
- */
 asmlinkage unsigned long sys_brk(unsigned long brk)
 {
 	unsigned long rlim, retval;
@@ -1647,7 +1640,7 @@ static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 /*
  * Get rid of page table information in the indicated region.
  *
- * Called with the page table lock held.
+ * Called with the mm semaphore held.
  */
 static void unmap_region(struct mm_struct *mm,
 		struct vm_area_struct *vma, struct vm_area_struct *prev,
@@ -1999,6 +1992,9 @@ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
 	}
 	__vma = find_vma_prepare(mm,vma->vm_start,&prev,&rb_link,&rb_parent);
 	if (__vma && __vma->vm_start < vma->vm_end)
+		return -ENOMEM;
+	if ((vma->vm_flags & VM_ACCOUNT) &&
+	     security_vm_enough_memory(vma_pages(vma)))
 		return -ENOMEM;
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 	return 0;

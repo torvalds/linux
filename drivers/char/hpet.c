@@ -44,7 +44,7 @@
 /*
  * The High Precision Event Timer driver.
  * This driver is closely modelled after the rtc.c driver.
- * http://www.intel.com/labs/platcomp/hpet/hpetspec.htm
+ * http://www.intel.com/hardwaredesign/hpetspec.htm
  */
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)
@@ -100,14 +100,14 @@ static struct hpets *hpets;
 #endif
 
 #ifndef readq
-static unsigned long long __inline readq(void __iomem *addr)
+static inline unsigned long long readq(void __iomem *addr)
 {
 	return readl(addr) | (((unsigned long long)readl(addr + 4)) << 32LL);
 }
 #endif
 
 #ifndef writeq
-static void __inline writeq(unsigned long long v, void __iomem *addr)
+static inline void writeq(unsigned long long v, void __iomem *addr)
 {
 	writel(v & 0xffffffff, addr);
 	writel(v >> 32, addr + 4);
@@ -273,7 +273,6 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	addr = __pa(addr);
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
 					PAGE_SIZE, vma->vm_page_prot)) {
@@ -712,7 +711,7 @@ static void hpet_register_interpolator(struct hpets *hpetp)
 	ti->shift = 10;
 	ti->addr = &hpetp->hp_hpet->hpet_mc;
 	ti->frequency = hpet_time_div(hpets->hp_period);
-	ti->drift = ti->frequency * HPET_DRIFT / 1000000;
+	ti->drift = HPET_DRIFT;
 	ti->mask = -1;
 
 	hpetp->hp_interpolator = ti;
@@ -906,11 +905,15 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		if (irqp->number_of_interrupts > 0) {
 			hdp->hd_nirqs = irqp->number_of_interrupts;
 
-			for (i = 0; i < hdp->hd_nirqs; i++)
-				hdp->hd_irq[i] =
+			for (i = 0; i < hdp->hd_nirqs; i++) {
+				int rc =
 				    acpi_register_gsi(irqp->interrupts[i],
 						      irqp->edge_level,
 						      irqp->active_high_low);
+				if (rc < 0)
+					return AE_ERROR;
+				hdp->hd_irq[i] = rc;
+			}
 		}
 	}
 

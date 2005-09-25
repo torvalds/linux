@@ -42,7 +42,7 @@ static void null_prom_putc(char c)
 /* these are functions provided by the bootloader */
 static void (* prom_putc)(char c) = null_prom_putc;
 void (* prom_printf)(const char * fmt, ...) = null_prom_printf;
-void (* prom_display)(const char *string, int pos, int clear) = 
+void (* prom_display)(const char *string, int pos, int clear) =
 		null_prom_display;
 void (* prom_monitor)(void) = null_prom_monitor;
 

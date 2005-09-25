@@ -16,6 +16,7 @@
 
 #include <net/sock.h>
 
+#include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
 
@@ -50,7 +51,8 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	dccp_set_state(sk, DCCP_CLOSING);
+	if (sk->sk_state != DCCP_CLOSING)
+		dccp_set_state(sk, DCCP_CLOSING);
 	dccp_send_close(sk, 0);
 }
 
@@ -59,8 +61,8 @@ static inline void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	if (dp->dccps_options.dccpo_send_ack_vector)
-		dccp_ackpkts_check_rcv_ackno(dp->dccps_hc_rx_ackpkts, sk,
-					     DCCP_SKB_CB(skb)->dccpd_ack_seq);
+		dccp_ackvec_check_rcv_ackno(dp->dccps_hc_rx_ackvec, sk,
+					    DCCP_SKB_CB(skb)->dccpd_ack_seq);
 }
 
 static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
@@ -163,37 +165,11 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_event_ack_recv(sk, skb);
 
-	/*
-	 * FIXME: check ECN to see if we should use
-	 * DCCP_ACKPKTS_STATE_ECN_MARKED
-	 */
-	if (dp->dccps_options.dccpo_send_ack_vector) {
-		struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
-
-		if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
-				     DCCP_SKB_CB(skb)->dccpd_seq,
-				     DCCP_ACKPKTS_STATE_RECEIVED)) {
-			LIMIT_NETDEBUG(KERN_WARNING "DCCP: acknowledgeable "
-						    "packets buffer full!\n");
-			ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
-			inet_csk_schedule_ack(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-						  TCP_DELACK_MIN,
-						  DCCP_RTO_MAX);
-			goto discard;
-		}
-
-		/*
-		 * FIXME: this activation is probably wrong, have to study more
-		 * TCP delack machinery and how it fits into DCCP draft, but
-		 * for now it kinda "works" 8)
-		 */
-		if (!inet_csk_ack_scheduled(sk)) {
-			inet_csk_schedule_ack(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, 5 * HZ,
-						  DCCP_RTO_MAX);
-		}
-	}
+	if (dp->dccps_options.dccpo_send_ack_vector &&
+	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
+			    DCCP_SKB_CB(skb)->dccpd_seq,
+			    DCCP_ACKVEC_STATE_RECEIVED))
+		goto discard;
 
 	ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
 	ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
@@ -383,9 +359,9 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 	}
 
 out_invalid_packet:
-	return 1; /* dccp_v4_do_rcv will send a reset, but...
-		     FIXME: the reset code should be
-			    DCCP_RESET_CODE_PACKET_ERROR */
+	/* dccp_v4_do_rcv will send a reset */
+	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_PACKET_ERROR;
+	return 1; 
 }
 
 static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
@@ -432,6 +408,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			   struct dccp_hdr *dh, unsigned len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	const int old_state = sk->sk_state;
 	int queued = 0;
 
@@ -472,7 +449,8 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dh->dccph_type == DCCP_PKT_RESET)
 			goto discard;
 
-		/* Caller (dccp_v4_do_rcv) will send Reset(No Connection)*/
+		/* Caller (dccp_v4_do_rcv) will send Reset */
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		return 1;
 	}
 
@@ -486,36 +464,17 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dccp_parse_options(sk, skb))
 			goto discard;
 
-		if (DCCP_SKB_CB(skb)->dccpd_ack_seq !=
-		    DCCP_PKT_WITHOUT_ACK_SEQ)
+		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
 
 		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
 		ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
 
-		/*
-		 * FIXME: check ECN to see if we should use
-		 * DCCP_ACKPKTS_STATE_ECN_MARKED
-		 */
-		if (dp->dccps_options.dccpo_send_ack_vector) {
-			if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
-					     DCCP_SKB_CB(skb)->dccpd_seq,
-					     DCCP_ACKPKTS_STATE_RECEIVED))
-				goto discard;
-			/*
-			 * FIXME: this activation is probably wrong, have to
-			 * study more TCP delack machinery and how it fits into
-			 * DCCP draft, but for now it kinda "works" 8)
-			 */
-			if ((dp->dccps_hc_rx_ackpkts->dccpap_ack_seqno ==
-			     DCCP_MAX_SEQNO + 1) &&
-			    !inet_csk_ack_scheduled(sk)) {
-				inet_csk_schedule_ack(sk);
-				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-							  TCP_DELACK_MIN,
-							  DCCP_RTO_MAX);
-			}
-		}
+ 		if (dp->dccps_options.dccpo_send_ack_vector &&
+		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
+ 				    DCCP_SKB_CB(skb)->dccpd_seq,
+ 				    DCCP_ACKVEC_STATE_RECEIVED))
+ 			goto discard;
 	}
 
 	/*
@@ -550,8 +509,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		     dh->dccph_type == DCCP_PKT_REQUEST) ||
 		    (sk->sk_state == DCCP_RESPOND &&
 		     dh->dccph_type == DCCP_PKT_DATA)) {
-		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
-			       DCCP_PKT_SYNC);
+		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNC);
 		goto discard;
 	} else if (dh->dccph_type == DCCP_PKT_CLOSEREQ) {
 		dccp_rcv_closereq(sk, skb);
@@ -561,8 +519,14 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 	}
 
+	if (unlikely(dh->dccph_type == DCCP_PKT_SYNC)) {
+		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNCACK);
+		goto discard;
+	}
+
 	switch (sk->sk_state) {
 	case DCCP_CLOSED:
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
 		return 1;
 
 	case DCCP_REQUESTING:

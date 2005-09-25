@@ -14,7 +14,7 @@
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 
 ENTRY(swsusp_arch_suspend)
 

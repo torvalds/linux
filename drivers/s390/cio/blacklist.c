@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/blacklist.c
  *   S/390 common I/O routines -- blacklisting of specific devices
- *   $Revision: 1.34 $
+ *   $Revision: 1.35 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
@@ -35,7 +35,7 @@
  */
 
 /* 65536 bits to indicate if a devno is blacklisted or not */
-#define __BL_DEV_WORDS (__MAX_SUBCHANNELS + (8*sizeof(long) - 1) / \
+#define __BL_DEV_WORDS ((__MAX_SUBCHANNELS + (8*sizeof(long) - 1)) / \
 			 (8*sizeof(long)))
 static unsigned long bl_dev[__BL_DEV_WORDS];
 typedef enum {add, free} range_action;

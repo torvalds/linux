@@ -1,0 +1,48 @@
+config UML_X86
+	bool
+	default y
+
+config 64BIT
+	bool
+	default n
+
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
+config TOP_ADDR
+ 	hex
+ 	default 0xc0000000 if !HOST_2G_2G
+ 	default 0x80000000 if HOST_2G_2G
+
+config 3_LEVEL_PGTABLES
+	bool "Three-level pagetables"
+	default n
+	help
+	Three-level pagetables will let UML have more than 4G of physical
+	memory.  All the memory that can't be mapped directly will be treated
+	as high memory.
+
+config STUB_CODE
+	hex
+	default 0xbfffe000
+
+config STUB_DATA
+	hex
+	default 0xbffff000
+
+config STUB_START
+	hex
+	default STUB_CODE
+
+config ARCH_HAS_SC_SIGNALS
+	bool
+	default y
+
+config ARCH_REUSE_HOST_VSYSCALL_AREA
+	bool
+	default y
+
+config X86_CMPXCHG
+	bool
+	default y

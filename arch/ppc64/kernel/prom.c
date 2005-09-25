@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -1734,6 +1733,7 @@ static void of_node_release(struct kref *kref)
 	kfree(node->intrs);
 	kfree(node->addrs);
 	kfree(node->full_name);
+	kfree(node->data);
 	kfree(node);
 }
 

@@ -85,73 +85,73 @@ static char *board_desc[] =
 struct channel 
 {
 	long   magic;
-	unchar boardnum;
-	unchar channelnum;
-	unchar omodem;         /* FEP output modem status     */
-	unchar imodem;         /* FEP input modem status      */
-	unchar modemfake;      /* Modem values to be forced   */
-	unchar modem;          /* Force values                */
-	unchar hflow;
-	unchar dsr;
-	unchar dcd;
-	unchar m_rts ; 		/* The bits used in whatever FEP */
-	unchar m_dcd ;		/* is indiginous to this board to */
-	unchar m_dsr ;		/* represent each of the physical */
-	unchar m_cts ;		/* handshake lines */
-	unchar m_ri ;
-	unchar m_dtr ;
-	unchar stopc;
-	unchar startc;
-	unchar stopca;
-	unchar startca;
-	unchar fepstopc;
-	unchar fepstartc;
-	unchar fepstopca;
-	unchar fepstartca;
-	unchar txwin;
-	unchar rxwin;
-	ushort fepiflag;
-	ushort fepcflag;
-	ushort fepoflag;
-	ushort txbufhead;
-	ushort txbufsize;
-	ushort rxbufhead;
-	ushort rxbufsize;
+	unsigned char boardnum;
+	unsigned char channelnum;
+	unsigned char omodem;         /* FEP output modem status     */
+	unsigned char imodem;         /* FEP input modem status      */
+	unsigned char modemfake;      /* Modem values to be forced   */
+	unsigned char modem;          /* Force values                */
+	unsigned char hflow;
+	unsigned char dsr;
+	unsigned char dcd;
+	unsigned char m_rts ; 		/* The bits used in whatever FEP */
+	unsigned char m_dcd ;		/* is indiginous to this board to */
+	unsigned char m_dsr ;		/* represent each of the physical */
+	unsigned char m_cts ;		/* handshake lines */
+	unsigned char m_ri ;
+	unsigned char m_dtr ;
+	unsigned char stopc;
+	unsigned char startc;
+	unsigned char stopca;
+	unsigned char startca;
+	unsigned char fepstopc;
+	unsigned char fepstartc;
+	unsigned char fepstopca;
+	unsigned char fepstartca;
+	unsigned char txwin;
+	unsigned char rxwin;
+	unsigned short fepiflag;
+	unsigned short fepcflag;
+	unsigned short fepoflag;
+	unsigned short txbufhead;
+	unsigned short txbufsize;
+	unsigned short rxbufhead;
+	unsigned short rxbufsize;
 	int    close_delay;
 	int    count;
 	int    blocked_open;
-	ulong  event;
+	unsigned long  event;
 	int    asyncflags;
 	uint   dev;
-	ulong  statusflags;
-	ulong  c_iflag;
-	ulong  c_cflag;
-	ulong  c_lflag;
-	ulong  c_oflag;
-	unchar *txptr;
-	unchar *rxptr;
-	unchar *tmp_buf;
+	unsigned long  statusflags;
+	unsigned long  c_iflag;
+	unsigned long  c_cflag;
+	unsigned long  c_lflag;
+	unsigned long  c_oflag;
+	unsigned char __iomem *txptr;
+	unsigned char __iomem *rxptr;
+	unsigned char *tmp_buf;
 	struct board_info           *board;
-	volatile struct board_chan  *brdchan;
+	struct board_chan	    __iomem *brdchan;
 	struct digi_struct          digiext;
 	struct tty_struct           *tty;
 	wait_queue_head_t           open_wait;
 	wait_queue_head_t           close_wait;
-	struct work_struct            tqueue;
-	volatile struct global_data *mailbox;
+	struct work_struct          tqueue;
+	struct global_data 	    __iomem *mailbox;
 };
 
 struct board_info	
 {
-	unchar status;
-	unchar type;
-	unchar altpin;
-	ushort numports;
-	unchar *port;
-	unchar *membase;
-	unchar __iomem *re_map_port;
-	unchar *re_map_membase;
-	ulong  memory_seg;
+	unsigned char status;
+	unsigned char type;
+	unsigned char altpin;
+	unsigned short numports;
+	unsigned long port;
+	unsigned long membase;
+	void __iomem *re_map_port;
+	void __iomem *re_map_membase;
+	unsigned long  memory_seg;
 	void ( * memwinon )	(struct board_info *, unsigned int) ;
 	void ( * memwinoff ) 	(struct board_info *, unsigned int) ;
 	void ( * globalwinon )	(struct channel *) ;
@@ -160,6 +160,6 @@ struct board_info
 	void ( * memoff )	(struct channel *) ;
 	void ( * assertgwinon )	(struct channel *) ;
 	void ( * assertmemoff )	(struct channel *) ;
-	unchar poller_inhibited ;
+	unsigned char poller_inhibited ;
 };
 

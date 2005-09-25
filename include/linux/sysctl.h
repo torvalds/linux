@@ -544,7 +544,8 @@ enum {
 	NET_NETROM_TRANSPORT_REQUESTED_WINDOW_SIZE=8,
 	NET_NETROM_TRANSPORT_NO_ACTIVITY_TIMEOUT=9,
 	NET_NETROM_ROUTING_CONTROL=10,
-	NET_NETROM_LINK_FAILS_COUNT=11
+	NET_NETROM_LINK_FAILS_COUNT=11,
+	NET_NETROM_RESET=12
 };
 
 /* /proc/sys/net/ax25 */
@@ -711,6 +712,7 @@ enum {
 	DEV_RAID=4,
 	DEV_MAC_HID=5,
 	DEV_SCSI=6,
+	DEV_IPMI=7,
 };
 
 /* /proc/sys/dev/cdrom */
@@ -774,6 +776,11 @@ enum {
 /* /proc/sys/dev/scsi */
 enum {
 	DEV_SCSI_LOGGING_LEVEL=1,
+};
+
+/* /proc/sys/dev/ipmi */
+enum {
+	DEV_IPMI_POWEROFF_POWERCYCLE=1,
 };
 
 /* /proc/sys/abi */

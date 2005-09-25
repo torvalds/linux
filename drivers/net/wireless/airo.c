@@ -1308,7 +1308,7 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-	        ai->tfm = crypto_alloc_tfm("aes", 0);
+	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
 
         if (ai->tfm == NULL) {
                 printk(KERN_ERR "airo: failed to load transform for AES\n");
@@ -2239,7 +2239,7 @@ static void airo_read_stats(struct airo_info *ai) {
 	u32 *vals = stats_rid.vals;
 
 	clear_bit(JOB_STATS, &ai->flags);
-	if (ai->power) {
+	if (ai->power.event) {
 		up(&ai->sem);
 		return;
 	}
@@ -2410,8 +2410,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 		}
         }
 #ifdef MICSUPPORT
-	if (ai->tfm)
-		crypto_free_tfm(ai->tfm);
+	crypto_free_tfm(ai->tfm);
 #endif
 	del_airo_dev( dev );
 	free_netdev( dev );
@@ -2969,7 +2968,7 @@ static int airo_thread(void *data) {
 			break;
 		}
 
-		if (ai->power || test_bit(FLAG_FLASHING, &ai->flags)) {
+		if (ai->power.event || test_bit(FLAG_FLASHING, &ai->flags)) {
 			up(&ai->sem);
 			continue;
 		}
@@ -3259,7 +3258,7 @@ badrx:
 				wstats.noise = apriv->wstats.qual.noise;
 				wstats.updated = IW_QUAL_LEVEL_UPDATED
 					| IW_QUAL_QUAL_UPDATED
-					| IW_QUAL_NOISE_UPDATED;
+					| IW_QUAL_DBM;
 				/* Update spy records */
 				wireless_spy_update(dev, sa, &wstats);
 			}
@@ -3605,7 +3604,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 		wstats.noise = ai->wstats.qual.noise;
 		wstats.updated = IW_QUAL_QUAL_UPDATED
 			| IW_QUAL_LEVEL_UPDATED
-			| IW_QUAL_NOISE_UPDATED;
+			| IW_QUAL_DBM;
 		/* Update spy records */
 		wireless_spy_update(ai->dev, sa, &wstats);
 	}
@@ -5521,7 +5520,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, ai->power), 0);
 
-	if (ai->power > 1) {
+	if (ai->power.event > 1) {
 		reset_card(dev, 0);
 		mpi_init_descriptors(ai);
 		setup_card(ai, dev->dev_addr, 0);
@@ -6490,22 +6489,20 @@ static int airo_get_range(struct net_device *dev,
 		range->max_qual.qual = 100;	/* % */
 	else
 		range->max_qual.qual = airo_get_max_quality(&cap_rid);
-	range->max_qual.level = 0;	/* 0 means we use dBm  */
-	range->max_qual.noise = 0;
-	range->max_qual.updated = 0;
+	range->max_qual.level = 0x100 - 120;	/* -120 dBm */
+	range->max_qual.noise = 0x100 - 120;	/* -120 dBm */
 
 	/* Experimental measurements - boundary 11/5.5 Mb/s */
 	/* Note : with or without the (local->rssi), results
 	 * are somewhat different. - Jean II */
 	if (local->rssi) {
-		range->avg_qual.qual = 50;	/* % */
-		range->avg_qual.level = 186;	/* -70 dBm */
+		range->avg_qual.qual = 50;		/* % */
+		range->avg_qual.level = 0x100 - 70;	/* -70 dBm */
 	} else {
 		range->avg_qual.qual = airo_get_avg_quality(&cap_rid);
-		range->avg_qual.level = 176;	/* -80 dBm */
+		range->avg_qual.level = 0x100 - 80;	/* -80 dBm */
 	}
-	range->avg_qual.noise = 0;
-	range->avg_qual.updated = 0;
+	range->avg_qual.noise = 0x100 - 85;		/* -85 dBm */
 
 	for(i = 0 ; i < 8 ; i++) {
 		range->bitrate[i] = cap_rid.supportedRates[i] * 500000;
@@ -6728,15 +6725,17 @@ static int airo_get_aplist(struct net_device *dev,
 		if (local->rssi) {
 			qual[i].level = 0x100 - BSSList.dBm;
 			qual[i].qual = airo_dbm_to_pct( local->rssi, BSSList.dBm );
-			qual[i].updated = IW_QUAL_QUAL_UPDATED;
+			qual[i].updated = IW_QUAL_QUAL_UPDATED
+					| IW_QUAL_LEVEL_UPDATED
+					| IW_QUAL_DBM;
 		} else {
 			qual[i].level = (BSSList.dBm + 321) / 2;
 			qual[i].qual = 0;
-			qual[i].updated = IW_QUAL_QUAL_INVALID;
+			qual[i].updated = IW_QUAL_QUAL_INVALID
+					| IW_QUAL_LEVEL_UPDATED
+					| IW_QUAL_DBM;
 		}
 		qual[i].noise = local->wstats.qual.noise;
-		qual[i].updated = IW_QUAL_LEVEL_UPDATED
-				| IW_QUAL_NOISE_UPDATED;
 		if (BSSList.index == 0xffff)
 			break;
 	}
@@ -6853,7 +6852,10 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	/* Add frequency */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = le16_to_cpu(bss->dsChannel);
-	iwe.u.freq.m = frequency_list[iwe.u.freq.m] * 100000;
+	/* iwe.u.freq.m containt the channel (starting 1), our 
+	 * frequency_list array start at index 0...
+	 */
+	iwe.u.freq.m = frequency_list[iwe.u.freq.m - 1] * 100000;
 	iwe.u.freq.e = 1;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
 
@@ -6862,15 +6864,17 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	if (ai->rssi) {
 		iwe.u.qual.level = 0x100 - bss->dBm;
 		iwe.u.qual.qual = airo_dbm_to_pct( ai->rssi, bss->dBm );
-		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED;
+		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED
+				| IW_QUAL_LEVEL_UPDATED
+				| IW_QUAL_DBM;
 	} else {
 		iwe.u.qual.level = (bss->dBm + 321) / 2;
 		iwe.u.qual.qual = 0;
-		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID;
+		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID
+				| IW_QUAL_LEVEL_UPDATED
+				| IW_QUAL_DBM;
 	}
 	iwe.u.qual.noise = ai->wstats.qual.noise;
-	iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED
-			| IW_QUAL_NOISE_UPDATED;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
@@ -7123,7 +7127,7 @@ static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	int rc = 0;
 	struct airo_info *ai = (struct airo_info *)dev->priv;
 
-	if (ai->power)
+	if (ai->power.event)
 		return 0;
 
 	switch (cmd) {
@@ -7202,7 +7206,7 @@ static void airo_read_wireless_stats(struct airo_info *local)
 
 	/* Get stats out of the card */
 	clear_bit(JOB_WSTATS, &local->flags);
-	if (local->power) {
+	if (local->power.event) {
 		up(&local->sem);
 		return;
 	}
@@ -7223,13 +7227,12 @@ static void airo_read_wireless_stats(struct airo_info *local)
 		local->wstats.qual.level = (status_rid.normalizedSignalStrength + 321) / 2;
 		local->wstats.qual.qual = airo_get_quality(&status_rid, &cap_rid);
 	}
-	local->wstats.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED;
 	if (status_rid.len >= 124) {
 		local->wstats.qual.noise = 0x100 - status_rid.noisedBm;
-		local->wstats.qual.updated |= IW_QUAL_NOISE_UPDATED;
+		local->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	} else {
 		local->wstats.qual.noise = 0;
-		local->wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
+		local->wstats.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED | IW_QUAL_NOISE_INVALID | IW_QUAL_DBM;
 	}
 
 	/* Packets discarded in the wireless adapter due to wireless
