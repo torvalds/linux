@@ -17,7 +17,7 @@ kernel_unaligned_trap_fault:
 __do_int_store:
 	rd	%asi, %o4
 	wr	%o3, 0, %asi
-	ldx	[%o2], %g3
+	mov	%o2, %g3
 	cmp	%o1, 2
 	be,pn	%icc, 2f
 	 cmp	%o1, 4

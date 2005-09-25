@@ -439,6 +439,8 @@ enum scsi_host_state {
 	SHOST_CANCEL,
 	SHOST_DEL,
 	SHOST_RECOVERY,
+	SHOST_CANCEL_RECOVERY,
+	SHOST_DEL_RECOVERY,
 };
 
 struct Scsi_Host {
@@ -465,8 +467,6 @@ struct Scsi_Host {
 
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */
-	struct semaphore      * eh_wait;   /* The error recovery thread waits
-					      on this. */
 	struct semaphore      * eh_action; /* Wait for specific actions on the
                                           host. */
 	unsigned int            eh_active:1; /* Indicates the eh thread is awake and active if
@@ -619,6 +619,13 @@ static inline struct Scsi_Host *dev_to_shost(struct device *dev)
 		dev = dev->parent;
 	}
 	return container_of(dev, struct Scsi_Host, shost_gendev);
+}
+
+static inline int scsi_host_in_recovery(struct Scsi_Host *shost)
+{
+	return shost->shost_state == SHOST_RECOVERY ||
+		shost->shost_state == SHOST_CANCEL_RECOVERY ||
+		shost->shost_state == SHOST_DEL_RECOVERY;
 }
 
 extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);

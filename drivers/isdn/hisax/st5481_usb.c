@@ -645,9 +645,7 @@ void st5481_in_mode(struct st5481_in *in, int mode)
 
 	in->mode = mode;
 
-	in->urb[0]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(in->urb[0]);
-	in->urb[1]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(in->urb[1]);
 
 	if (in->mode != L1_MODE_NULL) {

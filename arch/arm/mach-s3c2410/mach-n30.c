@@ -97,7 +97,7 @@ static struct s3c24xx_board n30_board __initdata = {
 	.devices_count = ARRAY_SIZE(n30_devices)
 };
 
-void __init n30_map_io(void)
+static void __init n30_map_io(void)
 {
 	s3c24xx_init_io(n30_iodesc, ARRAY_SIZE(n30_iodesc));
 	s3c24xx_init_clocks(0);
@@ -105,14 +105,14 @@ void __init n30_map_io(void)
 	s3c24xx_set_board(&n30_board);
 }
 
-void __init n30_init_irq(void)
+static void __init n30_init_irq(void)
 {
 	s3c24xx_init_irq();
 }
 
 /* GPB3 is the line that controls the pull-up for the USB D+ line */
 
-void __init n30_init(void)
+static void __init n30_init(void)
 {
 	s3c_device_i2c.dev.platform_data = &n30_i2ccfg;
 

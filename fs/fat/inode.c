@@ -300,9 +300,9 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	inode->i_blksize = sbi->cluster_size;
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
-	inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
+	inode->i_mtime.tv_sec =
 		date_dos2unix(le16_to_cpu(de->time), le16_to_cpu(de->date));
-	inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec = 0;
+	inode->i_mtime.tv_nsec = 0;
 	if (sbi->options.isvfat) {
 		int secs = de->ctime_cs / 100;
 		int csecs = de->ctime_cs % 100;
@@ -310,8 +310,11 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 			date_dos2unix(le16_to_cpu(de->ctime),
 				      le16_to_cpu(de->cdate)) + secs;
 		inode->i_ctime.tv_nsec = csecs * 10000000;
+		inode->i_atime.tv_sec =
+			date_dos2unix(le16_to_cpu(0), le16_to_cpu(de->adate));
+		inode->i_atime.tv_nsec = 0;
 	} else
-		inode->i_ctime = inode->i_mtime;
+		inode->i_ctime = inode->i_atime = inode->i_mtime;
 
 	return 0;
 }
@@ -513,7 +516,9 @@ retry:
 	raw_entry->starthi = cpu_to_le16(MSDOS_I(inode)->i_logstart >> 16);
 	fat_date_unix2dos(inode->i_mtime.tv_sec, &raw_entry->time, &raw_entry->date);
 	if (sbi->options.isvfat) {
+		__le16 atime;
 		fat_date_unix2dos(inode->i_ctime.tv_sec,&raw_entry->ctime,&raw_entry->cdate);
+		fat_date_unix2dos(inode->i_atime.tv_sec,&atime,&raw_entry->adate);
 		raw_entry->ctime_cs = (inode->i_ctime.tv_sec & 1) * 100 +
 			inode->i_ctime.tv_nsec / 10000000;
 	}

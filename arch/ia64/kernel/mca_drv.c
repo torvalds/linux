@@ -56,8 +56,9 @@ static struct page *page_isolate[MAX_PAGE_ISOLATE];
 static int num_page_isolate = 0;
 
 typedef enum {
-	ISOLATE_NG = 0,
-	ISOLATE_OK = 1
+	ISOLATE_NG,
+	ISOLATE_OK,
+	ISOLATE_NONE
 } isolate_status_t;
 
 /*
@@ -74,7 +75,7 @@ static struct {
  * @paddr:	poisoned memory location
  *
  * Return value:
- *	ISOLATE_OK / ISOLATE_NG
+ *	one of isolate_status_t, ISOLATE_OK/NG/NONE.
  */
 
 static isolate_status_t
@@ -85,7 +86,10 @@ mca_page_isolate(unsigned long paddr)
 
 	/* whether physical address is valid or not */
 	if (!ia64_phys_addr_valid(paddr))
-		return ISOLATE_NG;
+		return ISOLATE_NONE;
+
+	if (!pfn_valid(paddr))
+		return ISOLATE_NONE;
 
 	/* convert physical address to physical page number */
 	p = pfn_to_page(paddr>>PAGE_SHIFT);
@@ -122,10 +126,15 @@ mca_handler_bh(unsigned long paddr)
 		current->pid, current->comm);
 
 	spin_lock(&mca_bh_lock);
-	if (mca_page_isolate(paddr) == ISOLATE_OK) {
+	switch (mca_page_isolate(paddr)) {
+	case ISOLATE_OK:
 		printk(KERN_DEBUG "Page isolation: ( %lx ) success.\n", paddr);
-	} else {
+		break;
+	case ISOLATE_NG:
 		printk(KERN_DEBUG "Page isolation: ( %lx ) failure.\n", paddr);
+		break;
+	default:
+		break;
 	}
 	spin_unlock(&mca_bh_lock);
 

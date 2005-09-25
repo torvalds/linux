@@ -193,12 +193,12 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                 r = pte_read(*npte);
                 w = pte_write(*npte);
                 x = pte_exec(*npte);
-                if(!pte_dirty(*npte))
-                        w = 0;
-                if(!pte_young(*npte)){
-                        r = 0;
-                        w = 0;
-                }
+		if (!pte_young(*npte)) {
+			r = 0;
+			w = 0;
+		} else if (!pte_dirty(*npte)) {
+			w = 0;
+		}
                 if(force || pte_newpage(*npte)){
                         if(pte_present(*npte))
 			  ret = add_mmap(addr,

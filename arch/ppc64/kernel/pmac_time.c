@@ -84,7 +84,7 @@ void pmac_get_rtc_time(struct rtc_time *tm)
 
 #ifdef CONFIG_PMAC_SMU
 	case SYS_CTRLER_SMU:
-		smu_get_rtc_time(tm);
+		smu_get_rtc_time(tm, 1);
 		break;
 #endif /* CONFIG_PMAC_SMU */
 	default:
@@ -128,7 +128,7 @@ int pmac_set_rtc_time(struct rtc_time *tm)
 
 #ifdef CONFIG_PMAC_SMU
 	case SYS_CTRLER_SMU:
-		return smu_set_rtc_time(tm);
+		return smu_set_rtc_time(tm, 1);
 #endif /* CONFIG_PMAC_SMU */
 	default:
 		return -ENODEV;

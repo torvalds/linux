@@ -102,7 +102,8 @@ static inline void dentry_iput(struct dentry * dentry)
 		list_del_init(&dentry->d_alias);
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
-		fsnotify_inoderemove(inode);
+		if (!inode->i_nlink)
+			fsnotify_inoderemove(inode);
 		if (dentry->d_op && dentry->d_op->d_iput)
 			dentry->d_op->d_iput(dentry, inode);
 		else

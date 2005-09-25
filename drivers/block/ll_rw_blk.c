@@ -2373,44 +2373,6 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-/**
- * blkdev_scsi_issue_flush_fn - issue flush for SCSI devices
- * @q:		device queue
- * @disk:	gendisk
- * @error_sector:	error offset
- *
- * Description:
- *    Devices understanding the SCSI command set, can use this function as
- *    a helper for issuing a cache flush. Note: driver is required to store
- *    the error offset (in case of error flushing) in ->sector of struct
- *    request.
- */
-int blkdev_scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
-			       sector_t *error_sector)
-{
-	struct request *rq = blk_get_request(q, WRITE, __GFP_WAIT);
-	int ret;
-
-	rq->flags |= REQ_BLOCK_PC | REQ_SOFTBARRIER;
-	rq->sector = 0;
-	memset(rq->cmd, 0, sizeof(rq->cmd));
-	rq->cmd[0] = 0x35;
-	rq->cmd_len = 12;
-	rq->data = NULL;
-	rq->data_len = 0;
-	rq->timeout = 60 * HZ;
-
-	ret = blk_execute_rq(q, disk, rq, 0);
-
-	if (ret && error_sector)
-		*error_sector = rq->sector;
-
-	blk_put_request(rq);
-	return ret;
-}
-
-EXPORT_SYMBOL(blkdev_scsi_issue_flush_fn);
-
 static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
 {
 	int rw = rq_data_dir(rq);

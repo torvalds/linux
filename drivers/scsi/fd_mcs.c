@@ -1360,3 +1360,5 @@ static Scsi_Host_Template driver_template = {
 	.use_clustering 		= DISABLE_CLUSTERING,
 };
 #include "scsi_module.c"
+
+MODULE_LICENSE("GPL");

@@ -1326,7 +1326,7 @@ mptctl_gettargetinfo (unsigned long arg)
 		 */
 		if (hd && hd->Targets) {
 			mpt_findImVolumes(ioc);
-			pIoc2 = ioc->spi_data.pIocPg2;
+			pIoc2 = ioc->raid_data.pIocPg2;
 			for ( id = 0; id <= max_id; ) {
 				if ( pIoc2 && pIoc2->NumActiveVolumes ) {
 					if ( id == pIoc2->RaidVolume[0].VolumeID ) {
@@ -1348,7 +1348,7 @@ mptctl_gettargetinfo (unsigned long arg)
 						--maxWordsLeft;
 						goto next_id;
 					} else {
-						pIoc3 = ioc->spi_data.pIocPg3;
+						pIoc3 = ioc->raid_data.pIocPg3;
             					for ( jj = 0; jj < pIoc3->NumPhysDisks; jj++ ) {
                     					if ( pIoc3->PhysDisk[jj].PhysDiskID == id )
 								goto next_id;

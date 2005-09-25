@@ -83,6 +83,7 @@ int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 			goto out;
 		}
 		p = buf;
+		break;
 	default:
 		res = -ENOSYS;
 		goto out;

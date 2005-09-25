@@ -422,7 +422,7 @@ static inline void ep0_idle (struct pxa2xx_udc *dev)
 }
 
 static int
-write_packet(volatile u32 *uddr, struct pxa2xx_request *req, unsigned max)
+write_packet(volatile unsigned long *uddr, struct pxa2xx_request *req, unsigned max)
 {
 	u8		*buf;
 	unsigned	length, count;
@@ -2602,7 +2602,7 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
-static int pxa2xx_udc_suspend(struct device *dev, u32 state, u32 level)
+static int pxa2xx_udc_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
 

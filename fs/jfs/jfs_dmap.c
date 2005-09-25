@@ -3055,7 +3055,7 @@ static int cntlz(u32 value)
  * RETURN VALUES:
  *      log2 number of blocks
  */
-int blkstol2(s64 nb)
+static int blkstol2(s64 nb)
 {
 	int l2nb;
 	s64 mask;		/* meant to be signed */

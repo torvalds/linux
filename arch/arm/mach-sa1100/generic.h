@@ -39,3 +39,6 @@ extern void sa11x0_set_ssp_data(struct sa11x0_ssp_plat_ops *ops);
 
 struct irda_platform_data;
 void sa11x0_set_irda_data(struct irda_platform_data *irda);
+
+struct mcp_plat_data;
+void sa11x0_set_mcp_data(struct mcp_plat_data *data);

@@ -23,10 +23,11 @@
 #include "mem_user.h"
 #include "tlb.h"
 #include "mode.h"
+#include "mode_kern.h"
 #include "init.h"
 #include "tt.h"
 
-int switch_to_tt(void *prev, void *next, void *last)
+void switch_to_tt(void *prev, void *next)
 {
 	struct task_struct *from, *to, *prev_sched;
 	unsigned long flags;

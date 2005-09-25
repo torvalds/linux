@@ -1063,8 +1063,6 @@ M:	wli@holomorphy.com
 S:	Maintained
 
 I2C SUBSYSTEM
-P:	Greg Kroah-Hartman
-M:	greg@kroah.com
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
@@ -1402,6 +1400,18 @@ M:	rddunlap@osdl.org
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
 L:	fastboot@osdl.org
+S:	Maintained
+
+KPROBES
+P:	Prasanna S Panchamukhi
+M:	prasanna@in.ibm.com
+P:	Ananth N Mavinakayanahalli
+M:	ananth@in.ibm.com
+P:	Anil S Keshavamurthy
+M:	anil.s.keshavamurthy@intel.com
+P:	David S. Miller
+M:	davem@davemloft.net
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 LANMEDIA WAN CARD DRIVER
@@ -2264,6 +2274,12 @@ SHPC HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
 L:	pcihpd-discuss@lists.sourceforge.net
+S:	Maintained
+
+SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
+P:	Stephen Hemminger
+M:	shemminger@osdl.org
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SPARC (sparc32):

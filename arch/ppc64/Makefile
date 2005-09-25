@@ -107,7 +107,7 @@ install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
 
 defaultimage-$(CONFIG_PPC_PSERIES) := zImage
-defaultimage-$(CONFIG_PPC_PMAC) := vmlinux
+defaultimage-$(CONFIG_PPC_PMAC) := zImage.vmode
 defaultimage-$(CONFIG_PPC_MAPLE) := zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
 KBUILD_IMAGE := $(defaultimage-y)
