@@ -1,5 +1,5 @@
 /**
- * \file drm_scatter.h 
+ * \file drm_scatter.c
  * IOCTLs to manage scatter/gather memory
  *
  * \author Gareth Hughes <gareth@valinux.com>
@@ -37,28 +37,24 @@
 
 #define DEBUG_SCATTER 0
 
-void drm_sg_cleanup( drm_sg_mem_t *entry )
+void drm_sg_cleanup(drm_sg_mem_t * entry)
 {
 	struct page *page;
 	int i;
 
-	for ( i = 0 ; i < entry->pages ; i++ ) {
+	for (i = 0; i < entry->pages; i++) {
 		page = entry->pagelist[i];
-		if ( page )
-			ClearPageReserved( page );
+		if (page)
+			ClearPageReserved(page);
 	}
 
-	vfree( entry->virtual );
+	vfree(entry->virtual);
 
-	drm_free( entry->busaddr,
-		   entry->pages * sizeof(*entry->busaddr),
-		   DRM_MEM_PAGES );
-	drm_free( entry->pagelist,
-		   entry->pages * sizeof(*entry->pagelist),
-		   DRM_MEM_PAGES );
-	drm_free( entry,
-		   sizeof(*entry),
-		   DRM_MEM_SGLISTS );
+	drm_free(entry->busaddr,
+		 entry->pages * sizeof(*entry->busaddr), DRM_MEM_PAGES);
+	drm_free(entry->pagelist,
+		 entry->pages * sizeof(*entry->pagelist), DRM_MEM_PAGES);
+	drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
 }
 
 #ifdef _LP64
@@ -67,8 +63,8 @@ void drm_sg_cleanup( drm_sg_mem_t *entry )
 # define ScatterHandle(x) (unsigned int)(x)
 #endif
 
-int drm_sg_alloc( struct inode *inode, struct file *filp,
-		   unsigned int cmd, unsigned long arg )
+int drm_sg_alloc(struct inode *inode, struct file *filp,
+		 unsigned int cmd, unsigned long arg)
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -77,75 +73,70 @@ int drm_sg_alloc( struct inode *inode, struct file *filp,
 	drm_sg_mem_t *entry;
 	unsigned long pages, i, j;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG("%s\n", __FUNCTION__);
 
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
 
-	if ( dev->sg )
+	if (dev->sg)
 		return -EINVAL;
 
-	if ( copy_from_user( &request, argp, sizeof(request) ) )
+	if (copy_from_user(&request, argp, sizeof(request)))
 		return -EFAULT;
 
-	entry = drm_alloc( sizeof(*entry), DRM_MEM_SGLISTS );
-	if ( !entry )
+	entry = drm_alloc(sizeof(*entry), DRM_MEM_SGLISTS);
+	if (!entry)
 		return -ENOMEM;
 
-   	memset( entry, 0, sizeof(*entry) );
+	memset(entry, 0, sizeof(*entry));
 
 	pages = (request.size + PAGE_SIZE - 1) / PAGE_SIZE;
-	DRM_DEBUG( "sg size=%ld pages=%ld\n", request.size, pages );
+	DRM_DEBUG("sg size=%ld pages=%ld\n", request.size, pages);
 
 	entry->pages = pages;
-	entry->pagelist = drm_alloc( pages * sizeof(*entry->pagelist),
-				     DRM_MEM_PAGES );
-	if ( !entry->pagelist ) {
-		drm_free( entry, sizeof(*entry), DRM_MEM_SGLISTS );
+	entry->pagelist = drm_alloc(pages * sizeof(*entry->pagelist),
+				    DRM_MEM_PAGES);
+	if (!entry->pagelist) {
+		drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
 		return -ENOMEM;
 	}
 
 	memset(entry->pagelist, 0, pages * sizeof(*entry->pagelist));
 
-	entry->busaddr = drm_alloc( pages * sizeof(*entry->busaddr),
-				     DRM_MEM_PAGES );
-	if ( !entry->busaddr ) {
-		drm_free( entry->pagelist,
-			   entry->pages * sizeof(*entry->pagelist),
-			   DRM_MEM_PAGES );
-		drm_free( entry,
-			   sizeof(*entry),
-			   DRM_MEM_SGLISTS );
+	entry->busaddr = drm_alloc(pages * sizeof(*entry->busaddr),
+				   DRM_MEM_PAGES);
+	if (!entry->busaddr) {
+		drm_free(entry->pagelist,
+			 entry->pages * sizeof(*entry->pagelist),
+			 DRM_MEM_PAGES);
+		drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
 		return -ENOMEM;
 	}
-	memset( (void *)entry->busaddr, 0, pages * sizeof(*entry->busaddr) );
+	memset((void *)entry->busaddr, 0, pages * sizeof(*entry->busaddr));
 
-	entry->virtual = vmalloc_32( pages << PAGE_SHIFT );
-	if ( !entry->virtual ) {
-		drm_free( entry->busaddr,
-			   entry->pages * sizeof(*entry->busaddr),
-			   DRM_MEM_PAGES );
-		drm_free( entry->pagelist,
-			   entry->pages * sizeof(*entry->pagelist),
-			   DRM_MEM_PAGES );
-		drm_free( entry,
-			   sizeof(*entry),
-			   DRM_MEM_SGLISTS );
+	entry->virtual = vmalloc_32(pages << PAGE_SHIFT);
+	if (!entry->virtual) {
+		drm_free(entry->busaddr,
+			 entry->pages * sizeof(*entry->busaddr), DRM_MEM_PAGES);
+		drm_free(entry->pagelist,
+			 entry->pages * sizeof(*entry->pagelist),
+			 DRM_MEM_PAGES);
+		drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
 		return -ENOMEM;
 	}
 
 	/* This also forces the mapping of COW pages, so our page list
 	 * will be valid.  Please don't remove it...
 	 */
-	memset( entry->virtual, 0, pages << PAGE_SHIFT );
+	memset(entry->virtual, 0, pages << PAGE_SHIFT);
 
 	entry->handle = ScatterHandle((unsigned long)entry->virtual);
 
-	DRM_DEBUG( "sg alloc handle  = %08lx\n", entry->handle );
-	DRM_DEBUG( "sg alloc virtual = %p\n", entry->virtual );
+	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
+	DRM_DEBUG("sg alloc virtual = %p\n", entry->virtual);
 
-	for (i = (unsigned long)entry->virtual, j = 0; j < pages; 
-		i += PAGE_SIZE, j++) {
+	for (i = (unsigned long)entry->virtual, j = 0; j < pages;
+	     i += PAGE_SIZE, j++) {
 		entry->pagelist[j] = vmalloc_to_page((void *)i);
 		if (!entry->pagelist[j])
 			goto failed;
@@ -154,8 +145,8 @@ int drm_sg_alloc( struct inode *inode, struct file *filp,
 
 	request.handle = entry->handle;
 
-	if ( copy_to_user( argp, &request, sizeof(request) ) ) {
-		drm_sg_cleanup( entry );
+	if (copy_to_user(argp, &request, sizeof(request))) {
+		drm_sg_cleanup(entry);
 		return -EFAULT;
 	}
 
@@ -166,50 +157,50 @@ int drm_sg_alloc( struct inode *inode, struct file *filp,
 	 * versa.
 	 */
 	{
-	int error = 0;
+		int error = 0;
 
-	for ( i = 0 ; i < pages ; i++ ) {
-		unsigned long *tmp;
+		for (i = 0; i < pages; i++) {
+			unsigned long *tmp;
 
-		tmp = page_address( entry->pagelist[i] );
-		for ( j = 0 ;
-		      j < PAGE_SIZE / sizeof(unsigned long) ;
-		      j++, tmp++ ) {
-			*tmp = 0xcafebabe;
-		}
-		tmp = (unsigned long *)((u8 *)entry->virtual +
-					(PAGE_SIZE * i));
-		for( j = 0 ;
-		     j < PAGE_SIZE / sizeof(unsigned long) ;
-		     j++, tmp++ ) {
-			if ( *tmp != 0xcafebabe && error == 0 ) {
-				error = 1;
-				DRM_ERROR( "Scatter allocation error, "
-					   "pagelist does not match "
-					   "virtual mapping\n" );
+			tmp = page_address(entry->pagelist[i]);
+			for (j = 0;
+			     j < PAGE_SIZE / sizeof(unsigned long);
+			     j++, tmp++) {
+				*tmp = 0xcafebabe;
+			}
+			tmp = (unsigned long *)((u8 *) entry->virtual +
+						(PAGE_SIZE * i));
+			for (j = 0;
+			     j < PAGE_SIZE / sizeof(unsigned long);
+			     j++, tmp++) {
+				if (*tmp != 0xcafebabe && error == 0) {
+					error = 1;
+					DRM_ERROR("Scatter allocation error, "
+						  "pagelist does not match "
+						  "virtual mapping\n");
+				}
+			}
+			tmp = page_address(entry->pagelist[i]);
+			for (j = 0;
+			     j < PAGE_SIZE / sizeof(unsigned long);
+			     j++, tmp++) {
+				*tmp = 0;
 			}
 		}
-		tmp = page_address( entry->pagelist[i] );
-		for(j = 0 ;
-		    j < PAGE_SIZE / sizeof(unsigned long) ;
-		    j++, tmp++) {
-			*tmp = 0;
-		}
-	}
-	if (error == 0)
-		DRM_ERROR( "Scatter allocation matches pagelist\n" );
+		if (error == 0)
+			DRM_ERROR("Scatter allocation matches pagelist\n");
 	}
 #endif
 
 	return 0;
 
- failed:
-	drm_sg_cleanup( entry );
+      failed:
+	drm_sg_cleanup(entry);
 	return -ENOMEM;
 }
 
-int drm_sg_free( struct inode *inode, struct file *filp,
-		 unsigned int cmd, unsigned long arg )
+int drm_sg_free(struct inode *inode, struct file *filp,
+		unsigned int cmd, unsigned long arg)
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -219,20 +210,20 @@ int drm_sg_free( struct inode *inode, struct file *filp,
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
 
-	if ( copy_from_user( &request,
-			     (drm_scatter_gather_t __user *)arg,
-			     sizeof(request) ) )
+	if (copy_from_user(&request,
+			   (drm_scatter_gather_t __user *) arg,
+			   sizeof(request)))
 		return -EFAULT;
 
 	entry = dev->sg;
 	dev->sg = NULL;
 
-	if ( !entry || entry->handle != request.handle )
+	if (!entry || entry->handle != request.handle)
 		return -EINVAL;
 
-	DRM_DEBUG( "sg free virtual  = %p\n", entry->virtual );
+	DRM_DEBUG("sg free virtual  = %p\n", entry->virtual);
 
-	drm_sg_cleanup( entry );
+	drm_sg_cleanup(entry);
 
 	return 0;
 }

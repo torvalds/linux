@@ -37,11 +37,11 @@
 #include "drm_core.h"
 
 unsigned int drm_cards_limit = 16;	/* Enough for one machine */
-unsigned int drm_debug = 0;		/* 1 to enable debug output */
+unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
 
-MODULE_AUTHOR( CORE_AUTHOR );
-MODULE_DESCRIPTION( CORE_DESC );
+MODULE_AUTHOR(CORE_AUTHOR);
+MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(cards_limit, "Maximum number of graphics cards");
 MODULE_PARM_DESC(debug, "Enable debug output");
@@ -53,19 +53,21 @@ drm_head_t **drm_heads;
 struct drm_sysfs_class *drm_class;
 struct proc_dir_entry *drm_proc_root;
 
-static int drm_fill_in_dev(drm_device_t *dev, struct pci_dev *pdev, const struct pci_device_id *ent, struct drm_driver *driver)
+static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
+			   const struct pci_device_id *ent,
+			   struct drm_driver *driver)
 {
 	int retcode;
 
 	spin_lock_init(&dev->count_lock);
-	init_timer( &dev->timer );
-	sema_init( &dev->struct_sem, 1 );
-	sema_init( &dev->ctxlist_sem, 1 );
+	init_timer(&dev->timer);
+	sema_init(&dev->struct_sem, 1);
+	sema_init(&dev->ctxlist_sem, 1);
 
-	dev->pdev   = pdev;
+	dev->pdev = pdev;
 
 #ifdef __alpha__
-	dev->hose   = pdev->sysdata;
+	dev->hose = pdev->sysdata;
 	dev->pci_domain = dev->hose->bus->number;
 #else
 	dev->pci_domain = 0;
@@ -82,15 +84,15 @@ static int drm_fill_in_dev(drm_device_t *dev, struct pci_dev *pdev, const struct
 
 	/* the DRM has 6 basic counters */
 	dev->counters = 6;
-	dev->types[0]  = _DRM_STAT_LOCK;
-	dev->types[1]  = _DRM_STAT_OPENS;
-	dev->types[2]  = _DRM_STAT_CLOSES;
-	dev->types[3]  = _DRM_STAT_IOCTLS;
-	dev->types[4]  = _DRM_STAT_LOCKS;
-	dev->types[5]  = _DRM_STAT_UNLOCKS;
+	dev->types[0] = _DRM_STAT_LOCK;
+	dev->types[1] = _DRM_STAT_OPENS;
+	dev->types[2] = _DRM_STAT_CLOSES;
+	dev->types[3] = _DRM_STAT_IOCTLS;
+	dev->types[4] = _DRM_STAT_LOCKS;
+	dev->types[5] = _DRM_STAT_UNLOCKS;
 
 	dev->driver = driver;
-	
+
 	if (dev->driver->preinit)
 		if ((retcode = dev->driver->preinit(dev, ent->driver_data)))
 			goto error_out_unreg;
@@ -98,29 +100,30 @@ static int drm_fill_in_dev(drm_device_t *dev, struct pci_dev *pdev, const struct
 	if (drm_core_has_AGP(dev)) {
 		if (drm_device_is_agp(dev))
 			dev->agp = drm_agp_init(dev);
-		if (drm_core_check_feature(dev, DRIVER_REQUIRE_AGP) && (dev->agp == NULL)) {
-			DRM_ERROR( "Cannot initialize the agpgart module.\n" );
+		if (drm_core_check_feature(dev, DRIVER_REQUIRE_AGP)
+		    && (dev->agp == NULL)) {
+			DRM_ERROR("Cannot initialize the agpgart module.\n");
 			retcode = -EINVAL;
 			goto error_out_unreg;
 		}
 		if (drm_core_has_MTRR(dev)) {
 			if (dev->agp)
-				dev->agp->agp_mtrr = mtrr_add( dev->agp->agp_info.aper_base,
-							       dev->agp->agp_info.aper_size*1024*1024,
-							       MTRR_TYPE_WRCOMB,
-							       1 );
+				dev->agp->agp_mtrr =
+				    mtrr_add(dev->agp->agp_info.aper_base,
+					     dev->agp->agp_info.aper_size *
+					     1024 * 1024, MTRR_TYPE_WRCOMB, 1);
 		}
 	}
 
-	retcode = drm_ctxbitmap_init( dev );
-	if( retcode ) {
-		DRM_ERROR( "Cannot allocate memory for context bitmap.\n" );
+	retcode = drm_ctxbitmap_init(dev);
+	if (retcode) {
+		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
 		goto error_out_unreg;
 	}
 
 	return 0;
-	
-error_out_unreg:
+
+      error_out_unreg:
 	drm_takedown(dev);
 	return retcode;
 }
@@ -140,7 +143,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	int minor = iminor(inode);
 	int err = -ENODEV;
 	struct file_operations *old_fops;
-	
+
 	DRM_DEBUG("\n");
 
 	if (!((minor >= 0) && (minor < drm_cards_limit)))
@@ -148,7 +151,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 
 	if (!drm_heads[minor])
 		return -ENODEV;
-	
+
 	if (!(dev = drm_heads[minor]->dev))
 		return -ENODEV;
 
@@ -174,7 +177,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
  * create the proc init entry via proc_init(). This routines assigns
  * minor numbers to secondary heads of multi-headed cards
  */
-static int drm_get_head(drm_device_t *dev, drm_head_t *head)
+static int drm_get_head(drm_device_t * dev, drm_head_t * head)
 {
 	drm_head_t **heads = drm_heads;
 	int ret;
@@ -184,26 +187,27 @@ static int drm_get_head(drm_device_t *dev, drm_head_t *head)
 
 	for (minor = 0; minor < drm_cards_limit; minor++, heads++) {
 		if (!*heads) {
-			
+
 			*head = (drm_head_t) {
-				.dev = dev,
-				.device = MKDEV(DRM_MAJOR, minor),
-				.minor = minor,
-			};
-			
-			if ((ret = drm_proc_init(dev, minor, drm_proc_root, &head->dev_root))) {
-				printk (KERN_ERR "DRM: Failed to initialize /proc/dri.\n");
+			.dev = dev,.device =
+				    MKDEV(DRM_MAJOR, minor),.minor = minor,};
+
+			if ((ret =
+			     drm_proc_init(dev, minor, drm_proc_root,
+					   &head->dev_root))) {
+				printk(KERN_ERR
+				       "DRM: Failed to initialize /proc/dri.\n");
 				goto err_g1;
 			}
 
-			
 			head->dev_class = drm_sysfs_device_add(drm_class,
 							       MKDEV(DRM_MAJOR,
 								     minor),
 							       &dev->pdev->dev,
 							       "card%d", minor);
 			if (IS_ERR(head->dev_class)) {
-				printk(KERN_ERR "DRM: Error sysfs_device_add.\n");
+				printk(KERN_ERR
+				       "DRM: Error sysfs_device_add.\n");
 				ret = PTR_ERR(head->dev_class);
 				goto err_g2;
 			}
@@ -215,13 +219,14 @@ static int drm_get_head(drm_device_t *dev, drm_head_t *head)
 	}
 	DRM_ERROR("out of minors\n");
 	return -ENOMEM;
-err_g2:
+      err_g2:
 	drm_proc_cleanup(minor, drm_proc_root, head->dev_root);
-err_g1:
-	*head = (drm_head_t) {.dev = NULL};
+      err_g1:
+	*head = (drm_head_t) {
+	.dev = NULL};
 	return ret;
 }
-		
+
 /**
  * Register.
  *
@@ -234,7 +239,7 @@ err_g1:
  * Try and register, if we fail to register, backout previous work.
  */
 int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
-	      struct drm_driver *driver)
+		struct drm_driver *driver)
 {
 	drm_device_t *dev;
 	int ret;
@@ -261,10 +266,11 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	return 0;
 
-err_g1:
+      err_g1:
 	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
 	return ret;
 }
+
 EXPORT_SYMBOL(drm_get_dev);
 
 /**
@@ -305,19 +311,19 @@ int drm_put_dev(drm_device_t * dev)
  * last minor released.
  *
  */
-int drm_put_head(drm_head_t *head)
+int drm_put_head(drm_head_t * head)
 {
 	int minor = head->minor;
-	
+
 	DRM_DEBUG("release secondary minor %d\n", minor);
-	
+
 	drm_proc_cleanup(minor, drm_proc_root, head->dev_root);
 	drm_sysfs_device_remove(MKDEV(DRM_MAJOR, head->minor));
-	
-	*head = (drm_head_t){.dev = NULL};
+
+	*head = (drm_head_t) {
+	.dev = NULL};
 
 	drm_heads[minor] = NULL;
-	
+
 	return 0;
 }
-

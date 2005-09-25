@@ -1643,7 +1643,6 @@
 #define HC_HAGPBpID_STOP        0x00000002
 #define HC_HAGPBpH_MASK         0x00ffffff
 
-
 #define VIA_VIDEO_HEADER5       0xFE040000
 #define VIA_VIDEO_HEADER6       0xFE050000
 #define VIA_VIDEO_HEADER7       0xFE060000

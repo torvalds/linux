@@ -39,17 +39,17 @@
 
 typedef struct drm32_mga_init {
 	int func;
-   	u32 sarea_priv_offset;
+	u32 sarea_priv_offset;
 	int chipset;
-   	int sgram;
+	int sgram;
 	unsigned int maccess;
-   	unsigned int fb_cpp;
+	unsigned int fb_cpp;
 	unsigned int front_offset, front_pitch;
-   	unsigned int back_offset, back_pitch;
-   	unsigned int depth_cpp;
-   	unsigned int depth_offset, depth_pitch;
-   	unsigned int texture_offset[MGA_NR_TEX_HEAPS];
-   	unsigned int texture_size[MGA_NR_TEX_HEAPS];
+	unsigned int back_offset, back_pitch;
+	unsigned int depth_cpp;
+	unsigned int depth_offset, depth_pitch;
+	unsigned int texture_offset[MGA_NR_TEX_HEAPS];
+	unsigned int texture_size[MGA_NR_TEX_HEAPS];
 	u32 fb_offset;
 	u32 mmio_offset;
 	u32 status_offset;
@@ -64,10 +64,10 @@ static int compat_mga_init(struct file *file, unsigned int cmd,
 	drm_mga_init32_t init32;
 	drm_mga_init_t __user *init;
 	int err = 0, i;
-	
+
 	if (copy_from_user(&init32, (void __user *)arg, sizeof(init32)))
 		return -EFAULT;
-	
+
 	init = compat_alloc_user_space(sizeof(*init));
 	if (!access_ok(VERIFY_WRITE, init, sizeof(*init))
 	    || __put_user(init32.func, &init->func)
@@ -90,42 +90,43 @@ static int compat_mga_init(struct file *file, unsigned int cmd,
 	    || __put_user(init32.primary_offset, &init->primary_offset)
 	    || __put_user(init32.buffers_offset, &init->buffers_offset))
 		return -EFAULT;
-	
-	for (i=0; i<MGA_NR_TEX_HEAPS; i++)
-	{
-		err |= __put_user(init32.texture_offset[i], &init->texture_offset[i]);
-		err |= __put_user(init32.texture_size[i], &init->texture_size[i]);
+
+	for (i = 0; i < MGA_NR_TEX_HEAPS; i++) {
+		err |=
+		    __put_user(init32.texture_offset[i],
+			       &init->texture_offset[i]);
+		err |=
+		    __put_user(init32.texture_size[i], &init->texture_size[i]);
 	}
 	if (err)
 		return -EFAULT;
-	
-	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_MGA_INIT, (unsigned long) init);
-}
 
+	return drm_ioctl(file->f_dentry->d_inode, file,
+			 DRM_IOCTL_MGA_INIT, (unsigned long)init);
+}
 
 typedef struct drm_mga_getparam32 {
 	int param;
 	u32 value;
 } drm_mga_getparam32_t;
 
-
 static int compat_mga_getparam(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_mga_getparam32_t getparam32;
 	drm_mga_getparam_t __user *getparam;
-	
+
 	if (copy_from_user(&getparam32, (void __user *)arg, sizeof(getparam32)))
 		return -EFAULT;
 
 	getparam = compat_alloc_user_space(sizeof(*getparam));
 	if (!access_ok(VERIFY_WRITE, getparam, sizeof(*getparam))
 	    || __put_user(getparam32.param, &getparam->param)
-	    || __put_user((void __user *)(unsigned long)getparam32.value, &getparam->value))
+	    || __put_user((void __user *)(unsigned long)getparam32.value,
+			  &getparam->value))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file, 
+	return drm_ioctl(file->f_dentry->d_inode, file,
 			 DRM_IOCTL_MGA_GETPARAM, (unsigned long)getparam);
 }
 
@@ -182,14 +183,12 @@ static int compat_mga_dma_bootstrap(struct file *file, unsigned int cmd,
 			  &dma_bootstrap->secondary_bin_count)
 	    || __get_user(dma_bootstrap32.secondary_bin_size,
 			  &dma_bootstrap->secondary_bin_size)
-	    || __get_user(dma_bootstrap32.agp_mode,
-			  &dma_bootstrap->agp_mode)
-	    || __get_user(dma_bootstrap32.agp_size,
-			  &dma_bootstrap->agp_size))
+	    || __get_user(dma_bootstrap32.agp_mode, &dma_bootstrap->agp_mode)
+	    || __get_user(dma_bootstrap32.agp_size, &dma_bootstrap->agp_size))
 		return -EFAULT;
 
 	if (copy_to_user((void __user *)arg, &dma_bootstrap32,
-	    		 sizeof(dma_bootstrap32)))
+			 sizeof(dma_bootstrap32)))
 		return -EFAULT;
 
 	return 0;
@@ -210,8 +209,7 @@ drm_ioctl_compat_t *mga_compat_ioctls[] = {
  * \param arg user argument.
  * \return zero on success or negative number on failure.
  */
-long mga_compat_ioctl(struct file *filp, unsigned int cmd,
-			 unsigned long arg)
+long mga_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	drm_ioctl_compat_t *fn = NULL;
@@ -219,13 +217,13 @@ long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 
 	if (nr < DRM_COMMAND_BASE)
 		return drm_compat_ioctl(filp, cmd, arg);
-	
+
 	if (nr < DRM_COMMAND_BASE + DRM_ARRAY_SIZE(mga_compat_ioctls))
 		fn = mga_compat_ioctls[nr - DRM_COMMAND_BASE];
 
 	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
-		ret = (*fn)(filp, cmd, arg);
+		ret = (*fn) (filp, cmd, arg);
 	else
 		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();

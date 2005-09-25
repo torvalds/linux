@@ -1,5 +1,5 @@
 /**
- * \file drm_init.h 
+ * \file drm_init.c
  * Setup/Cleanup for DRM
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
@@ -43,10 +43,11 @@
 int drm_cpu_valid(void)
 {
 #if defined(__i386__)
-	if (boot_cpu_data.x86 == 3) return 0; /* No cmpxchg on a 386 */
+	if (boot_cpu_data.x86 == 3)
+		return 0;	/* No cmpxchg on a 386 */
 #endif
 #if defined(__sparc__) && !defined(__sparc_v9__)
-	return 0; /* No cmpxchg before v9 sparc. */
+	return 0;		/* No cmpxchg before v9 sparc. */
 #endif
 	return 1;
 }

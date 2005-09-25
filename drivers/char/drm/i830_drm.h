@@ -33,14 +33,14 @@
 #define I830_UPLOAD_CTX			0x1
 #define I830_UPLOAD_BUFFERS		0x2
 #define I830_UPLOAD_CLIPRECTS		0x4
-#define I830_UPLOAD_TEX0_IMAGE		0x100 /* handled clientside */
-#define I830_UPLOAD_TEX0_CUBE		0x200 /* handled clientside */
-#define I830_UPLOAD_TEX1_IMAGE		0x400 /* handled clientside */
-#define I830_UPLOAD_TEX1_CUBE		0x800 /* handled clientside */
-#define I830_UPLOAD_TEX2_IMAGE		0x1000 /* handled clientside */
-#define I830_UPLOAD_TEX2_CUBE		0x2000 /* handled clientside */
-#define I830_UPLOAD_TEX3_IMAGE		0x4000 /* handled clientside */
-#define I830_UPLOAD_TEX3_CUBE		0x8000 /* handled clientside */
+#define I830_UPLOAD_TEX0_IMAGE		0x100	/* handled clientside */
+#define I830_UPLOAD_TEX0_CUBE		0x200	/* handled clientside */
+#define I830_UPLOAD_TEX1_IMAGE		0x400	/* handled clientside */
+#define I830_UPLOAD_TEX1_CUBE		0x800	/* handled clientside */
+#define I830_UPLOAD_TEX2_IMAGE		0x1000	/* handled clientside */
+#define I830_UPLOAD_TEX2_CUBE		0x2000	/* handled clientside */
+#define I830_UPLOAD_TEX3_IMAGE		0x4000	/* handled clientside */
+#define I830_UPLOAD_TEX3_CUBE		0x8000	/* handled clientside */
 #define I830_UPLOAD_TEX_N_IMAGE(n)	(0x100 << (n * 2))
 #define I830_UPLOAD_TEX_N_CUBE(n)	(0x200 << (n * 2))
 #define I830_UPLOAD_TEXIMAGE_MASK	0xff00
@@ -65,7 +65,7 @@
  * or in a piecewise fashion as required.
  */
 
-/* Destbuffer state 
+/* Destbuffer state
  *    - backbuffer linear offset and pitch -- invarient in the current dri
  *    - zbuffer linear offset and pitch -- also invarient
  *    - drawing origin in back and depth buffers.
@@ -103,7 +103,7 @@
 #define I830_CTXREG_AA			9
 #define I830_CTXREG_FOGCOLOR		10
 #define I830_CTXREG_BLENDCOLR0		11
-#define I830_CTXREG_BLENDCOLR		12 /* Dword 1 of 2 dword command */
+#define I830_CTXREG_BLENDCOLR		12	/* Dword 1 of 2 dword command */
 #define I830_CTXREG_VF			13
 #define I830_CTXREG_VF2			14
 #define I830_CTXREG_MCSB0		15
@@ -111,11 +111,10 @@
 #define I830_CTX_SETUP_SIZE		17
 
 /* 1.3: Stipple state
- */ 
+ */
 #define I830_STPREG_ST0 0
 #define I830_STPREG_ST1 1
 #define I830_STP_SETUP_SIZE 2
-
 
 /* Texture state (per tex unit)
  */
@@ -132,23 +131,23 @@
 #define I830_TEXREG_MCS	9	/* GFX_OP_MAP_COORD_SETS */
 #define I830_TEX_SETUP_SIZE 10
 
-#define I830_TEXREG_TM0LI      0 /* load immediate 2 texture map n */
+#define I830_TEXREG_TM0LI      0	/* load immediate 2 texture map n */
 #define I830_TEXREG_TM0S0      1
 #define I830_TEXREG_TM0S1      2
 #define I830_TEXREG_TM0S2      3
 #define I830_TEXREG_TM0S3      4
 #define I830_TEXREG_TM0S4      5
-#define I830_TEXREG_NOP0       6       /* noop */
-#define I830_TEXREG_NOP1       7       /* noop */
-#define I830_TEXREG_NOP2       8       /* noop */
-#define __I830_TEXREG_MCS      9       /* GFX_OP_MAP_COORD_SETS -- shared */
+#define I830_TEXREG_NOP0       6	/* noop */
+#define I830_TEXREG_NOP1       7	/* noop */
+#define I830_TEXREG_NOP2       8	/* noop */
+#define __I830_TEXREG_MCS      9	/* GFX_OP_MAP_COORD_SETS -- shared */
 #define __I830_TEX_SETUP_SIZE   10
 
 #define I830_FRONT   0x1
 #define I830_BACK    0x2
 #define I830_DEPTH   0x4
 
-#endif /* _I830_DEFINES_ */
+#endif				/* _I830_DEFINES_ */
 
 typedef struct _drm_i830_init {
 	enum {
@@ -177,19 +176,19 @@ typedef struct _drm_i830_init {
  * structure as well */
 
 typedef struct _drm_i830_tex_region {
-	unsigned char next, prev; /* indices to form a circular LRU  */
+	unsigned char next, prev;	/* indices to form a circular LRU  */
 	unsigned char in_use;	/* owned by a client, or free? */
 	int age;		/* tracked by clients to update local LRU's */
 } drm_i830_tex_region_t;
 
 typedef struct _drm_i830_sarea {
 	unsigned int ContextState[I830_CTX_SETUP_SIZE];
-   	unsigned int BufferState[I830_DEST_SETUP_SIZE];
+	unsigned int BufferState[I830_DEST_SETUP_SIZE];
 	unsigned int TexState[I830_TEXTURE_COUNT][I830_TEX_SETUP_SIZE];
 	unsigned int TexBlendState[I830_TEXBLEND_COUNT][I830_TEXBLEND_SIZE];
 	unsigned int TexBlendStateWordsUsed[I830_TEXBLEND_COUNT];
 	unsigned int Palette[2][256];
-   	unsigned int dirty;
+	unsigned int dirty;
 
 	unsigned int nbox;
 	drm_clip_rect_t boxes[I830_NR_SAREA_CLIPRECTS];
@@ -207,26 +206,26 @@ typedef struct _drm_i830_sarea {
 	 * texture space, and can make informed decisions as to which
 	 * areas to kick out.  There is no need to choose whether to
 	 * kick out your own texture or someone else's - simply eject
-	 * them all in LRU order.  
+	 * them all in LRU order.
 	 */
 
-	drm_i830_tex_region_t texList[I830_NR_TEX_REGIONS+1]; 
-				/* Last elt is sentinal */
-        int texAge;		/* last time texture was uploaded */
-        int last_enqueue;	/* last time a buffer was enqueued */
+	drm_i830_tex_region_t texList[I830_NR_TEX_REGIONS + 1];
+	/* Last elt is sentinal */
+	int texAge;		/* last time texture was uploaded */
+	int last_enqueue;	/* last time a buffer was enqueued */
 	int last_dispatch;	/* age of the most recently dispatched buffer */
-	int last_quiescent;     /*  */
+	int last_quiescent;	/*  */
 	int ctxOwner;		/* last context to upload state */
 
 	int vertex_prim;
 
-        int pf_enabled;               /* is pageflipping allowed? */
-        int pf_active;               
-        int pf_current_page;	    /* which buffer is being displayed? */
+	int pf_enabled;		/* is pageflipping allowed? */
+	int pf_active;
+	int pf_current_page;	/* which buffer is being displayed? */
 
-        int perf_boxes;             /* performance boxes to be displayed */
-   
-        /* Here's the state for texunits 2,3:
+	int perf_boxes;		/* performance boxes to be displayed */
+
+	/* Here's the state for texunits 2,3:
 	 */
 	unsigned int TexState2[I830_TEX_SETUP_SIZE];
 	unsigned int TexBlendState2[I830_TEXBLEND_SIZE];
@@ -241,12 +240,11 @@ typedef struct _drm_i830_sarea {
 
 /* Flags for perf_boxes
  */
-#define I830_BOX_RING_EMPTY    0x1 /* populated by kernel */
-#define I830_BOX_FLIP          0x2 /* populated by kernel */
-#define I830_BOX_WAIT          0x4 /* populated by kernel & client */
-#define I830_BOX_TEXTURE_LOAD  0x8 /* populated by kernel */
-#define I830_BOX_LOST_CONTEXT  0x10 /* populated by client */
-
+#define I830_BOX_RING_EMPTY    0x1	/* populated by kernel */
+#define I830_BOX_FLIP          0x2	/* populated by kernel */
+#define I830_BOX_WAIT          0x4	/* populated by kernel & client */
+#define I830_BOX_TEXTURE_LOAD  0x8	/* populated by kernel */
+#define I830_BOX_LOST_CONTEXT  0x10	/* populated by client */
 
 /* I830 specific ioctls
  * The device specific ioctl range is 0x40 to 0x79.
@@ -289,23 +287,21 @@ typedef struct _drm_i830_clear {
 	unsigned int clear_depthmask;
 } drm_i830_clear_t;
 
-
-
 /* These may be placeholders if we have more cliprects than
  * I830_NR_SAREA_CLIPRECTS.  In that case, the client sets discard to
  * false, indicating that the buffer will be dispatched again with a
  * new set of cliprects.
  */
 typedef struct _drm_i830_vertex {
-   	int idx;		/* buffer index */
+	int idx;		/* buffer index */
 	int used;		/* nr bytes in use */
 	int discard;		/* client is finished with the buffer? */
 } drm_i830_vertex_t;
 
 typedef struct _drm_i830_copy_t {
-   	int idx;		/* buffer index */
+	int idx;		/* buffer index */
 	int used;		/* nr bytes in use */
-	void __user *address;		/* Address to copy from */
+	void __user *address;	/* Address to copy from */
 } drm_i830_copy_t;
 
 typedef struct drm_i830_dma {
@@ -314,7 +310,6 @@ typedef struct drm_i830_dma {
 	int request_size;
 	int granted;
 } drm_i830_dma_t;
-
 
 /* 1.3: Userspace can request & wait on irq's:
  */
@@ -326,7 +321,6 @@ typedef struct drm_i830_irq_wait {
 	int irq_seq;
 } drm_i830_irq_wait_t;
 
-
 /* 1.3: New ioctl to query kernel params:
  */
 #define I830_PARAM_IRQ_ACTIVE            1
@@ -335,7 +329,6 @@ typedef struct drm_i830_getparam {
 	int param;
 	int __user *value;
 } drm_i830_getparam_t;
-
 
 /* 1.3: New ioctl to set kernel params:
  */
@@ -346,5 +339,4 @@ typedef struct drm_i830_setparam {
 	int value;
 } drm_i830_setparam_t;
 
-
-#endif /* _I830_DRM_H_ */
+#endif				/* _I830_DRM_H_ */

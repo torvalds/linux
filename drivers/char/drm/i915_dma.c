@@ -85,14 +85,14 @@ static int i915_dma_cleanup(drm_device_t * dev)
 	 * is freed, it's too late.
 	 */
 	if (dev->irq)
-		drm_irq_uninstall (dev);
+		drm_irq_uninstall(dev);
 
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv =
 		    (drm_i915_private_t *) dev->dev_private;
 
 		if (dev_priv->ring.virtual_start) {
-			drm_core_ioremapfree( &dev_priv->ring.map, dev);
+			drm_core_ioremapfree(&dev_priv->ring.map, dev);
 		}
 
 		if (dev_priv->status_page_dmah) {
@@ -101,8 +101,8 @@ static int i915_dma_cleanup(drm_device_t * dev)
 			I915_WRITE(0x02080, 0x1ffff000);
 		}
 
-		drm_free (dev->dev_private, sizeof(drm_i915_private_t),
-			   DRM_MEM_DRIVER);
+		drm_free(dev->dev_private, sizeof(drm_i915_private_t),
+			 DRM_MEM_DRIVER);
 
 		dev->dev_private = NULL;
 	}
@@ -146,7 +146,7 @@ static int i915_initialize(drm_device_t * dev,
 	dev_priv->ring.map.flags = 0;
 	dev_priv->ring.map.mtrr = 0;
 
-	drm_core_ioremap( &dev_priv->ring.map, dev );
+	drm_core_ioremap(&dev_priv->ring.map, dev);
 
 	if (dev_priv->ring.map.handle == NULL) {
 		dev->dev_private = (void *)dev_priv;
@@ -243,8 +243,8 @@ static int i915_dma_init(DRM_IOCTL_ARGS)
 
 	switch (init.func) {
 	case I915_INIT_DMA:
-		dev_priv = drm_alloc (sizeof(drm_i915_private_t),
-				       DRM_MEM_DRIVER);
+		dev_priv = drm_alloc(sizeof(drm_i915_private_t),
+				     DRM_MEM_DRIVER);
 		if (dev_priv == NULL)
 			return DRM_ERR(ENOMEM);
 		retcode = i915_initialize(dev, dev_priv, &init);
@@ -297,7 +297,7 @@ static int do_validate_cmd(int cmd)
 		case 0x1c:
 			return 1;
 		case 0x1d:
-			switch ((cmd>>16)&0xff) {
+			switch ((cmd >> 16) & 0xff) {
 			case 0x3:
 				return (cmd & 0x1f) + 2;
 			case 0x4:
@@ -699,35 +699,46 @@ static int i915_setparam(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-void i915_driver_pretakedown(drm_device_t *dev)
+void i915_driver_pretakedown(drm_device_t * dev)
 {
-	if ( dev->dev_private ) {
+	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
-	        i915_mem_takedown( &(dev_priv->agp_heap) );
- 	}
-	i915_dma_cleanup( dev );
+		i915_mem_takedown(&(dev_priv->agp_heap));
+	}
+	i915_dma_cleanup(dev);
 }
 
-void i915_driver_prerelease(drm_device_t *dev, DRMFILE filp)
+void i915_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 {
-	if ( dev->dev_private ) {
+	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
-                i915_mem_release( dev, filp, dev_priv->agp_heap );
+		i915_mem_release(dev, filp, dev_priv->agp_heap);
 	}
 }
 
 drm_ioctl_desc_t i915_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_I915_INIT)] = {i915_dma_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_FLUSH)] = {i915_flush_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_FLIP)] = {i915_flip_bufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_BATCHBUFFER)] = {i915_batchbuffer, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_IRQ_EMIT)] = {i915_irq_emit, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_IRQ_WAIT)] = {i915_irq_wait, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_GETPARAM)] = {i915_getparam, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_SETPARAM)] = {i915_setparam, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, 1, 1},
+	[DRM_IOCTL_NR(DRM_I915_INIT)] = {i915_dma_init, 1, 1}
+	,
+	[DRM_IOCTL_NR(DRM_I915_FLUSH)] = {i915_flush_ioctl, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_FLIP)] = {i915_flip_bufs, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_BATCHBUFFER)] = {i915_batchbuffer, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_IRQ_EMIT)] = {i915_irq_emit, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_IRQ_WAIT)] = {i915_irq_wait, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_GETPARAM)] = {i915_getparam, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_SETPARAM)] = {i915_setparam, 1, 1}
+	,
+	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, 1, 0}
+	,
+	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, 1, 1}
+	,
 	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, 1, 0}
 };
 

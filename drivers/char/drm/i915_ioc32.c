@@ -3,7 +3,7 @@
  *
  * 32-bit ioctl compatibility routines for the i915 DRM.
  *
- * \author Alan Hourihane <alanh@fairlite.demon.co.uk> 
+ * \author Alan Hourihane <alanh@fairlite.demon.co.uk>
  *
  *
  * Copyright (C) Paul Mackerras 2005
@@ -42,51 +42,55 @@ typedef struct _drm_i915_batchbuffer32 {
 	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
 	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
 	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	u32 cliprects;	/* pointer to userspace cliprects */
+	u32 cliprects;		/* pointer to userspace cliprects */
 } drm_i915_batchbuffer32_t;
 
 static int compat_i915_batchbuffer(struct file *file, unsigned int cmd,
-			   unsigned long arg)
+				   unsigned long arg)
 {
 	drm_i915_batchbuffer32_t batchbuffer32;
 	drm_i915_batchbuffer_t __user *batchbuffer;
-	
-	if (copy_from_user(&batchbuffer32, (void __user *)arg, sizeof(batchbuffer32)))
+
+	if (copy_from_user
+	    (&batchbuffer32, (void __user *)arg, sizeof(batchbuffer32)))
 		return -EFAULT;
-	
+
 	batchbuffer = compat_alloc_user_space(sizeof(*batchbuffer));
 	if (!access_ok(VERIFY_WRITE, batchbuffer, sizeof(*batchbuffer))
 	    || __put_user(batchbuffer32.start, &batchbuffer->start)
 	    || __put_user(batchbuffer32.used, &batchbuffer->used)
 	    || __put_user(batchbuffer32.DR1, &batchbuffer->DR1)
 	    || __put_user(batchbuffer32.DR4, &batchbuffer->DR4)
-	    || __put_user(batchbuffer32.num_cliprects, &batchbuffer->num_cliprects)
+	    || __put_user(batchbuffer32.num_cliprects,
+			  &batchbuffer->num_cliprects)
 	    || __put_user((int __user *)(unsigned long)batchbuffer32.cliprects,
 			  &batchbuffer->cliprects))
 		return -EFAULT;
-	
+
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_I915_BATCHBUFFER, (unsigned long) batchbuffer);
+			 DRM_IOCTL_I915_BATCHBUFFER,
+			 (unsigned long)batchbuffer);
 }
 
 typedef struct _drm_i915_cmdbuffer32 {
-	u32 buf;	/* pointer to userspace command buffer */
+	u32 buf;		/* pointer to userspace command buffer */
 	int sz;			/* nr bytes in buf */
 	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
 	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
 	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	u32 cliprects;	/* pointer to userspace cliprects */
+	u32 cliprects;		/* pointer to userspace cliprects */
 } drm_i915_cmdbuffer32_t;
 
 static int compat_i915_cmdbuffer(struct file *file, unsigned int cmd,
-			   unsigned long arg)
+				 unsigned long arg)
 {
 	drm_i915_cmdbuffer32_t cmdbuffer32;
 	drm_i915_cmdbuffer_t __user *cmdbuffer;
-	
-	if (copy_from_user(&cmdbuffer32, (void __user *)arg, sizeof(cmdbuffer32)))
+
+	if (copy_from_user
+	    (&cmdbuffer32, (void __user *)arg, sizeof(cmdbuffer32)))
 		return -EFAULT;
-	
+
 	cmdbuffer = compat_alloc_user_space(sizeof(*cmdbuffer));
 	if (!access_ok(VERIFY_WRITE, cmdbuffer, sizeof(*cmdbuffer))
 	    || __put_user((int __user *)(unsigned long)cmdbuffer32.buf,
@@ -98,9 +102,9 @@ static int compat_i915_cmdbuffer(struct file *file, unsigned int cmd,
 	    || __put_user((int __user *)(unsigned long)cmdbuffer32.cliprects,
 			  &cmdbuffer->cliprects))
 		return -EFAULT;
-	
+
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_I915_CMDBUFFER, (unsigned long) cmdbuffer);
+			 DRM_IOCTL_I915_CMDBUFFER, (unsigned long)cmdbuffer);
 }
 
 typedef struct drm_i915_irq_emit32 {
@@ -108,12 +112,12 @@ typedef struct drm_i915_irq_emit32 {
 } drm_i915_irq_emit32_t;
 
 static int compat_i915_irq_emit(struct file *file, unsigned int cmd,
-				  unsigned long arg)
+				unsigned long arg)
 {
 	drm_i915_irq_emit32_t req32;
 	drm_i915_irq_emit_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -123,7 +127,7 @@ static int compat_i915_irq_emit(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_I915_IRQ_EMIT, (unsigned long) request);
+			 DRM_IOCTL_I915_IRQ_EMIT, (unsigned long)request);
 }
 typedef struct drm_i915_getparam32 {
 	int param;
@@ -131,12 +135,12 @@ typedef struct drm_i915_getparam32 {
 } drm_i915_getparam32_t;
 
 static int compat_i915_getparam(struct file *file, unsigned int cmd,
-				     unsigned long arg)
+				unsigned long arg)
 {
 	drm_i915_getparam32_t req32;
 	drm_i915_getparam_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -147,7 +151,7 @@ static int compat_i915_getparam(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_I915_GETPARAM, (unsigned long) request);
+			 DRM_IOCTL_I915_GETPARAM, (unsigned long)request);
 }
 
 typedef struct drm_i915_mem_alloc32 {
@@ -158,12 +162,12 @@ typedef struct drm_i915_mem_alloc32 {
 } drm_i915_mem_alloc32_t;
 
 static int compat_i915_alloc(struct file *file, unsigned int cmd,
-				     unsigned long arg)
+			     unsigned long arg)
 {
 	drm_i915_mem_alloc32_t req32;
 	drm_i915_mem_alloc_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -176,9 +180,8 @@ static int compat_i915_alloc(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_I915_ALLOC, (unsigned long) request);
+			 DRM_IOCTL_I915_ALLOC, (unsigned long)request);
 }
-
 
 drm_ioctl_compat_t *i915_compat_ioctls[] = {
 	[DRM_I915_BATCHBUFFER] = compat_i915_batchbuffer,
@@ -197,8 +200,7 @@ drm_ioctl_compat_t *i915_compat_ioctls[] = {
  * \param arg user argument.
  * \return zero on success or negative number on failure.
  */
-long i915_compat_ioctl(struct file *filp, unsigned int cmd,
-			 unsigned long arg)
+long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	drm_ioctl_compat_t *fn = NULL;
@@ -206,13 +208,13 @@ long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 
 	if (nr < DRM_COMMAND_BASE)
 		return drm_compat_ioctl(filp, cmd, arg);
-	
+
 	if (nr < DRM_COMMAND_BASE + DRM_ARRAY_SIZE(i915_compat_ioctls))
 		fn = i915_compat_ioctls[nr - DRM_COMMAND_BASE];
 
 	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
-		ret = (*fn)(filp, cmd, arg);
+		ret = (*fn) (filp, cmd, arg);
 	else
 		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();

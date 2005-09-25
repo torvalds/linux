@@ -68,7 +68,7 @@
  * 1.9 - Add DRM_IOCTL_RADEON_CP_RESUME ioctl.
  *       Add texture rectangle support for r100.
  * 1.10- Add SETPARAM ioctl; first parameter to set is FB_LOCATION, which
- *       clients use to tell the DRM where they think the framebuffer is 
+ *       clients use to tell the DRM where they think the framebuffer is
  *       located in the card's address space
  * 1.11- Add packet R200_EMIT_RB3D_BLENDCOLOR to support GL_EXT_blend_color
  *       and GL_EXT_blend_[func|equation]_separate on r200
@@ -134,15 +134,15 @@ enum radeon_chip_flags {
 	CHIP_IS_IGP = 0x00020000UL,
 	CHIP_SINGLE_CRTC = 0x00040000UL,
 	CHIP_IS_AGP = 0x00080000UL,
-	CHIP_HAS_HIERZ = 0x00100000UL, 
+	CHIP_HAS_HIERZ = 0x00100000UL,
 	CHIP_IS_PCIE = 0x00200000UL,
 };
 
 typedef struct drm_radeon_freelist {
-   	unsigned int age;
-   	drm_buf_t *buf;
-   	struct drm_radeon_freelist *next;
-   	struct drm_radeon_freelist *prev;
+	unsigned int age;
+	drm_buf_t *buf;
+	struct drm_radeon_freelist *next;
+	struct drm_radeon_freelist *prev;
 } drm_radeon_freelist_t;
 
 typedef struct drm_radeon_ring_buffer {
@@ -204,8 +204,8 @@ typedef struct drm_radeon_private {
 	int cp_mode;
 	int cp_running;
 
-   	drm_radeon_freelist_t *head;
-   	drm_radeon_freelist_t *tail;
+	drm_radeon_freelist_t *head;
+	drm_radeon_freelist_t *tail;
 	int last_buf;
 	volatile u32 *scratch;
 	int writeback_works;
@@ -246,7 +246,7 @@ typedef struct drm_radeon_private {
 	u32 depth_pitch_offset;
 
 	drm_radeon_depth_clear_t depth_clear;
-	
+
 	unsigned long fb_offset;
 	unsigned long mmio_offset;
 	unsigned long ring_offset;
@@ -264,14 +264,14 @@ typedef struct drm_radeon_private {
 	struct mem_block *fb_heap;
 
 	/* SW interrupt */
-   	wait_queue_head_t swi_queue;
-   	atomic_t swi_emitted;
+	wait_queue_head_t swi_queue;
+	atomic_t swi_emitted;
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
-	struct radeon_virt_surface virt_surfaces[2*RADEON_MAX_SURFACES];
+	struct radeon_virt_surface virt_surfaces[2 * RADEON_MAX_SURFACES];
 
- 	unsigned long pcigart_offset;
- 	drm_ati_pcigart_info gart_info;
+	unsigned long pcigart_offset;
+	drm_ati_pcigart_info gart_info;
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
@@ -282,62 +282,64 @@ typedef struct drm_radeon_buf_priv {
 } drm_radeon_buf_priv_t;
 
 				/* radeon_cp.c */
-extern int radeon_cp_init( DRM_IOCTL_ARGS );
-extern int radeon_cp_start( DRM_IOCTL_ARGS );
-extern int radeon_cp_stop( DRM_IOCTL_ARGS );
-extern int radeon_cp_reset( DRM_IOCTL_ARGS );
-extern int radeon_cp_idle( DRM_IOCTL_ARGS );
-extern int radeon_cp_resume( DRM_IOCTL_ARGS );
-extern int radeon_engine_reset( DRM_IOCTL_ARGS );
-extern int radeon_fullscreen( DRM_IOCTL_ARGS );
-extern int radeon_cp_buffers( DRM_IOCTL_ARGS );
+extern int radeon_cp_init(DRM_IOCTL_ARGS);
+extern int radeon_cp_start(DRM_IOCTL_ARGS);
+extern int radeon_cp_stop(DRM_IOCTL_ARGS);
+extern int radeon_cp_reset(DRM_IOCTL_ARGS);
+extern int radeon_cp_idle(DRM_IOCTL_ARGS);
+extern int radeon_cp_resume(DRM_IOCTL_ARGS);
+extern int radeon_engine_reset(DRM_IOCTL_ARGS);
+extern int radeon_fullscreen(DRM_IOCTL_ARGS);
+extern int radeon_cp_buffers(DRM_IOCTL_ARGS);
 
-extern void radeon_freelist_reset( drm_device_t *dev );
-extern drm_buf_t *radeon_freelist_get( drm_device_t *dev );
+extern void radeon_freelist_reset(drm_device_t * dev);
+extern drm_buf_t *radeon_freelist_get(drm_device_t * dev);
 
-extern int radeon_wait_ring( drm_radeon_private_t *dev_priv, int n );
+extern int radeon_wait_ring(drm_radeon_private_t * dev_priv, int n);
 
-extern int radeon_do_cp_idle( drm_radeon_private_t *dev_priv );
+extern int radeon_do_cp_idle(drm_radeon_private_t * dev_priv);
 
 extern int radeon_driver_preinit(struct drm_device *dev, unsigned long flags);
 extern int radeon_presetup(struct drm_device *dev);
 extern int radeon_driver_postcleanup(struct drm_device *dev);
 
-extern int radeon_mem_alloc( DRM_IOCTL_ARGS );
-extern int radeon_mem_free( DRM_IOCTL_ARGS );
-extern int radeon_mem_init_heap( DRM_IOCTL_ARGS );
-extern void radeon_mem_takedown( struct mem_block **heap );
-extern void radeon_mem_release( DRMFILE filp, struct mem_block *heap );
+extern int radeon_mem_alloc(DRM_IOCTL_ARGS);
+extern int radeon_mem_free(DRM_IOCTL_ARGS);
+extern int radeon_mem_init_heap(DRM_IOCTL_ARGS);
+extern void radeon_mem_takedown(struct mem_block **heap);
+extern void radeon_mem_release(DRMFILE filp, struct mem_block *heap);
 
 				/* radeon_irq.c */
-extern int radeon_irq_emit( DRM_IOCTL_ARGS );
-extern int radeon_irq_wait( DRM_IOCTL_ARGS );
+extern int radeon_irq_emit(DRM_IOCTL_ARGS);
+extern int radeon_irq_wait(DRM_IOCTL_ARGS);
 
-extern void radeon_do_release(drm_device_t *dev);
-extern int radeon_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
-extern irqreturn_t radeon_driver_irq_handler( DRM_IRQ_ARGS );
-extern void radeon_driver_irq_preinstall( drm_device_t *dev );
-extern void radeon_driver_irq_postinstall( drm_device_t *dev );
-extern void radeon_driver_irq_uninstall( drm_device_t *dev );
-extern void radeon_driver_prerelease(drm_device_t *dev, DRMFILE filp);
-extern void radeon_driver_pretakedown(drm_device_t *dev);
-extern int radeon_driver_open_helper(drm_device_t *dev, drm_file_t *filp_priv);
-extern void radeon_driver_free_filp_priv(drm_device_t *dev, drm_file_t *filp_priv);
+extern void radeon_do_release(drm_device_t * dev);
+extern int radeon_driver_vblank_wait(drm_device_t * dev,
+				     unsigned int *sequence);
+extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
+extern void radeon_driver_irq_preinstall(drm_device_t * dev);
+extern void radeon_driver_irq_postinstall(drm_device_t * dev);
+extern void radeon_driver_irq_uninstall(drm_device_t * dev);
+extern void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp);
+extern void radeon_driver_pretakedown(drm_device_t * dev);
+extern int radeon_driver_open_helper(drm_device_t * dev,
+				     drm_file_t * filp_priv);
+extern void radeon_driver_free_filp_priv(drm_device_t * dev,
+					 drm_file_t * filp_priv);
 
-extern int radeon_preinit( struct drm_device *dev, unsigned long flags );
-extern int radeon_postinit( struct drm_device *dev, unsigned long flags );
-extern int radeon_postcleanup( struct drm_device *dev );
+extern int radeon_preinit(struct drm_device *dev, unsigned long flags);
+extern int radeon_postinit(struct drm_device *dev, unsigned long flags);
+extern int radeon_postcleanup(struct drm_device *dev);
 
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
-
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(void);
 
-extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
-			     drm_file_t* filp_priv,
-			     drm_radeon_cmd_buffer_t* cmdbuf);
+extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
+			     drm_file_t * filp_priv,
+			     drm_radeon_cmd_buffer_t * cmdbuf);
 
 /* Flags for stats.boxes
  */
@@ -346,8 +348,6 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define RADEON_BOX_FLIP          0x4
 #define RADEON_BOX_WAIT_IDLE     0x8
 #define RADEON_BOX_TEXTURE_LOAD  0x10
-
-
 
 /* Register definitions, register access macros and drmAddMap constants
  * for Radeon kernel driver.
@@ -441,7 +441,6 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define GET_SCRATCH( x )	(dev_priv->writeback_works			\
 				? DRM_READ32( dev_priv->ring_rptr, RADEON_SCRATCHOFF(x) ) \
 				: RADEON_READ( RADEON_SCRATCH_REG0 + 4*(x) ) )
-
 
 #define RADEON_GEN_INT_CNTL		0x0040
 #	define RADEON_CRTC_VBLANK_MASK		(1 << 0)
@@ -650,7 +649,6 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #	define RADEON_DEPTH_FORMAT_16BIT_INT_Z	(0 << 0)
 #	define RADEON_DEPTH_FORMAT_24BIT_INT_Z	(2 << 0)
 
-
 /* CP registers */
 #define RADEON_CP_ME_RAM_ADDR		0x07d4
 #define RADEON_CP_ME_RAM_RADDR		0x07d8
@@ -698,7 +696,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #       define RADEON_CP_NEXT_CHAR              0x00001900
 #       define RADEON_CP_PLY_NEXTSCAN           0x00001D00
 #       define RADEON_CP_SET_SCISSORS           0x00001E00
-             /* GEN_INDX_PRIM is unsupported starting with R300 */
+	     /* GEN_INDX_PRIM is unsupported starting with R300 */
 #	define RADEON_3D_RNDR_GEN_INDX_PRIM	0x00002300
 #	define RADEON_WAIT_FOR_IDLE		0x00002600
 #	define RADEON_3D_DRAW_VBUF		0x00002800
@@ -782,19 +780,19 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define R200_PP_TXCBLEND_5                0x2f50
 #define R200_PP_TXCBLEND_6                0x2f60
 #define R200_PP_TXCBLEND_7                0x2f70
-#define R200_SE_TCL_LIGHT_MODEL_CTL_0     0x2268 
+#define R200_SE_TCL_LIGHT_MODEL_CTL_0     0x2268
 #define R200_PP_TFACTOR_0                 0x2ee0
 #define R200_SE_VTX_FMT_0                 0x2088
 #define R200_SE_VAP_CNTL                  0x2080
 #define R200_SE_TCL_MATRIX_SEL_0          0x2230
-#define R200_SE_TCL_TEX_PROC_CTL_2        0x22a8 
-#define R200_SE_TCL_UCP_VERT_BLEND_CTL    0x22c0 
-#define R200_PP_TXFILTER_5                0x2ca0 
-#define R200_PP_TXFILTER_4                0x2c80 
-#define R200_PP_TXFILTER_3                0x2c60 
-#define R200_PP_TXFILTER_2                0x2c40 
-#define R200_PP_TXFILTER_1                0x2c20 
-#define R200_PP_TXFILTER_0                0x2c00 
+#define R200_SE_TCL_TEX_PROC_CTL_2        0x22a8
+#define R200_SE_TCL_UCP_VERT_BLEND_CTL    0x22c0
+#define R200_PP_TXFILTER_5                0x2ca0
+#define R200_PP_TXFILTER_4                0x2c80
+#define R200_PP_TXFILTER_3                0x2c60
+#define R200_PP_TXFILTER_2                0x2c40
+#define R200_PP_TXFILTER_1                0x2c20
+#define R200_PP_TXFILTER_0                0x2c00
 #define R200_PP_TXOFFSET_5                0x2d78
 #define R200_PP_TXOFFSET_4                0x2d60
 #define R200_PP_TXOFFSET_3                0x2d48
@@ -848,13 +846,13 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define R200_RE_SCISSOR_TL_0              0x1cd8
 #define R200_RE_SCISSOR_TL_1              0x1ce0
 #define R200_RE_SCISSOR_TL_2              0x1ce8
-#define R200_RB3D_DEPTHXY_OFFSET          0x1d60 
+#define R200_RB3D_DEPTHXY_OFFSET          0x1d60
 #define R200_RE_AUX_SCISSOR_CNTL          0x26f0
 #define R200_SE_VTX_STATE_CNTL            0x2180
 #define R200_RE_POINTSIZE                 0x2648
 #define R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0 0x2254
 
-#define RADEON_PP_TEX_SIZE_0                0x1d04  /* NPOT */
+#define RADEON_PP_TEX_SIZE_0                0x1d04	/* NPOT */
 #define RADEON_PP_TEX_SIZE_1                0x1d0c
 #define RADEON_PP_TEX_SIZE_2                0x1d14
 
@@ -875,7 +873,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define SE_VTX_FMT_0__VTX_COLOR_0_FMT__SHIFT               0x0000000b
 #define R200_3D_DRAW_IMMD_2      0xC0003500
 #define R200_SE_VTX_FMT_1                 0x208c
-#define R200_RE_CNTL                      0x1c50 
+#define R200_RE_CNTL                      0x1c50
 
 #define R200_RB3D_BLENDCOLOR              0x3218
 
@@ -884,7 +882,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t* dev, DRMFILE filp,
 #define R200_PP_TRI_PERF 0x2cf8
 
 #define R200_PP_AFS_0                     0x2f80
-#define R200_PP_AFS_1                     0x2f00 /* same as txcblend_0 */
+#define R200_PP_AFS_1                     0x2f00	/* same as txcblend_0 */
 
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
@@ -931,7 +929,6 @@ do {									\
 	(RADEON_CP_PACKET2)
 #define CP_PACKET3( pkt, n )						\
 	(RADEON_CP_PACKET3 | (pkt) | ((n) << 16))
-
 
 /* ================================================================
  * Engine control helper macros
@@ -981,12 +978,11 @@ do {									\
 	OUT_RING( RADEON_RB3D_ZC_FLUSH_ALL );				\
 } while (0)
 
-
 /* ================================================================
  * Misc helper macros
  */
 
-/* Perfbox functionality only.  
+/* Perfbox functionality only.
  */
 #define RING_SPACE_TEST_WITH_RETURN( dev_priv )				\
 do {									\
@@ -1022,7 +1018,6 @@ do {									\
 	OUT_RING( CP_PACKET0( RADEON_LAST_CLEAR_REG, 0 ) );		\
 	OUT_RING( age );						\
 } while (0)
-
 
 /* ================================================================
  * Ring control
@@ -1084,7 +1079,6 @@ do {									\
 	OUT_RING( val );						\
 } while (0)
 
-
 #define OUT_RING_TABLE( tab, sz ) do {					\
 	int _size = (sz);					\
 	int *_tab = (int *)(tab);				\
@@ -1109,5 +1103,4 @@ do {									\
 	write &= mask;						\
 } while (0)
 
-
-#endif /* __RADEON_DRV_H__ */
+#endif				/* __RADEON_DRV_H__ */
