@@ -525,12 +525,6 @@ bootup_user_stack_end:
 
 #include "ttable.S"
 #include "systbls.S"
-
-	.align	1024
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.word	0
-
 #include "ktlb.S"
 #include "etrap.S"
 #include "rtrap.S"

@@ -132,8 +132,39 @@ kvmap_do_obp:
  */
 	.align		32
 kvmap:
-	brlz,pt		%g4, kvmap_load
+	brgez,pn	%g4, kvmap_nonlinear
+	 nop
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	.globl		kvmap_linear_patch
+kvmap_linear_patch:
+#endif
+	ba,pt		%xcc, kvmap_load
 	 xor		%g2, %g4, %g5
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	sethi		%hi(swapper_pg_dir), %g5
+	or		%g5, %lo(swapper_pg_dir), %g5
+	sllx		%g4, 64 - (PGDIR_SHIFT + PGDIR_BITS), %g6
+	srlx		%g6, 64 - PAGE_SHIFT, %g6
+	andn		%g6, 0x3, %g6
+	lduw		[%g5 + %g6], %g5
+	brz,pn		%g5, longpath
+	 sllx		%g4, 64 - (PMD_SHIFT + PMD_BITS), %g6
+	srlx		%g6, 64 - PAGE_SHIFT, %g6
+	sllx		%g5, 11, %g5
+	andn		%g6, 0x3, %g6
+	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
+	brz,pn		%g5, longpath
+	 sllx		%g4, 64 - PMD_SHIFT, %g6
+	srlx		%g6, 64 - PAGE_SHIFT, %g6
+	sllx		%g5, 11, %g5
+	andn		%g6, 0x7, %g6
+	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
+	brz,pn		%g5, longpath
+	 nop
+	ba,a,pt		%xcc, kvmap_load
+#endif
 
 kvmap_nonlinear:
 	sethi		%hi(MODULES_VADDR), %g5

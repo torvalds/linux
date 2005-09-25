@@ -1332,15 +1332,114 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	return end_pfn;
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, pgprot_t prot)
+{
+	unsigned long vstart = PAGE_OFFSET + pstart;
+	unsigned long vend = PAGE_OFFSET + pend;
+	unsigned long alloc_bytes = 0UL;
+
+	if ((vstart & ~PAGE_MASK) || (vend & ~PAGE_MASK)) {
+		prom_printf("kernel_map: Unaligned sp_banks[%lx:%lx]\n",
+			    vstart, vend);
+		prom_halt();
+	}
+
+	while (vstart < vend) {
+		unsigned long this_end, paddr = __pa(vstart);
+		pgd_t *pgd = pgd_offset_k(vstart);
+		pud_t *pud;
+		pmd_t *pmd;
+		pte_t *pte;
+
+		pud = pud_offset(pgd, vstart);
+		if (pud_none(*pud)) {
+			pmd_t *new;
+
+			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			alloc_bytes += PAGE_SIZE;
+			pud_populate(&init_mm, pud, new);
+		}
+
+		pmd = pmd_offset(pud, vstart);
+		if (!pmd_present(*pmd)) {
+			pte_t *new;
+
+			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			alloc_bytes += PAGE_SIZE;
+			pmd_populate_kernel(&init_mm, pmd, new);
+		}
+
+		pte = pte_offset_kernel(pmd, vstart);
+		this_end = (vstart + PMD_SIZE) & PMD_MASK;
+		if (this_end > vend)
+			this_end = vend;
+
+		while (vstart < this_end) {
+			pte_val(*pte) = (paddr | pgprot_val(prot));
+
+			vstart += PAGE_SIZE;
+			paddr += PAGE_SIZE;
+			pte++;
+		}
+	}
+
+	return alloc_bytes;
+}
+
+extern struct linux_mlist_p1275 *prom_ptot_ptr;
+extern unsigned int kvmap_linear_patch[1];
+
+static void __init kernel_physical_mapping_init(void)
+{
+	struct linux_mlist_p1275 *p = prom_ptot_ptr;
+	unsigned long mem_alloced = 0UL;
+
+	while (p) {
+		unsigned long phys_start, phys_end;
+
+		phys_start = p->start_adr;
+		phys_end = phys_start + p->num_bytes;
+		mem_alloced += kernel_map_range(phys_start, phys_end,
+						PAGE_KERNEL);
+
+		p = p->theres_more;
+	}
+
+	printk("Allocated %ld bytes for kernel page tables.\n",
+	       mem_alloced);
+
+	kvmap_linear_patch[0] = 0x01000000; /* nop */
+	flushi(&kvmap_linear_patch[0]);
+
+	__flush_tlb_all();
+}
+
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	unsigned long phys_start = page_to_pfn(page) << PAGE_SHIFT;
+	unsigned long phys_end = phys_start + (numpages * PAGE_SIZE);
+
+	kernel_map_range(phys_start, phys_end,
+			 (enable ? PAGE_KERNEL : __pgprot(0)));
+
+	/* we should perform an IPI and flush all tlbs,
+	 * but that can deadlock->flush only current cpu.
+	 */
+	__flush_tlb_kernel_range(PAGE_OFFSET + phys_start,
+				 PAGE_OFFSET + phys_end);
+}
+#endif
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
 
 static unsigned long last_valid_pfn;
+pgd_t swapper_pg_dir[2048];
 
 void __init paging_init(void)
 {
-	extern pmd_t swapper_pmd_dir[1024];
 	unsigned long end_pfn, pages_avail, shift;
 	unsigned long real_end;
 
@@ -1361,11 +1460,11 @@ void __init paging_init(void)
 	 */
 	init_mm.pgd += ((shift) / (sizeof(pgd_t)));
 	
-	memset(swapper_pmd_dir, 0, sizeof(swapper_pmd_dir));
+	memset(swapper_low_pmd_dir, 0, sizeof(swapper_low_pmd_dir));
 
 	/* Now can init the kernel/bad page tables. */
 	pud_set(pud_offset(&swapper_pg_dir[0], 0),
-		swapper_pmd_dir + (shift / sizeof(pgd_t)));
+		swapper_low_pmd_dir + (shift / sizeof(pgd_t)));
 	
 	swapper_pgd_zero = pgd_val(swapper_pg_dir[0]);
 	
@@ -1389,6 +1488,10 @@ void __init paging_init(void)
 	/* Setup bootmem... */
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	kernel_physical_mapping_init();
+#endif
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
