@@ -589,10 +589,8 @@ static int via686a_detect(struct i2c_adapter *adapter)
 	u16 val;
 
 	/* 8231 requires multiple of 256, we enforce that on 686 as well */
-	if (force_addr)
-		address = force_addr & 0xFF00;
-
 	if (force_addr) {
+		address = force_addr & 0xFF00;
 		dev_warn(&adapter->dev, "forcing ISA address 0x%04X\n",
 			 address);
 		if (PCIBIOS_SUCCESSFUL !=
@@ -603,11 +601,17 @@ static int via686a_detect(struct i2c_adapter *adapter)
 	    pci_read_config_word(s_bridge, VIA686A_ENABLE_REG, &val))
 		return -ENODEV;
 	if (!(val & 0x0001)) {
-		dev_warn(&adapter->dev, "enabling sensors\n");
-		if (PCIBIOS_SUCCESSFUL !=
-		    pci_write_config_word(s_bridge, VIA686A_ENABLE_REG,
-					  val | 0x0001))
+		if (force_addr) {
+			dev_info(&adapter->dev, "enabling sensors\n");
+			if (PCIBIOS_SUCCESSFUL !=
+			    pci_write_config_word(s_bridge, VIA686A_ENABLE_REG,
+						  val | 0x0001))
+				return -ENODEV;
+		} else {
+			dev_warn(&adapter->dev, "sensors disabled - enable "
+				 "with force_addr=0x%x\n", address);
 			return -ENODEV;
+		}
 	}
 
 	/* Reserve the ISA region */
