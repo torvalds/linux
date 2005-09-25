@@ -74,7 +74,7 @@ I2C_CLIENT_INSMOD_1(w83l785ts);
  * The W83L785TS-S uses signed 8-bit values.
  */
 
-#define TEMP_FROM_REG(val)	((val & 0x80 ? val-0x100 : val) * 1000)
+#define TEMP_FROM_REG(val)	((val) * 1000)
 
 /*
  * Functions declaration
@@ -112,7 +112,7 @@ struct w83l785ts_data {
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
-	u8 temp[2]; /* 0: input
+	s8 temp[2]; /* 0: input
 		       1: critical limit */
 };
 
