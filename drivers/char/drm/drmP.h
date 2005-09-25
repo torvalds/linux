@@ -228,9 +228,9 @@
 /** \name Internal types and structures */
 /*@{*/
 
-#define DRM_ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
-#define DRM_MIN(a,b) ((a)<(b)?(a):(b))
-#define DRM_MAX(a,b) ((a)>(b)?(a):(b))
+#define DRM_ARRAY_SIZE(x) ARRAY_SIZE(x)
+#define DRM_MIN(a,b) min(a,b)
+#define DRM_MAX(a,b) max(a,b)
 
 #define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
 #define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))
