@@ -8,7 +8,7 @@
  * For licensing information, see the file 'LICENCE' in the 
  * jffs2 directory.
  *
- * $Id: jffs2.h,v 1.37 2005/09/07 08:34:55 havasi Exp $
+ * $Id: jffs2.h,v 1.38 2005/09/26 11:37:23 havasi Exp $
  *
  */
 
@@ -151,9 +151,10 @@ struct jffs2_raw_inode
 	uint8_t data[0];
 } __attribute__((packed));
 
-struct jffs2_summary_node{
+struct jffs2_raw_summary
+{
 	jint16_t magic;
-	jint16_t nodetype; 	/* = JFFS2_NODETYPE_INODE_SUM */
+	jint16_t nodetype; 	/* = JFFS2_NODETYPE_SUMMARY */
 	jint32_t totlen;
 	jint32_t hdr_crc;
 	jint32_t sum_num;	/* number of sum entries*/
@@ -164,11 +165,12 @@ struct jffs2_summary_node{
 	jint32_t sum[0]; 	/* inode summary info */
 } __attribute__((packed));
 
-union jffs2_node_union {
+union jffs2_node_union 
+{
 	struct jffs2_raw_inode i;
 	struct jffs2_raw_dirent d;
+	struct jffs2_raw_summary s;
 	struct jffs2_unknown_node u;
-	struct jffs2_summary_node s;
 };
 
 #endif /* __LINUX_JFFS2_H__ */

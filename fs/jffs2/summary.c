@@ -8,7 +8,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: summary.c,v 1.3 2005/09/21 14:43:07 dedekind Exp $
+ * $Id: summary.c,v 1.4 2005/09/26 11:37:21 havasi Exp $
  *
  */
 
@@ -292,7 +292,7 @@ no_mem:
 /* Process the stored summary information - helper function for jffs2_sum_scan_sumnode() */
 
 static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-				struct jffs2_summary_node *summary, uint32_t *pseudo_random)
+				struct jffs2_raw_summary *summary, uint32_t *pseudo_random)
 {
 	struct jffs2_raw_node_ref *raw;
 	struct jffs2_inode_cache *ic;
@@ -428,7 +428,7 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 {
 	struct jffs2_unknown_node crcnode;
 	struct jffs2_raw_node_ref *cache_ref;
-	struct jffs2_summary_node *summary;
+	struct jffs2_raw_summary *summary;
 	int ret, sumsize;
 	uint32_t crc;
 
@@ -468,14 +468,14 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		goto crc_err;
 	}
 
-	crc = crc32(0, summary, sizeof(struct jffs2_summary_node)-8);
+	crc = crc32(0, summary, sizeof(struct jffs2_raw_summary)-8);
 
 	if (je32_to_cpu(summary->node_crc) != crc) {
 		dbg_summary("Summary node is corrupt (bad CRC)\n");
 		goto crc_err;
 	}
 
-	crc = crc32(0, summary->sum, sumsize - sizeof(struct jffs2_summary_node));
+	crc = crc32(0, summary->sum, sumsize - sizeof(struct jffs2_raw_summary));
 
 	if (je32_to_cpu(summary->sum_crc) != crc) {
 		dbg_summary("Summary node data is corrupt (bad CRC)\n");
@@ -560,7 +560,7 @@ crc_err:
 static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 					uint32_t infosize, uint32_t datasize, int padsize)
 {
-	struct jffs2_summary_node isum;
+	struct jffs2_raw_summary isum;
 	union jffs2_sum_mem *temp;
 	struct jffs2_sum_marker *sm;
 	struct kvec vecs[2];
@@ -685,7 +685,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	}
 
 	datasize = c->summary->sum_size + sizeof(struct jffs2_sum_marker);
-	infosize = sizeof(struct jffs2_summary_node) + datasize;
+	infosize = sizeof(struct jffs2_raw_summary) + datasize;
 	padsize = jeb->free_size - infosize;
 	infosize += padsize; 
 	datasize += padsize;

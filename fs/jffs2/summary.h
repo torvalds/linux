@@ -8,7 +8,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: summary.h,v 1.1 2005/09/07 08:34:54 havasi Exp $
+ * $Id: summary.h,v 1.2 2005/09/26 11:37:21 havasi Exp $
  *
  */
 
@@ -142,7 +142,7 @@ struct jffs2_sum_marker
 	jint32_t magic; 	/* == JFFS2_SUM_MAGIC */
 };
 
-#define JFFS2_SUMMARY_FRAME_SIZE (sizeof(struct jffs2_summary_node) + sizeof(struct jffs2_sum_marker))
+#define JFFS2_SUMMARY_FRAME_SIZE (sizeof(struct jffs2_raw_summary) + sizeof(struct jffs2_sum_marker))
 
 #ifdef CONFIG_JFFS2_SUMMARY	/* SUMMARY SUPPORT ENABLED */
 
