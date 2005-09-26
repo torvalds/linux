@@ -123,7 +123,7 @@ enum {
 	magic_RCRD = const_cpu_to_le32(0x44524352), /* Log record page. */
 
 	/* Found in $LogFile/$DATA.  (May be found in $MFT/$DATA, also?) */
-	magic_CHKD = const_cpu_to_le32(0x424b4843), /* Modified by chkdsk. */
+	magic_CHKD = const_cpu_to_le32(0x444b4843), /* Modified by chkdsk. */
 
 	/* Found in all ntfs record containing records. */
 	magic_BAAD = const_cpu_to_le32(0x44414142), /* Failed multi sector
