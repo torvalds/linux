@@ -53,14 +53,14 @@ struct ib_uverbs_device {
 	struct cdev				dev;
 	struct class_device			class_dev;
 	struct ib_device		       *ib_dev;
-	int					num_comp;
+	int					num_comp_vectors;
 };
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
+	struct file			       *file;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
-	int					fd;
 	int					is_async;
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
@@ -73,8 +73,7 @@ struct ib_uverbs_file {
 	struct ib_uverbs_device		       *device;
 	struct ib_ucontext		       *ucontext;
 	struct ib_event_handler			event_handler;
-	struct ib_uverbs_event_file	        async_file;
-	struct ib_uverbs_event_file	        comp_file[1];
+	struct ib_uverbs_event_file	       *async_file;
 };
 
 struct ib_uverbs_event {
@@ -110,10 +109,17 @@ extern struct idr ib_uverbs_cq_idr;
 extern struct idr ib_uverbs_qp_idr;
 extern struct idr ib_uverbs_srq_idr;
 
+struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
+					int is_async, int *fd);
+void ib_uverbs_release_event_file(struct kref *ref);
+struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd);
+
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
+void ib_uverbs_event_handler(struct ib_event_handler *handler,
+			     struct ib_event *event);
 
 int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 		void *addr, size_t size, int write);
@@ -125,16 +131,14 @@ void ib_umem_release_on_close(struct ib_device *dev, struct ib_umem *umem);
 				 const char __user *buf, int in_len,	\
 				 int out_len)
 
-IB_UVERBS_DECLARE_CMD(query_params);
 IB_UVERBS_DECLARE_CMD(get_context);
 IB_UVERBS_DECLARE_CMD(query_device);
 IB_UVERBS_DECLARE_CMD(query_port);
-IB_UVERBS_DECLARE_CMD(query_gid);
-IB_UVERBS_DECLARE_CMD(query_pkey);
 IB_UVERBS_DECLARE_CMD(alloc_pd);
 IB_UVERBS_DECLARE_CMD(dealloc_pd);
 IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
+IB_UVERBS_DECLARE_CMD(create_comp_channel);
 IB_UVERBS_DECLARE_CMD(create_cq);
 IB_UVERBS_DECLARE_CMD(destroy_cq);
 IB_UVERBS_DECLARE_CMD(create_qp);

@@ -77,26 +77,24 @@ static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 				     const char __user *buf, int in_len,
 				     int out_len) = {
-	[IB_USER_VERBS_CMD_QUERY_PARAMS]  = ib_uverbs_query_params,
-	[IB_USER_VERBS_CMD_GET_CONTEXT]   = ib_uverbs_get_context,
-	[IB_USER_VERBS_CMD_QUERY_DEVICE]  = ib_uverbs_query_device,
-	[IB_USER_VERBS_CMD_QUERY_PORT]    = ib_uverbs_query_port,
-	[IB_USER_VERBS_CMD_QUERY_GID]     = ib_uverbs_query_gid,
-	[IB_USER_VERBS_CMD_QUERY_PKEY]    = ib_uverbs_query_pkey,
-	[IB_USER_VERBS_CMD_ALLOC_PD]      = ib_uverbs_alloc_pd,
-	[IB_USER_VERBS_CMD_DEALLOC_PD]    = ib_uverbs_dealloc_pd,
-	[IB_USER_VERBS_CMD_REG_MR]        = ib_uverbs_reg_mr,
-	[IB_USER_VERBS_CMD_DEREG_MR]      = ib_uverbs_dereg_mr,
-	[IB_USER_VERBS_CMD_CREATE_CQ]     = ib_uverbs_create_cq,
-	[IB_USER_VERBS_CMD_DESTROY_CQ]    = ib_uverbs_destroy_cq,
-	[IB_USER_VERBS_CMD_CREATE_QP]     = ib_uverbs_create_qp,
-	[IB_USER_VERBS_CMD_MODIFY_QP]     = ib_uverbs_modify_qp,
-	[IB_USER_VERBS_CMD_DESTROY_QP]    = ib_uverbs_destroy_qp,
-	[IB_USER_VERBS_CMD_ATTACH_MCAST]  = ib_uverbs_attach_mcast,
-	[IB_USER_VERBS_CMD_DETACH_MCAST]  = ib_uverbs_detach_mcast,
-	[IB_USER_VERBS_CMD_CREATE_SRQ]    = ib_uverbs_create_srq,
-	[IB_USER_VERBS_CMD_MODIFY_SRQ]    = ib_uverbs_modify_srq,
-	[IB_USER_VERBS_CMD_DESTROY_SRQ]   = ib_uverbs_destroy_srq,
+	[IB_USER_VERBS_CMD_GET_CONTEXT]   	= ib_uverbs_get_context,
+	[IB_USER_VERBS_CMD_QUERY_DEVICE]  	= ib_uverbs_query_device,
+	[IB_USER_VERBS_CMD_QUERY_PORT]    	= ib_uverbs_query_port,
+	[IB_USER_VERBS_CMD_ALLOC_PD]      	= ib_uverbs_alloc_pd,
+	[IB_USER_VERBS_CMD_DEALLOC_PD]    	= ib_uverbs_dealloc_pd,
+	[IB_USER_VERBS_CMD_REG_MR]        	= ib_uverbs_reg_mr,
+	[IB_USER_VERBS_CMD_DEREG_MR]      	= ib_uverbs_dereg_mr,
+	[IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL] = ib_uverbs_create_comp_channel,
+	[IB_USER_VERBS_CMD_CREATE_CQ]     	= ib_uverbs_create_cq,
+	[IB_USER_VERBS_CMD_DESTROY_CQ]    	= ib_uverbs_destroy_cq,
+	[IB_USER_VERBS_CMD_CREATE_QP]     	= ib_uverbs_create_qp,
+	[IB_USER_VERBS_CMD_MODIFY_QP]     	= ib_uverbs_modify_qp,
+	[IB_USER_VERBS_CMD_DESTROY_QP]    	= ib_uverbs_destroy_qp,
+	[IB_USER_VERBS_CMD_ATTACH_MCAST]  	= ib_uverbs_attach_mcast,
+	[IB_USER_VERBS_CMD_DETACH_MCAST]  	= ib_uverbs_detach_mcast,
+	[IB_USER_VERBS_CMD_CREATE_SRQ]    	= ib_uverbs_create_srq,
+	[IB_USER_VERBS_CMD_MODIFY_SRQ]    	= ib_uverbs_modify_srq,
+	[IB_USER_VERBS_CMD_DESTROY_SRQ]   	= ib_uverbs_destroy_srq,
 };
 
 static struct vfsmount *uverbs_event_mnt;
@@ -188,23 +186,17 @@ static ssize_t ib_uverbs_event_read(struct file *filp, char __user *buf,
 
 	spin_lock_irq(&file->lock);
 
-	while (list_empty(&file->event_list) && file->fd >= 0) {
+	while (list_empty(&file->event_list)) {
 		spin_unlock_irq(&file->lock);
 
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
 		if (wait_event_interruptible(file->poll_wait,
-					     !list_empty(&file->event_list) ||
-					     file->fd < 0))
+					     !list_empty(&file->event_list)))
 			return -ERESTARTSYS;
 
 		spin_lock_irq(&file->lock);
-	}
-
-	if (file->fd < 0) {
-		spin_unlock_irq(&file->lock);
-		return -ENODEV;
 	}
 
 	event = list_entry(file->event_list.next, struct ib_uverbs_event, list);
@@ -248,26 +240,19 @@ static unsigned int ib_uverbs_event_poll(struct file *filp,
 	poll_wait(filp, &file->poll_wait, wait);
 
 	spin_lock_irq(&file->lock);
-	if (file->fd < 0)
-		pollflags = POLLERR;
-	else if (!list_empty(&file->event_list))
+	if (!list_empty(&file->event_list))
 		pollflags = POLLIN | POLLRDNORM;
 	spin_unlock_irq(&file->lock);
 
 	return pollflags;
 }
 
-static void ib_uverbs_event_release(struct ib_uverbs_event_file *file)
+void ib_uverbs_release_event_file(struct kref *ref)
 {
-	struct ib_uverbs_event *entry, *tmp;
+	struct ib_uverbs_event_file *file =
+		container_of(ref, struct ib_uverbs_event_file, ref);
 
-	spin_lock_irq(&file->lock);
-	if (file->fd != -1) {
-		file->fd = -1;
-		list_for_each_entry_safe(entry, tmp, &file->event_list, list)
-			kfree(entry);
-	}
-	spin_unlock_irq(&file->lock);
+	kfree(file);
 }
 
 static int ib_uverbs_event_fasync(int fd, struct file *filp, int on)
@@ -280,21 +265,30 @@ static int ib_uverbs_event_fasync(int fd, struct file *filp, int on)
 static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_event_file *file = filp->private_data;
+	struct ib_uverbs_event *entry, *tmp;
 
-	ib_uverbs_event_release(file);
+	spin_lock_irq(&file->lock);
+	file->file = NULL;
+	list_for_each_entry_safe(entry, tmp, &file->event_list, list) {
+		if (entry->counter)
+			list_del(&entry->obj_list);
+		kfree(entry);
+	}
+	spin_unlock_irq(&file->lock);
+
 	ib_uverbs_event_fasync(-1, filp, 0);
-	kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
+
+	if (file->is_async) {
+		ib_unregister_event_handler(&file->uverbs_file->event_handler);
+		kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
+	}
+	kref_put(&file->ref, ib_uverbs_release_event_file);
 
 	return 0;
 }
 
 static struct file_operations uverbs_event_fops = {
-	/*
-	 * No .owner field since we artificially create event files,
-	 * so there is no increment to the module reference count in
-	 * the open path.  All event files come from a uverbs command
-	 * file, which already takes a module reference, so this is OK.
-	 */
+	.owner	 = THIS_MODULE,
 	.read 	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
 	.release = ib_uverbs_event_close,
@@ -303,10 +297,19 @@ static struct file_operations uverbs_event_fops = {
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 {
-	struct ib_uverbs_file  *file = cq_context;
-	struct ib_ucq_object   *uobj;
-	struct ib_uverbs_event *entry;
-	unsigned long           flags;
+	struct ib_uverbs_event_file    *file = cq_context;
+	struct ib_ucq_object	       *uobj;
+	struct ib_uverbs_event	       *entry;
+	unsigned long			flags;
+
+	if (!file)
+		return;
+
+	spin_lock_irqsave(&file->lock, flags);
+	if (!file->file) {
+		spin_unlock_irqrestore(&file->lock, flags);
+		return;
+	}
 
 	entry = kmalloc(sizeof *entry, GFP_ATOMIC);
 	if (!entry)
@@ -317,13 +320,12 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	entry->desc.comp.cq_handle = cq->uobject->user_handle;
 	entry->counter		   = &uobj->comp_events_reported;
 
-	spin_lock_irqsave(&file->comp_file[0].lock, flags);
-	list_add_tail(&entry->list, &file->comp_file[0].event_list);
+	list_add_tail(&entry->list, &file->event_list);
 	list_add_tail(&entry->obj_list, &uobj->comp_list);
-	spin_unlock_irqrestore(&file->comp_file[0].lock, flags);
+	spin_unlock_irqrestore(&file->lock, flags);
 
-	wake_up_interruptible(&file->comp_file[0].poll_wait);
-	kill_fasync(&file->comp_file[0].async_queue, SIGIO, POLL_IN);
+	wake_up_interruptible(&file->poll_wait);
+	kill_fasync(&file->async_queue, SIGIO, POLL_IN);
 }
 
 static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
@@ -334,6 +336,12 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	struct ib_uverbs_event *entry;
 	unsigned long flags;
 
+	spin_lock_irqsave(&file->async_file->lock, flags);
+	if (!file->async_file->file) {
+		spin_unlock_irqrestore(&file->async_file->lock, flags);
+		return;
+	}
+
 	entry = kmalloc(sizeof *entry, GFP_ATOMIC);
 	if (!entry)
 		return;
@@ -342,24 +350,24 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	entry->desc.async.event_type = event;
 	entry->counter               = counter;
 
-	spin_lock_irqsave(&file->async_file.lock, flags);
-	list_add_tail(&entry->list, &file->async_file.event_list);
+	list_add_tail(&entry->list, &file->async_file->event_list);
 	if (obj_list)
 		list_add_tail(&entry->obj_list, obj_list);
-	spin_unlock_irqrestore(&file->async_file.lock, flags);
+	spin_unlock_irqrestore(&file->async_file->lock, flags);
 
-	wake_up_interruptible(&file->async_file.poll_wait);
-	kill_fasync(&file->async_file.async_queue, SIGIO, POLL_IN);
+	wake_up_interruptible(&file->async_file->poll_wait);
+	kill_fasync(&file->async_file->async_queue, SIGIO, POLL_IN);
 }
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 {
+	struct ib_uverbs_event_file *ev_file = context_ptr;
 	struct ib_ucq_object *uobj;
 
 	uobj = container_of(event->element.cq->uobject,
 			    struct ib_ucq_object, uobject);
 
-	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
+	ib_uverbs_async_handler(ev_file->uverbs_file, uobj->uobject.user_handle,
 				event->event, &uobj->async_list,
 				&uobj->async_events_reported);
 				
@@ -389,8 +397,8 @@ void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr)
 				&uobj->events_reported);
 }
 
-static void ib_uverbs_event_handler(struct ib_event_handler *handler,
-				    struct ib_event *event)
+void ib_uverbs_event_handler(struct ib_event_handler *handler,
+			     struct ib_event *event)
 {
 	struct ib_uverbs_file *file =
 		container_of(handler, struct ib_uverbs_file, event_handler);
@@ -399,38 +407,90 @@ static void ib_uverbs_event_handler(struct ib_event_handler *handler,
 				NULL, NULL);
 }
 
-static int ib_uverbs_event_init(struct ib_uverbs_event_file *file,
-				struct ib_uverbs_file *uverbs_file)
+struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
+					int is_async, int *fd)
 {
+	struct ib_uverbs_event_file *ev_file;
 	struct file *filp;
+	int ret;
 
-	spin_lock_init(&file->lock);
-	INIT_LIST_HEAD(&file->event_list);
-	init_waitqueue_head(&file->poll_wait);
-	file->uverbs_file = uverbs_file;
-	file->async_queue = NULL;
+	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
+	if (!ev_file)
+		return ERR_PTR(-ENOMEM);
 
-	file->fd = get_unused_fd();
-	if (file->fd < 0)
-		return file->fd;
+	kref_init(&ev_file->ref);
+	spin_lock_init(&ev_file->lock);
+	INIT_LIST_HEAD(&ev_file->event_list);
+	init_waitqueue_head(&ev_file->poll_wait);
+	ev_file->uverbs_file = uverbs_file;
+	ev_file->async_queue = NULL;
+	ev_file->is_async    = is_async;
+
+	*fd = get_unused_fd();
+	if (*fd < 0) {
+		ret = *fd;
+		goto err;
+	}
 
 	filp = get_empty_filp();
 	if (!filp) {
-		put_unused_fd(file->fd);
-		return -ENFILE;
+		ret = -ENFILE;
+		goto err_fd;
 	}
 
-	filp->f_op 	   = &uverbs_event_fops;
+	ev_file->file      = filp;
+
+	/*
+	 * fops_get() can't fail here, because we're coming from a
+	 * system call on a uverbs file, which will already have a
+	 * module reference.
+	 */
+	filp->f_op 	   = fops_get(&uverbs_event_fops);
 	filp->f_vfsmnt 	   = mntget(uverbs_event_mnt);
 	filp->f_dentry 	   = dget(uverbs_event_mnt->mnt_root);
 	filp->f_mapping    = filp->f_dentry->d_inode->i_mapping;
 	filp->f_flags      = O_RDONLY;
 	filp->f_mode       = FMODE_READ;
-	filp->private_data = file;
+	filp->private_data = ev_file;
 
-	fd_install(file->fd, filp);
+	return filp;
 
-	return 0;
+err_fd:
+	put_unused_fd(*fd);
+
+err:
+	kfree(ev_file);
+	return ERR_PTR(ret);
+}
+
+/*
+ * Look up a completion event file by FD.  If lookup is successful,
+ * takes a ref to the event file struct that it returns; if
+ * unsuccessful, returns NULL.
+ */
+struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd)
+{
+	struct ib_uverbs_event_file *ev_file = NULL;
+	struct file *filp;
+
+	filp = fget(fd);
+	if (!filp)
+		return NULL;
+
+	if (filp->f_op != &uverbs_event_fops)
+		goto out;
+
+	ev_file = filp->private_data;
+	if (ev_file->is_async) {
+		ev_file = NULL;
+		goto out;
+	}
+
+	kref_get(&ev_file->ref);
+
+out:
+	fput(filp);
+	return ev_file;
 }
 
 static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
@@ -453,8 +513,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	    !uverbs_cmd_table[hdr.command])
 		return -EINVAL;
 
-	if (!file->ucontext                               &&
-	    hdr.command != IB_USER_VERBS_CMD_QUERY_PARAMS &&
+	if (!file->ucontext &&
 	    hdr.command != IB_USER_VERBS_CMD_GET_CONTEXT)
 		return -EINVAL;
 
@@ -477,82 +536,33 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	struct ib_uverbs_device *dev =
 		container_of(inode->i_cdev, struct ib_uverbs_device, dev);
 	struct ib_uverbs_file *file;
-	int i = 0;
-	int ret;
 
 	if (!try_module_get(dev->ib_dev->owner))
 		return -ENODEV;
 
-	file = kmalloc(sizeof *file +
-		       (dev->num_comp - 1) * sizeof (struct ib_uverbs_event_file),
-		       GFP_KERNEL);
+	file = kmalloc(sizeof *file, GFP_KERNEL);
 	if (!file) {
-		ret = -ENOMEM;
-		goto err;
+		module_put(dev->ib_dev->owner);
+		return -ENOMEM;
 	}
 
-	file->device = dev;
+	file->device   = dev;
+	file->ucontext = NULL;
 	kref_init(&file->ref);
 	init_MUTEX(&file->mutex);
 
-	file->ucontext = NULL;
-
-	kref_get(&file->ref);
-	ret = ib_uverbs_event_init(&file->async_file, file);
-	if (ret)
-		goto err_kref;
-
-	file->async_file.is_async = 1;
-
-	for (i = 0; i < dev->num_comp; ++i) {
-		kref_get(&file->ref);
-		ret = ib_uverbs_event_init(&file->comp_file[i], file);
-		if (ret)
-			goto err_async;
-		file->comp_file[i].is_async = 0;
-	}
-
-
 	filp->private_data = file;
 
-	INIT_IB_EVENT_HANDLER(&file->event_handler, dev->ib_dev,
-			      ib_uverbs_event_handler);
-	if (ib_register_event_handler(&file->event_handler))
-		goto err_async;
-
 	return 0;
-
-err_async:
-	while (i--)
-		ib_uverbs_event_release(&file->comp_file[i]);
-
-	ib_uverbs_event_release(&file->async_file);
-
-err_kref:
-	/*
-	 * One extra kref_put() because we took a reference before the
-	 * event file creation that failed and got us here.
-	 */
-	kref_put(&file->ref, ib_uverbs_release_file);
-	kref_put(&file->ref, ib_uverbs_release_file);
-
-err:
-	module_put(dev->ib_dev->owner);
-	return ret;
 }
 
 static int ib_uverbs_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
-	int i;
 
-	ib_unregister_event_handler(&file->event_handler);
-	ib_uverbs_event_release(&file->async_file);
 	ib_dealloc_ucontext(file->ucontext);
 
-	for (i = 0; i < file->device->num_comp; ++i)
-		ib_uverbs_event_release(&file->comp_file[i]);
-
+	kref_put(&file->async_file->ref, ib_uverbs_release_event_file);
 	kref_put(&file->ref, ib_uverbs_release_file);
 
 	return 0;
@@ -631,8 +641,8 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	set_bit(uverbs_dev->devnum, dev_map);
 	spin_unlock(&map_lock);
 
-	uverbs_dev->ib_dev   = device;
-	uverbs_dev->num_comp = 1;
+	uverbs_dev->ib_dev           = device;
+	uverbs_dev->num_comp_vectors = 1;
 
 	if (device->mmap)
 		cdev_init(&uverbs_dev->dev, &uverbs_mmap_fops);

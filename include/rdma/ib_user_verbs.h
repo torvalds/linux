@@ -42,15 +42,12 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IB_USER_VERBS_ABI_VERSION	2
+#define IB_USER_VERBS_ABI_VERSION	3
 
 enum {
-	IB_USER_VERBS_CMD_QUERY_PARAMS,
 	IB_USER_VERBS_CMD_GET_CONTEXT,
 	IB_USER_VERBS_CMD_QUERY_DEVICE,
 	IB_USER_VERBS_CMD_QUERY_PORT,
-	IB_USER_VERBS_CMD_QUERY_GID,
-	IB_USER_VERBS_CMD_QUERY_PKEY,
 	IB_USER_VERBS_CMD_ALLOC_PD,
 	IB_USER_VERBS_CMD_DEALLOC_PD,
 	IB_USER_VERBS_CMD_CREATE_AH,
@@ -65,6 +62,7 @@ enum {
 	IB_USER_VERBS_CMD_ALLOC_MW,
 	IB_USER_VERBS_CMD_BIND_MW,
 	IB_USER_VERBS_CMD_DEALLOC_MW,
+	IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL,
 	IB_USER_VERBS_CMD_CREATE_CQ,
 	IB_USER_VERBS_CMD_RESIZE_CQ,
 	IB_USER_VERBS_CMD_DESTROY_CQ,
@@ -118,27 +116,14 @@ struct ib_uverbs_cmd_hdr {
 	__u16 out_words;
 };
 
-/*
- * No driver_data for "query params" command, since this is intended
- * to be a core function with no possible device dependence.
- */
-struct ib_uverbs_query_params {
-	__u64 response;
-};
-
-struct ib_uverbs_query_params_resp {
-	__u32 num_cq_events;
-};
-
 struct ib_uverbs_get_context {
 	__u64 response;
-	__u64 cq_fd_tab;
 	__u64 driver_data[0];
 };
 
 struct ib_uverbs_get_context_resp {
 	__u32 async_fd;
-	__u32 reserved;
+	__u32 num_comp_vectors;
 };
 
 struct ib_uverbs_query_device {
@@ -220,31 +205,6 @@ struct ib_uverbs_query_port_resp {
 	__u8  reserved[3];
 };
 
-struct ib_uverbs_query_gid {
-	__u64 response;
-	__u8  port_num;
-	__u8  index;
-	__u8  reserved[6];
-	__u64 driver_data[0];
-};
-
-struct ib_uverbs_query_gid_resp {
-	__u8  gid[16];
-};
-
-struct ib_uverbs_query_pkey {
-	__u64 response;
-	__u8  port_num;
-	__u8  index;
-	__u8  reserved[6];
-	__u64 driver_data[0];
-};
-
-struct ib_uverbs_query_pkey_resp {
-	__u16 pkey;
-	__u16 reserved;
-};
-
 struct ib_uverbs_alloc_pd {
 	__u64 response;
 	__u64 driver_data[0];
@@ -278,11 +238,21 @@ struct ib_uverbs_dereg_mr {
 	__u32 mr_handle;
 };
 
+struct ib_uverbs_create_comp_channel {
+	__u64 response;
+};
+
+struct ib_uverbs_create_comp_channel_resp {
+	__u32 fd;
+};
+
 struct ib_uverbs_create_cq {
 	__u64 response;
 	__u64 user_handle;
 	__u32 cqe;
-	__u32 event_handler;
+	__u32 comp_vector;
+	__s32 comp_channel;
+	__u32 reserved;
 	__u64 driver_data[0];
 };
 
