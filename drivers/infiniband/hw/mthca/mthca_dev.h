@@ -148,6 +148,7 @@ struct mthca_limits {
 	int      reserved_mcgs;
 	int      num_pds;
 	int      reserved_pds;
+	u32      flags;
 	u8       port_width_cap;
 };
 

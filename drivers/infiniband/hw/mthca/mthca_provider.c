@@ -99,6 +99,8 @@ static int mthca_query_device(struct ib_device *ibdev,
 	props->max_qp_rd_atom      = 1 << mdev->qp_table.rdb_shift;
 	props->max_qp_init_rd_atom = 1 << mdev->qp_table.rdb_shift;
 	props->local_ca_ack_delay  = mdev->limits.local_ca_ack_delay;
+	props->atomic_cap          = mdev->limits.flags & DEV_LIM_FLAG_ATOMIC ? 
+					IB_ATOMIC_HCA : IB_ATOMIC_NONE;
 
 	err = 0;
  out:
