@@ -1356,10 +1356,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* TerraTec devices */
+{
+	USB_DEVICE_VENDOR_SPEC(0x0ccd, 0x0012),
+	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
+		.vendor_name = "TerraTec",
+		.product_name = "PHASE 26",
+		.ifnum = 3,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE
+	}
+},
 {
 	USB_DEVICE_VENDOR_SPEC(0x0ccd, 0x0013),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
-		.vendor_name = "Terratec",
+		.vendor_name = "TerraTec",
 		.product_name = "PHASE 26",
 		.ifnum = 3,
 		.type = QUIRK_MIDI_STANDARD_INTERFACE
