@@ -187,21 +187,37 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u
  *      If a thread in your driver uses this call, make sure your disconnect()
  *      method can wait for it to complete.  Since you don't have a handle on
  *      the URB used, you can't cancel the request.
+ *
+ *	Because there is no usb_interrupt_msg() and no USBDEVFS_INTERRUPT
+ *	ioctl, users are forced to abuse this routine by using it to submit
+ *	URBs for interrupt endpoints.  We will take the liberty of creating
+ *	an interrupt URB (with the default interval) if the target is an
+ *	interrupt endpoint.
  */
 int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe, 
 			void *data, int len, int *actual_length, int timeout)
 {
 	struct urb *urb;
+	struct usb_host_endpoint *ep;
 
-	if (len < 0)
+	ep = (usb_pipein(pipe) ? usb_dev->ep_in : usb_dev->ep_out)
+			[usb_pipeendpoint(pipe)];
+	if (!ep || len < 0)
 		return -EINVAL;
 
-	urb=usb_alloc_urb(0, GFP_KERNEL);
+	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return -ENOMEM;
 
-	usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
-			  usb_api_blocking_completion, NULL);
+	if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_INT) {
+		pipe = (pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
+		usb_fill_int_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL,
+				ep->desc.bInterval);
+	} else
+		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL);
 
 	return usb_start_wait_urb(urb, timeout, actual_length);
 }
