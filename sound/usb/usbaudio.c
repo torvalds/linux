@@ -1444,9 +1444,9 @@ static snd_pcm_hardware_t snd_usb_playback =
 				SNDRV_PCM_INFO_BATCH |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER,
-	.buffer_bytes_max =	(256*1024),
+	.buffer_bytes_max =	1024 * 1024,
 	.period_bytes_min =	64,
-	.period_bytes_max =	(128*1024),
+	.period_bytes_max =	512 * 1024,
 	.periods_min =		2,
 	.periods_max =		1024,
 };
@@ -1458,9 +1458,9 @@ static snd_pcm_hardware_t snd_usb_capture =
 				SNDRV_PCM_INFO_BATCH |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER,
-	.buffer_bytes_max =	(256*1024),
+	.buffer_bytes_max =	1024 * 1024,
 	.period_bytes_min =	64,
-	.period_bytes_max =	(128*1024),
+	.period_bytes_max =	512 * 1024,
 	.periods_min =		2,
 	.periods_max =		1024,
 };
