@@ -372,14 +372,13 @@ cheetah_plus_patch_fpdis:
 	 *
 	 * DATA 0: [low 32-bits]  Address of function to call, jmp to this
 	 *         [high 32-bits] MMU Context Argument 0, place in %g5
-	 * DATA 1: Address Argument 1, place in %g6
+	 * DATA 1: Address Argument 1, place in %g1
 	 * DATA 2: Address Argument 2, place in %g7
 	 *
 	 * With this method we can do most of the cross-call tlb/cache
 	 * flushing very quickly.
 	 *
-	 * Current CPU's IRQ worklist table is locked into %g1,
-	 * don't touch.
+	 * Current CPU's IRQ worklist table is locked into %g6, don't touch.
 	 */
 	.text
 	.align		32
@@ -853,13 +852,14 @@ cheetah_plus_dcpe_trap_vector:
 	nop
 
 do_cheetah_plus_data_parity:
-	ba,pt		%xcc, etrap
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 	mov		0x0, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,a,pt		%xcc, rtrap_irq
 
 cheetah_plus_dcpe_trap_vector_tl1:
 	membar		#Sync
@@ -883,13 +883,14 @@ cheetah_plus_icpe_trap_vector:
 	nop
 
 do_cheetah_plus_insn_parity:
-	ba,pt		%xcc, etrap
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 	mov		0x1, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,a,pt		%xcc, rtrap_irq
 
 cheetah_plus_icpe_trap_vector_tl1:
 	membar		#Sync
@@ -922,6 +923,10 @@ do_dcpe_tl1:
 	 nop
 	wrpr		%g1, %tl		! Restore original trap level
 do_dcpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+	sethi		%hi(dcache_parity_tl1_occurred), %g2
+	lduw		[%g2 + %lo(dcache_parity_tl1_occurred)], %g1
+	add		%g1, 1, %g1
+	stw		%g1, [%g2 + %lo(dcache_parity_tl1_occurred)]
 	/* Reset D-cache parity */
 	sethi		%hi(1 << 16), %g1	! D-cache size
 	mov		(1 << 5), %g2		! D-cache line size
@@ -968,6 +973,10 @@ do_icpe_tl1:
 	 nop
 	wrpr		%g1, %tl		! Restore original trap level
 do_icpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+	sethi		%hi(icache_parity_tl1_occurred), %g2
+	lduw		[%g2 + %lo(icache_parity_tl1_occurred)], %g1
+	add		%g1, 1, %g1
+	stw		%g1, [%g2 + %lo(icache_parity_tl1_occurred)]
 	/* Flush I-cache */
 	sethi		%hi(1 << 15), %g1	! I-cache size
 	mov		(1 << 5), %g2		! I-cache line size

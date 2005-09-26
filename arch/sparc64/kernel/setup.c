@@ -605,6 +605,9 @@ extern void smp_info(struct seq_file *);
 extern void smp_bogo(struct seq_file *);
 extern void mmu_info(struct seq_file *);
 
+unsigned int dcache_parity_tl1_occurred;
+unsigned int icache_parity_tl1_occurred;
+
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
 	seq_printf(m, 
@@ -615,6 +618,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "type\t\t: sun4u\n"
 		   "ncpus probed\t: %ld\n"
 		   "ncpus active\t: %ld\n"
+		   "D$ parity tl1\t: %u\n"
+		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
 		   "Cpu0Bogo\t: %lu.%02lu\n"
 		   "Cpu0ClkTck\t: %016lx\n"
@@ -627,7 +632,9 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   (prom_prev >> 8) & 0xff,
 		   prom_prev & 0xff,
 		   (long)num_possible_cpus(),
-		   (long)num_online_cpus()
+		   (long)num_online_cpus(),
+		   dcache_parity_tl1_occurred,
+		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
 		   , cpu_data(0).udelay_val/(500000/HZ),
 		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,

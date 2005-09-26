@@ -869,14 +869,19 @@ static void cheetah_flush_ecache_line(unsigned long physaddr)
  */
 static void __cheetah_flush_icache(void)
 {
-	unsigned long i;
+	unsigned int icache_size, icache_line_size;
+	unsigned long addr;
+
+	icache_size = local_cpu_data().icache_size;
+	icache_line_size = local_cpu_data().icache_line_size;
 
 	/* Clear the valid bits in all the tags. */
-	for (i = 0; i < (1 << 15); i += (1 << 5)) {
+	for (addr = 0; addr < icache_size; addr += icache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
 				     : /* no outputs */
-				     : "r" (i | (2 << 3)), "i" (ASI_IC_TAG));
+				     : "r" (addr | (2 << 3)),
+				       "i" (ASI_IC_TAG));
 	}
 }
 
@@ -904,13 +909,17 @@ static void cheetah_flush_icache(void)
 
 static void cheetah_flush_dcache(void)
 {
-	unsigned long i;
+	unsigned int dcache_size, dcache_line_size;
+	unsigned long addr;
 
-	for (i = 0; i < (1 << 16); i += (1 << 5)) {
+	dcache_size = local_cpu_data().dcache_size;
+	dcache_line_size = local_cpu_data().dcache_line_size;
+
+	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
 				     : /* no outputs */
-				     : "r" (i), "i" (ASI_DCACHE_TAG));
+				     : "r" (addr), "i" (ASI_DCACHE_TAG));
 	}
 }
 
@@ -921,24 +930,29 @@ static void cheetah_flush_dcache(void)
  */
 static void cheetah_plus_zap_dcache_parity(void)
 {
-	unsigned long i;
+	unsigned int dcache_size, dcache_line_size;
+	unsigned long addr;
 
-	for (i = 0; i < (1 << 16); i += (1 << 5)) {
-		unsigned long tag = (i >> 14);
-		unsigned long j;
+	dcache_size = local_cpu_data().dcache_size;
+	dcache_line_size = local_cpu_data().dcache_line_size;
+
+	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
+		unsigned long tag = (addr >> 14);
+		unsigned long line;
 
 		__asm__ __volatile__("membar	#Sync\n\t"
 				     "stxa	%0, [%1] %2\n\t"
 				     "membar	#Sync"
 				     : /* no outputs */
-				     : "r" (tag), "r" (i),
+				     : "r" (tag), "r" (addr),
 				       "i" (ASI_DCACHE_UTAG));
-		for (j = i; j < i + (1 << 5); j += (1 << 3))
+		for (line = addr; line < addr + dcache_line_size; line += 8)
 			__asm__ __volatile__("membar	#Sync\n\t"
 					     "stxa	%%g0, [%0] %1\n\t"
 					     "membar	#Sync"
 					     : /* no outputs */
-					     : "r" (j), "i" (ASI_DCACHE_DATA));
+					     : "r" (line),
+					       "i" (ASI_DCACHE_DATA));
 	}
 }
 
