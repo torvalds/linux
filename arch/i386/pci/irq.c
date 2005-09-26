@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
 #include <asm/smp.h>
