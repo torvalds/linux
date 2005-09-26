@@ -84,6 +84,25 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 	return (secondary << 3) | (slot & 7);
 }
 
+long iSeries_hpte_bolt_or_insert(unsigned long hpte_group,
+		unsigned long va, unsigned long prpn, unsigned long vflags,
+		unsigned long rflags)
+{
+	long slot;
+	hpte_t lhpte;
+
+	slot = HvCallHpt_findValid(&lhpte, va >> PAGE_SHIFT);
+
+	if (lhpte.v & HPTE_V_VALID) {
+		/* Bolt the existing HPTE */
+		HvCallHpt_setSwBits(slot, 0x10, 0);
+		HvCallHpt_setPp(slot, PP_RWXX);
+		return 0;
+	}
+
+	return iSeries_hpte_insert(hpte_group, va, prpn, vflags, rflags);
+}
+
 static unsigned long iSeries_hpte_getword0(unsigned long slot)
 {
 	hpte_t hpte;

@@ -58,6 +58,7 @@
 #include <asm/mmu.h>
 #include <asm/lmb.h>
 #include <asm/iSeries/ItLpNaca.h>
+#include <asm/firmware.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -153,7 +154,7 @@ struct screen_info screen_info = {
 	.orig_video_points = 16
 };
 
-#if defined(CONFIG_PPC_MULTIPLATFORM) && defined(CONFIG_SMP)
+#ifdef CONFIG_SMP
 
 static int smt_enabled_cmdline;
 
@@ -306,15 +307,13 @@ static void __init setup_cpu_maps(void)
 
 	systemcfg->processorCount = num_present_cpus();
 }
-#endif /* defined(CONFIG_PPC_MULTIPLATFORM) && defined(CONFIG_SMP) */
-
-
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#endif /* CONFIG_SMP */
 
 extern struct machdep_calls pSeries_md;
 extern struct machdep_calls pmac_md;
 extern struct machdep_calls maple_md;
 extern struct machdep_calls bpa_md;
+extern struct machdep_calls iseries_md;
 
 /* Ultimately, stuff them in an elf section like initcalls... */
 static struct machdep_calls __initdata *machines[] = {
@@ -329,6 +328,9 @@ static struct machdep_calls __initdata *machines[] = {
 #endif /* CONFIG_PPC_MAPLE */
 #ifdef CONFIG_PPC_BPA
 	&bpa_md,
+#endif
+#ifdef CONFIG_PPC_ISERIES
+	&iseries_md,
 #endif
 	NULL
 };
@@ -401,7 +403,8 @@ void __init early_setup(unsigned long dt_ptr)
 	/*
 	 * Initialize stab / SLB management
 	 */
-	stab_initialize(lpaca->stab_real);
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		stab_initialize(lpaca->stab_real);
 
 	/*
 	 * Initialize the MMU Hash table and create the linear mapping
@@ -532,8 +535,6 @@ static void __init check_for_initrd(void)
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
 
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
 /*
  * Do some initial setup of the system.  The parameters are those which 
  * were passed in from the bootloader.
@@ -541,14 +542,6 @@ static void __init check_for_initrd(void)
 void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
-
-#ifdef CONFIG_PPC_ISERIES
-	/* pSeries systems are identified in prom.c via OF. */
-	if (itLpNaca.xLparInstalled == 1)
-		systemcfg->platform = PLATFORM_ISERIES_LPAR;
-
-	ppc_md.init_early();
-#else /* CONFIG_PPC_ISERIES */
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
@@ -607,9 +600,8 @@ void __init setup_system(void)
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
 
 	parse_early_param();
-#endif /* !CONFIG_PPC_ISERIES */
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES)
+#ifdef CONFIG_SMP
 	/*
 	 * iSeries has already initialized the cpu maps at this point.
 	 */
@@ -619,7 +611,7 @@ void __init setup_system(void)
 	 * we can map physical -> logical CPU ids
 	 */
 	smp_release_cpus();
-#endif /* defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES) */
+#endif
 
 	printk("Starting Linux PPC64 %s\n", system_utsname.version);
 

@@ -357,7 +357,6 @@ config HOTPLUG_CPU
 
 config PROC_DEVICETREE
 	bool "Support for Open Firmware device tree in /proc"
-	depends on !PPC_ISERIES
 	help
 	  This option adds a device-tree directory under /proc which contains
 	  an image of the device tree that the kernel copies from Open

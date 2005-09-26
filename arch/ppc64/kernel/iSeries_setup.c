@@ -74,8 +74,8 @@ extern void hvlog(char *fmt, ...);
 extern void ppcdbg_initialize(void);
 
 static void build_iSeries_Memory_Map(void);
-static void setup_iSeries_cache_sizes(void);
-static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
+static int iseries_shared_idle(void);
+static int iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
 extern void iSeries_pci_final_fixup(void);
 #else
@@ -83,14 +83,6 @@ static void iSeries_pci_final_fixup(void) { }
 #endif
 
 /* Global Variables */
-static unsigned long procFreqHz;
-static unsigned long procFreqMhz;
-static unsigned long procFreqMhzHundreths;
-
-static unsigned long tbFreqHz;
-static unsigned long tbFreqMhz;
-static unsigned long tbFreqMhzHundreths;
-
 int piranha_simulator;
 
 extern int rd_size;		/* Defined in drivers/block/rd.c */
@@ -319,6 +311,8 @@ static void __init iSeries_init_early(void)
 
 	ppcdbg_initialize();
 
+	ppc64_interrupt_controller = IC_ISERIES;
+
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/*
 	 * If the init RAM disk has been configured and there is
@@ -341,12 +335,6 @@ static void __init iSeries_init_early(void)
 	iSeries_recal_titan = HvCallXm_loadTod();
 
 	/*
-	 * Cache sizes must be initialized before hpte_init_iSeries is called
-	 * as the later need them for flush_icache_range()
-	 */
-	setup_iSeries_cache_sizes();
-
-	/*
 	 * Initialize the hash table management pointers
 	 */
 	hpte_init_iSeries();
@@ -355,12 +343,6 @@ static void __init iSeries_init_early(void)
 	 * Initialize the DMA/TCE management
 	 */
 	iommu_init_early_iSeries();
-
-	/*
-	 * Initialize the table which translate Linux physical addresses to
-	 * AS/400 absolute addresses
-	 */
-	build_iSeries_Memory_Map();
 
 	iSeries_get_cmdline();
 
@@ -378,14 +360,6 @@ static void __init iSeries_init_early(void)
 			memory_limit = 0;
 		}
 	}
-
-	/* Bolt kernel mappings for all of memory (or just a bit if we've got a limit) */
-	iSeries_bolt_kernel(0, systemcfg->physicalMemorySize);
-
-	lmb_init();
-	lmb_add(0, systemcfg->physicalMemorySize);
-	lmb_analyze();
-	lmb_reserve(0, __pa(klimit));
 
 	/* Initialize machine-dependency vectors */
 #ifdef CONFIG_SMP
@@ -592,139 +566,28 @@ static void __init build_iSeries_Memory_Map(void)
 }
 
 /*
- * Set up the variables that describe the cache line sizes
- * for this machine.
- */
-static void __init setup_iSeries_cache_sizes(void)
-{
-	unsigned int i, n;
-	unsigned int procIx = get_paca()->lppaca.dyn_hv_phys_proc_index;
-
-	systemcfg->icache_size =
-	ppc64_caches.isize = xIoHriProcessorVpd[procIx].xInstCacheSize * 1024;
-	systemcfg->icache_line_size =
-	ppc64_caches.iline_size =
-		xIoHriProcessorVpd[procIx].xInstCacheOperandSize;
-	systemcfg->dcache_size =
-	ppc64_caches.dsize =
-		xIoHriProcessorVpd[procIx].xDataL1CacheSizeKB * 1024;
-	systemcfg->dcache_line_size =
-	ppc64_caches.dline_size =
-		xIoHriProcessorVpd[procIx].xDataCacheOperandSize;
-	ppc64_caches.ilines_per_page = PAGE_SIZE / ppc64_caches.iline_size;
-	ppc64_caches.dlines_per_page = PAGE_SIZE / ppc64_caches.dline_size;
-
-	i = ppc64_caches.iline_size;
-	n = 0;
-	while ((i = (i / 2)))
-		++n;
-	ppc64_caches.log_iline_size = n;
-
-	i = ppc64_caches.dline_size;
-	n = 0;
-	while ((i = (i / 2)))
-		++n;
-	ppc64_caches.log_dline_size = n;
-
-	printk("D-cache line size = %d\n",
-			(unsigned int)ppc64_caches.dline_size);
-	printk("I-cache line size = %d\n",
-			(unsigned int)ppc64_caches.iline_size);
-}
-
-/*
- * Create a pte. Used during initialization only.
- */
-static void iSeries_make_pte(unsigned long va, unsigned long pa,
-			     int mode)
-{
-	hpte_t local_hpte, rhpte;
-	unsigned long hash, vpn;
-	long slot;
-
-	vpn = va >> PAGE_SHIFT;
-	hash = hpt_hash(vpn, 0);
-
-	local_hpte.r = pa | mode;
-	local_hpte.v = ((va >> 23) << HPTE_V_AVPN_SHIFT)
-		| HPTE_V_BOLTED | HPTE_V_VALID;
-
-	slot = HvCallHpt_findValid(&rhpte, vpn);
-	if (slot < 0) {
-		/* Must find space in primary group */
-		panic("hash_page: hpte already exists\n");
-	}
-	HvCallHpt_addValidate(slot, 0, &local_hpte);
-}
-
-/*
- * Bolt the kernel addr space into the HPT
- */
-static void __init iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr)
-{
-	unsigned long pa;
-	unsigned long mode_rw = _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX;
-	hpte_t hpte;
-
-	for (pa = saddr; pa < eaddr ;pa += PAGE_SIZE) {
-		unsigned long ea = (unsigned long)__va(pa);
-		unsigned long vsid = get_kernel_vsid(ea);
-		unsigned long va = (vsid << 28) | (pa & 0xfffffff);
-		unsigned long vpn = va >> PAGE_SHIFT;
-		unsigned long slot = HvCallHpt_findValid(&hpte, vpn);
-
-		/* Make non-kernel text non-executable */
-		if (!in_kernel_text(ea))
-			mode_rw |= HW_NO_EXEC;
-
-		if (hpte.v & HPTE_V_VALID) {
-			/* HPTE exists, so just bolt it */
-			HvCallHpt_setSwBits(slot, 0x10, 0);
-			/* And make sure the pp bits are correct */
-			HvCallHpt_setPp(slot, PP_RWXX);
-		} else
-			/* No HPTE exists, so create a new bolted one */
-			iSeries_make_pte(va, phys_to_abs(pa), mode_rw);
-	}
-}
-
-/*
  * Document me.
  */
 static void __init iSeries_setup_arch(void)
 {
 	unsigned procIx = get_paca()->lppaca.dyn_hv_phys_proc_index;
 
-	/* Add an eye catcher and the systemcfg layout version number */
-	strcpy(systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
-	systemcfg->version.major = SYSTEMCFG_MAJOR;
-	systemcfg->version.minor = SYSTEMCFG_MINOR;
+	if (get_paca()->lppaca.shared_proc) {
+		ppc_md.idle_loop = iseries_shared_idle;
+		printk(KERN_INFO "Using shared processor idle loop\n");
+	} else {
+		ppc_md.idle_loop = iseries_dedicated_idle;
+		printk(KERN_INFO "Using dedicated idle loop\n");
+	}
 
 	/* Setup the Lp Event Queue */
 	setup_hvlpevent_queue();
-
-	/* Compute processor frequency */
-	procFreqHz = ((1UL << 34) * 1000000) /
-			xIoHriProcessorVpd[procIx].xProcFreq;
-	procFreqMhz = procFreqHz / 1000000;
-	procFreqMhzHundreths = (procFreqHz / 10000) - (procFreqMhz * 100);
-	ppc_proc_freq = procFreqHz;
-
-	/* Compute time base frequency */
-	tbFreqHz = ((1UL << 32) * 1000000) /
-		xIoHriProcessorVpd[procIx].xTimeBaseFreq;
-	tbFreqMhz = tbFreqHz / 1000000;
-	tbFreqMhzHundreths = (tbFreqHz / 10000) - (tbFreqMhz * 100);
-	ppc_tb_freq = tbFreqHz;
 
 	printk("Max  logical processors = %d\n",
 			itVpdAreas.xSlicMaxLogicalProcs);
 	printk("Max physical processors = %d\n",
 			itVpdAreas.xSlicMaxPhysicalProcs);
-	printk("Processor frequency = %lu.%02lu\n", procFreqMhz,
-			procFreqMhzHundreths);
-	printk("Time base frequency = %lu.%02lu\n", tbFreqMhz,
-			tbFreqMhzHundreths);
+
 	systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
 	printk("Processor version = %x\n", systemcfg->processor);
 }
@@ -766,49 +629,6 @@ static void iSeries_power_off(void)
 static void iSeries_halt(void)
 {
 	mf_power_off();
-}
-
-/*
- * void __init iSeries_calibrate_decr()
- *
- * Description:
- *   This routine retrieves the internal processor frequency from the VPD,
- *   and sets up the kernel timer decrementer based on that value.
- *
- */
-static void __init iSeries_calibrate_decr(void)
-{
-	unsigned long	cyclesPerUsec;
-	struct div_result divres;
-
-	/* Compute decrementer (and TB) frequency in cycles/sec */
-	cyclesPerUsec = ppc_tb_freq / 1000000;
-
-	/*
-	 * Set the amount to refresh the decrementer by.  This
-	 * is the number of decrementer ticks it takes for
-	 * 1/HZ seconds.
-	 */
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-
-#if 0
-	/* TEST CODE FOR ADJTIME */
-	tb_ticks_per_jiffy += tb_ticks_per_jiffy / 5000;
-	/* END OF TEST CODE */
-#endif
-
-	/*
-	 * tb_ticks_per_sec = freq; would give better accuracy
-	 * but tb_ticks_per_sec = tb_ticks_per_jiffy*HZ; assures
-	 * that jiffies (and xtime) will match the time returned
-	 * by do_gettimeofday.
-	 */
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = cyclesPerUsec;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024 * 1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
-	setup_default_decr();
 }
 
 static void __init iSeries_progress(char * st, unsigned short code)
@@ -942,36 +762,246 @@ static int iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
-void __init iSeries_early_setup(void)
+static int __init iseries_probe(int platform)
 {
-	iSeries_fixup_klimit();
+	return PLATFORM_ISERIES_LPAR == platform;
+}
 
-	ppc_md.setup_arch = iSeries_setup_arch;
-	ppc_md.get_cpuinfo = iSeries_get_cpuinfo;
-	ppc_md.init_IRQ = iSeries_init_IRQ;
-	ppc_md.get_irq = iSeries_get_irq;
-	ppc_md.init_early = iSeries_init_early,
-
-	ppc_md.pcibios_fixup  = iSeries_pci_final_fixup;
-
-	ppc_md.restart = iSeries_restart;
-	ppc_md.power_off = iSeries_power_off;
-	ppc_md.halt = iSeries_halt;
-
-	ppc_md.get_boot_time = iSeries_get_boot_time;
-	ppc_md.set_rtc_time = iSeries_set_rtc_time;
-	ppc_md.get_rtc_time = iSeries_get_rtc_time;
-	ppc_md.calibrate_decr = iSeries_calibrate_decr;
-	ppc_md.progress = iSeries_progress;
-
+struct machdep_calls __initdata iseries_md = {
+	.setup_arch	= iSeries_setup_arch,
+	.get_cpuinfo	= iSeries_get_cpuinfo,
+	.init_IRQ	= iSeries_init_IRQ,
+	.get_irq	= iSeries_get_irq,
+	.init_early	= iSeries_init_early,
+	.pcibios_fixup	= iSeries_pci_final_fixup,
+	.restart	= iSeries_restart,
+	.power_off	= iSeries_power_off,
+	.halt		= iSeries_halt,
+	.get_boot_time	= iSeries_get_boot_time,
+	.set_rtc_time	= iSeries_set_rtc_time,
+	.get_rtc_time	= iSeries_get_rtc_time,
+	.calibrate_decr	= generic_calibrate_decr,
+	.progress	= iSeries_progress,
+	.probe		= iseries_probe,
 	/* XXX Implement enable_pmcs for iSeries */
+};
 
-	if (get_paca()->lppaca.shared_proc) {
-		ppc_md.idle_loop = iseries_shared_idle;
-		printk(KERN_INFO "Using shared processor idle loop\n");
-	} else {
-		ppc_md.idle_loop = iseries_dedicated_idle;
-		printk(KERN_INFO "Using dedicated idle loop\n");
+struct blob {
+	unsigned char data[PAGE_SIZE];
+	unsigned long next;
+};
+
+struct iseries_flat_dt {
+	struct boot_param_header header;
+	u64 reserve_map[2];
+	struct blob dt;
+	struct blob strings;
+};
+
+struct iseries_flat_dt iseries_dt;
+
+void dt_init(struct iseries_flat_dt *dt)
+{
+	dt->header.off_mem_rsvmap =
+		offsetof(struct iseries_flat_dt, reserve_map);
+	dt->header.off_dt_struct = offsetof(struct iseries_flat_dt, dt);
+	dt->header.off_dt_strings = offsetof(struct iseries_flat_dt, strings);
+	dt->header.totalsize = sizeof(struct iseries_flat_dt);
+	dt->header.dt_strings_size = sizeof(struct blob);
+
+	/* There is no notion of hardware cpu id on iSeries */
+	dt->header.boot_cpuid_phys = smp_processor_id();
+
+	dt->dt.next = (unsigned long)&dt->dt.data;
+	dt->strings.next = (unsigned long)&dt->strings.data;
+
+	dt->header.magic = OF_DT_HEADER;
+	dt->header.version = 0x10;
+	dt->header.last_comp_version = 0x10;
+
+	dt->reserve_map[0] = 0;
+	dt->reserve_map[1] = 0;
+}
+
+void dt_check_blob(struct blob *b)
+{
+	if (b->next >= (unsigned long)&b->next) {
+		DBG("Ran out of space in flat device tree blob!\n");
+		BUG();
 	}
 }
 
+void dt_push_u32(struct iseries_flat_dt *dt, u32 value)
+{
+	*((u32*)dt->dt.next) = value;
+	dt->dt.next += sizeof(u32);
+
+	dt_check_blob(&dt->dt);
+}
+
+void dt_push_u64(struct iseries_flat_dt *dt, u64 value)
+{
+	*((u64*)dt->dt.next) = value;
+	dt->dt.next += sizeof(u64);
+
+	dt_check_blob(&dt->dt);
+}
+
+unsigned long dt_push_bytes(struct blob *blob, char *data, int len)
+{
+	unsigned long start = blob->next - (unsigned long)blob->data;
+
+	memcpy((char *)blob->next, data, len);
+	blob->next = _ALIGN(blob->next + len, 4);
+
+	dt_check_blob(blob);
+
+	return start;
+}
+
+void dt_start_node(struct iseries_flat_dt *dt, char *name)
+{
+	dt_push_u32(dt, OF_DT_BEGIN_NODE);
+	dt_push_bytes(&dt->dt, name, strlen(name) + 1);
+}
+
+#define dt_end_node(dt) dt_push_u32(dt, OF_DT_END_NODE)
+
+void dt_prop(struct iseries_flat_dt *dt, char *name, char *data, int len)
+{
+	unsigned long offset;
+
+	dt_push_u32(dt, OF_DT_PROP);
+
+	/* Length of the data */
+	dt_push_u32(dt, len);
+
+	/* Put the property name in the string blob. */
+	offset = dt_push_bytes(&dt->strings, name, strlen(name) + 1);
+
+	/* The offset of the properties name in the string blob. */
+	dt_push_u32(dt, (u32)offset);
+
+	/* The actual data. */
+	dt_push_bytes(&dt->dt, data, len);
+}
+
+void dt_prop_str(struct iseries_flat_dt *dt, char *name, char *data)
+{
+	dt_prop(dt, name, data, strlen(data) + 1); /* + 1 for NULL */
+}
+
+void dt_prop_u32(struct iseries_flat_dt *dt, char *name, u32 data)
+{
+	dt_prop(dt, name, (char *)&data, sizeof(u32));
+}
+
+void dt_prop_u64(struct iseries_flat_dt *dt, char *name, u64 data)
+{
+	dt_prop(dt, name, (char *)&data, sizeof(u64));
+}
+
+void dt_prop_u64_list(struct iseries_flat_dt *dt, char *name, u64 *data, int n)
+{
+	dt_prop(dt, name, (char *)data, sizeof(u64) * n);
+}
+
+void dt_prop_empty(struct iseries_flat_dt *dt, char *name)
+{
+	dt_prop(dt, name, NULL, 0);
+}
+
+void dt_cpus(struct iseries_flat_dt *dt)
+{
+	unsigned char buf[32];
+	unsigned char *p;
+	unsigned int i, index;
+	struct IoHriProcessorVpd *d;
+
+	/* yuck */
+	snprintf(buf, 32, "PowerPC,%s", cur_cpu_spec->cpu_name);
+	p = strchr(buf, ' ');
+	if (!p) p = buf + strlen(buf);
+
+	dt_start_node(dt, "cpus");
+	dt_prop_u32(dt, "#address-cells", 1);
+	dt_prop_u32(dt, "#size-cells", 0);
+
+	for (i = 0; i < NR_CPUS; i++) {
+		if (paca[i].lppaca.dyn_proc_status >= 2)
+			continue;
+
+		snprintf(p, 32 - (p - buf), "@%d", i);
+		dt_start_node(dt, buf);
+
+		dt_prop_str(dt, "device_type", "cpu");
+
+		index = paca[i].lppaca.dyn_hv_phys_proc_index;
+		d = &xIoHriProcessorVpd[index];
+
+		dt_prop_u32(dt, "i-cache-size", d->xInstCacheSize * 1024);
+		dt_prop_u32(dt, "i-cache-line-size", d->xInstCacheOperandSize);
+
+		dt_prop_u32(dt, "d-cache-size", d->xDataL1CacheSizeKB * 1024);
+		dt_prop_u32(dt, "d-cache-line-size", d->xDataCacheOperandSize);
+
+		/* magic conversions to Hz copied from old code */
+		dt_prop_u32(dt, "clock-frequency",
+			((1UL << 34) * 1000000) / d->xProcFreq);
+		dt_prop_u32(dt, "timebase-frequency",
+			((1UL << 32) * 1000000) / d->xTimeBaseFreq);
+
+		dt_prop_u32(dt, "reg", i);
+
+		dt_end_node(dt);
+	}
+
+	dt_end_node(dt);
+}
+
+void build_flat_dt(struct iseries_flat_dt *dt)
+{
+	u64 tmp[2];
+
+	dt_init(dt);
+
+	dt_start_node(dt, "");
+
+	dt_prop_u32(dt, "#address-cells", 2);
+	dt_prop_u32(dt, "#size-cells", 2);
+
+	/* /memory */
+	dt_start_node(dt, "memory@0");
+	dt_prop_str(dt, "name", "memory");
+	dt_prop_str(dt, "device_type", "memory");
+	tmp[0] = 0;
+	tmp[1] = systemcfg->physicalMemorySize;
+	dt_prop_u64_list(dt, "reg", tmp, 2);
+	dt_end_node(dt);
+
+	/* /chosen */
+	dt_start_node(dt, "chosen");
+	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
+	dt_end_node(dt);
+
+	dt_cpus(dt);
+
+	dt_end_node(dt);
+
+	dt_push_u32(dt, OF_DT_END);
+}
+
+void * __init iSeries_early_setup(void)
+{
+	iSeries_fixup_klimit();
+
+	/*
+	 * Initialize the table which translate Linux physical addresses to
+	 * AS/400 absolute addresses
+	 */
+	build_iSeries_Memory_Map();
+
+	build_flat_dt(&iseries_dt);
+
+	return (void *) __pa(&iseries_dt);
+}
