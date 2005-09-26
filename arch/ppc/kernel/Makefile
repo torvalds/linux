@@ -1,6 +1,7 @@
 #
 # Makefile for the linux kernel.
 #
+ifneq ($(CONFIG_PPC_MERGE),y)
 
 extra-$(CONFIG_PPC_STD_MMU)	:= head.o
 extra-$(CONFIG_40x)		:= head_4xx.o
@@ -37,3 +38,23 @@ endif
 
 # These are here while we do the architecture merge
 vecemu-y			+= ../../powerpc/kernel/vecemu.o
+
+else
+obj-y				:= entry.o irq.o idle.o time.o misc.o \
+					signal.o ptrace.o align.o \
+					syscalls.o setup.o \
+					cputable.o perfmon.o
+obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
+obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
+obj-$(CONFIG_POWER4)		+= cpu_setup_power4.o
+obj-$(CONFIG_MODULES)		+= module.o ppc_ksyms.o
+obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
+obj-$(CONFIG_PCI)		+= pci.o
+obj-$(CONFIG_KGDB)		+= ppc-stub.o
+obj-$(CONFIG_SMP)		+= smp.o smp-tbsync.o
+obj-$(CONFIG_TAU)		+= temp.o
+ifndef CONFIG_E200
+obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o
+endif
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+endif

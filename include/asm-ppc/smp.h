@@ -45,30 +45,21 @@ extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void cpu_die(void) __attribute__((noreturn));
 
-#define NO_PROC_ID		0xFF            /* No processor magic marker */
-#define PROC_CHANGE_PENALTY	20
-
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 extern int __cpu_up(unsigned int cpu);
 
 extern int smp_hw_index[];
-#define hard_smp_processor_id() (smp_hw_index[smp_processor_id()])
-
-struct klock_info_struct {
-	unsigned long kernel_flag;
-	unsigned char akp;
-};
-
-extern struct klock_info_struct klock_info;
-#define KLOCK_HELD       0xffffffff
-#define KLOCK_CLEAR      0x0
+#define hard_smp_processor_id() 	(smp_hw_index[smp_processor_id()])
+#define get_hard_smp_processor_id(cpu)	(smp_hw_index[(cpu)])
 
 #endif /* __ASSEMBLY__ */
 
 #else /* !(CONFIG_SMP) */
 
 static inline void cpu_die(void) { }
+#define get_hard_smp_processor_id(cpu) 0
+#define hard_smp_processor_id() 0
 
 #endif /* !(CONFIG_SMP) */
 

@@ -89,9 +89,6 @@ extern void prep_tiger1_setup_pci(char *irq_edge_mask_lo, char *irq_edge_mask_hi
 #define cached_21	(((char *)(ppc_cached_irq_mask))[3])
 #define cached_A1	(((char *)(ppc_cached_irq_mask))[2])
 
-/* for the mac fs */
-dev_t boot_dev;
-
 #ifdef CONFIG_SOUND_CS4232
 long ppc_cs4232_dma, ppc_cs4232_dma2;
 #endif

@@ -83,6 +83,8 @@ extern void pmac_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
 extern void chrp_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
+
+dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -405,11 +407,13 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 			_machine = _MACH_prep;
 	}
 
+#ifdef CONFIG_PPC_PREP
 	/* not much more to do here, if prep */
 	if (_machine == _MACH_prep) {
 		prep_init(r3, r4, r5, r6, r7);
 		return;
 	}
+#endif
 
 	/* prom_init has already been called from __start */
 	if (boot_infos)
@@ -480,12 +484,16 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif /* CONFIG_ADB */
 
 	switch (_machine) {
+#ifdef CONFIG_PPC_PMAC
 	case _MACH_Pmac:
 		pmac_init(r3, r4, r5, r6, r7);
 		break;
+#endif
+#ifdef CONFIG_PPC_CHRP
 	case _MACH_chrp:
 		chrp_init(r3, r4, r5, r6, r7);
 		break;
+#endif
 	}
 }
 

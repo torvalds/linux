@@ -405,7 +405,7 @@ static int __init via_pmu_start(void)
 	bright_req_2.complete = 1;
 	batt_req.complete = 1;
 
-#ifdef CONFIG_PPC32
+#if defined(CONFIG_PPC32) && !defined(CONFIG_PPC_MERGE)
 	if (pmu_kind == PMU_KEYLARGO_BASED)
 		openpic_set_irq_priority(vias->intrs[0].line,
 					 OPENPIC_PRIORITY_DEFAULT + 1);

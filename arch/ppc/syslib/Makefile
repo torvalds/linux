@@ -5,6 +5,7 @@
 CFLAGS_prom_init.o      += -fPIC
 CFLAGS_btext.o          += -fPIC
 
+ifneq ($(CONFIG_PPC_MERGE),y)
 wdt-mpc8xx-$(CONFIG_8xx_WDT)	+= m8xx_wdt.o
 
 obj-$(CONFIG_PPCBUG_NVRAM)	+= prep_nvram.o
@@ -108,4 +109,17 @@ obj-$(CONFIG_PPC_MPC52xx)	+= mpc52xx_setup.o mpc52xx_pic.o \
 					mpc52xx_sys.o mpc52xx_devices.o ppc_sys.o
 ifeq ($(CONFIG_PPC_MPC52xx),y)
 obj-$(CONFIG_PCI)		+= mpc52xx_pci.o
+endif
+
+else
+# Stuff still needed by the merged powerpc sources
+
+obj-$(CONFIG_PPCBUG_NVRAM)	+= prep_nvram.o
+obj-$(CONFIG_PPC_OF)		+= prom_init.o prom.o of_device.o
+obj-$(CONFIG_PPC_PMAC)		+= indirect_pci.o
+obj-$(CONFIG_PPC_CHRP)		+= indirect_pci.o i8259.o
+obj-$(CONFIG_PPC_PREP)		+= indirect_pci.o i8259.o todc_time.o
+obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
+obj-$(CONFIG_MPC10X_BRIDGE)	+= mpc10x_common.o indirect_pci.o ppc_sys.o
+
 endif

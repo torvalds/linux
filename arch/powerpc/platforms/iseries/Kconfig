@@ -1,0 +1,31 @@
+
+menu "iSeries device drivers"
+	depends on PPC_ISERIES
+
+config VIOCONS
+	tristate "iSeries Virtual Console Support"
+
+config VIODASD
+	tristate "iSeries Virtual I/O disk support"
+	help
+	  If you are running on an iSeries system and you want to use
+ 	  virtual disks created and managed by OS/400, say Y.
+
+config VIOCD
+	tristate "iSeries Virtual I/O CD support"
+	help
+	  If you are running Linux on an IBM iSeries system and you want to
+	  read a CD drive owned by OS/400, say Y here.
+
+config VIOTAPE
+	tristate "iSeries Virtual Tape Support"
+	help
+	  If you are running Linux on an iSeries system and you want Linux
+	  to read and/or write a tape drive owned by OS/400, say Y here.
+
+endmenu
+
+config VIOPATH
+	bool
+	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || VETH
+	default y
