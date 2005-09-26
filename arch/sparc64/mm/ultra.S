@@ -180,35 +180,6 @@ __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 
 	.previous
 
-	.align		32
-__prefill_dtlb:
-	rdpr		%pstate, %g7
-	wrpr		%g7, PSTATE_IE, %pstate
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o5, [%g1] ASI_DMMU
-	stxa		%o2, [%g0] ASI_DTLB_DATA_IN
-	flush		%g6
-	retl
-	 wrpr		%g7, %pstate
-__prefill_itlb:
-	rdpr		%pstate, %g7
-	wrpr		%g7, PSTATE_IE, %pstate
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o5, [%g1] ASI_IMMU
-	stxa		%o2, [%g0] ASI_ITLB_DATA_IN
-	flush		%g6
-	retl
-	 wrpr		%g7, %pstate
-
-	.globl		__update_mmu_cache
-__update_mmu_cache:	/* %o0=hw_context, %o1=address, %o2=pte, %o3=fault_code */
-	srlx		%o1, PAGE_SHIFT, %o1
-	andcc		%o3, FAULT_CODE_DTLB, %g0
-	sllx		%o1, PAGE_SHIFT, %o5
-	bne,pt		%xcc, __prefill_dtlb
-	 or		%o5, %o0, %o5
-	ba,a,pt		%xcc, __prefill_itlb
-
 	/* Cheetah specific versions, patched at boot time. */
 __cheetah_flush_tlb_mm: /* 18 insns */
 	rdpr		%pstate, %g7

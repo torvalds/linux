@@ -171,8 +171,6 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 			     : "g1", "g7");
 }
 
-extern void __update_mmu_cache(unsigned long mmu_context_hw, unsigned long address, pte_t pte, int code);
-
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 	struct page *page;
@@ -199,10 +197,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 		put_cpu();
 	}
-
-	if (get_thread_fault_code())
-		__update_mmu_cache(CTX_NRBITS(vma->vm_mm->context),
-				   address, pte, get_thread_fault_code());
 }
 
 void flush_dcache_page(struct page *page)
