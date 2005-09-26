@@ -1044,7 +1044,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		u->urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		u->urb->interval = 1 << subs->datainterval;
 		u->urb->context = u;
-		u->urb->complete = snd_usb_complete_callback(snd_complete_urb);
+		u->urb->complete = snd_complete_urb;
 	}
 
 	if (subs->syncpipe) {
@@ -1070,7 +1070,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 			u->urb->number_of_packets = 1;
 			u->urb->interval = 1 << subs->syncinterval;
 			u->urb->context = u;
-			u->urb->complete = snd_usb_complete_callback(snd_complete_sync_urb);
+			u->urb->complete = snd_complete_sync_urb;
 		}
 	}
 	return 0;

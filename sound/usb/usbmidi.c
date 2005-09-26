@@ -861,13 +861,12 @@ static int snd_usbmidi_in_endpoint_create(snd_usb_midi_t* umidi,
 		return -ENOMEM;
 	}
 	if (ep_info->in_interval)
-		usb_fill_int_urb(ep->urb, umidi->chip->dev, pipe, buffer, length,
-				 snd_usb_complete_callback(snd_usbmidi_in_urb_complete),
-				 ep, ep_info->in_interval);
+		usb_fill_int_urb(ep->urb, umidi->chip->dev, pipe, buffer,
+				 length, snd_usbmidi_in_urb_complete, ep,
+				 ep_info->in_interval);
 	else
-		usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer, length,
-				  snd_usb_complete_callback(snd_usbmidi_in_urb_complete),
-				  ep);
+		usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer,
+				  length, snd_usbmidi_in_urb_complete, ep);
 	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	rep->in = ep;
@@ -931,8 +930,7 @@ static int snd_usbmidi_out_endpoint_create(snd_usb_midi_t* umidi,
 		return -ENOMEM;
 	}
 	usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer,
-			  ep->max_transfer,
-			  snd_usb_complete_callback(snd_usbmidi_out_urb_complete), ep);
+			  ep->max_transfer, snd_usbmidi_out_urb_complete, ep);
 	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	spin_lock_init(&ep->buffer_lock);
