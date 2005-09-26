@@ -246,10 +246,8 @@ static void snd_usbmidi_in_urb_complete(struct urb* urb, struct pt_regs *regs)
 		}
 	}
 
-	if (usb_pipe_needs_resubmit(urb->pipe)) {
-		urb->dev = ep->umidi->chip->dev;
-		snd_usbmidi_submit_urb(urb, GFP_ATOMIC);
-	}
+	urb->dev = ep->umidi->chip->dev;
+	snd_usbmidi_submit_urb(urb, GFP_ATOMIC);
 }
 
 static void snd_usbmidi_out_urb_complete(struct urb* urb, struct pt_regs *regs)
