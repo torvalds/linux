@@ -308,22 +308,19 @@ typedef le16 MFT_RECORD_FLAGS;
  * The _LE versions are to be applied on little endian MFT_REFs.
  * Note: The _LE versions will return a CPU endian formatted value!
  */
-typedef enum {
-	MFT_REF_MASK_CPU	= 0x0000ffffffffffffULL,
-	MFT_REF_MASK_LE		= const_cpu_to_le64(0x0000ffffffffffffULL),
-} MFT_REF_CONSTS;
+#define MFT_REF_MASK_CPU 0x0000ffffffffffffULL
+#define MFT_REF_MASK_LE const_cpu_to_le64(0x0000ffffffffffffULL)
 
 typedef u64 MFT_REF;
 typedef le64 leMFT_REF;
 
 #define MK_MREF(m, s)	((MFT_REF)(((MFT_REF)(s) << 48) |		\
-					((MFT_REF)(m) & (u64)MFT_REF_MASK_CPU)))
+					((MFT_REF)(m) & MFT_REF_MASK_CPU)))
 #define MK_LE_MREF(m, s) cpu_to_le64(MK_MREF(m, s))
 
-#define MREF(x)		((unsigned long)((x) & (u64)MFT_REF_MASK_CPU))
+#define MREF(x)		((unsigned long)((x) & MFT_REF_MASK_CPU))
 #define MSEQNO(x)	((u16)(((x) >> 48) & 0xffff))
-#define MREF_LE(x)	((unsigned long)(le64_to_cpu(x) &		\
-					(u64)MFT_REF_MASK_CPU))
+#define MREF_LE(x)	((unsigned long)(le64_to_cpu(x) & MFT_REF_MASK_CPU))
 #define MSEQNO_LE(x)	((u16)((le64_to_cpu(x) >> 48) & 0xffff))
 
 #define IS_ERR_MREF(x)	(((x) & 0x0000800000000000ULL) ? 1 : 0)
