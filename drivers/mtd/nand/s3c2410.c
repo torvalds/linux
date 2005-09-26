@@ -18,7 +18,7 @@
  *	20-Jun-2005  BJD  Updated s3c2440 support, fixed timing bug
  *	08-Jul-2005  BJD  Fix OOPS when no platform data supplied
  *
- * $Id: s3c2410.c,v 1.14 2005/07/06 20:05:06 bjd Exp $
+ * $Id: s3c2410.c,v 1.15 2005/09/26 21:42:54 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -576,7 +576,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		printk(KERN_ERR PFX "no memory for flash info\n");
+		dev_err("no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
@@ -591,7 +591,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 
 	info->clk = clk_get(dev, "nand");
 	if (IS_ERR(info->clk)) {
-		printk(KERN_ERR PFX "failed to get clock");
+		dev_err(dev, "failed to get clock");
 		err = -ENOENT;
 		goto exit_error;
 	}
@@ -608,7 +608,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	info->area = request_mem_region(res->start, size, pdev->name);
 
 	if (info->area == NULL) {
-		printk(KERN_ERR PFX "cannot reserve register region\n");
+		dev_err(dev, "cannot reserve register region\n");
 		err = -ENOENT;
 		goto exit_error;
 	}
@@ -619,12 +619,12 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	info->is_s3c2440 = is_s3c2440;
 
 	if (info->regs == NULL) {
-		printk(KERN_ERR PFX "cannot reserve register region\n");
+		dev_err(dev, "cannot reserve register region\n");
 		err = -EIO;
 		goto exit_error;
 	}		
 
-	printk(KERN_INFO PFX "mapped registers at %p\n", info->regs);
+	dev_dbg(dev, "mapped registers at %p\n", info->regs);
 
 	/* initialise the hardware */
 
@@ -642,7 +642,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	size = nr_sets * sizeof(*info->mtds);
 	info->mtds = kmalloc(size, GFP_KERNEL);
 	if (info->mtds == NULL) {
-		printk(KERN_ERR PFX "failed to allocate mtd storage\n");
+		dev_err(dev, "failed to allocate mtd storage\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
