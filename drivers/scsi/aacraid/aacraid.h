@@ -780,7 +780,9 @@ struct fsa_dev_info {
 	u64		last;
 	u64		size;
 	u32		type;
+	u32		config_waiting_on;
 	u16		queue_depth;
+	u8		config_needed;
 	u8		valid;
 	u8		ro;
 	u8		locked;
@@ -1715,6 +1717,7 @@ extern struct aac_common aac_config;
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */
 #define			AifJobStsSuccess 1	/* Job completes */
+#define			AifJobStsRunning 102	/* Job running */
 #define		AifCmdAPIReport		3	/* Report from other user of API */
 #define		AifCmdDriverNotify	4	/* Notify host driver of event */
 #define			AifDenMorphComplete 200	/* A morph operation completed */
@@ -1785,6 +1788,7 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
+int probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];

@@ -479,7 +479,7 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd, int cid)
  *	is updated in the struct fsa_dev_info structure rather than returned.
  */
  
-static int probe_container(struct aac_dev *dev, int cid)
+int probe_container(struct aac_dev *dev, int cid)
 {
 	struct fsa_dev_info *fsa_dev_ptr;
 	int status;
@@ -1471,6 +1471,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				case TEST_UNIT_READY:
 					spin_unlock_irq(host->host_lock);
 					probe_container(dev, cid);
+					if ((fsa_dev_ptr[cid].valid & 1) == 0)
+						fsa_dev_ptr[cid].valid = 0;
 					spin_lock_irq(host->host_lock);
 					if (fsa_dev_ptr[cid].valid == 0) {
 						scsicmd->result = DID_NO_CONNECT << 16;
