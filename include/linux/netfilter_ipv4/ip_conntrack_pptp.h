@@ -60,8 +60,8 @@ struct ip_ct_pptp_expect {
 
 struct pptp_pkt_hdr {
 	__u16	packetLength;
-	__u16	packetType;
-	__u32	magicCookie;
+	__be16	packetType;
+	__be32	magicCookie;
 };
 
 /* PptpControlMessageType values */
@@ -93,7 +93,7 @@ struct pptp_pkt_hdr {
 #define PPTP_REMOVE_DEVICE_ERROR	6
 
 struct PptpControlHeader {
-	__u16	messageType;
+	__be16	messageType;
 	__u16	reserved;
 };
 
@@ -106,13 +106,13 @@ struct PptpControlHeader {
 #define PPTP_BEARER_CAP_DIGITAL		0x2
 
 struct PptpStartSessionRequest {
-	__u16	protocolVersion;
+	__be16	protocolVersion;
 	__u8	reserved1;
 	__u8	reserved2;
-	__u32	framingCapability;
-	__u32	bearerCapability;
-	__u16	maxChannels;
-	__u16	firmwareRevision;
+	__be32	framingCapability;
+	__be32	bearerCapability;
+	__be16	maxChannels;
+	__be16	firmwareRevision;
 	__u8	hostName[64];
 	__u8	vendorString[64];
 };
@@ -125,13 +125,13 @@ struct PptpStartSessionRequest {
 #define PPTP_START_UNKNOWN_PROTOCOL	5
 
 struct PptpStartSessionReply {
-	__u16	protocolVersion;
+	__be16	protocolVersion;
 	__u8	resultCode;
 	__u8	generalErrorCode;
-	__u32	framingCapability;
-	__u32	bearerCapability;
-	__u16	maxChannels;
-	__u16	firmwareRevision;
+	__be32	framingCapability;
+	__be32	bearerCapability;
+	__be16	maxChannels;
+	__be16	firmwareRevision;
 	__u8	hostName[64];
 	__u8	vendorString[64];
 };
@@ -155,7 +155,7 @@ struct PptpStopSessionReply {
 };
 
 struct PptpEchoRequest {
-	__u32 identNumber;
+	__be32 identNumber;
 };
 
 /* PptpEchoReplyResultCode */
@@ -163,7 +163,7 @@ struct PptpEchoRequest {
 #define PPTP_ECHO_GENERAL_ERROR		2
 
 struct PptpEchoReply {
-	__u32	identNumber;
+	__be32	identNumber;
 	__u8	resultCode;
 	__u8	generalErrorCode;
 	__u16	reserved;
@@ -180,16 +180,16 @@ struct PptpEchoReply {
 #define PPTP_DONT_CARE_BEARER_TYPE	3
 
 struct PptpOutCallRequest {
-	__u16	callID;
-	__u16	callSerialNumber;
-	__u32	minBPS;
-	__u32	maxBPS;
-	__u32	bearerType;
-	__u32	framingType;
-	__u16	packetWindow;
-	__u16	packetProcDelay;
+	__be16	callID;
+	__be16	callSerialNumber;
+	__be32	minBPS;
+	__be32	maxBPS;
+	__be32	bearerType;
+	__be32	framingType;
+	__be16	packetWindow;
+	__be16	packetProcDelay;
 	__u16	reserved1;
-	__u16	phoneNumberLength;
+	__be16	phoneNumberLength;
 	__u16	reserved2;
 	__u8	phoneNumber[64];
 	__u8	subAddress[64];
@@ -205,24 +205,24 @@ struct PptpOutCallRequest {
 #define PPTP_OUTCALL_DONT_ACCEPT	7
 
 struct PptpOutCallReply {
-	__u16	callID;
-	__u16	peersCallID;
+	__be16	callID;
+	__be16	peersCallID;
 	__u8	resultCode;
 	__u8	generalErrorCode;
-	__u16	causeCode;
-	__u32	connectSpeed;
-	__u16	packetWindow;
-	__u16	packetProcDelay;
-	__u32	physChannelID;
+	__be16	causeCode;
+	__be32	connectSpeed;
+	__be16	packetWindow;
+	__be16	packetProcDelay;
+	__be32	physChannelID;
 };
 
 struct PptpInCallRequest {
-	__u16	callID;
-	__u16	callSerialNumber;
-	__u32	callBearerType;
-	__u32	physChannelID;
-	__u16	dialedNumberLength;
-	__u16	dialingNumberLength;
+	__be16	callID;
+	__be16	callSerialNumber;
+	__be32	callBearerType;
+	__be32	physChannelID;
+	__be16	dialedNumberLength;
+	__be16	dialingNumberLength;
 	__u8	dialedNumber[64];
 	__u8	dialingNumber[64];
 	__u8	subAddress[64];
@@ -234,61 +234,54 @@ struct PptpInCallRequest {
 #define PPTP_INCALL_DONT_ACCEPT		3
 
 struct PptpInCallReply {
-	__u16	callID;
-	__u16	peersCallID;
+	__be16	callID;
+	__be16	peersCallID;
 	__u8	resultCode;
 	__u8	generalErrorCode;
-	__u16	packetWindow;
-	__u16	packetProcDelay;
+	__be16	packetWindow;
+	__be16	packetProcDelay;
 	__u16	reserved;
 };
 
 struct PptpInCallConnected {
-	__u16	peersCallID;
+	__be16	peersCallID;
 	__u16	reserved;
-	__u32	connectSpeed;
-	__u16	packetWindow;
-	__u16	packetProcDelay;
-	__u32	callFramingType;
+	__be32	connectSpeed;
+	__be16	packetWindow;
+	__be16	packetProcDelay;
+	__be32	callFramingType;
 };
 
 struct PptpClearCallRequest {
-	__u16	callID;
+	__be16	callID;
 	__u16	reserved;
 };
 
 struct PptpCallDisconnectNotify {
-	__u16	callID;
+	__be16	callID;
 	__u8	resultCode;
 	__u8	generalErrorCode;
-	__u16	causeCode;
+	__be16	causeCode;
 	__u16	reserved;
 	__u8	callStatistics[128];
 };
 
 struct PptpWanErrorNotify {
-	__u16	peersCallID;
+	__be16	peersCallID;
 	__u16	reserved;
-	__u32	crcErrors;
-	__u32	framingErrors;
-	__u32	hardwareOverRuns;
-	__u32	bufferOverRuns;
-	__u32	timeoutErrors;
-	__u32	alignmentErrors;
+	__be32	crcErrors;
+	__be32	framingErrors;
+	__be32	hardwareOverRuns;
+	__be32	bufferOverRuns;
+	__be32	timeoutErrors;
+	__be32	alignmentErrors;
 };
 
 struct PptpSetLinkInfo {
-	__u16	peersCallID;
+	__be16	peersCallID;
 	__u16	reserved;
-	__u32	sendAccm;
-	__u32	recvAccm;
-};
-
-
-struct pptp_priv_data {
-	__u16	call_id;
-	__u16	mcall_id;
-	__u16	pcall_id;
+	__be32	sendAccm;
+	__be32	recvAccm;
 };
 
 union pptp_ctrl_union {

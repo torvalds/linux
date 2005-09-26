@@ -4132,6 +4132,53 @@ err_out:
 }
 
 /**
+ *	ata_host_set_remove - PCI layer callback for device removal
+ *	@host_set: ATA host set that was removed
+ *
+ *	Unregister all objects associated with this host set. Free those 
+ *	objects.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+
+
+void ata_host_set_remove(struct ata_host_set *host_set)
+{
+	struct ata_port *ap;
+	unsigned int i;
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		ap = host_set->ports[i];
+		scsi_remove_host(ap->host);
+	}
+
+	free_irq(host_set->irq, host_set);
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		ap = host_set->ports[i];
+
+		ata_scsi_release(ap->host);
+
+		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
+			struct ata_ioports *ioaddr = &ap->ioaddr;
+
+			if (ioaddr->cmd_addr == 0x1f0)
+				release_region(0x1f0, 8);
+			else if (ioaddr->cmd_addr == 0x170)
+				release_region(0x170, 8);
+		}
+
+		scsi_host_put(ap->host);
+	}
+
+	if (host_set->ops->host_stop)
+		host_set->ops->host_stop(host_set);
+
+	kfree(host_set);
+}
+
+/**
  *	ata_scsi_release - SCSI layer callback hook for host unload
  *	@host: libata host to be unloaded
  *
@@ -4471,39 +4518,8 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host_set *host_set = dev_get_drvdata(dev);
-	struct ata_port *ap;
-	unsigned int i;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		scsi_remove_host(ap->host);
-	}
-
-	free_irq(host_set->irq, host_set);
-
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		ata_scsi_release(ap->host);
-
-		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
-			struct ata_ioports *ioaddr = &ap->ioaddr;
-
-			if (ioaddr->cmd_addr == 0x1f0)
-				release_region(0x1f0, 8);
-			else if (ioaddr->cmd_addr == 0x170)
-				release_region(0x170, 8);
-		}
-
-		scsi_host_put(ap->host);
-	}
-
-	if (host_set->ops->host_stop)
-		host_set->ops->host_stop(host_set);
-
-	kfree(host_set);
-
+	ata_host_set_remove(host_set);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	dev_set_drvdata(dev, NULL);
@@ -4573,6 +4589,7 @@ module_exit(ata_exit);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
+EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
 EXPORT_SYMBOL_GPL(ata_qc_complete);

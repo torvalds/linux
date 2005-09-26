@@ -245,6 +245,18 @@ config I2C_KEYWEST
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-keywest.
 
+config I2C_PMAC_SMU
+	tristate "Powermac SMU I2C interface"
+	depends on I2C && PMAC_SMU
+	help
+	  This supports the use of the I2C interface in the SMU
+	  chip on recent Apple machines like the iMac G5.  It is used
+	  among others by the thermal control driver for those machines.
+	  Say Y if you have such a machine.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-pmac-smu.
+
 config I2C_MPC
 	tristate "MPC107/824x/85xx/52xx"
 	depends on I2C && PPC32

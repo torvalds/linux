@@ -31,7 +31,8 @@ static inline int should_deliver(const struct net_bridge_port *p,
 
 int br_dev_queue_push_xmit(struct sk_buff *skb)
 {
-	if (skb->len > skb->dev->mtu) 
+	/* drop mtu oversized packets except tso */
+	if (skb->len > skb->dev->mtu && !skb_shinfo(skb)->tso_size)
 		kfree_skb(skb);
 	else {
 #ifdef CONFIG_BRIDGE_NETFILTER

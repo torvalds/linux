@@ -69,11 +69,11 @@ struct pxa2xx_ep {
 	 * UDDR = UDC Endpoint Data Register (the fifo)
 	 * DRCM = DMA Request Channel Map
 	 */
-	volatile u32				*reg_udccs;
-	volatile u32				*reg_ubcr;
-	volatile u32				*reg_uddr;
+	volatile unsigned long			*reg_udccs;
+	volatile unsigned long			*reg_ubcr;
+	volatile unsigned long			*reg_uddr;
 #ifdef USE_DMA
-	volatile u32				*reg_drcmr;
+	volatile unsigned long			*reg_drcmr;
 #define	drcmr(n)  .reg_drcmr = & DRCMR ## n ,
 #else
 #define	drcmr(n)  

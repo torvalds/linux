@@ -442,7 +442,6 @@ static void piix_sata_phy_reset(struct ata_port *ap)
  *	piix_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
  *	@adev: um
- *	@pio: PIO mode, 0 - 4
  *
  *	Set PIO mode for device, in host controller PCI config space.
  *

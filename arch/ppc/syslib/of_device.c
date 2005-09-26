@@ -234,7 +234,9 @@ void of_device_unregister(struct of_device *ofdev)
 	device_unregister(&ofdev->dev);
 }
 
-struct of_device* of_platform_device_create(struct device_node *np, const char *bus_id)
+struct of_device* of_platform_device_create(struct device_node *np,
+					    const char *bus_id,
+					    struct device *parent)
 {
 	struct of_device *dev;
 	u32 *reg;
@@ -247,7 +249,7 @@ struct of_device* of_platform_device_create(struct device_node *np, const char *
 	dev->node = of_node_get(np);
 	dev->dma_mask = 0xffffffffUL;
 	dev->dev.dma_mask = &dev->dma_mask;
-	dev->dev.parent = NULL;
+	dev->dev.parent = parent;
 	dev->dev.bus = &of_platform_bus_type;
 	dev->dev.release = of_release_dev;
 

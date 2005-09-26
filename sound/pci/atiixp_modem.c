@@ -405,7 +405,7 @@ static int snd_atiixp_acquire_codec(atiixp_t *chip)
 
 	while (atiixp_read(chip, PHYS_OUT_ADDR) & ATI_REG_PHYS_OUT_ADDR_EN) {
 		if (! timeout--) {
-			snd_printk(KERN_WARNING "atiixp: codec acquire timeout\n");
+			snd_printk(KERN_WARNING "atiixp-modem: codec acquire timeout\n");
 			return -EBUSY;
 		}
 		udelay(1);
@@ -436,7 +436,7 @@ static unsigned short snd_atiixp_codec_read(atiixp_t *chip, unsigned short codec
 	} while (--timeout);
 	/* time out may happen during reset */
 	if (reg < 0x7c)
-		snd_printk(KERN_WARNING "atiixp: codec read timeout (reg %x)\n", reg);
+		snd_printk(KERN_WARNING "atiixp-modem: codec read timeout (reg %x)\n", reg);
 	return 0xffff;
 }
 
@@ -498,7 +498,7 @@ static int snd_atiixp_aclink_reset(atiixp_t *chip)
 		do_delay();
 		atiixp_update(chip, CMD, ATI_REG_CMD_AC_RESET, ATI_REG_CMD_AC_RESET);
 		if (--timeout) {
-			snd_printk(KERN_ERR "atiixp: codec reset timeout\n");
+			snd_printk(KERN_ERR "atiixp-modem: codec reset timeout\n");
 			break;
 		}
 	}
@@ -552,7 +552,7 @@ static int snd_atiixp_codec_detect(atiixp_t *chip)
 	atiixp_write(chip, IER, 0); /* disable irqs */
 
 	if ((chip->codec_not_ready_bits & ALL_CODEC_NOT_READY) == ALL_CODEC_NOT_READY) {
-		snd_printk(KERN_ERR "atiixp: no codec detected!\n");
+		snd_printk(KERN_ERR "atiixp-modem: no codec detected!\n");
 		return -ENXIO;
 	}
 	return 0;
@@ -635,7 +635,7 @@ static void snd_atiixp_xrun_dma(atiixp_t *chip, atiixp_dma_t *dma)
 {
 	if (! dma->substream || ! dma->running)
 		return;
-	snd_printdd("atiixp: XRUN detected (DMA %d)\n", dma->ops->type);
+	snd_printdd("atiixp-modem: XRUN detected (DMA %d)\n", dma->ops->type);
 	snd_pcm_stop(dma->substream, SNDRV_PCM_STATE_XRUN);
 }
 
@@ -1081,14 +1081,14 @@ static int __devinit snd_atiixp_mixer_new(atiixp_t *chip, int clock)
 		ac97.scaps = AC97_SCAP_SKIP_AUDIO;
 		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
 			chip->ac97[i] = NULL; /* to be sure */
-			snd_printdd("atiixp: codec %d not available for modem\n", i);
+			snd_printdd("atiixp-modem: codec %d not available for modem\n", i);
 			continue;
 		}
 		codec_count++;
 	}
 
 	if (! codec_count) {
-		snd_printk(KERN_ERR "atiixp: no codec available\n");
+		snd_printk(KERN_ERR "atiixp-modem: no codec available\n");
 		return -ENODEV;
 	}
 
@@ -1159,7 +1159,7 @@ static void __devinit snd_atiixp_proc_init(atiixp_t *chip)
 {
 	snd_info_entry_t *entry;
 
-	if (! snd_card_proc_new(chip->card, "atiixp", &entry))
+	if (! snd_card_proc_new(chip->card, "atiixp-modem", &entry))
 		snd_info_set_text_ops(entry, chip, 1024, snd_atiixp_proc_read);
 }
 

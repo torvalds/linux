@@ -1959,22 +1959,35 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Set it up */
        	mesh_init(ms);
 
-	/* XXX FIXME: error should be fatal */
-       	if (request_irq(ms->meshintr, do_mesh_interrupt, 0, "MESH", ms))
+	/* Request interrupt */
+       	if (request_irq(ms->meshintr, do_mesh_interrupt, 0, "MESH", ms)) {
 	       	printk(KERN_ERR "MESH: can't get irq %d\n", ms->meshintr);
+		goto out_shutdown;
+	}
 
-	/* XXX FIXME: handle failure */
-	scsi_add_host(mesh_host, &mdev->ofdev.dev);
+	/* Add scsi host & scan */
+	if (scsi_add_host(mesh_host, &mdev->ofdev.dev))
+		goto out_release_irq;
 	scsi_scan_host(mesh_host);
 
 	return 0;
 
-out_unmap:
+ out_release_irq:
+	free_irq(ms->meshintr, ms);
+ out_shutdown:
+	/* shutdown & reset bus in case of error or macos can be confused
+	 * at reboot if the bus was set to synchronous mode already
+	 */
+	mesh_shutdown(mdev);
+	set_mesh_power(ms, 0);
+	pci_free_consistent(macio_get_pci_dev(mdev), ms->dma_cmd_size,
+			    ms->dma_cmd_space, ms->dma_cmd_bus);
+ out_unmap:
 	iounmap(ms->dma);
 	iounmap(ms->mesh);
-out_free:
+ out_free:
 	scsi_host_put(mesh_host);
-out_release:
+ out_release:
 	macio_release_resources(mdev);
 
 	return -ENODEV;
@@ -2001,7 +2014,7 @@ static int mesh_remove(struct macio_dev *mdev)
 
 	/* Free DMA commands memory */
 	pci_free_consistent(macio_get_pci_dev(mdev), ms->dma_cmd_size,
-			  ms->dma_cmd_space, ms->dma_cmd_bus);
+			    ms->dma_cmd_space, ms->dma_cmd_bus);
 
 	/* Release memory resources */
 	macio_release_resources(mdev);

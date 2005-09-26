@@ -151,7 +151,7 @@ CONFIGURING the kernel:
 			   your existing ./.config file.
 	"make silentoldconfig"
 			   Like above, but avoids cluttering the screen
-			   with question already answered.
+			   with questions already answered.
    
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can
@@ -199,9 +199,9 @@ COMPILING the kernel:
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
    do a "make modules_install".
-   In alternative, before compiling, edit your Makefile and change the
-   "EXTRAVERSION" line - its content is appended to the regular kernel
-   version.
+   Alternatively, before compiling, use the kernel config option
+   "LOCALVERSION" to append a unique suffix to the regular kernel version.
+   LOCALVERSION can be set in the "General Setup" menu.
 
  - In order to boot your new kernel, you'll need to copy the kernel
    image (e.g. .../linux/arch/i386/boot/bzImage after compilation)

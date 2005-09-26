@@ -509,7 +509,16 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 			tp->lost_out -= diff;
 			tp->left_out -= diff;
 		}
+
 		if (diff > 0) {
+			/* Adjust Reno SACK estimate. */
+			if (!tp->rx_opt.sack_ok) {
+				tp->sacked_out -= diff;
+				if ((int)tp->sacked_out < 0)
+					tp->sacked_out = 0;
+				tcp_sync_left_out(tp);
+			}
+
 			tp->fackets_out -= diff;
 			if ((int)tp->fackets_out < 0)
 				tp->fackets_out = 0;

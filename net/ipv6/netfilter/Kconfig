@@ -209,6 +209,17 @@ config IP6_NF_TARGET_REJECT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_TARGET_NFQUEUE
+	tristate "NFQUEUE Target Support"
+	depends on IP_NF_IPTABLES
+	help
+	  This Target replaced the old obsolete QUEUE target.
+
+	  As opposed to QUEUE, it supports 65535 different queues,
+	  not just one.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 #  if [ "$CONFIG_IP6_NF_FILTER" != "n" ]; then
 #    dep_tristate '    REJECT target support' CONFIG_IP6_NF_TARGET_REJECT $CONFIG_IP6_NF_FILTER
 #    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then

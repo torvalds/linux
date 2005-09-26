@@ -16,7 +16,8 @@
 #include "usb-serial.h"
 
 static struct usb_device_id id_table [] = {
-	{ USB_DEVICE(0xf3d, 0x0112) },
+	{ USB_DEVICE(0xf3d, 0x0112) },  /* AirPrime CDMA Wireless PC Card */
+	{ USB_DEVICE(0x1410, 0x1110) }, /* Novatel Wireless Merlin CDMA */
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);

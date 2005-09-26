@@ -253,9 +253,11 @@ int atyfb_xl_init(struct fb_info *info)
 	aty_st_le32(0xFC, 0x00000000, par);
 
 #if defined (CONFIG_FB_ATY_GENERIC_LCD)
-	int i;
-	for (i=0; i<sizeof(lcd_tbl)/sizeof(lcd_tbl_t); i++) {
-		aty_st_lcd(lcd_tbl[i].lcd_reg, lcd_tbl[i].val, par);
+	{
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(lcd_tbl); i++)
+			aty_st_lcd(lcd_tbl[i].lcd_reg, lcd_tbl[i].val, par);
 	}
 #endif
 

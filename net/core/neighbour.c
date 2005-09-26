@@ -61,7 +61,9 @@ static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 
 static struct neigh_table *neigh_tables;
+#ifdef CONFIG_PROC_FS
 static struct file_operations neigh_stat_seq_fops;
+#endif
 
 /*
    Neighbour hash table buckets are protected with rwlock tbl->lock.

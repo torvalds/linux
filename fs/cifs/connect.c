@@ -344,6 +344,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	}
 
 	while (server->tcpStatus != CifsExiting) {
+		if (try_to_freeze())
+			continue;
 		if (bigbuf == NULL) {
 			bigbuf = cifs_buf_get();
 			if(bigbuf == NULL) {
