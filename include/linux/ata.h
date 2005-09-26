@@ -147,14 +147,14 @@ enum {
 	XFER_MW_DMA_2		= 0x22,
 	XFER_MW_DMA_1		= 0x21,
 	XFER_MW_DMA_0		= 0x20,
+	XFER_SW_DMA_2		= 0x12,
+	XFER_SW_DMA_1		= 0x11,
+	XFER_SW_DMA_0		= 0x10,
 	XFER_PIO_4		= 0x0C,
 	XFER_PIO_3		= 0x0B,
 	XFER_PIO_2		= 0x0A,
 	XFER_PIO_1		= 0x09,
 	XFER_PIO_0		= 0x08,
-	XFER_SW_DMA_2		= 0x12,
-	XFER_SW_DMA_1		= 0x11,
-	XFER_SW_DMA_0		= 0x10,
 	XFER_PIO_SLOW		= 0x00,
 
 	/* ATAPI stuff */
