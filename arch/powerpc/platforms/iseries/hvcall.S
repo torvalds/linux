@@ -1,7 +1,4 @@
 /*
- * arch/ppc64/kernel/hvCall.S
- *
- *
  * This file contains the code to perform calls to the
  * iSeries LPAR hypervisor
  *
@@ -16,12 +13,12 @@
 
 	.text
 
-/* 
+/*
  * Hypervisor call
- * 
+ *
  * Invoke the iSeries hypervisor via the System Call instruction
  * Parameters are passed to this routine in registers r3 - r10
- * 
+ *
  * r3 contains the HV function to be called
  * r4-r10 contain the operands to the hypervisor function
  *
@@ -41,11 +38,11 @@ _GLOBAL(HvCall7)
 	mfcr	r0
 	std	r0,-8(r1)
 	stdu	r1,-(STACK_FRAME_OVERHEAD+16)(r1)
-	
+
 	/* r0 = 0xffffffffffffffff indicates a hypervisor call */
-	
+
 	li	r0,-1
-	
+
 	/* Invoke the hypervisor */
 
 	sc
@@ -55,7 +52,7 @@ _GLOBAL(HvCall7)
 	mtcrf	0xff,r0
 
 	/*  return to caller, return value in r3 */
-	
+
 	blr
 
 _GLOBAL(HvCall0Ret16)
@@ -92,7 +89,5 @@ _GLOBAL(HvCall7Ret16)
 	ld	r0,-8(r1)
 	mtcrf	0xff,r0
 	ld	r31,-16(r1)
-	
+
 	blr
-
-
