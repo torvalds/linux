@@ -1259,6 +1259,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 	      	if (skb_checksum_help(skb, 0))
 	      		goto out_kfree_skb;
 
+	spin_lock_prefetch(&dev->queue_lock);
+
 	/* Disable soft irqs for various locks below. Also 
 	 * stops preemption for RCU. 
 	 */
