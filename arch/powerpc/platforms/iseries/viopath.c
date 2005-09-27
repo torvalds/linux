@@ -1,5 +1,4 @@
 /* -*- linux-c -*-
- *  arch/ppc64/kernel/viopath.c
  *
  *  iSeries Virtual I/O Message Path code
  *
@@ -7,7 +6,7 @@
  *           Ryan Arnold <ryanarn@us.ibm.com>
  *           Colin Devilbiss <devilbis@us.ibm.com>
  *
- * (C) Copyright 2000-2003 IBM Corporation
+ * (C) Copyright 2000-2005 IBM Corporation
  *
  * This code is used by the iSeries virtual disk, cd,
  * tape, and console to communicate with OS/400 in another
