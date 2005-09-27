@@ -1,6 +1,4 @@
 /*
- * arch/ppc64/kernel/iSeries_iommu.c
- *
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
  *
  * Rewrite, cleanup:

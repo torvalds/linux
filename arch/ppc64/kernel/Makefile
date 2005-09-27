@@ -22,8 +22,6 @@ pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
 
 obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o iomap.o $(pci-obj-y)
 
-obj-$(CONFIG_PPC_ISERIES) += iSeries_iommu.o
-
 obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o
 
 obj-$(CONFIG_PPC_PSERIES) += pSeries_pci.o pSeries_lpar.o pSeries_hvCall.o \
