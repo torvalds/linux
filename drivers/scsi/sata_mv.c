@@ -241,7 +241,8 @@ static struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
 		.sht		= &mv_sht,
 		.host_flags	= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO),
+				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				   ATA_FLAG_PIO_POLLING),
 		.pio_mask	= 0x1f,	/* pio4-0 */
 		.udma_mask	= 0,	/* 0x7f (udma6-0 disabled for now) */
 		.port_ops	= &mv_ops,
@@ -250,7 +251,7 @@ static struct ata_port_info mv_port_info[] = {
 		.sht		= &mv_sht,
 		.host_flags	= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO | 
-				   MV_FLAG_DUAL_HC),
+				   ATA_FLAG_PIO_POLLING | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio4-0 */
 		.udma_mask	= 0,	/* 0x7f (udma6-0 disabled for now) */
 		.port_ops	= &mv_ops,
@@ -259,6 +260,7 @@ static struct ata_port_info mv_port_info[] = {
 		.sht		= &mv_sht,
 		.host_flags	= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO | 
+				   ATA_FLAG_PIO_POLLING |
 				   MV_FLAG_IRQ_COALESCE | MV_FLAG_BDMA),
 		.pio_mask	= 0x1f,	/* pio4-0 */
 		.udma_mask	= 0,	/* 0x7f (udma6-0 disabled for now) */
@@ -268,6 +270,7 @@ static struct ata_port_info mv_port_info[] = {
 		.sht		= &mv_sht,
 		.host_flags	= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				   ATA_FLAG_PIO_POLLING |
 				   MV_FLAG_IRQ_COALESCE | MV_FLAG_DUAL_HC |
 				   MV_FLAG_BDMA),
 		.pio_mask	= 0x1f,	/* pio4-0 */

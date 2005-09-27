@@ -3356,6 +3356,25 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
+	/* Use polling pio if the LLD doesn't handle
+	 * interrupt driven pio and atapi CDB interrupt.
+	 */
+	if (ap->flags & ATA_FLAG_PIO_POLLING) {
+		switch (qc->tf.protocol) {
+		case ATA_PROT_PIO:
+		case ATA_PROT_ATAPI:
+		case ATA_PROT_ATAPI_NODATA:
+			qc->tf.flags |= ATA_TFLAG_POLLING;
+			break;
+		case ATA_PROT_ATAPI_DMA:
+			if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
+				BUG();
+			break;
+		default:
+			break;
+		}
+	}
+
 	/* select the device */
 	ata_dev_select(ap, qc->dev->devno, 1, 0);
 
