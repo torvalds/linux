@@ -28,10 +28,8 @@
  *	- coalescing setting?
  *
  * TOTEST
- *	- variable ring size
  *	- speed setting
- *	- power management
- *	- netpoll
+ *	- suspend/resume
  */
 
 #include <linux/config.h>
@@ -58,7 +56,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"0.5"
+#define DRV_VERSION		"0.6"
 #define PFX			DRV_NAME " "
 
 /*
@@ -1159,7 +1157,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
 
-	sky2_put_idx(sky2->hw, txqaddr[sky2->port], sky2->tx_prod,
+	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod,
 		     &sky2->tx_last_put, TX_RING_SIZE);
 
 	if (tx_avail(sky2) < MAX_SKB_TX_LE + 1)
