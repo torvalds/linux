@@ -458,22 +458,18 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 
 	default:
 		/* non-generic request */
-		if (HC_IS_SUSPENDED (hcd->state))
-			status = -EAGAIN;
-		else {
-			switch (typeReq) {
-			case GetHubStatus:
-			case GetPortStatus:
-				len = 4;
-				break;
-			case GetHubDescriptor:
-				len = sizeof (struct usb_hub_descriptor);
-				break;
-			}
-			status = hcd->driver->hub_control (hcd,
-				typeReq, wValue, wIndex,
-				tbuf, wLength);
+		switch (typeReq) {
+		case GetHubStatus:
+		case GetPortStatus:
+			len = 4;
+			break;
+		case GetHubDescriptor:
+			len = sizeof (struct usb_hub_descriptor);
+			break;
 		}
+		status = hcd->driver->hub_control (hcd,
+			typeReq, wValue, wIndex,
+			tbuf, wLength);
 		break;
 error:
 		/* "protocol stall" on error */
@@ -487,7 +483,7 @@ error:
 				"CTRL: TypeReq=0x%x val=0x%x "
 				"idx=0x%x len=%d ==> %d\n",
 				typeReq, wValue, wIndex,
-				wLength, urb->status);
+				wLength, status);
 		}
 	}
 	if (len) {
