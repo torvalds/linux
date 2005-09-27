@@ -1,29 +1,28 @@
 /*
-  * mf.c
-  * Copyright (C) 2001 Troy D. Armstrong  IBM Corporation
-  * Copyright (C) 2004-2005 Stephen Rothwell  IBM Corporation
-  *
-  * This modules exists as an interface between a Linux secondary partition
-  * running on an iSeries and the primary partition's Virtual Service
-  * Processor (VSP) object.  The VSP has final authority over powering on/off
-  * all partitions in the iSeries.  It also provides miscellaneous low-level
-  * machine facility type operations.
-  *
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; if not, write to the Free Software
-  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
-  */
+ * Copyright (C) 2001 Troy D. Armstrong  IBM Corporation
+ * Copyright (C) 2004-2005 Stephen Rothwell  IBM Corporation
+ *
+ * This modules exists as an interface between a Linux secondary partition
+ * running on an iSeries and the primary partition's Virtual Service
+ * Processor (VSP) object.  The VSP has final authority over powering on/off
+ * all partitions in the iSeries.  It also provides miscellaneous low-level
+ * machine facility type operations.
+ *
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ */
 
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -41,6 +40,10 @@
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/ItLpQueue.h>
+
+#include "setup.h"
+
+extern int piranha_simulator;
 
 /*
  * This is the structure layout for the Machine Facilites LPAR event
@@ -1279,3 +1282,35 @@ static int __init mf_proc_init(void)
 __initcall(mf_proc_init);
 
 #endif /* CONFIG_PROC_FS */
+
+/*
+ * Get the RTC from the virtual service processor
+ * This requires flowing LpEvents to the primary partition
+ */
+void iSeries_get_rtc_time(struct rtc_time *rtc_tm)
+{
+	if (piranha_simulator)
+		return;
+
+	mf_get_rtc(rtc_tm);
+	rtc_tm->tm_mon--;
+}
+
+/*
+ * Set the RTC in the virtual service processor
+ * This requires flowing LpEvents to the primary partition
+ */
+int iSeries_set_rtc_time(struct rtc_time *tm)
+{
+	mf_set_rtc(tm);
+	return 0;
+}
+
+void iSeries_get_boot_time(struct rtc_time *tm)
+{
+	if (piranha_simulator)
+		return;
+
+	mf_get_boot_rtc(tm);
+	tm->tm_mon  -= 1;
+}

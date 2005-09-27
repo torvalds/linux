@@ -2,8 +2,6 @@
  *    Copyright (c) 2000 Mike Corrigan <mikejc@us.ibm.com>
  *    Copyright (c) 1999-2000 Grant Erickson <grant@lcse.umn.edu>
  *
- *    Module name: iSeries_setup.c
- *
  *    Description:
  *      Architecture- / platform-specific boot-time initialization code for
  *      the IBM iSeries LPAR.  Adapted from original code by Grant Erickson and
@@ -42,7 +40,6 @@
 #include <asm/firmware.h>
 
 #include <asm/time.h>
-#include "iSeries_setup.h"
 #include <asm/naca.h>
 #include <asm/paca.h>
 #include <asm/cache.h>
@@ -61,6 +58,8 @@
 #include <asm/iSeries/IoHriProcessorVpd.h>
 #include <asm/iSeries/ItVpdAreas.h>
 #include <asm/iSeries/LparMap.h>
+
+#include "setup.h"
 
 extern void hvlog(char *fmt, ...);
 

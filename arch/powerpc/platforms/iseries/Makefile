@@ -1,1 +1,1 @@
-obj-$(CONFIG_PPC_ISERIES) += hvcall.o hvlpconfig.o lpardata.o
+obj-y += hvcall.o hvlpconfig.o lpardata.o setup.o mf.o
