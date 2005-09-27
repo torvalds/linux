@@ -1481,12 +1481,14 @@ static int __init rose_proto_init(void)
 
 	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
 		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
+		proto_unregister(&rose_proto);
 		return -1;
 	}
 
 	dev_rose = kmalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
+		proto_unregister(&rose_proto);
 		return -1;
 	}
 
