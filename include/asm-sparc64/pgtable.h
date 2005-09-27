@@ -60,13 +60,13 @@
  * table can map
  */
 #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
-#define PMD_SIZE	(1UL << PMD_SHIFT)
+#define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 #define PMD_BITS	(PAGE_SHIFT - 2)
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 #define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PGDIR_BITS	(PAGE_SHIFT - 2)
 
@@ -336,7 +336,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *p
 #define pte_clear(mm,addr,ptep)		\
 	set_pte_at((mm), (addr), (ptep), __pte(0UL))
 
-extern pgd_t swapper_pg_dir[1];
+extern pgd_t swapper_pg_dir[2048];
+extern pmd_t swapper_low_pmd_dir[2048];
 
 /* These do nothing with the way I have things setup. */
 #define mmu_lockarea(vaddr, len)		(vaddr)

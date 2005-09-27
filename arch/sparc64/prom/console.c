@@ -67,7 +67,7 @@ prom_putchar(char c)
 }
 
 void
-prom_puts(char *s, int len)
+prom_puts(const char *s, int len)
 {
 	p1275_cmd("write", P1275_ARG(1,P1275_ARG_IN_BUF)|
 			   P1275_INOUT(3,1),

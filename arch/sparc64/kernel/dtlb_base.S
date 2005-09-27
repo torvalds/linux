@@ -71,7 +71,7 @@
 from_tl1_trap:
 	rdpr		%tl, %g5			! For TL==3 test
 	CREATE_VPTE_OFFSET1(%g4, %g6)			! Create VPTE offset
-	be,pn		%xcc, 3f			! Yep, special processing
+	be,pn		%xcc, kvmap			! Yep, special processing
 	 CREATE_VPTE_OFFSET2(%g4, %g6)			! Create VPTE offset
 	cmp		%g5, 4				! Last trap level?
 	be,pn		%xcc, longpath			! Yep, cannot risk VPTE miss
@@ -83,9 +83,9 @@ from_tl1_trap:
 	 nop						! Delay-slot
 9:	stxa		%g5, [%g0] ASI_DTLB_DATA_IN	! Reload TLB
 	retry						! Trap return
-3:	brlz,pt		%g4, 9b				! Kernel virtual map?
-	 xor		%g2, %g4, %g5			! Finish bit twiddles
-	ba,a,pt		%xcc, kvmap			! Yep, go check for obp/vmalloc
+	nop
+	nop
+	nop
 
 /* DTLB ** ICACHE line 3: winfixups+real_faults		*/
 longpath:
