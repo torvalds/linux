@@ -181,6 +181,7 @@ enum {
 	ATA_TFLAG_ISADDR	= (1 << 1), /* enable r/w to nsect/lba regs */
 	ATA_TFLAG_DEVICE	= (1 << 2), /* enable r/w to device reg */
 	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
+	ATA_TFLAG_POLLING	= (1 << 4), /* set nIEN to 1 and use polling */
 };
 
 enum ata_tf_protocols {
@@ -249,6 +250,8 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 2] << 32) |	\
 	  ((u64) (id)[(n) + 1] << 16) |	\
 	  ((u64) (id)[(n) + 0]) )
+
+#define ata_id_cdb_intr(id)	(((id)[0] & 0x60) == 0x20)
 
 static inline int atapi_cdb_len(u16 *dev_id)
 {
