@@ -22,7 +22,7 @@ pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
 
 obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o iomap.o $(pci-obj-y)
 
-obj-$(CONFIG_PPC_ISERIES) += ItLpQueue.o hvCall.o \
+obj-$(CONFIG_PPC_ISERIES) += hvCall.o \
 			     HvLpEvent.o iSeries_proc.o iSeries_htab.o \
 			     iSeries_iommu.o
 
