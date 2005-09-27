@@ -41,7 +41,7 @@
  * This value is also the value of the maximum number of NASIDs in the numalink
  * fabric.
  */
-#define MAX_NUMALINK_NODES	2048
+#define MAX_NUMALINK_NODES	16384
 
 /*
  * The following defines attributes of the HUB chip. These attributes are
