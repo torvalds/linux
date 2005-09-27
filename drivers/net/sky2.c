@@ -2300,6 +2300,24 @@ static u32 sky2_get_msglevel(struct net_device *netdev)
 	return sky2->msg_enable;
 }
 
+static int sky2_nway_reset(struct net_device *dev)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+
+	if (sky2->autoneg != AUTONEG_ENABLE)
+		return -EINVAL;
+
+	netif_stop_queue(dev);
+
+	spin_lock_irq(&hw->phy_lock);
+	sky2_phy_reset(hw, sky2->port);
+	sky2_phy_init(hw, sky2->port);
+	spin_unlock_irq(&hw->phy_lock);
+
+	return 0;
+}
+
 static void sky2_phy_stats(struct sky2_port *sky2, u64 * data, unsigned count)
 {
 	struct sky2_hw *hw = sky2->hw;
@@ -2656,6 +2674,7 @@ static struct ethtool_ops sky2_ethtool_ops = {
 	.get_drvinfo = sky2_get_drvinfo,
 	.get_msglevel = sky2_get_msglevel,
 	.set_msglevel = sky2_set_msglevel,
+	.nway_reset   = sky2_nway_reset,
 	.get_regs_len = sky2_get_regs_len,
 	.get_regs = sky2_get_regs,
 	.get_link = ethtool_op_get_link,
