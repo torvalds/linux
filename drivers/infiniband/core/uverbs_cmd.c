@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -288,24 +289,20 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	pd->uobject = uobj;
 	atomic_set(&pd->usecnt, 0);
 
+	down(&ib_uverbs_idr_mutex);
+
 retry:
 	if (!idr_pre_get(&ib_uverbs_pd_idr, GFP_KERNEL)) {
 		ret = -ENOMEM;
-		goto err_pd;
+		goto err_up;
 	}
 
-	down(&ib_uverbs_idr_mutex);
 	ret = idr_get_new(&ib_uverbs_pd_idr, pd, &uobj->id);
-	up(&ib_uverbs_idr_mutex);
 
 	if (ret == -EAGAIN)
 		goto retry;
 	if (ret)
-		goto err_pd;
-
-	down(&file->mutex);
-	list_add_tail(&uobj->list, &file->ucontext->pd_list);
-	up(&file->mutex);
+		goto err_up;
 
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
@@ -313,21 +310,22 @@ retry:
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
 		ret = -EFAULT;
-		goto err_list;
+		goto err_idr;
 	}
+
+	down(&file->mutex);
+	list_add_tail(&uobj->list, &file->ucontext->pd_list);
+	up(&file->mutex);
+
+	up(&ib_uverbs_idr_mutex);
 
 	return in_len;
 
-err_list:
- 	down(&file->mutex);
-	list_del(&uobj->list);
-	up(&file->mutex);
-
-	down(&ib_uverbs_idr_mutex);
+err_idr:
 	idr_remove(&ib_uverbs_pd_idr, uobj->id);
-	up(&ib_uverbs_idr_mutex);
 
-err_pd:
+err_up:
+	up(&ib_uverbs_idr_mutex);
 	ib_dealloc_pd(pd);
 
 err:
@@ -463,24 +461,22 @@ retry:
 
 	resp.mr_handle = obj->uobject.id;
 
-	down(&file->mutex);
-	list_add_tail(&obj->uobject.list, &file->ucontext->mr_list);
-	up(&file->mutex);
-
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
 		ret = -EFAULT;
-		goto err_list;
+		goto err_idr;
 	}
+
+	down(&file->mutex);
+	list_add_tail(&obj->uobject.list, &file->ucontext->mr_list);
+	up(&file->mutex);
 
 	up(&ib_uverbs_idr_mutex);
 
 	return in_len;
 
-err_list:
-	down(&file->mutex);
-	list_del(&obj->uobject.list);
-	up(&file->mutex);
+err_idr:
+	idr_remove(&ib_uverbs_mr_idr, obj->uobject.id);
 
 err_unreg:
 	ib_dereg_mr(mr);
@@ -616,24 +612,20 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	cq->cq_context    = ev_file;
 	atomic_set(&cq->usecnt, 0);
 
+	down(&ib_uverbs_idr_mutex);
+
 retry:
 	if (!idr_pre_get(&ib_uverbs_cq_idr, GFP_KERNEL)) {
 		ret = -ENOMEM;
-		goto err_cq;
+		goto err_up;
 	}
 
-	down(&ib_uverbs_idr_mutex);
 	ret = idr_get_new(&ib_uverbs_cq_idr, cq, &uobj->uobject.id);
-	up(&ib_uverbs_idr_mutex);
 
 	if (ret == -EAGAIN)
 		goto retry;
 	if (ret)
-		goto err_cq;
-
-	down(&file->mutex);
-	list_add_tail(&uobj->uobject.list, &file->ucontext->cq_list);
-	up(&file->mutex);
+		goto err_up;
 
 	memset(&resp, 0, sizeof resp);
 	resp.cq_handle = uobj->uobject.id;
@@ -642,21 +634,22 @@ retry:
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
 		ret = -EFAULT;
-		goto err_list;
+		goto err_idr;
 	}
+
+	down(&file->mutex);
+	list_add_tail(&uobj->uobject.list, &file->ucontext->cq_list);
+	up(&file->mutex);
+
+	up(&ib_uverbs_idr_mutex);
 
 	return in_len;
 
-err_list:
- 	down(&file->mutex);
-	list_del(&uobj->uobject.list);
-	up(&file->mutex);
-
-	down(&ib_uverbs_idr_mutex);
+err_idr:
 	idr_remove(&ib_uverbs_cq_idr, uobj->uobject.id);
-	up(&ib_uverbs_idr_mutex);
 
-err_cq:
+err_up:
+	up(&ib_uverbs_idr_mutex);
 	ib_destroy_cq(cq);
 
 err:
@@ -837,24 +830,22 @@ retry:
 
 	resp.qp_handle = uobj->uobject.id;
 
-	down(&file->mutex);
-	list_add_tail(&uobj->uobject.list, &file->ucontext->qp_list);
-	up(&file->mutex);
-
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
 		ret = -EFAULT;
-		goto err_list;
+		goto err_idr;
 	}
+
+	down(&file->mutex);
+	list_add_tail(&uobj->uobject.list, &file->ucontext->qp_list);
+	up(&file->mutex);
 
 	up(&ib_uverbs_idr_mutex);
 
 	return in_len;
 
-err_list:
-	down(&file->mutex);
-	list_del(&uobj->uobject.list);
-	up(&file->mutex);
+err_idr:
+	idr_remove(&ib_uverbs_qp_idr, uobj->uobject.id);
 
 err_destroy:
 	ib_destroy_qp(qp);
@@ -1126,24 +1117,22 @@ retry:
 
 	resp.srq_handle = uobj->uobject.id;
 
-	down(&file->mutex);
-	list_add_tail(&uobj->uobject.list, &file->ucontext->srq_list);
-	up(&file->mutex);
-
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
 		ret = -EFAULT;
-		goto err_list;
+		goto err_idr;
 	}
+
+	down(&file->mutex);
+	list_add_tail(&uobj->uobject.list, &file->ucontext->srq_list);
+	up(&file->mutex);
 
 	up(&ib_uverbs_idr_mutex);
 
 	return in_len;
 
-err_list:
-	down(&file->mutex);
-	list_del(&uobj->uobject.list);
-	up(&file->mutex);
+err_idr:
+	idr_remove(&ib_uverbs_srq_idr, uobj->uobject.id);
 
 err_destroy:
 	ib_destroy_srq(srq);
