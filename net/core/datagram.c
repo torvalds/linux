@@ -211,74 +211,45 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 			    struct iovec *to, int len)
 {
-	int start = skb_headlen(skb);
-	int i, copy = start - offset;
+	int i, err, fraglen, end = 0;
+	struct sk_buff *next = skb_shinfo(skb)->frag_list;
+next_skb:
+	fraglen = skb_headlen(skb);
+	i = -1;
 
-	/* Copy header. */
-	if (copy > 0) {
-		if (copy > len)
-			copy = len;
-		if (memcpy_toiovec(to, skb->data + offset, copy))
-			goto fault;
-		if ((len -= copy) == 0)
-			return 0;
-		offset += copy;
-	}
+	while (1) {
+		int start = end;
 
-	/* Copy paged appendix. Hmm... why does this look so complicated? */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		int end;
-
-		BUG_TRAP(start <= offset + len);
-
-		end = start + skb_shinfo(skb)->frags[i].size;
-		if ((copy = end - offset) > 0) {
-			int err;
-			u8  *vaddr;
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			struct page *page = frag->page;
+		if ((end += fraglen) > offset) {
+			int copy = end - offset, o = offset - start;
 
 			if (copy > len)
 				copy = len;
-			vaddr = kmap(page);
-			err = memcpy_toiovec(to, vaddr + frag->page_offset +
-					     offset - start, copy);
-			kunmap(page);
+			if (i == -1)
+				err = memcpy_toiovec(to, skb->data + o, copy);
+			else {
+				skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+				struct page *page = frag->page;
+				void *p = kmap(page) + frag->page_offset + o;
+				err = memcpy_toiovec(to, p, copy);
+				kunmap(page);
+			}
 			if (err)
 				goto fault;
 			if (!(len -= copy))
 				return 0;
 			offset += copy;
 		}
-		start = end;
+		if (++i >= skb_shinfo(skb)->nr_frags)
+			break;
+		fraglen = skb_shinfo(skb)->frags[i].size;
 	}
-
-	if (skb_shinfo(skb)->frag_list) {
-		struct sk_buff *list = skb_shinfo(skb)->frag_list;
-
-		for (; list; list = list->next) {
-			int end;
-
-			BUG_TRAP(start <= offset + len);
-
-			end = start + list->len;
-			if ((copy = end - offset) > 0) {
-				if (copy > len)
-					copy = len;
-				if (skb_copy_datagram_iovec(list,
-							    offset - start,
-							    to, copy))
-					goto fault;
-				if ((len -= copy) == 0)
-					return 0;
-				offset += copy;
-			}
-			start = end;
-		}
+	if (next) {
+		skb = next;
+		BUG_ON(skb_shinfo(skb)->frag_list);
+		next = skb->next;
+		goto next_skb;
 	}
-	if (!len)
-		return 0;
-
 fault:
 	return -EFAULT;
 }
