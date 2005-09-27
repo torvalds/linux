@@ -175,6 +175,91 @@ ready:
 	return gma_read16(hw, port, GM_SMI_DATA);
 }
 
+static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
+{
+	u16 power_control;
+	u32 reg1;
+	int vaux;
+	int ret = 0;
+
+	pr_debug("sky2_set_power_state %d\n", state);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+
+	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_PMC, &power_control);
+	vaux = (sky2_read8(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
+		(power_control & PCI_PM_CAP_PME_D3cold);
+
+	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_CTRL, &power_control);
+
+	power_control |= PCI_PM_CTRL_PME_STATUS;
+	power_control &= ~(PCI_PM_CTRL_STATE_MASK);
+
+	switch (state) {
+	case PCI_D0:
+		/* switch power to VCC (WA for VAUX problem) */
+		sky2_write8(hw, B0_POWER_CTRL,
+			    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
+
+		/* disable Core Clock Division, */
+		sky2_write32(hw, B2_Y2_CLK_CTRL, Y2_CLK_DIV_DIS);
+
+		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+			/* enable bits are inverted */
+			sky2_write8(hw, B2_Y2_CLK_GATE,
+				    Y2_PCI_CLK_LNK1_DIS | Y2_COR_CLK_LNK1_DIS |
+				    Y2_CLK_GAT_LNK1_DIS | Y2_PCI_CLK_LNK2_DIS |
+				    Y2_COR_CLK_LNK2_DIS | Y2_CLK_GAT_LNK2_DIS);
+		else
+			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
+
+		/* Turn off phy power saving */
+		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
+		reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
+
+		/* looks like this xl is back asswards .. */
+		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1) {
+			reg1 |= PCI_Y2_PHY1_COMA;
+			if (hw->ports > 1)
+				reg1 |= PCI_Y2_PHY2_COMA;
+		}
+		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+		break;
+
+	case PCI_D3hot:
+	case PCI_D3cold:
+		/* Turn on phy power saving */
+		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
+		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+			reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
+		else
+			reg1 |= (PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
+		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+
+		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
+		else
+			/* enable bits are inverted */
+			sky2_write8(hw, B2_Y2_CLK_GATE,
+				    Y2_PCI_CLK_LNK1_DIS | Y2_COR_CLK_LNK1_DIS |
+				    Y2_CLK_GAT_LNK1_DIS | Y2_PCI_CLK_LNK2_DIS |
+				    Y2_COR_CLK_LNK2_DIS | Y2_CLK_GAT_LNK2_DIS);
+
+		/* switch power to VAUX */
+		if (vaux && state != PCI_D3cold)
+			sky2_write8(hw, B0_POWER_CTRL,
+				    (PC_VAUX_ENA | PC_VCC_ENA |
+				     PC_VAUX_ON | PC_VCC_OFF));
+		break;
+	default:
+		printk(KERN_ERR PFX "Unknown power state %d\n", state);
+		ret = -1;
+	}
+
+	pci_write_config_byte(hw->pdev, hw->pm_cap + PCI_PM_CTRL, power_control);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
+	return ret;
+}
+
 static void sky2_phy_reset(struct sky2_hw *hw, unsigned port)
 {
 	u16 reg;
@@ -1869,7 +1954,7 @@ static inline u32 sky2_us2clk(const struct sky2_hw *hw, u32 us)
 
 static int sky2_reset(struct sky2_hw *hw)
 {
-	u32 ctst, power;
+	u32 ctst;
 	u16 status;
 	u8 t8, pmd_type;
 	int i;
@@ -1927,33 +2012,7 @@ static int sky2_reset(struct sky2_hw *hw)
 	}
 	hw->chip_rev = (sky2_read8(hw, B2_MAC_CFG) & CFG_CHIP_R_MSK) >> 4;
 
-	/* switch power to VCC (WA for VAUX problem) */
-	sky2_write8(hw, B0_POWER_CTRL,
-		    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
-
-	/* disable Core Clock Division, */
-	sky2_write32(hw, B2_Y2_CLK_CTRL, Y2_CLK_DIV_DIS);
-
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
-		/* enable bits are inverted */
-		sky2_write8(hw, B2_Y2_CLK_GATE,
-			    Y2_PCI_CLK_LNK1_DIS | Y2_COR_CLK_LNK1_DIS |
-			    Y2_CLK_GAT_LNK1_DIS | Y2_PCI_CLK_LNK2_DIS |
-			    Y2_COR_CLK_LNK2_DIS | Y2_CLK_GAT_LNK2_DIS);
-	else
-		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
-
-	/* Turn off phy power saving */
-	pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &power);
-	power &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
-
-	/* looks like this xl is back asswards .. */
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1) {
-		power |= PCI_Y2_PHY1_COMA;
-		if (hw->ports > 1)
-			power |= PCI_Y2_PHY2_COMA;
-	}
-	pci_write_config_dword(hw->pdev, PCI_DEV_REG1, power);
+	sky2_set_power_state(hw, PCI_D0);
 
 	for (i = 0; i < hw->ports; i++) {
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
@@ -2714,7 +2773,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 {
 	struct net_device *dev, *dev1 = NULL;
 	struct sky2_hw *hw;
-	int err, using_dac = 0;
+	int err, pm_cap, using_dac = 0;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -2731,6 +2790,15 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
+
+	/* Find power-management capability. */
+	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
+	if (pm_cap == 0) {
+		printk(KERN_ERR PFX "Cannot find PowerManagement capability, "
+		       "aborting.\n");
+		err = -EIO;
+		goto err_out_free_regions;
+	}
 
 	if (sizeof(dma_addr_t) > sizeof(u32)) {
 		err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
@@ -2775,6 +2843,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		       pci_name(pdev));
 		goto err_out_free_hw;
 	}
+	hw->pm_cap = pm_cap;
 
 	err = sky2_reset(hw);
 	if (err)
@@ -2861,8 +2930,10 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	unregister_netdev(dev0);
 
 	sky2_write32(hw, B0_IMSK, 0);
+	sky2_set_power_state(hw, PCI_D3hot);
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
 	sky2_write8(hw, B0_CTST, CS_RST_SET);
+	sky2_read8(hw, B0_CTST);
 
 	free_irq(pdev->irq, hw);
 	pci_free_consistent(pdev, STATUS_LE_BYTES, hw->st_le, hw->st_dma);
@@ -2874,6 +2945,7 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	free_netdev(dev0);
 	iounmap(hw->regs);
 	kfree(hw);
+
 	pci_set_drvdata(pdev, NULL);
 }
 
@@ -2881,28 +2953,21 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
-	int i, wol = 0;
+	int i;
 
 	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
 
 		if (dev) {
-			struct sky2_port *sky2 = netdev_priv(dev);
-			if (netif_running(dev)) {
-				netif_carrier_off(dev);
-				sky2_down(dev);
-			}
+			if (!netif_running(dev))
+				continue;
+
+			sky2_down(dev);
 			netif_device_detach(dev);
-			wol |= sky2->wol;
 		}
 	}
 
-	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), wol);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	return 0;
+	return sky2_set_power_state(hw, pci_choose_state(pdev, state));
 }
 
 static int sky2_resume(struct pci_dev *pdev)
@@ -2910,18 +2975,19 @@ static int sky2_resume(struct pci_dev *pdev)
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
 	int i;
 
-	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
+	sky2_set_power_state(hw, PCI_D0);
 
 	sky2_reset(hw);
 
 	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
 		if (dev) {
-			netif_device_attach(dev);
-			if (netif_running(dev))
+			if (netif_running(dev)) {
+				netif_device_attach(dev);
 				sky2_up(dev);
+			}
 		}
 	}
 	return 0;

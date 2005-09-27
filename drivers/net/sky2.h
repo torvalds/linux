@@ -1854,6 +1854,7 @@ struct sky2_hw {
 	u32		     intr_mask;
 	struct net_device    *dev[2];
 
+	int		     pm_cap;
 	u8	     	     chip_id;
 	u8		     chip_rev;
 	u8		     copper;
