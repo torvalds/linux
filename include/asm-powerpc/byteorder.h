@@ -1,5 +1,5 @@
-#ifndef _PPC64_BYTEORDER_H
-#define _PPC64_BYTEORDER_H
+#ifndef _ASM_POWERPC_BYTEORDER_H
+#define _ASM_POWERPC_BYTEORDER_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -77,10 +77,13 @@ static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 value)
 
 #ifndef __STRICT_ANSI__
 #define __BYTEORDER_HAS_U64__
-#endif
+#ifndef __powerpc64__
+#define __SWAB_64_THRU_32__
+#endif /* __powerpc64__ */
+#endif /* __STRICT_ANSI__ */
 
 #endif /* __GNUC__ */
 
 #include <linux/byteorder/big_endian.h>
 
-#endif /* _PPC64_BYTEORDER_H */
+#endif /* _ASM_POWERPC_BYTEORDER_H */
