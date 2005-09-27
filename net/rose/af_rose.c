@@ -1472,24 +1472,25 @@ static const char banner[] = KERN_INFO "F6FBB/G4KLX ROSE for Linux. Version 0.62
 static int __init rose_proto_init(void)
 {
 	int i;
-	int rc = proto_register(&rose_proto, 0);
+	int rc;
 
+	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
+		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = proto_register(&rose_proto, 0);
 	if (rc != 0)
 		goto out;
 
 	rose_callsign = null_ax25_address;
 
-	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
-		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
-		proto_unregister(&rose_proto);
-		return -EINVAL;
-	}
-
 	dev_rose = kmalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
-		proto_unregister(&rose_proto);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_proto_unregister;
 	}
 
 	memset(dev_rose, 0x00, rose_ndevs * sizeof(struct net_device*));
@@ -1540,6 +1541,7 @@ fail:
 		free_netdev(dev_rose[i]);
 	}
 	kfree(dev_rose);
+out_proto_unregister:
 	proto_unregister(&rose_proto);
 	goto out;
 }
