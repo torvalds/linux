@@ -146,7 +146,7 @@ config I82365
 
 config TCIC
 	tristate "Databook TCIC host bridge support"
-	depends on PCMCIA
+	depends on PCMCIA && ISA
 	select PCCARD_NONSTATIC
 	help
 	  Say Y here to include support for the Databook TCIC family of PCMCIA

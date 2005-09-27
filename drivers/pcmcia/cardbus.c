@@ -228,6 +228,11 @@ int cb_alloc(struct pcmcia_socket * s)
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
 	cardbus_assign_irqs(bus, s->pci_irq);
+
+	/* socket specific tune function */
+	if (s->tune_bridge)
+		s->tune_bridge(s, bus);
+
 	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
 
