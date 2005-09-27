@@ -290,7 +290,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	int i;
 	u8 status;
 
-	num_icm = obj_size * nobj / MTHCA_TABLE_CHUNK_SIZE;
+	num_icm = (obj_size * nobj + MTHCA_TABLE_CHUNK_SIZE - 1) / MTHCA_TABLE_CHUNK_SIZE;
 
 	table = kmalloc(sizeof *table + num_icm * sizeof *table->icm, GFP_KERNEL);
 	if (!table)
