@@ -26,11 +26,12 @@
 
 /**
  *	llc_alloc_frame - allocates sk_buff for frame
+ *	@dev: network device this skb will be sent over
  *
  *	Allocates an sk_buff for frame and initializes sk_buff fields.
  *	Returns allocated skb or %NULL when out of memory.
  */
-struct sk_buff *llc_alloc_frame(void)
+struct sk_buff *llc_alloc_frame(struct sock *sk, struct net_device *dev)
 {
 	struct sk_buff *skb = alloc_skb(128, GFP_ATOMIC);
 
@@ -38,18 +39,23 @@ struct sk_buff *llc_alloc_frame(void)
 		skb_reserve(skb, 50);
 		skb->nh.raw   = skb->h.raw = skb->data;
 		skb->protocol = htons(ETH_P_802_2);
-		skb->dev      = dev_base->next;
+		skb->dev      = dev;
 		skb->mac.raw  = skb->head;
+		if (sk != NULL)
+			skb_set_owner_w(skb, sk);
 	}
 	return skb;
 }
 
-void llc_save_primitive(struct sk_buff* skb, u8 prim)
+void llc_save_primitive(struct sock *sk, struct sk_buff* skb, u8 prim)
 {
-	struct sockaddr_llc *addr = llc_ui_skb_cb(skb);
+	struct sockaddr_llc *addr;
 
+	if (skb->sk->sk_type == SOCK_STREAM) /* See UNIX98 */
+		return;
        /* save primitive for use by the user. */
-	addr->sllc_family = skb->sk->sk_family;
+	addr		  = llc_ui_skb_cb(skb);
+	addr->sllc_family = sk->sk_family;
 	addr->sllc_arphrd = skb->dev->type;
 	addr->sllc_test   = prim == LLC_TEST_PRIM;
 	addr->sllc_xid    = prim == LLC_XID_PRIM;
@@ -189,7 +195,7 @@ static void llc_sap_state_process(struct llc_sap *sap, struct sk_buff *skb)
 		if (skb->sk->sk_state == TCP_LISTEN)
 			kfree_skb(skb);
 		else {
-			llc_save_primitive(skb, ev->prim);
+			llc_save_primitive(skb->sk, skb, ev->prim);
 
 			/* queue skb to the user. */
 			if (sock_queue_rcv_skb(skb->sk, skb))
@@ -308,7 +314,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 
 	sk = llc_lookup_dgram(sap, &laddr);
 	if (sk) {
-		skb->sk = sk;
+		skb_set_owner_r(skb, sk);
 		llc_sap_rcv(sap, skb);
 		sock_put(sk);
 	} else
