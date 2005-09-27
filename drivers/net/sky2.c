@@ -1040,13 +1040,14 @@ out_unlock:
  * NB: the hardware will tell us about partial completion of multi-part
  *     buffers; these are defered until completion.
  */
-static void sky2_tx_complete(struct net_device *dev, u16 done)
+static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 {
-	struct sky2_port *sky2 = netdev_priv(dev);
+	struct net_device *dev = sky2->netdev;
 	unsigned i;
 
-	if (netif_msg_tx_done(sky2))
-		printk(KERN_DEBUG "%s: tx done, upto %u\n", dev->name, done);
+	if (unlikely(netif_msg_tx_done(sky2)))
+		printk(KERN_DEBUG "%s: tx done, upto %u\n",
+		       dev->name, done);
 
 	spin_lock(&sky2->tx_lock);
 
@@ -1086,7 +1087,7 @@ out:
 /* Cleanup all untransmitted buffers, assume transmitter not running */
 static inline void sky2_tx_clean(struct sky2_port *sky2)
 {
-	sky2_tx_complete(sky2->netdev, sky2->tx_prod);
+	sky2_tx_complete(sky2, sky2->tx_prod);
 }
 
 /* Network shutdown */
@@ -1421,18 +1422,17 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
  * For small packets or errors, just reuse existing skb.
  * For larger pakects, get new buffer.
  */
-static struct sk_buff *sky2_receive(struct sky2_hw *hw, unsigned port,
+static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 				    u16 length, u32 status)
 {
-	struct net_device *dev = hw->dev[port];
-	struct sky2_port *sky2 = netdev_priv(dev);
 	struct ring_info *re = sky2->rx_ring + sky2->rx_next;
 	struct sk_buff *skb = NULL;
+	struct net_device *dev;
 	const unsigned int bufsize = rx_size(sky2);
 
 	if (unlikely(netif_msg_rx_status(sky2)))
 		printk(KERN_DEBUG PFX "%s: rx slot %u status 0x%x len %d\n",
-		       dev->name, sky2->rx_next, status, length);
+		       sky2->netdev->name, sky2->rx_next, status, length);
 
 	sky2->rx_next = (sky2->rx_next + 1) % sky2->rx_pending;
 
@@ -1451,6 +1451,8 @@ static struct sk_buff *sky2_receive(struct sky2_hw *hw, unsigned port,
 		pci_dma_sync_single_for_cpu(sky2->hw->pdev, re->mapaddr,
 					    length, PCI_DMA_FROMDEVICE);
 		memcpy(skb->data, re->skb->data, length);
+		skb->ip_summed = re->skb->ip_summed;
+		skb->csum = re->skb->csum;
 		pci_dma_sync_single_for_device(sky2->hw->pdev, re->mapaddr,
 					       length, PCI_DMA_FROMDEVICE);
 	} else {
@@ -1471,12 +1473,14 @@ static struct sk_buff *sky2_receive(struct sky2_hw *hw, unsigned port,
 		re->maplen = bufsize;
 	}
 
-	skb->dev = dev;
 	skb_put(skb, length);
+	dev = sky2->netdev;
+	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	dev->last_rx = jiffies;
 
 resubmit:
+	re->skb->ip_summed = CHECKSUM_NONE;
 	sky2_rx_add(sky2, re);
 
 	return skb;
@@ -1517,59 +1521,46 @@ static inline u16 tx_index(u8 port, u32 status, u16 len)
  * Both ports share the same status interrupt, therefore there is only
  * one poll routine.
  */
-static int sky2_poll(struct net_device *dev, int *budget)
+static int sky2_poll(struct net_device *dev0, int *budget)
 {
-	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sky2_hw *hw = sky2->hw;
-	unsigned int to_do = min(dev->quota, *budget);
+	struct sky2_hw *hw = ((struct sky2_port *) netdev_priv(dev0))->hw;
+	unsigned int to_do = min(dev0->quota, *budget);
 	unsigned int work_done = 0;
 	u16 hwidx;
-	unsigned char summed[2] = { CHECKSUM_NONE, CHECKSUM_NONE };
-	unsigned int csum[2];
 
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
  	rmb();
 	while (hw->st_idx != hwidx && work_done < to_do) {
 		struct sky2_status_le *le = hw->st_le + hw->st_idx;
+		struct sky2_port *sky2;
 		struct sk_buff *skb;
-		u8 port;
 		u32 status;
 		u16 length;
 
+		BUG_ON(le->link >= hw->ports);
+		sky2 = netdev_priv(hw->dev[le->link]);
 		status = le32_to_cpu(le->status);
 		length = le16_to_cpu(le->length);
-		port = le->link;
-
-		BUG_ON(port >= hw->ports || hw->dev[port] == NULL);
 
 		switch (le->opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
-			skb = sky2_receive(hw, port, length, status);
+			skb = sky2_receive(sky2, length, status);
 			if (likely(skb)) {
-				/* Add hw checksum if available */
-				skb->ip_summed = summed[port];
-				skb->csum = csum[port];
-
 				netif_receive_skb(skb);
 				++work_done;
 			}
-
-			/* Clear for next packet */
-			csum[port] = 0;
-			summed[port] = CHECKSUM_NONE;
-
 			break;
 
 		case OP_RXCHKS:
-			/* Save computed checksum for next rx */
-			csum[port] = le16_to_cpu(status & 0xffff);
-			summed[port] = CHECKSUM_HW;
+			skb = sky2->rx_ring[sky2->rx_next].skb;
+			skb->ip_summed = CHECKSUM_HW;
+			skb->csum = le16_to_cpu(status);
 			break;
 
 		case OP_TXINDEXLE:
-			sky2_tx_complete(hw->dev[port],
-					 tx_index(port, status, length));
+			sky2_tx_complete(sky2,
+					 tx_index(sky2->port, status, length));
 			break;
 
 		case OP_RXTIMESTAMP:
@@ -1599,7 +1590,7 @@ static int sky2_poll(struct net_device *dev, int *budget)
 		rx_set_put(hw->dev[1]);
 
 	*budget -= work_done;
-	dev->quota -= work_done;
+	dev0->quota -= work_done;
 	if (work_done < to_do) {
 		/*
 		 * Another chip workaround, need to restart TX timer if status
@@ -1613,7 +1604,7 @@ static int sky2_poll(struct net_device *dev, int *budget)
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
 		sky2_read32(hw, B0_IMSK);
-		netif_rx_complete(dev);
+		netif_rx_complete(dev0);
 	}
 
 	return work_done >= to_do;
