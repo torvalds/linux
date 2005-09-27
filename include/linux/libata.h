@@ -156,15 +156,15 @@ enum {
 	ATA_SHIFT_PIO		= 11,
 };
 
-enum pio_task_states {
-	PIO_ST_UNKNOWN,
-	PIO_ST_IDLE,
-	PIO_ST_POLL,
-	PIO_ST_TMOUT,
-	PIO_ST,
-	PIO_ST_LAST,
-	PIO_ST_LAST_POLL,
-	PIO_ST_ERR,
+enum hsm_task_states {
+	HSM_ST_UNKNOWN,
+	HSM_ST_IDLE,
+	HSM_ST_POLL,
+	HSM_ST_TMOUT,
+	HSM_ST,
+	HSM_ST_LAST,
+	HSM_ST_LAST_POLL,
+	HSM_ST_ERR,
 };
 
 /* forward declarations */
@@ -319,7 +319,7 @@ struct ata_port {
 	struct work_struct	packet_task;
 
 	struct work_struct	pio_task;
-	unsigned int		pio_task_state;
+	unsigned int		hsm_task_state;
 	unsigned long		pio_task_timeout;
 
 	void			*private_data;

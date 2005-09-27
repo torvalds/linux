@@ -2425,20 +2425,20 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 static unsigned long ata_pio_poll(struct ata_port *ap)
 {
 	u8 status;
-	unsigned int poll_state = PIO_ST_UNKNOWN;
-	unsigned int reg_state = PIO_ST_UNKNOWN;
-	const unsigned int tmout_state = PIO_ST_TMOUT;
+	unsigned int poll_state = HSM_ST_UNKNOWN;
+	unsigned int reg_state = HSM_ST_UNKNOWN;
+	const unsigned int tmout_state = HSM_ST_TMOUT;
 
-	switch (ap->pio_task_state) {
-	case PIO_ST:
-	case PIO_ST_POLL:
-		poll_state = PIO_ST_POLL;
-		reg_state = PIO_ST;
+	switch (ap->hsm_task_state) {
+	case HSM_ST:
+	case HSM_ST_POLL:
+		poll_state = HSM_ST_POLL;
+		reg_state = HSM_ST;
 		break;
-	case PIO_ST_LAST:
-	case PIO_ST_LAST_POLL:
-		poll_state = PIO_ST_LAST_POLL;
-		reg_state = PIO_ST_LAST;
+	case HSM_ST_LAST:
+	case HSM_ST_LAST_POLL:
+		poll_state = HSM_ST_LAST_POLL;
+		reg_state = HSM_ST_LAST;
 		break;
 	default:
 		BUG();
@@ -2448,14 +2448,14 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
-			ap->pio_task_state = tmout_state;
+			ap->hsm_task_state = tmout_state;
 			return 0;
 		}
-		ap->pio_task_state = poll_state;
+		ap->hsm_task_state = poll_state;
 		return ATA_SHORT_PAUSE;
 	}
 
-	ap->pio_task_state = reg_state;
+	ap->hsm_task_state = reg_state;
 	return 0;
 }
 
@@ -2480,14 +2480,14 @@ static int ata_pio_complete (struct ata_port *ap)
 	 * we enter, BSY will be cleared in a chk-status or two.  If not,
 	 * the drive is probably seeking or something.  Snooze for a couple
 	 * msecs, then chk-status again.  If still busy, fall back to
-	 * PIO_ST_POLL state.
+	 * HSM_ST_POLL state.
 	 */
 	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
 	if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
 		msleep(2);
 		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
 		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
-			ap->pio_task_state = PIO_ST_LAST_POLL;
+			ap->hsm_task_state = HSM_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
 			return 0;
 		}
@@ -2495,14 +2495,14 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
-		ap->pio_task_state = PIO_ST_ERR;
+		ap->hsm_task_state = HSM_ST_ERR;
 		return 0;
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
-	ap->pio_task_state = PIO_ST_IDLE;
+	ap->hsm_task_state = HSM_ST_IDLE;
 
 	ata_poll_qc_complete(qc, drv_stat);
 
@@ -2662,7 +2662,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	unsigned char *buf;
 
 	if (qc->cursect == (qc->nsect - 1))
-		ap->pio_task_state = PIO_ST_LAST;
+		ap->hsm_task_state = HSM_ST_LAST;
 
 	page = sg[qc->cursg].page;
 	offset = sg[qc->cursg].offset + qc->cursg_ofs * ATA_SECT_SIZE;
@@ -2712,7 +2712,7 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 	unsigned int offset, count;
 
 	if (qc->curbytes + bytes >= qc->nbytes)
-		ap->pio_task_state = PIO_ST_LAST;
+		ap->hsm_task_state = HSM_ST_LAST;
 
 next_sg:
 	if (unlikely(qc->cursg >= qc->n_elem)) {
@@ -2734,7 +2734,7 @@ next_sg:
 		for (i = 0; i < words; i++)
 			ata_data_xfer(ap, (unsigned char*)pad_buf, 2, do_write);
 
-		ap->pio_task_state = PIO_ST_LAST;
+		ap->hsm_task_state = HSM_ST_LAST;
 		return;
 	}
 
@@ -2815,7 +2815,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 err_out:
 	printk(KERN_INFO "ata%u: dev %u: ATAPI check failed\n",
 	      ap->id, dev->devno);
-	ap->pio_task_state = PIO_ST_ERR;
+	ap->hsm_task_state = HSM_ST_ERR;
 }
 
 /**
@@ -2837,14 +2837,14 @@ static void ata_pio_block(struct ata_port *ap)
 	 * a chk-status or two.  If not, the drive is probably seeking
 	 * or something.  Snooze for a couple msecs, then
 	 * chk-status again.  If still busy, fall back to
-	 * PIO_ST_POLL state.
+	 * HSM_ST_POLL state.
 	 */
 	status = ata_busy_wait(ap, ATA_BUSY, 5);
 	if (status & ATA_BUSY) {
 		msleep(2);
 		status = ata_busy_wait(ap, ATA_BUSY, 10);
 		if (status & ATA_BUSY) {
-			ap->pio_task_state = PIO_ST_POLL;
+			ap->hsm_task_state = HSM_ST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
 			return;
 		}
@@ -2856,7 +2856,7 @@ static void ata_pio_block(struct ata_port *ap)
 	if (is_atapi_taskfile(&qc->tf)) {
 		/* no more data to transfer or unsupported ATAPI command */
 		if ((status & ATA_DRQ) == 0) {
-			ap->pio_task_state = PIO_ST_LAST;
+			ap->hsm_task_state = HSM_ST_LAST;
 			return;
 		}
 
@@ -2864,7 +2864,7 @@ static void ata_pio_block(struct ata_port *ap)
 	} else {
 		/* handle BSY=0, DRQ=0 as error */
 		if ((status & ATA_DRQ) == 0) {
-			ap->pio_task_state = PIO_ST_ERR;
+			ap->hsm_task_state = HSM_ST_ERR;
 			return;
 		}
 
@@ -2884,7 +2884,7 @@ static void ata_pio_error(struct ata_port *ap)
 	printk(KERN_WARNING "ata%u: PIO error, drv_stat 0x%x\n",
 	       ap->id, drv_stat);
 
-	ap->pio_task_state = PIO_ST_IDLE;
+	ap->hsm_task_state = HSM_ST_IDLE;
 
 	ata_poll_qc_complete(qc, drv_stat | ATA_ERR);
 }
@@ -2899,25 +2899,25 @@ fsm_start:
 	timeout = 0;
 	qc_completed = 0;
 
-	switch (ap->pio_task_state) {
-	case PIO_ST_IDLE:
+	switch (ap->hsm_task_state) {
+	case HSM_ST_IDLE:
 		return;
 
-	case PIO_ST:
+	case HSM_ST:
 		ata_pio_block(ap);
 		break;
 
-	case PIO_ST_LAST:
+	case HSM_ST_LAST:
 		qc_completed = ata_pio_complete(ap);
 		break;
 
-	case PIO_ST_POLL:
-	case PIO_ST_LAST_POLL:
+	case HSM_ST_POLL:
+	case HSM_ST_LAST_POLL:
 		timeout = ata_pio_poll(ap);
 		break;
 
-	case PIO_ST_TMOUT:
-	case PIO_ST_ERR:
+	case HSM_ST_TMOUT:
+	case HSM_ST_ERR:
 		ata_pio_error(ap);
 		return;
 	}
@@ -3360,7 +3360,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 	case ATA_PROT_PIO: /* load tf registers, initiate polling pio */
 		ata_qc_set_polling(qc);
 		ata_tf_to_host_nolock(ap, &qc->tf);
-		ap->pio_task_state = PIO_ST;
+		ap->hsm_task_state = HSM_ST;
 		queue_work(ata_wq, &ap->pio_task);
 		break;
 
@@ -3806,7 +3806,7 @@ static void atapi_packet_task(void *_data)
 		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
 
 		/* PIO commands are handled by polling */
-		ap->pio_task_state = PIO_ST;
+		ap->hsm_task_state = HSM_ST;
 		queue_work(ata_wq, &ap->pio_task);
 	}
 
