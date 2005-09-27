@@ -182,6 +182,9 @@ static int ehci_halt (struct ehci_hcd *ehci)
 {
 	u32	temp = readl (&ehci->regs->status);
 
+	/* disable any irqs left enabled by previous code */
+	writel (0, &ehci->regs->intr_enable);
+
 	if ((temp & STS_HALT) != 0)
 		return 0;
 
@@ -335,12 +338,17 @@ static int bios_handoff (struct ehci_hcd *ehci, int where, u32 cap)
 
 #endif
 
+/* Reboot notifiers kick in for silicon on any bus (not just pci, etc).
+ * This forcibly disables dma and IRQs, helping kexec and other cases
+ * where the next system software may expect clean state.
+ */
 static int
 ehci_reboot (struct notifier_block *self, unsigned long code, void *null)
 {
 	struct ehci_hcd		*ehci;
 
 	ehci = container_of (self, struct ehci_hcd, reboot_notifier);
+	(void) ehci_halt (ehci);
 
 	/* make BIOS/etc use companion controller during reboot */
 	writel (0, &ehci->regs->configured_flag);
