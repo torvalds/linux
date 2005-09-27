@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 1999 Cort Dougan <cort@cs.nmt.edu>
  */
-#ifndef __PPC_SYSTEM_H
-#define __PPC_SYSTEM_H
+#ifndef _ASM_POWERPC_SYSTEM_H
+#define _ASM_POWERPC_SYSTEM_H
 
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -347,4 +347,4 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 #define arch_align_stack(x) (x)
 
 #endif /* __KERNEL__ */
-#endif /* __PPC_SYSTEM_H */
+#endif /* _ASM_POWERPC_SYSTEM_H */

@@ -51,8 +51,7 @@
 #include <asm/cacheflush.h>
 #include <asm/keylargo.h>
 #include <asm/pmac_low_i2c.h>
-
-#include "mpic.h"
+#include <asm/mpic.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

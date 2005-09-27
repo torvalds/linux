@@ -38,8 +38,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/rtas.h>
+#include <asm/mpic.h>
 
-#include "mpic.h"
 #include "pci.h"
 
 /* RTAS tokens */

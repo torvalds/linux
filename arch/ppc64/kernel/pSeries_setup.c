@@ -62,9 +62,9 @@
 #include <asm/xics.h>
 #include <asm/firmware.h>
 #include <asm/pmc.h>
+#include <asm/mpic.h>
 
 #include "i8259.h"
-#include "mpic.h"
 #include "pci.h"
 
 #ifdef DEBUG

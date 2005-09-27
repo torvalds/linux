@@ -1,3 +1,6 @@
+#ifndef _ASM_POWERPC_MPIC_H
+#define _ASM_POWERPC_MPIC_H
+
 #include <linux/irq.h>
 
 /*
@@ -277,3 +280,5 @@ extern int mpic_get_irq(struct pt_regs *regs);
 
 /* global mpic for pSeries */
 extern struct mpic *pSeries_mpic;
+
+#endif	/* _ASM_POWERPC_MPIC_H */

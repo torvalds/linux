@@ -45,8 +45,7 @@
 #include <asm/cputable.h>
 #include <asm/system.h>
 #include <asm/abs_addr.h>
-
-#include "mpic.h"
+#include <asm/mpic.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

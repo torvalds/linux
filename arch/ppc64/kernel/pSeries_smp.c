@@ -46,8 +46,8 @@
 #include <asm/rtas.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
+#include <asm/mpic.h>
 
-#include "mpic.h"
 #include "bpa_iic.h"
 
 #ifdef DEBUG

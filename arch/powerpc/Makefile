@@ -18,6 +18,7 @@ KERNELLOAD	:= $(CONFIG_KERNEL_START)
 HAS_BIARCH	:= $(call cc-option-yn, -m32)
 
 ifeq ($(CONFIG_PPC64),y)
+OLDARCH	:= ppc64
 SZ	:= 64
 
 # Set default 32 bits cross compilers for vdso and boot wrapper
@@ -46,6 +47,7 @@ NM		:= $(NM) --synthetic
 endif
 
 else
+OLDARCH	:= ppc
 SZ	:= 32
 endif
 
@@ -61,11 +63,9 @@ LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic -e $(KERNELLOAD)
 CPPFLAGS	+= -Iarch/$(ARCH) -Iarch/$(ARCH)/include
 AFLAGS		+= -Iarch/$(ARCH)
 CFLAGS		+= -Iarch/$(ARCH) -msoft-float -pipe
-ifeq ($(CONFIG_PPC64),y)
-CFLAGS		+= -mminimal-toc -mtraceback=none  -mcall-aixdesc
-else
-CFLAGS		+= -ffixed-r2 -mmultiple
-endif
+CFLAGS-$(CONFIG_PPC64)	:= -mminimal-toc -mtraceback=none  -mcall-aixdesc
+CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 -mmultiple
+CFLAGS		+= $(CFLAGS-y)
 CPP		= $(CC) -E $(CFLAGS)
 # Temporary hack until we have migrated to asm-powerpc
 LINUXINCLUDE    += -Iarch/$(ARCH)/include
@@ -126,16 +126,12 @@ head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 endif
 
 core-y				+= arch/powerpc/kernel/ \
+				   arch/$(OLDARCH)/kernel/ \
 				   arch/powerpc/mm/ \
 				   arch/powerpc/lib/ \
-				   arch/powerpc/sysdev/
-core-$(CONFIG_PPC32)		+= arch/ppc/kernel/ \
-				   arch/ppc/syslib/
-core-$(CONFIG_PPC64)		+= arch/ppc64/kernel/
-core-$(CONFIG_PPC_PMAC)		+= arch/powerpc/platforms/powermac/
-core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
-core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/
-core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
+				   arch/powerpc/sysdev/ \
+				   arch/powerpc/platforms/
+core-$(CONFIG_PPC32)		+= arch/ppc/syslib/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
@@ -182,17 +178,10 @@ archclean:
 archprepare: checkbin
 
 # Temporary hack until we have migrated to asm-powerpc
-ifeq ($(CONFIG_PPC64),y)
 include/asm: arch/$(ARCH)/include/asm
 arch/$(ARCH)/include/asm:
 	$(Q)if [ ! -d arch/$(ARCH)/include ]; then mkdir -p arch/$(ARCH)/include; fi
-	$(Q)ln -fsn $(srctree)/include/asm-ppc64 arch/$(ARCH)/include/asm
-else
-include/asm: arch/$(ARCH)/include/asm
-arch/$(ARCH)/include/asm:
-	$(Q)if [ ! -d arch/$(ARCH)/include ]; then mkdir -p arch/$(ARCH)/include; fi
-	$(Q)ln -fsn $(srctree)/include/asm-ppc arch/$(ARCH)/include/asm
-endif
+	$(Q)ln -fsn $(srctree)/include/asm-$(OLDARCH) arch/$(ARCH)/include/asm
 
 # Use the file '.tmp_gas_check' for binutils tests, as gas won't output
 # to stdout and these checks are run even on install targets.

@@ -1,8 +1,7 @@
-#ifndef _ASM_KPROBES_H
-#define _ASM_KPROBES_H
+#ifndef _ASM_POWERPC_KPROBES_H
+#define _ASM_POWERPC_KPROBES_H
 /*
  *  Kernel Probes (KProbes)
- *  include/asm-ppc64/kprobes.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,4 +63,4 @@ static inline int kprobe_exceptions_notify(struct notifier_block *self,
 	return 0;
 }
 #endif
-#endif				/* _ASM_KPROBES_H */
+#endif	/* _ASM_POWERPC_KPROBES_H */

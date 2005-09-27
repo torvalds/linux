@@ -1,5 +1,5 @@
-#ifndef _POWERPC_KDEBUG_H
-#define _POWERPC_KDEBUG_H 1
+#ifndef _ASM_POWERPC_KDEBUG_H
+#define _ASM_POWERPC_KDEBUG_H
 
 /* nearly identical to x86_64/i386 code */
 
@@ -39,4 +39,4 @@ static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,lon
 	return notifier_call_chain(&powerpc_die_chain, val, &args);
 }
 
-#endif
+#endif /* _ASM_POWERPC_KDEBUG_H */

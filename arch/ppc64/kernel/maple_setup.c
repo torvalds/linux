@@ -59,8 +59,7 @@
 #include <asm/time.h>
 #include <asm/of_device.h>
 #include <asm/lmb.h>
-
-#include "mpic.h"
+#include <asm/mpic.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

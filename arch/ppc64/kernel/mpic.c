@@ -31,8 +31,7 @@
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
-
-#include "mpic.h"
+#include <asm/mpic.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(fmt)

@@ -62,7 +62,7 @@ EXPORT_SYMBOL(__debugger_dabr_match);
 EXPORT_SYMBOL(__debugger_fault_handler);
 #endif
 
-struct notifier_block *ppc64_die_chain;
+struct notifier_block *powerpc_die_chain;
 static DEFINE_SPINLOCK(die_notifier_lock);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -71,7 +71,7 @@ int register_die_notifier(struct notifier_block *nb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&die_notifier_lock, flags);
-	err = notifier_chain_register(&ppc64_die_chain, nb);
+	err = notifier_chain_register(&powerpc_die_chain, nb);
 	spin_unlock_irqrestore(&die_notifier_lock, flags);
 	return err;
 }

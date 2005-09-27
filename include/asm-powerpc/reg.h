@@ -6,9 +6,9 @@
  * Implementations of the PowerPC Architecture (a.k.a. Green Book) here.
  */
 
+#ifndef _ASM_POWERPC_REGS_H
+#define _ASM_POWERPC_REGS_H
 #ifdef __KERNEL__
-#ifndef __ASM_PPC_REGS_H__
-#define __ASM_PPC_REGS_H__
 
 #include <linux/stringify.h>
 
@@ -442,5 +442,5 @@
 
 #define proc_trap()	asm volatile("trap")
 #endif /* __ASSEMBLY__ */
-#endif /* __ASM_PPC_REGS_H__ */
 #endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_REGS_H */

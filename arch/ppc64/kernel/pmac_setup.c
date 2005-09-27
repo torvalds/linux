@@ -72,9 +72,9 @@
 #include <asm/lmb.h>
 #include <asm/smu.h>
 #include <asm/pmc.h>
+#include <asm/mpic.h>
 
 #include "pmac.h"
-#include "mpic.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

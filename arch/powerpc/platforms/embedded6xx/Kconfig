@@ -2,14 +2,6 @@ choice
 	prompt "Machine Type"
 	depends on EMBEDDED6xx
 
-config APUS
-	bool "Amiga-APUS"
-	depends on BROKEN
-	help
-	  Select APUS if configuring for a PowerUP Amiga.
-	  More information is available at:
-	  <http://linux-apus.sourceforge.net/>.
-
 config KATANA
 	bool "Artesyn-Katana"
 	help
