@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.83 2005/09/21 15:52:33 dedekind Exp $
+ * $Id: build.c,v 1.84 2005/09/27 13:40:49 dedekind Exp $
  *
  */
 
@@ -309,28 +309,25 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 {
 	int ret;
 	int i;
+	int size;
 
 	c->free_size = c->flash_size;
 	c->nr_blocks = c->flash_size / c->sector_size;
+	size = sizeof(struct jffs2_eraseblock) * c->nr_blocks;
 #ifndef __ECOS
 	if (jffs2_blocks_use_vmalloc(c))
-		c->blocks = vmalloc(sizeof(struct jffs2_eraseblock) * c->nr_blocks);
+		c->blocks = vmalloc(size);
 	else
 #endif
-		c->blocks = kmalloc(sizeof(struct jffs2_eraseblock) * c->nr_blocks, GFP_KERNEL);
+		c->blocks = kmalloc(size, GFP_KERNEL);
 	if (!c->blocks)
 		return -ENOMEM;
+
+	memset(c->blocks, 0, size);
 	for (i=0; i<c->nr_blocks; i++) {
 		INIT_LIST_HEAD(&c->blocks[i].list);
 		c->blocks[i].offset = i * c->sector_size;
 		c->blocks[i].free_size = c->sector_size;
-		c->blocks[i].dirty_size = 0;
-		c->blocks[i].wasted_size = 0;
-		c->blocks[i].unchecked_size = 0;
-		c->blocks[i].used_size = 0;
-		c->blocks[i].first_node = NULL;
-		c->blocks[i].last_node = NULL;
-		c->blocks[i].bad_count = 0;
 	}
 
 	INIT_LIST_HEAD(&c->clean_list);
