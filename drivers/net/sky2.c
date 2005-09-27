@@ -26,7 +26,6 @@
 /*
  * TODO
  *	- coalescing setting?
- *	- vlan support
  *
  * TOTEST
  *	- variable ring size
@@ -48,8 +47,13 @@
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <linux/delay.h>
+#include <linux/if_vlan.h>
 
 #include <asm/irq.h>
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define SKY2_VLAN_TAG_USED 1
+#endif
 
 #include "sky2.h"
 
@@ -489,7 +493,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	/* Configure Rx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	sky2_write16(hw, SK_REG(port, RX_GMF_CTRL_T),
-		     GMF_OPER_ON | GMF_RX_F_FL_ON);
+		     GMF_RX_CTRL_DEF);
 
 	/* Flush Rx MAC FIFO on any flowcontrol or error */
 	reg = GMR_FS_ANY_ERR;
@@ -717,6 +721,41 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 	}
 }
 
+#ifdef SKY2_VLAN_TAG_USED
+static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	u16 port = sky2->port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sky2->tx_lock, flags);
+
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_ON);
+	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_ON);
+	sky2->vlgrp = grp;
+
+	spin_unlock_irqrestore(&sky2->tx_lock, flags);
+}
+
+static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	u16 port = sky2->port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sky2->tx_lock, flags);
+
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_OFF);
+	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_OFF);
+	if (sky2->vlgrp)
+		sky2->vlgrp->vlan_devices[vid] = NULL;
+
+	spin_unlock_irqrestore(&sky2->tx_lock, flags);
+}
+#endif
+
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 static inline unsigned rx_size(const struct sky2_port *sky2)
 {
@@ -894,7 +933,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
-	struct sky2_tx_le *le;
+	struct sky2_tx_le *le = NULL;
 	struct ring_info *re;
 	unsigned long flags;
 	unsigned i, len;
@@ -961,8 +1000,23 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		sky2->tx_last_mss = mss;
 	}
 
-	/* Handle TCP checksum offload */
 	ctrl = 0;
+#ifdef SKY2_VLAN_TAG_USED
+	/* Add VLAN tag, can piggyback on LRGLEN or ADDR64 */
+	if (sky2->vlgrp && vlan_tx_tag_present(skb)) {
+		if (!le) {
+			le = get_tx_le(sky2);
+			le->tx.addr = 0;
+			le->opcode = OP_VLAN|HW_OWNER;
+			le->ctrl = 0;
+		} else
+			le->opcode |= OP_VLAN;
+		le->length = cpu_to_be16(vlan_tx_tag_get(skb));
+		ctrl |= INS_VLAN;
+	}
+#endif
+
+	/* Handle TCP checksum offload */
 	if (skb->ip_summed == CHECKSUM_HW) {
 		u16 hdr = skb->h.raw - skb->data;
 		u16 offset = hdr + skb->csum;
@@ -1436,10 +1490,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 
 	sky2->rx_next = (sky2->rx_next + 1) % sky2->rx_pending;
 
-	if (!(status & GMR_FS_RX_OK)
-	    || (status & GMR_FS_ANY_ERR)
-	    || (length << 16) != (status & GMR_FS_LEN)
-	    || length > bufsize)
+	if (!(status & GMR_FS_RX_OK) || (status & GMR_FS_ANY_ERR))
 		goto error;
 
 	if (length < RX_COPY_THRESHOLD) {
@@ -1539,6 +1590,9 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		u16 length;
 
 		BUG_ON(le->link >= hw->ports);
+		if (!hw->dev[le->link])
+			goto skip;
+
 		sky2 = netdev_priv(hw->dev[le->link]);
 		status = le32_to_cpu(le->status);
 		length = le16_to_cpu(le->length);
@@ -1546,12 +1600,27 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		switch (le->opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
 			skb = sky2_receive(sky2, length, status);
-			if (likely(skb)) {
+			if (!skb)
+				break;
+#ifdef SKY2_VLAN_TAG_USED
+			if (sky2->vlgrp && (status & GMR_FS_VLAN)) {
+				vlan_hwaccel_receive_skb(skb,
+							 sky2->vlgrp,
+							 be16_to_cpu(sky2->rx_tag));
+			} else
+#endif
 				netif_receive_skb(skb);
-				++work_done;
-			}
 			break;
 
+#ifdef SKY2_VLAN_TAG_USED
+		case OP_RXVLAN:
+			sky2->rx_tag = length;
+			break;
+
+		case OP_RXCHKSVLAN:
+			sky2->rx_tag = length;
+			/* fall through */
+#endif
 		case OP_RXCHKS:
 			skb = sky2->rx_ring[sky2->rx_next].skb;
 			skb->ip_summed = CHECKSUM_HW;
@@ -1563,9 +1632,6 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 					 tx_index(sky2->port, status, length));
 			break;
 
-		case OP_RXTIMESTAMP:
-			break;
-
 		default:
 			if (net_ratelimit())
 				printk(KERN_WARNING PFX
@@ -1574,6 +1640,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			break;
 		}
 
+	skip:
 		hw->st_idx = (hw->st_idx + 1) % STATUS_RING_SIZE;
 		if (hw->st_idx == hwidx) {
 			hwidx = sky2_read16(hw, STAT_PUT_IDX);
@@ -2614,6 +2681,12 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+
+#ifdef SKY2_VLAN_TAG_USED
+	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	dev->vlan_rx_register = sky2_vlan_rx_register;
+	dev->vlan_rx_kill_vid = sky2_vlan_rx_kill_vid;
+#endif
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8, ETH_ALEN);

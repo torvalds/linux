@@ -1578,6 +1578,8 @@ enum {
 	GMF_RST_SET	= 1<<0,		/* Set   GMAC FIFO Reset */
 
 	RX_GMF_FL_THR_DEF = 0xa,	/* flush threshold (default) */
+
+	GMF_RX_CTRL_DEF	= GMF_OPER_ON | GMF_RX_F_FL_ON,
 };
 
 
@@ -1826,6 +1828,10 @@ struct sky2_port {
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
 	u16		     rx_last_put;
+#ifdef SKY2_VLAN_TAG_USED
+	u16		     rx_tag;
+	struct vlan_group    *vlgrp;
+#endif
 
 	dma_addr_t	     rx_le_map;
 	dma_addr_t	     tx_le_map;
