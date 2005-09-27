@@ -5806,6 +5806,13 @@ static int tg3_reset_hw(struct tg3 *tp)
 	}
 	memset(tp->hw_status, 0, TG3_HW_STATUS_SIZE);
 
+	if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
+		tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
+		/* reset to prevent losing 1st rx packet intermittently */
+		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
+		udelay(10);
+	}
+
 	tp->mac_mode = MAC_MODE_TXSTAT_ENABLE | MAC_MODE_RXSTAT_ENABLE |
 		MAC_MODE_TDE_ENABLE | MAC_MODE_RDE_ENABLE | MAC_MODE_FHDE_ENABLE;
 	tw32_f(MAC_MODE, tp->mac_mode | MAC_MODE_RXSTAT_CLEAR | MAC_MODE_TXSTAT_CLEAR);
@@ -5937,7 +5944,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32(MAC_LED_CTRL, tp->led_ctrl);
 
 	tw32(MAC_MI_STAT, MAC_MI_STAT_LNKSTAT_ATTN_ENAB);
-	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) {
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
 		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
 		udelay(10);
 	}
@@ -7360,12 +7367,17 @@ static int tg3_nway_reset(struct net_device *dev)
 	if (!netif_running(dev))
 		return -EAGAIN;
 
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+		return -EINVAL;
+
 	spin_lock_bh(&tp->lock);
 	r = -EINVAL;
 	tg3_readphy(tp, MII_BMCR, &bmcr);
 	if (!tg3_readphy(tp, MII_BMCR, &bmcr) &&
-	    (bmcr & BMCR_ANENABLE)) {
-		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART);
+	    ((bmcr & BMCR_ANENABLE) ||
+	     (tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT))) {
+		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART |
+					   BMCR_ANENABLE);
 		r = 0;
 	}
 	spin_unlock_bh(&tp->lock);
@@ -7927,19 +7939,32 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	struct tg3_rx_buffer_desc *desc;
 
 	if (loopback_mode == TG3_MAC_LOOPBACK) {
+		/* HW errata - mac loopback fails in some cases on 5780.
+		 * Normal traffic and PHY loopback are not affected by
+		 * errata.
+		 */
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+			return 0;
+
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY |
 			   MAC_MODE_PORT_MODE_GMII;
 		tw32(MAC_MODE, mac_mode);
 	} else if (loopback_mode == TG3_PHY_LOOPBACK) {
+		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
+					   BMCR_SPEED1000);
+		udelay(40);
+		/* reset to prevent losing 1st rx packet intermittently */
+		if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
+			tw32_f(MAC_RX_MODE, RX_MODE_RESET);
+			udelay(10);
+			tw32_f(MAC_RX_MODE, tp->rx_mode);
+		}
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
 		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
 		tw32(MAC_MODE, mac_mode);
-
-		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
-					   BMCR_SPEED1000);
 	}
 	else
 		return -EINVAL;
