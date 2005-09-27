@@ -468,9 +468,9 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* serial mode register */
 	reg = DATA_BLIND_VAL(DATA_BLIND_DEF) |
-	    GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
+		GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
 
-	if (hw->dev[port]->mtu > 1500)
+	if (hw->dev[port]->mtu > ETH_DATA_LEN)
 		reg |= GM_SMOD_JUMBO_ENA;
 
 	gma_write16(hw, port, GM_SERIAL_MODE, reg);
@@ -515,8 +515,6 @@ static void sky2_ramset(struct sky2_hw *hw, u16 q, u32 start, size_t len)
 	len /= 8;
 	end = start + len - 1;
 
-	pr_debug("sky2_ramset start=%d end=%d\n", start, end);
-
 	sky2_write8(hw, RB_ADDR(q, RB_CTRL), RB_RST_CLR);
 	sky2_write32(hw, RB_ADDR(q, RB_START), start);
 	sky2_write32(hw, RB_ADDR(q, RB_END), end);
@@ -528,7 +526,6 @@ static void sky2_ramset(struct sky2_hw *hw, u16 q, u32 start, size_t len)
 
 		rxlo = len/2;
 		rxup = rxlo + len/4;
-		pr_debug(" utpp=%d ltpp=%d\n", rxup, rxlo);
 
 		/* Set thresholds on receive queue's */
 		sky2_write32(hw, RB_ADDR(q, RB_RX_UTPP), rxup);
@@ -662,16 +659,44 @@ static void rx_set_checksum(struct sky2_port *sky2)
 	le->ctrl = 0;
 	le->opcode = OP_TCPSTART | HW_OWNER;
 
-	sky2_write16(sky2->hw, Y2_QADDR(rxqaddr[sky2->port],
-					PREF_UNIT_PUT_IDX), sky2->rx_put);
-	sky2_read16(sky2->hw, Y2_QADDR(rxqaddr[sky2->port], PREF_UNIT_PUT_IDX));
-	mdelay(1);
 	sky2_write32(sky2->hw,
 		     Q_ADDR(rxqaddr[sky2->port], Q_CSR),
 		     sky2->rx_csum ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
 
 }
 
+/*
+ * The RX Stop command will not work for Yukon-2 if the BMU does not
+ * reach the end of packet and since we can't make sure that we have
+ * incoming data, we must reset the BMU while it is not doing a DMA
+ * transfer. Since it is possible that the RX path is still active,
+ * the RX RAM buffer will be stopped first, so any possible incoming
+ * data will not trigger a DMA. After the RAM buffer is stopped, the
+ * BMU is polled until any DMA in progress is ended and only then it
+ * will be reset.
+ */
+static void sky2_rx_stop(struct sky2_port *sky2)
+{
+	struct sky2_hw *hw = sky2->hw;
+	unsigned rxq = rxqaddr[sky2->port];
+	int i;
+
+	/* disable the RAM Buffer receive queue */
+	sky2_write8(hw, RB_ADDR(rxq, RB_CTRL), RB_DIS_OP_MD);
+
+	for (i = 0; i < 0xffff; i++)
+		if (sky2_read8(hw, RB_ADDR(rxq, Q_RSL))
+		    == sky2_read8(hw, RB_ADDR(rxq, Q_RL)))
+			goto stopped;
+
+	printk(KERN_WARNING PFX "%s: receiver stop failed\n",
+	       sky2->netdev->name);
+stopped:
+	sky2_write32(hw, Q_ADDR(rxq, Q_CSR), BMU_RST_SET | BMU_FIFO_RST);
+
+	/* reset the Rx prefetch unit */
+	sky2_write32(hw, Y2_QADDR(rxq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
+}
 
 /* Cleanout receive buffer area, assumes receiver hardware stopped */
 static void sky2_rx_clean(struct sky2_port *sky2)
@@ -693,7 +718,7 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 }
 
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-static inline unsigned sky2_rx_size(const struct sky2_port *sky2)
+static inline unsigned rx_size(const struct sky2_port *sky2)
 {
 	return roundup(sky2->netdev->mtu + ETH_HLEN + 4, 8);
 }
@@ -709,12 +734,18 @@ static inline unsigned sky2_rx_size(const struct sky2_port *sky2)
  * is not aligned.  This means we can't use skb_reserve to align
  * the IP header.
  */
-static int sky2_rx_fill(struct sky2_port *sky2)
+static int sky2_rx_start(struct sky2_port *sky2)
 {
-	unsigned i;
-	unsigned size = sky2_rx_size(sky2);
+	struct sky2_hw *hw = sky2->hw;
+	unsigned size = rx_size(sky2);
+	unsigned rxq = rxqaddr[sky2->port];
+	int i;
 
-	pr_debug("rx_fill size=%d\n", size);
+	sky2->rx_put = sky2->rx_next = 0;
+	sky2_qset(hw, rxq, is_pciex(hw) ? 0x80 : 0x600);
+	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
+
+	rx_set_checksum(sky2);
 	for (i = 0; i < sky2->rx_pending; i++) {
 		struct ring_info *re = sky2->rx_ring + i;
 
@@ -722,12 +753,15 @@ static int sky2_rx_fill(struct sky2_port *sky2)
 		if (!re->skb)
 			goto nomem;
 
-		re->mapaddr = pci_map_single(sky2->hw->pdev, re->skb->data,
+		re->mapaddr = pci_map_single(hw->pdev, re->skb->data,
 					     size, PCI_DMA_FROMDEVICE);
 		re->maplen = size;
 		sky2_rx_add(sky2, re);
 	}
 
+	/* Tell chip about available buffers */
+	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
+	sky2->rx_last_put = sky2_read16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX));
 	return 0;
 nomem:
 	sky2_rx_clean(sky2);
@@ -792,27 +826,13 @@ static int sky2_up(struct net_device *dev)
 	sky2_write8(hw, RB_ADDR(port == 0 ? Q_XS1 : Q_XS2, RB_CTRL),
 		    RB_RST_SET);
 
-	sky2_qset(hw, rxqaddr[port], is_pciex(hw) ? 0x80 : 0x600);
 	sky2_qset(hw, txqaddr[port], 0x600);
-
-	sky2->rx_put = sky2->rx_next = 0;
-	sky2_prefetch_init(hw, rxqaddr[port], sky2->rx_le_map, RX_LE_SIZE - 1);
-
-	rx_set_checksum(sky2);
-
-	err = sky2_rx_fill(sky2);
-	if (err)
-		goto err_out;
-
-	/* Give buffers to receiver */
-	sky2_write16(sky2->hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_PUT_IDX),
-		     sky2->rx_put);
-	sky2->rx_last_put = sky2_read16(sky2->hw,
-					Y2_QADDR(rxqaddr[port],
-						 PREF_UNIT_PUT_IDX));
-
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
 			   TX_RING_SIZE - 1);
+
+	err = sky2_rx_start(sky2);
+	if (err)
+		goto err_out;
 
 	/* Enable interrupts from phy/mac for port */
 	hw->intr_mask |= (port == 0) ? Y2_IS_PORT_1 : Y2_IS_PORT_2;
@@ -1076,7 +1096,6 @@ static int sky2_down(struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
 	u16 ctrl;
-	int i;
 
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
@@ -1121,30 +1140,7 @@ static int sky2_down(struct net_device *dev)
 
 	sky2_write32(hw, RB_ADDR(txqaddr[port], RB_CTRL), RB_RST_SET);
 
-	/*
-	 * The RX Stop command will not work for Yukon-2 if the BMU does not
-	 * reach the end of packet and since we can't make sure that we have
-	 * incoming data, we must reset the BMU while it is not doing a DMA
-	 * transfer. Since it is possible that the RX path is still active,
-	 * the RX RAM buffer will be stopped first, so any possible incoming
-	 * data will not trigger a DMA. After the RAM buffer is stopped, the
-	 * BMU is polled until any DMA in progress is ended and only then it
-	 * will be reset.
-	 */
-
-	/* disable the RAM Buffer receive queue */
-	sky2_write8(hw, RB_ADDR(rxqaddr[port], RB_CTRL), RB_DIS_OP_MD);
-
-	for (i = 0; i < 0xffff; i++)
-		if (sky2_read8(hw, RB_ADDR(rxqaddr[port], Q_RSL))
-		    == sky2_read8(hw, RB_ADDR(rxqaddr[port], Q_RL)))
-			break;
-
-	sky2_write32(hw, Q_ADDR(rxqaddr[port], Q_CSR),
-		     BMU_RST_SET | BMU_FIFO_RST);
-	/* reset the Rx prefetch unit */
-	sky2_write32(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_CTRL),
-		     PREF_UNIT_RST_SET);
+	sky2_rx_stop(sky2);
 
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
@@ -1379,19 +1375,44 @@ static void sky2_tx_timeout(struct net_device *dev)
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int err = 0;
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	int err;
+	u16 ctl, mode;
 
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
-	if (netif_running(dev))
-		sky2_down(dev);
+	if (!netif_running(dev)) {
+		dev->mtu = new_mtu;
+		return 0;
+	}
+
+	local_irq_disable();
+	sky2_write32(hw, B0_IMSK, 0);
+
+	ctl = gma_read16(hw, sky2->port, GM_GP_CTRL);
+	gma_write16(hw, sky2->port, GM_GP_CTRL, ctl & ~GM_GPCR_RX_ENA);
+	sky2_rx_stop(sky2);
+	sky2_rx_clean(sky2);
 
 	dev->mtu = new_mtu;
+	mode = DATA_BLIND_VAL(DATA_BLIND_DEF) |
+		GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
 
-	if (netif_running(dev))
-		err = sky2_up(dev);
+	if (dev->mtu > ETH_DATA_LEN)
+		mode |= GM_SMOD_JUMBO_ENA;
 
+	gma_write16(hw, sky2->port, GM_SERIAL_MODE, mode);
+
+	sky2_write8(hw, RB_ADDR(rxqaddr[sky2->port], RB_CTRL), RB_ENA_OP_MD);
+
+	err = sky2_rx_start(sky2);
+	gma_write16(hw, sky2->port, GM_GP_CTRL, ctl);
+
+	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+	sky2_read32(hw, B0_IMSK);
+	local_irq_enable();
 	return err;
 }
 
@@ -1407,7 +1428,7 @@ static struct sk_buff *sky2_receive(struct sky2_hw *hw, unsigned port,
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct ring_info *re = sky2->rx_ring + sky2->rx_next;
 	struct sk_buff *skb = NULL;
-	const unsigned int bufsize = sky2_rx_size(sky2);
+	const unsigned int bufsize = rx_size(sky2);
 
 	if (unlikely(netif_msg_rx_status(sky2)))
 		printk(KERN_DEBUG PFX "%s: rx slot %u status 0x%x len %d\n",
