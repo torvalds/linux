@@ -43,8 +43,8 @@
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include <asm/cputable.h>
+#include <asm/ppc-pci.h>
 
-#include "pci.h"
 #include "bpa_iic.h"
 #include "bpa_iommu.h"
 

@@ -1,28 +1,26 @@
 /*
- * iSeries_pci.c
- *
  * Copyright (C) 2001 Allan Trautman, IBM Corporation
  *
  * iSeries specific routines for PCI.
- * 
+ *
  * Based on code from pci.c and iSeries_pci.c 32bit
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 #include <linux/kernel.h>
-#include <linux/list.h> 
+#include <linux/list.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -43,12 +41,12 @@
 #include <asm/iSeries/iSeries_pci.h>
 #include <asm/iSeries/mf.h>
 
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 extern unsigned long io_page_mask;
 
 /*
- * Forward declares of prototypes. 
+ * Forward declares of prototypes.
  */
 static struct iSeries_Device_Node *find_Device_Node(int bus, int devfn);
 static void scan_PHB_slots(struct pci_controller *Phb);
@@ -68,7 +66,7 @@ static long Pci_Cfg_Write_Count;
 #endif
 static long Pci_Error_Count;
 
-static int Pci_Retry_Max = 3;	/* Only retry 3 times  */	
+static int Pci_Retry_Max = 3;	/* Only retry 3 times  */
 static int Pci_Error_Flag = 1;	/* Set Retry Error on. */
 
 static struct pci_ops iSeries_pci_ops;
@@ -179,7 +177,7 @@ static void allocate_device_bars(struct pci_dev *dev)
 	for (bar_num = 0; bar_num <= PCI_ROM_RESOURCE; ++bar_num) {
 		bar_res = &dev->resource[bar_num];
 		iomm_table_allocate_entry(dev, bar_num);
-    	}
+	}
 }
 
 /*
@@ -278,28 +276,28 @@ unsigned long __init find_and_init_phbs(void)
 
 /*
  * iSeries_pcibios_init
- *  
+ *
  * Chance to initialize and structures or variable before PCI Bus walk.
  */
 void iSeries_pcibios_init(void)
 {
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_init Entry.\n"); 
+	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_init Entry.\n");
 	iomm_table_initialize();
 	find_and_init_phbs();
 	io_page_mask = -1;
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_init Exit.\n"); 
+	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_init Exit.\n");
 }
 
 /*
- * iSeries_pci_final_fixup(void)  
+ * iSeries_pci_final_fixup(void)
  */
 void __init iSeries_pci_final_fixup(void)
 {
 	struct pci_dev *pdev = NULL;
 	struct iSeries_Device_Node *node;
-    	int DeviceCount = 0;
+	int DeviceCount = 0;
 
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_fixup Entry.\n"); 
+	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_fixup Entry.\n");
 
 	/* Fix up at the device node and pci_dev relationship */
 	mf_display_src(0xC9000100);
@@ -332,24 +330,24 @@ void __init iSeries_pci_final_fixup(void)
 void pcibios_fixup_bus(struct pci_bus *PciBus)
 {
 	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_fixup_bus(0x%04X) Entry.\n",
-			PciBus->number); 
+			PciBus->number);
 }
 
 void pcibios_fixup_resources(struct pci_dev *pdev)
 {
 	PPCDBG(PPCDBG_BUSWALK, "fixup_resources pdev %p\n", pdev);
-}   
+}
 
 /*
- * Loop through each node function to find usable EADs bridges.  
+ * Loop through each node function to find usable EADs bridges.
  */
 static void scan_PHB_slots(struct pci_controller *Phb)
 {
 	struct HvCallPci_DeviceInfo *DevInfo;
-	HvBusNumber bus = Phb->local_number;	/* System Bus */	
+	HvBusNumber bus = Phb->local_number;	/* System Bus */
 	const HvSubBusNumber SubBus = 0;	/* EADs is always 0. */
 	int HvRc = 0;
-	int IdSel;	
+	int IdSel;
 	const int MaxAgents = 8;
 
 	DevInfo = (struct HvCallPci_DeviceInfo*)
@@ -358,10 +356,10 @@ static void scan_PHB_slots(struct pci_controller *Phb)
 		return;
 
 	/*
-	 * Probe for EADs Bridges      
+	 * Probe for EADs Bridges
 	 */
 	for (IdSel = 1; IdSel < MaxAgents; ++IdSel) {
-    		HvRc = HvCallPci_getDeviceInfo(bus, SubBus, IdSel,
+		HvRc = HvCallPci_getDeviceInfo(bus, SubBus, IdSel,
 				ISERIES_HV_ADDR(DevInfo),
 				sizeof(struct HvCallPci_DeviceInfo));
 		if (HvRc == 0) {
@@ -393,19 +391,19 @@ static void scan_EADS_bridge(HvBusNumber bus, HvSubBusNumber SubBus,
 
 	/* Note: hvSubBus and irq is always be 0 at this level! */
 	for (Function = 0; Function < 8; ++Function) {
-	  	AgentId = ISERIES_PCI_AGENTID(IdSel, Function);
+		AgentId = ISERIES_PCI_AGENTID(IdSel, Function);
 		HvRc = HvCallXm_connectBusUnit(bus, SubBus, AgentId, 0);
- 		if (HvRc == 0) {
+		if (HvRc == 0) {
 			printk("found device at bus %d idsel %d func %d (AgentId %x)\n",
 			       bus, IdSel, Function, AgentId);
-  			/*  Connect EADs: 0x18.00.12 = 0x00 */
+			/*  Connect EADs: 0x18.00.12 = 0x00 */
 			PPCDBG(PPCDBG_BUSWALK,
 					"PCI:Connect EADs: 0x%02X.%02X.%02X\n",
 					bus, SubBus, AgentId);
-	    		HvRc = HvCallPci_getBusUnitInfo(bus, SubBus, AgentId,
+			HvRc = HvCallPci_getBusUnitInfo(bus, SubBus, AgentId,
 					ISERIES_HV_ADDR(BridgeInfo),
 					sizeof(struct HvCallPci_BridgeInfo));
-	 		if (HvRc == 0) {
+			if (HvRc == 0) {
 				printk("bridge info: type %x subbus %x maxAgents %x maxsubbus %x logslot %x\n",
 					BridgeInfo->busUnitInfo.deviceType,
 					BridgeInfo->subBusNumber,
@@ -428,7 +426,7 @@ static void scan_EADS_bridge(HvBusNumber bus, HvSubBusNumber SubBus,
 					printk("PCI: Invalid Bridge Configuration(0x%02X)",
 						BridgeInfo->busUnitInfo.deviceType);
 			}
-    		} else if (HvRc != 0x000B)
+		} else if (HvRc != 0x000B)
 			pci_Log_Error("EADs Connect",
 					bus, SubBus, AgentId, HvRc);
 	}
@@ -451,16 +449,16 @@ static int scan_bridge_slot(HvBusNumber Bus,
 	HvAgentId EADsIdSel = ISERIES_PCI_AGENTID(IdSel, Function);
 
 	/* iSeries_allocate_IRQ.: 0x18.00.12(0xA3) */
-  	Irq = iSeries_allocate_IRQ(Bus, 0, EADsIdSel);
+	Irq = iSeries_allocate_IRQ(Bus, 0, EADsIdSel);
 	PPCDBG(PPCDBG_BUSWALK,
 		"PCI:- allocate and assign IRQ 0x%02X.%02X.%02X = 0x%02X\n",
 		Bus, 0, EADsIdSel, Irq);
 
 	/*
-	 * Connect all functions of any device found.  
+	 * Connect all functions of any device found.
 	 */
-  	for (IdSel = 1; IdSel <= BridgeInfo->maxAgents; ++IdSel) {
-    		for (Function = 0; Function < 8; ++Function) {
+	for (IdSel = 1; IdSel <= BridgeInfo->maxAgents; ++IdSel) {
+		for (Function = 0; Function < 8; ++Function) {
 			HvAgentId AgentId = ISERIES_PCI_AGENTID(IdSel, Function);
 			HvRc = HvCallXm_connectBusUnit(Bus, SubBus,
 					AgentId, Irq);
@@ -484,7 +482,7 @@ static int scan_bridge_slot(HvBusNumber Bus,
 			       "PCI:- FoundDevice: 0x%02X.%02X.%02X = 0x%04X, irq %d\n",
 			       Bus, SubBus, AgentId, VendorId, Irq);
 			HvRc = HvCallPci_configStore8(Bus, SubBus, AgentId,
-						      PCI_INTERRUPT_LINE, Irq);  
+						      PCI_INTERRUPT_LINE, Irq);
 			if (HvRc != 0)
 				pci_Log_Error("PciCfgStore Irq Failed!",
 					      Bus, SubBus, AgentId, HvRc);

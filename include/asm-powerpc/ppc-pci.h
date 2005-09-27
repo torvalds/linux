@@ -6,8 +6,8 @@
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  */
-#ifndef __PPC_KERNEL_PCI_H__
-#define __PPC_KERNEL_PCI_H__
+#ifndef _ASM_POWERPC_PPC_PCI_H
+#define _ASM_POWERPC_PPC_PCI_H
 
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
@@ -51,4 +51,4 @@ extern unsigned long pci_probe_only;
 extern unsigned long pci_assign_all_buses;
 extern int pci_read_irq_line(struct pci_dev *pci_dev);
 
-#endif /* __PPC_KERNEL_PCI_H__ */
+#endif /* _ASM_POWERPC_PPC_PCI_H */

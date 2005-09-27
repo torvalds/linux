@@ -53,8 +53,7 @@
 #include <asm/time.h>
 #include <asm/mmu_context.h>
 #include <asm/systemcfg.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 /* readdir & getdents */
 #define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))

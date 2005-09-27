@@ -27,8 +27,8 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/iommu.h>
+#include <asm/ppc-pci.h>
 
-#include "pci.h"
 #include "pmac.h"
 
 #define DEBUG

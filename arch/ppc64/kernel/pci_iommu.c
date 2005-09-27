@@ -37,7 +37,7 @@
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iSeries/iSeries_pci.h>

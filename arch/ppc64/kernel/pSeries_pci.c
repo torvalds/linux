@@ -29,8 +29,7 @@
 
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 static int __initdata s7a_workaround = -1;
 

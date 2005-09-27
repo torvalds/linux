@@ -47,7 +47,7 @@
 #include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 #define DBG(fmt...)
 

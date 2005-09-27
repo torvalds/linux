@@ -39,8 +39,7 @@
 #include <asm/iommu.h>
 #include <asm/rtas.h>
 #include <asm/mpic.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 /* RTAS tokens */
 static int read_pci_config;
