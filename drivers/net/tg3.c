@@ -3389,7 +3389,8 @@ static irqreturn_t tg3_test_isr(int irq, void *dev_id,
 	struct tg3 *tp = netdev_priv(dev);
 	struct tg3_hw_status *sblk = tp->hw_status;
 
-	if (sblk->status & SD_STATUS_UPDATED) {
+	if ((sblk->status & SD_STATUS_UPDATED) ||
+	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     0x00000001);
 		return IRQ_RETVAL(1);
@@ -5394,6 +5395,9 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
@@ -10349,6 +10353,44 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	};
 }
 
+static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
+{
+	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
+		strcpy(str, "PCI Express");
+		return str;
+	} else if (tp->tg3_flags & TG3_FLAG_PCIX_MODE) {
+		u32 clock_ctrl = tr32(TG3PCI_CLOCK_CTRL) & 0x1f;
+
+		strcpy(str, "PCIX:");
+
+		if ((clock_ctrl == 7) ||
+		    ((tr32(GRC_MISC_CFG) & GRC_MISC_CFG_BOARD_ID_MASK) ==
+		     GRC_MISC_CFG_BOARD_ID_5704CIOBE))
+			strcat(str, "133MHz");
+		else if (clock_ctrl == 0)
+			strcat(str, "33MHz");
+		else if (clock_ctrl == 2)
+			strcat(str, "50MHz");
+		else if (clock_ctrl == 4)
+			strcat(str, "66MHz");
+		else if (clock_ctrl == 6)
+			strcat(str, "100MHz");
+		else if (clock_ctrl == 7)
+			strcat(str, "133MHz");
+	} else {
+		strcpy(str, "PCI:");
+		if (tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED)
+			strcat(str, "66MHz");
+		else
+			strcat(str, "33MHz");
+	}
+	if (tp->tg3_flags & TG3_FLAG_PCI_32BIT)
+		strcat(str, ":32-bit");
+	else
+		strcat(str, ":64-bit");
+	return str;
+}
+
 static struct pci_dev * __devinit tg3_find_5704_peer(struct tg3 *tp)
 {
 	struct pci_dev *peer;
@@ -10411,6 +10453,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct tg3 *tp;
 	int i, err, pci_using_dac, pm_cap;
+	char str[40];
 
 	if (tg3_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -10656,16 +10699,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (PCI%s:%s:%s) %sBaseT Ethernet ",
+	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (%s) %sBaseT Ethernet ",
 	       dev->name,
 	       tp->board_part_number,
 	       tp->pci_chip_rev_id,
 	       tg3_phy_string(tp),
-	       ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "X" : ""),
-	       ((tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED) ?
-		((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "133MHz" : "66MHz") :
-		((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "100MHz" : "33MHz")),
-	       ((tp->tg3_flags & TG3_FLAG_PCI_32BIT) ? "32-bit" : "64-bit"),
+	       tg3_bus_string(tp, str),
 	       (tp->tg3_flags & TG3_FLAG_10_100_ONLY) ? "10/100" : "10/100/1000");
 
 	for (i = 0; i < 6; i++)
