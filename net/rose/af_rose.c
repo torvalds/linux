@@ -1508,7 +1508,7 @@ static int __init rose_proto_init(void)
 		}
 		rc = register_netdev(dev);
 		if (rc) {
-			printk(KERN_ERR "ROSE: netdevice regeistration failed\n");
+			printk(KERN_ERR "ROSE: netdevice registration failed\n");
 			free_netdev(dev);
 			goto fail;
 		}
