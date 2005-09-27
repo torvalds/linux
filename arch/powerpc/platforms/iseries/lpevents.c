@@ -18,6 +18,7 @@
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
+#include <asm/iSeries/ItLpNaca.h>
 
 /*
  * The LpQueue is used to pass event data from the hypervisor to
@@ -42,7 +43,8 @@ static char *event_types[HvLpEvent_Type_NumTypes] = {
 };
 
 /* Array of LpEvent handler functions */
-extern LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];
+static LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];
+static unsigned lpEventHandlerPaths[HvLpEvent_Type_NumTypes];
 
 static struct HvLpEvent * get_next_hvlpevent(void)
 {
@@ -196,6 +198,70 @@ void setup_hvlpevent_queue(void)
 	hvlpevent_queue.xSlicLastValidEventPtr = (char *)eventStack +
 					(LpEventStackSize - LpEventMaxSize);
 	hvlpevent_queue.xIndex = 0;
+}
+
+/* Register a handler for an LpEvent type */
+int HvLpEvent_registerHandler(HvLpEvent_Type eventType, LpEventHandler handler)
+{
+	if (eventType < HvLpEvent_Type_NumTypes) {
+		lpEventHandler[eventType] = handler;
+		return 0;
+	}
+	return 1;
+}
+EXPORT_SYMBOL(HvLpEvent_registerHandler);
+
+int HvLpEvent_unregisterHandler(HvLpEvent_Type eventType)
+{
+	might_sleep();
+
+	if (eventType < HvLpEvent_Type_NumTypes) {
+		if (!lpEventHandlerPaths[eventType]) {
+			lpEventHandler[eventType] = NULL;
+			/*
+			 * We now sleep until all other CPUs have scheduled.
+			 * This ensures that the deletion is seen by all
+			 * other CPUs, and that the deleted handler isn't
+			 * still running on another CPU when we return.
+			 */
+			synchronize_rcu();
+			return 0;
+		}
+	}
+	return 1;
+}
+EXPORT_SYMBOL(HvLpEvent_unregisterHandler);
+
+/*
+ * lpIndex is the partition index of the target partition.
+ * needed only for VirtualIo, VirtualLan and SessionMgr.  Zero
+ * indicates to use our partition index - for the other types.
+ */
+int HvLpEvent_openPath(HvLpEvent_Type eventType, HvLpIndex lpIndex)
+{
+	if ((eventType < HvLpEvent_Type_NumTypes) &&
+			lpEventHandler[eventType]) {
+		if (lpIndex == 0)
+			lpIndex = itLpNaca.xLpIndex;
+		HvCallEvent_openLpEventPath(lpIndex, eventType);
+		++lpEventHandlerPaths[eventType];
+		return 0;
+	}
+	return 1;
+}
+
+int HvLpEvent_closePath(HvLpEvent_Type eventType, HvLpIndex lpIndex)
+{
+	if ((eventType < HvLpEvent_Type_NumTypes) &&
+			lpEventHandler[eventType] &&
+			lpEventHandlerPaths[eventType]) {
+		if (lpIndex == 0)
+			lpIndex = itLpNaca.xLpIndex;
+		HvCallEvent_closeLpEventPath(lpIndex, eventType);
+		--lpEventHandlerPaths[eventType];
+		return 0;
+	}
+	return 1;
 }
 
 static int proc_lpevents_show(struct seq_file *m, void *v)
