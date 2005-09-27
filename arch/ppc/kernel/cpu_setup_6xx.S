@@ -17,8 +17,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 
-_GLOBAL(__setup_cpu_601)
-	blr
 _GLOBAL(__setup_cpu_603)
 	b	setup_common_caches
 _GLOBAL(__setup_cpu_604)

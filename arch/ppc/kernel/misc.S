@@ -125,9 +125,8 @@ _GLOBAL(identify_cpu)
 1:
 	addis	r6,r3,cur_cpu_spec@ha
 	addi	r6,r6,cur_cpu_spec@l
-	slwi	r4,r4,2
 	sub	r8,r8,r3
-	stwx	r8,r4,r6
+	stw	r8,0(r6)
 	blr
 
 /*
@@ -186,19 +185,18 @@ _GLOBAL(do_cpu_ftr_fixups)
  *
  * Setup function is called with:
  *   r3 = data offset
- *   r4 = CPU number
- *   r5 = ptr to CPU spec (relocated)
+ *   r4 = ptr to CPU spec (relocated)
  */
 _GLOBAL(call_setup_cpu)
-	addis	r5,r3,cur_cpu_spec@ha
-	addi	r5,r5,cur_cpu_spec@l
-	slwi	r4,r24,2
-	lwzx	r5,r4,r5
+	addis	r4,r3,cur_cpu_spec@ha
+	addi	r4,r4,cur_cpu_spec@l
+	lwz	r4,0(r4)
+	add	r4,r4,r3
+	lwz	r5,CPU_SPEC_SETUP(r4)
+	cmpi	0,r5,0
 	add	r5,r5,r3
-	lwz	r6,CPU_SPEC_SETUP(r5)
-	add	r6,r6,r3
-	mtctr	r6
-	mr	r4,r24
+	beqlr
+	mtctr	r5
 	bctr
 
 #if defined(CONFIG_CPU_FREQ_PMAC) && defined(CONFIG_6xx)

@@ -448,7 +448,7 @@ static int pmac_pm_enter(suspend_state_t state)
 	enable_kernel_fp();
 
 #ifdef CONFIG_ALTIVEC
-	if (cur_cpu_spec[0]->cpu_features & CPU_FTR_ALTIVEC)
+	if (cur_cpu_spec->cpu_features & CPU_FTR_ALTIVEC)
 		enable_kernel_altivec();
 #endif /* CONFIG_ALTIVEC */
 

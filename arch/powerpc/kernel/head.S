@@ -1059,7 +1059,6 @@ __secondary_start:
 
 	lis	r3,-KERNELBASE@h
 	mr	r4,r24
-	bl	identify_cpu
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
 #ifdef CONFIG_6xx
 	lis	r3,-KERNELBASE@h
@@ -1109,11 +1108,6 @@ __secondary_start:
  * Those generic dummy functions are kept for CPUs not
  * included in CONFIG_6xx
  */
-_GLOBAL(__setup_cpu_power3)
-	blr
-_GLOBAL(__setup_cpu_generic)
-	blr
-
 #if !defined(CONFIG_6xx) && !defined(CONFIG_POWER4)
 _GLOBAL(__save_cpu_setup)
 	blr

@@ -25,11 +25,7 @@
 struct cpu_spec;
 struct op_powerpc_model;
 
-#ifdef __powerpc64__
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
-#else /* __powerpc64__ */
-typedef	void (*cpu_setup_t)(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-#endif /* __powerpc64__ */
 
 struct cpu_spec {
 	/* CPU is matched via (PVR & pvr_mask) == pvr_value */
@@ -51,23 +47,15 @@ struct cpu_spec {
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
 	cpu_setup_t	cpu_setup;
-#ifdef __powerpc64__
 
 	/* Used by oprofile userspace to select the right counters */
 	char		*oprofile_cpu_type;
 
 	/* Processor specific oprofile operations */
 	struct op_powerpc_model *oprofile_model;
-#endif /* __powerpc64__ */
 };
 
-extern struct cpu_spec		cpu_specs[];
-
-#ifdef __powerpc64__
 extern struct cpu_spec		*cur_cpu_spec;
-#else /* __powerpc64__ */
-extern struct cpu_spec		*cur_cpu_spec[];
-#endif /* __powerpc64__ */
 
 #endif /* __ASSEMBLY__ */
 
@@ -398,11 +386,7 @@ static inline int cpu_has_feature(unsigned long feature)
 {
 	return (CPU_FTRS_ALWAYS & feature) ||
 	       (CPU_FTRS_POSSIBLE
-#ifndef __powerpc64__
-		& cur_cpu_spec[0]->cpu_features
-#else
 		& cur_cpu_spec->cpu_features
-#endif
 		& feature);
 }
 

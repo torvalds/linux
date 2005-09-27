@@ -63,8 +63,6 @@ _GLOBAL(__970_cpu_preinit)
 	isync
 	blr
 
-_GLOBAL(__setup_cpu_power4)
-	blr
 _GLOBAL(__setup_cpu_ppc970)
 	mfspr	r0,SPRN_HID0
 	li	r11,5			/* clear DOZE and SLEEP */

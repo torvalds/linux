@@ -14,23 +14,22 @@
 #include <linux/sched.h>
 #include <linux/threads.h>
 #include <linux/init.h>
+#include <linux/module.h>
+
+#include <asm/oprofile_impl.h>
 #include <asm/cputable.h>
 
-struct cpu_spec* cur_cpu_spec[NR_CPUS];
+struct cpu_spec* cur_cpu_spec = NULL;
 
-extern void __setup_cpu_601(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_603(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_604(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_750(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_750cx(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_750fx(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_7400(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_7410(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_745x(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_power3(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_power4(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_ppc970(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
-extern void __setup_cpu_generic(unsigned long offset, int cpu_nr, struct cpu_spec* spec);
+extern void __setup_cpu_603(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_604(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_750(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_750cx(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_750fx(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_7400(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_7410(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_745x(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 
 #define CLASSIC_PPC (!defined(CONFIG_8xx) && !defined(CONFIG_4xx) && \
 		     !defined(CONFIG_POWER3) && !defined(CONFIG_POWER4) && \
@@ -62,7 +61,6 @@ struct cpu_spec	cpu_specs[] = {
 			PPC_FEATURE_UNIFIED_CACHE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_601
 	},
 	{	/* 603 */
 		.pvr_mask		= 0xffff0000,
@@ -451,7 +449,6 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_PPC,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_generic
 	},
 #endif /* CLASSIC_PPC */
 #ifdef CONFIG_PPC64BRIDGE
@@ -464,7 +461,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3
 	},
 	{	/* Power3+ */
 		.pvr_mask		= 0xffff0000,
@@ -475,7 +471,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3
 	},
 	{	/* I-star */
 		.pvr_mask		= 0xffff0000,
@@ -486,7 +481,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3
 	},
 	{	/* S-star */
 		.pvr_mask		= 0xffff0000,
@@ -497,7 +491,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3
 	},
 #endif /* CONFIG_PPC64BRIDGE */
 #ifdef CONFIG_POWER4

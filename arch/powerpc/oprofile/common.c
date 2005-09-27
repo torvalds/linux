@@ -155,8 +155,6 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 #ifndef __powerpc64__
-	int cpu_id = smp_processor_id();
-
 #ifdef CONFIG_FSL_BOOKE
 	model = &op_model_fsl_booke;
 #else
@@ -167,9 +165,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	if (NULL == cpu_type)
 		return -ENOMEM;
 
-	sprintf(cpu_type, "ppc/%s", cur_cpu_spec[cpu_id]->cpu_name);
+	sprintf(cpu_type, "ppc/%s", cur_cpu_spec->cpu_name);
 
-	model->num_counters = cur_cpu_spec[cpu_id]->num_pmcs;
+	model->num_counters = cur_cpu_spec->num_pmcs;
 
 	ops->cpu_type = cpu_type;
 #else /* __powerpc64__ */

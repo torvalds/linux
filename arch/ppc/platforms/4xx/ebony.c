@@ -91,7 +91,7 @@ ebony_calibrate_decr(void)
 	 * on Rev. C silicon then errata forces us to
 	 * use the internal clock.
 	 */
-	if (strcmp(cur_cpu_spec[0]->cpu_name, "440GP Rev. B") == 0)
+	if (strcmp(cur_cpu_spec->cpu_name, "440GP Rev. B") == 0)
 		freq = EBONY_440GP_RB_SYSCLK;
 	else
 		freq = EBONY_440GP_RC_SYSCLK;

@@ -1185,18 +1185,18 @@ static void __init ppc7d_setup_arch(void)
 		ROOT_DEV = Root_HDA1;
 #endif
 
-	if ((cur_cpu_spec[0]->cpu_features & CPU_FTR_SPEC7450) ||
-	    (cur_cpu_spec[0]->cpu_features & CPU_FTR_L3CR))
+	if ((cur_cpu_spec->cpu_features & CPU_FTR_SPEC7450) ||
+	    (cur_cpu_spec->cpu_features & CPU_FTR_L3CR))
 		/* 745x is different.  We only want to pass along enable. */
 		_set_L2CR(L2CR_L2E);
-	else if (cur_cpu_spec[0]->cpu_features & CPU_FTR_L2CR)
+	else if (cur_cpu_spec->cpu_features & CPU_FTR_L2CR)
 		/* All modules have 1MB of L2.  We also assume that an
 		 * L2 divisor of 3 will work.
 		 */
 		_set_L2CR(L2CR_L2E | L2CR_L2SIZ_1MB | L2CR_L2CLK_DIV3
 			  | L2CR_L2RAM_PIPE | L2CR_L2OH_1_0 | L2CR_L2DF);
 
-	if (cur_cpu_spec[0]->cpu_features & CPU_FTR_L3CR)
+	if (cur_cpu_spec->cpu_features & CPU_FTR_L3CR)
 		/* No L3 cache */
 		_set_L3CR(0);
 

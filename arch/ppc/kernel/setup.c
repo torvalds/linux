@@ -188,18 +188,18 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t: %d\n", i);
 	seq_printf(m, "cpu\t\t: ");
 
-	if (cur_cpu_spec[i]->pvr_mask)
-		seq_printf(m, "%s", cur_cpu_spec[i]->cpu_name);
+	if (cur_cpu_spec->pvr_mask)
+		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
 	else
 		seq_printf(m, "unknown (%08x)", pvr);
 #ifdef CONFIG_ALTIVEC
-	if (cur_cpu_spec[i]->cpu_features & CPU_FTR_ALTIVEC)
+	if (cur_cpu_spec->cpu_features & CPU_FTR_ALTIVEC)
 		seq_printf(m, ", altivec supported");
 #endif
 	seq_printf(m, "\n");
 
 #ifdef CONFIG_TAU
-	if (cur_cpu_spec[i]->cpu_features & CPU_FTR_TAU) {
+	if (cur_cpu_spec->cpu_features & CPU_FTR_TAU) {
 #ifdef CONFIG_TAU_AVERAGE
 		/* more straightforward, but potentially misleading */
 		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
@@ -754,12 +754,12 @@ void __init setup_arch(char **cmdline_p)
 	 * for a possibly more accurate value.
 	 */
 	if (cpu_has_feature(CPU_FTR_SPLIT_ID_CACHE)) {
-		dcache_bsize = cur_cpu_spec[0]->dcache_bsize;
-		icache_bsize = cur_cpu_spec[0]->icache_bsize;
+		dcache_bsize = cur_cpu_spec->dcache_bsize;
+		icache_bsize = cur_cpu_spec->icache_bsize;
 		ucache_bsize = 0;
 	} else
 		ucache_bsize = dcache_bsize = icache_bsize
-			= cur_cpu_spec[0]->dcache_bsize;
+			= cur_cpu_spec->dcache_bsize;
 
 	/* reboot on panic */
 	panic_timeout = 180;
