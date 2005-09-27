@@ -213,18 +213,13 @@ static int acpi_ec_burst_wait(union acpi_ec *ec, unsigned int event)
 	smp_mb();
 
 	switch (event) {
-	case ACPI_EC_EVENT_OBF:
-		if (acpi_ec_read_status(ec) & event) {
-			ec->burst.expect_event = 0;
-			return_VALUE(0);
-		}
-		break;
-
 	case ACPI_EC_EVENT_IBE:
 		if (~acpi_ec_read_status(ec) & event) {
 			ec->burst.expect_event = 0;
 			return_VALUE(0);
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -255,7 +250,11 @@ static int acpi_ec_burst_wait(union acpi_ec *ec, unsigned int event)
 	return_VALUE(-ETIME);
 }
 
-static int acpi_ec_enter_burst_mode(union acpi_ec *ec)
+/*
+ * Note: samsung nv5000 doesn't work with ec burst mode.
+ * http://bugzilla.kernel.org/show_bug.cgi?id=4980
+ */
+int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 {
 	u32 tmp = 0;
 	int status = 0;
@@ -270,8 +269,6 @@ static int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 		acpi_hw_low_level_write(8, ACPI_EC_BURST_ENABLE,
 					&ec->common.command_addr);
 		status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-		if (status)
-			return_VALUE(-EINVAL);
 		acpi_hw_low_level_read(8, &tmp, &ec->common.data_addr);
 		if (tmp != 0x90) {	/* Burst ACK byte */
 			return_VALUE(-EINVAL);
@@ -285,13 +282,25 @@ static int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 	return_VALUE(-1);
 }
 
-static int acpi_ec_leave_burst_mode(union acpi_ec *ec)
+int acpi_ec_leave_burst_mode(union acpi_ec *ec)
 {
+	int status = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_ec_leave_burst_mode");
 
+	status = acpi_ec_read_status(ec);
+	if (status != -EINVAL && (status & ACPI_EC_FLAG_BURST)){
+		status = acpi_ec_wait(ec, ACPI_EC_FLAG_IBF);
+		if(status)
+			goto end;
+		acpi_hw_low_level_write(8, ACPI_EC_BURST_DISABLE, &ec->common.command_addr);
+		acpi_ec_wait(ec, ACPI_EC_FLAG_IBF);
+	} 
 	atomic_set(&ec->burst.leaving_burst, 1);
 	return_VALUE(0);
+end:
+	printk("leave burst_mode:error \n");
+	return_VALUE(-1);
 }
 
 static int acpi_ec_read(union acpi_ec *ec, u8 address, u32 * data)
@@ -424,7 +433,6 @@ static int acpi_ec_burst_read(union acpi_ec *ec, u8 address, u32 * data)
 	WARN_ON(in_interrupt());
 	down(&ec->burst.sem);
 
-	acpi_ec_enter_burst_mode(ec);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
 		printk("read EC, IB not empty\n");
@@ -448,7 +456,6 @@ static int acpi_ec_burst_read(union acpi_ec *ec, u8 address, u32 * data)
 			  *data, address));
 
       end:
-	acpi_ec_leave_burst_mode(ec);
 	up(&ec->burst.sem);
 
 	if (ec->common.global_lock)
@@ -476,8 +483,6 @@ static int acpi_ec_burst_write(union acpi_ec *ec, u8 address, u8 data)
 	WARN_ON(in_interrupt());
 	down(&ec->burst.sem);
 
-	acpi_ec_enter_burst_mode(ec);
-
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
 		printk("write EC, IB not empty\n");
@@ -500,7 +505,6 @@ static int acpi_ec_burst_write(union acpi_ec *ec, u8 address, u8 data)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Wrote [%02x] to address [%02x]\n",
 			  data, address));
 
-	acpi_ec_leave_burst_mode(ec);
 	up(&ec->burst.sem);
 
 	if (ec->common.global_lock)
