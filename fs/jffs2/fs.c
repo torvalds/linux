@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.65 2005/09/07 08:34:54 havasi Exp $
+ * $Id: fs.c,v 1.66 2005/09/27 13:17:29 dedekind Exp $
  *
  */
 
@@ -476,7 +476,6 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	c->cleanmarker_size = sizeof(struct jffs2_unknown_node);
-	/* Joern -- stick alignment for weird 8-byte-page flash here */
 
 	/* NAND (or other bizarre) flash... do setup accordingly */
 	ret = jffs2_flash_setup(c);
