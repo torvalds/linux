@@ -1,6 +1,4 @@
 /*
- * File iSeries_vpdInfo.c created by Allan Trautman on Fri Feb  2 2001.
- *
  * This code gets the card location of the hardware
  * Copyright (C) 2001  <Allan H Trautman> <IBM Corp>
  * Copyright (C) 2005  Stephen Rothwel, IBM Corp

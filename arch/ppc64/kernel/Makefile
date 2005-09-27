@@ -16,7 +16,6 @@ obj-y += vdso32/ vdso64/
 
 obj-$(CONFIG_PPC_OF) +=	of_device.o
 
-pci-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_VpdInfo.o
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
 
 obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o iomap.o $(pci-obj-y)
