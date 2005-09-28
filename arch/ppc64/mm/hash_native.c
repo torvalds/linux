@@ -343,7 +343,7 @@ static void native_flush_hash_range(unsigned long context,
 	hpte_t *hptep;
 	unsigned long hpte_v;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
-	unsigned long large;
+	unsigned long large = batch->large;
 
 	local_irq_save(flags);
 
@@ -356,7 +356,6 @@ static void native_flush_hash_range(unsigned long context,
 
 		va = (vsid << 28) | (batch->addr[i] & 0x0fffffff);
 		batch->vaddr[j] = va;
-		large = pte_huge(batch->pte[i]);
 		if (large)
 			vpn = va >> HPAGE_SHIFT;
 		else
@@ -406,7 +405,7 @@ static void native_flush_hash_range(unsigned long context,
 		asm volatile("ptesync":::"memory");
 
 		for (i = 0; i < j; i++)
-			__tlbie(batch->vaddr[i], 0);
+			__tlbie(batch->vaddr[i], large);
 
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 

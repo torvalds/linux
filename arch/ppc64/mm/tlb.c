@@ -143,7 +143,8 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	 * up scanning and resetting referenced bits then our batch context
 	 * will change mid stream.
 	 */
-	if (unlikely(i != 0 && context != batch->context)) {
+	if (i != 0 && (context != batch->context ||
+		       batch->large != pte_huge(pte))) {
 		flush_tlb_pending();
 		i = 0;
 	}
@@ -151,6 +152,7 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	if (i == 0) {
 		batch->context = context;
 		batch->mm = mm;
+		batch->large = pte_huge(pte);
 	}
 	batch->pte[i] = __pte(pte);
 	batch->addr[i] = addr;
