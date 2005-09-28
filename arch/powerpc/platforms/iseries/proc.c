@@ -1,5 +1,4 @@
 /*
- * iSeries_proc.c
  * Copyright (C) 2001  Kyle A. Lucke IBM Corporation
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen IBM Corporation
  *
@@ -68,12 +67,15 @@ static int proc_titantod_show(struct seq_file *m, void *v)
 		unsigned long tb_ticks = (tb0 - startTb);
 		unsigned long titan_jiffies = titan_usec / (1000000/HZ);
 		unsigned long titan_jiff_usec = titan_jiffies * (1000000/HZ);
-		unsigned long titan_jiff_rem_usec = titan_usec - titan_jiff_usec;
+		unsigned long titan_jiff_rem_usec =
+			titan_usec - titan_jiff_usec;
 		unsigned long tb_jiffies = tb_ticks / tb_ticks_per_jiffy;
 		unsigned long tb_jiff_ticks = tb_jiffies * tb_ticks_per_jiffy;
 		unsigned long tb_jiff_rem_ticks = tb_ticks - tb_jiff_ticks;
-		unsigned long tb_jiff_rem_usec = tb_jiff_rem_ticks / tb_ticks_per_usec;
-		unsigned long new_tb_ticks_per_jiffy = (tb_ticks * (1000000/HZ))/titan_usec;
+		unsigned long tb_jiff_rem_usec =
+			tb_jiff_rem_ticks / tb_ticks_per_usec;
+		unsigned long new_tb_ticks_per_jiffy =
+			(tb_ticks * (1000000/HZ))/titan_usec;
 
 		seq_printf(m, "  titan elapsed = %lu uSec\n", titan_usec);
 		seq_printf(m, "  tb elapsed    = %lu ticks\n", tb_ticks);

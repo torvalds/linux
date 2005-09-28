@@ -43,10 +43,7 @@
 #include <asm/time.h>
 #include <asm/rtas.h>
 
-#include <asm/iSeries/mf.h>
 #include <asm/machdep.h>
-
-extern int piranha_simulator;
 
 /*
  *	We sponge a minor off of the misc major. No need slurping
@@ -264,40 +261,6 @@ static int rtc_read_proc(char *page, char **start, off_t off,
         if (len<0) len = 0;
         return len;
 }
-
-#ifdef CONFIG_PPC_ISERIES
-/*
- * Get the RTC from the virtual service processor
- * This requires flowing LpEvents to the primary partition
- */
-void iSeries_get_rtc_time(struct rtc_time *rtc_tm)
-{
-	if (piranha_simulator)
-		return;
-
-	mf_get_rtc(rtc_tm);
-	rtc_tm->tm_mon--;
-}
-
-/*
- * Set the RTC in the virtual service processor
- * This requires flowing LpEvents to the primary partition
- */
-int iSeries_set_rtc_time(struct rtc_time *tm)
-{
-	mf_set_rtc(tm);
-	return 0;
-}
-
-void iSeries_get_boot_time(struct rtc_time *tm)
-{
-	if ( piranha_simulator )
-		return;
-
-	mf_get_boot_rtc(tm);
-	tm->tm_mon  -= 1;
-}
-#endif
 
 #ifdef CONFIG_PPC_RTAS
 #define MAX_RTC_WAIT 5000	/* 5 sec */

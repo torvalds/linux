@@ -30,21 +30,19 @@
  * End Change Activity
  */
 
-#include <asm/iSeries/HvCallPci.h>
 #include <asm/abs_addr.h>
+#include <asm/prom.h>
+#include <asm/pci-bridge.h>
 
 struct pci_dev;				/* For Forward Reference */
-struct iSeries_Device_Node;
 
 /*
- * Gets iSeries Bus, SubBus, DevFn using iSeries_Device_Node structure
+ * Gets iSeries Bus, SubBus, DevFn using device_node structure
  */
 
-#define ISERIES_BUS(DevPtr)	DevPtr->DsaAddr.Dsa.busNumber
-#define ISERIES_SUBBUS(DevPtr)	DevPtr->DsaAddr.Dsa.subBusNumber
-#define ISERIES_DEVICE(DevPtr)	DevPtr->DsaAddr.Dsa.deviceId
-#define ISERIES_DSA(DevPtr)	DevPtr->DsaAddr.DsaAddr
-#define ISERIES_DEVNODE(PciDev)	((struct iSeries_Device_Node *)PciDev->sysdata)
+#define ISERIES_BUS(DevPtr)	PCI_DN(DevPtr)->DsaAddr.Dsa.busNumber
+#define ISERIES_SUBBUS(DevPtr)	PCI_DN(DevPtr)->DsaAddr.Dsa.subBusNumber
+#define ISERIES_DEVNODE(PciDev)	((struct device_node *)PciDev->sysdata)
 
 #define EADsMaxAgents 7
 
@@ -66,22 +64,6 @@ struct iSeries_Device_Node;
  */
 #define ISERIES_HV_ADDR(virtaddr)	\
 	(0x8000000000000000 | virt_to_abs(virtaddr))
-
-/*
- * iSeries Device Information
- */
-struct iSeries_Device_Node {
-	struct list_head Device_List;
-	struct pci_dev	*PciDev;
-	union HvDsaMap	DsaAddr;	/* Direct Select Address */
-					/* busNumber, subBusNumber, */
-					/* deviceId, barNumber */
-	int		DevFn;		/* Linux devfn */
-	int		Irq;		/* Assigned IRQ */
-	int		Flags;		/* Possible flags(disable/bist)*/
-	u8		LogicalSlot;	/* Hv Slot Index for Tces */
-	struct iommu_table *iommu_table;/* Device TCE Table */
-};
 
 extern void	iSeries_Device_Information(struct pci_dev*, int);
 

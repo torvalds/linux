@@ -1,10 +1,10 @@
 /*
  * iSeries hashtable management.
- * 	Derived from pSeries_htab.c
+ *	Derived from pSeries_htab.c
  *
  * SMP scalability work:
  *    Copyright (C) 2001 Anton Blanchard <anton@au.ibm.com>, IBM
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -18,7 +18,8 @@
 #include <asm/abs_addr.h>
 #include <linux/spinlock.h>
 
-static spinlock_t iSeries_hlocks[64] __cacheline_aligned_in_smp = { [0 ... 63] = SPIN_LOCK_UNLOCKED};
+static spinlock_t iSeries_hlocks[64] __cacheline_aligned_in_smp =
+	{ [0 ... 63] = SPIN_LOCK_UNLOCKED};
 
 /*
  * Very primitive algorithm for picking up a lock
@@ -126,7 +127,7 @@ static long iSeries_hpte_remove(unsigned long hpte_group)
 		hpte_v = iSeries_hpte_getword0(hpte_group + slot_offset);
 
 		if (! (hpte_v & HPTE_V_BOLTED)) {
-			HvCallHpt_invalidateSetSwBitsGet(hpte_group + 
+			HvCallHpt_invalidateSetSwBitsGet(hpte_group +
 							 slot_offset, 0, 0);
 			iSeries_hunlock(hpte_group);
 			return i;
@@ -143,9 +144,9 @@ static long iSeries_hpte_remove(unsigned long hpte_group)
 
 /*
  * The HyperVisor expects the "flags" argument in this form:
- * 	bits  0..59 : reserved
- * 	bit      60 : N
- * 	bits 61..63 : PP2,PP1,PP0
+ *	bits  0..59 : reserved
+ *	bit      60 : N
+ *	bits 61..63 : PP2,PP1,PP0
  */
 static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				  unsigned long va, int large, int local)
@@ -171,7 +172,7 @@ static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
 }
 
 /*
- * Functions used to find the PTE for a particular virtual address. 
+ * Functions used to find the PTE for a particular virtual address.
  * Only used during boot when bolting pages.
  *
  * Input : vpn      : virtual page number
@@ -189,7 +190,7 @@ static long iSeries_hpte_find(unsigned long vpn)
 	 * 0x00000000xxxxxxxx : Entry found in primary group, slot x
 	 * 0x80000000xxxxxxxx : Entry found in secondary group, slot x
 	 */
-	slot = HvCallHpt_findValid(&hpte, vpn); 
+	slot = HvCallHpt_findValid(&hpte, vpn);
 	if (hpte.v & HPTE_V_VALID) {
 		if (slot < 0) {
 			slot &= 0x7fffffffffffffff;
@@ -216,7 +217,7 @@ static void iSeries_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
 	vsid = get_kernel_vsid(ea);
 	va = (vsid << 28) | (ea & 0x0fffffff);
 	vpn = va >> PAGE_SHIFT;
-	slot = iSeries_hpte_find(vpn); 
+	slot = iSeries_hpte_find(vpn);
 	if (slot == -1)
 		panic("updateboltedpp: Could not find page to bolt\n");
 	HvCallHpt_setPp(slot, newpp);
@@ -234,7 +235,7 @@ static void iSeries_hpte_invalidate(unsigned long slot, unsigned long va,
 	iSeries_hlock(slot);
 
 	hpte_v = iSeries_hpte_getword0(slot);
-	
+
 	if ((HPTE_V_AVPN_VAL(hpte_v) == avpn) && (hpte_v & HPTE_V_VALID))
 		HvCallHpt_invalidateSetSwBitsGet(slot, 0, 0);
 
@@ -249,7 +250,7 @@ void hpte_init_iSeries(void)
 	ppc_md.hpte_updatepp	= iSeries_hpte_updatepp;
 	ppc_md.hpte_updateboltedpp = iSeries_hpte_updateboltedpp;
 	ppc_md.hpte_insert	= iSeries_hpte_insert;
-	ppc_md.hpte_remove     	= iSeries_hpte_remove;
+	ppc_md.hpte_remove	= iSeries_hpte_remove;
 
 	htab_finish_init();
 }

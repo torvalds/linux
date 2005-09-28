@@ -33,7 +33,7 @@
 #include <asm/rtas.h>
 #include <asm/atomic.h>
 #include <asm/systemcfg.h>
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 #undef DEBUG
 

@@ -31,8 +31,7 @@
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

@@ -63,9 +63,9 @@
 #include <asm/firmware.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
+#include <asm/ppc-pci.h>
 
 #include "i8259.h"
-#include "pci.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

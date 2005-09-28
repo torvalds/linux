@@ -16,16 +16,9 @@ obj-y += vdso32/ vdso64/
 
 obj-$(CONFIG_PPC_OF) +=	of_device.o
 
-pci-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_pci.o iSeries_irq.o \
-				iSeries_VpdInfo.o
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
 
 obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o iomap.o $(pci-obj-y)
-
-obj-$(CONFIG_PPC_ISERIES) += HvCall.o HvLpConfig.o LparData.o \
-			     iSeries_setup.o ItLpQueue.o hvCall.o \
-			     mf.o HvLpEvent.o iSeries_proc.o iSeries_htab.o \
-			     iSeries_iommu.o
 
 obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o
 
@@ -45,14 +38,12 @@ obj-$(CONFIG_MODULES)		+= module.o ppc_ksyms.o
 obj-$(CONFIG_PPC_RTAS)		+= rtas.o rtas_pci.o
 obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_SCANLOG)		+= scanlog.o
-obj-$(CONFIG_VIOPATH)		+= viopath.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 
 vio-obj-$(CONFIG_PPC_PSERIES)	+= pSeries_vio.o
-vio-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_vio.o
 obj-$(CONFIG_IBMVIO)		+= vio.o $(vio-obj-y)
 obj-$(CONFIG_XICS)		+= xics.o
 obj-$(CONFIG_MPIC)		+= mpic.o
@@ -68,7 +59,6 @@ obj-$(CONFIG_U3_DART)		+= u3_iommu.o
 
 ifdef CONFIG_SMP
 obj-$(CONFIG_PPC_PMAC)		+= pmac_smp.o smp-tbsync.o
-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_smp.o
 obj-$(CONFIG_PPC_PSERIES)	+= pSeries_smp.o
 obj-$(CONFIG_PPC_BPA)		+= pSeries_smp.o
 obj-$(CONFIG_PPC_MAPLE)		+= smp-tbsync.o

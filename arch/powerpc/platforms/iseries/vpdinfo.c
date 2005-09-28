@@ -1,6 +1,4 @@
 /*
- * File iSeries_vpdInfo.c created by Allan Trautman on Fri Feb  2 2001.
- *
  * This code gets the card location of the hardware
  * Copyright (C) 2001  <Allan H Trautman> <IBM Corp>
  * Copyright (C) 2005  Stephen Rothwel, IBM Corp
@@ -242,7 +240,7 @@ out_free:
  */
 void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
 {
-	struct iSeries_Device_Node *DevNode = PciDev->sysdata;
+	struct device_node *DevNode = PciDev->sysdata;
 	u16 bus;
 	u8 frame;
 	char card[4];

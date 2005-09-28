@@ -45,8 +45,7 @@
 #include <asm/cacheflush.h>
 #include <asm/lmb.h>
 #include <asm/dart.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 extern int iommu_force_on;
 

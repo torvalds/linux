@@ -363,4 +363,3 @@ void virt_irq_init(void)
 {
 	return;
 }
-

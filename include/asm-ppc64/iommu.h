@@ -49,6 +49,7 @@ struct iommu_table {
 };
 
 struct scatterlist;
+struct device_node;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 
@@ -70,9 +71,8 @@ extern void iommu_devnode_init_pSeries(struct device_node *dn);
 
 #ifdef CONFIG_PPC_ISERIES
 
-struct iSeries_Device_Node;
 /* Creates table for an individual device node */
-extern void iommu_devnode_init_iSeries(struct iSeries_Device_Node *dn);
+extern void iommu_devnode_init_iSeries(struct device_node *dn);
 
 #endif /* CONFIG_PPC_ISERIES */
 

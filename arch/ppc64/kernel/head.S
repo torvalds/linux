@@ -1253,7 +1253,7 @@ unrecov_slb:
  *
  * On iSeries, the hypervisor must fill in at least one entry before
  * we get control (with relocate on).  The address is give to the hv
- * as a page number (see xLparMap in LparData.c), so this must be at a
+ * as a page number (see xLparMap in lpardata.c), so this must be at a
  * fixed address (the linker can't compute (u64)&initial_stab >>
  * PAGE_SHIFT).
  */

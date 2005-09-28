@@ -23,8 +23,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/iommu.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 #ifdef DEBUG
 #define DBG(x...) printk(x)

@@ -47,17 +47,17 @@
 
 static unsigned long iSeries_smp_message[NR_CPUS];
 
-void iSeries_smp_message_recv( struct pt_regs * regs )
+void iSeries_smp_message_recv(struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 	int msg;
 
-	if ( num_online_cpus() < 2 )
+	if (num_online_cpus() < 2)
 		return;
 
-	for ( msg = 0; msg < 4; ++msg )
-		if ( test_and_clear_bit( msg, &iSeries_smp_message[cpu] ) )
-			smp_message_recv( msg, regs );
+	for (msg = 0; msg < 4; msg++)
+		if (test_and_clear_bit(msg, &iSeries_smp_message[cpu]))
+			smp_message_recv(msg, regs);
 }
 
 static inline void smp_iSeries_do_message(int cpu, int msg)
@@ -74,8 +74,8 @@ static void smp_iSeries_message_pass(int target, int msg)
 		smp_iSeries_do_message(target, msg);
 	else {
 		for_each_online_cpu(i) {
-			if (target == MSG_ALL_BUT_SELF
-			    && i == smp_processor_id())
+			if ((target == MSG_ALL_BUT_SELF) &&
+					(i == smp_processor_id()))
 				continue;
 			smp_iSeries_do_message(i, msg);
 		}
@@ -89,7 +89,7 @@ static int smp_iSeries_probe(void)
 
 static void smp_iSeries_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	BUG_ON((nr < 0) || (nr >= NR_CPUS));
 
 	/* Verify that our partition has a processor nr */
 	if (paca[nr].lppaca.dyn_proc_status >= 2)

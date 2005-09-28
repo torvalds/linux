@@ -64,44 +64,6 @@ _GLOBAL(get_srr1)
 _GLOBAL(get_sp)
 	mr	r3,r1
 	blr
-		
-#ifdef CONFIG_PPC_ISERIES
-/* unsigned long local_save_flags(void) */
-_GLOBAL(local_get_flags)
-	lbz	r3,PACAPROCENABLED(r13)
-	blr
-
-/* unsigned long local_irq_disable(void) */
-_GLOBAL(local_irq_disable)
-	lbz	r3,PACAPROCENABLED(r13)
-	li	r4,0
-	stb	r4,PACAPROCENABLED(r13)
-	blr			/* Done */
-
-/* void local_irq_restore(unsigned long flags) */	
-_GLOBAL(local_irq_restore)
-	lbz	r5,PACAPROCENABLED(r13)
-	 /* Check if things are setup the way we want _already_. */
-	cmpw	0,r3,r5
-	beqlr
-	/* are we enabling interrupts? */
-	cmpdi	0,r3,0
-	stb	r3,PACAPROCENABLED(r13)
-	beqlr
-	/* Check pending interrupts */
-	/*   A decrementer, IPI or PMC interrupt may have occurred
-	 *   while we were in the hypervisor (which enables) */
-	ld	r4,PACALPPACA+LPPACAANYINT(r13)
-	cmpdi	r4,0
-	beqlr
-
-	/*
-	 * Handle pending interrupts in interrupt context
-	 */
-	li	r0,0x5555
-	sc
-	blr
-#endif /* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_IRQSTACKS
 _GLOBAL(call_do_softirq)
