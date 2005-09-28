@@ -15,7 +15,7 @@
 #include <asm/arch/memory.h>
 
 #ifndef __ASSEMBLY__
-#define IOMEM(x) ((void __iomem *)(x))
+#define IOMEM(x) ((void __iomem *)(unsigned long)(x))
 #else
 #define IOMEM(x) x
 #endif /* __ASSEMBLY__ */
@@ -52,7 +52,7 @@
 /*
  * IO Addresses
  */
-#define VIDC_BASE		(void __iomem *)0xe0400000
+#define VIDC_BASE		IOMEM(0xe0400000)
 #define EXPMASK_BASE		0xe0360000
 #define IOMD_BASE		IOMEM(0xe0200000)
 #define IOC_BASE		IOMEM(0xe0200000)
