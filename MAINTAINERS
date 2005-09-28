@@ -604,6 +604,15 @@ P:	H. Peter Anvin
 M:	hpa@zytor.com
 S:	Maintained
 
+CPUSETS
+P:	Paul Jackson
+P:	Simon Derr
+M:	pj@sgi.com
+M:	simon.derr@bull.net
+L:	linux-kernel@vger.kernel.org
+W:	http://www.bullopensource.org/cpuset/
+S:	Supported
+
 CRAMFS FILESYSTEM
 W:     http://sourceforge.net/projects/cramfs/
 S:     Orphan
