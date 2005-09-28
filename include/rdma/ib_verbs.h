@@ -665,7 +665,6 @@ struct ib_ucontext {
 	struct list_head	qp_list;
 	struct list_head	srq_list;
 	struct list_head	ah_list;
-	spinlock_t              lock;
 };
 
 struct ib_uobject {
