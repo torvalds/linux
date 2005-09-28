@@ -132,6 +132,7 @@ enum {
 	ATA_CMD_PACKET		= 0xA0,
 	ATA_CMD_VERIFY		= 0x40,
 	ATA_CMD_VERIFY_EXT	= 0x42,
+	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
 
 	/* SETFEATURES stuff */
 	SETFEATURES_XFER	= 0x03,
@@ -181,6 +182,7 @@ enum {
 	ATA_TFLAG_ISADDR	= (1 << 1), /* enable r/w to nsect/lba regs */
 	ATA_TFLAG_DEVICE	= (1 << 2), /* enable r/w to device reg */
 	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
+	ATA_TFLAG_LBA		= (1 << 4), /* enable LBA */
 };
 
 enum ata_tf_protocols {
@@ -249,6 +251,18 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 2] << 32) |	\
 	  ((u64) (id)[(n) + 1] << 16) |	\
 	  ((u64) (id)[(n) + 0]) )
+
+static inline int ata_id_current_chs_valid(u16 *id)
+{
+	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
+	   has not been issued to the device then the values of 
+	   id[54] to id[56] are vendor specific. */
+	return (id[53] & 0x01) && /* Current translation valid */
+		id[54] &&  /* cylinders in current translation */
+		id[55] &&  /* heads in current translation */
+		id[55] <= 16 &&
+		id[56];    /* sectors in current translation */
+}
 
 static inline int atapi_cdb_len(u16 *dev_id)
 {
