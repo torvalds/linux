@@ -71,26 +71,26 @@ extern void keyring_publish_name(struct key *keyring);
 
 extern int __key_link(struct key *keyring, struct key *key);
 
-extern struct key *__keyring_search_one(struct key *keyring,
-					const struct key_type *type,
-					const char *description,
-					key_perm_t perm);
+extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
+				      const struct key_type *type,
+				      const char *description,
+				      key_perm_t perm);
 
 extern struct key *keyring_search_instkey(struct key *keyring,
 					  key_serial_t target_id);
 
 typedef int (*key_match_func_t)(const struct key *, const void *);
 
-extern struct key *keyring_search_aux(struct key *keyring,
-				      struct task_struct *tsk,
-				      struct key_type *type,
-				      const void *description,
-				      key_match_func_t match);
+extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
+				    struct task_struct *tsk,
+				    struct key_type *type,
+				    const void *description,
+				    key_match_func_t match);
 
-extern struct key *search_process_keyrings(struct key_type *type,
-					   const void *description,
-					   key_match_func_t match,
-					   struct task_struct *tsk);
+extern key_ref_t search_process_keyrings(struct key_type *type,
+					 const void *description,
+					 key_match_func_t match,
+					 struct task_struct *tsk);
 
 extern struct key *find_keyring_by_name(const char *name, key_serial_t bound);
 
