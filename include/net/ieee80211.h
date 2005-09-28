@@ -613,7 +613,7 @@ struct ieee80211_disassoc {
 } __attribute__ ((packed));
 
 /* Alias deauth for disassoc */
-#define ieee82011_deauth ieee80211_disassoc
+#define ieee80211_deauth ieee80211_disassoc
 
 struct ieee80211_probe_request {
 	struct ieee80211_hdr_3addr header;
