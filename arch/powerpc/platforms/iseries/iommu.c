@@ -89,15 +89,17 @@ static void tce_free_iSeries(struct iommu_table *tbl, long index, long npages)
  */
 static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
 {
-	struct iSeries_Device_Node *dp;
+	struct device_node *dp;
 
 	list_for_each_entry(dp, &iSeries_Global_Device_List, Device_List) {
-		if ((dp->iommu_table != NULL) &&
-		    (dp->iommu_table->it_type == TCE_PCI) &&
-		    (dp->iommu_table->it_offset == tbl->it_offset) &&
-		    (dp->iommu_table->it_index == tbl->it_index) &&
-		    (dp->iommu_table->it_size == tbl->it_size))
-			return dp->iommu_table;
+		struct iommu_table *it = PCI_DN(dp)->iommu_table;
+
+		if ((it != NULL) &&
+		    (it->it_type == TCE_PCI) &&
+		    (it->it_offset == tbl->it_offset) &&
+		    (it->it_index == tbl->it_index) &&
+		    (it->it_size == tbl->it_size))
+			return it;
 	}
 	return NULL;
 }
@@ -111,7 +113,7 @@ static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
  * 2. TCE table per Bus.
  * 3. TCE Table per IOA.
  */
-static void iommu_table_getparms(struct iSeries_Device_Node* dn,
+static void iommu_table_getparms(struct device_node *dn,
 				 struct iommu_table* tbl)
 {
 	struct iommu_table_cb *parms;
@@ -123,7 +125,7 @@ static void iommu_table_getparms(struct iSeries_Device_Node* dn,
 	memset(parms, 0, sizeof(*parms));
 
 	parms->itc_busno = ISERIES_BUS(dn);
-	parms->itc_slotno = dn->LogicalSlot;
+	parms->itc_slotno = PCI_DN(dn)->LogicalSlot;
 	parms->itc_virtbus = 0;
 
 	HvCallXm_getTceTableParms(ISERIES_HV_ADDR(parms));
@@ -143,18 +145,19 @@ static void iommu_table_getparms(struct iSeries_Device_Node* dn,
 }
 
 
-void iommu_devnode_init_iSeries(struct iSeries_Device_Node *dn)
+void iommu_devnode_init_iSeries(struct device_node *dn)
 {
 	struct iommu_table *tbl;
+	struct pci_dn *pdn = PCI_DN(dn);
 
 	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
 	iommu_table_getparms(dn, tbl);
 
 	/* Look for existing tce table */
-	dn->iommu_table = iommu_table_find(tbl);
-	if (dn->iommu_table == NULL)
-		dn->iommu_table = iommu_init_table(tbl);
+	pdn->iommu_table = iommu_table_find(tbl);
+	if (pdn->iommu_table == NULL)
+		pdn->iommu_table = iommu_init_table(tbl);
 	else
 		kfree(tbl);
 }

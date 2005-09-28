@@ -4,6 +4,8 @@
 
 #include <linux/pci.h>
 
+#include <asm/iSeries/HvCallPci.h>
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,6 +73,14 @@ struct pci_dn {
 	struct	iommu_table *iommu_table;	/* for phb's or bridges */
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 	struct	device_node *node;	/* back-pointer to the device_node */
+#ifdef CONFIG_PPC_ISERIES
+	union HvDsaMap	DsaAddr;	/* Direct Select Address */
+					/* busNumber, subBusNumber, */
+					/* deviceId, barNumber */
+	int		Irq;		/* Assigned IRQ */
+	int		Flags;		/* Possible flags(disable/bist)*/
+	u8		LogicalSlot;	/* Hv Slot Index for Tces */
+#endif
 	u32	config_space[16];	/* saved PCI config space */
 };
 

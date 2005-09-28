@@ -61,13 +61,7 @@ static inline struct iommu_table *devnode_table(struct device *dev)
 	} else
 		pdev = to_pci_dev(dev);
 
-#ifdef CONFIG_PPC_ISERIES
-	return ISERIES_DEVNODE(pdev)->iommu_table;
-#endif /* CONFIG_PPC_ISERIES */
-
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	return PCI_DN(PCI_GET_DN(pdev))->iommu_table;
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 }
 
 

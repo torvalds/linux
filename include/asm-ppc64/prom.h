@@ -137,6 +137,9 @@ struct device_node {
 	struct  kref kref;
 	unsigned long _flags;
 	void	*data;
+#ifdef CONFIG_PPC_ISERIES
+	struct list_head Device_List;
+#endif
 };
 
 extern struct device_node *of_chosen;
