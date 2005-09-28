@@ -583,7 +583,9 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 	if (!(s->resource_setup_done))
 		return -EAGAIN; /* try again, but later... */
 
-	pcmcia_validate_mem(s);
+	if (pcmcia_validate_mem(s))
+		return -EAGAIN; /* try again, but later... */
+
 	ret = pccard_validate_cis(s, BIND_FN_ALL, &cisinfo);
 	if (ret || !cisinfo.Chains) {
 		ds_dbg(0, "invalid CIS or invalid resources\n");

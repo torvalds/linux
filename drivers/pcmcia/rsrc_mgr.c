@@ -98,10 +98,12 @@ int pcmcia_adjust_resource_info(adjust_t *adj)
 }
 EXPORT_SYMBOL(pcmcia_adjust_resource_info);
 
-void pcmcia_validate_mem(struct pcmcia_socket *s)
+int pcmcia_validate_mem(struct pcmcia_socket *s)
 {
 	if (s->resource_ops->validate_mem)
-		s->resource_ops->validate_mem(s);
+		return s->resource_ops->validate_mem(s);
+	/* if there is no callback, we can assume that everything is OK */
+	return 0;
 }
 EXPORT_SYMBOL(pcmcia_validate_mem);
 
