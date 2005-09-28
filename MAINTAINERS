@@ -1906,6 +1906,13 @@ M:	joern@wh.fh-wedel.de
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 
+PKTCDVD DRIVER
+P:	Peter Osterlund
+M:	petero2@telia.com
+L:	linux-kernel@vger.kernel.org
+L:	packet-writing@suse.com
+S:	Maintained
+
 POSIX CLOCKS and TIMERS
 P:	George Anzinger
 M:	george@mvista.com
