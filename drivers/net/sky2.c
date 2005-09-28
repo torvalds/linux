@@ -2698,6 +2698,7 @@ static struct ethtool_ops sky2_ethtool_ops = {
 	.phys_id = sky2_phys_id,
 	.get_stats_count = sky2_get_stats_count,
 	.get_ethtool_stats = sky2_get_ethtool_stats,
+	.get_perm_addr	= ethtool_op_get_perm_addr,
 };
 
 /* Initialize network device */
@@ -2766,6 +2767,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8, ETH_ALEN);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* device is off until link detection */
 	netif_carrier_off(dev);
