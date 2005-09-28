@@ -969,7 +969,7 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	ssize_t retval = 0;
 	char *s;
 	char *start;
-	size_t n;
+	ssize_t n;
 
 	if (!(page = (char *)__get_free_page(GFP_KERNEL)))
 		return -ENOMEM;
@@ -999,12 +999,13 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	*s++ = '\n';
 	*s = '\0';
 
-	/* Do nothing if *ppos is at the eof or beyond the eof. */
-	if (s - page <= *ppos)
-		return 0;
-
 	start = page + *ppos;
 	n = s - start;
+
+	/* Do nothing if *ppos is at the eof or beyond the eof. */
+	if (n <= 0)
+		goto out;
+
 	retval = n - copy_to_user(buf, start, min(n, nbytes));
 	*ppos += retval;
 out:
