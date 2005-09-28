@@ -31,7 +31,7 @@
 struct rds_command {
 	unsigned int  block_count;
 	int           result;
-	unsigned char *buffer;
+	unsigned char __user *buffer;
 	struct file   *instance;
 	poll_table    *event_list;
 };
