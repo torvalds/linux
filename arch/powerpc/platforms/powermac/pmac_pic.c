@@ -424,6 +424,8 @@ void __init pmac_pic_init(void)
 
 		printk(KERN_INFO "PowerMac using OpenPIC irq controller at 0x%08x\n",
 		       (unsigned int)irqctrler->addrs[0].address);
+		ppc_md.get_irq = mpic_get_irq;
+		pmac_call_feature(PMAC_FTR_ENABLE_MPIC, irqctrler, 0, 0);
 
 		prom_get_irq_senses(senses, 0, 128);
 		mpic1 = mpic_alloc(irqctrler->addrs[0].address,
@@ -452,7 +454,22 @@ void __init pmac_pic_init(void)
 			mpic_setup_cascade(irqctrler2->intrs[0].line,
 					   pmac_u3_cascade, mpic2);
 		}
+#ifdef CONFIG_XMON
+		{
+			struct device_node* pswitch;
+			int nmi_irq;
+
+			pswitch = find_devices("programmer-switch");
+			if (pswitch && pswitch->n_intrs) {
+				nmi_irq = pswitch->intrs[0].line;
+				openpic_init_nmi_irq(nmi_irq);
+				setup_irq(nmi_irq, &xmon_action);
+			}
+		}
+#endif	/* CONFIG_XMON */
+		return;
 	}
+	irqctrler = NULL;
 
 	/* Get the level/edge settings, assume if it's not
 	 * a Grand Central nor an OHare, then it's an Heathrow

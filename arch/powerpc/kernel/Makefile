@@ -14,5 +14,5 @@ extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
 obj-y				:= semaphore.o traps.o process.o
-
+obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o

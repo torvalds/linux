@@ -239,7 +239,7 @@ void __init MMU_init(void)
 	if (boot_mem_size)
 		total_memory = boot_mem_size;
 	else
-		total_memory = ppc_md.find_end_of_memory();
+		total_memory = find_end_of_memory();
 
 	if (__max_memory && total_memory > __max_memory)
 		total_memory = __max_memory;
