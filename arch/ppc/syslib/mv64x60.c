@@ -34,7 +34,7 @@ u8 mv64x60_pci_exclude_bridge = 1;
 DEFINE_SPINLOCK(mv64x60_lock);
 
 static phys_addr_t 	mv64x60_bridge_pbase;
-static void 		*mv64x60_bridge_vbase;
+static void 		__iomem *mv64x60_bridge_vbase;
 static u32		mv64x60_bridge_type = MV64x60_TYPE_INVALID;
 static u32		mv64x60_bridge_rev;
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
@@ -938,7 +938,7 @@ mv64x60_setup_for_chip(struct mv64x60_handle *bh)
  *
  * Return the virtual address of the bridge's registers.
  */
-void *
+void __iomem *
 mv64x60_get_bridge_vbase(void)
 {
 	return mv64x60_bridge_vbase;
