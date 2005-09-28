@@ -254,6 +254,6 @@ module_init(ixp4xx_flash_init);
 module_exit(ixp4xx_flash_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("MTD map driver for Intel IXP4xx systems")
+MODULE_DESCRIPTION("MTD map driver for Intel IXP4xx systems");
 MODULE_AUTHOR("Deepak Saxena");
 
