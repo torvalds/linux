@@ -402,15 +402,14 @@ static int write_page(unsigned long addr, swp_entry_t * loc)
 static void data_free(void)
 {
 	swp_entry_t entry;
-	int i;
+	struct pbe * p;
 
-	for (i = 0; i < nr_copy_pages; i++) {
-		entry = (pagedir_nosave + i)->swap_address;
+	for_each_pbe(p, pagedir_nosave) {
+		entry = p->swap_address;
 		if (entry.val)
 			swap_free(entry);
 		else
 			break;
-		(pagedir_nosave + i)->swap_address = (swp_entry_t){0};
 	}
 }
 
