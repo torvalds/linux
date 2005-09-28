@@ -48,10 +48,10 @@ struct pt_regs {
 };
 
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
-/* #define PTRACE_GETREGS		12 */
-/* #define PTRACE_SETREGS		13 */
-/* #define PTRACE_GETFPREGS		14 */
-/* #define PTRACE_SETFPREGS		15 */
+#define PTRACE_GETREGS		12
+#define PTRACE_SETREGS		13
+#define PTRACE_GETFPREGS		14
+#define PTRACE_SETFPREGS		15
 /* #define PTRACE_GETFPXREGS		18 */
 /* #define PTRACE_SETFPXREGS		19 */
 
@@ -59,6 +59,13 @@ struct pt_regs {
 
 #define PTRACE_GET_THREAD_AREA	25
 #define PTRACE_SET_THREAD_AREA	26
+
+/* Calls to trace a 64bit program from a 32bit program.  */
+#define PTRACE_PEEKTEXT_3264	0xc0
+#define PTRACE_PEEKDATA_3264	0xc1
+#define PTRACE_POKETEXT_3264	0xc2
+#define PTRACE_POKEDATA_3264	0xc3
+#define PTRACE_GET_THREAD_AREA_3264	0xc4
 
 #ifdef __KERNEL__
 

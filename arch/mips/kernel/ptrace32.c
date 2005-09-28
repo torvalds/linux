@@ -35,6 +35,12 @@
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 
+int ptrace_getregs (struct task_struct *child, __s64 __user *data);
+int ptrace_setregs (struct task_struct *child, __s64 __user *data);
+
+int ptrace_getfpregs (struct task_struct *child, __u32 __user *data);
+int ptrace_setfpregs (struct task_struct *child, __u32 __user *data);
+
 /*
  * Tracing a 32-bit process with a 64-bit strace and vice versa will not
  * work.  I don't know how to fix this.
@@ -96,6 +102,35 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		if (copied != sizeof(tmp))
 			break;
 		ret = put_user(tmp, (unsigned int *) (unsigned long) data);
+		break;
+	}
+
+	/*
+	 * Read 4 bytes of the other process' storage
+	 *  data is a pointer specifying where the user wants the
+	 *	4 bytes copied into
+	 *  addr is a pointer in the user's storage that contains an 8 byte
+	 *	address in the other process of the 4 bytes that is to be read
+	 * (this is run in a 32-bit process looking at a 64-bit process)
+	 * when I and D space are separate, these will need to be fixed.
+	 */
+	case PTRACE_PEEKTEXT_3264:
+	case PTRACE_PEEKDATA_3264: {
+		u32 tmp;
+		int copied;
+		u32 __user * addrOthers;
+
+		ret = -EIO;
+
+		/* Get the addr in the other process that we want to read */
+		if (get_user(addrOthers, (u32 __user * __user *) (unsigned long) addr) != 0)
+			break;
+
+		copied = access_process_vm(child, (u64)addrOthers, &tmp,
+				sizeof(tmp), 0);
+		if (copied != sizeof(tmp))
+			break;
+		ret = put_user(tmp, (u32 __user *) (unsigned long) data);
 		break;
 	}
 
@@ -202,6 +237,31 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		ret = -EIO;
 		break;
 
+	/*
+	 * Write 4 bytes into the other process' storage
+	 *  data is the 4 bytes that the user wants written
+	 *  addr is a pointer in the user's storage that contains an
+	 *	8 byte address in the other process where the 4 bytes
+	 *	that is to be written
+	 * (this is run in a 32-bit process looking at a 64-bit process)
+	 * when I and D space are separate, these will need to be fixed.
+	 */
+	case PTRACE_POKETEXT_3264:
+	case PTRACE_POKEDATA_3264: {
+		u32 __user * addrOthers;
+
+		/* Get the addr in the other process that we want to write into */
+		ret = -EIO;
+		if (get_user(addrOthers, (u32 __user * __user *) (unsigned long) addr) != 0)
+			break;
+		ret = 0;
+		if (access_process_vm(child, (u64)addrOthers, &data,
+					sizeof(data), 1) == sizeof(data))
+			break;
+		ret = -EIO;
+		break;
+	}
+
 	case PTRACE_POKEUSR: {
 		struct pt_regs *regs;
 		ret = 0;
@@ -276,6 +336,22 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		break;
 		}
 
+	case PTRACE_GETREGS:
+		ret = ptrace_getregs (child, (__u64 __user *) (__u64) data);
+		break;
+
+	case PTRACE_SETREGS:
+		ret = ptrace_setregs (child, (__u64 __user *) (__u64) data);
+		break;
+
+	case PTRACE_GETFPREGS:
+		ret = ptrace_getfpregs (child, (__u32 __user *) (__u64) data);
+		break;
+
+	case PTRACE_SETFPREGS:
+		ret = ptrace_setfpregs (child, (__u32 __user *) (__u64) data);
+		break;
+
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
 		ret = -EIO;
@@ -318,6 +394,11 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 	case PTRACE_GETEVENTMSG:
 		ret = put_user(child->ptrace_message,
 			       (unsigned int __user *) (unsigned long) data);
+		break;
+
+	case PTRACE_GET_THREAD_AREA_3264:
+		ret = put_user(child->thread_info->tp_value,
+				(unsigned long __user *) (unsigned long) data);
 		break;
 
 	default:
