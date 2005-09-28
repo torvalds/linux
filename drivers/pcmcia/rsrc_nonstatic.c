@@ -817,7 +817,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 
 	/* if we got at least one of IO, and one of MEM, we can be glad and
 	 * activate the PCMCIA subsystem */
-	if (done & (IORESOURCE_MEM | IORESOURCE_IO))
+	if (done == (IORESOURCE_MEM | IORESOURCE_IO))
 		s->resource_setup_done = 1;
 
 	return 0;
