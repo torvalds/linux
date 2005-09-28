@@ -118,7 +118,6 @@ struct pcmcia_socket;
 struct pccard_operations {
 	int (*init)(struct pcmcia_socket *sock);
 	int (*suspend)(struct pcmcia_socket *sock);
-	int (*register_callback)(struct pcmcia_socket *sock, void (*handler)(void *, unsigned int), void * info);
 	int (*get_status)(struct pcmcia_socket *sock, u_int *value);
 	int (*get_socket)(struct pcmcia_socket *sock, socket_state_t *state);
 	int (*set_socket)(struct pcmcia_socket *sock, socket_state_t *state);
