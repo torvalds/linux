@@ -314,19 +314,19 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * sets PowerState to 0.
 	 */
 	switch (dev->current_state) {
+	case PCI_D0:
+	case PCI_D1:
+	case PCI_D2:
+		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+		pmcsr |= state;
+		break;
 	case PCI_UNKNOWN: /* Boot-up */
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
 		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
 			need_restore = 1;
 		/* Fall-through: force to D0 */
-	case PCI_D3hot:
-	case PCI_D3cold:
-	case PCI_POWER_ERROR:
-		pmcsr = 0;
-		break;
 	default:
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-		pmcsr |= state;
+		pmcsr = 0;
 		break;
 	}
 
