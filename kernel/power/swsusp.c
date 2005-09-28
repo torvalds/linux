@@ -1437,9 +1437,9 @@ static int read_pagedir(struct pbe *pblist)
 	}
 
 	if (error)
-		free_page((unsigned long)pblist);
-
-	BUG_ON(i != swsusp_info.pagedir_pages);
+		free_pagedir(pblist);
+	else
+		BUG_ON(i != swsusp_info.pagedir_pages);
 
 	return error;
 }
