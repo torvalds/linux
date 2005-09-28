@@ -1421,15 +1421,18 @@ static snd_kcontrol_new_t snd_ymfpci_drec_source __devinitdata = {
  *  Mixer controls
  */
 
-#define YMFPCI_SINGLE(xname, xindex, reg) \
+#define YMFPCI_SINGLE(xname, xindex, reg, shift) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_ymfpci_info_single, \
   .get = snd_ymfpci_get_single, .put = snd_ymfpci_put_single, \
-  .private_value = reg }
+  .private_value = ((reg) | ((shift) << 16)) }
 
-static int snd_ymfpci_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ymfpci_info_single(snd_kcontrol_t *kcontrol,
+				  snd_ctl_elem_info_t *uinfo)
 {
-	switch (kcontrol->private_value) {
+	int reg = kcontrol->private_value & 0xffff;
+
+	switch (reg) {
 	case YDSXGR_SPDIFOUTCTRL: break;
 	case YDSXGR_SPDIFINCTRL: break;
 	default: return -EINVAL;
@@ -1441,30 +1444,35 @@ static int snd_ymfpci_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_ymfpci_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ymfpci_get_single(snd_kcontrol_t *kcontrol,
+				 snd_ctl_elem_value_t *ucontrol)
 {
 	ymfpci_t *chip = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value;
-	unsigned int shift = 0, mask = 1;
+	int reg = kcontrol->private_value & 0xffff;
+	unsigned int shift = (kcontrol->private_value >> 16) & 0xff;
+	unsigned int mask = 1;
 	
-	switch (kcontrol->private_value) {
+	switch (reg) {
 	case YDSXGR_SPDIFOUTCTRL: break;
 	case YDSXGR_SPDIFINCTRL: break;
 	default: return -EINVAL;
 	}
-	ucontrol->value.integer.value[0] = (snd_ymfpci_readl(chip, reg) >> shift) & mask;
+	ucontrol->value.integer.value[0] =
+		(snd_ymfpci_readl(chip, reg) >> shift) & mask;
 	return 0;
 }
 
-static int snd_ymfpci_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ymfpci_put_single(snd_kcontrol_t *kcontrol,
+				 snd_ctl_elem_value_t *ucontrol)
 {
 	ymfpci_t *chip = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value;
-	unsigned int shift = 0, mask = 1;
+	int reg = kcontrol->private_value & 0xffff;
+	unsigned int shift = (kcontrol->private_value >> 16) & 0xff;
+ 	unsigned int mask = 1;
 	int change;
 	unsigned int val, oval;
 	
-	switch (kcontrol->private_value) {
+	switch (reg) {
 	case YDSXGR_SPDIFOUTCTRL: break;
 	case YDSXGR_SPDIFINCTRL: break;
 	default: return -EINVAL;
@@ -1583,8 +1591,9 @@ YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("AC97 ", PLAYBACK,VOLUME), 0, YDSXGR_ZVOUTVO
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("", CAPTURE,VOLUME), 0, YDSXGR_ZVLOOPVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("AC97 ",PLAYBACK,VOLUME), 1, YDSXGR_SPDIFOUTVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,VOLUME), 1, YDSXGR_SPDIFLOOPVOL),
-YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), 0, YDSXGR_SPDIFOUTCTRL),
-YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, YDSXGR_SPDIFINCTRL),
+YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), 0, YDSXGR_SPDIFOUTCTRL, 0),
+YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, YDSXGR_SPDIFINCTRL, 0),
+YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("Loop",NONE,NONE), 0, YDSXGR_SPDIFINCTRL, 4),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "4ch Duplication",
