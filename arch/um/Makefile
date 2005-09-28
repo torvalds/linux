@@ -28,8 +28,6 @@ SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),include/asm-um/$(header))
 ARCH_SYMLINKS = include/asm-um/arch $(ARCH_DIR)/include/sysdep $(ARCH_DIR)/os \
 	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/uml-config.h
 
-GEN_HEADERS += $(ARCH_DIR)/include/task.h $(ARCH_DIR)/include/kern_constants.h
-
 um-modes-$(CONFIG_MODE_TT) += tt
 um-modes-$(CONFIG_MODE_SKAS) += skas
 
@@ -45,9 +43,7 @@ endif
 
 ARCH_INCLUDE	:= -I$(ARCH_DIR)/include
 ifneq ($(KBUILD_SRC),)
-ARCH_INCLUDE	+= -I$(ARCH_DIR)/include2
 ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include
-MRPROPER_DIRS	+= $(ARCH_DIR)/include2
 endif
 SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
 
@@ -87,10 +83,6 @@ CONFIG_KERNEL_HALF_GIGS ?= 0
 
 SIZE = (($(CONFIG_NEST_LEVEL) + $(CONFIG_KERNEL_HALF_GIGS)) * 0x20000000)
 
-ifeq ($(CONFIG_MODE_SKAS), y)
-$(SYS_HEADERS) : $(ARCH_DIR)/include/skas_ptregs.h
-endif
-
 .PHONY: linux
 
 all: linux
@@ -111,7 +103,8 @@ else
 $(shell cd $(ARCH_DIR) && ln -sf Kconfig.$(SUBARCH) Kconfig.arch)
 endif
 
-archprepare: $(ARCH_SYMLINKS) $(SYS_HEADERS) $(GEN_HEADERS)
+archprepare: $(ARCH_SYMLINKS) $(ARCH_DIR)/include/user_constants.h
+prepare: $(ARCH_DIR)/include/kern_constants.h
 
 LINK-$(CONFIG_LD_SCRIPT_STATIC) += -static
 LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib
@@ -146,15 +139,13 @@ endef
 #When cleaning we don't include .config, so we don't include
 #TT or skas makefiles and don't clean skas_ptregs.h.
 CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/uml-config.h \
-	$(GEN_HEADERS) $(ARCH_DIR)/include/skas_ptregs.h \
-	$(ARCH_DIR)/include/user_constants.h $(ARCH_DIR)/Kconfig.arch
+	$(ARCH_DIR)/include/user_constants.h \
+	$(ARCH_DIR)/include/kern_constants.h $(ARCH_DIR)/Kconfig.arch
 
 MRPROPER_FILES += $(SYMLINK_HEADERS) $(ARCH_SYMLINKS) \
 	$(addprefix $(ARCH_DIR)/kernel/,$(KERN_SYMLINKS)) $(ARCH_DIR)/os
 
 archclean:
-	$(Q)$(MAKE) $(clean)=$(ARCH_DIR)/util
-	$(Q)$(MAKE) $(clean)=$(ARCH_DIR)/os-$(OS)/util
 	@find . \( -name '*.bb' -o -name '*.bbg' -o -name '*.da' \
 		-o -name '*.gcov' \) -type f -print | xargs rm -f
 
@@ -180,9 +171,7 @@ $(ARCH_DIR)/include/sysdep:
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p $(ARCH_DIR)/include
-	$(Q)mkdir -p $(ARCH_DIR)/include2
-	$(Q)ln -fsn sysdep-$(SUBARCH) $(ARCH_DIR)/include/sysdep
-	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/sysdep-$(SUBARCH) $(ARCH_DIR)/include2/sysdep
+	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/sysdep-$(SUBARCH) $(ARCH_DIR)/include/sysdep
 else
 	$(Q)cd $(ARCH_DIR)/include && ln -sf sysdep-$(SUBARCH) sysdep
 endif
@@ -202,8 +191,6 @@ endef
 
 define filechk_gen-asm-offsets
         (set -e; \
-         echo "#ifndef __ASM_OFFSETS_H__"; \
-         echo "#define __ASM_OFFSETS_H__"; \
          echo "/*"; \
          echo " * DO NOT MODIFY."; \
          echo " *"; \
@@ -212,8 +199,7 @@ define filechk_gen-asm-offsets
          echo " */"; \
          echo ""; \
          sed -ne "/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}"; \
-         echo ""; \
-         echo "#endif" )
+         echo ""; )
 endef
 
 $(ARCH_DIR)/include/uml-config.h : include/linux/autoconf.h
@@ -222,50 +208,18 @@ $(ARCH_DIR)/include/uml-config.h : include/linux/autoconf.h
 $(ARCH_DIR)/user-offsets.s: $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.c
 	$(CC) $(USER_CFLAGS) -S -o $@ $<
 
-$(ARCH_DIR)/user-offsets.h: $(ARCH_DIR)/user-offsets.s
+$(ARCH_DIR)/include/user_constants.h: $(ARCH_DIR)/user-offsets.s
 	$(call filechk,gen-asm-offsets)
 
-CLEAN_FILES += $(ARCH_DIR)/user-offsets.s  $(ARCH_DIR)/user-offsets.h
+CLEAN_FILES += $(ARCH_DIR)/user-offsets.s
 
 $(ARCH_DIR)/kernel-offsets.s: $(ARCH_DIR)/sys-$(SUBARCH)/kernel-offsets.c \
-				   $(ARCH_SYMLINKS) \
-				   $(SYS_DIR)/sc.h \
-				   include/asm include/linux/version.h \
-				   include/config/MARKER \
-				   $(ARCH_DIR)/include/user_constants.h
+				   archprepare
 	$(CC) $(CFLAGS) $(NOSTDINC_FLAGS) $(CPPFLAGS) -S -o $@ $<
 
-$(ARCH_DIR)/kernel-offsets.h: $(ARCH_DIR)/kernel-offsets.s
+$(ARCH_DIR)/include/kern_constants.h: $(ARCH_DIR)/kernel-offsets.s
 	$(call filechk,gen-asm-offsets)
 
-CLEAN_FILES += $(ARCH_DIR)/kernel-offsets.s  $(ARCH_DIR)/kernel-offsets.h
-
-$(ARCH_DIR)/include/task.h: $(ARCH_DIR)/util/mk_task
-	$(call filechk,gen_header)
-
-$(ARCH_DIR)/include/user_constants.h: $(ARCH_DIR)/os-$(OS)/util/mk_user_constants
-	$(call filechk,gen_header)
-
-$(ARCH_DIR)/include/kern_constants.h: $(ARCH_DIR)/util/mk_constants
-	$(call filechk,gen_header)
-
-$(ARCH_DIR)/include/skas_ptregs.h: $(ARCH_DIR)/kernel/skas/util/mk_ptregs
-	$(call filechk,gen_header)
-
-$(ARCH_DIR)/os-$(OS)/util/mk_user_constants: $(ARCH_DIR)/os-$(OS)/util FORCE ;
-
-$(ARCH_DIR)/util/mk_task $(ARCH_DIR)/util/mk_constants: $(ARCH_DIR)/include/user_constants.h $(ARCH_DIR)/util \
-	FORCE ;
-
-$(ARCH_DIR)/kernel/skas/util/mk_ptregs: $(ARCH_DIR)/kernel/skas/util FORCE ;
-
-$(ARCH_DIR)/util: scripts_basic $(SYS_DIR)/sc.h $(ARCH_DIR)/kernel-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$@
-
-$(ARCH_DIR)/kernel/skas/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$@
-
-$(ARCH_DIR)/os-$(OS)/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$@
+CLEAN_FILES += $(ARCH_DIR)/kernel-offsets.s
 
 export SUBARCH USER_CFLAGS OS
