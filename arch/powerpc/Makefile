@@ -152,13 +152,13 @@ CPPFLAGS_vmlinux.lds	:= -Upowerpc
 # All the instructions talk about "make bzImage".
 bzImage: zImage
 
-boot := arch/$(ARCH)/boot
+boot := arch/$(OLDARCH)/boot
 
 $(BOOT_TARGETS): vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $@
+	$(Q)$(MAKE) ARCH=$(OLDARCH) $(build)=$(boot) $@
 
 uImage: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot)/images $(boot)/images/$@
+	$(Q)$(MAKE) ARCH=$(OLDARCH) $(build)=$(boot)/images $(boot)/images/$@
 
 define archhelp
   @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/images/zImage.*)'
@@ -171,7 +171,7 @@ define archhelp
 endef
 
 archclean:
-	$(Q)$(MAKE) $(clean)=arch/ppc/boot
+	$(Q)$(MAKE) $(clean)=$(boot)
 	# Temporary hack until we have migrated to asm-powerpc
 	$(Q)rm -rf arch/$(ARCH)/include
 
