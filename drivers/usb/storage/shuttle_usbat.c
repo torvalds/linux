@@ -855,15 +855,15 @@ static int usbat_identify_device(struct us_data *us,
  	if (rc != USB_STOR_XFER_GOOD)
  		return USB_STOR_TRANSPORT_ERROR;
 
-	// Check for error bit
-	if (status & 0x01) {
-		 // Device is a CompactFlash reader/writer
-		US_DEBUGP("usbat_identify_device: Detected Flash reader/writer\n");
-		info->devicetype = USBAT_DEV_FLASH;
-	} else {
+	// Check for error bit, or if the command 'fell through'
+	if (status == 0xA1 || !(status & 0x01)) {
 		// Device is HP 8200
 		US_DEBUGP("usbat_identify_device: Detected HP8200 CDRW\n");
 		info->devicetype = USBAT_DEV_HP8200;
+	} else {
+		// Device is a CompactFlash reader/writer
+		US_DEBUGP("usbat_identify_device: Detected Flash reader/writer\n");
+		info->devicetype = USBAT_DEV_FLASH;
 	}
 
 	return USB_STOR_TRANSPORT_GOOD;
