@@ -1875,11 +1875,11 @@ static int __init vlsi_mod_init(void)
 
 	sirpulse = !!sirpulse;
 
-	/* create_proc_entry returns NULL if !CONFIG_PROC_FS.
+	/* proc_mkdir returns NULL if !CONFIG_PROC_FS.
 	 * Failure to create the procfs entry is handled like running
 	 * without procfs - it's not required for the driver to work.
 	 */
-	vlsi_proc_root = create_proc_entry(PROC_DIR, S_IFDIR, NULL);
+	vlsi_proc_root = proc_mkdir(PROC_DIR, NULL);
 	if (vlsi_proc_root) {
 		/* protect registered procdir against module removal.
 		 * Because we are in the module init path there's no race

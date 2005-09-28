@@ -381,7 +381,7 @@ int create_adapter_proc(diva_os_xdi_adapter_t * a)
 	char tmp[16];
 
 	sprintf(tmp, "%s%d", adapter_dir_name, a->controller);
-	if (!(de = create_proc_entry(tmp, S_IFDIR, proc_net_eicon)))
+	if (!(de = proc_mkdir(tmp, proc_net_eicon)))
 		return (0);
 	a->proc_adapter_dir = (void *) de;
 
