@@ -38,6 +38,7 @@ endif
 
 # These are here while we do the architecture merge
 vecemu-y			+= ../../powerpc/kernel/vecemu.o
+vector-y			+= ../../powerpc/kernel/vector.o
 
 else
 obj-y				:= entry.o irq.o idle.o time.o misc.o \

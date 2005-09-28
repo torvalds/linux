@@ -76,3 +76,4 @@ endif
 
 # These are here while we do the architecture merge
 vecemu-y			+= ../../powerpc/kernel/vecemu.o
+vector-y			+= ../../powerpc/kernel/vector.o
