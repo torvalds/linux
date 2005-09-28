@@ -167,15 +167,16 @@ static void tx39_flush_cache_mm(struct mm_struct *mm)
 static void tx39_flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	int exec;
 
-	if (!cpu_has_dc_aliases)
+	if (!(cpu_context(smp_processor_id(), vma->vm_mm)))
 		return;
 
-	if (cpu_context(smp_processor_id(), mm) != 0) {
+	exec = vma->vm_flags & VM_EXEC;
+	if (cpu_has_dc_aliases || exec)
 		tx39_blast_dcache();
+	if (exec)
 		tx39_blast_icache();
-	}
 }
 
 static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page, unsigned long pfn)
