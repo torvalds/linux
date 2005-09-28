@@ -9,6 +9,9 @@
 #define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
 #endif
 
+#define MAX_PBES	((PAGE_SIZE - sizeof(struct new_utsname) \
+			- 4 - 3*sizeof(unsigned long) - sizeof(int) \
+			- sizeof(void *)) / sizeof(swp_entry_t))
 
 struct swsusp_info {
 	struct new_utsname	uts;
@@ -18,7 +21,7 @@ struct swsusp_info {
 	unsigned long		image_pages;
 	unsigned long		pagedir_pages;
 	suspend_pagedir_t	* suspend_pagedir;
-	swp_entry_t		pagedir[768];
+	swp_entry_t		pagedir[MAX_PBES];
 } __attribute__((aligned(PAGE_SIZE)));
 
 
