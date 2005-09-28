@@ -70,8 +70,8 @@ obj-$(CONFIG_KPROBES)		+= kprobes.o
 CFLAGS_ioctl32.o += -Ifs/
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
-arch/ppc64/kernel/head.o: arch/ppc64/kernel/lparmap.s
-AFLAGS_head.o += -Iarch/ppc64/kernel
+arch/ppc64/kernel/head.o: arch/powerpc/platforms/iseries/lparmap.s
+AFLAGS_head.o += -Iarch/powerpc/platforms/iseries
 endif
 
 # These are here while we do the architecture merge
