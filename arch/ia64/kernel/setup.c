@@ -89,7 +89,7 @@ static struct resource code_resource = {
 };
 extern void efi_initialize_iomem_resources(struct resource *,
 		struct resource *);
-extern char _text[], _edata[], _etext[];
+extern char _text[], _end[], _etext[];
 
 unsigned long ia64_max_cacheline_size;
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
@@ -192,7 +192,7 @@ static int __init register_memory(void)
 	code_resource.start = ia64_tpa(_text);
 	code_resource.end   = ia64_tpa(_etext) - 1;
 	data_resource.start = ia64_tpa(_etext);
-	data_resource.end   = ia64_tpa(_edata) - 1;
+	data_resource.end   = ia64_tpa(_end) - 1;
 	efi_initialize_iomem_resources(&code_resource, &data_resource);
 
 	return 0;
