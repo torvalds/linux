@@ -4177,11 +4177,10 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 {
 	nic_t *sp = dev->priv;
 
-	strncpy(info->driver, s2io_driver_name, sizeof(s2io_driver_name));
-	strncpy(info->version, s2io_driver_version,
-		sizeof(s2io_driver_version));
-	strncpy(info->fw_version, "", 32);
-	strncpy(info->bus_info, pci_name(sp->pdev), 32);
+	strncpy(info->driver, s2io_driver_name, sizeof(info->driver));
+	strncpy(info->version, s2io_driver_version, sizeof(info->version));
+	strncpy(info->fw_version, "", sizeof(info->fw_version));
+	strncpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 	info->regdump_len = XENA_REG_SPACE;
 	info->eedump_len = XENA_EEPROM_SPACE;
 	info->testinfo_len = S2IO_TEST_LEN;
