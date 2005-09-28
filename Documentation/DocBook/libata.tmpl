@@ -413,7 +413,9 @@ and other resources, etc.
 	</sect2>
 
      </sect1>
-     <sect1>
+  </chapter>
+
+  <chapter id="libataEH">
         <title>Error handling</title>
 
 	<para>
@@ -422,7 +424,7 @@ and other resources, etc.
 	(Documentation/scsi/scsi_eh.txt) and ATA exceptions doc first.
 	</para>
 
-	<sect2><title>Origins of commands</title>
+	<sect1><title>Origins of commands</title>
 	<para>
 	In libata, a command is represented with struct ata_queued_cmd
 	or qc.  qc's are preallocated during port initialization and
@@ -437,9 +439,9 @@ and other resources, etc.
 	and commands for SCSI emulation are passed as SCSI commands
 	through queuecommand callback of SCSI host template.
 	</para>
-	</sect2>
+	</sect1>
 
-	<sect2><title>How commands are issued</title>
+	<sect1><title>How commands are issued</title>
 
 	<variablelist>
 
@@ -501,9 +503,9 @@ and other resources, etc.
 	</varlistentry>
 
 	</variablelist>
-	</sect2>
+	</sect1>
 
-	<sect2><title>How commands are processed</title>
+	<sect1><title>How commands are processed</title>
 	<para>
 	Depending on which protocol and which controller are used,
 	commands are processed differently.  For the purpose of
@@ -562,9 +564,9 @@ and other resources, etc.
 	   </listitem>
 	   </varlistentry>
 	</variablelist>
-        </sect2>
+        </sect1>
 
-	<sect2><title>How commands are completed</title>
+	<sect1><title>How commands are completed</title>
 	<para>
 	Once issued, all qc's are either completed with
 	ata_qc_complete() or time out.  For commands which are handled
@@ -660,9 +662,9 @@ and other resources, etc.
 	This leads us to ata_scsi_error() with partially completed qc.
 	</para>
 
-	</sect2>
+	</sect1>
 
-	<sect2><title>ata_scsi_error()</title>
+	<sect1><title>ata_scsi_error()</title>
 	<para>
 	ata_scsi_error() is the current hostt->eh_strategy_handler()
 	for libata.  As discussed above, this will be entered in two
@@ -697,9 +699,9 @@ and other resources, etc.
 	to/cannot call ata_qc_complete() again.
 	</para>
 
-	</sect2>
+	</sect1>
 
-	<sect2><title>Problems with the current EH</title>
+	<sect1><title>Problems with the current EH</title>
 
 	<itemizedlist>
 
@@ -766,9 +768,7 @@ and other resources, etc.
 	</listitem>
 
 	</itemizedlist>
-	</sect2>
-
-     </sect1>
+	</sect1>
   </chapter>
 
   <chapter id="libataExt">
