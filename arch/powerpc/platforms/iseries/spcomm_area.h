@@ -1,5 +1,4 @@
 /*
- * ItSpCommArea.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,8 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _ITSPCOMMAREA_H
-#define _ITSPCOMMAREA_H
+#ifndef _ISERIES_SPCOMM_AREA_H
+#define _ISERIES_SPCOMM_AREA_H
 
 
 struct SpCommArea {
@@ -34,4 +33,4 @@ struct SpCommArea {
 
 extern struct SpCommArea xSpCommArea;
 
-#endif /* _ITSPCOMMAREA_H */
+#endif /* _ISERIES_SPCOMM_AREA_H */

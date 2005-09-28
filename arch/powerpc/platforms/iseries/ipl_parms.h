@@ -1,5 +1,4 @@
 /*
- * ItIplParmsReal.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ITIPLPARMSREAL_H
-#define _ITIPLPARMSREAL_H
+#ifndef _ISERIES_IPL_PARMS_H
+#define _ISERIES_IPL_PARMS_H
 
 /*
  *	This struct maps the IPL Parameters DMA'd from the SP.
@@ -68,4 +67,4 @@ struct ItIplParmsReal {
 
 extern struct ItIplParmsReal	xItIplParmsReal;
 
-#endif /* _ITIPLPARMSREAL_H */
+#endif /* _ISERIES_IPL_PARMS_H */

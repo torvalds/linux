@@ -1,5 +1,4 @@
 /*
- * IoHriProcessorVpd.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _IOHRIPROCESSORVPD_H
-#define _IOHRIPROCESSORVPD_H
+#ifndef _ISERIES_PROCESSOR_VPD_H
+#define _ISERIES_PROCESSOR_VPD_H
 
 #include <asm/types.h>
 
@@ -83,4 +82,4 @@ struct IoHriProcessorVpd {
 
 extern struct IoHriProcessorVpd	xIoHriProcessorVpd[];
 
-#endif /* _IOHRIPROCESSORVPD_H */
+#endif /* _ISERIES_PROCESSOR_VPD_H */

@@ -26,8 +26,9 @@
 #include <asm/lppaca.h>
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/IoHriMainStore.h>
-#include <asm/iSeries/IoHriProcessorVpd.h>
+
+#include "processor_vpd.h"
+#include "main_store.h"
 
 static int __init iseries_proc_create(void)
 {

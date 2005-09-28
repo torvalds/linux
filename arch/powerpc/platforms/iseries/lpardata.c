@@ -19,15 +19,15 @@
 #include <asm/lppaca.h>
 #include <asm/iSeries/ItLpRegSave.h>
 #include <asm/paca.h>
-#include <asm/iSeries/HvReleaseData.h>
 #include <asm/iSeries/LparMap.h>
-#include <asm/iSeries/ItVpdAreas.h>
-#include <asm/iSeries/ItIplParmsReal.h>
 #include <asm/iSeries/ItExtVpdPanel.h>
 #include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/IoHriProcessorVpd.h>
-#include <asm/iSeries/ItSpCommArea.h>
 
+#include "vpd_areas.h"
+#include "spcomm_area.h"
+#include "ipl_parms.h"
+#include "processor_vpd.h"
+#include "release_data.h"
 
 /* The HvReleaseData is the root of the information shared between
  * the hypervisor and Linux.

@@ -48,18 +48,18 @@
 #include <asm/iSeries/HvCallHpt.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvCallSm.h>
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/IoHriMainStore.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/iSeries_irq.h>
-#include <asm/iSeries/IoHriProcessorVpd.h>
-#include <asm/iSeries/ItVpdAreas.h>
 #include <asm/iSeries/LparMap.h>
 
 #include "setup.h"
+#include "irq.h"
+#include "vpd_areas.h"
+#include "processor_vpd.h"
+#include "main_store.h"
+#include "call_sm.h"
 
 extern void hvlog(char *fmt, ...);
 
