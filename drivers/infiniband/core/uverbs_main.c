@@ -598,6 +598,15 @@ static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
 }
 static CLASS_DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
+static ssize_t show_dev_abi_version(struct class_device *class_dev, char *buf)
+{
+	struct ib_uverbs_device *dev =
+		container_of(class_dev, struct ib_uverbs_device, class_dev);
+
+	return sprintf(buf, "%d\n", dev->ib_dev->uverbs_abi_ver);
+}
+static CLASS_DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
+
 static void ib_uverbs_release_class_dev(struct class_device *class_dev)
 {
 	struct ib_uverbs_device *dev =
@@ -661,6 +670,8 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		goto err_cdev;
 
 	if (class_device_create_file(&uverbs_dev->class_dev, &class_device_attr_ibdev))
+		goto err_class;
+	if (class_device_create_file(&uverbs_dev->class_dev, &class_device_attr_abi_version))
 		goto err_class;
 
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);

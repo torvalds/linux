@@ -951,6 +951,8 @@ struct ib_device {
 		IB_DEV_UNREGISTERED
 	}                            reg_state;
 
+	int			     uverbs_abi_ver;
+
 	u8                           node_type;
 	u8                           phys_port_cnt;
 };
