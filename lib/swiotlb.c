@@ -17,17 +17,17 @@
  */
 
 #include <linux/cache.h>
+#include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ctype.h>
 
 #include <asm/io.h>
-#include <asm/pci.h>
 #include <asm/dma.h>
+#include <asm/scatterlist.h>
 
 #include <linux/init.h>
 #include <linux/bootmem.h>
@@ -127,7 +127,7 @@ __setup("swiotlb=", setup_io_tlb_npages);
 
 /*
  * Statically reserve bounce buffer space and initialize bounce buffer data
- * structures for the software IO TLB used to implement the PCI DMA API.
+ * structures for the software IO TLB used to implement the DMA API.
  */
 void
 swiotlb_init_with_default_size (size_t default_size)
@@ -502,24 +502,24 @@ swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
 	/*
 	 * Ran out of IOMMU space for this operation. This is very bad.
 	 * Unfortunately the drivers cannot handle this operation properly.
-	 * unless they check for pci_dma_mapping_error (most don't)
+	 * unless they check for dma_mapping_error (most don't)
 	 * When the mapping is small enough return a static buffer to limit
 	 * the damage, or panic when the transfer is too big.
 	 */
-	printk(KERN_ERR "PCI-DMA: Out of SW-IOMMU space for %lu bytes at "
+	printk(KERN_ERR "DMA: Out of SW-IOMMU space for %lu bytes at "
 	       "device %s\n", size, dev ? dev->bus_id : "?");
 
 	if (size > io_tlb_overflow && do_panic) {
-		if (dir == PCI_DMA_FROMDEVICE || dir == PCI_DMA_BIDIRECTIONAL)
-			panic("PCI-DMA: Memory would be corrupted\n");
-		if (dir == PCI_DMA_TODEVICE || dir == PCI_DMA_BIDIRECTIONAL)
-			panic("PCI-DMA: Random memory would be DMAed\n");
+		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
+			panic("DMA: Memory would be corrupted\n");
+		if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
+			panic("DMA: Random memory would be DMAed\n");
 	}
 }
 
 /*
  * Map a single buffer of the indicated size for DMA in streaming mode.  The
- * PCI address to use is returned.
+ * physical address to use is returned.
  *
  * Once the device is given the dma address, the device owns this memory until
  * either swiotlb_unmap_single or swiotlb_dma_sync_single is performed.
@@ -606,8 +606,8 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
  * after a transfer.
  *
  * If you perform a swiotlb_map_single() but wish to interrogate the buffer
- * using the cpu, yet do not wish to teardown the PCI dma mapping, you must
- * call this function before doing so.  At the next point you give the PCI dma
+ * using the cpu, yet do not wish to teardown the dma mapping, you must
+ * call this function before doing so.  At the next point you give the dma
  * address back to the card, you must first perform a
  * swiotlb_dma_sync_for_device, and then the device again owns the buffer
  */
@@ -783,9 +783,9 @@ swiotlb_dma_mapping_error(dma_addr_t dma_addr)
 }
 
 /*
- * Return whether the given PCI device DMA address mask can be supported
+ * Return whether the given device DMA address mask can be supported
  * properly.  For example, if your device can only drive the low 24-bits
- * during PCI bus mastering, then you would pass 0x00ffffff as the mask to
+ * during bus mastering, then you would pass 0x00ffffff as the mask to
  * this function.
  */
 int
