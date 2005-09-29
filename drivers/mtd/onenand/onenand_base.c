@@ -84,25 +84,23 @@ static void onenand_writew(unsigned short value, void __iomem *addr)
 
 /**
  * onenand_block_address - [DEFAULT] Get block address
- * @param device	the device id
+ * @param this		onenand chip data structure
  * @param block		the block
  * @return		translated block address if DDP, otherwise same
  *
  * Setup Start Address 1 Register (F100h)
  */
-static int onenand_block_address(int device, int block)
+static int onenand_block_address(struct onenand_chip *this, int block)
 {
-	if (device & ONENAND_DEVICE_IS_DDP) {
+	if (this->device_id & ONENAND_DEVICE_IS_DDP) {
 		/* Device Flash Core select, NAND Flash Block Address */
-		int dfs = 0, density, mask;
+		int dfs = 0;
 
-		density = device >> ONENAND_DEVICE_DENSITY_SHIFT;
-		mask = (1 << (density + 6));
-
-		if (block & mask)
+		if (block & this->density_mask)
 			dfs = 1;
 
-		return (dfs << ONENAND_DDP_SHIFT) | (block & (mask - 1));
+		return (dfs << ONENAND_DDP_SHIFT) |
+			(block & (this->density_mask - 1));
 	}
 
 	return block;
@@ -110,22 +108,19 @@ static int onenand_block_address(int device, int block)
 
 /**
  * onenand_bufferram_address - [DEFAULT] Get bufferram address
- * @param device	the device id
+ * @param this		onenand chip data structure
  * @param block		the block
  * @return		set DBS value if DDP, otherwise 0
  *
  * Setup Start Address 2 Register (F101h) for DDP
  */
-static int onenand_bufferram_address(int device, int block)
+static int onenand_bufferram_address(struct onenand_chip *this, int block)
 {
-	if (device & ONENAND_DEVICE_IS_DDP) {
+	if (this->device_id & ONENAND_DEVICE_IS_DDP) {
 		/* Device BufferRAM Select */
-		int dbs = 0, density, mask;
+		int dbs = 0;
 
-		density = device >> ONENAND_DEVICE_DENSITY_SHIFT;
-		mask = (1 << (density + 6));
-
-		if (block & mask)
+		if (block & this->density_mask)
 			dbs = 1;
 
 		return (dbs << ONENAND_DDP_SHIFT);
@@ -223,7 +218,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 	/* NOTE: The setting order of the registers is very important! */
 	if (cmd == ONENAND_CMD_BUFFERRAM) {
 		/* Select DataRAM for DDP */
-		value = onenand_bufferram_address(this->device_id, block);
+		value = onenand_bufferram_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 
 		/* Switch to the next data buffer */
@@ -234,7 +229,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 
 	if (block != -1) {
 		/* Write 'DFS, FBA' of Flash */
-		value = onenand_block_address(this->device_id, block);
+		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
 	}
 
@@ -263,7 +258,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 			
 		if (readcmd) {
 			/* Select DataRAM for DDP */
-			value = onenand_bufferram_address(this->device_id, block);
+			value = onenand_bufferram_address(this, block);
 			this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 		}
 	}
@@ -1313,7 +1308,7 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 			continue;
 
 		/* Set block address for read block status */
-		value = onenand_block_address(this->device_id, block);
+		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
 
 		/* Check lock status */
@@ -1415,6 +1410,8 @@ static int onenand_probe(struct mtd_info *mtd)
 
 	density = dev_id >> ONENAND_DEVICE_DENSITY_SHIFT;
 	this->chipsize = (16 << density) << 20;
+	/* Set density mask. it is used for DDP */
+	this->density_mask = (1 << (density + 6));
 
 	/* OneNAND page size & block size */
 	/* The data buffer size is equal to page size */

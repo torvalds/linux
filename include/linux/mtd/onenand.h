@@ -84,6 +84,7 @@ struct onenand_chip {
 	void __iomem		*base;
 	unsigned int		chipsize;
 	unsigned int		device_id;
+	unsigned int		density_mask;
 	unsigned int		options;
 
 	unsigned int		erase_shift;
