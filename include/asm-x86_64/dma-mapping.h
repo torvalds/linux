@@ -85,10 +85,33 @@ static inline void dma_sync_single_for_device(struct device *hwdev,
 	flush_write_buffers();
 }
 
-#define dma_sync_single_range_for_cpu(dev, dma_handle, offset, size, dir)       \
-        dma_sync_single_for_cpu(dev, dma_handle, size, dir)
-#define dma_sync_single_range_for_device(dev, dma_handle, offset, size, dir)    \
-        dma_sync_single_for_device(dev, dma_handle, size, dir)
+static inline void dma_sync_single_range_for_cpu(struct device *hwdev,
+						 dma_addr_t dma_handle,
+						 unsigned long offset,
+						 size_t size, int direction)
+{
+	if (direction == DMA_NONE)
+		out_of_line_bug();
+
+	if (swiotlb)
+		return swiotlb_sync_single_range_for_cpu(hwdev,dma_handle,offset,size,direction);
+
+	flush_write_buffers();
+}
+
+static inline void dma_sync_single_range_for_device(struct device *hwdev,
+						    dma_addr_t dma_handle,
+						    unsigned long offset,
+						    size_t size, int direction)
+{
+        if (direction == DMA_NONE)
+		out_of_line_bug();
+
+	if (swiotlb)
+		return swiotlb_sync_single_range_for_device(hwdev,dma_handle,offset,size,direction);
+
+	flush_write_buffers();
+}
 
 static inline void dma_sync_sg_for_cpu(struct device *hwdev,
 				       struct scatterlist *sg,
