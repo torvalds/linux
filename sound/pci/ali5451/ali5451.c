@@ -1795,6 +1795,7 @@ struct ali_pcm_description {
 	unsigned int capture_num;
 	snd_pcm_ops_t *playback_ops;
 	snd_pcm_ops_t *capture_ops;
+	unsigned short class;
 };
 
 
@@ -1818,7 +1819,6 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 	}
 	pcm->private_data = codec;
 	pcm->private_free = snd_ali_pcm_free;
-	pcm->info_flags = 0;
 	if (desc->playback_ops)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, desc->playback_ops);
 	if (desc->capture_ops)
@@ -1828,6 +1828,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 					      snd_dma_pci_data(codec->pci), 64*1024, 128*1024);
 
 	pcm->info_flags = 0;
+	pcm->dev_class = desc->class;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, desc->name);
 	codec->pcm[0] = pcm;
@@ -1836,7 +1837,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 
 static struct ali_pcm_description ali_pcms[] = {
 	{ "ALI 5451", ALI_CHANNELS, 1, &snd_ali_playback_ops, &snd_ali_capture_ops },
-	{ "ALI 5451 modem", 1, 1, &snd_ali_modem_playback_ops, &snd_ali_modem_capture_ops }
+	{ "ALI 5451 modem", 1, 1, &snd_ali_modem_playback_ops, &snd_ali_modem_capture_ops, SNDRV_PCM_CLASS_MODEM }
 };
 
 static int __devinit snd_ali_build_pcms(ali_t *codec)

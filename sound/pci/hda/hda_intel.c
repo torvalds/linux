@@ -1277,6 +1277,7 @@ static int __devinit azx_pcm_create(azx_t *chip)
 			err = create_codec_pcm(chip, codec, &codec->pcm_info[c], pcm_dev);
 			if (err < 0)
 				return err;
+			chip->pcm[pcm_dev]->dev_class = SNDRV_PCM_CLASS_MODEM;
 			pcm_dev++;
 		}
 	}

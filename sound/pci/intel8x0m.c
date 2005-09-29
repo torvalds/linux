@@ -746,6 +746,7 @@ static int __devinit snd_intel8x0_pcm1(intel8x0_t *chip, int device, struct ich_
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
+	pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
 	if (rec->suffix)
 		sprintf(pcm->name, "%s - %s", chip->card->shortname, rec->suffix);
 	else

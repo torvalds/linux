@@ -989,6 +989,7 @@ static int __devinit snd_atiixp_pcm_new(atiixp_t *chip)
 		return err;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_atiixp_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_atiixp_capture_ops);
+	pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
 	pcm->private_data = chip;
 	strcpy(pcm->name, "ATI IXP MC97");
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
