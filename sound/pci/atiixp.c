@@ -1372,7 +1372,6 @@ static int __devinit snd_atiixp_mixer_new(atiixp_t *chip, int clock, const char 
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
 		return err;
 	pbus->clock = clock;
-	pbus->shared_type = AC97_SHARED_TYPE_ATIIXP;	/* shared with modem driver */
 	chip->ac97_bus = pbus;
 
 	codec_count = 0;

@@ -220,12 +220,6 @@ const char *snd_ac97_stereo_enhancements[] =
   /*  31 */ "Reserved 31"
 };
 
-/*
- * Shared AC97 controllers (ICH, ATIIXP...)
- */
-static DECLARE_MUTEX(shared_codec_mutex);
-static ac97_t *shared_codec[AC97_SHARED_TYPES][4];
-
 
 /*
  *  I/O routines
@@ -996,14 +990,8 @@ static int snd_ac97_free(ac97_t *ac97)
 {
 	if (ac97) {
 		snd_ac97_proc_done(ac97);
-		if (ac97->bus) {
+		if (ac97->bus)
 			ac97->bus->codec[ac97->num] = NULL;
-			if (ac97->bus->shared_type) {
-				down(&shared_codec_mutex);
-				shared_codec[ac97->bus->shared_type-1][ac97->num] = NULL;
-				up(&shared_codec_mutex);
-			}
-		}
 		if (ac97->private_free)
 			ac97->private_free(ac97);
 		kfree(ac97);
@@ -1889,21 +1877,6 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 	snd_assert(bus != NULL && template != NULL, return -EINVAL);
 	snd_assert(template->num < 4 && bus->codec[template->num] == NULL, return -EINVAL);
 
-	snd_assert(bus->shared_type <= AC97_SHARED_TYPES, return -EINVAL);
-	if (bus->shared_type) {
-		/* already shared? */
-		down(&shared_codec_mutex);
-		ac97 = shared_codec[bus->shared_type-1][template->num];
-		if (ac97) {
-			if ((ac97_is_audio(ac97) && (template->scaps & AC97_SCAP_SKIP_AUDIO)) ||
-			    (ac97_is_modem(ac97) && (template->scaps & AC97_SCAP_SKIP_MODEM))) {
-				up(&shared_codec_mutex);
-				return -EACCES; /* skip this */
-			}
-		}
-		up(&shared_codec_mutex);
-	}
-
 	card = bus->card;
 	ac97 = kzalloc(sizeof(*ac97), GFP_KERNEL);
 	if (ac97 == NULL)
@@ -2153,7 +2126,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		}
 	}
 	/* make sure the proper powerdown bits are cleared */
-	if (ac97->scaps) {
+	if (ac97->scaps && ac97_is_audio(ac97)) {
 		reg = snd_ac97_read(ac97, AC97_EXTENDED_STATUS);
 		if (ac97->scaps & AC97_SCAP_SURROUND_DAC) 
 			reg &= ~AC97_EA_PRJ;
@@ -2167,13 +2140,6 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		return err;
 	}
 	*rac97 = ac97;
-
-	if (bus->shared_type) {
-		down(&shared_codec_mutex);
-		shared_codec[bus->shared_type-1][ac97->num] = ac97;
-		up(&shared_codec_mutex);
-	}
-
 	return 0;
 }
 

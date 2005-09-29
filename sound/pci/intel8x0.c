@@ -2022,7 +2022,6 @@ static int __devinit snd_intel8x0_mixer(intel8x0_t *chip, int ac97_clock, const 
 	if ((err = snd_ac97_bus(chip->card, 0, ops, chip, &pbus)) < 0)
 		goto __err;
 	pbus->private_free = snd_intel8x0_mixer_free_ac97_bus;
-	pbus->shared_type = AC97_SHARED_TYPE_ICH;	/* shared with modem driver */
 	if (ac97_clock >= 8000 && ac97_clock <= 48000)
 		pbus->clock = ac97_clock;
 	/* FIXME: my test board doesn't work well with VRA... */
