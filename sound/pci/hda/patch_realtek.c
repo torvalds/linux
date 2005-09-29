@@ -2243,7 +2243,7 @@ static snd_kcontrol_new_t alc260_base_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
-	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x04, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x04, 0x0, HDA_INPUT),
 	{
@@ -2270,7 +2270,7 @@ static snd_kcontrol_new_t alc260_hp_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
-	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x05, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x05, 0x0, HDA_INPUT),
 	{
