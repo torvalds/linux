@@ -189,19 +189,18 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* Test if this comes from uaccess places. */
-		unsigned long fixup;
-		unsigned long g2 = regs->u_regs[UREG_G2];
+		const struct exception_table_entry *entry;
 
-		if ((fixup = search_extables_range(regs->tpc, &g2))) {
-			/* Ouch, somebody is trying ugly VM hole tricks on us... */
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			/* Ouch, somebody is trying VM hole tricks on us... */
 #ifdef DEBUG_EXCEPTIONS
 			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
-			printk("EX_TABLE: insn<%016lx> fixup<%016lx> "
-			       "g2<%016lx>\n", regs->tpc, fixup, g2);
+			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
+			       regs->tpc, entry->fixup);
 #endif
-			regs->tpc = fixup;
+			regs->tpc = entry->fixup;
 			regs->tnpc = regs->tpc + 4;
-			regs->u_regs[UREG_G2] = g2;
 			return;
 		}
 		/* Shit... */
@@ -1610,10 +1609,10 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 			/* OK, usermode access. */
 			recoverable = 1;
 		} else {
-			unsigned long g2 = regs->u_regs[UREG_G2];
-			unsigned long fixup = search_extables_range(regs->tpc, &g2);
+			const struct exception_table_entry *entry;
 
-			if (fixup != 0UL) {
+			entry = search_exception_tables(regs->tpc);
+			if (entry) {
 				/* OK, kernel access to userspace. */
 				recoverable = 1;
 
@@ -1632,9 +1631,8 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 				 * recoverable condition.
 				 */
 				if (recoverable) {
-					regs->tpc = fixup;
+					regs->tpc = entry->fixup;
 					regs->tnpc = regs->tpc + 4;
-					regs->u_regs[UREG_G2] = g2;
 				}
 			}
 		}

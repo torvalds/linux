@@ -246,10 +246,10 @@ void kernel_mna_trap_fault(void)
 {
 	struct pt_regs *regs = current_thread_info()->kern_una_regs;
 	unsigned int insn = current_thread_info()->kern_una_insn;
-	unsigned long g2 = regs->u_regs[UREG_G2];
-	unsigned long fixup = search_extables_range(regs->tpc, &g2);
+	const struct exception_table_entry *entry;
 
-	if (!fixup) {
+	entry = search_exception_tables(regs->tpc);
+	if (!entry) {
 		unsigned long address;
 
 		address = compute_effective_address(regs, insn,
@@ -270,9 +270,8 @@ void kernel_mna_trap_fault(void)
 	        die_if_kernel("Oops", regs);
 		/* Not reached */
 	}
-	regs->tpc = fixup;
+	regs->tpc = entry->fixup;
 	regs->tnpc = regs->tpc + 4;
-	regs->u_regs [UREG_G2] = g2;
 
 	regs->tstate &= ~TSTATE_ASI;
 	regs->tstate |= (ASI_AIUS << 24UL);

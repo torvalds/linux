@@ -158,163 +158,163 @@ sys32_socketcall:	/* %o0=call, %o1=args */
 	jmpl		%g2 + %o0, %g0
 	 nop
 
-	/* Each entry is exactly 32 bytes. */
 	.align		32
 __socketcall_table_begin:
+
+	/* Each entry is exactly 32 bytes. */
 do_sys_socket: /* sys_socket(int, int, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+1:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_socket), %g1
-	ldswa		[%o1 + 0x8] %asi, %o2
+2:	ldswa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_socket), %g0
-	 ldswa		[%o1 + 0x4] %asi, %o1
+3:	 ldswa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_bind: /* sys_bind(int fd, struct sockaddr *, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+4:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_bind), %g1
-	ldswa		[%o1 + 0x8] %asi, %o2
+5:	ldswa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_bind), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+6:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_connect: /* sys_connect(int, struct sockaddr *, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+7:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_connect), %g1
-	ldswa		[%o1 + 0x8] %asi, %o2
+8:	ldswa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_connect), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+9:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_listen: /* sys_listen(int, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+10:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_listen), %g1
 	jmpl		%g1 + %lo(sys_listen), %g0
-	 ldswa		[%o1 + 0x4] %asi, %o1
+11:	 ldswa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 	nop
 do_sys_accept: /* sys_accept(int, struct sockaddr *, int *) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+12:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_accept), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
+13:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_accept), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+14:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_getsockname: /* sys_getsockname(int, struct sockaddr *, int *) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+15:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_getsockname), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
+16:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_getsockname), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+17:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_getpeername: /* sys_getpeername(int, struct sockaddr *, int *) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+18:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_getpeername), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
+19:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_getpeername), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+20:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_socketpair: /* sys_socketpair(int, int, int, int *) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+21:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_socketpair), %g1
-	ldswa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
+22:	ldswa		[%o1 + 0x8] %asi, %o2
+23:	lduwa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_socketpair), %g0
-	 ldswa		[%o1 + 0x4] %asi, %o1
+24:	 ldswa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 do_sys_send: /* sys_send(int, void *, size_t, unsigned int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+25:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_send), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
+26:	lduwa		[%o1 + 0x8] %asi, %o2
+27:	lduwa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_send), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+28:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 do_sys_recv: /* sys_recv(int, void *, size_t, unsigned int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+29:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_recv), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
+30:	lduwa		[%o1 + 0x8] %asi, %o2
+31:	lduwa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_recv), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+32:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 do_sys_sendto: /* sys_sendto(int, u32, compat_size_t, unsigned int, u32, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+33:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_sendto), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
-	lduwa		[%o1 + 0x10] %asi, %o4
-	ldswa		[%o1 + 0x14] %asi, %o5
+34:	lduwa		[%o1 + 0x8] %asi, %o2
+35:	lduwa		[%o1 + 0xc] %asi, %o3
+36:	lduwa		[%o1 + 0x10] %asi, %o4
+37:	ldswa		[%o1 + 0x14] %asi, %o5
 	jmpl		%g1 + %lo(sys_sendto), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+38:	 lduwa		[%o1 + 0x4] %asi, %o1
 do_sys_recvfrom: /* sys_recvfrom(int, u32, compat_size_t, unsigned int, u32, u32) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+39:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_recvfrom), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
-	lduwa		[%o1 + 0x10] %asi, %o4
-	lduwa		[%o1 + 0x14] %asi, %o5
+40:	lduwa		[%o1 + 0x8] %asi, %o2
+41:	lduwa		[%o1 + 0xc] %asi, %o3
+42:	lduwa		[%o1 + 0x10] %asi, %o4
+43:	lduwa		[%o1 + 0x14] %asi, %o5
 	jmpl		%g1 + %lo(sys_recvfrom), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+44:	 lduwa		[%o1 + 0x4] %asi, %o1
 do_sys_shutdown: /* sys_shutdown(int, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+45:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_shutdown), %g1
 	jmpl		%g1 + %lo(sys_shutdown), %g0
-	 ldswa		[%o1 + 0x4] %asi, %o1
+46:	 ldswa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 	nop
 do_sys_setsockopt: /* compat_sys_setsockopt(int, int, int, char *, int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+47:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(compat_sys_setsockopt), %g1
-	ldswa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
-	ldswa		[%o1 + 0x10] %asi, %o4
+48:	ldswa		[%o1 + 0x8] %asi, %o2
+49:	lduwa		[%o1 + 0xc] %asi, %o3
+50:	ldswa		[%o1 + 0x10] %asi, %o4
 	jmpl		%g1 + %lo(compat_sys_setsockopt), %g0
-	 ldswa		[%o1 + 0x4] %asi, %o1
+51:	 ldswa		[%o1 + 0x4] %asi, %o1
 	nop
 do_sys_getsockopt: /* compat_sys_getsockopt(int, int, int, u32, u32) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+52:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(compat_sys_getsockopt), %g1
-	ldswa		[%o1 + 0x8] %asi, %o2
-	lduwa		[%o1 + 0xc] %asi, %o3
-	lduwa		[%o1 + 0x10] %asi, %o4
+53:	ldswa		[%o1 + 0x8] %asi, %o2
+54:	lduwa		[%o1 + 0xc] %asi, %o3
+55:	lduwa		[%o1 + 0x10] %asi, %o4
 	jmpl		%g1 + %lo(compat_sys_getsockopt), %g0
-	 ldswa		[%o1 + 0x4] %asi, %o1
+56:	 ldswa		[%o1 + 0x4] %asi, %o1
 	nop
 do_sys_sendmsg: /* compat_sys_sendmsg(int, struct compat_msghdr *, unsigned int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+57:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(compat_sys_sendmsg), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
+58:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(compat_sys_sendmsg), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+59:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
 do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int) */
-	ldswa		[%o1 + 0x0] %asi, %o0
+60:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(compat_sys_recvmsg), %g1
-	lduwa		[%o1 + 0x8] %asi, %o2
+61:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(compat_sys_recvmsg), %g0
-	 lduwa		[%o1 + 0x4] %asi, %o1
+62:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
 	nop
-__socketcall_table_end:
 
 do_einval:
 	retl
@@ -325,5 +325,20 @@ do_efault:
 
 	.section	__ex_table
 	.align		4
-	.word		__socketcall_table_begin, 0, __socketcall_table_end, do_efault
+	.word	1b, do_efault, 2b, do_efault, 3b, do_efault, 4b, do_efault
+	.word	5b, do_efault, 6b, do_efault, 7b, do_efault, 8b, do_efault
+	.word	9b, do_efault, 10b, do_efault, 11b, do_efault, 12b, do_efault
+	.word	13b, do_efault, 14b, do_efault, 15b, do_efault, 16b, do_efault
+	.word	17b, do_efault, 18b, do_efault, 19b, do_efault, 20b, do_efault
+	.word	21b, do_efault, 22b, do_efault, 23b, do_efault, 24b, do_efault
+	.word	25b, do_efault, 26b, do_efault, 27b, do_efault, 28b, do_efault
+	.word	29b, do_efault, 30b, do_efault, 31b, do_efault, 32b, do_efault
+	.word	33b, do_efault, 34b, do_efault, 35b, do_efault, 36b, do_efault
+	.word	37b, do_efault, 38b, do_efault, 39b, do_efault, 40b, do_efault
+	.word	41b, do_efault, 42b, do_efault, 43b, do_efault, 44b, do_efault
+	.word	45b, do_efault, 46b, do_efault, 47b, do_efault, 48b, do_efault
+	.word	49b, do_efault, 50b, do_efault, 51b, do_efault, 52b, do_efault
+	.word	53b, do_efault, 54b, do_efault, 55b, do_efault, 56b, do_efault
+	.word	57b, do_efault, 58b, do_efault, 59b, do_efault, 60b, do_efault
+	.word	61b, do_efault, 62b, do_efault
 	.previous

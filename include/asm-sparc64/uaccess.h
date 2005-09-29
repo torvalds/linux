@@ -70,24 +70,11 @@ static inline int access_ok(int type, const void __user * addr, unsigned long si
  * with the main instruction path.  This means when everything is well,
  * we don't even have to jump over them.  Further, they do not intrude
  * on our cache or tlb entries.
- *
- * There is a special way how to put a range of potentially faulting
- * insns (like twenty ldd/std's with now intervening other instructions)
- * You specify address of first in insn and 0 in fixup and in the next
- * exception_table_entry you specify last potentially faulting insn + 1
- * and in fixup the routine which should handle the fault.
- * That fixup code will get
- * (faulting_insn_address - first_insn_in_the_range_address)/4
- * in %g2 (ie. index of the faulting instruction in the range).
  */
 
-struct exception_table_entry
-{
-        unsigned insn, fixup;
+struct exception_table_entry {
+        unsigned int insn, fixup;
 };
-
-/* Special exable search, which handles ranges.  Returns fixup */
-unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
 
 extern void __ret_efault(void);
 
