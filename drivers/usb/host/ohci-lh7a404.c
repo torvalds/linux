@@ -18,7 +18,6 @@
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/arch/hardware.h>
 
 
 extern int usb_disabled(void);
