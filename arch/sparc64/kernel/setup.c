@@ -464,8 +464,6 @@ static void __init boot_flags_init(char *commands)
 	}
 }
 
-extern int prom_probe_memory(void);
-extern unsigned long start, end;
 extern void panic_setup(char *, int *);
 
 extern unsigned short root_flags;
@@ -494,8 +492,6 @@ void register_prom_callbacks(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	int i;
-
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
 	strcpy(saved_command_line, *cmdline_p);
@@ -514,21 +510,6 @@ void __init setup_arch(char **cmdline_p)
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
-	(void) prom_probe_memory();
-
-	phys_base = 0xffffffffffffffffUL;
-	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
-		unsigned long top;
-
-		if (sp_banks[i].base_addr < phys_base)
-			phys_base = sp_banks[i].base_addr;
-		top = sp_banks[i].base_addr +
-			sp_banks[i].num_bytes;
-	}
-	pfn_base = phys_base >> PAGE_SHIFT;
-
-	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
-	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;

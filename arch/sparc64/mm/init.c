@@ -1425,6 +1425,50 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 }
 #endif
 
+static void __init prom_probe_memory(void)
+{
+	struct linux_mlist_p1275 *mlist;
+	unsigned long bytes, base_paddr, tally;
+	int i;
+
+	i = 0;
+	mlist = *prom_meminfo()->p1275_available;
+	bytes = tally = mlist->num_bytes;
+	base_paddr = mlist->start_adr;
+  
+	sp_banks[0].base_addr = base_paddr;
+	sp_banks[0].num_bytes = bytes;
+
+	while (mlist->theres_more != (void *) 0) {
+		i++;
+		mlist = mlist->theres_more;
+		bytes = mlist->num_bytes;
+		tally += bytes;
+		if (i >= SPARC_PHYS_BANKS-1) {
+			printk ("The machine has more banks than "
+				"this kernel can support\n"
+				"Increase the SPARC_PHYS_BANKS "
+				"setting (currently %d)\n",
+				SPARC_PHYS_BANKS);
+			i = SPARC_PHYS_BANKS-1;
+			break;
+		}
+    
+		sp_banks[i].base_addr = mlist->start_adr;
+		sp_banks[i].num_bytes = mlist->num_bytes;
+	}
+
+	i++;
+	sp_banks[i].base_addr = 0xdeadbeefbeefdeadUL;
+	sp_banks[i].num_bytes = 0;
+
+	/* Now mask all bank sizes on a page boundary, it is all we can
+	 * use anyways.
+	 */
+	for (i = 0; sp_banks[i].num_bytes != 0; i++)
+		sp_banks[i].num_bytes &= PAGE_MASK;
+}
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
@@ -1435,7 +1479,23 @@ pgd_t swapper_pg_dir[2048];
 void __init paging_init(void)
 {
 	unsigned long end_pfn, pages_avail, shift;
-	unsigned long real_end;
+	unsigned long real_end, i;
+
+	prom_probe_memory();
+
+	phys_base = 0xffffffffffffffffUL;
+	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
+		unsigned long top;
+
+		if (sp_banks[i].base_addr < phys_base)
+			phys_base = sp_banks[i].base_addr;
+		top = sp_banks[i].base_addr +
+			sp_banks[i].num_bytes;
+	}
+	pfn_base = phys_base >> PAGE_SHIFT;
+
+	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	set_bit(0, mmu_context_bmap);
 

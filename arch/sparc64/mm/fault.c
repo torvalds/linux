@@ -71,53 +71,6 @@ void set_brkpt(unsigned long addr, unsigned char mask, int flags, int mode)
 			     : "memory");
 }
 
-/* Nice, simple, prom library does all the sweating for us. ;) */
-unsigned long __init prom_probe_memory (void)
-{
-	register struct linux_mlist_p1275 *mlist;
-	register unsigned long bytes, base_paddr, tally;
-	register int i;
-
-	i = 0;
-	mlist = *prom_meminfo()->p1275_available;
-	bytes = tally = mlist->num_bytes;
-	base_paddr = mlist->start_adr;
-  
-	sp_banks[0].base_addr = base_paddr;
-	sp_banks[0].num_bytes = bytes;
-
-	while (mlist->theres_more != (void *) 0) {
-		i++;
-		mlist = mlist->theres_more;
-		bytes = mlist->num_bytes;
-		tally += bytes;
-		if (i >= SPARC_PHYS_BANKS-1) {
-			printk ("The machine has more banks than "
-				"this kernel can support\n"
-				"Increase the SPARC_PHYS_BANKS "
-				"setting (currently %d)\n",
-				SPARC_PHYS_BANKS);
-			i = SPARC_PHYS_BANKS-1;
-			break;
-		}
-    
-		sp_banks[i].base_addr = mlist->start_adr;
-		sp_banks[i].num_bytes = mlist->num_bytes;
-	}
-
-	i++;
-	sp_banks[i].base_addr = 0xdeadbeefbeefdeadUL;
-	sp_banks[i].num_bytes = 0;
-
-	/* Now mask all bank sizes on a page boundary, it is all we can
-	 * use anyways.
-	 */
-	for (i = 0; sp_banks[i].num_bytes != 0; i++)
-		sp_banks[i].num_bytes &= PAGE_MASK;
-
-	return tally;
-}
-
 static void __kprobes unhandled_fault(unsigned long address,
 				      struct task_struct *tsk,
 				      struct pt_regs *regs)
