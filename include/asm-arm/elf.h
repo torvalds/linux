@@ -124,6 +124,8 @@ do { \
 	if (((ex).e_flags & EF_ARM_EABI_MASK) || \
 	    ((ex).e_flags & EF_ARM_SOFT_FLOAT)) \
 		set_thread_flag(TIF_USING_IWMMXT); \
+	else \
+		clear_thread_flag(TIF_USING_IWMMXT); \
 } while (0)
 
 #endif
