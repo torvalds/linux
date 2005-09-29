@@ -66,8 +66,6 @@ struct i2o_device {
 	struct device device;
 
 	struct semaphore lock;	/* device lock */
-
-	struct class_device classdev;	/* i2o device class */
 };
 
 /*

@@ -1243,14 +1243,10 @@ static int __init i2o_iop_init(void)
 
 	printk(KERN_INFO OSM_DESCRIPTION " v" OSM_VERSION "\n");
 
-	rc = i2o_device_init();
-	if (rc)
-		goto exit;
-
 	i2o_controller_class = class_create(THIS_MODULE, "i2o_controller");
 	if (IS_ERR(i2o_controller_class)) {
 		osm_err("can't register class i2o_controller\n");
-		goto device_exit;
+		goto exit;
 	}
 
 	if ((rc = i2o_driver_init()))
@@ -1273,9 +1269,6 @@ static int __init i2o_iop_init(void)
       class_exit:
 	class_destroy(i2o_controller_class);
 
-      device_exit:
-	i2o_device_exit();
-
       exit:
 	return rc;
 }
@@ -1291,7 +1284,6 @@ static void __exit i2o_iop_exit(void)
 	i2o_exec_exit();
 	i2o_driver_exit();
 	class_destroy(i2o_controller_class);
-	i2o_device_exit();
 };
 
 module_init(i2o_iop_init);

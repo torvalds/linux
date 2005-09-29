@@ -138,17 +138,6 @@ static void i2o_device_release(struct device *dev)
 	kfree(i2o_dev);
 }
 
-/**
- *	i2o_device_class_release - I2O class device release function
- *	@cd: I2O class device which is added to the I2O device class
- *
- *	The function is just a stub - memory will be freed when
- *	associated I2O device is released.
- */
-static void i2o_device_class_release(struct class_device *cd)
-{
-	/* empty */
-}
 
 /**
  *	i2o_device_class_show_class_id - Displays class id of I2O device
@@ -157,12 +146,13 @@ static void i2o_device_class_release(struct class_device *cd)
  *
  *	Returns the number of bytes which are printed into the buffer.
  */
-static ssize_t i2o_device_class_show_class_id(struct class_device *cd,
-					      char *buf)
+static ssize_t i2o_device_show_class_id(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
-	struct i2o_device *dev = to_i2o_device(cd->dev);
+	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
-	sprintf(buf, "0x%03x\n", dev->lct_data.class_id);
+	sprintf(buf, "0x%03x\n", i2o_dev->lct_data.class_id);
 	return strlen(buf) + 1;
 }
 
@@ -173,25 +163,20 @@ static ssize_t i2o_device_class_show_class_id(struct class_device *cd,
  *
  *	Returns the number of bytes which are printed into the buffer.
  */
-static ssize_t i2o_device_class_show_tid(struct class_device *cd, char *buf)
+static ssize_t i2o_device_show_tid(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
 {
-	struct i2o_device *dev = to_i2o_device(cd->dev);
+	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
-	sprintf(buf, "0x%03x\n", dev->lct_data.tid);
+	sprintf(buf, "0x%03x\n", i2o_dev->lct_data.tid);
 	return strlen(buf) + 1;
 }
 
-static struct class_device_attribute i2o_device_class_attrs[] = {
-	__ATTR(class_id, S_IRUGO, i2o_device_class_show_class_id, NULL),
-	__ATTR(tid, S_IRUGO, i2o_device_class_show_tid, NULL),
+struct device_attribute i2o_device_attrs[] = {
+	__ATTR(class_id, S_IRUGO, i2o_device_show_class_id, NULL),
+	__ATTR(tid, S_IRUGO, i2o_device_show_tid, NULL),
 	__ATTR_NULL
-};
-
-/* I2O device class */
-static struct class i2o_device_class = {
-	.name			= "i2o_device",
-	.release		= i2o_device_class_release,
-	.class_dev_attrs	= i2o_device_class_attrs,
 };
 
 /**
@@ -217,8 +202,6 @@ static struct i2o_device *i2o_device_alloc(void)
 
 	dev->device.bus = &i2o_bus_type;
 	dev->device.release = &i2o_device_release;
-	dev->classdev.class = &i2o_device_class;
-	dev->classdev.dev = &dev->device;
 
 	return dev;
 }
@@ -311,16 +294,11 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 	snprintf(dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
 		 dev->lct_data.tid);
 
-	snprintf(dev->classdev.class_id, BUS_ID_SIZE, "%d:%03x", c->unit,
-		 dev->lct_data.tid);
-
 	dev->device.parent = &c->device;
 
 	device_register(&dev->device);
 
 	list_add_tail(&dev->list, &c->devices);
-
-	class_device_register(&dev->classdev);
 
 	i2o_setup_sysfs_links(dev);
 
@@ -343,7 +321,6 @@ void i2o_device_remove(struct i2o_device *i2o_dev)
 {
 	i2o_driver_notify_device_remove_all(i2o_dev);
 	i2o_remove_sysfs_links(i2o_dev);
-	class_device_unregister(&i2o_dev->classdev);
 	list_del(&i2o_dev->list);
 	device_unregister(&i2o_dev->device);
 }
@@ -596,28 +573,6 @@ int i2o_parm_table_get(struct i2o_device *dev, int oper, int group,
 		return reslen;
 
 	return size;
-}
-
-/**
- *	i2o_device_init - Initialize I2O devices
- *
- *	Registers the I2O device class.
- *
- *	Returns 0 on success or negative error code on failure.
- */
-int i2o_device_init(void)
-{
-	return class_register(&i2o_device_class);
-}
-
-/**
- *	i2o_device_exit - I2O devices exit function
- *
- *	Unregisters the I2O device class.
- */
-void i2o_device_exit(void)
-{
-	class_unregister(&i2o_device_class);
 }
 
 EXPORT_SYMBOL(i2o_device_claim);
