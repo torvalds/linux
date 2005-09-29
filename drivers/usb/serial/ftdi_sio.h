@@ -342,6 +342,9 @@
 #define EVOLUTION_VID		0xDEEE	/* Vendor ID */
 #define EVOLUTION_ER1_PID	0x0300	/* ER1 Control Module */
 
+/* Pyramid Computer GmbH */
+#define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
