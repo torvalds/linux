@@ -294,7 +294,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 
 		kernel_mna_trap_fault();
 	} else {
-		unsigned long addr;
+		unsigned long addr, *reg_addr;
 		int orig_asi, asi;
 
 		addr = compute_effective_address(regs, insn,
@@ -319,11 +319,11 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 		};
 		switch (dir) {
 		case load:
-			do_int_load(fetch_reg_addr(((insn>>25)&0x1f), regs),
-				    size, (unsigned long *) addr,
+			reg_addr = fetch_reg_addr(((insn>>25)&0x1f), regs);
+			do_int_load(reg_addr, size, (unsigned long *) addr,
 				    decode_signedness(insn), asi);
 			if (unlikely(asi != orig_asi)) {
-				unsigned long val_in = *(unsigned long *) addr;
+				unsigned long val_in = *reg_addr;
 				switch (size) {
 				case 2:
 					val_in = swab16(val_in);
@@ -339,7 +339,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 					BUG();
 					break;
 				};
-				*(unsigned long *) addr = val_in;
+				*reg_addr = val_in;
 			}
 			break;
 
