@@ -505,7 +505,7 @@ static int onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
  *
  * Get the device and lock it for exclusive access
  */
-static void onenand_get_device(struct mtd_info *mtd, int new_state)
+static int onenand_get_device(struct mtd_info *mtd, int new_state)
 {
 	struct onenand_chip *this = mtd->priv;
 	DECLARE_WAITQUEUE(wait, current);
@@ -520,12 +520,18 @@ static void onenand_get_device(struct mtd_info *mtd, int new_state)
 			spin_unlock(&this->chip_lock);
 			break;
 		}
+		if (new_state == FL_PM_SUSPENDED) {
+			spin_unlock(&this->chip_lock);
+			return (this->state == FL_PM_SUSPENDED) ? 0 : -EAGAIN;
+		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&this->wq, &wait);
 		spin_unlock(&this->chip_lock);
 		schedule();
 		remove_wait_queue(&this->wq, &wait);
 	}
+
+	return 0;
 }
 
 /**
@@ -1440,6 +1446,30 @@ static int onenand_probe(struct mtd_info *mtd)
 	return 0;
 }
 
+/**
+ * onenand_suspend - [MTD Interface] Suspend the OneNAND flash
+ * @param mtd		MTD device structure
+ */
+static int onenand_suspend(struct mtd_info *mtd)
+{
+	return onenand_get_device(mtd, FL_PM_SUSPENDED);
+}
+
+/**
+ * onenand_resume - [MTD Interface] Resume the OneNAND flash
+ * @param mtd		MTD device structure
+ */
+static void onenand_resume(struct mtd_info *mtd)
+{
+	struct onenand_chip *this = mtd->priv;
+
+	if (this->state == FL_PM_SUSPENDED)
+		onenand_release_device(mtd);
+	else
+		printk(KERN_ERR "resume() called for the chip which is not"
+				"in suspended state\n");
+}
+
 
 /**
  * onenand_scan - [OneNAND Interface] Scan for the OneNAND device
@@ -1527,8 +1557,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->sync = onenand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = onenand_unlock;
-	mtd->suspend = NULL;
-	mtd->resume = NULL;
+	mtd->suspend = onenand_suspend;
+	mtd->resume = onenand_resume;
 	mtd->block_isbad = onenand_block_isbad;
 	mtd->block_markbad = onenand_block_markbad;
 	mtd->owner = THIS_MODULE;
