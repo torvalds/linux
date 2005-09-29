@@ -82,6 +82,8 @@ extern unsigned long page_kernel;
 /* Top-level page directory */
 extern pgd_t swapper_pg_dir[1024];
 
+extern void paging_init(void);
+
 /* Page table for 0-4MB for everybody, on the Sparc this
  * holds the same as on the i386.
  */

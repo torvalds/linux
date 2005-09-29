@@ -492,8 +492,6 @@ void register_prom_callbacks(void)
 		   "' linux-.soft2 to .soft2");
 }
 
-extern void paging_init(void);
-
 void __init setup_arch(char **cmdline_p)
 {
 	int i;
