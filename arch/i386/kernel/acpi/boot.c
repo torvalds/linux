@@ -27,7 +27,6 @@
 #include <linux/config.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
 

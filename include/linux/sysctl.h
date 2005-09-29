@@ -202,7 +202,8 @@ enum
 	NET_TR=14,
 	NET_DECNET=15,
 	NET_ECONET=16,
-	NET_SCTP=17, 
+	NET_SCTP=17,
+	NET_LLC=18,
 };
 
 /* /proc/sys/kernel/random */
@@ -522,6 +523,29 @@ enum {
 	NET_IPX_FORWARDING=2
 };
 
+/* /proc/sys/net/llc */
+enum {
+	NET_LLC2=1,
+	NET_LLC_STATION=2,
+};
+
+/* /proc/sys/net/llc/llc2 */
+enum {
+	NET_LLC2_TIMEOUT=1,
+};
+
+/* /proc/sys/net/llc/station */
+enum {
+	NET_LLC_STATION_ACK_TIMEOUT=1,
+};
+
+/* /proc/sys/net/llc/llc2/timeout */
+enum {
+	NET_LLC2_ACK_TIMEOUT=1,
+	NET_LLC2_P_TIMEOUT=2,
+	NET_LLC2_REJ_TIMEOUT=3,
+	NET_LLC2_BUSY_TIMEOUT=4,
+};
 
 /* /proc/sys/net/appletalk */
 enum {

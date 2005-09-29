@@ -402,15 +402,14 @@ static int write_page(unsigned long addr, swp_entry_t * loc)
 static void data_free(void)
 {
 	swp_entry_t entry;
-	int i;
+	struct pbe * p;
 
-	for (i = 0; i < nr_copy_pages; i++) {
-		entry = (pagedir_nosave + i)->swap_address;
+	for_each_pbe(p, pagedir_nosave) {
+		entry = p->swap_address;
 		if (entry.val)
 			swap_free(entry);
 		else
 			break;
-		(pagedir_nosave + i)->swap_address = (swp_entry_t){0};
 	}
 }
 
@@ -932,6 +931,10 @@ static int swsusp_alloc(void)
 	if (!enough_swap())
 		return -ENOSPC;
 
+	if (MAX_PBES < nr_copy_pages / PBES_PER_PAGE +
+	    !!(nr_copy_pages % PBES_PER_PAGE))
+		return -ENOSPC;
+
 	if (!(pagedir_save = alloc_pagedir(nr_copy_pages))) {
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
 		return -ENOMEM;
@@ -1438,9 +1441,9 @@ static int read_pagedir(struct pbe *pblist)
 	}
 
 	if (error)
-		free_page((unsigned long)pblist);
-
-	BUG_ON(i != swsusp_info.pagedir_pages);
+		free_pagedir(pblist);
+	else
+		BUG_ON(i != swsusp_info.pagedir_pages);
 
 	return error;
 }

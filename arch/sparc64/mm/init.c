@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/kprobes.h>
+#include <linux/cache.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -42,22 +43,13 @@ extern void device_scan(void);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
 
-unsigned long *sparc64_valid_addr_bitmap;
+unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 
 /* Ugly, but necessary... -DaveM */
-unsigned long phys_base;
-unsigned long kern_base;
-unsigned long kern_size;
-unsigned long pfn_base;
-
-/* This is even uglier. We have a problem where the kernel may not be
- * located at phys_base. However, initial __alloc_bootmem() calls need to
- * be adjusted to be within the 4-8Megs that the kernel is mapped to, else
- * those page mappings wont work. Things are ok after inherit_prom_mappings
- * is called though. Dave says he'll clean this up some other time.
- * -- BenC
- */
-static unsigned long bootmap_base;
+unsigned long phys_base __read_mostly;
+unsigned long kern_base __read_mostly;
+unsigned long kern_size __read_mostly;
+unsigned long pfn_base __read_mostly;
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
@@ -73,7 +65,7 @@ extern unsigned long sparc_ramdisk_image64;
 extern unsigned int sparc_ramdisk_image;
 extern unsigned int sparc_ramdisk_size;
 
-struct page *mem_map_zero;
+struct page *mem_map_zero __read_mostly;
 
 int bigkernel = 0;
 
@@ -179,8 +171,6 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 			     : "g1", "g7");
 }
 
-extern void __update_mmu_cache(unsigned long mmu_context_hw, unsigned long address, pte_t pte, int code);
-
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 	struct page *page;
@@ -207,10 +197,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 		put_cpu();
 	}
-
-	if (get_thread_fault_code())
-		__update_mmu_cache(CTX_NRBITS(vma->vm_mm->context),
-				   address, pte, get_thread_fault_code());
 }
 
 void flush_dcache_page(struct page *page)
@@ -309,6 +295,7 @@ struct linux_prom_translation {
 	unsigned long size;
 	unsigned long data;
 };
+static struct linux_prom_translation prom_trans[512] __initdata;
 
 extern unsigned long prom_boot_page;
 extern void prom_remap(unsigned long physpage, unsigned long virtpage, int mmu_ihandle);
@@ -318,14 +305,63 @@ extern void register_prom_callbacks(void);
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
 
-void __init early_pgtable_allocfail(char *type)
+/* Exported for kernel TLB miss handling in ktlb.S */
+unsigned long prom_pmd_phys __read_mostly;
+unsigned int swapper_pgd_zero __read_mostly;
+
+/* Allocate power-of-2 aligned chunks from the end of the
+ * kernel image.  Return physical address.
+ */
+static inline unsigned long early_alloc_phys(unsigned long size)
 {
-	prom_printf("inherit_prom_mappings: Cannot alloc kernel %s.\n", type);
-	prom_halt();
+	unsigned long base;
+
+	BUILD_BUG_ON(size & (size - 1));
+
+	kern_size = (kern_size + (size - 1)) & ~(size - 1);
+	base = kern_base + kern_size;
+	kern_size += size;
+
+	return base;
+}
+
+static inline unsigned long load_phys32(unsigned long pa)
+{
+	unsigned long val;
+
+	__asm__ __volatile__("lduwa	[%1] %2, %0"
+			     : "=&r" (val)
+			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
+
+	return val;
+}
+
+static inline unsigned long load_phys64(unsigned long pa)
+{
+	unsigned long val;
+
+	__asm__ __volatile__("ldxa	[%1] %2, %0"
+			     : "=&r" (val)
+			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
+
+	return val;
+}
+
+static inline void store_phys32(unsigned long pa, unsigned long val)
+{
+	__asm__ __volatile__("stwa	%0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (val), "r" (pa), "i" (ASI_PHYS_USE_EC));
+}
+
+static inline void store_phys64(unsigned long pa, unsigned long val)
+{
+	__asm__ __volatile__("stxa	%0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (val), "r" (pa), "i" (ASI_PHYS_USE_EC));
 }
 
 #define BASE_PAGE_SIZE 8192
-static pmd_t *prompmd;
 
 /*
  * Translate PROM's mapping we capture at boot time into physical address.
@@ -333,278 +369,172 @@ static pmd_t *prompmd;
  */
 unsigned long prom_virt_to_phys(unsigned long promva, int *error)
 {
-	pmd_t *pmdp = prompmd + ((promva >> 23) & 0x7ff);
-	pte_t *ptep;
+	unsigned long pmd_phys = (prom_pmd_phys +
+				  ((promva >> 23) & 0x7ff) * sizeof(pmd_t));
+	unsigned long pte_phys;
+	pmd_t pmd_ent;
+	pte_t pte_ent;
 	unsigned long base;
 
-	if (pmd_none(*pmdp)) {
+	pmd_val(pmd_ent) = load_phys32(pmd_phys);
+	if (pmd_none(pmd_ent)) {
 		if (error)
 			*error = 1;
-		return(0);
+		return 0;
 	}
-	ptep = (pte_t *)__pmd_page(*pmdp) + ((promva >> 13) & 0x3ff);
-	if (!pte_present(*ptep)) {
+
+	pte_phys = (unsigned long)pmd_val(pmd_ent) << 11UL;
+	pte_phys += ((promva >> 13) & 0x3ff) * sizeof(pte_t);
+	pte_val(pte_ent) = load_phys64(pte_phys);
+	if (!pte_present(pte_ent)) {
 		if (error)
 			*error = 1;
-		return(0);
+		return 0;
 	}
 	if (error) {
 		*error = 0;
-		return(pte_val(*ptep));
+		return pte_val(pte_ent);
 	}
-	base = pte_val(*ptep) & _PAGE_PADDR;
-	return(base + (promva & (BASE_PAGE_SIZE - 1)));
+	base = pte_val(pte_ent) & _PAGE_PADDR;
+	return (base + (promva & (BASE_PAGE_SIZE - 1)));
 }
 
-static void inherit_prom_mappings(void)
+/* The obp translations are saved based on 8k pagesize, since obp can
+ * use a mixture of pagesizes. Misses to the LOW_OBP_ADDRESS ->
+ * HI_OBP_ADDRESS range are handled in entry.S and do not use the vpte
+ * scheme (also, see rant in inherit_locked_prom_mappings()).
+ */
+static void __init build_obp_range(unsigned long start, unsigned long end, unsigned long data)
 {
-	struct linux_prom_translation *trans;
-	unsigned long phys_page, tte_vaddr, tte_data;
-	void (*remap_func)(unsigned long, unsigned long, int);
-	pmd_t *pmdp;
-	pte_t *ptep;
-	int node, n, i, tsz;
-	extern unsigned int obp_iaddr_patch[2], obp_daddr_patch[2];
+	unsigned long vaddr;
+
+	for (vaddr = start; vaddr < end; vaddr += BASE_PAGE_SIZE) {
+		unsigned long val, pte_phys, pmd_phys;
+		pmd_t pmd_ent;
+		int i;
+
+		pmd_phys = (prom_pmd_phys +
+			    (((vaddr >> 23) & 0x7ff) * sizeof(pmd_t)));
+		pmd_val(pmd_ent) = load_phys32(pmd_phys);
+		if (pmd_none(pmd_ent)) {
+			pte_phys = early_alloc_phys(BASE_PAGE_SIZE);
+
+			for (i = 0; i < BASE_PAGE_SIZE / sizeof(pte_t); i++)
+				store_phys64(pte_phys+i*sizeof(pte_t),0);
+
+			pmd_val(pmd_ent) = pte_phys >> 11UL;
+			store_phys32(pmd_phys, pmd_val(pmd_ent));
+		}
+
+		pte_phys = (unsigned long)pmd_val(pmd_ent) << 11UL;
+		pte_phys += (((vaddr >> 13) & 0x3ff) * sizeof(pte_t));
+
+		val = data;
+
+		/* Clear diag TTE bits. */
+		if (tlb_type == spitfire)
+			val &= ~0x0003fe0000000000UL;
+
+		store_phys64(pte_phys, val | _PAGE_MODIFIED);
+
+		data += BASE_PAGE_SIZE;
+	}
+}
+
+static inline int in_obp_range(unsigned long vaddr)
+{
+	return (vaddr >= LOW_OBP_ADDRESS &&
+		vaddr < HI_OBP_ADDRESS);
+}
+
+#define OBP_PMD_SIZE 2048
+static void __init build_obp_pgtable(int prom_trans_ents)
+{
+	unsigned long i;
+
+	prom_pmd_phys = early_alloc_phys(OBP_PMD_SIZE);
+	for (i = 0; i < OBP_PMD_SIZE; i += 4)
+		store_phys32(prom_pmd_phys + i, 0);
+
+	for (i = 0; i < prom_trans_ents; i++) {
+		unsigned long start, end;
+
+		if (!in_obp_range(prom_trans[i].virt))
+			continue;
+
+		start = prom_trans[i].virt;
+		end = start + prom_trans[i].size;
+		if (end > HI_OBP_ADDRESS)
+			end = HI_OBP_ADDRESS;
+
+		build_obp_range(start, end, prom_trans[i].data);
+	}
+}
+
+/* Read OBP translations property into 'prom_trans[]'.
+ * Return the number of entries.
+ */
+static int __init read_obp_translations(void)
+{
+	int n, node;
 
 	node = prom_finddevice("/virtual-memory");
 	n = prom_getproplen(node, "translations");
-	if (n == 0 || n == -1) {
-		prom_printf("Couldn't get translation property\n");
+	if (unlikely(n == 0 || n == -1)) {
+		prom_printf("prom_mappings: Couldn't get size.\n");
 		prom_halt();
 	}
-	n += 5 * sizeof(struct linux_prom_translation);
-	for (tsz = 1; tsz < n; tsz <<= 1)
-		/* empty */;
-	trans = __alloc_bootmem(tsz, SMP_CACHE_BYTES, bootmap_base);
-	if (trans == NULL) {
-		prom_printf("inherit_prom_mappings: Cannot alloc translations.\n");
+	if (unlikely(n > sizeof(prom_trans))) {
+		prom_printf("prom_mappings: Size %Zd is too big.\n", n);
 		prom_halt();
 	}
-	memset(trans, 0, tsz);
 
-	if ((n = prom_getproperty(node, "translations", (char *)trans, tsz)) == -1) {
-		prom_printf("Couldn't get translation property\n");
+	if ((n = prom_getproperty(node, "translations",
+				  (char *)&prom_trans[0],
+				  sizeof(prom_trans))) == -1) {
+		prom_printf("prom_mappings: Couldn't get property.\n");
 		prom_halt();
 	}
-	n = n / sizeof(*trans);
+	n = n / sizeof(struct linux_prom_translation);
+	return n;
+}
 
-	/*
-	 * The obp translations are saved based on 8k pagesize, since obp can
-	 * use a mixture of pagesizes. Misses to the 0xf0000000 - 0x100000000,
-	 * ie obp range, are handled in entry.S and do not use the vpte scheme
-	 * (see rant in inherit_locked_prom_mappings()).
-	 */
-#define OBP_PMD_SIZE 2048
-	prompmd = __alloc_bootmem(OBP_PMD_SIZE, OBP_PMD_SIZE, bootmap_base);
-	if (prompmd == NULL)
-		early_pgtable_allocfail("pmd");
-	memset(prompmd, 0, OBP_PMD_SIZE);
-	for (i = 0; i < n; i++) {
-		unsigned long vaddr;
-
-		if (trans[i].virt >= LOW_OBP_ADDRESS && trans[i].virt < HI_OBP_ADDRESS) {
-			for (vaddr = trans[i].virt;
-			     ((vaddr < trans[i].virt + trans[i].size) && 
-			     (vaddr < HI_OBP_ADDRESS));
-			     vaddr += BASE_PAGE_SIZE) {
-				unsigned long val;
-
-				pmdp = prompmd + ((vaddr >> 23) & 0x7ff);
-				if (pmd_none(*pmdp)) {
-					ptep = __alloc_bootmem(BASE_PAGE_SIZE,
-							       BASE_PAGE_SIZE,
-							       bootmap_base);
-					if (ptep == NULL)
-						early_pgtable_allocfail("pte");
-					memset(ptep, 0, BASE_PAGE_SIZE);
-					pmd_set(pmdp, ptep);
-				}
-				ptep = (pte_t *)__pmd_page(*pmdp) +
-						((vaddr >> 13) & 0x3ff);
-
-				val = trans[i].data;
-
-				/* Clear diag TTE bits. */
-				if (tlb_type == spitfire)
-					val &= ~0x0003fe0000000000UL;
-
-				set_pte_at(&init_mm, vaddr,
-					   ptep, __pte(val | _PAGE_MODIFIED));
-				trans[i].data += BASE_PAGE_SIZE;
-			}
-		}
-	}
-	phys_page = __pa(prompmd);
-	obp_iaddr_patch[0] |= (phys_page >> 10);
-	obp_iaddr_patch[1] |= (phys_page & 0x3ff);
-	flushi((long)&obp_iaddr_patch[0]);
-	obp_daddr_patch[0] |= (phys_page >> 10);
-	obp_daddr_patch[1] |= (phys_page & 0x3ff);
-	flushi((long)&obp_daddr_patch[0]);
-
-	/* Now fixup OBP's idea about where we really are mapped. */
-	prom_printf("Remapping the kernel... ");
-
-	/* Spitfire Errata #32 workaround */
-	/* NOTE: Using plain zero for the context value is
-	 *       correct here, we are not using the Linux trap
-	 *       tables yet so we should not use the special
-	 *       UltraSPARC-III+ page size encodings yet.
-	 */
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-			     "flush	%%g6"
-			     : /* No outputs */
-			     : "r" (0), "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-
-	switch (tlb_type) {
-	default:
-	case spitfire:
-		phys_page = spitfire_get_dtlb_data(sparc64_highest_locked_tlbent());
-		break;
-
-	case cheetah:
-	case cheetah_plus:
-		phys_page = cheetah_get_litlb_data(sparc64_highest_locked_tlbent());
-		break;
-	};
-
-	phys_page &= _PAGE_PADDR;
-	phys_page += ((unsigned long)&prom_boot_page -
-		      (unsigned long)KERNBASE);
-
-	if (tlb_type == spitfire) {
-		/* Lock this into i/d tlb entry 59 */
-		__asm__ __volatile__(
-			"stxa	%%g0, [%2] %3\n\t"
-			"stxa	%0, [%1] %4\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6\n\t"
-			"stxa	%%g0, [%2] %5\n\t"
-			"stxa	%0, [%1] %6\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6"
-			: : "r" (phys_page | _PAGE_VALID | _PAGE_SZ8K | _PAGE_CP |
-				 _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W),
-			"r" (59 << 3), "r" (TLB_TAG_ACCESS),
-			"i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS),
-			"i" (ASI_IMMU), "i" (ASI_ITLB_DATA_ACCESS)
-			: "memory");
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		/* Lock this into i/d tlb-0 entry 11 */
-		__asm__ __volatile__(
-			"stxa	%%g0, [%2] %3\n\t"
-			"stxa	%0, [%1] %4\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6\n\t"
-			"stxa	%%g0, [%2] %5\n\t"
-			"stxa	%0, [%1] %6\n\t"
-			"membar	#Sync\n\t"
-			"flush	%%g6"
-			: : "r" (phys_page | _PAGE_VALID | _PAGE_SZ8K | _PAGE_CP |
-				 _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W),
-			"r" ((0 << 16) | (11 << 3)), "r" (TLB_TAG_ACCESS),
-			"i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS),
-			"i" (ASI_IMMU), "i" (ASI_ITLB_DATA_ACCESS)
-			: "memory");
-	} else {
-		/* Implement me :-) */
-		BUG();
-	}
+static void __init remap_kernel(void)
+{
+	unsigned long phys_page, tte_vaddr, tte_data;
+	int tlb_ent = sparc64_highest_locked_tlbent();
 
 	tte_vaddr = (unsigned long) KERNBASE;
-
-	/* Spitfire Errata #32 workaround */
-	/* NOTE: Using plain zero for the context value is
-	 *       correct here, we are not using the Linux trap
-	 *       tables yet so we should not use the special
-	 *       UltraSPARC-III+ page size encodings yet.
-	 */
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-			     "flush	%%g6"
-			     : /* No outputs */
-			     : "r" (0),
-			     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-
-	if (tlb_type == spitfire)
-		tte_data = spitfire_get_dtlb_data(sparc64_highest_locked_tlbent());
-	else
-		tte_data = cheetah_get_ldtlb_data(sparc64_highest_locked_tlbent());
+	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	tte_data = (phys_page | (_PAGE_VALID | _PAGE_SZ4MB |
+				 _PAGE_CP | _PAGE_CV | _PAGE_P |
+				 _PAGE_L | _PAGE_W));
 
 	kern_locked_tte_data = tte_data;
 
-	remap_func = (void *)  ((unsigned long) &prom_remap -
-				(unsigned long) &prom_boot_page);
-
-
-	/* Spitfire Errata #32 workaround */
-	/* NOTE: Using plain zero for the context value is
-	 *       correct here, we are not using the Linux trap
-	 *       tables yet so we should not use the special
-	 *       UltraSPARC-III+ page size encodings yet.
-	 */
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-			     "flush	%%g6"
-			     : /* No outputs */
-			     : "r" (0),
-			     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-
-	remap_func((tlb_type == spitfire ?
-		    (spitfire_get_dtlb_data(sparc64_highest_locked_tlbent()) & _PAGE_PADDR) :
-		    (cheetah_get_litlb_data(sparc64_highest_locked_tlbent()) & _PAGE_PADDR)),
-		   (unsigned long) KERNBASE,
-		   prom_get_mmu_ihandle());
-
-	if (bigkernel)
-		remap_func(((tte_data + 0x400000) & _PAGE_PADDR),
-			(unsigned long) KERNBASE + 0x400000, prom_get_mmu_ihandle());
-
-	/* Flush out that temporary mapping. */
-	spitfire_flush_dtlb_nucleus_page(0x0);
-	spitfire_flush_itlb_nucleus_page(0x0);
-
-	/* Now lock us back into the TLBs via OBP. */
-	prom_dtlb_load(sparc64_highest_locked_tlbent(), tte_data, tte_vaddr);
-	prom_itlb_load(sparc64_highest_locked_tlbent(), tte_data, tte_vaddr);
+	/* Now lock us into the TLBs via OBP. */
+	prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
+	prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
 	if (bigkernel) {
-		prom_dtlb_load(sparc64_highest_locked_tlbent()-1, tte_data + 0x400000, 
-								tte_vaddr + 0x400000);
-		prom_itlb_load(sparc64_highest_locked_tlbent()-1, tte_data + 0x400000, 
-								tte_vaddr + 0x400000);
+		prom_dtlb_load(tlb_ent - 1,
+			       tte_data + 0x400000, 
+			       tte_vaddr + 0x400000);
+		prom_itlb_load(tlb_ent - 1,
+			       tte_data + 0x400000, 
+			       tte_vaddr + 0x400000);
 	}
+}
 
-	/* Re-read translations property. */
-	if ((n = prom_getproperty(node, "translations", (char *)trans, tsz)) == -1) {
-		prom_printf("Couldn't get translation property\n");
-		prom_halt();
-	}
-	n = n / sizeof(*trans);
+static void __init inherit_prom_mappings(void)
+{
+	int n;
 
-	for (i = 0; i < n; i++) {
-		unsigned long vaddr = trans[i].virt;
-		unsigned long size = trans[i].size;
+	n = read_obp_translations();
+	build_obp_pgtable(n);
 
-		if (vaddr < 0xf0000000UL) {
-			unsigned long avoid_start = (unsigned long) KERNBASE;
-			unsigned long avoid_end = avoid_start + (4 * 1024 * 1024);
-
-			if (bigkernel)
-				avoid_end += (4 * 1024 * 1024);
-			if (vaddr < avoid_start) {
-				unsigned long top = vaddr + size;
-
-				if (top > avoid_start)
-					top = avoid_start;
-				prom_unmap(top - vaddr, vaddr);
-			}
-			if ((vaddr + size) > avoid_end) {
-				unsigned long bottom = vaddr;
-
-				if (bottom < avoid_end)
-					bottom = avoid_end;
-				prom_unmap((vaddr + size) - bottom, bottom);
-			}
-		}
-	}
+	/* Now fixup OBP's idea about where we really are mapped. */
+	prom_printf("Remapping the kernel... ");
+	remap_kernel();
 
 	prom_printf("done.\n");
 
@@ -1347,8 +1277,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 #endif
 	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn, pfn_base, end_pfn);
 
-	bootmap_base = bootmap_pfn << PAGE_SHIFT;
-
 	/* Now register the available physical memory with the
 	 * allocator.
 	 */
@@ -1398,120 +1326,142 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	return end_pfn;
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, pgprot_t prot)
+{
+	unsigned long vstart = PAGE_OFFSET + pstart;
+	unsigned long vend = PAGE_OFFSET + pend;
+	unsigned long alloc_bytes = 0UL;
+
+	if ((vstart & ~PAGE_MASK) || (vend & ~PAGE_MASK)) {
+		prom_printf("kernel_map: Unaligned sp_banks[%lx:%lx]\n",
+			    vstart, vend);
+		prom_halt();
+	}
+
+	while (vstart < vend) {
+		unsigned long this_end, paddr = __pa(vstart);
+		pgd_t *pgd = pgd_offset_k(vstart);
+		pud_t *pud;
+		pmd_t *pmd;
+		pte_t *pte;
+
+		pud = pud_offset(pgd, vstart);
+		if (pud_none(*pud)) {
+			pmd_t *new;
+
+			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			alloc_bytes += PAGE_SIZE;
+			pud_populate(&init_mm, pud, new);
+		}
+
+		pmd = pmd_offset(pud, vstart);
+		if (!pmd_present(*pmd)) {
+			pte_t *new;
+
+			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			alloc_bytes += PAGE_SIZE;
+			pmd_populate_kernel(&init_mm, pmd, new);
+		}
+
+		pte = pte_offset_kernel(pmd, vstart);
+		this_end = (vstart + PMD_SIZE) & PMD_MASK;
+		if (this_end > vend)
+			this_end = vend;
+
+		while (vstart < this_end) {
+			pte_val(*pte) = (paddr | pgprot_val(prot));
+
+			vstart += PAGE_SIZE;
+			paddr += PAGE_SIZE;
+			pte++;
+		}
+	}
+
+	return alloc_bytes;
+}
+
+extern struct linux_mlist_p1275 *prom_ptot_ptr;
+extern unsigned int kvmap_linear_patch[1];
+
+static void __init kernel_physical_mapping_init(void)
+{
+	struct linux_mlist_p1275 *p = prom_ptot_ptr;
+	unsigned long mem_alloced = 0UL;
+
+	while (p) {
+		unsigned long phys_start, phys_end;
+
+		phys_start = p->start_adr;
+		phys_end = phys_start + p->num_bytes;
+		mem_alloced += kernel_map_range(phys_start, phys_end,
+						PAGE_KERNEL);
+
+		p = p->theres_more;
+	}
+
+	printk("Allocated %ld bytes for kernel page tables.\n",
+	       mem_alloced);
+
+	kvmap_linear_patch[0] = 0x01000000; /* nop */
+	flushi(&kvmap_linear_patch[0]);
+
+	__flush_tlb_all();
+}
+
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	unsigned long phys_start = page_to_pfn(page) << PAGE_SHIFT;
+	unsigned long phys_end = phys_start + (numpages * PAGE_SIZE);
+
+	kernel_map_range(phys_start, phys_end,
+			 (enable ? PAGE_KERNEL : __pgprot(0)));
+
+	/* we should perform an IPI and flush all tlbs,
+	 * but that can deadlock->flush only current cpu.
+	 */
+	__flush_tlb_kernel_range(PAGE_OFFSET + phys_start,
+				 PAGE_OFFSET + phys_end);
+}
+#endif
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
 
 static unsigned long last_valid_pfn;
+pgd_t swapper_pg_dir[2048];
 
 void __init paging_init(void)
 {
-	extern pmd_t swapper_pmd_dir[1024];
-	extern unsigned int sparc64_vpte_patchme1[1];
-	extern unsigned int sparc64_vpte_patchme2[1];
-	unsigned long alias_base = kern_base + PAGE_OFFSET;
-	unsigned long second_alias_page = 0;
-	unsigned long pt, flags, end_pfn, pages_avail;
-	unsigned long shift = alias_base - ((unsigned long)KERNBASE);
+	unsigned long end_pfn, pages_avail, shift;
 	unsigned long real_end;
 
 	set_bit(0, mmu_context_bmap);
 
+	shift = kern_base + PAGE_OFFSET - ((unsigned long)KERNBASE);
+
 	real_end = (unsigned long)_end;
 	if ((real_end > ((unsigned long)KERNBASE + 0x400000)))
 		bigkernel = 1;
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (sparc_ramdisk_image || sparc_ramdisk_image64)
-		real_end = (PAGE_ALIGN(real_end) + PAGE_ALIGN(sparc_ramdisk_size));
-#endif
-
-	/* We assume physical memory starts at some 4mb multiple,
-	 * if this were not true we wouldn't boot up to this point
-	 * anyways.
-	 */
-	pt  = kern_base | _PAGE_VALID | _PAGE_SZ4MB;
-	pt |= _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W;
-	local_irq_save(flags);
-	if (tlb_type == spitfire) {
-		__asm__ __volatile__(
-	"	stxa	%1, [%0] %3\n"
-	"	stxa	%2, [%5] %4\n"
-	"	membar	#Sync\n"
-	"	flush	%%g6\n"
-	"	nop\n"
-	"	nop\n"
-	"	nop\n"
-		: /* No outputs */
-		: "r" (TLB_TAG_ACCESS), "r" (alias_base), "r" (pt),
-		  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" (61 << 3)
-		: "memory");
-		if (real_end >= KERNBASE + 0x340000) {
-			second_alias_page = alias_base + 0x400000;
-			__asm__ __volatile__(
-		"	stxa	%1, [%0] %3\n"
-		"	stxa	%2, [%5] %4\n"
-		"	membar	#Sync\n"
-		"	flush	%%g6\n"
-		"	nop\n"
-		"	nop\n"
-		"	nop\n"
-			: /* No outputs */
-			: "r" (TLB_TAG_ACCESS), "r" (second_alias_page), "r" (pt + 0x400000),
-			  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" (60 << 3)
-			: "memory");
-		}
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		__asm__ __volatile__(
-	"	stxa	%1, [%0] %3\n"
-	"	stxa	%2, [%5] %4\n"
-	"	membar	#Sync\n"
-	"	flush	%%g6\n"
-	"	nop\n"
-	"	nop\n"
-	"	nop\n"
-		: /* No outputs */
-		: "r" (TLB_TAG_ACCESS), "r" (alias_base), "r" (pt),
-		  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" ((0<<16) | (13<<3))
-		: "memory");
-		if (real_end >= KERNBASE + 0x340000) {
-			second_alias_page = alias_base + 0x400000;
-			__asm__ __volatile__(
-		"	stxa	%1, [%0] %3\n"
-		"	stxa	%2, [%5] %4\n"
-		"	membar	#Sync\n"
-		"	flush	%%g6\n"
-		"	nop\n"
-		"	nop\n"
-		"	nop\n"
-			: /* No outputs */
-			: "r" (TLB_TAG_ACCESS), "r" (second_alias_page), "r" (pt + 0x400000),
-			  "i" (ASI_DMMU), "i" (ASI_DTLB_DATA_ACCESS), "r" ((0<<16) | (12<<3))
-			: "memory");
-		}
+	if ((real_end > ((unsigned long)KERNBASE + 0x800000))) {
+		prom_printf("paging_init: Kernel > 8MB, too large.\n");
+		prom_halt();
 	}
-	local_irq_restore(flags);
-	
-	/* Now set kernel pgd to upper alias so physical page computations
+
+	/* Set kernel pgd to upper alias so physical page computations
 	 * work.
 	 */
 	init_mm.pgd += ((shift) / (sizeof(pgd_t)));
 	
-	memset(swapper_pmd_dir, 0, sizeof(swapper_pmd_dir));
+	memset(swapper_low_pmd_dir, 0, sizeof(swapper_low_pmd_dir));
 
 	/* Now can init the kernel/bad page tables. */
 	pud_set(pud_offset(&swapper_pg_dir[0], 0),
-		swapper_pmd_dir + (shift / sizeof(pgd_t)));
+		swapper_low_pmd_dir + (shift / sizeof(pgd_t)));
 	
-	sparc64_vpte_patchme1[0] |=
-		(((unsigned long)pgd_val(init_mm.pgd[0])) >> 10);
-	sparc64_vpte_patchme2[0] |=
-		(((unsigned long)pgd_val(init_mm.pgd[0])) & 0x3ff);
-	flushi((long)&sparc64_vpte_patchme1[0]);
+	swapper_pgd_zero = pgd_val(swapper_pg_dir[0]);
 	
-	/* Setup bootmem... */
-	pages_avail = 0;
-	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
-
 	/* Inherit non-locked OBP mappings. */
 	inherit_prom_mappings();
 	
@@ -1527,12 +1477,15 @@ void __init paging_init(void)
 
 	inherit_locked_prom_mappings(1);
 
-	/* We only created DTLB mapping of this stuff. */
-	spitfire_flush_dtlb_nucleus_page(alias_base);
-	if (second_alias_page)
-		spitfire_flush_dtlb_nucleus_page(second_alias_page);
-
 	__flush_tlb_all();
+
+	/* Setup bootmem... */
+	pages_avail = 0;
+	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	kernel_physical_mapping_init();
+#endif
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
@@ -1695,8 +1648,7 @@ void __init mem_init(void)
 
 	i = last_valid_pfn >> ((22 - PAGE_SHIFT) + 6);
 	i += 1;
-	sparc64_valid_addr_bitmap = (unsigned long *)
-		__alloc_bootmem(i << 3, SMP_CACHE_BYTES, bootmap_base);
+	sparc64_valid_addr_bitmap = (unsigned long *) alloc_bootmem(i << 3);
 	if (sparc64_valid_addr_bitmap == NULL) {
 		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
 		prom_halt();
@@ -1749,7 +1701,7 @@ void __init mem_init(void)
 		cheetah_ecache_flush_init();
 }
 
-void free_initmem (void)
+void free_initmem(void)
 {
 	unsigned long addr, initend;
 

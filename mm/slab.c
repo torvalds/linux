@@ -2510,16 +2510,12 @@ cache_alloc_debugcheck_after(kmem_cache_t *cachep,
 #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
 #endif
 
-
-static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+static inline void *____cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
 {
-	unsigned long save_flags;
 	void* objp;
 	struct array_cache *ac;
 
-	cache_alloc_debugcheck_before(cachep, flags);
-
-	local_irq_save(save_flags);
+	check_irq_off();
 	ac = ac_data(cachep);
 	if (likely(ac->avail)) {
 		STATS_INC_ALLOCHIT(cachep);
@@ -2529,6 +2525,18 @@ static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast fl
 		STATS_INC_ALLOCMISS(cachep);
 		objp = cache_alloc_refill(cachep, flags);
 	}
+	return objp;
+}
+
+static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+{
+	unsigned long save_flags;
+	void* objp;
+
+	cache_alloc_debugcheck_before(cachep, flags);
+
+	local_irq_save(save_flags);
+	objp = ____cache_alloc(cachep, flags);
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
 					__builtin_return_address(0));
@@ -2856,7 +2864,10 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, unsigned int __nocast flags, i
 
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
-	ptr = __cache_alloc_node(cachep, flags, nodeid);
+	if (nodeid == numa_node_id())
+		ptr = ____cache_alloc(cachep, flags);
+	else
+		ptr = __cache_alloc_node(cachep, flags, nodeid);
 	local_irq_restore(save_flags);
 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, __builtin_return_address(0));
 

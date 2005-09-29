@@ -23,6 +23,7 @@ struct ppc64_tlb_batch {
 	struct mm_struct *mm;
 	pte_t pte[PPC64_TLB_BATCH_NR];
 	unsigned long vaddr[PPC64_TLB_BATCH_NR];
+	unsigned int large;
 };
 DECLARE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 

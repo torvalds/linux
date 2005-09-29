@@ -96,6 +96,8 @@ static int fuse_lookup_iget(struct inode *dir, struct dentry *entry,
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
+	if (!err && (!outarg.nodeid || outarg.nodeid == FUSE_ROOT_ID))
+		err = -EIO;
 	if (!err) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 				  &outarg.attr);
@@ -151,6 +153,10 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	if (err) {
 		fuse_put_request(fc, req);
 		return err;
+	}
+	if (!outarg.nodeid || outarg.nodeid == FUSE_ROOT_ID) {
+		fuse_put_request(fc, req);
+		return -EIO;
 	}
 	inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 			  &outarg.attr);

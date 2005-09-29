@@ -141,12 +141,14 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	 * up scanning and resetting referenced bits then our batch context
 	 * will change mid stream.
 	 */
-	if (unlikely(i != 0 && mm != batch->mm)) {
+	if (i != 0 && (mm != batch->mm || batch->large != pte_huge(pte))) {
 		flush_tlb_pending();
 		i = 0;
 	}
-	if (i == 0)
+	if (i == 0) {
 		batch->mm = mm;
+		batch->large = pte_huge(pte);
+	}
 	if (addr < KERNELBASE) {
 		vsid = get_vsid(mm->context.id, addr);
 		WARN_ON(vsid == 0);

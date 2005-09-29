@@ -119,8 +119,8 @@ startup_continue:
 	sethi		%hi(itlb_load), %g2
 	or		%g2, %lo(itlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -156,8 +156,8 @@ startup_continue:
 	sethi		%hi(itlb_load), %g2
 	or		%g2, %lo(itlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE + 0x400000), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -190,8 +190,8 @@ do_dtlb:
 	sethi		%hi(dtlb_load), %g2
 	or		%g2, %lo(dtlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]
@@ -228,8 +228,8 @@ do_dtlb:
 	sethi		%hi(dtlb_load), %g2
 	or		%g2, %lo(dtlb_load), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(mmu_ihandle_cache)], %g2
+	sethi		%hi(prom_mmu_ihandle_cache), %g2
+	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
 	sethi		%hi(KERNBASE + 0x400000), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x28]

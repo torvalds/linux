@@ -38,7 +38,7 @@
 #include <net/irda/parameters.h>
 #include <net/irda/irttp.h>
 
-static struct irttp_cb *irttp = NULL;
+static struct irttp_cb *irttp;
 
 static void __irttp_close_tsap(struct tsap_cb *self);
 
@@ -86,12 +86,9 @@ static pi_param_info_t param_info = { pi_major_call_table, 1, 0x0f, 4 };
  */
 int __init irttp_init(void)
 {
-	/* Initialize the irttp structure. */
-	if (irttp == NULL) {
-		irttp = kmalloc(sizeof(struct irttp_cb), GFP_KERNEL);
-		if (irttp == NULL)
-			return -ENOMEM;
-	}
+	irttp = kmalloc(sizeof(struct irttp_cb), GFP_KERNEL);
+	if (irttp == NULL)
+		return -ENOMEM;
 	memset(irttp, 0, sizeof(struct irttp_cb));
 
 	irttp->magic = TTP_MAGIC;
@@ -100,6 +97,7 @@ int __init irttp_init(void)
 	if (!irttp->tsaps) {
 		IRDA_ERROR("%s: can't allocate IrTTP hashbin!\n",
 			   __FUNCTION__);
+		kfree(irttp);
 		return -ENOMEM;
 	}
 
@@ -115,7 +113,6 @@ int __init irttp_init(void)
 void __exit irttp_cleanup(void) 
 {
 	/* Check for main structure */
-	IRDA_ASSERT(irttp != NULL, return;);
 	IRDA_ASSERT(irttp->magic == TTP_MAGIC, return;);
 
 	/*
@@ -382,7 +379,6 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 	struct lsap_cb *lsap;
 	notify_t ttp_notify;
 
-	IRDA_ASSERT(irttp != NULL, return NULL;);
 	IRDA_ASSERT(irttp->magic == TTP_MAGIC, return NULL;);
 
 	/* The IrLMP spec (IrLMP 1.1 p10) says that we have the right to
@@ -1880,8 +1876,6 @@ static int irttp_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -ENOMEM;
 	struct irttp_iter_state *s;
-       
-	IRDA_ASSERT(irttp != NULL, return -EINVAL;);
 
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)

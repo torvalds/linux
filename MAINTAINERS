@@ -604,6 +604,15 @@ P:	H. Peter Anvin
 M:	hpa@zytor.com
 S:	Maintained
 
+CPUSETS
+P:	Paul Jackson
+P:	Simon Derr
+M:	pj@sgi.com
+M:	simon.derr@bull.net
+L:	linux-kernel@vger.kernel.org
+W:	http://www.bullopensource.org/cpuset/
+S:	Supported
+
 CRAMFS FILESYSTEM
 W:     http://sourceforge.net/projects/cramfs/
 S:     Orphan
@@ -1904,6 +1913,13 @@ PHRAM MTD DRIVER
 P:	Jörn Engel
 M:	joern@wh.fh-wedel.de
 L:	linux-mtd@lists.infradead.org
+S:	Maintained
+
+PKTCDVD DRIVER
+P:	Peter Osterlund
+M:	petero2@telia.com
+L:	linux-kernel@vger.kernel.org
+L:	packet-writing@suse.com
 S:	Maintained
 
 POSIX CLOCKS and TIMERS

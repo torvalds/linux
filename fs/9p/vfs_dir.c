@@ -197,21 +197,18 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 	filemap_fdatawait(inode->i_mapping);
 
 	if (fidnum >= 0) {
-		fid->fidopen--;
 		dprintk(DEBUG_VFS, "fidopen: %d v9f->fid: %d\n", fid->fidopen,
 			fid->fid);
 
-		if (fid->fidopen == 0) {
-			if (v9fs_t_clunk(v9ses, fidnum, NULL))
-				dprintk(DEBUG_ERROR, "clunk failed\n");
+		if (v9fs_t_clunk(v9ses, fidnum, NULL))
+			dprintk(DEBUG_ERROR, "clunk failed\n");
 
-			v9fs_put_idpool(fid->fid, &v9ses->fidpool);
-		}
+		v9fs_put_idpool(fid->fid, &v9ses->fidpool);
 
 		kfree(fid->rdir_fcall);
+		kfree(fid);
 
 		filp->private_data = NULL;
-		v9fs_fid_destroy(fid);
 	}
 
 	d_drop(filp->f_dentry);

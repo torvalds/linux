@@ -448,7 +448,9 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (hdr.in_words * 4 != count)
 		return -EINVAL;
 
-	if (hdr.command < 0 || hdr.command >= ARRAY_SIZE(uverbs_cmd_table))
+	if (hdr.command < 0				||
+	    hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
+	    !uverbs_cmd_table[hdr.command])
 		return -EINVAL;
 
 	if (!file->ucontext                               &&
@@ -484,27 +486,29 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	file = kmalloc(sizeof *file +
 		       (dev->num_comp - 1) * sizeof (struct ib_uverbs_event_file),
 		       GFP_KERNEL);
-	if (!file)
-		return -ENOMEM;
+	if (!file) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	file->device = dev;
 	kref_init(&file->ref);
+	init_MUTEX(&file->mutex);
 
 	file->ucontext = NULL;
 
+	kref_get(&file->ref);
 	ret = ib_uverbs_event_init(&file->async_file, file);
 	if (ret)
-		goto err;
+		goto err_kref;
 
 	file->async_file.is_async = 1;
 
-	kref_get(&file->ref);
-
 	for (i = 0; i < dev->num_comp; ++i) {
+		kref_get(&file->ref);
 		ret = ib_uverbs_event_init(&file->comp_file[i], file);
 		if (ret)
 			goto err_async;
-		kref_get(&file->ref);
 		file->comp_file[i].is_async = 0;
 	}
 
@@ -524,9 +528,16 @@ err_async:
 
 	ib_uverbs_event_release(&file->async_file);
 
-err:
+err_kref:
+	/*
+	 * One extra kref_put() because we took a reference before the
+	 * event file creation that failed and got us here.
+	 */
+	kref_put(&file->ref, ib_uverbs_release_file);
 	kref_put(&file->ref, ib_uverbs_release_file);
 
+err:
+	module_put(dev->ib_dev->owner);
 	return ret;
 }
 

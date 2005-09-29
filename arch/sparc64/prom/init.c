@@ -46,7 +46,7 @@ void __init prom_init(void *cif_handler, void *cif_stack)
 	if((prom_root_node == 0) || (prom_root_node == -1))
 		prom_halt();
 
-	prom_chosen_node = prom_finddevice("/chosen");
+	prom_chosen_node = prom_finddevice(prom_chosen_path);
 	if (!prom_chosen_node || prom_chosen_node == -1)
 		prom_halt();
 

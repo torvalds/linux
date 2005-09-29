@@ -693,14 +693,15 @@ void key_type_put(struct key_type *ktype)
  * - the key has an incremented refcount
  * - we need to put the key if we get an error
  */
-static inline struct key *__key_update(struct key *key, const void *payload,
-				       size_t plen)
+static inline key_ref_t __key_update(key_ref_t key_ref,
+				     const void *payload, size_t plen)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	int ret;
 
 	/* need write permission on the key to update it */
 	ret = -EACCES;
-	if (!key_permission(key, KEY_WRITE))
+	if (!key_permission(key_ref, KEY_WRITE))
 		goto error;
 
 	ret = -EEXIST;
@@ -719,12 +720,12 @@ static inline struct key *__key_update(struct key *key, const void *payload,
 
 	if (ret < 0)
 		goto error;
- out:
-	return key;
+out:
+	return key_ref;
 
- error:
+error:
 	key_put(key);
-	key = ERR_PTR(ret);
+	key_ref = ERR_PTR(ret);
 	goto out;
 
 } /* end __key_update() */
@@ -734,52 +735,56 @@ static inline struct key *__key_update(struct key *key, const void *payload,
  * search the specified keyring for a key of the same description; if one is
  * found, update it, otherwise add a new one
  */
-struct key *key_create_or_update(struct key *keyring,
-				 const char *type,
-				 const char *description,
-				 const void *payload,
-				 size_t plen,
-				 int not_in_quota)
+key_ref_t key_create_or_update(key_ref_t keyring_ref,
+			       const char *type,
+			       const char *description,
+			       const void *payload,
+			       size_t plen,
+			       int not_in_quota)
 {
 	struct key_type *ktype;
-	struct key *key = NULL;
+	struct key *keyring, *key = NULL;
 	key_perm_t perm;
+	key_ref_t key_ref;
 	int ret;
-
-	key_check(keyring);
 
 	/* look up the key type to see if it's one of the registered kernel
 	 * types */
 	ktype = key_type_lookup(type);
 	if (IS_ERR(ktype)) {
-		key = ERR_PTR(-ENODEV);
+		key_ref = ERR_PTR(-ENODEV);
 		goto error;
 	}
 
-	ret = -EINVAL;
+	key_ref = ERR_PTR(-EINVAL);
 	if (!ktype->match || !ktype->instantiate)
 		goto error_2;
+
+	keyring = key_ref_to_ptr(keyring_ref);
+
+	key_check(keyring);
+
+	down_write(&keyring->sem);
+
+	/* if we're going to allocate a new key, we're going to have
+	 * to modify the keyring */
+	key_ref = ERR_PTR(-EACCES);
+	if (!key_permission(keyring_ref, KEY_WRITE))
+		goto error_3;
 
 	/* search for an existing key of the same type and description in the
 	 * destination keyring
 	 */
-	down_write(&keyring->sem);
-
-	key = __keyring_search_one(keyring, ktype, description, 0);
-	if (!IS_ERR(key))
+	key_ref = __keyring_search_one(keyring_ref, ktype, description, 0);
+	if (!IS_ERR(key_ref))
 		goto found_matching_key;
 
-	/* if we're going to allocate a new key, we're going to have to modify
-	 * the keyring */
-	ret = -EACCES;
-	if (!key_permission(keyring, KEY_WRITE))
-		goto error_3;
-
 	/* decide on the permissions we want */
-	perm = KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK;
+	perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK;
+	perm |= KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK;
 
 	if (ktype->read)
-		perm |= KEY_USR_READ;
+		perm |= KEY_POS_READ | KEY_USR_READ;
 
 	if (ktype == &key_type_keyring || ktype->update)
 		perm |= KEY_USR_WRITE;
@@ -788,7 +793,7 @@ struct key *key_create_or_update(struct key *keyring,
 	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
 			perm, not_in_quota);
 	if (IS_ERR(key)) {
-		ret = PTR_ERR(key);
+		key_ref = ERR_PTR(PTR_ERR(key));
 		goto error_3;
 	}
 
@@ -796,15 +801,18 @@ struct key *key_create_or_update(struct key *keyring,
 	ret = __key_instantiate_and_link(key, payload, plen, keyring, NULL);
 	if (ret < 0) {
 		key_put(key);
-		key = ERR_PTR(ret);
+		key_ref = ERR_PTR(ret);
+		goto error_3;
 	}
+
+	key_ref = make_key_ref(key, is_key_possessed(keyring_ref));
 
  error_3:
 	up_write(&keyring->sem);
  error_2:
 	key_type_put(ktype);
  error:
-	return key;
+	return key_ref;
 
  found_matching_key:
 	/* we found a matching key, so we're going to try to update it
@@ -813,7 +821,7 @@ struct key *key_create_or_update(struct key *keyring,
 	up_write(&keyring->sem);
 	key_type_put(ktype);
 
-	key = __key_update(key, payload, plen);
+	key_ref = __key_update(key_ref, payload, plen);
 	goto error;
 
 } /* end key_create_or_update() */
@@ -824,15 +832,16 @@ EXPORT_SYMBOL(key_create_or_update);
 /*
  * update a key
  */
-int key_update(struct key *key, const void *payload, size_t plen)
+int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	int ret;
 
 	key_check(key);
 
 	/* the key must be writable */
 	ret = -EACCES;
-	if (!key_permission(key, KEY_WRITE))
+	if (!key_permission(key_ref, KEY_WRITE))
 		goto error;
 
 	/* attempt to update it if supported */

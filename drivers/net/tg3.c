@@ -67,8 +67,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.40"
-#define DRV_MODULE_RELDATE	"September 15, 2005"
+#define DRV_MODULE_VERSION	"3.41"
+#define DRV_MODULE_RELDATE	"September 27, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3389,7 +3389,8 @@ static irqreturn_t tg3_test_isr(int irq, void *dev_id,
 	struct tg3 *tp = netdev_priv(dev);
 	struct tg3_hw_status *sblk = tp->hw_status;
 
-	if (sblk->status & SD_STATUS_UPDATED) {
+	if ((sblk->status & SD_STATUS_UPDATED) ||
+	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     0x00000001);
 		return IRQ_RETVAL(1);
@@ -5395,6 +5396,9 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 	struct tg3 *tp = netdev_priv(dev);
 	struct sockaddr *addr = p;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	spin_lock_bh(&tp->lock);
@@ -5806,6 +5810,13 @@ static int tg3_reset_hw(struct tg3 *tp)
 	}
 	memset(tp->hw_status, 0, TG3_HW_STATUS_SIZE);
 
+	if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
+		tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
+		/* reset to prevent losing 1st rx packet intermittently */
+		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
+		udelay(10);
+	}
+
 	tp->mac_mode = MAC_MODE_TXSTAT_ENABLE | MAC_MODE_RXSTAT_ENABLE |
 		MAC_MODE_TDE_ENABLE | MAC_MODE_RDE_ENABLE | MAC_MODE_FHDE_ENABLE;
 	tw32_f(MAC_MODE, tp->mac_mode | MAC_MODE_RXSTAT_CLEAR | MAC_MODE_TXSTAT_CLEAR);
@@ -5937,7 +5948,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32(MAC_LED_CTRL, tp->led_ctrl);
 
 	tw32(MAC_MI_STAT, MAC_MI_STAT_LNKSTAT_ATTN_ENAB);
-	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) {
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
 		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
 		udelay(10);
 	}
@@ -7360,12 +7371,17 @@ static int tg3_nway_reset(struct net_device *dev)
 	if (!netif_running(dev))
 		return -EAGAIN;
 
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+		return -EINVAL;
+
 	spin_lock_bh(&tp->lock);
 	r = -EINVAL;
 	tg3_readphy(tp, MII_BMCR, &bmcr);
 	if (!tg3_readphy(tp, MII_BMCR, &bmcr) &&
-	    (bmcr & BMCR_ANENABLE)) {
-		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART);
+	    ((bmcr & BMCR_ANENABLE) ||
+	     (tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT))) {
+		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART |
+					   BMCR_ANENABLE);
 		r = 0;
 	}
 	spin_unlock_bh(&tp->lock);
@@ -7927,19 +7943,32 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	struct tg3_rx_buffer_desc *desc;
 
 	if (loopback_mode == TG3_MAC_LOOPBACK) {
+		/* HW errata - mac loopback fails in some cases on 5780.
+		 * Normal traffic and PHY loopback are not affected by
+		 * errata.
+		 */
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+			return 0;
+
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY |
 			   MAC_MODE_PORT_MODE_GMII;
 		tw32(MAC_MODE, mac_mode);
 	} else if (loopback_mode == TG3_PHY_LOOPBACK) {
+		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
+					   BMCR_SPEED1000);
+		udelay(40);
+		/* reset to prevent losing 1st rx packet intermittently */
+		if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
+			tw32_f(MAC_RX_MODE, RX_MODE_RESET);
+			udelay(10);
+			tw32_f(MAC_RX_MODE, tp->rx_mode);
+		}
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
 		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
 		tw32(MAC_MODE, mac_mode);
-
-		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
-					   BMCR_SPEED1000);
 	}
 	else
 		return -EINVAL;
@@ -10324,6 +10353,44 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	};
 }
 
+static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
+{
+	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
+		strcpy(str, "PCI Express");
+		return str;
+	} else if (tp->tg3_flags & TG3_FLAG_PCIX_MODE) {
+		u32 clock_ctrl = tr32(TG3PCI_CLOCK_CTRL) & 0x1f;
+
+		strcpy(str, "PCIX:");
+
+		if ((clock_ctrl == 7) ||
+		    ((tr32(GRC_MISC_CFG) & GRC_MISC_CFG_BOARD_ID_MASK) ==
+		     GRC_MISC_CFG_BOARD_ID_5704CIOBE))
+			strcat(str, "133MHz");
+		else if (clock_ctrl == 0)
+			strcat(str, "33MHz");
+		else if (clock_ctrl == 2)
+			strcat(str, "50MHz");
+		else if (clock_ctrl == 4)
+			strcat(str, "66MHz");
+		else if (clock_ctrl == 6)
+			strcat(str, "100MHz");
+		else if (clock_ctrl == 7)
+			strcat(str, "133MHz");
+	} else {
+		strcpy(str, "PCI:");
+		if (tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED)
+			strcat(str, "66MHz");
+		else
+			strcat(str, "33MHz");
+	}
+	if (tp->tg3_flags & TG3_FLAG_PCI_32BIT)
+		strcat(str, ":32-bit");
+	else
+		strcat(str, ":64-bit");
+	return str;
+}
+
 static struct pci_dev * __devinit tg3_find_5704_peer(struct tg3 *tp)
 {
 	struct pci_dev *peer;
@@ -10386,6 +10453,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct tg3 *tp;
 	int i, err, pci_using_dac, pm_cap;
+	char str[40];
 
 	if (tg3_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -10631,16 +10699,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (PCI%s:%s:%s) %sBaseT Ethernet ",
+	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (%s) %sBaseT Ethernet ",
 	       dev->name,
 	       tp->board_part_number,
 	       tp->pci_chip_rev_id,
 	       tg3_phy_string(tp),
-	       ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "X" : ""),
-	       ((tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED) ?
-		((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "133MHz" : "66MHz") :
-		((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "100MHz" : "33MHz")),
-	       ((tp->tg3_flags & TG3_FLAG_PCI_32BIT) ? "32-bit" : "64-bit"),
+	       tg3_bus_string(tp, str),
 	       (tp->tg3_flags & TG3_FLAG_10_100_ONLY) ? "10/100" : "10/100/1000");
 
 	for (i = 0; i < 6; i++)
