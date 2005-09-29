@@ -50,8 +50,10 @@ void atm_reset_addr(struct atm_dev *dev)
 	struct atm_dev_addr *this, *p;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	list_for_each_entry_safe(this, p, &dev->local, entry)
-	    kfree(this);
+	list_for_each_entry_safe(this, p, &dev->local, entry) {
+		list_del(&this->entry);
+		kfree(this);
+	}
 	spin_unlock_irqrestore(&dev->lock, flags);
 	notify_sigd(dev);
 }
