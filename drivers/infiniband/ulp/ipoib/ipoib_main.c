@@ -474,7 +474,7 @@ err:
 	spin_unlock(&priv->lock);
 }
 
-static void path_lookup(struct sk_buff *skb, struct net_device *dev)
+static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(skb->dev);
 
@@ -569,7 +569,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->dst && skb->dst->neighbour) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
-			path_lookup(skb, dev);
+			ipoib_path_lookup(skb, dev);
 			goto out;
 		}
 
