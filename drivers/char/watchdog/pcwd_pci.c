@@ -111,6 +111,13 @@ static struct {				/* this is private data for each PCI-PC watchdog card */
 } pcipcwd_private;
 
 /* module parameters */
+#define QUIET	0	/* Default */
+#define VERBOSE	1	/* Verbose */
+#define DEBUG	2	/* print fancy stuff too */
+static int debug = QUIET;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
+
 #define WATCHDOG_HEARTBEAT 2	/* 2 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
@@ -127,6 +134,10 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CON
 static int send_command(int cmd, int *msb, int *lsb)
 {
 	int got_response, count;
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x\n",
+		cmd, *msb, *lsb);
 
 	spin_lock(&pcipcwd_private.io_lock);
 	/* If a command requires data it should be written first.
@@ -148,6 +159,15 @@ static int send_command(int cmd, int *msb, int *lsb)
 		got_response = inb_p(pcipcwd_private.io_addr + 2) & WD_PCI_WRSP;
 	}
 
+	if (debug >= DEBUG) {
+		if (got_response) {
+			printk(KERN_DEBUG PFX "time to process command was: %d ms\n",
+				count);
+		} else {
+			printk(KERN_DEBUG PFX "card did not respond on command!\n");
+		}
+	}
+
 	if (got_response) {
 		/* read back response */
 		*lsb = inb_p(pcipcwd_private.io_addr + 4);
@@ -155,7 +175,12 @@ static int send_command(int cmd, int *msb, int *lsb)
 
 		/* clear WRSP bit */
 		inb_p(pcipcwd_private.io_addr + 6);
+
+		if (debug >= DEBUG)
+			printk(KERN_DEBUG PFX "received following data for cmd=0x%02x: msb=0x%02x lsb=0x%02x\n",
+				cmd, *msb, *lsb);
 	}
+
 	spin_unlock(&pcipcwd_private.io_lock);
 
 	return got_response;
@@ -226,6 +251,9 @@ static int pcipcwd_start(void)
 		return -1;
 	}
 
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "Watchdog started\n");
+
 	return 0;
 }
 
@@ -248,6 +276,9 @@ static int pcipcwd_stop(void)
 		return -1;
 	}
 
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "Watchdog stopped\n");
+
 	return 0;
 }
 
@@ -255,6 +286,10 @@ static int pcipcwd_keepalive(void)
 {
 	/* Re-trigger watchdog by writing to port 0 */
 	outb_p(0x42, pcipcwd_private.io_addr);	/* send out any data */
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "Watchdog keepalive signal send\n");
+
 	return 0;
 }
 
@@ -270,6 +305,10 @@ static int pcipcwd_set_heartbeat(int t)
 	send_command(CMD_WRITE_WATCHDOG_TIMEOUT, &t_msb, &t_lsb);
 
 	heartbeat = t;
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "New heartbeat: %d\n",
+		       heartbeat);
+
 	return 0;
 }
 
@@ -287,6 +326,10 @@ static int pcipcwd_get_status(int *status)
 			panic(PFX "Temperature overheat trip!\n");
 	}
 
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "Control Status #1: 0x%02x\n",
+		       control_status);
+
 	return 0;
 }
 
@@ -296,7 +339,16 @@ static int pcipcwd_clear_status(void)
 	int msb;
 	int reset_counter;
 
+	if (debug >= VERBOSE)
+		printk(KERN_INFO PFX "clearing watchdog trip status & LED\n");
+
 	control_status = inb_p(pcipcwd_private.io_addr + 1);
+
+	if (debug >= DEBUG) {
+		printk(KERN_DEBUG PFX "status was: 0x%02x\n", control_status);
+		printk(KERN_DEBUG PFX "sending: 0x%02x\n",
+		       (control_status & WD_PCI_R2DS) | WD_PCI_WTRP);
+	}
 
 	/* clear trip status & LED and keep mode of relay 2 */
 	outb_p((control_status & WD_PCI_R2DS) | WD_PCI_WTRP, pcipcwd_private.io_addr + 1);
@@ -305,6 +357,11 @@ static int pcipcwd_clear_status(void)
 	msb=0;
 	reset_counter=0xff;
 	send_command(CMD_GET_CLEAR_RESET_COUNT, &msb, &reset_counter);
+
+	if (debug >= DEBUG) {
+		printk(KERN_DEBUG PFX "reset count was: 0x%02x\n",
+		       reset_counter);
+	}
 
 	return 0;
 }
@@ -322,6 +379,11 @@ static int pcipcwd_get_temperature(int *temperature)
 	 * the decided 'standard' for this return value.
 	 */
 	*temperature = (*temperature * 9 / 5) + 32;
+
+	if (debug >= DEBUG) {
+		printk(KERN_DEBUG PFX "temperature is: %d F\n",
+		       *temperature);
+	}
 
 	return 0;
 }
@@ -457,6 +519,8 @@ static int pcipcwd_open(struct inode *inode, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &is_active)) {
+		if (debug >= VERBOSE)
+			printk(KERN_ERR PFX "Attempt to open already opened device.\n");
 		return -EBUSY;
 	}
 
