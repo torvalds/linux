@@ -540,8 +540,11 @@ bootup_user_stack_end:
 prom_tba:	.xword	0
 tlb_type:	.word	0	/* Must NOT end up in BSS */
 	.section	".fixup",#alloc,#execinstr
-	.globl	__ret_efault
+
+	.globl	__ret_efault, __retl_efault
 __ret_efault:
 	ret
 	 restore %g0, -EFAULT, %o0
-
+__retl_efault:
+	retl
+	 mov	-EFAULT, %o0

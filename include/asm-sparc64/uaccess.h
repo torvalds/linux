@@ -77,6 +77,7 @@ struct exception_table_entry {
 };
 
 extern void __ret_efault(void);
+extern void __retl_efault(void);
 
 /* Uh, these should become the main single-value transfer routines..
  * They automatically use the right size if we just have the right

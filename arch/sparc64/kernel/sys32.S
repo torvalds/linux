@@ -157,6 +157,9 @@ sys32_socketcall:	/* %o0=call, %o1=args */
 	or		%g2, %lo(__socketcall_table_begin), %g2
 	jmpl		%g2 + %o0, %g0
 	 nop
+do_einval:
+	retl
+	 mov		-EINVAL, %o0
 
 	.align		32
 __socketcall_table_begin:
@@ -316,29 +319,37 @@ do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int)
 	nop
 	nop
 
-do_einval:
-	retl
-	 mov		-EINVAL, %o0
-do_efault:
-	retl
-	 mov		-EFAULT, %o0
-
 	.section	__ex_table
 	.align		4
-	.word	1b, do_efault, 2b, do_efault, 3b, do_efault, 4b, do_efault
-	.word	5b, do_efault, 6b, do_efault, 7b, do_efault, 8b, do_efault
-	.word	9b, do_efault, 10b, do_efault, 11b, do_efault, 12b, do_efault
-	.word	13b, do_efault, 14b, do_efault, 15b, do_efault, 16b, do_efault
-	.word	17b, do_efault, 18b, do_efault, 19b, do_efault, 20b, do_efault
-	.word	21b, do_efault, 22b, do_efault, 23b, do_efault, 24b, do_efault
-	.word	25b, do_efault, 26b, do_efault, 27b, do_efault, 28b, do_efault
-	.word	29b, do_efault, 30b, do_efault, 31b, do_efault, 32b, do_efault
-	.word	33b, do_efault, 34b, do_efault, 35b, do_efault, 36b, do_efault
-	.word	37b, do_efault, 38b, do_efault, 39b, do_efault, 40b, do_efault
-	.word	41b, do_efault, 42b, do_efault, 43b, do_efault, 44b, do_efault
-	.word	45b, do_efault, 46b, do_efault, 47b, do_efault, 48b, do_efault
-	.word	49b, do_efault, 50b, do_efault, 51b, do_efault, 52b, do_efault
-	.word	53b, do_efault, 54b, do_efault, 55b, do_efault, 56b, do_efault
-	.word	57b, do_efault, 58b, do_efault, 59b, do_efault, 60b, do_efault
-	.word	61b, do_efault, 62b, do_efault
+	.word		1b, __retl_efault, 2b, __retl_efault
+	.word		3b, __retl_efault, 4b, __retl_efault
+	.word		5b, __retl_efault, 6b, __retl_efault
+	.word		7b, __retl_efault, 8b, __retl_efault
+	.word		9b, __retl_efault, 10b, __retl_efault
+	.word		11b, __retl_efault, 12b, __retl_efault
+	.word		13b, __retl_efault, 14b, __retl_efault
+	.word		15b, __retl_efault, 16b, __retl_efault
+	.word		17b, __retl_efault, 18b, __retl_efault
+	.word		19b, __retl_efault, 20b, __retl_efault
+	.word		21b, __retl_efault, 22b, __retl_efault
+	.word		23b, __retl_efault, 24b, __retl_efault
+	.word		25b, __retl_efault, 26b, __retl_efault
+	.word		27b, __retl_efault, 28b, __retl_efault
+	.word		29b, __retl_efault, 30b, __retl_efault
+	.word		31b, __retl_efault, 32b, __retl_efault
+	.word		33b, __retl_efault, 34b, __retl_efault
+	.word		35b, __retl_efault, 36b, __retl_efault
+	.word		37b, __retl_efault, 38b, __retl_efault
+	.word		39b, __retl_efault, 40b, __retl_efault
+	.word		41b, __retl_efault, 42b, __retl_efault
+	.word		43b, __retl_efault, 44b, __retl_efault
+	.word		45b, __retl_efault, 46b, __retl_efault
+	.word		47b, __retl_efault, 48b, __retl_efault
+	.word		49b, __retl_efault, 50b, __retl_efault
+	.word		51b, __retl_efault, 52b, __retl_efault
+	.word		53b, __retl_efault, 54b, __retl_efault
+	.word		55b, __retl_efault, 56b, __retl_efault
+	.word		57b, __retl_efault, 58b, __retl_efault
+	.word		59b, __retl_efault, 60b, __retl_efault
+	.word		61b, __retl_efault, 62b, __retl_efault
 	.previous
