@@ -594,9 +594,9 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
  * address back to the card, you must first perform a
  * swiotlb_dma_sync_for_device, and then the device again owns the buffer
  */
-void
-swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-			    size_t size, int dir)
+static inline void
+swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
+		    size_t size, int dir)
 {
 	char *dma_addr = phys_to_virt(dev_addr);
 
@@ -609,17 +609,17 @@ swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
 }
 
 void
+swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
+			    size_t size, int dir)
+{
+	swiotlb_sync_single(hwdev, dev_addr, size, dir);
+}
+
+void
 swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
 			       size_t size, int dir)
 {
-	char *dma_addr = phys_to_virt(dev_addr);
-
-	if (dir == DMA_NONE)
-		BUG();
-	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
-		sync_single(hwdev, dma_addr, size, dir);
-	else if (dir == DMA_FROM_DEVICE)
-		mark_clean(dma_addr, size);
+	swiotlb_sync_single(hwdev, dev_addr, size, dir);
 }
 
 /*
@@ -696,9 +696,9 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
  * The same as swiotlb_sync_single_* but for a scatter-gather list, same rules
  * and usage.
  */
-void
-swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-			int nelems, int dir)
+static inline void
+swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sg,
+		int nelems, int dir)
 {
 	int i;
 
@@ -712,18 +712,17 @@ swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
 }
 
 void
+swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
+			int nelems, int dir)
+{
+	swiotlb_sync_sg(hwdev, sg, nelems, dir);
+}
+
+void
 swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 			   int nelems, int dir)
 {
-	int i;
-
-	if (dir == DMA_NONE)
-		BUG();
-
-	for (i = 0; i < nelems; i++, sg++)
-		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
-			sync_single(hwdev, (void *) sg->dma_address,
-				    sg->dma_length, dir);
+	swiotlb_sync_sg(hwdev, sg, nelems, dir);
 }
 
 int
