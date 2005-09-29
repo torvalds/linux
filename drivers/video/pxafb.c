@@ -260,9 +260,9 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	DPRINTK("dma period = %d ps, clock = %d kHz\n",
-		pxafb_display_dma_period(var),
-		get_clk_frequency_khz(0));
+	pr_debug("pxafb: dma period = %d ps, clock = %d kHz\n",
+		 pxafb_display_dma_period(var),
+		 get_clk_frequency_khz(0));
 #endif
 
 	return 0;
@@ -270,7 +270,7 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static inline void pxafb_set_truecolor(u_int is_true_color)
 {
-	DPRINTK("true_color = %d\n", is_true_color);
+	pr_debug("pxafb: true_color = %d\n", is_true_color);
 	// do your machine-specific setup if needed
 }
 
@@ -284,7 +284,7 @@ static int pxafb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	unsigned long palette_mem_size;
 
-	DPRINTK("set_par\n");
+	pr_debug("pxafb: set_par\n");
 
 	if (var->bits_per_pixel == 16)
 		fbi->fb.fix.visual = FB_VISUAL_TRUECOLOR;
@@ -308,7 +308,7 @@ static int pxafb_set_par(struct fb_info *info)
 
 	palette_mem_size = fbi->palette_size * sizeof(u16);
 
-	DPRINTK("palette_mem_size = 0x%08lx\n", (u_long) palette_mem_size);
+	pr_debug("pxafb: palette_mem_size = 0x%08lx\n", palette_mem_size);
 
 	fbi->palette_cpu = (u16 *)(fbi->map_cpu + PAGE_SIZE - palette_mem_size);
 	fbi->palette_dma = fbi->map_dma + PAGE_SIZE - palette_mem_size;
@@ -369,7 +369,7 @@ static int pxafb_blank(int blank, struct fb_info *info)
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
 	int i;
 
-	DPRINTK("pxafb_blank: blank=%d\n", blank);
+	pr_debug("pxafb: blank=%d\n", blank);
 
 	switch (blank) {
 	case FB_BLANK_POWERDOWN:
@@ -508,15 +508,15 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	u_long flags;
 	u_int lines_per_panel, pcd = get_pcd(var->pixclock);
 
-	DPRINTK("Configuring PXA LCD\n");
+	pr_debug("pxafb: Configuring PXA LCD\n");
 
-	DPRINTK("var: xres=%d hslen=%d lm=%d rm=%d\n",
-		var->xres, var->hsync_len,
-		var->left_margin, var->right_margin);
-	DPRINTK("var: yres=%d vslen=%d um=%d bm=%d\n",
-		var->yres, var->vsync_len,
-		var->upper_margin, var->lower_margin);
-	DPRINTK("var: pixclock=%d pcd=%d\n", var->pixclock, pcd);
+	pr_debug("var: xres=%d hslen=%d lm=%d rm=%d\n",
+		 var->xres, var->hsync_len,
+		 var->left_margin, var->right_margin);
+	pr_debug("var: yres=%d vslen=%d um=%d bm=%d\n",
+		 var->yres, var->vsync_len,
+		 var->upper_margin, var->lower_margin);
+	pr_debug("var: pixclock=%d pcd=%d\n", var->pixclock, pcd);
 
 #if DEBUG_VAR
 	if (var->xres < 16        || var->xres > 1024)
@@ -589,10 +589,10 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	if (pcd)
 		new_regs.lccr3 |= LCCR3_PixClkDiv(pcd);
 
-	DPRINTK("nlccr0 = 0x%08x\n", new_regs.lccr0);
-	DPRINTK("nlccr1 = 0x%08x\n", new_regs.lccr1);
-	DPRINTK("nlccr2 = 0x%08x\n", new_regs.lccr2);
-	DPRINTK("nlccr3 = 0x%08x\n", new_regs.lccr3);
+	pr_debug("nlccr0 = 0x%08x\n", new_regs.lccr0);
+	pr_debug("nlccr1 = 0x%08x\n", new_regs.lccr1);
+	pr_debug("nlccr2 = 0x%08x\n", new_regs.lccr2);
+	pr_debug("nlccr3 = 0x%08x\n", new_regs.lccr3);
 
 	/* Update shadow copy atomically */
 	local_irq_save(flags);
@@ -637,24 +637,24 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	}
 
 #if 0
-	DPRINTK("fbi->dmadesc_fblow_cpu = 0x%p\n", fbi->dmadesc_fblow_cpu);
-	DPRINTK("fbi->dmadesc_fbhigh_cpu = 0x%p\n", fbi->dmadesc_fbhigh_cpu);
-	DPRINTK("fbi->dmadesc_palette_cpu = 0x%p\n", fbi->dmadesc_palette_cpu);
-	DPRINTK("fbi->dmadesc_fblow_dma = 0x%x\n", fbi->dmadesc_fblow_dma);
-	DPRINTK("fbi->dmadesc_fbhigh_dma = 0x%x\n", fbi->dmadesc_fbhigh_dma);
-	DPRINTK("fbi->dmadesc_palette_dma = 0x%x\n", fbi->dmadesc_palette_dma);
+	pr_debug("fbi->dmadesc_fblow_cpu = 0x%p\n", fbi->dmadesc_fblow_cpu);
+	pr_debug("fbi->dmadesc_fbhigh_cpu = 0x%p\n", fbi->dmadesc_fbhigh_cpu);
+	pr_debug("fbi->dmadesc_palette_cpu = 0x%p\n", fbi->dmadesc_palette_cpu);
+	pr_debug("fbi->dmadesc_fblow_dma = 0x%x\n", fbi->dmadesc_fblow_dma);
+	pr_debug("fbi->dmadesc_fbhigh_dma = 0x%x\n", fbi->dmadesc_fbhigh_dma);
+	pr_debug("fbi->dmadesc_palette_dma = 0x%x\n", fbi->dmadesc_palette_dma);
 
-	DPRINTK("fbi->dmadesc_fblow_cpu->fdadr = 0x%x\n", fbi->dmadesc_fblow_cpu->fdadr);
-	DPRINTK("fbi->dmadesc_fbhigh_cpu->fdadr = 0x%x\n", fbi->dmadesc_fbhigh_cpu->fdadr);
-	DPRINTK("fbi->dmadesc_palette_cpu->fdadr = 0x%x\n", fbi->dmadesc_palette_cpu->fdadr);
+	pr_debug("fbi->dmadesc_fblow_cpu->fdadr = 0x%x\n", fbi->dmadesc_fblow_cpu->fdadr);
+	pr_debug("fbi->dmadesc_fbhigh_cpu->fdadr = 0x%x\n", fbi->dmadesc_fbhigh_cpu->fdadr);
+	pr_debug("fbi->dmadesc_palette_cpu->fdadr = 0x%x\n", fbi->dmadesc_palette_cpu->fdadr);
 
-	DPRINTK("fbi->dmadesc_fblow_cpu->fsadr = 0x%x\n", fbi->dmadesc_fblow_cpu->fsadr);
-	DPRINTK("fbi->dmadesc_fbhigh_cpu->fsadr = 0x%x\n", fbi->dmadesc_fbhigh_cpu->fsadr);
-	DPRINTK("fbi->dmadesc_palette_cpu->fsadr = 0x%x\n", fbi->dmadesc_palette_cpu->fsadr);
+	pr_debug("fbi->dmadesc_fblow_cpu->fsadr = 0x%x\n", fbi->dmadesc_fblow_cpu->fsadr);
+	pr_debug("fbi->dmadesc_fbhigh_cpu->fsadr = 0x%x\n", fbi->dmadesc_fbhigh_cpu->fsadr);
+	pr_debug("fbi->dmadesc_palette_cpu->fsadr = 0x%x\n", fbi->dmadesc_palette_cpu->fsadr);
 
-	DPRINTK("fbi->dmadesc_fblow_cpu->ldcmd = 0x%x\n", fbi->dmadesc_fblow_cpu->ldcmd);
-	DPRINTK("fbi->dmadesc_fbhigh_cpu->ldcmd = 0x%x\n", fbi->dmadesc_fbhigh_cpu->ldcmd);
-	DPRINTK("fbi->dmadesc_palette_cpu->ldcmd = 0x%x\n", fbi->dmadesc_palette_cpu->ldcmd);
+	pr_debug("fbi->dmadesc_fblow_cpu->ldcmd = 0x%x\n", fbi->dmadesc_fblow_cpu->ldcmd);
+	pr_debug("fbi->dmadesc_fbhigh_cpu->ldcmd = 0x%x\n", fbi->dmadesc_fbhigh_cpu->ldcmd);
+	pr_debug("fbi->dmadesc_palette_cpu->ldcmd = 0x%x\n", fbi->dmadesc_palette_cpu->ldcmd);
 #endif
 
 	fbi->reg_lccr0 = new_regs.lccr0;
@@ -684,7 +684,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
  */
 static inline void __pxafb_backlight_power(struct pxafb_info *fbi, int on)
 {
-	DPRINTK("backlight o%s\n", on ? "n" : "ff");
+	pr_debug("pxafb: backlight o%s\n", on ? "n" : "ff");
 
  	if (pxafb_backlight_power)
  		pxafb_backlight_power(on);
@@ -692,7 +692,7 @@ static inline void __pxafb_backlight_power(struct pxafb_info *fbi, int on)
 
 static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 {
-	DPRINTK("LCD power o%s\n", on ? "n" : "ff");
+	pr_debug("pxafb: LCD power o%s\n", on ? "n" : "ff");
 
 	if (pxafb_lcd_power)
 		pxafb_lcd_power(on);
@@ -740,13 +740,13 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 
 static void pxafb_enable_controller(struct pxafb_info *fbi)
 {
-	DPRINTK("Enabling LCD controller\n");
-	DPRINTK("fdadr0 0x%08x\n", (unsigned int) fbi->fdadr0);
-	DPRINTK("fdadr1 0x%08x\n", (unsigned int) fbi->fdadr1);
-	DPRINTK("reg_lccr0 0x%08x\n", (unsigned int) fbi->reg_lccr0);
-	DPRINTK("reg_lccr1 0x%08x\n", (unsigned int) fbi->reg_lccr1);
-	DPRINTK("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
-	DPRINTK("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
+	pr_debug("pxafb: Enabling LCD controller\n");
+	pr_debug("fdadr0 0x%08x\n", (unsigned int) fbi->fdadr0);
+	pr_debug("fdadr1 0x%08x\n", (unsigned int) fbi->fdadr1);
+	pr_debug("reg_lccr0 0x%08x\n", (unsigned int) fbi->reg_lccr0);
+	pr_debug("reg_lccr1 0x%08x\n", (unsigned int) fbi->reg_lccr1);
+	pr_debug("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
+	pr_debug("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
 	/* enable LCD controller clock */
 	pxa_set_cken(CKEN16_LCD, 1);
@@ -761,19 +761,19 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	FDADR1 = fbi->fdadr1;
 	LCCR0 |= LCCR0_ENB;
 
-	DPRINTK("FDADR0 0x%08x\n", (unsigned int) FDADR0);
-	DPRINTK("FDADR1 0x%08x\n", (unsigned int) FDADR1);
-	DPRINTK("LCCR0 0x%08x\n", (unsigned int) LCCR0);
-	DPRINTK("LCCR1 0x%08x\n", (unsigned int) LCCR1);
-	DPRINTK("LCCR2 0x%08x\n", (unsigned int) LCCR2);
-	DPRINTK("LCCR3 0x%08x\n", (unsigned int) LCCR3);
+	pr_debug("FDADR0 0x%08x\n", (unsigned int) FDADR0);
+	pr_debug("FDADR1 0x%08x\n", (unsigned int) FDADR1);
+	pr_debug("LCCR0 0x%08x\n", (unsigned int) LCCR0);
+	pr_debug("LCCR1 0x%08x\n", (unsigned int) LCCR1);
+	pr_debug("LCCR2 0x%08x\n", (unsigned int) LCCR2);
+	pr_debug("LCCR3 0x%08x\n", (unsigned int) LCCR3);
 }
 
 static void pxafb_disable_controller(struct pxafb_info *fbi)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
-	DPRINTK("Disabling LCD controller\n");
+	pr_debug("pxafb: disabling LCD controller\n");
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(&fbi->ctrlr_wait, &wait);
@@ -1039,7 +1039,7 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->palette_size = fbi->fb.var.bits_per_pixel == 8 ? 256 : 16;
 
 		palette_mem_size = fbi->palette_size * sizeof(u16);
-		DPRINTK("palette_mem_size = 0x%08lx\n", (u_long) palette_mem_size);
+		pr_debug("pxafb: palette_mem_size = 0x%08lx\n", palette_mem_size);
 
 		fbi->palette_cpu = (u16 *)(fbi->map_cpu + PAGE_SIZE - palette_mem_size);
 		fbi->palette_dma = fbi->map_dma + PAGE_SIZE - palette_mem_size;
