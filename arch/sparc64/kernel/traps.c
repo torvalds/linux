@@ -757,26 +757,12 @@ void __init cheetah_ecache_flush_init(void)
 	ecache_flush_size = (2 * largest_size);
 	ecache_flush_linesize = smallest_linesize;
 
-	/* Discover a physically contiguous chunk of physical
-	 * memory in 'sp_banks' of size ecache_flush_size calculated
-	 * above.  Store the physical base of this area at
-	 * ecache_flush_physbase.
-	 */
-	for (node = 0; ; node++) {
-		if (sp_banks[node].num_bytes == 0)
-			break;
-		if (sp_banks[node].num_bytes >= ecache_flush_size) {
-			ecache_flush_physbase = sp_banks[node].base_addr;
-			break;
-		}
-	}
+	ecache_flush_physbase = find_ecache_flush_span(ecache_flush_size);
 
-	/* Note: Zero would be a valid value of ecache_flush_physbase so
-	 * don't use that as the success test. :-)
-	 */
-	if (sp_banks[node].num_bytes == 0) {
+	if (ecache_flush_physbase == ~0UL) {
 		prom_printf("cheetah_ecache_flush_init: Cannot find %d byte "
-			    "contiguous physical memory.\n", ecache_flush_size);
+			    "contiguous physical memory.\n",
+			    ecache_flush_size);
 		prom_halt();
 	}
 
@@ -1345,16 +1331,9 @@ static int cheetah_fix_ce(unsigned long physaddr)
 /* Return non-zero if PADDR is a valid physical memory address. */
 static int cheetah_check_main_memory(unsigned long paddr)
 {
-	int i;
+	unsigned long vaddr = PAGE_OFFSET + paddr;
 
-	for (i = 0; ; i++) {
-		if (sp_banks[i].num_bytes == 0)
-			break;
-		if (paddr >= sp_banks[i].base_addr &&
-		    paddr < (sp_banks[i].base_addr + sp_banks[i].num_bytes))
-			return 1;
-	}
-	return 0;
+	return kern_addr_valid(vaddr);
 }
 
 void cheetah_cee_handler(struct pt_regs *regs, unsigned long afsr, unsigned long afar)

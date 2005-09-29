@@ -342,6 +342,7 @@ extern pgd_t swapper_pg_dir[2048];
 extern pmd_t swapper_low_pmd_dir[2048];
 
 extern void paging_init(void);
+extern unsigned long find_ecache_flush_span(unsigned long size);
 
 /* These do nothing with the way I have things setup. */
 #define mmu_lockarea(vaddr, len)		(vaddr)

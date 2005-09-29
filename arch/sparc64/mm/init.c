@@ -41,7 +41,14 @@
 
 extern void device_scan(void);
 
-struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
+struct sparc_phys_banks {
+	unsigned long base_addr;
+	unsigned long num_bytes;
+};
+
+#define SPARC_PHYS_BANKS 32
+
+static struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
 
 unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 
@@ -1424,6 +1431,20 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 				 PAGE_OFFSET + phys_end);
 }
 #endif
+
+unsigned long __init find_ecache_flush_span(unsigned long size)
+{
+	unsigned long i;
+
+	for (i = 0; ; i++) {
+		if (sp_banks[i].num_bytes == 0)
+			break;
+		if (sp_banks[i].num_bytes >= size)
+			return sp_banks[i].base_addr;
+	}
+
+	return ~0UL;
+}
 
 static void __init prom_probe_memory(void)
 {
