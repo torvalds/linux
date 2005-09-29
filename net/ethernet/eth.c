@@ -191,7 +191,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	 
 	else if(1 /*dev->flags&IFF_PROMISC*/) {
-		if (unlikely(!compare_eth_addr(eth->h_dest, dev->dev_addr)))
+		if (unlikely(compare_eth_addr(eth->h_dest, dev->dev_addr)))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
 	
