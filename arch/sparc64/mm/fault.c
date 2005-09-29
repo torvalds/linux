@@ -457,7 +457,7 @@ good_area:
 	}
 
 	up_read(&mm->mmap_sem);
-	goto fault_done;
+	return;
 
 	/*
 	 * Something tried to access memory that isn't in our memory map..
@@ -469,8 +469,7 @@ bad_area:
 
 handle_kernel_fault:
 	do_kernel_fault(regs, si_code, fault_code, insn, address);
-
-	goto fault_done;
+	return;
 
 /*
  * We ran out of memory, or some other thing happened to us that made
@@ -501,9 +500,4 @@ do_sigbus:
 	/* Kernel mode? Handle exceptions or die */
 	if (regs->tstate & TSTATE_PRIV)
 		goto handle_kernel_fault;
-
-fault_done:
-	/* These values are no longer needed, clear them. */
-	set_thread_fault_code(0);
-	current_thread_info()->fault_address = 0;
 }

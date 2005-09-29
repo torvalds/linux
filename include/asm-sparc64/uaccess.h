@@ -251,7 +251,7 @@ copy_from_user(void *to, const void __user *from, unsigned long size)
 {
 	unsigned long ret = ___copy_from_user(to, from, size);
 
-	if (ret)
+	if (unlikely(ret))
 		ret = copy_from_user_fixup(to, from, size);
 	return ret;
 }
@@ -267,7 +267,7 @@ copy_to_user(void __user *to, const void *from, unsigned long size)
 {
 	unsigned long ret = ___copy_to_user(to, from, size);
 
-	if (ret)
+	if (unlikely(ret))
 		ret = copy_to_user_fixup(to, from, size);
 	return ret;
 }
@@ -283,7 +283,7 @@ copy_in_user(void __user *to, void __user *from, unsigned long size)
 {
 	unsigned long ret = ___copy_in_user(to, from, size);
 
-	if (ret)
+	if (unlikely(ret))
 		ret = copy_in_user_fixup(to, from, size);
 	return ret;
 }
