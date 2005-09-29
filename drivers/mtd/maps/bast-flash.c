@@ -39,7 +39,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 
 #include <asm/arch/map.h>

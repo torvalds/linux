@@ -82,8 +82,6 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 
-#include <asm/mach-types.h>
-
 /* structures */
 
 struct s3c24xx_uart_info {
