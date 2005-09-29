@@ -761,15 +761,18 @@ static int __devinit snd_bt87x_create(snd_card_t *card,
 
 #define BT_DEVICE(chip, subvend, subdev, rate) \
 	{ .vendor = PCI_VENDOR_ID_BROOKTREE, \
-	  .device = PCI_DEVICE_ID_BROOKTREE_##chip, \
+	  .device = chip, \
 	  .subvendor = subvend, .subdevice = subdev, \
 	  .driver_data = rate }
 
 /* driver_data is the default digital_rate value for that device */
 static struct pci_device_id snd_bt87x_ids[] = {
-	BT_DEVICE(878, 0x0070, 0x13eb, 32000), /* Hauppauge WinTV series */
-	BT_DEVICE(879, 0x0070, 0x13eb, 32000), /* Hauppauge WinTV series */
-	BT_DEVICE(878, 0x0070, 0xff01, 44100), /* Viewcast Osprey 200 */
+	/* Hauppauge WinTV series */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0x13eb, 32000),
+	/* Hauppauge WinTV series */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, 0x0070, 0x13eb, 32000),
+	/* Viewcast Osprey 200 */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, 44100),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
