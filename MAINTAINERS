@@ -1168,11 +1168,6 @@ L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 S:	Orphan
 
-IEEE 1394 SBP2
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Orphan
-
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	bcollins@debian.org
@@ -1203,6 +1198,15 @@ P:	Ben Collins
 M:	bcollins@debian.org
 P:	Dan Dennedy
 M:	dan@dennedy.org
+L:	linux1394-devel@lists.sourceforge.net
+W:	http://www.linux1394.org/
+S:	Maintained
+
+IEEE 1394 SBP2
+P:	Ben Collins
+M:	bcollins@debian.org
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 S:	Maintained
