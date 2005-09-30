@@ -6,8 +6,10 @@ ifeq ($(CONFIG_PPC64),y)
 EXTRA_CFLAGS	+= -mno-minimal-toc
 endif
 
+ifeq ($(CONFIG_PPC32),y)
 extra-$(CONFIG_PPC_STD_MMU)	:= head.o
-extra_$(CONFIG_PPC64)		:= head_64.o
+endif
+extra-$(CONFIG_PPC64)		:= head_64.o
 extra-$(CONFIG_40x)		:= head_4xx.o
 extra-$(CONFIG_44x)		:= head_44x.o
 extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
@@ -23,3 +25,8 @@ ifeq ($(CONFIG_PPC32),y)
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 endif
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
+
+ifeq ($(CONFIG_PPC_ISERIES),y)
+arch/powerpc/kernel/head_64.o: arch/powerpc/platforms/iseries/lparmap.s
+AFLAGS_head_64.o += -Iarch/powerpc/platforms/iseries
+endif

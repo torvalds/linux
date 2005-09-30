@@ -833,6 +833,12 @@ config PIN_TLB
 	depends on ADVANCED_OPTIONS && 8xx
 endmenu
 
+if PPC64
+config KERNEL_START
+	hex
+	default "0xc0000000"
+endif
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"

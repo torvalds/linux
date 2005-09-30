@@ -2,10 +2,10 @@
 # Makefile for the linux ppc64 kernel.
 #
 
-ifneq ($(CONFIG_PPC_MERGE),y)
-
 EXTRA_CFLAGS	+= -mno-minimal-toc
+ifneq ($(CONFIG_PPC_MERGE),y)
 extra-y		:= head.o vmlinux.lds
+endif
 
 obj-y               :=	setup.o entry.o irq.o idle.o dma.o \
 			time.o process.o signal.o syscalls.o misc.o ptrace.o \
@@ -70,11 +70,9 @@ obj-$(CONFIG_KPROBES)		+= kprobes.o
 
 CFLAGS_ioctl32.o += -Ifs/
 
+ifneq ($(CONFIG_PPC_MERGE),y)
 ifeq ($(CONFIG_PPC_ISERIES),y)
 arch/ppc64/kernel/head.o: arch/powerpc/platforms/iseries/lparmap.s
 AFLAGS_head.o += -Iarch/powerpc/platforms/iseries
 endif
-
-else
-
 endif

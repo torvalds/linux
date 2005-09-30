@@ -13,6 +13,8 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/module.h>
+
 #include <asm/system.h>
 #include <asm/paca.h>
 #include <asm/iSeries/ItLpQueue.h>
