@@ -178,7 +178,6 @@ void __init numa_init_array(void)
 		rr++; 
 	}
 
-	set_bit(0, &node_to_cpumask[cpu_to_node(0)]);
 }
 
 #ifdef CONFIG_NUMA_EMU
@@ -266,9 +265,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 
 __cpuinit void numa_add_cpu(int cpu)
 {
-	/* BP is initialized elsewhere */
-	if (cpu) 
-		set_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
+	set_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
 } 
 
 unsigned long __init numa_free_all_bootmem(void) 
