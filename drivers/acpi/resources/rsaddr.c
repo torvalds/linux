@@ -58,12 +58,20 @@ acpi_rs_decode_specific_flags(union acpi_resource_data *resource, u8 flags);
 
 static u8 acpi_rs_encode_specific_flags(union acpi_resource_data *resource);
 
+static void
+acpi_rs_set_address_common(union aml_resource *aml,
+			   struct acpi_resource *resource);
+
+static u8
+acpi_rs_get_address_common(struct acpi_resource *resource,
+			   union aml_resource *aml);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_decode_general_flags
  *
  * PARAMETERS:  Resource            - Address resource data struct
- *              Flags               - Actual flag byte
+ *              Flags               - Raw AML flag byte
  *
  * RETURN:      Decoded flag bits in resource struct
  *
@@ -107,27 +115,19 @@ acpi_rs_decode_general_flags(union acpi_resource_data *resource, u8 flags)
 
 static u8 acpi_rs_encode_general_flags(union acpi_resource_data *resource)
 {
-	u8 flags;
-
 	ACPI_FUNCTION_ENTRY();
 
-	/* Producer / Consumer - flag bit[0] */
+	return ((u8)
 
-	flags = (u8) (resource->address.producer_consumer & 0x01);
-
-	/* Decode (_DEC) - flag bit[1] */
-
-	flags |= (u8) ((resource->address.decode & 0x01) << 1);
-
-	/* Min Address Fixed (_MIF) - flag bit[2] */
-
-	flags |= (u8) ((resource->address.min_address_fixed & 0x01) << 2);
-
-	/* Max Address Fixed (_MAF) - flag bit[3] */
-
-	flags |= (u8) ((resource->address.max_address_fixed & 0x01) << 3);
-
-	return (flags);
+		/* Producer / Consumer - flag bit[0] */
+		((resource->address.producer_consumer & 0x01) |
+		 /* Decode (_DEC) - flag bit[1] */
+		 ((resource->address.decode & 0x01) << 1) |
+		 /* Min Address Fixed (_MIF) - flag bit[2] */
+		 ((resource->address.min_address_fixed & 0x01) << 2) |
+		 /* Max Address Fixed (_MAF) - flag bit[3] */
+		 ((resource->address.max_address_fixed & 0x01) << 3))
+	    );
 }
 
 /*******************************************************************************
@@ -135,7 +135,7 @@ static u8 acpi_rs_encode_general_flags(union acpi_resource_data *resource)
  * FUNCTION:    acpi_rs_decode_specific_flags
  *
  * PARAMETERS:  Resource            - Address resource data struct
- *              Flags               - Actual flag byte
+ *              Flags               - Raw AML flag byte
  *
  * RETURN:      Decoded flag bits in attribute struct
  *
@@ -189,921 +189,541 @@ acpi_rs_decode_specific_flags(union acpi_resource_data *resource, u8 flags)
 
 static u8 acpi_rs_encode_specific_flags(union acpi_resource_data *resource)
 {
-	u8 flags = 0;
-
 	ACPI_FUNCTION_ENTRY();
 
 	if (resource->address.resource_type == ACPI_MEMORY_RANGE) {
-		/* Write Status (_RW) - flag bit[0] */
+		return ((u8)
 
-		flags = (u8)
-		    (resource->address.attribute.memory.
-		     read_write_attribute & 0x01);
-
-		/* Memory Attributes (_MEM) - flag bits[2:1] */
-
-		flags |= (u8)
-		    ((resource->address.attribute.memory.
-		      cache_attribute & 0x03) << 1);
+			/* Write Status (_RW) - flag bit[0] */
+			((resource->address.attribute.memory.
+			  read_write_attribute & 0x01) |
+			 /* Memory Attributes (_MEM) - flag bits[2:1] */
+			 ((resource->address.attribute.memory.
+			   cache_attribute & 0x03) << 1)));
 	} else if (resource->address.resource_type == ACPI_IO_RANGE) {
-		/* Ranges (_RNG) - flag bits[1:0] */
+		return ((u8)
 
-		flags = (u8)
-		    (resource->address.attribute.io.range_attribute & 0x03);
-
-		/* Translations (_TTP and _TRS) - flag bits[5:4] */
-
-		flags |= (u8)
-		    ((resource->address.attribute.io.
-		      translation_attribute & 0x03) << 4);
+			/* Ranges (_RNG) - flag bits[1:0] */
+			((resource->address.attribute.io.
+			  range_attribute & 0x03) |
+			 /* Translations (_TTP and _TRS) - flag bits[5:4] */
+			 ((resource->address.attribute.io.
+			   translation_attribute & 0x03) << 4)));
 	}
 
-	return (flags);
+	return (0);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_address16_resource
+ * FUNCTION:    acpi_rs_set_address_common
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              Resource            - Pointer to the internal resource struct
  *
- * RETURN:      Status
+ * RETURN:      None
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert common flag fields from a resource descriptor to an
+ *              AML descriptor
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_address16_resource(u8 * byte_stream_buffer,
-			   acpi_size * bytes_consumed,
-			   u8 ** output_buffer, acpi_size * structure_size)
+static void
+acpi_rs_set_address_common(union aml_resource *aml,
+			   struct acpi_resource *resource)
 {
-	u32 index;
-	u16 temp16;
-	u8 temp8;
-	u8 *temp_ptr;
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_address16);
+	ACPI_FUNCTION_ENTRY();
 
-	ACPI_FUNCTION_TRACE("rs_address16_resource");
+	/* Set the Resource Type (Memory, Io, bus_number, etc.) */
 
-	/* Get the Descriptor Length field */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	/* Validate minimum descriptor length */
-
-	if (temp16 < 13) {
-		return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
-	}
-
-	*bytes_consumed = temp16 + 3;
-	output_struct->type = ACPI_RSTYPE_ADDRESS16;
-
-	/* Get the Resource Type (Byte3) */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	/* Values 0-2 and 0xC0-0xFF are valid */
-
-	if ((temp8 > 2) && (temp8 < 0xC0)) {
-		return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
-	}
-
-	output_struct->data.address16.resource_type = temp8;
-
-	/* Get the General Flags (Byte4) */
-
-	buffer += 1;
-	acpi_rs_decode_general_flags(&output_struct->data, *buffer);
-
-	/* Get the Type Specific Flags (Byte5) */
-
-	buffer += 1;
-	acpi_rs_decode_specific_flags(&output_struct->data, *buffer);
-
-	/* Get Granularity (Bytes 6-7) */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_32(&output_struct->data.address16.granularity, buffer);
-
-	/* Get min_address_range (Bytes 8-9) */
-
-	buffer += 2;
-	ACPI_MOVE_16_TO_32(&output_struct->data.address16.min_address_range,
-			   buffer);
-
-	/* Get max_address_range (Bytes 10-11) */
-
-	buffer += 2;
-	ACPI_MOVE_16_TO_32(&output_struct->data.address16.max_address_range,
-			   buffer);
-
-	/* Get address_translation_offset (Bytes 12-13) */
-
-	buffer += 2;
-	ACPI_MOVE_16_TO_32(&output_struct->data.address16.
-			   address_translation_offset, buffer);
-
-	/* Get address_length (Bytes 14-15) */
-
-	buffer += 2;
-	ACPI_MOVE_16_TO_32(&output_struct->data.address16.address_length,
-			   buffer);
-
-	/* Resource Source Index (if present) */
-
-	buffer += 2;
-
-	/*
-	 * This will leave us pointing to the Resource Source Index
-	 * If it is present, then save it off and calculate the
-	 * pointer to where the null terminated string goes:
-	 * Each Interrupt takes 32-bits + the 5 bytes of the
-	 * stream that are default.
-	 *
-	 * Note: Some resource descriptors will have an additional null, so
-	 * we add 1 to the length.
-	 */
-	if (*bytes_consumed > (16 + 1)) {
-		/* Dereference the Index */
-
-		output_struct->data.address16.resource_source.index =
-		    (u32) * buffer;
-
-		/* Point to the String */
-
-		buffer += 1;
-
-		/* Point the String pointer to the end of this structure */
-
-		output_struct->data.address16.resource_source.string_ptr =
-		    (char *)((u8 *) output_struct + struct_size);
-
-		temp_ptr = (u8 *)
-		    output_struct->data.address16.resource_source.string_ptr;
-
-		/* Copy the resource_source string into the buffer */
-
-		index = 0;
-		while (*buffer) {
-			*temp_ptr = *buffer;
-
-			temp_ptr++;
-			buffer++;
-			index++;
-		}
-
-		/* Add the terminating null and set the string length */
-
-		*temp_ptr = 0;
-		output_struct->data.address16.resource_source.string_length =
-		    index + 1;
-
-		/*
-		 * In order for the struct_size to fall on a 32-bit boundary,
-		 * calculate the length of the string and expand the
-		 * struct_size to the next 32-bit boundary.
-		 */
-		temp8 = (u8) (index + 1);
-		struct_size += ACPI_ROUND_UP_to_32_bITS(temp8);
-	} else {
-		output_struct->data.address16.resource_source.index = 0;
-		output_struct->data.address16.resource_source.string_length = 0;
-		output_struct->data.address16.resource_source.string_ptr = NULL;
-	}
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_address16_stream
- *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_address16_stream(struct acpi_resource *resource,
-			 u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u8 *length_field;
-	acpi_size actual_bytes;
-
-	ACPI_FUNCTION_TRACE("rs_address16_stream");
-
-	/* Set the Descriptor Type field */
-
-	*buffer = ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE;
-	buffer += 1;
-
-	/* Save a pointer to the Length field - to be filled in later */
-
-	length_field = buffer;
-	buffer += 2;
-
-	/* Set the Resource Type (Memory, Io, bus_number) */
-
-	*buffer = (u8) (resource->data.address16.resource_type & 0x03);
-	buffer += 1;
+	aml->address.resource_type = (u8) resource->data.address.resource_type;
 
 	/* Set the general flags */
 
-	*buffer = acpi_rs_encode_general_flags(&resource->data);
-	buffer += 1;
+	aml->address.flags = acpi_rs_encode_general_flags(&resource->data);
 
-	/* Set the type specific flags */
+	/* Set the type-specific flags */
 
-	*buffer = acpi_rs_encode_specific_flags(&resource->data);
-	buffer += 1;
-
-	/* Set the address space granularity */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.granularity);
-	buffer += 2;
-
-	/* Set the address range minimum */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.min_address_range);
-	buffer += 2;
-
-	/* Set the address range maximum */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.max_address_range);
-	buffer += 2;
-
-	/* Set the address translation offset */
-
-	ACPI_MOVE_32_TO_16(buffer,
-			   &resource->data.address16.
-			   address_translation_offset);
-	buffer += 2;
-
-	/* Set the address length */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.address16.address_length);
-	buffer += 2;
-
-	/* Resource Source Index and Resource Source are optional */
-
-	if (resource->data.address16.resource_source.string_length) {
-		*buffer = (u8) resource->data.address16.resource_source.index;
-		buffer += 1;
-
-		/* Copy the resource_source string */
-
-		ACPI_STRCPY((char *)buffer,
-			    resource->data.address16.resource_source.
-			    string_ptr);
-
-		/*
-		 * Buffer needs to be set to the length of the string + one for the
-		 * terminating null
-		 */
-		buffer +=
-		    (acpi_size) (ACPI_STRLEN
-				 (resource->data.address16.resource_source.
-				  string_ptr) + 1);
-	}
-
-	/* Return the number of bytes consumed in this operation */
-
-	actual_bytes = ACPI_PTR_DIFF(buffer, *output_buffer);
-	*bytes_consumed = actual_bytes;
-
-	/*
-	 * Set the length field to the number of bytes consumed
-	 * minus the header size (3 bytes)
-	 */
-	actual_bytes -= 3;
-	ACPI_MOVE_SIZE_TO_16(length_field, &actual_bytes);
-	return_ACPI_STATUS(AE_OK);
+	aml->address.specific_flags =
+	    acpi_rs_encode_specific_flags(&resource->data);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_address32_resource
+ * FUNCTION:    acpi_rs_get_address_common
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Resource            - Pointer to the internal resource struct
+ *              Aml                 - Pointer to the AML resource descriptor
+ *
+ * RETURN:      TRUE if the resource_type field is OK, FALSE otherwise
+ *
+ * DESCRIPTION: Convert common flag fields from a raw AML resource descriptor
+ *              to an internal resource descriptor
+ *
+ ******************************************************************************/
+
+static u8
+acpi_rs_get_address_common(struct acpi_resource *resource,
+			   union aml_resource *aml)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	/* Validate resource type */
+
+	if ((aml->address.resource_type > 2)
+	    && (aml->address.resource_type < 0xC0)) {
+		return (FALSE);
+	}
+
+	/* Get the Resource Type (Memory, Io, bus_number, etc.) */
+
+	resource->data.address.resource_type = aml->address.resource_type;
+
+	/* Get the General Flags */
+
+	acpi_rs_decode_general_flags(&resource->data, aml->address.flags);
+
+	/* Get the Type-Specific Flags */
+
+	acpi_rs_decode_specific_flags(&resource->data,
+				      aml->address.specific_flags);
+	return (TRUE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_get_address16
+ *
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address32_resource(u8 * byte_stream_buffer,
-			   acpi_size * bytes_consumed,
-			   u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_get_address16(union aml_resource * aml,
+		      u16 aml_resource_length, struct acpi_resource * resource)
 {
-	u16 temp16;
-	u8 temp8;
-	u8 *temp_ptr;
-	u32 index;
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_address32);
+	ACPI_FUNCTION_TRACE("rs_get_address16");
 
-	ACPI_FUNCTION_TRACE("rs_address32_resource");
+	/* Get the Resource Type, general flags, and type-specific flags */
 
-	/* Get the Descriptor Length field */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	/* Validate minimum descriptor length */
-
-	if (temp16 < 23) {
-		return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
-	}
-
-	*bytes_consumed = temp16 + 3;
-	output_struct->type = ACPI_RSTYPE_ADDRESS32;
-
-	/* Get the Resource Type (Byte3) */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	/* Values 0-2 and 0xC0-0xFF are valid */
-
-	if ((temp8 > 2) && (temp8 < 0xC0)) {
+	if (!acpi_rs_get_address_common(resource, aml)) {
 		return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
 	}
 
-	output_struct->data.address32.resource_type = temp8;
-
-	/* Get the General Flags (Byte4) */
-
-	buffer += 1;
-	acpi_rs_decode_general_flags(&output_struct->data, *buffer);
-
-	/* Get the Type Specific Flags (Byte5) */
-
-	buffer += 1;
-	acpi_rs_decode_specific_flags(&output_struct->data, *buffer);
-
-	/* Get Granularity (Bytes 6-9) */
-
-	buffer += 1;
-	ACPI_MOVE_32_TO_32(&output_struct->data.address32.granularity, buffer);
-
-	/* Get min_address_range (Bytes 10-13) */
-
-	buffer += 4;
-	ACPI_MOVE_32_TO_32(&output_struct->data.address32.min_address_range,
-			   buffer);
-
-	/* Get max_address_range (Bytes 14-17) */
-
-	buffer += 4;
-	ACPI_MOVE_32_TO_32(&output_struct->data.address32.max_address_range,
-			   buffer);
-
-	/* Get address_translation_offset (Bytes 18-21) */
-
-	buffer += 4;
-	ACPI_MOVE_32_TO_32(&output_struct->data.address32.
-			   address_translation_offset, buffer);
-
-	/* Get address_length (Bytes 22-25) */
-
-	buffer += 4;
-	ACPI_MOVE_32_TO_32(&output_struct->data.address32.address_length,
-			   buffer);
-
-	/* Resource Source Index (if present) */
-
-	buffer += 4;
-
 	/*
-	 * This will leave us pointing to the Resource Source Index
-	 * If it is present, then save it off and calculate the
-	 * pointer to where the null terminated string goes:
-	 *
-	 * Note: Some resource descriptors will have an additional null, so
-	 * we add 1 to the length.
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
 	 */
-	if (*bytes_consumed > (26 + 1)) {
-		/* Dereference the Index */
+	acpi_rs_move_data(&resource->data.address16.granularity,
+			  &aml->address16.granularity, 5,
+			  ACPI_MOVE_TYPE_16_TO_32);
 
-		output_struct->data.address32.resource_source.index =
-		    (u32) * buffer;
+	/* Get the optional resource_source (index and string) */
 
-		/* Point to the String */
+	resource->length =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_address16) +
+	    acpi_rs_get_resource_source(aml_resource_length,
+					sizeof(struct aml_resource_address16),
+					&resource->data.address16.
+					resource_source, aml, NULL);
 
-		buffer += 1;
+	/* Complete the resource header */
 
-		/* Point the String pointer to the end of this structure */
-
-		output_struct->data.address32.resource_source.string_ptr =
-		    (char *)((u8 *) output_struct + struct_size);
-
-		temp_ptr = (u8 *)
-		    output_struct->data.address32.resource_source.string_ptr;
-
-		/* Copy the resource_source string into the buffer */
-
-		index = 0;
-		while (*buffer) {
-			*temp_ptr = *buffer;
-
-			temp_ptr++;
-			buffer++;
-			index++;
-		}
-
-		/* Add the terminating null and set the string length */
-
-		*temp_ptr = 0;
-		output_struct->data.address32.resource_source.string_length =
-		    index + 1;
-
-		/*
-		 * In order for the struct_size to fall on a 32-bit boundary,
-		 * calculate the length of the string and expand the
-		 * struct_size to the next 32-bit boundary.
-		 */
-		temp8 = (u8) (index + 1);
-		struct_size += ACPI_ROUND_UP_to_32_bITS(temp8);
-	} else {
-		output_struct->data.address32.resource_source.index = 0;
-		output_struct->data.address32.resource_source.string_length = 0;
-		output_struct->data.address32.resource_source.string_ptr = NULL;
-	}
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+	resource->type = ACPI_RESOURCE_TYPE_ADDRESS16;
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_address32_stream
+ * FUNCTION:    acpi_rs_set_address16
  *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address32_stream(struct acpi_resource *resource,
-			 u8 ** output_buffer, acpi_size * bytes_consumed)
+acpi_rs_set_address16(struct acpi_resource *resource, union aml_resource *aml)
 {
-	u8 *buffer;
-	u16 *length_field;
+	acpi_size descriptor_length;
 
-	ACPI_FUNCTION_TRACE("rs_address32_stream");
+	ACPI_FUNCTION_TRACE("rs_set_address16");
 
-	buffer = *output_buffer;
+	/* Set the Resource Type, General Flags, and Type-Specific Flags */
 
-	/* Set the Descriptor Type field */
+	acpi_rs_set_address_common(aml, resource);
 
-	*buffer = ACPI_RDESC_TYPE_DWORD_ADDRESS_SPACE;
-	buffer += 1;
-
-	/* Save a pointer to the Length field - to be filled in later */
-
-	length_field = ACPI_CAST_PTR(u16, buffer);
-	buffer += 2;
-
-	/* Set the Resource Type (Memory, Io, bus_number) */
-
-	*buffer = (u8) (resource->data.address32.resource_type & 0x03);
-	buffer += 1;
-
-	/* Set the general flags */
-
-	*buffer = acpi_rs_encode_general_flags(&resource->data);
-	buffer += 1;
-
-	/* Set the type specific flags */
-
-	*buffer = acpi_rs_encode_specific_flags(&resource->data);
-	buffer += 1;
-
-	/* Set the address space granularity */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.granularity);
-	buffer += 4;
-
-	/* Set the address range minimum */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.min_address_range);
-	buffer += 4;
-
-	/* Set the address range maximum */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.max_address_range);
-	buffer += 4;
-
-	/* Set the address translation offset */
-
-	ACPI_MOVE_32_TO_32(buffer,
-			   &resource->data.address32.
-			   address_translation_offset);
-	buffer += 4;
-
-	/* Set the address length */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.address32.address_length);
-	buffer += 4;
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
+	 */
+	acpi_rs_move_data(&aml->address16.granularity,
+			  &resource->data.address16.granularity, 5,
+			  ACPI_MOVE_TYPE_32_TO_16);
 
 	/* Resource Source Index and Resource Source are optional */
 
-	if (resource->data.address32.resource_source.string_length) {
-		*buffer = (u8) resource->data.address32.resource_source.index;
-		buffer += 1;
+	descriptor_length = acpi_rs_set_resource_source(aml,
+							sizeof(struct
+							       aml_resource_address16),
+							&resource->data.
+							address16.
+							resource_source);
 
-		/* Copy the resource_source string */
+	/* Complete the AML descriptor header */
 
-		ACPI_STRCPY((char *)buffer,
-			    resource->data.address32.resource_source.
-			    string_ptr);
-
-		/*
-		 * Buffer needs to be set to the length of the string + one for the
-		 *  terminating null
-		 */
-		buffer +=
-		    (acpi_size) (ACPI_STRLEN
-				 (resource->data.address32.resource_source.
-				  string_ptr) + 1);
-	}
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-
-	/*
-	 * Set the length field to the number of bytes consumed
-	 * minus the header size (3 bytes)
-	 */
-	*length_field = (u16) (*bytes_consumed - 3);
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_ADDRESS16,
+				    descriptor_length, aml);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_address64_resource
+ * FUNCTION:    acpi_rs_get_address32
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address64_resource(u8 * byte_stream_buffer,
-			   acpi_size * bytes_consumed,
-			   u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_get_address32(union aml_resource *aml,
+		      u16 aml_resource_length, struct acpi_resource *resource)
 {
-	u16 temp16;
-	u8 temp8;
-	u8 resource_type;
-	u8 *temp_ptr;
-	u32 index;
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_address64);
 
-	ACPI_FUNCTION_TRACE("rs_address64_resource");
+	ACPI_FUNCTION_TRACE("rs_get_address32");
 
-	/* Get the Descriptor Type */
+	/* Get the Resource Type, general flags, and type-specific flags */
 
-	resource_type = *buffer;
-
-	/* Get the Descriptor Length field */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	/* Validate minimum descriptor length */
-
-	if (temp16 < 43) {
-		return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
-	}
-
-	*bytes_consumed = temp16 + 3;
-	output_struct->type = ACPI_RSTYPE_ADDRESS64;
-
-	/* Get the Resource Type (Byte3) */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	/* Values 0-2 and 0xC0-0xFF are valid */
-
-	if ((temp8 > 2) && (temp8 < 0xC0)) {
+	if (!acpi_rs_get_address_common(resource, (void *)aml)) {
 		return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
 	}
 
-	output_struct->data.address64.resource_type = temp8;
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
+	 */
+	acpi_rs_move_data(&resource->data.address32.granularity,
+			  &aml->address32.granularity, 5,
+			  ACPI_MOVE_TYPE_32_TO_32);
 
-	/* Get the General Flags (Byte4) */
+	/* Get the optional resource_source (index and string) */
 
-	buffer += 1;
-	acpi_rs_decode_general_flags(&output_struct->data, *buffer);
+	resource->length =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_address32) +
+	    acpi_rs_get_resource_source(aml_resource_length,
+					sizeof(struct aml_resource_address32),
+					&resource->data.address32.
+					resource_source, aml, NULL);
 
-	/* Get the Type Specific Flags (Byte5) */
+	/* Complete the resource header */
 
-	buffer += 1;
-	acpi_rs_decode_specific_flags(&output_struct->data, *buffer);
-
-	if (resource_type == ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE) {
-		/* Move past revision_id and Reserved byte */
-
-		buffer += 2;
-	}
-
-	/* Get Granularity (Bytes 6-13) or (Bytes 8-15) */
-
-	buffer += 1;
-	ACPI_MOVE_64_TO_64(&output_struct->data.address64.granularity, buffer);
-
-	/* Get min_address_range (Bytes 14-21) or (Bytes 16-23) */
-
-	buffer += 8;
-	ACPI_MOVE_64_TO_64(&output_struct->data.address64.min_address_range,
-			   buffer);
-
-	/* Get max_address_range (Bytes 22-29) or (Bytes 24-31) */
-
-	buffer += 8;
-	ACPI_MOVE_64_TO_64(&output_struct->data.address64.max_address_range,
-			   buffer);
-
-	/* Get address_translation_offset (Bytes 30-37) or (Bytes 32-39) */
-
-	buffer += 8;
-	ACPI_MOVE_64_TO_64(&output_struct->data.address64.
-			   address_translation_offset, buffer);
-
-	/* Get address_length (Bytes 38-45) or (Bytes 40-47) */
-
-	buffer += 8;
-	ACPI_MOVE_64_TO_64(&output_struct->data.address64.address_length,
-			   buffer);
-
-	output_struct->data.address64.resource_source.index = 0;
-	output_struct->data.address64.resource_source.string_length = 0;
-	output_struct->data.address64.resource_source.string_ptr = NULL;
-
-	if (resource_type == ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE) {
-		/* Get type_specific_attribute (Bytes 48-55) */
-
-		buffer += 8;
-		ACPI_MOVE_64_TO_64(&output_struct->data.address64.
-				   type_specific_attributes, buffer);
-	} else {
-		output_struct->data.address64.type_specific_attributes = 0;
-
-		/* Resource Source Index (if present) */
-
-		buffer += 8;
-
-		/*
-		 * This will leave us pointing to the Resource Source Index
-		 * If it is present, then save it off and calculate the
-		 * pointer to where the null terminated string goes:
-		 * Each Interrupt takes 32-bits + the 5 bytes of the
-		 * stream that are default.
-		 *
-		 * Note: Some resource descriptors will have an additional null, so
-		 * we add 1 to the length.
-		 */
-		if (*bytes_consumed > (46 + 1)) {
-			/* Dereference the Index */
-
-			output_struct->data.address64.resource_source.index =
-			    (u32) * buffer;
-
-			/* Point to the String */
-
-			buffer += 1;
-
-			/* Point the String pointer to the end of this structure */
-
-			output_struct->data.address64.resource_source.
-			    string_ptr =
-			    (char *)((u8 *) output_struct + struct_size);
-
-			temp_ptr = (u8 *)
-			    output_struct->data.address64.resource_source.
-			    string_ptr;
-
-			/* Copy the resource_source string into the buffer */
-
-			index = 0;
-			while (*buffer) {
-				*temp_ptr = *buffer;
-
-				temp_ptr++;
-				buffer++;
-				index++;
-			}
-
-			/*
-			 * Add the terminating null and set the string length
-			 */
-			*temp_ptr = 0;
-			output_struct->data.address64.resource_source.
-			    string_length = index + 1;
-
-			/*
-			 * In order for the struct_size to fall on a 32-bit boundary,
-			 * calculate the length of the string and expand the
-			 * struct_size to the next 32-bit boundary.
-			 */
-			temp8 = (u8) (index + 1);
-			struct_size += ACPI_ROUND_UP_to_32_bITS(temp8);
-		}
-	}
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+	resource->type = ACPI_RESOURCE_TYPE_ADDRESS32;
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_address64_stream
+ * FUNCTION:    acpi_rs_set_address32
  *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_address64_stream(struct acpi_resource *resource,
-			 u8 ** output_buffer, acpi_size * bytes_consumed)
+acpi_rs_set_address32(struct acpi_resource *resource, union aml_resource *aml)
 {
-	u8 *buffer;
-	u16 *length_field;
+	acpi_size descriptor_length;
 
-	ACPI_FUNCTION_TRACE("rs_address64_stream");
+	ACPI_FUNCTION_TRACE("rs_set_address32");
 
-	buffer = *output_buffer;
+	/* Set the Resource Type, General Flags, and Type-Specific Flags */
 
-	/* Set the Descriptor Type field */
+	acpi_rs_set_address_common(aml, resource);
 
-	*buffer = ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE;
-	buffer += 1;
-
-	/* Save a pointer to the Length field - to be filled in later */
-
-	length_field = ACPI_CAST_PTR(u16, buffer);
-	buffer += 2;
-
-	/* Set the Resource Type (Memory, Io, bus_number) */
-
-	*buffer = (u8) (resource->data.address64.resource_type & 0x03);
-	buffer += 1;
-
-	/* Set the general flags */
-
-	*buffer = acpi_rs_encode_general_flags(&resource->data);
-	buffer += 1;
-
-	/* Set the type specific flags */
-
-	*buffer = acpi_rs_encode_specific_flags(&resource->data);
-	buffer += 1;
-
-	/* Set the address space granularity */
-
-	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.granularity);
-	buffer += 8;
-
-	/* Set the address range minimum */
-
-	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.min_address_range);
-	buffer += 8;
-
-	/* Set the address range maximum */
-
-	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.max_address_range);
-	buffer += 8;
-
-	/* Set the address translation offset */
-
-	ACPI_MOVE_64_TO_64(buffer,
-			   &resource->data.address64.
-			   address_translation_offset);
-	buffer += 8;
-
-	/* Set the address length */
-
-	ACPI_MOVE_64_TO_64(buffer, &resource->data.address64.address_length);
-	buffer += 8;
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
+	 */
+	acpi_rs_move_data(&aml->address32.granularity,
+			  &resource->data.address32.granularity, 5,
+			  ACPI_MOVE_TYPE_32_TO_32);
 
 	/* Resource Source Index and Resource Source are optional */
 
-	if (resource->data.address64.resource_source.string_length) {
-		*buffer = (u8) resource->data.address64.resource_source.index;
-		buffer += 1;
+	descriptor_length = acpi_rs_set_resource_source(aml,
+							sizeof(struct
+							       aml_resource_address32),
+							&resource->data.
+							address32.
+							resource_source);
 
-		/* Copy the resource_source string */
+	/* Complete the AML descriptor header */
 
-		ACPI_STRCPY((char *)buffer,
-			    resource->data.address64.resource_source.
-			    string_ptr);
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_ADDRESS32,
+				    descriptor_length, aml);
+	return_ACPI_STATUS(AE_OK);
+}
 
-		/*
-		 * Buffer needs to be set to the length of the string + one for the
-		 * terminating null
-		 */
-		buffer +=
-		    (acpi_size) (ACPI_STRLEN
-				 (resource->data.address64.resource_source.
-				  string_ptr) + 1);
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_get_address64
+ *
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_get_address64(union aml_resource *aml,
+		      u16 aml_resource_length, struct acpi_resource *resource)
+{
+	ACPI_FUNCTION_TRACE("rs_get_address64");
+
+	/* Get the Resource Type, general Flags, and type-specific Flags */
+
+	if (!acpi_rs_get_address_common(resource, aml)) {
+		return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
 	}
 
-	/* Return the number of bytes consumed in this operation */
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
+	 */
+	acpi_rs_move_data(&resource->data.address64.granularity,
+			  &aml->address64.granularity, 5,
+			  ACPI_MOVE_TYPE_64_TO_64);
 
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	/* Get the optional resource_source (index and string) */
+
+	resource->length =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_address64) +
+	    acpi_rs_get_resource_source(aml_resource_length,
+					sizeof(struct aml_resource_address64),
+					&resource->data.address64.
+					resource_source, aml, NULL);
+
+	/* Complete the resource header */
+
+	resource->type = ACPI_RESOURCE_TYPE_ADDRESS64;
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_set_address64
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_set_address64(struct acpi_resource *resource, union aml_resource *aml)
+{
+	acpi_size descriptor_length;
+
+	ACPI_FUNCTION_TRACE("rs_set_address64");
+
+	/* Set the Resource Type, General Flags, and Type-Specific Flags */
+
+	acpi_rs_set_address_common(aml, resource);
 
 	/*
-	 * Set the length field to the number of bytes consumed
-	 * minus the header size (3 bytes)
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
 	 */
-	*length_field = (u16) (*bytes_consumed - 3);
+	acpi_rs_move_data(&aml->address64.granularity,
+			  &resource->data.address64.granularity, 5,
+			  ACPI_MOVE_TYPE_64_TO_64);
+
+	/* Resource Source Index and Resource Source are optional */
+
+	descriptor_length = acpi_rs_set_resource_source(aml,
+							sizeof(struct
+							       aml_resource_address64),
+							&resource->data.
+							address64.
+							resource_source);
+
+	/* Complete the AML descriptor header */
+
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_ADDRESS64,
+				    descriptor_length, aml);
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_get_ext_address64
+ *
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_get_ext_address64(union aml_resource *aml,
+			  u16 aml_resource_length,
+			  struct acpi_resource *resource)
+{
+
+	ACPI_FUNCTION_TRACE("rs_get_ext_address64");
+
+	/* Get the Resource Type, general flags, and type-specific flags */
+
+	if (!acpi_rs_get_address_common(resource, aml)) {
+		return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
+	}
+
+	/*
+	 * Get and validate the Revision ID
+	 * Note: Only one revision ID is currently supported
+	 */
+	resource->data.ext_address64.revision_iD =
+	    aml->ext_address64.revision_iD;
+	if (aml->ext_address64.revision_iD !=
+	    AML_RESOURCE_EXTENDED_ADDRESS_REVISION) {
+		return_ACPI_STATUS(AE_SUPPORT);
+	}
+
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
+	 * Type-Specific Attribute
+	 */
+	acpi_rs_move_data(&resource->data.ext_address64.granularity,
+			  &aml->ext_address64.granularity, 6,
+			  ACPI_MOVE_TYPE_64_TO_64);
+
+	/* Complete the resource header */
+
+	resource->type = ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64;
+	resource->length =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_extended_address64);
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_set_ext_address64
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_set_ext_address64(struct acpi_resource *resource,
+			  union aml_resource *aml)
+{
+	ACPI_FUNCTION_TRACE("rs_set_ext_address64");
+
+	/* Set the Resource Type, General Flags, and Type-Specific Flags */
+
+	acpi_rs_set_address_common(aml, resource);
+
+	/* Only one Revision ID is currently supported */
+
+	aml->ext_address64.revision_iD = AML_RESOURCE_EXTENDED_ADDRESS_REVISION;
+	aml->ext_address64.reserved = 0;
+
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Address Granularity
+	 * Address Range Minimum
+	 * Address Range Maximum
+	 * Address Translation Offset
+	 * Address Length
+	 * Type-Specific Attribute
+	 */
+	acpi_rs_move_data(&aml->ext_address64.granularity,
+			  &resource->data.address64.granularity, 6,
+			  ACPI_MOVE_TYPE_64_TO_64);
+
+	/* Complete the AML descriptor header */
+
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64,
+				    sizeof(struct
+					   aml_resource_extended_address64),
+				    aml);
 	return_ACPI_STATUS(AE_OK);
 }

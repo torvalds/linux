@@ -49,426 +49,269 @@ ACPI_MODULE_NAME("rsio")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_io_resource
+ * FUNCTION:    acpi_rs_get_io
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 acpi_status
-acpi_rs_io_resource(u8 * byte_stream_buffer,
-		    acpi_size * bytes_consumed,
-		    u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_get_io(union aml_resource *aml,
+	       u16 aml_resource_length, struct acpi_resource *resource)
 {
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size = ACPI_SIZEOF_RESOURCE(struct acpi_resource_io);
+	ACPI_FUNCTION_TRACE("rs_get_io");
 
-	ACPI_FUNCTION_TRACE("rs_io_resource");
+	/* Get the Decode flag */
 
-	/* The number of bytes consumed are Constant */
+	resource->data.io.io_decode = aml->io.information & 0x01;
 
-	*bytes_consumed = 8;
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 * Address Alignment
+	 * Length
+	 */
+	ACPI_MOVE_16_TO_32(&resource->data.io.minimum, &aml->io.minimum);
+	ACPI_MOVE_16_TO_32(&resource->data.io.maximum, &aml->io.maximum);
+	resource->data.io.alignment = aml->io.alignment;
+	resource->data.io.address_length = aml->io.address_length;
 
-	output_struct->type = ACPI_RSTYPE_IO;
+	/* Complete the resource header */
 
-	/* Check Decode */
-
-	buffer += 1;
-	temp8 = *buffer;
-
-	output_struct->data.io.io_decode = temp8 & 0x01;
-
-	/* Check min_base Address */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	output_struct->data.io.min_base_address = temp16;
-
-	/* Check max_base Address */
-
-	buffer += 2;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	output_struct->data.io.max_base_address = temp16;
-
-	/* Check Base alignment */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	output_struct->data.io.alignment = temp8;
-
-	/* Check range_length */
-
-	buffer += 1;
-	temp8 = *buffer;
-
-	output_struct->data.io.range_length = temp8;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+	resource->type = ACPI_RESOURCE_TYPE_IO;
+	resource->length = ACPI_SIZEOF_RESOURCE(struct acpi_resource_io);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_fixed_io_resource
+ * FUNCTION:    acpi_rs_set_io
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_fixed_io_resource(u8 * byte_stream_buffer,
-			  acpi_size * bytes_consumed,
-			  u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_set_io(struct acpi_resource *resource, union aml_resource *aml)
 {
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_io);
+	ACPI_FUNCTION_TRACE("rs_set_io");
 
-	ACPI_FUNCTION_TRACE("rs_fixed_io_resource");
+	/* I/O Information Byte */
 
-	/* The number of bytes consumed are Constant */
+	aml->io.information = (u8) (resource->data.io.io_decode & 0x01);
 
-	*bytes_consumed = 4;
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 * Address Alignment
+	 * Length
+	 */
+	ACPI_MOVE_32_TO_16(&aml->io.minimum, &resource->data.io.minimum);
+	ACPI_MOVE_32_TO_16(&aml->io.maximum, &resource->data.io.maximum);
+	aml->io.alignment = (u8) resource->data.io.alignment;
+	aml->io.address_length = (u8) resource->data.io.address_length;
 
-	output_struct->type = ACPI_RSTYPE_FIXED_IO;
+	/* Complete the AML descriptor header */
 
-	/* Check Range Base Address */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	output_struct->data.fixed_io.base_address = temp16;
-
-	/* Check range_length */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	output_struct->data.fixed_io.range_length = temp8;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_IO,
+				    sizeof(struct aml_resource_io), aml);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_io_stream
+ * FUNCTION:    acpi_rs_get_fixed_io
  *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_io_stream(struct acpi_resource *resource,
-		  u8 ** output_buffer, acpi_size * bytes_consumed)
+acpi_rs_get_fixed_io(union aml_resource *aml,
+		     u16 aml_resource_length, struct acpi_resource *resource)
 {
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
+	ACPI_FUNCTION_TRACE("rs_get_fixed_io");
 
-	ACPI_FUNCTION_TRACE("rs_io_stream");
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Base Address
+	 * Length
+	 */
+	ACPI_MOVE_16_TO_32(&resource->data.fixed_io.address,
+			   &aml->fixed_io.address);
+	resource->data.fixed_io.address_length = aml->fixed_io.address_length;
 
-	/* The Descriptor Type field is static */
+	/* Complete the resource header */
 
-	*buffer = ACPI_RDESC_TYPE_IO_PORT | 0x07;
-	buffer += 1;
-
-	/* Io Information Byte */
-
-	temp8 = (u8) (resource->data.io.io_decode & 0x01);
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Set the Range minimum base address */
-
-	temp16 = (u16) resource->data.io.min_base_address;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the Range maximum base address */
-
-	temp16 = (u16) resource->data.io.max_base_address;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the base alignment */
-
-	temp8 = (u8) resource->data.io.alignment;
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Set the range length */
-
-	temp8 = (u8) resource->data.io.range_length;
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	resource->type = ACPI_RESOURCE_TYPE_FIXED_IO;
+	resource->length = ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_io);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_fixed_io_stream
+ * FUNCTION:    acpi_rs_set_fixed_io
  *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_fixed_io_stream(struct acpi_resource *resource,
-			u8 ** output_buffer, acpi_size * bytes_consumed)
+acpi_rs_set_fixed_io(struct acpi_resource *resource, union aml_resource *aml)
 {
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
+	ACPI_FUNCTION_TRACE("rs_set_fixed_io");
 
-	ACPI_FUNCTION_TRACE("rs_fixed_io_stream");
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Base Address
+	 * Length
+	 */
+	ACPI_MOVE_32_TO_16(&aml->fixed_io.address,
+			   &resource->data.fixed_io.address);
+	aml->fixed_io.address_length =
+	    (u8) resource->data.fixed_io.address_length;
 
-	/* The Descriptor Type field is static */
+	/* Complete the AML descriptor header */
 
-	*buffer = ACPI_RDESC_TYPE_FIXED_IO_PORT | 0x03;
-	buffer += 1;
-
-	/* Set the Range base address */
-
-	temp16 = (u16) resource->data.fixed_io.base_address;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the range length */
-
-	temp8 = (u8) resource->data.fixed_io.range_length;
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_FIXED_IO,
+				    sizeof(struct aml_resource_fixed_io), aml);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_dma_resource
+ * FUNCTION:    acpi_rs_get_dma
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_dma_resource(u8 * byte_stream_buffer,
-		     acpi_size * bytes_consumed,
-		     u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_get_dma(union aml_resource *aml,
+		u16 aml_resource_length, struct acpi_resource *resource)
 {
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u8 temp8 = 0;
-	u8 index;
-	u8 i;
-	acpi_size struct_size = ACPI_SIZEOF_RESOURCE(struct acpi_resource_dma);
+	u32 channel_count = 0;
+	u32 i;
+	u8 temp8;
 
-	ACPI_FUNCTION_TRACE("rs_dma_resource");
-
-	/* The number of bytes consumed are Constant */
-
-	*bytes_consumed = 3;
-	output_struct->type = ACPI_RSTYPE_DMA;
-
-	/* Point to the 8-bits of Byte 1 */
-
-	buffer += 1;
-	temp8 = *buffer;
+	ACPI_FUNCTION_TRACE("rs_get_dma");
 
 	/* Decode the DMA channel bits */
 
-	for (i = 0, index = 0; index < 8; index++) {
-		if ((temp8 >> index) & 0x01) {
-			output_struct->data.dma.channels[i] = index;
-			i++;
+	for (i = 0; i < 8; i++) {
+		if ((aml->dma.dma_channel_mask >> i) & 0x01) {
+			resource->data.dma.channels[channel_count] = i;
+			channel_count++;
 		}
 	}
 
-	/* Zero DMA channels is valid */
+	resource->length = 0;
+	resource->data.dma.channel_count = channel_count;
 
-	output_struct->data.dma.number_of_channels = i;
-	if (i > 0) {
-		/* Calculate the structure size based upon the number of interrupts */
-
-		struct_size += ((acpi_size) i - 1) * 4;
+	/*
+	 * Calculate the structure size based upon the number of channels
+	 * Note: Zero DMA channels is valid
+	 */
+	if (channel_count > 0) {
+		resource->length = (u32) (channel_count - 1) * 4;
 	}
 
-	/* Point to Byte 2 */
+	/* Get the flags: transfer preference, bus mastering, channel speed */
 
-	buffer += 1;
-	temp8 = *buffer;
+	temp8 = aml->dma.flags;
+	resource->data.dma.transfer = temp8 & 0x03;
+	resource->data.dma.bus_master = (temp8 >> 2) & 0x01;
+	resource->data.dma.type = (temp8 >> 5) & 0x03;
 
-	/* Check for transfer preference (Bits[1:0]) */
-
-	output_struct->data.dma.transfer = temp8 & 0x03;
-
-	if (0x03 == output_struct->data.dma.transfer) {
+	if (resource->data.dma.transfer == 0x03) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Invalid DMA.Transfer preference (3)\n"));
 		return_ACPI_STATUS(AE_BAD_DATA);
 	}
 
-	/* Get bus master preference (Bit[2]) */
+	/* Complete the resource header */
 
-	output_struct->data.dma.bus_master = (temp8 >> 2) & 0x01;
-
-	/* Get channel speed support (Bits[6:5]) */
-
-	output_struct->data.dma.type = (temp8 >> 5) & 0x03;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+	resource->type = ACPI_RESOURCE_TYPE_DMA;
+	resource->length += ACPI_SIZEOF_RESOURCE(struct acpi_resource_dma);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_dma_stream
+ * FUNCTION:    acpi_rs_set_dma
  *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_dma_stream(struct acpi_resource *resource,
-		   u8 ** output_buffer, acpi_size * bytes_consumed)
+acpi_rs_set_dma(struct acpi_resource *resource, union aml_resource *aml)
 {
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	u8 index;
+	u8 i;
 
-	ACPI_FUNCTION_TRACE("rs_dma_stream");
+	ACPI_FUNCTION_TRACE("rs_set_dma");
 
-	/* The Descriptor Type field is static */
+	/* Convert channel list to 8-bit DMA channel bitmask */
 
-	*buffer = ACPI_RDESC_TYPE_DMA_FORMAT | 0x02;
-	buffer += 1;
-	temp8 = 0;
-
-	/* Loop through all of the Channels and set the mask bits */
-
-	for (index = 0; index < resource->data.dma.number_of_channels; index++) {
-		temp16 = (u16) resource->data.dma.channels[index];
-		temp8 |= 0x1 << temp16;
+	aml->dma.dma_channel_mask = 0;
+	for (i = 0; i < resource->data.dma.channel_count; i++) {
+		aml->dma.dma_channel_mask |=
+		    (1 << resource->data.dma.channels[i]);
 	}
 
-	*buffer = temp8;
-	buffer += 1;
+	/* Set the DMA Flag bits */
 
-	/* Set the DMA Info */
+	aml->dma.flags = (u8)
+	    (((resource->data.dma.type & 0x03) << 5) |
+	     ((resource->data.dma.bus_master & 0x01) << 2) |
+	     (resource->data.dma.transfer & 0x03));
 
-	temp8 = (u8) ((resource->data.dma.type & 0x03) << 5);
-	temp8 |= ((resource->data.dma.bus_master & 0x01) << 2);
-	temp8 |= (resource->data.dma.transfer & 0x03);
+	/* Complete the AML descriptor header */
 
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_DMA,
+				    sizeof(struct aml_resource_dma), aml);
 	return_ACPI_STATUS(AE_OK);
 }

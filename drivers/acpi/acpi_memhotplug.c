@@ -101,8 +101,8 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 			    address64.attribute.memory.cache_attribute;
 			mem_device->read_write_attribute =
 			    address64.attribute.memory.read_write_attribute;
-			mem_device->start_addr = address64.min_address_range;
-			mem_device->end_addr = address64.max_address_range;
+			mem_device->start_addr = address64.minimum;
+			mem_device->end_addr = address64.maximum;
 		}
 	}
 

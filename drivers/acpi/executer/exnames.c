@@ -191,10 +191,10 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		if (name_string) {
 			ACPI_STRCAT(name_string, char_buf);
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "Appended to - %s \n", name_string));
+					  "Appended to - %s\n", name_string));
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "No Name string - %s \n", char_buf));
+					  "No Name string - %s\n", char_buf));
 		}
 	} else if (index == 0) {
 		/*

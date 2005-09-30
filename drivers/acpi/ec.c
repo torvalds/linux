@@ -1151,7 +1151,7 @@ acpi_ec_io_ports(struct acpi_resource *resource, void *context)
 	union acpi_ec *ec = (union acpi_ec *)context;
 	struct acpi_generic_address *addr;
 
-	if (resource->type != ACPI_RSTYPE_IO) {
+	if (resource->type != ACPI_RESOURCE_TYPE_IO) {
 		return AE_OK;
 	}
 
@@ -1171,7 +1171,7 @@ acpi_ec_io_ports(struct acpi_resource *resource, void *context)
 	addr->address_space_id = ACPI_ADR_SPACE_SYSTEM_IO;
 	addr->register_bit_width = 8;
 	addr->register_bit_offset = 0;
-	addr->address = resource->data.io.min_base_address;
+	addr->address = resource->data.io.minimum;
 
 	return AE_OK;
 }

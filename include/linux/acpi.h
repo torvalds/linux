@@ -435,7 +435,7 @@ extern int sbf_port ;
 
 #endif 	/* !CONFIG_ACPI */
 
-int acpi_register_gsi (u32 gsi, int edge_level, int active_high_low);
+int acpi_register_gsi (u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
 /*

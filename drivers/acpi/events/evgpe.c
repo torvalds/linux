@@ -600,7 +600,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		status = acpi_hw_clear_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to clear GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 	}
 
@@ -638,7 +638,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 			status = acpi_hw_clear_gpe(gpe_event_info);
 			if (ACPI_FAILURE(status)) {
 				ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to clear GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-				return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+				return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 			}
 		}
 		break;
@@ -652,7 +652,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		status = acpi_ev_disable_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to disable GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 
 		/*
@@ -680,12 +680,12 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		status = acpi_ev_disable_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to disable GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 		break;
 	}
 
-	return_VALUE(ACPI_INTERRUPT_HANDLED);
+	return_UINT32(ACPI_INTERRUPT_HANDLED);
 }
 
 #ifdef ACPI_GPE_NOTIFY_CHECK

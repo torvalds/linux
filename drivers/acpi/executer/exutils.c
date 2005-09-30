@@ -206,7 +206,7 @@ u8 acpi_ex_acquire_global_lock(u32 field_flags)
 		}
 	}
 
-	return_VALUE(locked);
+	return_UINT8(locked);
 }
 
 /*******************************************************************************
@@ -268,7 +268,7 @@ static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
 	/* acpi_integer is unsigned, so we don't worry about a '-' prefix */
 
 	if (value == 0) {
-		return_VALUE(1);
+		return_UINT32(1);
 	}
 
 	current_value = value;
@@ -282,7 +282,7 @@ static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
 		num_digits++;
 	}
 
-	return_VALUE(num_digits);
+	return_UINT32(num_digits);
 }
 
 /*******************************************************************************

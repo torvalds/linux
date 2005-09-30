@@ -276,7 +276,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unknown field access type %X\n", access));
-		return_VALUE(0);
+		return_UINT32(0);
 	}
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_BUFFER_FIELD) {
@@ -289,7 +289,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	}
 
 	*return_byte_alignment = byte_alignment;
-	return_VALUE(bit_length);
+	return_UINT32(bit_length);
 }
 
 /*******************************************************************************

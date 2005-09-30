@@ -149,6 +149,9 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler);
 acpi_status
 acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data);
 
+acpi_status
+acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags);
+
 /*
  * Object manipulation and enumeration
  */

@@ -498,7 +498,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			path++;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "Multi Pathname (%d Segments, Flags=%X) \n",
+					  "Multi Pathname (%d Segments, Flags=%X)\n",
 					  num_segments, flags));
 			break;
 

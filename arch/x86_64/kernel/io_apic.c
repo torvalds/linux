@@ -1956,7 +1956,7 @@ int __init io_apic_get_redir_entries (int ioapic)
 }
 
 
-int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int active_high_low)
+int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int polarity)
 {
 	struct IO_APIC_route_entry entry;
 	unsigned long flags;
@@ -1978,8 +1978,8 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	entry.delivery_mode = INT_DELIVERY_MODE;
 	entry.dest_mode = INT_DEST_MODE;
 	entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
-	entry.trigger = edge_level;
-	entry.polarity = active_high_low;
+	entry.trigger = triggering;
+	entry.polarity = polarity;
 	entry.mask = 1;					 /* Disabled (masked) */
 
 	irq = gsi_irq_sharing(irq);
@@ -1994,9 +1994,9 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	apic_printk(APIC_VERBOSE,KERN_DEBUG "IOAPIC[%d]: Set PCI routing entry (%d-%d -> 0x%x -> "
 		"IRQ %d Mode:%i Active:%i)\n", ioapic, 
 	       mp_ioapics[ioapic].mpc_apicid, pin, entry.vector, irq,
-	       edge_level, active_high_low);
+	       triggering, polarity);
 
-	ioapic_register_intr(irq, entry.vector, edge_level);
+	ioapic_register_intr(irq, entry.vector, triggering);
 
 	if (!ioapic && (irq < 16))
 		disable_8259A_irq(irq);

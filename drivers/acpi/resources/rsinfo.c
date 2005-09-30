@@ -207,7 +207,7 @@ struct acpi_resource_info acpi_gbl_lg_resource_info[] = {
 	{0, ACPI_RLARGE(struct aml_resource_memory24),
 	 ACPI_SIZEOF_RESOURCE(struct acpi_resource_memory24)},
 	{0, ACPI_RLARGE(struct aml_resource_generic_register),
-	 ACPI_SIZEOF_RESOURCE(struct acpi_resource_generic_registerister)},
+	 ACPI_SIZEOF_RESOURCE(struct acpi_resource_generic_register)},
 	{0, 0, 0},
 	{1, ACPI_RLARGE(struct aml_resource_vendor_large),
 	 ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor)},

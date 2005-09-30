@@ -525,6 +525,9 @@
  * bad form, but having a separate exit macro is very ugly and difficult to maintain.
  * One of the FUNCTION_TRACE macros above must be used in conjunction with these macros
  * so that "_acpi_function_name" is defined.
+ *
+ * Note: the DO_WHILE0 macro is used to prevent some compilers from complaining
+ * about these constructs.
  */
 #ifdef ACPI_USE_DO_WHILE_0
 #define ACPI_DO_WHILE0(a)               do a while(0)
@@ -532,10 +535,55 @@
 #define ACPI_DO_WHILE0(a)               a
 #endif
 
-#define return_VOID                     ACPI_DO_WHILE0 ({acpi_ut_exit(ACPI_DEBUG_PARAMETERS);return;})
-#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({acpi_ut_status_exit(ACPI_DEBUG_PARAMETERS,(s));return((s));})
-#define return_VALUE(s)                 ACPI_DO_WHILE0 ({acpi_ut_value_exit(ACPI_DEBUG_PARAMETERS,(acpi_integer)(s));return((s));})
-#define return_PTR(s)                   ACPI_DO_WHILE0 ({acpi_ut_ptr_exit(ACPI_DEBUG_PARAMETERS,(u8 *)(s));return((s));})
+#define return_VOID                     ACPI_DO_WHILE0 ({ \
+											acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
+											return;})
+/*
+ * There are two versions of most of the return macros. The default version is
+ * safer, since it avoids side-effects by guaranteeing that the argument will
+ * not be evaluated twice.
+ *
+ * A less-safe version of the macros is provided for optional use if the
+ * compiler uses excessive CPU stack (for example, this may happen in the
+ * debug case if code optimzation is disabled.)
+ */
+#ifndef ACPI_SIMPLE_RETURN_MACROS
+
+#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
+											register acpi_status _s = (s); \
+											acpi_ut_status_exit (ACPI_DEBUG_PARAMETERS, _s); \
+											return (_s); })
+#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
+											register void *_s = (void *) (s); \
+											acpi_ut_ptr_exit (ACPI_DEBUG_PARAMETERS, (u8 *) _s); \
+											return (_s); })
+#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
+											register acpi_integer _s = (s); \
+											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
+											return (_s); })
+#define return_UINT8(s)                 ACPI_DO_WHILE0 ({ \
+											register u8 _s = (u8) (s); \
+											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
+											return (_s); })
+#define return_UINT32(s)                ACPI_DO_WHILE0 ({ \
+											register u32 _s = (u32) (s); \
+											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
+											return (_s); })
+#else				/* Use original less-safe macros */
+
+#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
+											acpi_ut_status_exit (ACPI_DEBUG_PARAMETERS, (s)); \
+											return((s)); })
+#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
+											acpi_ut_ptr_exit (ACPI_DEBUG_PARAMETERS, (u8 *) (s)); \
+											return((s)); })
+#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
+											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (acpi_integer) (s)); \
+											return((s)); })
+#define return_UINT8(s)                 return_VALUE(s)
+#define return_UINT32(s)                return_VALUE(s)
+
+#endif				/* ACPI_SIMPLE_RETURN_MACROS */
 
 /* Conditional execution */
 
@@ -612,6 +660,8 @@
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
 #define return_VALUE(s)                 return(s)
+#define return_UINT8(s)                 return(s)
+#define return_UINT32(s)                return(s)
 #define return_PTR(s)                   return(s)
 
 #endif

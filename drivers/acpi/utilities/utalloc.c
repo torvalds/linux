@@ -304,7 +304,7 @@ void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
 
 	if (!size) {
 		_ACPI_REPORT_ERROR(module, line, component,
-				   ("ut_allocate: Attempt to allocate zero bytes\n"));
+				   ("ut_allocate: Attempt to allocate zero bytes, allocating 1 byte\n"));
 		size = 1;
 	}
 
@@ -347,8 +347,8 @@ void *acpi_ut_callocate(acpi_size size, u32 component, char *module, u32 line)
 
 	if (!size) {
 		_ACPI_REPORT_ERROR(module, line, component,
-				   ("ut_callocate: Attempt to allocate zero bytes\n"));
-		return_PTR(NULL);
+				   ("ut_callocate: Attempt to allocate zero bytes, allocating 1 byte\n"));
+		size = 1;
 	}
 
 	allocation = acpi_os_allocate(size);

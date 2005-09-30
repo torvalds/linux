@@ -157,7 +157,7 @@ acpi_ex_resolve_operands(u16 opcode,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "Opcode %X [%s] required_operand_types=%8.8X \n",
+			  "Opcode %X [%s] required_operand_types=%8.8X\n",
 			  opcode, op_info->name, arg_types));
 
 	/*

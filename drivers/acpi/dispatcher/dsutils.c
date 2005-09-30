@@ -177,7 +177,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 	if (!op) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null Op\n"));
-		return_VALUE(TRUE);
+		return_UINT8(TRUE);
 	}
 
 	/*
@@ -208,7 +208,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 				  "At Method level, result of [%s] not used\n",
 				  acpi_ps_get_opcode_name(op->common.
 							  aml_opcode)));
-		return_VALUE(FALSE);
+		return_UINT8(FALSE);
 	}
 
 	/* Get info on the parent. The root_op is AML_SCOPE */
@@ -218,7 +218,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unknown parent opcode. Op=%p\n", op));
-		return_VALUE(FALSE);
+		return_UINT8(FALSE);
 	}
 
 	/*
@@ -304,7 +304,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_VALUE(TRUE);
+	return_UINT8(TRUE);
 
       result_not_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -313,7 +313,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_VALUE(FALSE);
+	return_UINT8(FALSE);
 }
 
 /*******************************************************************************
@@ -616,7 +616,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 
 		if (op_info->flags & AML_HAS_RETVAL) {
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-					  "Argument previously created, already stacked \n"));
+					  "Argument previously created, already stacked\n"));
 
 			ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
 					   (walk_state->

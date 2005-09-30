@@ -249,10 +249,10 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
 
 	if (!node) {
 		ACPI_REPORT_WARNING(("ns_get_type: Null Node input pointer\n"));
-		return_VALUE(ACPI_TYPE_ANY);
+		return_UINT32(ACPI_TYPE_ANY);
 	}
 
-	return_VALUE((acpi_object_type) node->type);
+	return_UINT32((acpi_object_type) node->type);
 }
 
 /*******************************************************************************
@@ -276,10 +276,10 @@ u32 acpi_ns_local(acpi_object_type type)
 		/* Type code out of range  */
 
 		ACPI_REPORT_WARNING(("ns_local: Invalid Object Type\n"));
-		return_VALUE(ACPI_NS_NORMAL);
+		return_UINT32(ACPI_NS_NORMAL);
 	}
 
-	return_VALUE((u32) acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
+	return_UINT32((u32) acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
 }
 
 /*******************************************************************************
@@ -805,10 +805,10 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 
 		ACPI_REPORT_WARNING(("ns_opens_scope: Invalid Object Type %X\n",
 				     type));
-		return_VALUE(ACPI_NS_NORMAL);
+		return_UINT32(ACPI_NS_NORMAL);
 	}
 
-	return_VALUE(((u32) acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
+	return_UINT32(((u32) acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
 }
 
 /*******************************************************************************

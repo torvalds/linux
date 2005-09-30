@@ -49,446 +49,260 @@ ACPI_MODULE_NAME("rsmemory")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_memory24_resource
+ * FUNCTION:    acpi_rs_get_memory24
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 acpi_status
-acpi_rs_memory24_resource(u8 * byte_stream_buffer,
-			  acpi_size * bytes_consumed,
-			  u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_get_memory24(union aml_resource * aml,
+		     u16 aml_resource_length, struct acpi_resource * resource)
 {
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_mem24);
+	ACPI_FUNCTION_TRACE("rs_get_memory24");
 
-	ACPI_FUNCTION_TRACE("rs_memory24_resource");
+	/* Get the Read/Write bit */
 
-	/* Point past the Descriptor to get the number of bytes consumed */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	buffer += 2;
-	*bytes_consumed = (acpi_size) temp16 + 3;
-	output_struct->type = ACPI_RSTYPE_MEM24;
-
-	/* Check Byte 3 the Read/Write bit */
-
-	temp8 = *buffer;
-	buffer += 1;
-	output_struct->data.memory24.read_write_attribute = temp8 & 0x01;
-
-	/* Get min_base_address (Bytes 4-5) */
-
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-	buffer += 2;
-	output_struct->data.memory24.min_base_address = temp16;
-
-	/* Get max_base_address (Bytes 6-7) */
-
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-	buffer += 2;
-	output_struct->data.memory24.max_base_address = temp16;
-
-	/* Get Alignment (Bytes 8-9) */
-
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-	buffer += 2;
-	output_struct->data.memory24.alignment = temp16;
-
-	/* Get range_length (Bytes 10-11) */
-
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-	output_struct->data.memory24.range_length = temp16;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_memory24_stream
- *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_memory24_stream(struct acpi_resource *resource,
-			u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-
-	ACPI_FUNCTION_TRACE("rs_memory24_stream");
-
-	/* The Descriptor Type field is static */
-
-	*buffer = ACPI_RDESC_TYPE_MEMORY_24;
-	buffer += 1;
-
-	/* The length field is static */
-
-	temp16 = 0x09;
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the Information Byte */
-
-	temp8 = (u8) (resource->data.memory24.read_write_attribute & 0x01);
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Set the Range minimum base address */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.min_base_address);
-	buffer += 2;
-
-	/* Set the Range maximum base address */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.max_base_address);
-	buffer += 2;
-
-	/* Set the base alignment */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.alignment);
-	buffer += 2;
-
-	/* Set the range length */
-
-	ACPI_MOVE_32_TO_16(buffer, &resource->data.memory24.range_length);
-	buffer += 2;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_memory32_range_resource
- *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_memory32_range_resource(u8 * byte_stream_buffer,
-				acpi_size * bytes_consumed,
-				u8 ** output_buffer, acpi_size * structure_size)
-{
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_mem32);
-
-	ACPI_FUNCTION_TRACE("rs_memory32_range_resource");
-
-	/* Point past the Descriptor to get the number of bytes consumed */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	buffer += 2;
-	*bytes_consumed = (acpi_size) temp16 + 3;
-	output_struct->type = ACPI_RSTYPE_MEM32;
+	resource->data.memory24.read_write_attribute =
+	    (aml->memory24.information & 0x01);
 
 	/*
-	 *  Point to the place in the output buffer where the data portion will
-	 *  begin.
-	 *  1. Set the RESOURCE_DATA * Data to point to its own address, then
-	 *  2. Set the pointer to the next address.
-	 *
-	 *  NOTE: output_struct->Data is cast to u8, otherwise, this addition adds
-	 *  4 * sizeof(RESOURCE_DATA) instead of 4 * sizeof(u8)
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 * Address Base Alignment
+	 * Range Length
 	 */
+	acpi_rs_move_data(&resource->data.memory24.minimum,
+			  &aml->memory24.minimum, 4, ACPI_MOVE_TYPE_16_TO_32);
 
-	/* Check Byte 3 the Read/Write bit */
+	/* Complete the resource header */
 
-	temp8 = *buffer;
-	buffer += 1;
-
-	output_struct->data.memory32.read_write_attribute = temp8 & 0x01;
-
-	/* Get min_base_address (Bytes 4-7) */
-
-	ACPI_MOVE_32_TO_32(&output_struct->data.memory32.min_base_address,
-			   buffer);
-	buffer += 4;
-
-	/* Get max_base_address (Bytes 8-11) */
-
-	ACPI_MOVE_32_TO_32(&output_struct->data.memory32.max_base_address,
-			   buffer);
-	buffer += 4;
-
-	/* Get Alignment (Bytes 12-15) */
-
-	ACPI_MOVE_32_TO_32(&output_struct->data.memory32.alignment, buffer);
-	buffer += 4;
-
-	/* Get range_length (Bytes 16-19) */
-
-	ACPI_MOVE_32_TO_32(&output_struct->data.memory32.range_length, buffer);
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+	resource->type = ACPI_RESOURCE_TYPE_MEMORY24;
+	resource->length = ACPI_SIZEOF_RESOURCE(struct acpi_resource_memory24);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_fixed_memory32_resource
+ * FUNCTION:    acpi_rs_set_memory24
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_fixed_memory32_resource(u8 * byte_stream_buffer,
-				acpi_size * bytes_consumed,
-				u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_set_memory24(struct acpi_resource *resource, union aml_resource *aml)
 {
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_mem32);
-
-	ACPI_FUNCTION_TRACE("rs_fixed_memory32_resource");
-
-	/* Point past the Descriptor to get the number of bytes consumed */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	buffer += 2;
-	*bytes_consumed = (acpi_size) temp16 + 3;
-	output_struct->type = ACPI_RSTYPE_FIXED_MEM32;
-
-	/* Check Byte 3 the Read/Write bit */
-
-	temp8 = *buffer;
-	buffer += 1;
-	output_struct->data.fixed_memory32.read_write_attribute = temp8 & 0x01;
-
-	/* Get range_base_address (Bytes 4-7) */
-
-	ACPI_MOVE_32_TO_32(&output_struct->data.fixed_memory32.
-			   range_base_address, buffer);
-	buffer += 4;
-
-	/* Get range_length (Bytes 8-11) */
-
-	ACPI_MOVE_32_TO_32(&output_struct->data.fixed_memory32.range_length,
-			   buffer);
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_memory32_range_stream
- *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_memory32_range_stream(struct acpi_resource *resource,
-			      u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-
-	ACPI_FUNCTION_TRACE("rs_memory32_range_stream");
-
-	/* The Descriptor Type field is static */
-
-	*buffer = ACPI_RDESC_TYPE_MEMORY_32;
-	buffer += 1;
-
-	/* The length field is static */
-
-	temp16 = 0x11;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
+	ACPI_FUNCTION_TRACE("rs_set_memory24");
 
 	/* Set the Information Byte */
 
-	temp8 = (u8) (resource->data.memory32.read_write_attribute & 0x01);
-	*buffer = temp8;
-	buffer += 1;
+	aml->memory24.information = (u8)
+	    (resource->data.memory24.read_write_attribute & 0x01);
 
-	/* Set the Range minimum base address */
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 * Address Base Alignment
+	 * Range Length
+	 */
+	acpi_rs_move_data(&aml->memory24.minimum,
+			  &resource->data.memory24.minimum, 4,
+			  ACPI_MOVE_TYPE_32_TO_16);
 
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.min_base_address);
-	buffer += 4;
+	/* Complete the AML descriptor header */
 
-	/* Set the Range maximum base address */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.max_base_address);
-	buffer += 4;
-
-	/* Set the base alignment */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.alignment);
-	buffer += 4;
-
-	/* Set the range length */
-
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.memory32.range_length);
-	buffer += 4;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_MEMORY24,
+				    sizeof(struct aml_resource_memory24), aml);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_fixed_memory32_stream
+ * FUNCTION:    acpi_rs_get_memory32
  *
- * PARAMETERS:  Resource                - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_fixed_memory32_stream(struct acpi_resource *resource,
-			      u8 ** output_buffer, acpi_size * bytes_consumed)
+acpi_rs_get_memory32(union aml_resource *aml,
+		     u16 aml_resource_length, struct acpi_resource *resource)
 {
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
+	ACPI_FUNCTION_TRACE("rs_get_memory32");
 
-	ACPI_FUNCTION_TRACE("rs_fixed_memory32_stream");
+	/* Get the Read/Write bit */
 
-	/* The Descriptor Type field is static */
+	resource->data.memory32.read_write_attribute =
+	    (aml->memory32.information & 0x01);
 
-	*buffer = ACPI_RDESC_TYPE_FIXED_MEMORY_32;
-	buffer += 1;
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 * Address Base Alignment
+	 * Range Length
+	 */
+	acpi_rs_move_data(&resource->data.memory32.minimum,
+			  &aml->memory32.minimum, 4, ACPI_MOVE_TYPE_32_TO_32);
 
-	/* The length field is static */
+	/* Complete the resource header */
 
-	temp16 = 0x09;
+	resource->type = ACPI_RESOURCE_TYPE_MEMORY32;
+	resource->length = ACPI_SIZEOF_RESOURCE(struct acpi_resource_memory32);
+	return_ACPI_STATUS(AE_OK);
+}
 
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_set_memory32
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_set_memory32(struct acpi_resource *resource, union aml_resource *aml)
+{
+	ACPI_FUNCTION_TRACE("rs_set_memory32");
 
 	/* Set the Information Byte */
 
-	temp8 =
-	    (u8) (resource->data.fixed_memory32.read_write_attribute & 0x01);
-	*buffer = temp8;
-	buffer += 1;
+	aml->memory32.information = (u8)
+	    (resource->data.memory32.read_write_attribute & 0x01);
 
-	/* Set the Range base address */
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 * Address Base Alignment
+	 * Range Length
+	 */
+	acpi_rs_move_data(&aml->memory32.minimum,
+			  &resource->data.memory32.minimum, 4,
+			  ACPI_MOVE_TYPE_32_TO_32);
 
-	ACPI_MOVE_32_TO_32(buffer,
-			   &resource->data.fixed_memory32.range_base_address);
-	buffer += 4;
+	/* Complete the AML descriptor header */
 
-	/* Set the range length */
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_MEMORY32,
+				    sizeof(struct aml_resource_memory32), aml);
+	return_ACPI_STATUS(AE_OK);
+}
 
-	ACPI_MOVE_32_TO_32(buffer, &resource->data.fixed_memory32.range_length);
-	buffer += 4;
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_get_fixed_memory32
+ *
+ * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
+ *              aml_resource_length - Length of the resource from the AML header
+ *              Resource            - Where the internal resource is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
+ *              internal resource descriptor, simplifying bitflags and handling
+ *              alignment and endian issues if necessary.
+ *
+ ******************************************************************************/
 
-	/* Return the number of bytes consumed in this operation */
+acpi_status
+acpi_rs_get_fixed_memory32(union aml_resource *aml,
+			   u16 aml_resource_length,
+			   struct acpi_resource *resource)
+{
+	ACPI_FUNCTION_TRACE("rs_get_fixed_memory32");
 
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	/* Get the Read/Write bit */
+
+	resource->data.fixed_memory32.read_write_attribute =
+	    (aml->fixed_memory32.information & 0x01);
+
+	/*
+	 * Get the following contiguous fields from the AML descriptor:
+	 * Base Address
+	 * Range Length
+	 */
+	ACPI_MOVE_32_TO_32(&resource->data.fixed_memory32.address,
+			   &aml->fixed_memory32.address);
+	ACPI_MOVE_32_TO_32(&resource->data.fixed_memory32.address_length,
+			   &aml->fixed_memory32.address_length);
+
+	/* Complete the resource header */
+
+	resource->type = ACPI_RESOURCE_TYPE_FIXED_MEMORY32;
+	resource->length =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_memory32);
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_set_fixed_memory32
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_set_fixed_memory32(struct acpi_resource *resource,
+			   union aml_resource *aml)
+{
+	ACPI_FUNCTION_TRACE("rs_set_fixed_memory32");
+
+	/* Set the Information Byte */
+
+	aml->fixed_memory32.information = (u8)
+	    (resource->data.fixed_memory32.read_write_attribute & 0x01);
+
+	/*
+	 * Set the following contiguous fields in the AML descriptor:
+	 * Base Address
+	 * Range Length
+	 */
+	ACPI_MOVE_32_TO_32(&aml->fixed_memory32.address,
+			   &resource->data.fixed_memory32.address);
+	ACPI_MOVE_32_TO_32(&aml->fixed_memory32.address_length,
+			   &resource->data.fixed_memory32.address_length);
+
+	/* Complete the AML descriptor header */
+
+	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_FIXED_MEMORY32,
+				    sizeof(struct aml_resource_fixed_memory32),
+				    aml);
 	return_ACPI_STATUS(AE_OK);
 }

@@ -59,9 +59,9 @@ ACPI_MODULE_NAME("rsxface")
 	ACPI_COPY_FIELD(out, in, max_address_fixed);         \
 	ACPI_COPY_FIELD(out, in, attribute);                 \
 	ACPI_COPY_FIELD(out, in, granularity);               \
-	ACPI_COPY_FIELD(out, in, min_address_range);         \
-	ACPI_COPY_FIELD(out, in, max_address_range);         \
-	ACPI_COPY_FIELD(out, in, address_translation_offset); \
+	ACPI_COPY_FIELD(out, in, minimum);                   \
+	ACPI_COPY_FIELD(out, in, maximum);                   \
+	ACPI_COPY_FIELD(out, in, translation_offset);        \
 	ACPI_COPY_FIELD(out, in, address_length);            \
 	ACPI_COPY_FIELD(out, in, resource_source);
 /*******************************************************************************
@@ -269,7 +269,7 @@ acpi_walk_resources(acpi_handle device_handle,
 	/* Walk the resource list */
 
 	for (;;) {
-		if (!resource || resource->type == ACPI_RSTYPE_END_TAG) {
+		if (!resource || resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
 			break;
 		}
 
@@ -382,19 +382,19 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 	struct acpi_resource_address32 *address32;
 
 	switch (resource->type) {
-	case ACPI_RSTYPE_ADDRESS16:
+	case ACPI_RESOURCE_TYPE_ADDRESS16:
 
 		address16 = (struct acpi_resource_address16 *)&resource->data;
 		ACPI_COPY_ADDRESS(out, address16);
 		break;
 
-	case ACPI_RSTYPE_ADDRESS32:
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
 
 		address32 = (struct acpi_resource_address32 *)&resource->data;
 		ACPI_COPY_ADDRESS(out, address32);
 		break;
 
-	case ACPI_RSTYPE_ADDRESS64:
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
 
 		/* Simple copy for 64 bit source */
 

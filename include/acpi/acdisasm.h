@@ -187,73 +187,67 @@ void acpi_dm_decode_attribute(u8 attribute);
  * dmresrcl
  */
 void
-acpi_dm_word_descriptor(union asl_resource_desc *resource,
-			u32 length, u32 level);
+acpi_dm_word_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_dword_descriptor(union asl_resource_desc *resource,
-			 u32 length, u32 level);
+acpi_dm_dword_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_extended_descriptor(union asl_resource_desc *resource,
+acpi_dm_extended_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_qword_descriptor(union asl_resource_desc *resource,
-			 u32 length, u32 level);
+acpi_dm_qword_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_memory24_descriptor(union asl_resource_desc *resource,
+acpi_dm_memory24_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_memory32_descriptor(union asl_resource_desc *resource,
+acpi_dm_memory32_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_fixed_memory32_descriptor(union asl_resource_desc *resource,
+acpi_dm_fixed_memory32_descriptor(union aml_resource *resource,
 				  u32 length, u32 level);
 
 void
-acpi_dm_generic_register_descriptor(union asl_resource_desc *resource,
+acpi_dm_generic_register_descriptor(union aml_resource *resource,
 				    u32 length, u32 level);
 
 void
-acpi_dm_interrupt_descriptor(union asl_resource_desc *resource,
+acpi_dm_interrupt_descriptor(union aml_resource *resource,
 			     u32 length, u32 level);
 
 void
-acpi_dm_vendor_large_descriptor(union asl_resource_desc *resource,
+acpi_dm_vendor_large_descriptor(union aml_resource *resource,
 				u32 length, u32 level);
 
 /*
  * dmresrcs
  */
 void
-acpi_dm_irq_descriptor(union asl_resource_desc *resource,
-		       u32 length, u32 level);
+acpi_dm_irq_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_dma_descriptor(union asl_resource_desc *resource,
-		       u32 length, u32 level);
+acpi_dm_dma_descriptor(union aml_resource *resource, u32 length, u32 level);
+
+void acpi_dm_io_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_io_descriptor(union asl_resource_desc *resource, u32 length, u32 level);
-
-void
-acpi_dm_fixed_io_descriptor(union asl_resource_desc *resource,
+acpi_dm_fixed_io_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_start_dependent_descriptor(union asl_resource_desc *resource,
+acpi_dm_start_dependent_descriptor(union aml_resource *resource,
 				   u32 length, u32 level);
 
 void
-acpi_dm_end_dependent_descriptor(union asl_resource_desc *resource,
+acpi_dm_end_dependent_descriptor(union aml_resource *resource,
 				 u32 length, u32 level);
 
 void
-acpi_dm_vendor_small_descriptor(union asl_resource_desc *resource,
+acpi_dm_vendor_small_descriptor(union aml_resource *resource,
 				u32 length, u32 level);
 
 /*

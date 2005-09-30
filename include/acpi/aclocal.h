@@ -735,59 +735,52 @@ struct acpi_bit_register_info {
 
 /* resource_type values */
 
-#define ACPI_RESOURCE_TYPE_MEMORY_RANGE         0
-#define ACPI_RESOURCE_TYPE_IO_RANGE             1
-#define ACPI_RESOURCE_TYPE_BUS_NUMBER_RANGE     2
+#define ACPI_ADDRESS_TYPE_MEMORY_RANGE          0
+#define ACPI_ADDRESS_TYPE_IO_RANGE              1
+#define ACPI_ADDRESS_TYPE_BUS_NUMBER_RANGE      2
 
 /* Resource descriptor types and masks */
 
-#define ACPI_RDESC_TYPE_LARGE                   0x80
-#define ACPI_RDESC_TYPE_SMALL                   0x00
+#define ACPI_RESOURCE_NAME_LARGE                0x80
+#define ACPI_RESOURCE_NAME_SMALL                0x00
 
-#define ACPI_RDESC_SMALL_MASK                   0x78	/* Bits 6:3 contain the type */
-#define ACPI_RDESC_SMALL_LENGTH_MASK            0x07	/* Bits 2:0 contain the length */
-#define ACPI_RDESC_LARGE_MASK                   0x7F	/* Bits 6:0 contain the type */
+#define ACPI_RESOURCE_NAME_SMALL_MASK           0x78	/* Bits 6:3 contain the type */
+#define ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK    0x07	/* Bits 2:0 contain the length */
+#define ACPI_RESOURCE_NAME_LARGE_MASK           0x7F	/* Bits 6:0 contain the type */
 
 /*
- * Small resource descriptor types
+ * Small resource descriptor "names" as defined by the ACPI specification.
  * Note: Bits 2:0 are used for the descriptor length
  */
-#define ACPI_RDESC_TYPE_IRQ_FORMAT              0x20
-#define ACPI_RDESC_TYPE_DMA_FORMAT              0x28
-#define ACPI_RDESC_TYPE_START_DEPENDENT         0x30
-#define ACPI_RDESC_TYPE_END_DEPENDENT           0x38
-#define ACPI_RDESC_TYPE_IO_PORT                 0x40
-#define ACPI_RDESC_TYPE_FIXED_IO_PORT           0x48
-#define ACPI_RDESC_TYPE_RESERVED_S1             0x50
-#define ACPI_RDESC_TYPE_RESERVED_S2             0x58
-#define ACPI_RDESC_TYPE_RESERVED_S3             0x60
-#define ACPI_RDESC_TYPE_RESERVED_S4             0x68
-#define ACPI_RDESC_TYPE_SMALL_VENDOR            0x70
-#define ACPI_RDESC_TYPE_END_TAG                 0x78
+#define ACPI_RESOURCE_NAME_IRQ                  0x20
+#define ACPI_RESOURCE_NAME_DMA                  0x28
+#define ACPI_RESOURCE_NAME_START_DEPENDENT      0x30
+#define ACPI_RESOURCE_NAME_END_DEPENDENT        0x38
+#define ACPI_RESOURCE_NAME_IO                   0x40
+#define ACPI_RESOURCE_NAME_FIXED_IO             0x48
+#define ACPI_RESOURCE_NAME_RESERVED_S1          0x50
+#define ACPI_RESOURCE_NAME_RESERVED_S2          0x58
+#define ACPI_RESOURCE_NAME_RESERVED_S3          0x60
+#define ACPI_RESOURCE_NAME_RESERVED_S4          0x68
+#define ACPI_RESOURCE_NAME_VENDOR_SMALL         0x70
+#define ACPI_RESOURCE_NAME_END_TAG              0x78
 
 /*
- * Large resource descriptor types
+ * Large resource descriptor "names" as defined by the ACPI specification.
+ * Note: includes the Large Descriptor bit in bit[7]
  */
-#define ACPI_RDESC_TYPE_MEMORY_24               0x81
-#define ACPI_RDESC_TYPE_GENERIC_REGISTER        0x82
-#define ACPI_RDESC_TYPE_RESERVED_L1             0x83
-#define ACPI_RDESC_TYPE_LARGE_VENDOR            0x84
-#define ACPI_RDESC_TYPE_MEMORY_32               0x85
-#define ACPI_RDESC_TYPE_FIXED_MEMORY_32         0x86
-#define ACPI_RDESC_TYPE_DWORD_ADDRESS_SPACE     0x87
-#define ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE      0x88
-#define ACPI_RDESC_TYPE_EXTENDED_XRUPT          0x89
-#define ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE     0x8A
-#define ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE  0x8B
-#define ACPI_RDESC_LARGE_MAX                    0x8B
-
-/*
- * Minimum lengths for descriptors with optional fields
- */
-#define ACPI_RDESC_QWORD_MIN                    43
-#define ACPI_RDESC_DWORD_MIN                    23
-#define ACPI_RDESC_WORD_MIN                     13
-#define ACPI_RDESC_EXT_XRUPT_MIN                 6
+#define ACPI_RESOURCE_NAME_MEMORY24             0x81
+#define ACPI_RESOURCE_NAME_GENERIC_REGISTER     0x82
+#define ACPI_RESOURCE_NAME_RESERVED_L1          0x83
+#define ACPI_RESOURCE_NAME_VENDOR_LARGE         0x84
+#define ACPI_RESOURCE_NAME_MEMORY32             0x85
+#define ACPI_RESOURCE_NAME_FIXED_MEMORY32       0x86
+#define ACPI_RESOURCE_NAME_ADDRESS32            0x87
+#define ACPI_RESOURCE_NAME_ADDRESS16            0x88
+#define ACPI_RESOURCE_NAME_EXTENDED_IRQ         0x89
+#define ACPI_RESOURCE_NAME_ADDRESS64            0x8A
+#define ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64   0x8B
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8B
 
 /*****************************************************************************
  *
@@ -795,7 +788,7 @@ struct acpi_bit_register_info {
  *
  ****************************************************************************/
 
-#define ACPI_ASCII_ZERO                      0x30
+#define ACPI_ASCII_ZERO                         0x30
 
 /*****************************************************************************
  *

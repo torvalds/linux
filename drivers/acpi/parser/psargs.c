@@ -116,7 +116,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 		break;
 	}
 
-	return_VALUE(length);
+	return_UINT32(length);
 }
 
 /*******************************************************************************

@@ -214,7 +214,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	case ACPI_TYPE_BUFFER:
 
-		acpi_os_printf("Buffer len %X @ %p \n",
+		acpi_os_printf("Buffer len %X @ %p\n",
 			       obj_desc->buffer.length,
 			       obj_desc->buffer.pointer);
 
@@ -320,17 +320,17 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	case ACPI_TYPE_BUFFER_FIELD:
 
-		acpi_os_printf("buffer_field: %X bits at byte %X bit %X of \n",
+		acpi_os_printf("buffer_field: %X bits at byte %X bit %X of\n",
 			       obj_desc->buffer_field.bit_length,
 			       obj_desc->buffer_field.base_byte_offset,
 			       obj_desc->buffer_field.start_field_bit_offset);
 
 		if (!obj_desc->buffer_field.buffer_obj) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "*NULL* \n"));
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "*NULL*\n"));
 		} else
 		    if (ACPI_GET_OBJECT_TYPE(obj_desc->buffer_field.buffer_obj)
 			!= ACPI_TYPE_BUFFER) {
-			acpi_os_printf("*not a Buffer* \n");
+			acpi_os_printf("*not a Buffer*\n");
 		} else {
 			acpi_ex_dump_operand(obj_desc->buffer_field.buffer_obj,
 					     depth + 1);
@@ -618,7 +618,7 @@ acpi_ex_dump_package(union acpi_operand_object *obj_desc, u32 level, u32 index)
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("[Package] Contains %d Elements: \n",
+		acpi_os_printf("[Package] Contains %d Elements:\n",
 			       obj_desc->package.count);
 
 		for (i = 0; i < obj_desc->package.count; i++) {

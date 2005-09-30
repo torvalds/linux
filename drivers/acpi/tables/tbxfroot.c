@@ -251,7 +251,7 @@ acpi_get_firmware_table(acpi_string signature,
 
 	acpi_tb_get_rsdt_address(&address);
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "RSDP located at %p, RSDT physical=%8.8X%8.8X \n",
+			  "RSDP located at %p, RSDT physical=%8.8X%8.8X\n",
 			  acpi_gbl_RSDP,
 			  ACPI_FORMAT_UINT64(address.pointer.value)));
 
