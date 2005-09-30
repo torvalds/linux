@@ -605,6 +605,16 @@ UNUSUAL_DEV( 0x05ac, 0x1205, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/*
+ * Reported by Tyson Vinson <lornoss@gmail.com>
+ * This particular productId is the iPod Nano
+ */
+UNUSUAL_DEV( 0x05ac, 0x120a, 0x0000, 0x9999,
+		"Apple",
+		"iPod",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 UNUSUAL_DEV(  0x05dc, 0x0001, 0x0000, 0x0001,
 		"Lexar",
