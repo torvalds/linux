@@ -1347,7 +1347,7 @@ static ssize_t aio_pread(struct kiocb *iocb)
 		 * regular files we retry till we complete the entire read or
 		 * find that we can't read any more data (e.g short reads).
 		 */
-	} while (ret > 0 &&
+	} while (ret > 0 && iocb->ki_left > 0 &&
 		 !S_ISFIFO(inode->i_mode) && !S_ISSOCK(inode->i_mode));
 
 	/* This means we must have transferred all that we could */
@@ -1371,7 +1371,7 @@ static ssize_t aio_pwrite(struct kiocb *iocb)
 			iocb->ki_buf += ret;
 			iocb->ki_left -= ret;
 		}
-	} while (ret > 0);
+	} while (ret > 0 && iocb->ki_left > 0);
 
 	if ((ret == 0) || (iocb->ki_left == 0))
 		ret = iocb->ki_nbytes - iocb->ki_left;
