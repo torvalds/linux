@@ -3994,13 +3994,7 @@ static void ata_dataout_task(void *_data)
 	 */
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
-	if (is_atapi_taskfile(&qc->tf)) {
-		/* send CDB */
-		atapi_send_cdb(ap, qc);
-
-		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			queue_work(ata_wq, &ap->pio_task);
-	} else {
+	if (qc->tf.protocol == ATA_PROT_PIO) {
 		/* PIO data out protocol.
 		 * send first data block.
 		 */
@@ -4013,6 +4007,12 @@ static void ata_dataout_task(void *_data)
 		ata_altstatus(ap); /* flush */
 
 		/* interrupt handler takes over from here */
+	} else {
+		/* send CDB */
+		atapi_send_cdb(ap, qc);
+
+		if (qc->tf.flags & ATA_TFLAG_POLLING)
+			queue_work(ata_wq, &ap->pio_task);
 	}
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
