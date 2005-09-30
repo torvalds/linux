@@ -181,7 +181,6 @@ void __init arch_init_irq(void)
 	int i;
         unsigned long flags;
 
-        memset(irq_desc, 0, sizeof(irq_desc));
         set_except_vector(0, it8172_IRQ);
 
 	/* mask all interrupts */

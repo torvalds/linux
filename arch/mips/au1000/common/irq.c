@@ -446,7 +446,6 @@ void __init arch_init_irq(void)
 	extern int au1xxx_ic0_nr_irqs;
 
 	cp0_status = read_c0_status();
-	memset(irq_desc, 0, sizeof(irq_desc));
 	set_except_vector(0, au1000_IRQ);
 
 	/* Initialize interrupt controllers to a safe state.
