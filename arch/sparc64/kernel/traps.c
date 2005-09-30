@@ -1333,7 +1333,7 @@ static int cheetah_check_main_memory(unsigned long paddr)
 {
 	unsigned long vaddr = PAGE_OFFSET + paddr;
 
-	if (vaddr > high_memory)
+	if (vaddr > (unsigned long) high_memory)
 		return 0;
 
 	return kern_addr_valid(vaddr);
