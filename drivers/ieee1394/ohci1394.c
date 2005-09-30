@@ -162,7 +162,7 @@ printk(level "%s: " fmt "\n" , OHCI1394_DRIVER_NAME , ## args)
 printk(level "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 
 static char version[] __devinitdata =
-	"$Rev: 1299 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1313 $ Ben Collins <bcollins@debian.org>";
 
 /* Module Parameters */
 static int phys_dma = 1;
@@ -1084,7 +1084,7 @@ static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 			initialize_dma_rcv_ctx(&ohci->ir_legacy_context, 1);
 
 			if (printk_ratelimit())
-				PRINT(KERN_ERR, "IR legacy activated");
+				DBGMSG("IR legacy activated");
 		}
 
                 spin_lock_irqsave(&ohci->IR_channel_lock, flags);
