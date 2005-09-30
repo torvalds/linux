@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/reboot.h>
+#include <linux/smp_lock.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -343,13 +344,13 @@ static ssize_t sbprof_tb_read(struct file *filp, char *buf,
 	return count;
 }
 
-static int sbprof_tb_ioctl(struct inode *inode,
-			   struct file *filp,
-			   unsigned int command,
-			   unsigned long arg)
+static long sbprof_tb_ioctl(struct file *filp,
+			    unsigned int command,
+			    unsigned long arg)
 {
 	int error = 0;
 
+	lock_kernel();
 	switch (command) {
 	case SBPROF_ZBSTART:
 		error = sbprof_zbprof_start(filp);
@@ -368,6 +369,7 @@ static int sbprof_tb_ioctl(struct inode *inode,
 		error = -EINVAL;
 		break;
 	}
+	unlock_kernel();
 
 	return error;
 }
@@ -377,7 +379,8 @@ static struct file_operations sbprof_tb_fops = {
 	.open		= sbprof_tb_open,
 	.release	= sbprof_tb_release,
 	.read		= sbprof_tb_read,
-	.ioctl		= sbprof_tb_ioctl,
+	.unlocked_ioctl	= sbprof_tb_ioctl,
+	.compat_ioctl	= sbprof_tb_ioctl,
 	.mmap		= NULL,
 };
 
