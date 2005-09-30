@@ -3244,7 +3244,7 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 		goto use_random_mac_addr;
 
 	/* search for beginning of vpd */
-	base = 0;
+	base = NULL;
 	for (i = 2; i < EXPANSION_ROM_SIZE; i++) {
 		/* check for PCIR */
 		if ((readb(p + i + 0) == 0x50) &&
@@ -4564,7 +4564,7 @@ static void cas_set_multicast(struct net_device *dev)
 /* Eventually add support for changing the advertisement
  * on autoneg.
  */
-static int cas_ethtool_ioctl(struct net_device *dev, void *ep_user)
+static int cas_ethtool_ioctl(struct net_device *dev, void __user *ep_user)
 {
 	struct cas *cp = netdev_priv(dev);
 	u16 bmcr;
@@ -4578,7 +4578,7 @@ static int cas_ethtool_ioctl(struct net_device *dev, void *ep_user)
 		
 	switch(ecmd.cmd) {
         case ETHTOOL_GDRVINFO: {
-		struct ethtool_drvinfo info = { cmd: ETHTOOL_GDRVINFO };
+		struct ethtool_drvinfo info = { .cmd = ETHTOOL_GDRVINFO };
 
 		strncpy(info.driver, DRV_MODULE_NAME,
 			ETHTOOL_BUSINFO_LEN);
@@ -4738,7 +4738,7 @@ static int cas_ethtool_ioctl(struct net_device *dev, void *ep_user)
 
 	/* get link status */
 	case ETHTOOL_GLINK: {
-		struct ethtool_value edata = { cmd: ETHTOOL_GLINK };
+		struct ethtool_value edata = { .cmd = ETHTOOL_GLINK };
 
 		edata.data = (cp->lstate == link_up);
 		if (copy_to_user(ep_user, &edata, sizeof(edata)))
@@ -4748,7 +4748,7 @@ static int cas_ethtool_ioctl(struct net_device *dev, void *ep_user)
 
 	/* get message-level */
 	case ETHTOOL_GMSGLVL: {
-		struct ethtool_value edata = { cmd: ETHTOOL_GMSGLVL };
+		struct ethtool_value edata = { .cmd = ETHTOOL_GMSGLVL };
 
 		edata.data = cp->msg_enable;
 		if (copy_to_user(ep_user, &edata, sizeof(edata)))
@@ -4874,7 +4874,7 @@ static int cas_ethtool_ioctl(struct net_device *dev, void *ep_user)
 static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct cas *cp = netdev_priv(dev);
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr->ifr_data;
+	struct mii_ioctl_data *data = if_mii(ifr);
 	unsigned long flags;
 	int rc = -EOPNOTSUPP;
 	
@@ -5168,7 +5168,7 @@ err_out_iounmap:
 		cas_shutdown(cp);
 	up(&cp->pm_sem);
 
-	iounmap((void *) cp->regs);
+	iounmap(cp->regs);
 
 
 err_out_free_res:
@@ -5216,7 +5216,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 #endif
 	pci_free_consistent(pdev, sizeof(struct cas_init_block),
 			    cp->init_block, cp->block_dvma);
-	iounmap((void *) cp->regs);
+	iounmap(cp->regs);
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -5224,7 +5224,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int cas_suspend(struct pci_dev *pdev, u32 state)
+static int cas_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct cas *cp = netdev_priv(dev);
