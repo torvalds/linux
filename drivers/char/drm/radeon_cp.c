@@ -1205,6 +1205,10 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 		dev_priv->writeback_works = 0;
 		DRM_DEBUG("writeback test failed\n");
 	}
+	if (radeon_no_wb == 1) {
+		dev_priv->writeback_works = 0;
+		DRM_DEBUG("writeback forced off\n");
+	}
 
 	dev_priv->sarea_priv->last_frame = dev_priv->scratch[0] = 0;
 	RADEON_WRITE(RADEON_LAST_FRAME_REG, dev_priv->sarea_priv->last_frame);

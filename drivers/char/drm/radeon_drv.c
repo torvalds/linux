@@ -37,6 +37,11 @@
 
 #include "drm_pciids.h"
 
+int radeon_no_wb;
+
+MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers\n");
+module_param_named(no_wb, radeon_no_wb, int, 0444);
+
 static int postinit(struct drm_device *dev, unsigned long flags)
 {
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d: %s\n",
