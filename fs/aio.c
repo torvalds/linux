@@ -899,16 +899,24 @@ static void aio_kick_handler(void *data)
  * and if required activate the aio work queue to process
  * it
  */
-static void queue_kicked_iocb(struct kiocb *iocb)
+static void try_queue_kicked_iocb(struct kiocb *iocb)
 {
  	struct kioctx	*ctx = iocb->ki_ctx;
 	unsigned long flags;
 	int run = 0;
 
-	WARN_ON((!list_empty(&iocb->ki_wait.task_list)));
+	/* We're supposed to be the only path putting the iocb back on the run
+	 * list.  If we find that the iocb is *back* on a wait queue already
+	 * than retry has happened before we could queue the iocb.  This also
+	 * means that the retry could have completed and freed our iocb, no
+	 * good. */
+	BUG_ON((!list_empty(&iocb->ki_wait.task_list)));
 
 	spin_lock_irqsave(&ctx->ctx_lock, flags);
-	run = __queue_kicked_iocb(iocb);
+	/* set this inside the lock so that we can't race with aio_run_iocb()
+	 * testing it and putting the iocb on the run list under the lock */
+	if (!kiocbTryKick(iocb))
+		run = __queue_kicked_iocb(iocb);
 	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
 	if (run)
 		aio_queue_work(ctx);
@@ -931,10 +939,7 @@ void fastcall kick_iocb(struct kiocb *iocb)
 		return;
 	}
 
-	/* If its already kicked we shouldn't queue it again */
-	if (!kiocbTryKick(iocb)) {
-		queue_kicked_iocb(iocb);
-	}
+	try_queue_kicked_iocb(iocb);
 }
 EXPORT_SYMBOL(kick_iocb);
 
