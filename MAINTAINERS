@@ -1743,8 +1743,11 @@ S:	Maintained
 IPVS
 P:	Wensong Zhang
 M:	wensong@linux-vs.org
+P:	Simon Horman
+M:	horms@verge.net.au
 P:	Julian Anastasov
 M:	ja@ssi.bg
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NFS CLIENT
