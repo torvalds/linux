@@ -28,7 +28,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/mach-types.h>
 #include <asm/hardware.h>
 
 #include <asm/mach/pci.h>

@@ -26,7 +26,6 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 
 #include <linux/reboot.h>

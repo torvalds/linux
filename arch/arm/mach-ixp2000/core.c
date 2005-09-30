@@ -30,7 +30,6 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
