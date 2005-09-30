@@ -3407,24 +3407,24 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		ata_tf_to_host_nolock(ap, &qc->tf);
 
-		if (qc->tf.flags & ATA_TFLAG_POLLING) {
-			/* polling PIO */
-			ap->hsm_task_state = HSM_ST;
-			queue_work(ata_wq, &ap->pio_task);
+		if (qc->tf.flags & ATA_TFLAG_WRITE) {
+			/* PIO data out protocol */
+			ap->hsm_task_state = HSM_ST_FIRST;
+			queue_work(ata_wq, &ap->dataout_task);
+
+			/* always send first data block using
+			 * the ata_dataout_task() codepath.
+			 */
 		} else {
-			/* interrupt driven PIO */
-			if (qc->tf.flags & ATA_TFLAG_WRITE) {
-				/* PIO data out protocol */
-				ap->hsm_task_state = HSM_ST_FIRST;
-				queue_work(ata_wq, &ap->dataout_task);
+			/* PIO data in protocol */
+			ap->hsm_task_state = HSM_ST;
 
-				/* send first data block by polling */
-			} else {
-				/* PIO data in protocol */
-				ap->hsm_task_state = HSM_ST;
+			if (qc->tf.flags & ATA_TFLAG_POLLING)
+				queue_work(ata_wq, &ap->pio_task);
 
-				/* interrupt handler takes over from here */
-			}
+			/* if polling, ata_pio_task() handles the rest.
+			 * otherwise, interrupt handler takes over from here.
+			 */
 		}
 
 		break;
@@ -4005,15 +4005,15 @@ static void ata_dataout_task(void *_data)
 		ap->hsm_task_state = HSM_ST;
 		ata_pio_sector(qc);
 		ata_altstatus(ap); /* flush */
-
-		/* interrupt handler takes over from here */
-	} else {
+	} else
 		/* send CDB */
 		atapi_send_cdb(ap, qc);
 
-		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			queue_work(ata_wq, &ap->pio_task);
-	}
+	/* if polling, ata_pio_task() handles the rest.
+	 * otherwise, interrupt handler takes over from here.
+	 */
+	if (qc->tf.flags & ATA_TFLAG_POLLING)
+		queue_work(ata_wq, &ap->pio_task);
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
