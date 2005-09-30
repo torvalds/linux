@@ -2021,6 +2021,12 @@ lec_arp_resolve(struct lec_priv *priv, unsigned char *mac_to_find,
                         found = entry->vcc;
 			goto out;
                 }
+		/* If the LE_ARP cache entry is still pending, reset count to 0
+		 * so another LE_ARP request can be made for this frame.
+		 */
+		if (entry->status == ESI_ARP_PENDING) {
+			entry->no_tries = 0;
+		}
                 /* Data direct VC not yet set up, check to see if the unknown
                    frame count is greater than the limit. If the limit has
                    not been reached, allow the caller to send packet to
