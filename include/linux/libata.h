@@ -129,8 +129,8 @@ enum {
 	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* hueristic */
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* hueristic */
-	ATA_TMOUT_CDB		= 30 * HZ,
-	ATA_TMOUT_CDB_QUICK	= 5 * HZ,
+	ATA_TMOUT_DATAOUT	= 30 * HZ,
+	ATA_TMOUT_DATAOUT_QUICK	= 5 * HZ,
 
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
@@ -319,7 +319,7 @@ struct ata_port {
 	struct ata_host_stats	stats;
 	struct ata_host_set	*host_set;
 
-	struct work_struct	packet_task;
+	struct work_struct	dataout_task;
 
 	struct work_struct	pio_task;
 	unsigned int		hsm_task_state;

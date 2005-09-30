@@ -3416,7 +3416,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			if (qc->tf.flags & ATA_TFLAG_WRITE) {
 				/* PIO data out protocol */
 				ap->hsm_task_state = HSM_ST_FIRST;
-				queue_work(ata_wq, &ap->packet_task);
+				queue_work(ata_wq, &ap->dataout_task);
 
 				/* send first data block by polling */
 			} else {
@@ -3440,7 +3440,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			queue_work(ata_wq, &ap->packet_task);
+			queue_work(ata_wq, &ap->dataout_task);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
@@ -3452,7 +3452,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			queue_work(ata_wq, &ap->packet_task);
+			queue_work(ata_wq, &ap->dataout_task);
 		break;
 
 	default:
@@ -3952,20 +3952,21 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 }
 
 /**
- *	atapi_packet_task - Write CDB bytes to hardware
- *	@_data: Port to which ATAPI device is attached.
+ *	ata_dataout_task - Write first data block to hardware
+ *	@_data: Port to which ATA/ATAPI device is attached.
  *
  *	When device has indicated its readiness to accept
- *	a CDB, this function is called.  Send the CDB.
- *	If DMA is to be performed, exit immediately.
- *	Otherwise, we are in polling mode, so poll
- *	status under operation succeeds or fails.
+ *	the data, this function sends out the CDB or 
+ *	the first data block by PIO.
+ *	After this, 
+ *	  - If polling, ata_pio_task() handles the rest.
+ *	  - Otherwise, interrupt handler takes over.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
 
-static void atapi_packet_task(void *_data)
+static void ata_dataout_task(void *_data)
 {
 	struct ata_port *ap = _data;
 	struct ata_queued_cmd *qc;
@@ -3978,7 +3979,7 @@ static void atapi_packet_task(void *_data)
 
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
-	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB))
+	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT))
 		goto err_out;
 
 	/* make sure DRQ is set */
@@ -4141,7 +4142,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 
-	INIT_WORK(&ap->packet_task, atapi_packet_task, ap);
+	INIT_WORK(&ap->dataout_task, ata_dataout_task, ap);
 	INIT_WORK(&ap->pio_task, ata_pio_task, ap);
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
