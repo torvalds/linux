@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/kprobes.h>
 #include <linux/cache.h>
+#include <linux/sort.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -41,7 +42,72 @@
 
 extern void device_scan(void);
 
-struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
+#define MAX_BANKS	32
+
+static struct linux_prom64_registers pavail[MAX_BANKS] __initdata;
+static struct linux_prom64_registers pavail_rescan[MAX_BANKS] __initdata;
+static int pavail_ents __initdata;
+static int pavail_rescan_ents __initdata;
+
+static int cmp_p64(const void *a, const void *b)
+{
+	const struct linux_prom64_registers *x = a, *y = b;
+
+	if (x->phys_addr > y->phys_addr)
+		return 1;
+	if (x->phys_addr < y->phys_addr)
+		return -1;
+	return 0;
+}
+
+static void __init read_obp_memory(const char *property,
+				   struct linux_prom64_registers *regs,
+				   int *num_ents)
+{
+	int node = prom_finddevice("/memory");
+	int prop_size = prom_getproplen(node, property);
+	int ents, ret, i;
+
+	ents = prop_size / sizeof(struct linux_prom64_registers);
+	if (ents > MAX_BANKS) {
+		prom_printf("The machine has more %s property entries than "
+			    "this kernel can support (%d).\n",
+			    property, MAX_BANKS);
+		prom_halt();
+	}
+
+	ret = prom_getproperty(node, property, (char *) regs, prop_size);
+	if (ret == -1) {
+		prom_printf("Couldn't get %s property from /memory.\n");
+		prom_halt();
+	}
+
+	*num_ents = ents;
+
+	/* Sanitize what we got from the firmware, by page aligning
+	 * everything.
+	 */
+	for (i = 0; i < ents; i++) {
+		unsigned long base, size;
+
+		base = regs[i].phys_addr;
+		size = regs[i].reg_size;
+
+		size &= PAGE_MASK;
+		if (base & ~PAGE_MASK) {
+			unsigned long new_base = PAGE_ALIGN(base);
+
+			size -= new_base - base;
+			if ((long) size < 0L)
+				size = 0UL;
+			base = new_base;
+		}
+		regs[i].phys_addr = base;
+		regs[i].reg_size = size;
+	}
+	sort(regs, ents, sizeof(struct  linux_prom64_registers),
+	     cmp_p64, NULL);
+}
 
 unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 
@@ -1206,14 +1272,14 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	int i;
 
 #ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("bootmem_init: Scan sp_banks, ");
+	prom_printf("bootmem_init: Scan pavail, ");
 #endif
 
 	bytes_avail = 0UL;
-	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
-		end_of_phys_memory = sp_banks[i].base_addr +
-			sp_banks[i].num_bytes;
-		bytes_avail += sp_banks[i].num_bytes;
+	for (i = 0; i < pavail_ents; i++) {
+		end_of_phys_memory = pavail[i].phys_addr +
+			pavail[i].reg_size;
+		bytes_avail += pavail[i].reg_size;
 		if (cmdline_memory_size) {
 			if (bytes_avail > cmdline_memory_size) {
 				unsigned long slack = bytes_avail - cmdline_memory_size;
@@ -1221,12 +1287,15 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 				bytes_avail -= slack;
 				end_of_phys_memory -= slack;
 
-				sp_banks[i].num_bytes -= slack;
-				if (sp_banks[i].num_bytes == 0) {
-					sp_banks[i].base_addr = 0xdeadbeef;
+				pavail[i].reg_size -= slack;
+				if ((long)pavail[i].reg_size <= 0L) {
+					pavail[i].phys_addr = 0xdeadbeefUL;
+					pavail[i].reg_size = 0UL;
+					pavail_ents = i;
 				} else {
-					sp_banks[i+1].num_bytes = 0;
-					sp_banks[i+1].base_addr = 0xdeadbeef;
+					pavail[i+1].reg_size = 0Ul;
+					pavail[i+1].phys_addr = 0xdeadbeefUL;
+					pavail_ents = i + 1;
 				}
 				break;
 			}
@@ -1280,12 +1349,12 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	/* Now register the available physical memory with the
 	 * allocator.
 	 */
-	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
+	for (i = 0; i < pavail_ents; i++) {
 #ifdef CONFIG_DEBUG_BOOTMEM
-		prom_printf("free_bootmem(sp_banks:%d): base[%lx] size[%lx]\n",
-			    i, sp_banks[i].base_addr, sp_banks[i].num_bytes);
+		prom_printf("free_bootmem(pavail:%d): base[%lx] size[%lx]\n",
+			    i, pavail[i].phys_addr, pavail[i].reg_size);
 #endif
-		free_bootmem(sp_banks[i].base_addr, sp_banks[i].num_bytes);
+		free_bootmem(pavail[i].phys_addr, pavail[i].reg_size);
 	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -1334,7 +1403,7 @@ static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, 
 	unsigned long alloc_bytes = 0UL;
 
 	if ((vstart & ~PAGE_MASK) || (vend & ~PAGE_MASK)) {
-		prom_printf("kernel_map: Unaligned sp_banks[%lx:%lx]\n",
+		prom_printf("kernel_map: Unaligned physmem[%lx:%lx]\n",
 			    vstart, vend);
 		prom_halt();
 	}
@@ -1381,23 +1450,24 @@ static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, 
 	return alloc_bytes;
 }
 
-extern struct linux_mlist_p1275 *prom_ptot_ptr;
+static struct linux_prom64_registers pall[MAX_BANKS] __initdata;
+static int pall_ents __initdata;
+
 extern unsigned int kvmap_linear_patch[1];
 
 static void __init kernel_physical_mapping_init(void)
 {
-	struct linux_mlist_p1275 *p = prom_ptot_ptr;
-	unsigned long mem_alloced = 0UL;
+	unsigned long i, mem_alloced = 0UL;
 
-	while (p) {
+	read_obp_memory("reg", &pall[0], &pall_ents);
+
+	for (i = 0; i < pall_ents; i++) {
 		unsigned long phys_start, phys_end;
 
-		phys_start = p->start_adr;
-		phys_end = phys_start + p->num_bytes;
+		phys_start = pall[i].phys_addr;
+		phys_end = phys_start + pall[i].reg_size;
 		mem_alloced += kernel_map_range(phys_start, phys_end,
 						PAGE_KERNEL);
-
-		p = p->theres_more;
 	}
 
 	printk("Allocated %ld bytes for kernel page tables.\n",
@@ -1425,6 +1495,18 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 }
 #endif
 
+unsigned long __init find_ecache_flush_span(unsigned long size)
+{
+	int i;
+
+	for (i = 0; i < pavail_ents; i++) {
+		if (pavail[i].reg_size >= size)
+			return pavail[i].phys_addr;
+	}
+
+	return ~0UL;
+}
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
@@ -1435,7 +1517,19 @@ pgd_t swapper_pg_dir[2048];
 void __init paging_init(void)
 {
 	unsigned long end_pfn, pages_avail, shift;
-	unsigned long real_end;
+	unsigned long real_end, i;
+
+	/* Find available physical memory... */
+	read_obp_memory("available", &pavail[0], &pavail_ents);
+
+	phys_base = 0xffffffffffffffffUL;
+	for (i = 0; i < pavail_ents; i++)
+		phys_base = min(phys_base, pavail[i].phys_addr);
+
+	pfn_base = phys_base >> PAGE_SHIFT;
+
+	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	set_bit(0, mmu_context_bmap);
 
@@ -1507,128 +1601,35 @@ void __init paging_init(void)
 	device_scan();
 }
 
-/* Ok, it seems that the prom can allocate some more memory chunks
- * as a side effect of some prom calls we perform during the
- * boot sequence.  My most likely theory is that it is from the
- * prom_set_traptable() call, and OBP is allocating a scratchpad
- * for saving client program register state etc.
- */
-static void __init sort_memlist(struct linux_mlist_p1275 *thislist)
-{
-	int swapi = 0;
-	int i, mitr;
-	unsigned long tmpaddr, tmpsize;
-	unsigned long lowest;
-
-	for (i = 0; thislist[i].theres_more != 0; i++) {
-		lowest = thislist[i].start_adr;
-		for (mitr = i+1; thislist[mitr-1].theres_more != 0; mitr++)
-			if (thislist[mitr].start_adr < lowest) {
-				lowest = thislist[mitr].start_adr;
-				swapi = mitr;
-			}
-		if (lowest == thislist[i].start_adr)
-			continue;
-		tmpaddr = thislist[swapi].start_adr;
-		tmpsize = thislist[swapi].num_bytes;
-		for (mitr = swapi; mitr > i; mitr--) {
-			thislist[mitr].start_adr = thislist[mitr-1].start_adr;
-			thislist[mitr].num_bytes = thislist[mitr-1].num_bytes;
-		}
-		thislist[i].start_adr = tmpaddr;
-		thislist[i].num_bytes = tmpsize;
-	}
-}
-
-void __init rescan_sp_banks(void)
-{
-	struct linux_prom64_registers memlist[64];
-	struct linux_mlist_p1275 avail[64], *mlist;
-	unsigned long bytes, base_paddr;
-	int num_regs, node = prom_finddevice("/memory");
-	int i;
-
-	num_regs = prom_getproperty(node, "available",
-				    (char *) memlist, sizeof(memlist));
-	num_regs = (num_regs / sizeof(struct linux_prom64_registers));
-	for (i = 0; i < num_regs; i++) {
-		avail[i].start_adr = memlist[i].phys_addr;
-		avail[i].num_bytes = memlist[i].reg_size;
-		avail[i].theres_more = &avail[i + 1];
-	}
-	avail[i - 1].theres_more = NULL;
-	sort_memlist(avail);
-
-	mlist = &avail[0];
-	i = 0;
-	bytes = mlist->num_bytes;
-	base_paddr = mlist->start_adr;
-  
-	sp_banks[0].base_addr = base_paddr;
-	sp_banks[0].num_bytes = bytes;
-
-	while (mlist->theres_more != NULL){
-		i++;
-		mlist = mlist->theres_more;
-		bytes = mlist->num_bytes;
-		if (i >= SPARC_PHYS_BANKS-1) {
-			printk ("The machine has more banks than "
-				"this kernel can support\n"
-				"Increase the SPARC_PHYS_BANKS "
-				"setting (currently %d)\n",
-				SPARC_PHYS_BANKS);
-			i = SPARC_PHYS_BANKS-1;
-			break;
-		}
-    
-		sp_banks[i].base_addr = mlist->start_adr;
-		sp_banks[i].num_bytes = mlist->num_bytes;
-	}
-
-	i++;
-	sp_banks[i].base_addr = 0xdeadbeefbeefdeadUL;
-	sp_banks[i].num_bytes = 0;
-
-	for (i = 0; sp_banks[i].num_bytes != 0; i++)
-		sp_banks[i].num_bytes &= PAGE_MASK;
-}
-
 static void __init taint_real_pages(void)
 {
-	struct sparc_phys_banks saved_sp_banks[SPARC_PHYS_BANKS];
 	int i;
 
-	for (i = 0; i < SPARC_PHYS_BANKS; i++) {
-		saved_sp_banks[i].base_addr =
-			sp_banks[i].base_addr;
-		saved_sp_banks[i].num_bytes =
-			sp_banks[i].num_bytes;
-	}
+	read_obp_memory("available", &pavail_rescan[0], &pavail_rescan_ents);
 
-	rescan_sp_banks();
-
-	/* Find changes discovered in the sp_bank rescan and
+	/* Find changes discovered in the physmem available rescan and
 	 * reserve the lost portions in the bootmem maps.
 	 */
-	for (i = 0; saved_sp_banks[i].num_bytes; i++) {
+	for (i = 0; i < pavail_ents; i++) {
 		unsigned long old_start, old_end;
 
-		old_start = saved_sp_banks[i].base_addr;
+		old_start = pavail[i].phys_addr;
 		old_end = old_start +
-			saved_sp_banks[i].num_bytes;
+			pavail[i].reg_size;
 		while (old_start < old_end) {
 			int n;
 
-			for (n = 0; sp_banks[n].num_bytes; n++) {
+			for (n = 0; pavail_rescan_ents; n++) {
 				unsigned long new_start, new_end;
 
-				new_start = sp_banks[n].base_addr;
-				new_end = new_start + sp_banks[n].num_bytes;
+				new_start = pavail_rescan[n].phys_addr;
+				new_end = new_start +
+					pavail_rescan[n].reg_size;
 
 				if (new_start <= old_start &&
 				    new_end >= (old_start + PAGE_SIZE)) {
-					set_bit (old_start >> 22,
-						 sparc64_valid_addr_bitmap);
+					set_bit(old_start >> 22,
+						sparc64_valid_addr_bitmap);
 					goto do_next_page;
 				}
 			}

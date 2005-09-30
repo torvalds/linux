@@ -125,15 +125,11 @@ __strncpy_from_user:
 	 add	%o2, %o3, %o0
 	.size	__strncpy_from_user, .-__strncpy_from_user
 
-	.section .fixup,#alloc,#execinstr
-	.align	4
-4:	retl
-	 mov	-EFAULT, %o0
-
 	.section __ex_table,#alloc
 	.align	4
-	.word	60b, 4b
-	.word	61b, 4b
-	.word	62b, 4b
-	.word	63b, 4b
-	.word	64b, 4b
+	.word	60b, __retl_efault
+	.word	61b, __retl_efault
+	.word	62b, __retl_efault
+	.word	63b, __retl_efault
+	.word	64b, __retl_efault
+	.previous
