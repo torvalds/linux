@@ -1,13 +1,5 @@
 # ALSA PCI drivers
 
-config SND_AC97_CODEC
-	tristate
-	select SND_PCM
-	select SND_AC97_BUS
-
-config SND_AC97_BUS
-	tristate
-
 menu "PCI devices"
 	depends on SND!=n && PCI
 
