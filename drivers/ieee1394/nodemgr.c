@@ -64,10 +64,10 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 	struct nodemgr_csr_info *ci = (struct nodemgr_csr_info*)__ci;
 	int i, ret = 0;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 1; ; i++) {
 		ret = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
 				buffer, length);
-		if (!ret)
+		if (!ret || i == 3)
 			break;
 
 		if (msleep_interruptible(334))
