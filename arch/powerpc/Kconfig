@@ -317,7 +317,7 @@ config PPC_BPA
 
 config PPC_OF
 	bool
-	depends on PPC_MULTIPLATFORM	# for now
+	depends on PPC_MULTIPLATFORM || PPC_ISERIES
 	default y
 
 config XICS
@@ -836,7 +836,7 @@ endmenu
 if PPC64
 config KERNEL_START
 	hex
-	default "0xc0000000"
+	default "0xc000000000000000"
 endif
 
 source "net/Kconfig"
