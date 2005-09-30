@@ -3430,18 +3430,6 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_ATAPI:
-		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			ata_qc_set_polling(qc);
-
-		ata_tf_to_host_nolock(ap, &qc->tf);
-		ap->hsm_task_state = HSM_ST_FIRST;
-
-		/* send cdb by polling if no cdb interrupt */
-		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
-		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			queue_work(ata_wq, &ap->packet_task);
-		break;
-
 	case ATA_PROT_ATAPI_NODATA:
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			ata_qc_set_polling(qc);

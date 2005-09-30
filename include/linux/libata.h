@@ -158,15 +158,16 @@ enum {
 };
 
 enum hsm_task_states {
-	HSM_ST_UNKNOWN,
-	HSM_ST_IDLE,
-	HSM_ST_POLL,
-	HSM_ST_TMOUT,
-	HSM_ST,
-	HSM_ST_LAST,
-	HSM_ST_LAST_POLL,
-	HSM_ST_ERR,
-	HSM_ST_FIRST,
+	HSM_ST_UNKNOWN,		/* state unknown */
+	HSM_ST_IDLE,		/* no command on going */
+	HSM_ST_POLL,		/* same as HSM_ST, waits longer */
+	HSM_ST_TMOUT,		/* timeout */
+	HSM_ST,			/* (waiting the device to) transfer data */
+	HSM_ST_LAST,		/* (waiting the device to) complete command */
+	HSM_ST_LAST_POLL,	/* same as HSM_ST_LAST, waits longer */
+	HSM_ST_ERR,		/* error */
+	HSM_ST_FIRST,		/* (waiting the device to)
+				   write CDB or first data block */
 };
 
 /* forward declarations */
