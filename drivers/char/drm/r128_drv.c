@@ -66,9 +66,6 @@ static struct pci_device_id pciidlist[] = {
 	r128_PCI_IDS
 };
 
-extern drm_ioctl_desc_t r128_ioctls[];
-extern int r128_max_ioctl;
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |

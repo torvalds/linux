@@ -78,9 +78,6 @@ static struct pci_device_id pciidlist[] = {
 	mga_PCI_IDS
 };
 
-extern drm_ioctl_desc_t mga_ioctls[];
-extern int mga_max_ioctl;
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | DRIVER_USE_MTRR |
@@ -151,7 +148,7 @@ MODULE_LICENSE("GPL and additional rights");
  * \returns
  * If the device is a PCI G450, zero is returned.  Otherwise 2 is returned.
  */
-int mga_driver_device_is_agp(drm_device_t * dev)
+static int mga_driver_device_is_agp(drm_device_t * dev)
 {
 	const struct pci_dev *const pdev = dev->pdev;
 

@@ -120,6 +120,9 @@ typedef struct drm_i830_private {
 
 } drm_i830_private_t;
 
+extern drm_ioctl_desc_t i830_ioctls[];
+extern int i830_max_ioctl;
+
 /* i830_dma.c */
 extern void i830_reclaim_buffers(drm_device_t * dev, struct file *filp);
 
@@ -139,15 +142,10 @@ extern int i830_driver_dma_quiescent(drm_device_t * dev);
 extern void i830_driver_prerelease(drm_device_t * dev, DRMFILE filp);
 extern int i830_driver_device_is_agp(drm_device_t * dev);
 
-#define I830_BASE(reg)		((unsigned long) \
-				dev_priv->mmio_map->handle)
-#define I830_ADDR(reg)		(I830_BASE(reg) + reg)
-#define I830_DEREF(reg)		*(__volatile__ unsigned int *)I830_ADDR(reg)
-#define I830_READ(reg)		readl((volatile u32 *)I830_ADDR(reg))
-#define I830_WRITE(reg,val) 	writel(val, (volatile u32 *)I830_ADDR(reg))
-#define I830_DEREF16(reg)	*(__volatile__ u16 *)I830_ADDR(reg)
-#define I830_READ16(reg) 	I830_DEREF16(reg)
-#define I830_WRITE16(reg,val)	do { I830_DEREF16(reg) = val; } while (0)
+#define I830_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)
+#define I830_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, reg, val)
+#define I830_READ16(reg)        DRM_READ16(dev_priv->mmio_map, reg)
+#define I830_WRITE16(reg,val)   DRM_WRITE16(dev_priv->mmio_map, reg, val)
 
 #define I830_VERBOSE 0
 

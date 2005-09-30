@@ -61,9 +61,6 @@ static struct pci_device_id pciidlist[] = {
 	sisdrv_PCI_IDS
 };
 
-extern drm_ioctl_desc_t sis_ioctls[];
-extern int sis_max_ioctl;
-
 static struct drm_driver driver = {
 	.driver_features = DRIVER_USE_AGP | DRIVER_USE_MTRR,
 	.context_ctor = sis_init_context,

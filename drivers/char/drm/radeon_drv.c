@@ -71,9 +71,6 @@ static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
 };
 
-extern drm_ioctl_desc_t radeon_ioctls[];
-extern int radeon_max_ioctl;
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |

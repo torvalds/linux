@@ -232,7 +232,7 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
 	map = dev->context_sareas[request.ctx_id];
 	up(&dev->struct_sem);
 
-	request.handle = 0;
+	request.handle = NULL;
 	list_for_each_entry(_entry, &dev->maplist->head, head) {
 		if (_entry->map == map) {
 			request.handle =
@@ -240,7 +240,7 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
 			break;
 		}
 	}
-	if (request.handle == 0)
+	if (request.handle == NULL)
 		return -EINVAL;
 
 	if (copy_to_user(argp, &request, sizeof(request)))

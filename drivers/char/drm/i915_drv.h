@@ -99,6 +99,9 @@ typedef struct drm_i915_private {
 	struct mem_block *agp_heap;
 } drm_i915_private_t;
 
+extern drm_ioctl_desc_t i915_ioctls[];
+extern int i915_max_ioctl;
+
 				/* i915_dma.c */
 extern void i915_kernel_lost_context(drm_device_t * dev);
 extern void i915_driver_pretakedown(drm_device_t * dev);

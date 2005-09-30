@@ -121,6 +121,9 @@ extern void i810_driver_pretakedown(drm_device_t * dev);
 extern void i810_driver_prerelease(drm_device_t * dev, DRMFILE filp);
 extern int i810_driver_device_is_agp(drm_device_t * dev);
 
+extern drm_ioctl_desc_t i810_ioctls[];
+extern int i810_max_ioctl;
+
 #define I810_BASE(reg)		((unsigned long) \
 				dev_priv->mmio_map->handle)
 #define I810_ADDR(reg)		(I810_BASE(reg) + reg)

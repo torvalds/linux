@@ -148,6 +148,9 @@ typedef struct drm_mga_private {
 	unsigned int agp_pages;
 } drm_mga_private_t;
 
+extern drm_ioctl_desc_t mga_ioctls[];
+extern int mga_max_ioctl;
+
 				/* mga_dma.c */
 extern int mga_driver_preinit(drm_device_t * dev, unsigned long flags);
 extern int mga_dma_bootstrap(DRM_IOCTL_ARGS);

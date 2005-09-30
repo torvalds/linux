@@ -59,9 +59,6 @@ static struct pci_device_id pciidlist[] = {
 	savage_PCI_IDS
 };
 
-extern drm_ioctl_desc_t savage_ioctls[];
-extern int savage_max_ioctl;
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_HAVE_DMA | DRIVER_PCI_DMA,

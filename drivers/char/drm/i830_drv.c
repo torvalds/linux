@@ -75,9 +75,6 @@ static struct pci_device_id pciidlist[] = {
 	i830_PCI_IDS
 };
 
-extern drm_ioctl_desc_t i830_ioctls[];
-extern int i830_max_ioctl;
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | DRIVER_USE_MTRR |

@@ -49,4 +49,7 @@ typedef struct drm_sis_private {
 extern int sis_init_context(drm_device_t * dev, int context);
 extern int sis_final_context(drm_device_t * dev, int context);
 
+extern drm_ioctl_desc_t sis_ioctls[];
+extern int sis_max_ioctl;
+
 #endif

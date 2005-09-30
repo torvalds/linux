@@ -112,4 +112,7 @@ extern void via_init_futex(drm_via_private_t * dev_priv);
 extern void via_cleanup_futex(drm_via_private_t * dev_priv);
 extern void via_release_futex(drm_via_private_t * dev_priv, int context);
 
+extern int via_parse_command_stream(drm_device_t * dev, const uint32_t * buf,
+				    unsigned int size);
+
 #endif

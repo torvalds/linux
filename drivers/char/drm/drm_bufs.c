@@ -117,9 +117,9 @@ static __inline__ unsigned int HandleID(unsigned long lhandle,
  * type.  Adds the map to the map list drm_device::maplist. Adds MTRR's where
  * applicable and if supported by the kernel.
  */
-int drm_addmap_core(drm_device_t * dev, unsigned int offset,
-		    unsigned int size, drm_map_type_t type,
-		    drm_map_flags_t flags, drm_map_list_t ** maplist)
+static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
+			   unsigned int size, drm_map_type_t type,
+			   drm_map_flags_t flags, drm_map_list_t ** maplist)
 {
 	drm_map_t *map;
 	drm_map_list_t *list;

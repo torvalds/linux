@@ -816,10 +816,8 @@ static int savage_dispatch_clear(drm_savage_private_t * dev_priv,
 	if (nbox == 0)
 		return 0;
 
-	DRM_GET_USER_UNCHECKED(mask, &((const drm_savage_cmd_header_t *)data)
-			       ->clear1.mask);
-	DRM_GET_USER_UNCHECKED(value, &((const drm_savage_cmd_header_t *)data)
-			       ->clear1.value);
+	DRM_GET_USER_UNCHECKED(mask, &data->clear1.mask);
+	DRM_GET_USER_UNCHECKED(value, &data->clear1.value);
 
 	clear_cmd = BCI_CMD_RECT | BCI_CMD_RECT_XP | BCI_CMD_RECT_YP |
 	    BCI_CMD_SEND_COLOR | BCI_CMD_DEST_PBD_NEW;
