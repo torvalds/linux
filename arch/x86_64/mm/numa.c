@@ -167,15 +167,14 @@ void __init numa_init_array(void)
 	   mapping. To avoid this fill in the mapping for all possible
 	   CPUs, as the number of CPUs is not known yet. 
 	   We round robin the existing nodes. */
-	rr = 0;
+	rr = first_node(node_online_map);
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_to_node[i] != NUMA_NO_NODE)
 			continue;
+		cpu_to_node[i] = rr;
 		rr = next_node(rr, node_online_map);
 		if (rr == MAX_NUMNODES)
 			rr = first_node(node_online_map);
-		cpu_to_node[i] = rr;
-		rr++; 
 	}
 
 }
