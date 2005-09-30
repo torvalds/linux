@@ -437,6 +437,13 @@ core-$(CONFIG_MIPS_SEAD)	+= arch/mips/mips-boards/sead/
 load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
 
 #
+# MIPS SIM
+#
+core-$(CONFIG_MIPS_SIM)		+= arch/mips/mips-boards/sim/
+cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-sim
+load-$(CONFIG_MIPS_SIM)		+= 0x80100000
+
+#
 # Momentum Ocelot board
 #
 # The Ocelot setup.o must be linked early - it does the ioremap() for the
