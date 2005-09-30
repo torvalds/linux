@@ -121,7 +121,6 @@ head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
 
 ifeq ($(CONFIG_PPC32),y)
 head-$(CONFIG_6xx)		+= arch/powerpc/kernel/idle_6xx.o
-head-$(CONFIG_POWER4)		+= arch/powerpc/kernel/idle_power4.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 endif
 
