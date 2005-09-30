@@ -71,12 +71,12 @@ UNUSUAL_DEV(  0x03f0, 0x0107, 0x0200, 0x0200,
 UNUSUAL_DEV(  0x03f0, 0x0207, 0x0001, 0x0001, 
 		"HP",
 		"CD-Writer+ 8200e",
-		US_SC_8070, US_PR_SCM_ATAPI, init_usbat, 0), 
+		US_SC_8070, US_PR_USBAT, init_usbat, 0),
 
 UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001, 
 		"HP",
 		"CD-Writer+ CD-4e",
-		US_SC_8070, US_PR_SCM_ATAPI, init_usbat, 0), 
+		US_SC_8070, US_PR_USBAT, init_usbat, 0),
 #endif
 
 /* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
@@ -333,9 +333,9 @@ UNUSUAL_DEV(  0x04fc, 0x80c2, 0x0100, 0x0100,
 
 #ifdef CONFIG_USB_STORAGE_USBAT
 UNUSUAL_DEV(  0x04e6, 0x1010, 0x0000, 0x9999,
-		"SCM",
-		"SCM USBAT-02",
-		US_SC_SCSI, US_PR_SCM_ATAPI, init_usbat,
+		"Shuttle/SCM",
+		"USBAT-02",
+		US_SC_SCSI, US_PR_USBAT, init_usbat,
 		US_FL_SINGLE_LUN),
 #endif
 
