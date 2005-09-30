@@ -5,7 +5,7 @@
  *
  * This code is GPL
  *
- * $Id: mtdpart.c,v 1.53 2005/02/08 17:11:13 nico Exp $
+ * $Id: mtdpart.c,v 1.54 2005/09/30 14:49:08 dedekind Exp $
  *
  * 	02-21-2002	Thomas Gleixner <gleixner@autronix.de>
  *			added support for read_oob, write_oob
@@ -465,9 +465,10 @@ int add_mtd_partitions(struct mtd_info *master,
 		if (slave->offset == MTDPART_OFS_APPEND)
 			slave->offset = cur_offset;
 		if (slave->offset == MTDPART_OFS_NXTBLK) {
-			u_int32_t emask = master->erasesize-1;
-			slave->offset = (cur_offset + emask) & ~emask;
-			if (slave->offset != cur_offset) {
+			slave->offset = cur_offset;
+			if ((cur_offset % master->erasesize) != 0) {
+				/* Round up to next erasesize */
+				slave->offset = ((cur_offset / master->erasesize) + 1) * master->erasesize;
 				printk(KERN_NOTICE "Moving partition %d: "
 				       "0x%08x -> 0x%08x\n", i,
 				       cur_offset, slave->offset);
