@@ -702,6 +702,14 @@ UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200,
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
 
+#ifdef CONFIG_USB_STORAGE_USBAT
+UNUSUAL_DEV(  0x0781, 0x0005, 0x0005, 0x0005,
+		"Sandisk",
+		"ImageMate SDDR-05b",
+		US_SC_SCSI, US_PR_USBAT, init_usbat,
+		US_FL_SINGLE_LUN ),
+#endif
+
 UNUSUAL_DEV(  0x0781, 0x0100, 0x0100, 0x0100,
 		"Sandisk",
 		"ImageMate SDDR-12",
