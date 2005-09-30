@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.99 2005/09/21 16:11:04 dedekind Exp $
+ * $Id: wbuf.c,v 1.100 2005/09/30 13:59:13 dedekind Exp $
  *
  */
 
@@ -29,6 +29,9 @@
 #ifdef BREAKME
 static unsigned char *brokenbuf;
 #endif
+
+#define PAGE_DIV(x) ( ((unsigned long)(x) / (unsigned long)(c->wbuf_pagesize)) * (unsigned long)(c->wbuf_pagesize) )
+#define PAGE_MOD(x) ( (unsigned long)(x) % (unsigned long)(c->wbuf_pagesize) )
 
 /* max. erase failures before we mark a block bad */
 #define MAX_ERASE_FAILURES 	2
@@ -433,7 +436,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	   if we have a switch to next page, we will not have
 	   enough remaining space for this. 
 	*/
-	if (pad && !jffs2_dataflash(c)) {
+	if (pad ) {
 		c->wbuf_len = PAD(c->wbuf_len);
 
 		/* Pad with JFFS2_DIRTY_BITMASK initially.  this helps out ECC'd NOR
@@ -482,9 +485,9 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	}
 
 	spin_lock(&c->erase_completion_lock);
-
+	
 	/* Adjust free size of the block if we padded. */
-	if (pad && !jffs2_dataflash(c)) {
+	if (pad) {
 		struct jffs2_eraseblock *jeb;
 
 		jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
@@ -601,15 +604,6 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 
 	return ret;
 }
-
-#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-#define PAGE_DIV(x) ( ((unsigned long)(x) / (unsigned long)(c->wbuf_pagesize)) * (unsigned long)(c->wbuf_pagesize) )
-#define PAGE_MOD(x) ( (unsigned long)(x) % (unsigned long)(c->wbuf_pagesize) )
-#else
-#define PAGE_DIV(x) ( (x) & (~(c->wbuf_pagesize - 1)) )
-#define PAGE_MOD(x) ( (x) & (c->wbuf_pagesize - 1) )
-#endif
-
 int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino)
 {
 	struct kvec outvecs[3];
@@ -1203,14 +1197,38 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 	
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->sector_size;
-	c->wbuf_ofs = 0xFFFFFFFF;
+	
+	
+	c->wbuf_pagesize =  c->mtd->erasesize;
+	
+	/* Find a suitable c->sector_size
+	 * - Not too much sectors
+	 * - Sectors have to be at least 4 K + some bytes
+	 * - All known dataflashes have erase sizes of 528 or 1056
+	 * - we take at least 8 eraseblocks and want to have at least 8K size
+	 * - The concatenation should be a power of 2
+	*/
 
+	c->sector_size = 8 * c->mtd->erasesize;
+	
+	while (c->sector_size < 8192) {
+		c->sector_size *= 2;
+	}
+		
+	/* It may be necessary to adjust the flash size */
+	c->flash_size = c->mtd->size;
+
+	if ((c->flash_size % c->sector_size) != 0) {
+		c->flash_size = (c->flash_size / c->sector_size) * c->sector_size;
+		printk(KERN_WARNING "JFFS2 flash size adjusted to %dKiB\n", c->flash_size);
+	};
+	
+	c->wbuf_ofs = 0xFFFFFFFF;
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
 	if (!c->wbuf)
 		return -ENOMEM;
 
-	printk(KERN_INFO "JFFS2 write-buffering enabled (%i)\n", c->wbuf_pagesize);
+	printk(KERN_INFO "JFFS2 write-buffering enabled buffer (%d) erasesize (%d)\n", c->wbuf_pagesize, c->sector_size);
 
 	return 0;
 }

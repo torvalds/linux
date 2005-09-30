@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.63 2005/09/21 11:55:21 dedekind Exp $
+ * $Id: os-linux.h,v 1.64 2005/09/30 13:59:13 dedekind Exp $
  *
  */
 
@@ -65,8 +65,9 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 
 #define jffs2_is_readonly(c) (OFNI_BS_2SFFJ(c)->s_flags & MS_RDONLY)
 
+#define SECTOR_ADDR(x) ( (((unsigned long)(x) / c->sector_size) * c->sector_size) )
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
-#define SECTOR_ADDR(x) ( ((unsigned long)(x) & ~(c->sector_size-1)) )
+
 
 #ifdef CONFIG_JFFS2_SUMMARY
 #define jffs2_can_mark_obsolete(c) (0)
@@ -102,7 +103,6 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #else /* NAND and/or ECC'd NOR support present */
 
 #define jffs2_is_writebuffered(c) (c->wbuf != NULL)
-#define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
 
 #ifdef CONFIG_JFFS2_SUMMARY
 #define jffs2_can_mark_obsolete(c) (0)
