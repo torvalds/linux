@@ -152,9 +152,13 @@ static int mthca_query_port(struct ib_device *ibdev,
 	props->gid_tbl_len       = to_mdev(ibdev)->limits.gid_table_len;
 	props->max_msg_sz        = 0x80000000;
 	props->pkey_tbl_len      = to_mdev(ibdev)->limits.pkey_table_len;
+	props->bad_pkey_cntr     = be16_to_cpup((__be16 *) (out_mad->data + 46));
 	props->qkey_viol_cntr    = be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->active_width      = out_mad->data[31] & 0xf;
 	props->active_speed      = out_mad->data[35] >> 4;
+	props->max_mtu           = out_mad->data[41] & 0xf;
+	props->active_mtu        = out_mad->data[36] >> 4;
+	props->subnet_timeout    = out_mad->data[51] & 0x1f;
 
  out:
 	kfree(in_mad);
