@@ -183,7 +183,7 @@ struct of_device_id
 	char	name[32];
 	char	type[32];
 	char	compatible[128];
-#if __KERNEL__
+#ifdef __KERNEL__
 	void	*data;
 #else
 	kernel_ulong_t data;
