@@ -74,7 +74,8 @@
 #define irq_disable_hazard
 	_ehb
 
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
+#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000) || \
+      defined(CONFIG_CPU_SB1)
 
 /*
  * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
@@ -180,7 +181,8 @@ __asm__(
 	__asm__ __volatile__(						\
 	"back_to_back_c0_hazard")
 
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
+#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000) || \
+      defined(CONFIG_CPU_SB1)
 
 /*
  * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
