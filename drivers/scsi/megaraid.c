@@ -621,8 +621,6 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 	if(islogical) {
 		switch (cmd->cmnd[0]) {
 		case TEST_UNIT_READY:
-			memset(cmd->request_buffer, 0, cmd->request_bufflen);
-
 #if MEGA_HAVE_CLUSTERING
 			/*
 			 * Do we support clustering and is the support enabled
@@ -652,11 +650,28 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 			return NULL;
 #endif
 
-		case MODE_SENSE:
+		case MODE_SENSE: {
+			char *buf;
+
+			if (cmd->use_sg) {
+				struct scatterlist *sg;
+
+				sg = (struct scatterlist *)cmd->request_buffer;
+				buf = kmap_atomic(sg->page, KM_IRQ0) +
+					sg->offset;
+			} else
+				buf = cmd->request_buffer;
 			memset(cmd->request_buffer, 0, cmd->cmnd[4]);
+			if (cmd->use_sg) {
+				struct scatterlist *sg;
+
+				sg = (struct scatterlist *)cmd->request_buffer;
+				kunmap_atomic(buf - sg->offset, KM_IRQ0);
+			}
 			cmd->result = (DID_OK << 16);
 			cmd->scsi_done(cmd);
 			return NULL;
+		}
 
 		case READ_CAPACITY:
 		case INQUIRY:
@@ -1685,14 +1700,23 @@ mega_rundoneq (adapter_t *adapter)
 static void
 mega_free_scb(adapter_t *adapter, scb_t *scb)
 {
+	unsigned long length;
+
 	switch( scb->dma_type ) {
 
 	case MEGA_DMA_TYPE_NONE:
 		break;
 
 	case MEGA_BULK_DATA:
+		if (scb->cmd->use_sg == 0)
+			length = scb->cmd->request_bufflen;
+		else {
+			struct scatterlist *sgl =
+				(struct scatterlist *)scb->cmd->request_buffer;
+			length = sgl->length;
+		}
 		pci_unmap_page(adapter->dev, scb->dma_h_bulkdata,
-			scb->cmd->request_bufflen, scb->dma_direction);
+			       length, scb->dma_direction);
 		break;
 
 	case MEGA_SGLIST:
@@ -1741,6 +1765,7 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 	struct scatterlist	*sgl;
 	struct page	*page;
 	unsigned long	offset;
+	unsigned int	length;
 	Scsi_Cmnd	*cmd;
 	int	sgcnt;
 	int	idx;
@@ -1748,14 +1773,23 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 	cmd = scb->cmd;
 
 	/* Scatter-gather not used */
-	if( !cmd->use_sg ) {
+	if( cmd->use_sg == 0 || (cmd->use_sg == 1 && 
+				 !adapter->has_64bit_addr)) {
 
-		page = virt_to_page(cmd->request_buffer);
-		offset = offset_in_page(cmd->request_buffer);
+		if (cmd->use_sg == 0) {
+			page = virt_to_page(cmd->request_buffer);
+			offset = offset_in_page(cmd->request_buffer);
+			length = cmd->request_bufflen;
+		} else {
+			sgl = (struct scatterlist *)cmd->request_buffer;
+			page = sgl->page;
+			offset = sgl->offset;
+			length = sgl->length;
+		}
 
 		scb->dma_h_bulkdata = pci_map_page(adapter->dev,
 						  page, offset,
-						  cmd->request_bufflen,
+						  length,
 						  scb->dma_direction);
 		scb->dma_type = MEGA_BULK_DATA;
 
@@ -1765,14 +1799,14 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 		 */
 		if( adapter->has_64bit_addr ) {
 			scb->sgl64[0].address = scb->dma_h_bulkdata;
-			scb->sgl64[0].length = cmd->request_bufflen;
+			scb->sgl64[0].length = length;
 			*buf = (u32)scb->sgl_dma_addr;
-			*len = (u32)cmd->request_bufflen;
+			*len = (u32)length;
 			return 1;
 		}
 		else {
 			*buf = (u32)scb->dma_h_bulkdata;
-			*len = (u32)cmd->request_bufflen;
+			*len = (u32)length;
 		}
 		return 0;
 	}
@@ -1791,26 +1825,22 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 
 	if( sgcnt > adapter->sglen ) BUG();
 
+	*len = 0;
+
 	for( idx = 0; idx < sgcnt; idx++, sgl++ ) {
 
 		if( adapter->has_64bit_addr ) {
 			scb->sgl64[idx].address = sg_dma_address(sgl);
-			scb->sgl64[idx].length = sg_dma_len(sgl);
+			*len += scb->sgl64[idx].length = sg_dma_len(sgl);
 		}
 		else {
 			scb->sgl[idx].address = sg_dma_address(sgl);
-			scb->sgl[idx].length = sg_dma_len(sgl);
+			*len += scb->sgl[idx].length = sg_dma_len(sgl);
 		}
 	}
 
 	/* Reset pointer and length fields */
 	*buf = scb->sgl_dma_addr;
-
-	/*
-	 * For passthru command, dataxferlen must be set, even for commands
-	 * with a sg list
-	 */
-	*len = (u32)cmd->request_bufflen;
 
 	/* Return count of SG requests */
 	return sgcnt;
