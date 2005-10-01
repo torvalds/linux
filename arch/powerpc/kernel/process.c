@@ -272,11 +272,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 */
 	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VEC))
 		giveup_altivec(prev);
-	/* Avoid the trap.  On smp this this never happens since
-	 * we don't set last_task_used_altivec -- Cort
-	 */
-	if (new->thread.regs && last_task_used_altivec == new)
-		new->thread.regs->msr |= MSR_VEC;
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_SPE
 	/*
@@ -288,12 +283,24 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 */
 	if ((prev->thread.regs && (prev->thread.regs->msr & MSR_SPE)))
 		giveup_spe(prev);
+#endif /* CONFIG_SPE */
+
+#else  /* CONFIG_SMP */
+#ifdef CONFIG_ALTIVEC
+	/* Avoid the trap.  On smp this this never happens since
+	 * we don't set last_task_used_altivec -- Cort
+	 */
+	if (new->thread.regs && last_task_used_altivec == new)
+		new->thread.regs->msr |= MSR_VEC;
+#endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_SPE
 	/* Avoid the trap.  On smp this this never happens since
 	 * we don't set last_task_used_spe
 	 */
 	if (new->thread.regs && last_task_used_spe == new)
 		new->thread.regs->msr |= MSR_SPE;
 #endif /* CONFIG_SPE */
+
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC64	/* for now */

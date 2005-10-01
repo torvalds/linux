@@ -48,7 +48,7 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/time.h>
-#include <asm/open_pic.h>
+#include <asm/mpic.h>
 #include <asm/cacheflush.h>
 #include <asm/keylargo.h>
 
@@ -638,14 +638,14 @@ void smp_core99_message_pass(int target, int msg, unsigned long data, int wait)
 	}
 	switch (target) {
 	case MSG_ALL:
-		mpic_send_ipi(msg, mask);
+		mpic_send_ipi(msg, cpus_addr(mask)[0]);
 		break;
 	case MSG_ALL_BUT_SELF:
 		cpu_clear(smp_processor_id(), mask);
-		mpic_send_ipi(msg, mask);
+		mpic_send_ipi(msg, cpus_addr(mask)[0]);
 		break;
 	default:
-		mpic_send_ipi(msg, cpumask_of_cpu(target));
+		mpic_send_ipi(msg, 1 << target);
 		break;
 	}
 }
@@ -678,7 +678,7 @@ int __cpu_disable(void)
 	cpu_clear(smp_processor_id(), cpu_online_map);
 
 	/* XXX reset cpu affinity here */
-	openpic_set_priority(0xf);
+	mpic_cpu_set_priority(0xf);
 	asm volatile("mtdec %0" : : "r" (0x7fffffff));
 	mb();
 	udelay(20);

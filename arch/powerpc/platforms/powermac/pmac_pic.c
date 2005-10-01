@@ -430,7 +430,7 @@ void __init pmac_pic_init(void)
 		prom_get_irq_senses(senses, 0, 128);
 		mpic1 = mpic_alloc(irqctrler->addrs[0].address,
 				   MPIC_PRIMARY | MPIC_WANTS_RESET,
-				   0, 0, 128, 256, senses, 128, " K2-MPIC  ");
+				   0, 0, 128, 252, senses, 128, " OpenPIC  ");
 		BUG_ON(mpic1 == NULL);
 		mpic_init(mpic1);		
 
@@ -441,14 +441,15 @@ void __init pmac_pic_init(void)
 			       irqctrler2->intrs[0].line);
 
 			pmac_call_feature(PMAC_FTR_ENABLE_MPIC, irqctrler2, 0, 0);
-			prom_get_irq_senses(senses, 128, 128 + 128);
+			prom_get_irq_senses(senses, 128, 128 + 124);
 
 			/* We don't need to set MPIC_BROKEN_U3 here since we don't have
 			 * hypertransport interrupts routed to it
 			 */
 			mpic2 = mpic_alloc(irqctrler2->addrs[0].address,
 					   MPIC_BIG_ENDIAN | MPIC_WANTS_RESET,
-					   0, 128, 128, 0, senses, 128, " U3-MPIC  ");
+					   0, 128, 124, 0, senses, 124,
+					   " U3-MPIC  ");
 			BUG_ON(mpic2 == NULL);
 			mpic_init(mpic2);
 			mpic_setup_cascade(irqctrler2->intrs[0].line,
