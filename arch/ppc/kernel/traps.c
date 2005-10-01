@@ -74,7 +74,7 @@ void (*debugger_fault_handler)(struct pt_regs *regs);
 
 DEFINE_SPINLOCK(die_lock);
 
-void die(const char * str, struct pt_regs * fp, long err)
+int die(const char * str, struct pt_regs * fp, long err)
 {
 	static int die_counter;
 	int nl = 0;
@@ -232,7 +232,7 @@ platform_machine_check(struct pt_regs *regs)
 {
 }
 
-void MachineCheckException(struct pt_regs *regs)
+void machine_check_exception(struct pt_regs *regs)
 {
 	unsigned long reason = get_mc_reason(regs);
 
@@ -393,14 +393,14 @@ void SMIException(struct pt_regs *regs)
 #endif
 }
 
-void UnknownException(struct pt_regs *regs)
+void unknown_exception(struct pt_regs *regs)
 {
 	printk("Bad trap at PC: %lx, MSR: %lx, vector=%lx    %s\n",
 	       regs->nip, regs->msr, regs->trap, print_tainted());
 	_exception(SIGTRAP, regs, 0, 0);
 }
 
-void InstructionBreakpoint(struct pt_regs *regs)
+void instruction_breakpoint_exception(struct pt_regs *regs)
 {
 	if (debugger_iabr_match(regs))
 		return;
@@ -622,7 +622,7 @@ int check_bug_trap(struct pt_regs *regs)
 	return 0;
 }
 
-void ProgramCheckException(struct pt_regs *regs)
+void program_check_exception(struct pt_regs *regs)
 {
 	unsigned int reason = get_reason(regs);
 	extern int do_mathemu(struct pt_regs *regs);
@@ -701,7 +701,7 @@ void ProgramCheckException(struct pt_regs *regs)
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 }
 
-void SingleStepException(struct pt_regs *regs)
+void single_step_exception(struct pt_regs *regs)
 {
 	regs->msr &= ~(MSR_SE | MSR_BE);  /* Turn off 'trace' bits */
 	if (debugger_sstep(regs))
@@ -709,7 +709,7 @@ void SingleStepException(struct pt_regs *regs)
 	_exception(SIGTRAP, regs, TRAP_TRACE, 0);
 }
 
-void AlignmentException(struct pt_regs *regs)
+void alignment_exception(struct pt_regs *regs)
 {
 	int fixed;
 
@@ -814,7 +814,7 @@ void TAUException(struct pt_regs *regs)
 }
 #endif /* CONFIG_INT_TAU */
 
-void AltivecUnavailException(struct pt_regs *regs)
+void altivec_unavailable_exception(struct pt_regs *regs)
 {
 	static int kernel_altivec_count;
 
@@ -835,7 +835,7 @@ void AltivecUnavailException(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_ALTIVEC
-void AltivecAssistException(struct pt_regs *regs)
+void altivec_assist_exception(struct pt_regs *regs)
 {
 	int err;
 
@@ -872,7 +872,7 @@ void AltivecAssistException(struct pt_regs *regs)
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_E500
-void PerformanceMonitorException(struct pt_regs *regs)
+void performance_monitor_exception(struct pt_regs *regs)
 {
 	perf_irq(regs);
 }

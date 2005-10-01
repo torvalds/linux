@@ -142,8 +142,8 @@ config POWER4
 	def_bool y
 
 config PPC_FPU
-	bool
-	default y if PPC64
+	depends on PPC32
+	def_bool y
 
 config BOOKE
 	bool

@@ -2,6 +2,8 @@
 # Makefile for the linux ppc64 kernel.
 #
 
+ifneq ($(CONFIG_PPC_MERGE),y)
+
 EXTRA_CFLAGS	+= -mno-minimal-toc
 extra-y		:= head.o vmlinux.lds
 
@@ -77,3 +79,9 @@ endif
 # These are here while we do the architecture merge
 vecemu-y			+= ../../powerpc/kernel/vecemu.o
 vector-y			+= ../../powerpc/kernel/vector.o
+idle_power4-y			+= ../../powerpc/kernel/idle_power4.o
+traps-y				+= ../../powerpc/kernel/traps.o
+
+else
+
+endif
