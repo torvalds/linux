@@ -1221,7 +1221,7 @@ static inline void coherency_setup(void)
 	}
 }
 
-void __init ld_mmu_r4xx0(void)
+void __init r4k_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);

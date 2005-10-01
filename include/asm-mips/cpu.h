@@ -217,25 +217,27 @@
  * CPU Option encodings
  */
 #define MIPS_CPU_TLB		0x00000001 /* CPU has TLB */
-/* Leave a spare bit for variant MMU types... */
-#define MIPS_CPU_4KEX		0x00000004 /* "R4K" exception model */
-#define MIPS_CPU_4KTLB		0x00000008 /* "R4K" TLB handler */
-#define MIPS_CPU_FPU		0x00000010 /* CPU has FPU */
-#define MIPS_CPU_32FPR		0x00000020 /* 32 dbl. prec. FP registers */
-#define MIPS_CPU_COUNTER	0x00000040 /* Cycle count/compare */
-#define MIPS_CPU_WATCH		0x00000080 /* watchpoint registers */
-#define MIPS_CPU_DIVEC		0x00000200 /* dedicated interrupt vector */
-#define MIPS_CPU_VCE		0x00000400 /* virt. coherence conflict possible */
-#define MIPS_CPU_CACHE_CDEX_P	0x00000800 /* Create_Dirty_Exclusive CACHE op */
-#define MIPS_CPU_CACHE_CDEX_S	0x00001000 /* ... same for seconary cache ... */
-#define MIPS_CPU_MCHECK		0x00002000 /* Machine check exception */
-#define MIPS_CPU_EJTAG		0x00004000 /* EJTAG exception */
-#define MIPS_CPU_NOFPUEX	0x00008000 /* no FPU exception */
-#define MIPS_CPU_LLSC		0x00010000 /* CPU has ll/sc instructions */
-#define MIPS_CPU_SUBSET_CACHES	0x00020000 /* P-cache subset enforced */
-#define MIPS_CPU_PREFETCH	0x00040000 /* CPU has usable prefetch */
-#define MIPS_CPU_VINT		0x00080000 /* CPU supports MIPSR2 vectored interrupts */
-#define MIPS_CPU_VEIC		0x00100000 /* CPU supports MIPSR2 external interrupt controller mode */
+#define MIPS_CPU_4KEX		0x00000002 /* "R4K" exception model */
+#define MIPS_CPU_3K_CACHE	0x00000004 /* R3000-style caches */
+#define MIPS_CPU_4K_CACHE	0x00000008 /* R4000-style caches */
+#define MIPS_CPU_TX39_CACHE	0x00000010 /* TX3900-style caches */
+#define MIPS_CPU_SB1_CACHE	0x00000020 /* SB1-style caches */
+#define MIPS_CPU_FPU		0x00000040 /* CPU has FPU */
+#define MIPS_CPU_32FPR		0x00000080 /* 32 dbl. prec. FP registers */
+#define MIPS_CPU_COUNTER	0x00000100 /* Cycle count/compare */
+#define MIPS_CPU_WATCH		0x00000200 /* watchpoint registers */
+#define MIPS_CPU_DIVEC		0x00000400 /* dedicated interrupt vector */
+#define MIPS_CPU_VCE		0x00000800 /* virt. coherence conflict possible */
+#define MIPS_CPU_CACHE_CDEX_P	0x00001000 /* Create_Dirty_Exclusive CACHE op */
+#define MIPS_CPU_CACHE_CDEX_S	0x00002000 /* ... same for seconary cache ... */
+#define MIPS_CPU_MCHECK		0x00004000 /* Machine check exception */
+#define MIPS_CPU_EJTAG		0x00008000 /* EJTAG exception */
+#define MIPS_CPU_NOFPUEX	0x00010000 /* no FPU exception */
+#define MIPS_CPU_LLSC		0x00020000 /* CPU has ll/sc instructions */
+#define MIPS_CPU_SUBSET_CACHES	0x00040000 /* P-cache subset enforced */
+#define MIPS_CPU_PREFETCH	0x00080000 /* CPU has usable prefetch */
+#define MIPS_CPU_VINT		0x00100000 /* CPU supports MIPSR2 vectored interrupts */
+#define MIPS_CPU_VEIC		0x00200000 /* CPU supports MIPSR2 external interrupt controller mode */
 
 /*
  * CPU ASE encodings

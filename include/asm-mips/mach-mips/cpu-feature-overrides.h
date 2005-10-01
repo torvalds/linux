@@ -17,7 +17,7 @@
 #ifdef CONFIG_CPU_MIPS32_R1
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
-#define cpu_has_4ktlb		1
+#define cpu_has_4kcache		1
 /* #define cpu_has_fpu		? */
 /* #define cpu_has_32fpr	? */
 #define cpu_has_counter		1
@@ -43,7 +43,7 @@
 #ifdef CONFIG_CPU_MIPS64_R1
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
-#define cpu_has_4ktlb		1
+#define cpu_has_4kcache		1
 /* #define cpu_has_fpu		? */
 /* #define cpu_has_32fpr	? */
 #define cpu_has_counter		1

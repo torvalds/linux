@@ -25,8 +25,19 @@
 #ifndef cpu_has_4kex
 #define cpu_has_4kex		(cpu_data[0].options & MIPS_CPU_4KEX)
 #endif
-#ifndef cpu_has_4ktlb
-#define cpu_has_4ktlb		(cpu_data[0].options & MIPS_CPU_4KTLB)
+#ifndef cpu_has_3k_cache
+#define cpu_has_3k_cache	(cpu_data[0].options & MIPS_CPU_3K_CACHE)
+#endif
+#define cpu_has_6k_cache	0
+#define cpu_has_8k_cache	0
+#ifndef cpu_has_4k_cache
+#define cpu_has_4k_cache	(cpu_data[0].options & MIPS_CPU_4K_CACHE)
+#endif
+#ifndef cpu_has_tx39_cache
+#define cpu_has_tx39_cache	(cpu_data[0].options & MIPS_CPU_TX39_CACHE)
+#endif
+#ifndef cpu_has_sb1_cache
+#define cpu_has_sb1_cache	(cpu_data[0].options & MIPS_CPU_SB1_CACHE)
 #endif
 #ifndef cpu_has_fpu
 #define cpu_has_fpu		(cpu_data[0].options & MIPS_CPU_FPU)

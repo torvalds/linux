@@ -191,7 +191,7 @@ static inline int __cpu_has_fpu(void)
 	return ((cpu_get_fpu_id() & 0xff00) != FPIR_IMP_NONE);
 }
 
-#define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4KTLB \
+#define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
 		| MIPS_CPU_COUNTER)
 
 static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
@@ -200,7 +200,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	case PRID_IMP_R2000:
 		c->cputype = CPU_R2000;
 		c->isa_level = MIPS_CPU_ISA_I;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_NOFPUEX;
+		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
+		             MIPS_CPU_NOFPUEX;
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -214,7 +215,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 		else
 			c->cputype = CPU_R3000;
 		c->isa_level = MIPS_CPU_ISA_I;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_NOFPUEX;
+		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
+		             MIPS_CPU_NOFPUEX;
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -297,7 +299,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	#endif
 	case PRID_IMP_TX39:
 		c->isa_level = MIPS_CPU_ISA_I;
-		c->options = MIPS_CPU_TLB;
+		c->options = MIPS_CPU_TLB | MIPS_CPU_TX39_CACHE;
 
 		if ((c->processor_id & 0xf0) == (PRID_REV_TX3927 & 0xf0)) {
 			c->cputype = CPU_TX3927;
@@ -441,7 +443,7 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 	config0 = read_c0_config();
 
 	if (((config0 & MIPS_CONF_MT) >> 7) == 1)
-		c->options |= MIPS_CPU_TLB | MIPS_CPU_4KTLB;
+		c->options |= MIPS_CPU_TLB;
 	isa = (config0 & MIPS_CONF_AT) >> 13;
 	switch (isa) {
 	case 0:
@@ -516,8 +518,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 static inline void decode_configs(struct cpuinfo_mips *c)
 {
 	/* MIPS32 or MIPS64 compliant CPU.  */
-	c->options = MIPS_CPU_4KEX | MIPS_CPU_COUNTER | MIPS_CPU_DIVEC |
-		     MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
+	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
+	             MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
@@ -603,6 +605,15 @@ static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
+
+	/*
+	 * For historical reasons the SB1 comes with it's own variant of
+	 * cache code which eventually will be folded into c-r4k.c.  Until
+	 * then we pretend it's got it's own cache architecture.
+	 */
+	c->options &= MIPS_CPU_4K_CACHE;
+	c->options |= MIPS_CPU_SB1_CACHE;
+
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;

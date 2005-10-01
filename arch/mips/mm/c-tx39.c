@@ -410,7 +410,7 @@ static __init void tx39_probe_cache(void)
 	}
 }
 
-void __init ld_mmu_tx39(void)
+void __init tx39_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);
