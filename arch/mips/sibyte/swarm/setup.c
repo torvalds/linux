@@ -73,13 +73,8 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 {
 	if (!is_fixup && (regs->cp0_cause & 4)) {
 		/* Data bus error - print PA */
-#ifdef CONFIG_64BIT
-		printk("DBE physical address: %010lx\n",
+		printk("DBE physical address: %010Lx\n",
 		       __read_64bit_c0_register($26, 1));
-#else
-		printk("DBE physical address: %010llx\n",
-		       __read_64bit_c0_split($26, 1));
-#endif
 	}
 	return (is_fixup ? MIPS_BE_FIXUP : MIPS_BE_FATAL);
 }
