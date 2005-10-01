@@ -503,7 +503,6 @@ void sb1_cache_init(void)
 
 	/* Special cache error handler for SB1 */
 	set_uncached_handler (0x100, &except_vec2_sb1, 0x80);
-	memcpy((void *)KSEG1ADDR(&handle_vec2_sb1), &handle_vec2_sb1, 0x80);
 
 	probe_cache_sizes();
 
