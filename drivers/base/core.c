@@ -154,6 +154,13 @@ static struct kset_hotplug_ops device_hotplug_ops = {
 	.hotplug =	dev_hotplug,
 };
 
+static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	kobject_hotplug(&dev->kobj, KOBJ_ADD);
+	return count;
+}
+
 /**
  *	device_subsys - structure to be registered with kobject core.
  */
@@ -259,6 +266,14 @@ int device_add(struct device *dev)
 
 	if ((error = kobject_add(&dev->kobj)))
 		goto Error;
+
+	dev->uevent_attr.attr.name = "uevent";
+	dev->uevent_attr.attr.mode = S_IWUSR;
+	if (dev->driver)
+		dev->uevent_attr.attr.owner = dev->driver->owner;
+	dev->uevent_attr.store = store_uevent;
+	device_create_file(dev, &dev->uevent_attr);
+
 	kobject_hotplug(&dev->kobj, KOBJ_ADD);
 	if ((error = device_pm_add(dev)))
 		goto PMError;
@@ -350,6 +365,7 @@ void device_del(struct device * dev)
 
 	if (parent)
 		klist_del(&dev->knode_parent);
+	device_remove_file(dev, &dev->uevent_attr);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...

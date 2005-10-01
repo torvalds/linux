@@ -132,6 +132,7 @@ struct gendisk {
 struct disk_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct gendisk *, char *);
+	ssize_t (*store)(struct gendisk *, const char *, size_t);
 };
 
 /* 

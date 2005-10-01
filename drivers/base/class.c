@@ -442,6 +442,13 @@ static ssize_t show_dev(struct class_device *class_dev, char *buf)
 	return print_dev_t(buf, class_dev->devt);
 }
 
+static ssize_t store_uevent(struct class_device *class_dev,
+			    const char *buf, size_t count)
+{
+	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
+	return count;
+}
+
 void class_device_initialize(struct class_device *class_dev)
 {
 	kobj_set_kset_s(class_dev, class_obj_subsys);
@@ -497,6 +504,12 @@ int class_device_add(struct class_device *class_dev)
 		goto register_done;
 
 	/* add the needed attributes to this device */
+	class_dev->uevent_attr.attr.name = "uevent";
+	class_dev->uevent_attr.attr.mode = S_IWUSR;
+	class_dev->uevent_attr.attr.owner = parent->owner;
+	class_dev->uevent_attr.store = store_uevent;
+	class_device_create_file(class_dev, &class_dev->uevent_attr);
+
 	if (MAJOR(class_dev->devt)) {
 		struct class_device_attribute *attr;
 		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
@@ -505,12 +518,10 @@ int class_device_add(struct class_device *class_dev)
 			kobject_del(&class_dev->kobj);
 			goto register_done;
 		}
-
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
 		attr->attr.owner = parent->owner;
 		attr->show = show_dev;
-		attr->store = NULL;
 		class_device_create_file(class_dev, attr);
 		class_dev->devt_attr = attr;
 	}
@@ -621,6 +632,7 @@ void class_device_del(struct class_device *class_dev)
 		sysfs_remove_link(&class_dev->kobj, "device");
 		sysfs_remove_link(&class_dev->dev->kobj, class_name);
 	}
+	class_device_remove_file(class_dev, &class_dev->uevent_attr);
 	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
 	class_device_remove_attrs(class_dev);

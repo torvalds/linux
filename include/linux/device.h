@@ -190,6 +190,18 @@ struct class_attribute class_attr_##_name = __ATTR(_name,_mode,_show,_store)
 extern int class_create_file(struct class *, const struct class_attribute *);
 extern void class_remove_file(struct class *, const struct class_attribute *);
 
+struct class_device_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct class_device *, char * buf);
+	ssize_t (*store)(struct class_device *, const char * buf, size_t count);
+};
+
+#define CLASS_DEVICE_ATTR(_name,_mode,_show,_store)		\
+struct class_device_attribute class_device_attr_##_name = 	\
+	__ATTR(_name,_mode,_show,_store)
+
+extern int class_device_create_file(struct class_device *,
+				    const struct class_device_attribute *);
 
 struct class_device {
 	struct list_head	node;
@@ -198,6 +210,7 @@ struct class_device {
 	struct class		* class;	/* required */
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
 	struct class_device_attribute *devt_attr;
+	struct class_device_attribute uevent_attr;
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
 
@@ -228,18 +241,6 @@ extern int class_device_rename(struct class_device *, char *);
 extern struct class_device * class_device_get(struct class_device *);
 extern void class_device_put(struct class_device *);
 
-struct class_device_attribute {
-	struct attribute	attr;
-	ssize_t (*show)(struct class_device *, char * buf);
-	ssize_t (*store)(struct class_device *, const char * buf, size_t count);
-};
-
-#define CLASS_DEVICE_ATTR(_name,_mode,_show,_store)		\
-struct class_device_attribute class_device_attr_##_name = 	\
-	__ATTR(_name,_mode,_show,_store)
-
-extern int class_device_create_file(struct class_device *, 
-				    const struct class_device_attribute *);
 extern void class_device_remove_file(struct class_device *, 
 				     const struct class_device_attribute *);
 extern int class_device_create_bin_file(struct class_device *,
@@ -266,6 +267,20 @@ extern struct class_device *class_device_create(struct class *cls, dev_t devt,
 extern void class_device_destroy(struct class *cls, dev_t devt);
 
 
+/* interface for exporting device attributes */
+struct device_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
+};
+
+#define DEVICE_ATTR(_name,_mode,_show,_store) \
+struct device_attribute dev_attr_##_name = __ATTR(_name,_mode,_show,_store)
+
+extern int device_create_file(struct device *device, struct device_attribute * entry);
+extern void device_remove_file(struct device * dev, struct device_attribute * attr);
 struct device {
 	struct klist		klist_children;
 	struct klist_node	knode_parent;		/* node in sibling list */
@@ -275,6 +290,7 @@ struct device {
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
+	struct device_attribute uevent_attr;
 
 	struct semaphore	sem;	/* semaphore to synchronize calls to
 					 * its driver.
@@ -342,23 +358,6 @@ extern void device_release_driver(struct device * dev);
 extern int  device_attach(struct device * dev);
 extern void driver_attach(struct device_driver * drv);
 
-
-/* driverfs interface for exporting device attributes */
-
-struct device_attribute {
-	struct attribute	attr;
-	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count);
-};
-
-#define DEVICE_ATTR(_name,_mode,_show,_store) \
-struct device_attribute dev_attr_##_name = __ATTR(_name,_mode,_show,_store)
-
-
-extern int device_create_file(struct device *device, struct device_attribute * entry);
-extern void device_remove_file(struct device * dev, struct device_attribute * attr);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say
