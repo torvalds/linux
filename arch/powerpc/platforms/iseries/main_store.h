@@ -1,5 +1,4 @@
 /*
- * IoHriMainStore.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,8 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _IOHRIMAINSTORE_H
-#define _IOHRIMAINSTORE_H
+#ifndef _ISERIES_MAIN_STORE_H
+#define _ISERIES_MAIN_STORE_H
 
 /* Main Store Vpd for Condor,iStar,sStar */
 struct IoHriMainStoreSegment4 {
@@ -163,4 +162,4 @@ struct IoHriMainStoreSegment5 {
 
 extern u64	xMsVpd[];
 
-#endif	/* _IOHRIMAINSTORE_H */
+#endif	/* _ISERIES_MAIN_STORE_H */

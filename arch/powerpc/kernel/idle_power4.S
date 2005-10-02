@@ -63,8 +63,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	beq	1f
 	mtmsrd	r7	/* out of line this ? */
 	blr
-1:	
-	/* Go to NAP now */	
+1:
+	/* Go to NAP now */
 BEGIN_FTR_SECTION
 	DSSALL
 	sync
@@ -76,4 +76,3 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	isync
 	sync
 	blr
-	

@@ -121,16 +121,17 @@ head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
 
 ifeq ($(CONFIG_PPC32),y)
 head-$(CONFIG_6xx)		+= arch/powerpc/kernel/idle_6xx.o
-head-$(CONFIG_POWER4)		+= arch/powerpc/kernel/idle_power4.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 endif
 
-core-y				+= arch/powerpc/kernel/ \
-				   arch/$(OLDARCH)/kernel/ \
-				   arch/powerpc/mm/ \
-				   arch/powerpc/lib/ \
-				   arch/powerpc/sysdev/ \
-				   arch/powerpc/platforms/
+core-y				+= arch/powerpc/kernel/
+core-y				+= arch/$(OLDARCH)/kernel/
+core-$(CONFIG_PPC32)		+= arch/powerpc/mm/
+core-$(CONFIG_PPC64)		+= arch/$(OLDARCH)/mm/
+core-$(CONFIG_PPC32)		+= arch/powerpc/lib/
+libs-$(CONFIG_PPC64)		+= arch/$(OLDARCH)/lib/
+core-y				+= arch/powerpc/sysdev/
+core-y				+= arch/powerpc/platforms/
 core-$(CONFIG_PPC32)		+= arch/ppc/syslib/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
@@ -141,16 +142,19 @@ drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
-BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
-
-.PHONY: $(BOOT_TARGETS)
-
-all: uImage zImage
+defaultimage-$(CONFIG_PPC32)	:= uImage zImage
+defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
+KBUILD_IMAGE := $(defaultimage-y)
+all: $(KBUILD_IMAGE)
 
 CPPFLAGS_vmlinux.lds	:= -Upowerpc
 
 # All the instructions talk about "make bzImage".
 bzImage: zImage
+
+BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
+
+.PHONY: $(BOOT_TARGETS)
 
 boot := arch/$(OLDARCH)/boot
 

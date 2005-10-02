@@ -87,7 +87,7 @@ extern void cacheable_memzero(void *p, unsigned int nb);
 extern void *cacheable_memcpy(void *, const void *, unsigned int);
 extern int do_page_fault(struct pt_regs *, unsigned long, unsigned long);
 extern void bad_page_fault(struct pt_regs *, unsigned long, int);
-extern void die(const char *, struct pt_regs *, long);
+extern int die(const char *, struct pt_regs *, long);
 extern void _exception(int, struct pt_regs *, int, unsigned long);
 #ifdef CONFIG_BOOKE_WDT
 extern u32 booke_wdt_enabled;

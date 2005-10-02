@@ -118,10 +118,10 @@ extern void _set_L3CR(unsigned long);
 #endif
 
 extern void via_cuda_init(void);
-extern void pmac_nvram_init(void);
 extern void read_rtc_time(void);
 extern void pmac_find_display(void);
 extern void giveup_fpu(struct task_struct *);
+extern void disable_kernel_fp(void);
 extern void enable_kernel_fp(void);
 extern void flush_fp_to_thread(struct task_struct *);
 extern void enable_kernel_altivec(void);
@@ -345,6 +345,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 #endif
 
 #define arch_align_stack(x) (x)
+
+extern unsigned long reloc_offset(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */

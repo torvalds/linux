@@ -37,11 +37,12 @@
 
 #include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/iSeries_irq.h>
 #include <asm/iSeries/iSeries_pci.h>
 #include <asm/iSeries/mf.h>
 
 #include <asm/ppc-pci.h>
+
+#include "irq.h"
 
 extern unsigned long io_page_mask;
 

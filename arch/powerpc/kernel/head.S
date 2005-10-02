@@ -349,12 +349,12 @@ i##n:								\
 
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
-   putting it back to what it was (UnknownException) when done.  */
+   putting it back to what it was (unknown_exception) when done.  */
 #if defined(CONFIG_GEMINI) && defined(CONFIG_SMP)
 	. = 0x100
 	b	__secondary_start_gemini
 #else
-	EXCEPTION(0x100, Reset, UnknownException, EXC_XFER_STD)
+	EXCEPTION(0x100, Reset, unknown_exception, EXC_XFER_STD)
 #endif
 
 /* Machine check */
@@ -389,7 +389,7 @@ i##n:								\
 	cmpwi	cr1,r4,0
 	bne	cr1,1f
 #endif
-	EXC_XFER_STD(0x200, MachineCheckException)
+	EXC_XFER_STD(0x200, machine_check_exception)
 #ifdef CONFIG_PPC_CHRP
 1:	b	machine_check_in_rtas
 #endif
@@ -456,10 +456,10 @@ Alignment:
 	mfspr	r5,SPRN_DSISR
 	stw	r5,_DSISR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE(0x600, AlignmentException)
+	EXC_XFER_EE(0x600, alignment_exception)
 
 /* Program check exception */
-	EXCEPTION(0x700, ProgramCheck, ProgramCheckException, EXC_XFER_STD)
+	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
 
 /* Floating-point unavailable */
 	. = 0x800
@@ -472,8 +472,8 @@ FPUnavailable:
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
 
-	EXCEPTION(0xa00, Trap_0a, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0xb00, Trap_0b, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0xa00, Trap_0a, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_EE)
 
 /* System call */
 	. = 0xc00
@@ -482,8 +482,8 @@ SystemCall:
 	EXC_XFER_EE_LITE(0xc00, DoSyscall)
 
 /* Single step - not used on 601 */
-	EXCEPTION(0xd00, SingleStep, SingleStepException, EXC_XFER_STD)
-	EXCEPTION(0xe00, Trap_0e, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
+	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_EE)
 
 /*
  * The Altivec unavailable trap is at 0x0f20.  Foo.
@@ -502,7 +502,7 @@ SystemCall:
 Trap_0f:
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE(0xf00, UnknownException)
+	EXC_XFER_EE(0xf00, unknown_exception)
 
 /*
  * Handle TLB miss for instruction on 603/603e.
@@ -702,44 +702,44 @@ DataStoreTLBMiss:
 	rfi
 
 #ifndef CONFIG_ALTIVEC
-#define AltivecAssistException	UnknownException
+#define altivec_assist_exception	unknown_exception
 #endif
 
-	EXCEPTION(0x1300, Trap_13, InstructionBreakpoint, EXC_XFER_EE)
+	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception, EXC_XFER_EE)
 	EXCEPTION(0x1400, SMI, SMIException, EXC_XFER_EE)
-	EXCEPTION(0x1500, Trap_15, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_EE)
 #ifdef CONFIG_POWER4
-	EXCEPTION(0x1600, Trap_16, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1700, Trap_17, AltivecAssistException, EXC_XFER_EE)
+	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1700, Trap_17, altivec_assist_exception, EXC_XFER_EE)
 	EXCEPTION(0x1800, Trap_18, TAUException, EXC_XFER_STD)
 #else /* !CONFIG_POWER4 */
-	EXCEPTION(0x1600, Trap_16, AltivecAssistException, EXC_XFER_EE)
+	EXCEPTION(0x1600, Trap_16, altivec_assist_exception, EXC_XFER_EE)
 	EXCEPTION(0x1700, Trap_17, TAUException, EXC_XFER_STD)
-	EXCEPTION(0x1800, Trap_18, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_POWER4 */
-	EXCEPTION(0x1900, Trap_19, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1a00, Trap_1a, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1b00, Trap_1b, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1c00, Trap_1c, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1d00, Trap_1d, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1e00, Trap_1e, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1f00, Trap_1f, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1a00, Trap_1a, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1b00, Trap_1b, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1c00, Trap_1c, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x2000, RunMode, RunModeException, EXC_XFER_EE)
-	EXCEPTION(0x2100, Trap_21, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2200, Trap_22, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2300, Trap_23, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2400, Trap_24, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2500, Trap_25, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2600, Trap_26, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2700, Trap_27, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2800, Trap_28, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2900, Trap_29, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2a00, Trap_2a, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2b00, Trap_2b, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2c00, Trap_2c, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2d00, Trap_2d, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2e00, Trap_2e, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x2f00, MOLTrampoline, UnknownException, EXC_XFER_EE_LITE)
+	EXCEPTION(0x2100, Trap_21, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2200, Trap_22, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2300, Trap_23, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2400, Trap_24, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2500, Trap_25, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2600, Trap_26, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2700, Trap_27, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2800, Trap_28, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2900, Trap_29, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2a00, Trap_2a, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2b00, Trap_2b, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2c00, Trap_2c, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2d00, Trap_2d, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2e00, Trap_2e, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2f00, MOLTrampoline, unknown_exception, EXC_XFER_EE_LITE)
 
 	.globl mol_trampoline
 	.set mol_trampoline, i0x2f00
@@ -751,7 +751,7 @@ AltiVecUnavailable:
 #ifdef CONFIG_ALTIVEC
 	bne	load_up_altivec		/* if from user, just load it up */
 #endif /* CONFIG_ALTIVEC */
-	EXC_XFER_EE_LITE(0xf20, AltivecUnavailException)
+	EXC_XFER_EE_LITE(0xf20, altivec_unavailable_exception)
 
 #ifdef CONFIG_PPC64BRIDGE
 DataAccess:
@@ -767,12 +767,12 @@ DataSegment:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mfspr	r4,SPRN_DAR
 	stw	r4,_DAR(r11)
-	EXC_XFER_STD(0x380, UnknownException)
+	EXC_XFER_STD(0x380, unknown_exception)
 
 InstructionSegment:
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_STD(0x480, UnknownException)
+	EXC_XFER_STD(0x480, unknown_exception)
 #endif /* CONFIG_PPC64BRIDGE */
 
 #ifdef CONFIG_ALTIVEC

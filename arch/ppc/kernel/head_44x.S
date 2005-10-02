@@ -309,13 +309,13 @@ skpinv:	addi	r4,r4,1				/* Increment */
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CriticalInput, UnknownException)
+	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
 #ifdef CONFIG_440A
-	MCHECK_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 #else
-	CRITICAL_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 #endif
 
 	/* Data Storage Interrupt */
@@ -442,7 +442,7 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-	EXCEPTION(0x2010, FloatingPointUnavailable, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2010, FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
 #endif
 
 	/* System Call Interrupt */
@@ -451,21 +451,21 @@ interrupt_base:
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
 	/* Auxillary Processor Unavailable Interrupt */
-	EXCEPTION(0x2020, AuxillaryProcessorUnavailable, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x2020, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x1010, FixedIntervalTimer, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1010, FixedIntervalTimer, unknown_exception, EXC_XFER_EE)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
 #ifdef CONFIG_BOOKE_WDT
 	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, UnknownException)
+	CRITICAL_EXCEPTION(0x1020, WatchdogTimer, unknown_exception)
 #endif
 
 	/* Data TLB Error Interrupt */

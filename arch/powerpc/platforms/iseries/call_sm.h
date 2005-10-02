@@ -1,5 +1,4 @@
 /*
- * HvCallSm.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _HVCALLSM_H
-#define _HVCALLSM_H
+#ifndef _ISERIES_CALL_SM_H
+#define _ISERIES_CALL_SM_H
 
 /*
  * This file contains the "hypervisor call" interface which is used to
@@ -35,4 +34,4 @@ static inline u64 HvCallSm_get64BitsOfAccessMap(HvLpIndex lpIndex,
 	return HvCall2(HvCallSmGet64BitsOfAccessMap, lpIndex, indexIntoBitMap);
 }
 
-#endif /* _HVCALLSM_H */
+#endif /* _ISERIES_CALL_SM_H */

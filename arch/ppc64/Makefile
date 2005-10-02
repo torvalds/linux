@@ -82,7 +82,7 @@ CFLAGS += $(call cc-option,-funit-at-a-time)
 head-y := arch/ppc64/kernel/head.o
 
 libs-y				+= arch/ppc64/lib/
-core-y				+= arch/ppc64/kernel/
+core-y				+= arch/ppc64/kernel/ arch/powerpc/kernel/
 core-y				+= arch/ppc64/mm/
 core-y				+= arch/powerpc/platforms/
 core-$(CONFIG_XMON)		+= arch/ppc64/xmon/

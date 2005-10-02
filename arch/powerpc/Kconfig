@@ -142,8 +142,8 @@ config POWER4
 	def_bool y
 
 config PPC_FPU
-	bool
-	default y if PPC64
+	depends on PPC32
+	def_bool y
 
 config BOOKE
 	bool
@@ -317,7 +317,7 @@ config PPC_BPA
 
 config PPC_OF
 	bool
-	depends on PPC_MULTIPLATFORM	# for now
+	depends on PPC_MULTIPLATFORM || PPC_ISERIES
 	default y
 
 config XICS
@@ -832,6 +832,12 @@ config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && 8xx
 endmenu
+
+if PPC64
+config KERNEL_START
+	hex
+	default "0xc000000000000000"
+endif
 
 source "net/Kconfig"
 

@@ -3,14 +3,16 @@
 #
 
 EXTRA_CFLAGS	+= -mno-minimal-toc
+ifneq ($(CONFIG_PPC_MERGE),y)
 extra-y		:= head.o vmlinux.lds
+endif
 
-obj-y               :=	setup.o entry.o traps.o irq.o idle.o dma.o \
+obj-y               :=	setup.o entry.o irq.o idle.o dma.o \
 			time.o process.o signal.o syscalls.o misc.o ptrace.o \
 			align.o semaphore.o bitops.o pacaData.o \
 			udbg.o binfmt_elf32.o sys_ppc32.o ioctl32.o \
 			ptrace32.o signal32.o rtc.o init_task.o \
-			lmb.o cputable.o cpu_setup_power4.o idle_power4.o \
+			lmb.o cputable.o cpu_setup_power4.o \
 			iommu.o sysfs.o vdso.o pmc.o firmware.o prom.o
 obj-y += vdso32/ vdso64/
 
@@ -64,15 +66,13 @@ obj-$(CONFIG_PPC_BPA)		+= pSeries_smp.o
 obj-$(CONFIG_PPC_MAPLE)		+= smp-tbsync.o
 endif
 
-obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 
 CFLAGS_ioctl32.o += -Ifs/
 
+ifneq ($(CONFIG_PPC_MERGE),y)
 ifeq ($(CONFIG_PPC_ISERIES),y)
-arch/ppc64/kernel/head.o: arch/ppc64/kernel/lparmap.s
-AFLAGS_head.o += -Iarch/ppc64/kernel
+arch/ppc64/kernel/head.o: arch/powerpc/platforms/iseries/lparmap.s
+AFLAGS_head.o += -Iarch/powerpc/platforms/iseries
 endif
-
-# These are here while we do the architecture merge
-vecemu-y			+= ../../powerpc/kernel/vecemu.o
+endif

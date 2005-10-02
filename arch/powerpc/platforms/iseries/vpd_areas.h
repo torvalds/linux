@@ -1,5 +1,4 @@
 /*
- * ItVpdAreas.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ITVPDAREAS_H
-#define _ITVPDAREAS_H
+#ifndef _ISERIES_VPD_AREAS_H
+#define _ISERIES_VPD_AREAS_H
 
 /*
  * This file defines the address and length of all of the VPD area passed to
@@ -86,4 +85,4 @@ struct ItVpdAreas {
 
 extern struct ItVpdAreas	itVpdAreas;
 
-#endif /* _ITVPDAREAS_H */
+#endif /* _ISERIES_VPD_AREAS_H */
