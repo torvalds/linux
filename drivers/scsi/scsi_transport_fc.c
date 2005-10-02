@@ -32,8 +32,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include "scsi_priv.h"
 
-#define FC_PRINTK(x, l, f, a...)	printk(l "scsi(%d:%d:%d:%d): " f, (x)->host->host_no, (x)->channel, (x)->id, (x)->lun , ##a)
-
 /*
  * Redefine so that we can have same named attributes in the
  * sdev/starget/host objects.

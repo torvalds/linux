@@ -122,13 +122,9 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 				break;
 			}
 		default:	/* Fall through for non-removable media */
-			printk(KERN_INFO "ioctl_internal_command: <%d %d %d "
-			       "%d> return code = %x\n",
-			       sdev->host->host_no,
-			       sdev->channel,
-			       sdev->id,
-			       sdev->lun,
-			       result);
+			sdev_printk(KERN_INFO, sdev,
+				    "ioctl_internal_command return code = %x\n",
+				    result);
 			scsi_print_sense_hdr("   ", &sshdr);
 			break;
 		}

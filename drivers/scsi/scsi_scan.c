@@ -462,10 +462,9 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 	pass = 1;
 
  next_pass:
-	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY pass %d "
-			"to host %d channel %d id %d lun %d, length %d\n",
-			pass, sdev->host->host_no, sdev->channel,
-			sdev->id, sdev->lun, try_inquiry_len));
+	SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
+				"scsi scan: INQUIRY pass %d length %d\n",
+				pass, try_inquiry_len));
 
 	/* Each pass gets up to three chances to ignore Unit Attention */
 	for (count = 0; count < 3; ++count) {

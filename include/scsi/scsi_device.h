@@ -148,6 +148,9 @@ struct scsi_device {
 #define transport_class_to_sdev(class_dev) \
 	to_scsi_device(class_dev->dev)
 
+#define sdev_printk(prefix, sdev, fmt, a...)	\
+	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
+
 /*
  * scsi_target: representation of a scsi target, for now, this is only
  * used for single_lun devices. If no one has active IO to the target,
@@ -176,6 +179,9 @@ static inline struct scsi_target *scsi_target(struct scsi_device *sdev)
 }
 #define transport_class_to_starget(class_dev) \
 	to_scsi_target(class_dev->dev)
+
+#define starget_printk(prefix, starget, fmt, a...)	\
+	dev_printk(prefix, &(starget)->dev, fmt, ##a)
 
 extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 		uint, uint, uint, void *hostdata);

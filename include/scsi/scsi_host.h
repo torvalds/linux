@@ -609,6 +609,10 @@ struct Scsi_Host {
 #define		class_to_shost(d)	\
 	container_of(d, struct Scsi_Host, shost_classdev)
 
+#define shost_printk(prefix, shost, fmt, a...)	\
+	dev_printk(prefix, &(shost)->shost_gendev, fmt, ##a)
+
+
 int scsi_is_host_device(const struct device *);
 
 static inline struct Scsi_Host *dev_to_shost(struct device *dev)
