@@ -85,7 +85,7 @@ static inline unsigned short read_ireg(u_long base_addr, u_int reg)
 	u_short v;
 	__asm__(
 	"str%?h	%1, [%2]	@ NAT_RAP\n\t"
-	"str%?h	%0, [%2, #8]	@ NET_IDP\n\t"
+	"ldr%?h	%0, [%2, #8]	@ NET_IDP\n\t"
 	: "=r" (v)
 	: "r" (reg), "r" (ISAIO_BASE + 0x0464));
 	return v;
