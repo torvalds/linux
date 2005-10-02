@@ -1192,11 +1192,6 @@ ahd_platform_free(struct ahd_softc *ahd)
 	int i, j;
 
 	if (ahd->platform_data != NULL) {
-		if (ahd->platform_data->host != NULL) {
-			scsi_remove_host(ahd->platform_data->host);
-			scsi_host_put(ahd->platform_data->host);
-		}
-
 		/* destroy all of the device and target objects */
 		for (i = 0; i < AHD_NUM_TARGETS; i++) {
 			starget = ahd->platform_data->starget[i];
@@ -1226,6 +1221,9 @@ ahd_platform_free(struct ahd_softc *ahd)
 			release_mem_region(ahd->platform_data->mem_busaddr,
 					   0x1000);
 		}
+		if (ahd->platform_data->host)
+			scsi_host_put(ahd->platform_data->host);
+
 		free(ahd->platform_data, M_DEVBUF);
 	}
 }
