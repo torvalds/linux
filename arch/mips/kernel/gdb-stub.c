@@ -654,7 +654,7 @@ void set_async_breakpoint(unsigned long *epc)
 	*epc = (unsigned long)async_breakpoint;
 }
 
-void kgdb_wait(void *arg)
+static void kgdb_wait(void *arg)
 {
 	unsigned flags;
 	int cpu = smp_processor_id();
