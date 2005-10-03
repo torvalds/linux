@@ -917,38 +917,23 @@ static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
 	return rc;
 }
 
-static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct ieee80211_assoc_response
-				       *frame, struct ieee80211_rx_stats *stats)
+static int ieee80211_parse_info_param(struct ieee80211_info_element *info_element,
+					u16 length, struct ieee80211_network *network)
 {
-	struct ieee80211_network network_resp;
-	struct ieee80211_network *network = &network_resp;
-	struct ieee80211_info_element *info_element;
-	struct net_device *dev = ieee->dev;
-	u16 left;
+	u8 i;
+#ifdef CONFIG_IEEE80211_DEBUG
+	char rates_str[64];
+	char *p;
+#endif
 
-	network->flags = 0;
-	network->qos_data.active = 0;
-	network->qos_data.supported = 0;
-	network->qos_data.param_count = 0;
-	network->qos_data.old_param_count = 0;
-
-	//network->atim_window = le16_to_cpu(frame->aid) & (0x3FFF);
-	network->atim_window = le16_to_cpu(frame->aid);
-	network->listen_interval = le16_to_cpu(frame->status);
-
-	info_element = frame->info_element;
-	left = stats->len - sizeof(*frame);
-
-	while (left >= sizeof(struct ieee80211_info_element)) {
-		if (sizeof(struct ieee80211_info_element) +
-		    info_element->len > left) {
-			IEEE80211_DEBUG_QOS("ASSOC RESP: parse failed: "
+	while (length >= sizeof(*info_element)) {
+		if (sizeof(*info_element) + info_element->len > length) {
+			IEEE80211_DEBUG_MGMT("Info elem: parse failed: "
 					    "info_element->len + 2 > left : "
 					    "info_element->len+2=%zd left=%d, id=%d.\n",
 					    info_element->len +
-					    sizeof(struct
-						   ieee80211_info_element),
-					    left, info_element->id);
+					    sizeof(*info_element),
+					    length, info_element->id);
 			return 1;
 		}
 
@@ -968,49 +953,162 @@ static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct iee
 				memset(network->ssid + network->ssid_len, 0,
 				       IW_ESSID_MAX_SIZE - network->ssid_len);
 
-			IEEE80211_DEBUG_QOS("MFIE_TYPE_SSID: '%s' len=%d.\n",
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_SSID: '%s' len=%d.\n",
 					    network->ssid, network->ssid_len);
 			break;
 
+		case MFIE_TYPE_RATES:
+#ifdef CONFIG_IEEE80211_DEBUG
+			p = rates_str;
+#endif
+			network->rates_len = min(info_element->len,
+						 MAX_RATES_LENGTH);
+			for (i = 0; i < network->rates_len; i++) {
+				network->rates[i] = info_element->data[i];
+#ifdef CONFIG_IEEE80211_DEBUG
+				p += snprintf(p, sizeof(rates_str) -
+					      (p - rates_str), "%02X ",
+					      network->rates[i]);
+#endif
+				if (ieee80211_is_ofdm_rate
+				    (info_element->data[i])) {
+					network->flags |= NETWORK_HAS_OFDM;
+					if (info_element->data[i] &
+					    IEEE80211_BASIC_RATE_MASK)
+						network->flags &=
+						    ~NETWORK_HAS_CCK;
+				}
+			}
+
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_RATES: '%s' (%d)\n",
+					     rates_str, network->rates_len);
+			break;
+
+		case MFIE_TYPE_RATES_EX:
+#ifdef CONFIG_IEEE80211_DEBUG
+			p = rates_str;
+#endif
+			network->rates_ex_len = min(info_element->len,
+						    MAX_RATES_EX_LENGTH);
+			for (i = 0; i < network->rates_ex_len; i++) {
+				network->rates_ex[i] = info_element->data[i];
+#ifdef CONFIG_IEEE80211_DEBUG
+				p += snprintf(p, sizeof(rates_str) -
+					      (p - rates_str), "%02X ",
+					      network->rates[i]);
+#endif
+				if (ieee80211_is_ofdm_rate
+				    (info_element->data[i])) {
+					network->flags |= NETWORK_HAS_OFDM;
+					if (info_element->data[i] &
+					    IEEE80211_BASIC_RATE_MASK)
+						network->flags &=
+						    ~NETWORK_HAS_CCK;
+				}
+			}
+
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_RATES_EX: '%s' (%d)\n",
+					     rates_str, network->rates_ex_len);
+			break;
+
+		case MFIE_TYPE_DS_SET:
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_DS_SET: %d\n",
+					     info_element->data[0]);
+			network->channel = info_element->data[0];
+			break;
+
+		case MFIE_TYPE_FH_SET:
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_FH_SET: ignored\n");
+			break;
+
+		case MFIE_TYPE_CF_SET:
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CF_SET: ignored\n");
+			break;
+
 		case MFIE_TYPE_TIM:
-			IEEE80211_DEBUG_QOS("MFIE_TYPE_TIM: ignored\n");
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: ignored\n");
+			break;
+
+		case MFIE_TYPE_ERP_INFO:
+			network->erp_value = info_element->data[0];
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_ERP_SET: %d\n",
+					     network->erp_value);
 			break;
 
 		case MFIE_TYPE_IBSS_SET:
-			IEEE80211_DEBUG_QOS("MFIE_TYPE_IBSS_SET: ignored\n");
+			network->atim_window = info_element->data[0];
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_IBSS_SET: %d\n",
+					     network->atim_window);
 			break;
 
 		case MFIE_TYPE_CHALLENGE:
-			IEEE80211_DEBUG_QOS("MFIE_TYPE_CHALLENGE: ignored\n");
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CHALLENGE: ignored\n");
 			break;
 
 		case MFIE_TYPE_GENERIC:
-			IEEE80211_DEBUG_QOS("MFIE_TYPE_GENERIC: %d bytes\n",
-					    info_element->len);
-			ieee80211_parse_qos_info_param_IE(info_element,
-							  network);
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_GENERIC: %d bytes\n",
+					     info_element->len);
+			if (!ieee80211_parse_qos_info_param_IE(info_element,
+							       network))
+				break;
+
+			if (info_element->len >= 4 &&
+			    info_element->data[0] == 0x00 &&
+			    info_element->data[1] == 0x50 &&
+			    info_element->data[2] == 0xf2 &&
+			    info_element->data[3] == 0x01) {
+				network->wpa_ie_len = min(info_element->len + 2,
+							  MAX_WPA_IE_LEN);
+				memcpy(network->wpa_ie, info_element,
+				       network->wpa_ie_len);
+			}
 			break;
 
 		case MFIE_TYPE_RSN:
-			IEEE80211_DEBUG_QOS("MFIE_TYPE_RSN: %d bytes\n",
-					    info_element->len);
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_RSN: %d bytes\n",
+					     info_element->len);
+			network->rsn_ie_len = min(info_element->len + 2,
+						  MAX_WPA_IE_LEN);
+			memcpy(network->rsn_ie, info_element,
+			       network->rsn_ie_len);
 			break;
 
 		case MFIE_TYPE_QOS_PARAMETER:
-			printk("QoS Error need to parse QOS_PARAMETER IE\n");
+			printk(KERN_ERR "QoS Error need to parse QOS_PARAMETER IE\n");
 			break;
 
 		default:
-			IEEE80211_DEBUG_QOS("unsupported IE %d\n",
+			IEEE80211_DEBUG_MGMT("unsupported IE %d\n",
 					    info_element->id);
 			break;
 		}
 
-		left -= sizeof(struct ieee80211_info_element) +
-		    info_element->len;
-		info_element = (struct ieee80211_info_element *)
-		    &info_element->data[info_element->len];
+		length -= sizeof(*info_element) + info_element->len;
+		info_element = (struct ieee80211_info_element *) &info_element->data[info_element->len];
 	}
+
+	return 0;
+}
+
+static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct ieee80211_assoc_response
+				       *frame, struct ieee80211_rx_stats *stats)
+{
+	struct ieee80211_network network_resp;
+	struct ieee80211_network *network = &network_resp;
+	struct net_device *dev = ieee->dev;
+
+	network->flags = 0;
+	network->qos_data.active = 0;
+	network->qos_data.supported = 0;
+	network->qos_data.param_count = 0;
+	network->qos_data.old_param_count = 0;
+
+	//network->atim_window = le16_to_cpu(frame->aid) & (0x3FFF);
+	network->atim_window = le16_to_cpu(frame->aid);
+	network->listen_interval = le16_to_cpu(frame->status);
+
+	if(ieee80211_parse_info_param(frame->info_element, stats->len - sizeof(*frame), network))
+		return 1;
 
 	if (ieee->handle_assoc_response != NULL)
 		ieee->handle_assoc_response(dev, frame, network);
@@ -1025,13 +1123,6 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 					 struct ieee80211_network *network,
 					 struct ieee80211_rx_stats *stats)
 {
-#ifdef CONFIG_IEEE80211_DEBUG
-	char rates_str[64];
-	char *p;
-#endif
-	struct ieee80211_info_element *info_element;
-	u16 left;
-	u8 i;
 	network->qos_data.active = 0;
 	network->qos_data.supported = 0;
 	network->qos_data.param_count = 0;
@@ -1062,168 +1153,8 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
 
-	info_element = beacon->info_element;
-	left = stats->len - sizeof(*beacon);
-	while (left >= sizeof(*info_element)) {
-		if (sizeof(*info_element) + info_element->len > left) {
-			IEEE80211_DEBUG_SCAN
-			    ("SCAN: parse failed: info_element->len + 2 > left : info_element->len+2=%Zd left=%d.\n",
-			     info_element->len + sizeof(*info_element), left);
-			return 1;
-		}
-
-		switch (info_element->id) {
-		case MFIE_TYPE_SSID:
-			if (ieee80211_is_empty_essid(info_element->data,
-						     info_element->len)) {
-				network->flags |= NETWORK_EMPTY_ESSID;
-				break;
-			}
-
-			network->ssid_len = min(info_element->len,
-						(u8) IW_ESSID_MAX_SIZE);
-			memcpy(network->ssid, info_element->data,
-			       network->ssid_len);
-			if (network->ssid_len < IW_ESSID_MAX_SIZE)
-				memset(network->ssid + network->ssid_len, 0,
-				       IW_ESSID_MAX_SIZE - network->ssid_len);
-
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_SSID: '%s' len=%d.\n",
-					     network->ssid, network->ssid_len);
-			break;
-
-		case MFIE_TYPE_RATES:
-#ifdef CONFIG_IEEE80211_DEBUG
-			p = rates_str;
-#endif
-			network->rates_len = min(info_element->len,
-						 MAX_RATES_LENGTH);
-			for (i = 0; i < network->rates_len; i++) {
-				network->rates[i] = info_element->data[i];
-#ifdef CONFIG_IEEE80211_DEBUG
-				p += snprintf(p, sizeof(rates_str) -
-					      (p - rates_str), "%02X ",
-					      network->rates[i]);
-#endif
-				if (ieee80211_is_ofdm_rate
-				    (info_element->data[i])) {
-					network->flags |= NETWORK_HAS_OFDM;
-					if (info_element->data[i] &
-					    IEEE80211_BASIC_RATE_MASK)
-						network->flags &=
-						    ~NETWORK_HAS_CCK;
-				}
-			}
-
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_RATES: '%s' (%d)\n",
-					     rates_str, network->rates_len);
-			break;
-
-		case MFIE_TYPE_RATES_EX:
-#ifdef CONFIG_IEEE80211_DEBUG
-			p = rates_str;
-#endif
-			network->rates_ex_len = min(info_element->len,
-						    MAX_RATES_EX_LENGTH);
-			for (i = 0; i < network->rates_ex_len; i++) {
-				network->rates_ex[i] = info_element->data[i];
-#ifdef CONFIG_IEEE80211_DEBUG
-				p += snprintf(p, sizeof(rates_str) -
-					      (p - rates_str), "%02X ",
-					      network->rates[i]);
-#endif
-				if (ieee80211_is_ofdm_rate
-				    (info_element->data[i])) {
-					network->flags |= NETWORK_HAS_OFDM;
-					if (info_element->data[i] &
-					    IEEE80211_BASIC_RATE_MASK)
-						network->flags &=
-						    ~NETWORK_HAS_CCK;
-				}
-			}
-
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_RATES_EX: '%s' (%d)\n",
-					     rates_str, network->rates_ex_len);
-			break;
-
-		case MFIE_TYPE_DS_SET:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_DS_SET: %d\n",
-					     info_element->data[0]);
-			if (stats->freq == IEEE80211_24GHZ_BAND)
-				network->channel = info_element->data[0];
-			break;
-
-		case MFIE_TYPE_FH_SET:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_FH_SET: ignored\n");
-			break;
-
-		case MFIE_TYPE_CF_SET:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_CF_SET: ignored\n");
-			break;
-
-		case MFIE_TYPE_TIM:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_TIM: ignored\n");
-			break;
-
-		case MFIE_TYPE_ERP_INFO:
-			network->erp_value = info_element->data[0];
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_ERP_SET: %d\n",
-					     network->erp_value);
-			break;
-
-		case MFIE_TYPE_IBSS_SET:
-			network->atim_window = info_element->data[0];
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_IBSS_SET: %d\n",
-					     network->atim_window);
-			break;
-
-		case MFIE_TYPE_CHALLENGE:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_CHALLENGE: ignored\n");
-			break;
-
-		case MFIE_TYPE_GENERIC:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_GENERIC: %d bytes\n",
-					     info_element->len);
-			if (!ieee80211_parse_qos_info_param_IE(info_element,
-							       network))
-				break;
-
-			if (info_element->len >= 4 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x50 &&
-			    info_element->data[2] == 0xf2 &&
-			    info_element->data[3] == 0x01) {
-				network->wpa_ie_len = min(info_element->len + 2,
-							  MAX_WPA_IE_LEN);
-				memcpy(network->wpa_ie, info_element,
-				       network->wpa_ie_len);
-			}
-			break;
-
-		case MFIE_TYPE_RSN:
-			IEEE80211_DEBUG_SCAN("MFIE_TYPE_RSN: %d bytes\n",
-					     info_element->len);
-			network->rsn_ie_len = min(info_element->len + 2,
-						  MAX_WPA_IE_LEN);
-			memcpy(network->rsn_ie, info_element,
-			       network->rsn_ie_len);
-			break;
-
-		case MFIE_TYPE_QOS_PARAMETER:
-			printk(KERN_ERR
-			       "QoS Error need to parse QOS_PARAMETER IE\n");
-			break;
-
-		default:
-			IEEE80211_DEBUG_SCAN("unsupported IE %d\n",
-					     info_element->id);
-			break;
-		}
-
-		left -= sizeof(*info_element) + info_element->len;
-		info_element = (struct ieee80211_info_element *)
-		    &info_element->data[info_element->len];
-	}
+	if(ieee80211_parse_info_param(beacon->info_element, stats->len - sizeof(*beacon), network))
+		return 1;
 
 	network->mode = 0;
 	if (stats->freq == IEEE80211_52GHZ_BAND)
