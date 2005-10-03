@@ -666,7 +666,7 @@ slow_path:
 		 */
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
-		if (frag_id) {
+		if (!frag_id) {
 			ipv6_select_ident(skb, fh);
 			frag_id = fh->identification;
 		} else
