@@ -277,8 +277,6 @@ static struct prism2_helper_functions prism2_pci_funcs =
 {
 	.card_present	= NULL,
 	.cor_sreset	= prism2_pci_cor_sreset,
-	.dev_open	= NULL,
-	.dev_close	= NULL,
 	.genesis_reset	= prism2_pci_genesis_reset,
 	.hw_type	= HOSTAP_HW_PCI,
 };
