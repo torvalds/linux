@@ -176,8 +176,10 @@ int kgdb_enabled;
 /*
  * spin locks for smp case
  */
-static spinlock_t kgdb_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t kgdb_cpulock[NR_CPUS] = { [0 ... NR_CPUS-1] = SPIN_LOCK_UNLOCKED};
+static DEFINE_SPINLOCK(kgdb_lock);
+static raw_spinlock_t kgdb_cpulock[NR_CPUS] = {
+	[0 ... NR_CPUS-1] = __RAW_SPIN_LOCK_UNLOCKED;
+};
 
 /*
  * BUFMAX defines the maximum number of characters in inbound/outbound buffers
@@ -661,8 +663,8 @@ static void kgdb_wait(void *arg)
 
 	local_irq_save(flags);
 
-	spin_lock(&kgdb_cpulock[cpu]);
-	spin_unlock(&kgdb_cpulock[cpu]);
+	__raw_spin_lock(&kgdb_cpulock[cpu]);
+	__raw_spin_unlock(&kgdb_cpulock[cpu]);
 
 	local_irq_restore(flags);
 }
@@ -710,7 +712,7 @@ void handle_exception (struct gdb_regs *regs)
 	 * acquire the CPU spinlocks
 	 */
 	for (i = num_online_cpus()-1; i >= 0; i--)
-		if (spin_trylock(&kgdb_cpulock[i]) == 0)
+		if (__raw_spin_trylock(&kgdb_cpulock[i]) == 0)
 			panic("kgdb: couldn't get cpulock %d\n", i);
 
 	/*
@@ -985,7 +987,7 @@ finish_kgdb:
 exit_kgdb_exception:
 	/* release locks so other CPUs can go */
 	for (i = num_online_cpus()-1; i >= 0; i--)
-		spin_unlock(&kgdb_cpulock[i]);
+		__raw_spin_unlock(&kgdb_cpulock[i]);
 	spin_unlock(&kgdb_lock);
 
 	__flush_cache_all();
