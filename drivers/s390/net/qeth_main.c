@@ -5200,7 +5200,7 @@ qeth_free_vlan_addresses4(struct qeth_card *card, unsigned short vid)
 	if (!card->vlangrp)
 		return;
 	rcu_read_lock();
-	in_dev = __in_dev_get(card->vlangrp->vlan_devices[vid]);
+	in_dev = __in_dev_get_rcu(card->vlangrp->vlan_devices[vid]);
 	if (!in_dev)
 		goto out;
 	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
@@ -7725,7 +7725,7 @@ qeth_arp_constructor(struct neighbour *neigh)
 		goto out;
 
 	rcu_read_lock();
-	in_dev = rcu_dereference(__in_dev_get(dev));
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev == NULL) {
 		rcu_read_unlock();
 		return -EINVAL;

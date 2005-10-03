@@ -241,7 +241,7 @@ static int arp_constructor(struct neighbour *neigh)
 	neigh->type = inet_addr_type(addr);
 
 	rcu_read_lock();
-	in_dev = rcu_dereference(__in_dev_get(dev));
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev == NULL) {
 		rcu_read_unlock();
 		return -EINVAL;
@@ -989,8 +989,8 @@ static int arp_req_set(struct arpreq *r, struct net_device * dev)
 			ipv4_devconf.proxy_arp = 1;
 			return 0;
 		}
-		if (__in_dev_get(dev)) {
-			__in_dev_get(dev)->cnf.proxy_arp = 1;
+		if (__in_dev_get_rtnl(dev)) {
+			__in_dev_get_rtnl(dev)->cnf.proxy_arp = 1;
 			return 0;
 		}
 		return -ENXIO;
@@ -1095,8 +1095,8 @@ static int arp_req_delete(struct arpreq *r, struct net_device * dev)
 				ipv4_devconf.proxy_arp = 0;
 				return 0;
 			}
-			if (__in_dev_get(dev)) {
-				__in_dev_get(dev)->cnf.proxy_arp = 0;
+			if (__in_dev_get_rtnl(dev)) {
+				__in_dev_get_rtnl(dev)->cnf.proxy_arp = 0;
 				return 0;
 			}
 			return -ENXIO;

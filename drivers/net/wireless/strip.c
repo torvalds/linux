@@ -1352,7 +1352,7 @@ static unsigned char *strip_make_packet(unsigned char *buffer,
 		struct in_device *in_dev;
 
 		rcu_read_lock();
-		in_dev = __in_dev_get(strip_info->dev);
+		in_dev = __in_dev_get_rcu(strip_info->dev);
 		if (in_dev == NULL) {
 			rcu_read_unlock();
 			return NULL;
@@ -1508,7 +1508,7 @@ static void strip_send(struct strip *strip_info, struct sk_buff *skb)
 
 		brd = addr = 0;
 		rcu_read_lock();
-		in_dev = __in_dev_get(strip_info->dev);
+		in_dev = __in_dev_get_rcu(strip_info->dev);
 		if (in_dev) {
 			if (in_dev->ifa_list) {
 				brd = in_dev->ifa_list->ifa_broadcast;

@@ -147,7 +147,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 	struct sctp_sockaddr_entry *addr;
 
 	rcu_read_lock();
-	if ((in_dev = __in_dev_get(dev)) == NULL) {
+	if ((in_dev = __in_dev_get_rcu(dev)) == NULL) {
 		rcu_read_unlock();
 		return;
 	}

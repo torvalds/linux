@@ -142,13 +142,21 @@ static __inline__ int bad_mask(u32 mask, u32 addr)
 
 #define endfor_ifa(in_dev) }
 
+static inline struct in_device *__in_dev_get_rcu(const struct net_device *dev)
+{
+	struct in_device *in_dev = dev->ip_ptr;
+	if (in_dev)
+		in_dev = rcu_dereference(in_dev);
+	return in_dev;
+}
+
 static __inline__ struct in_device *
 in_dev_get(const struct net_device *dev)
 {
 	struct in_device *in_dev;
 
 	rcu_read_lock();
-	in_dev = dev->ip_ptr;
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev)
 		atomic_inc(&in_dev->refcnt);
 	rcu_read_unlock();
@@ -156,7 +164,7 @@ in_dev_get(const struct net_device *dev)
 }
 
 static __inline__ struct in_device *
-__in_dev_get(const struct net_device *dev)
+__in_dev_get_rtnl(const struct net_device *dev)
 {
 	return (struct in_device*)dev->ip_ptr;
 }

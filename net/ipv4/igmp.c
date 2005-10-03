@@ -1323,7 +1323,7 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 	}
 	if (dev) {
 		imr->imr_ifindex = dev->ifindex;
-		idev = __in_dev_get(dev);
+		idev = __in_dev_get_rtnl(dev);
 	}
 	return idev;
 }

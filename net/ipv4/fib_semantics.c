@@ -1087,7 +1087,7 @@ fib_convert_rtentry(int cmd, struct nlmsghdr *nl, struct rtmsg *rtm,
 		rta->rta_oif = &dev->ifindex;
 		if (colon) {
 			struct in_ifaddr *ifa;
-			struct in_device *in_dev = __in_dev_get(dev);
+			struct in_device *in_dev = __in_dev_get_rtnl(dev);
 			if (!in_dev)
 				return -ENODEV;
 			*colon = ':';
@@ -1268,7 +1268,7 @@ int fib_sync_up(struct net_device *dev)
 			}
 			if (nh->nh_dev == NULL || !(nh->nh_dev->flags&IFF_UP))
 				continue;
-			if (nh->nh_dev != dev || __in_dev_get(dev) == NULL)
+			if (nh->nh_dev != dev || !__in_dev_get_rtnl(dev))
 				continue;
 			alive++;
 			spin_lock_bh(&fib_multipath_lock);

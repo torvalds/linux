@@ -93,7 +93,7 @@ redirect_target(struct sk_buff **pskb,
 		newdst = 0;
 		
 		rcu_read_lock();
-		indev = __in_dev_get((*pskb)->dev);
+		indev = __in_dev_get_rcu((*pskb)->dev);
 		if (indev && (ifa = indev->ifa_list))
 			newdst = ifa->ifa_local;
 		rcu_read_unlock();
