@@ -188,7 +188,7 @@ struct icmp_err icmp_err_convert[] = {
 
 /* Control parameters for ECHO replies. */
 int sysctl_icmp_echo_ignore_all;
-int sysctl_icmp_echo_ignore_broadcasts;
+int sysctl_icmp_echo_ignore_broadcasts = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
 int sysctl_icmp_ignore_bogus_error_responses;
