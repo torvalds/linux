@@ -59,11 +59,13 @@ static struct pci_device_id prism2_pci_id_table[] __devinitdata = {
 static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
@@ -74,12 +76,14 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 	u8 v;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = readb(hw_priv->mem_start + a);
@@ -91,11 +95,13 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
@@ -106,12 +112,14 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 	u16 v;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = readw(hw_priv->mem_start + a);
