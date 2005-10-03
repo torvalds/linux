@@ -697,12 +697,6 @@ void arp_send(int type, int ptype, u32 dest_ip,
 	arp_xmit(skb);
 }
 
-static void parp_redo(struct sk_buff *skb)
-{
-	nf_reset(skb);
-	arp_rcv(skb, skb->dev, NULL, skb->dev);
-}
-
 /*
  *	Process an arp request.
  */
@@ -920,6 +914,11 @@ out:
 		in_dev_put(in_dev);
 	kfree_skb(skb);
 	return 0;
+}
+
+static void parp_redo(struct sk_buff *skb)
+{
+	arp_process(skb);
 }
 
 
