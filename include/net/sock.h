@@ -99,6 +99,7 @@ struct proto;
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
  *	@skc_refcnt: reference count
+ *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_prot: protocol handlers inside a network family
  *
  *	This is the minimal network layer representation of sockets, the header
@@ -112,6 +113,7 @@ struct sock_common {
 	struct hlist_node	skc_node;
 	struct hlist_node	skc_bind_node;
 	atomic_t		skc_refcnt;
+	unsigned int		skc_hash;
 	struct proto		*skc_prot;
 };
 
@@ -139,7 +141,6 @@ struct sock_common {
   *	@sk_no_check: %SO_NO_CHECK setting, wether or not checkup packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
   *	@sk_lingertime: %SO_LINGER l_linger setting
-  *	@sk_hashent: hash entry in several tables (e.g. inet_hashinfo.ehash)
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
   *	@sk_error_queue: rarely used
@@ -186,6 +187,7 @@ struct sock {
 #define sk_node			__sk_common.skc_node
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_refcnt		__sk_common.skc_refcnt
+#define sk_hash			__sk_common.skc_hash
 #define sk_prot			__sk_common.skc_prot
 	unsigned char		sk_shutdown : 2,
 				sk_no_check : 2,
@@ -208,7 +210,6 @@ struct sock {
 	unsigned int		sk_allocation;
 	int			sk_sndbuf;
 	int			sk_route_caps;
-	int			sk_hashent;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
 	/*

@@ -20,7 +20,7 @@ void __inet_twsk_kill(struct inet_timewait_sock *tw, struct inet_hashinfo *hashi
 	struct inet_bind_hashbucket *bhead;
 	struct inet_bind_bucket *tb;
 	/* Unlink from established hashes. */
-	struct inet_ehash_bucket *ehead = &hashinfo->ehash[tw->tw_hashent];
+	struct inet_ehash_bucket *ehead = inet_ehash_bucket(hashinfo, tw->tw_hash);
 
 	write_lock(&ehead->lock);
 	if (hlist_unhashed(&tw->tw_node)) {
@@ -60,7 +60,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct inet_ehash_bucket *ehead = &hashinfo->ehash[sk->sk_hashent];
+	struct inet_ehash_bucket *ehead = inet_ehash_bucket(hashinfo, sk->sk_hash);
 	struct inet_bind_hashbucket *bhead;
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
 	   Note, that any socket with inet->num != 0 MUST be bound in
@@ -106,7 +106,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 		tw->tw_dport	    = inet->dport;
 		tw->tw_family	    = sk->sk_family;
 		tw->tw_reuse	    = sk->sk_reuse;
-		tw->tw_hashent	    = sk->sk_hashent;
+		tw->tw_hash	    = sk->sk_hash;
 		tw->tw_ipv6only	    = 0;
 		tw->tw_prot	    = sk->sk_prot_creator;
 		atomic_set(&tw->tw_refcnt, 1);
