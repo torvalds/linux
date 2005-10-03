@@ -849,13 +849,19 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 			/* BB FIXME We can not sign across two buffers yet */
 			if((experimEnabled) && ((pTcon->ses->server->secMode & 
 			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0)) {
+				struct kvec iov[2];
+				unsigned int len;
+
+				len = min(cifs_sb->wsize,
+					  write_size - total_written);
+				/* iov[0] is reserved for smb header */
+				iov[1].iov_base = (char *)write_data +
+						  total_written;
+				iov[1].iov_len = len;
 				rc = CIFSSMBWrite2(xid, pTcon,
-						open_file->netfid,
-						min_t(const int, cifs_sb->wsize,
-						    write_size - total_written),
+						open_file->netfid, len,
 						*poffset, &bytes_written,
-						write_data + total_written, 
-						long_op);
+						iov, 1, long_op);
 			} else
 			/* BB FIXME fixup indentation of line below */
 #endif			

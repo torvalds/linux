@@ -125,6 +125,9 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon
 					, nls_codepage);
 				up(&tcon->ses->sesSem);
+				/* BB FIXME add code to check if wsize needs
+				   update due to negotiated smb buffer size
+				   shrinking */
 				if(rc == 0)
 					atomic_inc(&tconInfoReconnectCount);
 
@@ -220,6 +223,9 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
 					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
+				/* BB FIXME add code to check if wsize needs
+				update due to negotiated smb buffer size
+				shrinking */
 				if(rc == 0)
 					atomic_inc(&tconInfoReconnectCount);
 
@@ -1128,15 +1134,13 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 int
 CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	     const int netfid, const unsigned int count,
-	     const __u64 offset, unsigned int *nbytes, const char *buf,
-	     const int long_op)
+	     const __u64 offset, unsigned int *nbytes, struct kvec *iov,
+	     int n_vec, const int long_op)
 {
 	int rc = -EACCES;
 	WRITE_REQ *pSMB = NULL;
 	int bytes_returned;
 	int smb_hdr_len;
-	__u32 bytes_sent;
-	__u16 byte_count;
 
 	cFYI(1,("write2 at %lld %d bytes",offset,count)); /* BB removeme BB */
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, 14, tcon, (void **) &pSMB);
@@ -1154,31 +1158,20 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	pSMB->WriteMode = 0;
 	pSMB->Remaining = 0;
 
-	/* Can increase buffer size if buffer is big enough in some cases - ie 
-	can send more if LARGE_WRITE_X capability returned by the server and if
-	our buffer is big enough or if we convert to iovecs on socket writes
-	and eliminate the copy to the CIFS buffer */
-	if(tcon->ses->capabilities & CAP_LARGE_WRITE_X) {
-		bytes_sent = min_t(const unsigned int, CIFSMaxBufSize, count);
-	} else {
-		bytes_sent = (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE)
-			 & ~0xFF;
-	}
-
-	if (bytes_sent > count)
-		bytes_sent = count;
 	pSMB->DataOffset =
 	    cpu_to_le16(offsetof(struct smb_com_write_req,Data) - 4);
 
-	byte_count = bytes_sent + 1 /* pad */ ; /* BB fix this for sends > 64K */
-	pSMB->DataLengthLow = cpu_to_le16(bytes_sent & 0xFFFF);
-	pSMB->DataLengthHigh = cpu_to_le16(bytes_sent >> 16);
+	pSMB->DataLengthLow = cpu_to_le16(count & 0xFFFF);
+	pSMB->DataLengthHigh = cpu_to_le16(count >> 16);
 	smb_hdr_len = pSMB->hdr.smb_buf_length + 1; /* hdr + 1 byte pad */
-	pSMB->hdr.smb_buf_length += bytes_sent+1;
-	pSMB->ByteCount = cpu_to_le16(byte_count);
+	pSMB->hdr.smb_buf_length += count+1;
+	pSMB->ByteCount = cpu_to_le16(count + 1);
 
-	rc = SendReceive2(xid, tcon->ses, (struct smb_hdr *) pSMB, smb_hdr_len,
-			  buf, bytes_sent, &bytes_returned, long_op);
+	iov[0].iov_base = pSMB;
+	iov[0].iov_len = smb_hdr_len + 4;
+
+	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &bytes_returned,
+			  long_op);
 	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
 		cFYI(1, ("Send error in write = %d", rc));

@@ -1891,6 +1891,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				}
 			}
 		}
+		if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
+			cifs_sb->wsize = min(cifs_sb->wsize,
+					     (tcon->ses->server->maxBuf -
+					      MAX_CIFS_HDR_SIZE));
 	}
 
 	/* volume_info.password is freed above when existing session found

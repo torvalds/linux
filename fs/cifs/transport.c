@@ -147,16 +147,19 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	   Flags2 is converted in SendReceive */
 
 	smb_buffer->smb_buf_length = cpu_to_be32(smb_buffer->smb_buf_length);
-	cFYI(1, ("Sending smb of length %d ", smb_buf_length));
+	cFYI(1, ("Sending smb of length %d", smb_buf_length));
 	dump_smb(smb_buffer, len);
 
 	while (len > 0) {
 		rc = kernel_sendmsg(ssocket, &smb_msg, &iov, 1, len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
-			if(i > 60) {
+		/* smaller timeout here than send2 since smaller size */
+		/* Although it may not be required, this also is smaller 
+		   oplock break time */  
+			if(i > 30) {
 				cERROR(1,
-				   ("sends on sock %p stuck for 30 seconds",
+				   ("sends on sock %p stuck for 15 seconds",
 				    ssocket));
 				rc = -EAGAIN;
 				break;
@@ -172,7 +175,7 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	}
 
 	if (rc < 0) {
-		cERROR(1,("Error %d sending data on socket to server.", rc));
+		cERROR(1,("Error %d sending data on socket to server", rc));
 	} else {
 		rc = 0;
 	}
@@ -182,22 +185,20 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 static int
-smb_send2(struct socket *ssocket, struct smb_hdr *smb_buffer,
-	 unsigned int smb_hdr_length, const char * data, unsigned int datalen,
-	 struct sockaddr *sin)
+smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
+	  struct sockaddr *sin)
 {
 	int rc = 0;
 	int i = 0;
 	struct msghdr smb_msg;
-	struct kvec iov[2];
-	unsigned len = smb_hdr_length + 4;
+	struct smb_hdr *smb_buffer = iov[0].iov_base;
+	unsigned int len = iov[0].iov_len;
+	unsigned int total_len;
+	int first_vec = 0;
 	
 	if(ssocket == NULL)
 		return -ENOTSOCK; /* BB eventually add reconnect code here */
-	iov[0].iov_base = smb_buffer;
-	iov[0].iov_len = len;
-	iov[1].iov_base = data;
-	iov[1].iov_len = datalen;
+
 	smb_msg.msg_name = sin;
 	smb_msg.msg_namelen = sizeof (struct sockaddr);
 	smb_msg.msg_control = NULL;
@@ -209,18 +210,23 @@ smb_send2(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	   cifssmb.c and RFC1001 len is converted to bigendian in smb_send 
 	   Flags2 is converted in SendReceive */
 
+
+	total_len = 0;
+	for (i = 0; i < n_vec; i++)
+		total_len += iov[i].iov_len;
+
 	smb_buffer->smb_buf_length = cpu_to_be32(smb_buffer->smb_buf_length);
-	cFYI(1, ("Sending smb:  hdrlen %d datalen %d",
-		 smb_hdr_length,datalen));
+	cFYI(1, ("Sending smb:  total_len %d", total_len));
 	dump_smb(smb_buffer, len);
 
-	while (len + datalen > 0) {
-		rc = kernel_sendmsg(ssocket, &smb_msg, iov, 2, len);
+	while (total_len) {
+		rc = kernel_sendmsg(ssocket, &smb_msg, &iov[first_vec],
+				    n_vec - first_vec, total_len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
-			if(i > 60) {
+			if(i > 40) {
 				cERROR(1,
-				   ("sends on sock %p stuck for 30 seconds",
+				   ("sends on sock %p stuck for 20 seconds",
 				    ssocket));
 				rc = -EAGAIN;
 				break;
@@ -230,43 +236,52 @@ smb_send2(struct socket *ssocket, struct smb_hdr *smb_buffer,
 		}
 		if (rc < 0) 
 			break;
-		if(iov[0].iov_len > 0) {
-			if(rc >= len) {
-				iov[0].iov_len = 0;
-				rc -= len;
-				len = 0;
-			} else {  /* some of hdr was not sent */
-				len -= rc;
-				iov[0].iov_len -= rc;
-				iov[0].iov_base += rc;
-				continue;
-			}
+
+		if (rc >= total_len) {
+			WARN_ON(rc > total_len);
+			break;
 		}
-		if((iov[0].iov_len == 0) && (rc > 0)){
-			iov[1].iov_base += rc;
-			iov[1].iov_len -= rc;
-			datalen -= rc;
+		if(rc == 0) {
+			/* should never happen, letting socket clear before
+			   retrying is our only obvious option here */
+			cERROR(1,("tcp sent no data");
+			msleep(500);
+			continue;
+		}
+		total_len -= rc;
+		for (i = first_vec; i < n_vec; i++) {
+			if (iov[i].iov_len) {
+				if (rc > iov[i].iov_len) {
+					rc -= iov[i].iov_len;
+					iov[i].iov_len = 0;
+				} else {
+					iov[i].iov_base += rc;
+					iov[i].iov_len -= rc;
+					first_vec = i;
+					break;
+				}
+			}
 		}
 	}
 
 	if (rc < 0) {
-		cERROR(1,("Error %d sending data on socket to server.", rc));
-	} else {
+		cERROR(1,("Error %d sending data on socket to server", rc));
+	} else
 		rc = 0;
-	}
 
 	return rc;
 }
 
 int
 SendReceive2(const unsigned int xid, struct cifsSesInfo *ses, 
-	     struct smb_hdr *in_buf, int hdrlen, const char * data,
-	     int datalen, int *pbytes_returned, const int long_op)
+	     struct kvec *iov, int n_vec, int *pbytes_returned,
+	     const int long_op)
 {
 	int rc = 0;
 	unsigned int receive_len;
 	unsigned long timeout;
 	struct mid_q_entry *midQ;
+	struct smb_hdr *in_buf = iov[0].iov_base;
 
 	if (ses == NULL) {
 		cERROR(1,("Null smb session"));
@@ -364,7 +379,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 /* 	rc = cifs_sign_smb2(in_buf, data, ses->server, &midQ->sequence_number); */
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
-	rc = smb_send2(ses->server->ssocket, in_buf, hdrlen, data, datalen,
+	rc = smb_send2(ses->server->ssocket, iov, n_vec,
 		      (struct sockaddr *) &(ses->server->addr.sockAddr));
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
