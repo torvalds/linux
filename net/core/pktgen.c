@@ -1673,7 +1673,6 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 					pkt_dev->saddr_min = in_dev->ifa_list->ifa_address;
 					pkt_dev->saddr_max = pkt_dev->saddr_min;
 				}
-				__in_dev_put(in_dev);	
 			}
 			rcu_read_unlock();
 		}
