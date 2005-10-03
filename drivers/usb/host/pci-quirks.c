@@ -9,6 +9,12 @@
  */
 
 #include <linux/config.h>
+#ifdef CONFIG_USB_DEBUG
+#define DEBUG
+#else
+#undef DEBUG
+#endif
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -46,13 +52,14 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_2,	qui
 
 #define UHCI_USBLEGSUP		0xc0		/* legacy support */
 #define UHCI_USBCMD		0		/* command register */
-#define UHCI_USBSTS		2		/* status register */
 #define UHCI_USBINTR		4		/* interrupt register */
-#define UHCI_USBLEGSUP_DEFAULT	0x2000		/* only PIRQ enable set */
-#define UHCI_USBCMD_RUN		(1 << 0)	/* RUN/STOP bit */
-#define UHCI_USBCMD_GRESET	(1 << 2)	/* Global reset */
-#define UHCI_USBCMD_CONFIGURE	(1 << 6)	/* config semaphore */
-#define UHCI_USBSTS_HALTED	(1 << 5)	/* HCHalted bit */
+#define UHCI_USBLEGSUP_RWC	0x8f00		/* the R/WC bits */
+#define UHCI_USBLEGSUP_RO	0x5040		/* R/O and reserved bits */
+#define UHCI_USBCMD_RUN		0x0001		/* RUN/STOP bit */
+#define UHCI_USBCMD_HCRESET	0x0002		/* Host Controller reset */
+#define UHCI_USBCMD_EGSM	0x0008		/* Global Suspend Mode */
+#define UHCI_USBCMD_CONFIGURE	0x0040		/* Config Flag */
+#define UHCI_USBINTR_RESUME	0x0002		/* Resume interrupt enable */
 
 #define OHCI_CONTROL		0x04
 #define OHCI_CMDSTATUS		0x08
@@ -84,11 +91,90 @@ static int __init usb_handoff_early(char *str)
 }
 __setup("usb-handoff", usb_handoff_early);
 
+/*
+ * Make sure the controller is completely inactive, unable to
+ * generate interrupts or do DMA.
+ */
+void uhci_reset_hc(struct pci_dev *pdev, unsigned long base)
+{
+	/* Turn off PIRQ enable and SMI enable.  (This also turns off the
+	 * BIOS's USB Legacy Support.)  Turn off all the R/WC bits too.
+	 */
+	pci_write_config_word(pdev, UHCI_USBLEGSUP, UHCI_USBLEGSUP_RWC);
+
+	/* Reset the HC - this will force us to get a
+	 * new notification of any already connected
+	 * ports due to the virtual disconnect that it
+	 * implies.
+	 */
+	outw(UHCI_USBCMD_HCRESET, base + UHCI_USBCMD);
+	mb();
+	udelay(5);
+	if (inw(base + UHCI_USBCMD) & UHCI_USBCMD_HCRESET)
+		dev_warn(&pdev->dev, "HCRESET not completed yet!\n");
+
+	/* Just to be safe, disable interrupt requests and
+	 * make sure the controller is stopped.
+	 */
+	outw(0, base + UHCI_USBINTR);
+	outw(0, base + UHCI_USBCMD);
+}
+EXPORT_SYMBOL_GPL(uhci_reset_hc);
+
+/*
+ * Initialize a controller that was newly discovered or has just been
+ * resumed.  In either case we can't be sure of its previous state.
+ *
+ * Returns: 1 if the controller was reset, 0 otherwise.
+ */
+int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base)
+{
+	u16 legsup;
+	unsigned int cmd, intr;
+
+	/*
+	 * When restarting a suspended controller, we expect all the
+	 * settings to be the same as we left them:
+	 *
+	 *	PIRQ and SMI disabled, no R/W bits set in USBLEGSUP;
+	 *	Controller is stopped and configured with EGSM set;
+	 *	No interrupts enabled except possibly Resume Detect.
+	 *
+	 * If any of these conditions are violated we do a complete reset.
+	 */
+	pci_read_config_word(pdev, UHCI_USBLEGSUP, &legsup);
+	if (legsup & ~(UHCI_USBLEGSUP_RO | UHCI_USBLEGSUP_RWC)) {
+		dev_dbg(&pdev->dev, "%s: legsup = 0x%04x\n",
+				__FUNCTION__, legsup);
+		goto reset_needed;
+	}
+
+	cmd = inw(base + UHCI_USBCMD);
+	if ((cmd & UHCI_USBCMD_RUN) || !(cmd & UHCI_USBCMD_CONFIGURE) ||
+			!(cmd & UHCI_USBCMD_EGSM)) {
+		dev_dbg(&pdev->dev, "%s: cmd = 0x%04x\n",
+				__FUNCTION__, cmd);
+		goto reset_needed;
+	}
+
+	intr = inw(base + UHCI_USBINTR);
+	if (intr & (~UHCI_USBINTR_RESUME)) {
+		dev_dbg(&pdev->dev, "%s: intr = 0x%04x\n",
+				__FUNCTION__, intr);
+		goto reset_needed;
+	}
+	return 0;
+
+reset_needed:
+	dev_dbg(&pdev->dev, "Performing full reset\n");
+	uhci_reset_hc(pdev, base);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(uhci_check_and_reset_hc);
+
 static void __devinit quirk_usb_handoff_uhci(struct pci_dev *pdev)
 {
 	unsigned long base = 0;
-	int wait_time, delta;
-	u16 val, sts;
 	int i;
 
 	for (i = 0; i < PCI_ROM_RESOURCE; i++)
@@ -97,44 +183,8 @@ static void __devinit quirk_usb_handoff_uhci(struct pci_dev *pdev)
 			break;
 		}
 
-	if (!base)
-		return;
-
-	/*
-	 * stop controller
-	 */
-	sts = inw(base + UHCI_USBSTS);
-	val = inw(base + UHCI_USBCMD);
-	val &= ~(u16)(UHCI_USBCMD_RUN | UHCI_USBCMD_CONFIGURE);
-	outw(val, base + UHCI_USBCMD);
-
-	/*
-	 * wait while it stops if it was running
-	 */
-	if ((sts & UHCI_USBSTS_HALTED) == 0)
-	{
-		wait_time = 1000;
-		delta = 100;
-
-		do {
-			outw(0x1f, base + UHCI_USBSTS);
-			udelay(delta);
-			wait_time -= delta;
-			val = inw(base + UHCI_USBSTS);
-			if (val & UHCI_USBSTS_HALTED)
-				break;
-		} while (wait_time > 0);
-	}
-
-	/*
-	 * disable interrupts & legacy support
-	 */
-	outw(0, base + UHCI_USBINTR);
-	outw(0x1f, base + UHCI_USBSTS);
-	pci_read_config_word(pdev, UHCI_USBLEGSUP, &val);
-	if (val & 0xbf)
-		pci_write_config_word(pdev, UHCI_USBLEGSUP, UHCI_USBLEGSUP_DEFAULT);
-
+	if (base)
+		uhci_check_and_reset_hc(pdev, base);
 }
 
 static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)

@@ -101,36 +101,15 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 #include "uhci-q.c"
 #include "uhci-hub.c"
 
+extern void uhci_reset_hc(struct pci_dev *pdev, unsigned long base);
+extern int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base);
+
 /*
- * Make sure the controller is completely inactive, unable to
- * generate interrupts or do DMA.
+ * Finish up a host controller reset and update the recorded state.
  */
-static void reset_hc(struct uhci_hcd *uhci)
+static void finish_reset(struct uhci_hcd *uhci)
 {
 	int port;
-
-	/* Turn off PIRQ enable and SMI enable.  (This also turns off the
-	 * BIOS's USB Legacy Support.)  Turn off all the R/WC bits too.
-	 */
-	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
-			USBLEGSUP_RWC);
-
-	/* Reset the HC - this will force us to get a
-	 * new notification of any already connected
-	 * ports due to the virtual disconnect that it
-	 * implies.
-	 */
-	outw(USBCMD_HCRESET, uhci->io_addr + USBCMD);
-	mb();
-	udelay(5);
-	if (inw(uhci->io_addr + USBCMD) & USBCMD_HCRESET)
-		dev_warn(uhci_dev(uhci), "HCRESET not completed yet!\n");
-
-	/* Just to be safe, disable interrupt requests and
-	 * make sure the controller is stopped.
-	 */
-	outw(0, uhci->io_addr + USBINTR);
-	outw(0, uhci->io_addr + USBCMD);
 
 	/* HCRESET doesn't affect the Suspend, Reset, and Resume Detect
 	 * bits in the port status and control registers.
@@ -153,7 +132,8 @@ static void reset_hc(struct uhci_hcd *uhci)
  */
 static void hc_died(struct uhci_hcd *uhci)
 {
-	reset_hc(uhci);
+	uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
+	finish_reset(uhci);
 	uhci->hc_inaccessible = 1;
 }
 
@@ -163,44 +143,8 @@ static void hc_died(struct uhci_hcd *uhci)
  */
 static void check_and_reset_hc(struct uhci_hcd *uhci)
 {
-	u16 legsup;
-	unsigned int cmd, intr;
-
-	/*
-	 * When restarting a suspended controller, we expect all the
-	 * settings to be the same as we left them:
-	 *
-	 *	PIRQ and SMI disabled, no R/W bits set in USBLEGSUP;
-	 *	Controller is stopped and configured with EGSM set;
-	 *	No interrupts enabled except possibly Resume Detect.
-	 *
-	 * If any of these conditions are violated we do a complete reset.
-	 */
-	pci_read_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, &legsup);
-	if (legsup & ~(USBLEGSUP_RO | USBLEGSUP_RWC)) {
-		dev_dbg(uhci_dev(uhci), "%s: legsup = 0x%04x\n",
-				__FUNCTION__, legsup);
-		goto reset_needed;
-	}
-
-	cmd = inw(uhci->io_addr + USBCMD);
-	if ((cmd & USBCMD_RS) || !(cmd & USBCMD_CF) || !(cmd & USBCMD_EGSM)) {
-		dev_dbg(uhci_dev(uhci), "%s: cmd = 0x%04x\n",
-				__FUNCTION__, cmd);
-		goto reset_needed;
-	}
-
-	intr = inw(uhci->io_addr + USBINTR);
-	if (intr & (~USBINTR_RESUME)) {
-		dev_dbg(uhci_dev(uhci), "%s: intr = 0x%04x\n",
-				__FUNCTION__, intr);
-		goto reset_needed;
-	}
-	return;
-
-reset_needed:
-	dev_dbg(uhci_dev(uhci), "Performing full reset\n");
-	reset_hc(uhci);
+	if (uhci_check_and_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr))
+		finish_reset(uhci);
 }
 
 /*
@@ -714,7 +658,7 @@ static void uhci_stop(struct usb_hcd *hcd)
 
 	spin_lock_irq(&uhci->lock);
 	if (!uhci->hc_inaccessible)
-		reset_hc(uhci);
+		hc_died(uhci);
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
 
