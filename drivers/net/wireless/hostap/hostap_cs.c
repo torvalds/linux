@@ -565,13 +565,14 @@ static void prism2_detach(dev_link_t *link)
 	*linkp = link->next;
 	/* release net devices */
 	if (link->priv) {
+		struct hostap_cs_priv *hw_priv;
 		struct net_device *dev;
 		struct hostap_interface *iface;
 		dev = link->priv;
 		iface = netdev_priv(dev);
-		kfree(iface->local->hw_priv);
-		iface->local->hw_priv = NULL;
+		hw_priv = iface->local->hw_priv;
 		prism2_free_local_data(dev);
+		kfree(hw_priv);
 	}
 	kfree(link);
 }

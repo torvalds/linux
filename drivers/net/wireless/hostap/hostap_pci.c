@@ -358,8 +358,6 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
-	kfree(hw_priv);
-
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
 
@@ -370,10 +368,8 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 
  err_out_disable:
 	pci_disable_device(pdev);
-	kfree(hw_priv);
-	if (local)
-		local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 
 	return -ENODEV;
 }
@@ -398,9 +394,8 @@ static void prism2_pci_remove(struct pci_dev *pdev)
 		free_irq(dev->irq, dev);
 
 	mem_start = hw_priv->mem_start;
-	kfree(hw_priv);
-	iface->local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 
 	iounmap(mem_start);
 

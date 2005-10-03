@@ -568,10 +568,8 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
-	kfree(hw_priv);
-	if (local)
-		local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
@@ -604,9 +602,8 @@ static void prism2_plx_remove(struct pci_dev *pdev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 
-	kfree(iface->local->hw_priv);
-	iface->local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 	pci_disable_device(pdev);
 }
 
