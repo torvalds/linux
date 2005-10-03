@@ -305,7 +305,7 @@ point out some special detail about the sign-off.
 
 The canonical patch subject line is:
 
-    Subject: [PATCH 001/123] [<area>:] <explanation>
+    Subject: [PATCH 001/123] subsystem: summary phrase
 
 The canonical patch message body contains the following:
 
@@ -330,9 +330,25 @@ alphabetically by subject line - pretty much any email reader will
 support that - since because the sequence number is zero-padded,
 the numerical and alphabetic sort is the same.
 
-See further details on how to phrase the "<explanation>" in the
-"Subject:" line in Andrew Morton's "The perfect patch", referenced
-below.
+The "subsystem" in the email's Subject should identify which
+area or subsystem of the kernel is being patched.
+
+The "summary phrase" in the email's Subject should concisely
+describe the patch which that email contains.  The "summary
+phrase" should not be a filename.  Do not use the same "summary
+phrase" for every patch in a whole patch series.
+
+Bear in mind that the "summary phrase" of your email becomes
+a globally-unique identifier for that patch.  It propagates
+all the way into the git changelog.  The "summary phrase" may
+later be used in developer discussions which refer to the patch.
+People will want to google for the "summary phrase" to read
+discussion regarding that patch.
+
+A couple of example Subjects:
+
+    Subject: [patch 2/5] ext2: improve scalability of bitmap searching
+    Subject: [PATCHv2 001/207] x86: fix eflags tracking
 
 The "from" line must be the very first line in the message body,
 and has the form:
