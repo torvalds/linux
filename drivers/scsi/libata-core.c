@@ -4113,7 +4113,7 @@ int ata_device_add(struct ata_probe_ent *ent)
 	for (i = 0; i < count; i++) {
 		struct ata_port *ap = host_set->ports[i];
 
-		scsi_scan_host(ap->host);
+		ata_scsi_scan_host(ap);
 	}
 
 	dev_set_drvdata(dev, host_set);
