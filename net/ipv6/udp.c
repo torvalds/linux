@@ -852,10 +852,16 @@ do_append_data:
 	else if (!corkreq)
 		err = udp_v6_push_pending_frames(sk, up);
 
-	if (dst && connected)
-		ip6_dst_store(sk, dst,
-			      ipv6_addr_equal(&fl->fl6_dst, &np->daddr) ?
-			      &np->daddr : NULL);
+	if (dst) {
+		if (connected) {
+			ip6_dst_store(sk, dst,
+				      ipv6_addr_equal(&fl->fl6_dst, &np->daddr) ?
+				      &np->daddr : NULL);
+		} else {
+			dst_release(dst);
+		}
+	}
+
 	if (err > 0)
 		err = np->recverr ? net_xmit_errno(err) : 0;
 	release_sock(sk);
