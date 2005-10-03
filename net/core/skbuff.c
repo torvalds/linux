@@ -71,8 +71,6 @@
 static kmem_cache_t *skbuff_head_cache __read_mostly;
 static kmem_cache_t *skbuff_fclone_cache __read_mostly;
 
-struct timeval __read_mostly skb_tv_base;
-
 /*
  *	Keep out-of-line to prevent kernel bloat.
  *	__builtin_return_address is not used because it is not always
@@ -1708,8 +1706,6 @@ void __init skb_init(void)
 						NULL, NULL);
 	if (!skbuff_fclone_cache)
 		panic("cannot create skbuff cache");
-
-	do_gettimeofday(&skb_tv_base);
 }
 
 EXPORT_SYMBOL(___pskb_trim);
@@ -1743,4 +1739,3 @@ EXPORT_SYMBOL(skb_prepare_seq_read);
 EXPORT_SYMBOL(skb_seq_read);
 EXPORT_SYMBOL(skb_abort_seq_read);
 EXPORT_SYMBOL(skb_find_text);
-EXPORT_SYMBOL(skb_tv_base);

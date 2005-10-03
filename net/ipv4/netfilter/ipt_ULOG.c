@@ -225,8 +225,8 @@ static void ipt_ulog_packet(unsigned int hooknum,
 
 	/* copy hook, prefix, timestamp, payload, etc. */
 	pm->data_len = copy_len;
-	pm->timestamp_sec = skb_tv_base.tv_sec + skb->tstamp.off_sec;
-	pm->timestamp_usec = skb_tv_base.tv_usec + skb->tstamp.off_usec;
+	pm->timestamp_sec = skb->tstamp.off_sec;
+	pm->timestamp_usec = skb->tstamp.off_usec;
 	pm->mark = skb->nfmark;
 	pm->hook = hooknum;
 	if (prefix != NULL)

@@ -654,8 +654,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
-	h->tp_sec = skb_tv_base.tv_sec + skb->tstamp.off_sec;
-	h->tp_usec = skb_tv_base.tv_usec + skb->tstamp.off_usec;
+	h->tp_sec = skb->tstamp.off_sec;
+	h->tp_usec = skb->tstamp.off_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
 	sll->sll_halen = 0;

@@ -492,8 +492,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (entry->skb->tstamp.off_sec) {
 		struct nfqnl_msg_packet_timestamp ts;
 
-		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
-		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
+		ts.sec = cpu_to_be64(entry->skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(entry->skb->tstamp.off_usec);
 
 		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
