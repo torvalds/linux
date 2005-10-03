@@ -1,6 +1,10 @@
 #if (!defined(dprintk))
 # define dprintk(x)
 #endif
+/* eg: if (nblank(dprintk(x))) */
+#define _nblank(x) #x
+#define nblank(x) _nblank(x)[0]
+
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -302,7 +306,6 @@ enum aac_queue_types {
  */
 
 #define		FsaNormal	1
-#define		FsaHigh		2
 
 /*
  * Define the FIB. The FIB is the where all the requested data and
@@ -546,8 +549,6 @@ struct aac_queue {
                   /* This is only valid for adapter to host command queues. */ 
 	spinlock_t	 	*lock;		/* Spinlock for this queue must take this lock before accessing the lock */
 	spinlock_t		lockdata;	/* Actual lock (used only on one side of the lock) */
-	unsigned long		SavedIrql;     	/* Previous IRQL when the spin lock is taken */
-	u32			padding;	/* Padding - FIXME - can remove I believe */
 	struct list_head 	cmdq;	   	/* A queue of FIBs which need to be prcessed by the FS thread. This is */
                                 		/* only valid for command queues which receive entries from the adapter. */
 	struct list_head	pendingq;	/* A queue of outstanding fib's to the adapter. */
@@ -776,7 +777,9 @@ struct fsa_dev_info {
 	u64		last;
 	u64		size;
 	u32		type;
+	u32		config_waiting_on;
 	u16		queue_depth;
+	u8		config_needed;
 	u8		valid;
 	u8		ro;
 	u8		locked;
@@ -1012,6 +1015,7 @@ struct aac_dev
 	/* macro side-effects BEWARE */
 #	define			raw_io_interface \
 	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
+	u8			raw_io_64;
 	u8			printf_enabled;
 };
 
@@ -1362,8 +1366,10 @@ struct aac_srb_reply
 #define		VM_CtBlockVerify64	18
 #define		VM_CtHostRead64		19
 #define		VM_CtHostWrite64	20
+#define		VM_DrvErrTblLog		21
+#define		VM_NameServe64		22
 
-#define		MAX_VMCOMMAND_NUM	21	/* used for sizing stats array - leave last */
+#define		MAX_VMCOMMAND_NUM	23	/* used for sizing stats array - leave last */
 
 /*
  *	Descriptive information (eg, vital stats)
@@ -1472,6 +1478,7 @@ struct aac_mntent {
 						   manager (eg, filesystem) */
 	__le32			altoid;		/* != oid <==> snapshot or 
 						   broken mirror exists */
+	__le32			capacityhigh;
 };
 
 #define FSCS_NOTCLEAN	0x0001  /* fsck is neccessary before mounting */
@@ -1707,6 +1714,7 @@ extern struct aac_common aac_config;
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */
 #define			AifJobStsSuccess 1	/* Job completes */
+#define			AifJobStsRunning 102	/* Job running */
 #define		AifCmdAPIReport		3	/* Report from other user of API */
 #define		AifCmdDriverNotify	4	/* Notify host driver of event */
 #define			AifDenMorphComplete 200	/* A morph operation completed */
@@ -1777,6 +1785,7 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
+int probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];

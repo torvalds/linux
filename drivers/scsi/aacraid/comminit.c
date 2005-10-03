@@ -195,7 +195,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 			  fibctx,
 			  sizeof(struct aac_close),
 			  FsaNormal,
-			  1, 1,
+			  -2 /* Timeout silently */, 1,
 			  NULL, NULL);
 
 	if (status == 0)
@@ -313,8 +313,15 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	dev->max_fib_size = sizeof(struct hw_fib);
 	dev->sg_tablesize = host->sg_tablesize = (dev->max_fib_size
 		- sizeof(struct aac_fibhdr)
-		- sizeof(struct aac_write) + sizeof(struct sgmap))
-			/ sizeof(struct sgmap);
+		- sizeof(struct aac_write) + sizeof(struct sgentry))
+			/ sizeof(struct sgentry);
+	dev->raw_io_64 = 0;
+	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
+		0, 0, 0, 0, 0, 0, status+0, status+1, status+2, NULL, NULL)) &&
+	 		(status[0] == 0x00000001)) {
+		if (status[1] & AAC_OPT_NEW_COMM_64)
+			dev->raw_io_64 = 1;
+	}
 	if ((!aac_adapter_sync_cmd(dev, GET_COMM_PREFERRED_SETTINGS,
 	  0, 0, 0, 0, 0, 0,
 	  status+0, status+1, status+2, status+3, status+4))
@@ -342,8 +349,8 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 			dev->max_fib_size = 512;
 			dev->sg_tablesize = host->sg_tablesize
 			  = (512 - sizeof(struct aac_fibhdr)
-			    - sizeof(struct aac_write) + sizeof(struct sgmap))
-			     / sizeof(struct sgmap);
+			    - sizeof(struct aac_write) + sizeof(struct sgentry))
+			     / sizeof(struct sgentry);
 			host->can_queue = AAC_NUM_IO_FIB;
 		} else if (acbsize == 2048) {
 			host->max_sectors = 512;

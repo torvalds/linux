@@ -267,7 +267,6 @@ static twa_message_type twa_error_table[] = {
 #define TW_CONTROL_CLEAR_PARITY_ERROR          0x00800000
 #define TW_CONTROL_CLEAR_QUEUE_ERROR           0x00400000
 #define TW_CONTROL_CLEAR_PCI_ABORT             0x00100000
-#define TW_CONTROL_CLEAR_SBUF_WRITE_ERROR      0x00000008
 
 /* Status register bit definitions */
 #define TW_STATUS_MAJOR_VERSION_MASK	       0xF0000000
@@ -285,9 +284,8 @@ static twa_message_type twa_error_table[] = {
 #define TW_STATUS_MICROCONTROLLER_READY	       0x00002000
 #define TW_STATUS_COMMAND_QUEUE_EMPTY	       0x00001000
 #define TW_STATUS_EXPECTED_BITS		       0x00002000
-#define TW_STATUS_UNEXPECTED_BITS	       0x00F00008
-#define TW_STATUS_SBUF_WRITE_ERROR             0x00000008
-#define TW_STATUS_VALID_INTERRUPT              0x00DF0008
+#define TW_STATUS_UNEXPECTED_BITS	       0x00F00000
+#define TW_STATUS_VALID_INTERRUPT              0x00DF0000
 
 /* RESPONSE QUEUE BIT DEFINITIONS */
 #define TW_RESPONSE_ID_MASK		       0x00000FF0
@@ -324,9 +322,9 @@ static twa_message_type twa_error_table[] = {
 
 /* Compatibility defines */
 #define TW_9000_ARCH_ID 0x5
-#define TW_CURRENT_DRIVER_SRL 28
-#define TW_CURRENT_DRIVER_BUILD 9
-#define TW_CURRENT_DRIVER_BRANCH 4
+#define TW_CURRENT_DRIVER_SRL 30
+#define TW_CURRENT_DRIVER_BUILD 80
+#define TW_CURRENT_DRIVER_BRANCH 0
 
 /* Phase defines */
 #define TW_PHASE_INITIAL 0
@@ -334,6 +332,7 @@ static twa_message_type twa_error_table[] = {
 #define TW_PHASE_SGLIST  2
 
 /* Misc defines */
+#define TW_9550SX_DRAIN_COMPLETED	      0xFFFF
 #define TW_SECTOR_SIZE                        512
 #define TW_ALIGNMENT_9000                     4  /* 4 bytes */
 #define TW_ALIGNMENT_9000_SGL                 0x3
@@ -417,6 +416,9 @@ static twa_message_type twa_error_table[] = {
 #ifndef PCI_DEVICE_ID_3WARE_9000
 #define PCI_DEVICE_ID_3WARE_9000 0x1002
 #endif
+#ifndef PCI_DEVICE_ID_3WARE_9550SX
+#define PCI_DEVICE_ID_3WARE_9550SX 0x1003
+#endif
 
 /* Bitmask macros to eliminate bitfields */
 
@@ -443,6 +445,7 @@ static twa_message_type twa_error_table[] = {
 #define TW_STATUS_REG_ADDR(x) ((unsigned char __iomem *)x->base_addr + 0x4)
 #define TW_COMMAND_QUEUE_REG_ADDR(x) (sizeof(dma_addr_t) > 4 ? ((unsigned char __iomem *)x->base_addr + 0x20) : ((unsigned char __iomem *)x->base_addr + 0x8))
 #define TW_RESPONSE_QUEUE_REG_ADDR(x) ((unsigned char __iomem *)x->base_addr + 0xC)
+#define TW_RESPONSE_QUEUE_REG_ADDR_LARGE(x) ((unsigned char __iomem *)x->base_addr + 0x30)
 #define TW_CLEAR_ALL_INTERRUPTS(x) (writel(TW_STATUS_VALID_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
 #define TW_CLEAR_ATTENTION_INTERRUPT(x) (writel(TW_CONTROL_CLEAR_ATTENTION_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
 #define TW_CLEAR_HOST_INTERRUPT(x) (writel(TW_CONTROL_CLEAR_HOST_INTERRUPT, TW_CONTROL_REG_ADDR(x)))
