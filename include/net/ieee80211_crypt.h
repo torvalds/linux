@@ -26,7 +26,7 @@
 #include <linux/skbuff.h>
 
 enum {
-	IEEE80211_CRYPTO_TKIP_COUNTERMEASURES = (1<<0),
+	IEEE80211_CRYPTO_TKIP_COUNTERMEASURES = (1 << 0),
 };
 
 struct ieee80211_crypto_ops {
@@ -65,8 +65,8 @@ struct ieee80211_crypto_ops {
 	char *(*print_stats) (char *p, void *priv);
 
 	/* Crypto specific flag get/set for configuration settings */
-	unsigned long (*get_flags)(void *priv);
-	unsigned long (*set_flags)(unsigned long flags, void *priv);
+	unsigned long (*get_flags) (void *priv);
+	unsigned long (*set_flags) (unsigned long flags, void *priv);
 
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and

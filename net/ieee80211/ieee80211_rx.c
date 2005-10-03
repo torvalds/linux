@@ -917,8 +917,9 @@ static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
 	return rc;
 }
 
-static int ieee80211_parse_info_param(struct ieee80211_info_element *info_element,
-					u16 length, struct ieee80211_network *network)
+static int ieee80211_parse_info_param(struct ieee80211_info_element
+				      *info_element, u16 length,
+				      struct ieee80211_network *network)
 {
 	u8 i;
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -929,11 +930,11 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element *info_elemen
 	while (length >= sizeof(*info_element)) {
 		if (sizeof(*info_element) + info_element->len > length) {
 			IEEE80211_DEBUG_MGMT("Info elem: parse failed: "
-					    "info_element->len + 2 > left : "
-					    "info_element->len+2=%zd left=%d, id=%d.\n",
-					    info_element->len +
-					    sizeof(*info_element),
-					    length, info_element->id);
+					     "info_element->len + 2 > left : "
+					     "info_element->len+2=%zd left=%d, id=%d.\n",
+					     info_element->len +
+					     sizeof(*info_element),
+					     length, info_element->id);
 			return 1;
 		}
 
@@ -954,7 +955,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element *info_elemen
 				       IW_ESSID_MAX_SIZE - network->ssid_len);
 
 			IEEE80211_DEBUG_MGMT("MFIE_TYPE_SSID: '%s' len=%d.\n",
-					    network->ssid, network->ssid_len);
+					     network->ssid, network->ssid_len);
 			break;
 
 		case MFIE_TYPE_RATES:
@@ -1074,17 +1075,20 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element *info_elemen
 			break;
 
 		case MFIE_TYPE_QOS_PARAMETER:
-			printk(KERN_ERR "QoS Error need to parse QOS_PARAMETER IE\n");
+			printk(KERN_ERR
+			       "QoS Error need to parse QOS_PARAMETER IE\n");
 			break;
 
 		default:
 			IEEE80211_DEBUG_MGMT("unsupported IE %d\n",
-					    info_element->id);
+					     info_element->id);
 			break;
 		}
 
 		length -= sizeof(*info_element) + info_element->len;
-		info_element = (struct ieee80211_info_element *) &info_element->data[info_element->len];
+		info_element =
+		    (struct ieee80211_info_element *)&info_element->
+		    data[info_element->len];
 	}
 
 	return 0;
@@ -1112,7 +1116,8 @@ static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct iee
 	network->rates_len = network->rates_ex_len = 0;
 	network->last_associate = 0;
 	network->ssid_len = 0;
-	network->erp_value = (network->capability & WLAN_CAPABILITY_IBSS) ? 0x3 : 0x0;
+	network->erp_value =
+	    (network->capability & WLAN_CAPABILITY_IBSS) ? 0x3 : 0x0;
 
 	if (stats->freq == IEEE80211_52GHZ_BAND) {
 		/* for A band (No DS info) */
@@ -1123,7 +1128,8 @@ static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct iee
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
 
-	if(ieee80211_parse_info_param(frame->info_element, stats->len - sizeof(*frame), network))
+	if (ieee80211_parse_info_param
+	    (frame->info_element, stats->len - sizeof(*frame), network))
 		return 1;
 
 	network->mode = 0;
@@ -1185,7 +1191,8 @@ static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct i
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
 
-	if(ieee80211_parse_info_param(beacon->info_element, stats->len - sizeof(*beacon), network))
+	if (ieee80211_parse_info_param
+	    (beacon->info_element, stats->len - sizeof(*beacon), network))
 		return 1;
 
 	network->mode = 0;
