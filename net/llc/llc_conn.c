@@ -40,6 +40,11 @@ static struct llc_conn_state_trans *llc_qualify_conn_ev(struct sock *sk,
 /* Offset table on connection states transition diagram */
 static int llc_offset_table[NBR_CONN_STATES][NBR_CONN_EV];
 
+int sysctl_llc2_ack_timeout = LLC2_ACK_TIME * HZ;
+int sysctl_llc2_p_timeout = LLC2_P_TIME * HZ;
+int sysctl_llc2_rej_timeout = LLC2_REJ_TIME * HZ;
+int sysctl_llc2_busy_timeout = LLC2_BUSY_TIME * HZ;
+
 /**
  *	llc_conn_state_process - sends event to connection state machine
  *	@sk: connection
@@ -53,7 +58,7 @@ static int llc_offset_table[NBR_CONN_STATES][NBR_CONN_EV];
 int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
-	struct llc_sock *llc = llc_sk(sk);
+	struct llc_sock *llc = llc_sk(skb->sk);
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
 	/*
@@ -63,13 +68,16 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	 */
 	skb_get(skb);
 	ev->ind_prim = ev->cfm_prim = 0;
-	rc = llc_conn_service(sk, skb); /* sending event to state machine */
-	if (rc) {
+	/*
+	 * Send event to state machine
+	 */
+	rc = llc_conn_service(skb->sk, skb);
+	if (unlikely(rc != 0)) {
 		printk(KERN_ERR "%s: llc_conn_service failed\n", __FUNCTION__);
 		goto out_kfree_skb;
 	}
 
-	if (!ev->ind_prim && !ev->cfm_prim) {
+	if (unlikely(!ev->ind_prim && !ev->cfm_prim)) {
 		/* indicate or confirm not required */
 		/* XXX this is not very pretty, perhaps we should store
 		 * XXX indicate/confirm-needed state in the llc_conn_state_ev
@@ -80,13 +88,13 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 		goto out_skb_put;
 	}
 
-	if (ev->ind_prim && ev->cfm_prim) /* Paranoia */
+	if (unlikely(ev->ind_prim && ev->cfm_prim)) /* Paranoia */
 		skb_get(skb);
 
 	switch (ev->ind_prim) {
 	case LLC_DATA_PRIM:
-		llc_save_primitive(skb, LLC_DATA_PRIM);
-		if (sock_queue_rcv_skb(sk, skb)) {
+		llc_save_primitive(sk, skb, LLC_DATA_PRIM);
+		if (unlikely(sock_queue_rcv_skb(sk, skb))) {
 			/*
 			 * shouldn't happen
 			 */
@@ -95,13 +103,14 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 			kfree_skb(skb);
 		}
 		break;
-	case LLC_CONN_PRIM: {
-		struct sock *parent = skb->sk;
-
-		skb->sk = sk;
-		skb_queue_tail(&parent->sk_receive_queue, skb);
-		sk->sk_state_change(parent);
-	}
+	case LLC_CONN_PRIM:
+		/*
+		 * Can't be sock_queue_rcv_skb, because we have to leave the
+		 * skb->sk pointing to the newly created struct sock in
+		 * llc_conn_handler. -acme
+		 */
+		skb_queue_tail(&sk->sk_receive_queue, skb);
+		sk->sk_state_change(sk);
 		break;
 	case LLC_DISC_PRIM:
 		sock_hold(sk);
@@ -111,8 +120,8 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 			sk->sk_socket->state  = SS_UNCONNECTED;
 			sk->sk_state          = TCP_CLOSE;
 			if (!sock_flag(sk, SOCK_DEAD)) {
-				sk->sk_state_change(sk);
 				sock_set_flag(sk, SOCK_DEAD);
+				sk->sk_state_change(sk);
 			}
 		}
 		kfree_skb(skb);
@@ -465,7 +474,7 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
 }
 
 /**
- *	llc_lookup_established - Finds connection for the remote/local sap/mac
+ *	__llc_lookup_established - Finds connection for the remote/local sap/mac
  *	@sap: SAP
  *	@daddr: address of remote LLC (MAC + SAP)
  *	@laddr: address of local LLC (MAC + SAP)
@@ -473,14 +482,16 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
  *	Search connection list of the SAP and finds connection using the remote
  *	mac, remote sap, local mac, and local sap. Returns pointer for
  *	connection found, %NULL otherwise.
+ *	Caller has to make sure local_bh is disabled.
  */
-struct sock *llc_lookup_established(struct llc_sap *sap, struct llc_addr *daddr,
-				    struct llc_addr *laddr)
+static struct sock *__llc_lookup_established(struct llc_sap *sap,
+					     struct llc_addr *daddr,
+					     struct llc_addr *laddr)
 {
 	struct sock *rc;
 	struct hlist_node *node;
 
-	read_lock_bh(&sap->sk_list.lock);
+	read_lock(&sap->sk_list.lock);
 	sk_for_each(rc, node, &sap->sk_list.list) {
 		struct llc_sock *llc = llc_sk(rc);
 
@@ -494,8 +505,20 @@ struct sock *llc_lookup_established(struct llc_sap *sap, struct llc_addr *daddr,
 	}
 	rc = NULL;
 found:
-	read_unlock_bh(&sap->sk_list.lock);
+	read_unlock(&sap->sk_list.lock);
 	return rc;
+}
+
+struct sock *llc_lookup_established(struct llc_sap *sap,
+				    struct llc_addr *daddr,
+				    struct llc_addr *laddr)
+{
+	struct sock *sk;
+
+	local_bh_disable();
+	sk = __llc_lookup_established(sap, daddr, laddr);
+	local_bh_enable();
+	return sk;
 }
 
 /**
@@ -506,6 +529,7 @@ found:
  *	Search connection list of the SAP and finds connection listening on
  *	local mac, and local sap. Returns pointer for parent socket found,
  *	%NULL otherwise.
+ *	Caller has to make sure local_bh is disabled.
  */
 static struct sock *llc_lookup_listener(struct llc_sap *sap,
 					struct llc_addr *laddr)
@@ -513,7 +537,7 @@ static struct sock *llc_lookup_listener(struct llc_sap *sap,
 	struct sock *rc;
 	struct hlist_node *node;
 
-	read_lock_bh(&sap->sk_list.lock);
+	read_lock(&sap->sk_list.lock);
 	sk_for_each(rc, node, &sap->sk_list.list) {
 		struct llc_sock *llc = llc_sk(rc);
 
@@ -527,8 +551,17 @@ static struct sock *llc_lookup_listener(struct llc_sap *sap,
 	}
 	rc = NULL;
 found:
-	read_unlock_bh(&sap->sk_list.lock);
+	read_unlock(&sap->sk_list.lock);
 	return rc;
+}
+
+static struct sock *__llc_lookup(struct llc_sap *sap,
+				 struct llc_addr *daddr,
+				 struct llc_addr *laddr)
+{
+	struct sock *sk = __llc_lookup_established(sap, daddr, laddr);
+
+	return sk ? : llc_lookup_listener(sap, laddr);
 }
 
 /**
@@ -544,14 +577,14 @@ u8 llc_data_accept_state(u8 state)
 }
 
 /**
- *	find_next_offset - finds offset for next category of transitions
+ *	llc_find_next_offset - finds offset for next category of transitions
  *	@state: state table.
  *	@offset: start offset.
  *
  *	Finds offset of next category of transitions in transition table.
  *	Returns the start index of next category.
  */
-static u16 find_next_offset(struct llc_conn_state *state, u16 offset)
+static u16 __init llc_find_next_offset(struct llc_conn_state *state, u16 offset)
 {
 	u16 cnt = 0;
 	struct llc_conn_state_trans **next_trans;
@@ -578,8 +611,8 @@ void __init llc_build_offset_table(void)
 		next_offset = 0;
 		for (ev_type = 0; ev_type < NBR_CONN_EV; ev_type++) {
 			llc_offset_table[state][ev_type] = next_offset;
-			next_offset += find_next_offset(curr_state,
-							next_offset) + 1;
+			next_offset += llc_find_next_offset(curr_state,
+							    next_offset) + 1;
 		}
 	}
 }
@@ -623,6 +656,7 @@ static int llc_find_offset(int state, int ev_type)
  */
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
 {
+	llc_sap_hold(sap);
 	write_lock_bh(&sap->sk_list.lock);
 	llc_sk(sk)->sap = sap;
 	sk_add_node(sk, &sap->sk_list.list);
@@ -642,6 +676,7 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 	write_lock_bh(&sap->sk_list.lock);
 	sk_del_node_init(sk);
 	write_unlock_bh(&sap->sk_list.lock);
+	llc_sap_put(sap);
 }
 
 /**
@@ -654,13 +689,32 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 static int llc_conn_rcv(struct sock* sk, struct sk_buff *skb)
 {
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-	struct llc_sock *llc = llc_sk(sk);
 
-	if (!llc->dev)
-		llc->dev = skb->dev;
 	ev->type   = LLC_CONN_EV_TYPE_PDU;
 	ev->reason = 0;
 	return llc_conn_state_process(sk, skb);
+}
+
+static struct sock *llc_create_incoming_sock(struct sock *sk,
+					     struct net_device *dev,
+					     struct llc_addr *saddr,
+					     struct llc_addr *daddr)
+{
+	struct sock *newsk = llc_sk_alloc(sk->sk_family, GFP_ATOMIC,
+					  sk->sk_prot);
+	struct llc_sock *newllc, *llc = llc_sk(sk);
+
+	if (!newsk)
+		goto out;
+	newllc = llc_sk(newsk);
+	memcpy(&newllc->laddr, daddr, sizeof(newllc->laddr));
+	memcpy(&newllc->daddr, saddr, sizeof(newllc->daddr));
+	newllc->dev = dev;
+	dev_hold(dev);
+	llc_sap_add_socket(llc->sap, newsk);
+	llc_sap_hold(llc->sap);
+out:
+	return newsk;
 }
 
 void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
@@ -673,35 +727,35 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_da(skb, daddr.mac);
 	llc_pdu_decode_dsap(skb, &daddr.lsap);
 
-	sk = llc_lookup_established(sap, &saddr, &daddr);
-	if (!sk) {
-		/*
-		 * Didn't find an active connection; verify if there
-		 * is a listening socket for this llc addr
-		 */
-		struct llc_sock *llc;
-		struct sock *parent = llc_lookup_listener(sap, &daddr);
+	sk = __llc_lookup(sap, &saddr, &daddr);
+	if (!sk)
+		goto drop;
 
-		if (!parent) {
-			dprintk("llc_lookup_listener failed!\n");
-			goto drop;
-		}
-
-		sk = llc_sk_alloc(parent->sk_family, GFP_ATOMIC, parent->sk_prot);
-		if (!sk) {
-			sock_put(parent);
-			goto drop;
-		}
-		llc = llc_sk(sk);
-		memcpy(&llc->laddr, &daddr, sizeof(llc->laddr));
-		memcpy(&llc->daddr, &saddr, sizeof(llc->daddr));
-		llc_sap_add_socket(sap, sk);
-		sock_hold(sk);
-		sock_put(parent);
-		skb->sk = parent;
-	} else
-		skb->sk = sk;
 	bh_lock_sock(sk);
+	/*
+	 * This has to be done here and not at the upper layer ->accept
+	 * method because of the way the PROCOM state machine works:
+	 * it needs to set several state variables (see, for instance,
+	 * llc_adm_actions_2 in net/llc/llc_c_st.c) and send a packet to
+	 * the originator of the new connection, and this state has to be
+	 * in the newly created struct sock private area. -acme
+	 */
+	if (unlikely(sk->sk_state == TCP_LISTEN)) {
+		struct sock *newsk = llc_create_incoming_sock(sk, skb->dev,
+							      &saddr, &daddr);
+		if (!newsk)
+			goto drop_unlock;
+		skb_set_owner_r(skb, newsk);
+	} else {
+		/*
+		 * Can't be skb_set_owner_r, this will be done at the
+		 * llc_conn_state_process function, later on, when we will use
+		 * skb_queue_rcv_skb to send it to upper layers, this is
+		 * another trick required to cope with how the PROCOM state
+		 * machine works. -acme
+		 */
+		skb->sk = sk;
+	}
 	if (!sock_owned_by_user(sk))
 		llc_conn_rcv(sk, skb);
 	else {
@@ -709,43 +763,22 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 		llc_set_backlog_type(skb, LLC_PACKET);
 		sk_add_backlog(sk, skb);
 	}
+out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
 	return;
 drop:
 	kfree_skb(skb);
+	return;
+drop_unlock:
+	kfree_skb(skb);
+	goto out;
 }
 
 #undef LLC_REFCNT_DEBUG
 #ifdef LLC_REFCNT_DEBUG
 static atomic_t llc_sock_nr;
 #endif
-
-/**
- *	llc_release_sockets - releases all sockets in a sap
- *	@sap: sap to release its sockets
- *
- *	Releases all connections of a sap. Returns 0 if all actions complete
- *	successfully, nonzero otherwise
- */
-int llc_release_sockets(struct llc_sap *sap)
-{
-	int rc = 0;
-	struct sock *sk;
-	struct hlist_node *node;
-
-	write_lock_bh(&sap->sk_list.lock);
-
-	sk_for_each(sk, node, &sap->sk_list.list) {
-		llc_sk(sk)->state = LLC_CONN_STATE_TEMP;
-
-		if (llc_send_disc(sk))
-			rc = 1;
-	}
-
-	write_unlock_bh(&sap->sk_list.lock);
-	return rc;
-}
 
 /**
  *	llc_backlog_rcv - Processes rx frames and expired timers.
@@ -762,14 +795,14 @@ static int llc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	int rc = 0;
 	struct llc_sock *llc = llc_sk(sk);
 
-	if (llc_backlog_type(skb) == LLC_PACKET) {
-		if (llc->state > 1) /* not closed */
+	if (likely(llc_backlog_type(skb) == LLC_PACKET)) {
+		if (likely(llc->state > 1)) /* not closed */
 			rc = llc_conn_rcv(sk, skb);
 		else
 			goto out_kfree_skb;
 	} else if (llc_backlog_type(skb) == LLC_EVENT) {
 		/* timer expiration event */
-		if (llc->state > 1)  /* not closed */
+		if (likely(llc->state > 1))  /* not closed */
 			rc = llc_conn_state_process(sk, skb);
 		else
 			goto out_kfree_skb;
@@ -799,22 +832,22 @@ static void llc_sk_init(struct sock* sk)
 	llc->dec_step = llc->connect_step = 1;
 
 	init_timer(&llc->ack_timer.timer);
-	llc->ack_timer.expire	      = LLC_ACK_TIME;
+	llc->ack_timer.expire	      = sysctl_llc2_ack_timeout;
 	llc->ack_timer.timer.data     = (unsigned long)sk;
 	llc->ack_timer.timer.function = llc_conn_ack_tmr_cb;
 
 	init_timer(&llc->pf_cycle_timer.timer);
-	llc->pf_cycle_timer.expire	   = LLC_P_TIME;
+	llc->pf_cycle_timer.expire	   = sysctl_llc2_p_timeout;
 	llc->pf_cycle_timer.timer.data     = (unsigned long)sk;
 	llc->pf_cycle_timer.timer.function = llc_conn_pf_cycle_tmr_cb;
 
 	init_timer(&llc->rej_sent_timer.timer);
-	llc->rej_sent_timer.expire	   = LLC_REJ_TIME;
+	llc->rej_sent_timer.expire	   = sysctl_llc2_rej_timeout;
 	llc->rej_sent_timer.timer.data     = (unsigned long)sk;
 	llc->rej_sent_timer.timer.function = llc_conn_rej_tmr_cb;
 
 	init_timer(&llc->busy_state_timer.timer);
-	llc->busy_state_timer.expire	     = LLC_BUSY_TIME;
+	llc->busy_state_timer.expire	     = sysctl_llc2_busy_timeout;
 	llc->busy_state_timer.timer.data     = (unsigned long)sk;
 	llc->busy_state_timer.timer.function = llc_conn_busy_tmr_cb;
 
@@ -834,7 +867,8 @@ static void llc_sk_init(struct sock* sk)
  *	Allocates a LLC sock and initializes it. Returns the new LLC sock
  *	or %NULL if there's no memory available for one
  */
-struct sock *llc_sk_alloc(int family, int priority, struct proto *prot)
+struct sock *llc_sk_alloc(int family, unsigned int __nocast priority,
+			 struct proto *prot)
 {
 	struct sock *sk = sk_alloc(family, priority, prot, 1);
 

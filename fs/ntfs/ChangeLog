@@ -29,7 +29,8 @@ ToDo/Notes:
 	  The Windows boot will run chkdsk and then reboot.  The user can then
 	  immediately boot into Linux rather than having to do a full Windows
 	  boot first before rebooting into Linux and we will recognize such a
-	  journal and empty it as it is clean by definition.
+	  journal and empty it as it is clean by definition.  Note, this only
+	  works if chkdsk left the journal in an obviously clean state.
 	- Support journals ($LogFile) with only one restart page as well as
 	  journals with two different restart pages.  We sanity check both and
 	  either use the only sane one or the more recent one of the two in the
@@ -94,6 +95,13 @@ ToDo/Notes:
 	  my ways.
 	- Fix various bugs in the runlist merging code.  (Based on libntfs
 	  changes by Richard Russon.)
+	- Fix sparse warnings that have crept in over time.
+	- Change ntfs_cluster_free() to require a write locked runlist on entry
+	  since we otherwise get into a lock reversal deadlock if a read locked
+	  runlist is passed in. In the process also change it to take an ntfs
+	  inode instead of a vfs inode as parameter.
+	- Fix the definition of the CHKD ntfs record magic.  It had an off by
+	  two error causing it to be CHKB instead of CHKD.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...

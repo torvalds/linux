@@ -196,6 +196,7 @@ entUna:
 	stq	$26, 208($sp)
 	stq	$27, 216($sp)
 	stq	$28, 224($sp)
+	mov	$sp, $19
 	stq	$gp, 232($sp)
 	lda	$8, 0x3fff
 	stq	$31, 248($sp)

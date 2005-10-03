@@ -68,6 +68,8 @@ extern unsigned long zero_page_mask;
 #define ZERO_PAGE(vaddr) \
 	(virt_to_page(empty_zero_page + (((unsigned long)(vaddr)) & zero_page_mask)))
 
+#define __HAVE_ARCH_MULTIPLE_ZERO_PAGE
+
 extern void paging_init(void);
 
 /*

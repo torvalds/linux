@@ -234,6 +234,7 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_K8_TOP_MEM1		   0xC001001A
 #define MSR_K8_TOP_MEM2		   0xC001001D
 #define MSR_K8_SYSCFG		   0xC0010010
+#define MSR_K8_HWCR		   0xC0010015
 
 /* K6 MSRs */
 #define MSR_K6_EFER			0xC0000080

@@ -132,6 +132,7 @@ enum {
 	ATA_CMD_PACKET		= 0xA0,
 	ATA_CMD_VERIFY		= 0x40,
 	ATA_CMD_VERIFY_EXT	= 0x42,
+	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
 
 	/* SETFEATURES stuff */
 	SETFEATURES_XFER	= 0x03,
@@ -146,14 +147,14 @@ enum {
 	XFER_MW_DMA_2		= 0x22,
 	XFER_MW_DMA_1		= 0x21,
 	XFER_MW_DMA_0		= 0x20,
+	XFER_SW_DMA_2		= 0x12,
+	XFER_SW_DMA_1		= 0x11,
+	XFER_SW_DMA_0		= 0x10,
 	XFER_PIO_4		= 0x0C,
 	XFER_PIO_3		= 0x0B,
 	XFER_PIO_2		= 0x0A,
 	XFER_PIO_1		= 0x09,
 	XFER_PIO_0		= 0x08,
-	XFER_SW_DMA_2		= 0x12,
-	XFER_SW_DMA_1		= 0x11,
-	XFER_SW_DMA_0		= 0x10,
 	XFER_PIO_SLOW		= 0x00,
 
 	/* ATAPI stuff */
@@ -181,7 +182,8 @@ enum {
 	ATA_TFLAG_ISADDR	= (1 << 1), /* enable r/w to nsect/lba regs */
 	ATA_TFLAG_DEVICE	= (1 << 2), /* enable r/w to device reg */
 	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
-	ATA_TFLAG_POLLING	= (1 << 4), /* set nIEN to 1 and use polling */
+	ATA_TFLAG_LBA		= (1 << 4), /* enable LBA */
+	ATA_TFLAG_POLLING	= (1 << 5), /* set nIEN to 1 and use polling */
 };
 
 enum ata_tf_protocols {
@@ -252,6 +254,18 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 0]) )
 
 #define ata_id_cdb_intr(id)	(((id)[0] & 0x60) == 0x20)
+
+static inline int ata_id_current_chs_valid(u16 *id)
+{
+	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
+	   has not been issued to the device then the values of 
+	   id[54] to id[56] are vendor specific. */
+	return (id[53] & 0x01) && /* Current translation valid */
+		id[54] &&  /* cylinders in current translation */
+		id[55] &&  /* heads in current translation */
+		id[55] <= 16 &&
+		id[56];    /* sectors in current translation */
+}
 
 static inline int atapi_cdb_len(u16 *dev_id)
 {

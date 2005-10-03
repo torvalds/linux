@@ -157,7 +157,7 @@ static struct i2c_client client_template;
 
 /* ---------------------------------------------------------------------- */
 
-static int block_to_user_buf(struct saa6588 *s, unsigned char *user_buf)
+static int block_to_user_buf(struct saa6588 *s, unsigned char __user *user_buf)
 {
 	int i;
 
@@ -191,7 +191,7 @@ static void read_from_buf(struct saa6588 *s, struct rds_command *a)
 {
 	unsigned long flags;
 
-	unsigned char *buf_ptr = a->buffer;	/* This is a user space buffer! */
+	unsigned char __user *buf_ptr = a->buffer;
 	unsigned int i;
 	unsigned int rd_blocks;
 

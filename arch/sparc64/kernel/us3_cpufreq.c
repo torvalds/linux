@@ -208,7 +208,10 @@ static int __init us3_freq_init(void)
 	impl  = ((ver >> 32) & 0xffff);
 
 	if (manuf == CHEETAH_MANUF &&
-	    (impl == CHEETAH_IMPL || impl == CHEETAH_PLUS_IMPL)) {
+	    (impl == CHEETAH_IMPL ||
+	     impl == CHEETAH_PLUS_IMPL ||
+	     impl == JAGUAR_IMPL ||
+	     impl == PANTHER_IMPL)) {
 		struct cpufreq_driver *driver;
 
 		ret = -ENOMEM;

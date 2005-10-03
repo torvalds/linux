@@ -48,8 +48,8 @@ struct ucb1x00_ts {
 	u16			x_res;
 	u16			y_res;
 
-	int			restart:1;
-	int			adcsync:1;
+	unsigned int		restart:1;
+	unsigned int		adcsync:1;
 };
 
 static int adcsync;

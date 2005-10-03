@@ -287,12 +287,12 @@ divert_dev_init(void)
 	init_waitqueue_head(&rd_queue);
 
 #ifdef CONFIG_PROC_FS
-	isdn_proc_entry = create_proc_entry("isdn", S_IFDIR | S_IRUGO | S_IXUGO, proc_net);
+	isdn_proc_entry = proc_mkdir("net/isdn", NULL);
 	if (!isdn_proc_entry)
 		return (-1);
 	isdn_divert_entry = create_proc_entry("divert", S_IFREG | S_IRUGO, isdn_proc_entry);
 	if (!isdn_divert_entry) {
-		remove_proc_entry("isdn", proc_net);
+		remove_proc_entry("net/isdn", NULL);
 		return (-1);
 	}
 	isdn_divert_entry->proc_fops = &isdn_fops; 
@@ -312,7 +312,7 @@ divert_dev_deinit(void)
 
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("divert", isdn_proc_entry);
-	remove_proc_entry("isdn", proc_net);
+	remove_proc_entry("net/isdn", NULL);
 #endif	/* CONFIG_PROC_FS */
 
 	return (0);

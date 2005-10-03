@@ -189,19 +189,18 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* Test if this comes from uaccess places. */
-		unsigned long fixup;
-		unsigned long g2 = regs->u_regs[UREG_G2];
+		const struct exception_table_entry *entry;
 
-		if ((fixup = search_extables_range(regs->tpc, &g2))) {
-			/* Ouch, somebody is trying ugly VM hole tricks on us... */
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			/* Ouch, somebody is trying VM hole tricks on us... */
 #ifdef DEBUG_EXCEPTIONS
 			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
-			printk("EX_TABLE: insn<%016lx> fixup<%016lx> "
-			       "g2<%016lx>\n", regs->tpc, fixup, g2);
+			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
+			       regs->tpc, entry->fixup);
 #endif
-			regs->tpc = fixup;
+			regs->tpc = entry->fixup;
 			regs->tnpc = regs->tpc + 4;
-			regs->u_regs[UREG_G2] = g2;
 			return;
 		}
 		/* Shit... */
@@ -758,26 +757,12 @@ void __init cheetah_ecache_flush_init(void)
 	ecache_flush_size = (2 * largest_size);
 	ecache_flush_linesize = smallest_linesize;
 
-	/* Discover a physically contiguous chunk of physical
-	 * memory in 'sp_banks' of size ecache_flush_size calculated
-	 * above.  Store the physical base of this area at
-	 * ecache_flush_physbase.
-	 */
-	for (node = 0; ; node++) {
-		if (sp_banks[node].num_bytes == 0)
-			break;
-		if (sp_banks[node].num_bytes >= ecache_flush_size) {
-			ecache_flush_physbase = sp_banks[node].base_addr;
-			break;
-		}
-	}
+	ecache_flush_physbase = find_ecache_flush_span(ecache_flush_size);
 
-	/* Note: Zero would be a valid value of ecache_flush_physbase so
-	 * don't use that as the success test. :-)
-	 */
-	if (sp_banks[node].num_bytes == 0) {
+	if (ecache_flush_physbase == ~0UL) {
 		prom_printf("cheetah_ecache_flush_init: Cannot find %d byte "
-			    "contiguous physical memory.\n", ecache_flush_size);
+			    "contiguous physical memory.\n",
+			    ecache_flush_size);
 		prom_halt();
 	}
 
@@ -869,14 +854,19 @@ static void cheetah_flush_ecache_line(unsigned long physaddr)
  */
 static void __cheetah_flush_icache(void)
 {
-	unsigned long i;
+	unsigned int icache_size, icache_line_size;
+	unsigned long addr;
+
+	icache_size = local_cpu_data().icache_size;
+	icache_line_size = local_cpu_data().icache_line_size;
 
 	/* Clear the valid bits in all the tags. */
-	for (i = 0; i < (1 << 15); i += (1 << 5)) {
+	for (addr = 0; addr < icache_size; addr += icache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
 				     : /* no outputs */
-				     : "r" (i | (2 << 3)), "i" (ASI_IC_TAG));
+				     : "r" (addr | (2 << 3)),
+				       "i" (ASI_IC_TAG));
 	}
 }
 
@@ -904,13 +894,17 @@ static void cheetah_flush_icache(void)
 
 static void cheetah_flush_dcache(void)
 {
-	unsigned long i;
+	unsigned int dcache_size, dcache_line_size;
+	unsigned long addr;
 
-	for (i = 0; i < (1 << 16); i += (1 << 5)) {
+	dcache_size = local_cpu_data().dcache_size;
+	dcache_line_size = local_cpu_data().dcache_line_size;
+
+	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
 				     : /* no outputs */
-				     : "r" (i), "i" (ASI_DCACHE_TAG));
+				     : "r" (addr), "i" (ASI_DCACHE_TAG));
 	}
 }
 
@@ -921,24 +915,29 @@ static void cheetah_flush_dcache(void)
  */
 static void cheetah_plus_zap_dcache_parity(void)
 {
-	unsigned long i;
+	unsigned int dcache_size, dcache_line_size;
+	unsigned long addr;
 
-	for (i = 0; i < (1 << 16); i += (1 << 5)) {
-		unsigned long tag = (i >> 14);
-		unsigned long j;
+	dcache_size = local_cpu_data().dcache_size;
+	dcache_line_size = local_cpu_data().dcache_line_size;
+
+	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
+		unsigned long tag = (addr >> 14);
+		unsigned long line;
 
 		__asm__ __volatile__("membar	#Sync\n\t"
 				     "stxa	%0, [%1] %2\n\t"
 				     "membar	#Sync"
 				     : /* no outputs */
-				     : "r" (tag), "r" (i),
+				     : "r" (tag), "r" (addr),
 				       "i" (ASI_DCACHE_UTAG));
-		for (j = i; j < i + (1 << 5); j += (1 << 3))
+		for (line = addr; line < addr + dcache_line_size; line += 8)
 			__asm__ __volatile__("membar	#Sync\n\t"
 					     "stxa	%%g0, [%0] %1\n\t"
 					     "membar	#Sync"
 					     : /* no outputs */
-					     : "r" (j), "i" (ASI_DCACHE_DATA));
+					     : "r" (line),
+					       "i" (ASI_DCACHE_DATA));
 	}
 }
 
@@ -1332,16 +1331,12 @@ static int cheetah_fix_ce(unsigned long physaddr)
 /* Return non-zero if PADDR is a valid physical memory address. */
 static int cheetah_check_main_memory(unsigned long paddr)
 {
-	int i;
+	unsigned long vaddr = PAGE_OFFSET + paddr;
 
-	for (i = 0; ; i++) {
-		if (sp_banks[i].num_bytes == 0)
-			break;
-		if (paddr >= sp_banks[i].base_addr &&
-		    paddr < (sp_banks[i].base_addr + sp_banks[i].num_bytes))
-			return 1;
-	}
-	return 0;
+	if (vaddr > (unsigned long) high_memory)
+		return 0;
+
+	return kern_addr_valid(vaddr);
 }
 
 void cheetah_cee_handler(struct pt_regs *regs, unsigned long afsr, unsigned long afar)
@@ -1596,10 +1591,10 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 			/* OK, usermode access. */
 			recoverable = 1;
 		} else {
-			unsigned long g2 = regs->u_regs[UREG_G2];
-			unsigned long fixup = search_extables_range(regs->tpc, &g2);
+			const struct exception_table_entry *entry;
 
-			if (fixup != 0UL) {
+			entry = search_exception_tables(regs->tpc);
+			if (entry) {
 				/* OK, kernel access to userspace. */
 				recoverable = 1;
 
@@ -1618,9 +1613,8 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 				 * recoverable condition.
 				 */
 				if (recoverable) {
-					regs->tpc = fixup;
+					regs->tpc = entry->fixup;
 					regs->tnpc = regs->tpc + 4;
-					regs->u_regs[UREG_G2] = g2;
 				}
 			}
 		}

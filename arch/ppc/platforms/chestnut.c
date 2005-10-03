@@ -35,7 +35,6 @@
 #include <asm/time.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <linux/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/machdep.h>
 #include <asm/kgdb.h>

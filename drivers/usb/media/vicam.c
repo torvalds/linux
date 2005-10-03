@@ -1148,7 +1148,7 @@ vicam_write_proc_gain(struct file *file, const char *buffer,
 static void
 vicam_create_proc_root(void)
 {
-	vicam_proc_root = create_proc_entry("video/vicam", S_IFDIR, 0);
+	vicam_proc_root = proc_mkdir("video/vicam", NULL);
 
 	if (vicam_proc_root)
 		vicam_proc_root->owner = THIS_MODULE;
@@ -1181,7 +1181,7 @@ vicam_create_proc_entry(struct vicam_camera *cam)
 
 	sprintf(name, "video%d", cam->vdev.minor);
 
-	cam->proc_dir = create_proc_entry(name, S_IFDIR, vicam_proc_root);
+	cam->proc_dir = proc_mkdir(name, vicam_proc_root);
 
 	if ( !cam->proc_dir )
 		return; // FIXME: We should probably return an error here

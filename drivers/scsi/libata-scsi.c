@@ -504,77 +504,107 @@ static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
+	struct ata_device *dev = qc->dev;
+	unsigned int lba   = tf->flags & ATA_TFLAG_LBA;
 	unsigned int lba48 = tf->flags & ATA_TFLAG_LBA48;
 	u64 dev_sectors = qc->dev->n_sectors;
-	u64 sect = 0;
-	u32 n_sect = 0;
+	u64 block = 0;
+	u32 n_block = 0;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
-	tf->device |= ATA_LBA;
 
 	if (scsicmd[0] == VERIFY) {
-		sect |= ((u64)scsicmd[2]) << 24;
-		sect |= ((u64)scsicmd[3]) << 16;
-		sect |= ((u64)scsicmd[4]) << 8;
-		sect |= ((u64)scsicmd[5]);
+		block |= ((u64)scsicmd[2]) << 24;
+		block |= ((u64)scsicmd[3]) << 16;
+		block |= ((u64)scsicmd[4]) << 8;
+		block |= ((u64)scsicmd[5]);
 
-		n_sect |= ((u32)scsicmd[7]) << 8;
-		n_sect |= ((u32)scsicmd[8]);
+		n_block |= ((u32)scsicmd[7]) << 8;
+		n_block |= ((u32)scsicmd[8]);
 	}
 
 	else if (scsicmd[0] == VERIFY_16) {
-		sect |= ((u64)scsicmd[2]) << 56;
-		sect |= ((u64)scsicmd[3]) << 48;
-		sect |= ((u64)scsicmd[4]) << 40;
-		sect |= ((u64)scsicmd[5]) << 32;
-		sect |= ((u64)scsicmd[6]) << 24;
-		sect |= ((u64)scsicmd[7]) << 16;
-		sect |= ((u64)scsicmd[8]) << 8;
-		sect |= ((u64)scsicmd[9]);
+		block |= ((u64)scsicmd[2]) << 56;
+		block |= ((u64)scsicmd[3]) << 48;
+		block |= ((u64)scsicmd[4]) << 40;
+		block |= ((u64)scsicmd[5]) << 32;
+		block |= ((u64)scsicmd[6]) << 24;
+		block |= ((u64)scsicmd[7]) << 16;
+		block |= ((u64)scsicmd[8]) << 8;
+		block |= ((u64)scsicmd[9]);
 
-		n_sect |= ((u32)scsicmd[10]) << 24;
-		n_sect |= ((u32)scsicmd[11]) << 16;
-		n_sect |= ((u32)scsicmd[12]) << 8;
-		n_sect |= ((u32)scsicmd[13]);
+		n_block |= ((u32)scsicmd[10]) << 24;
+		n_block |= ((u32)scsicmd[11]) << 16;
+		n_block |= ((u32)scsicmd[12]) << 8;
+		n_block |= ((u32)scsicmd[13]);
 	}
 
 	else
 		return 1;
 
-	if (!n_sect)
+	if (!n_block)
 		return 1;
-	if (sect >= dev_sectors)
+	if (block >= dev_sectors)
 		return 1;
-	if ((sect + n_sect) > dev_sectors)
+	if ((block + n_block) > dev_sectors)
 		return 1;
 	if (lba48) {
-		if (n_sect > (64 * 1024))
+		if (n_block > (64 * 1024))
 			return 1;
 	} else {
-		if (n_sect > 256)
+		if (n_block > 256)
 			return 1;
 	}
 
-	if (lba48) {
-		tf->command = ATA_CMD_VERIFY_EXT;
+	if (lba) {
+		if (lba48) {
+			tf->command = ATA_CMD_VERIFY_EXT;
 
-		tf->hob_nsect = (n_sect >> 8) & 0xff;
+			tf->hob_nsect = (n_block >> 8) & 0xff;
 
-		tf->hob_lbah = (sect >> 40) & 0xff;
-		tf->hob_lbam = (sect >> 32) & 0xff;
-		tf->hob_lbal = (sect >> 24) & 0xff;
+			tf->hob_lbah = (block >> 40) & 0xff;
+			tf->hob_lbam = (block >> 32) & 0xff;
+			tf->hob_lbal = (block >> 24) & 0xff;
+		} else {
+			tf->command = ATA_CMD_VERIFY;
+
+			tf->device |= (block >> 24) & 0xf;
+		}
+
+		tf->nsect = n_block & 0xff;
+
+		tf->lbah = (block >> 16) & 0xff;
+		tf->lbam = (block >> 8) & 0xff;
+		tf->lbal = block & 0xff;
+
+		tf->device |= ATA_LBA;
 	} else {
+		/* CHS */
+		u32 sect, head, cyl, track;
+
+		/* Convert LBA to CHS */
+		track = (u32)block / dev->sectors;
+		cyl   = track / dev->heads;
+		head  = track % dev->heads;
+		sect  = (u32)block % dev->sectors + 1;
+
+		DPRINTK("block[%u] track[%u] cyl[%u] head[%u] sect[%u] \n", (u32)block, track, cyl, head, sect);
+		
+		/* Check whether the converted CHS can fit. 
+		   Cylinder: 0-65535 
+		   Head: 0-15
+		   Sector: 1-255*/
+		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect)) 
+			return 1;
+		
 		tf->command = ATA_CMD_VERIFY;
-
-		tf->device |= (sect >> 24) & 0xf;
+		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
+		tf->lbal = sect;
+		tf->lbam = cyl;
+		tf->lbah = cyl >> 8;
+		tf->device |= head;
 	}
-
-	tf->nsect = n_sect & 0xff;
-
-	tf->lbah = (sect >> 16) & 0xff;
-	tf->lbam = (sect >> 8) & 0xff;
-	tf->lbal = sect & 0xff;
 
 	return 0;
 }
@@ -602,11 +632,14 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
+	struct ata_device *dev = qc->dev;
+	unsigned int lba   = tf->flags & ATA_TFLAG_LBA;
 	unsigned int lba48 = tf->flags & ATA_TFLAG_LBA48;
+	u64 block = 0;
+	u32 n_block = 0;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = qc->dev->xfer_protocol;
-	tf->device |= ATA_LBA;
 
 	if (scsicmd[0] == READ_10 || scsicmd[0] == READ_6 ||
 	    scsicmd[0] == READ_16) {
@@ -616,90 +649,114 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		tf->flags |= ATA_TFLAG_WRITE;
 	}
 
+	/* Calculate the SCSI LBA and transfer length. */
 	if (scsicmd[0] == READ_10 || scsicmd[0] == WRITE_10) {
-		if (lba48) {
-			tf->hob_nsect = scsicmd[7];
-			tf->hob_lbal = scsicmd[2];
+		block |= ((u64)scsicmd[2]) << 24;
+		block |= ((u64)scsicmd[3]) << 16;
+		block |= ((u64)scsicmd[4]) << 8;
+		block |= ((u64)scsicmd[5]);
 
-			qc->nsect = ((unsigned int)scsicmd[7] << 8) |
-					scsicmd[8];
-		} else {
-			/* if we don't support LBA48 addressing, the request
-			 * -may- be too large. */
-			if ((scsicmd[2] & 0xf0) || scsicmd[7])
-				return 1;
-
-			/* stores LBA27:24 in lower 4 bits of device reg */
-			tf->device |= scsicmd[2];
-
-			qc->nsect = scsicmd[8];
-		}
-
-		tf->nsect = scsicmd[8];
-		tf->lbal = scsicmd[5];
-		tf->lbam = scsicmd[4];
-		tf->lbah = scsicmd[3];
+		n_block |= ((u32)scsicmd[7]) << 8;
+		n_block |= ((u32)scsicmd[8]);
 
 		VPRINTK("ten-byte command\n");
-		if (qc->nsect == 0) /* we don't support length==0 cmds */
-			return 1;
-		return 0;
-	}
+	} else if (scsicmd[0] == READ_6 || scsicmd[0] == WRITE_6) {
+		block |= ((u64)scsicmd[2]) << 8;
+		block |= ((u64)scsicmd[3]);
 
-	if (scsicmd[0] == READ_6 || scsicmd[0] == WRITE_6) {
-		qc->nsect = tf->nsect = scsicmd[4];
-		if (!qc->nsect) {
-			qc->nsect = 256;
-			if (lba48)
-				tf->hob_nsect = 1;
-		}
-
-		tf->lbal = scsicmd[3];
-		tf->lbam = scsicmd[2];
-		tf->lbah = scsicmd[1] & 0x1f; /* mask out reserved bits */
-
+		n_block |= ((u32)scsicmd[4]);
+		if (!n_block)
+			n_block = 256;
+	
 		VPRINTK("six-byte command\n");
-		return 0;
-	}
+	} else if (scsicmd[0] == READ_16 || scsicmd[0] == WRITE_16) {
+		block |= ((u64)scsicmd[2]) << 56;
+		block |= ((u64)scsicmd[3]) << 48;
+		block |= ((u64)scsicmd[4]) << 40;
+		block |= ((u64)scsicmd[5]) << 32;
+		block |= ((u64)scsicmd[6]) << 24;
+		block |= ((u64)scsicmd[7]) << 16;
+		block |= ((u64)scsicmd[8]) << 8;
+		block |= ((u64)scsicmd[9]);
 
-	if (scsicmd[0] == READ_16 || scsicmd[0] == WRITE_16) {
-		/* rule out impossible LBAs and sector counts */
-		if (scsicmd[2] || scsicmd[3] || scsicmd[10] || scsicmd[11])
-			return 1;
-
-		if (lba48) {
-			tf->hob_nsect = scsicmd[12];
-			tf->hob_lbal = scsicmd[6];
-			tf->hob_lbam = scsicmd[5];
-			tf->hob_lbah = scsicmd[4];
-
-			qc->nsect = ((unsigned int)scsicmd[12] << 8) |
-					scsicmd[13];
-		} else {
-			/* once again, filter out impossible non-zero values */
-			if (scsicmd[4] || scsicmd[5] || scsicmd[12] ||
-			    (scsicmd[6] & 0xf0))
-				return 1;
-
-			/* stores LBA27:24 in lower 4 bits of device reg */
-			tf->device |= scsicmd[6];
-
-			qc->nsect = scsicmd[13];
-		}
-
-		tf->nsect = scsicmd[13];
-		tf->lbal = scsicmd[9];
-		tf->lbam = scsicmd[8];
-		tf->lbah = scsicmd[7];
+		n_block |= ((u32)scsicmd[10]) << 24;
+		n_block |= ((u32)scsicmd[11]) << 16;
+		n_block |= ((u32)scsicmd[12]) << 8;
+		n_block |= ((u32)scsicmd[13]);
 
 		VPRINTK("sixteen-byte command\n");
-		if (qc->nsect == 0) /* we don't support length==0 cmds */
-			return 1;
-		return 0;
+	} else {
+		DPRINTK("no-byte command\n");
+		return 1;
 	}
 
-	DPRINTK("no-byte command\n");
-	return 1;
+	/* Check and compose ATA command */
+	if (!n_block)
+		/* In ATA, sector count 0 means 256 or 65536 sectors, not 0 sectors. */
+		return 1;
+
+	if (lba) {
+		if (lba48) {
+			/* The request -may- be too large for LBA48. */
+			if ((block >> 48) || (n_block > 65536))
+				return 1;
+
+			tf->hob_nsect = (n_block >> 8) & 0xff;
+
+			tf->hob_lbah = (block >> 40) & 0xff;
+			tf->hob_lbam = (block >> 32) & 0xff;
+			tf->hob_lbal = (block >> 24) & 0xff;
+		} else { 
+			/* LBA28 */
+
+			/* The request -may- be too large for LBA28. */
+			if ((block >> 28) || (n_block > 256))
+				return 1;
+
+			tf->device |= (block >> 24) & 0xf;
+		}
+	
+		qc->nsect = n_block;
+		tf->nsect = n_block & 0xff;
+
+		tf->lbah = (block >> 16) & 0xff;
+		tf->lbam = (block >> 8) & 0xff;
+		tf->lbal = block & 0xff;
+
+		tf->device |= ATA_LBA;
+	} else { 
+		/* CHS */
+		u32 sect, head, cyl, track;
+
+		/* The request -may- be too large for CHS addressing. */
+		if ((block >> 28) || (n_block > 256))
+			return 1;
+			
+		/* Convert LBA to CHS */
+		track = (u32)block / dev->sectors;
+		cyl   = track / dev->heads;
+		head  = track % dev->heads;
+		sect  = (u32)block % dev->sectors + 1;
+
+		DPRINTK("block[%u] track[%u] cyl[%u] head[%u] sect[%u] \n", 
+			(u32)block, track, cyl, head, sect);
+		
+		/* Check whether the converted CHS can fit. 
+		   Cylinder: 0-65535 
+		   Head: 0-15
+		   Sector: 1-255*/
+		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect)) 
+			return 1;
+		
+		qc->nsect = n_block;
+		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
+		tf->lbal = sect;
+		tf->lbam = cyl;
+		tf->lbah = cyl >> 8;
+		tf->device |= head;
+	}
+
+	return 0;
 }
 
 static int ata_scsi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
@@ -1246,10 +1303,20 @@ unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
 
 	VPRINTK("ENTER\n");
 
-	if (ata_id_has_lba48(args->id))
-		n_sectors = ata_id_u64(args->id, 100);
-	else
-		n_sectors = ata_id_u32(args->id, 60);
+	if (ata_id_has_lba(args->id)) {
+		if (ata_id_has_lba48(args->id))
+			n_sectors = ata_id_u64(args->id, 100);
+		else
+			n_sectors = ata_id_u32(args->id, 60);
+	} else {
+		/* CHS default translation */
+		n_sectors = args->id[1] * args->id[3] * args->id[6];
+
+		if (ata_id_current_chs_valid(args->id))
+			/* CHS current translation */
+			n_sectors = ata_id_u32(args->id, 57);
+	}
+
 	n_sectors--;		/* ATA TotalUserSectors - 1 */
 
 	if (args->cmd->cmnd[0] == READ_CAPACITY) {

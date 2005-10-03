@@ -134,7 +134,7 @@ static int llc_seq_socket_show(struct seq_file *seq, void *v)
 	llc_ui_format_mac(seq, llc->daddr.mac);
 	seq_printf(seq, "@%02X %8d %8d %2d %3d %4d\n", llc->daddr.lsap,
 		   atomic_read(&sk->sk_wmem_alloc),
-		   atomic_read(&sk->sk_rmem_alloc),
+		   atomic_read(&sk->sk_rmem_alloc) - llc->copied_seq,
 		   sk->sk_state,
 		   sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid : -1,
 		   llc->link);

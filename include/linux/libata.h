@@ -97,7 +97,8 @@ enum {
 	ATA_DFLAG_LBA48		= (1 << 0), /* device supports LBA48 */
 	ATA_DFLAG_PIO		= (1 << 1), /* device currently in PIO mode */
 	ATA_DFLAG_LOCK_SECTORS	= (1 << 2), /* don't adjust max_sectors */
-	ATA_DFLAG_CDB_INTR	= (1 << 3), /* device asserts INTRQ when ready for CDB */
+	ATA_DFLAG_LBA		= (1 << 3), /* device supports LBA */
+	ATA_DFLAG_CDB_INTR	= (1 << 4), /* device asserts INTRQ when ready for CDB */
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -285,6 +286,11 @@ struct ata_device {
 	u8			xfer_protocol;	/* taskfile xfer protocol */
 	u8			read_cmd;	/* opcode to use on read */
 	u8			write_cmd;	/* opcode to use on write */
+
+	/* for CHS addressing */
+	u16			cylinders;	/* Number of cylinders */
+	u16			heads;		/* Number of heads */
+	u16			sectors;	/* Number of sectors per track */
 };
 
 struct ata_port {

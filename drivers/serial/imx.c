@@ -860,7 +860,7 @@ imx_console_setup(struct console *co, char *options)
 	return uart_set_options(&sport->port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver imx_reg;
+static struct uart_driver imx_reg;
 static struct console imx_console = {
 	.name		= "ttySMX",
 	.write		= imx_console_write,

@@ -27,7 +27,6 @@ int prom_chosen_node;
  * failure.  It gets passed the pointer to the PROM vector.
  */
 
-extern void prom_meminit(void);
 extern void prom_cif_init(void *, void *);
 
 void __init prom_init(void *cif_handler, void *cif_stack)
@@ -46,7 +45,7 @@ void __init prom_init(void *cif_handler, void *cif_stack)
 	if((prom_root_node == 0) || (prom_root_node == -1))
 		prom_halt();
 
-	prom_chosen_node = prom_finddevice("/chosen");
+	prom_chosen_node = prom_finddevice(prom_chosen_path);
 	if (!prom_chosen_node || prom_chosen_node == -1)
 		prom_halt();
 
@@ -89,8 +88,6 @@ void __init prom_init(void *cif_handler, void *cif_stack)
 	prom_prev = (ints[0] << 16) | (ints[1] << 8) | ints[2];
 
 	printk ("PROMLIB: Sun IEEE Boot Prom %s\n", buffer + bufadjust);
-
-	prom_meminit();
 
 	/* Initialization successful. */
 	return;

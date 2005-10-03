@@ -17,7 +17,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/leds.h>
-#include <asm/mach-types.h>
 #include "leds.h"
 
 /*

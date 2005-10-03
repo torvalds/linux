@@ -20,7 +20,6 @@
 */
 
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/hardware/clock.h>
 #include <asm/arch/usb-control.h>
 

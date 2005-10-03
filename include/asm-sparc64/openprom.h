@@ -186,8 +186,8 @@ struct linux_prom_registers {
 };
 
 struct linux_prom64_registers {
-	long phys_addr;
-	long reg_size;
+	unsigned long phys_addr;
+	unsigned long reg_size;
 };
 
 struct linux_prom_irqs {

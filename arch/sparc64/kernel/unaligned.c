@@ -180,14 +180,14 @@ static void __attribute_used__ unaligned_panic(char *str, struct pt_regs *regs)
 	die_if_kernel(str, regs);
 }
 
-extern void do_int_load(unsigned long *dest_reg, int size,
-			unsigned long *saddr, int is_signed, int asi);
+extern int do_int_load(unsigned long *dest_reg, int size,
+		       unsigned long *saddr, int is_signed, int asi);
 	
-extern void __do_int_store(unsigned long *dst_addr, int size,
-			   unsigned long src_val, int asi);
+extern int __do_int_store(unsigned long *dst_addr, int size,
+			  unsigned long src_val, int asi);
 
-static inline void do_int_store(int reg_num, int size, unsigned long *dst_addr,
-				struct pt_regs *regs, int asi, int orig_asi)
+static inline int do_int_store(int reg_num, int size, unsigned long *dst_addr,
+			       struct pt_regs *regs, int asi, int orig_asi)
 {
 	unsigned long zero = 0;
 	unsigned long *src_val_p = &zero;
@@ -219,7 +219,7 @@ static inline void do_int_store(int reg_num, int size, unsigned long *dst_addr,
 			break;
 		};
 	}
-	__do_int_store(dst_addr, size, src_val, asi);
+	return __do_int_store(dst_addr, size, src_val, asi);
 }
 
 static inline void advance(struct pt_regs *regs)
@@ -242,14 +242,14 @@ static inline int ok_for_kernel(unsigned int insn)
 	return !floating_point_load_or_store_p(insn);
 }
 
-void kernel_mna_trap_fault(void)
+static void kernel_mna_trap_fault(void)
 {
 	struct pt_regs *regs = current_thread_info()->kern_una_regs;
 	unsigned int insn = current_thread_info()->kern_una_insn;
-	unsigned long g2 = regs->u_regs[UREG_G2];
-	unsigned long fixup = search_extables_range(regs->tpc, &g2);
+	const struct exception_table_entry *entry;
 
-	if (!fixup) {
+	entry = search_exception_tables(regs->tpc);
+	if (!entry) {
 		unsigned long address;
 
 		address = compute_effective_address(regs, insn,
@@ -270,9 +270,8 @@ void kernel_mna_trap_fault(void)
 	        die_if_kernel("Oops", regs);
 		/* Not reached */
 	}
-	regs->tpc = fixup;
+	regs->tpc = entry->fixup;
 	regs->tnpc = regs->tpc + 4;
-	regs->u_regs [UREG_G2] = g2;
 
 	regs->tstate &= ~TSTATE_ASI;
 	regs->tstate |= (ASI_AIUS << 24UL);
@@ -294,8 +293,8 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 
 		kernel_mna_trap_fault();
 	} else {
-		unsigned long addr;
-		int orig_asi, asi;
+		unsigned long addr, *reg_addr;
+		int orig_asi, asi, err;
 
 		addr = compute_effective_address(regs, insn,
 						 ((insn >> 25) & 0x1f));
@@ -319,11 +318,12 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 		};
 		switch (dir) {
 		case load:
-			do_int_load(fetch_reg_addr(((insn>>25)&0x1f), regs),
-				    size, (unsigned long *) addr,
-				    decode_signedness(insn), asi);
-			if (unlikely(asi != orig_asi)) {
-				unsigned long val_in = *(unsigned long *) addr;
+			reg_addr = fetch_reg_addr(((insn>>25)&0x1f), regs);
+			err = do_int_load(reg_addr, size,
+					  (unsigned long *) addr,
+					  decode_signedness(insn), asi);
+			if (likely(!err) && unlikely(asi != orig_asi)) {
+				unsigned long val_in = *reg_addr;
 				switch (size) {
 				case 2:
 					val_in = swab16(val_in);
@@ -339,21 +339,24 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, u
 					BUG();
 					break;
 				};
-				*(unsigned long *) addr = val_in;
+				*reg_addr = val_in;
 			}
 			break;
 
 		case store:
-			do_int_store(((insn>>25)&0x1f), size,
-				     (unsigned long *) addr, regs,
-				     asi, orig_asi);
+			err = do_int_store(((insn>>25)&0x1f), size,
+					   (unsigned long *) addr, regs,
+					   asi, orig_asi);
 			break;
 
 		default:
 			panic("Impossible kernel unaligned trap.");
 			/* Not reached... */
 		}
-		advance(regs);
+		if (unlikely(err))
+			kernel_mna_trap_fault();
+		else
+			advance(regs);
 	}
 }
 

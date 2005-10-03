@@ -129,7 +129,7 @@ static struct key *__request_key_construction(struct key_type *type,
 
 	/* create a key and add it to the queue */
 	key = key_alloc(type, description,
-			current->fsuid, current->fsgid, KEY_USR_ALL, 0);
+			current->fsuid, current->fsgid, KEY_POS_ALL, 0);
 	if (IS_ERR(key))
 		goto alloc_failed;
 
@@ -365,14 +365,24 @@ struct key *request_key_and_link(struct key_type *type,
 {
 	struct key_user *user;
 	struct key *key;
+	key_ref_t key_ref;
 
 	kenter("%s,%s,%s,%p",
 	       type->name, description, callout_info, dest_keyring);
 
 	/* search all the process keyrings for a key */
-	key = search_process_keyrings(type, description, type->match, current);
+	key_ref = search_process_keyrings(type, description, type->match,
+					  current);
 
-	if (PTR_ERR(key) == -EAGAIN) {
+	kdebug("search 1: %p", key_ref);
+
+	if (!IS_ERR(key_ref)) {
+		key = key_ref_to_ptr(key_ref);
+	}
+	else if (PTR_ERR(key_ref) != -EAGAIN) {
+		key = ERR_PTR(PTR_ERR(key_ref));
+	}
+	else  {
 		/* the search failed, but the keyrings were searchable, so we
 		 * should consult userspace if we can */
 		key = ERR_PTR(-ENOKEY);
@@ -384,7 +394,7 @@ struct key *request_key_and_link(struct key_type *type,
 		if (!user)
 			goto nomem;
 
-		do {
+		for (;;) {
 			if (signal_pending(current))
 				goto interrupted;
 
@@ -397,10 +407,22 @@ struct key *request_key_and_link(struct key_type *type,
 
 			/* someone else made the key we want, so we need to
 			 * search again as it might now be available to us */
-			key = search_process_keyrings(type, description,
-						      type->match, current);
+			key_ref = search_process_keyrings(type, description,
+							  type->match,
+							  current);
 
-		} while (PTR_ERR(key) == -EAGAIN);
+			kdebug("search 2: %p", key_ref);
+
+			if (!IS_ERR(key_ref)) {
+				key = key_ref_to_ptr(key_ref);
+				break;
+			}
+
+			if (PTR_ERR(key_ref) != -EAGAIN) {
+				key = ERR_PTR(PTR_ERR(key_ref));
+				break;
+			}
+		}
 
 		key_user_put(user);
 

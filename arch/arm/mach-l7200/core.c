@@ -12,7 +12,6 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
-#include <asm/arch/hardware.h>
 
 /*
  * IRQ base register

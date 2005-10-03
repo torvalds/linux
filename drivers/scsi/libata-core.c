@@ -62,6 +62,7 @@
 static unsigned int ata_busy_sleep (struct ata_port *ap,
 				    unsigned long tmout_pat,
 			    	    unsigned long tmout);
+static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
 static unsigned int ata_get_mode_mask(struct ata_port *ap, int shift);
@@ -1131,7 +1132,7 @@ static inline void ata_dump_id(struct ata_device *dev)
 static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 {
 	struct ata_device *dev = &ap->device[device];
-	unsigned int i;
+	unsigned int major_version;
 	u16 tmp;
 	unsigned long xfer_modes;
 	u8 status;
@@ -1229,9 +1230,9 @@ retry:
 	 * common ATA, ATAPI feature tests
 	 */
 
-	/* we require LBA and DMA support (bits 8 & 9 of word 49) */
-	if (!ata_id_has_dma(dev->id) || !ata_id_has_lba(dev->id)) {
-		printk(KERN_DEBUG "ata%u: no dma/lba\n", ap->id);
+	/* we require DMA support (bits 8 of word 49) */
+	if (!ata_id_has_dma(dev->id)) {
+		printk(KERN_DEBUG "ata%u: no dma\n", ap->id);
 		goto err_out_nosup;
 	}
 
@@ -1251,32 +1252,69 @@ retry:
 		if (!ata_id_is_ata(dev->id))	/* sanity check */
 			goto err_out_nosup;
 
+		/* get major version */
 		tmp = dev->id[ATA_ID_MAJOR_VER];
-		for (i = 14; i >= 1; i--)
-			if (tmp & (1 << i))
+		for (major_version = 14; major_version >= 1; major_version--)
+			if (tmp & (1 << major_version))
 				break;
 
-		/* we require at least ATA-3 */
-		if (i < 3) {
-			printk(KERN_DEBUG "ata%u: no ATA-3\n", ap->id);
-			goto err_out_nosup;
-		}
+		/*
+		 * The exact sequence expected by certain pre-ATA4 drives is:
+		 * SRST RESET
+		 * IDENTIFY
+		 * INITIALIZE DEVICE PARAMETERS
+		 * anything else..
+		 * Some drives were very specific about that exact sequence.
+		 */
+		if (major_version < 4 || (!ata_id_has_lba(dev->id)))
+			ata_dev_init_params(ap, dev);
 
-		if (ata_id_has_lba48(dev->id)) {
-			dev->flags |= ATA_DFLAG_LBA48;
-			dev->n_sectors = ata_id_u64(dev->id, 100);
-		} else {
-			dev->n_sectors = ata_id_u32(dev->id, 60);
+		if (ata_id_has_lba(dev->id)) {
+			dev->flags |= ATA_DFLAG_LBA;
+
+			if (ata_id_has_lba48(dev->id)) {
+				dev->flags |= ATA_DFLAG_LBA48;
+				dev->n_sectors = ata_id_u64(dev->id, 100);
+			} else {
+				dev->n_sectors = ata_id_u32(dev->id, 60);
+			}
+
+			/* print device info to dmesg */
+			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors:%s\n",
+			       ap->id, device,
+			       major_version,
+			       ata_mode_string(xfer_modes),
+			       (unsigned long long)dev->n_sectors,
+			       dev->flags & ATA_DFLAG_LBA48 ? " LBA48" : " LBA");
+		} else { 
+			/* CHS */
+
+			/* Default translation */
+			dev->cylinders	= dev->id[1];
+			dev->heads	= dev->id[3];
+			dev->sectors	= dev->id[6];
+			dev->n_sectors	= dev->cylinders * dev->heads * dev->sectors;
+
+			if (ata_id_current_chs_valid(dev->id)) {
+				/* Current CHS translation is valid. */
+				dev->cylinders = dev->id[54];
+				dev->heads     = dev->id[55];
+				dev->sectors   = dev->id[56];
+				
+				dev->n_sectors = ata_id_u32(dev->id, 57);
+			}
+
+			/* print device info to dmesg */
+			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors: CHS %d/%d/%d\n",
+			       ap->id, device,
+			       major_version,
+			       ata_mode_string(xfer_modes),
+			       (unsigned long long)dev->n_sectors,
+			       (int)dev->cylinders, (int)dev->heads, (int)dev->sectors);
+
 		}
 
 		ap->host->max_cmd_len = 16;
-
-		/* print device info to dmesg */
-		printk(KERN_INFO "ata%u: dev %u ATA, max %s, %Lu sectors:%s\n",
-		       ap->id, device,
-		       ata_mode_string(xfer_modes),
-		       (unsigned long long)dev->n_sectors,
-		       dev->flags & ATA_DFLAG_LBA48 ? " lba48" : "");
 	}
 
 	/* ATAPI-specific feature tests */
@@ -2130,6 +2168,54 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	qc->tf.protocol = ATA_PROT_NODATA;
 	qc->tf.nsect = dev->xfer_mode;
+
+	qc->waiting = &wait;
+	qc->complete_fn = ata_qc_complete_noop;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	rc = ata_qc_issue(qc);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	if (rc)
+		ata_port_disable(ap);
+	else
+		wait_for_completion(&wait);
+
+	DPRINTK("EXIT\n");
+}
+
+/**
+ *	ata_dev_init_params - Issue INIT DEV PARAMS command
+ *	@ap: Port associated with device @dev
+ *	@dev: Device to which command will be sent
+ *
+ *	LOCKING:
+ */
+
+static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
+{
+	DECLARE_COMPLETION(wait);
+	struct ata_queued_cmd *qc;
+	int rc;
+	unsigned long flags;
+	u16 sectors = dev->id[6];
+	u16 heads   = dev->id[3];
+
+	/* Number of sectors per track 1-255. Number of heads 1-16 */
+	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16)
+		return;
+
+	/* set up init dev params taskfile */
+	DPRINTK("init dev params \n");
+
+	qc = ata_qc_new_init(ap, dev);
+	BUG_ON(qc == NULL);
+
+	qc->tf.command = ATA_CMD_INIT_DEV_PARAMS;
+	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	qc->tf.protocol = ATA_PROT_NODATA;
+	qc->tf.nsect = sectors;
+	qc->tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
 	qc->waiting = &wait;
 	qc->complete_fn = ata_qc_complete_noop;
@@ -3168,8 +3254,12 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 
 		ata_tf_init(ap, &qc->tf, dev->devno);
 
-		if (dev->flags & ATA_DFLAG_LBA48)
-			qc->tf.flags |= ATA_TFLAG_LBA48;
+		if (dev->flags & ATA_DFLAG_LBA) {
+			qc->tf.flags |= ATA_TFLAG_LBA;
+
+			if (dev->flags & ATA_DFLAG_LBA48)
+				qc->tf.flags |= ATA_TFLAG_LBA48;
+		}
 	}
 
 	return qc;

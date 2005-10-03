@@ -205,6 +205,7 @@ static void kexec_prepare_cpus(void)
 			continue;
 
 		while (paca[i].hw_cpu_id != -1) {
+			barrier();
 			if (!cpu_possible(i)) {
 				printk("kexec: cpu %d hw_cpu_id %d is not"
 						" possible, ignoring\n",

@@ -604,6 +604,15 @@ P:	H. Peter Anvin
 M:	hpa@zytor.com
 S:	Maintained
 
+CPUSETS
+P:	Paul Jackson
+P:	Simon Derr
+M:	pj@sgi.com
+M:	simon.derr@bull.net
+L:	linux-kernel@vger.kernel.org
+W:	http://www.bullopensource.org/cpuset/
+S:	Supported
+
 CRAMFS FILESYSTEM
 W:     http://sourceforge.net/projects/cramfs/
 S:     Orphan
@@ -1159,11 +1168,6 @@ L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 S:	Orphan
 
-IEEE 1394 SBP2
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Orphan
-
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	bcollins@debian.org
@@ -1194,6 +1198,15 @@ P:	Ben Collins
 M:	bcollins@debian.org
 P:	Dan Dennedy
 M:	dan@dennedy.org
+L:	linux1394-devel@lists.sourceforge.net
+W:	http://www.linux1394.org/
+S:	Maintained
+
+IEEE 1394 SBP2
+P:	Ben Collins
+M:	bcollins@debian.org
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 S:	Maintained
@@ -1734,8 +1747,11 @@ S:	Maintained
 IPVS
 P:	Wensong Zhang
 M:	wensong@linux-vs.org
+P:	Simon Horman
+M:	horms@verge.net.au
 P:	Julian Anastasov
 M:	ja@ssi.bg
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NFS CLIENT
@@ -1904,6 +1920,13 @@ PHRAM MTD DRIVER
 P:	Jörn Engel
 M:	joern@wh.fh-wedel.de
 L:	linux-mtd@lists.infradead.org
+S:	Maintained
+
+PKTCDVD DRIVER
+P:	Peter Osterlund
+M:	petero2@telia.com
+L:	linux-kernel@vger.kernel.org
+L:	packet-writing@suse.com
 S:	Maintained
 
 POSIX CLOCKS and TIMERS

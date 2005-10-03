@@ -11,7 +11,6 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>

@@ -70,7 +70,7 @@ const char *hpsb_speedto_str[] = { "S100", "S200", "S400", "S800", "S1600", "S32
 struct class *hpsb_protocol_class;
 
 #ifdef CONFIG_IEEE1394_VERBOSEDEBUG
-static void dump_packet(const char *text, quadlet_t *data, int size)
+static void dump_packet(const char *text, quadlet_t *data, int size, int speed)
 {
 	int i;
 
@@ -78,12 +78,15 @@ static void dump_packet(const char *text, quadlet_t *data, int size)
 	size = (size > 4 ? 4 : size);
 
 	printk(KERN_DEBUG "ieee1394: %s", text);
+	if (speed > -1 && speed < 6)
+		printk(" at %s", hpsb_speedto_str[speed]);
+	printk(":");
 	for (i = 0; i < size; i++)
 		printk(" %08x", data[i]);
 	printk("\n");
 }
 #else
-#define dump_packet(x,y,z)
+#define dump_packet(a,b,c,d)
 #endif
 
 static void abort_requests(struct hpsb_host *host);
@@ -544,8 +547,7 @@ int hpsb_send_packet(struct hpsb_packet *packet)
                 if (packet->data_size)
 			memcpy(((u8*)data) + packet->header_size, packet->data, packet->data_size);
 
-                dump_packet("send packet local:", packet->header,
-                            packet->header_size);
+                dump_packet("send packet local", packet->header, packet->header_size, -1);
 
                 hpsb_packet_sent(host, packet, packet->expect_response ? ACK_PENDING : ACK_COMPLETE);
                 hpsb_packet_received(host, data, size, 0);
@@ -561,21 +563,7 @@ int hpsb_send_packet(struct hpsb_packet *packet)
                                        + NODEID_TO_NODE(packet->node_id)];
         }
 
-#ifdef CONFIG_IEEE1394_VERBOSEDEBUG
-        switch (packet->speed_code) {
-        case 2:
-                dump_packet("send packet 400:", packet->header,
-                            packet->header_size);
-                break;
-        case 1:
-                dump_packet("send packet 200:", packet->header,
-                            packet->header_size);
-                break;
-        default:
-                dump_packet("send packet 100:", packet->header,
-                            packet->header_size);
-        }
-#endif
+        dump_packet("send packet", packet->header, packet->header_size, packet->speed_code);
 
         return host->driver->transmit_packet(host, packet);
 }
@@ -636,7 +624,7 @@ static void handle_packet_response(struct hpsb_host *host, int tcode,
 
 	if (packet == NULL) {
                 HPSB_DEBUG("unsolicited response packet received - no tlabel match");
-                dump_packet("contents:", data, 16);
+                dump_packet("contents", data, 16, -1);
 		spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
                 return;
         }
@@ -677,7 +665,7 @@ static void handle_packet_response(struct hpsb_host *host, int tcode,
         if (!tcode_match) {
 		spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
                 HPSB_INFO("unsolicited response packet received - tcode mismatch");
-                dump_packet("contents:", data, 16);
+                dump_packet("contents", data, 16, -1);
                 return;
         }
 
@@ -914,7 +902,7 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
                 return;
         }
 
-        dump_packet("received packet:", data, size);
+        dump_packet("received packet", data, size, -1);
 
         tcode = (data[0] >> 4) & 0xf;
 

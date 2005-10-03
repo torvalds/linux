@@ -301,8 +301,68 @@ now, but you can do this to mark internal company procedures or just
 point out some special detail about the sign-off. 
 
 
+12) The canonical patch format
 
-12) More references for submitting patches
+The canonical patch subject line is:
+
+    Subject: [PATCH 001/123] [<area>:] <explanation>
+
+The canonical patch message body contains the following:
+
+  - A "from" line specifying the patch author.
+
+  - An empty line.
+
+  - The body of the explanation, which will be copied to the
+    permanent changelog to describe this patch.
+
+  - The "Signed-off-by:" lines, described above, which will
+    also go in the changelog.
+
+  - A marker line containing simply "---".
+
+  - Any additional comments not suitable for the changelog.
+
+  - The actual patch (diff output).
+
+The Subject line format makes it very easy to sort the emails
+alphabetically by subject line - pretty much any email reader will
+support that - since because the sequence number is zero-padded,
+the numerical and alphabetic sort is the same.
+
+See further details on how to phrase the "<explanation>" in the
+"Subject:" line in Andrew Morton's "The perfect patch", referenced
+below.
+
+The "from" line must be the very first line in the message body,
+and has the form:
+
+        From: Original Author <author@example.com>
+
+The "from" line specifies who will be credited as the author of the
+patch in the permanent changelog.  If the "from" line is missing,
+then the "From:" line from the email header will be used to determine
+the patch author in the changelog.
+
+The explanation body will be committed to the permanent source
+changelog, so should make sense to a competent reader who has long
+since forgotten the immediate details of the discussion that might
+have led to this patch.
+
+The "---" marker line serves the essential purpose of marking for patch
+handling tools where the changelog message ends.
+
+One good use for the additional comments after the "---" marker is for
+a diffstat, to show what files have changed, and the number of inserted
+and deleted lines per file.  A diffstat is especially useful on bigger
+patches.  Other comments relevant only to the moment or the maintainer,
+not suitable for the permanent changelog, should also go here.
+
+See more details on the proper patch format in the following
+references.
+
+
+13) More references for submitting patches
 
 Andrew Morton, "The perfect patch" (tpp).
   <http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt>
@@ -310,6 +370,14 @@ Andrew Morton, "The perfect patch" (tpp).
 Jeff Garzik, "Linux kernel patch submission format."
   <http://linux.yyz.us/patch-format.html>
 
+Greg KH, "How to piss off a kernel subsystem maintainer"
+  <http://www.kroah.com/log/2005/03/31/>
+
+Kernel Documentation/CodingStyle
+  <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>
+
+Linus Torvald's mail on the canonical patch format:
+  <http://lkml.org/lkml/2005/4/7/183>
 
 
 -----------------------------------

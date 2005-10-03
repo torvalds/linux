@@ -334,6 +334,8 @@ int linux_main(int argc, char **argv)
 		add_arg(DEFAULT_COMMAND_LINE);
 
 	os_early_checks();
+	if (force_tt)
+		clear_can_do_skas();
 	mode_tt = force_tt ? 1 : !can_do_skas();
 #ifndef CONFIG_MODE_TT
 	if (mode_tt) {

@@ -30,159 +30,6 @@
 	.text
 	.align		32
 
-	.globl		sparc64_vpte_patchme1
-	.globl		sparc64_vpte_patchme2
-/*
- * On a second level vpte miss, check whether the original fault is to the OBP 
- * range (note that this is only possible for instruction miss, data misses to
- * obp range do not use vpte). If so, go back directly to the faulting address.
- * This is because we want to read the tpc, otherwise we have no way of knowing
- * the 8k aligned faulting address if we are using >8k kernel pagesize. This
- * also ensures no vpte range addresses are dropped into tlb while obp is
- * executing (see inherit_locked_prom_mappings() rant).
- */
-sparc64_vpte_nucleus:
-	/* Note that kvmap below has verified that the address is
-	 * in the range MODULES_VADDR --> VMALLOC_END already.  So
-	 * here we need only check if it is an OBP address or not.
-	 */
-	sethi		%hi(LOW_OBP_ADDRESS), %g5
-	cmp		%g4, %g5
-	blu,pn		%xcc, sparc64_vpte_patchme1
-	 mov		0x1, %g5
-	sllx		%g5, 32, %g5
-	cmp		%g4, %g5
-	blu,pn		%xcc, obp_iaddr_patch
-	 nop
-
-	/* These two instructions are patched by paginig_init().  */
-sparc64_vpte_patchme1:
-	sethi		%hi(0), %g5
-sparc64_vpte_patchme2:
-	or		%g5, %lo(0), %g5
-
-	/* With kernel PGD in %g5, branch back into dtlb_backend.  */
-	ba,pt		%xcc, sparc64_kpte_continue
-	 andn		%g1, 0x3, %g1	/* Finish PMD offset adjustment.  */
-
-vpte_noent:
-	/* Restore previous TAG_ACCESS, %g5 is zero, and we will
-	 * skip over the trap instruction so that the top level
-	 * TLB miss handler will thing this %g5 value is just an
-	 * invalid PTE, thus branching to full fault processing.
-	 */
-	mov		TLB_SFSR, %g1
-	stxa		%g4, [%g1 + %g1] ASI_DMMU
-	done
-
-	.globl		obp_iaddr_patch
-obp_iaddr_patch:
-	/* These two instructions patched by inherit_prom_mappings().  */
-	sethi		%hi(0), %g5
-	or		%g5, %lo(0), %g5
-
-	/* Behave as if we are at TL0.  */
-	wrpr		%g0, 1, %tl
-	rdpr		%tpc, %g4	/* Find original faulting iaddr */
-	srlx		%g4, 13, %g4	/* Throw out context bits */
-	sllx		%g4, 13, %g4	/* g4 has vpn + ctx0 now */
-
-	/* Restore previous TAG_ACCESS.  */
-	mov		TLB_SFSR, %g1
-	stxa		%g4, [%g1 + %g1] ASI_IMMU
-
-	/* Get PMD offset.  */
-	srlx		%g4, 23, %g6
-	and		%g6, 0x7ff, %g6
-	sllx		%g6, 2, %g6
-
-	/* Load PMD, is it valid?  */
-	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brz,pn		%g5, longpath
-	 sllx		%g5, 11, %g5
-
-	/* Get PTE offset.  */
-	srlx		%g4, 13, %g6
-	and		%g6, 0x3ff, %g6
-	sllx		%g6, 3, %g6
-
-	/* Load PTE.  */
-	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* TLB load and return from trap.  */
-	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
-	retry
-
-	.globl		obp_daddr_patch
-obp_daddr_patch:
-	/* These two instructions patched by inherit_prom_mappings().  */
-	sethi		%hi(0), %g5
-	or		%g5, %lo(0), %g5
-
-	/* Get PMD offset.  */
-	srlx		%g4, 23, %g6
-	and		%g6, 0x7ff, %g6
-	sllx		%g6, 2, %g6
-
-	/* Load PMD, is it valid?  */
-	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brz,pn		%g5, longpath
-	 sllx		%g5, 11, %g5
-
-	/* Get PTE offset.  */
-	srlx		%g4, 13, %g6
-	and		%g6, 0x3ff, %g6
-	sllx		%g6, 3, %g6
-
-	/* Load PTE.  */
-	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* TLB load and return from trap.  */
-	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
-	retry
-
-/*
- * On a first level data miss, check whether this is to the OBP range (note
- * that such accesses can be made by prom, as well as by kernel using
- * prom_getproperty on "address"), and if so, do not use vpte access ...
- * rather, use information saved during inherit_prom_mappings() using 8k
- * pagesize.
- */
-	.align		32
-kvmap:
-	sethi		%hi(MODULES_VADDR), %g5
-	cmp		%g4, %g5
-	blu,pn		%xcc, longpath
-	 mov		(VMALLOC_END >> 24), %g5
-	sllx		%g5, 24, %g5
-	cmp		%g4, %g5
-	bgeu,pn		%xcc, longpath
-	 nop
-
-kvmap_check_obp:
-	sethi		%hi(LOW_OBP_ADDRESS), %g5
-	cmp		%g4, %g5
-	blu,pn		%xcc, kvmap_vmalloc_addr
-	 mov		0x1, %g5
-	sllx		%g5, 32, %g5
-	cmp		%g4, %g5
-	blu,pn		%xcc, obp_daddr_patch
-	 nop
-
-kvmap_vmalloc_addr:
-	/* If we get here, a vmalloc addr was accessed, load kernel VPTE.  */
-	ldxa		[%g3 + %g6] ASI_N, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* PTE is valid, load into TLB and return from trap.  */
-	stxa		%g5, [%g0] ASI_DTLB_DATA_IN	! Reload TLB
-	retry
-
 	/* This is trivial with the new code... */
 	.globl		do_fpdis
 do_fpdis:
@@ -525,14 +372,13 @@ cheetah_plus_patch_fpdis:
 	 *
 	 * DATA 0: [low 32-bits]  Address of function to call, jmp to this
 	 *         [high 32-bits] MMU Context Argument 0, place in %g5
-	 * DATA 1: Address Argument 1, place in %g6
+	 * DATA 1: Address Argument 1, place in %g1
 	 * DATA 2: Address Argument 2, place in %g7
 	 *
 	 * With this method we can do most of the cross-call tlb/cache
 	 * flushing very quickly.
 	 *
-	 * Current CPU's IRQ worklist table is locked into %g1,
-	 * don't touch.
+	 * Current CPU's IRQ worklist table is locked into %g6, don't touch.
 	 */
 	.text
 	.align		32
@@ -1006,13 +852,14 @@ cheetah_plus_dcpe_trap_vector:
 	nop
 
 do_cheetah_plus_data_parity:
-	ba,pt		%xcc, etrap
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 	mov		0x0, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,a,pt		%xcc, rtrap_irq
 
 cheetah_plus_dcpe_trap_vector_tl1:
 	membar		#Sync
@@ -1036,13 +883,14 @@ cheetah_plus_icpe_trap_vector:
 	nop
 
 do_cheetah_plus_insn_parity:
-	ba,pt		%xcc, etrap
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 	mov		0x1, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,a,pt		%xcc, rtrap_irq
 
 cheetah_plus_icpe_trap_vector_tl1:
 	membar		#Sync
@@ -1075,6 +923,10 @@ do_dcpe_tl1:
 	 nop
 	wrpr		%g1, %tl		! Restore original trap level
 do_dcpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+	sethi		%hi(dcache_parity_tl1_occurred), %g2
+	lduw		[%g2 + %lo(dcache_parity_tl1_occurred)], %g1
+	add		%g1, 1, %g1
+	stw		%g1, [%g2 + %lo(dcache_parity_tl1_occurred)]
 	/* Reset D-cache parity */
 	sethi		%hi(1 << 16), %g1	! D-cache size
 	mov		(1 << 5), %g2		! D-cache line size
@@ -1121,6 +973,10 @@ do_icpe_tl1:
 	 nop
 	wrpr		%g1, %tl		! Restore original trap level
 do_icpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+	sethi		%hi(icache_parity_tl1_occurred), %g2
+	lduw		[%g2 + %lo(icache_parity_tl1_occurred)], %g1
+	add		%g1, 1, %g1
+	stw		%g1, [%g2 + %lo(icache_parity_tl1_occurred)]
 	/* Flush I-cache */
 	sethi		%hi(1 << 15), %g1	! I-cache size
 	mov		(1 << 5), %g2		! I-cache line size

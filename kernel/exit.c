@@ -1203,7 +1203,7 @@ static int wait_task_stopped(task_t *p, int delayed_group_leader, int noreap,
 
 		exit_code = p->exit_code;
 		if (unlikely(!exit_code) ||
-		    unlikely(p->state > TASK_STOPPED))
+		    unlikely(p->state & TASK_TRACED))
 			goto bail_ref;
 		return wait_noreap_copyout(p, pid, uid,
 					   why, (exit_code << 8) | 0x7f,

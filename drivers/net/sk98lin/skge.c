@@ -235,7 +235,7 @@ static int      SkDrvDeInitAdapter(SK_AC *pAC, int devNbr);
  * Extern Function Prototypes
  *
  ******************************************************************************/
-static const char 	SKRootName[] = "sk98lin";
+static const char 	SKRootName[] = "net/sk98lin";
 static struct		proc_dir_entry *pSkRootDir;
 extern struct	file_operations sk_proc_fops;
 
@@ -5242,20 +5242,20 @@ static int __init skge_init(void)
 {
 	int error;
 
-	pSkRootDir = proc_mkdir(SKRootName, proc_net);
+	pSkRootDir = proc_mkdir(SKRootName, NULL);
 	if (pSkRootDir) 
 		pSkRootDir->owner = THIS_MODULE;
 	
 	error = pci_register_driver(&skge_driver);
 	if (error)
-		proc_net_remove(SKRootName);
+		remove_proc_entry(SKRootName, NULL);
 	return error;
 }
 
 static void __exit skge_exit(void)
 {
 	pci_unregister_driver(&skge_driver);
-	proc_net_remove(SKRootName);
+	remove_proc_entry(SKRootName, NULL);
 
 }
 

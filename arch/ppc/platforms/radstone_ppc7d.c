@@ -32,7 +32,6 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
@@ -59,7 +58,6 @@
 #include <asm/mpc10x.h>
 #include <asm/pci-bridge.h>
 #include <asm/mv64x60.h>
-#include <asm/i8259.h>
 
 #include "radstone_ppc7d.h"
 

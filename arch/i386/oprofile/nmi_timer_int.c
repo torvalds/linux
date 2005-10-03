@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/irq.h>
+#include <linux/errno.h>
 #include <linux/oprofile.h>
 #include <linux/rcupdate.h>
 

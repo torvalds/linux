@@ -61,7 +61,9 @@ static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 
 static struct neigh_table *neigh_tables;
+#ifdef CONFIG_PROC_FS
 static struct file_operations neigh_stat_seq_fops;
+#endif
 
 /*
    Neighbour hash table buckets are protected with rwlock tbl->lock.
@@ -725,6 +727,13 @@ static __inline__ int neigh_max_probes(struct neighbour *n)
 		p->ucast_probes + p->app_probes + p->mcast_probes);
 }
 
+static inline void neigh_add_timer(struct neighbour *n, unsigned long when)
+{
+	if (unlikely(mod_timer(&n->timer, when))) {
+		printk("NEIGH: BUG, double timer add, state is %x\n",
+		       n->nud_state);
+	}
+}
 
 /* Called when a timer expires for a neighbour entry. */
 
@@ -809,8 +818,7 @@ static void neigh_timer_handler(unsigned long arg)
 		neigh_hold(neigh);
 		if (time_before(next, jiffies + HZ/2))
 			next = jiffies + HZ/2;
-		neigh->timer.expires = next;
-		add_timer(&neigh->timer);
+		neigh_add_timer(neigh, next);
 	}
 	if (neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) {
 		struct sk_buff *skb = skb_peek(&neigh->arp_queue);
@@ -852,8 +860,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			atomic_set(&neigh->probes, neigh->parms->ucast_probes);
 			neigh->nud_state     = NUD_INCOMPLETE;
 			neigh_hold(neigh);
-			neigh->timer.expires = now + 1;
-			add_timer(&neigh->timer);
+			neigh_add_timer(neigh, now + 1);
 		} else {
 			neigh->nud_state = NUD_FAILED;
 			write_unlock_bh(&neigh->lock);
@@ -866,8 +873,8 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 		NEIGH_PRINTK2("neigh %p is delayed.\n", neigh);
 		neigh_hold(neigh);
 		neigh->nud_state = NUD_DELAY;
-		neigh->timer.expires = jiffies + neigh->parms->delay_probe_time;
-		add_timer(&neigh->timer);
+		neigh_add_timer(neigh,
+				jiffies + neigh->parms->delay_probe_time);
 	}
 
 	if (neigh->nud_state == NUD_INCOMPLETE) {
@@ -1013,10 +1020,10 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		neigh_del_timer(neigh);
 		if (new & NUD_IN_TIMER) {
 			neigh_hold(neigh);
-			neigh->timer.expires = jiffies + 
+			neigh_add_timer(neigh, (jiffies + 
 						((new & NUD_REACHABLE) ? 
-						 neigh->parms->reachable_time : 0);
-			add_timer(&neigh->timer);
+						 neigh->parms->reachable_time :
+						 0)));
 		}
 		neigh->nud_state = new;
 	}
