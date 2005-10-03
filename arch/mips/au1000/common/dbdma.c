@@ -58,7 +58,7 @@
  * functions.  The drivers allocate the data buffers and assign them
  * to the descriptors.
  */
-static spinlock_t au1xxx_dbdma_spin_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(au1xxx_dbdma_spin_lock);
 
 /* I couldn't find a macro that did this......
 */
