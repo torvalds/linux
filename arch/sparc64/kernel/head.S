@@ -80,15 +80,165 @@ sparc_ramdisk_image64:
 	.xword	0
 	.word	_end
 
-	/* We must be careful, 32-bit OpenBOOT will get confused if it
-	 * tries to save away a register window to a 64-bit kernel
-	 * stack address.  Flush all windows, disable interrupts,
-	 * remap if necessary, jump onto kernel trap table, then kernel
-	 * stack, or else we die.
-	 *
-	 * PROM entry point is on %o4
-	 */
+	/* PROM cif handler code address is in %o4.  */
 sparc64_boot:
+1:	rd	%pc, %g7
+	set	1b, %g1
+	cmp	%g1, %g7
+	be,pn	%xcc, sparc64_boot_after_remap
+	 mov	%o4, %l7
+
+	/* We need to remap the kernel.  Use position independant
+	 * code to remap us to KERNBASE.
+	 *
+	 * SILO can invoke us with 32-bit address masking enabled,
+	 * so make sure that's clear.
+	 */
+	rdpr	%pstate, %g1
+	andn	%g1, PSTATE_AM, %g1
+	wrpr	%g1, 0x0, %pstate
+	ba,a,pt	%xcc, 1f
+
+	.globl	prom_finddev_name, prom_chosen_path
+	.globl	prom_getprop_name, prom_mmu_name
+	.globl	prom_callmethod_name, prom_translate_name
+	.globl	prom_map_name, prom_unmap_name, prom_mmu_ihandle_cache
+	.globl	prom_boot_mapped_pc, prom_boot_mapping_mode
+	.globl	prom_boot_mapping_phys_high, prom_boot_mapping_phys_low
+prom_finddev_name:
+	.asciz	"finddevice"
+prom_chosen_path:
+	.asciz	"/chosen"
+prom_getprop_name:
+	.asciz	"getprop"
+prom_mmu_name:
+	.asciz	"mmu"
+prom_callmethod_name:
+	.asciz	"call-method"
+prom_translate_name:
+	.asciz	"translate"
+prom_map_name:
+	.asciz	"map"
+prom_unmap_name:
+	.asciz	"unmap"
+	.align	4
+prom_mmu_ihandle_cache:
+	.word	0
+prom_boot_mapped_pc:
+	.word	0
+prom_boot_mapping_mode:
+	.word	0
+	.align	8
+prom_boot_mapping_phys_high:
+	.xword	0
+prom_boot_mapping_phys_low:
+	.xword	0
+1:
+	rd	%pc, %l0
+	mov	(1b - prom_finddev_name), %l1
+	mov	(1b - prom_chosen_path), %l2
+	mov	(1b - prom_boot_mapped_pc), %l3
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	sub	%l0, %l3, %l3
+	stw	%l0, [%l3]
+	sub	%sp, (192 + 128), %sp
+
+	/* chosen_node = prom_finddevice("/chosen") */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "finddevice"
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 1
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1, "/chosen"
+	stx	%g0, [%sp + 2047 + 128 + 0x20]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! chosen device node
+
+	mov	(1b - prom_getprop_name), %l1
+	mov	(1b - prom_mmu_name), %l2
+	mov	(1b - prom_mmu_ihandle_cache), %l5
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	sub	%l0, %l5, %l5
+
+	/* prom_mmu_ihandle_cache = prom_getint(chosen_node, "mmu") */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
+	mov	4, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, chosen_node
+	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "mmu"
+	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_mmu_ihandle_cache
+	mov	4, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4, sizeof(arg3)
+	stx	%g0, [%sp + 2047 + 128 + 0x38]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	mov	(1b - prom_callmethod_name), %l1
+	mov	(1b - prom_translate_name), %l2
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	lduw	[%l5], %l5			! prom_mmu_ihandle_cache
+
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "call-method"
+	mov	3, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 3
+	mov	5, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 5
+	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1: "translate"
+	stx	%l5, [%sp + 2047 + 128 + 0x20]	! arg2: prom_mmu_ihandle_cache
+	srlx	%l0, 22, %l3
+	sllx	%l3, 22, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x28]	! arg3: vaddr, our PC
+	stx	%g0, [%sp + 2047 + 128 + 0x30]	! res1
+	stx	%g0, [%sp + 2047 + 128 + 0x38]	! res2
+	stx	%g0, [%sp + 2047 + 128 + 0x40]	! res3
+	stx	%g0, [%sp + 2047 + 128 + 0x48]	! res4
+	stx	%g0, [%sp + 2047 + 128 + 0x50]	! res5
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	ldx	[%sp + 2047 + 128 + 0x40], %l1	! translation mode
+	mov	(1b - prom_boot_mapping_mode), %l4
+	sub	%l0, %l4, %l4
+	stw	%l1, [%l4]
+	mov	(1b - prom_boot_mapping_phys_high), %l4
+	sub	%l0, %l4, %l4
+	ldx	[%sp + 2047 + 128 + 0x48], %l2	! physaddr high
+	stx	%l2, [%l4 + 0x0]
+	ldx	[%sp + 2047 + 128 + 0x50], %l3	! physaddr low
+	stx	%l3, [%l4 + 0x8]
+
+	/* Leave service as-is, "call-method" */
+	mov	7, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 7
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	mov	(1b - prom_map_name), %l3
+	sub	%l0, %l3, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x18]	! arg1: "map"
+	/* Leave arg2 as-is, prom_mmu_ihandle_cache */
+	mov	-1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x28]	! arg3: mode (-1 default)
+	sethi	%hi(8 * 1024 * 1024), %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4: size (8MB)
+	sethi	%hi(KERNBASE), %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x38]	! arg5: vaddr (KERNBASE)
+	stx	%g0, [%sp + 2047 + 128 + 0x40]	! arg6: empty
+	mov	(1b - prom_boot_mapping_phys_low), %l3
+	sub	%l0, %l3, %l3
+	ldx	[%l3], %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x48]	! arg7: phys addr
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	add	%sp, (192 + 128), %sp
+
+sparc64_boot_after_remap:
 	BRANCH_IF_CHEETAH_BASE(g1,g7,cheetah_boot)
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,cheetah_plus_boot)
 	ba,pt	%xcc, spitfire_boot
@@ -125,185 +275,7 @@ cheetah_generic_boot:
 	stxa	%g0, [%g3] ASI_IMMU
 	membar	#Sync
 
-	wrpr    %g0, (PSTATE_PRIV|PSTATE_PEF|PSTATE_IE), %pstate
-	wr	%g0, 0, %fprs
-
-	/* Just like for Spitfire, we probe itlb-2 for a mapping which
-	 * matches our current %pc.  We take the physical address in
-	 * that mapping and use it to make our own.
-	 */
-
-	/* %g5 holds the tlb data */
-        sethi   %uhi(_PAGE_VALID | _PAGE_SZ4MB), %g5
-        sllx    %g5, 32, %g5
-        or      %g5, (_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W | _PAGE_G), %g5
-
-	/* Put PADDR tlb data mask into %g3. */
-	sethi	%uhi(_PAGE_PADDR), %g3
-	or	%g3, %ulo(_PAGE_PADDR), %g3
-	sllx	%g3, 32, %g3
-	sethi	%hi(_PAGE_PADDR), %g7
-	or	%g7, %lo(_PAGE_PADDR), %g7
-	or	%g3, %g7, %g3
-
-	set	2 << 16, %l0		/* TLB entry walker. */
-	set	0x1fff, %l2		/* Page mask. */
-	rd	%pc, %l3
-	andn	%l3, %l2, %g2		/* vaddr comparator */
-
-1:	ldxa	[%l0] ASI_ITLB_TAG_READ, %g1
-	membar	#Sync
-	andn	%g1, %l2, %g1
-	cmp	%g1, %g2
-	be,pn	%xcc, cheetah_got_tlbentry
-	 nop
-	and	%l0, (127 << 3), %g1
-	cmp	%g1, (127 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	/* Search the small TLB.  OBP never maps us like that but
-	 * newer SILO can.
-	 */
-	clr	%l0
-
-1:	ldxa	[%l0] ASI_ITLB_TAG_READ, %g1
-	membar	#Sync
-	andn	%g1, %l2, %g1
-	cmp	%g1, %g2
-	be,pn	%xcc, cheetah_got_tlbentry
-	 nop
-	cmp	%l0, (15 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	/* BUG() if we get here... */
-	ta	0x5
-
-cheetah_got_tlbentry:
-	ldxa	[%l0] ASI_ITLB_DATA_ACCESS, %g0
-	ldxa	[%l0] ASI_ITLB_DATA_ACCESS, %g1
-	membar	#Sync
-	and	%g1, %g3, %g1
-	set	0x5fff, %l0
-	andn	%g1, %l0, %g1
-	or	%g5, %g1, %g5
-
-	/* Clear out any KERNBASE area entries. */
-	set	2 << 16, %l0
-	sethi	%hi(KERNBASE), %g3
-	sethi	%hi(KERNBASE<<1), %g7
-	mov	TLB_TAG_ACCESS, %l7
-
-	/* First, check ITLB */
-1:	ldxa	[%l0] ASI_ITLB_TAG_READ, %g1
-	membar	#Sync
-	andn	%g1, %l2, %g1
-	cmp	%g1, %g3
-	blu,pn	%xcc, 2f
-	 cmp	%g1, %g7
-	bgeu,pn	%xcc, 2f
-	 nop
-	stxa	%g0, [%l7] ASI_IMMU
-	membar	#Sync
-	stxa	%g0, [%l0] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-
-2:	and	%l0, (127 << 3), %g1
-	cmp	%g1, (127 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	/* Next, check DTLB */
-	set	2 << 16, %l0
-1:	ldxa	[%l0] ASI_DTLB_TAG_READ, %g1
-	membar	#Sync
-	andn	%g1, %l2, %g1
-	cmp	%g1, %g3
-	blu,pn	%xcc, 2f
-	 cmp	%g1, %g7
-	bgeu,pn	%xcc, 2f
-	 nop
-	stxa	%g0, [%l7] ASI_DMMU
-	membar	#Sync
-	stxa	%g0, [%l0] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-	
-2:	and	%l0, (511 << 3), %g1
-	cmp	%g1, (511 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	/* On Cheetah+, have to check second DTLB.  */
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,l0,2f)
-	ba,pt	%xcc, 9f
-	 nop
-
-2:	set	3 << 16, %l0
-1:	ldxa	[%l0] ASI_DTLB_TAG_READ, %g1
-	membar	#Sync
-	andn	%g1, %l2, %g1
-	cmp	%g1, %g3
-	blu,pn	%xcc, 2f
-	 cmp	%g1, %g7
-	bgeu,pn	%xcc, 2f
-	 nop
-	stxa	%g0, [%l7] ASI_DMMU
-	membar	#Sync
-	stxa	%g0, [%l0] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-	
-2:	and	%l0, (511 << 3), %g1
-	cmp	%g1, (511 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-9:
-
-	/* Now lock the TTE we created into ITLB-0 and DTLB-0,
-	 * entry 15 (and maybe 14 too).
-	 */
-	sethi	%hi(KERNBASE), %g3
-	set	(0 << 16) | (15 << 3), %g7
-	stxa	%g3, [%l7] ASI_DMMU
-	membar	#Sync
-	stxa	%g5, [%g7] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-	stxa	%g3, [%l7] ASI_IMMU
-	membar	#Sync
-	stxa	%g5, [%g7] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-	flush	%g3
-	membar	#Sync
-	sethi	%hi(_end), %g3			/* Check for bigkernel case */
-	or	%g3, %lo(_end), %g3
-	srl	%g3, 23, %g3			/* Check if _end > 8M */
-	brz,pt	%g3, 1f
-	 sethi	%hi(KERNBASE), %g3		/* Restore for fixup code below */
-	sethi	%hi(0x400000), %g3
-	or	%g3, %lo(0x400000), %g3
-	add	%g5, %g3, %g5			/* New tte data */
-	andn	%g5, (_PAGE_G), %g5
-	sethi	%hi(KERNBASE+0x400000), %g3
-	or	%g3, %lo(KERNBASE+0x400000), %g3
-	set	(0 << 16) | (14 << 3), %g7
-	stxa	%g3, [%l7] ASI_DMMU
-	membar	#Sync
-	stxa	%g5, [%g7] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-	stxa	%g3, [%l7] ASI_IMMU
-	membar	#Sync
-	stxa	%g5, [%g7] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-	flush	%g3
-	membar	#Sync
-	sethi	%hi(KERNBASE), %g3		/* Restore for fixup code below */
-	ba,pt	%xcc, 1f
-	 nop
-
-1:	set	sun4u_init, %g2
-	jmpl    %g2 + %g0, %g0
-	 nop
+	ba,a,pt	%xcc, jump_to_sun4u_init
 
 spitfire_boot:
 	/* Typically PROM has already enabled both MMU's and both on-chip
@@ -313,6 +285,7 @@ spitfire_boot:
 	stxa	%g1, [%g0] ASI_LSU_CONTROL
 	membar	#Sync
 
+jump_to_sun4u_init:
 	/*
 	 * Make sure we are in privileged mode, have address masking,
          * using the ordinary globals and have enabled floating
@@ -324,151 +297,6 @@ spitfire_boot:
 	wrpr    %g0, (PSTATE_PRIV|PSTATE_PEF|PSTATE_IE), %pstate
 	wr	%g0, 0, %fprs
 
-spitfire_create_mappings:
-	/* %g5 holds the tlb data */
-        sethi   %uhi(_PAGE_VALID | _PAGE_SZ4MB), %g5
-        sllx    %g5, 32, %g5
-        or      %g5, (_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W | _PAGE_G), %g5
-
-	/* Base of physical memory cannot reliably be assumed to be
-	 * at 0x0!  Figure out where it happens to be. -DaveM
-	 */
-
-	/* Put PADDR tlb data mask into %g3. */
-	sethi	%uhi(_PAGE_PADDR_SF), %g3
-	or	%g3, %ulo(_PAGE_PADDR_SF), %g3
-	sllx	%g3, 32, %g3
-	sethi	%hi(_PAGE_PADDR_SF), %g7
-	or	%g7, %lo(_PAGE_PADDR_SF), %g7
-	or	%g3, %g7, %g3
-
-	/* Walk through entire ITLB, looking for entry which maps
-	 * our %pc currently, stick PADDR from there into %g5 tlb data.
-	 */
-	clr	%l0			/* TLB entry walker. */
-	set	0x1fff, %l2		/* Page mask. */
-	rd	%pc, %l3
-	andn	%l3, %l2, %g2		/* vaddr comparator */
-1:
-	/* Yes, the nops seem to be necessary for now, don't ask me why. -DaveM */
-	ldxa	[%l0] ASI_ITLB_TAG_READ, %g1
-	nop
-	nop
-	nop
-	andn	%g1, %l2, %g1		/* Get vaddr */
-	cmp	%g1, %g2
-	be,a,pn	%xcc, spitfire_got_tlbentry
-	 ldxa	[%l0] ASI_ITLB_DATA_ACCESS, %g1
-	cmp	%l0, (63 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	/* BUG() if we get here... */
-	ta	0x5
-
-spitfire_got_tlbentry:
-	/* Nops here again, perhaps Cheetah/Blackbird are better behaved... */
-	nop
-	nop
-	nop
-	and	%g1, %g3, %g1		/* Mask to just get paddr bits.       */
-	set	0x5fff, %l3		/* Mask offset to get phys base.      */
-	andn	%g1, %l3, %g1
-
-	/* NOTE: We hold on to %g1 paddr base as we need it below to lock
-	 * NOTE: the PROM cif code into the TLB.
-	 */
-
-	or	%g5, %g1, %g5		/* Or it into TAG being built.        */
-
-	clr	%l0			/* TLB entry walker. */
-	sethi	%hi(KERNBASE), %g3	/* 4M lower limit */
-	sethi	%hi(KERNBASE<<1), %g7	/* 8M upper limit */
-	mov	TLB_TAG_ACCESS, %l7
-1:
-	/* Yes, the nops seem to be necessary for now, don't ask me why. -DaveM */
-	ldxa	[%l0] ASI_ITLB_TAG_READ, %g1
-	nop
-	nop
-	nop
-	andn	%g1, %l2, %g1		/* Get vaddr */
-	cmp	%g1, %g3
-	blu,pn	%xcc, 2f
-	 cmp	%g1, %g7
-	bgeu,pn	%xcc, 2f
-	 nop
-	stxa	%g0, [%l7] ASI_IMMU
-	stxa	%g0, [%l0] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-2:
-	cmp	%l0, (63 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	nop; nop; nop
-
-	clr	%l0			/* TLB entry walker. */
-1:
-	/* Yes, the nops seem to be necessary for now, don't ask me why. -DaveM */
-	ldxa	[%l0] ASI_DTLB_TAG_READ, %g1
-	nop
-	nop
-	nop
-	andn	%g1, %l2, %g1		/* Get vaddr */
-	cmp	%g1, %g3
-	blu,pn	%xcc, 2f
-	 cmp	%g1, %g7
-	bgeu,pn	%xcc, 2f
-	 nop
-	stxa	%g0, [%l7] ASI_DMMU
-	stxa	%g0, [%l0] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-2:
-	cmp	%l0, (63 << 3)
-	blu,pt	%xcc, 1b
-	 add	%l0, (1 << 3), %l0
-
-	nop; nop; nop
-
-
-	/* PROM never puts any TLB entries into the MMU with the lock bit
-	 * set.  So we gladly use tlb entry 63 for KERNBASE. And maybe 62 too.
-	 */
-
-	sethi	%hi(KERNBASE), %g3
-	mov	(63 << 3), %g7
-	stxa	%g3, [%l7] ASI_DMMU		/* KERNBASE into TLB TAG	*/
-	stxa	%g5, [%g7] ASI_DTLB_DATA_ACCESS	/* TTE into TLB DATA		*/
-	membar	#Sync
-	stxa	%g3, [%l7] ASI_IMMU		/* KERNBASE into TLB TAG	*/
-	stxa	%g5, [%g7] ASI_ITLB_DATA_ACCESS	/* TTE into TLB DATA		*/
-	membar	#Sync
-	flush	%g3
-	membar	#Sync
-	sethi	%hi(_end), %g3			/* Check for bigkernel case */
-	or	%g3, %lo(_end), %g3
-	srl	%g3, 23, %g3			/* Check if _end > 8M */
-	brz,pt	%g3, 2f
-	 sethi	%hi(KERNBASE), %g3		/* Restore for fixup code below */
-	sethi	%hi(0x400000), %g3
-	or	%g3, %lo(0x400000), %g3
-	add	%g5, %g3, %g5			/* New tte data */
-	andn	%g5, (_PAGE_G), %g5
-	sethi	%hi(KERNBASE+0x400000), %g3
-	or	%g3, %lo(KERNBASE+0x400000), %g3
-	mov	(62 << 3), %g7
-	stxa	%g3, [%l7] ASI_DMMU
-	stxa	%g5, [%g7] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-	stxa	%g3, [%l7] ASI_IMMU
-	stxa	%g5, [%g7] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-	flush	%g3
-	membar	#Sync
-	sethi	%hi(KERNBASE), %g3		/* Restore for fixup code below */
-2:	ba,pt	%xcc, 1f
-	 nop
-1:
 	set	sun4u_init, %g2
 	jmpl    %g2 + %g0, %g0
 	 nop
@@ -483,38 +311,12 @@ sun4u_init:
 	stxa	%g0, [%g7] ASI_DMMU
 	membar	#Sync
 
-	/* We are now safely (we hope) in Nucleus context (0), rewrite
-	 * the KERNBASE TTE's so they no longer have the global bit set.
-	 * Don't forget to setup TAG_ACCESS first 8-)
-	 */
-	mov	TLB_TAG_ACCESS, %g2
-	stxa	%g3, [%g2] ASI_IMMU
-	stxa	%g3, [%g2] ASI_DMMU
-	membar	#Sync
-
 	BRANCH_IF_ANY_CHEETAH(g1,g7,cheetah_tlb_fixup)
 
 	ba,pt	%xcc, spitfire_tlb_fixup
 	 nop
 
 cheetah_tlb_fixup:
-	set	(0 << 16) | (15 << 3), %g7
-	ldxa	[%g7] ASI_ITLB_DATA_ACCESS, %g0
-	ldxa	[%g7] ASI_ITLB_DATA_ACCESS, %g1
-	andn	%g1, (_PAGE_G), %g1
-	stxa	%g1, [%g7] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-
-	ldxa	[%g7] ASI_DTLB_DATA_ACCESS, %g0
-	ldxa	[%g7] ASI_DTLB_DATA_ACCESS, %g1
-	andn	%g1, (_PAGE_G), %g1
-	stxa	%g1, [%g7] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-
-	/* Kill instruction prefetch queues. */
-	flush	%g3
-	membar	#Sync
-
 	mov	2, %g2		/* Set TLB type to cheetah+. */
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,1f)
 
@@ -551,21 +353,6 @@ cheetah_tlb_fixup:
 	 nop
 
 spitfire_tlb_fixup:
-	mov	(63 << 3), %g7
-	ldxa	[%g7] ASI_ITLB_DATA_ACCESS, %g1
-	andn	%g1, (_PAGE_G), %g1
-	stxa	%g1, [%g7] ASI_ITLB_DATA_ACCESS
-	membar	#Sync
-
-	ldxa	[%g7] ASI_DTLB_DATA_ACCESS, %g1
-	andn	%g1, (_PAGE_G), %g1
-	stxa	%g1, [%g7] ASI_DTLB_DATA_ACCESS
-	membar	#Sync
-
-	/* Kill instruction prefetch queues. */
-	flush	%g3
-	membar	#Sync
-
 	/* Set TLB type to spitfire. */
 	mov	0, %g2
 	sethi	%hi(tlb_type), %g1
@@ -577,24 +364,6 @@ tlb_fixup_done:
 	ldx	[%g6 + TI_TASK], %g4
 	mov	%sp, %l6
 	mov	%o4, %l7
-
-#if 0	/* We don't do it like this anymore, but for historical hack value
-	 * I leave this snippet here to show how crazy we can be sometimes. 8-)
-	 */
-
-	/* Setup "Linux Current Register", thanks Sun 8-) */
-	wr	%g0, 0x1, %pcr
-
-	/* Blackbird errata workaround.  See commentary in
-	 * smp.c:smp_percpu_timer_interrupt() for more
-	 * information.
-	 */
-	ba,pt	%xcc, 99f
-	 nop
-	.align	64
-99:	wr	%g6, %g0, %pic
-	rd	%pic, %g0
-#endif
 
 	wr	%g0, ASI_P, %asi
 	mov	1, %g1
@@ -756,12 +525,7 @@ bootup_user_stack_end:
 
 #include "ttable.S"
 #include "systbls.S"
-
-	.align	1024
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.word	0
-
+#include "ktlb.S"
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"
@@ -776,8 +540,11 @@ swapper_pg_dir:
 prom_tba:	.xword	0
 tlb_type:	.word	0	/* Must NOT end up in BSS */
 	.section	".fixup",#alloc,#execinstr
-	.globl	__ret_efault
+
+	.globl	__ret_efault, __retl_efault
 __ret_efault:
 	ret
 	 restore %g0, -EFAULT, %o0
-
+__retl_efault:
+	retl
+	 mov	-EFAULT, %o0

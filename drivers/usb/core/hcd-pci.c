@@ -242,7 +242,6 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 	case HC_STATE_SUSPENDED:
 		/* no DMA or IRQs except when HC is active */
 		if (dev->current_state == PCI_D0) {
-			free_irq (hcd->irq, hcd);
 			pci_save_state (dev);
 			pci_disable_device (dev);
 		}
@@ -374,14 +373,6 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 
 	hcd->state = HC_STATE_RESUMING;
 	hcd->saw_irq = 0;
-	retval = request_irq (dev->irq, usb_hcd_irq, SA_SHIRQ,
-				hcd->irq_descr, hcd);
-	if (retval < 0) {
-		dev_err (hcd->self.controller,
-			"can't restore IRQ after resume!\n");
-		usb_hc_died (hcd);
-		return retval;
-	}
 
 	retval = hcd->driver->resume (hcd);
 	if (!HC_IS_RUNNING (hcd->state)) {

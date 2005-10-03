@@ -42,11 +42,14 @@ struct keyring_list {
 /*
  * check to see whether permission is granted to use a key in the desired way
  */
-static inline int key_permission(const struct key *key, key_perm_t perm)
+static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	key_perm_t kperm;
 
-	if (key->uid == current->fsuid)
+	if (is_key_possessed(key_ref))
+		kperm = key->perm >> 24;
+	else if (key->uid == current->fsuid)
 		kperm = key->perm >> 16;
 	else if (key->gid != -1 &&
 		 key->perm & KEY_GRP_ALL &&
@@ -65,11 +68,14 @@ static inline int key_permission(const struct key *key, key_perm_t perm)
  * check to see whether permission is granted to use a key in at least one of
  * the desired ways
  */
-static inline int key_any_permission(const struct key *key, key_perm_t perm)
+static inline int key_any_permission(const key_ref_t key_ref, key_perm_t perm)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	key_perm_t kperm;
 
-	if (key->uid == current->fsuid)
+	if (is_key_possessed(key_ref))
+		kperm = key->perm >> 24;
+	else if (key->uid == current->fsuid)
 		kperm = key->perm >> 16;
 	else if (key->gid != -1 &&
 		 key->perm & KEY_GRP_ALL &&
@@ -94,13 +100,17 @@ static inline int key_task_groups_search(struct task_struct *tsk, gid_t gid)
 	return ret;
 }
 
-static inline int key_task_permission(const struct key *key,
+static inline int key_task_permission(const key_ref_t key_ref,
 				      struct task_struct *context,
 				      key_perm_t perm)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	key_perm_t kperm;
 
-	if (key->uid == context->fsuid) {
+	if (is_key_possessed(key_ref)) {
+		kperm = key->perm >> 24;
+	}
+	else if (key->uid == context->fsuid) {
 		kperm = key->perm >> 16;
 	}
 	else if (key->gid != -1 &&
@@ -121,9 +131,9 @@ static inline int key_task_permission(const struct key *key,
 
 }
 
-extern struct key *lookup_user_key(struct task_struct *context,
-				   key_serial_t id, int create, int partial,
-				   key_perm_t perm);
+extern key_ref_t lookup_user_key(struct task_struct *context,
+				 key_serial_t id, int create, int partial,
+				 key_perm_t perm);
 
 extern long join_session_keyring(const char *name);
 

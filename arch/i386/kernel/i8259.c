@@ -16,7 +16,6 @@
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/pgtable.h>
 #include <asm/delay.h>
@@ -24,8 +23,6 @@
 #include <asm/apic.h>
 #include <asm/arch_hooks.h>
 #include <asm/i8259.h>
-
-#include <linux/irq.h>
 
 #include <io_ports.h>
 

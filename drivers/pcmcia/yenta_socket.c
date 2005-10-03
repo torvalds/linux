@@ -559,12 +559,6 @@ static void yenta_interrogate(struct yenta_socket *socket)
 static int yenta_sock_init(struct pcmcia_socket *sock)
 {
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
-	u16 bridge;
-
-	bridge = config_readw(socket, CB_BRIDGE_CONTROL) & ~CB_BRIDGE_INTR;
-	if (!socket->cb_irq)
-		bridge |= CB_BRIDGE_INTR;
-	config_writew(socket, CB_BRIDGE_CONTROL, bridge);
 
 	exca_writeb(socket, I365_GBLCTL, 0x00);
 	exca_writeb(socket, I365_GENCTL, 0x00);
@@ -819,6 +813,7 @@ enum {
 	CARDBUS_TYPE_TOPIC95,
 	CARDBUS_TYPE_TOPIC97,
 	CARDBUS_TYPE_O2MICRO,
+	CARDBUS_TYPE_ENE,
 };
 
 /*
@@ -865,6 +860,12 @@ static struct cardbus_type cardbus_type[] = {
 		.override	= o2micro_override,
 		.restore_state	= o2micro_restore_state,
 	},
+	[CARDBUS_TYPE_ENE]	= {
+		.override	= ene_override,
+		.save_state	= ti_save_state,
+		.restore_state	= ti_restore_state,
+		.sock_init	= ti_init,
+	},
 };
 
 
@@ -883,15 +884,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 {
 	int i;
 	unsigned long val;
-	u16 bridge_ctrl;
 	u32 mask;
-
-	/* Set up ISA irq routing to probe the ISA irqs.. */
-	bridge_ctrl = config_readw(socket, CB_BRIDGE_CONTROL);
-	if (!(bridge_ctrl & CB_BRIDGE_INTR)) {
-		bridge_ctrl |= CB_BRIDGE_INTR;
-		config_writew(socket, CB_BRIDGE_CONTROL, bridge_ctrl);
-	}
 
 	/*
 	 * Probe for usable interrupts using the force
@@ -913,9 +906,6 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	exca_writeb(socket, I365_CSCINT, 0);
 
 	mask = probe_irq_mask(val) & 0xffff;
-
-	bridge_ctrl &= ~CB_BRIDGE_INTR;
-	config_writew(socket, CB_BRIDGE_CONTROL, bridge_ctrl);
 
 	return mask;
 }
@@ -944,17 +934,10 @@ static irqreturn_t yenta_probe_handler(int irq, void *dev_id, struct pt_regs *re
 /* probes the PCI interrupt, use only on override functions */
 static int yenta_probe_cb_irq(struct yenta_socket *socket)
 {
-	u16 bridge_ctrl;
-
 	if (!socket->cb_irq)
 		return -1;
 
 	socket->probe_status = 0;
-
-	/* disable ISA interrupts */
-	bridge_ctrl = config_readw(socket, CB_BRIDGE_CONTROL);
-	bridge_ctrl &= ~CB_BRIDGE_INTR;
-	config_writew(socket, CB_BRIDGE_CONTROL, bridge_ctrl);
 
 	if (request_irq(socket->cb_irq, yenta_probe_handler, SA_SHIRQ, "yenta", socket)) {
 		printk(KERN_WARNING "Yenta: request_irq() in yenta_probe_cb_irq() failed!\n");
@@ -966,7 +949,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
 	cb_writel(socket, CB_SOCKET_FORCE, CB_FCARDSTS);
-	
+
 	msleep(100);
 
 	/* disable interrupts */
@@ -1004,11 +987,12 @@ static void yenta_config_init(struct yenta_socket *socket)
 {
 	u16 bridge;
 	struct pci_dev *dev = socket->dev;
+	struct pci_bus_region region;
 
-	pci_set_power_state(socket->dev, 0);
+	pcibios_resource_to_bus(socket->dev, &region, &dev->resource[0]);
 
 	config_writel(socket, CB_LEGACY_MODE_BASE, 0);
-	config_writel(socket, PCI_BASE_ADDRESS_0, dev->resource[0].start);
+	config_writel(socket, PCI_BASE_ADDRESS_0, region.start);
 	config_writew(socket, PCI_COMMAND,
 			PCI_COMMAND_IO |
 			PCI_COMMAND_MEMORY |
@@ -1031,8 +1015,8 @@ static void yenta_config_init(struct yenta_socket *socket)
 	 *  - PCI interrupts enabled if a PCI interrupt exists..
 	 */
 	bridge = config_readw(socket, CB_BRIDGE_CONTROL);
-	bridge &= ~(CB_BRIDGE_CRST | CB_BRIDGE_PREFETCH1 | CB_BRIDGE_INTR | CB_BRIDGE_ISAEN | CB_BRIDGE_VGAEN);
-	bridge |= CB_BRIDGE_PREFETCH0 | CB_BRIDGE_POSTEN | CB_BRIDGE_INTR;
+	bridge &= ~(CB_BRIDGE_CRST | CB_BRIDGE_PREFETCH1 | CB_BRIDGE_ISAEN | CB_BRIDGE_VGAEN);
+	bridge |= CB_BRIDGE_PREFETCH0 | CB_BRIDGE_POSTEN;
 	config_writew(socket, CB_BRIDGE_CONTROL, bridge);
 }
 
@@ -1265,10 +1249,22 @@ static struct pci_device_id yenta_table [] = {
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1250, TI1250),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1410, TI1250),
 
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1211, TI12XX),
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1225, TI12XX),
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1410, TI1250),
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1420, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX21_XX11, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_X515, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_X420, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_X620, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_7410, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_7510, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_7610, TI12XX),
+
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_710, TI12XX),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_712, TI12XX),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_720, TI12XX),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_722, TI12XX),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1211, ENE),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1225, ENE),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1410, ENE),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1420, ENE),
 
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C465, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C466, RICOH),

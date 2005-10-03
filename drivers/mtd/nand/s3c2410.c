@@ -58,7 +58,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/hardware/clock.h>
 
 #include <asm/arch/regs-nand.h>

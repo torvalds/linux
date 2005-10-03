@@ -611,6 +611,7 @@ static struct file *do_create(struct dentry *dir, struct dentry *dentry,
 		dentry->d_fsdata = &attr;
 	}
 
+	mode &= ~current->fs->umask;
 	ret = vfs_create(dir->d_inode, dentry, mode, NULL);
 	dentry->d_fsdata = NULL;
 	if (ret)

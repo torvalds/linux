@@ -114,15 +114,6 @@ struct pxafb_info {
 #define PXA_NAME	"PXA"
 
 /*
- *  Debug macros
- */
-#if DEBUG
-#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
-#else
-#  define DPRINTK(fmt, args...)
-#endif
-
-/*
  * Minimum X and Y resolutions
  */
 #define MIN_XRES	64

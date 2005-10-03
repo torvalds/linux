@@ -84,7 +84,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	props->vendor_id           = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
 	props->vendor_part_id      = be16_to_cpup((__be16 *) (out_mad->data + 30));
-	props->hw_ver              = be16_to_cpup((__be16 *) (out_mad->data + 32));
+	props->hw_ver              = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +  4, 8);
 	memcpy(&props->node_guid,      out_mad->data + 12, 8);
 

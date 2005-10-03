@@ -178,8 +178,6 @@ static void vcc_destroy_socket(struct sock *sk)
 		if (vcc->push)
 			vcc->push(vcc, NULL); /* atmarpd has no push */
 
-		vcc_remove_socket(sk);	/* no more receive */
-
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 			atm_return(vcc,skb->truesize);
 			kfree_skb(skb);
@@ -188,6 +186,8 @@ static void vcc_destroy_socket(struct sock *sk)
 		module_put(vcc->dev->ops->owner);
 		atm_dev_put(vcc->dev);
 	}
+
+	vcc_remove_socket(sk);
 }
 
 

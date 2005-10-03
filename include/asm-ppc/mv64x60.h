@@ -233,7 +233,7 @@ struct mv64x60_chip_info {
 struct mv64x60_handle {
 	u32		type;		/* type of bridge */
 	u32		rev;		/* revision of bridge */
-	void		*v_base;	/* virtual base addr of bridge regs */
+	void		__iomem *v_base;/* virtual base addr of bridge regs */
 	phys_addr_t	p_base;		/* physical base addr of bridge regs */
 
 	u32		pci_mode_a;	/* pci 0 mode: conventional pci, pci-x*/
@@ -303,7 +303,7 @@ void mv64x60_alloc_hose(struct mv64x60_handle *bh, u32 cfg_addr,
 	u32 cfg_data, struct pci_controller **hose);
 int mv64x60_get_type(struct mv64x60_handle *bh);
 int mv64x60_setup_for_chip(struct mv64x60_handle *bh);
-void *mv64x60_get_bridge_vbase(void);
+void __iomem *mv64x60_get_bridge_vbase(void);
 u32 mv64x60_get_bridge_type(void);
 u32 mv64x60_get_bridge_rev(void);
 void mv64x60_get_mem_windows(struct mv64x60_handle *bh,

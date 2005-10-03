@@ -302,6 +302,7 @@ static int svc_listen(struct socket *sock,int backlog)
 		error = -EINVAL;
 		goto out;
 	}
+	vcc_insert_socket(sk);
 	set_bit(ATM_VF_WAITING, &vcc->flags);
 	prepare_to_wait(sk->sk_sleep, &wait, TASK_UNINTERRUPTIBLE);
 	sigd_enq(vcc,as_listen,NULL,NULL,&vcc->local);

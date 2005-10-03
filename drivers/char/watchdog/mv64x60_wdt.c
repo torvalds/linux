@@ -87,6 +87,8 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 	mv64x60_wdt_service();
 	mv64x60_wdt_handler_enable();
 
+	nonseekable_open(inode, file);
+
 	return 0;
 }
 
@@ -103,12 +105,9 @@ static int mv64x60_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t mv64x60_wdt_write(struct file *file, const char *data,
+static ssize_t mv64x60_wdt_write(struct file *file, const char __user *data,
 				 size_t len, loff_t * ppos)
 {
-	if (*ppos != file->f_pos)
-		return -ESPIPE;
-
 	if (len)
 		mv64x60_wdt_service();
 
@@ -119,6 +118,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long arg)
 {
 	int timeout;
+	void __user *argp = (void __user *)arg;
 	static struct watchdog_info info = {
 		.options = WDIOF_KEEPALIVEPING,
 		.firmware_version = 0,
@@ -127,13 +127,13 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user((void *)arg, &info, sizeof(info)))
+		if (copy_to_user(argp, &info, sizeof(info)))
 			return -EFAULT;
 		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		if (put_user(wdt_status, (int *)arg))
+		if (put_user(wdt_status, (int __user *)argp))
 			return -EFAULT;
 		wdt_status &= ~WDIOF_KEEPALIVEPING;
 		break;
@@ -154,7 +154,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 
 	case WDIOC_GETTIMEOUT:
 		timeout = mv64x60_wdt_timeout * HZ;
-		if (put_user(timeout, (int *)arg))
+		if (put_user(timeout, (int __user *)argp))
 			return -EFAULT;
 		break;
 

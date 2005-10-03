@@ -144,42 +144,29 @@ __flush_icache_page:	/* %o0 = phys_page */
 
 #define DTAG_MASK 0x3
 
+	/* This routine is Spitfire specific so the hardcoded
+	 * D-cache size and line-size are OK.
+	 */
 	.align		64
 	.globl		__flush_dcache_page
 __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 	sethi		%uhi(PAGE_OFFSET), %g1
 	sllx		%g1, 32, %g1
-	sub		%o0, %g1, %o0
-	clr		%o4
-	srlx		%o0, 11, %o0
-	sethi		%hi(1 << 14), %o2
-1:	ldxa		[%o4] ASI_DCACHE_TAG, %o3	! LSU	Group
-	add		%o4, (1 << 5), %o4		! IEU0
-	ldxa		[%o4] ASI_DCACHE_TAG, %g1	! LSU	Group
-	add		%o4, (1 << 5), %o4		! IEU0
-	ldxa		[%o4] ASI_DCACHE_TAG, %g2	! LSU	Group	o3 available
-	add		%o4, (1 << 5), %o4		! IEU0
-	andn		%o3, DTAG_MASK, %o3		! IEU1
-	ldxa		[%o4] ASI_DCACHE_TAG, %g3	! LSU	Group
-	add		%o4, (1 << 5), %o4		! IEU0
-	andn		%g1, DTAG_MASK, %g1		! IEU1
-	cmp		%o0, %o3			! IEU1	Group
-	be,a,pn		%xcc, dflush1			! CTI
-	 sub		%o4, (4 << 5), %o4		! IEU0	(Group)
-	cmp		%o0, %g1			! IEU1	Group
-	andn		%g2, DTAG_MASK, %g2		! IEU0
-	be,a,pn		%xcc, dflush2			! CTI
-	 sub		%o4, (3 << 5), %o4		! IEU0	(Group)
-	cmp		%o0, %g2			! IEU1	Group
-	andn		%g3, DTAG_MASK, %g3		! IEU0
-	be,a,pn		%xcc, dflush3			! CTI
-	 sub		%o4, (2 << 5), %o4		! IEU0	(Group)
-	cmp		%o0, %g3			! IEU1	Group
-	be,a,pn		%xcc, dflush4			! CTI
-	 sub		%o4, (1 << 5), %o4		! IEU0
-2:	cmp		%o4, %o2			! IEU1	Group
-	bne,pt		%xcc, 1b			! CTI
-	 nop						! IEU0
+	sub		%o0, %g1, %o0			! physical address
+	srlx		%o0, 11, %o0			! make D-cache TAG
+	sethi		%hi(1 << 14), %o2		! D-cache size
+	sub		%o2, (1 << 5), %o2		! D-cache line size
+1:	ldxa		[%o2] ASI_DCACHE_TAG, %o3	! load D-cache TAG
+	andcc		%o3, DTAG_MASK, %g0		! Valid?
+	be,pn		%xcc, 2f			! Nope, branch
+	 andn		%o3, DTAG_MASK, %o3		! Clear valid bits
+	cmp		%o3, %o0			! TAG match?
+	bne,pt		%xcc, 2f			! Nope, branch
+	 nop
+	stxa		%g0, [%o2] ASI_DCACHE_TAG	! Invalidate TAG
+	membar		#Sync
+2:	brnz,pt		%o2, 1b
+	 sub		%o2, (1 << 5), %o2		! D-cache line size
 
 	/* The I-cache does not snoop local stores so we
 	 * better flush that too when necessary.
@@ -189,48 +176,9 @@ __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 	retl
 	 nop
 
-dflush1:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-dflush2:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-dflush3:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-dflush4:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-	membar		#Sync
-	ba,pt		%xcc, 2b
-	 nop
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
-	.previous .text
-	.align		32
-__prefill_dtlb:
-	rdpr		%pstate, %g7
-	wrpr		%g7, PSTATE_IE, %pstate
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o5, [%g1] ASI_DMMU
-	stxa		%o2, [%g0] ASI_DTLB_DATA_IN
-	flush		%g6
-	retl
-	 wrpr		%g7, %pstate
-__prefill_itlb:
-	rdpr		%pstate, %g7
-	wrpr		%g7, PSTATE_IE, %pstate
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o5, [%g1] ASI_IMMU
-	stxa		%o2, [%g0] ASI_ITLB_DATA_IN
-	flush		%g6
-	retl
-	 wrpr		%g7, %pstate
-
-	.globl		__update_mmu_cache
-__update_mmu_cache:	/* %o0=hw_context, %o1=address, %o2=pte, %o3=fault_code */
-	srlx		%o1, PAGE_SHIFT, %o1
-	andcc		%o3, FAULT_CODE_DTLB, %g0
-	sllx		%o1, PAGE_SHIFT, %o5
-	bne,pt		%xcc, __prefill_dtlb
-	 or		%o5, %o0, %o5
-	ba,a,pt		%xcc, __prefill_itlb
+	.previous
 
 	/* Cheetah specific versions, patched at boot time. */
 __cheetah_flush_tlb_mm: /* 18 insns */
@@ -283,7 +231,7 @@ __cheetah_flush_tlb_pending:	/* 26 insns */
 	 wrpr		%g7, 0x0, %pstate
 
 #ifdef DCACHE_ALIASING_POSSIBLE
-flush_dcpage_cheetah: /* 11 insns */
+__cheetah_flush_dcache_page: /* 11 insns */
 	sethi		%uhi(PAGE_OFFSET), %g1
 	sllx		%g1, 32, %g1
 	sub		%o0, %g1, %o0
@@ -329,8 +277,8 @@ cheetah_patch_cachetlbops:
 #ifdef DCACHE_ALIASING_POSSIBLE
 	sethi		%hi(__flush_dcache_page), %o0
 	or		%o0, %lo(__flush_dcache_page), %o0
-	sethi		%hi(flush_dcpage_cheetah), %o1
-	or		%o1, %lo(flush_dcpage_cheetah), %o1
+	sethi		%hi(__cheetah_flush_dcache_page), %o1
+	or		%o1, %lo(__cheetah_flush_dcache_page), %o1
 	call		cheetah_patch_one
 	 mov		11, %o2
 #endif /* DCACHE_ALIASING_POSSIBLE */

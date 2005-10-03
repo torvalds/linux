@@ -6,7 +6,6 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/irq.h>
 #include <linux/sysdev.h>
 #include <linux/timex.h>
 #include <asm/delay.h>

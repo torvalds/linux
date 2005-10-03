@@ -187,8 +187,8 @@ extern void __get_user_unknown (void);
 ({											\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);				\
 	__typeof__ (size) __gu_size = (size);						\
-	long __gu_err = -EFAULT, __gu_val = 0;						\
-											\
+	long __gu_err = -EFAULT;							\
+	unsigned long __gu_val = 0;							\
 	if (!check || __access_ok(__gu_ptr, size, segment))				\
 		switch (__gu_size) {							\
 		      case 1: __get_user_size(__gu_val, __gu_ptr, 1, __gu_err); break;	\
@@ -240,13 +240,13 @@ extern unsigned long __must_check __copy_user (void __user *to, const void __use
 static inline unsigned long
 __copy_to_user (void __user *to, const void *from, unsigned long count)
 {
-	return __copy_user(to, (void __user *) from, count);
+	return __copy_user(to, (__force void __user *) from, count);
 }
 
 static inline unsigned long
 __copy_from_user (void *to, const void __user *from, unsigned long count)
 {
-	return __copy_user((void __user *) to, from, count);
+	return __copy_user((__force void __user *) to, from, count);
 }
 
 #define __copy_to_user_inatomic		__copy_to_user
@@ -258,7 +258,7 @@ __copy_from_user (void *to, const void __user *from, unsigned long count)
 	long __cu_len = (n);								\
 											\
 	if (__access_ok(__cu_to, __cu_len, get_fs()))					\
-		__cu_len = __copy_user(__cu_to, (void __user *) __cu_from, __cu_len);	\
+		__cu_len = __copy_user(__cu_to, (__force void __user *) __cu_from, __cu_len);	\
 	__cu_len;									\
 })
 
@@ -270,7 +270,7 @@ __copy_from_user (void *to, const void __user *from, unsigned long count)
 											\
 	__chk_user_ptr(__cu_from);							\
 	if (__access_ok(__cu_from, __cu_len, get_fs()))					\
-		__cu_len = __copy_user((void __user *) __cu_to, __cu_from, __cu_len);	\
+		__cu_len = __copy_user((__force void __user *) __cu_to, __cu_from, __cu_len);	\
 	__cu_len;									\
 })
 

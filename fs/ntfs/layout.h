@@ -123,7 +123,7 @@ enum {
 	magic_RCRD = const_cpu_to_le32(0x44524352), /* Log record page. */
 
 	/* Found in $LogFile/$DATA.  (May be found in $MFT/$DATA, also?) */
-	magic_CHKD = const_cpu_to_le32(0x424b4843), /* Modified by chkdsk. */
+	magic_CHKD = const_cpu_to_le32(0x444b4843), /* Modified by chkdsk. */
 
 	/* Found in all ntfs record containing records. */
 	magic_BAAD = const_cpu_to_le32(0x44414142), /* Failed multi sector
@@ -308,10 +308,8 @@ typedef le16 MFT_RECORD_FLAGS;
  * The _LE versions are to be applied on little endian MFT_REFs.
  * Note: The _LE versions will return a CPU endian formatted value!
  */
-typedef enum {
-	MFT_REF_MASK_CPU	= 0x0000ffffffffffffULL,
-	MFT_REF_MASK_LE		= const_cpu_to_le64(0x0000ffffffffffffULL),
-} MFT_REF_CONSTS;
+#define MFT_REF_MASK_CPU 0x0000ffffffffffffULL
+#define MFT_REF_MASK_LE const_cpu_to_le64(0x0000ffffffffffffULL)
 
 typedef u64 MFT_REF;
 typedef le64 leMFT_REF;

@@ -8,25 +8,8 @@
  */
 
 #include <linux/config.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/poll.h>
-#include <linux/delay.h>
-#include <linux/sysrq.h>
-#include <linux/proc_fs.h>
-#include <linux/irq.h>
-#include <linux/pm.h>
-#include <linux/device.h>
 #include <linux/suspend.h>
-#include <linux/acpi.h>
-
-#include <asm/uaccess.h>
-#include <asm/acpi.h>
-#include <asm/tlbflush.h>
-#include <asm/processor.h>
 
 static struct saved_context saved_context;
 

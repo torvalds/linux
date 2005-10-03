@@ -47,13 +47,11 @@
 #include <asm/ldt.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
-#include <asm/irq.h>
 #include <asm/desc.h>
 #ifdef CONFIG_MATH_EMULATION
 #include <asm/math_emu.h>
 #endif
 
-#include <linux/irq.h>
 #include <linux/err.h>
 
 #include <asm/tlbflush.h>

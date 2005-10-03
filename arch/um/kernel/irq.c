@@ -9,7 +9,6 @@
 #include "linux/kernel.h"
 #include "linux/module.h"
 #include "linux/smp.h"
-#include "linux/irq.h"
 #include "linux/kernel_stat.h"
 #include "linux/interrupt.h"
 #include "linux/random.h"

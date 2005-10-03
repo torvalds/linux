@@ -7,47 +7,48 @@
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
+#define DEFINE_LONGS(sym, val) \
+        asm volatile("\n->" #sym " %0 " #val : : "i" (val/sizeof(unsigned long)))
+
 #define OFFSET(sym, str, mem) \
 	DEFINE(sym, offsetof(struct str, mem));
 
 void foo(void)
 {
-	OFFSET(SC_IP, sigcontext, eip);
-	OFFSET(SC_SP, sigcontext, esp);
-	OFFSET(SC_FS, sigcontext, fs);
-	OFFSET(SC_GS, sigcontext, gs);
-	OFFSET(SC_DS, sigcontext, ds);
-	OFFSET(SC_ES, sigcontext, es);
-	OFFSET(SC_SS, sigcontext, ss);
-	OFFSET(SC_CS, sigcontext, cs);
-	OFFSET(SC_EFLAGS, sigcontext, eflags);
-	OFFSET(SC_EAX, sigcontext, eax);
-	OFFSET(SC_EBX, sigcontext, ebx);
-	OFFSET(SC_ECX, sigcontext, ecx);
-	OFFSET(SC_EDX, sigcontext, edx);
-	OFFSET(SC_EDI, sigcontext, edi);
-	OFFSET(SC_ESI, sigcontext, esi);
-	OFFSET(SC_EBP, sigcontext, ebp);
-	OFFSET(SC_TRAPNO, sigcontext, trapno);
-	OFFSET(SC_ERR, sigcontext, err);
-	OFFSET(SC_CR2, sigcontext, cr2);
-	OFFSET(SC_FPSTATE, sigcontext, fpstate);
-	OFFSET(SC_SIGMASK, sigcontext, oldmask);
-	OFFSET(SC_FP_CW, _fpstate, cw);
-	OFFSET(SC_FP_SW, _fpstate, sw);
-	OFFSET(SC_FP_TAG, _fpstate, tag);
-	OFFSET(SC_FP_IPOFF, _fpstate, ipoff);
-	OFFSET(SC_FP_CSSEL, _fpstate, cssel);
-	OFFSET(SC_FP_DATAOFF, _fpstate, dataoff);
-	OFFSET(SC_FP_DATASEL, _fpstate, datasel);
-	OFFSET(SC_FP_ST, _fpstate, _st);
-	OFFSET(SC_FXSR_ENV, _fpstate, _fxsr_env);
+	OFFSET(HOST_SC_IP, sigcontext, eip);
+	OFFSET(HOST_SC_SP, sigcontext, esp);
+	OFFSET(HOST_SC_FS, sigcontext, fs);
+	OFFSET(HOST_SC_GS, sigcontext, gs);
+	OFFSET(HOST_SC_DS, sigcontext, ds);
+	OFFSET(HOST_SC_ES, sigcontext, es);
+	OFFSET(HOST_SC_SS, sigcontext, ss);
+	OFFSET(HOST_SC_CS, sigcontext, cs);
+	OFFSET(HOST_SC_EFLAGS, sigcontext, eflags);
+	OFFSET(HOST_SC_EAX, sigcontext, eax);
+	OFFSET(HOST_SC_EBX, sigcontext, ebx);
+	OFFSET(HOST_SC_ECX, sigcontext, ecx);
+	OFFSET(HOST_SC_EDX, sigcontext, edx);
+	OFFSET(HOST_SC_EDI, sigcontext, edi);
+	OFFSET(HOST_SC_ESI, sigcontext, esi);
+	OFFSET(HOST_SC_EBP, sigcontext, ebp);
+	OFFSET(HOST_SC_TRAPNO, sigcontext, trapno);
+	OFFSET(HOST_SC_ERR, sigcontext, err);
+	OFFSET(HOST_SC_CR2, sigcontext, cr2);
+	OFFSET(HOST_SC_FPSTATE, sigcontext, fpstate);
+	OFFSET(HOST_SC_SIGMASK, sigcontext, oldmask);
+	OFFSET(HOST_SC_FP_CW, _fpstate, cw);
+	OFFSET(HOST_SC_FP_SW, _fpstate, sw);
+	OFFSET(HOST_SC_FP_TAG, _fpstate, tag);
+	OFFSET(HOST_SC_FP_IPOFF, _fpstate, ipoff);
+	OFFSET(HOST_SC_FP_CSSEL, _fpstate, cssel);
+	OFFSET(HOST_SC_FP_DATAOFF, _fpstate, dataoff);
+	OFFSET(HOST_SC_FP_DATASEL, _fpstate, datasel);
+	OFFSET(HOST_SC_FP_ST, _fpstate, _st);
+	OFFSET(HOST_SC_FXSR_ENV, _fpstate, _fxsr_env);
 
-	DEFINE(HOST_FRAME_SIZE, FRAME_SIZE);
-	DEFINE(HOST_FP_SIZE,
-		sizeof(struct user_i387_struct) / sizeof(unsigned long));
-	DEFINE(HOST_XFP_SIZE,
-	       sizeof(struct user_fxsr_struct) / sizeof(unsigned long));
+	DEFINE_LONGS(HOST_FRAME_SIZE, FRAME_SIZE);
+	DEFINE_LONGS(HOST_FP_SIZE, sizeof(struct user_i387_struct));
+	DEFINE_LONGS(HOST_XFP_SIZE, sizeof(struct user_fxsr_struct));
 
 	DEFINE(HOST_IP, EIP);
 	DEFINE(HOST_SP, UESP);
@@ -65,5 +66,5 @@ void foo(void)
 	DEFINE(HOST_FS, FS);
 	DEFINE(HOST_ES, ES);
 	DEFINE(HOST_GS, GS);
-	DEFINE(__UM_FRAME_SIZE, sizeof(struct user_regs_struct));
+	DEFINE(UM_FRAME_SIZE, sizeof(struct user_regs_struct));
 }

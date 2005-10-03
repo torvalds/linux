@@ -18,7 +18,6 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
-#include <linux/irq.h>
 #include <linux/reboot.h>
 #include <linux/param.h>
 #include <linux/string.h>

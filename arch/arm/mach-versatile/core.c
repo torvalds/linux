@@ -30,7 +30,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
-#include <asm/mach-types.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_clcd.h>
 #include <asm/hardware/arm_timer.h>
@@ -52,8 +51,9 @@
  *
  * Setup a VA for the Versatile Vectored Interrupt Controller.
  */
-#define VA_VIC_BASE		 IO_ADDRESS(VERSATILE_VIC_BASE)
-#define VA_SIC_BASE		 IO_ADDRESS(VERSATILE_SIC_BASE)
+#define __io_address(n)		__io(IO_ADDRESS(n))
+#define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
+#define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
 static void vic_mask_irq(unsigned int irq)
 {
@@ -214,7 +214,7 @@ void __init versatile_map_io(void)
 	iotable_init(versatile_io_desc, ARRAY_SIZE(versatile_io_desc));
 }
 
-#define VERSATILE_REFCOUNTER	(IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_24MHz_OFFSET)
+#define VERSATILE_REFCOUNTER	(__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_24MHz_OFFSET)
 
 /*
  * This is the Versatile sched_clock implementation.  This has
@@ -231,7 +231,7 @@ unsigned long long sched_clock(void)
 }
 
 
-#define VERSATILE_FLASHCTRL    (IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_FLASH_OFFSET)
+#define VERSATILE_FLASHCTRL    (__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_FLASH_OFFSET)
 
 static int versatile_flash_init(void)
 {
@@ -309,7 +309,7 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-#define VERSATILE_SYSMCI	(IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_MCI_OFFSET)
+#define VERSATILE_SYSMCI	(__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_MCI_OFFSET)
 
 unsigned int mmc_status(struct device *dev)
 {
@@ -343,11 +343,11 @@ static const struct icst307_params versatile_oscvco_params = {
 
 static void versatile_oscvco_set(struct clk *clk, struct icst307_vco vco)
 {
-	unsigned long sys_lock = IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_LOCK_OFFSET;
+	void __iomem *sys_lock = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_LOCK_OFFSET;
 #if defined(CONFIG_ARCH_VERSATILE_PB)
-	unsigned long sys_osc = IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSC4_OFFSET;
+	void __iomem *sys_osc = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSC4_OFFSET;
 #elif defined(CONFIG_MACH_VERSATILE_AB)
-	unsigned long sys_osc = IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSC1_OFFSET;
+	void __iomem *sys_osc = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSC1_OFFSET;
 #endif
 	u32 val;
 
@@ -483,7 +483,7 @@ static struct clcd_panel epson_2_2_in = {
  */
 static struct clcd_panel *versatile_clcd_panel(void)
 {
-	unsigned long sys_clcd = IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
+	void __iomem *sys_clcd = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
 	struct clcd_panel *panel = &vga;
 	u32 val;
 
@@ -510,7 +510,7 @@ static struct clcd_panel *versatile_clcd_panel(void)
  */
 static void versatile_clcd_disable(struct clcd_fb *fb)
 {
-	unsigned long sys_clcd = IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
+	void __iomem *sys_clcd = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
 	u32 val;
 
 	val = readl(sys_clcd);
@@ -522,7 +522,7 @@ static void versatile_clcd_disable(struct clcd_fb *fb)
 	 * If the LCD is Sanyo 2x5 in on the IB2 board, turn the back-light off
 	 */
 	if (fb->panel == &sanyo_2_5_in) {
-		unsigned long versatile_ib2_ctrl = IO_ADDRESS(VERSATILE_IB2_CTRL);
+		void __iomem *versatile_ib2_ctrl = __io_address(VERSATILE_IB2_CTRL);
 		unsigned long ctrl;
 
 		ctrl = readl(versatile_ib2_ctrl);
@@ -537,7 +537,7 @@ static void versatile_clcd_disable(struct clcd_fb *fb)
  */
 static void versatile_clcd_enable(struct clcd_fb *fb)
 {
-	unsigned long sys_clcd = IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
+	void __iomem *sys_clcd = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
 	u32 val;
 
 	val = readl(sys_clcd);
@@ -571,7 +571,7 @@ static void versatile_clcd_enable(struct clcd_fb *fb)
 	 * If the LCD is Sanyo 2x5 in on the IB2 board, turn the back-light on
 	 */
 	if (fb->panel == &sanyo_2_5_in) {
-		unsigned long versatile_ib2_ctrl = IO_ADDRESS(VERSATILE_IB2_CTRL);
+		void __iomem *versatile_ib2_ctrl = __io_address(VERSATILE_IB2_CTRL);
 		unsigned long ctrl;
 
 		ctrl = readl(versatile_ib2_ctrl);
@@ -720,7 +720,7 @@ static struct amba_device *amba_devs[] __initdata = {
 };
 
 #ifdef CONFIG_LEDS
-#define VA_LEDS_BASE (IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_LED_OFFSET)
+#define VA_LEDS_BASE (__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_LED_OFFSET)
 
 static void versatile_leds_event(led_event_t ledevt)
 {
@@ -778,11 +778,11 @@ void __init versatile_init(void)
 /*
  * Where is the timer (VA)?
  */
-#define TIMER0_VA_BASE		 IO_ADDRESS(VERSATILE_TIMER0_1_BASE)
-#define TIMER1_VA_BASE		(IO_ADDRESS(VERSATILE_TIMER0_1_BASE) + 0x20)
-#define TIMER2_VA_BASE		 IO_ADDRESS(VERSATILE_TIMER2_3_BASE)
-#define TIMER3_VA_BASE		(IO_ADDRESS(VERSATILE_TIMER2_3_BASE) + 0x20)
-#define VA_IC_BASE		 IO_ADDRESS(VERSATILE_VIC_BASE) 
+#define TIMER0_VA_BASE		 __io_address(VERSATILE_TIMER0_1_BASE)
+#define TIMER1_VA_BASE		(__io_address(VERSATILE_TIMER0_1_BASE) + 0x20)
+#define TIMER2_VA_BASE		 __io_address(VERSATILE_TIMER2_3_BASE)
+#define TIMER3_VA_BASE		(__io_address(VERSATILE_TIMER2_3_BASE) + 0x20)
+#define VA_IC_BASE		 __io_address(VERSATILE_VIC_BASE) 
 
 /*
  * How long is the timer interval?
@@ -877,12 +877,12 @@ static void __init versatile_timer_init(void)
 	 *	VERSATILE_REFCLK is 32KHz
 	 *	VERSATILE_TIMCLK is 1MHz
 	 */
-	val = readl(IO_ADDRESS(VERSATILE_SCTL_BASE));
+	val = readl(__io_address(VERSATILE_SCTL_BASE));
 	writel((VERSATILE_TIMCLK << VERSATILE_TIMER1_EnSel) |
 	       (VERSATILE_TIMCLK << VERSATILE_TIMER2_EnSel) | 
 	       (VERSATILE_TIMCLK << VERSATILE_TIMER3_EnSel) |
 	       (VERSATILE_TIMCLK << VERSATILE_TIMER4_EnSel) | val,
-	       IO_ADDRESS(VERSATILE_SCTL_BASE));
+	       __io_address(VERSATILE_SCTL_BASE));
 
 	/*
 	 * Initialise to a known state (all timers off)

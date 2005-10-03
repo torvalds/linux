@@ -226,7 +226,7 @@ MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
 static int accel        = 1;
 static int vram         = 4;
-static int hwcursor     = 1;
+static int hwcursor     = 0;
 static int mtrr         = 1;
 static int fixed        = 0;
 static int noinit       = 0;
@@ -609,15 +609,9 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dinfo->accel = 0;
 	}
 
-	if (MB(voffset) < stolen_size)
-		offset = (stolen_size >> 12);
-	else
-		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
-
 	/* Framebuffer parameters - Use all the stolen memory if >= vram */
-	if (ROUND_UP_TO_PAGE(stolen_size) >= ((offset << 12) +  MB(vram))) {
+	if (ROUND_UP_TO_PAGE(stolen_size) >= MB(vram)) {
 		dinfo->fb.size = ROUND_UP_TO_PAGE(stolen_size);
-		dinfo->fb.offset = 0;
 		dinfo->fbmem_gart = 0;
 	} else {
 		dinfo->fb.size =  MB(vram);
@@ -648,6 +642,11 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (MB(voffset) < stolen_size)
+		offset = (stolen_size >> 12);
+	else
+		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
+
 	/* set the mem offsets - set them after the already used pages */
 	if (dinfo->accel) {
 		dinfo->ring.offset = offset + gtt_info.current_memory;
@@ -662,10 +661,11 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 			+ (dinfo->cursor.size >> 12);
 	}
 
+	/* Allocate memories (which aren't stolen) */
 	/* Map the fb and MMIO regions */
 	/* ioremap only up to the end of used aperture */
 	dinfo->aperture.virtual = (u8 __iomem *)ioremap_nocache
-		(dinfo->aperture.physical, (dinfo->fb.offset << 12)
+		(dinfo->aperture.physical, ((offset + dinfo->fb.offset) << 12)
 		 + dinfo->fb.size);
 	if (!dinfo->aperture.virtual) {
 		ERR_MSG("Cannot remap FB region.\n");
@@ -682,7 +682,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	/* Allocate memories (which aren't stolen) */
 	if (dinfo->accel) {
 		if (!(dinfo->gtt_ring_mem =
 		      agp_allocate_memory(bridge, dinfo->ring.size >> 12,
@@ -1484,7 +1483,7 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 #endif
 
 	if (!dinfo->hwcursor)
-		return -ENXIO;
+		return soft_cursor(info, cursor);
 
 	intelfbhw_cursor_hide(dinfo);
 

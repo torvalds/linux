@@ -129,7 +129,6 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	if ((newfid = v9fs_session_init(v9ses, dev_name, data)) < 0) {
 		dprintk(DEBUG_ERROR, "problem initiating session\n");
-		kfree(v9ses);
 		return ERR_PTR(newfid);
 	}
 
@@ -155,23 +154,19 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	sb->s_root = root;
 
-	/* Setup the Root Inode */
-	root_fid = v9fs_fid_create(root);
-	if (root_fid == NULL) {
-		retval = -ENOMEM;
-		goto put_back_sb;
-	}
-
-	root_fid->fidopen = 0;
-	root_fid->v9ses = v9ses;
-
 	stat_result = v9fs_t_stat(v9ses, newfid, &fcall);
 	if (stat_result < 0) {
 		dprintk(DEBUG_ERROR, "stat error\n");
 		v9fs_t_clunk(v9ses, newfid, NULL);
 		v9fs_put_idpool(newfid, &v9ses->fidpool);
 	} else {
-		root_fid->fid = newfid;
+		/* Setup the Root Inode */
+		root_fid = v9fs_fid_create(root, v9ses, newfid, 0);
+		if (root_fid == NULL) {
+			retval = -ENOMEM;
+			goto put_back_sb;
+		}
+
 		root_fid->qid = fcall->params.rstat.stat->qid;
 		root->d_inode->i_ino =
 		    v9fs_qid2ino(&fcall->params.rstat.stat->qid);

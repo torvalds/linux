@@ -126,7 +126,7 @@ struct key *request_key_auth_new(struct key *target, struct key **_rkakey)
 
 	rkakey = key_alloc(&key_type_request_key_auth, desc,
 			   current->fsuid, current->fsgid,
-			   KEY_USR_VIEW, 1);
+			   KEY_POS_VIEW | KEY_USR_VIEW, 1);
 	if (IS_ERR(rkakey)) {
 		key_put(keyring);
 		kleave("= %ld", PTR_ERR(rkakey));

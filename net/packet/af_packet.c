@@ -761,12 +761,6 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (dev->hard_header) {
 		int res;
 		err = -EINVAL;
-		if (saddr) {
-			if (saddr->sll_halen != dev->addr_len)
-				goto out_free;
-			if (saddr->sll_hatype != dev->type)
-				goto out_free;
-		}
 		res = dev->hard_header(skb, dev, ntohs(proto), addr, NULL, len);
 		if (sock->type != SOCK_DGRAM) {
 			skb->tail = skb->data;

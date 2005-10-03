@@ -47,14 +47,11 @@ int llc_build_and_send_pkt(struct sock *sk, struct sk_buff *skb)
 	int rc = -ECONNABORTED;
 	struct llc_sock *llc = llc_sk(sk);
 
-	if (llc->state == LLC_CONN_STATE_ADM)
+	if (unlikely(llc->state == LLC_CONN_STATE_ADM))
 		goto out;
 	rc = -EBUSY;
-	if (llc_data_accept_state(llc->state)) { /* data_conn_refuse */
-		llc->failed_data_req = 1;
-		goto out;
-	}
-	if (llc->p_flag) {
+	if (unlikely(llc_data_accept_state(llc->state) || /* data_conn_refuse */
+		     llc->p_flag)) {
 		llc->failed_data_req = 1;
 		goto out;
 	}
@@ -110,6 +107,7 @@ int llc_establish_connection(struct sock *sk, u8 *lmac, u8 *dmac, u8 dsap)
 		ev->type      = LLC_CONN_EV_TYPE_PRIM;
 		ev->prim      = LLC_CONN_PRIM;
 		ev->prim_type = LLC_PRIM_TYPE_REQ;
+		skb_set_owner_w(skb, sk);
 		rc = llc_conn_state_process(sk, skb);
 	}
 out_put:
@@ -144,6 +142,7 @@ int llc_send_disc(struct sock *sk)
 	skb = alloc_skb(0, GFP_ATOMIC);
 	if (!skb)
 		goto out;
+	skb_set_owner_w(skb, sk);
 	sk->sk_state  = TCP_CLOSING;
 	ev	      = llc_conn_ev(skb);
 	ev->type      = LLC_CONN_EV_TYPE_PRIM;

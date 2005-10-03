@@ -35,11 +35,18 @@ struct key;
 
 #undef KEY_DEBUGGING
 
-#define KEY_USR_VIEW	0x00010000	/* user can view a key's attributes */
-#define KEY_USR_READ	0x00020000	/* user can read key payload / view keyring */
-#define KEY_USR_WRITE	0x00040000	/* user can update key payload / add link to keyring */
-#define KEY_USR_SEARCH	0x00080000	/* user can find a key in search / search a keyring */
-#define KEY_USR_LINK	0x00100000	/* user can create a link to a key/keyring */
+#define KEY_POS_VIEW	0x01000000	/* possessor can view a key's attributes */
+#define KEY_POS_READ	0x02000000	/* possessor can read key payload / view keyring */
+#define KEY_POS_WRITE	0x04000000	/* possessor can update key payload / add link to keyring */
+#define KEY_POS_SEARCH	0x08000000	/* possessor can find a key in search / search a keyring */
+#define KEY_POS_LINK	0x10000000	/* possessor can create a link to a key/keyring */
+#define KEY_POS_ALL	0x1f000000
+
+#define KEY_USR_VIEW	0x00010000	/* user permissions... */
+#define KEY_USR_READ	0x00020000
+#define KEY_USR_WRITE	0x00040000
+#define KEY_USR_SEARCH	0x00080000
+#define KEY_USR_LINK	0x00100000
 #define KEY_USR_ALL	0x001f0000
 
 #define KEY_GRP_VIEW	0x00000100	/* group permissions... */
@@ -64,6 +71,38 @@ struct key_type;
 struct key_owner;
 struct keyring_list;
 struct keyring_name;
+
+/*****************************************************************************/
+/*
+ * key reference with possession attribute handling
+ *
+ * NOTE! key_ref_t is a typedef'd pointer to a type that is not actually
+ * defined. This is because we abuse the bottom bit of the reference to carry a
+ * flag to indicate whether the calling process possesses that key in one of
+ * its keyrings.
+ *
+ * the key_ref_t has been made a separate type so that the compiler can reject
+ * attempts to dereference it without proper conversion.
+ *
+ * the three functions are used to assemble and disassemble references
+ */
+typedef struct __key_reference_with_attributes *key_ref_t;
+
+static inline key_ref_t make_key_ref(const struct key *key,
+				     unsigned long possession)
+{
+	return (key_ref_t) ((unsigned long) key | possession);
+}
+
+static inline struct key *key_ref_to_ptr(const key_ref_t key_ref)
+{
+	return (struct key *) ((unsigned long) key_ref & ~1UL);
+}
+
+static inline unsigned long is_key_possessed(const key_ref_t key_ref)
+{
+	return (unsigned long) key_ref & 1UL;
+}
 
 /*****************************************************************************/
 /*
@@ -215,20 +254,25 @@ static inline struct key *key_get(struct key *key)
 	return key;
 }
 
+static inline void key_ref_put(key_ref_t key_ref)
+{
+	key_put(key_ref_to_ptr(key_ref));
+}
+
 extern struct key *request_key(struct key_type *type,
 			       const char *description,
 			       const char *callout_info);
 
 extern int key_validate(struct key *key);
 
-extern struct key *key_create_or_update(struct key *keyring,
-					const char *type,
-					const char *description,
-					const void *payload,
-					size_t plen,
-					int not_in_quota);
+extern key_ref_t key_create_or_update(key_ref_t keyring,
+				      const char *type,
+				      const char *description,
+				      const void *payload,
+				      size_t plen,
+				      int not_in_quota);
 
-extern int key_update(struct key *key,
+extern int key_update(key_ref_t key,
 		      const void *payload,
 		      size_t plen);
 
@@ -243,9 +287,9 @@ extern struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 
 extern int keyring_clear(struct key *keyring);
 
-extern struct key *keyring_search(struct key *keyring,
-				  struct key_type *type,
-				  const char *description);
+extern key_ref_t keyring_search(key_ref_t keyring,
+				struct key_type *type,
+				const char *description);
 
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);
@@ -285,6 +329,10 @@ extern void key_init(void);
 #define key_serial(k)			0
 #define key_get(k) 			({ NULL; })
 #define key_put(k)			do { } while(0)
+#define key_ref_put(k)			do { } while(0)
+#define make_key_ref(k)			({ NULL; })
+#define key_ref_to_ptr(k)		({ NULL; })
+#define is_key_possessed(k)		0
 #define alloc_uid_keyring(u)		0
 #define switch_uid_keyring(u)		do { } while(0)
 #define __install_session_keyring(t, k)	({ NULL; })

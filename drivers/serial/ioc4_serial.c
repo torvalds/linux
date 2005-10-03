@@ -973,18 +973,6 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
 				this_ir &= ~this_mir;
 			}
 		}
-		if (this_ir) {
-			printk(KERN_ERR
-			       "unknown IOC4 %s interrupt 0x%x, sio_ir = 0x%x,"
-				" sio_ies = 0x%x, other_ir = 0x%x :"
-				"other_ies = 0x%x\n",
-			       (intr_type == IOC4_SIO_INTR_TYPE) ? "sio" :
-			       "other", this_ir,
-			       readl(&soft->is_ioc4_misc_addr->sio_ir.raw),
-			       readl(&soft->is_ioc4_misc_addr->sio_ies.raw),
-			       readl(&soft->is_ioc4_misc_addr->other_ir.raw),
-			       readl(&soft->is_ioc4_misc_addr->other_ies.raw));
-		}
 	}
 #ifdef DEBUG_INTERRUPTS
 	{

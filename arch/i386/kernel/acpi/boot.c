@@ -27,15 +27,14 @@
 #include <linux/config.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
+#include <linux/irq.h>
 
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/mpspec.h>
 
 #ifdef	CONFIG_X86_64

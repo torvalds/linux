@@ -6,8 +6,6 @@
 obj-y := clone.o exec_kern.o mem.o mem_user.o mmu.o process.o process_kern.o \
 	syscall.o tlb.o trap_user.o uaccess.o
 
-subdir- := util
-
 USER_OBJS := process.o clone.o
 
 include arch/um/scripts/Makefile.rules

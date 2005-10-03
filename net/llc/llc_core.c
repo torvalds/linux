@@ -40,6 +40,7 @@ static struct llc_sap *llc_sap_alloc(void)
 		sap->state = LLC_SAP_STATE_ACTIVE;
 		memcpy(sap->laddr.mac, llc_station_mac_sa, ETH_ALEN);
 		rwlock_init(&sap->sk_list.lock);
+		atomic_set(&sap->refcnt, 1);
 	}
 	return sap;
 }
@@ -52,9 +53,7 @@ static struct llc_sap *llc_sap_alloc(void)
  */
 static void llc_add_sap(struct llc_sap *sap)
 {
-	write_lock_bh(&llc_sap_list_lock);
 	list_add_tail(&sap->node, &llc_sap_list);
-	write_unlock_bh(&llc_sap_list_lock);
 }
 
 /**
@@ -70,11 +69,25 @@ static void llc_del_sap(struct llc_sap *sap)
 	write_unlock_bh(&llc_sap_list_lock);
 }
 
+static struct llc_sap *__llc_sap_find(unsigned char sap_value)
+{
+	struct llc_sap* sap;
+
+	list_for_each_entry(sap, &llc_sap_list, node)
+		if (sap->laddr.lsap == sap_value)
+			goto out;
+	sap = NULL;
+out:
+	return sap;
+}
+
 /**
  *	llc_sap_find - searchs a SAP in station
  *	@sap_value: sap to be found
  *
  *	Searchs for a sap in the sap list of the LLC's station upon the sap ID.
+ *	If the sap is found it will be refcounted and the user will have to do
+ *	a llc_sap_put after use.
  *	Returns the sap or %NULL if not found.
  */
 struct llc_sap *llc_sap_find(unsigned char sap_value)
@@ -82,11 +95,9 @@ struct llc_sap *llc_sap_find(unsigned char sap_value)
 	struct llc_sap* sap;
 
 	read_lock_bh(&llc_sap_list_lock);
-	list_for_each_entry(sap, &llc_sap_list, node)
-		if (sap->laddr.lsap == sap_value)
-			goto out;
-	sap = NULL;
-out:
+	sap = __llc_sap_find(sap_value);
+	if (sap)
+		llc_sap_hold(sap);
 	read_unlock_bh(&llc_sap_list_lock);
 	return sap;
 }
@@ -106,19 +117,20 @@ struct llc_sap *llc_sap_open(unsigned char lsap,
 					 struct packet_type *pt,
 					 struct net_device *orig_dev))
 {
-	struct llc_sap *sap = llc_sap_find(lsap);
+	struct llc_sap *sap = NULL;
 
-	if (sap) { /* SAP already exists */
-		sap = NULL;
+	write_lock_bh(&llc_sap_list_lock);
+	if (__llc_sap_find(lsap)) /* SAP already exists */
 		goto out;
-	}
 	sap = llc_sap_alloc();
 	if (!sap)
 		goto out;
 	sap->laddr.lsap = lsap;
 	sap->rcv_func	= func;
+	llc_sap_hold(sap);
 	llc_add_sap(sap);
 out:
+	write_unlock_bh(&llc_sap_list_lock);
 	return sap;
 }
 

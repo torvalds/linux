@@ -2246,6 +2246,7 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5411 || (X) == PHY_ID_BCM5701 || \
 	 (X) == PHY_ID_BCM5703 || (X) == PHY_ID_BCM5704 || \
 	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
+	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5780 || \
 	 (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;

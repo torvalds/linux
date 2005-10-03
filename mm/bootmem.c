@@ -61,17 +61,9 @@ static unsigned long __init init_bootmem_core (pg_data_t *pgdat,
 {
 	bootmem_data_t *bdata = pgdat->bdata;
 	unsigned long mapsize = ((end - start)+7)/8;
-	static struct pglist_data *pgdat_last;
 
-	pgdat->pgdat_next = NULL;
-	/* Add new nodes last so that bootmem always starts
-	   searching in the first nodes, not the last ones */
-	if (pgdat_last)
-		pgdat_last->pgdat_next = pgdat;
-	else {
-		pgdat_list = pgdat; 	
-		pgdat_last = pgdat;
-	}
+	pgdat->pgdat_next = pgdat_list;
+	pgdat_list = pgdat;
 
 	mapsize = ALIGN(mapsize, sizeof(long));
 	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);

@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
 #include <linux/errno.h>

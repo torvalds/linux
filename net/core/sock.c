@@ -660,16 +660,20 @@ struct sock *sk_alloc(int family, unsigned int __nocast priority,
 			sock_lock_init(sk);
 		}
 		
-		if (security_sk_alloc(sk, family, priority)) {
-			if (slab != NULL)
-				kmem_cache_free(slab, sk);
-			else
-				kfree(sk);
-			sk = NULL;
-		} else
-			__module_get(prot->owner);
+		if (security_sk_alloc(sk, family, priority))
+			goto out_free;
+
+		if (!try_module_get(prot->owner))
+			goto out_free;
 	}
 	return sk;
+
+out_free:
+	if (slab != NULL)
+		kmem_cache_free(slab, sk);
+	else
+		kfree(sk);
+	return NULL;
 }
 
 void sk_free(struct sock *sk)

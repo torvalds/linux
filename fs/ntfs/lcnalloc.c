@@ -779,14 +779,13 @@ out:
 
 /**
  * __ntfs_cluster_free - free clusters on an ntfs volume
- * @vi:		vfs inode whose runlist describes the clusters to free
- * @start_vcn:	vcn in the runlist of @vi at which to start freeing clusters
+ * @ni:		ntfs inode whose runlist describes the clusters to free
+ * @start_vcn:	vcn in the runlist of @ni at which to start freeing clusters
  * @count:	number of clusters to free or -1 for all clusters
- * @write_locked:	true if the runlist is locked for writing
  * @is_rollback:	true if this is a rollback operation
  *
  * Free @count clusters starting at the cluster @start_vcn in the runlist
- * described by the vfs inode @vi.
+ * described by the vfs inode @ni.
  *
  * If @count is -1, all clusters from @start_vcn to the end of the runlist are
  * deallocated.  Thus, to completely free all clusters in a runlist, use
@@ -801,31 +800,28 @@ out:
  * Return the number of deallocated clusters (not counting sparse ones) on
  * success and -errno on error.
  *
- * Locking: - The runlist described by @vi must be locked on entry and is
- *	      locked on return.  Note if the runlist is locked for reading the
- *	      lock may be dropped and reacquired.  Note the runlist may be
- *	      modified when needed runlist fragments need to be mapped.
+ * Locking: - The runlist described by @ni must be locked for writing on entry
+ *	      and is locked on return.  Note the runlist may be modified when
+ *	      needed runlist fragments need to be mapped.
  *	    - The volume lcn bitmap must be unlocked on entry and is unlocked
  *	      on return.
  *	    - This function takes the volume lcn bitmap lock for writing and
  *	      modifies the bitmap contents.
  */
-s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
-		const BOOL write_locked, const BOOL is_rollback)
+s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
+		const BOOL is_rollback)
 {
 	s64 delta, to_free, total_freed, real_freed;
-	ntfs_inode *ni;
 	ntfs_volume *vol;
 	struct inode *lcnbmp_vi;
 	runlist_element *rl;
 	int err;
 
-	BUG_ON(!vi);
+	BUG_ON(!ni);
 	ntfs_debug("Entering for i_ino 0x%lx, start_vcn 0x%llx, count "
-			"0x%llx.%s", vi->i_ino, (unsigned long long)start_vcn,
+			"0x%llx.%s", ni->mft_no, (unsigned long long)start_vcn,
 			(unsigned long long)count,
 			is_rollback ? " (rollback)" : "");
-	ni = NTFS_I(vi);
 	vol = ni->vol;
 	lcnbmp_vi = vol->lcnbmp_ino;
 	BUG_ON(!lcnbmp_vi);
@@ -843,7 +839,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 
 	total_freed = real_freed = 0;
 
-	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, write_locked);
+	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, TRUE);
 	if (IS_ERR(rl)) {
 		if (!is_rollback)
 			ntfs_error(vol->sb, "Failed to find first runlist "
@@ -897,7 +893,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 
 			/* Attempt to map runlist. */
 			vcn = rl->vcn;
-			rl = ntfs_attr_find_vcn_nolock(ni, vcn, write_locked);
+			rl = ntfs_attr_find_vcn_nolock(ni, vcn, TRUE);
 			if (IS_ERR(rl)) {
 				err = PTR_ERR(rl);
 				if (!is_rollback)
@@ -965,8 +961,7 @@ err_out:
 	 * If rollback fails, set the volume errors flag, emit an error
 	 * message, and return the error code.
 	 */
-	delta = __ntfs_cluster_free(vi, start_vcn, total_freed, write_locked,
-			TRUE);
+	delta = __ntfs_cluster_free(ni, start_vcn, total_freed, TRUE);
 	if (delta < 0) {
 		ntfs_error(vol->sb, "Failed to rollback (error %i).  Leaving "
 				"inconsistent metadata!  Unmount and run "

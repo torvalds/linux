@@ -691,7 +691,7 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 	unsigned long size = end - start + 1;
 	int ret = 0;
 
-	if (end <= start)
+	if (end < start)
 		return -EINVAL;
 
 	down(&rsrc_sem);
@@ -724,7 +724,7 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	unsigned long size = end - start + 1;
 	int ret = 0;
 
-	if (end <= start)
+	if (end < start)
 		return -EINVAL;
 
 	if (end > IO_SPACE_LIMIT)
@@ -817,7 +817,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 
 	/* if we got at least one of IO, and one of MEM, we can be glad and
 	 * activate the PCMCIA subsystem */
-	if (done & (IORESOURCE_MEM | IORESOURCE_IO))
+	if (done == (IORESOURCE_MEM | IORESOURCE_IO))
 		s->resource_setup_done = 1;
 
 	return 0;
@@ -925,7 +925,7 @@ static ssize_t store_io_db(struct class_device *class_dev, const char *buf, size
 				return -EINVAL;
 		}
 	}
-	if (end_addr <= start_addr)
+	if (end_addr < start_addr)
 		return -EINVAL;
 
 	ret = adjust_io(s, add, start_addr, end_addr);
@@ -977,7 +977,7 @@ static ssize_t store_mem_db(struct class_device *class_dev, const char *buf, siz
 				return -EINVAL;
 		}
 	}
-	if (end_addr <= start_addr)
+	if (end_addr < start_addr)
 		return -EINVAL;
 
 	ret = adjust_memory(s, add, start_addr, end_addr);

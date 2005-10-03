@@ -186,7 +186,7 @@
 
 /* Used to help with determining the pkts on receive */
 #define PKTGEN_MAGIC 0xbe9be955
-#define PG_PROC_DIR "pktgen"
+#define PG_PROC_DIR "net/pktgen"
 
 #define MAX_CFLOWS  65536
 
@@ -1476,18 +1476,7 @@ static int proc_thread_write(struct file *file, const char __user *user_buffer,
 
 static int create_proc_dir(void)
 {
-        int     len;
-        /*  does proc_dir already exists */
-        len = strlen(PG_PROC_DIR);
-
-        for (pg_proc_dir = proc_net->subdir; pg_proc_dir; pg_proc_dir=pg_proc_dir->next) {
-                if ((pg_proc_dir->namelen == len) &&
-		    (! memcmp(pg_proc_dir->name, PG_PROC_DIR, len))) 
-                        break;
-        }
-        
-        if (!pg_proc_dir) 
-                pg_proc_dir = create_proc_entry(PG_PROC_DIR, S_IFDIR, proc_net);
+	pg_proc_dir = proc_mkdir(PG_PROC_DIR, NULL);
         
         if (!pg_proc_dir) 
                 return -ENODEV;
@@ -1497,7 +1486,7 @@ static int create_proc_dir(void)
 
 static int remove_proc_dir(void)
 {
-        remove_proc_entry(PG_PROC_DIR, proc_net);
+        remove_proc_entry(PG_PROC_DIR, NULL);
         return 0;
 }
 
@@ -2908,7 +2897,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char* ifname)
                 pkt_dev->udp_dst_max = 9;
 
                 strncpy(pkt_dev->ifname, ifname, 31);
-                sprintf(pkt_dev->fname, "net/%s/%s", PG_PROC_DIR, ifname);
+                sprintf(pkt_dev->fname, "%s/%s", PG_PROC_DIR, ifname);
 
                 if (! pktgen_setup_dev(pkt_dev)) {
                         printk("pktgen: ERROR: pktgen_setup_dev failed.\n");
@@ -2981,7 +2970,7 @@ static int pktgen_create_thread(const char* name, int cpu)
         spin_lock_init(&t->if_lock);
 	t->cpu = cpu;
         
-        sprintf(t->fname, "net/%s/%s", PG_PROC_DIR, t->name);
+        sprintf(t->fname, "%s/%s", PG_PROC_DIR, t->name);
         t->proc_ent = create_proc_entry(t->fname, 0600, NULL);
         if (!t->proc_ent) {
                 printk("pktgen: cannot create %s procfs entry.\n", t->fname);
@@ -3064,7 +3053,7 @@ static int __init pg_init(void)
 
 	create_proc_dir();
 
-        sprintf(module_fname, "net/%s/pgctrl", PG_PROC_DIR);
+        sprintf(module_fname, "%s/pgctrl", PG_PROC_DIR);
         module_proc_ent = create_proc_entry(module_fname, 0600, NULL);
         if (!module_proc_ent) {
                 printk("pktgen: ERROR: cannot create %s procfs entry.\n", module_fname);

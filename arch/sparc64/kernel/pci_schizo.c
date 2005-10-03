@@ -330,7 +330,7 @@ static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
 {
 	unsigned long sync_reg = (unsigned long) _arg2;
-	u64 mask = 1 << (__irq_ino(__irq(bucket)) & IMAP_INO);
+	u64 mask = 1UL << (__irq_ino(__irq(bucket)) & IMAP_INO);
 	u64 val;
 	int limit;
 

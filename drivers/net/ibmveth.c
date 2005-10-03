@@ -99,7 +99,7 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance, struct pt_regs
 static inline void ibmveth_schedule_replenishing(struct ibmveth_adapter*);
 
 #ifdef CONFIG_PROC_FS
-#define IBMVETH_PROC_DIR "ibmveth"
+#define IBMVETH_PROC_DIR "net/ibmveth"
 static struct proc_dir_entry *ibmveth_proc_dir;
 #endif
 
@@ -1010,7 +1010,7 @@ static int __devexit ibmveth_remove(struct vio_dev *dev)
 #ifdef CONFIG_PROC_FS
 static void ibmveth_proc_register_driver(void)
 {
-	ibmveth_proc_dir = create_proc_entry(IBMVETH_PROC_DIR, S_IFDIR, proc_net);
+	ibmveth_proc_dir = proc_mkdir(IBMVETH_PROC_DIR, NULL);
 	if (ibmveth_proc_dir) {
 		SET_MODULE_OWNER(ibmveth_proc_dir);
 	}
@@ -1018,7 +1018,7 @@ static void ibmveth_proc_register_driver(void)
 
 static void ibmveth_proc_unregister_driver(void)
 {
-	remove_proc_entry(IBMVETH_PROC_DIR, proc_net);
+	remove_proc_entry(IBMVETH_PROC_DIR, NULL);
 }
 
 static void *ibmveth_seq_start(struct seq_file *seq, loff_t *pos) 

@@ -46,7 +46,7 @@ static inline unsigned long spitfire_get_primary_context(void)
  */
 DEFINE_SPINLOCK(prom_entry_lock);
 
-long p1275_cmd (char *service, long fmt, ...)
+long p1275_cmd(const char *service, long fmt, ...)
 {
 	char *p, *q;
 	unsigned long flags;

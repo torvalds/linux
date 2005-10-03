@@ -199,6 +199,7 @@ ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	}
 	return 1;
 }
+EXPORT_SYMBOL(ip_nat_mangle_tcp_packet);
 			
 /* Generic function for mangling variable-length address changes inside
  * NATed UDP connections (like the CONNECT DATA XXXXX MESG XXXXX INDEX XXXXX
@@ -256,6 +257,7 @@ ip_nat_mangle_udp_packet(struct sk_buff **pskb,
 
 	return 1;
 }
+EXPORT_SYMBOL(ip_nat_mangle_udp_packet);
 
 /* Adjust one found SACK option including checksum correction */
 static void
@@ -399,6 +401,7 @@ ip_nat_seq_adjust(struct sk_buff **pskb,
 
 	return 1;
 }
+EXPORT_SYMBOL(ip_nat_seq_adjust);
 
 /* Setup NAT on this expected conntrack so it follows master. */
 /* If we fail to get a free NAT slot, we'll get dropped on confirm */
@@ -425,3 +428,4 @@ void ip_nat_follow_master(struct ip_conntrack *ct,
 	/* hook doesn't matter, but it has to do destination manip */
 	ip_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
 }
+EXPORT_SYMBOL(ip_nat_follow_master);
