@@ -1680,13 +1680,17 @@ void ata_scsi_simulate(u16 *id,
 
 void ata_scsi_scan_host(struct ata_port *ap)
 {
+	struct ata_device *dev;
 	unsigned int i;
 
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		return;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		if (ata_dev_present(&ap->device[i]))
-			scsi_scan_target(&ap->host->shost_gendev, 0, i, ~0, 0);
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		dev = &ap->device[i];
+
+		if (ata_dev_present(dev))
+			scsi_scan_target(&ap->host->shost_gendev, 0, i, 0, 0);
+	}
 }
 
