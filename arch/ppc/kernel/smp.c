@@ -38,7 +38,6 @@
 volatile int smp_commenced;
 int smp_tb_synchronized;
 struct cpuinfo_PPC cpu_data[NR_CPUS];
-struct klock_info_struct klock_info = { KLOCK_CLEAR, 0 };
 atomic_t ipi_recv;
 atomic_t ipi_sent;
 cpumask_t cpu_online_map;
