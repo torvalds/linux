@@ -5504,12 +5504,13 @@ static int airo_pci_resume(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct airo_info *ai = dev->priv;
 	Resp rsp;
+	pci_power_t prev_state = pdev->current_state;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, ai->power), 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
-	if (ai->power.event > 1) {
+	if (prev_state != PCI_D1) {
 		reset_card(dev, 0);
 		mpi_init_descriptors(ai);
 		setup_card(ai, dev->dev_addr, 0);
