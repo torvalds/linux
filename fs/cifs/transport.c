@@ -244,7 +244,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 		if(rc == 0) {
 			/* should never happen, letting socket clear before
 			   retrying is our only obvious option here */
-			cERROR(1,("tcp sent no data");
+			cERROR(1,("tcp sent no data"));
 			msleep(500);
 			continue;
 		}
