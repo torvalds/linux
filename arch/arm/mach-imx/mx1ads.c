@@ -55,7 +55,7 @@ static void __init
 mx1ads_init(void)
 {
 #ifdef CONFIG_LEDS
-	imx_gpio_mode(GPIO_PORTA | GPIO_OUT | GPIO_GPIO | 2);
+	imx_gpio_mode(GPIO_PORTA | GPIO_OUT | 2);
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
