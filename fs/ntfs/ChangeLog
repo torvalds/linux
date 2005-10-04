@@ -43,6 +43,10 @@ ToDo/Notes:
 	  reason we cannot simply read the size from the vfs inode i_size is
 	  that this is not necessarily uptodate.  This happens when
 	  ntfs_attr_make_non_resident() is called in the ->truncate call path.
+	- Fix ntfs_attr_make_non_resident() to update the vfs inode i_blocks
+	  which is zero for a resident attribute but should no longer be zero
+	  once the attribute is non-resident as it then has real clusters
+	  allocated.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 

@@ -1719,7 +1719,9 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 				ffs(ni->itype.compressed.block_size) - 1;
 		ni->itype.compressed.block_clusters = 1U <<
 				a->data.non_resident.compression_unit;
-	}
+		vi->i_blocks = ni->itype.compressed.size >> 9;
+	} else
+		vi->i_blocks = ni->allocated_size >> 9;
 	write_unlock_irqrestore(&ni->size_lock, flags);
 	/*
 	 * This needs to be last since the address space operations ->readpage
