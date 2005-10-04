@@ -613,7 +613,7 @@ struct ieee80211_disassoc {
 } __attribute__ ((packed));
 
 /* Alias deauth for disassoc */
-#define ieee82011_deauth ieee80211_disassoc
+#define ieee80211_deauth ieee80211_disassoc
 
 struct ieee80211_probe_request {
 	struct ieee80211_hdr_3addr header;
@@ -1043,6 +1043,34 @@ static inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
 		return ((struct ieee80211_hdr_4addr *)hdr)->payload;
 	}
 
+}
+
+static inline int ieee80211_is_ofdm_rate(u8 rate)
+{
+	switch (rate & ~IEEE80211_BASIC_RATE_MASK) {
+	case IEEE80211_OFDM_RATE_6MB:
+	case IEEE80211_OFDM_RATE_9MB:
+	case IEEE80211_OFDM_RATE_12MB:
+	case IEEE80211_OFDM_RATE_18MB:
+	case IEEE80211_OFDM_RATE_24MB:
+	case IEEE80211_OFDM_RATE_36MB:
+	case IEEE80211_OFDM_RATE_48MB:
+	case IEEE80211_OFDM_RATE_54MB:
+		return 1;
+	}
+	return 0;
+}
+
+static inline int ieee80211_is_cck_rate(u8 rate)
+{
+	switch (rate & ~IEEE80211_BASIC_RATE_MASK) {
+	case IEEE80211_CCK_RATE_1MB:
+	case IEEE80211_CCK_RATE_2MB:
+	case IEEE80211_CCK_RATE_5MB:
+	case IEEE80211_CCK_RATE_11MB:
+		return 1;
+	}
+	return 0;
 }
 
 /* ieee80211.c */
