@@ -531,7 +531,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			if (!time_after(jiffies, timeout)) continue;
 			DPRINTK( "Hardware timeout during initialization.\n");
 			iounmap(t_mmio);
-			kfree(ti);
 			return -ENODEV;
 		}
 		ti->sram_phys =
@@ -645,7 +644,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			DPRINTK("Unknown shared ram paging info %01X\n",
 							ti->shared_ram_paging);
 			iounmap(t_mmio); 
-			kfree(ti);
 			return -ENODEV;
 			break;
 		} /*end switch shared_ram_paging */
@@ -675,7 +673,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			"driver limit (%05x), adapter not started.\n",
 			chk_base, ibmtr_mem_base + IBMTR_SHARED_RAM_SIZE);
 			iounmap(t_mmio);
-			kfree(ti);
 			return -ENODEV;
 		} else { /* seems cool, record what we have figured out */
 			ti->sram_base = new_base >> 12;
@@ -690,7 +687,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		DPRINTK("Could not grab irq %d.  Halting Token Ring driver.\n",
 					irq);
 		iounmap(t_mmio);
-		kfree(ti);
 		return -ENODEV;
 	}
 	/*?? Now, allocate some of the PIO PORTs for this driver.. */
@@ -699,7 +695,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		DPRINTK("Could not grab PIO range. Halting driver.\n");
 		free_irq(dev->irq, dev);
 		iounmap(t_mmio);
-		kfree(ti);
 		return -EBUSY;
 	}
 
