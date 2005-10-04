@@ -5318,8 +5318,6 @@ static int ipw_wx_set_freq(struct net_device *dev,
 
 	IPW_DEBUG_WX("SET Freq/Channel -> %d \n", fwrq->m);
 	return ipw_set_channel(priv, (u8) fwrq->m);
-
-	return 0;
 }
 
 static int ipw_wx_get_freq(struct net_device *dev,
