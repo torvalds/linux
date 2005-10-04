@@ -696,6 +696,11 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	 * Some bits that get toggled are ignored.
 	 */
         switch (adapter->hw.mac_type) {
+	/* there are several bits on newer hardware that are r/w */
+	case e1000_82571:
+	case e1000_82572:
+		toggle = 0x7FFFF3FF;
+		break;
 	case e1000_82573:
 		toggle = 0x7FFFF033;
 		break;
@@ -1245,6 +1250,8 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82541_rev_2:
 	case e1000_82547:
 	case e1000_82547_rev_2:
+	case e1000_82571:
+	case e1000_82572:
 	case e1000_82573:
 		return e1000_integrated_phy_loopback(adapter);
 		break;
@@ -1625,7 +1632,7 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 	if(!data || data > (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ))
 		data = (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ);
 
-	if(adapter->hw.mac_type < e1000_82573) {
+	if(adapter->hw.mac_type < e1000_82571) {
 		if(!adapter->blink_timer.function) {
 			init_timer(&adapter->blink_timer);
 			adapter->blink_timer.function = e1000_led_blink_callback;

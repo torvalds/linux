@@ -398,6 +398,10 @@ e1000_reset(struct e1000_adapter *adapter)
 	case e1000_82547_rev_2:
 		pba = E1000_PBA_30K;
 		break;
+	case e1000_82571:
+	case e1000_82572:
+		pba = E1000_PBA_38K;
+		break;
 	case e1000_82573:
 		pba = E1000_PBA_12K;
 		break;
@@ -475,6 +479,7 @@ e1000_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct e1000_adapter *adapter;
 	unsigned long mmio_start, mmio_len;
+	uint32_t ctrl_ext;
 	uint32_t swsm;
 
 	static int cards_found = 0;
@@ -688,6 +693,12 @@ e1000_probe(struct pci_dev *pdev,
 
 	/* Let firmware know the driver has taken over */
 	switch(adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
+		break;
 	case e1000_82573:
 		swsm = E1000_READ_REG(&adapter->hw, SWSM);
 		E1000_WRITE_REG(&adapter->hw, SWSM,
@@ -732,6 +743,7 @@ e1000_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	uint32_t ctrl_ext;
 	uint32_t manc, swsm;
 
 	flush_scheduled_work();
@@ -746,6 +758,12 @@ e1000_remove(struct pci_dev *pdev)
 	}
 
 	switch(adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
+		break;
 	case e1000_82573:
 		swsm = E1000_READ_REG(&adapter->hw, SWSM);
 		E1000_WRITE_REG(&adapter->hw, SWSM,
@@ -1236,7 +1254,7 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		rctl |= E1000_RCTL_LPE;
 
 	/* Setup buffer sizes */
-	if(adapter->hw.mac_type == e1000_82573) {
+	if(adapter->hw.mac_type >= e1000_82571) {
 		/* We can now specify buffers in 1K increments.
 		 * BSIZE and BSEX are ignored in this case. */
 		rctl |= adapter->rx_buffer_len << 0x11;
@@ -1352,7 +1370,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		if(adapter->rx_csum == TRUE) {
 			rxcsum |= E1000_RXCSUM_TUOFL;
 
-			/* Enable 82573 IPv4 payload checksum for UDP fragments
+			/* Enable 82571 IPv4 payload checksum for UDP fragments
 			 * Must be used in conjunction with packet-split. */
 			if((adapter->hw.mac_type > e1000_82547_rev_2) && 
 			   (adapter->rx_ps)) {
@@ -1608,6 +1626,22 @@ e1000_set_mac(struct net_device *netdev, void *p)
 
 	e1000_rar_set(&adapter->hw, adapter->hw.mac_addr, 0);
 
+	/* With 82571 controllers, LAA may be overwritten (with the default)
+	 * due to controller reset from the other port. */
+	if (adapter->hw.mac_type == e1000_82571) {
+		/* activate the work around */
+		adapter->hw.laa_is_present = 1;
+
+		/* Hold a copy of the LAA in RAR[14] This is done so that 
+		 * between the time RAR[0] gets clobbered  and the time it 
+		 * gets fixed (in e1000_watchdog), the actual LAA is in one 
+		 * of the RARs and no incoming packets directed to this port
+		 * are dropped. Eventaully the LAA will be in RAR[0] and 
+		 * RAR[14] */
+		e1000_rar_set(&adapter->hw, adapter->hw.mac_addr, 
+					E1000_RAR_ENTRIES - 1);
+	}
+
 	if(adapter->hw.mac_type == e1000_82542_rev2_0)
 		e1000_leave_82542_rst(adapter);
 
@@ -1633,9 +1667,12 @@ e1000_set_multi(struct net_device *netdev)
 	unsigned long flags;
 	uint32_t rctl;
 	uint32_t hash_value;
-	int i;
+	int i, rar_entries = E1000_RAR_ENTRIES;
 
 	spin_lock_irqsave(&adapter->tx_lock, flags);
+	/* reserve RAR[14] for LAA over-write work-around */
+	if (adapter->hw.mac_type == e1000_82571)
+		rar_entries--;
 
 	/* Check for Promiscuous and All Multicast modes */
 
@@ -1660,11 +1697,12 @@ e1000_set_multi(struct net_device *netdev)
 	/* load the first 14 multicast address into the exact filters 1-14
 	 * RAR 0 is used for the station MAC adddress
 	 * if there are not 14 addresses, go ahead and clear the filters
+	 * -- with 82571 controllers only 0-13 entries are filled here
 	 */
 	mc_ptr = netdev->mc_list;
 
-	for(i = 1; i < E1000_RAR_ENTRIES; i++) {
-		if(mc_ptr) {
+	for(i = 1; i < rar_entries; i++) {
+		if (mc_ptr) {
 			e1000_rar_set(hw, mc_ptr->dmi_addr, i);
 			mc_ptr = mc_ptr->next;
 		} else {
@@ -1847,6 +1885,11 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 
 	/* Force detection of hung controller every watchdog period */
 	adapter->detect_tx_hung = TRUE;
+
+	/* With 82571 controllers, LAA may be overwritten due to controller 
+	 * reset from the other port. Set the appropriate LAA in RAR[0] */
+	if (adapter->hw.mac_type == e1000_82571 && adapter->hw.laa_is_present)
+		e1000_rar_set(&adapter->hw, adapter->hw.mac_addr, 0);
 
 	/* Reset the timer */
 	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
@@ -2269,6 +2312,27 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
  		local_irq_restore(flags); 
  		return NETDEV_TX_LOCKED; 
  	} 
+#ifdef NETIF_F_TSO
+	/* TSO Workaround for 82571/2 Controllers -- if skb->data
+	 * points to just header, pull a few bytes of payload from 
+	 * frags into skb->data */
+	if (skb_shinfo(skb)->tso_size) {
+		uint8_t hdr_len;
+		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
+		if (skb->data_len && (hdr_len < (skb->len - skb->data_len)) && 
+			(adapter->hw.mac_type == e1000_82571 ||
+			adapter->hw.mac_type == e1000_82572)) {
+			unsigned int pull_size;
+			pull_size = min((unsigned int)4, skb->data_len);
+			if (!__pskb_pull_tail(skb, pull_size)) {
+				printk(KERN_ERR "__pskb_pull_tail failed.\n");
+				dev_kfree_skb_any(skb);
+				return -EFAULT;
+			}
+		}
+	}
+#endif
+
 	if(adapter->hw.tx_pkt_filtering && (adapter->hw.mac_type == e1000_82573) )
 		e1000_transfer_dhcp_info(adapter, skb);
 
@@ -2310,7 +2374,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags |= E1000_TX_FLAGS_CSUM;
 
 	/* Old method was to assume IPv4 packet by default if TSO was enabled.
-	 * 82573 hardware supports TSO capabilities for IPv6 as well...
+	 * 82571 hardware supports TSO capabilities for IPv6 as well...
 	 * no longer assume, we must. */
 	if(likely(skb->protocol == ntohs(ETH_P_IP)))
 		tx_flags |= E1000_TX_FLAGS_IPV4;
@@ -2389,9 +2453,18 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 			return -EINVAL;
 	}
 
-#define MAX_STD_JUMBO_FRAME_SIZE 9216
+#define MAX_STD_JUMBO_FRAME_SIZE 9234
 	/* might want this to be bigger enum check... */
-	if (adapter->hw.mac_type == e1000_82573 &&
+	/* 82571 controllers limit jumbo frame size to 10500 bytes */
+	if ((adapter->hw.mac_type == e1000_82571 || 
+	     adapter->hw.mac_type == e1000_82572) &&
+	    max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
+		DPRINTK(PROBE, ERR, "MTU > 9216 bytes not supported "
+				    "on 82571 and 82572 controllers.\n");
+		return -EINVAL;
+	}
+
+	if(adapter->hw.mac_type == e1000_82573 &&
 	    max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
 		DPRINTK(PROBE, ERR, "Jumbo Frames not supported "
 				    "on 82573\n");
@@ -3716,6 +3789,12 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	switch(adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
+		break;
 	case e1000_82573:
 		swsm = E1000_READ_REG(&adapter->hw, SWSM);
 		E1000_WRITE_REG(&adapter->hw, SWSM,
@@ -3738,6 +3817,7 @@ e1000_resume(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t manc, ret_val, swsm;
+	uint32_t ctrl_ext;
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -3763,6 +3843,12 @@ e1000_resume(struct pci_dev *pdev)
 	}
 
 	switch(adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
+		break;
 	case e1000_82573:
 		swsm = E1000_READ_REG(&adapter->hw, SWSM);
 		E1000_WRITE_REG(&adapter->hw, SWSM,
