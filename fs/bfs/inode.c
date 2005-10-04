@@ -357,7 +357,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	info->si_blocks = (le32_to_cpu(bfs_sb->s_end) + 1)>>BFS_BSIZE_BITS; /* for statfs(2) */
-	info->si_freeb = (le32_to_cpu(bfs_sb->s_end) + 1 -  cpu_to_le32(bfs_sb->s_start))>>BFS_BSIZE_BITS;
+	info->si_freeb = (le32_to_cpu(bfs_sb->s_end) + 1 -  le32_to_cpu(bfs_sb->s_start))>>BFS_BSIZE_BITS;
 	info->si_freei = 0;
 	info->si_lf_eblk = 0;
 	info->si_lf_sblk = 0;
