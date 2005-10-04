@@ -116,8 +116,10 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	if (args[3]) {
 		argsize = SECTOR_SIZE * args[3];
 		argbuf = kmalloc(argsize, GFP_KERNEL);
-		if (argbuf == NULL)
-			return -ENOMEM;
+		if (argbuf == NULL) {
+			rc = -ENOMEM;
+			goto error;
+		}
 
 		scsi_cmd[1]  = (4 << 1); /* PIO Data-in */
 		scsi_cmd[2]  = 0x0e;     /* no off.line or cc, read from dev,
