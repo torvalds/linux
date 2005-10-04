@@ -155,6 +155,10 @@ enum {
 	ATA_SHIFT_UDMA		= 0,
 	ATA_SHIFT_MWDMA		= 8,
 	ATA_SHIFT_PIO		= 11,
+	
+	/* Masks for port functions */
+	ATA_PORT_PRIMARY	= (1 << 0),
+	ATA_PORT_SECONDARY	= (1 << 1),
 };
 
 enum hsm_task_states {
@@ -458,7 +462,7 @@ struct pci_bits {
 
 extern void ata_pci_host_stop (struct ata_host_set *host_set);
 extern struct ata_probe_ent *
-ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port);
+ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int portmask);
 extern int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits);
 
 #endif /* CONFIG_PCI */

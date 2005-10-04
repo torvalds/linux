@@ -4363,85 +4363,87 @@ void ata_pci_host_stop (struct ata_host_set *host_set)
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
  *	@port:  array[2] of pointers to port info structures.
+ *	@ports: bitmap of ports present
  *
  *	Utility function which allocates and initializes an
  *	ata_probe_ent structure for a standard dual-port
  *	PIO-based IDE controller.  The returned ata_probe_ent
  *	structure can be passed to ata_device_add().  The returned
  *	ata_probe_ent structure should then be freed with kfree().
+ *
+ *	The caller need only pass the address of the primary port, the
+ *	secondary will be deduced automatically. If the device has non
+ *	standard secondary port mappings this function can be called twice,
+ *	once for each interface.
  */
 
 struct ata_probe_ent *
-ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port)
+ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int ports)
 {
 	struct ata_probe_ent *probe_ent =
 		ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
+	int p = 0;
+
 	if (!probe_ent)
 		return NULL;
 
-	probe_ent->n_ports = 2;
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = SA_SHIRQ;
 
-	probe_ent->port[0].cmd_addr = pci_resource_start(pdev, 0);
-	probe_ent->port[0].altstatus_addr =
-	probe_ent->port[0].ctl_addr =
-		pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS;
-	probe_ent->port[0].bmdma_addr = pci_resource_start(pdev, 4);
+	if (ports & ATA_PORT_PRIMARY) {
+		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 0);
+		probe_ent->port[p].altstatus_addr =
+		probe_ent->port[p].ctl_addr =
+			pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS;
+		probe_ent->port[p].bmdma_addr = pci_resource_start(pdev, 4);
+		ata_std_ports(&probe_ent->port[p]);
+		p++;
+	}
 
-	probe_ent->port[1].cmd_addr = pci_resource_start(pdev, 2);
-	probe_ent->port[1].altstatus_addr =
-	probe_ent->port[1].ctl_addr =
-		pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS;
-	probe_ent->port[1].bmdma_addr = pci_resource_start(pdev, 4) + 8;
+	if (ports & ATA_PORT_SECONDARY) {
+		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 2);
+		probe_ent->port[p].altstatus_addr =
+		probe_ent->port[p].ctl_addr =
+			pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS;
+		probe_ent->port[p].bmdma_addr = pci_resource_start(pdev, 4) + 8;
+		ata_std_ports(&probe_ent->port[p]);
+		p++;
+	}
 
-	ata_std_ports(&probe_ent->port[0]);
-	ata_std_ports(&probe_ent->port[1]);
-
+	probe_ent->n_ports = p;
 	return probe_ent;
 }
 
-static struct ata_probe_ent *
-ata_pci_init_legacy_mode(struct pci_dev *pdev, struct ata_port_info **port,
-    struct ata_probe_ent **ppe2)
+static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, struct ata_port_info **port, int port_num)
 {
-	struct ata_probe_ent *probe_ent, *probe_ent2;
+	struct ata_probe_ent *probe_ent;
 
 	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
 	if (!probe_ent)
 		return NULL;
-	probe_ent2 = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[1]);
-	if (!probe_ent2) {
-		kfree(probe_ent);
-		return NULL;
-	}
 
-	probe_ent->n_ports = 1;
-	probe_ent->irq = 14;
-
-	probe_ent->hard_port_no = 0;
+	
 	probe_ent->legacy_mode = 1;
+	probe_ent->n_ports = 1;
+	probe_ent->hard_port_no = port_num;
 
-	probe_ent2->n_ports = 1;
-	probe_ent2->irq = 15;
-
-	probe_ent2->hard_port_no = 1;
-	probe_ent2->legacy_mode = 1;
-
-	probe_ent->port[0].cmd_addr = 0x1f0;
-	probe_ent->port[0].altstatus_addr =
-	probe_ent->port[0].ctl_addr = 0x3f6;
-	probe_ent->port[0].bmdma_addr = pci_resource_start(pdev, 4);
-
-	probe_ent2->port[0].cmd_addr = 0x170;
-	probe_ent2->port[0].altstatus_addr =
-	probe_ent2->port[0].ctl_addr = 0x376;
-	probe_ent2->port[0].bmdma_addr = pci_resource_start(pdev, 4)+8;
-
+	switch(port_num)
+	{
+		case 0:
+			probe_ent->irq = 14;
+			probe_ent->port[0].cmd_addr = 0x1f0;
+			probe_ent->port[0].altstatus_addr =
+			probe_ent->port[0].ctl_addr = 0x3f6;
+			break;
+		case 1:
+			probe_ent->irq = 15;
+			probe_ent->port[0].cmd_addr = 0x170;
+			probe_ent->port[0].altstatus_addr =
+			probe_ent->port[0].ctl_addr = 0x376;
+			break;
+	}
+	probe_ent->port[0].bmdma_addr = pci_resource_start(pdev, 4) + 8 * port_num;
 	ata_std_ports(&probe_ent->port[0]);
-	ata_std_ports(&probe_ent2->port[0]);
-
-	*ppe2 = probe_ent2;
 	return probe_ent;
 }
 
@@ -4470,7 +4472,7 @@ ata_pci_init_legacy_mode(struct pci_dev *pdev, struct ata_port_info **port,
 int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		      unsigned int n_ports)
 {
-	struct ata_probe_ent *probe_ent, *probe_ent2 = NULL;
+	struct ata_probe_ent *probe_ent = NULL, *probe_ent2 = NULL;
 	struct ata_port_info *port[2];
 	u8 tmp8, mask;
 	unsigned int legacy_mode = 0;
@@ -4487,7 +4489,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 
 	if ((port[0]->host_flags & ATA_FLAG_NO_LEGACY) == 0
 	    && (pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
-		/* TODO: support transitioning to native mode? */
+		/* TODO: What if one channel is in native mode ... */
 		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
 		mask = (1 << 2) | (1 << 0);
 		if ((tmp8 & mask) != mask)
@@ -4495,11 +4497,20 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	}
 
 	/* FIXME... */
-	if ((!legacy_mode) && (n_ports > 1)) {
-		printk(KERN_ERR "ata: BUG: native mode, n_ports > 1\n");
-		return -EINVAL;
+	if ((!legacy_mode) && (n_ports > 2)) {
+		printk(KERN_ERR "ata: BUG: native mode, n_ports > 2\n");
+		n_ports = 2;
+		/* For now */
 	}
 
+	/* FIXME: Really for ATA it isn't safe because the device may be
+	   multi-purpose and we want to leave it alone if it was already
+	   enabled. Secondly for shared use as Arjan says we want refcounting
+	   
+	   Checking dev->is_enabled is insufficient as this is not set at
+	   boot for the primary video which is BIOS enabled
+         */
+         
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -4510,6 +4521,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out;
 	}
 
+	/* FIXME: Should use platform specific mappers for legacy port ranges */
 	if (legacy_mode) {
 		if (!request_region(0x1f0, 8, "libata")) {
 			struct resource *conflict, res;
@@ -4554,10 +4566,17 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out_regions;
 
 	if (legacy_mode) {
-		probe_ent = ata_pci_init_legacy_mode(pdev, port, &probe_ent2);
-	} else
-		probe_ent = ata_pci_init_native_mode(pdev, port);
-	if (!probe_ent) {
+		if (legacy_mode & (1 << 0))
+			probe_ent = ata_pci_init_legacy_port(pdev, port, 0);
+		if (legacy_mode & (1 << 1))
+			probe_ent2 = ata_pci_init_legacy_port(pdev, port, 1);
+	} else {
+		if (n_ports == 2)
+			probe_ent = ata_pci_init_native_mode(pdev, port, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
+		else
+			probe_ent = ata_pci_init_native_mode(pdev, port, ATA_PORT_PRIMARY);
+	}
+	if (!probe_ent && !probe_ent2) {
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
