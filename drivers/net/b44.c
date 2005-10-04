@@ -1619,14 +1619,14 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	cmd->advertising = 0;
 	if (bp->flags & B44_FLAG_ADV_10HALF)
-		cmd->advertising |= ADVERTISE_10HALF;
+		cmd->advertising |= ADVERTISED_10baseT_Half;
 	if (bp->flags & B44_FLAG_ADV_10FULL)
-		cmd->advertising |= ADVERTISE_10FULL;
+		cmd->advertising |= ADVERTISED_10baseT_Full;
 	if (bp->flags & B44_FLAG_ADV_100HALF)
-		cmd->advertising |= ADVERTISE_100HALF;
+		cmd->advertising |= ADVERTISED_100baseT_Half;
 	if (bp->flags & B44_FLAG_ADV_100FULL)
-		cmd->advertising |= ADVERTISE_100FULL;
-	cmd->advertising |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+		cmd->advertising |= ADVERTISED_100baseT_Full;
+	cmd->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
 	cmd->speed = (bp->flags & B44_FLAG_100_BASE_T) ?
 		SPEED_100 : SPEED_10;
 	cmd->duplex = (bp->flags & B44_FLAG_FULL_DUPLEX) ?
