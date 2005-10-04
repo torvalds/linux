@@ -1355,7 +1355,8 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		up_write(&vol->lcnbmp_lock);
 		ntfs_unmap_page(page);
 		/* Allocate a cluster from the DATA_ZONE. */
-		rl2 = ntfs_cluster_alloc(vol, rl[1].vcn, 1, lcn, DATA_ZONE);
+		rl2 = ntfs_cluster_alloc(vol, rl[1].vcn, 1, lcn, DATA_ZONE,
+				TRUE);
 		if (IS_ERR(rl2)) {
 			up_write(&mftbmp_ni->runlist.lock);
 			ntfs_error(vol->sb, "Failed to allocate a cluster for "
@@ -1780,7 +1781,8 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 			nr > min_nr ? "default" : "minimal", (long long)nr);
 	old_last_vcn = rl[1].vcn;
 	do {
-		rl2 = ntfs_cluster_alloc(vol, old_last_vcn, nr, lcn, MFT_ZONE);
+		rl2 = ntfs_cluster_alloc(vol, old_last_vcn, nr, lcn, MFT_ZONE,
+				TRUE);
 		if (likely(!IS_ERR(rl2)))
 			break;
 		if (PTR_ERR(rl2) != -ENOSPC || nr == min_nr) {

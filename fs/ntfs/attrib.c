@@ -1566,8 +1566,6 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	new_size = (i_size_read(vi) + vol->cluster_size - 1) &
 			~(vol->cluster_size - 1);
 	if (new_size > 0) {
-		runlist_element *rl2;
-
 		/*
 		 * Will need the page later and since the page lock nests
 		 * outside all ntfs locks, we need to get the page now.
@@ -1578,7 +1576,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 			return -ENOMEM;
 		/* Start by allocating clusters to hold the attribute value. */
 		rl = ntfs_cluster_alloc(vol, 0, new_size >>
-				vol->cluster_size_bits, -1, DATA_ZONE);
+				vol->cluster_size_bits, -1, DATA_ZONE, TRUE);
 		if (IS_ERR(rl)) {
 			err = PTR_ERR(rl);
 			ntfs_debug("Failed to allocate cluster%s, error code "
@@ -1587,12 +1585,6 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 					err);
 			goto page_err_out;
 		}
-		/* Change the runlist terminator to LCN_ENOENT. */
-		rl2 = rl;
-		while (rl2->length)
-			rl2++;
-		BUG_ON(rl2->lcn != LCN_RL_NOT_MAPPED);
-		rl2->lcn = LCN_ENOENT;
 	} else {
 		rl = NULL;
 		page = NULL;

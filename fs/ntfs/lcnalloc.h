@@ -42,7 +42,8 @@ typedef enum {
 
 extern runlist_element *ntfs_cluster_alloc(ntfs_volume *vol,
 		const VCN start_vcn, const s64 count, const LCN start_lcn,
-		const NTFS_CLUSTER_ALLOCATION_ZONES zone);
+		const NTFS_CLUSTER_ALLOCATION_ZONES zone,
+		const BOOL is_extension);
 
 extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
 		s64 count, ntfs_attr_search_ctx *ctx, const BOOL is_rollback);

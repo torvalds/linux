@@ -76,6 +76,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  * @count:	number of clusters to allocate
  * @start_lcn:	starting lcn at which to allocate the clusters (or -1 if none)
  * @zone:	zone from which to allocate the clusters
+ * @is_extension:	if TRUE, this is an attribute extension
  *
  * Allocate @count clusters preferably starting at cluster @start_lcn or at the
  * current allocator position if @start_lcn is -1, on the mounted ntfs volume
@@ -85,6 +86,13 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  *
  * @start_vcn specifies the vcn of the first allocated cluster.  This makes
  * merging the resulting runlist with the old runlist easier.
+ *
+ * If @is_extension is TRUE, the caller is allocating clusters to extend an
+ * attribute and if it is FALSE, the caller is allocating clusters to fill a
+ * hole in an attribute.  Practically the difference is that if @is_extension
+ * is TRUE the returned runlist will be terminated with LCN_ENOENT and if
+ * @is_extension is FALSE the runlist will be terminated with
+ * LCN_RL_NOT_MAPPED.
  *
  * You need to check the return value with IS_ERR().  If this is false, the
  * function was successful and the return value is a runlist describing the
@@ -137,7 +145,8 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  */
 runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		const s64 count, const LCN start_lcn,
-		const NTFS_CLUSTER_ALLOCATION_ZONES zone)
+		const NTFS_CLUSTER_ALLOCATION_ZONES zone,
+		const BOOL is_extension)
 {
 	LCN zone_start, zone_end, bmp_pos, bmp_initial_pos, last_read_pos, lcn;
 	LCN prev_lcn = 0, prev_run_len = 0, mft_zone_size;
@@ -310,7 +319,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 				continue;
 			}
 			bit = 1 << (lcn & 7);
-			ntfs_debug("bit %i.", bit);
+			ntfs_debug("bit 0x%x.", bit);
 			/* If the bit is already set, go onto the next one. */
 			if (*byte & bit) {
 				lcn++;
@@ -729,7 +738,7 @@ out:
 	/* Add runlist terminator element. */
 	if (likely(rl)) {
 		rl[rlpos].vcn = rl[rlpos - 1].vcn + rl[rlpos - 1].length;
-		rl[rlpos].lcn = LCN_RL_NOT_MAPPED;
+		rl[rlpos].lcn = is_extension ? LCN_ENOENT : LCN_RL_NOT_MAPPED;
 		rl[rlpos].length = 0;
 	}
 	if (likely(page && !IS_ERR(page))) {

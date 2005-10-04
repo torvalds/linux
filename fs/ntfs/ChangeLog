@@ -31,6 +31,12 @@ ToDo/Notes:
 	- Fix potential deadlock in ntfs_mft_data_extend_allocation_nolock()
 	  error handling by passing in the active search context when calling
 	  ntfs_cluster_free().
+	- Change ntfs_cluster_alloc() to take an extra boolean parameter
+	  specifying whether the cluster are being allocated to extend an
+	  attribute or to fill a hole.
+	- Change ntfs_attr_make_non_resident() to call ntfs_cluster_alloc()
+	  with @is_extension set to TRUE and remove the runlist terminator
+	  fixup code as this is now done by ntfs_cluster_alloc().
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
