@@ -765,7 +765,6 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 
 	case SIOCSIFHWADDR: {
 		char addr[AX25_ADDR_LEN];
-printk(KERN_INFO "In SIOCSIFHWADDR");
 
 		if (copy_from_user(&addr,
 		                   (void __user *) arg, AX25_ADDR_LEN)) {
