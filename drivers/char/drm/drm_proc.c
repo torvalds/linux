@@ -95,7 +95,7 @@ int drm_proc_init(drm_device_t *dev, int minor,
 	char                  name[64];
 
 	sprintf(name, "%d", minor);
-	*dev_root = create_proc_entry(name, S_IFDIR, root);
+	*dev_root = proc_mkdir(name, root);
 	if (!*dev_root) {
 		DRM_ERROR("Cannot create /proc/dri/%s\n", name);
 		return -1;

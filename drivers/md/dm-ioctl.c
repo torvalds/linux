@@ -230,11 +230,20 @@ static int dm_hash_insert(const char *name, const char *uuid, struct mapped_devi
 
 static void __hash_remove(struct hash_cell *hc)
 {
+	struct dm_table *table;
+
 	/* remove from the dev hash */
 	list_del(&hc->uuid_list);
 	list_del(&hc->name_list);
 	unregister_with_devfs(hc);
 	dm_set_mdptr(hc->md, NULL);
+
+	table = dm_get_table(hc->md);
+	if (table) {
+		dm_table_event(table);
+		dm_table_put(table);
+	}
+
 	dm_put(hc->md);
 	if (hc->new_map)
 		dm_table_put(hc->new_map);

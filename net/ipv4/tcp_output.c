@@ -190,7 +190,7 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	}
 
 	/* Set initial window to value enough for senders,
-	 * following RFC1414. Senders, not following this RFC,
+	 * following RFC2414. Senders, not following this RFC,
 	 * will be satisfied with 2.
 	 */
 	if (mss > (1<<*rcv_wscale)) {

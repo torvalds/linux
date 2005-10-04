@@ -464,8 +464,6 @@ static void __init boot_flags_init(char *commands)
 	}
 }
 
-extern int prom_probe_memory(void);
-extern unsigned long start, end;
 extern void panic_setup(char *, int *);
 
 extern unsigned short root_flags;
@@ -492,13 +490,8 @@ void register_prom_callbacks(void)
 		   "' linux-.soft2 to .soft2");
 }
 
-extern void paging_init(void);
-
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long highest_paddr;
-	int i;
-
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
 	strcpy(saved_command_line, *cmdline_p);
@@ -517,40 +510,6 @@ void __init setup_arch(char **cmdline_p)
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
-	(void) prom_probe_memory();
-
-	/* In paging_init() we tip off this value to see if we need
-	 * to change init_mm.pgd to point to the real alias mapping.
-	 */
-	phys_base = 0xffffffffffffffffUL;
-	highest_paddr = 0UL;
-	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
-		unsigned long top;
-
-		if (sp_banks[i].base_addr < phys_base)
-			phys_base = sp_banks[i].base_addr;
-		top = sp_banks[i].base_addr +
-			sp_banks[i].num_bytes;
-		if (highest_paddr < top)
-			highest_paddr = top;
-	}
-	pfn_base = phys_base >> PAGE_SHIFT;
-
-	switch (tlb_type) {
-	default:
-	case spitfire:
-		kern_base = spitfire_get_itlb_data(sparc64_highest_locked_tlbent());
-		kern_base &= _PAGE_PADDR_SF;
-		break;
-
-	case cheetah:
-	case cheetah_plus:
-		kern_base = cheetah_get_litlb_data(sparc64_highest_locked_tlbent());
-		kern_base &= _PAGE_PADDR;
-		break;
-	};
-
-	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;
@@ -625,6 +584,9 @@ extern void smp_info(struct seq_file *);
 extern void smp_bogo(struct seq_file *);
 extern void mmu_info(struct seq_file *);
 
+unsigned int dcache_parity_tl1_occurred;
+unsigned int icache_parity_tl1_occurred;
+
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
 	seq_printf(m, 
@@ -635,6 +597,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "type\t\t: sun4u\n"
 		   "ncpus probed\t: %ld\n"
 		   "ncpus active\t: %ld\n"
+		   "D$ parity tl1\t: %u\n"
+		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
 		   "Cpu0Bogo\t: %lu.%02lu\n"
 		   "Cpu0ClkTck\t: %016lx\n"
@@ -647,7 +611,9 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   (prom_prev >> 8) & 0xff,
 		   prom_prev & 0xff,
 		   (long)num_possible_cpus(),
-		   (long)num_online_cpus()
+		   (long)num_online_cpus(),
+		   dcache_parity_tl1_occurred,
+		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
 		   , cpu_data(0).udelay_val/(500000/HZ),
 		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,

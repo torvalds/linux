@@ -416,6 +416,7 @@ static int sctp_packet(struct ip_conntrack *conntrack,
 		&& newconntrack == SCTP_CONNTRACK_ESTABLISHED) {
 		DEBUGP("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &conntrack->status);
+		ip_conntrack_event_cache(IPCT_STATUS, skb);
 	}
 
 	return NF_ACCEPT;

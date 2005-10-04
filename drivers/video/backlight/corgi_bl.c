@@ -19,7 +19,6 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 
-#include <asm/mach-types.h>
 #include <asm/arch/sharpsl.h>
 
 #define CORGI_DEFAULT_INTENSITY		0x1f

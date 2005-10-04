@@ -54,9 +54,12 @@ void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
 	mce->finished = 0;
-	smp_wmb();
+	wmb();
 	for (;;) {
 		entry = rcu_dereference(mcelog.next);
+		/* The rmb forces the compiler to reload next in each
+		    iteration */
+		rmb();
 		for (;;) {
 			/* When the buffer fills up discard new entries. Assume
 			   that the earlier errors are the more interesting. */
@@ -69,6 +72,7 @@ void mce_log(struct mce *mce)
 				entry++;
 				continue;
 			}
+			break;
 		}
 		smp_rmb();
 		next = entry + 1;
@@ -76,9 +80,9 @@ void mce_log(struct mce *mce)
 			break;
 	}
 	memcpy(mcelog.entry + entry, mce, sizeof(struct mce));
-	smp_wmb();
+	wmb();
 	mcelog.entry[entry].finished = 1;
-	smp_wmb();
+	wmb();
 
 	if (!test_and_set_bit(0, &console_logged))
 		notify_user = 1;

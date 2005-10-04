@@ -32,25 +32,3 @@ CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH)
 ifneq ($(CONFIG_GPROF),y)
 ARCH_CFLAGS += -DUM_FASTCALL
 endif
-
-SYS_UTIL_DIR	:= $(ARCH_DIR)/sys-i386/util
-SYS_HEADERS	:= $(SYS_DIR)/sc.h $(SYS_DIR)/thread.h
-
-prepare: $(SYS_HEADERS)
-
-$(SYS_DIR)/sc.h: $(SYS_UTIL_DIR)/mk_sc
-	$(call filechk,gen_header)
-
-$(SYS_DIR)/thread.h: $(SYS_UTIL_DIR)/mk_thread 
-	$(call filechk,gen_header)
-
-$(SYS_UTIL_DIR)/mk_sc: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
-
-$(SYS_UTIL_DIR)/mk_thread: scripts_basic $(ARCH_DIR)/kernel-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
-
-$(SYS_UTIL_DIR): scripts_basic include/asm FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR)
-
-CLEAN_FILES += $(SYS_HEADERS)

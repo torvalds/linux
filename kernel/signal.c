@@ -1763,7 +1763,8 @@ do_signal_stop(int signr)
 				 * stop is always done with the siglock held,
 				 * so this check has no races.
 				 */
-				if (t->state < TASK_STOPPED) {
+				if (!t->exit_state &&
+				    !(t->state & (TASK_STOPPED|TASK_TRACED))) {
 					stop_count++;
 					signal_wake_up(t, 0);
 				}

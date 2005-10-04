@@ -53,30 +53,36 @@
 int v9fs_file_open(struct inode *inode, struct file *file)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-	struct v9fs_fid *v9fid = v9fs_fid_lookup(file->f_dentry, FID_WALK);
-	struct v9fs_fid *v9newfid = NULL;
+	struct v9fs_fid *v9fid, *fid;
 	struct v9fs_fcall *fcall = NULL;
 	int open_mode = 0;
 	unsigned int iounit = 0;
 	int newfid = -1;
 	long result = -1;
 
-	dprintk(DEBUG_VFS, "inode: %p file: %p v9fid= %p\n", inode, file,
-		v9fid);
+	dprintk(DEBUG_VFS, "inode: %p file: %p \n", inode, file);
+
+	v9fid = v9fs_fid_get_created(file->f_dentry);
+	if (!v9fid)
+		v9fid = v9fs_fid_lookup(file->f_dentry);
 
 	if (!v9fid) {
-		struct dentry *dentry = file->f_dentry;
 		dprintk(DEBUG_ERROR, "Couldn't resolve fid from dentry\n");
+		return -EBADF;
+	}
 
-		/* XXX - some duplication from lookup, generalize later */
-		/* basically vfs_lookup is too heavy weight */
-		v9fid = v9fs_fid_lookup(file->f_dentry, FID_OP);
-		if (!v9fid)
-			return -EBADF;
+	if (!v9fid->fidcreate) {
+		fid = kmalloc(sizeof(struct v9fs_fid), GFP_KERNEL);
+		if (fid == NULL) {
+			dprintk(DEBUG_ERROR, "Out of Memory\n");
+			return -ENOMEM;
+		}
 
-		v9fid = v9fs_fid_lookup(dentry->d_parent, FID_WALK);
-		if (!v9fid)
-			return -EBADF;
+		fid->fidopen = 0;
+		fid->fidcreate = 0;
+		fid->fidclunked = 0;
+		fid->iounit = 0;
+		fid->v9ses = v9ses;
 
 		newfid = v9fs_get_idpool(&v9ses->fidpool);
 		if (newfid < 0) {
@@ -85,58 +91,16 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		}
 
 		result =
-		    v9fs_t_walk(v9ses, v9fid->fid, newfid,
-				(char *)file->f_dentry->d_name.name, NULL);
+		    v9fs_t_walk(v9ses, v9fid->fid, newfid, NULL, NULL);
+
 		if (result < 0) {
 			v9fs_put_idpool(newfid, &v9ses->fidpool);
 			dprintk(DEBUG_ERROR, "rewalk didn't work\n");
 			return -EBADF;
 		}
 
-		v9fid = v9fs_fid_create(dentry);
-		if (v9fid == NULL) {
-			dprintk(DEBUG_ERROR, "couldn't insert\n");
-			return -ENOMEM;
-		}
-		v9fid->fid = newfid;
-	}
-
-	if (v9fid->fidcreate) {
-		/* create case */
-		newfid = v9fid->fid;
-		iounit = v9fid->iounit;
-		v9fid->fidcreate = 0;
-	} else {
-		if (!S_ISDIR(inode->i_mode))
-			newfid = v9fid->fid;
-		else {
-			newfid = v9fs_get_idpool(&v9ses->fidpool);
-			if (newfid < 0) {
-				eprintk(KERN_WARNING, "allocation failed\n");
-				return -ENOSPC;
-			}
-			/* This would be a somewhat critical clone */
-			result =
-			    v9fs_t_walk(v9ses, v9fid->fid, newfid, NULL,
-					&fcall);
-			if (result < 0) {
-				dprintk(DEBUG_ERROR, "clone error: %s\n",
-					FCALL_ERROR(fcall));
-				kfree(fcall);
-				return result;
-			}
-
-			v9newfid = v9fs_fid_create(file->f_dentry);
-			v9newfid->fid = newfid;
-			v9newfid->qid = v9fid->qid;
-			v9newfid->iounit = v9fid->iounit;
-			v9newfid->fidopen = 0;
-			v9newfid->fidclunked = 0;
-			v9newfid->v9ses = v9ses;
-			v9fid = v9newfid;
-			kfree(fcall);
-		}
-
+		fid->fid = newfid;
+		v9fid = fid;
 		/* TODO: do special things for O_EXCL, O_NOFOLLOW, O_SYNC */
 		/* translate open mode appropriately */
 		open_mode = file->f_flags & 0x3;
@@ -163,8 +127,12 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 		iounit = fcall->params.ropen.iounit;
 		kfree(fcall);
+	} else {
+		/* create case */
+		newfid = v9fid->fid;
+		iounit = v9fid->iounit;
+		v9fid->fidcreate = 0;
 	}
-
 
 	file->private_data = v9fid;
 

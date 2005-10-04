@@ -308,6 +308,7 @@ static struct input_device_id *input_match_device(struct input_device_id *id, st
 		MATCH_BIT(ledbit, LED_MAX);
 		MATCH_BIT(sndbit, SND_MAX);
 		MATCH_BIT(ffbit,  FF_MAX);
+		MATCH_BIT(swbit,  SW_MAX);
 
 		return id;
 	}

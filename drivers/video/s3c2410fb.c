@@ -228,8 +228,8 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
  * information
 */
 
-static int s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
-				  struct fb_var_screeninfo *var)
+static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
+				   struct fb_var_screeninfo *var)
 {
 	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_MODEMASK;
 

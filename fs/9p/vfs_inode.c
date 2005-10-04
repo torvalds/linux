@@ -307,7 +307,7 @@ v9fs_create(struct inode *dir,
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	struct super_block *sb = dir->i_sb;
 	struct v9fs_fid *dirfid =
-	    v9fs_fid_lookup(file_dentry->d_parent, FID_WALK);
+	    v9fs_fid_lookup(file_dentry->d_parent);
 	struct v9fs_fid *fid = NULL;
 	struct inode *file_inode = NULL;
 	struct v9fs_fcall *fcall = NULL;
@@ -317,6 +317,7 @@ v9fs_create(struct inode *dir,
 	long newfid = -1;
 	int result = 0;
 	unsigned int iounit = 0;
+	int wfidno = -1;
 
 	perm = unixmode2p9mode(v9ses, perm);
 
@@ -350,7 +351,7 @@ v9fs_create(struct inode *dir,
 	if (result < 0) {
 		dprintk(DEBUG_ERROR, "clone error: %s\n", FCALL_ERROR(fcall));
 		v9fs_put_idpool(newfid, &v9ses->fidpool);
-		newfid = 0;
+		newfid = -1;
 		goto CleanUpFid;
 	}
 
@@ -369,20 +370,39 @@ v9fs_create(struct inode *dir,
 	qid = fcall->params.rcreate.qid;
 	kfree(fcall);
 
-	fid = v9fs_fid_create(file_dentry);
+	fid = v9fs_fid_create(file_dentry, v9ses, newfid, 1);
+	dprintk(DEBUG_VFS, "fid %p %d\n", fid, fid->fidcreate);
 	if (!fid) {
 		result = -ENOMEM;
 		goto CleanUpFid;
 	}
 
-	fid->fid = newfid;
-	fid->fidopen = 0;
-	fid->fidcreate = 1;
 	fid->qid = qid;
 	fid->iounit = iounit;
-	fid->rdir_pos = 0;
-	fid->rdir_fcall = NULL;
-	fid->v9ses = v9ses;
+
+	/* walk to the newly created file and put the fid in the dentry */
+	wfidno = v9fs_get_idpool(&v9ses->fidpool);
+	if (newfid < 0) {
+		eprintk(KERN_WARNING, "no free fids available\n");
+		return -ENOSPC;
+	}
+
+	result = v9fs_t_walk(v9ses, dirfidnum, wfidno,
+		(char *) file_dentry->d_name.name, NULL);
+	if (result < 0) {
+		dprintk(DEBUG_ERROR, "clone error: %s\n", FCALL_ERROR(fcall));
+		v9fs_put_idpool(wfidno, &v9ses->fidpool);
+		wfidno = -1;
+		goto CleanUpFid;
+	}
+
+	if (!v9fs_fid_create(file_dentry, v9ses, wfidno, 0)) {
+		if (!v9fs_t_clunk(v9ses, newfid, &fcall)) {
+			v9fs_put_idpool(wfidno, &v9ses->fidpool);
+		}
+
+		goto CleanUpFid;
+	}
 
 	if ((perm & V9FS_DMSYMLINK) || (perm & V9FS_DMLINK) ||
 	    (perm & V9FS_DMNAMEDPIPE) || (perm & V9FS_DMSOCKET) ||
@@ -410,11 +430,11 @@ v9fs_create(struct inode *dir,
 	d_instantiate(file_dentry, file_inode);
 
 	if (perm & V9FS_DMDIR) {
-		if (v9fs_t_clunk(v9ses, newfid, &fcall))
+		if (!v9fs_t_clunk(v9ses, newfid, &fcall))
+			v9fs_put_idpool(newfid, &v9ses->fidpool);
+		else
 			dprintk(DEBUG_ERROR, "clunk for mkdir failed: %s\n",
 				FCALL_ERROR(fcall));
-
-		v9fs_put_idpool(newfid, &v9ses->fidpool);
 		kfree(fcall);
 		fid->fidopen = 0;
 		fid->fidcreate = 0;
@@ -426,12 +446,22 @@ v9fs_create(struct inode *dir,
       CleanUpFid:
 	kfree(fcall);
 
-	if (newfid) {
-		if (v9fs_t_clunk(v9ses, newfid, &fcall))
+	if (newfid >= 0) {
+		if (!v9fs_t_clunk(v9ses, newfid, &fcall))
+			v9fs_put_idpool(newfid, &v9ses->fidpool);
+		else
 			dprintk(DEBUG_ERROR, "clunk failed: %s\n",
 				FCALL_ERROR(fcall));
 
-		v9fs_put_idpool(newfid, &v9ses->fidpool);
+		kfree(fcall);
+	}
+	if (wfidno >= 0) {
+		if (!v9fs_t_clunk(v9ses, wfidno, &fcall))
+			v9fs_put_idpool(wfidno, &v9ses->fidpool);
+		else
+			dprintk(DEBUG_ERROR, "clunk failed: %s\n",
+				FCALL_ERROR(fcall));
+
 		kfree(fcall);
 	}
 	return result;
@@ -461,7 +491,7 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	file_inode = file->d_inode;
 	sb = file_inode->i_sb;
 	v9ses = v9fs_inode2v9ses(file_inode);
-	v9fid = v9fs_fid_lookup(file, FID_OP);
+	v9fid = v9fs_fid_lookup(file);
 
 	if (!v9fid) {
 		dprintk(DEBUG_ERROR,
@@ -545,7 +575,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);
-	dirfid = v9fs_fid_lookup(dentry->d_parent, FID_WALK);
+	dirfid = v9fs_fid_lookup(dentry->d_parent);
 
 	if (!dirfid) {
 		dprintk(DEBUG_ERROR, "no dirfid\n");
@@ -573,7 +603,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		v9fs_put_idpool(newfid, &v9ses->fidpool);
 		if (result == -ENOENT) {
 			d_add(dentry, NULL);
-			dprintk(DEBUG_ERROR,
+			dprintk(DEBUG_VFS,
 				"Return negative dentry %p count %d\n",
 				dentry, atomic_read(&dentry->d_count));
 			return NULL;
@@ -601,16 +631,13 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	inode->i_ino = v9fs_qid2ino(&fcall->params.rstat.stat->qid);
 
-	fid = v9fs_fid_create(dentry);
+	fid = v9fs_fid_create(dentry, v9ses, newfid, 0);
 	if (fid == NULL) {
 		dprintk(DEBUG_ERROR, "couldn't insert\n");
 		result = -ENOMEM;
 		goto FreeFcall;
 	}
 
-	fid->fid = newfid;
-	fid->fidopen = 0;
-	fid->v9ses = v9ses;
 	fid->qid = fcall->params.rstat.stat->qid;
 
 	dentry->d_op = &v9fs_dentry_operations;
@@ -665,11 +692,11 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct inode *old_inode = old_dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(old_inode);
-	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry, FID_WALK);
+	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry);
 	struct v9fs_fid *olddirfid =
-	    v9fs_fid_lookup(old_dentry->d_parent, FID_WALK);
+	    v9fs_fid_lookup(old_dentry->d_parent);
 	struct v9fs_fid *newdirfid =
-	    v9fs_fid_lookup(new_dentry->d_parent, FID_WALK);
+	    v9fs_fid_lookup(new_dentry->d_parent);
 	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
 	struct v9fs_fcall *fcall = NULL;
 	int fid = -1;
@@ -744,7 +771,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 {
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	struct v9fs_fid *fid = v9fs_fid_lookup(dentry, FID_OP);
+	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
 	int err = -EPERM;
 
 	dprintk(DEBUG_VFS, "dentry: %p\n", dentry);
@@ -778,7 +805,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	struct v9fs_fid *fid = v9fs_fid_lookup(dentry, FID_OP);
+	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
 	int res = -EPERM;
@@ -960,7 +987,7 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	if (retval != 0)
 		goto FreeFcall;
 
-	newfid = v9fs_fid_lookup(dentry, FID_OP);
+	newfid = v9fs_fid_lookup(dentry);
 
 	/* issue a twstat */
 	v9fs_blank_mistat(v9ses, mistat);
@@ -1004,7 +1031,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	struct v9fs_fid *fid = v9fs_fid_lookup(dentry, FID_OP);
+	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
 
 	if (!fid) {
 		dprintk(DEBUG_ERROR, "could not resolve fid from dentry\n");
@@ -1148,7 +1175,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
-	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry, FID_OP);
+	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry);
 	struct v9fs_fid *newfid = NULL;
 	char *symname = __getname();
 
@@ -1168,7 +1195,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (retval != 0)
 		goto FreeMem;
 
-	newfid = v9fs_fid_lookup(dentry, FID_OP);
+	newfid = v9fs_fid_lookup(dentry);
 	if (!newfid) {
 		dprintk(DEBUG_ERROR, "couldn't resolve fid from dentry\n");
 		goto FreeMem;
@@ -1246,7 +1273,7 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	if (retval != 0)
 		goto FreeMem;
 
-	newfid = v9fs_fid_lookup(dentry, FID_OP);
+	newfid = v9fs_fid_lookup(dentry);
 	if (!newfid) {
 		dprintk(DEBUG_ERROR, "coudn't resove fid from dentry\n");
 		retval = -EINVAL;

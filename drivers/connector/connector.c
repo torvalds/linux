@@ -84,7 +84,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, int gfp_mask)
 		spin_lock_bh(&dev->cbdev->queue_lock);
 		list_for_each_entry(__cbq, &dev->cbdev->queue_list,
 				    callback_entry) {
-			if (cn_cb_equal(&__cbq->cb->id, &msg->id)) {
+			if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
 				found = 1;
 				group = __cbq->group;
 			}
@@ -127,42 +127,56 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 {
 	struct cn_callback_entry *__cbq;
 	struct cn_dev *dev = &cdev;
-	int found = 0;
+	int err = -ENODEV;
 
 	spin_lock_bh(&dev->cbdev->queue_lock);
 	list_for_each_entry(__cbq, &dev->cbdev->queue_list, callback_entry) {
-		if (cn_cb_equal(&__cbq->cb->id, &msg->id)) {
-			/*
-			 * Let's scream if there is some magic and the
-			 * data will arrive asynchronously here.
-			 * [i.e. netlink messages will be queued].
-			 * After the first warning I will fix it
-			 * quickly, but now I think it is
-			 * impossible. --zbr (2004_04_27).
-			 */
+		if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
 			if (likely(!test_bit(0, &__cbq->work.pending) &&
-					__cbq->ddata == NULL)) {
-				__cbq->cb->priv = msg;
+					__cbq->data.ddata == NULL)) {
+				__cbq->data.callback_priv = msg;
 
-				__cbq->ddata = data;
-				__cbq->destruct_data = destruct_data;
+				__cbq->data.ddata = data;
+				__cbq->data.destruct_data = destruct_data;
 
 				if (queue_work(dev->cbdev->cn_queue,
 						&__cbq->work))
-					found = 1;
+					err = 0;
 			} else {
-				printk("%s: cbq->data=%p, "
-				       "work->pending=%08lx.\n",
-				       __func__, __cbq->ddata,
-				       __cbq->work.pending);
-				WARN_ON(1);
+				struct work_struct *w;
+				struct cn_callback_data *d;
+				
+				w = kzalloc(sizeof(*w) + sizeof(*d), GFP_ATOMIC);
+				if (w) {
+					d = (struct cn_callback_data *)(w+1);
+
+					d->callback_priv = msg;
+					d->callback = __cbq->data.callback;
+					d->ddata = data;
+					d->destruct_data = destruct_data;
+					d->free = w;
+
+					INIT_LIST_HEAD(&w->entry);
+					w->pending = 0;
+					w->func = &cn_queue_wrapper;
+					w->data = d;
+					init_timer(&w->timer);
+					
+					if (queue_work(dev->cbdev->cn_queue, w))
+						err = 0;
+					else {
+						kfree(w);
+						err = -EINVAL;
+					}
+				} else
+					err = -ENOMEM;
 			}
 			break;
 		}
 	}
 	spin_unlock_bh(&dev->cbdev->queue_lock);
 
-	return found ? 0 : -ENODEV;
+	return err;
 }
 
 /*
@@ -291,22 +305,10 @@ int cn_add_callback(struct cb_id *id, char *name, void (*callback)(void *))
 {
 	int err;
 	struct cn_dev *dev = &cdev;
-	struct cn_callback *cb;
 
-	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
-	if (!cb)
-		return -ENOMEM;
-
-	scnprintf(cb->name, sizeof(cb->name), "%s", name);
-
-	memcpy(&cb->id, id, sizeof(cb->id));
-	cb->callback = callback;
-
-	err = cn_queue_add_callback(dev->cbdev, cb);
-	if (err) {
-		kfree(cb);
+	err = cn_queue_add_callback(dev->cbdev, name, id, callback);
+	if (err)
 		return err;
-	}
 
 	cn_notify(id, 0);
 

@@ -26,6 +26,9 @@
 #include "mconsole_kern.h"
 #include "mem.h"
 #include "mem_kern.h"
+#ifdef CONFIG_MODE_SKAS
+#include "skas.h"
+#endif
 
 /* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
 int handle_page_fault(unsigned long address, unsigned long ip, 
@@ -134,7 +137,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 	else if(current->mm == NULL)
 		panic("Segfault with no mm");
 
-	if (SEGV_IS_FIXABLE(&fi))
+	if (SEGV_IS_FIXABLE(&fi) || SEGV_MAYBE_FIXABLE(&fi))
 		err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
 	else {
 		err = -EFAULT;

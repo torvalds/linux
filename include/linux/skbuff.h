@@ -155,8 +155,6 @@ struct skb_shared_info {
 #define SKB_DATAREF_SHIFT 16
 #define SKB_DATAREF_MASK ((1 << SKB_DATAREF_SHIFT) - 1)
 
-extern struct timeval skb_tv_base;
-
 struct skb_timeval {
 	u32	off_sec;
 	u32	off_usec;
@@ -175,7 +173,7 @@ enum {
  *	@prev: Previous buffer in list
  *	@list: List we are on
  *	@sk: Socket we are owned by
- *	@tstamp: Time we arrived stored as offset to skb_tv_base
+ *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
  *	@input_dev: Device we arrived on
  *	@h: Transport layer header
@@ -1255,10 +1253,6 @@ static inline void skb_get_timestamp(const struct sk_buff *skb, struct timeval *
 {
 	stamp->tv_sec  = skb->tstamp.off_sec;
 	stamp->tv_usec = skb->tstamp.off_usec;
-	if (skb->tstamp.off_sec) {
-		stamp->tv_sec  += skb_tv_base.tv_sec;
-		stamp->tv_usec += skb_tv_base.tv_usec;
-	}
 }
 
 /**
@@ -1272,8 +1266,8 @@ static inline void skb_get_timestamp(const struct sk_buff *skb, struct timeval *
  */
 static inline void skb_set_timestamp(struct sk_buff *skb, const struct timeval *stamp)
 {
-	skb->tstamp.off_sec  = stamp->tv_sec - skb_tv_base.tv_sec;
-	skb->tstamp.off_usec = stamp->tv_usec - skb_tv_base.tv_usec;
+	skb->tstamp.off_sec  = stamp->tv_sec;
+	skb->tstamp.off_usec = stamp->tv_usec;
 }
 
 extern void __net_timestamp(struct sk_buff *skb);

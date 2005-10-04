@@ -37,7 +37,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <asm/pgalloc.h>
 

@@ -76,8 +76,9 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	struct ib_uverbs_get_context_resp resp;
 	struct ib_udata                   udata;
 	struct ib_device                 *ibdev = file->device->ib_dev;
+	struct ib_ucontext		 *ucontext;
 	int i;
-	int ret = in_len;
+	int ret;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -85,45 +86,56 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
+	down(&file->mutex);
+
+	if (file->ucontext) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	INIT_UDATA(&udata, buf + sizeof cmd,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	file->ucontext = ibdev->alloc_ucontext(ibdev, &udata);
-	if (IS_ERR(file->ucontext)) {
-		ret = PTR_ERR(file->ucontext);
-		file->ucontext = NULL;
-		return ret;
-	}
+	ucontext = ibdev->alloc_ucontext(ibdev, &udata);
+	if (IS_ERR(ucontext))
+		return PTR_ERR(file->ucontext);
 
-	file->ucontext->device = ibdev;
-	INIT_LIST_HEAD(&file->ucontext->pd_list);
-	INIT_LIST_HEAD(&file->ucontext->mr_list);
-	INIT_LIST_HEAD(&file->ucontext->mw_list);
-	INIT_LIST_HEAD(&file->ucontext->cq_list);
-	INIT_LIST_HEAD(&file->ucontext->qp_list);
-	INIT_LIST_HEAD(&file->ucontext->srq_list);
-	INIT_LIST_HEAD(&file->ucontext->ah_list);
-	spin_lock_init(&file->ucontext->lock);
+	ucontext->device = ibdev;
+	INIT_LIST_HEAD(&ucontext->pd_list);
+	INIT_LIST_HEAD(&ucontext->mr_list);
+	INIT_LIST_HEAD(&ucontext->mw_list);
+	INIT_LIST_HEAD(&ucontext->cq_list);
+	INIT_LIST_HEAD(&ucontext->qp_list);
+	INIT_LIST_HEAD(&ucontext->srq_list);
+	INIT_LIST_HEAD(&ucontext->ah_list);
 
 	resp.async_fd = file->async_file.fd;
 	for (i = 0; i < file->device->num_comp; ++i)
 		if (copy_to_user((void __user *) (unsigned long) cmd.cq_fd_tab +
 				 i * sizeof (__u32),
-				 &file->comp_file[i].fd, sizeof (__u32)))
-			goto err;
+				 &file->comp_file[i].fd, sizeof (__u32))) {
+			ret = -EFAULT;
+			goto err_free;
+		}
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
-			 &resp, sizeof resp))
-		goto err;
+			 &resp, sizeof resp)) {
+		ret = -EFAULT;
+		goto err_free;
+	}
+
+	file->ucontext = ucontext;
+	up(&file->mutex);
 
 	return in_len;
 
-err:
-	ibdev->dealloc_ucontext(file->ucontext);
-	file->ucontext = NULL;
+err_free:
+	ibdev->dealloc_ucontext(ucontext);
 
-	return -EFAULT;
+err:
+	up(&file->mutex);
+	return ret;
 }
 
 ssize_t ib_uverbs_query_device(struct ib_uverbs_file *file,
@@ -352,9 +364,9 @@ retry:
 	if (ret)
 		goto err_pd;
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_add_tail(&uobj->list, &file->ucontext->pd_list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
@@ -368,9 +380,9 @@ retry:
 	return in_len;
 
 err_list:
- 	spin_lock_irq(&file->ucontext->lock);
+ 	down(&file->mutex);
 	list_del(&uobj->list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	down(&ib_uverbs_idr_mutex);
 	idr_remove(&ib_uverbs_pd_idr, uobj->id);
@@ -410,9 +422,9 @@ ssize_t ib_uverbs_dealloc_pd(struct ib_uverbs_file *file,
 
 	idr_remove(&ib_uverbs_pd_idr, cmd.pd_handle);
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&uobj->list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	kfree(uobj);
 
@@ -512,9 +524,9 @@ retry:
 
 	resp.mr_handle = obj->uobject.id;
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_add_tail(&obj->uobject.list, &file->ucontext->mr_list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -527,9 +539,9 @@ retry:
 	return in_len;
 
 err_list:
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&obj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 err_unreg:
 	ib_dereg_mr(mr);
@@ -570,9 +582,9 @@ ssize_t ib_uverbs_dereg_mr(struct ib_uverbs_file *file,
 
 	idr_remove(&ib_uverbs_mr_idr, cmd.mr_handle);
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&memobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	ib_umem_release(file->device->ib_dev, &memobj->umem);
 	kfree(memobj);
@@ -647,9 +659,9 @@ retry:
 	if (ret)
 		goto err_cq;
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_add_tail(&uobj->uobject.list, &file->ucontext->cq_list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	memset(&resp, 0, sizeof resp);
 	resp.cq_handle = uobj->uobject.id;
@@ -664,9 +676,9 @@ retry:
 	return in_len;
 
 err_list:
- 	spin_lock_irq(&file->ucontext->lock);
+ 	down(&file->mutex);
 	list_del(&uobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	down(&ib_uverbs_idr_mutex);
 	idr_remove(&ib_uverbs_cq_idr, uobj->uobject.id);
@@ -712,9 +724,9 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 
 	idr_remove(&ib_uverbs_cq_idr, cmd.cq_handle);
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&uobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	spin_lock_irq(&file->comp_file[0].lock);
 	list_for_each_entry_safe(evt, tmp, &uobj->comp_list, obj_list) {
@@ -847,9 +859,9 @@ retry:
 
 	resp.qp_handle = uobj->uobject.id;
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_add_tail(&uobj->uobject.list, &file->ucontext->qp_list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -862,9 +874,9 @@ retry:
 	return in_len;
 
 err_list:
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&uobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 err_destroy:
 	ib_destroy_qp(qp);
@@ -989,9 +1001,9 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 
 	idr_remove(&ib_uverbs_qp_idr, cmd.qp_handle);
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&uobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	spin_lock_irq(&file->async_file.lock);
 	list_for_each_entry_safe(evt, tmp, &uobj->event_list, obj_list) {
@@ -1136,9 +1148,9 @@ retry:
 
 	resp.srq_handle = uobj->uobject.id;
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_add_tail(&uobj->uobject.list, &file->ucontext->srq_list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -1151,9 +1163,9 @@ retry:
 	return in_len;
 
 err_list:
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&uobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 err_destroy:
 	ib_destroy_srq(srq);
@@ -1227,9 +1239,9 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 
 	idr_remove(&ib_uverbs_srq_idr, cmd.srq_handle);
 
-	spin_lock_irq(&file->ucontext->lock);
+	down(&file->mutex);
 	list_del(&uobj->uobject.list);
-	spin_unlock_irq(&file->ucontext->lock);
+	up(&file->mutex);
 
 	spin_lock_irq(&file->async_file.lock);
 	list_for_each_entry_safe(evt, tmp, &uobj->event_list, obj_list) {
