@@ -3,16 +3,14 @@ ToDo/Notes:
 	- In between ntfs_prepare/commit_write, need exclusion between
 	  simultaneous file extensions.  This is given to us by holding i_sem
 	  on the inode.  The only places in the kernel when a file is resized
-	  are prepare/commit write and truncate for both of which i_sem is
-	  held.  Just have to be careful in readpage/writepage and all other
-	  helpers not running under i_sem that we play nice...
-	  Also need to be careful with initialized_size extention in
-	  ntfs_prepare_write. Basically, just be _very_ careful in this code...
-	  UPDATE: The only things that need to be checked are read/writepage
-	  which do not hold i_sem.  Note writepage cannot change i_size but it
-	  needs to cope with a concurrent i_size change, just like readpage.
-	  Also both need to cope with concurrent changes to the other sizes,
-	  i.e. initialized/allocated/compressed size, as well.
+	  are prepare/commit write and ntfs_truncate() for both of which i_sem
+	  is held.  Just have to be careful in read-/writepage and other helpers
+	  not running under i_sem that we play nice...  Also need to be careful
+	  with initialized_size extention in ntfs_prepare_write and writepage.
+	  UPDATE: The only things that need to be checked are
+	  prepare/commit_write as well as the compressed write and the other
+	  attribute resize/write cases like index attributes, etc.  For now
+	  none of these are implemented so are safe.
 	- Implement mft.c::sync_mft_mirror_umount().  We currently will just
 	  leave the volume dirty on umount if the final iput(vol->mft_ino)
 	  causes a write of any mirrored mft records due to the mft mirror
@@ -50,6 +48,8 @@ ToDo/Notes:
 	- Add fs/ntfs/attrib.[hc]::ntfs_attr_extend_allocation(), a function to
 	  extend the allocation of an attributes.  Optionally, the data size,
 	  but not the initialized size can be extended, too.
+	- Implement fs/ntfs/inode.[hc]::ntfs_truncate().  It only supports
+	  uncompressed and unencrypted files.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
