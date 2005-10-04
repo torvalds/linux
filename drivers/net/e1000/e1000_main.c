@@ -777,11 +777,11 @@ e1000_remove(struct pci_dev *pdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t ctrl_ext;
 	uint32_t manc, swsm;
-
-	flush_scheduled_work();
 #ifdef CONFIG_E1000_NAPI
 	int i;
 #endif
+
+	flush_scheduled_work();
 
 	if(adapter->hw.mac_type >= e1000_82540 &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
@@ -3100,7 +3100,9 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint32_t icr = E1000_READ_REG(hw, ICR);
+#ifdef CONFIG_E1000_MQ
 	int i;
+#endif
 
 	if(unlikely(!icr))
 		return IRQ_NONE;  /* Not our interrupt */
@@ -3128,13 +3130,14 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	} else {
 		printk("call_data.count == %u\n", atomic_read(&adapter->rx_sched_call_data.count));
 	}
-#else
+#else /* if !CONFIG_E1000_MQ */
 	if (likely(netif_rx_schedule_prep(&adapter->polling_netdev[0])))
 		__netif_rx_schedule(&adapter->polling_netdev[0]);
 	else
 		e1000_irq_enable(adapter);
-#endif
-#else
+#endif /* CONFIG_E1000_MQ */
+
+#else /* if !CONFIG_E1000_NAPI */
 	/* Writing IMC and IMS is needed for 82547.
 	   Due to Hub Link bus being occupied, an interrupt
 	   de-assertion message is not able to be sent.
@@ -3158,7 +3161,7 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	if(hw->mac_type == e1000_82547 || hw->mac_type == e1000_82547_rev_2)
 		e1000_irq_enable(adapter);
 
-#endif
+#endif /* CONFIG_E1000_NAPI */
 
 	return IRQ_HANDLED;
 }
