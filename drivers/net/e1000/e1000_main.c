@@ -1151,6 +1151,7 @@ e1000_setup_tx_resources(struct e1000_adapter *adapter,
 		return -ENOMEM;
 	}
 	memset(txdr->buffer_info, 0, size);
+	memset(&txdr->previous_buffer_info, 0, sizeof(struct e1000_buffer));
 
 	/* round up to nearest 4K */
 
@@ -1199,6 +1200,7 @@ setup_tx_desc_die:
 
 	txdr->next_to_use = 0;
 	txdr->next_to_clean = 0;
+	spin_lock_init(&txdr->tx_lock);
 
 	return 0;
 }
@@ -1311,6 +1313,19 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 		(E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 
 	E1000_WRITE_REG(hw, TCTL, tctl);
+
+	if (hw->mac_type == e1000_82571 || hw->mac_type == e1000_82572) {
+		tarc = E1000_READ_REG(hw, TARC0);
+		tarc |= ((1 << 25) | (1 << 21));
+		E1000_WRITE_REG(hw, TARC0, tarc);
+		tarc = E1000_READ_REG(hw, TARC1);
+		tarc |= (1 << 25);
+		if (tctl & E1000_TCTL_MULR)
+			tarc &= ~(1 << 28);
+		else
+			tarc |= (1 << 28);
+		E1000_WRITE_REG(hw, TARC1, tarc);
+	}
 
 	e1000_config_collision_dist(hw);
 
@@ -1599,6 +1614,14 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		if(adapter->itr > 1)
 			E1000_WRITE_REG(hw, ITR,
 				1000000000 / (adapter->itr * 256));
+	}
+
+	if (hw->mac_type >= e1000_82571) {
+		/* Reset delay timers after every interrupt */
+		ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+		ctrl_ext |= E1000_CTRL_EXT_CANC;
+		E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+		E1000_WRITE_FLUSH(hw);
 	}
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
