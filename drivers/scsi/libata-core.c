@@ -2782,6 +2782,114 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	atapi_send_cdb - Write CDB bytes to hardware
+ *	@ap: Port to which ATAPI device is attached.
+ *	@qc: Taskfile currently active
+ *
+ *	When device has indicated its readiness to accept
+ *	a CDB, this function is called.  Send the CDB.
+ *
+ *	LOCKING:
+ *	caller.
+ */
+
+static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
+{
+	/* send SCSI cdb */
+	DPRINTK("send cdb\n");
+	assert(ap->cdb_len >= 12);
+
+	ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
+	ata_altstatus(ap); /* flush */
+
+	switch (qc->tf.protocol) {
+	case ATA_PROT_ATAPI:
+		ap->hsm_task_state = HSM_ST;
+		break;
+	case ATA_PROT_ATAPI_NODATA:
+		ap->hsm_task_state = HSM_ST_LAST;
+		break;
+	case ATA_PROT_ATAPI_DMA:
+		ap->hsm_task_state = HSM_ST_LAST;
+		/* initiate bmdma */
+		ap->ops->bmdma_start(qc);
+		break;
+	}
+}
+
+/**
+ *	ata_dataout_task - Write first data block to hardware
+ *	@_data: Port to which ATA/ATAPI device is attached.
+ *
+ *	When device has indicated its readiness to accept
+ *	the data, this function sends out the CDB or 
+ *	the first data block by PIO.
+ *	After this, 
+ *	  - If polling, ata_pio_task() handles the rest.
+ *	  - Otherwise, interrupt handler takes over.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+
+static void ata_dataout_task(void *_data)
+{
+	struct ata_port *ap = _data;
+	struct ata_queued_cmd *qc;
+	u8 status;
+	unsigned long flags;
+
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
+	assert(qc->flags & ATA_QCFLAG_ACTIVE);
+
+	/* sleep-wait for BSY to clear */
+	DPRINTK("busy wait\n");
+	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT))
+		goto err_out;
+
+	/* make sure DRQ is set */
+	status = ata_chk_status(ap);
+	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)
+		goto err_out;
+
+	/* Send the CDB (atapi) or the first data block (ata pio out).
+	 * During the state transition, interrupt handler shouldn't
+	 * be invoked before the data transfer is complete and
+	 * hsm_task_state is changed. Hence, the following locking.
+	 */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	if (qc->tf.protocol == ATA_PROT_PIO) {
+		/* PIO data out protocol.
+		 * send first data block.
+		 */
+
+		/* ata_pio_sector() might change the state to HSM_ST_LAST.
+		 * so, the state is changed here before ata_pio_sector().
+		 */
+		ap->hsm_task_state = HSM_ST;
+		ata_pio_sector(qc);
+		ata_altstatus(ap); /* flush */
+	} else
+		/* send CDB */
+		atapi_send_cdb(ap, qc);
+
+	/* if polling, ata_pio_task() handles the rest.
+	 * otherwise, interrupt handler takes over from here.
+	 */
+	if (qc->tf.flags & ATA_TFLAG_POLLING)
+		queue_work(ata_wq, &ap->pio_task);
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	return;
+
+err_out:
+	ata_pio_error(ap);
+}
+
+/**
  *	__atapi_pio_bytes - Transfer data from/to the ATAPI device.
  *	@qc: Command on going
  *	@bytes: number of bytes
@@ -3785,42 +3893,6 @@ void ata_bmdma_stop(struct ata_queued_cmd *qc)
 }
 
 /**
- *	atapi_send_cdb - Write CDB bytes to hardware
- *	@ap: Port to which ATAPI device is attached.
- *	@qc: Taskfile currently active
- *
- *	When device has indicated its readiness to accept
- *	a CDB, this function is called.  Send the CDB.
- *
- *	LOCKING:
- *	caller.
- */
-
-static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
-{
-	/* send SCSI cdb */
-	DPRINTK("send cdb\n");
-	assert(ap->cdb_len >= 12);
-
-	ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
-	ata_altstatus(ap); /* flush */
-
-	switch (qc->tf.protocol) {
-	case ATA_PROT_ATAPI:
-		ap->hsm_task_state = HSM_ST;
-		break;
-	case ATA_PROT_ATAPI_NODATA:
-		ap->hsm_task_state = HSM_ST_LAST;
-		break;
-	case ATA_PROT_ATAPI_DMA:
-		ap->hsm_task_state = HSM_ST_LAST;
-		/* initiate bmdma */
-		ap->ops->bmdma_start(qc);
-		break;
-	}
-}
-
-/**
  *	ata_host_intr - Handle host interrupt for given (port, task)
  *	@ap: Port on which interrupt arrived (possibly...)
  *	@qc: Taskfile currently active in engine
@@ -4040,79 +4112,6 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 
 	return IRQ_RETVAL(handled);
 }
-
-/**
- *	ata_dataout_task - Write first data block to hardware
- *	@_data: Port to which ATA/ATAPI device is attached.
- *
- *	When device has indicated its readiness to accept
- *	the data, this function sends out the CDB or 
- *	the first data block by PIO.
- *	After this, 
- *	  - If polling, ata_pio_task() handles the rest.
- *	  - Otherwise, interrupt handler takes over.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-
-static void ata_dataout_task(void *_data)
-{
-	struct ata_port *ap = _data;
-	struct ata_queued_cmd *qc;
-	u8 status;
-	unsigned long flags;
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
-	assert(qc->flags & ATA_QCFLAG_ACTIVE);
-
-	/* sleep-wait for BSY to clear */
-	DPRINTK("busy wait\n");
-	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT))
-		goto err_out;
-
-	/* make sure DRQ is set */
-	status = ata_chk_status(ap);
-	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)
-		goto err_out;
-
-	/* Send the CDB (atapi) or the first data block (ata pio out).
-	 * During the state transition, interrupt handler shouldn't
-	 * be invoked before the data transfer is complete and
-	 * hsm_task_state is changed. Hence, the following locking.
-	 */
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-
-	if (qc->tf.protocol == ATA_PROT_PIO) {
-		/* PIO data out protocol.
-		 * send first data block.
-		 */
-
-		/* ata_pio_sector() might change the state to HSM_ST_LAST.
-		 * so, the state is changed here before ata_pio_sector().
-		 */
-		ap->hsm_task_state = HSM_ST;
-		ata_pio_sector(qc);
-		ata_altstatus(ap); /* flush */
-	} else
-		/* send CDB */
-		atapi_send_cdb(ap, qc);
-
-	/* if polling, ata_pio_task() handles the rest.
-	 * otherwise, interrupt handler takes over from here.
-	 */
-	if (qc->tf.flags & ATA_TFLAG_POLLING)
-		queue_work(ata_wq, &ap->pio_task);
-
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	return;
-
-err_out:
-	ata_pio_error(ap);
-}
-
 
 /**
  *	ata_port_start - Set port up for dma.
