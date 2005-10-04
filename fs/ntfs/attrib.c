@@ -406,9 +406,9 @@ retry_remap:
 
 /**
  * ntfs_attr_find_vcn_nolock - find a vcn in the runlist of an ntfs inode
- * @ni:			ntfs inode describing the runlist to search
- * @vcn:		vcn to find
- * @write_locked:	true if the runlist is locked for writing
+ * @ni:		ntfs inode describing the runlist to search
+ * @vcn:	vcn to find
+ * @ctx:	active attribute search context if present or NULL if not
  *
  * Find the virtual cluster number @vcn in the runlist described by the ntfs
  * inode @ni and return the address of the runlist element containing the @vcn.
@@ -416,9 +416,22 @@ retry_remap:
  * If the @vcn is not mapped yet, the attempt is made to map the attribute
  * extent containing the @vcn and the vcn to lcn conversion is retried.
  *
- * If @write_locked is true the caller has locked the runlist for writing and
- * if false for reading.
+ * If @ctx is specified, it is an active search context of @ni and its base mft
+ * record.  This is needed when ntfs_attr_find_vcn_nolock() encounters unmapped
+ * runlist fragments and allows their mapping.  If you do not have the mft
+ * record mapped, you can specify @ctx as NULL and ntfs_attr_find_vcn_nolock()
+ * will perform the necessary mapping and unmapping.
  *
+ * Note, ntfs_attr_find_vcn_nolock() saves the state of @ctx on entry and
+ * restores it before returning.  Thus, @ctx will be left pointing to the same
+ * attribute on return as on entry.  However, the actual pointers in @ctx may
+ * point to different memory locations on return, so you must remember to reset
+ * any cached pointers from the @ctx, i.e. after the call to
+ * ntfs_attr_find_vcn_nolock(), you will probably want to do:
+ *	m = ctx->mrec;
+ *	a = ctx->attr;
+ * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
+ * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
  * Note you need to distinguish between the lcn of the returned runlist element
  * being >= 0 and LCN_HOLE.  In the later case you have to return zeroes on
  * read and allocate clusters on write.
@@ -433,22 +446,31 @@ retry_remap:
  *	-ENOMEM - Not enough memory to map runlist.
  *	-EIO	- Critical error (runlist/file is corrupt, i/o error, etc).
  *
- * Locking: - The runlist must be locked on entry and is left locked on return.
- *	    - If @write_locked is FALSE, i.e. the runlist is locked for reading,
- *	      the lock may be dropped inside the function so you cannot rely on
- *	      the runlist still being the same when this function returns.
+ * WARNING: If @ctx is supplied, regardless of whether success or failure is
+ *	    returned, you need to check IS_ERR(@ctx->mrec) and if TRUE the @ctx
+ *	    is no longer valid, i.e. you need to either call
+ *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
+ *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
+ *	    why the mapping of the old inode failed.
+ *
+ * Locking: - The runlist described by @ni must be locked for writing on entry
+ *	      and is locked on return.  Note the runlist may be modified when
+ *	      needed runlist fragments need to be mapped.
+ *	    - If @ctx is NULL, the base mft record of @ni must not be mapped on
+ *	      entry and it will be left unmapped on return.
+ *	    - If @ctx is not NULL, the base mft record must be mapped on entry
+ *	      and it will be left mapped on return.
  */
 runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
-		const BOOL write_locked)
+		ntfs_attr_search_ctx *ctx)
 {
 	unsigned long flags;
 	runlist_element *rl;
 	int err = 0;
 	BOOL is_retry = FALSE;
 
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
-			ni->mft_no, (unsigned long long)vcn,
-			write_locked ? "write" : "read");
+	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, with%s ctx.",
+			ni->mft_no, (unsigned long long)vcn, ctx ? "" : "out");
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
@@ -482,33 +504,22 @@ retry_remap:
 	}
 	if (!err && !is_retry) {
 		/*
-		 * The @vcn is in an unmapped region, map the runlist and
-		 * retry.
+		 * If the search context is invalid we cannot map the unmapped
+		 * region.
 		 */
-		if (!write_locked) {
-			up_read(&ni->runlist.lock);
-			down_write(&ni->runlist.lock);
-			if (unlikely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) !=
-					LCN_RL_NOT_MAPPED)) {
-				up_write(&ni->runlist.lock);
-				down_read(&ni->runlist.lock);
+		if (IS_ERR(ctx->mrec))
+			err = PTR_ERR(ctx->mrec);
+		else {
+			/*
+			 * The @vcn is in an unmapped region, map the runlist
+			 * and retry.
+			 */
+			err = ntfs_map_runlist_nolock(ni, vcn, ctx);
+			if (likely(!err)) {
+				is_retry = TRUE;
 				goto retry_remap;
 			}
 		}
-		err = ntfs_map_runlist_nolock(ni, vcn, NULL);
-		if (!write_locked) {
-			up_write(&ni->runlist.lock);
-			down_read(&ni->runlist.lock);
-		}
-		if (likely(!err)) {
-			is_retry = TRUE;
-			goto retry_remap;
-		}
-		/*
-		 * -EINVAL coming from a failed mapping attempt is equivalent
-		 * to i/o error for us as it should not happen in our code
-		 * paths.
-		 */
 		if (err == -EINVAL)
 			err = -EIO;
 	} else if (!err)
@@ -1181,6 +1192,7 @@ int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 	ntfs_inode *base_ni;
 
 	ntfs_debug("Entering.");
+	BUG_ON(IS_ERR(ctx->mrec));
 	if (ctx->base_ntfs_ino)
 		base_ni = ctx->base_ntfs_ino;
 	else

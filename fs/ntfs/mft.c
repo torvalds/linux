@@ -49,7 +49,8 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 	ntfs_volume *vol = ni->vol;
 	struct inode *mft_vi = vol->mft_ino;
 	struct page *page;
-	unsigned long index, ofs, end_index;
+	unsigned long index, end_index;
+	unsigned ofs;
 
 	BUG_ON(ni->page);
 	/*
@@ -1308,7 +1309,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 	ll = mftbmp_ni->allocated_size;
 	read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
 	rl = ntfs_attr_find_vcn_nolock(mftbmp_ni,
-			(ll - 1) >> vol->cluster_size_bits, TRUE);
+			(ll - 1) >> vol->cluster_size_bits, NULL);
 	if (unlikely(IS_ERR(rl) || !rl->length || rl->lcn < 0)) {
 		up_write(&mftbmp_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to determine last allocated "
@@ -1738,7 +1739,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	ll = mft_ni->allocated_size;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 	rl = ntfs_attr_find_vcn_nolock(mft_ni,
-			(ll - 1) >> vol->cluster_size_bits, TRUE);
+			(ll - 1) >> vol->cluster_size_bits, NULL);
 	if (unlikely(IS_ERR(rl) || !rl->length || rl->lcn < 0)) {
 		up_write(&mft_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to determine last allocated "

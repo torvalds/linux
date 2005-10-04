@@ -24,8 +24,10 @@ ToDo/Notes:
 
 2.1.25-WIP
 
-	- Change ntfs_map_runlist_nolock() to also take an optional attribute
-	  search context.  This allows calling it with the mft record mapped.
+	- Change ntfs_map_runlist_nolock() and ntfs_attr_find_vcn_nolock() to
+	  also take an optional attribute search context as argument.  This
+	  allows calling these functions with the mft record mapped.  Update
+	  all callers.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
