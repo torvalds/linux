@@ -1501,9 +1501,16 @@ int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
 /**
  * ntfs_attr_make_non_resident - convert a resident to a non-resident attribute
  * @ni:		ntfs inode describing the attribute to convert
+ * @data_size:	size of the resident data to copy to the non-resident attribute
  *
  * Convert the resident ntfs attribute described by the ntfs inode @ni to a
  * non-resident one.
+ *
+ * @data_size must be equal to the attribute value size.  This is needed since
+ * we need to know the size before we can map the mft record and our callers
+ * always know it.  The reason we cannot simply read the size from the vfs
+ * inode i_size is that this is not necessarily uptodate.  This happens when
+ * ntfs_attr_make_non_resident() is called in the ->truncate call path(s).
  *
  * Return 0 on success and -errno on error.  The following error return codes
  * are defined:
@@ -1525,7 +1532,7 @@ int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
  *
  * Locking: - The caller must hold i_sem on the inode.
  */
-int ntfs_attr_make_non_resident(ntfs_inode *ni)
+int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 {
 	s64 new_size;
 	struct inode *vi = VFS_I(ni);
@@ -1563,7 +1570,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	 * The size needs to be aligned to a cluster boundary for allocation
 	 * purposes.
 	 */
-	new_size = (i_size_read(vi) + vol->cluster_size - 1) &
+	new_size = (data_size + vol->cluster_size - 1) &
 			~(vol->cluster_size - 1);
 	if (new_size > 0) {
 		/*
@@ -1647,7 +1654,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	 * attribute value.
 	 */
 	attr_size = le32_to_cpu(a->data.resident.value_length);
-	BUG_ON(attr_size != i_size_read(vi));
+	BUG_ON(attr_size != data_size);
 	if (page && !PageUptodate(page)) {
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(kaddr, (u8*)a +

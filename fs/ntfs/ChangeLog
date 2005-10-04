@@ -37,6 +37,12 @@ ToDo/Notes:
 	- Change ntfs_attr_make_non_resident() to call ntfs_cluster_alloc()
 	  with @is_extension set to TRUE and remove the runlist terminator
 	  fixup code as this is now done by ntfs_cluster_alloc().
+	- Change ntfs_attr_make_non_resident to take the attribute value size
+	  as an extra parameter.  This is needed since we need to know the size
+	  before we can map the mft record and our callers always know it.  The
+	  reason we cannot simply read the size from the vfs inode i_size is
+	  that this is not necessarily uptodate.  This happens when
+	  ntfs_attr_make_non_resident() is called in the ->truncate call path.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
