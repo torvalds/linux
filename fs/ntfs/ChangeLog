@@ -22,6 +22,11 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
+2.1.25-WIP
+
+	- Change ntfs_map_runlist_nolock() to also take an optional attribute
+	  search context.  This allows calling it with the mft record mapped.
+
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
 	- Support journals ($LogFile) which have been modified by chkdsk.  This

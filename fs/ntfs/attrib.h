@@ -60,7 +60,8 @@ typedef struct {
 	ATTR_RECORD *base_attr;
 } ntfs_attr_search_ctx;
 
-extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn);
+extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn,
+		ntfs_attr_search_ctx *ctx);
 extern int ntfs_map_runlist(ntfs_inode *ni, VCN vcn);
 
 extern LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
