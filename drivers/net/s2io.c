@@ -65,9 +65,11 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
+#define DRV_VERSION "Version 2.0.9.1"
+
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
-static char s2io_driver_version[] = "Version 2.0.9.1";
+static char s2io_driver_version[] = DRV_VERSION;
 
 static inline int RXD_IS_UP2DT(RxD_t *rxdp)
 {
@@ -5635,6 +5637,8 @@ static void s2io_init_pci(nic_t * sp)
 
 MODULE_AUTHOR("Raghavendra Koushik <raghavendra.koushik@neterion.com>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
+
 module_param(tx_fifo_num, int, 0);
 module_param(rx_ring_num, int, 0);
 module_param_array(tx_fifo_len, uint, NULL, 0);
@@ -6013,7 +6017,7 @@ Defaulting to INTA\n");
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		DBG_PRINT(ERR_DBG, "%s: Neterion Xframe II 10GbE adapter ",
 			  dev->name);
-		DBG_PRINT(ERR_DBG, "(rev %d), %s",
+		DBG_PRINT(ERR_DBG, "(rev %d), Version %s",
 				get_xena_rev_id(sp->pdev),
 				s2io_driver_version);
 #ifdef CONFIG_2BUFF_MODE
@@ -6048,7 +6052,7 @@ Defaulting to INTA\n");
 	} else {
 		DBG_PRINT(ERR_DBG, "%s: Neterion Xframe I 10GbE adapter ",
 			  dev->name);
-		DBG_PRINT(ERR_DBG, "(rev %d), %s",
+		DBG_PRINT(ERR_DBG, "(rev %d), Version %s",
 					get_xena_rev_id(sp->pdev),
 					s2io_driver_version);
 #ifdef CONFIG_2BUFF_MODE
