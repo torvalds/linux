@@ -47,6 +47,9 @@ ToDo/Notes:
 	  which is zero for a resident attribute but should no longer be zero
 	  once the attribute is non-resident as it then has real clusters
 	  allocated.
+	- Add fs/ntfs/attrib.[hc]::ntfs_attr_extend_allocation(), a function to
+	  extend the allocation of an attributes.  Optionally, the data size,
+	  but not the initialized size can be extended, too.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 

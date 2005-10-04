@@ -105,6 +105,9 @@ extern int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
 
 extern int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size);
 
+extern s64 ntfs_attr_extend_allocation(ntfs_inode *ni, s64 new_alloc_size,
+		const s64 new_data_size, const s64 data_start);
+
 extern int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt,
 		const u8 val);
 
