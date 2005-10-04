@@ -547,8 +547,10 @@ e1000_set_eeprom(struct net_device *netdev,
 	ret_val = e1000_write_eeprom(hw, first_word,
 				     last_word - first_word + 1, eeprom_buff);
 
-	/* Update the checksum over the first part of the EEPROM if needed */
-	if((ret_val == 0) && first_word <= EEPROM_CHECKSUM_REG)
+	/* Update the checksum over the first part of the EEPROM if needed 
+	 * and flush shadow RAM for 82573 conrollers */
+	if((ret_val == 0) && ((first_word <= EEPROM_CHECKSUM_REG) || 
+				(hw->mac_type == e1000_82573)))
 		e1000_update_eeprom_checksum(hw);
 
 	kfree(eeprom_buff);

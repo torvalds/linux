@@ -717,6 +717,7 @@ e1000_init_hw(struct e1000_hw *hw)
     default:
         break;
     case e1000_82571:
+    case e1000_82572:
         ctrl = E1000_READ_REG(hw, TXDCTL1);
         ctrl &= ~E1000_TXDCTL_WTHRESH;
         ctrl |= E1000_TXDCTL_COUNT_DESC | E1000_TXDCTL_FULL_TX_DESC_WB;
