@@ -589,7 +589,8 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		head  = track % dev->heads;
 		sect  = (u32)block % dev->sectors + 1;
 
-		DPRINTK("block[%u] track[%u] cyl[%u] head[%u] sect[%u] \n", (u32)block, track, cyl, head, sect);
+		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
+			(u32)block, track, cyl, head, sect);
 		
 		/* Check whether the converted CHS can fit. 
 		   Cylinder: 0-65535 
@@ -665,6 +666,10 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		block |= ((u64)scsicmd[3]);
 
 		n_block |= ((u32)scsicmd[4]);
+
+		/* for 6-byte r/w commands, transfer length 0
+		 * means 256 blocks of data, not 0 block.
+		 */
 		if (!n_block)
 			n_block = 256;
 	
@@ -692,7 +697,11 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 
 	/* Check and compose ATA command */
 	if (!n_block)
-		/* In ATA, sector count 0 means 256 or 65536 sectors, not 0 sectors. */
+		/* For 10-byte and 16-byte SCSI R/W commands, transfer
+		 * length 0 means transfer 0 block of data.
+		 * However, for ATA R/W commands, sector count 0 means
+		 * 256 or 65536 sectors, not 0 sectors as in SCSI.
+		 */
 		return 1;
 
 	if (lba) {
@@ -715,7 +724,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 
 			tf->device |= (block >> 24) & 0xf;
 		}
-	
+
 		qc->nsect = n_block;
 		tf->nsect = n_block & 0xff;
 
@@ -731,23 +740,23 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		/* The request -may- be too large for CHS addressing. */
 		if ((block >> 28) || (n_block > 256))
 			return 1;
-			
+
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;
 		cyl   = track / dev->heads;
 		head  = track % dev->heads;
 		sect  = (u32)block % dev->sectors + 1;
 
-		DPRINTK("block[%u] track[%u] cyl[%u] head[%u] sect[%u] \n", 
+		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
 			(u32)block, track, cyl, head, sect);
-		
+
 		/* Check whether the converted CHS can fit. 
 		   Cylinder: 0-65535 
 		   Head: 0-15
 		   Sector: 1-255*/
-		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect)) 
+		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
 			return 1;
-		
+
 		qc->nsect = n_block;
 		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
 		tf->lbal = sect;
