@@ -488,6 +488,99 @@ static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 }
 
 /**
+ *	scsi_6_lba_len - Get LBA and transfer length
+ *	@scsicmd: SCSI command to translate
+ *
+ *	Calculate LBA and transfer length for 6-byte commands.
+ *
+ *	RETURNS:
+ *	@plba: the LBA
+ *	@plen: the transfer length
+ */
+
+static void scsi_6_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
+{
+	u64 lba = 0;
+	u32 len = 0;
+
+	VPRINTK("six-byte command\n");
+
+	lba |= ((u64)scsicmd[2]) << 8;
+	lba |= ((u64)scsicmd[3]);
+
+	len |= ((u32)scsicmd[4]);
+
+	*plba = lba;
+	*plen = len;
+}
+
+/**
+ *	scsi_10_lba_len - Get LBA and transfer length
+ *	@scsicmd: SCSI command to translate
+ *
+ *	Calculate LBA and transfer length for 10-byte commands.
+ *
+ *	RETURNS:
+ *	@plba: the LBA
+ *	@plen: the transfer length
+ */
+
+static void scsi_10_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
+{
+	u64 lba = 0;
+	u32 len = 0;
+
+	VPRINTK("ten-byte command\n");
+
+	lba |= ((u64)scsicmd[2]) << 24;
+	lba |= ((u64)scsicmd[3]) << 16;
+	lba |= ((u64)scsicmd[4]) << 8;
+	lba |= ((u64)scsicmd[5]);
+
+	len |= ((u32)scsicmd[7]) << 8;
+	len |= ((u32)scsicmd[8]);
+
+	*plba = lba;
+	*plen = len;
+}
+
+/**
+ *	scsi_16_lba_len - Get LBA and transfer length
+ *	@scsicmd: SCSI command to translate
+ *
+ *	Calculate LBA and transfer length for 16-byte commands.
+ *
+ *	RETURNS:
+ *	@plba: the LBA
+ *	@plen: the transfer length
+ */
+
+static void scsi_16_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
+{
+	u64 lba = 0;
+	u32 len = 0;
+
+	VPRINTK("sixteen-byte command\n");
+
+	lba |= ((u64)scsicmd[2]) << 56;
+	lba |= ((u64)scsicmd[3]) << 48;
+	lba |= ((u64)scsicmd[4]) << 40;
+	lba |= ((u64)scsicmd[5]) << 32;
+	lba |= ((u64)scsicmd[6]) << 24;
+	lba |= ((u64)scsicmd[7]) << 16;
+	lba |= ((u64)scsicmd[8]) << 8;
+	lba |= ((u64)scsicmd[9]);
+
+	len |= ((u32)scsicmd[10]) << 24;
+	len |= ((u32)scsicmd[11]) << 16;
+	len |= ((u32)scsicmd[12]) << 8;
+	len |= ((u32)scsicmd[13]);
+
+	*plba = lba;
+	*plen = len;
+}
+
+/**
  *	ata_scsi_verify_xlat - Translate SCSI VERIFY command into an ATA one
  *	@qc: Storage for translated ATA taskfile
  *	@scsicmd: SCSI command to translate
@@ -508,38 +601,16 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	unsigned int lba   = tf->flags & ATA_TFLAG_LBA;
 	unsigned int lba48 = tf->flags & ATA_TFLAG_LBA48;
 	u64 dev_sectors = qc->dev->n_sectors;
-	u64 block = 0;
-	u32 n_block = 0;
+	u64 block;
+	u32 n_block;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
 
-	if (scsicmd[0] == VERIFY) {
-		block |= ((u64)scsicmd[2]) << 24;
-		block |= ((u64)scsicmd[3]) << 16;
-		block |= ((u64)scsicmd[4]) << 8;
-		block |= ((u64)scsicmd[5]);
-
-		n_block |= ((u32)scsicmd[7]) << 8;
-		n_block |= ((u32)scsicmd[8]);
-	}
-
-	else if (scsicmd[0] == VERIFY_16) {
-		block |= ((u64)scsicmd[2]) << 56;
-		block |= ((u64)scsicmd[3]) << 48;
-		block |= ((u64)scsicmd[4]) << 40;
-		block |= ((u64)scsicmd[5]) << 32;
-		block |= ((u64)scsicmd[6]) << 24;
-		block |= ((u64)scsicmd[7]) << 16;
-		block |= ((u64)scsicmd[8]) << 8;
-		block |= ((u64)scsicmd[9]);
-
-		n_block |= ((u32)scsicmd[10]) << 24;
-		n_block |= ((u32)scsicmd[11]) << 16;
-		n_block |= ((u32)scsicmd[12]) << 8;
-		n_block |= ((u32)scsicmd[13]);
-	}
-
+	if (scsicmd[0] == VERIFY)
+		scsi_10_lba_len(scsicmd, &block, &n_block);
+	else if (scsicmd[0] == VERIFY_16)
+		scsi_16_lba_len(scsicmd, &block, &n_block);
 	else
 		return 1;
 
@@ -636,8 +707,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	struct ata_device *dev = qc->dev;
 	unsigned int lba   = tf->flags & ATA_TFLAG_LBA;
 	unsigned int lba48 = tf->flags & ATA_TFLAG_LBA48;
-	u64 block = 0;
-	u32 n_block = 0;
+	u64 block;
+	u32 n_block;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = qc->dev->xfer_protocol;
@@ -651,46 +722,26 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	}
 
 	/* Calculate the SCSI LBA and transfer length. */
-	if (scsicmd[0] == READ_10 || scsicmd[0] == WRITE_10) {
-		block |= ((u64)scsicmd[2]) << 24;
-		block |= ((u64)scsicmd[3]) << 16;
-		block |= ((u64)scsicmd[4]) << 8;
-		block |= ((u64)scsicmd[5]);
-
-		n_block |= ((u32)scsicmd[7]) << 8;
-		n_block |= ((u32)scsicmd[8]);
-
-		VPRINTK("ten-byte command\n");
-	} else if (scsicmd[0] == READ_6 || scsicmd[0] == WRITE_6) {
-		block |= ((u64)scsicmd[2]) << 8;
-		block |= ((u64)scsicmd[3]);
-
-		n_block |= ((u32)scsicmd[4]);
+	switch (scsicmd[0]) {
+	case READ_10:
+	case WRITE_10:
+		scsi_10_lba_len(scsicmd, &block, &n_block);
+		break;
+	case READ_6:
+	case WRITE_6:
+		scsi_6_lba_len(scsicmd, &block, &n_block);
 
 		/* for 6-byte r/w commands, transfer length 0
 		 * means 256 blocks of data, not 0 block.
 		 */
 		if (!n_block)
 			n_block = 256;
-	
-		VPRINTK("six-byte command\n");
-	} else if (scsicmd[0] == READ_16 || scsicmd[0] == WRITE_16) {
-		block |= ((u64)scsicmd[2]) << 56;
-		block |= ((u64)scsicmd[3]) << 48;
-		block |= ((u64)scsicmd[4]) << 40;
-		block |= ((u64)scsicmd[5]) << 32;
-		block |= ((u64)scsicmd[6]) << 24;
-		block |= ((u64)scsicmd[7]) << 16;
-		block |= ((u64)scsicmd[8]) << 8;
-		block |= ((u64)scsicmd[9]);
-
-		n_block |= ((u32)scsicmd[10]) << 24;
-		n_block |= ((u32)scsicmd[11]) << 16;
-		n_block |= ((u32)scsicmd[12]) << 8;
-		n_block |= ((u32)scsicmd[13]);
-
-		VPRINTK("sixteen-byte command\n");
-	} else {
+		break;
+	case READ_16:
+	case WRITE_16:
+		scsi_16_lba_len(scsicmd, &block, &n_block);
+		break;
+	default:
 		DPRINTK("no-byte command\n");
 		return 1;
 	}
