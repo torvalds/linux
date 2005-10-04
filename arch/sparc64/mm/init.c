@@ -133,6 +133,12 @@ extern unsigned int sparc_ramdisk_size;
 
 struct page *mem_map_zero __read_mostly;
 
+unsigned int sparc64_highest_unlocked_tlb_ent __read_mostly;
+
+unsigned long sparc64_kern_pri_context __read_mostly;
+unsigned long sparc64_kern_pri_nuc_bits __read_mostly;
+unsigned long sparc64_kern_sec_context __read_mostly;
+
 int bigkernel = 0;
 
 /* XXX Tune this... */
@@ -582,12 +588,20 @@ static void __init remap_kernel(void)
 	prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
 	prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
 	if (bigkernel) {
-		prom_dtlb_load(tlb_ent - 1,
+		tlb_ent -= 1;
+		prom_dtlb_load(tlb_ent,
 			       tte_data + 0x400000, 
 			       tte_vaddr + 0x400000);
-		prom_itlb_load(tlb_ent - 1,
+		prom_itlb_load(tlb_ent,
 			       tte_data + 0x400000, 
 			       tte_vaddr + 0x400000);
+	}
+	sparc64_highest_unlocked_tlb_ent = tlb_ent - 1;
+	if (tlb_type == cheetah_plus) {
+		sparc64_kern_pri_context = (CTX_CHEETAH_PLUS_CTX0 |
+					    CTX_CHEETAH_PLUS_NUC);
+		sparc64_kern_pri_nuc_bits = CTX_CHEETAH_PLUS_NUC;
+		sparc64_kern_sec_context = CTX_CHEETAH_PLUS_CTX0;
 	}
 }
 
@@ -788,8 +802,8 @@ void inherit_locked_prom_mappings(int save_p)
 		}
 	}
 	if (tlb_type == spitfire) {
-		int high = SPITFIRE_HIGHEST_LOCKED_TLBENT - bigkernel;
-		for (i = 0; i < high; i++) {
+		int high = sparc64_highest_unlocked_tlb_ent;
+		for (i = 0; i <= high; i++) {
 			unsigned long data;
 
 			/* Spitfire Errata #32 workaround */
@@ -877,9 +891,9 @@ void inherit_locked_prom_mappings(int save_p)
 			}
 		}
 	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		int high = CHEETAH_HIGHEST_LOCKED_TLBENT - bigkernel;
+		int high = sparc64_highest_unlocked_tlb_ent;
 
-		for (i = 0; i < high; i++) {
+		for (i = 0; i <= high; i++) {
 			unsigned long data;
 
 			data = cheetah_get_ldtlb_data(i);
