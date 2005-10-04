@@ -157,6 +157,10 @@ extern int os_lock_file(int fd, int excl);
 extern void os_early_checks(void);
 extern int can_do_skas(void);
 
+/* Make sure they are clear when running in TT mode. Required by
+ * SEGV_MAYBE_FIXABLE */
+#define clear_can_do_skas() do { ptrace_faultinfo = proc_mm = 0; } while (0)
+
 /* mem.c */
 extern int create_mem_file(unsigned long len);
 

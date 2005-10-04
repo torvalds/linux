@@ -89,7 +89,7 @@
 #define TRACE() printk(KERN_ERR "%s:%s[%d] ---- TRACE\n", driver_name, __FUNCTION__, __LINE__)
 
 static char version[] __devinitdata =
-	"$Rev: 1264 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1312 $ Ben Collins <bcollins@debian.org>";
 
 struct fragment_info {
 	struct list_head list;
@@ -221,9 +221,7 @@ static int ether1394_open (struct net_device *dev)
 	if (priv->bc_state == ETHER1394_BC_ERROR) {
 		/* we'll try again */
 		priv->iso = hpsb_iso_recv_init(priv->host,
-					       ETHER1394_GASP_BUFFERS * 2 *
-					       (1 << (priv->host->csr.max_rec +
-						      1)),
+					       ETHER1394_ISO_BUF_SIZE,
 					       ETHER1394_GASP_BUFFERS,
 					       priv->broadcast_channel,
 					       HPSB_ISO_DMA_PACKET_PER_BUFFER,
@@ -635,8 +633,8 @@ static void ether1394_add_host (struct hpsb_host *host)
 	 * be checked when the eth device is opened. */
 	priv->broadcast_channel = host->csr.broadcast_channel & 0x3f;
 
-	priv->iso = hpsb_iso_recv_init(host, (ETHER1394_GASP_BUFFERS * 2 *
-					      (1 << (host->csr.max_rec + 1))),
+	priv->iso = hpsb_iso_recv_init(host,
+				       ETHER1394_ISO_BUF_SIZE,
 				       ETHER1394_GASP_BUFFERS,
 				       priv->broadcast_channel,
 				       HPSB_ISO_DMA_PACKET_PER_BUFFER,
@@ -1770,7 +1768,7 @@ fail:
 static void ether1394_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strcpy (info->driver, driver_name);
-	strcpy (info->version, "$Rev: 1264 $");
+	strcpy (info->version, "$Rev: 1312 $");
 	/* FIXME XXX provide sane businfo */
 	strcpy (info->bus_info, "ieee1394");
 }

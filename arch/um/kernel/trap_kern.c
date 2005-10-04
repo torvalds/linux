@@ -18,6 +18,7 @@
 #include "asm/a.out.h"
 #include "asm/current.h"
 #include "asm/irq.h"
+#include "sysdep/sigcontext.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
@@ -25,6 +26,9 @@
 #include "mconsole_kern.h"
 #include "mem.h"
 #include "mem_kern.h"
+#ifdef CONFIG_MODE_SKAS
+#include "skas.h"
+#endif
 
 /* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
 int handle_page_fault(unsigned long address, unsigned long ip, 
@@ -39,6 +43,12 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	int err = -EFAULT;
 
 	*code_out = SEGV_MAPERR;
+
+	/* If the fault was during atomic operation, don't take the fault, just
+	 * fail. */
+	if (in_atomic())
+		goto out_nosemaphore;
+
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
 	if(!vma) 
@@ -89,6 +99,7 @@ survive:
 	flush_tlb_page(vma, address);
 out:
 	up_read(&mm->mmap_sem);
+out_nosemaphore:
 	return(err);
 
 /*
@@ -125,7 +136,15 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
         }
 	else if(current->mm == NULL)
 		panic("Segfault with no mm");
-	err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
+
+	if (SEGV_IS_FIXABLE(&fi) || SEGV_MAYBE_FIXABLE(&fi))
+		err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
+	else {
+		err = -EFAULT;
+		/* A thread accessed NULL, we get a fault, but CR2 is invalid.
+		 * This code is used in __do_copy_from_user() of TT mode. */
+		address = 0;
+	}
 
 	catcher = current->thread.fault_catcher;
 	if(!err)

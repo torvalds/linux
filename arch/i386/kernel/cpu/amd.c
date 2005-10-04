@@ -28,6 +28,22 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
 	int r;
 
+#ifdef CONFIG_SMP
+	unsigned long value;
+
+	/* Disable TLB flush filter by setting HWCR.FFDIS on K8
+	 * bit 6 of msr C001_0015
+	 *
+	 * Errata 63 for SH-B3 steppings
+	 * Errata 122 for all steppings (F+ have it disabled by default)
+	 */
+	if (c->x86 == 15) {
+		rdmsrl(MSR_K7_HWCR, value);
+		value |= 1 << 6;
+		wrmsrl(MSR_K7_HWCR, value);
+	}
+#endif
+
 	/*
 	 *	FIXME: We should handle the K5 here. Set up the write
 	 *	range and also turn on MSR 83 bits 4 and 31 (write alloc,

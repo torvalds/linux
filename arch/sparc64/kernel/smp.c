@@ -93,6 +93,27 @@ void __init smp_store_cpu_info(int id)
 	cpu_data(id).pte_cache[1]		= NULL;
 	cpu_data(id).pgd_cache			= NULL;
 	cpu_data(id).idle_volume		= 1;
+
+	cpu_data(id).dcache_size = prom_getintdefault(cpu_node, "dcache-size",
+						      16 * 1024);
+	cpu_data(id).dcache_line_size =
+		prom_getintdefault(cpu_node, "dcache-line-size", 32);
+	cpu_data(id).icache_size = prom_getintdefault(cpu_node, "icache-size",
+						      16 * 1024);
+	cpu_data(id).icache_line_size =
+		prom_getintdefault(cpu_node, "icache-line-size", 32);
+	cpu_data(id).ecache_size = prom_getintdefault(cpu_node, "ecache-size",
+						      4 * 1024 * 1024);
+	cpu_data(id).ecache_line_size =
+		prom_getintdefault(cpu_node, "ecache-line-size", 64);
+	printk("CPU[%d]: Caches "
+	       "D[sz(%d):line_sz(%d)] "
+	       "I[sz(%d):line_sz(%d)] "
+	       "E[sz(%d):line_sz(%d)]\n",
+	       id,
+	       cpu_data(id).dcache_size, cpu_data(id).dcache_line_size,
+	       cpu_data(id).icache_size, cpu_data(id).icache_line_size,
+	       cpu_data(id).ecache_size, cpu_data(id).ecache_line_size);
 }
 
 static void smp_setup_percpu_timer(void);

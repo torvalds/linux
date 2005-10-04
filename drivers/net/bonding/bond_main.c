@@ -2776,7 +2776,7 @@ static u32 bond_glean_dev_ip(struct net_device *dev)
 		return 0;
 
 	rcu_read_lock();
-	idev = __in_dev_get(dev);
+	idev = __in_dev_get_rcu(dev);
 	if (!idev)
 		goto out;
 

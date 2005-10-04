@@ -308,12 +308,12 @@ struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
 #define	SIZE_L3 (1 + MAX_NUMNODES)
 
 /*
- * This function may be completely optimized away if
+ * This function must be completely optimized away if
  * a constant is passed to it. Mostly the same as
  * what is in linux/slab.h except it returns an
  * index.
  */
-static inline int index_of(const size_t size)
+static __always_inline int index_of(const size_t size)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
@@ -329,7 +329,8 @@ static inline int index_of(const size_t size)
 			extern void __bad_size(void);
 			__bad_size();
 		}
-	}
+	} else
+		BUG();
 	return 0;
 }
 
@@ -639,7 +640,7 @@ static enum {
 
 static DEFINE_PER_CPU(struct work_struct, reap_work);
 
-static void free_block(kmem_cache_t* cachep, void** objpp, int len);
+static void free_block(kmem_cache_t* cachep, void** objpp, int len, int node);
 static void enable_cpucache (kmem_cache_t *cachep);
 static void cache_reap (void *unused);
 static int __node_shrink(kmem_cache_t *cachep, int node);
@@ -804,7 +805,7 @@ static inline void __drain_alien_cache(kmem_cache_t *cachep, struct array_cache 
 
 	if (ac->avail) {
 		spin_lock(&rl3->list_lock);
-		free_block(cachep, ac->entry, ac->avail);
+		free_block(cachep, ac->entry, ac->avail, node);
 		ac->avail = 0;
 		spin_unlock(&rl3->list_lock);
 	}
@@ -925,7 +926,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 			/* Free limit for this kmem_list3 */
 			l3->free_limit -= cachep->batchcount;
 			if (nc)
-				free_block(cachep, nc->entry, nc->avail);
+				free_block(cachep, nc->entry, nc->avail, node);
 
 			if (!cpus_empty(mask)) {
                                 spin_unlock(&l3->list_lock);
@@ -934,7 +935,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 
 			if (l3->shared) {
 				free_block(cachep, l3->shared->entry,
-						l3->shared->avail);
+						l3->shared->avail, node);
 				kfree(l3->shared);
 				l3->shared = NULL;
 			}
@@ -1882,12 +1883,13 @@ static void do_drain(void *arg)
 {
 	kmem_cache_t *cachep = (kmem_cache_t*)arg;
 	struct array_cache *ac;
+	int node = numa_node_id();
 
 	check_irq_off();
 	ac = ac_data(cachep);
-	spin_lock(&cachep->nodelists[numa_node_id()]->list_lock);
-	free_block(cachep, ac->entry, ac->avail);
-	spin_unlock(&cachep->nodelists[numa_node_id()]->list_lock);
+	spin_lock(&cachep->nodelists[node]->list_lock);
+	free_block(cachep, ac->entry, ac->avail, node);
+	spin_unlock(&cachep->nodelists[node]->list_lock);
 	ac->avail = 0;
 }
 
@@ -2508,16 +2510,12 @@ cache_alloc_debugcheck_after(kmem_cache_t *cachep,
 #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
 #endif
 
-
-static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+static inline void *____cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
 {
-	unsigned long save_flags;
 	void* objp;
 	struct array_cache *ac;
 
-	cache_alloc_debugcheck_before(cachep, flags);
-
-	local_irq_save(save_flags);
+	check_irq_off();
 	ac = ac_data(cachep);
 	if (likely(ac->avail)) {
 		STATS_INC_ALLOCHIT(cachep);
@@ -2527,6 +2525,18 @@ static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast fl
 		STATS_INC_ALLOCMISS(cachep);
 		objp = cache_alloc_refill(cachep, flags);
 	}
+	return objp;
+}
+
+static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+{
+	unsigned long save_flags;
+	void* objp;
+
+	cache_alloc_debugcheck_before(cachep, flags);
+
+	local_irq_save(save_flags);
+	objp = ____cache_alloc(cachep, flags);
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
 					__builtin_return_address(0));
@@ -2608,7 +2618,7 @@ done:
 /*
  * Caller needs to acquire correct kmem_list's list_lock
  */
-static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects)
+static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects, int node)
 {
 	int i;
 	struct kmem_list3 *l3;
@@ -2617,14 +2627,12 @@ static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects)
 		void *objp = objpp[i];
 		struct slab *slabp;
 		unsigned int objnr;
-		int nodeid = 0;
 
 		slabp = GET_PAGE_SLAB(virt_to_page(objp));
-		nodeid = slabp->nodeid;
-		l3 = cachep->nodelists[nodeid];
+		l3 = cachep->nodelists[node];
 		list_del(&slabp->list);
 		objnr = (objp - slabp->s_mem) / cachep->objsize;
-		check_spinlock_acquired_node(cachep, nodeid);
+		check_spinlock_acquired_node(cachep, node);
 		check_slabp(cachep, slabp);
 
 
@@ -2664,13 +2672,14 @@ static void cache_flusharray(kmem_cache_t *cachep, struct array_cache *ac)
 {
 	int batchcount;
 	struct kmem_list3 *l3;
+	int node = numa_node_id();
 
 	batchcount = ac->batchcount;
 #if DEBUG
 	BUG_ON(!batchcount || batchcount > ac->avail);
 #endif
 	check_irq_off();
-	l3 = cachep->nodelists[numa_node_id()];
+	l3 = cachep->nodelists[node];
 	spin_lock(&l3->list_lock);
 	if (l3->shared) {
 		struct array_cache *shared_array = l3->shared;
@@ -2686,7 +2695,7 @@ static void cache_flusharray(kmem_cache_t *cachep, struct array_cache *ac)
 		}
 	}
 
-	free_block(cachep, ac->entry, batchcount);
+	free_block(cachep, ac->entry, batchcount, node);
 free_done:
 #if STATS
 	{
@@ -2751,7 +2760,7 @@ static inline void __cache_free(kmem_cache_t *cachep, void *objp)
 			} else {
 				spin_lock(&(cachep->nodelists[nodeid])->
 						list_lock);
-				free_block(cachep, &objp, 1);
+				free_block(cachep, &objp, 1, nodeid);
 				spin_unlock(&(cachep->nodelists[nodeid])->
 						list_lock);
 			}
@@ -2844,7 +2853,7 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, unsigned int __nocast flags, i
 	unsigned long save_flags;
 	void *ptr;
 
-	if (nodeid == numa_node_id() || nodeid == -1)
+	if (nodeid == -1)
 		return __cache_alloc(cachep, flags);
 
 	if (unlikely(!cachep->nodelists[nodeid])) {
@@ -2855,7 +2864,10 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, unsigned int __nocast flags, i
 
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
-	ptr = __cache_alloc_node(cachep, flags, nodeid);
+	if (nodeid == numa_node_id())
+		ptr = ____cache_alloc(cachep, flags);
+	else
+		ptr = __cache_alloc_node(cachep, flags, nodeid);
 	local_irq_restore(save_flags);
 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, __builtin_return_address(0));
 
@@ -3079,7 +3091,7 @@ static int alloc_kmemlist(kmem_cache_t *cachep)
 
 			if ((nc = cachep->nodelists[node]->shared))
 				free_block(cachep, nc->entry,
-							nc->avail);
+							nc->avail, node);
 
 			l3->shared = new;
 			if (!cachep->nodelists[node]->alien) {
@@ -3160,7 +3172,7 @@ static int do_tune_cpucache(kmem_cache_t *cachep, int limit, int batchcount,
 		if (!ccold)
 			continue;
 		spin_lock_irq(&cachep->nodelists[cpu_to_node(i)]->list_lock);
-		free_block(cachep, ccold->entry, ccold->avail);
+		free_block(cachep, ccold->entry, ccold->avail, cpu_to_node(i));
 		spin_unlock_irq(&cachep->nodelists[cpu_to_node(i)]->list_lock);
 		kfree(ccold);
 	}
@@ -3240,7 +3252,7 @@ static void drain_array_locked(kmem_cache_t *cachep,
 		if (tofree > ac->avail) {
 			tofree = (ac->avail+1)/2;
 		}
-		free_block(cachep, ac->entry, tofree);
+		free_block(cachep, ac->entry, tofree, node);
 		ac->avail -= tofree;
 		memmove(ac->entry, &(ac->entry[tofree]),
 					sizeof(void*)*ac->avail);

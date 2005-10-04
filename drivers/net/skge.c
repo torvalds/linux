@@ -1644,6 +1644,22 @@ static void yukon_reset(struct skge_hw *hw, int port)
 			 | GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
 }
 
+/* Apparently, early versions of Yukon-Lite had wrong chip_id? */
+static int is_yukon_lite_a0(struct skge_hw *hw)
+{
+	u32 reg;
+	int ret;
+
+	if (hw->chip_id != CHIP_ID_YUKON)
+		return 0;
+
+	reg = skge_read32(hw, B2_FAR);
+	skge_write8(hw, B2_FAR + 3, 0xff);
+	ret = (skge_read8(hw, B2_FAR + 3) != 0);
+	skge_write32(hw, B2_FAR, reg);
+	return ret;
+}
+
 static void yukon_mac_init(struct skge_hw *hw, int port)
 {
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
@@ -1759,9 +1775,11 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	/* Configure Rx MAC FIFO */
 	skge_write16(hw, SK_REG(port, RX_GMF_FL_MSK), RX_FF_FL_DEF_MSK);
 	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
-	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev >= CHIP_REV_YU_LITE_A3)
+
+	/* disable Rx GMAC FIFO Flush for YUKON-Lite Rev. A0 only */
+	if (is_yukon_lite_a0(hw))
 		reg &= ~GMF_RX_F_FL_ON;
+
 	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
 	/*
@@ -2820,21 +2838,29 @@ static void skge_netpoll(struct net_device *dev)
 static int skge_set_mac_address(struct net_device *dev, void *p)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	struct sockaddr *addr = p;
-	int err = 0;
+	struct skge_hw *hw = skge->hw;
+	unsigned port = skge->port;
+	const struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	skge_down(dev);
+	spin_lock_bh(&hw->phy_lock);
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	memcpy_toio(skge->hw->regs + B2_MAC_1 + skge->port*8,
+	memcpy_toio(hw->regs + B2_MAC_1 + port*8,
 		    dev->dev_addr, ETH_ALEN);
-	memcpy_toio(skge->hw->regs + B2_MAC_2 + skge->port*8,
+	memcpy_toio(hw->regs + B2_MAC_2 + port*8,
 		    dev->dev_addr, ETH_ALEN);
-	if (dev->flags & IFF_UP)
-		err = skge_up(dev);
-	return err;
+
+	if (hw->chip_id == CHIP_ID_GENESIS)
+		xm_outaddr(hw, port, XM_SA, dev->dev_addr);
+	else {
+		gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
+		gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+	}
+	spin_unlock_bh(&hw->phy_lock);
+
+	return 0;
 }
 
 static const struct {

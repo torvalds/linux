@@ -1381,6 +1381,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = bd_claim(bdev, sys_swapon);
 		if (error < 0) {
 			bdev = NULL;
+			error = -EINVAL;
 			goto bad_swap;
 		}
 		p->old_block_size = block_size(bdev);

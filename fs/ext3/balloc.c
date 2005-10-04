@@ -1410,7 +1410,7 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	unsigned long desc_count;
 	struct ext3_group_desc *gdp;
 	int i;
-	unsigned long ngroups;
+	unsigned long ngroups = EXT3_SB(sb)->s_groups_count;
 #ifdef EXT3FS_DEBUG
 	struct ext3_super_block *es;
 	unsigned long bitmap_count, x;
@@ -1421,7 +1421,8 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	desc_count = 0;
 	bitmap_count = 0;
 	gdp = NULL;
-	for (i = 0; i < EXT3_SB(sb)->s_groups_count; i++) {
+
+	for (i = 0; i < ngroups; i++) {
 		gdp = ext3_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
@@ -1443,7 +1444,6 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	return bitmap_count;
 #else
 	desc_count = 0;
-	ngroups = EXT3_SB(sb)->s_groups_count;
 	smp_rmb();
 	for (i = 0; i < ngroups; i++) {
 		gdp = ext3_get_group_desc(sb, i, NULL);

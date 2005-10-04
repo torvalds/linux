@@ -30,7 +30,6 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
@@ -168,7 +167,7 @@ static struct plat_serial8250_port ixp2000_serial_port[] = {
 
 static struct resource ixp2000_uart_resource = {
 	.start		= IXP2000_UART_PHYS_BASE,
-	.end		= IXP2000_UART_PHYS_BASE + 0xffff,
+	.end		= IXP2000_UART_PHYS_BASE + 0x1f,
 	.flags		= IORESOURCE_MEM,
 };
 

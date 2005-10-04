@@ -748,7 +748,8 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		unique_id++;
 	}
 
-	if (pci_enable_device(pdev))
+	error = pci_enable_device(pdev);
+	if (error)
 		goto out;
 
 	if (pci_set_dma_mask(pdev, 0xFFFFFFFFULL) || 
@@ -772,6 +773,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	shost->irq = pdev->irq;
 	shost->base = pci_resource_start(pdev, 0);
 	shost->unique_id = unique_id;
+	shost->max_cmd_len = 16;
 
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->scsi_host_ptr = shost;	
@@ -799,7 +801,9 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 			goto out_free_fibs;
 
 	aac->maximum_num_channels = aac_drivers[index].channels;
-	aac_get_adapter_info(aac);
+	error = aac_get_adapter_info(aac);
+	if (error < 0)
+		goto out_deinit;
 
 	/*
  	 * Lets override negotiations and drop the maximum SG limit to 34
@@ -927,8 +931,8 @@ static int __init aac_init(void)
 	printk(KERN_INFO "Adaptec %s driver (%s)\n",
 	  AAC_DRIVERNAME, aac_driver_version);
 
-	error = pci_module_init(&aac_pci_driver);
-	if (error)
+	error = pci_register_driver(&aac_pci_driver);
+	if (error < 0)
 		return error;
 
 	aac_cfg_major = register_chrdev( 0, "aac", &aac_cfg_fops);

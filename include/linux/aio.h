@@ -43,6 +43,40 @@ struct kioctx;
 #define kiocbIsKicked(iocb)	test_bit(KIF_KICKED, &(iocb)->ki_flags)
 #define kiocbIsCancelled(iocb)	test_bit(KIF_CANCELLED, &(iocb)->ki_flags)
 
+/* is there a better place to document function pointer methods? */
+/**
+ * ki_retry	-	iocb forward progress callback
+ * @kiocb:	The kiocb struct to advance by performing an operation.
+ *
+ * This callback is called when the AIO core wants a given AIO operation
+ * to make forward progress.  The kiocb argument describes the operation
+ * that is to be performed.  As the operation proceeds, perhaps partially,
+ * ki_retry is expected to update the kiocb with progress made.  Typically
+ * ki_retry is set in the AIO core and it itself calls file_operations
+ * helpers.
+ *
+ * ki_retry's return value determines when the AIO operation is completed
+ * and an event is generated in the AIO event ring.  Except the special
+ * return values described below, the value that is returned from ki_retry
+ * is transferred directly into the completion ring as the operation's
+ * resulting status.  Once this has happened ki_retry *MUST NOT* reference
+ * the kiocb pointer again.
+ *
+ * If ki_retry returns -EIOCBQUEUED it has made a promise that aio_complete()
+ * will be called on the kiocb pointer in the future.  The AIO core will
+ * not ask the method again -- ki_retry must ensure forward progress.
+ * aio_complete() must be called once and only once in the future, multiple
+ * calls may result in undefined behaviour.
+ *
+ * If ki_retry returns -EIOCBRETRY it has made a promise that kick_iocb()
+ * will be called on the kiocb pointer in the future.  This may happen
+ * through generic helpers that associate kiocb->ki_wait with a wait
+ * queue head that ki_retry uses via current->io_wait.  It can also happen
+ * with custom tracking and manual calls to kick_iocb(), though that is
+ * discouraged.  In either case, kick_iocb() must be called once and only
+ * once.  ki_retry must ensure forward progress, the AIO core will wait
+ * indefinitely for kick_iocb() to be called.
+ */
 struct kiocb {
 	struct list_head	ki_run_list;
 	long			ki_flags;

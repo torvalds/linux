@@ -1,7 +1,7 @@
 /* for use by sys-$SUBARCH/kernel-offsets.c */
 
-OFFSET(TASK_REGS, task_struct, thread.regs);
-OFFSET(TASK_PID, task_struct, pid);
+OFFSET(HOST_TASK_REGS, task_struct, thread.regs);
+OFFSET(HOST_TASK_PID, task_struct, pid);
 DEFINE(UM_KERN_PAGE_SIZE, PAGE_SIZE);
 DEFINE(UM_NSEC_PER_SEC, NSEC_PER_SEC);
 DEFINE_STR(UM_KERN_EMERG, KERN_EMERG);

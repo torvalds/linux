@@ -37,6 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/ctype.h>
 #include <linux/blkdev.h>
+#include <linux/rcupdate.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/hardware.h>
@@ -358,9 +359,10 @@ static __inline__ int led_get_net_activity(void)
 	/* we are running as tasklet, so locking dev_base 
 	 * for reading should be OK */
 	read_lock(&dev_base_lock);
+	rcu_read_lock();
 	for (dev = dev_base; dev; dev = dev->next) {
 	    struct net_device_stats *stats;
-	    struct in_device *in_dev = __in_dev_get(dev);
+	    struct in_device *in_dev = __in_dev_get_rcu(dev);
 	    if (!in_dev || !in_dev->ifa_list)
 		continue;
 	    if (LOOPBACK(in_dev->ifa_list->ifa_local))
@@ -371,6 +373,7 @@ static __inline__ int led_get_net_activity(void)
 	    rx_total += stats->rx_packets;
 	    tx_total += stats->tx_packets;
 	}
+	rcu_read_unlock();
 	read_unlock(&dev_base_lock);
 
 	retval = 0;

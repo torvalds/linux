@@ -209,9 +209,7 @@ static void st5481B_mode(struct st5481_bcs *bcs, int mode)
 	bcs->mode = mode;
 
 	// Cancel all USB transfers on this B channel
-	b_out->urb[0]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(b_out->urb[0]);
-	b_out->urb[1]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(b_out->urb[1]);
 	b_out->busy = 0;
 

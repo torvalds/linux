@@ -332,11 +332,28 @@ extern void need_ip_conntrack(void);
 extern int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 			  const struct ip_conntrack_tuple *orig);
 
+extern void __ip_ct_refresh_acct(struct ip_conntrack *ct,
+			         enum ip_conntrack_info ctinfo,
+			         const struct sk_buff *skb,
+			         unsigned long extra_jiffies,
+				 int do_acct);
+
+/* Refresh conntrack for this many jiffies and do accounting */
+static inline void ip_ct_refresh_acct(struct ip_conntrack *ct, 
+				      enum ip_conntrack_info ctinfo,
+				      const struct sk_buff *skb,
+				      unsigned long extra_jiffies)
+{
+	__ip_ct_refresh_acct(ct, ctinfo, skb, extra_jiffies, 1);
+}
+
 /* Refresh conntrack for this many jiffies */
-extern void ip_ct_refresh_acct(struct ip_conntrack *ct,
-			       enum ip_conntrack_info ctinfo,
-			       const struct sk_buff *skb,
-			       unsigned long extra_jiffies);
+static inline void ip_ct_refresh(struct ip_conntrack *ct,
+				 const struct sk_buff *skb,
+				 unsigned long extra_jiffies)
+{
+	__ip_ct_refresh_acct(ct, 0, skb, extra_jiffies, 0);
+}
 
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */

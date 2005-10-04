@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <asm/mach-types.h>
 #include <asm/arch/akita.h>
 #include <asm/arch/corgi.h>
 #include <asm/arch/hardware.h>
