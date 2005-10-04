@@ -27,7 +27,7 @@
  */
 
 /* First, cache-tag access. */
-extern __inline__ unsigned int get_icache_tag(int setnum, int tagnum)
+static inline unsigned int get_icache_tag(int setnum, int tagnum)
 {
 	unsigned int vaddr, retval;
 
@@ -38,7 +38,7 @@ extern __inline__ unsigned int get_icache_tag(int setnum, int tagnum)
 	return retval;
 }
 
-extern __inline__ void put_icache_tag(int setnum, int tagnum, unsigned int entry)
+static inline void put_icache_tag(int setnum, int tagnum, unsigned int entry)
 {
 	unsigned int vaddr;
 
@@ -51,7 +51,7 @@ extern __inline__ void put_icache_tag(int setnum, int tagnum, unsigned int entry
 /* Second cache-data access.  The data is returned two-32bit quantities
  * at a time.
  */
-extern __inline__ void get_icache_data(int setnum, int tagnum, int subblock,
+static inline void get_icache_data(int setnum, int tagnum, int subblock,
 				       unsigned int *data)
 {
 	unsigned int value1, value2, vaddr;
@@ -67,7 +67,7 @@ extern __inline__ void get_icache_data(int setnum, int tagnum, int subblock,
 	data[0] = value1; data[1] = value2;
 }
 
-extern __inline__ void put_icache_data(int setnum, int tagnum, int subblock,
+static inline void put_icache_data(int setnum, int tagnum, int subblock,
 				       unsigned int *data)
 {
 	unsigned int value1, value2, vaddr;
@@ -92,35 +92,35 @@ extern __inline__ void put_icache_data(int setnum, int tagnum, int subblock,
  */
 
 /* Flushes which clear out both the on-chip and external caches */
-extern __inline__ void flush_ei_page(unsigned int addr)
+static inline void flush_ei_page(unsigned int addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_PAGE) :
 			     "memory");
 }
 
-extern __inline__ void flush_ei_seg(unsigned int addr)
+static inline void flush_ei_seg(unsigned int addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_SEG) :
 			     "memory");
 }
 
-extern __inline__ void flush_ei_region(unsigned int addr)
+static inline void flush_ei_region(unsigned int addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_REGION) :
 			     "memory");
 }
 
-extern __inline__ void flush_ei_ctx(unsigned int addr)
+static inline void flush_ei_ctx(unsigned int addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_CTX) :
 			     "memory");
 }
 
-extern __inline__ void flush_ei_user(unsigned int addr)
+static inline void flush_ei_user(unsigned int addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_USER) :

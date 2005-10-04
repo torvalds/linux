@@ -10,7 +10,7 @@
 #include <linux/config.h>
 #include <asm/cpudata.h>
 
-extern __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
 	__asm__ __volatile__("cmp %0, 0\n\t"
 			     "1: bne 1b\n\t"

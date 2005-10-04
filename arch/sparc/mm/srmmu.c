@@ -260,7 +260,7 @@ static inline pte_t srmmu_pte_modify(pte_t pte, pgprot_t newprot)
 { return __pte((pte_val(pte) & SRMMU_CHG_MASK) | pgprot_val(newprot)); }
 
 /* to find an entry in a top-level page table... */
-extern inline pgd_t *srmmu_pgd_offset(struct mm_struct * mm, unsigned long address)
+static inline pgd_t *srmmu_pgd_offset(struct mm_struct * mm, unsigned long address)
 { return mm->pgd + (address >> SRMMU_PGDIR_SHIFT); }
 
 /* Find an entry in the second-level page table.. */

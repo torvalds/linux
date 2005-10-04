@@ -85,7 +85,7 @@
 
 #ifndef __ASSEMBLY__
 
-extern __inline__ void mxcc_set_stream_src(unsigned long *paddr)
+static inline void mxcc_set_stream_src(unsigned long *paddr)
 {
 	unsigned long data0 = paddr[0];
 	unsigned long data1 = paddr[1];
@@ -98,7 +98,7 @@ extern __inline__ void mxcc_set_stream_src(unsigned long *paddr)
 			      "i" (ASI_M_MXCC) : "g2", "g3");
 }
 
-extern __inline__ void mxcc_set_stream_dst(unsigned long *paddr)
+static inline void mxcc_set_stream_dst(unsigned long *paddr)
 {
 	unsigned long data0 = paddr[0];
 	unsigned long data1 = paddr[1];
@@ -111,7 +111,7 @@ extern __inline__ void mxcc_set_stream_dst(unsigned long *paddr)
 			      "i" (ASI_M_MXCC) : "g2", "g3");
 }
 
-extern __inline__ unsigned long mxcc_get_creg(void)
+static inline unsigned long mxcc_get_creg(void)
 {
 	unsigned long mxcc_control;
 
@@ -125,7 +125,7 @@ extern __inline__ unsigned long mxcc_get_creg(void)
 	return mxcc_control;
 }
 
-extern __inline__ void mxcc_set_creg(unsigned long mxcc_control)
+static inline void mxcc_set_creg(unsigned long mxcc_control)
 {
 	__asm__ __volatile__("sta %0, [%1] %2\n\t" : :
 			     "r" (mxcc_control), "r" (MXCC_CREG),

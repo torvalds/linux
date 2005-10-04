@@ -28,12 +28,12 @@
  * numbers + offsets, and vice versa.
  */
 
-extern __inline__ unsigned long sbus_devaddr(int slotnum, unsigned long offset)
+static inline unsigned long sbus_devaddr(int slotnum, unsigned long offset)
 {
   return (unsigned long) (SUN_SBUS_BVADDR+((slotnum)<<25)+(offset));
 }
 
-extern __inline__ int sbus_dev_slot(unsigned long dev_addr)
+static inline int sbus_dev_slot(unsigned long dev_addr)
 {
   return (int) (((dev_addr)-SUN_SBUS_BVADDR)>>25);
 }
@@ -80,7 +80,7 @@ struct sbus_bus {
 
 extern struct sbus_bus *sbus_root;
 
-extern __inline__ int
+static inline int
 sbus_is_slave(struct sbus_dev *dev)
 {
 	/* XXX Have to write this for sun4c's */
