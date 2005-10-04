@@ -309,7 +309,7 @@ typedef le16 MFT_RECORD_FLAGS;
  * Note: The _LE versions will return a CPU endian formatted value!
  */
 #define MFT_REF_MASK_CPU 0x0000ffffffffffffULL
-#define MFT_REF_MASK_LE const_cpu_to_le64(0x0000ffffffffffffULL)
+#define MFT_REF_MASK_LE const_cpu_to_le64(MFT_REF_MASK_CPU)
 
 typedef u64 MFT_REF;
 typedef le64 leMFT_REF;
