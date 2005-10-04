@@ -2845,8 +2845,7 @@ int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	err = inode_change_ok(vi, attr);
 	if (err)
-		return err;
-
+		goto out;
 	/* We do not support NTFS ACLs yet. */
 	if (ia_valid & (ATTR_UID | ATTR_GID | ATTR_MODE)) {
 		ntfs_warning(vi->i_sb, "Changes in user/group/mode are not "
@@ -2854,14 +2853,22 @@ int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 		err = -EOPNOTSUPP;
 		goto out;
 	}
-
 	if (ia_valid & ATTR_SIZE) {
 		if (attr->ia_size != i_size_read(vi)) {
-			ntfs_warning(vi->i_sb, "Changes in inode size are not "
-					"supported yet, ignoring.");
-			err = -EOPNOTSUPP;
-			// TODO: Implement...
-			// err = vmtruncate(vi, attr->ia_size);
+			ntfs_inode *ni = NTFS_I(vi);
+			/*
+			 * FIXME: For now we do not support resizing of
+			 * compressed or encrypted files yet.
+			 */
+			if (NInoCompressed(ni) || NInoEncrypted(ni)) {
+				ntfs_warning(vi->i_sb, "Changes in inode size "
+						"are not supported yet for "
+						"%s files, ignoring.",
+						NInoCompressed(ni) ?
+						"compressed" : "encrypted");
+				err = -EOPNOTSUPP;
+			} else
+				err = vmtruncate(vi, attr->ia_size);
 			if (err || ia_valid == ATTR_SIZE)
 				goto out;
 		} else {

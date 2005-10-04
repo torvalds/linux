@@ -50,6 +50,13 @@ ToDo/Notes:
 	  but not the initialized size can be extended, too.
 	- Implement fs/ntfs/inode.[hc]::ntfs_truncate().  It only supports
 	  uncompressed and unencrypted files.
+	- Enable ATTR_SIZE attribute changes in ntfs_setattr().  This completes
+	  the initial implementation of file truncation.  Now both open(2)ing
+	  a file with the O_TRUNC flag and the {,f}truncate(2) system calls
+	  will resize a file appropriately.  The limitations are that only
+	  uncompressed and unencrypted files are supported.  Also, there is
+	  only very limited support for highly fragmented files (the ones whose
+	  $DATA attribute is split into multiple attribute extents).
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
