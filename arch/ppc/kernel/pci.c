@@ -813,12 +813,14 @@ pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
 	/* Now, lookup childs of the hose */
 	return scan_OF_childs_for_device(node->child, busnr, devfn);
 }
+EXPORT_SYMBOL(pci_busdev_to_OF_node);
 
 struct device_node*
 pci_device_to_OF_node(struct pci_dev *dev)
 {
 	return pci_busdev_to_OF_node(dev->bus, dev->devfn);
 }
+EXPORT_SYMBOL(pci_device_to_OF_node);
 
 /* This routine is meant to be used early during boot, when the
  * PCI bus numbers have not yet been assigned, and you need to
@@ -890,6 +892,7 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	}
 	return -ENODEV;
 }
+EXPORT_SYMBOL(pci_device_from_OF_node);
 
 void __init
 pci_process_bridge_OF_ranges(struct pci_controller *hose,
