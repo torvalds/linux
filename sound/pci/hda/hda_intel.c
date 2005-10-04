@@ -47,21 +47,18 @@
 #include "hda_codec.h"
 
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
-static char *model[SNDRV_CARDS];
-static int position_fix[SNDRV_CARDS];
+static int index = SNDRV_DEFAULT_IDX1;
+static char *id = SNDRV_DEFAULT_STR1;
+static char *model;
+static int position_fix;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel HD audio interface.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable Intel HD audio interface.");
-module_param_array(model, charp, NULL, 0444);
+module_param(model, charp, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
-module_param_array(position_fix, int, NULL, 0444);
+module_param(position_fix, int, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
 
 MODULE_LICENSE("GPL");
@@ -1544,32 +1541,24 @@ static int __devinit azx_create(snd_card_t *card, struct pci_dev *pci,
 
 static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	azx_t *chip;
 	int err = 0;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (! enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (NULL == card) {
 		snd_printk(KERN_ERR SFX "Error creating card!\n");
 		return -ENOMEM;
 	}
 
-	if ((err = azx_create(card, pci, position_fix[dev], pci_id->driver_data,
+	if ((err = azx_create(card, pci, position_fix, pci_id->driver_data,
 			      &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
 	/* create codec instances */
-	if ((err = azx_codec_create(chip, model[dev])) < 0) {
+	if ((err = azx_codec_create(chip, model)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1595,7 +1584,6 @@ static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *
 	}
 
 	pci_set_drvdata(pci, card);
-	dev++;
 
 	return err;
 }

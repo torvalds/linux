@@ -73,34 +73,31 @@ MODULE_SUPPORTED_DEVICE("{{VIA,VT82C686A/B/C,pci},{VIA,VT8233A/C,8235}}");
 #define SUPPORT_JOYSTICK 1
 #endif
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static long mpu_port[SNDRV_CARDS];
+static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static long mpu_port;
 #ifdef SUPPORT_JOYSTICK
-static int joystick[SNDRV_CARDS];
+static int joystick;
 #endif
-static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 48000};
-static char *ac97_quirk[SNDRV_CARDS];
-static int dxs_support[SNDRV_CARDS];
+static int ac97_clock = 48000;
+static char *ac97_quirk;
+static int dxs_support;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for VIA 82xx bridge.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for VIA 82xx bridge.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable audio part of VIA 82xx bridge.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param(mpu_port, long, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port. (VT82C686x only)");
 #ifdef SUPPORT_JOYSTICK
-module_param_array(joystick, bool, NULL, 0444);
+module_param(joystick, bool, 0444);
 MODULE_PARM_DESC(joystick, "Enable joystick. (VT82C686x only)");
 #endif
-module_param_array(ac97_clock, int, NULL, 0444);
+module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (default 48000Hz).");
-module_param_array(ac97_quirk, charp, NULL, 0444);
+module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
-module_param_array(dxs_support, int, NULL, 0444);
+module_param(dxs_support, int, 0444);
 MODULE_PARM_DESC(dxs_support, "Support for DXS channels (0 = auto, 1 = enable, 2 = disable, 3 = 48k only, 4 = no VRA, 5 = enable any sample rate)");
 
 
@@ -1637,12 +1634,12 @@ static int __devinit snd_via82xx_mixer_new(via82xx_t *chip, const char *quirk_ov
 
 #ifdef SUPPORT_JOYSTICK
 #define JOYSTICK_ADDR	0x200
-static int __devinit snd_via686_create_gameport(via82xx_t *chip, int dev, unsigned char *legacy)
+static int __devinit snd_via686_create_gameport(via82xx_t *chip, unsigned char *legacy)
 {
 	struct gameport *gp;
 	struct resource *r;
 
-	if (!joystick[dev])
+	if (!joystick)
 		return -ENODEV;
 
 	r = request_region(JOYSTICK_ADDR, 8, "VIA686 gameport");
@@ -1686,7 +1683,7 @@ static void snd_via686_free_gameport(via82xx_t *chip)
 	}
 }
 #else
-static inline int snd_via686_create_gameport(via82xx_t *chip, int dev, unsigned char *legacy)
+static inline int snd_via686_create_gameport(via82xx_t *chip, unsigned char *legacy)
 {
 	return -ENOSYS;
 }
@@ -1698,7 +1695,7 @@ static inline void snd_via686_free_gameport(via82xx_t *chip) { }
  *
  */
 
-static int __devinit snd_via8233_init_misc(via82xx_t *chip, int dev)
+static int __devinit snd_via8233_init_misc(via82xx_t *chip)
 {
 	int i, err, caps;
 	unsigned char val;
@@ -1739,7 +1736,7 @@ static int __devinit snd_via8233_init_misc(via82xx_t *chip, int dev)
 	return 0;
 }
 
-static int __devinit snd_via686_init_misc(via82xx_t *chip, int dev)
+static int __devinit snd_via686_init_misc(via82xx_t *chip)
 {
 	unsigned char legacy, legacy_cfg;
 	int rev_h = 0;
@@ -1750,32 +1747,33 @@ static int __devinit snd_via686_init_misc(via82xx_t *chip, int dev)
 	legacy &= ~VIA_FUNC_ENABLE_GAME;	/* disable joystick */
 	if (chip->revision >= VIA_REV_686_H) {
 		rev_h = 1;
-		if (mpu_port[dev] >= 0x200) {	/* force MIDI */
-			mpu_port[dev] &= 0xfffc;
-			pci_write_config_dword(chip->pci, 0x18, mpu_port[dev] | 0x01);
+		if (mpu_port >= 0x200) {	/* force MIDI */
+			mpu_port &= 0xfffc;
+			pci_write_config_dword(chip->pci, 0x18, mpu_port | 0x01);
 #ifdef CONFIG_PM
-			chip->mpu_port_saved = mpu_port[dev];
+			chip->mpu_port_saved = mpu_port;
 #endif
 		} else {
-			mpu_port[dev] = pci_resource_start(chip->pci, 2);
+			mpu_port = pci_resource_start(chip->pci, 2);
 		}
 	} else {
-		switch (mpu_port[dev]) {	/* force MIDI */
+		switch (mpu_port) {	/* force MIDI */
 		case 0x300:
 		case 0x310:
 		case 0x320:
 		case 0x330:
 			legacy_cfg &= ~(3 << 2);
-			legacy_cfg |= (mpu_port[dev] & 0x0030) >> 2;
+			legacy_cfg |= (mpu_port & 0x0030) >> 2;
 			break;
 		default:			/* no, use BIOS settings */
 			if (legacy & VIA_FUNC_ENABLE_MIDI)
-				mpu_port[dev] = 0x300 + ((legacy_cfg & 0x000c) << 2);
+				mpu_port = 0x300 + ((legacy_cfg & 0x000c) << 2);
 			break;
 		}
 	}
-	if (mpu_port[dev] >= 0x200 &&
-	    (chip->mpu_res = request_region(mpu_port[dev], 2, "VIA82xx MPU401")) != NULL) {
+	if (mpu_port >= 0x200 &&
+	    (chip->mpu_res = request_region(mpu_port, 2, "VIA82xx MPU401"))
+	    != NULL) {
 		if (rev_h)
 			legacy |= VIA_FUNC_MIDI_PNP;	/* enable PCI I/O 2 */
 		legacy |= VIA_FUNC_ENABLE_MIDI;
@@ -1783,16 +1781,17 @@ static int __devinit snd_via686_init_misc(via82xx_t *chip, int dev)
 		if (rev_h)
 			legacy &= ~VIA_FUNC_MIDI_PNP;	/* disable PCI I/O 2 */
 		legacy &= ~VIA_FUNC_ENABLE_MIDI;
-		mpu_port[dev] = 0;
+		mpu_port = 0;
 	}
 
 	pci_write_config_byte(chip->pci, VIA_FUNC_ENABLE, legacy);
 	pci_write_config_byte(chip->pci, VIA_PNP_CONTROL, legacy_cfg);
 	if (chip->mpu_res) {
 		if (snd_mpu401_uart_new(chip->card, 0, MPU401_HW_VIA686A,
-					mpu_port[dev], 1,
+					mpu_port, 1,
 					chip->irq, 0, &chip->rmidi) < 0) {
-			printk(KERN_WARNING "unable to initialize MPU-401 at 0x%lx, skipping\n", mpu_port[dev]);
+			printk(KERN_WARNING "unable to initialize MPU-401"
+			       " at 0x%lx, skipping\n", mpu_port);
 			legacy &= ~VIA_FUNC_ENABLE_MIDI;
 		} else {
 			legacy &= ~VIA_FUNC_MIDI_IRQMASK;	/* enable MIDI interrupt */
@@ -1800,7 +1799,7 @@ static int __devinit snd_via686_init_misc(via82xx_t *chip, int dev)
 		pci_write_config_byte(chip->pci, VIA_FUNC_ENABLE, legacy);
 	}
 
-	snd_via686_create_gameport(chip, dev, &legacy);
+	snd_via686_create_gameport(chip, &legacy);
 
 #ifdef CONFIG_PM
 	chip->legacy_saved = legacy;
@@ -2221,7 +2220,6 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 				       const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	via82xx_t *chip;
 	unsigned char revision;
@@ -2229,14 +2227,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 	unsigned int i;
 	int err;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -2259,12 +2250,12 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 			}
 		}
 		if (chip_type != TYPE_VIA8233A) {
-			if (dxs_support[dev] == VIA_DXS_AUTO)
-				dxs_support[dev] = check_dxs_list(pci);
+			if (dxs_support == VIA_DXS_AUTO)
+				dxs_support = check_dxs_list(pci);
 			/* force to use VIA8233 or 8233A model according to
 			 * dxs_support module option
 			 */
-			if (dxs_support[dev] == VIA_DXS_DISABLE)
+			if (dxs_support == VIA_DXS_DISABLE)
 				chip_type = TYPE_VIA8233A;
 			else
 				chip_type = TYPE_VIA8233;
@@ -2282,14 +2273,15 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		goto __error;
 	}
 		
-	if ((err = snd_via82xx_create(card, pci, chip_type, revision, ac97_clock[dev], &chip)) < 0)
+	if ((err = snd_via82xx_create(card, pci, chip_type, revision,
+				      ac97_clock, &chip)) < 0)
 		goto __error;
-	if ((err = snd_via82xx_mixer_new(chip, ac97_quirk[dev])) < 0)
+	if ((err = snd_via82xx_mixer_new(chip, ac97_quirk)) < 0)
 		goto __error;
 
 	if (chip_type == TYPE_VIA686) {
 		if ((err = snd_via686_pcm_new(chip)) < 0 ||
-		    (err = snd_via686_init_misc(chip, dev)) < 0)
+		    (err = snd_via686_init_misc(chip)) < 0)
 			goto __error;
 	} else {
 		if (chip_type == TYPE_VIA8233A) {
@@ -2299,16 +2291,16 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		} else {
 			if ((err = snd_via8233_pcm_new(chip)) < 0)
 				goto __error;
-			if (dxs_support[dev] == VIA_DXS_48K)
+			if (dxs_support == VIA_DXS_48K)
 				chip->dxs_fixed = 1;
-			else if (dxs_support[dev] == VIA_DXS_NO_VRA)
+			else if (dxs_support == VIA_DXS_NO_VRA)
 				chip->no_vra = 1;
-			else if (dxs_support[dev] == VIA_DXS_SRC) {
+			else if (dxs_support == VIA_DXS_SRC) {
 				chip->no_vra = 1;
 				chip->dxs_src = 1;
 			}
 		}
-		if ((err = snd_via8233_init_misc(chip, dev)) < 0)
+		if ((err = snd_via8233_init_misc(chip)) < 0)
 			goto __error;
 	}
 
@@ -2329,7 +2321,6 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		return err;
 	}
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 
  __error:

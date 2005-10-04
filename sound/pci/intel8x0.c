@@ -64,34 +64,27 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 		"{AMD,AMD8111},"
 	        "{ALI,M5455}}");
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
-static char *ac97_quirk[SNDRV_CARDS];
-static int buggy_semaphore[SNDRV_CARDS];
-static int buggy_irq[SNDRV_CARDS];
-static int xbox[SNDRV_CARDS];
+static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int ac97_clock = 0;
+static char *ac97_quirk;
+static int buggy_semaphore;
+static int buggy_irq;
+static int xbox;
 
-#ifdef SUPPORT_MIDI
-static int mpu_port[SNDRV_CARDS]; /* disabled */
-#endif
-
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel i8x0 soundcard.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable Intel i8x0 soundcard.");
-module_param_array(ac97_clock, int, NULL, 0444);
+module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
-module_param_array(ac97_quirk, charp, NULL, 0444);
+module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
-module_param_array(buggy_semaphore, bool, NULL, 0444);
+module_param(buggy_semaphore, bool, 0444);
 MODULE_PARM_DESC(buggy_semaphore, "Enable workaround for hardwares with problematic codec semaphores.");
-module_param_array(buggy_irq, bool, NULL, 0444);
+module_param(buggy_irq, bool, 0444);
 MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
-module_param_array(xbox, bool, NULL, 0444);
+module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
 
 /*
@@ -2781,20 +2774,12 @@ static struct shortname_table {
 static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	intel8x0_t *chip;
 	int err;
 	struct shortname_table *name;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -2819,16 +2804,16 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
-				       buggy_semaphore[dev], &chip)) < 0) {
+				       buggy_semaphore, &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if (buggy_irq[dev])
+	if (buggy_irq)
 		chip->buggy_irq = 1;
-	if (xbox[dev])
+	if (xbox)
 		chip->xbox = 1;
 
-	if ((err = snd_intel8x0_mixer(chip, ac97_clock[dev], ac97_quirk[dev])) < 0) {
+	if ((err = snd_intel8x0_mixer(chip, ac97_clock, ac97_quirk)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -2843,7 +2828,7 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		 "%s with %s at %#lx, irq %i", card->shortname,
 		 snd_ac97_get_short_name(chip->ac97[0]), chip->addr, chip->irq);
 
-	if (! ac97_clock[dev])
+	if (! ac97_clock)
 		intel8x0_measure_ac97_clock(chip);
 
 	if ((err = snd_card_register(card)) < 0) {
@@ -2851,7 +2836,6 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		return err;
 	}
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 }
 
