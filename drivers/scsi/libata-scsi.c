@@ -435,10 +435,21 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc,
 		return 1;	/* power conditions not supported */
 	if (scsicmd[4] & 0x1) {
 		tf->nsect = 1;	/* 1 sector, lba=0 */
-		tf->lbah = 0x0;
-		tf->lbam = 0x0;
-		tf->lbal = 0x0;
-		tf->device |= ATA_LBA;
+
+		if (qc->dev->flags & ATA_DFLAG_LBA) {
+			qc->tf.flags |= ATA_TFLAG_LBA;
+
+			tf->lbah = 0x0;
+			tf->lbam = 0x0;
+			tf->lbal = 0x0;
+			tf->device |= ATA_LBA;
+		} else {
+			/* CHS */
+			tf->lbal = 0x1; /* sect */
+			tf->lbam = 0x0; /* cyl low */
+			tf->lbah = 0x0; /* cyl high */
+		}
+
 		tf->command = ATA_CMD_VERIFY;	/* READ VERIFY */
 	} else {
 		tf->nsect = 0;	/* time period value (0 implies now) */
