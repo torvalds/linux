@@ -782,6 +782,7 @@ out:
  * @ni:		ntfs inode whose runlist describes the clusters to free
  * @start_vcn:	vcn in the runlist of @ni at which to start freeing clusters
  * @count:	number of clusters to free or -1 for all clusters
+ * @ctx:	active attribute search context if present or NULL if not
  * @is_rollback:	true if this is a rollback operation
  *
  * Free @count clusters starting at the cluster @start_vcn in the runlist
@@ -791,14 +792,38 @@ out:
  * deallocated.  Thus, to completely free all clusters in a runlist, use
  * @start_vcn = 0 and @count = -1.
  *
+ * If @ctx is specified, it is an active search context of @ni and its base mft
+ * record.  This is needed when __ntfs_cluster_free() encounters unmapped
+ * runlist fragments and allows their mapping.  If you do not have the mft
+ * record mapped, you can specify @ctx as NULL and __ntfs_cluster_free() will
+ * perform the necessary mapping and unmapping.
+ *
+ * Note, __ntfs_cluster_free() saves the state of @ctx on entry and restores it
+ * before returning.  Thus, @ctx will be left pointing to the same attribute on
+ * return as on entry.  However, the actual pointers in @ctx may point to
+ * different memory locations on return, so you must remember to reset any
+ * cached pointers from the @ctx, i.e. after the call to __ntfs_cluster_free(),
+ * you will probably want to do:
+ *	m = ctx->mrec;
+ *	a = ctx->attr;
+ * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
+ * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
+ *
  * @is_rollback should always be FALSE, it is for internal use to rollback
  * errors.  You probably want to use ntfs_cluster_free() instead.
  *
- * Note, ntfs_cluster_free() does not modify the runlist at all, so the caller
- * has to deal with it later.
+ * Note, __ntfs_cluster_free() does not modify the runlist, so you have to
+ * remove from the runlist or mark sparse the freed runs later.
  *
  * Return the number of deallocated clusters (not counting sparse ones) on
  * success and -errno on error.
+ *
+ * WARNING: If @ctx is supplied, regardless of whether success or failure is
+ *	    returned, you need to check IS_ERR(@ctx->mrec) and if TRUE the @ctx
+ *	    is no longer valid, i.e. you need to either call
+ *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
+ *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
+ *	    why the mapping of the old inode failed.
  *
  * Locking: - The runlist described by @ni must be locked for writing on entry
  *	      and is locked on return.  Note the runlist may be modified when
@@ -807,9 +832,13 @@ out:
  *	      on return.
  *	    - This function takes the volume lcn bitmap lock for writing and
  *	      modifies the bitmap contents.
+ *	    - If @ctx is NULL, the base mft record of @ni must not be mapped on
+ *	      entry and it will be left unmapped on return.
+ *	    - If @ctx is not NULL, the base mft record must be mapped on entry
+ *	      and it will be left mapped on return.
  */
 s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
-		const BOOL is_rollback)
+		ntfs_attr_search_ctx *ctx, const BOOL is_rollback)
 {
 	s64 delta, to_free, total_freed, real_freed;
 	ntfs_volume *vol;
@@ -839,7 +868,7 @@ s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
 
 	total_freed = real_freed = 0;
 
-	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, NULL);
+	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, ctx);
 	if (IS_ERR(rl)) {
 		if (!is_rollback)
 			ntfs_error(vol->sb, "Failed to find first runlist "
@@ -893,7 +922,7 @@ s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
 
 			/* Attempt to map runlist. */
 			vcn = rl->vcn;
-			rl = ntfs_attr_find_vcn_nolock(ni, vcn, NULL);
+			rl = ntfs_attr_find_vcn_nolock(ni, vcn, ctx);
 			if (IS_ERR(rl)) {
 				err = PTR_ERR(rl);
 				if (!is_rollback)
@@ -961,7 +990,7 @@ err_out:
 	 * If rollback fails, set the volume errors flag, emit an error
 	 * message, and return the error code.
 	 */
-	delta = __ntfs_cluster_free(ni, start_vcn, total_freed, TRUE);
+	delta = __ntfs_cluster_free(ni, start_vcn, total_freed, ctx, TRUE);
 	if (delta < 0) {
 		ntfs_error(vol->sb, "Failed to rollback (error %i).  Leaving "
 				"inconsistent metadata!  Unmount and run "

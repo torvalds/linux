@@ -1952,20 +1952,21 @@ restore_undo_alloc:
 		NVolSetErrors(vol);
 		return ret;
 	}
-	a = ctx->attr;
-	a->data.non_resident.highest_vcn = cpu_to_sle64(old_last_vcn - 1);
+	ctx->attr->data.non_resident.highest_vcn =
+			cpu_to_sle64(old_last_vcn - 1);
 undo_alloc:
-	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1) < 0) {
+	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1, ctx) < 0) {
 		ntfs_error(vol->sb, "Failed to free clusters from mft data "
 				"attribute.%s", es);
 		NVolSetErrors(vol);
 	}
+	a = ctx->attr;
 	if (ntfs_rl_truncate_nolock(vol, &mft_ni->runlist, old_last_vcn)) {
 		ntfs_error(vol->sb, "Failed to truncate mft data attribute "
 				"runlist.%s", es);
 		NVolSetErrors(vol);
 	}
-	if (mp_rebuilt) {
+	if (mp_rebuilt && !IS_ERR(ctx->mrec)) {
 		if (ntfs_mapping_pairs_build(vol, (u8*)a + le16_to_cpu(
 				a->data.non_resident.mapping_pairs_offset),
 				old_alen - le16_to_cpu(
@@ -1982,6 +1983,10 @@ undo_alloc:
 		}
 		flush_dcache_mft_record_page(ctx->ntfs_ino);
 		mark_mft_record_dirty(ctx->ntfs_ino);
+	} else if (IS_ERR(ctx->mrec)) {
+		ntfs_error(vol->sb, "Failed to restore attribute search "
+				"context.%s", es);
+		NVolSetErrors(vol);
 	}
 	if (ctx)
 		ntfs_attr_put_search_ctx(ctx);
