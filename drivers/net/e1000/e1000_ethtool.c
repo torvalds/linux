@@ -39,10 +39,10 @@ extern int e1000_up(struct e1000_adapter *adapter);
 extern void e1000_down(struct e1000_adapter *adapter);
 extern void e1000_reset(struct e1000_adapter *adapter);
 extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx);
-extern int e1000_setup_rx_resources(struct e1000_adapter *adapter);
-extern int e1000_setup_tx_resources(struct e1000_adapter *adapter);
-extern void e1000_free_rx_resources(struct e1000_adapter *adapter);
-extern void e1000_free_tx_resources(struct e1000_adapter *adapter);
+extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
+extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
+extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
+extern void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
 extern void e1000_update_stats(struct e1000_adapter *adapter);
 
 struct e1000_stats {
@@ -576,8 +576,8 @@ e1000_get_ringparam(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	e1000_mac_type mac_type = adapter->hw.mac_type;
-	struct e1000_desc_ring *txdr = &adapter->tx_ring;
-	struct e1000_desc_ring *rxdr = &adapter->rx_ring;
+	struct e1000_tx_ring *txdr = adapter->tx_ring;
+	struct e1000_rx_ring *rxdr = adapter->rx_ring;
 
 	ring->rx_max_pending = (mac_type < e1000_82544) ? E1000_MAX_RXD :
 		E1000_MAX_82544_RXD;
@@ -597,19 +597,39 @@ e1000_set_ringparam(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	e1000_mac_type mac_type = adapter->hw.mac_type;
-	struct e1000_desc_ring *txdr = &adapter->tx_ring;
-	struct e1000_desc_ring *rxdr = &adapter->rx_ring;
-	struct e1000_desc_ring tx_old, tx_new, rx_old, rx_new;
-	int err;
+	struct e1000_tx_ring *txdr, *tx_old, *tx_new;
+	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
+	int i, err, tx_ring_size, rx_ring_size;
+
+	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_queues;
+	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_queues;
+
+	if (netif_running(adapter->netdev))
+		e1000_down(adapter);
 
 	tx_old = adapter->tx_ring;
 	rx_old = adapter->rx_ring;
 
+	adapter->tx_ring = kmalloc(tx_ring_size, GFP_KERNEL);
+	if (!adapter->tx_ring) {
+		err = -ENOMEM;
+		goto err_setup_rx;
+	}
+	memset(adapter->tx_ring, 0, tx_ring_size);
+
+	adapter->rx_ring = kmalloc(rx_ring_size, GFP_KERNEL);
+	if (!adapter->rx_ring) {
+		kfree(adapter->tx_ring);
+		err = -ENOMEM;
+		goto err_setup_rx;
+	}
+	memset(adapter->rx_ring, 0, rx_ring_size);
+
+	txdr = adapter->tx_ring;
+	rxdr = adapter->rx_ring;
+
 	if((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
-
-	if(netif_running(adapter->netdev))
-		e1000_down(adapter);
 
 	rxdr->count = max(ring->rx_pending,(uint32_t)E1000_MIN_RXD);
 	rxdr->count = min(rxdr->count,(uint32_t)(mac_type < e1000_82544 ?
@@ -621,11 +641,16 @@ e1000_set_ringparam(struct net_device *netdev,
 		E1000_MAX_TXD : E1000_MAX_82544_TXD));
 	E1000_ROUNDUP(txdr->count, REQ_TX_DESCRIPTOR_MULTIPLE); 
 
+	for (i = 0; i < adapter->num_queues; i++) {
+		txdr[i].count = txdr->count;
+		rxdr[i].count = rxdr->count;
+	}
+
 	if(netif_running(adapter->netdev)) {
 		/* Try to get new resources before deleting old */
-		if((err = e1000_setup_rx_resources(adapter)))
+		if ((err = e1000_setup_all_rx_resources(adapter)))
 			goto err_setup_rx;
-		if((err = e1000_setup_tx_resources(adapter)))
+		if ((err = e1000_setup_all_tx_resources(adapter)))
 			goto err_setup_tx;
 
 		/* save the new, restore the old in order to free it,
@@ -635,8 +660,10 @@ e1000_set_ringparam(struct net_device *netdev,
 		tx_new = adapter->tx_ring;
 		adapter->rx_ring = rx_old;
 		adapter->tx_ring = tx_old;
-		e1000_free_rx_resources(adapter);
-		e1000_free_tx_resources(adapter);
+		e1000_free_all_rx_resources(adapter);
+		e1000_free_all_tx_resources(adapter);
+		kfree(tx_old);
+		kfree(rx_old);
 		adapter->rx_ring = rx_new;
 		adapter->tx_ring = tx_new;
 		if((err = e1000_up(adapter)))
@@ -645,7 +672,7 @@ e1000_set_ringparam(struct net_device *netdev,
 
 	return 0;
 err_setup_tx:
-	e1000_free_rx_resources(adapter);
+	e1000_free_all_rx_resources(adapter);
 err_setup_rx:
 	adapter->rx_ring = rx_old;
 	adapter->tx_ring = tx_old;
@@ -903,8 +930,8 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 static void
 e1000_free_desc_rings(struct e1000_adapter *adapter)
 {
-	struct e1000_desc_ring *txdr = &adapter->test_tx_ring;
-	struct e1000_desc_ring *rxdr = &adapter->test_rx_ring;
+	struct e1000_tx_ring *txdr = &adapter->test_tx_ring;
+	struct e1000_rx_ring *rxdr = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
 	int i;
 
@@ -946,8 +973,8 @@ e1000_free_desc_rings(struct e1000_adapter *adapter)
 static int
 e1000_setup_desc_rings(struct e1000_adapter *adapter)
 {
-	struct e1000_desc_ring *txdr = &adapter->test_tx_ring;
-	struct e1000_desc_ring *rxdr = &adapter->test_rx_ring;
+	struct e1000_tx_ring *txdr = &adapter->test_tx_ring;
+	struct e1000_rx_ring *rxdr = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
 	uint32_t rctl;
 	int size, i, ret_val;
@@ -1347,8 +1374,8 @@ e1000_check_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
 static int
 e1000_run_loopback_test(struct e1000_adapter *adapter)
 {
-	struct e1000_desc_ring *txdr = &adapter->test_tx_ring;
-	struct e1000_desc_ring *rxdr = &adapter->test_rx_ring;
+	struct e1000_tx_ring *txdr = &adapter->test_tx_ring;
+	struct e1000_rx_ring *rxdr = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
 	int i, j, k, l, lc, good_cnt, ret_val=0;
 	unsigned long time;
