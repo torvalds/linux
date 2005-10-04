@@ -195,6 +195,11 @@ static int e1000_resume(struct pci_dev *pdev);
 static void e1000_netpoll (struct net_device *netdev);
 #endif
 
+#ifdef CONFIG_E1000_MQ
+/* for multiple Rx queues */
+void e1000_rx_schedule(void *data);
+#endif
+
 /* Exported from other modules */
 
 extern void e1000_check_options(struct e1000_adapter *adapter);
@@ -368,6 +373,9 @@ e1000_down(struct e1000_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	e1000_irq_disable(adapter);
+#ifdef CONFIG_E1000_MQ
+	while (atomic_read(&adapter->rx_sched_call_data.count) != 0);
+#endif
 	free_irq(adapter->pdev->irq, netdev);
 #ifdef CONFIG_PCI_MSI
 	if(adapter->hw.mac_type > e1000_82547_rev_2 &&
@@ -810,9 +818,19 @@ e1000_remove(struct pci_dev *pdev)
 	if(!e1000_check_phy_reset_block(&adapter->hw))
 		e1000_phy_hw_reset(&adapter->hw);
 
+	kfree(adapter->tx_ring);
+	kfree(adapter->rx_ring);
+#ifdef CONFIG_E1000_NAPI
+	kfree(adapter->polling_netdev);
+#endif
+
 	iounmap(adapter->hw.hw_addr);
 	pci_release_regions(pdev);
 
+#ifdef CONFIG_E1000_MQ
+	free_percpu(adapter->cpu_netdev);
+	free_percpu(adapter->cpu_tx_ring);
+#endif
 	free_netdev(netdev);
 
 	pci_disable_device(pdev);
@@ -893,7 +911,21 @@ e1000_sw_init(struct e1000_adapter *adapter)
 		hw->master_slave = E1000_MASTER_SLAVE;
 	}
 
+#ifdef CONFIG_E1000_MQ
+	/* Number of supported queues */
+	switch (hw->mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		adapter->num_queues = 2;
+		break;
+	default:
+		adapter->num_queues = 1;
+		break;
+	}
+	adapter->num_queues = min(adapter->num_queues, num_online_cpus());
+#else
 	adapter->num_queues = 1;
+#endif
 
 	if (e1000_alloc_queues(adapter)) {
 		DPRINTK(PROBE, ERR, "Unable to allocate memory for queues\n");
@@ -909,6 +941,11 @@ e1000_sw_init(struct e1000_adapter *adapter)
 		set_bit(__LINK_STATE_START, &adapter->polling_netdev[i].state);
 	}
 #endif
+
+#ifdef CONFIG_E1000_MQ
+	e1000_setup_queue_mapping(adapter);
+#endif
+
 	atomic_set(&adapter->irq_sem, 1);
 	spin_lock_init(&adapter->stats_lock);
 
@@ -956,6 +993,39 @@ e1000_alloc_queues(struct e1000_adapter *adapter)
 
 	return E1000_SUCCESS;
 }
+
+#ifdef CONFIG_E1000_MQ
+static void __devinit
+e1000_setup_queue_mapping(struct e1000_adapter *adapter)
+{
+	int i, cpu;
+
+	adapter->rx_sched_call_data.func = e1000_rx_schedule;
+	adapter->rx_sched_call_data.info = adapter->netdev;
+	cpus_clear(adapter->rx_sched_call_data.cpumask);
+
+	adapter->cpu_netdev = alloc_percpu(struct net_device *);
+	adapter->cpu_tx_ring = alloc_percpu(struct e1000_tx_ring *);
+
+	lock_cpu_hotplug();
+	i = 0;
+	for_each_online_cpu(cpu) {
+		*per_cpu_ptr(adapter->cpu_tx_ring, cpu) = &adapter->tx_ring[i % adapter->num_queues];
+		/* This is incomplete because we'd like to assign separate
+		 * physical cpus to these netdev polling structures and
+		 * avoid saturating a subset of cpus.
+		 */
+		if (i < adapter->num_queues) {
+			*per_cpu_ptr(adapter->cpu_netdev, cpu) = &adapter->polling_netdev[i];
+			adapter->cpu_for_queue[i] = cpu;
+		} else
+			*per_cpu_ptr(adapter->cpu_netdev, cpu) = NULL;
+
+		i++;
+	}
+	unlock_cpu_hotplug();
+}
+#endif
 
 /**
  * e1000_open - Called when a network interface is made active
@@ -1178,8 +1248,21 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 
-	E1000_WRITE_REG(&adapter->hw, TDH, 0);
-	E1000_WRITE_REG(&adapter->hw, TDT, 0);
+	switch (adapter->num_queues) {
+	case 2:
+		tdba = adapter->tx_ring[1].dma;
+		tdlen = adapter->tx_ring[1].count *
+			sizeof(struct e1000_tx_desc);
+		E1000_WRITE_REG(hw, TDBAL1, (tdba & 0x00000000ffffffffULL));
+		E1000_WRITE_REG(hw, TDBAH1, (tdba >> 32));
+		E1000_WRITE_REG(hw, TDLEN1, tdlen);
+		E1000_WRITE_REG(hw, TDH1, 0);
+		E1000_WRITE_REG(hw, TDT1, 0);
+		adapter->tx_ring[1].tdh = E1000_TDH1;
+		adapter->tx_ring[1].tdt = E1000_TDT1;
+		/* Fall Through */
+	case 1:
+	default:
 		tdba = adapter->tx_ring[0].dma;
 		tdlen = adapter->tx_ring[0].count *
 			sizeof(struct e1000_tx_desc);
@@ -1190,6 +1273,8 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 		E1000_WRITE_REG(hw, TDT, 0);
 		adapter->tx_ring[0].tdh = E1000_TDH;
 		adapter->tx_ring[0].tdt = E1000_TDT;
+		break;
+	}
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
 
@@ -1222,7 +1307,7 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	tctl = E1000_READ_REG(hw, TCTL);
 
 	tctl &= ~E1000_TCTL_CT;
-	tctl |= E1000_TCTL_EN | E1000_TCTL_PSP |
+	tctl |= E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_RTLC |
 		(E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 
 	E1000_WRITE_REG(hw, TCTL, tctl);
@@ -1518,6 +1603,21 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
+	switch (adapter->num_queues) {
+#ifdef CONFIG_E1000_MQ
+	case 2:
+		rdba = adapter->rx_ring[1].dma;
+		E1000_WRITE_REG(hw, RDBAL1, (rdba & 0x00000000ffffffffULL));
+		E1000_WRITE_REG(hw, RDBAH1, (rdba >> 32));
+		E1000_WRITE_REG(hw, RDLEN1, rdlen);
+		E1000_WRITE_REG(hw, RDH1, 0);
+		E1000_WRITE_REG(hw, RDT1, 0);
+		adapter->rx_ring[1].rdh = E1000_RDH1;
+		adapter->rx_ring[1].rdt = E1000_RDT1;
+		/* Fall Through */
+#endif
+	case 1:
+	default:
 		rdba = adapter->rx_ring[0].dma;
 		E1000_WRITE_REG(hw, RDBAL, (rdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, RDBAH, (rdba >> 32));
@@ -1527,6 +1627,47 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		adapter->rx_ring[0].rdh = E1000_RDH;
 		adapter->rx_ring[0].rdt = E1000_RDT;
 		break;
+	}
+
+#ifdef CONFIG_E1000_MQ
+	if (adapter->num_queues > 1) {
+		uint32_t random[10];
+
+		get_random_bytes(&random[0], 40);
+
+		if (hw->mac_type <= e1000_82572) {
+			E1000_WRITE_REG(hw, RSSIR, 0);
+			E1000_WRITE_REG(hw, RSSIM, 0);
+		}
+
+		switch (adapter->num_queues) {
+		case 2:
+		default:
+			reta = 0x00800080;
+			mrqc = E1000_MRQC_ENABLE_RSS_2Q;
+			break;
+		}
+
+		/* Fill out redirection table */
+		for (i = 0; i < 32; i++)
+			E1000_WRITE_REG_ARRAY(hw, RETA, i, reta);
+		/* Fill out hash function seeds */
+		for (i = 0; i < 10; i++)
+			E1000_WRITE_REG_ARRAY(hw, RSSRK, i, random[i]);
+
+		mrqc |= (E1000_MRQC_RSS_FIELD_IPV4 |
+			 E1000_MRQC_RSS_FIELD_IPV4_TCP);
+		E1000_WRITE_REG(hw, MRQC, mrqc);
+	}
+
+	/* Multiqueue and packet checksumming are mutually exclusive. */
+	if (hw->mac_type >= e1000_82571) {
+		rxcsum = E1000_READ_REG(hw, RXCSUM);
+		rxcsum |= E1000_RXCSUM_PCSD;
+		E1000_WRITE_REG(hw, RXCSUM, rxcsum);
+	}
+
+#else
 
 	/* Enable 82543 Receive Checksum Offload for TCP and UDP */
 	if (hw->mac_type >= e1000_82543) {
@@ -1546,6 +1687,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		}
 		E1000_WRITE_REG(hw, RXCSUM, rxcsum);
 	}
+#endif /* CONFIG_E1000_MQ */
 
 	if (hw->mac_type == e1000_82573)
 		E1000_WRITE_REG(hw, ERT, 0x0100);
@@ -2488,7 +2630,12 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int f;
 	len -= skb->data_len;
 
+#ifdef CONFIG_E1000_MQ
+	tx_ring = *per_cpu_ptr(adapter->cpu_tx_ring, smp_processor_id());
+#else
 	tx_ring = adapter->tx_ring;
+#endif
+
 	if (unlikely(skb->len <= 0)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -2879,6 +3026,29 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 }
 
+#ifdef CONFIG_E1000_MQ
+void
+e1000_rx_schedule(void *data)
+{
+	struct net_device *poll_dev, *netdev = data;
+	struct e1000_adapter *adapter = netdev->priv;
+	int this_cpu = get_cpu();
+
+	poll_dev = *per_cpu_ptr(adapter->cpu_netdev, this_cpu);
+	if (poll_dev == NULL) {
+		put_cpu();
+		return;
+	}
+
+	if (likely(netif_rx_schedule_prep(poll_dev)))
+		__netif_rx_schedule(poll_dev);
+	else
+		e1000_irq_enable(adapter);
+
+	put_cpu();
+}
+#endif
+
 /**
  * e1000_intr - Interrupt Handler
  * @irq: interrupt number
@@ -2907,12 +3077,27 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	atomic_inc(&adapter->irq_sem);
 	E1000_WRITE_REG(hw, IMC, ~0);
 	E1000_WRITE_FLUSH(hw);
+#ifdef CONFIG_E1000_MQ
+	if (atomic_read(&adapter->rx_sched_call_data.count) == 0) {
+		cpu_set(adapter->cpu_for_queue[0],
+			adapter->rx_sched_call_data.cpumask);
+		for (i = 1; i < adapter->num_queues; i++) {
+			cpu_set(adapter->cpu_for_queue[i],
+				adapter->rx_sched_call_data.cpumask);
+			atomic_inc(&adapter->irq_sem);
+		}
+		atomic_set(&adapter->rx_sched_call_data.count, i);
+		smp_call_async_mask(&adapter->rx_sched_call_data);
+	} else {
+		printk("call_data.count == %u\n", atomic_read(&adapter->rx_sched_call_data.count));
 	}
 #else
 	if (likely(netif_rx_schedule_prep(&adapter->polling_netdev[0])))
 		__netif_rx_schedule(&adapter->polling_netdev[0]);
 	else
 		e1000_irq_enable(adapter);
+#endif
+#else
 	/* Writing IMC and IMS is needed for 82547.
 	   Due to Hub Link bus being occupied, an interrupt
 	   de-assertion message is not able to be sent.
