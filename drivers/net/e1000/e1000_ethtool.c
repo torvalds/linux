@@ -1544,6 +1544,7 @@ e1000_diag_test(struct net_device *netdev,
 		data[2] = 0;
 		data[3] = 0;
 	}
+	msleep_interruptible(4 * 1000);
 }
 
 static void
