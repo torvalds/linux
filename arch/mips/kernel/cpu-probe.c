@@ -548,6 +548,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		c->cputype = CPU_4KEC;
 		break;
 	case PRID_IMP_4KSC:
+	case PRID_IMP_4KSD:
 		c->cputype = CPU_4KSC;
 		break;
 	case PRID_IMP_5KC:
