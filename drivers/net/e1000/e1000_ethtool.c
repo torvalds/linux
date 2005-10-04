@@ -91,7 +91,8 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_flow_control_xoff", E1000_STAT(stats.xofftxc) },
 	{ "rx_long_byte_count", E1000_STAT(stats.gorcl) },
 	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
-	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) }
+	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
+	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
 };
 #define E1000_STATS_LEN	\
 	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)

@@ -1484,12 +1484,16 @@ e1000_setup_all_rx_resources(struct e1000_adapter *adapter)
  * e1000_setup_rctl - configure the receive control registers
  * @adapter: Board private structure
  **/
-
+#define PAGE_USE_COUNT(S) (((S) >> PAGE_SHIFT) + \
+			(((S) & (PAGE_SIZE - 1)) ? 1 : 0))
 static void
 e1000_setup_rctl(struct e1000_adapter *adapter)
 {
 	uint32_t rctl, rfctl;
 	uint32_t psrctl = 0;
+#ifdef CONFIG_E1000_PACKET_SPLIT
+	uint32_t pages = 0;
+#endif
 
 	rctl = E1000_READ_REG(&adapter->hw, RCTL);
 
@@ -1543,11 +1547,14 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 	 * followed by the page buffers.  Therefore, skb->data is
 	 * sized to hold the largest protocol header.
 	 */
-	adapter->rx_ps = (adapter->hw.mac_type > e1000_82547_rev_2) 
-			  && (adapter->netdev->mtu 
-	                      < ((3 * PAGE_SIZE) + adapter->rx_ps_bsize0));
+	pages = PAGE_USE_COUNT(adapter->netdev->mtu);
+	if ((adapter->hw.mac_type > e1000_82547_rev_2) && (pages <= 3) &&
+	    PAGE_SIZE <= 16384)
+		adapter->rx_ps_pages = pages;
+	else
+		adapter->rx_ps_pages = 0;
 #endif
-	if(adapter->rx_ps) {
+	if (adapter->rx_ps_pages) {
 		/* Configure extra packet-split registers */
 		rfctl = E1000_READ_REG(&adapter->hw, RFCTL);
 		rfctl |= E1000_RFCTL_EXTEN;
@@ -1559,12 +1566,19 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		
 		psrctl |= adapter->rx_ps_bsize0 >>
 			E1000_PSRCTL_BSIZE0_SHIFT;
-		psrctl |= PAGE_SIZE >>
-			E1000_PSRCTL_BSIZE1_SHIFT;
-		psrctl |= PAGE_SIZE <<
-			E1000_PSRCTL_BSIZE2_SHIFT;
-		psrctl |= PAGE_SIZE <<
-			E1000_PSRCTL_BSIZE3_SHIFT;
+
+		switch (adapter->rx_ps_pages) {
+		case 3:
+			psrctl |= PAGE_SIZE <<
+				E1000_PSRCTL_BSIZE3_SHIFT;
+		case 2:
+			psrctl |= PAGE_SIZE <<
+				E1000_PSRCTL_BSIZE2_SHIFT;
+		case 1:
+			psrctl |= PAGE_SIZE >>
+				E1000_PSRCTL_BSIZE1_SHIFT;
+			break;
+		}
 
 		E1000_WRITE_REG(&adapter->hw, PSRCTL, psrctl);
 	}
@@ -1590,7 +1604,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 	int i;
 #endif
 
-	if(adapter->rx_ps) {
+	if (adapter->rx_ps_pages) {
 		rdlen = adapter->rx_ring[0].count *
 			sizeof(union e1000_rx_desc_packet_split);
 		adapter->clean_rx = e1000_clean_rx_irq_ps;
@@ -1700,8 +1714,8 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 
 			/* Enable 82571 IPv4 payload checksum for UDP fragments
 			 * Must be used in conjunction with packet-split. */
-			if((adapter->hw.mac_type > e1000_82547_rev_2) && 
-			   (adapter->rx_ps)) {
+			if ((hw->mac_type >= e1000_82571) && 
+			   (adapter->rx_ps_pages)) {
 				rxcsum |= E1000_RXCSUM_IPPCSE;
 			}
 		} else {
@@ -1906,7 +1920,7 @@ e1000_clean_rx_ring(struct e1000_adapter *adapter,
 			dev_kfree_skb(buffer_info->skb);
 			buffer_info->skb = NULL;
 
-			for(j = 0; j < PS_PAGE_BUFFERS; j++) {
+			for(j = 0; j < adapter->rx_ps_pages; j++) {
 				if(!ps_page->ps_page[j]) break;
 				pci_unmap_single(pdev,
 						 ps_page_dma->ps_page_dma[j],
@@ -3551,7 +3565,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		/* Good Receive */
 		skb_put(skb, length);
 
-		for(j = 0; j < PS_PAGE_BUFFERS; j++) {
+		for(j = 0; j < adapter->rx_ps_pages; j++) {
 			if(!(length = le16_to_cpu(rx_desc->wb.upper.length[j])))
 				break;
 
@@ -3572,11 +3586,13 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
 		skb->protocol = eth_type_trans(skb, netdev);
 
-#ifdef HAVE_RX_ZERO_COPY
 		if(likely(rx_desc->wb.upper.header_status &
-			  E1000_RXDPS_HDRSTAT_HDRSP))
+			  E1000_RXDPS_HDRSTAT_HDRSP)) {
+			adapter->rx_hdr_split++;
+#ifdef HAVE_RX_ZERO_COPY
 			skb_shinfo(skb)->zero_copy = TRUE;
 #endif
+	        }
 #ifdef CONFIG_E1000_NAPI
 		if(unlikely(adapter->vlgrp && (staterr & E1000_RXD_STAT_VP))) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
@@ -3740,22 +3756,26 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 		rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
 
 		for(j = 0; j < PS_PAGE_BUFFERS; j++) {
-			if(unlikely(!ps_page->ps_page[j])) {
-				ps_page->ps_page[j] =
-					alloc_page(GFP_ATOMIC);
-				if(unlikely(!ps_page->ps_page[j]))
-					goto no_buffers;
-				ps_page_dma->ps_page_dma[j] =
-					pci_map_page(pdev,
-						     ps_page->ps_page[j],
-						     0, PAGE_SIZE,
-						     PCI_DMA_FROMDEVICE);
-			}
-			/* Refresh the desc even if buffer_addrs didn't
-			 * change because each write-back erases this info.
-			 */
-			rx_desc->read.buffer_addr[j+1] =
-				cpu_to_le64(ps_page_dma->ps_page_dma[j]);
+			if (j < adapter->rx_ps_pages) {
+				if (likely(!ps_page->ps_page[j])) {
+					ps_page->ps_page[j] =
+						alloc_page(GFP_ATOMIC);
+					if (unlikely(!ps_page->ps_page[j]))
+						goto no_buffers;
+					ps_page_dma->ps_page_dma[j] =
+						pci_map_page(pdev,
+							    ps_page->ps_page[j],
+							    0, PAGE_SIZE,
+							    PCI_DMA_FROMDEVICE);
+				}
+				/* Refresh the desc even if buffer_addrs didn't
+				 * change because each write-back erases 
+				 * this info.
+				 */
+				rx_desc->read.buffer_addr[j+1] =
+				     cpu_to_le64(ps_page_dma->ps_page_dma[j]);
+			} else
+				rx_desc->read.buffer_addr[j+1] = ~0;
 		}
 
 		skb = dev_alloc_skb(adapter->rx_ps_bsize0 + NET_IP_ALIGN);

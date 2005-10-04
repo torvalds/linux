@@ -169,8 +169,8 @@ struct e1000_buffer {
 	uint16_t next_to_watch;
 };
 
-struct e1000_ps_page { struct page *ps_page[MAX_PS_BUFFERS]; };
-struct e1000_ps_page_dma { uint64_t ps_page_dma[MAX_PS_BUFFERS]; };
+struct e1000_ps_page { struct page *ps_page[PS_PAGE_BUFFERS]; };
+struct e1000_ps_page_dma { uint64_t ps_page_dma[PS_PAGE_BUFFERS]; };
 
 struct e1000_tx_ring {
 	/* pointer to the descriptor ring memory */
@@ -300,10 +300,11 @@ struct e1000_adapter {
 
 	uint64_t hw_csum_err;
 	uint64_t hw_csum_good;
+	uint64_t rx_hdr_split;
 	uint32_t rx_int_delay;
 	uint32_t rx_abs_int_delay;
 	boolean_t rx_csum;
-	boolean_t rx_ps;
+	unsigned int rx_ps_pages;
 	uint32_t gorcl;
 	uint64_t gorcl_old;
 	uint16_t rx_ps_bsize0;
