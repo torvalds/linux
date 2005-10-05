@@ -1983,6 +1983,10 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	if (lp->version >= (CHIP_91100 << 4))
 		smc_phy_detect(dev);
 
+	/* then shut everything down to save power */
+	smc_shutdown(dev);
+	smc_phy_powerdown(dev);
+
 	/* Set default parameters */
 	lp->msg_enable = NETIF_MSG_LINK;
 	lp->ctl_rfduplx = 0;
