@@ -48,6 +48,7 @@
 #include <linux/completion.h>
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
+#include <linux/jiffies.h>
 #include <scsi/scsi.h>
 #include "scsi.h"
 #include "scsi_priv.h"
@@ -4688,6 +4689,27 @@ static void __exit ata_exit(void)
 module_init(ata_init);
 module_exit(ata_exit);
 
+static unsigned long ratelimit_time;
+static spinlock_t ata_ratelimit_lock = SPIN_LOCK_UNLOCKED;
+
+int ata_ratelimit(void)
+{
+	int rc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ata_ratelimit_lock, flags);
+
+	if (time_after(jiffies, ratelimit_time)) {
+		rc = 1;
+		ratelimit_time = jiffies + (HZ/5);
+	} else
+		rc = 0;
+
+	spin_unlock_irqrestore(&ata_ratelimit_lock, flags);
+
+	return rc;
+}
+
 /*
  * libata is essentially a library of internal helper functions for
  * low-level ATA host controller drivers.  As such, the API/ABI is
@@ -4729,6 +4751,7 @@ EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
 EXPORT_SYMBOL_GPL(ata_port_disable);
+EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_error);
