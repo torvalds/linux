@@ -361,22 +361,8 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		return -ENOMEM;
 	}
 
-	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		up(&ses->server->tcpSem);
-		cERROR(1,
-		       ("Illegal length, greater than maximum frame, %d ",
-			in_buf->smb_buf_length));
-		DeleteMidQEntry(midQ);
-		/* If not lock req, update # of requests on wire to server */
-		if(long_op < 3) {
-			atomic_dec(&ses->server->inFlight); 
-			wake_up(&ses->server->request_q);
-		}
-		return -EIO;
-	}
-
 /* BB FIXME */
-/* 	rc = cifs_sign_smb2(in_buf, data, ses->server, &midQ->sequence_number); */
+/* 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number); */
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 	rc = smb_send2(ses->server->ssocket, iov, n_vec,

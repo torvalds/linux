@@ -1740,7 +1740,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->rsize = volume_info.rsize;
 		else
 			cifs_sb->rsize = srvTcp->maxBuf - MAX_CIFS_HDR_SIZE; /* default */
-		if((volume_info.wsize) && (volume_info.wsize <= CIFSMaxBufSize))
+		if(volume_info.wsize)
 			cifs_sb->wsize = volume_info.wsize;
 		else
 			cifs_sb->wsize = CIFSMaxBufSize; /* default */

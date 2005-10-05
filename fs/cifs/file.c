@@ -925,6 +925,7 @@ static struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 				/* if it fails, try another handle - might be */
 				/* dangerous to hold up writepages with retry */
 				if(rc) {
+					cFYI(1,("failed on reopen file in wp"));
 					read_lock(&GlobalSMBSeslock);
 					continue;
 				}
@@ -1027,6 +1028,13 @@ static int cifs_writepages(struct address_space *mapping,
 	 */
 	if (cifs_sb->wsize < PAGE_CACHE_SIZE)
 		return generic_writepages(mapping, wbc);
+
+	/* BB FIXME we do not have code to sign across multiple buffers yet,
+	   so go to older writepage style write which we can sign if needed */
+	if((cifs_sb->tcon->ses) && (cifs_sb->tcon->ses->server))
+		if(cifs_sb->tcon->ses->server->secMode &
+                          (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+			return generic_writepages(mapping, wbc);
 
 	/*
 	 * BB: Is this meaningful for a non-block-device file system?
