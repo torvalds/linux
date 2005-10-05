@@ -995,7 +995,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	filemap_fdatawait(direntry->d_inode->i_mapping);
 
 	if (attrs->ia_valid & ATTR_SIZE) {
-		read_lock(&GlobalSMBSeslock);
 		/* To avoid spurious oplock breaks from server, in the case of
 		   inodes that we already have open, avoid doing path based
 		   setting of file size if we can do it by handle.
@@ -1003,49 +1002,22 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   when the local oplock break takes longer to flush
 		   writebehind data than the SMB timeout for the SetPathInfo
 		   request would allow */
-		list_for_each(tmp, &cifsInode->openFileList) {
-			open_file = list_entry(tmp, struct cifsFileInfo,
-					       flist);
-			/* We check if file is open for writing first */
-			if ((open_file->pfile) &&
-			    ((open_file->pfile->f_flags & O_RDWR) ||
-			    (open_file->pfile->f_flags & O_WRONLY))) {
-				if (open_file->invalidHandle == FALSE) {
-					/* we found a valid, writeable network
-					   file handle to use to try to set the
-					   file size */
-					__u16 nfid = open_file->netfid;
-					__u32 npid = open_file->pid;
-					read_unlock(&GlobalSMBSeslock);
-					found = TRUE;
-					rc = CIFSSMBSetFileSize(xid, pTcon,
-						attrs->ia_size, nfid, npid,
-						FALSE);
-					cFYI(1, ("SetFileSize by handle "
-						 "(setattrs) rc = %d", rc));
-					/* Do not need reopen and retry on
-					   EAGAIN since we will retry by
-					   pathname below */
-
-					/* now that we found one valid file
-					   handle no sense continuing to loop
-					   trying others, so break here */
-					if(rc == -EINVAL) {
-						int bytes_written;
-						rc = CIFSSMBWrite(xid, pTcon,
-							nfid, 0,
-							attrs->ia_size, 
-							&bytes_written, NULL,
-							NULL, 1 /* 45 sec */);
-						cFYI(1,("wrt seteof rc %d",rc));
-					}
-					break;
-				}
+		open_file = find_writable_file(cifsInode);
+		if (open_file) {
+			__u16 nfid = open_file->netfid;
+			__u32 npid = open_file->pid;
+			rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size,
+						nfid, npid, FALSE);
+			cFYI(1,("SetFSize for attrs rc = %d", rc));
+			if(rc == -EINVAL) {
+				int bytes_written;
+				rc = CIFSSMBWrite(xid, pTcon,
+						  nfid, 0, attrs->ia_size,
+						  &bytes_written, NULL, NULL,
+						  1 /* 45 seconds */);
+				cFYI(1,("Wrt seteof rc %d", rc));
 			}
 		}
-		if (found == FALSE)
-			read_unlock(&GlobalSMBSeslock);
-
 		if (rc != 0) {
 			/* Set file size by pathname rather than by handle
 			   either because no valid, writeable file handle for

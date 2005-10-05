@@ -904,6 +904,25 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	return total_written;
 }
 
+static struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
+{
+	struct cifsFileInfo *open_file;
+
+	read_lock(&GlobalSMBSeslock);
+	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
+		if (open_file->closePend)
+			continue;
+		if (open_file->pfile &&
+		    ((open_file->pfile->f_flags & O_RDWR) ||
+		     (open_file->pfile->f_flags & O_WRONLY))) {
+			read_unlock(&GlobalSMBSeslock);
+			return open_file;
+		}
+	}
+	read_unlock(&GlobalSMBSeslock);
+	return NULL;
+}
+
 static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 {
 	struct address_space *mapping = page->mapping;
@@ -914,10 +933,7 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
-	struct cifsInodeInfo *cifsInode;
-	struct cifsFileInfo *open_file = NULL;
-	struct list_head *tmp;
-	struct list_head *tmp1;
+	struct cifsFileInfo *open_file;
 
 	if (!mapping || !mapping->host)
 		return -EFAULT;
@@ -945,49 +961,19 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	if (mapping->host->i_size - offset < (loff_t)to)
 		to = (unsigned)(mapping->host->i_size - offset); 
 
-	cifsInode = CIFS_I(mapping->host);
-	read_lock(&GlobalSMBSeslock); 
-	/* BB we should start at the end */
-	list_for_each_safe(tmp, tmp1, &cifsInode->openFileList) {            
-		open_file = list_entry(tmp, struct cifsFileInfo, flist);
-		if (open_file->closePend)
-			continue;
-		/* We check if file is open for writing first */
-		if ((open_file->pfile) && 
-		   ((open_file->pfile->f_flags & O_RDWR) || 
-			(open_file->pfile->f_flags & O_WRONLY))) {
-			read_unlock(&GlobalSMBSeslock);
-			bytes_written = cifs_write(open_file->pfile,
-						write_data, to-from,
-						&offset);
-			read_lock(&GlobalSMBSeslock);
+	open_file = find_writable_file(CIFS_I(mapping->host));
+	if (open_file) {
+		bytes_written = cifs_write(open_file->pfile, write_data,
+					   to-from, &offset);
 		/* Does mm or vfs already set times? */
-			inode->i_atime = 
-			inode->i_mtime = current_fs_time(inode->i_sb);
-			if ((bytes_written > 0) && (offset)) {
-				rc = 0;
-			} else if (bytes_written < 0) {
-				if (rc == -EBADF) {
-				/* have seen a case in which kernel seemed to
-				   have closed/freed a file even with writes
-				   active so we might as well see if there are
-				   other file structs to try for the same
-				   inode before giving up */
-					continue;
-				} else
-					rc = bytes_written;
-			}
-			break;  /* now that we found a valid file handle and
-				   tried to write to it we are done, no sense
-				   continuing to loop looking for another */
+		inode->i_atime = inode->i_mtime = current_fs_time(inode->i_sb);
+		if ((bytes_written > 0) && (offset)) {
+			rc = 0;
+		} else if (bytes_written < 0) {
+			if (rc != -EBADF)
+				rc = bytes_written;
 		}
-		if (tmp->next == NULL) {
-			cFYI(1, ("File instance %p removed", tmp));
-			break;
-		}
-	}
-	read_unlock(&GlobalSMBSeslock);
-	if (open_file == NULL) {
+	} else {
 		cFYI(1, ("No writeable filehandles for inode"));
 		rc = -EIO;
 	}
@@ -1604,39 +1590,11 @@ static int cifs_readpage(struct file *file, struct page *page)
    page caching in the current Linux kernel design */
 int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
 {
-	struct list_head *tmp;
-	struct list_head *tmp1;
-	struct cifsFileInfo *open_file = NULL;
-	int rc = TRUE;
-
-	if (cifsInode == NULL)
-		return rc;
-
-	read_lock(&GlobalSMBSeslock); 
-	list_for_each_safe(tmp, tmp1, &cifsInode->openFileList) {            
-		open_file = list_entry(tmp, struct cifsFileInfo, flist);
-		if (open_file == NULL)
-			break;
-		if (open_file->closePend)
-			continue;
-	/* We check if file is open for writing,   
-	   BB we could supplement this with a check to see if file size
-	   changes have been flushed to server - ie inode metadata dirty */
-		if ((open_file->pfile) && 
-		    ((open_file->pfile->f_flags & O_RDWR) || 
-		    (open_file->pfile->f_flags & O_WRONLY))) {
-			rc = FALSE;
-			break;
-		}
-		if (tmp->next == NULL) {
-			cFYI(1, ("File instance %p removed", tmp));
-			break;
-		}
-	}
-	read_unlock(&GlobalSMBSeslock);
-	return rc;
+	if (cifsInode && find_writable_file(cifsInode))
+		return 0;
+	else
+		return 1;
 }
-
 
 static int cifs_prepare_write(struct file *file, struct page *page,
 	unsigned from, unsigned to)
