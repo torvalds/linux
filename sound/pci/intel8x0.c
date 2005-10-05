@@ -600,16 +600,19 @@ static int snd_intel8x0_ali_codec_ready(intel8x0_t *chip, int mask)
 		if (val & mask)
 			return 0;
 	}
-	snd_printd(KERN_WARNING "intel8x0: AC97 codec ready timeout.\n");
+	if (! chip->in_ac97_init)
+		snd_printd(KERN_WARNING "intel8x0: AC97 codec ready timeout.\n");
 	return -EBUSY;
 }
 
 static int snd_intel8x0_ali_codec_semaphore(intel8x0_t *chip)
 {
 	int time = 100;
+	if (chip->buggy_semaphore)
+		return 0; /* just ignore ... */
 	while (time-- && (igetdword(chip, ICHREG(ALI_CAS)) & ALI_CAS_SEM_BUSY))
 		udelay(1);
-	if (! time)
+	if (! time && ! chip->in_ac97_init)
 		snd_printk(KERN_WARNING "ali_codec_semaphore timeout\n");
 	return snd_intel8x0_ali_codec_ready(chip, ALI_CSPSR_CODEC_READY);
 }
