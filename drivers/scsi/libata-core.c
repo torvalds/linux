@@ -3131,13 +3131,13 @@ void ata_eng_timeout(struct ata_port *ap)
 	DPRINTK("ENTER\n");
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	if (!qc) {
+	if (qc)
+		ata_qc_timeout(qc);
+	else {
 		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
 		       ap->id);
 		goto out;
 	}
-
-	ata_qc_timeout(qc);
 
 out:
 	DPRINTK("EXIT\n");

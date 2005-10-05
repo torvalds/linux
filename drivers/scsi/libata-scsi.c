@@ -225,7 +225,7 @@ void ata_to_sense_error(struct ata_queued_cmd *qc, u8 drv_stat)
 	};
 	int i = 0;
 
-	cmd->result = SAM_STAT_CHECK_CONDITION;
+	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
 	/*
 	 *	Is this an error we can process/parse
@@ -1468,7 +1468,7 @@ unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf,
 void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8 asc, u8 ascq)
 {
 	DPRINTK("ENTER\n");
-	cmd->result = SAM_STAT_CHECK_CONDITION;
+	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
 	cmd->sense_buffer[0] = 0x70;
 	cmd->sense_buffer[2] = ILLEGAL_REQUEST;
@@ -1529,8 +1529,11 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 
+	VPRINTK("ENTER, drv_stat == 0x%x\n", drv_stat);
+
 	if (unlikely(drv_stat & (ATA_BUSY | ATA_DRQ)))
 		ata_to_sense_error(qc, drv_stat);
+
 	else if (unlikely(drv_stat & ATA_ERR)) {
 		DPRINTK("request check condition\n");
 
@@ -1546,7 +1549,9 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 		qc->scsidone(cmd);
 
 		return 1;
-	} else {
+	}
+
+	else {
 		u8 *scsicmd = cmd->cmnd;
 
 		if (scsicmd[0] == INQUIRY) {
@@ -1578,7 +1583,6 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 	}
 
 	qc->scsidone(cmd);
-
 	return 0;
 }
 /**
