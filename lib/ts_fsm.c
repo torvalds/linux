@@ -258,7 +258,7 @@ found_match:
 }
 
 static struct ts_config *fsm_init(const void *pattern, unsigned int len,
-				     int gfp_mask)
+				     unsigned int __nocast gfp_mask)
 {
 	int i, err = -EINVAL;
 	struct ts_config *conf;
