@@ -467,9 +467,9 @@ static void mv_stop_dma(struct ata_port *ap)
 	}
 }
 
+#ifdef ATA_DEBUG
 static void mv_dump_mem(void __iomem *start, unsigned bytes)
 {
-#ifdef ATA_DEBUG
 	int b, w;
 	for (b = 0; b < bytes; ) {
 		DPRINTK("%p: ", start + b);
@@ -479,8 +479,9 @@ static void mv_dump_mem(void __iomem *start, unsigned bytes)
 		}
 		printk("\n");
 	}
-#endif
 }
+#endif
+
 static void mv_dump_pci_cfg(struct pci_dev *pdev, unsigned bytes)
 {
 #ifdef ATA_DEBUG
