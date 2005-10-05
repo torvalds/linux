@@ -39,6 +39,7 @@ struct ata_scsi_args {
 
 /* libata-core.c */
 extern int atapi_enabled;
+extern int ata_qc_complete_noop(struct ata_queued_cmd *qc, u8 drv_stat);
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
@@ -51,6 +52,8 @@ extern void swap_buf_le16(u16 *buf, unsigned int buf_words);
 
 
 /* libata-scsi.c */
+extern void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
+			 struct scsi_cmnd *cmd);
 extern void ata_scsi_scan_host(struct ata_port *ap);
 extern void ata_to_sense_error(struct ata_queued_cmd *qc, u8 drv_stat);
 extern int ata_scsi_error(struct Scsi_Host *host);

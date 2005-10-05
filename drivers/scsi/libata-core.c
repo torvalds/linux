@@ -71,7 +71,6 @@ static int fgb(u32 bitmap);
 static int ata_choose_xfer_mode(struct ata_port *ap,
 				u8 *xfer_mode_out,
 				unsigned int *xfer_shift_out);
-static int ata_qc_complete_noop(struct ata_queued_cmd *qc, u8 drv_stat);
 static void __ata_qc_complete(struct ata_queued_cmd *qc);
 
 static unsigned int ata_unique_id = 1;
@@ -3015,52 +3014,6 @@ fsm_start:
 		goto fsm_start;
 }
 
-static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
-				struct scsi_cmnd *cmd)
-{
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
-	int rc;
-
-	DPRINTK("ATAPI request sense\n");
-
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
-
-	/* FIXME: is this needed? */
-	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
-
-	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
-	qc->dma_dir = DMA_FROM_DEVICE;
-
-	memset(&qc->cdb, 0, ap->cdb_len);
-	qc->cdb[0] = REQUEST_SENSE;
-	qc->cdb[4] = SCSI_SENSE_BUFFERSIZE;
-
-	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	qc->tf.command = ATA_CMD_PACKET;
-
-	qc->tf.protocol = ATA_PROT_ATAPI;
-	qc->tf.lbam = (8 * 1024) & 0xff;
-	qc->tf.lbah = (8 * 1024) >> 8;
-	qc->nbytes = SCSI_SENSE_BUFFERSIZE;
-
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
-		ata_port_disable(ap);
-	else
-		wait_for_completion(&wait);
-
-	DPRINTK("EXIT\n");
-}
-
 /**
  *	ata_qc_timeout - Handle timeout of queued command
  *	@qc: Command that timed out
@@ -3254,7 +3207,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	return qc;
 }
 
-static int ata_qc_complete_noop(struct ata_queued_cmd *qc, u8 drv_stat)
+int ata_qc_complete_noop(struct ata_queued_cmd *qc, u8 drv_stat)
 {
 	return 0;
 }
