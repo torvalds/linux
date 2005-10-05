@@ -931,4 +931,9 @@ static inline int xfrm_addr_cmp(xfrm_address_t *a, xfrm_address_t *b,
 	}
 }
 
+static inline int xfrm_policy_id2dir(u32 index)
+{
+	return index & 7;
+}
+
 #endif	/* _NET_XFRM_H */

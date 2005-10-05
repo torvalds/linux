@@ -2154,6 +2154,7 @@ out:
 
 static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
+	unsigned int dir;
 	int err;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
@@ -2162,7 +2163,11 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if ((pol = ext_hdrs[SADB_X_EXT_POLICY-1]) == NULL)
 		return -EINVAL;
 
-	xp = xfrm_policy_byid(0, pol->sadb_x_policy_id,
+	dir = xfrm_policy_id2dir(pol->sadb_x_policy_id);
+	if (dir >= XFRM_POLICY_MAX)
+		return -EINVAL;
+
+	xp = xfrm_policy_byid(dir, pol->sadb_x_policy_id,
 			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
 	if (xp == NULL)
 		return -ENOENT;
@@ -2174,9 +2179,9 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
 		c.data.byid = 1;
 		c.event = XFRM_MSG_DELPOLICY;
-		km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
+		km_policy_notify(xp, dir, &c);
 	} else {
-		err = key_pol_get_resp(sk, xp, hdr, pol->sadb_x_policy_dir-1);
+		err = key_pol_get_resp(sk, xp, hdr, dir);
 	}
 
 	xfrm_pol_put(xp);
