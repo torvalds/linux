@@ -58,7 +58,8 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 	 * overflowing the unsigned long, but I don't think we would ever get
 	 * here if the volume was that big...
 	 */
-	index = ni->mft_no << vol->mft_record_size_bits >> PAGE_CACHE_SHIFT;
+	index = (u64)ni->mft_no << vol->mft_record_size_bits >>
+			PAGE_CACHE_SHIFT;
 	ofs = (ni->mft_no << vol->mft_record_size_bits) & ~PAGE_CACHE_MASK;
 
 	i_size = i_size_read(mft_vi);

@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/uio.h>
 #include <asm/uaccess.h>
+#include <linux/fs.h>
 #include <linux/compat.h>
 
 #include <scsi/scsi.h>
