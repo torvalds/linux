@@ -1289,12 +1289,13 @@ static void bond_mc_list_destroy(struct bonding *bond)
 /*
  * Copy all the Multicast addresses from src to the bonding device dst
  */
-static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond, int gpf_flag)
+static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
+			     unsigned int __nocast gfp_flag)
 {
 	struct dev_mc_list *dmi, *new_dmi;
 
 	for (dmi = mc_list; dmi; dmi = dmi->next) {
-		new_dmi = kmalloc(sizeof(struct dev_mc_list), gpf_flag);
+		new_dmi = kmalloc(sizeof(struct dev_mc_list), gfp_flag);
 
 		if (!new_dmi) {
 			/* FIXME: Potential memory leak !!! */
