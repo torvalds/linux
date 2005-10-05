@@ -238,7 +238,12 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.selector_map = audigy2nx_selectors,
 	},
 	{
-		/* Hercules DJ Console */
+		/* Hercules DJ Console (Windows Edition) */
+		.id = USB_ID(0x06f8, 0xb000),
+		.ignore_ctl_error = 1,
+	},
+	{
+		/* Hercules DJ Console (Macintosh Edition) */
 		.id = USB_ID(0x06f8, 0xd002),
 		.ignore_ctl_error = 1,
 	},
