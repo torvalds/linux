@@ -194,19 +194,19 @@ BTFIXUPDEF_HALF(pte_writei)
 BTFIXUPDEF_HALF(pte_dirtyi)
 BTFIXUPDEF_HALF(pte_youngi)
 
-extern int pte_write(pte_t pte) __attribute_const__;
+static int pte_write(pte_t pte) __attribute_const__;
 static inline int pte_write(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_writei);
 }
 
-extern int pte_dirty(pte_t pte) __attribute_const__;
+static int pte_dirty(pte_t pte) __attribute_const__;
 static inline int pte_dirty(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_dirtyi);
 }
 
-extern int pte_young(pte_t pte) __attribute_const__;
+static int pte_young(pte_t pte) __attribute_const__;
 static inline int pte_young(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_youngi);
@@ -217,7 +217,7 @@ static inline int pte_young(pte_t pte)
  */
 BTFIXUPDEF_HALF(pte_filei)
 
-extern int pte_file(pte_t pte) __attribute_const__;
+static int pte_file(pte_t pte) __attribute_const__;
 static inline int pte_file(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_filei);
@@ -229,19 +229,19 @@ BTFIXUPDEF_HALF(pte_wrprotecti)
 BTFIXUPDEF_HALF(pte_mkcleani)
 BTFIXUPDEF_HALF(pte_mkoldi)
 
-extern pte_t pte_wrprotect(pte_t pte) __attribute_const__;
+static pte_t pte_wrprotect(pte_t pte) __attribute_const__;
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_wrprotecti));
 }
 
-extern pte_t pte_mkclean(pte_t pte) __attribute_const__;
+static pte_t pte_mkclean(pte_t pte) __attribute_const__;
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_mkcleani));
 }
 
-extern pte_t pte_mkold(pte_t pte) __attribute_const__;
+static pte_t pte_mkold(pte_t pte) __attribute_const__;
 static inline pte_t pte_mkold(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_mkoldi));
@@ -278,7 +278,7 @@ BTFIXUPDEF_CALL_CONST(pte_t, mk_pte_io, unsigned long, pgprot_t, int)
 
 BTFIXUPDEF_INT(pte_modify_mask)
 
-extern pte_t pte_modify(pte_t pte, pgprot_t newprot) __attribute_const__;
+static pte_t pte_modify(pte_t pte, pgprot_t newprot) __attribute_const__;
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	return __pte((pte_val(pte) & BTFIXUP_INT(pte_modify_mask)) |

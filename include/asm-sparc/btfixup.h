@@ -49,7 +49,7 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
 /* Put bottom 13bits into some register variable */
 
 #define BTFIXUPDEF_SIMM13(__name)							\
-	extern unsigned int ___sf_##__name(void) __attribute_const__;		\
+	static inline unsigned int ___sf_##__name(void) __attribute_const__;		\
 	extern unsigned ___ss_##__name[2];						\
 	static inline unsigned int ___sf_##__name(void) {				\
 		unsigned int ret;							\
@@ -57,7 +57,7 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
 		return ret;								\
 	}
 #define BTFIXUPDEF_SIMM13_INIT(__name,__val)						\
-	extern unsigned int ___sf_##__name(void) __attribute_const__;		\
+	static inline unsigned int ___sf_##__name(void) __attribute_const__;		\
 	extern unsigned ___ss_##__name[2];						\
 	static inline unsigned int ___sf_##__name(void) {				\
 		unsigned int ret;							\
@@ -71,7 +71,7 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
  */
 
 #define BTFIXUPDEF_HALF(__name)								\
-	extern unsigned int ___af_##__name(void) __attribute_const__;		\
+	static inline unsigned int ___af_##__name(void) __attribute_const__;		\
 	extern unsigned ___as_##__name[2];						\
 	static inline unsigned int ___af_##__name(void) {				\
 		unsigned int ret;							\
@@ -79,7 +79,7 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
 		return ret;								\
 	}
 #define BTFIXUPDEF_HALF_INIT(__name,__val)						\
-	extern unsigned int ___af_##__name(void) __attribute_const__;		\
+	static inline unsigned int ___af_##__name(void) __attribute_const__;		\
 	extern unsigned ___as_##__name[2];						\
 	static inline unsigned int ___af_##__name(void) {				\
 		unsigned int ret;							\
@@ -90,7 +90,7 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
 /* Put upper 22 bits into some register variable */
 
 #define BTFIXUPDEF_SETHI(__name)							\
-	extern unsigned int ___hf_##__name(void) __attribute_const__;		\
+	static inline unsigned int ___hf_##__name(void) __attribute_const__;		\
 	extern unsigned ___hs_##__name[2];						\
 	static inline unsigned int ___hf_##__name(void) {				\
 		unsigned int ret;							\
@@ -98,7 +98,7 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
 		return ret;								\
 	}
 #define BTFIXUPDEF_SETHI_INIT(__name,__val)						\
-	extern unsigned int ___hf_##__name(void) __attribute_const__;		\
+	static inline unsigned int ___hf_##__name(void) __attribute_const__;		\
 	extern unsigned ___hs_##__name[2];						\
 	static inline unsigned int ___hf_##__name(void) {				\
 		unsigned int ret;							\
