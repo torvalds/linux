@@ -21,11 +21,14 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
+#include <linux/backing-dev.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
+#include <linux/mpage.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 #include <linux/smp_lock.h>
+#include <linux/writeback.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -916,6 +919,16 @@ static struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
 			read_unlock(&GlobalSMBSeslock);
+			if(open_file->invalidHandle) {
+				rc = cifs_reopen_file(cifs_inode->vfs_inode, 
+						      open_file->pfile, FALSE);
+				/* if it fails, try another handle - might be */
+				/* dangerous to hold up writepages with retry */
+				if(rc) {
+					read_lock(&GlobalSMBSeslock);
+					continue;
+				}
+			}
 			return open_file;
 		}
 	}
@@ -982,20 +995,181 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	return rc;
 }
 
-#if 0
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int cifs_writepages(struct address_space *mapping,
-	struct writeback_control *wbc)
+			   struct writeback_control *wbc)
 {
-	int rc = -EFAULT;
+	struct backing_dev_info *bdi = mapping->backing_dev_info;
+	unsigned int bytes_to_write;
+	unsigned int bytes_written;
+	struct cifs_sb_info *cifs_sb;
+	int done = 0;
+	pgoff_t end = -1;
+	pgoff_t index;
+	int is_range = 0;
+	struct kvec iov[32];
+	int n_iov = 0;
+	pgoff_t next;
+	int nr_pages;
+	__u64 offset = 0;
+	struct cifsFileInfo *open_file = NULL;
+	struct page *page;
+	struct pagevec pvec;
+	int rc = 0;
+	int scanned = 0;
 	int xid;
+
+	cifs_sb = CIFS_SB(mapping->host->i_sb);
+	
+	/*
+	 * If wsize is smaller that the page cache size, default to writing
+	 * one page at a time via cifs_writepage
+	 */
+	if (cifs_sb->wsize < PAGE_CACHE_SIZE)
+		return generic_writepages(mapping, wbc);
+
+	/*
+	 * BB: Is this meaningful for a non-block-device file system?
+	 * If it is, we should test it again after we do I/O
+	 */
+	if (wbc->nonblocking && bdi_write_congested(bdi)) {
+		wbc->encountered_congestion = 1;
+		return 0;
+	}
 
 	xid = GetXid();
 
-	/* Find contiguous pages then iterate through repeating
-	   call 16K write then Setpageuptodate or if LARGE_WRITE_X
-	   support then send larger writes via kevec so as to eliminate
-	   a memcpy */
+	pagevec_init(&pvec, 0);
+	if (wbc->sync_mode == WB_SYNC_NONE)
+		index = mapping->writeback_index; /* Start from prev offset */
+	else {
+		index = 0;
+		scanned = 1;
+	}
+	if (wbc->start || wbc->end) {
+		index = wbc->start >> PAGE_CACHE_SHIFT;
+		end = wbc->end >> PAGE_CACHE_SHIFT;
+		is_range = 1;
+		scanned = 1;
+	}
+retry:
+	while (!done && (index <= end) &&
+	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+			PAGECACHE_TAG_DIRTY,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1))) {
+		int first;
+		unsigned int i;
+
+		if (!open_file) {
+			open_file = find_writable_file(CIFS_I(mapping->host));
+			if (!open_file) {
+				pagevec_release(&pvec);
+				cERROR(1, ("No writable handles for inode"));
+				return -EIO;
+			}
+		}
+
+		first = -1;
+		next = 0;
+		n_iov = 0;
+		bytes_to_write = 0;
+
+		for (i = 0; i < nr_pages; i++) {
+			page = pvec.pages[i];
+			/*
+			 * At this point we hold neither mapping->tree_lock nor
+			 * lock on the page itself: the page may be truncated or
+			 * invalidated (changing page->mapping to NULL), or even
+			 * swizzled back from swapper_space to tmpfs file
+			 * mapping
+			 */
+
+			if (first < 0)
+				lock_page(page);
+			else if (TestSetPageLocked(page))
+				break;
+
+			if (unlikely(page->mapping != mapping)) {
+				unlock_page(page);
+				break;
+			}
+
+			if (unlikely(is_range) && (page->index > end)) {
+				done = 1;
+				unlock_page(page);
+				break;
+			}
+
+			if (next && (page->index != next)) {
+				/* Not next consecutive page */
+				unlock_page(page);
+				break;
+			}
+
+			if (wbc->sync_mode != WB_SYNC_NONE)
+				wait_on_page_writeback(page);
+
+			if (PageWriteback(page) ||
+					!test_clear_page_dirty(page)) {
+				unlock_page(page);
+				break;
+			}
+			/*
+			 * BB can we get rid of this?  pages are held by pvec
+			 */
+			page_cache_get(page);
+
+			/* reserve iov[0] for the smb header */
+			n_iov++;
+			iov[n_iov].iov_base = kmap(page);
+			iov[n_iov].iov_len = PAGE_CACHE_SIZE;
+			bytes_to_write += PAGE_CACHE_SIZE;
+
+			if (first < 0) {
+				first = i;
+				offset = page_offset(page);
+			}
+			next = page->index + 1;
+			if (bytes_to_write + PAGE_CACHE_SIZE > cifs_sb->wsize)
+				break;
+		}
+		if (n_iov) {
+			rc = CIFSSMBWrite2(xid, cifs_sb->tcon,
+					   open_file->netfid, bytes_to_write,
+					   offset, &bytes_written, iov, n_iov,
+					   1);
+			if (rc || bytes_written < bytes_to_write) {
+				cERROR(1,("CIFSSMBWrite2 returned %d, written = %x",
+					  rc, bytes_written));
+				set_bit(AS_EIO, &mapping->flags);
+				SetPageError(page);
+			}
+			for (i = 0; i < n_iov; i++) {
+				page = pvec.pages[first + i];
+				kunmap(page);
+				unlock_page(page);
+				page_cache_release(page);
+			}
+			if ((wbc->nr_to_write -= n_iov) <= 0)
+				done = 1;
+			index = next;
+		}
+		pagevec_release(&pvec);
+	}
+	if (!scanned && !done) {
+		/*
+		 * We hit the last page and there is more work to be done: wrap
+		 * back to the start of the file
+		 */
+		scanned = 1;
+		index = 0;
+		goto retry;
+	}
+	if (!is_range)
+		mapping->writeback_index = index;
+
 	FreeXid(xid);
+
 	return rc;
 }
 #endif
@@ -1635,6 +1809,9 @@ struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
 	.readpages = cifs_readpages,
 	.writepage = cifs_writepage,
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.writepages = cifs_writepages,
+#endif
 	.prepare_write = cifs_prepare_write,
 	.commit_write = cifs_commit_write,
 	.set_page_dirty = __set_page_dirty_nobuffers,

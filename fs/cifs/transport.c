@@ -395,7 +395,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	if (long_op == -1)
 		goto cifs_no_response_exit2;
 	else if (long_op == 2) /* writes past end of file can take loong time */
-		timeout = 300 * HZ;
+		timeout = 180 * HZ;
 	else if (long_op == 1)
 		timeout = 45 * HZ; /* should be greater than 
 			servers oplock break timeout (about 43 seconds) */
@@ -431,7 +431,8 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		spin_unlock(&GlobalMid_Lock);
 		receive_len = midQ->resp_buf->smb_buf_length;
 	} else {
-		cERROR(1,("No response buffer"));
+		cERROR(1,("No response to cmd %d mid %d",
+			midQ->command, midQ->mid));
 		if(midQ->midState == MID_REQUEST_SUBMITTED) {
 			if(ses->server->tcpStatus == CifsExiting)
 				rc = -EHOSTDOWN;
@@ -646,7 +647,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	if (long_op == -1)
 		goto cifs_no_response_exit;
 	else if (long_op == 2) /* writes past end of file can take loong time */
-		timeout = 300 * HZ;
+		timeout = 180 * HZ;
 	else if (long_op == 1)
 		timeout = 45 * HZ; /* should be greater than 
 			servers oplock break timeout (about 43 seconds) */
@@ -682,7 +683,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		spin_unlock(&GlobalMid_Lock);
 		receive_len = midQ->resp_buf->smb_buf_length;
 	} else {
-		cERROR(1,("No response buffer"));
+		cERROR(1,("No response for cmd %d mid %d",
+			  midQ->command, midQ->mid));
 		if(midQ->midState == MID_REQUEST_SUBMITTED) {
 			if(ses->server->tcpStatus == CifsExiting)
 				rc = -EHOSTDOWN;
