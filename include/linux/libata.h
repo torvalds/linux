@@ -154,6 +154,10 @@ enum {
 	ATA_SHIFT_UDMA		= 0,
 	ATA_SHIFT_MWDMA		= 8,
 	ATA_SHIFT_PIO		= 11,
+
+	/* size of buffer to pad xfers ending on unaligned boundaries */
+	ATA_DMA_PAD_SZ		= 4,
+	ATA_DMA_PAD_BUF_SZ	= ATA_DMA_PAD_SZ * ATA_MAX_QUEUE,
 };
 
 enum pio_task_states {
@@ -237,8 +241,11 @@ struct ata_queued_cmd {
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
 	unsigned int		tag;
 	unsigned int		n_elem;
+	unsigned int		orig_n_elem;
 
 	int			dma_dir;
+
+	unsigned int		pad_len;
 
 	unsigned int		nsect;
 	unsigned int		cursect;
@@ -250,9 +257,11 @@ struct ata_queued_cmd {
 	unsigned int		cursg_ofs;
 
 	struct scatterlist	sgent;
+	struct scatterlist	pad_sgent;
 	void			*buf_virt;
 
-	struct scatterlist	*sg;
+	/* DO NOT iterate over __sg manually, use ata_for_each_sg() */
+	struct scatterlist	*__sg;
 
 	ata_qc_cb_t		complete_fn;
 
@@ -294,6 +303,9 @@ struct ata_port {
 
 	struct ata_prd		*prd;	 /* our SG list */
 	dma_addr_t		prd_dma; /* and its DMA mapping */
+
+	void			*pad;	/* array of DMA pad buffers */
+	dma_addr_t		pad_dma;
 
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
 
@@ -457,6 +469,19 @@ extern int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits);
 
 #endif /* CONFIG_PCI */
 
+
+static inline struct scatterlist *
+ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
+{
+	if (sg == &qc->pad_sgent)
+		return NULL;
+	if (++sg - qc->__sg < qc->n_elem)
+		return sg;
+	return qc->pad_len ? &qc->pad_sgent : NULL;
+}
+
+#define ata_for_each_sg(sg, qc) \
+	for (sg = qc->__sg; sg; sg = ata_qc_next_sg(sg, qc))
 
 static inline unsigned int ata_tag_valid(unsigned int tag)
 {
