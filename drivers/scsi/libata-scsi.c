@@ -1483,9 +1483,18 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 
-	if (unlikely(drv_stat & (ATA_ERR | ATA_BUSY | ATA_DRQ))) {
+	if (unlikely(drv_stat & (ATA_BUSY | ATA_DRQ)))
+		ata_to_sense_error(qc, drv_stat);
+	else if (unlikely(drv_stat & ATA_ERR)) {
 		DPRINTK("request check condition\n");
 
+		/* FIXME: command completion with check condition
+		 * but no sense causes the error handler to run,
+		 * which then issues REQUEST SENSE, fills in the sense 
+		 * buffer, and completes the command (for the second
+		 * time).  We need to issue REQUEST SENSE some other
+		 * way, to avoid completing the command twice.
+		 */
 		cmd->result = SAM_STAT_CHECK_CONDITION;
 
 		qc->scsidone(cmd);
@@ -1499,10 +1508,26 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 			unsigned int buflen;
 
 			buflen = ata_scsi_rbuf_get(cmd, &buf);
-			buf[2] = 0x5;
-			buf[3] = (buf[3] & 0xf0) | 2;
+
+	/* ATAPI devices typically report zero for their SCSI version,
+	 * and sometimes deviate from the spec WRT response data
+	 * format.  If SCSI version is reported as zero like normal,
+	 * then we make the following fixups:  1) Fake MMC-5 version,
+	 * to indicate to the Linux scsi midlayer this is a modern
+	 * device.  2) Ensure response data format / ATAPI information
+	 * are always correct.
+	 */
+	/* FIXME: do we ever override EVPD pages and the like, with
+	 * this code?
+	 */
+			if (buf[2] == 0) {
+				buf[2] = 0x5;
+				buf[3] = 0x32;
+			}
+
 			ata_scsi_rbuf_put(cmd, buf);
 		}
+
 		cmd->result = SAM_STAT_GOOD;
 	}
 
