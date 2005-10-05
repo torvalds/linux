@@ -117,7 +117,8 @@ try_again:
  * The eventual aim is for each socket to have a cached header size
  * for its outgoing packets, and to set hdr from this when sk != NULL.
  */
-struct sk_buff *dn_alloc_skb(struct sock *sk, int size, int pri)
+struct sk_buff *dn_alloc_skb(struct sock *sk, int size,
+			     unsigned int __nocast pri)
 {
 	struct sk_buff *skb;
 	int hdr = 64;
@@ -210,7 +211,8 @@ static void dn_nsp_rtt(struct sock *sk, long rtt)
  *
  * Returns: The number of times the packet has been sent previously
  */
-static inline unsigned dn_nsp_clone_and_send(struct sk_buff *skb, int gfp)
+static inline unsigned dn_nsp_clone_and_send(struct sk_buff *skb,
+					     unsigned int __nocast gfp)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	struct sk_buff *skb2;
@@ -350,7 +352,8 @@ static unsigned short *dn_nsp_mk_data_header(struct sock *sk, struct sk_buff *sk
 	return ptr;
 }
 
-void dn_nsp_queue_xmit(struct sock *sk, struct sk_buff *skb, int gfp, int oth)
+void dn_nsp_queue_xmit(struct sock *sk, struct sk_buff *skb,
+			unsigned int __nocast gfp, int oth)
 {
 	struct dn_scp *scp = DN_SK(sk);
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
@@ -517,7 +520,7 @@ static int dn_nsp_retrans_conn_conf(struct sock *sk)
 	return 0;
 }
 
-void dn_send_conn_conf(struct sock *sk, int gfp)
+void dn_send_conn_conf(struct sock *sk, unsigned int __nocast gfp)
 {
 	struct dn_scp *scp = DN_SK(sk);
 	struct sk_buff *skb = NULL;
@@ -549,7 +552,8 @@ void dn_send_conn_conf(struct sock *sk, int gfp)
 
 
 static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg, 
-			unsigned short reason, int gfp, struct dst_entry *dst,
+			unsigned short reason, unsigned int __nocast gfp,
+			struct dst_entry *dst,
 			int ddl, unsigned char *dd, __u16 rem, __u16 loc)
 {
 	struct sk_buff *skb = NULL;
@@ -591,7 +595,7 @@ static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg,
 
 
 void dn_nsp_send_disc(struct sock *sk, unsigned char msgflg, 
-			unsigned short reason, int gfp)
+			unsigned short reason, unsigned int __nocast gfp)
 {
 	struct dn_scp *scp = DN_SK(sk);
 	int ddl = 0;
@@ -612,7 +616,7 @@ void dn_nsp_return_disc(struct sk_buff *skb, unsigned char msgflg,
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	int ddl = 0;
-	int gfp = GFP_ATOMIC;
+	unsigned int __nocast gfp = GFP_ATOMIC;
 
 	dn_nsp_do_disc(NULL, msgflg, reason, gfp, skb->dst, ddl, 
 			NULL, cb->src_port, cb->dst_port);
@@ -624,7 +628,7 @@ void dn_nsp_send_link(struct sock *sk, unsigned char lsflags, char fcval)
 	struct dn_scp *scp = DN_SK(sk);
 	struct sk_buff *skb;
 	unsigned char *ptr;
-	int gfp = GFP_ATOMIC;
+	unsigned int __nocast gfp = GFP_ATOMIC;
 
 	if ((skb = dn_alloc_skb(sk, DN_MAX_NSP_DATA_HEADER + 2, gfp)) == NULL)
 		return;
@@ -659,7 +663,8 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 	unsigned char menuver;
 	struct dn_skb_cb *cb;
 	unsigned char type = 1;
-	int allocation = (msgflg == NSP_CI) ? sk->sk_allocation : GFP_ATOMIC;
+	unsigned int __nocast allocation =
+			(msgflg == NSP_CI) ? sk->sk_allocation : GFP_ATOMIC;
 	struct sk_buff *skb = dn_alloc_skb(sk, 200, allocation);
 
 	if (!skb)
