@@ -719,7 +719,7 @@ static void rpc_async_schedule(void *arg)
 void *
 rpc_malloc(struct rpc_task *task, size_t size)
 {
-	int	gfp;
+	unsigned int __nocast	gfp;
 
 	if (task->tk_flags & RPC_TASK_SWAPPER)
 		gfp = GFP_ATOMIC;

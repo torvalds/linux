@@ -203,7 +203,7 @@ extern int rxrpc_call_write_data(struct rxrpc_call *call,
 				 size_t sioc,
 				 struct kvec *siov,
 				 uint8_t rxhdr_flags,
-				 int alloc_flags,
+				 unsigned int __nocast alloc_flags,
 				 int dup_data,
 				 size_t *size_sent);
 
