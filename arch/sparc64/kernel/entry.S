@@ -97,8 +97,8 @@ do_fpdis:
 	faddd		%f0, %f2, %f4
 	fmuld		%f0, %f2, %f6
 	ldxa		[%g3] ASI_DMMU, %g5
-cplus_fptrap_insn_1:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0xc0, %g2
@@ -126,8 +126,8 @@ cplus_fptrap_insn_1:
 	fzero		%f34
 	ldxa		[%g3] ASI_DMMU, %g5
 	add		%g6, TI_FPREGS, %g1
-cplus_fptrap_insn_2:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0x40, %g2
@@ -153,8 +153,8 @@ cplus_fptrap_insn_2:
 3:	mov		SECONDARY_CONTEXT, %g3
 	add		%g6, TI_FPREGS, %g1
 	ldxa		[%g3] ASI_DMMU, %g5
-cplus_fptrap_insn_3:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	mov		0x40, %g2
@@ -319,8 +319,8 @@ do_fptrap_after_fsr:
 	stx		%g3, [%g6 + TI_GSR]
 	mov		SECONDARY_CONTEXT, %g3
 	ldxa		[%g3] ASI_DMMU, %g5
-cplus_fptrap_insn_4:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	add		%g6, TI_FPREGS, %g2
@@ -340,33 +340,6 @@ cplus_fptrap_insn_4:
 	membar		#Sync
 	ba,pt		%xcc, etrap
 	 wr		%g0, 0, %fprs
-
-cplus_fptrap_1:
-	sethi		%hi(CTX_CHEETAH_PLUS_CTX0), %g2
-
-	.globl		cheetah_plus_patch_fpdis
-cheetah_plus_patch_fpdis:
-	/* We configure the dTLB512_0 for 4MB pages and the
-	 * dTLB512_1 for 8K pages when in context zero.
-	 */
-	sethi			%hi(cplus_fptrap_1), %o0
-	lduw			[%o0 + %lo(cplus_fptrap_1)], %o1
-
-	set			cplus_fptrap_insn_1, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-	set			cplus_fptrap_insn_2, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-	set			cplus_fptrap_insn_3, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-	set			cplus_fptrap_insn_4, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-
-	retl
-	 nop
 
 	/* The registers for cross calls will be:
 	 *

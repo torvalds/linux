@@ -325,23 +325,7 @@ cheetah_tlb_fixup:
 1:	sethi	%hi(tlb_type), %g1
 	stw	%g2, [%g1 + %lo(tlb_type)]
 
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,1f)
-	ba,pt	%xcc, 2f
-	 nop
-
-1:	/* Patch context register writes to support nucleus page
-	 * size correctly.
-	 */
-	call	cheetah_plus_patch_etrap
-	 nop
-	call	cheetah_plus_patch_rtrap
-	 nop
-	call	cheetah_plus_patch_fpdis
-	 nop
-	call	cheetah_plus_patch_winfixup
-	 nop
-
-2:	/* Patch copy/page operations to cheetah optimized versions. */
+	/* Patch copy/page operations to cheetah optimized versions. */
 	call	cheetah_patch_copyops
 	 nop
 	call	cheetah_patch_copy_page
@@ -484,20 +468,13 @@ spitfire_vpte_base:
 	call	prom_set_trap_table
 	 sethi	%hi(sparc64_ttable_tl0), %o0
 
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g2,g3,1f)
-	ba,pt	%xcc, 2f
-	 nop
-
-1:	/* Start using proper page size encodings in ctx register.  */
-	sethi	%uhi(CTX_CHEETAH_PLUS_NUC), %g3
+	/* Start using proper page size encodings in ctx register.  */
+	sethi	%hi(sparc64_kern_pri_context), %g3
+	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
 	mov	PRIMARY_CONTEXT, %g1
-	sllx	%g3, 32, %g3
-	sethi	%hi(CTX_CHEETAH_PLUS_CTX0), %g2
-	or	%g3, %g2, %g3
-	stxa	%g3, [%g1] ASI_DMMU
+	stxa	%g2, [%g1] ASI_DMMU
 	membar	#Sync
 
-2:
 	rdpr	%pstate, %o1
 	or	%o1, PSTATE_IE, %o1
 	wrpr	%o1, 0, %pstate
