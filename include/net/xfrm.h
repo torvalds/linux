@@ -875,7 +875,7 @@ static inline int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsig
 } 
 #endif
 
-struct xfrm_policy *xfrm_policy_alloc(int gfp);
+struct xfrm_policy *xfrm_policy_alloc(unsigned int __nocast gfp);
 extern int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
 struct xfrm_policy *xfrm_policy_bysel(int dir, struct xfrm_selector *sel,
@@ -929,6 +929,11 @@ static inline int xfrm_addr_cmp(xfrm_address_t *a, xfrm_address_t *b,
 		return ipv6_addr_cmp((struct in6_addr *)a,
 				     (struct in6_addr *)b);
 	}
+}
+
+static inline int xfrm_policy_id2dir(u32 index)
+{
+	return index & 7;
 }
 
 #endif	/* _NET_XFRM_H */

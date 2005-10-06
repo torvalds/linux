@@ -149,7 +149,7 @@ struct cn_dev {
 
 int cn_add_callback(struct cb_id *, char *, void (*callback) (void *));
 void cn_del_callback(struct cb_id *);
-int cn_netlink_send(struct cn_msg *, u32, int);
+int cn_netlink_send(struct cn_msg *, u32, unsigned int __nocast);
 
 int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(void *));
 void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id);

@@ -457,7 +457,7 @@ static inline void atm_dev_put(struct atm_dev *dev)
 
 int atm_charge(struct atm_vcc *vcc,int truesize);
 struct sk_buff *atm_alloc_charge(struct atm_vcc *vcc,int pdu_size,
-    int gfp_flags);
+    unsigned int __nocast gfp_flags);
 int atm_pcr_goal(struct atm_trafprm *tp);
 
 void vcc_release_async(struct atm_vcc *vcc, int reply);

@@ -40,7 +40,7 @@
 struct inet_ehash_bucket {
 	rwlock_t	  lock;
 	struct hlist_head chain;
-} __attribute__((__aligned__(8)));
+};
 
 /* There are a few simple rules, which allow for local port reuse by
  * an application.  In essence:
