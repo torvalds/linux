@@ -229,6 +229,7 @@ static u8 sil24_check_status(struct ata_port *ap);
 static u8 sil24_check_err(struct ata_port *ap);
 static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg);
 static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
+static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void sil24_phy_reset(struct ata_port *ap);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static int sil24_qc_issue(struct ata_queued_cmd *qc);
@@ -279,6 +280,8 @@ static struct ata_port_operations sil24_ops = {
 	.check_altstatus	= sil24_check_status,
 	.check_err		= sil24_check_err,
 	.dev_select		= ata_noop_dev_select,
+
+	.tf_read		= sil24_tf_read,
 
 	.phy_reset		= sil24_phy_reset,
 
@@ -370,6 +373,12 @@ static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 		addr = scr_addr + sil24_scr_map[sc_reg] * 4;
 		writel(val, scr_addr + sil24_scr_map[sc_reg] * 4);
 	}
+}
+
+static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
+{
+	struct sil24_port_priv *pp = ap->private_data;
+	*tf = pp->tf;
 }
 
 static void sil24_phy_reset(struct ata_port *ap)
