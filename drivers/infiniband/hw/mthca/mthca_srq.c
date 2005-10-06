@@ -438,6 +438,14 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		wqe       = get_wqe(srq, ind);
 		next_ind  = *wqe_to_link(wqe);
+
+		if (next_ind < 0) {
+			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
+			err = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
+
 		prev_wqe  = srq->last;
 		srq->last = wqe;
 
@@ -528,6 +536,13 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		wqe       = get_wqe(srq, ind);
 		next_ind  = *wqe_to_link(wqe);
+
+		if (next_ind < 0) {
+			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
+			err = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
 
 		((struct mthca_next_seg *) wqe)->nda_op =
 			cpu_to_be32((next_ind << srq->wqe_shift) | 1);
