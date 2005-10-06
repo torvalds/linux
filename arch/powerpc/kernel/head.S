@@ -134,11 +134,13 @@ __start:
  * because OF may have I/O devices mapped into that area
  * (particularly on CHRP).
  */
-	mr	r31,r3			/* save parameters */
+	cmpwi	0,r5,0
+	beq	1f
+	bl	prom_init
+	trap
+
+1:	mr	r31,r3			/* save parameters */
 	mr	r30,r4
-	mr	r29,r5
-	mr	r28,r6
-	mr	r27,r7
 	li	r24,0			/* cpu # */
 
 /*
@@ -204,8 +206,7 @@ __after_mmu_off:
  * On CHRP, we are loaded at 0x10000 since OF on CHRP uses
  * the exception vectors at 0 (and therefore this copy
  * overwrites OF's exception vectors with our own).
- * If the MMU is already turned on, we copy stuff to KERNELBASE,
- * otherwise we copy it to 0.
+ * The MMU is off at this point.
  */
 	bl	reloc_offset
 	mr	r26,r3
@@ -1187,9 +1188,6 @@ start_here:
  */
 	mr	r3,r31
 	mr	r4,r30
-	mr	r5,r29
-	mr	r6,r28
-	mr	r7,r27
 	bl	machine_init
 	bl	MMU_init
 

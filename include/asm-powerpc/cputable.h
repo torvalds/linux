@@ -57,6 +57,9 @@ struct cpu_spec {
 
 extern struct cpu_spec		*cur_cpu_spec;
 
+extern void identify_cpu(unsigned long offset, unsigned long cpu);
+extern void do_cpu_ftr_fixups(unsigned long offset);
+
 #endif /* __ASSEMBLY__ */
 
 /* CPU kernel features */

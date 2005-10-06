@@ -5,10 +5,11 @@
 ifeq ($(CONFIG_PPC64),y)
 EXTRA_CFLAGS	+= -mno-minimal-toc
 endif
-
 ifeq ($(CONFIG_PPC32),y)
-extra-$(CONFIG_PPC_STD_MMU)	:= head.o
+CFLAGS_prom_init.o      += -fPIC
 endif
+
+extra-$(CONFIG_PPC_STD_MMU)	:= head.o
 extra-$(CONFIG_PPC64)		:= head_64.o
 extra-$(CONFIG_40x)		:= head_4xx.o
 extra-$(CONFIG_44x)		:= head_44x.o
@@ -18,13 +19,15 @@ extra-$(CONFIG_6xx)		+= idle_6xx.o
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
-obj-y				:= traps.o
-obj-$(CONFIG_PPC32)		+= semaphore.o process.o
+obj-y				:= traps.o prom.o semaphore.o
+obj-$(CONFIG_PPC32)		+= setup.o process.o
 obj-$(CONFIG_PPC64)		+= idle_power4.o
 ifeq ($(CONFIG_PPC32),y)
+obj-$(CONFIG_PPC_OF)		+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 endif
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
+obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 arch/powerpc/kernel/head_64.o: arch/powerpc/platforms/iseries/lparmap.s

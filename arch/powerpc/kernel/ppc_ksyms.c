@@ -212,36 +212,6 @@ EXPORT_SYMBOL(_machine);
 EXPORT_SYMBOL(sys_ctrler);
 EXPORT_SYMBOL(pmac_newworld);
 #endif
-#ifdef CONFIG_PPC_OF
-EXPORT_SYMBOL(find_devices);
-EXPORT_SYMBOL(find_type_devices);
-EXPORT_SYMBOL(find_compatible_devices);
-EXPORT_SYMBOL(find_path_device);
-EXPORT_SYMBOL(device_is_compatible);
-EXPORT_SYMBOL(machine_is_compatible);
-EXPORT_SYMBOL(find_all_nodes);
-EXPORT_SYMBOL(get_property);
-EXPORT_SYMBOL(request_OF_resource);
-EXPORT_SYMBOL(release_OF_resource);
-EXPORT_SYMBOL(pci_busdev_to_OF_node);
-EXPORT_SYMBOL(pci_device_to_OF_node);
-EXPORT_SYMBOL(pci_device_from_OF_node);
-EXPORT_SYMBOL(of_find_node_by_name);
-EXPORT_SYMBOL(of_find_node_by_type);
-EXPORT_SYMBOL(of_find_compatible_node);
-EXPORT_SYMBOL(of_find_node_by_path);
-EXPORT_SYMBOL(of_find_all_nodes);
-EXPORT_SYMBOL(of_get_parent);
-EXPORT_SYMBOL(of_get_next_child);
-EXPORT_SYMBOL(of_node_get);
-EXPORT_SYMBOL(of_node_put);
-#endif /* CONFIG_PPC_OF */
-#if defined(CONFIG_BOOTX_TEXT)
-EXPORT_SYMBOL(btext_update_display);
-#endif
-#if defined(CONFIG_SCSI) && defined(CONFIG_PPC_PMAC)
-EXPORT_SYMBOL(note_scsi_host);
-#endif
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(kd_mksound);
 #endif

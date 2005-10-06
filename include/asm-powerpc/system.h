@@ -346,7 +346,12 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 
 #define arch_align_stack(x) (x)
 
+/* Used in very early kernel initialization. */
 extern unsigned long reloc_offset(void);
+extern unsigned long add_reloc_offset(unsigned long);
+extern void reloc_got2(unsigned long);
+
+#define PTRRELOC(x)	((typeof(x)) add_reloc_offset((unsigned long)(x)))
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */

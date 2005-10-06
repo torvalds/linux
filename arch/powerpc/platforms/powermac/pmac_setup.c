@@ -101,6 +101,8 @@ int ppc_override_l2cr = 0;
 int ppc_override_l2cr_value;
 int has_l2cache = 0;
 
+int pmac_newworld = 1;
+
 static int current_root_goodness = -1;
 
 extern int pmac_newworld;
@@ -355,8 +357,8 @@ static void __init ohare_init(void)
 	}
 }
 
-extern char *bootpath;
-extern char *bootdevice;
+char *bootpath;
+char *bootdevice;
 void *boot_host;
 int boot_target;
 int boot_part;
@@ -391,6 +393,7 @@ note_scsi_host(struct device_node *node, void *host)
 		}
 	}
 }
+EXPORT_SYMBOL(note_scsi_host);
 #endif
 
 #if defined(CONFIG_BLK_DEV_IDE) && defined(CONFIG_BLK_DEV_IDE_PMAC)
@@ -565,9 +568,7 @@ pmac_halt(void)
 	pmac_power_off();
 }
 
-void __init
-pmac_init(unsigned long r3, unsigned long r4, unsigned long r5,
-	  unsigned long r6, unsigned long r7)
+void __init pmac_init(void)
 {
 	/* isa_io_base gets set in pmac_find_bridges */
 	isa_mem_base = PMAC_ISA_MEM_BASE;
