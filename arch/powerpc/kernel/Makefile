@@ -7,6 +7,7 @@ EXTRA_CFLAGS	+= -mno-minimal-toc
 endif
 ifeq ($(CONFIG_PPC32),y)
 CFLAGS_prom_init.o      += -fPIC
+CFLAGS_btext.o		+= -fPIC
 endif
 
 extra-$(CONFIG_PPC_STD_MMU)	:= head.o
@@ -23,7 +24,7 @@ obj-y				:= traps.o prom.o semaphore.o
 obj-$(CONFIG_PPC32)		+= setup.o process.o
 obj-$(CONFIG_PPC64)		+= idle_power4.o
 ifeq ($(CONFIG_PPC32),y)
-obj-$(CONFIG_PPC_OF)		+= prom_init.o
+obj-$(CONFIG_PPC_OF)		+= prom_init.o of_device.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 endif
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
