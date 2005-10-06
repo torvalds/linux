@@ -107,6 +107,7 @@ SECTIONS
 #ifdef CONFIG_PPC32
   /* Read-write section, merged into data segment: */
   . = ALIGN(4096);
+  _sdata = .;
   .data    :
   {
     *(.data)
