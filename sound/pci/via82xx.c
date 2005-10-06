@@ -100,6 +100,10 @@ MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 module_param(dxs_support, int, 0444);
 MODULE_PARM_DESC(dxs_support, "Support for DXS channels (0 = auto, 1 = enable, 2 = disable, 3 = 48k only, 4 = no VRA, 5 = enable any sample rate)");
 
+/* just for backward compatibility */
+static int enable;
+module_param(enable, int, 0444);
+
 
 /* revision numbers for via686 */
 #define VIA_REV_686_A		0x10

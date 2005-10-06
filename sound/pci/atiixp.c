@@ -56,6 +56,10 @@ MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 module_param(spdif_aclink, bool, 0444);
 MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
 
+/* just for backward compatibility */
+static int enable;
+module_param(enable, int, 0444);
+
 
 /*
  */

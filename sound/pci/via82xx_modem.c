@@ -66,6 +66,10 @@ MODULE_PARM_DESC(id, "ID string for VIA 82xx bridge.");
 module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (default 48000Hz).");
 
+/* just for backward compatibility */
+static int enable;
+module_param(enable, int, 0444);
+
 
 /*
  *  Direct registers

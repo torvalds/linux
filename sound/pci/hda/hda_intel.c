@@ -61,6 +61,10 @@ MODULE_PARM_DESC(model, "Use the given board model.");
 module_param(position_fix, int, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
 
+/* just for backward compatibility */
+static int enable;
+module_param(enable, int, 0444);
+
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH6M},"

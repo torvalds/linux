@@ -87,6 +87,12 @@ MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some moth
 module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
 
+/* just for backward compatibility */
+static int enable;
+module_param(enable, int, 0444);
+static int joystick;
+module_param(joystick, int, 0444);
+
 /*
  *  Direct registers
  */
