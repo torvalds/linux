@@ -4082,6 +4082,11 @@ static void ipw_bg_gather_stats(void *data)
 	up(&priv->sem);
 }
 
+/* Missed beacon behavior:
+ * 1st missed -> roaming_threshold, just wait, don't do any scan/roam.
+ * roaming_threshold -> disassociate_threshold, scan and roam for better signal.
+ * Above disassociate threshold, give up and stop scanning.
+ * Roaming is disabled if disassociate_threshold <= roaming_threshold  */
 static inline void ipw_handle_missed_beacon(struct ipw_priv *priv,
 					    int missed_count)
 {
@@ -4116,9 +4121,12 @@ static inline void ipw_handle_missed_beacon(struct ipw_priv *priv,
 		return;
 	}
 
-	if (missed_count > priv->roaming_threshold) {
+	if (missed_count > priv->roaming_threshold &&
+	    missed_count <= priv->disassociate_threshold) {
 		/* If we are not already roaming, set the ROAM
-		 * bit in the status and kick off a scan */
+		 * bit in the status and kick off a scan.
+		 * This can happen several times before we reach
+		 * disassociate_threshold. */
 		IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE,
 			  "Missed beacon: %d - initiate "
 			  "roaming\n", missed_count);
@@ -4480,11 +4488,16 @@ static inline void ipw_rx_notification(struct ipw_priv *priv,
 					      STATUS_DISASSOCIATING)))
 				queue_work(priv->workqueue, &priv->associate);
 			else if (priv->status & STATUS_ROAMING) {
-				/* If a scan completed and we are in roam mode, then
-				 * the scan that completed was the one requested as a
-				 * result of entering roam... so, schedule the
-				 * roam work */
-				queue_work(priv->workqueue, &priv->roam);
+				if (x->status == SCAN_COMPLETED_STATUS_COMPLETE)
+					/* If a scan completed and we are in roam mode, then
+					 * the scan that completed was the one requested as a
+					 * result of entering roam... so, schedule the
+					 * roam work */
+					queue_work(priv->workqueue,
+						   &priv->roam);
+				else
+					/* Don't schedule if we aborted the scan */
+					priv->status &= ~STATUS_ROAMING;
 			} else if (priv->status & STATUS_SCAN_PENDING)
 				queue_work(priv->workqueue,
 					   &priv->request_scan);

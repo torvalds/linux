@@ -590,6 +590,9 @@ struct notif_channel_result {
 	u8 uReserved;
 } __attribute__ ((packed));
 
+#define SCAN_COMPLETED_STATUS_COMPLETE  1
+#define SCAN_COMPLETED_STATUS_ABORTED   2
+
 struct notif_scan_complete {
 	u8 scan_type;
 	u8 num_channels;
