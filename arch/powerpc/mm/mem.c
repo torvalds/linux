@@ -45,14 +45,18 @@
 #include <asm/tlb.h>
 #include <asm/bootinfo.h>
 #include <asm/prom.h>
+#include <asm/lmb.h>
+#include <asm/sections.h>
 
-#include "mem_pieces.h"
 #include "mmu_decl.h"
 
 #ifndef CPU_FTR_COHERENT_ICACHE
 #define CPU_FTR_COHERENT_ICACHE	0	/* XXX for now */
 #define CPU_FTR_NOEXECUTE	0
 #endif
+
+int init_bootmem_done;
+int mem_init_done;
 
 /*
  * This is called by /dev/mem to know if a given address has to
@@ -128,6 +132,185 @@ void show_mem(void)
 	printk("%ld reserved pages\n", reserved);
 	printk("%ld pages shared\n", shared);
 	printk("%ld pages swap cached\n", cached);
+}
+
+/*
+ * Initialize the bootmem system and give it all the memory we
+ * have available.  If we are using highmem, we only put the
+ * lowmem into the bootmem system.
+ */
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+void __init do_init_bootmem(void)
+{
+	unsigned long i;
+	unsigned long start, bootmap_pages;
+	unsigned long total_pages;
+	int boot_mapsize;
+
+	max_pfn = total_pages = lmb_end_of_DRAM() >> PAGE_SHIFT;
+#ifdef CONFIG_HIGHMEM
+	total_pages = total_lowmem >> PAGE_SHIFT;
+#endif
+
+	/*
+	 * Find an area to use for the bootmem bitmap.  Calculate the size of
+	 * bitmap required as (Total Memory) / PAGE_SIZE / BITS_PER_BYTE.
+	 * Add 1 additional page in case the address isn't page-aligned.
+	 */
+	bootmap_pages = bootmem_bootmap_pages(total_pages);
+
+	start = lmb_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
+	BUG_ON(!start);
+
+	boot_mapsize = init_bootmem(start >> PAGE_SHIFT, total_pages);
+
+	/* Add all physical memory to the bootmem map, mark each area
+	 * present.
+	 */
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		unsigned long base = lmb.memory.region[i].base;
+		unsigned long size = lmb_size_bytes(&lmb.memory, i);
+#ifdef CONFIG_HIGHMEM
+		if (base >= total_lowmem)
+			continue;
+		if (base + size > total_lowmem)
+			size = total_lowmem - base;
+#endif
+		free_bootmem(base, size);
+	}
+
+	/* reserve the sections we're already using */
+	for (i = 0; i < lmb.reserved.cnt; i++)
+		reserve_bootmem(lmb.reserved.region[i].base,
+				lmb_size_bytes(&lmb.reserved, i));
+
+	/* XXX need to clip this if using highmem? */
+	for (i = 0; i < lmb.memory.cnt; i++)
+		memory_present(0, lmb_start_pfn(&lmb.memory, i),
+			       lmb_end_pfn(&lmb.memory, i));
+	init_bootmem_done = 1;
+}
+
+/*
+ * paging_init() sets up the page tables - in fact we've already done this.
+ */
+void __init paging_init(void)
+{
+	unsigned long zones_size[MAX_NR_ZONES];
+	unsigned long zholes_size[MAX_NR_ZONES];
+	unsigned long total_ram = lmb_phys_mem_size();
+	unsigned long top_of_ram = lmb_end_of_DRAM();
+
+#ifdef CONFIG_HIGHMEM
+	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
+	pkmap_page_table = pte_offset_kernel(pmd_offset(pgd_offset_k
+			(PKMAP_BASE), PKMAP_BASE), PKMAP_BASE);
+	map_page(KMAP_FIX_BEGIN, 0, 0);	/* XXX gross */
+	kmap_pte = pte_offset_kernel(pmd_offset(pgd_offset_k
+			(KMAP_FIX_BEGIN), KMAP_FIX_BEGIN), KMAP_FIX_BEGIN);
+	kmap_prot = PAGE_KERNEL;
+#endif /* CONFIG_HIGHMEM */
+
+	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	       top_of_ram, total_ram);
+	printk(KERN_INFO "Memory hole size: %ldMB\n",
+	       (top_of_ram - total_ram) >> 20);
+	/*
+	 * All pages are DMA-able so we put them all in the DMA zone.
+	 */
+	memset(zones_size, 0, sizeof(zones_size));
+	memset(zholes_size, 0, sizeof(zholes_size));
+
+	zones_size[ZONE_DMA] = top_of_ram >> PAGE_SHIFT;
+	zholes_size[ZONE_DMA] = (top_of_ram - total_ram) >> PAGE_SHIFT;
+
+#ifdef CONFIG_HIGHMEM
+	zones_size[ZONE_DMA] = total_lowmem >> PAGE_SHIFT;
+	zones_size[ZONE_HIGHMEM] = (total_memory - total_lowmem) >> PAGE_SHIFT;
+	zholes_size[ZONE_HIGHMEM] = (top_of_ram - total_ram) >> PAGE_SHIFT;
+#else
+	zones_size[ZONE_DMA] = top_of_ram >> PAGE_SHIFT;
+	zholes_size[ZONE_DMA] = (top_of_ram - total_ram) >> PAGE_SHIFT;
+#endif /* CONFIG_HIGHMEM */
+
+	free_area_init_node(0, NODE_DATA(0), zones_size,
+			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
+}
+#endif /* ! CONFIG_NEED_MULTIPLE_NODES */
+
+void __init mem_init(void)
+{
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	int nid;
+#endif
+	pg_data_t *pgdat;
+	unsigned long i;
+	struct page *page;
+	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
+
+	num_physpages = max_pfn;	/* RAM is assumed contiguous */
+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+        for_each_online_node(nid) {
+		if (NODE_DATA(nid)->node_spanned_pages != 0) {
+			printk("freeing bootmem node %x\n", nid);
+			totalram_pages +=
+				free_all_bootmem_node(NODE_DATA(nid));
+		}
+	}
+#else
+	max_mapnr = num_physpages;
+	totalram_pages += free_all_bootmem();
+#endif
+	for_each_pgdat(pgdat) {
+		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			page = pgdat_page_nr(pgdat, i);
+			if (PageReserved(page))
+				reservedpages++;
+		}
+	}
+
+	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
+	datasize = (unsigned long)&__init_begin - (unsigned long)&_sdata;
+	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
+	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
+
+#ifdef CONFIG_HIGHMEM
+	{
+		unsigned long pfn, highmem_mapnr;
+
+		highmem_mapnr = total_lowmem >> PAGE_SHIFT;
+		for (pfn = highmem_mapnr; pfn < max_mapnr; ++pfn) {
+			struct page *page = pfn_to_page(pfn);
+
+			ClearPageReserved(page);
+			set_page_count(page, 1);
+			__free_page(page);
+			totalhigh_pages++;
+		}
+		totalram_pages += totalhigh_pages;
+		printk(KERN_INFO "High memory: %luk\n",
+		       totalhigh_pages << (PAGE_SHIFT-10));
+	}
+#endif /* CONFIG_HIGHMEM */
+
+	printk(KERN_INFO "Memory: %luk/%luk available (%luk kernel code, "
+	       "%luk reserved, %luk data, %luk bss, %luk init)\n",
+		(unsigned long)nr_free_pages() << (PAGE_SHIFT-10),
+		num_physpages << (PAGE_SHIFT-10),
+		codesize >> 10,
+		reservedpages << (PAGE_SHIFT-10),
+		datasize >> 10,
+		bsssize >> 10,
+		initsize >> 10);
+
+	mem_init_done = 1;
+
+#ifdef CONFIG_PPC64
+	/* Initialize the vDSO */
+	vdso_init();
+#endif
 }
 
 /*

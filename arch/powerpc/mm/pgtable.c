@@ -190,8 +190,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	 * Don't allow anybody to remap normal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
-	if ( mem_init_done && (p < virt_to_phys(high_memory)) )
-	{
+	if (mem_init_done && (p < virt_to_phys(high_memory))) {
 		printk("__ioremap(): phys addr "PHYS_FMT" is RAM lr %p\n", p,
 		       __builtin_return_address(0));
 		return NULL;

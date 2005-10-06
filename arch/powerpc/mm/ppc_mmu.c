@@ -32,9 +32,9 @@
 #include <asm/prom.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
+#include <asm/lmb.h>
 
 #include "mmu_decl.h"
-#include "mem_pieces.h"
 
 PTE *Hash, *Hash_end;
 unsigned long Hash_size, Hash_mask;
@@ -215,17 +215,6 @@ void __init MMU_init_hw(void)
 #define MIN_N_HPTEG	1024		/* min 64kB hash table */
 #endif
 
-#ifdef CONFIG_POWER4
-	/* The hash table has already been allocated and initialized
-	   in prom.c */
-	n_hpteg = Hash_size >> LG_HPTEG_SIZE;
-	lg_n_hpteg = __ilog2(n_hpteg);
-
-	/* Remove the hash table from the available memory */
-	if (Hash)
-		reserve_phys_mem(__pa(Hash), Hash_size);
-
-#else /* CONFIG_POWER4 */
 	/*
 	 * Allow 1 HPTE (1/8 HPTEG) for each page of memory.
 	 * This is less than the recommended amount, but then
@@ -245,10 +234,10 @@ void __init MMU_init_hw(void)
 	 * Find some memory for the hash table.
 	 */
 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
-	Hash = mem_pieces_find(Hash_size, Hash_size);
+	Hash = __va(lmb_alloc_base(Hash_size, Hash_size,
+				   __initial_memory_limit));
 	cacheable_memzero(Hash, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
-#endif /* CONFIG_POWER4 */
 
 	Hash_end = (PTE *) ((unsigned long)Hash + Hash_size);
 

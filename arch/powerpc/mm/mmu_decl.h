@@ -36,6 +36,8 @@ extern unsigned long ioremap_base;
 extern unsigned long ioremap_bot;
 extern unsigned int rtas_data, rtas_size;
 
+extern unsigned long __max_low_memory;
+extern unsigned long __initial_memory_limit;
 extern unsigned long total_memory;
 extern unsigned long total_lowmem;
 extern int mem_init_done;

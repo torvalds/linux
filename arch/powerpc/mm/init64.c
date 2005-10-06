@@ -166,77 +166,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-/*
- * Initialize the bootmem system and give it all the memory we
- * have available.
- */
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-void __init do_init_bootmem(void)
-{
-	unsigned long i;
-	unsigned long start, bootmap_pages;
-	unsigned long total_pages = lmb_end_of_DRAM() >> PAGE_SHIFT;
-	int boot_mapsize;
-
-	/*
-	 * Find an area to use for the bootmem bitmap.  Calculate the size of
-	 * bitmap required as (Total Memory) / PAGE_SIZE / BITS_PER_BYTE.
-	 * Add 1 additional page in case the address isn't page-aligned.
-	 */
-	bootmap_pages = bootmem_bootmap_pages(total_pages);
-
-	start = lmb_alloc(bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
-	BUG_ON(!start);
-
-	boot_mapsize = init_bootmem(start >> PAGE_SHIFT, total_pages);
-
-	max_pfn = max_low_pfn;
-
-	/* Add all physical memory to the bootmem map, mark each area
-	 * present.
-	 */
-	for (i=0; i < lmb.memory.cnt; i++)
-		free_bootmem(lmb.memory.region[i].base,
-			     lmb_size_bytes(&lmb.memory, i));
-
-	/* reserve the sections we're already using */
-	for (i=0; i < lmb.reserved.cnt; i++)
-		reserve_bootmem(lmb.reserved.region[i].base,
-				lmb_size_bytes(&lmb.reserved, i));
-
-	for (i=0; i < lmb.memory.cnt; i++)
-		memory_present(0, lmb_start_pfn(&lmb.memory, i),
-			       lmb_end_pfn(&lmb.memory, i));
-}
-
-/*
- * paging_init() sets up the page tables - in fact we've already done this.
- */
-void __init paging_init(void)
-{
-	unsigned long zones_size[MAX_NR_ZONES];
-	unsigned long zholes_size[MAX_NR_ZONES];
-	unsigned long total_ram = lmb_phys_mem_size();
-	unsigned long top_of_ram = lmb_end_of_DRAM();
-
-	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
-	       top_of_ram, total_ram);
-	printk(KERN_INFO "Memory hole size: %ldMB\n",
-	       (top_of_ram - total_ram) >> 20);
-	/*
-	 * All pages are DMA-able so we put them all in the DMA zone.
-	 */
-	memset(zones_size, 0, sizeof(zones_size));
-	memset(zholes_size, 0, sizeof(zholes_size));
-
-	zones_size[ZONE_DMA] = top_of_ram >> PAGE_SHIFT;
-	zholes_size[ZONE_DMA] = (top_of_ram - total_ram) >> PAGE_SHIFT;
-
-	free_area_init_node(0, NODE_DATA(0), zones_size,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
-}
-#endif /* ! CONFIG_NEED_MULTIPLE_NODES */
-
 static struct kcore_list kcore_vmem;
 
 static int __init setup_kcore(void)
@@ -263,61 +192,6 @@ static int __init setup_kcore(void)
 	return 0;
 }
 module_init(setup_kcore);
-
-void __init mem_init(void)
-{
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-	int nid;
-#endif
-	pg_data_t *pgdat;
-	unsigned long i;
-	struct page *page;
-	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
-
-	num_physpages = max_low_pfn;	/* RAM is assumed contiguous */
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-        for_each_online_node(nid) {
-		if (NODE_DATA(nid)->node_spanned_pages != 0) {
-			printk("freeing bootmem node %x\n", nid);
-			totalram_pages +=
-				free_all_bootmem_node(NODE_DATA(nid));
-		}
-	}
-#else
-	max_mapnr = num_physpages;
-	totalram_pages += free_all_bootmem();
-#endif
-
-	for_each_pgdat(pgdat) {
-		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-			page = pgdat_page_nr(pgdat, i);
-			if (PageReserved(page))
-				reservedpages++;
-		}
-	}
-
-	codesize = (unsigned long)&_etext - (unsigned long)&_stext;
-	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
-	datasize = (unsigned long)&_edata - (unsigned long)&__init_end;
-	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
-
-	printk(KERN_INFO "Memory: %luk/%luk available (%luk kernel code, "
-	       "%luk reserved, %luk data, %luk bss, %luk init)\n",
-		(unsigned long)nr_free_pages() << (PAGE_SHIFT-10),
-		num_physpages << (PAGE_SHIFT-10),
-		codesize >> 10,
-		reservedpages << (PAGE_SHIFT-10),
-		datasize >> 10,
-		bsssize >> 10,
-		initsize >> 10);
-
-	mem_init_done = 1;
-
-	/* Initialize the vDSO */
-	vdso_init();
-}
 
 void __iomem * reserve_phb_iospace(unsigned long size)
 {
