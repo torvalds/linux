@@ -80,7 +80,7 @@ _stext:
 _GLOBAL(__start)
 	/* NOP this out unconditionally */
 BEGIN_FTR_SECTION
-	b .__start_initialization_multiplatform
+	b	.__start_initialization_multiplatform
 END_FTR_SECTION(0, 1)
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
@@ -856,62 +856,6 @@ fp_unavailable_common:
 	ENABLE_INTS
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
-
-/*
- * load_up_fpu(unused, unused, tsk)
- * Disable FP for the task which had the FPU previously,
- * and save its floating-point registers in its thread_struct.
- * Enables the FPU for use in the kernel on return.
- * On SMP we know the fpu is free, since we give it up every
- * switch (ie, no lazy save of the FP registers).
- * On entry: r13 == 'current' && last_task_used_math != 'current'
- */
-_STATIC(load_up_fpu)
-	mfmsr	r5			/* grab the current MSR */
-	ori	r5,r5,MSR_FP
-	mtmsrd	r5			/* enable use of fpu now */
-	isync
-/*
- * For SMP, we don't do lazy FPU switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_fpu in switch_to.
- *
- */
-#ifndef CONFIG_SMP
-	ld	r3,last_task_used_math@got(r2)
-	ld	r4,0(r3)
-	cmpdi	0,r4,0
-	beq	1f
-	/* Save FP state to last_task_used_math's THREAD struct */
-	addi	r4,r4,THREAD
-	SAVE_32FPRS(0, r4)
-	mffs	fr0
-	stfd	fr0,THREAD_FPSCR(r4)
-	/* Disable FP for last_task_used_math */
-	ld	r5,PT_REGS(r4)
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r6,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r6
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
-	/* enable use of FP after return */
-	ld	r4,PACACURRENT(r13)
-	addi	r5,r4,THREAD		/* Get THREAD */
-	ld	r4,THREAD_FPEXC_MODE(r5)
-	ori	r12,r12,MSR_FP
-	or	r12,r12,r4
-	std	r12,_MSR(r1)
-	lfd	fr0,THREAD_FPSCR(r5)
-	mtfsf	0xff,fr0
-	REST_32FPRS(0, r5)
-#ifndef CONFIG_SMP
-	/* Update last_task_used_math to 'current' */
-	subi	r4,r5,THREAD		/* Back to 'current' */
-	std	r4,0(r3)
-#endif /* CONFIG_SMP */
-	/* restore registers and return */
-	b	fast_exception_return
 
 	.align	7
 	.globl altivec_unavailable_common

@@ -103,12 +103,13 @@
 	oris	rn,rn,name##@h;		\
 	ori	rn,rn,name##@l
 
-#define LOADBASE(rn,name) \
-	lis	rn,name@highest;	\
-	ori	rn,rn,name@higher;	\
-	rldicr	rn,rn,32,31;		\
-	oris	rn,rn,name@ha
+#define LOADBASE(rn,name)		\
+	.section .toc,"aw";		\
+1:	.tc	name[TC],name;		\
+	.previous;			\
+	ld	rn,1b@toc(r2)
 
+#define OFF(name)	0
 
 #define SET_REG_TO_CONST(reg, value)	         	\
 	lis     reg,(((value)>>48)&0xFFFF);             \
@@ -123,6 +124,23 @@
 	rldicr  reg,reg,32,31;                          \
 	oris    reg,reg,(label)@h;                      \
 	ori     reg,reg,(label)@l;
+
+/* operations for longs and pointers */
+#define LDL	ld
+#define STL	std
+#define CMPI	cmpdi
+
+#else /* 32-bit */
+#define LOADBASE(rn,name)	\
+	lis	rn,name@ha
+
+#define OFF(name)	name@l
+
+/* operations for longs and pointers */
+#define LDL	lwz
+#define STL	stw
+#define CMPI	cmpwi
+
 #endif
 
 /* various errata or part fixups */

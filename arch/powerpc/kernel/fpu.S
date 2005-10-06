@@ -27,13 +27,9 @@
  * Load up this task's FP registers from its thread_struct,
  * enable the FPU for the current task and return to the task.
  */
-	.globl	load_up_fpu
-load_up_fpu:
+_GLOBAL(load_up_fpu)
 	mfmsr	r5
 	ori	r5,r5,MSR_FP
-#ifdef CONFIG_PPC64BRIDGE
-	clrldi	r5,r5,1			/* turn off 64-bit mode */
-#endif /* CONFIG_PPC64BRIDGE */
 	SYNC
 	MTMSRD(r5)			/* enable use of fpu now */
 	isync
@@ -43,58 +39,49 @@ load_up_fpu:
  * to another.  Instead we call giveup_fpu in switch_to.
  */
 #ifndef CONFIG_SMP
-	tophys(r6,0)			/* get __pa constant */
-	addis	r3,r6,last_task_used_math@ha
-	lwz	r4,last_task_used_math@l(r3)
-	cmpwi	0,r4,0
+	LOADBASE(r3, last_task_used_math)
+	tophys(r3,r3)
+	LDL	r4,OFF(last_task_used_math)(r3)
+	CMPI	0,r4,0
 	beq	1f
-	add	r4,r4,r6
+	tophys(r4,r4)
 	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
 	SAVE_32FPRS(0, r4)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR-4(r4)
-	lwz	r5,PT_REGS(r4)
-	add	r5,r5,r6
-	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	LDL	r5,PT_REGS(r4)
+	tophys(r5,r5)
+	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	li	r10,MSR_FP|MSR_FE0|MSR_FE1
 	andc	r4,r4,r10		/* disable FP for previous task */
-	stw	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
 #endif /* CONFIG_SMP */
 	/* enable use of FP after return */
+#ifdef CONFIG_PPC32
 	mfspr	r5,SPRN_SPRG3		/* current task's THREAD (phys) */
 	lwz	r4,THREAD_FPEXC_MODE(r5)
 	ori	r9,r9,MSR_FP		/* enable FP for current */
 	or	r9,r9,r4
+#else
+	ld	r4,PACACURRENT(r13)
+	addi	r5,r4,THREAD		/* Get THREAD */
+	ld	r4,THREAD_FPEXC_MODE(r5)
+	ori	r12,r12,MSR_FP
+	or	r12,r12,r4
+	std	r12,_MSR(r1)
+#endif
 	lfd	fr0,THREAD_FPSCR-4(r5)
 	mtfsf	0xff,fr0
 	REST_32FPRS(0, r5)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
-	sub	r4,r4,r6
-	stw	r4,last_task_used_math@l(r3)
+	tovirt(r4,r4)
+	STL	r4,OFF(last_task_used_math)(r3)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
 	b	fast_exception_return
-
-/*
- * FP unavailable trap from kernel - print a message, but let
- * the task use FP in the kernel until it returns to user mode.
- */
- 	.globl	KernelFP
-KernelFP:
-	lwz	r3,_MSR(r1)
-	ori	r3,r3,MSR_FP
-	stw	r3,_MSR(r1)		/* enable use of FP after return */
-	lis	r3,86f@h
-	ori	r3,r3,86f@l
-	mr	r4,r2			/* current */
-	lwz	r5,_NIP(r1)
-	bl	printk
-	b	ret_from_except
-86:	.string	"floating point used in kernel (task=%p, pc=%x)\n"
-	.align	4,0
 
 /*
  * giveup_fpu(tsk)
@@ -102,8 +89,7 @@ KernelFP:
  * and save the floating-point registers in its thread_struct.
  * Enables the FPU for use in the kernel on return.
  */
-	.globl	giveup_fpu
-giveup_fpu:
+_GLOBAL(giveup_fpu)
 	mfmsr	r5
 	ori	r5,r5,MSR_FP
 	SYNC_601
@@ -111,23 +97,23 @@ giveup_fpu:
 	MTMSRD(r5)			/* enable use of fpu now */
 	SYNC_601
 	isync
-	cmpwi	0,r3,0
+	CMPI	0,r3,0
 	beqlr-				/* if no previous owner, done */
 	addi	r3,r3,THREAD	        /* want THREAD of task */
-	lwz	r5,PT_REGS(r3)
-	cmpwi	0,r5,0
+	LDL	r5,PT_REGS(r3)
+	CMPI	0,r5,0
 	SAVE_32FPRS(0, r3)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR-4(r3)
 	beq	1f
-	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	li	r3,MSR_FP|MSR_FE0|MSR_FE1
 	andc	r4,r4,r3		/* disable FP for previous task */
-	stw	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
 #ifndef CONFIG_SMP
 	li	r5,0
-	lis	r4,last_task_used_math@ha
-	stw	r5,last_task_used_math@l(r4)
+	LOADBASE(r4,last_task_used_math)
+	STL	r5,OFF(last_task_used_math)(r4)
 #endif /* CONFIG_SMP */
 	blr
