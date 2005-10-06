@@ -67,7 +67,7 @@ static int v9fs_dentry_validate(struct dentry *dentry, struct nameidata *nd)
 	struct dentry *dc = current->fs->pwd;
 
 	dprintk(DEBUG_VFS, "dentry: %s (%p)\n", dentry->d_iname, dentry);
-	if (v9fs_fid_lookup(dentry, FID_OP)) {
+	if (v9fs_fid_lookup(dentry)) {
 		dprintk(DEBUG_VFS, "VALID\n");
 		return 1;
 	}

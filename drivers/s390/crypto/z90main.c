@@ -682,9 +682,6 @@ z90crypt_cleanup_module(void)
 	del_timer(&config_timer);
 	del_timer(&cleanup_timer);
 
-	if (z90_device_work)
-		destroy_workqueue(z90_device_work);
-
 	destroy_z90crypt();
 
 	PRINTKN("Unloaded.\n");

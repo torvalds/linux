@@ -1297,4 +1297,3 @@ static void __exit amdtp_exit_module (void)
 
 module_init(amdtp_init_module);
 module_exit(amdtp_exit_module);
-MODULE_ALIAS_CHARDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_AMDTP * 16);

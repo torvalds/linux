@@ -98,7 +98,7 @@ static void snd_timer_reschedule(snd_timer_t * timer, unsigned long ticks_left);
 static snd_timer_instance_t *snd_timer_instance_new(char *owner, snd_timer_t *timer)
 {
 	snd_timer_instance_t *timeri;
-	timeri = kcalloc(1, sizeof(*timeri), GFP_KERNEL);
+	timeri = kzalloc(sizeof(*timeri), GFP_KERNEL);
 	if (timeri == NULL)
 		return NULL;
 	timeri->owner = kstrdup(owner, GFP_KERNEL);
@@ -764,7 +764,7 @@ int snd_timer_new(snd_card_t *card, char *id, snd_timer_id_t *tid, snd_timer_t *
 	snd_assert(tid != NULL, return -EINVAL);
 	snd_assert(rtimer != NULL, return -EINVAL);
 	*rtimer = NULL;
-	timer = kcalloc(1, sizeof(*timer), GFP_KERNEL);
+	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
 	if (timer == NULL)
 		return -ENOMEM;
 	timer->tmr_class = tid->dev_class;
@@ -1017,7 +1017,7 @@ static int snd_timer_register_system(void)
 		return err;
 	strcpy(timer->name, "system timer");
 	timer->hw = snd_timer_system;
-	priv = kcalloc(1, sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL) {
 		snd_timer_free(timer);
 		return -ENOMEM;
@@ -1202,7 +1202,7 @@ static int snd_timer_user_open(struct inode *inode, struct file *file)
 {
 	snd_timer_user_t *tu;
 	
-	tu = kcalloc(1, sizeof(*tu), GFP_KERNEL);
+	tu = kzalloc(sizeof(*tu), GFP_KERNEL);
 	if (tu == NULL)
 		return -ENOMEM;
 	spin_lock_init(&tu->qlock);
@@ -1513,7 +1513,7 @@ static int snd_timer_user_info(struct file *file, snd_timer_info_t __user *_info
 	t = tu->timeri->timer;
 	snd_assert(t != NULL, return -ENXIO);
 
-	info = kcalloc(1, sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;
 	info->card = t->card ? t->card->number : -1;

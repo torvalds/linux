@@ -140,6 +140,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #if ALLOW_DMA
 #include <asm/dma.h>
 #endif

@@ -233,7 +233,17 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (in_interrupt() || !mm)
 		goto no_context;
 
-	down_read(&mm->mmap_sem);
+	/*
+	 * As per x86, we may deadlock here.  However, since the kernel only
+	 * validly references user space from well defined areas of the code,
+	 * we can bug out early if this is from code which shouldn't.
+	 */
+	if (!down_read_trylock(&mm->mmap_sem)) {
+		if (!user_mode(regs) && !search_exception_tables(regs->ARM_pc))
+			goto no_context;
+		down_read(&mm->mmap_sem);
+	}
+
 	fault = __do_page_fault(mm, addr, fsr, tsk);
 	up_read(&mm->mmap_sem);
 

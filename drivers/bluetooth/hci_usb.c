@@ -65,13 +65,15 @@
 #endif
 
 static int ignore = 0;
+static int ignore_csr = 0;
+static int ignore_sniffer = 0;
 static int reset = 0;
 
 #ifdef CONFIG_BT_HCIUSB_SCO
 static int isoc = 2;
 #endif
 
-#define VERSION "2.8"
+#define VERSION "2.9"
 
 static struct usb_driver hci_usb_driver; 
 
@@ -98,6 +100,9 @@ static struct usb_device_id bluetooth_ids[] = {
 MODULE_DEVICE_TABLE (usb, bluetooth_ids);
 
 static struct usb_device_id blacklist_ids[] = {
+	/* CSR BlueCore devices */
+	{ USB_DEVICE(0x0a12, 0x0001), .driver_info = HCI_CSR },
+
 	/* Broadcom BCM2033 without firmware */
 	{ USB_DEVICE(0x0a5c, 0x2033), .driver_info = HCI_IGNORE },
 
@@ -836,6 +841,12 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (ignore || id->driver_info & HCI_IGNORE)
 		return -ENODEV;
 
+	if (ignore_csr && id->driver_info & HCI_CSR)
+		return -ENODEV;
+
+	if (ignore_sniffer && id->driver_info & HCI_SNIFFER)
+		return -ENODEV;
+
 	if (intf->cur_altsetting->desc.bInterfaceNumber > 0)
 		return -ENODEV;
 
@@ -1060,6 +1071,12 @@ module_exit(hci_usb_exit);
 
 module_param(ignore, bool, 0644);
 MODULE_PARM_DESC(ignore, "Ignore devices from the matching table");
+
+module_param(ignore_csr, bool, 0644);
+MODULE_PARM_DESC(ignore_csr, "Ignore devices with id 0a12:0001");
+
+module_param(ignore_sniffer, bool, 0644);
+MODULE_PARM_DESC(ignore_sniffer, "Ignore devices with id 0a12:0002");
 
 module_param(reset, bool, 0644);
 MODULE_PARM_DESC(reset, "Send HCI reset command on initialization");

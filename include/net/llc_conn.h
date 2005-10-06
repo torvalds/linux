@@ -19,14 +19,14 @@
 #define LLC_EVENT                1
 #define LLC_PACKET               2
 
-#define LLC_P_TIME               2
-#define LLC_ACK_TIME             1
-#define LLC_REJ_TIME             3
-#define LLC_BUSY_TIME            3
+#define LLC2_P_TIME               2
+#define LLC2_ACK_TIME             1
+#define LLC2_REJ_TIME             3
+#define LLC2_BUSY_TIME            3
 
 struct llc_timer {
 	struct timer_list timer;
-	u16		  expire;	/* timer expire time */
+	unsigned long	  expire;	/* timer expire time */
 };
 
 struct llc_sock {
@@ -38,6 +38,7 @@ struct llc_sock {
 	struct llc_addr	    laddr;		/* lsap/mac pair */
 	struct llc_addr	    daddr;		/* dsap/mac pair */
 	struct net_device   *dev;		/* device to send to remote */
+	u32		    copied_seq;		/* head of yet unread data */
 	u8		    retry_count;	/* number of retries */
 	u8		    ack_must_be_send;
 	u8		    first_pdu_Ns;
@@ -92,7 +93,8 @@ static __inline__ char llc_backlog_type(struct sk_buff *skb)
 	return skb->cb[sizeof(skb->cb) - 1];
 }
 
-extern struct sock *llc_sk_alloc(int family, int priority, struct proto *prot);
+extern struct sock *llc_sk_alloc(int family, unsigned int __nocast priority,
+				 struct proto *prot);
 extern void llc_sk_free(struct sock *sk);
 
 extern void llc_sk_reset(struct sock *sk);
@@ -115,5 +117,4 @@ extern void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk);
 
 extern u8 llc_data_accept_state(u8 state);
 extern void llc_build_offset_table(void);
-extern int llc_release_sockets(struct llc_sap *sap);
 #endif /* LLC_CONN_H */

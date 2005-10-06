@@ -354,7 +354,7 @@ int snd_opl3_new(snd_card_t *card,
 	int err;
 
 	*ropl3 = NULL;
-	opl3 = kcalloc(1, sizeof(*opl3), GFP_KERNEL);
+	opl3 = kzalloc(sizeof(*opl3), GFP_KERNEL);
 	if (opl3 == NULL)
 		return -ENOMEM;
 

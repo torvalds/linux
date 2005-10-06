@@ -80,8 +80,6 @@ static char *next_arg(char *args, char **param, char **val)
 	int in_quote = 0, quoted = 0;
 	char *next;
 
-	/* Chew any extra spaces */
-	while (*args == ' ') args++;
 	if (*args == '"') {
 		args++;
 		in_quote = 1;
@@ -121,6 +119,10 @@ static char *next_arg(char *args, char **param, char **val)
 		next = args + i + 1;
 	} else
 		next = args + i;
+
+	/* Chew up trailing spaces. */
+	while (*next == ' ')
+		next++;
 	return next;
 }
 
@@ -134,6 +136,10 @@ int parse_args(const char *name,
 	char *param, *val;
 
 	DEBUGP("Parsing ARGS: %s\n", args);
+
+	/* Chew leading spaces */
+	while (*args == ' ')
+		args++;
 
 	while (*args) {
 		int ret;

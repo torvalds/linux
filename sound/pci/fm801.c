@@ -1263,7 +1263,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	*rchip = NULL;
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1462,6 +1462,7 @@ static void __devexit snd_card_fm801_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "FM801",
+	.owner = THIS_MODULE,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.remove = __devexit_p(snd_card_fm801_remove),

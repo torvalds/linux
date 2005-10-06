@@ -45,15 +45,18 @@ static void dummy_perf(struct pt_regs *regs)
 	mtpmr(PMRN_PMGC0, pmgc0);
 }
 
-#else
+#elif defined(CONFIG_6xx)
 /* Ensure exceptions are disabled */
-
 static void dummy_perf(struct pt_regs *regs)
 {
 	unsigned int mmcr0 = mfspr(SPRN_MMCR0);
 
 	mmcr0 &= ~MMCR0_PMXE;
 	mtspr(SPRN_MMCR0, mmcr0);
+}
+#else
+static void dummy_perf(struct pt_regs *regs)
+{
 }
 #endif
 

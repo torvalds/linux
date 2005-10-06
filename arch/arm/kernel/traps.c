@@ -624,6 +624,9 @@ void __attribute__((noreturn)) __bug(const char *file, int line, void *data)
 		printk(" - extra data = %p", data);
 	printk("\n");
 	*(int *)0 = 0;
+
+	/* Avoid "noreturn function does return" */
+	for (;;);
 }
 EXPORT_SYMBOL(__bug);
 

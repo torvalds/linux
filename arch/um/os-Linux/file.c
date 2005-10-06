@@ -119,15 +119,11 @@ int os_window_size(int fd, int *rows, int *cols)
 
 int os_new_tty_pgrp(int fd, int pid)
 {
-	if(ioctl(fd, TIOCSCTTY, 0) < 0){
-		printk("TIOCSCTTY failed, errno = %d\n", errno);
-		return(-errno);
-	}
+	if(ioctl(fd, TIOCSCTTY, 0) < 0)
+		return -errno;
 
-	if(tcsetpgrp(fd, pid) < 0){
-		printk("tcsetpgrp failed, errno = %d\n", errno);
-		return(-errno);
-	}
+	if(tcsetpgrp(fd, pid) < 0)
+		return -errno;
 
 	return(0);
 }
@@ -146,18 +142,12 @@ int os_set_slip(int fd)
 	int disc, sencap;
 
 	disc = N_SLIP;
-	if(ioctl(fd, TIOCSETD, &disc) < 0){
-		printk("Failed to set slip line discipline - "
-		       "errno = %d\n", errno);
-		return(-errno);
-	}
+	if(ioctl(fd, TIOCSETD, &disc) < 0)
+		return -errno;
 
 	sencap = 0;
-	if(ioctl(fd, SIOCSIFENCAP, &sencap) < 0){
-		printk("Failed to set slip encapsulation - "
-		       "errno = %d\n", errno);
-		return(-errno);
-	}
+	if(ioctl(fd, SIOCSIFENCAP, &sencap) < 0)
+		return -errno;
 
 	return(0);
 }
@@ -180,22 +170,15 @@ int os_sigio_async(int master, int slave)
 	int flags;
 
 	flags = fcntl(master, F_GETFL);
-	if(flags < 0) {
-		printk("fcntl F_GETFL failed, errno = %d\n", errno);
-		return(-errno);
-	}
+	if(flags < 0)
+		return errno;
 
 	if((fcntl(master, F_SETFL, flags | O_NONBLOCK | O_ASYNC) < 0) ||
-	   (fcntl(master, F_SETOWN, os_getpid()) < 0)){
-		printk("fcntl F_SETFL or F_SETOWN failed, errno = %d\n",
-		       errno);
-		return(-errno);
-	}
+	   (fcntl(master, F_SETOWN, os_getpid()) < 0))
+		return -errno;
 
-	if((fcntl(slave, F_SETFL, flags | O_NONBLOCK) < 0)){
-		printk("fcntl F_SETFL failed, errno = %d\n", errno);
-		return(-errno);
-	}
+	if((fcntl(slave, F_SETFL, flags | O_NONBLOCK) < 0))
+		return -errno;
 
 	return(0);
 }
@@ -255,7 +238,7 @@ int os_file_mode(char *file, struct openflags *mode_out)
 
 int os_open_file(char *file, struct openflags flags, int mode)
 {
-	int fd, f = 0;
+	int fd, err, f = 0;
 
 	if(flags.r && flags.w) f = O_RDWR;
 	else if(flags.r) f = O_RDONLY;
@@ -272,8 +255,9 @@ int os_open_file(char *file, struct openflags flags, int mode)
 		return(-errno);
 
 	if(flags.cl && fcntl(fd, F_SETFD, 1)){
+		err = -errno;
 		os_close_file(fd);
-		return(-errno);
+		return err;
 	}
 
 	return(fd);
@@ -383,9 +367,9 @@ int os_file_size(char *file, unsigned long long *size_out)
 			return(fd);
 		}
 		if(ioctl(fd, BLKGETSIZE, &blocks) < 0){
+			err = -errno;
 			printk("Couldn't get the block size of \"%s\", "
 			       "errno = %d\n", file, errno);
-			err = -errno;
 			os_close_file(fd);
 			return(err);
 		}
@@ -473,11 +457,14 @@ int os_pipe(int *fds, int stream, int close_on_exec)
 
 int os_set_fd_async(int fd, int owner)
 {
+	int err;
+
 	/* XXX This should do F_GETFL first */
 	if(fcntl(fd, F_SETFL, O_ASYNC | O_NONBLOCK) < 0){
+		err = -errno;
 		printk("os_set_fd_async : failed to set O_ASYNC and "
 		       "O_NONBLOCK on fd # %d, errno = %d\n", fd, errno);
-		return(-errno);
+		return err;
 	}
 #ifdef notdef
 	if(fcntl(fd, F_SETFD, 1) < 0){
@@ -488,10 +475,11 @@ int os_set_fd_async(int fd, int owner)
 
 	if((fcntl(fd, F_SETSIG, SIGIO) < 0) ||
 	   (fcntl(fd, F_SETOWN, owner) < 0)){
+		err = -errno;
 		printk("os_set_fd_async : Failed to fcntl F_SETOWN "
 		       "(or F_SETSIG) fd %d to pid %d, errno = %d\n", fd, 
 		       owner, errno);
-		return(-errno);
+		return err;
 	}
 
 	return(0);
@@ -516,11 +504,9 @@ int os_set_fd_block(int fd, int blocking)
 	if(blocking) flags &= ~O_NONBLOCK;
 	else flags |= O_NONBLOCK;
 
-	if(fcntl(fd, F_SETFL, flags) < 0){
-		printk("Failed to change blocking on fd # %d, errno = %d\n",
-		       fd, errno);
-		return(-errno);
-	}
+	if(fcntl(fd, F_SETFL, flags) < 0)
+		return -errno;
+
 	return(0);
 }
 
@@ -609,11 +595,8 @@ int os_create_unix_socket(char *file, int len, int close_on_exec)
 	int sock, err;
 
 	sock = socket(PF_UNIX, SOCK_DGRAM, 0);
-	if (sock < 0){
-		printk("create_unix_socket - socket failed, errno = %d\n",
-		       errno);
-		return(-errno);
-	}
+	if(sock < 0)
+		return -errno;
 
 	if(close_on_exec) {
 		err = os_set_exec_close(sock, 1);
@@ -628,11 +611,8 @@ int os_create_unix_socket(char *file, int len, int close_on_exec)
 	snprintf(addr.sun_path, len, "%s", file);
 
 	err = bind(sock, (struct sockaddr *) &addr, sizeof(addr));
-	if (err < 0){
-		printk("create_listening_socket at '%s' - bind failed, "
-		       "errno = %d\n", file, errno);
-		return(-errno);
-	}
+	if(err < 0)
+		return -errno;
 
 	return(sock);
 }

@@ -87,7 +87,7 @@ static int __init sc_init(void)
 			 */
 			for (i = 0 ; i < MAX_IO_REGS - 1 ; i++) {
 				if(!request_region(io[b] + i * 0x400, 1, "sc test")) {
-					pr_debug("check_region for 0x%x failed\n", io[b] + i * 0x400);
+					pr_debug("request_region for 0x%x failed\n", io[b] + i * 0x400);
 					io[b] = 0;
 					break;
 				} else
@@ -181,7 +181,7 @@ static int __init sc_init(void)
 			for (i = SRAM_MIN ; i < SRAM_MAX ; i += SRAM_PAGESIZE) {
 				pr_debug("Checking RAM address 0x%x...\n", i);
 				if(request_region(i, SRAM_PAGESIZE, "sc test")) {
-					pr_debug("  check_region succeeded\n");
+					pr_debug("  request_region succeeded\n");
 					model = identify_board(i, io[b]);
 					release_region(i, SRAM_PAGESIZE);
 					if (model >= 0) {

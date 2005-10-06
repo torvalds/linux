@@ -171,7 +171,7 @@ int snd_pcm_plugin_build(snd_pcm_plug_t *plug,
 	
 	snd_assert(plug != NULL, return -ENXIO);
 	snd_assert(src_format != NULL && dst_format != NULL, return -ENXIO);
-	plugin = kcalloc(1, sizeof(*plugin) + extra, GFP_KERNEL);
+	plugin = kzalloc(sizeof(*plugin) + extra, GFP_KERNEL);
 	if (plugin == NULL)
 		return -ENOMEM;
 	plugin->name = name;

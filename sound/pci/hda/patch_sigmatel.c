@@ -919,7 +919,7 @@ static int patch_stac9200(struct hda_codec *codec)
 	struct sigmatel_spec *spec;
 	int err;
 
-	spec  = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -957,7 +957,7 @@ static int patch_stac922x(struct hda_codec *codec)
 	struct sigmatel_spec *spec;
 	int err;
 
-	spec  = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 

@@ -225,13 +225,12 @@ struct platform_device *platform_device_register_simple(char *name, unsigned int
 	struct platform_object *pobj;
 	int retval;
 
-	pobj = kmalloc(sizeof(struct platform_object) + sizeof(struct resource) * num, GFP_KERNEL);
+	pobj = kzalloc(sizeof(*pobj) + sizeof(struct resource) * num, GFP_KERNEL);
 	if (!pobj) {
 		retval = -ENOMEM;
 		goto error;
 	}
 
-	memset(pobj, 0, sizeof(*pobj));
 	pobj->pdev.name = name;
 	pobj->pdev.id = id;
 	pobj->pdev.dev.release = platform_device_release_simple;

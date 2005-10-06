@@ -240,7 +240,7 @@ cpu_elf_name:
 	.size	cpu_elf_name, . - cpu_elf_name
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	/*
 	 * Match any ARMv6 processor core.

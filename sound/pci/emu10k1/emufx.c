@@ -470,7 +470,7 @@ static void snd_emu10k1_write_op(emu10k1_fx8010_code_t *icode, unsigned int *ptr
 {
 	u_int32_t *code;
 	snd_assert(*ptr < 512, return);
-	code = (u_int32_t *)icode->code + (*ptr) * 2;
+	code = (u_int32_t __force *)icode->code + (*ptr) * 2;
 	set_bit(*ptr, icode->code_valid);
 	code[0] = ((x & 0x3ff) << 10) | (y & 0x3ff);
 	code[1] = ((op & 0x0f) << 20) | ((r & 0x3ff) << 10) | (a & 0x3ff);
@@ -485,7 +485,7 @@ static void snd_emu10k1_audigy_write_op(emu10k1_fx8010_code_t *icode, unsigned i
 {
 	u_int32_t *code;
 	snd_assert(*ptr < 1024, return);
-	code = (u_int32_t *)icode->code + (*ptr) * 2;
+	code = (u_int32_t __force *)icode->code + (*ptr) * 2;
 	set_bit(*ptr, icode->code_valid);
 	code[0] = ((x & 0x7ff) << 12) | (y & 0x7ff);
 	code[1] = ((op & 0x0f) << 24) | ((r & 0x7ff) << 12) | (a & 0x7ff);
@@ -1036,13 +1036,13 @@ static int __devinit _snd_emu10k1_audigy_init_efx(emu10k1_t *emu)
 	spin_lock_init(&emu->fx8010.irq_lock);
 	INIT_LIST_HEAD(&emu->fx8010.gpr_ctl);
 
-	if ((icode = kcalloc(1, sizeof(*icode), GFP_KERNEL)) == NULL ||
+	if ((icode = kzalloc(sizeof(*icode), GFP_KERNEL)) == NULL ||
 	    (icode->gpr_map = (u_int32_t __user *)kcalloc(512 + 256 + 256 + 2 * 1024, sizeof(u_int32_t), GFP_KERNEL)) == NULL ||
 	    (controls = kcalloc(SND_EMU10K1_GPR_CONTROLS, sizeof(*controls), GFP_KERNEL)) == NULL) {
 		err = -ENOMEM;
 		goto __err;
 	}
-	gpr_map = (u32 *)icode->gpr_map;
+	gpr_map = (u32 __force *)icode->gpr_map;
 
 	icode->tram_data_map = icode->gpr_map + 512;
 	icode->tram_addr_map = icode->tram_data_map + 256;
@@ -1431,7 +1431,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
  __err:
 	kfree(controls);
 	if (icode != NULL) {
-		kfree((void *)icode->gpr_map);
+		kfree((void __force *)icode->gpr_map);
 		kfree(icode);
 	}
 	return err;
@@ -1503,15 +1503,15 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 	spin_lock_init(&emu->fx8010.irq_lock);
 	INIT_LIST_HEAD(&emu->fx8010.gpr_ctl);
 
-	if ((icode = kcalloc(1, sizeof(*icode), GFP_KERNEL)) == NULL)
+	if ((icode = kzalloc(sizeof(*icode), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
 	if ((icode->gpr_map = (u_int32_t __user *)kcalloc(256 + 160 + 160 + 2 * 512, sizeof(u_int32_t), GFP_KERNEL)) == NULL ||
             (controls = kcalloc(SND_EMU10K1_GPR_CONTROLS, sizeof(emu10k1_fx8010_control_gpr_t), GFP_KERNEL)) == NULL ||
-	    (ipcm = kcalloc(1, sizeof(*ipcm), GFP_KERNEL)) == NULL) {
+	    (ipcm = kzalloc(sizeof(*ipcm), GFP_KERNEL)) == NULL) {
 		err = -ENOMEM;
 		goto __err;
 	}
-	gpr_map = (u32 *)icode->gpr_map;
+	gpr_map = (u32 __force *)icode->gpr_map;
 
 	icode->tram_data_map = icode->gpr_map + 256;
 	icode->tram_addr_map = icode->tram_data_map + 160;
@@ -2032,7 +2032,7 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 	kfree(ipcm);
 	kfree(controls);
 	if (icode != NULL) {
-		kfree((void *)icode->gpr_map);
+		kfree((void __force *)icode->gpr_map);
 		kfree(icode);
 	}
 	return err;
@@ -2217,7 +2217,7 @@ static int snd_emu10k1_fx8010_ioctl(snd_hwdep_t * hw, struct file *file, unsigne
 		kfree(ipcm);
 		return res;
 	case SNDRV_EMU10K1_IOCTL_PCM_PEEK:
-		ipcm = kcalloc(1, sizeof(*ipcm), GFP_KERNEL);
+		ipcm = kzalloc(sizeof(*ipcm), GFP_KERNEL);
 		if (ipcm == NULL)
 			return -ENOMEM;
 		if (copy_from_user(ipcm, argp, sizeof(*ipcm))) {

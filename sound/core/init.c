@@ -72,7 +72,7 @@ snd_card_t *snd_card_new(int idx, const char *xid,
 
 	if (extra_size < 0)
 		extra_size = 0;
-	card = kcalloc(1, sizeof(*card) + extra_size, GFP_KERNEL);
+	card = kzalloc(sizeof(*card) + extra_size, GFP_KERNEL);
 	if (card == NULL)
 		return NULL;
 	if (xid) {
@@ -226,8 +226,10 @@ int snd_card_disconnect(snd_card_t * card)
 	return 0;	
 }
 
-#if defined(CONFIG_PM) && defined(CONFIG_SND_GENERIC_PM)
-static void snd_generic_device_unregister(struct snd_generic_device *dev);
+#ifdef CONFIG_SND_GENERIC_DRIVER
+static void snd_generic_device_unregister(snd_card_t *card);
+#else
+#define snd_generic_device_unregister(x) /*NOP*/
 #endif
 
 /**
@@ -253,14 +255,7 @@ int snd_card_free(snd_card_t * card)
 
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
-#ifdef CONFIG_SND_GENERIC_PM
-	if (card->pm_dev) {
-		snd_generic_device_unregister(card->pm_dev);
-		card->pm_dev = NULL;
-	}
 #endif
-#endif
-
 	/* wait, until all devices are ready for the free operation */
 	wait_event(card->shutdown_sleep, card->files == NULL);
 
@@ -288,6 +283,7 @@ int snd_card_free(snd_card_t * card)
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
 	}
+	snd_generic_device_unregister(card);
 	while (card->s_f_ops) {
 		s_f_ops = card->s_f_ops;
 		card->s_f_ops = s_f_ops->next;
@@ -665,6 +661,96 @@ int snd_card_file_remove(snd_card_t *card, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_SND_GENERIC_DRIVER
+/*
+ * generic device without a proper bus using platform_device
+ * (e.g. ISA)
+ */
+struct snd_generic_device {
+	struct platform_device pdev;
+	snd_card_t *card;
+};
+
+#define get_snd_generic_card(dev)	container_of(to_platform_device(dev), struct snd_generic_device, pdev)->card
+
+#define SND_GENERIC_NAME	"snd_generic"
+
+#ifdef CONFIG_PM
+static int snd_generic_suspend(struct device *dev, pm_message_t state, u32 level);
+static int snd_generic_resume(struct device *dev, u32 level);
+#endif
+
+/* initialized in sound.c */
+struct device_driver snd_generic_driver = {
+	.name		= SND_GENERIC_NAME,
+	.bus		= &platform_bus_type,
+#ifdef CONFIG_PM
+	.suspend	= snd_generic_suspend,
+	.resume		= snd_generic_resume,
+#endif
+};
+
+void snd_generic_device_release(struct device *dev)
+{
+}
+
+static int snd_generic_device_register(snd_card_t *card)
+{
+	struct snd_generic_device *dev;
+	int err;
+
+	if (card->generic_dev)
+		return 0; /* already registered */
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (! dev) {
+		snd_printk(KERN_ERR "can't allocate generic_device\n");
+		return -ENOMEM;
+	}
+
+	dev->pdev.name = SND_GENERIC_NAME;
+	dev->pdev.id = card->number;
+	dev->pdev.dev.release = snd_generic_device_release;
+	dev->card = card;
+	if ((err = platform_device_register(&dev->pdev)) < 0) {
+		kfree(dev);
+		return err;
+	}
+	card->generic_dev = dev;
+	return 0;
+}
+
+static void snd_generic_device_unregister(snd_card_t *card)
+{
+	struct snd_generic_device *dev = card->generic_dev;
+	if (dev) {
+		platform_device_unregister(&dev->pdev);
+		kfree(dev);
+		card->generic_dev = NULL;
+	}
+}
+
+/**
+ * snd_card_set_generic_dev - assign the generic device to the card
+ * @card: soundcard structure
+ *
+ * Assigns a generic device to the card.  This function is provided as the
+ * last resort, for devices without any proper bus.  Thus this won't override
+ * the device already assigned to the card.
+ * 
+ * Returns zero if successful, or a negative error code.
+ */
+int snd_card_set_generic_dev(snd_card_t *card)
+{
+	int err;
+	if ((err = snd_generic_device_register(card)) < 0)
+		return err;
+	if (! card->dev)
+		snd_card_set_dev(card, &card->generic_dev->pdev.dev);
+	return 0;
+}
+#endif /* CONFIG_SND_GENERIC_DRIVER */
+
 #ifdef CONFIG_PM
 /**
  *  snd_power_wait - wait until the power-state is changed.
@@ -730,75 +816,7 @@ int snd_card_set_pm_callback(snd_card_t *card,
 	return 0;
 }
 
-#ifdef CONFIG_SND_GENERIC_PM
-/*
- * use platform_device for generic power-management without a proper bus
- * (e.g. ISA)
- */
-struct snd_generic_device {
-	struct platform_device pdev;
-	snd_card_t *card;
-};
-
-#define get_snd_generic_card(dev)	container_of(to_platform_device(dev), struct snd_generic_device, pdev)->card
-
-#define SND_GENERIC_NAME	"snd_generic_pm"
-
-static int snd_generic_suspend(struct device *dev, pm_message_t state, u32 level);
-static int snd_generic_resume(struct device *dev, u32 level);
-
-static struct device_driver snd_generic_driver = {
-	.name		= SND_GENERIC_NAME,
-	.bus		= &platform_bus_type,
-	.suspend	= snd_generic_suspend,
-	.resume		= snd_generic_resume,
-};
-
-static int generic_driver_registered;
-
-static void generic_driver_unregister(void)
-{
-	if (generic_driver_registered) {
-		generic_driver_registered--;
-		if (! generic_driver_registered)
-			driver_unregister(&snd_generic_driver);
-	}
-}
-
-static struct snd_generic_device *snd_generic_device_register(snd_card_t *card)
-{
-	struct snd_generic_device *dev;
-
-	if (! generic_driver_registered) {
-		if (driver_register(&snd_generic_driver) < 0)
-			return NULL;
-	}
-	generic_driver_registered++;
-
-	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
-	if (! dev) {
-		generic_driver_unregister();
-		return NULL;
-	}
-
-	dev->pdev.name = SND_GENERIC_NAME;
-	dev->pdev.id = card->number;
-	dev->card = card;
-	if (platform_device_register(&dev->pdev) < 0) {
-		kfree(dev);
-		generic_driver_unregister();
-		return NULL;
-	}
-	return dev;
-}
-
-static void snd_generic_device_unregister(struct snd_generic_device *dev)
-{
-	platform_device_unregister(&dev->pdev);
-	kfree(dev);
-	generic_driver_unregister();
-}
-
+#ifdef CONFIG_SND_GENERIC_DRIVER
 /* suspend/resume callbacks for snd_generic platform device */
 static int snd_generic_suspend(struct device *dev, pm_message_t state, u32 level)
 {
@@ -846,13 +864,12 @@ int snd_card_set_generic_pm_callback(snd_card_t *card,
 				 int (*resume)(snd_card_t *),
 				 void *private_data)
 {
-	card->pm_dev = snd_generic_device_register(card);
-	if (! card->pm_dev)
-		return -ENOMEM;
-	snd_card_set_pm_callback(card, suspend, resume, private_data);
-	return 0;
+	int err;
+	if ((err = snd_generic_device_register(card)) < 0)
+		return err;
+	return snd_card_set_pm_callback(card, suspend, resume, private_data);
 }
-#endif /* CONFIG_SND_GENERIC_PM */
+#endif /* CONFIG_SND_GENERIC_DRIVER */
 
 #ifdef CONFIG_PCI
 int snd_card_pci_suspend(struct pci_dev *dev, pm_message_t state)

@@ -471,7 +471,7 @@ cpu_arm926_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__arm926_proc_info,#object
 __arm926_proc_info:

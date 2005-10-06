@@ -1009,10 +1009,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config HAVE_DEC_LOCK
-	bool
-	default y
-
 #
 # Select some configuration options automatically based on user selections.
 #

@@ -15,7 +15,6 @@
 #include <linux/ioport.h>
 
 #include <asm/sections.h>
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/prep_nvram.h>

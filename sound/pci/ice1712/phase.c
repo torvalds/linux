@@ -122,7 +122,7 @@ static int __devinit phase22_init(ice1712_t *ice)
 	}
 
 	// Initialize analog chips
-	ak = ice->akm = kcalloc(1, sizeof(akm4xxx_t), GFP_KERNEL);
+	ak = ice->akm = kzalloc(sizeof(akm4xxx_t), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;
@@ -386,7 +386,7 @@ static int __devinit phase28_init(ice1712_t *ice)
 	ice->num_total_adcs = 2;
 
 	// Initialize analog chips
-	ak = ice->akm = kcalloc(1, sizeof(akm4xxx_t), GFP_KERNEL);
+	ak = ice->akm = kzalloc(sizeof(akm4xxx_t), GFP_KERNEL);
 	if (!ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;

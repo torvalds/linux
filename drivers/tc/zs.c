@@ -1683,7 +1683,7 @@ static void __init probe_sccs(void)
 #ifndef CONFIG_SERIAL_DEC_CONSOLE
 			/*
 			 * We're called early and memory managment isn't up, yet.
-			 * Thus check_region would fail.
+			 * Thus request_region would fail.
 			 */
 			if (!request_region((unsigned long)
 					 zs_channels[n_channels].control,

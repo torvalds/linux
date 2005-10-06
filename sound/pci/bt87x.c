@@ -59,16 +59,6 @@ module_param(load_all, bool, 0444);
 MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
 
 
-#ifndef PCI_VENDOR_ID_BROOKTREE
-#define PCI_VENDOR_ID_BROOKTREE 0x109e
-#endif
-#ifndef PCI_DEVICE_ID_BROOKTREE_878
-#define PCI_DEVICE_ID_BROOKTREE_878 0x0878
-#endif
-#ifndef PCI_DEVICE_ID_BROOKTREE_879
-#define PCI_DEVICE_ID_BROOKTREE_879 0x0879
-#endif
-
 /* register offsets */
 #define REG_INT_STAT		0x100	/* interrupt status */
 #define REG_INT_MASK		0x104	/* interrupt mask */
@@ -720,7 +710,7 @@ static int __devinit snd_bt87x_create(snd_card_t *card,
 	if (err < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -911,6 +901,7 @@ static struct pci_device_id snd_bt87x_default_ids[] = {
 
 static struct pci_driver driver = {
 	.name = "Bt87x",
+	.owner = THIS_MODULE,
 	.id_table = snd_bt87x_ids,
 	.probe = snd_bt87x_probe,
 	.remove = __devexit_p(snd_bt87x_remove),

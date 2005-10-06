@@ -205,7 +205,7 @@ static int snd_virmidi_input_open(snd_rawmidi_substream_t * substream)
 	snd_virmidi_t *vmidi;
 	unsigned long flags;
 
-	vmidi = kcalloc(1, sizeof(*vmidi), GFP_KERNEL);
+	vmidi = kzalloc(sizeof(*vmidi), GFP_KERNEL);
 	if (vmidi == NULL)
 		return -ENOMEM;
 	vmidi->substream = substream;
@@ -233,7 +233,7 @@ static int snd_virmidi_output_open(snd_rawmidi_substream_t * substream)
 	snd_rawmidi_runtime_t *runtime = substream->runtime;
 	snd_virmidi_t *vmidi;
 
-	vmidi = kcalloc(1, sizeof(*vmidi), GFP_KERNEL);
+	vmidi = kzalloc(sizeof(*vmidi), GFP_KERNEL);
 	if (vmidi == NULL)
 		return -ENOMEM;
 	vmidi->substream = substream;
@@ -508,7 +508,7 @@ int snd_virmidi_new(snd_card_t *card, int device, snd_rawmidi_t **rrmidi)
 				   &rmidi)) < 0)
 		return err;
 	strcpy(rmidi->name, rmidi->id);
-	rdev = kcalloc(1, sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (rdev == NULL) {
 		snd_device_free(card, rmidi);
 		return -ENOMEM;

@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
 #include <linux/errno.h>
@@ -575,7 +574,7 @@ static void openpic2_cached_disable_irq(u_int irq)
  * we need something better to deal with that... Maybe switch to S1 for
  * cpufreq changes
  */
-int openpic2_suspend(struct sys_device *sysdev, u32 state)
+int openpic2_suspend(struct sys_device *sysdev, pm_message_t state)
 {
 	int	i;
 	unsigned long flags;

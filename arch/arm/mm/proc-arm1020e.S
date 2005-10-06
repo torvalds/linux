@@ -491,7 +491,7 @@ cpu_arm1020e_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__arm1020e_proc_info,#object
 __arm1020e_proc_info:

@@ -333,8 +333,13 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		if (prev && prev->vm_end < vma->vm_start)
 			return ERR_PTR(-EFAULT);
 		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
+			unsigned long endvma = vma->vm_end;
+			if (endvma > end)
+				endvma = end;
+			if (vma->vm_start > start)
+				start = vma->vm_start;
 			err = check_pgd_range(vma->vm_mm,
-					   vma->vm_start, vma->vm_end, nodes);
+					   start, endvma, nodes);
 			if (err) {
 				first = ERR_PTR(err);
 				break;

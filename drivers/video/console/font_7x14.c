@@ -7,7 +7,7 @@
 
 #define FONTDATAMAX 3584
 
-static unsigned char fontdata_7x14[FONTDATAMAX] = {
+static const unsigned char fontdata_7x14[FONTDATAMAX] = {
 
 	/* 0 0x00 '^@' */
 	0x00, /* 0000000 */
@@ -4108,7 +4108,7 @@ static unsigned char fontdata_7x14[FONTDATAMAX] = {
 };
 
 
-struct font_desc font_7x14 = {
+const struct font_desc font_7x14 = {
 	FONT7x14_IDX,
 	"7x14",
 	7,

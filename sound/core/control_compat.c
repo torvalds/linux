@@ -92,7 +92,7 @@ static int snd_ctl_elem_info_compat(snd_ctl_file_t *ctl, struct sndrv_ctl_elem_i
 	struct sndrv_ctl_elem_info *data;
 	int err;
 
-	data = kcalloc(1, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (! data)
 		return -ENOMEM;
 
@@ -271,7 +271,7 @@ static int snd_ctl_elem_read_user_compat(snd_card_t *card,
 	struct sndrv_ctl_elem_value *data;
 	int err, type, count;
 
-	data = kcalloc(1, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -291,7 +291,7 @@ static int snd_ctl_elem_write_user_compat(snd_ctl_file_t *file,
 	struct sndrv_ctl_elem_value *data;
 	int err, type, count;
 
-	data = kcalloc(1, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -313,7 +313,7 @@ static int snd_ctl_elem_add_compat(snd_ctl_file_t *file,
 	struct sndrv_ctl_elem_info *data;
 	int err;
 
-	data = kcalloc(1, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (! data)
 		return -ENOMEM;
 

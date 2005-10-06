@@ -27,7 +27,6 @@
 #include <linux/spinlock.h>
 
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
@@ -551,7 +550,7 @@ struct locomo_save_data {
 	u16	LCM_SPIMD;
 };
 
-static int locomo_suspend(struct device *dev, u32 pm_message_t, u32 level)
+static int locomo_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct locomo *lchip = dev_get_drvdata(dev);
 	struct locomo_save_data *save;

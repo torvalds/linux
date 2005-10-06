@@ -48,90 +48,18 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
-       struct frag_hdr _frag, *fh = NULL;
+       struct frag_hdr _frag, *fh;
        const struct ip6t_frag *fraginfo = matchinfo;
-       unsigned int temp;
-       int len;
-       u8 nexthdr;
        unsigned int ptr;
-       unsigned int hdrlen = 0;
 
-       /* type of the 1st exthdr */
-       nexthdr = skb->nh.ipv6h->nexthdr;
-       /* pointer to the 1st exthdr */
-       ptr = sizeof(struct ipv6hdr);
-       /* available length */
-       len = skb->len - ptr;
-       temp = 0;
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_FRAGMENT) < 0)
+		return 0;
 
-        while (ip6t_ext_hdr(nexthdr)) {
-               struct ipv6_opt_hdr _hdr, *hp;
-
-              DEBUGP("ipv6_frag header iteration \n");
-
-              /* Is there enough space for the next ext header? */
-                if (len < (int)sizeof(struct ipv6_opt_hdr))
-                        return 0;
-              /* No more exthdr -> evaluate */
-                if (nexthdr == NEXTHDR_NONE) {
-                     break;
-              }
-              /* ESP -> evaluate */
-                if (nexthdr == NEXTHDR_ESP) {
-                     break;
-              }
-
-	      hp = skb_header_pointer(skb, ptr, sizeof(_hdr), &_hdr);
-	      BUG_ON(hp == NULL);
-
-              /* Calculate the header length */
-                if (nexthdr == NEXTHDR_FRAGMENT) {
-                        hdrlen = 8;
-                } else if (nexthdr == NEXTHDR_AUTH)
-                        hdrlen = (hp->hdrlen+2)<<2;
-                else
-                        hdrlen = ipv6_optlen(hp);
-
-              /* FRAG -> evaluate */
-                if (nexthdr == NEXTHDR_FRAGMENT) {
-                     temp |= MASK_FRAGMENT;
-                     break;
-              }
-
-
-              /* set the flag */
-              switch (nexthdr){
-                     case NEXTHDR_HOP:
-                     case NEXTHDR_ROUTING:
-                     case NEXTHDR_FRAGMENT:
-                     case NEXTHDR_AUTH:
-                     case NEXTHDR_DEST:
-                            break;
-                     default:
-                            DEBUGP("ipv6_frag match: unknown nextheader %u\n",nexthdr);
-                            return 0;
-                            break;
-              }
-
-                nexthdr = hp->nexthdr;
-                len -= hdrlen;
-                ptr += hdrlen;
-		if ( ptr > skb->len ) {
-			DEBUGP("ipv6_frag: new pointer too large! \n");
-			break;
-		}
-        }
-
-       /* FRAG header not found */
-       if ( temp != MASK_FRAGMENT ) return 0;
-
-       if (len < sizeof(struct frag_hdr)){
-	       *hotdrop = 1;
-       		return 0;
-       }
-
-       fh = skb_header_pointer(skb, ptr, sizeof(_frag), &_frag);
-       BUG_ON(fh == NULL);
+	fh = skb_header_pointer(skb, ptr, sizeof(_frag), &_frag);
+	if (fh == NULL){
+		*hotdrop = 1;
+		return 0;
+	}
 
        DEBUGP("INFO %04X ", fh->frag_off);
        DEBUGP("OFFSET %04X ", ntohs(fh->frag_off) & ~0x7);

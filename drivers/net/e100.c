@@ -1387,13 +1387,13 @@ static void e100_update_stats(struct nic *nic)
 		ns->collisions += nic->tx_collisions;
 		ns->tx_errors += le32_to_cpu(s->tx_max_collisions) +
 			le32_to_cpu(s->tx_lost_crs);
-		ns->rx_dropped += le32_to_cpu(s->rx_resource_errors);
 		ns->rx_length_errors += le32_to_cpu(s->rx_short_frame_errors) +
 			nic->rx_over_length_errors;
 		ns->rx_crc_errors += le32_to_cpu(s->rx_crc_errors);
 		ns->rx_frame_errors += le32_to_cpu(s->rx_alignment_errors);
 		ns->rx_over_errors += le32_to_cpu(s->rx_overrun_errors);
 		ns->rx_fifo_errors += le32_to_cpu(s->rx_overrun_errors);
+		ns->rx_missed_errors += le32_to_cpu(s->rx_resource_errors);
 		ns->rx_errors += le32_to_cpu(s->rx_crc_errors) +
 			le32_to_cpu(s->rx_alignment_errors) +
 			le32_to_cpu(s->rx_short_frame_errors) +
@@ -1727,12 +1727,10 @@ static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 	if(unlikely(!(rfd_status & cb_ok))) {
 		/* Don't indicate if hardware indicates errors */
-		nic->net_stats.rx_dropped++;
 		dev_kfree_skb_any(skb);
 	} else if(actual_size > ETH_DATA_LEN + VLAN_ETH_HLEN) {
 		/* Don't indicate oversized frames */
 		nic->rx_over_length_errors++;
-		nic->net_stats.rx_dropped++;
 		dev_kfree_skb_any(skb);
 	} else {
 		nic->net_stats.rx_packets++;

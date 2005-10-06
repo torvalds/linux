@@ -24,21 +24,23 @@
 #include <asm/processor.h>
 #include <asm/const.h>
 
-/* The kernel image occupies 0x4000000 to 0x1000000 (4MB --> 16MB).
- * The page copy blockops use 0x1000000 to 0x18000000 (16MB --> 24MB).
+/* The kernel image occupies 0x4000000 to 0x1000000 (4MB --> 32MB).
+ * The page copy blockops can use 0x2000000 to 0x10000000.
  * The PROM resides in an area spanning 0xf0000000 to 0x100000000.
- * The vmalloc area spans 0x140000000 to 0x200000000.
+ * The vmalloc area spans 0x100000000 to 0x200000000.
+ * Since modules need to be in the lowest 32-bits of the address space,
+ * we place them right before the OBP area from 0x10000000 to 0xf0000000.
  * There is a single static kernel PMD which maps from 0x0 to address
  * 0x400000000.
  */
-#define	TLBTEMP_BASE		_AC(0x0000000001000000,UL)
-#define MODULES_VADDR		_AC(0x0000000002000000,UL)
-#define MODULES_LEN		_AC(0x000000007e000000,UL)
-#define MODULES_END		_AC(0x0000000080000000,UL)
-#define VMALLOC_START		_AC(0x0000000140000000,UL)
-#define VMALLOC_END		_AC(0x0000000200000000,UL)
+#define	TLBTEMP_BASE		_AC(0x0000000002000000,UL)
+#define MODULES_VADDR		_AC(0x0000000010000000,UL)
+#define MODULES_LEN		_AC(0x00000000e0000000,UL)
+#define MODULES_END		_AC(0x00000000f0000000,UL)
 #define LOW_OBP_ADDRESS		_AC(0x00000000f0000000,UL)
 #define HI_OBP_ADDRESS		_AC(0x0000000100000000,UL)
+#define VMALLOC_START		_AC(0x0000000100000000,UL)
+#define VMALLOC_END		_AC(0x0000000200000000,UL)
 
 /* XXX All of this needs to be rethought so we can take advantage
  * XXX cheetah's full 64-bit virtual address space, ie. no more hole
@@ -58,13 +60,13 @@
  * table can map
  */
 #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
-#define PMD_SIZE	(1UL << PMD_SHIFT)
+#define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 #define PMD_BITS	(PAGE_SHIFT - 2)
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 #define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PGDIR_BITS	(PAGE_SHIFT - 2)
 
@@ -96,7 +98,9 @@
 #define _PAGE_NFO	_AC(0x1000000000000000,UL) /* No Fault Only          */
 #define _PAGE_IE	_AC(0x0800000000000000,UL) /* Invert Endianness      */
 #define _PAGE_SOFT2	_AC(0x07FC000000000000,UL) /* Software bits, set 2   */
-#define _PAGE_RES1	_AC(0x0003000000000000,UL) /* Reserved               */
+#define _PAGE_RES1	_AC(0x0002000000000000,UL) /* Reserved               */
+#define _PAGE_SZ32MB	_AC(0x0001000000000000,UL) /* (Panther) 32MB page    */
+#define _PAGE_SZ256MB	_AC(0x2001000000000000,UL) /* (Panther) 256MB page   */
 #define _PAGE_SN	_AC(0x0000800000000000,UL) /* (Cheetah) Snoop        */
 #define _PAGE_RES2	_AC(0x0000780000000000,UL) /* Reserved               */
 #define _PAGE_PADDR_SF	_AC(0x000001FFFFFFE000,UL) /* (Spitfire) paddr[40:13]*/
@@ -334,7 +338,11 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *p
 #define pte_clear(mm,addr,ptep)		\
 	set_pte_at((mm), (addr), (ptep), __pte(0UL))
 
-extern pgd_t swapper_pg_dir[1];
+extern pgd_t swapper_pg_dir[2048];
+extern pmd_t swapper_low_pmd_dir[2048];
+
+extern void paging_init(void);
+extern unsigned long find_ecache_flush_span(unsigned long size);
 
 /* These do nothing with the way I have things setup. */
 #define mmu_lockarea(vaddr, len)		(vaddr)

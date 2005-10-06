@@ -288,7 +288,7 @@ static int init_unsol_queue(struct hda_bus *bus)
 {
 	struct hda_bus_unsolicited *unsol;
 
-	unsol = kcalloc(1, sizeof(*unsol), GFP_KERNEL);
+	unsol = kzalloc(sizeof(*unsol), GFP_KERNEL);
 	if (! unsol) {
 		snd_printk(KERN_ERR "hda_codec: can't allocate unsolicited queue\n");
 		return -ENOMEM;
@@ -358,7 +358,7 @@ int snd_hda_bus_new(snd_card_t *card, const struct hda_bus_template *temp,
 	if (busp)
 		*busp = NULL;
 
-	bus = kcalloc(1, sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL) {
 		snd_printk(KERN_ERR "can't allocate struct hda_bus\n");
 		return -ENOMEM;
@@ -493,7 +493,7 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		return -EBUSY;
 	}
 
-	codec = kcalloc(1, sizeof(*codec), GFP_KERNEL);
+	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
 	if (codec == NULL) {
 		snd_printk(KERN_ERR "can't allocate struct hda_codec\n");
 		return -ENOMEM;

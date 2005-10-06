@@ -1955,6 +1955,57 @@ static void __exit fini(void)
 #endif
 }
 
+/*
+ * find specified header up to transport protocol header.
+ * If found target header, the offset to the header is set to *offset
+ * and return 0. otherwise, return -1.
+ *
+ * Notes: - non-1st Fragment Header isn't skipped.
+ *	  - ESP header isn't skipped.
+ *	  - The target header may be trancated.
+ */
+int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset, u8 target)
+{
+	unsigned int start = (u8*)(skb->nh.ipv6h + 1) - skb->data;
+	u8 nexthdr = skb->nh.ipv6h->nexthdr;
+	unsigned int len = skb->len - start;
+
+	while (nexthdr != target) {
+		struct ipv6_opt_hdr _hdr, *hp;
+		unsigned int hdrlen;
+
+		if ((!ipv6_ext_hdr(nexthdr)) || nexthdr == NEXTHDR_NONE)
+			return -1;
+		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
+		if (hp == NULL)
+			return -1;
+		if (nexthdr == NEXTHDR_FRAGMENT) {
+			unsigned short _frag_off, *fp;
+			fp = skb_header_pointer(skb,
+						start+offsetof(struct frag_hdr,
+							       frag_off),
+						sizeof(_frag_off),
+						&_frag_off);
+			if (fp == NULL)
+				return -1;
+
+			if (ntohs(*fp) & ~0x7)
+				return -1;
+			hdrlen = 8;
+		} else if (nexthdr == NEXTHDR_AUTH)
+			hdrlen = (hp->hdrlen + 2) << 2; 
+		else
+			hdrlen = ipv6_optlen(hp); 
+
+		nexthdr = hp->nexthdr;
+		len -= hdrlen;
+		start += hdrlen;
+	}
+
+	*offset = start;
+	return 0;
+}
+
 EXPORT_SYMBOL(ip6t_register_table);
 EXPORT_SYMBOL(ip6t_unregister_table);
 EXPORT_SYMBOL(ip6t_do_table);
@@ -1963,6 +2014,7 @@ EXPORT_SYMBOL(ip6t_unregister_match);
 EXPORT_SYMBOL(ip6t_register_target);
 EXPORT_SYMBOL(ip6t_unregister_target);
 EXPORT_SYMBOL(ip6t_ext_hdr);
+EXPORT_SYMBOL(ipv6_find_hdr);
 
 module_init(init);
 module_exit(fini);

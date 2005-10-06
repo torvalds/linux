@@ -30,6 +30,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+
+#include <asm/hardware/arm_twd.h>
 #include <asm/uaccess.h>
 
 struct mpcore_wdt {

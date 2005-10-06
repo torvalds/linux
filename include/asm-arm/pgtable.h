@@ -445,12 +445,9 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define HAVE_ARCH_UNMAPPED_AREA
 
 /*
- * remap a physical address `phys' of size `size' with page protection `prot'
+ * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
-#define io_remap_page_range(vma,from,phys,size,prot) \
-		remap_pfn_range(vma, from, (phys) >> PAGE_SHIFT, size, prot)
-
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
 		remap_pfn_range(vma, from, pfn, size, prot)
 

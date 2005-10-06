@@ -37,6 +37,7 @@
 #include <linux/namei.h>
 #include <linux/uio.h>
 #include <linux/vfs.h>
+#include <linux/rcupdate.h>
 
 #include <asm/fpu.h>
 #include <asm/io.h>
@@ -975,6 +976,7 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 	long timeout;
 	int ret = -EINVAL;
 	struct fdtable *fdt;
+	int max_fdset;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
@@ -996,8 +998,11 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 		}
 	}
 
+	rcu_read_lock();
 	fdt = files_fdtable(current->files);
-	if (n < 0 || n > fdt->max_fdset)
+	max_fdset = fdt->max_fdset;
+	rcu_read_unlock();
+	if (n < 0 || n > max_fdset)
 		goto out_nofds;
 
 	/*

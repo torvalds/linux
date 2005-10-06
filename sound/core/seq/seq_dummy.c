@@ -153,7 +153,7 @@ create_port(int idx, int type)
 	snd_seq_port_callback_t pcb;
 	snd_seq_dummy_port_t *rec;
 
-	if ((rec = kcalloc(1, sizeof(*rec), GFP_KERNEL)) == NULL)
+	if ((rec = kzalloc(sizeof(*rec), GFP_KERNEL)) == NULL)
 		return NULL;
 
 	rec->client = my_client;

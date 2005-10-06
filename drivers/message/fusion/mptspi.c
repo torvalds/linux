@@ -199,7 +199,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 			"Skipping ioc=%p because SCSI Initiator mode is NOT enabled!\n",
 			ioc->name, ioc);
-		return -ENODEV;
+		return 0;
 	}
 
 	sh = scsi_host_alloc(&mptspi_driver_template, sizeof(MPT_SCSI_HOST));

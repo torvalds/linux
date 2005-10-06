@@ -5,7 +5,9 @@
 #ifndef _ASM_IA64_THREAD_INFO_H
 #define _ASM_IA64_THREAD_INFO_H
 
+#ifndef ASM_OFFSETS_C
 #include <asm/asm-offsets.h>
+#endif
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 
@@ -51,9 +53,14 @@ struct thread_info {
 	},					\
 }
 
+#ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
 #define alloc_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
+#else
+#define current_thread_info()	((struct thread_info *) 0)
+#define alloc_thread_info(tsk)	((struct thread_info *) 0)
+#endif
 #define free_thread_info(ti)	/* nothing */
 
 #define __HAVE_ARCH_TASK_STRUCT_ALLOCATOR

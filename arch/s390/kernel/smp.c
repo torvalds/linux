@@ -65,6 +65,7 @@ extern char vmhalt_cmd[];
 extern char vmpoff_cmd[];
 
 extern void reipl(unsigned long devno);
+extern void reipl_diag(void);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 static void smp_ext_bitcall_others(ec_bit_sig);
@@ -283,6 +284,8 @@ static void do_machine_restart(void * __unused)
 	 * interrupted by an external interrupt and s390irq
 	 * locks are always held disabled).
 	 */
+	reipl_diag();
+
 	if (MACHINE_IS_VM)
 		cpcmd ("IPL", NULL, 0, NULL);
 	else

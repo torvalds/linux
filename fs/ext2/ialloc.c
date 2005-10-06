@@ -605,27 +605,28 @@ got:
 	insert_inode_hash(inode);
 
 	if (DQUOT_ALLOC_INODE(inode)) {
-		DQUOT_DROP(inode);
 		err = -ENOSPC;
-		goto fail2;
+		goto fail_drop;
 	}
+
 	err = ext2_init_acl(inode, dir);
-	if (err) {
-		DQUOT_FREE_INODE(inode);
-		DQUOT_DROP(inode);
-		goto fail2;
-	}
+	if (err)
+		goto fail_free_drop;
+
 	err = ext2_init_security(inode,dir);
-	if (err) {
-		DQUOT_FREE_INODE(inode);
-		goto fail2;
-	}
+	if (err)
+		goto fail_free_drop;
+
 	mark_inode_dirty(inode);
 	ext2_debug("allocating inode %lu\n", inode->i_ino);
 	ext2_preread_inode(inode);
 	return inode;
 
-fail2:
+fail_free_drop:
+	DQUOT_FREE_INODE(inode);
+
+fail_drop:
+	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	iput(inode);

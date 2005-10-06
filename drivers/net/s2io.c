@@ -428,7 +428,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 				DBG_PRINT(INIT_DBG, 
 				"%s: Zero DMA address for TxDL. ", dev->name);
 				DBG_PRINT(INIT_DBG, 
-				"Virtual address %llx\n", (u64)tmp_v);
+				"Virtual address %p\n", tmp_v);
 				tmp_v = pci_alloc_consistent(nic->pdev,
 						     PAGE_SIZE, &tmp_p);
 				if (!tmp_v) {
@@ -657,9 +657,10 @@ static void free_shared_mem(struct s2io_nic *nic)
 					    mac_control->zerodma_virt_addr,
 					    (dma_addr_t)0);
 			DBG_PRINT(INIT_DBG, 
-			"%s: Freeing TxDL with zero DMA addr. ", dev->name);
-			DBG_PRINT(INIT_DBG, "Virtual address %llx\n",
-			(u64)(mac_control->zerodma_virt_addr));
+			  	"%s: Freeing TxDL with zero DMA addr. ",
+				dev->name);
+			DBG_PRINT(INIT_DBG, "Virtual address %p\n",
+				mac_control->zerodma_virt_addr);
 		}
 		kfree(mac_control->fifos[i].list_info);
 	}

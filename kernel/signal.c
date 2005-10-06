@@ -936,26 +936,23 @@ force_sig_specific(int sig, struct task_struct *t)
  * as soon as they're available, so putting the signal on the shared queue
  * will be equivalent to sending it to one such thread.
  */
-#define wants_signal(sig, p, mask) 			\
-	(!sigismember(&(p)->blocked, sig)		\
-	 && !((p)->state & mask)			\
-	 && !((p)->flags & PF_EXITING)			\
-	 && (task_curr(p) || !signal_pending(p)))
-
+static inline int wants_signal(int sig, struct task_struct *p)
+{
+	if (sigismember(&p->blocked, sig))
+		return 0;
+	if (p->flags & PF_EXITING)
+		return 0;
+	if (sig == SIGKILL)
+		return 1;
+	if (p->state & (TASK_STOPPED | TASK_TRACED))
+		return 0;
+	return task_curr(p) || !signal_pending(p);
+}
 
 static void
 __group_complete_signal(int sig, struct task_struct *p)
 {
-	unsigned int mask;
 	struct task_struct *t;
-
-	/*
-	 * Don't bother traced and stopped tasks (but
-	 * SIGKILL will punch through that).
-	 */
-	mask = TASK_STOPPED | TASK_TRACED;
-	if (sig == SIGKILL)
-		mask = 0;
 
 	/*
 	 * Now find a thread we can wake up to take the signal off the queue.
@@ -963,7 +960,7 @@ __group_complete_signal(int sig, struct task_struct *p)
 	 * If the main thread wants the signal, it gets first crack.
 	 * Probably the least surprising to the average bear.
 	 */
-	if (wants_signal(sig, p, mask))
+	if (wants_signal(sig, p))
 		t = p;
 	else if (thread_group_empty(p))
 		/*
@@ -981,7 +978,7 @@ __group_complete_signal(int sig, struct task_struct *p)
 			t = p->signal->curr_target = p;
 		BUG_ON(t->tgid != p->tgid);
 
-		while (!wants_signal(sig, t, mask)) {
+		while (!wants_signal(sig, t)) {
 			t = next_thread(t);
 			if (t == p->signal->curr_target)
 				/*
@@ -1766,7 +1763,8 @@ do_signal_stop(int signr)
 				 * stop is always done with the siglock held,
 				 * so this check has no races.
 				 */
-				if (t->state < TASK_STOPPED) {
+				if (!t->exit_state &&
+				    !(t->state & (TASK_STOPPED|TASK_TRACED))) {
 					stop_count++;
 					signal_wake_up(t, 0);
 				}

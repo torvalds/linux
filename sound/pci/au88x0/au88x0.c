@@ -79,19 +79,21 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 
 static void __devinit snd_vortex_workaround(struct pci_dev *vortex, int fix)
 {
-	struct pci_dev *via;
+	struct pci_dev *via = NULL;
 
 	/* autodetect if workarounds are required */
 	if (fix == 255) {
 		/* VIA KT133 */
-		via = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8365_1, NULL);
+		via = pci_get_device(PCI_VENDOR_ID_VIA,
+			PCI_DEVICE_ID_VIA_8365_1, NULL);
 		/* VIA Apollo */
 		if (via == NULL) {
-			via = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C598_1, NULL);
-		}
-		/* AMD Irongate */
-		if (via == NULL) {
-			via = pci_find_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_FE_GATE_7007, NULL);
+			via = pci_get_device(PCI_VENDOR_ID_VIA,
+				PCI_DEVICE_ID_VIA_82C598_1, NULL);
+			/* AMD Irongate */
+			if (via == NULL)
+				via = pci_get_device(PCI_VENDOR_ID_AMD,
+					PCI_DEVICE_ID_AMD_FE_GATE_7007, NULL);
 		}
 		if (via) {
 			printk(KERN_INFO CARD_NAME ": Activating latency workaround...\n");
@@ -101,13 +103,17 @@ static void __devinit snd_vortex_workaround(struct pci_dev *vortex, int fix)
 	} else {
 		if (fix & 0x1)
 			vortex_fix_latency(vortex);
-		if ((fix & 0x2) && (via = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8365_1, NULL)))
+		if ((fix & 0x2) && (via = pci_get_device(PCI_VENDOR_ID_VIA,
+				PCI_DEVICE_ID_VIA_8365_1, NULL)))
 			vortex_fix_agp_bridge(via);
-		if ((fix & 0x4) && (via = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C598_1, NULL)))
+		if ((fix & 0x4) && (via = pci_get_device(PCI_VENDOR_ID_VIA,
+				PCI_DEVICE_ID_VIA_82C598_1, NULL)))
 			vortex_fix_agp_bridge(via);
-		if ((fix & 0x8) && (via = pci_find_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_FE_GATE_7007, NULL)))
+		if ((fix & 0x8) && (via = pci_get_device(PCI_VENDOR_ID_AMD,
+				PCI_DEVICE_ID_AMD_FE_GATE_7007, NULL)))
 			vortex_fix_agp_bridge(via);
 	}
+	pci_dev_put(via);
 }
 
 // component-destructor
@@ -150,7 +156,7 @@ snd_vortex_create(snd_card_t * card, struct pci_dev *pci, vortex_t ** rchip)
 	}
 	pci_set_dma_mask(pci, VORTEX_DMA_MASK);
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
@@ -367,6 +373,7 @@ static void __devexit snd_vortex_remove(struct pci_dev *pci)
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = CARD_NAME_SHORT,
+	.owner = THIS_MODULE,
 	.id_table = snd_vortex_ids,
 	.probe = snd_vortex_probe,
 	.remove = __devexit_p(snd_vortex_remove),

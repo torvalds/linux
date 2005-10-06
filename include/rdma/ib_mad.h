@@ -108,6 +108,13 @@
 #define IB_QP1_QKEY	0x80010000
 #define IB_QP_SET_QKEY	0x80000000
 
+enum {
+	IB_MGMT_MAD_DATA = 232,
+	IB_MGMT_RMPP_DATA = 220,
+	IB_MGMT_VENDOR_DATA = 216,
+	IB_MGMT_SA_DATA = 200
+};
+
 struct ib_mad_hdr {
 	u8	base_version;
 	u8	mgmt_class;
@@ -149,20 +156,20 @@ struct ib_sa_hdr {
 
 struct ib_mad {
 	struct ib_mad_hdr	mad_hdr;
-	u8			data[232];
+	u8			data[IB_MGMT_MAD_DATA];
 };
 
 struct ib_rmpp_mad {
 	struct ib_mad_hdr	mad_hdr;
 	struct ib_rmpp_hdr	rmpp_hdr;
-	u8			data[220];
+	u8			data[IB_MGMT_RMPP_DATA];
 };
 
 struct ib_sa_mad {
 	struct ib_mad_hdr	mad_hdr;
 	struct ib_rmpp_hdr	rmpp_hdr;
 	struct ib_sa_hdr	sa_hdr;
-	u8			data[200];
+	u8			data[IB_MGMT_SA_DATA];
 } __attribute__ ((packed));
 
 struct ib_vendor_mad {
@@ -170,7 +177,7 @@ struct ib_vendor_mad {
 	struct ib_rmpp_hdr	rmpp_hdr;
 	u8			reserved;
 	u8			oui[3];
-	u8			data[216];
+	u8			data[IB_MGMT_VENDOR_DATA];
 };
 
 struct ib_class_port_info

@@ -359,7 +359,7 @@ int snd_hwdep_new(snd_card_t * card, char *id, int device, snd_hwdep_t ** rhwdep
 	snd_assert(rhwdep != NULL, return -EINVAL);
 	*rhwdep = NULL;
 	snd_assert(card != NULL, return -ENXIO);
-	hwdep = kcalloc(1, sizeof(*hwdep), GFP_KERNEL);
+	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
 	if (hwdep == NULL)
 		return -ENOMEM;
 	hwdep->card = card;

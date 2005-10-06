@@ -160,7 +160,7 @@ static int __init com90io_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "com90io probe")) {
-		BUGMSG(D_INIT_REASONS, "IO check_region %x-%x failed.\n",
+		BUGMSG(D_INIT_REASONS, "IO request_region %x-%x failed.\n",
 		       ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
 		return -ENXIO;
 	}
@@ -242,7 +242,7 @@ static int __init com90io_found(struct net_device *dev)
 		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}
-	/* Reserve the I/O region - guaranteed to work by check_region */
+	/* Reserve the I/O region */
 	if (!request_region(dev->base_addr, ARCNET_TOTAL_SIZE, "arcnet (COM90xx-IO)")) {
 		free_irq(dev->irq, dev);
 		return -EBUSY;

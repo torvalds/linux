@@ -143,6 +143,8 @@ struct snd_opl3sa2 {
 
 static snd_card_t *snd_opl3sa2_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
+#define PFX	"opl3sa2: "
+
 #ifdef CONFIG_PNP
 
 static struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
@@ -231,7 +233,7 @@ static int __init snd_opl3sa2_detect(opl3sa2_t *chip)
 	card = chip->card;
 	port = chip->port;
 	if ((chip->res_port = request_region(port, 2, "OPL3-SA control")) == NULL) {
-		snd_printk(KERN_ERR "opl3sa2: can't grab port 0x%lx\n", port);
+		snd_printk(KERN_ERR PFX "can't grab port 0x%lx\n", port);
 		return -EBUSY;
 	}
 	// snd_printk("REG 0A = 0x%x\n", snd_opl3sa2_read(chip, 0x0a));
@@ -668,6 +670,12 @@ static int snd_opl3sa2_dev_free(snd_device_t *device)
 	return snd_opl3sa2_free(chip);
 }
 
+#ifdef CONFIG_PNP
+#define is_isapnp_selected(dev)		isapnp[dev]
+#else
+#define is_isapnp_selected(dev)		0
+#endif
+
 static int __devinit snd_opl3sa2_probe(int dev,
 				       struct pnp_dev *pdev,
 				       struct pnp_card_link *pcard,
@@ -683,34 +691,31 @@ static int __devinit snd_opl3sa2_probe(int dev,
 	};
 	int err;
 
-#ifdef CONFIG_PNP
-	if (!isapnp[dev]) {
-#endif
+	if (! is_isapnp_selected(dev)) {
 		if (port[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify port\n");
+			snd_printk(KERN_ERR PFX "specify port\n");
 			return -EINVAL;
 		}
 		if (wss_port[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify wss_port\n");
+			snd_printk(KERN_ERR PFX "specify wss_port\n");
 			return -EINVAL;
 		}
 		if (fm_port[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify fm_port\n");
+			snd_printk(KERN_ERR PFX "specify fm_port\n");
 			return -EINVAL;
 		}
 		if (midi_port[dev] == SNDRV_AUTO_PORT) {
-			snd_printk("specify midi_port\n");
+			snd_printk(KERN_ERR PFX "specify midi_port\n");
 			return -EINVAL;
 		}
-#ifdef CONFIG_PNP
 	}
-#endif
+
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 	strcpy(card->driver, "OPL3SA2");
 	strcpy(card->shortname, "Yamaha OPL3-SA2");
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		err = -ENOMEM;
 		goto __error;
@@ -742,7 +747,7 @@ static int __devinit snd_opl3sa2_probe(int dev,
 	if ((err = snd_opl3sa2_detect(chip)) < 0)
 		goto __error;
 	if (request_irq(xirq, snd_opl3sa2_interrupt, SA_INTERRUPT, "OPL3-SA2", (void *)chip)) {
-		snd_printk(KERN_ERR "opl3sa2: can't grab IRQ %d\n", xirq);
+		snd_printk(KERN_ERR PFX "can't grab IRQ %d\n", xirq);
 		err = -ENODEV;
 		goto __error;
 	}
@@ -794,6 +799,9 @@ static int __devinit snd_opl3sa2_probe(int dev,
 		card->shortname, chip->port, xirq, xdma1);
 	if (dma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", xdma2);
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto __error;
 
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;
@@ -852,8 +860,10 @@ static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *card,
         int res;
 
         for ( ; dev < SNDRV_CARDS; dev++) {
-                if (!enable[dev] || !isapnp[dev])
-                        continue;
+		if (!enable[dev])
+			continue;
+		if (is_isapnp_selected(dev))
+			continue;
                 res = snd_opl3sa2_probe(dev, NULL, card, id);
                 if (res < 0)
                         return res;

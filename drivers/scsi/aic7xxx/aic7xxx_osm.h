@@ -494,8 +494,6 @@ ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
 int		ahc_linux_register_host(struct ahc_softc *,
 					struct scsi_host_template *);
 
-uint64_t	ahc_linux_get_memsize(void);
-
 /*************************** Pretty Printing **********************************/
 struct info_str {
 	char *buffer;

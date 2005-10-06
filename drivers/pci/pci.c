@@ -309,17 +309,25 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
 
-	/* If we're in D3, force entire word to 0.
+	/* If we're (effectively) in D3, force entire word to 0.
 	 * This doesn't affect PME_Status, disables PME_En, and
 	 * sets PowerState to 0.
 	 */
-	if (dev->current_state >= PCI_D3hot) {
-		if (!(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
+	switch (dev->current_state) {
+	case PCI_UNKNOWN: /* Boot-up */
+		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
+		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
 			need_restore = 1;
+		/* Fall-through: force to D0 */
+	case PCI_D3hot:
+	case PCI_D3cold:
+	case PCI_POWER_ERROR:
 		pmcsr = 0;
-	} else {
+		break;
+	default:
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		pmcsr |= state;
+		break;
 	}
 
 	/* enter specified state */

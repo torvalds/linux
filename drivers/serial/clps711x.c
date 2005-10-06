@@ -98,7 +98,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 {
 	struct uart_port *port = dev_id;
 	struct tty_struct *tty = port->info->tty;
-	unsigned int status, ch, flg, ignored = 0;
+	unsigned int status, ch, flg;
 
 	status = clps_readl(SYSFLG(port));
 	while (!(status & SYSFLG_URXFE)) {
@@ -525,7 +525,7 @@ static int __init clps711xuart_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver clps711x_reg;
+static struct uart_driver clps711x_reg;
 static struct console clps711x_console = {
 	.name		= "ttyCL",
 	.write		= clps711xuart_console_write,

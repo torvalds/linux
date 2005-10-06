@@ -447,7 +447,7 @@
           ....
 
           /* allocate a chip-specific data with zero filled */
-          chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+          chip = kzalloc(sizeof(*chip), GFP_KERNEL);
           if (chip == NULL)
                   return -ENOMEM;
 
@@ -949,7 +949,7 @@
           After allocating a card instance via
           <function>snd_card_new()</function> (with
           <constant>NULL</constant> on the 4th arg), call
-          <function>kcalloc()</function>. 
+          <function>kzalloc()</function>. 
 
           <informalexample>
             <programlisting>
@@ -958,7 +958,7 @@
   mychip_t *chip;
   card = snd_card_new(index[dev], id[dev], THIS_MODULE, NULL);
   .....
-  chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+  chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 ]]>
             </programlisting>
           </informalexample>
@@ -1136,7 +1136,7 @@
                   return -ENXIO;
           }
 
-          chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+          chip = kzalloc(sizeof(*chip), GFP_KERNEL);
           if (chip == NULL) {
                   pci_disable_device(pci);
                   return -ENOMEM;
@@ -1292,7 +1292,7 @@
       need to initialize this number as -1 before actual allocation,
       since irq 0 is valid. The port address and its resource pointer
       can be initialized as null by
-      <function>kcalloc()</function> automatically, so you
+      <function>kzalloc()</function> automatically, so you
       don't have to take care of resetting them. 
       </para>
 

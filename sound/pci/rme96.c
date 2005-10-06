@@ -200,25 +200,6 @@ MODULE_PARM_DESC(enable, "Enable RME Digi96 soundcard.");
 #define RME96_AD1852_VOL_BITS 14
 #define RME96_AD1855_VOL_BITS 10
 
-/*
- * PCI vendor/device ids, could in the future be defined in <linux/pci.h>,
- * therefore #ifndef is used.
- */
-#ifndef PCI_VENDOR_ID_XILINX
-#define PCI_VENDOR_ID_XILINX 0x10ee
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96
-#define PCI_DEVICE_ID_DIGI96 0x3fc0
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96_8
-#define PCI_DEVICE_ID_DIGI96_8 0x3fc1
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96_8_PRO
-#define PCI_DEVICE_ID_DIGI96_8_PRO 0x3fc2
-#endif
-#ifndef PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST
-#define PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST 0x3fc3
-#endif
 
 typedef struct snd_rme96 {
 	spinlock_t    lock;
@@ -252,13 +233,13 @@ typedef struct snd_rme96 {
 } rme96_t;
 
 static struct pci_device_id snd_rme96_ids[] = {
-	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_DIGI96,
+	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_RME_DIGI96,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
-	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_DIGI96_8,
+	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_RME_DIGI96_8,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
-	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_DIGI96_8_PRO,
+	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_RME_DIGI96_8_PRO,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
-	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST,
+	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, 
 	{ 0, }
 };
@@ -267,12 +248,12 @@ MODULE_DEVICE_TABLE(pci, snd_rme96_ids);
 
 #define RME96_ISPLAYING(rme96) ((rme96)->wcreg & RME96_WCR_START)
 #define RME96_ISRECORDING(rme96) ((rme96)->wcreg & RME96_WCR_START_2)
-#define	RME96_HAS_ANALOG_IN(rme96) ((rme96)->pci->device == PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST)
-#define	RME96_HAS_ANALOG_OUT(rme96) ((rme96)->pci->device == PCI_DEVICE_ID_DIGI96_8_PRO || \
-				     (rme96)->pci->device == PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST)
+#define	RME96_HAS_ANALOG_IN(rme96) ((rme96)->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST)
+#define	RME96_HAS_ANALOG_OUT(rme96) ((rme96)->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PRO || \
+				     (rme96)->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST)
 #define	RME96_DAC_IS_1852(rme96) (RME96_HAS_ANALOG_OUT(rme96) && (rme96)->rev >= 4)
-#define	RME96_DAC_IS_1855(rme96) (((rme96)->pci->device == PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST && (rme96)->rev < 4) || \
-			          ((rme96)->pci->device == PCI_DEVICE_ID_DIGI96_8_PRO && (rme96)->rev == 2))
+#define	RME96_DAC_IS_1855(rme96) (((rme96)->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST && (rme96)->rev < 4) || \
+			          ((rme96)->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PRO && (rme96)->rev == 2))
 #define	RME96_185X_MAX_OUT(rme96) ((1 << (RME96_DAC_IS_1852(rme96) ? RME96_AD1852_VOL_BITS : RME96_AD1855_VOL_BITS)) - 1)
 
 static int
@@ -849,9 +830,9 @@ snd_rme96_setinputtype(rme96_t *rme96,
 			RME96_WCR_INP_1;
 		break;
 	case RME96_INPUT_XLR:
-		if ((rme96->pci->device != PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST &&
-		     rme96->pci->device != PCI_DEVICE_ID_DIGI96_8_PRO) ||
-		    (rme96->pci->device == PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST &&
+		if ((rme96->pci->device != PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST &&
+		     rme96->pci->device != PCI_DEVICE_ID_RME_DIGI96_8_PRO) ||
+		    (rme96->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST &&
 		     rme96->rev > 4))
 		{
 			/* Only Digi96/8 PRO and Digi96/8 PAD supports XLR */
@@ -985,7 +966,8 @@ snd_rme96_playback_hw_params(snd_pcm_substream_t *substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err, rate, dummy;
 
-	runtime->dma_area = (void *)(rme96->iobase + RME96_IO_PLAY_BUFFER);
+	runtime->dma_area = (void __force *)(rme96->iobase +
+					     RME96_IO_PLAY_BUFFER);
 	runtime->dma_addr = rme96->port + RME96_IO_PLAY_BUFFER;
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
@@ -1037,7 +1019,8 @@ snd_rme96_capture_hw_params(snd_pcm_substream_t *substream,
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err, isadat, rate;
 	
-	runtime->dma_area = (void *)(rme96->iobase + RME96_IO_REC_BUFFER);
+	runtime->dma_area = (void __force *)(rme96->iobase +
+					     RME96_IO_REC_BUFFER);
 	runtime->dma_addr = rme96->port + RME96_IO_REC_BUFFER;
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
@@ -1615,7 +1598,7 @@ snd_rme96_create(rme96_t *rme96)
 	rme96->spdif_pcm->info_flags = 0;
 
 	/* set up ALSA pcm device for ADAT */
-	if (pci->device == PCI_DEVICE_ID_DIGI96) {
+	if (pci->device == PCI_DEVICE_ID_RME_DIGI96) {
 		/* ADAT is not available on the base model */
 		rme96->adat_pcm = NULL;
 	} else {
@@ -1875,14 +1858,14 @@ snd_rme96_info_inputtype_control(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	switch (rme96->pci->device) {
-	case PCI_DEVICE_ID_DIGI96:
-	case PCI_DEVICE_ID_DIGI96_8:
+	case PCI_DEVICE_ID_RME_DIGI96:
+	case PCI_DEVICE_ID_RME_DIGI96_8:
 		uinfo->value.enumerated.items = 3;
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PRO:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PRO:
 		uinfo->value.enumerated.items = 4;
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST:
 		if (rme96->rev > 4) {
 			/* PST */
 			uinfo->value.enumerated.items = 4;
@@ -1912,14 +1895,14 @@ snd_rme96_get_inputtype_control(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	ucontrol->value.enumerated.item[0] = snd_rme96_getinputtype(rme96);
 	
 	switch (rme96->pci->device) {
-	case PCI_DEVICE_ID_DIGI96:
-	case PCI_DEVICE_ID_DIGI96_8:
+	case PCI_DEVICE_ID_RME_DIGI96:
+	case PCI_DEVICE_ID_RME_DIGI96_8:
 		items = 3;
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PRO:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PRO:
 		items = 4;
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST:
 		if (rme96->rev > 4) {
 			/* for handling PST case, (INPUT_ANALOG is moved to INPUT_XLR */
 			if (ucontrol->value.enumerated.item[0] == RME96_INPUT_ANALOG) {
@@ -1949,14 +1932,14 @@ snd_rme96_put_inputtype_control(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	int change, items = 3;
 	
 	switch (rme96->pci->device) {
-	case PCI_DEVICE_ID_DIGI96:
-	case PCI_DEVICE_ID_DIGI96_8:
+	case PCI_DEVICE_ID_RME_DIGI96:
+	case PCI_DEVICE_ID_RME_DIGI96_8:
 		items = 3;
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PRO:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PRO:
 		items = 4;
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST:
 		if (rme96->rev > 4) {
 			items = 4;
 		} else {
@@ -1970,7 +1953,7 @@ snd_rme96_put_inputtype_control(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	val = ucontrol->value.enumerated.item[0] % items;
 	
 	/* special case for PST */
-	if (rme96->pci->device == PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST && rme96->rev > 4) {
+	if (rme96->pci->device == PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST && rme96->rev > 4) {
 		if (val == RME96_INPUT_XLR) {
 			val = RME96_INPUT_ANALOG;
 		}
@@ -2392,16 +2375,16 @@ snd_rme96_probe(struct pci_dev *pci,
 	
 	strcpy(card->driver, "Digi96");
 	switch (rme96->pci->device) {
-	case PCI_DEVICE_ID_DIGI96:
+	case PCI_DEVICE_ID_RME_DIGI96:
 		strcpy(card->shortname, "RME Digi96");
 		break;
-	case PCI_DEVICE_ID_DIGI96_8:
+	case PCI_DEVICE_ID_RME_DIGI96_8:
 		strcpy(card->shortname, "RME Digi96/8");
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PRO:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PRO:
 		strcpy(card->shortname, "RME Digi96/8 PRO");
 		break;
-	case PCI_DEVICE_ID_DIGI96_8_PAD_OR_PST:
+	case PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST:
 		pci_read_config_byte(rme96->pci, 8, &val);
 		if (val < 5) {
 			strcpy(card->shortname, "RME Digi96/8 PAD");
@@ -2430,6 +2413,7 @@ static void __devexit snd_rme96_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "RME Digi96",
+	.owner = THIS_MODULE,
 	.id_table = snd_rme96_ids,
 	.probe = snd_rme96_probe,
 	.remove = __devexit_p(snd_rme96_remove),

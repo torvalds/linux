@@ -235,6 +235,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 			return 0;
 
 		memcpy(SCpnt->cmnd, rq->cmd, sizeof(SCpnt->cmnd));
+		SCpnt->cmd_len = rq->cmd_len;
 		if (rq_data_dir(rq) == WRITE)
 			SCpnt->sc_data_direction = DMA_TO_DEVICE;
 		else if (rq->data_len)

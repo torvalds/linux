@@ -195,8 +195,8 @@ KEY ACCESS PERMISSIONS
 ======================
 
 Keys have an owner user ID, a group access ID, and a permissions mask. The mask
-has up to eight bits each for user, group and other access. Only five of each
-set of eight bits are defined. These permissions granted are:
+has up to eight bits each for possessor, user, group and other access. Only
+five of each set of eight bits are defined. These permissions granted are:
 
  (*) View
 
@@ -241,16 +241,16 @@ about the status of the key service:
      type, description and permissions. The payload of the key is not available
      this way:
 
-	SERIAL   FLAGS  USAGE EXPY PERM   UID   GID   TYPE      DESCRIPTION: SUMMARY
-	00000001 I-----    39 perm 1f0000     0     0 keyring   _uid_ses.0: 1/4
-	00000002 I-----     2 perm 1f0000     0     0 keyring   _uid.0: empty
-	00000007 I-----     1 perm 1f0000     0     0 keyring   _pid.1: empty
-	0000018d I-----     1 perm 1f0000     0     0 keyring   _pid.412: empty
-	000004d2 I--Q--     1 perm 1f0000    32    -1 keyring   _uid.32: 1/4
-	000004d3 I--Q--     3 perm 1f0000    32    -1 keyring   _uid_ses.32: empty
-	00000892 I--QU-     1 perm 1f0000     0     0 user      metal:copper: 0
-	00000893 I--Q-N     1  35s 1f0000     0     0 user      metal:silver: 0
-	00000894 I--Q--     1  10h 1f0000     0     0 user      metal:gold: 0
+	SERIAL   FLAGS  USAGE EXPY PERM     UID   GID   TYPE      DESCRIPTION: SUMMARY
+	00000001 I-----    39 perm 1f1f0000     0     0 keyring   _uid_ses.0: 1/4
+	00000002 I-----     2 perm 1f1f0000     0     0 keyring   _uid.0: empty
+	00000007 I-----     1 perm 1f1f0000     0     0 keyring   _pid.1: empty
+	0000018d I-----     1 perm 1f1f0000     0     0 keyring   _pid.412: empty
+	000004d2 I--Q--     1 perm 1f1f0000    32    -1 keyring   _uid.32: 1/4
+	000004d3 I--Q--     3 perm 1f1f0000    32    -1 keyring   _uid_ses.32: empty
+	00000892 I--QU-     1 perm 1f000000     0     0 user      metal:copper: 0
+	00000893 I--Q-N     1  35s 1f1f0000     0     0 user      metal:silver: 0
+	00000894 I--Q--     1  10h 001f0000     0     0 user      metal:gold: 0
 
      The flags are:
 
@@ -637,6 +637,34 @@ call, and the key released upon close. How to deal with conflicting keys due to
 two different users opening the same file is left to the filesystem author to
 solve.
 
+Note that there are two different types of pointers to keys that may be
+encountered:
+
+ (*) struct key *
+
+     This simply points to the key structure itself. Key structures will be at
+     least four-byte aligned.
+
+ (*) key_ref_t
+
+     This is equivalent to a struct key *, but the least significant bit is set
+     if the caller "possesses" the key. By "possession" it is meant that the
+     calling processes has a searchable link to the key from one of its
+     keyrings. There are three functions for dealing with these:
+
+	key_ref_t make_key_ref(const struct key *key,
+			       unsigned long possession);
+
+	struct key *key_ref_to_ptr(const key_ref_t key_ref);
+
+	unsigned long is_key_possessed(const key_ref_t key_ref);
+
+     The first function constructs a key reference from a key pointer and
+     possession information (which must be 0 or 1 and not any other value).
+
+     The second function retrieves the key pointer from a reference and the
+     third retrieves the possession flag.
+
 When accessing a key's payload contents, certain precautions must be taken to
 prevent access vs modification races. See the section "Notes on accessing
 payload contents" for more information.
@@ -665,7 +693,11 @@ payload contents" for more information.
 
 	void key_put(struct key *key);
 
-    This can be called from interrupt context. If CONFIG_KEYS is not set then
+    Or:
+
+	void key_ref_put(key_ref_t key_ref);
+
+    These can be called from interrupt context. If CONFIG_KEYS is not set then
     the argument will not be parsed.
 
 
@@ -689,13 +721,17 @@ payload contents" for more information.
 
 (*) If a keyring was found in the search, this can be further searched by:
 
-	struct key *keyring_search(struct key *keyring,
-				   const struct key_type *type,
-				   const char *description)
+	key_ref_t keyring_search(key_ref_t keyring_ref,
+				 const struct key_type *type,
+				 const char *description)
 
     This searches the keyring tree specified for a matching key. Error ENOKEY
-    is returned upon failure. If successful, the returned key will need to be
-    released.
+    is returned upon failure (use IS_ERR/PTR_ERR to determine). If successful,
+    the returned key will need to be released.
+
+    The possession attribute from the keyring reference is used to control
+    access through the permissions mask and is propagated to the returned key
+    reference pointer if successful.
 
 
 (*) To check the validity of a key, this function can be called:
@@ -732,7 +768,7 @@ More complex payload contents must be allocated and a pointer to them set in
 key->payload.data. One of the following ways must be selected to access the
 data:
 
- (1) Unmodifyable key type.
+ (1) Unmodifiable key type.
 
      If the key type does not have a modify method, then the key's payload can
      be accessed without any form of locking, provided that it's known to be

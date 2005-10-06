@@ -574,7 +574,7 @@ pfm_protect_ctx_ctxsw(pfm_context_t *x)
 	return 0UL;
 }
 
-static inline unsigned long
+static inline void
 pfm_unprotect_ctx_ctxsw(pfm_context_t *x, unsigned long f)
 {
 	spin_unlock(&(x)->ctx_lock);
@@ -2218,12 +2218,13 @@ static void
 pfm_free_fd(int fd, struct file *file)
 {
 	struct files_struct *files = current->files;
-	struct fdtable *fdt = files_fdtable(files);
+	struct fdtable *fdt;
 
 	/* 
 	 * there ie no fd_uninstall(), so we do it here
 	 */
 	spin_lock(&files->file_lock);
+	fdt = files_fdtable(files);
 	rcu_assign_pointer(fdt->fd[fd], NULL);
 	spin_unlock(&files->file_lock);
 

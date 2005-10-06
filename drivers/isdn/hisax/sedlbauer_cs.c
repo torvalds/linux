@@ -611,7 +611,7 @@ static int sedlbauer_event(event_t event, int priority,
 } /* sedlbauer_event */
 
 static struct pcmcia_device_id sedlbauer_ids[] = {
-	PCMCIA_DEVICE_PROD_ID1234("SEDLBAUER", "speed star II", "V 3.1", "(c) 93 - 98 cb ", 0x81fb79f5, 0xf3612e1d, 0x6b95c78a, 0x50d4149c),
+	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "speed star II", "V 3.1", 0x81fb79f5, 0xf3612e1d, 0x6b95c78a),
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", "4D67", 0x81fb79f5, 0xe4e9bc12, 0x397b7e90),
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", "4D98", 0x81fb79f5, 0xe4e9bc12, 0x2e5c7fce),
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", " (C) 93-94 VK", 0x81fb79f5, 0xe4e9bc12, 0x8db143fe),

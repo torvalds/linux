@@ -36,6 +36,20 @@
 #include "mode.h"
 #include "tempfile.h"
 
+int protect_memory(unsigned long addr, unsigned long len, int r, int w, int x,
+		   int must_succeed)
+{
+	int err;
+
+	err = os_protect_memory((void *) addr, len, r, w, x);
+	if(err < 0){
+                if(must_succeed)
+			panic("protect failed, err = %d", -err);
+		else return(err);
+	}
+	return(0);
+}
+
 /*
  *-------------------------
  * only for tt mode (will be deleted in future...)

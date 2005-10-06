@@ -754,12 +754,11 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
-	/* Tested by alsa bugtrack user "hus" 12th Sept 2005 */
+	/* Tested by alsa bugtrack user "hus" bug #1297 12th Aug 2005 */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80611102,
-	 .driver = "EMU10K1", .name = "SBLive! Player 5.1 [SB0060]", 
+	 .driver = "EMU10K1", .name = "SBLive! Platinum 5.1 [SB0060]", 
 	 .id = "Live",
 	 .emu10k1_chip = 1,
-	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80511102,
 	 .driver = "EMU10K1", .name = "SBLive! Value [CT4850]", 
@@ -865,7 +864,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	emu = kcalloc(1, sizeof(*emu), GFP_KERNEL);
+	emu = kzalloc(sizeof(*emu), GFP_KERNEL);
 	if (emu == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

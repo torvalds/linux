@@ -1817,6 +1817,10 @@ spider_net_setup_phy(struct spider_net_card *card)
 	/* LEDs active in both modes, autosense prio = fiber */
 	spider_net_write_phy(card->netdev, 1, MII_NCONFIG, 0x945f);
 
+	/* switch off fibre autoneg */
+	spider_net_write_phy(card->netdev, 1, MII_NCONFIG, 0xfc01);
+	spider_net_write_phy(card->netdev, 1, 0x0b, 0x0004);
+
 	phy->def->ops->read_link(phy);
 	pr_info("Found %s with %i Mbps, %s-duplex.\n", phy->def->name,
 		phy->speed, phy->duplex==1 ? "Full" : "Half");

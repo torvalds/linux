@@ -51,7 +51,8 @@
 #define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
 #define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
 
-#define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages uninteresting to kernel */
+#define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
+#define AUDIT_USER_AVC		1107	/* We filter this differently */
 #define AUDIT_LAST_USER_MSG	1199
  
 #define AUDIT_DAEMON_START      1200    /* Daemon startup record */
@@ -75,10 +76,15 @@
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
 /* Rule flags */
-#define AUDIT_PER_TASK 0x01	/* Apply rule at task creation (not syscall) */
-#define AUDIT_AT_ENTRY 0x02	/* Apply rule at syscall entry */
-#define AUDIT_AT_EXIT  0x04	/* Apply rule at syscall exit */
-#define AUDIT_PREPEND  0x10	/* Prepend to front of list */
+#define AUDIT_FILTER_USER	0x00	/* Apply rule to user-generated messages */
+#define AUDIT_FILTER_TASK	0x01	/* Apply rule at task creation (not syscall) */
+#define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
+#define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
+#define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
+
+#define AUDIT_NR_FILTERS	5
+
+#define AUDIT_FILTER_PREPEND	0x10	/* Prepend to front of list */
 
 /* Rule actions */
 #define AUDIT_NEVER    0	/* Do not build context if rule matches */
@@ -199,6 +205,7 @@ struct audit_sig_info {
 struct audit_buffer;
 struct audit_context;
 struct inode;
+struct netlink_skb_parms;
 
 #define AUDITSC_INVALID 0
 #define AUDITSC_SUCCESS 1
@@ -215,7 +222,7 @@ extern void audit_syscall_entry(struct task_struct *task, int arch,
 extern void audit_syscall_exit(struct task_struct *task, int failed, long return_code);
 extern void audit_getname(const char *name);
 extern void audit_putname(const char *name);
-extern void audit_inode(const char *name, const struct inode *inode);
+extern void audit_inode(const char *name, const struct inode *inode, unsigned flags);
 
 				/* Private API (for audit.c only) */
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
@@ -230,6 +237,7 @@ extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
+extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -237,7 +245,7 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #define audit_syscall_exit(t,f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
-#define audit_inode(n,i) do { ; } while (0)
+#define audit_inode(n,i,f) do { ; } while (0)
 #define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
@@ -246,16 +254,17 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
+#define audit_filter_user(cb,t) ({ 1; })
 #endif
 
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
 				/* Public API */
-extern void		    audit_log(struct audit_context *ctx, int type,
-				      const char *fmt, ...)
-			    __attribute__((format(printf,3,4)));
+extern void		    audit_log(struct audit_context *ctx, int gfp_mask,
+				      int type, const char *fmt, ...)
+				      __attribute__((format(printf,4,5)));
 
-extern struct audit_buffer *audit_log_start(struct audit_context *ctx,int type);
+extern struct audit_buffer *audit_log_start(struct audit_context *ctx, int gfp_mask, int type);
 extern void		    audit_log_format(struct audit_buffer *ab,
 					     const char *fmt, ...)
 			    __attribute__((format(printf,2,3)));
@@ -274,9 +283,10 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
+extern struct semaphore audit_netlink_sem;
 #else
-#define audit_log(c,t,f,...) do { ; } while (0)
-#define audit_log_start(c,t) ({ NULL; })
+#define audit_log(c,g,t,f,...) do { ; } while (0)
+#define audit_log_start(c,g,t) ({ NULL; })
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)

@@ -1016,7 +1016,7 @@ static int snd_emu10k1_efx_playback_open(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int i;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;
@@ -1049,7 +1049,7 @@ static int snd_emu10k1_playback_open(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int i, err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;
@@ -1094,7 +1094,7 @@ static int snd_emu10k1_capture_open(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	emu10k1_pcm_t *epcm;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;
@@ -1130,7 +1130,7 @@ static int snd_emu10k1_capture_mic_open(snd_pcm_substream_t * substream)
 	emu10k1_pcm_t *epcm;
 	snd_pcm_runtime_t *runtime = substream->runtime;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;
@@ -1170,7 +1170,7 @@ static int snd_emu10k1_capture_efx_open(snd_pcm_substream_t * substream)
 	int nefx = emu->audigy ? 64 : 32;
 	int idx;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;

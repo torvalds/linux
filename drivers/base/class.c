@@ -189,12 +189,11 @@ struct class *class_create(struct module *owner, char *name)
 	struct class *cls;
 	int retval;
 
-	cls = kmalloc(sizeof(struct class), GFP_KERNEL);
+	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
 	if (!cls) {
 		retval = -ENOMEM;
 		goto error;
 	}
-	memset(cls, 0x00, sizeof(struct class));
 
 	cls->name = name;
 	cls->owner = owner;
@@ -500,13 +499,13 @@ int class_device_add(struct class_device *class_dev)
 	/* add the needed attributes to this device */
 	if (MAJOR(class_dev->devt)) {
 		struct class_device_attribute *attr;
-		attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 		if (!attr) {
 			error = -ENOMEM;
 			kobject_del(&class_dev->kobj);
 			goto register_done;
 		}
-		memset(attr, sizeof(*attr), 0x00);
+
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
 		attr->attr.owner = parent->owner;
@@ -577,12 +576,11 @@ struct class_device *class_device_create(struct class *cls, dev_t devt,
 	if (cls == NULL || IS_ERR(cls))
 		goto error;
 
-	class_dev = kmalloc(sizeof(struct class_device), GFP_KERNEL);
+	class_dev = kzalloc(sizeof(*class_dev), GFP_KERNEL);
 	if (!class_dev) {
 		retval = -ENOMEM;
 		goto error;
 	}
-	memset(class_dev, 0x00, sizeof(struct class_device));
 
 	class_dev->devt = devt;
 	class_dev->dev = device;
@@ -671,6 +669,7 @@ void class_device_destroy(struct class *cls, dev_t devt)
 int class_device_rename(struct class_device *class_dev, char *new_name)
 {
 	int error = 0;
+	char *old_class_name = NULL, *new_class_name = NULL;
 
 	class_dev = class_device_get(class_dev);
 	if (!class_dev)
@@ -679,11 +678,23 @@ int class_device_rename(struct class_device *class_dev, char *new_name)
 	pr_debug("CLASS: renaming '%s' to '%s'\n", class_dev->class_id,
 		 new_name);
 
+	if (class_dev->dev)
+		old_class_name = make_class_name(class_dev);
+
 	strlcpy(class_dev->class_id, new_name, KOBJ_NAME_LEN);
 
 	error = kobject_rename(&class_dev->kobj, new_name);
 
+	if (class_dev->dev) {
+		new_class_name = make_class_name(class_dev);
+		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
+				  new_class_name);
+		sysfs_remove_link(&class_dev->dev->kobj, old_class_name);
+	}
 	class_device_put(class_dev);
+
+	kfree(old_class_name);
+	kfree(new_class_name);
 
 	return error;
 }

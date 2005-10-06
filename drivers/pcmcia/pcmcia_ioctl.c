@@ -376,6 +376,7 @@ static int ds_open(struct inode *inode, struct file *file)
     socket_t i = iminor(inode);
     struct pcmcia_socket *s;
     user_info_t *user;
+    static int warning_printed = 0;
 
     ds_dbg(0, "ds_open(socket %d)\n", i);
 
@@ -406,6 +407,17 @@ static int ds_open(struct inode *inode, struct file *file)
     user->socket = s;
     s->user = user;
     file->private_data = user;
+
+    if (!warning_printed) {
+	    printk(KERN_INFO "pcmcia: Detected deprecated PCMCIA ioctl "
+			"usage.\n");
+	    printk(KERN_INFO "pcmcia: This interface will soon be removed from "
+			"the kernel; please expect breakage unless you upgrade "
+			"to new tools.\n");
+	    printk(KERN_INFO "pcmcia: see http://www.kernel.org/pub/linux/"
+			"utils/kernel/pcmcia/pcmcia.html for details.\n");
+	    warning_printed = 1;
+    }
 
     if (s->pcmcia_state.present)
 	queue_event(user, CS_EVENT_CARD_INSERTION);

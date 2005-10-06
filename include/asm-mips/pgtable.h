@@ -68,6 +68,8 @@ extern unsigned long zero_page_mask;
 #define ZERO_PAGE(vaddr) \
 	(virt_to_page(empty_zero_page + (((unsigned long)(vaddr)) & zero_page_mask)))
 
+#define __HAVE_ARCH_MULTIPLE_ZERO_PAGE
+
 extern void paging_init(void);
 
 /*
@@ -358,16 +360,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 extern phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size);
 extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from, unsigned long pfn, unsigned long size, pgprot_t prot);
 
-static inline int io_remap_page_range(struct vm_area_struct *vma,
-		unsigned long vaddr,
-		unsigned long paddr,
-		unsigned long size,
-		pgprot_t prot)
-{
-	phys_t phys_addr_high = fixup_bigphys_addr(paddr, size);
-	return remap_pfn_range(vma, vaddr, phys_addr_high >> PAGE_SHIFT, size, prot);
-}
-
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 		unsigned long vaddr,
 		unsigned long pfn,
@@ -378,8 +370,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	return remap_pfn_range(vma, vaddr, pfn, size, prot);
 }
 #else
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 #endif

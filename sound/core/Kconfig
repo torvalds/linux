@@ -99,6 +99,18 @@ config SND_RTCTIMER
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rtctimer.
 
+config SND_SEQ_RTCTIMER_DEFAULT
+	bool "Use RTC as default sequencer timer"
+	depends on SND_RTCTIMER && SND_SEQUENCER
+	default y
+	help
+	  Say Y here to use the RTC timer as the default sequencer
+	  timer.  This is strongly recommended because it ensures
+	  precise MIDI timing even when the system timer runs at less
+	  than 1000 Hz.
+
+	  If in doubt, say Y.
+
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"
 	depends on SND
@@ -128,6 +140,6 @@ config SND_DEBUG_DETECT
 	  Say Y here to enable extra-verbose log messages printed when
 	  detecting devices.
 
-config SND_GENERIC_PM
+config SND_GENERIC_DRIVER
 	bool
 	depends on SND

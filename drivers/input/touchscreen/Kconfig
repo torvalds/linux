@@ -24,17 +24,17 @@ config TOUCHSCREEN_BITSY
 	  module will be called h3600_ts_input.
 
 config TOUCHSCREEN_CORGI
-	tristate "Corgi touchscreen (for Sharp SL-C7xx)"
+	tristate "SharpSL (Corgi and Spitz series) touchscreen driver"
 	depends on PXA_SHARPSL
 	default y	
 	help
 	  Say Y here to enable the driver for the touchscreen on the 
-	  Sharp SL-C7xx series of PDAs.
+	  Sharp SL-C7xx and SL-Cxx00 series of PDAs.
 
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ads7846_ts.
+	  module will be called corgi_ts.
 
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"

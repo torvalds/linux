@@ -15,7 +15,7 @@ retrieve the data as it becomes available.
 
 The format of the data logged into the channel buffers is completely
 up to the relayfs client; relayfs does however provide hooks which
-allow clients to impose some stucture on the buffer data.  Nor does
+allow clients to impose some structure on the buffer data.  Nor does
 relayfs implement any form of data filtering - this also is left to
 the client.  The purpose is to keep relayfs as simple as possible.
 

@@ -463,7 +463,7 @@ int snd_mpu401_uart_new(snd_card_t * card, int device,
 		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(card, "MPU-401U", device, 1, 1, &rmidi)) < 0)
 		return err;
-	mpu = kcalloc(1, sizeof(*mpu), GFP_KERNEL);
+	mpu = kzalloc(sizeof(*mpu), GFP_KERNEL);
 	if (mpu == NULL) {
 		snd_device_free(card, rmidi);
 		return -ENOMEM;

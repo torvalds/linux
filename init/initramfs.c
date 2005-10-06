@@ -466,6 +466,14 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 extern char __initramfs_start[], __initramfs_end[];
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
+
+static void __init free_initrd(void)
+{
+	free_initrd_mem(initrd_start, initrd_end);
+	initrd_start = 0;
+	initrd_end = 0;
+}
+
 #endif
 
 void __init populate_rootfs(void)
@@ -484,7 +492,7 @@ void __init populate_rootfs(void)
 			printk(" it is\n");
 			unpack_to_rootfs((char *)initrd_start,
 				initrd_end - initrd_start, 0);
-			free_initrd_mem(initrd_start, initrd_end);
+			free_initrd();
 			return;
 		}
 		printk("it isn't (%s); looks like an initrd\n", err);
@@ -493,7 +501,7 @@ void __init populate_rootfs(void)
 			sys_write(fd, (char *)initrd_start,
 					initrd_end - initrd_start);
 			sys_close(fd);
-			free_initrd_mem(initrd_start, initrd_end);
+			free_initrd();
 		}
 	}
 #endif

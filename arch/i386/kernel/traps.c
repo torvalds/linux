@@ -52,7 +52,6 @@
 #include <asm/arch_hooks.h>
 #include <asm/kdebug.h>
 
-#include <linux/irq.h>
 #include <linux/module.h>
 
 #include "mach_traps.h"
@@ -807,8 +806,9 @@ void math_error(void __user *eip)
 	cwd = get_fpu_cwd(task);
 	swd = get_fpu_swd(task);
 	switch (swd & ~cwd & 0x3f) {
-		case 0x000:
-		default:
+		case 0x000: /* No unmasked exception */
+			return;
+		default:    /* Multiple exceptions */
 			break;
 		case 0x001: /* Invalid Op */
 			/*

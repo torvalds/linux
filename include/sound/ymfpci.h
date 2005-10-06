@@ -28,28 +28,6 @@
 #include "timer.h"
 #include <linux/gameport.h>
 
-#ifndef PCI_VENDOR_ID_YAMAHA
-#define PCI_VENDOR_ID_YAMAHA            0x1073
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_724
-#define PCI_DEVICE_ID_YAMAHA_724	0x0004
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_724F
-#define PCI_DEVICE_ID_YAMAHA_724F	0x000d
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_740
-#define PCI_DEVICE_ID_YAMAHA_740	0x000a
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_740C
-#define PCI_DEVICE_ID_YAMAHA_740C	0x000c
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_744
-#define PCI_DEVICE_ID_YAMAHA_744	0x0010
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_754
-#define PCI_DEVICE_ID_YAMAHA_754	0x0012
-#endif
-
 /*
  *  Direct registers
  */

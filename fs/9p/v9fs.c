@@ -303,7 +303,13 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto SessCleanUp;
 	};
 
-	v9ses->transport = trans_proto;
+	v9ses->transport = kmalloc(sizeof(*v9ses->transport), GFP_KERNEL);
+	if (!v9ses->transport) {
+		retval = -ENOMEM;
+		goto SessCleanUp;
+	}
+
+	memmove(v9ses->transport, trans_proto, sizeof(*v9ses->transport));
 
 	if ((retval = v9ses->transport->init(v9ses, dev_name, data)) < 0) {
 		eprintk(KERN_ERR, "problem initializing transport\n");

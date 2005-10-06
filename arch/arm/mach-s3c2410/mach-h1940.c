@@ -24,6 +24,7 @@
  *     10-Jan-2005 BJD  Removed include of s3c2410.h
  *     14-Jan-2005 BJD  Added clock init
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
+ *     20-Sep-2005 BJD  Added static to non-exported items
 */
 
 #include <linux/kernel.h>
@@ -147,7 +148,7 @@ static struct s3c24xx_board h1940_board __initdata = {
 	.devices_count = ARRAY_SIZE(h1940_devices)
 };
 
-void __init h1940_map_io(void)
+static void __init h1940_map_io(void)
 {
 	s3c24xx_init_io(h1940_iodesc, ARRAY_SIZE(h1940_iodesc));
 	s3c24xx_init_clocks(0);
@@ -155,13 +156,13 @@ void __init h1940_map_io(void)
 	s3c24xx_set_board(&h1940_board);
 }
 
-void __init h1940_init_irq(void)
+static void __init h1940_init_irq(void)
 {
 	s3c24xx_init_irq();
 
 }
 
-void __init h1940_init(void)
+static void __init h1940_init(void)
 {
 	set_s3c2410fb_info(&h1940_lcdcfg);
 }

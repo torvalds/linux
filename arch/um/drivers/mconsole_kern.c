@@ -32,6 +32,7 @@
 #include "os.h"
 #include "umid.h"
 #include "irq_kern.h"
+#include "choose-mode.h"
 
 static int do_unlink_socket(struct notifier_block *notifier, 
 			    unsigned long what, void *data)
@@ -276,6 +277,7 @@ void mconsole_proc(struct mc_request *req)
     go - continue the UML after a 'stop' \n\
     log <string> - make UML enter <string> into the kernel log\n\
     proc <file> - returns the contents of the UML's /proc/<file>\n\
+    stack <pid> - returns the stack of the specified pid\n\
 "
 
 void mconsole_help(struct mc_request *req)
@@ -478,6 +480,56 @@ void mconsole_sysrq(struct mc_request *req)
 	mconsole_reply(req, "Sysrq not compiled in", 1, 0);
 }
 #endif
+
+/* Mconsole stack trace
+ *  Added by Allan Graves, Jeff Dike
+ *  Dumps a stacks registers to the linux console.
+ *  Usage stack <pid>.
+ */
+void do_stack(struct mc_request *req)
+{
+        char *ptr = req->request.data;
+        int pid_requested= -1;
+        struct task_struct *from = NULL;
+	struct task_struct *to = NULL;
+
+        /* Would be nice:
+         * 1) Send showregs output to mconsole.
+	 * 2) Add a way to stack dump all pids.
+	 */
+
+        ptr += strlen("stack");
+        while(isspace(*ptr)) ptr++;
+
+        /* Should really check for multiple pids or reject bad args here */
+        /* What do the arguments in mconsole_reply mean? */
+        if(sscanf(ptr, "%d", &pid_requested) == 0){
+                mconsole_reply(req, "Please specify a pid", 1, 0);
+                return;
+        }
+
+        from = current;
+        to = find_task_by_pid(pid_requested);
+
+        if((to == NULL) || (pid_requested == 0)) {
+                mconsole_reply(req, "Couldn't find that pid", 1, 0);
+                return;
+        }
+        to->thread.saved_task = current;
+
+        switch_to(from, to, from);
+        mconsole_reply(req, "Stack Dumped to console and message log", 0, 0);
+}
+
+void mconsole_stack(struct mc_request *req)
+{
+	/* This command doesn't work in TT mode, so let's check and then
+	 * get out of here
+	 */
+	CHOOSE_MODE(mconsole_reply(req, "Sorry, this doesn't work in TT mode",
+				   1, 0),
+		    do_stack(req));
+}
 
 /* Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.

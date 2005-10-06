@@ -334,10 +334,11 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 			ret = -EINVAL;
 			goto err_ah;
 		}
-		/* Validate that management class can support RMPP */
+
+		/* Validate that the management class can support RMPP */
 		if (rmpp_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
 			hdr_len = offsetof(struct ib_sa_mad, data);
-			data_len = length;
+			data_len = length - hdr_len;
 		} else if ((rmpp_mad->mad_hdr.mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
 			    (rmpp_mad->mad_hdr.mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END)) {
 				hdr_len = offsetof(struct ib_vendor_mad, data);

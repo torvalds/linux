@@ -221,7 +221,7 @@ int snd_sbdsp_create(snd_card_t *card,
 
 	snd_assert(r_chip != NULL, return -EINVAL);
 	*r_chip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);

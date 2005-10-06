@@ -903,13 +903,16 @@ int snd_pcm_format_unsigned(snd_pcm_format_t format);
 int snd_pcm_format_linear(snd_pcm_format_t format);
 int snd_pcm_format_little_endian(snd_pcm_format_t format);
 int snd_pcm_format_big_endian(snd_pcm_format_t format);
-/*
+#if 0 /* just for DocBook */
+/**
  * snd_pcm_format_cpu_endian - Check the PCM format is CPU-endian
  * @format: the format to check
  *
  * Returns 1 if the given PCM format is CPU-endian, 0 if
  * opposite, or a negative error code if endian not specified.
  */
+int snd_pcm_format_cpu_endian(snd_pcm_format_t format);
+#endif /* DocBook */
 #ifdef SNDRV_LITTLE_ENDIAN
 #define snd_pcm_format_cpu_endian(format) snd_pcm_format_little_endian(format)
 #else

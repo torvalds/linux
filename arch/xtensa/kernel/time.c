@@ -68,7 +68,7 @@ void __init time_init(void)
 	 * speed for the CALIBRATE.
 	 */
 
-#if CONFIG_XTENSA_CALIBRATE_CCOUNT
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	printk("Calibrating CPU frequency ");
 	platform_calibrate_ccount();
 	printk("%d.%02d MHz\n", (int)ccount_per_jiffy/(1000000/HZ),

@@ -205,8 +205,8 @@ Phone: 701-234-7556
 Tainted kernels:
 
 Some oops reports contain the string 'Tainted: ' after the program
-counter, this indicates that the kernel has been tainted by some
-mechanism.  The string is followed by a series of position sensitive
+counter. This indicates that the kernel has been tainted by some
+mechanism.  The string is followed by a series of position-sensitive
 characters, each representing a particular tainted value.
 
   1: 'G' if all modules loaded have a GPL or compatible license, 'P' if
@@ -214,16 +214,25 @@ characters, each representing a particular tainted value.
      MODULE_LICENSE or with a MODULE_LICENSE that is not recognised by
      insmod as GPL compatible are assumed to be proprietary.
 
-  2: 'F' if any module was force loaded by insmod -f, ' ' if all
+  2: 'F' if any module was force loaded by "insmod -f", ' ' if all
      modules were loaded normally.
 
   3: 'S' if the oops occurred on an SMP kernel running on hardware that
-      hasn't been certified as safe to run multiprocessor.
-	  Currently this occurs only on various Athlons that are not
-	  SMP capable.
+     hasn't been certified as safe to run multiprocessor.
+     Currently this occurs only on various Athlons that are not
+     SMP capable.
+
+  4: 'R' if a module was force unloaded by "rmmod -f", ' ' if all
+     modules were unloaded normally.
+
+  5: 'M' if any processor has reported a Machine Check Exception,
+     ' ' if no Machine Check Exceptions have occurred.
+
+  6: 'B' if a page-release function has found a bad page reference or
+     some unexpected page flags.
 
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has
-occurred.  Tainting is permanent, even if an offending module is
-unloading the tainted value remains to indicate that the kernel is not
+occurred.  Tainting is permanent: even if an offending module is
+unloaded, the tainted value remains to indicate that the kernel is not
 trustworthy.

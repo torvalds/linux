@@ -463,7 +463,7 @@ static int __init serial21285_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver serial21285_reg;
+static struct uart_driver serial21285_reg;
 
 static struct console serial21285_console =
 {

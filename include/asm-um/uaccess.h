@@ -44,7 +44,7 @@
         const __typeof__(ptr) __private_ptr = ptr; \
         __typeof__(*(__private_ptr)) __private_val; \
         int __private_ret = -EFAULT; \
-        (x) = 0; \
+        (x) = (__typeof__(*(__private_ptr)))0; \
 	if (__copy_from_user(&__private_val, (__private_ptr), \
 	    sizeof(*(__private_ptr))) == 0) {\
         	(x) = (__typeof__(*(__private_ptr))) __private_val; \

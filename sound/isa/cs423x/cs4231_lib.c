@@ -1480,7 +1480,7 @@ static int snd_cs4231_new(snd_card_t * card,
 	cs4231_t *chip;
 
 	*rchip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->hardware = hardware;

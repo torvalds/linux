@@ -26,9 +26,9 @@ MODULE_DESCRIPTION("tftp connection tracking helper");
 MODULE_LICENSE("GPL");
 
 #define MAX_PORTS 8
-static int ports[MAX_PORTS];
+static short ports[MAX_PORTS];
 static int ports_c;
-module_param_array(ports, int, &ports_c, 0400);
+module_param_array(ports, short, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of tftp servers");
 
 #if 0
@@ -100,7 +100,7 @@ static int tftp_help(struct sk_buff **pskb,
 }
 
 static struct ip_conntrack_helper tftp[MAX_PORTS];
-static char tftp_names[MAX_PORTS][10];
+static char tftp_names[MAX_PORTS][sizeof("tftp-65535")];
 
 static void fini(void)
 {

@@ -67,10 +67,6 @@
 #define LOCAL_MAP_NR(addr) \
 	(((unsigned long)(addr) & 0x03ffffff) >> PAGE_SHIFT)
 
-#else
-
-#define PFN_TO_NID(addr)	(0)
-
 #endif
 
 #endif

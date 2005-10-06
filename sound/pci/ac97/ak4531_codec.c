@@ -357,7 +357,7 @@ int snd_ak4531_mixer(snd_card_t * card, ak4531_t * _ak4531, ak4531_t ** rak4531)
 	snd_assert(rak4531 != NULL, return -EINVAL);
 	*rak4531 = NULL;
 	snd_assert(card != NULL && _ak4531 != NULL, return -EINVAL);
-	ak4531 = kcalloc(1, sizeof(*ak4531), GFP_KERNEL);
+	ak4531 = kzalloc(sizeof(*ak4531), GFP_KERNEL);
 	if (ak4531 == NULL)
 		return -ENOMEM;
 	*ak4531 = *_ak4531;

@@ -14,6 +14,7 @@
  */
 
 #include <net/sock.h>
+#include <linux/compiler.h>
 #include <linux/dccp.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -54,6 +55,14 @@ struct ccid {
 					       struct tcp_info *info);
 	void		(*ccid_hc_tx_get_info)(struct sock *sk,
 					       struct tcp_info *info);
+	int		(*ccid_hc_rx_getsockopt)(struct sock *sk,
+						 const int optname, int len,
+						 u32 __user *optval,
+						 int __user *optlen);
+	int		(*ccid_hc_tx_getsockopt)(struct sock *sk,
+						 const int optname, int len,
+						 u32 __user *optval,
+						 int __user *optlen);
 };
 
 extern int	   ccid_register(struct ccid *ccid);
@@ -176,5 +185,27 @@ static inline void ccid_hc_tx_get_info(struct ccid *ccid, struct sock *sk,
 {
 	if (ccid->ccid_hc_tx_get_info != NULL)
 		ccid->ccid_hc_tx_get_info(sk, info);
+}
+
+static inline int ccid_hc_rx_getsockopt(struct ccid *ccid, struct sock *sk,
+					const int optname, int len,
+					u32 __user *optval, int __user *optlen)
+{
+	int rc = -ENOPROTOOPT;
+	if (ccid->ccid_hc_rx_getsockopt != NULL)
+		rc = ccid->ccid_hc_rx_getsockopt(sk, optname, len,
+						 optval, optlen);
+	return rc;
+}
+
+static inline int ccid_hc_tx_getsockopt(struct ccid *ccid, struct sock *sk,
+					const int optname, int len,
+					u32 __user *optval, int __user *optlen)
+{
+	int rc = -ENOPROTOOPT;
+	if (ccid->ccid_hc_tx_getsockopt != NULL)
+		rc = ccid->ccid_hc_tx_getsockopt(sk, optname, len,
+						 optval, optlen);
+	return rc;
 }
 #endif /* _CCID_H */

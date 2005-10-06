@@ -872,35 +872,6 @@ struct snd_m3 {
 /*
  * pci ids
  */
-
-#ifndef PCI_VENDOR_ID_ESS
-#define PCI_VENDOR_ID_ESS         0x125D
-#endif
-#ifndef PCI_DEVICE_ID_ESS_ALLEGRO_1
-#define PCI_DEVICE_ID_ESS_ALLEGRO_1	0x1988
-#endif
-#ifndef PCI_DEVICE_ID_ESS_ALLEGRO
-#define PCI_DEVICE_ID_ESS_ALLEGRO	0x1989
-#endif
-#ifndef PCI_DEVICE_ID_ESS_CANYON3D_2LE
-#define PCI_DEVICE_ID_ESS_CANYON3D_2LE	0x1990
-#endif
-#ifndef PCI_DEVICE_ID_ESS_CANYON3D_2
-#define PCI_DEVICE_ID_ESS_CANYON3D_2	0x1992
-#endif
-#ifndef PCI_DEVICE_ID_ESS_MAESTRO3
-#define PCI_DEVICE_ID_ESS_MAESTRO3	0x1998
-#endif
-#ifndef PCI_DEVICE_ID_ESS_MAESTRO3_1
-#define PCI_DEVICE_ID_ESS_MAESTRO3_1	0x1999
-#endif
-#ifndef PCI_DEVICE_ID_ESS_MAESTRO3_HW
-#define PCI_DEVICE_ID_ESS_MAESTRO3_HW	0x199a
-#endif
-#ifndef PCI_DEVICE_ID_ESS_MAESTRO3_2
-#define PCI_DEVICE_ID_ESS_MAESTRO3_2	0x199b
-#endif
-
 static struct pci_device_id snd_m3_ids[] = {
 	{PCI_VENDOR_ID_ESS, PCI_DEVICE_ID_ESS_ALLEGRO_1, PCI_ANY_ID, PCI_ANY_ID,
 	 PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, 0},
@@ -2689,7 +2660,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 		return -ENXIO;
 	}
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2890,6 +2861,7 @@ static void __devexit snd_m3_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Maestro3",
+	.owner = THIS_MODULE,
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
 	.remove = __devexit_p(snd_m3_remove),

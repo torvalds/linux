@@ -378,9 +378,6 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)	\
-	remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
-
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 

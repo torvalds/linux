@@ -99,7 +99,11 @@ get_iost_entry(unsigned long iopt_base, unsigned long io_address, unsigned page_
 		break;
 
 	default: /* not a known compile time constant */
-		BUILD_BUG_ON(1);
+		{
+			/* BUILD_BUG_ON() is not usable here */
+			extern void __get_iost_entry_bad_page_size(void);
+			__get_iost_entry_bad_page_size();
+		}
 		break;
 	}
 

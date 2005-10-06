@@ -298,11 +298,6 @@ config PREEMPT
 
 source "mm/Kconfig"
 
-config HAVE_DEC_LOCK
-	bool
-	depends on (SMP || PREEMPT)
-	default y
-
 config IA32_SUPPORT
 	bool "Support for Linux/x86 binaries"
 	help

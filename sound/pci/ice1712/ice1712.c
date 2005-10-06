@@ -100,12 +100,6 @@ MODULE_PARM_DESC(cs8427_timeout, "Define reset timeout for cs8427 chip in msec r
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 
-#ifndef PCI_VENDOR_ID_ICE
-#define PCI_VENDOR_ID_ICE		0x1412
-#endif
-#ifndef PCI_DEVICE_ID_ICE_1712
-#define PCI_DEVICE_ID_ICE_1712		0x1712
-#endif
 
 static struct pci_device_id snd_ice1712_ids[] = {
 	{ PCI_VENDOR_ID_ICE, PCI_DEVICE_ID_ICE_1712, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* ICE1712 */
@@ -2535,7 +2529,7 @@ static int __devinit snd_ice1712_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	ice = kcalloc(1, sizeof(*ice), GFP_KERNEL);
+	ice = kzalloc(sizeof(*ice), GFP_KERNEL);
 	if (ice == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2741,6 +2735,7 @@ static void __devexit snd_ice1712_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ICE1712",
+	.owner = THIS_MODULE,
 	.id_table = snd_ice1712_ids,
 	.probe = snd_ice1712_probe,
 	.remove = __devexit_p(snd_ice1712_remove),

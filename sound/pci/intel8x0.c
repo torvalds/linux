@@ -69,6 +69,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
 static char *ac97_quirk[SNDRV_CARDS];
+static int buggy_semaphore[SNDRV_CARDS];
 static int buggy_irq[SNDRV_CARDS];
 static int xbox[SNDRV_CARDS];
 
@@ -86,6 +87,8 @@ module_param_array(ac97_clock, int, NULL, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
 module_param_array(ac97_quirk, charp, NULL, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
+module_param_array(buggy_semaphore, bool, NULL, 0444);
+MODULE_PARM_DESC(buggy_semaphore, "Enable workaround for hardwares with problematic codec semaphores.");
 module_param_array(buggy_irq, bool, NULL, 0444);
 MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
 module_param_array(xbox, bool, NULL, 0444);
@@ -94,62 +97,6 @@ MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 c
 /*
  *  Direct registers
  */
-
-#ifndef PCI_DEVICE_ID_INTEL_82801
-#define PCI_DEVICE_ID_INTEL_82801       0x2415
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_82901
-#define PCI_DEVICE_ID_INTEL_82901       0x2425
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_82801BA
-#define PCI_DEVICE_ID_INTEL_82801BA     0x2445
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_440MX
-#define PCI_DEVICE_ID_INTEL_440MX       0x7195
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH3
-#define PCI_DEVICE_ID_INTEL_ICH3	0x2485
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH4
-#define PCI_DEVICE_ID_INTEL_ICH4	0x24c5
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH5
-#define PCI_DEVICE_ID_INTEL_ICH5	0x24d5
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ESB_5
-#define PCI_DEVICE_ID_INTEL_ESB_5	0x25a6
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH6_18
-#define PCI_DEVICE_ID_INTEL_ICH6_18	0x266e
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH7_20
-#define PCI_DEVICE_ID_INTEL_ICH7_20	0x27de
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ESB2_14
-#define PCI_DEVICE_ID_INTEL_ESB2_14	0x2698
-#endif
-#ifndef PCI_DEVICE_ID_SI_7012
-#define PCI_DEVICE_ID_SI_7012		0x7012
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP_AUDIO
-#define PCI_DEVICE_ID_NVIDIA_MCP_AUDIO	0x01b1
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_CK804_AUDIO
-#define PCI_DEVICE_ID_NVIDIA_CK804_AUDIO 0x0059
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP2_AUDIO
-#define PCI_DEVICE_ID_NVIDIA_MCP2_AUDIO	0x006a
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_CK8_AUDIO
-#define PCI_DEVICE_ID_NVIDIA_CK8_AUDIO	0x008a
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP3_AUDIO
-#define PCI_DEVICE_ID_NVIDIA_MCP3_AUDIO	0x00da
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_CK8S_AUDIO
-#define PCI_DEVICE_ID_NVIDIA_CK8S_AUDIO	0x00ea
-#endif
-
 enum { DEVICE_INTEL, DEVICE_INTEL_ICH4, DEVICE_SIS, DEVICE_ALI, DEVICE_NFORCE };
 
 #define ICHREG(x) ICH_REG_##x
@@ -423,6 +370,7 @@ struct _snd_intel8x0 {
 	unsigned fix_nocache: 1; 	/* workaround for 440MX */
 	unsigned buggy_irq: 1;		/* workaround for buggy mobos */
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
+	unsigned buggy_semaphore: 1;	/* workaround for buggy codec semaphore */
 
 	int spdif_idx;	/* SPDIF BAR index; *_SPBAR or -1 if use PCMOUT */
 	unsigned int sdm_saved;	/* SDM reg value */
@@ -576,6 +524,9 @@ static int snd_intel8x0_codec_semaphore(intel8x0_t *chip, unsigned int codec)
 	/* codec ready ? */
 	if ((igetdword(chip, ICHREG(GLOB_STA)) & codec) == 0)
 		return -EIO;
+
+	if (chip->buggy_semaphore)
+		return 0; /* just ignore ... */
 
 	/* Anyone holding a semaphore for 1 msec should be shot... */
 	time = 100;
@@ -1759,6 +1710,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_ALC_JACK
 	},
 	{
+		.subvendor = 0x1014,
+		.subdevice = 0x0267,
+		.name = "IBM NetVista A30p",	/* AD1981B */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
 		.subvendor = 0x1028,
 		.subdevice = 0x00d8,
 		.name = "Dell Precision 530",	/* AD1885 */
@@ -2599,6 +2556,7 @@ struct ich_reg_info {
 static int __devinit snd_intel8x0_create(snd_card_t * card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
+					 int buggy_sem,
 					 intel8x0_t ** r_intel8x0)
 {
 	intel8x0_t *chip;
@@ -2646,7 +2604,7 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2656,6 +2614,7 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
+	chip->buggy_semaphore = buggy_sem;
 
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
@@ -2795,19 +2754,19 @@ static struct shortname_table {
 	unsigned int id;
 	const char *s;
 } shortnames[] __devinitdata = {
-	{ PCI_DEVICE_ID_INTEL_82801, "Intel 82801AA-ICH" },
-	{ PCI_DEVICE_ID_INTEL_82901, "Intel 82901AB-ICH0" },
-	{ PCI_DEVICE_ID_INTEL_82801BA, "Intel 82801BA-ICH2" },
+	{ PCI_DEVICE_ID_INTEL_82801AA_5, "Intel 82801AA-ICH" },
+	{ PCI_DEVICE_ID_INTEL_82801AB_5, "Intel 82901AB-ICH0" },
+	{ PCI_DEVICE_ID_INTEL_82801BA_4, "Intel 82801BA-ICH2" },
 	{ PCI_DEVICE_ID_INTEL_440MX, "Intel 440MX" },
-	{ PCI_DEVICE_ID_INTEL_ICH3, "Intel 82801CA-ICH3" },
-	{ PCI_DEVICE_ID_INTEL_ICH4, "Intel 82801DB-ICH4" },
-	{ PCI_DEVICE_ID_INTEL_ICH5, "Intel ICH5" },
+	{ PCI_DEVICE_ID_INTEL_82801CA_5, "Intel 82801CA-ICH3" },
+	{ PCI_DEVICE_ID_INTEL_82801DB_5, "Intel 82801DB-ICH4" },
+	{ PCI_DEVICE_ID_INTEL_82801EB_5, "Intel ICH5" },
 	{ PCI_DEVICE_ID_INTEL_ESB_5, "Intel 6300ESB" },
 	{ PCI_DEVICE_ID_INTEL_ICH6_18, "Intel ICH6" },
 	{ PCI_DEVICE_ID_INTEL_ICH7_20, "Intel ICH7" },
 	{ PCI_DEVICE_ID_INTEL_ESB2_14, "Intel ESB2" },
 	{ PCI_DEVICE_ID_SI_7012, "SiS SI7012" },
-	{ PCI_DEVICE_ID_NVIDIA_MCP_AUDIO, "NVidia nForce" },
+	{ PCI_DEVICE_ID_NVIDIA_MCP1_AUDIO, "NVidia nForce" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP2_AUDIO, "NVidia nForce2" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP3_AUDIO, "NVidia nForce3" },
 	{ PCI_DEVICE_ID_NVIDIA_CK8S_AUDIO, "NVidia CK8S" },
@@ -2860,7 +2819,8 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		}
 	}
 
-	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data, &chip)) < 0) {
+	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
+				       buggy_semaphore[dev], &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -2904,6 +2864,7 @@ static void __devexit snd_intel8x0_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Intel ICH",
+	.owner = THIS_MODULE,
 	.id_table = snd_intel8x0_ids,
 	.probe = snd_intel8x0_probe,
 	.remove = __devexit_p(snd_intel8x0_remove),

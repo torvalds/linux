@@ -465,7 +465,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -623,7 +623,7 @@ static int patch_ad1983(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -764,7 +764,7 @@ static int patch_ad1981(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 

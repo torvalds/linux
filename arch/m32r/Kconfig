@@ -220,11 +220,6 @@ config PREEMPT
 	  Say Y here if you are building a kernel for a desktop, embedded
 	  or real-time system.  Say N if you are unsure.
 
-config HAVE_DEC_LOCK
-	bool
-	depends on (SMP || PREEMPT)
-	default n
-
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---

@@ -33,12 +33,6 @@ extern unsigned long uml_physmem;
          (((unsigned long) (addr) <= ((unsigned long) (addr) + (size))) && \
           (under_task_size(addr, size) || is_stack(addr, size))))
 
-static inline int verify_area_tt(int type, const void __user * addr,
-                                 unsigned long size)
-{
-	return(access_ok_tt(type, addr, size) ? 0 : -EFAULT);
-}
-
 extern unsigned long get_fault_addr(void);
 
 extern int __do_copy_from_user(void *to, const void *from, int n,

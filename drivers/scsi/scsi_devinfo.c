@@ -110,6 +110,7 @@ static struct {
 	{"RELISYS", "Scorpio", NULL, BLIST_NOLUN},	/* responds to all lun */
 	{"SANKYO", "CP525", "6.64", BLIST_NOLUN},	/* causes failed REQ SENSE, extra reset */
 	{"TEXEL", "CD-ROM", "1.06", BLIST_NOLUN},
+	{"transtec", "T5008", "0001", BLIST_NOREPORTLUN },
 	{"YAMAHA", "CDR100", "1.00", BLIST_NOLUN},	/* locks up */
 	{"YAMAHA", "CDR102", "1.00", BLIST_NOLUN},	/* locks up */
 	{"YAMAHA", "CRW8424S", "1.0", BLIST_NOLUN},	/* locks up */

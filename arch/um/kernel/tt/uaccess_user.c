@@ -22,8 +22,15 @@ int __do_copy_from_user(void *to, const void *from, int n,
 			       __do_copy, &faulted);
 	TASK_REGS(get_current())->tt = save;
 
-	if(!faulted) return(0);
-	else return(n - (fault - (unsigned long) from));
+	if(!faulted)
+		return 0;
+	else if (fault)
+		return n - (fault - (unsigned long) from);
+	else
+		/* In case of a general protection fault, we don't have the
+		 * fault address, so NULL is used instead. Pretend we didn't
+		 * copy anything. */
+		return n;
 }
 
 static void __do_strncpy(void *dst, const void *src, int count)

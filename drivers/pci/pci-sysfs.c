@@ -360,7 +360,7 @@ pci_create_resource_files(struct pci_dev *pdev)
 			continue;
 
 		/* allocate attribute structure, piggyback attribute name */
-		res_attr = kcalloc(1, sizeof(*res_attr) + 10, GFP_ATOMIC);
+		res_attr = kzalloc(sizeof(*res_attr) + 10, GFP_ATOMIC);
 		if (res_attr) {
 			char *res_attr_name = (char *)(res_attr + 1);
 

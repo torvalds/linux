@@ -1258,9 +1258,9 @@ void wakeup_kswapd(struct zone *zone, int order)
 		pgdat->kswapd_max_order = order;
 	if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
 		return;
-	if (!waitqueue_active(&zone->zone_pgdat->kswapd_wait))
+	if (!waitqueue_active(&pgdat->kswapd_wait))
 		return;
-	wake_up_interruptible(&zone->zone_pgdat->kswapd_wait);
+	wake_up_interruptible(&pgdat->kswapd_wait);
 }
 
 #ifdef CONFIG_PM

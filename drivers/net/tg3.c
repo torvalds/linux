@@ -67,8 +67,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.39"
-#define DRV_MODULE_RELDATE	"September 5, 2005"
+#define DRV_MODULE_VERSION	"3.42"
+#define DRV_MODULE_RELDATE	"Oct 3, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3389,7 +3389,8 @@ static irqreturn_t tg3_test_isr(int irq, void *dev_id,
 	struct tg3 *tp = netdev_priv(dev);
 	struct tg3_hw_status *sblk = tp->hw_status;
 
-	if (sblk->status & SD_STATUS_UPDATED) {
+	if ((sblk->status & SD_STATUS_UPDATED) ||
+	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     0x00000001);
 		return IRQ_RETVAL(1);
@@ -3442,30 +3443,46 @@ static void tg3_tx_timeout(struct net_device *dev)
 	schedule_work(&tp->reset_task);
 }
 
+/* Test for DMA buffers crossing any 4GB boundaries: 4G, 8G, etc */
+static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
+{
+	u32 base = (u32) mapping & 0xffffffff;
+
+	return ((base > 0xffffdcc0) &&
+		(base + len + 8 < base));
+}
+
 static void tg3_set_txd(struct tg3 *, int, dma_addr_t, int, u32, u32);
 
 static int tigon3_4gb_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
-				       u32 guilty_entry, int guilty_len,
-				       u32 last_plus_one, u32 *start, u32 mss)
+				       u32 last_plus_one, u32 *start,
+				       u32 base_flags, u32 mss)
 {
 	struct sk_buff *new_skb = skb_copy(skb, GFP_ATOMIC);
-	dma_addr_t new_addr;
+	dma_addr_t new_addr = 0;
 	u32 entry = *start;
-	int i;
+	int i, ret = 0;
 
 	if (!new_skb) {
-		dev_kfree_skb(skb);
-		return -1;
+		ret = -1;
+	} else {
+		/* New SKB is guaranteed to be linear. */
+		entry = *start;
+		new_addr = pci_map_single(tp->pdev, new_skb->data, new_skb->len,
+					  PCI_DMA_TODEVICE);
+		/* Make sure new skb does not cross any 4G boundaries.
+		 * Drop the packet if it does.
+		 */
+		if (tg3_4g_overflow_test(new_addr, new_skb->len)) {
+			ret = -1;
+			dev_kfree_skb(new_skb);
+			new_skb = NULL;
+		} else {
+			tg3_set_txd(tp, entry, new_addr, new_skb->len,
+				    base_flags, 1 | (mss << 1));
+			*start = NEXT_TX(entry);
+		}
 	}
-
-	/* New SKB is guaranteed to be linear. */
-	entry = *start;
-	new_addr = pci_map_single(tp->pdev, new_skb->data, new_skb->len,
-				  PCI_DMA_TODEVICE);
-	tg3_set_txd(tp, entry, new_addr, new_skb->len,
-		    (skb->ip_summed == CHECKSUM_HW) ?
-		    TXD_FLAG_TCPUDP_CSUM : 0, 1 | (mss << 1));
-	*start = NEXT_TX(entry);
 
 	/* Now clean up the sw ring entries. */
 	i = 0;
@@ -3491,7 +3508,7 @@ static int tigon3_4gb_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return ret;
 }
 
 static void tg3_set_txd(struct tg3 *tp, int entry,
@@ -3517,19 +3534,10 @@ static void tg3_set_txd(struct tg3 *tp, int entry,
 	txd->vlan_tag = vlan_tag << TXD_VLAN_TAG_SHIFT;
 }
 
-static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
-{
-	u32 base = (u32) mapping & 0xffffffff;
-
-	return ((base > 0xffffdcc0) &&
-		(base + len + 8 < base));
-}
-
 static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	dma_addr_t mapping;
-	unsigned int i;
 	u32 len, entry, base_flags, mss;
 	int would_hit_hwbug;
 
@@ -3624,7 +3632,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	would_hit_hwbug = 0;
 
 	if (tg3_4g_overflow_test(mapping, len))
-		would_hit_hwbug = entry + 1;
+		would_hit_hwbug = 1;
 
 	tg3_set_txd(tp, entry, mapping, len, base_flags,
 		    (skb_shinfo(skb)->nr_frags == 0) | (mss << 1));
@@ -3648,12 +3656,8 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tp->tx_buffers[entry].skb = NULL;
 			pci_unmap_addr_set(&tp->tx_buffers[entry], mapping, mapping);
 
-			if (tg3_4g_overflow_test(mapping, len)) {
-				/* Only one should match. */
-				if (would_hit_hwbug)
-					BUG();
-				would_hit_hwbug = entry + 1;
-			}
+			if (tg3_4g_overflow_test(mapping, len))
+				would_hit_hwbug = 1;
 
 			if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 				tg3_set_txd(tp, entry, mapping, len,
@@ -3669,34 +3673,15 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (would_hit_hwbug) {
 		u32 last_plus_one = entry;
 		u32 start;
-		unsigned int len = 0;
 
-		would_hit_hwbug -= 1;
-		entry = entry - 1 - skb_shinfo(skb)->nr_frags;
-		entry &= (TG3_TX_RING_SIZE - 1);
-		start = entry;
-		i = 0;
-		while (entry != last_plus_one) {
-			if (i == 0)
-				len = skb_headlen(skb);
-			else
-				len = skb_shinfo(skb)->frags[i-1].size;
-
-			if (entry == would_hit_hwbug)
-				break;
-
-			i++;
-			entry = NEXT_TX(entry);
-
-		}
+		start = entry - 1 - skb_shinfo(skb)->nr_frags;
+		start &= (TG3_TX_RING_SIZE - 1);
 
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_4gb_hwbug_workaround(tp, skb,
-						entry, len,
-						last_plus_one,
-						&start, mss))
+		if (tigon3_4gb_hwbug_workaround(tp, skb, last_plus_one,
+						&start, base_flags, mss))
 			goto out_unlock;
 
 		entry = start;
@@ -5411,6 +5396,9 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 	struct tg3 *tp = netdev_priv(dev);
 	struct sockaddr *addr = p;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	spin_lock_bh(&tp->lock);
@@ -5822,6 +5810,13 @@ static int tg3_reset_hw(struct tg3 *tp)
 	}
 	memset(tp->hw_status, 0, TG3_HW_STATUS_SIZE);
 
+	if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
+		tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
+		/* reset to prevent losing 1st rx packet intermittently */
+		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
+		udelay(10);
+	}
+
 	tp->mac_mode = MAC_MODE_TXSTAT_ENABLE | MAC_MODE_RXSTAT_ENABLE |
 		MAC_MODE_TDE_ENABLE | MAC_MODE_RDE_ENABLE | MAC_MODE_FHDE_ENABLE;
 	tw32_f(MAC_MODE, tp->mac_mode | MAC_MODE_RXSTAT_CLEAR | MAC_MODE_TXSTAT_CLEAR);
@@ -5953,7 +5948,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32(MAC_LED_CTRL, tp->led_ctrl);
 
 	tw32(MAC_MI_STAT, MAC_MI_STAT_LNKSTAT_ATTN_ENAB);
-	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) {
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
 		tw32_f(MAC_RX_MODE, RX_MODE_RESET);
 		udelay(10);
 	}
@@ -7376,12 +7371,17 @@ static int tg3_nway_reset(struct net_device *dev)
 	if (!netif_running(dev))
 		return -EAGAIN;
 
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+		return -EINVAL;
+
 	spin_lock_bh(&tp->lock);
 	r = -EINVAL;
 	tg3_readphy(tp, MII_BMCR, &bmcr);
 	if (!tg3_readphy(tp, MII_BMCR, &bmcr) &&
-	    (bmcr & BMCR_ANENABLE)) {
-		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART);
+	    ((bmcr & BMCR_ANENABLE) ||
+	     (tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT))) {
+		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART |
+					   BMCR_ANENABLE);
 		r = 0;
 	}
 	spin_unlock_bh(&tp->lock);
@@ -7943,19 +7943,32 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	struct tg3_rx_buffer_desc *desc;
 
 	if (loopback_mode == TG3_MAC_LOOPBACK) {
+		/* HW errata - mac loopback fails in some cases on 5780.
+		 * Normal traffic and PHY loopback are not affected by
+		 * errata.
+		 */
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+			return 0;
+
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY |
 			   MAC_MODE_PORT_MODE_GMII;
 		tw32(MAC_MODE, mac_mode);
 	} else if (loopback_mode == TG3_PHY_LOOPBACK) {
+		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
+					   BMCR_SPEED1000);
+		udelay(40);
+		/* reset to prevent losing 1st rx packet intermittently */
+		if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES) {
+			tw32_f(MAC_RX_MODE, RX_MODE_RESET);
+			udelay(10);
+			tw32_f(MAC_RX_MODE, tp->rx_mode);
+		}
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
 		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
 		tw32(MAC_MODE, mac_mode);
-
-		tg3_writephy(tp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
-					   BMCR_SPEED1000);
 	}
 	else
 		return -EINVAL;
@@ -9271,6 +9284,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	static struct pci_device_id write_reorder_chipsets[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_AMD,
 		             PCI_DEVICE_ID_AMD_FE_GATE_700C) },
+		{ PCI_DEVICE(PCI_VENDOR_ID_VIA,
+			     PCI_DEVICE_ID_VIA_8385_0) },
 		{ },
 	};
 	u32 misc_ctrl_reg;
@@ -9284,15 +9299,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tg3_is_sun_570X(tp))
 		tp->tg3_flags2 |= TG3_FLG2_SUN_570X;
 #endif
-
-	/* If we have an AMD 762 chipset, write
-	 * reordering to the mailbox registers done by the host
-	 * controller can cause major troubles.  We read back from
-	 * every mailbox register write to force the writes to be
-	 * posted to the chip in order.
-	 */
-	if (pci_dev_present(write_reorder_chipsets))
-		tp->tg3_flags |= TG3_FLAG_MBOX_WRITE_REORDER;
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -9424,6 +9430,16 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (pci_find_capability(tp->pdev, PCI_CAP_ID_EXP) != 0)
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
 
+	/* If we have an AMD 762 or VIA K8T800 chipset, write
+	 * reordering to the mailbox registers done by the host
+	 * controller can cause major troubles.  We read back from
+	 * every mailbox register write to force the writes to be
+	 * posted to the chip in order.
+	 */
+	if (pci_dev_present(write_reorder_chipsets) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
+		tp->tg3_flags |= TG3_FLAG_MBOX_WRITE_REORDER;
+
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703 &&
 	    tp->pci_lat_timer < 64) {
 		tp->pci_lat_timer = 64;
@@ -9532,7 +9548,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->write32_rx_mbox = tg3_write_indirect_mbox;
 
 		iounmap(tp->regs);
-		tp->regs = 0;
+		tp->regs = NULL;
 
 		pci_read_config_word(tp->pdev, PCI_COMMAND, &pci_cmd);
 		pci_cmd &= ~PCI_COMMAND_MEMORY;
@@ -10338,6 +10354,44 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	};
 }
 
+static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
+{
+	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
+		strcpy(str, "PCI Express");
+		return str;
+	} else if (tp->tg3_flags & TG3_FLAG_PCIX_MODE) {
+		u32 clock_ctrl = tr32(TG3PCI_CLOCK_CTRL) & 0x1f;
+
+		strcpy(str, "PCIX:");
+
+		if ((clock_ctrl == 7) ||
+		    ((tr32(GRC_MISC_CFG) & GRC_MISC_CFG_BOARD_ID_MASK) ==
+		     GRC_MISC_CFG_BOARD_ID_5704CIOBE))
+			strcat(str, "133MHz");
+		else if (clock_ctrl == 0)
+			strcat(str, "33MHz");
+		else if (clock_ctrl == 2)
+			strcat(str, "50MHz");
+		else if (clock_ctrl == 4)
+			strcat(str, "66MHz");
+		else if (clock_ctrl == 6)
+			strcat(str, "100MHz");
+		else if (clock_ctrl == 7)
+			strcat(str, "133MHz");
+	} else {
+		strcpy(str, "PCI:");
+		if (tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED)
+			strcat(str, "66MHz");
+		else
+			strcat(str, "33MHz");
+	}
+	if (tp->tg3_flags & TG3_FLAG_PCI_32BIT)
+		strcat(str, ":32-bit");
+	else
+		strcat(str, ":64-bit");
+	return str;
+}
+
 static struct pci_dev * __devinit tg3_find_5704_peer(struct tg3 *tp)
 {
 	struct pci_dev *peer;
@@ -10400,6 +10454,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct tg3 *tp;
 	int i, err, pci_using_dac, pm_cap;
+	char str[40];
 
 	if (tg3_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -10645,16 +10700,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (PCI%s:%s:%s) %sBaseT Ethernet ",
+	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (%s) %sBaseT Ethernet ",
 	       dev->name,
 	       tp->board_part_number,
 	       tp->pci_chip_rev_id,
 	       tg3_phy_string(tp),
-	       ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "X" : ""),
-	       ((tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED) ?
-		((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "133MHz" : "66MHz") :
-		((tp->tg3_flags & TG3_FLAG_PCIX_MODE) ? "100MHz" : "33MHz")),
-	       ((tp->tg3_flags & TG3_FLAG_PCI_32BIT) ? "32-bit" : "64-bit"),
+	       tg3_bus_string(tp, str),
 	       (tp->tg3_flags & TG3_FLAG_10_100_ONLY) ? "10/100" : "10/100/1000");
 
 	for (i = 0; i < 6; i++)
@@ -10680,7 +10731,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 err_out_iounmap:
 	if (tp->regs) {
 		iounmap(tp->regs);
-		tp->regs = 0;
+		tp->regs = NULL;
 	}
 
 err_out_free_dev:
@@ -10705,7 +10756,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 		unregister_netdev(dev);
 		if (tp->regs) {
 			iounmap(tp->regs);
-			tp->regs = 0;
+			tp->regs = NULL;
 		}
 		free_netdev(dev);
 		pci_release_regions(pdev);

@@ -21,6 +21,7 @@ struct thread_struct {
 	 * copy_thread) to mark that we are begin called from userspace (fork /
 	 * vfork / clone), and reset to 0 after. It is left to 0 when called
 	 * from kernelspace (i.e. kernel_thread() or fork_idle(), as of 2.6.11). */
+	struct task_struct *saved_task;
 	int forking;
 	int nsyscalls;
 	struct pt_regs regs;

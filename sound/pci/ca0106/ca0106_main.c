@@ -352,7 +352,7 @@ static int snd_ca0106_pcm_open_playback_channel(snd_pcm_substream_t *substream, 
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 
 	if (epcm == NULL)
 		return -ENOMEM;
@@ -419,7 +419,7 @@ static int snd_ca0106_pcm_open_capture_channel(snd_pcm_substream_t *substream, i
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL) {
                 snd_printk("open_capture_channel: failed epcm alloc\n");
 		return -ENOMEM;
@@ -1144,7 +1144,7 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 		return -ENXIO;
 	}
   
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1390,6 +1390,7 @@ MODULE_DEVICE_TABLE(pci, snd_ca0106_ids);
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = "CA0106",
+	.owner = THIS_MODULE,
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
 	.remove = __devexit_p(snd_ca0106_remove),

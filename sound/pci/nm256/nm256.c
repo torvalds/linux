@@ -259,21 +259,6 @@ struct snd_nm256 {
 /*
  * PCI ids
  */
-
-#ifndef PCI_VENDOR_ID_NEOMAGIC
-#define PCI_VENDOR_ID_NEOMEGIC 0x10c8
-#endif
-#ifndef PCI_DEVICE_ID_NEOMAGIC_NM256AV_AUDIO
-#define PCI_DEVICE_ID_NEOMAGIC_NM256AV_AUDIO 0x8005
-#endif
-#ifndef PCI_DEVICE_ID_NEOMAGIC_NM256ZX_AUDIO
-#define PCI_DEVICE_ID_NEOMAGIC_NM256ZX_AUDIO 0x8006
-#endif
-#ifndef PCI_DEVICE_ID_NEOMAGIC_NM256XL_PLUS_AUDIO
-#define PCI_DEVICE_ID_NEOMAGIC_NM256XL_PLUS_AUDIO 0x8016
-#endif
-
-
 static struct pci_device_id snd_nm256_ids[] = {
 	{PCI_VENDOR_ID_NEOMAGIC, PCI_DEVICE_ID_NEOMAGIC_NM256AV_AUDIO, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NEOMAGIC, PCI_DEVICE_ID_NEOMAGIC_NM256ZX_AUDIO, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -840,7 +825,7 @@ static void snd_nm256_setup_stream(nm256_t *chip, nm256_stream_t *s,
 	runtime->hw = *hw_ptr;
 	runtime->hw.buffer_bytes_max = s->bufsize;
 	runtime->hw.period_bytes_max = s->bufsize / 2;
-	runtime->dma_area = (void*) s->bufptr;
+	runtime->dma_area = (void __force *) s->bufptr;
 	runtime->dma_addr = s->bufptr_addr;
 	runtime->dma_bytes = s->bufsize;
 	runtime->private_data = s;
@@ -1404,7 +1389,7 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1683,6 +1668,7 @@ static void __devexit snd_nm256_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "NeoMagic 256",
+	.owner = THIS_MODULE,
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
 	.remove = __devexit_p(snd_nm256_remove),

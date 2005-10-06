@@ -309,7 +309,7 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 	int ret;
 
 	keyring = key_alloc(&key_type_keyring, description,
-			    uid, gid, KEY_USR_ALL, not_in_quota);
+			    uid, gid, KEY_POS_ALL | KEY_USR_ALL, not_in_quota);
 
 	if (!IS_ERR(keyring)) {
 		ret = key_instantiate_and_link(keyring, NULL, 0, dest, NULL);
@@ -333,12 +333,13 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
  * - we rely on RCU to prevent the keyring lists from disappearing on us
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we only found negative matching keys
+ * - we propagate the possession attribute from the keyring ref to the key ref
  */
-struct key *keyring_search_aux(struct key *keyring,
-			       struct task_struct *context,
-			       struct key_type *type,
-			       const void *description,
-			       key_match_func_t match)
+key_ref_t keyring_search_aux(key_ref_t keyring_ref,
+			     struct task_struct *context,
+			     struct key_type *type,
+			     const void *description,
+			     key_match_func_t match)
 {
 	struct {
 		struct keyring_list *keylist;
@@ -347,29 +348,33 @@ struct key *keyring_search_aux(struct key *keyring,
 
 	struct keyring_list *keylist;
 	struct timespec now;
-	struct key *key;
+	unsigned long possessed;
+	struct key *keyring, *key;
+	key_ref_t key_ref;
 	long err;
 	int sp, kix;
 
+	keyring = key_ref_to_ptr(keyring_ref);
+	possessed = is_key_possessed(keyring_ref);
 	key_check(keyring);
 
-	rcu_read_lock();
-
 	/* top keyring must have search permission to begin the search */
-	key = ERR_PTR(-EACCES);
-	if (!key_task_permission(keyring, context, KEY_SEARCH))
+	key_ref = ERR_PTR(-EACCES);
+	if (!key_task_permission(keyring_ref, context, KEY_SEARCH))
 		goto error;
 
-	key = ERR_PTR(-ENOTDIR);
+	key_ref = ERR_PTR(-ENOTDIR);
 	if (keyring->type != &key_type_keyring)
 		goto error;
+
+	rcu_read_lock();
 
 	now = current_kernel_time();
 	err = -EAGAIN;
 	sp = 0;
 
 	/* start processing a new keyring */
- descend:
+descend:
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
 		goto not_this_keyring;
 
@@ -397,7 +402,8 @@ struct key *keyring_search_aux(struct key *keyring,
 			continue;
 
 		/* key must have search permissions */
-		if (!key_task_permission(key, context, KEY_SEARCH))
+		if (!key_task_permission(make_key_ref(key, possessed),
+					 context, KEY_SEARCH))
 			continue;
 
 		/* we set a different error code if we find a negative key */
@@ -411,7 +417,7 @@ struct key *keyring_search_aux(struct key *keyring,
 
 	/* search through the keyrings nested in this one */
 	kix = 0;
- ascend:
+ascend:
 	for (; kix < keylist->nkeys; kix++) {
 		key = keylist->keys[kix];
 		if (key->type != &key_type_keyring)
@@ -423,7 +429,8 @@ struct key *keyring_search_aux(struct key *keyring,
 		if (sp >= KEYRING_SEARCH_MAX_DEPTH)
 			continue;
 
-		if (!key_task_permission(key, context, KEY_SEARCH))
+		if (!key_task_permission(make_key_ref(key, possessed),
+					 context, KEY_SEARCH))
 			continue;
 
 		/* stack the current position */
@@ -438,7 +445,7 @@ struct key *keyring_search_aux(struct key *keyring,
 
 	/* the keyring we're looking at was disqualified or didn't contain a
 	 * matching key */
- not_this_keyring:
+not_this_keyring:
 	if (sp > 0) {
 		/* resume the processing of a keyring higher up in the tree */
 		sp--;
@@ -447,16 +454,18 @@ struct key *keyring_search_aux(struct key *keyring,
 		goto ascend;
 	}
 
-	key = ERR_PTR(err);
-	goto error;
+	key_ref = ERR_PTR(err);
+	goto error_2;
 
 	/* we found a viable match */
- found:
+found:
 	atomic_inc(&key->usage);
 	key_check(key);
- error:
+	key_ref = make_key_ref(key, possessed);
+error_2:
 	rcu_read_unlock();
-	return key;
+error:
+	return key_ref;
 
 } /* end keyring_search_aux() */
 
@@ -469,9 +478,9 @@ struct key *keyring_search_aux(struct key *keyring,
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we only found negative matching keys
  */
-struct key *keyring_search(struct key *keyring,
-			   struct key_type *type,
-			   const char *description)
+key_ref_t keyring_search(key_ref_t keyring,
+			 struct key_type *type,
+			 const char *description)
 {
 	if (!type->match)
 		return ERR_PTR(-ENOKEY);
@@ -488,14 +497,18 @@ EXPORT_SYMBOL(keyring_search);
  * search the given keyring only (no recursion)
  * - keyring must be locked by caller
  */
-struct key *__keyring_search_one(struct key *keyring,
-				 const struct key_type *ktype,
-				 const char *description,
-				 key_perm_t perm)
+key_ref_t __keyring_search_one(key_ref_t keyring_ref,
+			       const struct key_type *ktype,
+			       const char *description,
+			       key_perm_t perm)
 {
 	struct keyring_list *klist;
-	struct key *key;
+	unsigned long possessed;
+	struct key *keyring, *key;
 	int loop;
+
+	keyring = key_ref_to_ptr(keyring_ref);
+	possessed = is_key_possessed(keyring_ref);
 
 	rcu_read_lock();
 
@@ -507,21 +520,21 @@ struct key *__keyring_search_one(struct key *keyring,
 			if (key->type == ktype &&
 			    (!key->type->match ||
 			     key->type->match(key, description)) &&
-			    key_permission(key, perm) &&
+			    key_permission(make_key_ref(key, possessed),
+					   perm) &&
 			    !test_bit(KEY_FLAG_REVOKED, &key->flags)
 			    )
 				goto found;
 		}
 	}
 
-	key = ERR_PTR(-ENOKEY);
-	goto error;
+	rcu_read_unlock();
+	return ERR_PTR(-ENOKEY);
 
  found:
 	atomic_inc(&key->usage);
- error:
 	rcu_read_unlock();
-	return key;
+	return make_key_ref(key, possessed);
 
 } /* end __keyring_search_one() */
 
@@ -603,7 +616,8 @@ struct key *find_keyring_by_name(const char *name, key_serial_t bound)
 			if (strcmp(keyring->description, name) != 0)
 				continue;
 
-			if (!key_permission(keyring, KEY_SEARCH))
+			if (!key_permission(make_key_ref(keyring, 0),
+					    KEY_SEARCH))
 				continue;
 
 			/* found a potential candidate, but we still need to

@@ -548,6 +548,14 @@ config SUNGEM
 	  Support for the Sun GEM chip, aka Sun GigabitEthernet/P 2.0.  See also
 	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/806-3985-10.pdf>.
 
+config CASSINI
+	tristate "Sun Cassini support"
+	depends on NET_ETHERNET && PCI
+	select CRC32
+	help
+	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
+	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/817-4341-10.pdf>
+
 config NET_VENDOR_3COM
 	bool "3COM cards"
 	depends on NET_ETHERNET && (ISA || EISA || MCA || PCI)
@@ -1951,7 +1959,7 @@ config SKGE
 	---help---
 	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
 	  and related Gigabit Ethernet adapters. It is a new smaller driver
-	  driver with better performance and more complete ethtool support.
+	  with better performance and more complete ethtool support.
 
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.

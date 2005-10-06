@@ -297,16 +297,24 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 
 	p = (char *)buffer + sizeof(struct ip_vs_sync_mesg);
 	for (i=0; i<m->nr_conns; i++) {
+		unsigned flags;
+
 		s = (struct ip_vs_sync_conn *)p;
-		cp = ip_vs_conn_in_get(s->protocol,
-				       s->caddr, s->cport,
-				       s->vaddr, s->vport);
+		flags = ntohs(s->flags);
+		if (!(flags & IP_VS_CONN_F_TEMPLATE))
+			cp = ip_vs_conn_in_get(s->protocol,
+					       s->caddr, s->cport,
+					       s->vaddr, s->vport);
+		else
+			cp = ip_vs_ct_in_get(s->protocol,
+					       s->caddr, s->cport,
+					       s->vaddr, s->vport);
 		if (!cp) {
 			cp = ip_vs_conn_new(s->protocol,
 					    s->caddr, s->cport,
 					    s->vaddr, s->vport,
 					    s->daddr, s->dport,
-					    ntohs(s->flags), NULL);
+					    flags, NULL);
 			if (!cp) {
 				IP_VS_ERR("ip_vs_conn_new failed\n");
 				return;
@@ -315,11 +323,11 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 		} else if (!cp->dest) {
 			/* it is an entry created by the synchronization */
 			cp->state = ntohs(s->state);
-			cp->flags = ntohs(s->flags) | IP_VS_CONN_F_HASHED;
+			cp->flags = flags | IP_VS_CONN_F_HASHED;
 		}	/* Note that we don't touch its state and flags
 			   if it is a normal entry. */
 
-		if (ntohs(s->flags) & IP_VS_CONN_F_SEQ_MASK) {
+		if (flags & IP_VS_CONN_F_SEQ_MASK) {
 			opt = (struct ip_vs_sync_conn_options *)&s[1];
 			memcpy(&cp->in_seq, opt, sizeof(*opt));
 			p += FULL_CONN_SIZE;

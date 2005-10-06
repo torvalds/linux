@@ -92,7 +92,7 @@ static int snd_seq_iwffff_copy_env_from_stream(__u32 req_stype,
 		points_size = (le16_to_cpu(rx.nattack) + le16_to_cpu(rx.nrelease)) * 2 * sizeof(__u16);
 		if (points_size > *len)
 			return -EINVAL;
-		rp = kcalloc(1, sizeof(*rp) + points_size, gfp_mask);
+		rp = kzalloc(sizeof(*rp) + points_size, gfp_mask);
 		if (rp == NULL)
 			return -ENOMEM;
 		rp->nattack = le16_to_cpu(rx.nattack);
@@ -139,7 +139,7 @@ static int snd_seq_iwffff_copy_wave_from_stream(snd_iwffff_ops_t *ops,
 		return -EFAULT;
 	*data += sizeof(xp);
 	*len -= sizeof(xp);
-	wp = kcalloc(1, sizeof(*wp), gfp_mask);
+	wp = kzalloc(sizeof(*wp), gfp_mask);
 	if (wp == NULL)
 		return -ENOMEM;
 	wp->share_id[0] = le32_to_cpu(xp.share_id[0]);
@@ -273,7 +273,7 @@ static int snd_seq_iwffff_put(void *private_data, snd_seq_kinstr_t *instr,
 			snd_seq_iwffff_instr_free(ops, ip, atomic);
 			return -EINVAL;
 		}
-		lp = kcalloc(1, sizeof(*lp), gfp_mask);
+		lp = kzalloc(sizeof(*lp), gfp_mask);
 		if (lp == NULL) {
 			snd_seq_iwffff_instr_free(ops, ip, atomic);
 			return -ENOMEM;

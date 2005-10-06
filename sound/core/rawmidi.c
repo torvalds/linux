@@ -101,7 +101,7 @@ static int snd_rawmidi_runtime_create(snd_rawmidi_substream_t * substream)
 {
 	snd_rawmidi_runtime_t *runtime;
 
-	if ((runtime = kcalloc(1, sizeof(*runtime), GFP_KERNEL)) == NULL)
+	if ((runtime = kzalloc(sizeof(*runtime), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
 	spin_lock_init(&runtime->lock);
 	init_waitqueue_head(&runtime->sleep);
@@ -984,7 +984,9 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
 			spin_lock_irq(&runtime->lock);
 		}
 		spin_unlock_irq(&runtime->lock);
-		count1 = snd_rawmidi_kernel_read1(substream, (unsigned char *)buf, count, 0);
+		count1 = snd_rawmidi_kernel_read1(substream,
+						  (unsigned char __force *)buf,
+						  count, 0);
 		if (count1 < 0)
 			return result > 0 ? result : count1;
 		result += count1;
@@ -1107,7 +1109,7 @@ int snd_rawmidi_transmit_ack(snd_rawmidi_substream_t * substream, int count)
 /**
  * snd_rawmidi_transmit - copy from the buffer to the device
  * @substream: the rawmidi substream
- * @buf: the buffer pointer
+ * @buffer: the buffer pointer
  * @count: the data size to transfer
  * 
  * Copies data from the buffer to the device and advances the pointer.
@@ -1213,7 +1215,9 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf, size
 			spin_lock_irq(&runtime->lock);
 		}
 		spin_unlock_irq(&runtime->lock);
-		count1 = snd_rawmidi_kernel_write1(substream, (unsigned char *)buf, count, 0);
+		count1 = snd_rawmidi_kernel_write1(substream,
+						   (unsigned char __force *)buf,
+						   count, 0);
 		if (count1 < 0)
 			return result > 0 ? result : count1;
 		result += count1;
@@ -1370,7 +1374,7 @@ static int snd_rawmidi_alloc_substreams(snd_rawmidi_t *rmidi,
 
 	INIT_LIST_HEAD(&stream->substreams);
 	for (idx = 0; idx < count; idx++) {
-		substream = kcalloc(1, sizeof(*substream), GFP_KERNEL);
+		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
 		if (substream == NULL)
 			return -ENOMEM;
 		substream->stream = direction;
@@ -1413,7 +1417,7 @@ int snd_rawmidi_new(snd_card_t * card, char *id, int device,
 	snd_assert(rrawmidi != NULL, return -EINVAL);
 	*rrawmidi = NULL;
 	snd_assert(card != NULL, return -ENXIO);
-	rmidi = kcalloc(1, sizeof(*rmidi), GFP_KERNEL);
+	rmidi = kzalloc(sizeof(*rmidi), GFP_KERNEL);
 	if (rmidi == NULL)
 		return -ENOMEM;
 	rmidi->card = card;

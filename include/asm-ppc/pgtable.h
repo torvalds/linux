@@ -812,15 +812,6 @@ extern void kernel_set_cachemode (unsigned long address, unsigned long size,
 #ifdef CONFIG_PHYS_64BIT
 extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			unsigned long paddr, unsigned long size, pgprot_t prot);
-static inline int io_remap_page_range(struct vm_area_struct *vma,
-					unsigned long vaddr,
-					unsigned long paddr,
-					unsigned long size,
-					pgprot_t prot)
-{
-	phys_addr_t paddr64 = fixup_bigphys_addr(paddr, size);
-	return remap_pfn_range(vma, vaddr, paddr64 >> PAGE_SHIFT, size, prot);
-}
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 					unsigned long vaddr,
@@ -832,8 +823,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	return remap_pfn_range(vma, vaddr, paddr64 >> PAGE_SHIFT, size, prot);
 }
 #else
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 #endif

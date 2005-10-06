@@ -581,18 +581,13 @@ asmlinkage int irix_brk(unsigned long brk)
 	}
 
 	/*
-	 * Check if we have enough memory..
+	 * Ok, looks good - let it rip.
 	 */
-	if (security_vm_enough_memory((newbrk-oldbrk) >> PAGE_SHIFT)) {
+	if (do_brk(oldbrk, newbrk-oldbrk) != oldbrk) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	/*
-	 * Ok, looks good - let it rip.
-	 */
 	mm->brk = brk;
-	do_brk(oldbrk, newbrk-oldbrk);
 	ret = 0;
 
 out:

@@ -2639,6 +2639,12 @@ static int reiserfs_commit_write(struct file *f, struct page *page,
 		}
 		reiserfs_update_inode_transaction(inode);
 		inode->i_size = pos;
+		/*
+		 * this will just nest into our transaction.  It's important
+		 * to use mark_inode_dirty so the inode gets pushed around on the
+		 * dirty lists, and so that O_SYNC works as expected
+		 */
+		mark_inode_dirty(inode);
 		reiserfs_update_sd(&myth, inode);
 		update_sd = 1;
 		ret = journal_end(&myth, inode->i_sb, 1);
@@ -2649,21 +2655,13 @@ static int reiserfs_commit_write(struct file *f, struct page *page,
 	if (th) {
 		reiserfs_write_lock(inode->i_sb);
 		if (!update_sd)
-			reiserfs_update_sd(th, inode);
+			mark_inode_dirty(inode);
 		ret = reiserfs_end_persistent_transaction(th);
 		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto out;
 	}
 
-	/* we test for O_SYNC here so we can commit the transaction
-	 ** for any packed tails the file might have had
-	 */
-	if (f && (f->f_flags & O_SYNC)) {
-		reiserfs_write_lock(inode->i_sb);
-		ret = reiserfs_commit_for_inode(inode);
-		reiserfs_write_unlock(inode->i_sb);
-	}
       out:
 	return ret;
 

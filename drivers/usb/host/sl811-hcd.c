@@ -782,6 +782,9 @@ retry:
 /* usb 1.1 says max 90% of a frame is available for periodic transfers.
  * this driver doesn't promise that much since it's got to handle an
  * IRQ per packet; irq handling latencies also use up that time.
+ *
+ * NOTE:  the periodic schedule is a sparse tree, with the load for
+ * each branch minimized.  see fig 3.5 in the OHCI spec for example.
  */
 #define	MAX_PERIODIC_LOAD	500	/* out of 1000 usec */
 
@@ -843,6 +846,7 @@ static int sl811h_urb_enqueue(
 	if (!(sl811->port1 & (1 << USB_PORT_FEAT_ENABLE))
 			|| !HC_IS_RUNNING(hcd->state)) {
 		retval = -ENODEV;
+		kfree(ep);
 		goto fail;
 	}
 
@@ -911,8 +915,16 @@ static int sl811h_urb_enqueue(
 	case PIPE_ISOCHRONOUS:
 	case PIPE_INTERRUPT:
 		urb->interval = ep->period;
-		if (ep->branch < PERIODIC_SIZE)
+		if (ep->branch < PERIODIC_SIZE) {
+			/* NOTE:  the phase is correct here, but the value
+			 * needs offsetting by the transfer queue depth.
+			 * All current drivers ignore start_frame, so this
+			 * is unlikely to ever matter...
+			 */
+			urb->start_frame = (sl811->frame & (PERIODIC_SIZE - 1))
+						+ ep->branch;
 			break;
+		}
 
 		retval = balance(sl811, ep->period, ep->load);
 		if (retval < 0)
@@ -1122,7 +1134,7 @@ sl811h_hub_descriptor (
 	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(temp);
 
 	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
-	desc->bitmap[0] = 1 << 1;
+	desc->bitmap[0] = 0 << 1;
 	desc->bitmap[1] = ~0;
 }
 

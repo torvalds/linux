@@ -118,7 +118,6 @@ static void scsi_unprep_request(struct request *req)
 	req->flags &= ~REQ_DONTPREP;
 	req->special = (req->flags & REQ_SPECIAL) ? cmd->sc_request : NULL;
 
-	scsi_release_buffers(cmd);
 	scsi_put_command(cmd);
 }
 
@@ -140,14 +139,12 @@ static void scsi_unprep_request(struct request *req)
  *              commands.
  * Notes:       This could be called either from an interrupt context or a
  *              normal process context.
- * Notes:	Upon return, cmd is a stale pointer.
  */
 int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_device *device = cmd->device;
 	struct request_queue *q = device->request_queue;
-	struct request *req = cmd->request;
 	unsigned long flags;
 
 	SCSI_LOG_MLQUEUE(1,
@@ -188,9 +185,8 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	 * function.  The SCSI request function detects the blocked condition
 	 * and plugs the queue appropriately.
          */
-	scsi_unprep_request(req);
 	spin_lock_irqsave(q->queue_lock, flags);
-	blk_requeue_request(q, req);
+	blk_requeue_request(q, cmd->request);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	scsi_run_queue(q);
@@ -451,7 +447,7 @@ void scsi_device_unbusy(struct scsi_device *sdev)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->host_busy--;
-	if (unlikely((shost->shost_state == SHOST_RECOVERY) &&
+	if (unlikely(scsi_host_in_recovery(shost) &&
 		     shost->host_failed))
 		scsi_eh_wakeup(shost);
 	spin_unlock(shost->host_lock);
@@ -1268,6 +1264,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 			}
 		} else {
 			memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
+			cmd->cmd_len = req->cmd_len;
 			if (rq_data_dir(req) == WRITE)
 				cmd->sc_data_direction = DMA_TO_DEVICE;
 			else if (req->data_len)
@@ -1342,7 +1339,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				   struct Scsi_Host *shost,
 				   struct scsi_device *sdev)
 {
-	if (shost->shost_state == SHOST_RECOVERY)
+	if (scsi_host_in_recovery(shost))
 		return 0;
 	if (shost->host_busy == 0 && shost->host_blocked) {
 		/*
@@ -1514,7 +1511,6 @@ static void scsi_request_fn(struct request_queue *q)
 	 * cases (host limits or settings) should run the queue at some
 	 * later time.
 	 */
-	scsi_unprep_request(req);
 	spin_lock_irq(q->queue_lock);
 	blk_requeue_request(q, req);
 	sdev->device_busy--;

@@ -87,6 +87,7 @@ MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Extreme driver.");
 
 static snd_card_t *snd_gusextreme_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
+#define PFX	"gusextreme: "
 
 static int __init snd_gusextreme_detect(int dev,
 					snd_card_t * card,
@@ -94,6 +95,7 @@ static int __init snd_gusextreme_detect(int dev,
 					es1688_t *es1688)
 {
 	unsigned long flags;
+	unsigned char d;
 
 	/*
 	 * This is main stuff - enable access to GF1 chip...
@@ -123,36 +125,17 @@ static int __init snd_gusextreme_detect(int dev,
 	udelay(100);
 
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
-#ifdef CONFIG_SND_DEBUG_DETECT
-	{
-		unsigned char d;
-
-		if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
-			snd_printk("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
-			return -EIO;
-		}
-	}
-#else
-	if ((snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET) & 0x07) != 0)
+	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
+		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
 		return -EIO;
-#endif
+	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
 	udelay(160);
-#ifdef CONFIG_SND_DEBUG_DETECT
-	{
-		unsigned char d;
-
-		if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
-			snd_printk("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
-			return -EIO;
-		}
-	}
-#else
-	if ((snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET) & 0x07) != 1)
+	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
+		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -EIO;
-#endif
-
+	}
 	return 0;
 }
 
@@ -205,7 +188,7 @@ static int __init snd_gusextreme_probe(int dev)
 	xgf1_irq = gf1_irq[dev];
 	if (xgf1_irq == SNDRV_AUTO_IRQ) {
 		if ((xgf1_irq = snd_legacy_find_free_irq(possible_gf1_irqs)) < 0) {
-			snd_printk("unable to find a free IRQ for GF1\n");
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ for GF1\n");
 			err = -EBUSY;
 			goto out;
 		}
@@ -213,7 +196,7 @@ static int __init snd_gusextreme_probe(int dev)
 	xess_irq = irq[dev];
 	if (xess_irq == SNDRV_AUTO_IRQ) {
 		if ((xess_irq = snd_legacy_find_free_irq(possible_ess_irqs)) < 0) {
-			snd_printk("unable to find a free IRQ for ES1688\n");
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ for ES1688\n");
 			err = -EBUSY;
 			goto out;
 		}
@@ -226,7 +209,7 @@ static int __init snd_gusextreme_probe(int dev)
 	xgf1_dma = dma1[dev];
 	if (xgf1_dma == SNDRV_AUTO_DMA) {
 		if ((xgf1_dma = snd_legacy_find_free_dma(possible_gf1_dmas)) < 0) {
-			snd_printk("unable to find a free DMA for GF1\n");
+			snd_printk(KERN_ERR PFX "unable to find a free DMA for GF1\n");
 			err = -EBUSY;
 			goto out;
 		}
@@ -234,7 +217,7 @@ static int __init snd_gusextreme_probe(int dev)
 	xess_dma = dma8[dev];
 	if (xess_dma == SNDRV_AUTO_DMA) {
 		if ((xess_dma = snd_legacy_find_free_dma(possible_ess_dmas)) < 0) {
-			snd_printk("unable to find a free DMA for ES1688\n");
+			snd_printk(KERN_ERR PFX "unable to find a free DMA for ES1688\n");
 			err = -EBUSY;
 			goto out;
 		}
@@ -264,7 +247,7 @@ static int __init snd_gusextreme_probe(int dev)
 		goto out;
 
 	if (!gus->ess_flag) {
-		snd_printdd("GUS Extreme soundcard was not detected at 0x%lx\n", gus->gf1.port);
+		snd_printk(KERN_ERR PFX "GUS Extreme soundcard was not detected at 0x%lx\n", gus->gf1.port);
 		err = -ENODEV;
 		goto out;
 	}
@@ -287,7 +270,7 @@ static int __init snd_gusextreme_probe(int dev)
 
 	if (snd_opl3_create(card, es1688->port, es1688->port + 2,
 			    OPL3_HW_OPL3, 0, &opl3) < 0) {
-		printk(KERN_ERR "gusextreme: opl3 not detected at 0x%lx\n", es1688->port);
+		printk(KERN_ERR PFX "gusextreme: opl3 not detected at 0x%lx\n", es1688->port);
 	} else {
 		if ((err = snd_opl3_hwdep_new(opl3, 0, 2, NULL)) < 0)
 			goto out;
@@ -303,6 +286,10 @@ static int __init snd_gusextreme_probe(int dev)
 
 	sprintf(card->longname, "Gravis UltraSound Extreme at 0x%lx, irq %i&%i, dma %i&%i",
 		es1688->port, xgf1_irq, xess_irq, xgf1_dma, xess_dma);
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto out;
+
 	if ((err = snd_card_register(card)) < 0)
 		goto out;
 

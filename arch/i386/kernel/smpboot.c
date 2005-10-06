@@ -42,7 +42,6 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/smp_lock.h>
-#include <linux/irq.h>
 #include <linux/bootmem.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -202,7 +201,7 @@ static void __devinit smp_store_cpu_info(int id)
 				goto valid_k7;
 
 		/* If we get here, it's not a certified SMP capable AMD system. */
-		tainted |= TAINT_UNSAFE_SMP;
+		add_taint(TAINT_UNSAFE_SMP);
 	}
 
 valid_k7:

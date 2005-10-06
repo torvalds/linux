@@ -608,7 +608,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 
 #ifdef __i386__
 	if (dev->resource[PCI_ROM_RESOURCE].start) {
-		pci_write_config_byte(dev, PCI_ROM_ADDRESS, dev->resource[PCI_ROM_RESOURCE].start | PCI_ROM_ADDRESS_ENABLE);
+		pci_write_config_dword(dev, PCI_ROM_ADDRESS, dev->resource[PCI_ROM_RESOURCE].start | PCI_ROM_ADDRESS_ENABLE);
 		printk(KERN_INFO "%s: ROM enabled at 0x%08lx\n", name, dev->resource[PCI_ROM_RESOURCE].start);
 	}
 #endif

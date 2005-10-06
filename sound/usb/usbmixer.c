@@ -824,7 +824,7 @@ static void build_feature_ctl(mixer_build_t *state, unsigned char *desc,
 	if (check_ignored_ctl(state, unitid, control))
 		return;
 
-	cval = kcalloc(1, sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 	if (! cval) {
 		snd_printk(KERN_ERR "cannot malloc kcontrol\n");
 		return;
@@ -997,7 +997,7 @@ static void build_mixer_unit_ctl(mixer_build_t *state, unsigned char *desc,
 	if (check_ignored_ctl(state, unitid, 0))
 		return;
 
-	cval = kcalloc(1, sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 	if (! cval)
 		return;
 
@@ -1244,7 +1244,7 @@ static int build_audio_procunit(mixer_build_t *state, int unitid, unsigned char 
 			continue;
 		if (check_ignored_ctl(state, unitid, valinfo->control))
 			continue;
-		cval = kcalloc(1, sizeof(*cval), GFP_KERNEL);
+		cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 		if (! cval) {
 			snd_printk(KERN_ERR "cannot malloc kcontrol\n");
 			return -ENOMEM;
@@ -1430,7 +1430,7 @@ static int parse_audio_selector_unit(mixer_build_t *state, int unitid, unsigned 
 	if (check_ignored_ctl(state, unitid, 0))
 		return 0;
 
-	cval = kcalloc(1, sizeof(*cval), GFP_KERNEL);
+	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 	if (! cval) {
 		snd_printk(KERN_ERR "cannot malloc kcontrol\n");
 		return -ENOMEM;
@@ -1945,7 +1945,7 @@ int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif)
 
 	strcpy(chip->card->mixername, "USB Mixer");
 
-	mixer = kcalloc(1, sizeof(*mixer), GFP_KERNEL);
+	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
 	if (!mixer)
 		return -ENOMEM;
 	mixer->chip = chip;

@@ -24,7 +24,7 @@
 #include "proc_mm.h"
 #include "registers.h"
 
-void *switch_to_skas(void *prev, void *next)
+void switch_to_skas(void *prev, void *next)
 {
 	struct task_struct *from, *to;
 
@@ -35,16 +35,11 @@ void *switch_to_skas(void *prev, void *next)
 	if(current->pid == 0)
 		switch_timers(0);
 
-	to->thread.prev_sched = from;
-	set_current(to);
-
 	switch_threads(&from->thread.mode.skas.switch_buf, 
 		       to->thread.mode.skas.switch_buf);
 
 	if(current->pid == 0)
 		switch_timers(1);
-
-	return(current->thread.prev_sched);
 }
 
 extern void schedule_tail(struct task_struct *prev);

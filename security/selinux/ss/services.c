@@ -381,7 +381,7 @@ static int security_validtrans_handle_fail(struct context *ocontext,
 		goto out;
 	if (context_struct_to_string(tcontext, &t, &tlen) < 0)
 		goto out;
-	audit_log(current->audit_context, AUDIT_SELINUX_ERR,
+	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 	          "security_validate_transition:  denied for"
 	          " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
 	          o, n, t, policydb.p_class_val_to_name[tclass-1]);
@@ -787,7 +787,7 @@ static int compute_sid_handle_invalid_context(
 		goto out;
 	if (context_struct_to_string(newcontext, &n, &nlen) < 0)
 		goto out;
-	audit_log(current->audit_context, AUDIT_SELINUX_ERR,
+	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		  "security_compute_sid:  invalid context %s"
 		  " for scontext=%s"
 		  " tcontext=%s"

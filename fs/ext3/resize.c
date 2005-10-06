@@ -242,7 +242,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	     i < sbi->s_itb_per_group; i++, bit++, block++) {
 		struct buffer_head *it;
 
-		ext3_debug("clear inode block %#04x (+%ld)\n", block, bit);
+		ext3_debug("clear inode block %#04lx (+%d)\n", block, bit);
 		if (IS_ERR(it = bclean(handle, sb, block))) {
 			err = PTR_ERR(it);
 			goto exit_bh;
@@ -643,8 +643,8 @@ static void update_backups(struct super_block *sb,
 			break;
 
 		bh = sb_getblk(sb, group * bpg + blk_off);
-		ext3_debug(sb, __FUNCTION__, "update metadata backup %#04lx\n",
-			   bh->b_blocknr);
+		ext3_debug("update metadata backup %#04lx\n",
+			  (unsigned long)bh->b_blocknr);
 		if ((err = ext3_journal_get_write_access(handle, bh)))
 			break;
 		lock_buffer(bh);

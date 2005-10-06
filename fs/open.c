@@ -738,52 +738,15 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 	return error;
 }
 
-/*
- * Note that while the flag value (low two bits) for sys_open means:
- *	00 - read-only
- *	01 - write-only
- *	10 - read-write
- *	11 - special
- * it is changed into
- *	00 - no permissions needed
- *	01 - read-permission
- *	10 - write-permission
- *	11 - read-write
- * for the internal routines (ie open_namei()/follow_link() etc). 00 is
- * used by symlinks.
- */
-struct file *filp_open(const char * filename, int flags, int mode)
+static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
+					int flags, struct file *f)
 {
-	int namei_flags, error;
-	struct nameidata nd;
-
-	namei_flags = flags;
-	if ((namei_flags+1) & O_ACCMODE)
-		namei_flags++;
-	if (namei_flags & O_TRUNC)
-		namei_flags |= 2;
-
-	error = open_namei(filename, namei_flags, mode, &nd);
-	if (!error)
-		return dentry_open(nd.dentry, nd.mnt, flags);
-
-	return ERR_PTR(error);
-}
-
-EXPORT_SYMBOL(filp_open);
-
-struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
-{
-	struct file * f;
 	struct inode *inode;
 	int error;
 
-	error = -ENFILE;
-	f = get_empty_filp();
-	if (!f)
-		goto cleanup_dentry;
 	f->f_flags = flags;
-	f->f_mode = ((flags+1) & O_ACCMODE) | FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
+	f->f_mode = ((flags+1) & O_ACCMODE) | FMODE_LSEEK |
+				FMODE_PREAD | FMODE_PWRITE;
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
 		error = get_write_access(inode);
@@ -828,12 +791,63 @@ cleanup_all:
 	f->f_vfsmnt = NULL;
 cleanup_file:
 	put_filp(f);
-cleanup_dentry:
 	dput(dentry);
 	mntput(mnt);
 	return ERR_PTR(error);
 }
 
+/*
+ * Note that while the flag value (low two bits) for sys_open means:
+ *	00 - read-only
+ *	01 - write-only
+ *	10 - read-write
+ *	11 - special
+ * it is changed into
+ *	00 - no permissions needed
+ *	01 - read-permission
+ *	10 - write-permission
+ *	11 - read-write
+ * for the internal routines (ie open_namei()/follow_link() etc). 00 is
+ * used by symlinks.
+ */
+struct file *filp_open(const char * filename, int flags, int mode)
+{
+	int namei_flags, error;
+	struct nameidata nd;
+	struct file *f;
+
+	namei_flags = flags;
+	if ((namei_flags+1) & O_ACCMODE)
+		namei_flags++;
+	if (namei_flags & O_TRUNC)
+		namei_flags |= 2;
+
+	error = -ENFILE;
+	f = get_empty_filp();
+	if (f == NULL)
+		return ERR_PTR(error);
+
+	error = open_namei(filename, namei_flags, mode, &nd);
+	if (!error)
+		return __dentry_open(nd.dentry, nd.mnt, flags, f);
+
+	put_filp(f);
+	return ERR_PTR(error);
+}
+EXPORT_SYMBOL(filp_open);
+
+struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
+{
+	int error;
+	struct file *f;
+
+	error = -ENFILE;
+	f = get_empty_filp();
+	if (f == NULL)
+		return ERR_PTR(error);
+
+	return __dentry_open(dentry, mnt, flags, f);
+}
 EXPORT_SYMBOL(dentry_open);
 
 /*

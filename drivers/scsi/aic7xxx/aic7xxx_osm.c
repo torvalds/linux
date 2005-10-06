@@ -1109,15 +1109,6 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 	return (0);
 }
 
-uint64_t
-ahc_linux_get_memsize(void)
-{
-	struct sysinfo si;
-
-	si_meminfo(&si);
-	return ((uint64_t)si.totalram << PAGE_SHIFT);
-}
-
 /*
  * Place the SCSI bus into a known state by either resetting it,
  * or forcing transfer negotiations on the next command to any
@@ -1218,11 +1209,6 @@ ahc_platform_free(struct ahc_softc *ahc)
 	int i, j;
 
 	if (ahc->platform_data != NULL) {
-		if (ahc->platform_data->host != NULL) {
-			scsi_remove_host(ahc->platform_data->host);
-			scsi_host_put(ahc->platform_data->host);
-		}
-
 		/* destroy all of the device and target objects */
 		for (i = 0; i < AHC_NUM_TARGETS; i++) {
 			starget = ahc->platform_data->starget[i];
@@ -1250,6 +1236,9 @@ ahc_platform_free(struct ahc_softc *ahc)
 			release_mem_region(ahc->platform_data->mem_busaddr,
 					   0x1000);
 		}
+
+		if (ahc->platform_data->host)
+			scsi_host_put(ahc->platform_data->host);
 
 		free(ahc->platform_data, M_DEVBUF);
 	}

@@ -1686,7 +1686,7 @@ static int __devinit snd_es18xx_new_device(snd_card_t * card,
 	int err;
 
 	*rchip = NULL;
-        chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+        chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);
@@ -1988,6 +1988,12 @@ static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
 }
 #endif /* CONFIG_PNP */
 
+#ifdef CONFIG_PNP
+#define is_isapnp_selected(dev)		isapnp[dev]
+#else
+#define is_isapnp_selected(dev)		0
+#endif
+
 static int __devinit snd_audiodrive_probe(int dev, struct pnp_card_link *pcard,
 					  const struct pnp_card_device_id *pid)
 {
@@ -1996,7 +2002,6 @@ static int __devinit snd_audiodrive_probe(int dev, struct pnp_card_link *pcard,
 	int xirq, xdma1, xdma2;
 	snd_card_t *card;
 	struct snd_audiodrive *acard;
-	snd_rawmidi_t *rmidi = NULL;
 	es18xx_t *chip;
 	opl3_t *opl3;
 	int err;
@@ -2019,25 +2024,25 @@ static int __devinit snd_audiodrive_probe(int dev, struct pnp_card_link *pcard,
 	xirq = irq[dev];
 	if (xirq == SNDRV_AUTO_IRQ) {
 		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
-			snd_card_free(card);
-			snd_printk("unable to find a free IRQ\n");
-			return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
+			err = -EBUSY;
+			goto _err;
 		}
 	}
 	xdma1 = dma1[dev];
         if (xdma1 == SNDRV_AUTO_DMA) {
                 if ((xdma1 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
-                        snd_card_free(card);
-                        snd_printk("unable to find a free DMA1\n");
-                        return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free DMA1\n");
+			err = -EBUSY;
+			goto _err;
                 }
         }
 	xdma2 = dma2[dev];
         if (xdma2 == SNDRV_AUTO_DMA) {
                 if ((xdma2 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
-                        snd_card_free(card);
-                        snd_printk("unable to find a free DMA2\n");
-                        return -EBUSY;
+			snd_printk(KERN_ERR PFX "unable to find a free DMA2\n");
+			err = -EBUSY;
+			goto _err;
                 }
         }
 
@@ -2046,10 +2051,8 @@ static int __devinit snd_audiodrive_probe(int dev, struct pnp_card_link *pcard,
 					 mpu_port[dev],
 					 fm_port[dev],
 					 xirq, xdma1, xdma2,
-					 &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+					 &chip)) < 0)
+		goto _err;
 
 	sprintf(card->driver, "ES%x", chip->version);
 	sprintf(card->shortname, "ESS AudioDrive ES%x", chip->version);
@@ -2064,23 +2067,18 @@ static int __devinit snd_audiodrive_probe(int dev, struct pnp_card_link *pcard,
 			chip->port,
 			xirq, xdma1);
 
-	if ((err = snd_es18xx_pcm(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_es18xx_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_es18xx_pcm(chip, 0, NULL)) < 0)
+		goto _err;
+
+	if ((err = snd_es18xx_mixer(chip)) < 0)
+		goto _err;
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card, chip->fm_port, chip->fm_port + 2, OPL3_HW_OPL3, 0, &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "opl3 not detected at 0x%lx\n", chip->fm_port);
+			snd_printk(KERN_WARNING PFX "opl3 not detected at 0x%lx\n", chip->fm_port);
 		} else {
-			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-				snd_card_free(card);
-				return err;
-			}
+			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+				goto _err;
 		}
 	}
 
@@ -2088,25 +2086,28 @@ static int __devinit snd_audiodrive_probe(int dev, struct pnp_card_link *pcard,
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES18XX,
 					       chip->mpu_port, 0,
 					       xirq, 0,
-					       &rmidi)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
-		chip->rmidi = rmidi;
+					       &chip->rmidi)) < 0)
+			goto _err;
 	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
 
 	/* Power Management */
 	snd_card_set_isa_pm_callback(card, snd_es18xx_suspend, snd_es18xx_resume, chip);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	if (pcard)
 		pnp_set_card_drvdata(pcard, card);
 	else
 		snd_audiodrive_legacy[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __devinit snd_audiodrive_probe_legacy_port(unsigned long xport)
@@ -2117,10 +2118,8 @@ static int __devinit snd_audiodrive_probe_legacy_port(unsigned long xport)
 	for ( ; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
 			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[dev])
+		if (is_isapnp_selected(dev))
 			continue;
-#endif
 		port[dev] = xport;
 		res = snd_audiodrive_probe(dev, NULL, NULL);
 		if (res < 0)
@@ -2177,10 +2176,8 @@ static int __init alsa_card_es18xx_init(void)
 	for (dev = 0; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev] || port[dev] == SNDRV_AUTO_PORT)
 			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[dev])
+		if (is_isapnp_selected(dev))
 			continue;
-#endif
 		if (snd_audiodrive_probe(dev, NULL, NULL) >= 0)
 			cards++;
 	}

@@ -157,6 +157,13 @@ extern int os_lock_file(int fd, int excl);
 extern void os_early_checks(void);
 extern int can_do_skas(void);
 
+/* Make sure they are clear when running in TT mode. Required by
+ * SEGV_MAYBE_FIXABLE */
+#define clear_can_do_skas() do { ptrace_faultinfo = proc_mm = 0; } while (0)
+
+/* mem.c */
+extern int create_mem_file(unsigned long len);
+
 /* process.c */
 extern unsigned long os_process_pc(int pid);
 extern int os_process_parent(int pid);
@@ -181,6 +188,8 @@ extern unsigned long long os_usecs(void);
 /* tt.c
  * for tt mode only (will be deleted in future...)
  */
+extern int protect_memory(unsigned long addr, unsigned long len,
+			  int r, int w, int x, int must_succeed);
 extern void forward_pending_sigio(int target);
 extern int start_fork_tramp(void *arg, unsigned long temp_stack,
 			    int clone_flags, int (*tramp)(void *));

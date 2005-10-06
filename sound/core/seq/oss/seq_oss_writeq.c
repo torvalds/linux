@@ -38,7 +38,7 @@ snd_seq_oss_writeq_new(seq_oss_devinfo_t *dp, int maxlen)
 	seq_oss_writeq_t *q;
 	snd_seq_client_pool_t pool;
 
-	if ((q = kcalloc(1, sizeof(*q), GFP_KERNEL)) == NULL)
+	if ((q = kzalloc(sizeof(*q), GFP_KERNEL)) == NULL)
 		return NULL;
 	q->dp = dp;
 	q->maxlen = maxlen;

@@ -13,6 +13,8 @@ the BIOS on Dell servers (starting from servers sold since 1999), desktops
 and notebooks (starting from those sold in 2005).
 Please go to  http://support.dell.com register and you can find info on
 OpenManage and Dell Update packages (DUP).
+Libsmbios can also be used to update BIOS on Dell systems go to
+http://linux.dell.com/libsmbios/ for details.
 
 Dell_RBU driver supports BIOS update using the monilothic image and packetized
 image methods. In case of moniolithic the driver allocates a contiguous chunk
@@ -22,8 +24,8 @@ would place each packet in contiguous physical memory. The driver also
 maintains a link list of packets for reading them back.
 If the dell_rbu driver is unloaded all the allocated memory is freed.
 
-The rbu driver needs to have an application which will inform the BIOS to
-enable the update in the next system reboot.
+The rbu driver needs to have an application (as mentioned above)which will
+inform the BIOS to enable the update in the next system reboot.
 
 The user should not unload the rbu driver after downloading the BIOS image
 or updating.
@@ -42,9 +44,11 @@ In case of packet mechanism the single memory can be broken in smaller chuks
 of contiguous memory and the BIOS image is scattered in these packets.
 
 By default the driver uses monolithic memory for the update type. This can be
-changed to contiguous during the driver load time by specifying the load
+changed to packets during the driver load time by specifying the load
 parameter image_type=packet.  This can also be changed later as below
 echo packet > /sys/devices/platform/dell_rbu/image_type
+Also echoing either mono ,packet or init in to image_type will free up the
+memory allocated by the driver.
 
 Do the steps below to download the BIOS image.
 1) echo 1 > /sys/class/firmware/dell_rbu/loading
@@ -53,9 +57,13 @@ Do the steps below to download the BIOS image.
 
 The /sys/class/firmware/dell_rbu/ entries will remain till the following is
 done.
-echo -1 > /sys/class/firmware/dell_rbu/loading
-
+echo -1 > /sys/class/firmware/dell_rbu/loading.
 Until this step is completed the drivr cannot be unloaded.
+If an user by accident executes steps 1 and 3 above without executing step 2;
+it will make the /sys/class/firmware/dell_rbu/ entries to disappear.
+The entries can be recreated by doing the following
+echo init > /sys/devices/platform/dell_rbu/image_type
+NOTE: echoing init in image_type does not change it original value.
 
 Also the driver provides /sys/devices/platform/dell_rbu/data readonly file to
 read back the image downloaded. This is useful in case of packet update

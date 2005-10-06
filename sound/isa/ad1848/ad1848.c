@@ -91,35 +91,36 @@ static int __init snd_card_ad1848_probe(int dev)
 				     irq[dev],
 				     dma1[dev],
 				     thinkpad[dev] ? AD1848_HW_THINKPAD : AD1848_HW_DETECT,
-				     &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     &chip)) < 0)
+		goto _err;
 
-	if ((err = snd_ad1848_pcm(chip, 0, &pcm)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_ad1848_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_ad1848_pcm(chip, 0, &pcm)) < 0)
+		goto _err;
+
+	if ((err = snd_ad1848_mixer(chip)) < 0)
+		goto _err;
+
 	strcpy(card->driver, "AD1848");
 	strcpy(card->shortname, pcm->name);
 
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
 		pcm->name, chip->port, irq[dev], dma1[dev]);
 
-	if (thinkpad[dev]) {
+	if (thinkpad[dev])
 		strcat(card->longname, " [Thinkpad]");
-	}
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	snd_ad1848_cards[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init alsa_card_ad1848_init(void)

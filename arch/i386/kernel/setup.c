@@ -848,9 +848,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 #ifdef CONFIG_X86_IO_APIC
 		else if (!memcmp(from, "acpi_skip_timer_override", 24))
 			acpi_skip_timer_override = 1;
-#endif
 
-#ifdef CONFIG_X86_LOCAL_APIC
 		if (!memcmp(from, "disable_timer_pin_1", 19))
 			disable_timer_pin_1 = 1;
 		if (!memcmp(from, "enable_timer_pin_1", 18))
@@ -859,7 +857,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 		/* disable IO-APIC */
 		else if (!memcmp(from, "noapic", 6))
 			disable_ioapic_setup();
-#endif /* CONFIG_X86_LOCAL_APIC */
+#endif /* CONFIG_X86_IO_APIC */
 #endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_X86_LOCAL_APIC

@@ -33,7 +33,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/mux.h>
 #include <asm/arch/usb.h>

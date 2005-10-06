@@ -29,6 +29,4 @@ module.c-dir = kernel
 
 $(obj)/stub_segv.o: _c_flags = $(call unprofile,$(CFLAGS))
 
-subdir- := util
-
 include arch/um/scripts/Makefile.unmap

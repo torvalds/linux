@@ -464,7 +464,7 @@ static void s3c2410wdt_shutdown(struct device *dev)
 static unsigned long wtcon_save;
 static unsigned long wtdat_save;
 
-static int s3c2410wdt_suspend(struct device *dev, u32 state, u32 level)
+static int s3c2410wdt_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	if (level == SUSPEND_POWER_DOWN) {
 		/* Save watchdog state, and turn it off. */

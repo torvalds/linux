@@ -132,6 +132,17 @@ config KEYBOARD_CORGI
 	  To compile this driver as a module, choose M here: the 
 	  module will be called corgikbd.
 
+config KEYBOARD_SPITZ
+	tristate "Spitz keyboard"
+	depends on PXA_SHARPSL
+	default y
+	help
+	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
+	  SL-C3000 and Sl-C3100 series of PDAs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spitzkbd.
+
 config KEYBOARD_MAPLE
 	tristate "Maple bus keyboard"
 	depends on SH_DREAMCAST && MAPLE

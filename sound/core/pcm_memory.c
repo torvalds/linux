@@ -244,7 +244,7 @@ int snd_pcm_lib_preallocate_pages(snd_pcm_substream_t *substream,
 
 /**
  * snd_pcm_lib_preallocate_pages_for_all - pre-allocation for continous memory type (all substreams)
- * @substream: the pcm substream instance
+ * @pcm: the pcm instance
  * @type: DMA type (SNDRV_DMA_TYPE_*)
  * @data: DMA type dependant data
  * @size: the requested pre-allocation size in bytes
@@ -321,7 +321,7 @@ int snd_pcm_lib_malloc_pages(snd_pcm_substream_t *substream, size_t size)
 	if (substream->dma_buffer.area != NULL && substream->dma_buffer.bytes >= size) {
 		dmab = &substream->dma_buffer; /* use the pre-allocated buffer */
 	} else {
-		dmab = kcalloc(1, sizeof(*dmab), GFP_KERNEL);
+		dmab = kzalloc(sizeof(*dmab), GFP_KERNEL);
 		if (! dmab)
 			return -ENOMEM;
 		dmab->dev = substream->dma_buffer.dev;

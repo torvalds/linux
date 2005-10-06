@@ -120,13 +120,6 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 
 #define RME9652_REV15_buf_pos(x) ((((x)&0xE0000000)>>26)|((x)&RME9652_buf_pos))
 
-#ifndef PCI_VENDOR_ID_XILINX
-#define PCI_VENDOR_ID_XILINX		0x10ee
-#endif
-#ifndef PCI_DEVICE_ID_XILINX_HAMMERFALL
-#define PCI_DEVICE_ID_XILINX_HAMMERFALL	0x3fc4
-#endif
-
 /* amount of io space we remap for register access. i'm not sure we
    even need this much, but 1K is nice round number :)
 */
@@ -2661,6 +2654,7 @@ static void __devexit snd_rme9652_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name	  = "RME Digi9652 (Hammerfall)",
+	.owner	  = THIS_MODULE,
 	.id_table = snd_rme9652_ids,
 	.probe	  = snd_rme9652_probe,
 	.remove	  = __devexit_p(snd_rme9652_remove),

@@ -307,8 +307,8 @@ struct sysinfo {
 	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
 };
 
-extern void BUILD_BUG(void);
-#define BUILD_BUG_ON(condition) do { if (condition) BUILD_BUG(); } while(0)
+/* Force a compilation error if condition is false */
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 #ifdef CONFIG_SYSCTL
 extern int randomize_va_space;

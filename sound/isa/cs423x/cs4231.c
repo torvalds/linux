@@ -76,15 +76,15 @@ static int __init snd_card_cs4231_probe(int dev)
 	int err;
 
 	if (port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk("specify port\n");
+		snd_printk(KERN_ERR "specify port\n");
 		return -EINVAL;
 	}
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
-		snd_printk("specify irq\n");
+		snd_printk(KERN_ERR "specify irq\n");
 		return -EINVAL;
 	}
 	if (dma1[dev] == SNDRV_AUTO_DMA) {
-		snd_printk("specify dma1\n");
+		snd_printk(KERN_ERR "specify dma1\n");
 		return -EINVAL;
 	}
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
@@ -96,15 +96,11 @@ static int __init snd_card_cs4231_probe(int dev)
 				     dma1[dev],
 				     dma2[dev],
 				     CS4231_HW_DETECT,
-				     0, &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     0, &chip)) < 0)
+		goto _err;
 
-	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0)
+		goto _err;
 
 	strcpy(card->driver, "CS4231");
 	strcpy(card->shortname, pcm->name);
@@ -113,14 +109,10 @@ static int __init snd_card_cs4231_probe(int dev)
 	if (dma2[dev] >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
 
-	if ((err = snd_cs4231_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_cs4231_timer(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_cs4231_mixer(chip)) < 0)
+		goto _err;
+	if ((err = snd_cs4231_timer(chip, 0, NULL)) < 0)
+		goto _err;
 
 	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		if (mpu_irq[dev] == SNDRV_AUTO_IRQ)
@@ -130,14 +122,20 @@ static int __init snd_card_cs4231_probe(int dev)
 					mpu_irq[dev],
 					mpu_irq[dev] >= 0 ? SA_INTERRUPT : 0,
 					NULL) < 0)
-			printk(KERN_ERR "cs4231: MPU401 not detected\n");
+			printk(KERN_WARNING "cs4231: MPU401 not detected\n");
 	}
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
 	snd_cs4231_cards[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init alsa_card_cs4231_init(void)

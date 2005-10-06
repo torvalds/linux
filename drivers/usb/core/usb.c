@@ -303,7 +303,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
 	 */
-	if (klist_node_attached(&dev->knode_bus))
+	if (device_is_registered(dev))
 		device_bind_driver(dev);
 
 	return 0;
@@ -336,8 +336,8 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	if (iface->condition != USB_INTERFACE_BOUND)
 		return;
 
-	/* release only after device_add() */
-	if (klist_node_attached(&dev->knode_bus)) {
+	/* don't release if the interface hasn't been added yet */
+	if (device_is_registered(dev)) {
 		iface->condition = USB_INTERFACE_UNBINDING;
 		device_release_driver(dev);
 	}

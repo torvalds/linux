@@ -987,7 +987,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 
 			/* remove this interface if it has been registered */
 			interface = dev->actconfig->interface[i];
-			if (!klist_node_attached(&interface->dev.knode_bus))
+			if (!device_is_registered(&interface->dev))
 				continue;
 			dev_dbg (&dev->dev, "unregistering interface %s\n",
 				interface->dev.bus_id);

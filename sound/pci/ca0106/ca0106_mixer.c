@@ -482,7 +482,7 @@ static int snd_ca0106_volume_put_feedback(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_ca0106_volume_control_analog_front =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Front Volume",
+        .name =         "Analog Front Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_analog_front,
         .put =          snd_ca0106_volume_put_analog_front
@@ -490,7 +490,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_analog_front =
 static snd_kcontrol_new_t snd_ca0106_volume_control_analog_center_lfe =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Center/LFE Volume",
+        .name =         "Analog Center/LFE Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_analog_center_lfe,
         .put =          snd_ca0106_volume_put_analog_center_lfe
@@ -498,7 +498,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_analog_center_lfe =
 static snd_kcontrol_new_t snd_ca0106_volume_control_analog_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Side Volume",
+        .name =         "Analog Side Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_analog_unknown,
         .put =          snd_ca0106_volume_put_analog_unknown
@@ -506,7 +506,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_analog_unknown =
 static snd_kcontrol_new_t snd_ca0106_volume_control_analog_rear =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Rear Volume",
+        .name =         "Analog Rear Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_analog_rear,
         .put =          snd_ca0106_volume_put_analog_rear
@@ -514,7 +514,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_analog_rear =
 static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_front =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Front Volume",
+        .name =         "SPDIF Front Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_spdif_front,
         .put =          snd_ca0106_volume_put_spdif_front
@@ -522,7 +522,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_front =
 static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_center_lfe =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Center/LFE Volume",
+        .name =         "SPDIF Center/LFE Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_spdif_center_lfe,
         .put =          snd_ca0106_volume_put_spdif_center_lfe
@@ -530,7 +530,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_center_lfe =
 static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Unknown Volume",
+        .name =         "SPDIF Unknown Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_spdif_unknown,
         .put =          snd_ca0106_volume_put_spdif_unknown
@@ -538,7 +538,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_unknown =
 static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_rear =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Rear Volume",
+        .name =         "SPDIF Rear Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_spdif_rear,
         .put =          snd_ca0106_volume_put_spdif_rear
@@ -547,7 +547,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_rear =
 static snd_kcontrol_new_t snd_ca0106_volume_control_feedback =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "CAPTURE feedback into PLAYBACK",
+        .name =         "CAPTURE feedback Playback Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_feedback,
         .put =          snd_ca0106_volume_put_feedback

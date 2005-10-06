@@ -836,6 +836,23 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	int r;
 	int level;
 
+#ifdef CONFIG_SMP
+	unsigned long value;
+
+	/*
+	 * Disable TLB flush filter by setting HWCR.FFDIS on K8
+	 * bit 6 of msr C001_0015
+ 	 *
+	 * Errata 63 for SH-B3 steppings
+	 * Errata 122 for all steppings (F+ have it disabled by default)
+	 */
+	if (c->x86 == 15) {
+		rdmsrl(MSR_K8_HWCR, value);
+		value |= 1 << 6;
+		wrmsrl(MSR_K8_HWCR, value);
+	}
+#endif
+
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
 	clear_bit(0*32+31, &c->x86_capability);
@@ -950,13 +967,12 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 static void srat_detect_node(void)
 {
 #ifdef CONFIG_NUMA
-	unsigned apicid, node;
+	unsigned node;
 	int cpu = smp_processor_id();
 
 	/* Don't do the funky fallback heuristics the AMD version employs
 	   for now. */
-	apicid = phys_proc_id[cpu];
-	node = apicid_to_node[apicid];
+	node = apicid_to_node[hard_smp_processor_id()];
 	if (node == NUMA_NO_NODE)
 		node = 0;
 	cpu_to_node[cpu] = node;

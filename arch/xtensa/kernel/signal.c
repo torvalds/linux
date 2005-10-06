@@ -182,7 +182,7 @@ restore_cpextra (struct _cpstate *buf)
 
 	struct task_struct *tsk = current;
 	release_all_cp(tsk);
-	return __copy_from_user(tsk->thread.cpextra, buf, TOTAL_CPEXTRA_SIZE);
+	return __copy_from_user(tsk->thread.cpextra, buf, XTENSA_CP_EXTRA_SIZE);
 #endif
 	return 0;
 }

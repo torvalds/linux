@@ -441,11 +441,11 @@ extern  void update_mmu_cache(struct vm_area_struct * vma,
 			      unsigned long address, pte_t pte);
 
 /*
- * remap a physical address `phys' of size `size' with page protection `prot'
+ * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
-#define io_remap_page_range(vma,from,phys,size,prot) \
-                remap_pfn_range(vma, from, (phys) >> PAGE_SHIFT, size, prot)
+#define io_remap_pfn_range(vma,from,pfn,size,prot) \
+                remap_pfn_range(vma, from, pfn, size, prot)
 
 
 /* No page table caches to init */

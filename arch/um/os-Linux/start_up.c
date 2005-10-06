@@ -4,18 +4,22 @@
  */
 
 #include <stdio.h>
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sched.h>
+#include <fcntl.h>
 #include <errno.h>
-#include <stdarg.h>
-#include <stdlib.h>
 #include <setjmp.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
+#include <sys/types.h>
 #include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
@@ -25,6 +29,7 @@
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"
 #include "ptrace_user.h"
+#include "mem_user.h"
 #include "time_user.h"
 #include "init.h"
 #include "os.h"
@@ -32,6 +37,8 @@
 #include "choose-mode.h"
 #include "mode.h"
 #include "tempfile.h"
+#include "kern_constants.h"
+
 #ifdef UML_CONFIG_MODE_SKAS
 #include "skas.h"
 #include "skas_ptrace.h"
@@ -276,9 +283,38 @@ static void __init check_ptrace(void)
 	check_sysemu();
 }
 
+extern int create_tmp_file(unsigned long len);
+
+static void check_tmpexec(void)
+{
+	void *addr;
+	int err, fd = create_tmp_file(UM_KERN_PAGE_SIZE);
+
+	addr = mmap(NULL, UM_KERN_PAGE_SIZE,
+		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
+	printf("Checking PROT_EXEC mmap in /tmp...");
+	fflush(stdout);
+	if(addr == MAP_FAILED){
+		err = errno;
+		perror("failed");
+		if(err == EPERM)
+			printf("/tmp must be not mounted noexec\n");
+		exit(1);
+	}
+	printf("OK\n");
+	munmap(addr, UM_KERN_PAGE_SIZE);
+
+	close(fd);
+}
+
 void os_early_checks(void)
 {
 	check_ptrace();
+
+	/* Need to check this early because mmapping happens before the
+	 * kernel is running.
+	 */
+	check_tmpexec();
 }
 
 static int __init noprocmm_cmd_param(char *str, int* add)
@@ -357,3 +393,72 @@ int can_do_skas(void)
 	return(0);
 }
 #endif
+
+int have_devanon = 0;
+
+void check_devanon(void)
+{
+	int fd;
+
+	printk("Checking for /dev/anon on the host...");
+	fd = open("/dev/anon", O_RDWR);
+	if(fd < 0){
+		printk("Not available (open failed with errno %d)\n", errno);
+		return;
+	}
+
+	printk("OK\n");
+	have_devanon = 1;
+}
+
+int __init parse_iomem(char *str, int *add)
+{
+	struct iomem_region *new;
+	struct uml_stat buf;
+	char *file, *driver;
+	int fd, err, size;
+
+	driver = str;
+	file = strchr(str,',');
+	if(file == NULL){
+		printf("parse_iomem : failed to parse iomem\n");
+		goto out;
+	}
+	*file = '\0';
+	file++;
+	fd = os_open_file(file, of_rdwr(OPENFLAGS()), 0);
+	if(fd < 0){
+		os_print_error(fd, "parse_iomem - Couldn't open io file");
+		goto out;
+	}
+
+	err = os_stat_fd(fd, &buf);
+	if(err < 0){
+		os_print_error(err, "parse_iomem - cannot stat_fd file");
+		goto out_close;
+	}
+
+	new = malloc(sizeof(*new));
+	if(new == NULL){
+		perror("Couldn't allocate iomem_region struct");
+		goto out_close;
+	}
+
+	size = (buf.ust_size + UM_KERN_PAGE_SIZE) & ~(UM_KERN_PAGE_SIZE - 1);
+
+	*new = ((struct iomem_region) { .next		= iomem_regions,
+					.driver		= driver,
+					.fd		= fd,
+					.size		= size,
+					.phys		= 0,
+					.virt		= 0 });
+	iomem_regions = new;
+	iomem_size += new->size + UM_KERN_PAGE_SIZE;
+
+	return(0);
+ out_close:
+	os_close_file(fd);
+ out:
+	return(1);
+}
+

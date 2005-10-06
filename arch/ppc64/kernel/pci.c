@@ -246,11 +246,14 @@ static unsigned int pci_parse_of_flags(u32 addr0)
 	unsigned int flags = 0;
 
 	if (addr0 & 0x02000000) {
-		flags |= IORESOURCE_MEM;
+		flags = IORESOURCE_MEM | PCI_BASE_ADDRESS_SPACE_MEMORY;
+		flags |= (addr0 >> 22) & PCI_BASE_ADDRESS_MEM_TYPE_64;
+		flags |= (addr0 >> 28) & PCI_BASE_ADDRESS_MEM_TYPE_1M;
 		if (addr0 & 0x40000000)
-			flags |= IORESOURCE_PREFETCH;
+			flags |= IORESOURCE_PREFETCH
+				 | PCI_BASE_ADDRESS_MEM_PREFETCH;
 	} else if (addr0 & 0x01000000)
-		flags |= IORESOURCE_IO;
+		flags = IORESOURCE_IO | PCI_BASE_ADDRESS_SPACE_IO;
 	return flags;
 }
 

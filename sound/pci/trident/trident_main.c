@@ -2960,7 +2960,7 @@ static int __devinit snd_trident_mixer(trident_t * trident, int pcm_spdif_device
 		.read = snd_trident_codec_read,
 	};
 
-	uctl = kcalloc(1, sizeof(*uctl), GFP_KERNEL);
+	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (!uctl)
 		return -ENOMEM;
 
@@ -3546,7 +3546,7 @@ int __devinit snd_trident_create(snd_card_t * card,
 		return -ENXIO;
 	}
 	
-	trident = kcalloc(1, sizeof(*trident), GFP_KERNEL);
+	trident = kzalloc(sizeof(*trident), GFP_KERNEL);
 	if (trident == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;

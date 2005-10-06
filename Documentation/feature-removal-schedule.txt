@@ -17,15 +17,6 @@ Who:	Greg Kroah-Hartman <greg@kroah.com>
 
 ---------------------------
 
-What:	io_remap_page_range() (macro or function)
-When:	September 2005
-Why:	Replaced by io_remap_pfn_range() which allows more memory space
-	addressabilty (by using a pfn) and supports sparc & sparc64
-	iospace as part of the pfn.
-Who:	Randy Dunlap <rddunlap@osdl.org>
-
----------------------------
-
 What:	RAW driver (CONFIG_RAW_DRIVER)
 When:	December 2005
 Why:	declared obsolete since kernel 2.6.3

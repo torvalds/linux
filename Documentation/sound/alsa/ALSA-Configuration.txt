@@ -75,7 +75,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     adsp_map	- PCM device number maps assigned to the 2st OSS device.
 		- Default: 1
     nonblock_open
-		- Don't block opening busy PCM devices.
+		- Don't block opening busy PCM devices.  Default: 1
 
     For example, when dsp_map=2, /dev/dsp will be mapped to PCM #2 of
     the card #0.  Similarly, when adsp_map=0, /dev/adsp will be mapped
@@ -148,6 +148,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module supports up to 8 cards. This module does not support autoprobe
     thus main port must be specified!!! Other ports are optional.
     
+  Module snd-ad1889
+  -----------------
+
+    Module for Analog Devices AD1889 chips.
+
+    ac97_quirk  - AC'97 workaround for strange hardware
+                  See the description of intel8x0 module for details.
+
+    This module supports up to 8 cards.
+
   Module snd-ali5451
   ------------------
 
@@ -189,14 +199,19 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-atiixp
   -----------------
 
-    Module for ATI IXP 150/200/250 AC97 controllers.
+    Module for ATI IXP 150/200/250/400 AC97 controllers.
 
-    ac97_clock		- AC'97 clock (defalut = 48000)
+    ac97_clock		- AC'97 clock (default = 48000)
     ac97_quirk		- AC'97 workaround for strange hardware
-			  See the description of intel8x0 module for details.
+			  See "AC97 Quirk Option" section below.
     spdif_aclink	- S/PDIF transfer over AC-link (default = 1)
 
     This module supports up to 8 cards and autoprobe.
+
+    ATI IXP has two different methods to control SPDIF output.  One is
+    over AC-link and another is over the "direct" SPDIF output.  The
+    implementation depends on the motherboard, and you'll need to
+    choose the correct one via spdif_aclink module option.
 
   Module snd-atiixp-modem
   -----------------------
@@ -230,7 +245,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     The hardware EQ hardware and SPDIF is only present in the Vortex2 and 
     Advantage.
 
-    Note: Some ALSA mixer applicactions don't handle the SPDIF samplerate 
+    Note: Some ALSA mixer applications don't handle the SPDIF sample rate 
            control correctly. If you have problems regarding this, try
            another ALSA compliant mixer (alsamixer works).
 
@@ -302,7 +317,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     mpu_port	- 0x300,0x310,0x320,0x330, 0 = disable (default)
     fm_port     - 0x388 (default), 0 = disable (default)
-    soft_ac3    - Sofware-conversion of raw SPDIF packets (model 033 only)
+    soft_ac3    - Software-conversion of raw SPDIF packets (model 033 only)
                   (default = 1)
     joystick_port - Joystick port address (0 = disable, 1 = auto-detect)
 
@@ -384,7 +399,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for PCI sound cards based on CS4610/CS4612/CS4614/CS4615/CS4622/
 				       CS4624/CS4630/CS4280 PCI chips.
 
-    external_amp     - Force to enable external amplifer.
+    external_amp     - Force to enable external amplifier.
     thinkpad         - Force to enable Thinkpad's CLKRUN control.
     mmap_valid       - Support OSS mmap mode (default = 0).
 
@@ -620,7 +635,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	       VIA VT8251/VT8237A
 
     model	- force the model name
-    position_fix - Fix DMA pointer (0 = FIFO size, 1 = none, 2 = POSBUF)
+    position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
 
     Module supports up to 8 cards.
 
@@ -655,6 +670,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  full_dig	6-jack in back, 2-jack in front, SPDIF I/O
 	  allout	5-jack in back, 2-jack in front, SPDIF out
 	  auto		auto-config reading BIOS (default)
+
+    If the default configuration doesn't work and one of the above
+    matches with your device, report it together with the PCI
+    subsystem ID (output of "lspci -nv") to ALSA BTS or alsa-devel
+    ML (see the section "Links and Addresses").
 
     Note 2: If you get click noises on output, try the module option
 	    position_fix=1 or 2.  position_fix=1 will use the SD_LPIB
@@ -783,20 +803,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     ac97_clock	  - AC'97 codec clock base (0 = auto-detect)
     ac97_quirk    - AC'97 workaround for strange hardware
-                    The following strings are accepted:
-                      default = don't override the default setting
-                      disable = disable the quirk
-                      hp_only = use headphone control as master
-                      swap_hp = swap headphone and master controls
-                      swap_surround = swap master and surround controls
-                      ad_sharing = for AD1985, turn on OMS bit and use headphone
-                      alc_jack = for ALC65x, turn on the jack sense mode
-                      inv_eapd = inverted EAPD implementation
-                      mute_led = bind EAPD bit for turning on/off mute LED
-                    For backward compatibility, the corresponding integer
-                    value -1, 0, ... are accepted, too.
+		    See "AC97 Quirk Option" section below.
     buggy_irq     - Enable workaround for buggy interrupts on some
-                    motherboards (default off)
+                    motherboards (default yes on nForce chips,
+		    otherwise off)
+    buggy_semaphore - Enable workaround for hardwares with buggy
+		    semaphores (e.g. on some ASUS laptops)
+		    (default off)
 
     Module supports autoprobe and multiple bus-master chips (max 8).
 
@@ -807,13 +820,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Joystick/MIDI ports are not supported by this driver.  If your
     motherboard has these devices, use the ns558 or snd-mpu401
     modules, respectively.
-
-    The ac97_quirk option is used to enable/override the workaround
-    for specific devices.  Some hardware have swapped output pins
-    between Master and Headphone, or Surround.  The driver provides
-    the auto-detection of known problematic devices, but some might
-    be unknown or wrongly detected.  In such a case, pass the proper
-    value with this option.
 
     The power-management is supported.
     
@@ -966,7 +972,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     with machines with other (most likely CS423x or OPL3SAx) chips,
     even though the device is detected in lspci.  In such a case, try
     other drivers, e.g. snd-cs4232 or snd-opl3sa2.  Some has ISA-PnP
-    but some doesn't have ISA PnP.  You'll need to speicfy isapnp=0
+    but some doesn't have ISA PnP.  You'll need to specify isapnp=0
     and proper hardware parameters in the case without ISA PnP.
 
     Note: some laptops need a workaround for AC97 RESET.  For the
@@ -1302,7 +1308,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		  channels
 		  [VIA8233/C, 8235, 8237 only]
     ac97_quirk  - AC'97 workaround for strange hardware
-                  See the description of intel8x0 module for details.
+		  See "AC97 Quirk Option" section below.
 
     Module supports autoprobe and multiple bus-master chips (max 8).
 
@@ -1327,16 +1333,17 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  "lspci -nv").
 	  If dxs_support=5 does not work, try dxs_support=4; if it
 	  doesn't work too, try dxs_support=1.  (dxs_support=1 is
-	  usually for old motherboards.  The correct implementated
+	  usually for old motherboards.  The correct implemented
 	  board should work with 4 or 5.)  If it still doesn't
 	  work and the default setting is ok, dxs_support=3 is the
 	  right choice.  If the default setting doesn't work at all,
 	  try dxs_support=2 to disable the DXS channels.
 	  In any cases, please let us know the result and the
-	  subsystem vendor/device ids.
+	  subsystem vendor/device ids.  See "Links and Addresses"
+	  below.
 
     Note: for the MPU401 on VIA823x, use snd-mpu401 driver
-	  additonally.  The mpu_port option is for VIA686 chips only.
+	  additionally.  The mpu_port option is for VIA686 chips only.
 
   Module snd-via82xx-modem
   ------------------------
@@ -1398,8 +1405,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module supports up to 8 cards.  The module is compiled only when
     PCMCIA is supported on kernel.
 
-    To activate the driver via the card manager, you'll need to set
-    up /etc/pcmcia/vxpocket.conf.  See the sound/pcmcia/vx/vxpocket.c.
+    With the older 2.6.x kernel, to activate the driver via the card
+    manager, you'll need to set up /etc/pcmcia/vxpocket.conf.  See the
+    sound/pcmcia/vx/vxpocket.c.  2.6.13 or later kernel requires no
+    longer require a config file.
 
     When the driver is compiled as a module and the hotplug firmware
     is supported, the firmware data is loaded via hotplug automatically.
@@ -1411,6 +1420,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: the driver is build only when CONFIG_ISA is set.
     
+    Note2: snd-vxp440 driver is merged to snd-vxpocket driver since
+           ALSA 1.0.10.
+
   Module snd-ymfpci
   -----------------
 
@@ -1434,6 +1446,37 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Sound Core PDAudioCF sound card.
 
     Note: the driver is build only when CONFIG_ISA is set.
+
+
+AC97 Quirk Option
+=================
+
+The ac97_quirk option is used to enable/override the workaround for
+specific devices on drivers for on-board AC'97 controllers like
+snd-intel8x0.  Some hardware have swapped output pins between Master
+and Headphone, or Surround (thanks to confusion of AC'97
+specifications from version to version :-)
+
+The driver provides the auto-detection of known problematic devices,
+but some might be unknown or wrongly detected.  In such a case, pass
+the proper value with this option.
+
+The following strings are accepted:
+    - default	Don't override the default setting
+    - disable	Disable the quirk
+    - hp_only	Bind Master and Headphone controls as a single control
+    - swap_hp	Swap headphone and master controls
+    - swap_surround  Swap master and surround controls
+    - ad_sharing  For AD1985, turn on OMS bit and use headphone
+    - alc_jack	For ALC65x, turn on the jack sense mode
+    - inv_eapd	Inverted EAPD implementation
+    - mute_led	Bind EAPD bit for turning on/off mute LED
+
+For backward compatibility, the corresponding integer value -1, 0,
+... are  accepted, too.
+
+For example, if "Master" volume control has no effect on your device
+but only "Headphone" does, pass ac97_quirk=hp_only module option.
 
 
 Configuring Non-ISAPNP Cards
@@ -1553,6 +1596,8 @@ Proc interfaces (/proc/asound)
 	  - whole-frag  write only whole fragments (optimization affecting
 			playback only)
 	  - no-silence  do not fill silence ahead to avoid clicks
+	  - buggy-ptr	Returns the whitespace blocks in GETOPTR ioctl
+			instead of filled blocks
 
   Example: echo "x11amp 128 16384" > /proc/asound/card0/pcm0p/oss
            echo "squake 0 0 disable" > /proc/asound/card0/pcm0c/oss
@@ -1589,9 +1634,14 @@ commands to the snd-page-alloc driver:
     use.
 
 
-Links
-=====
+Links and Addresses
+===================
 
   ALSA project homepage
        http://www.alsa-project.org
 
+  ALSA Bug Tracking System
+       https://bugtrack.alsa-project.org/bugs/
+
+  ALSA Developers ML
+       mailto:alsa-devel@lists.sourceforge.net

@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
-#include <linux/irq.h>
 #include <linux/console.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>

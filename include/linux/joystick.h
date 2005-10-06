@@ -111,35 +111,37 @@ struct js_corr {
 #define JS_SET_ALL		8
 
 struct JS_DATA_TYPE {
-	__s32 buttons;
-	__s32 x;
-	__s32 y;
+	int32_t buttons;
+	int32_t x;
+	int32_t y;
 };
 
 struct JS_DATA_SAVE_TYPE_32 {
-	__s32 JS_TIMEOUT;
-	__s32 BUSY;
-	__s32 JS_EXPIRETIME;
-	__s32 JS_TIMELIMIT;
+	int32_t JS_TIMEOUT;
+	int32_t BUSY;
+	int32_t JS_EXPIRETIME;
+	int32_t JS_TIMELIMIT;
 	struct JS_DATA_TYPE JS_SAVE;
 	struct JS_DATA_TYPE JS_CORR;
 };
 
 struct JS_DATA_SAVE_TYPE_64 {
-	__s32 JS_TIMEOUT;
-	__s32 BUSY;
-	__s64 JS_EXPIRETIME;
-	__s64 JS_TIMELIMIT;
+	int32_t JS_TIMEOUT;
+	int32_t BUSY;
+	int64_t JS_EXPIRETIME;
+	int64_t JS_TIMELIMIT;
 	struct JS_DATA_TYPE JS_SAVE;
 	struct JS_DATA_TYPE JS_CORR;
 };
 
+#ifdef __KERNEL__
 #if BITS_PER_LONG == 64
 #define JS_DATA_SAVE_TYPE JS_DATA_SAVE_TYPE_64
 #elif BITS_PER_LONG == 32
 #define JS_DATA_SAVE_TYPE JS_DATA_SAVE_TYPE_32
 #else
 #error Unexpected BITS_PER_LONG
+#endif
 #endif
 
 #endif /* _LINUX_JOYSTICK_H */

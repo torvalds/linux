@@ -2526,7 +2526,6 @@ configure_new_function(struct controller *ctrl, struct pci_func *func,
 	int cloop;
 	u8 temp_byte;
 	u8 class_code;
-	u16 temp_word;
 	u32 rc;
 	u32 temp_register;
 	u32 base;
@@ -2682,8 +2681,7 @@ configure_new_function(struct controller *ctrl, struct pci_func *func,
 		}		/* End of base register loop */
 
 		/* disable ROM base Address */
-		temp_word = 0x00L;
-		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_ROM_ADDRESS, temp_word);
+		rc = pci_bus_write_config_dword (pci_bus, devfn, PCI_ROM_ADDRESS, 0x00);
 
 		/* Set HP parameters (Cache Line Size, Latency Timer) */
 		rc = pciehprm_set_hpp(ctrl, func, PCI_HEADER_TYPE_NORMAL);

@@ -1571,4 +1571,3 @@ static int __init video1394_init_module (void)
 
 module_init(video1394_init_module);
 module_exit(video1394_exit_module);
-MODULE_ALIAS_CHARDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_VIDEO1394 * 16);

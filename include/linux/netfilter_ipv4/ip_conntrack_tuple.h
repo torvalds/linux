@@ -17,7 +17,7 @@ union ip_conntrack_manip_proto
 	u_int16_t all;
 
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} tcp;
 	struct {
 		u_int16_t port;
@@ -28,6 +28,9 @@ union ip_conntrack_manip_proto
 	struct {
 		u_int16_t port;
 	} sctp;
+	struct {
+		__be16 key;	/* key is 32bit, pptp only uses 16 */
+	} gre;
 };
 
 /* The manipulable part of the tuple. */
@@ -61,6 +64,10 @@ struct ip_conntrack_tuple
 			struct {
 				u_int16_t port;
 			} sctp;
+			struct {
+				__be16 key;	/* key is 32bit, 
+						 * pptp only uses 16 */
+			} gre;
 		} u;
 
 		/* The protocol. */

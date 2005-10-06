@@ -11,6 +11,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/efi.h>
 #include <linux/dmi.h>
+#include <linux/ctype.h>
 #include <asm/uaccess.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
@@ -28,8 +29,6 @@ static int reboot_thru_bios;
 
 #ifdef CONFIG_SMP
 static int reboot_cpu = -1;
-/* shamelessly grabbed from lib/vsprintf.c for readability */
-#define is_digit(c)	((c) >= '0' && (c) <= '9')
 #endif
 static int __init reboot_setup(char *str)
 {
@@ -49,9 +48,9 @@ static int __init reboot_setup(char *str)
 			break;
 #ifdef CONFIG_SMP
 		case 's': /* "smp" reboot by executing reset on BSP or other CPU*/
-			if (is_digit(*(str+1))) {
+			if (isdigit(*(str+1))) {
 				reboot_cpu = (int) (*(str+1) - '0');
-				if (is_digit(*(str+2))) 
+				if (isdigit(*(str+2)))
 					reboot_cpu = reboot_cpu*10 + (int)(*(str+2) - '0');
 			}
 				/* we will leave sorting out the final value 

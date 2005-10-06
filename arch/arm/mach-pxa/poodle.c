@@ -30,6 +30,8 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/irq.h>
+#include <asm/arch/mmc.h>
+#include <asm/arch/udc.h>
 #include <asm/arch/poodle.h>
 #include <asm/arch/pxafb.h>
 
@@ -93,6 +95,83 @@ static struct platform_device locomo_device = {
 	.resource	= locomo_resources,
 };
 
+
+/*
+ * MMC/SD Device
+ *
+ * The card detect interrupt isn't debounced so we delay it by 250ms
+ * to give the card a chance to fully insert/eject.
+ */
+static struct pxamci_platform_data poodle_mci_platform_data;
+
+static int poodle_mci_init(struct device *dev, irqreturn_t (*poodle_detect_int)(int, void *, struct pt_regs *), void *data)
+{
+	int err;
+
+	/* setup GPIO for PXA25x MMC controller	*/
+	pxa_gpio_mode(GPIO6_MMCCLK_MD);
+	pxa_gpio_mode(GPIO8_MMCCS0_MD);
+	pxa_gpio_mode(POODLE_GPIO_nSD_DETECT | GPIO_IN);
+	pxa_gpio_mode(POODLE_GPIO_SD_PWR | GPIO_OUT);
+
+	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
+
+	err = request_irq(POODLE_IRQ_GPIO_nSD_DETECT, poodle_detect_int, SA_INTERRUPT,
+			     "MMC card detect", data);
+	if (err) {
+		printk(KERN_ERR "poodle_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+		return -1;
+	}
+
+	set_irq_type(POODLE_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
+
+	return 0;
+}
+
+static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data* p_d = dev->platform_data;
+
+	if (( 1 << vdd) & p_d->ocr_mask)
+		GPSR1 = GPIO_bit(POODLE_GPIO_SD_PWR);
+	else
+		GPCR1 = GPIO_bit(POODLE_GPIO_SD_PWR);
+}
+
+static void poodle_mci_exit(struct device *dev, void *data)
+{
+	free_irq(POODLE_IRQ_GPIO_nSD_DETECT, data);
+}
+
+static struct pxamci_platform_data poodle_mci_platform_data = {
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init 		= poodle_mci_init,
+	.setpower 	= poodle_mci_setpower,
+	.exit		= poodle_mci_exit,
+};
+
+
+/*
+ * USB Device Controller
+ */
+static void poodle_udc_command(int cmd)
+{
+	switch(cmd)	{
+	case PXA2XX_UDC_CMD_CONNECT:
+		GPSR(POODLE_GPIO_USB_PULLUP) = GPIO_bit(POODLE_GPIO_USB_PULLUP);
+		break;
+	case PXA2XX_UDC_CMD_DISCONNECT:
+		GPCR(POODLE_GPIO_USB_PULLUP) = GPIO_bit(POODLE_GPIO_USB_PULLUP);
+		break;
+	}
+}
+
+static struct pxa2xx_udc_mach_info udc_info __initdata = {
+	/* no connect GPIO; poodle can't tell connection status */
+	.udc_command		= poodle_udc_command,
+};
+
+
 /* PXAFB device */
 static struct pxafb_mach_info poodle_fb_info __initdata = {
 	.pixclock	= 144700,
@@ -126,6 +205,15 @@ static void __init poodle_init(void)
 {
 	int ret = 0;
 
+	/* setup sleep mode values */
+	PWER  = 0x00000002;
+	PFER  = 0x00000000;
+	PRER  = 0x00000002;
+	PGSR0 = 0x00008000;
+	PGSR1 = 0x003F0202;
+	PGSR2 = 0x0001C000;
+	PCFR |= PCFR_OPDE;
+
 	/* cpu initialize */
 	/* Pgsr Register */
   	PGSR0 = 0x0146dd80;
@@ -155,6 +243,9 @@ static void __init poodle_init(void)
         GPSR2 = 0x00000000;
 
 	set_pxa_fb_info(&poodle_fb_info);
+	pxa_gpio_mode(POODLE_GPIO_USB_PULLUP | GPIO_OUT);
+	pxa_set_udc_info(&udc_info);
+	pxa_set_mci_info(&poodle_mci_platform_data);
 
 	scoop_num = 1;
 	scoop_devs = &poodle_pcmcia_scoop[0];
@@ -171,32 +262,12 @@ static void __init fixup_poodle(struct machine_desc *desc,
 	sharpsl_save_param();
 }
 
-static struct map_desc poodle_io_desc[] __initdata = {
- /* virtual     physical    length                   */
-  { 0xef800000, 0x00000000, 0x00800000, MT_DEVICE }, /* Boot Flash */
-};
-
-static void __init poodle_map_io(void)
-{
-	pxa_map_io();
-	iotable_init(poodle_io_desc, ARRAY_SIZE(poodle_io_desc));
-
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x00008000;
-	PGSR1 = 0x003F0202;
-	PGSR2 = 0x0001C000;
-	PCFR |= PCFR_OPDE;
-}
-
 MACHINE_START(POODLE, "SHARP Poodle")
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_poodle,
-	.map_io		= poodle_map_io,
+	.map_io		= pxa_map_io,
 	.init_irq	= pxa_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,

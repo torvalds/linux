@@ -82,17 +82,7 @@ unwcheck: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-archprepare:  include/asm-ia64/.offsets.h.stamp
-
-include/asm-ia64/.offsets.h.stamp:
-	mkdir -p include/asm-ia64
-	[ -s include/asm-ia64/asm-offsets.h ] \
-	|| echo "#define IA64_TASK_SIZE 0" > include/asm-ia64/asm-offsets.h
-	touch $@
-
-
-
-CLEAN_FILES += vmlinux.gz bootloader include/asm-ia64/.offsets.h.stamp
+CLEAN_FILES += vmlinux.gz bootloader
 
 boot:	lib/lib.a vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@

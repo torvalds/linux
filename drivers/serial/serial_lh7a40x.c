@@ -632,7 +632,7 @@ static int __init lh7a40xuart_console_setup (struct console* co, char* options)
 	return uart_set_options (port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver lh7a40x_reg;
+static struct uart_driver lh7a40x_reg;
 static struct console lh7a40x_console = {
 	.name		= "ttyAM",
 	.write		= lh7a40xuart_console_write,

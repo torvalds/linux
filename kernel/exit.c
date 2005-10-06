@@ -371,6 +371,12 @@ static inline void close_files(struct files_struct * files)
 	struct fdtable *fdt;
 
 	j = 0;
+
+	/*
+	 * It is safe to dereference the fd table without RCU or
+	 * ->file_lock because this is the last reference to the
+	 * files structure.
+	 */
 	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
@@ -1197,7 +1203,7 @@ static int wait_task_stopped(task_t *p, int delayed_group_leader, int noreap,
 
 		exit_code = p->exit_code;
 		if (unlikely(!exit_code) ||
-		    unlikely(p->state > TASK_STOPPED))
+		    unlikely(p->state & TASK_TRACED))
 			goto bail_ref;
 		return wait_noreap_copyout(p, pid, uid,
 					   why, (exit_code << 8) | 0x7f,

@@ -1295,7 +1295,7 @@ static int au1000_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long   size;
 	int ret = 0;
 
-	dbg(__FUNCTION__);
+	dbg("%s", __FUNCTION__);
     
 	lock_kernel();
 	down(&s->sem);

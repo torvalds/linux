@@ -15,9 +15,9 @@
 
 struct font_desc {
     int idx;
-    char *name;
+    const char *name;
     int width, height;
-    void *data;
+    const void *data;
     int pref;
 };
 
@@ -32,7 +32,7 @@ struct font_desc {
 #define ACORN8x8_IDX	8
 #define	MINI4x6_IDX	9
 
-extern struct font_desc	font_vga_8x8,
+extern const struct font_desc	font_vga_8x8,
 			font_vga_8x16,
 			font_pearl_8x8,
 			font_vga_6x11,
@@ -45,11 +45,11 @@ extern struct font_desc	font_vga_8x8,
 
 /* Find a font with a specific name */
 
-extern struct font_desc *find_font(char *name);
+extern const struct font_desc *find_font(const char *name);
 
 /* Get the default font for a specific screen size */
 
-extern struct font_desc *get_default_font(int xres, int yres);
+extern const struct font_desc *get_default_font(int xres, int yres);
 
 /* Max. length for the name of a predefined font */
 #define MAX_FONT_NAME	32

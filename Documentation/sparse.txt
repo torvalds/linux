@@ -51,9 +51,9 @@ or you don't get any checking at all.
 Where to get sparse
 ~~~~~~~~~~~~~~~~~~~
 
-With BK, you can just get it from
+With git, you can just get it from
 
-        bk://sparse.bkbits.net/sparse
+        rsync://rsync.kernel.org/pub/scm/devel/sparse/sparse.git
 
 and DaveJ has tar-balls at
 

@@ -178,7 +178,7 @@ static int snd_p16v_pcm_open_playback_channel(snd_pcm_substream_t *substream, in
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
         //snd_printk("epcm kcalloc: %p\n", epcm);
 
 	if (epcm == NULL)
@@ -214,7 +214,7 @@ static int snd_p16v_pcm_open_capture_channel(snd_pcm_substream_t *substream, int
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int err;
 
-	epcm = kcalloc(1, sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	//snd_printk("epcm kcalloc: %p\n", epcm);
 
 	if (epcm == NULL)

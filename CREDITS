@@ -2211,6 +2211,15 @@ D: OV511 driver
 S: (address available on request)
 S: USA
 
+N: Ian McDonald
+E: iam4@cs.waikato.ac.nz
+E: imcdnzl@gmail.com
+W: http://wand.net.nz/~iam4
+W: http://imcdnzl.blogspot.com
+D: DCCP, CCID3
+S: Hamilton
+S: New Zealand
+
 N: Patrick McHardy
 E: kaber@trash.net
 P: 1024D/12155E80 B128 7DE6 FF0A C2B2 48BE  AB4C C9D4 964E 1215 5E80
@@ -2246,19 +2255,12 @@ S: D-90453 Nuernberg
 S: Germany
 
 N: Arnaldo Carvalho de Melo
-E: acme@conectiva.com.br
-E: acme@kernel.org
-E: acme@gnu.org
-W: http://bazar2.conectiva.com.br/~acme
-W: http://advogato.org/person/acme
+E: acme@mandriva.com
+E: acme@ghostprotocols.net
+W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
-D: wanrouter hacking
-D: misc Makefile, Config.in, drivers and network stacks fixes
-D: IPX & LLC network stacks maintainer
-D: Cyclom 2X synchronous card driver
-D: wl3501 PCMCIA wireless card driver
-D: i18n for minicom, net-tools, util-linux, fetchmail, etc
-S: Conectiva S.A.
+D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
+S: Mandriva
 S: R. Tocantins, 89 - Cristo Rei
 S: 80050-430 - Curitiba - Paraná
 S: Brazil

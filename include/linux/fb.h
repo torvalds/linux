@@ -619,7 +619,7 @@ struct fb_tilemap {
 	__u32 height;               /* height of each tile in scanlines */
 	__u32 depth;                /* color depth of each tile */
 	__u32 length;               /* number of tiles in the map */
-	__u8  *data;                /* actual tile map: a bitmap array, packed
+	const __u8 *data;           /* actual tile map: a bitmap array, packed
 				       to the nearest byte */
 };
 

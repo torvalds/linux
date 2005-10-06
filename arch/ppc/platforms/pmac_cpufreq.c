@@ -695,6 +695,13 @@ static int __init pmac_cpufreq_setup(void)
 		set_speed_proc = pmu_set_cpu_speed;
 		is_pmu_based = 1;
 	}
+	/* Else check for TiPb 550 */
+	else if (machine_is_compatible("PowerBook3,3") && cur_freq == 550000) {
+		hi_freq = cur_freq;
+		low_freq = 500000;
+		set_speed_proc = pmu_set_cpu_speed;
+		is_pmu_based = 1;
+	}
 	/* Else check for TiPb 400 & 500 */
 	else if (machine_is_compatible("PowerBook3,2")) {
 		/* We only know about the 400 MHz and the 500Mhz model

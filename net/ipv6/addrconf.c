@@ -1806,7 +1806,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 	}
 
         for (dev = dev_base; dev != NULL; dev = dev->next) {
-		struct in_device * in_dev = __in_dev_get(dev);
+		struct in_device * in_dev = __in_dev_get_rtnl(dev);
 		if (in_dev && (dev->flags & IFF_UP)) {
 			struct in_ifaddr * ifa;
 
@@ -3519,6 +3519,8 @@ int __init addrconf_init(void)
 	rtnl_unlock();
 	if (err)
 		return err;
+
+	ip6_null_entry.rt6i_idev = in6_dev_get(&loopback_dev);
 
 	register_netdevice_notifier(&ipv6_dev_notf);
 

@@ -46,7 +46,7 @@ snd_seq_oss_readq_new(seq_oss_devinfo_t *dp, int maxlen)
 {
 	seq_oss_readq_t *q;
 
-	if ((q = kcalloc(1, sizeof(*q), GFP_KERNEL)) == NULL) {
+	if ((q = kzalloc(sizeof(*q), GFP_KERNEL)) == NULL) {
 		snd_printk(KERN_ERR "can't malloc read queue\n");
 		return NULL;
 	}
