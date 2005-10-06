@@ -109,10 +109,6 @@ config 40x
 config 44x
 	bool "AMCC 44x"
 
-config PPC64BRIDGE
-	select PPC_FPU
-	bool "POWER3, POWER4 and PPC970 (G5)"
-
 config 8xx
 	bool "Freescale 8xx"
 
@@ -125,7 +121,7 @@ endchoice
 
 config POWER4_ONLY
 	bool "Optimize for POWER4"
-	depends on PPC64 || PPC64BRIDGE
+	depends on PPC64
 	default n
 	---help---
 	  Cause the compiler to optimize for POWER4/POWER5/PPC970 processors.
@@ -134,16 +130,16 @@ config POWER4_ONLY
 
 config POWER3
 	bool
-	depends on PPC64 || PPC64BRIDGE
+	depends on PPC64
 	default y if !POWER4_ONLY
 
 config POWER4
-	depends on PPC64 || PPC64BRIDGE
+	depends on PPC64
 	def_bool y
 
 config PPC_FPU
-	depends on PPC32
-	def_bool y
+	bool
+	default y if PPC64
 
 config BOOKE
 	bool
@@ -317,7 +313,7 @@ config PPC_BPA
 
 config PPC_OF
 	bool
-	depends on PPC_MULTIPLATFORM || PPC_ISERIES
+	depends on PPC_MULTIPLATFORM	# for now
 	default y
 
 config XICS
