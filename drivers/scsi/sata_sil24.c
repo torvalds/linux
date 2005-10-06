@@ -502,10 +502,6 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 	cmd_err = readl(port + PORT_CMD_ERR);
 	sstatus = readl(port + PORT_SSTATUS);
 	serror = readl(port + PORT_SERROR);
-
-	/* Clear IRQ/errors */
-	if (cmd_err)
-		writel(cmd_err, port + PORT_CMD_ERR);
 	if (serror)
 		writel(serror, port + PORT_SERROR);
 
