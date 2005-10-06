@@ -489,12 +489,21 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 	u32 irq_stat, cmd_err, sstatus, serror;
 
 	irq_stat = readl(port + PORT_IRQ_STAT);
+	writel(irq_stat, port + PORT_IRQ_STAT);		/* clear irq */
+
+	if (!(irq_stat & PORT_IRQ_ERROR)) {
+		/* ignore non-completion, non-error irqs for now */
+		printk(KERN_WARNING DRV_NAME
+		       "ata%u: non-error exception irq (irq_stat %x)\n",
+		       ap->id, irq_stat);
+		return;
+	}
+
 	cmd_err = readl(port + PORT_CMD_ERR);
 	sstatus = readl(port + PORT_SSTATUS);
 	serror = readl(port + PORT_SERROR);
 
 	/* Clear IRQ/errors */
-	writel(irq_stat, port + PORT_IRQ_STAT);
 	if (cmd_err)
 		writel(cmd_err, port + PORT_CMD_ERR);
 	if (serror)
