@@ -54,7 +54,7 @@ static char *action_to_string(enum kobject_action action)
 static struct sock *uevent_sock;
 
 /**
- * send_uevent - notify userspace by sending event trough netlink socket
+ * send_uevent - notify userspace by sending event through netlink socket
  *
  * @signal: signal name
  * @obj: object path (kobject)
