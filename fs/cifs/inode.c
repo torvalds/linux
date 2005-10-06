@@ -962,7 +962,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	int rc = -EACCES;
-	int found = FALSE;
 	struct cifsFileInfo *open_file = NULL;
 	FILE_BASIC_INFO time_buf;
 	int set_time = FALSE;
@@ -970,7 +969,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	__u64 uid = 0xFFFFFFFFFFFFFFFFULL;
 	__u64 gid = 0xFFFFFFFFFFFFFFFFULL;
 	struct cifsInodeInfo *cifsInode;
-	struct list_head *tmp;
 
 	xid = GetXid();
 

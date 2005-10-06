@@ -907,9 +907,10 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	return total_written;
 }
 
-static struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
+struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *open_file;
+	int rc;
 
 	read_lock(&GlobalSMBSeslock);
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
@@ -920,7 +921,7 @@ static struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		     (open_file->pfile->f_flags & O_WRONLY))) {
 			read_unlock(&GlobalSMBSeslock);
 			if(open_file->invalidHandle) {
-				rc = cifs_reopen_file(cifs_inode->vfs_inode, 
+				rc = cifs_reopen_file(&cifs_inode->vfs_inode, 
 						      open_file->pfile, FALSE);
 				/* if it fails, try another handle - might be */
 				/* dangerous to hold up writepages with retry */
