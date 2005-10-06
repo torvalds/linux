@@ -642,8 +642,6 @@ static void __exit ucb1x00_exit(void)
 module_init(ucb1x00_init);
 module_exit(ucb1x00_exit);
 
-EXPORT_SYMBOL(ucb1x00_class);
-
 EXPORT_SYMBOL(ucb1x00_io_set_dir);
 EXPORT_SYMBOL(ucb1x00_io_write);
 EXPORT_SYMBOL(ucb1x00_io_read);
