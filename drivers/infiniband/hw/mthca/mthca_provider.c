@@ -1084,6 +1084,7 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
 		dev->ib_dev.create_srq           = mthca_create_srq;
+		dev->ib_dev.modify_srq		 = mthca_modify_srq;
 		dev->ib_dev.destroy_srq          = mthca_destroy_srq;
 
 		if (mthca_is_memfree(dev))

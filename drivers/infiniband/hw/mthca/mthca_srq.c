@@ -332,6 +332,29 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq)
 	mthca_free_mailbox(dev, mailbox);
 }
 
+int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		     enum ib_srq_attr_mask attr_mask)
+{	
+	struct mthca_dev *dev = to_mdev(ibsrq->device);
+	struct mthca_srq *srq = to_msrq(ibsrq);
+	int ret;
+	u8 status;
+
+	/* We don't support resizing SRQs (yet?) */
+	if (attr_mask & IB_SRQ_MAX_WR)
+		return -EINVAL;
+
+	if (attr_mask & IB_SRQ_LIMIT) {
+		ret = mthca_ARM_SRQ(dev, srq->srqn, attr->srq_limit, &status);
+		if (ret)
+			return ret;
+		if (status)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type)
 {
@@ -354,7 +377,7 @@ void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 
 	event.device      = &dev->ib_dev;
 	event.event       = event_type;
-	event.element.srq  = &srq->ibsrq;
+	event.element.srq = &srq->ibsrq;
 	srq->ibsrq.event_handler(&event, srq->ibsrq.srq_context);
 
 out:

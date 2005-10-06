@@ -448,6 +448,8 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		    struct ib_srq_attr *attr, struct mthca_srq *srq);
 void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
+int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		     enum ib_srq_attr_mask attr_mask);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
