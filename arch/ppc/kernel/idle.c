@@ -32,6 +32,7 @@
 #include <asm/cache.h>
 #include <asm/cputable.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
 
 void default_idle(void)
 {
