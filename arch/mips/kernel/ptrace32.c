@@ -29,6 +29,7 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
+#include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system.h>
@@ -191,10 +192,21 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			if (!cpu_has_fpu)
 				break;
 
-			flags = read_c0_status();
-			__enable_fpu();
-			__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
-			write_c0_status(flags);
+			preempt_disable();
+			if (cpu_has_mipsmt) {
+				unsigned int vpflags = dvpe();
+				flags = read_c0_status();
+				__enable_fpu();
+				__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
+				write_c0_status(flags);
+				evpe(vpflags);
+			} else {
+				flags = read_c0_status();
+				__enable_fpu();
+				__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
+				write_c0_status(flags);
+			}
+			preempt_enable();
 			break;
 		}
 		case DSP_BASE ... DSP_BASE + 5:
