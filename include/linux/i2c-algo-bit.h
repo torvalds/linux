@@ -44,8 +44,6 @@ struct i2c_algo_bit_data {
 	int timeout;		/* in jiffies */
 };
 
-#define I2C_BIT_ADAP_MAX	16
-
 int i2c_bit_add_bus(struct i2c_adapter *);
 int i2c_bit_del_bus(struct i2c_adapter *);
 

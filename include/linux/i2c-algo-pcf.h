@@ -39,8 +39,6 @@ struct i2c_algo_pcf_data {
 	int timeout;
 };
 
-#define I2C_PCF_ADAP_MAX	16
-
 int i2c_pcf_add_bus(struct i2c_adapter *);
 int i2c_pcf_del_bus(struct i2c_adapter *);
 
