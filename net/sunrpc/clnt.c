@@ -759,7 +759,8 @@ call_bind_status(struct rpc_task *task)
 	case -EACCES:
 		dprintk("RPC: %4d remote rpcbind: RPC program/version unavailable\n",
 				task->tk_pid);
-		break;
+		rpc_delay(task, 3*HZ);
+		goto retry_bind;
 	case -ETIMEDOUT:
 		dprintk("RPC: %4d rpcbind request timed out\n",
 				task->tk_pid);
