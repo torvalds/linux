@@ -103,16 +103,20 @@ enum sctp_optname {
 #define SCTP_SOCKOPT_BINDX_REM	SCTP_SOCKOPT_BINDX_REM
 	SCTP_SOCKOPT_PEELOFF, 	/* peel off association. */
 #define SCTP_SOCKOPT_PEELOFF	SCTP_SOCKOPT_PEELOFF
-	SCTP_GET_PEER_ADDRS_NUM, 	/* Get number of peer addresss. */
-#define SCTP_GET_PEER_ADDRS_NUM	SCTP_GET_PEER_ADDRS_NUM
-	SCTP_GET_PEER_ADDRS, 	/* Get all peer addresss. */
-#define SCTP_GET_PEER_ADDRS	SCTP_GET_PEER_ADDRS
-	SCTP_GET_LOCAL_ADDRS_NUM, 	/* Get number of local addresss. */
-#define SCTP_GET_LOCAL_ADDRS_NUM	SCTP_GET_LOCAL_ADDRS_NUM
-	SCTP_GET_LOCAL_ADDRS, 	/* Get all local addresss. */
-#define SCTP_GET_LOCAL_ADDRS	SCTP_GET_LOCAL_ADDRS
+	SCTP_GET_PEER_ADDRS_NUM_OLD, 	/* Get number of peer addresss. */
+#define SCTP_GET_PEER_ADDRS_NUM_OLD	SCTP_GET_PEER_ADDRS_NUM_OLD
+	SCTP_GET_PEER_ADDRS_OLD, 	/* Get all peer addresss. */
+#define SCTP_GET_PEER_ADDRS_OLD	SCTP_GET_PEER_ADDRS_OLD
+	SCTP_GET_LOCAL_ADDRS_NUM_OLD, 	/* Get number of local addresss. */
+#define SCTP_GET_LOCAL_ADDRS_NUM_OLD	SCTP_GET_LOCAL_ADDRS_NUM_OLD
+	SCTP_GET_LOCAL_ADDRS_OLD, 	/* Get all local addresss. */
+#define SCTP_GET_LOCAL_ADDRS_OLD	SCTP_GET_LOCAL_ADDRS_OLD
 	SCTP_SOCKOPT_CONNECTX, /* CONNECTX requests. */
 #define SCTP_SOCKOPT_CONNECTX	SCTP_SOCKOPT_CONNECTX
+	SCTP_GET_PEER_ADDRS, 	/* Get all peer addresss. */
+#define SCTP_GET_PEER_ADDRS	SCTP_GET_PEER_ADDRS
+	SCTP_GET_LOCAL_ADDRS, 	/* Get all local addresss. */
+#define SCTP_GET_LOCAL_ADDRS	SCTP_GET_LOCAL_ADDRS
 };
 
 /*
@@ -559,10 +563,15 @@ struct sctp_status {
  * SCTP_GET_LOCAL_ADDRS socket options used internally to implement
  * sctp_getpaddrs() and sctp_getladdrs() API. 
  */
-struct sctp_getaddrs {
+struct sctp_getaddrs_old {
 	sctp_assoc_t            assoc_id;
 	int			addr_num;
 	struct sockaddr		__user *addrs;
+};
+struct sctp_getaddrs {
+	sctp_assoc_t		assoc_id; /*input*/
+	__u32			addr_num; /*output*/
+	__u8			addrs[0]; /*output, variable size*/
 };
 
 /* These are bit fields for msghdr->msg_flags.  See section 5.1.  */
