@@ -177,8 +177,8 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 	int i,datasize,res;
 	unsigned long funcs;
 
-	dev_dbg(&client->adapter->dev, "i2c-%d ioctl, cmd: 0x%x, arg: %lx.\n",
-		iminor(inode),cmd, arg);
+	dev_dbg(&client->adapter->dev, "ioctl, cmd=0x%02x, arg=0x%02lx\n",
+		cmd, arg);
 
 	switch ( cmd ) {
 	case I2C_SLAVE:
