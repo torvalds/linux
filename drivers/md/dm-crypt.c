@@ -96,7 +96,7 @@ static kmem_cache_t *_crypt_io_pool;
 /*
  * Mempool alloc and free functions for the page
  */
-static void *mempool_alloc_page(unsigned int __nocast gfp_mask, void *data)
+static void *mempool_alloc_page(gfp_t gfp_mask, void *data)
 {
 	return alloc_page(gfp_mask);
 }

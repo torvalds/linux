@@ -195,8 +195,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 
 int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 {
-	unsigned int __nocast allocation =
-			in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
+	gfp_t allocation = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 	int err = 0;
 
 	NETLINK_CB(skb).dst_group = group;

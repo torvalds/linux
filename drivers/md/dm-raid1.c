@@ -122,7 +122,7 @@ static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
 /* FIXME move this */
 static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw);
 
-static void *region_alloc(unsigned int __nocast gfp_mask, void *pool_data)
+static void *region_alloc(gfp_t gfp_mask, void *pool_data)
 {
 	return kmalloc(sizeof(struct region), gfp_mask);
 }

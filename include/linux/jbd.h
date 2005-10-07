@@ -935,7 +935,7 @@ void journal_put_journal_head(struct journal_head *jh);
  */
 extern kmem_cache_t *jbd_handle_cache;
 
-static inline handle_t *jbd_alloc_handle(unsigned int __nocast gfp_flags)
+static inline handle_t *jbd_alloc_handle(gfp_t gfp_flags)
 {
 	return kmem_cache_alloc(jbd_handle_cache, gfp_flags);
 }

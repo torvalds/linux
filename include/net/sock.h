@@ -739,18 +739,18 @@ extern void FASTCALL(release_sock(struct sock *sk));
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
 extern struct sock		*sk_alloc(int family,
-					  unsigned int __nocast priority,
+					  gfp_t priority,
 					  struct proto *prot, int zero_it);
 extern void			sk_free(struct sock *sk);
 extern struct sock		*sk_clone(const struct sock *sk,
-					  const unsigned int __nocast priority);
+					  const gfp_t priority);
 
 extern struct sk_buff		*sock_wmalloc(struct sock *sk,
 					      unsigned long size, int force,
-					      unsigned int __nocast priority);
+					      gfp_t priority);
 extern struct sk_buff		*sock_rmalloc(struct sock *sk,
 					      unsigned long size, int force,
-					      unsigned int __nocast priority);
+					      gfp_t priority);
 extern void			sock_wfree(struct sk_buff *skb);
 extern void			sock_rfree(struct sk_buff *skb);
 
@@ -766,7 +766,7 @@ extern struct sk_buff 		*sock_alloc_send_skb(struct sock *sk,
 						     int noblock,
 						     int *errcode);
 extern void *sock_kmalloc(struct sock *sk, int size,
-			  unsigned int __nocast priority);
+			  gfp_t priority);
 extern void sock_kfree_s(struct sock *sk, void *mem, int size);
 extern void sk_send_sigurg(struct sock *sk);
 
@@ -1201,7 +1201,7 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 
 static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 						   int size, int mem,
-						   unsigned int __nocast gfp)
+						   gfp_t gfp)
 {
 	struct sk_buff *skb;
 	int hdr_len;
@@ -1224,7 +1224,7 @@ static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 
 static inline struct sk_buff *sk_stream_alloc_skb(struct sock *sk,
 						  int size,
-						  unsigned int __nocast gfp)
+						  gfp_t gfp)
 {
 	return sk_stream_alloc_pskb(sk, size, 0, gfp);
 }
@@ -1255,7 +1255,7 @@ static inline int sock_writeable(const struct sock *sk)
 	return atomic_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf / 2);
 }
 
-static inline unsigned int __nocast gfp_any(void)
+static inline gfp_t gfp_any(void)
 {
 	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
 }

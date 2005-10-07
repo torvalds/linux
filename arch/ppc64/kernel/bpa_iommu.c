@@ -310,7 +310,7 @@ static void bpa_map_iommu(void)
 
 
 static void *bpa_alloc_coherent(struct device *hwdev, size_t size,
-			   dma_addr_t *dma_handle, unsigned int __nocast flag)
+			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	void *ret;
 
