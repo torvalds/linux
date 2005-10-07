@@ -232,7 +232,7 @@ static void i2c_parport_detach (struct parport *port)
 	}
 }
 
-static struct parport_driver i2c_driver = {
+static struct parport_driver i2c_parport_driver = {
 	.name	= "i2c-parport",
 	.attach	= i2c_parport_attach,
 	.detach	= i2c_parport_detach,
@@ -250,12 +250,12 @@ static int __init i2c_parport_init(void)
 		type = 0;
 	}
 	
-	return parport_register_driver(&i2c_driver);
+	return parport_register_driver(&i2c_parport_driver);
 }
 
 static void __exit i2c_parport_exit(void)
 {
-	parport_unregister_driver(&i2c_driver);
+	parport_unregister_driver(&i2c_parport_driver);
 }
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
