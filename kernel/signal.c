@@ -578,7 +578,8 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
  		 * is to alert stop-signal processing code when another
  		 * processor has come along and cleared the flag.
  		 */
- 		tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
+ 		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
+ 			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
  	}
 	if ( signr &&
 	     ((info->si_code & __SI_MASK) == __SI_TIMER) &&
