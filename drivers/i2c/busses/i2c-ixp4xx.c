@@ -35,6 +35,8 @@
 
 #include <asm/hardware.h>	/* Pick up IXP4xx-specific bits */
 
+static struct device_driver ixp4xx_i2c_driver;
+
 static inline int ixp4xx_scl_pin(void *data)
 {
 	return ((struct ixp4xx_i2c_pins*)data)->scl_pin;
@@ -129,6 +131,8 @@ static int ixp4xx_i2c_probe(struct device *dev)
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP4XX;
+	strlcpy(drv_data->adapter.name, ixp4xx_i2c_driver.name,
+		I2C_NAME_SIZE);
 	drv_data->adapter.algo_data = &drv_data->algo_data;
 
 	drv_data->adapter.dev.parent = &plat_dev->dev;
