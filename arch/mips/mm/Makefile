@@ -9,8 +9,8 @@ obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
 obj-$(CONFIG_64BIT)		+= pgtable-64.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 
-obj-$(CONFIG_CPU_MIPS32_R1)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
-obj-$(CONFIG_CPU_MIPS64_R1)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
+obj-$(CONFIG_CPU_MIPS32)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
+obj-$(CONFIG_CPU_MIPS64)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
 obj-$(CONFIG_CPU_NEVADA)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
 obj-$(CONFIG_CPU_R10000)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-andes.o
 obj-$(CONFIG_CPU_R3000)		+= c-r3k.o tlb-r3k.o pg-r4k.o

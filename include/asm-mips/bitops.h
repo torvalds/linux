@@ -12,6 +12,7 @@
 #include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <asm/bug.h>
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/cpu-features.h>
 
@@ -546,33 +547,27 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *addr)
 	return 1UL & (addr[nr >> SZLONG_LOG] >> (nr & SZLONG_MASK));
 }
 
-#ifdef CONFIG_CPU_MIPS32_R1
-/*
- * Return the bit position (0..31) of the most significant 1 bit in a word
- * Returns -1 if no 1 bit exists
- */
-static __inline__ int __ilog2(unsigned long x)
-{
-	int lz;
-
-	__asm__ (
-	"	.set	push						\n"
-	"	.set	mips32						\n"
-	"	clz	%0, %1						\n"
-	"	.set	pop						\n"
-	: "=r" (lz)
-	: "r" (x));
-
-	return 31 - lz;
-}
-#elif defined(CONFIG_CPU_MIPS64_R1)
 /*
  * Return the bit position (0..63) of the most significant 1 bit in a word
  * Returns -1 if no 1 bit exists
  */
-static __inline__ int __ilog2(unsigned long x)
+static inline int __ilog2(unsigned long x)
 {
 	int lz;
+
+	if (sizeof(x) == 4) {
+		__asm__ (
+		"	.set	push					\n"
+		"	.set	mips32					\n"
+		"	clz	%0, %1					\n"
+		"	.set	pop					\n"
+		: "=r" (lz)
+		: "r" (x));
+
+		return 31 - lz;
+	}
+
+	BUG_ON(sizeof(x) != 8);
 
 	__asm__ (
 	"	.set	push						\n"
@@ -584,7 +579,6 @@ static __inline__ int __ilog2(unsigned long x)
 
 	return 63 - lz;
 }
-#endif
 
 /*
  * __ffs - find first bit in word.
@@ -595,7 +589,7 @@ static __inline__ int __ilog2(unsigned long x)
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-#if defined(CONFIG_CPU_MIPS32_R1) || defined(CONFIG_CPU_MIPS64_R1)
+#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
 	return __ilog2(word & -word);
 #else
 	int b = 0, s;
@@ -606,6 +600,8 @@ static inline unsigned long __ffs(unsigned long word)
 	s =  4; if (word << 28 != 0) s = 0; b += s; word >>= s;
 	s =  2; if (word << 30 != 0) s = 0; b += s; word >>= s;
 	s =  1; if (word << 31 != 0) s = 0; b += s;
+
+	return b;
 #endif
 #ifdef CONFIG_64BIT
 	s = 32; if (word << 32 != 0) s = 0; b += s; word >>= s;
@@ -614,8 +610,9 @@ static inline unsigned long __ffs(unsigned long word)
 	s =  4; if (word << 60 != 0) s = 0; b += s; word >>= s;
 	s =  2; if (word << 62 != 0) s = 0; b += s; word >>= s;
 	s =  1; if (word << 63 != 0) s = 0; b += s;
-#endif
+
 	return b;
+#endif
 #endif
 }
 
@@ -655,10 +652,10 @@ static inline unsigned long ffz(unsigned long word)
  */
 static inline unsigned long flz(unsigned long word)
 {
-#if defined(CONFIG_CPU_MIPS32_R1) || defined(CONFIG_CPU_MIPS64_R1)
+#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
 	return __ilog2(~word);
 #else
-#if defined(CONFIG_32BIT)
+#ifdef CONFIG_32BIT
 	int r = 31, s;
 	word = ~word;
 	s = 16; if ((word & 0xffff0000)) s = 0; r -= s; word <<= s;
@@ -666,8 +663,10 @@ static inline unsigned long flz(unsigned long word)
 	s = 4;  if ((word & 0xf0000000)) s = 0; r -= s; word <<= s;
 	s = 2;  if ((word & 0xc0000000)) s = 0; r -= s; word <<= s;
 	s = 1;  if ((word & 0x80000000)) s = 0; r -= s;
+
+	return r;
 #endif
-#if defined(CONFIG_64BIT)
+#ifdef CONFIG_64BIT
 	int r = 63, s;
 	word = ~word;
 	s = 32; if ((word & 0xffffffff00000000UL)) s = 0; r -= s; word <<= s;
@@ -676,8 +675,9 @@ static inline unsigned long flz(unsigned long word)
 	s = 4;  if ((word & 0xf000000000000000UL)) s = 0; r -= s; word <<= s;
 	s = 2;  if ((word & 0xc000000000000000UL)) s = 0; r -= s; word <<= s;
 	s = 1;  if ((word & 0x8000000000000000UL)) s = 0; r -= s;
-#endif
+
 	return r;
+#endif
 #endif
 }
 

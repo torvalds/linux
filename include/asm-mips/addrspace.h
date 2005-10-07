@@ -131,7 +131,7 @@
     || defined (CONFIG_CPU_R5000)					\
     || defined (CONFIG_CPU_NEVADA)					\
     || defined (CONFIG_CPU_TX49XX)					\
-    || defined (CONFIG_CPU_MIPS64_R1)
+    || defined (CONFIG_CPU_MIPS64)
 #define KUSIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
 #define KUSIZE_64	_LLCONST_(0x0000010000000000)	/* 2^^40 */
 #define K0SIZE		_LLCONST_(0x0000001000000000)	/* 2^^36 */

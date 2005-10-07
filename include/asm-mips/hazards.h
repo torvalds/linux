@@ -232,7 +232,7 @@ __asm__(
 
 #endif
 
-#if defined(CONFIG_CPU_MIPS32_R2) || defined (CONFIG_CPU_MIPS64_R2)
+#ifdef CONFIG_CPU_MIPSR2
 #define instruction_hazard()						\
 do {									\
 __label__ __next;							\

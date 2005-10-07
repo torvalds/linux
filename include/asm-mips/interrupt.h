@@ -19,7 +19,7 @@ __asm__ (
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
+#ifdef CONFIG_CPU_MIPSR2
 	"	ei							\n"
 #else
 	"	mfc0	$1,$12						\n"
@@ -51,7 +51,7 @@ __asm__ (
 	"	.macro	local_irq_disable\n"
 	"	.set	push						\n"
 	"	.set	noat						\n"
-#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
+#ifdef CONFIG_CPU_MIPSR2
 	"	di							\n"
 #else
 	"	mfc0	$1,$12						\n"
@@ -91,7 +91,7 @@ __asm__ (
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#if defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
+#ifdef CONFIG_CPU_MIPSR2
 	"	di	\\result					\n"
 #else
 	"	mfc0	\\result, $12					\n"
@@ -115,8 +115,7 @@ __asm__ (
 	"	.macro	local_irq_restore flags				\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
-#if (defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)) && \
-    defined(CONFIG_IRQ_CPU)
+#if defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
 	/*
 	 * Slow, but doesn't suffer from a relativly unlikely race
 	 * condition we're having since days 1.
@@ -125,7 +124,7 @@ __asm__ (
 	"	 di							\n"
 	"	ei							\n"
 	"1:								\n"
-#elif defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
+#elif defined(CONFIG_CPU_MIPSR2)
 	/*
 	 * Fast, dangerous.  Life is fun, life is good.
 	 */

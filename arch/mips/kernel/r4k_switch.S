@@ -165,7 +165,7 @@ LEAF(_init_fpu)
 1:
 #endif
 
-#ifdef CONFIG_CPU_MIPS32_R1
+#ifdef CONFIG_CPU_MIPS32
 	mtc1	t1, $f0
 	mtc1	t1, $f1
 	mtc1	t1, $f2

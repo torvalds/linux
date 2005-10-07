@@ -28,8 +28,8 @@ obj-$(CONFIG_CPU_RM9000)	+= r4k_fpu.o r4k_switch.o
 obj-$(CONFIG_CPU_NEVADA)	+= r4k_fpu.o r4k_switch.o
 obj-$(CONFIG_CPU_R10000)	+= r4k_fpu.o r4k_switch.o
 obj-$(CONFIG_CPU_SB1)		+= r4k_fpu.o r4k_switch.o
-obj-$(CONFIG_CPU_MIPS32_R1)	+= r4k_fpu.o r4k_switch.o
-obj-$(CONFIG_CPU_MIPS64_R1)	+= r4k_fpu.o r4k_switch.o
+obj-$(CONFIG_CPU_MIPS32)	+= r4k_fpu.o r4k_switch.o
+obj-$(CONFIG_CPU_MIPS64)	+= r4k_fpu.o r4k_switch.o
 obj-$(CONFIG_CPU_R6000)		+= r6000_fpu.o r4k_switch.o
 
 obj-$(CONFIG_SMP)		+= smp.o
