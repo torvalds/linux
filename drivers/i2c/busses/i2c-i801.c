@@ -52,10 +52,6 @@
 #include <linux/i2c.h>
 #include <asm/io.h>
 
-#ifdef I2C_FUNC_SMBUS_BLOCK_DATA_PEC
-#define HAVE_PEC
-#endif
-
 /* I801 SMBus address offsets */
 #define SMBHSTSTS	(0 + i801_smba)
 #define SMBHSTCNT	(2 + i801_smba)
@@ -392,7 +388,6 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			goto END;
 	}
 
-#ifdef HAVE_PEC
 	if(isich4 && command == I2C_SMBUS_BLOCK_DATA_PEC) {
 		/* wait for INTR bit as advised by Intel */
 		timeout = 0;
@@ -407,7 +402,6 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		}
 		outb_p(temp, SMBHSTSTS); 
 	}
-#endif
 	result = 0;
 END:
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
@@ -426,10 +420,8 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 	int block = 0;
 	int ret, xact = 0;
 
-#ifdef HAVE_PEC
 	if(isich4)
 		hwpec = (flags & I2C_CLIENT_PEC) != 0;
-#endif
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -464,11 +456,9 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-#ifdef HAVE_PEC
 	case I2C_SMBUS_BLOCK_DATA_PEC:
 		if(hwpec && size == I2C_SMBUS_BLOCK_DATA)
 			size = I2C_SMBUS_BLOCK_DATA_PEC;
-#endif
 		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
@@ -480,13 +470,11 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		return -1;
 	}
 
-#ifdef HAVE_PEC
 	if(isich4 && hwpec) {
 		if(size != I2C_SMBUS_QUICK &&
 		   size != I2C_SMBUS_I2C_BLOCK_DATA)
 			outb_p(1, SMBAUXCTL);	/* enable HW PEC */
 	}
-#endif
 	if(block)
 		ret = i801_block_transaction(data, read_write, size);
 	else {
@@ -494,13 +482,11 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		ret = i801_transaction();
 	}
 
-#ifdef HAVE_PEC
 	if(isich4 && hwpec) {
 		if(size != I2C_SMBUS_QUICK &&
 		   size != I2C_SMBUS_I2C_BLOCK_DATA)
 			outb_p(0, SMBAUXCTL);
 	}
-#endif
 
 	if(block)
 		return ret;
@@ -527,12 +513,8 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	    I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK
-#ifdef HAVE_PEC
 	     | (isich4 ? I2C_FUNC_SMBUS_BLOCK_DATA_PEC |
-	                 I2C_FUNC_SMBUS_HWPEC_CALC
-	               : 0)
-#endif
-	    ;
+	                 I2C_FUNC_SMBUS_HWPEC_CALC : 0);
 }
 
 static struct i2c_algorithm smbus_algorithm = {
