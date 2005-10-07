@@ -503,11 +503,6 @@ union i2c_smbus_data {
 
 #define I2C_SMBUS	0x0720	/* SMBus-level access */
 
-/* ... algo-bit.c recognizes */
-#define I2C_UDELAY	0x0705	/* set delay in microsecs between each	*/
-				/* written byte (except address)	*/
-#define I2C_MDELAY	0x0706	/* millisec delay between written bytes */
-
 /* ----- I2C-DEV: char device interface stuff ------------------------- */
 
 #define I2C_MAJOR	89		/* Device major number		*/
