@@ -33,8 +33,8 @@ static struct i2c_driver foo_driver = {
 	.command	= &foo_command /* may be NULL */
 }
  
-The name can be chosen freely, and may be upto 40 characters long. Please
-use something descriptive here.
+The name field must match the driver name, including the case. It must not
+contain spaces, and may be up to 31 characters long.
 
 Don't worry about the flags field; just put I2C_DF_NOTIFY into it. This
 means that your driver will be notified when new adapters are found.
@@ -42,9 +42,6 @@ This is almost always what you want.
 
 All other fields are for call-back functions which will be explained 
 below.
-
-There use to be two additional fields in this structure, inc_use et dec_use,
-for module usage count, but these fields were obsoleted and removed.
 
 
 Extra client data
@@ -576,12 +573,12 @@ SMBus communication
   extern s32 i2c_smbus_write_block_data(struct i2c_client * client,
                                         u8 command, u8 length,
                                         u8 *values);
+  extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
+                                           u8 command, u8 *values);
 
 These ones were removed in Linux 2.6.10 because they had no users, but could
 be added back later if needed:
 
-  extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
-                                           u8 command, u8 *values);
   extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
                                        u8 command, u8 *values);
   extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,
