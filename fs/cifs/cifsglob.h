@@ -123,13 +123,17 @@ struct TCP_Server_Info {
 	struct list_head pending_mid_q;
 	void *Server_NlsInfo;	/* BB - placeholder for future NLS info  */
 	unsigned short server_codepage;	/* codepage for the server    */
-	unsigned long ip_address;	/* IP addr for the server if known     */
+	unsigned long ip_address;	/* IP addr for the server if known */
 	enum protocolEnum protocolType;	
 	char versionMajor;
 	char versionMinor;
 	unsigned svlocal:1;	/* local server or remote */
 	atomic_t socketUseCount; /* number of open cifs sessions on socket */
 	atomic_t inFlight;  /* number of requests on the wire to server */
+#ifdef CONFIG_CIFS_STATS2
+	atomic_t inSend; /* requests trying to send */
+	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
+#endif
 	enum statusEnum tcpStatus; /* what we think the status is */
 	struct semaphore tcpSem;
 	struct task_struct *tsk;

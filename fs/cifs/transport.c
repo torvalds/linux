@@ -307,9 +307,15 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			if(atomic_read(&ses->server->inFlight) >= 
 					cifs_max_pending){
 				spin_unlock(&GlobalMid_Lock);
+#ifdef CONFIG_CIFS_STATS2
+				atomic_inc(&ses->server->num_waiters);
+#endif
 				wait_event(ses->server->request_q,
 					atomic_read(&ses->server->inFlight)
 					 < cifs_max_pending);
+#ifdef CONFIG_CIFS_STATS2
+				atomic_dec(&ses->server->num_waiters);
+#endif
 				spin_lock(&GlobalMid_Lock);
 			} else {
 				if(ses->server->tcpStatus == CifsExiting) {
@@ -365,8 +371,14 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 /* 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number); */
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
+#ifdef CONFIG_CIFS_STATS2
+	atomic_inc(&ses->server->inSend);
+#endif
 	rc = smb_send2(ses->server->ssocket, iov, n_vec,
 		      (struct sockaddr *) &(ses->server->addr.sockAddr));
+#ifdef CONFIG_CIFS_STATS2
+	atomic_dec(&ses->server->inSend);
+#endif
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
 		up(&ses->server->tcpSem);
@@ -546,9 +558,15 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			if(atomic_read(&ses->server->inFlight) >= 
 					cifs_max_pending){
 				spin_unlock(&GlobalMid_Lock);
+#ifdef CONFIG_CIFS_STATS2
+				atomic_inc(&ses->server->num_waiters);
+#endif
 				wait_event(ses->server->request_q,
 					atomic_read(&ses->server->inFlight)
 					 < cifs_max_pending);
+#ifdef CONFIG_CIFS_STATS2
+				atomic_dec(&ses->server->num_waiters);
+#endif
 				spin_lock(&GlobalMid_Lock);
 			} else {
 				if(ses->server->tcpStatus == CifsExiting) {
@@ -617,8 +635,14 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
+#ifdef CONFIG_CIFS_STATS2
+	atomic_inc(&ses->server->inSend);
+#endif
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
 		      (struct sockaddr *) &(ses->server->addr.sockAddr));
+#ifdef CONFIG_CIFS_STATS2
+	atomic_dec(&ses->server->inSend);
+#endif
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
 		up(&ses->server->tcpSem);

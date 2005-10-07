@@ -81,6 +81,8 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 	buf += length;
 	length = sprintf(buf,"CIFS Version %s\n",CIFS_VERSION);
 	buf += length;
+	length = sprintf(buf,"Active VFS Requests: %d\n", GlobalTotalActiveXid);
+	buf += length;
 	length = sprintf(buf, "Servers:");
 	buf += length;
 
@@ -97,7 +99,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		} else {
 			length =
 			    sprintf(buf,
-				    "\n%d) Name: %s  Domain: %s Mounts: %d ServerOS: %s  \n\tServerNOS: %s\tCapabilities: 0x%x\n\tSMB session status: %d\t",
+				    "\n%d) Name: %s  Domain: %s Mounts: %d OS: %s  \n\tNOS: %s\tCapability: 0x%x\n\tSMB session status: %d\t",
 				i, ses->serverName, ses->serverDomain,
 				atomic_read(&ses->inUse),
 				ses->serverOS, ses->serverNOS,
@@ -105,12 +107,18 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 			buf += length;
 		}
 		if(ses->server) {
-			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req Active: %d",
+			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req On Wire: %d",
 				ses->server->tcpStatus,
 				atomic_read(&ses->server->socketUseCount),
 				ses->server->secMode,
 				atomic_read(&ses->server->inFlight));
-			
+
+#ifdef CONFIG_CIFS_STATS2
+			buf += sprintf(buf, "\tIn Send: %d In MaxReq Wait: %d",
+				atomic_read(&ses->server->inSend), 
+				atomic_read(&ses->server->num_waiters));
+#endif
+
 			length = sprintf(buf, "\nMIDs:\n");
 			buf += length;
 
@@ -149,7 +157,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
 		length =
 		    sprintf(buf,
-			    "\n%d) %s Uses: %d Type: %s Characteristics: 0x%x Attributes: 0x%x\nPathComponentMax: %d Status: %d",
+			    "\n%d) %s Uses: %d Type: %s DevInfo: 0x%x Attributes: 0x%x\nPathComponentMax: %d Status: %d",
 			    i, tcon->treeName,
 			    atomic_read(&tcon->useCount),
 			    tcon->nativeFileSystem,
