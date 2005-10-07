@@ -13,6 +13,9 @@ mainmenu "Linux/MIPS Kernel Configuration"
 
 source "init/Kconfig"
 
+#
+# These two indicate any levelof the MIPS32 and MIPS64 architecture
+#
 config CPU_MIPS32
 	bool
 	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2
@@ -21,6 +24,9 @@ config CPU_MIPS64
 	bool
 	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2
 
+#
+# These two indicate the revision of the architecture, either 32 bot 64 bit.
+#
 config CPU_MIPSR1
 	bool
 	default y if CPU_MIPS32_R1 || CPU_MIPS64_R1
