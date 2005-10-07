@@ -199,7 +199,6 @@ static int ds1374_probe(struct i2c_adapter *adap, int addr, int kind)
 
 	memset(client, 0, sizeof(struct i2c_client));
 	strncpy(client->name, DS1374_DRV_NAME, I2C_NAME_SIZE);
-	client->flags = I2C_DF_NOTIFY;
 	client->addr = addr;
 	client->adapter = adap;
 	client->driver = &ds1374_driver;
