@@ -46,6 +46,8 @@
 #define DEFAULT_BASE 0x330
 
 static int base;
+static u8 __iomem *base_iomem;
+
 static int irq;
 static int clock  = 0x1c;
 static int own    = 0x55;
@@ -64,36 +66,27 @@ static spinlock_t lock;
 
 static void pcf_isa_setbyte(void *data, int ctl, int val)
 {
-	int address = ctl ? (base + 1) : base;
+	u8 __iomem *address = ctl ? (base_iomem + 1) : base_iomem;
 
 	/* enable irq if any specified for serial operation */
 	if (ctl && irq && (val & I2C_PCF_ESO)) {
 		val |= I2C_PCF_ENI;
 	}
 
-	pr_debug("i2c-elektor: Write 0x%X 0x%02X\n", address, val & 255);
-
-	switch (mmapped) {
-	case 0: /* regular I/O */
-		outb(val, address);
-		break;
-	case 2: /* double mapped I/O needed for UP2000 board,
-                   I don't know why this... */
-		writeb(val, (void *)address);
-		/* fall */
-	case 1: /* memory mapped I/O */
-		writeb(val, (void *)address);
-		break;
-	}
+	pr_debug("i2c-elektor: Write %p 0x%02X\n", address, val);
+	iowrite8(val, address);
+#ifdef __alpha__
+	/* API UP2000 needs some hardware fudging to make the write stick */
+	iowrite8(val, address);
+#endif
 }
 
 static int pcf_isa_getbyte(void *data, int ctl)
 {
-	int address = ctl ? (base + 1) : base;
-	int val = mmapped ? readb((void *)address) : inb(address);
+	u8 __iomem *address = ctl ? (base_iomem + 1) : base_iomem;
+	int val = ioread8(address);
 
-	pr_debug("i2c-elektor: Read 0x%X 0x%02X\n", address, val);
-
+	pr_debug("i2c-elektor: Read %p 0x%02X\n", address, val);
 	return (val);
 }
 
@@ -155,7 +148,30 @@ static int pcf_isa_init(void)
 			       "is in use.\n", base);
 			return -ENODEV;
 		}
+		base_iomem = ioport_map(base, 2);
+		if (!base_iomem) {
+			printk(KERN_ERR "i2c-elektor: remap of I/O region "
+			       "%#x failed\n", base);
+			release_region(base, 2);
+			return -ENODEV;
+		}
+	} else {
+		if (!request_mem_region(base, 2, "i2c-elektor")) {
+			printk(KERN_ERR "i2c-elektor: requested memory region "
+			       "(%#x:2) is in use\n", base);
+			return -ENODEV;
+		}
+		base_iomem = ioremap(base, 2);
+		if (base_iomem == NULL) {
+			printk(KERN_ERR "i2c-elektor: remap of memory region "
+			       "%#x failed\n", base);
+			release_mem_region(base, 2);
+			return -ENODEV;
+		}
 	}
+	pr_debug("i2c-elektor: registers %#x remapped to %p\n", base,
+		 base_iomem);
+
 	if (irq > 0) {
 		if (request_irq(irq, pcf_isa_handler, 0, "PCF8584", NULL) < 0) {
 			printk(KERN_ERR "i2c-elektor: Request irq%d failed\n", irq);
@@ -200,7 +216,7 @@ static int __init i2c_pcfisa_init(void)
 		cy693_dev = pci_get_device(PCI_VENDOR_ID_CONTAQ, 
 					   PCI_DEVICE_ID_CONTAQ_82C693, NULL);
 		if (cy693_dev) {
-			char config;
+			unsigned char config;
 			/* yeap, we've found cypress, let's check config */
 			if (!pci_read_config_byte(cy693_dev, 0x47, &config)) {
 				
@@ -219,9 +235,7 @@ static int __init i2c_pcfisa_init(void)
 				if ((config & 0x7f) == 0x61) {
 					/* seems to be UP2000 like board */
 					base = 0xe0000;
-                                        /* I don't know why we need to
-                                           write twice */
-					mmapped = 2;
+					mmapped = 1;
                                         /* UP2000 drives ISA with
 					   8.25 MHz (PCI/4) clock
 					   (this can be read from cypress) */
@@ -262,8 +276,13 @@ static int __init i2c_pcfisa_init(void)
 		free_irq(irq, NULL);
 	}
 
-	if (!mmapped)
+	if (!mmapped) {
+		ioport_unmap(base_iomem);
 		release_region(base , 2);
+	} else {
+		iounmap(base_iomem);
+		release_mem_region(base, 2);
+	}
 	return -ENODEV;
 }
 
@@ -276,8 +295,13 @@ static void i2c_pcfisa_exit(void)
 		free_irq(irq, NULL);
 	}
 
-	if (!mmapped)
+	if (!mmapped) {
+		ioport_unmap(base_iomem);
 		release_region(base , 2);
+	} else {
+		iounmap(base_iomem);
+		release_mem_region(base, 2);
+	}
 }
 
 MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
