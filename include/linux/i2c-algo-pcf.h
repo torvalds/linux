@@ -22,8 +22,6 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
    Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c-algo-pcf.h,v 1.8 2003/01/21 08:08:16 kmalkki Exp $ */
-
 #ifndef _LINUX_I2C_ALGO_PCF_H
 #define _LINUX_I2C_ALGO_PCF_H
 
