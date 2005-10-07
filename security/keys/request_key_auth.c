@@ -96,6 +96,7 @@ static void request_key_auth_destroy(struct key *key)
 	kenter("{%d}", key->serial);
 
 	key_put(rka->target_key);
+	kfree(rka);
 
 } /* end request_key_auth_destroy() */
 
