@@ -201,7 +201,6 @@ superio_exit(void)
 
 #define W83627HF_REG_PWM1 0x5A
 #define W83627HF_REG_PWM2 0x5B
-#define W83627HF_REG_PWMCLK12 0x5C
 
 #define W83627THF_REG_PWM1		0x01	/* 697HF and 637HF too */
 #define W83627THF_REG_PWM2		0x03	/* 697HF and 637HF too */
@@ -1373,12 +1372,6 @@ static void w83627hf_init_client(struct i2c_client *client)
 			}
 		}
 
-		if (type == w83627hf) {
-			/* enable PWM2 control (can't hurt since PWM reg
-		           should have been reset to 0xff) */
-			w83627hf_write_value(client, W83627HF_REG_PWMCLK12,
-					    0x19);
-		}
 		/* enable comparator mode for temp2 and temp3 so
 	           alarm indication will work correctly */
 		i = w83627hf_read_value(client, W83781D_REG_IRQ);
