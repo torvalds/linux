@@ -1718,6 +1718,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
+		.subvendor = 0x1025,
+		.subdevice = 0x0083,
+		.name = "Acer Aspire 3003LCi",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
 		.subvendor = 0x1028,
 		.subdevice = 0x00d8,
 		.name = "Dell Precision 530",	/* AD1885 */
