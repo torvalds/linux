@@ -27,12 +27,6 @@ int key_task_permission(const key_ref_t key_ref,
 
 	key = key_ref_to_ptr(key_ref);
 
-	/* use the top 8-bits of permissions for keys the caller possesses */
-	if (is_key_possessed(key_ref)) {
-		kperm = key->perm >> 24;
-		goto use_these_perms;
-	}
-
 	/* use the second 8-bits of permissions for keys the caller owns */
 	if (key->uid == context->fsuid) {
 		kperm = key->perm >> 16;
@@ -61,6 +55,12 @@ int key_task_permission(const key_ref_t key_ref,
 	kperm = key->perm;
 
 use_these_perms:
+	/* use the top 8-bits of permissions for keys the caller possesses
+	 * - possessor permissions are additive with other permissions
+	 */
+	if (is_key_possessed(key_ref))
+		kperm |= key->perm >> 24;
+
 	kperm = kperm & perm & KEY_ALL;
 
 	return kperm == perm;
