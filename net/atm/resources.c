@@ -40,6 +40,7 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 	dev->link_rate = ATM_OC3_PCR;
 	spin_lock_init(&dev->lock);
 	INIT_LIST_HEAD(&dev->local);
+	INIT_LIST_HEAD(&dev->lecs);
 
 	return dev;
 }
@@ -320,10 +321,12 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				error = -EPERM;
 				goto done;
 			}
-			atm_reset_addr(dev);
+			atm_reset_addr(dev, ATM_ADDR_LOCAL);
 			break;
 		case ATM_ADDADDR:
 		case ATM_DELADDR:
+		case ATM_ADDLECSADDR:
+		case ATM_DELLECSADDR:
 			if (!capable(CAP_NET_ADMIN)) {
 				error = -EPERM;
 				goto done;
@@ -335,14 +338,21 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 					error = -EFAULT;
 					goto done;
 				}
-				if (cmd == ATM_ADDADDR)
-					error = atm_add_addr(dev, &addr);
+				if (cmd == ATM_ADDADDR || cmd == ATM_ADDLECSADDR)
+					error = atm_add_addr(dev, &addr,
+							     (cmd == ATM_ADDADDR ?
+							      ATM_ADDR_LOCAL : ATM_ADDR_LECS));
 				else
-					error = atm_del_addr(dev, &addr);
+					error = atm_del_addr(dev, &addr,
+							     (cmd == ATM_DELADDR ?
+							      ATM_ADDR_LOCAL : ATM_ADDR_LECS));
 				goto done;
 			}
 		case ATM_GETADDR:
-			error = atm_get_addr(dev, buf, len);
+		case ATM_GETLECSADDR:
+			error = atm_get_addr(dev, buf, len,
+					     (cmd == ATM_GETADDR ?
+					      ATM_ADDR_LOCAL : ATM_ADDR_LECS));
 			if (error < 0)
 				goto done;
 			size = error;
