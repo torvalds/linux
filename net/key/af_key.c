@@ -185,7 +185,7 @@ static int pfkey_release(struct socket *sock)
 }
 
 static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
-			       int allocation, struct sock *sk)
+			       unsigned int __nocast allocation, struct sock *sk)
 {
 	int err = -ENOBUFS;
 
@@ -217,7 +217,7 @@ static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
 #define BROADCAST_ONE		1
 #define BROADCAST_REGISTERED	2
 #define BROADCAST_PROMISC_ONLY	4
-static int pfkey_broadcast(struct sk_buff *skb, int allocation,
+static int pfkey_broadcast(struct sk_buff *skb, unsigned int __nocast allocation,
 			   int broadcast_flags, struct sock *one_sk)
 {
 	struct sock *sk;
@@ -1416,7 +1416,8 @@ static int pfkey_get(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	return 0;
 }
 
-static struct sk_buff *compose_sadb_supported(struct sadb_msg *orig, int allocation)
+static struct sk_buff *compose_sadb_supported(struct sadb_msg *orig,
+					      unsigned int __nocast allocation)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
@@ -2153,6 +2154,7 @@ out:
 
 static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
+	unsigned int dir;
 	int err;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
@@ -2161,7 +2163,11 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if ((pol = ext_hdrs[SADB_X_EXT_POLICY-1]) == NULL)
 		return -EINVAL;
 
-	xp = xfrm_policy_byid(0, pol->sadb_x_policy_id,
+	dir = xfrm_policy_id2dir(pol->sadb_x_policy_id);
+	if (dir >= XFRM_POLICY_MAX)
+		return -EINVAL;
+
+	xp = xfrm_policy_byid(dir, pol->sadb_x_policy_id,
 			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
 	if (xp == NULL)
 		return -ENOENT;
@@ -2173,9 +2179,9 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
 		c.data.byid = 1;
 		c.event = XFRM_MSG_DELPOLICY;
-		km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
+		km_policy_notify(xp, dir, &c);
 	} else {
-		err = key_pol_get_resp(sk, xp, hdr, pol->sadb_x_policy_dir-1);
+		err = key_pol_get_resp(sk, xp, hdr, dir);
 	}
 
 	xfrm_pol_put(xp);

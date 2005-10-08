@@ -967,13 +967,12 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 static void srat_detect_node(void)
 {
 #ifdef CONFIG_NUMA
-	unsigned apicid, node;
+	unsigned node;
 	int cpu = smp_processor_id();
 
 	/* Don't do the funky fallback heuristics the AMD version employs
 	   for now. */
-	apicid = phys_proc_id[cpu];
-	node = apicid_to_node[apicid];
+	node = apicid_to_node[hard_smp_processor_id()];
 	if (node == NUMA_NO_NODE)
 		node = 0;
 	cpu_to_node[cpu] = node;

@@ -67,8 +67,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.41"
-#define DRV_MODULE_RELDATE	"September 27, 2005"
+#define DRV_MODULE_VERSION	"3.42"
+#define DRV_MODULE_RELDATE	"Oct 3, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -9284,8 +9284,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	static struct pci_device_id write_reorder_chipsets[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_AMD,
 		             PCI_DEVICE_ID_AMD_FE_GATE_700C) },
-		{ PCI_DEVICE(PCI_VENDOR_ID_AMD,
-		             PCI_DEVICE_ID_AMD_K8_NB) },
+		{ PCI_DEVICE(PCI_VENDOR_ID_VIA,
+			     PCI_DEVICE_ID_VIA_8385_0) },
 		{ },
 	};
 	u32 misc_ctrl_reg;
@@ -9299,15 +9299,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tg3_is_sun_570X(tp))
 		tp->tg3_flags2 |= TG3_FLG2_SUN_570X;
 #endif
-
-	/* If we have an AMD 762 or K8 chipset, write
-	 * reordering to the mailbox registers done by the host
-	 * controller can cause major troubles.  We read back from
-	 * every mailbox register write to force the writes to be
-	 * posted to the chip in order.
-	 */
-	if (pci_dev_present(write_reorder_chipsets))
-		tp->tg3_flags |= TG3_FLAG_MBOX_WRITE_REORDER;
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -9438,6 +9429,16 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (pci_find_capability(tp->pdev, PCI_CAP_ID_EXP) != 0)
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
+
+	/* If we have an AMD 762 or VIA K8T800 chipset, write
+	 * reordering to the mailbox registers done by the host
+	 * controller can cause major troubles.  We read back from
+	 * every mailbox register write to force the writes to be
+	 * posted to the chip in order.
+	 */
+	if (pci_dev_present(write_reorder_chipsets) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
+		tp->tg3_flags |= TG3_FLAG_MBOX_WRITE_REORDER;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703 &&
 	    tp->pci_lat_timer < 64) {

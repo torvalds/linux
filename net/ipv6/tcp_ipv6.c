@@ -209,9 +209,11 @@ static __inline__ void __tcp_v6_hash(struct sock *sk)
 		lock = &tcp_hashinfo.lhash_lock;
 		inet_listen_wlock(&tcp_hashinfo);
 	} else {
-		sk->sk_hashent = inet6_sk_ehashfn(sk, tcp_hashinfo.ehash_size);
-		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
-		lock = &tcp_hashinfo.ehash[sk->sk_hashent].lock;
+		unsigned int hash;
+		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
+		hash &= (tcp_hashinfo.ehash_size - 1);
+		list = &tcp_hashinfo.ehash[hash].chain;
+		lock = &tcp_hashinfo.ehash[hash].lock;
 		write_lock(lock);
 	}
 
@@ -322,13 +324,13 @@ static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 	const struct in6_addr *saddr = &np->daddr;
 	const int dif = sk->sk_bound_dev_if;
 	const u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
-	const int hash = inet6_ehashfn(daddr, inet->num, saddr, inet->dport,
-				       tcp_hashinfo.ehash_size);
-	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
+	unsigned int hash = inet6_ehashfn(daddr, inet->num, saddr, inet->dport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(&tcp_hashinfo, hash);
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
 
+	prefetch(head->chain.first);
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
@@ -365,14 +367,14 @@ static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 
 	/* And established part... */
 	sk_for_each(sk2, node, &head->chain) {
-		if (INET6_MATCH(sk2, saddr, daddr, ports, dif))
+		if (INET6_MATCH(sk2, hash, saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 
 unique:
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
-	sk->sk_hashent = hash;
+	sk->sk_hash = hash;
 	sock_prot_inc_use(sk->sk_prot);
 	write_unlock(&head->lock);
 

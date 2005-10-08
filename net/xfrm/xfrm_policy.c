@@ -163,7 +163,7 @@ static void xfrm_policy_timer(unsigned long data)
 	if (xp->dead)
 		goto out;
 
-	dir = xp->index & 7;
+	dir = xfrm_policy_id2dir(xp->index);
 
 	if (xp->lft.hard_add_expires_seconds) {
 		long tmo = xp->lft.hard_add_expires_seconds +
@@ -225,7 +225,7 @@ expired:
  * SPD calls.
  */
 
-struct xfrm_policy *xfrm_policy_alloc(int gfp)
+struct xfrm_policy *xfrm_policy_alloc(unsigned int __nocast gfp)
 {
 	struct xfrm_policy *policy;
 
@@ -417,7 +417,7 @@ struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete)
 	struct xfrm_policy *pol, **p;
 
 	write_lock_bh(&xfrm_policy_lock);
-	for (p = &xfrm_policy_list[id & 7]; (pol=*p)!=NULL; p = &pol->next) {
+	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL; p = &pol->next) {
 		if (pol->index == id) {
 			xfrm_pol_hold(pol);
 			if (delete)

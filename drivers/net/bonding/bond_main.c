@@ -487,6 +487,8 @@
  *	  * Added xmit_hash_policy_layer34()
  *	- Modified by Jay Vosburgh <fubar@us.ibm.com> to also support mode 4.
  *	  Set version to 2.6.3.
+ * 2005/09/26 - Jay Vosburgh <fubar@us.ibm.com>
+ *	- Removed backwards compatibility for old ifenslaves.  Version 2.6.4.
  */
 
 //#define BONDING_DEBUG 1
@@ -595,14 +597,7 @@ static int arp_ip_count	= 0;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype= BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast	= 0;
-static int app_abi_ver	= 0;
-static int orig_app_abi_ver = -1; /* This is used to save the first ABI version
-				   * we receive from the application. Once set,
-				   * it won't be changed, and the module will
-				   * refuse to enslave/release interfaces if the
-				   * command comes from an application using
-				   * another ABI version.
-				   */
+
 struct bond_parm_tbl {
 	char *modename;
 	int mode;
@@ -1294,12 +1289,13 @@ static void bond_mc_list_destroy(struct bonding *bond)
 /*
  * Copy all the Multicast addresses from src to the bonding device dst
  */
-static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond, int gpf_flag)
+static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
+			     unsigned int __nocast gfp_flag)
 {
 	struct dev_mc_list *dmi, *new_dmi;
 
 	for (dmi = mc_list; dmi; dmi = dmi->next) {
-		new_dmi = kmalloc(sizeof(struct dev_mc_list), gpf_flag);
+		new_dmi = kmalloc(sizeof(struct dev_mc_list), gfp_flag);
 
 		if (!new_dmi) {
 			/* FIXME: Potential memory leak !!! */
@@ -1702,51 +1698,29 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 		}
 	}
 
-	if (app_abi_ver >= 1) {
-		/* The application is using an ABI, which requires the
-		 * slave interface to be closed.
-		 */
-		if ((slave_dev->flags & IFF_UP)) {
-			printk(KERN_ERR DRV_NAME
-			       ": Error: %s is up\n",
-			       slave_dev->name);
-			res = -EPERM;
-			goto err_undo_flags;
-		}
+	/*
+	 * Old ifenslave binaries are no longer supported.  These can
+	 * be identified with moderate accurary by the state of the slave:
+	 * the current ifenslave will set the interface down prior to
+	 * enslaving it; the old ifenslave will not.
+	 */
+	if ((slave_dev->flags & IFF_UP)) {
+		printk(KERN_ERR DRV_NAME ": %s is up. "
+		       "This may be due to an out of date ifenslave.\n",
+		       slave_dev->name);
+		res = -EPERM;
+		goto err_undo_flags;
+	}
 
-		if (slave_dev->set_mac_address == NULL) {
-			printk(KERN_ERR DRV_NAME
-			       ": Error: The slave device you specified does "
-			       "not support setting the MAC address.\n");
-			printk(KERN_ERR
-			       "Your kernel likely does not support slave "
-			       "devices.\n");
+	if (slave_dev->set_mac_address == NULL) {
+		printk(KERN_ERR DRV_NAME
+		       ": Error: The slave device you specified does "
+		       "not support setting the MAC address.\n");
+		printk(KERN_ERR
+		       "Your kernel likely does not support slave devices.\n");
 
-			res = -EOPNOTSUPP;
-			goto err_undo_flags;
-		}
-	} else {
-		/* The application is not using an ABI, which requires the
-		 * slave interface to be open.
-		 */
-		if (!(slave_dev->flags & IFF_UP)) {
-			printk(KERN_ERR DRV_NAME
-			       ": Error: %s is not running\n",
-			       slave_dev->name);
-			res = -EINVAL;
-			goto err_undo_flags;
-		}
-
-		if ((bond->params.mode == BOND_MODE_8023AD) ||
-		    (bond->params.mode == BOND_MODE_TLB)    ||
-		    (bond->params.mode == BOND_MODE_ALB)) {
-			printk(KERN_ERR DRV_NAME
-			       ": Error: to use %s mode, you must upgrade "
-			       "ifenslave.\n",
-			       bond_mode_name(bond->params.mode));
-			res = -EOPNOTSUPP;
-			goto err_undo_flags;
-		}
+		res = -EOPNOTSUPP;
+		goto err_undo_flags;
 	}
 
 	new_slave = kmalloc(sizeof(struct slave), GFP_KERNEL);
@@ -1762,41 +1736,36 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 	 */
 	new_slave->original_flags = slave_dev->flags;
 
-	if (app_abi_ver >= 1) {
-		/* save slave's original ("permanent") mac address for
-		 * modes that needs it, and for restoring it upon release,
-		 * and then set it to the master's address
-		 */
-		memcpy(new_slave->perm_hwaddr, slave_dev->dev_addr, ETH_ALEN);
+	/*
+	 * Save slave's original ("permanent") mac address for modes
+	 * that need it, and for restoring it upon release, and then
+	 * set it to the master's address
+	 */
+	memcpy(new_slave->perm_hwaddr, slave_dev->dev_addr, ETH_ALEN);
 
-		/* set slave to master's mac address
-		 * The application already set the master's
-		 * mac address to that of the first slave
-		 */
-		memcpy(addr.sa_data, bond_dev->dev_addr, bond_dev->addr_len);
-		addr.sa_family = slave_dev->type;
-		res = dev_set_mac_address(slave_dev, &addr);
-		if (res) {
-			dprintk("Error %d calling set_mac_address\n", res);
-			goto err_free;
-		}
+	/*
+	 * Set slave to master's mac address.  The application already
+	 * set the master's mac address to that of the first slave
+	 */
+	memcpy(addr.sa_data, bond_dev->dev_addr, bond_dev->addr_len);
+	addr.sa_family = slave_dev->type;
+	res = dev_set_mac_address(slave_dev, &addr);
+	if (res) {
+		dprintk("Error %d calling set_mac_address\n", res);
+		goto err_free;
+	}
 
-		/* open the slave since the application closed it */
-		res = dev_open(slave_dev);
-		if (res) {
-			dprintk("Openning slave %s failed\n", slave_dev->name);
-			goto err_restore_mac;
-		}
+	/* open the slave since the application closed it */
+	res = dev_open(slave_dev);
+	if (res) {
+		dprintk("Openning slave %s failed\n", slave_dev->name);
+		goto err_restore_mac;
 	}
 
 	res = netdev_set_master(slave_dev, bond_dev);
 	if (res) {
 		dprintk("Error %d calling netdev_set_master\n", res);
-		if (app_abi_ver < 1) {
-			goto err_free;
-		} else {
-			goto err_close;
-		}
+		goto err_close;
 	}
 
 	new_slave->dev = slave_dev;
@@ -1997,39 +1966,6 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 
 	write_unlock_bh(&bond->lock);
 
-	if (app_abi_ver < 1) {
-		/*
-		 * !!! This is to support old versions of ifenslave.
-		 * We can remove this in 2.5 because our ifenslave takes
-		 * care of this for us.
-		 * We check to see if the master has a mac address yet.
-		 * If not, we'll give it the mac address of our slave device.
-		 */
-		int ndx = 0;
-
-		for (ndx = 0; ndx < bond_dev->addr_len; ndx++) {
-			dprintk("Checking ndx=%d of bond_dev->dev_addr\n",
-				ndx);
-			if (bond_dev->dev_addr[ndx] != 0) {
-				dprintk("Found non-zero byte at ndx=%d\n",
-					ndx);
-				break;
-			}
-		}
-
-		if (ndx == bond_dev->addr_len) {
-			/*
-			 * We got all the way through the address and it was
-			 * all 0's.
-			 */
-			dprintk("%s doesn't have a MAC address yet.  \n",
-				bond_dev->name);
-			dprintk("Going to give assign it from %s.\n",
-				slave_dev->name);
-			bond_sethwaddr(bond_dev, slave_dev);
-		}
-	}
-
 	printk(KERN_INFO DRV_NAME
 	       ": %s: enslaving %s as a%s interface with a%s link.\n",
 	       bond_dev->name, slave_dev->name,
@@ -2227,12 +2163,10 @@ static int bond_release(struct net_device *bond_dev, struct net_device *slave_de
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
 
-	if (app_abi_ver >= 1) {
-		/* restore original ("permanent") mac address */
-		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
-		addr.sa_family = slave_dev->type;
-		dev_set_mac_address(slave_dev, &addr);
-	}
+	/* restore original ("permanent") mac address */
+	memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
+	addr.sa_family = slave_dev->type;
+	dev_set_mac_address(slave_dev, &addr);
 
 	/* restore the original state of the
 	 * IFF_NOARP flag that might have been
@@ -2320,12 +2254,10 @@ static int bond_release_all(struct net_device *bond_dev)
 		/* close slave before restoring its mac address */
 		dev_close(slave_dev);
 
-		if (app_abi_ver >= 1) {
-			/* restore original ("permanent") mac address*/
-			memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
-			addr.sa_family = slave_dev->type;
-			dev_set_mac_address(slave_dev, &addr);
-		}
+		/* restore original ("permanent") mac address*/
+		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
+		addr.sa_family = slave_dev->type;
+		dev_set_mac_address(slave_dev, &addr);
 
 		/* restore the original state of the IFF_NOARP flag that might have
 		 * been set by bond_set_slave_inactive_flags()
@@ -2421,57 +2353,6 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 	write_unlock_bh(&bond->lock);
 
 	return res;
-}
-
-static int bond_ethtool_ioctl(struct net_device *bond_dev, struct ifreq *ifr)
-{
-	struct ethtool_drvinfo info;
-	void __user *addr = ifr->ifr_data;
-	uint32_t cmd;
-
-	if (get_user(cmd, (uint32_t __user *)addr)) {
-		return -EFAULT;
-	}
-
-	switch (cmd) {
-	case ETHTOOL_GDRVINFO:
-		if (copy_from_user(&info, addr, sizeof(info))) {
-			return -EFAULT;
-		}
-
-		if (strcmp(info.driver, "ifenslave") == 0) {
-			int new_abi_ver;
-			char *endptr;
-
-			new_abi_ver = simple_strtoul(info.fw_version,
-						     &endptr, 0);
-			if (*endptr) {
-				printk(KERN_ERR DRV_NAME
-				       ": Error: got invalid ABI "
-				       "version from application\n");
-
-				return -EINVAL;
-			}
-
-			if (orig_app_abi_ver == -1) {
-				orig_app_abi_ver  = new_abi_ver;
-			}
-
-			app_abi_ver = new_abi_ver;
-		}
-
-		strncpy(info.driver,  DRV_NAME, 32);
-		strncpy(info.version, DRV_VERSION, 32);
-		snprintf(info.fw_version, 32, "%d", BOND_ABI_VERSION);
-
-		if (copy_to_user(addr, &info, sizeof(info))) {
-			return -EFAULT;
-		}
-
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
 }
 
 static int bond_info_query(struct net_device *bond_dev, struct ifbond *info)
@@ -2776,7 +2657,7 @@ static u32 bond_glean_dev_ip(struct net_device *dev)
 		return 0;
 
 	rcu_read_lock();
-	idev = __in_dev_get(dev);
+	idev = __in_dev_get_rcu(dev);
 	if (!idev)
 		goto out;
 
@@ -3442,16 +3323,11 @@ static void bond_info_show_slave(struct seq_file *seq, const struct slave *slave
 	seq_printf(seq, "Link Failure Count: %d\n",
 		   slave->link_failure_count);
 
-	if (app_abi_ver >= 1) {
-		seq_printf(seq,
-			   "Permanent HW addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			   slave->perm_hwaddr[0],
-			   slave->perm_hwaddr[1],
-			   slave->perm_hwaddr[2],
-			   slave->perm_hwaddr[3],
-			   slave->perm_hwaddr[4],
-			   slave->perm_hwaddr[5]);
-	}
+	seq_printf(seq,
+		   "Permanent HW addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		   slave->perm_hwaddr[0], slave->perm_hwaddr[1],
+		   slave->perm_hwaddr[2], slave->perm_hwaddr[3],
+		   slave->perm_hwaddr[4], slave->perm_hwaddr[5]);
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		const struct aggregator *agg
@@ -4010,15 +3886,12 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	struct ifslave k_sinfo;
 	struct ifslave __user *u_sinfo = NULL;
 	struct mii_ioctl_data *mii = NULL;
-	int prev_abi_ver = orig_app_abi_ver;
 	int res = 0;
 
 	dprintk("bond_ioctl: master=%s, cmd=%d\n",
 		bond_dev->name, cmd);
 
 	switch (cmd) {
-	case SIOCETHTOOL:
-		return bond_ethtool_ioctl(bond_dev, ifr);
 	case SIOCGMIIPHY:
 		mii = if_mii(ifr);
 		if (!mii) {
@@ -4090,21 +3963,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		return -EPERM;
 	}
 
-	if (orig_app_abi_ver == -1) {
-		/* no orig_app_abi_ver was provided yet, so we'll use the
-		 * current one from now on, even if it's 0
-		 */
-		orig_app_abi_ver = app_abi_ver;
-
-	} else if (orig_app_abi_ver != app_abi_ver) {
-		printk(KERN_ERR DRV_NAME
-		       ": Error: already using ifenslave ABI version %d; to "
-		       "upgrade ifenslave to version %d, you must first "
-		       "reload bonding.\n",
-		       orig_app_abi_ver, app_abi_ver);
-		return -EINVAL;
-	}
-
 	slave_dev = dev_get_by_name(ifr->ifr_slave);
 
 	dprintk("slave_dev=%p: \n", slave_dev);
@@ -4135,14 +3993,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		}
 
 		dev_put(slave_dev);
-	}
-
-	if (res < 0) {
-		/* The ioctl failed, so there's no point in changing the
-		 * orig_app_abi_ver. We'll restore it's value just in case
-		 * we've changed it earlier in this function.
-		 */
-		orig_app_abi_ver = prev_abi_ver;
 	}
 
 	return res;
@@ -4578,9 +4428,18 @@ static inline void bond_set_mode_ops(struct bonding *bond, int mode)
 	}
 }
 
+static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
+				    struct ethtool_drvinfo *drvinfo)
+{
+	strncpy(drvinfo->driver, DRV_NAME, 32);
+	strncpy(drvinfo->version, DRV_VERSION, 32);
+	snprintf(drvinfo->fw_version, 32, "%d", BOND_ABI_VERSION);
+}
+
 static struct ethtool_ops bond_ethtool_ops = {
 	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
+	.get_drvinfo		= bond_ethtool_get_drvinfo,
 };
 
 /*

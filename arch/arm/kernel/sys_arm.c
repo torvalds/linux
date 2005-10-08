@@ -305,7 +305,7 @@ long execve(const char *filename, char **argv, char **envp)
 		  "Ir" (THREAD_START_SP - sizeof(regs)),
 		  "r" (&regs),
 		  "Ir" (sizeof(regs))
-		: "r0", "r1", "r2", "r3", "ip", "memory");
+		: "r0", "r1", "r2", "r3", "ip", "lr", "memory");
 
  out:
 	return ret;

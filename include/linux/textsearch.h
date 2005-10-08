@@ -158,7 +158,8 @@ extern unsigned int textsearch_find_continuous(struct ts_config *,
 #define TS_PRIV_ALIGNTO	8
 #define TS_PRIV_ALIGN(len) (((len) + TS_PRIV_ALIGNTO-1) & ~(TS_PRIV_ALIGNTO-1))
 
-static inline struct ts_config *alloc_ts_config(size_t payload, int gfp_mask)
+static inline struct ts_config *alloc_ts_config(size_t payload,
+						unsigned int __nocast gfp_mask)
 {
 	struct ts_config *conf;
 

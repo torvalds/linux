@@ -25,7 +25,7 @@ int atm_charge(struct atm_vcc *vcc,int truesize)
 
 
 struct sk_buff *atm_alloc_charge(struct atm_vcc *vcc,int pdu_size,
-    int gfp_flags)
+    unsigned int __nocast gfp_flags)
 {
 	struct sock *sk = sk_atm(vcc);
 	int guess = atm_guess_pdu2truesize(pdu_size);
