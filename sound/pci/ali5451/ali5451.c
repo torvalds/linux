@@ -1993,8 +1993,10 @@ static int __devinit snd_ali_mixer(ali_t * codec)
 		if ((err = snd_ac97_mixer(codec->ac97_bus, &ac97, &codec->ac97[i])) < 0) {
 			snd_printk("ali mixer %d creating error.\n", i);
 			if(i == 0)
-		return err;
-	}
+				return err;
+			codec->num_of_codecs = 1;
+			break;
+		}
 	}
 
 	if (codec->spdif_support) {

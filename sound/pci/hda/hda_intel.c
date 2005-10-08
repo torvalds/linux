@@ -1137,6 +1137,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(snd_pcm_substream_t *substream)
 		pos = azx_sd_readl(azx_dev, SD_LPIB);
 		if (chip->position_fix == POS_FIX_FIFO)
 			pos += azx_dev->fifo_size;
+#if 0 /* disabled temprarily, auto-correction doesn't work well... */
 		else if (chip->position_fix == POS_FIX_AUTO && azx_dev->period_updating) {
 			/* check the validity of DMA position */
 			unsigned int diff = 0;
@@ -1157,6 +1158,10 @@ static snd_pcm_uframes_t azx_pcm_pointer(snd_pcm_substream_t *substream)
 			}
 			azx_dev->period_updating = 0;
 		}
+#else
+		else if (chip->position_fix == POS_FIX_AUTO)
+			pos += azx_dev->fifo_size;
+#endif
 	}
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
