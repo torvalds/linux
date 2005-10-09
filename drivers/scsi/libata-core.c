@@ -72,6 +72,7 @@ static int ata_choose_xfer_mode(struct ata_port *ap,
 				u8 *xfer_mode_out,
 				unsigned int *xfer_shift_out);
 static void __ata_qc_complete(struct ata_queued_cmd *qc);
+static void ata_pio_error(struct ata_port *ap);
 
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
