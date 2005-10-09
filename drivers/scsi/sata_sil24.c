@@ -196,6 +196,7 @@ enum {
 	/* board id */
 	BID_SIL3124		= 0,
 	BID_SIL3132		= 1,
+	BID_SIL3131		= 2,
 
 	IRQ_STAT_4PORTS		= 0xf,
 };
@@ -242,6 +243,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 static struct pci_device_id sil24_pci_tbl[] = {
 	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
 	{ 0x1095, 0x3132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3132 },
+	{ 0x1095, 0x3131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
+	{ 0x1095, 0x3531, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
 	{ } /* terminate list */
 };
 
@@ -300,13 +303,20 @@ static struct ata_port_operations sil24_ops = {
 	.host_stop		= sil24_host_stop,
 };
 
+/*
+ * Use bits 30-31 of host_flags to encode available port numbers.
+ * Current maxium is 4.
+ */
+#define SIL24_NPORTS2FLAG(nports)	((((unsigned)(nports) - 1) & 0x3) << 30)
+#define SIL24_FLAG2NPORTS(flag)		((((flag) >> 30) & 0x3) + 1)
+
 static struct ata_port_info sil24_port_info[] = {
 	/* sil_3124 */
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_DMA,
+				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(4),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -317,7 +327,18 @@ static struct ata_port_info sil24_port_info[] = {
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_DMA,
+				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(2),
+		.pio_mask	= 0x1f,			/* pio0-4 */
+		.mwdma_mask	= 0x07,			/* mwdma0-2 */
+		.udma_mask	= 0x3f,			/* udma0-5 */
+		.port_ops	= &sil24_ops,
+	},
+	/* sil_3131/sil_3531 */
+	{
+		.sht		= &sil24_sht,
+		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(1),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -665,6 +686,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
 	unsigned int board_id = (unsigned int)ent->driver_data;
+	struct ata_port_info *pinfo = &sil24_port_info[board_id];
 	struct ata_probe_ent *probe_ent = NULL;
 	struct sil24_host_priv *hpriv = NULL;
 	void *host_base = NULL, *port_base = NULL;
@@ -705,12 +727,12 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	probe_ent->sht		= sil24_port_info[board_id].sht;
-	probe_ent->host_flags	= sil24_port_info[board_id].host_flags;
-	probe_ent->pio_mask	= sil24_port_info[board_id].pio_mask;
-	probe_ent->udma_mask	= sil24_port_info[board_id].udma_mask;
-	probe_ent->port_ops	= sil24_port_info[board_id].port_ops;
-	probe_ent->n_ports	= (board_id == BID_SIL3124) ? 4 : 2;
+	probe_ent->sht		= pinfo->sht;
+	probe_ent->host_flags	= pinfo->host_flags;
+	probe_ent->pio_mask	= pinfo->pio_mask;
+	probe_ent->udma_mask	= pinfo->udma_mask;
+	probe_ent->port_ops	= pinfo->port_ops;
+	probe_ent->n_ports	= SIL24_FLAG2NPORTS(pinfo->host_flags);
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = SA_SHIRQ;
