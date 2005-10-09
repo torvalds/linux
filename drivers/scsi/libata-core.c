@@ -2748,7 +2748,6 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	struct page *page;
 	unsigned int offset;
 	unsigned char *buf;
-	unsigned long flags;
 
 	if (qc->cursect == (qc->nsect - 1))
 		ap->hsm_task_state = HSM_ST_LAST;
@@ -2762,14 +2761,21 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 
 	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
-	local_irq_save(flags);
-	buf = kmap_atomic(page, KM_IRQ0);
+	if (PageHighMem(page)) {
+		unsigned long flags;
 
-	/* do the actual data transfer */
-	ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+		local_irq_save(flags);
+		buf = kmap_atomic(page, KM_IRQ0);
 
-	kunmap_atomic(buf, KM_IRQ0);
-	local_irq_restore(flags);
+		/* do the actual data transfer */
+		ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+
+		kunmap_atomic(buf, KM_IRQ0);
+		local_irq_restore(flags);
+	} else {
+		buf = page_address(page);
+		ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+	}
 
 	qc->cursect++;
 	qc->cursg_ofs++;
@@ -2908,7 +2914,6 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 	struct page *page;
 	unsigned char *buf;
 	unsigned int offset, count;
-	unsigned long flags;
 
 	if (qc->curbytes + bytes >= qc->nbytes)
 		ap->hsm_task_state = HSM_ST_LAST;
@@ -2954,14 +2959,21 @@ next_sg:
 
 	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
-	local_irq_save(flags);
-	buf = kmap_atomic(page, KM_IRQ0);
+	if (PageHighMem(page)) {
+		unsigned long flags;
 
-	/* do the actual data transfer */
-	ata_data_xfer(ap, buf + offset, count, do_write);
+		local_irq_save(flags);
+		buf = kmap_atomic(page, KM_IRQ0);
 
-	kunmap_atomic(buf, KM_IRQ0);
-	local_irq_restore(flags);
+		/* do the actual data transfer */
+		ata_data_xfer(ap, buf + offset, count, do_write);
+
+		kunmap_atomic(buf, KM_IRQ0);
+		local_irq_restore(flags);
+	} else {
+		buf = page_address(page);
+		ata_data_xfer(ap, buf + offset, count, do_write);
+	}
 
 	bytes -= count;
 	qc->curbytes += count;
