@@ -87,7 +87,7 @@ static inline void compute_prefix_tbl(const u8 *pattern, unsigned int len,
 }
 
 static struct ts_config *kmp_init(const void *pattern, unsigned int len,
-				  int gfp_mask)
+				  unsigned int __nocast gfp_mask)
 {
 	struct ts_config *conf;
 	struct ts_kmp *kmp;

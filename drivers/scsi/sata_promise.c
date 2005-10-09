@@ -438,11 +438,11 @@ static inline unsigned int pdc_host_intr( struct ata_port *ap,
 		break;
 
         default:
-                ap->stats.idle_irq++;
-                break;
+		ap->stats.idle_irq++;
+		break;
         }
 
-        return handled;
+	return handled;
 }
 
 static void pdc_irq_clear(struct ata_port *ap)

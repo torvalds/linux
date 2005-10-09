@@ -76,6 +76,7 @@
 #define GPIO_PIN_MASK 0x1f
 #define GPIO_PORT_MASK (0x3 << 5)
 
+#define GPIO_PORT_SHIFT 5
 #define GPIO_PORTA (0<<5)
 #define GPIO_PORTB (1<<5)
 #define GPIO_PORTC (2<<5)
@@ -88,24 +89,37 @@
 #define GPIO_PF    (0<<9)
 #define GPIO_AF    (1<<9)
 
+#define GPIO_OCR_SHIFT 10
 #define GPIO_OCR_MASK (3<<10)
 #define GPIO_AIN   (0<<10)
 #define GPIO_BIN   (1<<10)
 #define GPIO_CIN   (2<<10)
-#define GPIO_GPIO  (3<<10)
+#define GPIO_DR    (3<<10)
 
-#define GPIO_AOUT  (1<<12)
-#define GPIO_BOUT  (1<<13)
+#define GPIO_AOUT_SHIFT 12
+#define GPIO_AOUT_MASK (3<<12)
+#define GPIO_AOUT     (0<<12)
+#define GPIO_AOUT_ISR (1<<12)
+#define GPIO_AOUT_0   (2<<12)
+#define GPIO_AOUT_1   (3<<12)
+
+#define GPIO_BOUT_SHIFT 14
+#define GPIO_BOUT_MASK (3<<14)
+#define GPIO_BOUT      (0<<14)
+#define GPIO_BOUT_ISR  (1<<14)
+#define GPIO_BOUT_0    (2<<14)
+#define GPIO_BOUT_1    (3<<14)
+
+#define GPIO_GIUS      (1<<16)
 
 /* assignements for GPIO alternate/primary functions */
 
 /* FIXME: This list is not completed. The correct directions are
  * missing on some (many) pins
  */
-#define PA0_PF_A24           ( GPIO_PORTA | GPIO_PF | 0 )
-#define PA0_AIN_SPI2_CLK     ( GPIO_PORTA | GPIO_OUT | GPIO_AIN | 0 )
+#define PA0_AIN_SPI2_CLK     ( GPIO_GIUS | GPIO_PORTA | GPIO_OUT | 0 )
 #define PA0_AF_ETMTRACESYNC  ( GPIO_PORTA | GPIO_AF | 0 )
-#define PA1_AOUT_SPI2_RXD    ( GPIO_PORTA | GPIO_IN | GPIO_AOUT | 1 )
+#define PA1_AOUT_SPI2_RXD    ( GPIO_GIUS | GPIO_PORTA | GPIO_IN | 1 )
 #define PA1_PF_TIN           ( GPIO_PORTA | GPIO_PF | 1 )
 #define PA2_PF_PWM0          ( GPIO_PORTA | GPIO_OUT | GPIO_PF | 2 )
 #define PA3_PF_CSI_MCLK      ( GPIO_PORTA | GPIO_PF | 3 )
@@ -123,7 +137,7 @@
 #define PA15_PF_I2C_SDA      ( GPIO_PORTA | GPIO_OUT | GPIO_PF | 15 )
 #define PA16_PF_I2C_SCL      ( GPIO_PORTA | GPIO_OUT | GPIO_PF | 16 )
 #define PA17_AF_ETMTRACEPKT4 ( GPIO_PORTA | GPIO_AF | 17 )
-#define PA17_AIN_SPI2_SS     ( GPIO_PORTA | GPIO_AIN | 17 )
+#define PA17_AIN_SPI2_SS     ( GPIO_GIUS | GPIO_PORTA | GPIO_OUT | 17 )
 #define PA18_AF_ETMTRACEPKT5 ( GPIO_PORTA | GPIO_AF | 18 )
 #define PA19_AF_ETMTRACEPKT6 ( GPIO_PORTA | GPIO_AF | 19 )
 #define PA20_AF_ETMTRACEPKT7 ( GPIO_PORTA | GPIO_AF | 20 )
@@ -191,19 +205,27 @@
 #define PC15_PF_SPI1_SS      ( GPIO_PORTC | GPIO_PF | 15 )
 #define PC16_PF_SPI1_MISO    ( GPIO_PORTC | GPIO_PF | 16 )
 #define PC17_PF_SPI1_MOSI    ( GPIO_PORTC | GPIO_PF | 17 )
+#define PC24_BIN_UART3_RI    ( GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 24 )
+#define PC25_BIN_UART3_DSR   ( GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 25 )
+#define PC26_AOUT_UART3_DTR  ( GPIO_GIUS | GPIO_PORTC | GPIO_IN | 26 )
+#define PC27_BIN_UART3_DCD   ( GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 27 )
+#define PC28_BIN_UART3_CTS   ( GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 28 )
+#define PC29_AOUT_UART3_RTS  ( GPIO_GIUS | GPIO_PORTC | GPIO_IN | 29 )
+#define PC30_BIN_UART3_TX    ( GPIO_GIUS | GPIO_PORTC | GPIO_BIN | 30 )
+#define PC31_AOUT_UART3_RX   ( GPIO_GIUS | GPIO_PORTC | GPIO_IN | 31)
 #define PD6_PF_LSCLK         ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 6 )
 #define PD7_PF_REV           ( GPIO_PORTD | GPIO_PF | 7 )
 #define PD7_AF_UART2_DTR     ( GPIO_PORTD | GPIO_IN | GPIO_AF | 7 )
-#define PD7_AIN_SPI2_SCLK    ( GPIO_PORTD | GPIO_AIN | 7 )
+#define PD7_AIN_SPI2_SCLK    ( GPIO_GIUS | GPIO_PORTD | GPIO_AIN | 7 )
 #define PD8_PF_CLS           ( GPIO_PORTD | GPIO_PF | 8 )
 #define PD8_AF_UART2_DCD     ( GPIO_PORTD | GPIO_OUT | GPIO_AF | 8 )
-#define PD8_AIN_SPI2_SS      ( GPIO_PORTD | GPIO_AIN | 8 )
+#define PD8_AIN_SPI2_SS      ( GPIO_GIUS | GPIO_PORTD | GPIO_AIN | 8 )
 #define PD9_PF_PS            ( GPIO_PORTD | GPIO_PF | 9 )
 #define PD9_AF_UART2_RI      ( GPIO_PORTD | GPIO_OUT | GPIO_AF | 9 )
-#define PD9_AOUT_SPI2_RXD    ( GPIO_PORTD | GPIO_IN | GPIO_AOUT | 9 )
+#define PD9_AOUT_SPI2_RXD    ( GPIO_GIUS | GPIO_PORTD | GPIO_IN | 9 )
 #define PD10_PF_SPL_SPR      ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 10 )
 #define PD10_AF_UART2_DSR    ( GPIO_PORTD | GPIO_OUT | GPIO_AF | 10 )
-#define PD10_AIN_SPI2_TXD    ( GPIO_PORTD | GPIO_OUT | GPIO_AIN | 10 )
+#define PD10_AIN_SPI2_TXD    ( GPIO_GIUS | GPIO_PORTD | GPIO_OUT | 10 )
 #define PD11_PF_CONTRAST     ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 11 )
 #define PD12_PF_ACD_OE       ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 12 )
 #define PD13_PF_LP_HSYNC     ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 13 )
@@ -225,7 +247,7 @@
 #define PD29_PF_LD14         ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 29 )
 #define PD30_PF_LD15         ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 30 )
 #define PD31_PF_TMR2OUT      ( GPIO_PORTD | GPIO_PF | 31 )
-#define PD31_BIN_SPI2_TXD    ( GPIO_PORTD | GPIO_BIN | 31 )
+#define PD31_BIN_SPI2_TXD    ( GPIO_GIUS | GPIO_PORTD | GPIO_BIN | 31 )
 
 /*
  * PWM controller

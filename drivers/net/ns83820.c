@@ -584,7 +584,7 @@ static inline int ns83820_add_rx_skb(struct ns83820 *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int rx_refill(struct net_device *ndev, int gfp)
+static inline int rx_refill(struct net_device *ndev, unsigned int __nocast gfp)
 {
 	struct ns83820 *dev = PRIV(ndev);
 	unsigned i;

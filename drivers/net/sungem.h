@@ -1035,7 +1035,8 @@ struct gem {
 			
 #define ALIGNED_RX_SKB_ADDR(addr) \
         ((((unsigned long)(addr) + (64UL - 1UL)) & ~(64UL - 1UL)) - (unsigned long)(addr))
-static __inline__ struct sk_buff *gem_alloc_skb(int size, int gfp_flags)
+static __inline__ struct sk_buff *gem_alloc_skb(int size,
+						unsigned int __nocast gfp_flags)
 {
 	struct sk_buff *skb = alloc_skb(size + 64, gfp_flags);
 

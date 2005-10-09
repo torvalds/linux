@@ -17,9 +17,11 @@
 static void arch_idle(void)
 {
 	CPU_REG (PMU_BASE, PMU_MODE) = PMU_MODE_IDLE;
-	__asm__ __volatile__(
-	"mov	r0, r0\n\t"
-	"mov	r0, r0");
+	nop();
+	nop();
+	CPU_REG (PMU_BASE, PMU_MODE) = PMU_MODE_RUN;
+	nop();
+	nop();
 }
 
 

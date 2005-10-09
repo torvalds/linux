@@ -43,17 +43,10 @@ static inline void rep_nop(void)
 #define ARCH_IS_STACKGROW(address) \
        (address + 32 >= UPT_SP(&current->thread.regs.regs))
 
+#define KSTK_EIP(tsk) KSTK_REG(tsk, EIP)
+#define KSTK_ESP(tsk) KSTK_REG(tsk, UESP)
+#define KSTK_EBP(tsk) KSTK_REG(tsk, EBP)
+
 #include "asm/processor-generic.h"
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

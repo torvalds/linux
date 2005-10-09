@@ -452,7 +452,8 @@ static struct proto dn_proto = {
 	.obj_size = sizeof(struct dn_sock),
 };
 
-static struct sock *dn_alloc_sock(struct socket *sock, int gfp)
+static struct sock *dn_alloc_sock(struct socket *sock,
+				  unsigned int __nocast gfp)
 {
 	struct dn_scp *scp;
 	struct sock *sk = sk_alloc(PF_DECnet, gfp, &dn_proto, 1);
@@ -804,7 +805,8 @@ static int dn_auto_bind(struct socket *sock)
 	return rv;
 }
 
-static int dn_confirm_accept(struct sock *sk, long *timeo, int allocation)
+static int dn_confirm_accept(struct sock *sk, long *timeo,
+				unsigned int __nocast allocation)
 {
 	struct dn_scp *scp = DN_SK(sk);
 	DEFINE_WAIT(wait);
