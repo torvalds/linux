@@ -43,8 +43,6 @@
 #define DRV_NAME	"sata_sil24"
 #define DRV_VERSION	"0.22"	/* Silicon Image's preview driver was 0.10 */
 
-#define NR_PORTS	4
-
 /*
  * Port request block (PRB) 32 bytes
  */
@@ -244,6 +242,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 static struct pci_device_id sil24_pci_tbl[] = {
 	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
 	{ 0x1095, 0x3132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3132 },
+	{ } /* terminate list */
 };
 
 static struct pci_driver sil24_pci_driver = {
