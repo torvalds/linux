@@ -112,6 +112,9 @@ aic7770_remove(struct device *dev)
 	struct ahc_softc *ahc = dev_get_drvdata(dev);
 	u_long s;
 
+	if (ahc->platform_data && ahc->platform_data->host)
+			scsi_remove_host(ahc->platform_data->host);
+
 	ahc_lock(ahc, &s);
 	ahc_intr_enable(ahc, FALSE);
 	ahc_unlock(ahc, &s);

@@ -178,14 +178,12 @@ fore200e_irq_itoa(int irq)
 
 
 static void*
-fore200e_kmalloc(int size, int flags)
+fore200e_kmalloc(int size, unsigned int __nocast flags)
 {
-    void* chunk = kmalloc(size, flags);
+    void *chunk = kzalloc(size, flags);
 
-    if (chunk)
-	memset(chunk, 0x00, size);
-    else
-	printk(FORE200E "kmalloc() failed, requested size = %d, flags = 0x%x\n", size, flags);
+    if (!chunk)
+	printk(FORE200E "kmalloc() failed, requested size = %d, flags = 0x%x\n",			size, flags);
     
     return chunk;
 }

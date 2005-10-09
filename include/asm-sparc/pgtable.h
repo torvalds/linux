@@ -154,7 +154,7 @@ BTFIXUPDEF_CALL_CONST(int, pte_present, pte_t)
 BTFIXUPDEF_CALL(void, pte_clear, pte_t *)
 BTFIXUPDEF_CALL(int, pte_read, pte_t)
 
-extern __inline__ int pte_none(pte_t pte)
+static inline int pte_none(pte_t pte)
 {
 	return !(pte_val(pte) & ~BTFIXUP_SETHI(none_mask));
 }
@@ -167,7 +167,7 @@ BTFIXUPDEF_CALL_CONST(int, pmd_bad, pmd_t)
 BTFIXUPDEF_CALL_CONST(int, pmd_present, pmd_t)
 BTFIXUPDEF_CALL(void, pmd_clear, pmd_t *)
 
-extern __inline__ int pmd_none(pmd_t pmd)
+static inline int pmd_none(pmd_t pmd)
 {
 	return !(pmd_val(pmd) & ~BTFIXUP_SETHI(none_mask));
 }
@@ -194,20 +194,20 @@ BTFIXUPDEF_HALF(pte_writei)
 BTFIXUPDEF_HALF(pte_dirtyi)
 BTFIXUPDEF_HALF(pte_youngi)
 
-extern int pte_write(pte_t pte) __attribute_const__;
-extern __inline__ int pte_write(pte_t pte)
+static int pte_write(pte_t pte) __attribute_const__;
+static inline int pte_write(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_writei);
 }
 
-extern int pte_dirty(pte_t pte) __attribute_const__;
-extern __inline__ int pte_dirty(pte_t pte)
+static int pte_dirty(pte_t pte) __attribute_const__;
+static inline int pte_dirty(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_dirtyi);
 }
 
-extern int pte_young(pte_t pte) __attribute_const__;
-extern __inline__ int pte_young(pte_t pte)
+static int pte_young(pte_t pte) __attribute_const__;
+static inline int pte_young(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_youngi);
 }
@@ -217,8 +217,8 @@ extern __inline__ int pte_young(pte_t pte)
  */
 BTFIXUPDEF_HALF(pte_filei)
 
-extern int pte_file(pte_t pte) __attribute_const__;
-extern __inline__ int pte_file(pte_t pte)
+static int pte_file(pte_t pte) __attribute_const__;
+static inline int pte_file(pte_t pte)
 {
 	return pte_val(pte) & BTFIXUP_HALF(pte_filei);
 }
@@ -229,20 +229,20 @@ BTFIXUPDEF_HALF(pte_wrprotecti)
 BTFIXUPDEF_HALF(pte_mkcleani)
 BTFIXUPDEF_HALF(pte_mkoldi)
 
-extern pte_t pte_wrprotect(pte_t pte) __attribute_const__;
-extern __inline__ pte_t pte_wrprotect(pte_t pte)
+static pte_t pte_wrprotect(pte_t pte) __attribute_const__;
+static inline pte_t pte_wrprotect(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_wrprotecti));
 }
 
-extern pte_t pte_mkclean(pte_t pte) __attribute_const__;
-extern __inline__ pte_t pte_mkclean(pte_t pte)
+static pte_t pte_mkclean(pte_t pte) __attribute_const__;
+static inline pte_t pte_mkclean(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_mkcleani));
 }
 
-extern pte_t pte_mkold(pte_t pte) __attribute_const__;
-extern __inline__ pte_t pte_mkold(pte_t pte)
+static pte_t pte_mkold(pte_t pte) __attribute_const__;
+static inline pte_t pte_mkold(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_mkoldi));
 }
@@ -278,8 +278,8 @@ BTFIXUPDEF_CALL_CONST(pte_t, mk_pte_io, unsigned long, pgprot_t, int)
 
 BTFIXUPDEF_INT(pte_modify_mask)
 
-extern pte_t pte_modify(pte_t pte, pgprot_t newprot) __attribute_const__;
-extern __inline__ pte_t pte_modify(pte_t pte, pgprot_t newprot)
+static pte_t pte_modify(pte_t pte, pgprot_t newprot) __attribute_const__;
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	return __pte((pte_val(pte) & BTFIXUP_INT(pte_modify_mask)) |
 		pgprot_val(newprot));
@@ -386,13 +386,13 @@ extern struct ctx_list ctx_used;        /* Head of used contexts list */
 
 #define NO_CONTEXT     -1
 
-extern __inline__ void remove_from_ctx_list(struct ctx_list *entry)
+static inline void remove_from_ctx_list(struct ctx_list *entry)
 {
 	entry->next->prev = entry->prev;
 	entry->prev->next = entry->next;
 }
 
-extern __inline__ void add_to_ctx_list(struct ctx_list *head, struct ctx_list *entry)
+static inline void add_to_ctx_list(struct ctx_list *head, struct ctx_list *entry)
 {
 	entry->next = head;
 	(entry->prev = head->prev)->next = entry;
@@ -401,7 +401,7 @@ extern __inline__ void add_to_ctx_list(struct ctx_list *head, struct ctx_list *e
 #define add_to_free_ctxlist(entry) add_to_ctx_list(&ctx_free, entry)
 #define add_to_used_ctxlist(entry) add_to_ctx_list(&ctx_used, entry)
 
-extern __inline__ unsigned long
+static inline unsigned long
 __get_phys (unsigned long addr)
 {
 	switch (sparc_cpu_model){
@@ -416,7 +416,7 @@ __get_phys (unsigned long addr)
 	}
 }
 
-extern __inline__ int
+static inline int
 __get_iospace (unsigned long addr)
 {
 	switch (sparc_cpu_model){

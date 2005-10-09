@@ -286,6 +286,8 @@ static inline void check_tnode(const struct tnode *tn)
 
 static int halve_threshold = 25;
 static int inflate_threshold = 50;
+static int halve_threshold_root = 15;
+static int inflate_threshold_root = 25; 
 
 
 static void __alias_free_mem(struct rcu_head *head)
@@ -449,6 +451,8 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	int i;
 	int err = 0;
 	struct tnode *old_tn;
+	int inflate_threshold_use;
+	int halve_threshold_use;
 
  	if (!tn)
 		return NULL;
@@ -541,10 +545,17 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	check_tnode(tn);
 
+	/* Keep root node larger  */
+
+	if(!tn->parent)
+		inflate_threshold_use = inflate_threshold_root;
+	else 
+		inflate_threshold_use = inflate_threshold;
+
 	err = 0;
 	while ((tn->full_children > 0 &&
 	       50 * (tn->full_children + tnode_child_length(tn) - tn->empty_children) >=
-				inflate_threshold * tnode_child_length(tn))) {
+				inflate_threshold_use * tnode_child_length(tn))) {
 
 		old_tn = tn;
 		tn = inflate(t, tn);
@@ -564,10 +575,18 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	 * node is above threshold.
 	 */
 
+
+	/* Keep root node larger  */
+
+	if(!tn->parent)
+		halve_threshold_use = halve_threshold_root;
+	else 
+		halve_threshold_use = halve_threshold;
+
 	err = 0;
 	while (tn->bits > 1 &&
 	       100 * (tnode_child_length(tn) - tn->empty_children) <
-	       halve_threshold * tnode_child_length(tn)) {
+	       halve_threshold_use * tnode_child_length(tn)) {
 
 		old_tn = tn;
 		tn = halve(t, tn);

@@ -494,8 +494,8 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->tstamp.off_sec) {
 		struct nfulnl_msg_packet_timestamp ts;
 
-		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + skb->tstamp.off_sec);
-		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + skb->tstamp.off_usec);
+		ts.sec = cpu_to_be64(skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(skb->tstamp.off_usec);
 
 		NFA_PUT(inst->skb, NFULA_TIMESTAMP, sizeof(ts), &ts);
 	}

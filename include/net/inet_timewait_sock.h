@@ -112,6 +112,7 @@ struct inet_timewait_sock {
 #define tw_node			__tw_common.skc_node
 #define tw_bind_node		__tw_common.skc_bind_node
 #define tw_refcnt		__tw_common.skc_refcnt
+#define tw_hash			__tw_common.skc_hash
 #define tw_prot			__tw_common.skc_prot
 	volatile unsigned char	tw_substate;
 	/* 3 bits hole, try to pack */
@@ -126,7 +127,6 @@ struct inet_timewait_sock {
 	/* And these are ours. */
 	__u8			tw_ipv6only:1;
 	/* 31 bits hole, try to pack */
-	int			tw_hashent;
 	int			tw_timeout;
 	unsigned long		tw_ttd;
 	struct inet_bind_bucket	*tw_tb;

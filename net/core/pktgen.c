@@ -1667,13 +1667,12 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 			struct in_device *in_dev; 
 
 			rcu_read_lock();
-			in_dev = __in_dev_get(pkt_dev->odev);
+			in_dev = __in_dev_get_rcu(pkt_dev->odev);
 			if (in_dev) {
 				if (in_dev->ifa_list) {
 					pkt_dev->saddr_min = in_dev->ifa_list->ifa_address;
 					pkt_dev->saddr_max = pkt_dev->saddr_min;
 				}
-				__in_dev_put(in_dev);	
 			}
 			rcu_read_unlock();
 		}

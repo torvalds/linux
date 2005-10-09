@@ -133,14 +133,18 @@
 	- finally added firmware (GPL'ed by Adaptec)
 	- removed compatibility code for 2.2.x
 
+	LK1.4.2.1 (Ion Badulescu)
+	- fixed 32/64 bit issues on i386 + CONFIG_HIGHMEM
+	- added 32-bit padding to outgoing skb's, removed previous workaround
+
 TODO:	- fix forced speed/duplexing code (broken a long time ago, when
 	somebody converted the driver to use the generic MII code)
 	- fix VLAN support
 */
 
 #define DRV_NAME	"starfire"
-#define DRV_VERSION	"1.03+LK1.4.2"
-#define DRV_RELDATE	"January 19, 2005"
+#define DRV_VERSION	"1.03+LK1.4.2.1"
+#define DRV_RELDATE	"October 3, 2005"
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -165,6 +169,14 @@ TODO:	- fix forced speed/duplexing code (broken a long time ago, when
  * of length 1. If and when this is fixed, the #define below can be removed.
  */
 #define HAS_BROKEN_FIRMWARE
+
+/*
+ * If using the broken firmware, data must be padded to the next 32-bit boundary.
+ */
+#ifdef HAS_BROKEN_FIRMWARE
+#define PADDING_MASK 3
+#endif
+
 /*
  * Define this if using the driver with the zero-copy patch
  */
@@ -257,9 +269,10 @@ static int full_duplex[MAX_UNITS] = {0, };
  * This SUCKS.
  * We need a much better method to determine if dma_addr_t is 64-bit.
  */
-#if (defined(__i386__) && defined(CONFIG_HIGHMEM) && (LINUX_VERSION_CODE > 0x20500 || defined(CONFIG_HIGHMEM64G))) || defined(__x86_64__) || defined (__ia64__) || defined(__mips64__) || (defined(__mips__) && defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR))
+#if (defined(__i386__) && defined(CONFIG_HIGHMEM64G)) || defined(__x86_64__) || defined (__ia64__) || defined(__mips64__) || (defined(__mips__) && defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR))
 /* 64-bit dma_addr_t */
 #define ADDR_64BITS	/* This chip uses 64 bit addresses. */
+#define netdrv_addr_t u64
 #define cpu_to_dma(x) cpu_to_le64(x)
 #define dma_to_cpu(x) le64_to_cpu(x)
 #define RX_DESC_Q_ADDR_SIZE RxDescQAddr64bit
@@ -268,6 +281,7 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define TX_COMPL_Q_ADDR_SIZE TxComplQAddr64bit
 #define RX_DESC_ADDR_SIZE RxDescAddr64bit
 #else  /* 32-bit dma_addr_t */
+#define netdrv_addr_t u32
 #define cpu_to_dma(x) cpu_to_le32(x)
 #define dma_to_cpu(x) le32_to_cpu(x)
 #define RX_DESC_Q_ADDR_SIZE RxDescQAddr32bit
@@ -1333,21 +1347,10 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #if defined(ZEROCOPY) && defined(HAS_BROKEN_FIRMWARE)
-	{
-		int has_bad_length = 0;
-
-		if (skb_first_frag_len(skb) == 1)
-			has_bad_length = 1;
-		else {
-			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-				if (skb_shinfo(skb)->frags[i].size == 1) {
-					has_bad_length = 1;
-					break;
-				}
-		}
-
-		if (has_bad_length)
-			skb_checksum_help(skb, 0);
+	if (skb->ip_summed == CHECKSUM_HW) {
+		skb = skb_padto(skb, (skb->len + PADDING_MASK) & ~PADDING_MASK);
+		if (skb == NULL)
+			return NETDEV_TX_OK;
 	}
 #endif /* ZEROCOPY && HAS_BROKEN_FIRMWARE */
 
@@ -2127,13 +2130,12 @@ static int __init starfire_init (void)
 #endif
 #endif
 
-#ifndef ADDR_64BITS
 	/* we can do this test only at run-time... sigh */
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		printk("This driver has not been ported to this 64-bit architecture yet\n");
+	if (sizeof(dma_addr_t) != sizeof(netdrv_addr_t)) {
+		printk("This driver has dma_addr_t issues, please send email to maintainer\n");
 		return -ENODEV;
 	}
-#endif /* not ADDR_64BITS */
+
 	return pci_module_init (&starfire_driver);
 }
 

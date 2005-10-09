@@ -39,7 +39,9 @@
 #include <linux/completion.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_device.h>
 #include <asm/semaphore.h>
+#include <asm/delay.h>
 
 #include "aacraid.h"
 
@@ -269,39 +271,21 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
 	/* Interrupt Moderation, only interrupt for first two entries */
 	if (idx != le32_to_cpu(*(q->headers.consumer))) {
 		if (--idx == 0) {
-			if (qid == AdapHighCmdQueue)
-				idx = ADAP_HIGH_CMD_ENTRIES;
-			else if (qid == AdapNormCmdQueue)
+			if (qid == AdapNormCmdQueue)
 				idx = ADAP_NORM_CMD_ENTRIES;
-			else if (qid == AdapHighRespQueue) 
-	        		idx = ADAP_HIGH_RESP_ENTRIES;
-			else if (qid == AdapNormRespQueue) 
+			else
 				idx = ADAP_NORM_RESP_ENTRIES;
 		}
 		if (idx != le32_to_cpu(*(q->headers.consumer)))
 			*nonotify = 1; 
 	}
 
-	if (qid == AdapHighCmdQueue) {
-	        if (*index >= ADAP_HIGH_CMD_ENTRIES)
-        		*index = 0;
-	} else if (qid == AdapNormCmdQueue) {
+	if (qid == AdapNormCmdQueue) {
 	        if (*index >= ADAP_NORM_CMD_ENTRIES) 
 			*index = 0; /* Wrap to front of the Producer Queue. */
-	}
-	else if (qid == AdapHighRespQueue) 
-	{
-	        if (*index >= ADAP_HIGH_RESP_ENTRIES)
-			*index = 0;
-	}
-	else if (qid == AdapNormRespQueue) 
-	{
+	} else {
 		if (*index >= ADAP_NORM_RESP_ENTRIES) 
 			*index = 0; /* Wrap to front of the Producer Queue. */
-	}
-	else {
-		printk("aacraid: invalid qid\n");
-		BUG();
 	}
 
         if ((*index + 1) == le32_to_cpu(*(q->headers.consumer))) { /* Queue is full */
@@ -334,12 +318,8 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 {
 	struct aac_entry * entry = NULL;
 	int map = 0;
-	struct aac_queue * q = &dev->queues->queue[qid];
-		
-	spin_lock_irqsave(q->lock, q->SavedIrql);
 	    
-	if (qid == AdapHighCmdQueue || qid == AdapNormCmdQueue) 
-	{
+	if (qid == AdapNormCmdQueue) {
 		/*  if no entries wait for some if caller wants to */
         	while (!aac_get_entry(dev, qid, &entry, index, nonotify)) 
         	{
@@ -350,9 +330,7 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 	         */
 	        entry->size = cpu_to_le32(le16_to_cpu(hw_fib->header.Size));
 	        map = 1;
-	}
-	else if (qid == AdapHighRespQueue || qid == AdapNormRespQueue)
-	{
+	} else {
 	        while(!aac_get_entry(dev, qid, &entry, index, nonotify)) 
 	        {
 			/* if no entries wait for some if caller wants to */
@@ -372,42 +350,6 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
 	 */
 	if (map)
 		entry->addr = cpu_to_le32(fibptr->hw_fib_pa);
-	return 0;
-}
-
-
-/**
- *	aac_insert_entry	-	insert a queue entry
- *	@dev: Adapter
- *	@index: Index of entry to insert
- *	@qid: Queue number
- *	@nonotify: Suppress adapter notification
- *
- *	Gets the next free QE off the requested priorty adapter command
- *	queue and associates the Fib with the QE. The QE represented by
- *	index is ready to insert on the queue when this routine returns
- *	success.
- */
- 
-static int aac_insert_entry(struct aac_dev * dev, u32 index, u32 qid, unsigned long nonotify) 
-{
-	struct aac_queue * q = &dev->queues->queue[qid];
-
-	if(q == NULL)
-		BUG();
-	*(q->headers.producer) = cpu_to_le32(index + 1);
-	spin_unlock_irqrestore(q->lock, q->SavedIrql);
-
-	if (qid == AdapHighCmdQueue ||
-	    qid == AdapNormCmdQueue ||
-	    qid == AdapHighRespQueue ||
-	    qid == AdapNormRespQueue)
-	{
-		if (!nonotify)
-			aac_adapter_notify(dev, qid);
-	}
-	else
-		printk("Suprise insert!\n");
 	return 0;
 }
 
@@ -439,12 +381,13 @@ static int aac_insert_entry(struct aac_dev * dev, u32 index, u32 qid, unsigned l
 int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority, int wait, int reply, fib_callback callback, void * callback_data)
 {
 	u32 index;
-	u32 qid;
 	struct aac_dev * dev = fibptr->dev;
 	unsigned long nointr = 0;
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_queue * q;
 	unsigned long flags = 0;
+	unsigned long qflags;
+
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
 	/*
@@ -497,26 +440,8 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 	 *	Get a queue entry connect the FIB to it and send an notify
 	 *	the adapter a command is ready.
 	 */
-	if (priority == FsaHigh) {
-		hw_fib->header.XferState |= cpu_to_le32(HighPriority);
-		qid = AdapHighCmdQueue;
-	} else {
-		hw_fib->header.XferState |= cpu_to_le32(NormalPriority);
-		qid = AdapNormCmdQueue;
-	}
-	q = &dev->queues->queue[qid];
+	hw_fib->header.XferState |= cpu_to_le32(NormalPriority);
 
-	if(wait)
-		spin_lock_irqsave(&fibptr->event_lock, flags);
-	if(aac_queue_get( dev, &index, qid, hw_fib, 1, fibptr, &nointr)<0)
-		return -EWOULDBLOCK;
-	dprintk((KERN_DEBUG "fib_send: inserting a queue entry at index %d.\n",index));
-	dprintk((KERN_DEBUG "Fib contents:.\n"));
-	dprintk((KERN_DEBUG "  Command =               %d.\n", hw_fib->header.Command));
-	dprintk((KERN_DEBUG "  XferState  =            %x.\n", hw_fib->header.XferState));
-	dprintk((KERN_DEBUG "  hw_fib va being sent=%p\n",fibptr->hw_fib));
-	dprintk((KERN_DEBUG "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
-	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
 	/*
 	 *	Fill in the Callback and CallbackContext if we are not
 	 *	going to wait.
@@ -525,22 +450,67 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 		fibptr->callback = callback;
 		fibptr->callback_data = callback_data;
 	}
-	FIB_COUNTER_INCREMENT(aac_config.FibsSent);
-	list_add_tail(&fibptr->queue, &q->pendingq);
-	q->numpending++;
 
 	fibptr->done = 0;
 	fibptr->flags = 0;
 
-	if(aac_insert_entry(dev, index, qid, (nointr & aac_config.irq_mod)) < 0)
-		return -EWOULDBLOCK;
+	FIB_COUNTER_INCREMENT(aac_config.FibsSent);
+
+	dprintk((KERN_DEBUG "fib_send: inserting a queue entry at index %d.\n",index));
+	dprintk((KERN_DEBUG "Fib contents:.\n"));
+	dprintk((KERN_DEBUG "  Command =               %d.\n", hw_fib->header.Command));
+	dprintk((KERN_DEBUG "  XferState  =            %x.\n", hw_fib->header.XferState));
+	dprintk((KERN_DEBUG "  hw_fib va being sent=%p\n",fibptr->hw_fib));
+	dprintk((KERN_DEBUG "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
+	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
+
+	q = &dev->queues->queue[AdapNormCmdQueue];
+
+	if(wait)
+		spin_lock_irqsave(&fibptr->event_lock, flags);
+	spin_lock_irqsave(q->lock, qflags);
+	aac_queue_get( dev, &index, AdapNormCmdQueue, hw_fib, 1, fibptr, &nointr);
+
+	list_add_tail(&fibptr->queue, &q->pendingq);
+	q->numpending++;
+	*(q->headers.producer) = cpu_to_le32(index + 1);
+	spin_unlock_irqrestore(q->lock, qflags);
+	if (!(nointr & aac_config.irq_mod))
+		aac_adapter_notify(dev, AdapNormCmdQueue);
 	/*
 	 *	If the caller wanted us to wait for response wait now. 
 	 */
     
 	if (wait) {
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
-		down(&fibptr->event_wait);
+		/* Only set for first known interruptable command */
+		if (wait < 0) {
+			/*
+			 * *VERY* Dangerous to time out a command, the
+			 * assumption is made that we have no hope of
+			 * functioning because an interrupt routing or other
+			 * hardware failure has occurred.
+			 */
+			unsigned long count = 36000000L; /* 3 minutes */
+			unsigned long qflags;
+			while (down_trylock(&fibptr->event_wait)) {
+				if (--count == 0) {
+					spin_lock_irqsave(q->lock, qflags);
+					q->numpending--;
+					list_del(&fibptr->queue);
+					spin_unlock_irqrestore(q->lock, qflags);
+					if (wait == -1) {
+	        				printk(KERN_ERR "aacraid: fib_send: first asynchronous command timed out.\n"
+						  "Usually a result of a PCI interrupt routing problem;\n"
+						  "update mother board BIOS or consider utilizing one of\n"
+						  "the SAFE mode kernel options (acpi, apic etc)\n");
+					}
+					return -ETIMEDOUT;
+				}
+				udelay(5);
+			}
+		} else
+			down(&fibptr->event_wait);
 		if(fibptr->done == 0)
 			BUG();
 			
@@ -622,14 +592,8 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
 		case HostNormCmdQueue:
 			notify = HostNormCmdNotFull;
 			break;
-		case HostHighCmdQueue:
-			notify = HostHighCmdNotFull;
-			break;
 		case HostNormRespQueue:
 			notify = HostNormRespNotFull;
-			break;
-		case HostHighRespQueue:
-			notify = HostHighRespNotFull;
 			break;
 		default:
 			BUG();
@@ -652,9 +616,13 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_dev * dev = fibptr->dev;
+	struct aac_queue * q;
 	unsigned long nointr = 0;
-	if (hw_fib->header.XferState == 0)
+	unsigned long qflags;
+
+	if (hw_fib->header.XferState == 0) {
         	return 0;
+	}
 	/*
 	 *	If we plan to do anything check the structure type first.
 	 */ 
@@ -669,37 +637,21 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 	 *	send the completed cdb to the adapter.
 	 */
 	if (hw_fib->header.XferState & cpu_to_le32(SentFromAdapter)) {
+		u32 index;
 	        hw_fib->header.XferState |= cpu_to_le32(HostProcessed);
-	        if (hw_fib->header.XferState & cpu_to_le32(HighPriority)) {
-        		u32 index;
-       			if (size) 
-			{
-				size += sizeof(struct aac_fibhdr);
-				if (size > le16_to_cpu(hw_fib->header.SenderSize))
-					return -EMSGSIZE;
-				hw_fib->header.Size = cpu_to_le16(size);
-			}
-			if(aac_queue_get(dev, &index, AdapHighRespQueue, hw_fib, 1, NULL, &nointr) < 0) {
-				return -EWOULDBLOCK;
-			}
-			if (aac_insert_entry(dev, index, AdapHighRespQueue,  (nointr & (int)aac_config.irq_mod)) != 0) {
-			}
-		} else if (hw_fib->header.XferState & 
-				cpu_to_le32(NormalPriority)) {
-			u32 index;
-
-			if (size) {
-				size += sizeof(struct aac_fibhdr);
-				if (size > le16_to_cpu(hw_fib->header.SenderSize)) 
-					return -EMSGSIZE;
-				hw_fib->header.Size = cpu_to_le16(size);
-			}
-			if (aac_queue_get(dev, &index, AdapNormRespQueue, hw_fib, 1, NULL, &nointr) < 0) 
-				return -EWOULDBLOCK;
-			if (aac_insert_entry(dev, index, AdapNormRespQueue, (nointr & (int)aac_config.irq_mod)) != 0) 
-			{
-			}
+		if (size) {
+			size += sizeof(struct aac_fibhdr);
+			if (size > le16_to_cpu(hw_fib->header.SenderSize)) 
+				return -EMSGSIZE;
+			hw_fib->header.Size = cpu_to_le16(size);
 		}
+		q = &dev->queues->queue[AdapNormRespQueue];
+		spin_lock_irqsave(q->lock, qflags);
+		aac_queue_get(dev, &index, AdapNormRespQueue, hw_fib, 1, NULL, &nointr);
+		*(q->headers.producer) = cpu_to_le32(index + 1);
+		spin_unlock_irqrestore(q->lock, qflags);
+		if (!(nointr & (int)aac_config.irq_mod))
+			aac_adapter_notify(dev, AdapNormRespQueue);
 	}
 	else 
 	{
@@ -791,6 +743,268 @@ void aac_printf(struct aac_dev *dev, u32 val)
 	memset(cp, 0,  256);
 }
 
+
+/**
+ *	aac_handle_aif		-	Handle a message from the firmware
+ *	@dev: Which adapter this fib is from
+ *	@fibptr: Pointer to fibptr from adapter
+ *
+ *	This routine handles a driver notify fib from the adapter and
+ *	dispatches it to the appropriate routine for handling.
+ */
+
+static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
+{
+	struct hw_fib * hw_fib = fibptr->hw_fib;
+	struct aac_aifcmd * aifcmd = (struct aac_aifcmd *)hw_fib->data;
+	int busy;
+	u32 container;
+	struct scsi_device *device;
+	enum {
+		NOTHING,
+		DELETE,
+		ADD,
+		CHANGE
+	} device_config_needed;
+
+	/* Sniff for container changes */
+
+	if (!dev)
+		return;
+	container = (u32)-1;
+
+	/*
+	 *	We have set this up to try and minimize the number of
+	 * re-configures that take place. As a result of this when
+	 * certain AIF's come in we will set a flag waiting for another
+	 * type of AIF before setting the re-config flag.
+	 */
+	switch (le32_to_cpu(aifcmd->command)) {
+	case AifCmdDriverNotify:
+		switch (le32_to_cpu(((u32 *)aifcmd->data)[0])) {
+		/*
+		 *	Morph or Expand complete
+		 */
+		case AifDenMorphComplete:
+		case AifDenVolumeExtendComplete:
+			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			if (container >= dev->maximum_num_containers)
+				break;
+
+			/*
+			 *	Find the Scsi_Device associated with the SCSI
+			 * address. Make sure we have the right array, and if
+			 * so set the flag to initiate a new re-config once we
+			 * see an AifEnConfigChange AIF come through.
+			 */
+
+			if ((dev != NULL) && (dev->scsi_host_ptr != NULL)) {
+				device = scsi_device_lookup(dev->scsi_host_ptr, 
+					CONTAINER_TO_CHANNEL(container), 
+					CONTAINER_TO_ID(container), 
+					CONTAINER_TO_LUN(container));
+				if (device) {
+					dev->fsa_dev[container].config_needed = CHANGE;
+					dev->fsa_dev[container].config_waiting_on = AifEnConfigChange;
+					scsi_device_put(device);
+				}
+			}
+		}
+
+		/*
+		 *	If we are waiting on something and this happens to be
+		 * that thing then set the re-configure flag.
+		 */
+		if (container != (u32)-1) {
+			if (container >= dev->maximum_num_containers)
+				break;
+			if (dev->fsa_dev[container].config_waiting_on ==
+			    le32_to_cpu(*(u32 *)aifcmd->data))
+				dev->fsa_dev[container].config_waiting_on = 0;
+		} else for (container = 0;
+		    container < dev->maximum_num_containers; ++container) {
+			if (dev->fsa_dev[container].config_waiting_on ==
+			    le32_to_cpu(*(u32 *)aifcmd->data))
+				dev->fsa_dev[container].config_waiting_on = 0;
+		}
+		break;
+
+	case AifCmdEventNotify:
+		switch (le32_to_cpu(((u32 *)aifcmd->data)[0])) {
+		/*
+		 *	Add an Array.
+		 */
+		case AifEnAddContainer:
+			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			if (container >= dev->maximum_num_containers)
+				break;
+			dev->fsa_dev[container].config_needed = ADD;
+			dev->fsa_dev[container].config_waiting_on =
+				AifEnConfigChange;
+			break;
+
+		/*
+		 *	Delete an Array.
+		 */
+		case AifEnDeleteContainer:
+			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			if (container >= dev->maximum_num_containers)
+				break;
+			dev->fsa_dev[container].config_needed = DELETE;
+			dev->fsa_dev[container].config_waiting_on =
+				AifEnConfigChange;
+			break;
+
+		/*
+		 *	Container change detected. If we currently are not
+		 * waiting on something else, setup to wait on a Config Change.
+		 */
+		case AifEnContainerChange:
+			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			if (container >= dev->maximum_num_containers)
+				break;
+			if (dev->fsa_dev[container].config_waiting_on)
+				break;
+			dev->fsa_dev[container].config_needed = CHANGE;
+			dev->fsa_dev[container].config_waiting_on =
+				AifEnConfigChange;
+			break;
+
+		case AifEnConfigChange:
+			break;
+
+		}
+
+		/*
+		 *	If we are waiting on something and this happens to be
+		 * that thing then set the re-configure flag.
+		 */
+		if (container != (u32)-1) {
+			if (container >= dev->maximum_num_containers)
+				break;
+			if (dev->fsa_dev[container].config_waiting_on ==
+			    le32_to_cpu(*(u32 *)aifcmd->data))
+				dev->fsa_dev[container].config_waiting_on = 0;
+		} else for (container = 0;
+		    container < dev->maximum_num_containers; ++container) {
+			if (dev->fsa_dev[container].config_waiting_on ==
+			    le32_to_cpu(*(u32 *)aifcmd->data))
+				dev->fsa_dev[container].config_waiting_on = 0;
+		}
+		break;
+
+	case AifCmdJobProgress:
+		/*
+		 *	These are job progress AIF's. When a Clear is being
+		 * done on a container it is initially created then hidden from
+		 * the OS. When the clear completes we don't get a config
+		 * change so we monitor the job status complete on a clear then
+		 * wait for a container change.
+		 */
+
+		if ((((u32 *)aifcmd->data)[1] == cpu_to_le32(AifJobCtrZero))
+		 && ((((u32 *)aifcmd->data)[6] == ((u32 *)aifcmd->data)[5])
+		  || (((u32 *)aifcmd->data)[4] == cpu_to_le32(AifJobStsSuccess)))) {
+			for (container = 0;
+			    container < dev->maximum_num_containers;
+			    ++container) {
+				/*
+				 * Stomp on all config sequencing for all
+				 * containers?
+				 */
+				dev->fsa_dev[container].config_waiting_on =
+					AifEnContainerChange;
+				dev->fsa_dev[container].config_needed = ADD;
+			}
+		}
+		if ((((u32 *)aifcmd->data)[1] == cpu_to_le32(AifJobCtrZero))
+		 && (((u32 *)aifcmd->data)[6] == 0)
+		 && (((u32 *)aifcmd->data)[4] == cpu_to_le32(AifJobStsRunning))) {
+			for (container = 0;
+			    container < dev->maximum_num_containers;
+			    ++container) {
+				/*
+				 * Stomp on all config sequencing for all
+				 * containers?
+				 */
+				dev->fsa_dev[container].config_waiting_on =
+					AifEnContainerChange;
+				dev->fsa_dev[container].config_needed = DELETE;
+			}
+		}
+		break;
+	}
+
+	device_config_needed = NOTHING;
+	for (container = 0; container < dev->maximum_num_containers;
+	    ++container) {
+		if ((dev->fsa_dev[container].config_waiting_on == 0)
+		 && (dev->fsa_dev[container].config_needed != NOTHING)) {
+			device_config_needed =
+				dev->fsa_dev[container].config_needed;
+			dev->fsa_dev[container].config_needed = NOTHING;
+			break;
+		}
+	}
+	if (device_config_needed == NOTHING)
+		return;
+
+	/*
+	 *	If we decided that a re-configuration needs to be done,
+	 * schedule it here on the way out the door, please close the door
+	 * behind you.
+	 */
+
+	busy = 0;
+
+
+	/*
+	 *	Find the Scsi_Device associated with the SCSI address,
+	 * and mark it as changed, invalidating the cache. This deals
+	 * with changes to existing device IDs.
+	 */
+
+	if (!dev || !dev->scsi_host_ptr)
+		return;
+	/*
+	 * force reload of disk info via probe_container
+	 */
+	if ((device_config_needed == CHANGE)
+	 && (dev->fsa_dev[container].valid == 1))
+		dev->fsa_dev[container].valid = 2;
+	if ((device_config_needed == CHANGE) ||
+			(device_config_needed == ADD))
+		probe_container(dev, container);
+	device = scsi_device_lookup(dev->scsi_host_ptr, 
+		CONTAINER_TO_CHANNEL(container), 
+		CONTAINER_TO_ID(container), 
+		CONTAINER_TO_LUN(container));
+	if (device) {
+		switch (device_config_needed) {
+		case DELETE:
+			scsi_remove_device(device);
+			break;
+		case CHANGE:
+			if (!dev->fsa_dev[container].valid) {
+				scsi_remove_device(device);
+				break;
+			}
+			scsi_rescan_device(&device->sdev_gendev);
+
+		default:
+			break;
+		}
+		scsi_device_put(device);
+	}
+	if (device_config_needed == ADD) {
+		scsi_add_device(dev->scsi_host_ptr,
+		  CONTAINER_TO_CHANNEL(container),
+		  CONTAINER_TO_ID(container),
+		  CONTAINER_TO_LUN(container));
+	}
+
+}
+
 /**
  *	aac_command_thread	-	command processing thread
  *	@dev: Adapter to monitor
@@ -805,7 +1019,6 @@ int aac_command_thread(struct aac_dev * dev)
 {
 	struct hw_fib *hw_fib, *hw_newfib;
 	struct fib *fib, *newfib;
-	struct aac_queue_block *queues = dev->queues;
 	struct aac_fib_context *fibctx;
 	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
@@ -825,21 +1038,22 @@ int aac_command_thread(struct aac_dev * dev)
 	 *	Let the DPC know it has a place to send the AIF's to.
 	 */
 	dev->aif_thread = 1;
-	add_wait_queue(&queues->queue[HostNormCmdQueue].cmdready, &wait);
+	add_wait_queue(&dev->queues->queue[HostNormCmdQueue].cmdready, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
+	dprintk ((KERN_INFO "aac_command_thread start\n"));
 	while(1) 
 	{
-		spin_lock_irqsave(queues->queue[HostNormCmdQueue].lock, flags);
-		while(!list_empty(&(queues->queue[HostNormCmdQueue].cmdq))) {
+		spin_lock_irqsave(dev->queues->queue[HostNormCmdQueue].lock, flags);
+		while(!list_empty(&(dev->queues->queue[HostNormCmdQueue].cmdq))) {
 			struct list_head *entry;
 			struct aac_aifcmd * aifcmd;
 
 			set_current_state(TASK_RUNNING);
-		
-			entry = queues->queue[HostNormCmdQueue].cmdq.next;
+	
+			entry = dev->queues->queue[HostNormCmdQueue].cmdq.next;
 			list_del(entry);
-			
-			spin_unlock_irqrestore(queues->queue[HostNormCmdQueue].lock, flags);
+		
+			spin_unlock_irqrestore(dev->queues->queue[HostNormCmdQueue].lock, flags);
 			fib = list_entry(entry, struct fib, fiblink);
 			/*
 			 *	We will process the FIB here or pass it to a 
@@ -860,6 +1074,7 @@ int aac_command_thread(struct aac_dev * dev)
 			aifcmd = (struct aac_aifcmd *) hw_fib->data;
 			if (aifcmd->command == cpu_to_le32(AifCmdDriverNotify)) {
 				/* Handle Driver Notify Events */
+				aac_handle_aif(dev, fib);
 				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
 				fib_adapter_complete(fib, (u16)sizeof(u32));
 			} else {
@@ -869,9 +1084,62 @@ int aac_command_thread(struct aac_dev * dev)
 				   
 				u32 time_now, time_last;
 				unsigned long flagv;
-				
+				unsigned num;
+				struct hw_fib ** hw_fib_pool, ** hw_fib_p;
+				struct fib ** fib_pool, ** fib_p;
+			
+				/* Sniff events */
+				if ((aifcmd->command == 
+				     cpu_to_le32(AifCmdEventNotify)) ||
+				    (aifcmd->command == 
+				     cpu_to_le32(AifCmdJobProgress))) {
+					aac_handle_aif(dev, fib);
+				}
+ 				
 				time_now = jiffies/HZ;
 
+				/*
+				 * Warning: no sleep allowed while
+				 * holding spinlock. We take the estimate
+				 * and pre-allocate a set of fibs outside the
+				 * lock.
+				 */
+				num = le32_to_cpu(dev->init->AdapterFibsSize)
+				    / sizeof(struct hw_fib); /* some extra */
+				spin_lock_irqsave(&dev->fib_lock, flagv);
+				entry = dev->fib_list.next;
+				while (entry != &dev->fib_list) {
+					entry = entry->next;
+					++num;
+				}
+				spin_unlock_irqrestore(&dev->fib_lock, flagv);
+				hw_fib_pool = NULL;
+				fib_pool = NULL;
+				if (num
+				 && ((hw_fib_pool = kmalloc(sizeof(struct hw_fib *) * num, GFP_KERNEL)))
+				 && ((fib_pool = kmalloc(sizeof(struct fib *) * num, GFP_KERNEL)))) {
+					hw_fib_p = hw_fib_pool;
+					fib_p = fib_pool;
+					while (hw_fib_p < &hw_fib_pool[num]) {
+						if (!(*(hw_fib_p++) = kmalloc(sizeof(struct hw_fib), GFP_KERNEL))) {
+							--hw_fib_p;
+							break;
+						}
+						if (!(*(fib_p++) = kmalloc(sizeof(struct fib), GFP_KERNEL))) {
+							kfree(*(--hw_fib_p));
+							break;
+						}
+					}
+					if ((num = hw_fib_p - hw_fib_pool) == 0) {
+						kfree(fib_pool);
+						fib_pool = NULL;
+						kfree(hw_fib_pool);
+						hw_fib_pool = NULL;
+					}
+				} else if (hw_fib_pool) {
+					kfree(hw_fib_pool);
+					hw_fib_pool = NULL;
+				}
 				spin_lock_irqsave(&dev->fib_lock, flagv);
 				entry = dev->fib_list.next;
 				/*
@@ -880,6 +1148,8 @@ int aac_command_thread(struct aac_dev * dev)
 				 * fib, and then set the event to wake up the
 				 * thread that is waiting for it.
 				 */
+				hw_fib_p = hw_fib_pool;
+				fib_p = fib_pool;
 				while (entry != &dev->fib_list) {
 					/*
 					 * Extract the fibctx
@@ -912,9 +1182,11 @@ int aac_command_thread(struct aac_dev * dev)
 					 * Warning: no sleep allowed while
 					 * holding spinlock
 					 */
-					hw_newfib = kmalloc(sizeof(struct hw_fib), GFP_ATOMIC);
-					newfib = kmalloc(sizeof(struct fib), GFP_ATOMIC);
-					if (newfib && hw_newfib) {
+					if (hw_fib_p < &hw_fib_pool[num]) {
+						hw_newfib = *hw_fib_p;
+						*(hw_fib_p++) = NULL;
+						newfib = *fib_p;
+						*(fib_p++) = NULL;
 						/*
 						 * Make the copy of the FIB
 						 */
@@ -929,15 +1201,11 @@ int aac_command_thread(struct aac_dev * dev)
 						fibctx->count++;
 						/* 
 						 * Set the event to wake up the
-						 * thread that will waiting.
+						 * thread that is waiting.
 						 */
 						up(&fibctx->wait_sem);
 					} else {
 						printk(KERN_WARNING "aifd: didn't allocate NewFib.\n");
-						if(newfib)
-							kfree(newfib);
-						if(hw_newfib)
-							kfree(hw_newfib);
 					}
 					entry = entry->next;
 				}
@@ -947,21 +1215,38 @@ int aac_command_thread(struct aac_dev * dev)
 				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
 				fib_adapter_complete(fib, sizeof(u32));
 				spin_unlock_irqrestore(&dev->fib_lock, flagv);
+				/* Free up the remaining resources */
+				hw_fib_p = hw_fib_pool;
+				fib_p = fib_pool;
+				while (hw_fib_p < &hw_fib_pool[num]) {
+					if (*hw_fib_p)
+						kfree(*hw_fib_p);
+					if (*fib_p)
+						kfree(*fib_p);
+					++fib_p;
+					++hw_fib_p;
+				}
+				if (hw_fib_pool)
+					kfree(hw_fib_pool);
+				if (fib_pool)
+					kfree(fib_pool);
 			}
-			spin_lock_irqsave(queues->queue[HostNormCmdQueue].lock, flags);
 			kfree(fib);
+			spin_lock_irqsave(dev->queues->queue[HostNormCmdQueue].lock, flags);
 		}
 		/*
 		 *	There are no more AIF's
 		 */
-		spin_unlock_irqrestore(queues->queue[HostNormCmdQueue].lock, flags);
+		spin_unlock_irqrestore(dev->queues->queue[HostNormCmdQueue].lock, flags);
 		schedule();
 
 		if(signal_pending(current))
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
-	remove_wait_queue(&queues->queue[HostNormCmdQueue].cmdready, &wait);
+	if (dev->queues)
+		remove_wait_queue(&dev->queues->queue[HostNormCmdQueue].cmdready, &wait);
 	dev->aif_thread = 0;
 	complete_and_exit(&dev->aif_completion, 0);
+	return 0;
 }

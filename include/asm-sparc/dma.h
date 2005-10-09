@@ -198,7 +198,7 @@ extern void dvma_init(struct sbus_bus *);
 /* Pause until counter runs out or BIT isn't set in the DMA condition
  * register.
  */
-extern __inline__ void sparc_dma_pause(struct sparc_dma_registers *regs,
+static inline void sparc_dma_pause(struct sparc_dma_registers *regs,
 				       unsigned long bit)
 {
 	int ctr = 50000;   /* Let's find some bugs ;) */
