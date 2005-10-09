@@ -2760,15 +2760,15 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	page = nth_page(page, (offset >> PAGE_SHIFT));
 	offset %= PAGE_SIZE;
 
-	local_irq_save(flags);
-	buf = kmap_atomic(page, KM_IRQ0) + offset;
-
 	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
-	/* do the actual data transfer */
-	ata_data_xfer(ap, buf, ATA_SECT_SIZE, do_write);
+	local_irq_save(flags);
+	buf = kmap_atomic(page, KM_IRQ0);
 
-	kunmap_atomic(buf - offset, KM_IRQ0);
+	/* do the actual data transfer */
+	ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+
+	kunmap_atomic(buf, KM_IRQ0);
 	local_irq_restore(flags);
 
 	qc->cursect++;
@@ -2952,15 +2952,15 @@ next_sg:
 	/* don't cross page boundaries */
 	count = min(count, (unsigned int)PAGE_SIZE - offset);
 
-	local_irq_save(flags);
-	buf = kmap_atomic(page, KM_IRQ0) + offset;
-
 	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
-	/* do the actual data transfer */
-	ata_data_xfer(ap, buf, count, do_write);
+	local_irq_save(flags);
+	buf = kmap_atomic(page, KM_IRQ0);
 
-	kunmap_atomic(buf - offset, KM_IRQ0);
+	/* do the actual data transfer */
+	ata_data_xfer(ap, buf + offset, count, do_write);
+
+	kunmap_atomic(buf, KM_IRQ0);
 	local_irq_restore(flags);
 
 	bytes -= count;
