@@ -832,7 +832,7 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff **pskb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff **pskb);
-extern int ip_vs_skb_replace(struct sk_buff *skb, int pri,
+extern int ip_vs_skb_replace(struct sk_buff *skb, unsigned int __nocast pri,
 			     char *o_buf, int o_len, char *n_buf, int n_len);
 extern int ip_vs_app_init(void);
 extern void ip_vs_app_cleanup(void);
