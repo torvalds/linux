@@ -1095,7 +1095,7 @@ static inline void eat_page(void *page)
 	*eaten_memory = c;
 }
 
-static unsigned long get_usable_page(unsigned gfp_mask)
+unsigned long get_usable_page(unsigned gfp_mask)
 {
 	unsigned long m;
 
@@ -1109,7 +1109,7 @@ static unsigned long get_usable_page(unsigned gfp_mask)
 	return m;
 }
 
-static void free_eaten_memory(void)
+void free_eaten_memory(void)
 {
 	unsigned long m;
 	void **c;
@@ -1481,11 +1481,12 @@ static int read_suspend_image(void)
 	/* Allocate memory for the image and read the data from swap */
 
 	error = check_pagedir(pagedir_nosave);
-	free_eaten_memory();
+
 	if (!error)
 		error = data_read(pagedir_nosave);
 
 	if (error) { /* We fail cleanly */
+		free_eaten_memory();
 		for_each_pbe (p, pagedir_nosave)
 			if (p->address) {
 				free_page(p->address);
