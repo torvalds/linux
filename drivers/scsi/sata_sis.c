@@ -263,7 +263,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_regions;
 
 	ppi = &sis_port_info;
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi);
+	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent) {
 		rc = -ENOMEM;
 		goto err_out_regions;

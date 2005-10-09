@@ -672,17 +672,36 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 
         for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap;
-		u32 tmp;
 
-		VPRINTK("port %u\n", i);
+		if (!(irq_stat & (1 << i)))
+			continue;
+
 		ap = host_set->ports[i];
-		tmp = irq_stat & (1 << i);
-		if (tmp && ap) {
+		if (ap) {
 			struct ata_queued_cmd *qc;
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (ahci_host_intr(ap, qc))
-				irq_ack |= (1 << i);
+			if (!ahci_host_intr(ap, qc))
+				if (ata_ratelimit()) {
+					struct pci_dev *pdev =
+					  to_pci_dev(ap->host_set->dev);
+					printk(KERN_WARNING
+					  "ahci(%s): unhandled interrupt on port %u\n",
+					  pci_name(pdev), i);
+				}
+
+			VPRINTK("port %u\n", i);
+		} else {
+			VPRINTK("port %u (no irq)\n", i);
+			if (ata_ratelimit()) {
+				struct pci_dev *pdev =
+				  to_pci_dev(ap->host_set->dev);
+				printk(KERN_WARNING
+				  "ahci(%s): interrupt on disabled port %u\n",
+				  pci_name(pdev), i);
+			}
 		}
+
+		irq_ack |= (1 << i);
 	}
 
 	if (irq_ack) {
