@@ -23,15 +23,15 @@
 #include <netinet/in.h>
 #if defined(__BYTE_ORDER)
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-# define ntohll(x) (x)
-# define htonll(x) (x)
-#elif __BYTE_ORDER == __LITTLE_ENDIAN
-# define ntohll(x)  bswap_64(x)
-# define htonll(x)  bswap_64(x)
-#else
-# error "Could not determine byte order: __BYTE_ORDER uncorrectly defined"
-#endif
+#  if __BYTE_ORDER == __BIG_ENDIAN
+#	define ntohll(x) (x)
+#	define htonll(x) (x)
+#  elif __BYTE_ORDER == __LITTLE_ENDIAN
+#	define ntohll(x)  bswap_64(x)
+#	define htonll(x)  bswap_64(x)
+#  else
+#	error "Could not determine byte order: __BYTE_ORDER uncorrectly defined"
+#  endif
 
 #else  /* ! defined(__BYTE_ORDER) */
 #	error "Could not determine byte order: __BYTE_ORDER not defined"
