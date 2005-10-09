@@ -3,10 +3,10 @@
 
 #include <asm/types.h>
 
-#if defined(__BIG_ENDIAN)
+#if __BYTE_ORDER == __BIG_ENDIAN
 # define ntohll(x) (x)
 # define htonll(x) (x)
-#elif defined(__LITTLE_ENDIAN)
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
 # define ntohll(x)  bswap_64(x)
 # define htonll(x)  bswap_64(x)
 #else
