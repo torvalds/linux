@@ -1933,7 +1933,12 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 	VPRINTK("ENTER, drv_stat == 0x%x\n", drv_stat);
 
 	if (unlikely(drv_stat & (ATA_BUSY | ATA_DRQ)))
-		ata_to_sense_error(qc, drv_stat);
+		/* FIXME: not quite right; we don't want the
+		 * translation of taskfile registers into
+		 * a sense descriptors, since that's only
+		 * correct for ATA, not ATAPI
+		 */
+		ata_gen_ata_desc_sense(qc);
 
 	else if (unlikely(drv_stat & ATA_ERR)) {
 		DPRINTK("request check condition\n");
