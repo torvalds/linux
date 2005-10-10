@@ -99,7 +99,7 @@ get_iost_entry(unsigned long iopt_base, unsigned long io_address, unsigned page_
 		break;
 
 	default: /* not a known compile time constant */
-		BUILD_BUG_ON(1);
+		BUG_ON(1);
 		break;
 	}
 

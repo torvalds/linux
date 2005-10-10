@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
-#include <asm/irq.h>
 
 extern void timer_interrupt(struct pt_regs *);
 extern void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq);

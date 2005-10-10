@@ -50,7 +50,7 @@ static unsigned char vga_font[cmapsz];
 int boot_text_mapped;
 int force_printk_to_btext = 0;
 
-
+#ifdef CONFIG_PPC32
 /* Calc BAT values for mapping the display and store them
  * in disp_BAT.  Those values are then used from head.S to map
  * the display during identify_machine() and MMU_Init()
@@ -93,6 +93,7 @@ btext_prepare_BAT(void)
 	}
 	logicalDisplayBase = (void *) (vaddr + lowbits);
 }
+#endif
 
 /* This function will enable the early boot text when doing OF booting. This
  * way, xmon output should work too

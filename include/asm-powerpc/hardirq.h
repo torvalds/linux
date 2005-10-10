@@ -1,6 +1,9 @@
 #ifndef _ASM_POWERPC_HARDIRQ_H
 #define _ASM_POWERPC_HARDIRQ_H
 
+#include <asm/irq.h>
+#include <asm/bug.h>
+
 /* The __last_jiffy_stamp field is needed to ensure that no decrementer
  * interrupt is lost on SMP machines. Since on most CPUs it is in the same
  * cache line as local_irq_count, it is cheap to access and is also used on UP

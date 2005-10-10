@@ -60,6 +60,7 @@
 #include <asm/of_device.h>
 #include <asm/lmb.h>
 #include <asm/mpic.h>
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

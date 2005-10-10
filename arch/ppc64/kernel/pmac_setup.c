@@ -73,6 +73,7 @@
 #include <asm/smu.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
+#include <asm/udbg.h>
 
 #include "pmac.h"
 

@@ -1,9 +1,11 @@
 /*
  * Copyright (C) 1995-1999 Gary Thomas, Paul Mackerras, Cort Dougan.
  */
-
 #ifndef _ASM_POWERPC_PPC_ASM_H
 #define _ASM_POWERPC_PPC_ASM_H
+
+#include <linux/stringify.h>
+#include <linux/config.h>
 
 #ifdef __ASSEMBLY__
 
@@ -86,6 +88,66 @@
 #define RFCI		.long 0x4c000066	/* rfci instruction */
 #define RFDI		.long 0x4c00004e	/* rfdi instruction */
 #define RFMCI		.long 0x4c00004c	/* rfmci instruction */
+
+#ifdef CONFIG_PPC64
+
+#define XGLUE(a,b) a##b
+#define GLUE(a,b) XGLUE(a,b)
+
+#define _GLOBAL(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.globl name; \
+	.globl GLUE(.,name); \
+	.section ".opd","aw"; \
+name: \
+	.quad GLUE(.,name); \
+	.quad .TOC.@tocbase; \
+	.quad 0; \
+	.previous; \
+	.type GLUE(.,name),@function; \
+GLUE(.,name):
+
+#define _KPROBE(name) \
+	.section ".kprobes.text","a"; \
+	.align 2 ; \
+	.globl name; \
+	.globl GLUE(.,name); \
+	.section ".opd","aw"; \
+name: \
+	.quad GLUE(.,name); \
+	.quad .TOC.@tocbase; \
+	.quad 0; \
+	.previous; \
+	.type GLUE(.,name),@function; \
+GLUE(.,name):
+
+#define _STATIC(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.section ".opd","aw"; \
+name: \
+	.quad GLUE(.,name); \
+	.quad .TOC.@tocbase; \
+	.quad 0; \
+	.previous; \
+	.type GLUE(.,name),@function; \
+GLUE(.,name):
+
+#else /* 32-bit */
+
+#define _GLOBAL(n)	\
+	.text;		\
+	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
+	.globl n;	\
+n:
+
+#define _KPROBE(n)	\
+	.section ".kprobes.text","a";	\
+	.globl	n;	\
+n:
+
+#endif
 
 /* 
  * LOADADDR( rn, name )
@@ -251,31 +313,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.previous
 #endif
 
-/*
- * On 64-bit cpus, we use the rfid instruction instead of rfi, but
- * we then have to make sure we preserve the top 32 bits except for
- * the 64-bit mode bit, which we clear.
- */
-#if defined(CONFIG_PPC64BRIDGE)
-#define	FIX_SRR1(ra, rb)	\
-	mr	rb,ra;		\
-	mfmsr	ra;		\
-	clrldi	ra,ra,1;		/* turn off 64-bit mode */ \
-	rldimi	ra,rb,0,32
-#define	RFI		.long	0x4c000024	/* rfid instruction */
-#define MTMSRD(r)	.long	(0x7c000164 + ((r) << 21))	/* mtmsrd */
-#define CLR_TOP32(r)	rlwinm	(r),(r),0,0,31	/* clear top 32 bits */
-#elif defined(CONFIG_PPC64)
-/* Insert the high 32 bits of the MSR into what will be the new
-   MSR (via SRR1 and rfid)  This preserves the MSR.SF and MSR.ISF
-   bits. */
-
-#define FIX_SRR1(ra, rb)	\
-	mr	rb,ra;		\
-	mfmsr	ra;		\
-	rldimi	ra,rb,0,32
-
-#define CLR_TOP32(r)	rlwinm	(r),(r),0,0,31	/* clear top 32 bits */
+#ifdef CONFIG_PPC64
+#define RFI		rfid
+#define MTMSRD(r)	mtmsrd	r
 
 #else
 #define FIX_SRR1(ra, rb)

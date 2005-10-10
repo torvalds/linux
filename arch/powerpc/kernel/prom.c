@@ -47,6 +47,10 @@
 #include <asm/sections.h>
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
+#include <asm/pci-bridge.h>
+#ifdef CONFIG_PPC64
+#include <asm/systemcfg.h>
+#endif
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -1072,7 +1076,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	} else {
 		/* Check if it's the boot-cpu, set it's hw index in paca now */
 		if (get_flat_dt_prop(node, "linux,boot-cpu", NULL) != NULL) {
-			u32 *prop = get_flat_dt_prop(node, "reg", NULL);
+			prop = get_flat_dt_prop(node, "reg", NULL);
 			set_hard_smp_processor_id(0, prop == NULL ? 0 : *prop);
 			boot_cpuid_phys = get_hard_smp_processor_id(0);
 		}

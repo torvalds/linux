@@ -51,6 +51,7 @@
 #include <asm/commproc.h>
 #endif
 
+#ifdef CONFIG_PPC32
 extern void transfer_to_handler(void);
 extern void do_IRQ(struct pt_regs *regs);
 extern void machine_check_exception(struct pt_regs *regs);
@@ -61,14 +62,12 @@ extern int do_signal(sigset_t *, struct pt_regs *);
 extern int pmac_newworld;
 extern int sys_sigreturn(struct pt_regs *regs);
 
-long long __ashrdi3(long long, int);
-long long __ashldi3(long long, int);
-long long __lshrdi3(long long, int);
-
-extern unsigned long mm_ptov (unsigned long paddr);
-
 EXPORT_SYMBOL(clear_pages);
-EXPORT_SYMBOL(clear_user_page);
+EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
+EXPORT_SYMBOL(DMA_MODE_READ);
+EXPORT_SYMBOL(DMA_MODE_WRITE);
+EXPORT_SYMBOL(__div64_32);
+
 EXPORT_SYMBOL(do_signal);
 EXPORT_SYMBOL(transfer_to_handler);
 EXPORT_SYMBOL(do_IRQ);
@@ -77,12 +76,8 @@ EXPORT_SYMBOL(alignment_exception);
 EXPORT_SYMBOL(program_check_exception);
 EXPORT_SYMBOL(single_step_exception);
 EXPORT_SYMBOL(sys_sigreturn);
-EXPORT_SYMBOL(ppc_n_lost_interrupts);
-EXPORT_SYMBOL(ppc_lost_interrupts);
+#endif
 
-EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
-EXPORT_SYMBOL(DMA_MODE_READ);
-EXPORT_SYMBOL(DMA_MODE_WRITE);
 #if defined(CONFIG_PPC_PREP)
 EXPORT_SYMBOL(_prep_type);
 EXPORT_SYMBOL(ucSystemType);
@@ -110,7 +105,6 @@ EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strcasecmp);
-EXPORT_SYMBOL(__div64_32);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
@@ -132,21 +126,21 @@ EXPORT_SYMBOL(_insw_ns);
 EXPORT_SYMBOL(_outsw_ns);
 EXPORT_SYMBOL(_insl_ns);
 EXPORT_SYMBOL(_outsl_ns);
-EXPORT_SYMBOL(iopa);
-EXPORT_SYMBOL(mm_ptov);
 EXPORT_SYMBOL(ioremap);
 #ifdef CONFIG_44x
 EXPORT_SYMBOL(ioremap64);
 #endif
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
+#ifdef CONFIG_PPC32
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
+#endif
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
+#if defined(CONFIG_PPC32) && (defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE))
 EXPORT_SYMBOL(ppc_ide_md);
 #endif
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && defined(CONFIG_PPC32)
 EXPORT_SYMBOL(isa_io_base);
 EXPORT_SYMBOL(isa_mem_base);
 EXPORT_SYMBOL(pci_dram_offset);
@@ -168,31 +162,31 @@ EXPORT_SYMBOL(flush_dcache_all);
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(kernel_thread);
 
-EXPORT_SYMBOL(flush_instruction_cache);
 EXPORT_SYMBOL(giveup_fpu);
-#ifdef CONFIG_PPC64
-EXPORT_SYMBOL(__flush_icache_range);
-#else
-EXPORT_SYMBOL(flush_icache_range);
-#endif
-EXPORT_SYMBOL(flush_dcache_range);
-EXPORT_SYMBOL(flush_icache_user_range);
-EXPORT_SYMBOL(flush_dcache_page);
-EXPORT_SYMBOL(flush_tlb_kernel_range);
-EXPORT_SYMBOL(flush_tlb_page);
-EXPORT_SYMBOL(_tlbie);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_SPE
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */
+
+#ifdef CONFIG_PPC64
+EXPORT_SYMBOL(__flush_icache_range);
+#else
+EXPORT_SYMBOL(flush_instruction_cache);
+EXPORT_SYMBOL(flush_icache_range);
+EXPORT_SYMBOL(flush_tlb_kernel_range);
+EXPORT_SYMBOL(flush_tlb_page);
+EXPORT_SYMBOL(_tlbie);
+#endif
+EXPORT_SYMBOL(flush_dcache_range);
+
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(smp_call_function);
+#ifdef CONFIG_PPC32
 EXPORT_SYMBOL(smp_hw_index);
 #endif
-
-EXPORT_SYMBOL(ppc_md);
+#endif
 
 #ifdef CONFIG_ADB
 EXPORT_SYMBOL(adb_request);
@@ -205,25 +199,27 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#if defined(CONFIG_PPC_MULTIPLATFORM) && defined(CONFIG_PPC32)
 EXPORT_SYMBOL(_machine);
 #endif
 #ifdef CONFIG_PPC_PMAC
 EXPORT_SYMBOL(sys_ctrler);
-EXPORT_SYMBOL(pmac_newworld);
 #endif
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(kd_mksound);
 #endif
 EXPORT_SYMBOL(to_tm);
 
-EXPORT_SYMBOL(pm_power_off);
-
+#ifdef CONFIG_PPC32
+long long __ashrdi3(long long, int);
+long long __ashldi3(long long, int);
+long long __lshrdi3(long long, int);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__lshrdi3);
+#endif
+
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(cacheable_memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memscan);
@@ -234,17 +230,14 @@ EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(screen_info);
 #endif
 
+#ifdef CONFIG_PPC32
+EXPORT_SYMBOL(pm_power_off);
 EXPORT_SYMBOL(__delay);
 EXPORT_SYMBOL(timer_interrupt);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
-EXPORT_SYMBOL(get_wchan);
 EXPORT_SYMBOL(console_drivers);
-
-#ifdef CONFIG_PPC_ISERIES
-EXPORT_SYMBOL(local_irq_disable);
-EXPORT_SYMBOL(local_irq_enable);
-EXPORT_SYMBOL(local_get_flags);
+EXPORT_SYMBOL(cacheable_memcpy);
 #endif
 
 #ifdef CONFIG_XMON
@@ -255,22 +248,6 @@ EXPORT_SYMBOL(__up);
 EXPORT_SYMBOL(__down);
 EXPORT_SYMBOL(__down_interruptible);
 
-#if defined(CONFIG_KGDB) || defined(CONFIG_XMON)
-extern void (*debugger)(struct pt_regs *regs);
-extern int (*debugger_bpt)(struct pt_regs *regs);
-extern int (*debugger_sstep)(struct pt_regs *regs);
-extern int (*debugger_iabr_match)(struct pt_regs *regs);
-extern int (*debugger_dabr_match)(struct pt_regs *regs);
-extern void (*debugger_fault_handler)(struct pt_regs *regs);
-
-EXPORT_SYMBOL(debugger);
-EXPORT_SYMBOL(debugger_bpt);
-EXPORT_SYMBOL(debugger_sstep);
-EXPORT_SYMBOL(debugger_iabr_match);
-EXPORT_SYMBOL(debugger_dabr_match);
-EXPORT_SYMBOL(debugger_fault_handler);
-#endif
-
 #ifdef  CONFIG_8xx
 EXPORT_SYMBOL(cpm_install_handler);
 EXPORT_SYMBOL(cpm_free_handler);
@@ -280,22 +257,24 @@ EXPORT_SYMBOL(cpm_free_handler);
 EXPORT_SYMBOL(__res);
 #endif
 
+#ifdef CONFIG_PPC32
 EXPORT_SYMBOL(next_mmu_context);
 EXPORT_SYMBOL(set_context);
-EXPORT_SYMBOL_GPL(__handle_mm_fault); /* For MOL */
 EXPORT_SYMBOL(disarm_decr);
-#ifdef CONFIG_PPC_STD_MMU
+#endif
+
+#ifdef CONFIG_PPC_STD_MMU_32
 extern long mol_trampoline;
 EXPORT_SYMBOL(mol_trampoline); /* For MOL */
 EXPORT_SYMBOL(flush_hash_pages); /* For MOL */
+EXPORT_SYMBOL_GPL(__handle_mm_fault); /* For MOL */
 #ifdef CONFIG_SMP
 extern int mmu_hash_lock;
 EXPORT_SYMBOL(mmu_hash_lock); /* For MOL */
 #endif /* CONFIG_SMP */
 extern long *intercept_table;
 EXPORT_SYMBOL(intercept_table);
-#endif /* CONFIG_PPC_STD_MMU */
-EXPORT_SYMBOL(cur_cpu_spec);
+#endif /* CONFIG_PPC_STD_MMU_32 */
 #ifdef CONFIG_PPC_PMAC
 extern unsigned long agp_special_page;
 EXPORT_SYMBOL(agp_special_page);

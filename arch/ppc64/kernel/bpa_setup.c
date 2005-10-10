@@ -44,6 +44,7 @@
 #include <asm/nvram.h>
 #include <asm/cputable.h>
 #include <asm/ppc-pci.h>
+#include <asm/irq.h>
 
 #include "bpa_iic.h"
 #include "bpa_iommu.h"

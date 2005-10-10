@@ -9,6 +9,7 @@
 
 #include <asm/hw_irq.h>
 #include <asm/ppc_asm.h>
+#include <asm/atomic.h>
 
 /*
  * Memory barrier.
@@ -127,6 +128,7 @@ extern void flush_fp_to_thread(struct task_struct *);
 extern void enable_kernel_altivec(void);
 extern void giveup_altivec(struct task_struct *);
 extern void load_up_altivec(struct task_struct *);
+extern int emulate_altivec(struct pt_regs *);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
 extern int fix_alignment(struct pt_regs *);
@@ -176,6 +178,7 @@ extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
 
 extern unsigned int rtas_data;
+extern int mem_init_done;	/* set on boot once kmalloc can be called */
 
 /*
  * Atomic exchange

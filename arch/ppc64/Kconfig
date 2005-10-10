@@ -186,6 +186,9 @@ config BOOTX_TEXT
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires an Open Firmware compatible video card.
 
+config POWER4
+	def_bool y
+
 config POWER4_ONLY
 	bool "Optimize for POWER4"
 	default n

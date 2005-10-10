@@ -746,6 +746,7 @@ bad_stack:
  * any task or sent any task a signal, you should use
  * ret_from_except or ret_from_except_lite instead of this.
  */
+	.globl	fast_exception_return
 fast_exception_return:
 	ld	r12,_MSR(r1)
 	ld	r11,_NIP(r1)

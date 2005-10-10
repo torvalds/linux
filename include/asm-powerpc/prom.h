@@ -196,6 +196,7 @@ extern int prom_n_intr_cells(struct device_node* np);
 extern void prom_get_irq_senses(unsigned char *senses, int off, int max);
 extern void prom_add_property(struct device_node* np, struct property* prop);
 
+#ifdef CONFIG_PPC32
 /*
  * PCI <-> OF matching functions
  * (XXX should these be here?)
@@ -207,6 +208,8 @@ extern int pci_device_from_OF_node(struct device_node *node,
 extern struct device_node* pci_busdev_to_OF_node(struct pci_bus *, int);
 extern struct device_node* pci_device_to_OF_node(struct pci_dev *);
 extern void pci_create_OF_bus_map(void);
+#endif
+
 extern struct resource *request_OF_resource(struct device_node* node,
 				int index, const char* name_postfix);
 extern int release_OF_resource(struct device_node* node, int index);

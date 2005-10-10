@@ -106,6 +106,16 @@ static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
 	return fetch_dev_dn(dev);
 }
 
+static inline int pci_device_from_OF_node(struct device_node *np,
+					  u8 *bus, u8 *devfn)
+{
+	if (!PCI_DN(np))
+		return -ENODEV;
+	*bus = PCI_DN(np)->busno;
+	*devfn = PCI_DN(np)->devfn;
+	return 0;
+}
+
 static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 {
 	if (bus->self)
