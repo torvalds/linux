@@ -78,7 +78,7 @@ extern unsigned long dart_tablebase;
 hpte_t *htab_address;
 unsigned long htab_hash_mask;
 
-extern unsigned long _SDR1;
+unsigned long _SDR1;
 
 #define KB (1024)
 #define MB (1024*KB)

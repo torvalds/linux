@@ -73,17 +73,7 @@
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
 
-int mem_init_done;
-unsigned long ioremap_bot = IMALLOC_BASE;
-static unsigned long phbs_io_bot = PHBS_IO_BASE;
-
-extern pgd_t swapper_pg_dir[];
-extern struct task_struct *current_set[NR_CPUS];
-
 unsigned long klimit = (unsigned long)_end;
-
-unsigned long _SDR1=0;
-unsigned long _ASR=0;
 
 /* max amount of RAM to use */
 unsigned long __max_memory;
@@ -193,19 +183,6 @@ static int __init setup_kcore(void)
 }
 module_init(setup_kcore);
 
-void __iomem * reserve_phb_iospace(unsigned long size)
-{
-	void __iomem *virt_addr;
-		
-	if (phbs_io_bot >= IMALLOC_BASE) 
-		panic("reserve_phb_iospace(): phb io space overflow\n");
-			
-	virt_addr = (void __iomem *) phbs_io_bot;
-	phbs_io_bot += size;
-
-	return virt_addr;
-}
-
 static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 {
 	memset(addr, 0, kmem_cache_size(cache));
@@ -244,16 +221,3 @@ void pgtable_cache_init(void)
 			      name);
 	}
 }
-
-pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
-			      unsigned long size, pgprot_t vma_prot)
-{
-	if (ppc_md.phys_mem_access_prot)
-		return ppc_md.phys_mem_access_prot(file, addr, size, vma_prot);
-
-	if (!page_is_ram(addr >> PAGE_SHIFT))
-		vma_prot = __pgprot(pgprot_val(vma_prot)
-				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
-	return vma_prot;
-}
-EXPORT_SYMBOL(phys_mem_access_prot);

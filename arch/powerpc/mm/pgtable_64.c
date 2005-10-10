@@ -67,29 +67,8 @@
 #include <asm/vdso.h>
 #include <asm/imalloc.h>
 
-#if PGTABLE_RANGE > USER_VSID_RANGE
-#warning Limited user VSID range means pagetable space is wasted
-#endif
-
-#if (TASK_SIZE_USER64 < PGTABLE_RANGE) && (TASK_SIZE_USER64 < USER_VSID_RANGE)
-#warning TASK_SIZE is smaller than it needs to be.
-#endif
-
-int mem_init_done;
 unsigned long ioremap_bot = IMALLOC_BASE;
 static unsigned long phbs_io_bot = PHBS_IO_BASE;
-
-extern pgd_t swapper_pg_dir[];
-extern struct task_struct *current_set[NR_CPUS];
-
-unsigned long klimit = (unsigned long)_end;
-
-/* max amount of RAM to use */
-unsigned long __max_memory;
-
-/* info on what we think the IO hole is */
-unsigned long 	io_hole_start;
-unsigned long	io_hole_size;
 
 #ifdef CONFIG_PPC_ISERIES
 
@@ -355,3 +334,16 @@ int iounmap_explicit(volatile void __iomem *start, unsigned long size)
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
+
+void __iomem * reserve_phb_iospace(unsigned long size)
+{
+	void __iomem *virt_addr;
+		
+	if (phbs_io_bot >= IMALLOC_BASE) 
+		panic("reserve_phb_iospace(): phb io space overflow\n");
+			
+	virt_addr = (void __iomem *) phbs_io_bot;
+	phbs_io_bot += size;
+
+	return virt_addr;
+}

@@ -47,6 +47,9 @@
 #include <asm/prom.h>
 #include <asm/lmb.h>
 #include <asm/sections.h>
+#ifdef CONFIG_PPC64
+#include <asm/vdso.h>
+#endif
 
 #include "mmu_decl.h"
 
@@ -334,7 +337,7 @@ void flush_dcache_icache_page(struct page *page)
 	void *start = kmap_atomic(page, KM_PPC_SYNC_ICACHE);
 	__flush_dcache_icache(start);
 	kunmap_atomic(start, KM_PPC_SYNC_ICACHE);
-#elif defined(CONFIG_8xx)
+#elif defined(CONFIG_8xx) || defined(CONFIG_PPC64)
 	/* On 8xx there is no need to kmap since highmem is not supported */
 	__flush_dcache_icache(page_address(page)); 
 #else
@@ -463,18 +466,18 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	if (pgdir == NULL)
 		return;
 
-	ptep = find_linux_pte(pgdir, ea);
+	ptep = find_linux_pte(pgdir, address);
 	if (!ptep)
 		return;
 
-	vsid = get_vsid(vma->vm_mm->context.id, ea);
+	vsid = get_vsid(vma->vm_mm->context.id, address);
 
 	local_irq_save(flags);
 	tmp = cpumask_of_cpu(smp_processor_id());
 	if (cpus_equal(vma->vm_mm->cpu_vm_mask, tmp))
 		local = 1;
 
-	__hash_page(ea, pte_val(pte) & (_PAGE_USER|_PAGE_RW), vsid, ptep,
+	__hash_page(address, pte_val(pte) & (_PAGE_USER|_PAGE_RW), vsid, ptep,
 		    0x300, local);
 	local_irq_restore(flags);
 #endif

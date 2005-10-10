@@ -10,7 +10,7 @@
  * described in the kernel's COPYING file.
  */
 
-#include <asm/processor.h>
+#include <asm/reg.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/page.h>

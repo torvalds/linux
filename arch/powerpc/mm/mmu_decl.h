@@ -22,11 +22,11 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu.h>
 
+#ifdef CONFIG_PPC32
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
 extern void setbat(int index, unsigned long virt, unsigned long phys,
 		   unsigned int size, int flags);
-extern void reserve_phys_mem(unsigned long start, unsigned long size);
 extern void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		      unsigned int size, int flags, unsigned int pid);
 extern void invalidate_tlbcam_entry(int index);
@@ -36,16 +36,16 @@ extern unsigned long ioremap_base;
 extern unsigned long ioremap_bot;
 extern unsigned int rtas_data, rtas_size;
 
-extern unsigned long __max_low_memory;
-extern unsigned long __initial_memory_limit;
-extern unsigned long total_memory;
-extern unsigned long total_lowmem;
-extern int mem_init_done;
-
 extern PTE *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
 
 extern unsigned int num_tlbcam_entries;
+#endif
+
+extern unsigned long __max_low_memory;
+extern unsigned long __initial_memory_limit;
+extern unsigned long total_memory;
+extern unsigned long total_lowmem;
 
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan
@@ -66,8 +66,8 @@ extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(void);
 extern void adjust_total_lowmem(void);
 
-#else
-/* anything except 4xx or 8xx */
+#elif defined(CONFIG_PPC32)
+/* anything 32-bit except 4xx or 8xx */
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(void);
 
