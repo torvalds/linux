@@ -487,7 +487,6 @@ EXPORT_SYMBOL(snd_ctl_unregister_ioctl_compat);
 EXPORT_SYMBOL(snd_ctl_elem_read);
 EXPORT_SYMBOL(snd_ctl_elem_write);
   /* misc.c */
-EXPORT_SYMBOL(snd_task_name);
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 EXPORT_SYMBOL(snd_verbose_printk);
 #endif

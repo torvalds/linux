@@ -373,7 +373,6 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size);
 
 /* misc.c */
 
-int snd_task_name(struct task_struct *task, char *name, size_t size);
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 void snd_verbose_printk(const char *file, int line, const char *format, ...)
      __attribute__ ((format (printf, 3, 4)));

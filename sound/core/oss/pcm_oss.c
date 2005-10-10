@@ -1821,6 +1821,17 @@ static int snd_pcm_oss_open_file(struct file *file,
 }
 
 
+static int snd_task_name(struct task_struct *task, char *name, size_t size)
+{
+	unsigned int idx;
+
+	snd_assert(task != NULL && name != NULL && size >= 2, return -EINVAL);
+	for (idx = 0; idx < sizeof(task->comm) && idx + 1 < size; idx++)
+		name[idx] = task->comm[idx];
+	name[idx] = '\0';
+	return 0;
+}
+
 static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
