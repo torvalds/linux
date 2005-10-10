@@ -268,7 +268,7 @@ static int __init call_prom_ret(const char *service, int nargs, int nret,
 
 	if (rets != NULL)
 		for (i = 1; i < nret; ++i)
-			rets[i] = args.args[nargs+i];
+			rets[i-1] = args.args[nargs+i];
 
 	return (nret > 0) ? args.args[nargs] : 0;
 }
