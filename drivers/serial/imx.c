@@ -383,11 +383,11 @@ static int imx_startup(struct uart_port *port)
 	 */
 	retval = request_irq(sport->rxirq, imx_rxint, 0,
 			     DRIVER_NAME, sport);
-	if (retval) goto error_out2;
+	if (retval) goto error_out1;
 
 	retval = request_irq(sport->txirq, imx_txint, 0,
 			     "imx-uart", sport);
-	if (retval) goto error_out1;
+	if (retval) goto error_out2;
 
 	/*
 	 * Finally, clear and enable interrupts
@@ -406,10 +406,9 @@ static int imx_startup(struct uart_port *port)
 
 	return 0;
 
-error_out1:
-	free_irq(sport->rxirq, sport);
 error_out2:
-	free_irq(sport->txirq, sport);
+	free_irq(sport->rxirq, sport);
+error_out1:
 	return retval;
 }
 

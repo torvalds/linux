@@ -215,7 +215,7 @@
 #define PC31_AOUT_UART3_RX   ( GPIO_GIUS | GPIO_PORTC | GPIO_IN | 31)
 #define PD6_PF_LSCLK         ( GPIO_PORTD | GPIO_OUT | GPIO_PF | 6 )
 #define PD7_PF_REV           ( GPIO_PORTD | GPIO_PF | 7 )
-#define PD7_AF_UART2_DTR     ( GPIO_PORTD | GPIO_IN | GPIO_AF | 7 )
+#define PD7_AF_UART2_DTR     ( GPIO_GIUS | GPIO_PORTD | GPIO_IN | GPIO_AF | 7 )
 #define PD7_AIN_SPI2_SCLK    ( GPIO_GIUS | GPIO_PORTD | GPIO_AIN | 7 )
 #define PD8_PF_CLS           ( GPIO_PORTD | GPIO_PF | 8 )
 #define PD8_AF_UART2_DCD     ( GPIO_PORTD | GPIO_OUT | GPIO_AF | 8 )
