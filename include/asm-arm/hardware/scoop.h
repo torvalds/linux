@@ -38,6 +38,8 @@
 struct scoop_config {
 	unsigned short io_out;
 	unsigned short io_dir;
+	unsigned short suspend_clr;
+	unsigned short suspend_set;
 };
 
 /* Structure for linking scoop devices to PCMCIA sockets */
