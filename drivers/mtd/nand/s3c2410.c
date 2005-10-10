@@ -18,7 +18,7 @@
  *	20-Jun-2005  BJD  Updated s3c2440 support, fixed timing bug
  *	08-Jul-2005  BJD  Fix OOPS when no platform data supplied
  *
- * $Id: s3c2410.c,v 1.15 2005/09/26 21:42:54 bjd Exp $
+ * $Id: s3c2410.c,v 1.16 2005/10/10 00:09:16 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -695,6 +695,7 @@ static int s3c2440_nand_probe(struct device *dev)
 
 static struct device_driver s3c2410_nand_driver = {
 	.name		= "s3c2410-nand",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410_nand_probe,
 	.remove		= s3c2410_nand_remove,
@@ -702,6 +703,7 @@ static struct device_driver s3c2410_nand_driver = {
 
 static struct device_driver s3c2440_nand_driver = {
 	.name		= "s3c2440-nand",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2440_nand_probe,
 	.remove		= s3c2410_nand_remove,
