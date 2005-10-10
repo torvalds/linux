@@ -23,7 +23,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/processor.h>
+#include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
@@ -55,8 +55,8 @@
 1:
 
 	.text
-	.stabs	"arch/ppc/kernel/",N_SO,0,0,0f
-	.stabs	"head.S",N_SO,0,0,0f
+	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
+	.stabs	"head_32.S",N_SO,0,0,0f
 0:
 	.globl	_stext
 _stext:

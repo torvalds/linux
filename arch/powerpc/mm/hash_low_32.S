@@ -24,7 +24,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/processor.h>
+#include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/cputable.h>

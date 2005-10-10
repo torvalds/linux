@@ -13,11 +13,6 @@
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
 
-	.text
-	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
-	.stabs	"string.S",N_SO,0,0,0f
-0:
-
 	.section __ex_table,"a"
 #ifdef CONFIG_PPC64
 	.align	3

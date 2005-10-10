@@ -1,6 +1,6 @@
 #include <linux/config.h>
 #include <asm/ppc_asm.h>
-#include <asm/processor.h>
+#include <asm/reg.h>
 
 /*
  * The routines below are in assembler so we can closely control the

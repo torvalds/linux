@@ -15,7 +15,7 @@
 
 #include <linux/config.h>
 #include <linux/threads.h>
-#include <asm/processor.h>
+#include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
