@@ -33,7 +33,6 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/time.h>
-#include <asm/xmon.h>
 #include <asm/pmac_feature.h>
 #include <asm/mpic.h>
 
