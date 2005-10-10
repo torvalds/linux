@@ -33,6 +33,7 @@ obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
-arch/powerpc/kernel/head_64.o: arch/powerpc/platforms/iseries/lparmap.s
-AFLAGS_head_64.o += -Iarch/powerpc/platforms/iseries
+$(obj)/head_64.o: $(obj)/lparmap.s
+AFLAGS_head_64.o += -I$(obj)
+endif
 endif

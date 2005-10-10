@@ -70,7 +70,7 @@ CFLAGS_ioctl32.o += -Ifs/
 
 ifneq ($(CONFIG_PPC_MERGE),y)
 ifeq ($(CONFIG_PPC_ISERIES),y)
-arch/ppc64/kernel/head.o: arch/powerpc/platforms/iseries/lparmap.s
-AFLAGS_head.o += -Iarch/powerpc/platforms/iseries
+arch/ppc64/kernel/head.o: arch/powerpc/kernel/lparmap.s
+AFLAGS_head.o += -Iarch/powerpc/kernel
 endif
 endif
