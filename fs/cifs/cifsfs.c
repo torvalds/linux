@@ -410,7 +410,7 @@ static void cifs_umount_begin(struct super_block * sblock)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo * tcon;
 
-	cifs_sb = CIFS_SB(sb);
+	cifs_sb = CIFS_SB(sblock);
 	if(cifs_sb == NULL)
 		return;
 
