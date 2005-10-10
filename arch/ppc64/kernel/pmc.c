@@ -70,7 +70,7 @@ void power4_enable_pmcs(void)
 {
 	unsigned long hid0;
 
-	hid0 = mfspr(HID0);
+	hid0 = mfspr(SPRN_HID0);
 	hid0 |= 1UL << (63 - 20);
 
 	/* POWER4 requires the following sequence */
@@ -83,6 +83,6 @@ void power4_enable_pmcs(void)
 		"mfspr     %0, %1\n"
 		"mfspr     %0, %1\n"
 		"mfspr     %0, %1\n"
-		"isync" : "=&r" (hid0) : "i" (HID0), "0" (hid0):
+		"isync" : "=&r" (hid0) : "i" (SPRN_HID0), "0" (hid0):
 		"memory");
 }
