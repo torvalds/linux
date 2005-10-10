@@ -493,11 +493,13 @@ static int sgiseeq_close(struct net_device *dev)
 {
 	struct sgiseeq_private *sp = netdev_priv(dev);
 	struct sgiseeq_regs *sregs = sp->sregs;
+	unsigned int irq = dev->irq;
 
 	netif_stop_queue(dev);
 
 	/* Shutdown the Seeq. */
 	reset_hpc3_and_seeq(sp->hregs, sregs);
+	free_irq(irq, dev);
 
 	return 0;
 }
@@ -734,7 +736,7 @@ static int sgiseeq_init(struct hpc3_regs* regs, int irq)
 	return 0;
 
 err_out_free_page:
-	free_page((unsigned long) sp);
+	free_page((unsigned long) sp->srings);
 err_out_free_dev:
 	kfree(dev);
 
@@ -754,15 +756,12 @@ static void __exit sgiseeq_exit(void)
 {
 	struct net_device *next, *dev;
 	struct sgiseeq_private *sp;
-	int irq;
 
 	for (dev = root_sgiseeq_dev; dev; dev = next) {
 		sp = (struct sgiseeq_private *) netdev_priv(dev);
 		next = sp->next_module;
-		irq = dev->irq;
 		unregister_netdev(dev);
-		free_irq(irq, dev);
-		free_page((unsigned long) sp);
+		free_page((unsigned long) sp->srings);
 		free_netdev(dev);
 	}
 }
