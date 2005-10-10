@@ -1,5 +1,5 @@
 /*
- * SMP support for pSeries and BPA machines.
+ * SMP support for pSeries machines.
  *
  * Dave Engebretsen, Peter Bergner, and
  * Mike Corrigan {engebret|bergner|mikec}@us.ibm.com
@@ -47,8 +47,6 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/mpic.h>
-
-#include "bpa_iic.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -343,36 +341,6 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 
 }
 #endif /* CONFIG_XICS */
-#ifdef CONFIG_BPA_IIC
-static void smp_iic_message_pass(int target, int msg)
-{
-	unsigned int i;
-
-	if (target < NR_CPUS) {
-		iic_cause_IPI(target, msg);
-	} else {
-		for_each_online_cpu(i) {
-			if (target == MSG_ALL_BUT_SELF
-			    && i == smp_processor_id())
-				continue;
-			iic_cause_IPI(i, msg);
-		}
-	}
-}
-
-static int __init smp_iic_probe(void)
-{
-	iic_request_IPIs();
-
-	return cpus_weight(cpu_possible_map);
-}
-
-static void __devinit smp_iic_setup_cpu(int cpu)
-{
-	if (cpu != boot_cpuid)
-		iic_setup_cpu();
-}
-#endif /* CONFIG_BPA_IIC */
 
 static DEFINE_SPINLOCK(timebase_lock);
 static unsigned long timebase = 0;
@@ -444,15 +412,6 @@ static struct smp_ops_t pSeries_xics_smp_ops = {
 	.cpu_bootable	= smp_pSeries_cpu_bootable,
 };
 #endif
-#ifdef CONFIG_BPA_IIC
-static struct smp_ops_t bpa_iic_smp_ops = {
-	.message_pass	= smp_iic_message_pass,
-	.probe		= smp_iic_probe,
-	.kick_cpu	= smp_pSeries_kick_cpu,
-	.setup_cpu	= smp_iic_setup_cpu,
-	.cpu_bootable	= smp_pSeries_cpu_bootable,
-};
-#endif
 
 /* This is called very early */
 void __init smp_init_pSeries(void)
@@ -470,11 +429,6 @@ void __init smp_init_pSeries(void)
 #ifdef CONFIG_XICS
 	case IC_PPC_XIC:
 		smp_ops = &pSeries_xics_smp_ops;
-		break;
-#endif
-#ifdef CONFIG_BPA_IIC
-	case IC_BPA_IIC:
-		smp_ops = &bpa_iic_smp_ops;
 		break;
 #endif
 	default:

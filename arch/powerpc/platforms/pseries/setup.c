@@ -64,8 +64,8 @@
 #include <asm/pmc.h>
 #include <asm/mpic.h>
 #include <asm/ppc-pci.h>
-
-#include "i8259.h"
+#include <asm/i8259.h>
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -124,7 +124,7 @@ static int pSeries_irq_cascade(struct pt_regs *regs, void *data)
 	if (chrp_int_ack_special)
 		return readb(chrp_int_ack_special);
 	else
-		return i8259_irq(smp_processor_id());
+		return i8259_irq(regs);
 }
 
 static void __init pSeries_init_mpic(void)
