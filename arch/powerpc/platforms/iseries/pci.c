@@ -220,6 +220,7 @@ static struct device_node *build_device_node(HvBusNumber Bus,
 		return NULL;
 	}
 	node->data = pdn;
+	pdn->node = node;
 	list_add_tail(&pdn->Device_List, &iSeries_Global_Device_List);
 #if 0
 	pdn->DsaAddr = ((u64)Bus << 48) + ((u64)SubBus << 40) + ((u64)0x10 << 32);
