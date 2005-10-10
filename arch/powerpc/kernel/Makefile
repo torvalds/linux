@@ -17,12 +17,14 @@ extra-$(CONFIG_44x)		:= head_44x.o
 extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
 extra-$(CONFIG_8xx)		:= head_8xx.o
 extra-$(CONFIG_6xx)		+= idle_6xx.o
+extra-$(CONFIG_PPC64)		+= entry_64.o
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
-obj-y				:= traps.o prom.o semaphore.o
-obj-$(CONFIG_PPC32)		+= setup_32.o process.o
+obj-y				+= traps.o prom.o semaphore.o
+obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= idle_power4.o
+obj-$(CONFIG_PPC64)		+= misc_64.o
 ifeq ($(CONFIG_PPC32),y)
 obj-$(CONFIG_PPC_OF)		+= prom_init.o of_device.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
