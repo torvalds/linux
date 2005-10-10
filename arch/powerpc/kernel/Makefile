@@ -10,7 +10,7 @@ CFLAGS_prom_init.o      += -fPIC
 CFLAGS_btext.o		+= -fPIC
 endif
 
-extra-$(CONFIG_PPC_STD_MMU)	:= head.o
+extra-$(CONFIG_PPC_STD_MMU)	:= head_32.o
 extra-$(CONFIG_PPC64)		:= head_64.o
 extra-$(CONFIG_40x)		:= head_4xx.o
 extra-$(CONFIG_44x)		:= head_44x.o
@@ -21,7 +21,7 @@ extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
 obj-y				:= traps.o prom.o semaphore.o
-obj-$(CONFIG_PPC32)		+= setup.o process.o
+obj-$(CONFIG_PPC32)		+= setup_32.o process.o
 obj-$(CONFIG_PPC64)		+= idle_power4.o
 ifeq ($(CONFIG_PPC32),y)
 obj-$(CONFIG_PPC_OF)		+= prom_init.o of_device.o

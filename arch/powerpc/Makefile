@@ -112,7 +112,7 @@ CFLAGS += $(cpu-as-y)
 # Default to the common case.
 KBUILD_DEFCONFIG := common_defconfig
 
-head-y				:= arch/powerpc/kernel/head.o
+head-y				:= arch/powerpc/kernel/head_32.o
 head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
 head-$(CONFIG_4xx)		:= arch/powerpc/kernel/head_4xx.o
