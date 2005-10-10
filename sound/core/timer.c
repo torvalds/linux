@@ -385,7 +385,7 @@ static void snd_timer_notify1(snd_timer_instance_t *ti, enum sndrv_timer_event e
 	struct list_head *n;
 	struct timespec tstamp;
 
-	snd_timestamp_now(&tstamp, 1);
+	getnstimeofday(&tstamp);
 	snd_assert(event >= SNDRV_TIMER_EVENT_START && event <= SNDRV_TIMER_EVENT_PAUSE, return);
 	if (event == SNDRV_TIMER_EVENT_START || event == SNDRV_TIMER_EVENT_CONTINUE)
 		resolution = snd_timer_resolution(ti);
@@ -1156,14 +1156,14 @@ static void snd_timer_user_tinterrupt(snd_timer_instance_t *timeri,
 	struct timespec tstamp;
 	int prev, append = 0;
 
-	snd_timestamp_zero(&tstamp);
+	memset(&tstamp, 0, sizeof(tstamp));
 	spin_lock(&tu->qlock);
 	if ((tu->filter & ((1 << SNDRV_TIMER_EVENT_RESOLUTION)|(1 << SNDRV_TIMER_EVENT_TICK))) == 0) {
 		spin_unlock(&tu->qlock);
 		return;
 	}
 	if (tu->last_resolution != resolution || ticks > 0)
-		snd_timestamp_now(&tstamp, 1);
+		getnstimeofday(&tstamp);
 	if ((tu->filter & (1 << SNDRV_TIMER_EVENT_RESOLUTION)) && tu->last_resolution != resolution) {
 		r1.event = SNDRV_TIMER_EVENT_RESOLUTION;
 		r1.tstamp = tstamp;
