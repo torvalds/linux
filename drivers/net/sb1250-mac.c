@@ -2419,7 +2419,7 @@ static int sbmac_init(struct net_device *dev, int idx)
 	if (err)
 		goto out_uninit;
 
-	if (periph_rev >= 2) {
+	if (sc->rx_hw_checksum == ENABLE) {
 		printk(KERN_INFO "%s: enabling TCP rcv checksum\n",
 			sc->sbm_dev->name);
 	}
