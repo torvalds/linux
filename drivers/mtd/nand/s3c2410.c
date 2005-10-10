@@ -18,7 +18,7 @@
  *	20-Jun-2005  BJD  Updated s3c2440 support, fixed timing bug
  *	08-Jul-2005  BJD  Fix OOPS when no platform data supplied
  *
- * $Id: s3c2410.c,v 1.16 2005/10/10 00:09:16 bjd Exp $
+ * $Id: s3c2410.c,v 1.17 2005/10/10 10:27:02 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -576,7 +576,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err("no memory for flash info\n");
+		dev_err(dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
