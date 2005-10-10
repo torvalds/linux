@@ -1390,7 +1390,8 @@ static int es1938_suspend(snd_card_t *card, pm_message_t state)
 		*d = snd_es1938_reg_read(chip, *s);
 
 	outb(0x00, SLIO_REG(chip, IRQCONTROL)); /* disable irqs */
-
+	if (chip->irq >= 0)                                                                         
+		free_irq(chip->irq, (void *)chip);  
 	pci_disable_device(chip->pci);
 	return 0;
 }
@@ -1401,6 +1402,7 @@ static int es1938_resume(snd_card_t *card)
 	unsigned char *s, *d;
 
 	pci_enable_device(chip->pci);
+	request_irq(chip->pci->irq, snd_es1938_interrupt, SA_INTERRUPT|SA_SHIRQ, "ES1938", (void *)chip);
 	snd_es1938_chip_init(chip);
 
 	/* restore mixer-related registers */
