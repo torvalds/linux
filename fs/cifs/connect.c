@@ -189,7 +189,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 					server->server_RFC1001_name);
 		}
 		if(rc) {
-			cERROR(1,("reconnect error %d",rc));
+			cFYI(1,("reconnect error %d",rc));
 			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
@@ -471,7 +471,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			} else {
 				/* give server a second to
 				clean up before reconnect attempt */
-				cERROR(1,("sleep before reconnect"));
 				msleep(1000);
 				/* always try 445 first on reconnect
 				since we get NACK on some if we ever
@@ -558,8 +557,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 
 		dump_smb(smb_buffer, length);
 		if (checkSMB (smb_buffer, smb_buffer->Mid, total_read+4)) {
-			cERROR(1, ("Bad SMB Received "));
-			cifs_dump_mem("smb: ", smb_buffer, 48);
+			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
 			continue;
 		}
 
@@ -1386,12 +1384,16 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 	/* Eventually check for other socket options to change from 
 		the default. sock_setsockopt not used because it expects 
 		user space buffer */
+	 cFYI(1,("sndbuf %d rcvbuf %d rcvtimeo 0x%lx",(*csocket)->sk->sk_sndbuf,
+		 (*csocket)->sk->sk_rcvbuf, (*csocket)->sk->sk_rcvtimeo));
 	(*csocket)->sk->sk_rcvtimeo = 7 * HZ;
-	 cERROR(1,("sndbuf %d rcvbuf %d reset to 200K each",(*csocket)->sk->sk_sndbuf, (*csocket)->sk->sk_rcvbuf));
-	(*csocket)->sk->sk_sndbuf = 300 * 1024;
-	(*csocket)->sk->sk_rcvbuf = 200 * 1024;
-	/* send RFC1001 sessinit */
+	/* make the bufsizes depend on wsize/rsize and max requests */
+	if((*csocket)->sk->sk_sndbuf < (200 * 1024))
+		(*csocket)->sk->sk_sndbuf = 200 * 1024;
+	if((*csocket)->sk->sk_rcvbuf < (140 * 1024))
+		(*csocket)->sk->sk_rcvbuf = 140 * 1024;
 
+	/* send RFC1001 sessinit */
 	if(psin_server->sin_port == htons(RFC1001_PORT)) {
 		/* some servers require RFC1001 sessinit before sending
 		negprot - BB check reconnection in case where second 
