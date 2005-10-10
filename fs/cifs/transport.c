@@ -169,6 +169,8 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 		}
 		if (rc < 0) 
 			break;
+		else
+			i = 0; /* reset i after each successful send */
 		iov.iov_base += rc;
 		iov.iov_len -= rc;
 		len -= rc;
@@ -263,6 +265,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 				}
 			}
 		}
+		i = 0; /* in case we get ENOSPC on the next send */
 	}
 
 	if (rc < 0) {

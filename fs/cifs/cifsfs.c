@@ -407,9 +407,24 @@ static struct quotactl_ops cifs_quotactl_ops = {
 
 static void cifs_umount_begin(struct super_block * sblock)
 {
-	cERROR(1,("kill all tasks now - umount begin not implemented yet"));
+	struct cifs_sb_info *cifs_sb;
 
-/* BB FIXME - finish BB */
+	cifs_sb = CIFS_SB(sb);
+	if(cifs_sb == NULL)
+		return -EIO;
+	if(cifs_sb->tcon == NULL)
+		return -EIO;
+	down(&tcon->tconSem);
+	if (atomic_read(&tcon->useCount) == 1)
+		tcon->tidStatus = CifsExiting;
+	up(&tcon->tconSem);
+
+	if((cifs->sb->tcon->ses) && (cifs_sb->tcon->ses->server))
+	{
+		cERROR(1,("wake up tasks now - umount begin not complete"));
+		wake_up_all(&server->request_q);
+	}
+/* BB FIXME - finish add checks for tidStatus BB */
 
 	return;
 }
