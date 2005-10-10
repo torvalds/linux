@@ -6,53 +6,95 @@
  * Implementations of the PowerPC Architecture (a.k.a. Green Book) here.
  */
 
-#ifndef _ASM_POWERPC_REGS_H
-#define _ASM_POWERPC_REGS_H
+#ifndef _ASM_POWERPC_REG_H
+#define _ASM_POWERPC_REG_H
 #ifdef __KERNEL__
 
 #include <linux/stringify.h>
+#include <asm/cputable.h>
 
 /* Pickup Book E specific registers. */
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include <asm/reg_booke.h>
 #endif
 
-/* Machine State Register (MSR) Fields */
-#define MSR_SF		(1<<63)
-#define MSR_ISF		(1<<61)
-#define MSR_VEC		(1<<25)		/* Enable AltiVec */
-#define MSR_POW		(1<<18)		/* Enable Power Management */
-#define MSR_WE		(1<<18)		/* Wait State Enable */
-#define MSR_TGPR	(1<<17)		/* TLB Update registers in use */
-#define MSR_CE		(1<<17)		/* Critical Interrupt Enable */
-#define MSR_ILE		(1<<16)		/* Interrupt Little Endian */
-#define MSR_EE		(1<<15)		/* External Interrupt Enable */
-#define MSR_PR		(1<<14)		/* Problem State / Privilege Level */
-#define MSR_FP		(1<<13)		/* Floating Point enable */
-#define MSR_ME		(1<<12)		/* Machine Check Enable */
-#define MSR_FE0		(1<<11)		/* Floating Exception mode 0 */
-#define MSR_SE		(1<<10)		/* Single Step */
-#define MSR_BE		(1<<9)		/* Branch Trace */
-#define MSR_DE		(1<<9)		/* Debug Exception Enable */
-#define MSR_FE1		(1<<8)		/* Floating Exception mode 1 */
-#define MSR_IP		(1<<6)		/* Exception prefix 0x000/0xFFF */
-#define MSR_IR		(1<<5)		/* Instruction Relocate */
-#define MSR_DR		(1<<4)		/* Data Relocate */
-#define MSR_PE		(1<<3)		/* Protection Enable */
-#define MSR_PX		(1<<2)		/* Protection Exclusive Mode */
-#define MSR_RI		(1<<1)		/* Recoverable Exception */
-#define MSR_LE		(1<<0)		/* Little Endian */
+#define MSR_SF_LG	63              /* Enable 64 bit mode */
+#define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
+#define MSR_HV_LG 	60              /* Hypervisor state */
+#define MSR_VEC_LG	25	        /* Enable AltiVec */
+#define MSR_POW_LG	18		/* Enable Power Management */
+#define MSR_WE_LG	18		/* Wait State Enable */
+#define MSR_TGPR_LG	17		/* TLB Update registers in use */
+#define MSR_CE_LG	17		/* Critical Interrupt Enable */
+#define MSR_ILE_LG	16		/* Interrupt Little Endian */
+#define MSR_EE_LG	15		/* External Interrupt Enable */
+#define MSR_PR_LG	14		/* Problem State / Privilege Level */
+#define MSR_FP_LG	13		/* Floating Point enable */
+#define MSR_ME_LG	12		/* Machine Check Enable */
+#define MSR_FE0_LG	11		/* Floating Exception mode 0 */
+#define MSR_SE_LG	10		/* Single Step */
+#define MSR_BE_LG	9		/* Branch Trace */
+#define MSR_DE_LG	9 		/* Debug Exception Enable */
+#define MSR_FE1_LG	8		/* Floating Exception mode 1 */
+#define MSR_IP_LG	6		/* Exception prefix 0x000/0xFFF */
+#define MSR_IR_LG	5 		/* Instruction Relocate */
+#define MSR_DR_LG	4 		/* Data Relocate */
+#define MSR_PE_LG	3		/* Protection Enable */
+#define MSR_PX_LG	2		/* Protection Exclusive Mode */
+#define MSR_PMM_LG	2		/* Performance monitor */
+#define MSR_RI_LG	1		/* Recoverable Exception */
+#define MSR_LE_LG	0 		/* Little Endian */
 
+#ifdef __ASSEMBLY__
+#define __MASK(X)	(1<<(X))
+#else
+#define __MASK(X)	(1UL<<(X))
+#endif
+
+#define MSR_SF		__MASK(MSR_SF_LG)	/* Enable 64 bit mode */
+#define MSR_ISF		__MASK(MSR_ISF_LG)	/* Interrupt 64b mode valid on 630 */
+#define MSR_HV 		__MASK(MSR_HV_LG)	/* Hypervisor state */
+#define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
+#define MSR_POW		__MASK(MSR_POW_LG)	/* Enable Power Management */
+#define MSR_WE		__MASK(MSR_WE_LG)	/* Wait State Enable */
+#define MSR_TGPR	__MASK(MSR_TGPR_LG)	/* TLB Update registers in use */
+#define MSR_CE		__MASK(MSR_CE_LG)	/* Critical Interrupt Enable */
+#define MSR_ILE		__MASK(MSR_ILE_LG)	/* Interrupt Little Endian */
+#define MSR_EE		__MASK(MSR_EE_LG)	/* External Interrupt Enable */
+#define MSR_PR		__MASK(MSR_PR_LG)	/* Problem State / Privilege Level */
+#define MSR_FP		__MASK(MSR_FP_LG)	/* Floating Point enable */
+#define MSR_ME		__MASK(MSR_ME_LG)	/* Machine Check Enable */
+#define MSR_FE0		__MASK(MSR_FE0_LG)	/* Floating Exception mode 0 */
+#define MSR_SE		__MASK(MSR_SE_LG)	/* Single Step */
+#define MSR_BE		__MASK(MSR_BE_LG)	/* Branch Trace */
+#define MSR_DE		__MASK(MSR_DE_LG)	/* Debug Exception Enable */
+#define MSR_FE1		__MASK(MSR_FE1_LG)	/* Floating Exception mode 1 */
+#define MSR_IP		__MASK(MSR_IP_LG)	/* Exception prefix 0x000/0xFFF */
+#define MSR_IR		__MASK(MSR_IR_LG)	/* Instruction Relocate */
+#define MSR_DR		__MASK(MSR_DR_LG)	/* Data Relocate */
+#define MSR_PE		__MASK(MSR_PE_LG)	/* Protection Enable */
+#define MSR_PX		__MASK(MSR_PX_LG)	/* Protection Exclusive Mode */
+#define MSR_PMM		__MASK(MSR_PMM_LG)	/* Performance monitor */
+#define MSR_RI		__MASK(MSR_RI_LG)	/* Recoverable Exception */
+#define MSR_LE		__MASK(MSR_LE_LG)	/* Little Endian */
+
+#ifdef CONFIG_PPC64
+#define MSR_		MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF
+#define MSR_KERNEL      MSR_ | MSR_SF | MSR_HV
+
+#define MSR_USER32	MSR_ | MSR_PR | MSR_EE
+#define MSR_USER64	MSR_USER32 | MSR_SF
+
+#else /* 32-bit */
 /* Default MSR for kernel mode. */
 #ifdef CONFIG_APUS_FAST_EXCEPT
 #define MSR_KERNEL	(MSR_ME|MSR_IP|MSR_RI|MSR_IR|MSR_DR)
-#endif
-
-#ifndef MSR_KERNEL
+#else
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
 #endif
 
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
+#endif
 
 /* Floating Point Status and Control Register (FPSCR) Fields */
 #define FPSCR_FX	0x80000000	/* FPU exception summary */
@@ -85,6 +127,9 @@
 
 /* Special Purpose Registers (SPRNs)*/
 #define SPRN_CTR	0x009	/* Count Register */
+#define SPRN_CTRLF	0x088
+#define SPRN_CTRLT	0x098
+#define   CTRL_RUNLATCH	0x1
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
 #define   DABR_TRANSLATION	(1UL << 2)
 #define SPRN_DAR	0x013	/* Data Address Register */
@@ -193,6 +238,16 @@
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
 #define SPRN_HID5	0x3F6		/* 970 HID5 */
+#define	SPRN_HID6	0x3F9	/* BE HID 6 */
+#define	  HID6_LB	(0x0F<<12) /* Concurrent Large Page Modes */
+#define	  HID6_DLP	(1<<20)	/* Disable all large page modes (4K only) */
+#define	SPRN_TSCR	0x399   /* Thread switch control on BE */
+#define	SPRN_TTR	0x39A   /* Thread switch timeout on BE */
+#define	  TSCR_DEC_ENABLE	0x200000 /* Decrementer Interrupt */
+#define	  TSCR_EE_ENABLE	0x100000 /* External Interrupt */
+#define	  TSCR_EE_BOOST		0x080000 /* External Interrupt Boost */
+#define	SPRN_TSC 	0x3FD	/* Thread switch control on others */
+#define	SPRN_TST 	0x3FC	/* Thread switch timeout on others */
 #if !defined(SPRN_IAC1) && !defined(SPRN_IAC2)
 #define SPRN_IAC1	0x3F4		/* Instruction Address Compare 1 */
 #define SPRN_IAC2	0x3F5		/* Instruction Address Compare 2 */
@@ -276,22 +331,18 @@
 #define L3CR_L3DO		0x00000040	/* L3 data only mode */
 #define L3CR_PMEN		0x00000004	/* L3 private memory enable */
 #define L3CR_PMSIZ		0x00000001	/* L3 private memory size */
+
 #define SPRN_MSSCR0	0x3f6	/* Memory Subsystem Control Register 0 */
 #define SPRN_MSSSR0	0x3f7	/* Memory Subsystem Status Register 1 */
 #define SPRN_LDSTCR	0x3f8	/* Load/Store control register */
 #define SPRN_LDSTDB	0x3f4	/* */
 #define SPRN_LR		0x008	/* Link Register */
-#define SPRN_MMCR0	0x3B8	/* Monitor Mode Control Register 0 */
-#define SPRN_MMCR1	0x3BC	/* Monitor Mode Control Register 1 */
 #ifndef SPRN_PIR
 #define SPRN_PIR	0x3FF	/* Processor Identification Register */
 #endif
-#define SPRN_PMC1	0x3B9	/* Performance Counter Register 1 */
-#define SPRN_PMC2	0x3BA	/* Performance Counter Register 2 */
-#define SPRN_PMC3	0x3BD	/* Performance Counter Register 3 */
-#define SPRN_PMC4	0x3BE	/* Performance Counter Register 4 */
 #define SPRN_PTEHI	0x3D5	/* 981 7450 PTE HI word (S/W TLB load) */
 #define SPRN_PTELO	0x3D6	/* 982 7450 PTE LO word (S/W TLB load) */
+#define	SPRN_PURR	0x135	/* Processor Utilization of Resources Reg */
 #define SPRN_PVR	0x11F	/* Processor Version Register */
 #define SPRN_RPA	0x3D6	/* Required Physical Address Register */
 #define SPRN_SDA	0x3BF	/* Sampled Data Address Register */
@@ -333,6 +384,52 @@
 #define SPRN_VRSAVE	0x100	/* Vector Register Save Register */
 #define SPRN_XER	0x001	/* Fixed Point Exception Register */
 
+/* Performance monitor SPRs */
+#ifdef CONFIG_PPC64
+#define SPRN_MMCR0	795
+#define   MMCR0_FC	0x80000000UL /* freeze counters */
+#define   MMCR0_FCS	0x40000000UL /* freeze in supervisor state */
+#define   MMCR0_KERNEL_DISABLE MMCR0_FCS
+#define   MMCR0_FCP	0x20000000UL /* freeze in problem state */
+#define   MMCR0_PROBLEM_DISABLE MMCR0_FCP
+#define   MMCR0_FCM1	0x10000000UL /* freeze counters while MSR mark = 1 */
+#define   MMCR0_FCM0	0x08000000UL /* freeze counters while MSR mark = 0 */
+#define   MMCR0_PMXE	0x04000000UL /* performance monitor exception enable */
+#define   MMCR0_FCECE	0x02000000UL /* freeze ctrs on enabled cond or event */
+#define   MMCR0_TBEE	0x00400000UL /* time base exception enable */
+#define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
+#define   MMCR0_PMCjCE	0x00004000UL /* PMCj count enable*/
+#define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
+#define   MMCR0_PMAO	0x00000080UL /* performance monitor alert has occurred, set to 0 after handling exception */
+#define   MMCR0_SHRFC	0x00000040UL /* SHRre freeze conditions between threads */
+#define   MMCR0_FCTI	0x00000008UL /* freeze counters in tags inactive mode */
+#define   MMCR0_FCTA	0x00000004UL /* freeze counters in tags active mode */
+#define   MMCR0_FCWAIT	0x00000002UL /* freeze counter in WAIT state */
+#define   MMCR0_FCHV	0x00000001UL /* freeze conditions in hypervisor mode */
+#define SPRN_MMCR1	798
+#define SPRN_MMCRA	0x312
+#define   MMCRA_SIHV	0x10000000UL /* state of MSR HV when SIAR set */
+#define   MMCRA_SIPR	0x08000000UL /* state of MSR PR when SIAR set */
+#define   MMCRA_SAMPLE_ENABLE 0x00000001UL /* enable sampling */
+#define SPRN_PMC1	787
+#define SPRN_PMC2	788
+#define SPRN_PMC3	789
+#define SPRN_PMC4	790
+#define SPRN_PMC5	791
+#define SPRN_PMC6	792
+#define SPRN_PMC7	793
+#define SPRN_PMC8	794
+#define SPRN_SIAR	780
+#define SPRN_SDAR	781
+
+#else /* 32-bit */
+#define SPRN_MMCR0	0x3B8	/* Monitor Mode Control Register 0 */
+#define SPRN_MMCR1	0x3BC	/* Monitor Mode Control Register 1 */
+#define SPRN_PMC1	0x3B9	/* Performance Counter Register 1 */
+#define SPRN_PMC2	0x3BA	/* Performance Counter Register 2 */
+#define SPRN_PMC3	0x3BD	/* Performance Counter Register 3 */
+#define SPRN_PMC4	0x3BE	/* Performance Counter Register 4 */
+
 /* Bit definitions for MMCR0 and PMC1 / PMC2. */
 #define MMCR0_PMC1_CYCLES	(1 << 7)
 #define MMCR0_PMC1_ICACHEMISS	(5 << 7)
@@ -342,13 +439,14 @@
 #define MMCR0_PMC2_ITLB		0x7
 #define MMCR0_PMC2_LOADMISSTIME	0x5
 #define MMCR0_PMXE	(1 << 26)
-
-/* Processor Version Register */
+#endif
 
 /* Processor Version Register (PVR) field extraction */
 
 #define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)	/* Version field */
 #define PVR_REV(pvr)	(((pvr) >>   0) & 0xFFFF)	/* Revison field */
+
+#define __is_processor(pv)	(PVR_VER(mfspr(SPRN_PVR)) == (pv))
 
 /*
  * IBM has further subdivided the standard PowerPC 16-bit version and
@@ -405,42 +503,105 @@
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240
 
-#if 0
-/* Segment Registers */
-#define SR0	0
-#define SR1	1
-#define SR2	2
-#define SR3	3
-#define SR4	4
-#define SR5	5
-#define SR6	6
-#define SR7	7
-#define SR8	8
-#define SR9	9
-#define SR10	10
-#define SR11	11
-#define SR12	12
-#define SR13	13
-#define SR14	14
-#define SR15	15
-#endif
+/* 64-bit processors */
+/* XXX the prefix should be PVR_, we'll do a global sweep to fix it one day */
+#define	PV_NORTHSTAR	0x0033
+#define	PV_PULSAR	0x0034
+#define	PV_POWER4	0x0035
+#define	PV_ICESTAR	0x0036
+#define	PV_SSTAR	0x0037
+#define	PV_POWER4p	0x0038
+#define PV_970		0x0039
+#define	PV_POWER5	0x003A
+#define PV_POWER5p	0x003B
+#define PV_970FX	0x003C
+#define	PV_630		0x0040
+#define	PV_630p	0x0041
+#define	PV_970MP	0x0044
+#define	PV_BE		0x0070
+
+/*
+ * Number of entries in the SLB. If this ever changes we should handle
+ * it with a use a cpu feature fixup.
+ */
+#define SLB_NUM_ENTRIES 64
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
-#define mfmsr()		({unsigned int rval; \
+#define mfmsr()		({unsigned long rval; \
 			asm volatile("mfmsr %0" : "=r" (rval)); rval;})
+#ifdef CONFIG_PPC64
+#define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
+				     : : "r" (v))
+#define mtmsrd(v)	__mtmsrd((v), 0)
+#else
 #define mtmsr(v)	asm volatile("mtmsr %0" : : "r" (v))
+#endif
 
-#define mfspr(rn)	({unsigned int rval; \
+#define mfspr(rn)	({unsigned long rval; \
 			asm volatile("mfspr %0," __stringify(rn) \
 				: "=r" (rval)); rval;})
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : : "r" (v))
 
+#define mftb()		({unsigned long rval;	\
+			asm volatile("mftb %0" : "=r" (rval)); rval;})
+#define mftbl()		({unsigned long rval;	\
+			asm volatile("mftbl %0" : "=r" (rval)); rval;})
+
+#define mttbl(v)	asm volatile("mttbl %0":: "r"(v))
+#define mttbu(v)	asm volatile("mttbu %0":: "r"(v))
+
+#ifdef CONFIG_PPC32
 #define mfsrin(v)	({unsigned int rval; \
 			asm volatile("mfsrin %0,%1" : "=r" (rval) : "r" (v)); \
 					rval;})
+#endif
 
 #define proc_trap()	asm volatile("trap")
+
+#ifdef CONFIG_PPC64
+static inline void ppc64_runlatch_on(void)
+{
+	unsigned long ctrl;
+
+	if (cpu_has_feature(CPU_FTR_CTRL)) {
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl |= CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
+}
+
+static inline void ppc64_runlatch_off(void)
+{
+	unsigned long ctrl;
+
+	if (cpu_has_feature(CPU_FTR_CTRL)) {
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl &= ~CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
+}
+
+static inline void set_tb(unsigned int upper, unsigned int lower)
+{
+	mttbl(0);
+	mttbu(upper);
+	mttbl(lower);
+}
+#endif
+
+#define __get_SP()	({unsigned long sp; \
+			asm volatile("mr %0,1": "=r" (sp)); sp;})
+
+#else /* __ASSEMBLY__ */
+
+#define RUNLATCH_ON(REG)			\
+BEGIN_FTR_SECTION				\
+	mfspr	(REG),SPRN_CTRLF;		\
+	ori	(REG),(REG),CTRL_RUNLATCH;	\
+	mtspr	SPRN_CTRLT,(REG);		\
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
-#endif /* _ASM_POWERPC_REGS_H */
+#endif /* _ASM_POWERPC_REG_H */

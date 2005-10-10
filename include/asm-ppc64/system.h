@@ -144,13 +144,6 @@ struct thread_struct;
 extern struct task_struct * _switch(struct thread_struct *prev,
 				    struct thread_struct *next);
 
-static inline int __is_processor(unsigned long pv)
-{
-	unsigned long pvr;
-	asm("mfspr %0, 0x11F" : "=r" (pvr)); 
-	return(PVR_VER(pvr) == pv);
-}
-
 /*
  * Atomic exchange
  *
