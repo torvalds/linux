@@ -750,7 +750,14 @@ static void sbdma_initctx(sbmacdma_t *d,
 	d->sbdma_maxdescr = maxdescr;
 	
 	d->sbdma_dscrtable = (sbdmadscr_t *) 
-		kmalloc(d->sbdma_maxdescr*sizeof(sbdmadscr_t), GFP_KERNEL);
+		kmalloc((d->sbdma_maxdescr+1)*sizeof(sbdmadscr_t), GFP_KERNEL);
+
+	/*
+	 * The descriptor table must be aligned to at least 16 bytes or the
+	 * MAC will corrupt it.
+	 */
+	d->sbdma_dscrtable = (sbdmadscr_t *)
+		ALIGN((unsigned long)d->sbdma_dscrtable, sizeof(sbdmadscr_t));
 	
 	memset(d->sbdma_dscrtable,0,d->sbdma_maxdescr*sizeof(sbdmadscr_t));
 	
