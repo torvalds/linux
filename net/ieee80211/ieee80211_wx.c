@@ -152,15 +152,18 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.qual.level = 0;
 	} else {
 		iwe.u.qual.level = network->stats.rssi;
-		iwe.u.qual.qual =
-		    (100 *
-		     (ieee->perfect_rssi - ieee->worst_rssi) *
-		     (ieee->perfect_rssi - ieee->worst_rssi) -
-		     (ieee->perfect_rssi - network->stats.rssi) *
-		     (15 * (ieee->perfect_rssi - ieee->worst_rssi) +
-		      62 * (ieee->perfect_rssi - network->stats.rssi))) /
-		    ((ieee->perfect_rssi - ieee->worst_rssi) *
-		     (ieee->perfect_rssi - ieee->worst_rssi));
+		if (ieee->perfect_rssi == ieee->worst_rssi)
+			iwe.u.qual.qual = 100;
+		else
+			iwe.u.qual.qual =
+			    (100 *
+			     (ieee->perfect_rssi - ieee->worst_rssi) *
+			     (ieee->perfect_rssi - ieee->worst_rssi) -
+			     (ieee->perfect_rssi - network->stats.rssi) *
+			     (15 * (ieee->perfect_rssi - ieee->worst_rssi) +
+			      62 * (ieee->perfect_rssi - network->stats.rssi))) /
+			    ((ieee->perfect_rssi - ieee->worst_rssi) *
+			     (ieee->perfect_rssi - ieee->worst_rssi));
 		if (iwe.u.qual.qual > 100)
 			iwe.u.qual.qual = 100;
 		else if (iwe.u.qual.qual < 1)
