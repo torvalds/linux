@@ -5,7 +5,7 @@
  *
  *      adopted from sunlance.c by Richard van den Berg
  *
- *      Copyright (C) 2002, 2003  Maciej W. Rozycki
+ *      Copyright (C) 2002, 2003, 2005  Maciej W. Rozycki
  *
  *      additional sources:
  *      - PMAD-AA TURBOchannel Ethernet Module Functional Specification,
@@ -57,13 +57,15 @@
 #include <linux/string.h>
 
 #include <asm/addrspace.h>
+#include <asm/system.h>
+
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic.h>
 #include <asm/dec/ioasic_addrs.h>
 #include <asm/dec/kn01.h>
 #include <asm/dec/machtype.h>
+#include <asm/dec/system.h>
 #include <asm/dec/tc.h>
-#include <asm/system.h>
 
 static char version[] __devinitdata =
 "declance.c: v0.009 by Linux MIPS DECstation task force\n";
@@ -79,10 +81,6 @@ MODULE_LICENSE("GPL");
 #define PMAD_LANCE 2
 #define PMAX_LANCE 3
 
-#ifndef CONFIG_TC
-unsigned long system_base;
-unsigned long dmaptr;
-#endif
 
 #define LE_CSR0 0
 #define LE_CSR1 1
@@ -1027,10 +1025,6 @@ static int __init dec_lance_init(const int type, const int slot)
 	unsigned long esar_base;
 	unsigned char *esar;
 
-#ifndef CONFIG_TC
-	system_base = KN01_LANCE_BASE;
-#endif
-
 	if (dec_lance_debug && version_printed++ == 0)
 		printk(version);
 
@@ -1063,7 +1057,7 @@ static int __init dec_lance_init(const int type, const int slot)
 	switch (type) {
 #ifdef CONFIG_TC
 	case ASIC_LANCE:
-		dev->base_addr = system_base + IOASIC_LANCE;
+		dev->base_addr = CKSEG1ADDR(dec_kn_slot_base + IOASIC_LANCE);
 
 		/* buffer space for the on-board LANCE shared memory */
 		/*
@@ -1072,7 +1066,7 @@ static int __init dec_lance_init(const int type, const int slot)
 		dev->mem_start = CKSEG1ADDR(0x00020000);
 		dev->mem_end = dev->mem_start + 0x00020000;
 		dev->irq = dec_interrupt[DEC_IRQ_LANCE];
-		esar_base = system_base + IOASIC_ESAR;
+		esar_base = CKSEG1ADDR(dec_kn_slot_base + IOASIC_ESAR);
 
 		/* Workaround crash with booting KN04 2.1k from Disk */
 		memset((void *)dev->mem_start, 0,
@@ -1109,7 +1103,7 @@ static int __init dec_lance_init(const int type, const int slot)
 	case PMAD_LANCE:
 		claim_tc_card(slot);
 
-		dev->mem_start = get_tc_base_addr(slot);
+		dev->mem_start = CKSEG1ADDR(get_tc_base_addr(slot));
 		dev->base_addr = dev->mem_start + 0x100000;
 		dev->irq = get_tc_irq_nr(slot);
 		esar_base = dev->mem_start + 0x1c0002;
@@ -1138,9 +1132,9 @@ static int __init dec_lance_init(const int type, const int slot)
 
 	case PMAX_LANCE:
 		dev->irq = dec_interrupt[DEC_IRQ_LANCE];
-		dev->base_addr = KN01_LANCE_BASE;
-		dev->mem_start = KN01_LANCE_BASE + 0x01000000;
-		esar_base = KN01_RTC_BASE + 1;
+		dev->base_addr = CKSEG1ADDR(KN01_SLOT_BASE + KN01_LANCE);
+		dev->mem_start = CKSEG1ADDR(KN01_SLOT_BASE + KN01_LANCE_MEM);
+		esar_base = CKSEG1ADDR(KN01_SLOT_BASE + KN01_ESAR + 1);
 		lp->dma_irq = -1;
 
 		/*
