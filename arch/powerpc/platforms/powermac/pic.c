@@ -25,6 +25,7 @@
 #include <linux/sysdev.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
+#include <linux/module.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -32,12 +33,11 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/time.h>
-#include <asm/open_pic.h>
 #include <asm/xmon.h>
 #include <asm/pmac_feature.h>
 #include <asm/mpic.h>
 
-#include "pmac_pic.h"
+#include "pmac.h"
 
 /*
  * XXX this should be in xmon.h, but putting it there means xmon.h
@@ -46,6 +46,7 @@
  */
 extern irqreturn_t xmon_irq(int, void *, struct pt_regs *);
 
+#ifdef CONFIG_PPC32
 struct pmac_irq_hw {
         unsigned int    event;
         unsigned int    enable;
@@ -71,6 +72,9 @@ static u32 level_mask[4];
 
 static DEFINE_SPINLOCK(pmac_pic_lock);
 
+/* XXX here for now, should move to arch/powerpc/kernel/irq.c */
+int ppc_do_canonicalize_irqs;
+EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
 
 #define GATWICK_IRQ_POOL_SIZE        10
 static struct interrupt_info gatwick_int_pool[GATWICK_IRQ_POOL_SIZE];
@@ -377,11 +381,6 @@ static int __init enable_second_ohare(void)
 	return irqctrler->intrs[0].line;
 }
 
-static int pmac_u3_cascade(struct pt_regs *regs, void *data)
-{
-	return mpic_get_one_irq((struct mpic *)data, regs);
-}
-
 #ifdef CONFIG_XMON
 static struct irqaction xmon_action = {
 	.handler	= xmon_irq,
@@ -397,15 +396,23 @@ static struct irqaction gatwick_cascade_action = {
 	.mask		= CPU_MASK_NONE,
 	.name		= "cascade",
 };
+#endif /* CONFIG_PPC32 */
+
+static int pmac_u3_cascade(struct pt_regs *regs, void *data)
+{
+	return mpic_get_one_irq((struct mpic *)data, regs);
+}
 
 void __init pmac_pic_init(void)
 {
-        int i;
         struct device_node *irqctrler  = NULL;
         struct device_node *irqctrler2 = NULL;
 	struct device_node *np;
+#ifdef CONFIG_PPC32
+        int i;
         unsigned long addr;
 	int irq_cascade = -1;
+#endif
 	struct mpic *mpic1, *mpic2;
 
 	/* We first try to detect Apple's new Core99 chipset, since mac-io
@@ -455,7 +462,7 @@ void __init pmac_pic_init(void)
 			mpic_setup_cascade(irqctrler2->intrs[0].line,
 					   pmac_u3_cascade, mpic2);
 		}
-#ifdef CONFIG_XMON
+#if defined(CONFIG_XMON) && defined(CONFIG_PPC32)
 		{
 			struct device_node* pswitch;
 			int nmi_irq;
@@ -463,7 +470,7 @@ void __init pmac_pic_init(void)
 			pswitch = find_devices("programmer-switch");
 			if (pswitch && pswitch->n_intrs) {
 				nmi_irq = pswitch->intrs[0].line;
-				openpic_init_nmi_irq(nmi_irq);
+				mpic_irq_set_priority(nmi_irq, 9);
 				setup_irq(nmi_irq, &xmon_action);
 			}
 		}
@@ -472,6 +479,7 @@ void __init pmac_pic_init(void)
 	}
 	irqctrler = NULL;
 
+#ifdef CONFIG_PPC32
 	/* Get the level/edge settings, assume if it's not
 	 * a Grand Central nor an OHare, then it's an Heathrow
 	 * (or Paddington).
@@ -570,6 +578,7 @@ void __init pmac_pic_init(void)
 #ifdef CONFIG_XMON
 	setup_irq(20, &xmon_action);
 #endif	/* CONFIG_XMON */
+#endif	/* CONFIG_PPC32 */
 }
 
 #ifdef CONFIG_PM
@@ -659,9 +668,10 @@ static struct sysdev_driver driver_pmacpic = {
 
 static int __init init_pmacpic_sysfs(void)
 {
+#ifdef CONFIG_PPC32
 	if (max_irqs == 0)
 		return -ENODEV;
-
+#endif
 	printk(KERN_DEBUG "Registering pmac pic with sysfs...\n");
 	sysdev_class_register(&pmacpic_sysclass);
 	sysdev_register(&device_pmacpic);

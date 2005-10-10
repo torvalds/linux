@@ -73,27 +73,9 @@
 #include <asm/of_device.h>
 #include <asm/mmu_context.h>
 
-#include "pmac_pic.h"
+#include "pmac.h"
 
 #undef SHOW_GATWICK_IRQS
-
-extern long pmac_time_init(void);
-extern unsigned long pmac_get_rtc_time(void);
-extern int pmac_set_rtc_time(unsigned long nowtime);
-extern void pmac_read_rtc_time(void);
-extern void pmac_calibrate_decr(void);
-extern void pmac_pcibios_fixup(void);
-extern void pmac_find_bridges(void);
-extern unsigned long pmac_ide_get_base(int index);
-extern void pmac_ide_init_hwif_ports(hw_regs_t *hw,
-	unsigned long data_port, unsigned long ctrl_port, int *irq);
-
-extern void pmac_nvram_update(void);
-extern unsigned char pmac_nvram_read_byte(int addr);
-extern void pmac_nvram_write_byte(int addr, unsigned char val);
-extern int pmac_pci_enable_device_hook(struct pci_dev *dev, int initial);
-extern void pmac_pcibios_after_init(void);
-extern int of_show_percpuinfo(struct seq_file *m, int i);
 
 unsigned char drive_info;
 

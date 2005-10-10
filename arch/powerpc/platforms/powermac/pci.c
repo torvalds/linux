@@ -1,8 +1,5 @@
 /*
  * Support for PCI bridges found on Power Macintoshes.
- * At present the "bandit" and "chaos" bridges are supported.
- * Fortunately you access configuration space in the same
- * way with either bridge.
  *
  * Copyright (C) 2003 Benjamin Herrenschmuidt (benh@kernel.crashing.org)
  * Copyright (C) 1997 Paul Mackerras (paulus@samba.org)
@@ -26,6 +23,10 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
+#ifdef CONFIG_PPC64
+#include <asm/iommu.h>
+#include <asm/ppc-pci.h>
+#endif
 
 #undef DEBUG
 
@@ -160,8 +161,12 @@ static unsigned long macrisc_cfg_access(struct pci_controller* hose,
 static int macrisc_read_config(struct pci_bus *bus, unsigned int devfn,
 				      int offset, int len, u32 *val)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose;
 	unsigned long addr;
+
+	hose = pci_bus_to_host(bus);
+	if (hose == NULL)
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	addr = macrisc_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
@@ -187,8 +192,12 @@ static int macrisc_read_config(struct pci_bus *bus, unsigned int devfn,
 static int macrisc_write_config(struct pci_bus *bus, unsigned int devfn,
 				       int offset, int len, u32 val)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose;
 	unsigned long addr;
+
+	hose = pci_bus_to_host(bus);
+	if (hose == NULL)
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	addr = macrisc_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
@@ -221,7 +230,7 @@ static struct pci_ops macrisc_pci_ops =
 };
 
 /*
- * Verifiy that a specific (bus, dev_fn) exists on chaos
+ * Verify that a specific (bus, dev_fn) exists on chaos
  */
 static int
 chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
@@ -274,7 +283,6 @@ static struct pci_ops chaos_pci_ops =
 };
 
 #ifdef CONFIG_POWER4
-
 /*
  * These versions of U3 HyperTransport config space access ops do not
  * implement self-view of the HT host yet
@@ -342,11 +350,11 @@ static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
 static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 				    int offset, int len, u32 *val)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose;
 	unsigned long addr;
 
-	struct device_node *np = pci_busdev_to_OF_node(bus, devfn);
-	if (np == NULL)
+	hose = pci_bus_to_host(bus);
+	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
@@ -357,19 +365,19 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 	case 0:
 		break;
 	case 1:
-			switch (len) {
-			case 1:
-				*val = 0xff; break;
-			case 2:
-				*val = 0xffff; break;
-			default:
-				*val = 0xfffffffful; break;
-			}
-			return PCIBIOS_SUCCESSFUL;
+		switch (len) {
+		case 1:
+			*val = 0xff; break;
+		case 2:
+			*val = 0xffff; break;
+		default:
+			*val = 0xfffffffful; break;
+		}
+		return PCIBIOS_SUCCESSFUL;
 	default:
 		return PCIBIOS_DEVICE_NOT_FOUND;
-		}
-	    
+	}
+
 	/*
 	 * Note: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
@@ -391,11 +399,11 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int offset, int len, u32 val)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose;
 	unsigned long addr;
 
-	struct device_node *np = pci_busdev_to_OF_node(bus, devfn);
-	if (np == NULL)
+	hose = pci_bus_to_host(bus);
+	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
@@ -437,15 +445,13 @@ static struct pci_ops u3_ht_pci_ops =
 	u3_ht_read_config,
 	u3_ht_write_config
 };
-
 #endif /* CONFIG_POWER4 */
 
 /*
  * For a bandit bridge, turn on cache coherency if necessary.
  * N.B. we could clean this up using the hose ops directly.
  */
-static void __init
-init_bandit(struct pci_controller *bp)
+static void __init init_bandit(struct pci_controller *bp)
 {
 	unsigned int vendev, magic;
 	int rev;
@@ -485,8 +491,7 @@ init_bandit(struct pci_controller *bp)
 /*
  * Tweak the PCI-PCI bridge chip on the blue & white G3s.
  */
-static void __init
-init_p2pbridge(void)
+static void __init init_p2pbridge(void)
 {
 	struct device_node *p2pbridge;
 	struct pci_controller* hose;
@@ -526,8 +531,7 @@ init_p2pbridge(void)
  * EHCI part of it so it behaves like a pair of OHCI's. This fixup
  * code re-enables it ;)
  */
-static void __init
-fixup_nec_usb2(void)
+static void __init fixup_nec_usb2(void)
 {
 	struct device_node *nec;
 
@@ -565,77 +569,6 @@ fixup_nec_usb2(void)
 				nec->intrs[0].line);
 		}
 	}
-}
-
-void __init
-pmac_find_bridges(void)
-{
-	struct device_node *np, *root;
-	struct device_node *ht = NULL;
-
-	root = of_find_node_by_path("/");
-	if (root == NULL) {
-		printk(KERN_CRIT "pmac_find_bridges: can't find root of device tree\n");
-		return;
-	}
-	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
-		if (np->name == NULL)
-			continue;
-		if (strcmp(np->name, "bandit") == 0
-		    || strcmp(np->name, "chaos") == 0
-		    || strcmp(np->name, "pci") == 0) {
-			if (add_bridge(np) == 0)
-				of_node_get(np);
-		}
-		if (strcmp(np->name, "ht") == 0) {
-			of_node_get(np);
-			ht = np;
-		}
-	}
-	of_node_put(root);
-
-	/* Probe HT last as it relies on the agp resources to be already
-	 * setup
-	 */
-	if (ht && add_bridge(ht) != 0)
-		of_node_put(ht);
-
-	init_p2pbridge();
-	fixup_nec_usb2();
-	
-	/* We are still having some issues with the Xserve G4, enabling
-	 * some offset between bus number and domains for now when we
-	 * assign all busses should help for now
-	 */
-	if (pci_assign_all_busses)
-		pcibios_assign_bus_offset = 0x10;
-
-#ifdef CONFIG_POWER4 
-	/* There is something wrong with DMA on U3/HT. I haven't figured out
-	 * the details yet, but if I set the cache line size to 128 bytes like
-	 * it should, I'm getting memory corruption caused by devices like
-	 * sungem (even without the MWI bit set, but maybe sungem doesn't
-	 * care). Right now, it appears that setting up a 64 bytes line size
-	 * works properly, 64 bytes beeing the max transfer size of HT, I
-	 * suppose this is related the way HT/PCI are hooked together. I still
-	 * need to dive into more specs though to be really sure of what's
-	 * going on. --BenH.
-	 *
-	 * Ok, apparently, it's just that HT can't do more than 64 bytes
-	 * transactions. MWI seem to be meaningless there as well, it may
-	 * be worth nop'ing out pci_set_mwi too though I haven't done that
-	 * yet.
-	 *
-	 * Note that it's a bit different for whatever is in the AGP slot.
-	 * For now, I don't care, but this can become a real issue, we
-	 * should probably hook pci_set_mwi anyway to make sure it sets
-	 * the real cache line size in there.
-	 */
-	if (machine_is_compatible("MacRISC4"))
-		pci_cache_line_size = 16; /* 64 bytes */
-
-	pmac_check_ht_link();
-#endif /* CONFIG_POWER4 */
 }
 
 #define GRACKLE_CFA(b, d, o)	(0x80 | ((b) << 8) | ((d) << 16) \
@@ -703,7 +636,6 @@ setup_chaos(struct pci_controller* hose, struct reg_property* addr)
 }
 
 #ifdef CONFIG_POWER4
-
 static void __init setup_u3_agp(struct pci_controller* hose)
 {
 	/* On G5, we move AGP up to high bus number so we don't need
@@ -715,7 +647,7 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-       	hose->first_busno = 0xf0;
+	hose->first_busno = 0xf0;
 	hose->last_busno = 0xff;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
@@ -748,7 +680,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 */
 	hose->io_base_phys = 0xf4000000;
 	hose->io_base_virt = ioremap(hose->io_base_phys, 0x00400000);
-	isa_io_base = (unsigned long) hose->io_base_virt;
+	isa_io_base = pci_io_base = (unsigned long) hose->io_base_virt;
 	hose->io_resource.name = np->full_name;
 	hose->io_resource.start = 0;
 	hose->io_resource.end = 0x003fffff;
@@ -794,13 +726,13 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 		}
 		/* No, it's not the case, we need a hole */
 		if (cur == 2) {
-			/* not enough resources to make a hole, we drop part of the range */
+			/* not enough resources for a hole, we drop part of the range */
 			printk(KERN_WARNING "Running out of resources for /ht host !\n");
 			hose->mem_resources[cur].end = res->start - 1;
 			continue;
 		}		
 		cur++;
-       		DBG("U3/HT: hole, %d end at %08lx, %d start at %08lx\n",
+		DBG("U3/HT: hole, %d end at %08lx, %d start at %08lx\n",
 		    cur-1, res->start - 1, cur, res->end + 1);
 		hose->mem_resources[cur].name = np->full_name;
 		hose->mem_resources[cur].flags = IORESOURCE_MEM;
@@ -981,7 +913,7 @@ static int __init add_bridge(struct device_node *dev)
 	if (device_is_compatible(dev, "uni-north")) {
        		primary = setup_uninorth(hose, addr);
        		disp_name = "UniNorth";
-       	} else if (strcmp(dev->name, "pci") == 0) {
+	} else if (strcmp(dev->name, "pci") == 0) {
        		/* XXX assume this is a mpc106 (grackle) */
        		setup_grackle(hose);
        		disp_name = "Grackle (MPC106)";
@@ -993,7 +925,7 @@ static int __init add_bridge(struct device_node *dev)
        		disp_name = "Chaos";
        		primary = 0;
        	}
-       	printk(KERN_INFO "Found %s PCI host bridge at 0x%08x. Firmware bus number: %d->%d\n",
+       	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. Firmware bus number: %d->%d\n",
        		disp_name, addr->address, hose->first_busno, hose->last_busno);
        	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
        		hose, hose->cfg_addr, hose->cfg_data);
@@ -1034,6 +966,50 @@ pmac_pcibios_fixup(void)
 {
 	/* Fixup interrupts according to OF tree */
 	pcibios_fixup_OF_interrupts();
+}
+
+void __init pmac_find_bridges(void)
+{
+	struct device_node *np, *root;
+	struct device_node *ht = NULL;
+
+	root = of_find_node_by_path("/");
+	if (root == NULL) {
+		printk(KERN_CRIT "pmac_find_bridges: can't find root of device tree\n");
+		return;
+	}
+	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
+		if (np->name == NULL)
+			continue;
+		if (strcmp(np->name, "bandit") == 0
+		    || strcmp(np->name, "chaos") == 0
+		    || strcmp(np->name, "pci") == 0) {
+			if (add_bridge(np) == 0)
+				of_node_get(np);
+		}
+		if (strcmp(np->name, "ht") == 0) {
+			of_node_get(np);
+			ht = np;
+		}
+	}
+	of_node_put(root);
+
+	/* Probe HT last as it relies on the agp resources to be already
+	 * setup
+	 */
+	if (ht && add_bridge(ht) != 0)
+		of_node_put(ht);
+
+	init_p2pbridge();
+	fixup_nec_usb2();
+	
+	/* We are still having some issues with the Xserve G4, enabling
+	 * some offset between bus number and domains for now when we
+	 * assign all busses should help for now
+	 */
+	if (pci_assign_all_busses)
+		pcibios_assign_bus_offset = 0x10;
+
 }
 
 int
