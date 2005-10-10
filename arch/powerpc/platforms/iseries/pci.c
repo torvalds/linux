@@ -220,7 +220,7 @@ static struct device_node *build_device_node(HvBusNumber Bus,
 		return NULL;
 	}
 	node->data = pdn;
-	list_add_tail(&node->Device_List, &iSeries_Global_Device_List);
+	list_add_tail(&pdn->Device_List, &iSeries_Global_Device_List);
 #if 0
 	pdn->DsaAddr = ((u64)Bus << 48) + ((u64)SubBus << 40) + ((u64)0x10 << 32);
 #endif
@@ -549,15 +549,12 @@ EXPORT_SYMBOL(iSeries_memcpy_fromio);
  */
 static struct device_node *find_Device_Node(int bus, int devfn)
 {
-	struct list_head *pos;
+	struct pci_dn *pdn;
 
-	list_for_each(pos, &iSeries_Global_Device_List) {
-		struct device_node *node =
-			list_entry(pos, struct device_node, Device_List);
-
-		if ((bus == ISERIES_BUS(node)) &&
-				(devfn == PCI_DN(node)->devfn))
-			return node;
+	list_for_each_entry(pdn, &iSeries_Global_Device_List, Device_List) {
+		if ((bus == pdn->DsaAddr.Dsa.busNumber) &&
+				(devfn == pdn->devfn))
+			return pdn->node;
 	}
 	return NULL;
 }

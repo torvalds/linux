@@ -3,6 +3,7 @@
 #define _ASM_PCI_BRIDGE_H
 
 #include <linux/pci.h>
+#include <linux/list.h>
 
 #include <asm/iSeries/HvCallPci.h>
 
@@ -74,6 +75,7 @@ struct pci_dn {
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 	struct	device_node *node;	/* back-pointer to the device_node */
 #ifdef CONFIG_PPC_ISERIES
+	struct	list_head Device_List;
 	union HvDsaMap	DsaAddr;	/* Direct Select Address */
 					/* busNumber, subBusNumber, */
 					/* deviceId, barNumber */

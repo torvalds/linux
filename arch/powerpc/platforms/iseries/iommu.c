@@ -89,11 +89,10 @@ static void tce_free_iSeries(struct iommu_table *tbl, long index, long npages)
  */
 static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
 {
-	struct device_node *dp;
+	struct pci_dn *pdn;
 
-	list_for_each_entry(dp, &iSeries_Global_Device_List, Device_List) {
-		struct iommu_table *it = PCI_DN(dp)->iommu_table;
-
+	list_for_each_entry(pdn, &iSeries_Global_Device_List, Device_List) {
+		struct iommu_table *it = pdn->iommu_table;
 		if ((it != NULL) &&
 		    (it->it_type == TCE_PCI) &&
 		    (it->it_offset == tbl->it_offset) &&

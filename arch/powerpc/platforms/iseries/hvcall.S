@@ -10,6 +10,7 @@
 
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>		/* XXX for STACK_FRAME_OVERHEAD */
 
 	.text
 
