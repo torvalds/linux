@@ -294,8 +294,8 @@ A partial list of the supported mount options follows:
 		during the local client kernel build will be used.
 		If server does not support Unicode, this parameter is
 		unused.
-  rsize		default read size
-  wsize		default write size
+  rsize		default read size (usually 16K)
+  wsize		default write size (usually 16K, 32K is often better over GigE)
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only

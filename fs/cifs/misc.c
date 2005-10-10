@@ -420,6 +420,7 @@ int
 checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 {
 	__u32 len = smb->smb_buf_length;
+	__u32 clc_len;  /* calculated length */
 	cFYI(0,
 	     ("Entering checkSMB with Length: %x, smb_buf_length: %x ",
 	      length, len));
@@ -440,20 +441,27 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 			cERROR(1,
 			       ("smb_buf_length greater than MaxBufSize"));
 		cERROR(1,
-		       ("bad smb detected. Illegal length. The mid=%d",
+		       ("bad smb detected. Illegal length. mid=%d",
 			smb->Mid));
 		return 1;
 	}
 
 	if (checkSMBhdr(smb, mid))
 		return 1;
-
-	if ((4 + len != smbCalcSize_LE(smb))
+	clc_len = smbCalcSize_LE(smb);
+	if ((4 + len != clc_len)
 	    || (4 + len != (unsigned int)length)) {
-		cERROR(1, ("smbCalcSize %x ", smbCalcSize_LE(smb)));
-		cERROR(1,
-		       ("bad smb size detected. The Mid=%d", smb->Mid));
-		return 1;
+		cERROR(1, ("Calculated size 0x%x vs actual length 0x%x",
+				clc_len, 4 + len));
+		cERROR(1, ("bad smb size detected for Mid=%d", smb->Mid));
+		/* Windows XP can return a few bytes too much, presumably
+		an illegal pad, at the end of byte range lock responses 
+		so we allow for up to eight byte pad, as long as actual
+		received length is as long or longer than calculated length */
+		if((4+len > clc_len) && (len <= clc_len + 3))
+			return 0;
+		else
+			return 1;
 	}
 	return 0;
 }

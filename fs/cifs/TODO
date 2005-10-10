@@ -1,4 +1,4 @@
-version 1.36 September 6, 2005
+version 1.37 October 9, 2005
 
 A Partial List of Missing Features
 ==================================
@@ -38,8 +38,8 @@ by unlocking all known byte range locks that we locked on the file.
 i) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-j) finish writepages support (multi-page write behind for improved
-performance) and syncpage. Started by Shaggy.
+j) investigate sync behavior (including syncpage) and check  
+for proper behavior of intr/nointr
 
 k) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
 extra copy in/out of the socket buffers in some cases.

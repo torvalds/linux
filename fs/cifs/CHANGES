@@ -1,3 +1,15 @@
+Version 1.38
+------------
+Fix tcp socket retransmission timeouts (e.g. on ENOSPACE from the socket)
+to be smaller at first (but increasing) so large write performance performance
+over GigE is better.  Do not hang thread on illegal byte range lock response
+from Windows (Windows can send an RFC1001 size which does not match smb size) by
+allowing an SMBs TCP length to be up to a few bytes longer than it should be.
+wsize and rsize can now be larger than negotiated buffer size if server
+supports large readx/writex, even when directio mount flag not specified.
+Write size will in many cases now be 16K instead of 4K which greatly helps
+file copy performance on lightly loaded networks.
+
 Version 1.37
 ------------
 Fix readdir caching when unlink removes file in current search buffer,
