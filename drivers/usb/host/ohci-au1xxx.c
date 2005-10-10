@@ -264,6 +264,7 @@ static int ohci_hcd_au1xxx_drv_resume(struct device *dev)
 
 static struct device_driver ohci_hcd_au1xxx_driver = {
 	.name		= "au1xxx-ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_au1xxx_drv_probe,
 	.remove		= ohci_hcd_au1xxx_drv_remove,

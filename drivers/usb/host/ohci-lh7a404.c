@@ -244,6 +244,7 @@ static int ohci_hcd_lh7a404_drv_resume(struct device *dev)
 
 static struct device_driver ohci_hcd_lh7a404_driver = {
 	.name		= "lh7a404-ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_lh7a404_drv_probe,
 	.remove		= ohci_hcd_lh7a404_drv_remove,

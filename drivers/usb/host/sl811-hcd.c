@@ -1831,6 +1831,7 @@ sl811h_resume(struct device *dev)
 struct device_driver sl811h_driver = {
 	.name =		(char *) hcd_name,
 	.bus =		&platform_bus_type,
+	.owner =	THIS_MODULE,
 
 	.probe =	sl811h_probe,
 	.remove =	__devexit_p(sl811h_remove),

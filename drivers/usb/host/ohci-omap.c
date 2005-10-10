@@ -492,6 +492,7 @@ static int ohci_omap_resume(struct device *dev)
  */
 static struct device_driver ohci_hcd_omap_driver = {
 	.name		= "ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_omap_drv_probe,
 	.remove		= ohci_hcd_omap_drv_remove,
