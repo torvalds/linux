@@ -42,13 +42,11 @@ vector-y			+= ../../powerpc/kernel/vector.o
 fpu-y				+= ../../powerpc/kernel/fpu.o
 
 else
-obj-y				:= entry.o irq.o idle.o time.o misc.o \
+obj-y				:= irq.o idle.o time.o \
 					signal.o ptrace.o align.o \
-					syscalls.o setup.o \
-					cputable.o perfmon.o
+					syscalls.o cputable.o perfmon.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
-obj-$(CONFIG_POWER4)		+= cpu_setup_power4.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
 obj-$(CONFIG_PCI)		+= pci.o

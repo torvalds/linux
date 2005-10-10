@@ -70,6 +70,8 @@ unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
 
+int have_of = 1;
+
 #ifdef CONFIG_PPC_MULTIPLATFORM
 int _machine = 0;
 
@@ -89,6 +91,7 @@ unsigned long vgacon_remap_base;
 #endif
 
 struct machdep_calls ppc_md;
+EXPORT_SYMBOL(ppc_md);
 
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
@@ -454,24 +457,6 @@ static int __init set_preferred_console(void)
 console_initcall(set_preferred_console);
 #endif /* CONFIG_SERIAL_CORE_CONSOLE */
 #endif /* CONFIG_PPC_MULTIPLATFORM */
-
-struct bi_record *find_bootinfo(void)
-{
-	struct bi_record *rec;
-
-	rec = (struct bi_record *)_ALIGN((ulong)__bss_start+(1<<20)-1,(1<<20));
-	if ( rec->tag != BI_FIRST ) {
-		/*
-		 * This 0x10000 offset is a terrible hack but it will go away when
-		 * we have the bootloader handle all the relocation and
-		 * prom calls -- Cort
-		 */
-		rec = (struct bi_record *)_ALIGN((ulong)__bss_start+0x10000+(1<<20)-1,(1<<20));
-		if ( rec->tag != BI_FIRST )
-			return NULL;
-	}
-	return rec;
-}
 
 /*
  * Find out what kind of machine we're on and save any data we need
