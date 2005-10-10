@@ -543,10 +543,12 @@ static int snd_es1938_capture_trigger(snd_pcm_substream_t * substream,
 	int val;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		val = 0x0f;
 		chip->active |= ADC1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		val = 0x00;
 		chip->active &= ~ADC1;
 		break;
@@ -563,6 +565,7 @@ static int snd_es1938_playback1_trigger(snd_pcm_substream_t * substream,
 	es1938_t *chip = snd_pcm_substream_chip(substream);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		/* According to the documentation this should be:
 		   0x13 but that value may randomly swap stereo channels */
                 snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL1, 0x92);
@@ -575,6 +578,7 @@ static int snd_es1938_playback1_trigger(snd_pcm_substream_t * substream,
 		chip->active |= DAC2;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		outb(0, SLIO_REG(chip, AUDIO2MODE));
 		snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL1, 0);
 		chip->active &= ~DAC2;
@@ -592,10 +596,12 @@ static int snd_es1938_playback2_trigger(snd_pcm_substream_t * substream,
 	int val;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		val = 5;
 		chip->active |= DAC1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		val = 0;
 		chip->active &= ~DAC1;
 		break;
@@ -1390,7 +1396,7 @@ static int es1938_suspend(snd_card_t *card, pm_message_t state)
 		*d = snd_es1938_reg_read(chip, *s);
 
 	outb(0x00, SLIO_REG(chip, IRQCONTROL)); /* disable irqs */
-	if (chip->irq >= 0)                                                                         
+	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);  
 	pci_disable_device(chip->pci);
 	return 0;
@@ -1402,7 +1408,9 @@ static int es1938_resume(snd_card_t *card)
 	unsigned char *s, *d;
 
 	pci_enable_device(chip->pci);
-	request_irq(chip->pci->irq, snd_es1938_interrupt, SA_INTERRUPT|SA_SHIRQ, "ES1938", (void *)chip);
+	request_irq(chip->pci->irq, snd_es1938_interrupt,
+		    SA_INTERRUPT|SA_SHIRQ, "ES1938", (void *)chip);
+	chip->irq = chip->pci->irq;
 	snd_es1938_chip_init(chip);
 
 	/* restore mixer-related registers */
