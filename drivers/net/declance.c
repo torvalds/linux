@@ -697,12 +697,13 @@ out:
 	spin_unlock(&lp->lock);
 }
 
-static void lance_dma_merr_int(const int irq, void *dev_id,
-				struct pt_regs *regs)
+static irqreturn_t lance_dma_merr_int(const int irq, void *dev_id,
+				      struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 
 	printk("%s: DMA error\n", dev->name);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t
