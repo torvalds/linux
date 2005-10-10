@@ -34,6 +34,7 @@
 #include <asm/thread_info.h>
 #include <asm/tlbflush.h>
 #include <asm/xmon.h>
+#include <asm/machdep.h>
 
 volatile int smp_commenced;
 int smp_tb_synchronized;
