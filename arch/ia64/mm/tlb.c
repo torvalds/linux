@@ -77,9 +77,10 @@ wrap_mmu_context (struct mm_struct *mm)
 	/* can't call flush_tlb_all() here because of race condition with O(1) scheduler [EF] */
 	{
 		int cpu = get_cpu(); /* prevent preemption/migration */
-		for (i = 0; i < NR_CPUS; ++i)
-			if (cpu_online(i) && (i != cpu))
+		for_each_online_cpu(i) {
+			if (i != cpu)
 				per_cpu(ia64_need_tlb_flush, i) = 1;
+		}
 		put_cpu();
 	}
 	local_flush_tlb_all();
