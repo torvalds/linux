@@ -9,7 +9,7 @@
  *	20-Sep-2004  BJD  Initial version
  *	17-Jan-2005  BJD  Add whole device if no partitions found
  *
- * $Id: bast-flash.c,v 1.2 2005/01/18 11:13:47 bjd Exp $
+ * $Id: bast-flash.c,v 1.3 2005/10/10 00:13:38 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -206,6 +206,7 @@ static int bast_flash_probe(struct device *dev)
 
 static struct device_driver bast_flash_driver = {
 	.name		= "bast-nor",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= bast_flash_probe,
 	.remove		= bast_flash_remove,
