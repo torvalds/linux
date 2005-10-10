@@ -474,6 +474,7 @@ static int ohci_hcd_s3c2410_drv_remove(struct device *dev)
 
 static struct device_driver ohci_hcd_s3c2410_driver = {
 	.name		= "s3c2410-ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_s3c2410_drv_probe,
 	.remove		= ohci_hcd_s3c2410_drv_remove,
