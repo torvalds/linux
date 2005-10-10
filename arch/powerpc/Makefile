@@ -140,6 +140,7 @@ drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 defaultimage-$(CONFIG_PPC32)	:= uImage zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
+defaultimage-$(CONFIG_PPC_PSERIES) := zImage
 KBUILD_IMAGE := $(defaultimage-y)
 all: $(KBUILD_IMAGE)
 
@@ -154,8 +155,14 @@ BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
 boot := arch/$(OLDARCH)/boot
 
+# urk
+ifeq ($(CONFIG_PPC64),y)
 $(BOOT_TARGETS): vmlinux
-	$(Q)$(MAKE) ARCH=$(OLDARCH) $(build)=$(boot) $@
+	$(Q)$(MAKE) ARCH=ppc64 $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
+else
+$(BOOT_TARGETS): vmlinux
+	$(Q)$(MAKE) ARCH=ppc $(build)=$(boot) $@
+endif
 
 uImage: vmlinux
 	$(Q)$(MAKE) ARCH=$(OLDARCH) $(build)=$(boot)/images $(boot)/images/$@
