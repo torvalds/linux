@@ -30,7 +30,7 @@ void release_and_free_resource(struct resource *res)
 {
 	if (res) {
 		release_resource(res);
-		kfree_nocheck(res);
+		kfree(res);
 	}
 }
 

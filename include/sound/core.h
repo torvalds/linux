@@ -284,31 +284,6 @@ int snd_oss_init_module(void);
 
 /* memory.c */
 
-#ifdef CONFIG_SND_DEBUG_MEMORY
-void snd_memory_init(void);
-void snd_memory_done(void);
-int snd_memory_info_init(void);
-int snd_memory_info_done(void);
-void *snd_hidden_kmalloc(size_t size, gfp_t flags);
-void *snd_hidden_kzalloc(size_t size, gfp_t flags);
-void *snd_hidden_kcalloc(size_t n, size_t size, gfp_t flags);
-void snd_hidden_kfree(const void *obj);
-char *snd_hidden_kstrdup(const char *s, gfp_t flags);
-#define kmalloc(size, flags) snd_hidden_kmalloc(size, flags)
-#define kzalloc(size, flags) snd_hidden_kzalloc(size, flags)
-#define kcalloc(n, size, flags) snd_hidden_kcalloc(n, size, flags)
-#define kfree(obj) snd_hidden_kfree(obj)
-#define kmalloc_nocheck(size, flags) snd_wrapper_kmalloc(size, flags)
-#define kfree_nocheck(obj) snd_wrapper_kfree(obj)
-#define kstrdup(s, flags)  snd_hidden_kstrdup(s, flags)
-#else
-#define snd_memory_init() /*NOP*/
-#define snd_memory_done() /*NOP*/
-#define snd_memory_info_init() /*NOP*/
-#define snd_memory_info_done() /*NOP*/
-#define kmalloc_nocheck(size, flags) kmalloc(size, flags)
-#define kfree_nocheck(obj) kfree(obj)
-#endif
 int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count);
 int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count);
 
