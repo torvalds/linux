@@ -214,10 +214,8 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
    but it's not easy, and we've already done it here.  */
 # define ELF_HWCAP	(cur_cpu_spec->cpu_user_features)
 #ifdef __powerpc64__
-# define ELF_PLAT_INIT(_r, load_addr)	do { \
-	memset(_r->gpr, 0, sizeof(_r->gpr)); \
-	_r->ctr = _r->link = _r->xer = _r->ccr = 0; \
-	_r->gpr[2] = load_addr; \
+# define ELF_PLAT_INIT(_r, load_addr)	do {	\
+	_r->gpr[2] = load_addr; 		\
 } while (0)
 #endif /* __powerpc64__ */
 
