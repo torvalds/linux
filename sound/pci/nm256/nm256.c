@@ -1347,14 +1347,8 @@ static int snd_nm256_free(nm256_t *chip)
 		iounmap(chip->cport);
 	if (chip->buffer)
 		iounmap(chip->buffer);
-	if (chip->res_cport) {
-		release_resource(chip->res_cport);
-		kfree_nocheck(chip->res_cport);
-	}
-	if (chip->res_buffer) {
-		release_resource(chip->res_buffer);
-		kfree_nocheck(chip->res_buffer);
-	}
+	release_and_free_resource(chip->res_cport);
+	release_and_free_resource(chip->res_buffer);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
 

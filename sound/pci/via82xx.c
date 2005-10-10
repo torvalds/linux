@@ -1655,8 +1655,7 @@ static int __devinit snd_via686_create_gameport(via82xx_t *chip, unsigned char *
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "via82xx: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 
@@ -1682,8 +1681,7 @@ static void snd_via686_free_gameport(via82xx_t *chip)
 
 		gameport_unregister_port(chip->gameport);
 		chip->gameport = NULL;
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else
@@ -2023,10 +2021,7 @@ static int snd_via82xx_free(via82xx_t *chip)
       __end_hw:
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
-	if (chip->mpu_res) {
-		release_resource(chip->mpu_res);
-		kfree_nocheck(chip->mpu_res);
-	}
+	release_and_free_resource(chip->mpu_res);
 	pci_release_regions(chip->pci);
 
 	if (chip->chip_type == TYPE_VIA686) {

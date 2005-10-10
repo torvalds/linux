@@ -2683,8 +2683,7 @@ static int __devinit snd_cmipci_create_gameport(cmipci_t *cm, int dev)
 	cm->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "cmipci: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 	gameport_set_name(gp, "C-Media Gameport");
@@ -2709,8 +2708,7 @@ static void snd_cmipci_free_gameport(cmipci_t *cm)
 		cm->gameport = NULL;
 
 		snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_JYSTK_EN);
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else

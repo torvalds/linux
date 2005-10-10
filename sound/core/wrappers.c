@@ -36,15 +36,5 @@ void snd_wrapper_kfree(const void *obj)
 {
 	kfree(obj);
 }
-
-void *snd_wrapper_vmalloc(unsigned long size)
-{
-	return vmalloc(size);
-}
-
-void snd_wrapper_vfree(void *obj)
-{
-	vfree(obj);
-}
 #endif
 

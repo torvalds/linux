@@ -1433,25 +1433,10 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  if (chip->res_port) {
-          release_resource(chip->res_port);
-          kfree_nocheck(chip->res_port);
-  }
+  release_and_free_resource(chip->res_port);
 ]]>
           </programlisting>
         </informalexample>
-
-      As you can see, the resource pointer is also to be freed
-      via <function>kfree_nocheck()</function> after
-      <function>release_resource()</function> is called. You
-      cannot use <function>kfree()</function> here, because on ALSA,
-      <function>kfree()</function> may be a wrapper to its own
-      allocator with the memory debugging. Since the resource pointer
-      is allocated externally outside the ALSA, it must be released
-      via the native
-      <function>kfree()</function>.
-      <function>kfree_nocheck()</function> is used for that; it calls
-      the native <function>kfree()</function> without wrapper. 
       </para>
 
       <para>

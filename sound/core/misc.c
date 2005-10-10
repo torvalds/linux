@@ -23,7 +23,16 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/ioport.h>
 #include <sound/core.h>
+
+void release_and_free_resource(struct resource *res)
+{
+	if (res) {
+		release_resource(res);
+		kfree_nocheck(res);
+	}
+}
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 void snd_verbose_printk(const char *file, int line, const char *format, ...)

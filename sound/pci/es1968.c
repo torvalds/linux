@@ -2461,8 +2461,7 @@ static int __devinit snd_es1968_create_gameport(es1968_t *chip, int dev)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "es1968: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 
@@ -2488,8 +2487,7 @@ static void snd_es1968_free_gameport(es1968_t *chip)
 		gameport_unregister_port(chip->gameport);
 		chip->gameport = NULL;
 
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else

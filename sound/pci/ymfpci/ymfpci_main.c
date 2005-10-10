@@ -2151,14 +2151,8 @@ static int snd_ymfpci_free(ymfpci_t *chip)
 #ifdef CONFIG_PM
 	vfree(chip->saved_regs);
 #endif
-	if (chip->mpu_res) {
-		release_resource(chip->mpu_res);
-		kfree_nocheck(chip->mpu_res);
-	}
-	if (chip->fm_res) {
-		release_resource(chip->fm_res);
-		kfree_nocheck(chip->fm_res);
-	}
+	release_and_free_resource(chip->mpu_res);
+	release_and_free_resource(chip->fm_res);
 	snd_ymfpci_free_gameport(chip);
 	if (chip->reg_area_virt)
 		iounmap(chip->reg_area_virt);
@@ -2167,10 +2161,7 @@ static int snd_ymfpci_free(ymfpci_t *chip)
 	
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
-	if (chip->res_reg_area) {
-		release_resource(chip->res_reg_area);
-		kfree_nocheck(chip->res_reg_area);
-	}
+	release_and_free_resource(chip->res_reg_area);
 
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
 	

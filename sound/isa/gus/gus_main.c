@@ -113,14 +113,8 @@ static int snd_gus_free(snd_gus_card_t *gus)
 	snd_gf1_stop(gus);
 	snd_gus_init_dma_irq(gus, 0);
       __hw_end:
-	if (gus->gf1.res_port1) {
-		release_resource(gus->gf1.res_port1);
-		kfree_nocheck(gus->gf1.res_port1);
-	}
-	if (gus->gf1.res_port2) {
-		release_resource(gus->gf1.res_port2);
-		kfree_nocheck(gus->gf1.res_port2);
-	}
+	release_and_free_resource(gus->gf1.res_port1);
+	release_and_free_resource(gus->gf1.res_port2);
 	if (gus->gf1.irq >= 0)
 		free_irq(gus->gf1.irq, (void *) gus);
 	if (gus->gf1.dma1 >= 0) {

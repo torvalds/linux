@@ -293,19 +293,13 @@ void *snd_hidden_kmalloc(size_t size, gfp_t flags);
 void *snd_hidden_kzalloc(size_t size, gfp_t flags);
 void *snd_hidden_kcalloc(size_t n, size_t size, gfp_t flags);
 void snd_hidden_kfree(const void *obj);
-void *snd_hidden_vmalloc(unsigned long size);
-void snd_hidden_vfree(void *obj);
 char *snd_hidden_kstrdup(const char *s, gfp_t flags);
 #define kmalloc(size, flags) snd_hidden_kmalloc(size, flags)
 #define kzalloc(size, flags) snd_hidden_kzalloc(size, flags)
 #define kcalloc(n, size, flags) snd_hidden_kcalloc(n, size, flags)
 #define kfree(obj) snd_hidden_kfree(obj)
-#define vmalloc(size) snd_hidden_vmalloc(size)
-#define vfree(obj) snd_hidden_vfree(obj)
 #define kmalloc_nocheck(size, flags) snd_wrapper_kmalloc(size, flags)
-#define vmalloc_nocheck(size) snd_wrapper_vmalloc(size)
 #define kfree_nocheck(obj) snd_wrapper_kfree(obj)
-#define vfree_nocheck(obj) snd_wrapper_vfree(obj)
 #define kstrdup(s, flags)  snd_hidden_kstrdup(s, flags)
 #else
 #define snd_memory_init() /*NOP*/
@@ -313,9 +307,7 @@ char *snd_hidden_kstrdup(const char *s, gfp_t flags);
 #define snd_memory_info_init() /*NOP*/
 #define snd_memory_info_done() /*NOP*/
 #define kmalloc_nocheck(size, flags) kmalloc(size, flags)
-#define vmalloc_nocheck(size) vmalloc(size)
 #define kfree_nocheck(obj) kfree(obj)
-#define vfree_nocheck(obj) vfree(obj)
 #endif
 int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count);
 int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count);
@@ -372,6 +364,7 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size);
 #endif
 
 /* misc.c */
+void release_and_free_resource(struct resource *res);
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 void snd_verbose_printk(const char *file, int line, const char *format, ...)

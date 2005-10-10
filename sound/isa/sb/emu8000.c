@@ -1054,18 +1054,9 @@ __error:
  */
 static int snd_emu8000_free(emu8000_t *hw)
 {
-	if (hw->res_port1) {
-		release_resource(hw->res_port1);
-		kfree_nocheck(hw->res_port1);
-	}
-	if (hw->res_port2) {
-		release_resource(hw->res_port2);
-		kfree_nocheck(hw->res_port2);
-	}
-	if (hw->res_port3) {
-		release_resource(hw->res_port3);
-		kfree_nocheck(hw->res_port3);
-	}
+	release_and_free_resource(hw->res_port1);
+	release_and_free_resource(hw->res_port2);
+	release_and_free_resource(hw->res_port3);
 	kfree(hw);
 	return 0;
 }

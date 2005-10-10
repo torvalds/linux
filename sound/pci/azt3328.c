@@ -1238,8 +1238,7 @@ static int __devinit snd_azf3328_config_joystick(azf3328_t *chip, int dev)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "azt3328: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 
@@ -1267,8 +1266,7 @@ static void snd_azf3328_free_joystick(azf3328_t *chip)
 		/* disable gameport */
 		snd_azf3328_io2_write(chip, IDX_IO2_LEGACY_ADDR,
 				      snd_azf3328_io2_read(chip, IDX_IO2_LEGACY_ADDR) & ~LEGACY_JOY);
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else

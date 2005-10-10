@@ -407,8 +407,6 @@ EXPORT_SYMBOL(snd_unregister_oss_device);
 EXPORT_SYMBOL(snd_hidden_kmalloc);
 EXPORT_SYMBOL(snd_hidden_kcalloc);
 EXPORT_SYMBOL(snd_hidden_kfree);
-EXPORT_SYMBOL(snd_hidden_vmalloc);
-EXPORT_SYMBOL(snd_hidden_vfree);
 EXPORT_SYMBOL(snd_hidden_kstrdup);
 #endif
 EXPORT_SYMBOL(copy_to_user_fromio);
@@ -487,6 +485,7 @@ EXPORT_SYMBOL(snd_ctl_unregister_ioctl_compat);
 EXPORT_SYMBOL(snd_ctl_elem_read);
 EXPORT_SYMBOL(snd_ctl_elem_write);
   /* misc.c */
+EXPORT_SYMBOL(release_and_free_resource);
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 EXPORT_SYMBOL(snd_verbose_printk);
 #endif
@@ -497,6 +496,4 @@ EXPORT_SYMBOL(snd_verbose_printd);
 #ifdef CONFIG_SND_DEBUG_MEMORY
 EXPORT_SYMBOL(snd_wrapper_kmalloc);
 EXPORT_SYMBOL(snd_wrapper_kfree);
-EXPORT_SYMBOL(snd_wrapper_vmalloc);
-EXPORT_SYMBOL(snd_wrapper_vfree);
 #endif

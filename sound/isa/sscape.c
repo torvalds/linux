@@ -338,8 +338,7 @@ static inline void activate_ad1845_unsafe(unsigned io_base)
 static void soundscape_free(snd_card_t * c)
 {
 	register struct soundscape *sscape = get_card_soundscape(c);
-	release_resource(sscape->io_res);
-	kfree_nocheck(sscape->io_res);
+	release_and_free_resource(sscape->io_res);
 	free_dma(sscape->chip->dma1);
 }
 
@@ -1288,8 +1287,7 @@ static int __devinit create_sscape(const struct params *params, snd_card_t **rca
 	free_dma(params->dma1);
 
 	_release_region:
-	release_resource(io_res);
-	kfree_nocheck(io_res);
+	release_and_free_resource(io_res);
 
 	return err;
 }

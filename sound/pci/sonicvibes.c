@@ -1205,14 +1205,8 @@ static int snd_sonicvibes_free(sonicvibes_t *sonic)
 	pci_write_config_dword(sonic->pci, 0x48, sonic->dmac_port);
 	if (sonic->irq >= 0)
 		free_irq(sonic->irq, (void *)sonic);
-	if (sonic->res_dmaa) {
-		release_resource(sonic->res_dmaa);
-		kfree_nocheck(sonic->res_dmaa);
-	}
-	if (sonic->res_dmac) {
-		release_resource(sonic->res_dmac);
-		kfree_nocheck(sonic->res_dmac);
-	}
+	release_and_free_resource(sonic->res_dmaa);
+	release_and_free_resource(sonic->res_dmac);
 	pci_release_regions(sonic->pci);
 	pci_disable_device(sonic->pci);
 	kfree(sonic);

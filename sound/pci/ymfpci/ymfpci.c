@@ -130,8 +130,7 @@ static int __devinit snd_ymfpci_create_gameport(ymfpci_t *chip, int dev,
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "ymfpci: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 
@@ -161,8 +160,7 @@ void snd_ymfpci_free_gameport(ymfpci_t *chip)
 		gameport_unregister_port(chip->gameport);
 		chip->gameport = NULL;
 
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else
@@ -267,14 +265,8 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 				     old_legacy_ctrl,
 			 	     &chip)) < 0) {
 		snd_card_free(card);
-		if (mpu_res) {
-			release_resource(mpu_res);
-			kfree_nocheck(mpu_res);
-		}
-		if (fm_res) {
-			release_resource(fm_res);
-			kfree_nocheck(fm_res);
-		}
+		release_and_free_resource(mpu_res);
+		release_and_free_resource(fm_res);
 		return err;
 	}
 	chip->fm_res = fm_res;

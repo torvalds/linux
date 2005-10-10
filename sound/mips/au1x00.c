@@ -606,8 +606,7 @@ snd_au1000_free(snd_card_t *card)
 		/* put internal AC97 block into reset */
 		au1000->ac97_ioport->cntrl = AC97C_RS;
 		au1000->ac97_ioport = NULL;
-		release_resource(au1000->ac97_res_port);
-		kfree_nocheck(au1000->ac97_res_port);
+		release_and_free_resource(au1000->ac97_res_port);
 	}
 
 	if (au1000->stream[PLAYBACK]->dma >= 0)

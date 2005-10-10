@@ -969,10 +969,8 @@ static int snd_ca0106_free(ca0106_t *chip)
 #endif
 
 	// release the i/o port
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
+
 	// release the irq
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
