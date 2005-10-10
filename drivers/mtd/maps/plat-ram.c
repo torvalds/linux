@@ -6,7 +6,7 @@
  *
  * Generic platfrom device based RAM map
  *
- * $Id: plat-ram.c,v 1.3 2005/03/19 22:41:27 gleixner Exp $
+ * $Id: plat-ram.c,v 1.4 2005/10/10 00:51:26 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -254,6 +254,7 @@ static int platram_probe(struct device *dev)
 
 static struct device_driver platram_driver = {
 	.name		= "mtd-ram",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= platram_probe,
 	.remove		= platram_remove,
