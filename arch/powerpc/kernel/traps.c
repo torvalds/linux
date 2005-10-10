@@ -31,27 +31,31 @@
 #include <linux/prctl.h>
 #include <linux/delay.h>
 #include <linux/kprobes.h>
-#include <asm/kdebug.h>
 
+#include <asm/kdebug.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/io.h>
+#include <asm/machdep.h>
+#include <asm/rtas.h>
+#include <asm/xmon.h>
 #ifdef CONFIG_PPC32
 #include <asm/reg.h>
-#include <asm/xmon.h>
+#include <asm/perfmon.h>
+#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
-#include <asm/perfmon.h>
-#endif
 #ifdef CONFIG_PPC64
+#include <asm/firmware.h>
 #include <asm/processor.h>
-#include <asm/ppcdebug.h>
-#include <asm/rtas.h>
 #include <asm/systemcfg.h>
-#include <asm/machdep.h>
 #include <asm/pmc.h>
+#endif
+
+#ifdef CONFIG_PPC64	/* XXX */
+#define _IO_BASE	pci_io_base
 #endif
 
 #ifdef CONFIG_DEBUGGER
@@ -277,7 +281,6 @@ static inline int check_io_access(struct pt_regs *regs)
 }
 
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-
 /* On 4xx, the reason for the machine check or program exception
    is in the ESR. */
 #define get_reason(regs)	((regs)->dsisr)
@@ -296,7 +299,6 @@ static inline int check_io_access(struct pt_regs *regs)
 #define clear_single_step(regs)	(current->thread.dbcr0 &= ~DBCR0_IC)
 
 #else
-
 /* On non-4xx, the reason for the machine check or program
    exception is in the MSR. */
 #define get_reason(regs)	((regs)->msr)
@@ -475,7 +477,7 @@ void machine_check_exception(struct pt_regs *regs)
 	 * additional info, e.g. bus error registers.
 	 */
 	platform_machine_check(regs);
-#endif /* CONFIG_PPC32 */
+#endif /* CONFIG_PPC64 */
 
 	if (debugger_fault_handler(regs))
 		return;
@@ -486,12 +488,10 @@ void machine_check_exception(struct pt_regs *regs)
 		panic("Unrecoverable Machine check");
 }
 
-#ifdef CONFIG_PPC32
 void SMIException(struct pt_regs *regs)
 {
 	die("System Management Interrupt", regs, SIGABRT);
 }
-#endif
 
 void unknown_exception(struct pt_regs *regs)
 {
@@ -511,12 +511,10 @@ void instruction_breakpoint_exception(struct pt_regs *regs)
 	_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 }
 
-#ifdef CONFIG_PPC32
 void RunModeException(struct pt_regs *regs)
 {
 	_exception(SIGTRAP, regs, 0, 0);
 }
-#endif
 
 void __kprobes single_step_exception(struct pt_regs *regs)
 {
@@ -542,7 +540,6 @@ static void emulate_single_step(struct pt_regs *regs)
 	if (single_stepping(regs)) {
 		clear_single_step(regs);
 		_exception(SIGTRAP, regs, TRAP_TRACE, 0);
-		single_step_exception(regs);
 	}
 }
 
@@ -587,6 +584,7 @@ static void parse_fpe(struct pt_regs *regs)
  * There are a couple of ways to do this, either "decode" the instruction
  * or directly match lots of bits.  In this case, matching lots of
  * bits is faster and easier.
+ *
  */
 #define INST_MFSPR_PVR		0x7c1f42a6
 #define INST_MFSPR_PVR_MASK	0xfc1fffff
@@ -596,8 +594,6 @@ static void parse_fpe(struct pt_regs *regs)
 
 #define INST_MCRXR		0x7c000400
 #define INST_MCRXR_MASK		0x7c0007fe
-
-#ifdef CONFIG_PPC32
 
 #define INST_STRING		0x7c00042a
 #define INST_STRING_MASK	0x7c0007fe
@@ -674,7 +670,6 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 
 	return 0;
 }
-#endif /* CONFIG_PPC32 */
 
 static int emulate_instruction(struct pt_regs *regs)
 {
@@ -701,28 +696,17 @@ static int emulate_instruction(struct pt_regs *regs)
 
 	/* Emulate the mcrxr insn.  */
 	if ((instword & INST_MCRXR_MASK) == INST_MCRXR) {
-		unsigned int shift = (instword >> 21) & 0x1c;
+		int shift = (instword >> 21) & 0x1c;
 		unsigned long msk = 0xf0000000UL >> shift;
-#ifdef CONFIG_PPC64
-		static int warned;
 
-		if (!warned) {
-			printk(KERN_WARNING
-			       "process %d (%s) uses obsolete 'mcrxr' insn\n",
-			       current->pid, current->comm);
-			warned = 1;
-		}
-#endif
 		regs->ccr = (regs->ccr & ~msk) | ((regs->xer >> shift) & msk);
 		regs->xer &= ~0xf0000000UL;
 		return 0;
 	}
 
-#ifdef CONFIG_PPC32
 	/* Emulate load/store string insn. */
 	if ((instword & INST_STRING_GEN_MASK) == INST_STRING)
 		return emulate_string_inst(regs, instword);
-#endif
 
 	return -EINVAL;
 }
@@ -769,22 +753,18 @@ static int check_bug_trap(struct pt_regs *regs)
 		xmon_printf(KERN_ERR "Badness in %s at %s:%d\n",
 		       bug->function, bug->file,
 		       bug->line & ~BUG_WARNING_TRAP);
-#endif
+#endif /* CONFIG_XMON */		
 		printk(KERN_ERR "Badness in %s at %s:%d\n",
 		       bug->function, bug->file,
 		       bug->line & ~BUG_WARNING_TRAP);
-#ifdef CONFIG_PPC32
 		dump_stack();
-#else
-		show_stack(current, (void *)regs->gpr[1]);
-#endif
 		return 1;
 	}
-#if defined(CONFIG_PPC32) && defined(CONFIG_XMON)
+#ifdef CONFIG_XMON
 	xmon_printf(KERN_CRIT "kernel BUG in %s at %s:%d!\n",
 	       bug->function, bug->file, bug->line);
 	xmon(regs);
-#endif
+#endif /* CONFIG_XMON */
 	printk(KERN_CRIT "kernel BUG in %s at %s:%d!\n",
 	       bug->function, bug->file, bug->line);
 
@@ -873,7 +853,6 @@ void alignment_exception(struct pt_regs *regs)
 	_exception(SIGBUS, regs, BUS_ADRALN, regs->dar);
 }
 
-#ifdef CONFIG_PPC32
 void StackOverflow(struct pt_regs *regs)
 {
 	printk(KERN_CRIT "Kernel stack overflow in process %p, r1=%lx\n",
@@ -897,7 +876,6 @@ void trace_syscall(struct pt_regs *regs)
 	       current, current->pid, regs->nip, regs->link, regs->gpr[0],
 	       regs->ccr&0x10000000?"Error=":"", regs->gpr[3], print_tainted());
 }
-#endif /* CONFIG_PPC32 */
 
 void kernel_fp_unavailable_exception(struct pt_regs *regs)
 {
@@ -963,7 +941,6 @@ void SoftwareEmulation(struct pt_regs *regs)
 }
 #endif /* CONFIG_8xx */
 
-#ifdef CONFIG_PPC32
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 
 void DebugException(struct pt_regs *regs, unsigned long debug_status)
@@ -992,7 +969,6 @@ void TAUException(struct pt_regs *regs)
 	       regs->nip, regs->msr, regs->trap, print_tainted());
 }
 #endif /* CONFIG_INT_TAU */
-#endif /* CONFIG_PPC32*/
 
 #ifdef CONFIG_ALTIVEC
 void altivec_assist_exception(struct pt_regs *regs)
