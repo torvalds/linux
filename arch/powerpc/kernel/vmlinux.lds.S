@@ -1,6 +1,8 @@
 #include <linux/config.h>
 #ifdef CONFIG_PPC64
 #include <asm/page.h>
+#else
+#define PAGE_SIZE	4096
 #endif
 #include <asm-generic/vmlinux.lds.h>
 
@@ -16,9 +18,7 @@ SECTIONS
   /* Sections to be discarded. */
   /DISCARD/ : {
     *(.exitcall.exit)
-#ifdef CONFIG_PPC32
     *(.exit.data)
-#endif
   }
 
 
@@ -49,16 +49,10 @@ SECTIONS
   .plt : { *(.plt) }
 #endif
   .text : {
-#ifdef CONFIG_PPC64
     *(.text .text.*)
-#else
-    *(.text)
-#endif
     SCHED_TEXT
     LOCK_TEXT
-#ifdef CONFIG_PPC64
     KPROBES_TEXT
-#endif
     *(.fixup)
 #ifdef CONFIG_PPC32
     *(.got1)
@@ -106,7 +100,7 @@ SECTIONS
 
 #ifdef CONFIG_PPC32
   /* Read-write section, merged into data segment: */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   _sdata = .;
   .data    :
   {
@@ -119,10 +113,10 @@ SECTIONS
     CONSTRUCTORS
   }
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __nosave_begin = .;
   .data_nosave : { *(.data.nosave) }
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __nosave_end = .;
 
   . = ALIGN(32);
@@ -133,12 +127,10 @@ SECTIONS
 
   . = ALIGN(8192);
   .data.init_task : { *(.data.init_task) }
+#endif
 
-  . = ALIGN(4096);
-#else
   /* will be freed after init */
   . = ALIGN(PAGE_SIZE);
-#endif
   __init_begin = .;
   .init.text : {
 	_sinittext = .;
@@ -151,9 +143,6 @@ SECTIONS
   .exit.text : { *(.exit.text) }
 #endif
   .init.data : {
-#ifdef CONFIG_PPC64
-    *(.init.data)
-#else
     *(.init.data);
     __vtop_table_begin = .;
     *(.vtop_fixup);
@@ -161,31 +150,17 @@ SECTIONS
     __ptov_table_begin = .;
     *(.ptov_fixup);
     __ptov_table_end = .;
-#endif
   }
 
   . = ALIGN(16);
-#ifdef CONFIG_PPC32
-  __setup_start = .;
-#endif
   .init.setup : {
-#ifdef CONFIG_PPC64
     __setup_start = .;
-#endif
     *(.init.setup)
-#ifdef CONFIG_PPC64
     __setup_end = .;
-#endif
   }
-#ifdef CONFIG_PPC32
-  __setup_end = .;
 
-  __initcall_start = .;
-#endif
   .initcall.init : {
-#ifdef CONFIG_PPC64
 	__initcall_start = .;
-#endif
 	*(.initcall1.init)
 	*(.initcall2.init)
 	*(.initcall3.init)
@@ -193,27 +168,14 @@ SECTIONS
 	*(.initcall5.init)
 	*(.initcall6.init)
 	*(.initcall7.init)
-#ifdef CONFIG_PPC64
 	__initcall_end = .;
-#endif
   }
-#ifdef CONFIG_PPC32
-  __initcall_end = .;
 
-  __con_initcall_start = .;
-#endif
   .con_initcall.init : {
-#ifdef CONFIG_PPC64
     __con_initcall_start = .;
-#endif
     *(.con_initcall.init)
-#ifdef CONFIG_PPC64
     __con_initcall_end = .;
-#endif
   }
-#ifdef CONFIG_PPC32
-  __con_initcall_end = .;
-#endif
 
   SECURITY_INIT
 
@@ -232,31 +194,23 @@ SECTIONS
 
 #ifdef CONFIG_PPC32
   . = ALIGN(32);
-  __per_cpu_start = .;
 #endif
   .data.percpu : {
-#ifdef CONFIG_PPC64
     __per_cpu_start = .;
-#endif
     *(.data.percpu)
-#ifdef CONFIG_PPC64
     __per_cpu_end = .;
-#endif
   }
-#ifdef CONFIG_PPC32
-  __per_cpu_end = .;
-#endif
 
-#ifdef CONFIG_PPC64
  . = ALIGN(PAGE_SIZE);
+#ifdef CONFIG_PPC64
  . = ALIGN(16384);
  __init_end = .;
  /* freed after init ends here */
 
-
  /* Read/write sections */
  . = ALIGN(PAGE_SIZE);
  . = ALIGN(16384);
+ _sdata = .;
  /* The initial task and kernel stack */
  .data.init_task : {
       *(.data.init_task)
@@ -288,10 +242,8 @@ SECTIONS
       _edata = .;
       }
 
-
   . = ALIGN(PAGE_SIZE);
 #else
-  . = ALIGN(4096);
   __initramfs_start = .;
   .init.ramfs : {
     *(.init.ramfs)
@@ -307,23 +259,15 @@ SECTIONS
 
   __bss_start = .;
 #endif
+
   .bss : {
-#ifdef CONFIG_PPC64
     __bss_start = .;
-#else
    *(.sbss) *(.scommon)
    *(.dynbss)
-#endif
    *(.bss)
-#ifdef CONFIG_PPC32
    *(COMMON)
-#else
   __bss_stop = .;
-#endif
   }
-#ifdef CONFIG_PPC32
-  __bss_stop = .;
-#endif
 
 #ifdef CONFIG_PPC64
   . = ALIGN(PAGE_SIZE);

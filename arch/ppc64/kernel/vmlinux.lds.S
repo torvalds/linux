@@ -106,6 +106,7 @@ SECTIONS
   /* Read/write sections */
   . = ALIGN(PAGE_SIZE);
   . = ALIGN(16384);
+  _sdata = .;
   /* The initial task and kernel stack */
   .data.init_task : {
 	*(.data.init_task)
