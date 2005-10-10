@@ -2949,6 +2949,7 @@ static int omap_udc_resume(struct device *dev)
 
 static struct device_driver udc_driver = {
 	.name		= (char *) driver_name,
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= omap_udc_probe,
 	.remove		= __exit_p(omap_udc_remove),

@@ -967,6 +967,7 @@ static int dummy_udc_resume (struct device *dev)
 
 static struct device_driver dummy_udc_driver = {
 	.name		= (char *) gadget_name,
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= dummy_udc_probe,
 	.remove		= dummy_udc_remove,
@@ -1954,6 +1955,7 @@ static int dummy_hcd_resume (struct device *dev)
 
 static struct device_driver dummy_hcd_driver = {
 	.name		= (char *) driver_name,
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= dummy_hcd_probe,
 	.remove		= dummy_hcd_remove,
