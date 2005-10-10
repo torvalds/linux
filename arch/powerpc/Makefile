@@ -124,15 +124,12 @@ head-$(CONFIG_6xx)		+= arch/powerpc/kernel/idle_6xx.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 endif
 
-core-y				+= arch/powerpc/kernel/
-core-y				+= arch/$(OLDARCH)/kernel/
-core-$(CONFIG_PPC32)		+= arch/powerpc/mm/
-core-$(CONFIG_PPC64)		+= arch/$(OLDARCH)/mm/
-core-$(CONFIG_PPC32)		+= arch/powerpc/lib/
-libs-$(CONFIG_PPC64)		+= arch/$(OLDARCH)/lib/
-core-y				+= arch/powerpc/sysdev/
-core-y				+= arch/powerpc/platforms/
-core-$(CONFIG_PPC32)		+= arch/ppc/syslib/
+core-y				+= arch/powerpc/kernel/ \
+				   arch/$(OLDARCH)/kernel/ \
+				   arch/powerpc/mm/ \
+				   arch/powerpc/lib/ \
+				   arch/powerpc/sysdev/ \
+				   arch/powerpc/platforms/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
