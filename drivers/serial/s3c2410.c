@@ -1235,6 +1235,7 @@ static int s3c2400_serial_probe(struct device *dev)
 
 static struct device_driver s3c2400_serial_drv = {
 	.name		= "s3c2400-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2400_serial_probe,
 	.remove		= s3c24xx_serial_remove,
@@ -1338,6 +1339,7 @@ static int s3c2410_serial_probe(struct device *dev)
 
 static struct device_driver s3c2410_serial_drv = {
 	.name		= "s3c2410-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410_serial_probe,
 	.remove		= s3c24xx_serial_remove,
@@ -1499,6 +1501,7 @@ static int s3c2440_serial_probe(struct device *dev)
 
 static struct device_driver s3c2440_serial_drv = {
 	.name		= "s3c2440-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2440_serial_probe,
 	.remove		= s3c24xx_serial_remove,
