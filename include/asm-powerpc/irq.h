@@ -1,10 +1,22 @@
 #ifdef __KERNEL__
-#ifndef _ASM_IRQ_H
-#define _ASM_IRQ_H
+#ifndef _ASM_POWERPC_IRQ_H
+#define _ASM_POWERPC_IRQ_H
+
+/*
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ */
 
 #include <linux/config.h>
-#include <asm/machdep.h>		/* ppc_md */
+#include <linux/threads.h>
+
+#include <asm/types.h>
 #include <asm/atomic.h>
+
+/* this number is used when no interrupt has been assigned */
+#define NO_IRQ			(-1)
 
 /*
  * These constants are used for passing information about interrupt
@@ -29,6 +41,44 @@
 /* Define a way to iterate across irqs. */
 #define for_each_irq(i) \
 	for ((i) = 0; (i) < NR_IRQS; ++(i))
+
+#ifdef CONFIG_PPC64
+
+/*
+ * Maximum number of interrupt sources that we can handle.
+ */
+#define NR_IRQS		512
+
+/* Interrupt numbers are virtual in case they are sparsely
+ * distributed by the hardware.
+ */
+extern unsigned int virt_irq_to_real_map[NR_IRQS];
+
+/* Create a mapping for a real_irq if it doesn't already exist.
+ * Return the virtual irq as a convenience.
+ */
+int virt_irq_create_mapping(unsigned int real_irq);
+void virt_irq_init(void);
+
+static inline unsigned int virt_irq_to_real(unsigned int virt_irq)
+{
+	return virt_irq_to_real_map[virt_irq];
+}
+
+extern unsigned int real_irq_to_virt_slowpath(unsigned int real_irq);
+
+/*
+ * List of interrupt controllers.
+ */
+#define IC_INVALID    0
+#define IC_OPEN_PIC   1
+#define IC_PPC_XIC    2
+#define IC_BPA_IIC    3
+#define IC_ISERIES    4
+
+extern u64 ppc64_interrupt_controller;
+
+#else /* 32-bit */
 
 #if defined(CONFIG_40x)
 #include <asm/ibm4xx.h>
@@ -72,23 +122,12 @@
 #define NR_UIC_IRQS UIC_WIDTH
 #define NR_IRQS		((NR_UIC_IRQS * NR_UICS) + NR_BOARD_IRQS)
 #endif
-static __inline__ int
-irq_canonicalize(int irq)
-{
-	return (irq);
-}
 
 #elif defined(CONFIG_44x)
 #include <asm/ibm44x.h>
 
 #define	NR_UIC_IRQS	32
 #define	NR_IRQS		((NR_UIC_IRQS * NR_UICS) + NR_BOARD_IRQS)
-
-static __inline__ int
-irq_canonicalize(int irq)
-{
-	return (irq);
-}
 
 #elif defined(CONFIG_8xx)
 
@@ -176,19 +215,8 @@ irq_canonicalize(int irq)
  */
 #define	mk_int_int_mask(IL) (1 << (7 - (IL/2)))
 
-/* always the same on 8xx -- Cort */
-static __inline__ int irq_canonicalize(int irq)
-{
-	return irq;
-}
-
 #elif defined(CONFIG_83xx)
 #include <asm/mpc83xx.h>
-
-static __inline__ int irq_canonicalize(int irq)
-{
-	return irq;
-}
 
 #define	NR_IRQS	(NR_IPIC_INTS)
 
@@ -313,17 +341,13 @@ static __inline__ int irq_canonicalize(int irq)
 #define	SIU_INT_PC1		((uint)0x3e+CPM_IRQ_OFFSET)
 #define	SIU_INT_PC0		((uint)0x3f+CPM_IRQ_OFFSET)
 
-static __inline__ int irq_canonicalize(int irq)
-{
-	return irq;
-}
-
 #else /* CONFIG_40x + CONFIG_8xx */
 /*
  * this is the # irq's for all ppc arch's (pmac/chrp/prep)
  * so it is the max of them all
  */
 #define NR_IRQS			256
+#define __DO_IRQ_CANON	1
 
 #ifndef CONFIG_8260
 
@@ -400,18 +424,6 @@ static __inline__ int irq_canonicalize(int irq)
 
 #endif /* CONFIG_8260 */
 
-/*
- * This gets called from serial.c, which is now used on
- * powermacs as well as prep/chrp boxes.
- * Prep and chrp both have cascaded 8259 PICs.
- */
-static __inline__ int irq_canonicalize(int irq)
-{
-	if (ppc_md.irq_canonicalize)
-		return ppc_md.irq_canonicalize(irq);
-	return irq;
-}
-
 #endif
 
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
@@ -419,6 +431,70 @@ static __inline__ int irq_canonicalize(int irq)
 extern unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
 extern unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
 extern atomic_t ppc_n_lost_interrupts;
+
+#endif
+
+/*
+ * Because many systems have two overlapping names spaces for
+ * interrupts (ISA and XICS for example), and the ISA interrupts
+ * have historically not been easy to renumber, we allow ISA
+ * interrupts to take values 0 - 15, and shift up the remaining
+ * interrupts by 0x10.
+ */
+#define NUM_ISA_INTERRUPTS	0x10
+extern int __irq_offset_value;
+
+static inline int irq_offset_up(int irq)
+{
+	return(irq + __irq_offset_value);
+}
+
+static inline int irq_offset_down(int irq)
+{
+	return(irq - __irq_offset_value);
+}
+
+static inline int irq_offset_value(void)
+{
+	return __irq_offset_value;
+}
+
+#ifdef __DO_IRQ_CANON
+extern int ppc_do_canonicalize_irqs;
+#else
+#define ppc_do_canonicalize_irqs	0
+#endif
+
+static __inline__ int irq_canonicalize(int irq)
+{
+	if (ppc_do_canonicalize_irqs && irq == 2)
+		irq = 9;
+	return irq;
+}
+
+extern int distribute_irqs;
+
+struct irqaction;
+struct pt_regs;
+
+#ifdef CONFIG_IRQSTACKS
+/*
+ * Per-cpu stacks for handling hard and soft interrupts.
+ */
+extern struct thread_info *hardirq_ctx[NR_CPUS];
+extern struct thread_info *softirq_ctx[NR_CPUS];
+
+extern void irq_ctx_init(void);
+extern void call_do_softirq(struct thread_info *tp);
+extern int call_handle_IRQ_event(int irq, struct pt_regs *regs,
+			struct irqaction *action, struct thread_info *tp);
+
+#define __ARCH_HAS_DO_SOFTIRQ
+
+#else
+#define irq_ctx_init()
+
+#endif /* CONFIG_IRQSTACKS */
 
 #endif /* _ASM_IRQ_H */
 #endif /* __KERNEL__ */
