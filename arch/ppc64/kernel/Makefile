@@ -12,7 +12,7 @@ obj-y               :=	setup.o entry.o irq.o idle.o dma.o \
 			align.o semaphore.o bitops.o pacaData.o \
 			udbg.o binfmt_elf32.o sys_ppc32.o ioctl32.o \
 			ptrace32.o signal32.o rtc.o init_task.o \
-			lmb.o cputable.o cpu_setup_power4.o \
+			cputable.o cpu_setup_power4.o \
 			iommu.o sysfs.o vdso.o pmc.o firmware.o prom.o
 obj-y += vdso32/ vdso64/
 
