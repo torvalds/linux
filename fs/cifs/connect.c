@@ -30,6 +30,7 @@
 #include <linux/mempool.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <linux/pagevec.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include "cifspdu.h"
@@ -188,6 +189,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 					server->server_RFC1001_name);
 		}
 		if(rc) {
+			cERROR(1,("reconnect error %d",rc));
 			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
@@ -469,6 +471,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			} else {
 				/* give server a second to
 				clean up before reconnect attempt */
+				cERROR(1,("sleep before reconnect"));
 				msleep(1000);
 				/* always try 445 first on reconnect
 				since we get NACK on some if we ever
@@ -556,6 +559,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		dump_smb(smb_buffer, length);
 		if (checkSMB (smb_buffer, smb_buffer->Mid, total_read+4)) {
 			cERROR(1, ("Bad SMB Received "));
+			cifs_dump_mem("smb: ", smb_buffer, 48);
 			continue;
 		}
 
@@ -1383,7 +1387,9 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		the default. sock_setsockopt not used because it expects 
 		user space buffer */
 	(*csocket)->sk->sk_rcvtimeo = 7 * HZ;
-
+	 cERROR(1,("sndbuf %d rcvbuf %d reset to 200K each",(*csocket)->sk->sk_sndbuf, (*csocket)->sk->sk_rcvbuf));
+	(*csocket)->sk->sk_sndbuf = 300 * 1024;
+	(*csocket)->sk->sk_rcvbuf = 200 * 1024;
 	/* send RFC1001 sessinit */
 
 	if(psin_server->sin_port == htons(RFC1001_PORT)) {
@@ -1736,11 +1742,20 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
     
 	/* search for existing tcon to this server share */
 	if (!rc) {
-		if((volume_info.rsize) && (volume_info.rsize <= CIFSMaxBufSize))
+		if(volume_info.rsize > CIFSMaxBufSize) {
+			cERROR(1,("rsize %d too large, using MaxBufSize",
+				volume_info.rsize));
+			cifs_sb->rsize = CIFSMaxBufSize;
+		} else if((volume_info.rsize) && (volume_info.rsize <= CIFSMaxBufSize))
 			cifs_sb->rsize = volume_info.rsize;
-		else
-			cifs_sb->rsize = srvTcp->maxBuf - MAX_CIFS_HDR_SIZE; /* default */
-		if(volume_info.wsize)
+		else /* default */
+			cifs_sb->rsize = CIFSMaxBufSize;
+
+		if(volume_info.wsize > PAGEVEC_SIZE * PAGE_CACHE_SIZE) {
+			cERROR(1,("wsize %d too large using 4096 instead",
+				  volume_info.wsize));
+			cifs_sb->wsize = 4096;
+		} else if(volume_info.wsize)
 			cifs_sb->wsize = volume_info.wsize;
 		else
 			cifs_sb->wsize = CIFSMaxBufSize; /* default */
@@ -1895,6 +1910,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->wsize = min(cifs_sb->wsize,
 					     (tcon->ses->server->maxBuf -
 					      MAX_CIFS_HDR_SIZE));
+		if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
+                        cifs_sb->rsize = min(cifs_sb->rsize,
+                                             (tcon->ses->server->maxBuf -
+                                              MAX_CIFS_HDR_SIZE));
 	}
 
 	/* volume_info.password is freed above when existing session found

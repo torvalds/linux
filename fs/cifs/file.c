@@ -855,7 +855,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				struct kvec iov[2];
 				unsigned int len;
 
-				len = min(cifs_sb->wsize,
+				len = min((size_t)cifs_sb->wsize,
 					  write_size - total_written);
 				/* iov[0] is reserved for smb header */
 				iov[1].iov_base = (char *)write_data +
@@ -920,7 +920,8 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
 			read_unlock(&GlobalSMBSeslock);
-			if(open_file->invalidHandle) {
+			if((open_file->invalidHandle) && 
+			   (!open_file->closePend)) {
 				rc = cifs_reopen_file(&cifs_inode->vfs_inode, 
 						      open_file->pfile, FALSE);
 				/* if it fails, try another handle - might be */
