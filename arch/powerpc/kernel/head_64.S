@@ -1385,7 +1385,7 @@ _STATIC(__boot_from_prom)
 	addi	r2,r2,0x4000
 
 	/* Relocate the TOC from a virt addr to a real addr */
-	sub	r2,r2,r3
+	add	r2,r2,r3
 
 	/* Restore parameters */
 	mr	r3,r31
@@ -1424,7 +1424,7 @@ _STATIC(__after_prom_start)
 	li	r3,0			/* target addr */
 
 	// XXX FIXME: Use phys returned by OF (r30)
-	sub	r4,r27,r26 		/* source addr			 */
+	add	r4,r27,r26 		/* source addr			 */
 					/* current address of _start	 */
 					/*   i.e. where we are running	 */
 					/*	the source addr		 */
@@ -1444,7 +1444,7 @@ _STATIC(__after_prom_start)
 	bctr
 
 4:	LOADADDR(r5,klimit)
-	sub	r5,r5,r26
+	add	r5,r5,r26
 	ld	r5,0(r5)		/* get the value of klimit */
 	sub	r5,r5,r27
 	bl	.copy_and_flush		/* copy the rest */
@@ -1703,7 +1703,7 @@ _STATIC(start_here_multiplatform)
 	/* kernel but are still running in real mode. */
 
 	LOADADDR(r3,init_thread_union)
-	sub	r3,r3,r26
+	add	r3,r3,r26
 
 	/* set up a stack pointer (physical address) */
 	addi	r1,r3,THREAD_SIZE
@@ -1714,12 +1714,12 @@ _STATIC(start_here_multiplatform)
 	LOADADDR(r2,__toc_start)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
-	sub	r2,r2,r26
+	add	r2,r2,r26
 
 	LOADADDR(r3,cpu_specs)
-	sub	r3,r3,r26
+	add	r3,r3,r26
 	LOADADDR(r4,cur_cpu_spec)
-	sub	r4,r4,r26
+	add	r4,r4,r26
 	mr	r5,r26
 	bl	.identify_cpu
 
@@ -1735,13 +1735,13 @@ _STATIC(start_here_multiplatform)
 	 * code
 	 */
 	LOADADDR(r27, boot_cpuid)
-	sub	r27,r27,r26
+	add	r27,r27,r26
 	lwz	r27,0(r27)
 
 	LOADADDR(r24, paca) 		/* Get base vaddr of paca array	 */
 	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
-	sub	r13,r13,r26		/* convert to physical addr	 */
+	add	r13,r13,r26		/* convert to physical addr	 */
 	mtspr	SPRN_SPRG3,r13		/* PPPBBB: Temp... -Peter */
 	
 	/* Do very early kernel initializations, including initial hash table,
@@ -1781,7 +1781,7 @@ _STATIC(start_here_multiplatform)
 	andi.	r3,r3,PLATFORM_LPAR
 	bne	98f			/* branch if result is !0  */
 	LOADADDR(r6,_SDR1)		/* Only if NOT LPAR */
-	sub	r6,r6,r26
+	add	r6,r6,r26
 	ld	r6,0(r6)		/* get the value of _SDR1 */
 	mtspr	SPRN_SDR1,r6			/* set the htab location  */
 98: 
