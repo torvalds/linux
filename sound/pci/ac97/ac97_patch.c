@@ -1460,7 +1460,8 @@ int patch_ad1881(ac97_t * ac97)
 	codecs[1] = patch_ad1881_unchained(ac97, 1, (1<<14));
 	codecs[2] = patch_ad1881_unchained(ac97, 2, (1<<13));
 
-	snd_runtime_check(codecs[0] | codecs[1] | codecs[2], goto __end);
+	if (! (codecs[0] || codecs[1] || codecs[2]))
+		goto __end;
 
 	for (idx = 0; idx < 3; idx++)
 		if (ac97->spec.ad18xx.unchained[idx])

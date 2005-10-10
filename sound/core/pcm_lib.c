@@ -156,9 +156,8 @@ static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(snd_pcm_substream_t *s
 #ifdef CONFIG_SND_DEBUG
 	if (pos >= runtime->buffer_size) {
 		snd_printk(KERN_ERR  "BUG: stream = %i, pos = 0x%lx, buffer size = 0x%lx, period size = 0x%lx\n", substream->stream, pos, runtime->buffer_size, runtime->period_size);
-	} else
+	}
 #endif
-	snd_runtime_check(pos < runtime->buffer_size, return 0);
 	pos -= pos % runtime->min_align;
 	return pos;
 }

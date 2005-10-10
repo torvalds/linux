@@ -2893,7 +2893,8 @@ static void snd_trident_notify_pcm_change1(snd_card_t * card, snd_kcontrol_t *kc
 {
 	snd_ctl_elem_id_t id;
 
-	snd_runtime_check(kctl != NULL, return);
+	if (! kctl)
+		return;
 	if (activate)
 		kctl->vd[num].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else

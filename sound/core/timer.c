@@ -879,7 +879,8 @@ void snd_timer_notify(snd_timer_t *timer, enum sndrv_timer_event event, struct t
 	snd_timer_instance_t *ti, *ts;
 	struct list_head *p, *n;
 
-	snd_runtime_check(timer->hw.flags & SNDRV_TIMER_HW_SLAVE, return);	
+	if (! (timer->hw.flags & SNDRV_TIMER_HW_SLAVE))
+		return;
 	snd_assert(event >= SNDRV_TIMER_EVENT_MSTART && event <= SNDRV_TIMER_EVENT_MRESUME, return);
 	spin_lock_irqsave(&timer->lock, flags);
 	if (event == SNDRV_TIMER_EVENT_MSTART ||

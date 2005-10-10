@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>March 6, 2005</date>
-     <edition>0.3.4</edition>
+     <date>October 6, 2005</date>
+     <edition>0.3.5</edition>
 
     <abstract>
       <para>
@@ -30,7 +30,7 @@
 
     <legalnotice>
     <para>
-    Copyright (c) 2002-2004  Takashi Iwai <email>tiwai@suse.de</email>
+    Copyright (c) 2002-2005  Takashi Iwai <email>tiwai@suse.de</email>
     </para>
 
     <para>
@@ -5998,32 +5998,23 @@ struct _snd_pcm_runtime {
         The first argument is the expression to evaluate, and the
       second argument is the action if it fails. When
       <constant>CONFIG_SND_DEBUG</constant>, is set, it will show an
-      error message such as <computeroutput>BUG? (xxx) (called from
-      yyy)</computeroutput>. When no debug flag is set, this is
-      ignored. 
+      error message such as <computeroutput>BUG? (xxx)</computeroutput>
+      together with stack trace.
       </para>
-    </section>
-
-    <section id="useful-functions-snd-runtime-check">
-      <title><function>snd_runtime_check()</function></title>
       <para>
-        This macro is quite similar with
-      <function>snd_assert()</function>. Unlike
-      <function>snd_assert()</function>, the expression is always
-      evaluated regardless of
-      <constant>CONFIG_SND_DEBUG</constant>. When
-      <constant>CONFIG_SND_DEBUG</constant> is set, the macro will
-      show a message like <computeroutput>ERROR (xx) (called from
-      yyy)</computeroutput>. 
+	 When no debug flag is set, this macro is ignored. 
       </para>
     </section>
 
     <section id="useful-functions-snd-bug">
       <title><function>snd_BUG()</function></title>
       <para>
-        It calls <function>snd_assert(0,)</function> -- that is, just
-      prints the error message at the point. It's useful to show that
-      a fatal error happens there. 
+        It shows <computeroutput>BUG?</computeroutput> message and
+      stack trace as well as <function>snd_assert</function> at the point.
+      It's useful to show that a fatal error happens there. 
+      </para>
+      <para>
+	 When no debug flag is set, this macro is ignored. 
       </para>
     </section>
   </chapter>

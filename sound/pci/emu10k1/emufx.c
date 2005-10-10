@@ -364,12 +364,18 @@ static int snd_emu10k1_gpr_ctl_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 			snd_emu10k1_ptr_write(emu, emu->gpr_base + ctl->gpr[i], 0, db_table[val]);
 			break;
 		case EMU10K1_GPR_TRANSLATION_BASS:
-			snd_runtime_check((ctl->count % 5) == 0 && (ctl->count / 5) == ctl->vcount, change = -EIO; goto __error);
+			if ((ctl->count % 5) != 0 || (ctl->count / 5) != ctl->vcount) {
+				change = -EIO;
+				goto __error;
+			}
 			for (j = 0; j < 5; j++)
 				snd_emu10k1_ptr_write(emu, emu->gpr_base + ctl->gpr[j * ctl->vcount + i], 0, bass_table[val][j]);
 			break;
 		case EMU10K1_GPR_TRANSLATION_TREBLE:
-			snd_runtime_check((ctl->count % 5) == 0 && (ctl->count / 5) == ctl->vcount, change = -EIO; goto __error);
+			if ((ctl->count % 5) != 0 || (ctl->count / 5) != ctl->vcount) {
+				change = -EIO;
+				goto __error;
+			}
 			for (j = 0; j < 5; j++)
 				snd_emu10k1_ptr_write(emu, emu->gpr_base + ctl->gpr[j * ctl->vcount + i], 0, treble_table[val][j]);
 			break;
@@ -412,8 +418,6 @@ int snd_emu10k1_fx8010_register_irq_handler(emu10k1_t *emu,
 	snd_emu10k1_fx8010_irq_t *irq;
 	unsigned long flags;
 	
-	snd_runtime_check(emu, return -EINVAL);
-	snd_runtime_check(handler, return -EINVAL);
 	irq = kmalloc(sizeof(*irq), GFP_ATOMIC);
 	if (irq == NULL)
 		return -ENOMEM;
@@ -442,7 +446,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(emu10k1_t *emu,
 	snd_emu10k1_fx8010_irq_t *tmp;
 	unsigned long flags;
 	
-	snd_runtime_check(irq, return -EINVAL);
 	spin_lock_irqsave(&emu->fx8010.irq_lock, flags);
 	if ((tmp = emu->fx8010.irq_handlers) == irq) {
 		emu->fx8010.irq_handlers = tmp->next;
@@ -717,9 +720,15 @@ static int snd_emu10k1_add_controls(emu10k1_t *emu, emu10k1_fx8010_code_t *icode
 			err = -EFAULT;
 			goto __error;
 		}
-		snd_runtime_check(gctl->id.iface == SNDRV_CTL_ELEM_IFACE_MIXER ||
-		                  gctl->id.iface == SNDRV_CTL_ELEM_IFACE_PCM, err = -EINVAL; goto __error);
-		snd_runtime_check(gctl->id.name[0] != '\0', err = -EINVAL; goto __error);
+		if (gctl->id.iface != SNDRV_CTL_ELEM_IFACE_MIXER &&
+		    gctl->id.iface != SNDRV_CTL_ELEM_IFACE_PCM) {
+			err = -EINVAL;
+			goto __error;
+		}
+		if (! gctl->id.name[0]) {
+			err = -EINVAL;
+			goto __error;
+		}
 		ctl = snd_emu10k1_look_for_ctl(emu, &gctl->id);
 		memset(&knew, 0, sizeof(knew));
 		knew.iface = gctl->id.iface;
@@ -783,7 +792,8 @@ static int snd_emu10k1_del_controls(emu10k1_t *emu, emu10k1_fx8010_code_t *icode
 	
 	for (i = 0, _id = icode->gpr_del_controls;
 	     i < icode->gpr_del_control_count; i++, _id++) {
-	     	snd_runtime_check(copy_from_user(&id, _id, sizeof(id)) == 0, return -EFAULT);
+	     	if (copy_from_user(&id, _id, sizeof(id)))
+			return -EFAULT;
 		down_write(&card->controls_rwsem);
 		ctl = snd_emu10k1_look_for_ctl(emu, &id);
 		if (ctl)
@@ -2075,14 +2085,16 @@ void snd_emu10k1_free_efx(emu10k1_t *emu)
 #if 0 // FIXME: who use them?
 int snd_emu10k1_fx8010_tone_control_activate(emu10k1_t *emu, int output)
 {
-	snd_runtime_check(output >= 0 && output < 6, return -EINVAL);
+	if (output < 0 || output >= 6)
+		return -EINVAL;
 	snd_emu10k1_ptr_write(emu, emu->gpr_base + 0x94 + output, 0, 1);
 	return 0;
 }
 
 int snd_emu10k1_fx8010_tone_control_deactivate(emu10k1_t *emu, int output)
 {
-	snd_runtime_check(output >= 0 && output < 6, return -EINVAL);
+	if (output < 0 || output >= 6)
+		return -EINVAL;
 	snd_emu10k1_ptr_write(emu, emu->gpr_base + 0x94 + output, 0, 0);
 	return 0;
 }

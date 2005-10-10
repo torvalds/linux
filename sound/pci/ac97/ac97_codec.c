@@ -1127,7 +1127,6 @@ snd_kcontrol_t *snd_ac97_cnew(const snd_kcontrol_new_t *_template, ac97_t * ac97
 {
 	snd_kcontrol_new_t template;
 	memcpy(&template, _template, sizeof(template));
-	snd_runtime_check(!template.index, return NULL);
 	template.index = ac97->num;
 	return snd_ctl_new1(&template, ac97);
 }

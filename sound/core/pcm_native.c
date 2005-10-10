@@ -2053,7 +2053,8 @@ static int snd_pcm_open(struct inode *inode, struct file *file)
 	snd_pcm_file_t *pcm_file;
 	wait_queue_t wait;
 
-	snd_runtime_check(device >= SNDRV_MINOR_PCM_PLAYBACK && device < SNDRV_MINOR_DEVICES, return -ENXIO);
+	if (device < SNDRV_MINOR_PCM_PLAYBACK || device >= SNDRV_MINOR_DEVICES)
+		return -ENXIO;
 	pcm = snd_pcm_devices[(cardnum * SNDRV_PCM_DEVICES) + (device % SNDRV_MINOR_PCMS)];
 	if (pcm == NULL) {
 		err = -ENODEV;

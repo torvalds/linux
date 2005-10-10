@@ -429,34 +429,24 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
  * When CONFIG_SND_DEBUG is not set, the expression is executed but
  * not checked.
  */
-#define snd_assert(expr, args...) do {\
-	if (unlikely(!(expr))) {				\
-		snd_printk(KERN_ERR "BUG? (%s) (called from %p)\n", __ASTRING__(expr), __builtin_return_address(0));\
-		args;\
-	}\
+#define snd_assert(expr, args...) do {					\
+	if (unlikely(!(expr))) {					\
+		snd_printk(KERN_ERR "BUG? (%s)\n", __ASTRING__(expr));	\
+		dump_stack();						\
+		args;							\
+	}								\
 } while (0)
-/**
- * snd_runtime_check - run-time assertion macro
- * @expr: expression
- * @args...: the action
- *
- * This macro checks the expression in run-time and invokes the commands
- * given in the rest arguments if the assertion is failed.
- * Unlike snd_assert(), the action commands are executed even if
- * CONFIG_SND_DEBUG is not set but without any error messages.
- */
-#define snd_runtime_check(expr, args...) do {\
-	if (unlikely(!(expr))) {				\
-		snd_printk(KERN_ERR "ERROR (%s) (called from %p)\n", __ASTRING__(expr), __builtin_return_address(0));\
-		args;\
-	}\
+
+#define snd_BUG() do {				\
+	snd_printk(KERN_ERR "BUG?\n");		\
+	dump_stack();				\
 } while (0)
 
 #else /* !CONFIG_SND_DEBUG */
 
 #define snd_printd(fmt, args...)	/* nothing */
 #define snd_assert(expr, args...)	(void)(expr)
-#define snd_runtime_check(expr, args...) do { if (!(expr)) { args; } } while (0)
+#define snd_BUG()			/* nothing */
 
 #endif /* CONFIG_SND_DEBUG */
 
@@ -472,8 +462,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #else
 #define snd_printdd(format, args...) /* nothing */
 #endif
-
-#define snd_BUG() snd_assert(0, )
 
 
 static inline void snd_timestamp_now(struct timespec *tstamp, int timespec)
