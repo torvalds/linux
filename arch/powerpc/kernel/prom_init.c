@@ -1968,9 +1968,9 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	extern char _stext[];
 	unsigned long hdr;
 	u32 getprop_rval;
+	unsigned long offset = reloc_offset();
 
 #ifdef CONFIG_PPC32
-	unsigned long offset = reloc_offset();
 	reloc_got2(offset);
 #endif
 
