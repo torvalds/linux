@@ -530,7 +530,9 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&ps->async_completed);
 	init_waitqueue_head(&ps->wait);
 	ps->discsignr = 0;
-	ps->disctask = current;
+	ps->disc_pid = current->pid;
+	ps->disc_uid = current->uid;
+	ps->disc_euid = current->euid;
 	ps->disccontext = NULL;
 	ps->ifclaimed = 0;
 	wmb();
