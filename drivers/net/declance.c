@@ -237,7 +237,7 @@ struct lance_init_block {
 /*
  * This works *only* for the ring descriptors
  */
-#define LANCE_ADDR(x) (PHYSADDR(x) >> 1)
+#define LANCE_ADDR(x) (CPHYSADDR(x) >> 1)
 
 struct lance_private {
 	struct net_device *next;
@@ -1102,7 +1102,7 @@ static int __init dec_lance_init(const int type, const int slot)
 		/* Setup I/O ASIC LANCE DMA.  */
 		lp->dma_irq = dec_interrupt[DEC_IRQ_LANCE_MERR];
 		ioasic_write(IO_REG_LANCE_DMA_P,
-			     PHYSADDR(dev->mem_start) << 3);
+			     CPHYSADDR(dev->mem_start) << 3);
 
 		break;
 
