@@ -1,12 +1,13 @@
 /*
  * Routines for handling backlight control on PowerBooks
  *
- * For now, implementation resides in arch/ppc/kernel/pmac_support.c
+ * For now, implementation resides in
+ * arch/powerpc/platforms/powermac/pmac_support.c
  *
  */
+#ifndef __ASM_POWERPC_BACKLIGHT_H
+#define __ASM_POWERPC_BACKLIGHT_H
 #ifdef __KERNEL__
-#ifndef __ASM_PPC_BACKLIGHT_H
-#define __ASM_PPC_BACKLIGHT_H
 
 /* Abstract values */
 #define BACKLIGHT_OFF	0
@@ -26,5 +27,5 @@ extern int get_backlight_enable(void);
 extern int set_backlight_level(int level);
 extern int get_backlight_level(void);
 
-#endif
 #endif /* __KERNEL__ */
+#endif
