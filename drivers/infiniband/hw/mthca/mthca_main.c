@@ -162,9 +162,18 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 	mdev->limits.pkey_table_len 	= dev_lim->max_pkeys;
 	mdev->limits.local_ca_ack_delay = dev_lim->local_ca_ack_delay;
 	mdev->limits.max_sg             = dev_lim->max_sg;
+	mdev->limits.max_wqes           = dev_lim->max_qp_sz;
+	mdev->limits.max_qp_init_rdma   = dev_lim->max_requester_per_qp;
 	mdev->limits.reserved_qps       = dev_lim->reserved_qps;
+	mdev->limits.max_srq_wqes       = dev_lim->max_srq_sz;
 	mdev->limits.reserved_srqs      = dev_lim->reserved_srqs;
 	mdev->limits.reserved_eecs      = dev_lim->reserved_eecs;
+	/*
+	 * Subtract 1 from the limit because we need to allocate a
+	 * spare CQE so the HCA HW can tell the difference between an
+	 * empty CQ and a full CQ.
+	 */
+	mdev->limits.max_cqes           = dev_lim->max_cq_sz - 1;
 	mdev->limits.reserved_cqs       = dev_lim->reserved_cqs;
 	mdev->limits.reserved_eqs       = dev_lim->reserved_eqs;
 	mdev->limits.reserved_mtts      = dev_lim->reserved_mtts;

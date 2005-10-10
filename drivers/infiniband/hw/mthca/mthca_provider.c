@@ -90,17 +90,26 @@ static int mthca_query_device(struct ib_device *ibdev,
 
 	props->max_mr_size         = ~0ull;
 	props->max_qp              = mdev->limits.num_qps - mdev->limits.reserved_qps;
-	props->max_qp_wr           = 0xffff;
+	props->max_qp_wr           = mdev->limits.max_wqes;
 	props->max_sge             = mdev->limits.max_sg;
 	props->max_cq              = mdev->limits.num_cqs - mdev->limits.reserved_cqs;
-	props->max_cqe             = 0xffff;
+	props->max_cqe             = mdev->limits.max_cqes;
 	props->max_mr              = mdev->limits.num_mpts - mdev->limits.reserved_mrws;
 	props->max_pd              = mdev->limits.num_pds - mdev->limits.reserved_pds;
 	props->max_qp_rd_atom      = 1 << mdev->qp_table.rdb_shift;
-	props->max_qp_init_rd_atom = 1 << mdev->qp_table.rdb_shift;
+	props->max_qp_init_rd_atom = mdev->limits.max_qp_init_rdma;
+	props->max_res_rd_atom     = props->max_qp_rd_atom * props->max_qp;
+	props->max_srq             = mdev->limits.num_srqs - mdev->limits.reserved_srqs;
+	props->max_srq_wr          = mdev->limits.max_srq_wqes;
+	props->max_srq_sge         = mdev->limits.max_sg;
 	props->local_ca_ack_delay  = mdev->limits.local_ca_ack_delay;
 	props->atomic_cap          = mdev->limits.flags & DEV_LIM_FLAG_ATOMIC ? 
 					IB_ATOMIC_HCA : IB_ATOMIC_NONE;
+	props->max_pkeys           = mdev->limits.pkey_table_len;
+	props->max_mcast_grp       = mdev->limits.num_mgms + mdev->limits.num_amgms;
+	props->max_mcast_qp_attach = MTHCA_QP_PER_MGM;
+	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach * 
+					   props->max_mcast_grp;
 
 	err = 0;
  out:
@@ -639,6 +648,9 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
 	struct mthca_cq *cq;
 	int nent;
 	int err;
+
+	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
+		return ERR_PTR(-EINVAL);
 
 	if (context) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))

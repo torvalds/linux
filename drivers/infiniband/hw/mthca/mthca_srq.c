@@ -186,7 +186,8 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	int err;
 
 	/* Sanity check SRQ size before proceeding */
-	if (attr->max_wr > 16 << 20 || attr->max_sge > 64)
+	if (attr->max_wr  > dev->limits.max_srq_wqes ||
+	    attr->max_sge > dev->limits.max_sg)
 		return -EINVAL;
 
 	srq->max      = attr->max_wr;

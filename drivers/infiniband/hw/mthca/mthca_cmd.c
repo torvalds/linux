@@ -933,9 +933,9 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		goto out;
 
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SRQ_SZ_OFFSET);
-	dev_lim->max_srq_sz = 1 << field;
+	dev_lim->max_srq_sz = (1 << field) - 1;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_SZ_OFFSET);
-	dev_lim->max_qp_sz = 1 << field;
+	dev_lim->max_qp_sz = (1 << field) - 1;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_RSVD_QP_OFFSET);
 	dev_lim->reserved_qps = 1 << (field & 0xf);
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_OFFSET);
@@ -1045,6 +1045,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		  dev_lim->max_pds, dev_lim->reserved_pds, dev_lim->reserved_uars);
 	mthca_dbg(dev, "Max QP/MCG: %d, reserved MGMs: %d\n",
 		  dev_lim->max_pds, dev_lim->reserved_mgms);
+	mthca_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
+		  dev_lim->max_cq_sz, dev_lim->max_qp_sz, dev_lim->max_srq_sz);
 
 	mthca_dbg(dev, "Flags: %08x\n", dev_lim->flags);
 

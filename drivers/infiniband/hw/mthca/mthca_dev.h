@@ -83,6 +83,8 @@ enum {
 	/* Arbel FW gives us these, but we need them for Tavor */
 	MTHCA_MPT_ENTRY_SIZE  =  0x40,
 	MTHCA_MTT_SEG_SIZE    =  0x40,
+
+	MTHCA_QP_PER_MGM      = 4 * (MTHCA_MGM_ENTRY_SIZE / 16 - 2)
 };
 
 enum {
@@ -128,12 +130,16 @@ struct mthca_limits {
 	int      num_uars;
 	int      max_sg;
 	int      num_qps;
+	int      max_wqes;
+	int	 max_qp_init_rdma;
 	int      reserved_qps;
 	int      num_srqs;
+	int      max_srq_wqes;
 	int      reserved_srqs;
 	int      num_eecs;
 	int      reserved_eecs;
 	int      num_cqs;
+	int      max_cqes;
 	int      reserved_cqs;
 	int      num_eqs;
 	int      reserved_eqs;

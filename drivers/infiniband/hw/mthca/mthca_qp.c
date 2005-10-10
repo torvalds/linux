@@ -1112,8 +1112,10 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 			     struct mthca_qp *qp)
 {
 	/* Sanity check QP size before proceeding */
-	if (cap->max_send_wr  > 65536 || cap->max_recv_wr  > 65536 ||
-	    cap->max_send_sge > 64    || cap->max_recv_sge > 64)
+	if (cap->max_send_wr  > dev->limits.max_wqes ||
+	    cap->max_recv_wr  > dev->limits.max_wqes ||
+	    cap->max_send_sge > dev->limits.max_sg   ||
+	    cap->max_recv_sge > dev->limits.max_sg)
 		return -EINVAL;
 
 	if (mthca_is_memfree(dev)) {

@@ -37,10 +37,6 @@
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 
-enum {
-	MTHCA_QP_PER_MGM = 4 * (MTHCA_MGM_ENTRY_SIZE / 16 - 2)
-};
-
 struct mthca_mgm {
 	__be32 next_gid_index;
 	u32    reserved[3];
