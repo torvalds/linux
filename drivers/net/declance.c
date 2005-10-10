@@ -1069,7 +1069,7 @@ static int __init dec_lance_init(const int type, const int slot)
 		/*
 		 * FIXME: ugly hack!
 		 */
-		dev->mem_start = KSEG1ADDR(0x00020000);
+		dev->mem_start = CKSEG1ADDR(0x00020000);
 		dev->mem_end = dev->mem_start + 0x00020000;
 		dev->irq = dec_interrupt[DEC_IRQ_LANCE];
 		esar_base = system_base + IOASIC_ESAR;
