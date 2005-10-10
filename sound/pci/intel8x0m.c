@@ -3,7 +3,7 @@
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
  *
- *   This is modified (by Sasha Khapyorsky <sashak@smlink.com>) version
+ *   This is modified (by Sasha Khapyorsky <sashak@alsa-project.org>) version
  *   of ALSA ICH sound driver intel8x0.c .
  *
  *

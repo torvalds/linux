@@ -26,7 +26,7 @@
 /*
  * Changes:
  *
- * Sep. 2,  2004  Sasha Khapyorsky <sashak@smlink.com>
+ * Sep. 2,  2004  Sasha Khapyorsky <sashak@alsa-project.org>
  *      Modified from original audio driver 'via82xx.c' to support AC97
  *      modems.
  */
