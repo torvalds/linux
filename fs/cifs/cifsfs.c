@@ -408,21 +408,24 @@ static struct quotactl_ops cifs_quotactl_ops = {
 static void cifs_umount_begin(struct super_block * sblock)
 {
 	struct cifs_sb_info *cifs_sb;
+	struct cifsTconInfo * tcon;
 
 	cifs_sb = CIFS_SB(sb);
 	if(cifs_sb == NULL)
-		return -EIO;
-	if(cifs_sb->tcon == NULL)
-		return -EIO;
+		return;
+
+	tcon = cifs_sb->tcon;
+	if(tcon == NULL)
+		return;
 	down(&tcon->tconSem);
 	if (atomic_read(&tcon->useCount) == 1)
 		tcon->tidStatus = CifsExiting;
 	up(&tcon->tconSem);
 
-	if((cifs->sb->tcon->ses) && (cifs_sb->tcon->ses->server))
+	if(tcon->ses && tcon->ses->server)
 	{
 		cERROR(1,("wake up tasks now - umount begin not complete"));
-		wake_up_all(&server->request_q);
+		wake_up_all(&tcon->ses->server->request_q);
 	}
 /* BB FIXME - finish add checks for tidStatus BB */
 
