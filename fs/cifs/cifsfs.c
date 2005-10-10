@@ -405,6 +405,16 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
+static void cifs_umount_begin(struct super_block * sblock)
+{
+	cERROR(1,("kill all tasks now - umount begin not implemented yet"));
+
+/* BB FIXME - finish BB */
+
+	return;
+}
+	
+
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
 	*flags |= MS_NODIRATIME;
@@ -422,7 +432,7 @@ struct super_operations cifs_super_ops = {
    unless later we add lazy close of inodes or unless the kernel forgets to call
    us with the same number of releases (closes) as opens */
 	.show_options = cifs_show_options,
-/*    .umount_begin   = cifs_umount_begin, *//* consider adding in the future */
+/*	.umount_begin   = cifs_umount_begin, */ /* BB finish in the future */
 	.remount_fs = cifs_remount,
 };
 
@@ -790,9 +800,7 @@ static int cifs_oplock_thread(void * dummyarg)
 	do {
 		if(try_to_freeze()) 
 			continue;
-		set_current_state(TASK_INTERRUPTIBLE);
 		
-		schedule_timeout(1*HZ);  
 		spin_lock(&GlobalMid_Lock);
 		if(list_empty(&GlobalOplock_Q)) {
 			spin_unlock(&GlobalMid_Lock);
@@ -841,6 +849,8 @@ static int cifs_oplock_thread(void * dummyarg)
 				}
 			} else
 				spin_unlock(&GlobalMid_Lock);
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(1);  /* yield in case q were corrupt */
 		}
 	} while(!signal_pending(current));
 	oplockThread = NULL;

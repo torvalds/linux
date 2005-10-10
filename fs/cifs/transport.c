@@ -157,14 +157,14 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 		/* smaller timeout here than send2 since smaller size */
 		/* Although it may not be required, this also is smaller 
 		   oplock break time */  
-			if(i > 30) {
+			if(i > 12) {
 				cERROR(1,
-				   ("sends on sock %p stuck for 15 seconds",
+				   ("sends on sock %p stuck for 7 seconds",
 				    ssocket));
 				rc = -EAGAIN;
 				break;
 			}
-			msleep(500);
+			msleep(1 << i);
 			continue;
 		}
 		if (rc < 0) 
@@ -224,14 +224,14 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 				    n_vec - first_vec, total_len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
-			if(i > 40) {
+			if(i >= 14) {
 				cERROR(1,
-				   ("sends on sock %p stuck for 20 seconds",
+				   ("sends on sock %p stuck for 15 seconds",
 				    ssocket));
 				rc = -EAGAIN;
 				break;
 			}
-			msleep(500);
+			msleep(1 << i);
 			continue;
 		}
 		if (rc < 0) 
@@ -249,6 +249,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 			continue;
 		}
 		total_len -= rc;
+		/* the line below resets i */
 		for (i = first_vec; i < n_vec; i++) {
 			if (iov[i].iov_len) {
 				if (rc > iov[i].iov_len) {

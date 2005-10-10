@@ -114,7 +114,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 				atomic_read(&ses->server->inFlight));
 
 #ifdef CONFIG_CIFS_STATS2
-			buf += sprintf(buf, "\tIn Send: %d In MaxReq Wait: %d",
+			buf += sprintf(buf, " In Send: %d In MaxReq Wait: %d",
 				atomic_read(&ses->server->inSend), 
 				atomic_read(&ses->server->num_waiters));
 #endif
@@ -267,7 +267,7 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			atomic_read(&tcon->num_oplock_brks));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf, "\nReads: %d Bytes %lld",
+		item_length = sprintf(buf, "\nReads:  %d Bytes %lld",
 			atomic_read(&tcon->num_reads),
 			(long long)(tcon->bytes_read));
 		buf += item_length;
