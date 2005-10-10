@@ -3,7 +3,13 @@
 
 /*
  * This file contains the system call numbers.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
+
 #define __NR_restart_syscall	  0
 #define __NR_exit		  1
 #define __NR_fork		  2
@@ -196,19 +202,23 @@
 #define __NR_vfork		189
 #define __NR_ugetrlimit		190	/* SuS compliant getrlimit */
 #define __NR_readahead		191
+#ifndef __powerpc64__			/* these are 32-bit only */
 #define __NR_mmap2		192
 #define __NR_truncate64		193
 #define __NR_ftruncate64	194
 #define __NR_stat64		195
 #define __NR_lstat64		196
 #define __NR_fstat64		197
+#endif
 #define __NR_pciconfig_read	198
 #define __NR_pciconfig_write	199
 #define __NR_pciconfig_iobase	200
 #define __NR_multiplexer	201
 #define __NR_getdents64		202
 #define __NR_pivot_root		203
+#ifndef __powerpc64__
 #define __NR_fcntl64		204
+#endif
 #define __NR_madvise		205
 #define __NR_mincore		206
 #define __NR_gettid		207
@@ -230,7 +240,9 @@
 #define __NR_sched_getaffinity	223
 /* 224 currently unused */
 #define __NR_tuxcall		225
+#ifndef __powerpc64__
 #define __NR_sendfile64		226
+#endif
 #define __NR_io_setup		227
 #define __NR_io_destroy		228
 #define __NR_io_getevents	229
@@ -258,14 +270,16 @@
 #define __NR_utimes		251
 #define __NR_statfs64		252
 #define __NR_fstatfs64		253
+#ifndef __powerpc64__
 #define __NR_fadvise64_64	254
+#endif
 #define __NR_rtas		255
 #define __NR_sys_debug_setcontext 256
 /* Number 257 is reserved for vserver */
 /* 258 currently unused */
-/* Number 259 is reserved for new sys_mbind */
-/* Number 260 is reserved for new sys_get_mempolicy */
-/* Number 261 is reserved for new sys_set_mempolicy */
+#define __NR_mbind		259
+#define __NR_get_mempolicy	260
+#define __NR_set_mempolicy	261
 #define __NR_mq_open		262
 #define __NR_mq_unlink		263
 #define __NR_mq_timedsend	264
@@ -285,7 +299,12 @@
 
 #define __NR_syscalls		278
 
-#define __NR(n)	#n
+#ifdef __KERNEL__
+#define __NR__exit __NR_exit
+#define NR_syscalls	__NR_syscalls
+#endif
+
+#ifndef __ASSEMBLY__
 
 /* On powerpc a system call basically clobbers the same registers like a
  * function call, with the exception of LR (which is needed for the
@@ -389,7 +408,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
 {									\
 	__syscall_nr(5, type, name, arg1, arg2, arg3, arg4, arg5);	\
 }
-
 #define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5,type6,arg6) \
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6) \
 {									\
@@ -398,12 +416,13 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 
 #ifdef __KERNEL__
 
-#define __NR__exit __NR_exit
-#define NR_syscalls	__NR_syscalls
+#include <linux/config.h>
+#include <linux/types.h>
+#include <linux/compiler.h>
+#include <linux/linkage.h>
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
-#define __ARCH_WANT_OLD_STAT
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
@@ -423,23 +442,17 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-
-/*
- * Forking from kernel space will result in the child getting a new,
- * empty kernel stack area.  Thus the child cannot access automatic
- * variables set in the parent unless they are in registers, and the
- * procedure where the fork was done cannot return to its caller in
- * the child.
- */
-
-#ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/types.h>
+#ifdef CONFIG_PPC32
+#define __ARCH_WANT_OLD_STAT
+#endif
+#ifdef CONFIG_PPC64
+#define __ARCH_WANT_COMPAT_SYS_TIME
+#endif
 
 /*
  * System call prototypes.
  */
+#ifdef __KERNEL_SYSCALLS__
 extern pid_t setsid(void);
 extern int write(int fd, const char *buf, off_t count);
 extern int read(int fd, char *buf, off_t count);
@@ -449,10 +462,13 @@ extern int execve(const char *file, char **argv, char **envp);
 extern int open(const char *file, int flag, int mode);
 extern int close(int fd);
 extern pid_t waitpid(pid_t pid, int *wait_stat, int options);
+#endif /* __KERNEL_SYSCALLS__ */
 
-unsigned long sys_mmap(unsigned long addr, size_t len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, off_t offset);
+/*
+ * Functions that implement syscalls.
+ */
+unsigned long sys_mmap(unsigned long addr, size_t len, unsigned long prot,
+		       unsigned long flags, unsigned long fd, off_t offset);
 unsigned long sys_mmap2(unsigned long addr, size_t len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long pgoff);
@@ -461,22 +477,19 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 		unsigned long a3, unsigned long a4, unsigned long a5,
 		struct pt_regs *regs);
 int sys_clone(unsigned long clone_flags, unsigned long usp,
-	      int __user *parent_tidp, void __user *child_threadptr,
-	      int __user *child_tidp, int p6,
-	      struct pt_regs *regs);
-int sys_fork(int p1, int p2, int p3, int p4, int p5, int p6,
+		int __user *parent_tidp, void __user *child_threadptr,
+		int __user *child_tidp, int p6, struct pt_regs *regs);
+int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
+		unsigned long p4, unsigned long p5, unsigned long p6,
 		struct pt_regs *regs);
-int sys_vfork(int p1, int p2, int p3, int p4, int p5, int p6,
+int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
+		unsigned long p4, unsigned long p5, unsigned long p6,
 		struct pt_regs *regs);
 int sys_pipe(int __user *fildes);
 int sys_ptrace(long request, long pid, long addr, long data);
 struct sigaction;
-long sys_rt_sigaction(int sig,
-		      const struct sigaction __user *act,
-		      struct sigaction __user *oact,
-		      size_t sigsetsize);
-
-#endif /* __KERNEL_SYSCALLS__ */
+long sys_rt_sigaction(int sig, const struct sigaction __user *act,
+		      struct sigaction __user *oact, size_t sigsetsize);
 
 /*
  * "Conditional" syscalls
@@ -484,10 +497,14 @@ long sys_rt_sigaction(int sig,
  * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
  * but it doesn't work on all toolchains, so we just do it by hand
  */
-#ifndef cond_syscall
+#ifdef CONFIG_PPC32
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
+#else
+#define cond_syscall(x) asm(".weak\t." #x "\n\t.set\t." #x ",.sys_ni_syscall")
 #endif
 
-#endif /* __KERNEL__ */
+#endif		/* __KERNEL__ */
+
+#endif		/* __ASSEMBLY__ */
 
 #endif /* _ASM_PPC_UNISTD_H_ */
