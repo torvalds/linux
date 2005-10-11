@@ -5,21 +5,24 @@
  *
  *  Copyright 2005 Mark Lord
  *
- *  The contents of this file are subject to the Open
- *  Software License version 1.1 that can be found at
- *  http://www.opensource.org/licenses/osl-1.1.txt and is included herein
- *  by reference.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
  *
- *  Alternatively, the contents of this file may be used under the terms
- *  of the GNU General Public License version 2 (the "GPL") as distributed
- *  in the kernel source COPYING file, in which case the provisions of
- *  the GPL are applicable instead of the above.  If you wish to allow
- *  the use of your version of this file only under the terms of the
- *  GPL and not to allow others to use your version of this file under
- *  the OSL, indicate your decision by deleting the provisions above and
- *  replace them with the notice and other provisions required by the GPL.
- *  If you do not delete the provisions above, a recipient may use your
- *  version of this file under either the OSL or the GPL.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
  *
  *  Supports ATA disks in single-packet ADMA mode.
  *  Uses PIO for everything else.
@@ -76,7 +79,6 @@ enum {
 	aNIEN			= (1 << 8), /* irq mask: 1==masked */
 	aGO			= (1 << 7), /* packet trigger ("Go!") */
 	aRSTADM			= (1 << 5), /* ADMA logic reset */
-	aAUTEN			= (1 << 3), /* packet trigger ("Go!") */
 	aRSTA			= (1 << 2), /* ATA hard reset */
 	aPIOMD4			= 0x0003,   /* PIO mode 4 */
 
@@ -415,7 +417,7 @@ static inline void adma_packet_start(struct ata_queued_cmd *qc)
 	VPRINTK("ENTER, ap %p\n", ap);
 
 	/* fire up the ADMA engine */
-	writew(aPIOMD4 | aGO | aAUTEN, chan + ADMA_CONTROL);
+	writew(aPIOMD4 | aGO, chan + ADMA_CONTROL);
 }
 
 static int adma_qc_issue(struct ata_queued_cmd *qc)
