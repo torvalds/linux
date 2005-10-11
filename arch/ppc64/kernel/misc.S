@@ -740,6 +740,13 @@ _GLOBAL(giveup_altivec)
 _GLOBAL(__setup_cpu_power3)
 	blr
 
+_GLOBAL(execve)
+	li	r0,__NR_execve
+	sc
+	bnslr
+	neg	r3,r3
+	blr
+
 /* kexec_wait(phys_cpu)
  *
  * wait for the flag to change, indicating this kernel is going away but
