@@ -8,7 +8,8 @@ allowing an SMBs TCP length to be up to a few bytes longer than it should be.
 wsize and rsize can now be larger than negotiated buffer size if server
 supports large readx/writex, even when directio mount flag not specified.
 Write size will in many cases now be 16K instead of 4K which greatly helps
-file copy performance on lightly loaded networks.
+file copy performance on lightly loaded networks.  Fix oops in dnotify
+when experimental config flag enabled.
 
 Version 1.37
 ------------

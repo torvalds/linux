@@ -78,6 +78,10 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 	__u32 filter = FILE_NOTIFY_CHANGE_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES;
 	__u16 netfid;
 
+
+	if(experimEnabled == 0)
+		return 0;
+
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;

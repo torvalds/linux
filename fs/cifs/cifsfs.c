@@ -901,6 +901,10 @@ init_cifs(void)
 	INIT_LIST_HEAD(&GlobalSMBSessionList);
 	INIT_LIST_HEAD(&GlobalTreeConnectionList);
 	INIT_LIST_HEAD(&GlobalOplock_Q);
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	INIT_LIST_HEAD(&GlobalDnotifyReqList);
+	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
+#endif	
 /*
  *  Initialize Global counters
  */
