@@ -312,8 +312,10 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	}
 
 	entry = kmalloc(sizeof *entry, GFP_ATOMIC);
-	if (!entry)
+	if (!entry) {
+		spin_unlock_irqrestore(&file->lock, flags);
 		return;
+	}
 
 	uobj = container_of(cq->uobject, struct ib_ucq_object, uobject);
 
@@ -343,8 +345,10 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	}
 
 	entry = kmalloc(sizeof *entry, GFP_ATOMIC);
-	if (!entry)
+	if (!entry) {
+		spin_unlock_irqrestore(&file->async_file->lock, flags);
 		return;
+	}
 
 	entry->desc.async.element    = element;
 	entry->desc.async.event_type = event;
