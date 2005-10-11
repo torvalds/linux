@@ -6,6 +6,7 @@
 #ifndef __OS_H__
 #define __OS_H__
 
+#include "uml-config.h"
 #include "asm/types.h"
 #include "../os/include/file.h"
 
@@ -159,7 +160,11 @@ extern int can_do_skas(void);
 
 /* Make sure they are clear when running in TT mode. Required by
  * SEGV_MAYBE_FIXABLE */
+#ifdef UML_CONFIG_MODE_SKAS
 #define clear_can_do_skas() do { ptrace_faultinfo = proc_mm = 0; } while (0)
+#else
+#define clear_can_do_skas() do {} while (0)
+#endif
 
 /* mem.c */
 extern int create_mem_file(unsigned long len);
