@@ -177,11 +177,11 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct ip_conntrack *ct,
 	struct nfattr *nest_count = NFA_NEST(skb, type);
 	u_int64_t tmp;
 
-	tmp = cpu_to_be64(ct->counters[dir].packets);
-	NFA_PUT(skb, CTA_COUNTERS_PACKETS, sizeof(u_int64_t), &tmp);
+	tmp = htonl(ct->counters[dir].packets);
+	NFA_PUT(skb, CTA_COUNTERS32_PACKETS, sizeof(u_int32_t), &tmp);
 
-	tmp = cpu_to_be64(ct->counters[dir].bytes);
-	NFA_PUT(skb, CTA_COUNTERS_BYTES, sizeof(u_int64_t), &tmp);
+	tmp = htonl(ct->counters[dir].bytes);
+	NFA_PUT(skb, CTA_COUNTERS32_BYTES, sizeof(u_int32_t), &tmp);
 
 	NFA_NEST_END(skb, nest_count);
 

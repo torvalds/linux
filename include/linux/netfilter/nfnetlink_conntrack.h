@@ -84,8 +84,10 @@ enum ctattr_protoinfo_tcp {
 
 enum ctattr_counters {
 	CTA_COUNTERS_UNSPEC,
-	CTA_COUNTERS_PACKETS,
-	CTA_COUNTERS_BYTES,
+	CTA_COUNTERS_PACKETS,		/* old 64bit counters */
+	CTA_COUNTERS_BYTES,		/* old 64bit counters */
+	CTA_COUNTERS32_PACKETS,
+	CTA_COUNTERS32_BYTES,
 	__CTA_COUNTERS_MAX
 };
 #define CTA_COUNTERS_MAX (__CTA_COUNTERS_MAX - 1)

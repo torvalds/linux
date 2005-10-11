@@ -117,6 +117,10 @@ enum ip_conntrack_events
 	/* NAT info */
 	IPCT_NATINFO_BIT = 10,
 	IPCT_NATINFO = (1 << IPCT_NATINFO_BIT),
+
+	/* Counter highest bit has been set */
+	IPCT_COUNTER_FILLING_BIT = 11,
+	IPCT_COUNTER_FILLING = (1 << IPCT_COUNTER_FILLING_BIT),
 };
 
 enum ip_conntrack_expect_events {
@@ -192,8 +196,8 @@ do {									\
 
 struct ip_conntrack_counter
 {
-	u_int64_t packets;
-	u_int64_t bytes;
+	u_int32_t packets;
+	u_int32_t bytes;
 };
 
 struct ip_conntrack_helper;
