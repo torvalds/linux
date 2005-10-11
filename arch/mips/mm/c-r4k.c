@@ -368,14 +368,14 @@ static void r4k_flush_cache_mm(struct mm_struct *mm)
 
 struct flush_cache_page_args {
 	struct vm_area_struct *vma;
-	unsigned long page;
+	unsigned long addr;
 };
 
 static inline void local_r4k_flush_cache_page(void *args)
 {
 	struct flush_cache_page_args *fcp_args = args;
 	struct vm_area_struct *vma = fcp_args->vma;
-	unsigned long page = fcp_args->page;
+	unsigned long addr = fcp_args->addr;
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgdp;
@@ -390,11 +390,11 @@ static inline void local_r4k_flush_cache_page(void *args)
 	if (cpu_context(smp_processor_id(), mm) == 0)
 		return;
 
-	page &= PAGE_MASK;
-	pgdp = pgd_offset(mm, page);
-	pudp = pud_offset(pgdp, page);
-	pmdp = pmd_offset(pudp, page);
-	ptep = pte_offset(pmdp, page);
+	addr &= PAGE_MASK;
+	pgdp = pgd_offset(mm, addr);
+	pudp = pud_offset(pgdp, addr);
+	pmdp = pmd_offset(pudp, addr);
+	ptep = pte_offset(pmdp, addr);
 
 	/*
 	 * If the page isn't marked valid, the page cannot possibly be
@@ -411,12 +411,12 @@ static inline void local_r4k_flush_cache_page(void *args)
 	 */
 	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID)) {
 		if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
-			r4k_blast_dcache_page(page);
+			r4k_blast_dcache_page(addr);
 			if (exec && !cpu_icache_snoops_remote_store)
-				r4k_blast_scache_page(page);
+				r4k_blast_scache_page(addr);
 		}
 		if (exec)
-			r4k_blast_icache_page(page);
+			r4k_blast_icache_page(addr);
 
 		return;
 	}
@@ -425,11 +425,11 @@ static inline void local_r4k_flush_cache_page(void *args)
 	 * Do indexed flush, too much work to get the (possible) TLB refills
 	 * to work correctly.
 	 */
-	page = INDEX_BASE + (page & (dcache_size - 1));
+	addr = INDEX_BASE + (addr & (dcache_size - 1));
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
-		r4k_blast_dcache_page_indexed(page);
+		r4k_blast_dcache_page_indexed(addr);
 		if (exec && !cpu_icache_snoops_remote_store)
-			r4k_blast_scache_page_indexed(page);
+			r4k_blast_scache_page_indexed(addr);
 	}
 	if (exec) {
 		if (cpu_has_vtag_icache) {
@@ -438,16 +438,17 @@ static inline void local_r4k_flush_cache_page(void *args)
 			if (cpu_context(cpu, mm) != 0)
 				drop_mmu_context(mm, cpu);
 		} else
-			r4k_blast_icache_page_indexed(page);
+			r4k_blast_icache_page_indexed(addr);
 	}
 }
 
-static void r4k_flush_cache_page(struct vm_area_struct *vma, unsigned long page, unsigned long pfn)
+static void r4k_flush_cache_page(struct vm_area_struct *vma,
+	unsigned long addr, unsigned long pfn)
 {
 	struct flush_cache_page_args args;
 
 	args.vma = vma;
-	args.page = page;
+	args.addr = addr;
 
 	on_each_cpu(local_r4k_flush_cache_page, &args, 1, 1);
 }
