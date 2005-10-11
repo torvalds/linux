@@ -756,9 +756,12 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .sblive51 = 1} ,
 	/* Tested by alsa bugtrack user "hus" bug #1297 12th Aug 2005 */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80611102,
-	 .driver = "EMU10K1", .name = "SBLive! Platinum 5.1 [SB0060]", 
+	 .driver = "EMU10K1", .name = "SBLive 5.1 [SB0060]",
 	 .id = "Live",
 	 .emu10k1_chip = 1,
+	 .ac97_chip = 2, /* ac97 is optional; both SBLive 5.1 and platinum
+			  * share the same IDs!
+			  */
 	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80511102,
 	 .driver = "EMU10K1", .name = "SBLive! Value [CT4850]", 

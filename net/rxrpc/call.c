@@ -1923,7 +1923,7 @@ int rxrpc_call_write_data(struct rxrpc_call *call,
 			  size_t sioc,
 			  struct kvec *siov,
 			  u8 rxhdr_flags,
-			  unsigned int __nocast alloc_flags,
+			  gfp_t alloc_flags,
 			  int dup_data,
 			  size_t *size_sent)
 {

@@ -76,6 +76,13 @@ struct atm_dev_stats {
 					/* set interface ESI */
 #define ATM_SETESIF	_IOW('a',ATMIOC_ITF+13,struct atmif_sioc)
 					/* force interface ESI */
+#define ATM_ADDLECSADDR	_IOW('a', ATMIOC_ITF+14, struct atmif_sioc)
+					/* register a LECS address */
+#define ATM_DELLECSADDR	_IOW('a', ATMIOC_ITF+15, struct atmif_sioc)
+					/* unregister a LECS address */
+#define ATM_GETLECSADDR	_IOW('a', ATMIOC_ITF+16, struct atmif_sioc)
+					/* retrieve LECS address(es) */
+
 #define ATM_GETSTAT	_IOW('a',ATMIOC_SARCOM+0,struct atmif_sioc)
 					/* get AAL layer statistics */
 #define ATM_GETSTATZ	_IOW('a',ATMIOC_SARCOM+1,struct atmif_sioc)
@@ -328,6 +335,8 @@ struct atm_dev_addr {
 	struct list_head entry;		/* next address */
 };
 
+enum atm_addr_type_t { ATM_ADDR_LOCAL, ATM_ADDR_LECS };
+
 struct atm_dev {
 	const struct atmdev_ops *ops;	/* device operations; NULL if unused */
 	const struct atmphy_ops *phy;	/* PHY operations, may be undefined */
@@ -338,6 +347,7 @@ struct atm_dev {
 	void		*phy_data;	/* private PHY date */
 	unsigned long	flags;		/* device flags (ATM_DF_*) */
 	struct list_head local;		/* local ATM addresses */
+	struct list_head lecs;		/* LECS ATM addresses learned via ILMI */
 	unsigned char	esi[ESI_LEN];	/* ESI ("MAC" addr) */
 	struct atm_cirange ci_range;	/* VPI/VCI range */
 	struct k_atm_dev_stats stats;	/* statistics */
@@ -457,7 +467,7 @@ static inline void atm_dev_put(struct atm_dev *dev)
 
 int atm_charge(struct atm_vcc *vcc,int truesize);
 struct sk_buff *atm_alloc_charge(struct atm_vcc *vcc,int pdu_size,
-    unsigned int __nocast gfp_flags);
+    gfp_t gfp_flags);
 int atm_pcr_goal(struct atm_trafprm *tp);
 
 void vcc_release_async(struct atm_vcc *vcc, int reply);

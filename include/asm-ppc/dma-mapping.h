@@ -61,7 +61,7 @@ static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t * dma_handle,
-				       unsigned int __nocast gfp)
+				       gfp_t gfp)
 {
 #ifdef CONFIG_NOT_COHERENT_CACHE
 	return __dma_alloc_coherent(size, dma_handle, gfp);

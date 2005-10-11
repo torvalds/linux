@@ -758,7 +758,7 @@ void netlink_detachskb(struct sock *sk, struct sk_buff *skb)
 }
 
 static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
-					   unsigned int __nocast allocation)
+					   gfp_t allocation)
 {
 	int delta;
 
@@ -880,7 +880,7 @@ out:
 }
 
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
-		      u32 group, unsigned int __nocast allocation)
+		      u32 group, gfp_t allocation)
 {
 	struct netlink_broadcast_data info;
 	struct hlist_node *node;

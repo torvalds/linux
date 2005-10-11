@@ -564,6 +564,7 @@ static int s3c2410_rtc_resume(struct device *dev, u32 level)
 
 static struct device_driver s3c2410_rtcdrv = {
 	.name		= "s3c2410-rtc",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410_rtc_probe,
 	.remove		= s3c2410_rtc_remove,

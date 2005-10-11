@@ -330,6 +330,9 @@ do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
 {
 	unsigned int rd = RD_BITS(instr);
 
+	if (((rd & 1) == 1) || (rd == 14))
+		goto bad;
+
 	ai_dword += 1;
 
 	if (user_mode(regs))
@@ -361,7 +364,8 @@ do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
 	}
 
 	return TYPE_LDST;
-
+ bad:
+	return TYPE_ERROR;
  fault:
 	return TYPE_FAULT;
 }
@@ -663,6 +667,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		else if ((instr & 0x001000f0) == 0x000000d0 || /* LDRD */
 			 (instr & 0x001000f0) == 0x000000f0)   /* STRD */
 			handler = do_alignment_ldrdstrd;
+		else if ((instr & 0x01f00ff0) == 0x01000090) /* SWP */
+			goto swp;
 		else
 			goto bad;
 		break;
@@ -732,6 +738,9 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	 */
 	do_bad_area(current, current->mm, addr, fsr, regs);
 	return 0;
+
+ swp:
+	printk(KERN_ERR "Alignment trap: not handling swp instruction\n");
 
  bad:
 	/*

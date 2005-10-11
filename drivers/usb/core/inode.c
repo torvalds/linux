@@ -713,7 +713,7 @@ void usbfs_remove_device(struct usb_device *dev)
 			sinfo.si_errno = EPIPE;
 			sinfo.si_code = SI_ASYNCIO;
 			sinfo.si_addr = ds->disccontext;
-			send_sig_info(ds->discsignr, &sinfo, ds->disctask);
+			kill_proc_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid);
 		}
 	}
 	usbfs_update_special();
