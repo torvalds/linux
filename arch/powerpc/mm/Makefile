@@ -2,6 +2,10 @@
 # Makefile for the linux ppc-specific parts of the memory manager.
 #
 
+ifeq ($(CONFIG_PPC64),y)
+EXTRA_CFLAGS	+= -mno-minimal-toc
+endif
+
 obj-y				:= fault.o mem.o lmb.o
 obj-$(CONFIG_PPC32)		+= init_32.o pgtable_32.o mmu_context_32.o \
 				   tlb_32.o

@@ -430,7 +430,6 @@ static void __init build_iSeries_Memory_Map(void)
 	u32 loadAreaFirstChunk, loadAreaLastChunk, loadAreaSize;
 	u32 nextPhysChunk;
 	u32 hptFirstChunk, hptLastChunk, hptSizeChunks, hptSizePages;
-	u32 num_ptegs;
 	u32 totalChunks,moreChunks;
 	u32 currChunk, thisChunk, absChunk;
 	u32 currDword;
@@ -493,10 +492,7 @@ static void __init build_iSeries_Memory_Map(void)
 	printk("HPT absolute addr = %016lx, size = %dK\n",
 			chunk_to_addr(hptFirstChunk), hptSizeChunks * 256);
 
-	/* Fill in the hashed page table hash mask */
-	num_ptegs = hptSizePages *
-		(PAGE_SIZE / (sizeof(hpte_t) * HPTES_PER_GROUP));
-	htab_hash_mask = num_ptegs - 1;
+	ppc64_pft_size = __ilog2(hptSizePages * PAGE_SIZE);
 
 	/*
 	 * The actual hashed page table is in the hypervisor,
