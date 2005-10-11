@@ -567,14 +567,11 @@ void __init setup_system(void)
 	 */
 	rtas_initialize();
 #endif /* CONFIG_PPC_RTAS */
-	printk("%s:%d rtas.dev=%p (@ %p)\n", __FILE__, __LINE__, rtas.dev,
-	       &rtas.dev);
 
 	/*
 	 * Check if we have an initrd provided via the device-tree
 	 */
 	check_for_initrd();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	/*
 	 * Do some platform specific early initializations, that includes
@@ -582,14 +579,12 @@ void __init setup_system(void)
 	 * related options that will be used by finish_device_tree()
 	 */
 	ppc_md.init_early();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	/*
 	 * "Finish" the device-tree, that is do the actual parsing of
 	 * some of the properties like the interrupt map
 	 */
 	finish_device_tree();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	/*
 	 * Initialize xmon
@@ -597,31 +592,26 @@ void __init setup_system(void)
 #ifdef CONFIG_XMON_DEFAULT
 	xmon_init(1);
 #endif
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 	/*
 	 * Register early console
 	 */
 	register_early_udbg_console();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
 
 	parse_early_param();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 #ifdef CONFIG_SMP
 	/*
 	 * iSeries has already initialized the cpu maps at this point.
 	 */
 	setup_cpu_maps();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */
 	smp_release_cpus();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 #endif
 
 	printk("Starting Linux PPC64 %s\n", system_utsname.version);
@@ -641,10 +631,8 @@ void __init setup_system(void)
 	printk("htab_address                  = 0x%p\n", htab_address);
 	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
 	printk("-----------------------------------------------------\n");
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	mm_init_ppc64();
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	DBG(" <- setup_system()\n");
 }
@@ -1016,7 +1004,6 @@ void __init setup_arch(char **cmdline_p)
 {
 	extern void do_init_bootmem(void);
 
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 	ppc64_boot_msg(0x12, "Setup Arch");
 
 	*cmdline_p = cmd_line;
@@ -1031,7 +1018,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* reboot on panic */
 	panic_timeout = 180;
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 
 	if (ppc_md.panic)
 		notifier_chain_register(&panic_notifier_list, &ppc64_panic_block);
@@ -1044,14 +1030,12 @@ void __init setup_arch(char **cmdline_p)
 	irqstack_early_init();
 	emergency_stack_init();
 
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 	stabs_alloc();
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	sparse_init();
 
-	printk("%s:%d rtas.dev=%p\n", __FILE__, __LINE__, rtas.dev);
 	/* initialize the syscall map in systemcfg */
 	setup_syscall_map();
 
