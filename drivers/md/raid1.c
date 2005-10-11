@@ -52,7 +52,7 @@ static mdk_personality_t raid1_personality;
 static void unplug_slaves(mddev_t *mddev);
 
 
-static void * r1bio_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void * r1bio_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct pool_info *pi = data;
 	r1bio_t *r1_bio;
@@ -79,7 +79,7 @@ static void r1bio_pool_free(void *r1_bio, void *data)
 #define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
 #define RESYNC_WINDOW (2048*1024)
 
-static void * r1buf_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct pool_info *pi = data;
 	struct page *page;

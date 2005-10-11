@@ -62,13 +62,7 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 
 	if (esp == NULL) {
 		if (task != current && task != NULL) {
-			/* XXX: Isn't this bogus? I.e. isn't this the
-			 * *userspace* stack of this task? If not so, use this
-			 * even when task == current (as in i386).
-			 */
 			esp = (unsigned long *) KSTK_ESP(task);
-			/* Which one? No actual difference - just coding style.*/
-			//esp = (unsigned long *) PT_REGS_IP(&task->thread.regs);
 		} else {
 			esp = (unsigned long *) &esp;
 		}
@@ -84,5 +78,5 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	}
 
 	printk("Call Trace: \n");
-	show_trace(current, esp);
+	show_trace(task, esp);
 }

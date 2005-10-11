@@ -58,7 +58,7 @@ static int snd_seq_iwffff_copy_env_from_stream(__u32 req_stype,
 					       iwffff_xenv_t *ex,
 					       char __user **data,
 					       long *len,
-					       unsigned int __nocast gfp_mask)
+					       gfp_t gfp_mask)
 {
 	__u32 stype;
 	iwffff_env_record_t *rp, *rp_last;

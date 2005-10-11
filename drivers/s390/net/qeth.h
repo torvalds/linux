@@ -686,6 +686,7 @@ struct qeth_seqno {
 	__u32 pdu_hdr;
 	__u32 pdu_hdr_ack;
 	__u16 ipa;
+	__u32 pkt_seqno;
 };
 
 struct qeth_reply {
@@ -848,6 +849,7 @@ qeth_realloc_headroom(struct qeth_card *card, struct sk_buff **skb, int size)
                                   "on interface %s", QETH_CARD_IFNAME(card));
                         return -ENOMEM;
                 }
+		kfree_skb(*skb);
                 *skb = new_skb;
 	}
 	return 0;

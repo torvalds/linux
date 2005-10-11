@@ -504,7 +504,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 		bad_access:
 		spin_unlock(&mm->page_table_lock);
-		/* simulate a read access fault */
+		/* simulate a write access fault */
 		do_DataAbort(addr, 15 + (1 << 11), regs);
 		return -1;
 	}

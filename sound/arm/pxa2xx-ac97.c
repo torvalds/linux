@@ -245,7 +245,7 @@ static pxa2xx_pcm_client_t pxa2xx_ac97_pcm_client = {
 
 #ifdef CONFIG_PM
 
-static int pxa2xx_ac97_do_suspend(snd_card_t *card, unsigned int state)
+static int pxa2xx_ac97_do_suspend(snd_card_t *card, pm_message_t state)
 {
 	if (card->power_state != SNDRV_CTL_POWER_D3cold) {
 		pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;

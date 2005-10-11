@@ -195,7 +195,7 @@ via_calibrate_decr(void)
 		;
 	dend = get_dec();
 
-	tb_ticks_per_jiffy = (dstart - dend) / (6 * (HZ/100));
+	tb_ticks_per_jiffy = (dstart - dend) / ((6 * HZ)/100);
 	tb_to_us = mulhwu_scale_factor(dstart - dend, 60000);
 
 	printk(KERN_INFO "via_calibrate_decr: ticks per jiffy = %u (%u ticks)\n",

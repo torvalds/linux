@@ -143,10 +143,21 @@ static int __init skas0_cmd_param(char *str, int* add)
 	return 0;
 }
 
+/* The two __uml_setup would conflict, without this stupid alias. */
+
+static int __init mode_skas0_cmd_param(char *str, int* add)
+	__attribute__((alias("skas0_cmd_param")));
+
 __uml_setup("skas0", skas0_cmd_param,
 		"skas0\n"
 		"    Disables SKAS3 usage, so that SKAS0 is used, unless \n"
 	        "    you specify mode=tt.\n\n");
+
+__uml_setup("mode=skas0", mode_skas0_cmd_param,
+		"mode=skas0\n"
+		"    Disables SKAS3 usage, so that SKAS0 is used, unless you \n"
+		"    specify mode=tt. Note that this was recently added - on \n"
+		"    older kernels you must use simply \"skas0\".\n\n");
 
 static int force_sysemu_disabled = 0;
 

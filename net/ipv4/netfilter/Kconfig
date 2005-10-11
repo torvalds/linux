@@ -141,7 +141,7 @@ config IP_NF_PPTP
 	tristate  'PPTP protocol support'
 	help
 	  This module adds support for PPTP (Point to Point Tunnelling
-	  Protocol, RFC2637) conncection tracking and NAT. 
+	  Protocol, RFC2637) connection tracking and NAT. 
 	
 	  If you are running PPTP sessions over a stateful firewall or NAT
 	  box, you may want to enable this feature.  

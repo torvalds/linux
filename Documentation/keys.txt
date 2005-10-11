@@ -361,6 +361,8 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
+     See also Documentation/keys-request-key.txt.
+
 
 The keyctl syscall functions are:
 
@@ -533,8 +535,8 @@ The keyctl syscall functions are:
 
  (*) Read the payload data from a key:
 
-	key_serial_t keyctl(KEYCTL_READ, key_serial_t keyring, char *buffer,
-			    size_t buflen);
+	long keyctl(KEYCTL_READ, key_serial_t keyring, char *buffer,
+		    size_t buflen);
 
      This function attempts to read the payload data from the specified key
      into the buffer. The process must have read permission on the key to
@@ -555,9 +557,9 @@ The keyctl syscall functions are:
 
  (*) Instantiate a partially constructed key.
 
-	key_serial_t keyctl(KEYCTL_INSTANTIATE, key_serial_t key,
-			    const void *payload, size_t plen,
-			    key_serial_t keyring);
+	long keyctl(KEYCTL_INSTANTIATE, key_serial_t key,
+		    const void *payload, size_t plen,
+		    key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call to supply data for the key before the
@@ -576,8 +578,8 @@ The keyctl syscall functions are:
 
  (*) Negatively instantiate a partially constructed key.
 
-	key_serial_t keyctl(KEYCTL_NEGATE, key_serial_t key,
-			    unsigned timeout, key_serial_t keyring);
+	long keyctl(KEYCTL_NEGATE, key_serial_t key,
+		    unsigned timeout, key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call mark the key as negative before the
@@ -687,6 +689,8 @@ payload contents" for more information.
 
     If successful, the key will have been attached to the default keyring for
     implicitly obtained request-key keys, as set by KEYCTL_SET_REQKEY_KEYRING.
+
+    See also Documentation/keys-request-key.txt.
 
 
 (*) When it is no longer required, the key should be released using:

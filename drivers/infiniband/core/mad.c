@@ -783,7 +783,7 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					    u32 remote_qpn, u16 pkey_index,
 					    struct ib_ah *ah, int rmpp_active,
 					    int hdr_len, int data_len,
-					    unsigned int __nocast gfp_mask)
+					    gfp_t gfp_mask)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_buf *send_buf;

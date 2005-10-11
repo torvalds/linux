@@ -91,7 +91,7 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 }
 
 struct dccp_ackvec *dccp_ackvec_alloc(const unsigned int len,
-				      const unsigned int __nocast priority)
+				      const gfp_t priority)
 {
 	struct dccp_ackvec *av = kmalloc(sizeof(*av) + len, priority);
 

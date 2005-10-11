@@ -650,8 +650,7 @@ static inline struct array_cache *ac_data(kmem_cache_t *cachep)
 	return cachep->array[smp_processor_id()];
 }
 
-static inline kmem_cache_t *__find_general_cachep(size_t size,
-						unsigned int __nocast gfpflags)
+static inline kmem_cache_t *__find_general_cachep(size_t size, gfp_t gfpflags)
 {
 	struct cache_sizes *csizep = malloc_sizes;
 
@@ -675,8 +674,7 @@ static inline kmem_cache_t *__find_general_cachep(size_t size,
 	return csizep->cs_cachep;
 }
 
-kmem_cache_t *kmem_find_general_cachep(size_t size,
-		unsigned int __nocast gfpflags)
+kmem_cache_t *kmem_find_general_cachep(size_t size, gfp_t gfpflags)
 {
 	return __find_general_cachep(size, gfpflags);
 }
@@ -1185,7 +1183,7 @@ __initcall(cpucache_init);
  * did not request dmaable memory, we might get it, but that
  * would be relatively rare and ignorable.
  */
-static void *kmem_getpages(kmem_cache_t *cachep, unsigned int __nocast flags, int nodeid)
+static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 {
 	struct page *page;
 	void *addr;
@@ -2048,7 +2046,7 @@ EXPORT_SYMBOL(kmem_cache_destroy);
 
 /* Get the memory for a slab management obj. */
 static struct slab* alloc_slabmgmt(kmem_cache_t *cachep, void *objp,
-			int colour_off, unsigned int __nocast local_flags)
+			int colour_off, gfp_t local_flags)
 {
 	struct slab *slabp;
 	
@@ -2149,7 +2147,7 @@ static void set_slab_attr(kmem_cache_t *cachep, struct slab *slabp, void *objp)
  * Grow (by 1) the number of slabs within a cache.  This is called by
  * kmem_cache_alloc() when there are no active objs left in a cache.
  */
-static int cache_grow(kmem_cache_t *cachep, unsigned int __nocast flags, int nodeid)
+static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 {
 	struct slab	*slabp;
 	void		*objp;
@@ -2356,7 +2354,7 @@ bad:
 #define check_slabp(x,y) do { } while(0)
 #endif
 
-static void *cache_alloc_refill(kmem_cache_t *cachep, unsigned int __nocast flags)
+static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
 {
 	int batchcount;
 	struct kmem_list3 *l3;
@@ -2456,7 +2454,7 @@ alloc_done:
 }
 
 static inline void
-cache_alloc_debugcheck_before(kmem_cache_t *cachep, unsigned int __nocast flags)
+cache_alloc_debugcheck_before(kmem_cache_t *cachep, gfp_t flags)
 {
 	might_sleep_if(flags & __GFP_WAIT);
 #if DEBUG
@@ -2467,7 +2465,7 @@ cache_alloc_debugcheck_before(kmem_cache_t *cachep, unsigned int __nocast flags)
 #if DEBUG
 static void *
 cache_alloc_debugcheck_after(kmem_cache_t *cachep,
-			unsigned int __nocast flags, void *objp, void *caller)
+			gfp_t flags, void *objp, void *caller)
 {
 	if (!objp)	
 		return objp;
@@ -2510,7 +2508,7 @@ cache_alloc_debugcheck_after(kmem_cache_t *cachep,
 #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
 #endif
 
-static inline void *____cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 {
 	void* objp;
 	struct array_cache *ac;
@@ -2528,7 +2526,7 @@ static inline void *____cache_alloc(kmem_cache_t *cachep, unsigned int __nocast 
 	return objp;
 }
 
-static inline void *__cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+static inline void *__cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 {
 	unsigned long save_flags;
 	void* objp;
@@ -2787,7 +2785,7 @@ static inline void __cache_free(kmem_cache_t *cachep, void *objp)
  * Allocate an object from this cache.  The flags are only relevant
  * if the cache has no available objects.
  */
-void *kmem_cache_alloc(kmem_cache_t *cachep, unsigned int __nocast flags)
+void *kmem_cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 {
 	return __cache_alloc(cachep, flags);
 }
@@ -2848,7 +2846,7 @@ out:
  * New and improved: it will now make sure that the object gets
  * put on the correct node list so that there is no false sharing.
  */
-void *kmem_cache_alloc_node(kmem_cache_t *cachep, unsigned int __nocast flags, int nodeid)
+void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 {
 	unsigned long save_flags;
 	void *ptr;
@@ -2875,7 +2873,7 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, unsigned int __nocast flags, i
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
-void *kmalloc_node(size_t size, unsigned int __nocast flags, int node)
+void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	kmem_cache_t *cachep;
 
@@ -2908,7 +2906,7 @@ EXPORT_SYMBOL(kmalloc_node);
  * platforms.  For example, on i386, it means that the memory must come
  * from the first 16MB.
  */
-void *__kmalloc(size_t size, unsigned int __nocast flags)
+void *__kmalloc(size_t size, gfp_t flags)
 {
 	kmem_cache_t *cachep;
 
@@ -2997,7 +2995,7 @@ EXPORT_SYMBOL(kmem_cache_free);
  * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
  */
-void *kzalloc(size_t size, unsigned int __nocast flags)
+void *kzalloc(size_t size, gfp_t flags)
 {
 	void *ret = kmalloc(size, flags);
 	if (ret)
@@ -3603,7 +3601,7 @@ unsigned int ksize(const void *objp)
  * @s: the string to duplicate
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  */
-char *kstrdup(const char *s, unsigned int __nocast gfp)
+char *kstrdup(const char *s, gfp_t gfp)
 {
 	size_t len;
 	char *buf;

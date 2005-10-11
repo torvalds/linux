@@ -302,37 +302,37 @@ struct sk_buff {
 
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct sk_buff *__alloc_skb(unsigned int size,
-				   unsigned int __nocast priority, int fclone);
+				   gfp_t priority, int fclone);
 static inline struct sk_buff *alloc_skb(unsigned int size,
-					unsigned int __nocast priority)
+					gfp_t priority)
 {
 	return __alloc_skb(size, priority, 0);
 }
 
 static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
-					       unsigned int __nocast priority)
+					       gfp_t priority)
 {
 	return __alloc_skb(size, priority, 1);
 }
 
 extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
 					    unsigned int size,
-					    unsigned int __nocast priority);
+					    gfp_t priority);
 extern void	       kfree_skbmem(struct sk_buff *skb);
 extern struct sk_buff *skb_clone(struct sk_buff *skb,
-				 unsigned int __nocast priority);
+				 gfp_t priority);
 extern struct sk_buff *skb_copy(const struct sk_buff *skb,
-				unsigned int __nocast priority);
+				gfp_t priority);
 extern struct sk_buff *pskb_copy(struct sk_buff *skb,
-				 unsigned int __nocast gfp_mask);
+				 gfp_t gfp_mask);
 extern int	       pskb_expand_head(struct sk_buff *skb,
 					int nhead, int ntail,
-					unsigned int __nocast gfp_mask);
+					gfp_t gfp_mask);
 extern struct sk_buff *skb_realloc_headroom(struct sk_buff *skb,
 					    unsigned int headroom);
 extern struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				       int newheadroom, int newtailroom,
-				       unsigned int __nocast priority);
+				       gfp_t priority);
 extern struct sk_buff *		skb_pad(struct sk_buff *skb, int pad);
 #define dev_kfree_skb(a)	kfree_skb(a)
 extern void	      skb_over_panic(struct sk_buff *skb, int len,
@@ -484,7 +484,7 @@ static inline int skb_shared(const struct sk_buff *skb)
  *	NULL is returned on a memory allocation failure.
  */
 static inline struct sk_buff *skb_share_check(struct sk_buff *skb,
-					      unsigned int __nocast pri)
+					      gfp_t pri)
 {
 	might_sleep_if(pri & __GFP_WAIT);
 	if (skb_shared(skb)) {
@@ -516,7 +516,7 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb,
  *	%NULL is returned on a memory allocation failure.
  */
 static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
-					  unsigned int __nocast pri)
+					  gfp_t pri)
 {
 	might_sleep_if(pri & __GFP_WAIT);
 	if (skb_cloned(skb)) {
@@ -1017,7 +1017,7 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
  *	%NULL is returned in there is no free memory.
  */
 static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
-					      unsigned int __nocast gfp_mask)
+					      gfp_t gfp_mask)
 {
 	struct sk_buff *skb = alloc_skb(length + 16, gfp_mask);
 	if (likely(skb))
@@ -1130,8 +1130,8 @@ static inline int skb_can_coalesce(struct sk_buff *skb, int i,
  *	If there is no free memory -ENOMEM is returned, otherwise zero
  *	is returned and the old skb data released.
  */
-extern int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp);
-static inline int skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp)
+extern int __skb_linearize(struct sk_buff *skb, gfp_t gfp);
+static inline int skb_linearize(struct sk_buff *skb, gfp_t gfp)
 {
 	return __skb_linearize(skb, gfp);
 }

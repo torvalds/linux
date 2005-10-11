@@ -325,23 +325,7 @@ cheetah_tlb_fixup:
 1:	sethi	%hi(tlb_type), %g1
 	stw	%g2, [%g1 + %lo(tlb_type)]
 
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,1f)
-	ba,pt	%xcc, 2f
-	 nop
-
-1:	/* Patch context register writes to support nucleus page
-	 * size correctly.
-	 */
-	call	cheetah_plus_patch_etrap
-	 nop
-	call	cheetah_plus_patch_rtrap
-	 nop
-	call	cheetah_plus_patch_fpdis
-	 nop
-	call	cheetah_plus_patch_winfixup
-	 nop
-
-2:	/* Patch copy/page operations to cheetah optimized versions. */
+	/* Patch copy/page operations to cheetah optimized versions. */
 	call	cheetah_patch_copyops
 	 nop
 	call	cheetah_patch_copy_page
@@ -398,32 +382,79 @@ tlb_fixup_done:
 	 nop
 	/* Not reached... */
 
-/* IMPORTANT NOTE: Whenever making changes here, check
- * trampoline.S as well. -jj */
-	.globl	setup_tba
-setup_tba:	/* i0 = is_starfire */
-	save	%sp, -160, %sp
+	/* This is meant to allow the sharing of this code between
+	 * boot processor invocation (via setup_tba() below) and
+	 * secondary processor startup (via trampoline.S).  The
+	 * former does use this code, the latter does not yet due
+	 * to some complexities.  That should be fixed up at some
+	 * point.
+	 */
+	.globl	setup_trap_table
+setup_trap_table:
+	save	%sp, -192, %sp
 
-	rdpr	%tba, %g7
-	sethi	%hi(prom_tba), %o1
-	or	%o1, %lo(prom_tba), %o1
-	stx	%g7, [%o1]
+	/* Force interrupts to be disabled.  Transferring over to
+	 * the Linux trap table is a very delicate operation.
+	 * Until we are actually on the Linux trap table, we cannot
+	 * get the PAGE_OFFSET linear mappings translated.  We need
+	 * that mapping to be setup in order to initialize the firmware
+	 * page tables.
+	 *
+	 * So there is this window of time, from the return from
+	 * prom_set_trap_table() until inherit_prom_mappings_post()
+	 * (in arch/sparc64/mm/init.c) completes, during which no
+	 * firmware address space accesses can be made.
+	 */
+	rdpr	%pstate, %o1
+	andn	%o1, PSTATE_IE, %o1
+	wrpr	%o1, 0x0, %pstate
+	wrpr	%g0, 15, %pil
 
-	/* Setup "Linux" globals 8-) */
+	/* Ok, now make the final valid firmware call to jump over
+	 * to the Linux trap table.
+	 */
+	call	prom_set_trap_table
+	 sethi	%hi(sparc64_ttable_tl0), %o0
+
+	/* Start using proper page size encodings in ctx register.  */
+	sethi	%hi(sparc64_kern_pri_context), %g3
+	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
+	mov	PRIMARY_CONTEXT, %g1
+	stxa	%g2, [%g1] ASI_DMMU
+	membar	#Sync
+
+	/* The Linux trap handlers expect various trap global registers
+	 * to be setup with some fixed values.  So here we set these
+	 * up very carefully.  These globals are:
+	 *
+	 * Alternate Globals (PSTATE_AG):
+	 *
+	 * %g6			--> current_thread_info()
+	 *
+	 * MMU Globals (PSTATE_MG):
+	 *
+	 * %g1			--> TLB_SFSR
+	 * %g2			--> ((_PAGE_VALID | _PAGE_SZ4MB |
+	 *			      _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
+	 *			     ^ 0xfffff80000000000)
+	 * (this %g2 value is used for computing the PAGE_OFFSET kernel
+	 *  TLB entries quickly, the virtual address of the fault XOR'd
+	 *  with this %g2 value is the PTE to load into the TLB)
+	 * %g3			--> VPTE_BASE_CHEETAH or VPTE_BASE_SPITFIRE
+	 *
+	 * Interrupt Globals (PSTATE_IG, setup by init_irqwork_curcpu()):
+	 *
+	 * %g6			--> __irq_work[smp_processor_id()]
+	 */
+
 	rdpr	%pstate, %o1
 	mov	%g6, %o2
-	wrpr	%o1, (PSTATE_AG|PSTATE_IE), %pstate
-	sethi	%hi(sparc64_ttable_tl0), %g1
-	wrpr	%g1, %tba
+	wrpr	%o1, PSTATE_AG, %pstate
 	mov	%o2, %g6
 
-	/* Set up MMU globals */
-	wrpr	%o1, (PSTATE_MG|PSTATE_IE), %pstate
-
-	/* Set fixed globals used by dTLB miss handler. */
 #define KERN_HIGHBITS		((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
 #define KERN_LOWBITS		(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-
+	wrpr	%o1, PSTATE_MG, %pstate
 	mov	TSB_REG, %g1
 	stxa	%g0, [%g1] ASI_DMMU
 	membar	#Sync
@@ -435,17 +466,17 @@ setup_tba:	/* i0 = is_starfire */
 	sllx	%g2, 32, %g2
 	or	%g2, KERN_LOWBITS, %g2
 
-	BRANCH_IF_ANY_CHEETAH(g3,g7,cheetah_vpte_base)
-	ba,pt	%xcc, spitfire_vpte_base
+	BRANCH_IF_ANY_CHEETAH(g3,g7,8f)
+	ba,pt	%xcc, 9f
 	 nop
 
-cheetah_vpte_base:
+8:
 	sethi		%uhi(VPTE_BASE_CHEETAH), %g3
 	or		%g3, %ulo(VPTE_BASE_CHEETAH), %g3
 	ba,pt		%xcc, 2f
 	 sllx		%g3, 32, %g3
 
-spitfire_vpte_base:
+9:
 	sethi		%uhi(VPTE_BASE_SPITFIRE), %g3
 	or		%g3, %ulo(VPTE_BASE_SPITFIRE), %g3
 	sllx		%g3, 32, %g3
@@ -471,36 +502,37 @@ spitfire_vpte_base:
 	sllx	%o2, 32, %o2
 	wr	%o2, %asr25
 
-	/* Ok, we're done setting up all the state our trap mechanims needs,
-	 * now get back into normal globals and let the PROM know what is up.
-	 */
 2:
 	wrpr	%g0, %g0, %wstate
-	wrpr	%o1, PSTATE_IE, %pstate
+	wrpr	%o1, 0x0, %pstate
 
 	call	init_irqwork_curcpu
 	 nop
 
-	call	prom_set_trap_table
-	 sethi	%hi(sparc64_ttable_tl0), %o0
-
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g2,g3,1f)
-	ba,pt	%xcc, 2f
-	 nop
-
-1:	/* Start using proper page size encodings in ctx register.  */
-	sethi	%uhi(CTX_CHEETAH_PLUS_NUC), %g3
-	mov	PRIMARY_CONTEXT, %g1
-	sllx	%g3, 32, %g3
-	sethi	%hi(CTX_CHEETAH_PLUS_CTX0), %g2
-	or	%g3, %g2, %g3
-	stxa	%g3, [%g1] ASI_DMMU
-	membar	#Sync
-
-2:
+	/* Now we can turn interrupts back on. */
 	rdpr	%pstate, %o1
 	or	%o1, PSTATE_IE, %o1
 	wrpr	%o1, 0, %pstate
+	wrpr	%g0, 0x0, %pil
+
+	ret
+	 restore
+
+	.globl	setup_tba
+setup_tba:	/* i0 = is_starfire */
+	save	%sp, -192, %sp
+
+	/* The boot processor is the only cpu which invokes this
+	 * routine, the other cpus set things up via trampoline.S.
+	 * So save the OBP trap table address here.
+	 */
+	rdpr	%tba, %g7
+	sethi	%hi(prom_tba), %o1
+	or	%o1, %lo(prom_tba), %o1
+	stx	%g7, [%o1]
+
+	call	setup_trap_table
+	 nop
 
 	ret
 	 restore

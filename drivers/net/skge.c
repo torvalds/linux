@@ -2837,21 +2837,29 @@ static void skge_netpoll(struct net_device *dev)
 static int skge_set_mac_address(struct net_device *dev, void *p)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	struct sockaddr *addr = p;
-	int err = 0;
+	struct skge_hw *hw = skge->hw;
+	unsigned port = skge->port;
+	const struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	skge_down(dev);
+	spin_lock_bh(&hw->phy_lock);
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	memcpy_toio(skge->hw->regs + B2_MAC_1 + skge->port*8,
+	memcpy_toio(hw->regs + B2_MAC_1 + port*8,
 		    dev->dev_addr, ETH_ALEN);
-	memcpy_toio(skge->hw->regs + B2_MAC_2 + skge->port*8,
+	memcpy_toio(hw->regs + B2_MAC_2 + port*8,
 		    dev->dev_addr, ETH_ALEN);
-	if (dev->flags & IFF_UP)
-		err = skge_up(dev);
-	return err;
+
+	if (hw->chip_id == CHIP_ID_GENESIS)
+		xm_outaddr(hw, port, XM_SA, dev->dev_addr);
+	else {
+		gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
+		gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+	}
+	spin_unlock_bh(&hw->phy_lock);
+
+	return 0;
 }
 
 static const struct {
