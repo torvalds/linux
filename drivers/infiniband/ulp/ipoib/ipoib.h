@@ -277,7 +277,7 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
 int ipoib_mcast_detach(struct net_device *dev, u16 mlid,
 		       union ib_gid *mgid);
 
-int ipoib_qp_create(struct net_device *dev);
+int ipoib_init_qp(struct net_device *dev);
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca);
 void ipoib_transport_dev_cleanup(struct net_device *dev);
 

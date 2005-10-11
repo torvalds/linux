@@ -387,9 +387,9 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
 
-	ret = ipoib_qp_create(dev);
+	ret = ipoib_init_qp(dev);
 	if (ret) {
-		ipoib_warn(priv, "ipoib_qp_create returned %d\n", ret);
+		ipoib_warn(priv, "ipoib_init_qp returned %d\n", ret);
 		return -1;
 	}
 
