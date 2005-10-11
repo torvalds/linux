@@ -833,7 +833,8 @@ out:
 static inline int
 ctnetlink_change_status(struct ip_conntrack *ct, struct nfattr *cda[])
 {
-	unsigned long d, status = *(u_int32_t *)NFA_DATA(cda[CTA_STATUS-1]);
+	unsigned long d;
+	unsigned status = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_STATUS-1]));
 	d = ct->status ^ status;
 
 	if (d & (IPS_EXPECTED|IPS_CONFIRMED|IPS_DYING))
