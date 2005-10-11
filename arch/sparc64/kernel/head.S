@@ -191,8 +191,9 @@ prom_boot_mapping_phys_low:
 	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 5
 	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1: "translate"
 	stx	%l5, [%sp + 2047 + 128 + 0x20]	! arg2: prom_mmu_ihandle_cache
-	srlx	%l0, 22, %l3
-	sllx	%l3, 22, %l3
+	/* PAGE align */
+	srlx	%l0, 13, %l3
+	sllx	%l3, 13, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x28]	! arg3: vaddr, our PC
 	stx	%g0, [%sp + 2047 + 128 + 0x30]	! res1
 	stx	%g0, [%sp + 2047 + 128 + 0x38]	! res2
@@ -211,6 +212,9 @@ prom_boot_mapping_phys_low:
 	ldx	[%sp + 2047 + 128 + 0x48], %l2	! physaddr high
 	stx	%l2, [%l4 + 0x0]
 	ldx	[%sp + 2047 + 128 + 0x50], %l3	! physaddr low
+	/* 4MB align */
+	srlx	%l3, 22, %l3
+	sllx	%l3, 22, %l3
 	stx	%l3, [%l4 + 0x8]
 
 	/* Leave service as-is, "call-method" */
