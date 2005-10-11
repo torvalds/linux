@@ -1,16 +1,15 @@
 ToDo/Notes:
 	- Find and fix bugs.
-	- In between ntfs_prepare/commit_write, need exclusion between
-	  simultaneous file extensions.  This is given to us by holding i_sem
-	  on the inode.  The only places in the kernel when a file is resized
-	  are prepare/commit write and ntfs_truncate() for both of which i_sem
-	  is held.  Just have to be careful in read-/writepage and other helpers
+	- The only places in the kernel where a file is resized are
+	  ntfs_file_write*() and ntfs_truncate() for both of which i_sem is
+	  held.  Just have to be careful in read-/writepage and other helpers
 	  not running under i_sem that we play nice...  Also need to be careful
-	  with initialized_size extention in ntfs_prepare_write and writepage.
-	  UPDATE: The only things that need to be checked are
-	  prepare/commit_write as well as the compressed write and the other
-	  attribute resize/write cases like index attributes, etc.  For now
-	  none of these are implemented so are safe.
+	  with initialized_size extension in ntfs_file_write*() and writepage.
+	  UPDATE: The only things that need to be checked are the compressed
+	  write and the other attribute resize/write cases like index
+	  attributes, etc.  For now none of these are implemented so are safe.
+	- Implement filling in of holes in aops.c::ntfs_writepage() and its
+	  helpers.
 	- Implement mft.c::sync_mft_mirror_umount().  We currently will just
 	  leave the volume dirty on umount if the final iput(vol->mft_ino)
 	  causes a write of any mirrored mft records due to the mft mirror
@@ -20,7 +19,7 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
-2.1.25-WIP
+2.1.25 - (Almost) fully implement write(2) and truncate(2).
 
 	- Change ntfs_map_runlist_nolock(), ntfs_attr_find_vcn_nolock() and
 	  {__,}ntfs_cluster_free() to also take an optional attribute search
@@ -49,7 +48,12 @@ ToDo/Notes:
 	  extend the allocation of an attributes.  Optionally, the data size,
 	  but not the initialized size can be extended, too.
 	- Implement fs/ntfs/inode.[hc]::ntfs_truncate().  It only supports
-	  uncompressed and unencrypted files.
+	  uncompressed and unencrypted files and it never creates sparse files
+	  at least for the moment (making a file sparse requires us to modify
+	  its directory entries and we do not support directory operations at
+	  the moment).  Also, support for highly fragmented files, i.e. ones
+	  whose data attribute is split across multiple extents, is severly
+	  limited.  When such a case is encountered, EOPNOTSUPP is returned.
 	- Enable ATTR_SIZE attribute changes in ntfs_setattr().  This completes
 	  the initial implementation of file truncation.  Now both open(2)ing
 	  a file with the O_TRUNC flag and the {,f}truncate(2) system calls
@@ -61,6 +65,16 @@ ToDo/Notes:
 	  and cond_resched() in the main loop as we could be dirtying a lot of
 	  pages and this ensures we play nice with the VM and the system as a
 	  whole.
+	- Implement file operations ->write, ->aio_write, ->writev for regular
+	  files.  This replaces the old use of generic_file_write(), et al and
+	  the address space operations ->prepare_write and ->commit_write.
+	  This means that both sparse and non-sparse (unencrypted and
+	  uncompressed) files can now be extended using the normal write(2)
+	  code path.  There are two limitations at present and these are that
+	  we never create sparse files and that we only have limited support
+	  for highly fragmented files, i.e. ones whose data attribute is split
+	  across multiple extents.   When such a case is encountered,
+	  EOPNOTSUPP is returned.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
