@@ -341,10 +341,14 @@ static int tcp_print_conntrack(struct seq_file *s,
 static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
 			 const struct ip_conntrack *ct)
 {
+	struct nfattr *nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
+	
 	read_lock_bh(&tcp_lock);
 	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
 		&ct->proto.tcp.state);
 	read_unlock_bh(&tcp_lock);
+
+	NFA_NEST_END(skb, nest_parms);
 
 	return 0;
 

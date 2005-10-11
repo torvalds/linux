@@ -70,10 +70,17 @@ enum ctattr_l4proto {
 
 enum ctattr_protoinfo {
 	CTA_PROTOINFO_UNSPEC,
-	CTA_PROTOINFO_TCP_STATE,
+	CTA_PROTOINFO_TCP,
 	__CTA_PROTOINFO_MAX
 };
 #define CTA_PROTOINFO_MAX (__CTA_PROTOINFO_MAX - 1)
+
+enum ctattr_protoinfo_tcp {
+	CTA_PROTOINFO_TCP_UNSPEC,
+	CTA_PROTOINFO_TCP_STATE,
+	__CTA_PROTOINFO_TCP_MAX
+};
+#define CTA_PROTOINFO_TCP_MAX (__CTA_PROTOINFO_TCP_MAX - 1)
 
 enum ctattr_counters {
 	CTA_COUNTERS_UNSPEC,
