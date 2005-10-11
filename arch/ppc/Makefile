@@ -57,9 +57,10 @@ head-$(CONFIG_FSL_BOOKE)	:= arch/ppc/kernel/head_fsl_booke.o
 
 head-$(CONFIG_6xx)		+= arch/ppc/kernel/idle_6xx.o
 head-$(CONFIG_POWER4)		+= arch/ppc/kernel/idle_power4.o
-head-$(CONFIG_PPC_FPU)		+= arch/ppc/kernel/fpu.o
+head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
-core-y				+= arch/ppc/kernel/ arch/ppc/platforms/ \
+core-y				+= arch/ppc/kernel/ arch/powerpc/kernel/ \
+				   arch/ppc/platforms/ \
 				   arch/ppc/mm/ arch/ppc/lib/ arch/ppc/syslib/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
 core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/

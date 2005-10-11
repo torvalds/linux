@@ -42,6 +42,7 @@
 #include <asm/ppcboot.h>
 #include <asm/mv64x60.h>
 #include <platforms/katana.h>
+#include <asm/machdep.h>
 
 static struct mv64x60_handle	bh;
 static katana_id_t		katana_id;

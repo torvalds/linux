@@ -87,6 +87,9 @@ extern void chrp_init(unsigned long r3, unsigned long r4,
 dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
+int have_of;
+EXPORT_SYMBOL(have_of);
+
 #ifdef __DO_IRQ_CANON
 int ppc_do_canonicalize_irqs;
 EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
@@ -420,6 +423,8 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	}
 #endif
 
+	have_of = 1;
+
 	/* prom_init has already been called from __start */
 	if (boot_infos)
 		relocate_nodes();
@@ -735,7 +740,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_XMON
-	xmon_map_scc();
+	xmon_init(1);
 	if (strstr(cmd_line, "xmon"))
 		xmon(NULL);
 #endif /* CONFIG_XMON */

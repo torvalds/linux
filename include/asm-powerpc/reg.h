@@ -74,7 +74,9 @@
 #define MSR_DR		__MASK(MSR_DR_LG)	/* Data Relocate */
 #define MSR_PE		__MASK(MSR_PE_LG)	/* Protection Enable */
 #define MSR_PX		__MASK(MSR_PX_LG)	/* Protection Exclusive Mode */
+#ifndef MSR_PMM
 #define MSR_PMM		__MASK(MSR_PMM_LG)	/* Performance monitor */
+#endif
 #define MSR_RI		__MASK(MSR_RI_LG)	/* Recoverable Exception */
 #define MSR_LE		__MASK(MSR_LE_LG)	/* Little Endian */
 
@@ -87,10 +89,12 @@
 
 #else /* 32-bit */
 /* Default MSR for kernel mode. */
+#ifndef MSR_KERNEL	/* reg_booke.h also defines this */
 #ifdef CONFIG_APUS_FAST_EXCEPT
 #define MSR_KERNEL	(MSR_ME|MSR_IP|MSR_RI|MSR_IR|MSR_DR)
 #else
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
+#endif
 #endif
 
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)

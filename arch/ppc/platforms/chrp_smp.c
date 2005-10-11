@@ -31,6 +31,7 @@
 #include <asm/residual.h>
 #include <asm/time.h>
 #include <asm/open_pic.h>
+#include <asm/machdep.h>
 
 extern unsigned long smp_chrp_cpu_nr;
 

@@ -21,6 +21,7 @@
 #include "mpc52xx_pci.h"
 
 #include <asm/delay.h>
+#include <asm/machdep.h>
 
 
 static int

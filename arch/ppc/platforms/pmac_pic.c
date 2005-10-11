@@ -35,6 +35,7 @@
 #include <asm/open_pic.h>
 #include <asm/xmon.h>
 #include <asm/pmac_feature.h>
+#include <asm/machdep.h>
 
 #include "pmac_pic.h"
 

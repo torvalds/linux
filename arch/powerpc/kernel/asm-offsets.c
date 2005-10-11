@@ -252,6 +252,7 @@ int main(void)
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));
 	DEFINE(pbe_next, offsetof(struct pbe, next));
 
+	DEFINE(TASK_SIZE, TASK_SIZE);
 	DEFINE(NUM_USER_SEGMENTS, TASK_SIZE>>28);
 #else /* CONFIG_PPC64 */
 	/* systemcfg offsets for use by vdso */

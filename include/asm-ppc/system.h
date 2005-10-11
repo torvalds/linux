@@ -77,6 +77,7 @@ extern void enable_kernel_fp(void);
 extern void enable_kernel_altivec(void);
 extern void giveup_altivec(struct task_struct *);
 extern void load_up_altivec(struct task_struct *);
+extern int emulate_altivec(struct pt_regs *);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
 extern int fix_alignment(struct pt_regs *);
@@ -89,6 +90,8 @@ extern int do_page_fault(struct pt_regs *, unsigned long, unsigned long);
 extern void bad_page_fault(struct pt_regs *, unsigned long, int);
 extern int die(const char *, struct pt_regs *, long);
 extern void _exception(int, struct pt_regs *, int, unsigned long);
+void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
+
 #ifdef CONFIG_BOOKE_WDT
 extern u32 booke_wdt_enabled;
 extern u32 booke_wdt_period;

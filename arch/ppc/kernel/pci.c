@@ -1034,6 +1034,10 @@ static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *att
 }
 static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
 
+#else /* CONFIG_PPC_OF */
+void pcibios_make_OF_bus_map(void)
+{
+}
 #endif /* CONFIG_PPC_OF */
 
 /* Add sysfs properties */

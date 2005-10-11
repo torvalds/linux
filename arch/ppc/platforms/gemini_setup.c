@@ -36,6 +36,7 @@
 #include <asm/time.h>
 #include <asm/open_pic.h>
 #include <asm/bootinfo.h>
+#include <asm/machdep.h>
 
 void gemini_find_bridges(void);
 static int gemini_get_clock_speed(void);

@@ -44,6 +44,11 @@
 #include <asm/perfmon.h>
 
 #ifdef CONFIG_XMON
+extern int xmon_bpt(struct pt_regs *regs);
+extern int xmon_sstep(struct pt_regs *regs);
+extern int xmon_iabr_match(struct pt_regs *regs);
+extern int xmon_dabr_match(struct pt_regs *regs);
+
 void (*debugger)(struct pt_regs *regs) = xmon;
 int (*debugger_bpt)(struct pt_regs *regs) = xmon_bpt;
 int (*debugger_sstep)(struct pt_regs *regs) = xmon_sstep;
@@ -813,6 +818,17 @@ void TAUException(struct pt_regs *regs)
 	       regs->nip, regs->msr, regs->trap, print_tainted());
 }
 #endif /* CONFIG_INT_TAU */
+
+/*
+ * FP unavailable trap from kernel - print a message, but let
+ * the task use FP in the kernel until it returns to user mode.
+ */
+void kernel_fp_unavailable_exception(struct pt_regs *regs)
+{
+	regs->msr |= MSR_FP;
+	printk(KERN_ERR "floating point used in kernel (task=%p, pc=%lx)\n",
+	       current, regs->nip);
+}
 
 void altivec_unavailable_exception(struct pt_regs *regs)
 {

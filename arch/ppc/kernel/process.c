@@ -557,14 +557,16 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
  	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
 }
 
-int sys_fork(int p1, int p2, int p3, int p4, int p5, int p6,
+int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
+	     unsigned long p4, unsigned long p5, unsigned long p6,
 	     struct pt_regs *regs)
 {
 	CHECK_FULL_REGS(regs);
 	return do_fork(SIGCHLD, regs->gpr[1], regs, 0, NULL, NULL);
 }
 
-int sys_vfork(int p1, int p2, int p3, int p4, int p5, int p6,
+int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
+	      unsigned long p4, unsigned long p5, unsigned long p6,
 	      struct pt_regs *regs)
 {
 	CHECK_FULL_REGS(regs);
