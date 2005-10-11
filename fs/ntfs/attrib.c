@@ -21,7 +21,9 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/sched.h>
 #include <linux/swap.h>
+#include <linux/writeback.h>
 
 #include "attrib.h"
 #include "debug.h"
@@ -2590,6 +2592,8 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		/* Finally unlock and release the page. */
 		unlock_page(page);
 		page_cache_release(page);
+		balance_dirty_pages_ratelimited(mapping);
+		cond_resched();
 	}
 	/* If there is a last partial page, need to do it the slow way. */
 	if (end_ofs) {

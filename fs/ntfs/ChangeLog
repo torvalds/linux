@@ -57,6 +57,10 @@ ToDo/Notes:
 	  uncompressed and unencrypted files are supported.  Also, there is
 	  only very limited support for highly fragmented files (the ones whose
 	  $DATA attribute is split into multiple attribute extents).
+	- In attrib.c::ntfs_attr_set() call balance_dirty_pages_ratelimited()
+	  and cond_resched() in the main loop as we could be dirtying a lot of
+	  pages and this ensures we play nice with the VM and the system as a
+	  whole.
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 
