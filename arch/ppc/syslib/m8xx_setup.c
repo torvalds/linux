@@ -406,7 +406,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.setup_arch		= m8xx_setup_arch;
 	ppc_md.show_percpuinfo		= m8xx_show_percpuinfo;
-	ppc_md.irq_canonicalize	= NULL;
 	ppc_md.init_IRQ			= m8xx_init_IRQ;
 	ppc_md.get_irq			= m8xx_get_irq;
 	ppc_md.init			= NULL;

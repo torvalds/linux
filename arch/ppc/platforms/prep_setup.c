@@ -942,19 +942,6 @@ prep_calibrate_decr(void)
 		todc_calibrate_decr();
 }
 
-static unsigned int
-prep_irq_canonicalize(u_int irq)
-{
-	if (irq == 2)
-	{
-		return 9;
-	}
-	else
-	{
-		return irq;
-	}
-}
-
 static void __init
 prep_init_IRQ(void)
 {
@@ -1110,6 +1097,7 @@ prep_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ISA_DMA_THRESHOLD = 0x00ffffff;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
+	ppc_do_canonicalize_irqs = 1;
 
 	/* figure out what kind of prep workstation we are */
 	if (have_residual_data) {
@@ -1136,7 +1124,6 @@ prep_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_arch     = prep_setup_arch;
 	ppc_md.show_percpuinfo = prep_show_percpuinfo;
 	ppc_md.show_cpuinfo   = NULL; /* set in prep_setup_arch() */
-	ppc_md.irq_canonicalize = prep_irq_canonicalize;
 	ppc_md.init_IRQ       = prep_init_IRQ;
 	/* this gets changed later on if we have an OpenPIC -- Cort */
 	ppc_md.get_irq        = i8259_irq;

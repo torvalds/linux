@@ -509,15 +509,6 @@ sandpoint_init_IRQ(void)
 	i8259_init(0xfef00000);
 }
 
-static u32
-sandpoint_irq_canonicalize(u32 irq)
-{
-	if (irq == 2)
-		return 9;
-	else
-		return irq;
-}
-
 static unsigned long __init
 sandpoint_find_end_of_memory(void)
 {
@@ -728,10 +719,10 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ISA_DMA_THRESHOLD = 0x00ffffff;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
+	ppc_do_canonicalize_irqs = 1;
 
 	ppc_md.setup_arch = sandpoint_setup_arch;
 	ppc_md.show_cpuinfo = sandpoint_show_cpuinfo;
-	ppc_md.irq_canonicalize = sandpoint_irq_canonicalize;
 	ppc_md.init_IRQ = sandpoint_init_IRQ;
 	ppc_md.get_irq = openpic_get_irq;
 

@@ -87,6 +87,11 @@ extern void chrp_init(unsigned long r3, unsigned long r4,
 dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
+#ifdef __DO_IRQ_CANON
+int ppc_do_canonicalize_irqs;
+EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
+#endif
+
 #ifdef CONFIG_MAGIC_SYSRQ
 unsigned long SYSRQ_KEY = 0x54;
 #endif /* CONFIG_MAGIC_SYSRQ */

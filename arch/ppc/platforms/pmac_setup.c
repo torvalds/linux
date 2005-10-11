@@ -662,7 +662,6 @@ pmac_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_arch     = pmac_setup_arch;
 	ppc_md.show_cpuinfo   = pmac_show_cpuinfo;
 	ppc_md.show_percpuinfo = pmac_show_percpuinfo;
-	ppc_md.irq_canonicalize = NULL;
 	ppc_md.init_IRQ       = pmac_pic_init;
 	ppc_md.get_irq        = pmac_get_irq; /* Changed later on ... */
 

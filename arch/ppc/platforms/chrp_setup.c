@@ -337,14 +337,6 @@ chrp_halt(void)
 	chrp_power_off();
 }
 
-u_int
-chrp_irq_canonicalize(u_int irq)
-{
-	if (irq == 2)
-		return 9;
-	return irq;
-}
-
 /*
  * Finds the open-pic node and sets OpenPIC_Addr based on its reg property.
  * Then checks if it has an interrupt-ranges property.  If it does then
@@ -500,6 +492,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
+	ppc_do_canonicalize_irqs = 1;
 
 	if (root)
 		machine = get_property(root, "model", NULL);
@@ -518,7 +511,6 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.show_percpuinfo = of_show_percpuinfo;
 	ppc_md.show_cpuinfo   = chrp_show_cpuinfo;
 
-	ppc_md.irq_canonicalize = chrp_irq_canonicalize;
 	ppc_md.init_IRQ       = chrp_init_IRQ;
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;

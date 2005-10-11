@@ -1426,6 +1426,7 @@ void __init platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_arch = ppc7d_setup_arch;
 	ppc_md.init = ppc7d_init2;
 	ppc_md.show_cpuinfo = ppc7d_show_cpuinfo;
+	/* XXX this is broken... */
 	ppc_md.irq_canonicalize = ppc7d_irq_canonicalize;
 	ppc_md.init_IRQ = ppc7d_init_irq;
 	ppc_md.get_irq = ppc7d_get_irq;
