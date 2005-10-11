@@ -356,6 +356,28 @@ nfattr_failure:
 	read_unlock_bh(&tcp_lock);
 	return -1;
 }
+
+static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
+{
+	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
+	struct nfattr *tb[CTA_PROTOINFO_TCP_MAX];
+
+        if (nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr) < 0)
+                goto nfattr_failure;
+
+	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
+		return -EINVAL;
+
+	write_lock_bh(&tcp_lock);
+	ct->proto.tcp.state = 
+		*(u_int8_t *)NFA_DATA(tb[CTA_PROTOINFO_TCP_STATE-1]);
+	write_unlock_bh(&tcp_lock);
+
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
 #endif
 
 static unsigned int get_conntrack_index(const struct tcphdr *tcph)
@@ -1127,6 +1149,7 @@ struct ip_conntrack_protocol ip_conntrack_protocol_tcp =
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 	.to_nfattr		= tcp_to_nfattr,
+	.from_nfattr		= nfattr_to_tcp,
 	.tuple_to_nfattr	= ip_ct_port_tuple_to_nfattr,
 	.nfattr_to_tuple	= ip_ct_port_nfattr_to_tuple,
 #endif
