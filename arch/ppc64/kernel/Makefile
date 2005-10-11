@@ -8,10 +8,10 @@ EXTRA_CFLAGS	+= -mno-minimal-toc
 extra-y		:= head.o vmlinux.lds
 
 obj-y               :=	setup.o entry.o irq.o idle.o dma.o \
-			time.o process.o signal.o syscalls.o misc.o ptrace.o \
+			time.o signal.o syscalls.o misc.o ptrace.o \
 			align.o bitops.o pacaData.o \
 			udbg.o binfmt_elf32.o sys_ppc32.o ioctl32.o \
-			ptrace32.o signal32.o rtc.o init_task.o \
+			ptrace32.o signal32.o rtc.o \
 			cputable.o cpu_setup_power4.o \
 			iommu.o sysfs.o vdso.o pmc.o firmware.o prom.o
 obj-y += vdso32/ vdso64/
