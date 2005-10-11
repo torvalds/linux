@@ -339,6 +339,7 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size);
 #endif
 
 /* misc.c */
+struct resource;
 void release_and_free_resource(struct resource *res);
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
