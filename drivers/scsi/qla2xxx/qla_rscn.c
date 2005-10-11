@@ -6,6 +6,8 @@
  */
 #include "qla_def.h"
 
+#include <scsi/scsi_transport_fc.h>
+
 /**
  * IO descriptor handle definitions.
  *
