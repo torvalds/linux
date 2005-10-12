@@ -63,6 +63,7 @@
 static unsigned int ata_busy_sleep (struct ata_port *ap,
 				    unsigned long tmout_pat,
 			    	    unsigned long tmout);
+static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
@@ -1240,8 +1241,14 @@ retry:
 		 * anything else..
 		 * Some drives were very specific about that exact sequence.
 		 */
-		if (major_version < 4 || (!ata_id_has_lba(dev->id)))
+		if (major_version < 4 || (!ata_id_has_lba(dev->id))) {
 			ata_dev_init_params(ap, dev);
+
+			/* current CHS translation info (id[53-58]) might be
+			 * changed. reread the identify device info.
+			 */
+			ata_dev_reread_id(ap, dev);
+		}
 
 		if (ata_id_has_lba(dev->id)) {
 			dev->flags |= ATA_DFLAG_LBA;
@@ -2148,6 +2155,62 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 		wait_for_completion(&wait);
 
 	DPRINTK("EXIT\n");
+}
+
+/**
+ *	ata_dev_reread_id - Reread the device identify device info
+ *	@ap: port where the device is
+ *	@dev: device to reread the identify device info
+ *
+ *	LOCKING:
+ */
+
+static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
+{
+	DECLARE_COMPLETION(wait);
+	struct ata_queued_cmd *qc;
+	unsigned long flags;
+	int rc;
+
+	qc = ata_qc_new_init(ap, dev);
+	BUG_ON(qc == NULL);
+
+	ata_sg_init_one(qc, dev->id, sizeof(dev->id));
+	qc->dma_dir = DMA_FROM_DEVICE;
+
+	if (dev->class == ATA_DEV_ATA) {
+		qc->tf.command = ATA_CMD_ID_ATA;
+		DPRINTK("do ATA identify\n");
+	} else {
+		qc->tf.command = ATA_CMD_ID_ATAPI;
+		DPRINTK("do ATAPI identify\n");
+	}
+
+	qc->tf.flags |= ATA_TFLAG_DEVICE;
+	qc->tf.protocol = ATA_PROT_PIO;
+	qc->nsect = 1;
+
+	qc->waiting = &wait;
+	qc->complete_fn = ata_qc_complete_noop;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	rc = ata_qc_issue(qc);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	if (rc)
+		goto err_out;
+
+	wait_for_completion(&wait);
+
+	swap_buf_le16(dev->id, ATA_ID_WORDS);
+
+	ata_dump_id(dev);
+
+	DPRINTK("EXIT\n");
+
+	return;
+err_out:
+	ata_port_disable(ap);
 }
 
 /**
