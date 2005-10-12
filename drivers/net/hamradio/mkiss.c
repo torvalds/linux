@@ -977,6 +977,7 @@ out:
 }
 
 static struct tty_ldisc ax_ldisc = {
+	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
 	.name		= "mkiss",
 	.open		= mkiss_open,
