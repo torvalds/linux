@@ -742,15 +742,10 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	u32 n_block;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	tf->protocol = qc->dev->xfer_protocol;
 
-	if (scsicmd[0] == READ_10 || scsicmd[0] == READ_6 ||
-	    scsicmd[0] == READ_16) {
-		tf->command = qc->dev->read_cmd;
-	} else {
-		tf->command = qc->dev->write_cmd;
+	if (scsicmd[0] == WRITE_10 || scsicmd[0] == WRITE_6 ||
+	    scsicmd[0] == WRITE_16)
 		tf->flags |= ATA_TFLAG_WRITE;
-	}
 
 	/* Calculate the SCSI LBA and transfer length. */
 	switch (scsicmd[0]) {
@@ -812,6 +807,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 			tf->device |= (block >> 24) & 0xf;
 		}
 
+		ata_rwcmd_protocol(qc);
+
 		qc->nsect = n_block;
 		tf->nsect = n_block & 0xff;
 
@@ -827,6 +824,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		/* The request -may- be too large for CHS addressing. */
 		if ((block >> 28) || (n_block > 256))
 			goto out_of_range;
+
+		ata_rwcmd_protocol(qc);
 
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;
