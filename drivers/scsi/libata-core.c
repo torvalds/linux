@@ -3195,13 +3195,6 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 		qc->nbytes = qc->curbytes = 0;
 
 		ata_tf_init(ap, &qc->tf, dev->devno);
-
-		if (dev->flags & ATA_DFLAG_LBA) {
-			qc->tf.flags |= ATA_TFLAG_LBA;
-
-			if (dev->flags & ATA_DFLAG_LBA48)
-				qc->tf.flags |= ATA_TFLAG_LBA48;
-		}
 	}
 
 	return qc;
