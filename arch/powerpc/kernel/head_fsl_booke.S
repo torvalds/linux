@@ -1028,10 +1028,14 @@ _GLOBAL(set_context)
  * goes at the beginning of the data segment, which is page-aligned.
  */
 	.data
-_GLOBAL(sdata)
-_GLOBAL(empty_zero_page)
+	.align	12
+	.globl	sdata
+sdata:
+	.globl	empty_zero_page
+empty_zero_page:
 	.space	4096
-_GLOBAL(swapper_pg_dir)
+	.globl	swapper_pg_dir
+swapper_pg_dir:
 	.space	4096
 
 /* Reserved 4k for the critical exception stack & 4k for the machine
@@ -1040,13 +1044,15 @@ _GLOBAL(swapper_pg_dir)
         .align 12
 exception_stack_bottom:
 	.space	BOOKE_EXCEPTION_STACK_SIZE * NR_CPUS
-_GLOBAL(exception_stack_top)
+	.globl	exception_stack_top
+exception_stack_top:
 
 /*
  * This space gets a copy of optional info passed to us by the bootstrap
  * which is used to pass parameters into the kernel like root=/dev/sda1, etc.
  */
-_GLOBAL(cmd_line)
+	.globl	cmd_line
+cmd_line:
 	.space	512
 
 /*
@@ -1055,4 +1061,3 @@ _GLOBAL(cmd_line)
  */
 abatron_pteptrs:
 	.space	8
-
