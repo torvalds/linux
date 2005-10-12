@@ -1011,6 +1011,7 @@ static int cifs_writepages(struct address_space *mapping,
 	pgoff_t index;
 	int is_range = 0;
 	struct kvec iov[32];
+	int len;
 	int n_iov = 0;
 	pgoff_t next;
 	int nr_pages;
@@ -1124,16 +1125,26 @@ retry:
 				unlock_page(page);
 				break;
 			}
+
+			if (page_offset(page) >= mapping->host->i_size) {
+				done = 1;
+				unlock_page(page);
+				break;
+			}
+
 			/*
 			 * BB can we get rid of this?  pages are held by pvec
 			 */
 			page_cache_get(page);
 
+			len = min(mapping->host->i_size - page_offset(page),
+				  (loff_t)PAGE_CACHE_SIZE);
+
 			/* reserve iov[0] for the smb header */
 			n_iov++;
 			iov[n_iov].iov_base = kmap(page);
-			iov[n_iov].iov_len = PAGE_CACHE_SIZE;
-			bytes_to_write += PAGE_CACHE_SIZE;
+			iov[n_iov].iov_len = len;
+			bytes_to_write += len;
 
 			if (first < 0) {
 				first = i;
