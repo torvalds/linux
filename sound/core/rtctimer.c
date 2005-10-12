@@ -124,7 +124,8 @@ static int __init rtctimer_init(void)
 
 	if (rtctimer_freq < 2 || rtctimer_freq > 8192 ||
 	    (rtctimer_freq & (rtctimer_freq - 1)) != 0) {
-		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n", rtctimer_freq);
+		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n",
+			   rtctimer_freq);
 		return -EINVAL;
 	}
 
@@ -133,6 +134,7 @@ static int __init rtctimer_init(void)
 	if (err < 0)
 		return err;
 
+	timer->module = THIS_MODULE;
 	strcpy(timer->name, "RTC timer");
 	timer->hw = rtc_hw;
 	timer->hw.resolution = NANO_SEC / rtctimer_freq;

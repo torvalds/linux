@@ -113,7 +113,7 @@ static snd_timer_instance_t *snd_timer_instance_new(char *owner, snd_timer_t *ti
 	INIT_LIST_HEAD(&timeri->slave_active_head);
 
 	timeri->timer = timer;
-	if (timer && timer->card && !try_module_get(timer->card->module)) {
+	if (timer && !try_module_get(timer->module)) {
 		kfree(timeri->owner);
 		kfree(timeri);
 		return NULL;
@@ -363,8 +363,8 @@ int snd_timer_close(snd_timer_instance_t * timeri)
 		timeri->private_free(timeri);
 	kfree(timeri->owner);
 	kfree(timeri);
-	if (timer && timer->card)
-		module_put(timer->card->module);
+	if (timer)
+		module_put(timer->module);
 	return 0;
 }
 
@@ -787,6 +787,7 @@ int snd_timer_new(snd_card_t *card, char *id, snd_timer_id_t *tid, snd_timer_t *
 	spin_lock_init(&timer->lock);
 	tasklet_init(&timer->task_queue, snd_timer_tasklet, (unsigned long)timer);
 	if (card != NULL) {
+		timer->module = card->module;
 		if ((err = snd_device_new(card, SNDRV_DEV_TIMER, timer, &ops)) < 0) {
 			snd_timer_free(timer);
 			return err;
