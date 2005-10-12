@@ -4294,20 +4294,26 @@ int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 		cFYI(1, ("Error in Notify = %d", rc));
 	} else {
 		/* Add file to outstanding requests */
+		/* BB change to kmem cache alloc */	
 		dnotify_req = (struct dir_notify_req *) kmalloc(
-						sizeof(struct dir_notify_req), GFP_KERNEL);
-		dnotify_req->Pid = pSMB->hdr.Pid;
-		dnotify_req->PidHigh = pSMB->hdr.PidHigh;
-		dnotify_req->Mid = pSMB->hdr.Mid;
-		dnotify_req->Tid = pSMB->hdr.Tid;
-		dnotify_req->Uid = pSMB->hdr.Uid;
-		dnotify_req->netfid = netfid;
-		dnotify_req->pfile = pfile;
-		dnotify_req->filter = filter;
-		dnotify_req->multishot = multishot;
-		spin_lock(&GlobalMid_Lock);
-		list_add_tail(&dnotify_req->lhead, &GlobalDnotifyReqList);
-		spin_unlock(&GlobalMid_Lock);
+						sizeof(struct dir_notify_req),
+						 GFP_KERNEL);
+		if(dnotify_req) {
+			dnotify_req->Pid = pSMB->hdr.Pid;
+			dnotify_req->PidHigh = pSMB->hdr.PidHigh;
+			dnotify_req->Mid = pSMB->hdr.Mid;
+			dnotify_req->Tid = pSMB->hdr.Tid;
+			dnotify_req->Uid = pSMB->hdr.Uid;
+			dnotify_req->netfid = netfid;
+			dnotify_req->pfile = pfile;
+			dnotify_req->filter = filter;
+			dnotify_req->multishot = multishot;
+			spin_lock(&GlobalMid_Lock);
+			list_add_tail(&dnotify_req->lhead, 
+					&GlobalDnotifyReqList);
+			spin_unlock(&GlobalMid_Lock);
+		} else 
+			rc = -ENOMEM;
 	}
 	cifs_buf_release(pSMB);
 	return rc;	

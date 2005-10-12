@@ -217,7 +217,7 @@ cifs_stats_write(struct file *file, const char __user *buffer,
         if (rc)
                 return rc;
 
-        if (c == '1' || c == 'y' || c == 'Y') {
+        if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
 		read_lock(&GlobalSMBSeslock);
 		list_for_each(tmp, &GlobalTreeConnectionList) {
 			tcon = list_entry(tmp, struct cifsTconInfo,
