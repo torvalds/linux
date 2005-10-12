@@ -131,7 +131,7 @@ static snd_timer_t *snd_timer_find(snd_timer_id_t *tid)
 	struct list_head *p;
 
 	list_for_each(p, &snd_timer_list) {
-		timer = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+		timer = list_entry(p, snd_timer_t, device_list);
 
 		if (timer->tmr_class != tid->dev_class)
 			continue;
@@ -186,9 +186,9 @@ static void snd_timer_check_slave(snd_timer_instance_t *slave)
 
 	/* FIXME: it's really dumb to look up all entries.. */
 	list_for_each(p, &snd_timer_list) {
-		timer = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+		timer = list_entry(p, snd_timer_t, device_list);
 		list_for_each(q, &timer->open_list_head) {
-			master = (snd_timer_instance_t *)list_entry(q, snd_timer_instance_t, open_list);
+			master = list_entry(q, snd_timer_instance_t, open_list);
 			if (slave->slave_class == master->slave_class &&
 			    slave->slave_id == master->slave_id) {
 				list_del(&slave->open_list);
@@ -216,7 +216,7 @@ static void snd_timer_check_master(snd_timer_instance_t *master)
 
 	/* check all pending slaves */
 	list_for_each_safe(p, n, &snd_timer_slave_list) {
-		slave = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, open_list);
+		slave = list_entry(p, snd_timer_instance_t, open_list);
 		if (slave->slave_class == master->slave_class &&
 		    slave->slave_id == master->slave_id) {
 			list_del(p);
@@ -348,7 +348,7 @@ int snd_timer_close(snd_timer_instance_t * timeri)
 			timer->hw.close(timer);
 		/* remove slave links */
 		list_for_each_safe(p, n, &timeri->slave_list_head) {
-			slave = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, open_list);
+			slave = list_entry(p, snd_timer_instance_t, open_list);
 			spin_lock_irq(&slave_active_lock);
 			_snd_timer_stop(slave, 1, SNDRV_TIMER_EVENT_RESOLUTION);
 			list_del(p);
@@ -406,7 +406,7 @@ static void snd_timer_notify1(snd_timer_instance_t *ti, enum sndrv_timer_event e
 		return;
 	spin_lock_irqsave(&timer->lock, flags);
 	list_for_each(n, &ti->slave_active_head) {
-		ts = (snd_timer_instance_t *)list_entry(n, snd_timer_instance_t, active_list);
+		ts = list_entry(n, snd_timer_instance_t, active_list);
 		if (ts->ccallback)
 			ts->ccallback(ti, event + 100, &tstamp, resolution);
 	}
@@ -584,7 +584,7 @@ static void snd_timer_reschedule(snd_timer_t * timer, unsigned long ticks_left)
 	struct list_head *p;
 
 	list_for_each(p, &timer->active_list_head) {
-		ti = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, active_list);
+		ti = list_entry(p, snd_timer_instance_t, active_list);
 		if (ti->flags & SNDRV_TIMER_IFLG_START) {
 			ti->flags &= ~SNDRV_TIMER_IFLG_START;
 			ti->flags |= SNDRV_TIMER_IFLG_RUNNING;
@@ -621,7 +621,7 @@ static void snd_timer_tasklet(unsigned long arg)
 	/* now process all callbacks */
 	while (!list_empty(&timer->sack_list_head)) {
 		p = timer->sack_list_head.next;		/* get first item */
-		ti = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, ack_list);
+		ti = list_entry(p, snd_timer_instance_t, ack_list);
 
 		/* remove from ack_list and make empty */
 		list_del_init(p);
@@ -669,7 +669,7 @@ void snd_timer_interrupt(snd_timer_t * timer, unsigned long ticks_left)
 	 * instance is relinked to done_list_head before callback is called.
 	 */
 	list_for_each_safe(p, n, &timer->active_list_head) {
-		ti = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, active_list);
+		ti = list_entry(p, snd_timer_instance_t, active_list);
 		if (!(ti->flags & SNDRV_TIMER_IFLG_RUNNING))
 			continue;
 		ti->pticks += ticks_left;
@@ -696,7 +696,7 @@ void snd_timer_interrupt(snd_timer_t * timer, unsigned long ticks_left)
 			}
 		}
 		list_for_each(q, &ti->slave_active_head) {
-			ts = (snd_timer_instance_t *)list_entry(q, snd_timer_instance_t, active_list);
+			ts = list_entry(q, snd_timer_instance_t, active_list);
 			ts->pticks = ti->pticks;
 			ts->resolution = resolution;
 			if (list_empty(&ts->ack_list)) {
@@ -729,7 +729,7 @@ void snd_timer_interrupt(snd_timer_t * timer, unsigned long ticks_left)
 	/* now process all fast callbacks */
 	while (!list_empty(&timer->ack_list_head)) {
 		p = timer->ack_list_head.next;		/* get first item */
-		ti = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, ack_list);
+		ti = list_entry(p, snd_timer_instance_t, ack_list);
 		
 		/* remove from ack_list and make empty */
 		list_del_init(p);
@@ -825,7 +825,7 @@ static int snd_timer_dev_register(snd_device_t *dev)
 
 	down(&register_mutex);
 	list_for_each(p, &snd_timer_list) {
-		timer1 = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+		timer1 = list_entry(p, snd_timer_t, device_list);
 		if (timer1->tmr_class > timer->tmr_class)
 			break;
 		if (timer1->tmr_class < timer->tmr_class)
@@ -864,7 +864,7 @@ static int snd_timer_unregister(snd_timer_t *timer)
 		snd_printk(KERN_WARNING "timer 0x%lx is busy?\n", (long)timer);
 		list_for_each_safe(p, n, &timer->open_list_head) {
 			list_del_init(p);
-			ti = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, open_list);
+			ti = list_entry(p, snd_timer_instance_t, open_list);
 			ti->timer = NULL;
 		}
 	}
@@ -899,11 +899,11 @@ void snd_timer_notify(snd_timer_t *timer, enum sndrv_timer_event event, struct t
 			resolution = timer->hw.resolution;
 	}
 	list_for_each(p, &timer->active_list_head) {
-		ti = (snd_timer_instance_t *)list_entry(p, snd_timer_instance_t, active_list);
+		ti = list_entry(p, snd_timer_instance_t, active_list);
 		if (ti->ccallback)
 			ti->ccallback(ti, event, tstamp, resolution);
 		list_for_each(n, &ti->slave_active_head) {
-			ts = (snd_timer_instance_t *)list_entry(n, snd_timer_instance_t, active_list);
+			ts = list_entry(n, snd_timer_instance_t, active_list);
 			if (ts->ccallback)
 				ts->ccallback(ts, event, tstamp, resolution);
 		}
@@ -1052,7 +1052,7 @@ static void snd_timer_proc_read(snd_info_entry_t *entry,
 
 	down(&register_mutex);
 	list_for_each(p, &snd_timer_list) {
-		timer = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+		timer = list_entry(p, snd_timer_t, device_list);
 		switch (timer->tmr_class) {
 		case SNDRV_TIMER_CLASS_GLOBAL:
 			snd_iprintf(buffer, "G%i: ", timer->tmr_device);
@@ -1074,7 +1074,7 @@ static void snd_timer_proc_read(snd_info_entry_t *entry,
 		snd_iprintf(buffer, "\n");
 		spin_lock_irqsave(&timer->lock, flags);
 		list_for_each(q, &timer->open_list_head) {
-			ti = (snd_timer_instance_t *)list_entry(q, snd_timer_instance_t, open_list);
+			ti = list_entry(q, snd_timer_instance_t, open_list);
 			snd_iprintf(buffer, "  Client %s : %s : lost interrupts %li\n",
 					ti->owner ? ti->owner : "unknown",
 					ti->flags & (SNDRV_TIMER_IFLG_START|SNDRV_TIMER_IFLG_RUNNING) ? "running" : "stopped",
@@ -1275,7 +1275,8 @@ static int snd_timer_user_next_device(snd_timer_id_t __user *_tid)
 		if (list_empty(&snd_timer_list))
 			snd_timer_user_zero_id(&id);
 		else {
-			timer = (snd_timer_t *)list_entry(snd_timer_list.next, snd_timer_t, device_list);
+			timer = list_entry(snd_timer_list.next,
+					   snd_timer_t, device_list);
 			snd_timer_user_copy_id(&id, timer);
 		}
 	} else {
@@ -1283,7 +1284,7 @@ static int snd_timer_user_next_device(snd_timer_id_t __user *_tid)
 		case SNDRV_TIMER_CLASS_GLOBAL:
 			id.device = id.device < 0 ? 0 : id.device + 1;
 			list_for_each(p, &snd_timer_list) {
-				timer = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+				timer = list_entry(p, snd_timer_t, device_list);
 				if (timer->tmr_class > SNDRV_TIMER_CLASS_GLOBAL) {
 					snd_timer_user_copy_id(&id, timer);
 					break;
@@ -1312,7 +1313,7 @@ static int snd_timer_user_next_device(snd_timer_id_t __user *_tid)
 				}
 			}
 			list_for_each(p, &snd_timer_list) {
-				timer = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+				timer = list_entry(p, snd_timer_t, device_list);
 				if (timer->tmr_class > id.dev_class) {
 					snd_timer_user_copy_id(&id, timer);
 					break;
@@ -1915,7 +1916,7 @@ static void __exit alsa_timer_exit(void)
 	snd_unregister_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0);
 	/* unregister the system timer */
 	list_for_each_safe(p, n, &snd_timer_list) {
-		snd_timer_t *timer = (snd_timer_t *)list_entry(p, snd_timer_t, device_list);
+		snd_timer_t *timer = list_entry(p, snd_timer_t, device_list);
 		snd_timer_unregister(timer);
 	}
 	if (snd_timer_proc_entry) {
