@@ -102,6 +102,9 @@ ToDo/Notes:
 	  inode instead of a vfs inode as parameter.
 	- Fix the definition of the CHKD ntfs record magic.  It had an off by
 	  two error causing it to be CHKB instead of CHKD.
+	- Fix a stupid bug in __ntfs_bitmap_set_bits_in_run() which caused the
+	  count to become negative and hence we had a wild memset() scribbling
+	  all over the system's ram.
 
 2.1.23 - Implement extension of resident files and make writing safe as well as
 	 many bug fixes, cleanups, and enhancements...

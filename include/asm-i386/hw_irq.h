@@ -18,6 +18,8 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 
+struct hw_interrupt_type;
+
 /*
  * Various low-level irq details needed by irq.c, process.c,
  * time.c, io_apic.c and smp.c

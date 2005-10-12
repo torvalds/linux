@@ -34,6 +34,7 @@
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/i2c.h>
 
 #include "generic.h"
 

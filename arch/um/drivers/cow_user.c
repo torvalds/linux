@@ -9,7 +9,6 @@
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/user.h>
-#include <netinet/in.h>
 
 #include "os.h"
 

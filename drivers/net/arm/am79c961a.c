@@ -15,16 +15,13 @@
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/fcntl.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
@@ -33,7 +30,6 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/dma.h>
 
 #define TX_BUFFERS 15
 #define RX_BUFFERS 25
@@ -85,7 +81,7 @@ static inline unsigned short read_ireg(u_long base_addr, u_int reg)
 	u_short v;
 	__asm__(
 	"str%?h	%1, [%2]	@ NAT_RAP\n\t"
-	"str%?h	%0, [%2, #8]	@ NET_IDP\n\t"
+	"ldr%?h	%0, [%2, #8]	@ NET_IDP\n\t"
 	: "=r" (v)
 	: "r" (reg), "r" (ISAIO_BASE + 0x0464));
 	return v;
@@ -288,7 +284,7 @@ static void am79c961_timer(unsigned long data)
 	else if (!lnkstat && carrier)
 		netif_carrier_off(dev);
 
-	mod_timer(&priv->timer, jiffies + 5*HZ);
+	mod_timer(&priv->timer, jiffies + msecs_to_jiffies(500));
 }
 
 /*
@@ -709,13 +705,9 @@ static int __init am79c961_init(void)
 	    	goto release;
 
 	am79c961_banner();
-	printk(KERN_INFO "%s: ether address ", dev->name);
 
-	/* Retrive and print the ethernet address. */
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(dev->base_addr + i * 2) & 0xff;
-		printk (i == 5 ? "%02x\n" : "%02x:", dev->dev_addr[i]);
-	}
 
 	spin_lock_init(&priv->chip_lock);
 	init_timer(&priv->timer);
@@ -736,8 +728,14 @@ static int __init am79c961_init(void)
 #endif
 
 	ret = register_netdev(dev);
-	if (ret == 0)
+	if (ret == 0) {
+		printk(KERN_INFO "%s: ether address ", dev->name);
+
+		for (i = 0; i < 6; i++)
+			printk (i == 5 ? "%02x\n" : "%02x:", dev->dev_addr[i]);
+
 		return 0;
+	}
 
 release:
 	release_region(dev->base_addr, 0x18);

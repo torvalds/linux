@@ -30,8 +30,6 @@ static char *DRIVERNAME =
 static char *DRIVERLNAME = "divadidd";
 char *DRIVERRELEASE_DIDD = "2.0";
 
-static char *main_proc_dir = "eicon";
-
 MODULE_DESCRIPTION("DIDD table driver for diva drivers");
 MODULE_AUTHOR("Cytronics & Melware, Eicon Networks");
 MODULE_SUPPORTED_DEVICE("Eicon diva drivers");
@@ -89,7 +87,7 @@ proc_read(char *page, char **start, off_t off, int count, int *eof,
 
 static int DIVA_INIT_FUNCTION create_proc(void)
 {
-	proc_net_eicon = create_proc_entry(main_proc_dir, S_IFDIR, proc_net);
+	proc_net_eicon = proc_mkdir("net/eicon", NULL);
 
 	if (proc_net_eicon) {
 		if ((proc_didd =
@@ -105,7 +103,7 @@ static int DIVA_INIT_FUNCTION create_proc(void)
 static void DIVA_EXIT_FUNCTION remove_proc(void)
 {
 	remove_proc_entry(DRIVERLNAME, proc_net_eicon);
-	remove_proc_entry(main_proc_dir, proc_net);
+	remove_proc_entry("net/eicon", NULL);
 }
 
 static int DIVA_INIT_FUNCTION divadidd_init(void)

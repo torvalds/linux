@@ -503,6 +503,25 @@ err_free_aux:
 	return err;
 }
 
+static void mthca_free_icms(struct mthca_dev *mdev)
+{
+	u8 status;
+
+	mthca_free_icm_table(mdev, mdev->mcg_table.table);
+	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
+		mthca_free_icm_table(mdev, mdev->srq_table.table);
+	mthca_free_icm_table(mdev, mdev->cq_table.table);
+	mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
+	mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
+	mthca_free_icm_table(mdev, mdev->qp_table.qp_table);
+	mthca_free_icm_table(mdev, mdev->mr_table.mpt_table);
+	mthca_free_icm_table(mdev, mdev->mr_table.mtt_table);
+	mthca_unmap_eq_icm(mdev);
+
+	mthca_UNMAP_ICM_AUX(mdev, &status);
+	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
+}
+
 static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
 {
 	struct mthca_dev_lim        dev_lim;
@@ -580,18 +599,7 @@ static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
 	return 0;
 
 err_free_icm:
-	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
-		mthca_free_icm_table(mdev, mdev->srq_table.table);
-	mthca_free_icm_table(mdev, mdev->cq_table.table);
-	mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
-	mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
-	mthca_free_icm_table(mdev, mdev->qp_table.qp_table);
-	mthca_free_icm_table(mdev, mdev->mr_table.mpt_table);
-	mthca_free_icm_table(mdev, mdev->mr_table.mtt_table);
-	mthca_unmap_eq_icm(mdev);
-
-	mthca_UNMAP_ICM_AUX(mdev, &status);
-	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
+	mthca_free_icms(mdev);
 
 err_stop_fw:
 	mthca_UNMAP_FA(mdev, &status);
@@ -611,18 +619,7 @@ static void mthca_close_hca(struct mthca_dev *mdev)
 	mthca_CLOSE_HCA(mdev, 0, &status);
 
 	if (mthca_is_memfree(mdev)) {
-		if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
-			mthca_free_icm_table(mdev, mdev->srq_table.table);
-		mthca_free_icm_table(mdev, mdev->cq_table.table);
-		mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
-		mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
-		mthca_free_icm_table(mdev, mdev->qp_table.qp_table);
-		mthca_free_icm_table(mdev, mdev->mr_table.mpt_table);
-		mthca_free_icm_table(mdev, mdev->mr_table.mtt_table);
-		mthca_unmap_eq_icm(mdev);
-
-		mthca_UNMAP_ICM_AUX(mdev, &status);
-		mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
+		mthca_free_icms(mdev);
 
 		mthca_UNMAP_FA(mdev, &status);
 		mthca_free_icm(mdev, mdev->fw.arbel.fw_icm);

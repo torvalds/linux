@@ -187,17 +187,13 @@ int prom_callback(long *args)
 		}
 
 		if ((va >= KERNBASE) && (va < (KERNBASE + (4 * 1024 * 1024)))) {
-			unsigned long kernel_pctx = 0;
-
-			if (tlb_type == cheetah_plus)
-				kernel_pctx |= (CTX_CHEETAH_PLUS_NUC |
-						CTX_CHEETAH_PLUS_CTX0);
+			extern unsigned long sparc64_kern_pri_context;
 
 			/* Spitfire Errata #32 workaround */
 			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
 					     "flush	%%g6"
 					     : /* No outputs */
-					     : "r" (kernel_pctx),
+					     : "r" (sparc64_kern_pri_context),
 					       "r" (PRIMARY_CONTEXT),
 					       "i" (ASI_DMMU));
 
@@ -464,8 +460,6 @@ static void __init boot_flags_init(char *commands)
 	}
 }
 
-extern int prom_probe_memory(void);
-extern unsigned long start, end;
 extern void panic_setup(char *, int *);
 
 extern unsigned short root_flags;
@@ -492,12 +486,8 @@ void register_prom_callbacks(void)
 		   "' linux-.soft2 to .soft2");
 }
 
-extern void paging_init(void);
-
 void __init setup_arch(char **cmdline_p)
 {
-	int i;
-
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
 	strcpy(saved_command_line, *cmdline_p);
@@ -516,21 +506,6 @@ void __init setup_arch(char **cmdline_p)
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
-	(void) prom_probe_memory();
-
-	phys_base = 0xffffffffffffffffUL;
-	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
-		unsigned long top;
-
-		if (sp_banks[i].base_addr < phys_base)
-			phys_base = sp_banks[i].base_addr;
-		top = sp_banks[i].base_addr +
-			sp_banks[i].num_bytes;
-	}
-	pfn_base = phys_base >> PAGE_SHIFT;
-
-	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
-	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;

@@ -1,7 +1,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
-#include <asm/hw_irq.h>
+#include <linux/irq.h>
 #include <asm/numa.h>
 #include "pci.h"
 

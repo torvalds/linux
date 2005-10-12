@@ -82,8 +82,6 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 
-#include <asm/mach-types.h>
-
 /* structures */
 
 struct s3c24xx_uart_info {
@@ -753,8 +751,8 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 {
 	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct s3c24xx_uart_clksrc *clksrc;
-	struct clk *clk;
+	struct s3c24xx_uart_clksrc *clksrc = NULL;
+	struct clk *clk = NULL;
 	unsigned long flags;
 	unsigned int baud, quot;
 	unsigned int ulcon;
@@ -1237,6 +1235,7 @@ static int s3c2400_serial_probe(struct device *dev)
 
 static struct device_driver s3c2400_serial_drv = {
 	.name		= "s3c2400-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2400_serial_probe,
 	.remove		= s3c24xx_serial_remove,
@@ -1340,6 +1339,7 @@ static int s3c2410_serial_probe(struct device *dev)
 
 static struct device_driver s3c2410_serial_drv = {
 	.name		= "s3c2410-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410_serial_probe,
 	.remove		= s3c24xx_serial_remove,
@@ -1501,6 +1501,7 @@ static int s3c2440_serial_probe(struct device *dev)
 
 static struct device_driver s3c2440_serial_drv = {
 	.name		= "s3c2440-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2440_serial_probe,
 	.remove		= s3c24xx_serial_remove,

@@ -75,7 +75,7 @@ struct bio_set {
  */
 static struct bio_set *fs_bio_set;
 
-static inline struct bio_vec *bvec_alloc_bs(unsigned int __nocast gfp_mask, int nr, unsigned long *idx, struct bio_set *bs)
+static inline struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct bio_set *bs)
 {
 	struct bio_vec *bvl;
 	struct biovec_slab *bp;
@@ -155,7 +155,7 @@ inline void bio_init(struct bio *bio)
  *   allocate bio and iovecs from the memory pools specified by the
  *   bio_set structure.
  **/
-struct bio *bio_alloc_bioset(unsigned int __nocast gfp_mask, int nr_iovecs, struct bio_set *bs)
+struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
 	struct bio *bio = mempool_alloc(bs->bio_pool, gfp_mask);
 
@@ -181,7 +181,7 @@ out:
 	return bio;
 }
 
-struct bio *bio_alloc(unsigned int __nocast gfp_mask, int nr_iovecs)
+struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
 {
 	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
 
@@ -277,7 +277,7 @@ inline void __bio_clone(struct bio *bio, struct bio *bio_src)
  *
  * 	Like __bio_clone, only also allocates the returned bio
  */
-struct bio *bio_clone(struct bio *bio, unsigned int __nocast gfp_mask)
+struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
 {
 	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
 
@@ -1078,7 +1078,7 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	return bp;
 }
 
-static void *bio_pair_alloc(unsigned int __nocast gfp_flags, void *data)
+static void *bio_pair_alloc(gfp_t gfp_flags, void *data)
 {
 	return kmalloc(sizeof(struct bio_pair), gfp_flags);
 }

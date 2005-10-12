@@ -442,7 +442,7 @@ static char* stateName[] = {
                         "Setup for play",
                         "Playing",
                         "Monitor mode on",
-                        "Calibrating"
+			"Calibrating",
                         "Invalid"
 };
 

@@ -57,7 +57,7 @@ extern unsigned long pci_dram_offset;
  * is actually performed (i.e. the data has come back) before we start
  * executing any following instructions.
  */
-extern inline int in_8(volatile unsigned char __iomem *addr)
+extern inline int in_8(const volatile unsigned char __iomem *addr)
 {
 	int ret;
 
@@ -73,7 +73,7 @@ extern inline void out_8(volatile unsigned char __iomem *addr, int val)
 	__asm__ __volatile__("stb%U0%X0 %1,%0; eieio" : "=m" (*addr) : "r" (val));
 }
 
-extern inline int in_le16(volatile unsigned short __iomem *addr)
+extern inline int in_le16(const volatile unsigned short __iomem *addr)
 {
 	int ret;
 
@@ -84,7 +84,7 @@ extern inline int in_le16(volatile unsigned short __iomem *addr)
 	return ret;
 }
 
-extern inline int in_be16(volatile unsigned short __iomem *addr)
+extern inline int in_be16(const volatile unsigned short __iomem *addr)
 {
 	int ret;
 
@@ -105,7 +105,7 @@ extern inline void out_be16(volatile unsigned short __iomem *addr, int val)
 	__asm__ __volatile__("sth%U0%X0 %1,%0; eieio" : "=m" (*addr) : "r" (val));
 }
 
-extern inline unsigned in_le32(volatile unsigned __iomem *addr)
+extern inline unsigned in_le32(const volatile unsigned __iomem *addr)
 {
 	unsigned ret;
 
@@ -116,7 +116,7 @@ extern inline unsigned in_le32(volatile unsigned __iomem *addr)
 	return ret;
 }
 
-extern inline unsigned in_be32(volatile unsigned __iomem *addr)
+extern inline unsigned in_be32(const volatile unsigned __iomem *addr)
 {
 	unsigned ret;
 
@@ -140,7 +140,7 @@ extern inline void out_be32(volatile unsigned __iomem *addr, int val)
 #define readb(addr) in_8((volatile u8 *)(addr))
 #define writeb(b,addr) out_8((volatile u8 *)(addr), (b))
 #else
-static inline __u8 readb(volatile void __iomem *addr)
+static inline __u8 readb(const volatile void __iomem *addr)
 {
 	return in_8(addr);
 }
@@ -151,11 +151,11 @@ static inline void writeb(__u8 b, volatile void __iomem *addr)
 #endif
 
 #if defined(CONFIG_APUS)
-static inline __u16 readw(volatile void __iomem *addr)
+static inline __u16 readw(const volatile void __iomem *addr)
 {
 	return *(__force volatile __u16 *)(addr);
 }
-static inline __u32 readl(volatile void __iomem *addr)
+static inline __u32 readl(const volatile void __iomem *addr)
 {
 	return *(__force volatile __u32 *)(addr);
 }
@@ -174,11 +174,11 @@ static inline void writel(__u32 b, volatile void __iomem *addr)
 #define writew(b,addr) out_le16((volatile u16 *)(addr),(b))
 #define writel(b,addr) out_le32((volatile u32 *)(addr),(b))
 #else
-static inline __u16 readw(volatile void __iomem *addr)
+static inline __u16 readw(const volatile void __iomem *addr)
 {
 	return in_le16(addr);
 }
-static inline __u32 readl(volatile void __iomem *addr)
+static inline __u32 readl(const volatile void __iomem *addr)
 {
 	return in_le32(addr);
 }

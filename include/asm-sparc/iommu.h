@@ -108,12 +108,12 @@ struct iommu_struct {
 	struct bit_map usemap;
 };
 
-extern __inline__ void iommu_invalidate(struct iommu_regs *regs)
+static inline void iommu_invalidate(struct iommu_regs *regs)
 {
 	regs->tlbflush = 0;
 }
 
-extern __inline__ void iommu_invalidate_page(struct iommu_regs *regs, unsigned long ba)
+static inline void iommu_invalidate_page(struct iommu_regs *regs, unsigned long ba)
 {
 	regs->pageflush = (ba & PAGE_MASK);
 }

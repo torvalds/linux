@@ -68,7 +68,7 @@ void show_swap_cache_info(void)
  * but sets SwapCache flag and private instead of mapping and index.
  */
 static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
-			       unsigned int __nocast gfp_mask)
+			       gfp_t gfp_mask)
 {
 	int error;
 

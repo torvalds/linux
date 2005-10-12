@@ -95,20 +95,6 @@ extern int prom_devclose(int device_handle);
 extern void prom_seek(int device_handle, unsigned int seek_hival,
 		      unsigned int seek_lowval);
 
-/* Machine memory configuration routine. */
-
-/* This function returns a V0 format memory descriptor table, it has three
- * entries.  One for the total amount of physical ram on the machine, one
- * for the amount of physical ram available, and one describing the virtual
- * areas which are allocated by the prom.  So, in a sense the physical
- * available is a calculation of the total physical minus the physical mapped
- * by the prom with virtual mappings.
- *
- * These lists are returned pre-sorted, this should make your life easier
- * since the prom itself is way too lazy to do such nice things.
- */
-extern struct linux_mem_p1275 *prom_meminfo(void);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */

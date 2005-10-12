@@ -686,9 +686,19 @@ static unsigned char lec_ctrl_magic[] = {
         0x01,
         0x01 };
 
+#define LEC_DATA_DIRECT_8023  2
+#define LEC_DATA_DIRECT_8025  3
+
+static int lec_is_data_direct(struct atm_vcc *vcc)
+{ 
+	return ((vcc->sap.blli[0].l3.tr9577.snap[4] == LEC_DATA_DIRECT_8023) ||
+		(vcc->sap.blli[0].l3.tr9577.snap[4] == LEC_DATA_DIRECT_8025));
+} 
+
 static void 
 lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 {
+	unsigned long flags;
         struct net_device *dev = (struct net_device *)vcc->proto_data;
         struct lec_priv *priv = (struct lec_priv *)dev->priv; 
 
@@ -728,7 +738,8 @@ lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
                 skb_queue_tail(&sk->sk_receive_queue, skb);
                 sk->sk_data_ready(sk, skb->len);
         } else { /* Data frame, queue to protocol handlers */
-                unsigned char *dst;
+		struct lec_arp_table *entry;
+                unsigned char *src, *dst;
 
                 atm_return(vcc,skb->truesize);
                 if (*(uint16_t *)skb->data == htons(priv->lecid) ||
@@ -741,10 +752,30 @@ lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
                         return;
                 }
 #ifdef CONFIG_TR
-                if (priv->is_trdev) dst = ((struct lecdatahdr_8025 *)skb->data)->h_dest;
+                if (priv->is_trdev)
+			dst = ((struct lecdatahdr_8025 *) skb->data)->h_dest;
                 else
 #endif
-                dst = ((struct lecdatahdr_8023 *)skb->data)->h_dest;
+		dst = ((struct lecdatahdr_8023 *) skb->data)->h_dest;
+
+		/* If this is a Data Direct VCC, and the VCC does not match
+		 * the LE_ARP cache entry, delete the LE_ARP cache entry.
+		 */
+		spin_lock_irqsave(&priv->lec_arp_lock, flags);
+		if (lec_is_data_direct(vcc)) {
+#ifdef CONFIG_TR
+			if (priv->is_trdev)
+				src = ((struct lecdatahdr_8025 *) skb->data)->h_source;
+			else
+#endif
+			src = ((struct lecdatahdr_8023 *) skb->data)->h_source;
+			entry = lec_arp_find(priv, src);
+			if (entry && entry->vcc != vcc) {
+				lec_arp_remove(priv, entry);
+				kfree(entry);
+			}
+		}
+		spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 
                 if (!(dst[0]&0x01) &&   /* Never filter Multi/Broadcast */
                     !priv->is_proxy &&  /* Proxy wants all the packets */
@@ -1990,6 +2021,12 @@ lec_arp_resolve(struct lec_priv *priv, unsigned char *mac_to_find,
                         found = entry->vcc;
 			goto out;
                 }
+		/* If the LE_ARP cache entry is still pending, reset count to 0
+		 * so another LE_ARP request can be made for this frame.
+		 */
+		if (entry->status == ESI_ARP_PENDING) {
+			entry->no_tries = 0;
+		}
                 /* Data direct VC not yet set up, check to see if the unknown
                    frame count is greater than the limit. If the limit has
                    not been reached, allow the caller to send packet to

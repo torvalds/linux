@@ -671,7 +671,7 @@ void fastcall free_cold_page(struct page *page)
 	free_hot_cold_page(page, 1);
 }
 
-static inline void prep_zero_page(struct page *page, int order, unsigned int __nocast gfp_flags)
+static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
 {
 	int i;
 
@@ -686,7 +686,7 @@ static inline void prep_zero_page(struct page *page, int order, unsigned int __n
  * or two.
  */
 static struct page *
-buffered_rmqueue(struct zone *zone, int order, unsigned int __nocast gfp_flags)
+buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 {
 	unsigned long flags;
 	struct page *page = NULL;
@@ -761,7 +761,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 }
 
 static inline int
-should_reclaim_zone(struct zone *z, unsigned int gfp_mask)
+should_reclaim_zone(struct zone *z, gfp_t gfp_mask)
 {
 	if (!z->reclaim_pages)
 		return 0;
@@ -774,7 +774,7 @@ should_reclaim_zone(struct zone *z, unsigned int gfp_mask)
  * This is the 'heart' of the zoned buddy allocator.
  */
 struct page * fastcall
-__alloc_pages(unsigned int __nocast gfp_mask, unsigned int order,
+__alloc_pages(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist)
 {
 	const int wait = gfp_mask & __GFP_WAIT;
@@ -977,7 +977,7 @@ EXPORT_SYMBOL(__alloc_pages);
 /*
  * Common helper functions.
  */
-fastcall unsigned long __get_free_pages(unsigned int __nocast gfp_mask, unsigned int order)
+fastcall unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
 {
 	struct page * page;
 	page = alloc_pages(gfp_mask, order);
@@ -988,7 +988,7 @@ fastcall unsigned long __get_free_pages(unsigned int __nocast gfp_mask, unsigned
 
 EXPORT_SYMBOL(__get_free_pages);
 
-fastcall unsigned long get_zeroed_page(unsigned int __nocast gfp_mask)
+fastcall unsigned long get_zeroed_page(gfp_t gfp_mask)
 {
 	struct page * page;
 

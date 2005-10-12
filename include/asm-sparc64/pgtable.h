@@ -98,7 +98,9 @@
 #define _PAGE_NFO	_AC(0x1000000000000000,UL) /* No Fault Only          */
 #define _PAGE_IE	_AC(0x0800000000000000,UL) /* Invert Endianness      */
 #define _PAGE_SOFT2	_AC(0x07FC000000000000,UL) /* Software bits, set 2   */
-#define _PAGE_RES1	_AC(0x0003000000000000,UL) /* Reserved               */
+#define _PAGE_RES1	_AC(0x0002000000000000,UL) /* Reserved               */
+#define _PAGE_SZ32MB	_AC(0x0001000000000000,UL) /* (Panther) 32MB page    */
+#define _PAGE_SZ256MB	_AC(0x2001000000000000,UL) /* (Panther) 256MB page   */
 #define _PAGE_SN	_AC(0x0000800000000000,UL) /* (Cheetah) Snoop        */
 #define _PAGE_RES2	_AC(0x0000780000000000,UL) /* Reserved               */
 #define _PAGE_PADDR_SF	_AC(0x000001FFFFFFE000,UL) /* (Spitfire) paddr[40:13]*/
@@ -338,6 +340,9 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *p
 
 extern pgd_t swapper_pg_dir[2048];
 extern pmd_t swapper_low_pmd_dir[2048];
+
+extern void paging_init(void);
+extern unsigned long find_ecache_flush_span(unsigned long size);
 
 /* These do nothing with the way I have things setup. */
 #define mmu_lockarea(vaddr, len)		(vaddr)

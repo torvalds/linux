@@ -97,16 +97,18 @@ static char version[] __devinitdata =
  */
 static int max_speed = IEEE1394_SPEED_MAX;
 module_param(max_speed, int, 0644);
-MODULE_PARM_DESC(max_speed, "Force max speed (3 = 800mb, 2 = 400mb default, 1 = 200mb, 0 = 100mb)");
+MODULE_PARM_DESC(max_speed, "Force max speed (3 = 800mb, 2 = 400mb, 1 = 200mb, 0 = 100mb)");
 
 /*
  * Set serialize_io to 1 if you'd like only one scsi command sent
  * down to us at a time (debugging). This might be necessary for very
  * badly behaved sbp2 devices.
+ *
+ * TODO: Make this configurable per device.
  */
-static int serialize_io;
+static int serialize_io = 1;
 module_param(serialize_io, int, 0444);
-MODULE_PARM_DESC(serialize_io, "Serialize all I/O coming down from the scsi drivers (default = 0)");
+MODULE_PARM_DESC(serialize_io, "Serialize I/O coming from scsi drivers (default = 1, faster = 0)");
 
 /*
  * Bump up max_sectors if you'd like to support very large sized
@@ -596,6 +598,14 @@ static void sbp2util_mark_command_completed(struct scsi_id_instance_data *scsi_i
 	spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 }
 
+/*
+ * Is scsi_id valid? Is the 1394 node still present?
+ */
+static inline int sbp2util_node_is_available(struct scsi_id_instance_data *scsi_id)
+{
+	return scsi_id && scsi_id->ne && !scsi_id->ne->in_limbo;
+}
+
 
 
 /*********************************************
@@ -631,11 +641,23 @@ static int sbp2_remove(struct device *dev)
 {
 	struct unit_directory *ud;
 	struct scsi_id_instance_data *scsi_id;
+	struct scsi_device *sdev;
 
 	SBP2_DEBUG("sbp2_remove");
 
 	ud = container_of(dev, struct unit_directory, device);
 	scsi_id = ud->device.driver_data;
+	if (!scsi_id)
+		return 0;
+
+	/* Trigger shutdown functions in scsi's highlevel. */
+	if (scsi_id->scsi_host)
+		scsi_unblock_requests(scsi_id->scsi_host);
+	sdev = scsi_id->sdev;
+	if (sdev) {
+		scsi_id->sdev = NULL;
+		scsi_remove_device(sdev);
+	}
 
 	sbp2_logout_device(scsi_id);
 	sbp2_remove_device(scsi_id);
@@ -2473,37 +2495,26 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
 	struct sbp2scsi_host_info *hi;
+	int result = DID_NO_CONNECT << 16;
 
 	SBP2_DEBUG("sbp2scsi_queuecommand");
 
-	/*
-	 * If scsi_id is null, it means there is no device in this slot,
-	 * so we should return selection timeout.
-	 */
-	if (!scsi_id) {
-		SCpnt->result = DID_NO_CONNECT << 16;
-		done (SCpnt);
-		return 0;
-	}
+	if (!sbp2util_node_is_available(scsi_id))
+		goto done;
 
 	hi = scsi_id->hi;
 
 	if (!hi) {
 		SBP2_ERR("sbp2scsi_host_info is NULL - this is bad!");
-		SCpnt->result = DID_NO_CONNECT << 16;
-		done (SCpnt);
-		return(0);
+		goto done;
 	}
 
 	/*
 	 * Until we handle multiple luns, just return selection time-out
 	 * to any IO directed at non-zero LUNs
 	 */
-	if (SCpnt->device->lun) {
-		SCpnt->result = DID_NO_CONNECT << 16;
-		done (SCpnt);
-		return(0);
-	}
+	if (SCpnt->device->lun)
+		goto done;
 
 	/*
 	 * Check for request sense command, and handle it here
@@ -2514,7 +2525,7 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		memcpy(SCpnt->request_buffer, SCpnt->sense_buffer, SCpnt->request_bufflen);
 		memset(SCpnt->sense_buffer, 0, sizeof(SCpnt->sense_buffer));
 		sbp2scsi_complete_command(scsi_id, SBP2_SCSI_STATUS_GOOD, SCpnt, done);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -2522,9 +2533,8 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 */
 	if (!hpsb_node_entry_valid(scsi_id->ne)) {
 		SBP2_ERR("Bus reset in progress - rejecting command");
-		SCpnt->result = DID_BUS_BUSY << 16;
-		done (SCpnt);
-		return(0);
+		result = DID_BUS_BUSY << 16;
+		goto done;
 	}
 
 	/*
@@ -2535,8 +2545,12 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		sbp2scsi_complete_command(scsi_id, SBP2_SCSI_STATUS_SELECTION_TIMEOUT,
 					  SCpnt, done);
 	}
+	return 0;
 
-	return(0);
+done:
+	SCpnt->result = result;
+	done(SCpnt);
+	return 0;
 }
 
 /*
@@ -2683,11 +2697,24 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 }
 
 
-static int sbp2scsi_slave_configure (struct scsi_device *sdev)
+static int sbp2scsi_slave_alloc(struct scsi_device *sdev)
+{
+	((struct scsi_id_instance_data *)sdev->host->hostdata[0])->sdev = sdev;
+	return 0;
+}
+
+
+static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 {
 	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
-
 	return 0;
+}
+
+
+static void sbp2scsi_slave_destroy(struct scsi_device *sdev)
+{
+	((struct scsi_id_instance_data *)sdev->host->hostdata[0])->sdev = NULL;
+	return;
 }
 
 
@@ -2705,7 +2732,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 	SBP2_ERR("aborting sbp2 command");
 	scsi_print_command(SCpnt);
 
-	if (scsi_id) {
+	if (sbp2util_node_is_available(scsi_id)) {
 
 		/*
 		 * Right now, just return any matching command structures
@@ -2742,31 +2769,24 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 /*
  * Called by scsi stack when something has really gone wrong.
  */
-static int __sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
+	unsigned long flags;
 
 	SBP2_ERR("reset requested");
 
-	if (scsi_id) {
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+
+	if (sbp2util_node_is_available(scsi_id)) {
 		SBP2_ERR("Generating sbp2 fetch agent reset");
 		sbp2_agent_reset(scsi_id, 0);
 	}
 
-	return(SUCCESS);
-}
-
-static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
-{
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
-	rc = __sbp2scsi_reset(SCpnt);
 	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 
-	return rc;
+	return SUCCESS;
 }
 
 static const char *sbp2scsi_info (struct Scsi_Host *host)
@@ -2817,7 +2837,9 @@ static struct scsi_host_template scsi_driver_template = {
 	.eh_device_reset_handler =	sbp2scsi_reset,
 	.eh_bus_reset_handler =		sbp2scsi_reset,
 	.eh_host_reset_handler =	sbp2scsi_reset,
+	.slave_alloc =			sbp2scsi_slave_alloc,
 	.slave_configure =		sbp2scsi_slave_configure,
+	.slave_destroy =		sbp2scsi_slave_destroy,
 	.this_id =			-1,
 	.sg_tablesize =			SG_ALL,
 	.use_clustering =		ENABLE_CLUSTERING,
@@ -2837,7 +2859,8 @@ static int sbp2_module_init(void)
 
 	/* Module load debug option to force one command at a time (serializing I/O) */
 	if (serialize_io) {
-		SBP2_ERR("Driver forced to serialize I/O (serialize_io = 1)");
+		SBP2_INFO("Driver forced to serialize I/O (serialize_io=1)");
+		SBP2_INFO("Try serialize_io=0 for better performance");
 		scsi_driver_template.can_queue = 1;
 		scsi_driver_template.cmd_per_lun = 1;
 	}

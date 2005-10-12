@@ -376,7 +376,7 @@ static int __init drm_core_init(void)
 		goto err_p2;
 	}
 
-	drm_proc_root = create_proc_entry("dri", S_IFDIR, NULL);
+	drm_proc_root = proc_mkdir("dri", NULL);
 	if (!drm_proc_root) {
 		DRM_ERROR("Cannot create /proc/dri\n");
 		ret = -1;

@@ -280,9 +280,9 @@ struct lpfc_name {
 #define NAME_CCITT_GR_TYPE  0xE
 			uint8_t IEEEextLsb;	/* FC Word 0, bit 16:23, IEEE extended Lsb */
 			uint8_t IEEE[6];	/* FC IEEE address */
-		};
+		} s;
 		uint8_t wwn[8];
-	};
+	} u;
 };
 
 struct csp {

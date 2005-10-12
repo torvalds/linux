@@ -87,6 +87,10 @@ void __init setup_per_cpu_areas(void)
 	int i;
 	unsigned long size;
 
+#ifdef CONFIG_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
+
 	/* Copy section for each CPU (we discard the original) */
 	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
 #ifdef CONFIG_MODULES

@@ -81,7 +81,7 @@ typedef unsigned long xfs_pflags_t;
 	*(NSTATEP) = *(OSTATEP);	\
 } while (0)
 
-static __inline unsigned int kmem_flags_convert(unsigned int __nocast flags)
+static __inline unsigned int kmem_flags_convert(gfp_t flags)
 {
 	unsigned int	lflags = __GFP_NOWARN;	/* we'll report problems, if need be */
 
@@ -125,13 +125,12 @@ kmem_zone_destroy(kmem_zone_t *zone)
 		BUG();
 }
 
-extern void	    *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
-extern void	    *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
+extern void	    *kmem_zone_zalloc(kmem_zone_t *, gfp_t);
+extern void	    *kmem_zone_alloc(kmem_zone_t *, gfp_t);
 
-extern void	    *kmem_alloc(size_t, unsigned int __nocast);
-extern void	    *kmem_realloc(void *, size_t, size_t,
-				  unsigned int __nocast);
-extern void	    *kmem_zalloc(size_t, unsigned int __nocast);
+extern void	    *kmem_alloc(size_t, gfp_t);
+extern void	    *kmem_realloc(void *, size_t, size_t, gfp_t);
+extern void	    *kmem_zalloc(size_t, gfp_t);
 extern void         kmem_free(void *, size_t);
 
 typedef struct shrinker *kmem_shaker_t;

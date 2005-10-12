@@ -16,22 +16,13 @@
 	.text
 
 set_pcontext:
-cplus_winfixup_insn_1:
-	sethi	%hi(0), %l1
+	sethi	%hi(sparc64_kern_pri_context), %l1
+	ldx	[%l1 + %lo(sparc64_kern_pri_context)], %l1
 	mov	PRIMARY_CONTEXT, %g1
-	sllx	%l1, 32, %l1
-cplus_winfixup_insn_2:
-	sethi	%hi(0), %g2
-	or	%l1, %g2, %l1
 	stxa	%l1, [%g1] ASI_DMMU
 	flush	%g6
 	retl
 	 nop
-
-cplus_wfinsn_1:
-	sethi	%uhi(CTX_CHEETAH_PLUS_NUC), %l1
-cplus_wfinsn_2:
-	sethi	%hi(CTX_CHEETAH_PLUS_CTX0), %g2
 
 	.align	32
 
@@ -395,23 +386,3 @@ window_dax_from_user_common:
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
 	 clr		%l6
-	
-
-	.globl		cheetah_plus_patch_winfixup
-cheetah_plus_patch_winfixup:
-	sethi			%hi(cplus_wfinsn_1), %o0
-	sethi			%hi(cplus_winfixup_insn_1), %o2
-	lduw			[%o0 + %lo(cplus_wfinsn_1)], %o1
-	or			%o2, %lo(cplus_winfixup_insn_1), %o2
-	stw			%o1, [%o2]
-	flush			%o2
-
-	sethi			%hi(cplus_wfinsn_2), %o0
-	sethi			%hi(cplus_winfixup_insn_2), %o2
-	lduw			[%o0 + %lo(cplus_wfinsn_2)], %o1
-	or			%o2, %lo(cplus_winfixup_insn_2), %o2
-	stw			%o1, [%o2]
-	flush			%o2
-
-	retl
-	 nop

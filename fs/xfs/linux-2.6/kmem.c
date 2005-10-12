@@ -45,7 +45,7 @@
 
 
 void *
-kmem_alloc(size_t size, unsigned int __nocast flags)
+kmem_alloc(size_t size, gfp_t flags)
 {
 	int		retries = 0;
 	unsigned int	lflags = kmem_flags_convert(flags);
@@ -67,7 +67,7 @@ kmem_alloc(size_t size, unsigned int __nocast flags)
 }
 
 void *
-kmem_zalloc(size_t size, unsigned int __nocast flags)
+kmem_zalloc(size_t size, gfp_t flags)
 {
 	void	*ptr;
 
@@ -90,7 +90,7 @@ kmem_free(void *ptr, size_t size)
 
 void *
 kmem_realloc(void *ptr, size_t newsize, size_t oldsize,
-	     unsigned int __nocast flags)
+	     gfp_t flags)
 {
 	void	*new;
 
@@ -105,7 +105,7 @@ kmem_realloc(void *ptr, size_t newsize, size_t oldsize,
 }
 
 void *
-kmem_zone_alloc(kmem_zone_t *zone, unsigned int __nocast flags)
+kmem_zone_alloc(kmem_zone_t *zone, gfp_t flags)
 {
 	int		retries = 0;
 	unsigned int	lflags = kmem_flags_convert(flags);
@@ -124,7 +124,7 @@ kmem_zone_alloc(kmem_zone_t *zone, unsigned int __nocast flags)
 }
 
 void *
-kmem_zone_zalloc(kmem_zone_t *zone, unsigned int __nocast flags)
+kmem_zone_zalloc(kmem_zone_t *zone, gfp_t flags)
 {
 	void	*ptr;
 

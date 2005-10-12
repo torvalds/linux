@@ -165,6 +165,10 @@ typedef __u64 __bitwise __le64;
 typedef __u64 __bitwise __be64;
 #endif
 
+#ifdef __KERNEL__
+typedef unsigned __nocast gfp_t;
+#endif
+
 struct ustat {
 	__kernel_daddr_t	f_tfree;
 	__kernel_ino_t		f_tinode;
