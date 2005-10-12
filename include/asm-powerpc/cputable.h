@@ -119,9 +119,6 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 
 #ifndef __ASSEMBLY__
 
-#define COMMON_USER_PPC64	(PPC_FEATURE_32 | PPC_FEATURE_64 | \
-				 PPC_FEATURE_HAS_FPU | PPC_FEATURE_HAS_MMU)
-
 #define CPU_FTR_PPCAS_ARCH_V2_BASE (CPU_FTR_SLB | \
 					CPU_FTR_TLBIEL | CPU_FTR_NOEXECUTE | \
 					CPU_FTR_NODSISRALIGN | CPU_FTR_CTRL)
