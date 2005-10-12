@@ -251,6 +251,10 @@ int snd_timer_open(snd_timer_instance_t **ti,
 		}
 		down(&register_mutex);
 		timeri = snd_timer_instance_new(owner, NULL);
+		if (!timeri) {
+			up(&register_mutex);
+			return -ENOMEM;
+		}
 		timeri->slave_class = tid->dev_sclass;
 		timeri->slave_id = tid->device;
 		timeri->flags |= SNDRV_TIMER_IFLG_SLAVE;
@@ -272,27 +276,29 @@ int snd_timer_open(snd_timer_instance_t **ti,
 		timer = snd_timer_find(tid);
 	}
 #endif
-	if (timer) {
-		if (!list_empty(&timer->open_list_head)) {
-			timeri = (snd_timer_instance_t *)list_entry(timer->open_list_head.next, snd_timer_instance_t, open_list);
-			if (timeri->flags & SNDRV_TIMER_IFLG_EXCLUSIVE) {
-				up(&register_mutex);
-				return -EBUSY;
-			}
-		}
-		timeri = snd_timer_instance_new(owner, timer);
-		if (timeri) {
-			timeri->slave_class = tid->dev_sclass;
-			timeri->slave_id = slave_id;
-			if (list_empty(&timer->open_list_head) && timer->hw.open)
-				timer->hw.open(timer);
-			list_add_tail(&timeri->open_list, &timer->open_list_head);
-			snd_timer_check_master(timeri);
-		}
-	} else {
+	if (!timer) {
 		up(&register_mutex);
 		return -ENODEV;
 	}
+	if (!list_empty(&timer->open_list_head)) {
+		timeri = list_entry(timer->open_list_head.next,
+				    snd_timer_instance_t, open_list);
+		if (timeri->flags & SNDRV_TIMER_IFLG_EXCLUSIVE) {
+			up(&register_mutex);
+			return -EBUSY;
+		}
+	}
+	timeri = snd_timer_instance_new(owner, timer);
+	if (!timeri) {
+		up(&register_mutex);
+		return -ENOMEM;
+	}
+	timeri->slave_class = tid->dev_sclass;
+	timeri->slave_id = slave_id;
+	if (list_empty(&timer->open_list_head) && timer->hw.open)
+		timer->hw.open(timer);
+	list_add_tail(&timeri->open_list, &timer->open_list_head);
+	snd_timer_check_master(timeri);
 	up(&register_mutex);
 	*ti = timeri;
 	return 0;
