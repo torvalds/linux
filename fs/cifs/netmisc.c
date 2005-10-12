@@ -813,7 +813,7 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 	if (smb->Flags2 & SMBFLG2_ERR_STATUS) {
 		/* translate the newer STATUS codes to old style errors and then to POSIX errors */
 		__u32 err = le32_to_cpu(smb->Status.CifsError);
-		if(cifsFYI)
+		if(cifsFYI & CIFS_RC)
 			cifs_print_status(err);
 		ntstatus_to_dos(err, &smberrclass, &smberrcode);
 	} else {

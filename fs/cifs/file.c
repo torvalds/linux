@@ -1153,6 +1153,9 @@ retry:
 					  rc, bytes_written));
 				set_bit(AS_EIO, &mapping->flags);
 				SetPageError(page);
+			} else {
+				cifs_stats_bytes_written(cifs_sb->tcon,
+							 bytes_written);
 			}
 			for (i = 0; i < n_iov; i++) {
 				page = pvec.pages[first + i];

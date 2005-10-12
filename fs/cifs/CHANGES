@@ -9,7 +9,7 @@ wsize and rsize can now be larger than negotiated buffer size if server
 supports large readx/writex, even when directio mount flag not specified.
 Write size will in many cases now be 16K instead of 4K which greatly helps
 file copy performance on lightly loaded networks.  Fix oops in dnotify
-when experimental config flag enabled.
+when experimental config flag enabled. Make cifsFYI more granular.
 
 Version 1.37
 ------------

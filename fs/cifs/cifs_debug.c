@@ -203,6 +203,49 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 }
 
 #ifdef CONFIG_CIFS_STATS
+
+static int
+cifs_stats_write(struct file *file, const char __user *buffer,
+               unsigned long count, void *data)
+{
+        char c;
+        int rc;
+	struct list_head *tmp;
+	struct cifsTconInfo *tcon;
+
+        rc = get_user(c, buffer);
+        if (rc)
+                return rc;
+
+        if (c == '1' || c == 'y' || c == 'Y') {
+		read_lock(&GlobalSMBSeslock);
+		list_for_each(tmp, &GlobalTreeConnectionList) {
+			tcon = list_entry(tmp, struct cifsTconInfo,
+					cifsConnectionList);
+			atomic_set(&tcon->num_smbs_sent, 0);
+			atomic_set(&tcon->num_writes, 0);
+			atomic_set(&tcon->num_reads, 0);
+			atomic_set(&tcon->num_oplock_brks, 0);
+			atomic_set(&tcon->num_opens, 0);
+			atomic_set(&tcon->num_closes, 0);
+			atomic_set(&tcon->num_deletes, 0);
+			atomic_set(&tcon->num_mkdirs, 0);
+			atomic_set(&tcon->num_rmdirs, 0);
+			atomic_set(&tcon->num_renames, 0);
+			atomic_set(&tcon->num_t2renames, 0);
+			atomic_set(&tcon->num_ffirst, 0);
+			atomic_set(&tcon->num_fnext, 0);
+			atomic_set(&tcon->num_fclose, 0);
+			atomic_set(&tcon->num_hardlinks, 0);
+			atomic_set(&tcon->num_symlinks, 0);
+			atomic_set(&tcon->num_locks, 0);
+		}
+		read_unlock(&GlobalSMBSeslock);
+	}
+
+        return count;
+}
+
 static int
 cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 		  int count, int *eof, void *data)
@@ -365,8 +408,10 @@ cifs_proc_init(void)
 				cifs_debug_data_read, NULL);
 
 #ifdef CONFIG_CIFS_STATS
-	create_proc_read_entry("Stats", 0, proc_fs_cifs,
+	pde = create_proc_read_entry("Stats", 0, proc_fs_cifs,
 				cifs_stats_read, NULL);
+	if (pde)
+		pde->write_proc = cifs_stats_write;
 #endif
 	pde = create_proc_read_entry("cifsFYI", 0, proc_fs_cifs,
 				cifsFYI_read, NULL);
@@ -483,6 +528,8 @@ cifsFYI_write(struct file *file, const char __user *buffer,
 		cifsFYI = 0;
 	else if (c == '1' || c == 'y' || c == 'Y')
 		cifsFYI = 1;
+	else if((c > '1') && (c <= '9'))
+		cifsFYI = (int) (c - '0'); /* see cifs_debug.h for meanings */
 
 	return count;
 }

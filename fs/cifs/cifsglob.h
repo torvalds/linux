@@ -377,7 +377,11 @@ struct mid_q_entry {
 	__u16 mid;		/* multiplex id */
 	__u16 pid;		/* process id */
 	__u32 sequence_number;  /* for CIFS signing */
-	struct timeval when_sent;	/* time when smb sent */
+	unsigned long when_alloc;  /* when mid was created */
+#ifdef CONFIG_CIFS_STATS2
+	unsigned long when_sent; /* time when smb send finished */
+	unsigned long when_received; /* when demux complete (taken off wire) */
+#endif
 	struct cifsSesInfo *ses;	/* smb was sent to this server */
 	struct task_struct *tsk;	/* task waiting for response */
 	struct smb_hdr *resp_buf;	/* response buffer */

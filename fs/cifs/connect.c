@@ -605,6 +605,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 multi_t2_fnd:
 				task_to_wake = mid_entry->tsk;
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
+#ifdef CONFIG_CIFS_STATS2
+				mid_entry->when_received = jiffies;
+#endif
 				break;
 			}
 		}

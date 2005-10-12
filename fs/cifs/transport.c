@@ -59,7 +59,9 @@ AllocMidQEntry(struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 		temp->pid = current->pid;
 		temp->command = smb_buffer->Command;
 		cFYI(1, ("For smb_command %d", temp->command));
-		do_gettimeofday(&temp->when_sent);
+	/*	do_gettimeofday(&temp->when_sent);*/ /* easier to use jiffies */
+		/* when mid allocated can be before when sent */
+		temp->when_alloc = jiffies;
 		temp->ses = ses;
 		temp->tsk = current;
 	}
@@ -75,6 +77,9 @@ AllocMidQEntry(struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 static void
 DeleteMidQEntry(struct mid_q_entry *midEntry)
 {
+#ifdef CONFIG_CIFS_STATS2
+	unsigned long now;
+#endif
 	spin_lock(&GlobalMid_Lock);
 	midEntry->midState = MID_FREE;
 	list_del(&midEntry->qhead);
@@ -84,6 +89,22 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		cifs_buf_release(midEntry->resp_buf);
 	else
 		cifs_small_buf_release(midEntry->resp_buf);
+#ifdef CONFIG_CIFS_STATS2
+	now = jiffies;
+	/* commands taking longer than one second are indications that
+	   something is wrong, unless it is quite a slow link or server */
+	if((now - midEntry->when_alloc) > HZ) {
+		if((cifsFYI & CIFS_TIMER) && 
+		   (midEntry->command != SMB_COM_LOCKING_ANDX)) {
+			printk(KERN_DEBUG " CIFS slow rsp: cmd %d mid %d",
+			       midEntry->command, midEntry->mid);
+			printk(" A: 0x%lx S: 0x%lx R: 0x%lx\n",
+			       now - midEntry->when_alloc,
+			       now - midEntry->when_sent,
+			       now - midEntry->when_received);
+		}
+	}
+#endif
 	mempool_free(midEntry, cifs_mid_poolp);
 }
 
@@ -382,6 +403,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		      (struct sockaddr *) &(ses->server->addr.sockAddr));
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
+	midQ->when_sent = jiffies;
 #endif
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
@@ -646,6 +668,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		      (struct sockaddr *) &(ses->server->addr.sockAddr));
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
+	midQ->when_sent = jiffies;
 #endif
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
