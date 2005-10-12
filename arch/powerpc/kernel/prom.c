@@ -1323,26 +1323,6 @@ void __init early_init_devtree(void *params)
 	 */
 	scan_flat_dt(early_init_dt_scan_cpus, NULL);
 
-#ifdef CONFIG_PPC_PSERIES
-	/* If hash size wasn't obtained above, we calculate it now based on
-	 * the total RAM size
-	 */
-	if (ppc64_pft_size == 0) {
-		unsigned long rnd_mem_size, pteg_count;
-
-		/* round mem_size up to next power of 2 */
-		rnd_mem_size = 1UL << __ilog2(systemcfg->physicalMemorySize);
-		if (rnd_mem_size < systemcfg->physicalMemorySize)
-			rnd_mem_size <<= 1;
-
-		/* # pages / 2 */
-		pteg_count = max(rnd_mem_size >> (12 + 1), 1UL << 11);
-
-		ppc64_pft_size = __ilog2(pteg_count << 7);
-	}
-
-	DBG("Hash pftSize: %x\n", (int)ppc64_pft_size);
-#endif
 	DBG(" <- early_init_devtree()\n");
 }
 

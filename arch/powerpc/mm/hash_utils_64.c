@@ -155,6 +155,27 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 	}
 }
 
+static unsigned long get_hashtable_size(void)
+{
+	unsigned long rnd_mem_size, pteg_count;
+
+	/* If hash size wasn't obtained in prom.c, we calculate it now based on
+	 * the total RAM size
+	 */
+	if (ppc64_pft_size)
+		return 1UL << ppc64_pft_size;
+
+	/* round mem_size up to next power of 2 */
+	rnd_mem_size = 1UL << __ilog2(systemcfg->physicalMemorySize);
+	if (rnd_mem_size < systemcfg->physicalMemorySize)
+		rnd_mem_size <<= 1;
+
+	/* # pages / 2 */
+	pteg_count = max(rnd_mem_size >> (12 + 1), 1UL << 11);
+
+	return pteg_count << 7;
+}
+
 void __init htab_initialize(void)
 {
 	unsigned long table, htab_size_bytes;
@@ -170,7 +191,7 @@ void __init htab_initialize(void)
 	 * Calculate the required size of the htab.  We want the number of
 	 * PTEGs to equal one half the number of real pages.
 	 */ 
-	htab_size_bytes = 1UL << ppc64_pft_size;
+	htab_size_bytes = get_hashtable_size();
 	pteg_count = htab_size_bytes >> 7;
 
 	/* For debug, make the HTAB 1/8 as big as it normally would be. */
