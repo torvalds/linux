@@ -351,6 +351,17 @@ static int get_cur_bus_speed (struct hotplug_slot *hotplug_slot, enum pci_bus_sp
 	return 0;
 }
 
+static int is_shpc_capable(struct pci_dev *dev)
+{
+       if ((dev->vendor == PCI_VENDOR_ID_AMD) || (dev->device ==
+                               PCI_DEVICE_ID_AMD_GOLAM_7450))
+               return 1;
+       if (pci_find_capability(dev, PCI_CAP_ID_SHPC))
+               return 1;
+
+       return 0;
+}
+
 static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
@@ -358,6 +369,9 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct slot *t_slot;
 	int first_device_num;	/* first PCI device number supported by this SHPC */
 	int num_ctlr_slots;	/* number of slots supported by this SHPC */
+
+	if (!is_shpc_capable(pdev))
+		return -ENODEV;
 
 	ctrl = (struct controller *) kmalloc(sizeof(struct controller), GFP_KERNEL);
 	if (!ctrl) {
