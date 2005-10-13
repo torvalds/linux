@@ -620,7 +620,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->nip = start;
 	regs->msr = MSR_USER;
 #else
-	{
+	if (!test_thread_flag(TIF_32BIT)) {
 		unsigned long entry, toc, load_addr = regs->gpr[2];
 
 		/* start is a relocated pointer to the function descriptor for
@@ -641,6 +641,10 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		regs->nip = entry;
 		regs->gpr[2] = toc;
 		regs->msr = MSR_USER64;
+	} else {
+		regs->nip = start;
+		regs->gpr[2] = 0;
+		regs->msr = MSR_USER32;
 	}
 #endif
 

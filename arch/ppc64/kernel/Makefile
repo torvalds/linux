@@ -14,7 +14,7 @@ endif
 obj-y               +=	irq.o idle.o dma.o \
 			time.o signal.o syscalls.o ptrace.o \
 			align.o bitops.o pacaData.o \
-			udbg.o binfmt_elf32.o sys_ppc32.o ioctl32.o \
+			udbg.o sys_ppc32.o ioctl32.o \
 			ptrace32.o signal32.o rtc.o \
 			cpu_setup_power4.o \
 			iommu.o sysfs.o vdso.o pmc.o firmware.o

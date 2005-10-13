@@ -70,9 +70,6 @@ cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
 	value->tv_sec = jiffies / HZ;
 }
 
-extern void start_thread32(struct pt_regs *, unsigned long, unsigned long);
-#undef start_thread
-#define start_thread start_thread32
 #define init_elf_binfmt init_elf32_binfmt
 
 #include "../../../fs/binfmt_elf.c"
