@@ -38,6 +38,55 @@
 #include "../pci.h"
 #include "shpchp.h"
 
+void program_fw_provided_values(struct pci_dev *dev)
+{
+	u16 pci_cmd, pci_bctl;
+	struct pci_dev *cdev;
+	struct hotplug_params hpp = {0x8, 0x40, 0, 0}; /* defaults */
+
+	/* Program hpp values for this device */
+	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
+			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
+			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
+		return;
+
+	get_hp_params_from_firmware(dev, &hpp);
+
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpp.cache_line_size);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp.latency_timer);
+	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
+	if (hpp.enable_serr)
+		pci_cmd |= PCI_COMMAND_SERR;
+	else
+		pci_cmd &= ~PCI_COMMAND_SERR;
+	if (hpp.enable_perr)
+		pci_cmd |= PCI_COMMAND_PARITY;
+	else
+		pci_cmd &= ~PCI_COMMAND_PARITY;
+	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
+
+	/* Program bridge control value and child devices */
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
+				hpp.latency_timer);
+		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
+		if (hpp.enable_serr)
+			pci_bctl |= PCI_BRIDGE_CTL_SERR;
+		else
+			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
+		if (hpp.enable_perr)
+			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
+		else
+			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
+		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
+		if (dev->subordinate) {
+			list_for_each_entry(cdev, &dev->subordinate->devices,
+					bus_list)
+				program_fw_provided_values(cdev);
+		}
+	}
+}
+
 int shpchp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
@@ -90,8 +139,7 @@ int shpchp_configure_device(struct slot *p_slot)
 			child->subordinate = pci_do_scan_bus(child);
 			pci_bus_size_bridges(child);
 		}
-		/* TBD: program firmware provided _HPP values */
-		/* program_fw_provided_values(dev); */
+		program_fw_provided_values(dev);
 	}
 
 	pci_bus_assign_resources(parent);

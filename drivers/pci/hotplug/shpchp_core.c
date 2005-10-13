@@ -39,7 +39,6 @@
 #include <linux/init.h>
 #include <asm/uaccess.h>
 #include "shpchp.h"
-#include "shpchprm.h"
 
 /* Global variables */
 int shpchp_debug;
@@ -566,16 +565,12 @@ static int __init shpcd_init(void)
 	if (retval)
 		goto error_hpc_init;
 
-	retval = shpchprm_init(PCI);
-	if (!retval) {
-		retval = pci_register_driver(&shpc_driver);
-		dbg("%s: pci_register_driver = %d\n", __FUNCTION__, retval);
-		info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-	}
+	retval = pci_register_driver(&shpc_driver);
+	dbg("%s: pci_register_driver = %d\n", __FUNCTION__, retval);
+	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
 error_hpc_init:
 	if (retval) {
-		shpchprm_cleanup();
 		shpchp_event_stop_thread();
 	}
 	return retval;
@@ -585,8 +580,6 @@ static void __exit shpcd_cleanup(void)
 {
 	dbg("unload_shpchpd()\n");
 	unload_shpchpd();
-
-	shpchprm_cleanup();
 
 	dbg("pci_unregister_driver\n");
 	pci_unregister_driver(&shpc_driver);

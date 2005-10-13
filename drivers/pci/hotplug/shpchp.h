@@ -122,6 +122,13 @@ struct controller {
 	u16 vendor_id;
 };
 
+struct hotplug_params {
+	u8	cache_line_size;
+	u8	latency_timer;
+	u8	enable_serr;
+	u8	enable_perr;
+};
+
 /* Define AMD SHPC ID  */
 #define PCI_DEVICE_ID_AMD_GOLAM_7450	0x7450 
 
@@ -192,6 +199,11 @@ extern int	shpchp_save_config(struct controller *ctrl, int busnumber, int num_ct
 extern int	shpchp_save_slot_config(struct controller *ctrl, struct pci_func * new_slot);
 extern int	shpchp_configure_device(struct slot *p_slot);
 extern int	shpchp_unconfigure_device(struct pci_func* func);
+extern void	get_hp_hw_control_from_firmware(struct pci_dev *dev);
+extern void	get_hp_params_from_firmware(struct pci_dev *dev,
+		struct hotplug_params *hpp);
+extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
+		u32 *sun, u8 busnum, u8 devnum);
 
 
 /* Global variables */

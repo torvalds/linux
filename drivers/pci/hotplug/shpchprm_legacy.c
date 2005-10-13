@@ -37,10 +37,6 @@
 #include "shpchp.h"
 #include "shpchprm.h"
 
-void shpchprm_cleanup(void)
-{
-}
-
 int shpchprm_get_physical_slot_number(struct controller *ctrl, u32 *sun, u8 busnum, u8 devnum)
 {
 	int	offset = devnum - ctrl->slot_device_offset;
@@ -49,97 +45,14 @@ int shpchprm_get_physical_slot_number(struct controller *ctrl, u32 *sun, u8 busn
 	return 0;
 }
 
-int shpchprm_set_hpp(
-	struct controller *ctrl,
-	struct pci_func *func,
-	u8	card_type)
+void get_hp_params_from_firmware(struct pci_dev *dev,
+		struct hotplug_params *hpp)
 {
-	u32 rc;
-	u8 temp_byte;
-	struct pci_bus lpci_bus, *pci_bus;
-	unsigned int	devfn;
-	memcpy(&lpci_bus, ctrl->pci_bus, sizeof(lpci_bus));
-	pci_bus = &lpci_bus;
-	pci_bus->number = func->bus;
-	devfn = PCI_DEVFN(func->device, func->function);
-
-	temp_byte = 0x40;	/* hard coded value for LT */
-	if (card_type == PCI_HEADER_TYPE_BRIDGE) {
-		/* set subordinate Latency Timer */
-		rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_SEC_LATENCY_TIMER, temp_byte);
-		if (rc) {
-			dbg("%s: set secondary LT error. b:d:f(%02x:%02x:%02x)\n", __FUNCTION__, func->bus, 
-				func->device, func->function);
-			return rc;
-		}
-	}
-
-	/* set base Latency Timer */
-	rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_LATENCY_TIMER, temp_byte);
-	if (rc) {
-		dbg("%s: set LT error. b:d:f(%02x:%02x:%02x)\n", __FUNCTION__, func->bus, func->device, func->function);
-		return rc;
-	}
-
-	/* set Cache Line size */
-	temp_byte = 0x08;	/* hard coded value for CLS */
-	rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_CACHE_LINE_SIZE, temp_byte);
-	if (rc) {
-		dbg("%s: set CLS error. b:d:f(%02x:%02x:%02x)\n", __FUNCTION__, func->bus, func->device, func->function);
-	}
-
-	/* set enable_perr */
-	/* set enable_serr */
-
-	return rc;
+	return;
 }
 
-void shpchprm_enable_card(
-	struct controller *ctrl,
-	struct pci_func *func,
-	u8 card_type)
+void get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
-	u16 command, bcommand;
-	struct pci_bus lpci_bus, *pci_bus;
-	unsigned int devfn;
-	int rc;
-
-	memcpy(&lpci_bus, ctrl->pci_bus, sizeof(lpci_bus));
-	pci_bus = &lpci_bus;
-	pci_bus->number = func->bus;
-	devfn = PCI_DEVFN(func->device, func->function);
-
-	rc = pci_bus_read_config_word(pci_bus, devfn, PCI_COMMAND, &command);
-	command |= PCI_COMMAND_PARITY | PCI_COMMAND_SERR
-		| PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE
-		| PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
-	rc = pci_bus_write_config_word(pci_bus, devfn, PCI_COMMAND, command);
-
-	if (card_type == PCI_HEADER_TYPE_BRIDGE) {
-		rc = pci_bus_read_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, &bcommand);
-		bcommand |= PCI_BRIDGE_CTL_PARITY | PCI_BRIDGE_CTL_SERR
-			| PCI_BRIDGE_CTL_NO_ISA;
-		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, bcommand);
-	}
+	return;
 }
 
-static int legacy_shpchprm_init_pci(void)
-{
-	return 0;
-}
-
-int shpchprm_init(enum php_ctlr_type ctrl_type)
-{
-	int retval;
-
-	switch (ctrl_type) {
-	case PCI:
-		retval = legacy_shpchprm_init_pci();
-		break;
-	default:
-		retval = -ENODEV;
-		break;
-	}
-
-	return retval;
-}

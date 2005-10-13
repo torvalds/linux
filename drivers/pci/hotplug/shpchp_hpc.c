@@ -1566,8 +1566,8 @@ int shpc_init(struct controller * ctrl,
 			err("Can't get irq %d for the hotplug controller\n", php_ctlr->irq);
 			goto abort_free_ctlr;
 		}
-		/* Execute OSHP method here */
 	}
+	get_hp_hw_control_from_firmware(pdev);
 	dbg("%s: Before adding HPC to HPC list\n", __FUNCTION__);
 
 	/*  Add this HPC instance into the HPC list */

@@ -40,7 +40,6 @@
 #include <linux/pci.h>
 #include "../pci.h"
 #include "shpchp.h"
-#include "shpchprm.h"
 
 static void interrupt_event_handler(struct controller *ctrl);
 
