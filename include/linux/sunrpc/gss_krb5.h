@@ -121,13 +121,12 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 u32
 krb5_make_token(struct krb5_ctx *context_handle, int qop_req,
 	struct xdr_buf *input_message_buffer,
-	struct xdr_netobj *output_message_buffer, int toktype);
+	struct xdr_netobj *output_message_buffer);
 
 u32
 krb5_read_token(struct krb5_ctx *context_handle,
 	  struct xdr_netobj *input_token_buffer,
-	  struct xdr_buf *message_buffer,
-	  int *qop_state, int toktype);
+	  struct xdr_buf *message_buffer, int *qop_state);
 
 u32
 krb5_encrypt(struct crypto_tfm * key,

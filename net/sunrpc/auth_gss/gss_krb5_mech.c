@@ -199,8 +199,7 @@ gss_verify_mic_kerberos(struct gss_ctx		*ctx,
 	int qop_state;
 	struct krb5_ctx *kctx = ctx->internal_ctx_id;
 
-	maj_stat = krb5_read_token(kctx, mic_token, message, &qop_state,
-				   KG_TOK_MIC_MSG);
+	maj_stat = krb5_read_token(kctx, mic_token, message, &qop_state);
 	if (!maj_stat && qop_state)
 	    *qstate = qop_state;
 
@@ -216,7 +215,7 @@ gss_get_mic_kerberos(struct gss_ctx	*ctx,
 	u32 err = 0;
 	struct krb5_ctx *kctx = ctx->internal_ctx_id;
 
-	err = krb5_make_token(kctx, qop, message, mic_token, KG_TOK_MIC_MSG);
+	err = krb5_make_token(kctx, qop, message, mic_token);
 
 	dprintk("RPC:      gss_get_mic_kerberos returning %d\n",err);
 
