@@ -505,9 +505,7 @@ static int board_added(struct slot *p_slot)
 	up(&ctrl->crit_sect);
 
 	/* Wait for ~1 second */
-	dbg("%s: before long_delay\n", __FUNCTION__);
 	wait_for_ctrl_irq (ctrl);
-	dbg("%s: after long_delay\n", __FUNCTION__);
 
 	dbg("%s: slot status = %x\n", __FUNCTION__, p_slot->status);
 	/* Check for a power fault */
@@ -666,13 +664,11 @@ static void shpchp_pushbutton_thread (unsigned long slot)
 	p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 	if (getstatus) {
 		p_slot->state = POWEROFF_STATE;
-		dbg("In power_down_board, b:d(%x:%x)\n", p_slot->bus, p_slot->device);
 
 		shpchp_disable_slot(p_slot);
 		p_slot->state = STATIC_STATE;
 	} else {
 		p_slot->state = POWERON_STATE;
-		dbg("In add_board, b:d(%x:%x)\n", p_slot->bus, p_slot->device);
 
 		if (shpchp_enable_slot(p_slot)) {
 			/* Wait for exclusive access to hardware */
@@ -734,7 +730,6 @@ int shpchp_event_start_thread (void)
 		err ("Can't start up our event thread\n");
 		return -1;
 	}
-	dbg("Our event thread pid = %d\n", pid);
 	return 0;
 }
 
@@ -742,9 +737,7 @@ int shpchp_event_start_thread (void)
 void shpchp_event_stop_thread (void)
 {
 	event_finished = 1;
-	dbg("event_thread finish command given\n");
 	up(&event_semaphore);
-	dbg("wait for event_thread to exit\n");
 	down(&event_exit);
 }
 
@@ -776,7 +769,6 @@ static void interrupt_event_handler(struct controller *ctrl)
 	u8 getstatus;
 	struct slot *p_slot;
 
-	dbg("%s:\n", __FUNCTION__);
 	while (change) {
 		change = 0;
 
@@ -787,9 +779,6 @@ static void interrupt_event_handler(struct controller *ctrl)
 				hp_slot = ctrl->event_queue[loop].hp_slot;
 
 				p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-
-				dbg("%s: hp_slot %d, p_slot %p\n",
-						__FUNCTION__, hp_slot, p_slot);
 
 				if (ctrl->event_queue[loop].event_type == INT_BUTTON_CANCEL) {
 					dbg("%s: button cancel\n", __FUNCTION__);

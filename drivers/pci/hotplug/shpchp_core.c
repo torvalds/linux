@@ -105,8 +105,6 @@ static int init_slots(struct controller *ctrl)
 	u32 slot_number, sun;
 	int result = -ENOMEM;
 
-	dbg("%s\n",__FUNCTION__);
-
 	number_of_slots = ctrl->num_slots;
 	slot_device = ctrl->slot_device_offset;
 	slot_number = ctrl->first_slot;
@@ -373,15 +371,12 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	memset(ctrl, 0, sizeof(struct controller));
 
-	dbg("DRV_thread pid = %d\n", current->pid);
-
 	rc = shpc_init(ctrl, pdev);
 	if (rc) {
 		dbg("%s: controller initialization failed\n", SHPC_MODULE_NAME);
 		goto err_out_free_ctrl;
 	}
 
-	dbg("%s: controller initialization success\n", __FUNCTION__);
 	ctrl->pci_dev = pdev;  /* pci_dev of the P2P bridge */
 
 	pci_set_drvdata(pdev, ctrl);
@@ -488,8 +483,6 @@ static void __exit unload_shpchpd(void)
 		cleanup_slots(ctrl);
 
 		kfree (ctrl->pci_bus);
-
-		dbg("%s: calling release_ctlr\n", __FUNCTION__);
 		ctrl->hpc_ops->release_ctlr(ctrl);
 
 		tctrl = ctrl;
@@ -558,7 +551,6 @@ static void __exit shpcd_cleanup(void)
 	dbg("unload_shpchpd()\n");
 	unload_shpchpd();
 
-	dbg("pci_unregister_driver\n");
 	pci_unregister_driver(&shpc_driver);
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
