@@ -27,17 +27,11 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/proc_fs.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/pci.h>
-#include <linux/init.h>
-#include <asm/uaccess.h>
 #include "shpchp.h"
 
 /* Global variables */
@@ -381,11 +375,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dbg("DRV_thread pid = %d\n", current->pid);
 
-	rc = shpc_init(ctrl, pdev,
-			(php_intr_callback_t) shpchp_handle_attention_button,
-			(php_intr_callback_t) shpchp_handle_switch_change,
-			(php_intr_callback_t) shpchp_handle_presence_change,
-			(php_intr_callback_t) shpchp_handle_power_fault);
+	rc = shpc_init(ctrl, pdev);
 	if (rc) {
 		dbg("%s: controller initialization failed\n", SHPC_MODULE_NAME);
 		goto err_out_free_ctrl;

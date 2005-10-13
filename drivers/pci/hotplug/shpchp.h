@@ -32,8 +32,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <asm/semaphore.h>
-#include <asm/io.h>		
 #include "pci_hotplug.h"
 
 #if !defined(MODULE)
@@ -80,7 +78,7 @@ struct event_info {
 struct controller {
 	struct controller *next;
 	struct semaphore crit_sect;	/* critical section semaphore */
-	void * hpc_ctlr_handle;		/* HPC controller handle */
+	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
@@ -234,7 +232,7 @@ enum ctrl_offsets {
 	SLOT11 =	offsetof(struct ctrl_reg, slot11),
 	SLOT12 =	offsetof(struct ctrl_reg, slot12),
 };
-typedef u8(*php_intr_callback_t) (unsigned int change_id, void *instance_id);
+typedef u8(*php_intr_callback_t) (u8 hp_slot, void *instance_id);
 struct php_ctlr_state_s {
 	struct php_ctlr_state_s *pnext;
 	struct pci_dev *pci_dev;
@@ -347,11 +345,7 @@ enum php_ctlr_type {
 	ACPI
 };
 
-int shpc_init( struct controller *ctrl, struct pci_dev *pdev,
-		php_intr_callback_t attention_button_callback,
-		php_intr_callback_t switch_change_callback,
-		php_intr_callback_t presence_change_callback,
-		php_intr_callback_t power_fault_callback);
+int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
 
 int shpc_get_ctlr_slot_config( struct controller *ctrl,
 		int *num_ctlr_slots,
@@ -364,8 +358,6 @@ struct hpc_ops {
 	int	(*power_on_slot )		(struct slot *slot);
 	int	(*slot_enable )			(struct slot *slot);
 	int	(*slot_disable )		(struct slot *slot);
-	int	(*enable_all_slots)		(struct slot *slot);
-	int	(*pwr_on_all_slots)		(struct slot *slot);
 	int	(*set_bus_speed_mode)	(struct slot *slot, enum pci_bus_speed speed);
 	int	(*get_power_status)		(struct slot *slot, u8 *status);
 	int	(*get_attention_status)	(struct slot *slot, u8 *status);

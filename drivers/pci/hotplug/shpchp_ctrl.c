@@ -27,15 +27,9 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/wait.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include "../pci.h"
@@ -242,9 +236,10 @@ u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 /* The following routines constitute the bulk of the 
    hotplug controller logic
  */
-static u32 change_bus_speed(struct controller *ctrl, struct slot *p_slot, enum pci_bus_speed speed)
+static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
+		enum pci_bus_speed speed)
 { 
-	u32 rc = 0;
+	int rc = 0;
 
 	dbg("%s: change to speed %d\n", __FUNCTION__, speed);
 	down(&ctrl->crit_sect);
@@ -266,10 +261,11 @@ static u32 change_bus_speed(struct controller *ctrl, struct slot *p_slot, enum p
 	return rc;
 }
 
-static u32 fix_bus_speed(struct controller *ctrl, struct slot *pslot, u8 flag, 
-enum pci_bus_speed asp, enum pci_bus_speed bsp, enum pci_bus_speed msp)
+static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
+		u8 flag, enum pci_bus_speed asp, enum pci_bus_speed bsp,
+		enum pci_bus_speed msp)
 { 
-	u32 rc = 0;
+	int rc = 0;
 	
 	if (flag != 0) { /* Other slots on the same bus are occupied */
 		if ( asp < bsp ) {
@@ -308,11 +304,11 @@ enum pci_bus_speed asp, enum pci_bus_speed bsp, enum pci_bus_speed msp)
  * Configures board
  *
  */
-static u32 board_added(struct slot *p_slot)
+static int board_added(struct slot *p_slot)
 {
 	u8 hp_slot;
 	u8 slots_not_empty = 0;
-	u32 rc = 0;
+	int rc = 0;
 	enum pci_bus_speed adapter_speed, bus_speed, max_bus_speed;
 	u8 pi, mode;
 	struct controller *ctrl = p_slot->ctrl;
@@ -580,11 +576,11 @@ err_exit:
  * remove_board - Turns off slot and LED's
  *
  */
-static u32 remove_board(struct slot *p_slot)
+static int remove_board(struct slot *p_slot)
 {
 	struct controller *ctrl = p_slot->ctrl;
 	u8 hp_slot;
-	u32 rc;
+	int rc;
 
 	if (shpchp_unconfigure_device(p_slot))
 		return(1);
@@ -961,7 +957,6 @@ int shpchp_enable_slot (struct slot *p_slot)
 int shpchp_disable_slot (struct slot *p_slot)
 {
 	u8 getstatus = 0;
-	u32 rc = 0;
 	int ret = 0;
 
 	if (!p_slot->ctrl)
@@ -990,8 +985,8 @@ int shpchp_disable_slot (struct slot *p_slot)
 	}
 	up(&p_slot->ctrl->crit_sect);
 
-	rc = remove_board(p_slot);
+	ret = remove_board(p_slot);
 	update_slot_info(p_slot);
-	return rc;
+	return ret;
 }
 

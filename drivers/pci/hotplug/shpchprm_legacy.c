@@ -27,15 +27,11 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/init.h>
-#include <asm/uaccess.h>
 #include "shpchp.h"
-#include "shpchprm.h"
 
 int shpchprm_get_physical_slot_number(struct controller *ctrl, u32 *sun, u8 busnum, u8 devnum)
 {
