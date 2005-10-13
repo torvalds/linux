@@ -118,15 +118,11 @@ s32
 make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 		   int body_offset, struct xdr_netobj *cksum);
 
-u32
-krb5_make_token(struct krb5_ctx *context_handle,
-	struct xdr_buf *input_message_buffer,
-	struct xdr_netobj *output_message_buffer);
+u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
+		struct xdr_netobj *);
 
-u32
-krb5_read_token(struct krb5_ctx *context_handle,
-	  struct xdr_netobj *input_token_buffer,
-	  struct xdr_buf *message_buffer);
+u32 gss_verify_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
+		struct xdr_netobj *);
 
 u32
 gss_wrap_kerberos(struct gss_ctx *ctx_id, int offset,

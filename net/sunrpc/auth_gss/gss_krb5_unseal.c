@@ -72,10 +72,10 @@
  * supposedly taken over. */
 
 u32
-krb5_read_token(struct krb5_ctx *ctx,
-		struct xdr_netobj *read_token,
-		struct xdr_buf *message_buffer)
+gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
+		struct xdr_buf *message_buffer, struct xdr_netobj *read_token)
 {
+	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
 	s32			checksum_type;

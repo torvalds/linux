@@ -71,9 +71,10 @@
 #endif
 
 u32
-krb5_make_token(struct krb5_ctx *ctx,
-		   struct xdr_buf *text, struct xdr_netobj *token)
+gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
+		struct xdr_netobj *token)
 {
+	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	s32			checksum_type;
 	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
