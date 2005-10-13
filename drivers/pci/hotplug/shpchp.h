@@ -63,14 +63,7 @@ struct pci_func {
 	u8 switch_save;
 	u8 presence_save;
 	u8 pwr_save;
-	u32 base_length[0x06];
-	u8 base_type[0x06];
-	u16 reserved2;
 	u32 config_space[0x20];
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 	struct pci_dev* pci_dev;
 };
 
@@ -96,12 +89,6 @@ struct slot {
 	struct list_head	slot_list;
 };
 
-struct pci_resource {
-	struct pci_resource * next;
-	u32 base;
-	u32 length;
-};
-
 struct event_info {
 	u32 event_type;
 	u8 hp_slot;
@@ -113,10 +100,6 @@ struct controller {
 	void * hpc_ctlr_handle;		/* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 	struct pci_dev *pci_dev;
 	struct pci_bus *pci_bus;
 	struct event_info event_queue[10];
@@ -137,20 +120,6 @@ struct controller {
 	u8 push_flag;
 	u16 ctlrcap;
 	u16 vendor_id;
-};
-
-struct irq_mapping {
-	u8 barber_pole;
-	u8 valid_INT;
-	u8 interrupt[4];
-};
-
-struct resource_lists {
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
-	struct irq_mapping *irqs;
 };
 
 /* Define AMD SHPC ID  */
@@ -197,7 +166,6 @@ struct resource_lists {
 #define msg_HPC_rev_error	"Unsupported revision of the PCI hot plug controller found.\n"
 #define msg_HPC_non_shpc	"The PCI hot plug controller is not supported by this driver.\n"
 #define msg_HPC_not_supported	"This system is not supported by this version of shpcphd mdoule. Upgrade to a newer version of shpchpd\n"
-#define msg_unable_to_save	"Unable to store PCI hot plug add resource information. This system must be rebooted before adding any PCI devices.\n"
 #define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
@@ -207,7 +175,6 @@ struct resource_lists {
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
 
 /* controller functions */
-extern int	shpchprm_find_available_resources(struct controller *ctrl);
 extern int	shpchp_event_start_thread(void);
 extern void	shpchp_event_stop_thread(void);
 extern struct 	pci_func *shpchp_slot_create(unsigned char busnumber);
@@ -220,29 +187,16 @@ extern u8	shpchp_handle_switch_change(u8 hp_slot, void *inst_id);
 extern u8	shpchp_handle_presence_change(u8 hp_slot, void *inst_id);
 extern u8	shpchp_handle_power_fault(u8 hp_slot, void *inst_id);
 
-/* resource functions */
-extern int	shpchp_resource_sort_and_combine(struct pci_resource **head);
-
 /* pci functions */
-extern int	shpchp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
-/*extern int	shpchp_get_bus_dev(struct controller *ctrl, u8 *bus_num, u8 *dev_num, struct slot *slot);*/
 extern int	shpchp_save_config(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
-extern int	shpchp_save_used_resources(struct controller *ctrl, struct pci_func * func, int flag);
 extern int	shpchp_save_slot_config(struct controller *ctrl, struct pci_func * new_slot);
-extern void	shpchp_destroy_board_resources(struct pci_func * func);
-extern int	shpchp_return_board_resources(struct pci_func * func, struct resource_lists * resources);
-extern void	shpchp_destroy_resource_list(struct resource_lists * resources);
-extern int	shpchp_configure_device(struct controller* ctrl, struct pci_func* func);
+extern int	shpchp_configure_device(struct slot *p_slot);
 extern int	shpchp_unconfigure_device(struct pci_func* func);
 
 
 /* Global variables */
 extern struct controller *shpchp_ctrl_list;
 extern struct pci_func *shpchp_slot_list[256];
-
-/* These are added to support AMD shpc */
-extern u8 shpchp_nic_irq;
-extern u8 shpchp_disk_irq;
 
 struct ctrl_reg {
 	volatile u32 base_offset;
@@ -396,15 +350,6 @@ static inline int wait_for_ctrl_irq (struct controller *ctrl)
 
 	dbg("%s : end\n", __FUNCTION__);
 	return retval;
-}
-
-/* Puts node back in the resource list pointed to by head */
-static inline void return_resource(struct pci_resource **head, struct pci_resource *node)
-{
-	if (!node || !head)
-		return;
-	node->next = *head;
-	*head = node;
 }
 
 #define SLOT_NAME_SIZE 10

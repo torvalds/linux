@@ -32,24 +32,12 @@
 
 #ifdef	CONFIG_HOTPLUG_PCI_SHPC_PHPRM_LEGACY
 #include "shpchprm_legacy.h"
-#else
-#include "shpchprm_nonacpi.h"
 #endif
 
 int shpchprm_init(enum php_ctlr_type ct);
 void shpchprm_cleanup(void);
-int shpchprm_print_pirt(void);
-int shpchprm_find_available_resources(struct controller *ctrl);
 int shpchprm_set_hpp(struct controller *ctrl, struct pci_func *func, u8 card_type);
 void shpchprm_enable_card(struct controller *ctrl, struct pci_func *func, u8 card_type);
 int shpchprm_get_physical_slot_number(struct controller *ctrl, u32 *sun, u8 busnum, u8 devnum);
-
-#ifdef	DEBUG
-#define RES_CHECK(this, bits)	\
-	{ if (((this) & (bits - 1))) \
-		printk("%s:%d ERR: potential res loss!\n", __FUNCTION__, __LINE__); }
-#else
-#define RES_CHECK(this, bits)
-#endif
 
 #endif				/* _SHPCHPRM_H_ */

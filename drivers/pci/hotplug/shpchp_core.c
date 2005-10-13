@@ -418,16 +418,8 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_ctrl_bus;
 	}
 
-	/* Get IO, memory, and IRQ resources for new devices */
-	rc = shpchprm_find_available_resources(ctrl);
-	ctrl->add_support = !rc;
+	ctrl->add_support = 1;
 	
-	if (rc) {
-		dbg("shpchprm_find_available_resources = %#x\n", rc);
-		err("unable to locate PCI configuration resources for hot plug add.\n");
-		goto err_out_free_ctrl_bus;
-	}
-
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
@@ -497,18 +489,6 @@ static int shpc_start_thread(void)
 	return retval;
 }
 
-static inline void __exit
-free_shpchp_res(struct pci_resource *res)
-{
-	struct pci_resource *tres;
-
-	while (res) {
-		tres = res;
-		res = res->next;
-		kfree(tres);
-	}
-}
-
 static void __exit unload_shpchpd(void)
 {
 	struct pci_func *next;
@@ -521,11 +501,6 @@ static void __exit unload_shpchpd(void)
 
 	while (ctrl) {
 		cleanup_slots(ctrl);
-
-		free_shpchp_res(ctrl->io_head);
-		free_shpchp_res(ctrl->mem_head);
-		free_shpchp_res(ctrl->p_mem_head);
-		free_shpchp_res(ctrl->bus_head);
 
 		kfree (ctrl->pci_bus);
 
@@ -541,11 +516,6 @@ static void __exit unload_shpchpd(void)
 	for (loop = 0; loop < 256; loop++) {
 		next = shpchp_slot_list[loop];
 		while (next != NULL) {
-			free_shpchp_res(next->io_head);
-			free_shpchp_res(next->mem_head);
-			free_shpchp_res(next->p_mem_head);
-			free_shpchp_res(next->bus_head);
-
 			TempSlot = next;
 			next = next->next;
 			kfree(TempSlot);
@@ -607,9 +577,7 @@ error_hpc_init:
 	if (retval) {
 		shpchprm_cleanup();
 		shpchp_event_stop_thread();
-	} else
-		shpchprm_print_pirt();
-
+	}
 	return retval;
 }
 
