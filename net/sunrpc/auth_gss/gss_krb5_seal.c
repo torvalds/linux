@@ -116,8 +116,8 @@ krb5_make_token(struct krb5_ctx *ctx, int qop_req,
 	*(u16 *)(krb5_hdr + 2) = htons(ctx->signalg);
 	memset(krb5_hdr + 4, 0xff, 4);
 
-	if (make_checksum(checksum_type, krb5_hdr, 8, text, &md5cksum))
-		goto out_err;
+	if (make_checksum(checksum_type, krb5_hdr, 8, text, 0, &md5cksum))
+			goto out_err;
 
 	switch (ctx->signalg) {
 	case SGN_ALG_DES_MAC_MD5:

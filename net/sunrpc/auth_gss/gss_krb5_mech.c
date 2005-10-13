@@ -226,6 +226,8 @@ static struct gss_api_ops gss_kerberos_ops = {
 	.gss_import_sec_context	= gss_import_sec_context_kerberos,
 	.gss_get_mic		= gss_get_mic_kerberos,
 	.gss_verify_mic		= gss_verify_mic_kerberos,
+	.gss_wrap		= gss_wrap_kerberos,
+	.gss_unwrap		= gss_unwrap_kerberos,
 	.gss_delete_sec_context	= gss_delete_sec_context_kerberos,
 };
 
@@ -239,6 +241,11 @@ static struct pf_desc gss_kerberos_pfs[] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5I,
 		.service = RPC_GSS_SVC_INTEGRITY,
 		.name = "krb5i",
+	},
+	[2] = {
+		.pseudoflavor = RPC_AUTH_GSS_KRB5P,
+		.service = RPC_GSS_SVC_PRIVACY,
+		.name = "krb5p",
 	},
 };
 
