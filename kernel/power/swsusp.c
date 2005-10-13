@@ -402,15 +402,14 @@ static int write_page(unsigned long addr, swp_entry_t * loc)
 static void data_free(void)
 {
 	swp_entry_t entry;
-	int i;
+	struct pbe * p;
 
-	for (i = 0; i < nr_copy_pages; i++) {
-		entry = (pagedir_nosave + i)->swap_address;
+	for_each_pbe(p, pagedir_nosave) {
+		entry = p->swap_address;
 		if (entry.val)
 			swap_free(entry);
 		else
 			break;
-		(pagedir_nosave + i)->swap_address = (swp_entry_t){0};
 	}
 }
 
@@ -932,6 +931,10 @@ static int swsusp_alloc(void)
 	if (!enough_swap())
 		return -ENOSPC;
 
+	if (MAX_PBES < nr_copy_pages / PBES_PER_PAGE +
+	    !!(nr_copy_pages % PBES_PER_PAGE))
+		return -ENOSPC;
+
 	if (!(pagedir_save = alloc_pagedir(nr_copy_pages))) {
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
 		return -ENOMEM;
@@ -1092,7 +1095,7 @@ static inline void eat_page(void *page)
 	*eaten_memory = c;
 }
 
-static unsigned long get_usable_page(unsigned gfp_mask)
+unsigned long get_usable_page(unsigned gfp_mask)
 {
 	unsigned long m;
 
@@ -1106,7 +1109,7 @@ static unsigned long get_usable_page(unsigned gfp_mask)
 	return m;
 }
 
-static void free_eaten_memory(void)
+void free_eaten_memory(void)
 {
 	unsigned long m;
 	void **c;
@@ -1438,9 +1441,9 @@ static int read_pagedir(struct pbe *pblist)
 	}
 
 	if (error)
-		free_page((unsigned long)pblist);
-
-	BUG_ON(i != swsusp_info.pagedir_pages);
+		free_pagedir(pblist);
+	else
+		BUG_ON(i != swsusp_info.pagedir_pages);
 
 	return error;
 }
@@ -1478,11 +1481,12 @@ static int read_suspend_image(void)
 	/* Allocate memory for the image and read the data from swap */
 
 	error = check_pagedir(pagedir_nosave);
-	free_eaten_memory();
+
 	if (!error)
 		error = data_read(pagedir_nosave);
 
 	if (error) { /* We fail cleanly */
+		free_eaten_memory();
 		for_each_pbe (p, pagedir_nosave)
 			if (p->address) {
 				free_page(p->address);

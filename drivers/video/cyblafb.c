@@ -410,20 +410,21 @@ static void cyblafb_imageblit(struct fb_info *info,
 	out32(GE0C,point(image->dx+image->width-1,image->dy+image->height-1));
 
 	while(index < index_end) {
+		const char *p = image->data + index;
 		for(i=0;i<width_dds;i++) {
-			out32(GE9C,*((u32*) ((u32)image->data + index)));
+			out32(GE9C,*(u32*)p);
+			p+=4;
 			index+=4;
 		}
 		switch(width_dbs) {
 		case 0: break;
-		case 8:	out32(GE9C,*((u8*)((u32)image->data+index)));
+		case 8:	out32(GE9C,*(u8*)p);
 			index+=1;
 			break;
-		case 16: out32(GE9C,*((u16*)((u32)image->data+index)));
+		case 16: out32(GE9C,*(u16*)p);
 			index+=2;
 			break;
-		case 24: out32(GE9C,(u32)(*((u16*)((u32)image->data+index))) |
-			       (u32)(*((u8*)((u32)image->data+index+2)))<<16);
+		case 24: out32(GE9C,*(u16*)p | *(u8*)(p+2)<<16);
 			index+=3;
 			break;
 		}

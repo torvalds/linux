@@ -5,6 +5,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <setjmp.h>
 #include "ptrace_user.h"
 #include "uml-config.h"
 #include "skas_ptregs.h"
@@ -74,13 +75,11 @@ void get_safe_registers(unsigned long *regs)
 	memcpy(regs, exec_regs, HOST_FRAME_SIZE * sizeof(unsigned long));
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+void get_thread_regs(union uml_pt_regs *uml_regs, void *buffer)
+{
+	struct __jmp_buf_tag *jmpbuf = buffer;
+
+	UPT_SET(uml_regs, RIP, jmpbuf->__jmpbuf[JB_PC]);
+	UPT_SET(uml_regs, RSP, jmpbuf->__jmpbuf[JB_RSP]);
+	UPT_SET(uml_regs, RBP, jmpbuf->__jmpbuf[JB_RBP]);
+}

@@ -42,7 +42,6 @@
 
 #include <asm/io.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 #include <asm/arch/tc.h>
 

@@ -23,6 +23,10 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	struct fuse_file *ff;
 	int err;
 
+	/* VFS checks this, but only _after_ ->open() */
+	if (file->f_flags & O_DIRECT)
+		return -EINVAL;
+
 	err = generic_file_open(inode, file);
 	if (err)
 		return err;

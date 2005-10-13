@@ -82,8 +82,6 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 
-#include <asm/mach-types.h>
-
 /* structures */
 
 struct s3c24xx_uart_info {
@@ -753,8 +751,8 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 {
 	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct s3c24xx_uart_clksrc *clksrc;
-	struct clk *clk;
+	struct s3c24xx_uart_clksrc *clksrc = NULL;
+	struct clk *clk = NULL;
 	unsigned long flags;
 	unsigned int baud, quot;
 	unsigned int ulcon;
@@ -1094,8 +1092,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 static int probe_index = 0;
 
-int s3c24xx_serial_probe(struct device *_dev,
-			 struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_probe(struct device *_dev,
+				struct s3c24xx_uart_info *info)
 {
 	struct s3c24xx_uart_port *ourport;
 	struct platform_device *dev = to_platform_device(_dev);
@@ -1122,7 +1120,7 @@ int s3c24xx_serial_probe(struct device *_dev,
 	return ret;
 }
 
-int s3c24xx_serial_remove(struct device *_dev)
+static int s3c24xx_serial_remove(struct device *_dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(_dev);
 
@@ -1136,7 +1134,8 @@ int s3c24xx_serial_remove(struct device *_dev)
 
 #ifdef CONFIG_PM
 
-int s3c24xx_serial_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c24xx_serial_suspend(struct device *dev, pm_message_t state,
+				  u32 level)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 
@@ -1146,7 +1145,7 @@ int s3c24xx_serial_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-int s3c24xx_serial_resume(struct device *dev, u32 level)
+static int s3c24xx_serial_resume(struct device *dev, u32 level)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -1167,8 +1166,8 @@ int s3c24xx_serial_resume(struct device *dev, u32 level)
 #define s3c24xx_serial_resume  NULL
 #endif
 
-int s3c24xx_serial_init(struct device_driver *drv,
-			struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_init(struct device_driver *drv,
+			       struct s3c24xx_uart_info *info)
 {
 	dbg("s3c24xx_serial_init(%p,%p)\n", drv, info);
 	return driver_register(drv);
@@ -1237,6 +1236,7 @@ static int s3c2400_serial_probe(struct device *dev)
 
 static struct device_driver s3c2400_serial_drv = {
 	.name		= "s3c2400-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2400_serial_probe,
 	.remove		= s3c24xx_serial_remove,
@@ -1340,6 +1340,7 @@ static int s3c2410_serial_probe(struct device *dev)
 
 static struct device_driver s3c2410_serial_drv = {
 	.name		= "s3c2410-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410_serial_probe,
 	.remove		= s3c24xx_serial_remove,
@@ -1501,6 +1502,7 @@ static int s3c2440_serial_probe(struct device *dev)
 
 static struct device_driver s3c2440_serial_drv = {
 	.name		= "s3c2440-uart",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2440_serial_probe,
 	.remove		= s3c24xx_serial_remove,

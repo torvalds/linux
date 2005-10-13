@@ -74,12 +74,14 @@ ip_nat_proto_find_get(u_int8_t protonum)
 
 	return p;
 }
+EXPORT_SYMBOL_GPL(ip_nat_proto_find_get);
 
 void
 ip_nat_proto_put(struct ip_nat_protocol *p)
 {
 	module_put(p->me);
 }
+EXPORT_SYMBOL_GPL(ip_nat_proto_put);
 
 /* We keep an extra hash for each conntrack, for fast searching. */
 static inline unsigned int
@@ -111,6 +113,7 @@ ip_nat_cheat_check(u_int32_t oldvalinv, u_int32_t newval, u_int16_t oldcheck)
 	return csum_fold(csum_partial((char *)diffs, sizeof(diffs),
 				      oldcheck^0xFFFF));
 }
+EXPORT_SYMBOL(ip_nat_cheat_check);
 
 /* Is this tuple already taken? (not by us) */
 int
@@ -127,6 +130,7 @@ ip_nat_used_tuple(const struct ip_conntrack_tuple *tuple,
 	invert_tuplepr(&reply, tuple);
 	return ip_conntrack_tuple_taken(&reply, ignored_conntrack);
 }
+EXPORT_SYMBOL(ip_nat_used_tuple);
 
 /* If we source map this tuple so reply looks like reply_tuple, will
  * that meet the constraints of range. */
@@ -347,6 +351,7 @@ ip_nat_setup_info(struct ip_conntrack *conntrack,
 
 	return NF_ACCEPT;
 }
+EXPORT_SYMBOL(ip_nat_setup_info);
 
 /* Returns true if succeeded. */
 static int
@@ -387,10 +392,10 @@ manip_pkt(u_int16_t proto,
 }
 
 /* Do packet manipulations according to ip_nat_setup_info. */
-unsigned int nat_packet(struct ip_conntrack *ct,
-			enum ip_conntrack_info ctinfo,
-			unsigned int hooknum,
-			struct sk_buff **pskb)
+unsigned int ip_nat_packet(struct ip_conntrack *ct,
+			   enum ip_conntrack_info ctinfo,
+			   unsigned int hooknum,
+			   struct sk_buff **pskb)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned long statusbit;
@@ -417,12 +422,13 @@ unsigned int nat_packet(struct ip_conntrack *ct,
 	}
 	return NF_ACCEPT;
 }
+EXPORT_SYMBOL_GPL(ip_nat_packet);
 
 /* Dir is direction ICMP is coming from (opposite to packet it contains) */
-int icmp_reply_translation(struct sk_buff **pskb,
-			   struct ip_conntrack *ct,
-			   enum ip_nat_manip_type manip,
-			   enum ip_conntrack_dir dir)
+int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
+				  struct ip_conntrack *ct,
+				  enum ip_nat_manip_type manip,
+				  enum ip_conntrack_dir dir)
 {
 	struct {
 		struct icmphdr icmp;
@@ -509,6 +515,7 @@ int icmp_reply_translation(struct sk_buff **pskb,
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(ip_nat_icmp_reply_translation);
 
 /* Protocol registration. */
 int ip_nat_protocol_register(struct ip_nat_protocol *proto)
@@ -525,6 +532,7 @@ int ip_nat_protocol_register(struct ip_nat_protocol *proto)
 	write_unlock_bh(&ip_nat_lock);
 	return ret;
 }
+EXPORT_SYMBOL(ip_nat_protocol_register);
 
 /* Noone stores the protocol anywhere; simply delete it. */
 void ip_nat_protocol_unregister(struct ip_nat_protocol *proto)
@@ -536,6 +544,7 @@ void ip_nat_protocol_unregister(struct ip_nat_protocol *proto)
 	/* Someone could be still looking at the proto in a bh. */
 	synchronize_net();
 }
+EXPORT_SYMBOL(ip_nat_protocol_unregister);
 
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
@@ -582,7 +591,7 @@ EXPORT_SYMBOL_GPL(ip_nat_port_nfattr_to_range);
 EXPORT_SYMBOL_GPL(ip_nat_port_range_to_nfattr);
 #endif
 
-int __init ip_nat_init(void)
+static int __init ip_nat_init(void)
 {
 	size_t i;
 
@@ -624,10 +633,14 @@ static int clean_nat(struct ip_conntrack *i, void *data)
 	return 0;
 }
 
-/* Not __exit: called from ip_nat_standalone.c:init_or_cleanup() --RR */
-void ip_nat_cleanup(void)
+static void __exit ip_nat_cleanup(void)
 {
 	ip_ct_iterate_cleanup(&clean_nat, NULL);
 	ip_conntrack_destroyed = NULL;
 	vfree(bysource);
 }
+
+MODULE_LICENSE("GPL");
+
+module_init(ip_nat_init);
+module_exit(ip_nat_cleanup);

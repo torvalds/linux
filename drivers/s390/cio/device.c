@@ -544,7 +544,7 @@ get_disc_ccwdev_by_devno(unsigned int devno, struct ccw_device *sibling)
 		.sibling = sibling,
 	};
 
-	dev = bus_find_device(&css_bus_type, NULL, &data, match_devno);
+	dev = bus_find_device(&ccw_bus_type, NULL, &data, match_devno);
 
 	return dev ? to_ccwdev(dev) : NULL;
 }

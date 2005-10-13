@@ -218,10 +218,6 @@ struct syscall_args {
                 case RBP: UPT_RBP(regs) = __upt_val; break; \
                 case ORIG_RAX: UPT_ORIG_RAX(regs) = __upt_val; break; \
                 case CS: UPT_CS(regs) = __upt_val; break; \
-                case DS: UPT_DS(regs) = __upt_val; break; \
-                case ES: UPT_ES(regs) = __upt_val; break; \
-                case FS: UPT_FS(regs) = __upt_val; break; \
-                case GS: UPT_GS(regs) = __upt_val; break; \
                 case EFLAGS: UPT_EFLAGS(regs) = __upt_val; break; \
                 default :  \
                         panic("Bad register in UPT_SET : %d\n", reg);  \

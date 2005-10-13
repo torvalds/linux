@@ -605,7 +605,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 			err = -EINVAL;
 			goto out;
 		}
-		for (i = 0; i < mthca_icm_size(&iter) / (1 << lg); ++i, ++nent) {
+		for (i = 0; i < mthca_icm_size(&iter) / (1 << lg); ++i) {
 			if (virt != -1) {
 				pages[nent * 2] = cpu_to_be64(virt);
 				virt += 1 << lg;
@@ -616,7 +616,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 			ts += 1 << (lg - 10);
 			++tc;
 
-			if (nent == MTHCA_MAILBOX_SIZE / 16) {
+			if (++nent == MTHCA_MAILBOX_SIZE / 16) {
 				err = mthca_cmd(dev, mailbox->dma, nent, 0, op,
 						CMD_TIME_CLASS_B, status);
 				if (err || *status)

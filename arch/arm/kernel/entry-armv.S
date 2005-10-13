@@ -537,7 +537,7 @@ ENTRY(__switch_to)
 #ifdef CONFIG_CPU_MPCORE
 	clrex
 #else
-	strex	r3, r4, [ip]			@ Clear exclusive monitor
+	strex	r5, r4, [ip]			@ Clear exclusive monitor
 #endif
 #endif
 #if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)

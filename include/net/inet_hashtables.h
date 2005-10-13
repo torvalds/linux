@@ -40,7 +40,7 @@
 struct inet_ehash_bucket {
 	rwlock_t	  lock;
 	struct hlist_head chain;
-} __attribute__((__aligned__(8)));
+};
 
 /* There are a few simple rules, which allow for local port reuse by
  * an application.  In essence:
@@ -108,7 +108,7 @@ struct inet_hashinfo {
 	struct inet_bind_hashbucket	*bhash;
 
 	int				bhash_size;
-	int				ehash_size;
+	unsigned int			ehash_size;
 
 	/* All sockets in TCP_LISTEN state will be in here.  This is the only
 	 * table where wildcard'd TCP sockets can exist.  Hash function here
@@ -130,17 +130,16 @@ struct inet_hashinfo {
 	int				port_rover;
 };
 
-static inline int inet_ehashfn(const __u32 laddr, const __u16 lport,
-			       const __u32 faddr, const __u16 fport,
-			       const int ehash_size)
+static inline unsigned int inet_ehashfn(const __u32 laddr, const __u16 lport,
+			       const __u32 faddr, const __u16 fport)
 {
-	int h = (laddr ^ lport) ^ (faddr ^ fport);
+	unsigned int h = (laddr ^ lport) ^ (faddr ^ fport);
 	h ^= h >> 16;
 	h ^= h >> 8;
-	return h & (ehash_size - 1);
+	return h;
 }
 
-static inline int inet_sk_ehashfn(const struct sock *sk, const int ehash_size)
+static inline int inet_sk_ehashfn(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const __u32 laddr = inet->rcv_saddr;
@@ -148,7 +147,14 @@ static inline int inet_sk_ehashfn(const struct sock *sk, const int ehash_size)
 	const __u32 faddr = inet->daddr;
 	const __u16 fport = inet->dport;
 
-	return inet_ehashfn(laddr, lport, faddr, fport, ehash_size);
+	return inet_ehashfn(laddr, lport, faddr, fport);
+}
+
+static inline struct inet_ehash_bucket *inet_ehash_bucket(
+	struct inet_hashinfo *hashinfo,
+	unsigned int hash)
+{
+	return &hashinfo->ehash[hash & (hashinfo->ehash_size - 1)];
 }
 
 extern struct inet_bind_bucket *
@@ -235,9 +241,11 @@ static inline void __inet_hash(struct inet_hashinfo *hashinfo,
 		lock = &hashinfo->lhash_lock;
 		inet_listen_wlock(hashinfo);
 	} else {
-		sk->sk_hashent = inet_sk_ehashfn(sk, hashinfo->ehash_size);
-		list = &hashinfo->ehash[sk->sk_hashent].chain;
-		lock = &hashinfo->ehash[sk->sk_hashent].lock;
+		struct inet_ehash_bucket *head;
+		sk->sk_hash = inet_sk_ehashfn(sk);
+		head = inet_ehash_bucket(hashinfo, sk->sk_hash);
+		list = &head->chain;
+		lock = &head->lock;
 		write_lock(lock);
 	}
 	__sk_add_node(sk, list);
@@ -268,9 +276,8 @@ static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
 		inet_listen_wlock(hashinfo);
 		lock = &hashinfo->lhash_lock;
 	} else {
-		struct inet_ehash_bucket *head = &hashinfo->ehash[sk->sk_hashent];
-		lock = &head->lock;
-		write_lock_bh(&head->lock);
+		lock = &inet_ehash_bucket(hashinfo, sk->sk_hash)->lock;
+		write_lock_bh(lock);
 	}
 
 	if (__sk_del_node_init(sk))
@@ -337,23 +344,27 @@ sherry_cache:
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
 	const __u64 __name = (((__u64)(__daddr)) << 32) | ((__u64)(__saddr));
 #endif /* __BIG_ENDIAN */
-#define INET_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
-	(((*((__u64 *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
+#define INET_MATCH(__sk, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
+	(((__sk)->sk_hash == (__hash))				&&	\
+	 ((*((__u64 *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
 	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#define INET_TW_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
-	(((*((__u64 *)&(inet_twsk(__sk)->tw_daddr))) == (__cookie)) &&	\
+#define INET_TW_MATCH(__sk, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
+	(((__sk)->sk_hash == (__hash))				&&	\
+	 ((*((__u64 *)&(inet_twsk(__sk)->tw_daddr))) == (__cookie)) &&	\
 	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #else /* 32-bit arch */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr)
-#define INET_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)	\
-	((inet_sk(__sk)->daddr		== (__saddr))		&&	\
+#define INET_MATCH(__sk, __hash, __cookie, __saddr, __daddr, __ports, __dif)	\
+	(((__sk)->sk_hash == (__hash))				&&	\
+	 (inet_sk(__sk)->daddr		== (__saddr))		&&	\
 	 (inet_sk(__sk)->rcv_saddr	== (__daddr))		&&	\
 	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#define INET_TW_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)	\
-	((inet_twsk(__sk)->tw_daddr	== (__saddr))		&&	\
+#define INET_TW_MATCH(__sk, __hash,__cookie, __saddr, __daddr, __ports, __dif)	\
+	(((__sk)->sk_hash == (__hash))				&&	\
+	 (inet_twsk(__sk)->tw_daddr	== (__saddr))		&&	\
 	 (inet_twsk(__sk)->tw_rcv_saddr	== (__daddr))		&&	\
 	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
@@ -378,18 +389,19 @@ static inline struct sock *
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	const int hash = inet_ehashfn(daddr, hnum, saddr, sport, hashinfo->ehash_size);
-	struct inet_ehash_bucket *head = &hashinfo->ehash[hash];
+	unsigned int hash = inet_ehashfn(daddr, hnum, saddr, sport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
 
+	prefetch(head->chain.first);
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
-		if (INET_MATCH(sk, acookie, saddr, daddr, ports, dif))
+		if (INET_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
 			goto hit; /* You sunk my battleship! */
 	}
 
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
-		if (INET_TW_MATCH(sk, acookie, saddr, daddr, ports, dif))
+		if (INET_TW_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
 			goto hit;
 	}
 	sk = NULL;

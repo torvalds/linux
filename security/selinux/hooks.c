@@ -630,6 +630,16 @@ static inline u16 inode_mode_to_security_class(umode_t mode)
 	return SECCLASS_FILE;
 }
 
+static inline int default_protocol_stream(int protocol)
+{
+	return (protocol == IPPROTO_IP || protocol == IPPROTO_TCP);
+}
+
+static inline int default_protocol_dgram(int protocol)
+{
+	return (protocol == IPPROTO_IP || protocol == IPPROTO_UDP);
+}
+
 static inline u16 socket_type_to_security_class(int family, int type, int protocol)
 {
 	switch (family) {
@@ -646,10 +656,16 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 	case PF_INET6:
 		switch (type) {
 		case SOCK_STREAM:
-			return SECCLASS_TCP_SOCKET;
+			if (default_protocol_stream(protocol))
+				return SECCLASS_TCP_SOCKET;
+			else
+				return SECCLASS_RAWIP_SOCKET;
 		case SOCK_DGRAM:
-			return SECCLASS_UDP_SOCKET;
-		case SOCK_RAW:
+			if (default_protocol_dgram(protocol))
+				return SECCLASS_UDP_SOCKET;
+			else
+				return SECCLASS_RAWIP_SOCKET;
+		default:
 			return SECCLASS_RAWIP_SOCKET;
 		}
 		break;
@@ -2970,6 +2986,8 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 
 	/*
 	 * If PF_INET or PF_INET6, check name_bind permission for the port.
+	 * Multiple address binding for SCTP is not supported yet: we just
+	 * check the first address now.
 	 */
 	family = sock->sk->sk_family;
 	if (family == PF_INET || family == PF_INET6) {
@@ -3014,12 +3032,12 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 				goto out;
 		}
 		
-		switch(sk->sk_protocol) {
-		case IPPROTO_TCP:
+		switch(isec->sclass) {
+		case SECCLASS_TCP_SOCKET:
 			node_perm = TCP_SOCKET__NODE_BIND;
 			break;
 			
-		case IPPROTO_UDP:
+		case SECCLASS_UDP_SOCKET:
 			node_perm = UDP_SOCKET__NODE_BIND;
 			break;
 			

@@ -153,8 +153,10 @@ static irqreturn_t smu_db_intr(int irq, void *arg, struct pt_regs *regs)
 	spin_lock_irqsave(&smu->lock, flags);
 
 	gpio = pmac_do_feature_call(PMAC_FTR_READ_GPIO, NULL, smu->doorbell);
-	if ((gpio & 7) != 7)
+	if ((gpio & 7) != 7) {
+		spin_unlock_irqrestore(&smu->lock, flags);
 		return IRQ_HANDLED;
+	}
 
 	cmd = smu->cmd_cur;
 	smu->cmd_cur = NULL;

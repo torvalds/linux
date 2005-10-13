@@ -503,9 +503,14 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
-	/* Length of the packet body */
-	/* FIXME: what if the skb is smaller than this? */
-	len = max_t(int,skb->len - ETH_HLEN, ETH_ZLEN - ETH_HLEN);
+	/* Check packet length, pad short packets, round up odd length */
+	len = max_t(int, ALIGN(skb->len, 2), ETH_ZLEN);
+	if (skb->len < len) {
+		skb = skb_padto(skb, len);
+		if (skb == NULL)
+			goto fail;
+	}
+	len -= ETH_HLEN;
 
 	eh = (struct ethhdr *)skb->data;
 
@@ -557,8 +562,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		p = skb->data;
 	}
 
-	/* Round up for odd length packets */
-	err = hermes_bap_pwrite(hw, USER_BAP, p, ALIGN(data_len, 2),
+	err = hermes_bap_pwrite(hw, USER_BAP, p, data_len,
 				txfid, data_off);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
@@ -2458,7 +2462,6 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
 	dev->get_stats = orinoco_get_stats;
 	dev->ethtool_ops = &orinoco_ethtool_ops;
-	dev->get_wireless_stats = orinoco_get_wireless_stats;
 	dev->wireless_handlers = (struct iw_handler_def *)&orinoco_handler_def;
 	dev->change_mtu = orinoco_change_mtu;
 	dev->set_multicast_list = orinoco_set_multicast_list;
@@ -4399,6 +4402,7 @@ static const struct iw_handler_def orinoco_handler_def = {
 	.standard = orinoco_handler,
 	.private = orinoco_private_handler,
 	.private_args = orinoco_privtab,
+	.get_wireless_stats = orinoco_get_wireless_stats,
 };
 
 static void orinoco_get_drvinfo(struct net_device *dev,

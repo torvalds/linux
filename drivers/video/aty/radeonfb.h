@@ -395,6 +395,8 @@ static inline void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)
 
 #define INREG8(addr)		readb((rinfo->mmio_base)+addr)
 #define OUTREG8(addr,val)	writeb(val, (rinfo->mmio_base)+addr)
+#define INREG16(addr)		readw((rinfo->mmio_base)+addr)
+#define OUTREG16(addr,val)	writew(val, (rinfo->mmio_base)+addr)
 #define INREG(addr)		readl((rinfo->mmio_base)+addr)
 #define OUTREG(addr,val)	writel(val, (rinfo->mmio_base)+addr)
 

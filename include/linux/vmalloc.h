@@ -34,8 +34,8 @@ struct vm_struct {
 extern void *vmalloc(unsigned long size);
 extern void *vmalloc_exec(unsigned long size);
 extern void *vmalloc_32(unsigned long size);
-extern void *__vmalloc(unsigned long size, unsigned int __nocast gfp_mask, pgprot_t prot);
-extern void *__vmalloc_area(struct vm_struct *area, unsigned int __nocast gfp_mask, pgprot_t prot);
+extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
+extern void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot);
 extern void vfree(void *addr);
 
 extern void *vmap(struct page **pages, unsigned int count,
