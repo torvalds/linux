@@ -14,6 +14,7 @@ obj-y				:= semaphore.o cputable.o
 obj-$(CONFIG_PPC64)		+= binfmt_elf32.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
+obj-$(CONFIG_PPC_OF)		+= of_device.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
@@ -32,7 +33,7 @@ obj-y				+= process.o init_task.o \
 				   prom.o systbl.o traps.o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= setup_64.o misc_64.o
-obj-$(CONFIG_PPC_OF)		+= prom_init.o of_device.o
+obj-$(CONFIG_PPC_OF)		+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 

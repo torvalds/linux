@@ -8,7 +8,6 @@ EXTRA_CFLAGS	+= -mno-minimal-toc
 extra-y		:= head.o vmlinux.lds
 
 obj-y               :=	setup.o entry.o misc.o prom.o
-obj-$(CONFIG_PPC_OF) +=	of_device.o
 
 endif
 
