@@ -45,7 +45,6 @@ int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
 struct controller *shpchp_ctrl_list;	/* = NULL */
-struct pci_func *shpchp_slot_list[256];
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -475,7 +474,6 @@ err_out_none:
 
 static int shpc_start_thread(void)
 {
-	int loop;
 	int retval = 0;
 	
 	dbg("Initialize + Start the notification/polling mechanism \n");
@@ -486,20 +484,11 @@ static int shpc_start_thread(void)
 		return retval;
 	}
 
-	dbg("Initialize slot lists\n");
-	/* One slot list for each bus in the system */
-	for (loop = 0; loop < 256; loop++) {
-		shpchp_slot_list[loop] = NULL;
-	}
-
 	return retval;
 }
 
 static void __exit unload_shpchpd(void)
 {
-	struct pci_func *next;
-	struct pci_func *TempSlot;
-	int loop;
 	struct controller *ctrl;
 	struct controller *tctrl;
 
@@ -517,15 +506,6 @@ static void __exit unload_shpchpd(void)
 		ctrl = ctrl->next;
 
 		kfree(tctrl);
-	}
-
-	for (loop = 0; loop < 256; loop++) {
-		next = shpchp_slot_list[loop];
-		while (next != NULL) {
-			TempSlot = next;
-			next = next->next;
-			kfree(TempSlot);
-		}
 	}
 
 	/* Stop the notification mechanism */

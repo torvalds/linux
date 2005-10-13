@@ -148,20 +148,33 @@ int shpchp_configure_device(struct slot *p_slot)
 	return 0;
 }
 
-int shpchp_unconfigure_device(struct pci_func* func) 
+int shpchp_unconfigure_device(struct slot *p_slot)
 {
 	int rc = 0;
 	int j;
+	u8 bctl = 0;
 	
-	dbg("%s: bus/dev/func = %x/%x/%x\n", __FUNCTION__, func->bus,
-				func->device, func->function);
+	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus, p_slot->device);
 
 	for (j=0; j<8 ; j++) {
-		struct pci_dev* temp = pci_find_slot(func->bus,
-				(func->device << 3) | j);
-		if (temp) {
-			pci_remove_bus_device(temp);
+		struct pci_dev* temp = pci_find_slot(p_slot->bus,
+				(p_slot->device << 3) | j);
+		if (!temp)
+			continue;
+		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
+			err("Cannot remove display device %s\n",
+					pci_name(temp));
+			continue;
 		}
+		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+			pci_read_config_byte(temp, PCI_BRIDGE_CONTROL, &bctl);
+			if (bctl & PCI_BRIDGE_CTL_VGA) {
+				err("Cannot remove display device %s\n",
+						pci_name(temp));
+				continue;
+			}
+		}
+		pci_remove_bus_device(temp);
 	}
 	return rc;
 }

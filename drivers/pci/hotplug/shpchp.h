@@ -52,34 +52,18 @@ extern int shpchp_debug;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-struct pci_func {
-	struct pci_func *next;
-	u8 bus;
-	u8 device;
-	u8 function;
-	u8 is_a_board;
-	u16 status;
-	u8 configured;
-	u8 switch_save;
-	u8 presence_save;
-	u8 pwr_save;
-	struct pci_dev* pci_dev;
-};
-
 #define SLOT_MAGIC	0x67267321
 struct slot {
 	u32 magic;
 	struct slot *next;
 	u8 bus;
 	u8 device;
+	u16 status;
 	u32 number;
 	u8 is_a_board;
-	u8 configured;
 	u8 state;
-	u8 switch_save;
 	u8 presence_save;
-	u32 capabilities;
-	u16 reserved2;
+	u8 pwr_save;
 	struct timer_list task_event;
 	u8 hp_slot;
 	struct controller *ctrl;
@@ -106,19 +90,14 @@ struct controller {
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 next_event;
-	u8 seg;
 	u8 bus;
 	u8 device;
 	u8 function;
-	u8 rev;
 	u8 slot_device_offset;
 	u8 add_support;
 	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
-	u8 push_flag;
-	u16 ctlrcap;
-	u16 vendor_id;
 };
 
 struct hotplug_params {
@@ -169,13 +148,9 @@ struct hotplug_params {
  * error Messages
  */
 #define msg_initialization_err	"Initialization failure, error=%d\n"
-#define msg_HPC_rev_error	"Unsupported revision of the PCI hot plug controller found.\n"
-#define msg_HPC_non_shpc	"The PCI hot plug controller is not supported by this driver.\n"
-#define msg_HPC_not_supported	"This system is not supported by this version of shpcphd mdoule. Upgrade to a newer version of shpchpd\n"
 #define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
-#define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
 
 /* sysfs functions for the hotplug controller info */
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
@@ -183,8 +158,6 @@ extern void shpchp_create_ctrl_files	(struct controller *ctrl);
 /* controller functions */
 extern int	shpchp_event_start_thread(void);
 extern void	shpchp_event_stop_thread(void);
-extern struct 	pci_func *shpchp_slot_create(unsigned char busnumber);
-extern struct 	pci_func *shpchp_slot_find(unsigned char bus, unsigned char device, unsigned char index);
 extern int	shpchp_enable_slot(struct slot *slot);
 extern int	shpchp_disable_slot(struct slot *slot);
 
@@ -195,9 +168,8 @@ extern u8	shpchp_handle_power_fault(u8 hp_slot, void *inst_id);
 
 /* pci functions */
 extern int	shpchp_save_config(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
-extern int	shpchp_save_slot_config(struct controller *ctrl, struct pci_func * new_slot);
 extern int	shpchp_configure_device(struct slot *p_slot);
-extern int	shpchp_unconfigure_device(struct pci_func* func);
+extern int	shpchp_unconfigure_device(struct slot *p_slot);
 extern void	get_hp_hw_control_from_firmware(struct pci_dev *dev);
 extern void	get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp);
@@ -207,7 +179,6 @@ extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
 
 /* Global variables */
 extern struct controller *shpchp_ctrl_list;
-extern struct pci_func *shpchp_slot_list[256];
 
 struct ctrl_reg {
 	volatile u32 base_offset;

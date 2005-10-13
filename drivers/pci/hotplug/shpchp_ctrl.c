@@ -54,19 +54,16 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 	struct slot *p_slot;
 	u8 rc = 0;
 	u8 getstatus;
-	struct pci_func *func;
 	struct event_info *taskInfo;
 
 	/* Attention Button Change */
 	dbg("shpchp:  Attention button interrupt received.\n");
 	
-	func = shpchp_slot_find(ctrl->slot_bus, (hp_slot + ctrl->slot_device_offset), 0);
-
 	/* This is the structure that tells the worker thread what to do */
 	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(func->presence_save));
+	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 	
 	ctrl->next_event = (ctrl->next_event + 1) % 10;
@@ -111,13 +108,10 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 	struct slot *p_slot;
 	u8 rc = 0;
 	u8 getstatus;
-	struct pci_func *func;
 	struct event_info *taskInfo;
 
 	/* Switch Change */
 	dbg("shpchp:  Switch interrupt received.\n");
-
-	func = shpchp_slot_find(ctrl->slot_bus, (hp_slot + ctrl->slot_device_offset), 0);
 
 	/* This is the structure that tells the worker thread
 	 * what to do
@@ -128,19 +122,18 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 
 	rc++;
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(func->presence_save));
+	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 	dbg("%s: Card present %x Power status %x\n", __FUNCTION__,
-		func->presence_save, func->pwr_save);
+		p_slot->presence_save, p_slot->pwr_save);
 
 	if (getstatus) {
 		/*
 		 * Switch opened
 		 */
 		info("Latch open on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		func->switch_save = 0;
 		taskInfo->event_type = INT_SWITCH_OPEN;
-		if (func->pwr_save && func->presence_save) {
+		if (p_slot->pwr_save && p_slot->presence_save) {
 			taskInfo->event_type = INT_POWER_FAULT;
 			err("Surprise Removal of card\n");
 		}
@@ -149,7 +142,6 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 		 *  Switch closed
 		 */
 		info("Latch close on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		func->switch_save = 0x10;
 		taskInfo->event_type = INT_SWITCH_CLOSE;
 	}
 
@@ -165,13 +157,10 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 	struct slot *p_slot;
 	u8 rc = 0;
 	/*u8 temp_byte;*/
-	struct pci_func *func;
 	struct event_info *taskInfo;
 
 	/* Presence Change */
 	dbg("shpchp:  Presence/Notify input change.\n");
-
-	func = shpchp_slot_find(ctrl->slot_bus, (hp_slot + ctrl->slot_device_offset), 0);
 
 	/* This is the structure that tells the worker thread
 	 * what to do
@@ -186,8 +175,8 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 	/* 
 	 * Save the presence state
 	 */
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(func->presence_save));
-	if (func->presence_save) {
+	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
+	if (p_slot->presence_save) {
 		/*
 		 * Card Present
 		 */
@@ -212,13 +201,10 @@ u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 rc = 0;
-	struct pci_func *func;
 	struct event_info *taskInfo;
 
 	/* Power fault */
 	dbg("shpchp:  Power fault interrupt received.\n");
-
-	func = shpchp_slot_find(ctrl->slot_bus, (hp_slot + ctrl->slot_device_offset), 0);
 
 	/* This is the structure that tells the worker thread
 	 * what to do
@@ -235,7 +221,7 @@ u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 		 * Power fault Cleared
 		 */
 		info("Power fault cleared on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		func->status = 0x00;
+		p_slot->status = 0x00;
 		taskInfo->event_type = INT_POWER_FAULT_CLEAR;
 	} else {
 		/*
@@ -244,186 +230,13 @@ u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 		info("Power fault on Slot(%d)\n", ctrl->first_slot + hp_slot);
 		taskInfo->event_type = INT_POWER_FAULT;
 		/* set power fault status for this board */
-		func->status = 0xFF;
+		p_slot->status = 0xFF;
 		info("power fault bit %x set\n", hp_slot);
 	}
 	if (rc)
 		up(&event_semaphore);	/* signal event thread that new event is posted */
 
 	return rc;
-}
-
-/**
- * shpchp_slot_create - Creates a node and adds it to the proper bus.
- * @busnumber - bus where new node is to be located
- *
- * Returns pointer to the new node or NULL if unsuccessful
- */
-struct pci_func *shpchp_slot_create(u8 busnumber)
-{
-	struct pci_func *new_slot;
-	struct pci_func *next;
-
-	new_slot = kmalloc(sizeof(*new_slot), GFP_KERNEL);
-
-	if (new_slot == NULL) {
-		return(new_slot);
-	}
-
-	memset(new_slot, 0, sizeof(struct pci_func));
-
-	new_slot->next = NULL;
-	new_slot->configured = 1;
-
-	if (shpchp_slot_list[busnumber] == NULL) {
-		shpchp_slot_list[busnumber] = new_slot;
-	} else {
-		next = shpchp_slot_list[busnumber];
-		while (next->next != NULL)
-			next = next->next;
-		next->next = new_slot;
-	}
-	return(new_slot);
-}
-
-
-/*
- * slot_remove - Removes a node from the linked list of slots.
- * @old_slot: slot to remove
- *
- * Returns 0 if successful, !0 otherwise.
- */
-static int slot_remove(struct pci_func * old_slot)
-{
-	struct pci_func *next;
-
-	if (old_slot == NULL)
-		return(1);
-
-	next = shpchp_slot_list[old_slot->bus];
-
-	if (next == NULL) {
-		return(1);
-	}
-
-	if (next == old_slot) {
-		shpchp_slot_list[old_slot->bus] = old_slot->next;
-		kfree(old_slot);
-		return(0);
-	}
-
-	while ((next->next != old_slot) && (next->next != NULL)) {
-		next = next->next;
-	}
-
-	if (next->next == old_slot) {
-		next->next = old_slot->next;
-		kfree(old_slot);
-		return(0);
-	} else
-		return(2);
-}
-
-
-/**
- * bridge_slot_remove - Removes a node from the linked list of slots.
- * @bridge: bridge to remove
- * @secondaryBus: secondary PCI bus number for bridge being removed
- * @subordinateBus: subordinate PCI bus number for bridge being removed
- *
- * Returns 0 if successful, !0 otherwise.
- */
-static int bridge_slot_remove(struct pci_func *bridge, u8 secondaryBus,
-		u8 subordinateBus)
-{
-	u8 tempBus;
-	struct pci_func *next;
-
-	if (bridge == NULL)
-		return(1);
-
-	for (tempBus = secondaryBus; tempBus <= subordinateBus; tempBus++) {
-		next = shpchp_slot_list[tempBus];
-
-		while (!slot_remove(next)) {
-			next = shpchp_slot_list[tempBus];
-		}
-	}
-
-	next = shpchp_slot_list[bridge->bus];
-
-	if (next == NULL) {
-		return(1);
-	}
-
-	if (next == bridge) {
-		shpchp_slot_list[bridge->bus] = bridge->next;
-		kfree(bridge);
-		return(0);
-	}
-
-	while ((next->next != bridge) && (next->next != NULL)) {
-		next = next->next;
-	}
-
-	if (next->next == bridge) {
-		next->next = bridge->next;
-		kfree(bridge);
-		return(0);
-	} else
-		return(2);
-}
-
-
-/**
- * shpchp_slot_find - Looks for a node by bus, and device, multiple functions accessed
- * @bus: bus to find
- * @device: device to find
- * @index: is 0 for first function found, 1 for the second...
- *
- * Returns pointer to the node if successful, %NULL otherwise.
- */
-struct pci_func *shpchp_slot_find(u8 bus, u8 device, u8 index)
-{
-	int found = -1;
-	struct pci_func *func;
-
-	func = shpchp_slot_list[bus];
-
-	if ((func == NULL) || ((func->device == device) && (index == 0)))
-		return(func);
-
-	if (func->device == device)
-		found++;
-
-	while (func->next != NULL) {
-		func = func->next;
-
-		if (func->device == device)
-			found++;
-
-		if (found == index)
-			return(func);
-	}
-
-	return(NULL);
-}
-
-static int is_bridge(struct pci_func *func, struct controller *ctrl)
-{
-	u8 hdr_type;
-	struct pci_bus *bus = ctrl->pci_dev->subordinate;
-
-	/*
-	 * Note: device may have just been hot-added and not yet scanned
-	 * by the pci core, so its pci_dev structure may not exist yet
-	 */
-	pci_bus_read_config_byte(bus, PCI_DEVFN(func->device, func->function),
-			PCI_HEADER_TYPE, &hdr_type);
-	if ((hdr_type & 0x7f) == PCI_HEADER_TYPE_BRIDGE)
-		return 1;
-	else
-		return 0;
 }
 
 /* The following routines constitute the bulk of the 
@@ -495,19 +308,20 @@ enum pci_bus_speed asp, enum pci_bus_speed bsp, enum pci_bus_speed msp)
  * Configures board
  *
  */
-static u32 board_added(struct pci_func * func, struct controller * ctrl)
+static u32 board_added(struct slot *p_slot)
 {
 	u8 hp_slot;
 	u8 slots_not_empty = 0;
 	u32 rc = 0;
-	struct slot *p_slot;
 	enum pci_bus_speed adapter_speed, bus_speed, max_bus_speed;
 	u8 pi, mode;
+	struct controller *ctrl = p_slot->ctrl;
 
-	p_slot = shpchp_find_slot(ctrl, func->device);
-	hp_slot = func->device - ctrl->slot_device_offset;
+	hp_slot = p_slot->device - ctrl->slot_device_offset;
 
-	dbg("%s: func->device, slot_offset, hp_slot = %d, %d ,%d\n", __FUNCTION__, func->device, ctrl->slot_device_offset, hp_slot);
+	dbg("%s: p_slot->device, slot_offset, hp_slot = %d, %d ,%d\n",
+			__FUNCTION__, p_slot->device,
+			ctrl->slot_device_offset, hp_slot);
 
 	/* Wait for exclusive access to hardware */
 	down(&ctrl->crit_sect);
@@ -699,13 +513,13 @@ static u32 board_added(struct pci_func * func, struct controller * ctrl)
 	wait_for_ctrl_irq (ctrl);
 	dbg("%s: after long_delay\n", __FUNCTION__);
 
-	dbg("%s: func status = %x\n", __FUNCTION__, func->status);
+	dbg("%s: slot status = %x\n", __FUNCTION__, p_slot->status);
 	/* Check for a power fault */
-	if (func->status == 0xFF) {
+	if (p_slot->status == 0xFF) {
 		/* power fault occurred, but it was benign */
 		dbg("%s: power fault\n", __FUNCTION__);
 		rc = POWER_FAILURE;
-		func->status = 0;
+		p_slot->status = 0;
 		goto err_exit;
 	}
 
@@ -715,10 +529,9 @@ static u32 board_added(struct pci_func * func, struct controller * ctrl)
 		goto err_exit;
 	}
 
-	func->status = 0;
-	func->switch_save = 0x10;
-	func->is_a_board = 0x01;
-	func->pwr_save = 1;
+	p_slot->status = 0;
+	p_slot->is_a_board = 0x01;
+	p_slot->pwr_save = 1;
 
 	/* Wait for exclusive access to hardware */
 	down(&ctrl->crit_sect);
@@ -767,38 +580,23 @@ err_exit:
  * remove_board - Turns off slot and LED's
  *
  */
-static u32 remove_board(struct pci_func *func, struct controller *ctrl)
+static u32 remove_board(struct slot *p_slot)
 {
-	u8 device;
+	struct controller *ctrl = p_slot->ctrl;
 	u8 hp_slot;
 	u32 rc;
-	struct slot *p_slot;
-	u8 secondary = 0, subordinate = 0;
-	int remove_bridge;
 
-	if (func == NULL)
+	if (shpchp_unconfigure_device(p_slot))
 		return(1);
 
-	if ((remove_bridge = is_bridge(func, ctrl))) {
-		/* Stash away bus information before we destroy it */
-		secondary = func->pci_dev->subordinate->secondary;
-		subordinate = func->pci_dev->subordinate->subordinate;
-	}
-
-	if (shpchp_unconfigure_device(func))
-		return(1);
-
-	device = func->device;
-
-	hp_slot = func->device - ctrl->slot_device_offset;
+	hp_slot = p_slot->device - ctrl->slot_device_offset;
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	dbg("In %s, hp_slot = %d\n", __FUNCTION__, hp_slot);
 
 	/* Change status to shutdown */
-	if (func->is_a_board)
-		func->status = 0x01;
-	func->configured = 0;
+	if (p_slot->is_a_board)
+		p_slot->status = 0x01;
 
 	/* Wait for exclusive access to hardware */
 	down(&ctrl->crit_sect);
@@ -835,36 +633,8 @@ static u32 remove_board(struct pci_func *func, struct controller *ctrl)
 	/* Done with exclusive hardware access */
 	up(&ctrl->crit_sect);
 
-	if (ctrl->add_support) {
-		while (func) {
-			if (remove_bridge) {
-				dbg("PCI Bridge Hot-Remove s:b:d:f(%02x:%02x:%02x:%02x)\n", ctrl->seg, func->bus, 
-					func->device, func->function);
-				bridge_slot_remove(func, secondary,
-						subordinate);
-			} else
-				dbg("PCI Function Hot-Remove s:b:d:f(%02x:%02x:%02x:%02x)\n", ctrl->seg, func->bus, 
-					func->device, func->function);
-				slot_remove(func);
-
-			func = shpchp_slot_find(ctrl->slot_bus, device, 0);
-		}
-
-		/* Setup slot structure with entry for empty slot */
-		func = shpchp_slot_create(ctrl->slot_bus);
-
-		if (func == NULL) {
-			return(1);
-		}
-
-		func->bus = ctrl->slot_bus;
-		func->device = device;
-		func->function = 0;
-		func->configured = 0;
-		func->switch_save = 0x10;
-		func->pwr_save = 0;
-		func->is_a_board = 0;
-	}
+	p_slot->pwr_save = 0;
+	p_slot->is_a_board = 0;
 
 	return 0;
 }
@@ -1006,7 +776,6 @@ static void interrupt_event_handler(struct controller *ctrl)
 {
 	int loop = 0;
 	int change = 1;
-	struct pci_func *func;
 	u8 hp_slot;
 	u8 getstatus;
 	struct slot *p_slot;
@@ -1021,11 +790,10 @@ static void interrupt_event_handler(struct controller *ctrl)
 					ctrl->event_queue[loop].event_type);
 				hp_slot = ctrl->event_queue[loop].hp_slot;
 
-				func = shpchp_slot_find(ctrl->slot_bus, (hp_slot + ctrl->slot_device_offset), 0);
-
 				p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-				dbg("%s: hp_slot %d, func %p, p_slot %p\n", __FUNCTION__, hp_slot, func, p_slot);
+				dbg("%s: hp_slot %d, p_slot %p\n",
+						__FUNCTION__, hp_slot, p_slot);
 
 				if (ctrl->event_queue[loop].event_type == INT_BUTTON_CANCEL) {
 					dbg("%s: button cancel\n", __FUNCTION__);
@@ -1147,13 +915,6 @@ int shpchp_enable_slot (struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	int rc;
-	struct pci_func *func;
-
-	func = shpchp_slot_find(p_slot->bus, p_slot->device, 0);
-	if (!func) {
-		dbg("%s: Error! slot NULL\n", __FUNCTION__);
-		return -ENODEV;
-	}
 
 	/* Check to see if (latch closed, card present, power off) */
 	down(&p_slot->ctrl->crit_sect);
@@ -1177,74 +938,34 @@ int shpchp_enable_slot (struct slot *p_slot)
 	}
 	up(&p_slot->ctrl->crit_sect);
 
-	slot_remove(func);
-
-	func = shpchp_slot_create(p_slot->bus);
-	if (func == NULL)
-		return -ENOMEM;
-
-	func->bus = p_slot->bus;
-	func->device = p_slot->device;
-	func->function = 0;
-	func->configured = 0;
-	func->is_a_board = 1;
+	p_slot->is_a_board = 1;
 
 	/* We have to save the presence info for these slots */
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(func->presence_save));
-	p_slot->hpc_ops->get_power_status(p_slot, &(func->pwr_save));
-	dbg("%s: func->pwr_save %x\n", __FUNCTION__, func->pwr_save);
+	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
+	p_slot->hpc_ops->get_power_status(p_slot, &(p_slot->pwr_save));
+	dbg("%s: p_slot->pwr_save %x\n", __FUNCTION__, p_slot->pwr_save);
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-	func->switch_save = !getstatus? 0x10:0;
 
-	rc = board_added(func, p_slot->ctrl);
+	rc = board_added(p_slot);
 	if (rc) {
-		if (is_bridge(func, p_slot->ctrl)) {
-			u8 secondary = func->pci_dev->subordinate->secondary;
-			u8 subordinate =
-				func->pci_dev->subordinate->subordinate;
-			bridge_slot_remove(func, secondary, subordinate);
-		} else
-			slot_remove(func);
-
-		/* Setup slot structure with entry for empty slot */
-		func = shpchp_slot_create(p_slot->bus);
-		if (func == NULL)
-			return -ENOMEM;	/* Out of memory */
-
-		func->bus = p_slot->bus;
-		func->device = p_slot->device;
-		func->function = 0;
-		func->configured = 0;
-		func->is_a_board = 1;
-
-		/* We have to save the presence info for these slots */
-		p_slot->hpc_ops->get_adapter_status(p_slot, &(func->presence_save));
+		p_slot->hpc_ops->get_adapter_status(p_slot,
+				&(p_slot->presence_save));
 		p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-		func->switch_save = !getstatus? 0x10:0;
 	}
 
-	if (p_slot)
-		update_slot_info(p_slot);
-
+	update_slot_info(p_slot);
 	return rc;
 }
 
 
 int shpchp_disable_slot (struct slot *p_slot)
 {
-	u8 class_code, header_type, BCR;
-	u8 index = 0;
 	u8 getstatus = 0;
 	u32 rc = 0;
 	int ret = 0;
-	unsigned int devfn;
-	struct pci_bus *pci_bus;
-	struct pci_func *func;
 
 	if (!p_slot->ctrl)
 		return -ENODEV;
-
-	pci_bus = p_slot->ctrl->pci_dev->subordinate;
 
 	/* Check to see if (latch closed, card present, power on) */
 	down(&p_slot->ctrl->crit_sect);
@@ -1269,54 +990,8 @@ int shpchp_disable_slot (struct slot *p_slot)
 	}
 	up(&p_slot->ctrl->crit_sect);
 
-	func = shpchp_slot_find(p_slot->bus, p_slot->device, index++);
-
-	/* Make sure there are no video controllers here
-	 * for all func of p_slot
-	 */
-	while (func && !rc) {
-		pci_bus->number = func->bus;
-		devfn = PCI_DEVFN(func->device, func->function);
-
-		/* Check the Class Code */
-		rc = pci_bus_read_config_byte (pci_bus, devfn, 0x0B, &class_code);
-		if (rc)
-			return -ENODEV;
-
-		if (class_code == PCI_BASE_CLASS_DISPLAY) {
-			/* Display/Video adapter (not supported) */
-			rc = REMOVE_NOT_SUPPORTED;
-		} else {
-			/* See if it's a bridge */
-			rc = pci_bus_read_config_byte (pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
-			if (rc)
-				return -ENODEV;
-
-			/* If it's a bridge, check the VGA Enable bit */
-			if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
-				rc = pci_bus_read_config_byte (pci_bus, devfn, PCI_BRIDGE_CONTROL, &BCR);
-				if (rc)
-					return -ENODEV;
-
-				/* If the VGA Enable bit is set, remove isn't supported */
-				if (BCR & PCI_BRIDGE_CTL_VGA) {
-					rc = REMOVE_NOT_SUPPORTED;
-				}
-			}
-		}
-
-		func = shpchp_slot_find(p_slot->bus, p_slot->device, index++);
-	}
-
-	func = shpchp_slot_find(p_slot->bus, p_slot->device, 0);
-	if ((func != NULL) && !rc) {
-		rc = remove_board(func, p_slot->ctrl);
-	} else if (!rc)
-		rc = -ENODEV;
-
-	if (p_slot)
-		update_slot_info(p_slot);
-
+	rc = remove_board(p_slot);
+	update_slot_info(p_slot);
 	return rc;
 }
 
