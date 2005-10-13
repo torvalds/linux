@@ -839,6 +839,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
 	req->rq_xid     = xprt_alloc_xid(xprt);
+	req->rq_release_snd_buf = NULL;
 	dprintk("RPC: %4d reserved req %p xid %08x\n", task->tk_pid,
 			req, ntohl(req->rq_xid));
 }
@@ -867,6 +868,8 @@ void xprt_release(struct rpc_task *task)
 				xprt->last_used + xprt->idle_timeout);
 	spin_unlock_bh(&xprt->transport_lock);
 	task->tk_rqstp = NULL;
+	if (req->rq_release_snd_buf)
+		req->rq_release_snd_buf(req);
 	memset(req, 0, sizeof(*req));	/* mark unused */
 
 	dprintk("RPC: %4d release request %p\n", task->tk_pid, req);

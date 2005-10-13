@@ -73,7 +73,10 @@ struct rpc_rqst {
 	int			rq_cong;	/* has incremented xprt->cong */
 	int			rq_received;	/* receive completed */
 	u32			rq_seqno;	/* gss seq no. used on req. */
-
+	int			rq_enc_pages_num;
+	struct page		**rq_enc_pages;	/* scratch pages for use by
+						   gss privacy code */
+	void (*rq_release_snd_buf)(struct rpc_rqst *); /* release rq_enc_pages */
 	struct list_head	rq_list;
 
 	struct xdr_buf		rq_private_buf;		/* The receive buffer
