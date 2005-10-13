@@ -1917,8 +1917,8 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	/* "global suspend" of the downstream HC-to-USB interface */
 	if (!hdev->parent) {
 		struct usb_bus	*bus = hdev->bus;
-		if (bus && bus->op->hub_suspend) {
-			int	status = bus->op->hub_suspend (bus);
+		if (bus) {
+			int	status = hcd_bus_suspend (bus);
 
 			if (status != 0) {
 				dev_dbg(&hdev->dev, "'global' suspend %d\n",
@@ -1943,8 +1943,8 @@ static int hub_resume(struct usb_interface *intf)
 	/* "global resume" of the downstream HC-to-USB interface */
 	if (!hdev->parent) {
 		struct usb_bus	*bus = hdev->bus;
-		if (bus && bus->op->hub_resume) {
-			status = bus->op->hub_resume (bus);
+		if (bus) {
+			status = hcd_bus_resume (bus);
 			if (status) {
 				dev_dbg(&intf->dev, "'global' resume %d\n",
 					status);

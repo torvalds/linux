@@ -1160,7 +1160,7 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 
 #ifdef	CONFIG_PM
 
-static int isp116x_hub_suspend(struct usb_hcd *hcd)
+static int isp116x_bus_suspend(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	unsigned long flags;
@@ -1200,7 +1200,7 @@ static int isp116x_hub_suspend(struct usb_hcd *hcd)
 	return ret;
 }
 
-static int isp116x_hub_resume(struct usb_hcd *hcd)
+static int isp116x_bus_resume(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	u32 val;
@@ -1266,8 +1266,8 @@ static int isp116x_hub_resume(struct usb_hcd *hcd)
 
 #else
 
-#define	isp116x_hub_suspend	NULL
-#define	isp116x_hub_resume	NULL
+#define	isp116x_bus_suspend	NULL
+#define	isp116x_bus_resume	NULL
 
 #endif
 
@@ -1626,8 +1626,8 @@ static struct hc_driver isp116x_hc_driver = {
 
 	.hub_status_data = isp116x_hub_status_data,
 	.hub_control = isp116x_hub_control,
-	.hub_suspend = isp116x_hub_suspend,
-	.hub_resume = isp116x_hub_resume,
+	.bus_suspend = isp116x_bus_suspend,
+	.bus_resume = isp116x_bus_resume,
 };
 
 /*----------------------------------------------------------------*/

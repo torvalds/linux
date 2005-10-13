@@ -1751,7 +1751,7 @@ static int dummy_hub_control (
 	return retval;
 }
 
-static int dummy_hub_suspend (struct usb_hcd *hcd)
+static int dummy_bus_suspend (struct usb_hcd *hcd)
 {
 	struct dummy *dum = hcd_to_dummy (hcd);
 
@@ -1762,7 +1762,7 @@ static int dummy_hub_suspend (struct usb_hcd *hcd)
 	return 0;
 }
 
-static int dummy_hub_resume (struct usb_hcd *hcd)
+static int dummy_bus_resume (struct usb_hcd *hcd)
 {
 	struct dummy *dum = hcd_to_dummy (hcd);
 
@@ -1894,8 +1894,8 @@ static const struct hc_driver dummy_hcd = {
 
 	.hub_status_data = 	dummy_hub_status,
 	.hub_control = 		dummy_hub_control,
-	.hub_suspend =		dummy_hub_suspend,
-	.hub_resume =		dummy_hub_resume,
+	.bus_suspend =		dummy_bus_suspend,
+	.bus_resume =		dummy_bus_resume,
 };
 
 static int dummy_hcd_probe (struct device *dev)
@@ -1936,13 +1936,6 @@ static int dummy_hcd_suspend (struct device *dev, pm_message_t state)
 	dev_dbg (dev, "%s\n", __FUNCTION__);
 	hcd = dev_get_drvdata (dev);
 
-#ifndef CONFIG_USB_SUSPEND
-	/* Otherwise this would never happen */
-	usb_lock_device (hcd->self.root_hub);
-	dummy_hub_suspend (hcd);
-	usb_unlock_device (hcd->self.root_hub);
-#endif
-
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;
 }
@@ -1954,13 +1947,6 @@ static int dummy_hcd_resume (struct device *dev)
 	dev_dbg (dev, "%s\n", __FUNCTION__);
 	hcd = dev_get_drvdata (dev);
 	hcd->state = HC_STATE_RUNNING;
-
-#ifndef CONFIG_USB_SUSPEND
-	/* Otherwise this would never happen */
-	usb_lock_device (hcd->self.root_hub);
-	dummy_hub_resume (hcd);
-	usb_unlock_device (hcd->self.root_hub);
-#endif
 
 	usb_hcd_poll_rh_status (hcd);
 	return 0;

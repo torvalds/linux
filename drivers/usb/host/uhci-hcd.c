@@ -804,8 +804,8 @@ static const struct hc_driver uhci_driver = {
 #ifdef CONFIG_PM
 	.suspend =		uhci_suspend,
 	.resume =		uhci_resume,
-	.hub_suspend =		uhci_rh_suspend,
-	.hub_resume =		uhci_rh_resume,
+	.bus_suspend =		uhci_rh_suspend,
+	.bus_resume =		uhci_rh_resume,
 #endif
 	.stop =			uhci_stop,
 

@@ -1433,16 +1433,16 @@ rescan:
 
 #ifdef	CONFIG_PM
 
-static int hcd_hub_suspend (struct usb_bus *bus)
+int hcd_bus_suspend (struct usb_bus *bus)
 {
 	struct usb_hcd		*hcd;
 	int			status;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (!hcd->driver->hub_suspend)
+	if (!hcd->driver->bus_suspend)
 		return -ENOENT;
 	hcd->state = HC_STATE_QUIESCING;
-	status = hcd->driver->hub_suspend (hcd);
+	status = hcd->driver->bus_suspend (hcd);
 	if (status == 0)
 		hcd->state = HC_STATE_SUSPENDED;
 	else
@@ -1451,18 +1451,18 @@ static int hcd_hub_suspend (struct usb_bus *bus)
 	return status;
 }
 
-static int hcd_hub_resume (struct usb_bus *bus)
+int hcd_bus_resume (struct usb_bus *bus)
 {
 	struct usb_hcd		*hcd;
 	int			status;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (!hcd->driver->hub_resume)
+	if (!hcd->driver->bus_resume)
 		return -ENOENT;
 	if (hcd->state == HC_STATE_RUNNING)
 		return 0;
 	hcd->state = HC_STATE_RESUMING;
-	status = hcd->driver->hub_resume (hcd);
+	status = hcd->driver->bus_resume (hcd);
 	if (status == 0)
 		hcd->state = HC_STATE_RUNNING;
 	else {
@@ -1590,10 +1590,6 @@ static struct usb_operations usb_hcd_operations = {
 	.buffer_alloc =		hcd_buffer_alloc,
 	.buffer_free =		hcd_buffer_free,
 	.disable =		hcd_endpoint_disable,
-#ifdef	CONFIG_PM
-	.hub_suspend =		hcd_hub_suspend,
-	.hub_resume =		hcd_hub_resume,
-#endif
 };
 
 /*-------------------------------------------------------------------------*/

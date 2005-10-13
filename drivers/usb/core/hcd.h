@@ -154,10 +154,6 @@ struct usb_operations {
 
 	void (*disable)(struct usb_device *udev,
 			struct usb_host_endpoint *ep);
-
-	/* global suspend/resume of bus */
-	int (*hub_suspend)(struct usb_bus *);
-	int (*hub_resume)(struct usb_bus *);
 };
 
 /* each driver provides one of these, and hardware init support */
@@ -212,8 +208,8 @@ struct hc_driver {
 	int		(*hub_control) (struct usb_hcd *hcd,
 				u16 typeReq, u16 wValue, u16 wIndex,
 				char *buf, u16 wLength);
-	int		(*hub_suspend)(struct usb_hcd *);
-	int		(*hub_resume)(struct usb_hcd *);
+	int		(*bus_suspend)(struct usb_hcd *);
+	int		(*bus_resume)(struct usb_hcd *);
 	int		(*start_port_reset)(struct usb_hcd *, unsigned port_num);
 	void		(*hub_irq_enable)(struct usb_hcd *);
 		/* Needed only if port-change IRQs are level-triggered */
@@ -378,6 +374,21 @@ extern int usb_find_interface_driver (struct usb_device *dev,
 	struct usb_interface *interface);
 
 #define usb_endpoint_out(ep_dir)	(!((ep_dir) & USB_DIR_IN))
+
+#ifdef CONFIG_PM
+extern int hcd_bus_suspend (struct usb_bus *bus);
+extern int hcd_bus_resume (struct usb_bus *bus);
+#else
+static inline int hcd_bus_suspend(struct usb_bus *bus)
+{
+	return 0;
+}
+
+static inline int hcd_bus_resume (struct usb_bus *bus)
+{
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 /*
  * USB device fs stuff

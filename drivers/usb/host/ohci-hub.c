@@ -45,7 +45,7 @@ static void dl_done_list (struct ohci_hcd *, struct pt_regs *);
 static void finish_unlinks (struct ohci_hcd *, u16 , struct pt_regs *);
 static int ohci_restart (struct ohci_hcd *ohci);
 
-static int ohci_hub_suspend (struct usb_hcd *hcd)
+static int ohci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	int			status = 0;
@@ -135,7 +135,7 @@ static inline struct ed *find_head (struct ed *ed)
 }
 
 /* caller has locked the root hub */
-static int ohci_hub_resume (struct usb_hcd *hcd)
+static int ohci_bus_resume (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	u32			temp, enables;
@@ -362,7 +362,7 @@ done:
 			&& usb_trylock_device (hcd->self.root_hub)
 			) {
 		ohci_vdbg (ohci, "autosuspend\n");
-		(void) ohci_hub_suspend (hcd);
+		(void) ohci_bus_suspend (hcd);
 		usb_unlock_device (hcd->self.root_hub);
 	}
 #endif
