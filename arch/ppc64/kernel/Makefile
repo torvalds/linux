@@ -8,6 +8,7 @@ EXTRA_CFLAGS	+= -mno-minimal-toc
 extra-y		:= head.o vmlinux.lds
 
 obj-y               :=	setup.o entry.o misc.o prom.o
+obj-$(CONFIG_PPC_OF) +=	of_device.o
 
 endif
 
@@ -19,8 +20,6 @@ obj-y               +=	irq.o idle.o dma.o \
 			cpu_setup_power4.o \
 			iommu.o sysfs.o vdso.o pmc.o firmware.o
 obj-y += vdso32/ vdso64/
-
-obj-$(CONFIG_PPC_OF) +=	of_device.o
 
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
 
