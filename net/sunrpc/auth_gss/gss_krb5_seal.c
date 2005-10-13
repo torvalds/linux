@@ -71,7 +71,7 @@
 #endif
 
 u32
-krb5_make_token(struct krb5_ctx *ctx, int qop_req,
+krb5_make_token(struct krb5_ctx *ctx,
 		   struct xdr_buf *text, struct xdr_netobj *token)
 {
 	s32			checksum_type;
@@ -82,9 +82,6 @@ krb5_make_token(struct krb5_ctx *ctx, int qop_req,
 	dprintk("RPC:     gss_krb5_seal\n");
 
 	now = get_seconds();
-
-	if (qop_req != 0)
-		goto out_err;
 
 	switch (ctx->signalg) {
 		case SGN_ALG_DES_MAC_MD5:

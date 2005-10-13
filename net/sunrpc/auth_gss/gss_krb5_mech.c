@@ -193,15 +193,12 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 static u32
 gss_verify_mic_kerberos(struct gss_ctx		*ctx,
 			struct xdr_buf		*message,
-			struct xdr_netobj	*mic_token,
-			u32			*qstate) {
+			struct xdr_netobj	*mic_token)
+{
 	u32 maj_stat = 0;
-	int qop_state;
 	struct krb5_ctx *kctx = ctx->internal_ctx_id;
 
-	maj_stat = krb5_read_token(kctx, mic_token, message, &qop_state);
-	if (!maj_stat && qop_state)
-	    *qstate = qop_state;
+	maj_stat = krb5_read_token(kctx, mic_token, message);
 
 	dprintk("RPC:      gss_verify_mic_kerberos returning %d\n", maj_stat);
 	return maj_stat;
@@ -209,13 +206,12 @@ gss_verify_mic_kerberos(struct gss_ctx		*ctx,
 
 static u32
 gss_get_mic_kerberos(struct gss_ctx	*ctx,
-		     u32		qop,
 		     struct xdr_buf 	*message,
 		     struct xdr_netobj	*mic_token) {
 	u32 err = 0;
 	struct krb5_ctx *kctx = ctx->internal_ctx_id;
 
-	err = krb5_make_token(kctx, qop, message, mic_token);
+	err = krb5_make_token(kctx, message, mic_token);
 
 	dprintk("RPC:      gss_get_mic_kerberos returning %d\n",err);
 

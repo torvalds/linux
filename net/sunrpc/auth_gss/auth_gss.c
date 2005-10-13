@@ -854,9 +854,7 @@ gss_marshal(struct rpc_task *task, u32 *p)
 	*p++ = htonl(RPC_AUTH_GSS);
 
 	mic.data = (u8 *)(p + 1);
-	maj_stat = gss_get_mic(ctx->gc_gss_ctx,
-			       GSS_C_QOP_DEFAULT, 
-			       &verf_buf, &mic);
+	maj_stat = gss_get_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED) {
 		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
 	} else if (maj_stat != 0) {
@@ -888,7 +886,7 @@ gss_validate(struct rpc_task *task, u32 *p)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
-	u32		seq, qop_state;
+	u32		seq;
 	struct kvec	iov;
 	struct xdr_buf	verf_buf;
 	struct xdr_netobj mic;
@@ -909,7 +907,7 @@ gss_validate(struct rpc_task *task, u32 *p)
 	mic.data = (u8 *)p;
 	mic.len = len;
 
-	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic, &qop_state);
+	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
 	if (maj_stat)
@@ -961,8 +959,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	p = iov->iov_base + iov->iov_len;
 	mic.data = (u8 *)(p + 1);
 
-	maj_stat = gss_get_mic(ctx->gc_gss_ctx,
-			GSS_C_QOP_DEFAULT, &integ_buf, &mic);
+	maj_stat = gss_get_mic(ctx->gc_gss_ctx, &integ_buf, &mic);
 	status = -EIO; /* XXX? */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
@@ -1057,8 +1054,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 		memcpy(tmp, snd_buf->tail[0].iov_base, snd_buf->tail[0].iov_len);
 		snd_buf->tail[0].iov_base = tmp;
 	}
-	maj_stat = gss_wrap(ctx->gc_gss_ctx, GSS_C_QOP_DEFAULT, offset,
-				snd_buf, inpages);
+	maj_stat = gss_wrap(ctx->gc_gss_ctx, offset, snd_buf, inpages);
 	/* RPC_SLACK_SPACE should prevent this ever happening: */
 	BUG_ON(snd_buf->len > snd_buf->buflen);
         status = -EIO;
@@ -1150,8 +1146,7 @@ gss_unwrap_resp_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	if (xdr_buf_read_netobj(rcv_buf, &mic, mic_offset))
 		return status;
 
-	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &integ_buf,
-			&mic, NULL);
+	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &integ_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
 	if (maj_stat != GSS_S_COMPLETE)
@@ -1176,8 +1171,7 @@ gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	/* remove padding: */
 	rcv_buf->len = offset + opaque_len;
 
-	maj_stat = gss_unwrap(ctx->gc_gss_ctx, NULL,
-			offset, rcv_buf);
+	maj_stat = gss_unwrap(ctx->gc_gss_ctx, offset, rcv_buf);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
 	if (maj_stat != GSS_S_COMPLETE)

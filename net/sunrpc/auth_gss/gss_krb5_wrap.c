@@ -116,7 +116,7 @@ make_confounder(char *p, int blocksize)
 /* XXX factor out common code with seal/unseal. */
 
 u32
-gss_wrap_kerberos(struct gss_ctx *ctx, u32 qop, int offset,
+gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		struct xdr_buf *buf, struct page **pages)
 {
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
@@ -131,9 +131,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, u32 qop, int offset,
 	dprintk("RPC:     gss_wrap_kerberos\n");
 
 	now = get_seconds();
-
-	if (qop != 0)
-		goto out_err;
 
 	switch (kctx->signalg) {
 		case SGN_ALG_DES_MAC_MD5:
@@ -229,8 +226,7 @@ out_err:
 }
 
 u32
-gss_unwrap_kerberos(struct gss_ctx *ctx, u32 *qop, int offset,
-			struct xdr_buf *buf)
+gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 {
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
 	int			signalg;
@@ -327,9 +323,6 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, u32 *qop, int offset,
 	}
 
 	/* it got through unscathed.  Make sure the context is unexpired */
-
-	if (qop)
-		*qop = GSS_C_QOP_DEFAULT;
 
 	now = get_seconds();
 
