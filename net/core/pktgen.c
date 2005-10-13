@@ -3065,11 +3065,8 @@ static int __init pg_init(void)
 	/* Register us to receive netdevice events */
 	register_netdevice_notifier(&pktgen_notifier_block);
         
-	for (cpu = 0; cpu < NR_CPUS ; cpu++) {
+	for_each_online_cpu(cpu) {
 		char buf[30];
-
-		if (!cpu_online(cpu))
-			continue;
 
                 sprintf(buf, "kpktgend_%i", cpu);
                 pktgen_create_thread(buf, cpu);
