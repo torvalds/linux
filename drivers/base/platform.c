@@ -17,6 +17,8 @@
 #include <linux/bootmem.h>
 #include <linux/err.h>
 
+#include "base.h"
+
 struct device platform_bus = {
 	.bus_id		= "platform",
 };
