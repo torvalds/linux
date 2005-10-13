@@ -583,9 +583,15 @@ int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 {
 	struct ib_sa_path_query *query;
 	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
-	struct ib_sa_port   *port   = &sa_dev->port[port_num - sa_dev->start_port];
-	struct ib_mad_agent *agent  = port->agent;
+	struct ib_sa_port   *port;
+	struct ib_mad_agent *agent;
 	int ret;
+
+	if (!sa_dev)
+		return -ENODEV;
+
+	port  = &sa_dev->port[port_num - sa_dev->start_port];
+	agent = port->agent;
 
 	query = kmalloc(sizeof *query, gfp_mask);
 	if (!query)
@@ -685,9 +691,15 @@ int ib_sa_service_rec_query(struct ib_device *device, u8 port_num, u8 method,
 {
 	struct ib_sa_service_query *query;
 	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
-	struct ib_sa_port   *port   = &sa_dev->port[port_num - sa_dev->start_port];
-	struct ib_mad_agent *agent  = port->agent;
+	struct ib_sa_port   *port;
+	struct ib_mad_agent *agent;
 	int ret;
+
+	if (!sa_dev)
+		return -ENODEV;
+
+	port  = &sa_dev->port[port_num - sa_dev->start_port];
+	agent = port->agent;
 
 	if (method != IB_MGMT_METHOD_GET &&
 	    method != IB_MGMT_METHOD_SET &&
@@ -768,9 +780,15 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 {
 	struct ib_sa_mcmember_query *query;
 	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
-	struct ib_sa_port   *port   = &sa_dev->port[port_num - sa_dev->start_port];
-	struct ib_mad_agent *agent  = port->agent;
+	struct ib_sa_port   *port;
+	struct ib_mad_agent *agent;
 	int ret;
+
+	if (!sa_dev)
+		return -ENODEV;
+
+	port  = &sa_dev->port[port_num - sa_dev->start_port];
+	agent = port->agent;
 
 	query = kmalloc(sizeof *query, gfp_mask);
 	if (!query)
