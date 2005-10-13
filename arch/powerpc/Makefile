@@ -51,6 +51,8 @@ OLDARCH	:= ppc
 SZ	:= 32
 endif
 
+UTS_MACHINE := $(OLDARCH)
+
 ifeq ($(HAS_BIARCH),y)
 override AS	+= -a$(SZ)
 override LD	+= -m elf$(SZ)ppc
