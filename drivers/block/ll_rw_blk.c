@@ -2433,6 +2433,9 @@ void disk_round_stats(struct gendisk *disk)
 {
 	unsigned long now = jiffies;
 
+	if (now == disk->stamp)
+		return;
+
 	if (disk->in_flight) {
 		__disk_stat_add(disk, time_in_queue,
 				disk->in_flight * (now - disk->stamp));
