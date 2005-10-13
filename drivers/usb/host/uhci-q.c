@@ -108,13 +108,16 @@ static void uhci_insert_td_frame_list(struct uhci_hcd *uhci, struct uhci_td *td,
 	}
 }
 
-static void uhci_remove_td(struct uhci_hcd *uhci, struct uhci_td *td)
+static inline void uhci_remove_td_frame_list(struct uhci_hcd *uhci,
+		struct uhci_td *td)
 {
 	/* If it's not inserted, don't remove it */
-	if (td->frame == -1 && list_empty(&td->fl_list))
+	if (td->frame == -1) {
+		WARN_ON(!list_empty(&td->fl_list));
 		return;
+	}
 
-	if (td->frame != -1 && uhci->frame_cpu[td->frame] == td) {
+	if (uhci->frame_cpu[td->frame] == td) {
 		if (list_empty(&td->fl_list)) {
 			uhci->frame[td->frame] = td->link;
 			uhci->frame_cpu[td->frame] = NULL;
@@ -132,11 +135,18 @@ static void uhci_remove_td(struct uhci_hcd *uhci, struct uhci_td *td)
 		ptd->link = td->link;
 	}
 
-	wmb();
-	td->link = UHCI_PTR_TERM;
-
 	list_del_init(&td->fl_list);
 	td->frame = -1;
+}
+
+static void unlink_isochronous_tds(struct uhci_hcd *uhci, struct urb *urb)
+{
+	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
+	struct uhci_td *td;
+
+	list_for_each_entry(td, &urbp->td_list, list)
+		uhci_remove_td_frame_list(uhci, td);
+	wmb();
 }
 
 /*
@@ -498,7 +508,6 @@ static void uhci_destroy_urb_priv(struct uhci_hcd *uhci, struct urb *urb)
 
 	list_for_each_entry_safe(td, tmp, &urbp->td_list, list) {
 		uhci_remove_td_from_urb(td);
-		uhci_remove_td(uhci, td);
 		list_add(&td->remove_list, &uhci->td_remove_list);
 	}
 
@@ -1068,6 +1077,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 	struct uhci_td *td;
 	int i, ret, frame;
 	int status, destination;
+	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 
 	status = TD_CTRL_ACTIVE | TD_CTRL_IOS;
 	destination = (urb->pipe & PIPE_DEVEP_MASK) | usb_packetid(urb->pipe);
@@ -1076,11 +1086,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 	if (ret)
 		return ret;
 
-	frame = urb->start_frame;
-	for (i = 0; i < urb->number_of_packets; i++, frame += urb->interval) {
-		if (!urb->iso_frame_desc[i].length)
-			continue;
-
+	for (i = 0; i < urb->number_of_packets; i++) {
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
@@ -1091,8 +1097,12 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 
 		if (i + 1 >= urb->number_of_packets)
 			td->status |= cpu_to_le32(TD_CTRL_IOC);
+	}
 
+	frame = urb->start_frame;
+	list_for_each_entry(td, &urbp->td_list, list) {
 		uhci_insert_td_frame_list(uhci, td, frame);
+		frame += urb->interval;
 	}
 
 	return -EINPROGRESS;
@@ -1105,7 +1115,7 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 	int status;
 	int i, ret = 0;
 
-	urb->actual_length = 0;
+	urb->actual_length = urb->error_count = 0;
 
 	i = 0;
 	list_for_each_entry(td, &urbp->td_list, list) {
@@ -1129,6 +1139,7 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 
 		i++;
 	}
+	unlink_isochronous_tds(uhci, urb);
 
 	return ret;
 }
@@ -1361,6 +1372,8 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 		goto done;
 	list_del_init(&urbp->urb_list);
 
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+		unlink_isochronous_tds(uhci, urb);
 	uhci_unlink_generic(uhci, urb);
 
 	uhci_get_current_frame_number(uhci);
