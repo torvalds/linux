@@ -710,9 +710,16 @@ call_encode(struct rpc_task *task)
 		rpc_exit(task, -EIO);
 		return;
 	}
-	if (encode != NULL)
-		task->tk_status = rpcauth_wrap_req(task, encode, req, p,
-				task->tk_msg.rpc_argp);
+	if (encode == NULL)
+		return;
+
+	task->tk_status = rpcauth_wrap_req(task, encode, req, p,
+			task->tk_msg.rpc_argp);
+	if (task->tk_status == -ENOMEM) {
+		/* XXX: Is this sane? */
+		rpc_delay(task, 3*HZ);
+		task->tk_status = -EAGAIN;
+	}
 }
 
 /*
