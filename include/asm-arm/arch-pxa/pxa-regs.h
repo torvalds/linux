@@ -126,8 +126,8 @@
 #define DRCMR12		__REG(0x40000130)  /* Request to Channel Map Register for AC97 audio transmit Request */
 #define DRCMR13		__REG(0x40000134)  /* Request to Channel Map Register for SSP receive Request */
 #define DRCMR14		__REG(0x40000138)  /* Request to Channel Map Register for SSP transmit Request */
-#define DRCMR15		__REG(0x4000013c)  /* Reserved */
-#define DRCMR16		__REG(0x40000140)  /* Reserved */
+#define DRCMR15		__REG(0x4000013c)  /* Request to Channel Map Register for SSP2 receive Request */
+#define DRCMR16		__REG(0x40000140)  /* Request to Channel Map Register for SSP2 transmit Request */
 #define DRCMR17		__REG(0x40000144)  /* Request to Channel Map Register for ICP receive Request */
 #define DRCMR18		__REG(0x40000148)  /* Request to Channel Map Register for ICP transmit Request */
 #define DRCMR19		__REG(0x4000014c)  /* Request to Channel Map Register for STUART receive Request */
@@ -151,7 +151,8 @@
 #define DRCMR37		__REG(0x40000194)  /* Request to Channel Map Register for USB endpoint 13 Request */
 #define DRCMR38		__REG(0x40000198)  /* Request to Channel Map Register for USB endpoint 14 Request */
 #define DRCMR39		__REG(0x4000019C)  /* Reserved */
-
+#define DRCMR66		__REG(0x40001108)  /* Request to Channel Map Register for SSP3 receive Request */
+#define DRCMR67		__REG(0x4000110C)  /* Request to Channel Map Register for SSP3 transmit Request */
 #define DRCMR68		__REG(0x40001110)  /* Request to Channel Map Register for Camera FIFO 0 Request */
 #define DRCMR69		__REG(0x40001114)  /* Request to Channel Map Register for Camera FIFO 1 Request */
 #define DRCMR70		__REG(0x40001118)  /* Request to Channel Map Register for Camera FIFO 2 Request */

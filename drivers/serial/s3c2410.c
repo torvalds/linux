@@ -1092,8 +1092,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 static int probe_index = 0;
 
-int s3c24xx_serial_probe(struct device *_dev,
-			 struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_probe(struct device *_dev,
+				struct s3c24xx_uart_info *info)
 {
 	struct s3c24xx_uart_port *ourport;
 	struct platform_device *dev = to_platform_device(_dev);
@@ -1120,7 +1120,7 @@ int s3c24xx_serial_probe(struct device *_dev,
 	return ret;
 }
 
-int s3c24xx_serial_remove(struct device *_dev)
+static int s3c24xx_serial_remove(struct device *_dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(_dev);
 
@@ -1134,7 +1134,8 @@ int s3c24xx_serial_remove(struct device *_dev)
 
 #ifdef CONFIG_PM
 
-int s3c24xx_serial_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c24xx_serial_suspend(struct device *dev, pm_message_t state,
+				  u32 level)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 
@@ -1144,7 +1145,7 @@ int s3c24xx_serial_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-int s3c24xx_serial_resume(struct device *dev, u32 level)
+static int s3c24xx_serial_resume(struct device *dev, u32 level)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -1165,8 +1166,8 @@ int s3c24xx_serial_resume(struct device *dev, u32 level)
 #define s3c24xx_serial_resume  NULL
 #endif
 
-int s3c24xx_serial_init(struct device_driver *drv,
-			struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_init(struct device_driver *drv,
+			       struct s3c24xx_uart_info *info)
 {
 	dbg("s3c24xx_serial_init(%p,%p)\n", drv, info);
 	return driver_register(drv);
