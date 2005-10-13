@@ -139,6 +139,82 @@ buf_to_sg(struct scatterlist *sg, char *ptr, int len) {
 	sg->length = len;
 }
 
+static int
+process_xdr_buf(struct xdr_buf *buf, int offset, int len,
+		int (*actor)(struct scatterlist *, void *), void *data)
+{
+	int i, page_len, thislen, page_offset, ret = 0;
+	struct scatterlist	sg[1];
+
+	if (offset >= buf->head[0].iov_len) {
+		offset -= buf->head[0].iov_len;
+	} else {
+		thislen = buf->head[0].iov_len - offset;
+		if (thislen > len)
+			thislen = len;
+		buf_to_sg(sg, buf->head[0].iov_base + offset, thislen);
+		ret = actor(sg, data);
+		if (ret)
+			goto out;
+		offset = 0;
+		len -= thislen;
+	}
+	if (len == 0)
+		goto out;
+
+	if (offset >= buf->page_len) {
+		offset -= buf->page_len;
+	} else {
+		page_len = buf->page_len - offset;
+		if (page_len > len)
+			page_len = len;
+		len -= page_len;
+		page_offset = (offset + buf->page_base) & (PAGE_CACHE_SIZE - 1);
+		i = (offset + buf->page_base) >> PAGE_CACHE_SHIFT;
+		thislen = PAGE_CACHE_SIZE - page_offset;
+		do {
+			if (thislen > page_len)
+				thislen = page_len;
+			sg->page = buf->pages[i];
+			sg->offset = page_offset;
+			sg->length = thislen;
+			ret = actor(sg, data);
+			if (ret)
+				goto out;
+			page_len -= thislen;
+			i++;
+			page_offset = 0;
+			thislen = PAGE_CACHE_SIZE;
+		} while (page_len != 0);
+		offset = 0;
+	}
+	if (len == 0)
+		goto out;
+
+	if (offset < buf->tail[0].iov_len) {
+		thislen = buf->tail[0].iov_len - offset;
+		if (thislen > len)
+			thislen = len;
+		buf_to_sg(sg, buf->tail[0].iov_base + offset, thislen);
+		ret = actor(sg, data);
+		len -= thislen;
+	}
+	if (len != 0)
+		ret = -EINVAL;
+out:
+	return ret;
+}
+
+static int
+checksummer(struct scatterlist *sg, void *data)
+{
+	struct crypto_tfm *tfm = (struct crypto_tfm *)data;
+
+	crypto_digest_update(tfm, sg, 1);
+
+	return 0;
+}
+
 /* checksum the plaintext data and hdrlen bytes of the token header */
 s32
 make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
@@ -148,8 +224,6 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	struct crypto_tfm               *tfm = NULL; /* XXX add to ctx? */
 	struct scatterlist              sg[1];
 	u32                             code = GSS_S_FAILURE;
-	int				len, thislen, offset;
-	int				i;
 
 	switch (cksumtype) {
 		case CKSUMTYPE_RSA_MD5:
@@ -169,33 +243,7 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	crypto_digest_init(tfm);
 	buf_to_sg(sg, header, hdrlen);
 	crypto_digest_update(tfm, sg, 1);
-	if (body->head[0].iov_len) {
-		buf_to_sg(sg, body->head[0].iov_base, body->head[0].iov_len);
-		crypto_digest_update(tfm, sg, 1);
-	}
-
-	len = body->page_len;
-	if (len != 0) {
-		offset = body->page_base & (PAGE_CACHE_SIZE - 1);
-		i = body->page_base >> PAGE_CACHE_SHIFT;
-		thislen = PAGE_CACHE_SIZE - offset;
-		do {
-			if (thislen > len)
-				thislen = len;
-			sg->page = body->pages[i];
-			sg->offset = offset;
-			sg->length = thislen;
-			crypto_digest_update(tfm, sg, 1);
-			len -= thislen;
-			i++;
-			offset = 0;
-			thislen = PAGE_CACHE_SIZE;
-		} while(len != 0);
-	}
-	if (body->tail[0].iov_len) {
-		buf_to_sg(sg, body->tail[0].iov_base, body->tail[0].iov_len);
-		crypto_digest_update(tfm, sg, 1);
-	}
+	process_xdr_buf(body, 0, body->len, checksummer, tfm);
 	crypto_digest_final(tfm, cksum->data);
 	code = 0;
 out:
