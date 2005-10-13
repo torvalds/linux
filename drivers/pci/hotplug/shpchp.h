@@ -173,6 +173,7 @@ extern void	get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp);
 extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
 		u32 *sun, u8 busnum, u8 devnum);
+extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
 
 
 /* Global variables */

@@ -480,6 +480,7 @@ static void __exit unload_shpchpd(void)
 	ctrl = shpchp_ctrl_list;
 
 	while (ctrl) {
+		shpchp_remove_ctrl_files(ctrl);
 		cleanup_slots(ctrl);
 
 		kfree (ctrl->pci_bus);
