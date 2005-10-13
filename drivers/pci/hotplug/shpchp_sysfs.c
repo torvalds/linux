@@ -88,75 +88,7 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR (ctrl, S_IRUGO, show_ctrl, NULL);
 
-static ssize_t show_dev (struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct pci_dev *pdev, *fdev;
-	struct controller *ctrl;
-	char * out = buf;
-	int index;
-	struct resource *res;
-	struct pci_func *new_slot;
-	struct slot *slot;
-
-	pdev = container_of (dev, struct pci_dev, dev);
-	ctrl = pci_get_drvdata(pdev);
-
-	slot=ctrl->slot;
-
-	while (slot) {
-		new_slot = shpchp_slot_find(slot->bus, slot->device, 0);
-		if (!new_slot)
-			break;
-		fdev = new_slot->pci_dev;
-		if (!fdev)
-			break;
-		out += sprintf(out, "assigned resources: memory\n");
-		for (index=0; index <= PCI_NUM_RESOURCES; index++) {
-			res = &(fdev->resource[index]);
-			if (res && (res->flags & IORESOURCE_MEM) &&
-					!(res->flags & IORESOURCE_PREFETCH)) {
-				out += sprintf(out,
-					"start = %8.8lx, length = %8.8lx\n",
-					res->start, (res->end - res->start));
-			}
-		}
-		out += sprintf(out, "assigned resources: prefetchable memory\n");
-		for (index=0; index <= PCI_NUM_RESOURCES; index++) {
-			res = &(fdev->resource[index]);
-			if (res && (res->flags & (IORESOURCE_MEM |
-						IORESOURCE_PREFETCH))) {
-				out += sprintf(out,
-					"start = %8.8lx, length = %8.8lx\n",
-					res->start, (res->end - res->start));
-			}
-		}
-		out += sprintf(out, "assigned resources: IO\n");
-		for (index=0; index <= PCI_NUM_RESOURCES; index++) {
-			res = &(fdev->resource[index]);
-			if (res && (res->flags & IORESOURCE_IO)) {
-				out += sprintf(out,
-					"start = %8.8lx, length = %8.8lx\n",
-					res->start, (res->end - res->start));
-			}
-		}
-		out += sprintf(out, "assigned resources: bus numbers\n");
-		if (fdev->subordinate)
-			out += sprintf(out, "start = %8.8x, length = %8.8x\n",
-				fdev->subordinate->secondary,
-				(fdev->subordinate->subordinate -
-				 fdev->subordinate->secondary));
-		else
-			out += sprintf(out, "start = %8.8x, length = %8.8x\n",
-					fdev->bus->number, 1);
-		slot=slot->next;
-	}
-
-	return out - buf;
-}
-static DEVICE_ATTR (dev, S_IRUGO, show_dev, NULL);
-
 void shpchp_create_ctrl_files (struct controller *ctrl)
 {
 	device_create_file (&ctrl->pci_dev->dev, &dev_attr_ctrl);
-	device_create_file (&ctrl->pci_dev->dev, &dev_attr_dev);
 }
