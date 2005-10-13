@@ -2357,7 +2357,7 @@ static inline ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size
 			return -ENOMEM;
 		args.acl_pages[0] = localpage;
 		args.acl_pgbase = 0;
-		args.acl_len = PAGE_SIZE;
+		resp_len = args.acl_len = PAGE_SIZE;
 	} else {
 		resp_buf = buf;
 		buf_to_pages(buf, buflen, args.acl_pages, &args.acl_pgbase);
