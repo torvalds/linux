@@ -886,8 +886,6 @@ static u32 *
 gss_validate(struct rpc_task *task, u32 *p)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
-	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
-						gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
 	u32		seq, qop_state;
 	struct kvec	iov;
@@ -915,18 +913,9 @@ gss_validate(struct rpc_task *task, u32 *p)
 		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
 	if (maj_stat)
 		goto out_bad;
-       switch (gss_cred->gc_service) {
-       case RPC_GSS_SVC_NONE:
-	       /* verifier data, flavor, length: */
-	       task->tk_auth->au_rslack = XDR_QUADLEN(len) + 2;
-	       break;
-       case RPC_GSS_SVC_INTEGRITY:
-	       /* verifier data, flavor, length, length, sequence number: */
-	       task->tk_auth->au_rslack = XDR_QUADLEN(len) + 4;
-	       break;
-       case RPC_GSS_SVC_PRIVACY:
-	       goto out_bad;
-       }
+	/* We leave it to unwrap to calculate au_rslack. For now we just
+	 * calculate the length of the verifier: */
+	task->tk_auth->au_verfsize = XDR_QUADLEN(len) + 2;
 	gss_put_ctx(ctx);
 	dprintk("RPC: %4u GSS gss_validate: gss_verify_mic succeeded.\n",
 			task->tk_pid);
@@ -1067,6 +1056,7 @@ gss_unwrap_resp(struct rpc_task *task,
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred,
 			gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
+	u32		*savedp = p;
 	int             status = -EIO;
 
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA)
@@ -1082,6 +1072,8 @@ gss_unwrap_resp(struct rpc_task *task,
        		case RPC_GSS_SVC_PRIVACY:
 			break;
 	}
+	/* take into account extra slack for integrity and privacy cases: */
+	task->tk_auth->au_rslack = task->tk_auth->au_verfsize + (p - savedp);
 out_decode:
 	status = decode(rqstp, p, obj);
 out:
