@@ -434,15 +434,13 @@ extern void *set_vi_srs_handler (int n, void *addr, int regset);
 extern void *set_except_vector(int n, void *addr);
 extern void per_cpu_trap_init(void);
 
-extern NORET_TYPE void __die(const char *, struct pt_regs *, const char *file,
-	const char *func, unsigned long line) ATTRIB_NORET;
-extern void __die_if_kernel(const char *, struct pt_regs *, const char *file,
-	const char *func, unsigned long line);
+extern NORET_TYPE void die(const char *, struct pt_regs *);
 
-#define die(msg, regs)							\
-	__die(msg, regs, __FILE__ ":", __FUNCTION__, __LINE__)
-#define die_if_kernel(msg, regs)					\
-	__die_if_kernel(msg, regs, __FILE__ ":", __FUNCTION__, __LINE__)
+static inline void die_if_kernel(const char *str, struct pt_regs *regs)
+{
+	if (unlikely(!user_mode(regs)))
+		die(str, regs);
+}
 
 extern int stop_a_enabled;
 

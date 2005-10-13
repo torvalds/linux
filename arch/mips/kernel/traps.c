@@ -276,28 +276,16 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-NORET_TYPE void ATTRIB_NORET __die(const char * str, struct pt_regs * regs,
-				   const char * file, const char * func,
-				   unsigned long line)
+NORET_TYPE void ATTRIB_NORET die(const char * str, struct pt_regs * regs)
 {
 	static int die_counter;
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
-	printk("%s", str);
-	if (file && func)
-		printk(" in %s:%s, line %ld", file, func, line);
-	printk("[#%d]:\n", ++die_counter);
+	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
 	spin_unlock_irq(&die_lock);
 	do_exit(SIGSEGV);
-}
-
-void __die_if_kernel(const char * str, struct pt_regs * regs,
-		     const char * file, const char * func, unsigned long line)
-{
-	if (!user_mode(regs))
-		__die(str, regs, file, func, line);
 }
 
 extern const struct exception_table_entry __start___dbe_table[];
