@@ -276,6 +276,28 @@ gss_verify_mic(struct gss_ctx		*context_handle,
 				 qstate);
 }
 
+u32
+gss_wrap(struct gss_ctx	*ctx_id,
+	 u32		qop,
+	 int		offset,
+	 struct xdr_buf	*buf,
+	 struct page	**inpages)
+{
+	return ctx_id->mech_type->gm_ops
+		->gss_wrap(ctx_id, qop, offset, buf, inpages);
+}
+
+u32
+gss_unwrap(struct gss_ctx	*ctx_id,
+	   u32			*qop,
+	   int			offset,
+	   struct xdr_buf	*buf)
+{
+	return ctx_id->mech_type->gm_ops
+		->gss_unwrap(ctx_id, qop, offset, buf);
+}
+
+
 /* gss_delete_sec_context: free all resources associated with context_handle.
  * Note this differs from the RFC 2744-specified prototype in that we don't
  * bother returning an output token, since it would never be used anyway. */

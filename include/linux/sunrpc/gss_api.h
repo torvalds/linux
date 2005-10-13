@@ -48,6 +48,17 @@ u32 gss_verify_mic(
 		struct xdr_buf		*message,
 		struct xdr_netobj	*mic_token,
 		u32			*qstate);
+u32 gss_wrap(
+		struct gss_ctx		*ctx_id,
+		u32			qop,
+		int			offset,
+		struct xdr_buf		*outbuf,
+		struct page		**inpages);
+u32 gss_unwrap(
+		struct gss_ctx		*ctx_id,
+		u32			*qop,
+		int			offset,
+		struct xdr_buf		*inbuf);
 u32 gss_delete_sec_context(
 		struct gss_ctx		**ctx_id);
 
@@ -93,6 +104,17 @@ struct gss_api_ops {
 			struct xdr_buf		*message,
 			struct xdr_netobj	*mic_token,
 			u32			*qstate);
+	u32 (*gss_wrap)(
+			struct gss_ctx		*ctx_id,
+			u32			qop,
+			int			offset,
+			struct xdr_buf		*outbuf,
+			struct page		**inpages);
+	u32 (*gss_unwrap)(
+			struct gss_ctx		*ctx_id,
+			u32			*qop,
+			int			offset,
+			struct xdr_buf		*buf);
 	void (*gss_delete_sec_context)(
 			void			*internal_ctx_id);
 };
