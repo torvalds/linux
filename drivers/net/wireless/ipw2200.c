@@ -6357,11 +6357,8 @@ static int ipw_wx_set_auth(struct net_device *dev,
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
 		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
-		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags) {
-			IPW_WARNING("Can't set TKIP countermeasures: "
-				    "crypt not set!\n");
+		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags)
 			break;
-		}
 
 		flags = crypt->ops->get_flags(crypt->priv);
 
@@ -6453,11 +6450,8 @@ static int ipw_wx_get_auth(struct net_device *dev,
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
 		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
-		if (!crypt || !crypt->ops->get_flags) {
-			IPW_WARNING("Can't get TKIP countermeasures: "
-				    "crypt not set!\n");
+		if (!crypt || !crypt->ops->get_flags)
 			break;
-		}
 
 		param->value = (crypt->ops->get_flags(crypt->priv) &
 				IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) ? 1 : 0;

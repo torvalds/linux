@@ -5866,11 +5866,8 @@ static int ipw2100_wpa_set_param(struct net_device *dev, u8 name, u32 value)
 
 	case IPW2100_PARAM_TKIP_COUNTERMEASURES:
 		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
-		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags) {
-			IPW_DEBUG_WARNING("Can't set TKIP countermeasures: "
-					  "crypt not set!\n");
+		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags)
 			break;
-		}
 
 		flags = crypt->ops->get_flags(crypt->priv);
 
@@ -7935,11 +7932,8 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
 		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
-		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags) {
-			IPW_DEBUG_WARNING("Can't set TKIP countermeasures: "
-					  "crypt not set!\n");
+		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags)
 			break;
-		}
 
 		flags = crypt->ops->get_flags(crypt->priv);
 
