@@ -328,20 +328,19 @@ static int slot_remove(struct pci_func * old_slot)
 /**
  * bridge_slot_remove - Removes a node from the linked list of slots.
  * @bridge: bridge to remove
+ * @secondaryBus: secondary PCI bus number for bridge being removed
+ * @subordinateBus: subordinate PCI bus number for bridge being removed
  *
  * Returns 0 if successful, !0 otherwise.
  */
-static int bridge_slot_remove(struct pci_func *bridge)
+static int bridge_slot_remove(struct pci_func *bridge, u8 secondaryBus,
+		u8 subordinateBus)
 {
-	u8 subordinateBus, secondaryBus;
 	u8 tempBus;
 	struct pci_func *next;
 
 	if (bridge == NULL)
 		return(1);
-
-	secondaryBus = (bridge->config_space[0x06] >> 8) & 0xFF;
-	subordinateBus = (bridge->config_space[0x06] >> 16) & 0xFF;
 
 	for (tempBus = secondaryBus; tempBus <= subordinateBus; tempBus++) {
 		next = shpchp_slot_list[tempBus];
@@ -410,15 +409,22 @@ struct pci_func *shpchp_slot_find(u8 bus, u8 device, u8 index)
 	return(NULL);
 }
 
-static int is_bridge(struct pci_func * func)
+static int is_bridge(struct pci_func *func, struct controller *ctrl)
 {
-	/* Check the header type */
-	if (((func->config_space[0x03] >> 16) & 0xFF) == 0x01)
+	u8 hdr_type;
+	struct pci_bus *bus = ctrl->pci_dev->subordinate;
+
+	/*
+	 * Note: device may have just been hot-added and not yet scanned
+	 * by the pci core, so its pci_dev structure may not exist yet
+	 */
+	pci_bus_read_config_byte(bus, PCI_DEVFN(func->device, func->function),
+			PCI_HEADER_TYPE, &hdr_type);
+	if ((hdr_type & 0x7f) == PCI_HEADER_TYPE_BRIDGE)
 		return 1;
 	else
 		return 0;
 }
-
 
 /* The following routines constitute the bulk of the 
    hotplug controller logic
@@ -709,8 +715,6 @@ static u32 board_added(struct pci_func * func, struct controller * ctrl)
 		goto err_exit;
 	}
 
-	shpchp_save_slot_config(ctrl, func);
-
 	func->status = 0;
 	func->switch_save = 0x10;
 	func->is_a_board = 0x01;
@@ -769,9 +773,17 @@ static u32 remove_board(struct pci_func *func, struct controller *ctrl)
 	u8 hp_slot;
 	u32 rc;
 	struct slot *p_slot;
+	u8 secondary = 0, subordinate = 0;
+	int remove_bridge;
 
 	if (func == NULL)
 		return(1);
+
+	if ((remove_bridge = is_bridge(func, ctrl))) {
+		/* Stash away bus information before we destroy it */
+		secondary = func->pci_dev->subordinate->secondary;
+		subordinate = func->pci_dev->subordinate->subordinate;
+	}
 
 	if (shpchp_unconfigure_device(func))
 		return(1);
@@ -825,10 +837,11 @@ static u32 remove_board(struct pci_func *func, struct controller *ctrl)
 
 	if (ctrl->add_support) {
 		while (func) {
-			if (is_bridge(func)) {
+			if (remove_bridge) {
 				dbg("PCI Bridge Hot-Remove s:b:d:f(%02x:%02x:%02x:%02x)\n", ctrl->seg, func->bus, 
 					func->device, func->function);
-				bridge_slot_remove(func);
+				bridge_slot_remove(func, secondary,
+						subordinate);
 			} else
 				dbg("PCI Function Hot-Remove s:b:d:f(%02x:%02x:%02x:%02x)\n", ctrl->seg, func->bus, 
 					func->device, func->function);
@@ -1185,9 +1198,12 @@ int shpchp_enable_slot (struct slot *p_slot)
 
 	rc = board_added(func, p_slot->ctrl);
 	if (rc) {
-		if (is_bridge(func))
-			bridge_slot_remove(func);
-		else
+		if (is_bridge(func, p_slot->ctrl)) {
+			u8 secondary = func->pci_dev->subordinate->secondary;
+			u8 subordinate =
+				func->pci_dev->subordinate->subordinate;
+			bridge_slot_remove(func, secondary, subordinate);
+		} else
 			slot_remove(func);
 
 		/* Setup slot structure with entry for empty slot */

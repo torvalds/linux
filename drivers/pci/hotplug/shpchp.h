@@ -63,7 +63,6 @@ struct pci_func {
 	u8 switch_save;
 	u8 presence_save;
 	u8 pwr_save;
-	u32 config_space[0x20];
 	struct pci_dev* pci_dev;
 };
 

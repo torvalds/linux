@@ -424,13 +424,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	first_device_num = ctrl->slot_device_offset;
 	num_ctlr_slots = ctrl->num_slots;
 
-	/* Store PCI Config Space for all devices on this bus */
-	rc = shpchp_save_config(ctrl, ctrl->slot_bus, num_ctlr_slots, first_device_num);
-	if (rc) {
-		err("%s: unable to save PCI configuration data, error %d\n", __FUNCTION__, rc);
-		goto err_out_free_ctrl_bus;
-	}
-
 	ctrl->add_support = 1;
 	
 	/* Setup the slot information structures */
