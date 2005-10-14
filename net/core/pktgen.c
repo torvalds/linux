@@ -177,8 +177,8 @@
 #define T_REMDEV      (1<<3)  /* Remove all devs */
 
 /* Locks */
-#define   thread_lock()        spin_lock(&_thread_lock)
-#define   thread_unlock()      spin_unlock(&_thread_lock)
+#define   thread_lock()        down(&pktgen_sem)
+#define   thread_unlock()      up(&pktgen_sem)
 
 /* If lock -- can be removed after some work */
 #define   if_lock(t)           spin_lock(&(t->if_lock));
@@ -503,7 +503,7 @@ static int pg_delay_d = 0;
 static int pg_clone_skb_d = 0;
 static int debug = 0;
 
-static DEFINE_SPINLOCK(_thread_lock);
+static DECLARE_MUTEX(pktgen_sem);
 static struct pktgen_thread *pktgen_threads = NULL;
 
 static char module_fname[128];
