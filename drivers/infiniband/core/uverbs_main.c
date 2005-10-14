@@ -514,7 +514,8 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	if (hdr.command < 0				||
 	    hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
-	    !uverbs_cmd_table[hdr.command])
+	    !uverbs_cmd_table[hdr.command]		||
+	    !(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
 		return -EINVAL;
 
 	if (!file->ucontext &&

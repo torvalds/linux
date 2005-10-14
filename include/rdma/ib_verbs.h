@@ -951,6 +951,7 @@ struct ib_device {
 		IB_DEV_UNREGISTERED
 	}                            reg_state;
 
+	u64			     uverbs_cmd_mask;
 	int			     uverbs_abi_ver;
 
 	u8                           node_type;
