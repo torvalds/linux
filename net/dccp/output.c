@@ -62,10 +62,8 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
-		/*
-		 * Data packets are not cloned as they are never retransmitted
-		 */
-		if (skb_cloned(skb))
+
+		if (!skb->sk)
 			skb_set_owner_w(skb, sk);
 
 		/* Build DCCP header and checksum it. */
