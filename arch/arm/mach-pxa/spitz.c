@@ -328,7 +328,7 @@ static void __init common_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
-	pxafb_device.dev.parent = &spitzssp_device.dev;
+	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
 }
 
