@@ -102,7 +102,7 @@ struct pci_iommu {
 	u32 dma_addr_mask;
 };
 
-extern void pci_iommu_table_init(struct pci_iommu *, int);
+extern void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask);
 
 /* This describes a PCI bus module's streaming buffer. */
 struct pci_strbuf {

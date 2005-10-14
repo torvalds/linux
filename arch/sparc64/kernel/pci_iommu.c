@@ -80,13 +80,59 @@ static void inline iopte_make_dummy(struct pci_iommu *iommu, iopte_t *iopte)
 	iopte_val(*iopte) = val;
 }
 
-void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize)
+void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask)
 {
-	int i;
+	unsigned long i, tsbbase, order;
 
-	tsbsize /= sizeof(iopte_t);
+	/* Setup initial software IOMMU state. */
+	spin_lock_init(&iommu->lock);
+	iommu->ctx_lowest_free = 1;
+	iommu->page_table_map_base = dma_offset;
+	iommu->dma_addr_mask = dma_addr_mask;
 
-	for (i = 0; i < tsbsize; i++)
+	switch (tsbsize / (8 * 1024)) {
+	case 64:
+		iommu->page_table_sz_bits = 16;
+		break;
+	case 128:
+		iommu->page_table_sz_bits = 17;
+		break;
+	default:
+		prom_printf("PCI_IOMMU: Illegal TSB size %d\n",
+			    tsbsize / (8 * 1024));
+		prom_halt();
+		break;
+	};
+
+	iommu->lowest_consistent_map =
+		1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS);
+
+	for (i = 0; i < PBM_NCLUSTERS; i++) {
+		iommu->alloc_info[i].flush = 0;
+		iommu->alloc_info[i].next = 0;
+	}
+
+	/* Allocate and initialize the dummy page which we
+	 * set inactive IO PTEs to point to.
+	 */
+	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
+	if (!iommu->dummy_page) {
+		prom_printf("PCI_IOMMU: Error, gfp(dummy_page) failed.\n");
+		prom_halt();
+	}
+	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
+	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
+
+	/* Now allocate and setup the IOMMU page table itself.  */
+	order = get_order(tsbsize);
+	tsbbase = __get_free_pages(GFP_KERNEL, order);
+	if (!tsbbase) {
+		prom_printf("PCI_IOMMU: Error, gfp(tsb) failed.\n");
+		prom_halt();
+	}
+	iommu->page_table = (iopte_t *)tsbbase;
+
+	for (i = 0; i < tsbsize / sizeof(iopte_t); i++)
 		iopte_make_dummy(iommu, &iommu->page_table[i]);
 }
 
