@@ -467,6 +467,7 @@ void corgi_put_hsync(void)
 {
 	if (get_hsync_time)
 		symbol_put(w100fb_get_hsynclen);
+	get_hsync_time = NULL;
 }
 
 void corgi_wait_hsync(void)
@@ -476,20 +477,37 @@ void corgi_wait_hsync(void)
 #endif
 
 #ifdef CONFIG_PXA_SHARP_Cxx00
+static struct device *spitz_pxafb_dev;
+
+static int is_pxafb_device(struct device * dev, void * data)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+
+	return (strncmp(pdev->name, "pxa2xx-fb", 9) == 0);
+}
+
 unsigned long spitz_get_hsync_len(void)
 {
+	if (!spitz_pxafb_dev) {
+		spitz_pxafb_dev = bus_find_device(&platform_bus_type, NULL, NULL, is_pxafb_device);
+		if (!spitz_pxafb_dev)
+			return 0;
+	}
 	if (!get_hsync_time)
 		get_hsync_time = symbol_get(pxafb_get_hsync_time);
 	if (!get_hsync_time)
 		return 0;
 
-	return pxafb_get_hsync_time(&pxafb_device.dev);
+	return pxafb_get_hsync_time(spitz_pxafb_dev);
 }
 
 void spitz_put_hsync(void)
 {
+	put_device(spitz_pxafb_dev);
 	if (get_hsync_time)
 		symbol_put(pxafb_get_hsync_time);
+	spitz_pxafb_dev = NULL;
+	get_hsync_time = NULL;
 }
 
 void spitz_wait_hsync(void)
