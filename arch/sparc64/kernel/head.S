@@ -28,19 +28,14 @@
 #include <asm/mmu.h>
 	
 /* This section from from _start to sparc64_boot_end should fit into
- * 0x0000.0000.0040.4000 to 0x0000.0000.0040.8000 and will be sharing space
- * with bootup_user_stack, which is from 0x0000.0000.0040.4000 to
- * 0x0000.0000.0040.6000 and empty_bad_page, which is from
- * 0x0000.0000.0040.6000 to 0x0000.0000.0040.8000. 
+ * 0x0000000000404000 to 0x0000000000408000.
  */
-
 	.text
 	.globl	start, _start, stext, _stext
 _start:
 start:
 _stext:
 stext:
-bootup_user_stack:
 ! 0x0000000000404000
 	b	sparc64_boot
 	 flushw					/* Flush register file.      */
@@ -191,8 +186,9 @@ prom_boot_mapping_phys_low:
 	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 5
 	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1: "translate"
 	stx	%l5, [%sp + 2047 + 128 + 0x20]	! arg2: prom_mmu_ihandle_cache
-	srlx	%l0, 22, %l3
-	sllx	%l3, 22, %l3
+	/* PAGE align */
+	srlx	%l0, 13, %l3
+	sllx	%l3, 13, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x28]	! arg3: vaddr, our PC
 	stx	%g0, [%sp + 2047 + 128 + 0x30]	! res1
 	stx	%g0, [%sp + 2047 + 128 + 0x38]	! res2
@@ -211,6 +207,9 @@ prom_boot_mapping_phys_low:
 	ldx	[%sp + 2047 + 128 + 0x48], %l2	! physaddr high
 	stx	%l2, [%l4 + 0x0]
 	ldx	[%sp + 2047 + 128 + 0x50], %l3	! physaddr low
+	/* 4MB align */
+	srlx	%l3, 22, %l3
+	sllx	%l3, 22, %l3
 	stx	%l3, [%l4 + 0x8]
 
 	/* Leave service as-is, "call-method" */
@@ -388,31 +387,30 @@ tlb_fixup_done:
 	 * former does use this code, the latter does not yet due
 	 * to some complexities.  That should be fixed up at some
 	 * point.
+	 *
+	 * There used to be enormous complexity wrt. transferring
+	 * over from the firwmare's trap table to the Linux kernel's.
+	 * For example, there was a chicken & egg problem wrt. building
+	 * the OBP page tables, yet needing to be on the Linux kernel
+	 * trap table (to translate PAGE_OFFSET addresses) in order to
+	 * do that.
+	 *
+	 * We now handle OBP tlb misses differently, via linear lookups
+	 * into the prom_trans[] array.  So that specific problem no
+	 * longer exists.  Yet, unfortunately there are still some issues
+	 * preventing trampoline.S from using this code... ho hum.
 	 */
 	.globl	setup_trap_table
 setup_trap_table:
 	save	%sp, -192, %sp
 
-	/* Force interrupts to be disabled.  Transferring over to
-	 * the Linux trap table is a very delicate operation.
-	 * Until we are actually on the Linux trap table, we cannot
-	 * get the PAGE_OFFSET linear mappings translated.  We need
-	 * that mapping to be setup in order to initialize the firmware
-	 * page tables.
-	 *
-	 * So there is this window of time, from the return from
-	 * prom_set_trap_table() until inherit_prom_mappings_post()
-	 * (in arch/sparc64/mm/init.c) completes, during which no
-	 * firmware address space accesses can be made.
-	 */
+	/* Force interrupts to be disabled. */
 	rdpr	%pstate, %o1
 	andn	%o1, PSTATE_IE, %o1
 	wrpr	%o1, 0x0, %pstate
 	wrpr	%g0, 15, %pil
 
-	/* Ok, now make the final valid firmware call to jump over
-	 * to the Linux trap table.
-	 */
+	/* Make the firmware call to jump over to the Linux trap table.  */
 	call	prom_set_trap_table
 	 sethi	%hi(sparc64_ttable_tl0), %o0
 
@@ -536,15 +534,21 @@ setup_tba:	/* i0 = is_starfire */
 
 	ret
 	 restore
+sparc64_boot_end:
+
+#include "systbls.S"
+#include "ktlb.S"
+#include "etrap.S"
+#include "rtrap.S"
+#include "winfixup.S"
+#include "entry.S"
 
 /*
- * The following skips make sure the trap table in ttable.S is aligned
+ * The following skip makes sure the trap table in ttable.S is aligned
  * on a 32K boundary as required by the v9 specs for TBA register.
  */
-sparc64_boot_end:
-	.skip	0x2000 + _start - sparc64_boot_end
-bootup_user_stack_end:
-	.skip	0x2000
+1:
+	.skip	0x4000 + _start - 1b
 
 #ifdef CONFIG_SBUS
 /* This is just a hack to fool make depend config.h discovering
@@ -556,15 +560,6 @@ bootup_user_stack_end:
 ! 0x0000000000408000
 
 #include "ttable.S"
-#include "systbls.S"
-#include "ktlb.S"
-#include "etrap.S"
-#include "rtrap.S"
-#include "winfixup.S"
-#include "entry.S"
-
-	/* This is just anal retentiveness on my part... */
-	.align	16384
 
 	.data
 	.align	8

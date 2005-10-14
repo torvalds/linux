@@ -21,10 +21,6 @@ config GENERIC_ISA_DMA
 	bool
 	default y
 
-config GENERIC_IOMAP
-	bool
-	default y
-
 source "init/Kconfig"
 
 menu "General machine setup"

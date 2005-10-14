@@ -50,7 +50,7 @@
 MODULE_AUTHOR("Abhay Salunke <abhay_salunke@dell.com>");
 MODULE_DESCRIPTION("Driver for updating BIOS image on DELL systems");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("2.0");
+MODULE_VERSION("3.0");
 
 #define BIOS_SCAN_LIMIT 0xffffffff
 #define MAX_IMAGE_LENGTH 16
@@ -62,15 +62,16 @@ static struct _rbu_data {
 	int dma_alloc;
 	spinlock_t lock;
 	unsigned long packet_read_count;
-	unsigned long packet_write_count;
 	unsigned long num_packets;
 	unsigned long packetsize;
+	unsigned long imagesize;
 	int entry_created;
 } rbu_data;
 
 static char image_type[MAX_IMAGE_LENGTH + 1] = "mono";
 module_param_string(image_type, image_type, sizeof (image_type), 0);
-MODULE_PARM_DESC(image_type, "BIOS image type. choose- mono or packet");
+MODULE_PARM_DESC(image_type,
+	"BIOS image type. choose- mono or packet or init");
 
 struct packet_data {
 	struct list_head list;
@@ -88,55 +89,13 @@ static dma_addr_t dell_rbu_dmaaddr;
 static void init_packet_head(void)
 {
 	INIT_LIST_HEAD(&packet_data_head.list);
-	rbu_data.packet_write_count = 0;
 	rbu_data.packet_read_count = 0;
 	rbu_data.num_packets = 0;
 	rbu_data.packetsize = 0;
+	rbu_data.imagesize = 0;
 }
 
-static int fill_last_packet(void *data, size_t length)
-{
-	struct list_head *ptemp_list;
-	struct packet_data *packet = NULL;
-	int packet_count = 0;
-
-	pr_debug("fill_last_packet: entry \n");
-
-	if (!rbu_data.num_packets) {
-		pr_debug("fill_last_packet: num_packets=0\n");
-		return -ENOMEM;
-	}
-
-	packet_count = rbu_data.num_packets;
-
-	ptemp_list = (&packet_data_head.list)->prev;
-
-	packet = list_entry(ptemp_list, struct packet_data, list);
-
-	if ((rbu_data.packet_write_count + length) > rbu_data.packetsize) {
-		pr_debug("dell_rbu:%s: packet size data "
-			"overrun\n", __FUNCTION__);
-		return -EINVAL;
-	}
-
-	pr_debug("fill_last_packet : buffer = %p\n", packet->data);
-
-	memcpy((packet->data + rbu_data.packet_write_count), data, length);
-
-	if ((rbu_data.packet_write_count + length) == rbu_data.packetsize) {
-		/*
-		 * this was the last data chunk in the packet
-		 * so reinitialize the packet data counter to zero
-		 */
-		rbu_data.packet_write_count = 0;
-	} else
-		rbu_data.packet_write_count += length;
-
-	pr_debug("fill_last_packet: exit \n");
-	return 0;
-}
-
-static int create_packet(size_t length)
+static int create_packet(void *data, size_t length)
 {
 	struct packet_data *newpacket;
 	int ordernum = 0;
@@ -186,9 +145,11 @@ static int create_packet(size_t length)
 	INIT_LIST_HEAD(&newpacket->list);
 	list_add_tail(&newpacket->list, &packet_data_head.list);
 	/*
-	 * packets have fixed size
+	 * packets may not have fixed size
 	 */
-	newpacket->length = rbu_data.packetsize;
+	newpacket->length = length;
+
+	memcpy(newpacket->data, data, length);
 
 	pr_debug("create_packet: exit \n");
 
@@ -198,13 +159,37 @@ static int create_packet(size_t length)
 static int packetize_data(void *data, size_t length)
 {
 	int rc = 0;
-
-	if (!rbu_data.packet_write_count) {
-		if ((rc = create_packet(length)))
-			return rc;
+	int done = 0;
+	int packet_length;
+	u8 *temp;
+	u8 *end = (u8 *) data + length;
+	pr_debug("packetize_data: data length %d\n", length);
+	if (!rbu_data.packetsize) {
+		printk(KERN_WARNING
+			"dell_rbu: packetsize not specified\n");
+		return -EIO;
 	}
-	if ((rc = fill_last_packet(data, length)))
-		return rc;
+
+	temp = (u8 *) data;
+
+	/* packetize the hunk */
+	while (!done) {
+		if ((temp + rbu_data.packetsize) < end)
+			packet_length = rbu_data.packetsize;
+		else {
+			/* this is the last packet */
+			packet_length = end - temp;
+			done = 1;
+		}
+
+		if ((rc = create_packet(temp, packet_length)))
+			return rc;
+
+		pr_debug("%lu:%lu\n", temp, (end - temp));
+		temp += packet_length;
+	}
+
+	rbu_data.imagesize = length;
 
 	return rc;
 }
@@ -243,7 +228,7 @@ static int do_packet_read(char *data, struct list_head *ptemp_list,
 	return bytes_copied;
 }
 
-static int packet_read_list(char *data, size_t *pread_length)
+static int packet_read_list(char *data, size_t * pread_length)
 {
 	struct list_head *ptemp_list;
 	int temp_count = 0;
@@ -303,10 +288,9 @@ static void packet_empty_list(void)
 			newpacket->ordernum);
 		kfree(newpacket);
 	}
-	rbu_data.packet_write_count = 0;
 	rbu_data.packet_read_count = 0;
 	rbu_data.num_packets = 0;
-	rbu_data.packetsize = 0;
+	rbu_data.imagesize = 0;
 }
 
 /*
@@ -425,7 +409,6 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 	size_t bytes_left;
 	size_t data_length;
 	char *ptempBuf = buffer;
-	unsigned long imagesize;
 
 	/* check to see if we have something to return */
 	if (rbu_data.num_packets == 0) {
@@ -434,22 +417,20 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 		goto read_rbu_data_exit;
 	}
 
-	imagesize = rbu_data.num_packets * rbu_data.packetsize;
-
-	if (pos > imagesize) {
+	if (pos > rbu_data.imagesize) {
 		retval = 0;
 		printk(KERN_WARNING "dell_rbu:read_packet_data: "
 			"data underrun\n");
 		goto read_rbu_data_exit;
 	}
 
-	bytes_left = imagesize - pos;
+	bytes_left = rbu_data.imagesize - pos;
 	data_length = min(bytes_left, count);
 
 	if ((retval = packet_read_list(ptempBuf, &data_length)) < 0)
 		goto read_rbu_data_exit;
 
-	if ((pos + count) > imagesize) {
+	if ((pos + count) > rbu_data.imagesize) {
 		rbu_data.packet_read_count = 0;
 		/* this was the last copy */
 		retval = bytes_left;
@@ -499,7 +480,7 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 }
 
 static ssize_t read_rbu_data(struct kobject *kobj, char *buffer,
-			loff_t pos, size_t count)
+	loff_t pos, size_t count)
 {
 	ssize_t ret_count = 0;
 
@@ -531,13 +512,18 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 			memcpy(rbu_data.image_update_buffer,
 				fw->data, fw->size);
 	} else if (!strcmp(image_type, "packet")) {
-		if (!rbu_data.packetsize)
-			rbu_data.packetsize = fw->size;
-		else if (rbu_data.packetsize != fw->size) {
+		/*
+		 * we need to free previous packets if a
+		 * new hunk of packets needs to be downloaded
+		 */
+		packet_empty_list();
+		if (packetize_data(fw->data, fw->size))
+			/* Incase something goes wrong when we are
+			 * in middle of packetizing the data, we
+			 * need to free up whatever packets might
+			 * have been created before we quit.
+			 */
 			packet_empty_list();
-			rbu_data.packetsize = fw->size;
-		}
-		packetize_data(fw->data, fw->size);
 	} else
 		pr_debug("invalid image type specified.\n");
 	spin_unlock(&rbu_data.lock);
@@ -553,7 +539,7 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 }
 
 static ssize_t read_rbu_image_type(struct kobject *kobj, char *buffer,
-			loff_t pos, size_t count)
+	loff_t pos, size_t count)
 {
 	int size = 0;
 	if (!pos)
@@ -562,7 +548,7 @@ static ssize_t read_rbu_image_type(struct kobject *kobj, char *buffer,
 }
 
 static ssize_t write_rbu_image_type(struct kobject *kobj, char *buffer,
-			loff_t pos, size_t count)
+	loff_t pos, size_t count)
 {
 	int rc = count;
 	int req_firm_rc = 0;
@@ -621,23 +607,47 @@ static ssize_t write_rbu_image_type(struct kobject *kobj, char *buffer,
 	return rc;
 }
 
+static ssize_t read_rbu_packet_size(struct kobject *kobj, char *buffer,
+	loff_t pos, size_t count)
+{
+	int size = 0;
+	if (!pos) {
+		spin_lock(&rbu_data.lock);
+		size = sprintf(buffer, "%lu\n", rbu_data.packetsize);
+		spin_unlock(&rbu_data.lock);
+	}
+	return size;
+}
+
+static ssize_t write_rbu_packet_size(struct kobject *kobj, char *buffer,
+	loff_t pos, size_t count)
+{
+	unsigned long temp;
+	spin_lock(&rbu_data.lock);
+	packet_empty_list();
+	sscanf(buffer, "%lu", &temp);
+	if (temp < 0xffffffff)
+		rbu_data.packetsize = temp;
+
+	spin_unlock(&rbu_data.lock);
+	return count;
+}
+
 static struct bin_attribute rbu_data_attr = {
-	.attr = {
-		.name = "data",
-		.owner = THIS_MODULE,
-		.mode = 0444,
-	},
+	.attr = {.name = "data",.owner = THIS_MODULE,.mode = 0444},
 	.read = read_rbu_data,
 };
 
 static struct bin_attribute rbu_image_type_attr = {
-	.attr = {
-		.name = "image_type",
-		.owner = THIS_MODULE,
-		.mode = 0644,
-	},
+	.attr = {.name = "image_type",.owner = THIS_MODULE,.mode = 0644},
 	.read = read_rbu_image_type,
 	.write = write_rbu_image_type,
+};
+
+static struct bin_attribute rbu_packet_size_attr = {
+	.attr = {.name = "packet_size",.owner = THIS_MODULE,.mode = 0644},
+	.read = read_rbu_packet_size,
+	.write = write_rbu_packet_size,
 };
 
 static int __init dcdrbu_init(void)
@@ -657,6 +667,8 @@ static int __init dcdrbu_init(void)
 
 	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
 	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
+	sysfs_create_bin_file(&rbu_device->dev.kobj,
+		&rbu_packet_size_attr);
 
 	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG,
 		"dell_rbu", &rbu_device->dev, &context, callbackfn_rbu);

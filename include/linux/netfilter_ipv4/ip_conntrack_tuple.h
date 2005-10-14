@@ -1,6 +1,8 @@
 #ifndef _IP_CONNTRACK_TUPLE_H
 #define _IP_CONNTRACK_TUPLE_H
 
+#include <linux/types.h>
+
 /* A `tuple' is a structure containing the information to uniquely
   identify a connection.  ie. if two packets have the same tuple, they
   are in the same connection; if not, they are not.
