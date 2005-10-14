@@ -453,22 +453,6 @@ xcall_flush_dcache_page_spitfire: /* %g1 == physical page address
 	nop
 	nop
 
-	.globl		xcall_promstop
-xcall_promstop:
-	rdpr		%pstate, %g2
-	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
-	sethi		%hi(109f), %g7
-	b,pt		%xcc, etrap_irq
-109:	 or		%g7, %lo(109b), %g7
-	flushw
-	call		prom_stopself
-	 nop
-	/* We should not return, just spin if we do... */
-1:	b,a,pt		%xcc, 1b
-	nop
-
 	.data
 
 errata32_hwbug:
