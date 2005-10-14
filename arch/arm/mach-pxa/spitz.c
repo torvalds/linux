@@ -36,7 +36,6 @@
 #include <asm/arch/irq.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
-#include <asm/arch/ohci.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/akita.h>
 #include <asm/arch/spitz.h>
@@ -304,7 +303,6 @@ static struct platform_device *devices[] __initdata = {
 	&spitzkbd_device,
 	&spitzts_device,
 	&spitzbl_device,
-	&spitzbattery_device,
 };
 
 static void __init common_init(void)
