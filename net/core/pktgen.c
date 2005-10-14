@@ -2869,11 +2869,9 @@ static int pktgen_add_device(struct pktgen_thread *t, const char* ifname)
 
 	if( (pkt_dev = __pktgen_NN_threads(ifname, FIND)) == NULL) {
 						   
-		pkt_dev = kmalloc(sizeof(struct pktgen_dev), GFP_KERNEL);
+		pkt_dev = kzalloc(sizeof(struct pktgen_dev), GFP_KERNEL);
                 if (!pkt_dev) 
                         return -ENOMEM;
-
-                memset(pkt_dev, 0, sizeof(struct pktgen_dev));
 
 		pkt_dev->flows = vmalloc(MAX_CFLOWS*sizeof(struct flow_state));
 		if (pkt_dev->flows == NULL) {
@@ -2958,13 +2956,12 @@ static int pktgen_create_thread(const char* name, int cpu)
                 return -EINVAL;
         }
 
-        t = (struct pktgen_thread*)(kmalloc(sizeof(struct pktgen_thread), GFP_KERNEL));
+        t = kzalloc(sizeof(struct pktgen_thread), GFP_KERNEL);
         if (!t) {
                 printk("pktgen: ERROR: out of memory, can't create new thread.\n");
                 return -ENOMEM;
         }
 
-        memset(t, 0, sizeof(struct pktgen_thread));
         strcpy(t->name, name);
         spin_lock_init(&t->if_lock);
 	t->cpu = cpu;
