@@ -126,25 +126,6 @@ enum HvCallPci_VpdType {
 #define HvCallPciUnmaskInterrupts	HvCallPci + 49
 #define HvCallPciGetBusUnitInfo		HvCallPci + 50
 
-static inline u64 HvCallPci_configLoad8(u16 busNumber, u8 subBusNumber,
-		u8 deviceId, u32 offset, u8 *value)
-{
-	struct HvCallPci_DsaAddr dsa;
-	struct HvCallPci_LoadReturn retVal;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumber;
-	dsa.subBusNumber = subBusNumber;
-	dsa.deviceId = deviceId;
-
-	HvCall3Ret16(HvCallPciConfigLoad8, &retVal, *(u64 *)&dsa, offset, 0);
-
-	*value = retVal.value;
-
-	return retVal.rc;
-}
-
 static inline u64 HvCallPci_configLoad16(u16 busNumber, u8 subBusNumber,
 		u8 deviceId, u32 offset, u16 *value)
 {
@@ -164,25 +145,6 @@ static inline u64 HvCallPci_configLoad16(u16 busNumber, u8 subBusNumber,
 	return retVal.rc;
 }
 
-static inline u64 HvCallPci_configLoad32(u16 busNumber, u8 subBusNumber,
-		u8 deviceId, u32 offset, u32 *value)
-{
-	struct HvCallPci_DsaAddr dsa;
-	struct HvCallPci_LoadReturn retVal;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumber;
-	dsa.subBusNumber = subBusNumber;
-	dsa.deviceId = deviceId;
-
-	HvCall3Ret16(HvCallPciConfigLoad32, &retVal, *(u64 *)&dsa, offset, 0);
-
-	*value = retVal.value;
-
-	return retVal.rc;
-}
-
 static inline u64 HvCallPci_configStore8(u16 busNumber, u8 subBusNumber,
 		u8 deviceId, u32 offset, u8 value)
 {
@@ -195,186 +157,6 @@ static inline u64 HvCallPci_configStore8(u16 busNumber, u8 subBusNumber,
 	dsa.deviceId = deviceId;
 
 	return HvCall4(HvCallPciConfigStore8, *(u64 *)&dsa, offset, value, 0);
-}
-
-static inline u64 HvCallPci_configStore16(u16 busNumber, u8 subBusNumber,
-		u8 deviceId, u32 offset, u16 value)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumber;
-	dsa.subBusNumber = subBusNumber;
-	dsa.deviceId = deviceId;
-
-	return HvCall4(HvCallPciConfigStore16, *(u64 *)&dsa, offset, value, 0);
-}
-
-static inline u64 HvCallPci_configStore32(u16 busNumber, u8 subBusNumber,
-		u8 deviceId, u32 offset, u32 value)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumber;
-	dsa.subBusNumber = subBusNumber;
-	dsa.deviceId = deviceId;
-
-	return HvCall4(HvCallPciConfigStore32, *(u64 *)&dsa, offset, value, 0);
-}
-
-static inline u64 HvCallPci_barLoad8(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u8 *valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-	struct HvCallPci_LoadReturn retVal;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	HvCall3Ret16(HvCallPciBarLoad8, &retVal, *(u64 *)&dsa, offsetParm, 0);
-
-	*valueParm = retVal.value;
-
-	return retVal.rc;
-}
-
-static inline u64 HvCallPci_barLoad16(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u16 *valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-	struct HvCallPci_LoadReturn retVal;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	HvCall3Ret16(HvCallPciBarLoad16, &retVal, *(u64 *)&dsa, offsetParm, 0);
-
-	*valueParm = retVal.value;
-
-	return retVal.rc;
-}
-
-static inline u64 HvCallPci_barLoad32(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u32 *valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-	struct HvCallPci_LoadReturn retVal;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	HvCall3Ret16(HvCallPciBarLoad32, &retVal, *(u64 *)&dsa, offsetParm, 0);
-
-	*valueParm = retVal.value;
-
-	return retVal.rc;
-}
-
-static inline u64 HvCallPci_barLoad64(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u64 *valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-	struct HvCallPci_LoadReturn retVal;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	HvCall3Ret16(HvCallPciBarLoad64, &retVal, *(u64 *)&dsa, offsetParm, 0);
-
-	*valueParm = retVal.value;
-
-	return retVal.rc;
-}
-
-static inline u64 HvCallPci_barStore8(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u8 valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	return HvCall4(HvCallPciBarStore8, *(u64 *)&dsa, offsetParm,
-			valueParm, 0);
-}
-
-static inline u64 HvCallPci_barStore16(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u16 valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	return HvCall4(HvCallPciBarStore16, *(u64 *)&dsa, offsetParm,
-			valueParm, 0);
-}
-
-static inline u64 HvCallPci_barStore32(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u32 valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	return HvCall4(HvCallPciBarStore32, *(u64 *)&dsa, offsetParm,
-			valueParm, 0);
-}
-
-static inline u64 HvCallPci_barStore64(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u8 barNumberParm, u64 offsetParm,
-		u64 valueParm)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-	dsa.barNumber = barNumberParm;
-
-	return HvCall4(HvCallPciBarStore64, *(u64 *)&dsa, offsetParm,
-			valueParm, 0);
 }
 
 static inline u64 HvCallPci_eoi(u16 busNumberParm, u8 subBusParm,
@@ -435,20 +217,6 @@ static inline u64 HvCallPci_unmaskFisr(u16 busNumberParm, u8 subBusParm,
 	dsa.deviceId = deviceIdParm;
 
 	return HvCall2(HvCallPciUnmaskFisr, *(u64*)&dsa, fisrMask);
-}
-
-static inline u64 HvCallPci_setSlotReset(u16 busNumberParm, u8 subBusParm,
-		u8 deviceIdParm, u64 onNotOff)
-{
-	struct HvCallPci_DsaAddr dsa;
-
-	*((u64*)&dsa) = 0;
-
-	dsa.busNumber = busNumberParm;
-	dsa.subBusNumber = subBusParm;
-	dsa.deviceId = deviceIdParm;
-
-	return HvCall2(HvCallPciSetSlotReset, *(u64*)&dsa, onNotOff);
 }
 
 static inline u64 HvCallPci_getDeviceInfo(u16 busNumberParm, u8 subBusParm,
@@ -513,17 +281,6 @@ static inline int HvCallPci_getBusVpd(u16 busNumParm, u64 destParm,
 {
 	u64 xRc = HvCall4(HvCallPciGetCardVpd, busNumParm, destParm,
 			sizeParm, HvCallPci_BusVpd);
-	if (xRc == -1)
-		return -1;
-	else
-		return xRc & 0xFFFF;
-}
-
-static inline int HvCallPci_getBusAdapterVpd(u16 busNumParm, u64 destParm,
-		u16 sizeParm)
-{
-	u64 xRc = HvCall4(HvCallPciGetCardVpd, busNumParm, destParm,
-			sizeParm, HvCallPci_BusAdapterVpd);
 	if (xRc == -1)
 		return -1;
 	else

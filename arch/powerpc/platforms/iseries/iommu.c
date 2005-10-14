@@ -124,7 +124,7 @@ static void iommu_table_getparms(struct pci_dn *pdn,
 
 	memset(parms, 0, sizeof(*parms));
 
-	parms->itc_busno = pdn->DsaAddr.Dsa.busNumber;
+	parms->itc_busno = pdn->busno;
 	parms->itc_slotno = pdn->LogicalSlot;
 	parms->itc_virtbus = 0;
 

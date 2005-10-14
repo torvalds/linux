@@ -223,13 +223,8 @@ static struct device_node *build_device_node(HvBusNumber Bus,
 	node->data = pdn;
 	pdn->node = node;
 	list_add_tail(&pdn->Device_List, &iSeries_Global_Device_List);
-#if 0
-	pdn->DsaAddr = ((u64)Bus << 48) + ((u64)SubBus << 40) + ((u64)0x10 << 32);
-#endif
-	pdn->DsaAddr.DsaAddr = 0;
-	pdn->DsaAddr.Dsa.busNumber = Bus;
-	pdn->DsaAddr.Dsa.subBusNumber = SubBus;
-	pdn->DsaAddr.Dsa.deviceId = 0x10;
+	pdn->busno = Bus;
+	pdn->bussubno = SubBus;
 	pdn->devfn = PCI_DEVFN(ISERIES_ENCODE_DEVICE(AgentId), Function);
 	return node;
 }
@@ -554,8 +549,7 @@ static struct device_node *find_Device_Node(int bus, int devfn)
 	struct pci_dn *pdn;
 
 	list_for_each_entry(pdn, &iSeries_Global_Device_List, Device_List) {
-		if ((bus == pdn->DsaAddr.Dsa.busNumber) &&
-				(devfn == pdn->devfn))
+		if ((bus == pdn->busno) && (devfn == pdn->devfn))
 			return pdn->node;
 	}
 	return NULL;
@@ -612,7 +606,7 @@ static int iSeries_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	fn = hv_cfg_read_func[(size - 1) & 3];
-	HvCall3Ret16(fn, &ret, PCI_DN(node)->DsaAddr.DsaAddr, offset, 0);
+	HvCall3Ret16(fn, &ret, iseries_ds_addr(node), offset, 0);
 
 	if (ret.rc != 0) {
 		*val = ~0;
@@ -640,7 +634,7 @@ static int iSeries_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	fn = hv_cfg_write_func[(size - 1) & 3];
-	ret = HvCall4(fn, PCI_DN(node)->DsaAddr.DsaAddr, offset, val, 0);
+	ret = HvCall4(fn, iseries_ds_addr(node), offset, val, 0);
 
 	if (ret != 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -671,7 +665,7 @@ static int CheckReturnCode(char *TextHdr, struct device_node *DevNode,
 		++Pci_Error_Count;
 		(*retry)++;
 		printk("PCI: %s: Device 0x%04X:%02X  I/O Error(%2d): 0x%04X\n",
-				TextHdr, pdn->DsaAddr.Dsa.busNumber, pdn->devfn,
+				TextHdr, pdn->busno, pdn->devfn,
 				*retry, (int)ret);
 		/*
 		 * Bump the retry and check for retry count exceeded.
@@ -712,7 +706,7 @@ static inline struct device_node *xlate_iomm_address(
 
 	if (DevNode != NULL) {
 		int barnum = iobar_table[TableIndex];
-		*dsaptr = PCI_DN(DevNode)->DsaAddr.DsaAddr | (barnum << 24);
+		*dsaptr = iseries_ds_addr(DevNode) | (barnum << 24);
 		*BarOffsetPtr = BaseIoAddr % IOMM_TABLE_ENTRY_SIZE;
 	} else
 		panic("PCI: Invalid PCI IoAddress detected!\n");

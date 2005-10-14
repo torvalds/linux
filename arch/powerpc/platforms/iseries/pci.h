@@ -30,6 +30,8 @@
  * End Change Activity
  */
 
+#include <asm/pci-bridge.h>
+
 struct pci_dev;				/* For Forward Reference */
 
 /*
@@ -44,6 +46,17 @@ struct pci_dev;				/* For Forward Reference */
 
 #define ISERIES_GET_DEVICE_FROM_SUBBUS(subbus)		((subbus >> 5) & 0x7)
 #define ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus)	((subbus >> 2) & 0x7)
+
+/*
+ * Generate a Direct Select Address for the Hypervisor
+ */
+static inline u64 iseries_ds_addr(struct device_node *node)
+{
+	struct pci_dn *pdn = PCI_DN(node);
+
+	return ((u64)pdn->busno << 48) + ((u64)pdn->bussubno << 40)
+			+ ((u64)0x10 << 32);
+}
 
 extern void	iSeries_Device_Information(struct pci_dev*, int);
 
