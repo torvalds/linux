@@ -29,7 +29,7 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	int r;
 
 #ifdef CONFIG_SMP
-	unsigned long value;
+	unsigned long long value;
 
 	/* Disable TLB flush filter by setting HWCR.FFDIS on K8
 	 * bit 6 of msr C001_0015

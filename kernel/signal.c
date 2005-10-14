@@ -262,7 +262,7 @@ next_signal(struct sigpending *pending, sigset_t *mask)
 	return sig;
 }
 
-static struct sigqueue *__sigqueue_alloc(struct task_struct *t, unsigned int __nocast flags,
+static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 					 int override_rlimit)
 {
 	struct sigqueue *q = NULL;
@@ -578,7 +578,8 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
  		 * is to alert stop-signal processing code when another
  		 * processor has come along and cleared the flag.
  		 */
- 		tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
+ 		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
+ 			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
  	}
 	if ( signr &&
 	     ((info->si_code & __SI_MASK) == __SI_TIMER) &&
@@ -1192,6 +1193,40 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 	return error;
 }
 
+/* like kill_proc_info(), but doesn't use uid/euid of "current" */
+int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
+		      uid_t uid, uid_t euid)
+{
+	int ret = -EINVAL;
+	struct task_struct *p;
+
+	if (!valid_signal(sig))
+		return ret;
+
+	read_lock(&tasklist_lock);
+	p = find_task_by_pid(pid);
+	if (!p) {
+		ret = -ESRCH;
+		goto out_unlock;
+	}
+	if ((!info || ((unsigned long)info != 1 &&
+			(unsigned long)info != 2 && SI_FROMUSER(info)))
+	    && (euid != p->suid) && (euid != p->uid)
+	    && (uid != p->suid) && (uid != p->uid)) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+	if (sig && p->sighand) {
+		unsigned long flags;
+		spin_lock_irqsave(&p->sighand->siglock, flags);
+		ret = __group_send_sig_info(sig, info, p);
+		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+	}
+out_unlock:
+	read_unlock(&tasklist_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kill_proc_info_as_uid);
 
 /*
  * kill_something_info() interprets pid in interesting ways just like kill(2).

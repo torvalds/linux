@@ -220,7 +220,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* netif_stop_queue(dev); */
 		dev_kfree_skb(skb);
 		read_unlock(&devs_lock);
-		return -EUNATCH;
+		return 0;
 	}
 	if (!br2684_xmit_vcc(skb, brdev, brvcc)) {
 		/*

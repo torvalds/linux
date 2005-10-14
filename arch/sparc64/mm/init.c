@@ -105,7 +105,7 @@ static void __init read_obp_memory(const char *property,
 		regs[i].phys_addr = base;
 		regs[i].reg_size = size;
 	}
-	sort(regs, ents, sizeof(struct  linux_prom64_registers),
+	sort(regs, ents, sizeof(struct linux_prom64_registers),
 	     cmp_p64, NULL);
 }
 
@@ -132,6 +132,12 @@ extern unsigned int sparc_ramdisk_image;
 extern unsigned int sparc_ramdisk_size;
 
 struct page *mem_map_zero __read_mostly;
+
+unsigned int sparc64_highest_unlocked_tlb_ent __read_mostly;
+
+unsigned long sparc64_kern_pri_context __read_mostly;
+unsigned long sparc64_kern_pri_nuc_bits __read_mostly;
+unsigned long sparc64_kern_sec_context __read_mostly;
 
 int bigkernel = 0;
 
@@ -361,7 +367,11 @@ struct linux_prom_translation {
 	unsigned long size;
 	unsigned long data;
 };
-static struct linux_prom_translation prom_trans[512] __initdata;
+
+/* Exported for kernel TLB miss handling in ktlb.S */
+struct linux_prom_translation prom_trans[512] __read_mostly;
+unsigned int prom_trans_ents __read_mostly;
+unsigned int swapper_pgd_zero __read_mostly;
 
 extern unsigned long prom_boot_page;
 extern void prom_remap(unsigned long physpage, unsigned long virtpage, int mmu_ihandle);
@@ -371,178 +381,57 @@ extern void register_prom_callbacks(void);
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
 
-/* Exported for kernel TLB miss handling in ktlb.S */
-unsigned long prom_pmd_phys __read_mostly;
-unsigned int swapper_pgd_zero __read_mostly;
-
-/* Allocate power-of-2 aligned chunks from the end of the
- * kernel image.  Return physical address.
- */
-static inline unsigned long early_alloc_phys(unsigned long size)
-{
-	unsigned long base;
-
-	BUILD_BUG_ON(size & (size - 1));
-
-	kern_size = (kern_size + (size - 1)) & ~(size - 1);
-	base = kern_base + kern_size;
-	kern_size += size;
-
-	return base;
-}
-
-static inline unsigned long load_phys32(unsigned long pa)
-{
-	unsigned long val;
-
-	__asm__ __volatile__("lduwa	[%1] %2, %0"
-			     : "=&r" (val)
-			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
-
-	return val;
-}
-
-static inline unsigned long load_phys64(unsigned long pa)
-{
-	unsigned long val;
-
-	__asm__ __volatile__("ldxa	[%1] %2, %0"
-			     : "=&r" (val)
-			     : "r" (pa), "i" (ASI_PHYS_USE_EC));
-
-	return val;
-}
-
-static inline void store_phys32(unsigned long pa, unsigned long val)
-{
-	__asm__ __volatile__("stwa	%0, [%1] %2"
-			     : /* no outputs */
-			     : "r" (val), "r" (pa), "i" (ASI_PHYS_USE_EC));
-}
-
-static inline void store_phys64(unsigned long pa, unsigned long val)
-{
-	__asm__ __volatile__("stxa	%0, [%1] %2"
-			     : /* no outputs */
-			     : "r" (val), "r" (pa), "i" (ASI_PHYS_USE_EC));
-}
-
-#define BASE_PAGE_SIZE 8192
-
 /*
  * Translate PROM's mapping we capture at boot time into physical address.
  * The second parameter is only set from prom_callback() invocations.
  */
 unsigned long prom_virt_to_phys(unsigned long promva, int *error)
 {
-	unsigned long pmd_phys = (prom_pmd_phys +
-				  ((promva >> 23) & 0x7ff) * sizeof(pmd_t));
-	unsigned long pte_phys;
-	pmd_t pmd_ent;
-	pte_t pte_ent;
-	unsigned long base;
+	int i;
 
-	pmd_val(pmd_ent) = load_phys32(pmd_phys);
-	if (pmd_none(pmd_ent)) {
-		if (error)
-			*error = 1;
-		return 0;
-	}
+	for (i = 0; i < prom_trans_ents; i++) {
+		struct linux_prom_translation *p = &prom_trans[i];
 
-	pte_phys = (unsigned long)pmd_val(pmd_ent) << 11UL;
-	pte_phys += ((promva >> 13) & 0x3ff) * sizeof(pte_t);
-	pte_val(pte_ent) = load_phys64(pte_phys);
-	if (!pte_present(pte_ent)) {
-		if (error)
-			*error = 1;
-		return 0;
+		if (promva >= p->virt &&
+		    promva < (p->virt + p->size)) {
+			unsigned long base = p->data & _PAGE_PADDR;
+
+			if (error)
+				*error = 0;
+			return base + (promva & (8192 - 1));
+		}
 	}
-	if (error) {
-		*error = 0;
-		return pte_val(pte_ent);
-	}
-	base = pte_val(pte_ent) & _PAGE_PADDR;
-	return (base + (promva & (BASE_PAGE_SIZE - 1)));
+	if (error)
+		*error = 1;
+	return 0UL;
 }
 
 /* The obp translations are saved based on 8k pagesize, since obp can
  * use a mixture of pagesizes. Misses to the LOW_OBP_ADDRESS ->
- * HI_OBP_ADDRESS range are handled in entry.S and do not use the vpte
+ * HI_OBP_ADDRESS range are handled in ktlb.S and do not use the vpte
  * scheme (also, see rant in inherit_locked_prom_mappings()).
  */
-static void __init build_obp_range(unsigned long start, unsigned long end, unsigned long data)
-{
-	unsigned long vaddr;
-
-	for (vaddr = start; vaddr < end; vaddr += BASE_PAGE_SIZE) {
-		unsigned long val, pte_phys, pmd_phys;
-		pmd_t pmd_ent;
-		int i;
-
-		pmd_phys = (prom_pmd_phys +
-			    (((vaddr >> 23) & 0x7ff) * sizeof(pmd_t)));
-		pmd_val(pmd_ent) = load_phys32(pmd_phys);
-		if (pmd_none(pmd_ent)) {
-			pte_phys = early_alloc_phys(BASE_PAGE_SIZE);
-
-			for (i = 0; i < BASE_PAGE_SIZE / sizeof(pte_t); i++)
-				store_phys64(pte_phys+i*sizeof(pte_t),0);
-
-			pmd_val(pmd_ent) = pte_phys >> 11UL;
-			store_phys32(pmd_phys, pmd_val(pmd_ent));
-		}
-
-		pte_phys = (unsigned long)pmd_val(pmd_ent) << 11UL;
-		pte_phys += (((vaddr >> 13) & 0x3ff) * sizeof(pte_t));
-
-		val = data;
-
-		/* Clear diag TTE bits. */
-		if (tlb_type == spitfire)
-			val &= ~0x0003fe0000000000UL;
-
-		store_phys64(pte_phys, val | _PAGE_MODIFIED);
-
-		data += BASE_PAGE_SIZE;
-	}
-}
-
 static inline int in_obp_range(unsigned long vaddr)
 {
 	return (vaddr >= LOW_OBP_ADDRESS &&
 		vaddr < HI_OBP_ADDRESS);
 }
 
-#define OBP_PMD_SIZE 2048
-static void __init build_obp_pgtable(int prom_trans_ents)
+static int cmp_ptrans(const void *a, const void *b)
 {
-	unsigned long i;
+	const struct linux_prom_translation *x = a, *y = b;
 
-	prom_pmd_phys = early_alloc_phys(OBP_PMD_SIZE);
-	for (i = 0; i < OBP_PMD_SIZE; i += 4)
-		store_phys32(prom_pmd_phys + i, 0);
-
-	for (i = 0; i < prom_trans_ents; i++) {
-		unsigned long start, end;
-
-		if (!in_obp_range(prom_trans[i].virt))
-			continue;
-
-		start = prom_trans[i].virt;
-		end = start + prom_trans[i].size;
-		if (end > HI_OBP_ADDRESS)
-			end = HI_OBP_ADDRESS;
-
-		build_obp_range(start, end, prom_trans[i].data);
-	}
+	if (x->virt > y->virt)
+		return 1;
+	if (x->virt < y->virt)
+		return -1;
+	return 0;
 }
 
-/* Read OBP translations property into 'prom_trans[]'.
- * Return the number of entries.
- */
-static int __init read_obp_translations(void)
+/* Read OBP translations property into 'prom_trans[]'.  */
+static void __init read_obp_translations(void)
 {
-	int n, node;
+	int n, node, ents, first, last, i;
 
 	node = prom_finddevice("/virtual-memory");
 	n = prom_getproplen(node, "translations");
@@ -561,8 +450,44 @@ static int __init read_obp_translations(void)
 		prom_printf("prom_mappings: Couldn't get property.\n");
 		prom_halt();
 	}
+
 	n = n / sizeof(struct linux_prom_translation);
-	return n;
+
+	ents = n;
+
+	sort(prom_trans, ents, sizeof(struct linux_prom_translation),
+	     cmp_ptrans, NULL);
+
+	/* Now kick out all the non-OBP entries.  */
+	for (i = 0; i < ents; i++) {
+		if (in_obp_range(prom_trans[i].virt))
+			break;
+	}
+	first = i;
+	for (; i < ents; i++) {
+		if (!in_obp_range(prom_trans[i].virt))
+			break;
+	}
+	last = i;
+
+	for (i = 0; i < (last - first); i++) {
+		struct linux_prom_translation *src = &prom_trans[i + first];
+		struct linux_prom_translation *dest = &prom_trans[i];
+
+		*dest = *src;
+	}
+	for (; i < ents; i++) {
+		struct linux_prom_translation *dest = &prom_trans[i];
+		dest->virt = dest->size = dest->data = 0x0UL;
+	}
+
+	prom_trans_ents = last - first;
+
+	if (tlb_type == spitfire) {
+		/* Clear diag TTE bits. */
+		for (i = 0; i < prom_trans_ents; i++)
+			prom_trans[i].data &= ~0x0003fe0000000000UL;
+	}
 }
 
 static void __init remap_kernel(void)
@@ -582,29 +507,36 @@ static void __init remap_kernel(void)
 	prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
 	prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
 	if (bigkernel) {
-		prom_dtlb_load(tlb_ent - 1,
+		tlb_ent -= 1;
+		prom_dtlb_load(tlb_ent,
 			       tte_data + 0x400000, 
 			       tte_vaddr + 0x400000);
-		prom_itlb_load(tlb_ent - 1,
+		prom_itlb_load(tlb_ent,
 			       tte_data + 0x400000, 
 			       tte_vaddr + 0x400000);
 	}
+	sparc64_highest_unlocked_tlb_ent = tlb_ent - 1;
+	if (tlb_type == cheetah_plus) {
+		sparc64_kern_pri_context = (CTX_CHEETAH_PLUS_CTX0 |
+					    CTX_CHEETAH_PLUS_NUC);
+		sparc64_kern_pri_nuc_bits = CTX_CHEETAH_PLUS_NUC;
+		sparc64_kern_sec_context = CTX_CHEETAH_PLUS_CTX0;
+	}
 }
+
 
 static void __init inherit_prom_mappings(void)
 {
-	int n;
-
-	n = read_obp_translations();
-	build_obp_pgtable(n);
+	read_obp_translations();
 
 	/* Now fixup OBP's idea about where we really are mapped. */
 	prom_printf("Remapping the kernel... ");
 	remap_kernel();
-
 	prom_printf("done.\n");
 
+	prom_printf("Registering callbacks... ");
 	register_prom_callbacks();
+	prom_printf("done.\n");
 }
 
 /* The OBP specifications for sun4u mark 0xfffffffc00000000 and
@@ -788,8 +720,8 @@ void inherit_locked_prom_mappings(int save_p)
 		}
 	}
 	if (tlb_type == spitfire) {
-		int high = SPITFIRE_HIGHEST_LOCKED_TLBENT - bigkernel;
-		for (i = 0; i < high; i++) {
+		int high = sparc64_highest_unlocked_tlb_ent;
+		for (i = 0; i <= high; i++) {
 			unsigned long data;
 
 			/* Spitfire Errata #32 workaround */
@@ -877,9 +809,9 @@ void inherit_locked_prom_mappings(int save_p)
 			}
 		}
 	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		int high = CHEETAH_HIGHEST_LOCKED_TLBENT - bigkernel;
+		int high = sparc64_highest_unlocked_tlb_ent;
 
-		for (i = 0; i < high; i++) {
+		for (i = 0; i <= high; i++) {
 			unsigned long data;
 
 			data = cheetah_get_ldtlb_data(i);
@@ -1556,7 +1488,6 @@ void __init paging_init(void)
 	
 	swapper_pgd_zero = pgd_val(swapper_pg_dir[0]);
 	
-	/* Inherit non-locked OBP mappings. */
 	inherit_prom_mappings();
 	
 	/* Ok, we can use our TLB miss and window trap handlers safely.

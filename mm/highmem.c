@@ -30,7 +30,7 @@
 
 static mempool_t *page_pool, *isa_page_pool;
 
-static void *page_pool_alloc(unsigned int __nocast gfp_mask, void *data)
+static void *page_pool_alloc(gfp_t gfp_mask, void *data)
 {
 	unsigned int gfp = gfp_mask | (unsigned int) (long) data;
 

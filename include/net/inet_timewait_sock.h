@@ -19,6 +19,7 @@
 
 #include <linux/ip.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -193,11 +194,13 @@ static inline u32 inet_rcv_saddr(const struct sock *sk)
 static inline void inet_twsk_put(struct inet_timewait_sock *tw)
 {
 	if (atomic_dec_and_test(&tw->tw_refcnt)) {
+		struct module *owner = tw->tw_prot->owner;
 #ifdef SOCK_REFCNT_DEBUG
 		printk(KERN_DEBUG "%s timewait_sock %p released\n",
 		       tw->tw_prot->name, tw);
 #endif
 		kmem_cache_free(tw->tw_prot->twsk_slab, tw);
+		module_put(owner);
 	}
 }
 

@@ -98,7 +98,7 @@ static struct hpsb_address_ops arm_ops = {
 
 static void queue_complete_cb(struct pending_request *req);
 
-static struct pending_request *__alloc_pending_request(unsigned int __nocast flags)
+static struct pending_request *__alloc_pending_request(gfp_t flags)
 {
 	struct pending_request *req;
 

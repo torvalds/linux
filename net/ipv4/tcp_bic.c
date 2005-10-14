@@ -136,7 +136,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 		else if (cwnd < ca->last_max_cwnd + max_increment*(BICTCP_B-1))
 			/* slow start */
 			ca->cnt = (cwnd * (BICTCP_B-1))
-				/ cwnd-ca->last_max_cwnd;
+				/ (cwnd - ca->last_max_cwnd);
 		else
 			/* linear increase */
 			ca->cnt = cwnd / max_increment;

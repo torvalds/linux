@@ -58,9 +58,6 @@ vpte_noent:
 	done
 
 vpte_insn_obp:
-	sethi		%hi(prom_pmd_phys), %g5
-	ldx		[%g5 + %lo(prom_pmd_phys)], %g5
-
 	/* Behave as if we are at TL0.  */
 	wrpr		%g0, 1, %tl
 	rdpr		%tpc, %g4	/* Find original faulting iaddr */
@@ -71,57 +68,56 @@ vpte_insn_obp:
 	mov		TLB_SFSR, %g1
 	stxa		%g4, [%g1 + %g1] ASI_IMMU
 
-	/* Get PMD offset.  */
-	srlx		%g4, 23, %g6
-	and		%g6, 0x7ff, %g6
-	sllx		%g6, 2, %g6
+	sethi		%hi(prom_trans), %g5
+	or		%g5, %lo(prom_trans), %g5
 
-	/* Load PMD, is it valid?  */
-	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brz,pn		%g5, longpath
-	 sllx		%g5, 11, %g5
+1:	ldx		[%g5 + 0x00], %g6	! base
+	brz,a,pn	%g6, longpath		! no more entries, fail
+	 mov		TLB_SFSR, %g1		! and restore %g1
+	ldx		[%g5 + 0x08], %g1	! len
+	add		%g6, %g1, %g1		! end
+	cmp		%g6, %g4
+	bgu,pt		%xcc, 2f
+	 cmp		%g4, %g1
+	bgeu,pt		%xcc, 2f
+	 ldx		[%g5 + 0x10], %g1	! PTE
 
-	/* Get PTE offset.  */
-	srlx		%g4, 13, %g6
-	and		%g6, 0x3ff, %g6
-	sllx		%g6, 3, %g6
-
-	/* Load PTE.  */
-	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* TLB load and return from trap.  */
+	/* TLB load, restore %g1, and return from trap.  */
+	sub		%g4, %g6, %g6
+	add		%g1, %g6, %g5
+	mov		TLB_SFSR, %g1
 	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
 
+2:	ba,pt		%xcc, 1b
+	 add		%g5, (3 * 8), %g5	! next entry
+
 kvmap_do_obp:
-	sethi		%hi(prom_pmd_phys), %g5
-	ldx		[%g5 + %lo(prom_pmd_phys)], %g5
+	sethi		%hi(prom_trans), %g5
+	or		%g5, %lo(prom_trans), %g5
+	srlx		%g4, 13, %g4
+	sllx		%g4, 13, %g4
 
-	/* Get PMD offset.  */
-	srlx		%g4, 23, %g6
-	and		%g6, 0x7ff, %g6
-	sllx		%g6, 2, %g6
+1:	ldx		[%g5 + 0x00], %g6	! base
+	brz,a,pn	%g6, longpath		! no more entries, fail
+	 mov		TLB_SFSR, %g1		! and restore %g1
+	ldx		[%g5 + 0x08], %g1	! len
+	add		%g6, %g1, %g1		! end
+	cmp		%g6, %g4
+	bgu,pt		%xcc, 2f
+	 cmp		%g4, %g1
+	bgeu,pt		%xcc, 2f
+	 ldx		[%g5 + 0x10], %g1	! PTE
 
-	/* Load PMD, is it valid?  */
-	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brz,pn		%g5, longpath
-	 sllx		%g5, 11, %g5
-
-	/* Get PTE offset.  */
-	srlx		%g4, 13, %g6
-	and		%g6, 0x3ff, %g6
-	sllx		%g6, 3, %g6
-
-	/* Load PTE.  */
-	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* TLB load and return from trap.  */
+	/* TLB load, restore %g1, and return from trap.  */
+	sub		%g4, %g6, %g6
+	add		%g1, %g6, %g5
+	mov		TLB_SFSR, %g1
 	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
 	retry
+
+2:	ba,pt		%xcc, 1b
+	 add		%g5, (3 * 8), %g5	! next entry
 
 /*
  * On a first level data miss, check whether this is to the OBP range (note

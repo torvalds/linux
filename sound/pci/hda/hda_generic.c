@@ -881,10 +881,8 @@ int snd_hda_parse_generic_codec(struct hda_codec *codec)
 	struct hda_gspec *spec;
 	int err;
 
-	if(!codec->afg) {
-		snd_printdd("hda_generic: no generic modem yet\n");
-		return -ENODEV;
-	}
+	if(!codec->afg)
+		return 0;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL) {

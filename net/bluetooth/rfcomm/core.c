@@ -229,7 +229,7 @@ static void rfcomm_dlc_clear_state(struct rfcomm_dlc *d)
 	d->rx_credits = RFCOMM_DEFAULT_CREDITS;
 }
 
-struct rfcomm_dlc *rfcomm_dlc_alloc(unsigned int __nocast prio)
+struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 {
 	struct rfcomm_dlc *d = kmalloc(sizeof(*d), prio);
 	if (!d)

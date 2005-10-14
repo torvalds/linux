@@ -265,4 +265,7 @@ static inline flag float64_lt_nocheck(float64 a, float64 b)
 	return (a != b) && (aSign ^ (a < b));
 }
 
+extern flag float32_is_nan( float32 a );
+extern flag float64_is_nan( float64 a );
+
 #endif

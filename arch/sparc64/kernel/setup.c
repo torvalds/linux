@@ -187,17 +187,13 @@ int prom_callback(long *args)
 		}
 
 		if ((va >= KERNBASE) && (va < (KERNBASE + (4 * 1024 * 1024)))) {
-			unsigned long kernel_pctx = 0;
-
-			if (tlb_type == cheetah_plus)
-				kernel_pctx |= (CTX_CHEETAH_PLUS_NUC |
-						CTX_CHEETAH_PLUS_CTX0);
+			extern unsigned long sparc64_kern_pri_context;
 
 			/* Spitfire Errata #32 workaround */
 			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
 					     "flush	%%g6"
 					     : /* No outputs */
-					     : "r" (kernel_pctx),
+					     : "r" (sparc64_kern_pri_context),
 					       "r" (PRIMARY_CONTEXT),
 					       "i" (ASI_DMMU));
 

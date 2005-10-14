@@ -177,11 +177,11 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct ip_conntrack *ct,
 	struct nfattr *nest_count = NFA_NEST(skb, type);
 	u_int64_t tmp;
 
-	tmp = cpu_to_be64(ct->counters[dir].packets);
-	NFA_PUT(skb, CTA_COUNTERS_PACKETS, sizeof(u_int64_t), &tmp);
+	tmp = htonl(ct->counters[dir].packets);
+	NFA_PUT(skb, CTA_COUNTERS32_PACKETS, sizeof(u_int32_t), &tmp);
 
-	tmp = cpu_to_be64(ct->counters[dir].bytes);
-	NFA_PUT(skb, CTA_COUNTERS_BYTES, sizeof(u_int64_t), &tmp);
+	tmp = htonl(ct->counters[dir].bytes);
+	NFA_PUT(skb, CTA_COUNTERS32_BYTES, sizeof(u_int32_t), &tmp);
 
 	NFA_NEST_END(skb, nest_count);
 
@@ -833,7 +833,8 @@ out:
 static inline int
 ctnetlink_change_status(struct ip_conntrack *ct, struct nfattr *cda[])
 {
-	unsigned long d, status = *(u_int32_t *)NFA_DATA(cda[CTA_STATUS-1]);
+	unsigned long d;
+	unsigned status = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_STATUS-1]));
 	d = ct->status ^ status;
 
 	if (d & (IPS_EXPECTED|IPS_CONFIRMED|IPS_DYING))
@@ -948,6 +949,31 @@ ctnetlink_change_timeout(struct ip_conntrack *ct, struct nfattr *cda[])
 	return 0;
 }
 
+static inline int
+ctnetlink_change_protoinfo(struct ip_conntrack *ct, struct nfattr *cda[])
+{
+	struct nfattr *tb[CTA_PROTOINFO_MAX], *attr = cda[CTA_PROTOINFO-1];
+	struct ip_conntrack_protocol *proto;
+	u_int16_t npt = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum;
+	int err = 0;
+
+	if (nfattr_parse_nested(tb, CTA_PROTOINFO_MAX, attr) < 0)
+		goto nfattr_failure;
+
+	proto = ip_conntrack_proto_find_get(npt);
+	if (!proto)
+		return -EINVAL;
+
+	if (proto->from_nfattr)
+		err = proto->from_nfattr(tb, ct);
+	ip_conntrack_proto_put(proto); 
+
+	return err;
+
+nfattr_failure:
+	return -ENOMEM;
+}
+
 static int
 ctnetlink_change_conntrack(struct ip_conntrack *ct, struct nfattr *cda[])
 {
@@ -969,6 +995,12 @@ ctnetlink_change_conntrack(struct ip_conntrack *ct, struct nfattr *cda[])
 
 	if (cda[CTA_STATUS-1]) {
 		err = ctnetlink_change_status(ct, cda);
+		if (err < 0)
+			return err;
+	}
+
+	if (cda[CTA_PROTOINFO-1]) {
+		err = ctnetlink_change_protoinfo(ct, cda);
 		if (err < 0)
 			return err;
 	}
@@ -1001,6 +1033,12 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 	err = ctnetlink_change_status(ct, cda);
 	if (err < 0)
 		goto err;
+
+	if (cda[CTA_PROTOINFO-1]) {
+		err = ctnetlink_change_protoinfo(ct, cda);
+		if (err < 0)
+			return err;
+	}
 
 	ct->helper = ip_conntrack_helper_find_get(rtuple);
 
