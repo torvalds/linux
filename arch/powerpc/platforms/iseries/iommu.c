@@ -31,9 +31,8 @@
 #include <asm/tce.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
+#include <asm/pci-bridge.h>
 #include <asm/iSeries/HvCallXm.h>
-
-#include "pci.h"
 
 extern struct list_head iSeries_Global_Device_List;
 
@@ -114,7 +113,7 @@ static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
  * 2. TCE table per Bus.
  * 3. TCE Table per IOA.
  */
-static void iommu_table_getparms(struct device_node *dn,
+static void iommu_table_getparms(struct pci_dn *pdn,
 				 struct iommu_table* tbl)
 {
 	struct iommu_table_cb *parms;
@@ -125,8 +124,8 @@ static void iommu_table_getparms(struct device_node *dn,
 
 	memset(parms, 0, sizeof(*parms));
 
-	parms->itc_busno = ISERIES_BUS(dn);
-	parms->itc_slotno = PCI_DN(dn)->LogicalSlot;
+	parms->itc_busno = pdn->DsaAddr.Dsa.busNumber;
+	parms->itc_slotno = pdn->LogicalSlot;
 	parms->itc_virtbus = 0;
 
 	HvCallXm_getTceTableParms(iseries_hv_addr(parms));
@@ -153,7 +152,7 @@ void iommu_devnode_init_iSeries(struct device_node *dn)
 
 	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
-	iommu_table_getparms(dn, tbl);
+	iommu_table_getparms(pdn, tbl);
 
 	/* Look for existing tce table */
 	pdn->iommu_table = iommu_table_find(tbl);

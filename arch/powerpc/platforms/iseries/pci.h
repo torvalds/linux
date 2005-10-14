@@ -30,16 +30,7 @@
  * End Change Activity
  */
 
-#include <asm/pci-bridge.h>
-
 struct pci_dev;				/* For Forward Reference */
-
-/*
- * Gets iSeries Bus, SubBus, DevFn using device_node structure
- */
-
-#define ISERIES_BUS(DevPtr)	PCI_DN(DevPtr)->DsaAddr.Dsa.busNumber
-#define ISERIES_SUBBUS(DevPtr)	PCI_DN(DevPtr)->DsaAddr.Dsa.subBusNumber
 
 /*
  * Decodes Linux DevFn to iSeries DevFn, bridge device, or function.

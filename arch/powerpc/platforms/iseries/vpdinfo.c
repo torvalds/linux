@@ -31,6 +31,7 @@
 #include <asm/types.h>
 #include <asm/resource.h>
 #include <asm/abs_addr.h>
+#include <asm/pci-bridge.h>
 #include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvTypes.h>
 
@@ -243,6 +244,7 @@ out_free:
 void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
 {
 	struct device_node *DevNode = PciDev->sysdata;
+	struct pci_dn *pdn;
 	u16 bus;
 	u8 frame;
 	char card[4];
@@ -255,8 +257,9 @@ void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
 		return;
 	}
 
-	bus = ISERIES_BUS(DevNode);
-	subbus = ISERIES_SUBBUS(DevNode);
+	pdn = PCI_DN(DevNode);
+	bus = pdn->DsaAddr.Dsa.busNumber;
+	subbus = pdn->DsaAddr.Dsa.subBusNumber;
 	agent = ISERIES_PCI_AGENTID(ISERIES_GET_DEVICE_FROM_SUBBUS(subbus),
 			ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus));
 	iSeries_Get_Location_Code(bus, agent, &frame, card);
