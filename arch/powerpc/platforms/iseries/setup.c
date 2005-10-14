@@ -45,7 +45,6 @@
 #include <asm/cache.h>
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
-#include <asm/iSeries/HvCallHpt.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallEvent.h>
 #include <asm/iSeries/HvCallXm.h>
@@ -60,6 +59,7 @@
 #include "processor_vpd.h"
 #include "main_store.h"
 #include "call_sm.h"
+#include "call_hpt.h"
 
 extern void hvlog(char *fmt, ...);
 

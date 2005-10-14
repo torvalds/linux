@@ -14,9 +14,10 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/iSeries/HvCallHpt.h>
 #include <asm/abs_addr.h>
 #include <linux/spinlock.h>
+
+#include "call_hpt.h"
 
 static spinlock_t iSeries_hlocks[64] __cacheline_aligned_in_smp =
 	{ [0 ... 63] = SPIN_LOCK_UNLOCKED};

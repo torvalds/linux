@@ -1,5 +1,4 @@
 /*
- * HvCallHpt.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _HVCALLHPT_H
-#define _HVCALLHPT_H
+#ifndef _PLATFORMS_ISERIES_CALL_HPT_H
+#define _PLATFORMS_ISERIES_CALL_HPT_H
 
 /*
  * This file contains the "hypervisor call" interface which is used to
@@ -99,4 +98,4 @@ static inline void HvCallHpt_addValidate(u32 hpteIndex, u32 hBit, hpte_t *hpte)
 	HvCall4(HvCallHptAddValidate, hpteIndex, hBit, hpte->v, hpte->r);
 }
 
-#endif /* _HVCALLHPT_H */
+#endif /* _PLATFORMS_ISERIES_CALL_HPT_H */
