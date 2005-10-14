@@ -57,8 +57,6 @@ MODULE_CLASSES("{sound}");
 MODULE_DEVICES("{{AMD,Au1000 AC'97}}");
 #endif
 
-#define chip_t au1000_t
-
 #define PLAYBACK 0
 #define CAPTURE 1
 #define AC97_SLOT_3 0x01

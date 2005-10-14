@@ -3693,8 +3693,7 @@ struct _snd_pcm_runtime {
         <para>
           Here, the chip instance is retrieved via
         <function>snd_kcontrol_chip()</function> macro.  This macro
-        converts from kcontrol-&gt;private_data to the type defined by
-        <type>chip_t</type>. The
+        just accesses to kcontrol-&gt;private_data. The
         kcontrol-&gt;private_data field is 
         given as the argument of <function>snd_ctl_new()</function>
         (see the later subsection
