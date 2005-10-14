@@ -1,8 +1,8 @@
-#ifndef _ISERIES_64_PCI_H
-#define _ISERIES_64_PCI_H
+#ifndef _PLATFORMS_ISERIES_PCI_H
+#define _PLATFORMS_ISERIES_PCI_H
 
 /*
- * File iSeries_pci.h created by Allan Trautman on Tue Feb 20, 2001.
+ * Created by Allan Trautman on Tue Feb 20, 2001.
  *
  * Define some useful macros for the iSeries pci routines.
  * Copyright (C) 2001  Allan H Trautman, IBM Corporation
@@ -30,8 +30,6 @@
  * End Change Activity
  */
 
-#include <asm/abs_addr.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
 struct pci_dev;				/* For Forward Reference */
@@ -42,9 +40,6 @@ struct pci_dev;				/* For Forward Reference */
 
 #define ISERIES_BUS(DevPtr)	PCI_DN(DevPtr)->DsaAddr.Dsa.busNumber
 #define ISERIES_SUBBUS(DevPtr)	PCI_DN(DevPtr)->DsaAddr.Dsa.subBusNumber
-#define ISERIES_DEVNODE(PciDev)	((struct device_node *)PciDev->sysdata)
-
-#define EADsMaxAgents 7
 
 /*
  * Decodes Linux DevFn to iSeries DevFn, bridge device, or function.
@@ -59,12 +54,6 @@ struct pci_dev;				/* For Forward Reference */
 #define ISERIES_GET_DEVICE_FROM_SUBBUS(subbus)		((subbus >> 5) & 0x7)
 #define ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus)	((subbus >> 2) & 0x7)
 
-/*
- * Converts Virtual Address to Real Address for Hypervisor calls
- */
-#define ISERIES_HV_ADDR(virtaddr)	\
-	(0x8000000000000000 | virt_to_abs(virtaddr))
-
 extern void	iSeries_Device_Information(struct pci_dev*, int);
 
-#endif /* _ISERIES_64_PCI_H */
+#endif /* _PLATFORMS_ISERIES_PCI_H */

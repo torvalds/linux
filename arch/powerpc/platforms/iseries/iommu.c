@@ -30,8 +30,10 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/machdep.h>
+#include <asm/abs_addr.h>
 #include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/iSeries_pci.h>
+
+#include "pci.h"
 
 extern struct list_head iSeries_Global_Device_List;
 
@@ -127,7 +129,7 @@ static void iommu_table_getparms(struct device_node *dn,
 	parms->itc_slotno = PCI_DN(dn)->LogicalSlot;
 	parms->itc_virtbus = 0;
 
-	HvCallXm_getTceTableParms(ISERIES_HV_ADDR(parms));
+	HvCallXm_getTceTableParms(iseries_hv_addr(parms));
 
 	if (parms->itc_size == 0)
 		panic("PCI_DMA: parms->size is zero, parms is 0x%p", parms);

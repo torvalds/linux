@@ -34,15 +34,16 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppcdebug.h>
 #include <asm/iommu.h>
+#include <asm/abs_addr.h>
 
 #include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/iSeries_pci.h>
 #include <asm/iSeries/mf.h>
 
 #include <asm/ppc-pci.h>
 
 #include "irq.h"
+#include "pci.h"
 
 extern unsigned long io_page_mask;
 
@@ -368,7 +369,7 @@ static void scan_PHB_slots(struct pci_controller *Phb)
 	 */
 	for (IdSel = 1; IdSel < MaxAgents; ++IdSel) {
 		HvRc = HvCallPci_getDeviceInfo(bus, SubBus, IdSel,
-				ISERIES_HV_ADDR(DevInfo),
+				iseries_hv_addr(DevInfo),
 				sizeof(struct HvCallPci_DeviceInfo));
 		if (HvRc == 0) {
 			if (DevInfo->deviceType == HvCallPci_NodeDevice)
@@ -409,7 +410,7 @@ static void scan_EADS_bridge(HvBusNumber bus, HvSubBusNumber SubBus,
 					"PCI:Connect EADs: 0x%02X.%02X.%02X\n",
 					bus, SubBus, AgentId);
 			HvRc = HvCallPci_getBusUnitInfo(bus, SubBus, AgentId,
-					ISERIES_HV_ADDR(BridgeInfo),
+					iseries_hv_addr(BridgeInfo),
 					sizeof(struct HvCallPci_BridgeInfo));
 			if (HvRc == 0) {
 				printk("bridge info: type %x subbus %x maxAgents %x maxsubbus %x logslot %x\n",

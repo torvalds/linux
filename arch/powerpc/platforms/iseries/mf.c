@@ -36,6 +36,7 @@
 #include <asm/time.h>
 #include <asm/uaccess.h>
 #include <asm/paca.h>
+#include <asm/abs_addr.h>
 #include <asm/iSeries/vio.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpConfig.h>
@@ -1064,10 +1065,10 @@ static void mf_getSrcHistory(char *buffer, int size)
 	ev->event.data.vsp_cmd.lp_index = HvLpConfig_getLpIndex();
 	ev->event.data.vsp_cmd.result_code = 0xFF;
 	ev->event.data.vsp_cmd.reserved = 0;
-	ev->event.data.vsp_cmd.sub_data.page[0] = ISERIES_HV_ADDR(pages[0]);
-	ev->event.data.vsp_cmd.sub_data.page[1] = ISERIES_HV_ADDR(pages[1]);
-	ev->event.data.vsp_cmd.sub_data.page[2] = ISERIES_HV_ADDR(pages[2]);
-	ev->event.data.vsp_cmd.sub_data.page[3] = ISERIES_HV_ADDR(pages[3]);
+	ev->event.data.vsp_cmd.sub_data.page[0] = iseries_hv_addr(pages[0]);
+	ev->event.data.vsp_cmd.sub_data.page[1] = iseries_hv_addr(pages[1]);
+	ev->event.data.vsp_cmd.sub_data.page[2] = iseries_hv_addr(pages[2]);
+	ev->event.data.vsp_cmd.sub_data.page[3] = iseries_hv_addr(pages[3]);
 	mb();
 	if (signal_event(ev) != 0)
 		return;

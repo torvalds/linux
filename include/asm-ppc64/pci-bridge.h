@@ -2,6 +2,7 @@
 #ifndef _ASM_PCI_BRIDGE_H
 #define _ASM_PCI_BRIDGE_H
 
+#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/list.h>
 

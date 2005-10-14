@@ -27,12 +27,14 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+
 #include <asm/types.h>
 #include <asm/resource.h>
-
+#include <asm/abs_addr.h>
 #include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/iSeries_pci.h>
+
+#include "pci.h"
 
 /*
  * Size of Bus VPD data
@@ -212,7 +214,7 @@ static void __init iSeries_Get_Location_Code(u16 bus, HvAgentId agent,
 		printk("PCI: Bus VPD Buffer allocation failure.\n");
 		return;
 	}
-	BusVpdLen = HvCallPci_getBusVpd(bus, ISERIES_HV_ADDR(BusVpdPtr),
+	BusVpdLen = HvCallPci_getBusVpd(bus, iseries_hv_addr(BusVpdPtr),
 					BUS_VPDSIZE);
 	if (BusVpdLen == 0) {
 		printk("PCI: Bus VPD Buffer zero length.\n");

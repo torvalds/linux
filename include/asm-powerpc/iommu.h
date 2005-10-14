@@ -21,6 +21,7 @@
 #ifndef _ASM_IOMMU_H
 #define _ASM_IOMMU_H
 
+#include <linux/config.h>
 #include <asm/types.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
