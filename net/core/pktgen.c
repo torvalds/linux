@@ -75,7 +75,7 @@
  * By design there should only be *one* "controlling" process. In practice 
  * multiple write accesses gives unpredictable result. Understood by "write" 
  * to /proc gives result code thats should be read be the "writer".
- * For pratical use this should be no problem.
+ * For practical use this should be no problem.
  *
  * Note when adding devices to a specific CPU there good idea to also assign 
  * /proc/irq/XX/smp_affinity so TX-interrupts gets bound to the same CPU. 
@@ -96,7 +96,7 @@
  * New xmit() return, do_div and misc clean up by Stephen Hemminger 
  * <shemminger@osdl.org> 040923
  *
- * Rany Dunlap fixed u64 printk compiler waring 
+ * Randy Dunlap fixed u64 printk compiler waring 
  *
  * Remove FCS from BW calculation.  Lennert Buytenhek <buytenh@wantstofly.org>
  * New time handling. Lennert Buytenhek <buytenh@wantstofly.org> 041213
@@ -244,7 +244,7 @@ struct pktgen_dev {
         __u32 seq_num;
         
         int clone_skb; /* Use multiple SKBs during packet gen.  If this number
-                          * is greater than 1, then that many coppies of the same
+                          * is greater than 1, then that many copies of the same
                           * packet will be sent before a new packet is allocated.
                           * For instance, if you want to send 1024 identical packets
                           * before creating a new packet, set clone_skb to 1024.
@@ -396,7 +396,7 @@ static inline s64 divremdi3(s64 x, s64 y, int type)
 
 /* End of hacks to deal with 64-bit math on x86 */
 
-/** Convert to miliseconds */
+/** Convert to milliseconds */
 static inline __u64 tv_to_ms(const struct timeval* tv) 
 {
         __u64 ms = tv->tv_usec / 1000;
@@ -425,7 +425,7 @@ static inline __u64 pg_div64(__u64 n, __u64 base)
 {
         __u64 tmp = n;
 /*
- * How do we know if the architectrure we are running on
+ * How do we know if the architecture we are running on
  * supports division with 64 bit base?
  * 
  */
@@ -544,12 +544,12 @@ static ssize_t proc_pgctrl_read(struct file* file, char __user * buf,
 	len = strlen(data);
 
 	if(len > count) {
-		len =-EFAULT;
+		len = -EFAULT;
 		goto out;
 	}  	
 
 	if (copy_to_user(buf, data, len)) {
-		len =-EFAULT;
+		len = -EFAULT;
 		goto out;
 	}  
 
@@ -578,7 +578,7 @@ static ssize_t proc_pgctrl_write(struct file* file,const char __user * buf,
 		goto out;
 	}
 	if (copy_from_user(data, buf, count)) {
-		err =-EFAULT;
+		err = -EFAULT;
 		goto out_free;
 	}  
 	data[count-1] = 0; /* Make string */
@@ -1702,7 +1702,7 @@ static void spin(struct pktgen_dev *pkt_dev, __u64 spin_until_us)
 	start = now = getCurUs();
 	printk(KERN_INFO "sleeping for %d\n", (int)(spin_until_us - now));
 	while (now < spin_until_us) {
-		/* TODO: optimise sleeping behavior */
+		/* TODO: optimize sleeping behavior */
 		if (spin_until_us - now > jiffies_to_usecs(1)+1)
 			schedule_timeout_interruptible(1);
 		else if (spin_until_us - now > 100) {
@@ -2361,7 +2361,7 @@ static void pktgen_stop_all_threads_ifs(void)
 		pktgen_stop(t);
 		t = t->next;
 	}
-       thread_unlock();
+	thread_unlock();
 }
 
 static int thread_is_running(struct pktgen_thread *t )
@@ -2555,7 +2555,7 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
         if (strlen(t->fname))
                 remove_proc_entry(t->fname, NULL);
 
-       thread_lock();
+	thread_lock();
 
 	if (tmp == t)
 		pktgen_threads = tmp->next;
@@ -2929,7 +2929,7 @@ static struct pktgen_thread *pktgen_find_thread(const char* name)
 {
         struct pktgen_thread *t = NULL;
 
-       thread_lock();
+	thread_lock();
 
         t = pktgen_threads;
         while (t) {
