@@ -3,6 +3,7 @@
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -86,10 +87,17 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_DEREG_MR]      	= ib_uverbs_dereg_mr,
 	[IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL] = ib_uverbs_create_comp_channel,
 	[IB_USER_VERBS_CMD_CREATE_CQ]     	= ib_uverbs_create_cq,
+	[IB_USER_VERBS_CMD_POLL_CQ]     	= ib_uverbs_poll_cq,
+	[IB_USER_VERBS_CMD_REQ_NOTIFY_CQ]     	= ib_uverbs_req_notify_cq,
 	[IB_USER_VERBS_CMD_DESTROY_CQ]    	= ib_uverbs_destroy_cq,
 	[IB_USER_VERBS_CMD_CREATE_QP]     	= ib_uverbs_create_qp,
 	[IB_USER_VERBS_CMD_MODIFY_QP]     	= ib_uverbs_modify_qp,
 	[IB_USER_VERBS_CMD_DESTROY_QP]    	= ib_uverbs_destroy_qp,
+	[IB_USER_VERBS_CMD_POST_SEND]    	= ib_uverbs_post_send,
+	[IB_USER_VERBS_CMD_POST_RECV]    	= ib_uverbs_post_recv,
+	[IB_USER_VERBS_CMD_POST_SRQ_RECV]    	= ib_uverbs_post_srq_recv,
+	[IB_USER_VERBS_CMD_CREATE_AH]    	= ib_uverbs_create_ah,
+	[IB_USER_VERBS_CMD_DESTROY_AH]    	= ib_uverbs_destroy_ah,
 	[IB_USER_VERBS_CMD_ATTACH_MCAST]  	= ib_uverbs_attach_mcast,
 	[IB_USER_VERBS_CMD_DETACH_MCAST]  	= ib_uverbs_detach_mcast,
 	[IB_USER_VERBS_CMD_CREATE_SRQ]    	= ib_uverbs_create_srq,
@@ -111,7 +119,13 @@ static int ib_dealloc_ucontext(struct ib_ucontext *context)
 
 	down(&ib_uverbs_idr_mutex);
 
-	/* XXX Free AHs */
+	list_for_each_entry_safe(uobj, tmp, &context->ah_list, list) {
+		struct ib_ah *ah = idr_find(&ib_uverbs_ah_idr, uobj->id);
+		idr_remove(&ib_uverbs_ah_idr, uobj->id);
+		ib_destroy_ah(ah);
+		list_del(&uobj->list);
+		kfree(uobj);
+	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->qp_list, list) {
 		struct ib_qp *qp = idr_find(&ib_uverbs_qp_idr, uobj->id);

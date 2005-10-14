@@ -3,6 +3,7 @@
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -140,10 +141,17 @@ IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
 IB_UVERBS_DECLARE_CMD(create_comp_channel);
 IB_UVERBS_DECLARE_CMD(create_cq);
+IB_UVERBS_DECLARE_CMD(poll_cq);
+IB_UVERBS_DECLARE_CMD(req_notify_cq);
 IB_UVERBS_DECLARE_CMD(destroy_cq);
 IB_UVERBS_DECLARE_CMD(create_qp);
 IB_UVERBS_DECLARE_CMD(modify_qp);
 IB_UVERBS_DECLARE_CMD(destroy_qp);
+IB_UVERBS_DECLARE_CMD(post_send);
+IB_UVERBS_DECLARE_CMD(post_recv);
+IB_UVERBS_DECLARE_CMD(post_srq_recv);
+IB_UVERBS_DECLARE_CMD(create_ah);
+IB_UVERBS_DECLARE_CMD(destroy_ah);
 IB_UVERBS_DECLARE_CMD(attach_mcast);
 IB_UVERBS_DECLARE_CMD(detach_mcast);
 IB_UVERBS_DECLARE_CMD(create_srq);
