@@ -32,10 +32,10 @@
 #include <asm/resource.h>
 #include <asm/abs_addr.h>
 #include <asm/pci-bridge.h>
-#include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvTypes.h>
 
 #include "pci.h"
+#include "call_pci.h"
 
 /*
  * Size of Bus VPD data

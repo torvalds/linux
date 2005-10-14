@@ -36,7 +36,6 @@
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 
-#include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/mf.h>
 
@@ -44,6 +43,7 @@
 
 #include "irq.h"
 #include "pci.h"
+#include "call_pci.h"
 
 extern unsigned long io_page_mask;
 

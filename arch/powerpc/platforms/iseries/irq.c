@@ -38,10 +38,10 @@
 #include <asm/ppcdebug.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvCallXm.h>
 
 #include "irq.h"
+#include "call_pci.h"
 
 /* This maps virtual irq numbers to real irqs */
 unsigned int virt_irq_to_real_map[NR_IRQS];

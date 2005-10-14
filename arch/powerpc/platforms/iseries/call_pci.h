@@ -22,8 +22,8 @@
  *   Created, Jan 9, 2001
  */
 
-#ifndef _HVCALLPCI_H
-#define _HVCALLPCI_H
+#ifndef _PLATFORMS_ISERIES_CALL_PCI_H
+#define _PLATFORMS_ISERIES_CALL_PCI_H
 
 #include <asm/iSeries/HvCallSc.h>
 #include <asm/iSeries/HvTypes.h>
@@ -287,4 +287,4 @@ static inline int HvCallPci_getBusVpd(u16 busNumParm, u64 destParm,
 		return xRc & 0xFFFF;
 }
 
-#endif /* _HVCALLPCI_H */
+#endif /* _PLATFORMS_ISERIES_CALL_PCI_H */
