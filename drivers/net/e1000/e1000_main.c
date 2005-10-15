@@ -4347,7 +4347,7 @@ e1000_netpoll(struct net_device *netdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	disable_irq(adapter->pdev->irq);
 	e1000_intr(adapter->pdev->irq, netdev, NULL);
-	e1000_clean_tx_irq(adapter);
+	e1000_clean_tx_irq(adapter, adapter->tx_ring);
 	enable_irq(adapter->pdev->irq);
 }
 #endif
