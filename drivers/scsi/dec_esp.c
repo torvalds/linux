@@ -18,7 +18,7 @@
  * 20001005	- Initialization fixes for 2.4.0-test9
  * 			  Florian Lohoff <flo@rfc822.org>
  *
- *	Copyright (C) 2002, 2003  Maciej W. Rozycki
+ *	Copyright (C) 2002, 2003, 2005  Maciej W. Rozycki
  */
 
 #include <linux/kernel.h>
@@ -41,6 +41,7 @@
 #include <asm/dec/ioasic_addrs.h>
 #include <asm/dec/ioasic_ints.h>
 #include <asm/dec/machtype.h>
+#include <asm/dec/system.h>
 #include <asm/dec/tc.h>
 
 #define DEC_SCSI_SREG 0
@@ -183,7 +184,8 @@ static int dec_esp_detect(Scsi_Host_Template * tpnt)
 		esp->dregs = 0;
 
 		/* ESP register base */
-		esp->eregs = (struct ESP_regs *) (system_base + IOASIC_SCSI);
+		esp->eregs = (void *)CKSEG1ADDR(dec_kn_slot_base +
+						IOASIC_SCSI);
 
 		/* Set the command buffer */
 		esp->esp_command = (volatile unsigned char *) cmd_buffer;
@@ -228,10 +230,11 @@ static int dec_esp_detect(Scsi_Host_Template * tpnt)
 			mem_start = get_tc_base_addr(slot);
 
 			/* Store base addr into esp struct */
-			esp->slot = CPHYSADDR(mem_start);
+			esp->slot = mem_start;
 
 			esp->dregs = 0;
-			esp->eregs = (struct ESP_regs *) (mem_start + DEC_SCSI_SREG);
+			esp->eregs = (void *)CKSEG1ADDR(mem_start +
+							DEC_SCSI_SREG);
 			esp->do_pio_cmds = 1;
 
 			/* Set the command buffer */
