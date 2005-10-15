@@ -516,14 +516,15 @@ static void dma_advance_sg(struct scsi_cmnd * sp)
 static void pmaz_dma_drain(struct NCR_ESP *esp)
 {
 	memcpy(phys_to_virt(esp_virt_buffer),
-		(void *)KSEG1ADDR(esp->slot + DEC_SCSI_SRAM + ESP_TGT_DMA_SIZE),
-		scsi_current_length);
+	       (void *)CKSEG1ADDR(esp->slot + DEC_SCSI_SRAM +
+				  ESP_TGT_DMA_SIZE),
+	       scsi_current_length);
 }
 
 static void pmaz_dma_init_read(struct NCR_ESP *esp, u32 vaddress, int length)
 {
 	volatile u32 *dmareg =
-		(volatile u32 *)KSEG1ADDR(esp->slot + DEC_SCSI_DMAREG);
+		(volatile u32 *)CKSEG1ADDR(esp->slot + DEC_SCSI_DMAREG);
 
 	if (length > ESP_TGT_DMA_SIZE)
 		length = ESP_TGT_DMA_SIZE;
@@ -539,9 +540,10 @@ static void pmaz_dma_init_read(struct NCR_ESP *esp, u32 vaddress, int length)
 static void pmaz_dma_init_write(struct NCR_ESP *esp, u32 vaddress, int length)
 {
 	volatile u32 *dmareg =
-		(volatile u32 *)KSEG1ADDR(esp->slot + DEC_SCSI_DMAREG);
+		(volatile u32 *)CKSEG1ADDR(esp->slot + DEC_SCSI_DMAREG);
 
-	memcpy((void *)KSEG1ADDR(esp->slot + DEC_SCSI_SRAM + ESP_TGT_DMA_SIZE),
+	memcpy((void *)CKSEG1ADDR(esp->slot + DEC_SCSI_SRAM +
+				  ESP_TGT_DMA_SIZE),
 	       phys_to_virt(vaddress), length);
 
 	wmb();
