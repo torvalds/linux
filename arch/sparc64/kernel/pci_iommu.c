@@ -49,12 +49,6 @@ static void __iommu_flushall(struct pci_iommu *iommu)
 
 	/* Ensure completion of previous PIO writes. */
 	(void) pci_iommu_read(iommu->write_complete_reg);
-
-	/* Now update everyone's flush point. */
-	for (entry = 0; entry < PBM_NCLUSTERS; entry++) {
-		iommu->alloc_info[entry].flush =
-			iommu->alloc_info[entry].next;
-	}
 }
 
 #define IOPTE_CONSISTENT(CTX) \
@@ -80,120 +74,117 @@ static void inline iopte_make_dummy(struct pci_iommu *iommu, iopte_t *iopte)
 	iopte_val(*iopte) = val;
 }
 
-void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize)
+/* Based largely upon the ppc64 iommu allocator.  */
+static long pci_arena_alloc(struct pci_iommu *iommu, unsigned long npages)
 {
-	int i;
+	struct pci_iommu_arena *arena = &iommu->arena;
+	unsigned long n, i, start, end, limit;
+	int pass;
 
-	tsbsize /= sizeof(iopte_t);
+	limit = arena->limit;
+	start = arena->hint;
+	pass = 0;
 
-	for (i = 0; i < tsbsize; i++)
+again:
+	n = find_next_zero_bit(arena->map, limit, start);
+	end = n + npages;
+	if (unlikely(end >= limit)) {
+		if (likely(pass < 1)) {
+			limit = start;
+			start = 0;
+			__iommu_flushall(iommu);
+			pass++;
+			goto again;
+		} else {
+			/* Scanned the whole thing, give up. */
+			return -1;
+		}
+	}
+
+	for (i = n; i < end; i++) {
+		if (test_bit(i, arena->map)) {
+			start = i + 1;
+			goto again;
+		}
+	}
+
+	for (i = n; i < end; i++)
+		__set_bit(i, arena->map);
+
+	arena->hint = end;
+
+	return n;
+}
+
+static void pci_arena_free(struct pci_iommu_arena *arena, unsigned long base, unsigned long npages)
+{
+	unsigned long i;
+
+	for (i = base; i < (base + npages); i++)
+		__clear_bit(i, arena->map);
+}
+
+void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask)
+{
+	unsigned long i, tsbbase, order, sz, num_tsb_entries;
+
+	num_tsb_entries = tsbsize / sizeof(iopte_t);
+
+	/* Setup initial software IOMMU state. */
+	spin_lock_init(&iommu->lock);
+	iommu->ctx_lowest_free = 1;
+	iommu->page_table_map_base = dma_offset;
+	iommu->dma_addr_mask = dma_addr_mask;
+
+	/* Allocate and initialize the free area map.  */
+	sz = num_tsb_entries / 8;
+	sz = (sz + 7UL) & ~7UL;
+	iommu->arena.map = kmalloc(sz, GFP_KERNEL);
+	if (!iommu->arena.map) {
+		prom_printf("PCI_IOMMU: Error, kmalloc(arena.map) failed.\n");
+		prom_halt();
+	}
+	memset(iommu->arena.map, 0, sz);
+	iommu->arena.limit = num_tsb_entries;
+
+	/* Allocate and initialize the dummy page which we
+	 * set inactive IO PTEs to point to.
+	 */
+	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
+	if (!iommu->dummy_page) {
+		prom_printf("PCI_IOMMU: Error, gfp(dummy_page) failed.\n");
+		prom_halt();
+	}
+	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
+	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
+
+	/* Now allocate and setup the IOMMU page table itself.  */
+	order = get_order(tsbsize);
+	tsbbase = __get_free_pages(GFP_KERNEL, order);
+	if (!tsbbase) {
+		prom_printf("PCI_IOMMU: Error, gfp(tsb) failed.\n");
+		prom_halt();
+	}
+	iommu->page_table = (iopte_t *)tsbbase;
+
+	for (i = 0; i < num_tsb_entries; i++)
 		iopte_make_dummy(iommu, &iommu->page_table[i]);
 }
 
-static iopte_t *alloc_streaming_cluster(struct pci_iommu *iommu, unsigned long npages)
+static inline iopte_t *alloc_npages(struct pci_iommu *iommu, unsigned long npages)
 {
-	iopte_t *iopte, *limit, *first;
-	unsigned long cnum, ent, flush_point;
+	long entry;
 
-	cnum = 0;
-	while ((1UL << cnum) < npages)
-		cnum++;
-	iopte  = (iommu->page_table +
-		  (cnum << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS)));
+	entry = pci_arena_alloc(iommu, npages);
+	if (unlikely(entry < 0))
+		return NULL;
 
-	if (cnum == 0)
-		limit = (iommu->page_table +
-			 iommu->lowest_consistent_map);
-	else
-		limit = (iopte +
-			 (1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS)));
-
-	iopte += ((ent = iommu->alloc_info[cnum].next) << cnum);
-	flush_point = iommu->alloc_info[cnum].flush;
-	
-	first = iopte;
-	for (;;) {
-		if (IOPTE_IS_DUMMY(iommu, iopte)) {
-			if ((iopte + (1 << cnum)) >= limit)
-				ent = 0;
-			else
-				ent = ent + 1;
-			iommu->alloc_info[cnum].next = ent;
-			if (ent == flush_point)
-				__iommu_flushall(iommu);
-			break;
-		}
-		iopte += (1 << cnum);
-		ent++;
-		if (iopte >= limit) {
-			iopte = (iommu->page_table +
-				 (cnum <<
-				  (iommu->page_table_sz_bits - PBM_LOGCLUSTERS)));
-			ent = 0;
-		}
-		if (ent == flush_point)
-			__iommu_flushall(iommu);
-		if (iopte == first)
-			goto bad;
-	}
-
-	/* I've got your streaming cluster right here buddy boy... */
-	return iopte;
-
-bad:
-	printk(KERN_EMERG "pci_iommu: alloc_streaming_cluster of npages(%ld) failed!\n",
-	       npages);
-	return NULL;
+	return iommu->page_table + entry;
 }
 
-static void free_streaming_cluster(struct pci_iommu *iommu, dma_addr_t base,
-				   unsigned long npages, unsigned long ctx)
+static inline void free_npages(struct pci_iommu *iommu, dma_addr_t base, unsigned long npages)
 {
-	unsigned long cnum, ent;
-
-	cnum = 0;
-	while ((1UL << cnum) < npages)
-		cnum++;
-
-	ent = (base << (32 - IO_PAGE_SHIFT + PBM_LOGCLUSTERS - iommu->page_table_sz_bits))
-		>> (32 + PBM_LOGCLUSTERS + cnum - iommu->page_table_sz_bits);
-
-	/* If the global flush might not have caught this entry,
-	 * adjust the flush point such that we will flush before
-	 * ever trying to reuse it.
-	 */
-#define between(X,Y,Z)	(((Z) - (Y)) >= ((X) - (Y)))
-	if (between(ent, iommu->alloc_info[cnum].next, iommu->alloc_info[cnum].flush))
-		iommu->alloc_info[cnum].flush = ent;
-#undef between
-}
-
-/* We allocate consistent mappings from the end of cluster zero. */
-static iopte_t *alloc_consistent_cluster(struct pci_iommu *iommu, unsigned long npages)
-{
-	iopte_t *iopte;
-
-	iopte = iommu->page_table + (1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS));
-	while (iopte > iommu->page_table) {
-		iopte--;
-		if (IOPTE_IS_DUMMY(iommu, iopte)) {
-			unsigned long tmp = npages;
-
-			while (--tmp) {
-				iopte--;
-				if (!IOPTE_IS_DUMMY(iommu, iopte))
-					break;
-			}
-			if (tmp == 0) {
-				u32 entry = (iopte - iommu->page_table);
-
-				if (entry < iommu->lowest_consistent_map)
-					iommu->lowest_consistent_map = entry;
-				return iopte;
-			}
-		}
-	}
-	return NULL;
+	pci_arena_free(&iommu->arena, base >> IO_PAGE_SHIFT, npages);
 }
 
 static int iommu_alloc_ctx(struct pci_iommu *iommu)
@@ -233,7 +224,7 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_ad
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	iopte_t *iopte;
-	unsigned long flags, order, first_page, ctx;
+	unsigned long flags, order, first_page;
 	void *ret;
 	int npages;
 
@@ -251,9 +242,10 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_ad
 	iommu = pcp->pbm->iommu;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	iopte = alloc_consistent_cluster(iommu, size >> IO_PAGE_SHIFT);
-	if (iopte == NULL) {
-		spin_unlock_irqrestore(&iommu->lock, flags);
+	iopte = alloc_npages(iommu, size >> IO_PAGE_SHIFT);
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	if (unlikely(iopte == NULL)) {
 		free_pages(first_page, order);
 		return NULL;
 	}
@@ -262,30 +254,14 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_ad
 		      ((iopte - iommu->page_table) << IO_PAGE_SHIFT));
 	ret = (void *) first_page;
 	npages = size >> IO_PAGE_SHIFT;
-	ctx = 0;
-	if (iommu->iommu_ctxflush)
-		ctx = iommu_alloc_ctx(iommu);
 	first_page = __pa(first_page);
 	while (npages--) {
-		iopte_val(*iopte) = (IOPTE_CONSISTENT(ctx) |
+		iopte_val(*iopte) = (IOPTE_CONSISTENT(0UL) |
 				     IOPTE_WRITE |
 				     (first_page & IOPTE_PAGE));
 		iopte++;
 		first_page += IO_PAGE_SIZE;
 	}
-
-	{
-		int i;
-		u32 daddr = *dma_addrp;
-
-		npages = size >> IO_PAGE_SHIFT;
-		for (i = 0; i < npages; i++) {
-			pci_iommu_write(iommu->iommu_flush, daddr);
-			daddr += IO_PAGE_SIZE;
-		}
-	}
-
-	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return ret;
 }
@@ -296,7 +272,7 @@ void pci_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	iopte_t *iopte;
-	unsigned long flags, order, npages, i, ctx;
+	unsigned long flags, order, npages;
 
 	npages = IO_PAGE_ALIGN(size) >> IO_PAGE_SHIFT;
 	pcp = pdev->sysdata;
@@ -306,46 +282,7 @@ void pci_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	if ((iopte - iommu->page_table) ==
-	    iommu->lowest_consistent_map) {
-		iopte_t *walk = iopte + npages;
-		iopte_t *limit;
-
-		limit = (iommu->page_table +
-			 (1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS)));
-		while (walk < limit) {
-			if (!IOPTE_IS_DUMMY(iommu, walk))
-				break;
-			walk++;
-		}
-		iommu->lowest_consistent_map =
-			(walk - iommu->page_table);
-	}
-
-	/* Data for consistent mappings cannot enter the streaming
-	 * buffers, so we only need to update the TSB.  We flush
-	 * the IOMMU here as well to prevent conflicts with the
-	 * streaming mapping deferred tlb flush scheme.
-	 */
-
-	ctx = 0;
-	if (iommu->iommu_ctxflush)
-		ctx = (iopte_val(*iopte) & IOPTE_CONTEXT) >> 47UL;
-
-	for (i = 0; i < npages; i++, iopte++)
-		iopte_make_dummy(iommu, iopte);
-
-	if (iommu->iommu_ctxflush) {
-		pci_iommu_write(iommu->iommu_ctxflush, ctx);
-	} else {
-		for (i = 0; i < npages; i++) {
-			u32 daddr = dvma + (i << IO_PAGE_SHIFT);
-
-			pci_iommu_write(iommu->iommu_flush, daddr);
-		}
-	}
-
-	iommu_free_ctx(iommu, ctx);
+	free_npages(iommu, dvma, npages);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
@@ -372,25 +309,27 @@ dma_addr_t pci_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direct
 	iommu = pcp->pbm->iommu;
 	strbuf = &pcp->pbm->stc;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	if (unlikely(direction == PCI_DMA_NONE))
+		goto bad_no_ctx;
 
 	oaddr = (unsigned long)ptr;
 	npages = IO_PAGE_ALIGN(oaddr + sz) - (oaddr & IO_PAGE_MASK);
 	npages >>= IO_PAGE_SHIFT;
 
 	spin_lock_irqsave(&iommu->lock, flags);
+	base = alloc_npages(iommu, npages);
+	ctx = 0;
+	if (iommu->iommu_ctxflush)
+		ctx = iommu_alloc_ctx(iommu);
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	base = alloc_streaming_cluster(iommu, npages);
-	if (base == NULL)
+	if (unlikely(!base))
 		goto bad;
+
 	bus_addr = (iommu->page_table_map_base +
 		    ((base - iommu->page_table) << IO_PAGE_SHIFT));
 	ret = bus_addr | (oaddr & ~IO_PAGE_MASK);
 	base_paddr = __pa(oaddr & IO_PAGE_MASK);
-	ctx = 0;
-	if (iommu->iommu_ctxflush)
-		ctx = iommu_alloc_ctx(iommu);
 	if (strbuf->strbuf_enabled)
 		iopte_protection = IOPTE_STREAMING(ctx);
 	else
@@ -401,12 +340,13 @@ dma_addr_t pci_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direct
 	for (i = 0; i < npages; i++, base++, base_paddr += IO_PAGE_SIZE)
 		iopte_val(*base) = iopte_protection | base_paddr;
 
-	spin_unlock_irqrestore(&iommu->lock, flags);
-
 	return ret;
 
 bad:
-	spin_unlock_irqrestore(&iommu->lock, flags);
+	iommu_free_ctx(iommu, ctx);
+bad_no_ctx:
+	if (printk_ratelimit())
+		WARN_ON(1);
 	return PCI_DMA_ERROR_CODE;
 }
 
@@ -481,10 +421,13 @@ void pci_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int 
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	iopte_t *base;
-	unsigned long flags, npages, ctx;
+	unsigned long flags, npages, ctx, i;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	if (unlikely(direction == PCI_DMA_NONE)) {
+		if (printk_ratelimit())
+			WARN_ON(1);
+		return;
+	}
 
 	pcp = pdev->sysdata;
 	iommu = pcp->pbm->iommu;
@@ -510,13 +453,14 @@ void pci_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int 
 
 	/* Step 1: Kick data out of streaming buffers if necessary. */
 	if (strbuf->strbuf_enabled)
-		pci_strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
+		pci_strbuf_flush(strbuf, iommu, bus_addr, ctx,
+				 npages, direction);
 
-	/* Step 2: Clear out first TSB entry. */
-	iopte_make_dummy(iommu, base);
+	/* Step 2: Clear out TSB entries. */
+	for (i = 0; i < npages; i++)
+		iopte_make_dummy(iommu, base + i);
 
-	free_streaming_cluster(iommu, bus_addr - iommu->page_table_map_base,
-			       npages, ctx);
+	free_npages(iommu, bus_addr - iommu->page_table_map_base, npages);
 
 	iommu_free_ctx(iommu, ctx);
 
@@ -621,6 +565,8 @@ int pci_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int
 			pci_map_single(pdev,
 				       (page_address(sglist->page) + sglist->offset),
 				       sglist->length, direction);
+		if (unlikely(sglist->dma_address == PCI_DMA_ERROR_CODE))
+			return 0;
 		sglist->dma_length = sglist->length;
 		return 1;
 	}
@@ -629,21 +575,29 @@ int pci_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int
 	iommu = pcp->pbm->iommu;
 	strbuf = &pcp->pbm->stc;
 	
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	if (unlikely(direction == PCI_DMA_NONE))
+		goto bad_no_ctx;
 
 	/* Step 1: Prepare scatter list. */
 
 	npages = prepare_sg(sglist, nelems);
 
-	/* Step 2: Allocate a cluster. */
+	/* Step 2: Allocate a cluster and context, if necessary. */
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	base = alloc_streaming_cluster(iommu, npages);
+	base = alloc_npages(iommu, npages);
+	ctx = 0;
+	if (iommu->iommu_ctxflush)
+		ctx = iommu_alloc_ctx(iommu);
+
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
 	if (base == NULL)
 		goto bad;
-	dma_base = iommu->page_table_map_base + ((base - iommu->page_table) << IO_PAGE_SHIFT);
+
+	dma_base = iommu->page_table_map_base +
+		((base - iommu->page_table) << IO_PAGE_SHIFT);
 
 	/* Step 3: Normalize DMA addresses. */
 	used = nelems;
@@ -656,30 +610,28 @@ int pci_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int
 	}
 	used = nelems - used;
 
-	/* Step 4: Choose a context if necessary. */
-	ctx = 0;
-	if (iommu->iommu_ctxflush)
-		ctx = iommu_alloc_ctx(iommu);
-
-	/* Step 5: Create the mappings. */
+	/* Step 4: Create the mappings. */
 	if (strbuf->strbuf_enabled)
 		iopte_protection = IOPTE_STREAMING(ctx);
 	else
 		iopte_protection = IOPTE_CONSISTENT(ctx);
 	if (direction != PCI_DMA_TODEVICE)
 		iopte_protection |= IOPTE_WRITE;
-	fill_sg (base, sglist, used, nelems, iopte_protection);
+
+	fill_sg(base, sglist, used, nelems, iopte_protection);
+
 #ifdef VERIFY_SG
 	verify_sglist(sglist, nelems, base, npages);
 #endif
 
-	spin_unlock_irqrestore(&iommu->lock, flags);
-
 	return used;
 
 bad:
-	spin_unlock_irqrestore(&iommu->lock, flags);
-	return PCI_DMA_ERROR_CODE;
+	iommu_free_ctx(iommu, ctx);
+bad_no_ctx:
+	if (printk_ratelimit())
+		WARN_ON(1);
+	return 0;
 }
 
 /* Unmap a set of streaming mode DMA translations. */
@@ -692,8 +644,10 @@ void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, 
 	unsigned long flags, ctx, i, npages;
 	u32 bus_addr;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	if (unlikely(direction == PCI_DMA_NONE)) {
+		if (printk_ratelimit())
+			WARN_ON(1);
+	}
 
 	pcp = pdev->sysdata;
 	iommu = pcp->pbm->iommu;
@@ -705,7 +659,8 @@ void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, 
 		if (sglist[i].dma_length == 0)
 			break;
 	i--;
-	npages = (IO_PAGE_ALIGN(sglist[i].dma_address + sglist[i].dma_length) - bus_addr) >> IO_PAGE_SHIFT;
+	npages = (IO_PAGE_ALIGN(sglist[i].dma_address + sglist[i].dma_length) -
+		  bus_addr) >> IO_PAGE_SHIFT;
 
 	base = iommu->page_table +
 		((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
@@ -726,11 +681,11 @@ void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, 
 	if (strbuf->strbuf_enabled)
 		pci_strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
 
-	/* Step 2: Clear out first TSB entry. */
-	iopte_make_dummy(iommu, base);
+	/* Step 2: Clear out the TSB entries. */
+	for (i = 0; i < npages; i++)
+		iopte_make_dummy(iommu, base + i);
 
-	free_streaming_cluster(iommu, bus_addr - iommu->page_table_map_base,
-			       npages, ctx);
+	free_npages(iommu, bus_addr - iommu->page_table_map_base, npages);
 
 	iommu_free_ctx(iommu, ctx);
 
