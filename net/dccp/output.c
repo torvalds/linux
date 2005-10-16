@@ -241,7 +241,8 @@ int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, long *timeo)
 
 		err = dccp_transmit_skb(sk, skb);
 		ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
-	}
+	} else
+		kfree_skb(skb);
 
 	return err;
 }
