@@ -3100,7 +3100,7 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint32_t icr = E1000_READ_REG(hw, ICR);
-#ifdef CONFIG_E1000_MQ
+#if defined(CONFIG_E1000_NAPI) && defined(CONFIG_E1000_MQ) || !defined(CONFIG_E1000_NAPI)
 	int i;
 #endif
 
