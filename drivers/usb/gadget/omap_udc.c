@@ -1788,8 +1788,12 @@ static void devstate_irq(struct omap_udc *udc, u16 irq_src)
 					udc->driver->suspend(&udc->gadget);
 					spin_lock(&udc->lock);
 				}
+				if (udc->transceiver)
+					otg_set_suspend(udc->transceiver, 1);
 			} else {
 				VDBG("resume\n");
+				if (udc->transceiver)
+					otg_set_suspend(udc->transceiver, 0);
 				if (udc->gadget.speed == USB_SPEED_FULL
 						&& udc->driver->resume) {
 					spin_unlock(&udc->lock);
