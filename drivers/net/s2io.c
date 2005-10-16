@@ -2997,7 +2997,7 @@ int s2io_set_swapper(nic_t * sp)
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
-	if (nic->intr_type == INTA)
+	if (sp->intr_type == INTA)
 		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #else
