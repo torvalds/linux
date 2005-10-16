@@ -377,6 +377,10 @@ int pci_register_driver(struct pci_driver *drv)
 	 * the pci shutdown function, this test can go away. */
 	if (!drv->driver.shutdown)
 		drv->driver.shutdown = pci_device_shutdown;
+	else
+		printk(KERN_WARNING "Warning: PCI driver %s has a struct "
+			"device_driver shutdown method, please update!\n",
+			drv->name);
 	drv->driver.owner = drv->owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
