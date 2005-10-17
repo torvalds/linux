@@ -71,7 +71,7 @@ DEFINE_PER_CPU(struct rcu_data, rcu_bh_data) = { 0L };
 
 /* Fake initialization required by compiler */
 static DEFINE_PER_CPU(struct tasklet_struct, rcu_tasklet) = {NULL};
-static int maxbatch = 10;
+static int maxbatch = 10000;
 
 #ifndef __HAVE_ARCH_CMPXCHG
 /*
