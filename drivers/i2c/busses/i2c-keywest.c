@@ -535,7 +535,7 @@ create_iface(struct device_node *np, struct device *dev)
 
 	tsize = sizeof(struct keywest_iface) +
 		(sizeof(struct keywest_chan) + 4) * nchan;
-	iface = (struct keywest_iface *) kzalloc(tsize, GFP_KERNEL);
+	iface = kzalloc(tsize, GFP_KERNEL);
 	if (iface == NULL) {
 		printk(KERN_ERR "i2c-keywest: can't allocate inteface !\n");
 		pmac_low_i2c_unlock(np);
