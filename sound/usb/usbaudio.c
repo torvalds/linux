@@ -3212,7 +3212,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 				 struct usb_interface *intf,
 				 const struct usb_device_id *usb_id)
 {
-	struct usb_host_config *config = dev->actconfig;
 	const snd_usb_audio_quirk_t *quirk = (const snd_usb_audio_quirk_t *)usb_id->driver_info;
 	int i, err;
 	snd_usb_audio_t *chip;
@@ -3233,7 +3232,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	if (id == USB_ID(0x041e, 0x3000)) {
 		if (snd_usb_extigy_boot_quirk(dev, intf) < 0)
 			goto __err_val;
-		config = dev->actconfig;
 	}
 	/* SB Audigy 2 NX needs its own boot-up magic, too */
 	if (id == USB_ID(0x041e, 0x3020)) {
@@ -3262,11 +3260,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 		/* it's a fresh one.
 		 * now look for an empty slot and create a new card instance
 		 */
-		/* first, set the current configuration for this device */
-		if (usb_reset_configuration(dev) < 0) {
-			snd_printk(KERN_ERR "cannot reset configuration (value 0x%x)\n", get_cfg_desc(config)->bConfigurationValue);
-			goto __error;
-		}
 		for (i = 0; i < SNDRV_CARDS; i++)
 			if (enable[i] && ! usb_chip[i] &&
 			    (vid[i] == -1 || vid[i] == USB_ID_VENDOR(id)) &&
