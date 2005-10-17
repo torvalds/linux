@@ -194,7 +194,7 @@ n:
 
 #else /* 32-bit */
 #define LOADADDR(rn,name) \
-	lis	rn,name@ha	\
+	lis	rn,name@ha;	\
 	addi	rn,rn,name@l
 
 #define LOADBASE(rn,name)	\
