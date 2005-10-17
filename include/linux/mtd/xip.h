@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * $Id: xip.h,v 1.2 2004/12/01 15:49:10 nico Exp $
+ * $Id: xip.h,v 1.4 2005/10/17 21:03:16 nico Exp $
  */
 
 #ifndef __LINUX_MTD_XIP_H__
@@ -23,17 +23,17 @@
 #ifdef CONFIG_MTD_XIP
 
 /*
- * Function that are modifying the flash state away from array mode must
- * obviously not be running from flash.  The __xipram is therefore marking
- * those functions so they get relocated to ram.
- */
-#define __xipram __attribute__ ((__section__ (".data")))
-
-/*
  * We really don't want gcc to guess anything.
  * We absolutely _need_ proper inlining.
  */
 #include <linux/compiler.h>
+
+/*
+ * Function that are modifying the flash state away from array mode must
+ * obviously not be running from flash.  The __xipram is therefore marking
+ * those functions so they get relocated to ram.
+ */
+#define __xipram noinline __attribute__ ((__section__ (".data")))
 
 /*
  * Each architecture has to provide the following macros.  They must access
