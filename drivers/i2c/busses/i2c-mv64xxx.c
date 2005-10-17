@@ -500,12 +500,9 @@ mv64xxx_i2c_probe(struct device *dev)
 	if ((pd->id != 0) || !pdata)
 		return -ENODEV;
 
-	drv_data = kmalloc(sizeof(struct mv64xxx_i2c_data), GFP_KERNEL);
-
+	drv_data = kzalloc(sizeof(struct mv64xxx_i2c_data), GFP_KERNEL);
 	if (!drv_data)
 		return -ENOMEM;
-
-	memset(drv_data, 0, sizeof(struct mv64xxx_i2c_data));
 
 	if (mv64xxx_i2c_map_regs(pd, drv_data)) {
 		rc = -ENODEV;

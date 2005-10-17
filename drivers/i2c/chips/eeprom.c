@@ -171,11 +171,10 @@ int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 					    | I2C_FUNC_SMBUS_BYTE))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct eeprom_data));
 
 	new_client = &data->client;
 	memset(data->data, 0xff, EEPROM_SIZE);

@@ -155,12 +155,11 @@ static void i2c_parport_attach (struct parport *port)
 {
 	struct i2c_par *adapter;
 	
-	adapter = kmalloc(sizeof(struct i2c_par), GFP_KERNEL);
+	adapter = kzalloc(sizeof(struct i2c_par), GFP_KERNEL);
 	if (adapter == NULL) {
-		printk(KERN_ERR "i2c-parport: Failed to kmalloc\n");
+		printk(KERN_ERR "i2c-parport: Failed to kzalloc\n");
 		return;
 	}
-	memset(adapter, 0x00, sizeof(struct i2c_par));
 
 	pr_debug("i2c-parport: attaching to %s\n", port->name);
 	adapter->pdev = parport_register_device(port, "i2c-parport",

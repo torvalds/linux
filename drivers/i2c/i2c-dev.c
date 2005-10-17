@@ -80,10 +80,9 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
 
-	i2c_dev = kmalloc(sizeof(*i2c_dev), GFP_KERNEL);
+	i2c_dev = kzalloc(sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
 		return ERR_PTR(-ENOMEM);
-	memset(i2c_dev, 0x00, sizeof(*i2c_dev));
 
 	spin_lock(&i2c_dev_array_lock);
 	if (i2c_dev_array[adap->nr]) {

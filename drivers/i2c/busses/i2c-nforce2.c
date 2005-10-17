@@ -313,10 +313,9 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 	int res1, res2;
 
 	/* we support 2 SMBus adapters */
-	if (!(smbuses = (void *)kmalloc(2*sizeof(struct nforce2_smbus),
+	if (!(smbuses = (void *)kzalloc(2*sizeof(struct nforce2_smbus),
 				       	GFP_KERNEL)))
 		return -ENOMEM;
-	memset (smbuses, 0, 2*sizeof(struct nforce2_smbus));
 	pci_set_drvdata(dev, smbuses);
 
 	/* SMBus adapter 1 */
