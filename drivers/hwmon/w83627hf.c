@@ -1045,11 +1045,10 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access w83627hf_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct w83627hf_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83627hf_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR1;
 	}
-	memset(data, 0, sizeof(struct w83627hf_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

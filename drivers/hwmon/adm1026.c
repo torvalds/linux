@@ -1470,12 +1470,10 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access adm1026_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-
-	memset(data, 0, sizeof(struct adm1026_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

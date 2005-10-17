@@ -268,12 +268,11 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct atxp1_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct atxp1_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	memset(data, 0, sizeof(struct atxp1_data));
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 

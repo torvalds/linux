@@ -621,11 +621,10 @@ static int via686a_detect(struct i2c_adapter *adapter)
 		return -ENODEV;
 	}
 
-	if (!(data = kmalloc(sizeof(struct via686a_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct via686a_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit_release;
 	}
-	memset(data, 0, sizeof(struct via686a_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

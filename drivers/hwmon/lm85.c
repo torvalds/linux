@@ -1033,11 +1033,10 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access lm85_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct lm85_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct lm85_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR0;
 	}
-	memset(data, 0, sizeof(struct lm85_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

@@ -156,12 +156,10 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct w83l785ts_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83l785ts_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct w83l785ts_data));
-
 
 	/* The common I2C client data is placed right before the
 	 * W83L785TS-specific data. */

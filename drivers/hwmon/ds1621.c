@@ -202,11 +202,10 @@ int ds1621_detect(struct i2c_adapter *adapter, int address,
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access ds1621_{read,write}_value. */
-	if (!(data = kmalloc(sizeof(struct ds1621_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct ds1621_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct ds1621_data));
 	
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

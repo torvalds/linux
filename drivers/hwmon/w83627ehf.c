@@ -681,11 +681,10 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 		goto exit;
 	}
 
-	if (!(data = kmalloc(sizeof(struct w83627ehf_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83627ehf_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit_release;
 	}
-	memset(data, 0, sizeof(struct w83627ehf_data));
 
 	client = &data->client;
 	i2c_set_clientdata(client, data);

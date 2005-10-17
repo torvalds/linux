@@ -761,11 +761,10 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access it87_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct it87_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct it87_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR1;
 	}
-	memset(data, 0, sizeof(struct it87_data));
 
 	new_client = &data->client;
 	if (is_isa)

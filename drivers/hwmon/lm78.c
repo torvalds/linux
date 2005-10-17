@@ -540,11 +540,10 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access lm78_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct lm78_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct lm78_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR1;
 	}
-	memset(data, 0, sizeof(struct lm78_data));
 
 	new_client = &data->client;
 	if (is_isa)

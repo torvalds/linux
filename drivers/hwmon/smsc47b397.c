@@ -244,11 +244,10 @@ static int smsc47b397_detect(struct i2c_adapter *adapter)
 		return -EBUSY;
 	}
 
-	if (!(data = kmalloc(sizeof(struct smsc47b397_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct smsc47b397_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto error_release;
 	}
-	memset(data, 0x00, sizeof(struct smsc47b397_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

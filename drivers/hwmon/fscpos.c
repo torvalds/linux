@@ -453,11 +453,10 @@ int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 	 * But it allows us to access fscpos_{read,write}_value.
 	 */
 
-	if (!(data = kmalloc(sizeof(struct fscpos_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct fscpos_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct fscpos_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
