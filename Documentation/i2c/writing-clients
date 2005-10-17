@@ -55,6 +55,7 @@ be very useful.
 An example structure is below.
 
   struct foo_data {
+    struct i2c_client client;
     struct semaphore lock; /* For ISA access in `sensors' drivers. */
     int sysctl_id;         /* To keep the /proc directory entry for 
                               `sensors' drivers. */
@@ -307,22 +308,15 @@ For now, you can ignore the `flags' parameter. It is there for future use.
        client structure, even though we cannot fill it completely yet.
        But it allows us to access several i2c functions safely */
     
-    /* Note that we reserve some space for foo_data too. If you don't
-       need it, remove it. We do it here to help to lessen memory
-       fragmentation. */
-    if (! (new_client = kmalloc(sizeof(struct i2c_client) + 
-                                sizeof(struct foo_data),
-                                GFP_KERNEL))) {
+    if (!(data = kzalloc(sizeof(struct foo_data), GFP_KERNEL))) {
       err = -ENOMEM;
       goto ERROR0;
     }
 
-    /* This is tricky, but it will set the data to the right value. */
-    client->data = new_client + 1;
-    data = (struct foo_data *) (client->data);
+    new_client = &data->client;
+    i2c_set_clientdata(new_client, data);
 
     new_client->addr = address;
-    new_client->data = data;
     new_client->adapter = adapter;
     new_client->driver = &foo_driver;
     new_client->flags = 0;
@@ -448,7 +442,7 @@ much simpler than the attachment code, fortunately!
       release_region(client->addr,LM78_EXTENT);
     /* HYBRID SENSORS CHIP ONLY END */
 
-    kfree(client); /* Frees client data too, if allocated at the same time */
+    kfree(data);
     return 0;
   }
 
