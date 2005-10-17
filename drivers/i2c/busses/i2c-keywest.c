@@ -716,6 +716,7 @@ static struct of_device_id i2c_keywest_match[] =
 
 static struct macio_driver i2c_keywest_macio_driver = 
 {
+	.owner		= THIS_MODULE,
 	.name 		= "i2c-keywest",
 	.match_table	= i2c_keywest_match,
 	.probe		= create_iface_macio,
@@ -724,6 +725,7 @@ static struct macio_driver i2c_keywest_macio_driver =
 
 static struct of_platform_driver i2c_keywest_of_platform_driver = 
 {
+	.owner		= THIS_MODULE,
 	.name 		= "i2c-keywest",
 	.match_table	= i2c_keywest_match,
 	.probe		= create_iface_of_platform,
