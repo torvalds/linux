@@ -11,7 +11,7 @@ CFLAGS_btext.o		+= -fPIC
 endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o
-obj-$(CONFIG_PPC64)		+= binfmt_elf32.o
+obj-$(CONFIG_PPC64)		+= binfmt_elf32.o sys_ppc32.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
@@ -30,7 +30,7 @@ extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= process.o init_task.o \
-				   prom.o systbl.o traps.o
+				   prom.o systbl.o traps.o syscalls.o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= setup_64.o misc_64.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o
@@ -44,7 +44,7 @@ endif
 
 else
 # stuff used from here for ARCH=ppc or ARCH=ppc64
-obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o
+obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o syscalls.o
 
 fpux-$(CONFIG_PPC32)		+= fpu.o
 extra-$(CONFIG_PPC_FPU)		+= $(fpux-y)

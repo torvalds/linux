@@ -980,7 +980,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys_ni_syscall		/* old mpx syscall */
 	.llong .sys32_setpgid
 	.llong .sys_ni_syscall		/* old ulimit syscall */
-	.llong .sys32_olduname
+	.llong .sys_olduname
 	.llong .sys32_umask		/* 60 */
 	.llong .sys_chroot
 	.llong .sys_ustat
@@ -1030,7 +1030,7 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_newstat
 	.llong .compat_sys_newlstat
 	.llong .compat_sys_newfstat
-	.llong .sys32_uname
+	.llong .sys_uname
 	.llong .sys_ni_syscall		/* 110 old iopl syscall */
 	.llong .sys_vhangup
 	.llong .sys_ni_syscall		/* old idle syscall */
@@ -1043,7 +1043,7 @@ _GLOBAL(sys_call_table32)
 	.llong .ppc32_sigreturn
 	.llong .ppc_clone		/* 120 */
 	.llong .sys32_setdomainname
-	.llong .ppc64_newuname
+	.llong .ppc_newuname
 	.llong .sys_ni_syscall		/* old modify_ldt syscall */
 	.llong .sys32_adjtimex
 	.llong .sys_mprotect		/* 125 */
@@ -1324,7 +1324,7 @@ _GLOBAL(sys_call_table)
 	.llong .sys_ni_syscall
 	.llong .ppc_clone		/* 120 */
 	.llong .sys_setdomainname
-	.llong .ppc64_newuname
+	.llong .ppc_newuname
 	.llong .sys_ni_syscall		/* old modify_ldt syscall */
 	.llong .sys_adjtimex
 	.llong .sys_mprotect		/* 125 */

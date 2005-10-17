@@ -38,8 +38,7 @@ endif
 
 else
 obj-y				:= irq.o idle.o time.o \
-					signal.o align.o \
-					syscalls.o perfmon.o
+					signal.o align.o perfmon.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o

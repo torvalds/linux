@@ -985,54 +985,6 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 }
 #endif
 
-asmlinkage int sys32_uname(struct old_utsname __user * name)
-{
-	int err = 0;
-	
-	down_read(&uts_sem);
-	if (copy_to_user(name, &system_utsname, sizeof(*name)))
-		err = -EFAULT;
-	up_read(&uts_sem);
-	if (!err && personality(current->personality) == PER_LINUX32) {
-		/* change "ppc64" to "ppc" */
-		if (__put_user(0, name->machine + 3)
-		    || __put_user(0, name->machine + 4))
-			err = -EFAULT;
-	}
-	return err;
-}
-
-asmlinkage int sys32_olduname(struct oldold_utsname __user * name)
-{
-	int error;
-
-	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
-		return -EFAULT;
-  
-	down_read(&uts_sem);
-	error = __copy_to_user(&name->sysname,&system_utsname.sysname,__OLD_UTS_LEN);
-	error |= __put_user(0,name->sysname+__OLD_UTS_LEN);
-	error |= __copy_to_user(&name->nodename,&system_utsname.nodename,__OLD_UTS_LEN);
-	error |= __put_user(0,name->nodename+__OLD_UTS_LEN);
-	error |= __copy_to_user(&name->release,&system_utsname.release,__OLD_UTS_LEN);
-	error |= __put_user(0,name->release+__OLD_UTS_LEN);
-	error |= __copy_to_user(&name->version,&system_utsname.version,__OLD_UTS_LEN);
-	error |= __put_user(0,name->version+__OLD_UTS_LEN);
-	error |= __copy_to_user(&name->machine,&system_utsname.machine,__OLD_UTS_LEN);
-	error |= __put_user(0,name->machine+__OLD_UTS_LEN);
-	if (personality(current->personality) == PER_LINUX32) {
-		/* change "ppc64" to "ppc" */
-		error |= __put_user(0, name->machine + 3);
-		error |= __put_user(0, name->machine + 4);
-	}
-	
-	up_read(&uts_sem);
-
-	error = error ? -EFAULT : 0;
-	
-	return error;
-}
-
 unsigned long sys32_mmap2(unsigned long addr, size_t len,
 			  unsigned long prot, unsigned long flags,
 			  unsigned long fd, unsigned long pgoff)

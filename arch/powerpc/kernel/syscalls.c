@@ -1,7 +1,6 @@
 /*
- * linux/arch/ppc64/kernel/sys_ppc.c
+ *  Implementation of various system calls for Linux/PowerPC
  *
- *  PowerPC version 
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
  * Derived from "arch/i386/kernel/sys_i386.c"
@@ -52,9 +51,8 @@ extern unsigned long wall_jiffies;
  *
  * This is really horribly ugly.
  */
-asmlinkage int 
-sys_ipc (uint call, int first, unsigned long second, long third,
-	 void __user *ptr, long fifth)
+int sys_ipc(uint call, int first, unsigned long second, long third,
+	    void __user *ptr, long fifth)
 {
 	int version, ret;
 
@@ -88,7 +86,7 @@ sys_ipc (uint call, int first, unsigned long second, long third,
 	}
 	case MSGSND:
 		ret = sys_msgsnd(first, (struct msgbuf __user *)ptr,
-				  (size_t)second, third);
+				 (size_t)second, third);
 		break;
 	case MSGRCV:
 		switch (version) {
@@ -113,41 +111,29 @@ sys_ipc (uint call, int first, unsigned long second, long third,
 		}
 		break;
 	case MSGGET:
-		ret = sys_msgget ((key_t)first, (int)second);
+		ret = sys_msgget((key_t)first, (int)second);
 		break;
 	case MSGCTL:
 		ret = sys_msgctl(first, (int)second,
 				  (struct msqid_ds __user *)ptr);
 		break;
-	case SHMAT:
-		switch (version) {
-		default: {
-			ulong raddr;
-			ret = do_shmat(first, (char __user *) ptr,
-					(int)second, &raddr);
-			if (ret)
-				break;
-			ret = put_user (raddr, (ulong __user *) third);
+	case SHMAT: {
+		ulong raddr;
+		ret = do_shmat(first, (char __user *)ptr, (int)second, &raddr);
+		if (ret)
 			break;
-		}
-		case 1:	/* iBCS2 emulator entry point */
-			ret = -EINVAL;
-			if (!segment_eq(get_fs(), get_ds()))
-				break;
-			ret = do_shmat(first, (char __user *)ptr,
-					(int)second, (ulong *)third);
-			break;
-		}
+		ret = put_user(raddr, (ulong __user *) third);
 		break;
-	case SHMDT: 
-		ret = sys_shmdt ((char __user *)ptr);
+	}
+	case SHMDT:
+		ret = sys_shmdt((char __user *)ptr);
 		break;
 	case SHMGET:
-		ret = sys_shmget (first, (size_t)second, third);
+		ret = sys_shmget(first, (size_t)second, third);
 		break;
 	case SHMCTL:
 		ret = sys_shmctl(first, (int)second,
-				  (struct shmid_ds __user *)ptr);
+				 (struct shmid_ds __user *)ptr);
 		break;
 	}
 
@@ -158,43 +144,89 @@ sys_ipc (uint call, int first, unsigned long second, long third,
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage int sys_pipe(int __user *fildes)
+int sys_pipe(int __user *fildes)
 {
 	int fd[2];
 	int error;
-	
+
 	error = do_pipe(fd);
 	if (!error) {
 		if (copy_to_user(fildes, fd, 2*sizeof(int)))
 			error = -EFAULT;
 	}
-	
 	return error;
 }
 
-unsigned long sys_mmap(unsigned long addr, size_t len,
-		       unsigned long prot, unsigned long flags,
-		       unsigned long fd, off_t offset)
+static inline unsigned long do_mmap2(unsigned long addr, size_t len,
+			unsigned long prot, unsigned long flags,
+			unsigned long fd, unsigned long off, int shift)
 {
 	struct file * file = NULL;
-	unsigned long ret = -EBADF;
+	int ret = -EINVAL;
 
+	if (shift) {
+		if (off & ((1 << shift) - 1))
+			goto out;
+		off >>= shift;
+	}
+		
+	ret = -EBADF;
 	if (!(flags & MAP_ANONYMOUS)) {
 		if (!(file = fget(fd)))
 			goto out;
 	}
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+
 	down_write(&current->mm->mmap_sem);
-	ret = do_mmap(file, addr, len, prot, flags, offset);
+	ret = do_mmap_pgoff(file, addr, len, prot, flags, off);
 	up_write(&current->mm->mmap_sem);
 	if (file)
 		fput(file);
-
 out:
 	return ret;
 }
 
+unsigned long sys_mmap2(unsigned long addr, size_t len,
+			unsigned long prot, unsigned long flags,
+			unsigned long fd, unsigned long pgoff)
+{
+	return do_mmap2(addr, len, prot, flags, fd, pgoff, PAGE_SHIFT-12);
+}
+
+unsigned long sys_mmap(unsigned long addr, size_t len,
+		       unsigned long prot, unsigned long flags,
+		       unsigned long fd, off_t offset)
+{
+	return do_mmap2(addr, len, prot, flags, fd, offset, PAGE_SHIFT);
+}
+
+#ifdef CONFIG_PPC32
+/*
+ * Due to some executables calling the wrong select we sometimes
+ * get wrong args.  This determines how the args are being passed
+ * (a single ptr to them all args passed) then calls
+ * sys_select() with the appropriate args. -- Cort
+ */
+int
+ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp)
+{
+	if ( (unsigned long)n >= 4096 )
+	{
+		unsigned long __user *buffer = (unsigned long __user *)n;
+		if (!access_ok(VERIFY_READ, buffer, 5*sizeof(unsigned long))
+		    || __get_user(n, buffer)
+		    || __get_user(inp, ((fd_set __user * __user *)(buffer+1)))
+		    || __get_user(outp, ((fd_set  __user * __user *)(buffer+2)))
+		    || __get_user(exp, ((fd_set  __user * __user *)(buffer+3)))
+		    || __get_user(tvp, ((struct timeval  __user * __user *)(buffer+4))))
+			return -EFAULT;
+	}
+	return sys_select(n, inp, outp, exp, tvp);
+}
+#endif
+
+#ifdef CONFIG_PPC64
 long ppc64_personality(unsigned long personality)
 {
 	long ret;
@@ -207,8 +239,25 @@ long ppc64_personality(unsigned long personality)
 		ret = PER_LINUX;
 	return ret;
 }
+#endif
 
-long ppc64_newuname(struct new_utsname __user * name)
+#ifdef CONFIG_PPC64
+#define OVERRIDE_MACHINE    (personality(current->personality) == PER_LINUX32)
+#else
+#define OVERRIDE_MACHINE    0
+#endif
+
+static inline int override_machine(char *mach)
+{
+	if (OVERRIDE_MACHINE) {
+		/* change ppc64 to ppc */
+		if (__put_user(0, mach+3) || __put_user(0, mach+4))
+			return -EFAULT;
+	}
+	return 0;
+}
+
+long ppc_newuname(struct new_utsname __user * name)
 {
 	int err = 0;
 
@@ -216,16 +265,54 @@ long ppc64_newuname(struct new_utsname __user * name)
 	if (copy_to_user(name, &system_utsname, sizeof(*name)))
 		err = -EFAULT;
 	up_read(&uts_sem);
-	if (!err && personality(current->personality) == PER_LINUX32) {
-		/* change ppc64 to ppc */
-		if (__put_user(0, name->machine + 3)
-		    || __put_user(0, name->machine + 4))
-			err = -EFAULT;
-	}
+	if (!err)
+		err = override_machine(name->machine);
 	return err;
 }
 
-asmlinkage time_t sys64_time(time_t __user * tloc)
+int sys_uname(struct old_utsname __user *name)
+{
+	int err = 0;
+	
+	down_read(&uts_sem);
+	if (copy_to_user(name, &system_utsname, sizeof(*name)))
+		err = -EFAULT;
+	up_read(&uts_sem);
+	if (!err)
+		err = override_machine(name->machine);
+	return err;
+}
+
+int sys_olduname(struct oldold_utsname __user *name)
+{
+	int error;
+
+	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
+		return -EFAULT;
+  
+	down_read(&uts_sem);
+	error = __copy_to_user(&name->sysname, &system_utsname.sysname,
+			       __OLD_UTS_LEN);
+	error |= __put_user(0, name->sysname + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->nodename, &system_utsname.nodename,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->nodename + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->release, &system_utsname.release,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->release + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->version, &system_utsname.version,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->version + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->machine, &system_utsname.machine,
+				__OLD_UTS_LEN);
+	error |= override_machine(name->machine);
+	up_read(&uts_sem);
+
+	return error? -EFAULT: 0;
+}
+
+#ifdef CONFIG_PPC64
+time_t sys64_time(time_t __user * tloc)
 {
 	time_t secs;
 	time_t usecs;
@@ -247,6 +334,7 @@ asmlinkage time_t sys64_time(time_t __user * tloc)
 
 	return secs;
 }
+#endif
 
 void do_show_syscall(unsigned long r3, unsigned long r4, unsigned long r5,
 		     unsigned long r6, unsigned long r7, unsigned long r8,
