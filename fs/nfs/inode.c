@@ -877,12 +877,10 @@ static int nfs_wait_on_inode(struct inode *inode)
 	sigset_t oldmask;
 	int error;
 
-	atomic_inc(&inode->i_count);
 	rpc_clnt_sigmask(clnt, &oldmask);
 	error = wait_on_bit_lock(&nfsi->flags, NFS_INO_REVALIDATING,
 					nfs_wait_schedule, TASK_INTERRUPTIBLE);
 	rpc_clnt_sigunmask(clnt, &oldmask);
-	iput(inode);
 
 	return error;
 }
