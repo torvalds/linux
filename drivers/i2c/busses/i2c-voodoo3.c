@@ -225,6 +225,7 @@ static void __devexit voodoo3_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver voodoo3_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "voodoo3_smbus",
 	.id_table	= voodoo3_ids,
 	.probe		= voodoo3_probe,

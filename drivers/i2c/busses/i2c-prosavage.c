@@ -308,6 +308,7 @@ static struct pci_device_id prosavage_pci_tbl[] = {
 MODULE_DEVICE_TABLE (pci, prosavage_pci_tbl);
 
 static struct pci_driver prosavage_driver = {
+	.owner		=	THIS_MODULE,
 	.name		=	"prosavage_smbus",
 	.id_table	=	prosavage_pci_tbl,
 	.probe		=	prosavage_probe,
