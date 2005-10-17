@@ -161,8 +161,8 @@ static void configure_hc(struct uhci_hcd *uhci)
 	/* Set the current frame number */
 	outw(uhci->frame_number, uhci->io_addr + USBFRNUM);
 
-	/* Mark controller as running before we enable interrupts */
-	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
+	/* Mark controller as not halted before we enable interrupts */
+	uhci_to_hcd(uhci)->state = HC_STATE_SUSPENDED;
 	mb();
 
 	/* Enable PIRQ */
@@ -263,6 +263,7 @@ __acquires(uhci->lock)
 
 static void start_rh(struct uhci_hcd *uhci)
 {
+	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
 	uhci->is_stopped = 0;
 	smp_wmb();
 
@@ -708,7 +709,6 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 
 	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
 		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
-		hcd->state = HC_STATE_RUNNING;
 		rc = -EBUSY;
 		goto done;
 	};
