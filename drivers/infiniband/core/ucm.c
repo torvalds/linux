@@ -41,19 +41,52 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/cdev.h>
+#include <linux/idr.h>
 
 #include <asm/uaccess.h>
 
-#include "ucm.h"
+#include <rdma/ib_cm.h>
+#include <rdma/ib_user_cm.h>
 
 MODULE_AUTHOR("Libor Michalek");
 MODULE_DESCRIPTION("InfiniBand userspace Connection Manager access");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static int ucm_debug_level;
+struct ib_ucm_file {
+	struct semaphore mutex;
+	struct file *filp;
 
-module_param_named(debug_level, ucm_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+	struct list_head  ctxs;   /* list of active connections */
+	struct list_head  events; /* list of pending events */
+	wait_queue_head_t poll_wait;
+};
+
+struct ib_ucm_context {
+	int                 id;
+	wait_queue_head_t   wait;
+	atomic_t            ref;
+	int		    events_reported;
+
+	struct ib_ucm_file *file;
+	struct ib_cm_id    *cm_id;
+	__u64		   uid;
+
+	struct list_head    events;    /* list of pending events. */
+	struct list_head    file_list; /* member in file ctx list */
+};
+
+struct ib_ucm_event {
+	struct ib_ucm_context *ctx;
+	struct list_head file_list; /* member in file event list */
+	struct list_head ctx_list;  /* member in ctx event list */
+
+	struct ib_cm_id *cm_id;
+	struct ib_ucm_event_resp resp;
+	void *data;
+	void *info;
+	int data_len;
+	int info_len;
+};
 
 enum {
 	IB_UCM_MAJOR = 231,
@@ -62,16 +95,9 @@ enum {
 
 #define IB_UCM_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_MINOR)
 
-#define PFX "UCM: "
-
-#define ucm_dbg(format, arg...)			\
-	do {					\
-		if (ucm_debug_level > 0)	\
-			printk(KERN_DEBUG PFX format, ## arg); \
-	} while (0)
-
 static struct semaphore ctx_id_mutex;
 static struct idr       ctx_id_table;
+
 
 static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
 {
@@ -152,7 +178,6 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 		goto error;
 
 	list_add_tail(&ctx->file_list, &file->ctxs);
-	ucm_dbg("Allocated CM ID <%d>\n", ctx->id);
 	return ctx;
 
 error:
@@ -1184,9 +1209,6 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
 
-	ucm_dbg("Write. cmd <%d> in <%d> out <%d> len <%Zu>\n",
-		hdr.cmd, hdr.in, hdr.out, len);
-
 	if (hdr.cmd < 0 || hdr.cmd >= ARRAY_SIZE(ucm_cmd_table))
 		return -EINVAL;
 
@@ -1231,8 +1253,6 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-
-	ucm_dbg("Created struct\n");
 
 	return 0;
 }
@@ -1281,7 +1301,7 @@ static int __init ib_ucm_init(void)
 
 	result = register_chrdev_region(IB_UCM_DEV, 1, "infiniband_cm");
 	if (result) {
-		ucm_dbg("Error <%d> registering dev\n", result);
+		printk(KERN_ERR "ucm: Error <%d> registering dev\n", result);
 		goto err_chr;
 	}
 
@@ -1289,14 +1309,14 @@ static int __init ib_ucm_init(void)
 
 	result = cdev_add(&ib_ucm_cdev, IB_UCM_DEV, 1);
 	if (result) {
- 		ucm_dbg("Error <%d> adding cdev\n", result);
+		printk(KERN_ERR "ucm: Error <%d> adding cdev\n", result);
 		goto err_cdev;
 	}
 
 	ib_ucm_class = class_create(THIS_MODULE, "infiniband_cm");
 	if (IS_ERR(ib_ucm_class)) {
 		result = PTR_ERR(ib_ucm_class);
- 		ucm_dbg("Error <%d> creating class\n", result);
+		printk(KERN_ERR "Error <%d> creating class\n", result);
 		goto err_class;
 	}
 
