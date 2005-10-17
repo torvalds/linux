@@ -1404,62 +1404,6 @@ static int __init prom_find_machine_type(void)
 #endif
 }
 
-static int __init setup_disp(phandle dp)
-{
-#if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
-	int width = 640, height = 480, depth = 8, pitch;
-	unsigned address;
-	u32 addrs[8][5];
-	int i, naddrs;
-	char name[32];
-	char *getprop = "getprop";
-
-	prom_printf("Initializing screen: ");
-
-	memset(name, 0, sizeof(name));
-	call_prom(getprop, 4, 1, dp, "name", name, sizeof(name));
-	name[sizeof(name)-1] = 0;
-	prom_print(name);
-	prom_print("\n");
-	call_prom(getprop, 4, 1, dp, "width", &width, sizeof(width));
-	call_prom(getprop, 4, 1, dp, "height", &height, sizeof(height));
-	call_prom(getprop, 4, 1, dp, "depth", &depth, sizeof(depth));
-	pitch = width * ((depth + 7) / 8);
-	call_prom(getprop, 4, 1, dp, "linebytes",
-		  &pitch, sizeof(pitch));
-	if (pitch == 1)
-		pitch = 0x1000;		/* for strange IBM display */
-	address = 0;
-	call_prom(getprop, 4, 1, dp, "address", &address, sizeof(address));
-	if (address == 0) {
-		/* look for an assigned address with a size of >= 1MB */
-		naddrs = call_prom(getprop, 4, 1, dp, "assigned-addresses",
-				   addrs, sizeof(addrs));
-		naddrs /= 20;
-		for (i = 0; i < naddrs; ++i) {
-			if (addrs[i][4] >= (1 << 20)) {
-				address = addrs[i][2];
-				/* use the BE aperture if possible */
-				if (addrs[i][4] >= (16 << 20))
-					address += (8 << 20);
-				break;
-			}
-		}
-		if (address == 0) {
-			prom_print("Failed to get address\n");
-			return 0;
-		}
-	}
-	/* kludge for valkyrie */
-	if (strcmp(name, "valkyrie") == 0)
-		address += 0x1000;
-
-	prom_printf("\n\n\n\naddress = %x\n", address);
-	btext_setup_display(width, height, depth, pitch, address);
-#endif /* CONFIG_BOOTX_TEXT && CONFIG_PPC32 */
-	return 1;
-}
-
 static int __init prom_set_color(ihandle ih, int i, int r, int g, int b)
 {
 	return call_prom("call-method", 6, 1, ADDR("color!"), ih, i, b, g, r);
@@ -1479,7 +1423,6 @@ static void __init prom_check_displays(void)
 	phandle node;
 	ihandle ih;
 	int i;
-	int got_display = 0;
 
 	static unsigned char default_colors[] = {
 		0x00, 0x00, 0x00,
@@ -1546,8 +1489,6 @@ static void __init prom_check_displays(void)
 					   clut[2]) != 0)
 				break;
 #endif /* CONFIG_LOGO_LINUX_CLUT224 */
-		if (!got_display)
-			got_display = setup_disp(node);
 	}
 }
 

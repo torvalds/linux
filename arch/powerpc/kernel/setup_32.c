@@ -294,20 +294,12 @@ unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long offset = reloc_offset();
 
-	reloc_got2(offset);
-
 	/*
 	 * Identify the CPU type and fix up code sections
 	 * that depend on which cpu we have.
 	 */
 	identify_cpu(offset, 0);
 	do_cpu_ftr_fixups(offset);
-
-#ifdef CONFIG_BOOTX_TEXT
-	btext_prepare_BAT();
-#endif
-
-	reloc_got2(-offset);
 
 	return KERNELBASE + offset;
 }
@@ -578,12 +570,12 @@ void __init setup_arch(char **cmdline_p)
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
 
-#ifdef CONFIG_BOOTX_TEXT
-	map_boot_text();
-#endif
-
 	unflatten_device_tree();
 	finish_device_tree();
+
+#ifdef CONFIG_BOOTX_TEXT
+	init_boot_display();
+#endif
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	/* This could be called "early setup arch", it must be done
