@@ -106,11 +106,10 @@ static int ixp2000_i2c_probe(struct device *dev)
 	struct platform_device *plat_dev = to_platform_device(dev);
 	struct ixp2000_i2c_pins *gpio = plat_dev->dev.platform_data;
 	struct ixp2000_i2c_data *drv_data = 
-		kmalloc(sizeof(struct ixp2000_i2c_data), GFP_KERNEL);
+		kzalloc(sizeof(struct ixp2000_i2c_data), GFP_KERNEL);
 
 	if (!drv_data)
 		return -ENOMEM;
-	memzero(drv_data, sizeof(*drv_data));
 	drv_data->gpio_pins = gpio;
 
 	drv_data->algo_data.data = gpio;
