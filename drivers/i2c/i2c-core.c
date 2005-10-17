@@ -85,6 +85,7 @@ void i2c_adapter_dev_release(struct device *dev)
 }
 
 struct device_driver i2c_adapter_driver = {
+	.owner = THIS_MODULE,
 	.name =	"i2c_adapter",
 	.bus = &i2c_bus_type,
 	.probe = i2c_device_probe,
@@ -98,6 +99,7 @@ static void i2c_adapter_class_dev_release(struct class_device *dev)
 }
 
 struct class i2c_adapter_class = {
+	.owner =	THIS_MODULE,
 	.name =		"i2c-adapter",
 	.release =	&i2c_adapter_class_dev_release,
 };
@@ -291,6 +293,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 	down(&core_lists);
 
 	/* add the driver to the list of i2c drivers in the driver core */
+	driver->driver.owner = driver->owner;
 	driver->driver.name = driver->name;
 	driver->driver.bus = &i2c_bus_type;
 	driver->driver.probe = i2c_device_probe;
