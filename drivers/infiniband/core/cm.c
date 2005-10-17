@@ -366,9 +366,15 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  service_node);
 		if ((cur_cm_id_priv->id.service_mask & service_id) ==
-		    (service_mask & cur_cm_id_priv->id.service_id))
-			return cm_id_priv;
-		if (service_id < cur_cm_id_priv->id.service_id)
+		    (service_mask & cur_cm_id_priv->id.service_id) &&
+		    (cm_id_priv->id.device == cur_cm_id_priv->id.device))
+			return cur_cm_id_priv;
+
+		if (cm_id_priv->id.device < cur_cm_id_priv->id.device)
+			link = &(*link)->rb_left;
+		else if (cm_id_priv->id.device > cur_cm_id_priv->id.device)
+			link = &(*link)->rb_right;
+		else if (service_id < cur_cm_id_priv->id.service_id)
 			link = &(*link)->rb_left;
 		else
 			link = &(*link)->rb_right;
@@ -378,7 +384,8 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 	return NULL;
 }
 
-static struct cm_id_private * cm_find_listen(__be64 service_id)
+static struct cm_id_private * cm_find_listen(struct ib_device *device,
+					     __be64 service_id)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
@@ -386,9 +393,15 @@ static struct cm_id_private * cm_find_listen(__be64 service_id)
 	while (node) {
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
 		if ((cm_id_priv->id.service_mask & service_id) ==
-		    (cm_id_priv->id.service_mask & cm_id_priv->id.service_id))
+		     cm_id_priv->id.service_id &&
+		    (cm_id_priv->id.device == device))
 			return cm_id_priv;
-		if (service_id < cm_id_priv->id.service_id)
+
+		if (device < cm_id_priv->id.device)
+			node = node->rb_left;
+		else if (device > cm_id_priv->id.device)
+			node = node->rb_right;
+		else if (service_id < cm_id_priv->id.service_id)
 			node = node->rb_left;
 		else
 			node = node->rb_right;
@@ -523,7 +536,8 @@ static void cm_reject_sidr_req(struct cm_id_private *cm_id_priv,
 	ib_send_cm_sidr_rep(&cm_id_priv->id, &param);
 }
 
-struct ib_cm_id *ib_create_cm_id(ib_cm_handler cm_handler,
+struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
+				 ib_cm_handler cm_handler,
 				 void *context)
 {
 	struct cm_id_private *cm_id_priv;
@@ -535,6 +549,7 @@ struct ib_cm_id *ib_create_cm_id(ib_cm_handler cm_handler,
 
 	memset(cm_id_priv, 0, sizeof *cm_id_priv);
 	cm_id_priv->id.state = IB_CM_IDLE;
+	cm_id_priv->id.device = device;
 	cm_id_priv->id.cm_handler = cm_handler;
 	cm_id_priv->id.context = context;
 	cm_id_priv->id.remote_cm_qpn = 1;
@@ -1047,7 +1062,6 @@ static void cm_format_req_event(struct cm_work *work,
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 	param = &work->cm_event.param.req_rcvd;
 	param->listen_id = listen_id;
-	param->device = cm_id_priv->av.port->mad_agent->device;
 	param->port = cm_id_priv->av.port->port_num;
 	param->primary_path = &work->path[0];
 	if (req_msg->alt_local_lid)
@@ -1226,7 +1240,8 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	}
 
 	/* Find matching listen request. */
-	listen_cm_id_priv = cm_find_listen(req_msg->service_id);
+	listen_cm_id_priv = cm_find_listen(cm_id_priv->id.device,
+					   req_msg->service_id);
 	if (!listen_cm_id_priv) {
 		spin_unlock_irqrestore(&cm.lock, flags);
 		cm_issue_rej(work->port, work->mad_recv_wc,
@@ -1254,7 +1269,7 @@ static int cm_req_handler(struct cm_work *work)
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 
-	cm_id = ib_create_cm_id(NULL, NULL);
+	cm_id = ib_create_cm_id(work->port->cm_dev->device, NULL, NULL);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
@@ -2629,7 +2644,6 @@ static void cm_format_sidr_req_event(struct cm_work *work,
 	param = &work->cm_event.param.sidr_req_rcvd;
 	param->pkey = __be16_to_cpu(sidr_req_msg->pkey);
 	param->listen_id = listen_id;
-	param->device = work->port->mad_agent->device;
 	param->port = work->port->port_num;
 	work->cm_event.private_data = &sidr_req_msg->private_data;
 }
@@ -2642,7 +2656,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	struct ib_wc *wc;
 	unsigned long flags;
 
-	cm_id = ib_create_cm_id(NULL, NULL);
+	cm_id = ib_create_cm_id(work->port->cm_dev->device, NULL, NULL);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
@@ -2666,7 +2680,8 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		spin_unlock_irqrestore(&cm.lock, flags);
 		goto out; /* Duplicate message. */
 	}
-	cur_cm_id_priv = cm_find_listen(sidr_req_msg->service_id);
+	cur_cm_id_priv = cm_find_listen(cm_id->device,
+					sidr_req_msg->service_id);
 	if (!cur_cm_id_priv) {
 		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 		spin_unlock_irqrestore(&cm.lock, flags);
