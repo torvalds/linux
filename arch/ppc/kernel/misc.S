@@ -498,21 +498,21 @@ _GLOBAL(flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 	mr	r6,r3
 1:	dcbst	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
 	mtctr	r4
 2:	icbi	0,r6
-	addi	r6,r6,L1_CACHE_LINE_SIZE
+	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	2b
 	sync				/* additional sync needed on g4 */
 	isync
@@ -525,16 +525,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
  * clean_dcache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(clean_dcache_range)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 
 1:	dcbst	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
 	blr
@@ -546,16 +546,16 @@ _GLOBAL(clean_dcache_range)
  * flush_dcache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(flush_dcache_range)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 
 1:	dcbf	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
 	blr
@@ -568,16 +568,16 @@ _GLOBAL(flush_dcache_range)
  * invalidate_dcache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(invalidate_dcache_range)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 
 1:	dcbi	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbi's to get to ram */
 	blr
@@ -598,7 +598,7 @@ _GLOBAL(flush_dcache_all)
 	mtctr	r4
 	lis     r5, KERNELBASE@h
 1:	lwz	r3, 0(r5)		/* Load one word from every line */
-	addi	r5, r5, L1_CACHE_LINE_SIZE
+	addi	r5, r5, L1_CACHE_BYTES
 	bdnz    1b
 	blr
 #endif /* CONFIG_NOT_COHERENT_CACHE */
@@ -616,16 +616,16 @@ BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
 END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
-	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
+	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
 	mr	r6,r3
 0:	dcbst	0,r3				/* Write line to ram */
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	0b
 	sync
 	mtctr	r4
 1:	icbi	0,r6
-	addi	r6,r6,L1_CACHE_LINE_SIZE
+	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	1b
 	sync
 	isync
@@ -648,16 +648,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mtmsr	r0
 	isync
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
-	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
+	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
 	mr	r6,r3
 0:	dcbst	0,r3				/* Write line to ram */
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	0b
 	sync
 	mtctr	r4
 1:	icbi	0,r6
-	addi	r6,r6,L1_CACHE_LINE_SIZE
+	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	1b
 	sync
 	mtmsr	r10				/* restore DR */
@@ -672,7 +672,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
  * void clear_pages(void *page, int order) ;
  */
 _GLOBAL(clear_pages)
-	li	r0,4096/L1_CACHE_LINE_SIZE
+	li	r0,4096/L1_CACHE_BYTES
 	slw	r0,r0,r4
 	mtctr	r0
 #ifdef CONFIG_8xx
@@ -684,7 +684,7 @@ _GLOBAL(clear_pages)
 #else
 1:	dcbz	0,r3
 #endif
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	blr
 
@@ -710,7 +710,7 @@ _GLOBAL(copy_page)
 
 #ifdef CONFIG_8xx
 	/* don't use prefetch on 8xx */
-    	li	r0,4096/L1_CACHE_LINE_SIZE
+    	li	r0,4096/L1_CACHE_BYTES
 	mtctr	r0
 1:	COPY_16_BYTES
 	bdnz	1b
@@ -724,13 +724,13 @@ _GLOBAL(copy_page)
 	li	r11,4
 	mtctr	r0
 11:	dcbt	r11,r4
-	addi	r11,r11,L1_CACHE_LINE_SIZE
+	addi	r11,r11,L1_CACHE_BYTES
 	bdnz	11b
 #else /* MAX_COPY_PREFETCH == 1 */
 	dcbt	r5,r4
-	li	r11,L1_CACHE_LINE_SIZE+4
+	li	r11,L1_CACHE_BYTES+4
 #endif /* MAX_COPY_PREFETCH */
-	li	r0,4096/L1_CACHE_LINE_SIZE - MAX_COPY_PREFETCH
+	li	r0,4096/L1_CACHE_BYTES - MAX_COPY_PREFETCH
 	crclr	4*cr0+eq
 2:
 	mtctr	r0
@@ -738,12 +738,12 @@ _GLOBAL(copy_page)
 	dcbt	r11,r4
 	dcbz	r5,r3
 	COPY_16_BYTES
-#if L1_CACHE_LINE_SIZE >= 32
+#if L1_CACHE_BYTES >= 32
 	COPY_16_BYTES
-#if L1_CACHE_LINE_SIZE >= 64
+#if L1_CACHE_BYTES >= 64
 	COPY_16_BYTES
 	COPY_16_BYTES
-#if L1_CACHE_LINE_SIZE >= 128
+#if L1_CACHE_BYTES >= 128
 	COPY_16_BYTES
 	COPY_16_BYTES
 	COPY_16_BYTES

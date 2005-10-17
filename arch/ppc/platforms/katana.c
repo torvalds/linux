@@ -521,7 +521,7 @@ katana_fixup_resources(struct pci_dev *dev)
 {
 	u16	v16;
 
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, L1_CACHE_LINE_SIZE>>2);
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, L1_CACHE_BYTES>>2);
 
 	pci_read_config_word(dev, PCI_COMMAND, &v16);
 	v16 |= PCI_COMMAND_INVALIDATE | PCI_COMMAND_FAST_BACK;
