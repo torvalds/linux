@@ -681,6 +681,15 @@ ENTRY(debug_trap)
 	bl	do_debug_trap
 	bra	error_code
 
+ENTRY(ill_trap)
+	/* void ill_trap(void) */
+	SWITCH_TO_KERNEL_STACK
+	SAVE_ALL
+	ldi	r1, #0				; error_code ; FIXME
+	mv	r0, sp				; pt_regs
+	bl	do_ill_trap
+	bra	error_code
+
 
 /* Cache flushing handler */
 ENTRY(cache_flushing_handler)

@@ -1119,7 +1119,7 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 			unsigned long extra_jiffies,
 			int do_acct)
 {
-	int do_event = 0;
+	int event = 0;
 
 	IP_NF_ASSERT(ct->timeout.data == (unsigned long)ct);
 	IP_NF_ASSERT(skb);
@@ -1129,13 +1129,13 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 	/* If not in hash table, timer will not be active yet */
 	if (!is_confirmed(ct)) {
 		ct->timeout.expires = extra_jiffies;
-		do_event = 1;
+		event = IPCT_REFRESH;
 	} else {
 		/* Need del_timer for race avoidance (may already be dying). */
 		if (del_timer(&ct->timeout)) {
 			ct->timeout.expires = jiffies + extra_jiffies;
 			add_timer(&ct->timeout);
-			do_event = 1;
+			event = IPCT_REFRESH;
 		}
 	}
 
@@ -1144,14 +1144,17 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 		ct->counters[CTINFO2DIR(ctinfo)].packets++;
 		ct->counters[CTINFO2DIR(ctinfo)].bytes += 
 						ntohs(skb->nh.iph->tot_len);
+		if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
+		    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
+			event |= IPCT_COUNTER_FILLING;
 	}
 #endif
 
 	write_unlock_bh(&ip_conntrack_lock);
 
 	/* must be unlocked when calling event cache */
-	if (do_event)
-		ip_conntrack_event_cache(IPCT_REFRESH, skb);
+	if (event)
+		ip_conntrack_event_cache(event, skb);
 }
 
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \

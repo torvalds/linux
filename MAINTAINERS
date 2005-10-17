@@ -1618,6 +1618,13 @@ M:	vandrove@vc.cvut.cz
 L:	linux-fbdev-devel@lists.sourceforge.net
 S:	Maintained
 
+MEGARAID SCSI DRIVERS
+P:     Neela Syam Kolli
+M:     Neela.Kolli@engenio.com
+S:     linux-scsi@vger.kernel.org
+W:     http://megaraid.lsilogic.com
+S:     Maintained
+
 MEMORY TECHNOLOGY DEVICES
 P:	David Woodhouse
 M:	dwmw2@infradead.org

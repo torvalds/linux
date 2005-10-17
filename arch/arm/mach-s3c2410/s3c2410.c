@@ -125,9 +125,6 @@ static struct platform_device *uart_devices[] __initdata = {
 	&s3c_uart2
 };
 
-/* store our uart devices for the serial driver console */
-struct platform_device *s3c2410_uart_devices[3];
-
 static int s3c2410_uart_count = 0;
 
 /* uart registration process */

@@ -106,15 +106,10 @@ ENTRY(ret_from_fork)
 	.endm
 
 .Larm700bug:
-	ldr	r0, [sp, #S_PSR]		@ Get calling cpsr
-	sub	lr, lr, #4
-	str	lr, [r8]
-	msr	spsr_cxsf, r0
 	ldmia	sp, {r0 - lr}^			@ Get calling r0 - lr
 	mov	r0, r0
-	ldr	lr, [sp, #S_PC]			@ Get PC
 	add	sp, sp, #S_FRAME_SIZE
-	movs	pc, lr
+	subs	pc, lr, #4
 #else
 	.macro	arm710_bug_check, instr, temp
 	.endm
