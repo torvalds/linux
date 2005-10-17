@@ -569,12 +569,12 @@ config SCHED_SMT
 	  overhead in some places. If unsure say N here.
 
 config PROC_DEVICETREE
-	bool "Support for Open Firmware device tree in /proc"
-	depends on (PPC_OF || PPC_ISERIES) && PROC_FS
+	bool "Support for device tree in /proc"
+	depends on PROC_FS
 	help
 	  This option adds a device-tree directory under /proc which contains
 	  an image of the device tree that the kernel copies from Open
-	  Firmware. If unsure, say Y here.
+	  Firmware or other boot firmware. If unsure, say Y here.
 
 source "arch/powerpc/platforms/prep/Kconfig"
 
