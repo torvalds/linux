@@ -113,8 +113,8 @@ static struct ib_client ucm_client = {
 	.remove = ib_ucm_remove_one
 };
 
-DECLARE_MUTEX(ctx_id_mutex);
-DEFINE_IDR(ctx_id_table);
+static DECLARE_MUTEX(ctx_id_mutex);
+static DEFINE_IDR(ctx_id_table);
 static DECLARE_BITMAP(dev_map, IB_UCM_MAX_DEVICES);
 
 static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
