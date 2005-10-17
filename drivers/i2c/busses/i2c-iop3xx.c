@@ -525,6 +525,7 @@ out:
 
 
 static struct device_driver iop3xx_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "IOP3xx-I2C",
 	.bus		= &platform_bus_type,
 	.probe		= iop3xx_i2c_probe,

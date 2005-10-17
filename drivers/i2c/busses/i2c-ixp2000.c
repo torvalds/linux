@@ -146,6 +146,7 @@ static int ixp2000_i2c_probe(struct device *dev)
 }
 
 static struct device_driver ixp2000_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "IXP2000-I2C",
 	.bus		= &platform_bus_type,
 	.probe		= ixp2000_i2c_probe,
