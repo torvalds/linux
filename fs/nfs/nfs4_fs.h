@@ -125,16 +125,11 @@ static inline void nfs_confirm_seqid(struct nfs_seqid_counter *seqid, int status
  * NFS4 state_owners and lock_owners are simply labels for ordered
  * sequences of RPC calls. Their sole purpose is to provide once-only
  * semantics by allowing the server to identify replayed requests.
- *
- * The ->so_sema is held during all state_owner seqid-mutating operations:
- * OPEN, OPEN_DOWNGRADE, and CLOSE. Its purpose is to properly serialize
- * so_seqid.
  */
 struct nfs4_state_owner {
 	struct list_head     so_list;	 /* per-clientid list of state_owners */
 	struct nfs4_client   *so_client;
 	u32                  so_id;      /* 32-bit identifier, unique */
-	struct semaphore     so_sema;
 	atomic_t	     so_count;
 
 	struct rpc_cred	     *so_cred;	 /* Associated cred */
@@ -183,7 +178,6 @@ struct nfs4_state {
 	struct inode *inode;		/* Pointer to the inode */
 
 	unsigned long flags;		/* Do we hold any locks? */
-	struct semaphore lock_sema;	/* Serializes file locking operations */
 	spinlock_t state_lock;		/* Protects the lock_states list */
 
 	nfs4_stateid stateid;

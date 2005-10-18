@@ -267,7 +267,6 @@ nfs4_alloc_state_owner(void)
 	sp = kzalloc(sizeof(*sp),GFP_KERNEL);
 	if (!sp)
 		return NULL;
-	init_MUTEX(&sp->so_sema);
 	INIT_LIST_HEAD(&sp->so_states);
 	INIT_LIST_HEAD(&sp->so_delegations);
 	rpc_init_wait_queue(&sp->so_sequence.wait, "Seqid_waitqueue");
@@ -362,7 +361,6 @@ nfs4_alloc_open_state(void)
 	memset(state->stateid.data, 0, sizeof(state->stateid.data));
 	atomic_set(&state->count, 1);
 	INIT_LIST_HEAD(&state->lock_states);
-	init_MUTEX(&state->lock_sema);
 	spin_lock_init(&state->state_lock);
 	return state;
 }
@@ -444,7 +442,6 @@ nfs4_get_open_state(struct inode *inode, struct nfs4_state_owner *owner)
 	state = __nfs4_find_state_byowner(inode, owner);
 	if (state == NULL && new != NULL) {
 		state = new;
-		/* Caller *must* be holding owner->so_sem */
 		/* Note: The reclaim code dictates that we add stateless
 		 * and read-only stateids to the end of the list */
 		list_add_tail(&state->open_states, &owner->so_states);
@@ -464,7 +461,7 @@ out:
 
 /*
  * Beware! Caller must be holding exactly one
- * reference to clp->cl_sem and owner->so_sema!
+ * reference to clp->cl_sem!
  */
 void nfs4_put_open_state(struct nfs4_state *state)
 {
@@ -485,7 +482,6 @@ void nfs4_put_open_state(struct nfs4_state *state)
 
 /*
  * Beware! Caller must be holding no references to clp->cl_sem!
- * of owner->so_sema!
  */
 void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 {
@@ -496,7 +492,6 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 
 	atomic_inc(&owner->so_count);
 	down_read(&clp->cl_sem);
-	down(&owner->so_sema);
 	/* Protect against nfs4_find_state() */
 	spin_lock(&inode->i_lock);
 	if (mode & FMODE_READ)
@@ -527,7 +522,6 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 	}
 out:
 	nfs4_put_open_state(state);
-	up(&owner->so_sema);
 	nfs4_put_state_owner(owner);
 	up_read(&clp->cl_sem);
 }
@@ -553,7 +547,6 @@ __nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
  * Return a compatible lock_state. If no initialized lock_state structure
  * exists, return an uninitialized one.
  *
- * The caller must be holding state->lock_sema
  */
 static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
 {
@@ -577,7 +570,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
  * Return a compatible lock_state. If no initialized lock_state structure
  * exists, return an uninitialized one.
  *
- * The caller must be holding state->lock_sema and clp->cl_sem
+ * The caller must be holding clp->cl_sem
  */
 static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_owner_t owner)
 {
@@ -711,7 +704,7 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
 }
 
 /*
- * Called with sp->so_sema and clp->cl_sem held.
+ * Called with clp->cl_sem held.
  *
  * Increment the seqid if the OPEN/OPEN_DOWNGRADE/CLOSE succeeded, or
  * failed with a seqid incrementing error -
@@ -750,7 +743,7 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 }
 
 /*
- * Called with ls->lock_sema and clp->cl_sem held.
+ * Called with clp->cl_sem held.
  *
  * Increment the seqid if the LOCK/LOCKU succeeded, or
  * failed with a seqid incrementing error -

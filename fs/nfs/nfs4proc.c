@@ -224,7 +224,6 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 /*
  * OPEN_RECLAIM:
  * 	reclaim state on the server after a reboot.
- * 	Assumes caller is holding the sp->so_sem
  */
 static int _nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *state)
 {
@@ -322,7 +321,6 @@ static int _nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state
 	};
 	int status = 0;
 
-	down(&sp->so_sema);
 	if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
 		goto out;
 	if (state->state == 0)
@@ -342,7 +340,6 @@ static int _nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state
 	}
 	nfs_free_seqid(arg.seqid);
 out:
-	up(&sp->so_sema);
 	dput(parent);
 	return status;
 }
@@ -595,7 +592,6 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 		dprintk("%s: nfs4_get_state_owner failed!\n", __FUNCTION__);
 		goto out_err;
 	}
-	down(&sp->so_sema);
 	state = nfs4_get_open_state(inode, sp);
 	if (state == NULL)
 		goto out_err;
@@ -620,7 +616,6 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 	set_bit(NFS_DELEGATED_STATE, &state->flags);
 	update_open_stateid(state, &delegation->stateid, open_flags);
 out_ok:
-	up(&sp->so_sema);
 	nfs4_put_state_owner(sp);
 	up_read(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
@@ -631,7 +626,6 @@ out_err:
 	if (sp != NULL) {
 		if (state != NULL)
 			nfs4_put_open_state(state);
-		up(&sp->so_sema);
 		nfs4_put_state_owner(sp);
 	}
 	up_read(&nfsi->rwsem);
@@ -696,7 +690,6 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	} else
 		o_arg.u.attrs = sattr;
 	/* Serialization for the sequence id */
-	down(&sp->so_sema);
 
 	o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
 	if (o_arg.seqid == NULL)
@@ -716,7 +709,6 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	if (o_res.delegation_type != 0)
 		nfs_inode_set_delegation(inode, cred, &o_res);
 	nfs_free_seqid(o_arg.seqid);
-	up(&sp->so_sema);
 	nfs4_put_state_owner(sp);
 	up_read(&clp->cl_sem);
 	*res = state;
@@ -726,7 +718,6 @@ out_err:
 		if (state != NULL)
 			nfs4_put_open_state(state);
 		nfs_free_seqid(o_arg.seqid);
-		up(&sp->so_sema);
 		nfs4_put_state_owner(sp);
 	}
 	/* Note: clp->cl_sem must be released before nfs4_put_open_state()! */
@@ -833,7 +824,6 @@ static void nfs4_free_closedata(struct nfs4_closedata *calldata)
 
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
-	up(&sp->so_sema);
 	nfs4_put_state_owner(sp);
 	up_read(&server->nfs4_state->cl_sem);
 	kfree(calldata);
@@ -2702,7 +2692,6 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 
 	down_read(&clp->cl_sem);
 	nlo.clientid = clp->cl_clientid;
-	down(&state->lock_sema);
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		goto out;
@@ -2729,7 +2718,6 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 		status = 0;
 	}
 out:
-	up(&state->lock_sema);
 	up_read(&clp->cl_sem);
 	return status;
 }
@@ -2791,7 +2779,6 @@ static int _nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock 
 	int status;
 			
 	down_read(&clp->cl_sem);
-	down(&state->lock_sema);
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		goto out;
@@ -2813,7 +2800,6 @@ static int _nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock 
 				sizeof(lsp->ls_stateid.data));
 	nfs_free_seqid(luargs.seqid);
 out:
-	up(&state->lock_sema);
 	if (status == 0)
 		do_vfs_lock(request->fl_file, request);
 	up_read(&clp->cl_sem);
@@ -2877,7 +2863,6 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 		largs.u.open_lock = &otl;
 		largs.new_lock_owner = 1;
 		arg.u.lock = &largs;
-		down(&owner->so_sema);
 		otl.open_seqid = nfs_alloc_seqid(&owner->so_seqid);
 		if (otl.open_seqid != NULL) {
 			status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
@@ -2885,7 +2870,6 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 			nfs_increment_open_seqid(status, otl.open_seqid);
 			nfs_free_seqid(otl.open_seqid);
 		}
-		up(&owner->so_sema);
 		if (status == 0)
 			nfs_confirm_seqid(&lsp->ls_seqid, 0);
 	} else {
@@ -2944,11 +2928,9 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	int status;
 
 	down_read(&clp->cl_sem);
-	down(&state->lock_sema);
 	status = nfs4_set_lock_state(state, request);
 	if (status == 0)
 		status = _nfs4_do_setlk(state, cmd, request, 0);
-	up(&state->lock_sema);
 	if (status == 0) {
 		/* Note: we always want to sleep here! */
 		request->fl_flags |= FL_SLEEP;
