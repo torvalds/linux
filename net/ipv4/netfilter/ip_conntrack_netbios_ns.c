@@ -58,7 +58,7 @@ static int help(struct sk_buff **pskb,
 		goto out;
 
 	rcu_read_lock();
-	in_dev = __in_dev_get(rt->u.dst.dev);
+	in_dev = __in_dev_get_rcu(rt->u.dst.dev);
 	if (in_dev != NULL) {
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_broadcast == iph->daddr) {

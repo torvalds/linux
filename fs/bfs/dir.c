@@ -108,7 +108,7 @@ static int bfs_create(struct inode * dir, struct dentry * dentry, int mode,
 	inode->i_mapping->a_ops = &bfs_aops;
 	inode->i_mode = mode;
 	inode->i_ino = ino;
-	BFS_I(inode)->i_dsk_ino = cpu_to_le16(ino);
+	BFS_I(inode)->i_dsk_ino = ino;
 	BFS_I(inode)->i_sblock = 0;
 	BFS_I(inode)->i_eblock = 0;
 	insert_inode_hash(inode);

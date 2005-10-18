@@ -110,14 +110,14 @@ static inline int ccid_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 static inline void ccid_hc_rx_exit(struct ccid *ccid, struct sock *sk)
 {
-	if (ccid->ccid_hc_rx_exit != NULL &&
+	if (ccid != NULL && ccid->ccid_hc_rx_exit != NULL &&
 	    dccp_sk(sk)->dccps_hc_rx_ccid_private != NULL)
 		ccid->ccid_hc_rx_exit(sk);
 }
 
 static inline void ccid_hc_tx_exit(struct ccid *ccid, struct sock *sk)
 {
-	if (ccid->ccid_hc_tx_exit != NULL &&
+	if (ccid != NULL && ccid->ccid_hc_tx_exit != NULL &&
 	    dccp_sk(sk)->dccps_hc_tx_ccid_private != NULL)
 		ccid->ccid_hc_tx_exit(sk);
 }

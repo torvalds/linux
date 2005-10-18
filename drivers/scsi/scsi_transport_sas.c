@@ -628,17 +628,16 @@ sas_rphy_delete(struct sas_rphy *rphy)
 	struct Scsi_Host *shost = dev_to_shost(parent->dev.parent);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
-	transport_destroy_device(&rphy->dev);
+	scsi_remove_target(dev);
 
-	scsi_remove_target(&rphy->dev);
+	transport_remove_device(dev);
+	device_del(dev);
+	transport_destroy_device(dev);
 
 	spin_lock(&sas_host->lock);
 	list_del(&rphy->list);
 	spin_unlock(&sas_host->lock);
 
-	transport_remove_device(dev);
-	device_del(dev);
-	transport_destroy_device(dev);
 	put_device(&parent->dev);
 }
 EXPORT_SYMBOL(sas_rphy_delete);

@@ -99,7 +99,11 @@ get_iost_entry(unsigned long iopt_base, unsigned long io_address, unsigned page_
 		break;
 
 	default: /* not a known compile time constant */
-		BUILD_BUG_ON(1);
+		{
+			/* BUILD_BUG_ON() is not usable here */
+			extern void __get_iost_entry_bad_page_size(void);
+			__get_iost_entry_bad_page_size();
+		}
 		break;
 	}
 
@@ -306,7 +310,7 @@ static void bpa_map_iommu(void)
 
 
 static void *bpa_alloc_coherent(struct device *hwdev, size_t size,
-			   dma_addr_t *dma_handle, unsigned int __nocast flag)
+			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	void *ret;
 

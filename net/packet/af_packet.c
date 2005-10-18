@@ -654,8 +654,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
-	h->tp_sec = skb_tv_base.tv_sec + skb->tstamp.off_sec;
-	h->tp_usec = skb_tv_base.tv_usec + skb->tstamp.off_usec;
+	h->tp_sec = skb->tstamp.off_sec;
+	h->tp_usec = skb->tstamp.off_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
 	sll->sll_halen = 0;
@@ -761,12 +761,6 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (dev->hard_header) {
 		int res;
 		err = -EINVAL;
-		if (saddr) {
-			if (saddr->sll_halen != dev->addr_len)
-				goto out_free;
-			if (saddr->sll_hatype != dev->type)
-				goto out_free;
-		}
 		res = dev->hard_header(skb, dev, ntohs(proto), addr, NULL, len);
 		if (sock->type != SOCK_DGRAM) {
 			skb->tail = skb->data;

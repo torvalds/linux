@@ -19,7 +19,7 @@
 #define	AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
 #define AS_ENOSPC	(__GFP_BITS_SHIFT + 1)	/* ENOSPC on async write */
 
-static inline unsigned int __nocast mapping_gfp_mask(struct address_space * mapping)
+static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
 {
 	return mapping->flags & __GFP_BITS_MASK;
 }

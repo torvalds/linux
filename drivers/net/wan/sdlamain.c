@@ -57,6 +57,7 @@
 #include <linux/ioport.h>	/* request_region(), release_region() */
 #include <linux/wanrouter.h>	/* WAN router definitions */
 #include <linux/wanpipe.h>	/* WANPIPE common user API definitions */
+#include <linux/rcupdate.h>
 
 #include <linux/in.h>
 #include <asm/io.h>		/* phys_to_virt() */
@@ -1268,37 +1269,41 @@ unsigned long get_ip_address(struct net_device *dev, int option)
 	
 	struct in_ifaddr *ifaddr;
 	struct in_device *in_dev;
+	unsigned long addr = 0;
 
-	if ((in_dev = __in_dev_get(dev)) == NULL){
-		return 0;
+	rcu_read_lock();
+	if ((in_dev = __in_dev_get_rcu(dev)) == NULL){
+		goto out;
 	}
 
 	if ((ifaddr = in_dev->ifa_list)== NULL ){
-		return 0;
+		goto out;
 	}
 	
 	switch (option){
 
 	case WAN_LOCAL_IP:
-		return ifaddr->ifa_local;
+		addr = ifaddr->ifa_local;
 		break;
 	
 	case WAN_POINTOPOINT_IP:
-		return ifaddr->ifa_address;
+		addr = ifaddr->ifa_address;
 		break;	
 
 	case WAN_NETMASK_IP:
-		return ifaddr->ifa_mask;
+		addr = ifaddr->ifa_mask;
 		break;
 
 	case WAN_BROADCAST_IP:
-		return ifaddr->ifa_broadcast;
+		addr = ifaddr->ifa_broadcast;
 		break;
 	default:
-		return 0;
+		break;
 	}
 
-	return 0;
+out:
+	rcu_read_unlock();
+	return addr;
 }	
 
 void add_gateway(sdla_t *card, struct net_device *dev)

@@ -52,7 +52,8 @@ struct dev_state {
 	struct list_head async_completed;
 	wait_queue_head_t wait;     /* wake up if a request completed */
 	unsigned int discsignr;
-	struct task_struct *disctask;
+	pid_t disc_pid;
+	uid_t disc_uid, disc_euid;
 	void __user *disccontext;
 	unsigned long ifclaimed;
 };

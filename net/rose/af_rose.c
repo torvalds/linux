@@ -1472,22 +1472,25 @@ static const char banner[] = KERN_INFO "F6FBB/G4KLX ROSE for Linux. Version 0.62
 static int __init rose_proto_init(void)
 {
 	int i;
-	int rc = proto_register(&rose_proto, 0);
+	int rc;
 
+	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
+		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = proto_register(&rose_proto, 0);
 	if (rc != 0)
 		goto out;
 
 	rose_callsign = null_ax25_address;
 
-	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
-		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
-		return -1;
-	}
-
 	dev_rose = kmalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
-		return -1;
+		rc = -ENOMEM;
+		goto out_proto_unregister;
 	}
 
 	memset(dev_rose, 0x00, rose_ndevs * sizeof(struct net_device*));
@@ -1500,10 +1503,12 @@ static int __init rose_proto_init(void)
 				   name, rose_setup);
 		if (!dev) {
 			printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate memory\n");
+			rc = -ENOMEM;
 			goto fail;
 		}
-		if (register_netdev(dev)) {
-			printk(KERN_ERR "ROSE: netdevice regeistration failed\n");
+		rc = register_netdev(dev);
+		if (rc) {
+			printk(KERN_ERR "ROSE: netdevice registration failed\n");
 			free_netdev(dev);
 			goto fail;
 		}
@@ -1536,8 +1541,9 @@ fail:
 		free_netdev(dev_rose[i]);
 	}
 	kfree(dev_rose);
+out_proto_unregister:
 	proto_unregister(&rose_proto);
-	return -ENOMEM;
+	goto out;
 }
 module_init(rose_proto_init);
 

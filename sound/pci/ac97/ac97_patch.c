@@ -2752,7 +2752,11 @@ AC97_DOUBLE("Modem Speaker Volume", 0x5c, 14, 12, 3, 1)
 
 static int patch_si3036_specific(ac97_t * ac97)
 {
-	return patch_build_controls(ac97, snd_ac97_controls_si3036, ARRAY_SIZE(snd_ac97_controls_si3036));
+	int idx, err;
+	for (idx = 0; idx < ARRAY_SIZE(snd_ac97_controls_si3036); idx++)
+		if ((err = snd_ctl_add(ac97->bus->card, snd_ctl_new1(&snd_ac97_controls_si3036[idx], ac97))) < 0)
+			return err;
+	return 0;
 }
 
 static struct snd_ac97_build_ops patch_si3036_ops = {

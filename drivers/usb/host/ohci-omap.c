@@ -18,7 +18,6 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/hardware.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>

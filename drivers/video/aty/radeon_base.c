@@ -475,7 +475,7 @@ static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	 */
 
 	/* Flush PCI buffers ? */
-	tmp = INREG(DEVICE_ID);
+	tmp = INREG16(DEVICE_ID);
 
 	local_irq_disable();
 

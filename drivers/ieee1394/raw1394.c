@@ -98,7 +98,7 @@ static struct hpsb_address_ops arm_ops = {
 
 static void queue_complete_cb(struct pending_request *req);
 
-static struct pending_request *__alloc_pending_request(unsigned int __nocast flags)
+static struct pending_request *__alloc_pending_request(gfp_t flags)
 {
 	struct pending_request *req;
 
@@ -2958,4 +2958,3 @@ static void __exit cleanup_raw1394(void)
 module_init(init_raw1394);
 module_exit(cleanup_raw1394);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16);

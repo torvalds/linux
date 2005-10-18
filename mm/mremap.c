@@ -141,10 +141,10 @@ move_one_page(struct vm_area_struct *vma, unsigned long old_addr,
 			if (dst) {
 				pte_t pte;
 				pte = ptep_clear_flush(vma, old_addr, src);
+
 				/* ZERO_PAGE can be dependant on virtual addr */
-				if (pfn_valid(pte_pfn(pte)) &&
-					pte_page(pte) == ZERO_PAGE(old_addr))
-					pte = pte_wrprotect(mk_pte(ZERO_PAGE(new_addr), new_vma->vm_page_prot));
+				pte = move_pte(pte, new_vma->vm_page_prot,
+							old_addr, new_addr);
 				set_pte_at(mm, new_addr, dst, pte);
 			} else
 				error = -ENOMEM;

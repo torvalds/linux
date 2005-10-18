@@ -30,6 +30,8 @@
  *  Revision history
  *    22.12.1999   0.1   Initial release (split from proc_usb.c)
  *    04.01.2000   0.2   Turned into its own filesystem
+ *    30.09.2005   0.3   Fix user-triggerable oops in async URB delivery
+ *    			 (CAN-2005-3055)
  */
 
 /*****************************************************************************/
@@ -58,7 +60,8 @@ static struct class *usb_device_class;
 struct async {
 	struct list_head asynclist;
 	struct dev_state *ps;
-	struct task_struct *task;
+	pid_t pid;
+	uid_t uid, euid;
 	unsigned int signr;
 	unsigned int ifnum;
 	void __user *userbuffer;
@@ -290,7 +293,8 @@ static void async_completed(struct urb *urb, struct pt_regs *regs)
 		sinfo.si_errno = as->urb->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
-		send_sig_info(as->signr, &sinfo, as->task);
+		kill_proc_info_as_uid(as->signr, &sinfo, as->pid, as->uid, 
+				      as->euid);
 	}
         wake_up(&ps->wait);
 }
@@ -526,7 +530,9 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&ps->async_completed);
 	init_waitqueue_head(&ps->wait);
 	ps->discsignr = 0;
-	ps->disctask = current;
+	ps->disc_pid = current->pid;
+	ps->disc_uid = current->uid;
+	ps->disc_euid = current->euid;
 	ps->disccontext = NULL;
 	ps->ifclaimed = 0;
 	wmb();
@@ -988,7 +994,9 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		as->userbuffer = NULL;
 	as->signr = uurb->signr;
 	as->ifnum = ifnum;
-	as->task = current;
+	as->pid = current->pid;
+	as->uid = current->uid;
+	as->euid = current->euid;
 	if (!(uurb->endpoint & USB_DIR_IN)) {
 		if (copy_from_user(as->urb->transfer_buffer, uurb->buffer, as->urb->transfer_buffer_length)) {
 			free_async(as);

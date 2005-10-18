@@ -341,15 +341,41 @@ static int tcp_print_conntrack(struct seq_file *s,
 static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
 			 const struct ip_conntrack *ct)
 {
+	struct nfattr *nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
+	
 	read_lock_bh(&tcp_lock);
 	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
 		&ct->proto.tcp.state);
 	read_unlock_bh(&tcp_lock);
 
+	NFA_NEST_END(skb, nest_parms);
+
 	return 0;
 
 nfattr_failure:
 	read_unlock_bh(&tcp_lock);
+	return -1;
+}
+
+static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
+{
+	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
+	struct nfattr *tb[CTA_PROTOINFO_TCP_MAX];
+
+        if (nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr) < 0)
+                goto nfattr_failure;
+
+	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
+		return -EINVAL;
+
+	write_lock_bh(&tcp_lock);
+	ct->proto.tcp.state = 
+		*(u_int8_t *)NFA_DATA(tb[CTA_PROTOINFO_TCP_STATE-1]);
+	write_unlock_bh(&tcp_lock);
+
+	return 0;
+
+nfattr_failure:
 	return -1;
 }
 #endif
@@ -1014,7 +1040,8 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		/* Set ASSURED if we see see valid ack in ESTABLISHED 
 		   after SYN_RECV or a valid answer for a picked up 
 		   connection. */
-			set_bit(IPS_ASSURED_BIT, &conntrack->status);
+		set_bit(IPS_ASSURED_BIT, &conntrack->status);
+		ip_conntrack_event_cache(IPCT_STATUS, skb);
 	}
 	ip_ct_refresh_acct(conntrack, ctinfo, skb, timeout);
 
@@ -1122,6 +1149,7 @@ struct ip_conntrack_protocol ip_conntrack_protocol_tcp =
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 	.to_nfattr		= tcp_to_nfattr,
+	.from_nfattr		= nfattr_to_tcp,
 	.tuple_to_nfattr	= ip_ct_port_tuple_to_nfattr,
 	.nfattr_to_tuple	= ip_ct_port_nfattr_to_tuple,
 #endif

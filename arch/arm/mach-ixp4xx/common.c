@@ -125,7 +125,8 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	} else if (type & IRQT_LOW) {
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
 		irq_type = IXP4XX_IRQ_LEVEL;
-	}
+	} else
+		return -EINVAL;
 
 	ixp4xx_config_irq(irq, irq_type);
 
@@ -142,6 +143,8 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 
 	/* Set the new style */
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
+
+	return 0;
 }
 
 static void ixp4xx_irq_mask(unsigned int irq)

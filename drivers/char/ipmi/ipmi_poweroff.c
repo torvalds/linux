@@ -55,7 +55,7 @@ extern void (*pm_power_off)(void);
 static int poweroff_powercycle;
 
 /* parameter definition to allow user to flag power cycle */
-module_param(poweroff_powercycle, int, 0);
+module_param(poweroff_powercycle, int, 0644);
 MODULE_PARM_DESC(poweroff_powercycles, " Set to non-zero to enable power cycle instead of power down. Power cycle is contingent on hardware support, otherwise it defaults back to power down.");
 
 /* Stuff from the get device id command. */

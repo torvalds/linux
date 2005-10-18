@@ -457,7 +457,7 @@ void __init time_init(void)
 	sbus_time_init();
 }
 
-extern __inline__ unsigned long do_gettimeoffset(void)
+static inline unsigned long do_gettimeoffset(void)
 {
 	return (*master_l10_counter >> 10) & 0x1fffff;
 }

@@ -7,7 +7,6 @@
 #include "linux/sched.h"
 #include "linux/slab.h"
 #include "linux/interrupt.h"
-#include "linux/irq.h"
 #include "linux/spinlock.h"
 #include "linux/errno.h"
 #include "asm/atomic.h"

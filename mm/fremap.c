@@ -89,6 +89,9 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (!page->mapping || page->index >= size)
 		goto err_unlock;
+	err = -ENOMEM;
+	if (page_mapcount(page) > INT_MAX/2)
+		goto err_unlock;
 
 	zap_pte(mm, vma, addr, pte);
 
