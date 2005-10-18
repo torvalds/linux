@@ -403,14 +403,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			break;
 		}
 
-		if (pnode) {
-			if (pnode->nlp_state != NLP_STE_MAPPED_NODE)
-				cmd->result = ScsiResult(DID_BUS_BUSY,
-					SAM_STAT_BUSY);
-		}
-		else {
-			cmd->result = ScsiResult(DID_NO_CONNECT, 0);
-		}
+		if ((pnode == NULL )
+		    || (pnode->nlp_state != NLP_STE_MAPPED_NODE))
+			cmd->result = ScsiResult(DID_BUS_BUSY, SAM_STAT_BUSY);
 	} else {
 		cmd->result = ScsiResult(DID_OK, 0);
 	}
@@ -539,7 +534,7 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 	struct lpfc_rport_data *rdata = scsi_dev->hostdata;
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 
-	if ((ndlp == 0) || (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+	if ((ndlp == NULL) || (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
 		return 0;
 	}
 
@@ -727,39 +722,23 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 	struct lpfc_scsi_buf *lpfc_cmd = NULL;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
-	int err = 0;
+	int err;
 
-	/*
-	 * The target pointer is guaranteed not to be NULL because the driver
-	 * only clears the device->hostdata field in lpfc_slave_destroy.  This
-	 * approach guarantees no further IO calls on this target.
-	 */
-	if (!ndlp) {
-		cmnd->result = ScsiResult(DID_NO_CONNECT, 0);
+	err = fc_remote_port_chkready(rport);
+	if (err) {
+		cmnd->result = err;
 		goto out_fail_command;
 	}
 
 	/*
-	 * A Fibre Channel target is present and functioning only when the node
-	 * state is MAPPED.  Any other state is a failure.
+	 * Catch race where our node has transitioned, but the
+	 * transport is still transitioning.
 	 */
-	if (ndlp->nlp_state != NLP_STE_MAPPED_NODE) {
-		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) ||
-		    (ndlp->nlp_state == NLP_STE_UNUSED_NODE)) {
-			cmnd->result = ScsiResult(DID_NO_CONNECT, 0);
-			goto out_fail_command;
-		}
-		else if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
-			cmnd->result = ScsiResult(DID_BUS_BUSY, 0);
-			goto out_fail_command;
-		}
-		/*
-		 * The device is most likely recovered and the driver
-		 * needs a bit more time to finish.  Ask the midlayer
-		 * to retry.
-		 */
-		goto out_host_busy;
+	if (!ndlp) {
+		cmnd->result = ScsiResult(DID_BUS_BUSY, 0);
+		goto out_fail_command;
 	}
 
 	list_remove_head(scsi_buf_list, lpfc_cmd, struct lpfc_scsi_buf, list);
@@ -1163,44 +1142,16 @@ static int
 lpfc_slave_alloc(struct scsi_device *sdev)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba *)sdev->host->hostdata[0];
-	struct lpfc_nodelist *ndlp = NULL;
-	int match = 0;
 	struct lpfc_scsi_buf *scsi_buf = NULL;
+	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 	uint32_t total = 0, i;
 	uint32_t num_to_alloc = 0;
 	unsigned long flags;
-	struct list_head *listp;
-	struct list_head *node_list[6];
 
-	/*
-	 * Store the target pointer in the scsi_device hostdata pointer provided
-	 * the driver has already discovered the target id.
-	 */
-
-	/* Search the nlp lists other than unmap_list for this target ID */
-	node_list[0] = &phba->fc_npr_list;
-	node_list[1] = &phba->fc_nlpmap_list;
-	node_list[2] = &phba->fc_prli_list;
-	node_list[3] = &phba->fc_reglogin_list;
-	node_list[4] = &phba->fc_adisc_list;
-	node_list[5] = &phba->fc_plogi_list;
-
-	for (i = 0; i < 6 && !match; i++) {
-		listp = node_list[i];
-		if (list_empty(listp))
-			continue;
-		list_for_each_entry(ndlp, listp, nlp_listp) {
-			if ((sdev->id == ndlp->nlp_sid) && ndlp->rport) {
-				match = 1;
-				break;
-			}
-		}
-	}
-
-	if (!match)
+	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	sdev->hostdata = ndlp->rport->dd_data;
+	sdev->hostdata = rport->dd_data;
 
 	/*
 	 * Populate the cmds_per_lun count scsi_bufs into this host's globally

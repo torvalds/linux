@@ -21,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -1665,6 +1666,8 @@ typedef struct fc_port {
 
 	struct fc_rport *rport;
 	u32 supported_classes;
+	struct work_struct rport_add_work;
+	struct work_struct rport_del_work;
 } fc_port_t;
 
 /*

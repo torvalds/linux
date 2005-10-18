@@ -1668,6 +1668,24 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	return (rval);
 }
 
+static void
+qla2x00_rport_add(void *data)
+{
+	fc_port_t *fcport = data;
+
+	qla2x00_reg_remote_port(fcport->ha, fcport);
+}
+
+static void
+qla2x00_rport_del(void *data)
+{
+	fc_port_t *fcport = data;
+
+	if (fcport->rport)
+		fc_remote_port_delete(fcport->rport);
+	fcport->rport = NULL;
+}
+
 /**
  * qla2x00_alloc_fcport() - Allocate a generic fcport.
  * @ha: HA context
@@ -1693,6 +1711,8 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
+	INIT_WORK(&fcport->rport_add_work, qla2x00_rport_add, fcport);
+	INIT_WORK(&fcport->rport_del_work, qla2x00_rport_del, fcport);
 
 	return (fcport);
 }
@@ -2056,8 +2076,8 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 	struct fc_rport *rport;
 
 	if (fcport->rport) {
-		fc_remote_port_unblock(fcport->rport);
-		return;
+		fc_remote_port_delete(fcport->rport);
+		fcport->rport = NULL;
 	}
 
 	rport_ids.node_name = wwn_to_u64(fcport->node_name);
@@ -2071,7 +2091,7 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 		    "Unable to allocate fc remote port!\n");
 		return;
 	}
-	rport->dd_data = fcport;
+	*((fc_port_t **)rport->dd_data) = fcport;
 	rport->supported_classes = fcport->supported_classes;
 
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;

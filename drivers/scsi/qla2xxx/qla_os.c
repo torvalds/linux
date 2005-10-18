@@ -348,11 +348,13 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
 	int rval;
 
-	if (!fcport) {
-		cmd->result = DID_NO_CONNECT << 16;
+	rval = fc_remote_port_chkready(rport);
+	if (rval) {
+		cmd->result = rval;
 		goto qc_fail_command;
 	}
 
@@ -401,11 +403,13 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
 	int rval;
 
-	if (!fcport) {
-		cmd->result = DID_NO_CONNECT << 16;
+	rval = fc_remote_port_chkready(rport);
+	if (rval) {
+		cmd->result = rval;
 		goto qc24_fail_command;
 	}
 
@@ -1041,10 +1045,10 @@ qla2xxx_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
-	if (!rport)
+	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	sdev->hostdata = rport->dd_data;
+	sdev->hostdata = *(fc_port_t **)rport->dd_data;
 
 	return 0;
 }
@@ -1636,7 +1640,8 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
     int do_login)
 {
 	if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
-		fc_remote_port_block(fcport->rport);
+		schedule_work(&fcport->rport_del_work);
+
 	/*
 	 * We may need to retry the login, so don't change the state of the
 	 * port but do the retries.
@@ -1697,7 +1702,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha)
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
 		if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
-			fc_remote_port_block(fcport->rport);
+			schedule_work(&fcport->rport_del_work);
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 }

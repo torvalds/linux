@@ -537,12 +537,6 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 
 		lpfc_offline(phba);
 
-		/*
-		 * Restart all traffic to this host.  Since the fc_transport
-		 * block functions (future) were not called in lpfc_offline,
-		 * don't call them here.
-		 */
-		scsi_unblock_requests(phba->host);
 	}
 }
 
@@ -1226,12 +1220,6 @@ lpfc_online(struct lpfc_hba * phba)
 	phba->fc_flag &= ~FC_OFFLINE_MODE;
 	spin_unlock_irq(phba->host->host_lock);
 
-	/*
-	 * Restart all traffic to this host.  Since the fc_transport block
-	 * functions (future) were not called in lpfc_offline, don't call them
-	 * here.
-	 */
-	scsi_unblock_requests(phba->host);
 	return 0;
 }
 
@@ -1249,13 +1237,6 @@ lpfc_offline(struct lpfc_hba * phba)
 	if (phba->fc_flag & FC_OFFLINE_MODE)
 		return 0;
 
-	/*
-	 * Don't call the fc_transport block api (future).  The device is
-	 * going offline and causing a timer to fire in the midlayer is
-	 * unproductive.  Just block all new requests until the driver
-	 * comes back online.
-	 */
-	scsi_block_requests(phba->host);
 	psli = &phba->sli;
 	pring = &psli->ring[psli->fcp_ring];
 

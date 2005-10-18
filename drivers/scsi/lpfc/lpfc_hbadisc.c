@@ -1028,6 +1028,7 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 
+	scsi_block_requests(phba->host);
 	ndlp->rport = rport = fc_remote_port_add(phba->host, 0, &rport_ids);
 	if (!rport) {
 		dev_printk(KERN_WARNING, &phba->pcidev->dev,
@@ -1044,6 +1045,23 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	}
 	rdata = rport->dd_data;
 	rdata->pnode = ndlp;
+	scsi_unblock_requests(phba->host);
+
+	return;
+}
+
+static void
+lpfc_unregister_remote_port(struct lpfc_hba * phba,
+			    struct lpfc_nodelist * ndlp)
+{
+	struct fc_rport *rport = ndlp->rport;
+	struct lpfc_rport_data *rdata = rport->dd_data;
+
+	ndlp->rport = NULL;
+	rdata->pnode = NULL;
+	scsi_block_requests(phba->host);
+	fc_remote_port_delete(rport);
+	scsi_unblock_requests(phba->host);
 
 	return;
 }
@@ -1260,7 +1278,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 		 * may have removed the remote port.
 		 */
 		if ((rport_del != none) && nlp->rport)
-			fc_remote_port_block(nlp->rport);
+			lpfc_unregister_remote_port(phba, nlp);
 
 		if (rport_add != none) {
 			/*
@@ -1270,8 +1288,6 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 			 */
 			if (!nlp->rport)
 				lpfc_register_remote_port(phba, nlp);
-			else
-				fc_remote_port_unblock(nlp->rport);
 
 			/*
 			 * if we added to Mapped list, but the remote port
@@ -1490,7 +1506,6 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 	LPFC_MBOXQ_t       *mb;
 	LPFC_MBOXQ_t       *nextmb;
 	struct lpfc_dmabuf *mp;
-	struct fc_rport *rport;
 
 	/* Cleanup node for NPort <nlp_DID> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
@@ -1507,10 +1522,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 	 * and flush cache's w/o generating flush errors.
 	 */
 	if ((ndlp->rport) && !(phba->fc_flag & FC_UNLOADING)) {
-		rport = ndlp->rport;
-		ndlp->rport = NULL;
-		fc_remote_port_unblock(rport);
-		fc_remote_port_delete(rport);
+		lpfc_unregister_remote_port(phba, ndlp);
 		ndlp->nlp_sid = NLP_NO_SID;
 	}
 
