@@ -2476,6 +2476,7 @@ snd_m3_chip_init(m3_t *chip)
 	t |= ASSP_0_WS_ENABLE; 
 	outb(t, chip->iobase + ASSP_CONTROL_A);
 
+	snd_m3_assp_init(chip); /* download DSP code before starting ASSP below */
 	outb(RUN_ASSP, chip->iobase + ASSP_CONTROL_B); 
 
 	outb(0x00, io + HARDWARE_VOL_CTRL);
@@ -2734,7 +2735,6 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 
 	snd_m3_ac97_reset(chip);
 
-	snd_m3_assp_init(chip);
 	snd_m3_amp_enable(chip, 1);
 
 	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
