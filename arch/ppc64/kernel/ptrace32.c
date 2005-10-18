@@ -40,7 +40,7 @@
  * in exit.c or in signal.c.
  */
 
-int sys32_ptrace(long request, long pid, unsigned long addr, unsigned long data)
+int compat_sys_ptrace(long request, long pid, unsigned long addr, unsigned long data)
 {
 	struct task_struct *child;
 	int ret = -EPERM;
