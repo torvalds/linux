@@ -71,7 +71,7 @@ DEFINE_PER_CPU(struct rcu_data, rcu_bh_data) = { 0L };
 
 /* Fake initialization required by compiler */
 static DEFINE_PER_CPU(struct tasklet_struct, rcu_tasklet) = {NULL};
-static int maxbatch = 10;
+static int maxbatch = 10000;
 
 #ifndef __HAVE_ARCH_CMPXCHG
 /*
@@ -109,6 +109,10 @@ void fastcall call_rcu(struct rcu_head *head,
 	rdp = &__get_cpu_var(rcu_data);
 	*rdp->nxttail = head;
 	rdp->nxttail = &head->next;
+
+	if (unlikely(++rdp->count > 10000))
+		set_need_resched();
+
 	local_irq_restore(flags);
 }
 
@@ -140,6 +144,12 @@ void fastcall call_rcu_bh(struct rcu_head *head,
 	rdp = &__get_cpu_var(rcu_bh_data);
 	*rdp->nxttail = head;
 	rdp->nxttail = &head->next;
+	rdp->count++;
+/*
+ *  Should we directly call rcu_do_batch() here ?
+ *  if (unlikely(rdp->count > 10000))
+ *      rcu_do_batch(rdp);
+ */
 	local_irq_restore(flags);
 }
 
@@ -157,6 +167,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 		next = rdp->donelist = list->next;
 		list->func(list);
 		list = next;
+		rdp->count--;
 		if (++count >= maxbatch)
 			break;
 	}

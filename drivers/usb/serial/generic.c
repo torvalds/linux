@@ -223,7 +223,7 @@ int usb_serial_generic_write_room (struct usb_serial_port *port)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (serial->num_bulk_out) {
-		if (port->write_urb_busy)
+		if (!(port->write_urb_busy))
 			room = port->bulk_out_size;
 	}
 
