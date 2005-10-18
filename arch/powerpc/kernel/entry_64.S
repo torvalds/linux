@@ -262,7 +262,7 @@ _GLOBAL(save_nvgprs)
  */
 _GLOBAL(ppc32_sigsuspend)
 	bl	.save_nvgprs
-	bl	.sys32_sigsuspend
+	bl	.compat_sys_sigsuspend
 	b	70f
 
 _GLOBAL(ppc64_rt_sigsuspend)
@@ -272,7 +272,7 @@ _GLOBAL(ppc64_rt_sigsuspend)
 
 _GLOBAL(ppc32_rt_sigsuspend)
 	bl	.save_nvgprs
-	bl	.sys32_rt_sigsuspend
+	bl	.compat_sys_rt_sigsuspend
 70:	cmpdi	0,r3,0
 	/* If it returned an error, we need to return via syscall_exit to set
 	   the SO bit in cr0 and potentially stop for ptrace. */
@@ -307,7 +307,7 @@ _GLOBAL(ppc_clone)
 
 _GLOBAL(ppc32_swapcontext)
 	bl	.save_nvgprs
-	bl	.sys32_swapcontext
+	bl	.compat_sys_swapcontext
 	b	80f
 	
 _GLOBAL(ppc64_swapcontext)
@@ -316,11 +316,11 @@ _GLOBAL(ppc64_swapcontext)
 	b	80f
 
 _GLOBAL(ppc32_sigreturn)
-	bl	.sys32_sigreturn
+	bl	.compat_sys_sigreturn
 	b	80f
 
 _GLOBAL(ppc32_rt_sigreturn)
-	bl	.sys32_rt_sigreturn
+	bl	.compat_sys_rt_sigreturn
 	b	80f
 
 _GLOBAL(ppc64_rt_sigreturn)

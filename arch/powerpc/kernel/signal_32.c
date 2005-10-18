@@ -58,12 +58,12 @@
 
 #ifdef CONFIG_PPC64
 #define do_signal	do_signal32
-#define sys_sigsuspend	sys32_sigsuspend
-#define sys_rt_sigsuspend	sys32_rt_sigsuspend
-#define sys_rt_sigreturn	sys32_rt_sigreturn
-#define sys_sigaction	sys32_sigaction
-#define sys_swapcontext	sys32_swapcontext
-#define sys_sigreturn	sys32_sigreturn
+#define sys_sigsuspend	compat_sys_sigsuspend
+#define sys_rt_sigsuspend	compat_sys_rt_sigsuspend
+#define sys_rt_sigreturn	compat_sys_rt_sigreturn
+#define sys_sigaction	compat_sys_sigaction
+#define sys_swapcontext	compat_sys_swapcontext
+#define sys_sigreturn	compat_sys_sigreturn
 
 #define old_sigaction	old_sigaction32
 #define sigcontext	sigcontext32
@@ -540,7 +540,7 @@ static long restore_user_regs(struct pt_regs *regs,
 }
 
 #ifdef CONFIG_PPC64
-long sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
+long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
 		struct sigaction32 __user *oact, size_t sigsetsize)
 {
 	struct k_sigaction new_ka, old_ka;
@@ -577,7 +577,7 @@ long sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
  * of a signed int (msr in 32-bit mode) and the register representation
  * of a signed int (msr in 64-bit mode) is performed.
  */
-long sys32_rt_sigprocmask(u32 how, compat_sigset_t __user *set,
+long compat_sys_rt_sigprocmask(u32 how, compat_sigset_t __user *set,
 		compat_sigset_t __user *oset, size_t sigsetsize)
 {
 	sigset_t s;
@@ -605,7 +605,7 @@ long sys32_rt_sigprocmask(u32 how, compat_sigset_t __user *set,
 	return 0;
 }
 
-long sys32_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
+long compat_sys_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
 {
 	sigset_t s;
 	int ret;
@@ -687,7 +687,7 @@ int copy_siginfo_to_user32(struct compat_siginfo __user *d, siginfo_t *s)
  * (msr in 32-bit mode) and the register representation of a signed int
  * (msr in 64-bit mode) is performed.
  */
-long sys32_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
+long compat_sys_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
 {
 	siginfo_t info;
 	int ret;
@@ -706,10 +706,10 @@ long sys32_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
  *  Start Alternate signal stack support
  *
  *  System Calls
- *       sigaltatck               sys32_sigaltstack
+ *       sigaltatck               compat_sys_sigaltstack
  */
 
-int sys32_sigaltstack(u32 __new, u32 __old, int r5,
+int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 		      int r6, int r7, int r8, struct pt_regs *regs)
 {
 	stack_32_t __user * newstack = (stack_32_t __user *)(long) __new;
@@ -942,11 +942,11 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	 */
 #ifdef CONFIG_PPC64
 	/*
-	 * We use the sys32_ version that does the 32/64 bits conversion
+	 * We use the compat_sys_ version that does the 32/64 bits conversion
 	 * and takes userland pointer directly. What about error checking ?
 	 * nobody does any...
 	 */
-	sys32_sigaltstack((u32)(u64)&rt_sf->uc.uc_stack, 0, 0, 0, 0, 0, regs);
+	compat_sys_sigaltstack((u32)(u64)&rt_sf->uc.uc_stack, 0, 0, 0, 0, 0, regs);
 	return (int)regs->result;
 #else
 	do_sigaltstack(&rt_sf->uc.uc_stack, NULL, regs->gpr[1]);

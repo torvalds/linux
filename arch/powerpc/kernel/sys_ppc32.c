@@ -113,96 +113,6 @@ out:
 	return error;
 }
 
-struct linux_dirent32 {
-	u32		d_ino;
-	u32		d_off;
-	unsigned short	d_reclen;
-	char		d_name[1];
-};
-
-struct getdents_callback32 {
-	struct linux_dirent32 __user * current_dir;
-	struct linux_dirent32 __user * previous;
-	int count;
-	int error;
-};
-
-static int filldir(void * __buf, const char * name, int namlen, off_t offset,
-		   ino_t ino, unsigned int d_type)
-{
-	struct linux_dirent32 __user * dirent;
-	struct getdents_callback32 * buf = (struct getdents_callback32 *) __buf;
-	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 2);
-
-	buf->error = -EINVAL;	/* only used if we fail.. */
-	if (reclen > buf->count)
-		return -EINVAL;
-	dirent = buf->previous;
-	if (dirent) {
-		if (__put_user(offset, &dirent->d_off))
-			goto efault;
-	}
-	dirent = buf->current_dir;
-	if (__put_user(ino, &dirent->d_ino))
-		goto efault;
-	if (__put_user(reclen, &dirent->d_reclen))
-		goto efault;
-	if (copy_to_user(dirent->d_name, name, namlen))
-		goto efault;
-	if (__put_user(0, dirent->d_name + namlen))
-		goto efault;
-	if (__put_user(d_type, (char __user *) dirent + reclen - 1))
-		goto efault;
-	buf->previous = dirent;
-	dirent = (void __user *)dirent + reclen;
-	buf->current_dir = dirent;
-	buf->count -= reclen;
-	return 0;
-efault:
-	buf->error = -EFAULT;
-	return -EFAULT;
-}
-
-asmlinkage long sys32_getdents(unsigned int fd, struct linux_dirent32 __user *dirent,
-		    unsigned int count)
-{
-	struct file * file;
-	struct linux_dirent32 __user * lastdirent;
-	struct getdents_callback32 buf;
-	int error;
-
-	error = -EFAULT;
-	if (!access_ok(VERIFY_WRITE, dirent, count))
-		goto out;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.current_dir = dirent;
-	buf.previous = NULL;
-	buf.count = count;
-	buf.error = 0;
-
-	error = vfs_readdir(file, (filldir_t)filldir, &buf);
-	if (error < 0)
-		goto out_putf;
-	error = buf.error;
-	lastdirent = buf.previous;
-	if (lastdirent) {
-		if (put_user(file->f_pos, &lastdirent->d_off))
-			error = -EFAULT;
-		else
-			error = count - buf.count;
-	}
-
-out_putf:
-	fput(file);
-out:
-	return error;
-}
-
 asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 		compat_uptr_t tvp_x)
@@ -247,7 +157,7 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sysfs(u32 option, u32 arg1, u32 arg2)
+asmlinkage long compat_sys_sysfs(u32 option, u32 arg1, u32 arg2)
 {
 	return sys_sysfs((int)option, arg1, arg2);
 }
@@ -269,7 +179,7 @@ struct timex32 {
 extern int do_adjtimex(struct timex *);
 extern void ppc_adjtimex(void);
 
-asmlinkage long sys32_adjtimex(struct timex32 __user *utp)
+asmlinkage long compat_sys_adjtimex(struct timex32 __user *utp)
 {
 	struct timex txc;
 	int ret;
@@ -328,7 +238,7 @@ asmlinkage long sys32_adjtimex(struct timex32 __user *utp)
 	return ret;
 }
 
-asmlinkage long sys32_pause(void)
+asmlinkage long compat_sys_pause(void)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
@@ -374,7 +284,7 @@ struct sysinfo32 {
 	char _f[20-2*sizeof(int)-sizeof(int)];
 };
 
-asmlinkage long sys32_sysinfo(struct sysinfo32 __user *info)
+asmlinkage long compat_sys_sysinfo(struct sysinfo32 __user *info)
 {
 	struct sysinfo s;
 	int ret, err;
@@ -431,7 +341,7 @@ asmlinkage long sys32_sysinfo(struct sysinfo32 __user *info)
    sorts of things, like timeval and itimerval.  */
 extern struct timezone sys_tz;
 
-asmlinkage long sys32_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
+asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
 {
 	if (tv) {
 		struct timeval ktv;
@@ -449,7 +359,7 @@ asmlinkage long sys32_gettimeofday(struct compat_timeval __user *tv, struct time
 
 
 
-asmlinkage long sys32_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
+asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
 {
 	struct timespec kts;
 	struct timezone ktz;
@@ -467,7 +377,7 @@ asmlinkage long sys32_settimeofday(struct compat_timeval __user *tv, struct time
 }
 
 #ifdef CONFIG_SYSVIPC
-long sys32_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr,
+long compat_sys_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr,
 	       u32 fifth)
 {
 	int version;
@@ -538,7 +448,7 @@ long sys32_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr,
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sendfile(u32 out_fd, u32 in_fd, compat_off_t __user * offset, u32 count)
+asmlinkage long compat_sys_sendfile(u32 out_fd, u32 in_fd, compat_off_t __user * offset, u32 count)
 {
 	mm_segment_t old_fs = get_fs();
 	int ret;
@@ -560,7 +470,7 @@ asmlinkage long sys32_sendfile(u32 out_fd, u32 in_fd, compat_off_t __user * offs
 	return ret;
 }
 
-asmlinkage int sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset, s32 count)
+asmlinkage int compat_sys_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset, s32 count)
 {
 	mm_segment_t old_fs = get_fs();
 	int ret;
@@ -582,7 +492,7 @@ asmlinkage int sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *off
 	return ret;
 }
 
-long sys32_execve(unsigned long a0, unsigned long a1, unsigned long a2,
+long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 		  unsigned long a3, unsigned long a4, unsigned long a5,
 		  struct pt_regs *regs)
 {
@@ -614,7 +524,7 @@ out:
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_prctl(u32 option, u32 arg2, u32 arg3, u32 arg4, u32 arg5)
+asmlinkage long compat_sys_prctl(u32 option, u32 arg2, u32 arg3, u32 arg4, u32 arg5)
 {
 	return sys_prctl((int)option,
 			 (unsigned long) arg2,
@@ -628,7 +538,7 @@ asmlinkage long sys32_prctl(u32 option, u32 arg2, u32 arg3, u32 arg4, u32 arg5)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_rr_get_interval(u32 pid, struct compat_timespec __user *interval)
+asmlinkage long compat_sys_sched_rr_get_interval(u32 pid, struct compat_timespec __user *interval)
 {
 	struct timespec t;
 	int ret;
@@ -643,7 +553,7 @@ asmlinkage long sys32_sched_rr_get_interval(u32 pid, struct compat_timespec __us
 	return ret;
 }
 
-asmlinkage int sys32_pciconfig_read(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
+asmlinkage int compat_sys_pciconfig_read(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
 {
 	return sys_pciconfig_read((unsigned long) bus,
 				  (unsigned long) dfn,
@@ -652,7 +562,7 @@ asmlinkage int sys32_pciconfig_read(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf
 				  compat_ptr(ubuf));
 }
 
-asmlinkage int sys32_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
+asmlinkage int compat_sys_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
 {
 	return sys_pciconfig_write((unsigned long) bus,
 				   (unsigned long) dfn,
@@ -661,7 +571,7 @@ asmlinkage int sys32_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubu
 				   compat_ptr(ubuf));
 }
 
-asmlinkage int sys32_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
+asmlinkage int compat_sys_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
 {
 	return sys_pciconfig_iobase(which, in_bus, in_devfn);
 }
@@ -672,7 +582,7 @@ asmlinkage int sys32_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_access(const char __user * filename, u32 mode)
+asmlinkage long compat_sys_access(const char __user * filename, u32 mode)
 {
 	return sys_access(filename, (int)mode);
 }
@@ -683,7 +593,7 @@ asmlinkage long sys32_access(const char __user * filename, u32 mode)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_creat(const char __user * pathname, u32 mode)
+asmlinkage long compat_sys_creat(const char __user * pathname, u32 mode)
 {
 	return sys_creat(pathname, (int)mode);
 }
@@ -694,7 +604,7 @@ asmlinkage long sys32_creat(const char __user * pathname, u32 mode)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_waitpid(u32 pid, unsigned int __user * stat_addr, u32 options)
+asmlinkage long compat_sys_waitpid(u32 pid, unsigned int __user * stat_addr, u32 options)
 {
 	return sys_waitpid((int)pid, stat_addr, (int)options);
 }
@@ -705,7 +615,7 @@ asmlinkage long sys32_waitpid(u32 pid, unsigned int __user * stat_addr, u32 opti
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_getgroups(u32 gidsetsize, gid_t __user *grouplist)
+asmlinkage long compat_sys_getgroups(u32 gidsetsize, gid_t __user *grouplist)
 {
 	return sys_getgroups((int)gidsetsize, grouplist);
 }
@@ -716,7 +626,7 @@ asmlinkage long sys32_getgroups(u32 gidsetsize, gid_t __user *grouplist)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_getpgid(u32 pid)
+asmlinkage long compat_sys_getpgid(u32 pid)
 {
 	return sys_getpgid((int)pid);
 }
@@ -728,7 +638,7 @@ asmlinkage long sys32_getpgid(u32 pid)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_getsid(u32 pid)
+asmlinkage long compat_sys_getsid(u32 pid)
 {
 	return sys_getsid((int)pid);
 }
@@ -739,7 +649,7 @@ asmlinkage long sys32_getsid(u32 pid)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_kill(u32 pid, u32 sig)
+asmlinkage long compat_sys_kill(u32 pid, u32 sig)
 {
 	return sys_kill((int)pid, (int)sig);
 }
@@ -750,12 +660,12 @@ asmlinkage long sys32_kill(u32 pid, u32 sig)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_mkdir(const char __user * pathname, u32 mode)
+asmlinkage long compat_sys_mkdir(const char __user * pathname, u32 mode)
 {
 	return sys_mkdir(pathname, (int)mode);
 }
 
-long sys32_nice(u32 increment)
+long compat_sys_nice(u32 increment)
 {
 	/* sign extend increment */
 	return sys_nice((int)increment);
@@ -772,7 +682,7 @@ off_t ppc32_lseek(unsigned int fd, u32 offset, unsigned int origin)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_readlink(const char __user * path, char __user * buf, u32 bufsiz)
+asmlinkage long compat_sys_readlink(const char __user * path, char __user * buf, u32 bufsiz)
 {
 	return sys_readlink(path, buf, (int)bufsiz);
 }
@@ -782,7 +692,7 @@ asmlinkage long sys32_readlink(const char __user * path, char __user * buf, u32 
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_get_priority_max(u32 policy)
+asmlinkage long compat_sys_sched_get_priority_max(u32 policy)
 {
 	return sys_sched_get_priority_max((int)policy);
 }
@@ -793,7 +703,7 @@ asmlinkage long sys32_sched_get_priority_max(u32 policy)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_get_priority_min(u32 policy)
+asmlinkage long compat_sys_sched_get_priority_min(u32 policy)
 {
 	return sys_sched_get_priority_min((int)policy);
 }
@@ -804,7 +714,7 @@ asmlinkage long sys32_sched_get_priority_min(u32 policy)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_getparam(u32 pid, struct sched_param __user *param)
+asmlinkage long compat_sys_sched_getparam(u32 pid, struct sched_param __user *param)
 {
 	return sys_sched_getparam((int)pid, param);
 }
@@ -815,7 +725,7 @@ asmlinkage long sys32_sched_getparam(u32 pid, struct sched_param __user *param)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_getscheduler(u32 pid)
+asmlinkage long compat_sys_sched_getscheduler(u32 pid)
 {
 	return sys_sched_getscheduler((int)pid);
 }
@@ -826,7 +736,7 @@ asmlinkage long sys32_sched_getscheduler(u32 pid)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_setparam(u32 pid, struct sched_param __user *param)
+asmlinkage long compat_sys_sched_setparam(u32 pid, struct sched_param __user *param)
 {
 	return sys_sched_setparam((int)pid, param);
 }
@@ -837,7 +747,7 @@ asmlinkage long sys32_sched_setparam(u32 pid, struct sched_param __user *param)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_sched_setscheduler(u32 pid, u32 policy, struct sched_param __user *param)
+asmlinkage long compat_sys_sched_setscheduler(u32 pid, u32 policy, struct sched_param __user *param)
 {
 	return sys_sched_setscheduler((int)pid, (int)policy, param);
 }
@@ -848,7 +758,7 @@ asmlinkage long sys32_sched_setscheduler(u32 pid, u32 policy, struct sched_param
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_setdomainname(char __user *name, u32 len)
+asmlinkage long compat_sys_setdomainname(char __user *name, u32 len)
 {
 	return sys_setdomainname(name, (int)len);
 }
@@ -859,13 +769,13 @@ asmlinkage long sys32_setdomainname(char __user *name, u32 len)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_setgroups(u32 gidsetsize, gid_t __user *grouplist)
+asmlinkage long compat_sys_setgroups(u32 gidsetsize, gid_t __user *grouplist)
 {
 	return sys_setgroups((int)gidsetsize, grouplist);
 }
 
 
-asmlinkage long sys32_sethostname(char __user *name, u32 len)
+asmlinkage long compat_sys_sethostname(char __user *name, u32 len)
 {
 	/* sign extend len */
 	return sys_sethostname(name, (int)len);
@@ -877,30 +787,30 @@ asmlinkage long sys32_sethostname(char __user *name, u32 len)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_setpgid(u32 pid, u32 pgid)
+asmlinkage long compat_sys_setpgid(u32 pid, u32 pgid)
 {
 	return sys_setpgid((int)pid, (int)pgid);
 }
 
-long sys32_getpriority(u32 which, u32 who)
+long compat_sys_getpriority(u32 which, u32 who)
 {
 	/* sign extend which and who */
 	return sys_getpriority((int)which, (int)who);
 }
 
-long sys32_setpriority(u32 which, u32 who, u32 niceval)
+long compat_sys_setpriority(u32 which, u32 who, u32 niceval)
 {
 	/* sign extend which, who and niceval */
 	return sys_setpriority((int)which, (int)who, (int)niceval);
 }
 
-long sys32_ioprio_get(u32 which, u32 who)
+long compat_sys_ioprio_get(u32 which, u32 who)
 {
 	/* sign extend which and who */
 	return sys_ioprio_get((int)which, (int)who);
 }
 
-long sys32_ioprio_set(u32 which, u32 who, u32 ioprio)
+long compat_sys_ioprio_set(u32 which, u32 who, u32 ioprio)
 {
 	/* sign extend which, who and ioprio */
 	return sys_ioprio_set((int)which, (int)who, (int)ioprio);
@@ -911,12 +821,12 @@ long sys32_ioprio_set(u32 which, u32 who, u32 ioprio)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_ssetmask(u32 newmask)
+asmlinkage long compat_sys_ssetmask(u32 newmask)
 {
 	return sys_ssetmask((int) newmask);
 }
 
-asmlinkage long sys32_syslog(u32 type, char __user * buf, u32 len)
+asmlinkage long compat_sys_syslog(u32 type, char __user * buf, u32 len)
 {
 	/* sign extend len */
 	return sys_syslog(type, buf, (int)len);
@@ -928,7 +838,7 @@ asmlinkage long sys32_syslog(u32 type, char __user * buf, u32 len)
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
  * and the register representation of a signed int (msr in 64-bit mode) is performed.
  */
-asmlinkage long sys32_umask(u32 mask)
+asmlinkage long compat_sys_umask(u32 mask)
 {
 	return sys_umask((int)mask);
 }
@@ -944,7 +854,7 @@ struct __sysctl_args32 {
 	u32 __unused[4];
 };
 
-asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
+asmlinkage long compat_sys_sysctl(struct __sysctl_args32 __user *args)
 {
 	struct __sysctl_args32 tmp;
 	int error;
@@ -985,7 +895,7 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 }
 #endif
 
-unsigned long sys32_mmap2(unsigned long addr, size_t len,
+unsigned long compat_sys_mmap2(unsigned long addr, size_t len,
 			  unsigned long prot, unsigned long flags,
 			  unsigned long fd, unsigned long pgoff)
 {
@@ -993,29 +903,7 @@ unsigned long sys32_mmap2(unsigned long addr, size_t len,
 	return sys_mmap(addr, len, prot, flags, fd, pgoff << 12);
 }
 
-int get_compat_timeval(struct timeval *tv, struct compat_timeval __user *ctv)
-{
-	return (!access_ok(VERIFY_READ, ctv, sizeof(*ctv)) ||
-		__get_user(tv->tv_sec, &ctv->tv_sec) ||
-		__get_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
-}
-
-asmlinkage long sys32_utimes(char __user *filename, struct compat_timeval __user *tvs)
-{
-	struct timeval ktvs[2], *ptr;
-
-	ptr = NULL;
-	if (tvs) {
-		if (get_compat_timeval(&ktvs[0], &tvs[0]) ||
-		    get_compat_timeval(&ktvs[1], &tvs[1]))
-			return -EFAULT;
-		ptr = ktvs;
-	}
-
-	return do_utimes(filename, ptr);
-}
-
-long sys32_tgkill(u32 tgid, u32 pid, int sig)
+long compat_sys_tgkill(u32 tgid, u32 pid, int sig)
 {
 	/* sign extend tgid, pid */
 	return sys_tgkill((int)tgid, (int)pid, sig);
@@ -1026,30 +914,30 @@ long sys32_tgkill(u32 tgid, u32 pid, int sig)
  * The 32 bit ABI passes long longs in an odd even register pair.
  */
 
-compat_ssize_t sys32_pread64(unsigned int fd, char __user *ubuf, compat_size_t count,
+compat_ssize_t compat_sys_pread64(unsigned int fd, char __user *ubuf, compat_size_t count,
 			     u32 reg6, u32 poshi, u32 poslo)
 {
 	return sys_pread64(fd, ubuf, count, ((loff_t)poshi << 32) | poslo);
 }
 
-compat_ssize_t sys32_pwrite64(unsigned int fd, char __user *ubuf, compat_size_t count,
+compat_ssize_t compat_sys_pwrite64(unsigned int fd, char __user *ubuf, compat_size_t count,
 			      u32 reg6, u32 poshi, u32 poslo)
 {
 	return sys_pwrite64(fd, ubuf, count, ((loff_t)poshi << 32) | poslo);
 }
 
-compat_ssize_t sys32_readahead(int fd, u32 r4, u32 offhi, u32 offlo, u32 count)
+compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo, u32 count)
 {
 	return sys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
 }
 
-asmlinkage int sys32_truncate64(const char __user * path, u32 reg4,
+asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
 				unsigned long high, unsigned long low)
 {
 	return sys_truncate(path, (high << 32) | low);
 }
 
-asmlinkage int sys32_ftruncate64(unsigned int fd, u32 reg4, unsigned long high,
+asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long high,
 				 unsigned long low)
 {
 	return sys_ftruncate(fd, (high << 32) | low);
@@ -1108,7 +996,7 @@ long ppc32_timer_create(clockid_t clock,
 	return err;
 }
 
-asmlinkage long sys32_add_key(const char __user *_type,
+asmlinkage long compat_sys_add_key(const char __user *_type,
 			      const char __user *_description,
 			      const void __user *_payload,
 			      u32 plen,
@@ -1117,7 +1005,7 @@ asmlinkage long sys32_add_key(const char __user *_type,
 	return sys_add_key(_type, _description, _payload, plen, ringid);
 }
 
-asmlinkage long sys32_request_key(const char __user *_type,
+asmlinkage long compat_sys_request_key(const char __user *_type,
 				  const char __user *_description,
 				  const char __user *_callout_info,
 				  u32 destringid)
