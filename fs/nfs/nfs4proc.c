@@ -56,6 +56,7 @@
 #define NFS4_POLL_RETRY_MIN	(1*HZ)
 #define NFS4_POLL_RETRY_MAX	(15*HZ)
 
+static int _nfs4_proc_open_confirm(struct rpc_clnt *clnt, const struct nfs_fh *fh, struct nfs4_state_owner *sp, nfs4_stateid *stateid, struct nfs_seqid *seqid);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static int nfs4_async_handle_error(struct rpc_task *, struct nfs_server *);
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
@@ -333,11 +334,21 @@ static int _nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state
 	memcpy(arg.u.delegation.data, state->stateid.data, sizeof(arg.u.delegation.data));
 	status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
 	nfs_increment_open_seqid(status, arg.seqid);
+	if (status != 0)
+		goto out_free;
+	if(res.rflags & NFS4_OPEN_RESULT_CONFIRM) {
+		status = _nfs4_proc_open_confirm(server->client, NFS_FH(inode),
+				sp, &res.stateid, arg.seqid);
+		if (status != 0)
+			goto out_free;
+	}
+	nfs_confirm_seqid(&sp->so_seqid, 0);
 	if (status >= 0) {
 		memcpy(state->stateid.data, res.stateid.data,
 				sizeof(state->stateid.data));
 		clear_bit(NFS_DELEGATED_STATE, &state->flags);
 	}
+out_free:
 	nfs_free_seqid(arg.seqid);
 out:
 	dput(parent);
@@ -366,7 +377,7 @@ int nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state *state)
 	return err;
 }
 
-static inline int _nfs4_proc_open_confirm(struct rpc_clnt *clnt, const struct nfs_fh *fh, struct nfs4_state_owner *sp, nfs4_stateid *stateid, struct nfs_seqid *seqid)
+static int _nfs4_proc_open_confirm(struct rpc_clnt *clnt, const struct nfs_fh *fh, struct nfs4_state_owner *sp, nfs4_stateid *stateid, struct nfs_seqid *seqid)
 {
 	struct nfs_open_confirmargs arg = {
 		.fh             = fh,
