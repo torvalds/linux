@@ -853,6 +853,11 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 			filemap_fdatawait(inode->i_mapping);
 		nfs_wb_all(inode);
 	}
+	/*
+	 * Return any delegations if we're going to change ACLs
+	 */
+	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
+		nfs_inode_return_delegation(inode);
 	error = NFS_PROTO(inode)->setattr(dentry, &fattr, attr);
 	if (error == 0)
 		nfs_refresh_inode(inode, &fattr);

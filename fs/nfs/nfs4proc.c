@@ -2405,6 +2405,7 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 
 	if (!nfs4_server_supports_acls(server))
 		return -EOPNOTSUPP;
+	nfs_inode_return_delegation(inode);
 	buf_to_pages(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
 	ret = rpc_call_sync(NFS_SERVER(inode)->client, &msg, 0);
 	if (ret == 0)
