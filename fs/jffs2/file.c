@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: file.c,v 1.103 2005/09/07 08:34:54 havasi Exp $
+ * $Id: file.c,v 1.104 2005/10/18 23:29:35 tpoynor Exp $
  *
  */
 
@@ -279,6 +279,6 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 		ClearPageUptodate(pg);
 	}
 
-	D1(printk(KERN_DEBUG "jffs2_commit_write() returning %d\n",writtenlen?writtenlen:ret));
-	return writtenlen?writtenlen:ret;
+	D1(printk(KERN_DEBUG "jffs2_commit_write() returning %d\n",start+writtenlen==end?0:ret));
+	return start+writtenlen==end?0:ret;
 }
