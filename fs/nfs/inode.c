@@ -1671,8 +1671,7 @@ static void nfs4_clear_inode(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	/* If we are holding a delegation, return it! */
-	if (nfsi->delegation != NULL)
-		nfs_inode_return_delegation(inode);
+	nfs_inode_return_delegation(inode);
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
 	/* Now clear out any remaining state */

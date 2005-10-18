@@ -801,6 +801,7 @@ static int nfs_dentry_delete(struct dentry *dentry)
  */
 static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
+	nfs_inode_return_delegation(inode);
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		lock_kernel();
 		inode->i_nlink--;
@@ -1329,6 +1330,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 
 	nfs_begin_data_update(dir);
 	if (inode != NULL) {
+		nfs_inode_return_delegation(inode);
 		nfs_begin_data_update(inode);
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 		/* The VFS may want to delete this inode */
@@ -1547,6 +1549,7 @@ go_ahead:
 		nfs_wb_all(old_inode);
 		shrink_dcache_parent(old_dentry);
 	}
+	nfs_inode_return_delegation(old_inode);
 
 	if (new_inode)
 		d_delete(new_dentry);
