@@ -4378,29 +4378,53 @@ static int s2io_ethtool_setpause_data(struct net_device *dev,
  */
 
 #define S2IO_DEV_ID		5
-static int read_eeprom(nic_t * sp, int off, u32 * data)
+static int read_eeprom(nic_t * sp, int off, u64 * data)
 {
 	int ret = -1;
 	u32 exit_cnt = 0;
 	u64 val64;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
-	val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
-	    I2C_CONTROL_BYTE_CNT(0x3) | I2C_CONTROL_READ |
-	    I2C_CONTROL_CNTL_START;
-	SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
+	if (sp->device_type == XFRAME_I_DEVICE) {
+		val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
+		    I2C_CONTROL_BYTE_CNT(0x3) | I2C_CONTROL_READ |
+		    I2C_CONTROL_CNTL_START;
+		SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
 
-	while (exit_cnt < 5) {
-		val64 = readq(&bar0->i2c_control);
-		if (I2C_CONTROL_CNTL_END(val64)) {
-			*data = I2C_CONTROL_GET_DATA(val64);
-			ret = 0;
-			break;
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->i2c_control);
+			if (I2C_CONTROL_CNTL_END(val64)) {
+				*data = I2C_CONTROL_GET_DATA(val64);
+				ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
 		}
-		msleep(50);
-		exit_cnt++;
 	}
 
+	if (sp->device_type == XFRAME_II_DEVICE) {
+		val64 = SPI_CONTROL_KEY(0x9) | SPI_CONTROL_SEL1 |
+			SPI_CONTROL_BYTECNT(0x3) | 
+			SPI_CONTROL_CMD(0x3) | SPI_CONTROL_ADDR(off);
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		val64 |= SPI_CONTROL_REQ;
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->spi_control);
+			if (val64 & SPI_CONTROL_NACK) {
+				ret = 1;
+				break;
+			} else if (val64 & SPI_CONTROL_DONE) {
+				*data = readq(&bar0->spi_data);
+				*data &= 0xffffff;
+				ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
+		}
+	}
 	return ret;
 }
 
@@ -4419,28 +4443,53 @@ static int read_eeprom(nic_t * sp, int off, u32 * data)
  *  0 on success, -1 on failure.
  */
 
-static int write_eeprom(nic_t * sp, int off, u32 data, int cnt)
+static int write_eeprom(nic_t * sp, int off, u64 data, int cnt)
 {
 	int exit_cnt = 0, ret = -1;
 	u64 val64;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
-	val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
-	    I2C_CONTROL_BYTE_CNT(cnt) | I2C_CONTROL_SET_DATA(data) |
-	    I2C_CONTROL_CNTL_START;
-	SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
+	if (sp->device_type == XFRAME_I_DEVICE) {
+		val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
+		    I2C_CONTROL_BYTE_CNT(cnt) | I2C_CONTROL_SET_DATA((u32)data) |
+		    I2C_CONTROL_CNTL_START;
+		SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
 
-	while (exit_cnt < 5) {
-		val64 = readq(&bar0->i2c_control);
-		if (I2C_CONTROL_CNTL_END(val64)) {
-			if (!(val64 & I2C_CONTROL_NACK))
-				ret = 0;
-			break;
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->i2c_control);
+			if (I2C_CONTROL_CNTL_END(val64)) {
+				if (!(val64 & I2C_CONTROL_NACK))
+					ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
 		}
-		msleep(50);
-		exit_cnt++;
 	}
 
+	if (sp->device_type == XFRAME_II_DEVICE) {
+		int write_cnt = (cnt == 8) ? 0 : cnt;
+		writeq(SPI_DATA_WRITE(data,(cnt<<3)), &bar0->spi_data);
+
+		val64 = SPI_CONTROL_KEY(0x9) | SPI_CONTROL_SEL1 |
+			SPI_CONTROL_BYTECNT(write_cnt) | 
+			SPI_CONTROL_CMD(0x2) | SPI_CONTROL_ADDR(off);
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		val64 |= SPI_CONTROL_REQ;
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->spi_control);
+			if (val64 & SPI_CONTROL_NACK) {
+				ret = 1;
+				break;
+			} else if (val64 & SPI_CONTROL_DONE) {
+				ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
+		}
+	}
 	return ret;
 }
 
@@ -4460,7 +4509,8 @@ static int write_eeprom(nic_t * sp, int off, u32 data, int cnt)
 static int s2io_ethtool_geeprom(struct net_device *dev,
 			 struct ethtool_eeprom *eeprom, u8 * data_buf)
 {
-	u32 data, i, valid;
+	u32 i, valid;
+	u64 data;
 	nic_t *sp = dev->priv;
 
 	eeprom->magic = sp->pdev->vendor | (sp->pdev->device << 16);
@@ -4498,7 +4548,7 @@ static int s2io_ethtool_seeprom(struct net_device *dev,
 				u8 * data_buf)
 {
 	int len = eeprom->len, cnt = 0;
-	u32 valid = 0, data;
+	u64 valid = 0, data;
 	nic_t *sp = dev->priv;
 
 	if (eeprom->magic != (sp->pdev->vendor | (sp->pdev->device << 16))) {
@@ -4546,7 +4596,7 @@ static int s2io_ethtool_seeprom(struct net_device *dev,
 static int s2io_register_test(nic_t * sp, uint64_t * data)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
-	u64 val64 = 0;
+	u64 val64 = 0, exp_val;
 	int fail = 0;
 
 	val64 = readq(&bar0->pif_rd_swapper_fb);
@@ -4562,7 +4612,11 @@ static int s2io_register_test(nic_t * sp, uint64_t * data)
 	}
 
 	val64 = readq(&bar0->rx_queue_cfg);
-	if (val64 != 0x0808080808080808ULL) {
+	if (sp->device_type == XFRAME_II_DEVICE)
+		exp_val = 0x0404040404040404ULL;
+	else
+		exp_val = 0x0808080808080808ULL;
+	if (val64 != exp_val) {
 		fail = 1;
 		DBG_PRINT(INFO_DBG, "Read Test level 3 fails\n");
 	}
@@ -4590,7 +4644,7 @@ static int s2io_register_test(nic_t * sp, uint64_t * data)
 	}
 
 	*data = fail;
-	return 0;
+	return fail;
 }
 
 /**
@@ -4609,58 +4663,83 @@ static int s2io_register_test(nic_t * sp, uint64_t * data)
 static int s2io_eeprom_test(nic_t * sp, uint64_t * data)
 {
 	int fail = 0;
-	u32 ret_data;
+	u64 ret_data, org_4F0, org_7F0;
+	u8 saved_4F0 = 0, saved_7F0 = 0;
+	struct net_device *dev = sp->dev;
 
 	/* Test Write Error at offset 0 */
-	if (!write_eeprom(sp, 0, 0, 3))
-		fail = 1;
+	/* Note that SPI interface allows write access to all areas
+	 * of EEPROM. Hence doing all negative testing only for Xframe I.
+	 */
+	if (sp->device_type == XFRAME_I_DEVICE)
+		if (!write_eeprom(sp, 0, 0, 3))
+			fail = 1;
+
+	/* Save current values at offsets 0x4F0 and 0x7F0 */
+	if (!read_eeprom(sp, 0x4F0, &org_4F0))
+		saved_4F0 = 1;
+	if (!read_eeprom(sp, 0x7F0, &org_7F0))
+		saved_7F0 = 1;
 
 	/* Test Write at offset 4f0 */
-	if (write_eeprom(sp, 0x4F0, 0x01234567, 3))
+	if (write_eeprom(sp, 0x4F0, 0x012345, 3))
 		fail = 1;
 	if (read_eeprom(sp, 0x4F0, &ret_data))
 		fail = 1;
 
-	if (ret_data != 0x01234567)
+	if (ret_data != 0x012345) {
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x4F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
 		fail = 1;
+	}
 
 	/* Reset the EEPROM data go FFFF */
-	write_eeprom(sp, 0x4F0, 0xFFFFFFFF, 3);
+	write_eeprom(sp, 0x4F0, 0xFFFFFF, 3);
 
 	/* Test Write Request Error at offset 0x7c */
-	if (!write_eeprom(sp, 0x07C, 0, 3))
+	if (sp->device_type == XFRAME_I_DEVICE)
+		if (!write_eeprom(sp, 0x07C, 0, 3))
+			fail = 1;
+
+	/* Test Write Request at offset 0x7f0 */
+	if (write_eeprom(sp, 0x7F0, 0x012345, 3))
+		fail = 1;
+	if (read_eeprom(sp, 0x7F0, &ret_data))
 		fail = 1;
 
-	/* Test Write Request at offset 0x7fc */
-	if (write_eeprom(sp, 0x7FC, 0x01234567, 3))
+	if (ret_data != 0x012345) {
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x7F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
 		fail = 1;
-	if (read_eeprom(sp, 0x7FC, &ret_data))
-		fail = 1;
-
-	if (ret_data != 0x01234567)
-		fail = 1;
+	}
 
 	/* Reset the EEPROM data go FFFF */
-	write_eeprom(sp, 0x7FC, 0xFFFFFFFF, 3);
+	write_eeprom(sp, 0x7F0, 0xFFFFFF, 3);
 
-	/* Test Write Error at offset 0x80 */
-	if (!write_eeprom(sp, 0x080, 0, 3))
-		fail = 1;
+	if (sp->device_type == XFRAME_I_DEVICE) {
+		/* Test Write Error at offset 0x80 */
+		if (!write_eeprom(sp, 0x080, 0, 3))
+			fail = 1;
 
-	/* Test Write Error at offset 0xfc */
-	if (!write_eeprom(sp, 0x0FC, 0, 3))
-		fail = 1;
+		/* Test Write Error at offset 0xfc */
+		if (!write_eeprom(sp, 0x0FC, 0, 3))
+			fail = 1;
 
-	/* Test Write Error at offset 0x100 */
-	if (!write_eeprom(sp, 0x100, 0, 3))
-		fail = 1;
+		/* Test Write Error at offset 0x100 */
+		if (!write_eeprom(sp, 0x100, 0, 3))
+			fail = 1;
 
-	/* Test Write Error at offset 4ec */
-	if (!write_eeprom(sp, 0x4EC, 0, 3))
-		fail = 1;
+		/* Test Write Error at offset 4ec */
+		if (!write_eeprom(sp, 0x4EC, 0, 3))
+			fail = 1;
+	}
+
+	/* Restore values at offsets 0x4F0 and 0x7F0 */
+	if (saved_4F0)
+		write_eeprom(sp, 0x4F0, org_4F0, 3);
+	if (saved_7F0)
+		write_eeprom(sp, 0x7F0, org_7F0, 3);
 
 	*data = fail;
-	return 0;
+	return fail;
 }
 
 /**
@@ -4742,7 +4821,7 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	u64 val64;
-	int cnt, iteration = 0, test_pass = 0;
+	int cnt, iteration = 0, test_fail = 0;
 
 	val64 = readq(&bar0->adapter_control);
 	val64 &= ~ADAPTER_ECC_EN;
@@ -4750,7 +4829,7 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 
 	val64 = readq(&bar0->mc_rldram_test_ctrl);
 	val64 |= MC_RLDRAM_TEST_MODE;
-	writeq(val64, &bar0->mc_rldram_test_ctrl);
+	SPECIAL_REG_WRITE(val64, &bar0->mc_rldram_test_ctrl, LF);
 
 	val64 = readq(&bar0->mc_rldram_mrs);
 	val64 |= MC_RLDRAM_QUEUE_SIZE_ENABLE;
@@ -4778,17 +4857,12 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 		}
 		writeq(val64, &bar0->mc_rldram_test_d2);
 
-		val64 = (u64) (0x0000003fffff0000ULL);
+		val64 = (u64) (0x0000003ffffe0100ULL);
 		writeq(val64, &bar0->mc_rldram_test_add);
 
-
-		val64 = MC_RLDRAM_TEST_MODE;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
-
-		val64 |=
-		    MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_WRITE |
-		    MC_RLDRAM_TEST_GO;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
+		val64 = MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_WRITE |
+		    	MC_RLDRAM_TEST_GO;
+		SPECIAL_REG_WRITE(val64, &bar0->mc_rldram_test_ctrl, LF);
 
 		for (cnt = 0; cnt < 5; cnt++) {
 			val64 = readq(&bar0->mc_rldram_test_ctrl);
@@ -4800,11 +4874,8 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 		if (cnt == 5)
 			break;
 
-		val64 = MC_RLDRAM_TEST_MODE;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
-
-		val64 |= MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_GO;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
+		val64 = MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_GO;
+		SPECIAL_REG_WRITE(val64, &bar0->mc_rldram_test_ctrl, LF);
 
 		for (cnt = 0; cnt < 5; cnt++) {
 			val64 = readq(&bar0->mc_rldram_test_ctrl);
@@ -4817,18 +4888,18 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 			break;
 
 		val64 = readq(&bar0->mc_rldram_test_ctrl);
-		if (val64 & MC_RLDRAM_TEST_PASS)
-			test_pass = 1;
+		if (!(val64 & MC_RLDRAM_TEST_PASS))
+			test_fail = 1;
 
 		iteration++;
 	}
 
-	if (!test_pass)
-		*data = 1;
-	else
-		*data = 0;
+	*data = test_fail;
 
-	return 0;
+	/* Bring the adapter out of test mode */
+	SPECIAL_REG_WRITE(0, &bar0->mc_rldram_test_ctrl, LF);
+
+	return test_fail;
 }
 
 /**
