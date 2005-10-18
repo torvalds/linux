@@ -785,6 +785,16 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir, struct dentry *dentry,
 			exception.retry = 1;
 			continue;
 		}
+		/*
+		 * BAD_STATEID on OPEN means that the server cancelled our
+		 * state before it received the OPEN_CONFIRM.
+		 * Recover by retrying the request as per the discussion
+		 * on Page 181 of RFC3530.
+		 */
+		if (status == -NFS4ERR_BAD_STATEID) {
+			exception.retry = 1;
+			continue;
+		}
 		res = ERR_PTR(nfs4_handle_exception(NFS_SERVER(dir),
 					status, &exception));
 	} while (exception.retry);
