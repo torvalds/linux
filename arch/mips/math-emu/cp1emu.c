@@ -1287,7 +1287,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 	return 0;
 }
 
-int fpu_emulator_cop1Handler(int xcptno, struct pt_regs *xcp,
+int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 	struct mips_fpu_soft_struct *ctx)
 {
 	unsigned long oldepc, prevepc;

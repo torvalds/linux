@@ -63,7 +63,7 @@ extern asmlinkage void handle_dsp(void);
 extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
 
-extern int fpu_emulator_cop1Handler(int xcptno, struct pt_regs *xcp,
+extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 	struct mips_fpu_soft_struct *ctx);
 
 void (*board_be_init)(void);
@@ -589,7 +589,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		preempt_enable();
 
 		/* Run the emulator */
-		sig = fpu_emulator_cop1Handler (0, regs,
+		sig = fpu_emulator_cop1Handler (regs,
 			&current->thread.fpu.soft);
 
 		preempt_disable();
@@ -743,7 +743,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		preempt_enable();
 
 		if (!cpu_has_fpu) {
-			int sig = fpu_emulator_cop1Handler(0, regs,
+			int sig = fpu_emulator_cop1Handler(regs,
 						&current->thread.fpu.soft);
 			if (sig)
 				force_sig(sig, current);
