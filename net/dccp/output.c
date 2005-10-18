@@ -100,6 +100,7 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
+		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_queue_xmit(skb, 0);
 		if (err <= 0)
 			return err;
