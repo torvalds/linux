@@ -316,21 +316,22 @@ static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 	/* POSIX-1996 leaves the case l->l_len < 0 undefined;
 	   POSIX-2001 defines it. */
 	start += l->l_start;
-	end = start + l->l_len - 1;
-	if (l->l_len < 0) {
-		end = start - 1;
-		start += l->l_len;
-	}
-
 	if (start < 0)
 		return -EINVAL;
-	if (l->l_len > 0 && end < 0)
-		return -EOVERFLOW;
-
+	fl->fl_end = OFFSET_MAX;
+	if (l->l_len > 0) {
+		end = start + l->l_len - 1;
+		fl->fl_end = end;
+	} else if (l->l_len < 0) {
+		end = start - 1;
+		fl->fl_end = end;
+		start += l->l_len;
+		if (start < 0)
+			return -EINVAL;
+	}
 	fl->fl_start = start;	/* we record the absolute position */
-	fl->fl_end = end;
-	if (l->l_len == 0)
-		fl->fl_end = OFFSET_MAX;
+	if (fl->fl_end < fl->fl_start)
+		return -EOVERFLOW;
 	
 	fl->fl_owner = current->files;
 	fl->fl_pid = current->tgid;
@@ -362,14 +363,21 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 		return -EINVAL;
 	}
 
-	if (((start += l->l_start) < 0) || (l->l_len < 0))
+	start += l->l_start;
+	if (start < 0)
 		return -EINVAL;
-	fl->fl_end = start + l->l_len - 1;
-	if (l->l_len > 0 && fl->fl_end < 0)
-		return -EOVERFLOW;
+	fl->fl_end = OFFSET_MAX;
+	if (l->l_len > 0) {
+		fl->fl_end = start + l->l_len - 1;
+	} else if (l->l_len < 0) {
+		fl->fl_end = start - 1;
+		start += l->l_len;
+		if (start < 0)
+			return -EINVAL;
+	}
 	fl->fl_start = start;	/* we record the absolute position */
-	if (l->l_len == 0)
-		fl->fl_end = OFFSET_MAX;
+	if (fl->fl_end < fl->fl_start)
+		return -EOVERFLOW;
 	
 	fl->fl_owner = current->files;
 	fl->fl_pid = current->tgid;
