@@ -604,7 +604,7 @@ static struct file_operations ip_vs_app_fops = {
 /*
  *	Replace a segment of data with a new segment
  */
-int ip_vs_skb_replace(struct sk_buff *skb, unsigned int __nocast pri,
+int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 		      char *o_buf, int o_len, char *n_buf, int n_len)
 {
 	struct iphdr *iph;

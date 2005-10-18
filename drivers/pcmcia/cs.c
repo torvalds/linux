@@ -689,6 +689,9 @@ static int pccardd(void *__skt)
 		schedule();
 		try_to_freeze();
 	}
+	/* make sure we are running before we exit */
+	set_current_state(TASK_RUNNING);
+
 	remove_wait_queue(&skt->thread_wait, &wait);
 
 	/* remove from the device core */

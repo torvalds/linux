@@ -73,7 +73,7 @@ struct imx_port {
 	struct uart_port	port;
 	struct timer_list	timer;
 	unsigned int		old_status;
-	int txirq,rxirq;
+	int txirq,rxirq,rtsirq;
 };
 
 /*
@@ -179,6 +179,22 @@ static void imx_start_tx(struct uart_port *port)
 
 	if(UTS((u32)sport->port.membase) & UTS_TXEMPTY)
 		imx_transmit_buffer(sport);
+}
+
+static irqreturn_t imx_rtsint(int irq, void *dev_id, struct pt_regs *regs)
+{
+	struct imx_port *sport = (struct imx_port *)dev_id;
+	unsigned int val = USR1((u32)sport->port.membase)&USR1_RTSS;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sport->port.lock, flags);
+
+	USR1((u32)sport->port.membase) = USR1_RTSD;
+	uart_handle_cts_change(&sport->port, !!val);
+	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+
+	spin_unlock_irqrestore(&sport->port.lock, flags);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t imx_txint(int irq, void *dev_id, struct pt_regs *regs)
@@ -383,18 +399,24 @@ static int imx_startup(struct uart_port *port)
 	 */
 	retval = request_irq(sport->rxirq, imx_rxint, 0,
 			     DRIVER_NAME, sport);
-	if (retval) goto error_out2;
+	if (retval) goto error_out1;
 
 	retval = request_irq(sport->txirq, imx_txint, 0,
-			     "imx-uart", sport);
-	if (retval) goto error_out1;
+			     DRIVER_NAME, sport);
+	if (retval) goto error_out2;
+
+	retval = request_irq(sport->rtsirq, imx_rtsint, 0,
+			     DRIVER_NAME, sport);
+	if (retval) goto error_out3;
+	set_irq_type(sport->rtsirq, IRQT_BOTHEDGE);
 
 	/*
 	 * Finally, clear and enable interrupts
 	 */
 
+	USR1((u32)sport->port.membase) = USR1_RTSD;
 	UCR1((u32)sport->port.membase) |=
-	                 (UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_UARTEN);
+	                 (UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
 
 	UCR2((u32)sport->port.membase) |= (UCR2_RXEN | UCR2_TXEN);
 	/*
@@ -406,10 +428,11 @@ static int imx_startup(struct uart_port *port)
 
 	return 0;
 
-error_out1:
-	free_irq(sport->rxirq, sport);
-error_out2:
+error_out3:
 	free_irq(sport->txirq, sport);
+error_out2:
+	free_irq(sport->rxirq, sport);
+error_out1:
 	return retval;
 }
 
@@ -425,6 +448,7 @@ static void imx_shutdown(struct uart_port *port)
 	/*
 	 * Free the interrupts
 	 */
+	free_irq(sport->rtsirq, sport);
 	free_irq(sport->txirq, sport);
 	free_irq(sport->rxirq, sport);
 
@@ -433,7 +457,7 @@ static void imx_shutdown(struct uart_port *port)
 	 */
 
 	UCR1((u32)sport->port.membase) &=
-	                 ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_UARTEN);
+	                 ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
 }
 
 static void
@@ -523,7 +547,7 @@ imx_set_termios(struct uart_port *port, struct termios *termios,
 	 * disable interrupts and drain transmitter
 	 */
 	old_ucr1 = UCR1((u32)sport->port.membase);
-	UCR1((u32)sport->port.membase) &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN);
+	UCR1((u32)sport->port.membase) &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN);
 
 	while ( !(USR2((u32)sport->port.membase) & USR2_TXDC))
 		barrier();
@@ -644,6 +668,7 @@ static struct imx_port imx_ports[] = {
 	{
 	.txirq  = UART1_MINT_TX,
 	.rxirq  = UART1_MINT_RX,
+	.rtsirq = UART1_MINT_RTS,
 	.port	= {
 		.type		= PORT_IMX,
 		.iotype		= SERIAL_IO_MEM,
@@ -659,6 +684,7 @@ static struct imx_port imx_ports[] = {
 	}, {
 	.txirq  = UART2_MINT_TX,
 	.rxirq  = UART2_MINT_RX,
+	.rtsirq = UART2_MINT_RTS,
 	.port	= {
 		.type		= PORT_IMX,
 		.iotype		= SERIAL_IO_MEM,
@@ -738,7 +764,7 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 
 	UCR1((u32)sport->port.membase) =
 	                   (old_ucr1 | UCR1_UARTCLKEN | UCR1_UARTEN)
-	                   & ~(UCR1_TXMPTYEN | UCR1_RRDYEN);
+	                   & ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN);
 	UCR2((u32)sport->port.membase) = old_ucr2 | UCR2_TXEN;
 
 	/*

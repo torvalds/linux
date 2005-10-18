@@ -85,9 +85,9 @@ static inline void arch_free_page(struct page *page, int order) { }
 #endif
 
 extern struct page *
-FASTCALL(__alloc_pages(unsigned int, unsigned int, struct zonelist *));
+FASTCALL(__alloc_pages(gfp_t, unsigned int, struct zonelist *));
 
-static inline struct page *alloc_pages_node(int nid, unsigned int __nocast gfp_mask,
+static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
 	if (unlikely(order >= MAX_ORDER))
@@ -98,17 +98,17 @@ static inline struct page *alloc_pages_node(int nid, unsigned int __nocast gfp_m
 }
 
 #ifdef CONFIG_NUMA
-extern struct page *alloc_pages_current(unsigned int __nocast gfp_mask, unsigned order);
+extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
 
 static inline struct page *
-alloc_pages(unsigned int __nocast gfp_mask, unsigned int order)
+alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
 	if (unlikely(order >= MAX_ORDER))
 		return NULL;
 
 	return alloc_pages_current(gfp_mask, order);
 }
-extern struct page *alloc_page_vma(unsigned __nocast gfp_mask,
+extern struct page *alloc_page_vma(gfp_t gfp_mask,
 			struct vm_area_struct *vma, unsigned long addr);
 #else
 #define alloc_pages(gfp_mask, order) \
@@ -117,8 +117,8 @@ extern struct page *alloc_page_vma(unsigned __nocast gfp_mask,
 #endif
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 
-extern unsigned long FASTCALL(__get_free_pages(unsigned int __nocast gfp_mask, unsigned int order));
-extern unsigned long FASTCALL(get_zeroed_page(unsigned int __nocast gfp_mask));
+extern unsigned long FASTCALL(__get_free_pages(gfp_t gfp_mask, unsigned int order));
+extern unsigned long FASTCALL(get_zeroed_page(gfp_t gfp_mask));
 
 #define __get_free_page(gfp_mask) \
 		__get_free_pages((gfp_mask),0)

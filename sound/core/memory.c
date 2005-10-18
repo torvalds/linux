@@ -89,7 +89,7 @@ void snd_memory_done(void)
 	}
 }
 
-static void *__snd_kmalloc(size_t size, unsigned int __nocast flags, void *caller)
+static void *__snd_kmalloc(size_t size, gfp_t flags, void *caller)
 {
 	unsigned long cpu_flags;
 	struct snd_alloc_track *t;
@@ -111,12 +111,12 @@ static void *__snd_kmalloc(size_t size, unsigned int __nocast flags, void *calle
 }
 
 #define _snd_kmalloc(size, flags) __snd_kmalloc((size), (flags), __builtin_return_address(0));
-void *snd_hidden_kmalloc(size_t size, unsigned int __nocast flags)
+void *snd_hidden_kmalloc(size_t size, gfp_t flags)
 {
 	return _snd_kmalloc(size, flags);
 }
 
-void *snd_hidden_kzalloc(size_t size, unsigned int __nocast flags)
+void *snd_hidden_kzalloc(size_t size, gfp_t flags)
 {
 	void *ret = _snd_kmalloc(size, flags);
 	if (ret)
@@ -125,7 +125,7 @@ void *snd_hidden_kzalloc(size_t size, unsigned int __nocast flags)
 }
 EXPORT_SYMBOL(snd_hidden_kzalloc);
 
-void *snd_hidden_kcalloc(size_t n, size_t size, unsigned int __nocast flags)
+void *snd_hidden_kcalloc(size_t n, size_t size, gfp_t flags)
 {
 	void *ret = NULL;
 	if (n != 0 && size > INT_MAX / n)
@@ -190,7 +190,7 @@ void snd_hidden_vfree(void *obj)
 	snd_wrapper_vfree(obj);
 }
 
-char *snd_hidden_kstrdup(const char *s, unsigned int __nocast flags)
+char *snd_hidden_kstrdup(const char *s, gfp_t flags)
 {
 	int len;
 	char *buf;

@@ -33,7 +33,7 @@
 	/* This is trivial with the new code... */
 	.globl		do_fpdis
 do_fpdis:
-	sethi		%hi(TSTATE_PEF), %g4					! IEU0
+	sethi		%hi(TSTATE_PEF), %g4
 	rdpr		%tstate, %g5
 	andcc		%g5, %g4, %g0
 	be,pt		%xcc, 1f
@@ -50,18 +50,18 @@ do_fpdis:
 	add		%g0, %g0, %g0
 	ba,a,pt		%xcc, rtrap_clr_l6
 
-1:	ldub		[%g6 + TI_FPSAVED], %g5					! Load	Group
-	wr		%g0, FPRS_FEF, %fprs					! LSU	Group+4bubbles
-	andcc		%g5, FPRS_FEF, %g0					! IEU1	Group
-	be,a,pt		%icc, 1f						! CTI
-	 clr		%g7							! IEU0
-	ldx		[%g6 + TI_GSR], %g7					! Load	Group
-1:	andcc		%g5, FPRS_DL, %g0					! IEU1
-	bne,pn		%icc, 2f						! CTI
-	 fzero		%f0							! FPA
-	andcc		%g5, FPRS_DU, %g0					! IEU1  Group
-	bne,pn		%icc, 1f						! CTI
-	 fzero		%f2							! FPA
+1:	ldub		[%g6 + TI_FPSAVED], %g5
+	wr		%g0, FPRS_FEF, %fprs
+	andcc		%g5, FPRS_FEF, %g0
+	be,a,pt		%icc, 1f
+	 clr		%g7
+	ldx		[%g6 + TI_GSR], %g7
+1:	andcc		%g5, FPRS_DL, %g0
+	bne,pn		%icc, 2f
+	 fzero		%f0
+	andcc		%g5, FPRS_DU, %g0
+	bne,pn		%icc, 1f
+	 fzero		%f2
 	faddd		%f0, %f2, %f4
 	fmuld		%f0, %f2, %f6
 	faddd		%f0, %f2, %f8
@@ -104,8 +104,10 @@ do_fpdis:
 	add		%g6, TI_FPREGS + 0xc0, %g2
 	faddd		%f0, %f2, %f8
 	fmuld		%f0, %f2, %f10
-	ldda		[%g1] ASI_BLK_S, %f32	! grrr, where is ASI_BLK_NUCLEUS 8-(
+	membar		#Sync
+	ldda		[%g1] ASI_BLK_S, %f32
 	ldda		[%g2] ASI_BLK_S, %f48
+	membar		#Sync
 	faddd		%f0, %f2, %f12
 	fmuld		%f0, %f2, %f14
 	faddd		%f0, %f2, %f16
@@ -116,7 +118,6 @@ do_fpdis:
 	fmuld		%f0, %f2, %f26
 	faddd		%f0, %f2, %f28
 	fmuld		%f0, %f2, %f30
-	membar		#Sync
 	b,pt		%xcc, fpdis_exit
 	 nop
 2:	andcc		%g5, FPRS_DU, %g0
@@ -133,8 +134,10 @@ do_fpdis:
 	add		%g6, TI_FPREGS + 0x40, %g2
 	faddd		%f32, %f34, %f36
 	fmuld		%f32, %f34, %f38
-	ldda		[%g1] ASI_BLK_S, %f0	! grrr, where is ASI_BLK_NUCLEUS 8-(
+	membar		#Sync
+	ldda		[%g1] ASI_BLK_S, %f0
 	ldda		[%g2] ASI_BLK_S, %f16
+	membar		#Sync
 	faddd		%f32, %f34, %f40
 	fmuld		%f32, %f34, %f42
 	faddd		%f32, %f34, %f44
@@ -147,7 +150,6 @@ do_fpdis:
 	fmuld		%f32, %f34, %f58
 	faddd		%f32, %f34, %f60
 	fmuld		%f32, %f34, %f62
-	membar		#Sync
 	ba,pt		%xcc, fpdis_exit
 	 nop
 3:	mov		SECONDARY_CONTEXT, %g3
@@ -158,7 +160,8 @@ do_fpdis:
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	mov		0x40, %g2
-	ldda		[%g1] ASI_BLK_S, %f0		! grrr, where is ASI_BLK_NUCLEUS 8-(
+	membar		#Sync
+	ldda		[%g1] ASI_BLK_S, %f0
 	ldda		[%g1 + %g2] ASI_BLK_S, %f16
 	add		%g1, 0x80, %g1
 	ldda		[%g1] ASI_BLK_S, %f32

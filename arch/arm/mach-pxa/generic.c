@@ -208,6 +208,11 @@ static struct platform_device pxafb_device = {
 	.resource	= pxafb_resources,
 };
 
+void __init set_pxa_fb_parent(struct device *parent_dev)
+{
+	pxafb_device.dev.parent = parent_dev;
+}
+
 static struct platform_device ffuart_device = {
 	.name		= "pxa2xx-uart",
 	.id		= 0,

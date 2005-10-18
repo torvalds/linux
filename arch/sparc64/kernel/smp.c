@@ -1001,13 +1001,6 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	preempt_enable();
 }
 
-extern unsigned long xcall_promstop;
-
-void smp_promstop_others(void)
-{
-	smp_cross_call(&xcall_promstop, 0, 0, 0);
-}
-
 #define prof_multiplier(__cpu)		cpu_data(__cpu).multiplier
 #define prof_counter(__cpu)		cpu_data(__cpu).counter
 

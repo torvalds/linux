@@ -63,7 +63,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				void *event_arg,
 			 	sctp_disposition_t status,
 				sctp_cmd_seq_t *commands,
-				unsigned int __nocast gfp);
+				gfp_t gfp);
 static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 			     sctp_state_t state,
 			     struct sctp_endpoint *ep,
@@ -71,7 +71,7 @@ static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 			     void *event_arg,
 			     sctp_disposition_t status,
 			     sctp_cmd_seq_t *commands,
-			     unsigned int __nocast gfp);
+			     gfp_t gfp);
 
 /********************************************************************
  * Helper functions
@@ -498,7 +498,7 @@ static int sctp_cmd_process_init(sctp_cmd_seq_t *commands,
 				 struct sctp_association *asoc,
 				 struct sctp_chunk *chunk,
 				 sctp_init_chunk_t *peer_init,
-				 unsigned int __nocast gfp)
+				 gfp_t gfp)
 {
 	int error;
 
@@ -853,7 +853,7 @@ int sctp_do_sm(sctp_event_t event_type, sctp_subtype_t subtype,
 	       struct sctp_endpoint *ep,
 	       struct sctp_association *asoc,
 	       void *event_arg,
-	       unsigned int __nocast gfp)
+	       gfp_t gfp)
 {
 	sctp_cmd_seq_t commands;
 	const sctp_sm_table_entry_t *state_fn;
@@ -898,7 +898,7 @@ static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 			     void *event_arg,
 			     sctp_disposition_t status,
 			     sctp_cmd_seq_t *commands,
-			     unsigned int __nocast gfp)
+			     gfp_t gfp)
 {
 	int error;
 
@@ -986,7 +986,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				void *event_arg,
 			 	sctp_disposition_t status,
 				sctp_cmd_seq_t *commands,
-				unsigned int __nocast gfp)
+				gfp_t gfp)
 {
 	int error = 0;
 	int force;

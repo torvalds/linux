@@ -178,7 +178,7 @@ fore200e_irq_itoa(int irq)
 
 
 static void*
-fore200e_kmalloc(int size, unsigned int __nocast flags)
+fore200e_kmalloc(int size, gfp_t flags)
 {
     void *chunk = kzalloc(size, flags);
 

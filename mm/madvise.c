@@ -83,6 +83,9 @@ static long madvise_willneed(struct vm_area_struct * vma,
 {
 	struct file *file = vma->vm_file;
 
+	if (!file)
+		return -EBADF;
+
 	if (file->f_mapping->a_ops->get_xip_page) {
 		/* no bad return value, but ignore advice */
 		return 0;
@@ -141,11 +144,7 @@ static long
 madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		unsigned long start, unsigned long end, int behavior)
 {
-	struct file *filp = vma->vm_file;
-	long error = -EBADF;
-
-	if (!filp)
-		goto  out;
+	long error;
 
 	switch (behavior) {
 	case MADV_NORMAL:
@@ -166,8 +165,6 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		error = -EINVAL;
 		break;
 	}
-		
-out:
 	return error;
 }
 

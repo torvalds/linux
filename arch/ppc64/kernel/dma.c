@@ -53,7 +53,7 @@ int dma_set_mask(struct device *dev, u64 dma_mask)
 EXPORT_SYMBOL(dma_set_mask);
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, unsigned int __nocast flag)
+		dma_addr_t *dma_handle, gfp_t flag)
 {
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 

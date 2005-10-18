@@ -489,11 +489,11 @@ config SCSI_SATA_NV
 
 	  If unsure, say N.
 
-config SCSI_SATA_PROMISE
-	tristate "Promise SATA TX2/TX4 support"
+config SCSI_PDC_ADMA
+	tristate "Pacific Digital ADMA support"
 	depends on SCSI_SATA && PCI
 	help
-	  This option enables support for Promise Serial ATA TX2/TX4.
+	  This option enables support for Pacific Digital ADMA controllers
 
 	  If unsure, say N.
 
@@ -502,6 +502,14 @@ config SCSI_SATA_QSTOR
 	depends on SCSI_SATA && PCI
 	help
 	  This option enables support for Pacific Digital Serial ATA QStor.
+
+	  If unsure, say N.
+
+config SCSI_SATA_PROMISE
+	tristate "Promise SATA TX2/TX4 support"
+	depends on SCSI_SATA && PCI
+	help
+	  This option enables support for Promise Serial ATA TX2/TX4.
 
 	  If unsure, say N.
 
@@ -518,6 +526,14 @@ config SCSI_SATA_SIL
 	depends on SCSI_SATA && PCI && EXPERIMENTAL
 	help
 	  This option enables support for Silicon Image Serial ATA.
+
+	  If unsure, say N.
+
+config SCSI_SATA_SIL24
+	tristate "Silicon Image 3124/3132 SATA support"
+	depends on SCSI_SATA && PCI && EXPERIMENTAL
+	help
+	  This option enables support for Silicon Image 3124/3132 Serial ATA.
 
 	  If unsure, say N.
 
@@ -552,6 +568,11 @@ config SCSI_SATA_VITESSE
 	  This option enables support for Vitesse VSC7174 Serial ATA.
 
 	  If unsure, say N.
+
+config SCSI_SATA_INTEL_COMBINED
+	bool
+	depends on IDE=y && !BLK_DEV_IDE_SATA && (SCSI_SATA_AHCI || SCSI_ATA_PIIX)
+	default y
 
 config SCSI_BUSLOGIC
 	tristate "BusLogic SCSI support"

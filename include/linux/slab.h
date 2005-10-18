@@ -61,11 +61,11 @@ extern kmem_cache_t *kmem_cache_create(const char *, size_t, size_t, unsigned lo
 				       void (*)(void *, kmem_cache_t *, unsigned long));
 extern int kmem_cache_destroy(kmem_cache_t *);
 extern int kmem_cache_shrink(kmem_cache_t *);
-extern void *kmem_cache_alloc(kmem_cache_t *, unsigned int __nocast);
+extern void *kmem_cache_alloc(kmem_cache_t *, gfp_t);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
 extern const char *kmem_cache_name(kmem_cache_t *);
-extern kmem_cache_t *kmem_find_general_cachep(size_t size, unsigned int __nocast gfpflags);
+extern kmem_cache_t *kmem_find_general_cachep(size_t size, gfp_t gfpflags);
 
 /* Size description struct for general caches. */
 struct cache_sizes {
@@ -74,9 +74,9 @@ struct cache_sizes {
 	kmem_cache_t	*cs_dmacachep;
 };
 extern struct cache_sizes malloc_sizes[];
-extern void *__kmalloc(size_t, unsigned int __nocast);
+extern void *__kmalloc(size_t, gfp_t);
 
-static inline void *kmalloc(size_t size, unsigned int __nocast flags)
+static inline void *kmalloc(size_t size, gfp_t flags)
 {
 	if (__builtin_constant_p(size)) {
 		int i = 0;
@@ -99,7 +99,7 @@ found:
 	return __kmalloc(size, flags);
 }
 
-extern void *kzalloc(size_t, unsigned int __nocast);
+extern void *kzalloc(size_t, gfp_t);
 
 /**
  * kcalloc - allocate memory for an array. The memory is set to zero.
@@ -107,7 +107,7 @@ extern void *kzalloc(size_t, unsigned int __nocast);
  * @size: element size.
  * @flags: the type of memory to allocate.
  */
-static inline void *kcalloc(size_t n, size_t size, unsigned int __nocast flags)
+static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 {
 	if (n != 0 && size > INT_MAX / n)
 		return NULL;
@@ -118,15 +118,14 @@ extern void kfree(const void *);
 extern unsigned int ksize(const void *);
 
 #ifdef CONFIG_NUMA
-extern void *kmem_cache_alloc_node(kmem_cache_t *,
-			unsigned int __nocast flags, int node);
-extern void *kmalloc_node(size_t size, unsigned int __nocast flags, int node);
+extern void *kmem_cache_alloc_node(kmem_cache_t *, gfp_t flags, int node);
+extern void *kmalloc_node(size_t size, gfp_t flags, int node);
 #else
 static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int node)
 {
 	return kmem_cache_alloc(cachep, flags);
 }
-static inline void *kmalloc_node(size_t size, unsigned int __nocast flags, int node)
+static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	return kmalloc(size, flags);
 }

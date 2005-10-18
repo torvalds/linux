@@ -288,7 +288,7 @@ static struct resource vr1000_dm9k1_resource[] = {
  * better IO routines can be written and tested
 */
 
-struct dm9000_plat_data vr1000_dm9k_platdata = {
+static struct dm9000_plat_data vr1000_dm9k_platdata = {
 	.flags		= DM9000_PLATF_16BITONLY,
 };
 

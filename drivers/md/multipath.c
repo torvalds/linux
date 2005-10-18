@@ -38,7 +38,7 @@
 static mdk_personality_t multipath_personality;
 
 
-static void *mp_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void *mp_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct multipath_bh *mpb;
 	mpb = kmalloc(sizeof(*mpb), gfp_flags);

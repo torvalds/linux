@@ -2634,8 +2634,7 @@ static inline int security_socket_getpeersec(struct socket *sock, char __user *o
 	return security_ops->socket_getpeersec(sock, optval, optlen, len);
 }
 
-static inline int security_sk_alloc(struct sock *sk, int family,
-				    unsigned int __nocast priority)
+static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
 {
 	return security_ops->sk_alloc_security(sk, family, priority);
 }
@@ -2752,8 +2751,7 @@ static inline int security_socket_getpeersec(struct socket *sock, char __user *o
 	return -ENOPROTOOPT;
 }
 
-static inline int security_sk_alloc(struct sock *sk, int family,
-				    unsigned int __nocast priority)
+static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
 {
 	return 0;
 }

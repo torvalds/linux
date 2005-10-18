@@ -1290,7 +1290,7 @@ static void bond_mc_list_destroy(struct bonding *bond)
  * Copy all the Multicast addresses from src to the bonding device dst
  */
 static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
-			     unsigned int __nocast gfp_flag)
+			     gfp_t gfp_flag)
 {
 	struct dev_mc_list *dmi, *new_dmi;
 

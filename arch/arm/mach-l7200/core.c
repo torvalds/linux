@@ -7,11 +7,17 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/device.h>
 
+#include <asm/types.h>
+#include <asm/irq.h>
+#include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/page.h>
 
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/irq.h>
 
 /*
  * IRQ base register
@@ -47,6 +53,12 @@ static void l7200_unmask_irq(unsigned int irq)
 {
 	IRQ_ENABLE = 1 << irq;
 }
+
+static struct irqchip l7200_irq_chip = {
+	.ack		= l7200_mask_irq,
+	.mask		= l7200_mask_irq,
+	.unmask		= l7200_unmask_irq
+};
  
 static void __init l7200_init_irq(void)
 {
@@ -56,11 +68,9 @@ static void __init l7200_init_irq(void)
 	FIQ_ENABLECLEAR = 0xffffffff;	/* clear all fast interrupt enables */
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		irq_desc[irq].valid	= 1;
-		irq_desc[irq].probe_ok	= 1;
-		irq_desc[irq].mask_ack	= l7200_mask_irq;
-		irq_desc[irq].mask	= l7200_mask_irq;
-		irq_desc[irq].unmask	= l7200_unmask_irq;
+		set_irq_chip(irq, &l7200_irq_chip);
+		set_irq_flags(irq, IRQF_VALID);
+		set_irq_handler(irq, do_level_IRQ);
 	}
 
 	init_FIQ();

@@ -453,9 +453,9 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		/*
 		 * We can exit If all the commands are complete
 		 */
+		spin_unlock_irq(host->host_lock);
 		if (active == 0)
 			return SUCCESS;
-		spin_unlock_irq(host->host_lock);
 		ssleep(1);
 		spin_lock_irq(host->host_lock);
 	}
