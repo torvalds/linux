@@ -14,7 +14,7 @@ extra-y				+= vmlinux.lds
 
 obj-y				:= entry.o traps.o irq.o idle.o time.o misc.o \
 					process.o align.o \
-					syscalls.o setup.o \
+					setup.o \
 					ppc_htab.o perfmon.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o

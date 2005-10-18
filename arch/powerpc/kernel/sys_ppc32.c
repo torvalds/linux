@@ -1069,13 +1069,6 @@ long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
 			     advice);
 }
 
-long ppc32_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
-			u32 len_high, u32 len_low)
-{
-	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low,
-			     (u64)len_high << 32 | len_low, advice);
-}
-
 long ppc32_timer_create(clockid_t clock,
 			struct compat_sigevent __user *ev32,
 			timer_t __user *timer_id)

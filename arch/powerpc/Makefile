@@ -121,7 +121,6 @@ head-$(CONFIG_4xx)		:= arch/powerpc/kernel/head_4xx.o
 head-$(CONFIG_44x)		:= arch/powerpc/kernel/head_44x.o
 head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
 
-head-$(CONFIG_6xx)		+= arch/powerpc/kernel/idle_6xx.o
 head-$(CONFIG_PPC64)		+= arch/powerpc/kernel/entry_64.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 

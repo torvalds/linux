@@ -1175,7 +1175,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys32_utimes
 	.llong .compat_sys_statfs64
 	.llong .compat_sys_fstatfs64
-	.llong .ppc32_fadvise64_64	/* 32bit only fadvise64_64 */
+	.llong .ppc_fadvise64_64	/* 32bit only fadvise64_64 */
 	.llong .ppc_rtas		/* 255 */
 	.llong .sys_ni_syscall		/* 256 reserved for sys_debug_setcontext */
 	.llong .sys_ni_syscall		/* 257 reserved for vserver */

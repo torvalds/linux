@@ -336,6 +336,13 @@ time_t sys64_time(time_t __user * tloc)
 }
 #endif
 
+long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+		      u32 len_high, u32 len_low)
+{
+	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low,
+			     (u64)len_high << 32 | len_low, advice);
+}
+
 void do_show_syscall(unsigned long r3, unsigned long r4, unsigned long r5,
 		     unsigned long r6, unsigned long r7, unsigned long r8,
 		     struct pt_regs *regs)
