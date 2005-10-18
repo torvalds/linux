@@ -763,6 +763,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 		struct qstr this;
 		unsigned int c;
 
+		nd->flags |= LOOKUP_CONTINUE;
 		err = exec_permission_lite(inode, nd);
 		if (err == -EAGAIN) { 
 			err = permission(inode, MAY_EXEC, nd);
@@ -815,7 +816,6 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			if (err < 0)
 				break;
 		}
-		nd->flags |= LOOKUP_CONTINUE;
 		/* This does the actual lookups.. */
 		err = do_lookup(nd, &this, &next);
 		if (err)
