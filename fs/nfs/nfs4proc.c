@@ -419,6 +419,22 @@ static int _nfs4_proc_open(struct inode *dir, struct nfs4_state_owner  *sp, stru
 	o_arg->clientid = sp->so_client->cl_clientid;
 
 	status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
+	if (status == 0) {
+		/* OPEN on anything except a regular file is disallowed in NFSv4 */
+		switch (o_res->f_attr->mode & S_IFMT) {
+			case S_IFREG:
+				break;
+			case S_IFLNK:
+				status = -ELOOP;
+				break;
+			case S_IFDIR:
+				status = -EISDIR;
+				break;
+			default:
+				status = -ENOTDIR;
+		}
+	}
+
 	nfs_increment_open_seqid(status, o_arg->seqid);
 	if (status != 0)
 		goto out;
