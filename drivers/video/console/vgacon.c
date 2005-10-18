@@ -565,7 +565,11 @@ static int vgacon_switch(struct vc_data *c)
 		scr_memcpyw((u16 *) c->vc_origin, (u16 *) c->vc_screenbuf,
 			    c->vc_screenbuf_size > vga_vram_size ?
 				vga_vram_size : c->vc_screenbuf_size);
-		vgacon_doresize(c, c->vc_cols, c->vc_rows);
+		if (!(vga_video_num_columns % 2) &&
+		    vga_video_num_columns <= ORIG_VIDEO_COLS &&
+		    vga_video_num_lines <= (ORIG_VIDEO_LINES *
+			vga_default_font_height) / c->vc_font.height)
+			vgacon_doresize(c, c->vc_cols, c->vc_rows);
 	}
 
 	return 0;		/* Redrawing not needed */
@@ -1023,7 +1027,8 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 	if (width % 2 || width > ORIG_VIDEO_COLS ||
 	    height > (ORIG_VIDEO_LINES * vga_default_font_height)/
 	    c->vc_font.height)
-		return -EINVAL;
+		/* let svgatextmode tinker with video timings */
+		return 0;
 
 	if (CON_IS_VISIBLE(c) && !vga_is_gfx) /* who knows */
 		vgacon_doresize(c, width, height);

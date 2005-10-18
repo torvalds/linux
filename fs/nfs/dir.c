@@ -801,6 +801,7 @@ static int nfs_dentry_delete(struct dentry *dentry)
  */
 static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
+	nfs_inode_return_delegation(inode);
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		lock_kernel();
 		inode->i_nlink--;
@@ -914,7 +915,6 @@ static int is_atomic_open(struct inode *dir, struct nameidata *nd)
 static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *res = NULL;
-	struct inode *inode = NULL;
 	int error;
 
 	/* Check that we are indeed trying to open this file */
@@ -928,8 +928,10 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
 	/* Let vfs_create() deal with O_EXCL */
-	if (nd->intent.open.flags & O_EXCL)
-		goto no_entry;
+	if (nd->intent.open.flags & O_EXCL) {
+		d_add(dentry, NULL);
+		goto out;
+	}
 
 	/* Open the file on the server */
 	lock_kernel();
@@ -943,32 +945,30 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 
 	if (nd->intent.open.flags & O_CREAT) {
 		nfs_begin_data_update(dir);
-		inode = nfs4_atomic_open(dir, dentry, nd);
+		res = nfs4_atomic_open(dir, dentry, nd);
 		nfs_end_data_update(dir);
 	} else
-		inode = nfs4_atomic_open(dir, dentry, nd);
+		res = nfs4_atomic_open(dir, dentry, nd);
 	unlock_kernel();
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
+	if (IS_ERR(res)) {
+		error = PTR_ERR(res);
 		switch (error) {
 			/* Make a negative dentry */
 			case -ENOENT:
-				inode = NULL;
-				break;
+				res = NULL;
+				goto out;
 			/* This turned out not to be a regular file */
+			case -EISDIR:
+			case -ENOTDIR:
+				goto no_open;
 			case -ELOOP:
 				if (!(nd->intent.open.flags & O_NOFOLLOW))
 					goto no_open;
-			/* case -EISDIR: */
 			/* case -EINVAL: */
 			default:
-				res = ERR_PTR(error);
 				goto out;
 		}
-	}
-no_entry:
-	res = d_add_unique(dentry, inode);
-	if (res != NULL)
+	} else if (res != NULL)
 		dentry = res;
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
@@ -1012,7 +1012,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 */
 	lock_kernel();
 	verifier = nfs_save_change_attribute(dir);
-	ret = nfs4_open_revalidate(dir, dentry, openflags);
+	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
 	if (!ret)
 		nfs_set_verifier(dentry, verifier);
 	unlock_kernel();
@@ -1135,7 +1135,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	lock_kernel();
 	nfs_begin_data_update(dir);
-	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags);
+	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, nd);
 	nfs_end_data_update(dir);
 	if (error != 0)
 		goto out_err;
@@ -1330,6 +1330,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 
 	nfs_begin_data_update(dir);
 	if (inode != NULL) {
+		nfs_inode_return_delegation(inode);
 		nfs_begin_data_update(inode);
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 		/* The VFS may want to delete this inode */
@@ -1510,9 +1511,11 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 */
 	if (!new_inode)
 		goto go_ahead;
-	if (S_ISDIR(new_inode->i_mode))
-		goto out;
-	else if (atomic_read(&new_dentry->d_count) > 2) {
+	if (S_ISDIR(new_inode->i_mode)) {
+		error = -EISDIR;
+		if (!S_ISDIR(old_inode->i_mode))
+			goto out;
+	} else if (atomic_read(&new_dentry->d_count) > 2) {
 		int err;
 		/* copy the target dentry's name */
 		dentry = d_alloc(new_dentry->d_parent,
@@ -1548,6 +1551,7 @@ go_ahead:
 		nfs_wb_all(old_inode);
 		shrink_dcache_parent(old_dentry);
 	}
+	nfs_inode_return_delegation(old_inode);
 
 	if (new_inode)
 		d_delete(new_dentry);

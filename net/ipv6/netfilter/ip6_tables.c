@@ -975,7 +975,6 @@ replace_table(struct ip6t_table *table,
 		struct ip6t_entry *table_base;
 		unsigned int i;
 
-		for (i = 0; i < num_possible_cpus(); i++) {
 		for_each_cpu(i) {
 			table_base =
 				(void *)newinfo->entries

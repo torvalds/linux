@@ -709,6 +709,14 @@ out_unlock:
 	return err;
 }
 
+void
+xprt_abort_transmit(struct rpc_task *task)
+{
+	struct rpc_xprt	*xprt = task->tk_xprt;
+
+	xprt_release_write(xprt, task);
+}
+
 /**
  * xprt_transmit - send an RPC request on a transport
  * @task: controlling RPC task

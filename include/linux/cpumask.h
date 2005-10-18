@@ -393,15 +393,13 @@ extern cpumask_t cpu_present_map;
 #define for_each_present_cpu(cpu) for_each_cpu_mask((cpu), cpu_present_map)
 
 /* Find the highest possible smp_processor_id() */
-static inline unsigned int highest_possible_processor_id(void)
-{
-	unsigned int cpu, highest = 0;
-
-	for_each_cpu_mask(cpu, cpu_possible_map)
-		highest = cpu;
-
-	return highest;
-}
+#define highest_possible_processor_id() \
+({ \
+	unsigned int cpu, highest = 0; \
+	for_each_cpu_mask(cpu, cpu_possible_map) \
+		highest = cpu; \
+	highest; \
+})
 
 
 #endif /* __LINUX_CPUMASK_H */

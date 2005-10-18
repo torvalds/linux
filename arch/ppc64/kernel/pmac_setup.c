@@ -115,7 +115,7 @@ static void __pmac pmac_show_cpuinfo(struct seq_file *m)
 	
 	/* find motherboard type */
 	seq_printf(m, "machine\t\t: ");
-	np = find_devices("device-tree");
+	np = of_find_node_by_path("/");
 	if (np != NULL) {
 		pp = (char *) get_property(np, "model", NULL);
 		if (pp != NULL)
@@ -133,6 +133,7 @@ static void __pmac pmac_show_cpuinfo(struct seq_file *m)
 			}
 			seq_printf(m, "\n");
 		}
+		of_node_put(np);
 	} else
 		seq_printf(m, "PowerMac\n");
 

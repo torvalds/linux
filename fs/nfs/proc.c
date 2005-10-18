@@ -216,7 +216,7 @@ static int nfs_proc_write(struct nfs_write_data *wdata)
 
 static int
 nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-		int flags)
+		int flags, struct nameidata *nd)
 {
 	struct nfs_fh		fhandle;
 	struct nfs_fattr	fattr;

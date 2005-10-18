@@ -275,12 +275,14 @@ static void flush_tlb_all_ipi(void *info)
  *==========================================================================*/
 void smp_flush_tlb_mm(struct mm_struct *mm)
 {
-	int cpu_id = smp_processor_id();
+	int cpu_id;
 	cpumask_t cpu_mask;
-	unsigned long *mmc = &mm->context[cpu_id];
+	unsigned long *mmc;
 	unsigned long flags;
 
 	preempt_disable();
+	cpu_id = smp_processor_id();
+	mmc = &mm->context[cpu_id];
 	cpu_mask = mm->cpu_vm_mask;
 	cpu_clear(cpu_id, cpu_mask);
 
@@ -343,12 +345,14 @@ void smp_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	int cpu_id = smp_processor_id();
+	int cpu_id;
 	cpumask_t cpu_mask;
-	unsigned long *mmc = &mm->context[cpu_id];
+	unsigned long *mmc;
 	unsigned long flags;
 
 	preempt_disable();
+	cpu_id = smp_processor_id();
+	mmc = &mm->context[cpu_id];
 	cpu_mask = mm->cpu_vm_mask;
 	cpu_clear(cpu_id, cpu_mask);
 
