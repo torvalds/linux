@@ -8,6 +8,7 @@ struct vfsmount;
 struct open_intent {
 	int	flags;
 	int	create_mode;
+	struct file *file;
 };
 
 enum { MAX_NESTED_LINKS = 5 };
@@ -64,6 +65,13 @@ extern int FASTCALL(path_walk(const char *, struct nameidata *));
 extern int FASTCALL(link_path_walk(const char *, struct nameidata *));
 extern void path_release(struct nameidata *);
 extern void path_release_on_umount(struct nameidata *);
+
+extern int __user_path_lookup_open(const char __user *, unsigned lookup_flags, struct nameidata *nd, int open_flags);
+extern int path_lookup_open(const char *, unsigned lookup_flags, struct nameidata *, int open_flags);
+extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
+		int (*open)(struct inode *, struct file *));
+extern struct file *nameidata_to_filp(struct nameidata *nd, int flags);
+extern void release_open_intent(struct nameidata *);
 
 extern struct dentry * lookup_one_len(const char *, struct dentry *, int);
 extern struct dentry * lookup_hash(struct qstr *, struct dentry *);
