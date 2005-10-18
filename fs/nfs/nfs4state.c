@@ -481,17 +481,15 @@ void nfs4_put_open_state(struct nfs4_state *state)
 }
 
 /*
- * Beware! Caller must be holding no references to clp->cl_sem!
+ * Close the current file.
  */
 void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 {
 	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
-	struct nfs4_client *clp = owner->so_client;
 	int newstate;
 
 	atomic_inc(&owner->so_count);
-	down_read(&clp->cl_sem);
 	/* Protect against nfs4_find_state() */
 	spin_lock(&inode->i_lock);
 	if (mode & FMODE_READ)
@@ -523,7 +521,6 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 out:
 	nfs4_put_open_state(state);
 	nfs4_put_state_owner(owner);
-	up_read(&clp->cl_sem);
 }
 
 /*
@@ -704,8 +701,6 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
 }
 
 /*
- * Called with clp->cl_sem held.
- *
  * Increment the seqid if the OPEN/OPEN_DOWNGRADE/CLOSE succeeded, or
  * failed with a seqid incrementing error -
  * see comments nfs_fs.h:seqid_mutating_error()
@@ -743,8 +738,6 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 }
 
 /*
- * Called with clp->cl_sem held.
- *
  * Increment the seqid if the LOCK/LOCKU succeeded, or
  * failed with a seqid incrementing error -
  * see comments nfs_fs.h:seqid_mutating_error()

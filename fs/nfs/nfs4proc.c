@@ -820,12 +820,10 @@ static void nfs4_free_closedata(struct nfs4_closedata *calldata)
 {
 	struct nfs4_state *state = calldata->state;
 	struct nfs4_state_owner *sp = state->owner;
-	struct nfs_server *server = NFS_SERVER(calldata->inode);
 
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_state_owner(sp);
-	up_read(&server->nfs4_state->cl_sem);
 	kfree(calldata);
 }
 
@@ -2758,7 +2756,6 @@ static int _nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock 
 {
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs4_client *clp = server->nfs4_state;
 	struct nfs_lockargs arg = {
 		.fh = NFS_FH(inode),
 		.type = nfs4_lck_type(cmd, request),
@@ -2778,7 +2775,6 @@ static int _nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock 
 	struct nfs_locku_opargs luargs;
 	int status;
 			
-	down_read(&clp->cl_sem);
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		goto out;
@@ -2802,7 +2798,6 @@ static int _nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock 
 out:
 	if (status == 0)
 		do_vfs_lock(request->fl_file, request);
-	up_read(&clp->cl_sem);
 	return status;
 }
 
