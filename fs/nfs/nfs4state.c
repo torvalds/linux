@@ -600,7 +600,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
  * Release reference to lock_state, and free it if we see that
  * it is no longer in use
  */
-static void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
+void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 {
 	struct nfs4_state *state;
 

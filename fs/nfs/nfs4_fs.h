@@ -249,6 +249,7 @@ extern void nfs4_put_open_state(struct nfs4_state *);
 extern void nfs4_close_state(struct nfs4_state *, mode_t);
 extern struct nfs4_state *nfs4_find_state(struct inode *, struct rpc_cred *, mode_t mode);
 extern void nfs4_schedule_state_recovery(struct nfs4_client *);
+extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);
 extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
 extern void nfs4_copy_stateid(nfs4_stateid *, struct nfs4_state *, fl_owner_t);
 

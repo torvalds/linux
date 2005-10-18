@@ -188,7 +188,7 @@ struct nfs_lock_opargs {
 
 struct nfs_locku_opargs {
 	struct nfs_seqid *	seqid;
-	nfs4_stateid            stateid;
+	nfs4_stateid *		stateid;
 };
 
 struct nfs_lockargs {

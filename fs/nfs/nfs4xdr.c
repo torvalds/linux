@@ -776,7 +776,7 @@ static int encode_locku(struct xdr_stream *xdr, const struct nfs_lockargs *arg)
 	WRITE32(OP_LOCKU);
 	WRITE32(arg->type);
 	WRITE32(opargs->seqid->sequence->counter);
-	WRITEMEM(&opargs->stateid, sizeof(opargs->stateid));
+	WRITEMEM(opargs->stateid->data, sizeof(opargs->stateid->data));
 	WRITE64(arg->offset);
 	WRITE64(arg->length);
 
@@ -1587,9 +1587,6 @@ static int nfs4_xdr_enc_locku(struct rpc_rqst *req, uint32_t *p, struct nfs_lock
 	};
 	int status;
 
-	status = nfs_wait_on_sequence(args->u.locku->seqid, req->rq_task);
-	if (status != 0)
-		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
@@ -2934,8 +2931,8 @@ static int decode_locku(struct xdr_stream *xdr, struct nfs_lockres *res)
 
 	status = decode_op_hdr(xdr, OP_LOCKU);
 	if (status == 0) {
-		READ_BUF(sizeof(nfs4_stateid));
-		COPYMEM(&res->u.stateid, sizeof(res->u.stateid));
+		READ_BUF(sizeof(res->u.stateid.data));
+		COPYMEM(res->u.stateid.data, sizeof(res->u.stateid.data));
 	}
 	return status;
 }
