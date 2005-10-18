@@ -678,13 +678,11 @@ call_allocate(struct rpc_task *task)
 static void
 call_encode(struct rpc_task *task)
 {
-	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct xdr_buf *sndbuf = &req->rq_snd_buf;
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	unsigned int	bufsiz;
 	kxdrproc_t	encode;
-	int		status;
 	u32		*p;
 
 	dprintk("RPC: %4d call_encode (status %d)\n", 
@@ -712,12 +710,9 @@ call_encode(struct rpc_task *task)
 		rpc_exit(task, -EIO);
 		return;
 	}
-	if (encode && (status = rpcauth_wrap_req(task, encode, req, p,
-						 task->tk_msg.rpc_argp)) < 0) {
-		printk(KERN_WARNING "%s: can't encode arguments: %d\n",
-				clnt->cl_protname, -status);
-		rpc_exit(task, status);
-	}
+	if (encode != NULL)
+		task->tk_status = rpcauth_wrap_req(task, encode, req, p,
+				task->tk_msg.rpc_argp);
 }
 
 /*
@@ -865,10 +860,12 @@ call_transmit(struct rpc_task *task)
 	if (task->tk_status != 0)
 		return;
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
-	if (!task->tk_rqstp->rq_bytes_sent)
+	if (task->tk_rqstp->rq_bytes_sent == 0) {
 		call_encode(task);
-	if (task->tk_status < 0)
-		return;
+		/* Did the encode result in an error condition? */
+		if (task->tk_status != 0)
+			goto out_nosend;
+	}
 	xprt_transmit(task);
 	if (task->tk_status < 0)
 		return;
@@ -876,6 +873,10 @@ call_transmit(struct rpc_task *task)
 		task->tk_action = NULL;
 		rpc_wake_up_task(task);
 	}
+	return;
+out_nosend:
+	/* release socket write lock before attempting to handle error */
+	xprt_abort_transmit(task);
 }
 
 /*
