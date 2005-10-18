@@ -326,7 +326,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 					usb_settoggle(udev, ep->epnum,
 						      ep->nextpid ==
 						      USB_PID_OUT,
-						      PTD_GET_TOGGLE(ptd) ^ 1);
+						      PTD_GET_TOGGLE(ptd));
+				urb->actual_length += PTD_GET_COUNT(ptd);
 				urb->status = cc_to_error[TD_DATAUNDERRUN];
 				spin_unlock(&urb->lock);
 				continue;

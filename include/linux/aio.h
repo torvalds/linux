@@ -24,7 +24,12 @@ struct kioctx;
 #define KIOCB_SYNC_KEY		(~0U)
 
 /* ki_flags bits */
-#define KIF_LOCKED		0
+/*
+ * This may be used for cancel/retry serialization in the future, but
+ * for now it's unused and we probably don't want modules to even
+ * think they can use it.
+ */
+/* #define KIF_LOCKED		0 */
 #define KIF_KICKED		1
 #define KIF_CANCELLED		2
 

@@ -68,19 +68,11 @@ void prom_cmdline(void)
 	local_irq_restore(flags);
 }
 
-#ifdef CONFIG_SMP
-extern void smp_promstop_others(void);
-#endif
-
 /* Drop into the prom, but completely terminate the program.
  * No chance of continuing.
  */
 void prom_halt(void)
 {
-#ifdef CONFIG_SMP
-	smp_promstop_others();
-	udelay(8000);
-#endif
 again:
 	p1275_cmd("exit", P1275_INOUT(0, 0));
 	goto again; /* PROM is out to get me -DaveM */
@@ -88,10 +80,6 @@ again:
 
 void prom_halt_power_off(void)
 {
-#ifdef CONFIG_SMP
-	smp_promstop_others();
-	udelay(8000);
-#endif
 	p1275_cmd("SUNW,power-off", P1275_INOUT(0, 0));
 
 	/* if nothing else helps, we just halt */

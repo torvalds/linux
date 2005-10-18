@@ -877,12 +877,10 @@ static int nfs_wait_on_inode(struct inode *inode)
 	sigset_t oldmask;
 	int error;
 
-	atomic_inc(&inode->i_count);
 	rpc_clnt_sigmask(clnt, &oldmask);
 	error = wait_on_bit_lock(&nfsi->flags, NFS_INO_REVALIDATING,
 					nfs_wait_schedule, TASK_INTERRUPTIBLE);
 	rpc_clnt_sigunmask(clnt, &oldmask);
-	iput(inode);
 
 	return error;
 }
@@ -1226,10 +1224,6 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	loff_t cur_size, new_isize;
 	int data_unstable;
 
-	/* Do we hold a delegation? */
-	if (nfs_have_delegation(inode, FMODE_READ))
-		return 0;
-
 	spin_lock(&inode->i_lock);
 
 	/* Are we in the process of updating data on the server? */
@@ -1350,7 +1344,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 	nfsi->read_cache_jiffies = fattr->timestamp;
 
 	/* Are we racing with known updates of the metadata on the server? */
-	data_unstable = ! nfs_verify_change_attribute(inode, verifier);
+	data_unstable = ! (nfs_verify_change_attribute(inode, verifier) ||
+		(nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE));
 
 	/* Check if our cached file size is stale */
  	new_isize = nfs_size_to_loff_t(fattr->size);

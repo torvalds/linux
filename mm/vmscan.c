@@ -511,10 +511,11 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		 * PageDirty _after_ making sure that the page is freeable and
 		 * not in use by anybody. 	(pagecache + us == 2)
 		 */
-		if (page_count(page) != 2 || PageDirty(page)) {
-			write_unlock_irq(&mapping->tree_lock);
-			goto keep_locked;
-		}
+		if (unlikely(page_count(page) != 2))
+			goto cannot_free;
+		smp_rmb();
+		if (unlikely(PageDirty(page)))
+			goto cannot_free;
 
 #ifdef CONFIG_SWAP
 		if (PageSwapCache(page)) {
@@ -537,6 +538,10 @@ free_it:
 		if (!pagevec_add(&freed_pvec, page))
 			__pagevec_release_nonlru(&freed_pvec);
 		continue;
+
+cannot_free:
+		write_unlock_irq(&mapping->tree_lock);
+		goto keep_locked;
 
 activate_locked:
 		SetPageActive(page);

@@ -93,7 +93,7 @@ config KEYBOARD_LKKBD
 
 config KEYBOARD_LOCOMO
 	tristate "LoCoMo Keyboard Support"
-	depends on SHARP_LOCOMO
+	depends on SHARP_LOCOMO && INPUT_KEYBOARD
 	help
 	  Say Y here if you are running Linux on a Sharp Zaurus Collie or Poodle based PDA
 
