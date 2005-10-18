@@ -149,7 +149,7 @@ struct nfs_open_confirmres {
  */
 struct nfs_closeargs {
 	struct nfs_fh *         fh;
-	nfs4_stateid            stateid;
+	nfs4_stateid *		stateid;
 	struct nfs_seqid *	seqid;
 	int			open_flags;
 };

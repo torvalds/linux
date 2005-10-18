@@ -189,6 +189,21 @@ static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinf
 		nfsi->change_attr = cinfo->after;
 }
 
+/* Helper for asynchronous RPC calls */
+static int nfs4_call_async(struct rpc_clnt *clnt, rpc_action tk_begin,
+		rpc_action tk_exit, void *calldata)
+{
+	struct rpc_task *task;
+
+	if (!(task = rpc_new_task(clnt, tk_exit, RPC_TASK_ASYNC)))
+		return -ENOMEM;
+
+	task->tk_calldata = calldata;
+	task->tk_action = tk_begin;
+	rpc_execute(task);
+	return 0;
+}
+
 static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid, int open_flags)
 {
 	struct inode *inode = state->inode;
@@ -810,11 +825,24 @@ struct nfs4_closedata {
 	struct nfs_closeres res;
 };
 
+static void nfs4_free_closedata(struct nfs4_closedata *calldata)
+{
+	struct nfs4_state *state = calldata->state;
+	struct nfs4_state_owner *sp = state->owner;
+	struct nfs_server *server = NFS_SERVER(calldata->inode);
+
+	nfs4_put_open_state(calldata->state);
+	nfs_free_seqid(calldata->arg.seqid);
+	up(&sp->so_sema);
+	nfs4_put_state_owner(sp);
+	up_read(&server->nfs4_state->cl_sem);
+	kfree(calldata);
+}
+
 static void nfs4_close_done(struct rpc_task *task)
 {
 	struct nfs4_closedata *calldata = (struct nfs4_closedata *)task->tk_calldata;
 	struct nfs4_state *state = calldata->state;
-	struct nfs4_state_owner *sp = state->owner;
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 
         /* hmm. we are done with the inode, and in the process of freeing
@@ -838,25 +866,46 @@ static void nfs4_close_done(struct rpc_task *task)
 			}
 	}
 	state->state = calldata->arg.open_flags;
-	nfs4_put_open_state(state);
-	nfs_free_seqid(calldata->arg.seqid);
-	up(&sp->so_sema);
-	nfs4_put_state_owner(sp);
-	up_read(&server->nfs4_state->cl_sem);
-	kfree(calldata);
+	nfs4_free_closedata(calldata);
 }
 
-static inline int nfs4_close_call(struct rpc_clnt *clnt, struct nfs4_closedata *calldata)
+static void nfs4_close_begin(struct rpc_task *task)
 {
+	struct nfs4_closedata *calldata = (struct nfs4_closedata *)task->tk_calldata;
+	struct nfs4_state *state = calldata->state;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE],
 		.rpc_argp = &calldata->arg,
 		.rpc_resp = &calldata->res,
-		.rpc_cred = calldata->state->owner->so_cred,
+		.rpc_cred = state->owner->so_cred,
 	};
-	if (calldata->arg.open_flags != 0)
+	int mode = 0;
+	int status;
+
+	status = nfs_wait_on_sequence(calldata->arg.seqid, task);
+	if (status != 0)
+		return;
+	/* Don't reorder reads */
+	smp_rmb();
+	/* Recalculate the new open mode in case someone reopened the file
+	 * while we were waiting in line to be scheduled.
+	 */
+	if (state->nreaders != 0)
+		mode |= FMODE_READ;
+	if (state->nwriters != 0)
+		mode |= FMODE_WRITE;
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
+		state->state = mode;
+	if (mode == state->state) {
+		nfs4_free_closedata(calldata);
+		task->tk_exit = NULL;
+		rpc_exit(task, 0);
+		return;
+	}
+	if (mode != 0)
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
-	return rpc_call_async(clnt, &msg, 0, nfs4_close_done, calldata);
+	calldata->arg.open_flags = mode;
+	rpc_call_setup(task, &msg, 0);
 }
 
 /* 
@@ -873,35 +922,30 @@ static inline int nfs4_close_call(struct rpc_clnt *clnt, struct nfs4_closedata *
 int nfs4_do_close(struct inode *inode, struct nfs4_state *state, mode_t mode) 
 {
 	struct nfs4_closedata *calldata;
-	int status;
+	int status = -ENOMEM;
 
-	/* Tell caller we're done */
-	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-		state->state = mode;
-		return 0;
-	}
-	calldata = (struct nfs4_closedata *)kmalloc(sizeof(*calldata), GFP_KERNEL);
+	calldata = kmalloc(sizeof(*calldata), GFP_KERNEL);
 	if (calldata == NULL)
-		return -ENOMEM;
+		goto out;
 	calldata->inode = inode;
 	calldata->state = state;
 	calldata->arg.fh = NFS_FH(inode);
+	calldata->arg.stateid = &state->stateid;
 	/* Serialization for the sequence id */
 	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid);
-	if (calldata->arg.seqid == NULL) {
-		kfree(calldata);
-		return -ENOMEM;
-	}
-	calldata->arg.open_flags = mode;
-	memcpy(&calldata->arg.stateid, &state->stateid,
-			sizeof(calldata->arg.stateid));
-	status = nfs4_close_call(NFS_SERVER(inode)->client, calldata);
-	/*
-	 * Return -EINPROGRESS on success in order to indicate to the
-	 * caller that an asynchronous RPC call has been launched, and
-	 * that it will release the semaphores on completion.
-	 */
-	return (status == 0) ? -EINPROGRESS : status;
+	if (calldata->arg.seqid == NULL)
+		goto out_free_calldata;
+
+	status = nfs4_call_async(NFS_SERVER(inode)->client, nfs4_close_begin,
+			nfs4_close_done, calldata);
+	if (status == 0)
+		goto out;
+
+	nfs_free_seqid(calldata->arg.seqid);
+out_free_calldata:
+	kfree(calldata);
+out:
+	return status;
 }
 
 struct inode *

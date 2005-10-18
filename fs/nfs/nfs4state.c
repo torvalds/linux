@@ -518,7 +518,11 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 			newstate |= FMODE_WRITE;
 		if (state->state == newstate)
 			goto out;
-		if (nfs4_do_close(inode, state, newstate) == -EINPROGRESS)
+		if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+			state->state = newstate;
+			goto out;
+		}
+		if (nfs4_do_close(inode, state, newstate) == 0)
 			return;
 	}
 out:
