@@ -2889,11 +2889,23 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_lock_state *lsp = request->fl_u.nfs4_fl.owner;
+	struct nfs_lock_opargs largs = {
+		.lock_stateid = &lsp->ls_stateid,
+		.open_stateid = &state->stateid,
+		.lock_owner = {
+			.clientid = server->nfs4_state->cl_clientid,
+			.id = lsp->ls_id,
+		},
+		.reclaim = reclaim,
+	};
 	struct nfs_lockargs arg = {
 		.fh = NFS_FH(inode),
 		.type = nfs4_lck_type(cmd, request),
 		.offset = request->fl_start,
 		.length = nfs4_lck_length(request),
+		.u = {
+			.lock = &largs,
+		},
 	};
 	struct nfs_lockres res = {
 		.server = server,
@@ -2904,56 +2916,39 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 		.rpc_resp       = &res,
 		.rpc_cred	= state->owner->so_cred,
 	};
-	struct nfs_lock_opargs largs = {
-		.reclaim = reclaim,
-		.new_lock_owner = 0,
-	};
-	struct nfs_seqid *lock_seqid;
 	int status = -ENOMEM;
 
-	lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
-	if (lock_seqid == NULL)
+	largs.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
+	if (largs.lock_seqid == NULL)
 		return -ENOMEM;
 	if (!(lsp->ls_seqid.flags & NFS_SEQID_CONFIRMED)) {
 		struct nfs4_state_owner *owner = state->owner;
-		struct nfs_open_to_lock otl = {
-			.lock_owner = {
-				.clientid = server->nfs4_state->cl_clientid,
-			},
-		};
 
-		otl.lock_seqid = lock_seqid;
-		otl.lock_owner.id = lsp->ls_id;
-		memcpy(&otl.open_stateid, &state->stateid, sizeof(otl.open_stateid));
-		largs.u.open_lock = &otl;
+		largs.open_seqid = nfs_alloc_seqid(&owner->so_seqid);
+		if (largs.open_seqid == NULL)
+			goto out;
 		largs.new_lock_owner = 1;
-		arg.u.lock = &largs;
-		otl.open_seqid = nfs_alloc_seqid(&owner->so_seqid);
-		if (otl.open_seqid != NULL) {
-			status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
-			/* increment seqid on success, and seqid mutating errors */
-			nfs_increment_open_seqid(status, otl.open_seqid);
-			nfs_free_seqid(otl.open_seqid);
-		}
-		if (status == 0)
-			nfs_confirm_seqid(&lsp->ls_seqid, 0);
-	} else {
-		struct nfs_exist_lock el;
-		memcpy(&el.stateid, &lsp->ls_stateid, sizeof(el.stateid));
-		largs.u.exist_lock = &el;
-		arg.u.lock = &largs;
-		el.seqid = lock_seqid;
 		status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
-	}
-	/* increment seqid on success, and seqid mutating errors*/
-	nfs_increment_lock_seqid(status, lock_seqid);
+		/* increment open seqid on success, and seqid mutating errors */
+		if (largs.new_lock_owner != 0) {
+			nfs_increment_open_seqid(status, largs.open_seqid);
+			if (status == 0)
+				nfs_confirm_seqid(&lsp->ls_seqid, 0);
+		}
+		nfs_free_seqid(largs.open_seqid);
+	} else
+		status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
+	/* increment lock seqid on success, and seqid mutating errors*/
+	nfs_increment_lock_seqid(status, largs.lock_seqid);
 	/* save the returned stateid. */
 	if (status == 0) {
-		memcpy(lsp->ls_stateid.data, res.u.stateid.data, sizeof(lsp->ls_stateid.data));
+		memcpy(lsp->ls_stateid.data, res.u.stateid.data,
+				sizeof(lsp->ls_stateid.data));
 		lsp->ls_flags |= NFS_LOCK_INITIALIZED;
 	} else if (status == -NFS4ERR_DENIED)
 		status = -EAGAIN;
-	nfs_free_seqid(lock_seqid);
+out:
+	nfs_free_seqid(largs.lock_seqid);
 	return status;
 }
 

@@ -165,25 +165,14 @@ struct nfs_lowner {
 	u32                     id;
 };
 
-struct nfs_open_to_lock {
-	struct nfs_seqid *	open_seqid;
-	nfs4_stateid            open_stateid;
-	struct nfs_seqid *	lock_seqid;
-	struct nfs_lowner       lock_owner;
-};
-
-struct nfs_exist_lock {
-	nfs4_stateid            stateid;
-	struct nfs_seqid *	seqid;
-};
-
 struct nfs_lock_opargs {
+	struct nfs_seqid *	lock_seqid;
+	nfs4_stateid *		lock_stateid;
+	struct nfs_seqid *	open_seqid;
+	nfs4_stateid *		open_stateid;
+	struct nfs_lowner       lock_owner;
 	__u32                   reclaim;
 	__u32                   new_lock_owner;
-	union {
-		struct nfs_open_to_lock *open_lock;
-		struct nfs_exist_lock   *exist_lock;
-	} u;
 };
 
 struct nfs_locku_opargs {
