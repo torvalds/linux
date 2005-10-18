@@ -914,7 +914,6 @@ static int is_atomic_open(struct inode *dir, struct nameidata *nd)
 static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *res = NULL;
-	struct inode *inode = NULL;
 	int error;
 
 	/* Check that we are indeed trying to open this file */
@@ -928,8 +927,10 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
 	/* Let vfs_create() deal with O_EXCL */
-	if (nd->intent.open.flags & O_EXCL)
-		goto no_entry;
+	if (nd->intent.open.flags & O_EXCL) {
+		d_add(dentry, NULL);
+		goto out;
+	}
 
 	/* Open the file on the server */
 	lock_kernel();
@@ -943,18 +944,18 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 
 	if (nd->intent.open.flags & O_CREAT) {
 		nfs_begin_data_update(dir);
-		inode = nfs4_atomic_open(dir, dentry, nd);
+		res = nfs4_atomic_open(dir, dentry, nd);
 		nfs_end_data_update(dir);
 	} else
-		inode = nfs4_atomic_open(dir, dentry, nd);
+		res = nfs4_atomic_open(dir, dentry, nd);
 	unlock_kernel();
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
+	if (IS_ERR(res)) {
+		error = PTR_ERR(res);
 		switch (error) {
 			/* Make a negative dentry */
 			case -ENOENT:
-				inode = NULL;
-				break;
+				res = NULL;
+				goto out;
 			/* This turned out not to be a regular file */
 			case -ELOOP:
 				if (!(nd->intent.open.flags & O_NOFOLLOW))
@@ -962,13 +963,9 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 			/* case -EISDIR: */
 			/* case -EINVAL: */
 			default:
-				res = ERR_PTR(error);
 				goto out;
 		}
-	}
-no_entry:
-	res = d_add_unique(dentry, inode);
-	if (res != NULL)
+	} else if (res != NULL)
 		dentry = res;
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
@@ -1012,7 +1009,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 */
 	lock_kernel();
 	verifier = nfs_save_change_attribute(dir);
-	ret = nfs4_open_revalidate(dir, dentry, openflags);
+	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
 	if (!ret)
 		nfs_set_verifier(dentry, verifier);
 	unlock_kernel();
@@ -1135,7 +1132,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	lock_kernel();
 	nfs_begin_data_update(dir);
-	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags);
+	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, nd);
 	nfs_end_data_update(dir);
 	if (error != 0)
 		goto out_err;

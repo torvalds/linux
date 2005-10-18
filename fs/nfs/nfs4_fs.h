@@ -215,8 +215,8 @@ extern int nfs4_proc_setclientid_confirm(struct nfs4_client *);
 extern int nfs4_proc_async_renew(struct nfs4_client *);
 extern int nfs4_proc_renew(struct nfs4_client *);
 extern int nfs4_do_close(struct inode *inode, struct nfs4_state *state, mode_t mode);
-extern struct inode *nfs4_atomic_open(struct inode *, struct dentry *, struct nameidata *);
-extern int nfs4_open_revalidate(struct inode *, struct dentry *, int);
+extern struct dentry *nfs4_atomic_open(struct inode *, struct dentry *, struct nameidata *);
+extern int nfs4_open_revalidate(struct inode *, struct dentry *, int, struct nameidata *);
 
 extern struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops;
 extern struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops;

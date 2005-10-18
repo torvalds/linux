@@ -47,6 +47,7 @@
 #include <linux/nfs_page.h>
 #include <linux/smp_lock.h>
 #include <linux/namei.h>
+#include <linux/mount.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -947,12 +948,26 @@ out:
 	return status;
 }
 
-struct inode *
+static void nfs4_intent_set_file(struct nameidata *nd, struct dentry *dentry, struct nfs4_state *state)
+{
+	struct file *filp;
+
+	filp = lookup_instantiate_filp(nd, dentry, NULL);
+	if (!IS_ERR(filp)) {
+		struct nfs_open_context *ctx;
+		ctx = (struct nfs_open_context *)filp->private_data;
+		ctx->state = state;
+	} else
+		nfs4_close_state(state, nd->intent.open.flags);
+}
+
+struct dentry *
 nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct iattr attr;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
+	struct dentry *res;
 
 	if (nd->flags & LOOKUP_CREATE) {
 		attr.ia_mode = nd->intent.open.create_mode;
@@ -966,16 +981,23 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 
 	cred = rpcauth_lookupcred(NFS_SERVER(dir)->client->cl_auth, 0);
 	if (IS_ERR(cred))
-		return (struct inode *)cred;
+		return (struct dentry *)cred;
 	state = nfs4_do_open(dir, dentry, nd->intent.open.flags, &attr, cred);
 	put_rpccred(cred);
-	if (IS_ERR(state))
-		return (struct inode *)state;
-	return state->inode;
+	if (IS_ERR(state)) {
+		if (PTR_ERR(state) == -ENOENT)
+			d_add(dentry, NULL);
+		return (struct dentry *)state;
+	}
+	res = d_add_unique(dentry, state->inode);
+	if (res != NULL)
+		dentry = res;
+	nfs4_intent_set_file(nd, dentry, state);
+	return res;
 }
 
 int
-nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags)
+nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, struct nameidata *nd)
 {
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
@@ -988,18 +1010,30 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags)
 	if (IS_ERR(state))
 		state = nfs4_do_open(dir, dentry, openflags, NULL, cred);
 	put_rpccred(cred);
-	if (state == ERR_PTR(-ENOENT) && dentry->d_inode == 0)
-		return 1;
-	if (IS_ERR(state))
-		return 0;
+	if (IS_ERR(state)) {
+		switch (PTR_ERR(state)) {
+			case -EPERM:
+			case -EACCES:
+			case -EDQUOT:
+			case -ENOSPC:
+			case -EROFS:
+				lookup_instantiate_filp(nd, (struct dentry *)state, NULL);
+				return 1;
+			case -ENOENT:
+				if (dentry->d_inode == NULL)
+					return 1;
+		}
+		goto out_drop;
+	}
 	inode = state->inode;
+	iput(inode);
 	if (inode == dentry->d_inode) {
-		iput(inode);
+		nfs4_intent_set_file(nd, dentry, state);
 		return 1;
 	}
-	d_drop(dentry);
 	nfs4_close_state(state, openflags);
-	iput(inode);
+out_drop:
+	d_drop(dentry);
 	return 0;
 }
 
@@ -1500,7 +1534,7 @@ static int nfs4_proc_commit(struct nfs_write_data *cdata)
 
 static int
 nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-                 int flags)
+                 int flags, struct nameidata *nd)
 {
 	struct nfs4_state *state;
 	struct rpc_cred *cred;
@@ -1522,13 +1556,13 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		struct nfs_fattr fattr;
 		status = nfs4_do_setattr(NFS_SERVER(dir), &fattr,
 		                     NFS_FH(state->inode), sattr, state);
-		if (status == 0) {
+		if (status == 0)
 			nfs_setattr_update_inode(state->inode, sattr);
-			goto out;
-		}
-	} else if (flags != 0)
-		goto out;
-	nfs4_close_state(state, flags);
+	}
+	if (status == 0 && nd != NULL && (nd->flags & LOOKUP_OPEN))
+		nfs4_intent_set_file(nd, dentry, state);
+	else
+		nfs4_close_state(state, flags);
 out:
 	return status;
 }
@@ -2172,65 +2206,6 @@ nfs4_proc_renew(struct nfs4_client *clp)
 	if (time_before(clp->cl_last_renewal,now))
 		clp->cl_last_renewal = now;
 	spin_unlock(&clp->cl_lock);
-	return 0;
-}
-
-/*
- * We will need to arrange for the VFS layer to provide an atomic open.
- * Until then, this open method is prone to inefficiency and race conditions
- * due to the lookup, potential create, and open VFS calls from sys_open()
- * placed on the wire.
- */
-static int
-nfs4_proc_file_open(struct inode *inode, struct file *filp)
-{
-	struct dentry *dentry = filp->f_dentry;
-	struct nfs_open_context *ctx;
-	struct nfs4_state *state = NULL;
-	struct rpc_cred *cred;
-	int status = -ENOMEM;
-
-	dprintk("nfs4_proc_file_open: starting on (%.*s/%.*s)\n",
-	                       (int)dentry->d_parent->d_name.len,
-	                       dentry->d_parent->d_name.name,
-	                       (int)dentry->d_name.len, dentry->d_name.name);
-
-
-	/* Find our open stateid */
-	cred = rpcauth_lookupcred(NFS_SERVER(inode)->client->cl_auth, 0);
-	if (IS_ERR(cred))
-		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_context(dentry, cred);
-	put_rpccred(cred);
-	if (unlikely(ctx == NULL))
-		return -ENOMEM;
-	status = -EIO; /* ERACE actually */
-	state = nfs4_find_state(inode, cred, filp->f_mode);
-	if (unlikely(state == NULL))
-		goto no_state;
-	ctx->state = state;
-	nfs4_close_state(state, filp->f_mode);
-	ctx->mode = filp->f_mode;
-	nfs_file_set_open_context(filp, ctx);
-	put_nfs_open_context(ctx);
-	if (filp->f_mode & FMODE_WRITE)
-		nfs_begin_data_update(inode);
-	return 0;
-no_state:
-	printk(KERN_WARNING "NFS: v4 raced in function %s\n", __FUNCTION__);
-	put_nfs_open_context(ctx);
-	return status;
-}
-
-/*
- * Release our state
- */
-static int
-nfs4_proc_file_release(struct inode *inode, struct file *filp)
-{
-	if (filp->f_mode & FMODE_WRITE)
-		nfs_end_data_update(inode);
-	nfs_file_clear_open_context(filp);
 	return 0;
 }
 
@@ -3145,8 +3120,8 @@ struct nfs_rpc_ops	nfs_v4_clientops = {
 	.read_setup	= nfs4_proc_read_setup,
 	.write_setup	= nfs4_proc_write_setup,
 	.commit_setup	= nfs4_proc_commit_setup,
-	.file_open      = nfs4_proc_file_open,
-	.file_release   = nfs4_proc_file_release,
+	.file_open      = nfs_open,
+	.file_release   = nfs_release,
 	.lock		= nfs4_proc_lock,
 	.clear_acl_cache = nfs4_zap_acl_attr,
 };

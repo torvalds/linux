@@ -299,7 +299,7 @@ static int nfs3_proc_commit(struct nfs_write_data *cdata)
  */
 static int
 nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-		 int flags)
+		 int flags, struct nameidata *nd)
 {
 	struct nfs_fh		fhandle;
 	struct nfs_fattr	fattr;
