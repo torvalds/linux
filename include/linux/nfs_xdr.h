@@ -96,12 +96,13 @@ struct nfs4_change_info {
 	u64			after;
 };
 
+struct nfs_seqid;
 /*
  * Arguments to the open call.
  */
 struct nfs_openargs {
 	const struct nfs_fh *	fh;
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 	int			open_flags;
 	__u64                   clientid;
 	__u32                   id;
@@ -136,7 +137,7 @@ struct nfs_openres {
 struct nfs_open_confirmargs {
 	const struct nfs_fh *	fh;
 	nfs4_stateid            stateid;
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 };
 
 struct nfs_open_confirmres {
@@ -149,7 +150,7 @@ struct nfs_open_confirmres {
 struct nfs_closeargs {
 	struct nfs_fh *         fh;
 	nfs4_stateid            stateid;
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 	int			open_flags;
 };
 
@@ -165,15 +166,15 @@ struct nfs_lowner {
 };
 
 struct nfs_open_to_lock {
-	__u32                   open_seqid;
+	struct nfs_seqid *	open_seqid;
 	nfs4_stateid            open_stateid;
-	__u32                   lock_seqid;
+	struct nfs_seqid *	lock_seqid;
 	struct nfs_lowner       lock_owner;
 };
 
 struct nfs_exist_lock {
 	nfs4_stateid            stateid;
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 };
 
 struct nfs_lock_opargs {
@@ -186,7 +187,7 @@ struct nfs_lock_opargs {
 };
 
 struct nfs_locku_opargs {
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 	nfs4_stateid            stateid;
 };
 

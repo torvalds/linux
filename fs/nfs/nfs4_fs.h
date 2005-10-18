@@ -93,6 +93,35 @@ struct nfs4_client {
 };
 
 /*
+ * struct rpc_sequence ensures that RPC calls are sent in the exact
+ * order that they appear on the list.
+ */
+struct rpc_sequence {
+	struct rpc_wait_queue	wait;	/* RPC call delay queue */
+	spinlock_t lock;		/* Protects the list */
+	struct list_head list;		/* Defines sequence of RPC calls */
+};
+
+#define NFS_SEQID_CONFIRMED 1
+struct nfs_seqid_counter {
+	struct rpc_sequence *sequence;
+	int flags;
+	u32 counter;
+};
+
+struct nfs_seqid {
+	struct list_head list;
+	struct nfs_seqid_counter *sequence;
+	struct rpc_task *task;
+};
+
+static inline void nfs_confirm_seqid(struct nfs_seqid_counter *seqid, int status)
+{
+	if (seqid_mutating_err(-status))
+		seqid->flags |= NFS_SEQID_CONFIRMED;
+}
+
+/*
  * NFS4 state_owners and lock_owners are simply labels for ordered
  * sequences of RPC calls. Their sole purpose is to provide once-only
  * semantics by allowing the server to identify replayed requests.
@@ -106,12 +135,13 @@ struct nfs4_state_owner {
 	struct nfs4_client   *so_client;
 	u32                  so_id;      /* 32-bit identifier, unique */
 	struct semaphore     so_sema;
-	u32                  so_seqid;   /* protected by so_sema */
 	atomic_t	     so_count;
 
 	struct rpc_cred	     *so_cred;	 /* Associated cred */
 	struct list_head     so_states;
 	struct list_head     so_delegations;
+	struct nfs_seqid_counter so_seqid;
+	struct rpc_sequence  so_sequence;
 };
 
 /*
@@ -132,7 +162,7 @@ struct nfs4_lock_state {
 	fl_owner_t		ls_owner;	/* POSIX lock owner */
 #define NFS_LOCK_INITIALIZED 1
 	int			ls_flags;
-	u32			ls_seqid;
+	struct nfs_seqid_counter	ls_seqid;
 	u32			ls_id;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;
@@ -224,11 +254,15 @@ extern struct nfs4_state * nfs4_get_open_state(struct inode *, struct nfs4_state
 extern void nfs4_put_open_state(struct nfs4_state *);
 extern void nfs4_close_state(struct nfs4_state *, mode_t);
 extern struct nfs4_state *nfs4_find_state(struct inode *, struct rpc_cred *, mode_t mode);
-extern void nfs4_increment_seqid(int status, struct nfs4_state_owner *sp);
 extern void nfs4_schedule_state_recovery(struct nfs4_client *);
 extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
-extern void nfs4_increment_lock_seqid(int status, struct nfs4_lock_state *ls);
 extern void nfs4_copy_stateid(nfs4_stateid *, struct nfs4_state *, fl_owner_t);
+
+extern struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter);
+extern int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task);
+extern void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid);
+extern void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid);
+extern void nfs_free_seqid(struct nfs_seqid *seqid);
 
 extern const nfs4_stateid zero_stateid;
 

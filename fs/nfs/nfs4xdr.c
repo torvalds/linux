@@ -604,7 +604,7 @@ static int encode_close(struct xdr_stream *xdr, const struct nfs_closeargs *arg)
 
 	RESERVE_SPACE(8+sizeof(arg->stateid.data));
 	WRITE32(OP_CLOSE);
-	WRITE32(arg->seqid);
+	WRITE32(arg->seqid->sequence->counter);
 	WRITEMEM(arg->stateid.data, sizeof(arg->stateid.data));
 	
 	return 0;
@@ -732,9 +732,9 @@ static int encode_lock(struct xdr_stream *xdr, const struct nfs_lockargs *arg)
 		struct nfs_open_to_lock *ol = opargs->u.open_lock;
 
 		RESERVE_SPACE(40);
-		WRITE32(ol->open_seqid);
+		WRITE32(ol->open_seqid->sequence->counter);
 		WRITEMEM(&ol->open_stateid, sizeof(ol->open_stateid));
-		WRITE32(ol->lock_seqid);
+		WRITE32(ol->lock_seqid->sequence->counter);
 		WRITE64(ol->lock_owner.clientid);
 		WRITE32(4);
 		WRITE32(ol->lock_owner.id);
@@ -744,7 +744,7 @@ static int encode_lock(struct xdr_stream *xdr, const struct nfs_lockargs *arg)
 
 		RESERVE_SPACE(20);
 		WRITEMEM(&el->stateid, sizeof(el->stateid));
-		WRITE32(el->seqid);
+		WRITE32(el->seqid->sequence->counter);
 	}
 
 	return 0;
@@ -775,7 +775,7 @@ static int encode_locku(struct xdr_stream *xdr, const struct nfs_lockargs *arg)
 	RESERVE_SPACE(44);
 	WRITE32(OP_LOCKU);
 	WRITE32(arg->type);
-	WRITE32(opargs->seqid);
+	WRITE32(opargs->seqid->sequence->counter);
 	WRITEMEM(&opargs->stateid, sizeof(opargs->stateid));
 	WRITE64(arg->offset);
 	WRITE64(arg->length);
@@ -826,7 +826,7 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
  */
 	RESERVE_SPACE(8);
 	WRITE32(OP_OPEN);
-	WRITE32(arg->seqid);
+	WRITE32(arg->seqid->sequence->counter);
 	encode_share_access(xdr, arg->open_flags);
 	RESERVE_SPACE(16);
 	WRITE64(arg->clientid);
@@ -941,7 +941,7 @@ static int encode_open_confirm(struct xdr_stream *xdr, const struct nfs_open_con
 	RESERVE_SPACE(8+sizeof(arg->stateid.data));
 	WRITE32(OP_OPEN_CONFIRM);
 	WRITEMEM(arg->stateid.data, sizeof(arg->stateid.data));
-	WRITE32(arg->seqid);
+	WRITE32(arg->seqid->sequence->counter);
 
 	return 0;
 }
@@ -953,7 +953,7 @@ static int encode_open_downgrade(struct xdr_stream *xdr, const struct nfs_closea
 	RESERVE_SPACE(8+sizeof(arg->stateid.data));
 	WRITE32(OP_OPEN_DOWNGRADE);
 	WRITEMEM(arg->stateid.data, sizeof(arg->stateid.data));
-	WRITE32(arg->seqid);
+	WRITE32(arg->seqid->sequence->counter);
 	encode_share_access(xdr, arg->open_flags);
 	return 0;
 }
@@ -1416,6 +1416,9 @@ static int nfs4_xdr_enc_close(struct rpc_rqst *req, uint32_t *p, struct nfs_clos
         };
         int status;
 
+	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
+	if (status != 0)
+		goto out;
         xdr_init_encode(&xdr, &req->rq_snd_buf, p);
         encode_compound_hdr(&xdr, &hdr);
         status = encode_putfh(&xdr, args->fh);
@@ -1437,6 +1440,9 @@ static int nfs4_xdr_enc_open(struct rpc_rqst *req, uint32_t *p, struct nfs_opena
 	};
 	int status;
 
+	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
+	if (status != 0)
+		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
@@ -1464,6 +1470,9 @@ static int nfs4_xdr_enc_open_confirm(struct rpc_rqst *req, uint32_t *p, struct n
 	};
 	int status;
 
+	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
+	if (status != 0)
+		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
@@ -1485,6 +1494,9 @@ static int nfs4_xdr_enc_open_noattr(struct rpc_rqst *req, uint32_t *p, struct nf
 	};
 	int status;
 
+	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
+	if (status != 0)
+		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
@@ -1506,6 +1518,9 @@ static int nfs4_xdr_enc_open_downgrade(struct rpc_rqst *req, uint32_t *p, struct
 	};
 	int status;
 
+	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
+	if (status != 0)
+		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
@@ -1525,8 +1540,17 @@ static int nfs4_xdr_enc_lock(struct rpc_rqst *req, uint32_t *p, struct nfs_locka
 	struct compound_hdr hdr = {
 		.nops   = 2,
 	};
+	struct nfs_lock_opargs *opargs = args->u.lock;
+	struct nfs_seqid *seqid;
 	int status;
 
+	if (opargs->new_lock_owner)
+		seqid = opargs->u.open_lock->lock_seqid;
+	else
+		seqid = opargs->u.exist_lock->seqid;
+	status = nfs_wait_on_sequence(seqid, req->rq_task);
+	if (status != 0)
+		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
@@ -1569,6 +1593,9 @@ static int nfs4_xdr_enc_locku(struct rpc_rqst *req, uint32_t *p, struct nfs_lock
 	};
 	int status;
 
+	status = nfs_wait_on_sequence(args->u.locku->seqid, req->rq_task);
+	if (status != 0)
+		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
