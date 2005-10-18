@@ -173,7 +173,8 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 
 int mthca_init_db_tab(struct mthca_dev *dev);
 void mthca_cleanup_db_tab(struct mthca_dev *dev);
-int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, __be32 **db);
+int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,
+		   u32 qn, __be32 **db);
 void mthca_free_db(struct mthca_dev *dev, int type, int db_index);
 
 #endif /* MTHCA_MEMFREE_H */

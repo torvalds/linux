@@ -487,7 +487,8 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 	}
 }
 
-int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, __be32 **db)
+int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,
+		   u32 qn, __be32 **db)
 {
 	int group;
 	int start, end, dir;
