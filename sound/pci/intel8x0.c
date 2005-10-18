@@ -2563,7 +2563,6 @@ struct ich_reg_info {
 static int __devinit snd_intel8x0_create(snd_card_t * card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
-					 int buggy_sem,
 					 intel8x0_t ** r_intel8x0)
 {
 	intel8x0_t *chip;
@@ -2621,7 +2620,12 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	chip->buggy_semaphore = buggy_sem;
+
+	/* module parameters */
+	chip->buggy_irq = buggy_irq;
+	chip->buggy_semaphore = buggy_semaphore;
+	if (xbox)
+		chip->xbox = 1;
 
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
@@ -2819,14 +2823,10 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
-				       buggy_semaphore, &chip)) < 0) {
+				       &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if (buggy_irq)
-		chip->buggy_irq = 1;
-	if (xbox)
-		chip->xbox = 1;
 
 	if ((err = snd_intel8x0_mixer(chip, ac97_clock, ac97_quirk)) < 0) {
 		snd_card_free(card);
