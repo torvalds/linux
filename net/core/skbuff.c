@@ -176,6 +176,8 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb_shinfo(skb)->tso_size = 0;
 	skb_shinfo(skb)->tso_segs = 0;
 	skb_shinfo(skb)->frag_list = NULL;
+	skb_shinfo(skb)->ufo_size = 0;
+	skb_shinfo(skb)->ip6_frag_id = 0;
 out:
 	return skb;
 nodata:
@@ -1696,6 +1698,78 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
 	return textsearch_find(config, state);
 }
 
+/**
+ * skb_append_datato_frags: - append the user data to a skb
+ * @sk: sock  structure
+ * @skb: skb structure to be appened with user data.
+ * @getfrag: call back function to be used for getting the user data
+ * @from: pointer to user message iov
+ * @length: length of the iov message
+ *
+ * Description: This procedure append the user data in the fragment part
+ * of the skb if any page alloc fails user this procedure returns  -ENOMEM
+ */
+int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
+			int getfrag(void *from, char *to, int offset,
+					int len, int odd, struct sk_buff *skb),
+			void *from, int length)
+{
+	int frg_cnt = 0;
+	skb_frag_t *frag = NULL;
+	struct page *page = NULL;
+	int copy, left;
+	int offset = 0;
+	int ret;
+
+	do {
+		/* Return error if we don't have space for new frag */
+		frg_cnt = skb_shinfo(skb)->nr_frags;
+		if (frg_cnt >= MAX_SKB_FRAGS)
+			return -EFAULT;
+
+		/* allocate a new page for next frag */
+		page = alloc_pages(sk->sk_allocation, 0);
+
+		/* If alloc_page fails just return failure and caller will
+		 * free previous allocated pages by doing kfree_skb()
+		 */
+		if (page == NULL)
+			return -ENOMEM;
+
+		/* initialize the next frag */
+		sk->sk_sndmsg_page = page;
+		sk->sk_sndmsg_off = 0;
+		skb_fill_page_desc(skb, frg_cnt, page, 0, 0);
+		skb->truesize += PAGE_SIZE;
+		atomic_add(PAGE_SIZE, &sk->sk_wmem_alloc);
+
+		/* get the new initialized frag */
+		frg_cnt = skb_shinfo(skb)->nr_frags;
+		frag = &skb_shinfo(skb)->frags[frg_cnt - 1];
+
+		/* copy the user data to page */
+		left = PAGE_SIZE - frag->page_offset;
+		copy = (length > left)? left : length;
+
+		ret = getfrag(from, (page_address(frag->page) +
+			    frag->page_offset + frag->size),
+			    offset, copy, 0, skb);
+		if (ret < 0)
+			return -EFAULT;
+
+		/* copy was successful so update the size parameters */
+		sk->sk_sndmsg_off += copy;
+		frag->size += copy;
+		skb->len += copy;
+		skb->data_len += copy;
+		offset += copy;
+		length -= copy;
+
+	} while (length > 0);
+
+	return 0;
+}
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
@@ -1747,3 +1821,4 @@ EXPORT_SYMBOL(skb_prepare_seq_read);
 EXPORT_SYMBOL(skb_seq_read);
 EXPORT_SYMBOL(skb_abort_seq_read);
 EXPORT_SYMBOL(skb_find_text);
+EXPORT_SYMBOL(skb_append_datato_frags);
