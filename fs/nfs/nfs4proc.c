@@ -658,6 +658,8 @@ out_err:
 	}
 	up_read(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
+	if (err != -EACCES)
+		nfs_inode_return_delegation(inode);
 	return err;
 }
 
