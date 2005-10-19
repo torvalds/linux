@@ -90,11 +90,11 @@ static inline int uinput_request_reserve_slot(struct uinput_device *udev, struct
 
 static void uinput_request_done(struct uinput_device *udev, struct uinput_request *request)
 {
-	complete(&request->done);
-
 	/* Mark slot as available */
 	udev->requests[request->id] = NULL;
 	wake_up_interruptible(&udev->requests_waitq);
+
+	complete(&request->done);
 }
 
 static int uinput_request_submit(struct input_dev *dev, struct uinput_request *request)
