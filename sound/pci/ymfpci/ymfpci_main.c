@@ -1851,9 +1851,7 @@ static int snd_ymfpci_timer_start(snd_timer_t *timer)
 	unsigned int count;
 
 	chip = snd_timer_chip(timer);
-	count = timer->sticks - 1;
-	if (count == 0) /* minimum time is 20.8 us */
-		count = 1;
+	count = (timer->sticks << 1) - 1;
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	snd_ymfpci_writew(chip, YDSXGR_TIMERCOUNT, count);
 	snd_ymfpci_writeb(chip, YDSXGR_TIMERCTRL, 0x03);
@@ -1877,14 +1875,14 @@ static int snd_ymfpci_timer_precise_resolution(snd_timer_t *timer,
 					       unsigned long *num, unsigned long *den)
 {
 	*num = 1;
-	*den = 96000;
+	*den = 48000;
 	return 0;
 }
 
 static struct _snd_timer_hardware snd_ymfpci_timer_hw = {
 	.flags = SNDRV_TIMER_HW_AUTO,
-	.resolution = 10417, /* 1/2fs = 10.41666...us */
-	.ticks = 65536,
+	.resolution = 20833, /* 1/fs = 20.8333...us */
+	.ticks = 0x8000,
 	.start = snd_ymfpci_timer_start,
 	.stop = snd_ymfpci_timer_stop,
 	.precise_resolution = snd_ymfpci_timer_precise_resolution,
