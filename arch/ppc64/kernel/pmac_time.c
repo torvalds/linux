@@ -21,6 +21,7 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/interrupt.h>
+#include <linux/rtc.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>
@@ -135,23 +136,13 @@ int pmac_set_rtc_time(struct rtc_time *tm)
 	}
 }
 
-void __init pmac_get_boot_time(struct rtc_time *tm)
+unsigned long __init pmac_get_boot_time(void)
 {
-	pmac_get_rtc_time(tm);
+	struct rtc_time tm;
 
-#ifdef disabled__CONFIG_NVRAM
-	s32 delta = 0;
-	int dst;
-	
-	delta = ((s32)pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0x9)) << 16;
-	delta |= ((s32)pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0xa)) << 8;
-	delta |= pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0xb);
-	if (delta & 0x00800000UL)
-		delta |= 0xFF000000UL;
-	dst = ((pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0x8) & 0x80) != 0);
-	printk("GMT Delta read from XPRAM: %d minutes, DST: %s\n", delta/60,
-		dst ? "on" : "off");
-#endif
+	pmac_get_rtc_time(&tm);
+	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+		      tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 /*

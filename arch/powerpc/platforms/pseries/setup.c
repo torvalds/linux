@@ -84,8 +84,8 @@ int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 extern void pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
-static int pseries_shared_idle(void);
-static int pseries_dedicated_idle(void);
+static void pseries_shared_idle(void);
+static void pseries_dedicated_idle(void);
 
 static volatile void __iomem * chrp_int_ack_special;
 struct mpic *pSeries_mpic;
@@ -488,8 +488,8 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 	}
 }
 
-static int pseries_dedicated_idle(void)
-{
+static void pseries_dedicated_idle(void)
+{ 
 	long oldval;
 	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
@@ -544,7 +544,7 @@ static int pseries_dedicated_idle(void)
 	}
 }
 
-static int pseries_shared_idle(void)
+static void pseries_shared_idle(void)
 {
 	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
@@ -586,8 +586,6 @@ static int pseries_shared_idle(void)
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
 	}
-
-	return 0;
 }
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)

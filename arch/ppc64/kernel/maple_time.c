@@ -156,8 +156,9 @@ int maple_set_rtc_time(struct rtc_time *tm)
 	return 0;
 }
 
-void __init maple_get_boot_time(struct rtc_time *tm)
+unsigned long __init maple_get_boot_time(void)
 {
+	struct rtc_time tm;
 	struct device_node *rtcs;
 
 	rtcs = find_compatible_devices("rtc", "pnpPNP,b00");
@@ -170,6 +171,8 @@ void __init maple_get_boot_time(struct rtc_time *tm)
 		       "legacy address (0x%x)\n", maple_rtc_addr);
 	}
 	
-	maple_get_rtc_time(tm);
+	maple_get_rtc_time(&tm);
+	return mktime(time->tm_year+1900, time->tm_mon+1, time->tm_mday,
+		      time->tm_hour, time->tm_min, time->tm_sec);
 }
 

@@ -10,9 +10,12 @@
  * pmac_* files. Mostly for use by pmac_setup
  */
 
+struct rtc_time;
+
 extern long pmac_time_init(void);
-extern unsigned long pmac_get_rtc_time(void);
-extern int pmac_set_rtc_time(unsigned long nowtime);
+extern unsigned long pmac_get_boot_time(void);
+extern void pmac_get_rtc_time(struct rtc_time *);
+extern int pmac_set_rtc_time(struct rtc_time *);
 extern void pmac_read_rtc_time(void);
 extern void pmac_calibrate_decr(void);
 extern void pmac_pcibios_fixup(void);

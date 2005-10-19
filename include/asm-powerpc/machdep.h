@@ -1,6 +1,6 @@
-#ifdef __KERNEL__
 #ifndef _PPC64_MACHDEP_H
 #define _PPC64_MACHDEP_H
+#ifdef __KERNEL__
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -15,6 +15,11 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/setup.h>
+
+/* We export this macro for external modules like Alsa to know if
+ * ppc_md.feature_call is implemented or not
+ */
+#define CONFIG_PPC_HAS_FEATURE_CALLS
 
 struct pt_regs;
 struct pci_bus;	
@@ -39,6 +44,7 @@ struct smp_ops_t {
 #endif
 
 struct machdep_calls {
+#ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
 					   unsigned long va,
 					   int large,
@@ -74,6 +80,7 @@ struct machdep_calls {
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
 	void		(*irq_bus_setup)(struct pci_bus *bus);
+#endif
 
 	int		(*probe)(int platform);
 	void		(*setup_arch)(void);
@@ -86,6 +93,7 @@ struct machdep_calls {
 	void		(*cpu_irq_down)(int secondary);
 
 	/* PCI stuff */
+	/* Called after scanning the bus, before allocating resources */
 	void		(*pcibios_fixup)(void);
 	int		(*pci_probe_mode)(struct pci_bus *);
 
@@ -95,9 +103,13 @@ struct machdep_calls {
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
 
+	long		(*time_init)(void); /* Optional, may be NULL */
+
 	int		(*set_rtc_time)(struct rtc_time *);
 	void		(*get_rtc_time)(struct rtc_time *);
-	void		(*get_boot_time)(struct rtc_time *);
+	unsigned long	(*get_boot_time)(void);
+	unsigned char 	(*rtc_read_val)(int addr);
+	void		(*rtc_write_val)(int addr, unsigned char val);
 
 	void		(*calibrate_decr)(void);
 
@@ -109,7 +121,7 @@ struct machdep_calls {
 	ssize_t		(*nvram_write)(char *buf, size_t count, loff_t *index);
 	ssize_t		(*nvram_read)(char *buf, size_t count, loff_t *index);	
 	ssize_t		(*nvram_size)(void);		
-	int		(*nvram_sync)(void);
+	void		(*nvram_sync)(void);
 
 	/* Exception handlers */
 	void		(*system_reset_exception)(struct pt_regs *regs);
@@ -134,14 +146,100 @@ struct machdep_calls {
 						pgprot_t vma_prot);
 
 	/* Idle loop for this platform, leave empty for default idle loop */
-	int		(*idle_loop)(void);
+	void		(*idle_loop)(void);
 
-	/* Function to enable pmcs for this platform, called once per cpu. */
+	/* Function to enable performance monitor counters for this
+	   platform, called once per cpu. */
 	void		(*enable_pmcs)(void);
+
+#ifdef CONFIG_PPC32	/* XXX for now */
+	/* Optional, may be NULL. */
+	int		(*show_cpuinfo)(struct seq_file *m);
+	int		(*show_percpuinfo)(struct seq_file *m, int i);
+	
+	/* A general init function, called by ppc_init in init/main.c.
+	   May be NULL. */
+	void		(*init)(void);
+
+	void		(*idle)(void);
+	void		(*power_save)(void);
+
+	void		(*heartbeat)(void);
+	unsigned long	heartbeat_reset;
+	unsigned long	heartbeat_count;
+
+	unsigned long	(*find_end_of_memory)(void);
+	void		(*setup_io_mappings)(void);
+
+	void		(*early_serial_map)(void);
+	void		(*kgdb_map_scc)(void);
+
+	unsigned char 	(*nvram_read_val)(int addr);
+	void		(*nvram_write_val)(int addr, unsigned char val);
+
+	/*
+	 * optional PCI "hooks"
+	 */
+
+	/* Called after PPC generic resource fixup to perform
+	   machine specific fixups */
+	void (*pcibios_fixup_resources)(struct pci_dev *);
+
+	/* Called for each PCI bus in the system when it's probed */
+	void (*pcibios_fixup_bus)(struct pci_bus *);
+
+	/* Called when pci_enable_device() is called (initial=0) or
+	 * when a device with no assigned resource is found (initial=1).
+	 * Returns 0 to allow assignment/enabling of the device. */
+	int  (*pcibios_enable_device_hook)(struct pci_dev *, int initial);
+
+	/* For interrupt routing */
+	unsigned char (*pci_swizzle)(struct pci_dev *, unsigned char *);
+	int (*pci_map_irq)(struct pci_dev *, unsigned char, unsigned char);
+
+	/* Called in indirect_* to avoid touching devices */
+	int (*pci_exclude_device)(unsigned char, unsigned char);
+
+	/* Called at then very end of pcibios_init() */
+	void (*pcibios_after_init)(void);
+
+	/* this is for modules, since _machine can be a define -- Cort */
+	int ppc_machine;
+
+#ifdef CONFIG_KEXEC
+	/* Called to shutdown machine specific hardware not already controlled
+	 * by other drivers.
+	 * XXX Should we move this one out of kexec scope?
+	 */
+	void (*machine_shutdown)(void);
+
+	/* Called to do the minimal shutdown needed to run a kexec'd kernel
+	 * to run successfully.
+	 * XXX Should we move this one out of kexec scope?
+	 */
+	void (*machine_crash_shutdown)(void);
+
+	/* Called to do what every setup is needed on image and the
+	 * reboot code buffer. Returns 0 on success.
+	 * Provide your own (maybe dummy) implementation if your platform
+	 * claims to support kexec.
+	 */
+	int (*machine_kexec_prepare)(struct kimage *image);
+
+	/* Called to handle any machine specific cleanup on image */
+	void (*machine_kexec_cleanup)(struct kimage *image);
+
+	/* Called to perform the _real_ kexec.
+	 * Do NOT allocate memory or fail here. We are past the point of
+	 * no return.
+	 */
+	void (*machine_kexec)(struct kimage *image);
+#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_PPC32 */
 };
 
-extern int default_idle(void);
-extern int native_idle(void);
+extern void default_idle(void);
+extern void native_idle(void);
 
 extern struct machdep_calls ppc_md;
 extern char cmd_line[COMMAND_LINE_SIZE];
@@ -161,6 +259,13 @@ extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
 
+extern void setup_pci_ptrs(void);
+
+#ifdef CONFIG_SMP
+/* Poor default implementations */
+extern void __devinit smp_generic_give_timebase(void);
+extern void __devinit smp_generic_take_timebase(void);
+#endif /* CONFIG_SMP */
 
 
 /* Functions to produce codes on the leds.
@@ -180,5 +285,5 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 		ppc_md.log_error(buf, err_type, fatal);
 }
 
-#endif /* _PPC64_MACHDEP_H */
 #endif /* __KERNEL__ */
+#endif /* _PPC64_MACHDEP_H */

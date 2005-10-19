@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/bcd.h>
+#include <linux/rtc.h>
 
 #include <asm/time.h>
 #include <asm/uaccess.h>
@@ -1307,11 +1308,14 @@ int iSeries_set_rtc_time(struct rtc_time *tm)
 	return 0;
 }
 
-void iSeries_get_boot_time(struct rtc_time *tm)
+unsigned long iSeries_get_boot_time(void)
 {
-	if (piranha_simulator)
-		return;
+	struct rtc_time tm;
 
-	mf_get_boot_rtc(tm);
-	tm->tm_mon  -= 1;
+	if (piranha_simulator)
+		return 0;
+
+	mf_get_boot_rtc(&tm);
+	return mktime(tm.tm_year + 1900, tm.tm_mon, tm.tm_mday,
+		      tm.tm_hour, tm.tm_min, tm.tm_sec);
 }

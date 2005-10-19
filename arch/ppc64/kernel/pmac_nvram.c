@@ -341,7 +341,7 @@ static int amd_write_bank(int bank, u8* datas)
 }
 
 
-static int core99_nvram_sync(void)
+static void core99_nvram_sync(void)
 {
 	struct core99_header* hdr99;
 	unsigned long flags;
@@ -369,8 +369,6 @@ static int core99_nvram_sync(void)
 			printk("nvram: Error writing bank %d\n", core99_bank);
  bail:
 	spin_unlock_irqrestore(&nv_lock, flags);
-
-	return 0;
 }
 
 int __init pmac_nvram_init(void)

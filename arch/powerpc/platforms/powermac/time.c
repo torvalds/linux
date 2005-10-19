@@ -77,8 +77,7 @@ pmac_time_init(void)
 #endif
 }
 
-unsigned long
-pmac_get_rtc_time(void)
+unsigned long pmac_get_boot_time(void)
 {
 #if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
 	struct adb_request req;
@@ -118,20 +117,33 @@ pmac_get_rtc_time(void)
 	return 0;
 }
 
-int
-pmac_set_rtc_time(unsigned long nowtime)
+void pmac_get_rtc_time(struct rtc_time *tm)
 {
+	unsigned long now;
+
+	now = pmac_get_boot_time();
+	to_tm(now, tm);
+	tm->tm_year -= 1900;
+	tm->tm_mon -= 1;		/* month is 0-based */
+}
+
+int pmac_set_rtc_time(struct rtc_time *tm)
+{
+	unsigned long nowtime;
 #if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
 	struct adb_request req;
 #endif
 
+	nowtime = mktime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+			 tm->tm_hour, tm->tm_min, tm->tm_sec);
 	nowtime += RTC_OFFSET;
 
 	switch (sys_ctrler) {
 #ifdef CONFIG_ADB_CUDA
 	case SYS_CTRLER_CUDA:
 		if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
-				 nowtime >> 24, nowtime >> 16, nowtime >> 8, nowtime) < 0)
+				 nowtime >> 24, nowtime >> 16, nowtime >> 8,
+				 nowtime) < 0)
 			return 0;
 		while (!req.complete)
 			cuda_poll();
@@ -221,7 +233,7 @@ time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	case PBOOK_SLEEP_NOW:
 		do {
 			seq = read_seqbegin_irqsave(&xtime_lock, flags);
-			time_diff = xtime.tv_sec - pmac_get_rtc_time();
+			time_diff = xtime.tv_sec - pmac_get_boot_time();
 		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 		break;
 	case PBOOK_WAKE:

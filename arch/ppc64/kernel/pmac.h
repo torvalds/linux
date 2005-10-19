@@ -9,7 +9,7 @@
  * pmac_* files. Mostly for use by pmac_setup
  */
 
-extern void pmac_get_boot_time(struct rtc_time *tm);
+extern unsigned long pmac_get_boot_time(void);
 extern void pmac_get_rtc_time(struct rtc_time *tm);
 extern int  pmac_set_rtc_time(struct rtc_time *tm);
 extern void pmac_read_rtc_time(void);

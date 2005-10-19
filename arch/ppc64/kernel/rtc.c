@@ -265,7 +265,7 @@ static int rtc_read_proc(char *page, char **start, off_t off,
 #ifdef CONFIG_PPC_RTAS
 #define MAX_RTC_WAIT 5000	/* 5 sec */
 #define RTAS_CLOCK_BUSY (-2)
-void rtas_get_boot_time(struct rtc_time *rtc_tm)
+unsigned long rtas_get_boot_time(void)
 {
 	int ret[8];
 	int error, wait_time;
@@ -285,15 +285,10 @@ void rtas_get_boot_time(struct rtc_time *rtc_tm)
 	if (error != 0 && printk_ratelimit()) {
 		printk(KERN_WARNING "error: reading the clock failed (%d)\n",
 			error);
-		return;
+		return 0;
 	}
 
-	rtc_tm->tm_sec = ret[5];
-	rtc_tm->tm_min = ret[4];
-	rtc_tm->tm_hour = ret[3];
-	rtc_tm->tm_mday = ret[2];
-	rtc_tm->tm_mon = ret[1] - 1;
-	rtc_tm->tm_year = ret[0] - 1900;
+	return mktime(ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]);
 }
 
 /* NOTE: get_rtc_time will get an error if executed in interrupt context

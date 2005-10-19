@@ -73,8 +73,8 @@ extern void hvlog(char *fmt, ...);
 extern void ppcdbg_initialize(void);
 
 static void build_iSeries_Memory_Map(void);
-static int iseries_shared_idle(void);
-static int iseries_dedicated_idle(void);
+static void iseries_shared_idle(void);
+static void iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
 extern void iSeries_pci_final_fixup(void);
 #else
@@ -693,7 +693,7 @@ static void yield_shared_processor(void)
 	process_iSeries_events();
 }
 
-static int iseries_shared_idle(void)
+static void iseries_shared_idle(void)
 {
 	while (1) {
 		while (!need_resched() && !hvlpevent_is_pending()) {
@@ -715,11 +715,9 @@ static int iseries_shared_idle(void)
 
 		schedule();
 	}
-
-	return 0;
 }
 
-static int iseries_dedicated_idle(void)
+static void iseries_dedicated_idle(void)
 {
 	long oldval;
 
@@ -749,8 +747,6 @@ static int iseries_dedicated_idle(void)
 		ppc64_runlatch_on();
 		schedule();
 	}
-
-	return 0;
 }
 
 #ifndef CONFIG_PCI

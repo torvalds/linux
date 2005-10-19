@@ -562,7 +562,6 @@ void __init pmac_init(void)
 	ppc_md.setup_arch     = pmac_setup_arch;
 	ppc_md.show_cpuinfo   = pmac_show_cpuinfo;
 	ppc_md.show_percpuinfo = pmac_show_percpuinfo;
-	ppc_md.irq_canonicalize = NULL;
 	ppc_md.init_IRQ       = pmac_pic_init;
 	ppc_md.get_irq        = pmac_get_irq; /* Changed later on ... */
 
@@ -578,6 +577,7 @@ void __init pmac_init(void)
 	ppc_md.time_init      = pmac_time_init;
 	ppc_md.set_rtc_time   = pmac_set_rtc_time;
 	ppc_md.get_rtc_time   = pmac_get_rtc_time;
+	ppc_md.get_boot_time  = pmac_get_boot_time;
 	ppc_md.calibrate_decr = pmac_calibrate_decr;
 
 	ppc_md.feature_call   = pmac_do_feature_call;
