@@ -167,12 +167,12 @@ static void mptsas_print_phy_pg0(SasPhyPage0_t *pg0)
 static void mptsas_print_phy_pg1(SasPhyPage1_t *pg1)
 {
 	printk("---- SAS PHY PAGE 1 ------------\n");
-        printk("Invalid Dword Count=0x%x\n", pg1->InvalidDwordCount);
-        printk("Running Disparity Error Count=0x%x\n",
+	printk("Invalid Dword Count=0x%x\n", pg1->InvalidDwordCount);
+	printk("Running Disparity Error Count=0x%x\n",
 			pg1->RunningDisparityErrorCount);
-        printk("Loss Dword Synch Count=0x%x\n", pg1->LossDwordSynchCount);
-        printk("PHY Reset Problem Count=0x%x\n", pg1->PhyResetProblemCount);
-        printk("\n");
+	printk("Loss Dword Synch Count=0x%x\n", pg1->LossDwordSynchCount);
+	printk("PHY Reset Problem Count=0x%x\n", pg1->PhyResetProblemCount);
+	printk("\n");
 }
 
 static void mptsas_print_device_pg0(SasDevicePage0_t *pg0)
@@ -188,8 +188,11 @@ static void mptsas_print_device_pg0(SasDevicePage0_t *pg0)
 	printk("SAS Address=0x%llX\n", le64_to_cpu(sas_address));
 	printk("Target ID=0x%X\n", pg0->TargetID);
 	printk("Bus=0x%X\n", pg0->Bus);
-	printk("PhyNum=0x%X\n", pg0->PhyNum);
-	printk("AccessStatus=0x%X\n", le16_to_cpu(pg0->AccessStatus));
+	/* The PhyNum field specifies the PHY number of the parent
+	 * device this device is linked to
+	 */
+	printk("Parent Phy Num=0x%X\n", pg0->PhyNum);
+	printk("Access Status=0x%X\n", le16_to_cpu(pg0->AccessStatus));
 	printk("Device Info=0x%X\n", le32_to_cpu(pg0->DeviceInfo));
 	printk("Flags=0x%X\n", le16_to_cpu(pg0->Flags));
 	printk("Physical Port=0x%X\n", pg0->PhysicalPort);
@@ -201,7 +204,7 @@ static void mptsas_print_expander_pg1(SasExpanderPage1_t *pg1)
 	printk("---- SAS EXPANDER PAGE 1 ------------\n");
 
 	printk("Physical Port=0x%X\n", pg1->PhysicalPort);
-	printk("PHY Identifier=0x%X\n", pg1->Phy);
+	printk("PHY Identifier=0x%X\n", pg1->PhyIdentifier);
 	printk("Negotiated Link Rate=0x%X\n", pg1->NegotiatedLinkRate);
 	printk("Programmed Link Rate=0x%X\n", pg1->ProgrammedLinkRate);
 	printk("Hardware Link Rate=0x%X\n", pg1->HwLinkRate);
