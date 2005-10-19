@@ -1784,6 +1784,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->urbctrl->transfer_dma = hid->ctrlbuf_dma;
 	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
+	/* May be needed for some devices */
+	usb_clear_halt(hid->dev, hid->urbin->pipe);
+
 	return hid;
 
 fail:
