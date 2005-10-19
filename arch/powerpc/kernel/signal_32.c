@@ -105,7 +105,8 @@ static inline int put_sigset_t(compat_sigset_t __user *uset, sigset_t *set)
 	return copy_to_user(uset, &cset, sizeof(*uset));
 }
 
-static inline int get_sigset_t(sigset_t *set, compat_sigset_t __user *uset)
+static inline int get_sigset_t(sigset_t *set,
+			       const compat_sigset_t __user *uset)
 {
 	compat_sigset_t s32;
 
@@ -187,7 +188,7 @@ static inline int put_sigset_t(sigset_t __user *uset, sigset_t *set)
 	return copy_to_user(uset, set, sizeof(*uset));
 }
 
-static inline int get_sigset_t(sigset_t *set, sigset_t __user *uset)
+static inline int get_sigset_t(sigset_t *set, const sigset_t __user *uset)
 {
 	return copy_from_user(set, uset, sizeof(*uset));
 }
