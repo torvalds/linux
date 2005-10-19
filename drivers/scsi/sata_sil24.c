@@ -416,15 +416,20 @@ static void sil24_phy_reset(struct ata_port *ap)
 static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 				 struct sil24_cmd_block *cb)
 {
-	struct scatterlist *sg = qc->sg;
 	struct sil24_sge *sge = cb->sge;
-	unsigned i;
+	struct scatterlist *sg;
+	unsigned int idx = 0;
 
-	for (i = 0; i < qc->n_elem; i++, sg++, sge++) {
+	ata_for_each_sg(sg, qc) {
 		sge->addr = cpu_to_le64(sg_dma_address(sg));
 		sge->cnt = cpu_to_le32(sg_dma_len(sg));
-		sge->flags = 0;
-		sge->flags = i < qc->n_elem - 1 ? 0 : cpu_to_le32(SGE_TRM);
+		if (ata_sg_is_last(sg, qc))
+			sge->flags = cpu_to_le32(SGE_TRM);
+		else
+			sge->flags = 0;
+
+		sge++;
+		idx++;
 	}
 }
 

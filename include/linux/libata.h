@@ -480,6 +480,18 @@ extern int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits);
 #endif /* CONFIG_PCI */
 
 
+static inline int
+ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
+{
+	if (sg == &qc->pad_sgent)
+		return 1;
+	if (qc->pad_len)
+		return 0;
+	if (((sg - qc->__sg) + 1) == qc->n_elem)
+		return 1;
+	return 0;
+}
+
 static inline struct scatterlist *
 ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
 {
