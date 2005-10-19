@@ -951,7 +951,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys_alarm
 	.llong .sys_ni_syscall		/* old fstat syscall */
 	.llong .compat_sys_pause
-	.llong .compat_sys_utime		/* 30 */
+	.llong .compat_sys_utime	/* 30 */
 	.llong .sys_ni_syscall		/* old stty syscall */
 	.llong .sys_ni_syscall		/* old gtty syscall */
 	.llong .compat_sys_access
@@ -981,7 +981,7 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_setpgid
 	.llong .sys_ni_syscall		/* old ulimit syscall */
 	.llong .sys_olduname
-	.llong .compat_sys_umask		/* 60 */
+	.llong .compat_sys_umask	/* 60 */
 	.llong .sys_chroot
 	.llong .sys_ustat
 	.llong .sys_dup2
@@ -996,17 +996,17 @@ _GLOBAL(sys_call_table32)
 	.llong .ppc32_sigsuspend
 	.llong .compat_sys_sigpending
 	.llong .compat_sys_sethostname
-	.llong .compat_sys_setrlimit	        /* 75 */
+	.llong .compat_sys_setrlimit	/* 75 */
 	.llong .compat_sys_old_getrlimit
 	.llong .compat_sys_getrusage
 	.llong .compat_sys_gettimeofday
 	.llong .compat_sys_settimeofday
-	.llong .compat_sys_getgroups	        /* 80 */
+	.llong .compat_sys_getgroups	/* 80 */
 	.llong .compat_sys_setgroups
 	.llong .sys_ni_syscall		/* old select syscall */
 	.llong .sys_symlink
 	.llong .sys_ni_syscall		/* old lstat syscall */
-	.llong .compat_sys_readlink	        /* 85 */
+	.llong .compat_sys_readlink	/* 85 */
 	.llong .sys_uselib
 	.llong .sys_swapon
 	.llong .sys_reboot
@@ -1021,12 +1021,12 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_setpriority
 	.llong .sys_ni_syscall		/* old profil syscall */
 	.llong .compat_sys_statfs
-	.llong .compat_sys_fstatfs		/* 100 */
+	.llong .compat_sys_fstatfs	/* 100 */
 	.llong .sys_ni_syscall		/* old ioperm syscall */
 	.llong .compat_sys_socketcall
 	.llong .compat_sys_syslog
 	.llong .compat_sys_setitimer
-	.llong .compat_sys_getitimer		/* 105 */
+	.llong .compat_sys_getitimer	/* 105 */
 	.llong .compat_sys_newstat
 	.llong .compat_sys_newlstat
 	.llong .compat_sys_newfstat
@@ -1038,7 +1038,7 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_wait4
 	.llong .sys_swapoff		/* 115 */
 	.llong .compat_sys_sysinfo
-	.llong .compat_sys_ipc
+	.llong .sys32_ipc
 	.llong .sys_fsync
 	.llong .ppc32_sigreturn
 	.llong .ppc_clone		/* 120 */
@@ -1056,7 +1056,7 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_getpgid
 	.llong .sys_fchdir
 	.llong .sys_bdflush
-	.llong .compat_sys_sysfs		/* 135 */
+	.llong .compat_sys_sysfs	/* 135 */
 	.llong .ppc64_personality
 	.llong .sys_ni_syscall	        /* for afs_syscall */
 	.llong .sys_setfsuid
@@ -1101,7 +1101,7 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_rt_sigqueueinfo
 	.llong .ppc32_rt_sigsuspend
 	.llong .compat_sys_pread64
-	.llong .compat_sys_pwrite64	        /* 180 */
+	.llong .compat_sys_pwrite64	/* 180 */
 	.llong .sys_chown
 	.llong .sys_getcwd
 	.llong .sys_capget
@@ -1166,12 +1166,12 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_timer_gettime
 	.llong .sys_timer_getoverrun
 	.llong .sys_timer_delete
-	.llong .compat_sys_clock_settime	/* 245 */
+	.llong .compat_sys_clock_settime/* 245 */
 	.llong .compat_sys_clock_gettime
 	.llong .compat_sys_clock_getres
 	.llong .compat_sys_clock_nanosleep
 	.llong .ppc32_swapcontext
-	.llong .compat_sys_tgkill		/* 250 */
+	.llong .compat_sys_tgkill	/* 250 */
 	.llong .compat_sys_utimes
 	.llong .compat_sys_statfs64
 	.llong .compat_sys_fstatfs64

@@ -10,6 +10,9 @@ config MMU
 	bool
 	default y
 
+config PPC_STD_MMU
+	def_bool y
+
 config UID16
 	bool
 

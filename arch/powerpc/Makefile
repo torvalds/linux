@@ -131,7 +131,7 @@ core-y				+= arch/powerpc/kernel/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
-core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
+#core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
 drivers-$(CONFIG_8xx)		+= arch/ppc/8xx_io/
 drivers-$(CONFIG_4xx)		+= arch/ppc/4xx_io/
