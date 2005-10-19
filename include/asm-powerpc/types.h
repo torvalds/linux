@@ -1,5 +1,5 @@
-#ifndef _PPC64_TYPES_H
-#define _PPC64_TYPES_H
+#ifndef _ASM_POWERPC_TYPES_H
+#define _ASM_POWERPC_TYPES_H
 
 #ifndef __ASSEMBLY__
 
@@ -16,7 +16,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#ifdef __powerpc64__
 typedef unsigned int umode_t;
+#else
+typedef unsigned short umode_t;
+#endif
 
 /*
  * __xx is ok: it doesn't pollute the POSIX namespace. Use these in the
@@ -32,8 +36,15 @@ typedef unsigned short __u16;
 typedef __signed__ int __s32;
 typedef unsigned int __u32;
 
+#ifdef __powerpc64__
 typedef __signed__ long __s64;
 typedef unsigned long __u64;
+#else
+#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
+typedef __signed__ long long __s64;
+typedef unsigned long long __u64;
+#endif
+#endif /* __powerpc64__ */
 
 typedef struct {
 	__u32 u[4];
@@ -45,7 +56,11 @@ typedef struct {
 /*
  * These aren't exported outside the kernel to avoid name space clashes
  */
+#ifdef __powerpc64__
 #define BITS_PER_LONG 64
+#else
+#define BITS_PER_LONG 32
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -58,8 +73,13 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 
+#ifdef __powerpc64__
 typedef signed long s64;
 typedef unsigned long u64;
+#else
+typedef signed long long s64;
+typedef unsigned long long u64;
+#endif
 
 typedef __vector128 vector128;
 
@@ -72,8 +92,13 @@ typedef struct {
 	unsigned long env;
 } func_descr_t;
 
+#ifdef CONFIG_LBD
+typedef u64 sector_t;
+#define HAVE_SECTOR_T
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
 
-#endif /* _PPC64_TYPES_H */
+#endif /* _ASM_POWERPC_TYPES_H */
