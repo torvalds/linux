@@ -251,6 +251,13 @@ UNUSUAL_DEV(  0x04da, 0x2372, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
 
+/* Reported by Simeon Simeonov <simeonov_2000@yahoo.com> */
+UNUSUAL_DEV(  0x04da, 0x2373, 0x0000, 0x9999,
+		"LEICA",
+		"D-LUX Camera",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
+
 /* Most of the following entries were developed with the help of
  * Shuttle/SCM directly.
  */
