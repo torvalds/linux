@@ -94,6 +94,7 @@ struct sas_rphy {
 /* The functions by which the transport class and the driver communicate */
 struct sas_function_template {
 	int (*get_linkerrors)(struct sas_phy *);
+	int (*phy_reset)(struct sas_phy *, int);
 };
 
 
