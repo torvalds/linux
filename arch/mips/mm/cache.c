@@ -56,6 +56,8 @@ EXPORT_SYMBOL(_dma_cache_inv);
 asmlinkage int sys_cacheflush(unsigned long __user addr,
 	unsigned long bytes, unsigned int cache)
 {
+	if (bytes == 0)
+		return 0;
 	if (!access_ok(VERIFY_WRITE, (void __user *) addr, bytes))
 		return -EFAULT;
 
