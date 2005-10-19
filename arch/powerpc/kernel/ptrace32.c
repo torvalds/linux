@@ -1,5 +1,5 @@
 /*
- *  linux/arch/ppc64/kernel/ptrace32.c
+ * ptrace for 32-bit processes running on a 64-bit kernel.
  *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -10,10 +10,10 @@
  *  linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
  *
  * Modified by Cort Dougan (cort@hq.fsmlabs.com)
- * and Paul Mackerras (paulus@linuxcare.com.au).
+ * and Paul Mackerras (paulus@samba.org).
  *
  * This file is subject to the terms and conditions of the GNU General
- * Public License.  See the file README.legal in the main directory of
+ * Public License.  See the file COPYING in the main directory of
  * this archive for more details.
  */
 
@@ -40,7 +40,8 @@
  * in exit.c or in signal.c.
  */
 
-int compat_sys_ptrace(long request, long pid, unsigned long addr, unsigned long data)
+int compat_sys_ptrace(int request, int pid, unsigned long addr,
+		      unsigned long data)
 {
 	struct task_struct *child;
 	int ret = -EPERM;

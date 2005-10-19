@@ -8,7 +8,7 @@
  *  linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
  *
  * Modified by Cort Dougan (cort@hq.fsmlabs.com)
- * and Paul Mackerras (paulus@linuxcare.com.au).
+ * and Paul Mackerras (paulus@samba.org).
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file README.legal in the main directory of
