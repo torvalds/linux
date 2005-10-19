@@ -10495,6 +10495,17 @@ static const struct ieee80211_geo ipw_geos[] = {
 	       {5210, 42}, {5230, 46}},
 	 },
 
+	{			/* Rest of World */
+	 "ZZR",
+	 .bg_channels = 14,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}, {2467, 12},
+		{2472, 13}, {2484, 14, IEEE80211_CH_B_ONLY |
+			     IEEE80211_CH_PASSIVE_ONLY}},
+	 },
+
 	{			/* High Band */
 	 "ZZH",
 	 .bg_channels = 13,
@@ -10711,8 +10722,13 @@ static int ipw_up(struct ipw_priv *priv)
 				    ipw_geos[j].name, 3))
 				break;
 		}
-		if (j == ARRAY_SIZE(ipw_geos))
+		if (j == ARRAY_SIZE(ipw_geos)) {
+			IPW_WARNING("SKU [%c%c%c] not recognized.\n",
+				    priv->eeprom[EEPROM_COUNTRY_CODE + 0],
+				    priv->eeprom[EEPROM_COUNTRY_CODE + 1],
+				    priv->eeprom[EEPROM_COUNTRY_CODE + 2]);
 			j = 0;
+		}
 		if (ipw_set_geo(priv->ieee, &ipw_geos[j])) {
 			IPW_WARNING("Could not set geography.");
 			return 0;
