@@ -62,6 +62,7 @@ static int buffer_top[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* not spe
 static int use_cache[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* disabled */
 static int vaio_hack[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* disabled */
 static int reset_workaround[SNDRV_CARDS];
+static int reset_workaround_2[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
@@ -83,6 +84,8 @@ module_param_array(vaio_hack, bool, NULL, 0444);
 MODULE_PARM_DESC(vaio_hack, "Enable workaround for Sony VAIO notebooks.");
 module_param_array(reset_workaround, bool, NULL, 0444);
 MODULE_PARM_DESC(reset_workaround, "Enable AC97 RESET workaround for some laptops.");
+module_param_array(reset_workaround_2, bool, NULL, 0444);
+MODULE_PARM_DESC(reset_workaround_2, "Enable extended AC97 RESET workaround for some other laptops.");
 
 /*
  * hw definitions
@@ -226,6 +229,7 @@ struct snd_nm256 {
 	unsigned int coeffs_current: 1;	/* coeff. table is loaded? */
 	unsigned int use_cache: 1;	/* use one big coef. table */
 	unsigned int reset_workaround: 1; /* Workaround for some laptops to avoid freeze */
+	unsigned int reset_workaround_2: 1; /* Extended workaround for some other laptops to avoid freeze */
 
 	int mixer_base;			/* register offset of ac97 mixer */
 	int mixer_status_offset;	/* offset of mixer status reg. */
@@ -1199,8 +1203,11 @@ snd_nm256_ac97_reset(ac97_t *ac97)
 		/* Dell latitude LS will lock up by this */
 		snd_nm256_writeb(chip, 0x6cc, 0x87);
 	}
-	snd_nm256_writeb(chip, 0x6cc, 0x80);
-	snd_nm256_writeb(chip, 0x6cc, 0x0);
+	if (! chip->reset_workaround_2) {
+		/* Dell latitude CSx will lock up by this */
+		snd_nm256_writeb(chip, 0x6cc, 0x80);
+		snd_nm256_writeb(chip, 0x6cc, 0x0);
+	}
 }
 
 /* create an ac97 mixer interface */
@@ -1536,7 +1543,7 @@ struct nm256_quirk {
 	int type;
 };
 
-enum { NM_BLACKLISTED, NM_RESET_WORKAROUND };
+enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
 static struct nm256_quirk nm256_quirks[] __devinitdata = {
 	/* HP omnibook 4150 has cs4232 codec internally */
@@ -1545,6 +1552,8 @@ static struct nm256_quirk nm256_quirks[] __devinitdata = {
 	{ .vendor = 0x104d, .device = 0x8041, .type = NM_RESET_WORKAROUND },
 	/* Dell Latitude LS */
 	{ .vendor = 0x1028, .device = 0x0080, .type = NM_RESET_WORKAROUND },
+	/* Dell Latitude CSx */
+	{ .vendor = 0x1028, .device = 0x0091, .type = NM_RESET_WORKAROUND_2 },
 	{ } /* terminator */
 };
 
@@ -1576,6 +1585,9 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 			case NM_BLACKLISTED:
 				printk(KERN_INFO "nm256: The device is blacklisted.  Loading stopped\n");
 				return -ENODEV;
+			case NM_RESET_WORKAROUND_2:
+				reset_workaround_2[dev] = 1;
+				/* Fall-through */
 			case NM_RESET_WORKAROUND:
 				reset_workaround[dev] = 1;
 				break;
@@ -1630,6 +1642,11 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	if (reset_workaround[dev]) {
 		snd_printdd(KERN_INFO "nm256: reset_workaround activated\n");
 		chip->reset_workaround = 1;
+	}
+
+	if (reset_workaround_2[dev]) {
+		snd_printdd(KERN_INFO "nm256: reset_workaround_2 activated\n");
+		chip->reset_workaround_2 = 1;
 	}
 
 	if ((err = snd_nm256_pcm(chip, 0)) < 0 ||
