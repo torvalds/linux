@@ -4242,8 +4242,8 @@ out:
 }
 
 static void bond_activebackup_xmit_copy(struct sk_buff *skb,
-                                         struct bonding *bond,
-                                         struct slave *slave)
+                                        struct bonding *bond,
+                                        struct slave *slave)
 {
 	struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
 	struct ethhdr *eth_data;
@@ -4259,7 +4259,11 @@ static void bond_activebackup_xmit_copy(struct sk_buff *skb,
 	skb2->mac.raw = (unsigned char *)skb2->data;
 	eth_data = eth_hdr(skb2);
 
-	/* Pick an appropriate source MAC address */
+	/* Pick an appropriate source MAC address
+	 *	-- use slave's perm MAC addr, unless used by bond
+	 *	-- otherwise, borrow active slave's perm MAC addr
+	 *	   since that will not be used
+	 */
 	hwaddr = slave->perm_hwaddr;
 	if (!memcmp(eth_data->h_source, hwaddr, ETH_ALEN))
 		hwaddr = bond->curr_active_slave->perm_hwaddr;
