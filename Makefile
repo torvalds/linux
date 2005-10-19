@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 14
-EXTRAVERSION =-rc3
+EXTRAVERSION =-rc4
 NAME=Affluent Albatross
 
 # *DOCUMENTATION*
@@ -660,8 +660,10 @@ quiet_cmd_sysmap = SYSMAP
 # Link of vmlinux
 # If CONFIG_KALLSYMS is set .version is already updated
 # Generate System.map and verify that the content is consistent
-
+# Use + in front of the vmlinux_version rule to silent warning with make -j2
+# First command is ':' to allow us to use + in front of the rule
 define rule_vmlinux__
+	:
 	$(if $(CONFIG_KALLSYMS),,+$(call cmd,vmlinux_version))
 
 	$(call cmd,vmlinux__)

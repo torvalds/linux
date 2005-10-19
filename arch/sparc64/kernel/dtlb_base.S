@@ -53,19 +53,18 @@
  * be guaranteed to be 0 ... mmu_context.h does guarantee this
  * by only using 10 bits in the hwcontext value.
  */
-#define CREATE_VPTE_OFFSET1(r1, r2)
+#define CREATE_VPTE_OFFSET1(r1, r2) nop
 #define CREATE_VPTE_OFFSET2(r1, r2) \
 				srax	r1, 10, r2
-#define CREATE_VPTE_NOP		nop
 #else
 #define CREATE_VPTE_OFFSET1(r1, r2) \
 				srax	r1, PAGE_SHIFT, r2
 #define CREATE_VPTE_OFFSET2(r1, r2) \
 				sllx	r2, 3, r2
-#define CREATE_VPTE_NOP
 #endif
 
 /* DTLB ** ICACHE line 1: Quick user TLB misses		*/
+	mov		TLB_SFSR, %g1
 	ldxa		[%g1 + %g1] ASI_DMMU, %g4	! Get TAG_ACCESS
 	andcc		%g4, TAG_CONTEXT_BITS, %g0	! From Nucleus?
 from_tl1_trap:
@@ -74,17 +73,15 @@ from_tl1_trap:
 	be,pn		%xcc, kvmap			! Yep, special processing
 	 CREATE_VPTE_OFFSET2(%g4, %g6)			! Create VPTE offset
 	cmp		%g5, 4				! Last trap level?
-	be,pn		%xcc, longpath			! Yep, cannot risk VPTE miss
-	 nop						! delay slot
 
 /* DTLB ** ICACHE line 2: User finish + quick kernel TLB misses	*/
+	be,pn		%xcc, longpath			! Yep, cannot risk VPTE miss
+	 nop						! delay slot
 	ldxa		[%g3 + %g6] ASI_S, %g5		! Load VPTE
 1:	brgez,pn	%g5, longpath			! Invalid, branch out
 	 nop						! Delay-slot
 9:	stxa		%g5, [%g0] ASI_DTLB_DATA_IN	! Reload TLB
 	retry						! Trap return
-	nop
-	nop
 	nop
 
 /* DTLB ** ICACHE line 3: winfixups+real_faults		*/
@@ -106,8 +103,7 @@ longpath:
 	nop
 	nop
 	nop
-	CREATE_VPTE_NOP
+	nop
 
 #undef CREATE_VPTE_OFFSET1
 #undef CREATE_VPTE_OFFSET2
-#undef CREATE_VPTE_NOP

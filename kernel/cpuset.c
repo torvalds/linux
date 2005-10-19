@@ -1670,7 +1670,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  **/
 
-int cpuset_zone_allowed(struct zone *z, unsigned int __nocast gfp_mask)
+int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 {
 	int node;			/* node that zone z is on */
 	const struct cpuset *cs;	/* current cpuset ancestors */

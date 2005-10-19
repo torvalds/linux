@@ -127,7 +127,7 @@ static void compute_prefix_tbl(struct ts_bm *bm, const u8 *pattern,
 }
 
 static struct ts_config *bm_init(const void *pattern, unsigned int len,
-				 unsigned int __nocast gfp_mask)
+				 gfp_t gfp_mask)
 {
 	struct ts_config *conf;
 	struct ts_bm *bm;

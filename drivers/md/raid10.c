@@ -47,7 +47,7 @@
 
 static void unplug_slaves(mddev_t *mddev);
 
-static void * r10bio_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	conf_t *conf = data;
 	r10bio_t *r10_bio;
@@ -81,7 +81,7 @@ static void r10bio_pool_free(void *r10_bio, void *data)
  * one for write (we recover only one drive per r10buf)
  *
  */
-static void * r10buf_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	conf_t *conf = data;
 	struct page *page;

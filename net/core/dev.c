@@ -1132,7 +1132,7 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 #endif
 
 /* Keep head the same: replace data */
-int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+int __skb_linearize(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	unsigned int size;
 	u8 *data;

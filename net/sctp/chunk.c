@@ -62,7 +62,7 @@ static void sctp_datamsg_init(struct sctp_datamsg *msg)
 }
 
 /* Allocate and initialize datamsg. */
-SCTP_STATIC struct sctp_datamsg *sctp_datamsg_new(unsigned int __nocast gfp)
+SCTP_STATIC struct sctp_datamsg *sctp_datamsg_new(gfp_t gfp)
 {
 	struct sctp_datamsg *msg;
 	msg = kmalloc(sizeof(struct sctp_datamsg), gfp);

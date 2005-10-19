@@ -137,7 +137,8 @@ static int nfs_revalidate_file(struct inode *inode, struct file *filp)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int retval = 0;
 
-	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE) || nfs_attribute_timeout(inode))
+	if ((nfsi->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATTR))
+			|| nfs_attribute_timeout(inode))
 		retval = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	nfs_revalidate_mapping(inode, filp->f_mapping);
 	return 0;

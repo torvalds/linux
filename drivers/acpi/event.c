@@ -58,9 +58,8 @@ acpi_system_read_event(struct file *file, char __user * buffer, size_t count,
 			return_VALUE(-EAGAIN);
 
 		result = acpi_bus_receive_event(&event);
-		if (result) {
-			return_VALUE(-EIO);
-		}
+		if (result)
+			return_VALUE(result);
 
 		chars_remaining = sprintf(str, "%s %s %08x %08x\n",
 					  event.device_class ? event.

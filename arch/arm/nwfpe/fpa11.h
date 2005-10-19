@@ -95,4 +95,24 @@ extern int8 SetRoundingMode(const unsigned int);
 extern int8 SetRoundingPrecision(const unsigned int);
 extern void nwfpe_init_fpa(union fp_state *fp);
 
+extern unsigned int EmulateAll(unsigned int opcode);
+
+extern unsigned int EmulateCPDT(const unsigned int opcode);
+extern unsigned int EmulateCPDO(const unsigned int opcode);
+extern unsigned int EmulateCPRT(const unsigned int opcode);
+
+/* fpa11_cpdt.c */
+extern unsigned int PerformLDF(const unsigned int opcode);
+extern unsigned int PerformSTF(const unsigned int opcode);
+extern unsigned int PerformLFM(const unsigned int opcode);
+extern unsigned int PerformSFM(const unsigned int opcode);
+
+/* single_cpdo.c */
+
+extern unsigned int SingleCPDO(struct roundingData *roundData,
+			       const unsigned int opcode, FPREG * rFd);
+/* double_cpdo.c */
+extern unsigned int DoubleCPDO(struct roundingData *roundData,
+			       const unsigned int opcode, FPREG * rFd);
+
 #endif

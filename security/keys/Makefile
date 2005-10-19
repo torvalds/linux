@@ -6,6 +6,7 @@ obj-y := \
 	key.o \
 	keyring.o \
 	keyctl.o \
+	permission.o \
 	process_keys.o \
 	request_key.o \
 	request_key_auth.o \

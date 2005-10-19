@@ -1765,7 +1765,7 @@ static void schizo_pbm_strbuf_init(struct pci_pbm_info *pbm)
 static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct pci_iommu *iommu = pbm->iommu;
-	unsigned long tsbbase, i, tagbase, database, order;
+	unsigned long i, tagbase, database;
 	u32 vdma[2], dma_mask;
 	u64 control;
 	int err, tsbsize;
@@ -1800,10 +1800,6 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 			prom_halt();
 	};
 
-	/* Setup initial software IOMMU state. */
-	spin_lock_init(&iommu->lock);
-	iommu->ctx_lowest_free = 1;
-
 	/* Register addresses, SCHIZO has iommu ctx flushing. */
 	iommu->iommu_control  = pbm->pbm_regs + SCHIZO_IOMMU_CONTROL;
 	iommu->iommu_tsbbase  = pbm->pbm_regs + SCHIZO_IOMMU_TSBBASE;
@@ -1832,56 +1828,9 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
+	pci_iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask);
 
-	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
-	if (!iommu->dummy_page) {
-		prom_printf("PSYCHO_IOMMU: Error, gfp(dummy_page) failed.\n");
-		prom_halt();
-	}
-	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
-	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
-
-	/* Using assumed page size 8K with 128K entries we need 1MB iommu page
-	 * table (128K ioptes * 8 bytes per iopte).  This is
-	 * page order 7 on UltraSparc.
-	 */
-	order = get_order(tsbsize * 8 * 1024);
-	tsbbase = __get_free_pages(GFP_KERNEL, order);
-	if (!tsbbase) {
-		prom_printf("%s: Error, gfp(tsb) failed.\n", pbm->name);
-		prom_halt();
-	}
-
-	iommu->page_table = (iopte_t *)tsbbase;
-	iommu->page_table_map_base = vdma[0];
-	iommu->dma_addr_mask = dma_mask;
-	pci_iommu_table_init(iommu, PAGE_SIZE << order);
-
-	switch (tsbsize) {
-	case 64:
-		iommu->page_table_sz_bits = 16;
-		break;
-
-	case 128:
-		iommu->page_table_sz_bits = 17;
-		break;
-
-	default:
-		prom_printf("iommu_init: Illegal TSB size %d\n", tsbsize);
-		prom_halt();
-		break;
-	};
-
-	/* We start with no consistent mappings. */
-	iommu->lowest_consistent_map =
-		1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS);
-
-	for (i = 0; i < PBM_NCLUSTERS; i++) {
-		iommu->alloc_info[i].flush = 0;
-		iommu->alloc_info[i].next = 0;
-	}
-
-	schizo_write(iommu->iommu_tsbbase, __pa(tsbbase));
+	schizo_write(iommu->iommu_tsbbase, __pa(iommu->page_table));
 
 	control = schizo_read(iommu->iommu_control);
 	control &= ~(SCHIZO_IOMMU_CTRL_TSBSZ | SCHIZO_IOMMU_CTRL_TBWSZ);

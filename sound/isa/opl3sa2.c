@@ -914,6 +914,7 @@ static int __init alsa_card_opl3sa2_init(void)
 #endif
 #ifdef CONFIG_PNP
 		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
+		pnp_unregister_driver(&opl3sa2_pnp_driver);
 #endif
 		return -ENODEV;
 	}
@@ -927,6 +928,7 @@ static void __exit alsa_card_opl3sa2_exit(void)
 #ifdef CONFIG_PNP
 	/* PnP cards first */
 	pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
+	pnp_unregister_driver(&opl3sa2_pnp_driver);
 #endif
 	for (idx = 0; idx < SNDRV_CARDS; idx++)
 		snd_card_free(snd_opl3sa2_legacy[idx]);

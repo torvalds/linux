@@ -225,7 +225,7 @@ expired:
  * SPD calls.
  */
 
-struct xfrm_policy *xfrm_policy_alloc(unsigned int __nocast gfp)
+struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 {
 	struct xfrm_policy *policy;
 

@@ -69,8 +69,7 @@ int cn_already_initialized = 0;
  * a new message.
  *
  */
-int cn_netlink_send(struct cn_msg *msg, u32 __group,
-		    unsigned int __nocast gfp_mask)
+int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 {
 	struct cn_callback_entry *__cbq;
 	unsigned int size;

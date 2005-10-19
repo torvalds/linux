@@ -219,7 +219,7 @@ static void sctp_free_local_addr_list(void)
 
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
-			      unsigned int __nocast gfp, int copy_flags)
+			      gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	int error = 0;

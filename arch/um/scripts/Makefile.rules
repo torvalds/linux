@@ -7,8 +7,8 @@ USER_SINGLE_OBJS := \
 USER_OBJS += $(filter %_user.o,$(obj-y) $(obj-m)  $(USER_SINGLE_OBJS))
 USER_OBJS := $(foreach file,$(USER_OBJS),$(obj)/$(file))
 
-$(USER_OBJS) : c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS) \
-	$(CFLAGS_$(notdir $@))
+$(USER_OBJS) $(USER_OBJS:.o=.i) $(USER_OBJS:.o=.s) $(USER_OBJS:.o=.lst): \
+	c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS) $(CFLAGS_$(notdir $@))
 $(USER_OBJS): cmd_checksrc =
 $(USER_OBJS): quiet_cmd_checksrc =
 $(USER_OBJS): cmd_force_checksrc =
