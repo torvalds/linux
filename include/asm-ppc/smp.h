@@ -35,6 +35,7 @@ extern cpumask_t cpu_possible_map;
 extern unsigned long smp_proc_in_lock[];
 extern volatile unsigned long cpu_callin_map[];
 extern int smp_tb_synchronized;
+extern struct smp_ops_t *smp_ops;
 
 extern void smp_send_tlb_invalidate(int);
 extern void smp_send_xmon_break(int cpu);
