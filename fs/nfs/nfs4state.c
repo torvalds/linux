@@ -676,7 +676,6 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter)
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (new != NULL) {
 		new->sequence = counter;
-		new->task = NULL;
 		spin_lock(&sequence->lock);
 		list_add_tail(&new->list, &sequence->list);
 		spin_unlock(&sequence->lock);
@@ -687,15 +686,10 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter)
 void nfs_free_seqid(struct nfs_seqid *seqid)
 {
 	struct rpc_sequence *sequence = seqid->sequence->sequence;
-	struct rpc_task *next = NULL;
 
 	spin_lock(&sequence->lock);
 	list_del(&seqid->list);
-	if (!list_empty(&sequence->list)) {
-		next = list_entry(sequence->list.next, struct nfs_seqid, list)->task;
-		if (next)
-			rpc_wake_up_task(next);
-	}
+	rpc_wake_up(&sequence->wait);
 	spin_unlock(&sequence->lock);
 	kfree(seqid);
 }
@@ -754,7 +748,6 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 
 	spin_lock(&sequence->lock);
 	if (sequence->list.next != &seqid->list) {
-		seqid->task = task;
 		rpc_sleep_on(&sequence->wait, task, NULL, NULL);
 		status = -EAGAIN;
 	}
