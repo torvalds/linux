@@ -633,7 +633,8 @@ sigreturn_exit:
 	rlwinm	r12,r1,0,0,18	/* current_thread_info() */
 	lwz	r9,TI_FLAGS(r12)
 	andi.	r0,r9,_TIF_SYSCALL_T_OR_A
-	bnel-	do_syscall_trace_leave
+	beq+	ret_from_except_full
+	bl	do_syscall_trace_leave
 	/* fall through */
 
 	.globl	ret_from_except_full
