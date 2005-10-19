@@ -691,7 +691,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	/* Reset the chip to erase previous misconfiguration. */
 	if (netif_msg_hw(np))
 		printk("ASIC Control is %x.\n", ioread32(ioaddr + ASICCtrl));
-	iowrite16(0x007f, ioaddr + ASICCtrl + 2);
+	iowrite16(0x00ff, ioaddr + ASICCtrl + 2);
 	if (netif_msg_hw(np))
 		printk("ASIC Control is now %x.\n", ioread32(ioaddr + ASICCtrl));
 
