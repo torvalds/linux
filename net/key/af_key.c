@@ -185,7 +185,7 @@ static int pfkey_release(struct socket *sock)
 }
 
 static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
-			       unsigned int __nocast allocation, struct sock *sk)
+			       gfp_t allocation, struct sock *sk)
 {
 	int err = -ENOBUFS;
 
@@ -217,7 +217,7 @@ static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
 #define BROADCAST_ONE		1
 #define BROADCAST_REGISTERED	2
 #define BROADCAST_PROMISC_ONLY	4
-static int pfkey_broadcast(struct sk_buff *skb, unsigned int __nocast allocation,
+static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 			   int broadcast_flags, struct sock *one_sk)
 {
 	struct sock *sk;
@@ -1417,7 +1417,7 @@ static int pfkey_get(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 }
 
 static struct sk_buff *compose_sadb_supported(struct sadb_msg *orig,
-					      unsigned int __nocast allocation)
+					      gfp_t allocation)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;

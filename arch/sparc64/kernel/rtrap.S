@@ -312,32 +312,33 @@ kern_fpucheck:	ldub			[%g6 + TI_FPDEPTH], %l5
 		wr			%g1, FPRS_FEF, %fprs
 		ldx			[%o1 + %o5], %g1
 		add			%g6, TI_XFSR, %o1
-		membar			#StoreLoad | #LoadLoad
 		sll			%o0, 8, %o2
 		add			%g6, TI_FPREGS, %o3
 		brz,pn			%l6, 1f
 		 add			%g6, TI_FPREGS+0x40, %o4
 
+		membar			#Sync
 		ldda			[%o3 + %o2] ASI_BLK_P, %f0
 		ldda			[%o4 + %o2] ASI_BLK_P, %f16
+		membar			#Sync
 1:		andcc			%l2, FPRS_DU, %g0
 		be,pn			%icc, 1f
 		 wr			%g1, 0, %gsr
 		add			%o2, 0x80, %o2
+		membar			#Sync
 		ldda			[%o3 + %o2] ASI_BLK_P, %f32
 		ldda			[%o4 + %o2] ASI_BLK_P, %f48
-
 1:		membar			#Sync
 		ldx			[%o1 + %o5], %fsr
 2:		stb			%l5, [%g6 + TI_FPDEPTH]
 		ba,pt			%xcc, rt_continue
 		 nop
 5:		wr			%g0, FPRS_FEF, %fprs
-		membar			#StoreLoad | #LoadLoad
 		sll			%o0, 8, %o2
 
 		add			%g6, TI_FPREGS+0x80, %o3
 		add			%g6, TI_FPREGS+0xc0, %o4
+		membar			#Sync
 		ldda			[%o3 + %o2] ASI_BLK_P, %f32
 		ldda			[%o4 + %o2] ASI_BLK_P, %f48
 		membar			#Sync

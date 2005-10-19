@@ -810,8 +810,14 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu,
 		ac97.private_data = emu;
 		ac97.private_free = snd_emu10k1_mixer_free_ac97;
 		ac97.scaps = AC97_SCAP_NO_SPDIF;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0)
-			return err;
+		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0) {
+			if (emu->card_capabilities->ac97_chip == 1)
+				return err;
+			snd_printd(KERN_INFO "emu10k1: AC97 is optional on this board\n");
+			snd_printd(KERN_INFO"          Proceeding without ac97 mixers...\n");
+			snd_device_free(emu->card, pbus);
+			goto no_ac97; /* FIXME: get rid of ugly gotos.. */
+		}
 		if (emu->audigy) {
 			/* set master volume to 0 dB */
 			snd_ac97_write(emu->ac97, AC97_MASTER, 0x0000);
@@ -836,6 +842,7 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu,
 		for (; *c; c++)
 			remove_ctl(card, *c);
 	} else {
+	no_ac97:
 		if (emu->card_capabilities->ecard)
 			strcpy(emu->card->mixername, "EMU APS");
 		else if (emu->audigy)

@@ -19,7 +19,7 @@
 #include <linux/writeback.h>
 #include <asm/pgtable.h>
 
-static struct bio *get_swap_bio(unsigned int __nocast gfp_flags, pgoff_t index,
+static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
 				struct page *page, bio_end_io_t end_io)
 {
 	struct bio *bio;

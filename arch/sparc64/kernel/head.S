@@ -28,19 +28,14 @@
 #include <asm/mmu.h>
 	
 /* This section from from _start to sparc64_boot_end should fit into
- * 0x0000.0000.0040.4000 to 0x0000.0000.0040.8000 and will be sharing space
- * with bootup_user_stack, which is from 0x0000.0000.0040.4000 to
- * 0x0000.0000.0040.6000 and empty_bad_page, which is from
- * 0x0000.0000.0040.6000 to 0x0000.0000.0040.8000. 
+ * 0x0000000000404000 to 0x0000000000408000.
  */
-
 	.text
 	.globl	start, _start, stext, _stext
 _start:
 start:
 _stext:
 stext:
-bootup_user_stack:
 ! 0x0000000000404000
 	b	sparc64_boot
 	 flushw					/* Flush register file.      */
@@ -191,8 +186,9 @@ prom_boot_mapping_phys_low:
 	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 5
 	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1: "translate"
 	stx	%l5, [%sp + 2047 + 128 + 0x20]	! arg2: prom_mmu_ihandle_cache
-	srlx	%l0, 22, %l3
-	sllx	%l3, 22, %l3
+	/* PAGE align */
+	srlx	%l0, 13, %l3
+	sllx	%l3, 13, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x28]	! arg3: vaddr, our PC
 	stx	%g0, [%sp + 2047 + 128 + 0x30]	! res1
 	stx	%g0, [%sp + 2047 + 128 + 0x38]	! res2
@@ -211,6 +207,9 @@ prom_boot_mapping_phys_low:
 	ldx	[%sp + 2047 + 128 + 0x48], %l2	! physaddr high
 	stx	%l2, [%l4 + 0x0]
 	ldx	[%sp + 2047 + 128 + 0x50], %l3	! physaddr low
+	/* 4MB align */
+	srlx	%l3, 22, %l3
+	sllx	%l3, 22, %l3
 	stx	%l3, [%l4 + 0x8]
 
 	/* Leave service as-is, "call-method" */
@@ -382,32 +381,78 @@ tlb_fixup_done:
 	 nop
 	/* Not reached... */
 
-/* IMPORTANT NOTE: Whenever making changes here, check
- * trampoline.S as well. -jj */
-	.globl	setup_tba
-setup_tba:	/* i0 = is_starfire */
-	save	%sp, -160, %sp
+	/* This is meant to allow the sharing of this code between
+	 * boot processor invocation (via setup_tba() below) and
+	 * secondary processor startup (via trampoline.S).  The
+	 * former does use this code, the latter does not yet due
+	 * to some complexities.  That should be fixed up at some
+	 * point.
+	 *
+	 * There used to be enormous complexity wrt. transferring
+	 * over from the firwmare's trap table to the Linux kernel's.
+	 * For example, there was a chicken & egg problem wrt. building
+	 * the OBP page tables, yet needing to be on the Linux kernel
+	 * trap table (to translate PAGE_OFFSET addresses) in order to
+	 * do that.
+	 *
+	 * We now handle OBP tlb misses differently, via linear lookups
+	 * into the prom_trans[] array.  So that specific problem no
+	 * longer exists.  Yet, unfortunately there are still some issues
+	 * preventing trampoline.S from using this code... ho hum.
+	 */
+	.globl	setup_trap_table
+setup_trap_table:
+	save	%sp, -192, %sp
 
-	rdpr	%tba, %g7
-	sethi	%hi(prom_tba), %o1
-	or	%o1, %lo(prom_tba), %o1
-	stx	%g7, [%o1]
+	/* Force interrupts to be disabled. */
+	rdpr	%pstate, %o1
+	andn	%o1, PSTATE_IE, %o1
+	wrpr	%o1, 0x0, %pstate
+	wrpr	%g0, 15, %pil
 
-	/* Setup "Linux" globals 8-) */
+	/* Make the firmware call to jump over to the Linux trap table.  */
+	call	prom_set_trap_table
+	 sethi	%hi(sparc64_ttable_tl0), %o0
+
+	/* Start using proper page size encodings in ctx register.  */
+	sethi	%hi(sparc64_kern_pri_context), %g3
+	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
+	mov	PRIMARY_CONTEXT, %g1
+	stxa	%g2, [%g1] ASI_DMMU
+	membar	#Sync
+
+	/* The Linux trap handlers expect various trap global registers
+	 * to be setup with some fixed values.  So here we set these
+	 * up very carefully.  These globals are:
+	 *
+	 * Alternate Globals (PSTATE_AG):
+	 *
+	 * %g6			--> current_thread_info()
+	 *
+	 * MMU Globals (PSTATE_MG):
+	 *
+	 * %g1			--> TLB_SFSR
+	 * %g2			--> ((_PAGE_VALID | _PAGE_SZ4MB |
+	 *			      _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
+	 *			     ^ 0xfffff80000000000)
+	 * (this %g2 value is used for computing the PAGE_OFFSET kernel
+	 *  TLB entries quickly, the virtual address of the fault XOR'd
+	 *  with this %g2 value is the PTE to load into the TLB)
+	 * %g3			--> VPTE_BASE_CHEETAH or VPTE_BASE_SPITFIRE
+	 *
+	 * Interrupt Globals (PSTATE_IG, setup by init_irqwork_curcpu()):
+	 *
+	 * %g6			--> __irq_work[smp_processor_id()]
+	 */
+
 	rdpr	%pstate, %o1
 	mov	%g6, %o2
-	wrpr	%o1, (PSTATE_AG|PSTATE_IE), %pstate
-	sethi	%hi(sparc64_ttable_tl0), %g1
-	wrpr	%g1, %tba
+	wrpr	%o1, PSTATE_AG, %pstate
 	mov	%o2, %g6
 
-	/* Set up MMU globals */
-	wrpr	%o1, (PSTATE_MG|PSTATE_IE), %pstate
-
-	/* Set fixed globals used by dTLB miss handler. */
 #define KERN_HIGHBITS		((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
 #define KERN_LOWBITS		(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-
+	wrpr	%o1, PSTATE_MG, %pstate
 	mov	TSB_REG, %g1
 	stxa	%g0, [%g1] ASI_DMMU
 	membar	#Sync
@@ -419,17 +464,17 @@ setup_tba:	/* i0 = is_starfire */
 	sllx	%g2, 32, %g2
 	or	%g2, KERN_LOWBITS, %g2
 
-	BRANCH_IF_ANY_CHEETAH(g3,g7,cheetah_vpte_base)
-	ba,pt	%xcc, spitfire_vpte_base
+	BRANCH_IF_ANY_CHEETAH(g3,g7,8f)
+	ba,pt	%xcc, 9f
 	 nop
 
-cheetah_vpte_base:
+8:
 	sethi		%uhi(VPTE_BASE_CHEETAH), %g3
 	or		%g3, %ulo(VPTE_BASE_CHEETAH), %g3
 	ba,pt		%xcc, 2f
 	 sllx		%g3, 32, %g3
 
-spitfire_vpte_base:
+9:
 	sethi		%uhi(VPTE_BASE_SPITFIRE), %g3
 	or		%g3, %ulo(VPTE_BASE_SPITFIRE), %g3
 	sllx		%g3, 32, %g3
@@ -455,41 +500,55 @@ spitfire_vpte_base:
 	sllx	%o2, 32, %o2
 	wr	%o2, %asr25
 
-	/* Ok, we're done setting up all the state our trap mechanims needs,
-	 * now get back into normal globals and let the PROM know what is up.
-	 */
 2:
 	wrpr	%g0, %g0, %wstate
-	wrpr	%o1, PSTATE_IE, %pstate
+	wrpr	%o1, 0x0, %pstate
 
 	call	init_irqwork_curcpu
 	 nop
 
-	call	prom_set_trap_table
-	 sethi	%hi(sparc64_ttable_tl0), %o0
-
-	/* Start using proper page size encodings in ctx register.  */
-	sethi	%hi(sparc64_kern_pri_context), %g3
-	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
-	mov	PRIMARY_CONTEXT, %g1
-	stxa	%g2, [%g1] ASI_DMMU
-	membar	#Sync
-
+	/* Now we can turn interrupts back on. */
 	rdpr	%pstate, %o1
 	or	%o1, PSTATE_IE, %o1
 	wrpr	%o1, 0, %pstate
+	wrpr	%g0, 0x0, %pil
 
 	ret
 	 restore
 
+	.globl	setup_tba
+setup_tba:	/* i0 = is_starfire */
+	save	%sp, -192, %sp
+
+	/* The boot processor is the only cpu which invokes this
+	 * routine, the other cpus set things up via trampoline.S.
+	 * So save the OBP trap table address here.
+	 */
+	rdpr	%tba, %g7
+	sethi	%hi(prom_tba), %o1
+	or	%o1, %lo(prom_tba), %o1
+	stx	%g7, [%o1]
+
+	call	setup_trap_table
+	 nop
+
+	ret
+	 restore
+sparc64_boot_end:
+
+#include "systbls.S"
+#include "ktlb.S"
+#include "etrap.S"
+#include "rtrap.S"
+#include "winfixup.S"
+#include "entry.S"
+
 /*
- * The following skips make sure the trap table in ttable.S is aligned
+ * The following skip makes sure the trap table in ttable.S is aligned
  * on a 32K boundary as required by the v9 specs for TBA register.
  */
-sparc64_boot_end:
-	.skip	0x2000 + _start - sparc64_boot_end
-bootup_user_stack_end:
-	.skip	0x2000
+1:
+	.skip	0x4000 + _start - 1b
 
 #ifdef CONFIG_SBUS
 /* This is just a hack to fool make depend config.h discovering
@@ -501,15 +560,6 @@ bootup_user_stack_end:
 ! 0x0000000000408000
 
 #include "ttable.S"
-#include "systbls.S"
-#include "ktlb.S"
-#include "etrap.S"
-#include "rtrap.S"
-#include "winfixup.S"
-#include "entry.S"
-
-	/* This is just anal retentiveness on my part... */
-	.align	16384
 
 	.data
 	.align	8

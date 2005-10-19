@@ -492,7 +492,7 @@ static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	tf->flags |= ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
 
-	if ((tf->flags & ATA_TFLAG_LBA48) &&
+	if ((qc->dev->flags & ATA_DFLAG_LBA48) &&
 	    (ata_id_has_flush_ext(qc->dev->id)))
 		tf->command = ATA_CMD_FLUSH_EXT;
 	else
@@ -612,8 +612,6 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
-	unsigned int lba   = tf->flags & ATA_TFLAG_LBA;
-	unsigned int lba48 = tf->flags & ATA_TFLAG_LBA48;
 	u64 dev_sectors = qc->dev->n_sectors;
 	u64 block;
 	u32 n_block;
@@ -634,16 +632,16 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		goto out_of_range;
 	if ((block + n_block) > dev_sectors)
 		goto out_of_range;
-	if (lba48) {
-		if (n_block > (64 * 1024))
-			goto invalid_fld;
-	} else {
-		if (n_block > 256)
-			goto invalid_fld;
-	}
 
-	if (lba) {
-		if (lba48) {
+	if (dev->flags & ATA_DFLAG_LBA) {
+		tf->flags |= ATA_TFLAG_LBA;
+
+		if (dev->flags & ATA_DFLAG_LBA48) {
+			if (n_block > (64 * 1024))
+				goto invalid_fld;
+
+			/* use LBA48 */
+			tf->flags |= ATA_TFLAG_LBA48;
 			tf->command = ATA_CMD_VERIFY_EXT;
 
 			tf->hob_nsect = (n_block >> 8) & 0xff;
@@ -652,6 +650,10 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 			tf->hob_lbam = (block >> 32) & 0xff;
 			tf->hob_lbal = (block >> 24) & 0xff;
 		} else {
+			if (n_block > 256)
+				goto invalid_fld;
+
+			/* use LBA28 */
 			tf->command = ATA_CMD_VERIFY;
 
 			tf->device |= (block >> 24) & 0xf;
@@ -667,6 +669,9 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	} else {
 		/* CHS */
 		u32 sect, head, cyl, track;
+
+		if (n_block > 256)
+			goto invalid_fld;
 
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;
@@ -733,21 +738,14 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
-	unsigned int lba   = tf->flags & ATA_TFLAG_LBA;
-	unsigned int lba48 = tf->flags & ATA_TFLAG_LBA48;
 	u64 block;
 	u32 n_block;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	tf->protocol = qc->dev->xfer_protocol;
 
-	if (scsicmd[0] == READ_10 || scsicmd[0] == READ_6 ||
-	    scsicmd[0] == READ_16) {
-		tf->command = qc->dev->read_cmd;
-	} else {
-		tf->command = qc->dev->write_cmd;
+	if (scsicmd[0] == WRITE_10 || scsicmd[0] == WRITE_6 ||
+	    scsicmd[0] == WRITE_16)
 		tf->flags |= ATA_TFLAG_WRITE;
-	}
 
 	/* Calculate the SCSI LBA and transfer length. */
 	switch (scsicmd[0]) {
@@ -783,11 +781,16 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		 */
 		goto nothing_to_do;
 
-	if (lba) {
-		if (lba48) {
+	if (dev->flags & ATA_DFLAG_LBA) {
+		tf->flags |= ATA_TFLAG_LBA;
+
+		if (dev->flags & ATA_DFLAG_LBA48) {
 			/* The request -may- be too large for LBA48. */
 			if ((block >> 48) || (n_block > 65536))
 				goto out_of_range;
+
+			/* use LBA48 */
+			tf->flags |= ATA_TFLAG_LBA48;
 
 			tf->hob_nsect = (n_block >> 8) & 0xff;
 
@@ -795,7 +798,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 			tf->hob_lbam = (block >> 32) & 0xff;
 			tf->hob_lbal = (block >> 24) & 0xff;
 		} else { 
-			/* LBA28 */
+			/* use LBA28 */
 
 			/* The request -may- be too large for LBA28. */
 			if ((block >> 28) || (n_block > 256))
@@ -803,6 +806,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 
 			tf->device |= (block >> 24) & 0xf;
 		}
+
+		ata_rwcmd_protocol(qc);
 
 		qc->nsect = n_block;
 		tf->nsect = n_block & 0xff;
@@ -819,6 +824,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		/* The request -may- be too large for CHS addressing. */
 		if ((block >> 28) || (n_block > 256))
 			goto out_of_range;
+
+		ata_rwcmd_protocol(qc);
 
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;

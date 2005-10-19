@@ -125,7 +125,7 @@ static int external_map[]   = { 2 };
 static int chip0_map[]      = { 0 };
 static int chip1_map[]      = { 1 };
 
-struct mtd_partition anubis_default_nand_part[] = {
+static struct mtd_partition anubis_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,

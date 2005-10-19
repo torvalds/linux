@@ -873,6 +873,7 @@ static int ti1250_override(struct yenta_socket *socket)
  * Some fixup code to make everybody happy (TM).
  */
 
+#ifdef CONFIG_CARDBUS
 /**
  * set/clear various test bits:
  * Defaults to clear the bit.
@@ -927,7 +928,6 @@ static void ene_tune_bridge(struct pcmcia_socket *sock, struct pci_bus *bus)
 	config_writeb(socket, ENE_TEST_C9, test_c9);
 }
 
-
 static int ene_override(struct yenta_socket *socket)
 {
 	/* install tune_bridge() function */
@@ -935,6 +935,9 @@ static int ene_override(struct yenta_socket *socket)
 
 	return ti1250_override(socket);
 }
+#else
+#  define ene_override ti1250_override
+#endif
 
 #endif /* _LINUX_TI113X_H */
 

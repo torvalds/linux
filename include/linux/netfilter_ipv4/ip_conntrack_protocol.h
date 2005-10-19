@@ -52,6 +52,9 @@ struct ip_conntrack_protocol
 	int (*to_nfattr)(struct sk_buff *skb, struct nfattr *nfa,
 			 const struct ip_conntrack *ct);
 
+	/* convert nfnetlink attributes to protoinfo */
+	int (*from_nfattr)(struct nfattr *tb[], struct ip_conntrack *ct);
+
 	int (*tuple_to_nfattr)(struct sk_buff *skb,
 			       const struct ip_conntrack_tuple *t);
 	int (*nfattr_to_tuple)(struct nfattr *tb[],

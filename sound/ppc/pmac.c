@@ -988,6 +988,7 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		case 0x33:
 		case 0x29:
 		case 0x24:
+		case 0x50:
 		case 0x5c:
 			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
 			chip->model = PMAC_SNAPPER;

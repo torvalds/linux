@@ -892,7 +892,7 @@ static __init void disable_smp(void)
  * those NR_CPUS, hence cpu_possible_map represents entire NR_CPUS range.
  * - Ashok Raj
  */
-static void prefill_possible_map(void)
+__init void prefill_possible_map(void)
 {
 	int i;
 	for (i = 0; i < NR_CPUS; i++)
@@ -966,10 +966,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	nmi_watchdog_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
-
-#ifdef CONFIG_HOTPLUG_CPU
-	prefill_possible_map();
-#endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");

@@ -130,7 +130,7 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
-struct sk_buff *__alloc_skb(unsigned int size, unsigned int __nocast gfp_mask,
+struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int fclone)
 {
 	struct sk_buff *skb;
@@ -198,7 +198,7 @@ nodata:
  */
 struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
 				     unsigned int size,
-				     unsigned int __nocast gfp_mask)
+				     gfp_t gfp_mask)
 {
 	struct sk_buff *skb;
 	u8 *data;
@@ -361,7 +361,7 @@ void __kfree_skb(struct sk_buff *skb)
  *	%GFP_ATOMIC.
  */
 
-struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	struct sk_buff *n;
 
@@ -500,7 +500,7 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
  *	header is going to be modified. Use pskb_copy() instead.
  */
 
-struct sk_buff *skb_copy(const struct sk_buff *skb, unsigned int __nocast gfp_mask)
+struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 {
 	int headerlen = skb->data - skb->head;
 	/*
@@ -539,7 +539,7 @@ struct sk_buff *skb_copy(const struct sk_buff *skb, unsigned int __nocast gfp_ma
  *	The returned buffer has a reference count of 1.
  */
 
-struct sk_buff *pskb_copy(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	/*
 	 *	Allocate the copy buffer
@@ -598,7 +598,7 @@ out:
  */
 
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
-		     unsigned int __nocast gfp_mask)
+		     gfp_t gfp_mask)
 {
 	int i;
 	u8 *data;
@@ -689,7 +689,7 @@ struct sk_buff *skb_realloc_headroom(struct sk_buff *skb, unsigned int headroom)
  */
 struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				int newheadroom, int newtailroom,
-				unsigned int __nocast gfp_mask)
+				gfp_t gfp_mask)
 {
 	/*
 	 *	Allocate the copy buffer

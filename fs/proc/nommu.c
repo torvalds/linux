@@ -91,6 +91,7 @@ static void *nommu_vma_list_start(struct seq_file *m, loff_t *_pos)
 			next = _rb;
 			break;
 		}
+		pos--;
 	}
 
 	return next;

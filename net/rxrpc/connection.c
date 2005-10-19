@@ -522,7 +522,7 @@ int rxrpc_conn_newmsg(struct rxrpc_connection *conn,
 		      uint8_t type,
 		      int dcount,
 		      struct kvec diov[],
-		      unsigned int __nocast alloc_flags,
+		      gfp_t alloc_flags,
 		      struct rxrpc_message **_msg)
 {
 	struct rxrpc_message *msg;

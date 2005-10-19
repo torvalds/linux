@@ -63,6 +63,7 @@
 static unsigned int ata_busy_sleep (struct ata_port *ap,
 				    unsigned long tmout_pat,
 			    	    unsigned long tmout);
+static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
@@ -617,79 +618,53 @@ void ata_tf_from_fis(u8 *fis, struct ata_taskfile *tf)
 	tf->hob_nsect	= fis[13];
 }
 
-/**
- *	ata_prot_to_cmd - determine which read/write opcodes to use
- *	@protocol: ATA_PROT_xxx taskfile protocol
- *	@lba48: true is lba48 is present
- *
- *	Given necessary input, determine which read/write commands
- *	to use to transfer data.
- *
- *	LOCKING:
- *	None.
- */
-static int ata_prot_to_cmd(int protocol, int lba48)
-{
-	int rcmd = 0, wcmd = 0;
-
-	switch (protocol) {
-	case ATA_PROT_PIO:
-		if (lba48) {
-			rcmd = ATA_CMD_PIO_READ_EXT;
-			wcmd = ATA_CMD_PIO_WRITE_EXT;
-		} else {
-			rcmd = ATA_CMD_PIO_READ;
-			wcmd = ATA_CMD_PIO_WRITE;
-		}
-		break;
-
-	case ATA_PROT_DMA:
-		if (lba48) {
-			rcmd = ATA_CMD_READ_EXT;
-			wcmd = ATA_CMD_WRITE_EXT;
-		} else {
-			rcmd = ATA_CMD_READ;
-			wcmd = ATA_CMD_WRITE;
-		}
-		break;
-
-	default:
-		return -1;
-	}
-
-	return rcmd | (wcmd << 8);
-}
+static const u8 ata_rw_cmds[] = {
+	/* pio multi */
+	ATA_CMD_READ_MULTI,
+	ATA_CMD_WRITE_MULTI,
+	ATA_CMD_READ_MULTI_EXT,
+	ATA_CMD_WRITE_MULTI_EXT,
+	/* pio */
+	ATA_CMD_PIO_READ,
+	ATA_CMD_PIO_WRITE,
+	ATA_CMD_PIO_READ_EXT,
+	ATA_CMD_PIO_WRITE_EXT,
+	/* dma */
+	ATA_CMD_READ,
+	ATA_CMD_WRITE,
+	ATA_CMD_READ_EXT,
+	ATA_CMD_WRITE_EXT
+};
 
 /**
- *	ata_dev_set_protocol - set taskfile protocol and r/w commands
- *	@dev: device to examine and configure
+ *	ata_rwcmd_protocol - set taskfile r/w commands and protocol
+ *	@qc: command to examine and configure
  *
- *	Examine the device configuration, after we have
- *	read the identify-device page and configured the
- *	data transfer mode.  Set internal state related to
- *	the ATA taskfile protocol (pio, pio mult, dma, etc.)
- *	and calculate the proper read/write commands to use.
+ *	Examine the device configuration and tf->flags to calculate 
+ *	the proper read/write commands and protocol to use.
  *
  *	LOCKING:
  *	caller.
  */
-static void ata_dev_set_protocol(struct ata_device *dev)
+void ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 {
-	int pio = (dev->flags & ATA_DFLAG_PIO);
-	int lba48 = (dev->flags & ATA_DFLAG_LBA48);
-	int proto, cmd;
+	struct ata_taskfile *tf = &qc->tf;
+	struct ata_device *dev = qc->dev;
 
-	if (pio)
-		proto = dev->xfer_protocol = ATA_PROT_PIO;
-	else
-		proto = dev->xfer_protocol = ATA_PROT_DMA;
+	int index, lba48, write;
+ 
+	lba48 = (tf->flags & ATA_TFLAG_LBA48) ? 2 : 0;
+	write = (tf->flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
-	cmd = ata_prot_to_cmd(proto, lba48);
-	if (cmd < 0)
-		BUG();
+	if (dev->flags & ATA_DFLAG_PIO) {
+		tf->protocol = ATA_PROT_PIO;
+		index = dev->multi_count ? 0 : 4;
+	} else {
+		tf->protocol = ATA_PROT_DMA;
+		index = 8;
+	}
 
-	dev->read_cmd = cmd & 0xff;
-	dev->write_cmd = (cmd >> 8) & 0xff;
+	tf->command = ata_rw_cmds[index + lba48 + write];
 }
 
 static const char * xfer_mode_str[] = {
@@ -1267,8 +1242,14 @@ retry:
 		 * anything else..
 		 * Some drives were very specific about that exact sequence.
 		 */
-		if (major_version < 4 || (!ata_id_has_lba(dev->id)))
+		if (major_version < 4 || (!ata_id_has_lba(dev->id))) {
 			ata_dev_init_params(ap, dev);
+
+			/* current CHS translation info (id[53-58]) might be
+			 * changed. reread the identify device info.
+			 */
+			ata_dev_reread_id(ap, dev);
+		}
 
 		if (ata_id_has_lba(dev->id)) {
 			dev->flags |= ATA_DFLAG_LBA;
@@ -1645,7 +1626,7 @@ static void ata_host_set_dma(struct ata_port *ap, u8 xfer_mode,
  */
 static void ata_set_mode(struct ata_port *ap)
 {
-	unsigned int i, xfer_shift;
+	unsigned int xfer_shift;
 	u8 xfer_mode;
 	int rc;
 
@@ -1673,11 +1654,6 @@ static void ata_set_mode(struct ata_port *ap)
 
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
-
-	for (i = 0; i < 2; i++) {
-		struct ata_device *dev = &ap->device[i];
-		ata_dev_set_protocol(dev);
-	}
 
 	return;
 
@@ -2183,6 +2159,62 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 		wait_for_completion(&wait);
 
 	DPRINTK("EXIT\n");
+}
+
+/**
+ *	ata_dev_reread_id - Reread the device identify device info
+ *	@ap: port where the device is
+ *	@dev: device to reread the identify device info
+ *
+ *	LOCKING:
+ */
+
+static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
+{
+	DECLARE_COMPLETION(wait);
+	struct ata_queued_cmd *qc;
+	unsigned long flags;
+	int rc;
+
+	qc = ata_qc_new_init(ap, dev);
+	BUG_ON(qc == NULL);
+
+	ata_sg_init_one(qc, dev->id, sizeof(dev->id));
+	qc->dma_dir = DMA_FROM_DEVICE;
+
+	if (dev->class == ATA_DEV_ATA) {
+		qc->tf.command = ATA_CMD_ID_ATA;
+		DPRINTK("do ATA identify\n");
+	} else {
+		qc->tf.command = ATA_CMD_ID_ATAPI;
+		DPRINTK("do ATAPI identify\n");
+	}
+
+	qc->tf.flags |= ATA_TFLAG_DEVICE;
+	qc->tf.protocol = ATA_PROT_PIO;
+	qc->nsect = 1;
+
+	qc->waiting = &wait;
+	qc->complete_fn = ata_qc_complete_noop;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	rc = ata_qc_issue(qc);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	if (rc)
+		goto err_out;
+
+	wait_for_completion(&wait);
+
+	swap_buf_le16(dev->id, ATA_ID_WORDS);
+
+	ata_dump_id(dev);
+
+	DPRINTK("EXIT\n");
+
+	return;
+err_out:
+	ata_port_disable(ap);
 }
 
 /**
@@ -3327,13 +3359,6 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 		qc->nbytes = qc->curbytes = 0;
 
 		ata_tf_init(ap, &qc->tf, dev->devno);
-
-		if (dev->flags & ATA_DFLAG_LBA) {
-			qc->tf.flags |= ATA_TFLAG_LBA;
-
-			if (dev->flags & ATA_DFLAG_LBA48)
-				qc->tf.flags |= ATA_TFLAG_LBA48;
-		}
 	}
 
 	return qc;

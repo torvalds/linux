@@ -286,7 +286,7 @@ static inline void rfcomm_set_owner_w(struct sk_buff *skb, struct rfcomm_dev *de
 	skb->destructor = rfcomm_wfree;
 }
 
-static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size, unsigned int __nocast priority)
+static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size, gfp_t priority)
 {
 	if (atomic_read(&dev->wmem_alloc) < rfcomm_room(dev->dlc)) {
 		struct sk_buff *skb = alloc_skb(size, priority);

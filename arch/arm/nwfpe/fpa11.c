@@ -31,11 +31,6 @@
 #include <linux/string.h>
 #include <asm/system.h>
 
-/* forward declarations */
-unsigned int EmulateCPDO(const unsigned int);
-unsigned int EmulateCPDT(const unsigned int);
-unsigned int EmulateCPRT(const unsigned int);
-
 /* Reset the FPA11 chip.  Called to initialize and reset the emulator. */
 static void resetFPA11(void)
 {

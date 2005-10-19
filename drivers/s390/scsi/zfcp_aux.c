@@ -833,7 +833,7 @@ zfcp_unit_dequeue(struct zfcp_unit *unit)
 }
 
 static void *
-zfcp_mempool_alloc(unsigned int __nocast gfp_mask, void *size)
+zfcp_mempool_alloc(gfp_t gfp_mask, void *size)
 {
 	return kmalloc((size_t) size, gfp_mask);
 }
