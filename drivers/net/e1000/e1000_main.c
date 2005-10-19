@@ -43,7 +43,7 @@ char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION		"6.0.60-k2"DRIVERNAPI
+#define DRV_VERSION "6.1.16-k2"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 char e1000_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
@@ -80,6 +80,9 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x1026),
 	INTEL_E1000_ETHERNET_DEVICE(0x1027),
 	INTEL_E1000_ETHERNET_DEVICE(0x1028),
+	INTEL_E1000_ETHERNET_DEVICE(0x105E),
+	INTEL_E1000_ETHERNET_DEVICE(0x105F),
+	INTEL_E1000_ETHERNET_DEVICE(0x1060),
 	INTEL_E1000_ETHERNET_DEVICE(0x1075),
 	INTEL_E1000_ETHERNET_DEVICE(0x1076),
 	INTEL_E1000_ETHERNET_DEVICE(0x1077),
@@ -88,10 +91,13 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x107A),
 	INTEL_E1000_ETHERNET_DEVICE(0x107B),
 	INTEL_E1000_ETHERNET_DEVICE(0x107C),
+	INTEL_E1000_ETHERNET_DEVICE(0x107D),
+	INTEL_E1000_ETHERNET_DEVICE(0x107E),
+	INTEL_E1000_ETHERNET_DEVICE(0x107F),
 	INTEL_E1000_ETHERNET_DEVICE(0x108A),
 	INTEL_E1000_ETHERNET_DEVICE(0x108B),
 	INTEL_E1000_ETHERNET_DEVICE(0x108C),
-	INTEL_E1000_ETHERNET_DEVICE(0x1099),
+	INTEL_E1000_ETHERNET_DEVICE(0x109A),
 	/* required last entry */
 	{0,}
 };
@@ -398,8 +404,7 @@ e1000_down(struct e1000_adapter *adapter)
 	e1000_clean_all_tx_rings(adapter);
 	e1000_clean_all_rx_rings(adapter);
 
-	/* If WoL is not enabled
-	 * and management mode is not IAMT
+	/* If WoL is not enabled and management mode is not IAMT
 	 * Power down the PHY so no link is implied when interface is down */
 	if(!adapter->wol && adapter->hw.mac_type >= e1000_82540 &&
 	   adapter->hw.media_type == e1000_media_type_copper &&
