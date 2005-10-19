@@ -552,7 +552,8 @@ const static struct {
 
 	{ "RTL-8100B/8139D",
 	  HW_REVID(1, 1, 1, 0, 1, 0, 1),
-	  HasLWake,
+	  HasHltClk /* XXX undocumented? */
+	| HasLWake,
 	},
 
 	{ "RTL-8101",
