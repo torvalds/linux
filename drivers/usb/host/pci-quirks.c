@@ -23,33 +23,6 @@
 #include <linux/acpi.h>
 
 
-/*
- * PIIX3 USB: We have to disable USB interrupts that are
- * hardwired to PIRQD# and may be shared with an
- * external device.
- *
- * Legacy Support Register (LEGSUP):
- *     bit13:  USB PIRQ Enable (USBPIRQDEN),
- *     bit4:   Trap/SMI On IRQ Enable (USBSMIEN).
- *
- * We mask out all r/wc bits, too.
- */
-static void __devinit quirk_piix3_usb(struct pci_dev *dev)
-{
-	u16 legsup;
-
-	pci_read_config_word(dev, 0xc0, &legsup);
-	legsup &= 0x50ef;
-	pci_write_config_word(dev, 0xc0, legsup);
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371SB_2,	quirk_piix3_usb );
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_2,	quirk_piix3_usb );
-
-
-/* FIXME these should be the guts of hcd->reset() methods; resolve all
- * the differences between this version and the HCD's version.
- */
-
 #define UHCI_USBLEGSUP		0xc0		/* legacy support */
 #define UHCI_USBCMD		0		/* command register */
 #define UHCI_USBINTR		4		/* interrupt register */
@@ -83,13 +56,6 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_2,	qui
 #define EHCI_USBLEGCTLSTS	4		/* legacy control/status */
 #define EHCI_USBLEGCTLSTS_SOOE	(1 << 13)	/* SMI on ownership change */
 
-int usb_early_handoff __devinitdata = 0;
-static int __init usb_handoff_early(char *str)
-{
-	usb_early_handoff = 1;
-	return 0;
-}
-__setup("usb-handoff", usb_handoff_early);
 
 /*
  * Make sure the controller is completely inactive, unable to
@@ -320,17 +286,11 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 
 static void __devinit quirk_usb_early_handoff(struct pci_dev *pdev)
 {
-	if (!usb_early_handoff)
-		return;
-
-	if (pdev->class == ((PCI_CLASS_SERIAL_USB << 8) | 0x00)) { /* UHCI */
+	if (pdev->class == PCI_CLASS_SERIAL_USB_UHCI)
 		quirk_usb_handoff_uhci(pdev);
-	} else if (pdev->class == ((PCI_CLASS_SERIAL_USB << 8) | 0x10)) { /* OHCI */
+	else if (pdev->class == PCI_CLASS_SERIAL_USB_OHCI)
 		quirk_usb_handoff_ohci(pdev);
-	} else if (pdev->class == ((PCI_CLASS_SERIAL_USB << 8) | 0x20)) { /* EHCI */
+	else if (pdev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		quirk_usb_disable_ehci(pdev);
-	}
-
-	return;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_usb_early_handoff);
