@@ -954,6 +954,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     use_cache        - 0 or 1 (disabled by default)
     vaio_hack        - alias buffer_top=0x25a800
     reset_workaround - enable AC97 RESET workaround for some laptops
+    reset_workaround2 - enable extended AC97 RESET workaround for some
+		      other laptops
 
     Module supports autoprobe and multiple chips (max 8).
 
@@ -983,6 +985,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     known hardware like Dell Latitude LS and Sony PCG-F305, this
     workaround is enabled automatically.  For other laptops with a
     hard freeze, you can try reset_workaround=1 option.
+
+    Note: Dell Latitude CSx laptops have another problem regarding
+    AC97 RESET.  On these laptops, reset_workaround2 option is
+    turned on as default.  This option is worth to try if the
+    previous reset_workaround option doesn't help.
 
     Note: This driver is really crappy.  It's a porting from the
     OSS driver, which is a result of black-magic reverse engineering.
