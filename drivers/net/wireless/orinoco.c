@@ -492,11 +492,9 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Check packet length, pad short packets, round up odd length */
 	len = max_t(int, ALIGN(skb->len, 2), ETH_ZLEN);
-	if (skb->len < len) {
-		skb = skb_padto(skb, len);
-		if (skb == NULL)
-			goto fail;
-	}
+	skb = skb_padto(skb, len);
+	if (skb == NULL)
+		goto fail;
 	len -= ETH_HLEN;
 
 	eh = (struct ethhdr *)skb->data;
