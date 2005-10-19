@@ -338,7 +338,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (host_encrypt || ieee->host_open_frag) {
 		/* Determine fragmentation size based on destination (multicast
 		 * and broadcast are not fragmented) */
-		if (is_multicast_ether_addr(dest))
+		if (is_multicast_ether_addr(dest) ||
+		    is_broadcast_ether_addr(dest))
 			frag_size = MAX_FRAG_THRESHOLD;
 		else
 			frag_size = ieee->fts;
