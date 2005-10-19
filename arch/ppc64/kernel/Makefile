@@ -12,7 +12,7 @@ obj-y               :=	setup.o entry.o misc.o prom.o
 endif
 
 obj-y               +=	irq.o idle.o dma.o \
-			time.o signal.o \
+			signal.o \
 			align.o bitops.o pacaData.o \
 			udbg.o ioctl32.o \
 			rtc.o \

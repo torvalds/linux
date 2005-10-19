@@ -37,7 +37,7 @@ endif
 # These are here while we do the architecture merge
 
 else
-obj-y				:= irq.o idle.o time.o \
+obj-y				:= irq.o idle.o \
 					align.o perfmon.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o

@@ -588,17 +588,6 @@ pmu_get_model(void)
 	return pmu_kind;
 }
 
-#ifndef CONFIG_PPC64
-static inline void wakeup_decrementer(void)
-{
-	set_dec(tb_ticks_per_jiffy);
-	/* No currently-supported powerbook has a 601,
-	 * so use get_tbl, not native
-	 */
-	last_jiffy_stamp(0) = tb_last_stamp = get_tbl();
-}
-#endif
-
 static void pmu_set_server_mode(int server_mode)
 {
 	struct adb_request req;

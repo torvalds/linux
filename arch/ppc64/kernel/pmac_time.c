@@ -180,7 +180,5 @@ void __init pmac_calibrate_decr(void)
 	if (fp == 0)
 		panic("can't get cpu processor frequency");
 	ppc_proc_freq = *fp;
-
-	setup_default_decr();
 }
 

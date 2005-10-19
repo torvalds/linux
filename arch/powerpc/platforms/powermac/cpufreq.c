@@ -110,15 +110,6 @@ static inline void local_delay(unsigned long ms)
 		msleep(ms);
 }
 
-static inline void wakeup_decrementer(void)
-{
-	set_dec(tb_ticks_per_jiffy);
-	/* No currently-supported powerbook has a 601,
-	 * so use get_tbl, not native
-	 */
-	last_jiffy_stamp(0) = tb_last_stamp = get_tbl();
-}
-
 #ifdef DEBUG_FREQ
 static inline void debug_calc_bogomips(void)
 {

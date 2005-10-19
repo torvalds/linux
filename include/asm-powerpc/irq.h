@@ -496,5 +496,7 @@ extern int call_handle_IRQ_event(int irq, struct pt_regs *regs,
 
 #endif /* CONFIG_IRQSTACKS */
 
+extern void do_IRQ(struct pt_regs *regs);
+
 #endif /* _ASM_IRQ_H */
 #endif /* __KERNEL__ */

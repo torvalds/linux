@@ -6,6 +6,8 @@
  *
  * Paul Mackerras	August 1996.
  * Copyright (C) 1996 Paul Mackerras.
+ * Copyright (C) 2003-2005 Benjamin Herrenschmidt.
+ *
  */
 #include <linux/config.h>
 #include <linux/errno.h>
@@ -19,7 +21,9 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
+#include <linux/interrupt.h>
 #include <linux/hardirq.h>
+#include <linux/rtc.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>
@@ -29,6 +33,14 @@
 #include <asm/machdep.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
+
+#undef DEBUG
+
+#ifdef DEBUG
+#define DBG(x...) printk(x)
+#else
+#define DBG(x...)
+#endif
 
 /* Apparently the RTC stores seconds since 1 Jan 1904 */
 #define RTC_OFFSET	2082844800
@@ -54,10 +66,7 @@
 /* Bits in IFR and IER */
 #define T1_INT		0x40		/* Timer 1 interrupt */
 
-extern struct timezone sys_tz;
-
-long __init
-pmac_time_init(void)
+long __init pmac_time_init(void)
 {
 #ifdef CONFIG_NVRAM
 	s32 delta = 0;
@@ -210,7 +219,7 @@ via_calibrate_decr(void)
 	tb_ticks_per_jiffy = (dstart - dend) / ((6 * HZ)/100);
 	tb_to_us = mulhwu_scale_factor(dstart - dend, 60000);
 
-	printk(KERN_INFO "via_calibrate_decr: ticks per jiffy = %u (%u ticks)\n",
+	printk(KERN_INFO "via_calibrate_decr: ticks per jiffy = %lu (%u ticks)\n",
 	       tb_ticks_per_jiffy, dstart - dend);
 
 	iounmap(via);
@@ -228,6 +237,7 @@ time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	static unsigned long time_diff;
 	unsigned long flags;
 	unsigned long seq;
+	struct timespec tv;
 
 	switch (when) {
 	case PBOOK_SLEEP_NOW:
@@ -237,11 +247,9 @@ time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 		break;
 	case PBOOK_WAKE:
-		write_seqlock_irqsave(&xtime_lock, flags);
-		xtime.tv_sec = pmac_get_rtc_time() + time_diff;
-		xtime.tv_nsec = 0;
-		last_rtc_update = xtime.tv_sec;
-		write_sequnlock_irqrestore(&xtime_lock, flags);
+		tv.tv_sec = pmac_get_boot_time() + time_diff;
+		tv.tv_nsec = 0;
+		do_settimeofday(&tv);
 		break;
 	}
 	return PBOOK_SLEEP_OK;

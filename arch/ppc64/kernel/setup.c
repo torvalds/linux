@@ -1083,15 +1083,6 @@ void ppc64_terminate_msg(unsigned int src, const char *msg)
 	printk("[terminate]%04x %s\n", src, msg);
 }
 
-/* This should only be called on processor 0 during calibrate decr */
-void __init setup_default_decr(void)
-{
-	struct paca_struct *lpaca = get_paca();
-
-	lpaca->default_decr = tb_ticks_per_jiffy;
-	lpaca->next_jiffy_update_tb = get_tb() + tb_ticks_per_jiffy;
-}
-
 #ifndef CONFIG_PPC_ISERIES
 /*
  * This function can be used by platforms to "find" legacy serial ports.

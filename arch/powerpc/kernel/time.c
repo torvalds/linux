@@ -1,5 +1,4 @@
 /*
- * 
  * Common time routines among all ppc machines.
  *
  * Written by Cort Dougan (cort@cs.nmt.edu) to merge
@@ -44,29 +43,32 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/kernel_stat.h>
-#include <linux/mc146818rtc.h>
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/profile.h>
 #include <linux/cpu.h>
 #include <linux/security.h>
+#include <linux/percpu.h>
+#include <linux/rtc.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/nvram.h>
 #include <asm/cache.h>
 #include <asm/machdep.h>
+#include <asm/uaccess.h>
+#include <asm/time.h>
+#include <asm/prom.h>
+#include <asm/irq.h>
+#include <asm/div64.h>
+#ifdef CONFIG_PPC64
+#include <asm/systemcfg.h>
+#include <asm/firmware.h>
+#endif
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/HvCallXm.h>
 #endif
-#include <asm/uaccess.h>
-#include <asm/time.h>
-#include <asm/ppcdebug.h>
-#include <asm/prom.h>
-#include <asm/sections.h>
-#include <asm/systemcfg.h>
-#include <asm/firmware.h>
 
 u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
@@ -81,27 +83,37 @@ unsigned long iSeries_recal_tb = 0;
 static unsigned long first_settimeofday = 1;
 #endif
 
+/* The decrementer counts down by 128 every 128ns on a 601. */
+#define DECREMENTER_COUNT_601	(1000000000 / HZ)
+
 #define XSEC_PER_SEC (1024*1024)
+
+#ifdef CONFIG_PPC64
+#define SCALE_XSEC(xsec, max)	(((xsec) * max) / XSEC_PER_SEC)
+#else
+/* compute ((xsec << 12) * max) >> 32 */
+#define SCALE_XSEC(xsec, max)	mulhwu((xsec) << 12, max)
+#endif
 
 unsigned long tb_ticks_per_jiffy;
 unsigned long tb_ticks_per_usec = 100; /* sane default */
 EXPORT_SYMBOL(tb_ticks_per_usec);
 unsigned long tb_ticks_per_sec;
-unsigned long tb_to_xs;
-unsigned      tb_to_us;
+u64 tb_to_xs;
+unsigned tb_to_us;
 unsigned long processor_freq;
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
 
-unsigned long tb_to_ns_scale;
-unsigned long tb_to_ns_shift;
+u64 tb_to_ns_scale;
+unsigned tb_to_ns_shift;
 
 struct gettimeofday_struct do_gtod;
 
 extern unsigned long wall_jiffies;
-extern int smp_tb_synchronized;
 
 extern struct timezone sys_tz;
+static long timezone_offset;
 
 void ppc_adjtimex(void);
 
@@ -109,6 +121,10 @@ static unsigned adjusting_time = 0;
 
 unsigned long ppc_proc_freq;
 unsigned long ppc_tb_freq;
+
+#ifdef CONFIG_PPC32	/* XXX for now */
+#define boot_cpuid	0
+#endif
 
 static __inline__ void timer_check_rtc(void)
 {
@@ -129,30 +145,30 @@ static __inline__ void timer_check_rtc(void)
          * seconds like on Intel to avoid problems with non UTC clocks.
          */
         if (ntp_synced() &&
-             xtime.tv_sec - last_rtc_update >= 659 &&
-             abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ &&
-             jiffies - wall_jiffies == 1) {
-	    struct rtc_time tm;
-	    to_tm(xtime.tv_sec+1, &tm);
-	    tm.tm_year -= 1900;
-	    tm.tm_mon -= 1;
-            if (ppc_md.set_rtc_time(&tm) == 0)
-                last_rtc_update = xtime.tv_sec+1;
-            else
-                /* Try again one minute later */
-                last_rtc_update += 60;
+	    xtime.tv_sec - last_rtc_update >= 659 &&
+	    abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ &&
+	    jiffies - wall_jiffies == 1) {
+		struct rtc_time tm;
+		to_tm(xtime.tv_sec + 1 + timezone_offset, &tm);
+		tm.tm_year -= 1900;
+		tm.tm_mon -= 1;
+		if (ppc_md.set_rtc_time(&tm) == 0)
+			last_rtc_update = xtime.tv_sec + 1;
+		else
+			/* Try again one minute later */
+			last_rtc_update += 60;
         }
 }
 
 /*
  * This version of gettimeofday has microsecond resolution.
  */
-static inline void __do_gettimeofday(struct timeval *tv, unsigned long tb_val)
+static inline void __do_gettimeofday(struct timeval *tv, u64 tb_val)
 {
-	unsigned long sec, usec, tb_ticks;
-	unsigned long xsec, tb_xsec;
-	struct gettimeofday_vars * temp_varp;
-	unsigned long temp_tb_to_xs, temp_stamp_xsec;
+	unsigned long sec, usec;
+	u64 tb_ticks, xsec;
+	struct gettimeofday_vars *temp_varp;
+	u64 temp_tb_to_xs, temp_stamp_xsec;
 
 	/*
 	 * These calculations are faster (gets rid of divides)
@@ -164,11 +180,10 @@ static inline void __do_gettimeofday(struct timeval *tv, unsigned long tb_val)
 	tb_ticks = tb_val - temp_varp->tb_orig_stamp;
 	temp_tb_to_xs = temp_varp->tb_to_xs;
 	temp_stamp_xsec = temp_varp->stamp_xsec;
-	tb_xsec = mulhdu( tb_ticks, temp_tb_to_xs );
-	xsec = temp_stamp_xsec + tb_xsec;
+	xsec = temp_stamp_xsec + mulhdu(tb_ticks, temp_tb_to_xs);
 	sec = xsec / XSEC_PER_SEC;
-	xsec -= sec * XSEC_PER_SEC;
-	usec = (xsec * USEC_PER_SEC)/XSEC_PER_SEC;
+	usec = (unsigned long)xsec & (XSEC_PER_SEC - 1);
+	usec = SCALE_XSEC(usec, 1000000);
 
 	tv->tv_sec = sec;
 	tv->tv_usec = usec;
@@ -185,6 +200,8 @@ EXPORT_SYMBOL(do_gettimeofday);
 
 static inline void timer_sync_xtime(unsigned long cur_tb)
 {
+#ifdef CONFIG_PPC64
+	/* why do we do this? */
 	struct timeval my_tv;
 
 	__do_gettimeofday(&my_tv, cur_tb);
@@ -193,6 +210,51 @@ static inline void timer_sync_xtime(unsigned long cur_tb)
 		xtime.tv_sec = my_tv.tv_sec;
 		xtime.tv_nsec = my_tv.tv_usec * 1000;
 	}
+#endif
+}
+
+/*
+ * There are two copies of tb_to_xs and stamp_xsec so that no
+ * lock is needed to access and use these values in
+ * do_gettimeofday.  We alternate the copies and as long as a
+ * reasonable time elapses between changes, there will never
+ * be inconsistent values.  ntpd has a minimum of one minute
+ * between updates.
+ */
+static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
+			       unsigned int new_tb_to_xs)
+{
+	unsigned temp_idx;
+	struct gettimeofday_vars *temp_varp;
+
+	temp_idx = (do_gtod.var_idx == 0);
+	temp_varp = &do_gtod.vars[temp_idx];
+
+	temp_varp->tb_to_xs = new_tb_to_xs;
+	temp_varp->tb_orig_stamp = new_tb_stamp;
+	temp_varp->stamp_xsec = new_stamp_xsec;
+	smp_mb();
+	do_gtod.varp = temp_varp;
+	do_gtod.var_idx = temp_idx;
+
+#ifdef CONFIG_PPC64
+	/*
+	 * tb_update_count is used to allow the userspace gettimeofday code
+	 * to assure itself that it sees a consistent view of the tb_to_xs and
+	 * stamp_xsec variables.  It reads the tb_update_count, then reads
+	 * tb_to_xs and stamp_xsec and then reads tb_update_count again.  If
+	 * the two values of tb_update_count match and are even then the
+	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
+	 * loops back and reads them again until this criteria is met.
+	 */
+	++(systemcfg->tb_update_count);
+	smp_wmb();
+	systemcfg->tb_orig_stamp = new_tb_stamp;
+	systemcfg->stamp_xsec = new_stamp_xsec;
+	systemcfg->tb_to_xs = new_tb_to_xs;
+	smp_wmb();
+	++(systemcfg->tb_update_count);
+#endif
 }
 
 /*
@@ -205,35 +267,17 @@ static inline void timer_sync_xtime(unsigned long cur_tb)
  * with a too big difference, then the vdso will fallback to calling
  * the syscall
  */
-static __inline__ void timer_recalc_offset(unsigned long cur_tb)
+static __inline__ void timer_recalc_offset(u64 cur_tb)
 {
-	struct gettimeofday_vars * temp_varp;
-	unsigned temp_idx;
-	unsigned long offset, new_stamp_xsec, new_tb_orig_stamp;
+	unsigned long offset;
+	u64 new_stamp_xsec;
 
-	if (((cur_tb - do_gtod.varp->tb_orig_stamp) & 0x80000000u) == 0)
+	offset = cur_tb - do_gtod.varp->tb_orig_stamp;
+	if ((offset & 0x80000000u) == 0)
 		return;
-
-	temp_idx = (do_gtod.var_idx == 0);
-	temp_varp = &do_gtod.vars[temp_idx];
-
-	new_tb_orig_stamp = cur_tb;
-	offset = new_tb_orig_stamp - do_gtod.varp->tb_orig_stamp;
-	new_stamp_xsec = do_gtod.varp->stamp_xsec + mulhdu(offset, do_gtod.varp->tb_to_xs);
-
-	temp_varp->tb_to_xs = do_gtod.varp->tb_to_xs;
-	temp_varp->tb_orig_stamp = new_tb_orig_stamp;
-	temp_varp->stamp_xsec = new_stamp_xsec;
-	smp_mb();
-	do_gtod.varp = temp_varp;
-	do_gtod.var_idx = temp_idx;
-
-	++(systemcfg->tb_update_count);
-	smp_wmb();
-	systemcfg->tb_orig_stamp = new_tb_orig_stamp;
-	systemcfg->stamp_xsec = new_stamp_xsec;
-	smp_wmb();
-	++(systemcfg->tb_update_count);
+	new_stamp_xsec = do_gtod.varp->stamp_xsec
+		+ mulhdu(offset, do_gtod.varp->tb_to_xs);
+	update_gtod(cur_tb, new_stamp_xsec, do_gtod.varp->tb_to_xs);
 }
 
 #ifdef CONFIG_SMP
@@ -313,7 +357,14 @@ static void iSeries_tb_recal(void)
  * call will not be needed)
  */
 
-unsigned long tb_last_stamp __cacheline_aligned_in_smp;
+u64 tb_last_stamp __cacheline_aligned_in_smp;
+
+/*
+ * Note that on ppc32 this only stores the bottom 32 bits of
+ * the timebase value, but that's enough to tell when a jiffy
+ * has passed.
+ */
+DEFINE_PER_CPU(unsigned long, last_jiffy);
 
 /*
  * timer_interrupt - gets called when the decrementer overflows,
@@ -322,17 +373,30 @@ unsigned long tb_last_stamp __cacheline_aligned_in_smp;
 void timer_interrupt(struct pt_regs * regs)
 {
 	int next_dec;
-	unsigned long cur_tb;
-	struct paca_struct *lpaca = get_paca();
-	unsigned long cpu = smp_processor_id();
+	int cpu = smp_processor_id();
+	unsigned long ticks;
+
+#ifdef CONFIG_PPC32
+	if (atomic_read(&ppc_n_lost_interrupts) != 0)
+		do_IRQ(regs);
+#endif
 
 	irq_enter();
 
 	profile_tick(CPU_PROFILING, regs);
 
-	lpaca->lppaca.int_dword.fields.decr_int = 0;
+#ifdef CONFIG_PPC_ISERIES
+	get_paca()->lppaca.int_dword.fields.decr_int = 0;
+#endif
 
-	while (lpaca->next_jiffy_update_tb <= (cur_tb = get_tb())) {
+	while ((ticks = tb_ticks_since(per_cpu(last_jiffy, cpu)))
+	       >= tb_ticks_per_jiffy) {
+		/* Update last_jiffy */
+		per_cpu(last_jiffy, cpu) += tb_ticks_per_jiffy;
+		/* Handle RTCL overflow on 601 */
+		if (__USE_RTC() && per_cpu(last_jiffy, cpu) >= 1000000000)
+			per_cpu(last_jiffy, cpu) -= 1000000000;
+
 		/*
 		 * We cannot disable the decrementer, so in the period
 		 * between this cpu's being marked offline in cpu_online_map
@@ -342,27 +406,26 @@ void timer_interrupt(struct pt_regs * regs)
 		 */
 		if (!cpu_is_offline(cpu))
 			update_process_times(user_mode(regs));
+
 		/*
 		 * No need to check whether cpu is offline here; boot_cpuid
 		 * should have been fixed up by now.
 		 */
-		if (cpu == boot_cpuid) {
-			write_seqlock(&xtime_lock);
-			tb_last_stamp = lpaca->next_jiffy_update_tb;
-			timer_recalc_offset(lpaca->next_jiffy_update_tb);
-			do_timer(regs);
-			timer_sync_xtime(lpaca->next_jiffy_update_tb);
-			timer_check_rtc();
-			write_sequnlock(&xtime_lock);
-			if ( adjusting_time && (time_adjust == 0) )
-				ppc_adjtimex();
-		}
-		lpaca->next_jiffy_update_tb += tb_ticks_per_jiffy;
+		if (cpu != boot_cpuid)
+			continue;
+
+		write_seqlock(&xtime_lock);
+		tb_last_stamp += tb_ticks_per_jiffy;
+		timer_recalc_offset(tb_last_stamp);
+		do_timer(regs);
+		timer_sync_xtime(tb_last_stamp);
+		timer_check_rtc();
+		write_sequnlock(&xtime_lock);
+		if (adjusting_time && (time_adjust == 0))
+			ppc_adjtimex();
 	}
 	
-	next_dec = lpaca->next_jiffy_update_tb - cur_tb;
-	if (next_dec > lpaca->default_decr)
-        	next_dec = lpaca->default_decr;
+	next_dec = tb_ticks_per_jiffy - ticks;
 	set_dec(next_dec);
 
 #ifdef CONFIG_PPC_ISERIES
@@ -370,14 +433,46 @@ void timer_interrupt(struct pt_regs * regs)
 		process_hvlpevents(regs);
 #endif
 
+#ifdef CONFIG_PPC64
 	/* collect purr register values often, for accurate calculations */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
 		cu->current_tb = mfspr(SPRN_PURR);
 	}
+#endif
 
 	irq_exit();
 }
+
+void wakeup_decrementer(void)
+{
+	int i;
+
+	set_dec(tb_ticks_per_jiffy);
+	/*
+	 * We don't expect this to be called on a machine with a 601,
+	 * so using get_tbl is fine.
+	 */
+	tb_last_stamp = get_tb();
+	for_each_cpu(i)
+		per_cpu(last_jiffy, i) = tb_last_stamp;
+}
+
+#ifdef CONFIG_SMPxxx
+void __init smp_space_timers(unsigned int max_cpus)
+{
+	int i;
+	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
+	unsigned long previous_tb = per_cpu(last_jiffy, boot_cpuid);
+
+	for_each_cpu(i) {
+		if (i != boot_cpuid) {
+			previous_tb += offset;
+			per_cpu(last_jiffy, i) = previous_tb;
+		}
+	}
+}
+#endif
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -396,23 +491,24 @@ int do_settimeofday(struct timespec *tv)
 	time_t wtm_sec, new_sec = tv->tv_sec;
 	long wtm_nsec, new_nsec = tv->tv_nsec;
 	unsigned long flags;
-	unsigned long delta_xsec;
 	long int tb_delta;
-	unsigned long new_xsec;
+	u64 new_xsec;
 
 	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
 
 	write_seqlock_irqsave(&xtime_lock, flags);
-	/* Updating the RTC is not the job of this code. If the time is
-	 * stepped under NTP, the RTC will be update after STA_UNSYNC
-	 * is cleared. Tool like clock/hwclock either copy the RTC
+
+	/*
+	 * Updating the RTC is not the job of this code. If the time is
+	 * stepped under NTP, the RTC will be updated after STA_UNSYNC
+	 * is cleared.  Tools like clock/hwclock either copy the RTC
 	 * to the system time, in which case there is no point in writing
 	 * to the RTC again, or write to the RTC but then they don't call
 	 * settimeofday to perform this operation.
 	 */
 #ifdef CONFIG_PPC_ISERIES
-	if ( first_settimeofday ) {
+	if (first_settimeofday) {
 		iSeries_tb_recal();
 		first_settimeofday = 0;
 	}
@@ -420,7 +516,7 @@ int do_settimeofday(struct timespec *tv)
 	tb_delta = tb_ticks_since(tb_last_stamp);
 	tb_delta += (jiffies - wall_jiffies) * tb_ticks_per_jiffy;
 
-	new_nsec -= tb_delta / tb_ticks_per_usec / 1000;
+	new_nsec -= 1000 * mulhwu(tb_to_us, tb_delta);
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - new_sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - new_nsec);
@@ -435,28 +531,15 @@ int do_settimeofday(struct timespec *tv)
 
 	ntp_clear();
 
-	delta_xsec = mulhdu( (tb_last_stamp-do_gtod.varp->tb_orig_stamp),
-			     do_gtod.varp->tb_to_xs );
+	new_xsec = (u64)new_nsec * XSEC_PER_SEC;
+	do_div(new_xsec, NSEC_PER_SEC);
+	new_xsec += (u64)new_sec * XSEC_PER_SEC;
+	update_gtod(tb_last_stamp, new_xsec, do_gtod.varp->tb_to_xs);
 
-	new_xsec = (new_nsec * XSEC_PER_SEC) / NSEC_PER_SEC;
-	new_xsec += new_sec * XSEC_PER_SEC;
-	if ( new_xsec > delta_xsec ) {
-		do_gtod.varp->stamp_xsec = new_xsec - delta_xsec;
-		systemcfg->stamp_xsec = new_xsec - delta_xsec;
-	}
-	else {
-		/* This is only for the case where the user is setting the time
-		 * way back to a time such that the boot time would have been
-		 * before 1970 ... eg. we booted ten days ago, and we are setting
-		 * the time to Jan 5, 1970 */
-		do_gtod.varp->stamp_xsec = new_xsec;
-		do_gtod.varp->tb_orig_stamp = tb_last_stamp;
-		systemcfg->stamp_xsec = new_xsec;
-		systemcfg->tb_orig_stamp = tb_last_stamp;
-	}
-
+#ifdef CONFIG_PPC64
 	systemcfg->tz_minuteswest = sys_tz.tz_minuteswest;
 	systemcfg->tz_dsttime = sys_tz.tz_dsttime;
+#endif
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	clock_was_set();
@@ -520,20 +603,39 @@ void __init generic_calibrate_decr(void)
 	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
 	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
 	tb_to_xs = divres.result_low;
-
-	setup_default_decr();
 }
 #endif
 
+unsigned long get_boot_time(void)
+{
+	struct rtc_time tm;
+
+	if (ppc_md.get_boot_time)
+		return ppc_md.get_boot_time();
+	if (!ppc_md.get_rtc_time)
+		return 0;
+	ppc_md.get_rtc_time(&tm);
+	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+		      tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+/* This function is only called on the boot processor */
 void __init time_init(void)
 {
-	/* This function is only called on the boot processor */
 	unsigned long flags;
-	struct rtc_time tm;
+	unsigned long tm = 0;
 	struct div_result res;
-	unsigned long scale, shift;
+	u64 scale;
+	unsigned shift;
+
+        if (ppc_md.time_init != NULL)
+                timezone_offset = ppc_md.time_init();
 
 	ppc_md.calibrate_decr();
+
+#ifdef CONFIG_PPC64
+	get_paca()->default_decr = tb_ticks_per_jiffy;
+#endif
 
 	/*
 	 * Compute scale factor for sched_clock.
@@ -557,29 +659,37 @@ void __init time_init(void)
 #ifdef CONFIG_PPC_ISERIES
 	if (!piranha_simulator)
 #endif
-		ppc_md.get_boot_time(&tm);
+		tm = get_boot_time();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
-	xtime.tv_sec = mktime(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			      tm.tm_hour, tm.tm_min, tm.tm_sec);
+	xtime.tv_sec = tm;
+	xtime.tv_nsec = 0;
 	tb_last_stamp = get_tb();
 	do_gtod.varp = &do_gtod.vars[0];
 	do_gtod.var_idx = 0;
 	do_gtod.varp->tb_orig_stamp = tb_last_stamp;
-	get_paca()->next_jiffy_update_tb = tb_last_stamp + tb_ticks_per_jiffy;
-	do_gtod.varp->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
+	__get_cpu_var(last_jiffy) = tb_last_stamp;
+	do_gtod.varp->stamp_xsec = (u64) xtime.tv_sec * XSEC_PER_SEC;
 	do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 	do_gtod.varp->tb_to_xs = tb_to_xs;
 	do_gtod.tb_to_us = tb_to_us;
+#ifdef CONFIG_PPC64
 	systemcfg->tb_orig_stamp = tb_last_stamp;
 	systemcfg->tb_update_count = 0;
 	systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
 	systemcfg->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
 	systemcfg->tb_to_xs = tb_to_xs;
+#endif
 
 	time_freq = 0;
 
-	xtime.tv_nsec = 0;
+	/* If platform provided a timezone (pmac), we correct the time */
+        if (timezone_offset) {
+		sys_tz.tz_minuteswest = -timezone_offset / 60;
+		sys_tz.tz_dsttime = 0;
+		xtime.tv_sec -= timezone_offset;
+        }
+
 	last_rtc_update = xtime.tv_sec;
 	set_normalized_timespec(&wall_to_monotonic,
 	                        -xtime.tv_sec, -xtime.tv_nsec);
@@ -602,25 +712,28 @@ void __init time_init(void)
 
 void ppc_adjtimex(void)
 {
-	unsigned long den, new_tb_ticks_per_sec, tb_ticks, old_xsec, new_tb_to_xs, new_xsec, new_stamp_xsec;
+#ifdef CONFIG_PPC64
+	unsigned long den, new_tb_ticks_per_sec, tb_ticks, old_xsec,
+		new_tb_to_xs, new_xsec, new_stamp_xsec;
 	unsigned long tb_ticks_per_sec_delta;
 	long delta_freq, ltemp;
 	struct div_result divres; 
 	unsigned long flags;
-	struct gettimeofday_vars * temp_varp;
-	unsigned temp_idx;
 	long singleshot_ppm = 0;
 
-	/* Compute parts per million frequency adjustment to accomplish the time adjustment
-	   implied by time_offset to be applied over the elapsed time indicated by time_constant.
-	   Use SHIFT_USEC to get it into the same units as time_freq. */
+	/*
+	 * Compute parts per million frequency adjustment to
+	 * accomplish the time adjustment implied by time_offset to be
+	 * applied over the elapsed time indicated by time_constant.
+	 * Use SHIFT_USEC to get it into the same units as
+	 * time_freq.
+	 */
 	if ( time_offset < 0 ) {
 		ltemp = -time_offset;
 		ltemp <<= SHIFT_USEC - SHIFT_UPDATE;
 		ltemp >>= SHIFT_KG + time_constant;
 		ltemp = -ltemp;
-	}
-	else {
+	} else {
 		ltemp = time_offset;
 		ltemp <<= SHIFT_USEC - SHIFT_UPDATE;
 		ltemp >>= SHIFT_KG + time_constant;
@@ -637,7 +750,10 @@ void ppc_adjtimex(void)
 	
 		adjusting_time = 1;
 		
-		/* Compute parts per million frequency adjustment to match time_adjust */
+		/*
+		 * Compute parts per million frequency adjustment
+		 * to match time_adjust
+		 */
 		singleshot_ppm = tickadj * HZ;	
 		/*
 		 * The adjustment should be tickadj*HZ to match the code in
@@ -645,7 +761,7 @@ void ppc_adjtimex(void)
 		 * large. 3/4 of tickadj*HZ seems about right
 		 */
 		singleshot_ppm -= singleshot_ppm / 4;
-		/* Use SHIFT_USEC to get it into the same units as time_freq */	
+		/* Use SHIFT_USEC to get it into the same units as time_freq */
 		singleshot_ppm <<= SHIFT_USEC;
 		if ( time_adjust < 0 )
 			singleshot_ppm = -singleshot_ppm;
@@ -661,7 +777,10 @@ void ppc_adjtimex(void)
 	/* Add up all of the frequency adjustments */
 	delta_freq = time_freq + ltemp + singleshot_ppm;
 	
-	/* Compute a new value for tb_ticks_per_sec based on the frequency adjustment */
+	/*
+	 * Compute a new value for tb_ticks_per_sec based on
+	 * the frequency adjustment
+	 */
 	den = 1000000 * (1 << (SHIFT_USEC - 8));
 	if ( delta_freq < 0 ) {
 		tb_ticks_per_sec_delta = ( tb_ticks_per_sec * ( (-delta_freq) >> (SHIFT_USEC - 8))) / den;
@@ -676,61 +795,37 @@ void ppc_adjtimex(void)
 	printk("ppc_adjtimex: ltemp = %ld, time_freq = %ld, singleshot_ppm = %ld\n", ltemp, time_freq, singleshot_ppm);
 	printk("ppc_adjtimex: tb_ticks_per_sec - base = %ld  new = %ld\n", tb_ticks_per_sec, new_tb_ticks_per_sec);
 #endif
-				
-	/* Compute a new value of tb_to_xs (used to convert tb to microseconds and a new value of 
-	   stamp_xsec which is the time (in 1/2^20 second units) corresponding to tb_orig_stamp.  This 
-	   new value of stamp_xsec compensates for the change in frequency (implied by the new tb_to_xs)
-	   which guarantees that the current time remains the same */ 
-	write_seqlock_irqsave( &xtime_lock, flags );
-	tb_ticks = get_tb() - do_gtod.varp->tb_orig_stamp;
-	div128_by_32( 1024*1024, 0, new_tb_ticks_per_sec, &divres );
-	new_tb_to_xs = divres.result_low;
-	new_xsec = mulhdu( tb_ticks, new_tb_to_xs );
-
-	old_xsec = mulhdu( tb_ticks, do_gtod.varp->tb_to_xs );
-	new_stamp_xsec = do_gtod.varp->stamp_xsec + old_xsec - new_xsec;
-
-	/* There are two copies of tb_to_xs and stamp_xsec so that no lock is needed to access and use these
-	   values in do_gettimeofday.  We alternate the copies and as long as a reasonable time elapses between
-	   changes, there will never be inconsistent values.  ntpd has a minimum of one minute between updates */
-
-	temp_idx = (do_gtod.var_idx == 0);
-	temp_varp = &do_gtod.vars[temp_idx];
-
-	temp_varp->tb_to_xs = new_tb_to_xs;
-	temp_varp->stamp_xsec = new_stamp_xsec;
-	temp_varp->tb_orig_stamp = do_gtod.varp->tb_orig_stamp;
-	smp_mb();
-	do_gtod.varp = temp_varp;
-	do_gtod.var_idx = temp_idx;
 
 	/*
-	 * tb_update_count is used to allow the problem state gettimeofday code
-	 * to assure itself that it sees a consistent view of the tb_to_xs and
-	 * stamp_xsec variables.  It reads the tb_update_count, then reads
-	 * tb_to_xs and stamp_xsec and then reads tb_update_count again.  If
-	 * the two values of tb_update_count match and are even then the
-	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
-	 * loops back and reads them again until this criteria is met.
+	 * Compute a new value of tb_to_xs (used to convert tb to
+	 * microseconds) and a new value of stamp_xsec which is the
+	 * time (in 1/2^20 second units) corresponding to
+	 * tb_orig_stamp.  This new value of stamp_xsec compensates
+	 * for the change in frequency (implied by the new tb_to_xs)
+	 * which guarantees that the current time remains the same.
 	 */
-	++(systemcfg->tb_update_count);
-	smp_wmb();
-	systemcfg->tb_to_xs = new_tb_to_xs;
-	systemcfg->stamp_xsec = new_stamp_xsec;
-	smp_wmb();
-	++(systemcfg->tb_update_count);
+	write_seqlock_irqsave( &xtime_lock, flags );
+	tb_ticks = get_tb() - do_gtod.varp->tb_orig_stamp;
+	div128_by_32(1024*1024, 0, new_tb_ticks_per_sec, &divres);
+	new_tb_to_xs = divres.result_low;
+	new_xsec = mulhdu(tb_ticks, new_tb_to_xs);
+
+	old_xsec = mulhdu(tb_ticks, do_gtod.varp->tb_to_xs);
+	new_stamp_xsec = do_gtod.varp->stamp_xsec + old_xsec - new_xsec;
+
+	update_gtod(do_gtod.varp->tb_orig_stamp, new_stamp_xsec, new_tb_to_xs);
 
 	write_sequnlock_irqrestore( &xtime_lock, flags );
-
+#endif /* CONFIG_PPC64 */
 }
 
 
-#define TICK_SIZE tick
 #define FEBRUARY	2
 #define	STARTOFTIME	1970
 #define SECDAY		86400L
 #define SECYR		(SECDAY * 365)
-#define	leapyear(year)		((year) % 4 == 0)
+#define	leapyear(year)		((year) % 4 == 0 && \
+				 ((year) % 100 != 0 || (year) % 400 == 0))
 #define	days_in_year(a) 	(leapyear(a) ? 366 : 365)
 #define	days_in_month(a) 	(month_days[(a) - 1])
 
@@ -748,37 +843,25 @@ void GregorianDay(struct rtc_time * tm)
 	int day;
 	int MonthOffset[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
 
-	lastYear=tm->tm_year-1;
+	lastYear = tm->tm_year - 1;
 
 	/*
 	 * Number of leap corrections to apply up to end of last year
 	 */
-	leapsToDate = lastYear/4 - lastYear/100 + lastYear/400;
+	leapsToDate = lastYear / 4 - lastYear / 100 + lastYear / 400;
 
 	/*
 	 * This year is a leap year if it is divisible by 4 except when it is
 	 * divisible by 100 unless it is divisible by 400
 	 *
-	 * e.g. 1904 was a leap year, 1900 was not, 1996 is, and 2000 will be
+	 * e.g. 1904 was a leap year, 1900 was not, 1996 is, and 2000 was
 	 */
-	if((tm->tm_year%4==0) &&
-	   ((tm->tm_year%100!=0) || (tm->tm_year%400==0)) &&
-	   (tm->tm_mon>2))
-	{
-		/*
-		 * We are past Feb. 29 in a leap year
-		 */
-		day=1;
-	}
-	else
-	{
-		day=0;
-	}
+	day = tm->tm_mon > 2 && leapyear(tm->tm_year);
 
 	day += lastYear*365 + leapsToDate + MonthOffset[tm->tm_mon-1] +
 		   tm->tm_mday;
 
-	tm->tm_wday=day%7;
+	tm->tm_wday = day % 7;
 }
 
 void to_tm(int tim, struct rtc_time * tm)
@@ -824,14 +907,16 @@ void to_tm(int tim, struct rtc_time * tm)
  * oscillators and the precision with which the timebase frequency
  * is measured but does not harm.
  */
-unsigned mulhwu_scale_factor(unsigned inscale, unsigned outscale) {
+unsigned mulhwu_scale_factor(unsigned inscale, unsigned outscale)
+{
         unsigned mlt=0, tmp, err;
         /* No concern for performance, it's done once: use a stupid
          * but safe and compact method to find the multiplier.
          */
   
         for (tmp = 1U<<31; tmp != 0; tmp >>= 1) {
-                if (mulhwu(inscale, mlt|tmp) < outscale) mlt|=tmp;
+                if (mulhwu(inscale, mlt|tmp) < outscale)
+			mlt |= tmp;
         }
   
         /* We might still be off by 1 for the best approximation.
@@ -841,39 +926,53 @@ unsigned mulhwu_scale_factor(unsigned inscale, unsigned outscale) {
          * some might have been forgotten in the test however.
          */
   
-        err = inscale*(mlt+1);
-        if (err <= inscale/2) mlt++;
+        err = inscale * (mlt+1);
+        if (err <= inscale/2)
+		mlt++;
         return mlt;
-  }
+}
 
 /*
  * Divide a 128-bit dividend by a 32-bit divisor, leaving a 128 bit
  * result.
  */
-
-void div128_by_32( unsigned long dividend_high, unsigned long dividend_low,
-		   unsigned divisor, struct div_result *dr )
+void div128_by_32(u64 dividend_high, u64 dividend_low,
+		  unsigned divisor, struct div_result *dr)
 {
-	unsigned long a,b,c,d, w,x,y,z, ra,rb,rc;
+	unsigned long a, b, c, d;
+	unsigned long w, x, y, z;
+	u64 ra, rb, rc;
 
 	a = dividend_high >> 32;
 	b = dividend_high & 0xffffffff;
 	c = dividend_low >> 32;
 	d = dividend_low & 0xffffffff;
 
-	w = a/divisor;
-	ra = (a - (w * divisor)) << 32;
+	w = a / divisor;
+	ra = ((u64)(a - (w * divisor)) << 32) + b;
 
-	x = (ra + b)/divisor;
-	rb = ((ra + b) - (x * divisor)) << 32;
+#ifdef CONFIG_PPC64
+	x = ra / divisor;
+	rb = ((ra - (x * divisor)) << 32) + c;
 
-	y = (rb + c)/divisor;
-	rc = ((rb + b) - (y * divisor)) << 32;
+	y = rb / divisor;
+	rc = ((rb - (y * divisor)) << 32) + d;
 
-	z = (rc + d)/divisor;
+	z = rc / divisor;
+#else
+	/* for 32-bit, use do_div from div64.h */
+	rb = ((u64) do_div(ra, divisor) << 32) + c;
+	x = ra;
 
-	dr->result_high = (w << 32) + x;
-	dr->result_low  = (y << 32) + z;
+	rc = ((u64) do_div(rb, divisor) << 32) + d;
+	y = rb;
+
+	do_div(rc, divisor);
+	z = rc;
+#endif
+
+	dr->result_high = ((u64)w << 32) + x;
+	dr->result_low  = ((u64)y << 32) + z;
 
 }
 

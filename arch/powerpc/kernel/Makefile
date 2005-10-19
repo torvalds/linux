@@ -29,7 +29,7 @@ extra-$(CONFIG_PPC64)		+= entry_64.o
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
-obj-y				+= process.o init_task.o \
+obj-y				+= process.o init_task.o time.o \
 				   prom.o systbl.o traps.o
 obj-$(CONFIG_PPC32)		+= entry_32.o idle_6xx.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= setup_64.o misc_64.o
@@ -44,7 +44,7 @@ endif
 
 else
 # stuff used from here for ARCH=ppc or ARCH=ppc64
-obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o
+obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o
 
 fpux-$(CONFIG_PPC32)		+= fpu.o
 extra-$(CONFIG_PPC_FPU)		+= $(fpux-y)

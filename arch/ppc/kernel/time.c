@@ -121,6 +121,15 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 #endif
 
+void wakeup_decrementer(void)
+{
+	set_dec(tb_ticks_per_jiffy);
+	/* No currently-supported powerbook has a 601,
+	 * so use get_tbl, not native
+	 */
+	last_jiffy_stamp(0) = tb_last_stamp = get_tbl();
+}
+
 /*
  * timer_interrupt - gets called when the decrementer overflows,
  * with interrupts disabled.
