@@ -56,6 +56,9 @@ struct sas_phy {
 	enum sas_linkrate	maximum_linkrate;
 	u8			port_identifier;
 
+	/* internal state */
+	unsigned int		local_attached : 1;
+
 	/* link error statistics */
 	u32			invalid_dword_count;
 	u32			running_disparity_error_count;

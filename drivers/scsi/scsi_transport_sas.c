@@ -266,6 +266,9 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	struct sas_internal *i = to_sas_internal(shost->transportt);	\
 	int error;							\
 									\
+	if (!phy->local_attached)					\
+		return -EINVAL;						\
+									\
 	error = i->f->get_linkerrors(phy);				\
 	if (error)							\
 		return error;						\

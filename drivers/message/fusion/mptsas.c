@@ -760,7 +760,7 @@ mptsas_parse_device_info(struct sas_identify *identify,
 }
 
 static int mptsas_probe_one_phy(struct device *dev,
-		struct mptsas_phyinfo *phy_info, int index)
+		struct mptsas_phyinfo *phy_info, int index, int local)
 {
 	struct sas_phy *port;
 	int error;
@@ -853,6 +853,9 @@ static int mptsas_probe_one_phy(struct device *dev,
 		break;
 	}
 
+	if (local)
+		port->local_attached = 1;
+
 	error = sas_phy_add(port);
 	if (error) {
 		sas_phy_free(port);
@@ -918,7 +921,7 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
 		}
 
 		mptsas_probe_one_phy(&ioc->sh->shost_gendev,
-				     &port_info->phy_info[i], *index);
+				     &port_info->phy_info[i], *index, 1);
 		(*index)++;
 	}
 
@@ -989,7 +992,8 @@ mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
 			}
 		}
 
-		mptsas_probe_one_phy(parent, &port_info->phy_info[i], *index);
+		mptsas_probe_one_phy(parent, &port_info->phy_info[i],
+				     *index, 0);
 		(*index)++;
 	}
 
