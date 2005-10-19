@@ -17,7 +17,7 @@ obj-y               +=	irq.o idle.o dma.o \
 			udbg.o ioctl32.o \
 			rtc.o \
 			cpu_setup_power4.o \
-			iommu.o sysfs.o vdso.o pmc.o firmware.o
+			iommu.o sysfs.o vdso.o firmware.o
 obj-y += vdso32/ vdso64/
 
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o

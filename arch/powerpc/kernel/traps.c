@@ -40,9 +40,9 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/xmon.h>
+#include <asm/pmc.h>
 #ifdef CONFIG_PPC32
 #include <asm/reg.h>
-#include <asm/perfmon.h>
 #endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
@@ -51,7 +51,6 @@
 #include <asm/firmware.h>
 #include <asm/processor.h>
 #include <asm/systemcfg.h>
-#include <asm/pmc.h>
 #endif
 
 #ifdef CONFIG_PPC64	/* XXX */

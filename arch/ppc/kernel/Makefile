@@ -15,7 +15,7 @@ extra-y				+= vmlinux.lds
 obj-y				:= entry.o traps.o irq.o idle.o time.o misc.o \
 					process.o align.o \
 					setup.o \
-					ppc_htab.o perfmon.o
+					ppc_htab.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_POWER4)		+= cpu_setup_power4.o
@@ -38,7 +38,7 @@ endif
 
 else
 obj-y				:= irq.o idle.o \
-					align.o perfmon.o
+					align.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o

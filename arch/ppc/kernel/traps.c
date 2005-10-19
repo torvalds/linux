@@ -41,7 +41,7 @@
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
-#include <asm/perfmon.h>
+#include <asm/pmc.h>
 
 #ifdef CONFIG_XMON
 extern int xmon_bpt(struct pt_regs *regs);

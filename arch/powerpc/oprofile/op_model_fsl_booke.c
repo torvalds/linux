@@ -24,7 +24,7 @@
 #include <asm/cputable.h>
 #include <asm/reg_booke.h>
 #include <asm/page.h>
-#include <asm/perfmon.h>
+#include <asm/pmc.h>
 #include <asm/oprofile_impl.h>
 
 static unsigned long reset_value[OP_MAX_COUNTER];

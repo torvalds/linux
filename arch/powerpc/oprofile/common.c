@@ -22,11 +22,7 @@
 #include <linux/errno.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
-#ifdef __powerpc64__
 #include <asm/pmc.h>
-#else /* __powerpc64__ */
-#include <asm/perfmon.h>
-#endif /* __powerpc64__ */
 #include <asm/cputable.h>
 #include <asm/oprofile_impl.h>
 
