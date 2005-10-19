@@ -553,7 +553,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif
 
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &chrp_smp_ops;
+	smp_ops = &chrp_smp_ops;
 #endif /* CONFIG_SMP */
 
 	/*

@@ -903,6 +903,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.kgdb_map_scc = gen550_kgdb_map_scc;
 #endif
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &pplus_smp_ops;
+	smp_ops = &pplus_smp_ops;
 #endif				/* CONFIG_SMP */
 }

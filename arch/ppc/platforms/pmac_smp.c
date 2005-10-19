@@ -209,8 +209,7 @@ irqreturn_t psurge_primary_intr(int irq, void *d, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static void smp_psurge_message_pass(int target, int msg, unsigned long data,
-					   int wait)
+static void smp_psurge_message_pass(int target, int msg)
 {
 	int i;
 

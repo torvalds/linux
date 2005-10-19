@@ -753,7 +753,7 @@ static int smp_hdpu_probe(void)
 }
 
 static void
-smp_hdpu_message_pass(int target, int msg, unsigned long data, int wait)
+smp_hdpu_message_pass(int target, int msg)
 {
 	if (msg > 0x3) {
 		printk("SMP %d: smp_message_pass: unknown msg %d\n",
@@ -949,7 +949,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif				/* CONFIG_SERIAL_TEXT_DEBUG */
 
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &hdpu_smp_ops;
+	smp_ops = &hdpu_smp_ops;
 #endif				/* CONFIG_SMP */
 
 #if defined(CONFIG_SERIAL_MPSC) || defined(CONFIG_MV643XX_ETH)
