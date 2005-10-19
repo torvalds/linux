@@ -456,7 +456,7 @@ queue:
 static int sr_block_open(struct inode *inode, struct file *file)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct scsi_cd *cd = scsi_cd(inode->i_bdev->bd_disk);
+	struct scsi_cd *cd;
 	int ret = 0;
 
 	if(!(cd = scsi_cd_get(disk)))
