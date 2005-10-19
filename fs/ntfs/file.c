@@ -1857,10 +1857,24 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 	if (ni->type != AT_INDEX_ALLOCATION) {
 		/* If file is encrypted, deny access, just like NT4. */
 		if (NInoEncrypted(ni)) {
+			/*
+			 * Reminder for later: Encrypted files are _always_
+			 * non-resident so that the content can always be
+			 * encrypted.
+			 */
 			ntfs_debug("Denying write access to encrypted file.");
 			return -EACCES;
 		}
 		if (NInoCompressed(ni)) {
+			/* Only unnamed $DATA attribute can be compressed. */
+			BUG_ON(ni->type != AT_DATA);
+			BUG_ON(ni->name_len);
+			/*
+			 * Reminder for later: If resident, the data is not
+			 * actually compressed.  Only on the switch to non-
+			 * resident does compression kick in.  This is in
+			 * contrast to encrypted files (see above).
+			 */
 			ntfs_error(vi->i_sb, "Writing to compressed files is "
 					"not implemented yet.  Sorry.");
 			return -EOPNOTSUPP;

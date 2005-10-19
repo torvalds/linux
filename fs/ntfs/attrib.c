@@ -1411,7 +1411,7 @@ int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
  */
 int ntfs_attr_can_be_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 {
-	if (type == AT_INDEX_ALLOCATION || type == AT_EA)
+	if (type == AT_INDEX_ALLOCATION)
 		return -EPERM;
 	return 0;
 }

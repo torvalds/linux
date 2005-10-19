@@ -1391,8 +1391,7 @@ retry_writepage:
 		if (NInoEncrypted(ni)) {
 			unlock_page(page);
 			BUG_ON(ni->type != AT_DATA);
-			ntfs_debug("Denying write access to encrypted "
-					"file.");
+			ntfs_debug("Denying write access to encrypted file.");
 			return -EACCES;
 		}
 		/* Compressed data streams are handled in compress.c. */
@@ -1508,8 +1507,8 @@ retry_writepage:
 	/* Zero out of bounds area in the page cache page. */
 	memset(kaddr + attr_len, 0, PAGE_CACHE_SIZE - attr_len);
 	kunmap_atomic(kaddr, KM_USER0);
-	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	flush_dcache_page(page);
+	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	/* We are done with the page. */
 	end_page_writeback(page);
 	/* Finally, mark the mft record dirty, so it gets written back. */
