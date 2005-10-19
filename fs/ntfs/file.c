@@ -787,6 +787,7 @@ retry_remap:
 				vcn_len = rl[1].vcn - vcn;
 				lcn_block = lcn << (vol->cluster_size_bits -
 						blocksize_bits);
+				cdelta = 0;
 				/*
 				 * If the number of remaining clusters in the
 				 * @pages is smaller or equal to the number of
