@@ -7456,7 +7456,8 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	/* HW decrypt will not clear the WEP bit, MIC, PN, etc. */
 	hdr = (struct ieee80211_hdr_4addr *)rxb->skb->data;
 	if (priv->ieee->iw_mode != IW_MODE_MONITOR &&
-	    (is_multicast_ether_addr(hdr->addr1) ?
+	    ((is_multicast_ether_addr(hdr->addr1) ||
+	      is_broadcast_ether_addr(hdr->addr1)) ?
 	     !priv->ieee->host_mc_decrypt : !priv->ieee->host_decrypt))
 		ipw_rebuild_decrypted_skb(priv, rxb->skb);
 
@@ -9652,7 +9653,8 @@ static inline int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
 		hdr_len = IEEE80211_3ADDR_LEN;
-		unicast = !is_multicast_ether_addr(hdr->addr1);
+		unicast = !(is_multicast_ether_addr(hdr->addr1) ||
+			    is_broadcast_ether_addr(hdr->addr1));
 		id = ipw_find_station(priv, hdr->addr1);
 		if (id == IPW_INVALID_STATION) {
 			id = ipw_add_station(priv, hdr->addr1);
@@ -9667,7 +9669,8 @@ static inline int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 
 	case IW_MODE_INFRA:
 	default:
-		unicast = !is_multicast_ether_addr(hdr->addr3);
+		unicast = !(is_multicast_ether_addr(hdr->addr3) ||
+			    is_broadcast_ether_addr(hdr->addr3));
 		hdr_len = IEEE80211_3ADDR_LEN;
 		id = 0;
 		break;
