@@ -172,7 +172,7 @@ unsigned long __init maple_get_boot_time(void)
 	}
 	
 	maple_get_rtc_time(&tm);
-	return mktime(time->tm_year+1900, time->tm_mon+1, time->tm_mday,
-		      time->tm_hour, time->tm_min, time->tm_sec);
+	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+		      tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 

@@ -180,6 +180,8 @@ extern struct task_struct *_switch(struct thread_struct *prev,
 extern unsigned int rtas_data;
 extern int mem_init_done;	/* set on boot once kmalloc can be called */
 
+extern int powersave_nap;	/* set if nap mode can be used in idle loop */
+
 /*
  * Atomic exchange
  *

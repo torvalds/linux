@@ -36,7 +36,7 @@ struct pci_controller {
 
 	struct pci_ops *ops;
 	volatile unsigned int __iomem *cfg_addr;
-	volatile unsigned char __iomem *cfg_data;
+	volatile void __iomem *cfg_data;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
