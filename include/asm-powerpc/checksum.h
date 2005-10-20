@@ -1,7 +1,29 @@
-#ifdef __KERNEL__
-#ifndef _PPC_CHECKSUM_H
-#define _PPC_CHECKSUM_H
+#ifndef _ASM_POWERPC_CHECKSUM_H
+#define _ASM_POWERPC_CHECKSUM_H
 
+/*
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ */
+
+/*
+ * This is a version of ip_compute_csum() optimized for IP headers,
+ * which always checksum on 4 octet boundaries.  ihl is the number
+ * of 32-bit words and is always >= 5.
+ */
+extern unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl);
+
+/*
+ * computes the checksum of the TCP/UDP pseudo-header
+ * returns a 16-bit checksum, already complemented
+ */
+extern unsigned short csum_tcpudp_magic(unsigned long saddr,
+					unsigned long daddr,
+					unsigned short len,
+					unsigned short proto,
+					unsigned int sum);
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -31,13 +53,21 @@ extern unsigned int csum_partial(const unsigned char * buff, int len,
 extern unsigned int csum_partial_copy_generic(const char *src, char *dst,
 					      int len, unsigned int sum,
 					      int *src_err, int *dst_err);
+/*
+ * the same as csum_partial, but copies from src to dst while it
+ * checksums.
+ */
+unsigned int csum_partial_copy_nocheck(const char *src, 
+				       char *dst, 
+				       int len, 
+				       unsigned int sum);
 
-#define csum_partial_copy_from_user(src, dst, len, sum, errp)	\
-	csum_partial_copy_generic((__force void *)(src), (dst), (len), (sum), (errp), NULL)
+#define csum_partial_copy_from_user(src, dst, len, sum, errp)   \
+        csum_partial_copy_generic((src), (dst), (len), (sum), (errp), NULL)
 
-/* FIXME: this needs to be written to really do no check -- Cort */
-#define csum_partial_copy_nocheck(src, dst, len, sum)	\
-	csum_partial_copy_generic((src), (dst), (len), (sum), NULL, NULL)
+#define csum_partial_copy_nocheck(src, dst, len, sum)   \
+        csum_partial_copy_generic((src), (dst), (len), (sum), NULL, NULL)
+
 
 /*
  * turns a 32-bit partial checksum (e.g. from csum_partial) into a
@@ -65,10 +95,22 @@ static inline unsigned short ip_compute_csum(unsigned char * buff, int len)
 	return csum_fold(csum_partial(buff, len, 0));
 }
 
-/*
- * FIXME: I swiped this one from the sparc and made minor modifications.
- * It may not be correct.  -- Cort
- */
+#ifdef __powerpc64__
+static inline u32 csum_tcpudp_nofold(u32 saddr,
+                                     u32 daddr,
+                                     unsigned short len,
+                                     unsigned short proto,
+                                     unsigned int sum)
+{
+	unsigned long s = sum;
+
+	s += saddr;
+	s += daddr;
+	s += (proto << 16) + len;
+	s += (s >> 32);
+	return (u32) s;
+}
+#else
 static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
 						   unsigned long daddr,
 						   unsigned short len,
@@ -86,22 +128,5 @@ static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
     return sum;
 }
 
-/*
- * This is a version of ip_compute_csum() optimized for IP headers,
- * which always checksum on 4 octet boundaries.  ihl is the number
- * of 32-bit words and is always >= 5.
- */
-extern unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl);
-
-/*
- * computes the checksum of the TCP/UDP pseudo-header
- * returns a 16-bit checksum, already complemented
- */
-extern unsigned short csum_tcpudp_magic(unsigned long saddr,
-					unsigned long daddr,
-					unsigned short len,
-					unsigned short proto,
-					unsigned int sum);
-
 #endif
-#endif /* __KERNEL__ */
+#endif
