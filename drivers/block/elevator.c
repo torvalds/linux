@@ -83,15 +83,6 @@ inline int elv_try_merge(struct request *__rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_try_merge);
 
-inline int elv_try_last_merge(request_queue_t *q, struct bio *bio)
-{
-	if (q->last_merge)
-		return elv_try_merge(q->last_merge, bio);
-
-	return ELEVATOR_NO_MERGE;
-}
-EXPORT_SYMBOL(elv_try_last_merge);
-
 static struct elevator_type *elevator_find(const char *name)
 {
 	struct elevator_type *e = NULL;
@@ -239,6 +230,9 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 	unsigned max_back;
 	struct list_head *entry;
 
+	if (q->last_merge == rq)
+		q->last_merge = NULL;
+
 	boundary = q->end_sector;
 	max_back = q->max_back_kb * 2;
 	boundary = boundary > max_back ? boundary - max_back : 0;
@@ -265,6 +259,15 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
 {
 	elevator_t *e = q->elevator;
+	int ret;
+
+	if (q->last_merge) {
+		ret = elv_try_merge(q->last_merge, bio);
+		if (ret != ELEVATOR_NO_MERGE) {
+			*req = q->last_merge;
+			return ret;
+		}
+	}
 
 	if (e->ops->elevator_merge_fn)
 		return e->ops->elevator_merge_fn(q, req, bio);
@@ -278,6 +281,8 @@ void elv_merged_request(request_queue_t *q, struct request *rq)
 
 	if (e->ops->elevator_merged_fn)
 		e->ops->elevator_merged_fn(q, rq);
+
+	q->last_merge = rq;
 }
 
 void elv_merge_requests(request_queue_t *q, struct request *rq,
@@ -285,11 +290,10 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 {
 	elevator_t *e = q->elevator;
 
-	if (q->last_merge == next)
-		q->last_merge = NULL;
-
 	if (e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
+
+	q->last_merge = rq;
 }
 
 void elv_requeue_request(request_queue_t *q, struct request *rq)
@@ -384,6 +388,8 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		BUG_ON(!blk_fs_request(rq));
 		rq->flags |= REQ_SORTED;
 		q->elevator->ops->elevator_add_req_fn(q, rq);
+		if (q->last_merge == NULL && rq_mergeable(rq))
+			q->last_merge = rq;
 		break;
 
 	default:
@@ -462,9 +468,6 @@ struct request *elv_next_request(request_queue_t *q)
 			rq->flags |= REQ_STARTED;
 		}
 
-		if (rq == q->last_merge)
-			q->last_merge = NULL;
-
 		if (!q->boundary_rq || q->boundary_rq == rq) {
 			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = NULL;
@@ -518,16 +521,6 @@ void elv_dequeue_request(request_queue_t *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq))
 		q->in_flight++;
-
-	/*
-	 * the main clearing point for q->last_merge is on retrieval of
-	 * request by driver (it calls elv_next_request()), but it _can_
-	 * also happen here if a request is added to the queue but later
-	 * deleted without ever being given to driver (merged with another
-	 * request).
-	 */
-	if (rq == q->last_merge)
-		q->last_merge = NULL;
 }
 
 int elv_queue_empty(request_queue_t *q)
