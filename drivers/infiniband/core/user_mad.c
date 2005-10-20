@@ -280,14 +280,14 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 
 	length = count - sizeof (struct ib_user_mad);
 	packet = kmalloc(sizeof *packet + sizeof(struct ib_mad_hdr) +
-			 sizeof(struct ib_rmpp_hdr), GFP_KERNEL);
+			 sizeof (struct ib_rmpp_hdr), GFP_KERNEL);
 	if (!packet)
 		return -ENOMEM;
 
 	if (copy_from_user(&packet->mad, buf,
 			    sizeof (struct ib_user_mad) +
-			    sizeof(struct ib_mad_hdr) +
-			    sizeof(struct ib_rmpp_hdr))) {
+			    sizeof (struct ib_mad_hdr) +
+			    sizeof (struct ib_rmpp_hdr))) {
 		ret = -EFAULT;
 		goto err;
 	}
@@ -349,7 +349,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		}
 		rmpp_active = 1;
 	} else {
-		if (length > sizeof(struct ib_mad)) {
+		if (length > sizeof (struct ib_mad)) {
 			ret = -EINVAL;
 			goto err_ah;
 		}
@@ -376,17 +376,17 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	if (!rmpp_active) {
 		/* Copy message from user into send buffer */
 		if (copy_from_user(packet->msg->mad,
-				   buf + sizeof(struct ib_user_mad), length)) {
+				   buf + sizeof (struct ib_user_mad), length)) {
 			ret = -EFAULT;
 			goto err_msg;
 		}
 	} else {
-		rmpp_hdr_size = sizeof(struct ib_mad_hdr) +
-				sizeof(struct ib_rmpp_hdr);
+		rmpp_hdr_size = sizeof (struct ib_mad_hdr) +
+				sizeof (struct ib_rmpp_hdr);
 
 		/* Only copy MAD headers (RMPP header in place) */
 		memcpy(packet->msg->mad, packet->mad.data,
-		       sizeof(struct ib_mad_hdr));
+		       sizeof (struct ib_mad_hdr));
 
 		/* Now, copy rest of message from user into send buffer */
 		if (copy_from_user(((struct ib_rmpp_mad *) packet->msg->mad)->data,
