@@ -6,9 +6,8 @@
     *  This module contains constants and macros useful for
     *  manipulating the SB1250's SMbus devices.
     *
-    *  SB1250 specification level:  01/02/2002
-    *
-    *  Author:  Mitch Lichtenberg
+    *  SB1250 specification level:  10/21/02
+    *  BCM1280 specification level:  11/24/03
     *
     *********************************************************************
     *

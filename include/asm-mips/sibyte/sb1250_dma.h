@@ -7,9 +7,8 @@
     *  programming the SB1250's DMA controllers, both the data mover
     *  and the Ethernet DMA.
     *
-    *  SB1250 specification level:  User's manual 1/02/02
-    *
-    *  Author:  Mitch Lichtenberg
+    *  SB1250 specification level:  User's manual 10/21/02
+    *  BCM1280 specification level: User's manual 11/24/03
     *
     *********************************************************************
     *

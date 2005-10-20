@@ -6,9 +6,8 @@
     *  This module contains constants and macros useful for
     *  manipulating the SB1250's Generic Bus interface
     *
-    *  SB1250 specification level:  User's manual 1/02/02
-    *
-    *  Author:  Mitch Lichtenberg
+    *  SB1250 specification level:  User's manual 10/21/02
+    *  BCM1280 specification level: User's Manual 11/14/03
     *
     *********************************************************************
     *
