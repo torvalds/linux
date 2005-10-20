@@ -279,14 +279,6 @@ static inline void as_del_arq_hash(struct as_rq *arq)
 		__as_del_arq_hash(arq);
 }
 
-static void as_remove_merge_hints(request_queue_t *q, struct as_rq *arq)
-{
-	as_del_arq_hash(arq);
-
-	if (q->last_merge == arq->request)
-		q->last_merge = NULL;
-}
-
 static void as_add_arq_hash(struct as_data *ad, struct as_rq *arq)
 {
 	struct request *rq = arq->request;
@@ -330,7 +322,7 @@ static struct request *as_find_arq_hash(struct as_data *ad, sector_t offset)
 		BUG_ON(!arq->on_hash);
 
 		if (!rq_mergeable(__rq)) {
-			as_remove_merge_hints(ad->q, arq);
+			as_del_arq_hash(arq);
 			continue;
 		}
 
@@ -1040,7 +1032,7 @@ static void as_remove_queued_request(request_queue_t *q, struct request *rq)
 		ad->next_arq[data_dir] = as_find_next_arq(ad, arq);
 
 	list_del_init(&arq->fifo);
-	as_remove_merge_hints(q, arq);
+	as_del_arq_hash(arq);
 	as_del_arq_rb(ad, arq);
 }
 
@@ -1351,7 +1343,7 @@ as_add_aliased_request(struct as_data *ad, struct as_rq *arq, struct as_rq *alia
 	/*
 	 * Don't want to have to handle merges.
 	 */
-	as_remove_merge_hints(ad->q, arq);
+	as_del_arq_hash(arq);
 }
 
 /*
@@ -1392,12 +1384,8 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 		arq->expires = jiffies + ad->fifo_expire[data_dir];
 		list_add_tail(&arq->fifo, &ad->fifo_list[data_dir]);
 
-		if (rq_mergeable(arq->request)) {
+		if (rq_mergeable(arq->request))
 			as_add_arq_hash(ad, arq);
-
-			if (!ad->q->last_merge)
-				ad->q->last_merge = arq->request;
-		}
 		as_update_arq(ad, arq); /* keep state machine up to date */
 
 	} else {
@@ -1487,15 +1475,6 @@ as_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	int ret;
 
 	/*
-	 * try last_merge to avoid going to hash
-	 */
-	ret = elv_try_last_merge(q, bio);
-	if (ret != ELEVATOR_NO_MERGE) {
-		__rq = q->last_merge;
-		goto out_insert;
-	}
-
-	/*
 	 * see if the merge hash can satisfy a back merge
 	 */
 	__rq = as_find_arq_hash(ad, bio->bi_sector);
@@ -1523,9 +1502,6 @@ as_merge(request_queue_t *q, struct request **req, struct bio *bio)
 
 	return ELEVATOR_NO_MERGE;
 out:
-	if (rq_mergeable(__rq))
-		q->last_merge = __rq;
-out_insert:
 	if (ret) {
 		if (rq_mergeable(__rq))
 			as_hot_arq_hash(ad, RQ_DATA(__rq));
@@ -1572,9 +1548,6 @@ static void as_merged_request(request_queue_t *q, struct request *req)
 		 * behind the disk head. We currently don't bother adjusting.
 		 */
 	}
-
-	if (arq->on_hash)
-		q->last_merge = req;
 }
 
 static void

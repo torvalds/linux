@@ -112,15 +112,6 @@ static inline void deadline_del_drq_hash(struct deadline_rq *drq)
 		__deadline_del_drq_hash(drq);
 }
 
-static void
-deadline_remove_merge_hints(request_queue_t *q, struct deadline_rq *drq)
-{
-	deadline_del_drq_hash(drq);
-
-	if (q->last_merge == drq->request)
-		q->last_merge = NULL;
-}
-
 static inline void
 deadline_add_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
 {
@@ -299,12 +290,8 @@ deadline_add_request(struct request_queue *q, struct request *rq)
 	drq->expires = jiffies + dd->fifo_expire[data_dir];
 	list_add_tail(&drq->fifo, &dd->fifo_list[data_dir]);
 
-	if (rq_mergeable(rq)) {
+	if (rq_mergeable(rq))
 		deadline_add_drq_hash(dd, drq);
-
-		if (!q->last_merge)
-			q->last_merge = rq;
-	}
 }
 
 /*
@@ -316,8 +303,8 @@ static void deadline_remove_request(request_queue_t *q, struct request *rq)
 	struct deadline_data *dd = q->elevator->elevator_data;
 
 	list_del_init(&drq->fifo);
-	deadline_remove_merge_hints(q, drq);
 	deadline_del_drq_rb(dd, drq);
+	deadline_del_drq_hash(drq);
 }
 
 static int
@@ -326,15 +313,6 @@ deadline_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct request *__rq;
 	int ret;
-
-	/*
-	 * try last_merge to avoid going to hash
-	 */
-	ret = elv_try_last_merge(q, bio);
-	if (ret != ELEVATOR_NO_MERGE) {
-		__rq = q->last_merge;
-		goto out_insert;
-	}
 
 	/*
 	 * see if the merge hash can satisfy a back merge
@@ -368,8 +346,6 @@ deadline_merge(request_queue_t *q, struct request **req, struct bio *bio)
 
 	return ELEVATOR_NO_MERGE;
 out:
-	q->last_merge = __rq;
-out_insert:
 	if (ret)
 		deadline_hot_drq_hash(dd, RQ_DATA(__rq));
 	*req = __rq;
@@ -394,8 +370,6 @@ static void deadline_merged_request(request_queue_t *q, struct request *req)
 		deadline_del_drq_rb(dd, drq);
 		deadline_add_drq_rb(dd, drq);
 	}
-
-	q->last_merge = req;
 }
 
 static void

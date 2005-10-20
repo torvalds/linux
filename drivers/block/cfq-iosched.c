@@ -304,14 +304,6 @@ static inline void cfq_del_crq_hash(struct cfq_rq *crq)
 	hlist_del_init(&crq->hash);
 }
 
-static void cfq_remove_merge_hints(request_queue_t *q, struct cfq_rq *crq)
-{
-	cfq_del_crq_hash(crq);
-
-	if (q->last_merge == crq->request)
-		q->last_merge = NULL;
-}
-
 static inline void cfq_add_crq_hash(struct cfq_data *cfqd, struct cfq_rq *crq)
 {
 	const int hash_idx = CFQ_MHASH_FN(rq_hash_key(crq->request));
@@ -672,7 +664,7 @@ static void cfq_remove_request(struct request *rq)
 
 	list_del_init(&rq->queuelist);
 	cfq_del_crq_rb(crq);
-	cfq_remove_merge_hints(rq->q, crq);
+	cfq_del_crq_hash(crq);
 }
 
 static int
@@ -681,12 +673,6 @@ cfq_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct request *__rq;
 	int ret;
-
-	ret = elv_try_last_merge(q, bio);
-	if (ret != ELEVATOR_NO_MERGE) {
-		__rq = q->last_merge;
-		goto out_insert;
-	}
 
 	__rq = cfq_find_rq_hash(cfqd, bio->bi_sector);
 	if (__rq && elv_rq_merge_ok(__rq, bio)) {
@@ -702,8 +688,6 @@ cfq_merge(request_queue_t *q, struct request **req, struct bio *bio)
 
 	return ELEVATOR_NO_MERGE;
 out:
-	q->last_merge = __rq;
-out_insert:
 	*req = __rq;
 	return ret;
 }
@@ -722,8 +706,6 @@ static void cfq_merged_request(request_queue_t *q, struct request *req)
 		cfq_update_next_crq(crq);
 		cfq_reposition_crq_rb(cfqq, crq);
 	}
-
-	q->last_merge = req;
 }
 
 static void
@@ -1670,12 +1652,8 @@ static void cfq_insert_request(request_queue_t *q, struct request *rq)
 
 	list_add_tail(&rq->queuelist, &cfqq->fifo);
 
-	if (rq_mergeable(rq)) {
+	if (rq_mergeable(rq))
 		cfq_add_crq_hash(cfqd, crq);
-
-		if (!cfqd->queue->last_merge)
-			cfqd->queue->last_merge = rq;
-	}
 
 	cfq_crq_enqueued(cfqd, cfqq, crq);
 }
