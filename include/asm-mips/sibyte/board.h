@@ -35,6 +35,10 @@
 #include <asm/sibyte/carmel.h>
 #endif
 
+#ifdef CONFIG_SIBYTE_BIGSUR
+#include <asm/sibyte/bigsur.h>
+#endif
+
 #ifdef __ASSEMBLY__
 
 #ifdef LEDS_PHYS

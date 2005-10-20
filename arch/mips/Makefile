@@ -671,6 +671,7 @@ cflags-$(CONFIG_SIBYTE_BCM1x80)	+= -Iinclude/asm-mips/mach-sibyte \
 # Sibyte BCM91125C (CRhone) board
 # Sibyte BCM91125E (Rhone) board
 # Sibyte SWARM board
+# Sibyte BCM91x80 (BigSur) board
 #
 libs-$(CONFIG_SIBYTE_CARMEL)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_CARMEL)	:= 0xffffffff80100000
@@ -684,6 +685,8 @@ libs-$(CONFIG_SIBYTE_SENTOSA)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_SENTOSA)	:= 0xffffffff80100000
 libs-$(CONFIG_SIBYTE_SWARM)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_SWARM)	:= 0xffffffff80100000
+libs-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
+load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
 # SNI RM200 PCI
