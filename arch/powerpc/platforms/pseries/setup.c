@@ -90,7 +90,7 @@ static void pseries_dedicated_idle(void);
 static volatile void __iomem * chrp_int_ack_special;
 struct mpic *pSeries_mpic;
 
-void pSeries_get_cpuinfo(struct seq_file *m)
+void pSeries_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
@@ -599,7 +599,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
 	.init_early		= pSeries_init_early,
-	.get_cpuinfo		= pSeries_get_cpuinfo,
+	.show_cpuinfo		= pSeries_show_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,

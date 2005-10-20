@@ -104,24 +104,26 @@ extern struct smp_ops_t psurge_smp_ops;
 extern struct smp_ops_t core99_smp_ops;
 #endif /* CONFIG_SMP */
 
-static int
-pmac_show_cpuinfo(struct seq_file *m)
+static void pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
 	char *pp;
 	int plen;
-	int mbmodel = pmac_call_feature(PMAC_FTR_GET_MB_INFO,
-		NULL, PMAC_MB_INFO_MODEL, 0);
-	unsigned int mbflags = (unsigned int)pmac_call_feature(PMAC_FTR_GET_MB_INFO,
-		NULL, PMAC_MB_INFO_FLAGS, 0);
+	int mbmodel;
+	unsigned int mbflags;
 	char* mbname;
 
-	if (pmac_call_feature(PMAC_FTR_GET_MB_INFO, NULL, PMAC_MB_INFO_NAME, (int)&mbname) != 0)
+	mbmodel = pmac_call_feature(PMAC_FTR_GET_MB_INFO, NULL,
+				    PMAC_MB_INFO_MODEL, 0);
+	mbflags = pmac_call_feature(PMAC_FTR_GET_MB_INFO, NULL,
+				    PMAC_MB_INFO_FLAGS, 0);
+	if (pmac_call_feature(PMAC_FTR_GET_MB_INFO, NULL, PMAC_MB_INFO_NAME,
+			      (long) &mbname) != 0)
 		mbname = "Unknown";
 
 	/* find motherboard type */
 	seq_printf(m, "machine\t\t: ");
-	np = find_devices("device-tree");
+	np = of_find_node_by_path("/");
 	if (np != NULL) {
 		pp = (char *) get_property(np, "model", NULL);
 		if (pp != NULL)
@@ -139,6 +141,7 @@ pmac_show_cpuinfo(struct seq_file *m)
 			}
 			seq_printf(m, "\n");
 		}
+		of_node_put(np);
 	} else
 		seq_printf(m, "PowerMac\n");
 
@@ -147,10 +150,10 @@ pmac_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "pmac flags\t: %08x\n", mbflags);
 
 	/* find l2 cache info */
-	np = find_devices("l2-cache");
-	if (np == 0)
-		np = find_type_devices("cache");
-	if (np != 0) {
+	np = of_find_node_by_name(NULL, "l2-cache");
+	if (np == NULL)
+		np = of_find_node_by_type(NULL, "cache");
+	if (np != NULL) {
 		unsigned int *ic = (unsigned int *)
 			get_property(np, "i-cache-size", NULL);
 		unsigned int *dc = (unsigned int *)
@@ -170,56 +173,25 @@ pmac_show_cpuinfo(struct seq_file *m)
 		if (pp)
 			seq_printf(m, " %s", pp);
 		seq_printf(m, "\n");
-	}
-
-	/* find ram info */
-	np = find_devices("memory");
-	if (np != 0) {
-		int n;
-		struct reg_property *reg = (struct reg_property *)
-			get_property(np, "reg", &n);
-
-		if (reg != 0) {
-			unsigned long total = 0;
-
-			for (n /= sizeof(struct reg_property); n > 0; --n)
-				total += (reg++)->size;
-			seq_printf(m, "memory\t\t: %luMB\n", total >> 20);
-		}
-	}
-
-	/* Checks "l2cr-value" property in the registry */
-	np = find_devices("cpus");
-	if (np == 0)
-		np = find_type_devices("cpu");
-	if (np != 0) {
-		unsigned int *l2cr = (unsigned int *)
-			get_property(np, "l2cr-value", NULL);
-		if (l2cr != 0) {
-			seq_printf(m, "l2cr override\t: 0x%x\n", *l2cr);
-		}
+		of_node_put(np);
 	}
 
 	/* Indicate newworld/oldworld */
 	seq_printf(m, "pmac-generation\t: %s\n",
 		   pmac_newworld ? "NewWorld" : "OldWorld");
-
-
-	return 0;
 }
 
-static int
-pmac_show_percpuinfo(struct seq_file *m, int i)
+static void pmac_show_percpuinfo(struct seq_file *m, int i)
 {
 #ifdef CONFIG_CPU_FREQ_PMAC
 	extern unsigned int pmac_get_one_cpufreq(int i);
 	unsigned int freq = pmac_get_one_cpufreq(i);
 	if (freq != 0) {
 		seq_printf(m, "clock\t\t: %dMHz\n", freq/1000);
-		return 0;
+		return;
 	}
 #endif /* CONFIG_CPU_FREQ_PMAC */
-	return of_show_percpuinfo(m, i);
+	of_show_percpuinfo(m, i);
 }
 
 static volatile u32 *sysctrl_regs;

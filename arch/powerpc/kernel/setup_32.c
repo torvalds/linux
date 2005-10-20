@@ -150,7 +150,6 @@ extern u32 cpu_temp_both(unsigned long cpu);
 int show_cpuinfo(struct seq_file *m, void *v)
 {
 	int i = (int) v - 1;
-	int err = 0;
 	unsigned int pvr;
 	unsigned short maj, min;
 	unsigned long lpj;
@@ -167,8 +166,8 @@ int show_cpuinfo(struct seq_file *m, void *v)
 #endif /* CONFIG_SMP */
 
 		if (ppc_md.show_cpuinfo != NULL)
-			err = ppc_md.show_cpuinfo(m);
-		return err;
+			ppc_md.show_cpuinfo(m);
+		return 0;
 	}
 
 #ifdef CONFIG_SMP
@@ -210,15 +209,12 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	}
 #endif /* CONFIG_TAU */
 
-	if (ppc_md.show_percpuinfo != NULL) {
-		err = ppc_md.show_percpuinfo(m, i);
-		if (err)
-			return err;
-	}
+	if (ppc_md.show_percpuinfo != NULL)
+		ppc_md.show_percpuinfo(m, i);
 
 	/* If we are a Freescale core do a simple check so
 	 * we dont have to keep adding cases in the future */
-	if ((PVR_VER(pvr) & 0x8000) == 0x8000) {
+	if (PVR_VER(pvr) & 0x8000) {
 		maj = PVR_MAJ(pvr);
 		min = PVR_MIN(pvr);
 	} else {
