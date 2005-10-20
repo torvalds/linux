@@ -89,8 +89,13 @@
 #define V_L2C_MGMT_WAY(x)           _SB_MAKEVALUE(x,S_L2C_MGMT_WAY)
 #define G_L2C_MGMT_WAY(x)           _SB_GETVALUE(x,S_L2C_MGMT_WAY,M_L2C_MGMT_WAY)
 
-#define S_L2C_MGMT_TAG              21
-#define M_L2C_MGMT_TAG              _SB_MAKEMASK(6,S_L2C_MGMT_TAG)
+#define S_L2C_MGMT_ECC_DIAG         21
+#define M_L2C_MGMT_ECC_DIAG         _SB_MAKEMASK(2,S_L2C_MGMT_ECC_DIAG)
+#define V_L2C_MGMT_ECC_DIAG(x)      _SB_MAKEVALUE(x,S_L2C_MGMT_ECC_DIAG)
+#define G_L2C_MGMT_ECC_DIAG(x)      _SB_GETVALUE(x,S_L2C_MGMT_ECC_DIAG,M_L2C_MGMT_ECC_DIAG)
+
+#define S_L2C_MGMT_TAG              23
+#define M_L2C_MGMT_TAG              _SB_MAKEMASK(4,S_L2C_MGMT_TAG)
 #define V_L2C_MGMT_TAG(x)           _SB_MAKEVALUE(x,S_L2C_MGMT_TAG)
 #define G_L2C_MGMT_TAG(x)           _SB_GETVALUE(x,S_L2C_MGMT_TAG,M_L2C_MGMT_TAG)
 

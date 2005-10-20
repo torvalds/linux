@@ -47,6 +47,10 @@
  * First, the interrupt numbers.
  */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
+
+#define K_INT_SOURCES               64
+
 #define K_INT_WATCHDOG_TIMER_0      0
 #define K_INT_WATCHDOG_TIMER_1      1
 #define K_INT_TIMER_0               2
@@ -243,5 +247,7 @@
 #define M_LDTVECT_RAISEINT		0x00
 #define M_LDTVECT_RAISEMBOX             0x40
 
+
+#endif	/* 1250/112x */
 
 #endif
