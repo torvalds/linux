@@ -296,6 +296,7 @@ static void sbmac_set_rx_mode(struct net_device *dev);
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sbmac_close(struct net_device *dev);
 static int sbmac_mii_poll(struct sbmac_softc *s,int noisy);
+static int sbmac_mii_probe(struct net_device *dev);
 
 static void sbmac_mii_sync(struct sbmac_softc *s);
 static void sbmac_mii_senddata(struct sbmac_softc *s,unsigned int data, int bitcnt);
@@ -433,6 +434,9 @@ static uint64_t sbmac_orig_hwaddr[MAX_UNITS];
 
 #define	MII_BMCR	0x00 	/* Basic mode control register (rw) */
 #define	MII_BMSR	0x01	/* Basic mode status register (ro) */
+#define	MII_PHYIDR1	0x02
+#define	MII_PHYIDR2	0x03
+
 #define MII_K1STSR	0x0A	/* 1K Status Register (ro) */
 #define	MII_ANLPAR	0x05	/* Autonegotiation lnk partner abilities (rw) */
 
@@ -2432,6 +2436,15 @@ static int sbmac_open(struct net_device *dev)
 		return -EBUSY;
 
 	/*
+	 * Probe phy address
+	 */
+
+	if(sbmac_mii_probe(dev) == -1) {
+		printk("%s: failed to probe PHY.\n", dev->name);
+		return -EINVAL;
+	}
+
+	/*
 	 * Configure default speed
 	 */
 
@@ -2464,6 +2477,29 @@ static int sbmac_open(struct net_device *dev)
 	return 0;
 }
 
+static int sbmac_mii_probe(struct net_device *dev)
+{
+	int i;
+	struct sbmac_softc *s = netdev_priv(dev);
+	u16 bmsr, id1, id2;
+	u32 vendor, device;
+
+	for (i=1; i<31; i++) {
+	bmsr = sbmac_mii_read(s, i, MII_BMSR);
+		if (bmsr != 0) {
+			s->sbm_phys[0] = i;
+			id1 = sbmac_mii_read(s, i, MII_PHYIDR1);
+			id2 = sbmac_mii_read(s, i, MII_PHYIDR2);
+			vendor = ((u32)id1 << 6) | ((id2 >> 10) & 0x3f);
+			device = (id2 >> 4) & 0x3f;
+
+			printk(KERN_INFO "%s: found phy %d, vendor %06x part %02x\n",
+				dev->name, i, vendor, device);
+			return i;
+		}
+	}
+	return -1;
+}
 
 
 static int sbmac_mii_poll(struct sbmac_softc *s,int noisy)
