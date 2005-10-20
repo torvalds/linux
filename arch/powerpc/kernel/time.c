@@ -548,11 +548,9 @@ int do_settimeofday(struct timespec *tv)
 
 EXPORT_SYMBOL(do_settimeofday);
 
-#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_MAPLE) || defined(CONFIG_PPC_BPA) || defined(CONFIG_PPC_ISERIES)
 void __init generic_calibrate_decr(void)
 {
 	struct device_node *cpu;
-	struct div_result divres;
 	unsigned int *fp;
 	int node_found;
 
@@ -591,20 +589,7 @@ void __init generic_calibrate_decr(void)
 				"(not found)\n");
 
 	of_node_put(cpu);
-
-	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
-	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
-	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
-	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
-
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = ppc_tb_freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
 }
-#endif
 
 unsigned long get_boot_time(void)
 {
@@ -632,6 +617,18 @@ void __init time_init(void)
                 timezone_offset = ppc_md.time_init();
 
 	ppc_md.calibrate_decr();
+
+	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
+	       ppc_tb_freq / 1000000, ppc_tb_freq % 1000000);
+	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
+	       ppc_proc_freq / 1000000, ppc_proc_freq % 1000000);
+
+	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
+	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
+	tb_ticks_per_usec = ppc_tb_freq / 1000000;
+	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
+	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &res);
+	tb_to_xs = res.result_low;
 
 #ifdef CONFIG_PPC64
 	get_paca()->default_decr = tb_ticks_per_jiffy;

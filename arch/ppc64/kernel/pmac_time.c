@@ -152,8 +152,7 @@ unsigned long __init pmac_get_boot_time(void)
 void __init pmac_calibrate_decr(void)
 {
 	struct device_node *cpu;
-	unsigned int freq, *fp;
-	struct div_result divres;
+	unsigned int *fp;
 
 	/*
 	 * The cpu node should have a timebase-frequency property
@@ -165,16 +164,7 @@ void __init pmac_calibrate_decr(void)
 	fp = (unsigned int *) get_property(cpu, "timebase-frequency", NULL);
 	if (fp == 0)
 		panic("can't get cpu timebase frequency");
-	freq = *fp;
-	printk("time_init: decrementer frequency = %u.%.6u MHz\n",
-	       freq/1000000, freq%1000000);
-	tb_ticks_per_jiffy = freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(freq, 1000000);
-	div128_by_32( 1024*1024, 0, tb_ticks_per_sec, &divres );
-	tb_to_xs = divres.result_low;
-	ppc_tb_freq = freq;
+	ppc_tb_freq = *fp;
 
 	fp = (unsigned int *)get_property(cpu, "clock-frequency", NULL);
 	if (fp == 0)
