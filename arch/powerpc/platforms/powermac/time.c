@@ -216,8 +216,8 @@ via_calibrate_decr(void)
 		;
 	dend = get_dec();
 
+	ppc_tb_freq = (dstart - dend) * 100 / 6;
 	tb_ticks_per_jiffy = (dstart - dend) / ((6 * HZ)/100);
-	tb_to_us = mulhwu_scale_factor(dstart - dend, 60000);
 
 	printk(KERN_INFO "via_calibrate_decr: ticks per jiffy = %lu (%u ticks)\n",
 	       tb_ticks_per_jiffy, dstart - dend);
@@ -306,6 +306,5 @@ pmac_calibrate_decr(void)
 	freq = *fp;
 	printk("time_init: decrementer frequency = %u.%.6u MHz\n",
 	       freq/1000000, freq%1000000);
-	tb_ticks_per_jiffy = freq / HZ;
-	tb_to_us = mulhwu_scale_factor(freq, 1000000);
+	ppc_tb_freq = freq;
 }

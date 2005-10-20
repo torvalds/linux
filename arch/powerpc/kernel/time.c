@@ -222,7 +222,7 @@ static inline void timer_sync_xtime(unsigned long cur_tb)
  * between updates.
  */
 static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
-			       unsigned int new_tb_to_xs)
+			       u64 new_tb_to_xs)
 {
 	unsigned temp_idx;
 	struct gettimeofday_vars *temp_varp;
