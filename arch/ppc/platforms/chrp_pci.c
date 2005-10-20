@@ -203,7 +203,7 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 		printk ("RTAS supporting Pegasos OF not found, please upgrade"
 			" your firmware\n");
 	}
-	pci_assign_all_busses = 1;
+	pci_assign_all_buses = 1;
 }
 
 void __init

@@ -54,7 +54,7 @@ static u8* pci_to_OF_bus_map;
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
  */
-int pci_assign_all_busses;
+int pci_assign_all_buses;
 
 struct pci_controller* hose_head;
 struct pci_controller** hose_tail = &hose_head;
@@ -827,7 +827,7 @@ EXPORT_SYMBOL(pci_device_to_OF_node);
  * PCI bus numbers have not yet been assigned, and you need to
  * issue PCI config cycles to an OF device.
  * It could also be used to "fix" RTAS config cycles if you want
- * to set pci_assign_all_busses to 1 and still use RTAS for PCI
+ * to set pci_assign_all_buses to 1 and still use RTAS for PCI
  * config cycles.
  */
 struct pci_controller*
@@ -1270,12 +1270,12 @@ pcibios_init(void)
 
 	/* Scan all of the recorded PCI controllers.  */
 	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
-		if (pci_assign_all_busses)
+		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
 		bus = pci_scan_bus(hose->first_busno, hose->ops, hose);
 		hose->last_busno = bus->subordinate;
-		if (pci_assign_all_busses || next_busno <= hose->last_busno)
+		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
 	}
 	pci_bus_count = next_busno;
@@ -1284,7 +1284,7 @@ pcibios_init(void)
 	 * numbers vs. kernel bus numbers since we may have to
 	 * remap them.
 	 */
-	if (pci_assign_all_busses && have_of)
+	if (pci_assign_all_buses && have_of)
 		pcibios_make_OF_bus_map();
 
 	/* Do machine dependent PCI interrupt routing */

@@ -302,7 +302,7 @@ pq2ads_setup_pci(struct pci_controller *hose)
 
 void __init pq2_find_bridges(void)
 {
-	extern int pci_assign_all_busses;
+	extern int pci_assign_all_buses;
 	struct pci_controller * hose;
 	int host_bridge;
 

@@ -575,7 +575,7 @@ pmac_find_bridges(void)
 	 * some offset between bus number and domains for now when we
 	 * assign all busses should help for now
 	 */
-	if (pci_assign_all_busses)
+	if (pci_assign_all_buses)
 		pcibios_assign_bus_offset = 0x10;
 
 #ifdef CONFIG_POWER4 
@@ -643,7 +643,7 @@ static inline void grackle_set_loop_snoop(struct pci_controller *bp, int enable)
 static int __init
 setup_uninorth(struct pci_controller* hose, struct reg_property* addr)
 {
-	pci_assign_all_busses = 1;
+	pci_assign_all_buses = 1;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
 	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
@@ -677,7 +677,7 @@ setup_u3_agp(struct pci_controller* hose, struct reg_property* addr)
 {
 	/* On G5, we move AGP up to high bus number so we don't need
 	 * to reassign bus numbers for HT. If we ever have P2P bridges
-	 * on AGP, we'll have to move pci_assign_all_busses to the
+	 * on AGP, we'll have to move pci_assign_all_buses to the
 	 * pci_controller structure so we enable it for AGP and not for
 	 * HT childs.
 	 * We hard code the address because of the different size of

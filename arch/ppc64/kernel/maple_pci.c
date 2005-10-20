@@ -275,7 +275,7 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 {
 	/* On G5, we move AGP up to high bus number so we don't need
 	 * to reassign bus numbers for HT. If we ever have P2P bridges
-	 * on AGP, we'll have to move pci_assign_all_busses to the
+	 * on AGP, we'll have to move pci_assign_all_buses to the
 	 * pci_controller structure so we enable it for AGP and not for
 	 * HT childs.
 	 * We hard code the address because of the different size of
