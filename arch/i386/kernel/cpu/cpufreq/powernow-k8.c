@@ -976,12 +976,11 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (!check_supported_cpu(pol->cpu))
 		return -ENODEV;
 
-	data = kmalloc(sizeof(struct powernow_k8_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct powernow_k8_data), GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR PFX "unable to alloc powernow_k8_data");
 		return -ENOMEM;
 	}
-	memset(data,0,sizeof(struct powernow_k8_data));
 
 	data->cpu = pol->cpu;
 
