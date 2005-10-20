@@ -623,6 +623,9 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 		c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
 #endif
 		break;
+	case PRID_IMP_SB1A:
+		c->cputype = CPU_SB1A;
+		break;
 	}
 }
 

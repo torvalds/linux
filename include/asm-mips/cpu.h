@@ -93,6 +93,7 @@
  */
 
 #define PRID_IMP_SB1            0x0100
+#define PRID_IMP_SB1A           0x1100
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SANDCRAFT
@@ -194,7 +195,8 @@
 #define CPU_AU1200		59
 #define CPU_34K			60
 #define CPU_PR4450		61
-#define CPU_LAST		61
+#define CPU_SB1A		62
+#define CPU_LAST		62
 
 /*
  * ISA Level encodings

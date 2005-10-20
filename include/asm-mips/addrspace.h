@@ -162,7 +162,7 @@
 #define TO_PHYS_MASK	_LLCONST_(0x000000ffffffffff)	/* 2^^40 - 1 */
 #endif
 
-#if defined(CONFIG_CPU_SB1)
+#if defined(CONFIG_CPU_SB1) || defined(CONFIG_CPU_SB1A)
 #define KUSIZE		_LLCONST_(0x0000100000000000)	/* 2^^44 */
 #define KUSIZE_64	_LLCONST_(0x0000100000000000)	/* 2^^44 */
 #define K0SIZE		_LLCONST_(0x0000100000000000)	/* 2^^44 */
