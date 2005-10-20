@@ -232,6 +232,14 @@ static int __init bcm1480_pcibios_init(void)
 		bcm1480_bus_status |= PCI_BUS_ENABLED;
 	}
 
+	/* turn on ExpMemEn */
+	cmdreg = READCFG32(CFGOFFSET(0, PCI_DEVFN(PCI_BRIDGE_DEVICE, 0), 0x40));
+	printk("PCIFeatureCtrl = %x\n", cmdreg);
+	WRITECFG32(CFGOFFSET(0, PCI_DEVFN(PCI_BRIDGE_DEVICE, 0), 0x40),
+			cmdreg | 0x10);
+	cmdreg = READCFG32(CFGOFFSET(0, PCI_DEVFN(PCI_BRIDGE_DEVICE, 0), 0x40));
+	printk("PCIFeatureCtrl = %x\n", cmdreg);
+
 	/*
 	 * Establish mappings in KSEG2 (kernel virtual) to PCI I/O
 	 * space.  Use "match bytes" policy to make everything look
