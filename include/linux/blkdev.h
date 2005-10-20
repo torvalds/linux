@@ -203,6 +203,7 @@ struct request {
 enum rq_flag_bits {
 	__REQ_RW,		/* not set, read. set, write */
 	__REQ_FAILFAST,		/* no low level driver retries */
+	__REQ_SORTED,		/* elevator knows about this request */
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
 	__REQ_HARDBARRIER,	/* may not be passed by drive either */
 	__REQ_CMD,		/* is a regular fs rw request */
@@ -235,6 +236,7 @@ enum rq_flag_bits {
 
 #define REQ_RW		(1 << __REQ_RW)
 #define REQ_FAILFAST	(1 << __REQ_FAILFAST)
+#define REQ_SORTED	(1 << __REQ_SORTED)
 #define REQ_SOFTBARRIER	(1 << __REQ_SOFTBARRIER)
 #define REQ_HARDBARRIER	(1 << __REQ_HARDBARRIER)
 #define REQ_CMD		(1 << __REQ_CMD)
@@ -331,6 +333,13 @@ struct request_queue
 	issue_flush_fn		*issue_flush_fn;
 	prepare_flush_fn	*prepare_flush_fn;
 	end_flush_fn		*end_flush_fn;
+
+	/*
+	 * Dispatch queue sorting
+	 */
+	sector_t		last_sector;
+	struct request		*boundary_rq;
+	unsigned int		max_back_kb;
 
 	/*
 	 * Auto-unplugging state
@@ -454,6 +463,7 @@ enum {
 #define blk_pm_request(rq)	\
 	((rq)->flags & (REQ_PM_SUSPEND | REQ_PM_RESUME))
 
+#define blk_sorted_rq(rq)	((rq)->flags & REQ_SORTED)
 #define blk_barrier_rq(rq)	((rq)->flags & REQ_HARDBARRIER)
 #define blk_barrier_preflush(rq)	((rq)->flags & REQ_BAR_PREFLUSH)
 #define blk_barrier_postflush(rq)	((rq)->flags & REQ_BAR_POSTFLUSH)
@@ -611,12 +621,7 @@ extern void end_request(struct request *req, int uptodate);
 
 static inline void blkdev_dequeue_request(struct request *req)
 {
-	BUG_ON(list_empty(&req->queuelist));
-
-	list_del_init(&req->queuelist);
-
-	if (req->rl)
-		elv_remove_request(req->q, req);
+	elv_dequeue_request(req->q, req);
 }
 
 /*
