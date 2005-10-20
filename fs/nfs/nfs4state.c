@@ -670,15 +670,12 @@ void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t f
 
 struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter)
 {
-	struct rpc_sequence *sequence = counter->sequence;
 	struct nfs_seqid *new;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (new != NULL) {
 		new->sequence = counter;
-		spin_lock(&sequence->lock);
-		list_add_tail(&new->list, &sequence->list);
-		spin_unlock(&sequence->lock);
+		INIT_LIST_HEAD(&new->list);
 	}
 	return new;
 }
@@ -687,10 +684,12 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
 {
 	struct rpc_sequence *sequence = seqid->sequence->sequence;
 
-	spin_lock(&sequence->lock);
-	list_del(&seqid->list);
-	rpc_wake_up(&sequence->wait);
-	spin_unlock(&sequence->lock);
+	if (!list_empty(&seqid->list)) {
+		spin_lock(&sequence->lock);
+		list_del(&seqid->list);
+		spin_unlock(&sequence->lock);
+	}
+	rpc_wake_up_next(&sequence->wait);
 	kfree(seqid);
 }
 
@@ -746,12 +745,16 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 	struct rpc_sequence *sequence = seqid->sequence->sequence;
 	int status = 0;
 
+	if (sequence->list.next == &seqid->list)
+		goto out;
 	spin_lock(&sequence->lock);
-	if (sequence->list.next != &seqid->list) {
+	if (!list_empty(&sequence->list)) {
 		rpc_sleep_on(&sequence->wait, task, NULL, NULL);
 		status = -EAGAIN;
-	}
+	} else
+		list_add(&seqid->list, &sequence->list);
 	spin_unlock(&sequence->lock);
+out:
 	return status;
 }
 
