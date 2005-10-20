@@ -97,7 +97,6 @@ static struct elevator_type *elevator_find(const char *name)
 	struct elevator_type *e = NULL;
 	struct list_head *entry;
 
-	spin_lock_irq(&elv_list_lock);
 	list_for_each(entry, &elv_list) {
 		struct elevator_type *__e;
 
@@ -108,7 +107,6 @@ static struct elevator_type *elevator_find(const char *name)
 			break;
 		}
 	}
-	spin_unlock_irq(&elv_list_lock);
 
 	return e;
 }
@@ -120,12 +118,15 @@ static void elevator_put(struct elevator_type *e)
 
 static struct elevator_type *elevator_get(const char *name)
 {
-	struct elevator_type *e = elevator_find(name);
+	struct elevator_type *e;
 
-	if (!e)
-		return NULL;
-	if (!try_module_get(e->elevator_owner))
-		return NULL;
+	spin_lock_irq(&elv_list_lock);
+
+	e = elevator_find(name);
+	if (e && !try_module_get(e->elevator_owner))
+		e = NULL;
+
+	spin_unlock_irq(&elv_list_lock);
 
 	return e;
 }
@@ -153,11 +154,15 @@ static char chosen_elevator[16];
 
 static void elevator_setup_default(void)
 {
+	struct elevator_type *e;
+
 	/*
 	 * check if default is set and exists
 	 */
-	if (chosen_elevator[0] && elevator_find(chosen_elevator))
+	if (chosen_elevator[0] && (e = elevator_get(chosen_elevator))) {
+		elevator_put(e);
 		return;
+	}
 
 #if defined(CONFIG_IOSCHED_AS)
 	strcpy(chosen_elevator, "anticipatory");
@@ -555,10 +560,9 @@ void elv_unregister_queue(struct request_queue *q)
 
 int elv_register(struct elevator_type *e)
 {
+	spin_lock_irq(&elv_list_lock);
 	if (elevator_find(e->elevator_name))
 		BUG();
-
-	spin_lock_irq(&elv_list_lock);
 	list_add_tail(&e->list, &elv_list);
 	spin_unlock_irq(&elv_list_lock);
 
