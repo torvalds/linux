@@ -703,8 +703,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_id == NR_CPUS) {
 		seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
 
-		if (ppc_md.get_cpuinfo != NULL)
-			ppc_md.get_cpuinfo(m);
+		if (ppc_md.show_cpuinfo != NULL)
+			ppc_md.show_cpuinfo(m);
 
 		return 0;
 	}

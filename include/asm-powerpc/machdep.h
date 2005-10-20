@@ -86,7 +86,8 @@ struct machdep_calls {
 	void		(*setup_arch)(void);
 	void		(*init_early)(void);
 	/* Optional, may be NULL. */
-	void		(*get_cpuinfo)(struct seq_file *m);
+	void		(*show_cpuinfo)(struct seq_file *m);
+	void		(*show_percpuinfo)(struct seq_file *m, int i);
 
 	void		(*init_IRQ)(void);
 	int		(*get_irq)(struct pt_regs *);
@@ -153,10 +154,6 @@ struct machdep_calls {
 	void		(*enable_pmcs)(void);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
-	/* Optional, may be NULL. */
-	int		(*show_cpuinfo)(struct seq_file *m);
-	int		(*show_percpuinfo)(struct seq_file *m, int i);
-	
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. */
 	void		(*init)(void);

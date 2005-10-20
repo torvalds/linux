@@ -587,7 +587,7 @@ static void __init iSeries_setup_arch(void)
 	printk("Processor version = %x\n", systemcfg->processor);
 }
 
-static void iSeries_get_cpuinfo(struct seq_file *m)
+static void iSeries_show_cpuinfo(struct seq_file *m)
 {
 	seq_printf(m, "machine\t\t: 64-bit iSeries Logical Partition\n");
 }
@@ -760,7 +760,7 @@ static int __init iseries_probe(int platform)
 
 struct machdep_calls __initdata iseries_md = {
 	.setup_arch	= iSeries_setup_arch,
-	.get_cpuinfo	= iSeries_get_cpuinfo,
+	.show_cpuinfo	= iSeries_show_cpuinfo,
 	.init_IRQ	= iSeries_init_IRQ,
 	.get_irq	= iSeries_get_irq,
 	.init_early	= iSeries_init_early,

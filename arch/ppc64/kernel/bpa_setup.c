@@ -55,7 +55,7 @@
 #define DBG(fmt...)
 #endif
 
-void bpa_get_cpuinfo(struct seq_file *m)
+void bpa_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
@@ -129,7 +129,7 @@ struct machdep_calls __initdata bpa_md = {
 	.probe			= bpa_probe,
 	.setup_arch		= bpa_setup_arch,
 	.init_early		= bpa_init_early,
-	.get_cpuinfo		= bpa_get_cpuinfo,
+	.show_cpuinfo		= bpa_show_cpuinfo,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
