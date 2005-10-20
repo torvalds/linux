@@ -1,3 +1,9 @@
+Version 1.39
+------------
+Defer close of a file handle slightly if pending writes depend on that file handle
+(this reduces the EBADF bad file handle errors that can be logged under heavy
+stress on writes).
+
 Version 1.38
 ------------
 Fix tcp socket retransmission timeouts (e.g. on ENOSPACE from the socket)

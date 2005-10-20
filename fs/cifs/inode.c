@@ -1006,6 +1006,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			__u32 npid = open_file->pid;
 			rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size,
 						nfid, npid, FALSE);
+			atomic_dec(&open_file->wrtPending);
 			cFYI(1,("SetFSize for attrs rc = %d", rc));
 			if(rc == -EINVAL) {
 				int bytes_written;

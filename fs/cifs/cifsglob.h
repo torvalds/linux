@@ -299,6 +299,7 @@ struct cifsFileInfo {
 	struct inode * pInode; /* needed for oplock break */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
+	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char * search_resume_name; /* BB removeme BB */
 	unsigned int resume_name_length; /* BB removeme - field renamed and moved BB */

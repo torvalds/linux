@@ -29,6 +29,7 @@
 #include <linux/pagevec.h>
 #include <linux/smp_lock.h>
 #include <linux/writeback.h>
+#include <linux/delay.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -50,6 +51,11 @@ static inline struct cifsFileInfo *cifs_init_private(
 	private_data->pInode = inode;
 	private_data->invalidHandle = FALSE;
 	private_data->closePend = FALSE;
+	/* we have to track num writers to the inode, since writepages
+	does not tell us which handle the write is for so there can
+	be a close (overlapping with write) of the filehandle that
+	cifs_writepages chose to use */
+	atomic_set(&private_data->wrtPending,0); 
 
 	return private_data;
 }
@@ -473,6 +479,20 @@ int cifs_close(struct inode *inode, struct file *file)
 			/* no sense reconnecting to close a file that is
 			   already closed */
 			if (pTcon->tidStatus != CifsNeedReconnect) {
+				int timeout = 2;
+				while((atomic_read(&pSMBFile->wrtPending) != 0)
+					 && (timeout < 1000) ) {
+					/* Give write a better chance to get to
+					server ahead of the close.  We do not
+					want to add a wait_q here as it would
+					increase the memory utilization as
+					the struct would be in each open file,
+					but this should give enough time to 
+					clear the socket */
+					cERROR(1,("close with pending writes"));
+					msleep(timeout);
+					timeout *= 4;
+				} 
 				write_unlock(&file->f_owner.lock);
 				rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
@@ -919,9 +939,10 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		if (open_file->pfile &&
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
+			atomic_inc(&open_file->wrtPending);
 			read_unlock(&GlobalSMBSeslock);
 			if((open_file->invalidHandle) && 
-			   (!open_file->closePend)) {
+			   (!open_file->closePend) /* BB fixme -since the second clause can not be true remove it BB */) {
 				rc = cifs_reopen_file(&cifs_inode->vfs_inode, 
 						      open_file->pfile, FALSE);
 				/* if it fails, try another handle - might be */
@@ -929,6 +950,10 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 				if(rc) {
 					cFYI(1,("failed on reopen file in wp"));
 					read_lock(&GlobalSMBSeslock);
+					/* can not use this handle, no write
+					pending on this one after all */
+					atomic_dec
+					     (&open_file->wrtPending);
 					continue;
 				}
 			}
@@ -981,6 +1006,7 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	if (open_file) {
 		bytes_written = cifs_write(open_file->pfile, write_data,
 					   to-from, &offset);
+		atomic_dec(&open_file->wrtPending);
 		/* Does mm or vfs already set times? */
 		inode->i_atime = inode->i_mtime = current_fs_time(inode->i_sb);
 		if ((bytes_written > 0) && (offset)) {
@@ -1016,7 +1042,7 @@ static int cifs_writepages(struct address_space *mapping,
 	pgoff_t next;
 	int nr_pages;
 	__u64 offset = 0;
-	struct cifsFileInfo *open_file = NULL;
+	struct cifsFileInfo *open_file;
 	struct page *page;
 	struct pagevec pvec;
 	int rc = 0;
@@ -1070,15 +1096,6 @@ retry:
 			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1))) {
 		int first;
 		unsigned int i;
-
-		if (!open_file) {
-			open_file = find_writable_file(CIFS_I(mapping->host));
-			if (!open_file) {
-				pagevec_release(&pvec);
-				cERROR(1, ("No writable handles for inode"));
-				return -EIO;
-			}
-		}
 
 		first = -1;
 		next = 0;
@@ -1155,18 +1172,32 @@ retry:
 				break;
 		}
 		if (n_iov) {
-			rc = CIFSSMBWrite2(xid, cifs_sb->tcon,
-					   open_file->netfid, bytes_to_write,
-					   offset, &bytes_written, iov, n_iov,
-					   1);
-			if (rc || bytes_written < bytes_to_write) {
-				cERROR(1,("CIFSSMBWrite2 returned %d, written = %x",
-					  rc, bytes_written));
-				set_bit(AS_EIO, &mapping->flags);
-				SetPageError(page);
+			/* Search for a writable handle every time we call
+			 * CIFSSMBWrite2.  We can't rely on the last handle
+			 * we used to still be valid
+			 */
+			open_file = find_writable_file(CIFS_I(mapping->host));
+			if (!open_file) {
+				cERROR(1, ("No writable handles for inode"));
+				rc = -EBADF;
 			} else {
-				cifs_stats_bytes_written(cifs_sb->tcon,
-							 bytes_written);
+				rc = CIFSSMBWrite2(xid, cifs_sb->tcon,
+						   open_file->netfid,
+						   bytes_to_write, offset,
+						   &bytes_written, iov, n_iov,
+						   1);
+				atomic_dec(&open_file->wrtPending);
+				if (rc || bytes_written < bytes_to_write) {
+					cERROR(1,("Write2 ret %d, written = %d",
+						  rc, bytes_written));
+					/* BB what if continued retry is
+					   requested via mount flags? */
+					set_bit(AS_EIO, &mapping->flags);
+					SetPageError(page);
+				} else {
+					cifs_stats_bytes_written(cifs_sb->tcon,
+								 bytes_written);
+				}
 			}
 			for (i = 0; i < n_iov; i++) {
 				page = pvec.pages[first + i];
@@ -1788,9 +1819,18 @@ static int cifs_readpage(struct file *file, struct page *page)
    page caching in the current Linux kernel design */
 int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
 {
-	if (cifsInode && find_writable_file(cifsInode))
+	struct cifsFileInfo *open_file = NULL;
+
+	if (cifsInode)
+		open_file =  find_writable_file(cifsInode);
+ 
+	if(open_file) {
+		/* there is not actually a write pending so let
+		this handle go free and allow it to
+		be closable if needed */
+		atomic_dec(&open_file->wrtPending);
 		return 0;
-	else
+	} else
 		return 1;
 }
 
