@@ -18,7 +18,7 @@
  */
 
 /*
- * BCM1x80/1x55-specific PCI support
+ * BCM1480/1455-specific HT support (looking like PCI)
  *
  * This module provides the glue between Linux's PCI subsystem
  * and the hardware.  We basically provide glue for accessing
@@ -30,7 +30,6 @@
  * kernel mapped memory.  Hopefully neither of these should be a huge
  * problem.
  *
- * XXX: AT THIS TIME, ONLY the NATIVE PCI-X INTERFACE IS SUPPORTED.
  */
 #include <linux/config.h>
 #include <linux/types.h>
@@ -53,37 +52,33 @@
 #define CFGOFFSET(bus,devfn,where) (((bus)<<16)+((devfn)<<8)+(where))
 #define CFGADDR(bus,devfn,where)   CFGOFFSET((bus)->number,(devfn),where)
 
-static void *cfg_space;
+static void *ht_cfg_space;
 
 #define PCI_BUS_ENABLED	1
 #define PCI_DEVICE_MODE	2
 
-static int bcm1480_bus_status = 0;
+static int bcm1480ht_bus_status = 0;
 
 #define PCI_BRIDGE_DEVICE  0
+#define HT_BRIDGE_DEVICE   1
+
+/*
+ * HT's level-sensitive interrupts require EOI, which is generated
+ * through a 4MB memory-mapped region
+ */
+unsigned long ht_eoi_space;
 
 /*
  * Read/write 32-bit values in config space.
  */
 static inline u32 READCFG32(u32 addr)
 {
-	return *(u32 *)(cfg_space + (addr&~3));
+	return *(u32 *)(ht_cfg_space + (addr&~3));
 }
 
 static inline void WRITECFG32(u32 addr, u32 data)
 {
-	*(u32 *)(cfg_space + (addr & ~3)) = data;
-}
-
-int pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
-{
-	return dev->irq;
-}
-
-/* Do platform specific device initialization at pci_enable_device() time */
-int pcibios_plat_dev_init(struct pci_dev *dev)
-{
-	return 0;
+	*(u32 *)(ht_cfg_space + (addr & ~3)) = data;
 }
 
 /*
@@ -91,21 +86,19 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
  * In PCI Device Mode, hide everything on bus 0 except the LDT host
  * bridge.  Otherwise, access is controlled by bridge MasterEn bits.
  */
-static int bcm1480_pci_can_access(struct pci_bus *bus, int devfn)
+static int bcm1480ht_can_access(struct pci_bus *bus, int devfn)
 {
 	u32 devno;
 
-	if (!(bcm1480_bus_status & (PCI_BUS_ENABLED | PCI_DEVICE_MODE)))
+	if (!(bcm1480ht_bus_status & (PCI_BUS_ENABLED | PCI_DEVICE_MODE)))
 		return 0;
 
 	if (bus->number == 0) {
 		devno = PCI_SLOT(devfn);
- 		if (bcm1480_bus_status & PCI_DEVICE_MODE)
+ 		if (bcm1480ht_bus_status & PCI_DEVICE_MODE)
 			return 0;
-		else
-			return 1;
-	} else
-		return 1;
+	}
+	return 1;
 }
 
 /*
@@ -114,8 +107,8 @@ static int bcm1480_pci_can_access(struct pci_bus *bus, int devfn)
  * for a kludgy but adequate simulation of master aborts.
  */
 
-static int bcm1480_pcibios_read(struct pci_bus *bus, unsigned int devfn,
-				int where, int size, u32 * val)
+static int bcm1480ht_pcibios_read(struct pci_bus *bus, unsigned int devfn,
+				  int where, int size, u32 * val)
 {
 	u32 data = 0;
 
@@ -124,7 +117,7 @@ static int bcm1480_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 	else if ((size == 4) && (where & 3))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	if (bcm1480_pci_can_access(bus, devfn))
+	if (bcm1480ht_can_access(bus, devfn))
 		data = READCFG32(CFGADDR(bus, devfn, where));
 	else
 		data = 0xFFFFFFFF;
@@ -139,8 +132,8 @@ static int bcm1480_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int bcm1480_pcibios_write(struct pci_bus *bus, unsigned int devfn,
-				int where, int size, u32 val)
+static int bcm1480ht_pcibios_write(struct pci_bus *bus, unsigned int devfn,
+				   int where, int size, u32 val)
 {
 	u32 cfgaddr = CFGADDR(bus, devfn, where);
 	u32 data = 0;
@@ -150,7 +143,7 @@ static int bcm1480_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	else if ((size == 4) && (where & 3))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	if (!bcm1480_pci_can_access(bus, devfn))
+	if (!bcm1480ht_can_access(bus, devfn))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	data = READCFG32(cfgaddr);
@@ -169,89 +162,63 @@ static int bcm1480_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops bcm1480_pci_ops = {
-	bcm1480_pcibios_read,
-	bcm1480_pcibios_write,
+static int bcm1480ht_pcibios_get_busno(void)
+{
+	return 0;
+}
+
+struct pci_ops bcm1480ht_pci_ops = {
+	.read	= bcm1480ht_pcibios_read,
+	.write	= bcm1480ht_pcibios_write,
 };
 
-static struct resource bcm1480_mem_resource = {
-	.name	= "BCM1480 PCI MEM",
-	.start	= 0x30000000UL,
-	.end	= 0x3fffffffUL,
+static struct resource bcm1480ht_mem_resource = {
+	.name	= "BCM1480 HT MEM",
+	.start	= 0x40000000UL,
+	.end	= 0x5fffffffUL,
 	.flags	= IORESOURCE_MEM,
 };
 
-static struct resource bcm1480_io_resource = {
-	.name	= "BCM1480 PCI I/O",
-	.start	= 0x2c000000UL,
-	.end	= 0x2dffffffUL,
+static struct resource bcm1480ht_io_resource = {
+	.name	= "BCM1480 HT I/O",
+	.start	= 0x00000000UL,
+	.end	= 0x01ffffffUL,
 	.flags	= IORESOURCE_IO,
 };
 
-struct pci_controller bcm1480_controller = {
-	.pci_ops	= &bcm1480_pci_ops,
-	.mem_resource	= &bcm1480_mem_resource,
-	.io_resource	= &bcm1480_io_resource,
+struct pci_controller bcm1480ht_controller = {
+	.pci_ops	= &bcm1480ht_pci_ops,
+	.mem_resource	= &bcm1480ht_mem_resource,
+	.io_resource	= &bcm1480ht_io_resource,
+	.index		= 1,
+	.get_busno	= bcm1480ht_pcibios_get_busno,
 };
 
-
-static int __init bcm1480_pcibios_init(void)
+static int __init bcm1480ht_pcibios_init(void)
 {
 	uint32_t cmdreg;
-	uint64_t reg;
-	extern int pci_probe_only;
 
-	/* CFE will assign PCI resources */
-	pci_probe_only = 1;
-
-	/* Avoid ISA compat ranges.  */
-	PCIBIOS_MIN_IO = 0x00008000UL;
-	PCIBIOS_MIN_MEM = 0x01000000UL;
-
-	/* Set I/O resource limits. - unlimited for now to accomodate HT */
-	ioport_resource.end = 0xffffffffUL;
-	iomem_resource.end = 0xffffffffUL;
-
-	cfg_space = ioremap(A_BCM1480_PHYS_PCI_CFG_MATCH_BITS, 16*1024*1024);
+	ht_cfg_space = ioremap(A_BCM1480_PHYS_HT_CFG_MATCH_BITS, 16*1024*1024);
 
 	/*
 	 * See if the PCI bus has been configured by the firmware.
 	 */
-	reg = *((volatile uint64_t *) IOADDR(A_SCD_SYSTEM_CFG));
-	if (!(reg & M_BCM1480_SYS_PCI_HOST)) {
-		bcm1480_bus_status |= PCI_DEVICE_MODE;
-	} else {
-		cmdreg = READCFG32(CFGOFFSET(0, PCI_DEVFN(PCI_BRIDGE_DEVICE, 0),
-					     PCI_COMMAND));
-		if (!(cmdreg & PCI_COMMAND_MASTER)) {
-			printk
-			    ("PCI: Skipping PCI probe.  Bus is not initialized.\n");
-			iounmap(cfg_space);
-			return 1; /* XXX */
-		}
-		bcm1480_bus_status |= PCI_BUS_ENABLED;
+	cmdreg = READCFG32(CFGOFFSET(0, PCI_DEVFN(PCI_BRIDGE_DEVICE, 0),
+				     PCI_COMMAND));
+	if (!(cmdreg & PCI_COMMAND_MASTER)) {
+		printk("HT: Skipping HT probe. Bus is not initialized.\n");
+		iounmap(ht_cfg_space);
+		return 1; /* XXX */
 	}
+	bcm1480ht_bus_status |= PCI_BUS_ENABLED;
 
-	/*
-	 * Establish mappings in KSEG2 (kernel virtual) to PCI I/O
-	 * space.  Use "match bytes" policy to make everything look
-	 * little-endian.  So, you need to also set
-	 * CONFIG_SWAP_IO_SPACE, but this is the combination that
-	 * works correctly with most of Linux's drivers.
-	 * XXX ehs: Should this happen in PCI Device mode?
-	 */
+	ht_eoi_space = (unsigned long)
+		ioremap(A_BCM1480_PHYS_HT_SPECIAL_MATCH_BYTES,
+			4 * 1024 * 1024);
 
-	set_io_port_base((unsigned long)
-		ioremap(A_BCM1480_PHYS_PCI_IO_MATCH_BYTES, 65536));
-	isa_slot_offset = (unsigned long)
-		ioremap(A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES, 1024*1024);
+	register_pci_controller(&bcm1480ht_controller);
 
-	register_pci_controller(&bcm1480_controller);
-
-#ifdef CONFIG_VGA_CONSOLE
-	take_over_console(&vga_con,0,MAX_NR_CONSOLES-1,1);
-#endif
 	return 0;
 }
 
-arch_initcall(bcm1480_pcibios_init);
+arch_initcall(bcm1480ht_pcibios_init);

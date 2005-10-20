@@ -40,6 +40,11 @@ struct pci_controller {
 	unsigned int need_domain_info;
 
 	int iommu;
+
+	/* Optional access methods for reading/writing the bus number
+	   of the PCI controller */
+	int (*get_busno)(void);
+	void (*set_busno)(int busno);
 };
 
 /*
