@@ -612,7 +612,7 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 	 * cache code which eventually will be folded into c-r4k.c.  Until
 	 * then we pretend it's got it's own cache architecture.
 	 */
-	c->options &= MIPS_CPU_4K_CACHE;
+	c->options &= ~MIPS_CPU_4K_CACHE;
 	c->options |= MIPS_CPU_SB1_CACHE;
 
 	switch (c->processor_id & 0xff00) {
