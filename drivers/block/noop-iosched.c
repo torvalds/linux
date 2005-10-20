@@ -28,13 +28,9 @@ static void elevator_noop_merge_requests(request_queue_t *q, struct request *req
 	list_del_init(&next->queuelist);
 }
 
-static void elevator_noop_add_request(request_queue_t *q, struct request *rq,
-				      int where)
+static void elevator_noop_add_request(request_queue_t *q, struct request *rq)
 {
-	if (where == ELEVATOR_INSERT_FRONT)
-		list_add(&rq->queuelist, &q->queue_head);
-	else
-		list_add_tail(&rq->queuelist, &q->queue_head);
+	elv_dispatch_add_tail(q, rq);
 
 	/*
 	 * new merges must not precede this barrier
@@ -45,19 +41,16 @@ static void elevator_noop_add_request(request_queue_t *q, struct request *rq,
 		q->last_merge = rq;
 }
 
-static struct request *elevator_noop_next_request(request_queue_t *q)
+static int elevator_noop_dispatch(request_queue_t *q, int force)
 {
-	if (!list_empty(&q->queue_head))
-		return list_entry_rq(q->queue_head.next);
-
-	return NULL;
+	return 0;
 }
 
 static struct elevator_type elevator_noop = {
 	.ops = {
 		.elevator_merge_fn		= elevator_noop_merge,
 		.elevator_merge_req_fn		= elevator_noop_merge_requests,
-		.elevator_next_req_fn		= elevator_noop_next_request,
+		.elevator_dispatch_fn		= elevator_noop_dispatch,
 		.elevator_add_req_fn		= elevator_noop_add_request,
 	},
 	.elevator_name = "noop",
