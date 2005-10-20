@@ -79,7 +79,7 @@ struct elevator_queue
 /*
  * block elevator interface
  */
-extern void elv_dispatch_insert(request_queue_t *, struct request *, int);
+extern void elv_dispatch_sort(request_queue_t *, struct request *);
 extern void elv_add_request(request_queue_t *, struct request *, int, int);
 extern void __elv_add_request(request_queue_t *, struct request *, int, int);
 extern int elv_merge(request_queue_t *, struct request **, struct bio *);
@@ -139,5 +139,7 @@ enum {
 	ELV_MQUEUE_NO,
 	ELV_MQUEUE_MUST,
 };
+
+#define rq_end_sector(rq)	((rq)->sector + (rq)->nr_sectors)
 
 #endif

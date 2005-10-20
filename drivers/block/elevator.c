@@ -40,11 +40,6 @@
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
 
-static inline sector_t rq_last_sector(struct request *rq)
-{
-	return rq->sector + rq->nr_sectors;
-}
-
 /*
  * can we safely merge with this request?
  */
@@ -148,7 +143,7 @@ static int elevator_attach(request_queue_t *q, struct elevator_type *e,
 	INIT_LIST_HEAD(&q->queue_head);
 	q->last_merge = NULL;
 	q->elevator = eq;
-	q->last_sector = 0;
+	q->end_sector = 0;
 	q->boundary_rq = NULL;
 	q->max_back_kb = 0;
 
@@ -233,29 +228,25 @@ void elevator_exit(elevator_t *e)
 	kfree(e);
 }
 
+void elv_dispatch_insert_tail(request_queue_t *q, struct request *rq)
+{
+}
+
 /*
  * Insert rq into dispatch queue of q.  Queue lock must be held on
  * entry.  If sort != 0, rq is sort-inserted; otherwise, rq will be
  * appended to the dispatch queue.  To be used by specific elevators.
  */
-void elv_dispatch_insert(request_queue_t *q, struct request *rq, int sort)
+void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 {
 	sector_t boundary;
 	unsigned max_back;
 	struct list_head *entry;
 
-	if (!sort) {
-		/* Specific elevator is performing sort.  Step away. */
-		q->last_sector = rq_last_sector(rq);
-		q->boundary_rq = rq;
-		list_add_tail(&rq->queuelist, &q->queue_head);
-		return;
-	}
-
-	boundary = q->last_sector;
+	boundary = q->end_sector;
 	max_back = q->max_back_kb * 2;
 	boundary = boundary > max_back ? boundary - max_back : 0;
-
+	
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 
@@ -343,10 +334,10 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 			where = ELEVATOR_INSERT_BACK;
 
 		/*
-		 * this request is scheduling boundary, update last_sector
+		 * this request is scheduling boundary, update end_sector
 		 */
 		if (blk_fs_request(rq)) {
-			q->last_sector = rq_last_sector(rq);
+			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = rq;
 		}
 	}
@@ -479,7 +470,7 @@ struct request *elv_next_request(request_queue_t *q)
 			q->last_merge = NULL;
 
 		if (!q->boundary_rq || q->boundary_rq == rq) {
-			q->last_sector = rq_last_sector(rq);
+			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = NULL;
 		}
 
@@ -802,7 +793,7 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 	return len;
 }
 
-EXPORT_SYMBOL(elv_dispatch_insert);
+EXPORT_SYMBOL(elv_dispatch_sort);
 EXPORT_SYMBOL(elv_add_request);
 EXPORT_SYMBOL(__elv_add_request);
 EXPORT_SYMBOL(elv_requeue_request);

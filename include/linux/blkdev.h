@@ -337,7 +337,7 @@ struct request_queue
 	/*
 	 * Dispatch queue sorting
 	 */
-	sector_t		last_sector;
+	sector_t		end_sector;
 	struct request		*boundary_rq;
 	unsigned int		max_back_kb;
 
@@ -622,6 +622,17 @@ extern void end_request(struct request *req, int uptodate);
 static inline void blkdev_dequeue_request(struct request *req)
 {
 	elv_dequeue_request(req->q, req);
+}
+
+/*
+ * This should be in elevator.h, but that requires pulling in rq and q
+ */
+static inline void elv_dispatch_add_tail(struct request_queue *q,
+					 struct request *rq)
+{
+	q->end_sector = rq_end_sector(rq);
+	q->boundary_rq = rq;
+	list_add_tail(&rq->queuelist, &q->queue_head);
 }
 
 /*
