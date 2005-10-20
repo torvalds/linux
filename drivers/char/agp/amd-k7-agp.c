@@ -94,19 +94,16 @@ static int amd_create_gatt_pages(int nr_tables)
 	int retval = 0;
 	int i;
 
-	tables = kmalloc((nr_tables + 1) * sizeof(struct amd_page_map *),
-			 GFP_KERNEL);
+	tables = kzalloc((nr_tables + 1) * sizeof(struct amd_page_map *),GFP_KERNEL);
 	if (tables == NULL)
 		return -ENOMEM;
 
-	memset (tables, 0, sizeof(struct amd_page_map *) * (nr_tables + 1));
 	for (i = 0; i < nr_tables; i++) {
-		entry = kmalloc(sizeof(struct amd_page_map), GFP_KERNEL);
+		entry = kzalloc(sizeof(struct amd_page_map), GFP_KERNEL);
 		if (entry == NULL) {
 			retval = -ENOMEM;
 			break;
 		}
-		memset (entry, 0, sizeof(struct amd_page_map));
 		tables[i] = entry;
 		retval = amd_create_page_map(entry);
 		if (retval != 0)

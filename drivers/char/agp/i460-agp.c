@@ -225,10 +225,9 @@ static int i460_configure (void)
 	 */
 	if (I460_IO_PAGE_SHIFT > PAGE_SHIFT) {
 		size = current_size->num_entries * sizeof(i460.lp_desc[0]);
-		i460.lp_desc = kmalloc(size, GFP_KERNEL);
+		i460.lp_desc = kzalloc(size, GFP_KERNEL);
 		if (!i460.lp_desc)
 			return -ENOMEM;
-		memset(i460.lp_desc, 0, size);
 	}
 	return 0;
 }
@@ -364,13 +363,12 @@ static int i460_alloc_large_page (struct lp_desc *lp)
 	}
 
 	map_size = ((I460_KPAGES_PER_IOPAGE + BITS_PER_LONG - 1) & -BITS_PER_LONG)/8;
-	lp->alloced_map = kmalloc(map_size, GFP_KERNEL);
+	lp->alloced_map = kzalloc(map_size, GFP_KERNEL);
 	if (!lp->alloced_map) {
 		free_pages((unsigned long) lpage, order);
 		printk(KERN_ERR PFX "Out of memory, we're in trouble...\n");
 		return -ENOMEM;
 	}
-	memset(lp->alloced_map, 0, map_size);
 
 	lp->paddr = virt_to_gart(lpage);
 	lp->refcount = 0;

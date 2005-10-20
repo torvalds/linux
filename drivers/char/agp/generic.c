@@ -105,12 +105,10 @@ struct agp_memory *agp_create_memory(int scratch_pages)
 {
 	struct agp_memory *new;
 
-	new = kmalloc(sizeof(struct agp_memory), GFP_KERNEL);
-
+	new = kzalloc(sizeof(struct agp_memory), GFP_KERNEL);
 	if (new == NULL)
 		return NULL;
 
-	memset(new, 0, sizeof(struct agp_memory));
 	new->key = agp_get_key();
 
 	if (new->key < 0) {
