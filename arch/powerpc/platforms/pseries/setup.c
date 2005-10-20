@@ -241,10 +241,6 @@ static void __init pSeries_setup_arch(void)
 	find_and_init_phbs();
 	eeh_init();
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	pSeries_nvram_init();
 
 	/* Choose an idle loop */

@@ -586,6 +586,10 @@ void __init setup_system(void)
 	 */
 	finish_device_tree();
 
+#ifdef CONFIG_BOOTX_TEXT
+	init_boot_display();
+#endif
+
 	/*
 	 * Initialize xmon
 	 */
@@ -1038,6 +1042,10 @@ void __init setup_arch(char **cmdline_p)
 
 	/* initialize the syscall map in systemcfg */
 	setup_syscall_map();
+
+#ifdef CONFIG_DUMMY_CONSOLE
+	conswitchp = &dummy_con;
+#endif
 
 	ppc_md.setup_arch();
 
