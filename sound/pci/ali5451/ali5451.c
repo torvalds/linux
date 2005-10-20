@@ -426,7 +426,7 @@ static int snd_ali_stimer_ready(ali_t *codec, int sched)
 			schedule_timeout(1);
 		}
 	} while (time_after_eq(end_time, jiffies));
-	snd_printk("ali_stimer_read: stimer is not ready.\n");
+	snd_printk(KERN_ERR "ali_stimer_read: stimer is not ready.\n");
 	return -EIO;
 }
 
@@ -438,7 +438,7 @@ static void snd_ali_codec_poke(ali_t *codec,int secondary,
 	unsigned int port = 0;
 
 	if (reg >= 0x80) {
-		snd_printk("ali_codec_poke: reg(%xh) invalid.\n", reg);
+		snd_printk(KERN_ERR "ali_codec_poke: reg(%xh) invalid.\n", reg);
 		return;
 	}
 
@@ -467,7 +467,7 @@ static unsigned short snd_ali_codec_peek( ali_t *codec,
 	unsigned int port = 0;
 
 	if (reg >= 0x80) {
-		snd_printk("ali_codec_peek: reg(%xh) invalid.\n", reg);
+		snd_printk(KERN_ERR "ali_codec_peek: reg(%xh) invalid.\n", reg);
 		return ~0;
 	}
 
@@ -671,7 +671,7 @@ static int snd_ali_alloc_pcm_channel(ali_t *codec, int channel)
 	unsigned int idx =  channel & 0x1f;
 
 	if (codec->synth.chcnt >= ALI_CHANNELS){
-		snd_printk("ali_alloc_pcm_channel: no free channels.\n");
+		snd_printk(KERN_ERR "ali_alloc_pcm_channel: no free channels.\n");
 		return -1;
 	}
 
@@ -702,7 +702,7 @@ static int snd_ali_find_free_channel(ali_t * codec, int rec)
 		if ((result = snd_ali_alloc_pcm_channel(codec,idx)) >= 0) {
 			return result;
 		} else {
-			snd_printk("ali_find_free_channel: record channel is busy now.\n");
+			snd_printk(KERN_ERR "ali_find_free_channel: record channel is busy now.\n");
 			return -1;
 		}
 	}
@@ -714,7 +714,7 @@ static int snd_ali_find_free_channel(ali_t * codec, int rec)
 		if ((result = snd_ali_alloc_pcm_channel(codec,idx)) >= 0) {
 			return result;
 		} else {
-			snd_printk("ali_find_free_channel: S/PDIF out channel is in busy now.\n");
+			snd_printk(KERN_ERR "ali_find_free_channel: S/PDIF out channel is in busy now.\n");
 		}
 	}
 
@@ -722,7 +722,7 @@ static int snd_ali_find_free_channel(ali_t * codec, int rec)
 		if ((result = snd_ali_alloc_pcm_channel(codec,idx)) >= 0)
 			return result;
 	}
-	snd_printk("ali_find_free_channel: no free channels.\n");
+	snd_printk(KERN_ERR "ali_find_free_channel: no free channels.\n");
 	return -1;
 }
 
@@ -736,7 +736,7 @@ static void snd_ali_free_channel_pcm(ali_t *codec, int channel)
 		return;
 
 	if (!(codec->synth.chmap & (1 << idx))) {
-		snd_printk("ali_free_channel_pcm: channel %d is not in use.\n",channel);
+		snd_printk(KERN_ERR "ali_free_channel_pcm: channel %d is not in use.\n",channel);
 		return;
 	} else {
 		codec->synth.chmap &= ~(1 << idx);
@@ -798,7 +798,7 @@ static void snd_ali_detect_spdif_rate(ali_t *codec)
 	}
 
 	if (count > 50000) {
-		snd_printk("ali_detect_spdif_rate: timeout!\n");
+		snd_printk(KERN_ERR "ali_detect_spdif_rate: timeout!\n");
 		return;
 	}
 
@@ -811,7 +811,7 @@ static void snd_ali_detect_spdif_rate(ali_t *codec)
 	}
 
 	if (count > 50000) {
-		snd_printk("ali_detect_spdif_rate: timeout!\n");
+		snd_printk(KERN_ERR "ali_detect_spdif_rate: timeout!\n");
 		return;
 	}
 
@@ -1079,7 +1079,7 @@ static snd_ali_voice_t *snd_ali_alloc_voice(ali_t * codec, int type, int rec, in
 		idx = channel > 0 ? snd_ali_alloc_pcm_channel(codec, channel) :
 			snd_ali_find_free_channel(codec,rec);
 		if(idx < 0) {
-			snd_printk("ali_alloc_voice: err.\n");
+			snd_printk(KERN_ERR "ali_alloc_voice: err.\n");
 			spin_unlock_irqrestore(&codec->voice_alloc, flags);
 			return NULL;
 		}
@@ -1481,13 +1481,13 @@ static int snd_ali_prepare(snd_pcm_substream_t * substream)
 		}
 		rate = snd_ali_get_spdif_in_rate(codec);
 		if (rate == 0) {
-			snd_printk("ali_capture_preapre: spdif rate detect err!\n");
+			snd_printk(KERN_WARNING "ali_capture_preapre: spdif rate detect err!\n");
 			rate = 48000;
 		}
 		bValue = inb(ALI_REG(codec,ALI_SPDIF_CTRL));
 		if (bValue & 0x10) {
 			outb(bValue,ALI_REG(codec,ALI_SPDIF_CTRL));
-			printk("clear SPDIF parity error flag.\n");
+			printk(KERN_WARNING "clear SPDIF parity error flag.\n");
 		}
 
 		if (rate != 48000)
@@ -1816,7 +1816,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 	err = snd_pcm_new(codec->card, desc->name, device,
 			  desc->playback_num, desc->capture_num, &pcm);
 	if (err < 0) {
-		snd_printk("snd_ali_pcm: err called snd_pcm_new.\n");
+		snd_printk(KERN_ERR "snd_ali_pcm: err called snd_pcm_new.\n");
 		return err;
 	}
 	pcm->private_data = codec;
@@ -1994,7 +1994,7 @@ static int __devinit snd_ali_mixer(ali_t * codec)
 	for ( i = 0 ; i < codec->num_of_codecs ; i++) {
 		ac97.num = i;
 		if ((err = snd_ac97_mixer(codec->ac97_bus, &ac97, &codec->ac97[i])) < 0) {
-			snd_printk("ali mixer %d creating error.\n", i);
+			snd_printk(KERN_ERR "ali mixer %d creating error.\n", i);
 			if(i == 0)
 				return err;
 			codec->num_of_codecs = 1;
@@ -2128,7 +2128,7 @@ static int snd_ali_chip_init(ali_t *codec)
 	snd_ali_printk("chip initializing ... \n");
 
 	if (snd_ali_reset_5451(codec)) {
-		snd_printk("ali_chip_init: reset 5451 error.\n");
+		snd_printk(KERN_ERR "ali_chip_init: reset 5451 error.\n");
 		return -1;
 	}
 
@@ -2203,7 +2203,7 @@ static int __devinit snd_ali_resources(ali_t *codec)
 	codec->port = pci_resource_start(codec->pci, 0);
 
 	if (request_irq(codec->pci->irq, snd_ali_card_interrupt, SA_INTERRUPT|SA_SHIRQ, "ALI 5451", (void *)codec)) {
-		snd_printk("Unable to request irq.\n");
+		snd_printk(KERN_ERR "Unable to request irq.\n");
 		return -EBUSY;
 	}
 	codec->irq = codec->pci->irq;
@@ -2243,7 +2243,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 	/* check, if we can restrict PCI DMA transfers to 31 bits */
 	if (pci_set_dma_mask(pci, 0x7fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x7fffffff) < 0) {
-		snd_printk("architecture does not support 31bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 31bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2332,7 +2332,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 	}
 
 	if ((err = snd_ali_chip_init(codec)) < 0) {
-		snd_printk("ali create: chip init error.\n");
+		snd_printk(KERN_ERR "ali create: chip init error.\n");
 		return err;
 	}
 

@@ -320,9 +320,9 @@ static inline void
 snd_nm256_write_buffer(nm256_t *chip, void *src, int offset, int size)
 {
 	offset -= chip->buffer_start;
-#ifdef SNDRV_CONFIG_DEBUG
+#ifdef CONFIG_SND_DEBUG
 	if (offset < 0 || offset >= chip->buffer_size) {
-		snd_printk("write_buffer invalid offset = %d size = %d\n", offset, size);
+		snd_printk(KERN_ERR "write_buffer invalid offset = %d size = %d\n", offset, size);
 		return;
 	}
 #endif
@@ -466,7 +466,7 @@ static int snd_nm256_acquire_irq(nm256_t *chip)
 	if (chip->irq < 0) {
 		if (request_irq(chip->pci->irq, chip->interrupt, SA_INTERRUPT|SA_SHIRQ,
 				chip->card->driver, (void*)chip)) {
-			snd_printk("unable to grab IRQ %d\n", chip->pci->irq);
+			snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->pci->irq);
 			up(&chip->irq_mutex);
 			return -EBUSY;
 		}
@@ -1273,7 +1273,7 @@ snd_nm256_peek_for_sig(nm256_t *chip)
 
 	temp = ioremap_nocache(chip->buffer_addr + chip->buffer_end - 0x400, 16);
 	if (temp == NULL) {
-		snd_printk("Unable to scan for card signature in video RAM\n");
+		snd_printk(KERN_ERR "Unable to scan for card signature in video RAM\n");
 		return -EBUSY;
 	}
 
@@ -1287,7 +1287,7 @@ snd_nm256_peek_for_sig(nm256_t *chip)
 		if (pointer == 0xffffffff ||
 		    pointer < chip->buffer_size ||
 		    pointer > chip->buffer_end) {
-			snd_printk("invalid signature found: 0x%x\n", pointer);
+			snd_printk(KERN_ERR "invalid signature found: 0x%x\n", pointer);
 			iounmap(temp);
 			return -ENODEV;
 		} else {
@@ -1424,14 +1424,14 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 	chip->res_cport = request_mem_region(chip->cport_addr, NM_PORT2_SIZE,
 					     card->driver);
 	if (chip->res_cport == NULL) {
-		snd_printk("memory region 0x%lx (size 0x%x) busy\n",
+		snd_printk(KERN_ERR "memory region 0x%lx (size 0x%x) busy\n",
 			   chip->cport_addr, NM_PORT2_SIZE);
 		err = -EBUSY;
 		goto __error;
 	}
 	chip->cport = ioremap_nocache(chip->cport_addr, NM_PORT2_SIZE);
 	if (chip->cport == NULL) {
-		snd_printk("unable to map control port %lx\n", chip->cport_addr);
+		snd_printk(KERN_ERR "unable to map control port %lx\n", chip->cport_addr);
 		err = -ENOMEM;
 		goto __error;
 	}
@@ -1489,7 +1489,7 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 					      chip->buffer_size,
 					      card->driver);
 	if (chip->res_buffer == NULL) {
-		snd_printk("nm256: buffer 0x%lx (size 0x%x) busy\n",
+		snd_printk(KERN_ERR "nm256: buffer 0x%lx (size 0x%x) busy\n",
 			   chip->buffer_addr, chip->buffer_size);
 		err = -EBUSY;
 		goto __error;
@@ -1497,7 +1497,7 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 	chip->buffer = ioremap_nocache(chip->buffer_addr, chip->buffer_size);
 	if (chip->buffer == NULL) {
 		err = -ENOMEM;
-		snd_printk("unable to map ring buffer at %lx\n", chip->buffer_addr);
+		snd_printk(KERN_ERR "unable to map ring buffer at %lx\n", chip->buffer_addr);
 		goto __error;
 	}
 
@@ -1605,7 +1605,7 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 		strcpy(card->driver, "NM256XL+");
 		break;
 	default:
-		snd_printk("invalid device id 0x%x\n", pci->device);
+		snd_printk(KERN_ERR "invalid device id 0x%x\n", pci->device);
 		snd_card_free(card);
 		return -EINVAL;
 	}

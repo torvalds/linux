@@ -320,7 +320,7 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
 		} else if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
 			snd_card_free(card);
-			snd_printk("cannot create opl3 hwdep\n");
+			snd_printk(KERN_ERR "cannot create opl3 hwdep\n");
 			return err;
 		}
 	}

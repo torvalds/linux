@@ -363,7 +363,7 @@ static int snd_intel8x0m_codec_semaphore(intel8x0_t *chip, unsigned int codec)
 	/* access to some forbidden (non existant) ac97 registers will not
 	 * reset the semaphore. So even if you don't get the semaphore, still
 	 * continue the access. We don't need the semaphore anyway. */
-	snd_printk("codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
+	snd_printk(KERN_ERR "codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
 			igetbyte(chip, ICHREG(ACC_SEMA)), igetdword(chip, ICHREG(GLOB_STA)));
 	iagetword(chip, 0);	/* clear semaphore flag */
 	/* I don't care about the semaphore */
@@ -378,7 +378,7 @@ static void snd_intel8x0_codec_write(ac97_t *ac97,
 	
 	if (snd_intel8x0m_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
-			snd_printk("codec_write %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
+			snd_printk(KERN_ERR "codec_write %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
 	}
 	iaputword(chip, reg + ac97->num * 0x80, val);
 }
@@ -392,7 +392,7 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 
 	if (snd_intel8x0m_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
-			snd_printk("codec_read %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
+			snd_printk(KERN_ERR "codec_read %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
 		res = 0xffff;
 	} else {
 		res = iagetword(chip, reg + ac97->num * 0x80);
@@ -400,7 +400,7 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp & ~(ICH_SRI|ICH_PRI|ICH_TRI|ICH_GSCI));
 			if (! chip->in_ac97_init)
-				snd_printk("codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
+				snd_printk(KERN_ERR "codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
 			res = 0xffff;
 		}
 	}
@@ -917,7 +917,7 @@ static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 			goto __ok;
 		do_delay(chip);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printk("AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
+	snd_printk(KERN_ERR "AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
 	return -EIO;
 
       __ok:
@@ -1143,7 +1143,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 		chip->remap_addr = ioremap_nocache(chip->addr,
 						   pci_resource_len(pci, 2));
 		if (chip->remap_addr == NULL) {
-			snd_printk("AC'97 space ioremap problem\n");
+			snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
 			snd_intel8x0_free(chip);
 			return -EIO;
 		}
@@ -1156,7 +1156,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 		chip->remap_bmaddr = ioremap_nocache(chip->bmaddr,
 						     pci_resource_len(pci, 3));
 		if (chip->remap_bmaddr == NULL) {
-			snd_printk("Controller space ioremap problem\n");
+			snd_printk(KERN_ERR "Controller space ioremap problem\n");
 			snd_intel8x0_free(chip);
 			return -EIO;
 		}
@@ -1166,7 +1166,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 
  port_inited:
 	if (request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);
 		return -EBUSY;
 	}

@@ -281,7 +281,7 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 	int retry;
 	if ((reg > 0x7f) || (value > 0x1ff))
 	{
-                snd_printk("i2c_write: invalid values.\n");
+		snd_printk(KERN_ERR "i2c_write: invalid values.\n");
 		return -EINVAL;
 	}
 
@@ -319,7 +319,7 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 
 	if(retry==10)
 	{
-                snd_printk("Writing to ADC failed!\n");
+		snd_printk(KERN_ERR "Writing to ADC failed!\n");
 		return -EINVAL;
 	}
     
@@ -421,7 +421,7 @@ static int snd_ca0106_pcm_open_capture_channel(snd_pcm_substream_t *substream, i
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL) {
-                snd_printk("open_capture_channel: failed epcm alloc\n");
+		snd_printk(KERN_ERR "open_capture_channel: failed epcm alloc\n");
 		return -ENOMEM;
         }
 	epcm->emu = chip;

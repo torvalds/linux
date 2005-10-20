@@ -387,7 +387,7 @@ int __devinit snd_ice1712_init_cs8427(ice1712_t *ice, int addr)
 	if ((err = snd_cs8427_create(ice->i2c, addr,
 				     (ice->cs8427_timeout * HZ) / 1000,
 				     &ice->cs8427)) < 0) {
-		snd_printk("CS8427 initialization failed\n");
+		snd_printk(KERN_ERR "CS8427 initialization failed\n");
 		return err;
 	}
 	ice->spdif.ops.open = open_cs8427;
@@ -2348,12 +2348,12 @@ static int __devinit snd_ice1712_read_eeprom(ice1712_t *ice, const char *modelna
 	if (ice->eeprom.size < 6)
 		ice->eeprom.size = 32; /* FIXME: any cards without the correct size? */
 	else if (ice->eeprom.size > 32) {
-		snd_printk("invalid EEPROM (size = %i)\n", ice->eeprom.size);
+		snd_printk(KERN_ERR "invalid EEPROM (size = %i)\n", ice->eeprom.size);
 		return -EIO;
 	}
 	ice->eeprom.version = snd_ice1712_read_i2c(ice, dev, 0x05);
 	if (ice->eeprom.version != 1) {
-		snd_printk("invalid EEPROM version %i\n", ice->eeprom.version);
+		snd_printk(KERN_ERR "invalid EEPROM version %i\n", ice->eeprom.version);
 		/* return -EIO; */
 	}
 	size = ice->eeprom.size - 6;
@@ -2524,7 +2524,7 @@ static int __devinit snd_ice1712_create(snd_card_t * card,
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
-		snd_printk("architecture does not support 28bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2573,7 +2573,7 @@ static int __devinit snd_ice1712_create(snd_card_t * card,
 	ice->profi_port = pci_resource_start(pci, 3);
 
 	if (request_irq(pci->irq, snd_ice1712_interrupt, SA_INTERRUPT|SA_SHIRQ, "ICE1712", (void *) ice)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ice1712_free(ice);
 		return -EIO;
 	}

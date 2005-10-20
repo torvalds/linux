@@ -303,7 +303,7 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_VORTEX_SYNTH,
 			       sizeof(snd_vortex_synth_arg_t), &wave) < 0
 	    || wave == NULL) {
-		snd_printk("Can't initialize Aureal wavetable synth\n");
+		snd_printk(KERN_ERR "Can't initialize Aureal wavetable synth\n");
 	} else {
 		snd_vortex_synth_arg_t *arg;
 

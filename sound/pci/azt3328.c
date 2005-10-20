@@ -669,7 +669,7 @@ static void snd_azf3328_setfmt(azf3328_t *chip,
 	case 48000: val |= 0x06; break;
 	case 64000: val |= 0x07; break;
 	default:
-		snd_printk("unknown bitrate %d, assuming 44.1kHz!\n", bitrate);
+		snd_printk(KERN_WARNING "unknown bitrate %d, assuming 44.1kHz!\n", bitrate);
 		val |= 0x05; /* 44100 */
 		break;
 	}
@@ -854,10 +854,10 @@ static int snd_azf3328_playback_trigger(snd_pcm_substream_t * substream, int cmd
 		chip->is_playing = 0;
 		break;
         case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		snd_printk("FIXME: SNDRV_PCM_TRIGGER_PAUSE_PUSH NIY!\n");
+		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_PUSH NIY!\n");
                 break;
         case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_printk("FIXME: SNDRV_PCM_TRIGGER_PAUSE_RELEASE NIY!\n");
+		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_RELEASE NIY!\n");
                 break;
         default:
                 return -EINVAL;
@@ -935,10 +935,10 @@ static int snd_azf3328_capture_trigger(snd_pcm_substream_t * substream, int cmd)
 		chip->is_playing = 0;
 		break;
         case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		snd_printk("FIXME: SNDRV_PCM_TRIGGER_PAUSE_PUSH NIY!\n");
+		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_PUSH NIY!\n");
                 break;
         case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_printk("FIXME: SNDRV_PCM_TRIGGER_PAUSE_RELEASE NIY!\n");
+		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_RELEASE NIY!\n");
                 break;
         default:
                 return -EINVAL;
@@ -1356,7 +1356,7 @@ static int __devinit snd_azf3328_create(snd_card_t * card,
 	/* check if we can restrict PCI DMA transfers to 24 bits */
 	if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
-		snd_printk("architecture does not support 24bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -1374,7 +1374,7 @@ static int __devinit snd_azf3328_create(snd_card_t * card,
 	chip->mixer_port = pci_resource_start(pci, 4);
 
 	if (request_irq(pci->irq, snd_azf3328_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_azf3328_free(chip);
 		return -EBUSY;
 	}
@@ -1450,7 +1450,7 @@ static int __devinit snd_azf3328_probe(struct pci_dev *pci,
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_MPU401,
 				        chip->mpu_port, 1, pci->irq, 0,
 				        &chip->rmidi)) < 0) {
-		snd_printk("azf3328: no MPU-401 device at 0x%lx?\n", chip->mpu_port);
+		snd_printk(KERN_ERR "azf3328: no MPU-401 device at 0x%lx?\n", chip->mpu_port);
 		snd_card_free(card);
 		return err;
 	}
@@ -1462,7 +1462,7 @@ static int __devinit snd_azf3328_probe(struct pci_dev *pci,
 
 	if (snd_opl3_create(card, chip->synth_port, chip->synth_port+2,
 			    OPL3_HW_AUTO, 1, &opl3) < 0) {
-		snd_printk("azf3328: no OPL3 device at 0x%lx-0x%lx?\n",
+		snd_printk(KERN_ERR "azf3328: no OPL3 device at 0x%lx-0x%lx?\n",
 			   chip->synth_port, chip->synth_port+2 );
 	} else {
 		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {

@@ -1492,7 +1492,7 @@ static int snd_m3_pcm_hw_params(snd_pcm_substream_t * substream,
 	/* set buffer address */
 	s->buffer_addr = substream->runtime->dma_addr;
 	if (s->buffer_addr & 0x3) {
-		snd_printk("oh my, not aligned\n");
+		snd_printk(KERN_ERR "oh my, not aligned\n");
 		s->buffer_addr = s->buffer_addr & ~0x3;
 	}
 	return 0;
@@ -1942,7 +1942,7 @@ static int snd_m3_ac97_wait(m3_t *chip)
 			return 0;
 	} while (i-- > 0);
 
-	snd_printk("ac97 serial bus busy\n");
+	snd_printk(KERN_ERR "ac97 serial bus busy\n");
 	return 1;
 }
 
@@ -2367,7 +2367,7 @@ static int __devinit snd_m3_assp_client_init(m3_t *chip, m3_dma_t *s, int index)
 	address = 0x1100 + ((data_bytes/2) * index);
 
 	if ((address + (data_bytes/2)) >= 0x1c00) {
-		snd_printk("no memory for %d bytes at ind %d (addr 0x%x)\n",
+		snd_printk(KERN_ERR "no memory for %d bytes at ind %d (addr 0x%x)\n",
 			   data_bytes, index, address);
 		return -ENOMEM;
 	}
@@ -2656,7 +2656,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
-		snd_printk("architecture does not support 28bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2741,7 +2741,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 
 	if (request_irq(pci->irq, snd_m3_interrupt, SA_INTERRUPT|SA_SHIRQ,
 			card->driver, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_m3_free(chip);
 		return -ENOMEM;
 	}

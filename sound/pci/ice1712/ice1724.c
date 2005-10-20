@@ -2171,7 +2171,7 @@ static int __devinit snd_vt1724_create(snd_card_t * card,
 	ice->profi_port = pci_resource_start(pci, 1);
 
 	if (request_irq(pci->irq, snd_vt1724_interrupt, SA_INTERRUPT|SA_SHIRQ, "ICE1724", (void *) ice)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_vt1724_free(ice);
 		return -EIO;
 	}

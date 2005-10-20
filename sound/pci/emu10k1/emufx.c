@@ -1392,7 +1392,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		A_SWITCH(icode, &ptr, tmp + 1, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, tmp + 1);
 		if ((z==1) && (emu->card_capabilities->spdif_bug)) {
 			/* Due to a SPDIF output bug on some Audigy cards, this code delays the Right channel by 1 sample */
-			snd_printk("Installing spdif_bug patch: %s\n", emu->card_capabilities->name);
+			snd_printk(KERN_INFO "Installing spdif_bug patch: %s\n", emu->card_capabilities->name);
 			A_OP(icode, &ptr, iACC3, A_EXTOUT(A_EXTOUT_FRONT_L + z), A_GPR(gpr - 3), A_C_00000000, A_C_00000000);
 			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 3), A_GPR(tmp + 0), A_GPR(tmp + 1), A_C_00000000);
 		} else {

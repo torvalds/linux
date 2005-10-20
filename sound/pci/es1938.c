@@ -267,7 +267,7 @@ static void snd_es1938_mixer_write(es1938_t *chip, unsigned char reg, unsigned c
 	outb(val, SLSB_REG(chip, MIXERDATA));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Mixer reg %02x set to %02x\n", reg, val);
+	snd_printk(KERN_DEBUG "Mixer reg %02x set to %02x\n", reg, val);
 #endif
 }
 
@@ -283,7 +283,7 @@ static int snd_es1938_mixer_read(es1938_t *chip, unsigned char reg)
 	data = inb(SLSB_REG(chip, MIXERDATA));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Mixer reg %02x now is %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Mixer reg %02x now is %02x\n", reg, data);
 #endif
 	return data;
 }
@@ -303,7 +303,8 @@ static int snd_es1938_mixer_bits(es1938_t *chip, unsigned char reg, unsigned cha
 		new = (old & ~mask) | (val & mask);
 		outb(new, SLSB_REG(chip, MIXERDATA));
 #ifdef REG_DEBUG
-		snd_printk("Mixer reg %02x was %02x, set to %02x\n", reg, old, new);
+		snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x\n",
+			   reg, old, new);
 #endif
 	}
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
@@ -323,7 +324,7 @@ static void snd_es1938_write_cmd(es1938_t *chip, unsigned char cmd)
 			return;
 		}
 	}
-	printk("snd_es1938_write_cmd timeout (0x02%x/0x02%x)\n", cmd, v);
+	printk(KERN_ERR "snd_es1938_write_cmd timeout (0x02%x/0x02%x)\n", cmd, v);
 }
 
 /* -----------------------------------------------------------------
@@ -336,7 +337,7 @@ static int snd_es1938_get_byte(es1938_t *chip)
 	for (i = GET_LOOP_TIMEOUT; i; i--)
 		if ((v = inb(SLSB_REG(chip, STATUS))) & 0x80)
 			return inb(SLSB_REG(chip, READDATA));
-	snd_printk("get_byte timeout: status 0x02%x\n", v);
+	snd_printk(KERN_ERR "get_byte timeout: status 0x02%x\n", v);
 	return -ENODEV;
 }
 
@@ -351,7 +352,7 @@ static void snd_es1938_write(es1938_t *chip, unsigned char reg, unsigned char va
 	snd_es1938_write_cmd(chip, val);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Reg %02x set to %02x\n", reg, val);
+	snd_printk(KERN_DEBUG "Reg %02x set to %02x\n", reg, val);
 #endif
 }
 
@@ -368,7 +369,7 @@ static unsigned char snd_es1938_read(es1938_t *chip, unsigned char reg)
 	val = snd_es1938_get_byte(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Reg %02x now is %02x\n", reg, val);
+	snd_printk(KERN_DEBUG "Reg %02x now is %02x\n", reg, val);
 #endif
 	return val;
 }
@@ -390,7 +391,8 @@ static int snd_es1938_bits(es1938_t *chip, unsigned char reg, unsigned char mask
 		new = (old & ~mask) | (val & mask);
 		snd_es1938_write_cmd(chip, new);
 #ifdef REG_DEBUG
-		snd_printk("Reg %02x was %02x, set to %02x\n", reg, old, new);
+		snd_printk(KERN_DEBUG "Reg %02x was %02x, set to %02x\n",
+			   reg, old, new);
 #endif
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -413,7 +415,7 @@ static void snd_es1938_reset(es1938_t *chip)
 				goto __next;
 		}
 	}
-	snd_printk("ESS Solo-1 reset failed\n");
+	snd_printk(KERN_ERR "ESS Solo-1 reset failed\n");
 
      __next:
 	snd_es1938_write_cmd(chip, ESS_CMD_ENABLEEXT);
@@ -1499,7 +1501,7 @@ static int __devinit snd_es1938_create(snd_card_t * card,
         /* check, if we can restrict PCI DMA transfers to 24 bits */
 	if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
-                snd_printk("architecture does not support 24bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
                 return -ENXIO;
         }
@@ -1524,13 +1526,13 @@ static int __devinit snd_es1938_create(snd_card_t * card,
 	chip->mpu_port = pci_resource_start(pci, 3);
 	chip->game_port = pci_resource_start(pci, 4);
 	if (request_irq(pci->irq, snd_es1938_interrupt, SA_INTERRUPT|SA_SHIRQ, "ES1938", (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1938_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
 #ifdef ES1938_DDEBUG
-	snd_printk("create: io: 0x%lx, sb: 0x%lx, vc: 0x%lx, mpu: 0x%lx, game: 0x%lx\n",
+	snd_printk(KERN_DEBUG "create: io: 0x%lx, sb: 0x%lx, vc: 0x%lx, mpu: 0x%lx, game: 0x%lx\n",
 		   chip->io_port, chip->sb_port, chip->vc_port, chip->mpu_port, chip->game_port);
 #endif
 

@@ -2033,7 +2033,7 @@ vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
 			}
 		}
 	}
-	printk("vortex: FATAL: ResManager: resource type %d exhausted.\n", restype);
+	printk(KERN_ERR "vortex: FATAL: ResManager: resource type %d exhausted.\n", restype);
 	return -ENOMEM;
 }
 
@@ -2165,7 +2165,7 @@ vortex_adb_allocroute(vortex_t * vortex, int dma, int nr_ch, int dir, int type)
 				memset(stream->resources, 0,
 				       sizeof(unsigned char) *
 				       VORTEX_RESOURCE_LAST);
-				printk("vortex: out of A3D sources. Sorry\n");
+				printk(KERN_ERR "vortex: out of A3D sources. Sorry\n");
 				return -EBUSY;
 			}
 			/* (De)Initialize A3D hardware source. */

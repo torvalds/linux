@@ -865,7 +865,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(snd_pcm_substream_t *substream)
 		idx = count >> 24;
 		if (idx >= viadev->tbl_entries) {
 #ifdef POINTER_DEBUG
-			printk("fail: invalid idx = %i/%i\n", idx, viadev->tbl_entries);
+			printk(KERN_DEBUG "fail: invalid idx = %i/%i\n", idx, viadev->tbl_entries);
 #endif
 			res = viadev->lastpos;
 		} else {
@@ -2032,7 +2032,7 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 	} while (time_before(jiffies, end_time));
 
 	if ((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY)
-		snd_printk("AC'97 codec is not ready [0x%x]\n", val);
+		snd_printk(KERN_ERR "AC'97 codec is not ready [0x%x]\n", val);
 
 #if 0 /* FIXME: we don't support the second codec yet so skip the detection now.. */
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
@@ -2228,7 +2228,7 @@ static int __devinit snd_via82xx_create(snd_card_t * card,
 			snd_via8233_interrupt :	snd_via686_interrupt,
 			SA_INTERRUPT|SA_SHIRQ,
 			card->driver, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_via82xx_free(chip);
 		return -EBUSY;
 	}

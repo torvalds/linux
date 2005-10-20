@@ -45,7 +45,7 @@ int snd_sbdsp_command(sb_t *chip, unsigned char val)
 {
 	int i;
 #ifdef IO_DEBUG
-	snd_printk("command 0x%x\n", val);
+	snd_printk(KERN_DEBUG "command 0x%x\n", val);
 #endif
 	for (i = BUSY_LOOPS; i; i--)
 		if ((inb(SBP(chip, STATUS)) & 0x80) == 0) {
@@ -64,7 +64,7 @@ int snd_sbdsp_get_byte(sb_t *chip)
 		if (inb(SBP(chip, DATA_AVAIL)) & 0x80) {
 			val = inb(SBP(chip, READ));
 #ifdef IO_DEBUG
-			snd_printk("get_byte 0x%x\n", val);
+			snd_printk(KERN_DEBUG "get_byte 0x%x\n", val);
 #endif
 			return val;
 		}
@@ -154,7 +154,7 @@ static int snd_sbdsp_probe(sb_t * chip)
 			str = "16";
 			break;
 		default:
-			snd_printk("SB [0x%lx]: unknown DSP chip version %i.%i\n",
+			snd_printk(KERN_INFO "SB [0x%lx]: unknown DSP chip version %i.%i\n",
 				   chip->port, major, minor);
 			return -ENODEV;
 		}
