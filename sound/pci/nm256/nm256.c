@@ -52,40 +52,43 @@ MODULE_SUPPORTED_DEVICE("{{NeoMagic,NM256AV},"
  * some compile conditions.
  */
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
-static int playback_bufsize[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 16};
-static int capture_bufsize[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 16};
-static int force_ac97[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* disabled as default */
-static int buffer_top[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* not specified */
-static int use_cache[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* disabled */
-static int vaio_hack[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* disabled */
-static int reset_workaround[SNDRV_CARDS];
-static int reset_workaround_2[SNDRV_CARDS];
+static int index = SNDRV_DEFAULT_IDX1;	/* Index */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int playback_bufsize = 16;
+static int capture_bufsize = 16;
+static int force_ac97;			/* disabled as default */
+static int buffer_top;			/* not specified */
+static int use_cache;			/* disabled */
+static int vaio_hack;			/* disabled */
+static int reset_workaround;
+static int reset_workaround_2;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for " CARD_NAME " soundcard.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable this soundcard.");
-module_param_array(playback_bufsize, int, NULL, 0444);
+module_param(playback_bufsize, int, 0444);
 MODULE_PARM_DESC(playback_bufsize, "DAC frame size in kB for " CARD_NAME " soundcard.");
-module_param_array(capture_bufsize, int, NULL, 0444);
+module_param(capture_bufsize, int, 0444);
 MODULE_PARM_DESC(capture_bufsize, "ADC frame size in kB for " CARD_NAME " soundcard.");
-module_param_array(force_ac97, bool, NULL, 0444);
+module_param(force_ac97, bool, 0444);
 MODULE_PARM_DESC(force_ac97, "Force to use AC97 codec for " CARD_NAME " soundcard.");
-module_param_array(buffer_top, int, NULL, 0444);
+module_param(buffer_top, int, 0444);
 MODULE_PARM_DESC(buffer_top, "Set the top address of audio buffer for " CARD_NAME " soundcard.");
-module_param_array(use_cache, bool, NULL, 0444);
+module_param(use_cache, bool, 0444);
 MODULE_PARM_DESC(use_cache, "Enable the cache for coefficient table access.");
-module_param_array(vaio_hack, bool, NULL, 0444);
+module_param(vaio_hack, bool, 0444);
 MODULE_PARM_DESC(vaio_hack, "Enable workaround for Sony VAIO notebooks.");
-module_param_array(reset_workaround, bool, NULL, 0444);
+module_param(reset_workaround, bool, 0444);
 MODULE_PARM_DESC(reset_workaround, "Enable AC97 RESET workaround for some laptops.");
-module_param_array(reset_workaround_2, bool, NULL, 0444);
+module_param(reset_workaround_2, bool, 0444);
 MODULE_PARM_DESC(reset_workaround_2, "Enable extended AC97 RESET workaround for some other laptops.");
+
+/* just for backward compatibility */
+static int enable;
+module_param(enable, bool, 0444);
+
+
 
 /*
  * hw definitions
@@ -1561,20 +1564,12 @@ static struct nm256_quirk nm256_quirks[] __devinitdata = {
 static int __devinit snd_nm256_probe(struct pci_dev *pci,
 				     const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	nm256_t *chip;
 	int err;
 	unsigned int xbuffer_top;
 	struct nm256_quirk *q;
 	u16 subsystem_vendor, subsystem_device;
-
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
 
 	pci_read_config_word(pci, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vendor);
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &subsystem_device);
@@ -1586,16 +1581,16 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 				printk(KERN_INFO "nm256: The device is blacklisted.  Loading stopped\n");
 				return -ENODEV;
 			case NM_RESET_WORKAROUND_2:
-				reset_workaround_2[dev] = 1;
+				reset_workaround_2 = 1;
 				/* Fall-through */
 			case NM_RESET_WORKAROUND:
-				reset_workaround[dev] = 1;
+				reset_workaround = 1;
 				break;
 			}
 		}
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -1615,36 +1610,36 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 		return -EINVAL;
 	}
 
-	if (vaio_hack[dev])
+	if (vaio_hack)
 		xbuffer_top = 0x25a800;	/* this avoids conflicts with XFree86 server */
 	else
-		xbuffer_top = buffer_top[dev];
+		xbuffer_top = buffer_top;
 
-	if (playback_bufsize[dev] < 4)
-		playback_bufsize[dev] = 4;
-	if (playback_bufsize[dev] > 128)
-		playback_bufsize[dev] = 128;
-	if (capture_bufsize[dev] < 4)
-		capture_bufsize[dev] = 4;
-	if (capture_bufsize[dev] > 128)
-		capture_bufsize[dev] = 128;
+	if (playback_bufsize < 4)
+		playback_bufsize = 4;
+	if (playback_bufsize > 128)
+		playback_bufsize = 128;
+	if (capture_bufsize < 4)
+		capture_bufsize = 4;
+	if (capture_bufsize > 128)
+		capture_bufsize = 128;
 	if ((err = snd_nm256_create(card, pci,
-				    playback_bufsize[dev] * 1024, /* in bytes */
-				    capture_bufsize[dev] * 1024,  /* in bytes */
-				    force_ac97[dev],
+				    playback_bufsize * 1024, /* in bytes */
+				    capture_bufsize * 1024,  /* in bytes */
+				    force_ac97,
 				    xbuffer_top,
-				    use_cache[dev],
+				    use_cache,
 				    &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
-	if (reset_workaround[dev]) {
+	if (reset_workaround) {
 		snd_printdd(KERN_INFO "nm256: reset_workaround activated\n");
 		chip->reset_workaround = 1;
 	}
 
-	if (reset_workaround_2[dev]) {
+	if (reset_workaround_2) {
 		snd_printdd(KERN_INFO "nm256: reset_workaround_2 activated\n");
 		chip->reset_workaround_2 = 1;
 	}
@@ -1666,7 +1661,6 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	}
 
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 }
 

@@ -167,7 +167,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     spdif           - Support SPDIF I/O
     		    - Default: disabled
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports one chip and autoprobe.
 
     The power-management is supported.
 
@@ -957,7 +957,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     reset_workaround2 - enable extended AC97 RESET workaround for some
 		      other laptops
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports one chip and autoprobe.
 
     The power-management is supported.
 

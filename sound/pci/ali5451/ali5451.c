@@ -45,22 +45,24 @@ MODULE_DESCRIPTION("ALI M5451");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ALI,M5451,pci},{ALI,M5451}}");
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
-static int pcm_channels[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 32};
-static int spdif[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int index = SNDRV_DEFAULT_IDX1;	/* Index */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int pcm_channels = 32;
+static int spdif = 0;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ALI M5451 PCI Audio.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for ALI M5451 PCI Audio.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable ALI 5451 PCI Audio.");
-module_param_array(pcm_channels, int, NULL, 0444);
+module_param(pcm_channels, int, 0444);
 MODULE_PARM_DESC(pcm_channels, "PCM Channels");
-module_param_array(spdif, bool, NULL, 0444);
+module_param(spdif, bool, 0444);
 MODULE_PARM_DESC(spdif, "Support SPDIF I/O");
+
+/* just for backward compatibility */
+static int enable;
+module_param(enable, bool, 0444);
+
 
 /*
  *  Debug part definitions
@@ -2353,25 +2355,17 @@ static int __devinit snd_ali_create(snd_card_t * card,
 static int __devinit snd_ali_probe(struct pci_dev *pci,
 				   const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	ali_t *codec;
 	int err;
 
 	snd_ali_printk("probe ...\n");
 
-        if (dev >= SNDRV_CARDS)
-                return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
-	if ((err = snd_ali_create(card, pci, pcm_channels[dev], spdif[dev], &codec)) < 0) {
+	if ((err = snd_ali_create(card, pci, pcm_channels, spdif, &codec)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -2402,7 +2396,6 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 		return err;
 	}
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 }
 
