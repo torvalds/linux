@@ -26,6 +26,16 @@ config SIBYTE_BCM112X
 	bool
 	select SIBYTE_SB1xxx_SOC
 
+config SIBYTE_BCM1x80
+	bool
+	select HW_HAS_PCI
+	select SIBYTE_SB1xxx_SOC
+
+config SIBYTE_BCM1x55
+	bool
+	select HW_HAS_PCI
+	select SIBYTE_SB1xxx_SOC
+
 config SIBYTE_SB1xxx_SOC
 	bool
 	depends on EXPERIMENTAL

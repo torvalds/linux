@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001, 2002, 2003 Broadcom Corporation
+ * Copyright (C) 2000, 2001, 2002, 2003, 2004 Broadcom Corporation
  * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
  *
  * This program is free software; you can redistribute it and/or
@@ -39,11 +39,23 @@
 #include <asm/time.h>
 #include <asm/traps.h>
 #include <asm/sibyte/sb1250.h>
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#include <asm/sibyte/bcm1480_regs.h>
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #include <asm/sibyte/sb1250_regs.h>
+#else
+#error invalid SiByte board configuation
+#endif
 #include <asm/sibyte/sb1250_genbus.h>
 #include <asm/sibyte/board.h>
 
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+extern void bcm1480_setup(void);
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 extern void sb1250_setup(void);
+#else
+#error invalid SiByte board configuation
+#endif
 
 extern int xicor_probe(void);
 extern int xicor_set_time(unsigned long);
@@ -66,7 +78,13 @@ void __init swarm_timer_setup(struct irqaction *irq)
          */
 
         /* We only need to setup the generic timer */
-        sb1250_time_init();
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	bcm1480_time_init();
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
+	sb1250_time_init();
+#else
+#error invalid SiByte board configuation
+#endif
 }
 
 int swarm_be_handler(struct pt_regs *regs, int is_fixup)
@@ -81,7 +99,13 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 
 void __init plat_setup(void)
 {
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	bcm1480_setup();
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 	sb1250_setup();
+#else
+#error invalid SiByte board configuation
+#endif
 
 	panic_timeout = 5;  /* For debug.  */
 
