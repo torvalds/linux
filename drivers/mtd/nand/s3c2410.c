@@ -17,8 +17,9 @@
  *	02-May-2005  BJD  Reduced hwcontrol decode
  *	20-Jun-2005  BJD  Updated s3c2440 support, fixed timing bug
  *	08-Jul-2005  BJD  Fix OOPS when no platform data supplied
+ *	20-Oct-2005  BJD  Fix timing calculation bug
  *
- * $Id: s3c2410.c,v 1.17 2005/10/10 10:27:02 bjd Exp $
+ * $Id: s3c2410.c,v 1.18 2005/10/20 21:22:55 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -136,13 +137,13 @@ static struct s3c2410_platform_nand *to_nand_plat(struct device *dev)
 
 /* timing calculations */
 
-#define NS_IN_KHZ 10000000
+#define NS_IN_KHZ 1000000
 
 static int s3c2410_nand_calc_rate(int wanted, unsigned long clk, int max)
 {
 	int result;
 
-	result = (wanted * NS_IN_KHZ) / clk;
+	result = (wanted * clk) / NS_IN_KHZ;
 	result++;
 
 	pr_debug("result %d from %ld, %d\n", result, clk, wanted);
@@ -159,7 +160,7 @@ static int s3c2410_nand_calc_rate(int wanted, unsigned long clk, int max)
 	return result;
 }
 
-#define to_ns(ticks,clk) (((clk) * (ticks)) / NS_IN_KHZ)
+#define to_ns(ticks,clk) (((ticks) * NS_IN_KHZ) / (unsigned int)(clk))
 
 /* controller setup */
 
@@ -167,11 +168,13 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info,
 			       struct device *dev)
 {
 	struct s3c2410_platform_nand *plat = to_nand_plat(dev);
-	unsigned int tacls, twrph0, twrph1;
 	unsigned long clkrate = clk_get_rate(info->clk);
+	int tacls, twrph0, twrph1;
 	unsigned long cfg;
 
 	/* calculate the timing information for the controller */
+
+	clkrate /= 1000;	/* turn clock into kHz for ease of use */
 
 	if (plat != NULL) {
 		tacls  = s3c2410_nand_calc_rate(plat->tacls, clkrate, 4);
@@ -189,10 +192,10 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info,
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO PFX "timing: Tacls %ldns, Twrph0 %ldns, Twrph1 %ldns\n",
-	       to_ns(tacls, clkrate),
-	       to_ns(twrph0, clkrate),
-	       to_ns(twrph1, clkrate));
+	printk(KERN_INFO PFX "Tacls=%d, %dns Twrph0=%d %dns, Twrph1=%d %dns\n",
+	       tacls, to_ns(tacls, clkrate),
+	       twrph0, to_ns(twrph0, clkrate), 
+	       twrph1, to_ns(twrph1, clkrate));
 
 	if (!info->is_s3c2440) {
 		cfg  = S3C2410_NFCONF_EN;
