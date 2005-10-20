@@ -212,6 +212,7 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 
 	open_flags &= (FMODE_READ|FMODE_WRITE);
 	/* Protect against nfs4_find_state() */
+	spin_lock(&state->owner->so_lock);
 	spin_lock(&inode->i_lock);
 	state->state |= open_flags;
 	/* NB! List reordering - see the reclaim code for why.  */
@@ -221,6 +222,7 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 		state->nreaders++;
 	memcpy(&state->stateid, stateid, sizeof(state->stateid));
 	spin_unlock(&inode->i_lock);
+	spin_unlock(&state->owner->so_lock);
 }
 
 /*

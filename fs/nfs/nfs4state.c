@@ -267,6 +267,7 @@ nfs4_alloc_state_owner(void)
 	sp = kzalloc(sizeof(*sp),GFP_KERNEL);
 	if (!sp)
 		return NULL;
+	spin_lock_init(&sp->so_lock);
 	INIT_LIST_HEAD(&sp->so_states);
 	INIT_LIST_HEAD(&sp->so_delegations);
 	rpc_init_wait_queue(&sp->so_sequence.wait, "Seqid_waitqueue");
@@ -438,20 +439,23 @@ nfs4_get_open_state(struct inode *inode, struct nfs4_state_owner *owner)
 	if (state)
 		goto out;
 	new = nfs4_alloc_open_state();
+	spin_lock(&owner->so_lock);
 	spin_lock(&inode->i_lock);
 	state = __nfs4_find_state_byowner(inode, owner);
 	if (state == NULL && new != NULL) {
 		state = new;
-		/* Note: The reclaim code dictates that we add stateless
-		 * and read-only stateids to the end of the list */
-		list_add_tail(&state->open_states, &owner->so_states);
 		state->owner = owner;
 		atomic_inc(&owner->so_count);
 		list_add(&state->inode_states, &nfsi->open_states);
 		state->inode = igrab(inode);
 		spin_unlock(&inode->i_lock);
+		/* Note: The reclaim code dictates that we add stateless
+		 * and read-only stateids to the end of the list */
+		list_add_tail(&state->open_states, &owner->so_states);
+		spin_unlock(&owner->so_lock);
 	} else {
 		spin_unlock(&inode->i_lock);
+		spin_unlock(&owner->so_lock);
 		if (new)
 			nfs4_free_open_state(new);
 	}
@@ -468,12 +472,14 @@ void nfs4_put_open_state(struct nfs4_state *state)
 	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
 
-	if (!atomic_dec_and_lock(&state->count, &inode->i_lock))
+	if (!atomic_dec_and_lock(&state->count, &owner->so_lock))
 		return;
+	spin_lock(&inode->i_lock);
 	if (!list_empty(&state->inode_states))
 		list_del(&state->inode_states);
-	spin_unlock(&inode->i_lock);
 	list_del(&state->open_states);
+	spin_unlock(&inode->i_lock);
+	spin_unlock(&owner->so_lock);
 	iput(inode);
 	BUG_ON (state->state != 0);
 	nfs4_free_open_state(state);
@@ -491,6 +497,7 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 
 	atomic_inc(&owner->so_count);
 	/* Protect against nfs4_find_state() */
+	spin_lock(&owner->so_lock);
 	spin_lock(&inode->i_lock);
 	if (mode & FMODE_READ)
 		state->nreaders--;
@@ -503,6 +510,7 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 		list_move_tail(&state->open_states, &owner->so_states);
 	}
 	spin_unlock(&inode->i_lock);
+	spin_unlock(&owner->so_lock);
 	newstate = 0;
 	if (state->state != 0) {
 		if (state->nreaders)
@@ -899,6 +907,7 @@ static void nfs4_state_mark_reclaim(struct nfs4_client *clp)
 	list_for_each_entry(sp, &clp->cl_state_owners, so_list) {
 		sp->so_seqid.counter = 0;
 		sp->so_seqid.flags = 0;
+		spin_lock(&sp->so_lock);
 		list_for_each_entry(state, &sp->so_states, open_states) {
 			list_for_each_entry(lock, &state->lock_states, ls_locks) {
 				lock->ls_seqid.counter = 0;
@@ -906,6 +915,7 @@ static void nfs4_state_mark_reclaim(struct nfs4_client *clp)
 				lock->ls_flags &= ~NFS_LOCK_INITIALIZED;
 			}
 		}
+		spin_unlock(&sp->so_lock);
 	}
 }
 

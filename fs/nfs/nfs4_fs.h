@@ -126,6 +126,7 @@ static inline void nfs_confirm_seqid(struct nfs_seqid_counter *seqid, int status
  * semantics by allowing the server to identify replayed requests.
  */
 struct nfs4_state_owner {
+	spinlock_t	     so_lock;
 	struct list_head     so_list;	 /* per-clientid list of state_owners */
 	struct nfs4_client   *so_client;
 	u32                  so_id;      /* 32-bit identifier, unique */
