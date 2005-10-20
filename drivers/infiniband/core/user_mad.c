@@ -671,17 +671,6 @@ static struct ib_client umad_client = {
 	.remove = ib_umad_remove_one
 };
 
-static ssize_t show_dev(struct class_device *class_dev, char *buf)
-{
-	struct ib_umad_port *port = class_get_devdata(class_dev);
-
-	if (class_dev == &port->class_dev)
-		return print_dev_t(buf, port->dev.dev);
-	else
-		return print_dev_t(buf, port->sm_dev.dev);
-}
-static CLASS_DEVICE_ATTR(dev, S_IRUGO, show_dev, NULL);
-
 static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
 {
 	struct ib_umad_port *port = class_get_devdata(class_dev);
@@ -762,6 +751,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 
 	port->class_dev.class = &umad_class;
 	port->class_dev.dev   = device->dma_device;
+	port->class_dev.devt  = port->dev.dev;
 
 	snprintf(port->class_dev.class_id, BUS_ID_SIZE, "umad%d", port->devnum);
 
@@ -771,8 +761,6 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	class_set_devdata(&port->class_dev, port);
 	kref_get(&port->umad_dev->ref);
 
-	if (class_device_create_file(&port->class_dev, &class_device_attr_dev))
-		goto err_class;
 	if (class_device_create_file(&port->class_dev, &class_device_attr_ibdev))
 		goto err_class;
 	if (class_device_create_file(&port->class_dev, &class_device_attr_port))
@@ -786,6 +774,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 
 	port->sm_class_dev.class = &umad_class;
 	port->sm_class_dev.dev   = device->dma_device;
+	port->sm_class_dev.devt  = port->sm_dev.dev;
 
 	snprintf(port->sm_class_dev.class_id, BUS_ID_SIZE, "issm%d", port->sm_devnum - IB_UMAD_MAX_PORTS);
 
@@ -795,8 +784,6 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	class_set_devdata(&port->sm_class_dev, port);
 	kref_get(&port->umad_dev->ref);
 
-	if (class_device_create_file(&port->sm_class_dev, &class_device_attr_dev))
-		goto err_sm_class;
 	if (class_device_create_file(&port->sm_class_dev, &class_device_attr_ibdev))
 		goto err_sm_class;
 	if (class_device_create_file(&port->sm_class_dev, &class_device_attr_port))
