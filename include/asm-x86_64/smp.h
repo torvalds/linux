@@ -81,6 +81,7 @@ static inline int hard_smp_processor_id(void)
 extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
+extern void prefill_possible_map(void);
 
 #endif /* !ASSEMBLY */
 

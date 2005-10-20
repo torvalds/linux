@@ -16,7 +16,7 @@
  * Returns 0 on failure.
  */
 int
-prom_devopen(char *dstr)
+prom_devopen(const char *dstr)
 {
 	return p1275_cmd ("open", P1275_ARG(0,P1275_ARG_IN_STRING)|
 				  P1275_INOUT(1,1),

@@ -115,7 +115,7 @@ static void __pmac pmac_show_cpuinfo(struct seq_file *m)
 	
 	/* find motherboard type */
 	seq_printf(m, "machine\t\t: ");
-	np = find_devices("device-tree");
+	np = of_find_node_by_path("/");
 	if (np != NULL) {
 		pp = (char *) get_property(np, "model", NULL);
 		if (pp != NULL)
@@ -133,6 +133,7 @@ static void __pmac pmac_show_cpuinfo(struct seq_file *m)
 			}
 			seq_printf(m, "\n");
 		}
+		of_node_put(np);
 	} else
 		seq_printf(m, "PowerMac\n");
 
@@ -434,15 +435,23 @@ static int pmac_check_legacy_ioport(unsigned int baseport)
 
 static int __init pmac_declare_of_platform_devices(void)
 {
-	struct device_node *np;
+	struct device_node *np, *npp;
 
-	np = find_devices("u3");
-	if (np) {
-		for (np = np->child; np != NULL; np = np->sibling)
+	npp = of_find_node_by_name(NULL, "u3");
+	if (npp) {
+		for (np = NULL; (np = of_get_next_child(npp, np)) != NULL;) {
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c");
+				of_platform_device_create(np, "u3-i2c", NULL);
+				of_node_put(np);
 				break;
 			}
+		}
+		of_node_put(npp);
+	}
+        npp = of_find_node_by_type(NULL, "smu");
+        if (npp) {
+		of_platform_device_create(npp, "smu", NULL);
+		of_node_put(npp);
 	}
 
 	return 0;

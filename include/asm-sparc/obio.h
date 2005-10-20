@@ -98,7 +98,7 @@
 
 #ifndef __ASSEMBLY__
 
-extern __inline__ int bw_get_intr_mask(int sbus_level)
+static inline int bw_get_intr_mask(int sbus_level)
 {
 	int mask;
 	
@@ -109,7 +109,7 @@ extern __inline__ int bw_get_intr_mask(int sbus_level)
 	return mask;
 }
 
-extern __inline__ void bw_clear_intr_mask(int sbus_level, int mask)
+static inline void bw_clear_intr_mask(int sbus_level, int mask)
 {
 	__asm__ __volatile__ ("stha %0, [%1] %2" : :
 			      "r" (mask),
@@ -117,7 +117,7 @@ extern __inline__ void bw_clear_intr_mask(int sbus_level, int mask)
 			      "i" (ASI_M_CTL));
 }
 
-extern __inline__ unsigned bw_get_prof_limit(int cpu)
+static inline unsigned bw_get_prof_limit(int cpu)
 {
 	unsigned limit;
 	
@@ -128,7 +128,7 @@ extern __inline__ unsigned bw_get_prof_limit(int cpu)
 	return limit;
 }
 
-extern __inline__ void bw_set_prof_limit(int cpu, unsigned limit)
+static inline void bw_set_prof_limit(int cpu, unsigned limit)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (limit),
@@ -136,7 +136,7 @@ extern __inline__ void bw_set_prof_limit(int cpu, unsigned limit)
 			      "i" (ASI_M_CTL));
 }
 
-extern __inline__ unsigned bw_get_ctrl(int cpu)
+static inline unsigned bw_get_ctrl(int cpu)
 {
 	unsigned ctrl;
 	
@@ -147,7 +147,7 @@ extern __inline__ unsigned bw_get_ctrl(int cpu)
 	return ctrl;
 }
 
-extern __inline__ void bw_set_ctrl(int cpu, unsigned ctrl)
+static inline void bw_set_ctrl(int cpu, unsigned ctrl)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (ctrl),
@@ -157,7 +157,7 @@ extern __inline__ void bw_set_ctrl(int cpu, unsigned ctrl)
 
 extern unsigned char cpu_leds[32];
 
-extern __inline__ void show_leds(int cpuid)
+static inline void show_leds(int cpuid)
 {
 	cpuid &= 0x1e;
 	__asm__ __volatile__ ("stba %0, [%1] %2" : :
@@ -166,7 +166,7 @@ extern __inline__ void show_leds(int cpuid)
 			      "i" (ASI_M_CTL));
 }
 
-extern __inline__ unsigned cc_get_ipen(void)
+static inline unsigned cc_get_ipen(void)
 {
 	unsigned pending;
 	
@@ -177,7 +177,7 @@ extern __inline__ unsigned cc_get_ipen(void)
 	return pending;
 }
 
-extern __inline__ void cc_set_iclr(unsigned clear)
+static inline void cc_set_iclr(unsigned clear)
 {
 	__asm__ __volatile__ ("stha %0, [%1] %2" : :
 			      "r" (clear),
@@ -185,7 +185,7 @@ extern __inline__ void cc_set_iclr(unsigned clear)
 			      "i" (ASI_M_MXCC));
 }
 
-extern __inline__ unsigned cc_get_imsk(void)
+static inline unsigned cc_get_imsk(void)
 {
 	unsigned mask;
 	
@@ -196,7 +196,7 @@ extern __inline__ unsigned cc_get_imsk(void)
 	return mask;
 }
 
-extern __inline__ void cc_set_imsk(unsigned mask)
+static inline void cc_set_imsk(unsigned mask)
 {
 	__asm__ __volatile__ ("stha %0, [%1] %2" : :
 			      "r" (mask),
@@ -204,7 +204,7 @@ extern __inline__ void cc_set_imsk(unsigned mask)
 			      "i" (ASI_M_MXCC));
 }
 
-extern __inline__ unsigned cc_get_imsk_other(int cpuid)
+static inline unsigned cc_get_imsk_other(int cpuid)
 {
 	unsigned mask;
 	
@@ -215,7 +215,7 @@ extern __inline__ unsigned cc_get_imsk_other(int cpuid)
 	return mask;
 }
 
-extern __inline__ void cc_set_imsk_other(int cpuid, unsigned mask)
+static inline void cc_set_imsk_other(int cpuid, unsigned mask)
 {
 	__asm__ __volatile__ ("stha %0, [%1] %2" : :
 			      "r" (mask),
@@ -223,7 +223,7 @@ extern __inline__ void cc_set_imsk_other(int cpuid, unsigned mask)
 			      "i" (ASI_M_CTL));
 }
 
-extern __inline__ void cc_set_igen(unsigned gen)
+static inline void cc_set_igen(unsigned gen)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (gen),
@@ -239,7 +239,7 @@ extern __inline__ void cc_set_igen(unsigned gen)
 #define IGEN_MESSAGE(bcast, devid, sid, levels) \
 	(((bcast) << 31) | ((devid) << 23) | ((sid) << 15) | (levels))
             
-extern __inline__ void sun4d_send_ipi(int cpu, int level)
+static inline void sun4d_send_ipi(int cpu, int level)
 {
 	cc_set_igen(IGEN_MESSAGE(0, cpu << 3, 6 + ((level >> 1) & 7), 1 << (level - 1)));
 }

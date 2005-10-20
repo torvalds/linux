@@ -11,7 +11,7 @@
 #include "asm/ptrace.h"
 
 extern void flush_thread_skas(void);
-extern void *switch_to_skas(void *prev, void *next);
+extern void switch_to_skas(void *prev, void *next);
 extern void start_thread_skas(struct pt_regs *regs, unsigned long eip,
 			      unsigned long esp);
 extern int copy_thread_skas(int nr, unsigned long clone_flags,

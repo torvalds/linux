@@ -973,10 +973,10 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 	if ((phba->fc_flag & FC_FABRIC) ||
 	    ((phba->fc_topology == TOPOLOGY_LOOP) &&
 	     (phba->fc_flag & FC_PUBLIC_LOOP)))
-		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.wwn);
+		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
-		node_name = wwn_to_u64(phba->fc_nodename.wwn);
+		node_name = wwn_to_u64(phba->fc_nodename.u.wwn);
 
 	spin_unlock_irq(shost->host_lock);
 
@@ -1110,7 +1110,7 @@ lpfc_get_starget_node_name(struct scsi_target *starget)
 	/* Search the mapped list for this target ID */
 	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
 		if (starget->id == ndlp->nlp_sid) {
-			node_name = wwn_to_u64(ndlp->nlp_nodename.wwn);
+			node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
 			break;
 		}
 	}
@@ -1131,7 +1131,7 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 	/* Search the mapped list for this target ID */
 	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
 		if (starget->id == ndlp->nlp_sid) {
-			port_name = wwn_to_u64(ndlp->nlp_portname.wwn);
+			port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 			break;
 		}
 	}

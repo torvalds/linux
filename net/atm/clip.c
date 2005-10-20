@@ -310,7 +310,7 @@ static int clip_constructor(struct neighbour *neigh)
 	if (neigh->type != RTN_UNICAST) return -EINVAL;
 
 	rcu_read_lock();
-	in_dev = rcu_dereference(__in_dev_get(dev));
+	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev) {
 		rcu_read_unlock();
 		return -EINVAL;

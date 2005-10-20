@@ -86,7 +86,7 @@ extern struct dccp_rx_hist_entry *
 
 static inline struct dccp_tx_hist_entry *
 		dccp_tx_hist_entry_new(struct dccp_tx_hist *hist,
-				       const unsigned int __nocast prio)
+				       const gfp_t prio)
 {
 	struct dccp_tx_hist_entry *entry = kmem_cache_alloc(hist->dccptxh_slab,
 							    prio);
@@ -137,7 +137,7 @@ static inline struct dccp_rx_hist_entry *
 				     	    const struct sock *sk, 
 				     	    const u32 ndp, 
 					    const struct sk_buff *skb,
-					    const unsigned int __nocast prio)
+					    const gfp_t prio)
 {
 	struct dccp_rx_hist_entry *entry = kmem_cache_alloc(hist->dccprxh_slab,
 							    prio);

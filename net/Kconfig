@@ -140,6 +140,7 @@ config BRIDGE_NETFILTER
 
 	  If unsure, say N.
 
+source "net/netfilter/Kconfig"
 source "net/ipv4/netfilter/Kconfig"
 source "net/ipv6/netfilter/Kconfig"
 source "net/decnet/netfilter/Kconfig"
@@ -205,8 +206,6 @@ config NET_PKTGEN
 
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.
-
-source "net/netfilter/Kconfig"
 
 endmenu
 

@@ -22,6 +22,7 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 
 #include <asm/atomic.h>
 #include <asm/processor.h>
@@ -39,6 +40,8 @@ struct sh_cpuinfo cpu_data[NR_CPUS];
 extern void per_cpu_trap_init(void);
 
 cpumask_t cpu_possible_map;
+EXPORT_SYMBOL(cpu_possible_map);
+
 cpumask_t cpu_online_map;
 static atomic_t cpus_booted = ATOMIC_INIT(0);
 

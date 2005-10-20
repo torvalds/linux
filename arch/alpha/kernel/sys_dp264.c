@@ -395,6 +395,22 @@ clipper_init_irq(void)
  */
 
 static int __init
+isa_irq_fixup(struct pci_dev *dev, int irq)
+{
+	u8 irq8;
+
+	if (irq > 0)
+		return irq;
+
+	/* This interrupt is routed via ISA bridge, so we'll
+	   just have to trust whatever value the console might
+	   have assigned.  */
+	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &irq8);
+
+	return irq8 & 0xf;
+}
+
+static int __init
 dp264_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[6][5] __initdata = {
@@ -407,25 +423,13 @@ dp264_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 		{ 16+ 3, 16+ 3, 16+ 2, 16+ 1, 16+ 0}  /* IdSel 10 slot 3 */
 	};
 	const long min_idsel = 5, max_idsel = 10, irqs_per_slot = 5;
-
 	struct pci_controller *hose = dev->sysdata;
 	int irq = COMMON_TABLE_LOOKUP;
 
-	if (irq > 0) {
+	if (irq > 0)
 		irq += 16 * hose->index;
-	} else {
-		/* ??? The Contaq IDE controller on the ISA bridge uses
-		   "legacy" interrupts 14 and 15.  I don't know if anything
-		   can wind up at the same slot+pin on hose1, so we'll
-		   just have to trust whatever value the console might
-		   have assigned.  */
 
-		u8 irq8;
-		pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &irq8);
-		irq = irq8;
-	}
-
-	return irq;
+	return isa_irq_fixup(dev, irq);
 }
 
 static int __init
@@ -453,7 +457,8 @@ monet_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 		{    24,    24,    25,    26,    27}  /* IdSel 15 slot 5 PCI2*/
 	};
 	const long min_idsel = 3, max_idsel = 15, irqs_per_slot = 5;
-	return COMMON_TABLE_LOOKUP;
+
+	return isa_irq_fixup(dev, COMMON_TABLE_LOOKUP);
 }
 
 static u8 __init
@@ -507,7 +512,8 @@ webbrick_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 		{    47,    47,    46,    45,    44}, /* IdSel 17 slot 3 */
 	};
 	const long min_idsel = 7, max_idsel = 17, irqs_per_slot = 5;
-	return COMMON_TABLE_LOOKUP;
+
+	return isa_irq_fixup(dev, COMMON_TABLE_LOOKUP);
 }
 
 static int __init
@@ -524,14 +530,13 @@ clipper_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 		{    -1,    -1,    -1,    -1,    -1}  /* IdSel 7 ISA Bridge */
 	};
 	const long min_idsel = 1, max_idsel = 7, irqs_per_slot = 5;
-
 	struct pci_controller *hose = dev->sysdata;
 	int irq = COMMON_TABLE_LOOKUP;
 
 	if (irq > 0)
 		irq += 16 * hose->index;
 
-	return irq;
+	return isa_irq_fixup(dev, irq);
 }
 
 static void __init

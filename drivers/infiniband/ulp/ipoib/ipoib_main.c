@@ -474,7 +474,7 @@ err:
 	spin_unlock(&priv->lock);
 }
 
-static void path_lookup(struct sk_buff *skb, struct net_device *dev)
+static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(skb->dev);
 
@@ -569,7 +569,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->dst && skb->dst->neighbour) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
-			path_lookup(skb, dev);
+			ipoib_path_lookup(skb, dev);
 			goto out;
 		}
 
@@ -1005,6 +1005,7 @@ debug_failed:
 
 register_failed:
 	ib_unregister_event_handler(&priv->event_handler);
+	flush_scheduled_work();
 
 event_failed:
 	ipoib_dev_cleanup(priv->dev);
@@ -1057,6 +1058,7 @@ static void ipoib_remove_one(struct ib_device *device)
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ib_unregister_event_handler(&priv->event_handler);
+		flush_scheduled_work();
 
 		unregister_netdev(priv->dev);
 		ipoib_dev_cleanup(priv->dev);

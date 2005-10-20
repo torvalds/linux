@@ -64,10 +64,6 @@
 #define NODE_MAX_MEM_SHIFT	26
 #define NODE_MAX_MEM_SIZE	(1 << NODE_MAX_MEM_SHIFT)
 
-#else
-
-#define PFN_TO_NID(addr)	(0)
-
 #endif /* CONFIG_DISCONTIGMEM */
 
 #endif /* __ASM_ARCH_MEMORY_H */

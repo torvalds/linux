@@ -460,8 +460,7 @@ extern void tcp_send_probe0(struct sock *);
 extern void tcp_send_partial(struct sock *);
 extern int  tcp_write_wakeup(struct sock *);
 extern void tcp_send_fin(struct sock *sk);
-extern void tcp_send_active_reset(struct sock *sk,
-                                  unsigned int __nocast priority);
+extern void tcp_send_active_reset(struct sock *sk, gfp_t priority);
 extern int  tcp_send_synack(struct sock *);
 extern void tcp_push_one(struct sock *, unsigned int mss_now);
 extern void tcp_send_ack(struct sock *sk);

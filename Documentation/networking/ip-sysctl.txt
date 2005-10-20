@@ -355,10 +355,14 @@ ip_dynaddr - BOOLEAN
 	Default: 0
 
 icmp_echo_ignore_all - BOOLEAN
+	If set non-zero, then the kernel will ignore all ICMP ECHO
+	requests sent to it.
+	Default: 0
+
 icmp_echo_ignore_broadcasts - BOOLEAN
-	If either is set to true, then the kernel will ignore either all
-	ICMP ECHO requests sent to it or just those to broadcast/multicast
-	addresses, respectively.
+	If set non-zero, then the kernel will ignore all ICMP ECHO and
+	TIMESTAMP requests sent to it via broadcast/multicast.
+	Default: 1
 
 icmp_ratelimit - INTEGER
 	Limit the maximal rates for sending ICMP packets whose type matches

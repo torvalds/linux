@@ -257,7 +257,7 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 
 void ipoib_mcast_restart_task(void *dev_ptr);
 int ipoib_mcast_start_thread(struct net_device *dev);
-int ipoib_mcast_stop_thread(struct net_device *dev);
+int ipoib_mcast_stop_thread(struct net_device *dev, int flush);
 
 void ipoib_mcast_dev_down(struct net_device *dev);
 void ipoib_mcast_dev_flush(struct net_device *dev);

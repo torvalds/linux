@@ -19,7 +19,7 @@
 void foo(void)
 {
 #ifdef CONFIG_MODE_TT
-	OFFSET(TASK_EXTERN_PID, task_struct, thread.mode.tt.extern_pid);
+	OFFSET(HOST_TASK_EXTERN_PID, task_struct, thread.mode.tt.extern_pid);
 #endif
 #include <common-offsets.h>
 }

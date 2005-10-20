@@ -6,7 +6,7 @@
  * Copyright (C) Hidetoshi Seto (seto.hidetoshi@jp.fujitsu.com)
  */
 /*
- * Processor error section: 
+ * Processor error section:
  *
  *  +-sal_log_processor_info_t *info-------------+
  *  | sal_log_section_hdr_t header;              |

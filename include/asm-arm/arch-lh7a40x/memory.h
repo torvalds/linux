@@ -85,10 +85,6 @@
        (((unsigned long)(addr) & 0x01ffffff) >> PAGE_SHIFT)
 # endif
 
-#else
-
-# define PFN_TO_NID(addr)	(0)
-
 #endif
 
 #endif

@@ -500,6 +500,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 	}
 
 	rq.special = args;
+	args->rq = &rq;
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }
 

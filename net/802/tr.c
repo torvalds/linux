@@ -238,7 +238,7 @@ unsigned short tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 		return trllc->ethertype;
 	}
 
-	return ntohs(ETH_P_802_2);
+	return ntohs(ETH_P_TR_802_2);
 }
 
 /*

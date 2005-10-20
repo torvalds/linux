@@ -504,7 +504,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 		bad_access:
 		spin_unlock(&mm->page_table_lock);
-		/* simulate a read access fault */
+		/* simulate a write access fault */
 		do_DataAbort(addr, 15 + (1 << 11), regs);
 		return -1;
 	}
@@ -624,6 +624,9 @@ void __attribute__((noreturn)) __bug(const char *file, int line, void *data)
 		printk(" - extra data = %p", data);
 	printk("\n");
 	*(int *)0 = 0;
+
+	/* Avoid "noreturn function does return" */
+	for (;;);
 }
 EXPORT_SYMBOL(__bug);
 

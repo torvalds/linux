@@ -54,8 +54,9 @@ struct atp_unit
 		unsigned long tran_len;
 		unsigned long last_len;
 		unsigned char *prd_pos;
-		unsigned char *prd_table;
-		dma_addr_t prdaddr;
+		unsigned char *prd_table;	/* Kernel address of PRD table */
+		dma_addr_t prd_bus;		/* Bus address of PRD */
+		dma_addr_t prdaddr;		/* Dynamically updated in driver */
 		struct scsi_cmnd *curr_req;
 	} id[2][16];
     	struct Scsi_Host *host;

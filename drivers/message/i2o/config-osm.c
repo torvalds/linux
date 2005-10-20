@@ -56,8 +56,11 @@ static int __init i2o_config_init(void)
 		return -EBUSY;
 	}
 #ifdef CONFIG_I2O_CONFIG_OLD_IOCTL
-	if (i2o_config_old_init())
+	if (i2o_config_old_init()) {
+		osm_err("old config handler initialization failed\n");
 		i2o_driver_unregister(&i2o_config_driver);
+		return -EBUSY;
+	}
 #endif
 
 	return 0;

@@ -168,6 +168,7 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_write(WRITE_VERIFY_12),
 		safe_for_write(WRITE_16),
 		safe_for_write(WRITE_LONG),
+		safe_for_write(WRITE_LONG_2),
 		safe_for_write(ERASE),
 		safe_for_write(GPCMD_MODE_SELECT_10),
 		safe_for_write(MODE_SELECT),
@@ -200,14 +201,14 @@ static int verify_command(struct file *file, unsigned char *cmd)
 			return 0;
 	}
 
+	/* And root can do any command.. */
+	if (capable(CAP_SYS_RAWIO))
+		return 0;
+
 	if (!type) {
 		cmd_type[cmd[0]] = CMD_WARNED;
 		printk(KERN_WARNING "scsi: unknown opcode 0x%02x\n", cmd[0]);
 	}
-
-	/* And root can do any command.. */
-	if (capable(CAP_SYS_RAWIO))
-		return 0;
 
 	/* Otherwise fail it with an "Operation not permitted" */
 	return -EPERM;

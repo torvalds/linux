@@ -2824,8 +2824,7 @@ static int configure_new_function (struct controller * ctrl, struct pci_func * f
 		}
 #endif
 		/* Disable ROM base Address */
-		temp_word = 0x00L;
-		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_ROM_ADDRESS, temp_word);
+		rc = pci_bus_write_config_dword (pci_bus, devfn, PCI_ROM_ADDRESS, 0x00);
 
 		/* Set HP parameters (Cache Line Size, Latency Timer) */
 		rc = shpchprm_set_hpp(ctrl, func, PCI_HEADER_TYPE_NORMAL);

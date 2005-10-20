@@ -908,11 +908,6 @@ config IRQBALANCE
  	  The default yes will allow the kernel to do irq load balancing.
 	  Saying no will keep the kernel from doing irq load balancing.
 
-config HAVE_DEC_LOCK
-	bool
-	depends on (SMP || PREEMPT) && X86_CMPXCHG
-	default y
-
 # turning this on wastes a bunch of space.
 # Summit needs it only when NUMA is on
 config BOOT_IOREMAP

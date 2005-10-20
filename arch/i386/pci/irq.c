@@ -11,12 +11,11 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/io_apic.h>
-#include <asm/hw_irq.h>
+#include <linux/irq.h>
 #include <linux/acpi.h>
 
 #include "pci.h"

@@ -35,6 +35,23 @@ config FUSION_FC
 	  LSIFC929X
 	  LSIFC929XL
 
+config FUSION_SAS
+	tristate "Fusion MPT ScsiHost drivers for SAS"
+	depends on PCI && SCSI
+ 	select FUSION
+	select SCSI_SAS_ATTRS
+	---help---
+	  SCSI HOST support for a SAS host adapters.
+
+	  List of supported controllers:
+
+	  LSISAS1064
+	  LSISAS1066
+	  LSISAS1068
+	  LSISAS1064E
+	  LSISAS1066E
+	  LSISAS1068E
+
 config FUSION_MAX_SGE
 	int "Maximum number of scatter gather entries (16 - 128)"
 	depends on FUSION

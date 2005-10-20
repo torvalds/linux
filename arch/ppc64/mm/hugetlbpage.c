@@ -710,10 +710,13 @@ repeat:
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL; 
 			slot = ppc_md.hpte_insert(hpte_group, va, prpn,
-						  HPTE_V_LARGE, rflags);
+						  HPTE_V_LARGE |
+						  HPTE_V_SECONDARY,
+						  rflags);
 			if (slot == -1) {
 				if (mftb() & 0x1)
-					hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
+					hpte_group = ((hash & htab_hash_mask) *
+						      HPTES_PER_GROUP)&~0x7UL;
 
 				ppc_md.hpte_remove(hpte_group);
 				goto repeat;

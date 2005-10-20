@@ -1104,10 +1104,10 @@ static int ipgre_open(struct net_device *dev)
 			return -EADDRNOTAVAIL;
 		dev = rt->u.dst.dev;
 		ip_rt_put(rt);
-		if (__in_dev_get(dev) == NULL)
+		if (__in_dev_get_rtnl(dev) == NULL)
 			return -EADDRNOTAVAIL;
 		t->mlink = dev->ifindex;
-		ip_mc_inc_group(__in_dev_get(dev), t->parms.iph.daddr);
+		ip_mc_inc_group(__in_dev_get_rtnl(dev), t->parms.iph.daddr);
 	}
 	return 0;
 }

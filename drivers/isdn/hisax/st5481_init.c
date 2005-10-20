@@ -43,10 +43,10 @@ static int number_of_leds = 2;       /* 2 LEDs on the adpater default */
 module_param(number_of_leds, int, 0);
 
 #ifdef CONFIG_HISAX_DEBUG
-static int debug = 0x1;
+static int debug = 0;
 module_param(debug, int, 0);
-int st5481_debug;
 #endif
+int st5481_debug;
 
 static LIST_HEAD(adapter_list);
 

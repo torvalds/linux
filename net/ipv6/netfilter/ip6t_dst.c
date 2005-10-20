@@ -63,8 +63,6 @@ match(const struct sk_buff *skb,
        struct ipv6_opt_hdr _optsh, *oh;
        const struct ip6t_opts *optinfo = matchinfo;
        unsigned int temp;
-       unsigned int len;
-       u8 nexthdr;
        unsigned int ptr;
        unsigned int hdrlen = 0;
        unsigned int ret = 0;
@@ -72,96 +70,24 @@ match(const struct sk_buff *skb,
        u8 _optlen, *lp = NULL;
        unsigned int optlen;
        
-       /* type of the 1st exthdr */
-       nexthdr = skb->nh.ipv6h->nexthdr;
-       /* pointer to the 1st exthdr */
-       ptr = sizeof(struct ipv6hdr);
-       /* available length */
-       len = skb->len - ptr;
-       temp = 0;
-
-        while (ip6t_ext_hdr(nexthdr)) {
-               struct ipv6_opt_hdr _hdr, *hp;
-
-              DEBUGP("ipv6_opts header iteration \n");
-
-              /* Is there enough space for the next ext header? */
-                if (len < (int)sizeof(struct ipv6_opt_hdr))
-                        return 0;
-              /* No more exthdr -> evaluate */
-                if (nexthdr == NEXTHDR_NONE) {
-                     break;
-              }
-              /* ESP -> evaluate */
-                if (nexthdr == NEXTHDR_ESP) {
-                     break;
-              }
-
-	      hp = skb_header_pointer(skb, ptr, sizeof(_hdr), &_hdr);
-	      BUG_ON(hp == NULL);
-
-              /* Calculate the header length */
-                if (nexthdr == NEXTHDR_FRAGMENT) {
-                        hdrlen = 8;
-                } else if (nexthdr == NEXTHDR_AUTH)
-                        hdrlen = (hp->hdrlen+2)<<2;
-                else
-                        hdrlen = ipv6_optlen(hp);
-
-              /* OPTS -> evaluate */
 #if HOPBYHOP
-                if (nexthdr == NEXTHDR_HOP) {
-                     temp |= MASK_HOPOPTS;
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_HOP) < 0)
 #else
-                if (nexthdr == NEXTHDR_DEST) {
-                     temp |= MASK_DSTOPTS;
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_DEST) < 0)
 #endif
-                     break;
-              }
+		return 0;
 
-
-              /* set the flag */
-              switch (nexthdr){
-                     case NEXTHDR_HOP:
-                     case NEXTHDR_ROUTING:
-                     case NEXTHDR_FRAGMENT:
-                     case NEXTHDR_AUTH:
-                     case NEXTHDR_DEST:
-                            break;
-                     default:
-                            DEBUGP("ipv6_opts match: unknown nextheader %u\n",nexthdr);
-                            return 0;
-                            break;
-              }
-
-                nexthdr = hp->nexthdr;
-                len -= hdrlen;
-                ptr += hdrlen;
-		if ( ptr > skb->len ) {
-			DEBUGP("ipv6_opts: new pointer is too large! \n");
-			break;
-		}
-        }
-
-       /* OPTIONS header not found */
-#if HOPBYHOP
-       if ( temp != MASK_HOPOPTS ) return 0;
-#else
-       if ( temp != MASK_DSTOPTS ) return 0;
-#endif
-
-       if (len < (int)sizeof(struct ipv6_opt_hdr)){
+       oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
+       if (oh == NULL){
 	       *hotdrop = 1;
        		return 0;
        }
 
-       if (len < hdrlen){
+       hdrlen = ipv6_optlen(oh);
+       if (skb->len - ptr < hdrlen){
 	       /* Packet smaller than it's length field */
        		return 0;
        }
-
-       oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
-       BUG_ON(oh == NULL);
 
        DEBUGP("IPv6 OPTS LEN %u %u ", hdrlen, oh->hdrlen);
 

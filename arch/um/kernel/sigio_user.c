@@ -340,7 +340,7 @@ static int setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
-	p = um_kmalloc(sizeof(struct pollfd));
+	p = um_kmalloc_atomic(sizeof(struct pollfd));
 	if(p == NULL){
 		printk("setup_initial_poll : failed to allocate poll\n");
 		return(-1);

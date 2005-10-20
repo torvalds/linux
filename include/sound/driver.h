@@ -51,7 +51,7 @@
 #ifdef CONFIG_SND_DEBUG_MEMORY
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-void *snd_wrapper_kmalloc(size_t, unsigned int __nocast);
+void *snd_wrapper_kmalloc(size_t, gfp_t);
 #undef kmalloc
 void snd_wrapper_kfree(const void *);
 #undef kfree

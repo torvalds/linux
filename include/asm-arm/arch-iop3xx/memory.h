@@ -36,6 +36,4 @@
 
 #endif
 
-#define PFN_TO_NID(addr)	(0)
-
 #endif

@@ -334,6 +334,8 @@ int linux_main(int argc, char **argv)
 		add_arg(DEFAULT_COMMAND_LINE);
 
 	os_early_checks();
+	if (force_tt)
+		clear_can_do_skas();
 	mode_tt = force_tt ? 1 : !can_do_skas();
 #ifndef CONFIG_MODE_TT
 	if (mode_tt) {
@@ -360,11 +362,6 @@ int linux_main(int argc, char **argv)
 
 	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
 				     &host_task_size, &task_size);
-
-	/* Need to check this early because mmapping happens before the
-	 * kernel is running.
-	 */
-	check_tmpexec();
 
 	brk_start = (unsigned long) sbrk(0);
 	CHOOSE_MODE_PROC(before_mem_tt, before_mem_skas, brk_start);

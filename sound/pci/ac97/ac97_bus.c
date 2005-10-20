@@ -17,25 +17,21 @@
 #include <linux/string.h>
 
 /*
- * Codec families have names seperated by commas, so we search for an
- * individual codec name within the family string. 
+ * Let drivers decide whether they want to support given codec from their
+ * probe method.  Drivers have direct access to the ac97_t structure and may
+ * decide based on the id field amongst other things.
  */
 static int ac97_bus_match(struct device *dev, struct device_driver *drv)
 {
-	return (strstr(dev->bus_id, drv->name) != NULL);
+	return 1;
 }
 
 static int ac97_bus_suspend(struct device *dev, pm_message_t state)
 {
 	int ret = 0;
 
-	if (dev->driver && dev->driver->suspend) {
-		ret = dev->driver->suspend(dev, state, SUSPEND_DISABLE);
-		if (ret == 0)
-			ret = dev->driver->suspend(dev, state, SUSPEND_SAVE_STATE);
-		if (ret == 0)
-			ret = dev->driver->suspend(dev, state, SUSPEND_POWER_DOWN);
-	}
+	if (dev->driver && dev->driver->suspend)
+		ret = dev->driver->suspend(dev, state, SUSPEND_POWER_DOWN);
 	return ret;
 }
 
@@ -43,13 +39,8 @@ static int ac97_bus_resume(struct device *dev)
 {
 	int ret = 0;
 
-	if (dev->driver && dev->driver->resume) {
+	if (dev->driver && dev->driver->resume)
 		ret = dev->driver->resume(dev, RESUME_POWER_ON);
-		if (ret == 0)
-			ret = dev->driver->resume(dev, RESUME_RESTORE_STATE);
-		if (ret == 0)
-			ret = dev->driver->resume(dev, RESUME_ENABLE);
-	}
 	return ret;
 }
 

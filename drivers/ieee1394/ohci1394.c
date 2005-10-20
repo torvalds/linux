@@ -162,7 +162,7 @@ printk(level "%s: " fmt "\n" , OHCI1394_DRIVER_NAME , ## args)
 printk(level "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 
 static char version[] __devinitdata =
-	"$Rev: 1299 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1313 $ Ben Collins <bcollins@debian.org>";
 
 /* Module Parameters */
 static int phys_dma = 1;
@@ -1084,7 +1084,7 @@ static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 			initialize_dma_rcv_ctx(&ohci->ir_legacy_context, 1);
 
 			if (printk_ratelimit())
-				PRINT(KERN_ERR, "IR legacy activated");
+				DBGMSG("IR legacy activated");
 		}
 
                 spin_lock_irqsave(&ohci->IR_channel_lock, flags);
@@ -2283,8 +2283,9 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 {
 	struct ohci1394_iso_tasklet *t;
 	unsigned long mask;
+	unsigned long flags;
 
-	spin_lock(&ohci->iso_tasklet_list_lock);
+	spin_lock_irqsave(&ohci->iso_tasklet_list_lock, flags);
 
 	list_for_each_entry(t, &ohci->iso_tasklet_list, link) {
 		mask = 1 << t->context;
@@ -2295,8 +2296,7 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 			tasklet_schedule(&t->tasklet);
 	}
 
-	spin_unlock(&ohci->iso_tasklet_list_lock);
-
+	spin_unlock_irqrestore(&ohci->iso_tasklet_list_lock, flags);
 }
 
 static irqreturn_t ohci_irq_handler(int irq, void *dev_id,

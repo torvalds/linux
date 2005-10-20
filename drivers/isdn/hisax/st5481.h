@@ -466,9 +466,9 @@ void st5481_stop(struct st5481_adapter *adapter);
 #define __debug_variable st5481_debug
 #include "hisax_debug.h"
 
-#ifdef CONFIG_HISAX_DEBUG
-
 extern int st5481_debug;
+
+#ifdef CONFIG_HISAX_DEBUG
 
 #define DBG_ISO_PACKET(level,urb) \
   if (level & __debug_variable) dump_iso_packet(__FUNCTION__,urb)

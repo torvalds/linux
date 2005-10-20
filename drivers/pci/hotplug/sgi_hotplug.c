@@ -159,7 +159,7 @@ static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
 
 	pcibus_info = SN_PCIBUS_BUSSOFT_INFO(pci_bus);
 
-	slot = kcalloc(1, sizeof(*slot), GFP_KERNEL);
+	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return -ENOMEM;
 	bss_hotplug_slot->private = slot;
@@ -491,7 +491,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		if (sn_pci_slot_valid(pci_bus, device) != 1)
 			continue;
 
-		bss_hotplug_slot = kcalloc(1, sizeof(*bss_hotplug_slot),
+		bss_hotplug_slot = kzalloc(sizeof(*bss_hotplug_slot),
 					   GFP_KERNEL);
 		if (!bss_hotplug_slot) {
 			rc = -ENOMEM;
@@ -499,7 +499,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		}
 
 		bss_hotplug_slot->info =
-			kcalloc(1, sizeof(struct hotplug_slot_info),
+			kzalloc(sizeof(struct hotplug_slot_info),
 				GFP_KERNEL);
 		if (!bss_hotplug_slot->info) {
 			rc = -ENOMEM;

@@ -1,7 +1,7 @@
 /*
  * malloc.h - NTFS kernel memory handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -40,7 +40,7 @@
  * Depending on @gfp_mask the allocation may be guaranteed to succeed.
  */
 static inline void *__ntfs_malloc(unsigned long size,
-		unsigned int __nocast gfp_mask)
+		gfp_t gfp_mask)
 {
 	if (likely(size <= PAGE_SIZE)) {
 		BUG_ON(!size);

@@ -56,7 +56,7 @@ struct datalink_proto *register_8022_client(unsigned char type,
 
 void unregister_8022_client(struct datalink_proto *proto)
 {
-	llc_sap_close(proto->sap);
+	llc_sap_put(proto->sap);
 	kfree(proto);
 }
 

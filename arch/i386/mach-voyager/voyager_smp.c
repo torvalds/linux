@@ -30,8 +30,6 @@
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
 
-#include <linux/irq.h>
-
 /* TLB state -- visible externally, indexed physically */
 DEFINE_PER_CPU(struct tlb_state, cpu_tlbstate) ____cacheline_aligned = { &init_mm, 0 };
 

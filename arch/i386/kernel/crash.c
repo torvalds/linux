@@ -11,10 +11,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
-#include <linux/irq.h>
 #include <linux/reboot.h>
 #include <linux/kexec.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>

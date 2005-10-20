@@ -361,7 +361,7 @@ static void raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 
 			if (type && code) {
 				get_user(fl->fl_icmp_type, type);
-				__get_user(fl->fl_icmp_code, code);
+			        get_user(fl->fl_icmp_code, code);
 				probed = 1;
 			}
 			break;

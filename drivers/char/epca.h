@@ -128,17 +128,17 @@ struct channel
 	unsigned long  c_cflag;
 	unsigned long  c_lflag;
 	unsigned long  c_oflag;
-	unsigned char *txptr;
-	unsigned char *rxptr;
+	unsigned char __iomem *txptr;
+	unsigned char __iomem *rxptr;
 	unsigned char *tmp_buf;
 	struct board_info           *board;
-	struct board_chan	    *brdchan;
+	struct board_chan	    __iomem *brdchan;
 	struct digi_struct          digiext;
 	struct tty_struct           *tty;
 	wait_queue_head_t           open_wait;
 	wait_queue_head_t           close_wait;
 	struct work_struct          tqueue;
-	struct global_data 	    *mailbox;
+	struct global_data 	    __iomem *mailbox;
 };
 
 struct board_info	
@@ -149,8 +149,8 @@ struct board_info
 	unsigned short numports;
 	unsigned long port;
 	unsigned long membase;
-	unsigned char __iomem *re_map_port;
-	unsigned char *re_map_membase;
+	void __iomem *re_map_port;
+	void __iomem *re_map_membase;
 	unsigned long  memory_seg;
 	void ( * memwinon )	(struct board_info *, unsigned int) ;
 	void ( * memwinoff ) 	(struct board_info *, unsigned int) ;

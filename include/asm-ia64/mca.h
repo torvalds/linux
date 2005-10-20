@@ -80,7 +80,12 @@ struct ia64_sal_os_state {
 	u64			sal_ra;			/* Return address in SAL, physical */
 	u64			sal_gp;			/* GP of the SAL - physical */
 	pal_min_state_area_t	*pal_min_state;		/* from R17.  physical in asm, virtual in C */
+	/* Previous values of IA64_KR(CURRENT) and IA64_KR(CURRENT_STACK).
+	 * Note: if the MCA/INIT recovery code wants to resume to a new context
+	 * then it must change these values to reflect the new kernel stack.
+	 */
 	u64			prev_IA64_KR_CURRENT;	/* previous value of IA64_KR(CURRENT) */
+	u64			prev_IA64_KR_CURRENT_STACK;
 	struct task_struct	*prev_task;		/* previous task, NULL if it is not useful */
 	/* Some interrupt registers are not saved in minstate, pt_regs or
 	 * switch_stack.  Because MCA/INIT can occur when interrupts are

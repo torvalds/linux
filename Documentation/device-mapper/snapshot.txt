@@ -1,0 +1,73 @@
+Device-mapper snapshot support
+==============================
+
+Device-mapper allows you, without massive data copying:
+
+*) To create snapshots of any block device i.e. mountable, saved states of
+the block device which are also writable without interfering with the
+original content;
+*) To create device "forks", i.e. multiple different versions of the
+same data stream.
+
+
+In both cases, dm copies only the chunks of data that get changed and
+uses a separate copy-on-write (COW) block device for storage.
+
+
+There are two dm targets available: snapshot and snapshot-origin.
+
+*) snapshot-origin <origin>
+
+which will normally have one or more snapshots based on it.
+You must create the snapshot-origin device before you can create snapshots.
+Reads will be mapped directly to the backing device. For each write, the
+original data will be saved in the <COW device> of each snapshot to keep
+its visible content unchanged, at least until the <COW device> fills up.
+
+
+*) snapshot <origin> <COW device> <persistent?> <chunksize>
+
+A snapshot is created of the <origin> block device. Changed chunks of
+<chunksize> sectors will be stored on the <COW device>.  Writes will
+only go to the <COW device>.  Reads will come from the <COW device> or
+from <origin> for unchanged data.  <COW device> will often be
+smaller than the origin and if it fills up the snapshot will become
+useless and be disabled, returning errors.  So it is important to monitor
+the amount of free space and expand the <COW device> before it fills up.
+
+<persistent?> is P (Persistent) or N (Not persistent - will not survive
+after reboot).
+
+
+How this is used by LVM2
+========================
+When you create the first LVM2 snapshot of a volume, four dm devices are used:
+
+1) a device containing the original mapping table of the source volume;
+2) a device used as the <COW device>;
+3) a "snapshot" device, combining #1 and #2, which is the visible snapshot
+   volume;
+4) the "original" volume (which uses the device number used by the original
+   source volume), whose table is replaced by a "snapshot-origin" mapping
+   from device #1.
+
+A fixed naming scheme is used, so with the following commands:
+
+lvcreate -L 1G -n base volumeGroup
+lvcreate -L 100M --snapshot -n snap volumeGroup/base
+
+we'll have this situation (with volumes in above order):
+
+# dmsetup table|grep volumeGroup
+
+volumeGroup-base-real: 0 2097152 linear 8:19 384
+volumeGroup-snap-cow: 0 204800 linear 8:19 2097536
+volumeGroup-snap: 0 2097152 snapshot 254:11 254:12 P 16
+volumeGroup-base: 0 2097152 snapshot-origin 254:11
+
+# ls -lL /dev/mapper/volumeGroup-*
+brw-------  1 root root 254, 11 29 ago 18:15 /dev/mapper/volumeGroup-base-real
+brw-------  1 root root 254, 12 29 ago 18:15 /dev/mapper/volumeGroup-snap-cow
+brw-------  1 root root 254, 13 29 ago 18:15 /dev/mapper/volumeGroup-snap
+brw-------  1 root root 254, 10 29 ago 18:14 /dev/mapper/volumeGroup-base
+

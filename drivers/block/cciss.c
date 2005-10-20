@@ -483,9 +483,6 @@ static int cciss_open(struct inode *inode, struct file *filep)
 	printk(KERN_DEBUG "cciss_open %s\n", inode->i_bdev->bd_disk->disk_name);
 #endif /* CCISS_DEBUG */ 
 
-	if (host->busy_initializing)
-		return -EBUSY;
-
 	if (host->busy_initializing || drv->busy_configuring)
 		return -EBUSY;
 	/*
@@ -2991,6 +2988,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_ON);
 
 	cciss_procinit(i);
+	hba[i]->busy_initializing = 0;
 
 	for(j=0; j < NWD; j++) { /* mfm */
 		drive_info_struct *drv = &(hba[i]->drv[j]);
@@ -3033,7 +3031,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		add_disk(disk);
 	}
 
-	hba[i]->busy_initializing = 0;
 	return(1);
 
 clean4:

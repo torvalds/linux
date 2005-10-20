@@ -727,6 +727,16 @@ static void adapter_info_rsp(struct srp_event_struct *evt_struct)
 		if (hostdata->madapter_info.port_max_txu[0]) 
 			hostdata->host->max_sectors = 
 				hostdata->madapter_info.port_max_txu[0] >> 9;
+		
+		if (hostdata->madapter_info.os_type == 3 &&
+		    strcmp(hostdata->madapter_info.srp_version, "1.6a") <= 0) {
+			printk("ibmvscsi: host (Ver. %s) doesn't support large"
+			       "transfers\n",
+			       hostdata->madapter_info.srp_version);
+			printk("ibmvscsi: limiting scatterlists to %d\n",
+			       MAX_INDIRECT_BUFS);
+			hostdata->host->sg_tablesize = MAX_INDIRECT_BUFS;
+		}
 	}
 }
 

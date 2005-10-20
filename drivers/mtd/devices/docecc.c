@@ -40,7 +40,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/doc2000.h>
 
-#define DEBUG 0
+#define DEBUG_ECC 0
 /* need to undef it (from asm/termbits.h) */
 #undef B0
 
@@ -249,7 +249,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
 	  lambda[j] ^= Alpha_to[modnn(u + tmp)];
       }
     }
-#if DEBUG >= 1
+#if DEBUG_ECC >= 1
     /* Test code that verifies the erasure locator polynomial just constructed
        Needed only for decoder debugging. */
     
@@ -276,7 +276,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
       count = -1;
       goto finish;
     }
-#if DEBUG >= 2
+#if DEBUG_ECC >= 2
     printf("\n Erasure positions as determined by roots of Eras Loc Poly:\n");
     for (i = 0; i < count; i++)
       printf("%d ", loc[i]);
@@ -409,7 +409,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
 	den ^= Alpha_to[modnn(lambda[i+1] + i * root[j])];
     }
     if (den == 0) {
-#if DEBUG >= 1
+#if DEBUG_ECC >= 1
       printf("\n ERROR: denominator = 0\n");
 #endif
       /* Convert to dual- basis */

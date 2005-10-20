@@ -3,6 +3,7 @@
  * Licensed under the GPL
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 #include <signal.h>

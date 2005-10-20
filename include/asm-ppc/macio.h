@@ -1,7 +1,6 @@
 #ifndef __MACIO_ASIC_H__
 #define __MACIO_ASIC_H__
 
-#include <linux/mod_devicetable.h>
 #include <asm/of_device.h>
 
 extern struct bus_type macio_bus_type;

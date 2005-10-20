@@ -355,8 +355,6 @@ static void tcp_clamp_window(struct sock *sk, struct tcp_sock *tp)
 			app_win -= icsk->icsk_ack.rcv_mss;
 		app_win = max(app_win, 2U*tp->advmss);
 
-		if (!ofo_win)
-			tp->window_clamp = min(tp->window_clamp, app_win);
 		tp->rcv_ssthresh = min(tp->window_clamp, 2U*tp->advmss);
 	}
 }
@@ -979,14 +977,19 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			if (!before(TCP_SKB_CB(skb)->seq, end_seq))
 				break;
 
+			in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
+				!before(end_seq, TCP_SKB_CB(skb)->end_seq);
+
 			pcount = tcp_skb_pcount(skb);
 
-			if (pcount > 1 &&
-			    (after(start_seq, TCP_SKB_CB(skb)->seq) ||
-			     before(end_seq, TCP_SKB_CB(skb)->end_seq))) {
+			if (pcount > 1 && !in_sack &&
+			    after(TCP_SKB_CB(skb)->end_seq, start_seq)) {
 				unsigned int pkt_len;
 
-				if (after(start_seq, TCP_SKB_CB(skb)->seq))
+				in_sack = !after(start_seq,
+						 TCP_SKB_CB(skb)->seq);
+
+				if (!in_sack)
 					pkt_len = (start_seq -
 						   TCP_SKB_CB(skb)->seq);
 				else
@@ -998,9 +1001,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			}
 
 			fack_count += pcount;
-
-			in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
-				!before(end_seq, TCP_SKB_CB(skb)->end_seq);
 
 			sacked = TCP_SKB_CB(skb)->sacked;
 

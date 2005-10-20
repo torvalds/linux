@@ -1265,9 +1265,8 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 		list_for_each_safe(lh, lh_sf, &active_list) {
 			scmd = list_entry(lh, struct scsi_cmnd, eh_entry);
 			list_del_init(lh);
-			if (recovery) {
-				scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD);
-			} else {
+			if (recovery &&
+			    !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD)) {
 				scmd->result = (DID_ABORT << 16);
 				scsi_finish_command(scmd);
 			}

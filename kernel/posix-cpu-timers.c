@@ -387,25 +387,19 @@ int posix_cpu_timer_del(struct k_itimer *timer)
 	if (unlikely(p == NULL))
 		return 0;
 
+	spin_lock(&p->sighand->siglock);
 	if (!list_empty(&timer->it.cpu.entry)) {
-		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
-			/*
-			 * We raced with the reaping of the task.
-			 * The deletion should have cleared us off the list.
-			 */
-			BUG_ON(!list_empty(&timer->it.cpu.entry));
-		} else {
-			/*
-			 * Take us off the task's timer list.
-			 */
-			spin_lock(&p->sighand->siglock);
-			list_del(&timer->it.cpu.entry);
-			spin_unlock(&p->sighand->siglock);
-		}
-		read_unlock(&tasklist_lock);
+		/*
+		 * Take us off the task's timer list.  We don't need to
+		 * take tasklist_lock and check for the task being reaped.
+		 * If it was reaped, it already called posix_cpu_timers_exit
+		 * and posix_cpu_timers_exit_group to clear all the timers
+		 * that pointed to it.
+		 */
+		list_del(&timer->it.cpu.entry);
+		put_task_struct(p);
 	}
-	put_task_struct(p);
+	spin_unlock(&p->sighand->siglock);
 
 	return 0;
 }
@@ -424,6 +418,7 @@ static void cleanup_timers(struct list_head *head,
 	cputime_t ptime = cputime_add(utime, stime);
 
 	list_for_each_entry_safe(timer, next, head, entry) {
+		put_task_struct(timer->task);
 		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (cputime_lt(timer->expires.cpu, ptime)) {
@@ -436,6 +431,7 @@ static void cleanup_timers(struct list_head *head,
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
+		put_task_struct(timer->task);
 		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (cputime_lt(timer->expires.cpu, utime)) {
@@ -448,6 +444,7 @@ static void cleanup_timers(struct list_head *head,
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
+		put_task_struct(timer->task);
 		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (timer->expires.sched < sched_time) {

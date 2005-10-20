@@ -136,7 +136,7 @@ static void __init nexcoder_sensorboard_init(void)
 	s3c2410_gpio_cfgpin(S3C2410_GPF2, S3C2410_GPF2_OUTP); // CAM_GPIO6 => CAM_PWRDN
 }
 
-void __init nexcoder_map_io(void)
+static void __init nexcoder_map_io(void)
 {
 	s3c24xx_init_io(nexcoder_iodesc, ARRAY_SIZE(nexcoder_iodesc));
 	s3c24xx_init_clocks(0);

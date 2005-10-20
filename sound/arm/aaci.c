@@ -650,7 +650,7 @@ static int aaci_do_resume(snd_card_t *card, unsigned int state)
 	return 0;
 }
 
-static int aaci_suspend(struct amba_device *dev, u32 state)
+static int aaci_suspend(struct amba_device *dev, pm_message_t state)
 {
 	snd_card_t *card = amba_get_drvdata(dev);
 	return card ? aaci_do_suspend(card) : 0;

@@ -384,7 +384,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->frto_counter = 0;
 		newtp->frto_highmark = 0;
 
-		newicsk->icsk_ca_ops = &tcp_reno;
+		newicsk->icsk_ca_ops = &tcp_init_congestion_ops;
 
 		tcp_set_ca_state(newsk, TCP_CA_Open);
 		tcp_init_xmit_timers(newsk);

@@ -2128,7 +2128,7 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,
 		struct in_device *in_dev;
 
 		rcu_read_lock();
-		if ((in_dev = __in_dev_get(dev)) != NULL) {
+		if ((in_dev = __in_dev_get_rcu(dev)) != NULL) {
 			int our = ip_check_mc(in_dev, daddr, saddr,
 				skb->nh.iph->protocol);
 			if (our
@@ -2443,7 +2443,9 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 		err = -ENODEV;
 		if (dev_out == NULL)
 			goto out;
-		if (__in_dev_get(dev_out) == NULL) {
+
+		/* RACE: Check return value of inet_select_addr instead. */
+		if (__in_dev_get_rtnl(dev_out) == NULL) {
 			dev_put(dev_out);
 			goto out;	/* Wrong error code */
 		}

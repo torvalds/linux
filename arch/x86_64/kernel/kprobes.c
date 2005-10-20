@@ -77,9 +77,9 @@ static inline int is_IF_modifier(kprobe_opcode_t *insn)
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	/* insn: must be on special executable page on x86_64. */
-	up(&kprobe_mutex);
-	p->ainsn.insn = get_insn_slot();
 	down(&kprobe_mutex);
+	p->ainsn.insn = get_insn_slot();
+	up(&kprobe_mutex);
 	if (!p->ainsn.insn) {
 		return -ENOMEM;
 	}
@@ -231,9 +231,9 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	up(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
 	down(&kprobe_mutex);
+	free_insn_slot(p->ainsn.insn);
+	up(&kprobe_mutex);
 }
 
 static inline void save_previous_kprobe(void)

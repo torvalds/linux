@@ -31,20 +31,24 @@
 
 #include <asm/system.h>		/* Pickup local_irq_ functions */
 
-static inline void ixp2000_reg_write(volatile unsigned long *reg, unsigned long val)
+static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
 {
-	volatile unsigned long dummy;
+	unsigned long dummy;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	*reg = val;
+	*((volatile unsigned long *)reg) = val;
 	barrier();
-	dummy = *reg;
+	dummy = *((volatile unsigned long *)reg);
 	local_irq_restore(flags);
 }
 #else
-#define	ixp2000_reg_write(reg, val) (*reg = val)
+static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
+{
+	*((volatile unsigned long *)reg) = val;
+}
 #endif	/* IXDP2400 || IXDP2401 */
+#define ixp2000_reg_read(reg)	(*((volatile unsigned long *)reg))
 
 /*
  * Boards may multiplex different devices on the 2nd channel of 
@@ -84,7 +88,7 @@ void ixp2000_release_slowport(struct slowport_cfg *);
  */
 static inline unsigned ixp2000_has_broken_slowport(void)
 {
-	unsigned long id = *IXP2000_PROD_ID;
+	unsigned long id = *IXP2000_PRODUCT_ID;
 	unsigned long id_prod = id & (IXP2000_MAJ_PROD_TYPE_MASK |
 				      IXP2000_MIN_PROD_TYPE_MASK);
 	return (((id_prod ==

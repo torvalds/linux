@@ -1393,7 +1393,7 @@ static void mld_sendpack(struct sk_buff *skb)
 
 static int grec_size(struct ifmcaddr6 *pmc, int type, int gdel, int sdel)
 {
-	return sizeof(struct mld2_grec) + 4*mld_scount(pmc,type,gdel,sdel);
+	return sizeof(struct mld2_grec) + 16 * mld_scount(pmc,type,gdel,sdel);
 }
 
 static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,
@@ -1968,7 +1968,7 @@ static void ip6_mc_clear_src(struct ifmcaddr6 *pmc)
 	}
 	pmc->mca_sources = NULL;
 	pmc->mca_sfmode = MCAST_EXCLUDE;
-	pmc->mca_sfcount[MCAST_EXCLUDE] = 0;
+	pmc->mca_sfcount[MCAST_INCLUDE] = 0;
 	pmc->mca_sfcount[MCAST_EXCLUDE] = 1;
 }
 

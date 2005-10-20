@@ -230,11 +230,6 @@ struct i2c_adapter {
 	struct device dev;		/* the adapter device */
 	struct class_device class_dev;	/* the class device */
 
-#ifdef CONFIG_PROC_FS 
-	/* No need to set this when you initialize the adapter          */
-	int inode;
-#endif /* def CONFIG_PROC_FS */
-
 	int nr;
 	struct list_head clients;
 	struct list_head list;

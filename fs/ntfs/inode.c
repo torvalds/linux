@@ -1166,6 +1166,8 @@ err_out:
  *
  * Return 0 on success and -errno on error.  In the error case, the inode will
  * have had make_bad_inode() executed on it.
+ *
+ * Note this cannot be called for AT_INDEX_ALLOCATION.
  */
 static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 {
@@ -1242,8 +1244,8 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 			}
 		}
 		/*
-		 * The encryption flag set in an index root just means to
-		 * compress all files.
+		 * The compressed/sparse flag set in an index root just means
+		 * to compress all files.
 		 */
 		if (NInoMstProtected(ni) && ni->type != AT_INDEX_ROOT) {
 			ntfs_error(vi->i_sb, "Found mst protected attribute "
@@ -1319,8 +1321,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 					"the mapping pairs array.");
 			goto unm_err_out;
 		}
-		if ((NInoCompressed(ni) || NInoSparse(ni)) &&
-				ni->type != AT_INDEX_ROOT) {
+		if (NInoCompressed(ni) || NInoSparse(ni)) {
 			if (a->data.non_resident.compression_unit != 4) {
 				ntfs_error(vi->i_sb, "Found nonstandard "
 						"compression unit (%u instead "

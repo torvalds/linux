@@ -19,7 +19,6 @@
 #include <linux/config.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 

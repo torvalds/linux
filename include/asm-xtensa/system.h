@@ -189,20 +189,6 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 
 #define tas(ptr) (xchg((ptr),1))
 
-#if ( __XCC__ == 1 )
-
-/* xt-xcc processes __inline__ differently than xt-gcc and decides to
- * insert an out-of-line copy of function __xchg.  This presents the
- * unresolved symbol at link time of __xchg_called_with_bad_pointer,
- * even though such a function would never be called at run-time.
- * xt-gcc always inlines __xchg, and optimizes away the undefined
- * bad_pointer function.
- */
-
-#define xchg(ptr,x) xchg_u32(ptr,x)
-
-#else  /* assume xt-gcc */
-
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 /*
@@ -223,8 +209,6 @@ __xchg(unsigned long x, volatile void * ptr, int size)
 	__xchg_called_with_bad_pointer();
 	return x;
 }
-
-#endif
 
 extern void set_except_vector(int n, void *addr);
 
