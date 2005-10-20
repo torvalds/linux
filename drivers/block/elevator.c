@@ -228,10 +228,6 @@ void elevator_exit(elevator_t *e)
 	kfree(e);
 }
 
-void elv_dispatch_insert_tail(request_queue_t *q, struct request *rq)
-{
-}
-
 /*
  * Insert rq into dispatch queue of q.  Queue lock must be held on
  * entry.  If sort != 0, rq is sort-inserted; otherwise, rq will be
