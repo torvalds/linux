@@ -96,7 +96,7 @@ struct acpi_find_pci_root {
 static acpi_status
 do_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
-	int *busnr = (int *)data;
+	unsigned long *busnr = (unsigned long *)data;
 	struct acpi_resource_address64 address;
 
 	if (resource->id != ACPI_RSTYPE_ADDRESS16 &&
@@ -115,13 +115,13 @@ do_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 static int get_root_bridge_busnr(acpi_handle handle)
 {
 	acpi_status status;
-	int bus, bbn;
+	unsigned long bus, bbn;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
 	status = acpi_evaluate_integer(handle, METHOD_NAME__BBN, NULL,
-				       (unsigned long *)&bbn);
+				       &bbn);
 	if (status == AE_NOT_FOUND) {
 		/* Assume bus = 0 */
 		printk(KERN_INFO PREFIX
@@ -153,7 +153,7 @@ static int get_root_bridge_busnr(acpi_handle handle)
 	}
       exit:
 	acpi_os_free(buffer.pointer);
-	return bbn;
+	return (int)bbn;
 }
 
 static acpi_status
