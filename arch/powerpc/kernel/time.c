@@ -154,7 +154,7 @@ static __inline__ void timer_check_rtc(void)
          * We should have an rtc call that only sets the minutes and
          * seconds like on Intel to avoid problems with non UTC clocks.
          */
-        if (ntp_synced() &&
+        if (ppc_md.set_rtc_time && ntp_synced() &&
 	    xtime.tv_sec - last_rtc_update >= 659 &&
 	    abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ &&
 	    jiffies - wall_jiffies == 1) {
