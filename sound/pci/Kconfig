@@ -184,6 +184,7 @@ config SND_CA0106
 	tristate "SB Audigy LS / Live 24bit"
 	depends on SND
 	select SND_AC97_CODEC
+	select SND_RAWMIDI
 	help
 	  Say Y here to include support for the Sound Blaster Audigy LS
 	  and Live 24bit.
