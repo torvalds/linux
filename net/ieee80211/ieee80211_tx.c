@@ -157,11 +157,14 @@ static inline int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
+	if (crypt == NULL)
+		return -1;
+
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
-	if (crypt->ops->encrypt_mpdu)
+	if (crypt->ops && crypt->ops->encrypt_mpdu)
 		res = crypt->ops->encrypt_mpdu(frag, hdr_len, crypt->priv);
 
 	atomic_dec(&crypt->refcnt);
@@ -264,9 +267,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
 	    ieee->sec.encrypt;
 
-	host_encrypt = ieee->host_encrypt && encrypt;
-	host_encrypt_msdu = ieee->host_encrypt_msdu && encrypt;
-	host_build_iv = ieee->host_build_iv && encrypt;
+	host_encrypt = ieee->host_encrypt && encrypt && crypt;
+	host_encrypt_msdu = ieee->host_encrypt_msdu && encrypt && crypt;
+	host_build_iv = ieee->host_build_iv && encrypt && crypt;
 
 	if (!encrypt && ieee->ieee802_1x &&
 	    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
