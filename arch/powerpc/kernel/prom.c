@@ -1167,7 +1167,9 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #ifdef CONFIG_PPC64
 	systemcfg->platform = *prop;
 #else
+#ifdef CONFIG_PPC_MULTIPLATFORM
 	_machine = *prop;
+#endif
 #endif
 
 #ifdef CONFIG_PPC64
@@ -2005,6 +2007,7 @@ bus_space_to_resource_flags(unsigned int bus_space)
 	}
 }
 
+#ifdef CONFIG_PCI
 static struct resource *find_parent_pci_resource(struct pci_dev* pdev,
 						 struct address_range *range)
 {
@@ -2157,3 +2160,4 @@ int release_OF_resource(struct device_node *node, int index)
 	return 0;
 }
 EXPORT_SYMBOL(release_OF_resource);
+#endif /* CONFIG_PCI */
