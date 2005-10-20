@@ -19,6 +19,7 @@
  *    10-Mar-2005 Lucas Villa Real  Changed S3C2410_VA to S3C24XX_VA
  *    27-Aug-2005 Ben Dooks	    Add clock-slow info
  *    20-Oct-2005 Ben Dooks	    Fixed overflow in PLL (Guillaume Gourat)
+ *    20-Oct-2005 Ben Dooks	    Add masks for DCLK (Guillaume Gourat)
 */
 
 #ifndef __ASM_ARM_REGS_CLOCK
@@ -67,11 +68,16 @@
 #define S3C2410_DCLKCON_DCLK0_UCLK   (1<<1)
 #define S3C2410_DCLKCON_DCLK0_DIV(x) (((x) - 1 )<<4)
 #define S3C2410_DCLKCON_DCLK0_CMP(x) (((x) - 1 )<<8)
+#define S3C2410_DCLKCON_DCLK0_DIV_MASK ((0xf)<<4)
+#define S3C2410_DCLKCON_DCLK0_CMP_MASK ((0xf)<<8)
 
 #define S3C2410_DCLKCON_DCLK1EN	     (1<<16)
 #define S3C2410_DCLKCON_DCLK1_PCLK   (0<<17)
 #define S3C2410_DCLKCON_DCLK1_UCLK   (1<<17)
 #define S3C2410_DCLKCON_DCLK1_DIV(x) (((x) - 1) <<20)
+#define S3C2410_DCLKCON_DCLK1_CMP(x) (((x) - 1) <<24)
+#define S3C2410_DCLKCON_DCLK1_DIV_MASK ((0xf) <<20)
+#define S3C2410_DCLKCON_DCLK1_CMP_MASK ((0xf) <<24)
 
 #define S3C2410_CLKDIVN_PDIVN	     (1<<0)
 #define S3C2410_CLKDIVN_HDIVN	     (1<<1)
