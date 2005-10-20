@@ -55,9 +55,8 @@ obj-$(CONFIG_HVCS)		+= hvcserver.o
 
 obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_XICS)		+= xics.o
-ifneq ($(CONFIG_PPC_MERGE),y)
-obj-$(CONFIG_MPIC)		+= mpic.o
 
+ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_PMAC)		+= pmac_setup.o pmac_feature.o pmac_pci.o \
 				   pmac_time.o pmac_nvram.o pmac_low_i2c.o \
 				   udbg_scc.o
