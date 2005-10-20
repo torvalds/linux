@@ -69,7 +69,7 @@ MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
 
 /* just for backward compatibility */
 static int enable;
-module_param(enable, int, 0444);
+module_param(enable, bool, 0444);
 
 /*
  *  Direct registers

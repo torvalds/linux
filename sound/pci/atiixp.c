@@ -58,7 +58,7 @@ MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
 
 /* just for backward compatibility */
 static int enable;
-module_param(enable, int, 0444);
+module_param(enable, bool, 0444);
 
 
 /*

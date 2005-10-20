@@ -89,7 +89,7 @@ MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 c
 
 /* just for backward compatibility */
 static int enable;
-module_param(enable, int, 0444);
+module_param(enable, bool, 0444);
 static int joystick;
 module_param(joystick, int, 0444);
 
