@@ -527,6 +527,8 @@ struct _snd_ac97 {
 	struct device dev;
 };
 
+#define to_ac97_t(d) container_of(d, struct _snd_ac97, dev)
+
 /* conditions */
 static inline int ac97_is_audio(ac97_t * ac97)
 {

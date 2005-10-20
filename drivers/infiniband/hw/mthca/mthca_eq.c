@@ -836,7 +836,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 		dev->eq_table.clr_mask =
 			swab32(1 << (dev->eq_table.inta_pin & 31));
 		dev->eq_table.clr_int  = dev->clr_base +
-			(dev->eq_table.inta_pin < 31 ? 4 : 0);
+			(dev->eq_table.inta_pin < 32 ? 4 : 0);
 	}
 
 	dev->eq_table.arm_mask = 0;

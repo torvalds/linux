@@ -44,7 +44,7 @@ static void i810i2c_setscl(void *data, int state)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                        *mmio = par->mmio_start_virtual;
+	u8                        __iomem *mmio = par->mmio_start_virtual;
 
 	i810_writel(mmio, GPIOB, (state ? SCL_VAL_OUT : 0) | SCL_DIR |
 		    SCL_DIR_MASK | SCL_VAL_MASK);
@@ -55,7 +55,7 @@ static void i810i2c_setsda(void *data, int state)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                        *mmio = par->mmio_start_virtual;
+	u8                        __iomem *mmio = par->mmio_start_virtual;
 
  	i810_writel(mmio, GPIOB, (state ? SDA_VAL_OUT : 0) | SDA_DIR |
 		    SDA_DIR_MASK | SDA_VAL_MASK);
@@ -66,7 +66,7 @@ static int i810i2c_getscl(void *data)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                        *mmio = par->mmio_start_virtual;
+	u8                        __iomem *mmio = par->mmio_start_virtual;
 
 	i810_writel(mmio, GPIOB, SCL_DIR_MASK);
 	i810_writel(mmio, GPIOB, 0);
@@ -77,7 +77,7 @@ static int i810i2c_getsda(void *data)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                        *mmio = par->mmio_start_virtual;
+	u8                        __iomem *mmio = par->mmio_start_virtual;
 
 	i810_writel(mmio, GPIOB, SDA_DIR_MASK);
 	i810_writel(mmio, GPIOB, 0);
@@ -88,7 +88,7 @@ static void i810ddc_setscl(void *data, int state)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par       *par = chan->par;
-	u8                      *mmio = par->mmio_start_virtual;
+	u8                      __iomem *mmio = par->mmio_start_virtual;
 
 	i810_writel(mmio, GPIOA, (state ? SCL_VAL_OUT : 0) | SCL_DIR |
 		    SCL_DIR_MASK | SCL_VAL_MASK);
@@ -99,7 +99,7 @@ static void i810ddc_setsda(void *data, int state)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                      *mmio = par->mmio_start_virtual;
+	u8                      __iomem *mmio = par->mmio_start_virtual;
 
  	i810_writel(mmio, GPIOA, (state ? SDA_VAL_OUT : 0) | SDA_DIR |
 		    SDA_DIR_MASK | SDA_VAL_MASK);
@@ -110,7 +110,7 @@ static int i810ddc_getscl(void *data)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                      *mmio = par->mmio_start_virtual;
+	u8                      __iomem *mmio = par->mmio_start_virtual;
 
 	i810_writel(mmio, GPIOA, SCL_DIR_MASK);
 	i810_writel(mmio, GPIOA, 0);
@@ -121,7 +121,7 @@ static int i810ddc_getsda(void *data)
 {
         struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
         struct i810fb_par         *par = chan->par;
-	u8                      *mmio = par->mmio_start_virtual;
+	u8                      __iomem *mmio = par->mmio_start_virtual;
 
 	i810_writel(mmio, GPIOA, SDA_DIR_MASK);
 	i810_writel(mmio, GPIOA, 0);

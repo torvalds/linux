@@ -592,6 +592,7 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	return ret;
 }
 
+#ifdef CONFIG_CPU_FREQ
 /*
  *  sa1100fb_display_dma_period()
  *    Calculate the minimum period (in picoseconds) between two DMA
@@ -606,6 +607,7 @@ static inline unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo 
 	 */
 	return var->pixclock * 8 * 16 / var->bits_per_pixel;
 }
+#endif
 
 /*
  *  sa1100fb_check_var():

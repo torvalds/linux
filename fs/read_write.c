@@ -499,6 +499,9 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret)
 		goto out;
+	ret = security_file_permission(file, type == READ ? MAY_READ : MAY_WRITE);
+	if (ret)
+		goto out;
 
 	fnv = NULL;
 	if (type == READ) {

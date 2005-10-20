@@ -921,8 +921,7 @@ shmem_swapin(struct shmem_inode_info *info,swp_entry_t entry,unsigned long idx)
 }
 
 static inline struct page *
-shmem_alloc_page(unsigned int __nocast gfp,struct shmem_inode_info *info,
-				 unsigned long idx)
+shmem_alloc_page(gfp_t gfp,struct shmem_inode_info *info, unsigned long idx)
 {
 	return alloc_page(gfp | __GFP_ZERO);
 }

@@ -46,7 +46,7 @@ static void __vcc_insert_socket(struct sock *sk)
 	struct atm_vcc *vcc = atm_sk(sk);
 	struct hlist_head *head = &vcc_hash[vcc->vci &
 					(VCC_HTABLE_SIZE - 1)];
-	sk->sk_hashent = vcc->vci & (VCC_HTABLE_SIZE - 1);
+	sk->sk_hash = vcc->vci & (VCC_HTABLE_SIZE - 1);
 	sk_add_node(sk, head);
 }
 
@@ -178,8 +178,6 @@ static void vcc_destroy_socket(struct sock *sk)
 		if (vcc->push)
 			vcc->push(vcc, NULL); /* atmarpd has no push */
 
-		vcc_remove_socket(sk);	/* no more receive */
-
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 			atm_return(vcc,skb->truesize);
 			kfree_skb(skb);
@@ -188,6 +186,8 @@ static void vcc_destroy_socket(struct sock *sk)
 		module_put(vcc->dev->ops->owner);
 		atm_dev_put(vcc->dev);
 	}
+
+	vcc_remove_socket(sk);
 }
 
 

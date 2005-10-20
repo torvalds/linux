@@ -79,7 +79,6 @@ static void destroy_nbp(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
 
-	dev->br_port = NULL;
 	p->br = NULL;
 	p->dev = NULL;
 	dev_put(dev);
@@ -100,6 +99,7 @@ static void del_nbp(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
+	dev->br_port = NULL;
 	dev_set_promiscuity(dev, -1);
 
 	spin_lock_bh(&br->lock);

@@ -91,7 +91,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_features		= CPU_FTR_COMMON | CPU_FTR_601 |
 			CPU_FTR_HPTE_TABLE,
 		.cpu_user_features 	= COMMON_PPC | PPC_FEATURE_601_INSTR |
-			PPC_FEATURE_UNIFIED_CACHE,
+			PPC_FEATURE_UNIFIED_CACHE | PPC_FEATURE_NO_TB,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_601
@@ -745,7 +745,8 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "403GCX",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB,
-		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
+		.cpu_user_features	= PPC_FEATURE_32 |
+		 	PPC_FEATURE_HAS_MMU | PPC_FEATURE_NO_TB,
 		.icache_bsize		= 16,
 		.dcache_bsize		= 16,
 	},

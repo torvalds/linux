@@ -34,6 +34,7 @@
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/i2c.h>
 
 #include "generic.h"
 
@@ -206,6 +207,11 @@ static struct platform_device pxafb_device = {
 	.num_resources	= ARRAY_SIZE(pxafb_resources),
 	.resource	= pxafb_resources,
 };
+
+void __init set_pxa_fb_parent(struct device *parent_dev)
+{
+	pxafb_device.dev.parent = parent_dev;
+}
 
 static struct platform_device ffuart_device = {
 	.name		= "pxa2xx-uart",

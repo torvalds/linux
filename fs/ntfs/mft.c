@@ -58,7 +58,8 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 	 * overflowing the unsigned long, but I don't think we would ever get
 	 * here if the volume was that big...
 	 */
-	index = ni->mft_no << vol->mft_record_size_bits >> PAGE_CACHE_SHIFT;
+	index = (u64)ni->mft_no << vol->mft_record_size_bits >>
+			PAGE_CACHE_SHIFT;
 	ofs = (ni->mft_no << vol->mft_record_size_bits) & ~PAGE_CACHE_MASK;
 
 	i_size = i_size_read(mft_vi);
@@ -1953,7 +1954,7 @@ restore_undo_alloc:
 	a = ctx->attr;
 	a->data.non_resident.highest_vcn = cpu_to_sle64(old_last_vcn - 1);
 undo_alloc:
-	if (ntfs_cluster_free(vol->mft_ino, old_last_vcn, -1, TRUE) < 0) {
+	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1) < 0) {
 		ntfs_error(vol->sb, "Failed to free clusters from mft data "
 				"attribute.%s", es);
 		NVolSetErrors(vol);

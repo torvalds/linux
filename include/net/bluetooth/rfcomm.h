@@ -230,7 +230,7 @@ int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
 			u8 xon_char, u8 xoff_char, u16 param_mask);
 
 /* ---- RFCOMM DLCs (channels) ---- */
-struct rfcomm_dlc *rfcomm_dlc_alloc(unsigned int __nocast prio);
+struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio);
 void rfcomm_dlc_free(struct rfcomm_dlc *d);
 int  rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst, u8 channel);
 int  rfcomm_dlc_close(struct rfcomm_dlc *d, int reason);

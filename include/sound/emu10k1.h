@@ -1059,7 +1059,7 @@ typedef struct {
 	unsigned char spk71;        /* Has 7.1 speakers */
 	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
 	unsigned char spdif_bug;    /* Has Spdif phasing bug */
-	unsigned char ac97_chip;    /* Has an AC97 chip */
+	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
 	unsigned char ecard;        /* APS EEPROM */
 	const char *driver;
 	const char *name;

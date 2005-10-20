@@ -429,7 +429,7 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 {
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
-	const unsigned int warp_size = mga_warp_microcode_size(dev_priv);
+	unsigned int warp_size = mga_warp_microcode_size(dev_priv);
 	int err;
 	unsigned offset;
 	const unsigned secondary_size = dma_bs->secondary_bin_count
@@ -486,6 +486,12 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 		DRM_ERROR("Unable to bind AGP memory\n");
 		return err;
 	}
+
+	/* Make drm_addbufs happy by not trying to create a mapping for less
+	 * than a page.
+	 */
+	if (warp_size < PAGE_SIZE)
+		warp_size = PAGE_SIZE;
 
 	offset = 0;
 	err = drm_addmap(dev, offset, warp_size,
@@ -576,7 +582,7 @@ static int mga_do_pci_dma_bootstrap(drm_device_t * dev,
 {
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
-	const unsigned int warp_size = mga_warp_microcode_size(dev_priv);
+	unsigned int warp_size = mga_warp_microcode_size(dev_priv);
 	unsigned int primary_size;
 	unsigned int bin_count;
 	int err;
@@ -586,6 +592,12 @@ static int mga_do_pci_dma_bootstrap(drm_device_t * dev,
 		DRM_ERROR("dev->dma is NULL\n");
 		return DRM_ERR(EFAULT);
 	}
+
+	/* Make drm_addbufs happy by not trying to create a mapping for less
+	 * than a page.
+	 */
+	if (warp_size < PAGE_SIZE)
+		warp_size = PAGE_SIZE;
 
 	/* The proper alignment is 0x100 for this mapping */
 	err = drm_addmap(dev, 0, warp_size, _DRM_CONSISTENT,
@@ -789,6 +801,10 @@ static int mga_do_init_dma(drm_device_t * dev, drm_mga_init_t * init)
 	}
 
 	if (!dev_priv->used_new_dma_init) {
+
+		dev_priv->dma_access = MGA_PAGPXFER;
+		dev_priv->wagp_enable = MGA_WAGP_ENABLE;
+
 		dev_priv->status = drm_core_findmap(dev, init->status_offset);
 		if (!dev_priv->status) {
 			DRM_ERROR("failed to find status page!\n");
@@ -904,7 +920,7 @@ static int mga_do_cleanup_dma(drm_device_t * dev)
 		drm_mga_private_t *dev_priv = dev->dev_private;
 
 		if ((dev_priv->warp != NULL)
-		    && (dev_priv->mmio->type != _DRM_CONSISTENT))
+		    && (dev_priv->warp->type != _DRM_CONSISTENT))
 			drm_core_ioremapfree(dev_priv->warp, dev);
 
 		if ((dev_priv->primary != NULL)

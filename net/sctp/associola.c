@@ -71,7 +71,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 					  const struct sctp_endpoint *ep,
 					  const struct sock *sk,
 					  sctp_scope_t scope,
-					  unsigned int __nocast gfp)
+					  gfp_t gfp)
 {
 	struct sctp_sock *sp;
 	int i;
@@ -273,7 +273,7 @@ fail_init:
 struct sctp_association *sctp_association_new(const struct sctp_endpoint *ep,
 					 const struct sock *sk,
 					 sctp_scope_t scope,
-					 unsigned int __nocast gfp)
+					 gfp_t gfp)
 {
 	struct sctp_association *asoc;
 
@@ -479,7 +479,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 /* Add a transport address to an association.  */
 struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 					   const union sctp_addr *addr,
-					   const unsigned int __nocast gfp,
+					   const gfp_t gfp,
 					   const int peer_state)
 {
 	struct sctp_transport *peer;
@@ -1231,7 +1231,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
  * local endpoint and the remote peer.
  */
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
-				     unsigned int __nocast gfp)
+				     gfp_t gfp)
 {
 	sctp_scope_t scope;
 	int flags;
@@ -1254,7 +1254,7 @@ int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
 /* Build the association's bind address list from the cookie.  */
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *asoc,
 					 struct sctp_cookie *cookie,
-					 unsigned int __nocast gfp)
+					 gfp_t gfp)
 {
 	int var_size2 = ntohs(cookie->peer_init->chunk_hdr.length);
 	int var_size3 = cookie->raw_addr_list_len;

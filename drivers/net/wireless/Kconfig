@@ -243,7 +243,7 @@ config IPW_DEBUG
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on NET_RADIO && ISA && (PCI || BROKEN)
+	depends on NET_RADIO && ISA_DMA_API && (PCI || BROKEN)
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet ISA and
 	  PCI 802.11 wireless cards.

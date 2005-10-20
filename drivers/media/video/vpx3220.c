@@ -203,7 +203,7 @@ static const unsigned short init_ntsc[] = {
 	0x8c, 640,		/* Horizontal length */
 	0x8d, 640,		/* Number of pixels */
 	0x8f, 0xc00,		/* Disable window 2 */
-	0xf0, 0x173,		/* 13.5 MHz transport, Forced
+	0xf0, 0x73,		/* 13.5 MHz transport, Forced
 				 * mode, latch windows */
 	0xf2, 0x13,		/* NTSC M, composite input */
 	0xe7, 0x1e1,		/* Enable vertical standard
@@ -212,38 +212,36 @@ static const unsigned short init_ntsc[] = {
 
 static const unsigned short init_pal[] = {
 	0x88, 23,		/* Window 1 vertical begin */
-	0x89, 288 + 16,		/* Vertical lines in (16 lines
+	0x89, 288,		/* Vertical lines in (16 lines
 				 * skipped by the VFE) */
-	0x8a, 288 + 16,		/* Vertical lines out (16 lines
+	0x8a, 288,		/* Vertical lines out (16 lines
 				 * skipped by the VFE) */
 	0x8b, 16,		/* Horizontal begin */
 	0x8c, 768,		/* Horizontal length */
 	0x8d, 784, 		/* Number of pixels
 				 * Must be >= Horizontal begin + Horizontal length */
 	0x8f, 0xc00,		/* Disable window 2 */
-	0xf0, 0x177,		/* 13.5 MHz transport, Forced
+	0xf0, 0x77,		/* 13.5 MHz transport, Forced
 				 * mode, latch windows */
 	0xf2, 0x3d1,		/* PAL B,G,H,I, composite input */
-	0xe7, 0x261,		/* PAL/SECAM set to 288 + 16 lines 
-				 * change to 0x241 for 288 lines */
+	0xe7, 0x241,		/* PAL/SECAM set to 288 lines */
 };
 
 static const unsigned short init_secam[] = {
-	0x88, 23  - 16,		/* Window 1 vertical begin */
-	0x89, 288 + 16,		/* Vertical lines in (16 lines
+	0x88, 23,		/* Window 1 vertical begin */
+	0x89, 288,		/* Vertical lines in (16 lines
 				 * skipped by the VFE) */
-	0x8a, 288 + 16,		/* Vertical lines out (16 lines
+	0x8a, 288,		/* Vertical lines out (16 lines
 				 * skipped by the VFE) */
 	0x8b, 16,		/* Horizontal begin */
 	0x8c, 768,		/* Horizontal length */
 	0x8d, 784,		/* Number of pixels
 				 * Must be >= Horizontal begin + Horizontal length */
 	0x8f, 0xc00,		/* Disable window 2 */
-	0xf0, 0x177,		/* 13.5 MHz transport, Forced
+	0xf0, 0x77,		/* 13.5 MHz transport, Forced
 				 * mode, latch windows */
 	0xf2, 0x3d5,		/* SECAM, composite input */
-	0xe7, 0x261,		/* PAL/SECAM set to 288 + 16 lines 
-				 * change to 0x241 for 288 lines */
+	0xe7, 0x241,		/* PAL/SECAM set to 288 lines */
 };
 
 static const unsigned char init_common[] = {
@@ -410,6 +408,12 @@ vpx3220_command (struct i2c_client *client,
 	case DECODER_SET_NORM:
 	{
 		int *iarg = arg, data;
+		int temp_input;
+
+		/* Here we back up the input selection because it gets
+		   overwritten when we fill the registers with the
+                   choosen video norm */
+		temp_input = vpx3220_fp_read(client, 0xf2);
 
 		dprintk(1, KERN_DEBUG "%s: DECODER_SET_NORM %d\n",
 			I2C_NAME(client), *iarg);
@@ -449,6 +453,10 @@ vpx3220_command (struct i2c_client *client,
 
 		}
 		decoder->norm = *iarg;
+
+		/* And here we set the backed up video input again */
+		vpx3220_fp_write(client, 0xf2, temp_input | 0x0010);
+		udelay(10);
 	}
 		break;
 

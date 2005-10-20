@@ -39,7 +39,7 @@ struct key root_user_keyring = {
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
 	.sem		= __RWSEM_INITIALIZER(root_user_keyring.sem),
-	.perm		= KEY_USR_ALL,
+	.perm		= KEY_POS_ALL | KEY_USR_ALL,
 	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid.0",
 #ifdef KEY_DEBUGGING
@@ -54,7 +54,7 @@ struct key root_session_keyring = {
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
 	.sem		= __RWSEM_INITIALIZER(root_session_keyring.sem),
-	.perm		= KEY_USR_ALL,
+	.perm		= KEY_POS_ALL | KEY_USR_ALL,
 	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid_ses.0",
 #ifdef KEY_DEBUGGING
@@ -98,7 +98,7 @@ int alloc_uid_keyring(struct user_struct *user)
 	user->session_keyring = session_keyring;
 	ret = 0;
 
- error:
+error:
 	return ret;
 
 } /* end alloc_uid_keyring() */
@@ -156,7 +156,7 @@ int install_thread_keyring(struct task_struct *tsk)
 	ret = 0;
 
 	key_put(old);
- error:
+error:
 	return ret;
 
 } /* end install_thread_keyring() */
@@ -193,7 +193,7 @@ int install_process_keyring(struct task_struct *tsk)
 	}
 
 	ret = 0;
- error:
+error:
 	return ret;
 
 } /* end install_process_keyring() */
@@ -236,7 +236,7 @@ static int install_session_keyring(struct task_struct *tsk,
 	/* we're using RCU on the pointer */
 	synchronize_rcu();
 	key_put(old);
- error:
+error:
 	return ret;
 
 } /* end install_session_keyring() */
@@ -376,13 +376,13 @@ void key_fsgid_changed(struct task_struct *tsk)
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we found only negative matching keys
  */
-struct key *search_process_keyrings(struct key_type *type,
-				    const void *description,
-				    key_match_func_t match,
-				    struct task_struct *context)
+key_ref_t search_process_keyrings(struct key_type *type,
+				  const void *description,
+				  key_match_func_t match,
+				  struct task_struct *context)
 {
 	struct request_key_auth *rka;
-	struct key *key, *ret, *err, *instkey;
+	key_ref_t key_ref, ret, err, instkey_ref;
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -391,46 +391,48 @@ struct key *search_process_keyrings(struct key_type *type,
 	 *
 	 * in terms of priority: success > -ENOKEY > -EAGAIN > other error
 	 */
-	key = NULL;
+	key_ref = NULL;
 	ret = NULL;
 	err = ERR_PTR(-EAGAIN);
 
 	/* search the thread keyring first */
 	if (context->thread_keyring) {
-		key = keyring_search_aux(context->thread_keyring,
-					 context, type, description, match);
-		if (!IS_ERR(key))
+		key_ref = keyring_search_aux(
+			make_key_ref(context->thread_keyring, 1),
+			context, type, description, match);
+		if (!IS_ERR(key_ref))
 			goto found;
 
-		switch (PTR_ERR(key)) {
+		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
 		case -ENOKEY: /* negative key */
-			ret = key;
+			ret = key_ref;
 			break;
 		default:
-			err = key;
+			err = key_ref;
 			break;
 		}
 	}
 
 	/* search the process keyring second */
 	if (context->signal->process_keyring) {
-		key = keyring_search_aux(context->signal->process_keyring,
-					 context, type, description, match);
-		if (!IS_ERR(key))
+		key_ref = keyring_search_aux(
+			make_key_ref(context->signal->process_keyring, 1),
+			context, type, description, match);
+		if (!IS_ERR(key_ref))
 			goto found;
 
-		switch (PTR_ERR(key)) {
+		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
 		case -ENOKEY: /* negative key */
-			ret = key;
+			ret = key_ref;
 			break;
 		default:
-			err = key;
+			err = key_ref;
 			break;
 		}
 	}
@@ -438,23 +440,25 @@ struct key *search_process_keyrings(struct key_type *type,
 	/* search the session keyring */
 	if (context->signal->session_keyring) {
 		rcu_read_lock();
-		key = keyring_search_aux(
-			rcu_dereference(context->signal->session_keyring),
+		key_ref = keyring_search_aux(
+			make_key_ref(rcu_dereference(
+					     context->signal->session_keyring),
+				     1),
 			context, type, description, match);
 		rcu_read_unlock();
 
-		if (!IS_ERR(key))
+		if (!IS_ERR(key_ref))
 			goto found;
 
-		switch (PTR_ERR(key)) {
+		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
 		case -ENOKEY: /* negative key */
-			ret = key;
+			ret = key_ref;
 			break;
 		default:
-			err = key;
+			err = key_ref;
 			break;
 		}
 
@@ -465,51 +469,54 @@ struct key *search_process_keyrings(struct key_type *type,
 			goto no_key;
 
 		rcu_read_lock();
-		instkey = __keyring_search_one(
-			rcu_dereference(context->signal->session_keyring),
+		instkey_ref = __keyring_search_one(
+			make_key_ref(rcu_dereference(
+					     context->signal->session_keyring),
+				     1),
 			&key_type_request_key_auth, NULL, 0);
 		rcu_read_unlock();
 
-		if (IS_ERR(instkey))
+		if (IS_ERR(instkey_ref))
 			goto no_key;
 
-		rka = instkey->payload.data;
+		rka = key_ref_to_ptr(instkey_ref)->payload.data;
 
-		key = search_process_keyrings(type, description, match,
-					      rka->context);
-		key_put(instkey);
+		key_ref = search_process_keyrings(type, description, match,
+						  rka->context);
+		key_ref_put(instkey_ref);
 
-		if (!IS_ERR(key))
+		if (!IS_ERR(key_ref))
 			goto found;
 
-		switch (PTR_ERR(key)) {
+		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
 		case -ENOKEY: /* negative key */
-			ret = key;
+			ret = key_ref;
 			break;
 		default:
-			err = key;
+			err = key_ref;
 			break;
 		}
 	}
 	/* or search the user-session keyring */
 	else {
-		key = keyring_search_aux(context->user->session_keyring,
-					 context, type, description, match);
-		if (!IS_ERR(key))
+		key_ref = keyring_search_aux(
+			make_key_ref(context->user->session_keyring, 1),
+			context, type, description, match);
+		if (!IS_ERR(key_ref))
 			goto found;
 
-		switch (PTR_ERR(key)) {
+		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
 		case -ENOKEY: /* negative key */
-			ret = key;
+			ret = key_ref;
 			break;
 		default:
-			err = key;
+			err = key_ref;
 			break;
 		}
 	}
@@ -517,12 +524,22 @@ struct key *search_process_keyrings(struct key_type *type,
 
 no_key:
 	/* no key - decide on the error we're going to go for */
-	key = ret ? ret : err;
+	key_ref = ret ? ret : err;
 
 found:
-	return key;
+	return key_ref;
 
 } /* end search_process_keyrings() */
+
+/*****************************************************************************/
+/*
+ * see if the key we're looking at is the target key
+ */
+static int lookup_user_key_possessed(const struct key *key, const void *target)
+{
+	return key == target;
+
+} /* end lookup_user_key_possessed() */
 
 /*****************************************************************************/
 /*
@@ -530,16 +547,17 @@ found:
  * - don't create special keyrings unless so requested
  * - partially constructed keys aren't found unless requested
  */
-struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
-			    int create, int partial, key_perm_t perm)
+key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
+			  int create, int partial, key_perm_t perm)
 {
+	key_ref_t key_ref, skey_ref;
 	struct key *key;
 	int ret;
 
 	if (!context)
 		context = current;
 
-	key = ERR_PTR(-ENOKEY);
+	key_ref = ERR_PTR(-ENOKEY);
 
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
@@ -556,6 +574,7 @@ struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
 
 		key = context->thread_keyring;
 		atomic_inc(&key->usage);
+		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_PROCESS_KEYRING:
@@ -572,6 +591,7 @@ struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
 
 		key = context->signal->process_keyring;
 		atomic_inc(&key->usage);
+		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_SESSION_KEYRING:
@@ -579,7 +599,7 @@ struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
 			/* always install a session keyring upon access if one
 			 * doesn't exist yet */
 			ret = install_session_keyring(
-			       context, context->user->session_keyring);
+				context, context->user->session_keyring);
 			if (ret < 0)
 				goto error;
 		}
@@ -588,16 +608,19 @@ struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
 		key = rcu_dereference(context->signal->session_keyring);
 		atomic_inc(&key->usage);
 		rcu_read_unlock();
+		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
 		key = context->user->uid_keyring;
 		atomic_inc(&key->usage);
+		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
 		key = context->user->session_keyring;
 		atomic_inc(&key->usage);
+		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_GROUP_KEYRING:
@@ -606,13 +629,28 @@ struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
 		goto error;
 
 	default:
-		key = ERR_PTR(-EINVAL);
+		key_ref = ERR_PTR(-EINVAL);
 		if (id < 1)
 			goto error;
 
 		key = key_lookup(id);
-		if (IS_ERR(key))
+		if (IS_ERR(key)) {
+			key_ref = ERR_PTR(PTR_ERR(key));
 			goto error;
+		}
+
+		key_ref = make_key_ref(key, 0);
+
+		/* check to see if we possess the key */
+		skey_ref = search_process_keyrings(key->type, key,
+						   lookup_user_key_possessed,
+						   current);
+
+		if (!IS_ERR(skey_ref)) {
+			key_put(key);
+			key_ref = skey_ref;
+		}
+
 		break;
 	}
 
@@ -630,15 +668,15 @@ struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
 	/* check the permissions */
 	ret = -EACCES;
 
-	if (!key_task_permission(key, context, perm))
+	if (!key_task_permission(key_ref, context, perm))
 		goto invalid_key;
 
- error:
-	return key;
+error:
+	return key_ref;
 
- invalid_key:
-	key_put(key);
-	key = ERR_PTR(ret);
+invalid_key:
+	key_ref_put(key_ref);
+	key_ref = ERR_PTR(ret);
 	goto error;
 
 } /* end lookup_user_key() */
@@ -694,9 +732,9 @@ long join_session_keyring(const char *name)
 	ret = keyring->serial;
 	key_put(keyring);
 
- error2:
+error2:
 	up(&key_session_sem);
- error:
+error:
 	return ret;
 
 } /* end join_session_keyring() */

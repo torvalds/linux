@@ -372,7 +372,7 @@ static struct proto l2cap_proto = {
 	.obj_size	= sizeof(struct l2cap_pinfo)
 };
 
-static struct sock *l2cap_sock_alloc(struct socket *sock, int proto, unsigned int __nocast prio)
+static struct sock *l2cap_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 {
 	struct sock *sk;
 

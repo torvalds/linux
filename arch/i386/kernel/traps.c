@@ -52,7 +52,6 @@
 #include <asm/arch_hooks.h>
 #include <asm/kdebug.h>
 
-#include <linux/irq.h>
 #include <linux/module.h>
 
 #include "mach_traps.h"

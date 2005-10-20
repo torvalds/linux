@@ -295,11 +295,13 @@ static int do_pcmcia_entry(const char *filename,
 {
 	unsigned int i;
 
+	id->match_flags = TO_NATIVE(id->match_flags);
 	id->manf_id = TO_NATIVE(id->manf_id);
 	id->card_id = TO_NATIVE(id->card_id);
 	id->func_id = TO_NATIVE(id->func_id);
 	id->function = TO_NATIVE(id->function);
 	id->device_no = TO_NATIVE(id->device_no);
+
 	for (i=0; i<4; i++) {
 		id->prod_id_hash[i] = TO_NATIVE(id->prod_id_hash[i]);
        }

@@ -218,7 +218,7 @@ static void vio_unmap_sg(struct device *dev, struct scatterlist *sglist,
 }
 
 static void *vio_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, unsigned int __nocast flag)
+			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	return iommu_alloc_coherent(to_vio_dev(dev)->iommu_table, size,
 			dma_handle, flag);

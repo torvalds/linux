@@ -905,7 +905,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		send_sig(SIGKILL, current, 0);
 		goto out_free_dentry;
 	}
-	if (padzero(elf_bss)) {
+	if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss))) {
 		send_sig(SIGSEGV, current, 0);
 		retval = -EFAULT; /* Nobody gets to see this, but.. */
 		goto out_free_dentry;

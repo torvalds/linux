@@ -703,7 +703,7 @@ int netpoll_setup(struct netpoll *np)
 
 	if (!np->local_ip) {
 		rcu_read_lock();
-		in_dev = __in_dev_get(ndev);
+		in_dev = __in_dev_get_rcu(ndev);
 
 		if (!in_dev || !in_dev->ifa_list) {
 			rcu_read_unlock();

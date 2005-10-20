@@ -9,7 +9,7 @@
  *  06-Dec-1997	RMK	Created.
  *  02-Sep-2003 BJD	Modified for S3C2410
  *  10-Mar-2005 LCVR	Changed S3C2410_VA to S3C24XX_VA
- *
+ *  13-Oct-2005 BJD	Fixed problems with LDRH/STRH offset range
  */
 
 #ifndef __ASM_ARM_ARCH_IO_H
@@ -97,7 +97,7 @@ DECLARE_IO(int,l,"")
 	else								\
 		__asm__ __volatile__(					\
 		"strb	%0, [%1, #0]	@ outbc"			\
-		: : "r" (value), "r" ((port)));		\
+		: : "r" (value), "r" ((port)));				\
 })
 
 #define __inbc(port)							\
@@ -110,35 +110,61 @@ DECLARE_IO(int,l,"")
 	else								\
 		__asm__ __volatile__(					\
 		"ldrb	%0, [%1, #0]	@ inbc"				\
-		: "=r" (result) : "r" ((port)));	\
+		: "=r" (result) : "r" ((port)));			\
 	result;								\
 })
 
 #define __outwc(value,port)						\
 ({									\
 	unsigned long v = value;					\
-	if (__PORT_PCIO((port)))					\
-		__asm__ __volatile__(					\
-		"strh	%0, [%1, %2]	@ outwc"			\
-		: : "r" (v), "r" (PCIO_BASE), "Jr" ((port)));	\
-	else								\
+	if (__PORT_PCIO((port))) {					\
+		if ((port) < 256 && (port) > -256)			\
+			__asm__ __volatile__(				\
+			"strh	%0, [%1, %2]	@ outwc"		\
+			: : "r" (v), "r" (PCIO_BASE), "Jr" ((port)));	\
+		else if ((port) > 0)					\
+			__asm__ __volatile__(				\
+			"strh	%0, [%1, %2]	@ outwc"		\
+			: : "r" (v),					\
+			    "r" (PCIO_BASE + ((port) & ~0xff)),		\
+			     "Jr" (((port) & 0xff)));			\
+		else							\
+			__asm__ __volatile__(				\
+			"strh	%0, [%1, #0]	@ outwc"		\
+			: : "r" (v),					\
+			    "r" (PCIO_BASE + (port)));			\
+	} else								\
 		__asm__ __volatile__(					\
 		"strh	%0, [%1, #0]	@ outwc"			\
-		: : "r" (v), "r" ((port)));	\
+		: : "r" (v), "r" ((port)));				\
 })
 
 #define __inwc(port)							\
 ({									\
 	unsigned short result;						\
-	if (__PORT_PCIO((port)))					\
-		__asm__ __volatile__(					\
-		"ldrh	%0, [%1, %2]	@ inwc"				\
-		: "=r" (result) : "r" (PCIO_BASE), "Jr" ((port)));	\
-	else								\
+	if (__PORT_PCIO((port))) {					\
+		if ((port) < 256 && (port) > -256 )			\
+			__asm__ __volatile__(				\
+			"ldrh	%0, [%1, %2]	@ inwc"			\
+			: "=r" (result)					\
+			: "r" (PCIO_BASE),				\
+			  "Jr" ((port)));				\
+		else if ((port) > 0)					\
+			__asm__ __volatile__(				\
+			"ldrh	%0, [%1, %2]	@ inwc"			\
+			: "=r" (result)					\
+			: "r" (PCIO_BASE + ((port) & ~0xff)),		\
+			  "Jr" (((port) & 0xff)));			\
+		else							\
+			__asm__ __volatile__(				\
+			"ldrh	%0, [%1, #0]	@ inwc"			\
+			: "=r" (result)					\
+			: "r" (PCIO_BASE + ((port))));			\
+	} else								\
 		__asm__ __volatile__(					\
 		"ldrh	%0, [%1, #0]	@ inwc"				\
-		: "=r" (result) : "r" ((port)));		\
-	result;						\
+		: "=r" (result) : "r" ((port)));			\
+	result;								\
 })
 
 #define __outlc(value,port)						\

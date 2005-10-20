@@ -155,11 +155,24 @@ static inline void set_file_hugepages(struct file *file)
 {
 	file->f_op = &hugetlbfs_file_operations;
 }
+
+static inline int valid_hugetlb_file_off(struct vm_area_struct *vma, 
+					  unsigned long address) 
+{
+	struct inode *inode = vma->vm_file->f_dentry->d_inode;
+	loff_t file_off = address - vma->vm_start;
+	
+	file_off += (vma->vm_pgoff << PAGE_SHIFT);
+	
+	return (file_off < inode->i_size);
+}
+
 #else /* !CONFIG_HUGETLBFS */
 
 #define is_file_hugepages(file)		0
 #define set_file_hugepages(file)	BUG()
 #define hugetlb_zero_setup(size)	ERR_PTR(-ENOSYS)
+#define valid_hugetlb_file_off(vma, address) 	0
 
 #endif /* !CONFIG_HUGETLBFS */
 

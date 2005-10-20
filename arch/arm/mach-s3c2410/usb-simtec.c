@@ -40,7 +40,6 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach-types.h>
 
 #include "devs.h"
 #include "usb-simtec.h"

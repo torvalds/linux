@@ -77,8 +77,7 @@ static void w1_master_release(struct device *dev)
 
 	dev_dbg(dev, "%s: Releasing %s.\n", __func__, md->name);
 
-	if (md->nls && md->nls->sk_socket)
-		sock_release(md->nls->sk_socket);
+	dev_fini_netlink(md);
 	memset(md, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
 	kfree(md);
 }

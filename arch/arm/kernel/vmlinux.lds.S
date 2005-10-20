@@ -89,13 +89,6 @@ SECTIONS
 		*(.got)			/* Global offset table		*/
 	}
 
-	. = ALIGN(16);
-	__ex_table : {			/* Exception table		*/
-		__start___ex_table = .;
-			*(__ex_table)
-		__stop___ex_table = .;
-	}
-
 	RODATA
 
 	_etext = .;			/* End of text and rodata section */
@@ -136,6 +129,14 @@ SECTIONS
 		 */
 		. = ALIGN(32);
 		*(.data.cacheline_aligned)
+
+		/*
+		 * The exception fixup table (might need resorting at runtime)
+		 */
+		. = ALIGN(32);
+		__start___ex_table = .;
+		*(__ex_table)
+		__stop___ex_table = .;
 
 		/*
 		 * and the usual data section

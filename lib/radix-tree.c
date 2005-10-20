@@ -110,7 +110,7 @@ radix_tree_node_free(struct radix_tree_node *node)
  * success, return zero, with preemption disabled.  On error, return -ENOMEM
  * with preemption not disabled.
  */
-int radix_tree_preload(unsigned int __nocast gfp_mask)
+int radix_tree_preload(gfp_t gfp_mask)
 {
 	struct radix_tree_preload *rtp;
 	struct radix_tree_node *node;

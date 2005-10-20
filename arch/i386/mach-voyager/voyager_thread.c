@@ -31,8 +31,6 @@
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
-#include <linux/irq.h>
-
 #define THREAD_NAME "kvoyagerd"
 
 /* external variables */

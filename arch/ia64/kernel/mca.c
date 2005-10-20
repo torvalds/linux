@@ -1016,6 +1016,11 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg, struct pt_regs *ptregs)
 
 			cmc_polling_enabled = 1;
 			spin_unlock(&cmc_history_lock);
+			/* If we're being hit with CMC interrupts, we won't
+			 * ever execute the schedule_work() below.  Need to
+			 * disable CMC interrupts on this processor now.
+			 */
+			ia64_mca_cmc_vector_disable(NULL);
 			schedule_work(&cmc_disable_work);
 
 			/*

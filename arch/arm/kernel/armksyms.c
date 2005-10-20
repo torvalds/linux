@@ -45,8 +45,8 @@ extern void fp_enter(void);
 
 #define EXPORT_SYMBOL_ALIAS(sym,orig)		\
  EXPORT_CRC_ALIAS(sym)				\
- const struct kernel_symbol __ksymtab_##sym	\
-  __attribute__((section("__ksymtab"))) =	\
+ static const struct kernel_symbol __ksymtab_##sym	\
+  __attribute_used__ __attribute__((section("__ksymtab"))) =	\
     { (unsigned long)&orig, #sym };
 
 /*

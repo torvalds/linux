@@ -64,10 +64,10 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 	struct nodemgr_csr_info *ci = (struct nodemgr_csr_info*)__ci;
 	int i, ret = 0;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 1; ; i++) {
 		ret = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
 				buffer, length);
-		if (!ret)
+		if (!ret || i == 3)
 			break;
 
 		if (msleep_interruptible(334))
@@ -1438,9 +1438,13 @@ static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 	if (host->busmgr_id == 0xffff && host->node_count > 1)
 	{
 		u16 root_node = host->node_count - 1;
-		struct node_entry *ne = find_entry_by_nodeid(host, root_node | LOCAL_BUS);
 
-		if (ne && ne->busopt.cmc)
+		/* get cycle master capability flag from root node */
+		if (host->is_cycmst ||
+		    (!hpsb_read(host, LOCAL_BUS | root_node, get_hpsb_generation(host),
+				(CSR_REGISTER_BASE + CSR_CONFIG_ROM + 2 * sizeof(quadlet_t)),
+				&bc, sizeof(quadlet_t)) &&
+		     be32_to_cpu(bc) & 1 << CSR_CMC_SHIFT))
 			hpsb_send_phy_config(host, root_node, -1);
 		else {
 			HPSB_DEBUG("The root node is not cycle master capable; "
@@ -1557,24 +1561,19 @@ static int nodemgr_host_thread(void *__hi)
 			}
 		}
 
-		if (!nodemgr_check_irm_capability(host, reset_cycles)) {
+		if (!nodemgr_check_irm_capability(host, reset_cycles) ||
+		    !nodemgr_do_irm_duties(host, reset_cycles)) {
 			reset_cycles++;
 			up(&nodemgr_serialize);
 			continue;
 		}
+		reset_cycles = 0;
 
 		/* Scan our nodes to get the bus options and create node
 		 * entries. This does not do the sysfs stuff, since that
 		 * would trigger hotplug callbacks and such, which is a
 		 * bad idea at this point. */
 		nodemgr_node_scan(hi, generation);
-		if (!nodemgr_do_irm_duties(host, reset_cycles)) {
-			reset_cycles++;
-			up(&nodemgr_serialize);
-			continue;
-		}
-
-		reset_cycles = 0;
 
 		/* This actually does the full probe, with sysfs
 		 * registration. */
