@@ -69,28 +69,6 @@ void smp_call_function_interrupt(void);
 int smt_enabled_at_boot = 1;
 
 #ifdef CONFIG_MPIC
-void smp_mpic_message_pass(int target, int msg)
-{
-	/* make sure we're sending something that translates to an IPI */
-	if ( msg > 0x3 ){
-		printk("SMP %d: smp_message_pass: unknown msg %d\n",
-		       smp_processor_id(), msg);
-		return;
-	}
-	switch ( target )
-	{
-	case MSG_ALL:
-		mpic_send_ipi(msg, 0xffffffff);
-		break;
-	case MSG_ALL_BUT_SELF:
-		mpic_send_ipi(msg, 0xffffffff & ~(1 << smp_processor_id()));
-		break;
-	default:
-		mpic_send_ipi(msg, 1 << target);
-		break;
-	}
-}
-
 int __init smp_mpic_probe(void)
 {
 	int nr_cpus;

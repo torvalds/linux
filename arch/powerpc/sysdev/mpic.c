@@ -904,4 +904,25 @@ void mpic_request_ipis(void)
 
 	printk("IPIs requested... \n");
 }
+
+void smp_mpic_message_pass(int target, int msg)
+{
+	/* make sure we're sending something that translates to an IPI */
+	if ((unsigned int)msg > 3) {
+		printk("SMP %d: smp_message_pass: unknown msg %d\n",
+		       smp_processor_id(), msg);
+		return;
+	}
+	switch (target) {
+	case MSG_ALL:
+		mpic_send_ipi(msg, 0xffffffff);
+		break;
+	case MSG_ALL_BUT_SELF:
+		mpic_send_ipi(msg, 0xffffffff & ~(1 << smp_processor_id()));
+		break;
+	default:
+		mpic_send_ipi(msg, 1 << target);
+		break;
+	}
+}
 #endif /* CONFIG_SMP */

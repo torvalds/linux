@@ -273,6 +273,9 @@ extern void mpic_request_ipis(void);
 /* Send an IPI (non offseted number 0..3) */
 extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 
+/* Send a message (IPI) to a given target (cpu number or MSG_*) */
+void smp_mpic_message_pass(int target, int msg);
+
 /* Fetch interrupt from a given mpic */
 extern int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
 /* This one gets to the primary mpic */
