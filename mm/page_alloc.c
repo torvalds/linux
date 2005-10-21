@@ -1089,7 +1089,7 @@ static unsigned int nr_free_zone_pages(int offset)
  */
 unsigned int nr_free_buffer_pages(void)
 {
-	return nr_free_zone_pages(GFP_USER & GFP_ZONEMASK);
+	return nr_free_zone_pages(gfp_zone(GFP_USER));
 }
 
 /*
@@ -1097,7 +1097,7 @@ unsigned int nr_free_buffer_pages(void)
  */
 unsigned int nr_free_pagecache_pages(void)
 {
-	return nr_free_zone_pages(GFP_HIGHUSER & GFP_ZONEMASK);
+	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
 }
 
 #ifdef CONFIG_HIGHMEM
