@@ -157,11 +157,14 @@ static inline int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
+	if (crypt == NULL)
+		return -1;
+
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
-	if (crypt->ops->encrypt_mpdu)
+	if (crypt->ops && crypt->ops->encrypt_mpdu)
 		res = crypt->ops->encrypt_mpdu(frag, hdr_len, crypt->priv);
 
 	atomic_dec(&crypt->refcnt);
@@ -187,7 +190,7 @@ void ieee80211_txb_free(struct ieee80211_txb *txb)
 }
 
 static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
-						 gfp_t gfp_mask)
+						 int headroom, gfp_t gfp_mask)
 {
 	struct ieee80211_txb *txb;
 	int i;
@@ -201,11 +204,13 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	txb->frag_size = txb_size;
 
 	for (i = 0; i < nr_frags; i++) {
-		txb->fragments[i] = dev_alloc_skb(txb_size);
+		txb->fragments[i] = __dev_alloc_skb(txb_size + headroom,
+						    gfp_mask);
 		if (unlikely(!txb->fragments[i])) {
 			i--;
 			break;
 		}
+		skb_reserve(txb->fragments[i], headroom);
 	}
 	if (unlikely(i != nr_frags)) {
 		while (i >= 0)
@@ -264,9 +269,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
 	    ieee->sec.encrypt;
 
-	host_encrypt = ieee->host_encrypt && encrypt;
-	host_encrypt_msdu = ieee->host_encrypt_msdu && encrypt;
-	host_build_iv = ieee->host_build_iv && encrypt;
+	host_encrypt = ieee->host_encrypt && encrypt && crypt;
+	host_encrypt_msdu = ieee->host_encrypt_msdu && encrypt && crypt;
+	host_build_iv = ieee->host_build_iv && encrypt && crypt;
 
 	if (!encrypt && ieee->ieee802_1x &&
 	    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
@@ -338,7 +343,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (host_encrypt || ieee->host_open_frag) {
 		/* Determine fragmentation size based on destination (multicast
 		 * and broadcast are not fragmented) */
-		if (is_multicast_ether_addr(dest))
+		if (is_multicast_ether_addr(dest) ||
+		    is_broadcast_ether_addr(dest))
 			frag_size = MAX_FRAG_THRESHOLD;
 		else
 			frag_size = ieee->fts;
@@ -380,7 +386,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(nr_frags, frag_size, GFP_ATOMIC);
+	txb = ieee80211_alloc_txb(nr_frags, frag_size,
+				  ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
 		       ieee->dev->name);
