@@ -1652,13 +1652,13 @@ static int blk_init_free_list(request_queue_t *q)
 
 static int __make_request(request_queue_t *, struct bio *);
 
-request_queue_t *blk_alloc_queue(int gfp_mask)
+request_queue_t *blk_alloc_queue(gfp_t gfp_mask)
 {
 	return blk_alloc_queue_node(gfp_mask, -1);
 }
 EXPORT_SYMBOL(blk_alloc_queue);
 
-request_queue_t *blk_alloc_queue_node(int gfp_mask, int node_id)
+request_queue_t *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
 	request_queue_t *q;
 
@@ -1787,7 +1787,7 @@ static inline void blk_free_request(request_queue_t *q, struct request *rq)
 }
 
 static inline struct request *
-blk_alloc_request(request_queue_t *q, int rw, struct bio *bio, int gfp_mask)
+blk_alloc_request(request_queue_t *q, int rw, struct bio *bio, gfp_t gfp_mask)
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
 
@@ -1885,7 +1885,7 @@ static void freed_request(request_queue_t *q, int rw)
  * Returns !NULL on success, with queue_lock *not held*.
  */
 static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
-				   int gfp_mask)
+				   gfp_t gfp_mask)
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
@@ -2019,7 +2019,7 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 	return rq;
 }
 
-struct request *blk_get_request(request_queue_t *q, int rw, int gfp_mask)
+struct request *blk_get_request(request_queue_t *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
 
@@ -2251,7 +2251,7 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  * @gfp_mask:	memory allocation flags
  */
 int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
-		    unsigned int len, unsigned int gfp_mask)
+		    unsigned int len, gfp_t gfp_mask)
 {
 	struct bio *bio;
 
@@ -3393,7 +3393,7 @@ void exit_io_context(void)
  * but since the current task itself holds a reference, the context can be
  * used in general code, so long as it stays within `current` context.
  */
-struct io_context *current_io_context(int gfp_flags)
+struct io_context *current_io_context(gfp_t gfp_flags)
 {
 	struct task_struct *tsk = current;
 	struct io_context *ret;
@@ -3424,7 +3424,7 @@ EXPORT_SYMBOL(current_io_context);
  *
  * This is always called in the context of the task which submitted the I/O.
  */
-struct io_context *get_io_context(int gfp_flags)
+struct io_context *get_io_context(gfp_t gfp_flags)
 {
 	struct io_context *ret;
 	ret = current_io_context(gfp_flags);

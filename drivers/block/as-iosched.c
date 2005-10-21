@@ -1807,7 +1807,7 @@ static void as_put_request(request_queue_t *q, struct request *rq)
 }
 
 static int as_set_request(request_queue_t *q, struct request *rq,
-			  struct bio *bio, int gfp_mask)
+			  struct bio *bio, gfp_t gfp_mask)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = mempool_alloc(ad->arq_pool, gfp_mask);
