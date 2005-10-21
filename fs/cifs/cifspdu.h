@@ -36,9 +36,11 @@
 #define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */
 #define SMB_COM_DELETE                0x06 /* trivial response */
 #define SMB_COM_RENAME                0x07 /* trivial response */
+#define SMB_COM_QUERY_INFORMATION     0x08 /* aka getattr */
 #define SMB_COM_SETATTR               0x09 /* trivial response */
 #define SMB_COM_LOCKING_ANDX          0x24 /* trivial response */
 #define SMB_COM_COPY                  0x29 /* trivial rsp, fail filename ignrd*/
+#define SMB_COM_OPEN_ANDX             0x2D /* Legacy open for old servers */
 #define SMB_COM_READ_ANDX             0x2E
 #define SMB_COM_WRITE_ANDX            0x2F
 #define SMB_COM_TRANSACTION2          0x32
@@ -52,6 +54,7 @@
 #define SMB_COM_NT_TRANSACT           0xA0
 #define SMB_COM_NT_TRANSACT_SECONDARY 0xA1
 #define SMB_COM_NT_CREATE_ANDX        0xA2
+#define SMB_COM_NT_CANCEL             0xA4 /* no response */
 #define SMB_COM_NT_RENAME             0xA5 /* trivial response */
 
 /* Transact2 subcommand codes */
@@ -59,6 +62,7 @@
 #define TRANS2_FIND_FIRST             0x01
 #define TRANS2_FIND_NEXT              0x02
 #define TRANS2_QUERY_FS_INFORMATION   0x03
+#define TRANS2_SET_FS_INFORMATION     0x04
 #define TRANS2_QUERY_PATH_INFORMATION 0x05
 #define TRANS2_SET_PATH_INFORMATION   0x06
 #define TRANS2_QUERY_FILE_INFORMATION 0x07
@@ -267,10 +271,18 @@
 /* CreateOptions */
 #define CREATE_NOT_FILE		0x00000001	/* if set must not be file */
 #define CREATE_WRITE_THROUGH	0x00000002
-#define CREATE_NOT_DIR		0x00000040	/* if set must not be directory */
+#define CREATE_SEQUENTIAL       0x00000004
+#define CREATE_SYNC_ALERT       0x00000010
+#define CREATE_ASYNC_ALERT      0x00000020
+#define CREATE_NOT_DIR		0x00000040    /* if set must not be directory */
+#define CREATE_NO_EA_KNOWLEDGE  0x00000200
+#define CREATE_EIGHT_DOT_THREE  0x00000400
 #define CREATE_RANDOM_ACCESS	0x00000800
 #define CREATE_DELETE_ON_CLOSE	0x00001000
+#define CREATE_OPEN_BY_ID       0x00002000
 #define OPEN_REPARSE_POINT	0x00200000
+#define CREATE_OPTIONS_MASK     0x007FFFFF 
+#define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB not sent over wire */
 
 /* ImpersonationLevel flags */
 #define SECURITY_ANONYMOUS      0
@@ -614,6 +626,7 @@ typedef struct smb_com_findclose_req {
 } FINDCLOSE_REQ;
 
 /* OpenFlags */
+#define REQ_MORE_INFO      0x00000001  /* legacy (OPEN_AND_X) only */
 #define REQ_OPLOCK         0x00000002
 #define REQ_BATCHOPLOCK    0x00000004
 #define REQ_OPENDIRONLY    0x00000008
@@ -669,6 +682,62 @@ typedef struct smb_com_open_rsp {
 	__u16 ByteCount;	/* bct = 0 */
 } OPEN_RSP;
 
+/* format of legacy open request */
+typedef struct smb_com_openx_req {
+	struct smb_hdr	hdr;	/* wct = 15 */
+	__u8 AndXCommand;
+	__u8 AndXReserved;
+	__le16 AndXOffset;
+	__le16 OpenFlags;
+	__le16 Mode;
+	__le16 Sattr; /* search attributes */
+	__le16 FileAttributes;  /* dos attrs */
+	__le32 CreateTime; /* os2 format */
+	__le16 OpenFunction;
+	__le32 EndOfFile;
+	__le32 Timeout;
+	__le32 Reserved;
+	__le16  ByteCount;  /* file name follows */
+	char   fileName[1];
+} OPENX_REQ;
+
+typedef struct smb_com_openx_rsp {
+	struct smb_hdr	hdr;	/* wct = 15 */
+	__u8 AndXCommand;
+	__u8 AndXReserved;
+	__le16 AndXOffset;
+	__u16  Fid;
+	__le16 FileAttributes;
+	__le32 LastWriteTime; /* os2 format */
+	__le32 EndOfFile;
+	__le16 Access;
+	__le16 FileType;
+	__le16 IPCState;
+	__le16 Action;
+	__u32  FileId;
+	__u16  Reserved;
+	__u16  ByteCount;
+} OPENX_RSP; 
+
+/* Legacy write request for older servers */
+typedef struct smb_com_writex_req {
+        struct smb_hdr hdr;     /* wct = 12 */
+        __u8 AndXCommand;
+        __u8 AndXReserved;
+        __le16 AndXOffset;
+        __u16 Fid;
+        __le32 OffsetLow;
+        __u32 Reserved; /* Timeout */
+        __le16 WriteMode; /* 1 = write through */
+        __le16 Remaining;
+        __le16 Reserved2;
+        __le16 DataLengthLow;
+        __le16 DataOffset;
+        __le16 ByteCount;
+        __u8 Pad;               /* BB check for whether padded to DWORD boundary and optimum performance here */
+        char Data[0];
+} WRITEX_REQ;
+
 typedef struct smb_com_write_req {
 	struct smb_hdr hdr;	/* wct = 14 */
 	__u8 AndXCommand;
@@ -699,6 +768,21 @@ typedef struct smb_com_write_rsp {
 	__u16  Reserved;
 	__u16 ByteCount;
 } WRITE_RSP;
+
+/* legacy read request for older servers */
+typedef struct smb_com_readx_req {
+        struct smb_hdr hdr;     /* wct = 10 */
+        __u8 AndXCommand;
+        __u8 AndXReserved;
+        __le16 AndXOffset;
+        __u16 Fid;
+        __le32 OffsetLow;
+        __le16 MaxCount;
+        __le16 MinCount;                /* obsolete */
+        __le32 Reserved;
+        __le16 Remaining;
+        __le16 ByteCount;
+} READX_REQ;
 
 typedef struct smb_com_read_req {
 	struct smb_hdr hdr;	/* wct = 12 */
@@ -875,6 +959,22 @@ typedef struct smb_com_create_directory_rsp {
 	struct smb_hdr hdr;	/* wct = 0 */
 	__u16 ByteCount;	/* bct = 0 */
 } CREATE_DIRECTORY_RSP;
+
+typedef struct smb_com_query_information_req {
+	struct smb_hdr hdr;     /* wct = 0 */
+	__le16 ByteCount;	/* 1 + namelen + 1 */
+	__u8 BufferFormat;      /* 4 = ASCII */
+	unsigned char FileName[1];
+} QUERY_INFORMATION_REQ;
+
+typedef struct smb_com_query_information_rsp {
+	struct smb_hdr hdr;     /* wct = 10 */
+	__le16 attr;
+	__le32  last_write_time;
+	__le32 size;
+	__u16  reserved[5];
+	__le16 ByteCount;	/* bcc = 0 */
+} QUERY_INFORMATION_RSP;
 
 typedef struct smb_com_setattr_req {
 	struct smb_hdr hdr; /* wct = 8 */
@@ -1411,6 +1511,43 @@ typedef struct smb_com_transaction_qfsi_rsp {
 	__u8 Pad;		/* may be three bytes *//* followed by data area */
 } TRANSACTION2_QFSI_RSP;
 
+
+/* SETFSInfo Levels */
+#define SMB_SET_CIFS_UNIX_INFO    0x200
+typedef struct smb_com_transaction2_setfsi_req {
+	struct smb_hdr hdr;	/* wct = 15 */
+	__le16 TotalParameterCount;
+	__le16 TotalDataCount;
+	__le16 MaxParameterCount;
+	__le16 MaxDataCount;
+	__u8 MaxSetupCount;
+	__u8 Reserved;
+	__le16 Flags;
+	__le32 Timeout;
+	__u16 Reserved2;
+	__le16 ParameterCount;	/* 4 */
+	__le16 ParameterOffset;
+	__le16 DataCount;	/* 12 */
+	__le16 DataOffset;
+	__u8 SetupCount;	/* one */
+	__u8 Reserved3;
+	__le16 SubCommand;	/* TRANS2_SET_FS_INFORMATION */
+	__le16 ByteCount;
+	__u8 Pad;
+	__u16 FileNum;		/* Parameters start. */
+	__le16 InformationLevel;/* Parameters end. */
+	__le16 ClientUnixMajor; /* Data start. */
+	__le16 ClientUnixMinor;
+	__le64 ClientUnixCap;   /* Data end */
+} TRANSACTION2_SETFSI_REQ;
+
+typedef struct smb_com_transaction2_setfsi_rsp {
+	struct smb_hdr hdr;	/* wct = 10 */
+	struct trans2_resp t2;
+	__u16 ByteCount;
+} TRANSACTION2_SETFSI_RSP;
+
+
 typedef struct smb_com_transaction2_get_dfs_refer_req {
 	struct smb_hdr hdr;	/* wct = 15 */
 	__le16 TotalParameterCount;
@@ -1547,16 +1684,32 @@ typedef struct {
 } FILE_SYSTEM_INFO;		/* size info, level 0x103 */
 
 typedef struct {
+	__le32 fsid;
+	__le32 SectorsPerAllocationUnit;
+	__le32 TotalAllocationUnits;
+	__le32 FreeAllocationUnits;
+	__le16  BytesPerSector;
+} FILE_SYSTEM_ALLOC_INFO;
+
+typedef struct {
 	__le16 MajorVersionNumber;
 	__le16 MinorVersionNumber;
 	__le64 Capability;
 } FILE_SYSTEM_UNIX_INFO;	/* Unix extensions info, level 0x200 */
+
+/* Version numbers for CIFS UNIX major and minor. */
+#define CIFS_UNIX_MAJOR_VERSION 1
+#define CIFS_UNIX_MINOR_VERSION 0
+
 /* Linux/Unix extensions capability flags */
 #define CIFS_UNIX_FCNTL_CAP             0x00000001 /* support for fcntl locks */
 #define CIFS_UNIX_POSIX_ACL_CAP         0x00000002 /* support getfacl/setfacl */
 #define CIFS_UNIX_XATTR_CAP             0x00000004 /* support new namespace   */
 #define CIFS_UNIX_EXTATTR_CAP           0x00000008 /* support chattr/chflag   */
+#define CIFS_UNIX_POSIX_PATHNAMES_CAP   0x00000010 /* Use POSIX pathnames on the wire. */
+
 #define CIFS_POSIX_EXTENSIONS           0x00000010 /* support for new QFSInfo */
+
 typedef struct {
 	/* For undefined recommended transfer size return -1 in that field */
 	__le32 OptimalTransferSize;  /* bsize on some os, iosize on other os */
@@ -1907,18 +2060,17 @@ struct data_blob {
 	perhaps add a CreateDevice - to create Pipes and other special .inodes
 	Also note POSIX open flags
 	2) Close - to return the last write time to do cache across close more safely
-	3) PosixQFSInfo - to return statfs info
-	4) FindFirst return unique inode number - what about resume key, two forms short (matches readdir) and full (enough info to cache inodes)
-	5) Mkdir - set mode
+	3) FindFirst return unique inode number - what about resume key, two 
+	forms short (matches readdir) and full (enough info to cache inodes)
+	4) Mkdir - set mode
 	
 	And under consideration: 
-	6) FindClose2 (return nanosecond timestamp ??)
-	7) Use nanosecond timestamps throughout all time fields if 
+	5) FindClose2 (return nanosecond timestamp ??)
+	6) Use nanosecond timestamps throughout all time fields if 
 	   corresponding attribute flag is set
-	8) sendfile - handle based copy
-	9) Direct i/o
-	10) "POSIX ACL" support
-	11) Misc fcntls?
+	7) sendfile - handle based copy
+	8) Direct i/o
+	9) Misc fcntls?
 	
 	what about fixing 64 bit alignment
 	
@@ -1974,7 +2126,7 @@ struct data_blob {
 	
  */
 
-/* xsymlink is a symlink format that can be used
+/* xsymlink is a symlink format (used by MacOS) that can be used
    to save symlink info in a regular file when 
    mounted to operating systems that do not
    support the cifs Unix extensions or EAs (for xattr
