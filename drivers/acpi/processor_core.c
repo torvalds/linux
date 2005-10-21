@@ -543,6 +543,8 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	return_VALUE(0);
 }
 
+static void *processor_device_array[NR_CPUS];
+
 static int acpi_processor_start(struct acpi_device *device)
 {
 	int result = 0;
@@ -560,6 +562,19 @@ static int acpi_processor_start(struct acpi_device *device)
 	}
 
 	BUG_ON((pr->id >= NR_CPUS) || (pr->id < 0));
+
+	/*
+	 * Buggy BIOS check
+	 * ACPI id of processors can be reported wrongly by the BIOS.
+	 * Don't trust it blindly
+	 */
+	if (processor_device_array[pr->id] != NULL &&
+	    processor_device_array[pr->id] != (void *)device) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "BIOS reporting wrong ACPI id"
+			"for the processor\n"));
+		return_VALUE(-ENODEV);
+	}
+	processor_device_array[pr->id] = (void *)device;
 
 	processors[pr->id] = pr;
 
