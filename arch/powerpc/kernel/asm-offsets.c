@@ -56,8 +56,6 @@ int main(void)
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
 	DEFINE(MM, offsetof(struct task_struct, mm));
 #ifdef CONFIG_PPC64
-	DEFINE(THREAD_SHIFT, THREAD_SHIFT);
-	DEFINE(THREAD_SIZE, THREAD_SIZE);
 	DEFINE(AUDITCONTEXT, offsetof(struct task_struct, audit_context));
 #else
 	DEFINE(THREAD_INFO, offsetof(struct task_struct, thread_info));
@@ -94,12 +92,10 @@ int main(void)
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_PREEMPT, offsetof(struct thread_info, preempt_count));
-#ifdef CONFIG_PPC64
 	DEFINE(TI_SC_NOERR, offsetof(struct thread_info, syscall_noerror));
-#else
+#ifdef CONFIG_PPC32
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));
-	DEFINE(TI_LOCAL_FLAGS, offsetof(struct thread_info, local_flags));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 #endif /* CONFIG_PPC64 */
 

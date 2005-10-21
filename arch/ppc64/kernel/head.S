@@ -36,6 +36,7 @@
 #include <asm/setup.h>
 #include <asm/hvcall.h>
 #include <asm/iSeries/LparMap.h>
+#include <asm/thread_info.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
