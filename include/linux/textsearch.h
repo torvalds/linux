@@ -40,7 +40,7 @@ struct ts_state
 struct ts_ops
 {
 	const char		*name;
-	struct ts_config *	(*init)(const void *, unsigned int, int);
+	struct ts_config *	(*init)(const void *, unsigned int, gfp_t);
 	unsigned int		(*find)(struct ts_config *,
 					struct ts_state *);
 	void			(*destroy)(struct ts_config *);
@@ -148,7 +148,7 @@ static inline unsigned int textsearch_get_pattern_len(struct ts_config *conf)
 extern int textsearch_register(struct ts_ops *);
 extern int textsearch_unregister(struct ts_ops *);
 extern struct ts_config *textsearch_prepare(const char *, const void *,
-					    unsigned int, int, int);
+					    unsigned int, gfp_t, int);
 extern void textsearch_destroy(struct ts_config *conf);
 extern unsigned int textsearch_find_continuous(struct ts_config *,
 					       struct ts_state *,
