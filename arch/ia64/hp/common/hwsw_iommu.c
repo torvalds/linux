@@ -71,7 +71,7 @@ hwsw_init (void)
 }
 
 void *
-hwsw_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, int flags)
+hwsw_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flags)
 {
 	if (use_swiotlb(dev))
 		return swiotlb_alloc_coherent(dev, size, dma_handle, flags);

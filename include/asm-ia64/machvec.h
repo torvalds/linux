@@ -37,7 +37,7 @@ typedef int ia64_mv_pci_legacy_write_t (struct pci_bus *, u16 port, u32 val,
 
 /* DMA-mapping interface: */
 typedef void ia64_mv_dma_init (void);
-typedef void *ia64_mv_dma_alloc_coherent (struct device *, size_t, dma_addr_t *, int);
+typedef void *ia64_mv_dma_alloc_coherent (struct device *, size_t, dma_addr_t *, gfp_t);
 typedef void ia64_mv_dma_free_coherent (struct device *, size_t, void *, dma_addr_t);
 typedef dma_addr_t ia64_mv_dma_map_single (struct device *, void *, size_t, int);
 typedef void ia64_mv_dma_unmap_single (struct device *, dma_addr_t, size_t, int);

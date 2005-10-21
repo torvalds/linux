@@ -314,7 +314,7 @@ sync_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 
 void *
 swiotlb_alloc_coherent(struct device *hwdev, size_t size,
-		       dma_addr_t *dma_handle, int flags)
+		       dma_addr_t *dma_handle, gfp_t flags)
 {
 	unsigned long dev_addr;
 	void *ret;
