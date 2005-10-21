@@ -190,7 +190,7 @@ void ieee80211_txb_free(struct ieee80211_txb *txb)
 }
 
 static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
-						 gfp_t gfp_mask)
+						 int headroom, gfp_t gfp_mask)
 {
 	struct ieee80211_txb *txb;
 	int i;
@@ -204,11 +204,13 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	txb->frag_size = txb_size;
 
 	for (i = 0; i < nr_frags; i++) {
-		txb->fragments[i] = dev_alloc_skb(txb_size);
+		txb->fragments[i] = __dev_alloc_skb(txb_size + headroom,
+						    gfp_mask);
 		if (unlikely(!txb->fragments[i])) {
 			i--;
 			break;
 		}
+		skb_reserve(txb->fragments[i], headroom);
 	}
 	if (unlikely(i != nr_frags)) {
 		while (i >= 0)
@@ -384,7 +386,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(nr_frags, frag_size, GFP_ATOMIC);
+	txb = ieee80211_alloc_txb(nr_frags, frag_size,
+				  ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
 		       ieee->dev->name);
