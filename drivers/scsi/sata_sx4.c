@@ -137,7 +137,7 @@ struct pdc_port_priv {
 };
 
 struct pdc_host_priv {
-	void			*dimm_mmio;
+	void			__iomem *dimm_mmio;
 
 	unsigned int		doing_hdma;
 	unsigned int		hdma_prod;
@@ -247,7 +247,7 @@ static void pdc20621_host_stop(struct ata_host_set *host_set)
 {
 	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 	struct pdc_host_priv *hpriv = host_set->private_data;
-	void *dimm_mmio = hpriv->dimm_mmio;
+	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 
 	pci_iounmap(pdev, dimm_mmio);
 	kfree(hpriv);
@@ -669,8 +669,8 @@ static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 		readl(mmio + PDC_20621_SEQCTL + (seq * 4));	/* flush */
 
 		writel(port_ofs + PDC_DIMM_ATA_PKT,
-		       (void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
-		readl((void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+		       (void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+		readl((void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
 		VPRINTK("submitted ofs 0x%x (%u), seq %u\n",
 			port_ofs + PDC_DIMM_ATA_PKT,
 			port_ofs + PDC_DIMM_ATA_PKT,
@@ -747,8 +747,8 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			writel(0x00000001, mmio + PDC_20621_SEQCTL + (seq * 4));
 			readl(mmio + PDC_20621_SEQCTL + (seq * 4));
 			writel(port_ofs + PDC_DIMM_ATA_PKT,
-			       (void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
-			readl((void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+			       (void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+			readl((void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
 		}
 
 		/* step two - execute ATA command */
@@ -1014,7 +1014,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	idx++;
 	dist = ((long)(s32)(window_size - (offset + size))) >= 0 ? size :
 		(long) (window_size - offset);
-	memcpy_toio((char *) (dimm_mmio + offset / 4), (char *) psource, dist);
+	memcpy_toio(dimm_mmio + offset / 4, psource, dist);
 	writel(0x01, mmio + PDC_GENERAL_CTLR);
 	readl(mmio + PDC_GENERAL_CTLR);
 
@@ -1023,8 +1023,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	for (; (long) size >= (long) window_size ;) {
 		writel(((idx) << page_mask), mmio + PDC_DIMM_WINDOW_CTLR);
 		readl(mmio + PDC_DIMM_WINDOW_CTLR);
-		memcpy_toio((char *) (dimm_mmio), (char *) psource,
-			    window_size / 4);
+		memcpy_toio(dimm_mmio, psource, window_size / 4);
 		writel(0x01, mmio + PDC_GENERAL_CTLR);
 		readl(mmio + PDC_GENERAL_CTLR);
 		psource += window_size;
@@ -1035,7 +1034,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	if (size) {
 		writel(((idx) << page_mask), mmio + PDC_DIMM_WINDOW_CTLR);
 		readl(mmio + PDC_DIMM_WINDOW_CTLR);
-		memcpy_toio((char *) (dimm_mmio), (char *) psource, size / 4);
+		memcpy_toio(dimm_mmio, psource, size / 4);
 		writel(0x01, mmio + PDC_GENERAL_CTLR);
 		readl(mmio + PDC_GENERAL_CTLR);
 	}
