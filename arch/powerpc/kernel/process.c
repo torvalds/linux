@@ -595,6 +595,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
  */
 void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 {
+#ifdef CONFIG_PPC64
+	unsigned long load_addr = regs->gpr[2];	/* saved by ELF_PLAT_INIT */
+#endif
+
 	set_fs(USER_DS);
 
 	/*
@@ -621,7 +625,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->msr = MSR_USER;
 #else
 	if (!test_thread_flag(TIF_32BIT)) {
-		unsigned long entry, toc, load_addr = regs->gpr[2];
+		unsigned long entry, toc;
 
 		/* start is a relocated pointer to the function descriptor for
 		 * the elf _start routine.  The first entry in the function
