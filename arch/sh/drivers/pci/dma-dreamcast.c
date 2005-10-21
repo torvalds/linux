@@ -33,7 +33,7 @@
 static int gapspci_dma_used = 0;
 
 void *dreamcast_consistent_alloc(struct device *dev, size_t size,
-				 dma_addr_t *dma_handle, int flag)
+				 dma_addr_t *dma_handle, gfp_t flag)
 {
 	unsigned long buf;
 
