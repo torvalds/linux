@@ -51,8 +51,6 @@ enum {
 	QS_PRD_BYTES		= QS_MAX_PRD * 16,
 	QS_PKT_BYTES		= QS_CPB_BYTES + QS_PRD_BYTES,
 
-	QS_DMA_BOUNDARY		= ~0UL,
-
 	/* global register offsets */
 	QS_HCF_CNFG3		= 0x0003, /* host configuration offset */
 	QS_HID_HPHY		= 0x0004, /* host physical interface info */
@@ -99,6 +97,10 @@ enum {
 
 	/* PCI device IDs */
 	board_2068_idx		= 0,	/* QStor 4-port SATA/RAID */
+};
+
+enum {
+	QS_DMA_BOUNDARY		= ~0UL
 };
 
 typedef enum { qs_state_idle, qs_state_pkt, qs_state_mmio } qs_state_t;
