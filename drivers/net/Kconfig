@@ -2201,8 +2201,8 @@ config S2IO
 	depends on PCI
 	---help---
 	  This driver supports the 10Gbe XFrame NIC of S2IO. 
-	  For help regarding driver compilation, installation and 
-	  tuning please look into ~/drivers/net/s2io/README.txt.
+	  More specific information on configuring the driver is in 
+	  <file:Documentation/networking/s2io.txt>.
 
 config S2IO_NAPI
 	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
