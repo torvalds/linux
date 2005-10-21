@@ -214,7 +214,8 @@ static void bigmac_init_rings(struct bigmac *bp, int from_irq)
 {
 	struct bmac_init_block *bb = bp->bmac_block;
 	struct net_device *dev = bp->dev;
-	int i, gfp_flags = GFP_KERNEL;
+	int i;
+	gfp_t gfp_flags = GFP_KERNEL;
 
 	if (from_irq || in_interrupt())
 		gfp_flags = GFP_ATOMIC;
