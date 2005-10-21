@@ -175,7 +175,7 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 		wrmsr(MSR_FIDVID_CTL, lo, data->plllock * PLL_LOCK_CONVERSION);
 		if (i++ > 100) {
 			printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
-			retrun 1;
+			return 1;
 		}			
 	} while (query_current_values_with_pending_wait(data));
 
