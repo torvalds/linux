@@ -1039,6 +1039,10 @@ void __init setup_arch(char **cmdline_p)
 	/* initialize the syscall map in systemcfg */
 	setup_syscall_map();
 
+#ifdef CONFIG_DUMMY_CONSOLE
+	conswitchp = &dummy_con;
+#endif
+
 	ppc_md.setup_arch();
 
 	/* Use the default idle loop if the platform hasn't provided one. */
