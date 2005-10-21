@@ -45,11 +45,11 @@
 
 
 void *
-kmem_alloc(size_t size, gfp_t flags)
+kmem_alloc(size_t size, unsigned int __nocast flags)
 {
-	int		retries = 0;
-	unsigned int	lflags = kmem_flags_convert(flags);
-	void		*ptr;
+	int	retries = 0;
+	gfp_t	lflags = kmem_flags_convert(flags);
+	void	*ptr;
 
 	do {
 		if (size < MAX_SLAB_SIZE || retries > MAX_VMALLOCS)
@@ -67,7 +67,7 @@ kmem_alloc(size_t size, gfp_t flags)
 }
 
 void *
-kmem_zalloc(size_t size, gfp_t flags)
+kmem_zalloc(size_t size, unsigned int __nocast flags)
 {
 	void	*ptr;
 
@@ -90,7 +90,7 @@ kmem_free(void *ptr, size_t size)
 
 void *
 kmem_realloc(void *ptr, size_t newsize, size_t oldsize,
-	     gfp_t flags)
+	     unsigned int __nocast flags)
 {
 	void	*new;
 
@@ -105,11 +105,11 @@ kmem_realloc(void *ptr, size_t newsize, size_t oldsize,
 }
 
 void *
-kmem_zone_alloc(kmem_zone_t *zone, gfp_t flags)
+kmem_zone_alloc(kmem_zone_t *zone, unsigned int __nocast flags)
 {
-	int		retries = 0;
-	unsigned int	lflags = kmem_flags_convert(flags);
-	void		*ptr;
+	int	retries = 0;
+	gfp_t	lflags = kmem_flags_convert(flags);
+	void	*ptr;
 
 	do {
 		ptr = kmem_cache_alloc(zone, lflags);
@@ -124,7 +124,7 @@ kmem_zone_alloc(kmem_zone_t *zone, gfp_t flags)
 }
 
 void *
-kmem_zone_zalloc(kmem_zone_t *zone, gfp_t flags)
+kmem_zone_zalloc(kmem_zone_t *zone, unsigned int __nocast flags)
 {
 	void	*ptr;
 

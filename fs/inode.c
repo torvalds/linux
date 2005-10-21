@@ -475,7 +475,7 @@ static void prune_icache(int nr_to_scan)
  * This function is passed the number of inodes to scan, and it returns the
  * total number of remaining possibly-reclaimable inodes.
  */
-static int shrink_icache_memory(int nr, unsigned int gfp_mask)
+static int shrink_icache_memory(int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		/*
