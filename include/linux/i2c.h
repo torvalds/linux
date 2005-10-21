@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/i2c-id.h>
+#include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
 #include <asm/semaphore.h>
 
