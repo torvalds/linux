@@ -422,9 +422,7 @@ static inline int look_for_irix_interpreter(char **name,
 		if (*name != NULL)
 			goto out;
 
-		*name = (char *) kmalloc((epp->p_filesz +
-					  strlen(IRIX_EMUL)),
-					 GFP_KERNEL);
+		*name = kmalloc(epp->p_filesz + strlen(IRIX_EMUL), GFP_KERNEL);
 		if (!*name)
 			return -ENOMEM;
 

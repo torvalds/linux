@@ -290,8 +290,7 @@ au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 				/* If kmalloc fails, it is caught below same
 				 * as a channel not available.
 				 */
-				ctp = (chan_tab_t *)
-					kmalloc(sizeof(chan_tab_t), GFP_KERNEL);
+				ctp = kmalloc(sizeof(chan_tab_t), GFP_KERNEL);
 				chan_tab_ptr[i] = ctp;
 				break;
 			}
