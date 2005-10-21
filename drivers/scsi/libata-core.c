@@ -1082,6 +1082,31 @@ static inline void ata_dump_id(struct ata_device *dev)
 		dev->id[93]);
 }
 
+/*
+ *	Compute the PIO modes available for this device. This is not as
+ *	trivial as it seems if we must consider early devices correctly.
+ *
+ *	FIXME: pre IDE drive timing (do we care ?). 
+ */
+
+static unsigned int ata_pio_modes(struct ata_device *adev)
+{
+	u16 modes;
+
+	/* Usual case. Word 53 indicates word 88 is valid */
+	if (adev->id[ATA_ID_FIELD_VALID] & (1 << 2)) {
+		modes = adev->id[ATA_ID_PIO_MODES] & 0x03;
+		modes <<= 3;
+		modes |= 0x7;
+		return modes;
+	}
+
+	/* If word 88 isn't valid then Word 51 holds the PIO timing number
+	   for the maximum. Turn it into a mask and return it */
+	modes = (2 << (adev->id[ATA_ID_OLD_PIO_MODES] & 0xFF)) - 1 ;
+	return modes;
+}
+
 /**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
@@ -1215,10 +1240,8 @@ retry:
 	xfer_modes = dev->id[ATA_ID_UDMA_MODES];
 	if (!xfer_modes)
 		xfer_modes = (dev->id[ATA_ID_MWDMA_MODES]) << ATA_SHIFT_MWDMA;
-	if (!xfer_modes) {
-		xfer_modes = (dev->id[ATA_ID_PIO_MODES]) << (ATA_SHIFT_PIO + 3);
-		xfer_modes |= (0x7 << ATA_SHIFT_PIO);
-	}
+	if (!xfer_modes)
+		xfer_modes = ata_pio_modes(dev);
 
 	ata_dump_id(dev);
 
