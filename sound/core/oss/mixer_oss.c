@@ -1294,7 +1294,8 @@ static int snd_mixer_oss_notify_handler(snd_card_t * card, int cmd)
 						   card, 0,
 						   &snd_mixer_oss_reg,
 						   name)) < 0) {
-			snd_printk("unable to register OSS mixer device %i:%i\n", card->number, 0);
+			snd_printk(KERN_ERR "unable to register OSS mixer device %i:%i\n",
+				   card->number, 0);
 			kfree(mixer);
 			return err;
 		}
