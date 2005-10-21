@@ -162,7 +162,7 @@ static inline unsigned long do_mmap2(unsigned long addr, size_t len,
 			unsigned long fd, unsigned long off, int shift)
 {
 	struct file * file = NULL;
-	int ret = -EINVAL;
+	unsigned long ret = -EINVAL;
 
 	if (shift) {
 		if (off & ((1 << shift) - 1))
