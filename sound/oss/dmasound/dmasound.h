@@ -116,7 +116,7 @@ typedef struct {
     const char *name;
     const char *name2;
     struct module *owner;
-    void *(*dma_alloc)(unsigned int, int);
+    void *(*dma_alloc)(unsigned int, gfp_t);
     void (*dma_free)(void *, unsigned int);
     int (*irqinit)(void);
 #ifdef MODULE
