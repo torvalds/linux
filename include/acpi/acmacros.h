@@ -202,7 +202,7 @@
 
 #define ACPI_BUFFER_INDEX(buf_len,buf_offset,byte_gran) (buf_offset)
 
-#ifdef ACPI_MISALIGNED_TRANSFERS
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
 
 /* The hardware supports unaligned transfers, just do the little-endian move */
 
@@ -563,11 +563,11 @@
 											return (_s); })
 #define return_UINT8(s)                 ACPI_DO_WHILE0 ({ \
 											register u8 _s = (u8) (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
+											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (acpi_integer) _s); \
 											return (_s); })
 #define return_UINT32(s)                ACPI_DO_WHILE0 ({ \
 											register u32 _s = (u32) (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
+											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (acpi_integer) _s); \
 											return (_s); })
 #else				/* Use original less-safe macros */
 

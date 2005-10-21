@@ -60,6 +60,7 @@ extern struct acpi_external_list *acpi_gbl_external_list;
 extern const char *acpi_gbl_io_decode[2];
 extern const char *acpi_gbl_word_decode[4];
 extern const char *acpi_gbl_consume_decode[2];
+extern const char *acpi_gbl_config_decode[4];
 extern const char *acpi_gbl_min_decode[2];
 extern const char *acpi_gbl_max_decode[2];
 extern const char *acpi_gbl_DECdecode[2];
@@ -171,11 +172,19 @@ u8 acpi_dm_is_string_buffer(union acpi_parse_object *op);
 /*
  * dmresrc
  */
-void
-acpi_dm_resource_descriptor(struct acpi_op_walk_info *info,
-			    u8 * byte_data, u32 byte_count);
+void acpi_dm_dump_integer8(u8 value, char *name);
 
-u8 acpi_dm_is_resource_descriptor(union acpi_parse_object *op);
+void acpi_dm_dump_integer16(u16 value, char *name);
+
+void acpi_dm_dump_integer32(u32 value, char *name);
+
+void acpi_dm_dump_integer64(u64 value, char *name);
+
+void
+acpi_dm_resource_template(struct acpi_op_walk_info *info,
+			  u8 * byte_data, u32 byte_count);
+
+u8 acpi_dm_is_resource_template(union acpi_parse_object *op);
 
 void acpi_dm_indent(u32 level);
 
@@ -222,6 +231,8 @@ acpi_dm_interrupt_descriptor(union aml_resource *resource,
 void
 acpi_dm_vendor_large_descriptor(union aml_resource *resource,
 				u32 length, u32 level);
+
+void acpi_dm_vendor_common(char *name, u8 * byte_data, u32 length, u32 level);
 
 /*
  * dmresrcs

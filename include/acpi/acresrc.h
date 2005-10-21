@@ -49,48 +49,132 @@
 #include "amlresrc.h"
 
 /*
+ * If possible, pack the following structures to byte alignment, since we
+ * don't care about performance for debug output
+ */
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#pragma pack(1)
+#endif
+
+/*
+ * Individual entry for the resource conversion tables
+ */
+typedef const struct acpi_rsconvert_info {
+	u8 opcode;
+	u8 resource_offset;
+	u8 aml_offset;
+	u8 value;
+
+} acpi_rsconvert_info;
+
+/* Resource conversion opcodes */
+
+#define ACPI_RSC_INITGET                0
+#define ACPI_RSC_INITSET                1
+#define ACPI_RSC_FLAGINIT               2
+#define ACPI_RSC_1BITFLAG               3
+#define ACPI_RSC_2BITFLAG               4
+#define ACPI_RSC_COUNT                  5
+#define ACPI_RSC_COUNT16                6
+#define ACPI_RSC_LENGTH                 7
+#define ACPI_RSC_MOVE8                  8
+#define ACPI_RSC_MOVE16                 9
+#define ACPI_RSC_MOVE32                 10
+#define ACPI_RSC_MOVE64                 11
+#define ACPI_RSC_SET8                   12
+#define ACPI_RSC_DATA8                  13
+#define ACPI_RSC_ADDRESS                14
+#define ACPI_RSC_SOURCE                 15
+#define ACPI_RSC_SOURCEX                16
+#define ACPI_RSC_BITMASK                17
+#define ACPI_RSC_BITMASK16              18
+#define ACPI_RSC_EXIT_NE                19
+#define ACPI_RSC_EXIT_LE                20
+
+/* Resource Conversion sub-opcodes */
+
+#define ACPI_RSC_COMPARE_AML_LENGTH     0
+#define ACPI_RSC_COMPARE_VALUE          1
+
+#define ACPI_RSC_TABLE_SIZE(d)          (sizeof (d) / sizeof (struct acpi_rsconvert_info))
+
+#define ACPI_RS_OFFSET(f)               (u8) ACPI_OFFSET (struct acpi_resource,f)
+#define AML_OFFSET(f)                   (u8) ACPI_OFFSET (union aml_resource,f)
+
+/*
  * Resource dispatch and info tables
  */
-struct acpi_resource_info {
+typedef const struct acpi_resource_info {
 	u8 length_type;
 	u8 minimum_aml_resource_length;
 	u8 minimum_internal_struct_length;
-};
+
+} acpi_resource_info;
 
 /* Types for length_type above */
 
-#define ACPI_FIXED_LENGTH           0
-#define ACPI_VARIABLE_LENGTH        1
-#define ACPI_SMALL_VARIABLE_LENGTH  2
+#define ACPI_FIXED_LENGTH               0
+#define ACPI_VARIABLE_LENGTH            1
+#define ACPI_SMALL_VARIABLE_LENGTH      2
 
-/* Handlers */
+typedef const struct acpi_rsdump_info {
+	u8 opcode;
+	u8 offset;
+	char *name;
+	const void *pointer;
 
-typedef acpi_status(*ACPI_SET_RESOURCE_HANDLER) (struct acpi_resource *
-						 resource,
-						 union aml_resource * aml);
+} acpi_rsdump_info;
 
-typedef acpi_status(*ACPI_GET_RESOURCE_HANDLER) (union aml_resource * aml,
-						 u16 aml_resource_length,
-						 struct acpi_resource *
-						 resource);
+/* Values for the Opcode field above */
 
-typedef void (*ACPI_DUMP_RESOURCE_HANDLER) (union acpi_resource_data * data);
+#define ACPI_RSD_TITLE                  0
+#define ACPI_RSD_LITERAL                1
+#define ACPI_RSD_STRING                 2
+#define ACPI_RSD_UINT8                  3
+#define ACPI_RSD_UINT16                 4
+#define ACPI_RSD_UINT32                 5
+#define ACPI_RSD_UINT64                 6
+#define ACPI_RSD_1BITFLAG               7
+#define ACPI_RSD_2BITFLAG               8
+#define ACPI_RSD_SHORTLIST              9
+#define ACPI_RSD_LONGLIST               10
+#define ACPI_RSD_DWORDLIST              11
+#define ACPI_RSD_ADDRESS                12
+#define ACPI_RSD_SOURCE                 13
 
-/* Tables indexed by internal resource type */
+/* restore default alignment */
 
-extern u8 acpi_gbl_aml_resource_sizes[];
-extern ACPI_SET_RESOURCE_HANDLER acpi_gbl_set_resource_dispatch[];
-extern ACPI_DUMP_RESOURCE_HANDLER acpi_gbl_dump_resource_dispatch[];
+#pragma pack()
 
-/* Tables indexed by raw AML resource descriptor type */
+/* Resource tables indexed by internal resource type */
+
+extern const u8 acpi_gbl_aml_resource_sizes[];
+extern struct acpi_rsconvert_info *acpi_gbl_set_resource_dispatch[];
+
+/* Resource tables indexed by raw AML resource descriptor type */
 
 extern struct acpi_resource_info acpi_gbl_sm_resource_info[];
 extern struct acpi_resource_info acpi_gbl_lg_resource_info[];
-extern ACPI_GET_RESOURCE_HANDLER acpi_gbl_sm_get_resource_dispatch[];
-extern ACPI_GET_RESOURCE_HANDLER acpi_gbl_lg_get_resource_dispatch[];
+extern struct acpi_rsconvert_info *acpi_gbl_sm_get_resource_dispatch[];
+extern struct acpi_rsconvert_info *acpi_gbl_lg_get_resource_dispatch[];
 
 /*
- *  Function prototypes called from Acpi* APIs
+ * rscreate
+ */
+acpi_status
+acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
+			     struct acpi_buffer *output_buffer);
+
+acpi_status
+acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
+			     struct acpi_buffer *output_buffer);
+
+acpi_status
+acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
+				 struct acpi_buffer *output_buffer);
+
+/*
+ * rsutils
  */
 acpi_status
 acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
@@ -109,27 +193,6 @@ acpi_rs_get_method_data(acpi_handle handle,
 
 acpi_status
 acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
-
-acpi_status
-acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
-			     struct acpi_buffer *output_buffer);
-
-acpi_status
-acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
-			     struct acpi_buffer *output_buffer);
-
-acpi_status
-acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
-				 struct acpi_buffer *output_buffer);
-
-/*
- * rsdump
- */
-#ifdef	ACPI_FUTURE_USAGE
-void acpi_rs_dump_resource_list(struct acpi_resource *resource);
-
-void acpi_rs_dump_irq_list(u8 * route_table);
-#endif				/* ACPI_FUTURE_USAGE */
 
 /*
  * rscalc
@@ -155,144 +218,28 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 				 acpi_size aml_size_needed, u8 * output_buffer);
 
 /*
- * rsio
- */
-acpi_status
-acpi_rs_get_io(union aml_resource *aml,
-	       u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_io(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_fixed_io(union aml_resource *aml,
-		     u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_fixed_io(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_dma(union aml_resource *aml,
-		u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_dma(struct acpi_resource *resource, union aml_resource *aml);
-
-/*
- * rsirq
- */
-acpi_status
-acpi_rs_get_irq(union aml_resource *aml,
-		u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_irq(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_ext_irq(union aml_resource *aml,
-		    u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_ext_irq(struct acpi_resource *resource, union aml_resource *aml);
-
-/*
  * rsaddr
  */
-acpi_status
-acpi_rs_get_address16(union aml_resource *aml,
-		      u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_address16(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_address32(union aml_resource *aml,
-		      u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_address32(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_address64(union aml_resource *aml,
-		      u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_address64(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_ext_address64(union aml_resource *aml,
-			  u16 aml_resource_length,
-			  struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_ext_address64(struct acpi_resource *resource,
-			  union aml_resource *aml);
-
-/*
- * rsmemory
- */
-acpi_status
-acpi_rs_get_memory24(union aml_resource *aml,
-		     u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_memory24(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_memory32(union aml_resource *aml,
-		     u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_memory32(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_fixed_memory32(union aml_resource *aml,
-			   u16 aml_resource_length,
+void
+acpi_rs_set_address_common(union aml_resource *aml,
 			   struct acpi_resource *resource);
 
-acpi_status
-acpi_rs_set_fixed_memory32(struct acpi_resource *resource,
+u8
+acpi_rs_get_address_common(struct acpi_resource *resource,
 			   union aml_resource *aml);
 
 /*
  * rsmisc
  */
 acpi_status
-acpi_rs_get_generic_reg(union aml_resource *aml,
-			u16 aml_resource_length,
-			struct acpi_resource *resource);
+acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
+				union aml_resource *aml,
+				struct acpi_rsconvert_info *info);
 
 acpi_status
-acpi_rs_set_generic_reg(struct acpi_resource *resource,
-			union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_vendor(union aml_resource *aml,
-		   u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_vendor(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_start_dpf(union aml_resource *aml,
-		      u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_start_dpf(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_end_dpf(union aml_resource *aml,
-		    u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_end_dpf(struct acpi_resource *resource, union aml_resource *aml);
-
-acpi_status
-acpi_rs_get_end_tag(union aml_resource *aml,
-		    u16 aml_resource_length, struct acpi_resource *resource);
-
-acpi_status
-acpi_rs_set_end_tag(struct acpi_resource *resource, union aml_resource *aml);
+acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
+				union aml_resource *aml,
+				struct acpi_rsconvert_info *info);
 
 /*
  * rsutils
@@ -301,74 +248,94 @@ void
 acpi_rs_move_data(void *destination,
 		  void *source, u16 item_count, u8 move_type);
 
-/* Types used in move_type above */
+u8 acpi_rs_decode_bitmask(u16 mask, u8 * list);
 
-#define ACPI_MOVE_TYPE_16_TO_32        0
-#define ACPI_MOVE_TYPE_32_TO_16        1
-#define ACPI_MOVE_TYPE_32_TO_32        2
-#define ACPI_MOVE_TYPE_64_TO_64        3
+u16 acpi_rs_encode_bitmask(u8 * list, u8 count);
 
-u16
-acpi_rs_get_resource_source(u16 resource_length,
-			    acpi_size minimum_length,
+acpi_rs_length
+acpi_rs_get_resource_source(acpi_rs_length resource_length,
+			    acpi_rs_length minimum_length,
 			    struct acpi_resource_source *resource_source,
 			    union aml_resource *aml, char *string_ptr);
 
-acpi_size
+acpi_rsdesc_size
 acpi_rs_set_resource_source(union aml_resource *aml,
-			    acpi_size minimum_length,
+			    acpi_rs_length minimum_length,
 			    struct acpi_resource_source *resource_source);
-
-u8 acpi_rs_get_resource_type(u8 resource_start_byte);
-
-u32 acpi_rs_get_descriptor_length(union aml_resource *aml);
-
-u16 acpi_rs_get_resource_length(union aml_resource *aml);
 
 void
 acpi_rs_set_resource_header(u8 descriptor_type,
-			    acpi_size total_length, union aml_resource *aml);
+			    acpi_rsdesc_size total_length,
+			    union aml_resource *aml);
+
+void
+acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
+			    union aml_resource *aml);
 
 struct acpi_resource_info *acpi_rs_get_resource_info(u8 resource_type);
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 /*
  * rsdump
  */
-void acpi_rs_dump_irq(union acpi_resource_data *resource);
+void acpi_rs_dump_resource_list(struct acpi_resource *resource);
 
-void acpi_rs_dump_address16(union acpi_resource_data *resource);
+void acpi_rs_dump_irq_list(u8 * route_table);
 
-void acpi_rs_dump_address32(union acpi_resource_data *resource);
+/*
+ * Resource conversion tables
+ */
+extern struct acpi_rsconvert_info acpi_rs_convert_dma[];
+extern struct acpi_rsconvert_info acpi_rs_convert_end_dpf[];
+extern struct acpi_rsconvert_info acpi_rs_convert_io[];
+extern struct acpi_rsconvert_info acpi_rs_convert_fixed_io[];
+extern struct acpi_rsconvert_info acpi_rs_convert_end_tag[];
+extern struct acpi_rsconvert_info acpi_rs_convert_memory24[];
+extern struct acpi_rsconvert_info acpi_rs_convert_generic_reg[];
+extern struct acpi_rsconvert_info acpi_rs_convert_memory32[];
+extern struct acpi_rsconvert_info acpi_rs_convert_fixed_memory32[];
+extern struct acpi_rsconvert_info acpi_rs_convert_address32[];
+extern struct acpi_rsconvert_info acpi_rs_convert_address16[];
+extern struct acpi_rsconvert_info acpi_rs_convert_ext_irq[];
+extern struct acpi_rsconvert_info acpi_rs_convert_address64[];
+extern struct acpi_rsconvert_info acpi_rs_convert_ext_address64[];
 
-void acpi_rs_dump_address64(union acpi_resource_data *resource);
+/* These resources require separate get/set tables */
 
-void acpi_rs_dump_ext_address64(union acpi_resource_data *resource);
+extern struct acpi_rsconvert_info acpi_rs_get_irq[];
+extern struct acpi_rsconvert_info acpi_rs_get_start_dpf[];
+extern struct acpi_rsconvert_info acpi_rs_get_vendor_small[];
+extern struct acpi_rsconvert_info acpi_rs_get_vendor_large[];
 
-void acpi_rs_dump_dma(union acpi_resource_data *resource);
+extern struct acpi_rsconvert_info acpi_rs_set_irq[];
+extern struct acpi_rsconvert_info acpi_rs_set_start_dpf[];
+extern struct acpi_rsconvert_info acpi_rs_set_vendor[];
 
-void acpi_rs_dump_io(union acpi_resource_data *resource);
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+/*
+ * rsinfo
+ */
+extern struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[];
 
-void acpi_rs_dump_ext_irq(union acpi_resource_data *resource);
-
-void acpi_rs_dump_fixed_io(union acpi_resource_data *resource);
-
-void acpi_rs_dump_fixed_memory32(union acpi_resource_data *resource);
-
-void acpi_rs_dump_memory24(union acpi_resource_data *resource);
-
-void acpi_rs_dump_memory32(union acpi_resource_data *resource);
-
-void acpi_rs_dump_start_dpf(union acpi_resource_data *resource);
-
-void acpi_rs_dump_vendor(union acpi_resource_data *resource);
-
-void acpi_rs_dump_generic_reg(union acpi_resource_data *resource);
-
-void acpi_rs_dump_end_dpf(union acpi_resource_data *resource);
-
-void acpi_rs_dump_end_tag(union acpi_resource_data *resource);
-
+/*
+ * rsdump
+ */
+extern struct acpi_rsdump_info acpi_rs_dump_irq[];
+extern struct acpi_rsdump_info acpi_rs_dump_dma[];
+extern struct acpi_rsdump_info acpi_rs_dump_start_dpf[];
+extern struct acpi_rsdump_info acpi_rs_dump_end_dpf[];
+extern struct acpi_rsdump_info acpi_rs_dump_io[];
+extern struct acpi_rsdump_info acpi_rs_dump_fixed_io[];
+extern struct acpi_rsdump_info acpi_rs_dump_vendor[];
+extern struct acpi_rsdump_info acpi_rs_dump_end_tag[];
+extern struct acpi_rsdump_info acpi_rs_dump_memory24[];
+extern struct acpi_rsdump_info acpi_rs_dump_memory32[];
+extern struct acpi_rsdump_info acpi_rs_dump_fixed_memory32[];
+extern struct acpi_rsdump_info acpi_rs_dump_address16[];
+extern struct acpi_rsdump_info acpi_rs_dump_address32[];
+extern struct acpi_rsdump_info acpi_rs_dump_address64[];
+extern struct acpi_rsdump_info acpi_rs_dump_ext_address64[];
+extern struct acpi_rsdump_info acpi_rs_dump_ext_irq[];
+extern struct acpi_rsdump_info acpi_rs_dump_generic_reg[];
 #endif
 
 #endif				/* __ACRESRC_H__ */

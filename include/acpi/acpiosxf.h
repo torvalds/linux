@@ -108,9 +108,9 @@ acpi_status acpi_os_create_lock(acpi_handle * out_handle);
 
 void acpi_os_delete_lock(acpi_handle handle);
 
-unsigned long acpi_os_acquire_lock(acpi_handle handle);
+acpi_native_uint acpi_os_acquire_lock(acpi_handle handle);
 
-void acpi_os_release_lock(acpi_handle handle, unsigned long flags);
+void acpi_os_release_lock(acpi_handle handle, acpi_native_uint flags);
 
 /*
  * Memory allocation and mapping

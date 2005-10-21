@@ -136,7 +136,7 @@ acpi_status acpi_ev_walk_gpe_list(ACPI_GPE_CALLBACK gpe_walk_callback)
 	struct acpi_gpe_block_info *gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
 	acpi_status status = AE_OK;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("ev_walk_gpe_list");
 
@@ -479,7 +479,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt;
 	struct acpi_gpe_xrupt_info *gpe_xrupt;
 	acpi_status status;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("ev_get_gpe_xrupt_block");
 
@@ -553,7 +553,7 @@ static acpi_status
 acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 {
 	acpi_status status;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("ev_delete_gpe_xrupt");
 
@@ -610,7 +610,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
 	struct acpi_gpe_block_info *next_gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_block;
 	acpi_status status;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("ev_install_gpe_block");
 
@@ -663,7 +663,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
 acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 {
 	acpi_status status;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("ev_install_gpe_block");
 

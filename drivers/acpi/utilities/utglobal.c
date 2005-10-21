@@ -217,23 +217,23 @@ const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
  * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
  *    perform a Notify() operation on it.
  */
-const struct acpi_predefined_names acpi_gbl_pre_defined_names[] =
-    { {"_GPE", ACPI_TYPE_LOCAL_SCOPE, NULL},
-{"_PR_", ACPI_TYPE_LOCAL_SCOPE, NULL},
-{"_SB_", ACPI_TYPE_DEVICE, NULL},
-{"_SI_", ACPI_TYPE_LOCAL_SCOPE, NULL},
-{"_TZ_", ACPI_TYPE_THERMAL, NULL},
-{"_REV", ACPI_TYPE_INTEGER, (char *)ACPI_CA_SUPPORT_LEVEL},
-{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
-{"_GL_", ACPI_TYPE_MUTEX, (char *)1},
+const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
+	{"_GPE", ACPI_TYPE_LOCAL_SCOPE, NULL},
+	{"_PR_", ACPI_TYPE_LOCAL_SCOPE, NULL},
+	{"_SB_", ACPI_TYPE_DEVICE, NULL},
+	{"_SI_", ACPI_TYPE_LOCAL_SCOPE, NULL},
+	{"_TZ_", ACPI_TYPE_THERMAL, NULL},
+	{"_REV", ACPI_TYPE_INTEGER, (char *)ACPI_CA_SUPPORT_LEVEL},
+	{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
+	{"_GL_", ACPI_TYPE_MUTEX, (char *)1},
 
 #if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
-{"_OSI", ACPI_TYPE_METHOD, (char *)1},
+	{"_OSI", ACPI_TYPE_METHOD, (char *)1},
 #endif
 
 	/* Table terminator */
 
-{NULL, ACPI_TYPE_ANY, NULL}
+	{NULL, ACPI_TYPE_ANY, NULL}
 };
 
 /*
@@ -503,11 +503,13 @@ char *acpi_ut_get_region_name(u8 space_id)
 /* Event type decoding */
 
 static const char *acpi_gbl_event_types[ACPI_NUM_FIXED_EVENTS] = {
+/*! [Begin] no source code translation (keep these strings as-is) */
 	"PM_Timer",
-	"global_lock",
-	"power_button",
-	"sleep_button",
-	"real_time_clock",
+	"GlobalLock",
+	"PowerButton",
+	"SleepButton",
+	"RealTimeClock",
+/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_event_name(u32 event_id)
@@ -545,12 +547,13 @@ static const char acpi_gbl_bad_type[] = "UNDEFINED";
 /* Printable names of the ACPI object types */
 
 static const char *acpi_gbl_ns_type_names[] = {
+/*! [Begin] no source code translation (keep these strings as-is) */
 	/* 00 */ "Untyped",
 	/* 01 */ "Integer",
 	/* 02 */ "String",
 	/* 03 */ "Buffer",
 	/* 04 */ "Package",
-	/* 05 */ "field_unit",
+	/* 05 */ "FieldUnit",
 	/* 06 */ "Device",
 	/* 07 */ "Event",
 	/* 08 */ "Method",
@@ -559,23 +562,24 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 11 */ "Power",
 	/* 12 */ "Processor",
 	/* 13 */ "Thermal",
-	/* 14 */ "buffer_field",
-	/* 15 */ "ddb_handle",
-	/* 16 */ "debug_object",
-	/* 17 */ "region_field",
-	/* 18 */ "bank_field",
-	/* 19 */ "index_field",
+	/* 14 */ "BufferField",
+	/* 15 */ "DdbHandle",
+	/* 16 */ "DebugObject",
+	/* 17 */ "RegionField",
+	/* 18 */ "BankField",
+	/* 19 */ "IndexField",
 	/* 20 */ "Reference",
 	/* 21 */ "Alias",
-	/* 22 */ "method_alias",
+	/* 22 */ "MethodAlias",
 	/* 23 */ "Notify",
-	/* 24 */ "addr_handler",
-	/* 25 */ "resource_desc",
-	/* 26 */ "resource_fld",
+	/* 24 */ "AddrHandler",
+	/* 25 */ "ResourceDesc",
+	/* 26 */ "ResourceFld",
 	/* 27 */ "Scope",
 	/* 28 */ "Extra",
 	/* 29 */ "Data",
 	/* 30 */ "Invalid"
+/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_type_name(acpi_object_type type)
@@ -658,15 +662,16 @@ char *acpi_ut_get_node_name(void *object)
 /* Printable names of object descriptor types */
 
 static const char *acpi_gbl_desc_type_names[] = {
+/*! [Begin] no source code translation (keep these ASL Keywords as-is) */
 	/* 00 */ "Invalid",
 	/* 01 */ "Cached",
 	/* 02 */ "State-Generic",
 	/* 03 */ "State-Update",
 	/* 04 */ "State-Package",
 	/* 05 */ "State-Control",
-	/* 06 */ "State-root_parse_scope",
-	/* 07 */ "State-parse_scope",
-	/* 08 */ "State-walk_scope",
+	/* 06 */ "State-RootParseScope",
+	/* 07 */ "State-ParseScope",
+	/* 08 */ "State-WalkScope",
 	/* 09 */ "State-Result",
 	/* 10 */ "State-Notify",
 	/* 11 */ "State-Thread",
@@ -674,6 +679,7 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 13 */ "Parser",
 	/* 14 */ "Operand",
 	/* 15 */ "Node"
+/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_descriptor_name(void *object)

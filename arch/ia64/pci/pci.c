@@ -195,7 +195,7 @@ add_io_space (struct pci_root_info *info, struct acpi_resource_address64 *addr)
 
 	min = addr->minimum;
 	max = min + addr->address_length - 1;
-	if (addr->attribute.io.translation_attribute == ACPI_SPARSE_TRANSLATION)
+	if (addr->info.io.translation_type == ACPI_SPARSE_TRANSLATION)
 		sparse = 1;
 
 	space_nr = new_space(addr->translation_offset, sparse);

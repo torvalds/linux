@@ -49,269 +49,206 @@ ACPI_MODULE_NAME("rsio")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_get_io
- *
- * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
- *              aml_resource_length - Length of the resource from the AML header
- *              Resource            - Where the internal resource is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
- *              internal resource descriptor, simplifying bitflags and handling
- *              alignment and endian issues if necessary.
+ * acpi_rs_convert_io
  *
  ******************************************************************************/
-acpi_status
-acpi_rs_get_io(union aml_resource *aml,
-	       u16 aml_resource_length, struct acpi_resource *resource)
-{
-	ACPI_FUNCTION_TRACE("rs_get_io");
+struct acpi_rsconvert_info acpi_rs_convert_io[5] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_IO,
+	 ACPI_RS_SIZE(struct acpi_resource_io),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_io)},
 
-	/* Get the Decode flag */
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_IO,
+	 sizeof(struct aml_resource_io),
+	 0},
 
-	resource->data.io.io_decode = aml->io.information & 0x01;
+	/* Decode flag */
 
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.io.io_decode),
+	 AML_OFFSET(io.flags),
+	 0},
 	/*
-	 * Get the following contiguous fields from the AML descriptor:
-	 * Minimum Base Address
-	 * Maximum Base Address
+	 * These fields are contiguous in both the source and destination:
 	 * Address Alignment
 	 * Length
+	 * Minimum Base Address
+	 * Maximum Base Address
 	 */
-	ACPI_MOVE_16_TO_32(&resource->data.io.minimum, &aml->io.minimum);
-	ACPI_MOVE_16_TO_32(&resource->data.io.maximum, &aml->io.maximum);
-	resource->data.io.alignment = aml->io.alignment;
-	resource->data.io.address_length = aml->io.address_length;
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.io.alignment),
+	 AML_OFFSET(io.alignment),
+	 2},
 
-	/* Complete the resource header */
-
-	resource->type = ACPI_RESOURCE_TYPE_IO;
-	resource->length = ACPI_SIZEOF_RESOURCE(struct acpi_resource_io);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.io.minimum),
+	 AML_OFFSET(io.minimum),
+	 2}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_set_io
- *
- * PARAMETERS:  Resource            - Pointer to the resource descriptor
- *              Aml                 - Where the AML descriptor is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert an internal resource descriptor to the corresponding
- *              external AML resource descriptor.
+ * acpi_rs_convert_fixed_io
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_set_io(struct acpi_resource *resource, union aml_resource *aml)
-{
-	ACPI_FUNCTION_TRACE("rs_set_io");
+struct acpi_rsconvert_info acpi_rs_convert_fixed_io[4] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_FIXED_IO,
+	 ACPI_RS_SIZE(struct acpi_resource_fixed_io),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_fixed_io)},
 
-	/* I/O Information Byte */
-
-	aml->io.information = (u8) (resource->data.io.io_decode & 0x01);
-
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_FIXED_IO,
+	 sizeof(struct aml_resource_fixed_io),
+	 0},
 	/*
-	 * Set the following contiguous fields in the AML descriptor:
-	 * Minimum Base Address
-	 * Maximum Base Address
-	 * Address Alignment
-	 * Length
-	 */
-	ACPI_MOVE_32_TO_16(&aml->io.minimum, &resource->data.io.minimum);
-	ACPI_MOVE_32_TO_16(&aml->io.maximum, &resource->data.io.maximum);
-	aml->io.alignment = (u8) resource->data.io.alignment;
-	aml->io.address_length = (u8) resource->data.io.address_length;
-
-	/* Complete the AML descriptor header */
-
-	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_IO,
-				    sizeof(struct aml_resource_io), aml);
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_get_fixed_io
- *
- * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
- *              aml_resource_length - Length of the resource from the AML header
- *              Resource            - Where the internal resource is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
- *              internal resource descriptor, simplifying bitflags and handling
- *              alignment and endian issues if necessary.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_get_fixed_io(union aml_resource *aml,
-		     u16 aml_resource_length, struct acpi_resource *resource)
-{
-	ACPI_FUNCTION_TRACE("rs_get_fixed_io");
-
-	/*
-	 * Get the following contiguous fields from the AML descriptor:
+	 * These fields are contiguous in both the source and destination:
 	 * Base Address
 	 * Length
 	 */
-	ACPI_MOVE_16_TO_32(&resource->data.fixed_io.address,
-			   &aml->fixed_io.address);
-	resource->data.fixed_io.address_length = aml->fixed_io.address_length;
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.fixed_io.address_length),
+	 AML_OFFSET(fixed_io.address_length),
+	 1},
 
-	/* Complete the resource header */
-
-	resource->type = ACPI_RESOURCE_TYPE_FIXED_IO;
-	resource->length = ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_io);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.fixed_io.address),
+	 AML_OFFSET(fixed_io.address),
+	 1}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_set_fixed_io
- *
- * PARAMETERS:  Resource            - Pointer to the resource descriptor
- *              Aml                 - Where the AML descriptor is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert an internal resource descriptor to the corresponding
- *              external AML resource descriptor.
+ * acpi_rs_convert_generic_reg
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_set_fixed_io(struct acpi_resource *resource, union aml_resource *aml)
-{
-	ACPI_FUNCTION_TRACE("rs_set_fixed_io");
+struct acpi_rsconvert_info acpi_rs_convert_generic_reg[4] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_GENERIC_REGISTER,
+	 ACPI_RS_SIZE(struct acpi_resource_generic_register),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_generic_reg)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_GENERIC_REGISTER,
+	 sizeof(struct aml_resource_generic_register),
+	 0},
+	/*
+	 * These fields are contiguous in both the source and destination:
+	 * Address Space ID
+	 * Register Bit Width
+	 * Register Bit Offset
+	 * Access Size
+	 */
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.generic_reg.space_id),
+	 AML_OFFSET(generic_reg.address_space_id),
+	 4},
+
+	/* Get the Register Address */
+
+	{ACPI_RSC_MOVE64, ACPI_RS_OFFSET(data.generic_reg.address),
+	 AML_OFFSET(generic_reg.address),
+	 1}
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_end_dpf
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_end_dpf[2] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_END_DEPENDENT,
+	 ACPI_RS_SIZE_MIN,
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_end_dpf)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_END_DEPENDENT,
+	 sizeof(struct aml_resource_end_dependent),
+	 0}
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_end_tag
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_end_tag[2] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_END_TAG,
+	 ACPI_RS_SIZE_MIN,
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_end_tag)},
 
 	/*
-	 * Set the following contiguous fields in the AML descriptor:
-	 * Base Address
-	 * Length
+	 * Note: The checksum field is set to zero, meaning that the resource
+	 * data is treated as if the checksum operation succeeded.
+	 * (ACPI Spec 1.0b Section 6.4.2.8)
 	 */
-	ACPI_MOVE_32_TO_16(&aml->fixed_io.address,
-			   &resource->data.fixed_io.address);
-	aml->fixed_io.address_length =
-	    (u8) resource->data.fixed_io.address_length;
-
-	/* Complete the AML descriptor header */
-
-	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_FIXED_IO,
-				    sizeof(struct aml_resource_fixed_io), aml);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_END_TAG,
+	 sizeof(struct aml_resource_end_tag),
+	 0}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_get_dma
- *
- * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
- *              aml_resource_length - Length of the resource from the AML header
- *              Resource            - Where the internal resource is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert a raw AML resource descriptor to the corresponding
- *              internal resource descriptor, simplifying bitflags and handling
- *              alignment and endian issues if necessary.
+ * acpi_rs_get_start_dpf
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_get_dma(union aml_resource *aml,
-		u16 aml_resource_length, struct acpi_resource *resource)
-{
-	u32 channel_count = 0;
-	u32 i;
-	u8 temp8;
+struct acpi_rsconvert_info acpi_rs_get_start_dpf[5] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_START_DEPENDENT,
+	 ACPI_RS_SIZE(struct acpi_resource_start_dependent),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_get_start_dpf)},
 
-	ACPI_FUNCTION_TRACE("rs_get_dma");
+	/* Defaults for Compatibility and Performance priorities */
 
-	/* Decode the DMA channel bits */
+	{ACPI_RSC_SET8, ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 ACPI_ACCEPTABLE_CONFIGURATION,
+	 2},
 
-	for (i = 0; i < 8; i++) {
-		if ((aml->dma.dma_channel_mask >> i) & 0x01) {
-			resource->data.dma.channels[channel_count] = i;
-			channel_count++;
-		}
-	}
+	/* All done if there is no flag byte present in the descriptor */
 
-	resource->length = 0;
-	resource->data.dma.channel_count = channel_count;
+	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_AML_LENGTH, 0, 1},
 
+	/* Flag byte is present, get the flags */
+
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 AML_OFFSET(start_dpf.flags),
+	 0},
+
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
+	 AML_OFFSET(start_dpf.flags),
+	 2}
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_set_start_dpf
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_set_start_dpf[6] = {
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_START_DEPENDENT,
+	 sizeof(struct aml_resource_start_dependent),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_set_start_dpf)},
+
+	/* Set the default flag values */
+
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 AML_OFFSET(start_dpf.flags),
+	 0},
+
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
+	 AML_OFFSET(start_dpf.flags),
+	 2},
 	/*
-	 * Calculate the structure size based upon the number of channels
-	 * Note: Zero DMA channels is valid
+	 * All done if flags byte is necessary -- if either priority value
+	 * is not ACPI_ACCEPTABLE_CONFIGURATION
 	 */
-	if (channel_count > 0) {
-		resource->length = (u32) (channel_count - 1) * 4;
-	}
+	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 ACPI_ACCEPTABLE_CONFIGURATION},
 
-	/* Get the flags: transfer preference, bus mastering, channel speed */
+	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
+	 ACPI_ACCEPTABLE_CONFIGURATION},
 
-	temp8 = aml->dma.flags;
-	resource->data.dma.transfer = temp8 & 0x03;
-	resource->data.dma.bus_master = (temp8 >> 2) & 0x01;
-	resource->data.dma.type = (temp8 >> 5) & 0x03;
+	/* Flag byte is not necessary */
 
-	if (resource->data.dma.transfer == 0x03) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid DMA.Transfer preference (3)\n"));
-		return_ACPI_STATUS(AE_BAD_DATA);
-	}
-
-	/* Complete the resource header */
-
-	resource->type = ACPI_RESOURCE_TYPE_DMA;
-	resource->length += ACPI_SIZEOF_RESOURCE(struct acpi_resource_dma);
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_set_dma
- *
- * PARAMETERS:  Resource            - Pointer to the resource descriptor
- *              Aml                 - Where the AML descriptor is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert an internal resource descriptor to the corresponding
- *              external AML resource descriptor.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_set_dma(struct acpi_resource *resource, union aml_resource *aml)
-{
-	u8 i;
-
-	ACPI_FUNCTION_TRACE("rs_set_dma");
-
-	/* Convert channel list to 8-bit DMA channel bitmask */
-
-	aml->dma.dma_channel_mask = 0;
-	for (i = 0; i < resource->data.dma.channel_count; i++) {
-		aml->dma.dma_channel_mask |=
-		    (1 << resource->data.dma.channels[i]);
-	}
-
-	/* Set the DMA Flag bits */
-
-	aml->dma.flags = (u8)
-	    (((resource->data.dma.type & 0x03) << 5) |
-	     ((resource->data.dma.bus_master & 0x01) << 2) |
-	     (resource->data.dma.transfer & 0x03));
-
-	/* Complete the AML descriptor header */
-
-	acpi_rs_set_resource_header(ACPI_RESOURCE_NAME_DMA,
-				    sizeof(struct aml_resource_dma), aml);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_LENGTH, 0, 0,
+	 sizeof(struct aml_resource_start_dependent_noprio)}
+};

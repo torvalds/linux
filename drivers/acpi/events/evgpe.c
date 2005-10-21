@@ -372,14 +372,14 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 
 u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 {
-	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
-	u8 enabled_status_byte;
-	struct acpi_gpe_register_info *gpe_register_info;
-	u32 status_reg;
-	u32 enable_reg;
-	u32 flags;
 	acpi_status status;
 	struct acpi_gpe_block_info *gpe_block;
+	struct acpi_gpe_register_info *gpe_register_info;
+	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
+	u8 enabled_status_byte;
+	u32 status_reg;
+	u32 enable_reg;
+	acpi_native_uint flags;
 	acpi_native_uint i;
 	acpi_native_uint j;
 

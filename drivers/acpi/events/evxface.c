@@ -562,7 +562,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_handler_info *handler;
 	acpi_status status;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("acpi_install_gpe_handler");
 
@@ -653,7 +653,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_handler_info *handler;
 	acpi_status status;
-	u32 flags;
+	acpi_native_uint flags;
 
 	ACPI_FUNCTION_TRACE("acpi_remove_gpe_handler");
 

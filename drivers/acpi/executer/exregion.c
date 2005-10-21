@@ -77,7 +77,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 	struct acpi_mem_space_context *mem_info = region_context;
 	u32 length;
 	acpi_size window_size;
-#ifndef ACPI_MISALIGNED_TRANSFERS
+#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
 	u32 remainder;
 #endif
 
@@ -109,7 +109,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
-#ifndef ACPI_MISALIGNED_TRANSFERS
+#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
 	/*
 	 * Hardware does not support non-aligned data transfers, we must verify
 	 * the request.

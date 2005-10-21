@@ -159,7 +159,6 @@ extern const u8 _acpi_ctype[];
 #define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
 #define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_SP | _ACPI_PU))
 #define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
-#define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
 
@@ -418,6 +417,12 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
 /* Values for Base above (16=Hex, 10=Decimal) */
 
 #define ACPI_ANY_BASE        0
+
+u32 acpi_ut_get_descriptor_length(void *aml);
+
+u16 acpi_ut_get_resource_length(void *aml);
+
+u8 acpi_ut_get_resource_type(void *aml);
 
 u8 *acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc);
 

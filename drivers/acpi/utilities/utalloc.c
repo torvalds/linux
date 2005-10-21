@@ -866,7 +866,7 @@ void acpi_ut_dump_allocations(u32 component, char *module)
 
 	if (!num_outstanding) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "No outstanding allocations.\n"));
+				  "No outstanding allocations\n"));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "%d(%X) Outstanding allocations\n",

@@ -83,9 +83,10 @@ typedef COMPILER_DEPENDENT_UINT64 u64;
  * UINT32           32-bit (4 byte) unsigned value
  * INT64            64-bit (8 byte) signed value
  * UINT64           64-bit (8 byte) unsigned value
- * ACPI_NATIVE_INT  32-bit on IA-32, 64-bit on IA-64 signed value
- * ACPI_NATIVE_UINT 32-bit on IA-32, 64-bit on IA-64 unsigned value
+ * ACPI_NATIVE_UINT 32-bit on IA-32, 64-bit on x86_64/IA-64 unsigned value
  */
+
+typedef unsigned long acpi_native_uint;
 
 #ifndef ACPI_MACHINE_WIDTH
 #error ACPI_MACHINE_WIDTH not defined
@@ -108,9 +109,6 @@ typedef COMPILER_DEPENDENT_UINT64 UINT64;
 
 /*! [End] no source code translation !*/
 
-typedef s64 acpi_native_int;
-typedef u64 acpi_native_uint;
-
 typedef u64 acpi_table_ptr;
 typedef u64 acpi_io_address;
 typedef u64 acpi_physical_address;
@@ -121,9 +119,22 @@ typedef u64 acpi_size;
 #define ACPI_MAX_PTR                    ACPI_UINT64_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT64_MAX
 
+/*
+ * In the case of the Itanium Processor Family (IPF), the hardware does not
+ * support misaligned memory transfers. Set the MISALIGNMENT_NOT_SUPPORTED flag
+ * to indicate that special precautions must be taken to avoid alignment faults.
+ * (IA64 or ia64 is currently used by existing compilers to indicate IPF.)
+ *
+ * Note: Em64_t and other X86-64 processors do support misaligned transfers,
+ * so there is no need to define this flag.
+ */
+#if defined (__IA64__) || defined (__ia64__)
+#define ACPI_MISALIGNMENT_NOT_SUPPORTED
+#endif
+
 #elif ACPI_MACHINE_WIDTH == 16
 
-/*! [Begin] no source code translation (keep the typedefs) */
+/*! [Begin] no source code translation (keep the typedefs as-is) */
 
 /*
  * 16-bit type definitions
@@ -142,16 +153,12 @@ struct {
 
 /*! [End] no source code translation !*/
 
-typedef u16 acpi_native_uint;
-typedef s16 acpi_native_int;
-
 typedef u32 acpi_table_ptr;
 typedef u32 acpi_io_address;
 typedef char *acpi_physical_address;
 typedef u16 acpi_size;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000002
-#define ACPI_MISALIGNED_TRANSFERS
 #define ACPI_USE_NATIVE_DIVIDE	/* No 64-bit integers, ok to use native divide */
 #define ACPI_MAX_PTR                    ACPI_UINT16_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
@@ -179,16 +186,12 @@ typedef COMPILER_DEPENDENT_UINT64 UINT64;
 
 /*! [End] no source code translation !*/
 
-typedef s32 acpi_native_int;
-typedef u32 acpi_native_uint;
-
 typedef u64 acpi_table_ptr;
 typedef u32 acpi_io_address;
 typedef u64 acpi_physical_address;
 typedef u32 acpi_size;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000004
-#define ACPI_MISALIGNED_TRANSFERS
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
 
@@ -895,6 +898,8 @@ struct acpi_mem_space_context {
 /*
  * Definitions for Resource Attributes
  */
+typedef u16 acpi_rs_length;	/* Resource Length field is fixed at 16 bits */
+typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (64_k-1)+3 */
 
 /*
  *  Memory Attributes
@@ -927,8 +932,8 @@ struct acpi_mem_space_context {
 /*
  *  IRQ Attributes
  */
-#define ACPI_EDGE_SENSITIVE             (u8) 0x00
-#define ACPI_LEVEL_SENSITIVE            (u8) 0x01
+#define ACPI_LEVEL_SENSITIVE            (u8) 0x00
+#define ACPI_EDGE_SENSITIVE             (u8) 0x01
 
 #define ACPI_ACTIVE_HIGH                (u8) 0x00
 #define ACPI_ACTIVE_LOW                 (u8) 0x01
@@ -975,27 +980,34 @@ struct acpi_mem_space_context {
 #define ACPI_CONSUMER                   (u8) 0x01
 
 /*
+ * If possible, pack the following structures to byte alignment
+ */
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#pragma pack(1)
+#endif
+
+/*
  *  Structures used to describe device resources
  */
 struct acpi_resource_irq {
-	u32 triggering;
-	u32 polarity;
-	u32 sharable;
-	u32 interrupt_count;
-	u32 interrupts[1];
+	u8 triggering;
+	u8 polarity;
+	u8 sharable;
+	u8 interrupt_count;
+	u8 interrupts[1];
 };
 
 struct acpi_resource_dma {
-	u32 type;
-	u32 bus_master;
-	u32 transfer;
-	u32 channel_count;
-	u32 channels[1];
+	u8 type;
+	u8 bus_master;
+	u8 transfer;
+	u8 channel_count;
+	u8 channels[1];
 };
 
 struct acpi_resource_start_dependent {
-	u32 compatibility_priority;
-	u32 performance_robustness;
+	u8 compatibility_priority;
+	u8 performance_robustness;
 };
 
 /*
@@ -1004,20 +1016,20 @@ struct acpi_resource_start_dependent {
  */
 
 struct acpi_resource_io {
-	u32 io_decode;
-	u32 minimum;
-	u32 maximum;
-	u32 alignment;
-	u32 address_length;
+	u8 io_decode;
+	u8 alignment;
+	u8 address_length;
+	u16 minimum;
+	u16 maximum;
 };
 
 struct acpi_resource_fixed_io {
-	u32 address;
-	u32 address_length;
+	u16 address;
+	u8 address_length;
 };
 
 struct acpi_resource_vendor {
-	u32 byte_length;
+	u16 byte_length;
 	u8 byte_data[1];
 };
 
@@ -1026,15 +1038,15 @@ struct acpi_resource_end_tag {
 };
 
 struct acpi_resource_memory24 {
-	u32 read_write_attribute;
-	u32 minimum;
-	u32 maximum;
-	u32 alignment;
-	u32 address_length;
+	u8 write_protect;
+	u16 minimum;
+	u16 maximum;
+	u16 alignment;
+	u16 address_length;
 };
 
 struct acpi_resource_memory32 {
-	u32 read_write_attribute;
+	u8 write_protect;
 	u32 minimum;
 	u32 maximum;
 	u32 alignment;
@@ -1042,57 +1054,59 @@ struct acpi_resource_memory32 {
 };
 
 struct acpi_resource_fixed_memory32 {
-	u32 read_write_attribute;
+	u8 write_protect;
 	u32 address;
 	u32 address_length;
 };
 
 struct acpi_memory_attribute {
-	u16 cache_attribute;
-	u16 read_write_attribute;
+	u8 write_protect;
+	u8 caching;
+	u8 range_type;
+	u8 translation;
 };
 
 struct acpi_io_attribute {
-	u16 range_attribute;
-	u16 translation_attribute;
-};
-
-struct acpi_bus_attribute {
-	u16 reserved1;
-	u16 reserved2;
+	u8 range_type;
+	u8 translation;
+	u8 translation_type;
+	u8 reserved1;
 };
 
 union acpi_resource_attribute {
-	struct acpi_memory_attribute memory;
+	struct acpi_memory_attribute mem;
 	struct acpi_io_attribute io;
-	struct acpi_bus_attribute bus;
+
+	/* Used for the *word_space macros */
+
+	u8 type_specific;
 };
 
 struct acpi_resource_source {
-	u32 index;
-	u32 string_length;
+	u8 index;
+	u16 string_length;
 	char *string_ptr;
 };
 
 /* Fields common to all address descriptors, 16/32/64 bit */
 
 #define ACPI_RESOURCE_ADDRESS_COMMON \
-	u32                                 resource_type; \
-	u32                                 producer_consumer; \
-	u32                                 decode; \
-	u32                                 min_address_fixed; \
-	u32                                 max_address_fixed; \
-	union acpi_resource_attribute       attribute;
+	u8                                  resource_type; \
+	u8                                  producer_consumer; \
+	u8                                  decode; \
+	u8                                  min_address_fixed; \
+	u8                                  max_address_fixed; \
+	union acpi_resource_attribute       info;
 
 struct acpi_resource_address {
 ACPI_RESOURCE_ADDRESS_COMMON};
 
 struct acpi_resource_address16 {
-	ACPI_RESOURCE_ADDRESS_COMMON u32 granularity;
-	u32 minimum;
-	u32 maximum;
-	u32 translation_offset;
-	u32 address_length;
+	ACPI_RESOURCE_ADDRESS_COMMON u16 granularity;
+	u16 minimum;
+	u16 maximum;
+	u16 translation_offset;
+	u16 address_length;
 	struct acpi_resource_source resource_source;
 };
 
@@ -1115,30 +1129,30 @@ struct acpi_resource_address64 {
 };
 
 struct acpi_resource_extended_address64 {
-	ACPI_RESOURCE_ADDRESS_COMMON u64 granularity;
+	ACPI_RESOURCE_ADDRESS_COMMON u8 revision_iD;
+	u64 granularity;
 	u64 minimum;
 	u64 maximum;
 	u64 translation_offset;
 	u64 address_length;
-	u64 type_specific_attributes;
-	u8 revision_iD;
+	u64 type_specific;
 };
 
 struct acpi_resource_extended_irq {
-	u32 producer_consumer;
-	u32 triggering;
-	u32 polarity;
-	u32 sharable;
-	u32 interrupt_count;
+	u8 producer_consumer;
+	u8 triggering;
+	u8 polarity;
+	u8 sharable;
+	u8 interrupt_count;
 	struct acpi_resource_source resource_source;
 	u32 interrupts[1];
 };
 
 struct acpi_resource_generic_register {
-	u32 space_id;
-	u32 bit_width;
-	u32 bit_offset;
-	u32 access_size;
+	u8 space_id;
+	u8 bit_width;
+	u8 bit_offset;
+	u8 access_size;
 	u64 address;
 };
 
@@ -1192,14 +1206,17 @@ struct acpi_resource {
 	union acpi_resource_data data;
 };
 
-#define ACPI_RESOURCE_LENGTH                12
-#define ACPI_RESOURCE_LENGTH_NO_DATA        8	/* Id + Length fields */
+/* restore default alignment */
 
-#define ACPI_SIZEOF_RESOURCE(type)          (u32) (ACPI_RESOURCE_LENGTH_NO_DATA + sizeof (type))
+#pragma pack()
+
+#define ACPI_RS_SIZE_MIN                    12
+#define ACPI_RS_SIZE_NO_DATA                8	/* Id + Length fields */
+#define ACPI_RS_SIZE(type)                  (u32) (ACPI_RS_SIZE_NO_DATA + sizeof (type))
 
 #define ACPI_NEXT_RESOURCE(res)             (struct acpi_resource *)((u8 *) res + res->length)
 
-#ifdef ACPI_MISALIGNED_TRANSFERS
+#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
 #define ACPI_ALIGN_RESOURCE_SIZE(length)    (length)
 #else
 #define ACPI_ALIGN_RESOURCE_SIZE(length)    ACPI_ROUND_UP_TO_NATIVE_WORD(length)

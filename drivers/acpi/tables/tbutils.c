@@ -94,9 +94,8 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 		     new_table_desc->pointer->length)
 		    &&
 		    (!ACPI_MEMCMP
-		     ((const char *)table_desc->pointer,
-		      (const char *)new_table_desc->pointer,
-		      (acpi_size) new_table_desc->pointer->length))) {
+		     (table_desc->pointer, new_table_desc->pointer,
+		      new_table_desc->pointer->length))) {
 			/* Match: this table is already installed */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,

@@ -57,7 +57,7 @@ ACPI_MODULE_NAME("rsxface")
 	ACPI_COPY_FIELD(out, in, decode);                    \
 	ACPI_COPY_FIELD(out, in, min_address_fixed);         \
 	ACPI_COPY_FIELD(out, in, max_address_fixed);         \
-	ACPI_COPY_FIELD(out, in, attribute);                 \
+	ACPI_COPY_FIELD(out, in, info);                      \
 	ACPI_COPY_FIELD(out, in, granularity);               \
 	ACPI_COPY_FIELD(out, in, minimum);                   \
 	ACPI_COPY_FIELD(out, in, maximum);                   \

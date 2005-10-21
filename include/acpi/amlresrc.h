@@ -134,7 +134,7 @@ struct aml_resource_end_dependent {
 AML_RESOURCE_SMALL_HEADER_COMMON};
 
 struct aml_resource_io {
-	AML_RESOURCE_SMALL_HEADER_COMMON u8 information;
+	AML_RESOURCE_SMALL_HEADER_COMMON u8 flags;
 	u16 minimum;
 	u16 maximum;
 	u8 alignment;
@@ -164,7 +164,7 @@ struct aml_resource_large_header {
 AML_RESOURCE_LARGE_HEADER_COMMON};
 
 struct aml_resource_memory24 {
-	AML_RESOURCE_LARGE_HEADER_COMMON u8 information;
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
 	u16 minimum;
 	u16 maximum;
 	u16 alignment;
@@ -175,7 +175,7 @@ struct aml_resource_vendor_large {
 AML_RESOURCE_LARGE_HEADER_COMMON};
 
 struct aml_resource_memory32 {
-	AML_RESOURCE_LARGE_HEADER_COMMON u8 information;
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
 	u32 minimum;
 	u32 maximum;
 	u32 alignment;
@@ -183,7 +183,7 @@ struct aml_resource_memory32 {
 };
 
 struct aml_resource_fixed_memory32 {
-	AML_RESOURCE_LARGE_HEADER_COMMON u8 information;
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
 	u32 address;
 	u32 address_length;
 };
@@ -205,7 +205,7 @@ struct aml_resource_extended_address64 {
 	u64 maximum;
 	u64 translation_offset;
 	u64 address_length;
-	u64 type_specific_attributes;
+	u64 type_specific;
 };
 
 #define AML_RESOURCE_EXTENDED_ADDRESS_REVISION          1	/* ACPI 3.0 */
@@ -239,8 +239,8 @@ struct aml_resource_address16 {
 
 struct aml_resource_extended_irq {
 	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
-	u8 table_length;
-	u32 interrupt_number[1];
+	u8 interrupt_count;
+	u32 interrupts[1];
 	/* res_source_index, res_source optional fields follow */
 };
 

@@ -50,6 +50,64 @@ ACPI_MODULE_NAME("rsutils")
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_rs_decode_bitmask
+ *
+ * PARAMETERS:  Mask            - Bitmask to decode
+ *              List            - Where the converted list is returned
+ *
+ * RETURN:      Count of bits set (length of list)
+ *
+ * DESCRIPTION: Convert a bit mask into a list of values
+ *
+ ******************************************************************************/
+u8 acpi_rs_decode_bitmask(u16 mask, u8 * list)
+{
+	acpi_native_uint i;
+	u8 bit_count;
+
+	/* Decode the mask bits */
+
+	for (i = 0, bit_count = 0; mask; i++) {
+		if (mask & 0x0001) {
+			list[bit_count] = (u8) i;
+			bit_count++;
+		}
+
+		mask >>= 1;
+	}
+
+	return (bit_count);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_encode_bitmask
+ *
+ * PARAMETERS:  List            - List of values to encode
+ *              Count           - Length of list
+ *
+ * RETURN:      Encoded bitmask
+ *
+ * DESCRIPTION: Convert a list of values to an encoded bitmask
+ *
+ ******************************************************************************/
+
+u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
+{
+	acpi_native_uint i;
+	u16 mask;
+
+	/* Encode the list into a single bitmask */
+
+	for (i = 0, mask = 0; i < count; i++) {
+		mask |= (0x0001 << list[i]);
+	}
+
+	return (mask);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_rs_move_data
  *
  * PARAMETERS:  Destination         - Pointer to the destination descriptor
@@ -64,6 +122,7 @@ ACPI_MODULE_NAME("rsutils")
  *              via the ACPI_MOVE_* macros. (This is why a memcpy is not used)
  *
  ******************************************************************************/
+
 void
 acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 {
@@ -73,22 +132,30 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 
 	for (i = 0; i < item_count; i++) {
 		switch (move_type) {
-		case ACPI_MOVE_TYPE_16_TO_32:
-			ACPI_MOVE_16_TO_32(&((u32 *) destination)[i],
+			/*
+			 * For the 8-bit case, we can perform the move all at once
+			 * since there are no alignment or endian issues
+			 */
+		case ACPI_RSC_MOVE8:
+			ACPI_MEMCPY(destination, source, item_count);
+			return;
+
+			/*
+			 * 16-, 32-, and 64-bit cases must use the move macros that perform
+			 * endian conversion and/or accomodate hardware that cannot perform
+			 * misaligned memory transfers
+			 */
+		case ACPI_RSC_MOVE16:
+			ACPI_MOVE_16_TO_16(&((u16 *) destination)[i],
 					   &((u16 *) source)[i]);
 			break;
 
-		case ACPI_MOVE_TYPE_32_TO_16:
-			ACPI_MOVE_32_TO_16(&((u16 *) destination)[i],
-					   &((u32 *) source)[i]);
-			break;
-
-		case ACPI_MOVE_TYPE_32_TO_32:
+		case ACPI_RSC_MOVE32:
 			ACPI_MOVE_32_TO_32(&((u32 *) destination)[i],
 					   &((u32 *) source)[i]);
 			break;
 
-		case ACPI_MOVE_TYPE_64_TO_64:
+		case ACPI_RSC_MOVE64:
 			ACPI_MOVE_64_TO_64(&((u64 *) destination)[i],
 					   &((u64 *) source)[i]);
 			break;
@@ -148,80 +215,57 @@ struct acpi_resource_info *acpi_rs_get_resource_info(u8 resource_type)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_get_resource_length
+ * FUNCTION:    acpi_rs_set_resource_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  total_length        - Length of the AML descriptor, including
+ *                                    the header and length fields.
+ *              Aml                 - Pointer to the raw AML descriptor
  *
- * RETURN:      Byte Length
+ * RETURN:      None
  *
- * DESCRIPTION: Get the "Resource Length" of a raw AML descriptor. By
- *              definition, this does not include the size of the descriptor
- *              header or the length field itself.
+ * DESCRIPTION: Set the resource_length field of an AML
+ *              resource descriptor, both Large and Small descriptors are
+ *              supported automatically. Note: Descriptor Type field must
+ *              be valid.
  *
  ******************************************************************************/
 
-u16 acpi_rs_get_resource_length(union aml_resource * aml)
+void
+acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
+			    union aml_resource *aml)
 {
-	u16 resource_length;
+	acpi_rs_length resource_length;
 
 	ACPI_FUNCTION_ENTRY();
 
 	/* Determine if this is a small or large resource */
 
-	if (aml->large_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
+	if (aml->small_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
 		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
 
-		ACPI_MOVE_16_TO_16(&resource_length,
-				   &aml->large_header.resource_length);
+		resource_length = (acpi_rs_length)
+		    (total_length - sizeof(struct aml_resource_large_header));
 
+		/* Insert length into the Large descriptor length field */
+
+		ACPI_MOVE_16_TO_16(&aml->large_header.resource_length,
+				   &resource_length);
 	} else {
 		/* Small Resource type -- bits 2:0 of byte 0 contain the length */
 
-		resource_length = (u16) (aml->small_header.descriptor_type &
-					 ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK);
+		resource_length = (acpi_rs_length)
+		    (total_length - sizeof(struct aml_resource_small_header));
+
+		/* Insert length into the descriptor type byte */
+
+		aml->small_header.descriptor_type = (u8)
+
+		    /* Clear any existing length, preserving descriptor type bits */
+		    ((aml->small_header.
+		      descriptor_type & ~ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK)
+
+		     | resource_length);
 	}
-
-	return (resource_length);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_get_descriptor_length
- *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
- *
- * RETURN:      Byte length
- *
- * DESCRIPTION: Get the total byte length of a raw AML descriptor, including the
- *              length of the descriptor header and the length field itself.
- *              Used to walk descriptor lists.
- *
- ******************************************************************************/
-
-u32 acpi_rs_get_descriptor_length(union aml_resource * aml)
-{
-	u32 descriptor_length;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/* Determine if this is a small or large resource */
-
-	if (aml->large_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
-		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
-
-		ACPI_MOVE_16_TO_32(&descriptor_length,
-				   &aml->large_header.resource_length);
-		descriptor_length += sizeof(struct aml_resource_large_header);
-
-	} else {
-		/* Small Resource type -- bits 2:0 of byte 0 contain the length */
-
-		descriptor_length = (u32) (aml->small_header.descriptor_type &
-					   ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK);
-		descriptor_length += sizeof(struct aml_resource_small_header);
-	}
-
-	return (descriptor_length);
 }
 
 /*******************************************************************************
@@ -243,71 +287,18 @@ u32 acpi_rs_get_descriptor_length(union aml_resource * aml)
 
 void
 acpi_rs_set_resource_header(u8 descriptor_type,
-			    acpi_size total_length, union aml_resource *aml)
+			    acpi_rsdesc_size total_length,
+			    union aml_resource *aml)
 {
-	u16 resource_length;
-
 	ACPI_FUNCTION_ENTRY();
 
-	/* Set the descriptor type */
+	/* Set the Descriptor Type */
 
 	aml->small_header.descriptor_type = descriptor_type;
 
-	/* Determine if this is a small or large resource */
+	/* Set the Resource Length */
 
-	if (aml->small_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
-		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
-
-		resource_length =
-		    (u16) (total_length -
-			   sizeof(struct aml_resource_large_header));
-
-		/* Insert length into the Large descriptor length field */
-
-		ACPI_MOVE_16_TO_16(&aml->large_header.resource_length,
-				   &resource_length);
-	} else {
-		/* Small Resource type -- bits 2:0 of byte 0 contain the length */
-
-		resource_length =
-		    (u16) (total_length -
-			   sizeof(struct aml_resource_small_header));
-
-		/* Insert length into the descriptor type byte */
-
-		aml->small_header.descriptor_type |= (u8) resource_length;
-	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_get_resource_type
- *
- * PARAMETERS:  resource_type       - Byte 0 of a resource descriptor
- *
- * RETURN:      The Resource Type with no extraneous bits (except the
- *              Large/Small descriptor bit -- this is left alone)
- *
- * DESCRIPTION: Extract the Resource Type/Name from the first byte of
- *              a resource descriptor.
- *
- ******************************************************************************/
-
-u8 acpi_rs_get_resource_type(u8 resource_type)
-{
-	ACPI_FUNCTION_ENTRY();
-
-	/* Determine if this is a small or large resource */
-
-	if (resource_type & ACPI_RESOURCE_NAME_LARGE) {
-		/* Large Resource Type -- bits 6:0 contain the name */
-
-		return (resource_type);
-	} else {
-		/* Small Resource Type -- bits 6:3 contain the name */
-
-		return ((u8) (resource_type & ACPI_RESOURCE_NAME_SMALL_MASK));
-	}
+	acpi_rs_set_resource_length(total_length, aml);
 }
 
 /*******************************************************************************
@@ -360,13 +351,13 @@ static u16 acpi_rs_strcpy(char *destination, char *source)
  *
  ******************************************************************************/
 
-u16
-acpi_rs_get_resource_source(u16 resource_length,
-			    acpi_size minimum_length,
+acpi_rs_length
+acpi_rs_get_resource_source(acpi_rs_length resource_length,
+			    acpi_rs_length minimum_length,
 			    struct acpi_resource_source * resource_source,
 			    union aml_resource * aml, char *string_ptr)
 {
-	acpi_size total_length;
+	acpi_rsdesc_size total_length;
 	u8 *aml_resource_source;
 
 	ACPI_FUNCTION_ENTRY();
@@ -382,7 +373,7 @@ acpi_rs_get_resource_source(u16 resource_length,
 	 * Note: Some resource descriptors will have an additional null, so
 	 * we add 1 to the minimum length.
 	 */
-	if (total_length > (minimum_length + 1)) {
+	if (total_length > (acpi_rsdesc_size) (minimum_length + 1)) {
 		/* Get the resource_source_index */
 
 		resource_source->index = aml_resource_source[0];
@@ -398,20 +389,26 @@ acpi_rs_get_resource_source(u16 resource_length,
 			    sizeof(struct acpi_resource_source);
 		}
 
+		/*
+		 * In order for the struct_size to fall on a 32-bit boundary, calculate
+		 * the length of the string (+1 for the NULL terminator) and expand the
+		 * struct_size to the next 32-bit boundary.
+		 *
+		 * Zero the entire area of the buffer.
+		 */
+		total_length =
+		    ACPI_ROUND_UP_to_32_bITS(ACPI_STRLEN
+					     ((char *)&aml_resource_source[1]) +
+					     1);
+		ACPI_MEMSET(resource_source->string_ptr, 0, total_length);
+
 		/* Copy the resource_source string to the destination */
 
 		resource_source->string_length =
 		    acpi_rs_strcpy(resource_source->string_ptr,
 				   (char *)&aml_resource_source[1]);
 
-		/*
-		 * In order for the struct_size to fall on a 32-bit boundary,
-		 * calculate the length of the string and expand the
-		 * struct_size to the next 32-bit boundary.
-		 */
-		return ((u16)
-			ACPI_ROUND_UP_to_32_bITS(resource_source->
-						 string_length));
+		return ((acpi_rs_length) total_length);
 	} else {
 		/* resource_source is not present */
 
@@ -434,18 +431,18 @@ acpi_rs_get_resource_source(u16 resource_length,
  *
  * RETURN:      Total length of the AML descriptor
  *
- * DESCRIPTION: Convert an optoinal resource_source from internal format to a
+ * DESCRIPTION: Convert an optional resource_source from internal format to a
  *              raw AML resource descriptor
  *
  ******************************************************************************/
 
-acpi_size
+acpi_rsdesc_size
 acpi_rs_set_resource_source(union aml_resource * aml,
-			    acpi_size minimum_length,
+			    acpi_rs_length minimum_length,
 			    struct acpi_resource_source * resource_source)
 {
 	u8 *aml_resource_source;
-	acpi_size descriptor_length;
+	acpi_rsdesc_size descriptor_length;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -472,7 +469,7 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 		 * final descriptor length
 		 */
 		descriptor_length +=
-		    ((acpi_size) resource_source->string_length + 1);
+		    ((acpi_rsdesc_size) resource_source->string_length + 1);
 	}
 
 	/* Return the new total length of the AML descriptor */

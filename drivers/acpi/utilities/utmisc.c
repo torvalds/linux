@@ -43,6 +43,7 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
+#include <acpi/amlresrc.h>
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utmisc")
@@ -790,48 +791,147 @@ u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_get_resource_type
+ *
+ * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ *
+ * RETURN:      The Resource Type with no extraneous bits (except the
+ *              Large/Small descriptor bit -- this is left alone)
+ *
+ * DESCRIPTION: Extract the Resource Type/Name from the first byte of
+ *              a resource descriptor.
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_get_resource_type(void *aml)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	/*
+	 * Byte 0 contains the descriptor name (Resource Type)
+	 * Determine if this is a small or large resource
+	 */
+	if (*((u8 *) aml) & ACPI_RESOURCE_NAME_LARGE) {
+		/* Large Resource Type -- bits 6:0 contain the name */
+
+		return (*((u8 *) aml));
+	} else {
+		/* Small Resource Type -- bits 6:3 contain the name */
+
+		return ((u8) (*((u8 *) aml) & ACPI_RESOURCE_NAME_SMALL_MASK));
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_resource_length
+ *
+ * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ *
+ * RETURN:      Byte Length
+ *
+ * DESCRIPTION: Get the "Resource Length" of a raw AML descriptor. By
+ *              definition, this does not include the size of the descriptor
+ *              header or the length field itself.
+ *
+ ******************************************************************************/
+
+u16 acpi_ut_get_resource_length(void *aml)
+{
+	u16 resource_length;
+
+	ACPI_FUNCTION_ENTRY();
+
+	/*
+	 * Byte 0 contains the descriptor name (Resource Type)
+	 * Determine if this is a small or large resource
+	 */
+	if (*((u8 *) aml) & ACPI_RESOURCE_NAME_LARGE) {
+		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
+
+		ACPI_MOVE_16_TO_16(&resource_length, &((u8 *) aml)[1]);
+
+	} else {
+		/* Small Resource type -- bits 2:0 of byte 0 contain the length */
+
+		resource_length = (u16) (*((u8 *) aml) &
+					 ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK);
+	}
+
+	return (resource_length);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_descriptor_length
+ *
+ * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ *
+ * RETURN:      Byte length
+ *
+ * DESCRIPTION: Get the total byte length of a raw AML descriptor, including the
+ *              length of the descriptor header and the length field itself.
+ *              Used to walk descriptor lists.
+ *
+ ******************************************************************************/
+
+u32 acpi_ut_get_descriptor_length(void *aml)
+{
+	u32 descriptor_length;
+
+	ACPI_FUNCTION_ENTRY();
+
+	/* First get the Resource Length (Does not include header length) */
+
+	descriptor_length = acpi_ut_get_resource_length(aml);
+
+	/* Determine if this is a small or large resource */
+
+	if (*((u8 *) aml) & ACPI_RESOURCE_NAME_LARGE) {
+		descriptor_length += sizeof(struct aml_resource_large_header);
+	} else {
+		descriptor_length += sizeof(struct aml_resource_small_header);
+	}
+
+	return (descriptor_length);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_get_resource_end_tag
  *
  * PARAMETERS:  obj_desc        - The resource template buffer object
  *
  * RETURN:      Pointer to the end tag
  *
- * DESCRIPTION: Find the END_TAG resource descriptor in a resource template
+ * DESCRIPTION: Find the END_TAG resource descriptor in an AML resource template
  *
  ******************************************************************************/
 
 u8 *acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc)
 {
-	u8 buffer_byte;
-	u8 *buffer;
-	u8 *end_buffer;
+	u8 *aml;
+	u8 *end_aml;
 
-	buffer = obj_desc->buffer.pointer;
-	end_buffer = buffer + obj_desc->buffer.length;
+	aml = obj_desc->buffer.pointer;
+	end_aml = aml + obj_desc->buffer.length;
 
-	while (buffer < end_buffer) {
-		buffer_byte = *buffer;
-		if (buffer_byte & ACPI_RESOURCE_NAME_LARGE) {
-			/* Large Descriptor - Length is next 2 bytes */
+	/* Walk the resource template, one descriptor per loop */
 
-			buffer += ((*(buffer + 1) | (*(buffer + 2) << 8)) + 3);
-		} else {
-			/* Small Descriptor.  End Tag will be found here */
+	while (aml < end_aml) {
+		if (acpi_ut_get_resource_type(aml) ==
+		    ACPI_RESOURCE_NAME_END_TAG) {
+			/* Found the end_tag descriptor, all done */
 
-			if ((buffer_byte & ACPI_RESOURCE_NAME_SMALL_MASK) ==
-			    ACPI_RESOURCE_NAME_END_TAG) {
-				/* Found the end tag descriptor, all done. */
-
-				return (buffer);
-			}
-
-			/* Length is in the header */
-
-			buffer += ((buffer_byte & 0x07) + 1);
+			return (aml);
 		}
+
+		/* Point to the next resource descriptor */
+
+		aml += acpi_ut_get_resource_length(aml);
 	}
 
-	/* End tag not found */
+	/* End tag was not found */
 
 	return (NULL);
 }

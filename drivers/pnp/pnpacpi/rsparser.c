@@ -401,7 +401,7 @@ pnpacpi_parse_mem24_option(struct pnp_option *option,
 	mem->align = p->alignment;
 	mem->size = p->address_length;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->read_write_attribute) ?
+	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
 			IORESOURCE_MEM_WRITEABLE : 0;
 
 	pnp_register_mem_resource(option,mem);
@@ -424,7 +424,7 @@ pnpacpi_parse_mem32_option(struct pnp_option *option,
 	mem->align = p->alignment;
 	mem->size = p->address_length;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->read_write_attribute) ?
+	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
 			IORESOURCE_MEM_WRITEABLE : 0;
 
 	pnp_register_mem_resource(option,mem);
@@ -446,7 +446,7 @@ pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
 	mem->size = p->address_length;
 	mem->align = 0;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->read_write_attribute) ?
+	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
 			IORESOURCE_MEM_WRITEABLE : 0;
 
 	pnp_register_mem_resource(option,mem);
@@ -734,7 +734,7 @@ static void pnpacpi_encode_mem24(struct acpi_resource *resource,
 	resource->type = ACPI_RESOURCE_TYPE_MEMORY24;
 	resource->length = sizeof(struct acpi_resource);
 	/* Note: pnp_assign_mem will copy pnp_mem->flags into p->flags */
-	resource->data.memory24.read_write_attribute =
+	resource->data.memory24.write_protect =
 		(p->flags & IORESOURCE_MEM_WRITEABLE) ?
 		ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
 	resource->data.memory24.minimum = p->start;
@@ -748,7 +748,7 @@ static void pnpacpi_encode_mem32(struct acpi_resource *resource,
 {
 	resource->type = ACPI_RESOURCE_TYPE_MEMORY32;
 	resource->length = sizeof(struct acpi_resource);
-	resource->data.memory32.read_write_attribute =
+	resource->data.memory32.write_protect =
 		(p->flags & IORESOURCE_MEM_WRITEABLE) ?
 		ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
 	resource->data.memory32.minimum = p->start;
@@ -762,7 +762,7 @@ static void pnpacpi_encode_fixed_mem32(struct acpi_resource *resource,
 {
 	resource->type = ACPI_RESOURCE_TYPE_FIXED_MEMORY32;
 	resource->length = sizeof(struct acpi_resource);
-	resource->data.fixed_memory32.read_write_attribute =
+	resource->data.fixed_memory32.write_protect =
 		(p->flags & IORESOURCE_MEM_WRITEABLE) ?
 		ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
 	resource->data.fixed_memory32.address = p->start;

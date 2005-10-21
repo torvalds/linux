@@ -625,9 +625,8 @@ acpi_ex_do_logical_op(u16 opcode,
 
 		/* Lexicographic compare: compare the data bytes */
 
-		compare = ACPI_MEMCMP((const char *)operand0->buffer.pointer,
-				      (const char *)local_operand1->buffer.
-				      pointer,
+		compare = ACPI_MEMCMP(operand0->buffer.pointer,
+				      local_operand1->buffer.pointer,
 				      (length0 > length1) ? length1 : length0);
 
 		switch (opcode) {
