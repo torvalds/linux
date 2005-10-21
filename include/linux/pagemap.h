@@ -69,7 +69,7 @@ extern struct page * find_lock_page(struct address_space *mapping,
 extern struct page * find_trylock_page(struct address_space *mapping,
 				unsigned long index);
 extern struct page * find_or_create_page(struct address_space *mapping,
-				unsigned long index, unsigned int gfp_mask);
+				unsigned long index, gfp_t gfp_mask);
 unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 			unsigned int nr_pages, struct page **pages);
 unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
@@ -92,9 +92,9 @@ extern int read_cache_pages(struct address_space *mapping,
 		struct list_head *pages, filler_t *filler, void *data);
 
 int add_to_page_cache(struct page *page, struct address_space *mapping,
-				unsigned long index, int gfp_mask);
+				unsigned long index, gfp_t gfp_mask);
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
-				unsigned long index, int gfp_mask);
+				unsigned long index, gfp_t gfp_mask);
 extern void remove_from_page_cache(struct page *page);
 extern void __remove_from_page_cache(struct page *page);
 
