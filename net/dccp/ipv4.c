@@ -463,6 +463,7 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 	if (skb != NULL) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
+		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,
 					    ireq->opt);
@@ -647,6 +648,7 @@ int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 	if (skb != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
 
+		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk,
 					    inet->saddr, inet->daddr, NULL);
 		if (err == NET_XMIT_CN)
