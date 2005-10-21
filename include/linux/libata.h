@@ -388,6 +388,19 @@ struct ata_port_info {
 	struct ata_port_operations	*port_ops;
 };
 
+struct ata_timing {
+	unsigned short mode;		/* ATA mode */
+	unsigned short setup;		/* t1 */
+	unsigned short act8b;		/* t2 for 8-bit I/O */
+	unsigned short rec8b;		/* t2i for 8-bit I/O */
+	unsigned short cyc8b;		/* t0 for 8-bit I/O */
+	unsigned short active;		/* t2 or tD */
+	unsigned short recover;		/* t2i or tK */
+	unsigned short cycle;		/* t0 */
+	unsigned short udma;		/* t2CYCTYP/2 */
+};
+
+#define FIT(v,vmin,vmax)	max_t(short,min_t(short,v,vmax),vmin)
 
 extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
@@ -450,6 +463,32 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
+
+/*
+ * Timing helpers
+ */
+extern int ata_timing_compute(struct ata_device *, unsigned short,
+			      struct ata_timing *, int, int);
+extern void ata_timing_merge(const struct ata_timing *,
+			     const struct ata_timing *, struct ata_timing *,
+			     unsigned int);
+
+enum {
+	ATA_TIMING_SETUP	= (1 << 0),
+	ATA_TIMING_ACT8B	= (1 << 1),
+	ATA_TIMING_REC8B	= (1 << 2),
+	ATA_TIMING_CYC8B	= (1 << 3),
+	ATA_TIMING_8BIT		= ATA_TIMING_ACT8B | ATA_TIMING_REC8B |
+				  ATA_TIMING_CYC8B,
+	ATA_TIMING_ACTIVE	= (1 << 4),
+	ATA_TIMING_RECOVER	= (1 << 5),
+	ATA_TIMING_CYCLE	= (1 << 6),
+	ATA_TIMING_UDMA		= (1 << 7),
+	ATA_TIMING_ALL		= ATA_TIMING_SETUP | ATA_TIMING_ACT8B |
+				  ATA_TIMING_REC8B | ATA_TIMING_CYC8B |
+				  ATA_TIMING_ACTIVE | ATA_TIMING_RECOVER |
+				  ATA_TIMING_CYCLE | ATA_TIMING_UDMA,
+};
 
 
 #ifdef CONFIG_PCI
