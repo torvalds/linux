@@ -21,16 +21,17 @@
 
 static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
 {
-	return mapping->flags & __GFP_BITS_MASK;
+	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;
 }
 
 /*
  * This is non-atomic.  Only to be used before the mapping is activated.
  * Probably needs a barrier...
  */
-static inline void mapping_set_gfp_mask(struct address_space *m, int mask)
+static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 {
-	m->flags = (m->flags & ~__GFP_BITS_MASK) | mask;
+	m->flags = (m->flags & ~(__force unsigned long)__GFP_BITS_MASK) |
+				(__force unsigned long)mask;
 }
 
 /*
