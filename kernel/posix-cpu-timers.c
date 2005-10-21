@@ -387,19 +387,25 @@ int posix_cpu_timer_del(struct k_itimer *timer)
 	if (unlikely(p == NULL))
 		return 0;
 
-	spin_lock(&p->sighand->siglock);
 	if (!list_empty(&timer->it.cpu.entry)) {
-		/*
-		 * Take us off the task's timer list.  We don't need to
-		 * take tasklist_lock and check for the task being reaped.
-		 * If it was reaped, it already called posix_cpu_timers_exit
-		 * and posix_cpu_timers_exit_group to clear all the timers
-		 * that pointed to it.
-		 */
-		list_del(&timer->it.cpu.entry);
-		put_task_struct(p);
+		read_lock(&tasklist_lock);
+		if (unlikely(p->signal == NULL)) {
+			/*
+			 * We raced with the reaping of the task.
+			 * The deletion should have cleared us off the list.
+			 */
+			BUG_ON(!list_empty(&timer->it.cpu.entry));
+		} else {
+			/*
+			 * Take us off the task's timer list.
+			 */
+			spin_lock(&p->sighand->siglock);
+			list_del(&timer->it.cpu.entry);
+			spin_unlock(&p->sighand->siglock);
+		}
+		read_unlock(&tasklist_lock);
 	}
-	spin_unlock(&p->sighand->siglock);
+	put_task_struct(p);
 
 	return 0;
 }
