@@ -177,6 +177,8 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 		__rpc_purge_upcall(inode, -EPIPE);
 	if (rpci->ops->release_pipe)
 		rpci->ops->release_pipe(inode);
+	if (!rpci->nreaders && !rpci->nwriters)
+		rpci->ops = NULL;
 out:
 	up(&inode->i_sem);
 	return 0;

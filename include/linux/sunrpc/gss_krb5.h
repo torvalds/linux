@@ -116,18 +116,22 @@ enum seal_alg {
 
 s32
 make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
-		   struct xdr_netobj *cksum);
+		   int body_offset, struct xdr_netobj *cksum);
+
+u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
+		struct xdr_netobj *);
+
+u32 gss_verify_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
+		struct xdr_netobj *);
 
 u32
-krb5_make_token(struct krb5_ctx *context_handle, int qop_req,
-	struct xdr_buf *input_message_buffer,
-	struct xdr_netobj *output_message_buffer, int toktype);
+gss_wrap_kerberos(struct gss_ctx *ctx_id, int offset,
+		struct xdr_buf *outbuf, struct page **pages);
 
 u32
-krb5_read_token(struct krb5_ctx *context_handle,
-	  struct xdr_netobj *input_token_buffer,
-	  struct xdr_buf *message_buffer,
-	  int *qop_state, int toktype);
+gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset,
+		struct xdr_buf *buf);
+
 
 u32
 krb5_encrypt(struct crypto_tfm * key,
@@ -136,6 +140,13 @@ krb5_encrypt(struct crypto_tfm * key,
 u32
 krb5_decrypt(struct crypto_tfm * key,
 	     void *iv, void *in, void *out, int length); 
+
+int
+gss_encrypt_xdr_buf(struct crypto_tfm *tfm, struct xdr_buf *outbuf, int offset,
+		struct page **pages);
+
+int
+gss_decrypt_xdr_buf(struct crypto_tfm *tfm, struct xdr_buf *inbuf, int offset);
 
 s32
 krb5_make_seq_num(struct crypto_tfm * key,

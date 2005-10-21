@@ -96,14 +96,14 @@ static int vesafb_blank(int blank, struct fb_info *info)
 		int loop = 10000;
 		u8 seq = 0, crtc17 = 0;
 
-		err = 0;
-
-		if (blank) {
+		if (blank == FB_BLANK_POWERDOWN) {
 			seq = 0x20;
 			crtc17 = 0x00;
+			err = 0;
 		} else {
 			seq = 0x00;
 			crtc17 = 0x80;
+			err = (blank == FB_BLANK_UNBLANK) ? 0 : -EINVAL;
 		}
 
 		vga_wseq(NULL, 0x00, 0x01);
