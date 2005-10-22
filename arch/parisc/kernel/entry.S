@@ -970,9 +970,6 @@ intr_return:
 	add     %r19,%r20,%r19	/* now have &irq_stat[smp_processor_id()] */
 #endif /* CONFIG_SMP */
 
-	LDREG   IRQSTAT_SIRQ_PEND(%r19),%r20    /* hardirq.h: unsigned long */
-	cmpib,<>,n 0,%r20,intr_do_softirq /* forward */
-
 intr_check_resched:
 
 	/* check for reschedule */
@@ -1015,17 +1012,6 @@ intr_restore:
 	nop
 	nop
 	nop
-	nop
-
-	.import do_softirq,code
-intr_do_softirq:
-	BL      do_softirq,%r2
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#else
-	nop
-#endif
-	b       intr_check_resched
 	nop
 
 	.import schedule,code
@@ -2096,9 +2082,6 @@ syscall_check_bh:
 	add     %r19,%r20,%r19	/* now have &irq_stat[smp_processor_id()] */
 #endif /* CONFIG_SMP */
 
-	LDREG   IRQSTAT_SIRQ_PEND(%r19),%r20    /* hardirq.h: unsigned long */
-	cmpib,<>,n 0,%r20,syscall_do_softirq /* forward */
-
 syscall_check_resched:
 
 	/* check for reschedule */
@@ -2235,16 +2218,6 @@ pt_regs_ok:
 	copy	%r25,%r16
 	b	intr_restore
 	nop
-
-	.import do_softirq,code
-syscall_do_softirq:
-	BL      do_softirq,%r2
-	nop
-	/* NOTE: We enable I-bit incase we schedule later,
-	 * and we might be going back to userspace if we were
-	 * traced. */
-	b       syscall_check_resched
-	ssm     PSW_SM_I, %r0  /* do_softirq returns with I bit off */
 
 	.import schedule,code
 syscall_do_resched:
