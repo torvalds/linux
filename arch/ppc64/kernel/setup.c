@@ -585,6 +585,10 @@ void __init setup_system(void)
 	 */
 	finish_device_tree();
 
+#ifdef CONFIG_BOOTX_TEXT
+	init_boot_display();
+#endif
+
 	/*
 	 * Initialize xmon
 	 */

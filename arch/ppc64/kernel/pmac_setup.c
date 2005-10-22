@@ -274,48 +274,6 @@ static void pmac_halt(void)
 	pmac_power_off();
 }
 
-#ifdef CONFIG_BOOTX_TEXT
-static void btext_putc(unsigned char c)
-{
-	btext_drawchar(c);
-}
-
-static void __init init_boot_display(void)
-{
-	char *name;
-	struct device_node *np = NULL; 
-	int rc = -ENODEV;
-
-	printk("trying to initialize btext ...\n");
-
-	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name != NULL) {
-		np = of_find_node_by_path(name);
-		if (np != NULL) {
-			if (strcmp(np->type, "display") != 0) {
-				printk("boot stdout isn't a display !\n");
-				of_node_put(np);
-				np = NULL;
-			}
-		}
-	}
-	if (np)
-		rc = btext_initialize(np);
-	if (rc == 0)
-		return;
-
-	for (np = NULL; (np = of_find_node_by_type(np, "display"));) {
-		if (get_property(np, "linux,opened", NULL)) {
-			printk("trying %s ...\n", np->full_name);
-			rc = btext_initialize(np);
-			printk("result: %d\n", rc);
-		}
-		if (rc == 0)
-			return;
-	}
-}
-#endif /* CONFIG_BOOTX_TEXT */
-
 /* 
  * Early initialization.
  */
@@ -333,13 +291,6 @@ static void __init pmac_init_early(void)
 		sccdbg = 1;
        		udbg_init_scc(NULL);
        	}
-#ifdef CONFIG_BOOTX_TEXT
-	else {
-		init_boot_display();
-
-		udbg_putc = btext_putc;
-	}
-#endif /* CONFIG_BOOTX_TEXT */
 
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
