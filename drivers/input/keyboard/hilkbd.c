@@ -22,7 +22,7 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/init.h>
-#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/hil.h>
 #include <linux/spinlock.h>
 

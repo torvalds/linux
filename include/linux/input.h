@@ -644,6 +644,7 @@ struct input_absinfo {
 #define BUS_ADB			0x17
 #define BUS_I2C			0x18
 #define BUS_HOST		0x19
+#define BUS_GSC			0x1A
 
 /*
  * Values describing the status of an effect
