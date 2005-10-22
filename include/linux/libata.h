@@ -91,7 +91,7 @@ enum {
 	ATA_SHT_EMULATED	= 1,
 	ATA_SHT_CMD_PER_LUN	= 1,
 	ATA_SHT_THIS_ID		= -1,
-	ATA_SHT_USE_CLUSTERING	= 0,
+	ATA_SHT_USE_CLUSTERING	= 1,
 
 	/* struct ata_device stuff */
 	ATA_DFLAG_LBA48		= (1 << 0), /* device supports LBA48 */
