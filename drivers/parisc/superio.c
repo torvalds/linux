@@ -11,6 +11,7 @@
  * 	(C) Copyright 2000 Alex deVries <alex@onefishtwo.ca>
  *      (C) Copyright 2001 John Marvin <jsm fc hp com>
  *      (C) Copyright 2003 Grant Grundler <grundler parisc-linux org>
+ *	(C) Copyright 2005 Kyle McMartin <kyle@parisc-linux.org>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -405,6 +406,7 @@ static void __devinit superio_serial_init(void)
         
 	serial[0].iobase = sio_dev.sp1_base;
 	serial[0].irq = SP1_IRQ;
+	spin_lock_init(&serial[0].lock);
 
 	retval = early_serial_setup(&serial[0]);
 	if (retval < 0) {
@@ -414,6 +416,7 @@ static void __devinit superio_serial_init(void)
 
 	serial[1].iobase = sio_dev.sp2_base;
 	serial[1].irq = SP2_IRQ;
+	spin_lock_init(&serial[1].lock);
 	retval = early_serial_setup(&serial[1]);
 
 	if (retval < 0)
