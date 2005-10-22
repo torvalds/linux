@@ -145,8 +145,8 @@ restore_control_regs:
 /* rfi_virt2real() and rfi_real2virt() could perhaps be adapted for
  * more general-purpose use by the several places which need RFIs
  */
-	.align 128
 	.text
+	.align 128
 rfi_virt2real:
 	/* switch to real mode... */
 	rsm		PSW_SM_I,%r0
