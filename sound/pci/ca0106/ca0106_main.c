@@ -1331,27 +1331,33 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 }
 
 
-void ca0106_midi_interrupt_enable(ca_midi_t *midi, int intr){
+static void ca0106_midi_interrupt_enable(ca_midi_t *midi, int intr)
+{
 	snd_ca0106_intr_enable((ca0106_t *)(midi->dev_id), intr);
 }
 
-void ca0106_midi_interrupt_disable(ca_midi_t *midi, int intr){
+static void ca0106_midi_interrupt_disable(ca_midi_t *midi, int intr)
+{
 	snd_ca0106_intr_disable((ca0106_t *)(midi->dev_id), intr);
 }
 
-unsigned char ca0106_midi_read(ca_midi_t *midi, int idx){
+static unsigned char ca0106_midi_read(ca_midi_t *midi, int idx)
+{
 	return (unsigned char)snd_ca0106_ptr_read((ca0106_t *)(midi->dev_id), midi->port + idx, 0);
 }
 
-void ca0106_midi_write(ca_midi_t *midi, int data, int idx){
+static void ca0106_midi_write(ca_midi_t *midi, int data, int idx)
+{
 	snd_ca0106_ptr_write((ca0106_t *)(midi->dev_id), midi->port + idx, 0, data);
 }
 
-snd_card_t *ca0106_dev_id_card(void *dev_id){
+static snd_card_t *ca0106_dev_id_card(void *dev_id)
+{
 	return ((ca0106_t *)dev_id)->card;
 }
 
-int ca0106_dev_id_port(void *dev_id){
+static int ca0106_dev_id_port(void *dev_id)
+{
 	return ((ca0106_t *)dev_id)->port;
 }
 
@@ -1457,19 +1463,13 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 		return err;
 	}
 
-#ifdef CONFIG_SND_DEBUG_DETECT
-	printk("ca0106: probe for MIDI channel A ...");
-#endif
+	snd_printdd("ca0106: probe for MIDI channel A ...");
 	if ((err = snd_ca0106_midi(chip,CA0106_MIDI_CHAN_A)) < 0) {
 		snd_card_free(card);
-#ifdef CONFIG_SND_DEBUG_DETECT
-		printk(" failed, err=0x%x\n",err);
-#endif
+		snd_printdd(" failed, err=0x%x\n",err);
 		return err;
 	}
-#ifdef CONFIG_SND_DEBUG_DETECT
-	printk(" done.\n");
-#endif
+	snd_printdd(" done.\n");
 
 	snd_ca0106_proc_init(chip);
 

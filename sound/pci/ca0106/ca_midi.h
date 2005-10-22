@@ -64,9 +64,6 @@ struct ca_midi {
 	int (*get_dev_id_port)(void *dev_id);
 };
 
-void ca_midi_interrupt(ca_midi_t *midi, unsigned int status);
-
 int __devinit ca_midi_init(void *card, ca_midi_t *midi, int device, char *name);
 
-void ca_midi_free(ca_midi_t *midi);
 
