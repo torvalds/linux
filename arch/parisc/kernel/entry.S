@@ -863,6 +863,7 @@ __execve:
 _switch_to:
 	STREG	 %r2, -RP_OFFSET(%r30)
 
+	callee_save_float
 	callee_save
 
 	load32	_switch_to_ret, %r2
@@ -879,6 +880,7 @@ _switch_to:
 _switch_to_ret:
 	mtctl	%r0, %cr0		/* Needed for single stepping */
 	callee_rest
+	callee_rest_float
 
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)

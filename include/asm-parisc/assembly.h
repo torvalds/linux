@@ -21,6 +21,7 @@
 #ifndef _PARISC_ASSEMBLY_H
 #define _PARISC_ASSEMBLY_H
 
+#define CALLEE_FLOAT_FRAME_SIZE	80
 #ifdef __LP64__
 #define LDREG	ldd
 #define STREG	std
@@ -30,7 +31,7 @@
 #define SHRREG  shrd
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
-#define CALLEE_SAVE_FRAME_SIZE	144
+#define CALLEE_REG_FRAME_SIZE	144
 #else
 #define LDREG	ldw
 #define STREG	stw
@@ -40,8 +41,9 @@
 #define SHRREG  shr
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
-#define CALLEE_SAVE_FRAME_SIZE	128
+#define CALLEE_REG_FRAME_SIZE	128
 #endif
+#define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)
 
 #ifdef CONFIG_PA20
 #define BL		b,l
@@ -300,9 +302,35 @@
 	fldd,mb	-8(\regs),       %fr0
 	.endm
 
+	.macro	callee_save_float
+	fstd,ma	 %fr12,	8(%r30)
+	fstd,ma	 %fr13,	8(%r30)
+	fstd,ma	 %fr14,	8(%r30)
+	fstd,ma	 %fr15,	8(%r30)
+	fstd,ma	 %fr16,	8(%r30)
+	fstd,ma	 %fr17,	8(%r30)
+	fstd,ma	 %fr18,	8(%r30)
+	fstd,ma	 %fr19,	8(%r30)
+	fstd,ma	 %fr20,	8(%r30)
+	fstd,ma	 %fr21,	8(%r30)
+	.endm
+
+	.macro	callee_rest_float
+	fldd,mb	-8(%r30),   %fr21
+	fldd,mb	-8(%r30),   %fr20
+	fldd,mb	-8(%r30),   %fr19
+	fldd,mb	-8(%r30),   %fr18
+	fldd,mb	-8(%r30),   %fr17
+	fldd,mb	-8(%r30),   %fr16
+	fldd,mb	-8(%r30),   %fr15
+	fldd,mb	-8(%r30),   %fr14
+	fldd,mb	-8(%r30),   %fr13
+	fldd,mb	-8(%r30),   %fr12
+	.endm
+
 #ifdef __LP64__
 	.macro	callee_save
-	std,ma	  %r3,	CALLEE_SAVE_FRAME_SIZE(%r30)
+	std,ma	  %r3,	 CALLEE_REG_FRAME_SIZE(%r30)
 	mfctl	  %cr27, %r3
 	std	  %r4,	-136(%r30)
 	std	  %r5,	-128(%r30)
@@ -340,13 +368,13 @@
 	ldd	-128(%r30),    %r5
 	ldd	-136(%r30),    %r4
 	mtctl	%r3, %cr27
-	ldd,mb	-CALLEE_SAVE_FRAME_SIZE(%r30),    %r3
+	ldd,mb	-CALLEE_REG_FRAME_SIZE(%r30),    %r3
 	.endm
 
 #else /* ! __LP64__ */
 
 	.macro	callee_save
-	stw,ma	 %r3,	CALLEE_SAVE_FRAME_SIZE(%r30)
+	stw,ma	 %r3,	CALLEE_REG_FRAME_SIZE(%r30)
 	mfctl	 %cr27, %r3
 	stw	 %r4,	-124(%r30)
 	stw	 %r5,	-120(%r30)
@@ -384,7 +412,7 @@
 	ldw	-120(%r30),   %r5
 	ldw	-124(%r30),   %r4
 	mtctl	%r3, %cr27
-	ldw,mb	-CALLEE_SAVE_FRAME_SIZE(%r30),   %r3
+	ldw,mb	-CALLEE_REG_FRAME_SIZE(%r30),   %r3
 	.endm
 #endif /* ! __LP64__ */
 
