@@ -821,7 +821,7 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 			goto badframe;
 		regs->link = (unsigned long) frame->tramp;
 	}
-	if (put_user(regs->gpr[1], (unsigned long __user *)newsp))
+	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = sig;
@@ -829,7 +829,6 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 	regs->gpr[5] = (unsigned long) &rt_sf->uc;
 	regs->gpr[6] = (unsigned long) rt_sf;
 	regs->nip = (unsigned long) ka->sa.sa_handler;
-	regs->link = (unsigned long) frame->tramp;
 	regs->trap = 0;
 #ifdef CONFIG_PPC64
 	regs->result = 0;
