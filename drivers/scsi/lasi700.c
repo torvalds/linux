@@ -125,8 +125,6 @@ lasi700_probe(struct parisc_device *dev)
 		hostdata->dmode_extra = DMODE_FC2;
 	}
 
-	NCR_700_set_mem_mapped(hostdata);
-
 	host = NCR_700_detect(&lasi700_template, hostdata, &dev->dev);
 	if (!host)
 		goto out_kfree;
