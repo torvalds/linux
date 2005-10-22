@@ -104,6 +104,24 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+
+unsigned long profile_pc(struct pt_regs *regs)
+{
+	unsigned long pc = instruction_pointer(regs);
+
+	if (regs->gr[0] & PSW_N)
+		pc -= 4;
+
+#ifdef CONFIG_SMP
+	if (in_lock_functions(pc))
+		pc = regs->gr[2];
+#endif
+
+	return pc;
+}
+EXPORT_SYMBOL(profile_pc);
+
+
 /*** converted from ia64 ***/
 /*
  * Return the number of micro-seconds that elapsed since the last
