@@ -59,9 +59,7 @@
 #define DBG(fmt...)
 #endif
 
-extern void pmac_secondary_start_1(void);
-extern void pmac_secondary_start_2(void);
-extern void pmac_secondary_start_3(void);
+extern void __secondary_start_pmac_0(void);
 
 extern struct smp_ops_t *smp_ops;
 
@@ -236,7 +234,7 @@ static int __init smp_core99_probe(void)
 
 static void __init smp_core99_kick_cpu(int nr)
 {
-	int save_vector, j;
+	unsigned int save_vector, j;
 	unsigned long new_vector;
 	unsigned long flags;
 	volatile unsigned int *vector
@@ -253,20 +251,9 @@ static void __init smp_core99_kick_cpu(int nr)
 	save_vector = *vector;
 
 	/* Setup fake reset vector that does	
-	 *   b .pmac_secondary_start - KERNELBASE
+	 *   b __secondary_start_pmac_0 + nr*8 - KERNELBASE
 	 */
-	switch(nr) {
-	case 1:
-		new_vector = (unsigned long)pmac_secondary_start_1;
-		break;
-	case 2:
-		new_vector = (unsigned long)pmac_secondary_start_2;
-		break;			
-	case 3:
-	default:
-		new_vector = (unsigned long)pmac_secondary_start_3;
-		break;
-	}
+	new_vector = (unsigned long) __secondary_start_pmac_0 + nr * 8;
 	*vector = 0x48000002 + (new_vector - KERNELBASE);
 
 	/* flush data cache and inval instruction cache */
