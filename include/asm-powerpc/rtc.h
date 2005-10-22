@@ -52,10 +52,8 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 /* Set the current date and time in the real time clock. */
 static inline int set_rtc_time(struct rtc_time *time)
 {
-	if (ppc_md.get_rtc_time) {
-		ppc_md.set_rtc_time(time);
-		return 0;
-	}
+	if (ppc_md.set_rtc_time)
+		return ppc_md.set_rtc_time(time);
 	return -EINVAL;
 }
 
