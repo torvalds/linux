@@ -1082,6 +1082,31 @@ static inline void ata_dump_id(struct ata_device *dev)
 		dev->id[93]);
 }
 
+/*
+ *	Compute the PIO modes available for this device. This is not as
+ *	trivial as it seems if we must consider early devices correctly.
+ *
+ *	FIXME: pre IDE drive timing (do we care ?). 
+ */
+
+static unsigned int ata_pio_modes(struct ata_device *adev)
+{
+	u16 modes;
+
+	/* Usual case. Word 53 indicates word 88 is valid */
+	if (adev->id[ATA_ID_FIELD_VALID] & (1 << 2)) {
+		modes = adev->id[ATA_ID_PIO_MODES] & 0x03;
+		modes <<= 3;
+		modes |= 0x7;
+		return modes;
+	}
+
+	/* If word 88 isn't valid then Word 51 holds the PIO timing number
+	   for the maximum. Turn it into a mask and return it */
+	modes = (2 << (adev->id[ATA_ID_OLD_PIO_MODES] & 0xFF)) - 1 ;
+	return modes;
+}
+
 /**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
@@ -1215,10 +1240,8 @@ retry:
 	xfer_modes = dev->id[ATA_ID_UDMA_MODES];
 	if (!xfer_modes)
 		xfer_modes = (dev->id[ATA_ID_MWDMA_MODES]) << ATA_SHIFT_MWDMA;
-	if (!xfer_modes) {
-		xfer_modes = (dev->id[ATA_ID_PIO_MODES]) << (ATA_SHIFT_PIO + 3);
-		xfer_modes |= (0x7 << ATA_SHIFT_PIO);
-	}
+	if (!xfer_modes)
+		xfer_modes = ata_pio_modes(dev);
 
 	ata_dump_id(dev);
 
@@ -1513,6 +1536,152 @@ void ata_port_disable(struct ata_port *ap)
 	ap->device[0].class = ATA_DEV_NONE;
 	ap->device[1].class = ATA_DEV_NONE;
 	ap->flags |= ATA_FLAG_PORT_DISABLED;
+}
+
+/*
+ * This mode timing computation functionality is ported over from
+ * drivers/ide/ide-timing.h and was originally written by Vojtech Pavlik
+ */
+/*
+ * PIO 0-5, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
+ * These were taken from ATA/ATAPI-6 standard, rev 0a, except
+ * for PIO 5, which is a nonstandard extension and UDMA6, which
+ * is currently supported only by Maxtor drives. 
+ */
+
+static const struct ata_timing ata_timing[] = {
+
+	{ XFER_UDMA_6,     0,   0,   0,   0,   0,   0,   0,  15 },
+	{ XFER_UDMA_5,     0,   0,   0,   0,   0,   0,   0,  20 },
+	{ XFER_UDMA_4,     0,   0,   0,   0,   0,   0,   0,  30 },
+	{ XFER_UDMA_3,     0,   0,   0,   0,   0,   0,   0,  45 },
+
+	{ XFER_UDMA_2,     0,   0,   0,   0,   0,   0,   0,  60 },
+	{ XFER_UDMA_1,     0,   0,   0,   0,   0,   0,   0,  80 },
+	{ XFER_UDMA_0,     0,   0,   0,   0,   0,   0,   0, 120 },
+
+/*	{ XFER_UDMA_SLOW,  0,   0,   0,   0,   0,   0,   0, 150 }, */
+                                          
+	{ XFER_MW_DMA_2,  25,   0,   0,   0,  70,  25, 120,   0 },
+	{ XFER_MW_DMA_1,  45,   0,   0,   0,  80,  50, 150,   0 },
+	{ XFER_MW_DMA_0,  60,   0,   0,   0, 215, 215, 480,   0 },
+                                          
+	{ XFER_SW_DMA_2,  60,   0,   0,   0, 120, 120, 240,   0 },
+	{ XFER_SW_DMA_1,  90,   0,   0,   0, 240, 240, 480,   0 },
+	{ XFER_SW_DMA_0, 120,   0,   0,   0, 480, 480, 960,   0 },
+
+/*	{ XFER_PIO_5,     20,  50,  30, 100,  50,  30, 100,   0 }, */
+	{ XFER_PIO_4,     25,  70,  25, 120,  70,  25, 120,   0 },
+	{ XFER_PIO_3,     30,  80,  70, 180,  80,  70, 180,   0 },
+
+	{ XFER_PIO_2,     30, 290,  40, 330, 100,  90, 240,   0 },
+	{ XFER_PIO_1,     50, 290,  93, 383, 125, 100, 383,   0 },
+	{ XFER_PIO_0,     70, 290, 240, 600, 165, 150, 600,   0 },
+
+/*	{ XFER_PIO_SLOW, 120, 290, 240, 960, 290, 240, 960,   0 }, */
+
+	{ 0xFF }
+};
+
+#define ENOUGH(v,unit)		(((v)-1)/(unit)+1)
+#define EZ(v,unit)		((v)?ENOUGH(v,unit):0)
+
+static void ata_timing_quantize(const struct ata_timing *t, struct ata_timing *q, int T, int UT)
+{
+	q->setup   = EZ(t->setup   * 1000,  T);
+	q->act8b   = EZ(t->act8b   * 1000,  T);
+	q->rec8b   = EZ(t->rec8b   * 1000,  T);
+	q->cyc8b   = EZ(t->cyc8b   * 1000,  T);
+	q->active  = EZ(t->active  * 1000,  T);
+	q->recover = EZ(t->recover * 1000,  T);
+	q->cycle   = EZ(t->cycle   * 1000,  T);
+	q->udma    = EZ(t->udma    * 1000, UT);
+}
+
+void ata_timing_merge(const struct ata_timing *a, const struct ata_timing *b,
+		      struct ata_timing *m, unsigned int what)
+{
+	if (what & ATA_TIMING_SETUP  ) m->setup   = max(a->setup,   b->setup);
+	if (what & ATA_TIMING_ACT8B  ) m->act8b   = max(a->act8b,   b->act8b);
+	if (what & ATA_TIMING_REC8B  ) m->rec8b   = max(a->rec8b,   b->rec8b);
+	if (what & ATA_TIMING_CYC8B  ) m->cyc8b   = max(a->cyc8b,   b->cyc8b);
+	if (what & ATA_TIMING_ACTIVE ) m->active  = max(a->active,  b->active);
+	if (what & ATA_TIMING_RECOVER) m->recover = max(a->recover, b->recover);
+	if (what & ATA_TIMING_CYCLE  ) m->cycle   = max(a->cycle,   b->cycle);
+	if (what & ATA_TIMING_UDMA   ) m->udma    = max(a->udma,    b->udma);
+}
+
+static const struct ata_timing* ata_timing_find_mode(unsigned short speed)
+{
+	const struct ata_timing *t;
+
+	for (t = ata_timing; t->mode != speed; t++)
+		if (t->mode != 0xFF)
+			return NULL;
+	return t; 
+}
+
+int ata_timing_compute(struct ata_device *adev, unsigned short speed,
+		       struct ata_timing *t, int T, int UT)
+{
+	const struct ata_timing *s;
+	struct ata_timing p;
+
+	/*
+	 * Find the mode. 
+	*/
+
+	if (!(s = ata_timing_find_mode(speed)))
+		return -EINVAL;
+
+	/*
+	 * If the drive is an EIDE drive, it can tell us it needs extended
+	 * PIO/MW_DMA cycle timing.
+	 */
+
+	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE drive */
+		memset(&p, 0, sizeof(p));
+		if(speed >= XFER_PIO_0 && speed <= XFER_SW_DMA_0) {
+			if (speed <= XFER_PIO_2) p.cycle = p.cyc8b = adev->id[ATA_ID_EIDE_PIO];
+					    else p.cycle = p.cyc8b = adev->id[ATA_ID_EIDE_PIO_IORDY];
+		} else if(speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2) {
+			p.cycle = adev->id[ATA_ID_EIDE_DMA_MIN];
+		}
+		ata_timing_merge(&p, t, t, ATA_TIMING_CYCLE | ATA_TIMING_CYC8B);
+	}
+
+	/*
+	 * Convert the timing to bus clock counts.
+	 */
+
+	ata_timing_quantize(s, t, T, UT);
+
+	/*
+	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
+	 * and some other commands. We have to ensure that the DMA cycle timing is
+	 * slower/equal than the fastest PIO timing.
+	 */
+
+	if (speed > XFER_PIO_4) {
+		ata_timing_compute(adev, adev->pio_mode, &p, T, UT);
+		ata_timing_merge(&p, t, t, ATA_TIMING_ALL);
+	}
+
+	/*
+	 * Lenghten active & recovery time so that cycle time is correct.
+	 */
+
+	if (t->act8b + t->rec8b < t->cyc8b) {
+		t->act8b += (t->cyc8b - (t->act8b + t->rec8b)) / 2;
+		t->rec8b = t->cyc8b - t->act8b;
+	}
+
+	if (t->active + t->recover < t->cycle) {
+		t->active += (t->cycle - (t->active + t->recover)) / 2;
+		t->recover = t->cycle - t->active;
+	}
+
+	return 0;
 }
 
 static struct {
@@ -4740,6 +4909,9 @@ EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_id_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
+
+EXPORT_SYMBOL_GPL(ata_timing_compute);
+EXPORT_SYMBOL_GPL(ata_timing_merge);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);

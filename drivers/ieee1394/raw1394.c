@@ -412,6 +412,7 @@ static void fcp_request(struct hpsb_host *host, int nodeid, int direction,
 static ssize_t raw1394_read(struct file *file, char __user * buffer,
 			    size_t count, loff_t * offset_is_ignored)
 {
+	unsigned long flags;
 	struct file_info *fi = (struct file_info *)file->private_data;
 	struct list_head *lh;
 	struct pending_request *req;
@@ -435,10 +436,10 @@ static ssize_t raw1394_read(struct file *file, char __user * buffer,
 		}
 	}
 
-	spin_lock_irq(&fi->reqlists_lock);
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	lh = fi->req_complete.next;
 	list_del(lh);
-	spin_unlock_irq(&fi->reqlists_lock);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
 	req = list_entry(lh, struct pending_request, list);
 
@@ -486,6 +487,7 @@ static int state_opened(struct file_info *fi, struct pending_request *req)
 
 static int state_initialized(struct file_info *fi, struct pending_request *req)
 {
+	unsigned long flags;
 	struct host_info *hi;
 	struct raw1394_khost_list *khl;
 
@@ -499,7 +501,7 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 
 	switch (req->req.type) {
 	case RAW1394_REQ_LIST_CARDS:
-		spin_lock_irq(&host_info_lock);
+		spin_lock_irqsave(&host_info_lock, flags);
 		khl = kmalloc(sizeof(struct raw1394_khost_list) * host_count,
 			      SLAB_ATOMIC);
 
@@ -513,7 +515,7 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 				khl++;
 			}
 		}
-		spin_unlock_irq(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 
 		if (khl != NULL) {
 			req->req.error = RAW1394_ERROR_NONE;
@@ -528,7 +530,7 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 		break;
 
 	case RAW1394_REQ_SET_CARD:
-		spin_lock_irq(&host_info_lock);
+		spin_lock_irqsave(&host_info_lock, flags);
 		if (req->req.misc < host_count) {
 			list_for_each_entry(hi, &host_info_list, list) {
 				if (!req->req.misc--)
@@ -550,7 +552,7 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 		} else {
 			req->req.error = RAW1394_ERROR_INVALID_ARG;
 		}
-		spin_unlock_irq(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 
 		req->req.length = 0;
 		break;
@@ -569,7 +571,6 @@ static void handle_iso_listen(struct file_info *fi, struct pending_request *req)
 {
 	int channel = req->req.misc;
 
-	spin_lock_irq(&host_info_lock);
 	if ((channel > 63) || (channel < -64)) {
 		req->req.error = RAW1394_ERROR_INVALID_ARG;
 	} else if (channel >= 0) {
@@ -601,7 +602,6 @@ static void handle_iso_listen(struct file_info *fi, struct pending_request *req)
 
 	req->req.length = 0;
 	queue_complete_req(req);
-	spin_unlock_irq(&host_info_lock);
 }
 
 static void handle_fcp_listen(struct file_info *fi, struct pending_request *req)
@@ -627,6 +627,7 @@ static void handle_fcp_listen(struct file_info *fi, struct pending_request *req)
 static int handle_async_request(struct file_info *fi,
 				struct pending_request *req, int node)
 {
+	unsigned long flags;
 	struct hpsb_packet *packet = NULL;
 	u64 addr = req->req.address & 0xffffffffffffULL;
 
@@ -761,9 +762,9 @@ static int handle_async_request(struct file_info *fi,
 	hpsb_set_packet_complete_task(packet,
 				      (void (*)(void *))queue_complete_cb, req);
 
-	spin_lock_irq(&fi->reqlists_lock);
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	list_add_tail(&req->list, &fi->req_pending);
-	spin_unlock_irq(&fi->reqlists_lock);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
 	packet->generation = req->req.generation;
 
@@ -779,6 +780,7 @@ static int handle_async_request(struct file_info *fi,
 static int handle_iso_send(struct file_info *fi, struct pending_request *req,
 			   int channel)
 {
+	unsigned long flags;
 	struct hpsb_packet *packet;
 
 	packet = hpsb_make_isopacket(fi->host, req->req.length, channel & 0x3f,
@@ -804,9 +806,9 @@ static int handle_iso_send(struct file_info *fi, struct pending_request *req,
 				      (void (*)(void *))queue_complete_req,
 				      req);
 
-	spin_lock_irq(&fi->reqlists_lock);
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	list_add_tail(&req->list, &fi->req_pending);
-	spin_unlock_irq(&fi->reqlists_lock);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
 	/* Update the generation of the packet just before sending. */
 	packet->generation = req->req.generation;
@@ -821,6 +823,7 @@ static int handle_iso_send(struct file_info *fi, struct pending_request *req,
 
 static int handle_async_send(struct file_info *fi, struct pending_request *req)
 {
+	unsigned long flags;
 	struct hpsb_packet *packet;
 	int header_length = req->req.misc & 0xffff;
 	int expect_response = req->req.misc >> 16;
@@ -867,9 +870,9 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 	hpsb_set_packet_complete_task(packet,
 				      (void (*)(void *))queue_complete_cb, req);
 
-	spin_lock_irq(&fi->reqlists_lock);
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	list_add_tail(&req->list, &fi->req_pending);
-	spin_unlock_irq(&fi->reqlists_lock);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
 	/* Update the generation of the packet just before sending. */
 	packet->generation = req->req.generation;
@@ -885,6 +888,7 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 		    u64 addr, size_t length, u16 flags)
 {
+	unsigned long irqflags;
 	struct pending_request *req;
 	struct host_info *hi;
 	struct file_info *fi = NULL;
@@ -899,7 +903,7 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 	       "addr: %4.4x %8.8x length: %Zu", nodeid,
 	       (u16) ((addr >> 32) & 0xFFFF), (u32) (addr & 0xFFFFFFFF),
 	       length);
-	spin_lock(&host_info_lock);
+	spin_lock_irqsave(&host_info_lock, irqflags);
 	hi = find_host_info(host);	/* search address-entry */
 	if (hi != NULL) {
 		list_for_each_entry(fi, &hi->file_info_list, list) {
@@ -924,7 +928,7 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 	if (!found) {
 		printk(KERN_ERR "raw1394: arm_read FAILED addr_entry not found"
 		       " -> rcode_address_error\n");
-		spin_unlock(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, irqflags);
 		return (RCODE_ADDRESS_ERROR);
 	} else {
 		DBGMSG("arm_read addr_entry FOUND");
@@ -954,7 +958,7 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 		req = __alloc_pending_request(SLAB_ATOMIC);
 		if (!req) {
 			DBGMSG("arm_read -> rcode_conflict_error");
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
 		}
@@ -974,7 +978,7 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 		if (!(req->data)) {
 			free_pending_request(req);
 			DBGMSG("arm_read -> rcode_conflict_error");
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
 		}
@@ -1031,13 +1035,14 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 			    sizeof(struct arm_request));
 		queue_complete_req(req);
 	}
-	spin_unlock(&host_info_lock);
+	spin_unlock_irqrestore(&host_info_lock, irqflags);
 	return (rcode);
 }
 
 static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 		     quadlet_t * data, u64 addr, size_t length, u16 flags)
 {
+	unsigned long irqflags;
 	struct pending_request *req;
 	struct host_info *hi;
 	struct file_info *fi = NULL;
@@ -1052,7 +1057,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 	       "addr: %4.4x %8.8x length: %Zu", nodeid,
 	       (u16) ((addr >> 32) & 0xFFFF), (u32) (addr & 0xFFFFFFFF),
 	       length);
-	spin_lock(&host_info_lock);
+	spin_lock_irqsave(&host_info_lock, irqflags);
 	hi = find_host_info(host);	/* search address-entry */
 	if (hi != NULL) {
 		list_for_each_entry(fi, &hi->file_info_list, list) {
@@ -1077,7 +1082,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 	if (!found) {
 		printk(KERN_ERR "raw1394: arm_write FAILED addr_entry not found"
 		       " -> rcode_address_error\n");
-		spin_unlock(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, irqflags);
 		return (RCODE_ADDRESS_ERROR);
 	} else {
 		DBGMSG("arm_write addr_entry FOUND");
@@ -1106,7 +1111,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 		req = __alloc_pending_request(SLAB_ATOMIC);
 		if (!req) {
 			DBGMSG("arm_write -> rcode_conflict_error");
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request my be retried */
 		}
@@ -1118,7 +1123,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 		if (!(req->data)) {
 			free_pending_request(req);
 			DBGMSG("arm_write -> rcode_conflict_error");
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
 		}
@@ -1165,7 +1170,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 			    sizeof(struct arm_request));
 		queue_complete_req(req);
 	}
-	spin_unlock(&host_info_lock);
+	spin_unlock_irqrestore(&host_info_lock, irqflags);
 	return (rcode);
 }
 
@@ -1173,6 +1178,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 		    u64 addr, quadlet_t data, quadlet_t arg, int ext_tcode,
 		    u16 flags)
 {
+	unsigned long irqflags;
 	struct pending_request *req;
 	struct host_info *hi;
 	struct file_info *fi = NULL;
@@ -1198,7 +1204,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 		       (u32) (addr & 0xFFFFFFFF), ext_tcode & 0xFF,
 		       be32_to_cpu(data), be32_to_cpu(arg));
 	}
-	spin_lock(&host_info_lock);
+	spin_lock_irqsave(&host_info_lock, irqflags);
 	hi = find_host_info(host);	/* search address-entry */
 	if (hi != NULL) {
 		list_for_each_entry(fi, &hi->file_info_list, list) {
@@ -1224,7 +1230,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 	if (!found) {
 		printk(KERN_ERR "raw1394: arm_lock FAILED addr_entry not found"
 		       " -> rcode_address_error\n");
-		spin_unlock(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, irqflags);
 		return (RCODE_ADDRESS_ERROR);
 	} else {
 		DBGMSG("arm_lock addr_entry FOUND");
@@ -1307,7 +1313,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 		req = __alloc_pending_request(SLAB_ATOMIC);
 		if (!req) {
 			DBGMSG("arm_lock -> rcode_conflict_error");
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
 		}
@@ -1316,7 +1322,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 		if (!(req->data)) {
 			free_pending_request(req);
 			DBGMSG("arm_lock -> rcode_conflict_error");
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
 		}
@@ -1382,7 +1388,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 			    sizeof(struct arm_response) + 2 * sizeof(*store));
 		queue_complete_req(req);
 	}
-	spin_unlock(&host_info_lock);
+	spin_unlock_irqrestore(&host_info_lock, irqflags);
 	return (rcode);
 }
 
@@ -1390,6 +1396,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		      u64 addr, octlet_t data, octlet_t arg, int ext_tcode,
 		      u16 flags)
 {
+	unsigned long irqflags;
 	struct pending_request *req;
 	struct host_info *hi;
 	struct file_info *fi = NULL;
@@ -1422,7 +1429,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		       (u32) ((be64_to_cpu(arg) >> 32) & 0xFFFFFFFF),
 		       (u32) (be64_to_cpu(arg) & 0xFFFFFFFF));
 	}
-	spin_lock(&host_info_lock);
+	spin_lock_irqsave(&host_info_lock, irqflags);
 	hi = find_host_info(host);	/* search addressentry in file_info's for host */
 	if (hi != NULL) {
 		list_for_each_entry(fi, &hi->file_info_list, list) {
@@ -1449,7 +1456,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		printk(KERN_ERR
 		       "raw1394: arm_lock64 FAILED addr_entry not found"
 		       " -> rcode_address_error\n");
-		spin_unlock(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, irqflags);
 		return (RCODE_ADDRESS_ERROR);
 	} else {
 		DBGMSG("arm_lock64 addr_entry FOUND");
@@ -1533,7 +1540,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		DBGMSG("arm_lock64 -> entering notification-section");
 		req = __alloc_pending_request(SLAB_ATOMIC);
 		if (!req) {
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			DBGMSG("arm_lock64 -> rcode_conflict_error");
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
@@ -1542,7 +1549,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		req->data = kmalloc(size, SLAB_ATOMIC);
 		if (!(req->data)) {
 			free_pending_request(req);
-			spin_unlock(&host_info_lock);
+			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			DBGMSG("arm_lock64 -> rcode_conflict_error");
 			return (RCODE_CONFLICT_ERROR);	/* A resource conflict was detected.
 							   The request may be retried */
@@ -1609,7 +1616,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 			    sizeof(struct arm_response) + 2 * sizeof(*store));
 		queue_complete_req(req);
 	}
-	spin_unlock(&host_info_lock);
+	spin_unlock_irqrestore(&host_info_lock, irqflags);
 	return (rcode);
 }
 
@@ -1980,6 +1987,7 @@ static int write_phypacket(struct file_info *fi, struct pending_request *req)
 	struct hpsb_packet *packet = NULL;
 	int retval = 0;
 	quadlet_t data;
+	unsigned long flags;
 
 	data = be32_to_cpu((u32) req->req.sendb);
 	DBGMSG("write_phypacket called - quadlet 0x%8.8x ", data);
@@ -1990,9 +1998,9 @@ static int write_phypacket(struct file_info *fi, struct pending_request *req)
 	req->packet = packet;
 	hpsb_set_packet_complete_task(packet,
 				      (void (*)(void *))queue_complete_cb, req);
-	spin_lock_irq(&fi->reqlists_lock);
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	list_add_tail(&req->list, &fi->req_pending);
-	spin_unlock_irq(&fi->reqlists_lock);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 	packet->generation = req->req.generation;
 	retval = hpsb_send_packet(packet);
 	DBGMSG("write_phypacket send_packet called => retval: %d ", retval);
@@ -2659,14 +2667,15 @@ static unsigned int raw1394_poll(struct file *file, poll_table * pt)
 {
 	struct file_info *fi = file->private_data;
 	unsigned int mask = POLLOUT | POLLWRNORM;
+	unsigned long flags;
 
 	poll_wait(file, &fi->poll_wait_complete, pt);
 
-	spin_lock_irq(&fi->reqlists_lock);
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	if (!list_empty(&fi->req_complete)) {
 		mask |= POLLIN | POLLRDNORM;
 	}
-	spin_unlock_irq(&fi->reqlists_lock);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
 	return mask;
 }
@@ -2710,6 +2719,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
 	struct arm_addr *arm_addr = NULL;
 	int another_host;
 	int csr_mod = 0;
+	unsigned long flags;
 
 	if (fi->iso_state != RAW1394_ISO_INACTIVE)
 		raw1394_iso_shutdown(fi);
@@ -2720,13 +2730,11 @@ static int raw1394_release(struct inode *inode, struct file *file)
 		}
 	}
 
-	spin_lock_irq(&host_info_lock);
+	spin_lock_irqsave(&host_info_lock, flags);
 	fi->listen_channels = 0;
-	spin_unlock_irq(&host_info_lock);
 
 	fail = 0;
 	/* set address-entries invalid */
-	spin_lock_irq(&host_info_lock);
 
 	while (!list_empty(&fi->addr_list)) {
 		another_host = 0;
@@ -2777,14 +2785,14 @@ static int raw1394_release(struct inode *inode, struct file *file)
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
 	}			/* while */
-	spin_unlock_irq(&host_info_lock);
+	spin_unlock_irqrestore(&host_info_lock, flags);
 	if (fail > 0) {
 		printk(KERN_ERR "raw1394: during addr_list-release "
 		       "error(s) occurred \n");
 	}
 
 	while (!done) {
-		spin_lock_irq(&fi->reqlists_lock);
+		spin_lock_irqsave(&fi->reqlists_lock, flags);
 
 		while (!list_empty(&fi->req_complete)) {
 			lh = fi->req_complete.next;
@@ -2798,7 +2806,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
 		if (list_empty(&fi->req_pending))
 			done = 1;
 
-		spin_unlock_irq(&fi->reqlists_lock);
+		spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
 		if (!done)
 			down_interruptible(&fi->complete_sem);
@@ -2828,9 +2836,9 @@ static int raw1394_release(struct inode *inode, struct file *file)
 		     fi->host->id);
 
 	if (fi->state == connected) {
-		spin_lock_irq(&host_info_lock);
+		spin_lock_irqsave(&host_info_lock, flags);
 		list_del(&fi->list);
-		spin_unlock_irq(&host_info_lock);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 
 		put_device(&fi->host->device);
 	}

@@ -578,8 +578,9 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 				txfid, NULL);
 	if (err) {
 		netif_start_queue(dev);
-		printk(KERN_ERR "%s: Error %d transmitting packet\n",
-		       dev->name, err);
+		if (net_ratelimit())
+			printk(KERN_ERR "%s: Error %d transmitting packet\n",
+				dev->name, err);
 		stats->tx_errors++;
 		goto fail;
 	}

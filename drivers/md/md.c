@@ -3063,6 +3063,7 @@ static int md_thread(void * arg)
 	 * many dirty RAID5 blocks.
 	 */
 
+	allow_signal(SIGKILL);
 	complete(thread->event);
 	while (!kthread_should_stop()) {
 		void (*run)(mddev_t *);
@@ -3111,7 +3112,7 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	thread->mddev = mddev;
 	thread->name = name;
 	thread->timeout = MAX_SCHEDULE_TIMEOUT;
-	thread->tsk = kthread_run(md_thread, thread, mdname(thread->mddev));
+	thread->tsk = kthread_run(md_thread, thread, name, mdname(thread->mddev));
 	if (IS_ERR(thread->tsk)) {
 		kfree(thread);
 		return NULL;
@@ -3569,6 +3570,7 @@ static void md_do_sync(mddev_t *mddev)
 	try_again:
 		if (signal_pending(current)) {
 			flush_signals(current);
+			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			goto skip;
 		}
 		ITERATE_MDDEV(mddev2,tmp) {
