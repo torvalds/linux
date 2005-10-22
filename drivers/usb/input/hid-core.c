@@ -1702,10 +1702,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		if ((endpoint->bmAttributes & 3) != 3)		/* Not an interrupt endpoint */
 			continue;
 
-		/* handle potential highspeed HID correctly */
 		interval = endpoint->bInterval;
-		if (dev->speed == USB_SPEED_HIGH)
-			interval = 1 << (interval - 1);
 
 		/* Change the polling interval of mice. */
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)

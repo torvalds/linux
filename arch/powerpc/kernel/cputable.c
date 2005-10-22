@@ -303,7 +303,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "601",
 		.cpu_features		= CPU_FTRS_PPC601,
 		.cpu_user_features	= COMMON_USER | PPC_FEATURE_601_INSTR |
-			PPC_FEATURE_UNIFIED_CACHE,
+			PPC_FEATURE_UNIFIED_CACHE | PPC_FEATURE_NO_TB,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 	},
@@ -724,7 +724,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00201400,
 		.cpu_name		= "403GCX",
 		.cpu_features		= CPU_FTRS_40X,
-		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
+		.cpu_user_features	= PPC_FEATURE_32 |
+		 	PPC_FEATURE_HAS_MMU | PPC_FEATURE_NO_TB,
 		.icache_bsize		= 16,
 		.dcache_bsize		= 16,
 	},

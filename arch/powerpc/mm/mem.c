@@ -477,8 +477,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	if (cpus_equal(vma->vm_mm->cpu_vm_mask, tmp))
 		local = 1;
 
-	__hash_page(address, pte_val(pte) & (_PAGE_USER|_PAGE_RW), vsid, ptep,
-		    0x300, local);
+	__hash_page(address, 0, vsid, ptep, 0x300, local);
 	local_irq_restore(flags);
 #endif
 #endif

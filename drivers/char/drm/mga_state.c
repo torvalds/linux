@@ -53,7 +53,7 @@ static void mga_emit_clip_rect( drm_mga_private_t *dev_priv,
 
 	/* Force reset of DWGCTL on G400 (eliminates clip disable bit).
 	 */
-	if (dev_priv->chipset == MGA_CARD_TYPE_G400) {
+	if (dev_priv->chipset >= MGA_CARD_TYPE_G400) {
 		DMA_BLOCK(MGA_DWGCTL, ctx->dwgctl,
 			  MGA_LEN + MGA_EXEC, 0x80000000,
 			  MGA_DWGCTL, ctx->dwgctl,

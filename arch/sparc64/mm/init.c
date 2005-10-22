@@ -105,7 +105,7 @@ static void __init read_obp_memory(const char *property,
 		regs[i].phys_addr = base;
 		regs[i].reg_size = size;
 	}
-	sort(regs, ents, sizeof(struct  linux_prom64_registers),
+	sort(regs, ents, sizeof(struct linux_prom64_registers),
 	     cmp_p64, NULL);
 }
 
@@ -367,8 +367,11 @@ struct linux_prom_translation {
 	unsigned long size;
 	unsigned long data;
 };
-static struct linux_prom_translation prom_trans[512] __initdata;
-static unsigned int prom_trans_ents __initdata;
+
+/* Exported for kernel TLB miss handling in ktlb.S */
+struct linux_prom_translation prom_trans[512] __read_mostly;
+unsigned int prom_trans_ents __read_mostly;
+unsigned int swapper_pgd_zero __read_mostly;
 
 extern unsigned long prom_boot_page;
 extern void prom_remap(unsigned long physpage, unsigned long virtpage, int mmu_ihandle);
@@ -378,122 +381,57 @@ extern void register_prom_callbacks(void);
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
 
-/* Exported for kernel TLB miss handling in ktlb.S */
-unsigned long prom_pmd_phys __read_mostly;
-unsigned int swapper_pgd_zero __read_mostly;
-
-static pmd_t *prompmd __read_mostly;
-
-#define BASE_PAGE_SIZE 8192
-
 /*
  * Translate PROM's mapping we capture at boot time into physical address.
  * The second parameter is only set from prom_callback() invocations.
  */
 unsigned long prom_virt_to_phys(unsigned long promva, int *error)
 {
-	pmd_t *pmdp = prompmd + ((promva >> 23) & 0x7ff);
-	pte_t *ptep;
-	unsigned long base;
+	int i;
 
-	if (pmd_none(*pmdp)) {
-		if (error)
-			*error = 1;
-		return 0;
-	}
-	ptep = (pte_t *)__pmd_page(*pmdp) + ((promva >> 13) & 0x3ff);
-	if (!pte_present(*ptep)) {
-		if (error)
-			*error = 1;
-		return 0;
-	}
-	if (error) {
-		*error = 0;
-		return pte_val(*ptep);
-	}
-	base = pte_val(*ptep) & _PAGE_PADDR;
+	for (i = 0; i < prom_trans_ents; i++) {
+		struct linux_prom_translation *p = &prom_trans[i];
 
-	return base + (promva & (BASE_PAGE_SIZE - 1));
+		if (promva >= p->virt &&
+		    promva < (p->virt + p->size)) {
+			unsigned long base = p->data & _PAGE_PADDR;
+
+			if (error)
+				*error = 0;
+			return base + (promva & (8192 - 1));
+		}
+	}
+	if (error)
+		*error = 1;
+	return 0UL;
 }
 
 /* The obp translations are saved based on 8k pagesize, since obp can
  * use a mixture of pagesizes. Misses to the LOW_OBP_ADDRESS ->
- * HI_OBP_ADDRESS range are handled in entry.S and do not use the vpte
+ * HI_OBP_ADDRESS range are handled in ktlb.S and do not use the vpte
  * scheme (also, see rant in inherit_locked_prom_mappings()).
  */
-static void __init build_obp_range(unsigned long start, unsigned long end, unsigned long data)
-{
-	unsigned long vaddr;
-
-	for (vaddr = start; vaddr < end; vaddr += BASE_PAGE_SIZE) {
-		unsigned long val;
-		pmd_t *pmd;
-		pte_t *pte;
-
-		pmd = prompmd + ((vaddr >> 23) & 0x7ff);
-		if (pmd_none(*pmd)) {
-			pte = __alloc_bootmem(BASE_PAGE_SIZE, BASE_PAGE_SIZE,
-					      PAGE_SIZE);
-			if (!pte)
-				prom_halt();
-			memset(pte, 0, BASE_PAGE_SIZE);
-			pmd_set(pmd, pte);
-		}
-		pte = (pte_t *) __pmd_page(*pmd) + ((vaddr >> 13) & 0x3ff);
-
-		val = data;
-
-		/* Clear diag TTE bits. */
-		if (tlb_type == spitfire)
-			val &= ~0x0003fe0000000000UL;
-
-		set_pte_at(&init_mm, vaddr, pte,
-			   __pte(val | _PAGE_MODIFIED));
-
-		data += BASE_PAGE_SIZE;
-	}
-}
-
 static inline int in_obp_range(unsigned long vaddr)
 {
 	return (vaddr >= LOW_OBP_ADDRESS &&
 		vaddr < HI_OBP_ADDRESS);
 }
 
-#define OBP_PMD_SIZE 2048
-static void __init build_obp_pgtable(void)
+static int cmp_ptrans(const void *a, const void *b)
 {
-	unsigned long i;
+	const struct linux_prom_translation *x = a, *y = b;
 
-	prompmd = __alloc_bootmem(OBP_PMD_SIZE, OBP_PMD_SIZE, PAGE_SIZE);
-	if (!prompmd)
-		prom_halt();
-
-	memset(prompmd, 0, OBP_PMD_SIZE);
-
-	prom_pmd_phys = __pa(prompmd);
-
-	for (i = 0; i < prom_trans_ents; i++) {
-		unsigned long start, end;
-
-		if (!in_obp_range(prom_trans[i].virt))
-			continue;
-
-		start = prom_trans[i].virt;
-		end = start + prom_trans[i].size;
-		if (end > HI_OBP_ADDRESS)
-			end = HI_OBP_ADDRESS;
-
-		build_obp_range(start, end, prom_trans[i].data);
-	}
+	if (x->virt > y->virt)
+		return 1;
+	if (x->virt < y->virt)
+		return -1;
+	return 0;
 }
 
-/* Read OBP translations property into 'prom_trans[]'.
- * Return the number of entries.
- */
+/* Read OBP translations property into 'prom_trans[]'.  */
 static void __init read_obp_translations(void)
 {
-	int n, node;
+	int n, node, ents, first, last, i;
 
 	node = prom_finddevice("/virtual-memory");
 	n = prom_getproplen(node, "translations");
@@ -515,7 +453,41 @@ static void __init read_obp_translations(void)
 
 	n = n / sizeof(struct linux_prom_translation);
 
-	prom_trans_ents = n;
+	ents = n;
+
+	sort(prom_trans, ents, sizeof(struct linux_prom_translation),
+	     cmp_ptrans, NULL);
+
+	/* Now kick out all the non-OBP entries.  */
+	for (i = 0; i < ents; i++) {
+		if (in_obp_range(prom_trans[i].virt))
+			break;
+	}
+	first = i;
+	for (; i < ents; i++) {
+		if (!in_obp_range(prom_trans[i].virt))
+			break;
+	}
+	last = i;
+
+	for (i = 0; i < (last - first); i++) {
+		struct linux_prom_translation *src = &prom_trans[i + first];
+		struct linux_prom_translation *dest = &prom_trans[i];
+
+		*dest = *src;
+	}
+	for (; i < ents; i++) {
+		struct linux_prom_translation *dest = &prom_trans[i];
+		dest->virt = dest->size = dest->data = 0x0UL;
+	}
+
+	prom_trans_ents = last - first;
+
+	if (tlb_type == spitfire) {
+		/* Clear diag TTE bits. */
+		for (i = 0; i < prom_trans_ents; i++)
+			prom_trans[i].data &= ~0x0003fe0000000000UL;
+	}
 }
 
 static void __init remap_kernel(void)
@@ -553,21 +525,18 @@ static void __init remap_kernel(void)
 }
 
 
-static void __init inherit_prom_mappings_pre(void)
+static void __init inherit_prom_mappings(void)
 {
 	read_obp_translations();
 
 	/* Now fixup OBP's idea about where we really are mapped. */
 	prom_printf("Remapping the kernel... ");
 	remap_kernel();
-
 	prom_printf("done.\n");
-}
 
-static void __init inherit_prom_mappings_post(void)
-{
-	build_obp_pgtable();
+	prom_printf("Registering callbacks... ");
 	register_prom_callbacks();
+	prom_printf("done.\n");
 }
 
 /* The OBP specifications for sun4u mark 0xfffffffc00000000 and
@@ -1519,7 +1488,7 @@ void __init paging_init(void)
 	
 	swapper_pgd_zero = pgd_val(swapper_pg_dir[0]);
 	
-	inherit_prom_mappings_pre();
+	inherit_prom_mappings();
 	
 	/* Ok, we can use our TLB miss and window trap handlers safely.
 	 * We need to do a quick peek here to see if we are on StarFire
@@ -1530,22 +1499,14 @@ void __init paging_init(void)
 		extern void setup_tba(int);
 		setup_tba(this_is_starfire);
 	}
-	__flush_tlb_all();
 
-	/* Everything from this point forward, until we are done with
-	 * inherit_prom_mappings_post(), must complete successfully
-	 * without calling into the firmware.  The firwmare page tables
-	 * have not been built, but we are running on the Linux kernel's
-	 * trap table.
-	 */
+	inherit_locked_prom_mappings(1);
+
+	__flush_tlb_all();
 
 	/* Setup bootmem... */
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
-
-	inherit_prom_mappings_post();
-
-	inherit_locked_prom_mappings(1);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	kernel_physical_mapping_init();

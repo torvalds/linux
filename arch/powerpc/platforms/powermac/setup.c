@@ -669,7 +669,7 @@ static int pmac_check_legacy_ioport(unsigned int baseport)
 
 static int __init pmac_declare_of_platform_devices(void)
 {
-	struct device_node *np;
+	struct device_node *np, *npp;
 
 	np = find_devices("uni-n");
 	if (np) {
@@ -687,14 +687,16 @@ static int __init pmac_declare_of_platform_devices(void)
 	if (np)
 		of_platform_device_create(np, "platinum", NULL);
 
-	np = find_devices("u3");
-	if (np) {
-		for (np = np->child; np != NULL; np = np->sibling)
+	npp = of_find_node_by_name(NULL, "u3");
+	if (npp) {
+		for (np = NULL; (np = of_get_next_child(npp, np)) != NULL;) {
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c",
-							  NULL);
+				of_platform_device_create(np, "u3-i2c", NULL);
+				of_node_put(np);
 				break;
 			}
+		}
+		of_node_put(npp);
 	}
         np = of_find_node_by_type(NULL, "smu");
         if (np) {

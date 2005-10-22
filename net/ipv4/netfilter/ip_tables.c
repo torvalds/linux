@@ -27,6 +27,7 @@
 #include <asm/semaphore.h>
 #include <linux/proc_fs.h>
 #include <linux/err.h>
+#include <linux/cpumask.h>
 
 #include <linux/netfilter_ipv4/ip_tables.h>
 
@@ -921,8 +922,10 @@ translate_table(const char *name,
 	}
 
 	/* And one copy for every other CPU */
-	for (i = 1; i < num_possible_cpus(); i++) {
-		memcpy(newinfo->entries + SMP_ALIGN(newinfo->size)*i,
+	for_each_cpu(i) {
+		if (i == 0)
+			continue;
+		memcpy(newinfo->entries + SMP_ALIGN(newinfo->size) * i,
 		       newinfo->entries,
 		       SMP_ALIGN(newinfo->size));
 	}
@@ -943,7 +946,7 @@ replace_table(struct ipt_table *table,
 		struct ipt_entry *table_base;
 		unsigned int i;
 
-		for (i = 0; i < num_possible_cpus(); i++) {
+		for_each_cpu(i) {
 			table_base =
 				(void *)newinfo->entries
 				+ TABLE_OFFSET(newinfo, i);
@@ -990,7 +993,7 @@ get_counters(const struct ipt_table_info *t,
 	unsigned int cpu;
 	unsigned int i;
 
-	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
+	for_each_cpu(cpu) {
 		i = 0;
 		IPT_ENTRY_ITERATE(t->entries + TABLE_OFFSET(t, cpu),
 				  t->size,
@@ -1128,7 +1131,8 @@ do_replace(void __user *user, unsigned int len)
 		return -ENOMEM;
 
 	newinfo = vmalloc(sizeof(struct ipt_table_info)
-			  + SMP_ALIGN(tmp.size) * num_possible_cpus());
+			  + SMP_ALIGN(tmp.size) * 
+			  	(highest_possible_processor_id()+1));
 	if (!newinfo)
 		return -ENOMEM;
 
@@ -1458,7 +1462,8 @@ int ipt_register_table(struct ipt_table *table, const struct ipt_replace *repl)
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
 
 	newinfo = vmalloc(sizeof(struct ipt_table_info)
-			  + SMP_ALIGN(repl->size) * num_possible_cpus());
+			  + SMP_ALIGN(repl->size) * 
+			  		(highest_possible_processor_id()+1));
 	if (!newinfo)
 		return -ENOMEM;
 

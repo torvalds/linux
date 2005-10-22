@@ -151,7 +151,7 @@ void __init s3c2440_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 #ifdef CONFIG_PM
 
-struct sleep_save s3c2440_sleep[] = {
+static struct sleep_save s3c2440_sleep[] = {
 	SAVE_ITEM(S3C2440_DSC0),
 	SAVE_ITEM(S3C2440_DSC1),
 	SAVE_ITEM(S3C2440_GPJDAT),
@@ -260,7 +260,7 @@ void __init s3c2440_init_clocks(int xtal)
  * as a driver which may support both 2410 and 2440 may try and use it.
 */
 
-int __init s3c2440_core_init(void)
+static int __init s3c2440_core_init(void)
 {
 	return sysdev_class_register(&s3c2440_sysclass);
 }

@@ -208,6 +208,11 @@ static struct platform_device pxafb_device = {
 	.resource	= pxafb_resources,
 };
 
+void __init set_pxa_fb_parent(struct device *parent_dev)
+{
+	pxafb_device.dev.parent = parent_dev;
+}
+
 static struct platform_device ffuart_device = {
 	.name		= "pxa2xx-uart",
 	.id		= 0,
@@ -245,6 +250,25 @@ void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 	i2c_device.dev.platform_data = info;
 }
 
+static struct resource i2s_resources[] = {
+	{
+		.start	= 0x40400000,
+		.end	= 0x40400083,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_I2S,
+		.end	= IRQ_I2S,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2s_device = {
+	.name		= "pxa2xx-i2s",
+	.id		= -1,
+	.resource	= i2c_resources,
+	.num_resources	= ARRAY_SIZE(i2s_resources),
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
 	&udc_device,
@@ -253,6 +277,7 @@ static struct platform_device *devices[] __initdata = {
 	&btuart_device,
 	&stuart_device,
 	&i2c_device,
+	&i2s_device,
 };
 
 static int __init pxa_init(void)

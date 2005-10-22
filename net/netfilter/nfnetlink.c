@@ -133,7 +133,7 @@ int nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 	memset(tb, 0, sizeof(struct nfattr *) * maxattr);
 
 	while (NFA_OK(nfa, len)) {
-		unsigned flavor = nfa->nfa_type;
+		unsigned flavor = NFA_TYPE(nfa);
 		if (flavor && flavor <= maxattr)
 			tb[flavor-1] = nfa;
 		nfa = NFA_NEXT(nfa, len);
@@ -177,7 +177,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 
 		while (NFA_OK(attr, attrlen)) {
-			unsigned flavor = attr->nfa_type;
+			unsigned flavor = NFA_TYPE(attr);
 			if (flavor) {
 				if (flavor > attr_count)
 					return -EINVAL;
