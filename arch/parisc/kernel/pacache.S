@@ -40,8 +40,8 @@
 	.level	2.0
 #endif
 
-#include <asm/assembly.h>
 #include <asm/psw.h>
+#include <asm/assembly.h>
 #include <asm/pgtable.h>
 #include <asm/cache.h>
 
@@ -62,32 +62,23 @@ flush_tlb_all_local:
 	 * to happen in real mode with all interruptions disabled.
 	 */
 
-	/*
-	 * Once again, we do the rfi dance ... some day we need examine
-	 * all of our uses of this type of code and see what can be
-	 * consolidated.
-	 */
+	/* pcxt_ssm_bug	- relied upon translation! PA 2.0 Arch. F-4 and F-5 */
+	rsm	PSW_SM_I, %r19		/* save I-bit state */
+	load32		PA(1f), %r1
+	nop
+	nop
+	nop
+	nop
+	nop
 
-	rsm		PSW_SM_I, %r19		/* relied upon translation! PA 2.0 Arch. F-5 */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	
-	rsm		PSW_SM_Q, %r0		/* Turn off Q bit to load iia queue */
-	ldil		L%REAL_MODE_PSW, %r1
-	ldo		R%REAL_MODE_PSW(%r1), %r1
-	mtctl		%r1, %cr22
+	rsm		PSW_SM_Q, %r0		/* prep to load iia queue */
 	mtctl		%r0, %cr17		/* Clear IIASQ tail */
 	mtctl		%r0, %cr17		/* Clear IIASQ head */
-	ldil		L%PA(1f), %r1
-	ldo		R%PA(1f)(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ tail */
+	load32		REAL_MODE_PSW, %r1
+	mtctl           %r1, %ipsw
 	rfi
 	nop
 
@@ -178,29 +169,36 @@ fdtonemiddle:					/* Loop if LOOP = 1 */
 	ADDIB>		-1, %r22, fdtoneloop	/* Outer loop count decr */
 	add		%r21, %r20, %r20	/* increment space */
 
+
 fdtdone:
+	/*
+	 * Switch back to virtual mode
+	 */
+	/* pcxt_ssm_bug */
+	rsm		PSW_SM_I, %r0
+	load32		2f, %r1
+	nop
+	nop
+	nop
+	nop
+	nop
 
-	/* Switch back to virtual mode */
-
-	rsm		PSW_SM_Q, %r0		/* clear Q bit to load iia queue */
-	ldil		L%KERNEL_PSW, %r1
-	ldo		R%KERNEL_PSW(%r1), %r1
-	or		%r1, %r19, %r1		/* Set I bit if set on entry */
-	mtctl		%r1, %cr22
+	rsm		PSW_SM_Q, %r0		/* prep to load iia queue */
 	mtctl		%r0, %cr17		/* Clear IIASQ tail */
 	mtctl		%r0, %cr17		/* Clear IIASQ head */
-	ldil		L%(2f), %r1
-	ldo		R%(2f)(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ tail */
+	load32		KERNEL_PSW, %r1
+	or		%r1, %r19, %r1	/* I-bit to state on entry */
+	mtctl		%r1, %ipsw	/* restore I-bit (entire PSW) */
 	rfi
 	nop
 
 2:      bv		%r0(%r2)
 	nop
-	.exit
 
+	.exit
 	.procend
 
 	.export flush_instruction_cache_local,code
@@ -238,7 +236,7 @@ fioneloop:					/* Loop if LOOP = 1 */
 
 fisync:
 	sync
-	mtsm		%r22
+	mtsm		%r22			/* restore I-bit */
 	bv		%r0(%r2)
 	nop
 	.exit
@@ -281,7 +279,7 @@ fdoneloop:					/* Loop if LOOP = 1 */
 fdsync:
 	syncdma
 	sync
-	mtsm		%r22
+	mtsm		%r22			/* restore I-bit */
 	bv		%r0(%r2)
 	nop
 	.exit
@@ -988,11 +986,12 @@ flush_kernel_icache_range_asm:
 	bv		%r0(%r2)
 	nop
 	.exit
-
 	.procend
 
-	.align	128
-
+	/* align should cover use of rfi in disable_sr_hashing_asm and
+	 * srdis_done.
+	 */
+	.align	256
 	.export disable_sr_hashing_asm,code
 
 disable_sr_hashing_asm:
@@ -1000,28 +999,26 @@ disable_sr_hashing_asm:
 	.callinfo NO_CALLS
 	.entry
 
-	/* Switch to real mode */
+	/*
+	 * Switch to real mode
+	 */
+	/* pcxt_ssm_bug */
+	rsm		PSW_SM_I, %r0
+	load32		PA(1f), %r1
+	nop
+	nop
+	nop
+	nop
+	nop
 
-	ssm		0, %r0			/* relied upon translation! */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	
-	rsm		(PSW_SM_Q|PSW_SM_I), %r0 /* disable Q&I to load the iia queue */
-	ldil		L%REAL_MODE_PSW, %r1
-	ldo		R%REAL_MODE_PSW(%r1), %r1
-	mtctl		%r1, %cr22
+	rsm		PSW_SM_Q, %r0		/* prep to load iia queue */
 	mtctl		%r0, %cr17		/* Clear IIASQ tail */
 	mtctl		%r0, %cr17		/* Clear IIASQ head */
-	ldil		L%PA(1f), %r1
-	ldo		R%PA(1f)(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ tail */
+	load32		REAL_MODE_PSW, %r1
+	mtctl		%r1, %ipsw
 	rfi
 	nop
 
@@ -1053,27 +1050,31 @@ srdis_pcxl:
 
 srdis_pa20:
 
-	/* Disable Space Register Hashing for PCXU,PCXU+,PCXW,PCXW+ */
+	/* Disable Space Register Hashing for PCXU,PCXU+,PCXW,PCXW+,PCXW2 */
 
 	.word		0x144008bc		/* mfdiag %dr2, %r28 */
 	depdi		0, 54,1, %r28		/* clear DIAG_SPHASH_ENAB (bit 54) */
 	.word		0x145c1840		/* mtdiag %r28, %dr2 */
 
+
 srdis_done:
-
 	/* Switch back to virtual mode */
+	rsm		PSW_SM_I, %r0		/* prep to load iia queue */
+	load32 	   	2f, %r1
+	nop
+	nop
+	nop
+	nop
+	nop
 
-	rsm		PSW_SM_Q, %r0		/* clear Q bit to load iia queue */
-	ldil		L%KERNEL_PSW, %r1
-	ldo		R%KERNEL_PSW(%r1), %r1
-	mtctl		%r1, %cr22
+	rsm		PSW_SM_Q, %r0		/* prep to load iia queue */
 	mtctl		%r0, %cr17		/* Clear IIASQ tail */
 	mtctl		%r0, %cr17		/* Clear IIASQ head */
-	ldil 	   	L%(2f), %r1
-	ldo     	R%(2f)(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18		/* IIAOQ tail */
+	load32		KERNEL_PSW, %r1
+	mtctl		%r1, %ipsw
 	rfi
 	nop
 

@@ -450,5 +450,30 @@
 	REST_CR	(%cr22, PT_PSW	(\regs))
 	.endm
 
+
+	/* First step to create a "relied upon translation"
+	 * See PA 2.0 Arch. page F-4 and F-5.
+	 *
+	 * The ssm was originally necessary due to a "PCxT bug".
+	 * But someone decided it needed to be added to the architecture
+	 * and this "feature" went into rev3 of PA-RISC 1.1 Arch Manual.
+	 * It's been carried forward into PA 2.0 Arch as well. :^(
+	 *
+	 * "ssm 0,%r0" is a NOP with side effects (prefetch barrier).
+	 * rsm/ssm prevents the ifetch unit from speculatively fetching
+	 * instructions past this line in the code stream.
+	 * PA 2.0 processor will single step all insn in the same QUAD (4 insn).
+	 */
+	.macro	pcxt_ssm_bug
+	rsm	PSW_SM_I,%r0
+	nop	/* 1 */
+	nop	/* 2 */
+	nop	/* 3 */
+	nop	/* 4 */
+	nop	/* 5 */
+	nop	/* 6 */
+	nop	/* 7 */
+	.endm
+
 #endif /* __ASSEMBLY__ */
 #endif

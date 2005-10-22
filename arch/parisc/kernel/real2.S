@@ -7,8 +7,8 @@
  * Copyright (C) 2000 Hewlett Packard (Paul Bame bame@puffin.external.hp.com)
  *
  */
-#include <asm/assembly.h>
 #include <asm/psw.h>
+#include <asm/assembly.h>
 
 	.section	.bss
 	.export real_stack
@@ -147,20 +147,17 @@ restore_control_regs:
 	.text
 rfi_virt2real:
 	/* switch to real mode... */
-	ssm		0,0		/* See "relied upon translation" */
-	nop				/* PA 2.0 Arch. F-5 */
-	nop
-	nop
+	rsm		PSW_SM_I,%r0
+	load32		PA(rfi_v2r_1), %r1
 	nop
 	nop
 	nop
 	nop
 	nop
 	
-	rsm             (PSW_SM_Q|PSW_SM_I),%r0  /* disable Q & I bits to load iia queue */
+	rsm             PSW_SM_Q,%r0  /* disable Q & I bits to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
 	mtctl		%r0, %cr17	/* Clear IIASQ head */
-	load32		PA(rfi_v2r_1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ tail */
@@ -184,10 +181,8 @@ rfi_v2r_1:
 	.text
 	.align 128
 rfi_real2virt:
-	ssm		0,0		/* See "relied upon translation" */
-	nop				/* PA 2.0 Arch. F-5 */
-	nop
-	nop
+	rsm		PSW_SM_I,%r0
+	load32		(rfi_r2v_1), %r1
 	nop
 	nop
 	nop
@@ -197,7 +192,6 @@ rfi_real2virt:
 	rsm             PSW_SM_Q,%r0    /* disable Q bit to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
 	mtctl		%r0, %cr17	/* Clear IIASQ head */
-	load32		(rfi_r2v_1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ tail */

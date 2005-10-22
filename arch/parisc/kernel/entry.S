@@ -30,9 +30,9 @@
  *  - save registers to kernel stack and handle in assembly or C */
 
 
+#include <asm/psw.h>
 #include <asm/assembly.h>	/* for LDREG/STREG defines */
 #include <asm/pgtable.h>
-#include <asm/psw.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
@@ -67,19 +67,22 @@
 
 	/* Switch to virtual mapping, trashing only %r1 */
 	.macro  virt_map
-	rsm     PSW_SM_Q,%r0
-	tovirt_r1 %r29
-	mfsp	%sr7, %r1
-	or,=    %r0,%r1,%r0 /* Only save sr7 in sr3 if sr7 != 0 */
-	mtsp	%r1, %sr3
+	/* pcxt_ssm_bug */
+	rsm	PSW_SM_I, %r0	/* barrier for "Relied upon Translation */
 	mtsp	%r0, %sr4
 	mtsp	%r0, %sr5
+	mfsp	%sr7, %r1
+	or,=    %r0,%r1,%r0	/* Only save sr7 in sr3 if sr7 != 0 */
+	mtsp	%r1, %sr3
+	tovirt_r1 %r29
+	load32	KERNEL_PSW, %r1
+
+	rsm     PSW_SM_QUIET,%r0	/* second "heavy weight" ctl op */
 	mtsp	%r0, %sr6
 	mtsp	%r0, %sr7
-	load32	KERNEL_PSW, %r1
-	mtctl	%r1, %cr22
 	mtctl	%r0, %cr17	/* Clear IIASQ tail */
 	mtctl	%r0, %cr17	/* Clear IIASQ head */
+	mtctl	%r1, %ipsw
 	load32	4f, %r1
 	mtctl	%r1, %cr18	/* Set IIAOQ tail */
 	ldo	4(%r1), %r1
@@ -888,9 +891,6 @@ _switch_to_ret:
 	 * this way, then we will need to copy %sr3 in to PT_SR[3..7], and
 	 * adjust IASQ[0..1].
 	 *
-	 * Note that the following code uses a "relied upon translation".
-	 * See the parisc ACD for details. The ssm is necessary due to a
-	 * PCXT bug.
 	 */
 
 	.align 4096
@@ -985,24 +985,19 @@ intr_restore:
 	rest_fp         %r1
 	rest_general    %r29
 
-	/* Create a "relied upon translation" PA 2.0 Arch. F-5 */
-	ssm		0,%r0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	/* inverse of virt_map */
+	pcxt_ssm_bug
+	rsm             PSW_SM_QUIET,%r0	/* prepare for rfi */
 	tophys_r1       %r29
-	rsm             (PSW_SM_Q|PSW_SM_P|PSW_SM_D|PSW_SM_I),%r0
 
 	/* Restore space id's and special cr's from PT_REGS
-	 * structure pointed to by r29 */
+	 * structure pointed to by r29
+	 */
 	rest_specials	%r29
 
-	/* Important: Note that rest_stack restores r29
-	 * last (we are using it)! It also restores r1 and r30. */
+	/* IMPORTANT: rest_stack restores r29 last (we are using it)!
+	 * It also restores r1 and r30.
+	 */
 	rest_stack
 
 	rfi
@@ -1153,15 +1148,17 @@ intr_save:
 
 	CMPIB=,n        6,%r26,skip_save_ior
 
-	/* save_specials left ipsw value in r8 for us to test */
 
 	mfctl           %cr20, %r16 /* isr */
+	nop		/* serialize mfctl on PA 2.0 to avoid 4 cycle penalty */
 	mfctl           %cr21, %r17 /* ior */
+
 
 #ifdef __LP64__
 	/*
 	 * If the interrupted code was running with W bit off (32 bit),
 	 * clear the b bits (bits 0 & 1) in the ior.
+	 * save_specials left ipsw value in r8 for us to test.
 	 */
 	extrd,u,*<>     %r8,PSW_W_BIT,1,%r0
 	depdi           0,1,2,%r17
@@ -1487,10 +1484,10 @@ nadtlb_emulate:
 	add,l           %r1,%r24,%r1           /* doesn't affect c/b bits */
 
 nadtlb_nullify:
-	mfctl           %cr22,%r8              /* Get ipsw */
+	mfctl           %ipsw,%r8
 	ldil            L%PSW_N,%r9
 	or              %r8,%r9,%r8            /* Set PSW_N */
-	mtctl           %r8,%cr22
+	mtctl           %r8,%ipsw
 
 	rfir
 	nop

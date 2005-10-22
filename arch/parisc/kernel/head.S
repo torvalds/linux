@@ -224,8 +224,6 @@ stext_pdc_ret:
 	mtctl	%r0,%cr12
 	mtctl	%r0,%cr13
 
-	/* Prepare to RFI! Man all the cannons! */
-
 	/* Initialize the global data pointer */
 	loadgp
 
@@ -254,46 +252,16 @@ $is_pa20:
 $install_iva:
 	mtctl		%r10,%cr14
 
-#ifdef __LP64__
-	b		aligned_rfi
+	b		aligned_rfi  /* Prepare to RFI! Man all the cannons! */
 	nop
 
-	.align          256
+	.align 128
 aligned_rfi:
-	ssm             0,0
-	nop             /* 1 */
-	nop             /* 2 */
-	nop             /* 3 */
-	nop             /* 4 */
-	nop             /* 5 */
-	nop             /* 6 */
-	nop             /* 7 */
-	nop             /* 8 */
-#endif
+	pcxt_ssm_bug
 
-#ifdef __LP64__ /* move to psw.h? */
-#define		PSW_BITS	PSW_Q+PSW_I+PSW_D+PSW_P+PSW_R
-#else
-#define		PSW_BITS	PSW_SM_Q
-#endif
+	rsm		PSW_SM_QUIET,%r0	/* off troublesome PSW bits */
+	/* Don't need NOPs, have 8 compliant insn before rfi */
 
-$rfi:	
-	/* turn off troublesome PSW bits */
-	rsm		PSW_BITS,%r0
-
-	/* kernel PSW:
-	 *  - no interruptions except HPMC and TOC (which are handled by PDC)
-	 *  - Q bit set (IODC / PDC interruptions)
-	 *  - big-endian
-	 *  - virtually mapped
-	 */
-	load32		KERNEL_PSW,%r10
-	mtctl		%r10,%ipsw
-
-	/* Set the space pointers for the post-RFI world
-	** Clear the two-level IIA Space Queue, effectively setting
-	** Kernel space.
-	*/
 	mtctl		%r0,%cr17	/* Clear IIASQ tail */
 	mtctl		%r0,%cr17	/* Clear IIASQ head */
 
@@ -301,8 +269,11 @@ $rfi:
 	mtctl		%r11,%cr18	/* IIAOQ head */
 	ldo		4(%r11),%r11
 	mtctl		%r11,%cr18	/* IIAOQ tail */
+
+	load32		KERNEL_PSW,%r10
+	mtctl		%r10,%ipsw
 	
-	/* Jump to hyperspace */
+	/* Jump through hyperspace to Virt Mode */
 	rfi
 	nop
 
