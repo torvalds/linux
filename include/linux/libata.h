@@ -202,7 +202,7 @@ struct ata_ioports {
 struct ata_probe_ent {
 	struct list_head	node;
 	struct device 		*dev;
-	struct ata_port_operations	*port_ops;
+	const struct ata_port_operations *port_ops;
 	Scsi_Host_Template	*sht;
 	struct ata_ioports	port[ATA_MAX_PORTS];
 	unsigned int		n_ports;
@@ -225,7 +225,7 @@ struct ata_host_set {
 	void __iomem		*mmio_base;
 	unsigned int		n_ports;
 	void			*private_data;
-	struct ata_port_operations *ops;
+	const struct ata_port_operations *ops;
 	struct ata_port *	ports[0];
 };
 
@@ -294,7 +294,7 @@ struct ata_device {
 
 struct ata_port {
 	struct Scsi_Host	*host;	/* our co-allocated scsi host */
-	struct ata_port_operations	*ops;
+	const struct ata_port_operations *ops;
 	unsigned long		flags;	/* ATA_FLAG_xxx */
 	unsigned int		id;	/* unique id req'd by scsi midlyr */
 	unsigned int		port_no; /* unique port #; from zero */
@@ -341,10 +341,10 @@ struct ata_port_operations {
 	void (*set_piomode) (struct ata_port *, struct ata_device *);
 	void (*set_dmamode) (struct ata_port *, struct ata_device *);
 
-	void (*tf_load) (struct ata_port *ap, struct ata_taskfile *tf);
+	void (*tf_load) (struct ata_port *ap, const struct ata_taskfile *tf);
 	void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
 
-	void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
+	void (*exec_command)(struct ata_port *ap, const struct ata_taskfile *tf);
 	u8   (*check_status)(struct ata_port *ap);
 	u8   (*check_altstatus)(struct ata_port *ap);
 	u8   (*check_err)(struct ata_port *ap);
@@ -385,7 +385,7 @@ struct ata_port_info {
 	unsigned long		pio_mask;
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;
-	struct ata_port_operations	*port_ops;
+	const struct ata_port_operations *port_ops;
 };
 
 struct ata_timing {
@@ -413,7 +413,7 @@ extern int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_i
 			     unsigned int n_ports);
 extern void ata_pci_remove_one (struct pci_dev *pdev);
 #endif /* CONFIG_PCI */
-extern int ata_device_add(struct ata_probe_ent *ent);
+extern int ata_device_add(const struct ata_probe_ent *ent);
 extern void ata_host_set_remove(struct ata_host_set *host_set);
 extern int ata_scsi_detect(Scsi_Host_Template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
@@ -426,16 +426,16 @@ extern int ata_ratelimit(void);
 /*
  * Default driver ops implementations
  */
-extern void ata_tf_load(struct ata_port *ap, struct ata_taskfile *tf);
+extern void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
 extern void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
-extern void ata_tf_to_fis(struct ata_taskfile *tf, u8 *fis, u8 pmp);
-extern void ata_tf_from_fis(u8 *fis, struct ata_taskfile *tf);
+extern void ata_tf_to_fis(const struct ata_taskfile *tf, u8 *fis, u8 pmp);
+extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
 extern void ata_noop_dev_select (struct ata_port *ap, unsigned int device);
 extern void ata_std_dev_select (struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
 extern u8 ata_altstatus(struct ata_port *ap);
 extern u8 ata_chk_err(struct ata_port *ap);
-extern void ata_exec_command(struct ata_port *ap, struct ata_taskfile *tf);
+extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
 extern void ata_host_stop (struct ata_host_set *host_set);
@@ -446,8 +446,8 @@ extern void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf,
 		unsigned int buflen);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem);
-extern unsigned int ata_dev_classify(struct ata_taskfile *tf);
-extern void ata_dev_id_string(u16 *id, unsigned char *s,
+extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
+extern void ata_dev_id_string(const u16 *id, unsigned char *s,
 			      unsigned int ofs, unsigned int len);
 extern void ata_dev_config(struct ata_port *ap, unsigned int i);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
@@ -502,7 +502,7 @@ struct pci_bits {
 extern void ata_pci_host_stop (struct ata_host_set *host_set);
 extern struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int portmask);
-extern int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits);
+extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits);
 
 #endif /* CONFIG_PCI */
 
@@ -512,7 +512,7 @@ static inline unsigned int ata_tag_valid(unsigned int tag)
 	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
 }
 
-static inline unsigned int ata_dev_present(struct ata_device *dev)
+static inline unsigned int ata_dev_present(const struct ata_device *dev)
 {
 	return ((dev->class == ATA_DEV_ATA) ||
 		(dev->class == ATA_DEV_ATAPI));
@@ -711,7 +711,7 @@ static inline unsigned int sata_dev_present(struct ata_port *ap)
 	return ((scr_read(ap, SCR_STATUS) & 0xf) == 0x3) ? 1 : 0;
 }
 
-static inline int ata_try_flush_cache(struct ata_device *dev)
+static inline int ata_try_flush_cache(const struct ata_device *dev)
 {
 	return ata_id_wcache_enabled(dev->id) ||
 	       ata_id_has_flush(dev->id) ||

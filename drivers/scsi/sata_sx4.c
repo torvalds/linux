@@ -157,8 +157,8 @@ static void pdc_20621_phy_reset (struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
 static void pdc_port_stop(struct ata_port *ap);
 static void pdc20621_qc_prep(struct ata_queued_cmd *qc);
-static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf);
-static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf);
+static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
+static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc20621_host_stop(struct ata_host_set *host_set);
 static unsigned int pdc20621_dimm_init(struct ata_probe_ent *pe);
 static int pdc20621_detect_dimm(struct ata_probe_ent *pe);
@@ -196,7 +196,7 @@ static Scsi_Host_Template pdc_sata_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations pdc_20621_ops = {
+static const struct ata_port_operations pdc_20621_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
@@ -899,7 +899,7 @@ out:
 	DPRINTK("EXIT\n");
 }
 
-static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON (tf->protocol == ATA_PROT_DMA ||
 		 tf->protocol == ATA_PROT_NODATA);
@@ -907,7 +907,7 @@ static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 }
 
 
-static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON (tf->protocol == ATA_PROT_DMA ||
 		 tf->protocol == ATA_PROT_NODATA);

@@ -115,7 +115,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 }
 
 
-static void vsc_sata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
+static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
@@ -231,7 +231,7 @@ static Scsi_Host_Template vsc_sata_sht = {
 };
 
 
-static struct ata_port_operations vsc_sata_ops = {
+static const struct ata_port_operations vsc_sata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= vsc_sata_tf_load,
 	.tf_read		= vsc_sata_tf_read,

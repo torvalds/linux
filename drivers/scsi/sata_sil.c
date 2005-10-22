@@ -150,7 +150,7 @@ static Scsi_Host_Template sil_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations sil_ops = {
+static const struct ata_port_operations sil_ops = {
 	.port_disable		= ata_port_disable,
 	.dev_config		= sil_dev_config,
 	.tf_load		= ata_tf_load,

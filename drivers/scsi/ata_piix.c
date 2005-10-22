@@ -147,7 +147,7 @@ static Scsi_Host_Template piix_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations piix_pata_ops = {
+static const struct ata_port_operations piix_pata_ops = {
 	.port_disable		= ata_port_disable,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= piix_set_dmamode,
@@ -177,7 +177,7 @@ static struct ata_port_operations piix_pata_ops = {
 	.host_stop		= ata_host_stop,
 };
 
-static struct ata_port_operations piix_sata_ops = {
+static const struct ata_port_operations piix_sata_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
