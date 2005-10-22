@@ -359,7 +359,7 @@ static int __init add_bridge(struct device_node *dev)
 
 	/* Interpret the "ranges" property */
 	/* This also maps the I/O region and sets isa_io/mem_base */
-	pci_process_bridge_OF_ranges(hose, dev);
+	pci_process_bridge_OF_ranges(hose, dev, primary);
 	pci_setup_phb_io(hose, primary);
 
 	/* Fixup "bus-range" OF property */

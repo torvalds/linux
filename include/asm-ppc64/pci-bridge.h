@@ -123,7 +123,7 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 }
 
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-					 struct device_node *dev);
+					 struct device_node *dev, int primary);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 

@@ -880,9 +880,9 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 }
 
 void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
-					    struct device_node *dev)
+					    struct device_node *dev, int prim)
 {
-	unsigned int *ranges;
+	unsigned int *ranges, pci_space;
 	unsigned long size;
 	int rlen = 0;
 	int memno = 0;
@@ -905,16 +905,39 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	ranges = (unsigned int *) get_property(dev, "ranges", &rlen);
 	while ((rlen -= np * sizeof(unsigned int)) >= 0) {
 		res = NULL;
-		pci_addr = (unsigned long)ranges[1] << 32 | ranges[2];
+		pci_space = ranges[0];
+		pci_addr = ((unsigned long)ranges[1] << 32) | ranges[2];
 
 		cpu_phys_addr = ranges[3];
-		if (na == 2)
-			cpu_phys_addr = cpu_phys_addr << 32 | ranges[4];
+		if (na >= 2)
+			cpu_phys_addr = (cpu_phys_addr << 32) | ranges[4];
 
-		size = (unsigned long)ranges[na+3] << 32 | ranges[na+4];
+		size = ((unsigned long)ranges[na+3] << 32) | ranges[na+4];
+		ranges += np;
 		if (size == 0)
 			continue;
-		switch ((ranges[0] >> 24) & 0x3) {
+
+		/* Now consume following elements while they are contiguous */
+		while (rlen >= np * sizeof(unsigned int)) {
+			unsigned long addr, phys;
+
+			if (ranges[0] != pci_space)
+				break;
+			addr = ((unsigned long)ranges[1] << 32) | ranges[2];
+			phys = ranges[3];
+			if (na >= 2)
+				phys = (phys << 32) | ranges[4];
+			if (addr != pci_addr + size ||
+			    phys != cpu_phys_addr + size)
+				break;
+
+			size += ((unsigned long)ranges[na+3] << 32)
+				| ranges[na+4];
+			ranges += np;
+			rlen -= np * sizeof(unsigned int);
+		}
+
+		switch ((pci_space >> 24) & 0x3) {
 		case 1:		/* I/O space */
 			hose->io_base_phys = cpu_phys_addr;
 			hose->pci_io_size = size;
@@ -948,7 +971,6 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			res->sibling = NULL;
 			res->child = NULL;
 		}
-		ranges += np;
 	}
 }
 
