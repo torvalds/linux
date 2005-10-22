@@ -1,5 +1,9 @@
 ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_PMAC)		+= powermac/
+else
+ifeq ($(CONFIG_PPC64),y)
+obj-$(CONFIG_PPC_PMAC)		+= powermac/
+endif
 endif
 obj-$(CONFIG_4xx)		+= 4xx/
 obj-$(CONFIG_85xx)		+= 85xx/

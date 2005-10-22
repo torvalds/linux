@@ -56,11 +56,7 @@ obj-$(CONFIG_HVCS)		+= hvcserver.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_XICS)		+= xics.o
 
-ifneq ($(CONFIG_PPC_MERGE),y)
-obj-$(CONFIG_PPC_PMAC)		+= pmac_setup.o pmac_feature.o pmac_pci.o \
-				   pmac_time.o pmac_nvram.o pmac_low_i2c.o \
-				   udbg_scc.o
-endif
+obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
 
 obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o \
 				   udbg_16550.o
@@ -68,9 +64,7 @@ obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o \
 obj-$(CONFIG_U3_DART)		+= u3_iommu.o
 
 ifdef CONFIG_SMP
-ifneq ($(CONFIG_PPC_MERGE),y)
-obj-$(CONFIG_PPC_PMAC)		+= pmac_smp.o smp-tbsync.o
-endif
+obj-$(CONFIG_PPC_PMAC)		+= smp-tbsync.o
 obj-$(CONFIG_PPC_MAPLE)		+= smp-tbsync.o
 endif
 
