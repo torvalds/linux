@@ -29,7 +29,6 @@
 static int __init 
 serial_init_chip(struct parisc_device *dev)
 {
-	static int serial_line_nr;
 	struct uart_port port;
 	unsigned long address;
 	int err;
