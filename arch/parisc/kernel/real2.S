@@ -7,6 +7,8 @@
  * Copyright (C) 2000 Hewlett Packard (Paul Bame bame@puffin.external.hp.com)
  *
  */
+#include <linux/config.h>
+
 #include <asm/psw.h>
 #include <asm/assembly.h>
 
@@ -20,7 +22,7 @@ real32_stack:
 real64_stack:
 	.block	8192
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #  define REG_SZ 8
 #else
 #  define REG_SZ 4
@@ -50,7 +52,7 @@ save_cr_end:
 
 real32_call_asm:
 	STREG	%rp, -RP_OFFSET(%sp)	/* save RP */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	callee_save
 	ldo	2*REG_SZ(%sp), %sp	/* room for a couple more saves */
 	STREG	%r27, -1*REG_SZ(%sp)
@@ -77,7 +79,7 @@ real32_call_asm:
 	b,l	save_control_regs,%r2		/* modifies r1, r2, r28 */
 	nop
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	rsm	PSW_SM_W, %r0		/* go narrow */
 #endif
 
@@ -85,7 +87,7 @@ real32_call_asm:
 	bv	0(%r31)
 	nop
 ric_ret:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ssm	PSW_SM_W, %r0		/* go wide */
 #endif
 	/* restore CRs before going virtual in case we page fault */
@@ -97,7 +99,7 @@ ric_ret:
 
 	tovirt_r1 %sp
 	LDREG	-REG_SZ(%sp), %sp	/* restore SP */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	LDREG	-1*REG_SZ(%sp), %r27
 	LDREG	-2*REG_SZ(%sp), %r29
 	ldo	-2*REG_SZ(%sp), %sp
@@ -212,7 +214,7 @@ rfi_r2v_1:
 	bv	0(%r2)
 	nop
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 
 /************************ 64-bit real-mode calls ***********************/
 /* This is only usable in wide kernels right now and will probably stay so */
@@ -290,7 +292,7 @@ pc_in_user_space:
 	**	comparing function pointers.
 	*/
 __canonicalize_funcptr_for_compare:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	bve (%r2)
 #else
 	bv %r0(%r2)

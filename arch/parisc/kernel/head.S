@@ -12,7 +12,7 @@
  * Initial Version 04-23-1999 by Helge Deller <deller@gmx.de>
  */
 
-#include <linux/autoconf.h>	/* for CONFIG_SMP */
+#include <linux/config.h>	/* for CONFIG_SMP */
 
 #include <asm/asm-offsets.h>
 #include <asm/psw.h>
@@ -36,10 +36,10 @@ boot_args:
 	.align	4
 	.import init_thread_union,data
 	.import fault_vector_20,code    /* IVA parisc 2.0 32 bit */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
         .import fault_vector_11,code    /* IVA parisc 1.1 32 bit */
 	.import	$global$		/* forward declaration */
-#endif /*!LP64*/
+#endif /*!CONFIG_64BIT*/
 	.export stext
 	.export _stext,data		/* Kernel want it this way! */
 _stext:
@@ -76,7 +76,7 @@ $bss_loop:
 	mtctl		%r4,%cr24	/* Initialize kernel root pointer */
 	mtctl		%r4,%cr25	/* Initialize user root pointer */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* Set pmd in pgd */
 	load32		PA(pmd0),%r5
 	shrd            %r5,PxD_VALUE_SHIFT,%r3	
@@ -99,7 +99,7 @@ $bss_loop:
 	stw		%r3,0(%r4)
 	ldo		(ASM_PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
 	addib,>		-1,%r1,1b
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldo             ASM_PMD_ENTRY_SIZE(%r4),%r4
 #else
 	ldo             ASM_PGD_ENTRY_SIZE(%r4),%r4
@@ -170,7 +170,7 @@ common_stext:
 	stw		%r0,0x28(%r0)	/* MEM_RENDEZ_HI */
 #endif /*CONFIG_SMP*/
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	tophys_r1	%sp
 
 	/* Save the rfi target address */
@@ -233,7 +233,7 @@ stext_pdc_ret:
 	 * following short sequence of instructions can determine this
 	 * (without being illegal on a PA1.1 machine).
 	 */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	ldi		32,%r10
 	mtctl		%r10,%cr11
 	.level 2.0
@@ -246,7 +246,7 @@ stext_pdc_ret:
 
 $is_pa20:
 	.level		LEVEL /* restore 1.1 || 2.0w */
-#endif /*!LP64*/
+#endif /*!CONFIG_64BIT*/
 	load32		PA(fault_vector_20),%r10
 
 $install_iva:
@@ -284,7 +284,7 @@ aligned_rfi:
 	.import smp_init_current_idle_task,data
 	.import	smp_callin,code
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 smp_callin_rtn:
         .proc
 	.callinfo
@@ -292,7 +292,7 @@ smp_callin_rtn:
 	nop
 	nop
         .procend
-#endif /*!LP64*/
+#endif /*!CONFIG_64BIT*/
 
 /***************************************************************************
 * smp_slave_stext is executed by all non-monarch Processors when the Monarch
@@ -327,7 +327,7 @@ smp_slave_stext:
 	mtctl		%r4,%cr24	/* Initialize kernel root pointer */
 	mtctl		%r4,%cr25	/* Initialize user root pointer */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* Setup PDCE_PROC entry */
 	copy            %arg0,%r3
 #else
@@ -344,7 +344,7 @@ smp_slave_stext:
 
 	.procend
 #endif /* CONFIG_SMP */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	.data
 
 	.align	4
@@ -354,4 +354,4 @@ smp_slave_stext:
 	.size	$global$,4
 $global$:	
 	.word 0
-#endif /*!LP64*/
+#endif /*!CONFIG_64BIT*/

@@ -26,7 +26,7 @@
  *       can be used.
  */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define ADDIB	addib,*
 #define CMPB	cmpb,*
 #define ANDCM	andcm,*
@@ -39,6 +39,8 @@
 
 	.level	2.0
 #endif
+
+#include <linux/config.h>
 
 #include <asm/psw.h>
 #include <asm/assembly.h>
@@ -294,7 +296,7 @@ copy_user_page_asm:
 	.callinfo NO_CALLS
 	.entry
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* PA8x00 CPUs can consume 2 loads or 1 store per cycle.
 	 * Unroll the loop by hand and arrange insn appropriately.
 	 * GCC probably can do this just as well.
@@ -454,7 +456,7 @@ copy_user_page_asm:
 	sub		%r25, %r1, %r23		/* move physical addr into non shadowed reg */
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	extrd,u		%r26,56,32, %r26		/* convert phys addr to tlb insert format */
 	extrd,u		%r23,56,32, %r23		/* convert phys addr to tlb insert format */
 	depd		%r24,63,22, %r28		/* Form aliased virtual address 'to' */
@@ -541,7 +543,7 @@ __clear_user_page_asm:
 	tophys_r1	%r26
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
 	depdi		0, 31,32, %r28		/* clear any sign extension */
 #endif
@@ -558,7 +560,7 @@ __clear_user_page_asm:
 
 	pdtlb		0(%r28)
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldi		32, %r1			/* PAGE_SIZE/128 == 32 */
 
 	/* PREFETCH (Write) has not (yet) been proven to help here */
@@ -583,7 +585,7 @@ __clear_user_page_asm:
 	ADDIB>		-1, %r1, 1b
 	ldo		128(%r28), %r28
 
-#else	/* ! __LP64 */
+#else	/* ! CONFIG_64BIT */
 
 	ldi		64, %r1			/* PAGE_SIZE/64 == 64 */
 
@@ -606,7 +608,7 @@ __clear_user_page_asm:
 	stw		%r0, 60(%r28)
 	ADDIB>		-1, %r1, 1b
 	ldo		64(%r28), %r28
-#endif	/* __LP64 */
+#endif	/* CONFIG_64BIT */
 
 	bv		%r0(%r2)
 	nop
@@ -624,7 +626,7 @@ flush_kernel_dcache_page:
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
 #else
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
@@ -668,7 +670,7 @@ flush_user_dcache_page:
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	depdi,z		1,63-PAGE_SHIFT,1, %r25
 #else
 	depwi,z		1,31-PAGE_SHIFT,1, %r25
@@ -712,7 +714,7 @@ flush_user_icache_page:
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
 #else
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
@@ -757,7 +759,7 @@ purge_kernel_dcache_page:
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
 #else
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
@@ -805,7 +807,7 @@ flush_alias_page:
 	tophys_r1		%r26
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
 	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
 	depdi		0, 63,12, %r28		/* Clear any offset bits */
@@ -822,7 +824,7 @@ flush_alias_page:
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r29
 #else
 	depwi,z		1, 31-PAGE_SHIFT,1, %r29
@@ -933,7 +935,7 @@ flush_kernel_icache_page:
 	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
 #else
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
