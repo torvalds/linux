@@ -227,7 +227,7 @@ flush_instruction_cache_local:
 
 fimanyloop:					/* Loop if LOOP >= 2 */
 	ADDIB>		-1, %r31, fimanyloop	/* Adjusted inner loop decr */
-	fice            0(%sr1, %arg0)
+	fice            %r0(%sr1, %arg0)
 	fice,m		%arg1(%sr1, %arg0)	/* Last fice and addr adjust */
 	movb,tr		%arg3, %r31, fimanyloop	/* Re-init inner loop count */
 	ADDIB<=,n	-1, %arg2, fisync	/* Outer loop decr */
@@ -269,7 +269,7 @@ flush_data_cache_local:
 
 fdmanyloop:					/* Loop if LOOP >= 2 */
 	ADDIB>		-1, %r31, fdmanyloop	/* Adjusted inner loop decr */
-	fdce		0(%sr1, %arg0)
+	fdce		%r0(%sr1, %arg0)
 	fdce,m		%arg1(%sr1, %arg0)	/* Last fdce and addr adjust */
 	movb,tr		%arg3, %r31, fdmanyloop	/* Re-init inner loop count */
 	ADDIB<=,n	-1, %arg2, fdsync	/* Outer loop decr */
