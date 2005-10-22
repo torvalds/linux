@@ -175,7 +175,7 @@ lasi_init_chip(struct parisc_device *dev)
 		return -ENOMEM;
 
 	lasi->name = "Lasi";
-	lasi->hpa = dev->hpa;
+	lasi->hpa = dev->hpa.start;
 
 	/* Check the 4-bit (yes, only 4) version register */
 	lasi->version = gsc_readl(lasi->hpa + LASI_VER) & 0xf;

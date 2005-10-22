@@ -902,15 +902,15 @@ void ccio_cujo20_fixup(struct parisc_device *dev, u32 iovp);
 ** If so, initialize the chip appropriately (card-mode vs bridge mode).
 ** Much of the initialization is common though.
 */
-static int __init
-dino_driver_callback(struct parisc_device *dev)
+static int __init dino_probe(struct parisc_device *dev)
 {
 	struct dino_device *dino_dev;	// Dino specific control struct
 	const char *version = "unknown";
 	char *name;
 	int is_cujo = 0;
 	struct pci_bus *bus;
-	
+	unsigned long hpa = dev->hpa.start;
+
 	name = "Dino";
 	if (is_card_dino(&dev->id)) {
 		version = "3.x (card mode)";

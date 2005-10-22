@@ -852,14 +852,14 @@ snd_harmony_create(snd_card_t *card,
 	memset(&h->pbuf, 0, sizeof(h->pbuf));
 	memset(&h->cbuf, 0, sizeof(h->cbuf));
 
-	h->hpa = padev->hpa;
+	h->hpa = padev->hpa.start;
 	h->card = card;
 	h->dev = padev;
 	h->irq = padev->irq;
-	h->iobase = ioremap_nocache(padev->hpa, HARMONY_SIZE);
+	h->iobase = ioremap_nocache(padev->hpa.start, HARMONY_SIZE);
 	if (h->iobase == NULL) {
 		printk(KERN_ERR PFX "unable to remap hpa 0x%lx\n",
-		       padev->hpa);
+		       padev->hpa.start);
 		err = -EBUSY;
 		goto free_and_ret;
 	}

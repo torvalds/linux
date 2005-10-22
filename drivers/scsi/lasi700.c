@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(parisc, lasi700_ids);
 static int __init
 lasi700_probe(struct parisc_device *dev)
 {
-	unsigned long base = dev->hpa + LASI_SCSI_CORE_OFFSET;
+	unsigned long base = dev->hpa.start + LASI_SCSI_CORE_OFFSET;
 	struct NCR_700_Host_Parameters *hostdata;
 	struct Scsi_Host *host;
 

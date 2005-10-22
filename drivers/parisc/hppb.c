@@ -68,14 +68,14 @@ static int hppb_probe(struct parisc_device *dev)
 		memset(card->next, '\0', sizeof(struct hppb_card));
 		card = card->next;
 	}
-        printk(KERN_INFO "Found GeckoBoa at 0x%lx\n", dev->hpa);
+        printk(KERN_INFO "Found GeckoBoa at 0x%lx\n", dev->hpa.start);
 
-	card->hpa = dev->hpa;
+	card->hpa = dev->hpa.start;
 	card->mmio_region.name = "HP-PB Bus";
 	card->mmio_region.flags = IORESOURCE_MEM;
 
-	card->mmio_region.start = __raw_readl(dev->hpa + IO_IO_LOW);
-	card->mmio_region.end = __raw_readl(dev->hpa + IO_IO_HIGH) - 1;
+	card->mmio_region.start = gsc_readl(dev->hpa.start + IO_IO_LOW);
+	card->mmio_region.end = gsc_readl(dev->hpa.start + IO_IO_HIGH) - 1;
 
 	status = ccio_request_resource(dev, &card->mmio_region);
 	if(status < 0) {

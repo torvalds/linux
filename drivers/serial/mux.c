@@ -444,7 +444,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	unsigned long bytecnt;
 	struct uart_port *port;
 
-	status = pdc_iodc_read(&bytecnt, dev->hpa, 0, iodc_data, 32);
+	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
 	if(status != PDC_OK) {
 		printk(KERN_ERR "Serial mux: Unable to read IODC.\n");
 		return 1;

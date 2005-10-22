@@ -1528,17 +1528,18 @@ lan_init_chip(struct parisc_device *dev)
 	
 	if (!dev->irq) {
 		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
-			__FILE__, dev->hpa);
+			__FILE__, dev->hpa.start);
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n", dev->hpa, dev->irq);
+	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n", dev->hpa.start,
+			dev->irq);
 
 	netdevice = alloc_etherdev(0);
 	if (!netdevice)
 		return -ENOMEM;
 
-	netdevice->base_addr = dev->hpa;
+	netdevice->base_addr = dev->hpa.start;
 	netdevice->irq = dev->irq;
 
 	retval = i82596_probe(netdevice, &dev->dev);

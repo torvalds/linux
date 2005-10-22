@@ -331,7 +331,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port;
 	struct serio *serio;
-	unsigned long hpa = dev->hpa;
+	unsigned long hpa = dev->hpa.start;
 	int ret;
 
 	if (!dev->irq)

@@ -1,7 +1,7 @@
 #include <linux/device.h>
 
 struct parisc_device {
-	unsigned long   hpa;		/* Hard Physical Address */
+	struct resource hpa;		/* Hard Physical Address */
 	struct parisc_device_id id;
 	struct parisc_driver *driver;	/* Driver for this device */
 	char		name[80];	/* The hardware description */
