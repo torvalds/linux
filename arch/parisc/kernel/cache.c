@@ -27,6 +27,7 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
+#include <asm/sections.h>
 
 int split_tlb;
 int dcache_stride;
@@ -207,6 +208,9 @@ parisc_cache_init(void)
 
 	/* "New and Improved" version from Jim Hull 
 	 *	(1 << (cc_block-1)) * (cc_line << (4 + cnf.cc_shift))
+	 * The following CAFL_STRIDE is an optimized version, see
+	 * http://lists.parisc-linux.org/pipermail/parisc-linux/2004-June/023625.html
+	 * http://lists.parisc-linux.org/pipermail/parisc-linux/2004-June/023671.html
 	 */
 #define CAFL_STRIDE(cnf) (cnf.cc_line << (3 + cnf.cc_block + cnf.cc_shift))
 	dcache_stride = CAFL_STRIDE(cache_info.dc_conf);
@@ -339,17 +343,15 @@ int parisc_cache_flush_threshold = FLUSH_THRESHOLD;
 void parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
-	extern char _text;	/* start of kernel code, defined by linker */
-	extern char _end;	/* end of BSS, defined by linker */
 	unsigned long size;
 
 	alltime = mfctl(16);
 	flush_data_cache();
 	alltime = mfctl(16) - alltime;
 
-	size = (unsigned long)(&_end - _text);
+	size = (unsigned long)(_end - _text);
 	rangetime = mfctl(16);
-	flush_kernel_dcache_range((unsigned long)&_text, size);
+	flush_kernel_dcache_range((unsigned long)_text, size);
 	rangetime = mfctl(16) - rangetime;
 
 	printk(KERN_DEBUG "Whole cache flush %lu cycles, flushing %lu bytes %lu cycles\n",
