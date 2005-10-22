@@ -20,7 +20,8 @@ NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
 
 ifdef CONFIG_64BIT
-CROSS_COMPILE	:= hppa64-linux-
+CROSS_COMPILE	:= $(shell if [ -x /usr/bin/hppa64-linux-gnu-gcc ]; then \
+			echo hppa64-linux-gnu-; else echo hppa64-linux-; fi)
 UTS_MACHINE	:= parisc64
 CHECKFLAGS	+= -D__LP64__=1 -m64
 else
@@ -33,6 +34,14 @@ endif
 FINAL_LD=$(CROSS_COMPILE)ld --warn-common --warn-section-align 
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
+
+GCC_VERSION     := $(call cc-version)
+ifneq ($(shell if [ -z $(GCC_VERSION) ] ; then echo "bad"; fi ;),)
+$(error Sorry, couldn't find ($(cc-version)).)
+endif
+ifneq ($(shell if [ $(GCC_VERSION) -lt 0303 ] ; then echo "bad"; fi ;),)
+$(error Sorry, your compiler is too old ($(GCC_VERSION)).  GCC v3.3 or above is required.)
+endif
 
 cflags-y	:= -pipe
 
