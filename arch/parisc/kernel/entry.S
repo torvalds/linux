@@ -821,7 +821,12 @@ ret_from_kernel_thread:
 	ldo	-16(%r30),%r29		/* Reference param save area */
 	loadgp				/* Thread could have been in a module */
 #endif
+#ifndef CONFIG_64BIT
 	b	sys_exit
+#else
+	load32	sys_exit, %r1
+	bv	%r0(%r1)
+#endif
 	ldi	0, %r26
 
 	.import	sys_execve, code
@@ -1012,7 +1017,7 @@ intr_restore:
 
 	.import do_softirq,code
 intr_do_softirq:
-	bl      do_softirq,%r2
+	BL      do_softirq,%r2
 #ifdef __LP64__
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
@@ -1036,7 +1041,12 @@ intr_do_resched:
 #endif
 
 	ldil	L%intr_check_sig, %r2
+#ifndef CONFIG_64BIT
 	b	schedule
+#else
+	load32	schedule, %r20
+	bv	%r0(%r20)
+#endif
 	ldo	R%intr_check_sig(%r2), %r2
 
 
@@ -1897,7 +1907,7 @@ sys_vfork_wrapper:
 #ifdef __LP64__
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #endif
-	bl \execve,%r2
+	BL \execve,%r2
 	copy %r1,%arg0
 
 	ldo -FRAME_SIZE(%r30),%r30
@@ -2226,7 +2236,7 @@ pt_regs_ok:
 
 	.import do_softirq,code
 syscall_do_softirq:
-	bl      do_softirq,%r2
+	BL      do_softirq,%r2
 	nop
 	/* NOTE: We enable I-bit incase we schedule later,
 	 * and we might be going back to userspace if we were
