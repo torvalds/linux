@@ -368,5 +368,11 @@
 	ENTRY_COMP(mbind)		/* 260 */
 	ENTRY_COMP(get_mempolicy)
 	ENTRY_COMP(set_mempolicy)
+	ENTRY_SAME(ni_syscall)	/* 263: reserved for vserver */
+	ENTRY_SAME(add_key)
+	ENTRY_SAME(request_key)		/* 265 */
+	ENTRY_SAME(keyctl)
+	ENTRY_SAME(ioprio_set)
+	ENTRY_SAME(ioprio_get)
 	/* Nothing yet */
 
