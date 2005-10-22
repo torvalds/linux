@@ -47,7 +47,8 @@
 
 /* On Core99, nvram is either a sharp, a micron or an AMD flash */
 #define SM_FLASH_STATUS_DONE	0x80
-#define SM_FLASH_STATUS_ERR		0x38
+#define SM_FLASH_STATUS_ERR	0x38
+
 #define SM_FLASH_CMD_ERASE_CONFIRM	0xd0
 #define SM_FLASH_CMD_ERASE_SETUP	0x20
 #define SM_FLASH_CMD_RESET		0xff
@@ -75,11 +76,11 @@ struct core99_header {
  * Read and write the non-volatile RAM on PowerMacs and CHRP machines.
  */
 static int nvram_naddrs;
-static volatile unsigned char *nvram_addr;
 static volatile unsigned char *nvram_data;
-static int nvram_mult, is_core_99;
+static int is_core_99;
 static int core99_bank = 0;
 static int nvram_partitions[3];
+// XXX Turn that into a sem
 static DEFINE_SPINLOCK(nv_lock);
 
 extern int pmac_newworld;
@@ -105,6 +106,52 @@ static void core99_nvram_write_byte(int addr, unsigned char val)
 	nvram_image[addr] = val;
 }
 
+static ssize_t core99_nvram_read(char *buf, size_t count, loff_t *index)
+{
+	int i;
+
+	if (nvram_image == NULL)
+		return -ENODEV;
+	if (*index > NVRAM_SIZE)
+		return 0;
+
+	i = *index;
+	if (i + count > NVRAM_SIZE)
+		count = NVRAM_SIZE - i;
+
+	memcpy(buf, &nvram_image[i], count);
+	*index = i + count;
+	return count;
+}
+
+static ssize_t core99_nvram_write(char *buf, size_t count, loff_t *index)
+{
+	int i;
+
+	if (nvram_image == NULL)
+		return -ENODEV;
+	if (*index > NVRAM_SIZE)
+		return 0;
+
+	i = *index;
+	if (i + count > NVRAM_SIZE)
+		count = NVRAM_SIZE - i;
+
+	memcpy(&nvram_image[i], buf, count);
+	*index = i + count;
+	return count;
+}
+
+static ssize_t core99_nvram_size(void)
+{
+	if (nvram_image == NULL)
+		return -ENODEV;
+	return NVRAM_SIZE;
+}
+
+#ifdef CONFIG_PPC32
+static volatile unsigned char *nvram_addr;
+static int nvram_mult;
 
 static unsigned char direct_nvram_read_byte(int addr)
 {
@@ -181,7 +228,7 @@ static void pmu_nvram_write_byte(int addr, unsigned char val)
 }
 
 #endif /* CONFIG_ADB_PMU */
-
+#endif /* CONFIG_PPC32 */
 
 static u8 chrp_checksum(struct chrp_header* hdr)
 {
@@ -249,7 +296,7 @@ static int sm_erase_bank(int bank)
 	timeout = 0;
 	do {
 		if (++timeout > 1000000) {
-			printk(KERN_ERR "nvram: Sharp/Miron flash erase timeout !\n");
+			printk(KERN_ERR "nvram: Sharp/Micron flash erase timeout !\n");
 			break;
 		}
 		out_8(base, SM_FLASH_CMD_READ_STATUS);
@@ -411,7 +458,7 @@ static void __init lookup_partitions(void)
 		buffer[16] = 0;
 		do {
 			for (i=0;i<16;i++)
-				buffer[i] = nvram_read_byte(offset+i);
+				buffer[i] = ppc_md.nvram_read_val(offset+i);
 			if (!strcmp(hdr->name, "common"))
 				nvram_partitions[pmac_nvram_OF] = offset + 0x10;
 			if (!strcmp(hdr->name, "APL,MacOS75")) {
@@ -467,65 +514,76 @@ static void core99_nvram_sync(void)
 #endif
 }
 
-void __init pmac_nvram_init(void)
+static int __init core99_nvram_setup(struct device_node *dp)
+{
+	int i;
+	u32 gen_bank0, gen_bank1;
+
+	if (nvram_naddrs < 1) {
+		printk(KERN_ERR "nvram: no address\n");
+		return -EINVAL;
+	}
+	nvram_image = alloc_bootmem(NVRAM_SIZE);
+	if (nvram_image == NULL) {
+		printk(KERN_ERR "nvram: can't allocate ram image\n");
+		return -ENOMEM;
+	}
+	nvram_data = ioremap(dp->addrs[0].address, NVRAM_SIZE*2);
+	nvram_naddrs = 1; /* Make sure we get the correct case */
+
+	DBG("nvram: Checking bank 0...\n");
+
+	gen_bank0 = core99_check((u8 *)nvram_data);
+	gen_bank1 = core99_check((u8 *)nvram_data + NVRAM_SIZE);
+	core99_bank = (gen_bank0 < gen_bank1) ? 1 : 0;
+
+	DBG("nvram: gen0=%d, gen1=%d\n", gen_bank0, gen_bank1);
+	DBG("nvram: Active bank is: %d\n", core99_bank);
+
+	for (i=0; i<NVRAM_SIZE; i++)
+		nvram_image[i] = nvram_data[i + core99_bank*NVRAM_SIZE];
+
+	ppc_md.nvram_read_val	= core99_nvram_read_byte;
+	ppc_md.nvram_write_val	= core99_nvram_write_byte;
+	ppc_md.nvram_read	= core99_nvram_read;
+	ppc_md.nvram_write	= core99_nvram_write;
+	ppc_md.nvram_size	= core99_nvram_size;
+	ppc_md.nvram_sync	= core99_nvram_sync;
+	/* 
+	 * Maybe we could be smarter here though making an exclusive list
+	 * of known flash chips is a bit nasty as older OF didn't provide us
+	 * with a useful "compatible" entry. A solution would be to really
+	 * identify the chip using flash id commands and base ourselves on
+	 * a list of known chips IDs
+	 */
+	if (device_is_compatible(dp, "amd-0137")) {
+		core99_erase_bank = amd_erase_bank;
+		core99_write_bank = amd_write_bank;
+	} else {
+		core99_erase_bank = sm_erase_bank;
+		core99_write_bank = sm_write_bank;
+	}
+	return 0;
+}
+
+int __init pmac_nvram_init(void)
 {
 	struct device_node *dp;
+	int err = 0;
 
 	nvram_naddrs = 0;
 
 	dp = find_devices("nvram");
 	if (dp == NULL) {
 		printk(KERN_ERR "Can't find NVRAM device\n");
-		return;
+		return -ENODEV;
 	}
 	nvram_naddrs = dp->n_addrs;
 	is_core_99 = device_is_compatible(dp, "nvram,flash");
-	if (is_core_99) {
-		int i;
-		u32 gen_bank0, gen_bank1;
-
-		if (nvram_naddrs < 1) {
-			printk(KERN_ERR "nvram: no address\n");
-			return;
-		}
-		nvram_image = alloc_bootmem(NVRAM_SIZE);
-		if (nvram_image == NULL) {
-			printk(KERN_ERR "nvram: can't allocate ram image\n");
-			return;
-		}
-		nvram_data = ioremap(dp->addrs[0].address, NVRAM_SIZE*2);
-		nvram_naddrs = 1; /* Make sure we get the correct case */
-
-		DBG("nvram: Checking bank 0...\n");
-
-		gen_bank0 = core99_check((u8 *)nvram_data);
-		gen_bank1 = core99_check((u8 *)nvram_data + NVRAM_SIZE);
-		core99_bank = (gen_bank0 < gen_bank1) ? 1 : 0;
-
-		DBG("nvram: gen0=%d, gen1=%d\n", gen_bank0, gen_bank1);
-		DBG("nvram: Active bank is: %d\n", core99_bank);
-
-		for (i=0; i<NVRAM_SIZE; i++)
-			nvram_image[i] = nvram_data[i + core99_bank*NVRAM_SIZE];
-
-		ppc_md.nvram_read_val	= core99_nvram_read_byte;
-		ppc_md.nvram_write_val	= core99_nvram_write_byte;
-		ppc_md.nvram_sync	= core99_nvram_sync;
-		/* 
-		 * Maybe we could be smarter here though making an exclusive list
-		 * of known flash chips is a bit nasty as older OF didn't provide us
-		 * with a useful "compatible" entry. A solution would be to really
-		 * identify the chip using flash id commands and base ourselves on
-		 * a list of known chips IDs
-		 */
-		if (device_is_compatible(dp, "amd-0137")) {
-			core99_erase_bank = amd_erase_bank;
-			core99_write_bank = amd_write_bank;
-		} else {
-			core99_erase_bank = sm_erase_bank;
-			core99_write_bank = sm_write_bank;
-		}
-	} else if (_machine == _MACH_chrp && nvram_naddrs == 1) {
+	if (is_core_99)
+		err = core99_nvram_setup(dp);
+#ifdef CONFIG_PPC32
+	else if (_machine == _MACH_chrp && nvram_naddrs == 1) {
 		nvram_data = ioremap(dp->addrs[0].address + isa_mem_base,
 				     dp->addrs[0].size);
 		nvram_mult = 1;
@@ -547,11 +605,14 @@ void __init pmac_nvram_init(void)
 		ppc_md.nvram_read_val	= pmu_nvram_read_byte;
 		ppc_md.nvram_write_val	= pmu_nvram_write_byte;
 #endif /* CONFIG_ADB_PMU */
-	} else {
-		printk(KERN_ERR "Don't know how to access NVRAM with %d addresses\n",
-		       nvram_naddrs);
+	}
+#endif
+	else {
+		printk(KERN_ERR "Incompatible type of NVRAM\n");
+		return -ENXIO;
 	}
 	lookup_partitions();
+	return err;
 }
 
 int pmac_get_partition(int partition)
@@ -561,9 +622,9 @@ int pmac_get_partition(int partition)
 
 u8 pmac_xpram_read(int xpaddr)
 {
-	int offset = nvram_partitions[pmac_nvram_XPRAM];
+	int offset = pmac_get_partition(pmac_nvram_XPRAM);
 
-	if (offset < 0)
+	if (offset < 0 || xpaddr < 0 || xpaddr > 0x100)
 		return 0xff;
 
 	return ppc_md.nvram_read_val(xpaddr + offset);
@@ -571,9 +632,9 @@ u8 pmac_xpram_read(int xpaddr)
 
 void pmac_xpram_write(int xpaddr, u8 data)
 {
-	int offset = nvram_partitions[pmac_nvram_XPRAM];
+	int offset = pmac_get_partition(pmac_nvram_XPRAM);
 
-	if (offset < 0)
+	if (offset < 0 || xpaddr < 0 || xpaddr > 0x100)
 		return;
 
 	ppc_md.nvram_write_val(xpaddr + offset, data);

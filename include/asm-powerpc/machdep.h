@@ -119,6 +119,8 @@ struct machdep_calls {
 	/* Interface for platform error logging */
 	void 		(*log_error)(char *buf, unsigned int err_type, int fatal);
 
+	unsigned char 	(*nvram_read_val)(int addr);
+	void		(*nvram_write_val)(int addr, unsigned char val);
 	ssize_t		(*nvram_write)(char *buf, size_t count, loff_t *index);
 	ssize_t		(*nvram_read)(char *buf, size_t count, loff_t *index);	
 	ssize_t		(*nvram_size)(void);		
@@ -165,14 +167,10 @@ struct machdep_calls {
 	unsigned long	heartbeat_reset;
 	unsigned long	heartbeat_count;
 
-	unsigned long	(*find_end_of_memory)(void);
 	void		(*setup_io_mappings)(void);
 
 	void		(*early_serial_map)(void);
 	void		(*kgdb_map_scc)(void);
-
-	unsigned char 	(*nvram_read_val)(int addr);
-	void		(*nvram_write_val)(int addr, unsigned char val);
 
 	/*
 	 * optional PCI "hooks"

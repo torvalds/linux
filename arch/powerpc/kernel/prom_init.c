@@ -772,7 +772,7 @@ static unsigned long __init prom_next_cell(int s, cell_t **cellp)
 	}
 	r = *p++;
 #ifdef CONFIG_PPC64
-	if (s) {
+	if (s > 1) {
 		r <<= 32;
 		r |= *(p++);
 	}
@@ -2059,7 +2059,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	reloc_got2(-offset);
 #endif
 
-	__start(hdr, 0, 0);
+	__start(hdr, KERNELBASE + offset, 0);
 
 	return 0;
 }

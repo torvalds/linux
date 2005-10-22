@@ -2960,7 +2960,6 @@ static void dump_HT_speeds(char *name, u32 cfg, u32 frq)
 
 void __init pmac_check_ht_link(void)
 {
-#if 0 /* Disabled for now */
 	u32	ufreq, freq, ucfg, cfg;
 	struct device_node *pcix_node;
 	u8	px_bus, px_devfn;
@@ -2991,10 +2990,8 @@ void __init pmac_check_ht_link(void)
 	early_read_config_dword(px_hose, px_bus, px_devfn, 0xc8, &cfg);
 	early_read_config_dword(px_hose, px_bus, px_devfn, 0xd0, &freq);
 	dump_HT_speeds("PCI-X HT Downlink", cfg, freq);
-#endif
 }
-
-#endif /* CONFIG_POWER4 */
+#endif /* 0 */
 
 /*
  * Early video resume hook

@@ -1,4 +1,4 @@
-ifeq ($(CONFIG_PPC32),y)
+ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_PMAC)		+= powermac/
 endif
 obj-$(CONFIG_4xx)		+= 4xx/

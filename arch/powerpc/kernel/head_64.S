@@ -1501,20 +1501,17 @@ copy_to_here:
 	.section ".text";
 	.align 2 ;
 
-	.globl	pmac_secondary_start_1	
-pmac_secondary_start_1:	
-	li	r24, 1
-	b	.pmac_secondary_start
-	
-	.globl pmac_secondary_start_2
-pmac_secondary_start_2:	
-	li	r24, 2
-	b	.pmac_secondary_start
-	
-	.globl pmac_secondary_start_3
-pmac_secondary_start_3:
-	li	r24, 3
-	b	.pmac_secondary_start
+	.globl	__secondary_start_pmac_0
+__secondary_start_pmac_0:
+	/* NB the entries for cpus 0, 1, 2 must each occupy 8 bytes. */
+	li	r24,0
+	b	1f
+	li	r24,1
+	b	1f
+	li	r24,2
+	b	1f
+	li	r24,3
+1:
 	
 _GLOBAL(pmac_secondary_start)
 	/* turn on 64-bit mode */

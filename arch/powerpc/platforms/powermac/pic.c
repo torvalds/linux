@@ -430,7 +430,6 @@ void __init pmac_pic_init(void)
 
 		printk(KERN_INFO "PowerMac using OpenPIC irq controller at 0x%08x\n",
 		       (unsigned int)irqctrler->addrs[0].address);
-		ppc_md.get_irq = mpic_get_irq;
 		pmac_call_feature(PMAC_FTR_ENABLE_MPIC, irqctrler, 0, 0);
 
 		prom_get_irq_senses(senses, 0, 128);
@@ -483,6 +482,7 @@ void __init pmac_pic_init(void)
 	 * a Grand Central nor an OHare, then it's an Heathrow
 	 * (or Paddington).
 	 */
+	ppc_md.get_irq = pmac_get_irq;
 	if (find_devices("gc"))
 		level_mask[0] = GC_LEVEL_MASK;
 	else if (find_devices("ohare")) {

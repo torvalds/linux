@@ -37,14 +37,14 @@
 #endif
 
 static int add_bridge(struct device_node *dev);
-extern void pmac_check_ht_link(void);
 
 /* XXX Could be per-controller, but I don't think we risk anything by
  * assuming we won't have both UniNorth and Bandit */
 static int has_uninorth;
-#ifdef CONFIG_POWER4
+#ifdef CONFIG_PPC64
 static struct pci_controller *u3_agp;
-#endif /* CONFIG_POWER4 */
+static struct pci_controller *u3_ht;
+#endif /* CONFIG_PPC64 */
 
 extern u8 pci_cache_line_size;
 extern int pcibios_assign_bus_offset;
@@ -229,6 +229,7 @@ static struct pci_ops macrisc_pci_ops =
 	macrisc_write_config
 };
 
+#ifdef CONFIG_PPC32
 /*
  * Verify that a specific (bus, dev_fn) exists on chaos
  */
@@ -282,7 +283,19 @@ static struct pci_ops chaos_pci_ops =
 	chaos_write_config
 };
 
-#ifdef CONFIG_POWER4
+static void __init setup_chaos(struct pci_controller *hose,
+			       struct reg_property *addr)
+{
+	/* assume a `chaos' bridge */
+	hose->ops = &chaos_pci_ops;
+	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+}
+#else
+#define setup_chaos(hose, addr)
+#endif /* CONFIG_PPC32 */
+
+#ifdef CONFIG_PPC64
 /*
  * These versions of U3 HyperTransport config space access ops do not
  * implement self-view of the HT host yet
@@ -445,8 +458,9 @@ static struct pci_ops u3_ht_pci_ops =
 	u3_ht_read_config,
 	u3_ht_write_config
 };
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_PPC32
 /*
  * For a bandit bridge, turn on cache coherency if necessary.
  * N.B. we could clean this up using the hose ops directly.
@@ -486,7 +500,6 @@ static void __init init_bandit(struct pci_controller *bp)
 	out_le32(bp->cfg_data, magic);
 	printk(KERN_INFO "Cache coherency enabled for bandit/PSX\n");
 }
-
 
 /*
  * Tweak the PCI-PCI bridge chip on the blue & white G3s.
@@ -539,7 +552,7 @@ static void __init fixup_nec_usb2(void)
 		struct pci_controller *hose;
 		u32 data, *prop;
 		u8 bus, devfn;
-		
+
 		prop = (u32 *)get_property(nec, "vendor-id", NULL);
 		if (prop == NULL)
 			continue;
@@ -605,8 +618,27 @@ static inline void grackle_set_loop_snoop(struct pci_controller *bp, int enable)
 	(void)in_le32(bp->cfg_data);
 }
 
-static int __init
-setup_uninorth(struct pci_controller* hose, struct reg_property* addr)
+void __init setup_grackle(struct pci_controller *hose)
+{
+	setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
+	if (machine_is_compatible("AAPL,PowerBook1998"))
+		grackle_set_loop_snoop(hose, 1);
+#if 0	/* Disabled for now, HW problems ??? */
+	grackle_set_stg(hose, 1);
+#endif
+}
+
+static void __init setup_bandit(struct pci_controller *hose,
+				struct reg_property *addr)
+{
+	hose->ops = &macrisc_pci_ops;
+	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	init_bandit(hose);
+}
+
+static int __init setup_uninorth(struct pci_controller *hose,
+				 struct reg_property *addr)
 {
 	pci_assign_all_buses = 1;
 	has_uninorth = 1;
@@ -616,31 +648,14 @@ setup_uninorth(struct pci_controller* hose, struct reg_property* addr)
 	/* We "know" that the bridge at f2000000 has the PCI slots. */
 	return addr->address == 0xf2000000;
 }
+#endif
 
-static void __init
-setup_bandit(struct pci_controller* hose, struct reg_property* addr)
-{
-	hose->ops = &macrisc_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
-	init_bandit(hose);
-}
-
-static void __init
-setup_chaos(struct pci_controller* hose, struct reg_property* addr)
-{
-	/* assume a `chaos' bridge */
-	hose->ops = &chaos_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
-}
-
-#ifdef CONFIG_POWER4
+#ifdef CONFIG_PPC64
 static void __init setup_u3_agp(struct pci_controller* hose)
 {
 	/* On G5, we move AGP up to high bus number so we don't need
 	 * to reassign bus numbers for HT. If we ever have P2P bridges
-	 * on AGP, we'll have to move pci_assign_all_buses to the
+	 * on AGP, we'll have to move pci_assign_all_busses to the
 	 * pci_controller structure so we enable it for AGP and not for
 	 * HT childs.
 	 * We hard code the address because of the different size of
@@ -679,8 +694,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 * then read its configuration register (if any).
 	 */
 	hose->io_base_phys = 0xf4000000;
-	hose->io_base_virt = ioremap(hose->io_base_phys, 0x00400000);
-	isa_io_base = pci_io_base = (unsigned long) hose->io_base_virt;
+	hose->pci_io_size = 0x00400000;
 	hose->io_resource.name = np->full_name;
 	hose->io_resource.start = 0;
 	hose->io_resource.end = 0x003fffff;
@@ -692,6 +706,8 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	hose->mem_resources[0].start = 0x80000000;
 	hose->mem_resources[0].end = 0xefffffff;
 	hose->mem_resources[0].flags = IORESOURCE_MEM;
+
+	u3_ht = hose;
 
 	if (u3_agp == NULL) {
 		DBG("U3 has no AGP, using full resource range\n");
@@ -730,7 +746,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 			printk(KERN_WARNING "Running out of resources for /ht host !\n");
 			hose->mem_resources[cur].end = res->start - 1;
 			continue;
-		}		
+		}
 		cur++;
 		DBG("U3/HT: hole, %d end at %08lx, %d start at %08lx\n",
 		    cur-1, res->start - 1, cur, res->end + 1);
@@ -742,126 +758,17 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	}
 }
 
-#endif /* CONFIG_POWER4 */
-
-void __init
-setup_grackle(struct pci_controller *hose)
+/* XXX this needs to be converged between ppc32 and ppc64... */
+static struct pci_controller * __init pcibios_alloc_controller(void)
 {
-	setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
-	if (machine_is_compatible("AAPL,PowerBook1998"))
-		grackle_set_loop_snoop(hose, 1);
-#if 0	/* Disabled for now, HW problems ??? */
-	grackle_set_stg(hose, 1);
-#endif
+	struct pci_controller *hose;
+
+	hose = alloc_bootmem(sizeof(struct pci_controller));
+	if (hose)
+		pci_setup_pci_controller(hose);
+	return hose;
 }
-
-static void __init pmac_process_bridge_OF_ranges(struct pci_controller *hose,
-			   struct device_node *dev, int primary)
-{
-	static unsigned int static_lc_ranges[2024];
-	unsigned int *dt_ranges, *lc_ranges, *ranges, *prev;
-	unsigned int size;
-	int rlen = 0, orig_rlen;
-	int memno = 0;
-	struct resource *res;
-	int np, na = prom_n_addr_cells(dev);
-
-	np = na + 5;
-
-	/* First we try to merge ranges to fix a problem with some pmacs
-	 * that can have more than 3 ranges, fortunately using contiguous
-	 * addresses -- BenH
-	 */
-	dt_ranges = (unsigned int *) get_property(dev, "ranges", &rlen);
-	if (!dt_ranges)
-		return;
-	/*	lc_ranges = alloc_bootmem(rlen);*/
-	lc_ranges = static_lc_ranges;
-	if (!lc_ranges)
-		return; /* what can we do here ? */
-	memcpy(lc_ranges, dt_ranges, rlen);
-	orig_rlen = rlen;
-
-	/* Let's work on a copy of the "ranges" property instead of damaging
-	 * the device-tree image in memory
-	 */
-	ranges = lc_ranges;
-	prev = NULL;
-	while ((rlen -= np * sizeof(unsigned int)) >= 0) {
-		if (prev) {
-			if (prev[0] == ranges[0] && prev[1] == ranges[1] &&
-				(prev[2] + prev[na+4]) == ranges[2] &&
-				(prev[na+2] + prev[na+4]) == ranges[na+2]) {
-				prev[na+4] += ranges[na+4];
-				ranges[0] = 0;
-				ranges += np;
-				continue;
-			}
-		}
-		prev = ranges;
-		ranges += np;
-	}
-
-	/*
-	 * The ranges property is laid out as an array of elements,
-	 * each of which comprises:
-	 *   cells 0 - 2:	a PCI address
-	 *   cells 3 or 3+4:	a CPU physical address
-	 *			(size depending on dev->n_addr_cells)
-	 *   cells 4+5 or 5+6:	the size of the range
-	 */
-	ranges = lc_ranges;
-	rlen = orig_rlen;
-	while (ranges && (rlen -= np * sizeof(unsigned int)) >= 0) {
-		res = NULL;
-		size = ranges[na+4];
-		switch (ranges[0] >> 24) {
-		case 1:		/* I/O space */
-			if (ranges[2] != 0)
-				break;
-			hose->io_base_phys = ranges[na+2];
-			/* limit I/O space to 16MB */
-			if (size > 0x01000000)
-				size = 0x01000000;
-			hose->io_base_virt = ioremap(ranges[na+2], size);
-			if (primary)
-				isa_io_base = (unsigned long) hose->io_base_virt;
-			res = &hose->io_resource;
-			res->flags = IORESOURCE_IO;
-			res->start = ranges[2];
-			break;
-		case 2:		/* memory space */
-			memno = 0;
-			if (ranges[1] == 0 && ranges[2] == 0
-			    && ranges[na+4] <= (16 << 20)) {
-				/* 1st 16MB, i.e. ISA memory area */
-#if 0
-				if (primary)
-					isa_mem_base = ranges[na+2];
 #endif
-				memno = 1;
-			}
-			while (memno < 3 && hose->mem_resources[memno].flags)
-				++memno;
-			if (memno == 0)
-				hose->pci_mem_offset = ranges[na+2] - ranges[2];
-			if (memno < 3) {
-				res = &hose->mem_resources[memno];
-				res->flags = IORESOURCE_MEM;
-				res->start = ranges[na+2];
-			}
-			break;
-		}
-		if (res != NULL) {
-			res->name = dev->full_name;
-			res->end = res->start + size - 1;
-			res->parent = NULL;
-			res->sibling = NULL;
-			res->child = NULL;
-		}
-		ranges += np;
-	}
-}
 
 /*
  * We assume that if we have a G3 powermac, we have one bridge called
@@ -872,70 +779,78 @@ static int __init add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
+#ifdef CONFIG_PPC32
 	struct reg_property *addr;
-	char* disp_name;
+#endif
+	char *disp_name;
 	int *bus_range;
 	int primary = 1;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 
-       	addr = (struct reg_property *) get_property(dev, "reg", &len);
-       	if (addr == NULL || len < sizeof(*addr)) {
-       		printk(KERN_WARNING "Can't use %s: no address\n",
-       		       dev->full_name);
-       		return -ENODEV;
-       	}
-       	bus_range = (int *) get_property(dev, "bus-range", &len);
-       	if (bus_range == NULL || len < 2 * sizeof(int)) {
-       		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
-       			       dev->full_name);
-       	}
+#ifdef CONFIG_PPC32
+	/* XXX fix this */
+	addr = (struct reg_property *) get_property(dev, "reg", &len);
+	if (addr == NULL || len < sizeof(*addr)) {
+		printk(KERN_WARNING "Can't use %s: no address\n",
+		       dev->full_name);
+		return -ENODEV;
+	}
+#endif
+	bus_range = (int *) get_property(dev, "bus-range", &len);
+	if (bus_range == NULL || len < 2 * sizeof(int)) {
+		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
+			       dev->full_name);
+	}
 
-       	hose = pcibios_alloc_controller();
-       	if (!hose)
-       		return -ENOMEM;
-       	hose->arch_data = dev;
-       	hose->first_busno = bus_range ? bus_range[0] : 0;
-       	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose = pcibios_alloc_controller();
+	if (!hose)
+		return -ENOMEM;
+	hose->arch_data = dev;
+	hose->first_busno = bus_range ? bus_range[0] : 0;
+	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	disp_name = NULL;
 #ifdef CONFIG_POWER4
-       	if (device_is_compatible(dev, "u3-agp")) {
-       		setup_u3_agp(hose, addr);
-       		disp_name = "U3-AGP";
-       		primary = 0;
-       	} else if (device_is_compatible(dev, "u3-ht")) {
-       		setup_u3_ht(hose, addr);
-       		disp_name = "U3-HT";
-       		primary = 1;
-       	} else
-#endif /* CONFIG_POWER4 */
+	if (device_is_compatible(dev, "u3-agp")) {
+		setup_u3_agp(hose);
+		disp_name = "U3-AGP";
+		primary = 0;
+	} else if (device_is_compatible(dev, "u3-ht")) {
+		setup_u3_ht(hose);
+		disp_name = "U3-HT";
+		primary = 1;
+	}
+	printk(KERN_INFO "Found %s PCI host bridge.  Firmware bus number: %d->%d\n",
+		disp_name, hose->first_busno, hose->last_busno);
+#else
 	if (device_is_compatible(dev, "uni-north")) {
-       		primary = setup_uninorth(hose, addr);
-       		disp_name = "UniNorth";
+		primary = setup_uninorth(hose, addr);
+		disp_name = "UniNorth";
 	} else if (strcmp(dev->name, "pci") == 0) {
-       		/* XXX assume this is a mpc106 (grackle) */
-       		setup_grackle(hose);
-       		disp_name = "Grackle (MPC106)";
-       	} else if (strcmp(dev->name, "bandit") == 0) {
-       		setup_bandit(hose, addr);
-       		disp_name = "Bandit";
-       	} else if (strcmp(dev->name, "chaos") == 0) {
-       		setup_chaos(hose, addr);
-       		disp_name = "Chaos";
-       		primary = 0;
-       	}
-       	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. Firmware bus number: %d->%d\n",
-       		disp_name, addr->address, hose->first_busno, hose->last_busno);
-       	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
-       		hose, hose->cfg_addr, hose->cfg_data);
+		/* XXX assume this is a mpc106 (grackle) */
+		setup_grackle(hose);
+		disp_name = "Grackle (MPC106)";
+	} else if (strcmp(dev->name, "bandit") == 0) {
+		setup_bandit(hose, addr);
+		disp_name = "Bandit";
+	} else if (strcmp(dev->name, "chaos") == 0) {
+		setup_chaos(hose, addr);
+		disp_name = "Chaos";
+		primary = 0;
+	}
+	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. Firmware bus number: %d->%d\n",
+		disp_name, addr->address, hose->first_busno, hose->last_busno);
+#endif
+	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
+		hose, hose->cfg_addr, hose->cfg_data);
 
-       	/* Interpret the "ranges" property */
-       	/* This also maps the I/O region and sets isa_io/mem_base */
-       	pci_process_bridge_OF_ranges(hose, dev, primary);
+	/* Interpret the "ranges" property */
+	/* This also maps the I/O region and sets isa_io/mem_base */
+	pci_process_bridge_OF_ranges(hose, dev, primary);
 
-       	/* Fixup "bus-range" OF property */
-       	fixup_bus_range(dev);
+	/* Fixup "bus-range" OF property */
+	fixup_bus_range(dev);
 
 	return 0;
 }
@@ -968,14 +883,28 @@ pmac_pcibios_fixup(void)
 	pcibios_fixup_OF_interrupts();
 }
 
-void __init pmac_find_bridges(void)
+#ifdef CONFIG_PPC64
+static void __init pmac_fixup_phb_resources(void)
+{
+	struct pci_controller *hose, *tmp;
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		printk(KERN_INFO "PCI Host %d, io start: %lx; io end: %lx\n",
+		       hose->global_number,
+		       hose->io_resource.start, hose->io_resource.end);
+	}
+}
+#endif
+
+void __init pmac_pci_init(void)
 {
 	struct device_node *np, *root;
 	struct device_node *ht = NULL;
 
 	root = of_find_node_by_path("/");
 	if (root == NULL) {
-		printk(KERN_CRIT "pmac_find_bridges: can't find root of device tree\n");
+		printk(KERN_CRIT "pmac_pci_init: can't find root "
+		       "of device tree\n");
 		return;
 	}
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
@@ -994,22 +923,66 @@ void __init pmac_find_bridges(void)
 	}
 	of_node_put(root);
 
+#ifdef CONFIG_PPC64
 	/* Probe HT last as it relies on the agp resources to be already
 	 * setup
 	 */
 	if (ht && add_bridge(ht) != 0)
 		of_node_put(ht);
 
+	/*
+	 * We need to call pci_setup_phb_io for the HT bridge first
+	 * so it gets the I/O port numbers starting at 0, and we
+	 * need to call it for the AGP bridge after that so it gets
+	 * small positive I/O port numbers.
+	 */
+	if (u3_ht)
+		pci_setup_phb_io(u3_ht, 1);
+	if (u3_agp)
+		pci_setup_phb_io(u3_agp, 0);
+
+	/*
+	 * On ppc64, fixup the IO resources on our host bridges as
+	 * the common code does it only for children of the host bridges
+	 */
+	pmac_fixup_phb_resources();
+
+	/* Setup the linkage between OF nodes and PHBs */
+	pci_devs_phb_init();
+
+	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
+	 * assume there is no P2P bridge on the AGP bus, which should be a
+	 * safe assumptions hopefully.
+	 */
+	if (u3_agp) {
+		struct device_node *np = u3_agp->arch_data;
+		PCI_DN(np)->busno = 0xf0;
+		for (np = np->child; np; np = np->sibling)
+			PCI_DN(np)->busno = 0xf0;
+	}
+
+	/* map in PCI I/O space */
+	phbs_remap_io();
+
+	/* pmac_check_ht_link(); */
+
+	/* Tell pci.c to not use the common resource allocation mechanism */
+	pci_probe_only = 1;
+
+	/* Allow all IO */
+	io_page_mask = -1;
+
+#else /* CONFIG_PPC64 */
 	init_p2pbridge();
 	fixup_nec_usb2();
-	
+
 	/* We are still having some issues with the Xserve G4, enabling
 	 * some offset between bus number and domains for now when we
 	 * assign all busses should help for now
 	 */
 	if (pci_assign_all_buses)
 		pcibios_assign_bus_offset = 0x10;
-
+#endif
 }
 
 int
@@ -1037,7 +1010,7 @@ pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 
 	uninorth_child = node->parent &&
 		device_is_compatible(node->parent, "uni-north");
-	
+
 	/* Firewire & GMAC were disabled after PCI probe, the driver is
 	 * claiming them, we must re-enable them now.
 	 */
@@ -1057,7 +1030,7 @@ pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 
 	if (updatecfg) {
 		u16 cmd;
-	
+
 		/*
 		 * Make sure PCI is correctly configured
 		 *
@@ -1069,10 +1042,12 @@ pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 		 * register the device.
 		 */
 		pci_read_config_word(dev, PCI_COMMAND, &cmd);
-		cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE;
-    		pci_write_config_word(dev, PCI_COMMAND, cmd);
-    		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 16);
-    		pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, pci_cache_line_size);
+		cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER
+			| PCI_COMMAND_INVALIDATE;
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 16);
+		pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
+				      L1_CACHE_BYTES >> 2);
 	}
 
 	return 0;
@@ -1081,8 +1056,7 @@ pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 /* We power down some devices after they have been probed. They'll
  * be powered back on later on
  */
-void __init
-pmac_pcibios_after_init(void)
+void __init pmac_pcibios_after_init(void)
 {
 	struct device_node* nd;
 
@@ -1125,84 +1099,6 @@ pmac_pcibios_after_init(void)
 	}
 }
 
-#ifdef CONFIG_PPC64
-static void __init pmac_fixup_phb_resources(void)
-{
-	struct pci_controller *hose, *tmp;
-	
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		unsigned long offset = (unsigned long)hose->io_base_virt - pci_io_base;
-		hose->io_resource.start += offset;
-		hose->io_resource.end += offset;
-		printk(KERN_INFO "PCI Host %d, io start: %lx; io end: %lx\n",
-		       hose->global_number,
-		       hose->io_resource.start, hose->io_resource.end);
-	}
-}
-
-void __init pmac_pci_init(void)
-{
-	struct device_node *np, *root;
-	struct device_node *ht = NULL;
-
-	/* Probe root PCI hosts, that is on U3 the AGP host and the
-	 * HyperTransport host. That one is actually "kept" around
-	 * and actually added last as it's resource management relies
-	 * on the AGP resources to have been setup first
-	 */
-	root = of_find_node_by_path("/");
-	if (root == NULL) {
-		printk(KERN_CRIT "pmac_find_bridges: can't find root of device tree\n");
-		return;
-	}
-	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
-		if (np->name == NULL)
-			continue;
-		if (strcmp(np->name, "pci") == 0) {
-			if (add_bridge(np) == 0)
-				of_node_get(np);
-		}
-		if (strcmp(np->name, "ht") == 0) {
-			of_node_get(np);
-			ht = np;
-		}
-	}
-	of_node_put(root);
-
-	/* Now setup the HyperTransport host if we found any
-	 */
-	if (ht && add_bridge(ht) != 0)
-		of_node_put(ht);
-
-	/* Fixup the IO resources on our host bridges as the common code
-	 * does it only for childs of the host bridges
-	 */
-	pmac_fixup_phb_resources();
-
-	/* Setup the linkage between OF nodes and PHBs */ 
-	pci_devs_phb_init();
-
-	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
-	 * assume there is no P2P bridge on the AGP bus, which should be a
-	 * safe assumptions hopefully.
-	 */
-	if (u3_agp) {
-		struct device_node *np = u3_agp->arch_data;
-		PCI_DN(np)->busno = 0xf0;
-		for (np = np->child; np; np = np->sibling)
-			PCI_DN(np)->busno = 0xf0;
-	}
-
-	pmac_check_ht_link();
-
-	/* Tell pci.c to not use the common resource allocation mecanism */
-	pci_probe_only = 1;
-	
-	/* Allow all IO */
-	io_page_mask = -1;
-}
-#endif
-
 #ifdef CONFIG_PPC32
 void pmac_pci_fixup_cardbus(struct pci_dev* dev)
 {
@@ -1217,7 +1113,7 @@ void pmac_pci_fixup_cardbus(struct pci_dev* dev)
 	if (dev->device == PCI_DEVICE_ID_TI_1130 ||
 	    dev->device == PCI_DEVICE_ID_TI_1131) {
 		u8 val;
-	    	/* Enable PCI interrupt */
+		/* Enable PCI interrupt */
 		if (pci_read_config_byte(dev, 0x91, &val) == 0)
 			pci_write_config_byte(dev, 0x91, val | 0x30);
 		/* Disable ISA interrupt mode */

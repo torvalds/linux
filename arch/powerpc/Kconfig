@@ -290,6 +290,7 @@ config PPC_PMAC
 config PPC_PMAC64
 	bool
 	depends on PPC_PMAC && POWER4
+	select U3_DART
 	default y
 
 config PPC_PREP
