@@ -949,23 +949,23 @@ flush_kernel_icache_page:
 	sub		%r25, %r23, %r25
 
 
-1:      fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
-	fic,m		%r23(%r26)
+1:      fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
+	fic,m		%r23(%sr4, %r26)
 	CMPB<<		%r26, %r25, 1b
-	fic,m		%r23(%r26)
+	fic,m		%r23(%sr4, %r26)
 
 	sync
 	bv		%r0(%r2)
@@ -987,7 +987,7 @@ flush_kernel_icache_range_asm:
 	ANDCM		%r26, %r21, %r26
 
 1:      CMPB<<,n	%r26, %r25, 1b
-	fic,m		%r23(%r26)
+	fic,m		%r23(%sr4, %r26)
 
 	sync
 	bv		%r0(%r2)
