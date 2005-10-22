@@ -6,6 +6,8 @@
  *  Changelog:
  *    Implementation is based on mpu401 and emu10k1x and
  *    tested with ca0106.
+ *    mpu401: Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *    emu10k1x: Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
