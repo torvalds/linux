@@ -89,14 +89,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		}
 	}
     
-#ifdef CONFIG_CHASSIS_LCD_LED
-	/* Only schedule the led tasklet on cpu 0, and only if it
-	 * is enabled.
-	 */
-	if (cpu == 0 && !atomic_read(&led_tasklet.count))
-		tasklet_schedule(&led_tasklet);
-#endif
-
 	/* check soft power switch status */
 	if (cpu == 0 && !atomic_read(&power_tasklet.count))
 		tasklet_schedule(&power_tasklet);
