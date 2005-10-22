@@ -39,6 +39,11 @@ struct parisc_driver {
 #define to_parisc_driver(d)	container_of(d, struct parisc_driver, drv)
 #define parisc_parent(d)	to_parisc_device(d->dev.parent)
 
+static inline char *parisc_pathname(struct parisc_device *d)
+{
+	return d->dev.bus_id;
+}
+
 static inline void
 parisc_set_drvdata(struct parisc_device *d, void *p)
 {

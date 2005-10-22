@@ -1322,19 +1322,29 @@ sba_alloc_pdir(unsigned int pdir_size)
 	return (void *) pdir_base;
 }
 
-/* setup Mercury or Elroy IBASE/IMASK registers. */
-static void setup_ibase_imask(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
+static struct device *next_device(struct klist_iter *i)
 {
-        /* lba_set_iregs() is in drivers/parisc/lba_pci.c */
+        struct klist_node * n = klist_next(i);
+        return n ? container_of(n, struct device, knode_parent) : NULL;
+}
+
+/* setup Mercury or Elroy IBASE/IMASK registers. */
+static void 
+setup_ibase_imask(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
+{
+	/* lba_set_iregs() is in drivers/parisc/lba_pci.c */
         extern void lba_set_iregs(struct parisc_device *, u32, u32);
 	struct device *dev;
+	struct klist_iter i;
 
-	list_for_each_entry(dev, &sba->dev.children, node) {
+	klist_iter_init(&sba->dev.klist_children, &i);
+	while ((dev = next_device(&i))) {
 		struct parisc_device *lba = to_parisc_device(dev);
-		int rope_num = (lba->hpa >> 13) & 0xf;
+		int rope_num = (lba->hpa.start >> 13) & 0xf;
 		if (rope_num >> 3 == ioc_num)
 			lba_set_iregs(lba, ioc->ibase, ioc->imask);
 	}
+	klist_iter_exit(&i);
 }
 
 static void
