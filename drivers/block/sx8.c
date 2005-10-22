@@ -242,7 +242,6 @@ static const char *state_name[] = {
 
 struct carm_port {
 	unsigned int			port_no;
-	unsigned int			n_queued;
 	struct gendisk			*disk;
 	struct carm_host		*host;
 
