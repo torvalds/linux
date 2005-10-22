@@ -490,15 +490,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 give_sigsegv:
 	DBG(1,"setup_rt_frame: sending SIGSEGV\n");
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	si.si_signo = SIGSEGV;
-	si.si_errno = 0;
-	si.si_code = SI_KERNEL;
-	si.si_pid = current->pid;
-	si.si_uid = current->uid;
-	si.si_addr = frame;
-	force_sig_info(SIGSEGV, &si, current);
+	force_sigsegv(sig, current);
 	return 0;
 }
 
