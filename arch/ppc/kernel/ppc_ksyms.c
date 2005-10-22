@@ -323,10 +323,6 @@ extern long *intercept_table;
 EXPORT_SYMBOL(intercept_table);
 #endif /* CONFIG_PPC_STD_MMU */
 EXPORT_SYMBOL(cur_cpu_spec);
-#ifdef CONFIG_PPC_PMAC
-extern unsigned long agp_special_page;
-EXPORT_SYMBOL(agp_special_page);
-#endif
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 EXPORT_SYMBOL(__mtdcr);
 EXPORT_SYMBOL(__mfdcr);

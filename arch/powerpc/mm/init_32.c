@@ -69,6 +69,7 @@ unsigned long ppc_memoffset = PAGE_OFFSET;
 int boot_mapsize;
 #ifdef CONFIG_PPC_PMAC
 unsigned long agp_special_page;
+EXPORT_SYMBOL(agp_special_page);
 #endif
 
 #ifdef CONFIG_HIGHMEM
