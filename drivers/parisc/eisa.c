@@ -397,7 +397,7 @@ static struct parisc_device_id eisa_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, eisa_tbl);
 
 static struct parisc_driver eisa_driver = {
-	.name =		"EISA Bus Adapter",
+	.name =		"eisa_ba",
 	.id_table =	eisa_tbl,
 	.probe =	eisa_probe,
 };

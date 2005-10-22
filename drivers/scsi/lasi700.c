@@ -168,7 +168,7 @@ lasi700_driver_remove(struct parisc_device *dev)
 }
 
 static struct parisc_driver lasi700_driver = {
-	.name =		"Lasi SCSI",
+	.name =		"lasi_scsi",
 	.id_table =	lasi700_ids,
 	.probe =	lasi700_probe,
 	.remove =	__devexit_p(lasi700_driver_remove),

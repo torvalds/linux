@@ -1027,9 +1027,9 @@ static struct parisc_device_id dino_tbl[] = {
 };
 
 static struct parisc_driver dino_driver = {
-	.name =		"Dino",
+	.name =		"dino",
 	.id_table =	dino_tbl,
-	.probe =	dino_driver_callback,
+	.probe =	dino_probe,
 };
 
 /*

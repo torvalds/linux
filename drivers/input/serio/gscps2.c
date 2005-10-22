@@ -444,7 +444,7 @@ static struct parisc_device_id gscps2_device_tbl[] = {
 };
 
 static struct parisc_driver parisc_ps2_driver = {
-	.name		= "GSC PS2",
+	.name		= "gsc_ps2",
 	.id_table	= gscps2_device_tbl,
 	.probe		= gscps2_probe,
 	.remove		= gscps2_remove,

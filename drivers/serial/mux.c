@@ -497,7 +497,7 @@ static struct parisc_device_id mux_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, mux_tbl);
 
 static struct parisc_driver serial_mux_driver = {
-	.name =		"Serial MUX",
+	.name =		"serial_mux",
 	.id_table =	mux_tbl,
 	.probe =	mux_probe,
 };

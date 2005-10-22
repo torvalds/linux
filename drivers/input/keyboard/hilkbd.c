@@ -299,7 +299,7 @@ static struct parisc_device_id hil_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, hil_tbl);
 
 static struct parisc_driver hil_driver = {
-	.name =		"HIL",
+	.name =		"hil",
 	.id_table =	hil_tbl,
 	.probe =	hil_init_chip,
 };

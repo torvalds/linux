@@ -1566,7 +1566,7 @@ static struct parisc_device_id lan_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, lan_tbl);
 
 static struct parisc_driver lan_driver = {
-	.name		= "Apricot",
+	.name		= "lasi_82596",
 	.id_table	= lan_tbl,
 	.probe		= lan_init_chip,
 };

@@ -233,7 +233,7 @@ static struct parisc_device_id lasi_tbl[] = {
 };
 
 struct parisc_driver lasi_driver = {
-	.name =		"Lasi",
+	.name =		"lasi",
 	.id_table =	lasi_tbl,
 	.probe =	lasi_init_chip,
 };

@@ -93,7 +93,7 @@ static struct parisc_device_id hppb_tbl[] = {
 };
 
 static struct parisc_driver hppb_driver = {
-        .name =         "Gecko Boa",
+        .name =         "gecko_boa",
         .id_table =     hppb_tbl,
 	.probe =        hppb_probe,
 };
