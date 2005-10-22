@@ -22,7 +22,8 @@
 #define _PARISC_ASSEMBLY_H
 
 #define CALLEE_FLOAT_FRAME_SIZE	80
-#ifdef __LP64__
+
+#ifdef CONFIG_64BIT
 #define LDREG	ldd
 #define STREG	std
 #define LDREGX  ldd,s
@@ -32,7 +33,7 @@
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
-#else
+#else	/* CONFIG_64BIT */
 #define LDREG	ldw
 #define STREG	stw
 #define LDREGX  ldwx,s
@@ -43,6 +44,7 @@
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128
 #endif
+
 #define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)
 
 #ifdef CONFIG_PA20
