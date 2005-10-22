@@ -339,6 +339,7 @@ unsigned long pa_memcpy(void *dstp, const void *srcp, unsigned long len)
 	pds = (double *)pcs;
 	pdd = (double *)pcd;
 
+#if 0
 	/* Copy 8 doubles at a time */
 	while (len >= 8*sizeof(double)) {
 		register double r1, r2, r3, r4, r5, r6, r7, r8;
@@ -366,6 +367,7 @@ unsigned long pa_memcpy(void *dstp, const void *srcp, unsigned long len)
 		fstdma(d_space, r8, pdd, pmc_store_exc);
 		len -= 8*sizeof(double);
 	}
+#endif
 
 	pws = (unsigned int *)pds;
 	pwd = (unsigned int *)pdd;

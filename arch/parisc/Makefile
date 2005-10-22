@@ -43,7 +43,7 @@ cflags-y	+= -mno-space-regs -mfast-indirect-calls
 # Currently we save and restore fpregs on all kernel entry/interruption paths.
 # If that gets optimized, we might need to disable the use of fpregs in the
 # kernel.
-#cflags-y	+= -mdisable-fpregs
+cflags-y	+= -mdisable-fpregs
 
 # Without this, "ld -r" results in .text sections that are too big
 # (> 0x40000) for branches to reach stubs.
