@@ -155,7 +155,7 @@ static __inline__ struct page *drm_do_vm_shm_nopage(struct vm_area_struct *vma,
 	offset = address - vma->vm_start;
 	i = (unsigned long)map->handle + offset;
 	page = (map->type == _DRM_CONSISTENT) ?
-	    virt_to_page((void *)i) : vmalloc_to_page((void *)i);
+		virt_to_page((void *)i) : vmalloc_to_page((void *)i);
 	if (!page)
 		return NOPAGE_OOM;
 	get_page(page);
