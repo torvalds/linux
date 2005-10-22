@@ -7,6 +7,26 @@
 #include <linux/mm.h>
 #include <asm/mmu_context.h>
 
+
+/* This is for the serialisation of PxTLB broadcasts.  At least on the
+ * N class systems, only one PxTLB inter processor broadcast can be
+ * active at any one time on the Merced bus.  This tlb purge
+ * synchronisation is fairly lightweight and harmless so we activate
+ * it on all SMP systems not just the N class. */
+#ifdef CONFIG_SMP
+extern spinlock_t pa_tlb_lock;
+
+#define purge_tlb_start(x) spin_lock(&pa_tlb_lock)
+#define purge_tlb_end(x) spin_unlock(&pa_tlb_lock)
+
+#else
+
+#define purge_tlb_start(x) do { } while(0)
+#define purge_tlb_end(x) do { } while (0)
+
+#endif
+
+
 extern void flush_tlb_all(void);
 
 /*
