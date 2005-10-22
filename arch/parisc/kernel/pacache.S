@@ -351,7 +351,11 @@ copy_user_page_asm:
 	std		%r22, 120(%r26)
 	ldo		128(%r26), %r26
 
-	ADDIB>		-1, %r1, 1b		/* bundle 10 */
+	/* conditional branches nullify on forward taken branch, and on
+	 * non-taken backward branch. Note that .+4 is a backwards branch.
+	 * The ldd should only get executed if the branch is taken.
+	 */
+	ADDIB>,n	-1, %r1, 1b		/* bundle 10 */
 	ldd		0(%r25), %r19		/* start next loads */
 
 #else
@@ -363,10 +367,10 @@ copy_user_page_asm:
 	 * the full 64 bit register values on interrupt, we can't
 	 * use ldd/std on a 32 bit kernel.
 	 */
+	ldw		0(%r25), %r19
 	ldi		64, %r1		/* PAGE_SIZE/64 == 64 */
 
 1:
-	ldw		0(%r25), %r19
 	ldw		4(%r25), %r20
 	ldw		8(%r25), %r21
 	ldw		12(%r25), %r22
@@ -396,11 +400,12 @@ copy_user_page_asm:
 	ldw		60(%r25), %r22
 	stw		%r19, 48(%r26)
 	stw		%r20, 52(%r26)
+	ldo		64(%r25), %r25
 	stw		%r21, 56(%r26)
 	stw		%r22, 60(%r26)
 	ldo		64(%r26), %r26
-	ADDIB>		-1, %r1, 1b
-	ldo		64(%r25), %r25
+	ADDIB>,n	-1, %r1, 1b
+	ldw		0(%r25), %r19
 #endif
 	bv		%r0(%r2)
 	nop
