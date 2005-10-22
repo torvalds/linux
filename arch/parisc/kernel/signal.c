@@ -636,6 +636,7 @@ do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall)
 			/* Stack is 64-byte aligned, and we only 
 			 * need to flush 1 cache line */
 			asm("fdc 0(%%sr3, %0)\n"
+			    "sync\n"
 			    "fic 0(%%sr3, %0)\n"
 			    "sync\n"
 			    : : "r"(regs->gr[30]));
