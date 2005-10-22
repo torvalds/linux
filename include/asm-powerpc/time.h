@@ -196,9 +196,11 @@ static inline unsigned long tb_ticks_since(unsigned long tstamp)
 extern u64 mulhdu(u64, u64);
 #endif
 
-unsigned mulhwu_scale_factor(unsigned, unsigned);
-void div128_by_32(u64 dividend_high, u64 dividend_low,
-		  unsigned divisor, struct div_result *dr);
+extern void smp_space_timers(unsigned int);
+
+extern unsigned mulhwu_scale_factor(unsigned, unsigned);
+extern void div128_by_32(u64 dividend_high, u64 dividend_low,
+			 unsigned divisor, struct div_result *dr);
 
 /* Used to store Processor Utilization register (purr) values */
 

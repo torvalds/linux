@@ -105,21 +105,6 @@ void __devinit smp_generic_kick_cpu(int nr)
 
 #endif /* CONFIG_MPIC */
 
-static void __init smp_space_timers(unsigned int max_cpus)
-{
-	int i;
-	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
-	unsigned long previous_tb = paca[boot_cpuid].next_jiffy_update_tb;
-
-	for_each_cpu(i) {
-		if (i != boot_cpuid) {
-			paca[i].next_jiffy_update_tb =
-				previous_tb + offset;
-			previous_tb = paca[i].next_jiffy_update_tb;
-		}
-	}
-}
-
 void smp_message_recv(int msg, struct pt_regs *regs)
 {
 	switch(msg) {

@@ -458,7 +458,7 @@ void wakeup_decrementer(void)
 		per_cpu(last_jiffy, i) = tb_last_stamp;
 }
 
-#ifdef CONFIG_SMPxxx
+#ifdef CONFIG_SMP
 void __init smp_space_timers(unsigned int max_cpus)
 {
 	int i;
@@ -948,16 +948,6 @@ void div128_by_32(u64 dividend_high, u64 dividend_low,
 	w = a / divisor;
 	ra = ((u64)(a - (w * divisor)) << 32) + b;
 
-#ifdef CONFIG_PPC64
-	x = ra / divisor;
-	rb = ((ra - (x * divisor)) << 32) + c;
-
-	y = rb / divisor;
-	rc = ((rb - (y * divisor)) << 32) + d;
-
-	z = rc / divisor;
-#else
-	/* for 32-bit, use do_div from div64.h */
 	rb = ((u64) do_div(ra, divisor) << 32) + c;
 	x = ra;
 
@@ -966,10 +956,8 @@ void div128_by_32(u64 dividend_high, u64 dividend_low,
 
 	do_div(rc, divisor);
 	z = rc;
-#endif
 
 	dr->result_high = ((u64)w << 32) + x;
 	dr->result_low  = ((u64)y << 32) + z;
 
 }
-
