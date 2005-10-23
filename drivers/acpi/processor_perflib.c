@@ -315,8 +315,6 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	if (!pr || !pr->performance || !pr->handle)
 		return_VALUE(-EINVAL);
 
-	acpi_processor_set_pdc(pr, pr->performance->pdc);
-
 	status = acpi_get_handle(pr->handle, "_PCT", &handle);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,

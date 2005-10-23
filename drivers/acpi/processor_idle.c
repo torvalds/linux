@@ -1014,8 +1014,6 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 		}
 	}
 
-	acpi_processor_power_init_pdc(&(pr->power), pr->id);
-	acpi_processor_set_pdc(pr, pr->power.pdc);
 	acpi_processor_get_power_info(pr);
 
 	/*
