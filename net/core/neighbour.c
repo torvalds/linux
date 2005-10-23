@@ -816,10 +816,10 @@ static void neigh_timer_handler(unsigned long arg)
 	}
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
-		neigh_hold(neigh);
 		if (time_before(next, jiffies + HZ/2))
 			next = jiffies + HZ/2;
-		neigh_add_timer(neigh, next);
+		if (!mod_timer(&neigh->timer, next))
+			neigh_hold(neigh);
 	}
 	if (neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) {
 		struct sk_buff *skb = skb_peek(&neigh->arp_queue);
