@@ -132,6 +132,7 @@ struct prom_t {
 	ihandle chosen;
 	int cpu;
 	ihandle stdout;
+	ihandle mmumap;
 };
 
 struct mem_map_entry {
@@ -274,14 +275,6 @@ static int __init call_prom_ret(const char *service, int nargs, int nret,
 }
 
 
-static unsigned int __init prom_claim(unsigned long virt, unsigned long size,
-				unsigned long align)
-{
-	return (unsigned int)call_prom("claim", 3, 1,
-				       (prom_arg_t)virt, (prom_arg_t)size,
-				       (prom_arg_t)align);
-}
-
 static void __init prom_print(const char *msg)
 {
 	const char *p, *q;
@@ -362,6 +355,21 @@ static void __init prom_printf(const char *format, ...)
 	}
 }
 
+
+static unsigned int __init prom_claim(unsigned long virt, unsigned long size,
+				unsigned long align)
+{
+	int ret;
+	struct prom_t *_prom = &RELOC(prom);
+
+	ret = call_prom("claim", 3, 1, (prom_arg_t)virt, (prom_arg_t)size,
+			(prom_arg_t)align);
+	if (ret != -1 && _prom->mmumap != 0)
+		/* old pmacs need us to map as well */
+		call_prom("call-method", 6, 1,
+			  ADDR("map"), _prom->mmumap, 0, size, virt, virt);
+	return ret;
+}
 
 static void __init __attribute__((noreturn)) prom_panic(const char *reason)
 {
@@ -1323,7 +1331,37 @@ static void __init prom_init_client_services(unsigned long pp)
 	_prom->root = call_prom("finddevice", 1, 1, ADDR("/"));
 	if (!PHANDLE_VALID(_prom->root))
 		prom_panic("cannot find device tree root"); /* msg won't be printed :( */
+
+	_prom->mmumap = 0;
 }
+
+#ifdef CONFIG_PPC32
+/*
+ * For really old powermacs, we need to map things we claim.
+ * For that, we need the ihandle of the mmu.
+ */
+static void __init prom_find_mmu(void)
+{
+	struct prom_t *_prom = &RELOC(prom);
+	phandle oprom;
+	char version[64];
+
+	oprom = call_prom("finddevice", 1, 1, ADDR("/openprom"));
+	if (!PHANDLE_VALID(oprom))
+		return;
+	if (prom_getprop(oprom, "model", version, sizeof(version)) <= 0)
+		return;
+	version[sizeof(version) - 1] = 0;
+	prom_printf("OF version is '%s'\n", version);
+	/* XXX might need to add other versions here */
+	if (strcmp(version, "Open Firmware, 1.0.5") != 0)
+		return;
+	prom_getprop(_prom->chosen, "mmu", &_prom->mmumap,
+		     sizeof(_prom->mmumap));
+}
+#else
+#define prom_find_mmu()
+#endif
 
 static void __init prom_init_stdout(void)
 {
@@ -1379,7 +1417,7 @@ static int __init prom_find_machine_type(void)
 			if (sl == 0)
 				break;
 			if (strstr(p, RELOC("Power Macintosh")) ||
-			    strstr(p, RELOC("MacRISC4")))
+			    strstr(p, RELOC("MacRISC")))
 				return PLATFORM_POWERMAC;
 #ifdef CONFIG_PPC64
 			if (strstr(p, RELOC("Momentum,Maple")))
@@ -1618,22 +1656,17 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 		namep[l] = '\0';
 
 		/* Fixup an Apple bug where they have bogus \0 chars in the
-		 * middle of the path in some properties
+		 * middle of the path in some properties, and extract
+		 * the unit name (everything after the last '/').
 		 */
-		for (p = namep, ep = namep + l; p < ep; p++)
-			if (*p == '\0') {
-				memmove(p, p+1, ep - p);
-				ep--; l--; p--;
-			}
-
-		/* now try to extract the unit name in that mess */
-		for (p = namep, lp = NULL; *p; p++)
+		for (lp = p = namep, ep = namep + l; p < ep; p++) {
 			if (*p == '/')
-				lp = p + 1;
-		if (lp != NULL)
-			memmove(namep, lp, strlen(lp) + 1);
-		*mem_start = _ALIGN(((unsigned long) namep) +
-				    strlen(namep) + 1, 4);
+				lp = namep;
+			else if (*p != 0)
+				*lp++ = *p;
+		}
+		*lp = 0;
+		*mem_start = _ALIGN((unsigned long)lp + 1, 4);
 	}
 
 	/* get it again for debugging */
@@ -1858,8 +1891,9 @@ static void __init prom_find_boot_cpu(void)
 	ihandle prom_cpu;
 	phandle cpu_pkg;
 
+	_prom->cpu = 0;
 	if (prom_getprop(_prom->chosen, "cpu", &prom_cpu, sizeof(prom_cpu)) <= 0)
-		prom_panic("cannot find boot cpu");
+		return;
 
 	cpu_pkg = call_prom("instance-to-package", 1, 1, prom_cpu);
 
@@ -1932,6 +1966,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Init prom stdout device
 	 */
 	prom_init_stdout();
+
+	/*
+	 * See if this OF is old enough that we need to do explicit maps
+	 */
+	prom_find_mmu();
 
 	/*
 	 * Check for an initrd

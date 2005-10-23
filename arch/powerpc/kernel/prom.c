@@ -309,6 +309,37 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	unsigned int *irq, virq;
 	struct device_node *ic;
 
+	if (num_interrupt_controllers == 0) {
+		/*
+		 * Old machines just have a list of interrupt numbers
+		 * and no interrupt-controller nodes.
+		 */
+		ints = (unsigned int *) get_property(np, "AAPL,interrupts",
+						     &intlen);
+		/* XXX old interpret_pci_props looked in parent too */
+		/* XXX old interpret_macio_props looked for interrupts
+		   before AAPL,interrupts */
+		if (ints == NULL)
+			ints = (unsigned int *) get_property(np, "interrupts",
+							     &intlen);
+		if (ints == NULL)
+			return 0;
+
+		np->n_intrs = intlen / sizeof(unsigned int);
+		np->intrs = prom_alloc(np->n_intrs * sizeof(np->intrs[0]),
+				       mem_start);
+		if (!np->intrs)
+			return -ENOMEM;
+		if (measure_only)
+			return 0;
+
+		for (i = 0; i < np->n_intrs; ++i) {
+			np->intrs[i].line = *ints++;
+			np->intrs[i].sense = 1;
+		}
+		return 0;
+	}
+
 	ints = (unsigned int *) get_property(np, "interrupts", &intlen);
 	if (ints == NULL)
 		return 0;
@@ -1024,6 +1055,8 @@ void __init unflatten_device_tree(void)
 
 	/* Get pointer to OF "/chosen" node for use everywhere */
 	of_chosen = of_find_node_by_path("/chosen");
+	if (of_chosen == NULL)
+		of_chosen = of_find_node_by_path("/chosen@0");
 
 	/* Retreive command line */
 	if (of_chosen != NULL) {
@@ -1123,7 +1156,8 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 
 	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
-	if (depth != 1 || strcmp(uname, "chosen") != 0)
+	if (depth != 1 ||
+	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
 		return 0;
 
 	/* get platform type */

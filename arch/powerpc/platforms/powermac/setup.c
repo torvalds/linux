@@ -225,7 +225,7 @@ int find_via_pmu(void)
 		return 0;
 	printk("WARNING ! Your machine is PMU-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_PMU option !\n");
-	return;
+	return 0;
 }
 #endif
 
@@ -293,7 +293,7 @@ static void __init l2cr_init(void)
 
 void __init pmac_setup_arch(void)
 {
-	struct device_node *cpu;
+	struct device_node *cpu, *ic;
 	int *fp;
 	unsigned long pvr;
 
@@ -318,6 +318,12 @@ void __init pmac_setup_arch(void)
 		}
 		of_node_put(cpu);
 	}
+
+	/* See if newworld or oldworld */
+	ic = of_find_node_by_name(NULL, "interrupt-controller");
+	pmac_newworld = (ic != NULL);
+	if (ic)
+		of_node_put(ic);
 
 	/* Lookup PCI hosts */
 	pmac_pci_init();
