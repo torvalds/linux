@@ -380,14 +380,9 @@ int posix_cpu_timer_create(struct k_itimer *new_timer)
 int posix_cpu_timer_del(struct k_itimer *timer)
 {
 	struct task_struct *p = timer->it.cpu.task;
+	int ret = 0;
 
-	if (timer->it.cpu.firing)
-		return TIMER_RETRY;
-
-	if (unlikely(p == NULL))
-		return 0;
-
-	if (!list_empty(&timer->it.cpu.entry)) {
+	if (likely(p != NULL)) {
 		read_lock(&tasklist_lock);
 		if (unlikely(p->signal == NULL)) {
 			/*
@@ -396,18 +391,20 @@ int posix_cpu_timer_del(struct k_itimer *timer)
 			 */
 			BUG_ON(!list_empty(&timer->it.cpu.entry));
 		} else {
-			/*
-			 * Take us off the task's timer list.
-			 */
 			spin_lock(&p->sighand->siglock);
-			list_del(&timer->it.cpu.entry);
+			if (timer->it.cpu.firing)
+				ret = TIMER_RETRY;
+			else
+				list_del(&timer->it.cpu.entry);
 			spin_unlock(&p->sighand->siglock);
 		}
 		read_unlock(&tasklist_lock);
-	}
-	put_task_struct(p);
 
-	return 0;
+		if (!ret)
+			put_task_struct(p);
+	}
+
+	return ret;
 }
 
 /*
@@ -424,8 +421,6 @@ static void cleanup_timers(struct list_head *head,
 	cputime_t ptime = cputime_add(utime, stime);
 
 	list_for_each_entry_safe(timer, next, head, entry) {
-		put_task_struct(timer->task);
-		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (cputime_lt(timer->expires.cpu, ptime)) {
 			timer->expires.cpu = cputime_zero;
@@ -437,8 +432,6 @@ static void cleanup_timers(struct list_head *head,
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
-		put_task_struct(timer->task);
-		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (cputime_lt(timer->expires.cpu, utime)) {
 			timer->expires.cpu = cputime_zero;
@@ -450,8 +443,6 @@ static void cleanup_timers(struct list_head *head,
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
-		put_task_struct(timer->task);
-		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (timer->expires.sched < sched_time) {
 			timer->expires.sched = 0;
