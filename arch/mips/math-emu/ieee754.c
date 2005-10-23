@@ -31,6 +31,8 @@
 
 
 #include "ieee754int.h"
+#include "ieee754sp.h"
+#include "ieee754dp.h"
 
 #define DP_EBIAS	1023
 #define DP_EMIN		(-1022)
