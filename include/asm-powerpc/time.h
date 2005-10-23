@@ -30,7 +30,8 @@ extern unsigned long tb_ticks_per_usec;
 extern unsigned long tb_ticks_per_sec;
 extern u64 tb_to_xs;
 extern unsigned      tb_to_us;
-extern u64 tb_last_stamp;
+extern unsigned long tb_last_stamp;
+extern u64 tb_last_jiffy;
 
 DECLARE_PER_CPU(unsigned long, last_jiffy);
 
@@ -111,6 +112,17 @@ static inline unsigned int get_rtcl(void)
 
 	asm volatile("mfrtcl %0" : "=r" (rtcl));
 	return rtcl;
+}
+
+static inline u64 get_rtc(void)
+{
+	unsigned int hi, lo, hi2;
+
+	do {
+		asm volatile("mfrtcu %0; mfrtcl %1; mfrtcu %2"
+			     : "=r" (hi), "=r" (lo), "=r" (hi2));
+	} while (hi2 != hi);
+	return (u64)hi * 1000000000 + lo;
 }
 
 #ifdef CONFIG_PPC64
