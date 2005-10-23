@@ -252,6 +252,8 @@ pci_restore_bars(struct pci_dev *dev)
 		pci_update_resource(dev, &dev->resource[i], i);
 }
 
+int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
+
 /**
  * pci_set_power_state - Set the power state of a PCI device
  * @dev: PCI device to be suspended
@@ -266,7 +268,6 @@ pci_restore_bars(struct pci_dev *dev)
  * -EIO if device does not support PCI PM.
  * 0 if we can successfully change the power state.
  */
-int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
 int
 pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -808,8 +809,8 @@ pci_clear_mwi(struct pci_dev *dev)
 
 /**
  * pci_intx - enables/disables PCI INTx for device dev
- * @dev: the PCI device to operate on
- * @enable: boolean
+ * @pdev: the PCI device to operate on
+ * @enable: boolean: whether to enable or disable PCI INTx
  *
  * Enables/disables PCI INTx for device dev
  */

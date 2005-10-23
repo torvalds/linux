@@ -26,7 +26,10 @@ struct pci_dynid {
 #ifdef CONFIG_HOTPLUG
 
 /**
- * store_new_id
+ * store_new_id - add a new PCI device ID to this driver and re-probe devices
+ * @driver: target device driver
+ * @buf: buffer for scanning device ID data
+ * @count: input size
  *
  * Adds a new dynamic pci device ID to this driver,
  * and causes the driver to probe for all devices again.
@@ -194,8 +197,10 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 
 /**
  * __pci_device_probe()
+ * @drv: driver to call to check if it wants the PCI device
+ * @pci_dev: PCI device being probed
  * 
- * returns 0  on success, else error.
+ * returns 0 on success, else error.
  * side-effect: pci_dev->driver is set to drv when drv claims pci_dev.
  */
 static int
@@ -440,11 +445,11 @@ pci_dev_driver(const struct pci_dev *dev)
 
 /**
  * pci_bus_match - Tell if a PCI device structure has a matching PCI device id structure
- * @ids: array of PCI device id structures to search in
  * @dev: the PCI device structure to match against
+ * @drv: the device driver to search for matching PCI device id structures
  * 
  * Used by a driver to check whether a PCI device present in the
- * system is in its list of supported devices.Returns the matching
+ * system is in its list of supported devices. Returns the matching
  * pci_device_id structure or %NULL if there is no match.
  */
 static int pci_bus_match(struct device *dev, struct device_driver *drv)
