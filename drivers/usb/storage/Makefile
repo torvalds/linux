@@ -22,3 +22,7 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_ONETOUCH)	+= onetouch.o
 
 usb-storage-objs :=	scsiglue.o protocol.o transport.o usb.o \
 			initializers.o $(usb-storage-obj-y)
+
+ifneq ($(CONFIG_USB_LIBUSUAL),)
+	obj-$(CONFIG_USB)	+= libusual.o
+endif

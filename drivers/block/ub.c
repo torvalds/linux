@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb_usual.h>
 #include <linux/blkdev.h>
 #include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
@@ -105,16 +106,6 @@
  *           \--------------------------------\--------------------->! DONE   !
  *                                                                   +--------+
  */
-
-/*
- * Definitions which have to be scattered once we understand the layout better.
- */
-
-/* Transport (despite PR in the name) */
-#define US_PR_BULK	0x50		/* bulk only */
-
-/* Protocol */
-#define US_SC_SCSI	0x06		/* Transparent */
 
 /*
  * This many LUNs per USB device.
@@ -422,13 +413,18 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum);
 
 /*
  */
+#ifdef CONFIG_USB_LIBUSUAL
+
+#define ub_usb_ids  storage_usb_ids
+#else
+
 static struct usb_device_id ub_usb_ids[] = {
-	// { USB_DEVICE_VER(0x0781, 0x0002, 0x0009, 0x0009) },	/* SDDR-31 */
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, US_SC_SCSI, US_PR_BULK) },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, ub_usb_ids);
+#endif /* CONFIG_USB_LIBUSUAL */
 
 /*
  * Find me a way to identify "next free minor" for add_disk(),
@@ -2172,6 +2168,9 @@ static int ub_probe(struct usb_interface *intf,
 	int rc;
 	int i;
 
+	if (usb_usual_check_type(dev_id, USB_US_TYPE_UB))
+		return -ENXIO;
+
 	rc = -ENOMEM;
 	if ((sc = kmalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
 		goto err_core;
@@ -2479,6 +2478,7 @@ static int __init ub_init(void)
 	if ((rc = usb_register(&ub_driver)) != 0)
 		goto err_register;
 
+	usb_usual_set_present(USB_US_TYPE_UB);
 	return 0;
 
 err_register:
@@ -2494,6 +2494,7 @@ static void __exit ub_exit(void)
 
 	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
+	usb_usual_clear_present(USB_US_TYPE_UB);
 }
 
 module_init(ub_init);
