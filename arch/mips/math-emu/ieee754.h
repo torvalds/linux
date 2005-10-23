@@ -22,6 +22,8 @@
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgard, carstenl@mips.com
  *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
  */
+#ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
+#define __ARCH_MIPS_MATH_EMU_IEEE754_H
 
 #include <asm/byteorder.h>
 #include <linux/types.h>
@@ -466,3 +468,5 @@ extern void ieee754_xcpt(struct ieee754xctx *xcp);
 /* compat */
 #define ieee754dp_fix(x)	ieee754dp_tint(x)
 #define ieee754sp_fix(x)	ieee754sp_tint(x)
+
+#endif /* __ARCH_MIPS_MATH_EMU_IEEE754_H */
