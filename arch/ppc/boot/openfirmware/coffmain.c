@@ -38,7 +38,7 @@ static char heap[SCRATCH_SIZE];
 static unsigned long ram_start = 0;
 static unsigned long ram_end = 0x1000000;
 
-static unsigned long prog_start = 0x900000;
+static unsigned long prog_start = 0x800000;
 static unsigned long prog_size = 0x700000;
 
 typedef void (*kernel_start_t)(int, int, void *);
