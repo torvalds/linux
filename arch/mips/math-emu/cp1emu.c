@@ -209,7 +209,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 	void * emulpc, *contpc;
 	unsigned int cond;
 
-	if (get_user(ir, (mips_instruction *) xcp->cp0_epc)) {
+	if (get_user(ir, (mips_instruction __user *) xcp->cp0_epc)) {
 		fpuemustats.errors++;
 		return SIGBUS;
 	}
@@ -240,7 +240,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 #endif
 			return SIGILL;
 		}
-		if (get_user(ir, (mips_instruction *) emulpc)) {
+		if (get_user(ir, (mips_instruction __user *) emulpc)) {
 			fpuemustats.errors++;
 			return SIGBUS;
 		}
@@ -258,7 +258,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 	switch (MIPSInst_OPCODE(ir)) {
 #ifndef SINGLE_ONLY_FPU
 	case ldc1_op:{
-		u64 *va = (void *) (xcp->regs[MIPSInst_RS(ir)] +
+		u64 __user *va = (u64 __user *) (xcp->regs[MIPSInst_RS(ir)] +
 			MIPSInst_SIMM(ir));
 		u64 val;
 
@@ -272,7 +272,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 	}
 
 	case sdc1_op:{
-		u64 *va = (void *) (xcp->regs[MIPSInst_RS(ir)] +
+		u64 __user *va = (u64 __user *) (xcp->regs[MIPSInst_RS(ir)] +
 			MIPSInst_SIMM(ir));
 		u64 val;
 
@@ -287,7 +287,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 #endif
 
 	case lwc1_op:{
-		u32 *va = (void *) (xcp->regs[MIPSInst_RS(ir)] +
+		u32 __user *va = (u32 __user *) (xcp->regs[MIPSInst_RS(ir)] +
 			MIPSInst_SIMM(ir));
 		u32 val;
 
@@ -307,7 +307,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 	}
 
 	case swc1_op:{
-		u32 *va = (void *) (xcp->regs[MIPSInst_RS(ir)] +
+		u32 __user *va = (u32 __user *) (xcp->regs[MIPSInst_RS(ir)] +
 			MIPSInst_SIMM(ir));
 		u32 val;
 
@@ -458,8 +458,8 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 					(xcp->cp0_epc +
 					(MIPSInst_SIMM(ir) << 2));
 
-				if (get_user(ir, (mips_instruction *)
-						(void *)  xcp->cp0_epc)) {
+				if (get_user(ir,
+				    (mips_instruction __user *) xcp->cp0_epc)) {
 					fpuemustats.errors++;
 					return SIGBUS;
 				}
@@ -633,12 +633,12 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 
 		ieee754sp(*handler) (ieee754sp, ieee754sp, ieee754sp);
 		ieee754sp fd, fr, fs, ft;
-		u32 *va;
+		u32 __user *va;
 		u32 val;
 
 		switch (MIPSInst_FUNC(ir)) {
 		case lwxc1_op:
-			va = (void *) (xcp->regs[MIPSInst_FR(ir)] +
+			va = (void __user *) (xcp->regs[MIPSInst_FR(ir)] +
 				xcp->regs[MIPSInst_FT(ir)]);
 
 			fpuemustats.loads++;
@@ -658,7 +658,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			break;
 
 		case swxc1_op:
-			va = (void *) (xcp->regs[MIPSInst_FR(ir)] +
+			va = (void __user *) (xcp->regs[MIPSInst_FR(ir)] +
 				xcp->regs[MIPSInst_FT(ir)]);
 
 			fpuemustats.stores++;
@@ -727,12 +727,12 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 	case d_fmt:{		/* 1 */
 		ieee754dp(*handler) (ieee754dp, ieee754dp, ieee754dp);
 		ieee754dp fd, fr, fs, ft;
-		u64 *va;
+		u64 __user *va;
 		u64 val;
 
 		switch (MIPSInst_FUNC(ir)) {
 		case ldxc1_op:
-			va = (void *) (xcp->regs[MIPSInst_FR(ir)] +
+			va = (void __user *) (xcp->regs[MIPSInst_FR(ir)] +
 				xcp->regs[MIPSInst_FT(ir)]);
 
 			fpuemustats.loads++;
@@ -744,7 +744,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 			break;
 
 		case sdxc1_op:
-			va = (void *) (xcp->regs[MIPSInst_FR(ir)] +
+			va = (void __user *) (xcp->regs[MIPSInst_FR(ir)] +
 				xcp->regs[MIPSInst_FT(ir)]);
 
 			fpuemustats.stores++;
@@ -1298,7 +1298,7 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 	do {
 		prevepc = xcp->cp0_epc;
 
-		if (get_user(insn, (mips_instruction *) xcp->cp0_epc)) {
+		if (get_user(insn, (mips_instruction __user *) xcp->cp0_epc)) {
 			fpuemustats.errors++;
 			return SIGBUS;
 		}
