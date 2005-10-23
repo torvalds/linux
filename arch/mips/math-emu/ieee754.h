@@ -205,7 +205,6 @@ ieee754dp ieee754dp_sqrt(ieee754dp x);
 #define IEEE754_CLASS_INF	0x03
 #define IEEE754_CLASS_SNAN	0x04
 #define IEEE754_CLASS_QNAN	0x05
-extern const char *const ieee754_cname[];
 
 /* exception numbers */
 #define IEEE754_INEXACT			0x01

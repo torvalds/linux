@@ -42,16 +42,6 @@
 #define SP_EMIN		(-126)
 #define SP_EMAX		127
 
-/* indexed by class */
-const char *const ieee754_cname[] = {
-	"Normal",
-	"Zero",
-	"Denormal",
-	"Infinity",
-	"QNaN",
-	"SNaN",
-};
-
 /* special constants
 */
 
