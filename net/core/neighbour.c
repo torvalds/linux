@@ -732,6 +732,7 @@ static inline void neigh_add_timer(struct neighbour *n, unsigned long when)
 	if (unlikely(mod_timer(&n->timer, when))) {
 		printk("NEIGH: BUG, double timer add, state is %x\n",
 		       n->nud_state);
+		dump_stack();
 	}
 }
 
