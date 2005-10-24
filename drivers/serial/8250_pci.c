@@ -152,6 +152,7 @@ static int __devinit pci_hp_diva_init(struct pci_dev *dev)
 		rc = 4;
 		break;
 	case PCI_DEVICE_ID_HP_DIVA_POWERBAR:
+	case PCI_DEVICE_ID_HP_DIVA_HURRICANE:
 		rc = 1;
 		break;
 	}
