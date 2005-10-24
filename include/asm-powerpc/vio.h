@@ -1,18 +1,18 @@
 /*
  * IBM PowerPC Virtual I/O Infrastructure Support.
  *
- *    Copyright (c) 2003 IBM Corp.
- *     Dave Engebretsen engebret@us.ibm.com
- *     Santiago Leon santil@us.ibm.com
+ * Copyright (c) 2003 IBM Corp.
+ *  Dave Engebretsen engebret@us.ibm.com
+ *  Santiago Leon santil@us.ibm.com
  *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _ASM_VIO_H
-#define _ASM_VIO_H
+#ifndef _ASM_POWERPC_VIO_H
+#define _ASM_POWERPC_VIO_H
 
 #include <linux/config.h>
 #include <linux/init.h>
@@ -103,4 +103,4 @@ static inline struct vio_dev *to_vio_dev(struct device *dev)
 	return container_of(dev, struct vio_dev, dev);
 }
 
-#endif /* _ASM_VIO_H */
+#endif /* _ASM_POWERPC_VIO_H */
