@@ -1546,10 +1546,12 @@ static struct vio_device_id ibmvscsi_device_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(vio, ibmvscsi_device_table);
 static struct vio_driver ibmvscsi_driver = {
-	.name = "ibmvscsi",
 	.id_table = ibmvscsi_device_table,
 	.probe = ibmvscsi_probe,
-	.remove = ibmvscsi_remove
+	.remove = ibmvscsi_remove,
+	.driver = {
+		.name = "ibmvscsi",
+	}
 };
 
 int __init ibmvscsi_module_init(void)

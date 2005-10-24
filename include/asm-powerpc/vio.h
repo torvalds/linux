@@ -55,7 +55,6 @@ struct vio_dev {
 
 struct vio_driver {
 	struct list_head node;
-	char *name;
 	const struct vio_device_id *id_table;
 	int (*probe)(struct vio_dev *dev, const struct vio_device_id *id);
 	int (*remove)(struct vio_dev *dev);

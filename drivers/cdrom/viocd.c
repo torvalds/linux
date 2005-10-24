@@ -739,10 +739,12 @@ static struct vio_device_id viocd_device_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(vio, viocd_device_table);
 static struct vio_driver viocd_driver = {
-	.name = "viocd",
 	.id_table = viocd_device_table,
 	.probe = viocd_probe,
-	.remove = viocd_remove
+	.remove = viocd_remove,
+	.driver = {
+		.name = "viocd",
+	}
 };
 
 static int __init viocd_init(void)

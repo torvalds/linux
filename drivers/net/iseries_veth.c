@@ -1648,10 +1648,12 @@ static struct vio_device_id veth_device_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(vio, veth_device_table);
 
 static struct vio_driver veth_driver = {
-	.name = DRV_NAME,
 	.id_table = veth_device_table,
 	.probe = veth_probe,
-	.remove = veth_remove
+	.remove = veth_remove,
+	.driver = {
+		.name = DRV_NAME,
+	}
 };
 
 /*

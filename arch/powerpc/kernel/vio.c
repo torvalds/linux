@@ -76,10 +76,9 @@ static int vio_bus_remove(struct device *dev)
 int vio_register_driver(struct vio_driver *viodrv)
 {
 	printk(KERN_DEBUG "%s: driver %s registering\n", __FUNCTION__,
-		viodrv->name);
+		viodrv->driver.name);
 
 	/* fill in 'struct driver' fields */
-	viodrv->driver.name = viodrv->name;
 	viodrv->driver.bus = &vio_bus_type;
 	viodrv->driver.probe = vio_bus_probe;
 	viodrv->driver.remove = vio_bus_remove;
