@@ -1,8 +1,4 @@
 /*
- *  include/asm-ppc64/firmware.h
- *
- *  Extracted from include/asm-ppc64/cputable.h
- *
  *  Copyright (C) 2001 Ben. Herrenschmidt (benh@kernel.crashing.org)
  *
  *  Modifications for ppc64:
@@ -13,8 +9,8 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-#ifndef __ASM_PPC_FIRMWARE_H
-#define __ASM_PPC_FIRMWARE_H
+#ifndef __ASM_POWERPC_FIRMWARE_H
+#define __ASM_POWERPC_FIRMWARE_H
 
 #ifdef __KERNEL__
 
@@ -98,4 +94,4 @@ extern firmware_feature_t firmware_features_table[];
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
-#endif /* __ASM_PPC_FIRMWARE_H */
+#endif /* __ASM_POWERPC_FIRMWARE_H */
