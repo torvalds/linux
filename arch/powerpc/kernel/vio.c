@@ -69,6 +69,16 @@ static int vio_bus_remove(struct device *dev)
 	return 1;
 }
 
+/* convert from struct device to struct vio_dev and pass to driver. */
+static void vio_bus_shutdown(struct device *dev)
+{
+	struct vio_dev *viodev = to_vio_dev(dev);
+	struct vio_driver *viodrv = to_vio_driver(dev->driver);
+
+	if (viodrv->shutdown)
+		viodrv->shutdown(viodev);
+}
+
 /**
  * vio_register_driver: - Register a new vio driver
  * @drv:	The vio_driver structure to be registered.
@@ -82,6 +92,7 @@ int vio_register_driver(struct vio_driver *viodrv)
 	viodrv->driver.bus = &vio_bus_type;
 	viodrv->driver.probe = vio_bus_probe;
 	viodrv->driver.remove = vio_bus_remove;
+	viodrv->driver.shutdown = vio_bus_shutdown;
 
 	return driver_register(&viodrv->driver);
 }
