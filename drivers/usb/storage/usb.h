@@ -117,6 +117,7 @@ enum { US_DO_ALL_FLAGS };
  */
 
 #define US_IOBUF_SIZE		64	/* Size of the DMA-mapped I/O buffer */
+#define US_SENSE_SIZE		18	/* Size of the autosense data buffer */
 
 typedef int (*trans_cmnd)(struct scsi_cmnd *, struct us_data*);
 typedef int (*trans_reset)(struct us_data*);
@@ -168,6 +169,7 @@ struct us_data {
 	struct usb_ctrlrequest	*cr;		 /* control requests	 */
 	struct usb_sg_request	current_sg;	 /* scatter-gather req.  */
 	unsigned char		*iobuf;		 /* I/O buffer		 */
+	unsigned char		*sensebuf;	 /* sense data buffer	 */
 	dma_addr_t		cr_dma;		 /* buffer DMA addresses */
 	dma_addr_t		iobuf_dma;
 

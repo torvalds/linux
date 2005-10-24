@@ -636,11 +636,11 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		/* use the new buffer we have */
 		old_request_buffer = srb->request_buffer;
-		srb->request_buffer = srb->sense_buffer;
+		srb->request_buffer = us->sensebuf;
 
 		/* set the buffer length for transfer */
 		old_request_bufflen = srb->request_bufflen;
-		srb->request_bufflen = 18;
+		srb->request_bufflen = US_SENSE_SIZE;
 
 		/* set up for no scatter-gather use */
 		old_sg = srb->use_sg;
@@ -652,6 +652,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		temp_result = us->transport(us->srb, us);
 
 		/* let's clean up right away */
+		memcpy(srb->sense_buffer, us->sensebuf, US_SENSE_SIZE);
 		srb->resid = old_resid;
 		srb->request_buffer = old_request_buffer;
 		srb->request_bufflen = old_request_bufflen;

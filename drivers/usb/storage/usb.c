@@ -467,6 +467,12 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 		US_DEBUGP("I/O buffer allocation failed\n");
 		return -ENOMEM;
 	}
+
+	us->sensebuf = kmalloc(US_SENSE_SIZE, GFP_KERNEL);
+	if (!us->sensebuf) {
+		US_DEBUGP("Sense buffer allocation failed\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -799,6 +805,8 @@ static void usb_stor_release_resources(struct us_data *us)
 static void dissociate_dev(struct us_data *us)
 {
 	US_DEBUGP("-- %s\n", __FUNCTION__);
+
+	kfree(us->sensebuf);
 
 	/* Free the device-related DMA-mapped buffers */
 	if (us->cr)
