@@ -762,6 +762,13 @@ static void __exit ib_uverbs_cleanup(void)
 	unregister_filesystem(&uverbs_event_fs);
 	class_unregister(&uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES);
+	idr_destroy(&ib_uverbs_pd_idr);
+	idr_destroy(&ib_uverbs_mr_idr);
+	idr_destroy(&ib_uverbs_mw_idr);
+	idr_destroy(&ib_uverbs_ah_idr);
+	idr_destroy(&ib_uverbs_cq_idr);
+	idr_destroy(&ib_uverbs_qp_idr);
+	idr_destroy(&ib_uverbs_srq_idr);
 }
 
 module_init(ib_uverbs_init);

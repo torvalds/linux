@@ -1320,6 +1320,7 @@ static void __exit ib_ucm_cleanup(void)
 	class_destroy(ib_ucm_class);
 	cdev_del(&ib_ucm_cdev);
 	unregister_chrdev_region(IB_UCM_DEV, 1);
+	idr_destroy(&ctx_id_table);
 }
 
 module_init(ib_ucm_init);
