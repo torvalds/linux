@@ -52,6 +52,7 @@ static struct scsi_transport_template *ahd_linux_transport_template = NULL;
 #include <linux/mm.h>		/* For fetching system memory size */
 #include <linux/blkdev.h>		/* For block_size() */
 #include <linux/delay.h>	/* For ssleep/msleep */
+#include <linux/device.h>
 
 /*
  * Bucket size for counting good commands in between bad ones.
@@ -565,7 +566,7 @@ ahd_linux_slave_configure(struct scsi_device *sdev)
 
 	ahd = *((struct ahd_softc **)sdev->host->hostdata);
 	if (bootverbose)
-		printf("%s: Slave Configure %d\n", ahd_name(ahd), sdev->id);
+		sdev_printk(KERN_INFO, sdev, "Slave Configure\n");
 
 	ahd_linux_device_queue_depth(sdev);
 
@@ -2067,9 +2068,8 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	wait = FALSE;
 	ahd = *(struct ahd_softc **)cmd->device->host->hostdata;
 
-	printf("%s:%d:%d:%d: Attempting to queue a%s message:",
-	       ahd_name(ahd), cmd->device->channel,
-	       cmd->device->id, cmd->device->lun,
+	scmd_printk(KERN_INFO, cmd,
+	       "Attempting to queue a%s message:",
 	       flag == SCB_ABORT ? "n ABORT" : " TARGET RESET");
 
 	printf("CDB:");
@@ -2093,9 +2093,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		 * No target device for this command exists,
 		 * so we must not still own the command.
 		 */
-		printf("%s:%d:%d:%d: Is not an active device\n",
-		       ahd_name(ahd), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Is not an active device\n");
 		retval = SUCCESS;
 		goto no_cmd;
 	}
@@ -2121,9 +2119,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	}
 
 	if (pending_scb == NULL) {
-		printf("%s:%d:%d:%d: Command not found\n",
-		       ahd_name(ahd), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Command not found\n");
 		goto no_cmd;
 	}
 
@@ -2146,9 +2142,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	paused = TRUE;
 
 	if ((pending_scb->flags & SCB_ACTIVE) == 0) {
-		printf("%s:%d:%d:%d: Command already completed\n",
-		       ahd_name(ahd), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Command already completed\n");
 		goto no_cmd;
 	}
 
@@ -2214,9 +2208,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		pending_scb->flags |= SCB_RECOVERY_SCB|flag;
 		ahd_outb(ahd, MSG_OUT, HOST_MSG);
 		ahd_outb(ahd, SCSISIGO, last_phase|ATNO);
-		printf("%s:%d:%d:%d: Device is active, asserting ATN\n",
-		       ahd_name(ahd), cmd->device->channel,
-		       cmd->device->id, cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Device is active, asserting ATN\n");
 		wait = TRUE;
 	} else if (disconnected) {
 
@@ -2277,9 +2269,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		printf("Device is disconnected, re-queuing SCB\n");
 		wait = TRUE;
 	} else {
-		printf("%s:%d:%d:%d: Unable to deliver message\n",
-		       ahd_name(ahd), cmd->device->channel,
-		       cmd->device->id, cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Unable to deliver message\n");
 		retval = FAILED;
 		goto done;
 	}

@@ -641,7 +641,7 @@ ahc_linux_slave_configure(struct scsi_device *sdev)
 	ahc = *((struct ahc_softc **)sdev->host->hostdata);
 
 	if (bootverbose)
-		printf("%s: Slave Configure %d\n", ahc_name(ahc), sdev->id);
+		sdev_printk(KERN_INFO, sdev, "Slave Configure\n");
 
 	ahc_linux_device_queue_depth(sdev);
 
@@ -2117,9 +2117,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	wait = FALSE;
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;
 
-	printf("%s:%d:%d:%d: Attempting to queue a%s message\n",
-	       ahc_name(ahc), cmd->device->channel,
-	       cmd->device->id, cmd->device->lun,
+	scmd_printk(KERN_INFO, cmd, "Attempting to queue a%s message\n",
 	       flag == SCB_ABORT ? "n ABORT" : " TARGET RESET");
 
 	printf("CDB:");
@@ -2183,9 +2181,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	}
 
 	if (pending_scb == NULL) {
-		printf("%s:%d:%d:%d: Command not found\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Command not found\n");
 		goto no_cmd;
 	}
 
@@ -2207,9 +2203,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	paused = TRUE;
 
 	if ((pending_scb->flags & SCB_ACTIVE) == 0) {
-		printf("%s:%d:%d:%d: Command already completed\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Command already completed\n");
 		goto no_cmd;
 	}
 
@@ -2276,9 +2270,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		pending_scb->flags |= SCB_RECOVERY_SCB|flag;
 		ahc_outb(ahc, MSG_OUT, HOST_MSG);
 		ahc_outb(ahc, SCSISIGO, last_phase|ATNO);
-		printf("%s:%d:%d:%d: Device is active, asserting ATN\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Device is active, asserting ATN\n");
 		wait = TRUE;
 	} else if (disconnected) {
 
@@ -2344,9 +2336,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		printf("Device is disconnected, re-queuing SCB\n");
 		wait = TRUE;
 	} else {
-		printf("%s:%d:%d:%d: Unable to deliver message\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Unable to deliver message\n");
 		retval = FAILED;
 		goto done;
 	}

@@ -297,11 +297,10 @@ stop_dma:
 			}
 			workreq = dev->id[c][target_id].curr_req;
 #ifdef ED_DBGP			
-			printk(KERN_DEBUG "Channel = %d ID = %d LUN = %d CDB",c,workreq->device->id,workreq->device->lun);
-			for(l=0;l<workreq->cmd_len;l++)
-			{
+			scmd_printk(KERN_DEBUG, workreq, "CDB");
+			for (l = 0; l < workreq->cmd_len; l++)
 				printk(KERN_DEBUG " %x",workreq->cmnd[l]);
-			}
+			printk("\n");
 #endif	
 			
 			tmport = workport + 0x0f;

@@ -2190,7 +2190,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						 * If the watchdog timer fires, all future accesses to this
 						 * device will use the polled-IO.
 						 */
-						printk("scsi%d : switching target %d lun %d to slow handshake\n", instance->host_no, cmd->device->id, cmd->device->lun);
+						scmd_printk(KERN_INFO, cmd,
+							    "switching to slow handshake\n");
 						cmd->device->borken = 1;
 						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
 						sink = 1;
@@ -2429,9 +2430,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						scsi_print_msg(extended_msg);
 						printk("\n");
 					} else if (tmp != EXTENDED_MESSAGE)
-						printk("scsi%d: rejecting unknown message %02x from target %d, lun %d\n", instance->host_no, tmp, cmd->device->id, cmd->device->lun);
+						scmd_printk(KERN_INFO, cmd,
+							"rejecting unknown message %02x\n",tmp);
 					else
-						printk("scsi%d: rejecting unknown extended message code %02x, length %d from target %d, lun %d\n", instance->host_no, extended_msg[1], extended_msg[0], cmd->device->id, cmd->device->lun);
+						scmd_printk(KERN_INFO, cmd,
+							"rejecting unknown extended message code %02x, length %d\n", extended_msg[1], extended_msg[0]);
 
 					msgout = MESSAGE_REJECT;
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);

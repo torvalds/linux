@@ -893,7 +893,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	idescsi_pc_t *pc = NULL;
 
 	if (!drive) {
-		printk (KERN_ERR "ide-scsi: drive id %d not present\n", cmd->device->id);
+		scmd_printk (KERN_ERR, cmd, "drive not present\n");
 		goto abort;
 	}
 	scsi = drive_to_idescsi(drive);

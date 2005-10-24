@@ -2085,8 +2085,8 @@ static int DC390_abort(struct scsi_cmnd *cmd)
 	struct dc390_acb *pACB = (struct dc390_acb*) cmd->device->host->hostdata;
 	struct dc390_dcb *pDCB = (struct dc390_dcb*) cmd->device->hostdata;
 
-	printk("DC390: Abort command (pid %li, Device %02i-%02i)\n",
-	       cmd->pid, cmd->device->id, cmd->device->lun);
+	scmd_printk(KERN_WARNING, cmd,
+		"DC390: Abort command (pid %li)\n", cmd->pid);
 
 	/* abort() is too stupid for already sent commands at the moment. 
 	 * If it's called we are in trouble anyway, so let's dump some info 
