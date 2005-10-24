@@ -75,7 +75,8 @@ ToDo/Notes:
 	  for highly fragmented files, i.e. ones whose data attribute is split
 	  across multiple extents.   When such a case is encountered,
 	  EOPNOTSUPP is returned.
-	- $EA attributes can be both resident non-resident.
+	- $EA attributes can be both resident and non-resident.
+	- Use %z for size_t to fix compilation warnings.  (Andrew Morton)
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 

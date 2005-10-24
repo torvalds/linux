@@ -531,7 +531,7 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
 	ni = NTFS_I(vi);
 	vol = ni->vol;
 	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, start page "
-			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%x.",
+			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%zx.",
 			vi->i_ino, ni->type, pages[0]->index, nr_pages,
 			(long long)pos, bytes);
 	blocksize_bits = vi->i_blkbits;
@@ -1693,7 +1693,7 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 	vi = page->mapping->host;
 	ni = NTFS_I(vi);
 	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, start page "
-			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%x.",
+			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%zx.",
 			vi->i_ino, ni->type, page->index, nr_pages,
 			(long long)pos, bytes);
 	if (NInoNonResident(ni))
