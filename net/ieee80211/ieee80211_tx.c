@@ -541,7 +541,7 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(1, len, GFP_ATOMIC);
+	txb = ieee80211_alloc_txb(1, len, ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
 		       ieee->dev->name);
