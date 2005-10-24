@@ -1149,6 +1149,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 
 	/* prevent submissions using previous endpoint settings */
+	if (device_is_registered(&iface->dev))
+		usb_remove_sysfs_intf_files(iface);
 	usb_disable_interface(dev, iface);
 
 	iface->cur_altsetting = alt;
@@ -1184,6 +1186,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * (Likewise, EP0 never "halts" on well designed devices.)
 	 */
 	usb_enable_interface(dev, iface);
+	if (device_is_registered(&iface->dev))
+		usb_create_sysfs_intf_files(iface);
 
 	return 0;
 }
@@ -1233,10 +1237,8 @@ int usb_reset_configuration(struct usb_device *dev)
 			USB_REQ_SET_CONFIGURATION, 0,
 			config->desc.bConfigurationValue, 0,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
-	if (retval < 0) {
-		usb_set_device_state(dev, USB_STATE_ADDRESS);
+	if (retval < 0)
 		return retval;
-	}
 
 	dev->toggle[0] = dev->toggle[1] = 0;
 
@@ -1245,6 +1247,8 @@ int usb_reset_configuration(struct usb_device *dev)
 		struct usb_interface *intf = config->interface[i];
 		struct usb_host_interface *alt;
 
+		if (device_is_registered(&intf->dev))
+			usb_remove_sysfs_intf_files(intf);
 		alt = usb_altnum_to_altsetting(intf, 0);
 
 		/* No altsetting 0?  We'll assume the first altsetting.
@@ -1257,6 +1261,8 @@ int usb_reset_configuration(struct usb_device *dev)
 
 		intf->cur_altsetting = alt;
 		usb_enable_interface(dev, intf);
+		if (device_is_registered(&intf->dev))
+			usb_create_sysfs_intf_files(intf);
 	}
 	return 0;
 }
