@@ -730,9 +730,15 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	 * Disarm any old timer after extracting its expiry time.
 	 */
 	BUG_ON(!irqs_disabled());
+
+	ret = 0;
 	spin_lock(&p->sighand->siglock);
 	old_expires = timer->it.cpu.expires;
-	list_del_init(&timer->it.cpu.entry);
+	if (unlikely(timer->it.cpu.firing)) {
+		timer->it.cpu.firing = -1;
+		ret = TIMER_RETRY;
+	} else
+		list_del_init(&timer->it.cpu.entry);
 	spin_unlock(&p->sighand->siglock);
 
 	/*
@@ -780,7 +786,7 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		}
 	}
 
-	if (unlikely(timer->it.cpu.firing)) {
+	if (unlikely(ret)) {
 		/*
 		 * We are colliding with the timer actually firing.
 		 * Punt after filling in the timer's old value, and
@@ -788,8 +794,6 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		 * it as an overrun (thanks to bump_cpu_timer above).
 		 */
 		read_unlock(&tasklist_lock);
-		timer->it.cpu.firing = -1;
-		ret = TIMER_RETRY;
 		goto out;
 	}
 
