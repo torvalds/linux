@@ -97,7 +97,6 @@ int scsi_insert_special_req(struct scsi_request *sreq, int at_head)
 }
 
 static void scsi_run_queue(struct request_queue *q);
-static void scsi_release_buffers(struct scsi_cmnd *cmd);
 
 /*
  * Function:	scsi_unprep_request()
@@ -1040,8 +1039,10 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	 * if sg table allocation fails, requeue request later.
 	 */
 	sgpnt = scsi_alloc_sgtable(cmd, GFP_ATOMIC);
-	if (unlikely(!sgpnt))
+	if (unlikely(!sgpnt)) {
+		scsi_unprep_request(req);
 		return BLKPREP_DEFER;
+	}
 
 	cmd->request_buffer = (char *) sgpnt;
 	cmd->request_bufflen = req->nr_sectors << 9;
@@ -1245,8 +1246,8 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		 */
 		ret = scsi_init_io(cmd);
 		switch(ret) {
+			/* For BLKPREP_KILL/DEFER the cmd was released */
 		case BLKPREP_KILL:
-			/* BLKPREP_KILL return also releases the command */
 			goto kill;
 		case BLKPREP_DEFER:
 			goto defer;

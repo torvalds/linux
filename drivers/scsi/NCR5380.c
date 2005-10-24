@@ -91,7 +91,7 @@
 #ifndef NDEBUG
 #define NDEBUG 0
 #endif
-#ifndef NDEBUG
+#ifndef NDEBUG_ABORT
 #define NDEBUG_ABORT 0
 #endif
 
