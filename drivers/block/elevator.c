@@ -136,7 +136,6 @@ static int elevator_attach(request_queue_t *q, struct elevator_type *e,
 	q->elevator = eq;
 	q->end_sector = 0;
 	q->boundary_rq = NULL;
-	q->max_back_kb = 0;
 
 	if (eq->ops->elevator_init_fn)
 		ret = eq->ops->elevator_init_fn(q, eq);
@@ -227,16 +226,13 @@ void elevator_exit(elevator_t *e)
 void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 {
 	sector_t boundary;
-	unsigned max_back;
 	struct list_head *entry;
 
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
 
 	boundary = q->end_sector;
-	max_back = q->max_back_kb * 2;
-	boundary = boundary > max_back ? boundary - max_back : 0;
-	
+
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 

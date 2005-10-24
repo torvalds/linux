@@ -339,7 +339,6 @@ struct request_queue
 	 */
 	sector_t		end_sector;
 	struct request		*boundary_rq;
-	unsigned int		max_back_kb;
 
 	/*
 	 * Auto-unplugging state
