@@ -747,25 +747,13 @@ static int usb_stor_acquire_resources(struct us_data *us)
 		return -ENOMEM;
 	}
 
-	/* Lock the device while we carry out the next two operations */
-	down(&us->dev_semaphore);
-
-	/* For bulk-only devices, determine the max LUN value */
-	if (us->protocol == US_PR_BULK) {
-		p = usb_stor_Bulk_max_lun(us);
-		if (p < 0) {
-			up(&us->dev_semaphore);
-			return p;
-		}
-		us->max_lun = p;
-	}
-
 	/* Just before we start our control thread, initialize
 	 * the device if it needs initialization */
-	if (us->unusual_dev->initFunction)
-		us->unusual_dev->initFunction(us);
-
-	up(&us->dev_semaphore);
+	if (us->unusual_dev->initFunction) {
+		p = us->unusual_dev->initFunction(us);
+		if (p)
+			return p;
+	}
 
 	/* Start up our control thread */
 	p = kernel_thread(usb_stor_control_thread, us, CLONE_VM);
@@ -904,6 +892,14 @@ retry:
 
 	/* If the device is still connected, perform the scanning */
 	if (!test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+
+		/* For bulk-only devices, determine the max LUN value */
+		if (us->protocol == US_PR_BULK &&
+				!(us->flags & US_FL_SINGLE_LUN)) {
+			down(&us->dev_semaphore);
+			us->max_lun = usb_stor_Bulk_max_lun(us);
+			up(&us->dev_semaphore);
+		}
 		scsi_scan_host(us_to_host(us));
 		printk(KERN_DEBUG "usb-storage: device scan complete\n");
 
