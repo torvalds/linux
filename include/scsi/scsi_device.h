@@ -151,6 +151,9 @@ struct scsi_device {
 #define sdev_printk(prefix, sdev, fmt, a...)	\
 	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
 
+#define scmd_printk(prefix, scmd, fmt, a...)	\
+	dev_printk(prefix, &(scmd)->device->sdev_gendev, fmt, ##a)
+
 /*
  * scsi_target: representation of a scsi target, for now, this is only
  * used for single_lun devices. If no one has active IO to the target,
@@ -271,6 +274,19 @@ extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 extern int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 			    int data_direction, void *buffer, unsigned bufflen,
 			    struct scsi_sense_hdr *, int timeout, int retries);
+
+static inline unsigned int sdev_channel(struct scsi_device *sdev)
+{
+	return sdev->channel;
+}
+
+static inline unsigned int sdev_id(struct scsi_device *sdev)
+{
+	return sdev->id;
+}
+
+#define scmd_id(scmd) sdev_id((scmd)->device)
+#define scmd_channel(scmd) sdev_channel((scmd)->device)
 
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
