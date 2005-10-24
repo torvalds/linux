@@ -130,7 +130,7 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
 	0x01,       /*  __u8  bDeviceProtocol; [ usb 2.0 single TT ]*/
-	0x08,       /*  __u8  bMaxPacketSize0; 8 Bytes */
+	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x00, 0x00, /*  __le16 idVendor; */
  	0x00, 0x00, /*  __le16 idProduct; */
@@ -153,7 +153,7 @@ static const u8 usb11_rh_dev_descriptor [18] = {
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
 	0x00,       /*  __u8  bDeviceProtocol; [ low/full speeds only ] */
-	0x08,       /*  __u8  bMaxPacketSize0; 8 Bytes */
+	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x00, 0x00, /*  __le16 idVendor; */
  	0x00, 0x00, /*  __le16 idProduct; */
