@@ -571,17 +571,43 @@ static char *container_types[] = {
  * files instead of in OS dependant driver source.
  */
 
-static void setinqstr(int devtype, void *data, int tindex)
+static void setinqstr(struct aac_dev *dev, void *data, int tindex)
 {
 	struct scsi_inq *str;
-	struct aac_driver_ident *mp;
 
-	mp = aac_get_driver_ident(devtype);
-   
 	str = (struct scsi_inq *)(data); /* cast data to scsi inq block */
+	memset(str, ' ', sizeof(*str));
 
-	inqstrcpy (mp->vname, str->vid); 
-	inqstrcpy (mp->model, str->pid); /* last six chars reserved for vol type */
+	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
+		char * cp = dev->supplement_adapter_info.AdapterTypeText;
+		int c = sizeof(str->vid);
+		while (*cp && *cp != ' ' && --c)
+			++cp;
+		c = *cp;
+		*cp = '\0';
+		inqstrcpy (dev->supplement_adapter_info.AdapterTypeText,
+		  str->vid); 
+		*cp = c;
+		while (*cp && *cp != ' ')
+			++cp;
+		while (*cp == ' ')
+			++cp;
+		/* last six chars reserved for vol type */
+		c = 0;
+		if (strlen(cp) > sizeof(str->pid)) {
+			c = cp[sizeof(str->pid)];
+			cp[sizeof(str->pid)] = '\0';
+		}
+		inqstrcpy (cp, str->pid);
+		if (c)
+			cp[sizeof(str->pid)] = c;
+	} else {
+		struct aac_driver_ident *mp = aac_get_driver_ident(dev->cardtype);
+   
+		inqstrcpy (mp->vname, str->vid); 
+		/* last six chars reserved for vol type */
+		inqstrcpy (mp->model, str->pid);
+	}
 
 	if (tindex < (sizeof(container_types)/sizeof(char *))){
 		char *findit = str->pid;
@@ -590,7 +616,9 @@ static void setinqstr(int devtype, void *data, int tindex)
 		/* RAID is superfluous in the context of a RAID device */
 		if (memcmp(findit-4, "RAID", 4) == 0)
 			*(findit -= 4) = ' ';
-		inqstrcpy (container_types[tindex], findit + 1);
+		if (((findit - str->pid) + strlen(container_types[tindex]))
+		 < (sizeof(str->pid) + sizeof(str->prl)))
+			inqstrcpy (container_types[tindex], findit + 1);
 	}
 	inqstrcpy ("V1.0", str->prl);
 }
@@ -1287,7 +1315,6 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	struct Scsi_Host *host = scsicmd->device->host;
 	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	struct fsa_dev_info *fsa_dev_ptr = dev->fsa_dev;
-	int cardtype = dev->cardtype;
 	int ret;
 	
 	/*
@@ -1385,14 +1412,14 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		 *	see: <vendor>.c i.e. aac.c
 		 */
 		if (scsicmd->device->id == host->this_id) {
-			setinqstr(cardtype, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
+			setinqstr(dev, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
 			inq_data.inqd_pdt = INQD_PDT_PROC;	/* Processor device */
 			aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 			scsicmd->scsi_done(scsicmd);
 			return 0;
 		}
-		setinqstr(cardtype, (void *) (inq_data.inqd_vid), fsa_dev_ptr[cid].type);
+		setinqstr(dev, (void *) (inq_data.inqd_vid), fsa_dev_ptr[cid].type);
 		inq_data.inqd_pdt = INQD_PDT_DA;	/* Direct/random access device */
 		aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
 		return aac_get_container_name(scsicmd, cid);
