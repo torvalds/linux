@@ -78,6 +78,8 @@ ToDo/Notes:
 	- $EA attributes can be both resident and non-resident.
 	- Use %z for size_t to fix compilation warnings.  (Andrew Morton)
 	- Fix compilation warnings with gcc-4.0.2 on SUSE 10.0.
+	- Document extended attribute ($EA) NEED_EA flag.  (Based on libntfs
+	  patch by Yura Pakhuchiy.)
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 

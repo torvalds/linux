@@ -2374,7 +2374,9 @@ typedef struct {
  * Extended attribute flags (8-bit).
  */
 enum {
-	NEED_EA	= 0x80
+	NEED_EA	= 0x80		/* If set the file to which the EA belongs
+				   cannot be interpreted without understanding
+				   the associates extended attributes. */
 } __attribute__ ((__packed__));
 
 typedef u8 EA_FLAGS;
