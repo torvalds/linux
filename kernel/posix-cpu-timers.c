@@ -486,6 +486,9 @@ static void process_timer_rebalance(struct task_struct *p,
  	struct task_struct *t = p;
 	unsigned int nthreads = atomic_read(&p->signal->live);
 
+	if (!nthreads)
+		return;
+
 	switch (clock_idx) {
 	default:
 		BUG();
@@ -1159,6 +1162,9 @@ static void check_process_timers(struct task_struct *tsk,
 		cputime_t prof_left, virt_left, ticks;
 		unsigned long long sched_left, sched;
 		const unsigned int nthreads = atomic_read(&sig->live);
+
+		if (!nthreads)
+			return;
 
 		prof_left = cputime_sub(prof_expires, utime);
 		prof_left = cputime_sub(prof_left, stime);
