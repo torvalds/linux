@@ -756,7 +756,7 @@ UNUSUAL_DEV(  0x07ab, 0xfc01, 0x0000, 0x9999,
 #endif
 
 /* Reported by Eero Volotinen <eero@ping-viini.org> */
-UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0406, 0x0406,
+UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0000, 0x9999,
 		"Freecom Technologies",
 		"FHD-Classic",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
