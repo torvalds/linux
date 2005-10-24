@@ -231,7 +231,7 @@ struct usb_interface_cache {
 struct usb_host_config {
 	struct usb_config_descriptor	desc;
 
-	char *string;
+	char *string;		/* iConfiguration string, if present */
 	/* the interfaces associated with this configuration,
 	 * stored in no particular order */
 	struct usb_interface *interface[USB_MAXINTERFACES];
@@ -351,9 +351,11 @@ struct usb_device {
 	int have_langid;		/* whether string_langid is valid */
 	int string_langid;		/* language ID for strings */
 
-	char *product;
-	char *manufacturer;
-	char *serial;			/* static strings from the device */
+	/* static strings from the device */
+	char *product;			/* iProduct string, if present */
+	char *manufacturer;		/* iManufacturer string, if present */
+	char *serial;			/* iSerialNumber string, if present */
+
 	struct list_head filelist;
 	struct class_device *class_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */

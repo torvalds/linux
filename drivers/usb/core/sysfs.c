@@ -249,18 +249,12 @@ static ssize_t show_configuration_string(struct device *dev,
 {
 	struct usb_device *udev;
 	struct usb_host_config *actconfig;
-	int len;
 
 	udev = to_usb_device (dev);
 	actconfig = udev->actconfig;
 	if ((!actconfig) || (!actconfig->string))
 		return 0;
-	len = sprintf(buf, actconfig->string, PAGE_SIZE);
-	if (len < 0)
-		return 0;
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
+	return sprintf(buf, "%s\n", actconfig->string);
 }
 static DEVICE_ATTR(configuration, S_IRUGO, show_configuration_string, NULL);
 
@@ -291,15 +285,9 @@ static ssize_t  show_##name(struct device *dev,				\
 		struct device_attribute *attr, char *buf)		\
 {									\
 	struct usb_device *udev;					\
-	int len;							\
 									\
 	udev = to_usb_device (dev);					\
-	len = snprintf(buf, 256, "%s", udev->name);			\
-	if (len < 0)							\
-		return 0;						\
-	buf[len] = '\n';						\
-	buf[len+1] = 0;							\
-	return len+1;							\
+	return sprintf(buf, "%s\n", udev->name);			\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL);
 
@@ -449,11 +437,11 @@ void usb_remove_sysfs_dev_files (struct usb_device *udev)
 	usb_remove_ep_files(&udev->ep0);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 
-	if (udev->descriptor.iManufacturer)
+	if (udev->manufacturer)
 		device_remove_file(dev, &dev_attr_manufacturer);
-	if (udev->descriptor.iProduct)
+	if (udev->product)
 		device_remove_file(dev, &dev_attr_product);
-	if (udev->descriptor.iSerialNumber)
+	if (udev->serial)
 		device_remove_file(dev, &dev_attr_serial);
 	device_remove_file (dev, &dev_attr_configuration);
 }
@@ -535,7 +523,8 @@ static struct attribute_group intf_attr_grp = {
 	.attrs = intf_attrs,
 };
 
-static inline void usb_create_intf_ep_files(struct usb_interface *intf)
+static inline void usb_create_intf_ep_files(struct usb_interface *intf,
+		struct usb_device *udev)
 {
 	struct usb_host_interface *iface_desc;
 	int i;
@@ -543,7 +532,7 @@ static inline void usb_create_intf_ep_files(struct usb_interface *intf)
 	iface_desc = intf->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
 		usb_create_ep_files(&intf->dev.kobj, &iface_desc->endpoint[i],
-				interface_to_usbdev(intf));
+				udev);
 }
 
 static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
@@ -558,11 +547,16 @@ static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
 
 void usb_create_sysfs_intf_files (struct usb_interface *intf)
 {
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_host_interface *alt = intf->cur_altsetting;
+
 	sysfs_create_group(&intf->dev.kobj, &intf_attr_grp);
 
-	if (intf->cur_altsetting->string)
+	if (alt->string == NULL)
+		alt->string = usb_cache_string(udev, alt->desc.iInterface);
+	if (alt->string)
 		device_create_file(&intf->dev, &dev_attr_interface);
-	usb_create_intf_ep_files(intf);
+	usb_create_intf_ep_files(intf, udev);
 }
 
 void usb_remove_sysfs_intf_files (struct usb_interface *intf)

@@ -787,6 +787,31 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	return err;
 }
 
+/**
+ * usb_cache_string - read a string descriptor and cache it for later use
+ * @udev: the device whose string descriptor is being read
+ * @index: the descriptor index
+ *
+ * Returns a pointer to a kmalloc'ed buffer containing the descriptor string,
+ * or NULL if the index is 0 or the string could not be read.
+ */
+char *usb_cache_string(struct usb_device *udev, int index)
+{
+	char *buf;
+	char *smallbuf = NULL;
+	int len;
+
+	if (index > 0 && (buf = kmalloc(256, GFP_KERNEL)) != NULL) {
+		if ((len = usb_string(udev, index, buf, 256)) > 0) {
+			if ((smallbuf = kmalloc(++len, GFP_KERNEL)) == NULL)
+				return buf;
+			memcpy(smallbuf, buf, len);
+		}
+		kfree(buf);
+	}
+	return smallbuf;
+}
+
 /*
  * usb_get_device_descriptor - (re)reads the device descriptor (usbcore)
  * @dev: the device whose device descriptor is being updated
@@ -1008,8 +1033,6 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			dev_dbg (&dev->dev, "unregistering interface %s\n",
 				interface->dev.bus_id);
 			usb_remove_sysfs_intf_files(interface);
-			kfree(interface->cur_altsetting->string);
-			interface->cur_altsetting->string = NULL;
 			device_del (&interface->dev);
 		}
 
@@ -1422,12 +1445,9 @@ free_interfaces:
 		}
 		kfree(new_interfaces);
 
-		if ((cp->desc.iConfiguration) &&
-		    (cp->string == NULL)) {
-			cp->string = kmalloc(256, GFP_KERNEL);
-			if (cp->string)
-				usb_string(dev, cp->desc.iConfiguration, cp->string, 256);
-		}
+		if (cp->string == NULL)
+			cp->string = usb_cache_string(dev,
+					cp->desc.iConfiguration);
 
 		/* Now that all the interfaces are set up, register them
 		 * to trigger binding of drivers to interfaces.  probe()
@@ -1437,13 +1457,12 @@ free_interfaces:
 		 */
 		for (i = 0; i < nintf; ++i) {
 			struct usb_interface *intf = cp->interface[i];
-			struct usb_interface_descriptor *desc;
+			struct usb_host_interface *alt = intf->cur_altsetting;
 
-			desc = &intf->altsetting [0].desc;
 			dev_dbg (&dev->dev,
 				"adding %s (config #%d, interface %d)\n",
 				intf->dev.bus_id, configuration,
-				desc->bInterfaceNumber);
+				alt->desc.bInterfaceNumber);
 			ret = device_add (&intf->dev);
 			if (ret != 0) {
 				dev_err(&dev->dev,
@@ -1451,13 +1470,6 @@ free_interfaces:
 					intf->dev.bus_id,
 					ret);
 				continue;
-			}
-			if ((intf->cur_altsetting->desc.iInterface) &&
-			    (intf->cur_altsetting->string == NULL)) {
-				intf->cur_altsetting->string = kmalloc(256, GFP_KERNEL);
-				if (intf->cur_altsetting->string)
-					usb_string(dev, intf->cur_altsetting->desc.iInterface,
-						   intf->cur_altsetting->string, 256);
 			}
 			usb_create_sysfs_intf_files (intf);
 		}

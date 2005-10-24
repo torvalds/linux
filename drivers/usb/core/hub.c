@@ -1204,21 +1204,6 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
 {}
 #endif
 
-static void get_string(struct usb_device *udev, char **string, int index)
-{
-	char *buf;
-
-	if (!index)
-		return;
-	buf = kmalloc(256, GFP_KERNEL);
-	if (!buf)
-		return;
-	if (usb_string(udev, index, buf, 256) > 0)
-		*string = buf;
-	else
-		kfree(buf);
-}
-
 
 #ifdef	CONFIG_USB_OTG
 #include "otg_whitelist.h"
@@ -1257,9 +1242,10 @@ int usb_new_device(struct usb_device *udev)
 	}
 
 	/* read the standard strings and cache them if present */
-	get_string(udev, &udev->product, udev->descriptor.iProduct);
-	get_string(udev, &udev->manufacturer, udev->descriptor.iManufacturer);
-	get_string(udev, &udev->serial, udev->descriptor.iSerialNumber);
+	udev->product = usb_cache_string(udev, udev->descriptor.iProduct);
+	udev->manufacturer = usb_cache_string(udev,
+			udev->descriptor.iManufacturer);
+	udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
 
 	/* Tell the world! */
 	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
