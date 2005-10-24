@@ -360,7 +360,7 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 	}
 
 	if (s_size != 512 && s_size != 1024 && s_size != 2048) {
-		sdev_printk(KERN_ERR, SCpnt->device, "bad sector size %d\n", s_size);
+		scmd_printk(KERN_ERR, SCpnt, "bad sector size %d\n", s_size);
 		return 0;
 	}
 
@@ -385,9 +385,9 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 			size += sg[i].length;
 
 		if (size != SCpnt->request_bufflen && SCpnt->use_sg) {
-			sdev_printk(KERN_ERR, SCpnt->device,
-				    "mismatch count %d, bytes %d\n",
-				    size, SCpnt->request_bufflen);
+			scmd_printk(KERN_ERR, SCpnt,
+				"mismatch count %d, bytes %d\n",
+				size, SCpnt->request_bufflen);
 			if (SCpnt->request_bufflen > size)
 				SCpnt->request_bufflen = SCpnt->bufflen = size;
 		}
@@ -398,7 +398,7 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 	 */
 	if (((unsigned int)SCpnt->request->sector % (s_size >> 9)) ||
 	    (SCpnt->request_bufflen % s_size)) {
-		sdev_printk(KERN_NOTICE, SCpnt->device, "unaligned transfer\n");
+		scmd_printk(KERN_NOTICE, SCpnt, "unaligned transfer\n");
 		return 0;
 	}
 

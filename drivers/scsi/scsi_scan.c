@@ -1189,9 +1189,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		num_luns = max_scsi_report_luns;
 	}
 
-	SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "scsi scan: REPORT LUN scan of"
-			" host %d channel %d id %d\n", sdev->host->host_no,
-			sdev->channel, sdev->id));
+	SCSI_LOG_SCAN_BUS(3, sdev_printk (KERN_INFO, sdev,
+		"scsi scan: REPORT LUN scan\n"));
 
 	/*
 	 * Scan the luns in lun_data. The entry at offset 0 is really
@@ -1230,9 +1229,10 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 				/*
 				 * Got some results, but now none, abort.
 				 */
-				printk(KERN_ERR "scsi: Unexpected response"
-				       " from %s lun %d while scanning, scan"
-				       " aborted\n", devname, lun);
+				sdev_printk(KERN_ERR, sdev,
+					"Unexpected response"
+				        " from lun %d while scanning, scan"
+				        " aborted\n", lun);
 				break;
 			}
 		}
@@ -1417,8 +1417,9 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 			    unsigned int id, unsigned int lun, int rescan)
 {
-	SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "%s: <%u:%u:%u:%u>\n",
-		__FUNCTION__, shost->host_no, channel, id, lun));
+	SCSI_LOG_SCAN_BUS(3, shost_printk (KERN_INFO, shost,
+		"%s: <%u:%u:%u>\n",
+		__FUNCTION__, channel, id, lun));
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id > shost->max_id)) ||

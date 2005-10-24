@@ -889,8 +889,9 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	if (SCSI_SENSE_VALID(cmd))
 		cmd->result |= (DRIVER_SENSE << 24);
 
-	SCSI_LOG_MLCOMPLETE(4, printk("Notifying upper driver of completion "
-				"for device %d %x\n", sdev->id, cmd->result));
+	SCSI_LOG_MLCOMPLETE(4, sdev_printk(KERN_INFO, sdev,
+				"Notifying upper driver of completion "
+				"(result %x)\n", cmd->result));
 
 	/*
 	 * We can get here with use_sg=0, causing a panic in the upper level

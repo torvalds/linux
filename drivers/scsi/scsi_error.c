@@ -673,10 +673,9 @@ static int scsi_eh_get_sense(struct list_head *work_q,
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
-		SCSI_LOG_ERROR_RECOVERY(2, printk("%s: requesting sense"
-						  " for id: %d\n",
-						  current->comm,
-						  scmd->device->id));
+		SCSI_LOG_ERROR_RECOVERY(2, scmd_printk(KERN_INFO, scmd,
+						  "%s: requesting sense\n",
+						  current->comm));
 		rtn = scsi_request_sense(scmd);
 		if (rtn != SUCCESS)
 			continue;

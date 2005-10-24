@@ -951,16 +951,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				return;
 			}
 			if (!(req->flags & REQ_QUIET))
-				sdev_printk(KERN_INFO,
-					    cmd->device,
-					    "Device not ready.\n");
+				scmd_printk(KERN_INFO, cmd,
+					   "Device not ready.\n");
 			scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:
 			if (!(req->flags & REQ_QUIET)) {
-				sdev_printk(KERN_INFO,
-					    cmd->device,
-					    "Volume overflow, CDB: ");
+				scmd_printk(KERN_INFO, cmd,
+					   "Volume overflow, CDB: ");
 				__scsi_print_command(cmd->data_cmnd);
 				scsi_print_sense("", cmd);
 			}
@@ -981,9 +979,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	}
 	if (result) {
 		if (!(req->flags & REQ_QUIET)) {
-			sdev_printk(KERN_INFO, cmd->device,
-				    "SCSI error: return code = 0x%x\n",
-				    result);
+			scmd_printk(KERN_INFO, cmd,
+				   "SCSI error: return code = 0x%x\n", result);
 
 			if (driver_byte(result) & DRIVER_SENSE)
 				scsi_print_sense("", cmd);

@@ -3887,8 +3887,7 @@ static int st_probe(struct device *dev)
 	if (SDp->type != TYPE_TAPE)
 		return -ENODEV;
 	if ((stp = st_incompatible(SDp))) {
-	  sdev_printk(KERN_INFO, SDp,
-		      "Found incompatible tape\n");
+		sdev_printk(KERN_INFO, SDp, "Found incompatible tape\n");
 		printk(KERN_INFO "st: The suggested driver is %s.\n", stp);
 		return -ENODEV;
 	}
