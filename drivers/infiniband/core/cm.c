@@ -135,6 +135,7 @@ struct cm_id_private {
 	__be64 tid;
 	__be32 local_qpn;
 	__be32 remote_qpn;
+	enum ib_qp_type qp_type;
 	__be32 sq_psn;
 	__be32 rq_psn;
 	int timeout_ms;
@@ -926,6 +927,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	cm_id_priv->responder_resources = param->responder_resources;
 	cm_id_priv->retry_count = param->retry_count;
 	cm_id_priv->path_mtu = param->primary_path->mtu;
+	cm_id_priv->qp_type = param->qp_type;
 
 	ret = cm_alloc_msg(cm_id_priv, &cm_id_priv->msg);
 	if (ret)
@@ -1320,6 +1322,7 @@ static int cm_req_handler(struct cm_work *work)
 				cm_req_get_primary_local_ack_timeout(req_msg);
 	cm_id_priv->retry_count = cm_req_get_retry_count(req_msg);
 	cm_id_priv->rnr_retry_count = cm_req_get_rnr_retry_count(req_msg);
+	cm_id_priv->qp_type = cm_req_get_qp_type(req_msg);
 
 	cm_format_req_event(work, cm_id_priv, &listen_cm_id_priv->id);
 	cm_process_work(cm_id_priv, work);
@@ -3079,10 +3082,10 @@ static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
 	case IB_CM_ESTABLISHED:
 		*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS |
 				IB_QP_PKEY_INDEX | IB_QP_PORT;
-		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE |
+					   IB_ACCESS_REMOTE_WRITE;
 		if (cm_id_priv->responder_resources)
-			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_WRITE |
-						    IB_ACCESS_REMOTE_READ;
+			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ;
 		qp_attr->pkey_index = cm_id_priv->av.pkey_index;
 		qp_attr->port_num = cm_id_priv->av.port->port_num;
 		ret = 0;
@@ -3112,14 +3115,18 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 	case IB_CM_MRA_REP_RCVD:
 	case IB_CM_ESTABLISHED:
 		*qp_attr_mask = IB_QP_STATE | IB_QP_AV | IB_QP_PATH_MTU |
-				IB_QP_DEST_QPN | IB_QP_RQ_PSN |
-				IB_QP_MAX_DEST_RD_ATOMIC | IB_QP_MIN_RNR_TIMER;
+				IB_QP_DEST_QPN | IB_QP_RQ_PSN;
 		qp_attr->ah_attr = cm_id_priv->av.ah_attr;
 		qp_attr->path_mtu = cm_id_priv->path_mtu;
 		qp_attr->dest_qp_num = be32_to_cpu(cm_id_priv->remote_qpn);
 		qp_attr->rq_psn = be32_to_cpu(cm_id_priv->rq_psn);
-		qp_attr->max_dest_rd_atomic = cm_id_priv->responder_resources;
-		qp_attr->min_rnr_timer = 0;
+		if (cm_id_priv->qp_type == IB_QPT_RC) {
+			*qp_attr_mask |= IB_QP_MAX_DEST_RD_ATOMIC |
+					 IB_QP_MIN_RNR_TIMER;
+			qp_attr->max_dest_rd_atomic =
+					cm_id_priv->responder_resources;
+			qp_attr->min_rnr_timer = 0;
+		}
 		if (cm_id_priv->alt_av.ah_attr.dlid) {
 			*qp_attr_mask |= IB_QP_ALT_PATH;
 			qp_attr->alt_ah_attr = cm_id_priv->alt_av.ah_attr;
@@ -3148,14 +3155,17 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 	case IB_CM_ESTABLISHED:
-		*qp_attr_mask = IB_QP_STATE | IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
-				IB_QP_RNR_RETRY | IB_QP_SQ_PSN |
-				IB_QP_MAX_QP_RD_ATOMIC;
-		qp_attr->timeout = cm_id_priv->local_ack_timeout;
-		qp_attr->retry_cnt = cm_id_priv->retry_count;
-		qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
+		*qp_attr_mask = IB_QP_STATE | IB_QP_SQ_PSN;
 		qp_attr->sq_psn = be32_to_cpu(cm_id_priv->sq_psn);
-		qp_attr->max_rd_atomic = cm_id_priv->initiator_depth;
+		if (cm_id_priv->qp_type == IB_QPT_RC) {
+			*qp_attr_mask |= IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
+					 IB_QP_RNR_RETRY |
+					 IB_QP_MAX_QP_RD_ATOMIC;
+			qp_attr->timeout = cm_id_priv->local_ack_timeout;
+			qp_attr->retry_cnt = cm_id_priv->retry_count;
+			qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
+			qp_attr->max_rd_atomic = cm_id_priv->initiator_depth;
+		}
 		if (cm_id_priv->alt_av.ah_attr.dlid) {
 			*qp_attr_mask |= IB_QP_PATH_MIG_STATE;
 			qp_attr->path_mig_state = IB_MIG_REARM;
