@@ -333,8 +333,7 @@ static int snd_gf1_pcm_poke_block(snd_gus_card_t *gus, unsigned char *buf,
 			}
 		}
 		if (count > 0 && !in_interrupt()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 			if (signal_pending(current))
 				return -EAGAIN;
 		}

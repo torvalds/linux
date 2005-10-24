@@ -1745,8 +1745,7 @@ static int ac97_reset_wait(ac97_t *ac97, int timeout, int with_modem)
 			if ((snd_ac97_read(ac97, AC97_REC_GAIN) & 0x7fff) == 0x0a05)
 				return 0;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	return -ENODEV;
 }
@@ -1992,8 +1991,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		do {
 			if ((snd_ac97_read(ac97, AC97_POWERDOWN) & 0x0f) == 0x0f)
 				goto __ready_ok;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		snd_printk(KERN_WARNING "AC'97 %d analog subsections not ready\n", ac97->num);
 	}
@@ -2025,8 +2023,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		do {
 			if ((snd_ac97_read(ac97, AC97_EXTENDED_MSTATUS) & tmp) == tmp)
 				goto __ready_ok;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		snd_printk(KERN_WARNING "MC'97 %d converters and GPIO not ready (0x%x)\n", ac97->num, snd_ac97_read(ac97, AC97_EXTENDED_MSTATUS));
 	}
@@ -2260,8 +2257,7 @@ void snd_ac97_resume(ac97_t *ac97)
 		do {
 			if (snd_ac97_read(ac97, AC97_MASTER) == 0x8101)
 				break;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		/* FIXME: extra delay */
 		ac97->bus->ops->write(ac97, AC97_MASTER, 0x8000);
@@ -2273,8 +2269,7 @@ void snd_ac97_resume(ac97_t *ac97)
 			unsigned short val = snd_ac97_read(ac97, AC97_EXTENDED_MID);
 			if (val != 0xffff && (val & 1) != 0)
 				break;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 	}
 __reset_ready:

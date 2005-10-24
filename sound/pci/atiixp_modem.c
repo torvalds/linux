@@ -307,8 +307,7 @@ static int snd_atiixp_update_bits(atiixp_t *chip, unsigned int reg,
 
 /* delay for one tick */
 #define do_delay() do { \
-	set_current_state(TASK_UNINTERRUPTIBLE); \
-	schedule_timeout(1); \
+	schedule_timeout_uninterruptible(1); \
 } while (0)
 
 

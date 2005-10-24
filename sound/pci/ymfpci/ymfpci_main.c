@@ -92,7 +92,7 @@ static int snd_ymfpci_codec_ready(ymfpci_t *chip, int secondary)
 		if ((snd_ymfpci_readw(chip, reg) & 0x8000) == 0)
 			return 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 	snd_printk(KERN_ERR "codec_ready: codec %i is not ready [0x%x]\n", secondary, snd_ymfpci_readw(chip, reg));
 	return -EBUSY;
@@ -728,8 +728,7 @@ static void snd_ymfpci_irq_wait(ymfpci_t *chip)
 		init_waitqueue_entry(&wait, current);
 		add_wait_queue(&chip->interrupt_sleep, &wait);
 		atomic_inc(&chip->interrupt_sleep_count);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ/20);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(50));
 		remove_wait_queue(&chip->interrupt_sleep, &wait);
 	}
 }

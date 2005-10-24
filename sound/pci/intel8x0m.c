@@ -890,8 +890,7 @@ static int __devinit snd_intel8x0_mixer(intel8x0_t *chip, int ac97_clock)
  */
 
 #define do_delay(chip) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(1);\
+	schedule_timeout_uninterruptible(1);\
 } while (0)
 
 static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)

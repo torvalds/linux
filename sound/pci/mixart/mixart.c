@@ -451,8 +451,7 @@ static int mixart_sync_nonblock_events(mixart_mgr_t *mgr)
 			snd_printk(KERN_ERR "mixart: cannot process nonblock events!\n");
 			return -EBUSY;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 	return 0;
 }

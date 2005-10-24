@@ -343,19 +343,6 @@ static void soundscape_free(snd_card_t * c)
 }
 
 /*
- * Put this process into an idle wait-state for a certain number
- * of "jiffies". The process can almost certainly be rescheduled
- * while we're waiting, and so we must NOT be holding any spinlocks
- * when we call this function. If we are then we risk DEADLOCK in
- * SMP (Ha!) or pre-emptible kernels.
- */
-static inline void sleep(long jiffs, int state)
-{
-	set_current_state(state);
-	schedule_timeout(jiffs);
-}
-
-/*
  * Tell the SoundScape to begin a DMA tranfer using the given channel.
  * All locking issues are left to the caller.
  */
@@ -392,7 +379,7 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		sleep(1, TASK_INTERRUPTIBLE);
+		schedule_timeout_interruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -419,7 +406,7 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		sleep(1, TASK_INTERRUPTIBLE);
+		schedule_timeout_interruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));

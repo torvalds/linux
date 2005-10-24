@@ -838,8 +838,7 @@ static int wait_clear_urbs(snd_usb_substream_t *subs)
 		}
 		if (! alive)
 			break;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 	if (alive)
 		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);

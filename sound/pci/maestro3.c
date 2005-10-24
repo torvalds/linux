@@ -2046,8 +2046,7 @@ static void snd_m3_ac97_reset(m3_t *chip)
 		outw(0, io + GPIO_DATA);
 		outw(dir | GPO_PRIMARY_AC97, io + GPIO_DIRECTION);
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((delay1 * HZ) / 1000);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(delay1));
 
 		outw(GPO_PRIMARY_AC97, io + GPIO_DATA);
 		udelay(5);
@@ -2055,8 +2054,7 @@ static void snd_m3_ac97_reset(m3_t *chip)
 		outw(IO_SRAM_ENABLE | SERIAL_AC_LINK_ENABLE, io + RING_BUS_CTRL_A);
 		outw(~0, io + GPIO_MASK);
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((delay2 * HZ) / 1000);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(delay2));
 
 		if (! snd_m3_try_read_vendor(chip))
 			break;
@@ -2101,8 +2099,7 @@ static int __devinit snd_m3_mixer(m3_t *chip)
 
 	/* seems ac97 PCM needs initialization.. hack hack.. */
 	snd_ac97_write(chip->ac97, AC97_PCM, 0x8000 | (15 << 8) | 15);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 10);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 	snd_ac97_write(chip->ac97, AC97_PCM, 0);
 
 	memset(&id, 0, sizeof(id));

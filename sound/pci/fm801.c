@@ -1303,8 +1303,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	do {
 		if ((inw(FM801_REG(chip, AC97_CMD)) & (3<<8)) == (1<<8))
 			goto __ac97_secondary;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after(timeout, jiffies));
 	snd_printk(KERN_ERR "Primary AC'97 codec not found\n");
 	snd_fm801_free(chip);
@@ -1329,8 +1328,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 					goto __ac97_ok;
 				}
 			}
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after(timeout, jiffies));
 	}
 
@@ -1343,8 +1341,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	do {
 		if ((inw(FM801_REG(chip, AC97_CMD)) & (3<<8)) == (1<<8))
 			goto __ac97_ok;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after(timeout, jiffies));
 	snd_printk(KERN_ERR "Primary AC'97 codec not responding\n");
 	snd_fm801_free(chip);

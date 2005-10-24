@@ -135,8 +135,7 @@ static void __init
 snd_emu8000_read_wait(emu8000_t *emu)
 {
 	while ((EMU8000_SMALR_READ(emu) & 0x80000000) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 	}
@@ -148,8 +147,7 @@ static void __init
 snd_emu8000_write_wait(emu8000_t *emu)
 {
 	while ((EMU8000_SMALW_READ(emu) & 0x80000000) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 	}
@@ -437,8 +435,7 @@ size_dram(emu8000_t *emu)
 	for (i = 0; i < 10000; i++) {
 		if ((EMU8000_SMALW_READ(emu) & 0x80000000) == 0)
 			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 	}

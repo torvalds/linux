@@ -302,8 +302,7 @@ static void snd_cs8427_reset(snd_i2c_device_t *cs8427)
 		snd_i2c_unlock(cs8427->bus);
 		if (!(data & CS8427_UNLOCK))
 			break;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 	snd_i2c_lock(cs8427->bus);
 	chip->regmap[CS8427_REG_CLOCKSOURCE] &= ~CS8427_RXDMASK;

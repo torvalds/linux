@@ -576,8 +576,7 @@ static void snd_es1370_codec_write(ak4531_t *ak4531,
 			outw(ES_1370_CODEC_WRITE(reg, val), ES_REG(ensoniq, 1370_CODEC));
 			return;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after(end_time, jiffies));
 	snd_printk(KERN_ERR "codec write timeout, status = 0x%x\n", inl(ES_REG(ensoniq, STATUS)));
 }

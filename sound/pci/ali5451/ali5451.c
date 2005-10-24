@@ -398,10 +398,8 @@ static int snd_ali_codec_ready(	ali_t *codec,
 		res = snd_ali_5451_peek(codec,port);
 		if (! (res & 0x8000))
 			return 0;
-		if (sched) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		if (sched)
+			schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_ali_5451_poke(codec, port, res & ~0x8000);
 	snd_printdd("ali_codec_ready: codec is not ready.\n ");
@@ -421,10 +419,8 @@ static int snd_ali_stimer_ready(ali_t *codec, int sched)
 		dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
 		if (dwChk2 != dwChk1)
 			return 0;
-		if (sched) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		if (sched)
+			schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printk(KERN_ERR "ali_stimer_read: stimer is not ready.\n");
 	return -EIO;

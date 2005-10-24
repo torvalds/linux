@@ -3207,8 +3207,7 @@ static inline void snd_trident_free_gameport(trident_t *chip) { }
  */
 static inline void do_delay(trident_t *chip)
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(1);
+	schedule_timeout_uninterruptible(1);
 }
 
 /*
