@@ -1146,7 +1146,6 @@ static struct vio_device_id ibmveth_device_table[] __devinitdata= {
 	{ "network", "IBM,l-lan"},
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, ibmveth_device_table);
 
 static struct vio_driver ibmveth_driver = {
@@ -1155,6 +1154,7 @@ static struct vio_driver ibmveth_driver = {
 	.remove		= ibmveth_remove,
 	.driver		= {
 		.name	= ibmveth_driver_name,
+		.owner	= THIS_MODULE,
 	}
 };
 

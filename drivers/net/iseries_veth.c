@@ -1653,6 +1653,7 @@ static struct vio_driver veth_driver = {
 	.remove = veth_remove,
 	.driver = {
 		.name = DRV_NAME,
+		.owner = THIS_MODULE,
 	}
 };
 

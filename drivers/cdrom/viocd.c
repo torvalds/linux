@@ -736,14 +736,15 @@ static struct vio_device_id viocd_device_table[] __devinitdata = {
 	{ "viocd", "" },
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, viocd_device_table);
+
 static struct vio_driver viocd_driver = {
 	.id_table = viocd_device_table,
 	.probe = viocd_probe,
 	.remove = viocd_remove,
 	.driver = {
 		.name = "viocd",
+		.owner = THIS_MODULE,
 	}
 };
 

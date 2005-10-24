@@ -993,14 +993,15 @@ static struct vio_device_id viotape_device_table[] __devinitdata = {
 	{ "viotape", "" },
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, viotape_device_table);
+
 static struct vio_driver viotape_driver = {
 	.id_table = viotape_device_table,
 	.probe = viotape_probe,
 	.remove = viotape_remove,
 	.driver = {
 		.name = "viotape",
+		.owner = THIS_MODULE,
 	}
 };
 

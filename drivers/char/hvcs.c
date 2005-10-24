@@ -725,6 +725,7 @@ static struct vio_driver hvcs_vio_driver = {
 	.remove		= hvcs_remove,
 	.driver		= {
 		.name	= hvcs_driver_name,
+		.owner	= THIS_MODULE,
 	}
 };
 
