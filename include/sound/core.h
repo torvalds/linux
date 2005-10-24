@@ -255,6 +255,7 @@ typedef struct _snd_minor snd_minor_t;
 
 /* sound.c */
 
+extern int snd_major;
 extern int snd_ecards_limit;
 
 void snd_request_card(int card);

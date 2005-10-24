@@ -1522,7 +1522,6 @@ static int snd_pcm_drop(snd_pcm_substream_t *substream)
 
 
 /* WARNING: Don't forget to fput back the file */
-extern int snd_major;
 static struct file *snd_pcm_file_fd(int fd)
 {
 	struct file *file;
