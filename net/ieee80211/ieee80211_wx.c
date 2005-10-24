@@ -522,7 +522,8 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 		crypt = &ieee->crypt[idx];
 		group_key = 1;
 	} else {
-		if (idx != 0)
+		/* some Cisco APs use idx>0 for unicast in dynamic WEP */
+		if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
 			return -EINVAL;
 		if (ieee->iw_mode == IW_MODE_INFRA)
 			crypt = &ieee->crypt[idx];
@@ -690,7 +691,8 @@ int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 	} else
 		idx = ieee->tx_keyidx;
 
-	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
+	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
+	    ext->alg != IW_ENCODE_ALG_WEP)
 		if (idx != 0 || ieee->iw_mode != IW_MODE_INFRA)
 			return -EINVAL;
 
