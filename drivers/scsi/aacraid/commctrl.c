@@ -408,7 +408,7 @@ static int check_revision(struct aac_dev *dev, void __user *arg)
 	char *driver_version = aac_driver_version;
 	u32 version;
 
-	response.compat = cpu_to_le32(1);
+	response.compat = 1;
 	version = (simple_strtol(driver_version, 
 				&driver_version, 10) << 24) | 0x00000400;
 	version += simple_strtol(driver_version + 1, &driver_version, 10) << 16;

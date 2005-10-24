@@ -1553,7 +1553,7 @@ struct fib_ioctl
 
 struct revision
 {
-	__le32 compat;
+	u32 compat;
 	__le32 version;
 	__le32 build;
 };
