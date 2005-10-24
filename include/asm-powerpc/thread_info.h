@@ -66,19 +66,26 @@ struct thread_info {
 /* thread information allocation */
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk)					\
-	({							\
-		struct thread_info *ret;			\
-								\
-		ret = kmalloc(THREAD_SIZE, GFP_KERNEL);		\
-		if (ret)					\
-			memset(ret, 0, THREAD_SIZE);		\
-		ret;						\
-	})
+#define THREAD_INFO_GFP		GFP_KERNEL | __GFP_ZERO
 #else
-#define alloc_thread_info(tsk)	kmalloc(THREAD_SIZE, GFP_KERNEL)
+#define THREAD_INFO_GFP		GFP_KERNEL
 #endif
+
+#if THREAD_SHIFT >= PAGE_SHIFT
+
+#define THREAD_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
+
+#define alloc_thread_info(tsk)	\
+	((struct thread_info *)__get_free_pages(THREAD_INFO_GFP, THREAD_ORDER))
+#define free_thread_info(ti)	free_pages((unsigned long)ti, THREAD_ORDER)
+
+#else /* THREAD_SHIFT < PAGE_SHIFT */
+
+#define alloc_thread_info(tsk)	kmalloc(THREAD_SIZE, THREAD_INFO_GFP)
 #define free_thread_info(ti)	kfree(ti)
+
+#endif /* THREAD_SHIFT < PAGE_SHIFT */
+
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)
 
