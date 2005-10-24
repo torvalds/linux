@@ -585,13 +585,6 @@ static inline void ppc64_runlatch_off(void)
 		mtspr(SPRN_CTRLT, ctrl);
 	}
 }
-
-static inline void set_tb(unsigned int upper, unsigned int lower)
-{
-	mttbl(0);
-	mttbu(upper);
-	mttbl(lower);
-}
 #endif
 
 #define __get_SP()	({unsigned long sp; \
