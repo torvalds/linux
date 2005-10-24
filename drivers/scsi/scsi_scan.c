@@ -1451,19 +1451,6 @@ void scsi_scan_host(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_scan_host);
 
-/**
- * scsi_scan_single_target - scan the given SCSI target
- * @shost:         adapter to scan
- * @chan:          channel to scan
- * @id:            target id to scan
- **/
-void scsi_scan_single_target(struct Scsi_Host *shost, 
-	unsigned int chan, unsigned int id)
-{
-	scsi_scan_host_selected(shost, chan, id, SCAN_WILD_CARD, 1);
-}
-EXPORT_SYMBOL(scsi_scan_single_target);
-
 void scsi_forget_host(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
