@@ -29,7 +29,7 @@ ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_MULTIPLATFORM) += prom_init.o
 endif
 
-obj-$(CONFIG_PPC_PSERIES) += rtasd.o ras.o udbg_16550.o
+obj-$(CONFIG_PPC_PSERIES) += rtasd.o udbg_16550.o
 
 obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
 			 bpa_iic.o spider-pic.o
