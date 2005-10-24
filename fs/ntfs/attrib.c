@@ -91,7 +91,7 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 	struct page *put_this_page = NULL;
 	int err = 0;
 	BOOL ctx_is_temporary, ctx_needs_reset;
-	ntfs_attr_search_ctx old_ctx;
+	ntfs_attr_search_ctx old_ctx = { NULL, };
 
 	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
 			(unsigned long long)vcn);

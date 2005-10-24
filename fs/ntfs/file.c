@@ -78,12 +78,8 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
  * Extend the initialized size of an attribute described by the ntfs inode @ni
  * to @new_init_size bytes.  This involves zeroing any non-sparse space between
  * the old initialized size and @new_init_size both in the page cache and on
- * disk (if relevant complete pages are zeroed in the page cache then these may
- * simply be marked dirty for later writeout).  There is one caveat and that is
- * that if any uptodate page cache pages between the old initialized size and
- * the smaller of @new_init_size and the file size (vfs inode->i_size) are in
- * memory, these need to be marked dirty without being zeroed since they could
- * be non-zero due to mmap() based writes.
+ * disk (if relevant complete pages are already uptodate in the page cache then
+ * these are simply marked dirty).
  *
  * As a side-effect, the file size (vfs inode->i_size) may be incremented as,
  * in the resident attribute case, it is tied to the initialized size and, in
@@ -98,10 +94,10 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
  * with new data via mmap() based writes, so we cannot just zero it.  And since
  * POSIX specifies that the behaviour of resizing a file whilst it is mmap()ped
  * is unspecified, we choose not to do zeroing and thus we do not need to touch
- * the page at all.  For a more detailed explanation see ntfs_truncate() which
- * is in fs/ntfs/inode.c.
+ * the page at all.  For a more detailed explanation see ntfs_truncate() in
+ * fs/ntfs/inode.c.
  *
- * @cached_page and @lru_pvec are just optimisations for dealing with multiple
+ * @cached_page and @lru_pvec are just optimizations for dealing with multiple
  * pages.
  *
  * Return 0 on success and -errno on error.  In the case that an error is
@@ -110,9 +106,8 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
  * this is the case, the necessary zeroing will also have happened and that all
  * metadata is self-consistent.
  *
- * Locking: This function locks the mft record of the base ntfs inode and
- * maintains the lock throughout execution of the function.  This is required
- * so that the initialized size of the attribute can be modified safely.
+ * Locking: i_sem on the vfs inode corrseponsind to the ntfs inode @ni must be
+ *	    held by the caller.
  */
 static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size,
 		struct page **cached_page, struct pagevec *lru_pvec)
@@ -1836,7 +1831,7 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 	VCN last_vcn;
 	LCN lcn;
 	unsigned long flags;
-	size_t bytes, iov_ofs;
+	size_t bytes, iov_ofs = 0;	/* Offset in the current iovec. */
 	ssize_t status, written;
 	unsigned nr_pages;
 	int err;
@@ -1988,8 +1983,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 	last_vcn = -1;
 	if (likely(nr_segs == 1))
 		buf = iov->iov_base;
-	else
-		iov_ofs = 0;	/* Offset in the current iovec. */
 	do {
 		VCN vcn;
 		pgoff_t idx, start_idx;
