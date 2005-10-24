@@ -111,11 +111,6 @@ static atomic_t total_threads = ATOMIC_INIT(0);
 static DECLARE_COMPLETION(threads_gone);
 
 
-static int storage_probe(struct usb_interface *iface,
-			 const struct usb_device_id *id);
-
-static void storage_disconnect(struct usb_interface *iface);
-
 /* The entries in this table, except for final ones here
  * (USB_MASS_STORAGE_CLASS and the empty entry), correspond,
  * line for line with the entries of us_unsuaul_dev_list[].
@@ -233,13 +228,40 @@ static struct us_unusual_dev us_unusual_dev_list[] = {
 	{ NULL }
 };
 
-static struct usb_driver usb_storage_driver = {
-	.owner =	THIS_MODULE,
-	.name =		"usb-storage",
-	.probe =	storage_probe,
-	.disconnect =	storage_disconnect,
-	.id_table =	storage_usb_ids,
-};
+
+#ifdef CONFIG_PM	/* Minimal support for suspend and resume */
+
+static int storage_suspend(struct usb_interface *iface, pm_message_t message)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	/* Wait until no command is running */
+	down(&us->dev_semaphore);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+	iface->dev.power.power_state.event = message.event;
+
+	/* When runtime PM is working, we'll set a flag to indicate
+	 * whether we should autoresume when a SCSI request arrives. */
+
+	up(&us->dev_semaphore);
+	return 0;
+}
+
+static int storage_resume(struct usb_interface *iface)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	down(&us->dev_semaphore);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+	iface->dev.power.power_state.event = PM_EVENT_ON;
+
+	up(&us->dev_semaphore);
+	return 0;
+}
+
+#endif /* CONFIG_PM */
 
 /*
  * fill_inquiry_response takes an unsigned char array (which must
@@ -1041,6 +1063,18 @@ static void storage_disconnect(struct usb_interface *intf)
 /***********************************************************************
  * Initialization and registration
  ***********************************************************************/
+
+static struct usb_driver usb_storage_driver = {
+	.owner =	THIS_MODULE,
+	.name =		"usb-storage",
+	.probe =	storage_probe,
+	.disconnect =	storage_disconnect,
+#ifdef CONFIG_PM
+	.suspend =	storage_suspend,
+	.resume =	storage_resume,
+#endif
+	.id_table =	storage_usb_ids,
+};
 
 static int __init usb_stor_init(void)
 {
