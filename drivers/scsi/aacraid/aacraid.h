@@ -19,7 +19,7 @@
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
-#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)512)
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
 
 /*
  * These macros convert from physical channels to virtual channels

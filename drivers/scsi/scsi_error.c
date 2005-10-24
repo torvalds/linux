@@ -1645,6 +1645,8 @@ int scsi_error_handler(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 
+	__set_current_state(TASK_RUNNING);
+
 	SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler scsi_eh_%d"
 					  " exiting\n",shost->host_no));
 

@@ -346,6 +346,19 @@ void idr_remove(struct idr *idp, int id)
 EXPORT_SYMBOL(idr_remove);
 
 /**
+ * idr_destroy - release all cached layers within an idr tree
+ * idp: idr handle
+ */
+void idr_destroy(struct idr *idp)
+{
+	while (idp->id_free_cnt) {
+		struct idr_layer *p = alloc_layer(idp);
+		kmem_cache_free(idr_layer_cache, p);
+	}
+}
+EXPORT_SYMBOL(idr_destroy);
+
+/**
  * idr_find - return pointer for given id
  * @idp: idr handle
  * @id: lookup key

@@ -2045,8 +2045,8 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct * vma,
 
 	inc_page_state(pgfault);
 
-	if (is_vm_hugetlb_page(vma))
-		return VM_FAULT_SIGBUS;	/* mapping truncation does this. */
+	if (unlikely(is_vm_hugetlb_page(vma)))
+		return hugetlb_fault(mm, vma, address, write_access);
 
 	/*
 	 * We need the page table lock to synchronize with kswapd
