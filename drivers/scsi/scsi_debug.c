@@ -283,7 +283,7 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int block, upper_blk, num, k;
 	int errsts = 0;
-	int target = SCpnt->device->id;
+	int target = scmd_id(SCpnt);
 	struct sdebug_dev_info * devip = NULL;
 	int inj_recovered = 0;
 

@@ -398,7 +398,7 @@ ahd_linux_unmap_scb(struct ahd_softc *ahd, struct scb *scb)
 
 /******************************** Macros **************************************/
 #define BUILD_SCSIID(ahd, cmd)						\
-	((((cmd)->device->id << TID_SHIFT) & TID) | (ahd)->our_id)
+	(((scmd_id(cmd) << TID_SHIFT) & TID) | (ahd)->our_id)
 
 /*
  * Return a string describing the driver.
@@ -685,7 +685,7 @@ ahd_linux_bus_reset(struct scsi_cmnd *cmd)
 		       ahd_name(ahd), cmd);
 #endif
 	ahd_lock(ahd, &s);
-	found = ahd_reset_channel(ahd, cmd->device->channel + 'A',
+	found = ahd_reset_channel(ahd, scmd_channel(cmd) + 'A',
 				  /*initiate reset*/TRUE);
 	ahd_unlock(ahd, &s);
 
@@ -2110,8 +2110,9 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 
 		/* Any SCB for this device will do for a target reset */
 		LIST_FOREACH(pending_scb, &ahd->pending_scbs, pending_links) {
-		  	if (ahd_match_scb(ahd, pending_scb, cmd->device->id,
-					  cmd->device->channel + 'A',
+		  	if (ahd_match_scb(ahd, pending_scb,
+					  scmd_id(cmd),
+					  scmd_channel(cmd) + 'A',
 					  CAM_LUN_WILDCARD,
 					  SCB_LIST_NULL, ROLE_INITIATOR) == 0)
 				break;
@@ -2198,7 +2199,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	if (last_phase != P_BUSFREE
 	 && (SCB_GET_TAG(pending_scb) == active_scbptr
 	     || (flag == SCB_DEVICE_RESET
-		 && SCSIID_TARGET(ahd, saved_scsiid) == cmd->device->id))) {
+		 && SCSIID_TARGET(ahd, saved_scsiid) == scmd_id(cmd)))) {
 
 		/*
 		 * We're active on the bus, so assert ATN

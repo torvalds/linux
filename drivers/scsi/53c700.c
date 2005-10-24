@@ -1427,7 +1427,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 	 * If a contingent allegiance condition exists, the device
 	 * will refuse all tags, so send the request sense as untagged
 	 * */
-	if((hostdata->tag_negotiated & (1<<SCp->device->id))
+	if((hostdata->tag_negotiated & (1<<scmd_id(SCp)))
 	   && (slot->tag != SCSI_NO_TAG && SCp->cmnd[0] != REQUEST_SENSE)) {
 		count += scsi_populate_tag_msg(SCp, &hostdata->msgout[count]);
 	}
@@ -1446,7 +1446,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 
 
 	script_patch_ID(hostdata->script,
-			Device_ID, 1<<SCp->device->id);
+			Device_ID, 1<<scmd_id(SCp));
 
 	script_patch_32_abs(hostdata->script, CommandAddress, 
 			    slot->pCmd);
@@ -2111,7 +2111,7 @@ static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
 		/* shift back to the default unqueued number of commands
 		 * (the user can still raise this) */
 		scsi_deactivate_tcq(SDp, SDp->host->cmd_per_lun);
-		hostdata->tag_negotiated &= ~(1 << SDp->id);
+		hostdata->tag_negotiated &= ~(1 << sdev_id(SDp));
 	} else {
 		/* Here, we cleared the negotiation flag above, so this
 		 * will force the driver to renegotiate */

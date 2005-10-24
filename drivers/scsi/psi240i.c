@@ -659,7 +659,7 @@ static int Psi240i_BiosParam (struct scsi_device *sdev, struct block_device *dev
 	{
 	POUR_DEVICE	pdev;
 
-	pdev = &(HOSTDATA(sdev->host)->device[sdev->id]);
+	pdev = &(HOSTDATA(sdev->host)->device[sdev_id(sdev)]);
 
 	geom[0] = pdev->heads;
 	geom[1] = pdev->sectors;

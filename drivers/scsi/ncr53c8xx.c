@@ -3669,7 +3669,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 	/*
 	**	select
 	*/
-	cp->phys.select.sel_id		= sdev->id;
+	cp->phys.select.sel_id		= sdev_id(sdev);
 	cp->phys.select.sel_scntl3	= tp->wval;
 	cp->phys.select.sel_sxfer	= tp->sval;
 	/*
@@ -4820,7 +4820,7 @@ static void ncr_set_sync_wide_status (struct ncb *np, u_char target)
 	*/
 	for (cp = np->ccb; cp; cp = cp->link_ccb) {
 		if (!cp->cmd) continue;
-		if (cp->cmd->device->id != target) continue;
+		if (scmd_id(cp->cmd) != target) continue;
 #if 0
 		cp->sync_status = tp->sval;
 		cp->wide_status = tp->wval;
@@ -4844,7 +4844,7 @@ static void ncr_setsync (struct ncb *np, struct ccb *cp, u_char scntl3, u_char s
 	u_char target = INB (nc_sdid) & 0x0f;
 	u_char idiv;
 
-	BUG_ON(target != (cmd->device->id & 0xf));
+	BUG_ON(target != (scmd_id(cmd) & 0xf));
 
 	tp = &np->target[target];
 
@@ -4902,7 +4902,7 @@ static void ncr_setwide (struct ncb *np, struct ccb *cp, u_char wide, u_char ack
 	u_char	scntl3;
 	u_char	sxfer;
 
-	BUG_ON(target != (cmd->device->id & 0xf));
+	BUG_ON(target != (scmd_id(cmd) & 0xf));
 
 	tp = &np->target[target];
 	tp->widedone  =  wide+1;

@@ -1822,7 +1822,7 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
 
          /* If there was a bus reset, redo operation on each target */
          else if (tstatus != GOOD && SCpnt->device->type == TYPE_DISK
-                  && HD(j)->target_redo[SCpnt->device->id][SCpnt->device->channel])
+                  && HD(j)->target_redo[scmd_id(SCpnt)][scmd_channel(SCpnt)])
             status = DID_BUS_BUSY << 16;
 
          /* Works around a flaw in scsi.c */
@@ -1835,29 +1835,28 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
             status = DID_OK << 16;
 
          if (tstatus == GOOD)
-            HD(j)->target_redo[SCpnt->device->id][SCpnt->device->channel] = FALSE;
+            HD(j)->target_redo[scmd_id(SCpnt)][scmd_channel(SCpnt)] = FALSE;
 
          if (spp->target_status && SCpnt->device->type == TYPE_DISK &&
              (!(tstatus == CHECK_CONDITION && HD(j)->iocount <= 1000 &&
                (SCpnt->sense_buffer[2] & 0xf) == NOT_READY)))
-            printk("%s: ihdlr, target %d.%d:%d, pid %ld, "\
-                   "target_status 0x%x, sense key 0x%x.\n", BN(j),
-                   SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun,
+            scmd_printk(KERN_INFO, SCpnt,
+	    	"ihdlr, pid %ld, target_status 0x%x, sense key 0x%x.\n",
                    SCpnt->pid, spp->target_status,
                    SCpnt->sense_buffer[2]);
 
-         HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel] = 0;
+         HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)] = 0;
 
          if (HD(j)->last_retried_pid == SCpnt->pid) HD(j)->retries = 0;
 
          break;
       case ASST:     /* Selection Time Out */
 
-         if (HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel] > 1)
+         if (HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)] > 1)
             status = DID_ERROR << 16;
          else {
             status = DID_TIME_OUT << 16;
-            HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel]++;
+            HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)]++;
             }
 
          break;

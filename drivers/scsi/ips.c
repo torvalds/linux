@@ -1125,8 +1125,8 @@ ips_queue(Scsi_Cmnd * SC, void (*done) (Scsi_Cmnd *))
 		  SC->device->channel, SC->device->id, SC->device->lun);
 
 	/* Check for command to initiator IDs */
-	if ((SC->device->channel > 0)
-	    && (SC->device->id == ha->ha_id[SC->device->channel])) {
+	if ((scmd_channel(SC) > 0)
+	    && (scmd_id(SC) == ha->ha_id[scmd_channel(SC)])) {
 		SC->result = DID_NO_CONNECT << 16;
 		done(SC);
 
@@ -2830,10 +2830,10 @@ ips_next(ips_ha_t * ha, int intr)
 
 	p = ha->scb_waitlist.head;
 	while ((p) && (scb = ips_getscb(ha))) {
-		if ((p->device->channel > 0)
+		if ((scmd_channel(p) > 0)
 		    && (ha->
-			dcdb_active[p->device->channel -
-				    1] & (1 << p->device->id))) {
+			dcdb_active[scmd_channel(p) -
+				    1] & (1 << scmd_id(p)))) {
 			ips_freescb(ha, scb);
 			p = (Scsi_Cmnd *) p->host_scribble;
 			continue;

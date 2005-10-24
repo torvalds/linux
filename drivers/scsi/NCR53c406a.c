@@ -710,7 +710,7 @@ static int NCR53c406a_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 
 	/* We are locked here already by the mid layer */
 	REG0;
-	outb(SCpnt->device->id, DEST_ID);	/* set destination */
+	outb(scmd_id(SCpnt), DEST_ID);	/* set destination */
 	outb(FLUSH_FIFO, CMD_REG);	/* reset the fifos */
 
 	for (i = 0; i < SCpnt->cmd_len; i++) {

@@ -686,7 +686,7 @@ ahc_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 	u_int	 channel;
 
 	ahc = *((struct ahc_softc **)sdev->host->hostdata);
-	channel = sdev->channel;
+	channel = sdev_channel(sdev);
 
 	bh = scsi_bios_ptable(bdev);
 	if (bh) {
@@ -759,7 +759,7 @@ ahc_linux_bus_reset(struct scsi_cmnd *cmd)
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;
 
 	ahc_lock(ahc, &flags);
-	found = ahc_reset_channel(ahc, cmd->device->channel + 'A',
+	found = ahc_reset_channel(ahc, scmd_channel(cmd) + 'A',
 				  /*initiate reset*/TRUE);
 	ahc_unlock(ahc, &flags);
 
@@ -2172,8 +2172,8 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 
 		/* Any SCB for this device will do for a target reset */
 		LIST_FOREACH(pending_scb, &ahc->pending_scbs, pending_links) {
-		  	if (ahc_match_scb(ahc, pending_scb, cmd->device->id,
-					  cmd->device->channel + 'A',
+		  	if (ahc_match_scb(ahc, pending_scb, scmd_id(cmd),
+					  scmd_channel(cmd) + 'A',
 					  CAM_LUN_WILDCARD,
 					  SCB_LIST_NULL, ROLE_INITIATOR) == 0)
 				break;
@@ -2260,7 +2260,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	if (last_phase != P_BUSFREE
 	 && (pending_scb->hscb->tag == active_scb_index
 	  || (flag == SCB_DEVICE_RESET
-	   && SCSIID_TARGET(ahc, saved_scsiid) == cmd->device->id))) {
+	   && SCSIID_TARGET(ahc, saved_scsiid) == scmd_id(cmd)))) {
 
 		/*
 		 * We're active on the bus, so assert ATN

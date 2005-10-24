@@ -1464,7 +1464,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	 *	Test does not apply to ID 16, the pseudo id for the controller
 	 *	itself.
 	 */
-	if (scsicmd->device->id != host->this_id) {
+	if (scmd_id(scsicmd) != host->this_id) {
 		if ((scsicmd->device->channel == 0) ){
 			if( (scsicmd->device->id >= dev->maximum_num_containers) || (scsicmd->device->lun != 0)){ 
 				scsicmd->result = DID_NO_CONNECT << 16;
@@ -1559,7 +1559,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		 *	Set the Vendor, Product, and Revision Level
 		 *	see: <vendor>.c i.e. aac.c
 		 */
-		if (scsicmd->device->id == host->this_id) {
+		if (scmd_id(scsicmd) == host->this_id) {
 			setinqstr(dev, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
 			inq_data.inqd_pdt = INQD_PDT_PROC;	/* Processor device */
 			aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
@@ -1949,7 +1949,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 			 * the channel is 2
 			 */
 			} else if ((dev->raid_scsi_mode) &&
-					(scsicmd->device->channel == 2)) {
+					(scmd_channel(scsicmd) == 2)) {
 				scsicmd->result = DID_OK << 16 | 
 						COMMAND_COMPLETE << 8;
 			} else {
@@ -1993,7 +1993,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 			 * the channel is 2
 			 */
 			} else if ((dev->raid_scsi_mode) &&
-					(scsicmd->device->channel == 2)) {
+					(scmd_channel(scsicmd) == 2)) {
 				scsicmd->result = DID_OK << 16 | 
 						COMMAND_COMPLETE << 8;
 			} else {

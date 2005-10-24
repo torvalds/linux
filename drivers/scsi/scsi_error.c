@@ -1033,7 +1033,8 @@ static int scsi_try_bus_reset(struct scsi_cmnd *scmd)
 		if (!scmd->device->host->hostt->skip_settle_delay)
 			ssleep(BUS_RESET_SETTLE_TIME);
 		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		scsi_report_bus_reset(scmd->device->host, scmd->device->channel);
+		scsi_report_bus_reset(scmd->device->host,
+				      scmd_channel(scmd));
 		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 	}
 
@@ -1061,7 +1062,8 @@ static int scsi_try_host_reset(struct scsi_cmnd *scmd)
 		if (!scmd->device->host->hostt->skip_settle_delay)
 			ssleep(HOST_RESET_SETTLE_TIME);
 		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		scsi_report_bus_reset(scmd->device->host, scmd->device->channel);
+		scsi_report_bus_reset(scmd->device->host,
+				      scmd_channel(scmd));
 		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 	}
 
@@ -1091,7 +1093,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 	for (channel = 0; channel <= shost->max_channel; channel++) {
 		chan_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry) {
-			if (channel == scmd->device->channel) {
+			if (channel == scmd_channel(scmd)) {
 				chan_scmd = scmd;
 				break;
 				/*
@@ -1109,7 +1111,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 		rtn = scsi_try_bus_reset(chan_scmd);
 		if (rtn == SUCCESS) {
 			list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-				if (channel == scmd->device->channel)
+				if (channel == scmd_channel(scmd))
 					if (!scsi_device_online(scmd->device) ||
 					    !scsi_eh_tur(scmd))
 						scsi_eh_finish_cmd(scmd,
@@ -1675,7 +1677,7 @@ void scsi_report_bus_reset(struct Scsi_Host *shost, int channel)
 	struct scsi_device *sdev;
 
 	__shost_for_each_device(sdev, shost) {
-		if (channel == sdev->channel) {
+		if (channel == sdev_channel(sdev)) {
 			sdev->was_reset = 1;
 			sdev->expecting_cc_ua = 1;
 		}
@@ -1710,8 +1712,8 @@ void scsi_report_device_reset(struct Scsi_Host *shost, int channel, int target)
 	struct scsi_device *sdev;
 
 	__shost_for_each_device(sdev, shost) {
-		if (channel == sdev->channel &&
-		    target == sdev->id) {
+		if (channel == sdev_channel(sdev) &&
+		    target == sdev_id(sdev)) {
 			sdev->was_reset = 1;
 			sdev->expecting_cc_ua = 1;
 		}
