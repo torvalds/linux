@@ -47,7 +47,6 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 #include <sound/core.h>
-#include <sound/minors.h>
 #include <sound/rawmidi.h>
 #include "usbaudio.h"
 
