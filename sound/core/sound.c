@@ -130,7 +130,7 @@ static int snd_open(struct inode *inode, struct file *file)
 	struct file_operations *old_fops;
 	int err = 0;
 
-	if (dev != SNDRV_MINOR_SEQUENCER && dev != SNDRV_MINOR_TIMER) {
+	if (dev != SNDRV_MINOR_GLOBAL) {
 		if (snd_cards[card] == NULL) {
 #ifdef CONFIG_KMOD
 			snd_request_card(card);
@@ -287,7 +287,7 @@ static void snd_minor_info_read(snd_info_entry_t *entry, snd_info_buffer_t * buf
 	for (card = 0; card < SNDRV_CARDS; card++) {
 		list_for_each(list, &snd_minors_hash[card]) {
 			mptr = list_entry(list, snd_minor_t, list);
-			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_SEQUENCER) {
+			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_GLOBAL) {
 				if ((device = mptr->device) >= 0)
 					snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, device, mptr->comment);
 				else
