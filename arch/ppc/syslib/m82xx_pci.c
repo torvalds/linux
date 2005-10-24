@@ -306,7 +306,7 @@ void __init pq2_find_bridges(void)
 	struct pci_controller * hose;
 	int host_bridge;
 
-	pci_assign_all_busses = 1;
+	pci_assign_all_buses = 1;
 
 	hose = pcibios_alloc_controller();
 
