@@ -351,9 +351,6 @@ extern long usb_calc_bus_time (int speed, int is_input,
 
 extern struct usb_bus *usb_alloc_bus (struct usb_operations *);
 
-extern void usb_hcd_suspend_root_hub (struct usb_hcd *hcd);
-extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
-
 extern void usb_set_device_state(struct usb_device *udev,
 		enum usb_device_state new_state);
 
@@ -376,9 +373,21 @@ extern int usb_find_interface_driver (struct usb_device *dev,
 #define usb_endpoint_out(ep_dir)	(!((ep_dir) & USB_DIR_IN))
 
 #ifdef CONFIG_PM
+extern void usb_hcd_suspend_root_hub (struct usb_hcd *hcd);
+extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
 extern int hcd_bus_suspend (struct usb_bus *bus);
 extern int hcd_bus_resume (struct usb_bus *bus);
 #else
+static inline void usb_hcd_suspend_root_hub(struct usb_hcd *hcd)
+{
+	return;
+}
+
+static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
+{
+	return;
+}
+
 static inline int hcd_bus_suspend(struct usb_bus *bus)
 {
 	return 0;
