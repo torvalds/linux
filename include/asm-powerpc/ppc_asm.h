@@ -76,13 +76,13 @@
 #define REST_16EVRS(n,s,base)	REST_8EVRS(n,s,base); REST_8EVRS(n+8,s,base)
 #define REST_32EVRS(n,s,base)	REST_16EVRS(n,s,base); REST_16EVRS(n+16,s,base)
 
-/* Macros to adjust thread priority for Iseries hardware multithreading */
-#define HMT_VERY_LOW    or   31,31,31	# very low priority\n"
-#define HMT_LOW		or 1,1,1
-#define HMT_MEDIUM_LOW  or   6,6,6	# medium low priority\n"
-#define HMT_MEDIUM	or 2,2,2
-#define HMT_MEDIUM_HIGH or   5,5,5	# medium high priority\n"
-#define HMT_HIGH	or 3,3,3
+/* Macros to adjust thread priority for hardware multithreading */
+#define HMT_VERY_LOW	or	31,31,31	# very low priority
+#define HMT_LOW		or	1,1,1
+#define HMT_MEDIUM_LOW  or	6,6,6		# medium low priority
+#define HMT_MEDIUM	or	2,2,2
+#define HMT_MEDIUM_HIGH or	5,5,5		# medium high priority
+#define HMT_HIGH	or	3,3,3
 
 /* handle instructions that older assemblers may not know */
 #define RFCI		.long 0x4c000066	/* rfci instruction */
