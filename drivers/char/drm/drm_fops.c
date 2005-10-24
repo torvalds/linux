@@ -96,9 +96,6 @@ static int drm_setup(drm_device_t * dev)
 	dev->ctx_start = 0;
 	dev->lck_start = 0;
 
-	dev->buf_rp = dev->buf;
-	dev->buf_wp = dev->buf;
-	dev->buf_end = dev->buf + DRM_BSZ;
 	dev->buf_async = NULL;
 	init_waitqueue_head(&dev->buf_readers);
 	init_waitqueue_head(&dev->buf_writers);

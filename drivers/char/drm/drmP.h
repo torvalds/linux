@@ -108,7 +108,6 @@
 #define DRM_KERNEL_CONTEXT    0	 /**< Change drm_resctx if changed */
 #define DRM_RESERVED_CONTEXTS 1	 /**< Change drm_resctx if changed */
 #define DRM_LOOPING_LIMIT     5000000
-#define DRM_BSZ		      1024 /**< Buffer size for /dev/drm? output */
 #define DRM_TIME_SLICE	      (HZ/20)  /**< Time slice for GLXContexts */
 #define DRM_LOCK_SLICE	      1	/**< Time slice for lock, in jiffies */
 
@@ -707,10 +706,6 @@ typedef struct drm_device {
 	cycles_t ctx_start;
 	cycles_t lck_start;
 
-	char buf[DRM_BSZ];		/**< Output buffer */
-	char *buf_rp;			/**< Read pointer */
-	char *buf_wp;			/**< Write pointer */
-	char *buf_end;			/**< End pointer */
 	struct fasync_struct *buf_async;/**< Processes waiting for SIGIO */
 	wait_queue_head_t buf_readers;	/**< Processes waiting to read */
 	wait_queue_head_t buf_writers;	/**< Processes waiting to ctx switch */
