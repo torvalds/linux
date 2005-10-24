@@ -359,15 +359,6 @@ int aac_get_containers(struct aac_dev *dev)
 	return status;
 }
 
-static void aac_io_done(struct scsi_cmnd * scsicmd)
-{
-	unsigned long cpu_flags;
-	struct Scsi_Host *host = scsicmd->device->host;
-	spin_lock_irqsave(host->host_lock, cpu_flags);
-	scsicmd->scsi_done(scsicmd);
-	spin_unlock_irqrestore(host->host_lock, cpu_flags);
-}
-
 static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigned int offset, unsigned int len)
 {
 	void *buf;
@@ -424,7 +415,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 }
 
 /**
@@ -988,7 +979,7 @@ static void io_callback(void *context, struct fib * fibptr)
 	fib_complete(fibptr);
 	fib_free(fibptr);
 
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 }
 
 static int aac_read(struct scsi_cmnd * scsicmd, int cid)
@@ -1167,7 +1158,7 @@ static int aac_read(struct scsi_cmnd * scsicmd, int cid)
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
 	 */
 	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_TASK_SET_FULL;
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 	fib_complete(cmd_fibcontext);
 	fib_free(cmd_fibcontext);
 	return 0;
@@ -1239,7 +1230,7 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 	 */
 	if (!(cmd_fibcontext = fib_alloc(dev))) {
 		scsicmd->result = DID_ERROR << 16;
-		aac_io_done(scsicmd);
+		scsicmd->scsi_done(scsicmd);
 		return 0;
 	}
 	fib_init(cmd_fibcontext);
@@ -1336,7 +1327,7 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
 	 */
 	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_TASK_SET_FULL;
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 
 	fib_complete(cmd_fibcontext);
 	fib_free(cmd_fibcontext);
@@ -1380,7 +1371,7 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
-	aac_io_done(cmd);
+	cmd->scsi_done(cmd);
 }
 
 static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
@@ -2097,7 +2088,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 }
 
 /**

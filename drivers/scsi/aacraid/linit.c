@@ -788,8 +788,29 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		goto out_free_host;
 	spin_lock_init(&aac->fib_lock);
 
-	if ((*aac_drivers[index].init)(aac))
+	/*
+	 *	Map in the registers from the adapter.
+	 */
+	aac->base_size = AAC_MIN_FOOTPRINT_SIZE;
+	if ((aac->regs.sa = ioremap(
+	  (unsigned long)aac->scsi_host_ptr->base, AAC_MIN_FOOTPRINT_SIZE))
+	  == NULL) {	
+		printk(KERN_WARNING "%s: unable to map adapter.\n",
+		  AAC_DRIVERNAME);
 		goto out_free_fibs;
+	}
+	if ((*aac_drivers[index].init)(aac))
+		goto out_unmap;
+
+	/*
+	 *	Start any kernel threads needed
+	 */
+	aac->thread_pid = kernel_thread((int (*)(void *))aac_command_thread,
+	  aac, 0);
+	if (aac->thread_pid < 0) {
+		printk(KERN_ERR "aacraid: Unable to create command thread.\n");
+		goto out_deinit;
+	}
 
 	/*
 	 * If we had set a smaller DMA mask earlier, set it to 4gig
@@ -866,10 +887,11 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
+	free_irq(pdev->irq, aac);
+ out_unmap:
 	fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
-	free_irq(pdev->irq, aac);
 	iounmap(aac->regs.sa);
  out_free_fibs:
 	kfree(aac->fibs);
@@ -910,6 +932,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	iounmap(aac->regs.sa);
 	
 	kfree(aac->fibs);
+	kfree(aac->fsa_dev);
 	
 	list_del(&aac->entry);
 	scsi_host_put(shost);
