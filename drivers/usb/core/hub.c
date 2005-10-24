@@ -865,13 +865,11 @@ descriptor_error:
 	/* We found a hub */
 	dev_info (&intf->dev, "USB hub found\n");
 
-	hub = kmalloc(sizeof(*hub), GFP_KERNEL);
+	hub = kzalloc(sizeof(*hub), GFP_KERNEL);
 	if (!hub) {
 		dev_dbg (&intf->dev, "couldn't kmalloc hub struct\n");
 		return -ENOMEM;
 	}
-
-	memset(hub, 0, sizeof(*hub));
 
 	INIT_LIST_HEAD(&hub->event_list);
 	hub->intfdev = &intf->dev;

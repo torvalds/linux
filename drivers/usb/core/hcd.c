@@ -744,10 +744,9 @@ struct usb_bus *usb_alloc_bus (struct usb_operations *op)
 {
 	struct usb_bus *bus;
 
-	bus = kmalloc (sizeof *bus, GFP_KERNEL);
+	bus = kzalloc (sizeof *bus, GFP_KERNEL);
 	if (!bus)
 		return NULL;
-	memset(bus, 0, sizeof(struct usb_bus));
 	usb_bus_init (bus);
 	bus->op = op;
 	return bus;

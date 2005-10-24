@@ -188,10 +188,9 @@ static int usb_parse_interface(struct device *ddev, int cfgno,
 	}
 
 	len = sizeof(struct usb_host_endpoint) * num_ep;
-	alt->endpoint = kmalloc(len, GFP_KERNEL);
+	alt->endpoint = kzalloc(len, GFP_KERNEL);
 	if (!alt->endpoint)
 		return -ENOMEM;
-	memset(alt->endpoint, 0, len);
 
 	/* Parse all the endpoint descriptors */
 	n = 0;
@@ -353,10 +352,9 @@ static int usb_parse_configuration(struct device *ddev, int cfgidx,
 		}
 
 		len = sizeof(*intfc) + sizeof(struct usb_host_interface) * j;
-		config->intf_cache[i] = intfc = kmalloc(len, GFP_KERNEL);
+		config->intf_cache[i] = intfc = kzalloc(len, GFP_KERNEL);
 		if (!intfc)
 			return -ENOMEM;
-		memset(intfc, 0, len);
 		kref_init(&intfc->ref);
 	}
 
@@ -459,16 +457,14 @@ int usb_get_configuration(struct usb_device *dev)
 	}
 
 	length = ncfg * sizeof(struct usb_host_config);
-	dev->config = kmalloc(length, GFP_KERNEL);
+	dev->config = kzalloc(length, GFP_KERNEL);
 	if (!dev->config)
 		goto err2;
-	memset(dev->config, 0, length);
 
 	length = ncfg * sizeof(char *);
-	dev->rawdescriptors = kmalloc(length, GFP_KERNEL);
+	dev->rawdescriptors = kzalloc(length, GFP_KERNEL);
 	if (!dev->rawdescriptors)
 		goto err2;
-	memset(dev->rawdescriptors, 0, length);
 
 	buffer = kmalloc(USB_DT_CONFIG_SIZE, GFP_KERNEL);
 	if (!buffer)

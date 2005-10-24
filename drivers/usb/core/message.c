@@ -1350,7 +1350,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		}
 
 		for (; n < nintf; ++n) {
-			new_interfaces[n] = kmalloc(
+			new_interfaces[n] = kzalloc(
 					sizeof(struct usb_interface),
 					GFP_KERNEL);
 			if (!new_interfaces[n]) {
@@ -1391,7 +1391,6 @@ free_interfaces:
 			struct usb_host_interface *alt;
 
 			cp->interface[i] = intf = new_interfaces[i];
-			memset(intf, 0, sizeof(*intf));
 			intfc = cp->intf_cache[i];
 			intf->altsetting = intfc->altsetting;
 			intf->num_altsetting = intfc->num_altsetting;

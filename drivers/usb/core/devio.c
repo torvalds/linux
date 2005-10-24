@@ -210,10 +210,10 @@ err:
 static struct async *alloc_async(unsigned int numisoframes)
 {
         unsigned int assize = sizeof(struct async) + numisoframes * sizeof(struct usb_iso_packet_descriptor);
-        struct async *as = kmalloc(assize, GFP_KERNEL);
+        struct async *as = kzalloc(assize, GFP_KERNEL);
+
         if (!as)
                 return NULL;
-        memset(as, 0, assize);
 	as->urb = usb_alloc_urb(numisoframes, GFP_KERNEL);
 	if (!as->urb) {
 		kfree(as);

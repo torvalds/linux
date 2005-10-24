@@ -704,11 +704,9 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 {
 	struct usb_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-
-	memset(dev, 0, sizeof(*dev));
 
 	bus = usb_bus_get(bus);
 	if (!bus) {
