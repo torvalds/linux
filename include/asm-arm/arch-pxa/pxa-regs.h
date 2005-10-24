@@ -653,7 +653,7 @@
 
 #define UDCCS_IO_RFS	(1 << 0)	/* Receive FIFO service */
 #define UDCCS_IO_RPC	(1 << 1)	/* Receive packet complete */
-#define UDCCS_IO_ROF	(1 << 3)	/* Receive overflow */
+#define UDCCS_IO_ROF	(1 << 2)	/* Receive overflow */
 #define UDCCS_IO_DME	(1 << 3)	/* DMA enable */
 #define UDCCS_IO_RNE	(1 << 6)	/* Receive FIFO not empty */
 #define UDCCS_IO_RSP	(1 << 7)	/* Receive short packet */

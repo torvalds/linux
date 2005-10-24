@@ -993,6 +993,7 @@ static int __init ib_sa_init(void)
 static void __exit ib_sa_cleanup(void)
 {
 	ib_unregister_client(&sa_client);
+	idr_destroy(&query_idr);
 }
 
 module_init(ib_sa_init);
