@@ -184,11 +184,7 @@ void setup_hvlpevent_queue(void)
 {
 	void *eventStack;
 
-	/*
-	 * Allocate a page for the Event Stack. The Hypervisor needs the
-	 * absolute real address, so we subtract out the KERNELBASE and add
-	 * in the absolute real address of the kernel load area.
-	 */
+	/* Allocate a page for the Event Stack. */
 	eventStack = alloc_bootmem_pages(LpEventStackSize);
 	memset(eventStack, 0, LpEventStackSize);
 
