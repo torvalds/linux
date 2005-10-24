@@ -161,9 +161,6 @@ struct us_data {
 	struct scsi_cmnd	*srb;		 /* current srb		*/
 	unsigned int		tag;		 /* current dCBWTag	*/
 
-	/* thread information */
-	int			pid;		 /* control thread	 */
-
 	/* control and bulk communications data */
 	struct urb		*current_urb;	 /* USB requests	 */
 	struct usb_ctrlrequest	*cr;		 /* control requests	 */

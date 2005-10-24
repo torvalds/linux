@@ -54,6 +54,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -310,22 +311,7 @@ static int usb_stor_control_thread(void * __us)
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
 
-	lock_kernel();
-
-	/*
-	 * This thread doesn't need any user-level access,
-	 * so get rid of all our resources.
-	 */
-	daemonize("usb-storage");
 	current->flags |= PF_NOFREEZE;
-	unlock_kernel();
-
-	/* acquire a reference to the host, so it won't be deallocated
-	 * until we're ready to exit */
-	scsi_host_get(host);
-
-	/* signal that we've started the thread */
-	complete(&(us->notify));
 
 	for(;;) {
 		US_DEBUGP("*** thread sleeping.\n");
@@ -768,6 +754,7 @@ static int get_pipes(struct us_data *us)
 static int usb_stor_acquire_resources(struct us_data *us)
 {
 	int p;
+	struct task_struct *th;
 
 	us->current_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!us->current_urb) {
@@ -784,17 +771,19 @@ static int usb_stor_acquire_resources(struct us_data *us)
 	}
 
 	/* Start up our control thread */
-	p = kernel_thread(usb_stor_control_thread, us, CLONE_VM);
-	if (p < 0) {
+	th = kthread_create(usb_stor_control_thread, us, "usb-storage");
+	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start control thread\n");
-		return p;
+		return PTR_ERR(th);
 	}
-	us->pid = p;
-	atomic_inc(&total_threads);
 
-	/* Wait for the thread to start */
-	wait_for_completion(&(us->notify));
+	/* Take a reference to the host for the control thread and
+	 * count it among all the threads we have launched.  Then
+	 * start it up. */
+	scsi_host_get(us_to_host(us));
+	atomic_inc(&total_threads);
+	wake_up_process(th);
 
 	return 0;
 }
@@ -890,21 +879,6 @@ static int usb_stor_scan_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
 
-	/*
-	 * This thread doesn't need any user-level access,
-	 * so get rid of all our resources.
-	 */
-	lock_kernel();
-	daemonize("usb-stor-scan");
-	unlock_kernel();
-
-	/* Acquire a reference to the host, so it won't be deallocated
-	 * until we're ready to exit */
-	scsi_host_get(us_to_host(us));
-
-	/* Signal that we've started the thread */
-	complete(&(us->notify));
-
 	printk(KERN_DEBUG
 		"usb-storage: device found at %d\n", us->pusb_dev->devnum);
 
@@ -949,6 +923,7 @@ static int storage_probe(struct usb_interface *intf,
 	struct us_data *us;
 	const int id_index = id - storage_usb_ids; 
 	int result;
+	struct task_struct *th;
 
 	US_DEBUGP("USB Mass Storage device detected\n");
 
@@ -1029,17 +1004,21 @@ static int storage_probe(struct usb_interface *intf,
 	}
 
 	/* Start up the thread for delayed SCSI-device scanning */
-	result = kernel_thread(usb_stor_scan_thread, us, CLONE_VM);
-	if (result < 0) {
+	th = kthread_create(usb_stor_scan_thread, us, "usb-stor-scan");
+	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start the device-scanning thread\n");
 		quiesce_and_remove_host(us);
+		result = PTR_ERR(th);
 		goto BadDevice;
 	}
-	atomic_inc(&total_threads);
 
-	/* Wait for the thread to start */
-	wait_for_completion(&(us->notify));
+	/* Take a reference to the host for the scanning thread and
+	 * count it among all the threads we have launched.  Then
+	 * start it up. */
+	scsi_host_get(us_to_host(us));
+	atomic_inc(&total_threads);
+	wake_up_process(th);
 
 	return 0;
 
