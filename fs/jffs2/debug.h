@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.18 2005/09/21 10:26:26 dedekind Exp $
+ * $Id: debug.h,v 1.20 2005/10/24 16:22:34 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -19,7 +19,7 @@
 #define CONFIG_JFFS2_FS_DEBUG 0
 #endif
 
-#if CONFIG_JFFS2_FS_DEBUG == 1
+#if CONFIG_JFFS2_FS_DEBUG > 0
 /* Enable "paranoia" checks and dumps */
 #define JFFS2_DBG_PARANOIA_CHECKS
 #define JFFS2_DBG_DUMPS
@@ -37,7 +37,7 @@
 #define JFFS2_DBG_FSBUILD_MESSAGES
 #endif
 
-#if CONFIG_JFFS2_FS_DEBUG == 2
+#if CONFIG_JFFS2_FS_DEBUG > 1
 #define JFFS2_DBG_FRAGTREE2_MESSAGES
 #define JFFS2_DBG_MEMALLOC_MESSAGES
 #endif
