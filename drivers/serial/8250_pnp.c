@@ -276,6 +276,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"SUP1620",		0	},
 	/* SupraExpress 33.6 Data/Fax PnP modem */
 	{	"SUP1760",		0	},
+	/* SupraExpress 56i Sp Intl */
+	{	"SUP2171",		0	},
 	/* Phoebe Micro */
 	/* Phoebe Micro 33.6 Data Fax 1433VQH Plug & Play */
 	{	"TEX0011",		0	},

@@ -424,6 +424,7 @@ static void cleanup_timers(struct list_head *head,
 	cputime_t ptime = cputime_add(utime, stime);
 
 	list_for_each_entry_safe(timer, next, head, entry) {
+		put_task_struct(timer->task);
 		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (cputime_lt(timer->expires.cpu, ptime)) {
@@ -436,6 +437,7 @@ static void cleanup_timers(struct list_head *head,
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
+		put_task_struct(timer->task);
 		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (cputime_lt(timer->expires.cpu, utime)) {
@@ -448,6 +450,7 @@ static void cleanup_timers(struct list_head *head,
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
+		put_task_struct(timer->task);
 		timer->task = NULL;
 		list_del_init(&timer->entry);
 		if (timer->expires.sched < sched_time) {
@@ -958,14 +961,16 @@ void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 static void check_thread_timers(struct task_struct *tsk,
 				struct list_head *firing)
 {
+	int maxfire;
 	struct list_head *timers = tsk->cpu_timers;
 
+	maxfire = 20;
 	tsk->it_prof_expires = cputime_zero;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_entry(timers->next,
 						      struct cpu_timer_list,
 						      entry);
-		if (cputime_lt(prof_ticks(tsk), t->expires.cpu)) {
+		if (!--maxfire || cputime_lt(prof_ticks(tsk), t->expires.cpu)) {
 			tsk->it_prof_expires = t->expires.cpu;
 			break;
 		}
@@ -974,12 +979,13 @@ static void check_thread_timers(struct task_struct *tsk,
 	}
 
 	++timers;
+	maxfire = 20;
 	tsk->it_virt_expires = cputime_zero;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_entry(timers->next,
 						      struct cpu_timer_list,
 						      entry);
-		if (cputime_lt(virt_ticks(tsk), t->expires.cpu)) {
+		if (!--maxfire || cputime_lt(virt_ticks(tsk), t->expires.cpu)) {
 			tsk->it_virt_expires = t->expires.cpu;
 			break;
 		}
@@ -988,12 +994,13 @@ static void check_thread_timers(struct task_struct *tsk,
 	}
 
 	++timers;
+	maxfire = 20;
 	tsk->it_sched_expires = 0;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_entry(timers->next,
 						      struct cpu_timer_list,
 						      entry);
-		if (tsk->sched_time < t->expires.sched) {
+		if (!--maxfire || tsk->sched_time < t->expires.sched) {
 			tsk->it_sched_expires = t->expires.sched;
 			break;
 		}
@@ -1010,6 +1017,7 @@ static void check_thread_timers(struct task_struct *tsk,
 static void check_process_timers(struct task_struct *tsk,
 				 struct list_head *firing)
 {
+	int maxfire;
 	struct signal_struct *const sig = tsk->signal;
 	cputime_t utime, stime, ptime, virt_expires, prof_expires;
 	unsigned long long sched_time, sched_expires;
@@ -1042,12 +1050,13 @@ static void check_process_timers(struct task_struct *tsk,
 	} while (t != tsk);
 	ptime = cputime_add(utime, stime);
 
+	maxfire = 20;
 	prof_expires = cputime_zero;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_entry(timers->next,
 						      struct cpu_timer_list,
 						      entry);
-		if (cputime_lt(ptime, t->expires.cpu)) {
+		if (!--maxfire || cputime_lt(ptime, t->expires.cpu)) {
 			prof_expires = t->expires.cpu;
 			break;
 		}
@@ -1056,12 +1065,13 @@ static void check_process_timers(struct task_struct *tsk,
 	}
 
 	++timers;
+	maxfire = 20;
 	virt_expires = cputime_zero;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_entry(timers->next,
 						      struct cpu_timer_list,
 						      entry);
-		if (cputime_lt(utime, t->expires.cpu)) {
+		if (!--maxfire || cputime_lt(utime, t->expires.cpu)) {
 			virt_expires = t->expires.cpu;
 			break;
 		}
@@ -1070,12 +1080,13 @@ static void check_process_timers(struct task_struct *tsk,
 	}
 
 	++timers;
+	maxfire = 20;
 	sched_expires = 0;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_entry(timers->next,
 						      struct cpu_timer_list,
 						      entry);
-		if (sched_time < t->expires.sched) {
+		if (!--maxfire || sched_time < t->expires.sched) {
 			sched_expires = t->expires.sched;
 			break;
 		}

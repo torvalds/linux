@@ -695,7 +695,7 @@ static void receive_char(struct r3964_info *pInfo, const unsigned char c)
             {
                TRACE_PE("IDLE - got STX but no space in rx_queue!");
                pInfo->state=R3964_WAIT_FOR_RX_BUF;
-	       mod_timer(&pInfo->tmr, R3964_TO_NO_BUF);
+	       mod_timer(&pInfo->tmr, jiffies + R3964_TO_NO_BUF);
                break;
             }
 start_receiving:
@@ -705,7 +705,7 @@ start_receiving:
             pInfo->last_rx = 0;
             pInfo->flags &= ~R3964_ERROR;
             pInfo->state=R3964_RECEIVING;
-	    mod_timer(&pInfo->tmr, R3964_TO_ZVZ);
+	    mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
 	    pInfo->nRetry = 0;
             put_char(pInfo, DLE);
             flush(pInfo);
@@ -732,7 +732,7 @@ start_receiving:
                if(pInfo->flags & R3964_BCC)
                {
                   pInfo->state = R3964_WAIT_FOR_BCC;
-		  mod_timer(&pInfo->tmr, R3964_TO_ZVZ);
+		  mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
                }
                else 
                {
@@ -744,7 +744,7 @@ start_receiving:
                pInfo->last_rx = c;
 char_to_buf:
                pInfo->rx_buf[pInfo->rx_position++] = c;
-	       mod_timer(&pInfo->tmr, R3964_TO_ZVZ);
+	       mod_timer(&pInfo->tmr, jiffies + R3964_TO_ZVZ);
             }
          }
         /* else: overflow-msg? BUF_SIZE>MTU; should not happen? */ 
