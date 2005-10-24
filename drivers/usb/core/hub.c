@@ -2652,8 +2652,6 @@ static void hub_events(void)
 		 * stub "device" node was never suspended.
 		 */
 		if (i) {
-			extern void dpm_runtime_resume(struct device *);
-
 			dpm_runtime_resume(&hdev->dev);
 			dpm_runtime_resume(&intf->dev);
 		}

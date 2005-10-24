@@ -243,6 +243,9 @@ extern int device_suspend(pm_message_t state);
 #define device_may_wakeup(dev) \
 	(device_can_wakeup(dev) && (dev)->power.should_wakeup)
 
+extern int dpm_runtime_suspend(struct device *, pm_message_t);
+extern void dpm_runtime_resume(struct device *);
+
 #else /* !CONFIG_PM */
 
 static inline int device_suspend(pm_message_t state)
@@ -252,6 +255,16 @@ static inline int device_suspend(pm_message_t state)
 
 #define device_set_wakeup_enable(dev,val)	do{}while(0)
 #define device_may_wakeup(dev)			(0)
+
+static inline int dpm_runtime_suspend(struct device * dev, pm_message_t state)
+{
+	return 0;
+}
+
+static inline void dpm_runtime_resume(struct device * dev)
+{
+
+}
 
 #endif
 
