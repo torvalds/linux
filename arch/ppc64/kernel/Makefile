@@ -53,7 +53,6 @@ obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 endif
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 
-obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_XICS)		+= xics.o
 
 obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o

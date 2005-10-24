@@ -16,6 +16,7 @@ obj-$(CONFIG_PPC64)		+= binfmt_elf32.o sys_ppc32.o ptrace32.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
+obj-$(CONFIG_IBMVIO)		+= vio.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
