@@ -309,7 +309,9 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 
 	if (copy_to_user(argp, maplist->map, sizeof(drm_map_t)))
 		return -EFAULT;
-	if (put_user((void *)maplist->user_token, &argp->handle))
+
+	/* avoid a warning on 64-bit, this casting isn't very nice, but the API is set so too late */
+	if (put_user((void *)(unsigned long)maplist->user_token, &argp->handle))
 		return -EFAULT;
 	return 0;
 }
