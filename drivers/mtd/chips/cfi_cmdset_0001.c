@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.183 2005/08/06 04:46:56 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.184 2005/10/25 20:28:40 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -285,7 +285,10 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 			      sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
-		extra_size += (extp->MinorVersion < '4') ? 6 : 5;
+		extra_size += 2;
+		if (extp_size < sizeof(*extp) + extra_size)
+			goto need_more;
+		extra_size += extp->extra[extra_size-1];
 
 		/* Number of hardware-partitions */
 		extra_size += 1;
@@ -519,7 +522,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		       sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
-		offs += (extp->MinorVersion < '4') ? 6 : 5;
+		offs += extp->extra[offs+1]+2;
 
 		/* Number of partition regions */
 		numregions = extp->extra[offs];
