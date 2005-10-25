@@ -151,28 +151,27 @@ static void ack_recv(struct mad_rmpp_recv *rmpp_recv,
 		ib_free_send_mad(msg);
 }
 
-static int alloc_response_msg(struct ib_mad_agent *agent,
-			      struct ib_mad_recv_wc *recv_wc,
-			      struct ib_mad_send_buf **msg)
+static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
+						  struct ib_mad_recv_wc *recv_wc)
 {
-	struct ib_mad_send_buf *m;
+	struct ib_mad_send_buf *msg;
 	struct ib_ah *ah;
 
 	ah = ib_create_ah_from_wc(agent->qp->pd, recv_wc->wc,
 				  recv_wc->recv_buf.grh, agent->port_num);
 	if (IS_ERR(ah))
-		return PTR_ERR(ah);
+		return (void *) ah;
 
-	m = ib_create_send_mad(agent, recv_wc->wc->src_qp,
-			       recv_wc->wc->pkey_index, 1,
-			       IB_MGMT_RMPP_HDR, IB_MGMT_RMPP_DATA, GFP_KERNEL);
-	if (IS_ERR(m)) {
+	msg = ib_create_send_mad(agent, recv_wc->wc->src_qp,
+				 recv_wc->wc->pkey_index, 1,
+				 IB_MGMT_RMPP_HDR, IB_MGMT_RMPP_DATA,
+				 GFP_KERNEL);
+	if (IS_ERR(msg))
 		ib_destroy_ah(ah);
-		return PTR_ERR(m);
-	}
-	m->ah = ah;
-	*msg = m;
-	return 0;
+	else
+		msg->ah = ah;
+
+	return msg;
 }
 
 void ib_rmpp_send_handler(struct ib_mad_send_wc *mad_send_wc)
@@ -191,8 +190,8 @@ static void nack_recv(struct ib_mad_agent_private *agent,
 	struct ib_rmpp_mad *rmpp_mad;
 	int ret;
 
-	ret = alloc_response_msg(&agent->agent, recv_wc, &msg);
-	if (ret)
+	msg = alloc_response_msg(&agent->agent, recv_wc);
+	if (IS_ERR(msg))
 		return;
 
 	rmpp_mad = msg->mad;
