@@ -57,10 +57,7 @@ struct usb_host_endpoint {
 	struct usb_endpoint_descriptor	desc;
 	struct list_head		urb_list;
 	void				*hcpriv;
-	char 				*attr_name;
-	struct attribute_group		*attr_group;
-	struct attribute 		**attrs;
-	int				num_attrs;
+	struct kobject			*kobj;	/* For sysfs info */
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;

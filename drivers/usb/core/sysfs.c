@@ -23,43 +23,56 @@
 #include "usb.h"
 
 /* endpoint stuff */
-struct endpoint_attribute {
-	struct device_attribute dev_attr;
-	struct usb_endpoint_descriptor *endpoint;
+struct ep_object {
+	struct usb_endpoint_descriptor *desc;
 	struct usb_device *udev;
+	struct kobject kobj;
 };
-#define to_endpoint_attr(_dev_attr) \
-	container_of(_dev_attr, struct endpoint_attribute, dev_attr)
+#define to_ep_object(_kobj) \
+	container_of(_kobj, struct ep_object, kobj)
 
-#define usb_ep_attr(field, format_string)					\
-static ssize_t show_ep_##field(struct device *dev, struct device_attribute *attr,	\
-			    char *buf)						\
-{										\
-	struct endpoint_attribute *endpoint_attr = to_endpoint_attr(attr);	\
-										\
-	return sprintf(buf, format_string, endpoint_attr->endpoint->field);	\
-}
+struct ep_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct usb_device *,
+			struct usb_endpoint_descriptor *, char *);
+};
+#define to_ep_attribute(_attr) \
+	container_of(_attr, struct ep_attribute, attr)
+
+#define EP_ATTR(_name)						\
+struct ep_attribute ep_##_name = {				\
+	.attr = {.name = #_name, .owner = THIS_MODULE,		\
+			.mode = S_IRUGO},			\
+	.show = show_ep_##_name}
+
+#define usb_ep_attr(field, format_string)			\
+static ssize_t show_ep_##field(struct usb_device *udev,		\
+		struct usb_endpoint_descriptor *desc, 		\
+		char *buf)					\
+{								\
+	return sprintf(buf, format_string, desc->field);	\
+}								\
+static EP_ATTR(field);
+
 usb_ep_attr(bLength, "%02x\n")
-usb_ep_attr(bDescriptorType, "%02x\n")
 usb_ep_attr(bEndpointAddress, "%02x\n")
 usb_ep_attr(bmAttributes, "%02x\n")
 usb_ep_attr(bInterval, "%02x\n")
 
-static ssize_t show_ep_wMaxPacketSize(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t show_ep_wMaxPacketSize(struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc, char *buf)
 {
-	struct endpoint_attribute *endpoint_attr = to_endpoint_attr(attr);
-
 	return sprintf(buf, "%04x\n",
-		      le16_to_cpu(endpoint_attr->endpoint->wMaxPacketSize) & 0x07ff);
+			le16_to_cpu(desc->wMaxPacketSize) & 0x07ff);
 }
+static EP_ATTR(wMaxPacketSize);
 
-static ssize_t show_ep_type(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_ep_type(struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc, char *buf)
 {
-	struct endpoint_attribute *endpoint_attr = to_endpoint_attr(attr);
 	char *type = "unknown";
 
-	switch (endpoint_attr->endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		type = "Control";
 		break;
@@ -75,35 +88,34 @@ static ssize_t show_ep_type(struct device *dev, struct device_attribute *attr, c
 	}
 	return sprintf(buf, "%s\n", type);
 }
+static EP_ATTR(type);
 
-static ssize_t show_ep_interval(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_ep_interval(struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc, char *buf)
 {
-	struct endpoint_attribute *endpoint_attr = to_endpoint_attr(attr);
-	struct usb_device *udev = endpoint_attr->udev;
-	struct usb_endpoint_descriptor *endpoint = endpoint_attr->endpoint;
 	char unit;
 	unsigned interval = 0;
 	unsigned in;
 
-	in = (endpoint->bEndpointAddress & USB_DIR_IN);
+	in = (desc->bEndpointAddress & USB_DIR_IN);
 
-	switch (endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		if (udev->speed == USB_SPEED_HIGH) 	/* uframes per NAK */
-			interval = endpoint->bInterval;
+			interval = desc->bInterval;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		interval = 1 << (endpoint->bInterval - 1);
+		interval = 1 << (desc->bInterval - 1);
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		if (udev->speed == USB_SPEED_HIGH && !in)	/* uframes per NAK */
-			interval = endpoint->bInterval;
+		if (udev->speed == USB_SPEED_HIGH && !in) /* uframes per NAK */
+			interval = desc->bInterval;
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		if (udev->speed == USB_SPEED_HIGH) {
-			interval = 1 << (endpoint->bInterval - 1);
-		} else
-			interval = endpoint->bInterval;
+		if (udev->speed == USB_SPEED_HIGH)
+			interval = 1 << (desc->bInterval - 1);
+		else
+			interval = desc->bInterval;
 		break;
 	}
 	interval *= (udev->speed == USB_SPEED_HIGH) ? 125 : 1000;
@@ -116,78 +128,95 @@ static ssize_t show_ep_interval(struct device *dev, struct device_attribute *att
 
 	return sprintf(buf, "%d%cs\n", interval, unit);
 }
+static EP_ATTR(interval);
 
-static ssize_t show_ep_direction(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_ep_direction(struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc, char *buf)
 {
-	struct endpoint_attribute *endpoint_attr = to_endpoint_attr(attr);
 	char *direction;
 
-	if ((endpoint_attr->endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-	    USB_ENDPOINT_XFER_CONTROL)
+	if ((desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_CONTROL)
 		direction = "both";
-	else if (endpoint_attr->endpoint->bEndpointAddress & USB_DIR_IN)
+	else if (desc->bEndpointAddress & USB_DIR_IN)
 		direction = "in";
 	else
 		direction = "out";
 	return sprintf(buf, "%s\n", direction);
 }
+static EP_ATTR(direction);
 
-static struct endpoint_attribute *create_ep_attr(struct usb_endpoint_descriptor *endpoint,
-						 struct usb_device *udev, char *name,
-		ssize_t (*show)(struct device *dev, struct device_attribute *attr, char *buf))
+static struct attribute *ep_attrs[] = {
+	&ep_bLength.attr,
+	&ep_bEndpointAddress.attr,
+	&ep_bmAttributes.attr,
+	&ep_bInterval.attr,
+	&ep_wMaxPacketSize.attr,
+	&ep_type.attr,
+	&ep_interval.attr,
+	&ep_direction.attr,
+	NULL,
+};
+
+static void ep_object_release(struct kobject *kobj)
 {
-	struct endpoint_attribute *ep_attr;
+	kfree(to_ep_object(kobj));
+}
 
-	ep_attr = kzalloc(sizeof(*ep_attr), GFP_KERNEL);
-	if (ep_attr) {
-		ep_attr->endpoint = endpoint;
-		ep_attr->udev = udev;
-		ep_attr->dev_attr.attr.name = name;
-		ep_attr->dev_attr.attr.mode = 0444;
-		ep_attr->dev_attr.attr.owner = THIS_MODULE;
-		ep_attr->dev_attr.show = show;
+static ssize_t ep_object_show(struct kobject *kobj, struct attribute *attr,
+		char *buf)
+{
+	struct ep_object *ep_obj = to_ep_object(kobj);
+	struct ep_attribute *ep_attr = to_ep_attribute(attr);
+
+	return (ep_attr->show)(ep_obj->udev, ep_obj->desc, buf);
+}
+
+static struct sysfs_ops ep_object_sysfs_ops = {
+	.show =			ep_object_show,
+};
+
+static struct kobj_type ep_object_ktype = {
+	.release =		ep_object_release,
+	.sysfs_ops =		&ep_object_sysfs_ops,
+	.default_attrs =	ep_attrs,
+};
+
+static void usb_create_ep_files(struct kobject *parent,
+		struct usb_host_endpoint *endpoint,
+		struct usb_device *udev)
+{
+	struct ep_object *ep_obj;
+	struct kobject *kobj;
+
+	ep_obj = kzalloc(sizeof(struct ep_object), GFP_KERNEL);
+	if (!ep_obj)
+		return;
+
+	ep_obj->desc = &endpoint->desc;
+	ep_obj->udev = udev;
+
+	kobj = &ep_obj->kobj;
+	kobject_set_name(kobj, "ep_%02x", endpoint->desc.bEndpointAddress);
+	kobj->parent = parent;
+	kobj->ktype = &ep_object_ktype;
+
+	/* Don't use kobject_register, because it generates a hotplug event */
+	kobject_init(kobj);
+	if (kobject_add(kobj) == 0)
+		endpoint->kobj = kobj;
+	else
+		kobject_put(kobj);
+}
+
+static void usb_remove_ep_files(struct usb_host_endpoint *endpoint)
+{
+
+	if (endpoint->kobj) {
+		kobject_del(endpoint->kobj);
+		kobject_put(endpoint->kobj);
+		endpoint->kobj = NULL;
 	}
-	return ep_attr;
-}
-
-static void usb_create_ep_files(struct kobject *kobj, struct usb_host_endpoint *endpoint, struct usb_device *udev)
-{
-	struct usb_endpoint_descriptor *ep;
-
-	ep = &endpoint->desc;
-
-	endpoint->attrs = kzalloc(sizeof(struct attribute *) * 10, GFP_KERNEL);
-	endpoint->attrs[0] = &(create_ep_attr(ep, udev, "direction", show_ep_direction)->dev_attr.attr);
-	endpoint->attrs[1] = &(create_ep_attr(ep, udev, "type", show_ep_type)->dev_attr.attr);
-	endpoint->attrs[2] = &(create_ep_attr(ep, udev, "bLength", show_ep_bLength)->dev_attr.attr);
-	endpoint->attrs[3] = &(create_ep_attr(ep, udev, "bDescriptorType", show_ep_bDescriptorType)->dev_attr.attr);
-	endpoint->attrs[4] = &(create_ep_attr(ep, udev, "bEndpointAddress", show_ep_bEndpointAddress)->dev_attr.attr);
-	endpoint->attrs[5] = &(create_ep_attr(ep, udev, "bmAttributes", show_ep_bmAttributes)->dev_attr.attr);
-	endpoint->attrs[6] = &(create_ep_attr(ep, udev, "wMaxPacketSize", show_ep_wMaxPacketSize)->dev_attr.attr);
-	endpoint->attrs[7] = &(create_ep_attr(ep, udev, "bInterval", show_ep_bInterval)->dev_attr.attr);
-	endpoint->attrs[8] = &(create_ep_attr(ep, udev, "interval", show_ep_interval)->dev_attr.attr);
-	endpoint->attrs[9] = NULL;
-	endpoint->num_attrs = 9;
-
-	endpoint->attr_group = kzalloc(sizeof(*endpoint->attr_group), GFP_KERNEL);
-	endpoint->attr_name = kzalloc(10, GFP_KERNEL);
-	sprintf(endpoint->attr_name, "ep_%02x", endpoint->desc.bEndpointAddress);
-
-	endpoint->attr_group->attrs = endpoint->attrs;
-	endpoint->attr_group->name = endpoint->attr_name;
-	sysfs_create_group(kobj, endpoint->attr_group);
-}
-
-static void usb_remove_ep_files(struct kobject *kobj, struct usb_host_endpoint *endpoint)
-{
-	int i;
-
-	sysfs_remove_group(kobj, endpoint->attr_group);
-	kfree(endpoint->attr_group);
-	kfree(endpoint->attr_name);
-	for (i = 0; i < endpoint->num_attrs; ++i)
-		kfree(endpoint->attrs[i]);
-	kfree(endpoint->attrs);
 }
 
 /* Active configuration fields */
@@ -411,7 +440,7 @@ void usb_remove_sysfs_dev_files (struct usb_device *udev)
 {
 	struct device *dev = &udev->dev;
 
-	usb_remove_ep_files(&dev->kobj, &udev->ep0);
+	usb_remove_ep_files(&udev->ep0);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 
 	if (udev->descriptor.iManufacturer)
@@ -496,7 +525,7 @@ static struct attribute_group intf_attr_grp = {
 	.attrs = intf_attrs,
 };
 
-static void usb_create_intf_ep_files(struct usb_interface *intf)
+static inline void usb_create_intf_ep_files(struct usb_interface *intf)
 {
 	struct usb_host_interface *iface_desc;
 	int i;
@@ -504,17 +533,17 @@ static void usb_create_intf_ep_files(struct usb_interface *intf)
 	iface_desc = intf->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
 		usb_create_ep_files(&intf->dev.kobj, &iface_desc->endpoint[i],
-				    interface_to_usbdev(intf));
+				interface_to_usbdev(intf));
 }
 
-static void usb_remove_intf_ep_files(struct usb_interface *intf)
+static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
 {
 	struct usb_host_interface *iface_desc;
 	int i;
 
 	iface_desc = intf->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
-		usb_remove_ep_files(&intf->dev.kobj, &iface_desc->endpoint[i]);
+		usb_remove_ep_files(&iface_desc->endpoint[i]);
 }
 
 void usb_create_sysfs_intf_files (struct usb_interface *intf)
