@@ -1049,11 +1049,11 @@ xpc_init(void)
 
 	/*
 	 * xpc_remote_copy_buffer is used as a temporary buffer for bte_copy'ng
-	 * both a partition's reserved page and its XPC variables. Its size was
-	 * based on the size of a reserved page. So we need to ensure that the
-	 * XPC variables will fit as well.
+	 * various portions of a partition's reserved page. Its size is based
+	 * on the size of the reserved page header and part_nasids mask. So we
+	 * need to ensure that the other items will fit as well.
 	 */
-	if (XPC_VARS_ALIGNED_SIZE > XPC_RSVD_PAGE_ALIGNED_SIZE) {
+	if (XPC_RP_VARS_SIZE > XPC_RP_HEADER_SIZE + XP_NASID_MASK_BYTES) {
 		dev_err(xpc_part, "xpc_remote_copy_buffer is not big enough\n");
 		return -EPERM;
 	}

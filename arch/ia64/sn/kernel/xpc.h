@@ -68,28 +68,57 @@
 
 
 /*
- * Reserved Page provided by SAL.
+ * the reserved page
  *
- * SAL provides one page per partition of reserved memory.  When SAL
- * initialization is complete, SAL_signature, SAL_version, partid,
- * part_nasids, and mach_nasids are set.
+ *   SAL reserves one page of memory per partition for XPC. Though a full page
+ *   in length (16384 bytes), its starting address is not page aligned, but it
+ *   is cacheline aligned. The reserved page consists of the following:
+ *
+ *   reserved page header
+ *
+ *     The first cacheline of the reserved page contains the header
+ *     (struct xpc_rsvd_page). Before SAL initialization has completed,
+ *     SAL has set up the following fields of the reserved page header:
+ *     SAL_signature, SAL_version, partid, and nasids_size. The other
+ *     fields are set up by XPC. (xpc_rsvd_page points to the local
+ *     partition's reserved page.)
+ *
+ *   part_nasids mask
+ *   mach_nasids mask
+ *
+ *     SAL also sets up two bitmaps (or masks), one that reflects the actual
+ *     nasids in this partition (part_nasids), and the other that reflects
+ *     the actual nasids in the entire machine (mach_nasids). We're only
+ *     interested in the even numbered nasids (which contain the processors
+ *     and/or memory), so we only need half as many bits to represent the
+ *     nasids. The part_nasids mask is located starting at the first cacheline
+ *     following the reserved page header. The mach_nasids mask follows right
+ *     after the part_nasids mask. The size in bytes of each mask is reflected
+ *     by the reserved page header field 'nasids_size'. (Local partition's
+ *     mask pointers are xpc_part_nasids and xpc_mach_nasids.)
+ *
+ *   vars
+ *   vars part
+ *
+ *     Immediately following the mach_nasids mask are the XPC variables
+ *     required by other partitions. First are those that are generic to all
+ *     partitions (vars), followed on the next available cacheline by those
+ *     which are partition specific (vars part). These are setup by XPC.
+ *     (Local partition's vars pointers are xpc_vars and xpc_vars_part.)
  *
  * Note: Until vars_pa is set, the partition XPC code has not been initialized.
  */
 struct xpc_rsvd_page {
-	u64 SAL_signature;	/* SAL unique signature */
-	u64 SAL_version;	/* SAL specified version */
-	u8 partid;		/* partition ID from SAL */
+	u64 SAL_signature;	/* SAL: unique signature */
+	u64 SAL_version;	/* SAL: version */
+	u8 partid;		/* SAL: partition ID */
 	u8 version;
-	u8 pad[6];		/* pad to u64 align */
+	u8 pad1[6];		/* align to next u64 in cacheline */
 	volatile u64 vars_pa;
-	struct timespec stamp;	/* time when reserved page was initialized */
-	u64 part_nasids[XP_NASID_MASK_WORDS] ____cacheline_aligned;
-	u64 mach_nasids[XP_NASID_MASK_WORDS] ____cacheline_aligned;
+	struct timespec stamp;	/* time when reserved page was setup by XPC */
+	u64 pad2[9];		/* align to last u64 in cacheline */
+	u64 nasids_size;	/* SAL: size of each nasid mask in bytes */
 };
-
-#define XPC_RSVD_PAGE_ALIGNED_SIZE \
-			(L1_CACHE_ALIGN(sizeof(struct xpc_rsvd_page)))
 
 #define XPC_RP_VERSION _XPC_VERSION(1,1) /* version 1.1 of the reserved page */
 
@@ -142,8 +171,6 @@ struct xpc_vars {
 	AMO_t *amos_page;	/* vaddr of page of AMOs from MSPEC driver */
 };
 
-#define XPC_VARS_ALIGNED_SIZE  (L1_CACHE_ALIGN(sizeof(struct xpc_vars)))
-
 #define XPC_V_VERSION _XPC_VERSION(3,1) /* version 3.1 of the cross vars */
 
 #define XPC_SUPPORTS_DISENGAGE_REQUEST(_version) \
@@ -184,7 +211,7 @@ xpc_disallow_hb(partid_t partid, struct xpc_vars *vars)
 /*
  * The AMOs page consists of a number of AMO variables which are divided into
  * four groups, The first two groups are used to identify an IRQ's sender.
- * These two groups consist of 64 and 16 AMO variables respectively. The last
+ * These two groups consist of 64 and 128 AMO variables respectively. The last
  * two groups, consisting of just one AMO variable each, are used to identify
  * the remote partitions that are currently engaged (from the viewpoint of
  * the XPC running on the remote partition).
@@ -232,6 +259,16 @@ struct xpc_vars_part {
 #define XPC_VP_MAGIC1	0x0053524156435058L  /* 'XPCVARS\0'L (little endian) */
 #define XPC_VP_MAGIC2	0x0073726176435058L  /* 'XPCvars\0'L (little endian) */
 
+
+/* the reserved page sizes and offsets */
+
+#define XPC_RP_HEADER_SIZE	L1_CACHE_ALIGN(sizeof(struct xpc_rsvd_page))
+#define XPC_RP_VARS_SIZE 	L1_CACHE_ALIGN(sizeof(struct xpc_vars))
+
+#define XPC_RP_PART_NASIDS(_rp) (u64 *) ((u8 *) _rp + XPC_RP_HEADER_SIZE)
+#define XPC_RP_MACH_NASIDS(_rp) (XPC_RP_PART_NASIDS(_rp) + xp_nasid_mask_words)
+#define XPC_RP_VARS(_rp)	((struct xpc_vars *) XPC_RP_MACH_NASIDS(_rp) + xp_nasid_mask_words)
+#define XPC_RP_VARS_PART(_rp)	(struct xpc_vars_part *) ((u8 *) XPC_RP_VARS(rp) + XPC_RP_VARS_SIZE)
 
 
 /*
@@ -1147,9 +1184,9 @@ xpc_IPI_send_local_msgrequest(struct xpc_channel *ch)
  * cacheable mapping for the entire region. This will prevent speculative
  * reading of cached copies of our lines from being issued which will cause
  * a PI FSB Protocol error to be generated by the SHUB. For XPC, we need 64
- * (XP_MAX_PARTITIONS) AMO variables for message notification and an
- * additional 16 (XP_NASID_MASK_WORDS) AMO variables for partition activation
- * and 2 AMO variables for partition deactivation.
+ * AMO variables (based on XP_MAX_PARTITIONS) for message notification and an
+ * additional 128 AMO variables (based on XP_NASID_MASK_WORDS) for partition
+ * activation and 2 AMO variables for partition deactivation.
  */
 static inline AMO_t *
 xpc_IPI_init(int index)
