@@ -1766,6 +1766,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
+		.subvendor = 0x1028,
+		.subdevice = 0x0191,
+		.name = "Dell Inspiron 8600",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
 		.subvendor = 0x103c,
 		.subdevice = 0x006d,
 		.name = "HP zv5000",
