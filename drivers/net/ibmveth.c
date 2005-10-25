@@ -532,7 +532,7 @@ static int ibmveth_open(struct net_device *netdev)
 
 	if(lpar_rc != H_Success) {
 		ibmveth_error_printk("h_register_logical_lan failed with %ld\n", lpar_rc);
-		ibmveth_error_printk("buffer TCE:0x%x filter TCE:0x%x rxq desc:0x%lx MAC:0x%lx\n",
+		ibmveth_error_printk("buffer TCE:0x%lx filter TCE:0x%lx rxq desc:0x%lx MAC:0x%lx\n",
 				     adapter->buffer_list_dma,
 				     adapter->filter_list_dma,
 				     rxq_desc.desc,

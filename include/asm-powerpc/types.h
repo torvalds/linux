@@ -85,7 +85,11 @@ typedef unsigned long long u64;
 
 typedef __vector128 vector128;
 
+#ifdef __powerpc64__
+typedef u64 dma_addr_t;
+#else
 typedef u32 dma_addr_t;
+#endif
 typedef u64 dma64_addr_t;
 
 typedef struct {

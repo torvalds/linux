@@ -19,7 +19,7 @@ struct scatterlist {
 	unsigned int length;
 
 	/* For TCE support */
-	u32 dma_address;
+	dma_addr_t dma_address;
 	u32 dma_length;
 };
 
