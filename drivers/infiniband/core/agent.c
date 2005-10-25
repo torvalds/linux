@@ -37,58 +37,41 @@
  * $Id: agent.c 1389 2004-12-27 22:56:47Z roland $
  */
 
-#include <linux/dma-mapping.h>
-
-#include <asm/bug.h>
-
-#include <rdma/ib_smi.h>
-
-#include "smi.h"
-#include "agent_priv.h"
-#include "mad_priv.h"
 #include "agent.h"
+#include "smi.h"
 
-spinlock_t ib_agent_port_list_lock;
+#define SPFX "ib_agent: "
+
+struct ib_agent_port_private {
+	struct list_head port_list;
+	struct ib_mad_agent *agent[2];
+};
+
+static DEFINE_SPINLOCK(ib_agent_port_list_lock);
 static LIST_HEAD(ib_agent_port_list);
 
-/*
- * Caller must hold ib_agent_port_list_lock
- */
-static inline struct ib_agent_port_private *
-__ib_get_agent_port(struct ib_device *device, int port_num,
-		    struct ib_mad_agent *mad_agent)
+static struct ib_agent_port_private *
+__ib_get_agent_port(struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *entry;
 
-	BUG_ON(!(!!device ^ !!mad_agent));  /* Exactly one MUST be (!NULL) */
-
-	if (device) {
-		list_for_each_entry(entry, &ib_agent_port_list, port_list) {
-			if (entry->smp_agent->device == device &&
-			    entry->port_num == port_num)
-				return entry;
-		}
-	} else {
-		list_for_each_entry(entry, &ib_agent_port_list, port_list) {
-			if ((entry->smp_agent == mad_agent) ||
-			    (entry->perf_mgmt_agent == mad_agent))
-				return entry;
-		}
+	list_for_each_entry(entry, &ib_agent_port_list, port_list) {
+		if (entry->agent[0]->device == device &&
+		    entry->agent[0]->port_num == port_num)
+			return entry;
 	}
 	return NULL;
 }
 
-static inline struct ib_agent_port_private *
-ib_get_agent_port(struct ib_device *device, int port_num,
-		  struct ib_mad_agent *mad_agent)
+static struct ib_agent_port_private *
+ib_get_agent_port(struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *entry;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ib_agent_port_list_lock, flags);
-	entry = __ib_get_agent_port(device, port_num, mad_agent);
+	entry = __ib_get_agent_port(device, port_num);
 	spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
-
 	return entry;
 }
 
@@ -100,192 +83,76 @@ int smi_check_local_dr_smp(struct ib_smp *smp,
 
 	if (smp->mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
 		return 1;
-	port_priv = ib_get_agent_port(device, port_num, NULL);
+
+	port_priv = ib_get_agent_port(device, port_num);
 	if (!port_priv) {
 		printk(KERN_DEBUG SPFX "smi_check_local_dr_smp %s port %d "
-		       "not open\n",
-		       device->name, port_num);
+		       "not open\n", device->name, port_num);
 		return 1;
 	}
 
-	return smi_check_local_smp(port_priv->smp_agent, smp);
+	return smi_check_local_smp(port_priv->agent[0], smp);
 }
 
-static int agent_mad_send(struct ib_mad_agent *mad_agent,
-			  struct ib_agent_port_private *port_priv,
-			  struct ib_mad_private *mad_priv,
-			  struct ib_grh *grh,
-			  struct ib_wc *wc)
-{
-	struct ib_agent_send_wr *agent_send_wr;
-	struct ib_sge gather_list;
-	struct ib_send_wr send_wr;
-	struct ib_send_wr *bad_send_wr;
-	struct ib_ah_attr ah_attr;
-	unsigned long flags;
-	int ret = 1;
-
-	agent_send_wr = kmalloc(sizeof(*agent_send_wr), GFP_KERNEL);
-	if (!agent_send_wr)
-		goto out;
-	agent_send_wr->mad = mad_priv;
-
-	gather_list.addr = dma_map_single(mad_agent->device->dma_device,
-					  &mad_priv->mad,
-					  sizeof(mad_priv->mad),
-					  DMA_TO_DEVICE);
-	gather_list.length = sizeof(mad_priv->mad);
-	gather_list.lkey = mad_agent->mr->lkey;
-
-	send_wr.next = NULL;
-	send_wr.opcode = IB_WR_SEND;
-	send_wr.sg_list = &gather_list;
-	send_wr.num_sge = 1;
-	send_wr.wr.ud.remote_qpn = wc->src_qp; /* DQPN */
-	send_wr.wr.ud.timeout_ms = 0;
-	send_wr.send_flags = IB_SEND_SIGNALED | IB_SEND_SOLICITED;
-
-	ah_attr.dlid = wc->slid;
-	ah_attr.port_num = mad_agent->port_num;
-	ah_attr.src_path_bits = wc->dlid_path_bits;
-	ah_attr.sl = wc->sl;
-	ah_attr.static_rate = 0;
-	ah_attr.ah_flags = 0; /* No GRH */
-	if (mad_priv->mad.mad.mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT) {
-		if (wc->wc_flags & IB_WC_GRH) {
-			ah_attr.ah_flags = IB_AH_GRH;
-			/* Should sgid be looked up ? */
-			ah_attr.grh.sgid_index = 0;
-			ah_attr.grh.hop_limit = grh->hop_limit;
-			ah_attr.grh.flow_label = be32_to_cpu(
-				grh->version_tclass_flow)  & 0xfffff;
-			ah_attr.grh.traffic_class = (be32_to_cpu(
-				grh->version_tclass_flow) >> 20) & 0xff;
-			memcpy(ah_attr.grh.dgid.raw,
-			       grh->sgid.raw,
-			       sizeof(ah_attr.grh.dgid));
-		}
-	}
-
-	agent_send_wr->ah = ib_create_ah(mad_agent->qp->pd, &ah_attr);
-	if (IS_ERR(agent_send_wr->ah)) {
-		printk(KERN_ERR SPFX "No memory for address handle\n");
-		kfree(agent_send_wr);
-		goto out;
-	}
-
-	send_wr.wr.ud.ah = agent_send_wr->ah;
-	if (mad_priv->mad.mad.mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT) {
-		send_wr.wr.ud.pkey_index = wc->pkey_index;
-		send_wr.wr.ud.remote_qkey = IB_QP1_QKEY;
-	} else { 	/* for SMPs */
-		send_wr.wr.ud.pkey_index = 0;
-		send_wr.wr.ud.remote_qkey = 0;
-	}
-	send_wr.wr.ud.mad_hdr = &mad_priv->mad.mad.mad_hdr;
-	send_wr.wr_id = (unsigned long)agent_send_wr;
-
-	pci_unmap_addr_set(agent_send_wr, mapping, gather_list.addr);
-
-	/* Send */
-	spin_lock_irqsave(&port_priv->send_list_lock, flags);
-	if (ib_post_send_mad(mad_agent, &send_wr, &bad_send_wr)) {
-		spin_unlock_irqrestore(&port_priv->send_list_lock, flags);
-		dma_unmap_single(mad_agent->device->dma_device,
-				 pci_unmap_addr(agent_send_wr, mapping),
-				 sizeof(mad_priv->mad),
-				 DMA_TO_DEVICE);
-		ib_destroy_ah(agent_send_wr->ah);
-		kfree(agent_send_wr);
-	} else {
-		list_add_tail(&agent_send_wr->send_list,
-			      &port_priv->send_posted_list);
-		spin_unlock_irqrestore(&port_priv->send_list_lock, flags);
-		ret = 0;
-	}
-
-out:
-	return ret;
-}
-
-int agent_send(struct ib_mad_private *mad,
-	       struct ib_grh *grh,
-	       struct ib_wc *wc,
-	       struct ib_device *device,
-	       int port_num)
+int agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
+			struct ib_wc *wc, struct ib_device *device,
+			int port_num, int qpn)
 {
 	struct ib_agent_port_private *port_priv;
-	struct ib_mad_agent *mad_agent;
+	struct ib_mad_agent *agent;
+	struct ib_mad_send_buf *send_buf;
+	struct ib_ah *ah;
+	int ret;
 
-	port_priv = ib_get_agent_port(device, port_num, NULL);
+	port_priv = ib_get_agent_port(device, port_num);
 	if (!port_priv) {
-		printk(KERN_DEBUG SPFX "agent_send %s port %d not open\n",
-		       device->name, port_num);
-		return 1;
+		printk(KERN_ERR SPFX "Unable to find port agent\n");
+		return -ENODEV;
 	}
 
-	/* Get mad agent based on mgmt_class in MAD */
-	switch (mad->mad.mad.mad_hdr.mgmt_class) {
-		case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
-		case IB_MGMT_CLASS_SUBN_LID_ROUTED:
-			mad_agent = port_priv->smp_agent;
-			break;
-		case IB_MGMT_CLASS_PERF_MGMT:
-			mad_agent = port_priv->perf_mgmt_agent;
-			break;
-		default:
-			return 1;
+	agent = port_priv->agent[qpn];
+	ah = ib_create_ah_from_wc(agent->qp->pd, wc, grh, port_num);
+	if (IS_ERR(ah)) {
+		ret = PTR_ERR(ah);
+		printk(KERN_ERR SPFX "ib_create_ah_from_wc error:%d\n", ret);
+		return ret;
 	}
 
-	return agent_mad_send(mad_agent, port_priv, mad, grh, wc);
+	send_buf = ib_create_send_mad(agent, wc->src_qp, wc->pkey_index, 0,
+				      IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
+				      GFP_KERNEL);
+	if (IS_ERR(send_buf)) {
+		ret = PTR_ERR(send_buf);
+		printk(KERN_ERR SPFX "ib_create_send_mad error:%d\n", ret);
+		goto err1;
+	}
+
+	memcpy(send_buf->mad, mad, sizeof *mad);
+	send_buf->ah = ah;
+	if ((ret = ib_post_send_mad(send_buf, NULL))) {
+		printk(KERN_ERR SPFX "ib_post_send_mad error:%d\n", ret);
+		goto err2;
+	}
+	return 0;
+err2:
+	ib_free_send_mad(send_buf);
+err1:
+	ib_destroy_ah(ah);
+	return ret;
 }
 
 static void agent_send_handler(struct ib_mad_agent *mad_agent,
 			       struct ib_mad_send_wc *mad_send_wc)
 {
-	struct ib_agent_port_private	*port_priv;
-	struct ib_agent_send_wr		*agent_send_wr;
-	unsigned long			flags;
-
-	/* Find matching MAD agent */
-	port_priv = ib_get_agent_port(NULL, 0, mad_agent);
-	if (!port_priv) {
-		printk(KERN_ERR SPFX "agent_send_handler: no matching MAD "
-		       "agent %p\n", mad_agent);
-		return;
-	}
-
-	agent_send_wr = (struct ib_agent_send_wr *)(unsigned long)mad_send_wc->wr_id;
-	spin_lock_irqsave(&port_priv->send_list_lock, flags);
-	/* Remove completed send from posted send MAD list */
-	list_del(&agent_send_wr->send_list);
-	spin_unlock_irqrestore(&port_priv->send_list_lock, flags);
-
-	dma_unmap_single(mad_agent->device->dma_device,
-			 pci_unmap_addr(agent_send_wr, mapping),
-			 sizeof(agent_send_wr->mad->mad),
-			 DMA_TO_DEVICE);
-
-	ib_destroy_ah(agent_send_wr->ah);
-
-	/* Release allocated memory */
-	kmem_cache_free(ib_mad_cache, agent_send_wr->mad);
-	kfree(agent_send_wr);
+	ib_destroy_ah(mad_send_wc->send_buf->ah);
+	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
 int ib_agent_port_open(struct ib_device *device, int port_num)
 {
-	int ret;
 	struct ib_agent_port_private *port_priv;
 	unsigned long flags;
-
-	/* First, check if port already open for SMI */
-	port_priv = ib_get_agent_port(device, port_num, NULL);
-	if (port_priv) {
-		printk(KERN_DEBUG SPFX "%s port %d already open\n",
-		       device->name, port_num);
-		return 0;
-	}
+	int ret;
 
 	/* Create new device info */
 	port_priv = kmalloc(sizeof *port_priv, GFP_KERNEL);
@@ -294,32 +161,25 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 		ret = -ENOMEM;
 		goto error1;
 	}
-
 	memset(port_priv, 0, sizeof *port_priv);
-	port_priv->port_num = port_num;
-	spin_lock_init(&port_priv->send_list_lock);
-	INIT_LIST_HEAD(&port_priv->send_posted_list);
 
-	/* Obtain send only MAD agent for SM class (SMI QP) */
-	port_priv->smp_agent = ib_register_mad_agent(device, port_num,
-						     IB_QPT_SMI,
-						     NULL, 0,
+	/* Obtain send only MAD agent for SMI QP */
+	port_priv->agent[0] = ib_register_mad_agent(device, port_num,
+						    IB_QPT_SMI, NULL, 0,
 						    &agent_send_handler,
-						     NULL, NULL);
-
-	if (IS_ERR(port_priv->smp_agent)) {
-		ret = PTR_ERR(port_priv->smp_agent);
+						    NULL, NULL);
+	if (IS_ERR(port_priv->agent[0])) {
+		ret = PTR_ERR(port_priv->agent[0]);
 		goto error2;
 	}
 
-	/* Obtain send only MAD agent for PerfMgmt class (GSI QP) */
-	port_priv->perf_mgmt_agent = ib_register_mad_agent(device, port_num,
-							   IB_QPT_GSI,
-							   NULL, 0,
-							  &agent_send_handler,
-							   NULL, NULL);
-	if (IS_ERR(port_priv->perf_mgmt_agent)) {
-		ret = PTR_ERR(port_priv->perf_mgmt_agent);
+	/* Obtain send only MAD agent for GSI QP */
+	port_priv->agent[1] = ib_register_mad_agent(device, port_num,
+						    IB_QPT_GSI, NULL, 0,
+						    &agent_send_handler,
+						    NULL, NULL);
+	if (IS_ERR(port_priv->agent[1])) {
+		ret = PTR_ERR(port_priv->agent[1]);
 		goto error3;
 	}
 
@@ -330,7 +190,7 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	return 0;
 
 error3:
-	ib_unregister_mad_agent(port_priv->smp_agent);
+	ib_unregister_mad_agent(port_priv->agent[0]);
 error2:
 	kfree(port_priv);
 error1:
@@ -343,7 +203,7 @@ int ib_agent_port_close(struct ib_device *device, int port_num)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ib_agent_port_list_lock, flags);
-	port_priv = __ib_get_agent_port(device, port_num, NULL);
+	port_priv = __ib_get_agent_port(device, port_num);
 	if (port_priv == NULL) {
 		spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
 		printk(KERN_ERR SPFX "Port %d not found\n", port_num);
@@ -352,9 +212,8 @@ int ib_agent_port_close(struct ib_device *device, int port_num)
 	list_del(&port_priv->port_list);
 	spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
 
-	ib_unregister_mad_agent(port_priv->perf_mgmt_agent);
-	ib_unregister_mad_agent(port_priv->smp_agent);
+	ib_unregister_mad_agent(port_priv->agent[1]);
+	ib_unregister_mad_agent(port_priv->agent[0]);
 	kfree(port_priv);
-
 	return 0;
 }

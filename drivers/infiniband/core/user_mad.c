@@ -96,7 +96,6 @@ struct ib_umad_file {
 };
 
 struct ib_umad_packet {
-	struct ib_ah      *ah;
 	struct ib_mad_send_buf *msg;
 	struct list_head   list;
 	int		   length;
@@ -139,10 +138,10 @@ static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *send_wc)
 {
 	struct ib_umad_file *file = agent->context;
-	struct ib_umad_packet *timeout, *packet =
-		(void *) (unsigned long) send_wc->wr_id;
+	struct ib_umad_packet *timeout;
+	struct ib_umad_packet *packet = send_wc->send_buf->context[0];
 
-	ib_destroy_ah(packet->msg->send_wr.wr.ud.ah);
+	ib_destroy_ah(packet->msg->ah);
 	ib_free_send_mad(packet->msg);
 
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
@@ -268,11 +267,11 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_umad_packet *packet;
 	struct ib_mad_agent *agent;
 	struct ib_ah_attr ah_attr;
-	struct ib_send_wr *bad_wr;
+	struct ib_ah *ah;
 	struct ib_rmpp_mad *rmpp_mad;
 	u8 method;
 	__be64 *tid;
-	int ret, length, hdr_len, data_len, rmpp_hdr_size;
+	int ret, length, hdr_len, rmpp_hdr_size;
 	int rmpp_active = 0;
 
 	if (count < sizeof (struct ib_user_mad))
@@ -321,9 +320,9 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;
 	}
 
-	packet->ah = ib_create_ah(agent->qp->pd, &ah_attr);
-	if (IS_ERR(packet->ah)) {
-		ret = PTR_ERR(packet->ah);
+	ah = ib_create_ah(agent->qp->pd, &ah_attr);
+	if (IS_ERR(ah)) {
+		ret = PTR_ERR(ah);
 		goto err_up;
 	}
 
@@ -337,12 +336,10 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 
 		/* Validate that the management class can support RMPP */
 		if (rmpp_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
-			hdr_len = offsetof(struct ib_sa_mad, data);
-			data_len = length - hdr_len;
+			hdr_len = IB_MGMT_SA_HDR;
 		} else if ((rmpp_mad->mad_hdr.mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
 			    (rmpp_mad->mad_hdr.mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END)) {
-				hdr_len = offsetof(struct ib_vendor_mad, data);
-				data_len = length - hdr_len;
+				hdr_len = IB_MGMT_VENDOR_HDR;
 		} else {
 			ret = -EINVAL;
 			goto err_ah;
@@ -353,25 +350,23 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 			ret = -EINVAL;
 			goto err_ah;
 		}
-		hdr_len = offsetof(struct ib_mad, data);
-		data_len = length - hdr_len;
+		hdr_len = IB_MGMT_MAD_HDR;
 	}
 
 	packet->msg = ib_create_send_mad(agent,
 					 be32_to_cpu(packet->mad.hdr.qpn),
-					 0, packet->ah, rmpp_active,
-					 hdr_len, data_len,
+					 0, rmpp_active,
+					 hdr_len, length - hdr_len,
 					 GFP_KERNEL);
 	if (IS_ERR(packet->msg)) {
 		ret = PTR_ERR(packet->msg);
 		goto err_ah;
 	}
 
-	packet->msg->send_wr.wr.ud.timeout_ms  = packet->mad.hdr.timeout_ms;
-	packet->msg->send_wr.wr.ud.retries = packet->mad.hdr.retries;
-
-	/* Override send WR WRID initialized in ib_create_send_mad */
-	packet->msg->send_wr.wr_id = (unsigned long) packet;
+	packet->msg->ah 	= ah;
+	packet->msg->timeout_ms = packet->mad.hdr.timeout_ms;
+	packet->msg->retries 	= packet->mad.hdr.retries;
+	packet->msg->context[0] = packet;
 
 	if (!rmpp_active) {
 		/* Copy message from user into send buffer */
@@ -403,17 +398,17 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	 * transaction ID matches the agent being used to send the
 	 * MAD.
 	 */
-	method = packet->msg->mad->mad_hdr.method;
+	method = ((struct ib_mad_hdr *) packet->msg)->method;
 
 	if (!(method & IB_MGMT_METHOD_RESP)       &&
 	    method != IB_MGMT_METHOD_TRAP_REPRESS &&
 	    method != IB_MGMT_METHOD_SEND) {
-		tid = &packet->msg->mad->mad_hdr.tid;
+		tid = &((struct ib_mad_hdr *) packet->msg)->tid;
 		*tid = cpu_to_be64(((u64) agent->hi_tid) << 32 |
 				   (be64_to_cpup(tid) & 0xffffffff));
 	}
 
-	ret = ib_post_send_mad(agent, &packet->msg->send_wr, &bad_wr);
+	ret = ib_post_send_mad(packet->msg, NULL);
 	if (ret)
 		goto err_msg;
 
@@ -425,7 +420,7 @@ err_msg:
 	ib_free_send_mad(packet->msg);
 
 err_ah:
-	ib_destroy_ah(packet->ah);
+	ib_destroy_ah(ah);
 
 err_up:
 	up_read(&file->agent_mutex);
