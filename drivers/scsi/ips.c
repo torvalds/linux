@@ -219,15 +219,12 @@ module_param(ips, charp, 0);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,0)
 #include <linux/blk.h>
 #include "sd.h"
-#define IPS_SG_ADDRESS(sg)       ((sg)->address)
 #define IPS_LOCK_SAVE(lock,flags) spin_lock_irqsave(&io_request_lock,flags)
 #define IPS_UNLOCK_RESTORE(lock,flags) spin_unlock_irqrestore(&io_request_lock,flags)
 #ifndef __devexit_p
 #define __devexit_p(x) x
 #endif
 #else
-#define IPS_SG_ADDRESS(sg)      (page_address((sg)->page) ? \
-                                   page_address((sg)->page)+(sg)->offset : NULL)
 #define IPS_LOCK_SAVE(lock,flags) do{spin_lock(lock);(void)flags;}while(0)
 #define IPS_UNLOCK_RESTORE(lock,flags) do{spin_unlock(lock);(void)flags;}while(0)
 #endif
@@ -1605,6 +1602,8 @@ ips_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
 static int
 ips_is_passthru(Scsi_Cmnd * SC)
 {
+	unsigned long flags;
+
 	METHOD_TRACE("ips_is_passthru", 1);
 
 	if (!SC)
@@ -1622,10 +1621,20 @@ ips_is_passthru(Scsi_Cmnd * SC)
 			return 1;
 		else if (SC->use_sg) {
 			struct scatterlist *sg = SC->request_buffer;
-			char *buffer = IPS_SG_ADDRESS(sg);
+			char  *buffer; 
+
+			/* kmap_atomic() ensures addressability of the user buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset; 
 			if (buffer && buffer[0] == 'C' && buffer[1] == 'O' &&
-			    buffer[2] == 'P' && buffer[3] == 'P')
+			    buffer[2] == 'P' && buffer[3] == 'P') {
+				kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+				local_irq_restore(flags);
 				return 1;
+			}
+			kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
 		}
 	}
 	return 0;
@@ -3656,14 +3665,21 @@ ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data, unsigned
 		int i;
 		unsigned int min_cnt, xfer_cnt;
 		char *cdata = (char *) data;
+		unsigned char *buffer;
+		unsigned long flags;
 		struct scatterlist *sg = scmd->request_buffer;
 		for (i = 0, xfer_cnt = 0;
 		     (i < scmd->use_sg) && (xfer_cnt < count); i++) {
-			if (!IPS_SG_ADDRESS(&sg[i]))
-				return;
 			min_cnt = min(count - xfer_cnt, sg[i].length);
-			memcpy(IPS_SG_ADDRESS(&sg[i]), &cdata[xfer_cnt],
-			       min_cnt);
+
+			/* kmap_atomic() ensures addressability of the data buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg[i].page, KM_IRQ0) + sg[i].offset;
+			memcpy(buffer, &cdata[xfer_cnt], min_cnt);
+			kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+			local_irq_restore(flags);
+
 			xfer_cnt += min_cnt;
 		}
 
@@ -3688,14 +3704,21 @@ ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned
 		int i;
 		unsigned int min_cnt, xfer_cnt;
 		char *cdata = (char *) data;
+		unsigned char *buffer;
+		unsigned long flags;
 		struct scatterlist *sg = scmd->request_buffer;
 		for (i = 0, xfer_cnt = 0;
 		     (i < scmd->use_sg) && (xfer_cnt < count); i++) {
-			if (!IPS_SG_ADDRESS(&sg[i]))
-				return;
 			min_cnt = min(count - xfer_cnt, sg[i].length);
-			memcpy(&cdata[xfer_cnt], IPS_SG_ADDRESS(&sg[i]),
-			       min_cnt);
+
+			/* kmap_atomic() ensures addressability of the data buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg[i].page, KM_IRQ0) + sg[i].offset;
+			memcpy(&cdata[xfer_cnt], buffer, min_cnt);
+			kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+			local_irq_restore(flags);
+
 			xfer_cnt += min_cnt;
 		}
 
