@@ -853,12 +853,6 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
 	lock_kernel();
-	/* Revalidate parent directory attribute cache */
-	error = nfs_revalidate_inode(NFS_SERVER(dir), dir);
-	if (error < 0) {
-		res = ERR_PTR(error);
-		goto out_unlock;
-	}
 
 	/* If we're doing an exclusive create, optimize away the lookup */
 	if (nfs_is_exclusive_create(dir, nd))
