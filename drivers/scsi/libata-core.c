@@ -87,7 +87,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 /**
- *	ata_tf_load - send taskfile registers to host controller
+ *	ata_tf_load_pio - send taskfile registers to host controller
  *	@ap: Port to which output is sent
  *	@tf: ATA taskfile register set
  *
@@ -2701,13 +2701,13 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 
 /**
  *	ata_pio_poll -
- *	@ap:
+ *	@ap: the target ata_port
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
  *
  *	RETURNS:
- *
+ *	timeout value to use
  */
 
 static unsigned long ata_pio_poll(struct ata_port *ap)
@@ -2748,8 +2748,8 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 }
 
 /**
- *	ata_pio_complete -
- *	@ap:
+ *	ata_pio_complete - check if drive is busy or idle
+ *	@ap: the target ata_port
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
@@ -2801,7 +2801,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 
 /**
- *	swap_buf_le16 -
+ *	swap_buf_le16 - swap halves of 16-words in place
  *	@buf:  Buffer to swap
  *	@buf_words:  Number of 16-bit words in buffer.
  *
@@ -2810,6 +2810,7 @@ static int ata_pio_complete (struct ata_port *ap)
  *	vice-versa.
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 void swap_buf_le16(u16 *buf, unsigned int buf_words)
 {
@@ -2832,7 +2833,6 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
@@ -2878,7 +2878,6 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
@@ -2918,7 +2917,6 @@ static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
@@ -3071,7 +3069,6 @@ next_sg:
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void atapi_pio_bytes(struct ata_queued_cmd *qc)
@@ -3107,8 +3104,8 @@ err_out:
 }
 
 /**
- *	ata_pio_sector -
- *	@ap:
+ *	ata_pio_block - start PIO on a block
+ *	@ap: the target ata_port
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
@@ -3120,7 +3117,7 @@ static void ata_pio_block(struct ata_port *ap)
 	u8 status;
 
 	/*
-	 * This is purely hueristic.  This is a fast path.
+	 * This is purely heuristic.  This is a fast path.
 	 * Sometimes when we enter, BSY will be cleared in
 	 * a chk-status or two.  If not, the drive is probably seeking
 	 * or something.  Snooze for a couple msecs, then
@@ -3440,7 +3437,6 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- *
  */
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
@@ -3460,7 +3456,6 @@ void ata_qc_free(struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- *
  */
 
 void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
@@ -3954,7 +3949,6 @@ idle_irq:
  *
  *	RETURNS:
  *	IRQ_NONE or IRQ_HANDLED.
- *
  */
 
 irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
@@ -4066,6 +4060,7 @@ err_out:
  *	May be used as the port_start() entry in ata_port_operations.
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 
 int ata_port_start (struct ata_port *ap)
@@ -4091,6 +4086,7 @@ int ata_port_start (struct ata_port *ap)
  *	May be used as the port_stop() entry in ata_port_operations.
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 
 void ata_port_stop (struct ata_port *ap)
@@ -4113,6 +4109,7 @@ void ata_host_stop (struct ata_host_set *host_set)
  *	@do_unregister: 1 if we fully unregister, 0 to just stop the port
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 
 static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
@@ -4140,7 +4137,6 @@ static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
@@ -4201,7 +4197,6 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
  *
  *	RETURNS:
  *	New ata_port on success, for NULL on error.
- *
  */
 
 static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
@@ -4249,7 +4244,6 @@ err_out:
  *
  *	RETURNS:
  *	Number of ports registered.  Zero on error (no ports registered).
- *
  */
 
 int ata_device_add(const struct ata_probe_ent *ent)
@@ -4380,7 +4374,6 @@ err_out:
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
  */
-
 
 void ata_host_set_remove(struct ata_host_set *host_set)
 {
@@ -4614,7 +4607,6 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, stru
  *
  *	RETURNS:
  *	Zero on success, negative on errno-based value on error.
- *
  */
 
 int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
@@ -4762,7 +4754,7 @@ err_out:
  *	@pdev: PCI device that was removed
  *
  *	PCI layer indicates to libata via this hook that
- *	hot-unplug or module unload event has occured.
+ *	hot-unplug or module unload event has occurred.
  *	Handle this by unregistering all objects associated
  *	with this PCI device.  Free those objects.  Then finally
  *	release PCI resources and disable device.
