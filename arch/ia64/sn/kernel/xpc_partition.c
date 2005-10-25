@@ -578,7 +578,7 @@ xpc_update_partition_info(struct xpc_partition *part, u8 remote_rp_version,
 
 
 /*
- * Prior code has determine the nasid which generated an IPI.  Inspect
+ * Prior code has determined the nasid which generated an IPI.  Inspect
  * that nasid to determine if its partition needs to be activated or
  * deactivated.
  *
@@ -942,14 +942,14 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 
 		/* set a timelimit on the disengage request */
 		part->disengage_request_timeout = jiffies +
-					(XPC_DISENGAGE_REQUEST_TIMELIMIT * HZ);
+					(xpc_disengage_request_timelimit * HZ);
 		part->disengage_request_timer.expires =
 					part->disengage_request_timeout;
 		add_timer(&part->disengage_request_timer);
 	}
 
-	dev_dbg(xpc_part, "bringing partition %d down, reason = %d\n", partid,
-		reason);
+	dev_dbg(xpc_part, "bringing partition %d down, reason = %d\n",
+		XPC_PARTID(part), reason);
 
 	xpc_partition_going_down(part, reason);
 }

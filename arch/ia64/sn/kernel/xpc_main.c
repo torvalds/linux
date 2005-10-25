@@ -91,6 +91,10 @@ static int xpc_hb_check_interval = XPC_HB_CHECK_DEFAULT_INTERVAL;
 static int xpc_hb_check_min_interval = 10;
 static int xpc_hb_check_max_interval = 120;
 
+int xpc_disengage_request_timelimit = XPC_DISENGAGE_REQUEST_DEFAULT_TIMELIMIT;
+static int xpc_disengage_request_min_timelimit = 0;
+static int xpc_disengage_request_max_timelimit = 120;
+
 static ctl_table xpc_sys_xpc_hb_dir[] = {
 	{
 		1,
@@ -129,6 +133,19 @@ static ctl_table xpc_sys_xpc_dir[] = {
 		0555,
 		xpc_sys_xpc_hb_dir
 	},
+	{
+		2,
+		"disengage_request_timelimit",
+		&xpc_disengage_request_timelimit,
+		sizeof(int),
+		0644,
+		NULL,
+		&proc_dointvec_minmax,
+		&sysctl_intvec,
+		NULL,
+		&xpc_disengage_request_min_timelimit,
+		&xpc_disengage_request_max_timelimit
+	},
 	{0}
 };
 static ctl_table xpc_sys_dir[] = {
@@ -153,11 +170,11 @@ static DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
 
 static unsigned long xpc_hb_check_timeout;
 
-/* used as an indication of when the xpc_hb_checker thread is inactive */
-static DECLARE_MUTEX_LOCKED(xpc_hb_checker_inactive);
+/* notification that the xpc_hb_checker thread has exited */
+static DECLARE_MUTEX_LOCKED(xpc_hb_checker_exited);
 
-/* used as an indication of when the xpc_discovery thread is inactive */
-static DECLARE_MUTEX_LOCKED(xpc_discovery_inactive);
+/* notification that the xpc_discovery thread has exited */
+static DECLARE_MUTEX_LOCKED(xpc_discovery_exited);
 
 
 static struct timer_list xpc_hb_timer;
@@ -181,7 +198,7 @@ xpc_timeout_partition_disengage_request(unsigned long data)
 	struct xpc_partition *part = (struct xpc_partition *) data;
 
 
-	DBUG_ON(XPC_TICKS < part->disengage_request_timeout);
+	DBUG_ON(jiffies < part->disengage_request_timeout);
 
 	(void) xpc_partition_disengaged(part);
 
@@ -292,8 +309,8 @@ xpc_hb_checker(void *ignore)
 	dev_dbg(xpc_part, "heartbeat checker is exiting\n");
 
 
-	/* mark this thread as inactive */
-	up(&xpc_hb_checker_inactive);
+	/* mark this thread as having exited */
+	up(&xpc_hb_checker_exited);
 	return 0;
 }
 
@@ -312,8 +329,8 @@ xpc_initiate_discovery(void *ignore)
 
 	dev_dbg(xpc_part, "discovery thread is exiting\n");
 
-	/* mark this thread as inactive */
-	up(&xpc_discovery_inactive);
+	/* mark this thread as having exited */
+	up(&xpc_discovery_exited);
 	return 0;
 }
 
@@ -703,6 +720,7 @@ xpc_daemonize_kthread(void *args)
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_channel *ch;
 	int n_needed;
+	unsigned long irq_flags;
 
 
 	daemonize("xpc%02dc%d", partid, ch_number);
@@ -713,11 +731,14 @@ xpc_daemonize_kthread(void *args)
 	ch = &part->channels[ch_number];
 
 	if (!(ch->flags & XPC_C_DISCONNECTING)) {
-		DBUG_ON(!(ch->flags & XPC_C_CONNECTED));
 
 		/* let registerer know that connection has been established */
 
-		if (atomic_read(&ch->kthreads_assigned) == 1) {
+		spin_lock_irqsave(&ch->lock, irq_flags);
+		if (!(ch->flags & XPC_C_CONNECTCALLOUT)) {
+			ch->flags |= XPC_C_CONNECTCALLOUT;
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+
 			xpc_connected_callout(ch);
 
 			/*
@@ -732,14 +753,23 @@ xpc_daemonize_kthread(void *args)
 					!(ch->flags & XPC_C_DISCONNECTING)) {
 				xpc_activate_kthreads(ch, n_needed);
 			}
+		} else {
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
 		}
 
 		xpc_kthread_waitmsgs(part, ch);
 	}
 
 	if (atomic_dec_return(&ch->kthreads_assigned) == 0) {
-		if (ch->flags & XPC_C_CONNECTCALLOUT) {
+		spin_lock_irqsave(&ch->lock, irq_flags);
+		if ((ch->flags & XPC_C_CONNECTCALLOUT) &&
+				!(ch->flags & XPC_C_DISCONNECTCALLOUT)) {
+			ch->flags |= XPC_C_DISCONNECTCALLOUT;
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+
 			xpc_disconnecting_callout(ch);
+		} else {
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
 		}
 		if (atomic_dec_return(&part->nchannels_engaged) == 0) {
 			xpc_mark_partition_disengaged(part);
@@ -780,9 +810,29 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed)
 
 
 	while (needed-- > 0) {
+
+		/*
+		 * The following is done on behalf of the newly created
+		 * kthread. That kthread is responsible for doing the
+		 * counterpart to the following before it exits.
+		 */
+		(void) xpc_part_ref(part);
+		xpc_msgqueue_ref(ch);
+		if (atomic_inc_return(&ch->kthreads_assigned) == 1 &&
+		    atomic_inc_return(&part->nchannels_engaged) == 1) {
+			xpc_mark_partition_engaged(part);
+		}
+
 		pid = kernel_thread(xpc_daemonize_kthread, (void *) args, 0);
 		if (pid < 0) {
 			/* the fork failed */
+			if (atomic_dec_return(&ch->kthreads_assigned) == 0 &&
+			    atomic_dec_return(&part->nchannels_engaged) == 0) {
+				xpc_mark_partition_disengaged(part);
+				xpc_IPI_send_disengage(part);
+			}
+			xpc_msgqueue_deref(ch);
+			xpc_part_deref(part);
 
 			if (atomic_read(&ch->kthreads_assigned) <
 						ch->kthreads_idle_limit) {
@@ -802,18 +852,6 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed)
 			break;
 		}
 
-		/*
-		 * The following is done on behalf of the newly created
-		 * kthread. That kthread is responsible for doing the
-		 * counterpart to the following before it exits.
-		 */
-		(void) xpc_part_ref(part);
-		xpc_msgqueue_ref(ch);
-		if (atomic_inc_return(&ch->kthreads_assigned) == 1) {
-			if (atomic_inc_return(&part->nchannels_engaged) == 1) {
-				xpc_mark_partition_engaged(part);
-			}
-		}
 		ch->kthreads_created++;	// >>> temporary debug only!!!
 	}
 }
@@ -826,26 +864,49 @@ xpc_disconnect_wait(int ch_number)
 	partid_t partid;
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
+	int wakeup_channel_mgr;
 
 
 	/* now wait for all callouts to the caller's function to cease */
 	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
 		part = &xpc_partitions[partid];
 
-		if (xpc_part_ref(part)) {
-			ch = &part->channels[ch_number];
-
-			if (ch->flags & XPC_C_WDISCONNECT) {
-				if (!(ch->flags & XPC_C_DISCONNECTED)) {
-					(void) down(&ch->wdisconnect_sema);
-				}
-				spin_lock_irqsave(&ch->lock, irq_flags);
-				ch->flags &= ~XPC_C_WDISCONNECT;
-				spin_unlock_irqrestore(&ch->lock, irq_flags);
-			}
-
-			xpc_part_deref(part);
+		if (!xpc_part_ref(part)) {
+			continue;
 		}
+
+		ch = &part->channels[ch_number];
+
+		if (!(ch->flags & XPC_C_WDISCONNECT)) {
+			xpc_part_deref(part);
+			continue;
+		}
+
+		(void) down(&ch->wdisconnect_sema);
+
+		spin_lock_irqsave(&ch->lock, irq_flags);
+		DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
+		wakeup_channel_mgr = 0;
+
+		if (ch->delayed_IPI_flags) {
+			if (part->act_state != XPC_P_DEACTIVATING) {
+				spin_lock(&part->IPI_lock);
+				XPC_SET_IPI_FLAGS(part->local_IPI_amo,
+					ch->number, ch->delayed_IPI_flags);
+				spin_unlock(&part->IPI_lock);
+				wakeup_channel_mgr = 1;
+			}
+			ch->delayed_IPI_flags = 0;
+		}
+
+		ch->flags &= ~XPC_C_WDISCONNECT;
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
+
+		if (wakeup_channel_mgr) {
+			xpc_wakeup_channel_mgr(part);
+		}
+
+		xpc_part_deref(part);
 	}
 }
 
@@ -873,11 +934,11 @@ xpc_do_exit(enum xpc_retval reason)
 	/* ignore all incoming interrupts */
 	free_irq(SGI_XPC_ACTIVATE, NULL);
 
-	/* wait for the discovery thread to mark itself inactive */
-	down(&xpc_discovery_inactive);
+	/* wait for the discovery thread to exit */
+	down(&xpc_discovery_exited);
 
-	/* wait for the heartbeat checker thread to mark itself inactive */
-	down(&xpc_hb_checker_inactive);
+	/* wait for the heartbeat checker thread to exit */
+	down(&xpc_hb_checker_exited);
 
 
 	/* sleep for a 1/3 of a second or so */
@@ -893,6 +954,7 @@ xpc_do_exit(enum xpc_retval reason)
 
 		for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
 			part = &xpc_partitions[partid];
+
 			if (xpc_partition_disengaged(part) &&
 					part->act_state == XPC_P_INACTIVE) {
 				continue;
@@ -930,7 +992,7 @@ xpc_do_exit(enum xpc_retval reason)
 
 	/* now it's time to eliminate our heartbeat */
 	del_timer_sync(&xpc_hb_timer);
-	DBUG_ON(xpc_vars->heartbeating_to_mask == 0);
+	DBUG_ON(xpc_vars->heartbeating_to_mask != 0);
 
 	/* take ourselves off of the reboot_notifier_list */
 	(void) unregister_reboot_notifier(&xpc_reboot_notifier);
@@ -1134,7 +1196,7 @@ xpc_init(void)
 		dev_err(xpc_part, "failed while forking discovery thread\n");
 
 		/* mark this new thread as a non-starter */
-		up(&xpc_discovery_inactive);
+		up(&xpc_discovery_exited);
 
 		xpc_do_exit(xpcUnloading);
 		return -EBUSY;
@@ -1171,4 +1233,8 @@ MODULE_PARM_DESC(xpc_hb_interval, "Number of seconds between "
 module_param(xpc_hb_check_interval, int, 0);
 MODULE_PARM_DESC(xpc_hb_check_interval, "Number of seconds between "
 		"heartbeat checks.");
+
+module_param(xpc_disengage_request_timelimit, int, 0);
+MODULE_PARM_DESC(xpc_disengage_request_timelimit, "Number of seconds to wait "
+		"for disengage request to complete.");
 

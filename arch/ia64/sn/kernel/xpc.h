@@ -417,6 +417,9 @@ struct xpc_channel {
 	atomic_t n_on_msg_allocate_wq;   /* #on msg allocation wait queue */
 	wait_queue_head_t msg_allocate_wq; /* msg allocation wait queue */
 
+	u8 delayed_IPI_flags;		/* IPI flags received, but delayed */
+					/* action until channel disconnected */
+
 	/* queue of msg senders who want to be notified when msg received */
 
 	atomic_t n_to_notify;		/* #of msg senders to notify */
@@ -478,7 +481,8 @@ struct xpc_channel {
 
 #define	XPC_C_DISCONNECTED	0x00002000 /* channel is disconnected */
 #define	XPC_C_DISCONNECTING	0x00004000 /* channel is being disconnected */
-#define	XPC_C_WDISCONNECT	0x00008000 /* waiting for channel disconnect */
+#define	XPC_C_DISCONNECTCALLOUT	0x00008000 /* chan disconnected callout made */
+#define	XPC_C_WDISCONNECT	0x00010000 /* waiting for channel disconnect */
 
 
 
@@ -508,13 +512,13 @@ struct xpc_partition {
 	int reason_line;		/* line# deactivation initiated from */
 	int reactivate_nasid;		/* nasid in partition to reactivate */
 
-	unsigned long disengage_request_timeout; /* timeout in XPC_TICKS */
+	unsigned long disengage_request_timeout; /* timeout in jiffies */
 	struct timer_list disengage_request_timer;
 
 
 	/* XPC infrastructure referencing and teardown control */
 
-	volatile u8 setup_state;			/* infrastructure setup state */
+	volatile u8 setup_state;	/* infrastructure setup state */
 	wait_queue_head_t teardown_wq;	/* kthread waiting to teardown infra */
 	atomic_t references;		/* #of references to infrastructure */
 
@@ -604,7 +608,7 @@ struct xpc_partition {
 
 
 /* number of seconds to wait for other partitions to disengage */
-#define XPC_DISENGAGE_REQUEST_TIMELIMIT 90
+#define XPC_DISENGAGE_REQUEST_DEFAULT_TIMELIMIT	90
 
 /* interval in seconds to print 'waiting disengagement' messages */
 #define XPC_DISENGAGE_PRINTMSG_INTERVAL		10
@@ -618,18 +622,16 @@ struct xpc_partition {
 extern struct xpc_registration xpc_registrations[];
 
 
-/* >>> found in xpc_main.c only */
+/* found in xpc_main.c */
 extern struct device *xpc_part;
 extern struct device *xpc_chan;
+extern int xpc_disengage_request_timelimit;
 extern irqreturn_t xpc_notify_IRQ_handler(int, void *, struct pt_regs *);
 extern void xpc_dropped_IPI_check(struct xpc_partition *);
+extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int);
 extern void xpc_disconnect_wait(int);
-
-
-/* found in xpc_main.c and efi-xpc.c */
-extern void xpc_activate_partition(struct xpc_partition *);
 
 
 /* found in xpc_partition.c */
@@ -1077,6 +1079,7 @@ xpc_notify_IRQ_send_local(struct xpc_channel *ch, u8 ipi_flag,
 
 /* given an AMO variable and a channel#, get its associated IPI flags */
 #define XPC_GET_IPI_FLAGS(_amo, _c)	((u8) (((_amo) >> ((_c) * 8)) & 0xff))
+#define XPC_SET_IPI_FLAGS(_amo, _c, _f)	(_amo) |= ((u64) (_f) << ((_c) * 8))
 
 #define	XPC_ANY_OPENCLOSE_IPI_FLAGS_SET(_amo) ((_amo) & 0x0f0f0f0f0f0f0f0f)
 #define XPC_ANY_MSG_IPI_FLAGS_SET(_amo)       ((_amo) & 0x1010101010101010)

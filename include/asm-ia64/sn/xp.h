@@ -225,7 +225,9 @@ enum xpc_retval {
 
 	xpcDisconnecting,	/* 49: channel disconnecting (closing) */
 
-	xpcUnknownReason	/* 50: unknown reason -- must be last in list */
+	xpcOpenCloseError,	/* 50: channel open/close protocol error */
+
+	xpcUnknownReason	/* 51: unknown reason -- must be last in list */
 };
 
 
@@ -350,7 +352,7 @@ typedef void (*xpc_notify_func)(enum xpc_retval reason, partid_t partid,
  *
  * The 'func' field points to the function to call when aynchronous
  * notification is required for such events as: a connection established/lost,
- * or an incomming message received, or an error condition encountered. A
+ * or an incoming message received, or an error condition encountered. A
  * non-NULL 'func' field indicates that there is an active registration for
  * the channel.
  */

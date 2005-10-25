@@ -792,11 +792,20 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 			"reason=%d\n", ch->number, ch->partid, ch->reason);
 	}
 
-	/* wake the thread that is waiting for this channel to disconnect */
 	if (ch->flags & XPC_C_WDISCONNECT) {
 		spin_unlock_irqrestore(&ch->lock, *irq_flags);
 		up(&ch->wdisconnect_sema);
 		spin_lock_irqsave(&ch->lock, *irq_flags);
+
+	} else if (ch->delayed_IPI_flags) {
+		if (part->act_state != XPC_P_DEACTIVATING) {
+			/* time to take action on any delayed IPI flags */
+			spin_lock(&part->IPI_lock);
+			XPC_SET_IPI_FLAGS(part->local_IPI_amo, ch->number,
+							ch->delayed_IPI_flags);
+			spin_unlock(&part->IPI_lock);
+		}
+		ch->delayed_IPI_flags = 0;
 	}
 }
 
@@ -817,6 +826,19 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
+
+again:
+
+	if ((ch->flags & XPC_C_DISCONNECTED) &&
+					(ch->flags & XPC_C_WDISCONNECT)) {
+		/*
+		 * Delay processing IPI flags until thread waiting disconnect
+		 * has had a chance to see that the channel is disconnected.
+		 */
+		ch->delayed_IPI_flags |= IPI_flags;
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
+		return;
+	}
 
 
 	if (IPI_flags & XPC_IPI_CLOSEREQUEST) {
@@ -843,14 +865,22 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 
 			/* both sides have finished disconnecting */
 			xpc_process_disconnect(ch, &irq_flags);
+			DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
+			goto again;
 		}
 
 		if (ch->flags & XPC_C_DISCONNECTED) {
-			// >>> explain this section
-
 			if (!(IPI_flags & XPC_IPI_OPENREQUEST)) {
-				DBUG_ON(part->act_state !=
-							XPC_P_DEACTIVATING);
+				if ((XPC_GET_IPI_FLAGS(part->local_IPI_amo,
+					 ch_number) & XPC_IPI_OPENREQUEST)) {
+
+					DBUG_ON(ch->delayed_IPI_flags != 0);
+					spin_lock(&part->IPI_lock);
+					XPC_SET_IPI_FLAGS(part->local_IPI_amo,
+							ch_number,
+							XPC_IPI_CLOSEREQUEST);
+					spin_unlock(&part->IPI_lock);
+				}
 				spin_unlock_irqrestore(&ch->lock, irq_flags);
 				return;
 			}
@@ -880,9 +910,13 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 			}
 
 			XPC_DISCONNECT_CHANNEL(ch, reason, &irq_flags);
-		} else {
-			xpc_process_disconnect(ch, &irq_flags);
+
+			DBUG_ON(IPI_flags & XPC_IPI_CLOSEREPLY);
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+			return;
 		}
+
+		xpc_process_disconnect(ch, &irq_flags);
 	}
 
 
@@ -898,7 +932,20 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 		}
 
 		DBUG_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
-		DBUG_ON(!(ch->flags & XPC_C_RCLOSEREQUEST));
+
+		if (!(ch->flags & XPC_C_RCLOSEREQUEST)) {
+			if ((XPC_GET_IPI_FLAGS(part->local_IPI_amo, ch_number)
+						& XPC_IPI_CLOSEREQUEST)) {
+
+				DBUG_ON(ch->delayed_IPI_flags != 0);
+				spin_lock(&part->IPI_lock);
+				XPC_SET_IPI_FLAGS(part->local_IPI_amo,
+						ch_number, XPC_IPI_CLOSEREPLY);
+				spin_unlock(&part->IPI_lock);
+			}
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+			return;
+		}
 
 		ch->flags |= XPC_C_RCLOSEREPLY;
 
@@ -916,8 +963,14 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 			"channel=%d\n", args->msg_size, args->local_nentries,
 			ch->partid, ch->number);
 
-		if ((ch->flags & (XPC_C_DISCONNECTING | XPC_C_WDISCONNECT)) ||
-					part->act_state == XPC_P_DEACTIVATING) {
+		if (part->act_state == XPC_P_DEACTIVATING ||
+					(ch->flags & XPC_C_ROPENREQUEST)) {
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+			return;
+		}
+
+		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_WDISCONNECT)) {
+			ch->delayed_IPI_flags |= XPC_IPI_OPENREQUEST;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
 		}
@@ -931,8 +984,11 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 		 *      msg_size = size of channel's messages in bytes
 		 *      local_nentries = remote partition's local_nentries
 		 */
-		DBUG_ON(args->msg_size == 0);
-		DBUG_ON(args->local_nentries == 0);
+		if (args->msg_size == 0 || args->local_nentries == 0) {
+			/* assume OPENREQUEST was delayed by mistake */
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+			return;
+		}
 
 		ch->flags |= (XPC_C_ROPENREQUEST | XPC_C_CONNECTING);
 		ch->remote_nentries = args->local_nentries;
@@ -970,7 +1026,13 @@ xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
 		}
-		DBUG_ON(!(ch->flags & XPC_C_OPENREQUEST));
+		if (!(ch->flags & XPC_C_OPENREQUEST)) {
+			XPC_DISCONNECT_CHANNEL(ch, xpcOpenCloseError,
+								&irq_flags);
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+			return;
+		}
+
 		DBUG_ON(!(ch->flags & XPC_C_ROPENREQUEST));
 		DBUG_ON(ch->flags & XPC_C_CONNECTED);
 
@@ -1024,8 +1086,8 @@ xpc_connect_channel(struct xpc_channel *ch)
 	struct xpc_registration *registration = &xpc_registrations[ch->number];
 
 
-	if (down_interruptible(&registration->sema) != 0) {
-		return xpcInterrupted;
+	if (down_trylock(&registration->sema) != 0) {
+		return xpcRetry;
 	}
 
 	if (!XPC_CHANNEL_REGISTERED(ch->number)) {
@@ -1445,19 +1507,11 @@ xpc_initiate_connect(int ch_number)
 		if (xpc_part_ref(part)) {
 			ch = &part->channels[ch_number];
 
-			if (!(ch->flags & XPC_C_DISCONNECTING)) {
-				DBUG_ON(ch->flags & XPC_C_OPENREQUEST);
-				DBUG_ON(ch->flags & XPC_C_CONNECTED);
-				DBUG_ON(ch->flags & XPC_C_SETUP);
-
-				/*
-				 * Initiate the establishment of a connection
-				 * on the newly registered channel to the
-				 * remote partition.
-				 */
-				xpc_wakeup_channel_mgr(part);
-			}
-
+			/*
+			 * Initiate the establishment of a connection on the
+			 * newly registered channel to the remote partition.
+			 */
+			xpc_wakeup_channel_mgr(part);
 			xpc_part_deref(part);
 		}
 	}
@@ -1467,9 +1521,6 @@ xpc_initiate_connect(int ch_number)
 void
 xpc_connected_callout(struct xpc_channel *ch)
 {
-	unsigned long irq_flags;
-
-
 	/* let the registerer know that a connection has been established */
 
 	if (ch->func != NULL) {
@@ -1482,10 +1533,6 @@ xpc_connected_callout(struct xpc_channel *ch)
 		dev_dbg(xpc_chan, "ch->func() returned, reason=xpcConnected, "
 			"partid=%d, channel=%d\n", ch->partid, ch->number);
 	}
-
-	spin_lock_irqsave(&ch->lock, irq_flags);
-	ch->flags |= XPC_C_CONNECTCALLOUT;
-	spin_unlock_irqrestore(&ch->lock, irq_flags);
 }
 
 
