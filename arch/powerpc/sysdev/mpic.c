@@ -358,7 +358,7 @@ static void mpic_enable_irq(unsigned int irq)
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = irq - mpic->irq_offset;
 
-	DBG("%s: enable_irq: %d (src %d)\n", mpic->name, irq, src);
+	DBG("%p: %s: enable_irq: %d (src %d)\n", mpic, mpic->name, irq, src);
 
 	mpic_irq_write(src, MPIC_IRQ_VECTOR_PRI,
 		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & ~MPIC_VECPRI_MASK);
@@ -511,7 +511,7 @@ struct mpic * __init mpic_alloc(unsigned long phys_addr,
 
 	/* Map the global registers */
 	mpic->gregs = ioremap(phys_addr + MPIC_GREG_BASE, 0x1000);
-	mpic->tmregs = mpic->gregs + (MPIC_TIMER_BASE >> 2);
+	mpic->tmregs = mpic->gregs + ((MPIC_TIMER_BASE - MPIC_GREG_BASE) >> 2);
 	BUG_ON(mpic->gregs == NULL);
 
 	/* Reset */
@@ -648,7 +648,6 @@ void __init mpic_init(struct mpic *mpic)
 			continue;
 		irq_desc[mpic->ipi_offset+i].status |= IRQ_PER_CPU;
 		irq_desc[mpic->ipi_offset+i].handler = &mpic->hc_ipi;
-		
 #endif /* CONFIG_SMP */
 	}
 
