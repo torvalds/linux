@@ -202,9 +202,6 @@ static void pmac_show_percpuinfo(struct seq_file *m, int i)
 		return;
 	}
 #endif /* CONFIG_CPU_FREQ_PMAC */
-#ifdef CONFIG_PPC32
-	of_show_percpuinfo(m, i);
-#endif
 }
 
 #ifndef CONFIG_ADB_CUDA

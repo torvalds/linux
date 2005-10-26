@@ -39,15 +39,7 @@
 #include <asm/sections.h>
 #include <asm/nvram.h>
 #include <asm/xmon.h>
-#include <asm/ocp.h>
-
-#define USES_PPC_SYS (defined(CONFIG_85xx) || defined(CONFIG_83xx) || \
-		      defined(CONFIG_MPC10X_BRIDGE) || defined(CONFIG_8260) || \
-		      defined(CONFIG_PPC_MPC52xx))
-
-#if USES_PPC_SYS
-#include <asm/ppc_sys.h>
-#endif
+#include <asm/time.h>
 
 #if defined CONFIG_KGDB
 #include <asm/kgdb.h>
@@ -234,17 +226,18 @@ int show_cpuinfo(struct seq_file *m, void *v)
 		}
 	}
 
+	/*
+	 * Assume here that all clock rates are the same in a
+	 * smp system.  -- Cort
+	 */
+	seq_printf(m, "clock\t\t: %lu.%06luMHz\n", ppc_proc_freq / 1000000,
+		   ppc_proc_freq % 1000000);
+
 	seq_printf(m, "revision\t: %hd.%hd (pvr %04x %04x)\n",
 		   maj, min, PVR_VER(pvr), PVR_REV(pvr));
 
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		   lpj / (500000/HZ), (lpj / (5000/HZ)) % 100);
-
-#if USES_PPC_SYS
-	if (cur_ppc_sys_spec->ppc_sys_name)
-		seq_printf(m, "chipset\t\t: %s\n",
-			cur_ppc_sys_spec->ppc_sys_name);
-#endif
 
 #ifdef CONFIG_SMP
 	seq_printf(m, "\n");
@@ -305,28 +298,6 @@ unsigned long __init early_init(unsigned long dt_ptr)
 }
 
 #ifdef CONFIG_PPC_OF
-/*
- * Assume here that all clock rates are the same in a
- * smp system.  -- Cort
- */
-int
-of_show_percpuinfo(struct seq_file *m, int i)
-{
-	struct device_node *cpu_node;
-	u32 *fp;
-	int s;
-	
-	cpu_node = find_type_devices("cpu");
-	if (!cpu_node)
-		return 0;
-	for (s = 0; s < i && cpu_node->next; s++)
-		cpu_node = cpu_node->next;
-	fp = (u32 *)get_property(cpu_node, "clock-frequency", NULL);
-	if (fp)
-		seq_printf(m, "clock\t\t: %dMHz\n", *fp / 1000000);
-	return 0;
-}
-
 void __init
 intuit_machine_type(void)
 {
