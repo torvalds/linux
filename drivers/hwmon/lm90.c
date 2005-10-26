@@ -345,15 +345,63 @@ static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temphyst,
 static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_temphyst, NULL, 4);
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
+/* pec used for ADM1032 only */
+static ssize_t show_pec(struct device *dev, struct device_attribute *dummy,
+			char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	return sprintf(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
+}
+
+static ssize_t set_pec(struct device *dev, struct device_attribute *dummy,
+		       const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	long val = simple_strtol(buf, NULL, 10);
+
+	switch (val) {
+	case 0:
+		client->flags &= ~I2C_CLIENT_PEC;
+		break;
+	case 1:
+		client->flags |= I2C_CLIENT_PEC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(pec, S_IWUSR | S_IRUGO, show_pec, set_pec);
+
 /*
  * Real code
  */
 
+/* The ADM1032 supports PEC but not on write byte transactions, so we need
+   to explicitely ask for a transaction without PEC. */
+static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
+{
+	return i2c_smbus_xfer(client->adapter, client->addr,
+			      client->flags & ~I2C_CLIENT_PEC,
+			      I2C_SMBUS_WRITE, value, I2C_SMBUS_BYTE, NULL);
+}
+
+/* It is assumed that client->update_lock is held (unless we are in
+   detection or initialization steps). This matters when PEC is enabled,
+   because we don't want the address pointer to change between the write
+   byte and the read byte transactions. */
 static int lm90_read_reg(struct i2c_client* client, u8 reg, u8 *value)
 {
 	int err;
 
-	err = i2c_smbus_read_byte_data(client, reg);
+ 	if (client->flags & I2C_CLIENT_PEC) {
+ 		err = adm1032_write_byte(client, reg);
+ 		if (err >= 0)
+ 			err = i2c_smbus_read_byte(client);
+ 	} else
+ 		err = i2c_smbus_read_byte_data(client, reg);
 
 	if (err < 0) {
 		dev_warn(&client->dev, "Register %#02x read failed (%d)\n",
@@ -494,6 +542,10 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 		name = "lm90";
 	} else if (kind == adm1032) {
 		name = "adm1032";
+		/* The ADM1032 supports PEC, but only if combined
+		   transactions are not used. */
+		if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
+			new_client->flags |= I2C_CLIENT_PEC;
 	} else if (kind == lm99) {
 		name = "lm99";
 	} else if (kind == lm86) {
@@ -545,6 +597,9 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp2_crit_hyst.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
+
+	if (new_client->flags & I2C_CLIENT_PEC)
+		device_create_file(&new_client->dev, &dev_attr_pec);
 
 	return 0;
 
