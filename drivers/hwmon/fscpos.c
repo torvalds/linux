@@ -438,7 +438,7 @@ static int fscpos_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, fscpos_detect);
 }
 
-int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
+static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;
 	struct fscpos_data *data;

@@ -393,7 +393,7 @@ static int lm80_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, lm80_detect);
 }
 
-int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
+static int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i, cur;
 	struct i2c_client *new_client;
