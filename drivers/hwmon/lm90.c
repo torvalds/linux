@@ -31,7 +31,7 @@
  * Devices. That chip is similar to the LM90, with a few differences
  * that are not handled by this driver. Complete datasheet can be
  * obtained from Analog's website at:
- *   http://products.analog.com/products/info.asp?product=ADM1032
+ *   http://www.analog.com/en/prod/0,2877,ADM1032,00.html
  * Among others, it has a higher accuracy than the LM90, much like the
  * LM86 does.
  *
@@ -49,7 +49,7 @@
  * register values are decoded differently) it is ignored by this
  * driver. Complete datasheet can be obtained from Analog's website
  * at:
- *   http://products.analog.com/products/info.asp?product=ADT7461
+ *   http://www.analog.com/en/prod/0,2877,ADT7461,00.html
  *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
@@ -83,10 +83,10 @@
  * Addresses to scan
  * Address is fully defined internally and cannot be changed except for
  * MAX6659.
- * LM86, LM89, LM90, LM99, ADM1032, MAX6657 and MAX6658 have address 0x4c.
- * LM89-1, and LM99-1 have address 0x4d.
+ * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, MAX6657 and MAX6658
+ * have address 0x4c.
+ * ADM1032-2, ADT7461-2, LM89-1, and LM99-1 have address 0x4d.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e (unsupported).
- * ADT7461 always has address 0x4c.
  */
 
 static unsigned short normal_i2c[] = { 0x4c, 0x4d, I2C_CLIENT_END };
@@ -500,14 +500,12 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 			}
 		} else
 		if (man_id == 0x41) { /* Analog Devices */
-			if (address == 0x4C
-			 && (chip_id & 0xF0) == 0x40 /* ADM1032 */
+			if ((chip_id & 0xF0) == 0x40 /* ADM1032 */
 			 && (reg_config1 & 0x3F) == 0x00
 			 && reg_convrate <= 0x0A) {
 				kind = adm1032;
 			} else
-			if (address == 0x4c
-			 && chip_id == 0x51 /* ADT7461 */
+			if (chip_id == 0x51 /* ADT7461 */
 			 && (reg_config1 & 0x1F) == 0x00 /* check compat mode */
 			 && reg_convrate <= 0x0A) {
 				kind = adt7461;

@@ -24,14 +24,14 @@ Supported chips:
                http://www.national.com/pf/LM/LM86.html
   * Analog Devices ADM1032
     Prefix: 'adm1032'
-    Addresses scanned: I2C 0x4c
+    Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the Analog Devices website
-               http://products.analog.com/products/info.asp?product=ADM1032
+               http://www.analog.com/en/prod/0,2877,ADM1032,00.html
   * Analog Devices ADT7461
     Prefix: 'adt7461'
-    Addresses scanned: I2C 0x4c
+    Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the Analog Devices website
-               http://products.analog.com/products/info.asp?product=ADT7461
+               http://www.analog.com/en/prod/0,2877,ADT7461,00.html
     Note: Only if in ADM1032 compatibility mode
   * Maxim MAX6657
     Prefix: 'max6657'
