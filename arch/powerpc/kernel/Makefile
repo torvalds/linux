@@ -32,7 +32,7 @@ extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= process.o init_task.o time.o \
-				   prom.o systbl.o traps.o
+				   prom.o systbl.o traps.o setup-common.o
 obj-$(CONFIG_PPC32)		+= entry_32.o idle_6xx.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= setup_64.o misc_64.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o

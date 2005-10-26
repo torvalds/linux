@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
-#include <linux/pm.h>
 #include <linux/bitops.h>
 
 #include <asm/page.h>
@@ -231,7 +230,6 @@ EXPORT_SYMBOL(screen_info);
 #endif
 
 #ifdef CONFIG_PPC32
-EXPORT_SYMBOL(pm_power_off);
 EXPORT_SYMBOL(__delay);
 EXPORT_SYMBOL(timer_interrupt);
 EXPORT_SYMBOL(irq_desc);

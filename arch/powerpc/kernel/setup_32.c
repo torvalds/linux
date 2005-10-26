@@ -41,6 +41,8 @@
 #include <asm/xmon.h>
 #include <asm/time.h>
 
+#define DBG(fmt...)
+
 #if defined CONFIG_KGDB
 #include <asm/kgdb.h>
 #endif
@@ -108,168 +110,6 @@ struct screen_info screen_info = {
 };
 #endif /* CONFIG_VGA_CONSOLE || CONFIG_FB_VGA16 || CONFIG_FB_VESA */
 
-void machine_restart(char *cmd)
-{
-#ifdef CONFIG_NVRAM
-	nvram_sync();
-#endif
-	ppc_md.restart(cmd);
-}
-
-void machine_power_off(void)
-{
-#ifdef CONFIG_NVRAM
-	nvram_sync();
-#endif
-	ppc_md.power_off();
-}
-
-void machine_halt(void)
-{
-#ifdef CONFIG_NVRAM
-	nvram_sync();
-#endif
-	ppc_md.halt();
-}
-
-void (*pm_power_off)(void) = machine_power_off;
-
-#ifdef CONFIG_TAU
-extern u32 cpu_temp(unsigned long cpu);
-extern u32 cpu_temp_both(unsigned long cpu);
-#endif /* CONFIG_TAU */
-
-int show_cpuinfo(struct seq_file *m, void *v)
-{
-	int i = (int) v - 1;
-	unsigned int pvr;
-	unsigned short maj, min;
-	unsigned long lpj;
-
-	if (i >= NR_CPUS) {
-		/* Show summary information */
-#ifdef CONFIG_SMP
-		unsigned long bogosum = 0;
-		for (i = 0; i < NR_CPUS; ++i)
-			if (cpu_online(i))
-				bogosum += cpu_data[i].loops_per_jiffy;
-		seq_printf(m, "total bogomips\t: %lu.%02lu\n",
-			   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
-#endif /* CONFIG_SMP */
-
-		if (ppc_md.show_cpuinfo != NULL)
-			ppc_md.show_cpuinfo(m);
-		return 0;
-	}
-
-#ifdef CONFIG_SMP
-	if (!cpu_online(i))
-		return 0;
-	pvr = cpu_data[i].pvr;
-	lpj = cpu_data[i].loops_per_jiffy;
-#else
-	pvr = mfspr(SPRN_PVR);
-	lpj = loops_per_jiffy;
-#endif
-
-	seq_printf(m, "processor\t: %d\n", i);
-	seq_printf(m, "cpu\t\t: ");
-
-	if (cur_cpu_spec->pvr_mask)
-		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
-	else
-		seq_printf(m, "unknown (%08x)", pvr);
-#ifdef CONFIG_ALTIVEC
-	if (cur_cpu_spec->cpu_features & CPU_FTR_ALTIVEC)
-		seq_printf(m, ", altivec supported");
-#endif
-	seq_printf(m, "\n");
-
-#ifdef CONFIG_TAU
-	if (cur_cpu_spec->cpu_features & CPU_FTR_TAU) {
-#ifdef CONFIG_TAU_AVERAGE
-		/* more straightforward, but potentially misleading */
-		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
-			   cpu_temp(i));
-#else
-		/* show the actual temp sensor range */
-		u32 temp;
-		temp = cpu_temp_both(i);
-		seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
-			   temp & 0xff, temp >> 16);
-#endif
-	}
-#endif /* CONFIG_TAU */
-
-	if (ppc_md.show_percpuinfo != NULL)
-		ppc_md.show_percpuinfo(m, i);
-
-	/* If we are a Freescale core do a simple check so
-	 * we dont have to keep adding cases in the future */
-	if (PVR_VER(pvr) & 0x8000) {
-		maj = PVR_MAJ(pvr);
-		min = PVR_MIN(pvr);
-	} else {
-		switch (PVR_VER(pvr)) {
-			case 0x0020:	/* 403 family */
-				maj = PVR_MAJ(pvr) + 1;
-				min = PVR_MIN(pvr);
-				break;
-			case 0x1008:	/* 740P/750P ?? */
-				maj = ((pvr >> 8) & 0xFF) - 1;
-				min = pvr & 0xFF;
-				break;
-			default:
-				maj = (pvr >> 8) & 0xFF;
-				min = pvr & 0xFF;
-				break;
-		}
-	}
-
-	/*
-	 * Assume here that all clock rates are the same in a
-	 * smp system.  -- Cort
-	 */
-	seq_printf(m, "clock\t\t: %lu.%06luMHz\n", ppc_proc_freq / 1000000,
-		   ppc_proc_freq % 1000000);
-
-	seq_printf(m, "revision\t: %hd.%hd (pvr %04x %04x)\n",
-		   maj, min, PVR_VER(pvr), PVR_REV(pvr));
-
-	seq_printf(m, "bogomips\t: %lu.%02lu\n",
-		   lpj / (500000/HZ), (lpj / (5000/HZ)) % 100);
-
-#ifdef CONFIG_SMP
-	seq_printf(m, "\n");
-#endif
-
-	return 0;
-}
-
-static void *c_start(struct seq_file *m, loff_t *pos)
-{
-	int i = *pos;
-
-	return i <= NR_CPUS? (void *) (i + 1): NULL;
-}
-
-static void *c_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	++*pos;
-	return c_start(m, pos);
-}
-
-static void c_stop(struct seq_file *m, void *v)
-{
-}
-
-struct seq_operations cpuinfo_op = {
-	.start =c_start,
-	.next =	c_next,
-	.stop =	c_stop,
-	.show =	show_cpuinfo,
-};
-
 /*
  * We're called here very early in the boot.  We determine the machine
  * type and call the appropriate low-level setup functions.
@@ -296,30 +136,6 @@ unsigned long __init early_init(unsigned long dt_ptr)
 
 	return KERNELBASE + offset;
 }
-
-#ifdef CONFIG_PPC_OF
-void __init
-intuit_machine_type(void)
-{
-	char *model;
-	struct device_node *root;
-	
-	/* ask the OF info if we're a chrp or pmac */
-	root = find_path_device("/");
-	if (root != 0) {
-		/* assume pmac unless proven to be chrp -- Cort */
-		_machine = _MACH_Pmac;
-		model = get_property(root, "device_type", NULL);
-		if (model && !strncmp("chrp", model, 4))
-			_machine = _MACH_chrp;
-		else {
-			model = get_property(root, "model", NULL);
-			if (model && !strncmp(model, "IBM", 3))
-				_machine = _MACH_chrp;
-		}
-	}
-}
-#endif
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 /*
@@ -362,64 +178,7 @@ void __init platform_init(void)
 #endif
 	}
 }
-
-#ifdef CONFIG_SERIAL_CORE_CONSOLE
-extern char *of_stdout_device;
-
-static int __init set_preferred_console(void)
-{
-	struct device_node *prom_stdout;
-	char *name;
-	int offset = 0;
-
-	if (of_stdout_device == NULL)
-		return -ENODEV;
-
-	/* The user has requested a console so this is already set up. */
-	if (strstr(saved_command_line, "console="))
-		return -EBUSY;
-
-	prom_stdout = find_path_device(of_stdout_device);
-	if (!prom_stdout)
-		return -ENODEV;
-
-	name = (char *)get_property(prom_stdout, "name", NULL);
-	if (!name)
-		return -ENODEV;
-
-	if (strcmp(name, "serial") == 0) {
-		int i;
-		u32 *reg = (u32 *)get_property(prom_stdout, "reg", &i);
-		if (i > 8) {
-			switch (reg[1]) {
-				case 0x3f8:
-					offset = 0;
-					break;
-				case 0x2f8:
-					offset = 1;
-					break;
-				case 0x898:
-					offset = 2;
-					break;
-				case 0x890:
-					offset = 3;
-					break;
-				default:
-					/* We dont recognise the serial port */
-					return -ENODEV;
-			}
-		}
-	} else if (strcmp(name, "ch-a") == 0)
-		offset = 0;
-	else if (strcmp(name, "ch-b") == 0)
-		offset = 1;
-	else
-		return -ENODEV;
-	return add_preferred_console("ttyS", offset, NULL);
-}
-console_initcall(set_preferred_console);
-#endif /* CONFIG_SERIAL_CORE_CONSOLE */
-#endif /* CONFIG_PPC_MULTIPLATFORM */
+#endif
 
 /*
  * Find out what kind of machine we're on and save any data we need
@@ -545,7 +304,7 @@ void __init setup_arch(char **cmdline_p)
 	init_boot_display();
 #endif
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_PPC_PMAC
 	/* This could be called "early setup arch", it must be done
 	 * now because xmon need it
 	 */
