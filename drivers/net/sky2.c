@@ -76,7 +76,7 @@
 
 #define RX_LE_SIZE	    	256
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
-#define RX_MAX_PENDING		(RX_LE_SIZE/2 - 1)
+#define RX_MAX_PENDING		(RX_LE_SIZE/2 - 2)
 #define RX_DEF_PENDING		128
 #define RX_COPY_THRESHOLD	256
 
@@ -690,7 +690,7 @@ static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q,
 setnew:
 		sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
 	}
-	*last = sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX));
+	*last = idx;
 }
 
 
@@ -723,15 +723,6 @@ static inline void sky2_rx_add(struct sky2_port *sky2, struct ring_info *re)
 	le->opcode = OP_PACKET | HW_OWNER;
 }
 
-/* Tell receiver about new buffers. */
-static inline void rx_set_put(struct net_device *dev)
-{
-	struct sky2_port *sky2 = netdev_priv(dev);
-
-	if (sky2->rx_last_put != sky2->rx_put)
-		sky2_put_idx(sky2->hw, rxqaddr[sky2->port], sky2->rx_put,
-			     &sky2->rx_last_put, RX_LE_SIZE);
-}
 
 /* Tell chip where to start receive checksum.
  * Actually has two checksums, but set both same to avoid possible byte
@@ -1616,6 +1607,10 @@ resubmit:
 	re->skb->ip_summed = CHECKSUM_NONE;
 	sky2_rx_add(sky2, re);
 
+	/* Tell receiver about new buffers. */
+	sky2_put_idx(sky2->hw, rxqaddr[sky2->port], sky2->rx_put,
+		     &sky2->rx_last_put, RX_LE_SIZE);
+
 	return skb;
 
 error:
@@ -1664,16 +1659,26 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
  	rmb();
-	while (hw->st_idx != hwidx && work_done < to_do) {
+
+	do {
 		struct sky2_status_le *le = hw->st_le + hw->st_idx;
 		struct sky2_port *sky2;
 		struct sk_buff *skb;
 		u32 status;
 		u16 length;
 
-		BUG_ON(le->link >= hw->ports);
-		if (!hw->dev[le->link])
-			goto skip;
+		/* Are we done yet? */
+		if (hw->st_idx == hwidx) {
+			sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+			hwidx = sky2_read16(hw, STAT_PUT_IDX);
+			if (hwidx == hw->st_idx)
+				break;
+		}
+
+		hw->st_idx = (hw->st_idx + 1) % STATUS_RING_SIZE;
+		prefetch(&hw->st_le[hw->st_idx]);
+
+		BUG_ON(le->link >= hw->ports || !hw->dev[le->link]);
 
 		sky2 = netdev_priv(hw->dev[le->link]);
 		status = le32_to_cpu(le->status);
@@ -1692,6 +1697,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			} else
 #endif
 				netif_receive_skb(skb);
+			++work_done;
 			break;
 
 #ifdef SKY2_VLAN_TAG_USED
@@ -1722,21 +1728,10 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			break;
 		}
 
-	skip:
-		hw->st_idx = (hw->st_idx + 1) % STATUS_RING_SIZE;
-		if (hw->st_idx == hwidx) {
-			hwidx = sky2_read16(hw, STAT_PUT_IDX);
-			rmb();
-		}
-	}
+		le->opcode = 0;	/* paranoia */
+	} while (work_done < to_do);
 
 	mmiowb();
-
-	if (hw->dev[0])
-		rx_set_put(hw->dev[0]);
-
-	if (hw->dev[1])
-		rx_set_put(hw->dev[1]);
 
 	*budget -= work_done;
 	dev0->quota -= work_done;
@@ -1750,10 +1745,10 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
 		}
 
+		netif_rx_complete(dev0);
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
 		sky2_read32(hw, B0_IMSK);
-		netif_rx_complete(dev0);
 	}
 
 	return work_done >= to_do;
@@ -1880,6 +1875,7 @@ static void sky2_phy_intr(struct sky2_hw *hw, unsigned port)
 static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct sky2_hw *hw = dev_id;
+	struct net_device *dev0 = hw->dev[0];
 	u32 status;
 
 	status = sky2_read32(hw, B0_Y2_SP_ISRC2);
@@ -1890,12 +1886,13 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 		sky2_hw_intr(hw);
 
 	/* Do NAPI for Rx and Tx status */
-	if ((status & Y2_IS_STAT_BMU) && netif_rx_schedule_test(hw->dev[0])) {
-		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
+	if (status & Y2_IS_STAT_BMU) {
 		hw->intr_mask &= ~Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
-		__netif_rx_schedule(hw->dev[0]);
+		prefetch(&hw->st_le[hw->st_idx]);
+
+		if (netif_rx_schedule_test(dev0))
+			__netif_rx_schedule(dev0);
 	}
 
 	if (status & Y2_IS_IRQ_PHY1)
