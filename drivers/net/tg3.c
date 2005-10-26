@@ -67,8 +67,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.42"
-#define DRV_MODULE_RELDATE	"Oct 3, 2005"
+#define DRV_MODULE_VERSION	"3.43"
+#define DRV_MODULE_RELDATE	"Oct 24, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -7279,7 +7279,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct tg3 *tp = netdev_priv(dev);
   
-	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
+	if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) { 
 		/* These are the only valid advertisement bits allowed.  */
 		if (cmd->autoneg == AUTONEG_ENABLE &&
 		    (cmd->advertising & ~(ADVERTISED_1000baseT_Half |
@@ -7287,7 +7287,17 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 					  ADVERTISED_Autoneg |
 					  ADVERTISED_FIBRE)))
 			return -EINVAL;
-	}
+		/* Fiber can only do SPEED_1000.  */
+		else if ((cmd->autoneg != AUTONEG_ENABLE) &&
+			 (cmd->speed != SPEED_1000))
+			return -EINVAL;
+	/* Copper cannot force SPEED_1000.  */
+	} else if ((cmd->autoneg != AUTONEG_ENABLE) &&
+		   (cmd->speed == SPEED_1000))
+		return -EINVAL;
+	else if ((cmd->speed == SPEED_1000) &&
+		 (tp->tg3_flags2 & TG3_FLAG_10_100_ONLY))
+		return -EINVAL;
 
 	tg3_full_lock(tp, 0);
 
