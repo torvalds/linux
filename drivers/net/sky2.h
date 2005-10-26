@@ -85,21 +85,6 @@ enum csr_regs {
 	B0_IMSK		= 0x000c,
 	B0_HWE_ISRC	= 0x0010,
 	B0_HWE_IMSK	= 0x0014,
-	B0_SP_ISRC	= 0x0018,
-	B0_XM1_IMSK	= 0x0020,
-	B0_XM1_ISRC	= 0x0028,
-	B0_XM1_PHY_ADDR	= 0x0030,
-	B0_XM1_PHY_DATA	= 0x0034,
-	B0_XM2_IMSK	= 0x0040,
-	B0_XM2_ISRC	= 0x0048,
-	B0_XM2_PHY_ADDR	= 0x0050,
-	B0_XM2_PHY_DATA	= 0x0054,
-	B0_R1_CSR	= 0x0060,
-	B0_R2_CSR	= 0x0064,
-	B0_XS1_CSR	= 0x0068,
-	B0_XA1_CSR	= 0x006c,
-	B0_XS2_CSR	= 0x0070,
-	B0_XA2_CSR	= 0x0074,
 
 	/* Special ISR registers (Yukon-2 only) */
 	B0_Y2_SP_ISRC2	= 0x001c,
@@ -116,36 +101,25 @@ enum csr_regs {
 	B2_MAC_CFG	= 0x011a,
 	B2_CHIP_ID	= 0x011b,
 	B2_E_0		= 0x011c,
-	B2_E_1		= 0x011d,
-	B2_E_2		= 0x011e,
+
 	B2_Y2_CLK_GATE  = 0x011d,
 	B2_Y2_HW_RES	= 0x011e,
 	B2_E_3		= 0x011f,
 	B2_Y2_CLK_CTRL	= 0x0120,
-	B2_LD_CTRL	= 0x0128,
-	B2_LD_TEST	= 0x0129,
+
 	B2_TI_INI	= 0x0130,
 	B2_TI_VAL	= 0x0134,
 	B2_TI_CTRL	= 0x0138,
 	B2_TI_TEST	= 0x0139,
-	B2_IRQM_INI	= 0x0140,
-	B2_IRQM_VAL	= 0x0144,
-	B2_IRQM_CTRL	= 0x0148,
-	B2_IRQM_TEST	= 0x0149,
-	B2_IRQM_MSK	= 0x014c,
-	B2_IRQM_HWE_MSK	= 0x0150,
+
 	B2_TST_CTRL1	= 0x0158,
 	B2_TST_CTRL2	= 0x0159,
 	B2_GP_IO	= 0x015c,
+
 	B2_I2C_CTRL	= 0x0160,
 	B2_I2C_DATA	= 0x0164,
 	B2_I2C_IRQ	= 0x0168,
 	B2_I2C_SW	= 0x016c,
-	B2_BSC_INI	= 0x0170,
-	B2_BSC_VAL	= 0x0174,
-	B2_BSC_CTRL	= 0x0178,
-	B2_BSC_STAT	= 0x0179,
-	B2_BSC_TST	= 0x017a,
 
 	B3_RAM_ADDR	= 0x0180,
 	B3_RAM_DATA_LO	= 0x0184,
@@ -220,8 +194,6 @@ enum {
 	Y2_LED_STAT_ON	= 1<<9, /* Status LED On  (YUKON-2 only) */
 	Y2_LED_STAT_OFF	= 1<<8, /* Status LED Off (YUKON-2 only) */
 
-	CS_BUS_CLOCK	= 1<<9,	/* Bus Clock 0/1 = 33/66 MHz */
-	CS_BUS_SLOT_SZ	= 1<<8,	/* Slot Size 0/1 = 32/64 bit slot */
 	CS_ST_SW_IRQ	= 1<<7,	/* Set IRQ SW Request */
 	CS_CL_SW_IRQ	= 1<<6,	/* Clear IRQ SW Request */
 	CS_STOP_DONE	= 1<<5,	/* Stop Master is finished */
