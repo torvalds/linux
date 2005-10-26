@@ -412,6 +412,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UR100_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_ALC8500_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_PYRAMID_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) },
 	/*
 	 * These will probably use user-space drivers.  Uncomment them if
 	 * you need them or use the user-specified vendor/product module
@@ -429,7 +430,6 @@ static struct usb_device_id id_table_combined [] = {
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_T1100_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PCD200_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_ULA200_PID) }, */
-	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_CSI8_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_EM1000DL_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PCK100_PID) }, */
