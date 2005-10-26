@@ -66,7 +66,7 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 	}
 
 	if (slot < 0) {		/* MSB set means secondary group */
-		vflags |= HPTE_V_VALID;
+		vflags |= HPTE_V_SECONDARY;
 		secondary = 1;
 		slot &= 0x7fffffffffffffff;
 	}

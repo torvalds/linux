@@ -44,7 +44,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.50.3"
+#define VERSION "version 1.50.4"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -111,8 +111,8 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 	u32 i = 0;
 
 	do {
-		if (i++ > 0x1000000) {
-			printk(KERN_ERR PFX "detected change pending stuck\n");
+		if (i++ > 10000) {
+			dprintk("detected change pending stuck\n");
 			return 1;
 		}
 		rdmsr(MSR_FIDVID_STATUS, lo, hi);
@@ -159,6 +159,7 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 {
 	u32 lo;
 	u32 savevid = data->currvid;
+	u32 i = 0;
 
 	if ((fid & INVALID_FID_MASK) || (data->currvid & INVALID_VID_MASK)) {
 		printk(KERN_ERR PFX "internal error - overflow on fid write\n");
@@ -170,10 +171,13 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 	dprintk("writing fid 0x%x, lo 0x%x, hi 0x%x\n",
 		fid, lo, data->plllock * PLL_LOCK_CONVERSION);
 
-	wrmsr(MSR_FIDVID_CTL, lo, data->plllock * PLL_LOCK_CONVERSION);
-
-	if (query_current_values_with_pending_wait(data))
-		return 1;
+	do {
+		wrmsr(MSR_FIDVID_CTL, lo, data->plllock * PLL_LOCK_CONVERSION);
+		if (i++ > 100) {
+			printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
+			return 1;
+		}			
+	} while (query_current_values_with_pending_wait(data));
 
 	count_off_irt(data);
 
@@ -197,6 +201,7 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 {
 	u32 lo;
 	u32 savefid = data->currfid;
+	int i = 0;
 
 	if ((data->currfid & INVALID_FID_MASK) || (vid & INVALID_VID_MASK)) {
 		printk(KERN_ERR PFX "internal error - overflow on vid write\n");
@@ -208,10 +213,13 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 	dprintk("writing vid 0x%x, lo 0x%x, hi 0x%x\n",
 		vid, lo, STOP_GRANT_5NS);
 
-	wrmsr(MSR_FIDVID_CTL, lo, STOP_GRANT_5NS);
-
-	if (query_current_values_with_pending_wait(data))
-		return 1;
+	do {
+		wrmsr(MSR_FIDVID_CTL, lo, STOP_GRANT_5NS);
+                if (i++ > 100) {
+                        printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
+                        return 1;
+                }
+	} while (query_current_values_with_pending_wait(data));
 
 	if (savefid != data->currfid) {
 		printk(KERN_ERR PFX "fid changed on vid trans, old 0x%x new 0x%x\n",

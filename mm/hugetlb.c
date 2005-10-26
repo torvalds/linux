@@ -394,6 +394,28 @@ out:
 	return ret;
 }
 
+/*
+ * On ia64 at least, it is possible to receive a hugetlb fault from a
+ * stale zero entry left in the TLB from earlier hardware prefetching.
+ * Low-level arch code should already have flushed the stale entry as
+ * part of its fault handling, but we do need to accept this minor fault
+ * and return successfully.  Whereas the "normal" case is that this is
+ * an access to a hugetlb page which has been truncated off since mmap.
+ */
+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, int write_access)
+{
+	int ret = VM_FAULT_SIGBUS;
+	pte_t *pte;
+
+	spin_lock(&mm->page_table_lock);
+	pte = huge_pte_offset(mm, address);
+	if (pte && !pte_none(*pte))
+		ret = VM_FAULT_MINOR;
+	spin_unlock(&mm->page_table_lock);
+	return ret;
+}
+
 int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			struct page **pages, struct vm_area_struct **vmas,
 			unsigned long *position, int *length, int i)
