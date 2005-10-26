@@ -621,12 +621,18 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned long lpar_rc;
 	int nfrags = 0, curfrag;
 	unsigned long correlator;
+	unsigned long flags;
 	unsigned int retry_count;
+	unsigned int tx_dropped = 0;
+	unsigned int tx_bytes = 0;
+	unsigned int tx_packets = 0;
+	unsigned int tx_send_failed = 0;
+	unsigned int tx_map_failed = 0;
+
 
 	if ((skb_shinfo(skb)->nr_frags + 1) > IbmVethMaxSendFrags) {
-		adapter->stats.tx_dropped++;
-		dev_kfree_skb(skb);
-		return 0;
+		tx_dropped++;
+		goto out;
 	}
 
 	memset(&desc, 0, sizeof(desc));
@@ -645,10 +651,9 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if(dma_mapping_error(desc[0].fields.address)) {
 		ibmveth_error_printk("tx: unable to map initial fragment\n");
-		adapter->tx_map_failed++;
-		adapter->stats.tx_dropped++;
-		dev_kfree_skb(skb);
-		return 0;
+		tx_map_failed++;
+		tx_dropped++;
+		goto out;
 	}
 
 	curfrag = nfrags;
@@ -665,8 +670,8 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		if(dma_mapping_error(desc[curfrag+1].fields.address)) {
 			ibmveth_error_printk("tx: unable to map fragment %d\n", curfrag);
-			adapter->tx_map_failed++;
-			adapter->stats.tx_dropped++;
+			tx_map_failed++;
+			tx_dropped++;
 			/* Free all the mappings we just created */
 			while(curfrag < nfrags) {
 				dma_unmap_single(&adapter->vdev->dev,
@@ -675,8 +680,7 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 						 DMA_TO_DEVICE);
 				curfrag++;
 			}
-			dev_kfree_skb(skb);
-			return 0;
+			goto out;
 		}
 	}
 
@@ -701,11 +705,11 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			ibmveth_error_printk("tx: desc[%i] valid=%d, len=%d, address=0x%d\n", i,
 					     desc[i].fields.valid, desc[i].fields.length, desc[i].fields.address);
 		}
-		adapter->tx_send_failed++;
-		adapter->stats.tx_dropped++;
+		tx_send_failed++;
+		tx_dropped++;
 	} else {
-		adapter->stats.tx_packets++;
-		adapter->stats.tx_bytes += skb->len;
+		tx_packets++;
+		tx_bytes += skb->len;
 		netdev->trans_start = jiffies;
 	}
 
@@ -714,6 +718,14 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 				desc[nfrags].fields.address,
 				desc[nfrags].fields.length, DMA_TO_DEVICE);
 	} while(--nfrags >= 0);
+
+out:	spin_lock_irqsave(&adapter->stats_lock, flags);
+	adapter->stats.tx_dropped += tx_dropped;
+	adapter->stats.tx_bytes += tx_bytes;
+	adapter->stats.tx_packets += tx_packets;
+	adapter->tx_send_failed += tx_send_failed;
+	adapter->tx_map_failed += tx_map_failed;
+	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 
 	dev_kfree_skb(skb);
 	return 0;
@@ -980,6 +992,8 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	netdev->ethtool_ops           = &netdev_ethtool_ops;
 	netdev->change_mtu         = ibmveth_change_mtu;
 	SET_NETDEV_DEV(netdev, &dev->dev);
+ 	netdev->features |= NETIF_F_LLTX; 
+	spin_lock_init(&adapter->stats_lock);
 
 	memcpy(&netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
 

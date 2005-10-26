@@ -131,6 +131,7 @@ struct ibmveth_adapter {
     u64 tx_linearize_failed;
     u64 tx_map_failed;
     u64 tx_send_failed;
+    spinlock_t stats_lock;
 };
 
 struct ibmveth_buf_desc_fields {	
