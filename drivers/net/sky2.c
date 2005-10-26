@@ -910,12 +910,11 @@ static int sky2_up(struct net_device *dev)
 	if (!sky2->tx_le)
 		goto err_out;
 
-	sky2->tx_ring = kmalloc(TX_RING_SIZE * sizeof(struct ring_info),
+	sky2->tx_ring = kzalloc(TX_RING_SIZE * sizeof(struct ring_info),
 				GFP_KERNEL);
 	if (!sky2->tx_ring)
 		goto err_out;
 	sky2->tx_prod = sky2->tx_cons = 0;
-	memset(sky2->tx_ring, 0, TX_RING_SIZE * sizeof(struct ring_info));
 
 	sky2->rx_le = pci_alloc_consistent(hw->pdev, RX_LE_BYTES,
 					   &sky2->rx_le_map);
@@ -923,7 +922,7 @@ static int sky2_up(struct net_device *dev)
 		goto err_out;
 	memset(sky2->rx_le, 0, RX_LE_BYTES);
 
-	sky2->rx_ring = kmalloc(sky2->rx_pending * sizeof(struct ring_info),
+	sky2->rx_ring = kzalloc(sky2->rx_pending * sizeof(struct ring_info),
 				GFP_KERNEL);
 	if (!sky2->rx_ring)
 		goto err_out;
