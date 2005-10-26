@@ -286,6 +286,7 @@ config PPC_CHRP
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	select PPC_RTAS
+	select PPC_MPC106
 	default y
 
 config PPC_PMAC
@@ -365,6 +366,10 @@ config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
 	bool
 	default y
+
+config PPC_MPC106
+	bool
+	default n
 
 source "drivers/cpufreq/Kconfig"
 
