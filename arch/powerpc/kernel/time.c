@@ -610,6 +610,17 @@ void __init generic_calibrate_decr(void)
 			ppc_proc_freq = *fp;
 		}
 	}
+#ifdef CONFIG_BOOKE
+	/* Set the time base to zero */
+	mtspr(SPRN_TBWL, 0);
+	mtspr(SPRN_TBWU, 0);
+
+	/* Clear any pending timer interrupts */
+	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
+
+	/* Enable decrementer interrupt */
+	mtspr(SPRN_TCR, TCR_DIE);
+#endif
 	if (!node_found)
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
 				"(not found)\n");
