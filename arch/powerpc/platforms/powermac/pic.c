@@ -71,10 +71,6 @@ static u32 level_mask[4];
 
 static DEFINE_SPINLOCK(pmac_pic_lock);
 
-/* XXX here for now, should move to arch/powerpc/kernel/irq.c */
-int ppc_do_canonicalize_irqs;
-EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
-
 #define GATWICK_IRQ_POOL_SIZE        10
 static struct interrupt_info gatwick_int_pool[GATWICK_IRQ_POOL_SIZE];
 

@@ -1155,9 +1155,18 @@ static void __init prom_initialize_tce_table(void)
  *
  * -- Cort
  */
+extern void __secondary_hold(void);
+extern unsigned long __secondary_hold_spinloop;
+extern unsigned long __secondary_hold_acknowledge;
+
+/*
+ * We want to reference the copy of __secondary_hold_* in the
+ * 0 - 0x100 address range
+ */
+#define LOW_ADDR(x)	(((unsigned long) &(x)) & 0xff)
+
 static void __init prom_hold_cpus(void)
 {
-#ifdef CONFIG_PPC64
 	unsigned long i;
 	unsigned int reg;
 	phandle node;
@@ -1166,20 +1175,18 @@ static void __init prom_hold_cpus(void)
 	unsigned int interrupt_server[MAX_CPU_THREADS];
 	unsigned int cpu_threads, hw_cpu_num;
 	int propsize;
-	extern void __secondary_hold(void);
-	extern unsigned long __secondary_hold_spinloop;
-	extern unsigned long __secondary_hold_acknowledge;
+	struct prom_t *_prom = &RELOC(prom);
 	unsigned long *spinloop
-		= (void *) __pa(&__secondary_hold_spinloop);
+		= (void *) LOW_ADDR(__secondary_hold_spinloop);
 	unsigned long *acknowledge
-		= (void *) __pa(&__secondary_hold_acknowledge);
+		= (void *) LOW_ADDR(__secondary_hold_acknowledge);
 #ifdef CONFIG_PPC64
+	/* __secondary_hold is actually a descriptor, not the text address */
 	unsigned long secondary_hold
 		= __pa(*PTRRELOC((unsigned long *)__secondary_hold));
 #else
-	unsigned long secondary_hold = __pa(&__secondary_hold);
+	unsigned long secondary_hold = LOW_ADDR(__secondary_hold);
 #endif
-	struct prom_t *_prom = &RELOC(prom);
 
 	prom_debug("prom_hold_cpus: start...\n");
 	prom_debug("    1) spinloop       = 0x%x\n", (unsigned long)spinloop);
@@ -1197,9 +1204,8 @@ static void __init prom_hold_cpus(void)
 	*spinloop = 0;
 
 #ifdef CONFIG_HMT
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < NR_CPUS; i++)
 		RELOC(hmt_thread_data)[i].pir = 0xdeadbeef;
-	}
 #endif
 	/* look for cpus */
 	for (node = 0; prom_next_node(&node); ) {
@@ -1250,34 +1256,22 @@ static void __init prom_hold_cpus(void)
 			call_prom("start-cpu", 3, 0, node,
 				  secondary_hold, reg);
 
-			for ( i = 0 ; (i < 100000000) && 
-			      (*acknowledge == ((unsigned long)-1)); i++ )
+			for (i = 0; (i < 100000000) && 
+			     (*acknowledge == ((unsigned long)-1)); i++ )
 				mb();
 
-			if (*acknowledge == reg) {
+			if (*acknowledge == reg)
 				prom_printf("done\n");
-				/* We have to get every CPU out of OF,
-				 * even if we never start it. */
-				if (cpuid >= NR_CPUS)
-					goto next;
-			} else {
+			else
 				prom_printf("failed: %x\n", *acknowledge);
-			}
 		}
 #ifdef CONFIG_SMP
 		else
 			prom_printf("%x : boot cpu     %x\n", cpuid, reg);
-#endif
-next:
-#ifdef CONFIG_SMP
-		/* Init paca for secondary threads.   They start later. */
-		for (i=1; i < cpu_threads; i++) {
-			cpuid++;
-			if (cpuid >= NR_CPUS)
-				continue;
-		}
 #endif /* CONFIG_SMP */
-		cpuid++;
+
+		/* Reserve cpu #s for secondary threads.   They start later. */
+		cpuid += cpu_threads;
 	}
 #ifdef CONFIG_HMT
 	/* Only enable HMT on processors that provide support. */
@@ -1311,7 +1305,6 @@ next:
 			    ") exceeded: ignoring extras\n");
 
 	prom_debug("prom_hold_cpus: end...\n");
-#endif
 }
 
 
@@ -1940,7 +1933,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 			       unsigned long r6, unsigned long r7)
 {	
        	struct prom_t *_prom;
-	extern char _stext[];
 	unsigned long hdr;
 	u32 getprop_rval;
 	unsigned long offset = reloc_offset();

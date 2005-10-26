@@ -5,6 +5,7 @@ ifeq ($(CONFIG_PPC64),y)
 obj-$(CONFIG_PPC_PMAC)		+= powermac/
 endif
 endif
+obj-$(CONFIG_PPC_CHRP)		+= chrp/
 obj-$(CONFIG_4xx)		+= 4xx/
 obj-$(CONFIG_85xx)		+= 85xx/
 obj-$(CONFIG_PPC_PSERIES)	+= pseries/

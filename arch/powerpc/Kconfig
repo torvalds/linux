@@ -339,7 +339,7 @@ config U3_DART
 	default n
 
 config MPIC
-	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE
+	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE || PPC_CHRP
 	bool
 	default y
 

@@ -207,7 +207,7 @@ turn_on_mmu:
 	.globl	__secondary_hold
 __secondary_hold:
 	/* tell the master we're here */
-	stw	r3,4(0)
+	stw	r3,__secondary_hold_acknowledge@l(0)
 #ifdef CONFIG_SMP
 100:	lwz	r4,0(0)
 	/* wait until we're told to start */
@@ -219,6 +219,13 @@ __secondary_hold:
 #else
 	b	.
 #endif /* CONFIG_SMP */
+
+	.globl	__secondary_hold_spinloop
+__secondary_hold_spinloop:
+	.long	0
+	.globl	__secondary_hold_acknowledge
+__secondary_hold_acknowledge:
+	.long	-1
 
 /*
  * Exception entry code.  This code runs with address translation
