@@ -113,8 +113,6 @@ static unsigned long cuda_get_time(void)
 		       req.reply_len);
 	now = (req.reply[3] << 24) + (req.reply[4] << 16)
 		+ (req.reply[5] << 8) + req.reply[6];
-	if (now < RTC_OFFSET)
-		return 0;
 	return now - RTC_OFFSET;
 }
 
@@ -158,8 +156,6 @@ static unsigned long pmu_get_time(void)
 		       req.reply_len);
 	now = (req.reply[0] << 24) + (req.reply[1] << 16)
 		+ (req.reply[2] << 8) + req.reply[3];
-	if (now < RTC_OFFSET)
-		return 0;
 	return now - RTC_OFFSET;
 }
 
