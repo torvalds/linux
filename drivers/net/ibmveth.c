@@ -96,7 +96,6 @@ static void ibmveth_proc_unregister_driver(void);
 static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter);
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter);
 static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
-static inline void ibmveth_schedule_replenishing(struct ibmveth_adapter*);
 static inline void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 
 #ifdef CONFIG_PROC_FS
@@ -257,29 +256,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 	atomic_add(buffers_added, &(pool->available));
 }
 
-/* check if replenishing is needed.  */
-static inline int ibmveth_is_replenishing_needed(struct ibmveth_adapter *adapter)
-{
-	int i;
-
-	for(i = 0; i < IbmVethNumBufferPools; i++)
-		if(adapter->rx_buff_pool[i].active &&
-		  (atomic_read(&adapter->rx_buff_pool[i].available) <
-		   adapter->rx_buff_pool[i].threshold))
-			return 1;
-	return 0;
-}
-
-/* kick the replenish tasklet if we need replenishing and it isn't already running */
-static inline void ibmveth_schedule_replenishing(struct ibmveth_adapter *adapter)
-{
-	if(ibmveth_is_replenishing_needed(adapter) &&
-	   (atomic_dec_if_positive(&adapter->not_replenishing) == 0)) {
-		schedule_work(&adapter->replenish_task);
-	}
-}
-
-/* replenish tasklet routine */
+/* replenish routine */
 static void ibmveth_replenish_task(struct ibmveth_adapter *adapter) 
 {
 	int i;
@@ -292,10 +269,6 @@ static void ibmveth_replenish_task(struct ibmveth_adapter *adapter)
 						     &adapter->rx_buff_pool[i]);
 
 	adapter->rx_no_buffer = *(u64*)(((char*)adapter->buffer_list_addr) + 4096 - 8);
-
-	atomic_inc(&adapter->not_replenishing);
-
-	ibmveth_schedule_replenishing(adapter);
 }
 
 /* empty and free ana buffer pool - also used to do cleanup in error paths */
@@ -563,10 +536,10 @@ static int ibmveth_open(struct net_device *netdev)
 		return rc;
 	}
 
-	netif_start_queue(netdev);
+	ibmveth_debug_printk("initial replenish cycle\n");
+	ibmveth_replenish_task(adapter);
 
-	ibmveth_debug_printk("scheduling initial replenish cycle\n");
-	ibmveth_schedule_replenishing(adapter);
+	netif_start_queue(netdev);
 
 	ibmveth_debug_printk("open complete\n");
 
@@ -583,9 +556,6 @@ static int ibmveth_close(struct net_device *netdev)
 	netif_stop_queue(netdev);
 
 	free_irq(netdev->irq, netdev);
-
-	cancel_delayed_work(&adapter->replenish_task);
-	flush_scheduled_work();
 
 	do {
 		lpar_rc = h_free_logical_lan(adapter->vdev->unit_address);
@@ -795,7 +765,7 @@ static int ibmveth_poll(struct net_device *netdev, int *budget)
 		}
 	} while(more_work && (frames_processed < max_frames_to_process));
 
-	ibmveth_schedule_replenishing(adapter);
+	ibmveth_replenish_task(adapter);
 
 	if(more_work) {
 		/* more work to do - return that we are not done yet */
@@ -931,8 +901,10 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 
 	}
 
+	/* kick the interrupt handler so that the new buffer pools get
+	   replenished or deallocated */
+	ibmveth_interrupt(dev->irq, dev, NULL);
 
-	ibmveth_schedule_replenishing(adapter);
 	dev->mtu = new_mtu;
 	return 0;	
 }
@@ -1017,13 +989,9 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	ibmveth_debug_printk("adapter @ 0x%p\n", adapter);
 
-	INIT_WORK(&adapter->replenish_task, (void*)ibmveth_replenish_task, (void*)adapter);
-
 	adapter->buffer_list_dma = DMA_ERROR_CODE;
 	adapter->filter_list_dma = DMA_ERROR_CODE;
 	adapter->rx_queue.queue_dma = DMA_ERROR_CODE;
-
-	atomic_set(&adapter->not_replenishing, 1);
 
 	ibmveth_debug_printk("registering netdev...\n");
 

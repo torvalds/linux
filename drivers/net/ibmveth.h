@@ -118,10 +118,6 @@ struct ibmveth_adapter {
     dma_addr_t filter_list_dma;
     struct ibmveth_buff_pool rx_buff_pool[IbmVethNumBufferPools];
     struct ibmveth_rx_q rx_queue;
-    atomic_t not_replenishing;
-
-    /* helper tasks */
-    struct work_struct replenish_task;
 
     /* adapter specific stats */
     u64 replenish_task_cycles;
