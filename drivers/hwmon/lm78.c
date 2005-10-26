@@ -480,7 +480,7 @@ static int lm78_isa_attach_adapter(struct i2c_adapter *adapter)
 }
 
 /* This function is called by i2c_probe */
-int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
+static int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i, err;
 	struct i2c_client *new_client;
