@@ -97,6 +97,7 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter);
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter);
 static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 static inline void ibmveth_schedule_replenishing(struct ibmveth_adapter*);
+static inline void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 
 #ifdef CONFIG_PROC_FS
 #define IBMVETH_PROC_DIR "net/ibmveth"
@@ -181,6 +182,7 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 	atomic_set(&pool->available, 0);
 	pool->producer_index = 0;
 	pool->consumer_index = 0;
+	pool->active = 0;
 
 	return 0;
 }
@@ -258,9 +260,14 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 /* check if replenishing is needed.  */
 static inline int ibmveth_is_replenishing_needed(struct ibmveth_adapter *adapter)
 {
-	return ((atomic_read(&adapter->rx_buff_pool[0].available) < adapter->rx_buff_pool[0].threshold) ||
-		(atomic_read(&adapter->rx_buff_pool[1].available) < adapter->rx_buff_pool[1].threshold) ||
-		(atomic_read(&adapter->rx_buff_pool[2].available) < adapter->rx_buff_pool[2].threshold));
+	int i;
+
+	for(i = 0; i < IbmVethNumBufferPools; i++)
+		if(adapter->rx_buff_pool[i].active &&
+		  (atomic_read(&adapter->rx_buff_pool[i].available) <
+		   adapter->rx_buff_pool[i].threshold))
+			return 1;
+	return 0;
 }
 
 /* kick the replenish tasklet if we need replenishing and it isn't already running */
@@ -275,11 +282,14 @@ static inline void ibmveth_schedule_replenishing(struct ibmveth_adapter *adapter
 /* replenish tasklet routine */
 static void ibmveth_replenish_task(struct ibmveth_adapter *adapter) 
 {
+	int i;
+
 	adapter->replenish_task_cycles++;
 
-	ibmveth_replenish_buffer_pool(adapter, &adapter->rx_buff_pool[0]);
-	ibmveth_replenish_buffer_pool(adapter, &adapter->rx_buff_pool[1]);
-	ibmveth_replenish_buffer_pool(adapter, &adapter->rx_buff_pool[2]);
+	for(i = 0; i < IbmVethNumBufferPools; i++)
+		if(adapter->rx_buff_pool[i].active)
+			ibmveth_replenish_buffer_pool(adapter, 
+						     &adapter->rx_buff_pool[i]);
 
 	adapter->rx_no_buffer = *(u64*)(((char*)adapter->buffer_list_addr) + 4096 - 8);
 
@@ -321,6 +331,7 @@ static void ibmveth_free_buffer_pool(struct ibmveth_adapter *adapter, struct ibm
 		kfree(pool->skbuff);
 		pool->skbuff = NULL;
 	}
+	pool->active = 0;
 }
 
 /* remove a buffer from a pool */
@@ -379,6 +390,12 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	ibmveth_assert(pool < IbmVethNumBufferPools);
 	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
 
+	if(!adapter->rx_buff_pool[pool].active) {
+		ibmveth_rxq_harvest_buffer(adapter);
+		ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[pool]);
+		return;
+	}
+
 	desc.desc = 0;
 	desc.fields.valid = 1;
 	desc.fields.length = adapter->rx_buff_pool[pool].buff_size;
@@ -409,6 +426,8 @@ static inline void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter)
 
 static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 {
+	int i;
+
 	if(adapter->buffer_list_addr != NULL) {
 		if(!dma_mapping_error(adapter->buffer_list_dma)) {
 			dma_unmap_single(&adapter->vdev->dev,
@@ -443,26 +462,24 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 		adapter->rx_queue.queue_addr = NULL;
 	}
 
-	ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[0]);
-	ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[1]);
-	ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[2]);
+	for(i = 0; i<IbmVethNumBufferPools; i++)
+		ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[i]);
 }
 
 static int ibmveth_open(struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev->priv;
 	u64 mac_address = 0;
-	int rxq_entries;
+	int rxq_entries = 1;
 	unsigned long lpar_rc;
 	int rc;
 	union ibmveth_buf_desc rxq_desc;
+	int i;
 
 	ibmveth_debug_printk("open starting\n");
 
-	rxq_entries =
-		adapter->rx_buff_pool[0].size +
-		adapter->rx_buff_pool[1].size +
-		adapter->rx_buff_pool[2].size + 1;
+	for(i = 0; i<IbmVethNumBufferPools; i++)
+		rxq_entries += adapter->rx_buff_pool[i].size;
     
 	adapter->buffer_list_addr = (void*) get_zeroed_page(GFP_KERNEL);
 	adapter->filter_list_addr = (void*) get_zeroed_page(GFP_KERNEL);
@@ -502,14 +519,8 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->rx_queue.num_slots = rxq_entries;
 	adapter->rx_queue.toggle = 1;
 
-	if(ibmveth_alloc_buffer_pool(&adapter->rx_buff_pool[0]) ||
-	   ibmveth_alloc_buffer_pool(&adapter->rx_buff_pool[1]) ||
-	   ibmveth_alloc_buffer_pool(&adapter->rx_buff_pool[2]))
-	{
-		ibmveth_error_printk("unable to allocate buffer pools\n");
-		ibmveth_cleanup(adapter);
-		return -ENOMEM;
-	}
+	/* call change_mtu to init the buffer pools based in initial mtu */
+	ibmveth_change_mtu(netdev, netdev->mtu);
 
 	memcpy(&mac_address, netdev->dev_addr, netdev->addr_len);
 	mac_address = mac_address >> 16;
@@ -885,17 +896,52 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 
 static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || (new_mtu > (1<<20)))
+	struct ibmveth_adapter *adapter = dev->priv;
+	int i;
+	int prev_smaller = 1;
+
+	if ((new_mtu < 68) || 
+	    (new_mtu > (pool_size[IbmVethNumBufferPools-1]) - IBMVETH_BUFF_OH))
 		return -EINVAL;
+
+	for(i = 0; i<IbmVethNumBufferPools; i++) {
+		int activate = 0;
+		if (new_mtu > (pool_size[i]  - IBMVETH_BUFF_OH)) { 
+			activate = 1;
+			prev_smaller= 1;
+		} else {
+			if (prev_smaller)
+				activate = 1;
+			prev_smaller= 0;
+		}
+
+		if (activate && !adapter->rx_buff_pool[i].active) {
+			struct ibmveth_buff_pool *pool = 
+						&adapter->rx_buff_pool[i];
+			if(ibmveth_alloc_buffer_pool(pool)) {
+				ibmveth_error_printk("unable to alloc pool\n");
+				return -ENOMEM;
+			}
+			adapter->rx_buff_pool[i].active = 1;
+		} else if (!activate && adapter->rx_buff_pool[i].active) {
+			adapter->rx_buff_pool[i].active = 0;
+			h_free_logical_lan_buffer(adapter->vdev->unit_address,
+					  (u64)pool_size[i]);
+		}
+
+	}
+
+
+	ibmveth_schedule_replenishing(adapter);
 	dev->mtu = new_mtu;
 	return 0;	
 }
 
 static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
-	int rc;
+	int rc, i;
 	struct net_device *netdev;
-	struct ibmveth_adapter *adapter;
+	struct ibmveth_adapter *adapter = NULL;
 
 	unsigned char *mac_addr_p;
 	unsigned int *mcastFilterSize_p;
@@ -965,9 +1011,9 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	memcpy(&netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
 
-	ibmveth_init_buffer_pool(&adapter->rx_buff_pool[0], 0, IbmVethPool0DftCnt, IbmVethPool0DftSize);
-	ibmveth_init_buffer_pool(&adapter->rx_buff_pool[1], 1, IbmVethPool1DftCnt, IbmVethPool1DftSize);
-	ibmveth_init_buffer_pool(&adapter->rx_buff_pool[2], 2, IbmVethPool2DftCnt, IbmVethPool2DftSize);
+	for(i = 0; i<IbmVethNumBufferPools; i++)
+		ibmveth_init_buffer_pool(&adapter->rx_buff_pool[i], i, 
+					 pool_count[i], pool_size[i]);
 
 	ibmveth_debug_printk("adapter @ 0x%p\n", adapter);
 
