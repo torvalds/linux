@@ -2045,18 +2045,8 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct * vma,
 
 	inc_page_state(pgfault);
 
-	if (unlikely(is_vm_hugetlb_page(vma))) {
-		if (valid_hugetlb_file_off(vma, address))
-			/* We get here only if there was a stale(zero) TLB entry 
-			 * (because of  HW prefetching). 
-			 * Low-level arch code (if needed) should have already
-			 * purged the stale entry as part of this fault handling.  
-			 * Here we just return.
-			 */
-			return VM_FAULT_MINOR; 
-		else
-			return VM_FAULT_SIGBUS;	/* mapping truncation does this. */
-	}
+	if (unlikely(is_vm_hugetlb_page(vma)))
+		return hugetlb_fault(mm, vma, address, write_access);
 
 	/*
 	 * We need the page table lock to synchronize with kswapd

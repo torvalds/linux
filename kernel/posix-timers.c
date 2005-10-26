@@ -1157,7 +1157,7 @@ retry_delete:
 }
 
 /*
- * This is called by __exit_signal, only when there are no more
+ * This is called by do_exit or de_thread, only when there are no more
  * references to the shared signal_struct.
  */
 void exit_itimers(struct signal_struct *sig)

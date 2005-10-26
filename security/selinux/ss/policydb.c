@@ -650,8 +650,10 @@ void policydb_destroy(struct policydb *p)
 	}
 	if (lrt) kfree(lrt);
 
-	for (i = 0; i < p->p_types.nprim; i++)
-		ebitmap_destroy(&p->type_attr_map[i]);
+	if (p->type_attr_map) {
+		for (i = 0; i < p->p_types.nprim; i++)
+			ebitmap_destroy(&p->type_attr_map[i]);
+	}
 	kfree(p->type_attr_map);
 
 	return;
