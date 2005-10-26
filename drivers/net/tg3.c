@@ -219,6 +219,10 @@ static struct pci_device_id tg3_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5753F,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5714,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5715,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5780,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5780S,
@@ -570,7 +574,7 @@ static void tg3_switch_clocks(struct tg3 *tp)
 	u32 clock_ctrl = tr32(TG3PCI_CLOCK_CTRL);
 	u32 orig_clock_ctrl;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
 		return;
 
 	orig_clock_ctrl = clock_ctrl;
@@ -1210,7 +1214,7 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 		     CLOCK_CTRL_ALTCLK |
 		     CLOCK_CTRL_PWRDOWN_PLL133);
 		udelay(40);
-	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
+	} else if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
 		/* do nothing */
 	} else if (!((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
 		     (tp->tg3_flags & TG3_FLAG_ENABLE_ASF))) {
@@ -3712,14 +3716,14 @@ static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
 	dev->mtu = new_mtu;
 
 	if (new_mtu > ETH_DATA_LEN) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
+		if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
 			tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
 			ethtool_op_set_tso(dev, 0);
 		}
 		else
 			tp->tg3_flags |= TG3_FLAG_JUMBO_RING_ENABLE;
 	} else {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+		if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
 			tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
 		tp->tg3_flags &= ~TG3_FLAG_JUMBO_RING_ENABLE;
 	}
@@ -3850,7 +3854,7 @@ static void tg3_init_rings(struct tg3 *tp)
 	memset(tp->tx_ring, 0, TG3_TX_RING_BYTES);
 
 	tp->rx_pkt_buf_sz = RX_PKT_BUF_SZ;
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) &&
+	if ((tp->tg3_flags2 & TG3_FLG2_5780_CLASS) &&
 	    (tp->dev->mtu > ETH_DATA_LEN))
 		tp->rx_pkt_buf_sz = RX_JUMBO_PKT_BUF_SZ;
 
@@ -4347,7 +4351,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 	val &= ~PCIX_CAPS_RELAXED_ORDERING;
 	pci_write_config_dword(tp->pdev, TG3PCI_X_CAPS, val);
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
+	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
 		u32 val;
 
 		/* Chip reset on 5780 will reset MSI enable bit,
@@ -6003,7 +6007,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32(MAC_RCV_VALUE_1, 0xffffffff & RCV_RULE_DISABLE_MASK);
 
 	if ((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5780))
+	    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		limit = 8;
 	else
 		limit = 16;
@@ -7237,7 +7241,7 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->supported |= (SUPPORTED_1000baseT_Half |
 				   SUPPORTED_1000baseT_Full);
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES))
+	if (!(tp->tg3_flags2 & TG3_FLG2_ANY_SERDES))
 		cmd->supported |= (SUPPORTED_100baseT_Half |
 				  SUPPORTED_100baseT_Full |
 				  SUPPORTED_10baseT_Half |
@@ -8380,7 +8384,7 @@ static void __devinit tg3_get_nvram_info(struct tg3 *tp)
 	}
 
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) ||
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)) {
+	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
 		switch (nvcfg1 & NVRAM_CFG1_VENDOR_MASK) {
 			case FLASH_VENDOR_ATMEL_FLASH_BUFFERED:
 				tp->nvram_jedecnum = JEDEC_ATMEL;
@@ -8980,7 +8984,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 
 		tp->phy_id = eeprom_phy_id;
 		if (eeprom_phy_serdes) {
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+			if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
 				tp->tg3_flags2 |= TG3_FLG2_MII_SERDES;
 			else
 				tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
@@ -9393,8 +9397,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	/* Find msi capability. */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
+		tp->tg3_flags2 |= TG3_FLG2_5780_CLASS;
 		tp->msi_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_MSI);
+	}
 
 	/* Initialize misc host control in PCI block. */
 	tp->misc_host_ctrl |= (misc_ctrl_reg &
@@ -9412,7 +9419,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
 
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) ||
@@ -9607,7 +9614,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 * ether_setup() via the alloc_etherdev() call
 	 */
 	if (tp->dev->mtu > ETH_DATA_LEN &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5780)
+	    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		tp->tg3_flags |= TG3_FLAG_JUMBO_RING_ENABLE;
 
 	/* Determine WakeOnLan speed to use. */
@@ -9830,7 +9837,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	mac_offset = 0x7c;
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 &&
 	     !(tp->tg3_flags & TG3_FLG2_SUN_570X)) ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
+	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
 		if (tr32(TG3PCI_DUAL_MAC_CTRL) & DUAL_MAC_CTRL_ID)
 			mac_offset = 0xcc;
 		if (tg3_nvram_lock(tp))
@@ -10148,6 +10155,9 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
 			/* 5780 always in PCIX mode */
 			tp->dma_rwctrl |= 0x00144000;
+		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
+			/* 5714 always in PCIX mode */
+			tp->dma_rwctrl |= 0x00148000;
 		} else {
 			tp->dma_rwctrl |= 0x001b000f;
 		}
@@ -10347,6 +10357,7 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	case PHY_ID_BCM5705:	return "5705";
 	case PHY_ID_BCM5750:	return "5750";
 	case PHY_ID_BCM5752:	return "5752";
+	case PHY_ID_BCM5714:	return "5714";
 	case PHY_ID_BCM5780:	return "5780";
 	case PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
