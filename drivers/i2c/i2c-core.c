@@ -19,7 +19,8 @@
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
    All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl>
-   SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com>                */
+   SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com> and
+   Jean Delvare <khali@linux-fr.org> */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -830,101 +831,44 @@ crc8(u16 data)
 	return (u8)(data >> 8);
 }
 
-/* CRC over count bytes in the first array plus the bytes in the rest
-   array if it is non-null. rest[0] is the (length of rest) - 1
-   and is included. */
-static u8 i2c_smbus_partial_pec(u8 crc, int count, u8 *first, u8 *rest)
+/* Incremental CRC8 over count bytes in the array pointed to by p */
+static u8 i2c_smbus_pec(u8 crc, u8 *p, size_t count)
 {
 	int i;
 
 	for(i = 0; i < count; i++)
-		crc = crc8((crc ^ first[i]) << 8);
-	if(rest != NULL)
-		for(i = 0; i <= rest[0]; i++)
-			crc = crc8((crc ^ rest[i]) << 8);
+		crc = crc8((crc ^ p[i]) << 8);
 	return crc;
 }
 
-static u8 i2c_smbus_pec(int count, u8 *first, u8 *rest)
+/* Assume a 7-bit address, which is reasonable for SMBus */
+static u8 i2c_smbus_msg_pec(u8 pec, struct i2c_msg *msg)
 {
-	return i2c_smbus_partial_pec(0, count, first, rest);
+	/* The address will be sent first */
+	u8 addr = (msg->addr << 1) | !!(msg->flags & I2C_M_RD);
+	pec = i2c_smbus_pec(pec, &addr, 1);
+
+	/* The data buffer follows */
+	return i2c_smbus_pec(pec, msg->buf, msg->len);
 }
 
-/* Returns new "size" (transaction type)
-   Note that we convert byte to byte_data and byte_data to word_data
-   rather than invent new xxx_PEC transactions. */
-static int i2c_smbus_add_pec(u16 addr, u8 command, int size,
-			     union i2c_smbus_data *data)
+/* Used for write only transactions */
+static inline void i2c_smbus_add_pec(struct i2c_msg *msg)
 {
-	u8 buf[3];
-
-	buf[0] = addr << 1;
-	buf[1] = command;
-	switch(size) {
-		case I2C_SMBUS_BYTE:
-			data->byte = i2c_smbus_pec(2, buf, NULL);
-			size = I2C_SMBUS_BYTE_DATA;
-			break;
-		case I2C_SMBUS_BYTE_DATA:
-			buf[2] = data->byte;
-			data->word = buf[2] |
-			            (i2c_smbus_pec(3, buf, NULL) << 8);
-			size = I2C_SMBUS_WORD_DATA;
-			break;
-		case I2C_SMBUS_WORD_DATA:
-			/* unsupported */
-			break;
-		case I2C_SMBUS_BLOCK_DATA:
-			data->block[data->block[0] + 1] =
-			             i2c_smbus_pec(2, buf, data->block);
-			size = I2C_SMBUS_BLOCK_DATA_PEC;
-			break;
-	}
-	return size;	
+	msg->buf[msg->len] = i2c_smbus_msg_pec(0, msg);
+	msg->len++;
 }
 
-static int i2c_smbus_check_pec(u16 addr, u8 command, int size, u8 partial,
-			       union i2c_smbus_data *data)
+/* Return <0 on CRC error
+   If there was a write before this read (most cases) we need to take the
+   partial CRC from the write part into account.
+   Note that this function does modify the message (we need to decrease the
+   message length to hide the CRC byte from the caller). */
+static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
 {
-	u8 buf[3], rpec, cpec;
+	u8 rpec = msg->buf[--msg->len];
+	cpec = i2c_smbus_msg_pec(cpec, msg);
 
-	buf[1] = command;
-	switch(size) {
-		case I2C_SMBUS_BYTE_DATA:
-			buf[0] = (addr << 1) | 1;
-			cpec = i2c_smbus_pec(2, buf, NULL);
-			rpec = data->byte;
-			break;
-		case I2C_SMBUS_WORD_DATA:
-			buf[0] = (addr << 1) | 1;
-			buf[2] = data->word & 0xff;
-			cpec = i2c_smbus_pec(3, buf, NULL);
-			rpec = data->word >> 8;
-			break;
-		case I2C_SMBUS_WORD_DATA_PEC:
-			/* unsupported */
-			cpec = rpec = 0;
-			break;
-		case I2C_SMBUS_PROC_CALL_PEC:
-			/* unsupported */
-			cpec = rpec = 0;
-			break;
-		case I2C_SMBUS_BLOCK_DATA_PEC:
-			buf[0] = (addr << 1);
-			buf[2] = (addr << 1) | 1;
-			cpec = i2c_smbus_pec(3, buf, data->block);
-			rpec = data->block[data->block[0] + 1];
-			break;
-		case I2C_SMBUS_BLOCK_PROC_CALL_PEC:
-			buf[0] = (addr << 1) | 1;
-			rpec = i2c_smbus_partial_pec(partial, 1,
-			                             buf, data->block);
-			cpec = data->block[data->block[0] + 1];
-			break;
-		default:
-			cpec = rpec = 0;
-			break;
-	}
 	if (rpec != cpec) {
 		pr_debug("i2c-core: Bad PEC 0x%02x vs. 0x%02x\n",
 			rpec, cpec);
@@ -951,9 +895,8 @@ s32 i2c_smbus_read_byte(struct i2c_client *client)
 
 s32 i2c_smbus_write_byte(struct i2c_client *client, u8 value)
 {
-	union i2c_smbus_data data;	/* only for PEC */
 	return i2c_smbus_xfer(client->adapter,client->addr,client->flags,
-	                      I2C_SMBUS_WRITE,value, I2C_SMBUS_BYTE,&data);
+	                      I2C_SMBUS_WRITE, value, I2C_SMBUS_BYTE, NULL);
 }
 
 s32 i2c_smbus_read_byte_data(struct i2c_client *client, u8 command)
@@ -1043,6 +986,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 	                          { addr, flags | I2C_M_RD, 0, msgbuf1 }
 	                        };
 	int i;
+	u8 partial_pec = 0;
 
 	msgbuf0[0] = command;
 	switch(size) {
@@ -1085,7 +1029,6 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		msgbuf0[2] = (data->word >> 8) & 0xff;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-	case I2C_SMBUS_BLOCK_DATA_PEC:
 		if (read_write == I2C_SMBUS_READ) {
 			dev_err(&adapter->dev, "Block read not supported "
 			       "under I2C emulation!\n");
@@ -1098,14 +1041,11 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 				       data->block[0]);
 				return -1;
 			}
-			if(size == I2C_SMBUS_BLOCK_DATA_PEC)
-				(msg[0].len)++;
 			for (i = 1; i < msg[0].len; i++)
 				msgbuf0[i] = data->block[i-1];
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
-	case I2C_SMBUS_BLOCK_PROC_CALL_PEC:
 		dev_dbg(&adapter->dev, "Block process call not supported "
 		       "under I2C emulation!\n");
 		return -1;
@@ -1130,8 +1070,29 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		return -1;
 	}
 
+	i = ((flags & I2C_CLIENT_PEC) && size != I2C_SMBUS_QUICK
+				      && size != I2C_SMBUS_I2C_BLOCK_DATA);
+	if (i) {
+		/* Compute PEC if first message is a write */
+		if (!(msg[0].flags & I2C_M_RD)) {
+		 	if (num == 1) /* Write only */
+				i2c_smbus_add_pec(&msg[0]);
+			else /* Write followed by read */
+				partial_pec = i2c_smbus_msg_pec(0, &msg[0]);
+		}
+		/* Ask for PEC if last message is a read */
+		if (msg[num-1].flags & I2C_M_RD)
+		 	msg[num-1].len++;
+	}
+
 	if (i2c_transfer(adapter, msg, num) < 0)
 		return -1;
+
+	/* Check PEC if last message is a read */
+	if (i && (msg[num-1].flags & I2C_M_RD)) {
+		if (i2c_smbus_check_pec(partial_pec, &msg[num-1]) < 0)
+			return -1;
+	}
 
 	if (read_write == I2C_SMBUS_READ)
 		switch(size) {
@@ -1161,28 +1122,8 @@ s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
                    union i2c_smbus_data * data)
 {
 	s32 res;
-	int swpec = 0;
-	u8 partial = 0;
 
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC;
-	if((flags & I2C_CLIENT_PEC) &&
-	   !(i2c_check_functionality(adapter, I2C_FUNC_SMBUS_HWPEC_CALC))) {
-		swpec = 1;
-		if(read_write == I2C_SMBUS_READ &&
-		   size == I2C_SMBUS_BLOCK_DATA)
-			size = I2C_SMBUS_BLOCK_DATA_PEC;
-		else if(size == I2C_SMBUS_PROC_CALL)
-			size = I2C_SMBUS_PROC_CALL_PEC;
-		else if(size == I2C_SMBUS_BLOCK_PROC_CALL) {
-			i2c_smbus_add_pec(addr, command,
-		                          I2C_SMBUS_BLOCK_DATA, data);
-			partial = data->block[data->block[0] + 1];
-			size = I2C_SMBUS_BLOCK_PROC_CALL_PEC;
-		} else if(read_write == I2C_SMBUS_WRITE &&
-		          size != I2C_SMBUS_QUICK &&
-		          size != I2C_SMBUS_I2C_BLOCK_DATA)
-			size = i2c_smbus_add_pec(addr, command, size, data);
-	}
 
 	if (adapter->algo->smbus_xfer) {
 		down(&adapter->bus_lock);
@@ -1193,13 +1134,6 @@ s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
 		res = i2c_smbus_xfer_emulated(adapter,addr,flags,read_write,
 	                                      command,size,data);
 
-	if(res >= 0 && swpec &&
-	   size != I2C_SMBUS_QUICK && size != I2C_SMBUS_I2C_BLOCK_DATA &&
-	   (read_write == I2C_SMBUS_READ || size == I2C_SMBUS_PROC_CALL_PEC ||
-	    size == I2C_SMBUS_BLOCK_PROC_CALL_PEC)) {
-		if(i2c_smbus_check_pec(addr, command, size, partial, data))
-			return -1;
-	}
 	return res;
 }
 
