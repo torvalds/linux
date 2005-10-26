@@ -253,13 +253,6 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr, unsigned short fl
 			read_write = I2C_SMBUS_READ;
 			break;
 
-		case I2C_SMBUS_WORD_DATA_PEC:
-		case I2C_SMBUS_BLOCK_DATA_PEC:
-		case I2C_SMBUS_PROC_CALL_PEC:
-		case I2C_SMBUS_BLOCK_PROC_CALL_PEC:
-			dev_warn(&adap->dev, "Unexpected software PEC transaction %d\n.", size);
-			return -1;
-
 		default:
 			dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
 			return -1;

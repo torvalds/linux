@@ -188,13 +188,6 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 			dev_err(&adap->dev, "I2C_SMBUS_BLOCK_PROC_CALL not supported!\n");
 			return -1;
 
-		case I2C_SMBUS_WORD_DATA_PEC:
-		case I2C_SMBUS_BLOCK_DATA_PEC:
-		case I2C_SMBUS_PROC_CALL_PEC:
-		case I2C_SMBUS_BLOCK_PROC_CALL_PEC:
-			dev_err(&adap->dev, "Unexpected software PEC transaction %d\n.", size);
-			return -1;
-
 		default:
 			dev_err(&adap->dev, "Unsupported transaction %d\n", size);
 			return -1;
