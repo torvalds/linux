@@ -1616,7 +1616,7 @@ static const struct ata_timing* ata_timing_find_mode(unsigned short speed)
 	const struct ata_timing *t;
 
 	for (t = ata_timing; t->mode != speed; t++)
-		if (t->mode != 0xFF)
+		if (t->mode == 0xFF)
 			return NULL;
 	return t; 
 }
