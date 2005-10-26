@@ -432,6 +432,8 @@ extern unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
 extern unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
 extern atomic_t ppc_n_lost_interrupts;
 
+#define virt_irq_create_mapping(x)	(x)
+
 #endif
 
 /*

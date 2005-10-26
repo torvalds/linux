@@ -296,13 +296,28 @@ static int __devinit map_interrupt(unsigned int **irq, struct device_node **ictr
 	return nintrc;
 }
 
+static unsigned char map_isa_senses[4] = {
+	IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE,
+	IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE,
+	IRQ_SENSE_EDGE  | IRQ_POLARITY_NEGATIVE,
+	IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE
+};
+
+static unsigned char map_mpic_senses[4] = {
+	IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE,
+	IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE,
+	/* 2 seems to be used for the 8259 cascade... */
+	IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE,
+	IRQ_SENSE_EDGE  | IRQ_POLARITY_NEGATIVE,
+};
+
 static int __devinit finish_node_interrupts(struct device_node *np,
 					    unsigned long *mem_start,
 					    int measure_only)
 {
 	unsigned int *ints;
 	int intlen, intrcells, intrcount;
-	int i, j, n;
+	int i, j, n, sense;
 	unsigned int *irq, virq;
 	struct device_node *ic;
 
@@ -332,7 +347,8 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 
 		for (i = 0; i < np->n_intrs; ++i) {
 			np->intrs[i].line = *ints++;
-			np->intrs[i].sense = 1;
+			np->intrs[i].sense = IRQ_SENSE_LEVEL
+				| IRQ_POLARITY_NEGATIVE;
 		}
 		return 0;
 	}
@@ -359,19 +375,20 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 		/* don't map IRQ numbers under a cascaded 8259 controller */
 		if (ic && device_is_compatible(ic, "chrp,iic")) {
 			np->intrs[intrcount].line = irq[0];
+			sense = (n > 1)? (irq[1] & 3): 3;
+			np->intrs[intrcount].sense = map_isa_senses[sense];
 		} else {
-#ifdef CONFIG_PPC64
 			virq = virt_irq_create_mapping(irq[0]);
+#ifdef CONFIG_PPC64
 			if (virq == NO_IRQ) {
 				printk(KERN_CRIT "Could not allocate interrupt"
 				       " number for %s\n", np->full_name);
 				continue;
 			}
-			virq = irq_offset_up(virq);
-#else
-			virq = irq[0];
 #endif
-			np->intrs[intrcount].line = virq;
+			np->intrs[intrcount].line = irq_offset_up(virq);
+			sense = (n > 1)? (irq[1] & 3): 1;
+			np->intrs[intrcount].sense = map_mpic_senses[sense];
 		}
 
 #ifdef CONFIG_PPC64
@@ -386,9 +403,6 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 				break;
 		}
 #endif
-		np->intrs[intrcount].sense = 1;
-		if (n > 1)
-			np->intrs[intrcount].sense = irq[1];
 		if (n > 2) {
 			printk("hmmm, got %d intr cells for %s:", n,
 			       np->full_name);
@@ -1401,15 +1415,13 @@ void __init prom_get_irq_senses(unsigned char *senses, int off, int max)
 	int i, j;
 
 	/* default to level-triggered */
-	memset(senses, 1, max - off);
+	memset(senses, IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE, max - off);
 
 	for (np = allnodes; np != 0; np = np->allnext) {
 		for (j = 0; j < np->n_intrs; j++) {
 			i = np->intrs[j].line;
 			if (i >= off && i < max)
-				senses[i-off] = np->intrs[j].sense ?
-					IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE :
-					IRQ_SENSE_EDGE | IRQ_POLARITY_POSITIVE;
+				senses[i-off] = np->intrs[j].sense;
 		}
 	}
 }
