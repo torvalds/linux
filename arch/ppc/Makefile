@@ -61,7 +61,8 @@ head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
 core-y				+= arch/ppc/kernel/ arch/powerpc/kernel/ \
 				   arch/ppc/platforms/ \
-				   arch/ppc/mm/ arch/ppc/lib/ arch/ppc/syslib/
+				   arch/ppc/mm/ arch/ppc/lib/ \
+				   arch/ppc/syslib/ arch/powerpc/sysdev/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
 core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/
 core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
