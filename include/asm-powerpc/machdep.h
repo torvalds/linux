@@ -1,5 +1,5 @@
-#ifndef _PPC64_MACHDEP_H
-#define _PPC64_MACHDEP_H
+#ifndef _ASM_POWERPC_MACHDEP_H
+#define _ASM_POWERPC_MACHDEP_H
 #ifdef __KERNEL__
 
 /*
@@ -281,4 +281,4 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 }
 
 #endif /* __KERNEL__ */
-#endif /* _PPC64_MACHDEP_H */
+#endif /* _ASM_POWERPC_MACHDEP_H */
