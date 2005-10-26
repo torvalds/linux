@@ -725,6 +725,7 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	} else {
 		adapter->stats.tx_packets++;
 		adapter->stats.tx_bytes += skb->len;
+		netdev->trans_start = jiffies;
 	}
 
 	do {
@@ -776,6 +777,7 @@ static int ibmveth_poll(struct net_device *netdev, int *budget)
 				adapter->stats.rx_packets++;
 				adapter->stats.rx_bytes += length;
 				frames_processed++;
+				netdev->last_rx = jiffies;
 			}
 		} else {
 			more_work = 0;
