@@ -318,6 +318,11 @@ config PPC_RTAS
 	depends on PPC_PSERIES || PPC_BPA
 	default y
 
+config RTAS_ERROR_LOGGING
+	bool
+	depends on PPC_RTAS
+	default y
+
 config RTAS_PROC
 	bool "Proc interface to RTAS"
 	depends on PPC_RTAS

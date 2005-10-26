@@ -954,7 +954,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_601)
  * here so it's easy to add arch-specific sections later.
  * -- Cort
  */
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_PPC_RTAS
 /*
  * On CHRP, the Run-Time Abstraction Services (RTAS) have to be
  * called with the MMU off.
@@ -963,14 +963,13 @@ _GLOBAL(enter_rtas)
 	stwu	r1,-INT_FRAME_SIZE(r1)
 	mflr	r0
 	stw	r0,INT_FRAME_SIZE+4(r1)
-	lis	r4,rtas_data@ha
-	lwz	r4,rtas_data@l(r4)
+	LOADADDR(r4, rtas)
 	lis	r6,1f@ha	/* physical return address for rtas */
 	addi	r6,r6,1f@l
 	tophys(r6,r6)
 	tophys(r7,r1)
-	lis	r8,rtas_entry@ha
-	lwz	r8,rtas_entry@l(r8)
+	lwz	r8,RTASENTRY(r4)
+	lwz	r4,RTASBASE(r4)
 	mfmsr	r9
 	stw	r9,8(r1)
 	LOAD_MSR_KERNEL(r0,MSR_KERNEL)
@@ -978,7 +977,6 @@ _GLOBAL(enter_rtas)
 	MTMSRD(r0)		/* don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
-	CLR_TOP32(r7)
 	mtspr	SPRN_SPRG2,r7
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
@@ -999,4 +997,4 @@ machine_check_in_rtas:
 	twi	31,0,0
 	/* XXX load up BATs and panic */
 
-#endif /* CONFIG_PPC_OF */
+#endif /* CONFIG_PPC_RTAS */

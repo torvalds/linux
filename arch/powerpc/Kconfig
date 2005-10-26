@@ -276,6 +276,8 @@ config PPC_PSERIES
 	depends on PPC_MULTIPLATFORM && PPC64
 	bool "  IBM pSeries & new (POWER5-based) iSeries"
 	select PPC_I8259
+	select PPC_RTAS
+	select RTAS_ERROR_LOGGING
 	default y
 
 config PPC_CHRP
@@ -283,6 +285,7 @@ config PPC_CHRP
 	depends on PPC_MULTIPLATFORM && PPC32
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
+	select PPC_RTAS
 	default y
 
 config PPC_PMAC
@@ -317,6 +320,7 @@ config PPC_MAPLE
 config PPC_BPA
 	bool "  Broadband Processor Architecture"
 	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_RTAS
 
 config PPC_OF
 	bool
@@ -337,6 +341,15 @@ config MPIC
 	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE
 	bool
 	default y
+
+config PPC_RTAS
+	bool
+	default n
+
+config RTAS_ERROR_LOGGING
+	bool
+	depends on PPC_RTAS
+	default n
 
 config MPIC_BROKEN_U3
 	bool

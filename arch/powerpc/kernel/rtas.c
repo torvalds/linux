@@ -25,29 +25,29 @@
 #include <asm/page.h>
 #include <asm/param.h>
 #include <asm/system.h>
-#include <asm/abs_addr.h>
-#include <asm/udbg.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
+#include <asm/lmb.h>
+#ifdef CONFIG_PPC64
 #include <asm/systemcfg.h>
-#include <asm/ppcdebug.h>
+#endif
 
-struct flash_block_list_header rtas_firmware_flash_list = {0, NULL};
-
-struct rtas_t rtas = { 
+struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
 };
 
 EXPORT_SYMBOL(rtas);
 
-char rtas_err_buf[RTAS_ERROR_LOG_MAX];
-
 DEFINE_SPINLOCK(rtas_data_buf_lock);
-char rtas_data_buf[RTAS_DATA_BUF_SIZE]__page_aligned;
+char rtas_data_buf[RTAS_DATA_BUF_SIZE] __cacheline_aligned;
 unsigned long rtas_rmo_buf;
 
-void
-call_rtas_display_status(unsigned char c)
+/*
+ * call_rtas_display_status and call_rtas_display_status_delay
+ * are designed only for very early low-level debugging, which
+ * is why the token is hard-coded to 10.
+ */
+void call_rtas_display_status(unsigned char c)
 {
 	struct rtas_args *args = &rtas.args;
 	unsigned long s;
@@ -67,8 +67,7 @@ call_rtas_display_status(unsigned char c)
 	spin_unlock_irqrestore(&rtas.lock, s);
 }
 
-void
-call_rtas_display_status_delay(unsigned char c)
+void call_rtas_display_status_delay(unsigned char c)
 {
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */
 	static int width = 16;
@@ -92,8 +91,7 @@ call_rtas_display_status_delay(unsigned char c)
 	}
 }
 
-void
-rtas_progress(char *s, unsigned short hex)
+void rtas_progress(char *s, unsigned short hex)
 {
 	struct device_node *root;
 	int width, *p;
@@ -209,18 +207,16 @@ rtas_progress(char *s, unsigned short hex)
 	spin_unlock(&progress_lock);
 }
 
-int
-rtas_token(const char *service)
+int rtas_token(const char *service)
 {
 	int *tokp;
-	if (rtas.dev == NULL) {
-		PPCDBG(PPCDBG_RTAS,"\tNo rtas device in device-tree...\n");
+	if (rtas.dev == NULL)
 		return RTAS_UNKNOWN_SERVICE;
-	}
 	tokp = (int *) get_property(rtas.dev, service, NULL);
 	return tokp ? *tokp : RTAS_UNKNOWN_SERVICE;
 }
 
+#ifdef CONFIG_RTAS_ERROR_LOGGING
 /*
  * Return the firmware-specified size of the error log buffer
  *  for all rtas calls that require an error buffer argument.
@@ -235,12 +231,17 @@ int rtas_get_error_log_max(void)
 	rtas_error_log_max = rtas_token ("rtas-error-log-max");
 	if ((rtas_error_log_max == RTAS_UNKNOWN_SERVICE) ||
 	    (rtas_error_log_max > RTAS_ERROR_LOG_MAX)) {
-		printk (KERN_WARNING "RTAS: bad log buffer size %d\n", rtas_error_log_max);
+		printk (KERN_WARNING "RTAS: bad log buffer size %d\n",
+			rtas_error_log_max);
 		rtas_error_log_max = RTAS_ERROR_LOG_MAX;
 	}
 	return rtas_error_log_max;
 }
+EXPORT_SYMBOL(rtas_get_error_log_max);
 
+
+char rtas_err_buf[RTAS_ERROR_LOG_MAX];
+int rtas_last_error_token;
 
 /** Return a copy of the detailed error text associated with the
  *  most recent failed call to rtas.  Because the error text
@@ -248,18 +249,20 @@ int rtas_get_error_log_max(void)
  *  this routine must be called atomically with whatever produced
  *  the error (i.e. with rtas.lock still held from the previous call).
  */
-static int
-__fetch_rtas_last_error(void)
+static char *__fetch_rtas_last_error(char *altbuf)
 {
 	struct rtas_args err_args, save_args;
 	u32 bufsz;
+	char *buf = NULL;
+
+	if (rtas_last_error_token == -1)
+		return NULL;
 
 	bufsz = rtas_get_error_log_max();
 
-	err_args.token = rtas_token("rtas-last-error");
+	err_args.token = rtas_last_error_token;
 	err_args.nargs = 2;
 	err_args.nret = 1;
-
 	err_args.args[0] = (rtas_arg_t)__pa(rtas_err_buf);
 	err_args.args[1] = bufsz;
 	err_args.args[2] = 0;
@@ -272,23 +275,38 @@ __fetch_rtas_last_error(void)
 	err_args = rtas.args;
 	rtas.args = save_args;
 
-	return err_args.args[2];
+	/* Log the error in the unlikely case that there was one. */
+	if (unlikely(err_args.args[2] == 0)) {
+		if (altbuf) {
+			buf = altbuf;
+		} else {
+			buf = rtas_err_buf;
+			if (mem_init_done)
+				buf = kmalloc(RTAS_ERROR_LOG_MAX, GFP_ATOMIC);
+		}
+		if (buf)
+			memcpy(buf, rtas_err_buf, RTAS_ERROR_LOG_MAX);
+	}
+
+	return buf;
 }
+
+#define get_errorlog_buffer()	kmalloc(RTAS_ERROR_LOG_MAX, GFP_KERNEL)
+
+#else /* CONFIG_RTAS_ERROR_LOGGING */
+#define __fetch_rtas_last_error(x)	NULL
+#define get_errorlog_buffer()		NULL
+#endif
 
 int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
 	va_list list;
-	int i, logit = 0;
+	int i;
 	unsigned long s;
 	struct rtas_args *rtas_args;
-	char * buff_copy = NULL;
+	char *buff_copy = NULL;
 	int ret;
 
-	PPCDBG(PPCDBG_RTAS, "Entering rtas_call\n");
-	PPCDBG(PPCDBG_RTAS, "\ttoken    = 0x%x\n", token);
-	PPCDBG(PPCDBG_RTAS, "\tnargs    = %d\n", nargs);
-	PPCDBG(PPCDBG_RTAS, "\tnret     = %d\n", nret);
-	PPCDBG(PPCDBG_RTAS, "\t&outputs = 0x%lx\n", outputs);
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return -1;
 
@@ -301,45 +319,24 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	rtas_args->nret  = nret;
 	rtas_args->rets  = (rtas_arg_t *)&(rtas_args->args[nargs]);
 	va_start(list, outputs);
-	for (i = 0; i < nargs; ++i) {
+	for (i = 0; i < nargs; ++i)
 		rtas_args->args[i] = va_arg(list, rtas_arg_t);
-		PPCDBG(PPCDBG_RTAS, "\tnarg[%d] = 0x%x\n", i, rtas_args->args[i]);
-	}
 	va_end(list);
 
 	for (i = 0; i < nret; ++i)
 		rtas_args->rets[i] = 0;
 
-	PPCDBG(PPCDBG_RTAS, "\tentering rtas with 0x%lx\n",
-		__pa(rtas_args));
 	enter_rtas(__pa(rtas_args));
-	PPCDBG(PPCDBG_RTAS, "\treturned from rtas ...\n");
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
 	if (rtas_args->rets[0] == -1)
-		logit = (__fetch_rtas_last_error() == 0);
-
-	ifppcdebug(PPCDBG_RTAS) {
-		for(i=0; i < nret ;i++)
-			udbg_printf("\tnret[%d] = 0x%lx\n", i, (ulong)rtas_args->rets[i]);
-	}
+		buff_copy = __fetch_rtas_last_error(NULL);
 
 	if (nret > 1 && outputs != NULL)
 		for (i = 0; i < nret-1; ++i)
 			outputs[i] = rtas_args->rets[i+1];
 	ret = (nret > 0)? rtas_args->rets[0]: 0;
-
-	/* Log the error in the unlikely case that there was one. */
-	if (unlikely(logit)) {
-		buff_copy = rtas_err_buf;
-		if (mem_init_done) {
-			buff_copy = kmalloc(RTAS_ERROR_LOG_MAX, GFP_ATOMIC);
-			if (buff_copy)
-				memcpy(buff_copy, rtas_err_buf,
-				       RTAS_ERROR_LOG_MAX);
-		}
-	}
 
 	/* Gotta do something different here, use global lock for now... */
 	spin_unlock_irqrestore(&rtas.lock, s);
@@ -355,8 +352,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 /* Given an RTAS status code of 990n compute the hinted delay of 10^n
  * (last digit) milliseconds.  For now we bound at n=5 (100 sec).
  */
-unsigned int
-rtas_extended_busy_delay_time(int status)
+unsigned int rtas_extended_busy_delay_time(int status)
 {
 	int order = status - 9900;
 	unsigned long ms;
@@ -367,7 +363,7 @@ rtas_extended_busy_delay_time(int status)
 		order = 5;	/* bound */
 
 	/* Use microseconds for reasonable accuracy */
-	for (ms=1; order > 0; order--)
+	for (ms = 1; order > 0; order--)
 		ms *= 10;
 
 	return ms; 
@@ -494,112 +490,23 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 	return rc;
 }
 
-#define FLASH_BLOCK_LIST_VERSION (1UL)
-static void
-rtas_flash_firmware(void)
+void rtas_restart(char *cmd)
 {
-	unsigned long image_size;
-	struct flash_block_list *f, *next, *flist;
-	unsigned long rtas_block_list;
-	int i, status, update_token;
-
-	update_token = rtas_token("ibm,update-flash-64-and-reboot");
-	if (update_token == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ALERT "FLASH: ibm,update-flash-64-and-reboot is not available -- not a service partition?\n");
-		printk(KERN_ALERT "FLASH: firmware will not be flashed\n");
-		return;
-	}
-
-	/* NOTE: the "first" block list is a global var with no data
-	 * blocks in the kernel data segment.  We do this because
-	 * we want to ensure this block_list addr is under 4GB.
-	 */
-	rtas_firmware_flash_list.num_blocks = 0;
-	flist = (struct flash_block_list *)&rtas_firmware_flash_list;
-	rtas_block_list = virt_to_abs(flist);
-	if (rtas_block_list >= 4UL*1024*1024*1024) {
-		printk(KERN_ALERT "FLASH: kernel bug...flash list header addr above 4GB\n");
-		return;
-	}
-
-	printk(KERN_ALERT "FLASH: preparing saved firmware image for flash\n");
-	/* Update the block_list in place. */
-	image_size = 0;
-	for (f = flist; f; f = next) {
-		/* Translate data addrs to absolute */
-		for (i = 0; i < f->num_blocks; i++) {
-			f->blocks[i].data = (char *)virt_to_abs(f->blocks[i].data);
-			image_size += f->blocks[i].length;
-		}
-		next = f->next;
-		/* Don't translate NULL pointer for last entry */
-		if (f->next)
-			f->next = (struct flash_block_list *)virt_to_abs(f->next);
-		else
-			f->next = NULL;
-		/* make num_blocks into the version/length field */
-		f->num_blocks = (FLASH_BLOCK_LIST_VERSION << 56) | ((f->num_blocks+1)*16);
-	}
-
-	printk(KERN_ALERT "FLASH: flash image is %ld bytes\n", image_size);
-	printk(KERN_ALERT "FLASH: performing flash and reboot\n");
-	rtas_progress("Flashing        \n", 0x0);
-	rtas_progress("Please Wait...  ", 0x0);
-	printk(KERN_ALERT "FLASH: this will take several minutes.  Do not power off!\n");
-	status = rtas_call(update_token, 1, 1, NULL, rtas_block_list);
-	switch (status) {	/* should only get "bad" status */
-	    case 0:
-		printk(KERN_ALERT "FLASH: success\n");
-		break;
-	    case -1:
-		printk(KERN_ALERT "FLASH: hardware error.  Firmware may not be not flashed\n");
-		break;
-	    case -3:
-		printk(KERN_ALERT "FLASH: image is corrupt or not correct for this platform.  Firmware not flashed\n");
-		break;
-	    case -4:
-		printk(KERN_ALERT "FLASH: flash failed when partially complete.  System may not reboot\n");
-		break;
-	    default:
-		printk(KERN_ALERT "FLASH: unknown flash return code %d\n", status);
-		break;
-	}
-}
-
-void rtas_flash_bypass_warning(void)
-{
-	printk(KERN_ALERT "FLASH: firmware flash requires a reboot\n");
-	printk(KERN_ALERT "FLASH: the firmware image will NOT be flashed\n");
-}
-
-
-void
-rtas_restart(char *cmd)
-{
-	if (rtas_firmware_flash_list.next)
-		rtas_flash_firmware();
-
 	printk("RTAS system-reboot returned %d\n",
 	       rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
 	for (;;);
 }
 
-void
-rtas_power_off(void)
+void rtas_power_off(void)
 {
-	if (rtas_firmware_flash_list.next)
-		rtas_flash_bypass_warning();
 	/* allow power on only with power button press */
 	printk("RTAS power-off returned %d\n",
 	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
-void
-rtas_halt(void)
+void rtas_halt(void)
 {
-	if (rtas_firmware_flash_list.next)
-		rtas_flash_bypass_warning();
 	rtas_power_off();
 }
 
@@ -632,9 +539,8 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {
 	struct rtas_args args;
 	unsigned long flags;
-	char * buff_copy;
+	char *buff_copy, *errbuf = NULL;
 	int nargs;
-	int err_rc = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -653,7 +559,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 			   nargs * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
 
-	buff_copy = kmalloc(RTAS_ERROR_LOG_MAX, GFP_KERNEL);
+	buff_copy = get_errorlog_buffer();
 
 	spin_lock_irqsave(&rtas.lock, flags);
 
@@ -665,19 +571,14 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
-	if (args.rets[0] == -1) {
-		err_rc = __fetch_rtas_last_error();
-		if ((err_rc == 0) && buff_copy) {
-			memcpy(buff_copy, rtas_err_buf, RTAS_ERROR_LOG_MAX);
-		}
-	}
+	if (args.rets[0] == -1)
+		errbuf = __fetch_rtas_last_error(buff_copy);
 
 	spin_unlock_irqrestore(&rtas.lock, flags);
 
 	if (buff_copy) {
-		if ((args.rets[0] == -1) && (err_rc == 0)) {
-			log_error(buff_copy, ERR_TYPE_RTAS_LOG, 0);
-		}
+		if (errbuf)
+			log_error(errbuf, ERR_TYPE_RTAS_LOG, 0);
 		kfree(buff_copy);
 	}
 
@@ -690,6 +591,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	return 0;
 }
 
+#ifdef CONFIG_SMP
 /* This version can't take the spinlock, because it never returns */
 
 struct rtas_args rtas_stop_self_args = {
@@ -714,6 +616,7 @@ void rtas_stop_self(void)
 
 	panic("Alas, I survived.\n");
 }
+#endif
 
 /*
  * Call early during boot, before mem init or bootmem, to retreive the RTAS
@@ -722,6 +625,8 @@ void rtas_stop_self(void)
  */
 void __init rtas_initialize(void)
 {
+	unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
+
 	/* Get RTAS dev node and fill up our "rtas" structure with infos
 	 * about it.
 	 */
@@ -743,26 +648,27 @@ void __init rtas_initialize(void)
 		} else
 			rtas.dev = NULL;
 	}
+	if (!rtas.dev)
+		return;
+
 	/* If RTAS was found, allocate the RMO buffer for it and look for
 	 * the stop-self token if any
 	 */
-	if (rtas.dev) {
-		unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
-		if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
-			rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
-
-		rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE,
-							rtas_region);
+#ifdef CONFIG_PPC64
+	if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
+		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
+#endif
+	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
 
 #ifdef CONFIG_HOTPLUG_CPU
-		rtas_stop_self_args.token = rtas_token("stop-self");
+	rtas_stop_self_args.token = rtas_token("stop-self");
 #endif /* CONFIG_HOTPLUG_CPU */
-	}
-
+#ifdef CONFIG_RTAS_ERROR_LOGGING
+	rtas_last_error_token = rtas_token("rtas-last-error");
+#endif
 }
 
 
-EXPORT_SYMBOL(rtas_firmware_flash_list);
 EXPORT_SYMBOL(rtas_token);
 EXPORT_SYMBOL(rtas_call);
 EXPORT_SYMBOL(rtas_data_buf);
@@ -772,4 +678,3 @@ EXPORT_SYMBOL(rtas_get_sensor);
 EXPORT_SYMBOL(rtas_get_power_level);
 EXPORT_SYMBOL(rtas_set_power_level);
 EXPORT_SYMBOL(rtas_set_indicator);
-EXPORT_SYMBOL(rtas_get_error_log_max);

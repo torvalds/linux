@@ -43,7 +43,7 @@ obj-$(CONFIG_MODULES)		+= module.o
 ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 endif
-obj-$(CONFIG_PPC_RTAS)		+= rtas.o rtas_pci.o
+obj-$(CONFIG_PPC_RTAS)		+= rtas_pci.o
 obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_SCANLOG)		+= scanlog.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o

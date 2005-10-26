@@ -110,9 +110,6 @@ struct device_node *of_chosen;
 struct device_node *dflt_interrupt_controller;
 int num_interrupt_controllers;
 
-u32 rtas_data;
-u32 rtas_entry;
-
 /*
  * Wrapper for allocating memory for various data that needs to be
  * attached to device nodes as they are processed at boot or when

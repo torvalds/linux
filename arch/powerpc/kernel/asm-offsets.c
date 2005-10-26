@@ -36,11 +36,11 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
+#include <asm/rtas.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/lppaca.h>
 #include <asm/iSeries/HvLpEvent.h>
-#include <asm/rtas.h>
 #include <asm/cache.h>
 #include <asm/systemcfg.h>
 #include <asm/compat.h>
@@ -97,7 +97,7 @@ int main(void)
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
-#endif /* CONFIG_PPC64 */
+#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
 	DEFINE(DCACHEL1LINESIZE, offsetof(struct ppc64_caches, dline_size));
@@ -142,11 +142,11 @@ int main(void)
 	DEFINE(LPPACASRR1, offsetof(struct lppaca, saved_srr1));
 	DEFINE(LPPACAANYINT, offsetof(struct lppaca, int_dword.any_int));
 	DEFINE(LPPACADECRINT, offsetof(struct lppaca, int_dword.fields.decr_int));
+#endif /* CONFIG_PPC64 */
 
 	/* RTAS */
 	DEFINE(RTASBASE, offsetof(struct rtas_t, base));
 	DEFINE(RTASENTRY, offsetof(struct rtas_t, entry));
-#endif /* CONFIG_PPC64 */
 
 	/* Interrupt register frame */
 	DEFINE(STACK_FRAME_OVERHEAD, STACK_FRAME_OVERHEAD);

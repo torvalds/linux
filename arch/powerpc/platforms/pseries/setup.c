@@ -1,5 +1,5 @@
 /*
- *  linux/arch/ppc/kernel/setup.c
+ *  64-bit pSeries and RS/6000 setup code.
  *
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
@@ -66,6 +66,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
+
+#include "rtas-fw.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -589,9 +591,9 @@ struct machdep_calls __initdata pSeries_md = {
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.irq_bus_setup		= pSeries_irq_bus_setup,
-	.restart		= rtas_restart,
-	.power_off		= rtas_power_off,
-	.halt			= rtas_halt,
+	.restart		= rtas_fw_restart,
+	.power_off		= rtas_fw_power_off,
+	.halt			= rtas_fw_halt,
 	.panic			= rtas_os_term,
 	.cpu_die		= pSeries_mach_cpu_die,
 	.get_boot_time		= rtas_get_boot_time,
