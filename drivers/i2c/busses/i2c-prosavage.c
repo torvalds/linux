@@ -83,11 +83,6 @@ struct s_i2c_chip {
 /*
  * i2c configuration
  */
-#ifndef I2C_HW_B_S3VIA
-#define I2C_HW_B_S3VIA	0x18	/* S3VIA ProSavage adapter		*/
-#endif
-
-/* delays */
 #define CYCLE_DELAY	10
 #define TIMEOUT		(HZ / 2)
 
