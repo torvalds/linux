@@ -214,7 +214,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
 		reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 
-		/* looks like this xl is back asswards .. */
+		/* looks like this XL is back asswards .. */
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1) {
 			reg1 |= PCI_Y2_PHY1_COMA;
 			if (hw->ports > 1)
@@ -461,7 +461,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 	if (ledover)
 		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
 
-	/* Enable phy interrupt on autonegotiation complete (or link up) */
+	/* Enable phy interrupt on auto-negotiation complete (or link up) */
 	if (sky2->autoneg == AUTONEG_ENABLE)
 		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_COMPL);
 	else
@@ -578,10 +578,10 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	sky2_write16(hw, SK_REG(port, RX_GMF_CTRL_T),
 		     GMF_RX_CTRL_DEF);
 
-	/* Flush Rx MAC FIFO on any flowcontrol or error */
+	/* Flush Rx MAC FIFO on any flow control or error */
 	reg = GMR_FS_ANY_ERR;
 	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev <= 1)
-		reg = 0;	/* WA Dev #4115 */
+		reg = 0;	/* WA dev #4.115 */
 
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), reg);
 	/* Set threshold to 0xa (64 bytes)
@@ -662,7 +662,7 @@ static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
 }
 
 /*
- * This is a workaround code taken from syskonnect sk98lin driver
+ * This is a workaround code taken from SysKonnect sk98lin driver
  * to deal with chip bug on Yukon EC rev 0 in the wraparound case.
  */
 static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q,
@@ -785,7 +785,7 @@ stopped:
 	sky2_write32(hw, Y2_QADDR(rxq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
 }
 
-/* Cleanout receive buffer area, assumes receiver hardware stopped */
+/* Clean out receive buffer area, assumes receiver hardware stopped */
 static void sky2_rx_clean(struct sky2_port *sky2)
 {
 	unsigned i;
@@ -1174,7 +1174,7 @@ out_unlock:
  * Free ring elements from starting at tx_cons until "done"
  *
  * NB: the hardware will tell us about partial completion of multi-part
- *     buffers; these are defered until completion.
+ *     buffers; these are deferred until completion.
  */
 static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 {
@@ -1182,7 +1182,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	unsigned i;
 
 	if (unlikely(netif_msg_tx_done(sky2)))
-		printk(KERN_DEBUG "%s: tx done, upto %u\n",
+		printk(KERN_DEBUG "%s: tx done, up to %u\n",
 		       dev->name, done);
 
 	spin_lock(&sky2->tx_lock);
@@ -1282,7 +1282,7 @@ static int sky2_down(struct net_device *dev)
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
 
-	/* turn off led's */
+	/* turn off LED's */
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
 
 	sky2_tx_clean(sky2);
@@ -1364,7 +1364,7 @@ static void sky2_link_up(struct sky2_port *sky2)
 
 	if (netif_msg_link(sky2))
 		printk(KERN_INFO PFX
-		       "%s: Link is up at %d Mbps, %s duplex, flowcontrol %s\n",
+		       "%s: Link is up at %d Mbps, %s duplex, flow control %s\n",
 		       sky2->netdev->name, sky2->speed,
 		       sky2->duplex == DUPLEX_FULL ? "full" : "half",
 		       (sky2->tx_pause && sky2->rx_pause) ? "both" :
@@ -1451,7 +1451,7 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 }
 
 /*
- * Interrrupt from PHY are handled in tasklet (soft irq)
+ * Interrupt from PHY are handled in tasklet (soft irq)
  * because accessing phy registers requires spin wait which might
  * cause excess interrupt latency.
  */
@@ -1556,7 +1556,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 /*
  * Receive one packet.
  * For small packets or errors, just reuse existing skb.
- * For larger pakects, get new buffer.
+ * For larger packets, get new buffer.
  */
 static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 				    u16 length, u32 status)
@@ -1818,7 +1818,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 	}
 
 	if (status & Y2_IS_PCI_EXP) {
-		/* PCI-Express uncorrectable Error occured */
+		/* PCI-Express uncorrectable Error occurred */
 		u32 pex_err;
 
 		pci_read_config_dword(hw->pdev, PEX_UNC_ERR_STAT, &pex_err);
@@ -2113,7 +2113,7 @@ static int sky2_reset(struct sky2_hw *hw)
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0)
 			sky2_write8(hw, STAT_FIFO_ISR_WM, 0x10);
 
-		else		/* WA 4109 */
+		else		/* WA dev 4.109 */
 			sky2_write8(hw, STAT_FIFO_ISR_WM, 0x04);
 
 		sky2_write32(hw, STAT_ISR_TIMER_INI, 0x0190);
@@ -2420,7 +2420,7 @@ static void sky2_set_multicast(struct net_device *dev)
 	reg = gma_read16(hw, port, GM_RX_CTRL);
 	reg |= GM_RXCR_UCF_ENA;
 
-	if (dev->flags & IFF_PROMISC)	/* promiscious */
+	if (dev->flags & IFF_PROMISC)	/* promiscuous */
 		reg &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
 	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count > 16)	/* all multicast */
 		memset(filter, 0xff, sizeof(filter));
@@ -2833,7 +2833,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 #ifdef __BIG_ENDIAN
-	/* byte swap decriptors in hardware */
+	/* byte swap descriptors in hardware */
 	{
 		u32 reg;
 

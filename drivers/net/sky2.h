@@ -356,11 +356,11 @@ enum {
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 enum {
-	Y2_STATUS_LNK2_INAC	= 1<<7, /* Status Link 2 inactiv (0 = activ) */
+	Y2_STATUS_LNK2_INAC	= 1<<7, /* Status Link 2 inactive (0 = active) */
 	Y2_CLK_GAT_LNK2_DIS	= 1<<6, /* Disable clock gating Link 2 */
 	Y2_COR_CLK_LNK2_DIS	= 1<<5, /* Disable Core clock Link 2 */
 	Y2_PCI_CLK_LNK2_DIS	= 1<<4, /* Disable PCI clock Link 2 */
-	Y2_STATUS_LNK1_INAC	= 1<<3, /* Status Link 1 inactiv (0 = activ) */
+	Y2_STATUS_LNK1_INAC	= 1<<3, /* Status Link 1 inactive (0 = active) */
 	Y2_CLK_GAT_LNK1_DIS	= 1<<2, /* Disable clock gating Link 1 */
 	Y2_COR_CLK_LNK1_DIS	= 1<<1, /* Disable Core clock Link 1 */
 	Y2_PCI_CLK_LNK1_DIS	= 1<<0, /* Disable PCI clock Link 1 */
@@ -410,7 +410,7 @@ enum {
 #define RAM_ADR_RAN	0x0007ffffL	/* Bit 18.. 0:	RAM Address Range */
 /* RAM Interface Registers */
 
-/*	B3_RI_CTRL		16 bit	RAM Iface Control Register */
+/*	B3_RI_CTRL		16 bit	RAM Interface Control Register */
 enum {
 	RI_CLR_RD_PERR	= 1<<9,	/* Clear IRQ RAM Read Parity Err */
 	RI_CLR_WR_PERR	= 1<<8,	/* Clear IRQ RAM Write Parity Err*/
@@ -613,7 +613,7 @@ enum {
 	BMU_ENA_RX_CHKSUM = 1<<13, /* Enable  Rx TCP/IP Checksum Check */
 	BMU_DIS_RX_CHKSUM = 1<<12, /* Disable Rx TCP/IP Checksum Check */
 	BMU_CLR_IRQ_PAR	= 1<<11, /* Clear IRQ on Parity errors (Rx) */
-	BMU_CLR_IRQ_TCP	= 1<<11, /* Clear IRQ on TCP segmen. error (Tx) */
+	BMU_CLR_IRQ_TCP	= 1<<11, /* Clear IRQ on TCP segment. error (Tx) */
 	BMU_CLR_IRQ_CHK	= 1<<10, /* Clear IRQ Check */
 	BMU_STOP	= 1<<9, /* Stop  Rx/Tx Queue */
 	BMU_START	= 1<<8, /* Start Rx/Tx Queue */
@@ -636,7 +636,7 @@ enum {
 enum {
 	BMU_TX_IPIDINCR_ON	= 1<<13, /* Enable  IP ID Increment */
 	BMU_TX_IPIDINCR_OFF	= 1<<12, /* Disable IP ID Increment */
-	BMU_TX_CLR_IRQ_TCP	= 1<<11, /* Clear IRQ on TCP segm. length mism. */
+	BMU_TX_CLR_IRQ_TCP	= 1<<11, /* Clear IRQ on TCP segment length mismatch */
 };
 
 /* Queue Prefetch Unit Offsets, use Y2_QADDR() to address (Yukon-2 only)*/
