@@ -154,10 +154,13 @@ void __init MMU_init(void)
 	 * in the fixed entries */
 	adjust_total_lowmem();
 #endif /* CONFIG_FSL_BOOKE */
+
 	if (total_lowmem > __max_low_memory) {
 		total_lowmem = __max_low_memory;
 #ifndef CONFIG_HIGHMEM
 		total_memory = total_lowmem;
+		lmb_enforce_memory_limit(total_lowmem);
+		lmb_analyze();
 #endif /* CONFIG_HIGHMEM */
 	}
 
