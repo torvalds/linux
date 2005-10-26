@@ -80,6 +80,7 @@ static int store_updates_sp(struct pt_regs *regs)
 	return 0;
 }
 
+#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
 static void do_dabr(struct pt_regs *regs, unsigned long error_code)
 {
 	siginfo_t info;
@@ -101,6 +102,7 @@ static void do_dabr(struct pt_regs *regs, unsigned long error_code)
 	info.si_addr = (void __user *)regs->nip;
 	force_sig_info(SIGTRAP, &info, current);
 }
+#endif /* !(CONFIG_4xx || CONFIG_BOOKE)*/
 
 /*
  * For 600- and 800-family processors, the error_code parameter is DSISR
