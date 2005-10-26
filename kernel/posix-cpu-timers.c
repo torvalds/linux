@@ -576,17 +576,15 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 	listpos = head;
 	if (CPUCLOCK_WHICH(timer->it_clock) == CPUCLOCK_SCHED) {
 		list_for_each_entry(next, head, entry) {
-			if (next->expires.sched > nt->expires.sched) {
-				listpos = &next->entry;
+			if (next->expires.sched > nt->expires.sched)
 				break;
-			}
+			listpos = &next->entry;
 		}
 	} else {
 		list_for_each_entry(next, head, entry) {
-			if (cputime_gt(next->expires.cpu, nt->expires.cpu)) {
-				listpos = &next->entry;
+			if (cputime_gt(next->expires.cpu, nt->expires.cpu))
 				break;
-			}
+			listpos = &next->entry;
 		}
 	}
 	list_add(&nt->entry, listpos);
