@@ -293,6 +293,7 @@ config PPC_PMAC
 	bool "  Apple PowerMac based machines"
 	depends on PPC_MULTIPLATFORM
 	select PPC_INDIRECT_PCI if PPC32
+	select PPC_MPC106 if PPC32
 	default y
 
 config PPC_PMAC64
