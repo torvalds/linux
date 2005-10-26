@@ -470,6 +470,15 @@ static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
+static void tg3_write_mem_fast(struct tg3 *tp, u32 off, u32 val)
+{
+	/* If no workaround is needed, write to mem space directly */
+	if (tp->write32 != tg3_write_indirect_reg32)
+		tw32(NIC_SRAM_WIN_BASE + off, val);
+	else
+		tg3_write_mem(tp, off, val);
+}
+
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 {
 	unsigned long flags;
@@ -6195,14 +6204,16 @@ static void tg3_timer(unsigned long __opaque)
 		tp->timer_counter = tp->timer_multiplier;
 	}
 
-	/* Heartbeat is only sent once every 120 seconds.  */
+	/* Heartbeat is only sent once every 2 seconds.  */
 	if (!--tp->asf_counter) {
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
-			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_ALIVE);
-			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
-			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 3);
+			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_MBOX,
+					   FWCMD_NICDRV_ALIVE2);
+			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
+			/* 5 seconds timeout */
+			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
 			val = tr32(GRC_RX_CPU_EVENT);
 			val |= (1 << 14);
 			tw32(GRC_RX_CPU_EVENT, val);
@@ -6413,7 +6424,7 @@ static int tg3_open(struct net_device *dev)
 		tp->timer_counter = tp->timer_multiplier =
 			(HZ / tp->timer_offset);
 		tp->asf_counter = tp->asf_multiplier =
-			((HZ / tp->timer_offset) * 120);
+			((HZ / tp->timer_offset) * 2);
 
 		init_timer(&tp->timer);
 		tp->timer.expires = jiffies + tp->timer_offset;
