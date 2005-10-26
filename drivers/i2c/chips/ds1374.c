@@ -167,7 +167,8 @@ static void ds1374_set_tlet(ulong arg)
 
 static ulong new_time;
 
-DECLARE_TASKLET_DISABLED(ds1374_tasklet, ds1374_set_tlet, (ulong) & new_time);
+static DECLARE_TASKLET_DISABLED(ds1374_tasklet, ds1374_set_tlet,
+				(ulong) & new_time);
 
 int ds1374_set_rtc_time(ulong nowtime)
 {
