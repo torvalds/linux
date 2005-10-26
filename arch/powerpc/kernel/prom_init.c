@@ -145,11 +145,11 @@ typedef u32 cell_t;
 extern void __start(unsigned long r3, unsigned long r4, unsigned long r5);
 
 #ifdef CONFIG_PPC64
-extern void enter_prom(struct prom_args *args, unsigned long entry);
+extern int enter_prom(struct prom_args *args, unsigned long entry);
 #else
-static inline void enter_prom(struct prom_args *args, unsigned long entry)
+static inline int enter_prom(struct prom_args *args, unsigned long entry)
 {
-	((void (*)(struct prom_args *))entry)(args);
+	return ((int (*)(struct prom_args *))entry)(args);
 }
 #endif
 
@@ -241,7 +241,8 @@ static int __init call_prom(const char *service, int nargs, int nret, ...)
 	for (i = 0; i < nret; i++)
 		args.args[nargs+i] = 0;
 
-	enter_prom(&args, RELOC(prom_entry));
+	if (enter_prom(&args, RELOC(prom_entry)) < 0)
+		return PROM_ERROR;
 
 	return (nret > 0) ? args.args[nargs] : 0;
 }
@@ -265,7 +266,8 @@ static int __init call_prom_ret(const char *service, int nargs, int nret,
 	for (i = 0; i < nret; i++)
 		rets[nargs+i] = 0;
 
-	enter_prom(&args, RELOC(prom_entry));
+	if (enter_prom(&args, RELOC(prom_entry)) < 0)
+		return PROM_ERROR;
 
 	if (rets != NULL)
 		for (i = 1; i < nret; ++i)
@@ -670,9 +672,11 @@ static void __init prom_send_capabilities(void)
  */
 static unsigned long __init alloc_up(unsigned long size, unsigned long align)
 {
-	unsigned long base = _ALIGN_UP(RELOC(alloc_bottom), align);
+	unsigned long base = RELOC(alloc_bottom);
 	unsigned long addr = 0;
 
+	if (align)
+		base = _ALIGN_UP(base, align);
 	prom_debug("alloc_up(%x, %x)\n", size, align);
 	if (RELOC(ram_top) == 0)
 		prom_panic("alloc_up() called with mem not initialized\n");
@@ -686,7 +690,7 @@ static unsigned long __init alloc_up(unsigned long size, unsigned long align)
 	    base = _ALIGN_UP(base + 0x100000, align)) {
 		prom_debug("    trying: 0x%x\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
-		if (addr != PROM_ERROR)
+		if (addr != PROM_ERROR && addr != 0)
 			break;
 		addr = 0;
 		if (align == 0)
@@ -746,7 +750,7 @@ static unsigned long __init alloc_down(unsigned long size, unsigned long align,
 	     base = _ALIGN_DOWN(base - 0x100000, align))  {
 		prom_debug("    trying: 0x%x\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
-		if (addr != PROM_ERROR)
+		if (addr != PROM_ERROR && addr != 0)
 			break;
 		addr = 0;
 	}
@@ -852,9 +856,16 @@ static void __init prom_init_mem(void)
 		type[0] = 0;
 		prom_getprop(node, "device_type", type, sizeof(type));
 
+		if (type[0] == 0) {
+			/*
+			 * CHRP Longtrail machines have no device_type
+			 * on the memory node, so check the name instead...
+			 */
+			prom_getprop(node, "name", type, sizeof(type));
+		}
 		if (strcmp(type, RELOC("memory")))
 			continue;
-	
+
 		plen = prom_getprop(node, "reg", RELOC(regbuf), sizeof(regbuf));
 		if (plen > sizeof(regbuf)) {
 			prom_printf("memory node too large for buffer !\n");
@@ -1632,18 +1643,21 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 	unsigned long soff;
 	unsigned char *valp;
 	static char pname[MAX_PROPERTY_NAME];
-	int l;
+	int l, room;
 
 	dt_push_token(OF_DT_BEGIN_NODE, mem_start, mem_end);
 
 	/* get the node's full name */
 	namep = (char *)*mem_start;
-	l = call_prom("package-to-path", 3, 1, node,
-		      namep, *mem_end - *mem_start);
+	room = *mem_end - *mem_start;
+	if (room > 255)
+		room = 255;
+	l = call_prom("package-to-path", 3, 1, node, namep, room);
 	if (l >= 0) {
 		/* Didn't fit?  Get more room. */
-		if ((l+1) > (*mem_end - *mem_start)) {
-			namep = make_room(mem_start, mem_end, l+1, 1);
+		if (l >= room) {
+			if (l >= *mem_end - *mem_start)
+				namep = make_room(mem_start, mem_end, l+1, 1);
 			call_prom("package-to-path", 3, 1, node, namep, l);
 		}
 		namep[l] = '\0';
