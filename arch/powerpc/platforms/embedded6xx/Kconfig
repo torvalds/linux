@@ -48,6 +48,7 @@ config EV64260
 
 config LOPEC
 	bool "Motorola-LoPEC"
+	select PPC_I8259
 
 config MVME5100
 	bool "Motorola-MVME5100"
@@ -55,6 +56,7 @@ config MVME5100
 
 config PPLUS
 	bool "Motorola-PowerPlus"
+	select PPC_I8259
 	select PPC_INDIRECT_PCI
 
 config PRPMC750
@@ -67,12 +69,14 @@ config PRPMC800
 
 config SANDPOINT
 	bool "Motorola-Sandpoint"
+	select PPC_I8259
 	help
 	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
 	  (any flavor).
 
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
+	select PPC_I8259
 
 config PAL4
 	bool "SBS-Palomar4"
@@ -307,6 +311,7 @@ config HARRIER_STORE_GATHERING
 config MVME5100_IPMC761_PRESENT
 	bool "MVME5100 configured with an IPMC761"
 	depends on MVME5100
+	select PPC_I8259
 
 config SPRUCE_BAUD_33M
 	bool "Spruce baud clock support"

@@ -275,11 +275,13 @@ endchoice
 config PPC_PSERIES
 	depends on PPC_MULTIPLATFORM && PPC64
 	bool "  IBM pSeries & new (POWER5-based) iSeries"
+	select PPC_I8259
 	default y
 
 config PPC_CHRP
 	bool "  Common Hardware Reference Platform (CHRP) based machines"
 	depends on PPC_MULTIPLATFORM && PPC32
+	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
 
@@ -298,6 +300,7 @@ config PPC_PMAC64
 config PPC_PREP
 	bool "  PowerPC Reference Platform (PReP) based machines"
 	depends on PPC_MULTIPLATFORM && PPC32
+	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
 
@@ -628,6 +631,7 @@ menu "Bus options"
 config ISA
 	bool "Support for ISA-bus hardware"
 	depends on PPC_PREP || PPC_CHRP
+	select PPC_I8259
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -639,6 +643,11 @@ config GENERIC_ISA_DMA
 	bool
 	depends on PPC64 || POWER4 || 6xx && !CPM2
 	default y
+
+config PPC_I8259
+	bool
+	default y if 85xx
+	default n
 
 config PPC_INDIRECT_PCI
 	bool
@@ -679,6 +688,7 @@ config MPC83xx_PCI2
 config PCI_QSPAN
 	bool "QSpan PCI"
 	depends on !4xx && !CPM2 && 8xx
+	select PPC_I8259
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
 	  embedded processor with a QSPAN PCI interface, otherwise say N.

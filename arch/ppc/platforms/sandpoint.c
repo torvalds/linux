@@ -494,18 +494,10 @@ sandpoint_init_IRQ(void)
 			i8259_irq);
 
 	/*
-	 * openpic_init() has set up irq_desc[16-31] to be openpic
-	 * interrupts.  We need to set irq_desc[0-15] to be i8259
-	 * interrupts.
-	 */
-	for(i=0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	/*
 	 * The EPIC allows for a read in the range of 0xFEF00000 ->
 	 * 0xFEFFFFFF to generate a PCI interrupt-acknowledge transaction.
 	 */
-	i8259_init(0xfef00000);
+	i8259_init(0xfef00000, 0);
 }
 
 static unsigned long __init

@@ -87,7 +87,6 @@ extern int pSeries_machine_check_exception(struct pt_regs *regs);
 static void pseries_shared_idle(void);
 static void pseries_dedicated_idle(void);
 
-static volatile void __iomem * chrp_int_ack_special;
 struct mpic *pSeries_mpic;
 
 void pSeries_show_cpuinfo(struct seq_file *m)
@@ -119,19 +118,11 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-static int pSeries_irq_cascade(struct pt_regs *regs, void *data)
-{
-	if (chrp_int_ack_special)
-		return readb(chrp_int_ack_special);
-	else
-		return i8259_irq(regs);
-}
-
 static void __init pSeries_init_mpic(void)
 {
         unsigned int *addrp;
 	struct device_node *np;
-        int i;
+	unsigned long intack = 0;
 
 	/* All ISUs are setup, complete initialization */
 	mpic_init(pSeries_mpic);
@@ -142,16 +133,14 @@ static void __init pSeries_init_mpic(void)
                  get_property(np, "8259-interrupt-acknowledge", NULL)))
                 printk(KERN_ERR "Cannot find pci to get ack address\n");
         else
-		chrp_int_ack_special = ioremap(addrp[prom_n_addr_cells(np)-1], 1);
+		intack = addrp[prom_n_addr_cells(np)-1];
 	of_node_put(np);
 
 	/* Setup the legacy interrupts & controller */
-        for (i = 0; i < NUM_ISA_INTERRUPTS; i++)
-                irq_desc[i].handler = &i8259_pic;
-	i8259_init(0);
+	i8259_init(intack, 0);
 
 	/* Hook cascade to mpic */
-	mpic_setup_cascade(NUM_ISA_INTERRUPTS, pSeries_irq_cascade, NULL);
+	mpic_setup_cascade(NUM_ISA_INTERRUPTS, i8259_irq_cascade, NULL);
 }
 
 static void __init pSeries_setup_mpic(void)

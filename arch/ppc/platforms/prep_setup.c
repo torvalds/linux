@@ -954,11 +954,9 @@ prep_init_IRQ(void)
 		openpic_hookup_cascade(NUM_8259_INTERRUPTS, "82c59 cascade",
 				       i8259_irq);
 	}
-	for ( i = 0 ; i < NUM_8259_INTERRUPTS ; i++ )
-		irq_desc[i].handler = &i8259_pic;
 
 	if (have_residual_data) {
-		i8259_init(residual_isapic_addr());
+		i8259_init(residual_isapic_addr(), 0);
 		return;
 	}
 
@@ -969,11 +967,11 @@ prep_init_IRQ(void)
 	if (((pci_viddid & 0xffff) == PCI_VENDOR_ID_MOTOROLA)
 			&& ((pci_did == PCI_DEVICE_ID_MOTOROLA_RAVEN)
 				|| (pci_did == PCI_DEVICE_ID_MOTOROLA_HAWK)))
-		i8259_init(0);
+		i8259_init(0, 0);
 	else
 		/* PCI interrupt ack address given in section 6.1.8 of the
 		 * PReP specification. */
-		i8259_init(MPC10X_MAPA_PCI_INTACK_ADDR);
+		i8259_init(MPC10X_MAPA_PCI_INTACK_ADDR, 0);
 }
 
 #if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)

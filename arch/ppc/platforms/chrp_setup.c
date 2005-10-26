@@ -436,9 +436,7 @@ void __init chrp_init_IRQ(void)
 				       i8259_irq);
 
 	}
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-	i8259_init(chrp_int_ack);
+	i8259_init(chrp_int_ack, 0);
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
 	/* see if there is a keyboard in the device tree

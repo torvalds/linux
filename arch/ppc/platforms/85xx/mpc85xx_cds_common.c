@@ -173,10 +173,7 @@ mpc85xx_cds_init_IRQ(void)
 #ifdef CONFIG_PCI
 	openpic_hookup_cascade(PIRQ0A, "82c59 cascade", i8259_irq);
 
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	i8259_init(0);
+	i8259_init(0, 0);
 #endif
 
 #ifdef CONFIG_CPM2

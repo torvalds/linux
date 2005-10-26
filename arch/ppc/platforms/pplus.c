@@ -665,10 +665,7 @@ static void __init pplus_init_IRQ(void)
 		ppc_md.get_irq = openpic_get_irq;
 	}
 
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	i8259_init(0);
+	i8259_init(0, 0);
 
 	if (ppc_md.progress)
 		ppc_md.progress("init_irq: exit", 0);

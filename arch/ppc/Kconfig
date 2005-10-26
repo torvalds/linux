@@ -589,6 +589,7 @@ config EV64260
 
 config LOPEC
 	bool "Motorola-LoPEC"
+	select PPC_I8259
 
 config MVME5100
 	bool "Motorola-MVME5100"
@@ -596,6 +597,7 @@ config MVME5100
 
 config PPLUS
 	bool "Motorola-PowerPlus"
+	select PPC_I8259
 	select PPC_INDIRECT_PCI
 
 config PRPMC750
@@ -608,12 +610,14 @@ config PRPMC800
 
 config SANDPOINT
 	bool "Motorola-Sandpoint"
+	select PPC_I8259
 	help
 	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
 	  (any flavor).
 
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
+	select PPC_I8259
 
 config PAL4
 	bool "SBS-Palomar4"
@@ -755,6 +759,7 @@ config CPM2
 config PPC_CHRP
 	bool "  Common Hardware Reference Platform (CHRP) based machines"
 	depends on PPC_MULTIPLATFORM
+	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
 
@@ -772,6 +777,7 @@ config PPC_PMAC64
 config PPC_PREP
 	bool "  PowerPC Reference Platform (PReP) based machines"
 	depends on PPC_MULTIPLATFORM
+	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
 
@@ -881,6 +887,7 @@ config HARRIER_STORE_GATHERING
 config MVME5100_IPMC761_PRESENT
 	bool "MVME5100 configured with an IPMC761"
 	depends on MVME5100
+	select PPC_I8259
 
 config SPRUCE_BAUD_33M
 	bool "Spruce baud clock support"
@@ -1138,6 +1145,7 @@ menu "Bus options"
 config ISA
 	bool "Support for ISA-bus hardware"
 	depends on PPC_PREP || PPC_CHRP
+	select PPC_I8259
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -1149,6 +1157,11 @@ config GENERIC_ISA_DMA
 	bool
 	depends on POWER3 || POWER4 || 6xx && !CPM2
 	default y
+
+config PPC_I8259
+	bool
+	default y if 85xx
+	default n
 
 config PPC_INDIRECT_PCI
 	bool
@@ -1192,6 +1205,7 @@ config MPC83xx_PCI2
 config PCI_QSPAN
 	bool "QSpan PCI"
 	depends on !4xx && !CPM2 && 8xx
+	select PPC_I8259
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
 	  embedded processor with a QSPAN PCI interface, otherwise say N.

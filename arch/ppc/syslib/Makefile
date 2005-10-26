@@ -36,14 +36,12 @@ endif
 endif
 obj-$(CONFIG_8xx)		+= m8xx_setup.o ppc8xx_pic.o $(wdt-mpc8xx-y) \
 				   ppc_sys.o mpc8xx_devices.o mpc8xx_sys.o
-ifeq ($(CONFIG_8xx),y)
-obj-$(CONFIG_PCI)		+= qspan_pci.o i8259.o
-endif
+obj-$(CONFIG_PCI_QSPAN)		+= qspan_pci.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o prom.o
 obj-$(CONFIG_PPC_PMAC)		+= open_pic.o
 obj-$(CONFIG_POWER4)		+= open_pic2.o
-obj-$(CONFIG_PPC_CHRP)		+= open_pic.o i8259.o
-obj-$(CONFIG_PPC_PREP)		+= open_pic.o i8259.o todc_time.o
+obj-$(CONFIG_PPC_CHRP)		+= open_pic.o
+obj-$(CONFIG_PPC_PREP)		+= open_pic.o todc_time.o
 obj-$(CONFIG_BAMBOO)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_CPCI690)		+= todc_time.o pci_auto.o
 obj-$(CONFIG_EBONY)		+= pci_auto.o todc_time.o
@@ -51,7 +49,7 @@ obj-$(CONFIG_EV64260)		+= todc_time.o pci_auto.o
 obj-$(CONFIG_CHESTNUT)		+= mv64360_pic.o pci_auto.o
 obj-$(CONFIG_GEMINI)		+= open_pic.o
 obj-$(CONFIG_GT64260)		+= gt64260_pic.o
-obj-$(CONFIG_LOPEC)		+= i8259.o pci_auto.o todc_time.o
+obj-$(CONFIG_LOPEC)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_HDPU)		+= pci_auto.o
 obj-$(CONFIG_LUAN)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_KATANA)		+= pci_auto.o
@@ -59,18 +57,17 @@ obj-$(CONFIG_MV64360)		+= mv64360_pic.o
 obj-$(CONFIG_MV64X60)		+= mv64x60.o mv64x60_win.o
 obj-$(CONFIG_MVME5100)		+= open_pic.o todc_time.o \
 					pci_auto.o hawk_common.o
-obj-$(CONFIG_MVME5100_IPMC761_PRESENT)	+= i8259.o
 obj-$(CONFIG_OCOTEA)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_PAL4)		+= cpc700_pic.o
 obj-$(CONFIG_POWERPMC250)	+= pci_auto.o
-obj-$(CONFIG_PPLUS)		+= hawk_common.o open_pic.o i8259.o \
+obj-$(CONFIG_PPLUS)		+= hawk_common.o open_pic.o \
 				   todc_time.o pci_auto.o
 obj-$(CONFIG_PRPMC750)		+= open_pic.o pci_auto.o \
 					hawk_common.o
 obj-$(CONFIG_HARRIER)		+= harrier.o
 obj-$(CONFIG_PRPMC800)		+= open_pic.o pci_auto.o
-obj-$(CONFIG_RADSTONE_PPC7D)	+= i8259.o pci_auto.o
-obj-$(CONFIG_SANDPOINT)		+= i8259.o pci_auto.o todc_time.o
+obj-$(CONFIG_RADSTONE_PPC7D)	+= pci_auto.o
+obj-$(CONFIG_SANDPOINT)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_SBC82xx)		+= todc_time.o
 obj-$(CONFIG_SPRUCE)		+= cpc700_pic.o pci_auto.o \
 				   todc_time.o
@@ -92,7 +89,7 @@ obj-$(CONFIG_MPC10X_OPENPIC)	+= open_pic.o
 obj-$(CONFIG_40x)		+= dcr.o
 obj-$(CONFIG_BOOKE)		+= dcr.o
 obj-$(CONFIG_85xx)		+= open_pic.o ppc85xx_common.o ppc85xx_setup.o \
-					ppc_sys.o i8259.o mpc85xx_sys.o \
+					ppc_sys.o mpc85xx_sys.o \
 					mpc85xx_devices.o
 ifeq ($(CONFIG_85xx),y)
 obj-$(CONFIG_PCI)		+= pci_auto.o

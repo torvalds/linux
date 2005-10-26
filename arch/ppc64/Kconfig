@@ -123,6 +123,11 @@ config MPIC
 	bool
 	default y
 
+config PPC_I8259
+	depends on PPC_PSERIES
+	bool
+	default y
+
 config BPA_IIC
 	depends on PPC_BPA
 	bool

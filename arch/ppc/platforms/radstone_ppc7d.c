@@ -514,13 +514,9 @@ static void __init ppc7d_init_irq(void)
 	int irq;
 
 	pr_debug("%s\n", __FUNCTION__);
-	i8259_init(0);
+	i8259_init(0, 0);
 	mv64360_init_irq();
 
-	/* IRQ 0..15 are handled by the cascaded 8259's of the Ali1535 */
-	for (irq = 0; irq < 16; irq++) {
-		irq_desc[irq].handler = &i8259_pic;
-	}
 	/* IRQs 5,6,9,10,11,14,15 are level sensitive */
 	irq_desc[5].status |= IRQ_LEVEL;
 	irq_desc[6].status |= IRQ_LEVEL;
