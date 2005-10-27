@@ -1,6 +1,8 @@
 #ifndef _ALPHA_ATOMIC_H
 #define _ALPHA_ATOMIC_H
 
+#include <asm/barrier.h>
+
 /*
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc...
@@ -100,18 +102,19 @@ static __inline__ void atomic64_sub(long i, atomic64_t * v)
 static __inline__ long atomic_add_return(int i, atomic_t * v)
 {
 	long temp, result;
+	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldl_l %0,%1\n"
 	"	addl %0,%3,%2\n"
 	"	addl %0,%3,%0\n"
 	"	stl_c %0,%1\n"
 	"	beq %0,2f\n"
-	"	mb\n"
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)
 	:"Ir" (i), "m" (v->counter) : "memory");
+	smp_mb();
 	return result;
 }
 
@@ -120,54 +123,57 @@ static __inline__ long atomic_add_return(int i, atomic_t * v)
 static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 {
 	long temp, result;
+	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldq_l %0,%1\n"
 	"	addq %0,%3,%2\n"
 	"	addq %0,%3,%0\n"
 	"	stq_c %0,%1\n"
 	"	beq %0,2f\n"
-	"	mb\n"
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)
 	:"Ir" (i), "m" (v->counter) : "memory");
+	smp_mb();
 	return result;
 }
 
 static __inline__ long atomic_sub_return(int i, atomic_t * v)
 {
 	long temp, result;
+	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldl_l %0,%1\n"
 	"	subl %0,%3,%2\n"
 	"	subl %0,%3,%0\n"
 	"	stl_c %0,%1\n"
 	"	beq %0,2f\n"
-	"	mb\n"
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)
 	:"Ir" (i), "m" (v->counter) : "memory");
+	smp_mb();
 	return result;
 }
 
 static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 {
 	long temp, result;
+	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldq_l %0,%1\n"
 	"	subq %0,%3,%2\n"
 	"	subq %0,%3,%0\n"
 	"	stq_c %0,%1\n"
 	"	beq %0,2f\n"
-	"	mb\n"
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
 	:"=&r" (temp), "=m" (v->counter), "=&r" (result)
 	:"Ir" (i), "m" (v->counter) : "memory");
+	smp_mb();
 	return result;
 }
 

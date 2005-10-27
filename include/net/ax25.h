@@ -171,7 +171,7 @@ typedef struct {
 	ax25_address		calls[AX25_MAX_DIGIS];
 	unsigned char		repeated[AX25_MAX_DIGIS];
 	unsigned char		ndigi;
-	char			lastrepeat;
+	signed char		lastrepeat;
 } ax25_digi;
 
 typedef struct ax25_route {
