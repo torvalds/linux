@@ -702,6 +702,17 @@ static void __init emergency_stack_init(void)
 						limit)) + PAGE_SIZE;
 }
 
+extern unsigned long *sys_call_table;
+extern unsigned long sys_ni_syscall;
+#ifdef CONFIG_PPC_MERGE
+#define SYS_CALL_ENTRY64(i)	sys_call_table[(i) * 2]
+#define SYS_CALL_ENTRY32(i)	sys_call_table[(i) * 2 + 1]
+#else
+extern unsigned long *sys_call_table32;
+#define SYS_CALL_ENTRY64(i)	sys_call_table[(i)]
+#define SYS_CALL_ENTRY32(i)	sys_call_table32[(i)]
+#endif
+
 /*
  * Called from setup_arch to initialize the bitmap of available
  * syscalls in the systemcfg page
@@ -709,17 +720,14 @@ static void __init emergency_stack_init(void)
 void __init setup_syscall_map(void)
 {
 	unsigned int i, count64 = 0, count32 = 0;
-	extern unsigned long *sys_call_table;
-	extern unsigned long sys_ni_syscall;
-
 
 	for (i = 0; i < __NR_syscalls; i++) {
-		if (sys_call_table[i*2] != sys_ni_syscall) {
+		if (SYS_CALL_ENTRY64(i) != sys_ni_syscall) {
 			count64++;
 			systemcfg->syscall_map_64[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
 		}
-		if (sys_call_table[i*2+1] != sys_ni_syscall) {
+		if (SYS_CALL_ENTRY32(i) != sys_ni_syscall) {
 			count32++;
 			systemcfg->syscall_map_32[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
