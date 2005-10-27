@@ -33,11 +33,12 @@ extra-y				+= vmlinux.lds
 
 obj-y				+= process.o init_task.o time.o \
 				   prom.o systbl.o traps.o setup-common.o
-obj-$(CONFIG_PPC32)		+= entry_32.o idle_6xx.o setup_32.o misc_32.o
+obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= misc_64.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
+obj-$(CONFIG_6xx)		+= idle_6xx.o
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 $(obj)/head_64.o: $(obj)/lparmap.s
