@@ -21,8 +21,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
  */
 
-#pragma pack(1)
-
 /* NB: unlike smb/cifs packets, the RFC1002 structures are big endian */
 
 	/* RFC 1002 session packet types */
@@ -48,17 +46,17 @@ struct rfc1002_session_packet {
 			__u8 calling_len;
 			__u8 calling_name[32];
 			__u8 scope2; /* null */
-		} session_req;
+		} __attribute__((packed)) session_req;
 		struct {
 			__u32 retarget_ip_addr;
 			__u16 port;
-		} retarget_resp;
+		} __attribute__((packed)) retarget_resp;
 		__u8 neg_ses_resp_error_code;
 		/* POSITIVE_SESSION_RESPONSE packet does not include trailer.
 		SESSION_KEEP_ALIVE packet also does not include a trailer.
 		Trailer for the SESSION_MESSAGE packet is SMB/CIFS header */
-	} trailer;
-};
+	} __attribute__((packed)) trailer;
+} __attribute__((packed));
 
 /* Negative Session Response error codes */
 #define RFC1002_NOT_LISTENING_CALLED  0x80 /* not listening on called name */
@@ -74,6 +72,3 @@ server netbios name). Currently server names are resolved only via DNS
 (tcp name) or ip address or an /etc/hosts equivalent mapping to ip address.*/
 
 #define DEFAULT_CIFS_CALLED_NAME  "*SMBSERVER      "
-
-#pragma pack()		/* resume default structure packing */
-                                                             
