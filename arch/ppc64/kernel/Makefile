@@ -60,8 +60,6 @@ obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
 obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o \
 				   udbg_16550.o
 
-obj-$(CONFIG_U3_DART)		+= u3_iommu.o
-
 ifdef CONFIG_SMP
 obj-$(CONFIG_PPC_PMAC)		+= smp-tbsync.o
 obj-$(CONFIG_PPC_MAPLE)		+= smp-tbsync.o
