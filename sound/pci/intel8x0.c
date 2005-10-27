@@ -69,7 +69,7 @@ static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int ac97_clock = 0;
 static char *ac97_quirk;
 static int buggy_semaphore;
-static int buggy_irq;
+static int buggy_irq = -1; /* auto-check */
 static int xbox;
 
 module_param(index, int, 0444);
@@ -2636,12 +2636,6 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
 		chip->fix_nocache = 1; /* enable workaround */
 
-	/* some Nforce[2] and ICH boards have problems with IRQ handling.
-	 * Needs to return IRQ_HANDLED for unknown irqs.
-	 */
-	if (device_type == DEVICE_NFORCE)
-		chip->buggy_irq = 1;
-
 	if ((err = pci_request_regions(pci, card->shortname)) < 0) {
 		kfree(chip);
 		pci_disable_device(pci);
@@ -2682,15 +2676,6 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	}
 
  port_inited:
-	if (request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
-		snd_intel8x0_free(chip);
-		return -EBUSY;
-	}
-	chip->irq = pci->irq;
-	pci_set_master(pci);
-	synchronize_irq(chip->irq);
-
 	chip->bdbars_count = bdbars[device_type];
 
 	/* initialize offsets */
@@ -2741,12 +2726,26 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	int_sta_masks = 0;
 	for (i = 0; i < chip->bdbars_count; i++) {
 		ichdev = &chip->ichd[i];
-		ichdev->bdbar = ((u32 *)chip->bdbars.area) + (i * ICH_MAX_FRAGS * 2);
-		ichdev->bdbar_addr = chip->bdbars.addr + (i * sizeof(u32) * ICH_MAX_FRAGS * 2);
+		ichdev->bdbar = ((u32 *)chip->bdbars.area) +
+			(i * ICH_MAX_FRAGS * 2);
+		ichdev->bdbar_addr = chip->bdbars.addr +
+			(i * sizeof(u32) * ICH_MAX_FRAGS * 2);
 		int_sta_masks |= ichdev->int_sta_mask;
 	}
-	chip->int_sta_reg = device_type == DEVICE_ALI ? ICH_REG_ALI_INTERRUPTSR : ICH_REG_GLOB_STA;
+	chip->int_sta_reg = device_type == DEVICE_ALI ?
+		ICH_REG_ALI_INTERRUPTSR : ICH_REG_GLOB_STA;
 	chip->int_sta_mask = int_sta_masks;
+
+	/* request irq after initializaing int_sta_mask, etc */
+	if (request_irq(pci->irq, snd_intel8x0_interrupt,
+			SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		snd_intel8x0_free(chip);
+		return -EBUSY;
+	}
+	chip->irq = pci->irq;
+	pci_set_master(pci);
+	synchronize_irq(chip->irq);
 
 	if ((err = snd_intel8x0_chip_init(chip, 1)) < 0) {
 		snd_intel8x0_free(chip);
@@ -2825,6 +2824,16 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 			strcpy(card->shortname, name->s);
 			break;
 		}
+	}
+
+	if (buggy_irq < 0) {
+		/* some Nforce[2] and ICH boards have problems with IRQ handling.
+		 * Needs to return IRQ_HANDLED for unknown irqs.
+		 */
+		if (pci_id->driver_data == DEVICE_NFORCE)
+			buggy_irq = 1;
+		else
+			buggy_irq = 0;
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
