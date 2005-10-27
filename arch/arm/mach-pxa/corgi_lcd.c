@@ -488,6 +488,7 @@ static int is_pxafb_device(struct device * dev, void * data)
 
 unsigned long spitz_get_hsync_len(void)
 {
+#ifdef CONFIG_FB_PXA
 	if (!spitz_pxafb_dev) {
 		spitz_pxafb_dev = bus_find_device(&platform_bus_type, NULL, NULL, is_pxafb_device);
 		if (!spitz_pxafb_dev)
@@ -496,6 +497,7 @@ unsigned long spitz_get_hsync_len(void)
 	if (!get_hsync_time)
 		get_hsync_time = symbol_get(pxafb_get_hsync_time);
 	if (!get_hsync_time)
+#endif
 		return 0;
 
 	return pxafb_get_hsync_time(spitz_pxafb_dev);

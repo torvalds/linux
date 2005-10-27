@@ -483,7 +483,7 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 						goto done;
 					}
 					fl1 = sfl->fl;
-					atomic_inc(&fl->users);
+					atomic_inc(&fl1->users);
 					break;
 				}
 			}
