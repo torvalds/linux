@@ -497,7 +497,7 @@ static void process_timer_rebalance(struct task_struct *p,
 		left = cputime_div(cputime_sub(expires.cpu, val.cpu),
 				   nthreads);
 		do {
-			if (!unlikely(t->exit_state)) {
+			if (!unlikely(t->flags & PF_EXITING)) {
 				ticks = cputime_add(prof_ticks(t), left);
 				if (cputime_eq(t->it_prof_expires,
 					       cputime_zero) ||
@@ -512,7 +512,7 @@ static void process_timer_rebalance(struct task_struct *p,
 		left = cputime_div(cputime_sub(expires.cpu, val.cpu),
 				   nthreads);
 		do {
-			if (!unlikely(t->exit_state)) {
+			if (!unlikely(t->flags & PF_EXITING)) {
 				ticks = cputime_add(virt_ticks(t), left);
 				if (cputime_eq(t->it_virt_expires,
 					       cputime_zero) ||
@@ -527,7 +527,7 @@ static void process_timer_rebalance(struct task_struct *p,
 		nsleft = expires.sched - val.sched;
 		do_div(nsleft, nthreads);
 		do {
-			if (!unlikely(t->exit_state)) {
+			if (!unlikely(t->flags & PF_EXITING)) {
 				ns = t->sched_time + nsleft;
 				if (t->it_sched_expires == 0 ||
 				    t->it_sched_expires > ns) {
@@ -565,6 +565,9 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 	struct cpu_timer_list *const nt = &timer->it.cpu;
 	struct cpu_timer_list *next;
 	unsigned long i;
+
+	if (CPUCLOCK_PERTHREAD(timer->it_clock)	&& (p->flags & PF_EXITING))
+		return;
 
 	head = (CPUCLOCK_PERTHREAD(timer->it_clock) ?
 		p->cpu_timers : p->signal->cpu_timers);
@@ -1204,7 +1207,7 @@ static void check_process_timers(struct task_struct *tsk,
 
 			do {
 				t = next_thread(t);
-			} while (unlikely(t->exit_state));
+			} while (unlikely(t->flags & PF_EXITING));
 		} while (t != tsk);
 	}
 }
