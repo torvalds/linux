@@ -843,6 +843,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
  		del_timer_sync(&tsk->signal->real_timer);
+		exit_itimers(tsk->signal);
 		acct_process(code);
 	}
 	exit_mm(tsk);

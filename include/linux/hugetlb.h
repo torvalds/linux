@@ -25,6 +25,8 @@ int is_hugepage_mem_enough(size_t);
 unsigned long hugetlb_total_pages(void);
 struct page *alloc_huge_page(void);
 void free_huge_page(struct page *);
+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, int write_access);
 
 extern unsigned long max_huge_pages;
 extern const unsigned long hugetlb_zero, hugetlb_infinity;
@@ -99,6 +101,7 @@ static inline unsigned long hugetlb_total_pages(void)
 						do { } while (0)
 #define alloc_huge_page()			({ NULL; })
 #define free_huge_page(p)			({ (void)(p); BUG(); })
+#define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
 
 #ifndef HPAGE_MASK
 #define HPAGE_MASK	0		/* Keep the compiler happy */
@@ -155,24 +158,11 @@ static inline void set_file_hugepages(struct file *file)
 {
 	file->f_op = &hugetlbfs_file_operations;
 }
-
-static inline int valid_hugetlb_file_off(struct vm_area_struct *vma, 
-					  unsigned long address) 
-{
-	struct inode *inode = vma->vm_file->f_dentry->d_inode;
-	loff_t file_off = address - vma->vm_start;
-	
-	file_off += (vma->vm_pgoff << PAGE_SHIFT);
-	
-	return (file_off < inode->i_size);
-}
-
 #else /* !CONFIG_HUGETLBFS */
 
 #define is_file_hugepages(file)		0
 #define set_file_hugepages(file)	BUG()
 #define hugetlb_zero_setup(size)	ERR_PTR(-ENOSYS)
-#define valid_hugetlb_file_off(vma, address) 	0
 
 #endif /* !CONFIG_HUGETLBFS */
 

@@ -3568,7 +3568,8 @@ static void md_do_sync(mddev_t *mddev)
 		mddev->curr_resync = 2;
 
 	try_again:
-		if (signal_pending(current)) {
+		if (signal_pending(current) ||
+		    kthread_should_stop()) {
 			flush_signals(current);
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			goto skip;
@@ -3590,8 +3591,9 @@ static void md_do_sync(mddev_t *mddev)
 					 */
 					continue;
 				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
-				if (!signal_pending(current)
-				    && mddev2->curr_resync >= mddev->curr_resync) {
+				if (!signal_pending(current) &&
+				    !kthread_should_stop() &&
+				    mddev2->curr_resync >= mddev->curr_resync) {
 					printk(KERN_INFO "md: delaying resync of %s"
 					       " until %s has finished resync (they"
 					       " share one or more physical units)\n",
@@ -3697,7 +3699,7 @@ static void md_do_sync(mddev_t *mddev)
 		}
 
 
-		if (signal_pending(current)) {
+		if (signal_pending(current) || kthread_should_stop()) {
 			/*
 			 * got a signal, exit.
 			 */
