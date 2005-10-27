@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -706,9 +707,13 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 
 	MTHCA_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
 	dev->cmd.max_cmds = 1 << lg;
+	MTHCA_GET(dev->catas_err.addr, outbox, QUERY_FW_ERR_START_OFFSET);
+	MTHCA_GET(dev->catas_err.size, outbox, QUERY_FW_ERR_SIZE_OFFSET);
 
 	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
 		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
+	mthca_dbg(dev, "Catastrophic error buffer at 0x%llx, size 0x%x\n",
+		  (unsigned long long) dev->catas_err.addr, dev->catas_err.size);
 
 	if (mthca_is_memfree(dev)) {
 		MTHCA_GET(dev->fw.arbel.fw_pages,       outbox, QUERY_FW_SIZE_OFFSET);

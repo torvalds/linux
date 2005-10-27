@@ -258,6 +258,14 @@ struct mthca_mcg_table {
 	struct mthca_icm_table *table;
 };
 
+struct mthca_catas_err {
+	u64			addr;
+	u32 __iomem	       *map;
+	unsigned long		stop;
+	u32			size;
+	struct timer_list	timer;
+};
+
 struct mthca_dev {
 	struct ib_device  ib_dev;
 	struct pci_dev   *pdev;
@@ -317,6 +325,8 @@ struct mthca_dev {
 	struct mthca_qp_table  qp_table;
 	struct mthca_av_table  av_table;
 	struct mthca_mcg_table mcg_table;
+
+	struct mthca_catas_err catas_err;
 
 	struct mthca_uar       driver_uar;
 	struct mthca_db_table *db_tab;
@@ -404,6 +414,9 @@ void mthca_cleanup_mcg_table(struct mthca_dev *dev);
 
 int mthca_register_device(struct mthca_dev *dev);
 void mthca_unregister_device(struct mthca_dev *dev);
+
+void mthca_start_catas_poll(struct mthca_dev *dev);
+void mthca_stop_catas_poll(struct mthca_dev *dev);
 
 int mthca_uar_alloc(struct mthca_dev *dev, struct mthca_uar *uar);
 void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);

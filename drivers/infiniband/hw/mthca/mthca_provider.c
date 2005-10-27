@@ -1175,10 +1175,13 @@ int mthca_register_device(struct mthca_dev *dev)
 		}
 	}
 
+	mthca_start_catas_poll(dev);
+
 	return 0;
 }
 
 void mthca_unregister_device(struct mthca_dev *dev)
 {
+	mthca_stop_catas_poll(dev);
 	ib_unregister_device(&dev->ib_dev);
 }
