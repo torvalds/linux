@@ -3,4 +3,3 @@
 #
 
 lib-y := string.o
-lib-y += usercopy.o
