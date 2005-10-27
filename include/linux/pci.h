@@ -433,8 +433,13 @@ int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 			   void *alignf_data);
 void pci_enable_bridges(struct pci_bus *bus);
 
-/* New-style probing supporting hot-pluggable devices */
-int pci_register_driver(struct pci_driver *);
+/* Proper probing supporting hot-pluggable devices */
+int __pci_register_driver(struct pci_driver *, struct module *);
+static inline int pci_register_driver(struct pci_driver *driver)
+{
+	return __pci_register_driver(driver, THIS_MODULE);
+}
+
 void pci_unregister_driver(struct pci_driver *);
 void pci_remove_behind_bridge(struct pci_dev *);
 struct pci_driver *pci_dev_driver(const struct pci_dev *);
@@ -548,6 +553,7 @@ static inline int pci_enable_device(struct pci_dev *dev) { return -EIO; }
 static inline void pci_disable_device(struct pci_dev *dev) { }
 static inline int pci_set_dma_mask(struct pci_dev *dev, u64 mask) { return -EIO; }
 static inline int pci_assign_resource(struct pci_dev *dev, int i) { return -EBUSY;}
+static inline int __pci_register_driver(struct pci_driver *drv, struct module *owner) { return 0;}
 static inline int pci_register_driver(struct pci_driver *drv) { return 0;}
 static inline void pci_unregister_driver(struct pci_driver *drv) { }
 static inline int pci_find_capability (struct pci_dev *dev, int cap) {return 0; }
