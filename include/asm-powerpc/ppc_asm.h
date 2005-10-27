@@ -154,7 +154,7 @@ n:
  *   loads the address of 'name' into 'rn'
  *
  * LOADBASE( rn, name )
- *   loads the address (less the low 16 bits) of 'name' into 'rn'
+ *   loads the address (possibly without the low 16 bits) of 'name' into 'rn'
  *   suitable for base+disp addressing
  */
 #ifdef __powerpc64__
@@ -166,10 +166,7 @@ n:
 	ori	rn,rn,name##@l
 
 #define LOADBASE(rn,name)		\
-	.section .toc,"aw";		\
-1:	.tc	name[TC],name;		\
-	.previous;			\
-	ld	rn,1b@toc(r2)
+	ld	rn,name@got(r2)
 
 #define OFF(name)	0
 
@@ -278,6 +275,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 
 
 #if defined(CONFIG_BOOKE)
+#define toreal(rd)
+#define fromreal(rd)
+
 #define tophys(rd,rs)				\
 	addis	rd,rs,0
 
@@ -285,23 +285,24 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	addis	rd,rs,0
 
 #elif defined(CONFIG_PPC64)
-/* PPPBBB - DRENG  If KERNELBASE is always 0xC0...,
- * Then we can easily do this with one asm insn. -Peter
- */
+#define toreal(rd)		/* we can access c000... in real mode */
+#define fromreal(rd)
+
 #define tophys(rd,rs)                           \
-        lis     rd,((KERNELBASE>>48)&0xFFFF);   \
-        rldicr  rd,rd,32,31;                    \
-        sub     rd,rs,rd
+	clrldi	rd,rs,2
 
 #define tovirt(rd,rs)                           \
-        lis     rd,((KERNELBASE>>48)&0xFFFF);   \
-        rldicr  rd,rd,32,31;                    \
-        add     rd,rs,rd
+	rotldi	rd,rs,16;			\
+	ori	rd,rd,((KERNELBASE>>48)&0xFFFF);\
+	rotldi	rd,rd,48
 #else
 /*
  * On APUS (Amiga PowerPC cpu upgrade board), we don't know the
  * physical base address of RAM at compile time.
  */
+#define toreal(rd)	tophys(rd,rd)
+#define fromreal(rd)	tovirt(rd,rd)
+
 #define tophys(rd,rs)				\
 0:	addis	rd,rs,-KERNELBASE@h;		\
 	.section ".vtop_fixup","aw";		\

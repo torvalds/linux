@@ -40,17 +40,17 @@ _GLOBAL(load_up_fpu)
  */
 #ifndef CONFIG_SMP
 	LOADBASE(r3, last_task_used_math)
-	tophys(r3,r3)
+	toreal(r3)
 	LDL	r4,OFF(last_task_used_math)(r3)
 	CMPI	0,r4,0
 	beq	1f
-	tophys(r4,r4)
+	toreal(r4)
 	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
 	SAVE_32FPRS(0, r4)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR(r4)
 	LDL	r5,PT_REGS(r4)
-	tophys(r5,r5)
+	toreal(r5)
 	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	li	r10,MSR_FP|MSR_FE0|MSR_FE1
 	andc	r4,r4,r10		/* disable FP for previous task */
@@ -76,7 +76,7 @@ _GLOBAL(load_up_fpu)
 	REST_32FPRS(0, r5)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
-	tovirt(r4,r4)
+	fromreal(r4)
 	STL	r4,OFF(last_task_used_math)(r3)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
