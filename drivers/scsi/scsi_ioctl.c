@@ -278,7 +278,7 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 	 * Obtain the data to be sent to the device (if any).
 	 */
 
-	if(copy_from_user(buf, cmd_in + cmdlen, inlen))
+	if(inlen && copy_from_user(buf, cmd_in + cmdlen, inlen))
 		goto error;
 
 	switch (opcode) {
@@ -322,7 +322,7 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 		if (copy_to_user(cmd_in, sense, sb_len))
 			result = -EFAULT;
 	} else {
-		if (copy_to_user(cmd_in, buf, outlen))
+		if (outlen && copy_to_user(cmd_in, buf, outlen))
 			result = -EFAULT;
 	}	
 
