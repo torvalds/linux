@@ -1372,7 +1372,6 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	nvram_t         *nv = (nvram_t *)ha->request_ring;
 	uint8_t         *ptr = (uint8_t *)ha->request_ring;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-	uint8_t         timer_mode;
 
 	rval = QLA_SUCCESS;
 
@@ -1650,22 +1649,26 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 
 		ha->flags.process_response_queue = 1;
 	} else {
-		/* Enable ZIO -- Support mode 5 only. */
-		timer_mode = icb->add_firmware_options[0] &
-		    (BIT_3 | BIT_2 | BIT_1 | BIT_0);
+		/* Enable ZIO. */
+		if (!ha->flags.init_done) {
+			ha->zio_mode = icb->add_firmware_options[0] &
+			    (BIT_3 | BIT_2 | BIT_1 | BIT_0);
+			ha->zio_timer = icb->interrupt_delay_timer ?
+			    icb->interrupt_delay_timer: 2;
+		}
 		icb->add_firmware_options[0] &=
 		    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0);
-		if (ql2xenablezio)
-			timer_mode = BIT_2 | BIT_0;
-		if (timer_mode == (BIT_2 | BIT_0)) {
-			DEBUG2(printk("scsi(%ld): ZIO enabled; timer delay "
-			    "(%d).\n", ha->host_no, ql2xintrdelaytimer));
+		ha->flags.process_response_queue = 0;
+		if (ha->zio_mode != QLA_ZIO_DISABLED) {
+			DEBUG2(printk("scsi(%ld): ZIO mode %d enabled; timer "
+			    "delay (%d us).\n", ha->host_no, ha->zio_mode,
+			    ha->zio_timer * 100));
 			qla_printk(KERN_INFO, ha,
-			    "ZIO enabled; timer delay (%d).\n",
-			    ql2xintrdelaytimer);
+			    "ZIO mode %d enabled; timer delay (%d us).\n",
+			    ha->zio_mode, ha->zio_timer * 100);
 
-			icb->add_firmware_options[0] |= timer_mode;
-			icb->interrupt_delay_timer = ql2xintrdelaytimer;
+			icb->add_firmware_options[0] |= (uint8_t)ha->zio_mode;
+			icb->interrupt_delay_timer = (uint8_t)ha->zio_timer;
 			ha->flags.process_response_queue = 1;
 		}
 	}
@@ -3441,6 +3444,30 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		ha->login_retry_count = ha->port_down_retry_count;
 	if (ql2xloginretrycount)
 		ha->login_retry_count = ql2xloginretrycount;
+
+	/* Enable ZIO. */
+	if (!ha->flags.init_done) {
+		ha->zio_mode = le32_to_cpu(icb->firmware_options_2) &
+		    (BIT_3 | BIT_2 | BIT_1 | BIT_0);
+		ha->zio_timer = le16_to_cpu(icb->interrupt_delay_timer) ?
+		    le16_to_cpu(icb->interrupt_delay_timer): 2;
+	}
+	icb->firmware_options_2 &= __constant_cpu_to_le32(
+	    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0));
+	ha->flags.process_response_queue = 0;
+	if (ha->zio_mode != QLA_ZIO_DISABLED) {
+		DEBUG2(printk("scsi(%ld): ZIO mode %d enabled; timer delay "
+		    "(%d us).\n", ha->host_no, ha->zio_mode,
+		    ha->zio_timer * 100));
+		qla_printk(KERN_INFO, ha,
+		    "ZIO mode %d enabled; timer delay (%d us).\n",
+		    ha->zio_mode, ha->zio_timer * 100);
+
+		icb->firmware_options_2 |= cpu_to_le32(
+		    (uint32_t)ha->zio_mode);
+		icb->interrupt_delay_timer = cpu_to_le16(ha->zio_timer);
+		ha->flags.process_response_queue = 1;
+	}
 
 	if (rval) {
 		DEBUG2_3(printk(KERN_WARNING

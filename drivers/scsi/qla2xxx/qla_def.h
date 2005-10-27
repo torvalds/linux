@@ -823,6 +823,11 @@ typedef struct {
 #define PD_STATE_WAIT_PORT_LOGOUT_ACK		11
 
 
+#define QLA_ZIO_MODE_5		(BIT_2 | BIT_0)
+#define QLA_ZIO_MODE_6		(BIT_2 | BIT_1)
+#define QLA_ZIO_DISABLED	0
+#define QLA_ZIO_DEFAULT_TIMER	2
+
 /*
  * ISP Initialization Control Block.
  * Little endian except where noted.
@@ -2470,6 +2475,9 @@ typedef struct scsi_qla_host {
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
 	uint16_t	beacon_green_on;
+
+	uint16_t	zio_mode;
+	uint16_t	zio_timer;
 } scsi_qla_host_t;
 
 

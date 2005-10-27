@@ -319,6 +319,83 @@ qla2x00_state_show(struct class_device *cdev, char *buf)
 	return len;
 }
 
+static ssize_t
+qla2x00_zio_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int len = 0;
+
+	switch (ha->zio_mode) {
+	case QLA_ZIO_MODE_5:
+		len += snprintf(buf + len, PAGE_SIZE-len, "Mode 5\n");
+		break;
+	case QLA_ZIO_MODE_6:
+		len += snprintf(buf + len, PAGE_SIZE-len, "Mode 6\n");
+		break;
+	case QLA_ZIO_DISABLED:
+		len += snprintf(buf + len, PAGE_SIZE-len, "Disabled\n");
+		break;
+	}
+	return len;
+}
+
+static ssize_t
+qla2x00_zio_store(struct class_device *cdev, const char *buf, size_t count)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int val = 0;
+	uint16_t zio_mode;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	switch (val) {
+	case 1:
+		zio_mode = QLA_ZIO_MODE_5;
+		break;
+	case 2:
+		zio_mode = QLA_ZIO_MODE_6;
+		break;
+	default:
+		zio_mode = QLA_ZIO_DISABLED;
+		break;
+	}
+
+	/* Update per-hba values and queue a reset. */
+	if (zio_mode != QLA_ZIO_DISABLED || ha->zio_mode != QLA_ZIO_DISABLED) {
+		ha->zio_mode = zio_mode;
+		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+	}
+	return strlen(buf);
+}
+
+static ssize_t
+qla2x00_zio_timer_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d us\n", ha->zio_timer * 100);
+}
+
+static ssize_t
+qla2x00_zio_timer_store(struct class_device *cdev, const char *buf,
+    size_t count)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int val = 0;
+	uint16_t zio_timer;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+	if (val > 25500 || val < 100)
+		return -ERANGE;
+
+	zio_timer = (uint16_t)(val / 100);
+	ha->zio_timer = zio_timer;
+
+	return strlen(buf);
+}
+
 static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
 	NULL);
 static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
@@ -329,6 +406,10 @@ static CLASS_DEVICE_ATTR(model_name, S_IRUGO, qla2x00_model_name_show, NULL);
 static CLASS_DEVICE_ATTR(model_desc, S_IRUGO, qla2x00_model_desc_show, NULL);
 static CLASS_DEVICE_ATTR(pci_info, S_IRUGO, qla2x00_pci_info_show, NULL);
 static CLASS_DEVICE_ATTR(state, S_IRUGO, qla2x00_state_show, NULL);
+static CLASS_DEVICE_ATTR(zio, S_IRUGO | S_IWUSR, qla2x00_zio_show,
+    qla2x00_zio_store);
+static CLASS_DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
+    qla2x00_zio_timer_store);
 
 struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_driver_version,
@@ -340,6 +421,8 @@ struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_model_desc,
 	&class_device_attr_pci_info,
 	&class_device_attr_state,
+	&class_device_attr_zio,
+	&class_device_attr_zio_timer,
 	NULL,
 };
 

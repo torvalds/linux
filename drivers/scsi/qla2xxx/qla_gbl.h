@@ -76,8 +76,6 @@ extern char qla2x00_version_str[];
 extern int ql2xlogintimeout;
 extern int qlport_down_retry;
 extern int ql2xplogiabsentdevice;
-extern int ql2xenablezio;
-extern int ql2xintrdelaytimer;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
 
@@ -223,6 +221,7 @@ extern irqreturn_t qla2100_intr_handler(int, void *, struct pt_regs *);
 extern irqreturn_t qla2300_intr_handler(int, void *, struct pt_regs *);
 extern irqreturn_t qla24xx_intr_handler(int, void *, struct pt_regs *);
 extern void qla2x00_process_response_queue(struct scsi_qla_host *);
+extern void qla24xx_process_response_queue(struct scsi_qla_host *);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.

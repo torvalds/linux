@@ -61,19 +61,6 @@ MODULE_PARM_DESC(ql2xplogiabsentdevice,
 		"a Fabric scan.  This is needed for several broken switches."
 		"Default is 0 - no PLOGI. 1 - perfom PLOGI.");
 
-int ql2xenablezio = 0;
-module_param(ql2xenablezio, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xenablezio,
-		"Option to enable ZIO:If 1 then enable it otherwise"
-		" use the default set in the NVRAM."
-		" Default is 0 : disabled");
-
-int ql2xintrdelaytimer = 10;
-module_param(ql2xintrdelaytimer, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xintrdelaytimer,
-		"ZIO: Waiting time for Firmware before it generates an "
-		"interrupt to the host to notify completion of request.");
-
 int ql2xloginretrycount = 0;
 module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xloginretrycount,
@@ -399,16 +386,6 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	rval = qla2x00_start_scsi(sp);
 	if (rval != QLA_SUCCESS)
 		goto qc_host_busy_free_sp;
-
-	/* Manage unprocessed RIO/ZIO commands in response queue. */
-	if (ha->flags.online && ha->flags.process_response_queue &&
-	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-		qla2x00_process_response_queue(ha);
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	}
 
 	spin_lock_irq(ha->host->host_lock);
 

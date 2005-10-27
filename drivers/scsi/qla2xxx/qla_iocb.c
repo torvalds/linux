@@ -440,6 +440,11 @@ qla2x00_start_scsi(srb_t *sp)
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), ha->req_ring_index);
 	RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
 
+	/* Manage unprocessed RIO/ZIO commands in response queue. */
+	if (ha->flags.process_response_queue &&
+	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED)
+		qla2x00_process_response_queue(ha);
+
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return (QLA_SUCCESS);
 
@@ -876,6 +881,11 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(&reg->req_q_in, ha->req_ring_index);
 	RD_REG_DWORD_RELAXED(&reg->req_q_in);		/* PCI Posting. */
+
+	/* Manage unprocessed RIO/ZIO commands in response queue. */
+	if (ha->flags.process_response_queue &&
+	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED)
+		qla24xx_process_response_queue(ha);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return QLA_SUCCESS;
