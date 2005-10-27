@@ -10,9 +10,4 @@ lib-y += copypage.o memcpy.o copyuser.o usercopy.o
 
 lib-$(CONFIG_SMP) += locks.o
 
-# e2a provides EBCDIC to ASCII conversions.
-ifdef CONFIG_PPC_ISERIES
-obj-y += e2a.o
-endif
-
 lib-$(CONFIG_DEBUG_KERNEL) += sstep.o
