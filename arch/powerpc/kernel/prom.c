@@ -1110,22 +1110,22 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	}
 #endif
 
-#ifdef CONFIG_PPC64
+	boot_cpuid = 0;
+	boot_cpuid_phys = 0;
 	if (initial_boot_params && initial_boot_params->version >= 2) {
 		/* version 2 of the kexec param format adds the phys cpuid
 		 * of booted proc.
 		 */
 		boot_cpuid_phys = initial_boot_params->boot_cpuid_phys;
-		boot_cpuid = 0;
 	} else {
-		/* Check if it's the boot-cpu, set it's hw index in paca now */
+		/* Check if it's the boot-cpu, set it's hw index now */
 		if (get_flat_dt_prop(node, "linux,boot-cpu", NULL) != NULL) {
 			prop = get_flat_dt_prop(node, "reg", NULL);
-			set_hard_smp_processor_id(0, prop == NULL ? 0 : *prop);
-			boot_cpuid_phys = get_hard_smp_processor_id(0);
+			if (prop != NULL)
+				boot_cpuid_phys = *prop;
 		}
 	}
-#endif
+	set_hard_smp_processor_id(0, boot_cpuid_phys);
 
 #ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */

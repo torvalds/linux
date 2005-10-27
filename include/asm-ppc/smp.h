@@ -53,16 +53,24 @@ extern int __cpu_up(unsigned int cpu);
 extern int smp_hw_index[];
 #define hard_smp_processor_id() 	(smp_hw_index[smp_processor_id()])
 #define get_hard_smp_processor_id(cpu)	(smp_hw_index[(cpu)])
-
+#define set_hard_smp_processor_id(cpu, phys)\
+					(smp_hw_index[(cpu)] = (phys))
+ 
 #endif /* __ASSEMBLY__ */
 
 #else /* !(CONFIG_SMP) */
 
 static inline void cpu_die(void) { }
 #define get_hard_smp_processor_id(cpu) 0
+#define set_hard_smp_processor_id(cpu, phys)
 #define hard_smp_processor_id() 0
 
 #endif /* !(CONFIG_SMP) */
+
+#ifndef __ASSEMBLY__
+extern int boot_cpuid;
+extern int boot_cpuid_phys;
+#endif
 
 #endif /* !(_PPC_SMP_H) */
 #endif /* __KERNEL__ */

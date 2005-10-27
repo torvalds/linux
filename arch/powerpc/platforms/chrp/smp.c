@@ -32,15 +32,44 @@
 #include <asm/time.h>
 #include <asm/open_pic.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
+#include <asm/mpic.h>
 
 extern unsigned long smp_chrp_cpu_nr;
 
 static int __init smp_chrp_probe(void)
 {
-	if (smp_chrp_cpu_nr > 1)
-		openpic_request_IPIs();
+	struct device_node *cpus = NULL;
+	unsigned int *reg;
+	int reglen;
+	int ncpus = 0;
+	int cpuid;
+	unsigned int phys;
 
-	return smp_chrp_cpu_nr;
+	/* Count CPUs in the device-tree */
+	cpuid = 1;	/* the boot cpu is logical cpu 0 */
+	while ((cpus = of_find_node_by_type(cpus, "cpu")) != NULL) {
+		phys = ncpus;
+		reg = (unsigned int *) get_property(cpus, "reg", &reglen);
+		if (reg && reglen >= sizeof(unsigned int))
+			/* hmmm, not having a reg property would be bad */
+			phys = *reg;
+		if (phys != boot_cpuid_phys) {
+			set_hard_smp_processor_id(cpuid, phys);
+			++cpuid;
+		}
+	       	++ncpus;
+	}
+
+	printk(KERN_INFO "CHRP SMP probe found %d cpus\n", ncpus);
+
+	/* Nothing more to do if less than 2 of them */
+	if (ncpus <= 1)
+		return 1;
+
+	mpic_request_ipis();
+
+	return ncpus;
 }
 
 static void __devinit smp_chrp_kick_cpu(int nr)
@@ -51,8 +80,7 @@ static void __devinit smp_chrp_kick_cpu(int nr)
 
 static void __devinit smp_chrp_setup_cpu(int cpu_nr)
 {
-	if (OpenPIC_Addr)
-		do_openpic_setup_cpu();
+	mpic_setup_this_cpu();
 }
 
 static DEFINE_SPINLOCK(timebase_lock);
@@ -85,7 +113,7 @@ void __devinit smp_chrp_take_timebase(void)
 
 /* CHRP with openpic */
 struct smp_ops_t chrp_smp_ops = {
-	.message_pass = smp_openpic_message_pass,
+	.message_pass = smp_mpic_message_pass,
 	.probe = smp_chrp_probe,
 	.kick_cpu = smp_chrp_kick_cpu,
 	.setup_cpu = smp_chrp_setup_cpu,

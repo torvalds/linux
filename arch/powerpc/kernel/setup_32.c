@@ -59,6 +59,10 @@ struct ide_machdep_calls ppc_ide_md;
 int __irq_offset_value;
 EXPORT_SYMBOL(__irq_offset_value);
 
+int boot_cpuid;
+EXPORT_SYMBOL_GPL(boot_cpuid);
+int boot_cpuid_phys;
+
 unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
