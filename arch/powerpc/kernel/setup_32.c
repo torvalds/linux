@@ -94,21 +94,6 @@ int dcache_bsize;
 int icache_bsize;
 int ucache_bsize;
 
-#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_FB_VGA16) || \
-    defined(CONFIG_FB_VGA16_MODULE) || defined(CONFIG_FB_VESA)
-struct screen_info screen_info = {
-	0, 25,			/* orig-x, orig-y */
-	0,			/* unused */
-	0,			/* orig-video-page */
-	0,			/* orig-video-mode */
-	80,			/* orig-video-cols */
-	0,0,0,			/* ega_ax, ega_bx, ega_cx */
-	25,			/* orig-video-lines */
-	1,			/* orig-video-isVGA */
-	16			/* orig-video-points */
-};
-#endif /* CONFIG_VGA_CONSOLE || CONFIG_FB_VGA16 || CONFIG_FB_VESA */
-
 /*
  * We're called here very early in the boot.  We determine the machine
  * type and call the appropriate low-level setup functions.
