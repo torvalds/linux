@@ -503,6 +503,15 @@ qla2x00_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 }
 
+static int
+qla2x00_issue_lip(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+
+	set_bit(LOOP_RESET_NEEDED, &ha->dpc_flags);
+	return 0;
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -526,6 +535,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.set_rport_dev_loss_tmo = qla2x00_set_rport_loss_tmo,
 	.show_rport_dev_loss_tmo = 1,
 
+	.issue_fc_host_lip = qla2x00_issue_lip,
 };
 
 void

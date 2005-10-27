@@ -220,7 +220,7 @@ static void fc_rport_terminate(struct fc_rport  *rport);
  */
 #define FC_STARGET_NUM_ATTRS 	3
 #define FC_RPORT_NUM_ATTRS	9
-#define FC_HOST_NUM_ATTRS	15
+#define FC_HOST_NUM_ATTRS	16
 
 struct fc_internal {
 	struct scsi_transport_template t;
@@ -713,9 +713,11 @@ static FC_CLASS_DEVICE_ATTR(host, field, S_IRUGO,			\
 	count++
 
 #define SETUP_PRIVATE_HOST_ATTRIBUTE_RW(field)			\
+{									\
 	i->private_host_attrs[count] = class_device_attr_host_##field;	\
 	i->host_attrs[count] = &i->private_host_attrs[count];		\
-	count++
+	count++;							\
+}
 
 
 /* Fixed Host Attributes */
@@ -852,6 +854,26 @@ store_fc_private_host_tgtid_bind_type(struct class_device *cdev,
 static FC_CLASS_DEVICE_ATTR(host, tgtid_bind_type, S_IRUGO | S_IWUSR,
 			show_fc_private_host_tgtid_bind_type,
 			store_fc_private_host_tgtid_bind_type);
+
+static ssize_t
+store_fc_private_host_issue_lip(struct class_device *cdev,
+	const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+	int ret;
+
+	/* ignore any data value written to the attribute */
+	if (i->f->issue_fc_host_lip) {
+		ret = i->f->issue_fc_host_lip(shost);
+		return ret ? ret: count;
+	}
+
+	return -ENOENT;
+}
+
+static FC_CLASS_DEVICE_ATTR(host, issue_lip, S_IWUSR, NULL,
+			store_fc_private_host_issue_lip);
 
 /*
  * Host Statistics Management
@@ -1119,6 +1141,8 @@ fc_attach_transport(struct fc_function_template *ft)
 
 	/* Transport-managed attributes */
 	SETUP_PRIVATE_HOST_ATTRIBUTE_RW(tgtid_bind_type);
+	if (ft->issue_fc_host_lip)
+		SETUP_PRIVATE_HOST_ATTRIBUTE_RW(issue_lip);
 
 	BUG_ON(count > FC_HOST_NUM_ATTRS);
 

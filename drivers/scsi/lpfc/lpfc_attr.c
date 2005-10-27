@@ -200,18 +200,12 @@ lpfc_num_discovered_ports_show(struct class_device *cdev, char *buf)
 }
 
 
-static ssize_t
-lpfc_issue_lip (struct class_device *cdev, const char *buf, size_t count)
+static int
+lpfc_issue_lip(struct Scsi_Host *host)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba *) host->hostdata[0];
-	int val = 0;
 	LPFC_MBOXQ_t *pmboxq;
 	int mbxstatus = MBXERR_ERROR;
-
-	if ((sscanf(buf, "%d", &val) != 1) ||
-	    (val != 1))
-		return -EINVAL;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
 	    (phba->hba_state != LPFC_HBA_READY))
@@ -234,7 +228,7 @@ lpfc_issue_lip (struct class_device *cdev, const char *buf, size_t count)
 	if (mbxstatus == MBXERR_ERROR)
 		return -EIO;
 
-	return strlen(buf);
+	return 0;
 }
 
 static ssize_t
@@ -364,7 +358,6 @@ static CLASS_DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show,
 			 NULL);
 static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 			 NULL);
-static CLASS_DEVICE_ATTR(issue_lip, S_IWUSR, NULL, lpfc_issue_lip);
 static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 			 lpfc_board_online_show, lpfc_board_online_store);
 
@@ -537,7 +530,6 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
-	&class_device_attr_issue_lip,
 	&class_device_attr_board_online,
 	NULL,
 };
@@ -1234,6 +1226,8 @@ struct fc_function_template lpfc_transport_functions = {
 
 	.get_starget_port_name = lpfc_get_starget_port_name,
 	.show_starget_port_name = 1,
+
+	.issue_fc_host_lip = lpfc_issue_lip,
 };
 
 void

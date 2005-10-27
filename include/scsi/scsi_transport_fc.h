@@ -384,6 +384,8 @@ struct fc_function_template {
 	struct fc_host_statistics * (*get_fc_host_stats)(struct Scsi_Host *);
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);
 
+	int	(*issue_fc_host_lip)(struct Scsi_Host *);
+
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
 
