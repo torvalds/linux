@@ -403,7 +403,7 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		    ELF_NFPREG * sizeof(double)))
 		return 1;
 
-	current->thread.fpscr = 0;	/* turn off all fp exceptions */
+	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
 
 #ifdef CONFIG_ALTIVEC
 	/* save altivec registers */

@@ -451,25 +451,6 @@ _GLOBAL(_outsl_ns)
 	sync
 	blr	
 
-
-_GLOBAL(cvt_fd)
-	lfd	0,0(r5)		/* load up fpscr value */
-	mtfsf	0xff,0
-	lfs	0,0(r3)
-	stfd	0,0(r4)
-	mffs	0		/* save new fpscr value */
-	stfd	0,0(r5)
-	blr
-
-_GLOBAL(cvt_df)
-	lfd	0,0(r5)		/* load up fpscr value */
-	mtfsf	0xff,0
-	lfd	0,0(r3)
-	stfs	0,0(r4)
-	mffs	0		/* save new fpscr value */
-	stfd	0,0(r5)
-	blr
-
 /*
  * identify_cpu and calls setup_cpu
  * In:	r3 = base of the cpu_specs array
@@ -653,38 +634,6 @@ _GLOBAL(disable_kernel_fp)
 	rldicl	r3,r0,(MSR_FP_LG+1),0
 	mtmsrd	r3			/* disable use of fpu now */
 	isync
-	blr
-
-/*
- * giveup_fpu(tsk)
- * Disable FP for the task given as the argument,
- * and save the floating-point registers in its thread_struct.
- * Enables the FPU for use in the kernel on return.
- */
-_GLOBAL(giveup_fpu)
-	mfmsr	r5
-	ori	r5,r5,MSR_FP
-	mtmsrd	r5			/* enable use of fpu now */
-	isync
-	cmpdi	0,r3,0
-	beqlr-				/* if no previous owner, done */
-	addi	r3,r3,THREAD		/* want THREAD of task */
-	ld	r5,PT_REGS(r3)
-	cmpdi	0,r5,0
-	SAVE_32FPRS(0, r3)
-	mffs	fr0
-	stfd	fr0,THREAD_FPSCR(r3)
-	beq	1f
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r3,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r3		/* disable FP for previous task */
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	ld	r4,last_task_used_math@got(r2)
-	std	r5,0(r4)
-#endif /* CONFIG_SMP */
 	blr
 
 #ifdef CONFIG_ALTIVEC

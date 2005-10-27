@@ -659,7 +659,7 @@ void program_check_exception(struct pt_regs *regs)
 			giveup_fpu(current);
 		preempt_enable();
 
-		fpscr = current->thread.fpscr;
+		fpscr = current->thread.fpscr.val;
 		fpscr &= fpscr << 22;	/* mask summary bits with enables */
 		if (fpscr & FPSCR_VX)
 			code = FPE_FLTINV;

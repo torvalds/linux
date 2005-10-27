@@ -197,6 +197,9 @@ config BOOTX_TEXT
 config POWER4
 	def_bool y
 
+config PPC_FPU
+	def_bool y
+
 config POWER4_ONLY
 	bool "Optimize for POWER4"
 	default n

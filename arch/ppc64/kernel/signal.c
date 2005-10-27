@@ -133,7 +133,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	flush_fp_to_thread(current);
 
 	/* Make sure signal doesn't get spurrious FP exceptions */
-	current->thread.fpscr = 0;
+	current->thread.fpscr.val = 0;
 
 #ifdef CONFIG_ALTIVEC
 	err |= __put_user(v_regs, &sc->v_regs);

@@ -162,10 +162,11 @@ struct thread_struct {
 	unsigned long	dbcr1;
 #endif
 	double		fpr[32];	/* Complete floating point set */
-#ifdef CONFIG_PPC32
-	unsigned long	fpscr_pad;	/* fpr ... fpscr must be contiguous */
-#endif
-	unsigned long	fpscr;		/* Floating point status */
+	struct {			/* fpr ... fpscr must be contiguous */
+
+		unsigned int pad;
+		unsigned int val;	/* Floating point status */
+	} fpscr;
 	int		fpexc_mode;	/* floating-point exception mode */
 #ifdef CONFIG_PPC64
 	unsigned long	start_tb;	/* Start purr when proc switched in */
@@ -207,7 +208,7 @@ struct thread_struct {
 	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.fs = KERNEL_DS, \
 	.fpr = {0}, \
-	.fpscr = 0, \
+	.fpscr = { .val = 0, }, \
 	.fpexc_mode = MSR_FE0|MSR_FE1, \
 }
 #endif

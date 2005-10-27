@@ -665,7 +665,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #endif
 #endif /* CONFIG_SMP */
 	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
-	current->thread.fpscr = 0;
+	current->thread.fpscr.val = 0;
 #ifdef CONFIG_ALTIVEC
 	memset(current->thread.vr, 0, sizeof(current->thread.vr));
 	memset(&current->thread.vscr, 0, sizeof(current->thread.vscr));

@@ -993,33 +993,6 @@ _GLOBAL(_get_SP)
 	blr
 
 /*
- * These are used in the alignment trap handler when emulating
- * single-precision loads and stores.
- * We restore and save the fpscr so the task gets the same result
- * and exceptions as if the cpu had performed the load or store.
- */
-
-#ifdef CONFIG_PPC_FPU
-_GLOBAL(cvt_fd)
-	lfd	0,-4(r5)	/* load up fpscr value */
-	mtfsf	0xff,0
-	lfs	0,0(r3)
-	stfd	0,0(r4)
-	mffs	0		/* save new fpscr value */
-	stfd	0,-4(r5)
-	blr
-
-_GLOBAL(cvt_df)
-	lfd	0,-4(r5)	/* load up fpscr value */
-	mtfsf	0xff,0
-	lfd	0,0(r3)
-	stfs	0,0(r4)
-	mffs	0		/* save new fpscr value */
-	stfd	0,-4(r5)
-	blr
-#endif
-
-/*
  * Create a kernel thread
  *   kernel_thread(fn, arg, flags)
  */

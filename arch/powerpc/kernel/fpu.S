@@ -48,7 +48,7 @@ _GLOBAL(load_up_fpu)
 	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
 	SAVE_32FPRS(0, r4)
 	mffs	fr0
-	stfd	fr0,THREAD_FPSCR-4(r4)
+	stfd	fr0,THREAD_FPSCR(r4)
 	LDL	r5,PT_REGS(r4)
 	tophys(r5,r5)
 	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
@@ -71,7 +71,7 @@ _GLOBAL(load_up_fpu)
 	or	r12,r12,r4
 	std	r12,_MSR(r1)
 #endif
-	lfd	fr0,THREAD_FPSCR-4(r5)
+	lfd	fr0,THREAD_FPSCR(r5)
 	mtfsf	0xff,fr0
 	REST_32FPRS(0, r5)
 #ifndef CONFIG_SMP
@@ -104,7 +104,7 @@ _GLOBAL(giveup_fpu)
 	CMPI	0,r5,0
 	SAVE_32FPRS(0, r3)
 	mffs	fr0
-	stfd	fr0,THREAD_FPSCR-4(r3)
+	stfd	fr0,THREAD_FPSCR(r3)
 	beq	1f
 	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	li	r3,MSR_FP|MSR_FE0|MSR_FE1
@@ -116,4 +116,29 @@ _GLOBAL(giveup_fpu)
 	LOADBASE(r4,last_task_used_math)
 	STL	r5,OFF(last_task_used_math)(r4)
 #endif /* CONFIG_SMP */
+	blr
+
+/*
+ * These are used in the alignment trap handler when emulating
+ * single-precision loads and stores.
+ * We restore and save the fpscr so the task gets the same result
+ * and exceptions as if the cpu had performed the load or store.
+ */
+
+_GLOBAL(cvt_fd)
+	lfd	0,THREAD_FPSCR(r5)	/* load up fpscr value */
+	mtfsf	0xff,0
+	lfs	0,0(r3)
+	stfd	0,0(r4)
+	mffs	0
+	stfd	0,THREAD_FPSCR(r5)	/* save new fpscr value */
+	blr
+
+_GLOBAL(cvt_df)
+	lfd	0,THREAD_FPSCR(r5)	/* load up fpscr value */
+	mtfsf	0xff,0
+	lfd	0,0(r3)
+	stfs	0,0(r4)
+	mffs	0
+	stfd	0,THREAD_FPSCR(r5)	/* save new fpscr value */
 	blr

@@ -549,7 +549,7 @@ static void parse_fpe(struct pt_regs *regs)
 
 	flush_fp_to_thread(current);
 
-	fpscr = current->thread.fpscr;
+	fpscr = current->thread.fpscr.val;
 
 	/* Invalid operation */
 	if ((fpscr & FPSCR_VE) && (fpscr & FPSCR_VX))

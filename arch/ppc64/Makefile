@@ -80,6 +80,7 @@ endif
 CFLAGS += $(call cc-option,-funit-at-a-time)
 
 head-y := arch/ppc64/kernel/head.o
+head-y += arch/powerpc/kernel/fpu.o
 
 libs-y				+= arch/ppc64/lib/
 core-y				+= arch/ppc64/kernel/ arch/powerpc/kernel/

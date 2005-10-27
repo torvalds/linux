@@ -29,7 +29,6 @@ extra-$(CONFIG_44x)		:= head_44x.o
 extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
 extra-$(CONFIG_8xx)		:= head_8xx.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
-extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= process.o init_task.o time.o \
@@ -49,7 +48,7 @@ else
 # stuff used from here for ARCH=ppc or ARCH=ppc64
 obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o
 
-fpux-$(CONFIG_PPC32)		+= fpu.o
-extra-$(CONFIG_PPC_FPU)		+= $(fpux-y)
 
 endif
+
+extra-$(CONFIG_PPC_FPU)		+= fpu.o
