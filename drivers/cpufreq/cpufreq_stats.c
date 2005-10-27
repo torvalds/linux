@@ -196,6 +196,11 @@ cpufreq_stats_create_table (struct cpufreq_policy *policy,
 		return -ENOMEM;
 
 	data = cpufreq_cpu_get(cpu);
+	if (data == NULL) {
+		ret = -EINVAL;
+		goto error_get_fail;
+	}
+
 	if ((ret = sysfs_create_group(&data->kobj, &stats_attr_group)))
 		goto error_out;
 
