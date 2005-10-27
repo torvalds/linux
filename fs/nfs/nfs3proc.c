@@ -735,7 +735,7 @@ extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
 static void
 nfs3_read_done(struct rpc_task *task)
 {
-	struct nfs_write_data *data = (struct nfs_write_data *) task->tk_calldata;
+	struct nfs_read_data *data = (struct nfs_read_data *) task->tk_calldata;
 
 	if (nfs3_async_handle_jukebox(task))
 		return;
