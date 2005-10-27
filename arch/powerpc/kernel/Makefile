@@ -46,7 +46,8 @@ endif
 
 else
 # stuff used from here for ARCH=ppc or ARCH=ppc64
-obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o
+obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o \
+				   setup-common.o
 
 
 endif
