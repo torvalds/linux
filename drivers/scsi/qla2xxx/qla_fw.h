@@ -394,7 +394,7 @@ struct cmd_type_6 {
 
 	uint16_t fcp_rsp_dsd_len;	/* FCP_RSP DSD length. */
 
-	uint8_t lun[8];			/* FCP LUN (BE). */
+	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint16_t control_flags;		/* Control flags. */
 #define CF_DATA_SEG_DESCR_ENABLE	BIT_2
@@ -432,7 +432,7 @@ struct cmd_type_7 {
 	uint16_t dseg_count;		/* Data segment count. */
 	uint16_t reserved_1;
 
-	uint8_t lun[8];			/* FCP LUN (BE). */
+	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint16_t task_mgmt_flags;	/* Task management flags. */
 #define TMF_CLEAR_ACA		BIT_14

@@ -839,8 +839,7 @@ qla24xx_start_scsi(srb_t *sp)
 	cmd_pkt->port_id[1] = sp->fcport->d_id.b.area;
 	cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
 
-	cmd_pkt->lun[1] = LSB(sp->cmd->device->lun);
-	cmd_pkt->lun[2] = MSB(sp->cmd->device->lun);
+	int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
 
 	/* Update tagged queuing modifier -- default is TSK_SIMPLE (0). */
 	if (scsi_populate_tag_msg(cmd, tag)) {
