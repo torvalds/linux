@@ -317,7 +317,9 @@ void __init pmac_setup_arch(void)
 	}
 
 	/* See if newworld or oldworld */
-	ic = of_find_node_by_name(NULL, "interrupt-controller");
+	for (ic = NULL; (ic = of_find_all_nodes(ic)) != NULL; )
+		if (get_property(ic, "interrupt-controller", NULL))
+			break;
 	pmac_newworld = (ic != NULL);
 	if (ic)
 		of_node_put(ic);
