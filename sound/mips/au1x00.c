@@ -472,7 +472,7 @@ snd_au1000_ac97_read(ac97_t *ac97, unsigned short reg)
 	u32 volatile cmd;
 	u16 volatile data;
 	int             i;
-	spin_lock(au1000->ac97_lock);
+	spin_lock(&au1000->ac97_lock);
 /* would rather use the interupt than this polling but it works and I can't
 get the interupt driven case to work efficiently */
 	for (i = 0; i < 0x5000; i++)
@@ -495,7 +495,7 @@ get the interupt driven case to work efficiently */
 	}
 
 	data = au1000->ac97_ioport->cmd & 0xffff;
-	spin_unlock(au1000->ac97_lock);
+	spin_unlock(&au1000->ac97_lock);
 
 	return data;
 
@@ -507,7 +507,7 @@ snd_au1000_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
 {
 	u32 cmd;
 	int i;
-	spin_lock(au1000->ac97_lock);
+	spin_lock(&au1000->ac97_lock);
 /* would rather use the interupt than this polling but it works and I can't
 get the interupt driven case to work efficiently */
 	for (i = 0; i < 0x5000; i++)
@@ -520,7 +520,7 @@ get the interupt driven case to work efficiently */
 	cmd &= ~AC97C_READ;
 	cmd |= ((u32) val << AC97C_WD_BIT);
 	au1000->ac97_ioport->cmd = cmd;
-	spin_unlock(au1000->ac97_lock);
+	spin_unlock(&au1000->ac97_lock);
 }
 static void
 snd_au1000_ac97_free(ac97_t *ac97)
