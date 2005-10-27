@@ -155,12 +155,12 @@ static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_e
 
 
 /* OBSOLETE: Old style node lookup */
-extern __deprecated struct device_node *find_devices(const char *name);
-extern __deprecated struct device_node *find_type_devices(const char *type);
-extern __deprecated struct device_node *find_path_device(const char *path);
-extern __deprecated struct device_node *find_compatible_devices(const char *type,
+extern struct device_node *find_devices(const char *name);
+extern struct device_node *find_type_devices(const char *type);
+extern struct device_node *find_path_device(const char *path);
+extern struct device_node *find_compatible_devices(const char *type,
 						   const char *compat);
-extern __deprecated struct device_node *find_all_nodes(void);
+extern struct device_node *find_all_nodes(void);
 
 /* New style node lookup */
 extern struct device_node *of_find_node_by_name(struct device_node *from,
