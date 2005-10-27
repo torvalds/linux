@@ -3,11 +3,12 @@
 #
 
 ifeq ($(CONFIG_PPC_MERGE),y)
-obj-y			:= strcase.o string.o
-obj-$(CONFIG_PPC32)	+= div64.o copy_32.o checksum_32.o
+obj-y			:= string.o
 obj-$(CONFIG_PPC64)	+= usercopy_64.o mem_64.o
 endif
 
+obj-y			+= strcase.o
+obj-$(CONFIG_PPC32)	+= div64.o copy_32.o checksum_32.o
 obj-$(CONFIG_PPC64)	+= checksum_64.o copypage_64.o copyuser_64.o \
 			   memcpy_64.o
 obj-$(CONFIG_PPC_ISERIES) += e2a.o
