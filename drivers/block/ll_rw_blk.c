@@ -353,6 +353,8 @@ static void blk_pre_flush_end_io(struct request *flush_rq)
 	struct request *rq = flush_rq->end_io_data;
 	request_queue_t *q = rq->q;
 
+	elv_completed_request(q, flush_rq);
+
 	rq->flags |= REQ_BAR_PREFLUSH;
 
 	if (!flush_rq->errors)
@@ -368,6 +370,8 @@ static void blk_post_flush_end_io(struct request *flush_rq)
 {
 	struct request *rq = flush_rq->end_io_data;
 	request_queue_t *q = rq->q;
+
+	elv_completed_request(q, flush_rq);
 
 	rq->flags |= REQ_BAR_POSTFLUSH;
 
@@ -407,8 +411,6 @@ struct request *blk_start_pre_flush(request_queue_t *q, struct request *rq)
 	 */
 	if (!list_empty(&rq->queuelist))
 		blkdev_dequeue_request(rq);
-
-	elv_deactivate_request(q, rq);
 
 	flush_rq->end_io_data = rq;
 	flush_rq->end_io = blk_pre_flush_end_io;
@@ -1040,6 +1042,7 @@ EXPORT_SYMBOL(blk_queue_invalidate_tags);
 static char *rq_flags[] = {
 	"REQ_RW",
 	"REQ_FAILFAST",
+	"REQ_SORTED",
 	"REQ_SOFTBARRIER",
 	"REQ_HARDBARRIER",
 	"REQ_CMD",
@@ -2456,6 +2459,8 @@ static void __blk_put_request(request_queue_t *q, struct request *req)
 	if (unlikely(--req->ref_count))
 		return;
 
+	elv_completed_request(q, req);
+
 	req->rq_status = RQ_INACTIVE;
 	req->rl = NULL;
 
@@ -2466,8 +2471,6 @@ static void __blk_put_request(request_queue_t *q, struct request *req)
 	if (rl) {
 		int rw = rq_data_dir(req);
 
-		elv_completed_request(q, req);
-
 		BUG_ON(!list_empty(&req->queuelist));
 
 		blk_free_request(q, req);
@@ -2477,14 +2480,14 @@ static void __blk_put_request(request_queue_t *q, struct request *req)
 
 void blk_put_request(struct request *req)
 {
-	/*
-	 * if req->rl isn't set, this request didnt originate from the
-	 * block layer, so it's safe to just disregard it
-	 */
-	if (req->rl) {
-		unsigned long flags;
-		request_queue_t *q = req->q;
+	unsigned long flags;
+	request_queue_t *q = req->q;
 
+	/*
+	 * Gee, IDE calls in w/ NULL q.  Fix IDE and remove the
+	 * following if (q) test.
+	 */
+	if (q) {
 		spin_lock_irqsave(q->queue_lock, flags);
 		__blk_put_request(q, req);
 		spin_unlock_irqrestore(q->queue_lock, flags);
