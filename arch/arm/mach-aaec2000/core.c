@@ -40,9 +40,17 @@
  * default mapping provided here.
  */
 static struct map_desc standard_io_desc[] __initdata = {
- /* virtual         physical       length           type */
-  { VIO_APB_BASE,   PIO_APB_BASE,  IO_APB_LENGTH,   MT_DEVICE },
-  { VIO_AHB_BASE,   PIO_AHB_BASE,  IO_AHB_LENGTH,   MT_DEVICE }
+	{
+		.virtual	= VIO_APB_BASE,
+		.physical	= __phys_to_pfn(PIO_APB_BASE),
+		.length		= IO_APB_LENGTH,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= VIO_AHB_BASE,
+		.physical	= __phys_to_pfn(PIO_AHB_BASE),
+		.length		= IO_AHB_LENGTH,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init aaec2000_map_io(void)
