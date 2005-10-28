@@ -561,7 +561,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
 		   lpj*HZ/500000, (lpj*HZ/5000) % 100);
 #ifdef CONFIG_SMP
-	seq_printf(m, "siblings   : %u\n", c->num_log);
+	seq_printf(m, "siblings   : %u\n", cpus_weight(cpu_core_map[cpunum]));
 	if (c->threads_per_core > 1 || c->cores_per_socket > 1)
 		seq_printf(m,
 		   	   "physical id: %u\n"
