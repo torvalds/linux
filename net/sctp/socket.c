@@ -1010,6 +1010,19 @@ static int __sctp_connect(struct sock* sk,
 					err = -EAGAIN;
 					goto out_free;
 				}
+			} else {
+				/*
+				 * If an unprivileged user inherits a 1-many 
+				 * style socket with open associations on a 
+				 * privileged port, it MAY be permitted to 
+				 * accept new associations, but it SHOULD NOT 
+				 * be permitted to open new associations.
+				 */
+				if (ep->base.bind_addr.port < PROT_SOCK &&
+				    !capable(CAP_NET_BIND_SERVICE)) {
+					err = -EACCES;
+					goto out_free;
+				}
 			}
 
 			scope = sctp_scope(&to);
@@ -1513,6 +1526,19 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (!ep->base.bind_addr.port) {
 			if (sctp_autobind(sk)) {
 				err = -EAGAIN;
+				goto out_unlock;
+			}
+		} else {
+			/*
+			 * If an unprivileged user inherits a one-to-many
+			 * style socket with open associations on a privileged
+			 * port, it MAY be permitted to accept new associations,
+			 * but it SHOULD NOT be permitted to open new
+			 * associations.
+			 */
+			if (ep->base.bind_addr.port < PROT_SOCK &&
+			    !capable(CAP_NET_BIND_SERVICE)) {
+				err = -EACCES;
 				goto out_unlock;
 			}
 		}
