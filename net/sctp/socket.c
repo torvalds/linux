@@ -2306,16 +2306,14 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
 		return -EINVAL;
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
-	if ((val < 8) || (val > SCTP_MAX_CHUNK_LEN))
+	if ((val != 0) && ((val < 8) || (val > SCTP_MAX_CHUNK_LEN)))
 		return -EINVAL;
 	sp->user_frag = val;
 
-	if (val) {
-		/* Update the frag_point of the existing associations. */
-		list_for_each(pos, &(sp->ep->asocs)) {
-			asoc = list_entry(pos, struct sctp_association, asocs);
-			asoc->frag_point = sctp_frag_point(sp, asoc->pmtu); 
-		}
+	/* Update the frag_point of the existing associations. */
+	list_for_each(pos, &(sp->ep->asocs)) {
+		asoc = list_entry(pos, struct sctp_association, asocs);
+		asoc->frag_point = sctp_frag_point(sp, asoc->pmtu); 
 	}
 
 	return 0;
