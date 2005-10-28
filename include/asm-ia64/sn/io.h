@@ -36,6 +36,15 @@ extern void sn_dma_flush(unsigned long);
 #define __sn_readq_relaxed ___sn_readq_relaxed
 
 /*
+ * Convenience macros for setting/clearing bits using the above accessors
+ */
+
+#define __sn_setq_relaxed(addr, val) \
+	writeq((__sn_readq_relaxed(addr) | (val)), (addr))
+#define __sn_clrq_relaxed(addr, val) \
+	writeq((__sn_readq_relaxed(addr) & ~(val)), (addr))
+
+/*
  * The following routines are SN Platform specific, called when
  * a reference is made to inX/outX set macros.  SN Platform
  * inX set of macros ensures that Posted DMA writes on the
