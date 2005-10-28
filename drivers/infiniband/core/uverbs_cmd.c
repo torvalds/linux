@@ -35,6 +35,7 @@
  */
 
 #include <linux/file.h>
+#include <linux/fs.h>
 
 #include <asm/uaccess.h>
 
@@ -114,7 +115,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 
 	kref_get(&file->async_file->ref);
 	kref_get(&file->ref);
-	file->ucontext   = ucontext;
+	file->ucontext = ucontext;
 
 	fd_install(resp.async_fd, filp);
 
@@ -761,7 +762,6 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	struct ib_cq               	*cq;
 	struct ib_ucq_object        	*uobj;
 	struct ib_uverbs_event_file	*ev_file;
-	struct ib_uverbs_event		*evt, *tmp;
 	u64				 user_handle;
 	int                        	 ret = -EINVAL;
 
@@ -790,23 +790,7 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	list_del(&uobj->uobject.list);
 	up(&file->mutex);
 
-	if (ev_file) {
-		spin_lock_irq(&ev_file->lock);
-		list_for_each_entry_safe(evt, tmp, &uobj->comp_list, obj_list) {
-			list_del(&evt->list);
-			kfree(evt);
-		}
-		spin_unlock_irq(&ev_file->lock);
-
-		kref_put(&ev_file->ref, ib_uverbs_release_event_file);
-	}
-
-	spin_lock_irq(&file->async_file->lock);
-	list_for_each_entry_safe(evt, tmp, &uobj->async_list, obj_list) {
-		list_del(&evt->list);
-		kfree(evt);
-	}
-	spin_unlock_irq(&file->async_file->lock);
+	ib_uverbs_release_ucq(file, ev_file, uobj);
 
 	resp.comp_events_reported  = uobj->comp_events_reported;
 	resp.async_events_reported = uobj->async_events_reported;
@@ -1043,7 +1027,6 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_qp_resp resp;
 	struct ib_qp               	*qp;
 	struct ib_uevent_object        	*uobj;
-	struct ib_uverbs_event		*evt, *tmp;
 	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1069,12 +1052,7 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	list_del(&uobj->uobject.list);
 	up(&file->mutex);
 
-	spin_lock_irq(&file->async_file->lock);
-	list_for_each_entry_safe(evt, tmp, &uobj->event_list, obj_list) {
-		list_del(&evt->list);
-		kfree(evt);
-	}
-	spin_unlock_irq(&file->async_file->lock);
+	ib_uverbs_release_uevent(file, uobj);
 
 	resp.events_reported = uobj->events_reported;
 
@@ -1741,7 +1719,6 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_srq_resp resp;
 	struct ib_srq               	 *srq;
 	struct ib_uevent_object        	 *uobj;
-	struct ib_uverbs_event		 *evt, *tmp;
 	int                         	  ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1767,12 +1744,7 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	list_del(&uobj->uobject.list);
 	up(&file->mutex);
 
-	spin_lock_irq(&file->async_file->lock);
-	list_for_each_entry_safe(evt, tmp, &uobj->event_list, obj_list) {
-		list_del(&evt->list);
-		kfree(evt);
-	}
-	spin_unlock_irq(&file->async_file->lock);
+	ib_uverbs_release_uevent(file, uobj);
 
 	resp.events_reported = uobj->events_reported;
 

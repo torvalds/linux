@@ -39,20 +39,38 @@
 #ifndef UVERBS_H
 #define UVERBS_H
 
-/* Include device.h and fs.h until cdev.h is self-sufficient */
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/cdev.h>
 #include <linux/kref.h>
 #include <linux/idr.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 
+/*
+ * Our lifetime rules for these structs are the following:
+ *
+ * struct ib_uverbs_device: One reference is held by the module and
+ * released in ib_uverbs_remove_one().  Another reference is taken by
+ * ib_uverbs_open() each time the character special file is opened,
+ * and released in ib_uverbs_release_file() when the file is released.
+ *
+ * struct ib_uverbs_file: One reference is held by the VFS and
+ * released when the file is closed.  Another reference is taken when
+ * an asynchronous event queue file is created and released when the
+ * event file is closed.
+ *
+ * struct ib_uverbs_event_file: One reference is held by the VFS and
+ * released when the file is closed.  For asynchronous event files,
+ * another reference is held by the corresponding main context file
+ * and released when that file is closed.  For completion event files,
+ * a reference is taken when a CQ is created that uses the file, and
+ * released when the CQ is destroyed.
+ */
+
 struct ib_uverbs_device {
+	struct kref				ref;
 	int					devnum;
-	struct cdev				dev;
-	struct class_device			class_dev;
+	struct cdev			       *dev;
+	struct class_device		       *class_dev;
 	struct ib_device		       *ib_dev;
 	int					num_comp_vectors;
 };
@@ -114,6 +132,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 					int is_async, int *fd);
 void ib_uverbs_release_event_file(struct kref *ref);
 struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd);
+
+void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
+			   struct ib_uverbs_event_file *ev_file,
+			   struct ib_ucq_object *uobj);
+void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
+			      struct ib_uevent_object *uobj);
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
