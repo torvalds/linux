@@ -43,7 +43,7 @@ extern void efi_memmap_init(unsigned long *, unsigned long *);
 #define GRANULEROUNDUP(n)	(((n)+IA64_GRANULE_SIZE-1) & ~(IA64_GRANULE_SIZE-1))
 #define ORDERROUNDDOWN(n)	((n) & ~((PAGE_SIZE<<MAX_ORDER)-1))
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
   extern void call_pernode_memory (unsigned long start, unsigned long len, void *func);
 #else
 # define call_pernode_memory(start, len, func)	(*func)(start, len, 0)
