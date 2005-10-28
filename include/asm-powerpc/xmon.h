@@ -4,7 +4,7 @@
 
 struct pt_regs;
 
-extern void xmon(struct pt_regs *excp);
+extern int xmon(struct pt_regs *excp);
 extern void xmon_printf(const char *fmt, ...);
 extern void xmon_init(int);
 

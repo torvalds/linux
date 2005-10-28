@@ -17,25 +17,31 @@
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
 #include <linux/cpumask.h>
+#include <linux/module.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/xmon.h>
+#ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/backlight.h>
+#endif
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/paca.h>
-#include <asm/ppcdebug.h>
 #include <asm/cputable.h>
 #include <asm/rtas.h>
 #include <asm/sstep.h>
 #include <asm/bug.h>
+
+#ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
+#include <asm/paca.h>
+#endif
 
 #include "nonstdio.h"
-#include "privinst.h"
 
 #define scanhex	xmon_scanhex
 #define skipbl	xmon_skipbl
@@ -58,7 +64,7 @@ static unsigned long ncsum = 4096;
 static int termch;
 static char tmpstr[128];
 
-#define JMP_BUF_LEN	(184/sizeof(long))
+#define JMP_BUF_LEN	23
 static long bus_error_jmp[JMP_BUF_LEN];
 static int catch_memory_errors;
 static long *xmon_fault_jmp[NR_CPUS];
@@ -130,23 +136,36 @@ static void cacheflush(void);
 static int  cpu_cmd(void);
 static void csum(void);
 static void bootcmds(void);
+static void proccall(void);
 void dump_segments(void);
 static void symbol_lookup(void);
 static void xmon_print_symbol(unsigned long address, const char *mid,
 			      const char *after);
 static const char *getvecname(unsigned long vec);
 
-static void debug_trace(void);
-
 extern int print_insn_powerpc(unsigned long, unsigned long, int);
 extern void printf(const char *fmt, ...);
 extern void xmon_vfprintf(void *f, const char *fmt, va_list ap);
 extern int xmon_putc(int c, void *f);
 extern int putchar(int ch);
+
+extern void xmon_enter(void);
+extern void xmon_leave(void);
+
 extern int xmon_read_poll(void);
-extern int setjmp(long *);
-extern void longjmp(long *, int);
-extern unsigned long _ASR;
+extern long setjmp(long *);
+extern void longjmp(long *, long);
+extern void xmon_save_regs(struct pt_regs *);
+
+#ifdef CONFIG_PPC64
+#define REG		"%.16lx"
+#define REGS_PER_LINE	4
+#define LAST_VOLATILE	13
+#else
+#define REG		"%.8lx"
+#define REGS_PER_LINE	8
+#define LAST_VOLATILE	12
+#endif
 
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
 
@@ -186,47 +205,46 @@ Commands:\n\
   ml	locate a block of memory\n\
   mz	zero a block of memory\n\
   mi	show information about memory allocation\n\
-  p 	show the task list\n\
+  p 	call a procedure\n\
   r	print registers\n\
   s	single step\n\
   S	print special registers\n\
   t	print backtrace\n\
   T	Enable/Disable PPCDBG flags\n\
   x	exit monitor and recover\n\
-  X	exit monitor and dont recover\n\
-  u	dump segment table or SLB\n\
-  ?	help\n"
-  "\
-  zr	reboot\n\
+  X	exit monitor and dont recover\n"
+#ifdef CONFIG_PPC64
+"  u	dump segment table or SLB\n"
+#endif
+#ifdef CONFIG_PPC_STD_MMU_32
+"  u	dump segment registers\n"
+#endif
+"  ?	help\n"
+"  zr	reboot\n\
   zh	halt\n"
 ;
 
 static struct pt_regs *xmon_regs;
 
-extern inline void sync(void)
+static inline void sync(void)
 {
 	asm volatile("sync; isync");
 }
 
-/* (Ref: 64-bit PowerPC ELF ABI Spplement; Ian Lance Taylor, Zembu Labs).
- A PPC stack frame looks like this:
+static inline void store_inst(void *p)
+{
+	asm volatile ("dcbst 0,%0; sync; icbi 0,%0; isync" : : "r" (p));
+}
 
- High Address
-    Back Chain
-    FP reg save area
-    GP reg save area
-    Local var space
-    Parameter save area		(SP+48)
-    TOC save area		(SP+40)
-    link editor doubleword	(SP+32)
-    compiler doubleword		(SP+24)
-    LR save			(SP+16)
-    CR save			(SP+8)
-    Back Chain			(SP+0)
+static inline void cflush(void *p)
+{
+	asm volatile ("dcbf 0,%0; icbi 0,%0" : : "r" (p));
+}
 
- Note that the LR (ret addr) may not be saved in the current frame if
- no functions have been called from the current function.
- */
+static inline void cinval(void *p)
+{
+	asm volatile ("dcbi 0,%0; icbi 0,%0" : : "r" (p));
+}
 
 /*
  * Disable surveillance (the service processor watchdog function)
@@ -310,8 +328,8 @@ int xmon_core(struct pt_regs *regs, int fromipi)
 	unsigned long timeout;
 #endif
 
-	msr = get_msr();
-	set_msrd(msr & ~MSR_EE);	/* disable interrupts */
+	msr = mfmsr();
+	mtmsr(msr & ~MSR_EE);	/* disable interrupts */
 
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL) {
@@ -487,7 +505,7 @@ int xmon_core(struct pt_regs *regs, int fromipi)
 
 	insert_cpu_bpts();
 
-	set_msrd(msr);		/* restore interrupt enable */
+	mtmsr(msr);		/* restore interrupt enable */
 
 	return cmd != 'X';
 }
@@ -497,55 +515,22 @@ int xmon(struct pt_regs *excp)
 	struct pt_regs regs;
 
 	if (excp == NULL) {
-		/* Ok, grab regs as they are now.
-		 This won't do a particularily good job because the
-		 prologue has already been executed.
-		 ToDo: We could reach back into the callers save
-		 area to do a better job of representing the
-		 caller's state.
-		 */
-		asm volatile ("std	0,0(%0)\n\
-			std	1,8(%0)\n\
-			std	2,16(%0)\n\
-			std	3,24(%0)\n\
-			std	4,32(%0)\n\
-			std	5,40(%0)\n\
-			std	6,48(%0)\n\
-			std	7,56(%0)\n\
-			std	8,64(%0)\n\
-			std	9,72(%0)\n\
-			std	10,80(%0)\n\
-			std	11,88(%0)\n\
-			std	12,96(%0)\n\
-			std	13,104(%0)\n\
-			std	14,112(%0)\n\
-			std	15,120(%0)\n\
-			std	16,128(%0)\n\
-			std	17,136(%0)\n\
-			std	18,144(%0)\n\
-			std	19,152(%0)\n\
-			std	20,160(%0)\n\
-			std	21,168(%0)\n\
-			std	22,176(%0)\n\
-			std	23,184(%0)\n\
-			std	24,192(%0)\n\
-			std	25,200(%0)\n\
-			std	26,208(%0)\n\
-			std	27,216(%0)\n\
-			std	28,224(%0)\n\
-			std	29,232(%0)\n\
-			std	30,240(%0)\n\
-			std	31,248(%0)" : : "b" (&regs));
-
-		regs.nip = regs.link = ((unsigned long *)(regs.gpr[1]))[2];
-		regs.msr = get_msr();
-		regs.ctr = get_ctr();
-		regs.xer = get_xer();
-		regs.ccr = get_cr();
-		regs.trap = 0;
+		xmon_save_regs(&regs);
 		excp = &regs;
 	}
 	return xmon_core(excp, 0);
+}
+EXPORT_SYMBOL(xmon);
+
+irqreturn_t
+xmon_irq(int irq, void *d, struct pt_regs *regs)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+	printf("Keyboard interrupt\n");
+	xmon(regs);
+	local_irq_restore(flags);
+	return IRQ_HANDLED;
 }
 
 int xmon_bpt(struct pt_regs *regs)
@@ -718,7 +703,7 @@ static void insert_cpu_bpts(void)
 	if (dabr.enabled)
 		set_dabr(dabr.address | (dabr.enabled & 7));
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
-		set_iabr(iabr->address
+		mtspr(SPRN_IABR, iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
 }
 
@@ -746,7 +731,7 @@ static void remove_cpu_bpts(void)
 {
 	set_dabr(0);
 	if (cpu_has_feature(CPU_FTR_IABR))
-		set_iabr(0);
+		mtspr(SPRN_IABR, 0);
 }
 
 /* Command interpreting routine */
@@ -830,9 +815,6 @@ cmds(struct pt_regs *excp)
 		case '?':
 			printf(help_string);
 			break;
-		case 'p':
-			show_state();
-			break;
 		case 'b':
 			bpt_cmds();
 			break;
@@ -846,12 +828,14 @@ cmds(struct pt_regs *excp)
 		case 'z':
 			bootcmds();
 			break;
-		case 'T':
-			debug_trace();
+		case 'p':
+			proccall();
 			break;
+#ifdef CONFIG_PPC_STD_MMU
 		case 'u':
 			dump_segments();
 			break;
+#endif
 		default:
 			printf("Unrecognized command: ");
 		        do {
@@ -1070,6 +1054,7 @@ bpt_cmds(void)
 
 	cmd = inchar();
 	switch (cmd) {
+#ifndef CONFIG_8xx
 	case 'd':	/* bd - hardware data breakpoint */
 		mode = 7;
 		cmd = inchar();
@@ -1111,6 +1096,7 @@ bpt_cmds(void)
 			iabr = bp;
 		}
 		break;
+#endif
 
 	case 'c':
 		if (!scanhex(&a)) {
@@ -1152,7 +1138,7 @@ bpt_cmds(void)
 			/* print all breakpoints */
 			printf("   type            address\n");
 			if (dabr.enabled) {
-				printf("   data   %.16lx  [", dabr.address);
+				printf("   data   "REG"  [", dabr.address);
 				if (dabr.enabled & 1)
 					printf("r");
 				if (dabr.enabled & 2)
@@ -1231,6 +1217,18 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 
 static int xmon_depth_to_print = 64;
 
+#ifdef CONFIG_PPC64
+#define LRSAVE_OFFSET		0x10
+#define REG_FRAME_MARKER	0x7265677368657265ul	/* "regshere" */
+#define MARKER_OFFSET		0x60
+#define REGS_OFFSET		0x70
+#else
+#define LRSAVE_OFFSET		4
+#define REG_FRAME_MARKER	0x72656773
+#define MARKER_OFFSET		8
+#define REGS_OFFSET		16
+#endif
+
 static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			    unsigned long pc)
 {
@@ -1247,7 +1245,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			break;
 		}
 
-		if (!mread(sp + 16, &ip, sizeof(unsigned long))
+		if (!mread(sp + LRSAVE_OFFSET, &ip, sizeof(unsigned long))
 		    || !mread(sp, &newsp, sizeof(unsigned long))) {
 			printf("Couldn't read stack frame at %lx\n", sp);
 			break;
@@ -1266,7 +1264,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			get_function_bounds(pc, &fnstart, &fnend);
 			nextip = 0;
 			if (newsp > sp)
-				mread(newsp + 16, &nextip,
+				mread(newsp + LRSAVE_OFFSET, &nextip,
 				      sizeof(unsigned long));
 			if (lr == ip) {
 				if (lr < PAGE_OFFSET
@@ -1280,24 +1278,24 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 				xmon_print_symbol(lr, " ", "\n");
 			}
 			if (printip) {
-				printf("[%.16lx] ", sp);
+				printf("["REG"] ", sp);
 				xmon_print_symbol(ip, " ", " (unreliable)\n");
 			}
 			pc = lr = 0;
 
 		} else {
-			printf("[%.16lx] ", sp);
+			printf("["REG"] ", sp);
 			xmon_print_symbol(ip, " ", "\n");
 		}
 
 		/* Look for "regshere" marker to see if this is
 		   an exception frame. */
-		if (mread(sp + 0x60, &marker, sizeof(unsigned long))
-		    && marker == 0x7265677368657265ul) {
-			if (mread(sp + 0x70, &regs, sizeof(regs))
+		if (mread(sp + MARKER_OFFSET, &marker, sizeof(unsigned long))
+		    && marker == REG_FRAME_MARKER) {
+			if (mread(sp + REGS_OFFSET, &regs, sizeof(regs))
 			    != sizeof(regs)) {
 				printf("Couldn't read registers at %lx\n",
-				       sp + 0x70);
+				       sp + REGS_OFFSET);
 				break;
 			}
                         printf("--- Exception: %lx %s at ", regs.trap,
@@ -1371,7 +1369,9 @@ void excprint(struct pt_regs *fp)
 	}
 
 	printf("  current = 0x%lx\n", current);
+#ifdef CONFIG_PPC64
 	printf("  paca    = 0x%lx\n", get_paca());
+#endif
 	if (current) {
 		printf("    pid   = %ld, comm = %s\n",
 		       current->pid, current->comm);
@@ -1383,7 +1383,7 @@ void excprint(struct pt_regs *fp)
 
 void prregs(struct pt_regs *fp)
 {
-	int n;
+	int n, trap;
 	unsigned long base;
 	struct pt_regs regs;
 
@@ -1396,7 +1396,7 @@ void prregs(struct pt_regs *fp)
 			__delay(200);
 		} else {
 			catch_memory_errors = 0;
-			printf("*** Error reading registers from %.16lx\n",
+			printf("*** Error reading registers from "REG"\n",
 			       base);
 			return;
 		}
@@ -1404,22 +1404,36 @@ void prregs(struct pt_regs *fp)
 		fp = &regs;
 	}
 
+#ifdef CONFIG_PPC64
 	if (FULL_REGS(fp)) {
 		for (n = 0; n < 16; ++n)
-			printf("R%.2ld = %.16lx   R%.2ld = %.16lx\n",
+			printf("R%.2ld = "REG"   R%.2ld = "REG"\n",
 			       n, fp->gpr[n], n+16, fp->gpr[n+16]);
 	} else {
 		for (n = 0; n < 7; ++n)
-			printf("R%.2ld = %.16lx   R%.2ld = %.16lx\n",
+			printf("R%.2ld = "REG"   R%.2ld = "REG"\n",
 			       n, fp->gpr[n], n+7, fp->gpr[n+7]);
 	}
+#else
+	for (n = 0; n < 32; ++n) {
+		printf("R%.2d = %.8x%s", n, fp->gpr[n],
+		       (n & 3) == 3? "\n": "   ");
+		if (n == 12 && !FULL_REGS(fp)) {
+			printf("\n");
+			break;
+		}
+	}
+#endif
 	printf("pc  = ");
 	xmon_print_symbol(fp->nip, " ", "\n");
 	printf("lr  = ");
 	xmon_print_symbol(fp->link, " ", "\n");
-	printf("msr = %.16lx   cr  = %.8lx\n", fp->msr, fp->ccr);
-	printf("ctr = %.16lx   xer = %.16lx   trap = %8lx\n",
+	printf("msr = "REG"   cr  = %.8lx\n", fp->msr, fp->ccr);
+	printf("ctr = "REG"   xer = "REG"   trap = %4lx\n",
 	       fp->ctr, fp->xer, fp->trap);
+	trap = TRAP(fp);
+	if (trap == 0x300 || trap == 0x380 || trap == 0x600)
+		printf("dar = "REG"   dsisr = %.8lx\n", fp->dar, fp->dsisr);
 }
 
 void cacheflush(void)
@@ -1519,8 +1533,7 @@ static unsigned long regno;
 extern char exc_prolog;
 extern char dec_exc;
 
-void
-super_regs(void)
+void super_regs(void)
 {
 	int cmd;
 	unsigned long val;
@@ -1536,12 +1549,14 @@ super_regs(void)
 		asm("mr %0,1" : "=r" (sp) :);
 		asm("mr %0,2" : "=r" (toc) :);
 
-		printf("msr  = %.16lx  sprg0= %.16lx\n", get_msr(), get_sprg0());
-		printf("pvr  = %.16lx  sprg1= %.16lx\n", get_pvr(), get_sprg1()); 
-		printf("dec  = %.16lx  sprg2= %.16lx\n", get_dec(), get_sprg2());
-		printf("sp   = %.16lx  sprg3= %.16lx\n", sp, get_sprg3());
-		printf("toc  = %.16lx  dar  = %.16lx\n", toc, get_dar());
-		printf("srr0 = %.16lx  srr1 = %.16lx\n", get_srr0(), get_srr1());
+		printf("msr  = "REG"  sprg0= "REG"\n",
+		       mfmsr(), mfspr(SPRN_SPRG0));
+		printf("pvr  = "REG"  sprg1= "REG"\n",
+		       mfspr(SPRN_PVR), mfspr(SPRN_SPRG1)); 
+		printf("dec  = "REG"  sprg2= "REG"\n",
+		       mfspr(SPRN_DEC), mfspr(SPRN_SPRG2));
+		printf("sp   = "REG"  sprg3= "REG"\n", sp, mfspr(SPRN_SPRG3));
+		printf("toc  = "REG"  dar  = "REG"\n", toc, mfspr(SPRN_DAR));
 #ifdef CONFIG_PPC_ISERIES
 		// Dump out relevant Paca data areas.
 		printf("Paca: \n");
@@ -1578,11 +1593,6 @@ super_regs(void)
 	case 'r':
 		printf("spr %lx = %lx\n", regno, read_spr(regno));
 		break;
-	case 'm':
-		val = get_msr();
-		scanhex(&val);
-		set_msrd(val);
-		break;
 	}
 	scannl();
 }
@@ -1604,13 +1614,13 @@ mread(unsigned long adrs, void *buf, int size)
 		q = (char *)buf;
 		switch (size) {
 		case 2:
-			*(short *)q = *(short *)p;
+			*(u16 *)q = *(u16 *)p;
 			break;
 		case 4:
-			*(int *)q = *(int *)p;
+			*(u32 *)q = *(u32 *)p;
 			break;
 		case 8:
-			*(long *)q = *(long *)p;
+			*(u64 *)q = *(u64 *)p;
 			break;
 		default:
 			for( ; n < size; ++n) {
@@ -1641,13 +1651,13 @@ mwrite(unsigned long adrs, void *buf, int size)
 		q = (char *) buf;
 		switch (size) {
 		case 2:
-			*(short *)p = *(short *)q;
+			*(u16 *)p = *(u16 *)q;
 			break;
 		case 4:
-			*(int *)p = *(int *)q;
+			*(u32 *)p = *(u32 *)q;
 			break;
 		case 8:
-			*(long *)p = *(long *)q;
+			*(u64 *)p = *(u64 *)q;
 			break;
 		default:
 			for ( ; n < size; ++n) {
@@ -1667,11 +1677,12 @@ mwrite(unsigned long adrs, void *buf, int size)
 }
 
 static int fault_type;
+static int fault_except;
 static char *fault_chars[] = { "--", "**", "##" };
 
-static int
-handle_fault(struct pt_regs *regs)
+static int handle_fault(struct pt_regs *regs)
 {
+	fault_except = TRAP(regs);
 	switch (TRAP(regs)) {
 	case 0x200:
 		fault_type = 0;
@@ -1960,7 +1971,7 @@ prdump(unsigned long adrs, long ndump)
 	unsigned char temp[16];
 
 	for (n = ndump; n > 0;) {
-		printf("%.16lx", adrs);
+		printf(REG, adrs);
 		putchar(' ');
 		r = n < 16? n: 16;
 		nr = mread(adrs, temp, r);
@@ -2008,7 +2019,7 @@ ppc_inst_dump(unsigned long adr, long count, int praddr)
 		if (nr == 0) {
 			if (praddr) {
 				const char *x = fault_chars[fault_type];
-				printf("%.16lx  %s%s%s%s\n", adr, x, x, x, x);
+				printf(REG"  %s%s%s%s\n", adr, x, x, x, x);
 			}
 			break;
 		}
@@ -2023,7 +2034,7 @@ ppc_inst_dump(unsigned long adr, long count, int praddr)
 		dotted = 0;
 		last_inst = inst;
 		if (praddr)
-			printf("%.16lx  %.8x", adr, inst);
+			printf(REG"  %.8x", adr, inst);
 		printf("\t");
 		print_insn_powerpc(inst, adr, 0);	/* always returns 4 */
 		printf("\n");
@@ -2152,6 +2163,42 @@ memzcan(void)
 		printf("%.8x\n", a - mskip);
 }
 
+void proccall(void)
+{
+	unsigned long args[8];
+	unsigned long ret;
+	int i;
+	typedef unsigned long (*callfunc_t)(unsigned long, unsigned long,
+			unsigned long, unsigned long, unsigned long,
+			unsigned long, unsigned long, unsigned long);
+	callfunc_t func;
+
+	if (!scanhex(&adrs))
+		return;
+	if (termch != '\n')
+		termch = 0;
+	for (i = 0; i < 8; ++i)
+		args[i] = 0;
+	for (i = 0; i < 8; ++i) {
+		if (!scanhex(&args[i]) || termch == '\n')
+			break;
+		termch = 0;
+	}
+	func = (callfunc_t) adrs;
+	ret = 0;
+	if (setjmp(bus_error_jmp) == 0) {
+		catch_memory_errors = 1;
+		sync();
+		ret = func(args[0], args[1], args[2], args[3],
+			   args[4], args[5], args[6], args[7]);
+		sync();
+		printf("return value is %x\n", ret);
+	} else {
+		printf("*** %x exception occurred\n", fault_except);
+	}
+	catch_memory_errors = 0;
+}
+
 /* Input scanning routines */
 int
 skipbl(void)
@@ -2174,7 +2221,12 @@ static char *regnames[N_PTREGS] = {
 	"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
-	"pc", "msr", "or3", "ctr", "lr", "xer", "ccr", "softe",
+	"pc", "msr", "or3", "ctr", "lr", "xer", "ccr",
+#ifdef CONFIG_PPC64
+	"softe",
+#else
+	"mq",
+#endif
 	"trap", "dar", "dsisr", "res"
 };
 
@@ -2280,8 +2332,7 @@ scannl(void)
 		c = inchar();
 }
 
-int
-hexdigit(int c)
+int hexdigit(int c)
 {
 	if( '0' <= c && c <= '9' )
 		return c - '0';
@@ -2378,7 +2429,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 	const char *name = NULL;
 	unsigned long offset, size;
 
-	printf("%.16lx", address);
+	printf(REG, address);
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
 		sync();
@@ -2399,55 +2450,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 	printf("%s", after);
 }
 
-static void debug_trace(void)
-{
-        unsigned long val, cmd, on;
-
-	cmd = skipbl();
-	if (cmd == '\n') {
-		/* show current state */
-		unsigned long i;
-		printf("ppc64_debug_switch = 0x%lx\n", ppc64_debug_switch);
-		for (i = 0; i < PPCDBG_NUM_FLAGS ;i++) {
-			on = PPCDBG_BITVAL(i) & ppc64_debug_switch;
-			printf("%02x %s %12s   ", i, on ? "on " : "off",  trace_names[i] ? trace_names[i] : "");
-			if (((i+1) % 3) == 0)
-				printf("\n");
-		}
-		printf("\n");
-		return;
-	}
-	while (cmd != '\n') {
-		on = 1;	/* default if no sign given */
-		while (cmd == '+' || cmd == '-') {
-			on = (cmd == '+');
-			cmd = inchar();
-			if (cmd == ' ' || cmd == '\n') {  /* Turn on or off based on + or - */
-				ppc64_debug_switch = on ? PPCDBG_ALL:PPCDBG_NONE;
-				printf("Setting all values to %s...\n", on ? "on" : "off");
-				if (cmd == '\n') return;
-				else cmd = skipbl(); 
-			}
-			else
-				termch = cmd;
-		}
-		termch = cmd;	/* not +/- ... let scanhex see it */
-		scanhex((void *)&val);
-		if (val >= 64) {
-			printf("Value %x out of range:\n", val);
-			return;
-		}
-		if (on) {
-			ppc64_debug_switch |= PPCDBG_BITVAL(val);
-			printf("enable debug %x %s\n", val, trace_names[val] ? trace_names[val] : "");
-		} else {
-			ppc64_debug_switch &= ~PPCDBG_BITVAL(val);
-			printf("disable debug %x %s\n", val, trace_names[val] ? trace_names[val] : "");
-		}
-		cmd = skipbl();
-	}
-}
-
+#ifdef CONFIG_PPC64
 static void dump_slb(void)
 {
 	int i;
@@ -2484,6 +2487,27 @@ static void dump_stab(void)
 	}
 }
 
+void dump_segments(void)
+{
+	if (cpu_has_feature(CPU_FTR_SLB))
+		dump_slb();
+	else
+		dump_stab();
+}
+#endif
+
+#ifdef CONFIG_PPC_STD_MMU_32
+void dump_segments(void)
+{
+	int i;
+
+	printf("sr0-15 =");
+	for (i = 0; i < 16; ++i)
+		printf(" %x", mfsrin(i));
+	printf("\n");
+}
+#endif
+
 void xmon_init(int enable)
 {
 	if (enable) {
@@ -2503,12 +2527,4 @@ void xmon_init(int enable)
 		__debugger_dabr_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
-}
-
-void dump_segments(void)
-{
-	if (cpu_has_feature(CPU_FTR_SLB))
-		dump_slb();
-	else
-		dump_stab();
 }

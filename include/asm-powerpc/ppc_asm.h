@@ -188,6 +188,10 @@ n:
 #define LDL	ld
 #define STL	std
 #define CMPI	cmpdi
+#define SZL	8
+
+/* offsets for stack frame layout */
+#define LRSAVE	16
 
 #else /* 32-bit */
 #define LOADADDR(rn,name) \
@@ -203,6 +207,10 @@ n:
 #define LDL	lwz
 #define STL	stw
 #define CMPI	cmpwi
+#define SZL	4
+
+/* offsets for stack frame layout */
+#define LRSAVE	4
 
 #endif
 

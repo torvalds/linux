@@ -546,6 +546,7 @@
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v))
 #define mtmsrd(v)	__mtmsrd((v), 0)
+#define mtmsr(v)	mtmsrd(v)
 #else
 #define mtmsr(v)	asm volatile("mtmsr %0" : : "r" (v))
 #endif

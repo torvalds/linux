@@ -271,6 +271,9 @@ __secondary_hold_acknowledge:
 	li	r10,MSR_KERNEL & ~(MSR_IR|MSR_DR); /* can take exceptions */ \
 	MTMSRD(r10);			/* (except for mach check in rtas) */ \
 	stw	r0,GPR0(r11);	\
+	lis	r10,0x7265;		/* put exception frame marker */ \
+	addi	r10,r10,0x6773;	\
+	stw	r10,8(r11);	\
 	SAVE_4GPRS(3, r11);	\
 	SAVE_2GPRS(7, r11)
 

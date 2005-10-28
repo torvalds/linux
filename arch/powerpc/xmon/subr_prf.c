@@ -18,13 +18,13 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/module.h>
 #include <stdarg.h>
 #include "nonstdio.h"
 
 extern int xmon_write(void *, void *, int);
 
-void
-xmon_vfprintf(void *f, const char *fmt, va_list ap)
+void xmon_vfprintf(void *f, const char *fmt, va_list ap)
 {
 	static char xmon_buf[2048];
 	int n;
@@ -33,8 +33,7 @@ xmon_vfprintf(void *f, const char *fmt, va_list ap)
 	xmon_write(f, xmon_buf, n);
 }
 
-void
-xmon_printf(const char *fmt, ...)
+void xmon_printf(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -42,9 +41,9 @@ xmon_printf(const char *fmt, ...)
 	xmon_vfprintf(stdout, fmt, ap);
 	va_end(ap);
 }
+EXPORT_SYMBOL(xmon_printf);
 
-void
-xmon_fprintf(void *f, const char *fmt, ...)
+void xmon_fprintf(void *f, const char *fmt, ...)
 {
 	va_list ap;
 

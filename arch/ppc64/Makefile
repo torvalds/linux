@@ -89,7 +89,7 @@ core-y				+= arch/powerpc/mm/
 core-y				+= arch/powerpc/sysdev/
 core-y				+= arch/powerpc/platforms/
 core-y				+= arch/powerpc/lib/
-core-$(CONFIG_XMON)		+= arch/ppc64/xmon/
+core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 boot := arch/ppc64/boot

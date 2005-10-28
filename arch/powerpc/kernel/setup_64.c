@@ -59,6 +59,7 @@
 #include <asm/iSeries/ItLpNaca.h>
 #include <asm/firmware.h>
 #include <asm/systemcfg.h>
+#include <asm/xmon.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

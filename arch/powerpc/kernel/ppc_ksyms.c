@@ -44,7 +44,6 @@
 #include <asm/cputable.h>
 #include <asm/btext.h>
 #include <asm/div64.h>
-#include <asm/xmon.h>
 
 #ifdef  CONFIG_8xx
 #include <asm/commproc.h>
@@ -238,10 +237,6 @@ EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(cacheable_memcpy);
 #endif
 
-#ifdef CONFIG_XMON
-EXPORT_SYMBOL(xmon);
-EXPORT_SYMBOL(xmon_printf);
-#endif
 EXPORT_SYMBOL(__up);
 EXPORT_SYMBOL(__down);
 EXPORT_SYMBOL(__down_interruptible);
