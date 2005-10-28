@@ -274,21 +274,22 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 {
 	pte_t *src_pte, *dst_pte, entry;
 	struct page *ptepage;
-	unsigned long addr = vma->vm_start;
-	unsigned long end = vma->vm_end;
+	unsigned long addr;
 
-	while (addr < end) {
+	for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
 		dst_pte = huge_pte_alloc(dst, addr);
 		if (!dst_pte)
 			goto nomem;
+		spin_lock(&src->page_table_lock);
 		src_pte = huge_pte_offset(src, addr);
-		BUG_ON(!src_pte || pte_none(*src_pte)); /* prefaulted */
-		entry = *src_pte;
-		ptepage = pte_page(entry);
-		get_page(ptepage);
-		add_mm_counter(dst, rss, HPAGE_SIZE / PAGE_SIZE);
-		set_huge_pte_at(dst, addr, dst_pte, entry);
-		addr += HPAGE_SIZE;
+		if (src_pte && !pte_none(*src_pte)) {
+			entry = *src_pte;
+			ptepage = pte_page(entry);
+			get_page(ptepage);
+			add_mm_counter(dst, rss, HPAGE_SIZE / PAGE_SIZE);
+			set_huge_pte_at(dst, addr, dst_pte, entry);
+		}
+		spin_unlock(&src->page_table_lock);
 	}
 	return 0;
 
@@ -323,8 +324,8 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 
 		page = pte_page(pte);
 		put_page(page);
+		add_mm_counter(mm, rss,  - (HPAGE_SIZE / PAGE_SIZE));
 	}
-	add_mm_counter(mm, rss,  -((end - start) >> PAGE_SHIFT));
 	flush_tlb_range(vma, start, end);
 }
 
@@ -393,6 +394,28 @@ out:
 	return ret;
 }
 
+/*
+ * On ia64 at least, it is possible to receive a hugetlb fault from a
+ * stale zero entry left in the TLB from earlier hardware prefetching.
+ * Low-level arch code should already have flushed the stale entry as
+ * part of its fault handling, but we do need to accept this minor fault
+ * and return successfully.  Whereas the "normal" case is that this is
+ * an access to a hugetlb page which has been truncated off since mmap.
+ */
+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, int write_access)
+{
+	int ret = VM_FAULT_SIGBUS;
+	pte_t *pte;
+
+	spin_lock(&mm->page_table_lock);
+	pte = huge_pte_offset(mm, address);
+	if (pte && !pte_none(*pte))
+		ret = VM_FAULT_MINOR;
+	spin_unlock(&mm->page_table_lock);
+	return ret;
+}
+
 int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			struct page **pages, struct vm_area_struct **vmas,
 			unsigned long *position, int *length, int i)
@@ -403,6 +426,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	BUG_ON(!is_vm_hugetlb_page(vma));
 
 	vpfn = vaddr/PAGE_SIZE;
+	spin_lock(&mm->page_table_lock);
 	while (vaddr < vma->vm_end && remainder) {
 
 		if (pages) {
@@ -415,8 +439,13 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			 * indexing below to work. */
 			pte = huge_pte_offset(mm, vaddr & HPAGE_MASK);
 
-			/* hugetlb should be locked, and hence, prefaulted */
-			WARN_ON(!pte || pte_none(*pte));
+			/* the hugetlb file might have been truncated */
+			if (!pte || pte_none(*pte)) {
+				remainder = 0;
+				if (!i)
+					i = -EFAULT;
+				break;
+			}
 
 			page = &pte_page(*pte)[vpfn % (HPAGE_SIZE/PAGE_SIZE)];
 
@@ -434,7 +463,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		--remainder;
 		++i;
 	}
-
+	spin_unlock(&mm->page_table_lock);
 	*length = remainder;
 	*position = vaddr;
 

@@ -652,6 +652,30 @@ typedef struct {
 #define SMALL_BLK_CNT	30
 #define LARGE_BLK_CNT	100
 
+/*
+ * Structure to keep track of the MSI-X vectors and the corresponding
+ * argument registered against each vector
+ */
+#define MAX_REQUESTED_MSI_X	17
+struct s2io_msix_entry
+{
+	u16 vector;
+	u16 entry;
+	void *arg;
+
+	u8 type;
+#define	MSIX_FIFO_TYPE	1
+#define	MSIX_RING_TYPE	2
+
+	u8 in_use;
+#define MSIX_REGISTERED_SUCCESS	0xAA
+};
+
+struct msix_info_st {
+	u64 addr;
+	u64 data;
+};
+
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
 #ifdef CONFIG_S2IO_NAPI
@@ -719,13 +743,8 @@ struct s2io_nic {
 	 *  a schedule task that will set the correct Link state once the
 	 *  NIC's PHY has stabilized after a state change.
 	 */
-#ifdef INIT_TQUEUE
-	struct tq_struct rst_timer_task;
-	struct tq_struct set_link_task;
-#else
 	struct work_struct rst_timer_task;
 	struct work_struct set_link_task;
-#endif
 
 	/* Flag that can be used to turn on or turn off the Rx checksum
 	 * offload feature.
@@ -748,9 +767,22 @@ struct s2io_nic {
 	atomic_t card_state;
 	volatile unsigned long link_state;
 	struct vlan_group *vlgrp;
+#define MSIX_FLG                0xA5
+	struct msix_entry *entries;
+	struct s2io_msix_entry *s2io_entries;
+	char desc1[35];
+	char desc2[35];
+
+	struct msix_info_st msix_info[0x3f];
+
 #define XFRAME_I_DEVICE		1
 #define XFRAME_II_DEVICE	2
 	u8 device_type;
+
+#define INTA	0
+#define MSI	1
+#define MSI_X	2
+	u8 intr_type;
 
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
@@ -886,6 +918,13 @@ static int s2io_poll(struct net_device *dev, int *budget);
 static void s2io_init_pci(nic_t * sp);
 int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
+static int s2io_enable_msi(nic_t *nic);
+static irqreturn_t s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t
+s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t
+s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs);
+int s2io_enable_msi_x(nic_t *nic);
 static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
@@ -894,4 +933,5 @@ int s2io_set_swapper(nic_t * sp);
 static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);
 int get_xena_rev_id(struct pci_dev *pdev);
+void restore_xmsi_data(nic_t *nic);
 #endif				/* _S2IO_H */

@@ -1066,7 +1066,7 @@ qla2x00_send_login_iocb_cb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
  * Returns a pointer to the allocated RSCN fcport, or NULL, if none available.
  */
 fc_port_t *
-qla2x00_alloc_rscn_fcport(scsi_qla_host_t *ha, int flags)
+qla2x00_alloc_rscn_fcport(scsi_qla_host_t *ha, gfp_t flags)
 {
 	fc_port_t *fcport;
 

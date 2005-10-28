@@ -2283,8 +2283,9 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 {
 	struct ohci1394_iso_tasklet *t;
 	unsigned long mask;
+	unsigned long flags;
 
-	spin_lock(&ohci->iso_tasklet_list_lock);
+	spin_lock_irqsave(&ohci->iso_tasklet_list_lock, flags);
 
 	list_for_each_entry(t, &ohci->iso_tasklet_list, link) {
 		mask = 1 << t->context;
@@ -2295,8 +2296,7 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 			tasklet_schedule(&t->tasklet);
 	}
 
-	spin_unlock(&ohci->iso_tasklet_list_lock);
-
+	spin_unlock_irqrestore(&ohci->iso_tasklet_list_lock, flags);
 }
 
 static irqreturn_t ohci_irq_handler(int irq, void *dev_id,

@@ -778,7 +778,7 @@ static int bio_map_kern_endio(struct bio *bio, unsigned int bytes_done, int err)
 
 
 static struct bio *__bio_map_kern(request_queue_t *q, void *data,
-				  unsigned int len, unsigned int gfp_mask)
+				  unsigned int len, gfp_t gfp_mask)
 {
 	unsigned long kaddr = (unsigned long)data;
 	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -825,7 +825,7 @@ static struct bio *__bio_map_kern(request_queue_t *q, void *data,
  *	device. Returns an error pointer in case of error.
  */
 struct bio *bio_map_kern(request_queue_t *q, void *data, unsigned int len,
-			 unsigned int gfp_mask)
+			 gfp_t gfp_mask)
 {
 	struct bio *bio;
 

@@ -52,7 +52,7 @@ u32
 spkm3_read_token(struct spkm3_ctx *ctx,
 		struct xdr_netobj *read_token,    /* checksum */
 		struct xdr_buf *message_buffer, /* signbuf */
-		int *qop_state, int toktype)
+		int toktype)
 {
 	s32			code;
 	struct xdr_netobj	wire_cksum = {.len =0, .data = NULL};

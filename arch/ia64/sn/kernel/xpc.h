@@ -939,7 +939,7 @@ xpc_map_bte_errors(bte_result_t error)
 
 
 static inline void *
-xpc_kmalloc_cacheline_aligned(size_t size, int flags, void **base)
+xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
 {
 	/* see if kmalloc will give us cachline aligned memory by default */
 	*base = kmalloc(size, flags);

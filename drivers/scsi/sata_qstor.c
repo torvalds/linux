@@ -51,8 +51,6 @@ enum {
 	QS_PRD_BYTES		= QS_MAX_PRD * 16,
 	QS_PKT_BYTES		= QS_CPB_BYTES + QS_PRD_BYTES,
 
-	QS_DMA_BOUNDARY		= ~0UL,
-
 	/* global register offsets */
 	QS_HCF_CNFG3		= 0x0003, /* host configuration offset */
 	QS_HID_HPHY		= 0x0004, /* host physical interface info */
@@ -101,6 +99,10 @@ enum {
 	board_2068_idx		= 0,	/* QStor 4-port SATA/RAID */
 };
 
+enum {
+	QS_DMA_BOUNDARY		= ~0UL
+};
+
 typedef enum { qs_state_idle, qs_state_pkt, qs_state_mmio } qs_state_t;
 
 struct qs_port_priv {
@@ -145,7 +147,7 @@ static Scsi_Host_Template qs_ata_sht = {
 	.bios_param		= ata_std_bios_param,
 };
 
-static struct ata_port_operations qs_ata_ops = {
+static const struct ata_port_operations qs_ata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,

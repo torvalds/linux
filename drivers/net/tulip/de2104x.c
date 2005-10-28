@@ -1787,9 +1787,14 @@ static void __init de21041_get_srom_info (struct de_private *de)
 	/* DEC now has a specification but early board makers
 	   just put the address in the first EEPROM locations. */
 	/* This does  memcmp(eedata, eedata+16, 8) */
+
+#ifndef CONFIG_MIPS_COBALT
+
 	for (i = 0; i < 8; i ++)
 		if (ee_data[i] != ee_data[16+i])
 			sa_offset = 20;
+
+#endif
 
 	/* store MAC address */
 	for (i = 0; i < 6; i ++)

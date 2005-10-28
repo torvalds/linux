@@ -307,9 +307,9 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 }
 
 static struct s3c2410_platform_nand bast_nand_info = {
-	.tacls		= 40,
-	.twrph0		= 80,
-	.twrph1		= 80,
+	.tacls		= 30,
+	.twrph0		= 60,
+	.twrph1		= 60,
 	.nr_sets	= ARRAY_SIZE(bast_nand_sets),
 	.sets		= bast_nand_sets,
 	.select_chip	= bast_nand_select,

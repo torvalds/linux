@@ -188,7 +188,7 @@ extern int buffer_heads_over_limit;
  * Generic address_space_operations implementations for buffer_head-backed
  * address_spaces.
  */
-int try_to_release_page(struct page * page, int gfp_mask);
+int try_to_release_page(struct page * page, gfp_t gfp_mask);
 int block_invalidatepage(struct page *page, unsigned long offset);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 				struct writeback_control *wbc);

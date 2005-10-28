@@ -44,9 +44,9 @@
 
 #include "libata.h"
 
-typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, u8 *scsicmd);
+typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, const u8 *scsicmd);
 static struct ata_device *
-ata_scsi_find_dev(struct ata_port *ap, struct scsi_device *scsidev);
+ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev);
 
 
 static void ata_scsi_invalid_field(struct scsi_cmnd *cmd,
@@ -428,7 +428,7 @@ int ata_scsi_error(struct Scsi_Host *host)
  */
 
 static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc,
-					     u8 *scsicmd)
+					     const u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
 
@@ -495,7 +495,7 @@ invalid_fld:
  *	Zero on success, non-zero on error.
  */
 
-static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
+static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
 
@@ -522,7 +522,7 @@ static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
  *	@plen: the transfer length
  */
 
-static void scsi_6_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
+static void scsi_6_lba_len(const u8 *scsicmd, u64 *plba, u32 *plen)
 {
 	u64 lba = 0;
 	u32 len = 0;
@@ -549,7 +549,7 @@ static void scsi_6_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
  *	@plen: the transfer length
  */
 
-static void scsi_10_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
+static void scsi_10_lba_len(const u8 *scsicmd, u64 *plba, u32 *plen)
 {
 	u64 lba = 0;
 	u32 len = 0;
@@ -579,7 +579,7 @@ static void scsi_10_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
  *	@plen: the transfer length
  */
 
-static void scsi_16_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
+static void scsi_16_lba_len(const u8 *scsicmd, u64 *plba, u32 *plen)
 {
 	u64 lba = 0;
 	u32 len = 0;
@@ -618,7 +618,7 @@ static void scsi_16_lba_len(u8 *scsicmd, u64 *plba, u32 *plen)
  *	Zero on success, non-zero on error.
  */
 
-static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
+static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
@@ -744,7 +744,7 @@ nothing_to_do:
  *	Zero on success, non-zero on error.
  */
 
-static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
+static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
@@ -1698,7 +1698,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
  *	Zero on success, non-zero on failure.
  */
 
-static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
+static unsigned int atapi_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
@@ -1767,7 +1767,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
  */
 
 static struct ata_device *
-ata_scsi_find_dev(struct ata_port *ap, struct scsi_device *scsidev)
+ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 {
 	struct ata_device *dev;
 
@@ -1924,7 +1924,7 @@ void ata_scsi_simulate(u16 *id,
 		      void (*done)(struct scsi_cmnd *))
 {
 	struct ata_scsi_args args;
-	u8 *scsicmd = cmd->cmnd;
+	const u8 *scsicmd = cmd->cmnd;
 
 	args.id = id;
 	args.cmd = cmd;

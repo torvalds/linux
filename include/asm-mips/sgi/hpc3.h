@@ -128,26 +128,26 @@ struct hpc3_ethregs {
 	volatile u32 rx_gfptr;	/* current GIO fifo ptr */
 	volatile u32 rx_dfptr;	/* current device fifo ptr */
 	u32 _unused1;		/* padding */
-	volatile u32 rx_reset;	/* reset register */
-#define HPC3_ERXRST_CRESET 0x1	/* Reset dma channel and external controller */
-#define HPC3_ERXRST_CLRIRQ 0x2	/* Clear channel interrupt */
-#define HPC3_ERXRST_LBACK  0x4	/* Enable diagnostic loopback mode of Seeq8003 */
+	volatile u32 reset;	/* reset register */
+#define HPC3_ERST_CRESET 0x1	/* Reset dma channel and external controller */
+#define HPC3_ERST_CLRIRQ 0x2	/* Clear channel interrupt */
+#define HPC3_ERST_LBACK  0x4	/* Enable diagnostic loopback mode of Seeq8003 */
 
-	volatile u32 rx_dconfig;	/* DMA configuration register */
-#define HPC3_ERXDCFG_D1    0x0000f /* Cycles to spend in D1 state for PIO */
-#define HPC3_ERXDCFG_D2    0x000f0 /* Cycles to spend in D2 state for PIO */
-#define HPC3_ERXDCFG_D3    0x00f00 /* Cycles to spend in D3 state for PIO */
-#define HPC3_ERXDCFG_WCTRL 0x01000 /* Enable writes of desc into ex ctrl port */
-#define HPC3_ERXDCFG_FRXDC 0x02000 /* Clear eop stat bits upon rxdc, hw seeq fix */
-#define HPC3_ERXDCFG_FEOP  0x04000 /* Bad packet marker timeout enable */
-#define HPC3_ERXDCFG_FIRQ  0x08000 /* Another bad packet timeout enable */
-#define HPC3_ERXDCFG_PTO   0x30000 /* Programmed timeout value for above two */
+	volatile u32 dconfig;    /* DMA configuration register */
+#define HPC3_EDCFG_D1    0x0000f /* Cycles to spend in D1 state for PIO */
+#define HPC3_EDCFG_D2    0x000f0 /* Cycles to spend in D2 state for PIO */
+#define HPC3_EDCFG_D3    0x00f00 /* Cycles to spend in D3 state for PIO */
+#define HPC3_EDCFG_WCTRL 0x01000 /* Enable writes of desc into ex ctrl port */
+#define HPC3_EDCFG_FRXDC 0x02000 /* Clear eop stat bits upon rxdc, hw seeq fix */
+#define HPC3_EDCFG_FEOP  0x04000 /* Bad packet marker timeout enable */
+#define HPC3_EDCFG_FIRQ  0x08000 /* Another bad packet timeout enable */
+#define HPC3_EDCFG_PTO   0x30000 /* Programmed timeout value for above two */
 
-	volatile u32 rx_pconfig;	/* PIO configuration register */
-#define HPC3_ERXPCFG_P1    0x000f /* Cycles to spend in P1 state for PIO */
-#define HPC3_ERXPCFG_P2    0x00f0 /* Cycles to spend in P2 state for PIO */
-#define HPC3_ERXPCFG_P3    0x0f00 /* Cycles to spend in P3 state for PIO */
-#define HPC3_ERXPCFG_TST   0x1000 /* Diagnistic ram test feature bit */
+	volatile u32 pconfig;   /* PIO configuration register */
+#define HPC3_EPCFG_P1    0x000f /* Cycles to spend in P1 state for PIO */
+#define HPC3_EPCFG_P2    0x00f0 /* Cycles to spend in P2 state for PIO */
+#define HPC3_EPCFG_P3    0x0f00 /* Cycles to spend in P3 state for PIO */
+#define HPC3_EPCFG_TST   0x1000 /* Diagnistic ram test feature bit */
 
 	u32 _unused2[0x1000/4 - 8];	/* padding */
 

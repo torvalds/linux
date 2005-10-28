@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.54 $)
+ * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.55 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  * This file contains code related to sysfs.
@@ -20,7 +20,7 @@
 #include "qeth_mpc.h"
 #include "qeth_fs.h"
 
-const char *VERSION_QETH_SYS_C = "$Revision: 1.54 $";
+const char *VERSION_QETH_SYS_C = "$Revision: 1.55 $";
 
 /*****************************************************************************/
 /*                                                                           */
@@ -937,6 +937,19 @@ static struct attribute_group qeth_device_attr_group = {
 	.attrs = (struct attribute **)qeth_device_attrs,
 };
 
+static struct device_attribute * qeth_osn_device_attrs[] = {
+	&dev_attr_state,
+	&dev_attr_chpid,
+	&dev_attr_if_name,
+	&dev_attr_card_type,
+	&dev_attr_buffer_count,
+	&dev_attr_recover,
+	NULL,
+};
+
+static struct attribute_group qeth_osn_device_attr_group = {
+	.attrs = (struct attribute **)qeth_osn_device_attrs,
+};
 
 #define QETH_DEVICE_ATTR(_id,_name,_mode,_show,_store)			     \
 struct device_attribute dev_attr_##_id = {				     \
@@ -1667,7 +1680,12 @@ int
 qeth_create_device_attributes(struct device *dev)
 {
 	int ret;
+	struct qeth_card *card = dev->driver_data;
 
+	if (card->info.type == QETH_CARD_TYPE_OSN)
+		return sysfs_create_group(&dev->kobj,
+					  &qeth_osn_device_attr_group);
+   	
 	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_attr_group)))
 		return ret;
 	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_ipato_group))){
@@ -1693,6 +1711,12 @@ qeth_create_device_attributes(struct device *dev)
 void
 qeth_remove_device_attributes(struct device *dev)
 {
+	struct qeth_card *card = dev->driver_data;
+
+	if (card->info.type == QETH_CARD_TYPE_OSN)
+		return sysfs_remove_group(&dev->kobj,
+					  &qeth_osn_device_attr_group);
+		      
 	sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);

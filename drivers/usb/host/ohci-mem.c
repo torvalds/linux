@@ -84,7 +84,7 @@ dma_to_td (struct ohci_hcd *hc, dma_addr_t td_dma)
 
 /* TDs ... */
 static struct td *
-td_alloc (struct ohci_hcd *hc, unsigned mem_flags)
+td_alloc (struct ohci_hcd *hc, gfp_t mem_flags)
 {
 	dma_addr_t	dma;
 	struct td	*td;
@@ -118,7 +118,7 @@ td_free (struct ohci_hcd *hc, struct td *td)
 
 /* EDs ... */
 static struct ed *
-ed_alloc (struct ohci_hcd *hc, unsigned mem_flags)
+ed_alloc (struct ohci_hcd *hc, gfp_t mem_flags)
 {
 	dma_addr_t	dma;
 	struct ed	*ed;

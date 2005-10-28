@@ -870,7 +870,7 @@ void div128_by_32( unsigned long dividend_high, unsigned long dividend_low,
 	rb = ((ra + b) - (x * divisor)) << 32;
 
 	y = (rb + c)/divisor;
-	rc = ((rb + b) - (y * divisor)) << 32;
+	rc = ((rb + c) - (y * divisor)) << 32;
 
 	z = (rc + d)/divisor;
 

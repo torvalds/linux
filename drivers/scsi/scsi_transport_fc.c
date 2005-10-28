@@ -819,12 +819,15 @@ show_fc_private_host_tgtid_bind_type(struct class_device *cdev, char *buf)
 	return snprintf(buf, FC_BINDTYPE_MAX_NAMELEN, "%s\n", name);
 }
 
+#define get_list_head_entry(pos, head, member) 		\
+	pos = list_entry((head)->next, typeof(*pos), member)
+
 static ssize_t
 store_fc_private_host_tgtid_bind_type(struct class_device *cdev,
 	const char *buf, size_t count)
 {
 	struct Scsi_Host *shost = transport_class_to_shost(cdev);
-	struct fc_rport *rport, *next_rport;
+	struct fc_rport *rport;
  	enum fc_tgtid_binding_type val;
 	unsigned long flags;
 
@@ -834,9 +837,13 @@ store_fc_private_host_tgtid_bind_type(struct class_device *cdev,
 	/* if changing bind type, purge all unused consistent bindings */
 	if (val != fc_host_tgtid_bind_type(shost)) {
 		spin_lock_irqsave(shost->host_lock, flags);
-		list_for_each_entry_safe(rport, next_rport,
-				&fc_host_rport_bindings(shost), peers)
+		while (!list_empty(&fc_host_rport_bindings(shost))) {
+			get_list_head_entry(rport,
+				&fc_host_rport_bindings(shost), peers);
+			spin_unlock_irqrestore(shost->host_lock, flags);
 			fc_rport_terminate(rport);
+			spin_lock_irqsave(shost->host_lock, flags);
+		}
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	}
 

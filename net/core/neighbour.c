@@ -175,38 +175,9 @@ static void pneigh_queue_purge(struct sk_buff_head *list)
 	}
 }
 
-void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
+static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 {
 	int i;
-
-	write_lock_bh(&tbl->lock);
-
-	for (i=0; i <= tbl->hash_mask; i++) {
-		struct neighbour *n, **np;
-
-		np = &tbl->hash_buckets[i];
-		while ((n = *np) != NULL) {
-			if (dev && n->dev != dev) {
-				np = &n->next;
-				continue;
-			}
-			*np = n->next;
-			write_lock_bh(&n->lock);
-			n->dead = 1;
-			neigh_del_timer(n);
-			write_unlock_bh(&n->lock);
-			neigh_release(n);
-		}
-	}
-
-        write_unlock_bh(&tbl->lock);
-}
-
-int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
-{
-	int i;
-
-	write_lock_bh(&tbl->lock);
 
 	for (i = 0; i <= tbl->hash_mask; i++) {
 		struct neighbour *n, **np = &tbl->hash_buckets[i];
@@ -243,7 +214,19 @@ int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 			neigh_release(n);
 		}
 	}
+}
 
+void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
+{
+	write_lock_bh(&tbl->lock);
+	neigh_flush_dev(tbl, dev);
+	write_unlock_bh(&tbl->lock);
+}
+
+int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
+{
+	write_lock_bh(&tbl->lock);
+	neigh_flush_dev(tbl, dev);
 	pneigh_ifdown(tbl, dev);
 	write_unlock_bh(&tbl->lock);
 
@@ -732,6 +715,7 @@ static inline void neigh_add_timer(struct neighbour *n, unsigned long when)
 	if (unlikely(mod_timer(&n->timer, when))) {
 		printk("NEIGH: BUG, double timer add, state is %x\n",
 		       n->nud_state);
+		dump_stack();
 	}
 }
 
@@ -815,10 +799,10 @@ static void neigh_timer_handler(unsigned long arg)
 	}
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
-		neigh_hold(neigh);
 		if (time_before(next, jiffies + HZ/2))
 			next = jiffies + HZ/2;
-		neigh_add_timer(neigh, next);
+		if (!mod_timer(&neigh->timer, next))
+			neigh_hold(neigh);
 	}
 	if (neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) {
 		struct sk_buff *skb = skb_peek(&neigh->arp_queue);
@@ -1641,11 +1625,8 @@ static int neightbl_fill_info(struct neigh_table *tbl, struct sk_buff *skb,
 
 		memset(&ndst, 0, sizeof(ndst));
 
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		for_each_cpu(cpu) {
 			struct neigh_statistics	*st;
-
-			if (!cpu_possible(cpu))
-				continue;
 
 			st = per_cpu_ptr(tbl->stats, cpu);
 			ndst.ndts_allocs		+= st->allocs;

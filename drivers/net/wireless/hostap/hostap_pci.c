@@ -59,11 +59,13 @@ static struct pci_device_id prism2_pci_id_table[] __devinitdata = {
 static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
@@ -74,12 +76,14 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 	u8 v;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = readb(hw_priv->mem_start + a);
@@ -91,11 +95,13 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
@@ -106,12 +112,14 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
 	local_info_t *local;
 	unsigned long flags;
 	u16 v;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
+	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = readw(hw_priv->mem_start + a);
@@ -277,8 +285,6 @@ static struct prism2_helper_functions prism2_pci_funcs =
 {
 	.card_present	= NULL,
 	.cor_sreset	= prism2_pci_cor_sreset,
-	.dev_open	= NULL,
-	.dev_close	= NULL,
 	.genesis_reset	= prism2_pci_genesis_reset,
 	.hw_type	= HOSTAP_HW_PCI,
 };
@@ -352,8 +358,6 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
-	kfree(hw_priv);
-
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
 
@@ -364,10 +368,8 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 
  err_out_disable:
 	pci_disable_device(pdev);
-	kfree(hw_priv);
-	if (local)
-		local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 
 	return -ENODEV;
 }
@@ -392,9 +394,8 @@ static void prism2_pci_remove(struct pci_dev *pdev)
 		free_irq(dev->irq, dev);
 
 	mem_start = hw_priv->mem_start;
-	kfree(hw_priv);
-	iface->local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 
 	iounmap(mem_start);
 
@@ -441,7 +442,7 @@ static int prism2_pci_resume(struct pci_dev *pdev)
 MODULE_DEVICE_TABLE(pci, prism2_pci_id_table);
 
 static struct pci_driver prism2_pci_drv_id = {
-	.name		= "prism2_pci",
+	.name		= "hostap_pci",
 	.id_table	= prism2_pci_id_table,
 	.probe		= prism2_pci_probe,
 	.remove		= prism2_pci_remove,

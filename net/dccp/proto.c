@@ -402,8 +402,6 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	 *     This bug was _quickly_ found & fixed by just looking at an OSTRA
 	 *     generated callgraph 8) -acme
 	 */
-	if (rc != 0)
-		goto out_discard;
 out_release:
 	release_sock(sk);
 	return rc ? : len;

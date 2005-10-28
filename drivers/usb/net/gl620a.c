@@ -301,7 +301,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 static struct sk_buff *
-genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, unsigned flags)
+genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
 	int 	padlen;
 	int	length = skb->len;

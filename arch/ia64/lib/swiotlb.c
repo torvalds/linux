@@ -123,8 +123,8 @@ swiotlb_init_with_default_size (size_t default_size)
 	/*
 	 * Get IO TLB memory from the low pages
 	 */
-	io_tlb_start = alloc_bootmem_low_pages(io_tlb_nslabs *
-					       (1 << IO_TLB_SHIFT));
+	io_tlb_start = alloc_bootmem_low_pages_limit(io_tlb_nslabs *
+					     (1 << IO_TLB_SHIFT), 0x100000000);
 	if (!io_tlb_start)
 		panic("Cannot allocate SWIOTLB buffer");
 	io_tlb_end = io_tlb_start + io_tlb_nslabs * (1 << IO_TLB_SHIFT);
@@ -314,7 +314,7 @@ sync_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 
 void *
 swiotlb_alloc_coherent(struct device *hwdev, size_t size,
-		       dma_addr_t *dma_handle, int flags)
+		       dma_addr_t *dma_handle, gfp_t flags)
 {
 	unsigned long dev_addr;
 	void *ret;

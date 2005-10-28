@@ -19,7 +19,7 @@
  * allocate the space "normally" and use the cache management functions
  * to ensure it is consistent.
  */
-extern void *__dma_alloc_coherent(size_t size, dma_addr_t *handle, int gfp);
+extern void *__dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp);
 extern void __dma_free_coherent(size_t size, void *vaddr);
 extern void __dma_sync(void *vaddr, size_t size, int direction);
 extern void __dma_sync_page(struct page *page, unsigned long offset,

@@ -35,7 +35,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"0.24"
+#define DRV_VERSION	"0.25"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -290,7 +290,7 @@ static Scsi_Host_Template mv_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations mv_ops = {
+static const struct ata_port_operations mv_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,

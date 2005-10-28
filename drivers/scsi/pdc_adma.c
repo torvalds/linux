@@ -158,7 +158,7 @@ static Scsi_Host_Template adma_ata_sht = {
 	.bios_param		= ata_std_bios_param,
 };
 
-static struct ata_port_operations adma_ata_ops = {
+static const struct ata_port_operations adma_ata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,

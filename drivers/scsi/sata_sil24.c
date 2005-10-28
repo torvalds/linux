@@ -275,7 +275,7 @@ static Scsi_Host_Template sil24_sht = {
 	.ordered_flush		= 1, /* NCQ not supported yet */
 };
 
-static struct ata_port_operations sil24_ops = {
+static const struct ata_port_operations sil24_ops = {
 	.port_disable		= ata_port_disable,
 
 	.check_status		= sil24_check_status,

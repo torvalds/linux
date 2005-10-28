@@ -8,10 +8,10 @@
 /*
  * Prints out len, max to 80 octets using printk, 20 per line
  */
-void lmcConsoleLog(char *type, unsigned char *ucData, int iLen)
-{
 #ifdef DEBUG
 #ifdef LMC_PACKET_LOG
+void lmcConsoleLog(char *type, unsigned char *ucData, int iLen)
+{
   int iNewLine = 1;
   char str[80], *pstr;
   
@@ -43,26 +43,24 @@ void lmcConsoleLog(char *type, unsigned char *ucData, int iLen)
     }
   sprintf(pstr, "\n");
   printk(str);
-#endif
-#endif
 }
+#endif
+#endif
 
 #ifdef DEBUG
 u_int32_t lmcEventLogIndex = 0;
 u_int32_t lmcEventLogBuf[LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS];
-#endif
 
 void lmcEventLog (u_int32_t EventNum, u_int32_t arg2, u_int32_t arg3)
 {
-#ifdef DEBUG
   lmcEventLogBuf[lmcEventLogIndex++] = EventNum;
   lmcEventLogBuf[lmcEventLogIndex++] = arg2;
   lmcEventLogBuf[lmcEventLogIndex++] = arg3;
   lmcEventLogBuf[lmcEventLogIndex++] = jiffies;
 
   lmcEventLogIndex &= (LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS) - 1;
-#endif
 }
+#endif  /*  DEBUG  */
 
 void lmc_trace(struct net_device *dev, char *msg){
 #ifdef LMC_TRACE

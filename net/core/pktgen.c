@@ -75,7 +75,7 @@
  * By design there should only be *one* "controlling" process. In practice 
  * multiple write accesses gives unpredictable result. Understood by "write" 
  * to /proc gives result code thats should be read be the "writer".
- * For pratical use this should be no problem.
+ * For practical use this should be no problem.
  *
  * Note when adding devices to a specific CPU there good idea to also assign 
  * /proc/irq/XX/smp_affinity so TX-interrupts gets bound to the same CPU. 
@@ -96,7 +96,7 @@
  * New xmit() return, do_div and misc clean up by Stephen Hemminger 
  * <shemminger@osdl.org> 040923
  *
- * Rany Dunlap fixed u64 printk compiler waring 
+ * Randy Dunlap fixed u64 printk compiler waring 
  *
  * Remove FCS from BW calculation.  Lennert Buytenhek <buytenh@wantstofly.org>
  * New time handling. Lennert Buytenhek <buytenh@wantstofly.org> 041213
@@ -137,6 +137,7 @@
 #include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/wait.h>
 #include <net/checksum.h>
 #include <net/ipv6.h>
@@ -151,7 +152,7 @@
 #include <asm/timex.h>
 
 
-#define VERSION  "pktgen v2.62: Packet Generator for packet performance testing.\n"
+#define VERSION  "pktgen v2.63: Packet Generator for packet performance testing.\n"
 
 /* #define PG_DEBUG(a) a */
 #define PG_DEBUG(a) 
@@ -177,8 +178,8 @@
 #define T_REMDEV      (1<<3)  /* Remove all devs */
 
 /* Locks */
-#define   thread_lock()        spin_lock(&_thread_lock)
-#define   thread_unlock()      spin_unlock(&_thread_lock)
+#define   thread_lock()        down(&pktgen_sem)
+#define   thread_unlock()      up(&pktgen_sem)
 
 /* If lock -- can be removed after some work */
 #define   if_lock(t)           spin_lock(&(t->if_lock));
@@ -186,7 +187,9 @@
 
 /* Used to help with determining the pkts on receive */
 #define PKTGEN_MAGIC 0xbe9be955
-#define PG_PROC_DIR "net/pktgen"
+#define PG_PROC_DIR "pktgen"
+#define PGCTRL	    "pgctrl"
+static struct proc_dir_entry *pg_proc_dir = NULL;
 
 #define MAX_CFLOWS  65536
 
@@ -202,11 +205,8 @@ struct pktgen_dev {
 	 * Try to keep frequent/infrequent used vars. separated.
 	 */
 
-        char ifname[32];
-        struct proc_dir_entry *proc_ent;
+        char ifname[IFNAMSIZ];
         char result[512];
-        /* proc file names */
-        char fname[80];
 
         struct pktgen_thread* pg_thread; /* the owner */
         struct pktgen_dev *next; /* Used for chaining in the thread's run-queue */
@@ -244,7 +244,7 @@ struct pktgen_dev {
         __u32 seq_num;
         
         int clone_skb; /* Use multiple SKBs during packet gen.  If this number
-                          * is greater than 1, then that many coppies of the same
+                          * is greater than 1, then that many copies of the same
                           * packet will be sent before a new packet is allocated.
                           * For instance, if you want to send 1024 identical packets
                           * before creating a new packet, set clone_skb to 1024.
@@ -330,8 +330,6 @@ struct pktgen_thread {
         struct pktgen_dev *if_list;           /* All device here */
         struct pktgen_thread* next;
         char name[32];
-        char fname[128]; /* name of proc file */
-        struct proc_dir_entry *proc_ent;
         char result[512];
         u32 max_before_softirq; /* We'll call do_softirq to prevent starvation. */
         
@@ -396,7 +394,7 @@ static inline s64 divremdi3(s64 x, s64 y, int type)
 
 /* End of hacks to deal with 64-bit math on x86 */
 
-/** Convert to miliseconds */
+/** Convert to milliseconds */
 static inline __u64 tv_to_ms(const struct timeval* tv) 
 {
         __u64 ms = tv->tv_usec / 1000;
@@ -425,7 +423,7 @@ static inline __u64 pg_div64(__u64 n, __u64 base)
 {
         __u64 tmp = n;
 /*
- * How do we know if the architectrure we are running on
+ * How do we know if the architecture we are running on
  * supports division with 64 bit base?
  * 
  */
@@ -473,16 +471,6 @@ static inline __u64 tv_diff(const struct timeval* a, const struct timeval* b)
 
 static char version[] __initdata = VERSION;
 
-static ssize_t proc_pgctrl_read(struct file* file, char __user * buf, size_t count, loff_t *ppos);
-static ssize_t proc_pgctrl_write(struct file* file, const char __user * buf, size_t count, loff_t *ppos);
-static int proc_if_read(char *buf , char **start, off_t offset, int len, int *eof, void *data);
-
-static int proc_thread_read(char *buf , char **start, off_t offset, int len, int *eof, void *data);
-static int proc_if_write(struct file *file, const char __user *user_buffer, unsigned long count, void *data);
-static int proc_thread_write(struct file *file, const char __user *user_buffer, unsigned long count, void *data);
-static int create_proc_dir(void);
-static int remove_proc_dir(void);
-
 static int pktgen_remove_device(struct pktgen_thread* t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread* t, const char* ifname);
 static struct pktgen_thread* pktgen_find_thread(const char* name);
@@ -503,20 +491,11 @@ static int pg_delay_d = 0;
 static int pg_clone_skb_d = 0;
 static int debug = 0;
 
-static DEFINE_SPINLOCK(_thread_lock);
+static DECLARE_MUTEX(pktgen_sem);
 static struct pktgen_thread *pktgen_threads = NULL;
-
-static char module_fname[128];
-static struct proc_dir_entry *module_proc_ent = NULL;
 
 static struct notifier_block pktgen_notifier_block = {
 	.notifier_call = pktgen_device_event,
-};
-
-static struct file_operations pktgen_fops = {
-        .read     = proc_pgctrl_read,
-        .write    = proc_pgctrl_write,
-	/*  .ioctl    = pktgen_ioctl, later maybe */
 };
 
 /*
@@ -524,62 +503,29 @@ static struct file_operations pktgen_fops = {
  *
  */
 
-static struct proc_dir_entry *pg_proc_dir = NULL;
-static int proc_pgctrl_read_eof=0;
-
-static ssize_t proc_pgctrl_read(struct file* file, char __user * buf,
-                                 size_t count, loff_t *ppos)
+static int pgctrl_show(struct seq_file *seq, void *v)
 { 
-	char data[200];
-	int len = 0;
-
-	if(proc_pgctrl_read_eof) {
-		proc_pgctrl_read_eof=0;
-		len = 0;
-		goto out;
-	}
-
-	sprintf(data, "%s", VERSION); 
-
-	len = strlen(data);
-
-	if(len > count) {
-		len =-EFAULT;
-		goto out;
-	}  	
-
-	if (copy_to_user(buf, data, len)) {
-		len =-EFAULT;
-		goto out;
-	}  
-
-	*ppos += len;
-	proc_pgctrl_read_eof=1; /* EOF next call */
-
- out:
-	return len;
+	seq_puts(seq, VERSION);
+	return 0;
 }
 
-static ssize_t proc_pgctrl_write(struct file* file,const char __user * buf,
-				 size_t count, loff_t *ppos)
+static ssize_t pgctrl_write(struct file* file,const char __user * buf,
+			    size_t count, loff_t *ppos)
 {
-	char *data = NULL;
 	int err = 0;
+	char data[128];
 
         if (!capable(CAP_NET_ADMIN)){
                 err = -EPERM;
 		goto out;
         }
 
-	data = (void*)vmalloc ((unsigned int)count);
+	if (count > sizeof(data))
+		count = sizeof(data);
 
-	if(!data) {
-		err = -ENOMEM;
-		goto out;
-	}
 	if (copy_from_user(data, buf, count)) {
-		err =-EFAULT;
-		goto out_free;
+		err = -EFAULT;
+		goto out;
 	}  
 	data[count-1] = 0; /* Make string */
 
@@ -594,31 +540,40 @@ static ssize_t proc_pgctrl_write(struct file* file,const char __user * buf,
 
 	err = count;
 
- out_free:
-	vfree (data);
  out:
         return err;
 }
 
-static int proc_if_read(char *buf , char **start, off_t offset,
-                           int len, int *eof, void *data)
+static int pgctrl_open(struct inode *inode, struct file *file)
 {
-	char *p;
+	return single_open(file, pgctrl_show, PDE(inode)->data);
+}
+
+static struct file_operations pktgen_fops = {
+	.owner	  = THIS_MODULE,
+	.open	  = pgctrl_open,
+        .read     = seq_read,
+	.llseek	  = seq_lseek,
+        .write    = pgctrl_write,
+	.release  = single_release,
+};
+
+static int pktgen_if_show(struct seq_file *seq, void *v)
+{
 	int i;
-        struct pktgen_dev *pkt_dev = (struct pktgen_dev*)(data);
+        struct pktgen_dev *pkt_dev = seq->private;
         __u64 sa;
         __u64 stopped;
         __u64 now = getCurUs();
         
-	p = buf;
-	p += sprintf(p, "Params: count %llu  min_pkt_size: %u  max_pkt_size: %u\n",
-		     (unsigned long long) pkt_dev->count,
-		     pkt_dev->min_pkt_size, pkt_dev->max_pkt_size);
+	seq_printf(seq, "Params: count %llu  min_pkt_size: %u  max_pkt_size: %u\n",
+		   (unsigned long long) pkt_dev->count,
+		   pkt_dev->min_pkt_size, pkt_dev->max_pkt_size);
 
-	p += sprintf(p, "     frags: %d  delay: %u  clone_skb: %d  ifname: %s\n",
-                     pkt_dev->nfrags, 1000*pkt_dev->delay_us+pkt_dev->delay_ns, pkt_dev->clone_skb, pkt_dev->ifname);
+	seq_printf(seq, "     frags: %d  delay: %u  clone_skb: %d  ifname: %s\n",
+		   pkt_dev->nfrags, 1000*pkt_dev->delay_us+pkt_dev->delay_ns, pkt_dev->clone_skb, pkt_dev->ifname);
 
-	p += sprintf(p, "     flows: %u flowlen: %u\n", pkt_dev->cflows, pkt_dev->lflow);
+	seq_printf(seq, "     flows: %u flowlen: %u\n", pkt_dev->cflows, pkt_dev->lflow);
 
 
 	if(pkt_dev->flags & F_IPV6) {
@@ -626,19 +581,19 @@ static int proc_if_read(char *buf , char **start, off_t offset,
 		fmt_ip6(b1,  pkt_dev->in6_saddr.s6_addr);
 		fmt_ip6(b2,  pkt_dev->min_in6_saddr.s6_addr);
 		fmt_ip6(b3,  pkt_dev->max_in6_saddr.s6_addr);
-		p += sprintf(p, "     saddr: %s  min_saddr: %s  max_saddr: %s\n", b1, b2, b3);
+		seq_printf(seq, "     saddr: %s  min_saddr: %s  max_saddr: %s\n", b1, b2, b3);
 
 		fmt_ip6(b1,  pkt_dev->in6_daddr.s6_addr);
 		fmt_ip6(b2,  pkt_dev->min_in6_daddr.s6_addr);
 		fmt_ip6(b3,  pkt_dev->max_in6_daddr.s6_addr);
-		p += sprintf(p, "     daddr: %s  min_daddr: %s  max_daddr: %s\n", b1, b2, b3);
+		seq_printf(seq, "     daddr: %s  min_daddr: %s  max_daddr: %s\n", b1, b2, b3);
 
 	} 
 	else 
-		p += sprintf(p, "     dst_min: %s  dst_max: %s\n     src_min: %s  src_max: %s\n",
-                     pkt_dev->dst_min, pkt_dev->dst_max, pkt_dev->src_min, pkt_dev->src_max);
+		seq_printf(seq,"     dst_min: %s  dst_max: %s\n     src_min: %s  src_max: %s\n",
+			   pkt_dev->dst_min, pkt_dev->dst_max, pkt_dev->src_min, pkt_dev->src_max);
 
-        p += sprintf(p, "     src_mac: ");
+	seq_puts(seq, "     src_mac: ");
 
 	if ((pkt_dev->src_mac[0] == 0) && 
 	    (pkt_dev->src_mac[1] == 0) && 
@@ -648,89 +603,89 @@ static int proc_if_read(char *buf , char **start, off_t offset,
 	    (pkt_dev->src_mac[5] == 0)) 
 
 		for (i = 0; i < 6; i++) 
-			p += sprintf(p, "%02X%s", pkt_dev->odev->dev_addr[i], i == 5 ? "  " : ":");
+			seq_printf(seq,  "%02X%s", pkt_dev->odev->dev_addr[i], i == 5 ? "  " : ":");
 
 	else 
 		for (i = 0; i < 6; i++) 
-			p += sprintf(p, "%02X%s", pkt_dev->src_mac[i], i == 5 ? "  " : ":");
+			seq_printf(seq,  "%02X%s", pkt_dev->src_mac[i], i == 5 ? "  " : ":");
 
-        p += sprintf(p, "dst_mac: ");
+        seq_printf(seq,  "dst_mac: ");
 	for (i = 0; i < 6; i++) 
-		p += sprintf(p, "%02X%s", pkt_dev->dst_mac[i], i == 5 ? "\n" : ":");
+		seq_printf(seq,  "%02X%s", pkt_dev->dst_mac[i], i == 5 ? "\n" : ":");
 
-        p += sprintf(p, "     udp_src_min: %d  udp_src_max: %d  udp_dst_min: %d  udp_dst_max: %d\n",
-                     pkt_dev->udp_src_min, pkt_dev->udp_src_max, pkt_dev->udp_dst_min,
-                     pkt_dev->udp_dst_max);
+        seq_printf(seq,  "     udp_src_min: %d  udp_src_max: %d  udp_dst_min: %d  udp_dst_max: %d\n",
+		   pkt_dev->udp_src_min, pkt_dev->udp_src_max, pkt_dev->udp_dst_min,
+		   pkt_dev->udp_dst_max);
 
-        p += sprintf(p, "     src_mac_count: %d  dst_mac_count: %d \n     Flags: ",
-                     pkt_dev->src_mac_count, pkt_dev->dst_mac_count);
+        seq_printf(seq,  "     src_mac_count: %d  dst_mac_count: %d \n     Flags: ",
+		   pkt_dev->src_mac_count, pkt_dev->dst_mac_count);
 
 
         if (pkt_dev->flags &  F_IPV6) 
-                p += sprintf(p, "IPV6  ");
+                seq_printf(seq,  "IPV6  ");
 
         if (pkt_dev->flags &  F_IPSRC_RND) 
-                p += sprintf(p, "IPSRC_RND  ");
+                seq_printf(seq,  "IPSRC_RND  ");
 
         if (pkt_dev->flags & F_IPDST_RND) 
-                p += sprintf(p, "IPDST_RND  ");
+                seq_printf(seq,  "IPDST_RND  ");
         
         if (pkt_dev->flags & F_TXSIZE_RND) 
-                p += sprintf(p, "TXSIZE_RND  ");
+                seq_printf(seq,  "TXSIZE_RND  ");
         
         if (pkt_dev->flags & F_UDPSRC_RND) 
-                p += sprintf(p, "UDPSRC_RND  ");
+                seq_printf(seq,  "UDPSRC_RND  ");
         
         if (pkt_dev->flags & F_UDPDST_RND) 
-                p += sprintf(p, "UDPDST_RND  ");
+                seq_printf(seq,  "UDPDST_RND  ");
         
         if (pkt_dev->flags & F_MACSRC_RND) 
-                p += sprintf(p, "MACSRC_RND  ");
+                seq_printf(seq,  "MACSRC_RND  ");
         
         if (pkt_dev->flags & F_MACDST_RND) 
-                p += sprintf(p, "MACDST_RND  ");
+                seq_printf(seq,  "MACDST_RND  ");
 
         
-        p += sprintf(p, "\n");
+        seq_puts(seq,  "\n");
         
         sa = pkt_dev->started_at;
         stopped = pkt_dev->stopped_at;
         if (pkt_dev->running) 
                 stopped = now; /* not really stopped, more like last-running-at */
         
-        p += sprintf(p, "Current:\n     pkts-sofar: %llu  errors: %llu\n     started: %lluus  stopped: %lluus idle: %lluus\n",
-		     (unsigned long long) pkt_dev->sofar,
-		     (unsigned long long) pkt_dev->errors,
-		     (unsigned long long) sa,
-		     (unsigned long long) stopped, 
-		     (unsigned long long) pkt_dev->idle_acc);
+        seq_printf(seq,  "Current:\n     pkts-sofar: %llu  errors: %llu\n     started: %lluus  stopped: %lluus idle: %lluus\n",
+		   (unsigned long long) pkt_dev->sofar,
+		   (unsigned long long) pkt_dev->errors,
+		   (unsigned long long) sa,
+		   (unsigned long long) stopped,
+		   (unsigned long long) pkt_dev->idle_acc);
 
-        p += sprintf(p, "     seq_num: %d  cur_dst_mac_offset: %d  cur_src_mac_offset: %d\n",
-                     pkt_dev->seq_num, pkt_dev->cur_dst_mac_offset, pkt_dev->cur_src_mac_offset);
+        seq_printf(seq,  "     seq_num: %d  cur_dst_mac_offset: %d  cur_src_mac_offset: %d\n",
+		   pkt_dev->seq_num, pkt_dev->cur_dst_mac_offset,
+		   pkt_dev->cur_src_mac_offset);
 
 	if(pkt_dev->flags & F_IPV6) {
 		char b1[128], b2[128];
 		fmt_ip6(b1,  pkt_dev->cur_in6_daddr.s6_addr);
 		fmt_ip6(b2,  pkt_dev->cur_in6_saddr.s6_addr);
-		p += sprintf(p, "     cur_saddr: %s  cur_daddr: %s\n", b2, b1);
+		seq_printf(seq,  "     cur_saddr: %s  cur_daddr: %s\n", b2, b1);
 	} 
 	else 
-		p += sprintf(p, "     cur_saddr: 0x%x  cur_daddr: 0x%x\n",
-                     pkt_dev->cur_saddr, pkt_dev->cur_daddr);
+		seq_printf(seq,  "     cur_saddr: 0x%x  cur_daddr: 0x%x\n",
+			   pkt_dev->cur_saddr, pkt_dev->cur_daddr);
 
 
-	p += sprintf(p, "     cur_udp_dst: %d  cur_udp_src: %d\n",
-                     pkt_dev->cur_udp_dst, pkt_dev->cur_udp_src);
+	seq_printf(seq,  "     cur_udp_dst: %d  cur_udp_src: %d\n",
+		   pkt_dev->cur_udp_dst, pkt_dev->cur_udp_src);
 
-	p += sprintf(p, "     flows: %u\n", pkt_dev->nflows);
+	seq_printf(seq,  "     flows: %u\n", pkt_dev->nflows);
 
 	if (pkt_dev->result[0])
-		p += sprintf(p, "Result: %s\n", pkt_dev->result);
+		seq_printf(seq,  "Result: %s\n", pkt_dev->result);
 	else
-		p += sprintf(p, "Result: Idle\n");
-	*eof = 1;
+		seq_printf(seq,  "Result: Idle\n");
 
-	return p - buf;
+	return 0;
 }
 
 
@@ -802,13 +757,14 @@ done_str:
 	return i;
 }
 
-static int proc_if_write(struct file *file, const char __user *user_buffer,
-                            unsigned long count, void *data)
+static ssize_t pktgen_if_write(struct file *file, const char __user *user_buffer,
+			       size_t count, loff_t *offset)
 {
+	struct seq_file *seq = (struct seq_file *) file->private_data;
+        struct pktgen_dev *pkt_dev = seq->private;
 	int i = 0, max, len;
 	char name[16], valstr[32];
 	unsigned long value = 0;
-        struct pktgen_dev *pkt_dev = (struct pktgen_dev*)(data);
         char* pg_result = NULL;
         int tmp = 0;
 	char buf[128];
@@ -849,7 +805,8 @@ static int proc_if_write(struct file *file, const char __user *user_buffer,
                 if (copy_from_user(tb, user_buffer, count))
 			return -EFAULT;
                 tb[count] = 0;
-		printk("pktgen: %s,%lu  buffer -:%s:-\n", name, count, tb);
+		printk("pktgen: %s,%lu  buffer -:%s:-\n", name,
+		       (unsigned long) count, tb);
         }
 
 	if (!strcmp(name, "min_pkt_size")) {
@@ -1335,92 +1292,98 @@ static int proc_if_write(struct file *file, const char __user *user_buffer,
 	return -EINVAL;
 }
 
-static int proc_thread_read(char *buf , char **start, off_t offset,
-                               int len, int *eof, void *data)
+static int pktgen_if_open(struct inode *inode, struct file *file)
 {
-	char *p;
-        struct pktgen_thread *t = (struct pktgen_thread*)(data);
+	return single_open(file, pktgen_if_show, PDE(inode)->data);
+}
+
+static struct file_operations pktgen_if_fops = {
+	.owner	  = THIS_MODULE,
+	.open	  = pktgen_if_open,
+        .read     = seq_read,
+	.llseek	  = seq_lseek,
+        .write    = pktgen_if_write,
+	.release  = single_release,
+};
+
+static int pktgen_thread_show(struct seq_file *seq, void *v)
+{
+        struct pktgen_thread *t = seq->private;
         struct pktgen_dev *pkt_dev = NULL;
 
+	BUG_ON(!t);
 
-        if (!t) {
-                printk("pktgen: ERROR: could not find thread in proc_thread_read\n");
-                return -EINVAL;
-        }
-
-	p = buf;
-	p += sprintf(p, "Name: %s  max_before_softirq: %d\n",
+	seq_printf(seq, "Name: %s  max_before_softirq: %d\n",
                      t->name, t->max_before_softirq);
 
-        p += sprintf(p, "Running: ");
+        seq_printf(seq, "Running: ");
         
         if_lock(t);
         for(pkt_dev = t->if_list;pkt_dev; pkt_dev = pkt_dev->next) 
 		if(pkt_dev->running)
-			p += sprintf(p, "%s ", pkt_dev->ifname);
+			seq_printf(seq, "%s ", pkt_dev->ifname);
         
-        p += sprintf(p, "\nStopped: ");
+        seq_printf(seq, "\nStopped: ");
 
         for(pkt_dev = t->if_list;pkt_dev; pkt_dev = pkt_dev->next) 
 		if(!pkt_dev->running)
-			p += sprintf(p, "%s ", pkt_dev->ifname);
+			seq_printf(seq, "%s ", pkt_dev->ifname);
 
 	if (t->result[0])
-		p += sprintf(p, "\nResult: %s\n", t->result);
+		seq_printf(seq, "\nResult: %s\n", t->result);
 	else
-		p += sprintf(p, "\nResult: NA\n");
-
-	*eof = 1;
+		seq_printf(seq, "\nResult: NA\n");
 
         if_unlock(t);
 
-	return p - buf;
+	return 0;
 }
 
-static int proc_thread_write(struct file *file, const char __user *user_buffer,
-                                unsigned long count, void *data)
+static ssize_t pktgen_thread_write(struct file *file,
+				   const char __user *user_buffer,
+				   size_t count, loff_t *offset)
 {
+	struct seq_file *seq = (struct seq_file *) file->private_data;
+        struct pktgen_thread *t = seq->private;
 	int i = 0, max, len, ret;
 	char name[40];
-        struct pktgen_thread *t;
         char *pg_result;
         unsigned long value = 0;
-        
+
 	if (count < 1) {
 		//	sprintf(pg_result, "Wrong command format");
 		return -EINVAL;
 	}
-  
+
 	max = count - i;
         len = count_trail_chars(&user_buffer[i], max);
-        if (len < 0) 
-		return len; 
-     
+        if (len < 0)
+		return len;
+
 	i += len;
-  
+
 	/* Read variable name */
 
 	len = strn_len(&user_buffer[i], sizeof(name) - 1);
-        if (len < 0)  
-		return len; 
+        if (len < 0)
+		return len;
 	
 	memset(name, 0, sizeof(name));
 	if (copy_from_user(name, &user_buffer[i], len))
 		return -EFAULT;
 	i += len;
-  
+
 	max = count -i;
 	len = count_trail_chars(&user_buffer[i], max);
-        if (len < 0)  
-		return len; 
-	
+        if (len < 0)
+		return len;
+
 	i += len;
 
-	if (debug) 
-		printk("pktgen: t=%s, count=%lu\n", name, count);
-        
+	if (debug)
+		printk("pktgen: t=%s, count=%lu\n", name,
+		       (unsigned long) count);
 
-        t = (struct pktgen_thread*)(data);
 	if(!t) {
 		printk("pktgen: ERROR: No thread\n");
 		ret = -EINVAL;
@@ -1474,21 +1437,19 @@ static int proc_thread_write(struct file *file, const char __user *user_buffer,
 	return ret;
 }
 
-static int create_proc_dir(void)
+static int pktgen_thread_open(struct inode *inode, struct file *file)
 {
-	pg_proc_dir = proc_mkdir(PG_PROC_DIR, NULL);
-        
-        if (!pg_proc_dir) 
-                return -ENODEV;
-        
-        return 0;
+	return single_open(file, pktgen_thread_show, PDE(inode)->data);
 }
 
-static int remove_proc_dir(void)
-{
-        remove_proc_entry(PG_PROC_DIR, NULL);
-        return 0;
-}
+static struct file_operations pktgen_thread_fops = {
+	.owner	  = THIS_MODULE,
+	.open	  = pktgen_thread_open,
+        .read     = seq_read,
+	.llseek	  = seq_lseek,
+        .write    = pktgen_thread_write,
+	.release  = single_release,
+};
 
 /* Think find or remove for NN */
 static struct pktgen_dev *__pktgen_NN_threads(const char* ifname, int remove) 
@@ -1702,7 +1663,7 @@ static void spin(struct pktgen_dev *pkt_dev, __u64 spin_until_us)
 	start = now = getCurUs();
 	printk(KERN_INFO "sleeping for %d\n", (int)(spin_until_us - now));
 	while (now < spin_until_us) {
-		/* TODO: optimise sleeping behavior */
+		/* TODO: optimize sleeping behavior */
 		if (spin_until_us - now > jiffies_to_usecs(1)+1)
 			schedule_timeout_interruptible(1);
 		else if (spin_until_us - now > 100) {
@@ -2361,7 +2322,7 @@ static void pktgen_stop_all_threads_ifs(void)
 		pktgen_stop(t);
 		t = t->next;
 	}
-       thread_unlock();
+	thread_unlock();
 }
 
 static int thread_is_running(struct pktgen_thread *t )
@@ -2552,10 +2513,9 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 
 	struct pktgen_thread *tmp = pktgen_threads;
 
-        if (strlen(t->fname))
-                remove_proc_entry(t->fname, NULL);
+	remove_proc_entry(t->name, pg_proc_dir);
 
-       thread_lock();
+	thread_lock();
 
 	if (tmp == t)
 		pktgen_threads = tmp->next;
@@ -2825,7 +2785,7 @@ static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t, const char* i
         if_lock(t);
 
         for(pkt_dev=t->if_list; pkt_dev; pkt_dev = pkt_dev->next ) {
-                if (strcmp(pkt_dev->ifname, ifname) == 0) {
+                if (strncmp(pkt_dev->ifname, ifname, IFNAMSIZ) == 0) {
                         break;
                 }
         }
@@ -2864,74 +2824,70 @@ static int add_dev_to_thread(struct pktgen_thread *t, struct pktgen_dev *pkt_dev
 static int pktgen_add_device(struct pktgen_thread *t, const char* ifname) 
 {
         struct pktgen_dev *pkt_dev;
+	struct proc_dir_entry *pe;
 	
 	/* We don't allow a device to be on several threads */
 
-	if( (pkt_dev = __pktgen_NN_threads(ifname, FIND)) == NULL) {
-						   
-		pkt_dev = kmalloc(sizeof(struct pktgen_dev), GFP_KERNEL);
-                if (!pkt_dev) 
-                        return -ENOMEM;
-
-                memset(pkt_dev, 0, sizeof(struct pktgen_dev));
-
-		pkt_dev->flows = vmalloc(MAX_CFLOWS*sizeof(struct flow_state));
-		if (pkt_dev->flows == NULL) {
-			kfree(pkt_dev);
-			return -ENOMEM;
-		}
-		memset(pkt_dev->flows, 0, MAX_CFLOWS*sizeof(struct flow_state));
-
-		pkt_dev->min_pkt_size = ETH_ZLEN;
-                pkt_dev->max_pkt_size = ETH_ZLEN;
-                pkt_dev->nfrags = 0;
-                pkt_dev->clone_skb = pg_clone_skb_d;
-                pkt_dev->delay_us = pg_delay_d / 1000;
-                pkt_dev->delay_ns = pg_delay_d % 1000;
-                pkt_dev->count = pg_count_d;
-                pkt_dev->sofar = 0;
-                pkt_dev->udp_src_min = 9; /* sink port */
-                pkt_dev->udp_src_max = 9;
-                pkt_dev->udp_dst_min = 9;
-                pkt_dev->udp_dst_max = 9;
-
-                strncpy(pkt_dev->ifname, ifname, 31);
-                sprintf(pkt_dev->fname, "%s/%s", PG_PROC_DIR, ifname);
-
-                if (! pktgen_setup_dev(pkt_dev)) {
-                        printk("pktgen: ERROR: pktgen_setup_dev failed.\n");
-			if (pkt_dev->flows)
-				vfree(pkt_dev->flows);
-                        kfree(pkt_dev);
-                        return -ENODEV;
-                }
-
-                pkt_dev->proc_ent = create_proc_entry(pkt_dev->fname, 0600, NULL);
-                if (!pkt_dev->proc_ent) {
-                        printk("pktgen: cannot create %s procfs entry.\n", pkt_dev->fname);
-			if (pkt_dev->flows)
-				vfree(pkt_dev->flows);
-                        kfree(pkt_dev);
-                        return -EINVAL;
-                }
-                pkt_dev->proc_ent->read_proc = proc_if_read;
-                pkt_dev->proc_ent->write_proc = proc_if_write;
-                pkt_dev->proc_ent->data = (void*)(pkt_dev);
-		pkt_dev->proc_ent->owner = THIS_MODULE;
-
-                return add_dev_to_thread(t, pkt_dev);
-        }
-        else {
+	pkt_dev = __pktgen_NN_threads(ifname, FIND);
+	if (pkt_dev) {
                 printk("pktgen: ERROR: interface already used.\n");
                 return -EBUSY;
         }
+
+	pkt_dev = kzalloc(sizeof(struct pktgen_dev), GFP_KERNEL);
+	if (!pkt_dev)
+		return -ENOMEM;
+
+	pkt_dev->flows = vmalloc(MAX_CFLOWS*sizeof(struct flow_state));
+	if (pkt_dev->flows == NULL) {
+		kfree(pkt_dev);
+		return -ENOMEM;
+	}
+	memset(pkt_dev->flows, 0, MAX_CFLOWS*sizeof(struct flow_state));
+
+	pkt_dev->min_pkt_size = ETH_ZLEN;
+	pkt_dev->max_pkt_size = ETH_ZLEN;
+	pkt_dev->nfrags = 0;
+	pkt_dev->clone_skb = pg_clone_skb_d;
+	pkt_dev->delay_us = pg_delay_d / 1000;
+	pkt_dev->delay_ns = pg_delay_d % 1000;
+	pkt_dev->count = pg_count_d;
+	pkt_dev->sofar = 0;
+	pkt_dev->udp_src_min = 9; /* sink port */
+	pkt_dev->udp_src_max = 9;
+	pkt_dev->udp_dst_min = 9;
+	pkt_dev->udp_dst_max = 9;
+
+	strncpy(pkt_dev->ifname, ifname, IFNAMSIZ);
+
+	if (! pktgen_setup_dev(pkt_dev)) {
+		printk("pktgen: ERROR: pktgen_setup_dev failed.\n");
+		if (pkt_dev->flows)
+			vfree(pkt_dev->flows);
+		kfree(pkt_dev);
+		return -ENODEV;
+	}
+
+	pe = create_proc_entry(ifname, 0600, pg_proc_dir);
+	if (!pe) {
+		printk("pktgen: cannot create %s/%s procfs entry.\n",
+		       PG_PROC_DIR, ifname);
+		if (pkt_dev->flows)
+			vfree(pkt_dev->flows);
+		kfree(pkt_dev);
+		return -EINVAL;
+	}
+	pe->proc_fops = &pktgen_if_fops;
+	pe->data = pkt_dev;
+
+	return add_dev_to_thread(t, pkt_dev);
 }
 
 static struct pktgen_thread *pktgen_find_thread(const char* name) 
 {
         struct pktgen_thread *t = NULL;
 
-       thread_lock();
+	thread_lock();
 
         t = pktgen_threads;
         while (t) {
@@ -2947,6 +2903,7 @@ static struct pktgen_thread *pktgen_find_thread(const char* name)
 static int pktgen_create_thread(const char* name, int cpu) 
 {
         struct pktgen_thread *t = NULL;
+	struct proc_dir_entry *pe;
 
         if (strlen(name) > 31) {
                 printk("pktgen: ERROR:  Thread name cannot be more than 31 characters.\n");
@@ -2958,28 +2915,26 @@ static int pktgen_create_thread(const char* name, int cpu)
                 return -EINVAL;
         }
 
-        t = (struct pktgen_thread*)(kmalloc(sizeof(struct pktgen_thread), GFP_KERNEL));
+        t = kzalloc(sizeof(struct pktgen_thread), GFP_KERNEL);
         if (!t) {
                 printk("pktgen: ERROR: out of memory, can't create new thread.\n");
                 return -ENOMEM;
         }
 
-        memset(t, 0, sizeof(struct pktgen_thread));
         strcpy(t->name, name);
         spin_lock_init(&t->if_lock);
 	t->cpu = cpu;
         
-        sprintf(t->fname, "%s/%s", PG_PROC_DIR, t->name);
-        t->proc_ent = create_proc_entry(t->fname, 0600, NULL);
-        if (!t->proc_ent) {
-                printk("pktgen: cannot create %s procfs entry.\n", t->fname);
+        pe = create_proc_entry(t->name, 0600, pg_proc_dir);
+        if (!pe) {
+                printk("pktgen: cannot create %s/%s procfs entry.\n",
+		       PG_PROC_DIR, t->name);
                 kfree(t);
                 return -EINVAL;
         }
-        t->proc_ent->read_proc = proc_thread_read;
-        t->proc_ent->write_proc = proc_thread_write;
-        t->proc_ent->data = (void*)(t);
-        t->proc_ent->owner = THIS_MODULE;
+
+	pe->proc_fops = &pktgen_thread_fops;
+	pe->data = t;
 
         t->next = pktgen_threads;
         pktgen_threads = t;
@@ -3034,8 +2989,7 @@ static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *pkt_
 
         /* Clean up proc file system */
 
-        if (strlen(pkt_dev->fname)) 
-                remove_proc_entry(pkt_dev->fname, NULL);
+	remove_proc_entry(pkt_dev->ifname, pg_proc_dir);
 
 	if (pkt_dev->flows)
 		vfree(pkt_dev->flows);
@@ -3046,30 +3000,30 @@ static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *pkt_
 static int __init pg_init(void) 
 {
 	int cpu;
+	struct proc_dir_entry *pe;
+
 	printk(version);
 
-        module_fname[0] = 0;
+	pg_proc_dir = proc_mkdir(PG_PROC_DIR, proc_net);
+	if (!pg_proc_dir)
+		return -ENODEV;
+	pg_proc_dir->owner = THIS_MODULE;
 
-	create_proc_dir();
-
-        sprintf(module_fname, "%s/pgctrl", PG_PROC_DIR);
-        module_proc_ent = create_proc_entry(module_fname, 0600, NULL);
-        if (!module_proc_ent) {
-                printk("pktgen: ERROR: cannot create %s procfs entry.\n", module_fname);
+	pe = create_proc_entry(PGCTRL, 0600, pg_proc_dir);
+        if (pe == NULL) {
+		printk("pktgen: ERROR: cannot create %s procfs entry.\n", PGCTRL);
+		proc_net_remove(PG_PROC_DIR);
                 return -EINVAL;
         }
 
-        module_proc_ent->proc_fops =  &pktgen_fops;
-        module_proc_ent->data = NULL;
+        pe->proc_fops = &pktgen_fops;
+        pe->data      = NULL;
 
 	/* Register us to receive netdevice events */
 	register_netdevice_notifier(&pktgen_notifier_block);
         
-	for (cpu = 0; cpu < NR_CPUS ; cpu++) {
+	for_each_online_cpu(cpu) {
 		char buf[30];
-
-		if (!cpu_online(cpu))
-			continue;
 
                 sprintf(buf, "kpktgend_%i", cpu);
                 pktgen_create_thread(buf, cpu);
@@ -3095,10 +3049,8 @@ static void __exit pg_cleanup(void)
 	unregister_netdevice_notifier(&pktgen_notifier_block);
 
         /* Clean up proc file system */
-
-        remove_proc_entry(module_fname, NULL);
-        
-	remove_proc_dir();
+	remove_proc_entry(PGCTRL, pg_proc_dir);
+	proc_net_remove(PG_PROC_DIR);
 }
 
 

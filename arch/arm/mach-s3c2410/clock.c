@@ -98,7 +98,10 @@ struct clk *clk_get(struct device *dev, const char *id)
 	struct clk *clk = ERR_PTR(-ENOENT);
 	int idno;
 
-	idno = (dev == NULL) ? -1 : to_platform_device(dev)->id;
+	if (dev == NULL || dev->bus != &platform_bus_type)
+		idno = -1;
+	else
+		idno = to_platform_device(dev)->id;
 
 	down(&clocks_sem);
 
