@@ -180,7 +180,7 @@ static int ohci_urb_enqueue (
 	struct usb_hcd	*hcd,
 	struct usb_host_endpoint *ep,
 	struct urb	*urb,
-	unsigned	mem_flags
+	gfp_t		mem_flags
 ) {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	struct ed	*ed;

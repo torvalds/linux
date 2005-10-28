@@ -198,7 +198,7 @@ static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 	}
 }
 
-static inline struct metapage *alloc_metapage(unsigned int gfp_mask)
+static inline struct metapage *alloc_metapage(gfp_t gfp_mask)
 {
 	return mempool_alloc(metapage_mempool, gfp_mask);
 }
@@ -534,7 +534,7 @@ add_failed:
 	return -EIO;
 }
 
-static int metapage_releasepage(struct page *page, int gfp_mask)
+static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 {
 	struct metapage *mp;
 	int busy = 0;

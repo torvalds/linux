@@ -207,7 +207,7 @@ struct sock {
 	struct sk_buff_head	sk_write_queue;
 	int			sk_wmem_queued;
 	int			sk_forward_alloc;
-	unsigned int		sk_allocation;
+	gfp_t			sk_allocation;
 	int			sk_sndbuf;
 	int			sk_route_caps;
 	unsigned long 		sk_flags;

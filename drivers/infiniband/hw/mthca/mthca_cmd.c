@@ -524,7 +524,7 @@ void mthca_cmd_use_polling(struct mthca_dev *dev)
 }
 
 struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
-					  unsigned int gfp_mask)
+					  gfp_t gfp_mask)
 {
 	struct mthca_mailbox *mailbox;
 

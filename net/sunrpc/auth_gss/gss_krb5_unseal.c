@@ -68,21 +68,14 @@
 #endif
 
 
-/* message_buffer is an input if toktype is MIC and an output if it is WRAP:
- * If toktype is MIC: read_token is a mic token, and message_buffer is the
- *   data that the mic was supposedly taken over.
- * If toktype is WRAP: read_token is a wrap token, and message_buffer is used
- *   to return the decrypted data.
- */
+/* read_token is a mic token, and message_buffer is the data that the mic was
+ * supposedly taken over. */
 
-/* XXX will need to change prototype and/or just split into a separate function
- * when we add privacy (because read_token will be in pages too). */
 u32
-krb5_read_token(struct krb5_ctx *ctx,
-		struct xdr_netobj *read_token,
-		struct xdr_buf *message_buffer,
-		int *qop_state, int toktype)
+gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
+		struct xdr_buf *message_buffer, struct xdr_netobj *read_token)
 {
+	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
 	s32			checksum_type;
@@ -100,15 +93,11 @@ krb5_read_token(struct krb5_ctx *ctx,
 					read_token->len))
 		goto out;
 
-	if ((*ptr++ != ((toktype>>8)&0xff)) || (*ptr++ != (toktype&0xff)))
+	if ((*ptr++ != ((KG_TOK_MIC_MSG>>8)&0xff)) ||
+	    (*ptr++ != ( KG_TOK_MIC_MSG    &0xff))   )
 		goto out;
 
 	/* XXX sanity-check bodysize?? */
-
-	if (toktype == KG_TOK_WRAP_MSG) {
-		/* XXX gone */
-		goto out;
-	}
 
 	/* get the sign and seal algorithms */
 
@@ -120,14 +109,7 @@ krb5_read_token(struct krb5_ctx *ctx,
 	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
 		goto out;
 
-	if (((toktype != KG_TOK_WRAP_MSG) && (sealalg != 0xffff)) ||
-	    ((toktype == KG_TOK_WRAP_MSG) && (sealalg == 0xffff)))
-		goto out;
-
-	/* in the current spec, there is only one valid seal algorithm per
-	   key type, so a simple comparison is ok */
-
-	if ((toktype == KG_TOK_WRAP_MSG) && !(sealalg == ctx->sealalg))
+	if (sealalg != 0xffff)
 		goto out;
 
 	/* there are several mappings of seal algorithms to sign algorithms,
@@ -154,7 +136,7 @@ krb5_read_token(struct krb5_ctx *ctx,
 	switch (signalg) {
 	case SGN_ALG_DES_MAC_MD5:
 		ret = make_checksum(checksum_type, ptr - 2, 8,
-					 message_buffer, &md5cksum);
+					 message_buffer, 0, &md5cksum);
 		if (ret)
 			goto out;
 
@@ -174,9 +156,6 @@ krb5_read_token(struct krb5_ctx *ctx,
 	}
 
 	/* it got through unscathed.  Make sure the context is unexpired */
-
-	if (qop_state)
-		*qop_state = GSS_C_QOP_DEFAULT;
 
 	now = get_seconds();
 

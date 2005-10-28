@@ -827,7 +827,7 @@ struct netlink_broadcast_data {
 	int failure;
 	int congested;
 	int delivered;
-	unsigned int allocation;
+	gfp_t allocation;
 	struct sk_buff *skb, *skb2;
 };
 

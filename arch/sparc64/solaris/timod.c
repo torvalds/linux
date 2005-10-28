@@ -39,7 +39,7 @@ static char * page = NULL ;
 
 #else
 
-void * mykmalloc(size_t s, int gfp)
+void * mykmalloc(size_t s, gfp_t gfp)
 {
 	static char * page;
 	static size_t free;

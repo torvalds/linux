@@ -747,7 +747,7 @@ extern unsigned long do_mremap(unsigned long addr,
  * The callback will be passed nr_to_scan == 0 when the VM is querying the
  * cache size, so a fastpath for that case is appropriate.
  */
-typedef int (*shrinker_t)(int nr_to_scan, unsigned int gfp_mask);
+typedef int (*shrinker_t)(int nr_to_scan, gfp_t gfp_mask);
 
 /*
  * Add an aging callback.  The int is the number of 'seeks' it takes

@@ -71,13 +71,13 @@ static char *state_names[] = {
 static int lh7a40x_ep_enable(struct usb_ep *ep,
 			     const struct usb_endpoint_descriptor *);
 static int lh7a40x_ep_disable(struct usb_ep *ep);
-static struct usb_request *lh7a40x_alloc_request(struct usb_ep *ep, int);
+static struct usb_request *lh7a40x_alloc_request(struct usb_ep *ep, gfp_t);
 static void lh7a40x_free_request(struct usb_ep *ep, struct usb_request *);
 static void *lh7a40x_alloc_buffer(struct usb_ep *ep, unsigned, dma_addr_t *,
-				  int);
+				  gfp_t);
 static void lh7a40x_free_buffer(struct usb_ep *ep, void *, dma_addr_t,
 				unsigned);
-static int lh7a40x_queue(struct usb_ep *ep, struct usb_request *, int);
+static int lh7a40x_queue(struct usb_ep *ep, struct usb_request *, gfp_t);
 static int lh7a40x_dequeue(struct usb_ep *ep, struct usb_request *);
 static int lh7a40x_set_halt(struct usb_ep *ep, int);
 static int lh7a40x_fifo_status(struct usb_ep *ep);
@@ -1106,7 +1106,7 @@ static int lh7a40x_ep_disable(struct usb_ep *_ep)
 }
 
 static struct usb_request *lh7a40x_alloc_request(struct usb_ep *ep,
-						 unsigned gfp_flags)
+						 gfp_t gfp_flags)
 {
 	struct lh7a40x_request *req;
 
@@ -1134,7 +1134,7 @@ static void lh7a40x_free_request(struct usb_ep *ep, struct usb_request *_req)
 }
 
 static void *lh7a40x_alloc_buffer(struct usb_ep *ep, unsigned bytes,
-				  dma_addr_t * dma, unsigned gfp_flags)
+				  dma_addr_t * dma, gfp_t gfp_flags)
 {
 	char *retval;
 
@@ -1158,7 +1158,7 @@ static void lh7a40x_free_buffer(struct usb_ep *ep, void *buf, dma_addr_t dma,
  *  NOTE: Sets INDEX register
  */
 static int lh7a40x_queue(struct usb_ep *_ep, struct usb_request *_req,
-			 unsigned gfp_flags)
+			 gfp_t gfp_flags)
 {
 	struct lh7a40x_request *req;
 	struct lh7a40x_ep *ep;

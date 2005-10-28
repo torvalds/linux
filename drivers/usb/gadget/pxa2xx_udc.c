@@ -332,7 +332,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
  * 	pxa2xx_ep_alloc_request - allocate a request data structure
  */
 static struct usb_request *
-pxa2xx_ep_alloc_request (struct usb_ep *_ep, unsigned gfp_flags)
+pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct pxa2xx_request *req;
 
@@ -367,7 +367,7 @@ pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
  */
 static void *
 pxa2xx_ep_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-	dma_addr_t *dma, unsigned gfp_flags)
+	dma_addr_t *dma, gfp_t gfp_flags)
 {
 	char			*retval;
 
@@ -874,7 +874,7 @@ done:
 /*-------------------------------------------------------------------------*/
 
 static int
-pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
+pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct pxa2xx_request	*req;
 	struct pxa2xx_ep	*ep;

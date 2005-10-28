@@ -41,7 +41,7 @@ struct nfs_fattr {
 	__u32			bitmap[2];	/* NFSv4 returned attribute bitmap */
 	__u64			change_attr;	/* NFSv4 change attribute */
 	__u64			pre_change_attr;/* pre-op NFSv4 change attribute */
-	unsigned long		timestamp;
+	unsigned long		time_start;
 };
 
 #define NFS_ATTR_WCC		0x0001		/* pre-op WCC data    */
@@ -96,12 +96,13 @@ struct nfs4_change_info {
 	u64			after;
 };
 
+struct nfs_seqid;
 /*
  * Arguments to the open call.
  */
 struct nfs_openargs {
 	const struct nfs_fh *	fh;
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 	int			open_flags;
 	__u64                   clientid;
 	__u32                   id;
@@ -123,6 +124,7 @@ struct nfs_openres {
 	struct nfs4_change_info	cinfo;
 	__u32                   rflags;
 	struct nfs_fattr *      f_attr;
+	struct nfs_fattr *      dir_attr;
 	const struct nfs_server *server;
 	int			delegation_type;
 	nfs4_stateid		delegation;
@@ -136,7 +138,7 @@ struct nfs_openres {
 struct nfs_open_confirmargs {
 	const struct nfs_fh *	fh;
 	nfs4_stateid            stateid;
-	__u32                   seqid;
+	struct nfs_seqid *	seqid;
 };
 
 struct nfs_open_confirmres {
@@ -148,13 +150,16 @@ struct nfs_open_confirmres {
  */
 struct nfs_closeargs {
 	struct nfs_fh *         fh;
-	nfs4_stateid            stateid;
-	__u32                   seqid;
+	nfs4_stateid *		stateid;
+	struct nfs_seqid *	seqid;
 	int			open_flags;
+	const u32 *		bitmask;
 };
 
 struct nfs_closeres {
 	nfs4_stateid            stateid;
+	struct nfs_fattr *	fattr;
+	const struct nfs_server *server;
 };
 /*
  *  * Arguments to the lock,lockt, and locku call.
@@ -164,30 +169,19 @@ struct nfs_lowner {
 	u32                     id;
 };
 
-struct nfs_open_to_lock {
-	__u32                   open_seqid;
-	nfs4_stateid            open_stateid;
-	__u32                   lock_seqid;
-	struct nfs_lowner       lock_owner;
-};
-
-struct nfs_exist_lock {
-	nfs4_stateid            stateid;
-	__u32                   seqid;
-};
-
 struct nfs_lock_opargs {
+	struct nfs_seqid *	lock_seqid;
+	nfs4_stateid *		lock_stateid;
+	struct nfs_seqid *	open_seqid;
+	nfs4_stateid *		open_stateid;
+	struct nfs_lowner       lock_owner;
 	__u32                   reclaim;
 	__u32                   new_lock_owner;
-	union {
-		struct nfs_open_to_lock *open_lock;
-		struct nfs_exist_lock   *exist_lock;
-	} u;
 };
 
 struct nfs_locku_opargs {
-	__u32                   seqid;
-	nfs4_stateid            stateid;
+	struct nfs_seqid *	seqid;
+	nfs4_stateid *		stateid;
 };
 
 struct nfs_lockargs {
@@ -262,6 +256,7 @@ struct nfs_writeargs {
 	enum nfs3_stable_how	stable;
 	unsigned int		pgbase;
 	struct page **		pages;
+	const u32 *		bitmask;
 };
 
 struct nfs_writeverf {
@@ -273,6 +268,7 @@ struct nfs_writeres {
 	struct nfs_fattr *	fattr;
 	struct nfs_writeverf *	verf;
 	__u32			count;
+	const struct nfs_server *server;
 };
 
 /*
@@ -550,6 +546,7 @@ struct nfs4_create_res {
 	struct nfs_fh *			fh;
 	struct nfs_fattr *		fattr;
 	struct nfs4_change_info		dir_cinfo;
+	struct nfs_fattr *		dir_fattr;
 };
 
 struct nfs4_fsinfo_arg {
@@ -571,7 +568,16 @@ struct nfs4_link_arg {
 	const struct nfs_fh *		fh;
 	const struct nfs_fh *		dir_fh;
 	const struct qstr *		name;
+	const u32 *			bitmask;
 };
+
+struct nfs4_link_res {
+	const struct nfs_server *	server;
+	struct nfs_fattr *		fattr;
+	struct nfs4_change_info		cinfo;
+	struct nfs_fattr *		dir_attr;
+};
+
 
 struct nfs4_lookup_arg {
 	const struct nfs_fh *		dir_fh;
@@ -619,6 +625,13 @@ struct nfs4_readlink {
 struct nfs4_remove_arg {
 	const struct nfs_fh *		fh;
 	const struct qstr *		name;
+	const u32 *			bitmask;
+};
+
+struct nfs4_remove_res {
+	const struct nfs_server *	server;
+	struct nfs4_change_info		cinfo;
+	struct nfs_fattr *		dir_attr;
 };
 
 struct nfs4_rename_arg {
@@ -626,11 +639,15 @@ struct nfs4_rename_arg {
 	const struct nfs_fh *		new_dir;
 	const struct qstr *		old_name;
 	const struct qstr *		new_name;
+	const u32 *			bitmask;
 };
 
 struct nfs4_rename_res {
+	const struct nfs_server *	server;
 	struct nfs4_change_info		old_cinfo;
+	struct nfs_fattr *		old_fattr;
 	struct nfs4_change_info		new_cinfo;
+	struct nfs_fattr *		new_fattr;
 };
 
 struct nfs4_setclientid {
@@ -722,7 +739,7 @@ struct nfs_rpc_ops {
 	int	(*write)   (struct nfs_write_data *);
 	int	(*commit)  (struct nfs_write_data *);
 	int	(*create)  (struct inode *, struct dentry *,
-			    struct iattr *, int);
+			    struct iattr *, int, struct nameidata *);
 	int	(*remove)  (struct inode *, struct qstr *);
 	int	(*unlink_setup)  (struct rpc_message *,
 			    struct dentry *, struct qstr *);

@@ -96,8 +96,8 @@ struct io_context {
 
 void put_io_context(struct io_context *ioc);
 void exit_io_context(void);
-struct io_context *current_io_context(int gfp_flags);
-struct io_context *get_io_context(int gfp_flags);
+struct io_context *current_io_context(gfp_t gfp_flags);
+struct io_context *get_io_context(gfp_t gfp_flags);
 void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 void swap_io_context(struct io_context **ioc1, struct io_context **ioc2);
 
@@ -354,7 +354,7 @@ struct request_queue
 	 * queue needs bounce pages for pages above this limit
 	 */
 	unsigned long		bounce_pfn;
-	unsigned int		bounce_gfp;
+	gfp_t			bounce_gfp;
 
 	/*
 	 * various queue flags, see QUEUE_* below
@@ -550,7 +550,7 @@ extern void generic_make_request(struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void blk_end_sync_rq(struct request *rq);
 extern void blk_attempt_remerge(request_queue_t *, struct request *);
-extern struct request *blk_get_request(request_queue_t *, int, int);
+extern struct request *blk_get_request(request_queue_t *, int, gfp_t);
 extern void blk_insert_request(request_queue_t *, struct request *, int, void *);
 extern void blk_requeue_request(request_queue_t *, struct request *);
 extern void blk_plug_device(request_queue_t *);
@@ -565,7 +565,7 @@ extern void blk_run_queue(request_queue_t *);
 extern void blk_queue_activity_fn(request_queue_t *, activity_fn *, void *);
 extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned int);
 extern int blk_rq_unmap_user(struct bio *, unsigned int);
-extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, unsigned int);
+extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, gfp_t);
 extern int blk_rq_map_user_iov(request_queue_t *, struct request *, struct sg_iovec *, int);
 extern int blk_execute_rq(request_queue_t *, struct gendisk *,
 			  struct request *, int);
@@ -654,8 +654,8 @@ extern void blk_wait_queue_drained(request_queue_t *, int);
 extern void blk_finish_queue_drain(request_queue_t *);
 
 int blk_get_queue(request_queue_t *);
-request_queue_t *blk_alloc_queue(int gfp_mask);
-request_queue_t *blk_alloc_queue_node(int,int);
+request_queue_t *blk_alloc_queue(gfp_t);
+request_queue_t *blk_alloc_queue_node(gfp_t, int);
 #define blk_put_queue(q) blk_cleanup_queue((q))
 
 /*

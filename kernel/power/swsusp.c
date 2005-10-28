@@ -1095,7 +1095,7 @@ static inline void eat_page(void *page)
 	*eaten_memory = c;
 }
 
-unsigned long get_usable_page(unsigned gfp_mask)
+unsigned long get_usable_page(gfp_t gfp_mask)
 {
 	unsigned long m;
 

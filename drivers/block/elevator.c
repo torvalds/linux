@@ -487,7 +487,7 @@ struct request *elv_former_request(request_queue_t *q, struct request *rq)
 }
 
 int elv_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
-		    int gfp_mask)
+		    gfp_t gfp_mask)
 {
 	elevator_t *e = q->elevator;
 

@@ -71,7 +71,7 @@ void restore_processor_state(void);
 struct saved_context;
 void __save_processor_state(struct saved_context *ctxt);
 void __restore_processor_state(struct saved_context *ctxt);
-extern unsigned long get_usable_page(unsigned gfp_mask);
+extern unsigned long get_usable_page(gfp_t gfp_mask);
 extern void free_eaten_memory(void);
 
 #endif /* _LINUX_SWSUSP_H */

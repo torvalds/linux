@@ -126,8 +126,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	struct nameidata nd;
 	int error;
 
-	nd.intent.open.flags = FMODE_READ;
-	error = __user_walk(library, LOOKUP_FOLLOW|LOOKUP_OPEN, &nd);
+	error = __user_path_lookup_open(library, LOOKUP_FOLLOW, &nd, FMODE_READ);
 	if (error)
 		goto out;
 
@@ -139,7 +138,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (error)
 		goto exit;
 
-	file = dentry_open(nd.dentry, nd.mnt, O_RDONLY);
+	file = nameidata_to_filp(&nd, O_RDONLY);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
@@ -167,6 +166,7 @@ asmlinkage long sys_uselib(const char __user * library)
 out:
   	return error;
 exit:
+	release_open_intent(&nd);
 	path_release(&nd);
 	goto out;
 }
@@ -490,8 +490,7 @@ struct file *open_exec(const char *name)
 	int err;
 	struct file *file;
 
-	nd.intent.open.flags = FMODE_READ;
-	err = path_lookup(name, LOOKUP_FOLLOW|LOOKUP_OPEN, &nd);
+	err = path_lookup_open(name, LOOKUP_FOLLOW, &nd, FMODE_READ);
 	file = ERR_PTR(err);
 
 	if (!err) {
@@ -504,7 +503,7 @@ struct file *open_exec(const char *name)
 				err = -EACCES;
 			file = ERR_PTR(err);
 			if (!err) {
-				file = dentry_open(nd.dentry, nd.mnt, O_RDONLY);
+				file = nameidata_to_filp(&nd, O_RDONLY);
 				if (!IS_ERR(file)) {
 					err = deny_write_access(file);
 					if (err) {
@@ -516,6 +515,7 @@ out:
 				return file;
 			}
 		}
+		release_open_intent(&nd);
 		path_release(&nd);
 	}
 	goto out;

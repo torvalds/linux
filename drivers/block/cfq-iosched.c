@@ -1422,7 +1422,7 @@ static void cfq_exit_io_context(struct cfq_io_context *cic)
 }
 
 static struct cfq_io_context *
-cfq_alloc_io_context(struct cfq_data *cfqd, int gfp_mask)
+cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 {
 	struct cfq_io_context *cic = kmem_cache_alloc(cfq_ioc_pool, gfp_mask);
 
@@ -1517,7 +1517,7 @@ static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 
 static struct cfq_queue *
 cfq_get_queue(struct cfq_data *cfqd, unsigned int key, unsigned short ioprio,
-	      int gfp_mask)
+	      gfp_t gfp_mask)
 {
 	const int hashval = hash_long(key, CFQ_QHASH_SHIFT);
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
@@ -1578,7 +1578,7 @@ out:
  * cfqq, so we don't need to worry about it disappearing
  */
 static struct cfq_io_context *
-cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, int gfp_mask)
+cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 {
 	struct io_context *ioc = NULL;
 	struct cfq_io_context *cic;
@@ -2075,7 +2075,7 @@ static void cfq_put_request(request_queue_t *q, struct request *rq)
  */
 static int
 cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
-		int gfp_mask)
+		gfp_t gfp_mask)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct task_struct *tsk = current;
