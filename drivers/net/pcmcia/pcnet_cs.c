@@ -1020,6 +1020,12 @@ static void set_misc_reg(struct net_device *dev)
 	} else {
 	    outb(full_duplex ? 4 : 0, nic_base + DLINK_DIAG);
 	}
+    } else if (info->flags & IS_DL10019) {
+	/* Advertise 100F, 100H, 10F, 10H */
+	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 4, 0x01e1);
+	/* Restart MII autonegotiation */
+	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x0000);
+	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x1200);
     }
 }
 
