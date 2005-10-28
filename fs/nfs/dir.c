@@ -1432,17 +1432,14 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	/*
-	 * Drop the dentry in advance to force a new lookup.
-	 * Since nfs_proc_link doesn't return a file handle,
-	 * we can't use the existing dentry.
-	 */
 	lock_kernel();
-	d_drop(dentry);
-
 	nfs_begin_data_update(dir);
 	nfs_begin_data_update(inode);
 	error = NFS_PROTO(dir)->link(inode, dir, &dentry->d_name);
+	if (error == 0) {
+		atomic_inc(&inode->i_count);
+		d_instantiate(dentry, inode);
+	}
 	nfs_end_data_update(inode);
 	nfs_end_data_update(dir);
 	unlock_kernel();
