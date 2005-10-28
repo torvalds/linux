@@ -64,18 +64,39 @@ enum {
 	IB_UMAD_MINOR_BASE = 0
 };
 
-struct ib_umad_port {
-	int                    devnum;
-	struct cdev            dev;
-	struct class_device    class_dev;
+/*
+ * Our lifetime rules for these structs are the following: each time a
+ * device special file is opened, we look up the corresponding struct
+ * ib_umad_port by minor in the umad_port[] table while holding the
+ * port_lock.  If this lookup succeeds, we take a reference on the
+ * ib_umad_port's struct ib_umad_device while still holding the
+ * port_lock; if the lookup fails, we fail the open().  We drop these
+ * references in the corresponding close().
+ *
+ * In addition to references coming from open character devices, there
+ * is one more reference to each ib_umad_device representing the
+ * module's reference taken when allocating the ib_umad_device in
+ * ib_umad_add_one().
+ *
+ * When destroying an ib_umad_device, we clear all of its
+ * ib_umad_ports from umad_port[] while holding port_lock before
+ * dropping the module's reference to the ib_umad_device.  This is
+ * always safe because any open() calls will either succeed and obtain
+ * a reference before we clear the umad_port[] entries, or fail after
+ * we clear the umad_port[] entries.
+ */
 
-	int                    sm_devnum;
-	struct cdev            sm_dev;
-	struct class_device    sm_class_dev;
+struct ib_umad_port {
+	struct cdev           *dev;
+	struct class_device   *class_dev;
+
+	struct cdev           *sm_dev;
+	struct class_device   *sm_class_dev;
 	struct semaphore       sm_sem;
 
 	struct ib_device      *ib_dev;
 	struct ib_umad_device *umad_dev;
+	int                    dev_num;
 	u8                     port_num;
 };
 
@@ -102,12 +123,24 @@ struct ib_umad_packet {
 	struct ib_user_mad mad;
 };
 
+static struct class *umad_class;
+
 static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
-static spinlock_t map_lock;
+
+static DEFINE_SPINLOCK(port_lock);
+static struct ib_umad_port *umad_port[IB_UMAD_MAX_PORTS];
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS * 2);
 
 static void ib_umad_add_one(struct ib_device *device);
 static void ib_umad_remove_one(struct ib_device *device);
+
+static void ib_umad_release_dev(struct kref *ref)
+{
+	struct ib_umad_device *dev =
+		container_of(ref, struct ib_umad_device, ref);
+
+	kfree(dev);
+}
 
 static int queue_packet(struct ib_umad_file *file,
 			struct ib_mad_agent *agent,
@@ -534,13 +567,23 @@ static long ib_umad_ioctl(struct file *filp, unsigned int cmd,
 
 static int ib_umad_open(struct inode *inode, struct file *filp)
 {
-	struct ib_umad_port *port =
-		container_of(inode->i_cdev, struct ib_umad_port, dev);
+	struct ib_umad_port *port;
 	struct ib_umad_file *file;
 
+	spin_lock(&port_lock);
+	port = umad_port[iminor(inode) - IB_UMAD_MINOR_BASE];
+	if (port)
+		kref_get(&port->umad_dev->ref);
+	spin_unlock(&port_lock);
+
+	if (!port)
+		return -ENXIO;
+
 	file = kzalloc(sizeof *file, GFP_KERNEL);
-	if (!file)
+	if (!file) {
+		kref_put(&port->umad_dev->ref, ib_umad_release_dev);
 		return -ENOMEM;
+	}
 
 	spin_lock_init(&file->recv_lock);
 	init_rwsem(&file->agent_mutex);
@@ -556,6 +599,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 static int ib_umad_close(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_file *file = filp->private_data;
+	struct ib_umad_device *dev = file->port->umad_dev;
 	struct ib_umad_packet *packet, *tmp;
 	int i;
 
@@ -569,6 +613,8 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 		kfree(packet);
 
 	kfree(file);
+
+	kref_put(&dev->ref, ib_umad_release_dev);
 
 	return 0;
 }
@@ -586,30 +632,46 @@ static struct file_operations umad_fops = {
 
 static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 {
-	struct ib_umad_port *port =
-		container_of(inode->i_cdev, struct ib_umad_port, sm_dev);
+	struct ib_umad_port *port;
 	struct ib_port_modify props = {
 		.set_port_cap_mask = IB_PORT_SM
 	};
 	int ret;
 
+	spin_lock(&port_lock);
+	port = umad_port[iminor(inode) - IB_UMAD_MINOR_BASE - IB_UMAD_MAX_PORTS];
+	if (port)
+		kref_get(&port->umad_dev->ref);
+	spin_unlock(&port_lock);
+
+	if (!port)
+		return -ENXIO;
+
 	if (filp->f_flags & O_NONBLOCK) {
-		if (down_trylock(&port->sm_sem))
-			return -EAGAIN;
+		if (down_trylock(&port->sm_sem)) {
+			ret = -EAGAIN;
+			goto fail;
+		}
 	} else {
-		if (down_interruptible(&port->sm_sem))
-			return -ERESTARTSYS;
+		if (down_interruptible(&port->sm_sem)) {
+			ret = -ERESTARTSYS;
+			goto fail;
+		}
 	}
 
 	ret = ib_modify_port(port->ib_dev, port->port_num, 0, &props);
 	if (ret) {
 		up(&port->sm_sem);
-		return ret;
+		goto fail;
 	}
 
 	filp->private_data = port;
 
 	return 0;
+
+fail:
+	kref_put(&port->umad_dev->ref, ib_umad_release_dev);
+	return ret;
 }
 
 static int ib_umad_sm_close(struct inode *inode, struct file *filp)
@@ -622,6 +684,8 @@ static int ib_umad_sm_close(struct inode *inode, struct file *filp)
 
 	ret = ib_modify_port(port->ib_dev, port->port_num, 0, &props);
 	up(&port->sm_sem);
+
+	kref_put(&port->umad_dev->ref, ib_umad_release_dev);
 
 	return ret;
 }
@@ -642,6 +706,9 @@ static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
 {
 	struct ib_umad_port *port = class_get_devdata(class_dev);
 
+	if (!port)
+		return -ENODEV;
+
 	return sprintf(buf, "%s\n", port->ib_dev->name);
 }
 static CLASS_DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
@@ -650,37 +717,12 @@ static ssize_t show_port(struct class_device *class_dev, char *buf)
 {
 	struct ib_umad_port *port = class_get_devdata(class_dev);
 
+	if (!port)
+		return -ENODEV;
+
 	return sprintf(buf, "%d\n", port->port_num);
 }
 static CLASS_DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
-
-static void ib_umad_release_dev(struct kref *ref)
-{
-	struct ib_umad_device *dev =
-		container_of(ref, struct ib_umad_device, ref);
-
-	kfree(dev);
-}
-
-static void ib_umad_release_port(struct class_device *class_dev)
-{
-	struct ib_umad_port *port = class_get_devdata(class_dev);
-
-	if (class_dev == &port->class_dev) {
-		cdev_del(&port->dev);
-		clear_bit(port->devnum, dev_map);
-	} else {
-		cdev_del(&port->sm_dev);
-		clear_bit(port->sm_devnum, dev_map);
-	}
-
-	kref_put(&port->umad_dev->ref, ib_umad_release_dev);
-}
-
-static struct class umad_class = {
-	.name    = "infiniband_mad",
-	.release = ib_umad_release_port
-};
 
 static ssize_t show_abi_version(struct class *class, char *buf)
 {
@@ -691,87 +733,100 @@ static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 static int ib_umad_init_port(struct ib_device *device, int port_num,
 			     struct ib_umad_port *port)
 {
-	spin_lock(&map_lock);
-	port->devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
-	if (port->devnum >= IB_UMAD_MAX_PORTS) {
-		spin_unlock(&map_lock);
+	spin_lock(&port_lock);
+	port->dev_num = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
+	if (port->dev_num >= IB_UMAD_MAX_PORTS) {
+		spin_unlock(&port_lock);
 		return -1;
 	}
-	port->sm_devnum = find_next_zero_bit(dev_map, IB_UMAD_MAX_PORTS * 2, IB_UMAD_MAX_PORTS);
-	if (port->sm_devnum >= IB_UMAD_MAX_PORTS * 2) {
-		spin_unlock(&map_lock);
-		return -1;
-	}
-	set_bit(port->devnum, dev_map);
-	set_bit(port->sm_devnum, dev_map);
-	spin_unlock(&map_lock);
+	set_bit(port->dev_num, dev_map);
+	spin_unlock(&port_lock);
 
 	port->ib_dev   = device;
 	port->port_num = port_num;
 	init_MUTEX(&port->sm_sem);
 
-	cdev_init(&port->dev, &umad_fops);
-	port->dev.owner = THIS_MODULE;
-	kobject_set_name(&port->dev.kobj, "umad%d", port->devnum);
-	if (cdev_add(&port->dev, base_dev + port->devnum, 1))
+	port->dev = cdev_alloc();
+	if (!port->dev)
 		return -1;
-
-	port->class_dev.class = &umad_class;
-	port->class_dev.dev   = device->dma_device;
-	port->class_dev.devt  = port->dev.dev;
-
-	snprintf(port->class_dev.class_id, BUS_ID_SIZE, "umad%d", port->devnum);
-
-	if (class_device_register(&port->class_dev))
+	port->dev->owner = THIS_MODULE;
+	port->dev->ops   = &umad_fops;
+	kobject_set_name(&port->dev->kobj, "umad%d", port->dev_num);
+	if (cdev_add(port->dev, base_dev + port->dev_num, 1))
 		goto err_cdev;
 
-	class_set_devdata(&port->class_dev, port);
-	kref_get(&port->umad_dev->ref);
+	port->class_dev = class_device_create(umad_class, port->dev->dev,
+					      device->dma_device,
+					      "umad%d", port->dev_num);
+	if (IS_ERR(port->class_dev))
+		goto err_cdev;
 
-	if (class_device_create_file(&port->class_dev, &class_device_attr_ibdev))
+	if (class_device_create_file(port->class_dev, &class_device_attr_ibdev))
 		goto err_class;
-	if (class_device_create_file(&port->class_dev, &class_device_attr_port))
+	if (class_device_create_file(port->class_dev, &class_device_attr_port))
 		goto err_class;
 
-	cdev_init(&port->sm_dev, &umad_sm_fops);
-	port->sm_dev.owner = THIS_MODULE;
-	kobject_set_name(&port->dev.kobj, "issm%d", port->sm_devnum - IB_UMAD_MAX_PORTS);
-	if (cdev_add(&port->sm_dev, base_dev + port->sm_devnum, 1))
-		return -1;
-
-	port->sm_class_dev.class = &umad_class;
-	port->sm_class_dev.dev   = device->dma_device;
-	port->sm_class_dev.devt  = port->sm_dev.dev;
-
-	snprintf(port->sm_class_dev.class_id, BUS_ID_SIZE, "issm%d", port->sm_devnum - IB_UMAD_MAX_PORTS);
-
-	if (class_device_register(&port->sm_class_dev))
+	port->sm_dev = cdev_alloc();
+	if (!port->sm_dev)
+		goto err_class;
+	port->sm_dev->owner = THIS_MODULE;
+	port->sm_dev->ops   = &umad_sm_fops;
+	kobject_set_name(&port->dev->kobj, "issm%d", port->dev_num);
+	if (cdev_add(port->sm_dev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
-	class_set_devdata(&port->sm_class_dev, port);
-	kref_get(&port->umad_dev->ref);
+	port->sm_class_dev = class_device_create(umad_class, port->sm_dev->dev,
+						 device->dma_device,
+						 "issm%d", port->dev_num);
+	if (IS_ERR(port->sm_class_dev))
+		goto err_sm_cdev;
 
-	if (class_device_create_file(&port->sm_class_dev, &class_device_attr_ibdev))
+	class_set_devdata(port->class_dev,    port);
+	class_set_devdata(port->sm_class_dev, port);
+
+	if (class_device_create_file(port->sm_class_dev, &class_device_attr_ibdev))
 		goto err_sm_class;
-	if (class_device_create_file(&port->sm_class_dev, &class_device_attr_port))
+	if (class_device_create_file(port->sm_class_dev, &class_device_attr_port))
 		goto err_sm_class;
+
+	spin_lock(&port_lock);
+	umad_port[port->dev_num] = port;
+	spin_unlock(&port_lock);
 
 	return 0;
 
 err_sm_class:
-	class_device_unregister(&port->sm_class_dev);
+	class_device_destroy(umad_class, port->sm_dev->dev);
 
 err_sm_cdev:
-	cdev_del(&port->sm_dev);
+	cdev_del(port->sm_dev);
 
 err_class:
-	class_device_unregister(&port->class_dev);
+	class_device_destroy(umad_class, port->dev->dev);
 
 err_cdev:
-	cdev_del(&port->dev);
-	clear_bit(port->devnum, dev_map);
+	cdev_del(port->dev);
+	clear_bit(port->dev_num, dev_map);
 
 	return -1;
+}
+
+static void ib_umad_kill_port(struct ib_umad_port *port)
+{
+	class_set_devdata(port->class_dev,    NULL);
+	class_set_devdata(port->sm_class_dev, NULL);
+
+	class_device_destroy(umad_class, port->dev->dev);
+	class_device_destroy(umad_class, port->sm_dev->dev);
+
+	cdev_del(port->dev);
+	cdev_del(port->sm_dev);
+
+	spin_lock(&port_lock);
+	umad_port[port->dev_num] = NULL;
+	spin_unlock(&port_lock);
+
+	clear_bit(port->dev_num, dev_map);
 }
 
 static void ib_umad_add_one(struct ib_device *device)
@@ -809,10 +864,8 @@ static void ib_umad_add_one(struct ib_device *device)
 	return;
 
 err:
-	while (--i >= s) {
-		class_device_unregister(&umad_dev->port[i - s].class_dev);
-		class_device_unregister(&umad_dev->port[i - s].sm_class_dev);
-	}
+	while (--i >= s)
+		ib_umad_kill_port(&umad_dev->port[i]);
 
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
@@ -825,10 +878,8 @@ static void ib_umad_remove_one(struct ib_device *device)
 	if (!umad_dev)
 		return;
 
-	for (i = 0; i <= umad_dev->end_port - umad_dev->start_port; ++i) {
-		class_device_unregister(&umad_dev->port[i].class_dev);
-		class_device_unregister(&umad_dev->port[i].sm_class_dev);
-	}
+	for (i = 0; i <= umad_dev->end_port - umad_dev->start_port; ++i)
+		ib_umad_kill_port(&umad_dev->port[i]);
 
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
@@ -837,8 +888,6 @@ static int __init ib_umad_init(void)
 {
 	int ret;
 
-	spin_lock_init(&map_lock);
-
 	ret = register_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2,
 				     "infiniband_mad");
 	if (ret) {
@@ -846,13 +895,14 @@ static int __init ib_umad_init(void)
 		goto out;
 	}
 
-	ret = class_register(&umad_class);
-	if (ret) {
+	umad_class = class_create(THIS_MODULE, "infiniband_mad");
+	if (IS_ERR(umad_class)) {
+		ret = PTR_ERR(umad_class);
 		printk(KERN_ERR "user_mad: couldn't create class infiniband_mad\n");
 		goto out_chrdev;
 	}
 
-	ret = class_create_file(&umad_class, &class_attr_abi_version);
+	ret = class_create_file(umad_class, &class_attr_abi_version);
 	if (ret) {
 		printk(KERN_ERR "user_mad: couldn't create abi_version attribute\n");
 		goto out_class;
@@ -867,7 +917,7 @@ static int __init ib_umad_init(void)
 	return 0;
 
 out_class:
-	class_unregister(&umad_class);
+	class_destroy(umad_class);
 
 out_chrdev:
 	unregister_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2);
@@ -879,7 +929,7 @@ out:
 static void __exit ib_umad_cleanup(void)
 {
 	ib_unregister_client(&umad_client);
-	class_unregister(&umad_class);
+	class_destroy(umad_class);
 	unregister_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2);
 }
 
