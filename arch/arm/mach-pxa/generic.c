@@ -253,6 +253,10 @@ static struct platform_device stuart_device = {
 	.name		= "pxa2xx-uart",
 	.id		= 2,
 };
+static struct platform_device hwuart_device = {
+	.name		= "pxa2xx-uart",
+	.id		= 3,
+};
 
 static struct resource i2c_resources[] = {
 	{
@@ -310,7 +314,19 @@ static struct platform_device *devices[] __initdata = {
 
 static int __init pxa_init(void)
 {
-	return platform_add_devices(devices, ARRAY_SIZE(devices));
+	int cpuid, ret;
+
+	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+	if (ret)
+		return ret;
+
+	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
+	cpuid = read_cpuid(CPUID_ID);
+	if (((cpuid >> 4) & 0xfff) == 0x2d0 ||
+	    ((cpuid >> 4) & 0xfff) == 0x290)
+		ret = platform_device_register(&hwuart_device);
+
+	return ret;
 }
 
 subsys_initcall(pxa_init);
