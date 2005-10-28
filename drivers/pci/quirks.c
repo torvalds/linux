@@ -414,6 +414,18 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801DB_12,
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801EB_0,		quirk_ich4_lpc_acpi );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_ESB_1,		quirk_ich4_lpc_acpi );
 
+static void __devinit quirk_ich6_lpc_acpi(struct pci_dev *dev)
+{
+	u32 region;
+
+	pci_read_config_dword(dev, 0x40, &region);
+	quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES, "ICH6 ACPI/GPIO/TCO");
+
+	pci_read_config_dword(dev, 0x48, &region);
+	quirk_io_region(dev, region, 64, PCI_BRIDGE_RESOURCES+1, "ICH6 GPIO");
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1, quirk_ich6_lpc_acpi );
+
 /*
  * VIA ACPI: One IO region pointed to by longword at
  *	0x48 or 0x20 (256 bytes of ACPI registers)
@@ -922,6 +934,12 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			case 0x186a: /* M6Ne notebook */
 				asus_hides_smbus = 1;
 			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB) {
+			switch (dev->subsystem_device) {
+			case 0x1882: /* M6V notebook */
+				asus_hides_smbus = 1;
+			}
+		}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_HP)) {
 		if (dev->device ==  PCI_DEVICE_ID_INTEL_82855PM_HB)
 			switch(dev->subsystem_device) {
@@ -932,6 +950,7 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		if (dev->device == PCI_DEVICE_ID_INTEL_82865_HB)
 			switch (dev->subsystem_device) {
 			case 0x12bc: /* HP D330L */
+			case 0x12bd: /* HP D530 */
 				asus_hides_smbus = 1;
 			}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_TOSHIBA)) {
@@ -966,6 +985,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82865_HB,	asus
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_7205_0,	asus_hides_smbus_hostbridge );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82855PM_HB,	asus_hides_smbus_hostbridge );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82855GM_HB,	asus_hides_smbus_hostbridge );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82915GM_HB, asus_hides_smbus_hostbridge );
 
 static void __init asus_hides_smbus_lpc(struct pci_dev *dev)
 {
@@ -989,6 +1009,23 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801BA_0,	asu
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801CA_12,	asus_hides_smbus_lpc );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801DB_12,	asus_hides_smbus_lpc );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801EB_0,	asus_hides_smbus_lpc );
+
+static void __init asus_hides_smbus_lpc_ich6(struct pci_dev *dev)
+{
+	u32 val, rcba;
+	void __iomem *base;
+
+	if (likely(!asus_hides_smbus))
+		return;
+	pci_read_config_dword(dev, 0xF0, &rcba);
+	base = ioremap_nocache(rcba & 0xFFFFC000, 0x4000); /* use bits 31:14, 16 kB aligned */
+	if (base == NULL) return;
+	val=readl(base + 0x3418); /* read the Function Disable register, dword mode only */
+	writel(val & 0xFFFFFFF7, base + 0x3418); /* enable the SMBus device */
+	iounmap(base);
+	printk(KERN_INFO "PCI: Enabled ICH6/i801 SMBus device\n");
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1,	asus_hides_smbus_lpc_ich6 );
 
 /*
  * SiS 96x south bridge: BIOS typically hides SMBus device...
