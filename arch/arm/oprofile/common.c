@@ -125,27 +125,37 @@ static void  exit_driverfs(void)
 #define exit_driverfs() do { } while (0)
 #endif /* CONFIG_PM */
 
-int __init op_arm_init(struct oprofile_operations *ops, struct op_arm_model_spec *spec)
+int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	init_MUTEX(&op_arm_sem);
+	struct op_arm_model_spec *spec = NULL;
+	int ret = -ENODEV;
 
-	if (spec->init() < 0)
-		return -ENODEV;
+#ifdef CONFIG_CPU_XSCALE
+	spec = &op_xscale_spec;
+#endif
 
-	op_arm_model = spec;
-	init_driverfs();
-	ops->create_files = op_arm_create_files;
-	ops->setup = op_arm_setup;
-	ops->shutdown = op_arm_stop;
-	ops->start = op_arm_start;
-	ops->stop = op_arm_stop;
-	ops->cpu_type = op_arm_model->name;
-	printk(KERN_INFO "oprofile: using %s\n", spec->name);
+	if (spec) {
+		init_MUTEX(&op_arm_sem);
 
-	return 0;
+		if (spec->init() < 0)
+			return -ENODEV;
+
+		op_arm_model = spec;
+		init_driverfs();
+		ops->create_files = op_arm_create_files;
+		ops->setup = op_arm_setup;
+		ops->shutdown = op_arm_stop;
+		ops->start = op_arm_start;
+		ops->stop = op_arm_stop;
+		ops->cpu_type = op_arm_model->name;
+		ops->backtrace = arm_backtrace;
+		printk(KERN_INFO "oprofile: using %s\n", spec->name);
+	}
+
+	return ret;
 }
 
-void op_arm_exit(void)
+void oprofile_arch_exit(void)
 {
 	if (op_arm_model) {
 		exit_driverfs();
