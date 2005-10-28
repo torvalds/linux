@@ -95,6 +95,8 @@ static int nfs_stat_to_errno(int);
 #define decode_getattr_maxsz    (op_decode_hdr_maxsz + nfs4_fattr_maxsz)
 #define encode_savefh_maxsz     (op_encode_hdr_maxsz)
 #define decode_savefh_maxsz     (op_decode_hdr_maxsz)
+#define encode_restorefh_maxsz  (op_encode_hdr_maxsz)
+#define decode_restorefh_maxsz  (op_decode_hdr_maxsz)
 #define encode_fsinfo_maxsz	(op_encode_hdr_maxsz + 2)
 #define decode_fsinfo_maxsz	(op_decode_hdr_maxsz + 11)
 #define encode_renew_maxsz	(op_encode_hdr_maxsz + 3)
@@ -336,14 +338,20 @@ static int nfs_stat_to_errno(int);
 				decode_getfh_maxsz)
 #define NFS4_enc_create_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
+				encode_savefh_maxsz + \
 				encode_create_maxsz + \
+				encode_getfh_maxsz + \
 				encode_getattr_maxsz + \
-				encode_getfh_maxsz)
+				encode_restorefh_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_create_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
+				decode_savefh_maxsz + \
 				decode_create_maxsz + \
+				decode_getfh_maxsz + \
 				decode_getattr_maxsz + \
-				decode_getfh_maxsz)
+				decode_restorefh_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_pathconf_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz)
@@ -1113,6 +1121,17 @@ static int encode_renew(struct xdr_stream *xdr, const struct nfs4_client *client
 }
 
 static int
+encode_restorefh(struct xdr_stream *xdr)
+{
+	uint32_t *p;
+
+	RESERVE_SPACE(4);
+	WRITE32(OP_RESTOREFH);
+
+	return 0;
+}
+
+static int
 encode_setacl(struct xdr_stream *xdr, struct nfs_setaclargs *arg)
 {
 	uint32_t *p;
@@ -1358,7 +1377,7 @@ static int nfs4_xdr_enc_create(struct rpc_rqst *req, uint32_t *p, const struct n
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 4,
+		.nops = 7,
 	};
 	int status;
 
@@ -1366,9 +1385,15 @@ static int nfs4_xdr_enc_create(struct rpc_rqst *req, uint32_t *p, const struct n
 	encode_compound_hdr(&xdr, &hdr);
 	if ((status = encode_putfh(&xdr, args->dir_fh)) != 0)
 		goto out;
+	if ((status = encode_savefh(&xdr)) != 0)
+		goto out;
 	if ((status = encode_create(&xdr, args)) != 0)
 		goto out;
 	if ((status = encode_getfh(&xdr)) != 0)
+		goto out;
+	if ((status = encode_getfattr(&xdr, args->bitmask)) != 0)
+		goto out;
+	if ((status = encode_restorefh(&xdr)) != 0)
 		goto out;
 	status = encode_getfattr(&xdr, args->bitmask);
 out:
@@ -1429,7 +1454,7 @@ static int nfs4_xdr_enc_open(struct rpc_rqst *req, uint32_t *p, struct nfs_opena
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 4,
+		.nops = 7,
 	};
 	int status;
 
@@ -1441,10 +1466,19 @@ static int nfs4_xdr_enc_open(struct rpc_rqst *req, uint32_t *p, struct nfs_opena
 	status = encode_putfh(&xdr, args->fh);
 	if (status)
 		goto out;
+	status = encode_savefh(&xdr);
+	if (status)
+		goto out;
 	status = encode_open(&xdr, args);
 	if (status)
 		goto out;
 	status = encode_getfh(&xdr);
+	if (status)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
+	if (status)
+		goto out;
+	status = encode_restorefh(&xdr);
 	if (status)
 		goto out;
 	status = encode_getfattr(&xdr, args->bitmask);
@@ -3218,6 +3252,12 @@ static int decode_renew(struct xdr_stream *xdr)
 	return decode_op_hdr(xdr, OP_RENEW);
 }
 
+static int
+decode_restorefh(struct xdr_stream *xdr)
+{
+	return decode_op_hdr(xdr, OP_RESTOREFH);
+}
+
 static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 		size_t *acl_len)
 {
@@ -3510,13 +3550,17 @@ static int nfs4_xdr_dec_create(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_
 		goto out;
 	if ((status = decode_putfh(&xdr)) != 0)
 		goto out;
+	if ((status = decode_savefh(&xdr)) != 0)
+		goto out;
 	if ((status = decode_create(&xdr,&res->dir_cinfo)) != 0)
 		goto out;
 	if ((status = decode_getfh(&xdr, res->fh)) != 0)
 		goto out;
-	status = decode_getfattr(&xdr, res->fattr, res->server);
-	if (status == NFS4ERR_DELAY)
-		status = 0;
+	if (decode_getfattr(&xdr, res->fattr, res->server) != 0)
+		goto out;
+	if ((status = decode_restorefh(&xdr)) != 0)
+		goto out;
+	decode_getfattr(&xdr, res->dir_fattr, res->server);
 out:
 	return status;
 }
@@ -3654,15 +3698,20 @@ static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, uint32_t *p, struct nfs_ope
         status = decode_putfh(&xdr);
         if (status)
                 goto out;
+        status = decode_savefh(&xdr);
+	if (status)
+		goto out;
         status = decode_open(&xdr, res);
         if (status)
                 goto out;
 	status = decode_getfh(&xdr, &res->fh);
         if (status)
 		goto out;
-	status = decode_getfattr(&xdr, res->f_attr, res->server);
-	if (status == NFS4ERR_DELAY)
-		status = 0;
+	if (decode_getfattr(&xdr, res->f_attr, res->server) != 0)
+		goto out;
+	if ((status = decode_restorefh(&xdr)) != 0)
+		goto out;
+	decode_getfattr(&xdr, res->dir_attr, res->server);
 out:
         return status;
 }
