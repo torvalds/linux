@@ -988,7 +988,15 @@ din_1:
 
 	    if( residual )
 	    {
+		static int feedback_requested;
 		bval = DC390_read8 (ScsiFifo);	    /* get one residual byte */
+
+		if (!feedback_requested) {
+			feedback_requested = 1;
+			printk(KERN_WARNING "%s: Please, contact <linux-scsi@vger.kernel.org> "
+			       "to help improve support for your system.\n", __FILE__);
+		}
+
 		ptr = (u8 *) bus_to_virt( pSRB->SGBusAddr );
 		*ptr = bval;
 		pSRB->SGBusAddr++; xferCnt++;
