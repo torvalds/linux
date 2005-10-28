@@ -587,7 +587,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		struct timeval tv;
 
 		tv.tv_sec = xtime.tv_sec;
-		tv.tv_usec = xtime.tv_nsec * 1000;
+		tv.tv_usec = xtime.tv_nsec / NSEC_PER_USEC;
 		skb_set_timestamp(skb, &tv);
 		/* Don't enable netstamp, sunrpc doesn't 
 		   need that much accuracy */
