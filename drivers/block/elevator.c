@@ -185,7 +185,6 @@ int elevator_init(request_queue_t *q, char *name)
 	q->last_merge = NULL;
 	q->end_sector = 0;
 	q->boundary_rq = NULL;
-	q->max_back_kb = 0;
 
 	elevator_setup_default();
 
