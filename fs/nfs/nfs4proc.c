@@ -2169,8 +2169,10 @@ nfs4_write_done(struct rpc_task *task)
 		rpc_restart_call(task);
 		return;
 	}
-	if (task->tk_status >= 0)
+	if (task->tk_status >= 0) {
 		renew_lease(NFS_SERVER(inode), data->timestamp);
+		nfs_post_op_update_inode(inode, data->res.fattr);
+	}
 	/* Call back common NFS writeback processing */
 	nfs_writeback_done(task);
 }
@@ -2186,6 +2188,7 @@ nfs4_proc_write_setup(struct nfs_write_data *data, int how)
 		.rpc_cred = data->cred,
 	};
 	struct inode *inode = data->inode;
+	struct nfs_server *server = NFS_SERVER(inode);
 	int stable;
 	int flags;
 	
@@ -2197,6 +2200,8 @@ nfs4_proc_write_setup(struct nfs_write_data *data, int how)
 	} else
 		stable = NFS_UNSTABLE;
 	data->args.stable = stable;
+	data->args.bitmask = server->attr_bitmask;
+	data->res.server = server;
 
 	data->timestamp   = jiffies;
 
@@ -2218,6 +2223,8 @@ nfs4_commit_done(struct rpc_task *task)
 		rpc_restart_call(task);
 		return;
 	}
+	if (task->tk_status >= 0)
+		nfs_post_op_update_inode(inode, data->res.fattr);
 	/* Call back common NFS writeback processing */
 	nfs_commit_done(task);
 }
@@ -2233,8 +2240,12 @@ nfs4_proc_commit_setup(struct nfs_write_data *data, int how)
 		.rpc_cred = data->cred,
 	};	
 	struct inode *inode = data->inode;
+	struct nfs_server *server = NFS_SERVER(inode);
 	int flags;
 	
+	data->args.bitmask = server->attr_bitmask;
+	data->res.server = server;
+
 	/* Set the initial flags for the task.  */
 	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 

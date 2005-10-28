@@ -159,16 +159,20 @@ static int nfs_stat_to_errno(int);
 				op_decode_hdr_maxsz + 2)
 #define NFS4_enc_write_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 8)
+				op_encode_hdr_maxsz + 8 + \
+				encode_getattr_maxsz)
 #define NFS4_dec_write_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 4)
+				op_decode_hdr_maxsz + 4 + \
+				decode_getattr_maxsz)
 #define NFS4_enc_commit_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				op_encode_hdr_maxsz + 3)
+				op_encode_hdr_maxsz + 3 + \
+				encode_getattr_maxsz)
 #define NFS4_dec_commit_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 2)
+				op_decode_hdr_maxsz + 2 + \
+				decode_getattr_maxsz)
 #define NFS4_enc_open_sz        (compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
                                 op_encode_hdr_maxsz + \
@@ -1799,7 +1803,7 @@ static int nfs4_xdr_enc_write(struct rpc_rqst *req, uint32_t *p, struct nfs_writ
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 2,
+		.nops = 3,
 	};
 	int status;
 
@@ -1809,6 +1813,9 @@ static int nfs4_xdr_enc_write(struct rpc_rqst *req, uint32_t *p, struct nfs_writ
 	if (status)
 		goto out;
 	status = encode_write(&xdr, args);
+	if (status)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;
 }
@@ -1820,7 +1827,7 @@ static int nfs4_xdr_enc_commit(struct rpc_rqst *req, uint32_t *p, struct nfs_wri
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 2,
+		.nops = 3,
 	};
 	int status;
 
@@ -1830,6 +1837,9 @@ static int nfs4_xdr_enc_commit(struct rpc_rqst *req, uint32_t *p, struct nfs_wri
 	if (status)
 		goto out;
 	status = encode_commit(&xdr, args);
+	if (status)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;
 }
@@ -4001,6 +4011,9 @@ static int nfs4_xdr_dec_write(struct rpc_rqst *rqstp, uint32_t *p, struct nfs_wr
 	if (status)
 		goto out;
 	status = decode_write(&xdr, res);
+	if (status)
+		goto out;
+	decode_getfattr(&xdr, res->fattr, res->server);
 	if (!status)
 		status = res->count;
 out:
@@ -4024,6 +4037,9 @@ static int nfs4_xdr_dec_commit(struct rpc_rqst *rqstp, uint32_t *p, struct nfs_w
 	if (status)
 		goto out;
 	status = decode_commit(&xdr, res);
+	if (status)
+		goto out;
+	decode_getfattr(&xdr, res->fattr, res->server);
 out:
 	return status;
 }

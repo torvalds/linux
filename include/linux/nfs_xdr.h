@@ -256,6 +256,7 @@ struct nfs_writeargs {
 	enum nfs3_stable_how	stable;
 	unsigned int		pgbase;
 	struct page **		pages;
+	const u32 *		bitmask;
 };
 
 struct nfs_writeverf {
@@ -267,6 +268,7 @@ struct nfs_writeres {
 	struct nfs_fattr *	fattr;
 	struct nfs_writeverf *	verf;
 	__u32			count;
+	const struct nfs_server *server;
 };
 
 /*
