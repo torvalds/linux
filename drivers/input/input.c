@@ -642,17 +642,22 @@ static ssize_t input_dev_show_##name(struct class_device *dev, char *buf)	\
 	up(&input_dev->sem);							\
 										\
 	return retval;								\
-}
+}										\
+static CLASS_DEVICE_ATTR(name, S_IRUGO, input_dev_show_##name, NULL);
 
 INPUT_DEV_STRING_ATTR_SHOW(name);
 INPUT_DEV_STRING_ATTR_SHOW(phys);
 INPUT_DEV_STRING_ATTR_SHOW(uniq);
 
-static struct class_device_attribute input_dev_attrs[] = {
-	__ATTR(name, S_IRUGO, input_dev_show_name, NULL),
-	__ATTR(phys, S_IRUGO, input_dev_show_phys, NULL),
-	__ATTR(uniq, S_IRUGO, input_dev_show_uniq, NULL),
-	__ATTR_NULL
+static struct attribute *input_dev_attrs[] = {
+	&class_device_attr_name.attr,
+	&class_device_attr_phys.attr,
+	&class_device_attr_uniq.attr,
+	NULL
+};
+
+static struct attribute_group input_dev_group = {
+	.attrs	= input_dev_attrs,
 };
 
 #define INPUT_DEV_ID_ATTR(name)							\
@@ -728,7 +733,6 @@ static void input_dev_release(struct class_device *class_dev)
 struct class input_dev_class = {
 	.name			= "input_dev",
 	.release		= input_dev_release,
-	.class_dev_attrs	= input_dev_attrs,
 };
 
 struct input_dev *input_allocate_device(void)
@@ -766,6 +770,7 @@ static void input_register_classdevice(struct input_dev *dev)
 	kfree(path);
 
 	class_device_add(&dev->cdev);
+	sysfs_create_group(&dev->cdev.kobj, &input_dev_group);
 	sysfs_create_group(&dev->cdev.kobj, &input_dev_id_attr_group);
 	sysfs_create_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 }
