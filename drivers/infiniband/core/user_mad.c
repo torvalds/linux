@@ -99,7 +99,6 @@ struct ib_umad_packet {
 	struct ib_mad_send_buf *msg;
 	struct list_head   list;
 	int		   length;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
 	struct ib_user_mad mad;
 };
 
@@ -145,15 +144,12 @@ static void send_handler(struct ib_mad_agent *agent,
 	ib_free_send_mad(packet->msg);
 
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
-		timeout = kmalloc(sizeof *timeout + sizeof (struct ib_mad_hdr),
-				  GFP_KERNEL);
+		timeout = kzalloc(sizeof *timeout + IB_MGMT_MAD_HDR, GFP_KERNEL);
 		if (!timeout)
 			goto out;
 
-		memset(timeout, 0, sizeof *timeout + sizeof (struct ib_mad_hdr));
-
-		timeout->length = sizeof (struct ib_mad_hdr);
-		timeout->mad.hdr.id = packet->mad.hdr.id;
+		timeout->length 	= IB_MGMT_MAD_HDR;
+		timeout->mad.hdr.id 	= packet->mad.hdr.id;
 		timeout->mad.hdr.status = ETIMEDOUT;
 		memcpy(timeout->mad.data, packet->mad.data,
 		       sizeof (struct ib_mad_hdr));
@@ -176,11 +172,10 @@ static void recv_handler(struct ib_mad_agent *agent,
 		goto out;
 
 	length = mad_recv_wc->mad_len;
-	packet = kmalloc(sizeof *packet + length, GFP_KERNEL);
+	packet = kzalloc(sizeof *packet + length, GFP_KERNEL);
 	if (!packet)
 		goto out;
 
-	memset(packet, 0, sizeof *packet + length);
 	packet->length = length;
 
 	ib_coalesce_recv_mad(mad_recv_wc, packet->mad.data);
@@ -246,7 +241,7 @@ static ssize_t ib_umad_read(struct file *filp, char __user *buf,
 		else
 			ret = -ENOSPC;
 	} else if (copy_to_user(buf, &packet->mad,
-			      packet->length + sizeof (struct ib_user_mad)))
+				packet->length + sizeof (struct ib_user_mad)))
 		ret = -EFAULT;
 	else
 		ret = packet->length + sizeof (struct ib_user_mad);
@@ -271,22 +266,19 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_rmpp_mad *rmpp_mad;
 	u8 method;
 	__be64 *tid;
-	int ret, length, hdr_len, rmpp_hdr_size;
+	int ret, length, hdr_len, copy_offset;
 	int rmpp_active = 0;
 
 	if (count < sizeof (struct ib_user_mad))
 		return -EINVAL;
 
 	length = count - sizeof (struct ib_user_mad);
-	packet = kmalloc(sizeof *packet + sizeof(struct ib_mad_hdr) +
-			 sizeof (struct ib_rmpp_hdr), GFP_KERNEL);
+	packet = kmalloc(sizeof *packet + IB_MGMT_RMPP_HDR, GFP_KERNEL);
 	if (!packet)
 		return -ENOMEM;
 
 	if (copy_from_user(&packet->mad, buf,
-			    sizeof (struct ib_user_mad) +
-			    sizeof (struct ib_mad_hdr) +
-			    sizeof (struct ib_rmpp_hdr))) {
+			    sizeof (struct ib_user_mad) + IB_MGMT_RMPP_HDR)) {
 		ret = -EFAULT;
 		goto err;
 	}
@@ -296,8 +288,6 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		ret = -EINVAL;
 		goto err;
 	}
-
-	packet->length = length;
 
 	down_read(&file->agent_mutex);
 
@@ -345,12 +335,10 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 			goto err_ah;
 		}
 		rmpp_active = 1;
+		copy_offset = IB_MGMT_RMPP_HDR;
 	} else {
-		if (length > sizeof (struct ib_mad)) {
-			ret = -EINVAL;
-			goto err_ah;
-		}
 		hdr_len = IB_MGMT_MAD_HDR;
+		copy_offset = IB_MGMT_MAD_HDR;
 	}
 
 	packet->msg = ib_create_send_mad(agent,
@@ -368,28 +356,14 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	packet->msg->retries 	= packet->mad.hdr.retries;
 	packet->msg->context[0] = packet;
 
-	if (!rmpp_active) {
-		/* Copy message from user into send buffer */
-		if (copy_from_user(packet->msg->mad,
-				   buf + sizeof (struct ib_user_mad), length)) {
-			ret = -EFAULT;
-			goto err_msg;
-		}
-	} else {
-		rmpp_hdr_size = sizeof (struct ib_mad_hdr) +
-				sizeof (struct ib_rmpp_hdr);
-
-		/* Only copy MAD headers (RMPP header in place) */
-		memcpy(packet->msg->mad, packet->mad.data,
-		       sizeof (struct ib_mad_hdr));
-
-		/* Now, copy rest of message from user into send buffer */
-		if (copy_from_user(((struct ib_rmpp_mad *) packet->msg->mad)->data,
-				   buf + sizeof (struct ib_user_mad) + rmpp_hdr_size,
-				   length - rmpp_hdr_size)) {
-			ret = -EFAULT;
-			goto err_msg;
-		}
+	/* Copy MAD headers (RMPP header in place) */
+	memcpy(packet->msg->mad, packet->mad.data, IB_MGMT_MAD_HDR);
+	/* Now, copy rest of message from user into send buffer */
+	if (copy_from_user(packet->msg->mad + copy_offset,
+			   buf + sizeof (struct ib_user_mad) + copy_offset,
+			   length - copy_offset)) {
+		ret = -EFAULT;
+		goto err_msg;
 	}
 
 	/*
@@ -414,7 +388,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 
 	up_read(&file->agent_mutex);
 
-	return sizeof (struct ib_user_mad_hdr) + packet->length;
+	return count;
 
 err_msg:
 	ib_free_send_mad(packet->msg);
@@ -564,11 +538,9 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 		container_of(inode->i_cdev, struct ib_umad_port, dev);
 	struct ib_umad_file *file;
 
-	file = kmalloc(sizeof *file, GFP_KERNEL);
+	file = kzalloc(sizeof *file, GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;
-
-	memset(file, 0, sizeof *file);
 
 	spin_lock_init(&file->recv_lock);
 	init_rwsem(&file->agent_mutex);
@@ -814,14 +786,11 @@ static void ib_umad_add_one(struct ib_device *device)
 		e = device->phys_port_cnt;
 	}
 
-	umad_dev = kmalloc(sizeof *umad_dev +
+	umad_dev = kzalloc(sizeof *umad_dev +
 			   (e - s + 1) * sizeof (struct ib_umad_port),
 			   GFP_KERNEL);
 	if (!umad_dev)
 		return;
-
-	memset(umad_dev, 0, sizeof *umad_dev +
-	       (e - s + 1) * sizeof (struct ib_umad_port));
 
 	kref_init(&umad_dev->ref);
 
