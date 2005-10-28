@@ -263,8 +263,6 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 
 	blk_queue_activity_fn(q, NULL, NULL);
-
-	INIT_LIST_HEAD(&q->drain_list);
 }
 
 EXPORT_SYMBOL(blk_queue_make_request);
@@ -1050,6 +1048,7 @@ static char *rq_flags[] = {
 	"REQ_STARTED",
 	"REQ_DONTPREP",
 	"REQ_QUEUED",
+	"REQ_ELVPRIV",
 	"REQ_PC",
 	"REQ_BLOCK_PC",
 	"REQ_SENSE",
@@ -1640,9 +1639,9 @@ static int blk_init_free_list(request_queue_t *q)
 
 	rl->count[READ] = rl->count[WRITE] = 0;
 	rl->starved[READ] = rl->starved[WRITE] = 0;
+	rl->elvpriv = 0;
 	init_waitqueue_head(&rl->wait[READ]);
 	init_waitqueue_head(&rl->wait[WRITE]);
-	init_waitqueue_head(&rl->drain);
 
 	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
 				mempool_free_slab, request_cachep, q->node);
@@ -1785,12 +1784,14 @@ EXPORT_SYMBOL(blk_get_queue);
 
 static inline void blk_free_request(request_queue_t *q, struct request *rq)
 {
-	elv_put_request(q, rq);
+	if (rq->flags & REQ_ELVPRIV)
+		elv_put_request(q, rq);
 	mempool_free(rq, q->rq.rq_pool);
 }
 
 static inline struct request *
-blk_alloc_request(request_queue_t *q, int rw, struct bio *bio, int gfp_mask)
+blk_alloc_request(request_queue_t *q, int rw, struct bio *bio,
+		  int priv, int gfp_mask)
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
 
@@ -1803,11 +1804,15 @@ blk_alloc_request(request_queue_t *q, int rw, struct bio *bio, int gfp_mask)
 	 */
 	rq->flags = rw;
 
-	if (!elv_set_request(q, rq, bio, gfp_mask))
-		return rq;
+	if (priv) {
+		if (unlikely(elv_set_request(q, rq, bio, gfp_mask))) {
+			mempool_free(rq, q->rq.rq_pool);
+			return NULL;
+		}
+		rq->flags |= REQ_ELVPRIV;
+	}
 
-	mempool_free(rq, q->rq.rq_pool);
-	return NULL;
+	return rq;
 }
 
 /*
@@ -1863,22 +1868,18 @@ static void __freed_request(request_queue_t *q, int rw)
  * A request has just been released.  Account for it, update the full and
  * congestion status, wake up any waiters.   Called under q->queue_lock.
  */
-static void freed_request(request_queue_t *q, int rw)
+static void freed_request(request_queue_t *q, int rw, int priv)
 {
 	struct request_list *rl = &q->rq;
 
 	rl->count[rw]--;
+	if (priv)
+		rl->elvpriv--;
 
 	__freed_request(q, rw);
 
 	if (unlikely(rl->starved[rw ^ 1]))
 		__freed_request(q, rw ^ 1);
-
-	if (!rl->count[READ] && !rl->count[WRITE]) {
-		smp_mb();
-		if (unlikely(waitqueue_active(&rl->drain)))
-			wake_up(&rl->drain);
-	}
 }
 
 #define blkdev_free_rq(list) list_entry((list)->next, struct request, queuelist)
@@ -1893,9 +1894,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
 	struct io_context *ioc = current_io_context(GFP_ATOMIC);
-
-	if (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags)))
-		goto out;
+	int priv;
 
 	if (rl->count[rw]+1 >= q->nr_requests) {
 		/*
@@ -1940,9 +1939,14 @@ get_rq:
 	rl->starved[rw] = 0;
 	if (rl->count[rw] >= queue_congestion_on_threshold(q))
 		set_queue_congested(q, rw);
+
+	priv = !test_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+	if (priv)
+		rl->elvpriv++;
+
 	spin_unlock_irq(q->queue_lock);
 
-	rq = blk_alloc_request(q, rw, bio, gfp_mask);
+	rq = blk_alloc_request(q, rw, bio, priv, gfp_mask);
 	if (!rq) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything
@@ -1952,7 +1956,7 @@ get_rq:
 		 * wait queue, but this is pretty rare.
 		 */
 		spin_lock_irq(q->queue_lock);
-		freed_request(q, rw);
+		freed_request(q, rw, priv);
 
 		/*
 		 * in the very unlikely event that allocation failed and no
@@ -2470,11 +2474,12 @@ static void __blk_put_request(request_queue_t *q, struct request *req)
 	 */
 	if (rl) {
 		int rw = rq_data_dir(req);
+		int priv = req->flags & REQ_ELVPRIV;
 
 		BUG_ON(!list_empty(&req->queuelist));
 
 		blk_free_request(q, req);
-		freed_request(q, rw);
+		freed_request(q, rw, priv);
 	}
 }
 
@@ -2802,97 +2807,6 @@ static inline void blk_partition_remap(struct bio *bio)
 	}
 }
 
-void blk_finish_queue_drain(request_queue_t *q)
-{
-	struct request_list *rl = &q->rq;
-	struct request *rq;
-	int requeued = 0;
-
-	spin_lock_irq(q->queue_lock);
-	clear_bit(QUEUE_FLAG_DRAIN, &q->queue_flags);
-
-	while (!list_empty(&q->drain_list)) {
-		rq = list_entry_rq(q->drain_list.next);
-
-		list_del_init(&rq->queuelist);
-		elv_requeue_request(q, rq);
-		requeued++;
-	}
-
-	if (requeued)
-		q->request_fn(q);
-
-	spin_unlock_irq(q->queue_lock);
-
-	wake_up(&rl->wait[0]);
-	wake_up(&rl->wait[1]);
-	wake_up(&rl->drain);
-}
-
-static int wait_drain(request_queue_t *q, struct request_list *rl, int dispatch)
-{
-	int wait = rl->count[READ] + rl->count[WRITE];
-
-	if (dispatch)
-		wait += !list_empty(&q->queue_head);
-
-	return wait;
-}
-
-/*
- * We rely on the fact that only requests allocated through blk_alloc_request()
- * have io scheduler private data structures associated with them. Any other
- * type of request (allocated on stack or through kmalloc()) should not go
- * to the io scheduler core, but be attached to the queue head instead.
- */
-void blk_wait_queue_drained(request_queue_t *q, int wait_dispatch)
-{
-	struct request_list *rl = &q->rq;
-	DEFINE_WAIT(wait);
-
-	spin_lock_irq(q->queue_lock);
-	set_bit(QUEUE_FLAG_DRAIN, &q->queue_flags);
-
-	while (wait_drain(q, rl, wait_dispatch)) {
-		prepare_to_wait(&rl->drain, &wait, TASK_UNINTERRUPTIBLE);
-
-		if (wait_drain(q, rl, wait_dispatch)) {
-			__generic_unplug_device(q);
-			spin_unlock_irq(q->queue_lock);
-			io_schedule();
-			spin_lock_irq(q->queue_lock);
-		}
-
-		finish_wait(&rl->drain, &wait);
-	}
-
-	spin_unlock_irq(q->queue_lock);
-}
-
-/*
- * block waiting for the io scheduler being started again.
- */
-static inline void block_wait_queue_running(request_queue_t *q)
-{
-	DEFINE_WAIT(wait);
-
-	while (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags))) {
-		struct request_list *rl = &q->rq;
-
-		prepare_to_wait_exclusive(&rl->drain, &wait,
-				TASK_UNINTERRUPTIBLE);
-
-		/*
-		 * re-check the condition. avoids using prepare_to_wait()
-		 * in the fast path (queue is running)
-		 */
-		if (test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags))
-			io_schedule();
-
-		finish_wait(&rl->drain, &wait);
-	}
-}
-
 static void handle_bad_sector(struct bio *bio)
 {
 	char b[BDEVNAME_SIZE];
@@ -2987,8 +2901,6 @@ end_io:
 
 		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
 			goto end_io;
-
-		block_wait_queue_running(q);
 
 		/*
 		 * If this device has partitions, remap block n
