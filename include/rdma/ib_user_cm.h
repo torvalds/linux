@@ -38,7 +38,7 @@
 
 #include <linux/types.h>
 
-#define IB_USER_CM_ABI_VERSION 2
+#define IB_USER_CM_ABI_VERSION 3
 
 enum {
 	IB_USER_CM_CMD_CREATE_ID,
@@ -299,8 +299,6 @@ struct ib_ucm_event_get {
 };
 
 struct ib_ucm_req_event_resp {
-	/* device */
-	/* port */
 	struct ib_ucm_path_rec primary_path;
 	struct ib_ucm_path_rec alternate_path;
 	__be64                 remote_ca_guid;
@@ -316,6 +314,7 @@ struct ib_ucm_req_event_resp {
 	__u8  retry_count;
 	__u8  rnr_retry_count;
 	__u8  srq;
+	__u8  port;
 };
 
 struct ib_ucm_rep_event_resp {
@@ -353,10 +352,9 @@ struct ib_ucm_apr_event_resp {
 };
 
 struct ib_ucm_sidr_req_event_resp {
-	/* device */
-	/* port */
 	__u16 pkey;
-	__u8  reserved[2];
+	__u8  port;
+	__u8  reserved;
 };
 
 struct ib_ucm_sidr_rep_event_resp {

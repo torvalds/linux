@@ -95,57 +95,65 @@ void ipoib_free_ah(struct kref *kref)
 	}
 }
 
-static inline int ipoib_ib_receive(struct ipoib_dev_priv *priv,
-				   unsigned int wr_id,
-				   dma_addr_t addr)
-{
-	struct ib_sge list = {
-		.addr    = addr,
-		.length  = IPOIB_BUF_SIZE,
-		.lkey    = priv->mr->lkey,
-	};
-	struct ib_recv_wr param = {
-		.wr_id 	    = wr_id | IPOIB_OP_RECV,
-		.sg_list    = &list,
-		.num_sge    = 1,
-	};
-	struct ib_recv_wr *bad_wr;
-
-	return ib_post_recv(priv->qp, &param, &bad_wr);
-}
-
 static int ipoib_ib_post_receive(struct net_device *dev, int id)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct sk_buff *skb;
-	dma_addr_t addr;
+	struct ib_sge list;
+	struct ib_recv_wr param;
+	struct ib_recv_wr *bad_wr;
 	int ret;
 
-	skb = dev_alloc_skb(IPOIB_BUF_SIZE + 4);
-	if (!skb) {
-		ipoib_warn(priv, "failed to allocate receive buffer\n");
+	list.addr     = priv->rx_ring[id].mapping;
+	list.length   = IPOIB_BUF_SIZE;
+	list.lkey     = priv->mr->lkey;
 
-		priv->rx_ring[id].skb = NULL;
-		return -ENOMEM;
-	}
-	skb_reserve(skb, 4);	/* 16 byte align IP header */
-	priv->rx_ring[id].skb = skb;
-	addr = dma_map_single(priv->ca->dma_device,
-			      skb->data, IPOIB_BUF_SIZE,
-			      DMA_FROM_DEVICE);
-	pci_unmap_addr_set(&priv->rx_ring[id], mapping, addr);
+	param.next    = NULL;
+	param.wr_id   = id | IPOIB_OP_RECV;
+	param.sg_list = &list;
+	param.num_sge = 1;
 
-	ret = ipoib_ib_receive(priv, id, addr);
-	if (ret) {
-		ipoib_warn(priv, "ipoib_ib_receive failed for buf %d (%d)\n",
-			   id, ret);
-		dma_unmap_single(priv->ca->dma_device, addr,
+	ret = ib_post_recv(priv->qp, &param, &bad_wr);
+	if (unlikely(ret)) {
+		ipoib_warn(priv, "receive failed for buf %d (%d)\n", id, ret);
+		dma_unmap_single(priv->ca->dma_device,
+				 priv->rx_ring[id].mapping,
 				 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb_any(priv->rx_ring[id].skb);
 		priv->rx_ring[id].skb = NULL;
 	}
 
 	return ret;
+}
+
+static int ipoib_alloc_rx_skb(struct net_device *dev, int id)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
+	dma_addr_t addr;
+
+	skb = dev_alloc_skb(IPOIB_BUF_SIZE + 4);
+	if (!skb)
+		return -ENOMEM;
+
+	/*
+	 * IB will leave a 40 byte gap for a GRH and IPoIB adds a 4 byte
+	 * header.  So we need 4 more bytes to get to 48 and align the
+	 * IP header to a multiple of 16.
+	 */
+	skb_reserve(skb, 4);
+
+	addr = dma_map_single(priv->ca->dma_device,
+			      skb->data, IPOIB_BUF_SIZE,
+			      DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(addr))) {
+		dev_kfree_skb_any(skb);
+		return -EIO;
+	}
+
+	priv->rx_ring[id].skb     = skb;
+	priv->rx_ring[id].mapping = addr;
+
+	return 0;
 }
 
 static int ipoib_ib_post_receives(struct net_device *dev)
@@ -154,6 +162,10 @@ static int ipoib_ib_post_receives(struct net_device *dev)
 	int i;
 
 	for (i = 0; i < IPOIB_RX_RING_SIZE; ++i) {
+		if (ipoib_alloc_rx_skb(dev, i)) {
+			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
+			return -ENOMEM;
+		}
 		if (ipoib_ib_post_receive(dev, i)) {
 			ipoib_warn(priv, "ipoib_ib_post_receive failed for buf %d\n", i);
 			return -EIO;
@@ -176,27 +188,35 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 		wr_id &= ~IPOIB_OP_RECV;
 
 		if (wr_id < IPOIB_RX_RING_SIZE) {
-			struct sk_buff *skb = priv->rx_ring[wr_id].skb;
+			struct sk_buff *skb  = priv->rx_ring[wr_id].skb;
+			dma_addr_t      addr = priv->rx_ring[wr_id].mapping;
 
-			priv->rx_ring[wr_id].skb = NULL;
-
-			dma_unmap_single(priv->ca->dma_device,
-					 pci_unmap_addr(&priv->rx_ring[wr_id],
-							mapping),
-					 IPOIB_BUF_SIZE,
-					 DMA_FROM_DEVICE);
-
-			if (wc->status != IB_WC_SUCCESS) {
+			if (unlikely(wc->status != IB_WC_SUCCESS)) {
 				if (wc->status != IB_WC_WR_FLUSH_ERR)
 					ipoib_warn(priv, "failed recv event "
 						   "(status=%d, wrid=%d vend_err %x)\n",
 						   wc->status, wr_id, wc->vendor_err);
+				dma_unmap_single(priv->ca->dma_device, addr,
+						 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
 				dev_kfree_skb_any(skb);
+				priv->rx_ring[wr_id].skb = NULL;
 				return;
+			}
+
+			/*
+			 * If we can't allocate a new RX buffer, dump
+			 * this packet and reuse the old buffer.
+			 */
+			if (unlikely(ipoib_alloc_rx_skb(dev, wr_id))) {
+				++priv->stats.rx_dropped;
+				goto repost;
 			}
 
 			ipoib_dbg_data(priv, "received %d bytes, SLID 0x%04x\n",
 				       wc->byte_len, wc->slid);
+
+			dma_unmap_single(priv->ca->dma_device, addr,
+					 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
 
 			skb_put(skb, wc->byte_len);
 			skb_pull(skb, IB_GRH_BYTES);
@@ -220,8 +240,8 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 				dev_kfree_skb_any(skb);
 			}
 
-			/* repost receive */
-			if (ipoib_ib_post_receive(dev, wr_id))
+		repost:
+			if (unlikely(ipoib_ib_post_receive(dev, wr_id)))
 				ipoib_warn(priv, "ipoib_ib_post_receive failed "
 					   "for buf %d\n", wr_id);
 		} else
@@ -229,7 +249,7 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 				   wr_id);
 
 	} else {
-		struct ipoib_buf *tx_req;
+		struct ipoib_tx_buf *tx_req;
 		unsigned long flags;
 
 		if (wr_id >= IPOIB_TX_RING_SIZE) {
@@ -302,7 +322,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		struct ipoib_ah *address, u32 qpn)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ipoib_buf *tx_req;
+	struct ipoib_tx_buf *tx_req;
 	dma_addr_t addr;
 
 	if (skb->len > dev->mtu + INFINIBAND_ALEN) {
@@ -387,9 +407,9 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
 
-	ret = ipoib_qp_create(dev);
+	ret = ipoib_init_qp(dev);
 	if (ret) {
-		ipoib_warn(priv, "ipoib_qp_create returned %d\n", ret);
+		ipoib_warn(priv, "ipoib_init_qp returned %d\n", ret);
 		return -1;
 	}
 
@@ -468,7 +488,7 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 	struct ib_qp_attr qp_attr;
 	int attr_mask;
 	unsigned long begin;
-	struct ipoib_buf *tx_req;
+	struct ipoib_tx_buf *tx_req;
 	int i;
 
 	/* Kill the existing QP and allocate a new one */

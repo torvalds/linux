@@ -83,6 +83,8 @@ enum {
 	/* Arbel FW gives us these, but we need them for Tavor */
 	MTHCA_MPT_ENTRY_SIZE  =  0x40,
 	MTHCA_MTT_SEG_SIZE    =  0x40,
+
+	MTHCA_QP_PER_MGM      = 4 * (MTHCA_MGM_ENTRY_SIZE / 16 - 2)
 };
 
 enum {
@@ -128,12 +130,16 @@ struct mthca_limits {
 	int      num_uars;
 	int      max_sg;
 	int      num_qps;
+	int      max_wqes;
+	int	 max_qp_init_rdma;
 	int      reserved_qps;
 	int      num_srqs;
+	int      max_srq_wqes;
 	int      reserved_srqs;
 	int      num_eecs;
 	int      reserved_eecs;
 	int      num_cqs;
+	int      max_cqes;
 	int      reserved_cqs;
 	int      num_eqs;
 	int      reserved_eqs;
@@ -148,6 +154,7 @@ struct mthca_limits {
 	int      reserved_mcgs;
 	int      num_pds;
 	int      reserved_pds;
+	u32      flags;
 	u8       port_width_cap;
 };
 
@@ -251,6 +258,14 @@ struct mthca_mcg_table {
 	struct mthca_icm_table *table;
 };
 
+struct mthca_catas_err {
+	u64			addr;
+	u32 __iomem	       *map;
+	unsigned long		stop;
+	u32			size;
+	struct timer_list	timer;
+};
+
 struct mthca_dev {
 	struct ib_device  ib_dev;
 	struct pci_dev   *pdev;
@@ -310,6 +325,8 @@ struct mthca_dev {
 	struct mthca_qp_table  qp_table;
 	struct mthca_av_table  av_table;
 	struct mthca_mcg_table mcg_table;
+
+	struct mthca_catas_err catas_err;
 
 	struct mthca_uar       driver_uar;
 	struct mthca_db_table *db_tab;
@@ -398,6 +415,9 @@ void mthca_cleanup_mcg_table(struct mthca_dev *dev);
 int mthca_register_device(struct mthca_dev *dev);
 void mthca_unregister_device(struct mthca_dev *dev);
 
+void mthca_start_catas_poll(struct mthca_dev *dev);
+void mthca_stop_catas_poll(struct mthca_dev *dev);
+
 int mthca_uar_alloc(struct mthca_dev *dev, struct mthca_uar *uar);
 void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);
 
@@ -447,6 +467,8 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		    struct ib_srq_attr *attr, struct mthca_srq *srq);
 void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
+int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		     enum ib_srq_attr_mask attr_mask);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
