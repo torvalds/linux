@@ -271,7 +271,7 @@ int expand_read_bal;	/* Balance factor for expanding reads (not volume!) */
 
 /*** Low level stuff *********************************************************/
 
-static void *PMacAlloc(unsigned int size, int flags);
+static void *PMacAlloc(unsigned int size, gfp_t flags);
 static void PMacFree(void *ptr, unsigned int size);
 static int PMacIrqInit(void);
 #ifdef MODULE
@@ -614,7 +614,7 @@ tas_init_frame_rates(unsigned int *prop, unsigned int l)
 /*
  * PCI PowerMac, with AWACS, Screamer, Burgundy, DACA or Tumbler and DBDMA.
  */
-static void *PMacAlloc(unsigned int size, int flags)
+static void *PMacAlloc(unsigned int size, gfp_t flags)
 {
 	return kmalloc(size, flags);
 }

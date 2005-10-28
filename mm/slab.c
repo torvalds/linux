@@ -386,7 +386,7 @@ struct kmem_cache_s {
 	unsigned int		gfporder;
 
 	/* force GFP flags, e.g. GFP_DMA */
-	unsigned int		gfpflags;
+	gfp_t			gfpflags;
 
 	size_t			colour;		/* cache colouring range */
 	unsigned int		colour_off;	/* colour offset */
@@ -2117,7 +2117,7 @@ static void cache_init_objs(kmem_cache_t *cachep,
 	slabp->free = 0;
 }
 
-static void kmem_flagcheck(kmem_cache_t *cachep, unsigned int flags)
+static void kmem_flagcheck(kmem_cache_t *cachep, gfp_t flags)
 {
 	if (flags & SLAB_DMA) {
 		if (!(cachep->gfpflags & GFP_DMA))
@@ -2152,7 +2152,7 @@ static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 	struct slab	*slabp;
 	void		*objp;
 	size_t		 offset;
-	unsigned int	 local_flags;
+	gfp_t	 	 local_flags;
 	unsigned long	 ctor_flags;
 	struct kmem_list3 *l3;
 
@@ -2546,7 +2546,7 @@ static inline void *__cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 /*
  * A interface to enable slab creation on nodeid
  */
-static void *__cache_alloc_node(kmem_cache_t *cachep, int flags, int nodeid)
+static void *__cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 {
 	struct list_head *entry;
  	struct slab *slabp;

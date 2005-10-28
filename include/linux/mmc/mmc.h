@@ -50,7 +50,7 @@ struct mmc_command {
 #define MMC_ERR_INVALID	5
 
 	struct mmc_data		*data;		/* data segment associated with cmd */
-	struct mmc_request	*mrq;		/* assoicated request */
+	struct mmc_request	*mrq;		/* associated request */
 };
 
 struct mmc_data {
@@ -68,7 +68,7 @@ struct mmc_data {
 	unsigned int		bytes_xfered;
 
 	struct mmc_command	*stop;		/* stop command */
-	struct mmc_request	*mrq;		/* assoicated request */
+	struct mmc_request	*mrq;		/* associated request */
 
 	unsigned int		sg_len;		/* size of scatter list */
 	struct scatterlist	*sg;		/* I/O scatter list */

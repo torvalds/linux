@@ -142,7 +142,7 @@ static void nfs_msync_inode(struct inode *inode)
 /*
  * Basic procedure for returning a delegation to the server
  */
-int nfs_inode_return_delegation(struct inode *inode)
+int __nfs_inode_return_delegation(struct inode *inode)
 {
 	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);

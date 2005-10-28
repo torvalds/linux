@@ -1023,10 +1023,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 			int alloclen;
 
 			skb_prev = skb;
-			if (skb_prev)
-				fraggap = skb_prev->len - maxfraglen;
-			else
-				fraggap = 0;
+			fraggap = skb_prev->len - maxfraglen;
 
 			alloclen = fragheaderlen + hh_len + fraggap + 15;
 			skb = sock_wmalloc(sk, alloclen, 1, sk->sk_allocation);

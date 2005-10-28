@@ -2644,7 +2644,7 @@ static char *
 sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 {
 	char *resp = NULL;
-	int page_mask;
+	gfp_t page_mask;
 	int order, a_size;
 	int resSz = rqSz;
 

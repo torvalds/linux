@@ -358,6 +358,9 @@ static int serial_pxa_startup(struct uart_port *port)
 	unsigned long flags;
 	int retval;
 
+	if (port->line == 3) /* HWUART */
+		up->mcr |= UART_MCR_AFE;
+	else
 	up->mcr = 0;
 
 	/*
@@ -481,8 +484,10 @@ serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
 
 	if ((up->port.uartclk / quot) < (2400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR1;
-	else
+	else if ((up->port.uartclk / quot) < (230400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR8;
+	else
+		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR32;
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
@@ -771,6 +776,20 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 		.fifosize	= 64,
 		.ops		= &serial_pxa_pops,
 		.line		= 2,
+	},
+  }, {  /* HWUART */
+	.name	= "HWUART",
+	.cken	= CKEN4_HWUART,
+	.port = {
+		.type		= PORT_PXA,
+		.iotype		= UPIO_MEM,
+		.membase	= (void *)&HWUART,
+		.mapbase	= __PREG(HWUART),
+		.irq		= IRQ_HWUART,
+		.uartclk	= 921600 * 16,
+		.fifosize	= 64,
+		.ops		= &serial_pxa_pops,
+		.line		= 3,
 	},
   }
 };

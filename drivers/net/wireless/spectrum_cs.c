@@ -22,58 +22,23 @@
 #define PFX DRIVER_NAME ": "
 
 #include <linux/config.h>
-#ifdef  __IN_PCMCIA_PACKAGE__
-#include <pcmcia/k_compat.h>
-#endif /* __IN_PCMCIA_PACKAGE__ */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/ioport.h>
-#include <linux/netdevice.h>
-#include <linux/if_arp.h>
-#include <linux/etherdevice.h>
-#include <linux/wireless.h>
-
+#include <linux/delay.h>
+#include <linux/firmware.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-#include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/system.h>
-
 #include "orinoco.h"
 
-/*
- * If SPECTRUM_FW_INCLUDED is defined, the firmware is hardcoded into
- * the driver.  Use get_symbol_fw script to generate spectrum_fw.h and
- * copy it to the same directory as spectrum_cs.c.
- *
- * If SPECTRUM_FW_INCLUDED is not defined, the firmware is loaded at the
- * runtime using hotplug.  Use the same get_symbol_fw script to generate
- * files symbol_sp24t_prim_fw symbol_sp24t_sec_fw, copy them to the
- * hotplug firmware directory (typically /usr/lib/hotplug/firmware) and
- * make sure that you have hotplug installed and enabled in the kernel.
- */
-/* #define SPECTRUM_FW_INCLUDED 1 */
-
-#ifdef SPECTRUM_FW_INCLUDED
-/* Header with the firmware */
-#include "spectrum_fw.h"
-#else	/* !SPECTRUM_FW_INCLUDED */
-#include <linux/firmware.h>
 static unsigned char *primsym;
 static unsigned char *secsym;
 static const char primary_fw_name[] = "symbol_sp24t_prim_fw";
 static const char secondary_fw_name[] = "symbol_sp24t_sec_fw";
-#endif	/* !SPECTRUM_FW_INCLUDED */
 
 /********************************************************************/
 /* Module stuff							    */
@@ -124,17 +89,8 @@ static dev_link_t *dev_list; /* = NULL */
 /* Function prototypes						    */
 /********************************************************************/
 
-/* device methods */
-static int spectrum_cs_hard_reset(struct orinoco_private *priv);
-
-/* PCMCIA gumpf */
-static void spectrum_cs_config(dev_link_t * link);
-static void spectrum_cs_release(dev_link_t * link);
-static int spectrum_cs_event(event_t event, int priority,
-			    event_callback_args_t * args);
-
-static dev_link_t *spectrum_cs_attach(void);
-static void spectrum_cs_detach(dev_link_t *);
+static void spectrum_cs_release(dev_link_t *link);
+static void spectrum_cs_detach(dev_link_t *link);
 
 /********************************************************************/
 /* Firmware downloader						    */
@@ -182,8 +138,8 @@ static void spectrum_cs_detach(dev_link_t *);
  * Each block has the following structure.
  */
 struct dblock {
-	u32 _addr;		/* adapter address where to write the block */
-	u16 _len;		/* length of the data only, in bytes */
+	__le32 _addr;		/* adapter address where to write the block */
+	__le16 _len;		/* length of the data only, in bytes */
 	char data[0];		/* data to be written */
 } __attribute__ ((packed));
 
@@ -193,9 +149,9 @@ struct dblock {
  * items with matching ID should be written.
  */
 struct pdr {
-	u32 _id;		/* record ID */
-	u32 _addr;		/* adapter address where to write the data */
-	u32 _len;		/* expected length of the data, in bytes */
+	__le32 _id;		/* record ID */
+	__le32 _addr;		/* adapter address where to write the data */
+	__le32 _len;		/* expected length of the data, in bytes */
 	char next[0];		/* next PDR starts here */
 } __attribute__ ((packed));
 
@@ -206,8 +162,8 @@ struct pdr {
  * be plugged into the secondary firmware.
  */
 struct pdi {
-	u16 _len;		/* length of ID and data, in words */
-	u16 _id;		/* record ID */
+	__le16 _len;		/* length of ID and data, in words */
+	__le16 _id;		/* record ID */
 	char data[0];		/* plug data */
 } __attribute__ ((packed));;
 
@@ -414,7 +370,7 @@ spectrum_plug_pdi(hermes_t *hw, struct pdr *first_pdr, struct pdi *pdi)
 
 /* Read PDA from the adapter */
 static int
-spectrum_read_pda(hermes_t *hw, u16 *pda, int pda_len)
+spectrum_read_pda(hermes_t *hw, __le16 *pda, int pda_len)
 {
 	int ret;
 	int pda_size;
@@ -445,7 +401,7 @@ spectrum_read_pda(hermes_t *hw, u16 *pda, int pda_len)
 /* Parse PDA and write the records into the adapter */
 static int
 spectrum_apply_pda(hermes_t *hw, const struct dblock *first_block,
-		   u16 *pda)
+		   __le16 *pda)
 {
 	int ret;
 	struct pdi *pdi;
@@ -511,7 +467,7 @@ spectrum_dl_image(hermes_t *hw, dev_link_t *link,
 	const struct dblock *first_block;
 
 	/* Plug Data Area (PDA) */
-	u16 pda[PDA_WORDS];
+	__le16 pda[PDA_WORDS];
 
 	/* Binary block begins after the 0x1A marker */
 	ptr = image;
@@ -571,8 +527,6 @@ spectrum_dl_firmware(hermes_t *hw, dev_link_t *link)
 {
 	int ret;
 	client_handle_t handle = link->handle;
-
-#ifndef SPECTRUM_FW_INCLUDED
 	const struct firmware *fw_entry;
 
 	if (request_firmware(&fw_entry, primary_fw_name,
@@ -592,7 +546,6 @@ spectrum_dl_firmware(hermes_t *hw, dev_link_t *link)
 		       secondary_fw_name);
 		return -ENOENT;
 	}
-#endif
 
 	/* Load primary firmware */
 	ret = spectrum_dl_image(hw, link, primsym);
@@ -1085,7 +1038,7 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 static struct pcmcia_device_id spectrum_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4100 */
 	PCMCIA_DEVICE_MANF_CARD(0x0104, 0x0001), /* Socket Communications CF */
-	PCMCIA_DEVICE_MANF_CARD(0x0089, 0x0001), /* Intel PRO/Wireless 2011B */
+	PCMCIA_DEVICE_PROD_ID12("Intel", "PRO/Wireless LAN PC Card", 0x816cc815, 0x6fbf459a), /* 2011B, not 2011 */
 	PCMCIA_DEVICE_NULL,
 };
 MODULE_DEVICE_TABLE(pcmcia, spectrum_cs_ids);
@@ -1096,8 +1049,8 @@ static struct pcmcia_driver orinoco_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.attach		= spectrum_cs_attach,
-	.event		= spectrum_cs_event,
 	.detach		= spectrum_cs_detach,
+	.event		= spectrum_cs_event,
 	.id_table       = spectrum_cs_ids,
 };
 

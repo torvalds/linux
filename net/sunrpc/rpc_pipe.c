@@ -76,23 +76,33 @@ int
 rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
-	int res = 0;
+	int res = -EPIPE;
 
 	down(&inode->i_sem);
+	if (rpci->ops == NULL)
+		goto out;
 	if (rpci->nreaders) {
 		list_add_tail(&msg->list, &rpci->pipe);
 		rpci->pipelen += msg->len;
+		res = 0;
 	} else if (rpci->flags & RPC_PIPE_WAIT_FOR_OPEN) {
 		if (list_empty(&rpci->pipe))
 			schedule_delayed_work(&rpci->queue_timeout,
 					RPC_UPCALL_TIMEOUT);
 		list_add_tail(&msg->list, &rpci->pipe);
 		rpci->pipelen += msg->len;
-	} else
-		res = -EPIPE;
+		res = 0;
+	}
+out:
 	up(&inode->i_sem);
 	wake_up(&rpci->waitq);
 	return res;
+}
+
+static inline void
+rpc_inode_setowner(struct inode *inode, void *private)
+{
+	RPC_I(inode)->private = private;
 }
 
 static void
@@ -111,13 +121,8 @@ rpc_close_pipes(struct inode *inode)
 			rpci->ops->release_pipe(inode);
 		rpci->ops = NULL;
 	}
+	rpc_inode_setowner(inode, NULL);
 	up(&inode->i_sem);
-}
-
-static inline void
-rpc_inode_setowner(struct inode *inode, void *private)
-{
-	RPC_I(inode)->private = private;
 }
 
 static struct inode *
@@ -501,7 +506,6 @@ repeat:
 			dentry = dvec[--n];
 			if (dentry->d_inode) {
 				rpc_close_pipes(dentry->d_inode);
-				rpc_inode_setowner(dentry->d_inode, NULL);
 				simple_unlink(dir, dentry);
 			}
 			dput(dentry);
@@ -576,10 +580,8 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	int error;
 
 	shrink_dcache_parent(dentry);
-	if (dentry->d_inode) {
+	if (dentry->d_inode)
 		rpc_close_pipes(dentry->d_inode);
-		rpc_inode_setowner(dentry->d_inode, NULL);
-	}
 	if ((error = simple_rmdir(dir, dentry)) != 0)
 		return error;
 	if (!error) {
@@ -732,7 +734,6 @@ rpc_unlink(char *path)
 	d_drop(dentry);
 	if (dentry->d_inode) {
 		rpc_close_pipes(dentry->d_inode);
-		rpc_inode_setowner(dentry->d_inode, NULL);
 		error = simple_unlink(dir, dentry);
 	}
 	dput(dentry);

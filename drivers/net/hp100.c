@@ -2517,10 +2517,8 @@ static int hp100_down_vg_link(struct net_device *dev)
 	do {
 		if (hp100_inb(VG_LAN_CFG_1) & HP100_LINK_CABLE_ST)
 			break;
-		if (!in_interrupt()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		if (!in_interrupt())
+			schedule_timeout_interruptible(1);
 	} while (time_after(time, jiffies));
 
 	if (time_after_eq(jiffies, time))	/* no signal->no logout */
@@ -2536,10 +2534,8 @@ static int hp100_down_vg_link(struct net_device *dev)
 	do {
 		if (!(hp100_inb(VG_LAN_CFG_1) & HP100_LINK_UP_ST))
 			break;
-		if (!in_interrupt()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		if (!in_interrupt())
+			schedule_timeout_interruptible(1);
 	} while (time_after(time, jiffies));
 
 #ifdef HP100_DEBUG
@@ -2577,10 +2573,8 @@ static int hp100_down_vg_link(struct net_device *dev)
 		do {
 			if (!(hp100_inb(MAC_CFG_4) & HP100_MAC_SEL_ST))
 				break;
-			if (!in_interrupt()) {
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout(1);
-			}
+			if (!in_interrupt())
+				schedule_timeout_interruptible(1);
 		} while (time_after(time, jiffies));
 
 		hp100_orb(HP100_AUTO_MODE, MAC_CFG_3);	/* Autosel back on */
@@ -2591,10 +2585,8 @@ static int hp100_down_vg_link(struct net_device *dev)
 	do {
 		if ((hp100_inb(VG_LAN_CFG_1) & HP100_LINK_CABLE_ST) == 0)
 			break;
-		if (!in_interrupt()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		if (!in_interrupt())
+			schedule_timeout_interruptible(1);
 	} while (time_after(time, jiffies));
 
 	if (time_before_eq(time, jiffies)) {
@@ -2606,10 +2598,8 @@ static int hp100_down_vg_link(struct net_device *dev)
 
 	time = jiffies + (2 * HZ);	/* This seems to take a while.... */
 	do {
-		if (!in_interrupt()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		if (!in_interrupt())
+			schedule_timeout_interruptible(1);
 	} while (time_after(time, jiffies));
 
 	return 0;
@@ -2659,10 +2649,8 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		do {
 			if (~(hp100_inb(VG_LAN_CFG_1) & HP100_LINK_UP_ST))
 				break;
-			if (!in_interrupt()) {
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout(1);
-			}
+			if (!in_interrupt())
+				schedule_timeout_interruptible(1);
 		} while (time_after(time, jiffies));
 
 		/* Start an addressed training and optionally request promiscuous port */
@@ -2697,10 +2685,8 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		do {
 			if (hp100_inb(VG_LAN_CFG_1) & HP100_LINK_CABLE_ST)
 				break;
-			if (!in_interrupt()) {
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout(1);
-			}
+			if (!in_interrupt())
+				schedule_timeout_interruptible(1);
 		} while (time_before(jiffies, time));
 
 		if (time_after_eq(jiffies, time)) {
@@ -2723,10 +2709,8 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 #endif
 					break;
 				}
-				if (!in_interrupt()) {
-					set_current_state(TASK_INTERRUPTIBLE);
-					schedule_timeout(1);
-				}
+				if (!in_interrupt())
+					schedule_timeout_interruptible(1);
 			} while (time_after(time, jiffies));
 		}
 

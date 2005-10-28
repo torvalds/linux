@@ -700,10 +700,7 @@ int __init icmpv6_init(struct net_proto_family *ops)
 	struct sock *sk;
 	int err, i, j;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
-
+	for_each_cpu(i) {
 		err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6,
 				       &per_cpu(__icmpv6_socket, i));
 		if (err < 0) {
@@ -749,9 +746,7 @@ void icmpv6_cleanup(void)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
+	for_each_cpu(i) {
 		sock_release(per_cpu(__icmpv6_socket, i));
 	}
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);

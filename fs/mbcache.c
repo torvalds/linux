@@ -116,7 +116,7 @@ mb_cache_indexes(struct mb_cache *cache)
  * What the mbcache registers as to get shrunk dynamically.
  */
 
-static int mb_cache_shrink_fn(int nr_to_scan, unsigned int gfp_mask);
+static int mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask);
 
 
 static inline int
@@ -140,7 +140,7 @@ __mb_cache_entry_unhash(struct mb_cache_entry *ce)
 
 
 static inline void
-__mb_cache_entry_forget(struct mb_cache_entry *ce, int gfp_mask)
+__mb_cache_entry_forget(struct mb_cache_entry *ce, gfp_t gfp_mask)
 {
 	struct mb_cache *cache = ce->e_cache;
 
@@ -193,7 +193,7 @@ forget:
  * Returns the number of objects which are present in the cache.
  */
 static int
-mb_cache_shrink_fn(int nr_to_scan, unsigned int gfp_mask)
+mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
 {
 	LIST_HEAD(free_list);
 	struct list_head *l, *ltmp;

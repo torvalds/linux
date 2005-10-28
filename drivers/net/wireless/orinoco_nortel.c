@@ -40,29 +40,13 @@
 #define PFX DRIVER_NAME ": "
 
 #include <linux/config.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/timer.h>
-#include <linux/ioport.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/system.h>
-#include <linux/netdevice.h>
-#include <linux/if_arp.h>
-#include <linux/etherdevice.h>
-#include <linux/list.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/fcntl.h>
-
 #include <pcmcia/cisreg.h>
 
-#include "hermes.h"
 #include "orinoco.h"
 
 #define COR_OFFSET    (0xe0)	/* COR attribute offset of Prism2 PC card */
@@ -108,7 +92,7 @@ static int nortel_pci_cor_reset(struct orinoco_private *priv)
 	return 0;
 }
 
-int nortel_pci_hw_init(struct nortel_pci_card *card)
+static int nortel_pci_hw_init(struct nortel_pci_card *card)
 {
 	int i;
 	u32 reg;

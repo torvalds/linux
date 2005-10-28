@@ -1654,12 +1654,12 @@ static const long ipw_frequencies[] = {
 
 #define IPW_MAX_CONFIG_RETRIES 10
 
-static inline u32 frame_hdr_len(struct ieee80211_hdr *hdr)
+static inline u32 frame_hdr_len(struct ieee80211_hdr_4addr *hdr)
 {
 	u32 retval;
 	u16 fc;
 
-	retval = sizeof(struct ieee80211_hdr);
+	retval = sizeof(struct ieee80211_hdr_3addr);
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	/*

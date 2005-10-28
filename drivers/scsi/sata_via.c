@@ -109,7 +109,7 @@ static Scsi_Host_Template svia_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations svia_sata_ops = {
+static const struct ata_port_operations svia_sata_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
@@ -212,7 +212,7 @@ static struct ata_probe_ent *vt6420_init_probe_ent(struct pci_dev *pdev)
 	struct ata_probe_ent *probe_ent;
 	struct ata_port_info *ppi = &svia_port_info;
 
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi);
+	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
 		return NULL;
 

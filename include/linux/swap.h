@@ -171,8 +171,8 @@ extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
-extern int try_to_free_pages(struct zone **, unsigned int);
-extern int zone_reclaim(struct zone *, unsigned int, unsigned int);
+extern int try_to_free_pages(struct zone **, gfp_t);
+extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
 

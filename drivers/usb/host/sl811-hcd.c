@@ -818,7 +818,7 @@ static int sl811h_urb_enqueue(
 	struct usb_hcd		*hcd,
 	struct usb_host_endpoint *hep,
 	struct urb		*urb,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 ) {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
 	struct usb_device	*udev = urb->dev;

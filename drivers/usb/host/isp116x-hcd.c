@@ -694,7 +694,7 @@ static int balance(struct isp116x *isp116x, u16 period, u16 load)
 
 static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 			       struct usb_host_endpoint *hep, struct urb *urb,
-			       unsigned mem_flags)
+			       gfp_t mem_flags)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	struct usb_device *udev = urb->dev;

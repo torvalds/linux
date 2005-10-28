@@ -265,15 +265,6 @@ typedef struct {
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 
-
-#define	is_digit(ch) (((ch)>=(unsigned)'0'&&(ch)<=(unsigned)'9')?1:0)
-#define	is_alpha(ch) ((((ch)>=(unsigned)'a'&&(ch)<=(unsigned)'z')||\
-	 	  ((ch)>=(unsigned)'A'&&(ch)<=(unsigned)'Z'))?1:0)
-#define	is_hex_digit(ch) ((((ch)>=(unsigned)'0'&&(ch)<=(unsigned)'9')||\
-	 	  ((ch)>=(unsigned)'a'&&(ch)<=(unsigned)'f')||\
-	 	  ((ch)>=(unsigned)'A'&&(ch)<=(unsigned)'F'))?1:0)
-
-
 /****** Data Structures *****************************************************/
 
 /* Adapter Data Space.

@@ -33,7 +33,7 @@ struct dma_alloc_record {
 static DEFINE_SPINLOCK(dma_alloc_lock);
 static LIST_HEAD(dma_alloc_list);
 
-void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_handle, int gfp)
+void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_handle, gfp_t gfp)
 {
 	struct dma_alloc_record *new;
 	struct list_head *this = &dma_alloc_list;

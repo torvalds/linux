@@ -70,31 +70,19 @@
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
-static inline int
-gss_krb5_padding(int blocksize, int length) {
-	/* Most of the code is block-size independent but in practice we
-	 * use only 8: */
-	BUG_ON(blocksize != 8);
-	return 8 - (length & 7);
-}
-
 u32
-krb5_make_token(struct krb5_ctx *ctx, int qop_req,
-		   struct xdr_buf *text, struct xdr_netobj *token,
-		   int toktype)
+gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
+		struct xdr_netobj *token)
 {
+	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	s32			checksum_type;
 	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
-	int			blocksize = 0, tmsglen;
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
 	s32			now;
 
 	dprintk("RPC:     gss_krb5_seal\n");
 
 	now = get_seconds();
-
-	if (qop_req != 0)
-		goto out_err;
 
 	switch (ctx->signalg) {
 		case SGN_ALG_DES_MAC_MD5:
@@ -111,21 +99,13 @@ krb5_make_token(struct krb5_ctx *ctx, int qop_req,
 		goto out_err;
 	}
 
-	if (toktype == KG_TOK_WRAP_MSG) {
-		blocksize = crypto_tfm_alg_blocksize(ctx->enc);
-		tmsglen = blocksize + text->len
-			+ gss_krb5_padding(blocksize, blocksize + text->len);
-	} else {
-		tmsglen = 0;
-	}
-
-	token->len = g_token_size(&ctx->mech_used, 22 + tmsglen);
+	token->len = g_token_size(&ctx->mech_used, 22);
 
 	ptr = token->data;
-	g_make_token_header(&ctx->mech_used, 22 + tmsglen, &ptr);
+	g_make_token_header(&ctx->mech_used, 22, &ptr);
 
-	*ptr++ = (unsigned char) ((toktype>>8)&0xff);
-	*ptr++ = (unsigned char) (toktype&0xff);
+	*ptr++ = (unsigned char) ((KG_TOK_MIC_MSG>>8)&0xff);
+	*ptr++ = (unsigned char) (KG_TOK_MIC_MSG&0xff);
 
 	/* ptr now at byte 2 of header described in rfc 1964, section 1.2.1: */
 	krb5_hdr = ptr - 2;
@@ -133,17 +113,9 @@ krb5_make_token(struct krb5_ctx *ctx, int qop_req,
 
 	*(u16 *)(krb5_hdr + 2) = htons(ctx->signalg);
 	memset(krb5_hdr + 4, 0xff, 4);
-	if (toktype == KG_TOK_WRAP_MSG)
-		*(u16 *)(krb5_hdr + 4) = htons(ctx->sealalg);
 
-	if (toktype == KG_TOK_WRAP_MSG) {
-		/* XXX removing support for now */
-		goto out_err;
-	} else { /* Sign only.  */
-		if (make_checksum(checksum_type, krb5_hdr, 8, text,
-				       &md5cksum))
+	if (make_checksum(checksum_type, krb5_hdr, 8, text, 0, &md5cksum))
 			goto out_err;
-	}
 
 	switch (ctx->signalg) {
 	case SGN_ALG_DES_MAC_MD5:

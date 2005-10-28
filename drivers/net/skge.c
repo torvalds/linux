@@ -730,6 +730,7 @@ static struct ethtool_ops skge_ethtool_ops = {
 	.phys_id	= skge_phys_id,
 	.get_stats_count = skge_get_stats_count,
 	.get_ethtool_stats = skge_get_ethtool_stats,
+	.get_perm_addr	= ethtool_op_get_perm_addr,
 };
 
 /*
@@ -3096,6 +3097,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* device is off until link detection */
 	netif_carrier_off(dev);
