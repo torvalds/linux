@@ -1253,14 +1253,13 @@ got_data:
 		 * Jacques Gelinas (Jacques@solucorp.qc.ca)
 		 */
 		int hard_sector = sector_size;
-		sector_t sz = sdkp->capacity * (hard_sector/256);
+		sector_t sz = (sdkp->capacity/2) * (hard_sector/256);
 		request_queue_t *queue = sdp->request_queue;
-		sector_t mb;
+		sector_t mb = sz;
 
 		blk_queue_hardsect_size(queue, hard_sector);
 		/* avoid 64-bit division on 32-bit platforms */
-		mb = sz >> 1;
-		sector_div(sz, 1250);
+		sector_div(sz, 625);
 		mb -= sz - 974;
 		sector_div(mb, 1950);
 
