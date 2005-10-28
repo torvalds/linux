@@ -478,20 +478,20 @@ void __init create_mapping(struct map_desc *md)
 	unsigned long virt, length;
 	int prot_sect, prot_l1, domain;
 	pgprot_t prot_pte;
-	long off;
+	unsigned long off = (u32)__pfn_to_phys(md->pfn);
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
-		       "0x%08lx at 0x%08lx in user region\n",
-		       __pfn_to_phys(md->pfn), md->virtual);
+		       "0x%016llx at 0x%08lx in user region\n",
+		       __pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
 
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
-		printk(KERN_WARNING "BUG: mapping for 0x%08lx at 0x%08lx "
+		printk(KERN_WARNING "BUG: mapping for 0x%016llx at 0x%08lx "
 		       "overlaps vmalloc space\n",
-		       __pfn_to_phys(md->pfn), md->virtual);
+		       __pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
 	domain	  = mem_types[md->type].domain;
@@ -499,8 +499,33 @@ void __init create_mapping(struct map_desc *md)
 	prot_l1   = mem_types[md->type].prot_l1 | PMD_DOMAIN(domain);
 	prot_sect = mem_types[md->type].prot_sect | PMD_DOMAIN(domain);
 
+	/*
+	 * Catch 36-bit addresses
+	 */
+	if(md->pfn >= 0x100000) {
+		if(domain) {
+			printk(KERN_ERR "MM: invalid domain in supersection "
+				"mapping for 0x%016llx at 0x%08lx\n",
+				__pfn_to_phys((u64)md->pfn), md->virtual);
+			return;
+		}
+		if((md->virtual | md->length | __pfn_to_phys(md->pfn))
+			& ~SUPERSECTION_MASK) {
+			printk(KERN_ERR "MM: cannot create mapping for "
+				"0x%016llx at 0x%08lx invalid alignment\n",
+				__pfn_to_phys((u64)md->pfn), md->virtual);
+			return;
+		}
+
+		/*
+		 * Shift bits [35:32] of address into bits [23:20] of PMD
+		 * (See ARMv6 spec).
+		 */
+		off |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
+	}
+
 	virt   = md->virtual;
-	off    = __pfn_to_phys(md->pfn) - virt;
+	off   -= virt;
 	length = md->length;
 
 	if (mem_types[md->type].prot_l1 == 0 &&
@@ -525,13 +550,22 @@ void __init create_mapping(struct map_desc *md)
 	 *	of the actual domain assignments in use.
 	 */
 	if (cpu_architecture() >= CPU_ARCH_ARMv6 && domain == 0) {
-		/* Align to supersection boundary */
-		while ((virt & ~SUPERSECTION_MASK || (virt + off) &
-			~SUPERSECTION_MASK) && length >= (PGDIR_SIZE / 2)) {
-			alloc_init_section(virt, virt + off, prot_sect);
+		/*
+		 * Align to supersection boundary if !high pages.
+		 * High pages have already been checked for proper
+		 * alignment above and they will fail the SUPSERSECTION_MASK
+		 * check because of the way the address is encoded into
+		 * offset.
+		 */
+		if (md->pfn <= 0x100000) {
+			while ((virt & ~SUPERSECTION_MASK ||
+			        (virt + off) & ~SUPERSECTION_MASK) &&
+				length >= (PGDIR_SIZE / 2)) {
+				alloc_init_section(virt, virt + off, prot_sect);
 
-			virt   += (PGDIR_SIZE / 2);
-			length -= (PGDIR_SIZE / 2);
+				virt   += (PGDIR_SIZE / 2);
+				length -= (PGDIR_SIZE / 2);
+			}
 		}
 
 		while (length >= SUPERSECTION_SIZE) {
