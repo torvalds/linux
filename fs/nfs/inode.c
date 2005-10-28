@@ -1057,15 +1057,11 @@ int nfs_open(struct inode *inode, struct file *filp)
 	ctx->mode = filp->f_mode;
 	nfs_file_set_open_context(filp, ctx);
 	put_nfs_open_context(ctx);
-	if ((filp->f_mode & FMODE_WRITE) != 0)
-		nfs_begin_data_update(inode);
 	return 0;
 }
 
 int nfs_release(struct inode *inode, struct file *filp)
 {
-	if ((filp->f_mode & FMODE_WRITE) != 0)
-		nfs_end_data_update(inode);
 	nfs_file_clear_open_context(filp);
 	return 0;
 }
