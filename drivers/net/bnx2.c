@@ -314,20 +314,16 @@ bnx2_free_mem(struct bnx2 *bp)
 				    bp->tx_desc_ring, bp->tx_desc_mapping);
 		bp->tx_desc_ring = NULL;
 	}
-	if (bp->tx_buf_ring) {
-		kfree(bp->tx_buf_ring);
-		bp->tx_buf_ring = NULL;
-	}
+	kfree(bp->tx_buf_ring);
+	bp->tx_buf_ring = NULL;
 	if (bp->rx_desc_ring) {
 		pci_free_consistent(bp->pdev,
 				    sizeof(struct rx_bd) * RX_DESC_CNT,
 				    bp->rx_desc_ring, bp->rx_desc_mapping);
 		bp->rx_desc_ring = NULL;
 	}
-	if (bp->rx_buf_ring) {
-		kfree(bp->rx_buf_ring);
-		bp->rx_buf_ring = NULL;
-	}
+	kfree(bp->rx_buf_ring);
+	bp->rx_buf_ring = NULL;
 }
 
 static int

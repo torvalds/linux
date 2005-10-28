@@ -871,10 +871,8 @@ static void ace_init_cleanup(struct net_device *dev)
 	if (ap->info)
 		pci_free_consistent(ap->pdev, sizeof(struct ace_info),
 				    ap->info, ap->info_dma);
-	if (ap->skb)
-		kfree(ap->skb);
-	if (ap->trace_buf)
-		kfree(ap->trace_buf);
+	kfree(ap->skb);
+	kfree(ap->trace_buf);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);

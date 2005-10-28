@@ -259,8 +259,7 @@ static void atmel_detach(dev_link_t *link)
 
 	/* Unlink device structure, free pieces */
 	*linkp = link->next;
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 	kfree(link);
 }
 

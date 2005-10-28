@@ -1131,14 +1131,10 @@ static void b44_init_rings(struct b44 *bp)
  */
 static void b44_free_consistent(struct b44 *bp)
 {
-	if (bp->rx_buffers) {
-		kfree(bp->rx_buffers);
-		bp->rx_buffers = NULL;
-	}
-	if (bp->tx_buffers) {
-		kfree(bp->tx_buffers);
-		bp->tx_buffers = NULL;
-	}
+	kfree(bp->rx_buffers);
+	bp->rx_buffers = NULL;
+	kfree(bp->tx_buffers);
+	bp->tx_buffers = NULL;
 	if (bp->rx_ring) {
 		if (bp->flags & B44_FLAG_RX_RING_HACK) {
 			dma_unmap_single(&bp->pdev->dev, bp->rx_ring_dma,

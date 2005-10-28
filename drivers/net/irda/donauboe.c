@@ -1695,11 +1695,9 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
 
 freebufs:
   for (i = 0; i < TX_SLOTS; ++i)
-    if (self->tx_bufs[i])
-      kfree (self->tx_bufs[i]);
+    kfree (self->tx_bufs[i]);
   for (i = 0; i < RX_SLOTS; ++i)
-    if (self->rx_bufs[i])
-      kfree (self->rx_bufs[i]);
+    kfree (self->rx_bufs[i]);
   kfree(self->ringbuf);
 
 freeregion:

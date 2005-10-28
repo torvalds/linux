@@ -3918,10 +3918,8 @@ static void tg3_init_rings(struct tg3 *tp)
  */
 static void tg3_free_consistent(struct tg3 *tp)
 {
-	if (tp->rx_std_buffers) {
-		kfree(tp->rx_std_buffers);
-		tp->rx_std_buffers = NULL;
-	}
+	kfree(tp->rx_std_buffers);
+	tp->rx_std_buffers = NULL;
 	if (tp->rx_std) {
 		pci_free_consistent(tp->pdev, TG3_RX_RING_BYTES,
 				    tp->rx_std, tp->rx_std_mapping);

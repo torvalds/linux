@@ -276,10 +276,8 @@ static void ibmveth_free_buffer_pool(struct ibmveth_adapter *adapter, struct ibm
 {
 	int i;
 
-	if(pool->free_map) {
-		kfree(pool->free_map);
-		pool->free_map  = NULL;
-	}
+	kfree(pool->free_map);
+	pool->free_map = NULL;
 
 	if(pool->skbuff && pool->dma_addr) {
 		for(i = 0; i < pool->size; ++i) {

@@ -390,10 +390,8 @@ static void ax_changedmtu(struct mkiss *ax)
 		       "MTU change cancelled.\n",
 		       ax->dev->name);
 		dev->mtu = ax->mtu;
-		if (xbuff != NULL)
-			kfree(xbuff);
-		if (rbuff != NULL)
-			kfree(rbuff);
+		kfree(xbuff);
+		kfree(rbuff);
 		return;
 	}
 
