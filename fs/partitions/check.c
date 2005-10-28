@@ -430,7 +430,7 @@ void del_gendisk(struct gendisk *disk)
 	disk->flags &= ~GENHD_FL_UP;
 	unlink_gendisk(disk);
 	disk_stat_set_all(disk, 0);
-	disk->stamp = disk->stamp_idle = 0;
+	disk->stamp = 0;
 
 	devfs_remove_disk(disk);
 

@@ -2433,13 +2433,15 @@ void disk_round_stats(struct gendisk *disk)
 {
 	unsigned long now = jiffies;
 
-	__disk_stat_add(disk, time_in_queue,
-			disk->in_flight * (now - disk->stamp));
-	disk->stamp = now;
+	if (now == disk->stamp)
+		return;
 
-	if (disk->in_flight)
-		__disk_stat_add(disk, io_ticks, (now - disk->stamp_idle));
-	disk->stamp_idle = now;
+	if (disk->in_flight) {
+		__disk_stat_add(disk, time_in_queue,
+				disk->in_flight * (now - disk->stamp));
+		__disk_stat_add(disk, io_ticks, (now - disk->stamp));
+	}
+	disk->stamp = now;
 }
 
 /*
