@@ -10,8 +10,8 @@
 #include <linux/init.h>
 #include <linux/oprofile.h>
 #include <linux/errno.h>
-#include <asm/semaphore.h>
 #include <linux/sysdev.h>
+#include <asm/semaphore.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"
@@ -19,57 +19,6 @@
 static struct op_arm_model_spec *pmu_model;
 static int pmu_enabled;
 static struct semaphore pmu_sem;
-
-static int pmu_start(void);
-static int pmu_setup(void);
-static void pmu_stop(void);
-static int pmu_create_files(struct super_block *, struct dentry *);
-
-#ifdef CONFIG_PM
-static int pmu_suspend(struct sys_device *dev, pm_message_t state)
-{
-	if (pmu_enabled)
-		pmu_stop();
-	return 0;
-}
-
-static int pmu_resume(struct sys_device *dev)
-{
-	if (pmu_enabled)
-		pmu_start();
-	return 0;
-}
-
-static struct sysdev_class oprofile_sysclass = {
-	set_kset_name("oprofile"),
-	.resume		= pmu_resume,
-	.suspend	= pmu_suspend,
-};
-
-static struct sys_device device_oprofile = {
-	.id		= 0,
-	.cls		= &oprofile_sysclass,
-};
-
-static int __init init_driverfs(void)
-{
-	int ret;
-
-	if (!(ret = sysdev_class_register(&oprofile_sysclass)))
-		ret = sysdev_register(&device_oprofile);
-
-	return ret;
-}
-
-static void  exit_driverfs(void)
-{
-	sysdev_unregister(&device_oprofile);
-	sysdev_class_unregister(&oprofile_sysclass);
-}
-#else
-#define init_driverfs()	do { } while (0)
-#define exit_driverfs() do { } while (0)
-#endif /* CONFIG_PM */
 
 struct op_counter_config counter_config[OP_MAX_COUNTER];
 
@@ -125,6 +74,52 @@ static void pmu_stop(void)
 	pmu_enabled = 0;
 	up(&pmu_sem);
 }
+
+#ifdef CONFIG_PM
+static int pmu_suspend(struct sys_device *dev, pm_message_t state)
+{
+	if (pmu_enabled)
+		pmu_stop();
+	return 0;
+}
+
+static int pmu_resume(struct sys_device *dev)
+{
+	if (pmu_enabled)
+		pmu_start();
+	return 0;
+}
+
+static struct sysdev_class oprofile_sysclass = {
+	set_kset_name("oprofile"),
+	.resume		= pmu_resume,
+	.suspend	= pmu_suspend,
+};
+
+static struct sys_device device_oprofile = {
+	.id		= 0,
+	.cls		= &oprofile_sysclass,
+};
+
+static int __init init_driverfs(void)
+{
+	int ret;
+
+	if (!(ret = sysdev_class_register(&oprofile_sysclass)))
+		ret = sysdev_register(&device_oprofile);
+
+	return ret;
+}
+
+static void  exit_driverfs(void)
+{
+	sysdev_unregister(&device_oprofile);
+	sysdev_class_unregister(&oprofile_sysclass);
+}
+#else
+#define init_driverfs()	do { } while (0)
+#define exit_driverfs() do { } while (0)
+#endif /* CONFIG_PM */
 
 int __init pmu_init(struct oprofile_operations *ops, struct op_arm_model_spec *spec)
 {
