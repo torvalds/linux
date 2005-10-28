@@ -217,7 +217,17 @@ enum xpc_retval {
 	xpcInvalidPartid,	/* 42: invalid partition ID */
 	xpcLocalPartid,		/* 43: local partition ID */
 
-	xpcUnknownReason	/* 44: unknown reason -- must be last in list */
+	xpcOtherGoingDown,	/* 44: other side going down, reason unknown */
+	xpcSystemGoingDown,	/* 45: system is going down, reason unknown */
+	xpcSystemHalt,		/* 46: system is being halted */
+	xpcSystemReboot,	/* 47: system is being rebooted */
+	xpcSystemPoweroff,	/* 48: system is being powered off */
+
+	xpcDisconnecting,	/* 49: channel disconnecting (closing) */
+
+	xpcOpenCloseError,	/* 50: channel open/close protocol error */
+
+	xpcUnknownReason	/* 51: unknown reason -- must be last in list */
 };
 
 
@@ -342,7 +352,7 @@ typedef void (*xpc_notify_func)(enum xpc_retval reason, partid_t partid,
  *
  * The 'func' field points to the function to call when aynchronous
  * notification is required for such events as: a connection established/lost,
- * or an incomming message received, or an error condition encountered. A
+ * or an incoming message received, or an error condition encountered. A
  * non-NULL 'func' field indicates that there is an active registration for
  * the channel.
  */
