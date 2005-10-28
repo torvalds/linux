@@ -213,7 +213,11 @@ struct class_device {
 	struct class_device_attribute uevent_attr;
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
+	struct class_device	*parent;	/* parent of this child device, if there is one */
 
+	void	(*release)(struct class_device *dev);
+	int	(*hotplug)(struct class_device *dev, char **envp,
+			   int num_envp, char *buffer, int buffer_size);
 	char	class_id[BUS_ID_SIZE];	/* unique to this class */
 };
 
@@ -261,9 +265,12 @@ extern void class_interface_unregister(struct class_interface *);
 
 extern struct class *class_create(struct module *owner, char *name);
 extern void class_destroy(struct class *cls);
-extern struct class_device *class_device_create(struct class *cls, dev_t devt,
-						struct device *device, char *fmt, ...)
-					__attribute__((format(printf,4,5)));
+extern struct class_device *class_device_create(struct class *cls,
+						struct class_device *parent,
+						dev_t devt,
+						struct device *device,
+						char *fmt, ...)
+					__attribute__((format(printf,5,6)));
 extern void class_device_destroy(struct class *cls, dev_t devt);
 
 
