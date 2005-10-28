@@ -27,6 +27,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <asm/arch/aaed2000.h>
+
 #include "core.h"
 
 static void __init aaed2000_init_irq(void)
@@ -34,9 +36,14 @@ static void __init aaed2000_init_irq(void)
 	aaec2000_init_irq();
 }
 
+static struct map_desc aaed2000_io_desc[] __initdata = {
+  { EXT_GPIO_VBASE, EXT_GPIO_PBASE, EXT_GPIO_LENGTH, MT_DEVICE }, /* Ext GPIO */
+};
+
 static void __init aaed2000_map_io(void)
 {
 	aaec2000_map_io();
+	iotable_init(aaed2000_io_desc, ARRAY_SIZE(aaed2000_io_desc));
 }
 
 MACHINE_START(AAED2000, "Agilent AAED-2000 Development Platform")
