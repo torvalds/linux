@@ -122,7 +122,7 @@ void sa1111_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 
 static int pcmcia_probe(struct sa1111_dev *dev)
 {
-	char *base;
+	void __iomem *base;
 
 	if (!request_mem_region(dev->res.start, 512,
 				SA1111_DRIVER_NAME(dev)))
