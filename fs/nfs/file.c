@@ -205,8 +205,8 @@ nfs_file_flush(struct file *file)
 	if (!status) {
 		status = ctx->error;
 		ctx->error = 0;
-		if (!status && !nfs_have_delegation(inode, FMODE_READ))
-			__nfs_revalidate_inode(NFS_SERVER(inode), inode);
+		if (!status)
+			nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	}
 	unlock_kernel();
 	return status;
