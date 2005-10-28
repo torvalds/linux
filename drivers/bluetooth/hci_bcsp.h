@@ -60,6 +60,7 @@ struct bcsp_struct {
 		BCSP_ESCSTATE_ESC
 	} rx_esc_state;
 
+	u8	use_crc;
 	u16     message_crc;
 	u8      txack_req;		/* Do we need to send ack's to the peer? */
 

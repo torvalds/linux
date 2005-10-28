@@ -28,7 +28,7 @@
  * $Id: hci_bcsp.c,v 1.2 2002/09/26 05:05:14 maxk Exp $
  */
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -60,6 +60,7 @@
 #define BT_DBG( A... )
 #endif
 
+static int txcrc = 1;
 static int hciextn = 1;
 
 /* ---- BCSP CRC calculation ---- */
@@ -173,11 +174,8 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 {
 	struct sk_buff *nskb;
 	u8 hdr[4], chan;
-	int rel, i;
-
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
 	u16 BCSP_CRC_INIT(bcsp_txmsg_crc);
-#endif
+	int rel, i;
 
 	switch (pkt_type) {
 	case HCI_ACLDATA_PKT:
@@ -240,9 +238,9 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 		BT_DBG("Sending packet with seqno %u", bcsp->msgq_txseq);
 		bcsp->msgq_txseq = ++(bcsp->msgq_txseq) & 0x07;
 	}
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
-	hdr[0] |= 0x40;
-#endif
+
+	if (bcsp->use_crc)
+		hdr[0] |= 0x40;
 
 	hdr[1] = ((len << 4) & 0xff) | chan;
 	hdr[2] = len >> 4;
@@ -251,25 +249,25 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 	/* Put BCSP header */
 	for (i = 0; i < 4; i++) {
 		bcsp_slip_one_byte(nskb, hdr[i]);
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
-		bcsp_crc_update(&bcsp_txmsg_crc, hdr[i]);
-#endif
+
+		if (bcsp->use_crc)
+			bcsp_crc_update(&bcsp_txmsg_crc, hdr[i]);
 	}
 
 	/* Put payload */
 	for (i = 0; i < len; i++) {
 		bcsp_slip_one_byte(nskb, data[i]);
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
-		bcsp_crc_update(&bcsp_txmsg_crc, data[i]);
-#endif
+
+		if (bcsp->use_crc)
+			bcsp_crc_update(&bcsp_txmsg_crc, data[i]);
 	}
 
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
 	/* Put CRC */
-	bcsp_txmsg_crc = bcsp_crc_reverse(bcsp_txmsg_crc);
-	bcsp_slip_one_byte(nskb, (u8) ((bcsp_txmsg_crc >> 8) & 0x00ff));
-	bcsp_slip_one_byte(nskb, (u8) (bcsp_txmsg_crc & 0x00ff));
-#endif
+	if (bcsp->use_crc) {
+		bcsp_txmsg_crc = bcsp_crc_reverse(bcsp_txmsg_crc);
+		bcsp_slip_one_byte(nskb, (u8) ((bcsp_txmsg_crc >> 8) & 0x00ff));
+		bcsp_slip_one_byte(nskb, (u8) (bcsp_txmsg_crc & 0x00ff));
+	}
 
 	bcsp_slip_msgdelim(nskb);
 	return nskb;
@@ -698,6 +696,9 @@ static int bcsp_open(struct hci_uart *hu)
 
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
 
+	if (txcrc)
+		bcsp->use_crc = 1;
+
 	return 0;
 }
 
@@ -742,6 +743,9 @@ int bcsp_deinit(void)
 {
 	return hci_uart_unregister_proto(&bcsp);
 }
+
+module_param(txcrc, bool, 0644);
+MODULE_PARM_DESC(txcrc, "Transmit CRC with every BCSP packet");
 
 module_param(hciextn, bool, 0644);
 MODULE_PARM_DESC(hciextn, "Convert HCI Extensions into BCSP packets");

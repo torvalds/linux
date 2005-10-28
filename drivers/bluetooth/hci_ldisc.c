@@ -27,7 +27,7 @@
  *
  * $Id: hci_ldisc.c,v 1.5 2002/10/02 18:37:20 maxk Exp $    
  */
-#define VERSION "2.1"
+#define VERSION "2.2"
 
 #include <linux/config.h>
 #include <linux/module.h>
