@@ -1750,6 +1750,8 @@ inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 {
 	struct per_cpu_pages *pcp;
 
+	memset(p, 0, sizeof(*p));
+
 	pcp = &p->pcp[0];		/* hot */
 	pcp->count = 0;
 	pcp->low = 2 * batch;

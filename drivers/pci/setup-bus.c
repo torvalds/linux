@@ -40,7 +40,7 @@
  * FIXME: IO should be max 256 bytes.  However, since we may
  * have a P2P bridge below a cardbus bridge, we need 4K.
  */
-#define CARDBUS_IO_SIZE		(4*1024)
+#define CARDBUS_IO_SIZE		(256)
 #define CARDBUS_MEM_SIZE	(32*1024*1024)
 
 static void __devinit

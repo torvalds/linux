@@ -315,9 +315,9 @@ static void dbs_check_cpu(int cpu)
 	policy = this_dbs_info->cur_policy;
 
 	if ( init_flag == 0 ) {
-		for ( /* NULL */; init_flag < NR_CPUS; init_flag++ ) {
-			dbs_info = &per_cpu(cpu_dbs_info, init_flag);
-			requested_freq[cpu] = dbs_info->cur_policy->cur;
+		for_each_online_cpu(j) {
+			dbs_info = &per_cpu(cpu_dbs_info, j);
+			requested_freq[j] = dbs_info->cur_policy->cur;
 		}
 		init_flag = 1;
 	}
