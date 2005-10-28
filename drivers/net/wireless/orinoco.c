@@ -490,7 +490,8 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
-	/* Check packet length, pad short packets, round up odd length */
+	/* Length of the packet body */
+	/* FIXME: what if the skb is smaller than this? */
 	len = max_t(int, ALIGN(skb->len, 2), ETH_ZLEN);
 	skb = skb_padto(skb, len);
 	if (skb == NULL)
@@ -547,7 +548,8 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		p = skb->data;
 	}
 
-	err = hermes_bap_pwrite(hw, USER_BAP, p, data_len,
+	/* Round up for odd length packets */
+	err = hermes_bap_pwrite(hw, USER_BAP, p, ALIGN(data_len, 2),
 				txfid, data_off);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
