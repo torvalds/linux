@@ -14,8 +14,8 @@ struct device_driver {
         int     (*probe)        (struct device * dev);
         int     (*remove)       (struct device * dev);
 
-        int     (*suspend)      (struct device * dev, pm_message_t state, u32 level);
-        int     (*resume)       (struct device * dev, u32 level);
+        int     (*suspend)      (struct device * dev, pm_message_t state);
+        int     (*resume)       (struct device * dev);
 };
 
 
@@ -194,11 +194,11 @@ device; i.e. anything in the device's driver_data field.
 If the device is still present, it should quiesce the device and place
 it into a supported low-power state.
 
-	int	(*suspend)	(struct device * dev, pm_message_t state, u32 level);
+	int	(*suspend)	(struct device * dev, pm_message_t state);
 
 suspend is called to put the device in a low power state.
 
-	int	(*resume)	(struct device * dev, u32 level);
+	int	(*resume)	(struct device * dev);
 
 Resume is used to bring a device back from a low power state.
 
