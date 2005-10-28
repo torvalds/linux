@@ -795,15 +795,15 @@ void input_register_device(struct input_dev *dev)
 	INIT_LIST_HEAD(&dev->h_list);
 	list_add_tail(&dev->node, &input_dev_list);
 
+	if (dev->dynalloc)
+		input_register_classdevice(dev);
+
 	list_for_each_entry(handler, &input_handler_list, node)
 		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
 			if ((id = input_match_device(handler->id_table, dev)))
 				if ((handle = handler->connect(handler, dev, id)))
 					input_link_handle(handle);
 
-
-	if (dev->dynalloc)
-		input_register_classdevice(dev);
 
 #ifdef CONFIG_HOTPLUG
 	input_call_hotplug("add", dev);
