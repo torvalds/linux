@@ -542,14 +542,21 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_errors++;
 			goto fail;
 		}
+		/* Actual xfer length - allow for padding */
+		len = ALIGN(data_len, 2);
+		if (len < ETH_ZLEN - ETH_HLEN)
+			len = ETH_ZLEN - ETH_HLEN;
 	} else { /* IEEE 802.3 frame */
 		data_len = len + ETH_HLEN;
 		data_off = HERMES_802_3_OFFSET;
 		p = skb->data;
+		/* Actual xfer length - round up for odd length packets */
+		len = ALIGN(data_len, 2);
+		if (len < ETH_ZLEN)
+			len = ETH_ZLEN;
 	}
 
-	/* Round up for odd length packets */
-	err = hermes_bap_pwrite(hw, USER_BAP, p, ALIGN(data_len, 2),
+	err = hermes_bap_pwrite_pad(hw, USER_BAP, p, data_len, len,
 				txfid, data_off);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
