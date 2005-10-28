@@ -2282,4 +2282,11 @@
 
 #endif
 
+/* PWRMODE register M field values */
+
+#define PWRMODE_IDLE		0x1
+#define PWRMODE_STANDBY		0x2
+#define PWRMODE_SLEEP		0x3
+#define PWRMODE_DEEPSLEEP	0x7
+
 #endif
