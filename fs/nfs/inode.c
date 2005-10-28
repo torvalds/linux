@@ -1135,7 +1135,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	 * We may need to keep the attributes marked as invalid if
 	 * we raced with nfs_end_attr_update().
 	 */
-	if (verifier == nfsi->cache_change_attribute)
+	if (time_after_eq(verifier, nfsi->cache_change_attribute))
 		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME);
 	spin_unlock(&inode->i_lock);
 
@@ -1202,7 +1202,7 @@ void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 		if (S_ISDIR(inode->i_mode)) {
 			memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
 			/* This ensures we revalidate child dentries */
-			nfsi->cache_change_attribute++;
+			nfsi->cache_change_attribute = jiffies;
 		}
 		spin_unlock(&inode->i_lock);
 
@@ -1242,7 +1242,7 @@ void nfs_end_data_update(struct inode *inode)
 			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 		spin_unlock(&inode->i_lock);
 	}
-	nfsi->cache_change_attribute ++;
+	nfsi->cache_change_attribute = jiffies;
 	atomic_dec(&nfsi->data_updates);
 }
 
@@ -1391,7 +1391,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 		/* Do we perhaps have any outstanding writes? */
 		if (nfsi->npages == 0) {
 			/* No, but did we race with nfs_end_data_update()? */
-			if (verifier  ==  nfsi->cache_change_attribute) {
+			if (time_after_eq(verifier,  nfsi->cache_change_attribute)) {
 				inode->i_size = new_isize;
 				invalid |= NFS_INO_INVALID_DATA;
 			}
