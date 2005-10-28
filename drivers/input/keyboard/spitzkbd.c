@@ -309,34 +309,32 @@ static void spitzkbd_hinge_timer(unsigned long data)
 }
 
 #ifdef CONFIG_PM
-static int spitzkbd_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int spitzkbd_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		int i;
-		struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
-		spitzkbd->suspended = 1;
+	int i;
+	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	spitzkbd->suspended = 1;
 
-		/* Set Strobe lines as inputs - *except* strobe line 0 leave this
-		   enabled so we can detect a power button press for resume */
-		for (i = 1; i < SPITZ_KEY_STROBE_NUM; i++)
-			pxa_gpio_mode(spitz_strobes[i] | GPIO_IN);
-	}
+	/* Set Strobe lines as inputs - *except* strobe line 0 leave this
+	   enabled so we can detect a power button press for resume */
+	for (i = 1; i < SPITZ_KEY_STROBE_NUM; i++)
+		pxa_gpio_mode(spitz_strobes[i] | GPIO_IN);
+
 	return 0;
 }
 
-static int spitzkbd_resume(struct device *dev, uint32_t level)
+static int spitzkbd_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		int i;
-		struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	int i;
+	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
 
-		for (i = 0; i < SPITZ_KEY_STROBE_NUM; i++)
-			pxa_gpio_mode(spitz_strobes[i] | GPIO_OUT | GPIO_DFLT_HIGH);
+	for (i = 0; i < SPITZ_KEY_STROBE_NUM; i++)
+		pxa_gpio_mode(spitz_strobes[i] | GPIO_OUT | GPIO_DFLT_HIGH);
 
-		/* Upon resume, ignore the suspend key for a short while */
-		spitzkbd->suspend_jiffies = jiffies;
-		spitzkbd->suspended = 0;
-	}
+	/* Upon resume, ignore the suspend key for a short while */
+	spitzkbd->suspend_jiffies = jiffies;
+	spitzkbd->suspended = 0;
+
 	return 0;
 }
 #else

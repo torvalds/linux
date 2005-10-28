@@ -178,33 +178,27 @@ static int neponset_probe(struct device *dev)
 /*
  * LDM power management.
  */
-static int neponset_suspend(struct device *dev, pm_message_t state, u32 level)
+static int neponset_suspend(struct device *dev, pm_message_t state)
 {
 	/*
 	 * Save state.
 	 */
-	if (level == SUSPEND_SAVE_STATE ||
-	    level == SUSPEND_DISABLE ||
-	    level == SUSPEND_POWER_DOWN) {
-		if (!dev->power.saved_state)
-			dev->power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
-		if (!dev->power.saved_state)
-			return -ENOMEM;
+	if (!dev->power.saved_state)
+		dev->power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
+	if (!dev->power.saved_state)
+		return -ENOMEM;
 
-		*(unsigned int *)dev->power.saved_state = NCR_0;
-	}
+	*(unsigned int *)dev->power.saved_state = NCR_0;
 
 	return 0;
 }
 
-static int neponset_resume(struct device *dev, u32 level)
+static int neponset_resume(struct device *dev)
 {
-	if (level == RESUME_RESTORE_STATE || level == RESUME_ENABLE) {
-		if (dev->power.saved_state) {
-			NCR_0 = *(unsigned int *)dev->power.saved_state;
-			kfree(dev->power.saved_state);
-			dev->power.saved_state = NULL;
-		}
+	if (dev->power.saved_state) {
+		NCR_0 = *(unsigned int *)dev->power.saved_state;
+		kfree(dev->power.saved_state);
+		dev->power.saved_state = NULL;
 	}
 
 	return 0;

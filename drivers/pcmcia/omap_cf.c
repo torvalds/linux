@@ -329,27 +329,13 @@ static int __devexit omap_cf_remove(struct device *dev)
 	return 0;
 }
 
-static int omap_cf_suspend(struct device *dev, pm_message_t mesg, u32 level)
-{
-	if (level != SUSPEND_SAVE_STATE)
-		return 0;
-	return pcmcia_socket_dev_suspend(dev, mesg);
-}
-
-static int omap_cf_resume(struct device *dev, u32 level)
-{
-	if (level != RESUME_RESTORE_STATE)
-		return 0;
-	return pcmcia_socket_dev_resume(dev);
-}
-
 static struct device_driver omap_cf_driver = {
 	.name		= (char *) driver_name,
 	.bus		= &platform_bus_type,
 	.probe		= omap_cf_probe,
 	.remove		= __devexit_p(omap_cf_remove),
-	.suspend 	= omap_cf_suspend,
-	.resume 	= omap_cf_resume,
+	.suspend 	= pcmcia_socket_dev_suspend,
+	.resume 	= pcmcia_socket_dev_resume,
 };
 
 static int __init omap_cf_init(void)

@@ -786,21 +786,21 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int serial_pxa_suspend(struct device *_dev, pm_message_t state)
 {
         struct uart_pxa_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == SUSPEND_DISABLE)
+        if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
 
-static int serial_pxa_resume(struct device *_dev, u32 level)
+static int serial_pxa_resume(struct device *_dev)
 {
         struct uart_pxa_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == RESUME_ENABLE)
+        if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
 
         return 0;

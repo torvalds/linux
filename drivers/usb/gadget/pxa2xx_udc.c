@@ -2602,24 +2602,23 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
-static int pxa2xx_udc_suspend(struct device *dev, pm_message_t state, u32 level)
+static int pxa2xx_udc_suspend(struct device *dev, pm_message_t state)
 {
 	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
 
-	if (level == SUSPEND_POWER_DOWN) {
-		if (!udc->mach->udc_command)
-			WARN("USB host won't detect disconnect!\n");
-		pullup(udc, 0);
-	}
+	if (!udc->mach->udc_command)
+		WARN("USB host won't detect disconnect!\n");
+	pullup(udc, 0);
+
 	return 0;
 }
 
-static int pxa2xx_udc_resume(struct device *dev, u32 level)
+static int pxa2xx_udc_resume(struct device *dev)
 {
 	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
 
-	if (level == RESUME_POWER_ON)
-		pullup(udc, 1);
+	pullup(udc, 1);
+
 	return 0;
 }
 

@@ -2909,12 +2909,10 @@ static int __exit omap_udc_remove(struct device *dev)
  * may involve talking to an external transceiver (e.g. isp1301).
  */
 
-static int omap_udc_suspend(struct device *dev, pm_message_t message, u32 level)
+static int omap_udc_suspend(struct device *dev, pm_message_t message)
 {
 	u32	devstat;
 
-	if (level != SUSPEND_POWER_DOWN)
-		return 0;
 	devstat = UDC_DEVSTAT_REG;
 
 	/* we're requesting 48 MHz clock if the pullup is enabled
@@ -2931,11 +2929,8 @@ static int omap_udc_suspend(struct device *dev, pm_message_t message, u32 level)
 	return 0;
 }
 
-static int omap_udc_resume(struct device *dev, u32 level)
+static int omap_udc_resume(struct device *dev)
 {
-	if (level != RESUME_POWER_ON)
-		return 0;
-
 	DBG("resume + wakeup/SRP\n");
 	omap_pullup(&udc->gadget, 1);
 

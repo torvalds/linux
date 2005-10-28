@@ -1784,14 +1784,11 @@ sl811h_probe(struct device *dev)
  */
 
 static int
-sl811h_suspend(struct device *dev, pm_message_t state, u32 phase)
+sl811h_suspend(struct device *dev, pm_message_t state)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 	int		retval = 0;
-
-	if (phase != SUSPEND_POWER_DOWN)
-		return retval;
 
 	if (state.event == PM_EVENT_FREEZE)
 		retval = sl811h_hub_suspend(hcd);
@@ -1803,13 +1800,10 @@ sl811h_suspend(struct device *dev, pm_message_t state, u32 phase)
 }
 
 static int
-sl811h_resume(struct device *dev, u32 phase)
+sl811h_resume(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
-
-	if (phase != RESUME_POWER_ON)
-		return 0;
 
 	/* with no "check to see if VBUS is still powered" board hook,
 	 * let's assume it'd only be powered to enable remote wakeup.

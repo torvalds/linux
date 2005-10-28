@@ -921,21 +921,21 @@ static struct uart_driver imx_reg = {
 	.cons           = IMX_CONSOLE,
 };
 
-static int serial_imx_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int serial_imx_suspend(struct device *_dev, pm_message_t state)
 {
         struct imx_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == SUSPEND_DISABLE)
+        if (sport)
                 uart_suspend_port(&imx_reg, &sport->port);
 
         return 0;
 }
 
-static int serial_imx_resume(struct device *_dev, u32 level)
+static int serial_imx_resume(struct device *_dev)
 {
         struct imx_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == RESUME_ENABLE)
+        if (sport)
                 uart_resume_port(&imx_reg, &sport->port);
 
         return 0;

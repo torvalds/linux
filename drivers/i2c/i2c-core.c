@@ -48,7 +48,7 @@ static int i2c_bus_suspend(struct device * dev, pm_message_t state)
 	int rc = 0;
 
 	if (dev->driver && dev->driver->suspend)
-		rc = dev->driver->suspend(dev,state,0);
+		rc = dev->driver->suspend(dev, state);
 	return rc;
 }
 
@@ -57,7 +57,7 @@ static int i2c_bus_resume(struct device * dev)
 	int rc = 0;
 	
 	if (dev->driver && dev->driver->resume)
-		rc = dev->driver->resume(dev,0);
+		rc = dev->driver->resume(dev);
 	return rc;
 }
 

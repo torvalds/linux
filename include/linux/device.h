@@ -28,19 +28,6 @@
 #define BUS_ID_SIZE		KOBJ_NAME_LEN
 
 
-enum {
-	SUSPEND_NOTIFY,
-	SUSPEND_SAVE_STATE,
-	SUSPEND_DISABLE,
-	SUSPEND_POWER_DOWN,
-};
-
-enum {
-	RESUME_POWER_ON,
-	RESUME_RESTORE_STATE,
-	RESUME_ENABLE,
-};
-
 struct device;
 struct device_driver;
 struct class;
@@ -115,8 +102,8 @@ struct device_driver {
 	int	(*probe)	(struct device * dev);
 	int	(*remove)	(struct device * dev);
 	void	(*shutdown)	(struct device * dev);
-	int	(*suspend)	(struct device * dev, pm_message_t state, u32 level);
-	int	(*resume)	(struct device * dev, u32 level);
+	int	(*suspend)	(struct device * dev, pm_message_t state);
+	int	(*resume)	(struct device * dev);
 };
 
 

@@ -402,21 +402,21 @@ static int __exit sa1100_mtd_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int sa1100_mtd_suspend(struct device *dev, pm_message_t state, u32 level)
+static int sa1100_mtd_suspend(struct device *dev, pm_message_t state)
 {
 	struct sa_info *info = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (info && level == SUSPEND_SAVE_STATE)
+	if (info)
 		ret = info->mtd->suspend(info->mtd);
 
 	return ret;
 }
 
-static int sa1100_mtd_resume(struct device *dev, u32 level)
+static int sa1100_mtd_resume(struct device *dev)
 {
 	struct sa_info *info = dev_get_drvdata(dev);
-	if (info && level == RESUME_RESTORE_STATE)
+	if (info)
 		info->mtd->resume(info->mtd);
 	return 0;
 }

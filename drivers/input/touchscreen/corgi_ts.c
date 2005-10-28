@@ -231,34 +231,32 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PM
-static int corgits_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int corgits_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
 
-		if (corgi_ts->pendown) {
-			del_timer_sync(&corgi_ts->timer);
-			corgi_ts->tc.pressure = 0;
-			new_data(corgi_ts, NULL);
-			corgi_ts->pendown = 0;
-		}
-		corgi_ts->power_mode = PWR_MODE_SUSPEND;
-
-		corgi_ssp_ads7846_putget((1u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
+	if (corgi_ts->pendown) {
+		del_timer_sync(&corgi_ts->timer);
+		corgi_ts->tc.pressure = 0;
+		new_data(corgi_ts, NULL);
+		corgi_ts->pendown = 0;
 	}
+	corgi_ts->power_mode = PWR_MODE_SUSPEND;
+
+	corgi_ssp_ads7846_putget((1u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
+
 	return 0;
 }
 
-static int corgits_resume(struct device *dev, uint32_t level)
+static int corgits_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
 
-		corgi_ssp_ads7846_putget((4u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
-		/* Enable Falling Edge */
-		set_irq_type(corgi_ts->irq_gpio, IRQT_FALLING);
-		corgi_ts->power_mode = PWR_MODE_ACTIVE;
-	}
+	corgi_ssp_ads7846_putget((4u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
+	/* Enable Falling Edge */
+	set_irq_type(corgi_ts->irq_gpio, IRQT_FALLING);
+	corgi_ts->power_mode = PWR_MODE_ACTIVE;
+
 	return 0;
 }
 #else

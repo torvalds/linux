@@ -259,24 +259,22 @@ static void corgikbd_hinge_timer(unsigned long data)
 }
 
 #ifdef CONFIG_PM
-static int corgikbd_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int corgikbd_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct corgikbd *corgikbd = dev_get_drvdata(dev);
-		corgikbd->suspended = 1;
-	}
+	struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	corgikbd->suspended = 1;
+
 	return 0;
 }
 
-static int corgikbd_resume(struct device *dev, uint32_t level)
+static int corgikbd_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	struct corgikbd *corgikbd = dev_get_drvdata(dev);
 
-		/* Upon resume, ignore the suspend key for a short while */
-		corgikbd->suspend_jiffies=jiffies;
-		corgikbd->suspended = 0;
-	}
+	/* Upon resume, ignore the suspend key for a short while */
+	corgikbd->suspend_jiffies=jiffies;
+	corgikbd->suspended = 0;
+
 	return 0;
 }
 #else
