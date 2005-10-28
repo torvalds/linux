@@ -23,6 +23,9 @@
 #define AAEC_CS2	0x20000000
 #define AAEC_CS3	0x30000000
 
+/* Flash */
+#define AAEC_FLASH_BASE	AAEC_CS0
+#define AAEC_FLASH_SIZE	SZ_64M
 
 /* Interrupt controller */
 #define IRQ_BASE	__REG(0x80000500)

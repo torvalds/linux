@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -22,6 +23,7 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 
+#include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
@@ -162,4 +164,33 @@ struct sys_timer aaec2000_timer = {
 	.init		= aaec2000_timer_init,
 	.offset		= aaec2000_gettimeoffset,
 };
+
+static struct flash_platform_data aaec2000_flash_data = {
+	.map_name	= "cfi_probe",
+	.width		= 4,
+};
+
+static struct resource aaec2000_flash_resource = {
+	.start		= AAEC_FLASH_BASE,
+	.end		= AAEC_FLASH_BASE + AAEC_FLASH_SIZE,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device aaec2000_flash_device = {
+	.name		= "armflash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &aaec2000_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &aaec2000_flash_resource,
+};
+
+static int __init aaec2000_init(void)
+{
+	platform_device_register(&aaec2000_flash_device);
+
+	return 0;
+};
+arch_initcall(aaec2000_init);
 
