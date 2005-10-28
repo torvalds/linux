@@ -60,6 +60,5 @@ extern int cycx_peek(struct cycx_hw *hw, u32 addr, void *buf, u32 len);
 extern int cycx_poke(struct cycx_hw *hw, u32 addr, void *buf, u32 len);
 extern int cycx_exec(void __iomem *addr);
 
-extern void cycx_inten(struct cycx_hw *hw);
 extern void cycx_intr(struct cycx_hw *hw);
 #endif	/* _CYCX_DRV_H */

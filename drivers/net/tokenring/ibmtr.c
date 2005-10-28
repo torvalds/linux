@@ -318,7 +318,7 @@ static void ibmtr_cleanup_card(struct net_device *dev)
 	if (dev->base_addr) {
 		outb(0,dev->base_addr+ADAPTRESET);
 		
-		schedule_timeout(TR_RST_TIME); /* wait 50ms */
+		schedule_timeout_uninterruptible(TR_RST_TIME); /* wait 50ms */
 
 		outb(0,dev->base_addr+ADAPTRESETREL);
 	}
@@ -854,8 +854,7 @@ static int tok_init_card(struct net_device *dev)
 	writeb(~INT_ENABLE, ti->mmio + ACA_OFFSET + ACA_RESET + ISRP_EVEN);
 	outb(0, PIOaddr + ADAPTRESET);
 
-	current->state=TASK_UNINTERRUPTIBLE;
-	schedule_timeout(TR_RST_TIME); /* wait 50ms */
+	schedule_timeout_uninterruptible(TR_RST_TIME); /* wait 50ms */
 
 	outb(0, PIOaddr + ADAPTRESETREL);
 #ifdef ENABLE_PAGING
@@ -903,8 +902,8 @@ static int tok_open(struct net_device *dev)
 			DPRINTK("Adapter is up and running\n");
 			return 0;
 		}
-		current->state=TASK_INTERRUPTIBLE;
-		i=schedule_timeout(TR_RETRY_INTERVAL); /* wait 30 seconds */
+		i=schedule_timeout_interruptible(TR_RETRY_INTERVAL);
+							/* wait 30 seconds */
 		if(i!=0) break; /*prob. a signal, like the i>24*HZ case above */
 	}
 	outb(0, dev->base_addr + ADAPTRESET);/* kill pending interrupts*/

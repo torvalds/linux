@@ -800,8 +800,7 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 	 * doesn't seem to have as many firmware restart cycles...
 	 *
 	 * As a test, we're sticking in a 1/100s delay here */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 100);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(10));
 
 	return 0;
 
@@ -1256,8 +1255,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 	IPW_DEBUG_FW("Waiting for f/w initialization to complete...\n");
 	i = 5000;
 	do {
-  		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(40 * HZ / 1000);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(40));
 		/* Todo... wait for sync command ... */
 
 		read_register(priv->net_dev, IPW_REG_INTA, &inta);
@@ -1411,8 +1409,7 @@ static int ipw2100_hw_phy_off(struct ipw2100_priv *priv)
 		    (val2 & IPW2100_COMMAND_PHY_OFF))
 			return 0;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HW_PHY_OFF_LOOP_DELAY);
+		schedule_timeout_uninterruptible(HW_PHY_OFF_LOOP_DELAY);
 	}
 
 	return -EIO;
@@ -1466,7 +1463,7 @@ fail_up:
 
 static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 {
-#define HW_POWER_DOWN_DELAY (HZ / 10)
+#define HW_POWER_DOWN_DELAY (msecs_to_jiffies(100))
 
 	struct host_command cmd = {
 		.host_command = HOST_PRE_POWER_DOWN,
@@ -1520,10 +1517,8 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 			printk(KERN_WARNING DRV_NAME ": "
 			       "%s: Power down command failed: Error %d\n",
 			       priv->net_dev->name, err);
-		else {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HW_POWER_DOWN_DELAY);
-		}
+		else
+			schedule_timeout_uninterruptible(HW_POWER_DOWN_DELAY);
 	}
 
 	priv->status &= ~STATUS_ENABLED;
@@ -2953,7 +2948,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 	int next = txq->next;
         int i = 0;
 	struct ipw2100_data_header *ipw_hdr;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_3addr *hdr;
 
 	while (!list_empty(&priv->tx_pend_list)) {
 		/* if there isn't enough space in TBD queue, then
@@ -2989,7 +2984,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 		packet->index = txq->next;
 
 		ipw_hdr = packet->info.d_struct.data;
-		hdr = (struct ieee80211_hdr *)packet->info.d_struct.txb->
+		hdr = (struct ieee80211_hdr_3addr *)packet->info.d_struct.txb->
 			fragments[0]->data;
 
 		if (priv->ieee->iw_mode == IW_MODE_INFRA) {
@@ -3274,7 +3269,8 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data,
 	return IRQ_NONE;
 }
 
-static int ipw2100_tx(struct ieee80211_txb *txb, struct net_device *dev)
+static int ipw2100_tx(struct ieee80211_txb *txb, struct net_device *dev,
+		      int pri)
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct list_head *element;

@@ -490,6 +490,8 @@ struct rhine_private {
 	u8 tx_thresh, rx_thresh;
 
 	struct mii_if_info mii_if;
+	struct work_struct tx_timeout_task;
+	struct work_struct check_media_task;
 	void __iomem *base;
 };
 
@@ -497,6 +499,8 @@ static int  mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int location, int value);
 static int  rhine_open(struct net_device *dev);
 static void rhine_tx_timeout(struct net_device *dev);
+static void rhine_tx_timeout_task(struct net_device *dev);
+static void rhine_check_media_task(struct net_device *dev);
 static int  rhine_start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 static void rhine_tx(struct net_device *dev);
@@ -814,8 +818,9 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = ioread8(ioaddr + StationAddr + i);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->perm_addr)) {
 		rc = -EIO;
 		printk(KERN_ERR "Invalid MAC address\n");
 		goto err_out_unmap;
@@ -849,6 +854,12 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 #endif
 	if (rp->quirks & rqRhineI)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
+
+	INIT_WORK(&rp->tx_timeout_task,
+		  (void (*)(void *))rhine_tx_timeout_task, dev);
+
+	INIT_WORK(&rp->check_media_task,
+		  (void (*)(void *))rhine_check_media_task, dev);
 
 	/* dev->name not defined before register_netdev()! */
 	rc = register_netdev(dev);
@@ -1076,6 +1087,11 @@ static void rhine_check_media(struct net_device *dev, unsigned int init_media)
 		   ioaddr + ChipCmd1);
 }
 
+static void rhine_check_media_task(struct net_device *dev)
+{
+	rhine_check_media(dev, 0);
+}
+
 static void init_registers(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
@@ -1129,8 +1145,8 @@ static void rhine_disable_linkmon(void __iomem *ioaddr, u32 quirks)
 	if (quirks & rqRhineI) {
 		iowrite8(0x01, ioaddr + MIIRegAddr);	// MII_BMSR
 
-		/* Can be called from ISR. Evil. */
-		mdelay(1);
+		/* Do not call from ISR! */
+		msleep(1);
 
 		/* 0x80 must be set immediately before turning it off */
 		iowrite8(0x80, ioaddr + MIICmd);
@@ -1218,6 +1234,16 @@ static int rhine_open(struct net_device *dev)
 }
 
 static void rhine_tx_timeout(struct net_device *dev)
+{
+	struct rhine_private *rp = netdev_priv(dev);
+
+	/*
+	 * Move bulk of work outside of interrupt context
+	 */
+	schedule_work(&rp->tx_timeout_task);
+}
+
+static void rhine_tx_timeout_task(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1625,7 +1651,7 @@ static void rhine_error(struct net_device *dev, int intr_status)
 	spin_lock(&rp->lock);
 
 	if (intr_status & IntrLinkChange)
-		rhine_check_media(dev, 0);
+		schedule_work(&rp->check_media_task);
 	if (intr_status & IntrStatsMax) {
 		rp->stats.rx_crc_errors += ioread16(ioaddr + RxCRCErrs);
 		rp->stats.rx_missed_errors += ioread16(ioaddr + RxMissed);
@@ -1829,6 +1855,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.set_wol		= rhine_set_wol,
 	.get_sg			= ethtool_op_get_sg,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1872,6 +1899,9 @@ static int rhine_close(struct net_device *dev)
 	spin_unlock_irq(&rp->lock);
 
 	free_irq(rp->pdev->irq, dev);
+
+	flush_scheduled_work();
+
 	free_rbufs(dev);
 	free_tbufs(dev);
 	free_ring(dev);
