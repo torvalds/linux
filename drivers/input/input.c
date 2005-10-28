@@ -39,7 +39,6 @@ EXPORT_SYMBOL(input_close_device);
 EXPORT_SYMBOL(input_accept_process);
 EXPORT_SYMBOL(input_flush_device);
 EXPORT_SYMBOL(input_event);
-EXPORT_SYMBOL(input_class);
 EXPORT_SYMBOL_GPL(input_dev_class);
 
 #define INPUT_DEVICES	256
@@ -927,8 +926,6 @@ static struct file_operations input_fops = {
 	.open = input_open_file,
 };
 
-struct class *input_class;
-
 static int __init input_init(void)
 {
 	int err;
@@ -939,27 +936,19 @@ static int __init input_init(void)
 		return err;
 	}
 
-	input_class = class_create(THIS_MODULE, "input");
-	if (IS_ERR(input_class)) {
-		printk(KERN_ERR "input: unable to register input class\n");
-		err = PTR_ERR(input_class);
-		goto fail1;
-	}
-
 	err = input_proc_init();
 	if (err)
-		goto fail2;
+		goto fail1;
 
 	err = register_chrdev(INPUT_MAJOR, "input", &input_fops);
 	if (err) {
 		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
-		goto fail3;
+		goto fail2;
 	}
 
 	return 0;
 
- fail3:	input_proc_exit();
- fail2:	class_destroy(input_class);
+ fail2:	input_proc_exit();
  fail1:	class_unregister(&input_dev_class);
 	return err;
 }
@@ -968,7 +957,6 @@ static void __exit input_exit(void)
 {
 	input_proc_exit();
 	unregister_chrdev(INPUT_MAJOR, "input");
-	class_destroy(input_class);
 	class_unregister(&input_dev_class);
 }
 
