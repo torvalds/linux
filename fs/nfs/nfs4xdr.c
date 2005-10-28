@@ -2766,8 +2766,7 @@ static int decode_server_caps(struct xdr_stream *xdr, struct nfs4_server_caps_re
 		goto xdr_error;
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	if (status != 0)
-		printk(KERN_NOTICE "%s: xdr error %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
 	return status;
 }
 	
@@ -2800,8 +2799,7 @@ static int decode_statfs(struct xdr_stream *xdr, struct nfs_fsstat *fsstat)
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	if (status != 0)
-		printk(KERN_NOTICE "%s: xdr error %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
 	return status;
 }
 
@@ -2826,8 +2824,7 @@ static int decode_pathconf(struct xdr_stream *xdr, struct nfs_pathconf *pathconf
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	if (status != 0)
-		printk(KERN_NOTICE "%s: xdr error %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
 	return status;
 }
 
@@ -2886,8 +2883,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if ((status = verify_attr_len(xdr, savep, attrlen)) == 0)
 		fattr->valid = NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3 | NFS_ATTR_FATTR_V4;
 xdr_error:
-	if (status != 0)
-		printk(KERN_NOTICE "%s: xdr error %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d\n", __FUNCTION__, -status);
 	return status;
 }
 
@@ -2920,8 +2916,7 @@ static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	if (status != 0)
-		printk(KERN_NOTICE "%s: xdr error %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
 	return status;
 }
 
@@ -3088,7 +3083,7 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
         p += bmlen;
 	return decode_delegation(xdr, res);
 xdr_error:
-	printk(KERN_NOTICE "%s: xdr error!\n", __FUNCTION__);
+	dprintk("%s: Bitmap too large! Length = %u\n", __FUNCTION__, bmlen);
 	return -EIO;
 }
 
