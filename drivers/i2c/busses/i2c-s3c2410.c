@@ -896,6 +896,7 @@ static int s3c24xx_i2c_resume(struct device *dev)
 /* device driver for platform bus bits */
 
 static struct device_driver s3c2410_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "s3c2410-i2c",
 	.bus		= &platform_bus_type,
 	.probe		= s3c24xx_i2c_probe,
@@ -904,6 +905,7 @@ static struct device_driver s3c2410_i2c_driver = {
 };
 
 static struct device_driver s3c2440_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "s3c2440-i2c",
 	.bus		= &platform_bus_type,
 	.probe		= s3c24xx_i2c_probe,

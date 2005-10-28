@@ -2736,6 +2736,12 @@ P:	Roger Luethi
 M:	rl@hellgate.ch
 S:	Maintained
 
+VIAPRO SMBUS DRIVER
+P:	Jean Delvare
+M:	khali@linux-fr.org
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 UCLINUX (AND M68KNOMMU)
 P:	Greg Ungerer
 M:	gerg@uclinux.org

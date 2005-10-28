@@ -105,7 +105,9 @@ superio_exit(void)
  * ISA constants
  */
 
-#define REGION_LENGTH		8
+#define REGION_ALIGNMENT	~7
+#define REGION_OFFSET		5
+#define REGION_LENGTH		2
 #define ADDR_REG_OFFSET		5
 #define DATA_REG_OFFSET		6
 
@@ -673,16 +675,16 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	struct w83627ehf_data *data;
 	int i, err = 0;
 
-	if (!request_region(address, REGION_LENGTH, w83627ehf_driver.name)) {
+	if (!request_region(address + REGION_OFFSET, REGION_LENGTH,
+	                    w83627ehf_driver.name)) {
 		err = -EBUSY;
 		goto exit;
 	}
 
-	if (!(data = kmalloc(sizeof(struct w83627ehf_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83627ehf_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit_release;
 	}
-	memset(data, 0, sizeof(struct w83627ehf_data));
 
 	client = &data->client;
 	i2c_set_clientdata(client, data);
@@ -762,7 +764,7 @@ exit_detach:
 exit_free:
 	kfree(data);
 exit_release:
-	release_region(address, REGION_LENGTH);
+	release_region(address + REGION_OFFSET, REGION_LENGTH);
 exit:
 	return err;
 }
@@ -776,7 +778,7 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 
 	if ((err = i2c_detach_client(client)))
 		return err;
-	release_region(client->addr, REGION_LENGTH);
+	release_region(client->addr + REGION_OFFSET, REGION_LENGTH);
 	kfree(data);
 
 	return 0;
@@ -807,7 +809,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr)
 	superio_select(W83627EHF_LD_HWM);
 	val = (superio_inb(SIO_REG_ADDR) << 8)
 	    | superio_inb(SIO_REG_ADDR + 1);
-	*addr = val & ~(REGION_LENGTH - 1);
+	*addr = val & REGION_ALIGNMENT;
 	if (*addr == 0) {
 		superio_exit();
 		return -ENODEV;

@@ -85,8 +85,8 @@
 #define AMD756_PROCESS_CALL	0x04
 #define AMD756_BLOCK_DATA	0x05
 
-
-static unsigned short amd756_ioport = 0;
+static struct pci_driver amd756_driver;
+static unsigned short amd756_ioport;
 
 /* 
   SMBUS event = I/O 28-29 bit 11
@@ -303,7 +303,6 @@ struct i2c_adapter amd756_smbus = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 enum chiptype { AMD756, AMD766, AMD768, NFORCE, AMD8111 };
@@ -365,7 +364,7 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 		amd756_ioport += SMB_ADDR_OFFSET;
 	}
 
-	if (!request_region(amd756_ioport, SMB_IOSIZE, "amd756-smbus")) {
+	if (!request_region(amd756_ioport, SMB_IOSIZE, amd756_driver.name)) {
 		dev_err(&pdev->dev, "SMB region 0x%x already in use!\n",
 			amd756_ioport);
 		return -ENODEV;
@@ -402,6 +401,7 @@ static void __devexit amd756_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver amd756_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "amd756_smbus",
 	.id_table	= amd756_ids,
 	.probe		= amd756_probe,

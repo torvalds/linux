@@ -1,0 +1,38 @@
+Kernel driver x1205
+===================
+
+Supported chips:
+  * Xicor X1205 RTC
+    Prefix: 'x1205'
+    Addresses scanned: none
+    Datasheet: http://www.intersil.com/cda/deviceinfo/0,1477,X1205,00.html
+
+Authors:
+	Karen Spearel <kas11@tampabay.rr.com>,
+	Alessandro Zummo <a.zummo@towertech.it>
+
+Description
+-----------
+
+This module aims to provide complete access to the Xicor X1205 RTC.
+Recently Xicor has merged with Intersil, but the chip is
+still sold under the Xicor brand.
+
+This chip is located at address 0x6f and uses a 2-byte register addressing.
+Two bytes need to be written to read a single register, while most
+other chips just require one and take the second one as the data
+to be written. To prevent corrupting unknown chips, the user must
+explicitely set the probe parameter.
+
+example:
+
+modprobe x1205 probe=0,0x6f
+
+The module supports one more option, hctosys, which is used to set the
+software clock from the x1205. On systems where the x1205 is the
+only hardware rtc, this parameter could be used to achieve a correct
+date/time earlier in the system boot sequence.
+
+example:
+
+modprobe x1205 probe=0,0x6f hctosys=1

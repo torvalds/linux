@@ -535,13 +535,12 @@ create_iface(struct device_node *np, struct device *dev)
 
 	tsize = sizeof(struct keywest_iface) +
 		(sizeof(struct keywest_chan) + 4) * nchan;
-	iface = (struct keywest_iface *) kmalloc(tsize, GFP_KERNEL);
+	iface = kzalloc(tsize, GFP_KERNEL);
 	if (iface == NULL) {
 		printk(KERN_ERR "i2c-keywest: can't allocate inteface !\n");
 		pmac_low_i2c_unlock(np);
 		return -ENOMEM;
 	}
-	memset(iface, 0, tsize);
 	spin_lock_init(&iface->lock);
 	init_completion(&iface->complete);
 	iface->node = of_node_get(np);
@@ -716,6 +715,7 @@ static struct of_device_id i2c_keywest_match[] =
 
 static struct macio_driver i2c_keywest_macio_driver = 
 {
+	.owner		= THIS_MODULE,
 	.name 		= "i2c-keywest",
 	.match_table	= i2c_keywest_match,
 	.probe		= create_iface_macio,
@@ -724,6 +724,7 @@ static struct macio_driver i2c_keywest_macio_driver =
 
 static struct of_platform_driver i2c_keywest_of_platform_driver = 
 {
+	.owner		= THIS_MODULE,
 	.name 		= "i2c-keywest",
 	.match_table	= i2c_keywest_match,
 	.probe		= create_iface_of_platform,

@@ -296,10 +296,9 @@ static int fsl_i2c_probe(struct device *device)
 
 	pdata = (struct fsl_i2c_platform_data *) pdev->dev.platform_data;
 
-	if (!(i2c = kmalloc(sizeof(*i2c), GFP_KERNEL))) {
+	if (!(i2c = kzalloc(sizeof(*i2c), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
-	memset(i2c, 0, sizeof(*i2c));
 
 	i2c->irq = platform_get_irq(pdev, 0);
 	i2c->flags = pdata->device_flags;
@@ -361,6 +360,7 @@ static int fsl_i2c_remove(struct device *device)
 
 /* Structure for a device driver */
 static struct device_driver fsl_i2c_driver = {
+	.owner = THIS_MODULE,
 	.name = "fsl-i2c",
 	.bus = &platform_bus_type,
 	.probe = fsl_i2c_probe,
