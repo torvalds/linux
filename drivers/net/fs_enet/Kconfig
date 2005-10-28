@@ -1,0 +1,20 @@
+config FS_ENET
+       tristate "Freescale Ethernet Driver"
+       depends on NET_ETHERNET && (CPM1 || CPM2)
+       select MII
+
+config FS_ENET_HAS_SCC
+	bool "Chip has an SCC usable for ethernet"
+	depends on FS_ENET && (CPM1 || CPM2)
+	default y
+
+config FS_ENET_HAS_FCC
+	bool "Chip has an FCC usable for ethernet"
+	depends on FS_ENET && CPM2
+	default y
+
+config FS_ENET_HAS_FEC
+	bool "Chip has an FEC usable for ethernet"
+	depends on FS_ENET && CPM1
+	default y
+
