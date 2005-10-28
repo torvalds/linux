@@ -1940,7 +1940,7 @@ get_rq:
 	if (rl->count[rw] >= queue_congestion_on_threshold(q))
 		set_queue_congested(q, rw);
 
-	priv = !test_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+	priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 	if (priv)
 		rl->elvpriv++;
 

@@ -671,14 +671,14 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 	 */
 	spin_lock_irq(q->queue_lock);
 
-	set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+	set_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 
 	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
 		;
 
 	while (q->rq.elvpriv) {
 		spin_unlock_irq(q->queue_lock);
-		msleep(100);
+		msleep(10);
 		spin_lock_irq(q->queue_lock);
 	}
 
@@ -703,7 +703,7 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 	 * finally exit old elevator and turn off BYPASS.
 	 */
 	elevator_exit(old_elevator);
-	clear_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 	return;
 
 fail_register:
@@ -716,7 +716,7 @@ fail_register:
 fail:
 	q->elevator = old_elevator;
 	elv_register_queue(q);
-	clear_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 	kfree(e);
 error:
 	elevator_put(new_e);
