@@ -53,8 +53,6 @@ obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 endif
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 
-obj-$(CONFIG_XICS)		+= xics.o
-
 obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
 
 obj-$(CONFIG_PPC_MAPLE)		+= maple_setup.o maple_pci.o maple_time.o \

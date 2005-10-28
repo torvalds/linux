@@ -1,5 +1,5 @@
-/* 
- * arch/ppc64/kernel/xics.h
+/*
+ * arch/powerpc/platforms/pseries/xics.h
  *
  * Copyright 2000 IBM Corporation.
  *
@@ -9,8 +9,8 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PPC64_KERNEL_XICS_H
-#define _PPC64_KERNEL_XICS_H
+#ifndef _POWERPC_KERNEL_XICS_H
+#define _POWERPC_KERNEL_XICS_H
 
 #include <linux/cache.h>
 
@@ -31,4 +31,4 @@ struct xics_ipi_struct {
 
 extern struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
 
-#endif /* _PPC64_KERNEL_XICS_H */
+#endif /* _POWERPC_KERNEL_XICS_H */

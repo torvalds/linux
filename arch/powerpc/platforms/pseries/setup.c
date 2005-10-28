@@ -59,7 +59,7 @@
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include <asm/plpar_wrappers.h>
-#include <asm/xics.h>
+#include "xics.h"
 #include <asm/firmware.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
