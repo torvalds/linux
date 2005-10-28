@@ -153,10 +153,13 @@ struct nfs_closeargs {
 	nfs4_stateid *		stateid;
 	struct nfs_seqid *	seqid;
 	int			open_flags;
+	const u32 *		bitmask;
 };
 
 struct nfs_closeres {
 	nfs4_stateid            stateid;
+	struct nfs_fattr *	fattr;
+	const struct nfs_server *server;
 };
 /*
  *  * Arguments to the lock,lockt, and locku call.

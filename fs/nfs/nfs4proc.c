@@ -865,6 +865,7 @@ struct nfs4_closedata {
 	struct nfs4_state *state;
 	struct nfs_closeargs arg;
 	struct nfs_closeres res;
+	struct nfs_fattr fattr;
 };
 
 static void nfs4_free_closedata(struct nfs4_closedata *calldata)
@@ -904,6 +905,7 @@ static void nfs4_close_done(struct rpc_task *task)
 				return;
 			}
 	}
+	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
 	state->state = calldata->arg.open_flags;
 	nfs4_free_closedata(calldata);
 }
@@ -941,6 +943,7 @@ static void nfs4_close_begin(struct rpc_task *task)
 		rpc_exit(task, 0);
 		return;
 	}
+	nfs_fattr_init(calldata->res.fattr);
 	if (mode != 0)
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
 	calldata->arg.open_flags = mode;
@@ -960,6 +963,7 @@ static void nfs4_close_begin(struct rpc_task *task)
  */
 int nfs4_do_close(struct inode *inode, struct nfs4_state *state, mode_t mode) 
 {
+	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_closedata *calldata;
 	int status = -ENOMEM;
 
@@ -974,8 +978,11 @@ int nfs4_do_close(struct inode *inode, struct nfs4_state *state, mode_t mode)
 	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid);
 	if (calldata->arg.seqid == NULL)
 		goto out_free_calldata;
+	calldata->arg.bitmask = server->attr_bitmask;
+	calldata->res.fattr = &calldata->fattr;
+	calldata->res.server = server;
 
-	status = nfs4_call_async(NFS_SERVER(inode)->client, nfs4_close_begin,
+	status = nfs4_call_async(server->client, nfs4_close_begin,
 			nfs4_close_done, calldata);
 	if (status == 0)
 		goto out;

@@ -198,17 +198,21 @@ static int nfs_stat_to_errno(int);
 #define NFS4_enc_open_downgrade_sz \
 				(compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + 7)
+                                op_encode_hdr_maxsz + 7 + \
+				encode_getattr_maxsz)
 #define NFS4_dec_open_downgrade_sz \
 				(compound_decode_hdr_maxsz + \
                                 decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4)
+                                op_decode_hdr_maxsz + 4 + \
+				decode_getattr_maxsz)
 #define NFS4_enc_close_sz       (compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + 5)
+                                op_encode_hdr_maxsz + 5 + \
+				encode_getattr_maxsz)
 #define NFS4_dec_close_sz       (compound_decode_hdr_maxsz + \
                                 decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4)
+                                op_decode_hdr_maxsz + 4 + \
+				decode_getattr_maxsz)
 #define NFS4_enc_setattr_sz     (compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
                                 op_encode_hdr_maxsz + 4 + \
@@ -1433,7 +1437,7 @@ static int nfs4_xdr_enc_close(struct rpc_rqst *req, uint32_t *p, struct nfs_clos
 {
         struct xdr_stream xdr;
         struct compound_hdr hdr = {
-                .nops   = 2,
+                .nops   = 3,
         };
         int status;
 
@@ -1443,6 +1447,9 @@ static int nfs4_xdr_enc_close(struct rpc_rqst *req, uint32_t *p, struct nfs_clos
         if(status)
                 goto out;
         status = encode_close(&xdr, args);
+	if (status != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
         return status;
 }
@@ -1541,7 +1548,7 @@ static int nfs4_xdr_enc_open_downgrade(struct rpc_rqst *req, uint32_t *p, struct
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops	= 2,
+		.nops	= 3,
 	};
 	int status;
 
@@ -1551,6 +1558,9 @@ static int nfs4_xdr_enc_open_downgrade(struct rpc_rqst *req, uint32_t *p, struct
 	if (status)
 		goto out;
 	status = encode_open_downgrade(&xdr, args);
+	if (status != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;
 }
@@ -3403,6 +3413,9 @@ static int nfs4_xdr_dec_open_downgrade(struct rpc_rqst *rqstp, uint32_t *p, stru
         if (status)
                 goto out;
         status = decode_open_downgrade(&xdr, res);
+	if (status != 0)
+		goto out;
+	decode_getfattr(&xdr, res->fattr, res->server);
 out:
         return status;
 }
@@ -3678,6 +3691,15 @@ static int nfs4_xdr_dec_close(struct rpc_rqst *rqstp, uint32_t *p, struct nfs_cl
         if (status)
                 goto out;
         status = decode_close(&xdr, res);
+	if (status != 0)
+		goto out;
+	/*
+	 * Note: Server may do delete on close for this file
+	 * 	in which case the getattr call will fail with
+	 * 	an ESTALE error. Shouldn't be a problem,
+	 * 	though, since fattr->valid will remain unset.
+	 */
+	decode_getfattr(&xdr, res->fattr, res->server);
 out:
         return status;
 }
