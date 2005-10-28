@@ -398,12 +398,12 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	 * transaction ID matches the agent being used to send the
 	 * MAD.
 	 */
-	method = ((struct ib_mad_hdr *) packet->msg)->method;
+	method = ((struct ib_mad_hdr *) packet->msg->mad)->method;
 
 	if (!(method & IB_MGMT_METHOD_RESP)       &&
 	    method != IB_MGMT_METHOD_TRAP_REPRESS &&
 	    method != IB_MGMT_METHOD_SEND) {
-		tid = &((struct ib_mad_hdr *) packet->msg)->tid;
+		tid = &((struct ib_mad_hdr *) packet->msg->mad)->tid;
 		*tid = cpu_to_be64(((u64) agent->hi_tid) << 32 |
 				   (be64_to_cpup(tid) & 0xffffffff));
 	}
