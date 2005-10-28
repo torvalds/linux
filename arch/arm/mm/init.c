@@ -262,8 +262,8 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 		if (end_pfn < end)
 			end_pfn = end;
 
-		map.physical = mi->bank[i].start;
-		map.virtual = __phys_to_virt(map.physical);
+		map.pfn = __phys_to_pfn(mi->bank[i].start);
+		map.virtual = __phys_to_virt(mi->bank[i].start);
 		map.length = mi->bank[i].size;
 		map.type = MT_MEMORY;
 
@@ -365,7 +365,7 @@ static void __init bootmem_init(struct meminfo *mi)
 
 #ifdef CONFIG_XIP_KERNEL
 #error needs fixing
-	p->physical   = CONFIG_XIP_PHYS_ADDR & PMD_MASK;
+	p->pfn        = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & PMD_MASK);
 	p->virtual    = (unsigned long)&_stext & PMD_MASK;
 	p->length     = ((unsigned long)&_etext - p->virtual + ~PMD_MASK) & PMD_MASK;
 	p->type       = MT_ROM;
@@ -439,14 +439,14 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 * Map the cache flushing regions.
 	 */
 #ifdef FLUSH_BASE
-	map.physical = FLUSH_BASE_PHYS;
+	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS);
 	map.virtual = FLUSH_BASE;
 	map.length = PGDIR_SIZE;
 	map.type = MT_CACHECLEAN;
 	create_mapping(&map);
 #endif
 #ifdef FLUSH_BASE_MINICACHE
-	map.physical = FLUSH_BASE_PHYS + PGDIR_SIZE;
+	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS + PGDIR_SIZE);
 	map.virtual = FLUSH_BASE_MINICACHE;
 	map.length = PGDIR_SIZE;
 	map.type = MT_MINICLEAN;
@@ -464,7 +464,7 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 * location (0xffff0000).  If we aren't using high-vectors, also
 	 * create a mapping at the low-vectors virtual address.
 	 */
-	map.physical = virt_to_phys(vectors);
+	map.pfn = __phys_to_pfn(virt_to_phys(vectors));
 	map.virtual = 0xffff0000;
 	map.length = PAGE_SIZE;
 	map.type = MT_HIGH_VECTORS;

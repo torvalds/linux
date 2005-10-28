@@ -483,7 +483,7 @@ void __init create_mapping(struct map_desc *md)
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
 		       "0x%08lx at 0x%08lx in user region\n",
-		       md->physical, md->virtual);
+		       __pfn_to_phys(md->pfn), md->virtual);
 		return;
 	}
 
@@ -491,7 +491,7 @@ void __init create_mapping(struct map_desc *md)
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
 		printk(KERN_WARNING "BUG: mapping for 0x%08lx at 0x%08lx "
 		       "overlaps vmalloc space\n",
-		       md->physical, md->virtual);
+		       __pfn_to_phys(md->pfn), md->virtual);
 	}
 
 	domain	  = mem_types[md->type].domain;
@@ -500,14 +500,14 @@ void __init create_mapping(struct map_desc *md)
 	prot_sect = mem_types[md->type].prot_sect | PMD_DOMAIN(domain);
 
 	virt   = md->virtual;
-	off    = md->physical - virt;
+	off    = __pfn_to_phys(md->pfn) - virt;
 	length = md->length;
 
 	if (mem_types[md->type].prot_l1 == 0 &&
 	    (virt & 0xfffff || (virt + off) & 0xfffff || (virt + length) & 0xfffff)) {
 		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
 		       "be mapped using pages, ignoring.\n",
-		       md->physical, md->virtual);
+		       __pfn_to_phys(md->pfn), md->virtual);
 		return;
 	}
 
