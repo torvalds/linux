@@ -1607,8 +1607,6 @@ int scsi_error_handler(void *data)
 			printk("Error handler scsi_eh_%d waking up\n",
 				shost->host_no));
 
-		shost->eh_active = 1;
-
 		/*
 		 * We have a host that is failing for some reason.  Figure out
 		 * what we need to do to get it up and online again (if we can).
@@ -1618,8 +1616,6 @@ int scsi_error_handler(void *data)
 			shost->hostt->eh_strategy_handler(shost);
 		else
 			scsi_unjam_host(shost);
-
-		shost->eh_active = 0;
 
 		/*
 		 * Note - if the above fails completely, the action is to take

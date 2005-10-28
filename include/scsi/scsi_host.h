@@ -469,8 +469,6 @@ struct Scsi_Host {
 	struct task_struct    * ehandler;  /* Error recovery thread. */
 	struct semaphore      * eh_action; /* Wait for specific actions on the
                                           host. */
-	unsigned int            eh_active:1; /* Indicates the eh thread is awake and active if
-                                          this is true. */
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
