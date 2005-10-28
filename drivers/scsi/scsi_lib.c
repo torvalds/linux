@@ -254,55 +254,6 @@ void scsi_do_req(struct scsi_request *sreq, const void *cmnd,
 }
 EXPORT_SYMBOL(scsi_do_req);
 
-/* This is the end routine we get to if a command was never attached
- * to the request.  Simply complete the request without changing
- * rq_status; this will cause a DRIVER_ERROR. */
-static void scsi_wait_req_end_io(struct request *req)
-{
-	BUG_ON(!req->waiting);
-
-	complete(req->waiting);
-}
-
-void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
-		   unsigned bufflen, int timeout, int retries)
-{
-	DECLARE_COMPLETION(wait);
-	int write = (sreq->sr_data_direction == DMA_TO_DEVICE);
-	struct request *req;
-
-	req = blk_get_request(sreq->sr_device->request_queue, write,
-			      __GFP_WAIT);
-	if (bufflen && blk_rq_map_kern(sreq->sr_device->request_queue, req,
-				       buffer, bufflen, __GFP_WAIT)) {
-		sreq->sr_result = DRIVER_ERROR << 24;
-		blk_put_request(req);
-		return;
-	}
-
-	req->flags |= REQ_NOMERGE;
-	req->waiting = &wait;
-	req->end_io = scsi_wait_req_end_io;
-	req->cmd_len = COMMAND_SIZE(((u8 *)cmnd)[0]);
-	req->sense = sreq->sr_sense_buffer;
-	req->sense_len = 0;
-	memcpy(req->cmd, cmnd, req->cmd_len);
-	req->timeout = timeout;
-	req->flags |= REQ_BLOCK_PC;
-	req->rq_disk = NULL;
-	blk_insert_request(sreq->sr_device->request_queue, req,
-			   sreq->sr_data_direction == DMA_TO_DEVICE, NULL);
-	wait_for_completion(&wait);
-	sreq->sr_request->waiting = NULL;
-	sreq->sr_result = req->errors;
-	if (req->errors)
-		sreq->sr_result |= (DRIVER_ERROR << 24);
-
-	blk_put_request(req);
-}
-
-EXPORT_SYMBOL(scsi_wait_req);
-
 /**
  * scsi_execute - insert request and wait for the result
  * @sdev:	scsi device
