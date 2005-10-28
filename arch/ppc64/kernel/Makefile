@@ -7,7 +7,7 @@ ifneq ($(CONFIG_PPC_MERGE),y)
 EXTRA_CFLAGS	+= -mno-minimal-toc
 extra-y		:= head.o vmlinux.lds
 
-obj-y               :=	entry.o misc.o prom.o
+obj-y               :=	misc.o prom.o
 
 endif
 

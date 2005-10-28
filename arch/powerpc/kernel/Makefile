@@ -13,7 +13,7 @@ endif
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   signal_32.o pmc.o
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
-				   ptrace32.o
+				   ptrace32.o systbl.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
@@ -28,12 +28,11 @@ extra-$(CONFIG_40x)		:= head_4xx.o
 extra-$(CONFIG_44x)		:= head_44x.o
 extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
 extra-$(CONFIG_8xx)		:= head_8xx.o
-extra-$(CONFIG_PPC64)		+= entry_64.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= process.o init_task.o time.o \
-				   prom.o systbl.o traps.o setup-common.o
-obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
+				   prom.o traps.o setup-common.o
+obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o systbl.o
 obj-$(CONFIG_PPC64)		+= misc_64.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
@@ -54,3 +53,4 @@ obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o \
 endif
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
+extra-$(CONFIG_PPC64)		+= entry_64.o

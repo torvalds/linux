@@ -81,12 +81,14 @@ CFLAGS += $(call cc-option,-funit-at-a-time)
 
 head-y := arch/ppc64/kernel/head.o
 head-y += arch/powerpc/kernel/fpu.o
+head-y += arch/powerpc/kernel/entry_64.o
 
 libs-y				+= arch/ppc64/lib/
 core-y				+= arch/ppc64/kernel/ arch/powerpc/kernel/
 core-y				+= arch/powerpc/mm/
 core-y				+= arch/powerpc/sysdev/
 core-y				+= arch/powerpc/platforms/
+core-y				+= arch/powerpc/lib/
 core-$(CONFIG_XMON)		+= arch/ppc64/xmon/
 drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
