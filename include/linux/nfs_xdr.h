@@ -566,7 +566,16 @@ struct nfs4_link_arg {
 	const struct nfs_fh *		fh;
 	const struct nfs_fh *		dir_fh;
 	const struct qstr *		name;
+	const u32 *			bitmask;
 };
+
+struct nfs4_link_res {
+	const struct nfs_server *	server;
+	struct nfs_fattr *		fattr;
+	struct nfs4_change_info		cinfo;
+	struct nfs_fattr *		dir_attr;
+};
+
 
 struct nfs4_lookup_arg {
 	const struct nfs_fh *		dir_fh;

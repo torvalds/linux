@@ -324,12 +324,18 @@ static int nfs_stat_to_errno(int);
 				encode_putfh_maxsz + \
 				encode_savefh_maxsz + \
 				encode_putfh_maxsz + \
-				encode_link_maxsz)
+				encode_link_maxsz + \
+				decode_getattr_maxsz + \
+				encode_restorefh_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_dec_link_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
 				decode_savefh_maxsz + \
 				decode_putfh_maxsz + \
-				decode_link_maxsz)
+				decode_link_maxsz + \
+				decode_getattr_maxsz + \
+				decode_restorefh_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_symlink_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_symlink_maxsz + \
@@ -1357,7 +1363,7 @@ static int nfs4_xdr_enc_link(struct rpc_rqst *req, uint32_t *p, const struct nfs
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 4,
+		.nops = 7,
 	};
 	int status;
 
@@ -1369,7 +1375,13 @@ static int nfs4_xdr_enc_link(struct rpc_rqst *req, uint32_t *p, const struct nfs
 		goto out;
 	if ((status = encode_putfh(&xdr, args->dir_fh)) != 0)
 		goto out;
-	status = encode_link(&xdr, args->name);
+	if ((status = encode_link(&xdr, args->name)) != 0)
+		goto out;
+	if ((status = encode_getfattr(&xdr, args->bitmask)) != 0)
+		goto out;
+	if ((status = encode_restorefh(&xdr)) != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;
 }
@@ -3529,7 +3541,7 @@ out:
 /*
  * Decode LINK response
  */
-static int nfs4_xdr_dec_link(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_change_info *cinfo)
+static int nfs4_xdr_dec_link(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_link_res *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -3544,7 +3556,17 @@ static int nfs4_xdr_dec_link(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_ch
 		goto out;
 	if ((status = decode_putfh(&xdr)) != 0)
 		goto out;
-	status = decode_link(&xdr, cinfo);
+	if ((status = decode_link(&xdr, &res->cinfo)) != 0)
+		goto out;
+	/*
+	 * Note order: OP_LINK leaves the directory as the current
+	 *             filehandle.
+	 */
+	if (decode_getfattr(&xdr, res->dir_attr, res->server) != 0)
+		goto out;
+	if ((status = decode_restorefh(&xdr)) != 0)
+		goto out;
+	decode_getfattr(&xdr, res->fattr, res->server);
 out:
 	return status;
 }
