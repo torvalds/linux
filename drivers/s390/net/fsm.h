@@ -110,7 +110,7 @@ extern fsm_instance *
 init_fsm(char *name, const char **state_names,
 	 const char **event_names,
 	 int nr_states, int nr_events, const fsm_node *tmpl,
-	 int tmpl_len, int order);
+	 int tmpl_len, gfp_t order);
 
 /**
  * Releases an FSM

@@ -739,7 +739,8 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 }
 
 static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
-					int flags, struct file *f)
+					int flags, struct file *f,
+					int (*open)(struct inode *, struct file *))
 {
 	struct inode *inode;
 	int error;
@@ -761,11 +762,14 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	f->f_op = fops_get(inode->i_fop);
 	file_move(f, &inode->i_sb->s_files);
 
-	if (f->f_op && f->f_op->open) {
-		error = f->f_op->open(inode,f);
+	if (!open && f->f_op)
+		open = f->f_op->open;
+	if (open) {
+		error = open(inode, f);
 		if (error)
 			goto cleanup_all;
 	}
+
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
@@ -814,27 +818,74 @@ struct file *filp_open(const char * filename, int flags, int mode)
 {
 	int namei_flags, error;
 	struct nameidata nd;
-	struct file *f;
 
 	namei_flags = flags;
 	if ((namei_flags+1) & O_ACCMODE)
 		namei_flags++;
-	if (namei_flags & O_TRUNC)
-		namei_flags |= 2;
-
-	error = -ENFILE;
-	f = get_empty_filp();
-	if (f == NULL)
-		return ERR_PTR(error);
 
 	error = open_namei(filename, namei_flags, mode, &nd);
 	if (!error)
-		return __dentry_open(nd.dentry, nd.mnt, flags, f);
+		return nameidata_to_filp(&nd, flags);
 
-	put_filp(f);
 	return ERR_PTR(error);
 }
 EXPORT_SYMBOL(filp_open);
+
+/**
+ * lookup_instantiate_filp - instantiates the open intent filp
+ * @nd: pointer to nameidata
+ * @dentry: pointer to dentry
+ * @open: open callback
+ *
+ * Helper for filesystems that want to use lookup open intents and pass back
+ * a fully instantiated struct file to the caller.
+ * This function is meant to be called from within a filesystem's
+ * lookup method.
+ * Note that in case of error, nd->intent.open.file is destroyed, but the
+ * path information remains valid.
+ * If the open callback is set to NULL, then the standard f_op->open()
+ * filesystem callback is substituted.
+ */
+struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
+		int (*open)(struct inode *, struct file *))
+{
+	if (IS_ERR(nd->intent.open.file))
+		goto out;
+	if (IS_ERR(dentry))
+		goto out_err;
+	nd->intent.open.file = __dentry_open(dget(dentry), mntget(nd->mnt),
+					     nd->intent.open.flags - 1,
+					     nd->intent.open.file,
+					     open);
+out:
+	return nd->intent.open.file;
+out_err:
+	release_open_intent(nd);
+	nd->intent.open.file = (struct file *)dentry;
+	goto out;
+}
+EXPORT_SYMBOL_GPL(lookup_instantiate_filp);
+
+/**
+ * nameidata_to_filp - convert a nameidata to an open filp.
+ * @nd: pointer to nameidata
+ * @flags: open flags
+ *
+ * Note that this function destroys the original nameidata
+ */
+struct file *nameidata_to_filp(struct nameidata *nd, int flags)
+{
+	struct file *filp;
+
+	/* Pick up the filp from the open intent */
+	filp = nd->intent.open.file;
+	/* Has the filesystem initialised the file for us? */
+	if (filp->f_dentry == NULL)
+		filp = __dentry_open(nd->dentry, nd->mnt, flags, filp, NULL);
+	else
+		path_release(nd);
+	return filp;
+}
 
 struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 {
@@ -846,7 +897,7 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 	if (f == NULL)
 		return ERR_PTR(error);
 
-	return __dentry_open(dentry, mnt, flags, f);
+	return __dentry_open(dentry, mnt, flags, f, NULL);
 }
 EXPORT_SYMBOL(dentry_open);
 

@@ -3322,6 +3322,18 @@ static void prism2_free_local_data(struct net_device *dev)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
+	/* Unregister all netdevs before freeing local data. */
+	list_for_each_safe(ptr, n, &local->hostap_interfaces) {
+		iface = list_entry(ptr, struct hostap_interface, list);
+		if (iface->type == HOSTAP_INTERFACE_MASTER) {
+			/* special handling for this interface below */
+			continue;
+		}
+		hostap_remove_interface(iface->dev, 0, 1);
+	}
+
+	unregister_netdev(local->dev);
+
 	flush_scheduled_work();
 
 	if (timer_pending(&local->crypt_deinit_timer))
@@ -3382,15 +3394,6 @@ static void prism2_free_local_data(struct net_device *dev)
 	prism2_download_free_data(local->dl_sec);
 #endif /* PRISM2_DOWNLOAD_SUPPORT */
 
-	list_for_each_safe(ptr, n, &local->hostap_interfaces) {
-		iface = list_entry(ptr, struct hostap_interface, list);
-		if (iface->type == HOSTAP_INTERFACE_MASTER) {
-			/* special handling for this interface below */
-			continue;
-		}
-		hostap_remove_interface(iface->dev, 0, 1);
-	}
-
 	prism2_clear_set_tim_queue(local);
 
 	list_for_each_safe(ptr, n, &local->bss_list) {
@@ -3403,7 +3406,6 @@ static void prism2_free_local_data(struct net_device *dev)
 	kfree(local->last_scan_results);
 	kfree(local->generic_elem);
 
-	unregister_netdev(local->dev);
 	free_netdev(local->dev);
 }
 

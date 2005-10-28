@@ -1296,7 +1296,7 @@ linvfs_invalidate_page(
 STATIC int
 linvfs_release_page(
 	struct page		*page,
-	int			gfp_mask)
+	gfp_t			gfp_mask)
 {
 	struct inode		*inode = page->mapping->host;
 	int			dirty, delalloc, unmapped, unwritten;

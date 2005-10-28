@@ -67,9 +67,9 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
-static unsigned int ata_get_mode_mask(struct ata_port *ap, int shift);
+static unsigned int ata_get_mode_mask(const struct ata_port *ap, int shift);
 static int fgb(u32 bitmap);
-static int ata_choose_xfer_mode(struct ata_port *ap,
+static int ata_choose_xfer_mode(const struct ata_port *ap,
 				u8 *xfer_mode_out,
 				unsigned int *xfer_shift_out);
 static void __ata_qc_complete(struct ata_queued_cmd *qc);
@@ -87,7 +87,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 /**
- *	ata_tf_load - send taskfile registers to host controller
+ *	ata_tf_load_pio - send taskfile registers to host controller
  *	@ap: Port to which output is sent
  *	@tf: ATA taskfile register set
  *
@@ -97,7 +97,7 @@ MODULE_VERSION(DRV_VERSION);
  *	Inherited from caller.
  */
 
-static void ata_tf_load_pio(struct ata_port *ap, struct ata_taskfile *tf)
+static void ata_tf_load_pio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
@@ -155,7 +155,7 @@ static void ata_tf_load_pio(struct ata_port *ap, struct ata_taskfile *tf)
  *	Inherited from caller.
  */
 
-static void ata_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void ata_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
@@ -224,7 +224,7 @@ static void ata_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
  *	LOCKING:
  *	Inherited from caller.
  */
-void ata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
+void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	if (ap->flags & ATA_FLAG_MMIO)
 		ata_tf_load_mmio(ap, tf);
@@ -244,7 +244,7 @@ void ata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
  *	spin_lock_irqsave(host_set lock)
  */
 
-static void ata_exec_command_pio(struct ata_port *ap, struct ata_taskfile *tf)
+static void ata_exec_command_pio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
 
@@ -265,7 +265,7 @@ static void ata_exec_command_pio(struct ata_port *ap, struct ata_taskfile *tf)
  *	spin_lock_irqsave(host_set lock)
  */
 
-static void ata_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void ata_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
 
@@ -285,7 +285,7 @@ static void ata_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf)
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  */
-void ata_exec_command(struct ata_port *ap, struct ata_taskfile *tf)
+void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	if (ap->flags & ATA_FLAG_MMIO)
 		ata_exec_command_mmio(ap, tf);
@@ -305,7 +305,7 @@ void ata_exec_command(struct ata_port *ap, struct ata_taskfile *tf)
  *	Obtains host_set lock.
  */
 
-static inline void ata_exec(struct ata_port *ap, struct ata_taskfile *tf)
+static inline void ata_exec(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	unsigned long flags;
 
@@ -328,7 +328,7 @@ static inline void ata_exec(struct ata_port *ap, struct ata_taskfile *tf)
  *	Obtains host_set lock.
  */
 
-static void ata_tf_to_host(struct ata_port *ap, struct ata_taskfile *tf)
+static void ata_tf_to_host(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	ap->ops->tf_load(ap, tf);
 
@@ -348,7 +348,7 @@ static void ata_tf_to_host(struct ata_port *ap, struct ata_taskfile *tf)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_tf_to_host_nolock(struct ata_port *ap, struct ata_taskfile *tf)
+void ata_tf_to_host_nolock(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	ap->ops->tf_load(ap, tf);
 	ap->ops->exec_command(ap, tf);
@@ -558,7 +558,7 @@ u8 ata_chk_err(struct ata_port *ap)
  *	Inherited from caller.
  */
 
-void ata_tf_to_fis(struct ata_taskfile *tf, u8 *fis, u8 pmp)
+void ata_tf_to_fis(const struct ata_taskfile *tf, u8 *fis, u8 pmp)
 {
 	fis[0] = 0x27;	/* Register - Host to Device FIS */
 	fis[1] = (pmp & 0xf) | (1 << 7); /* Port multiplier number,
@@ -599,7 +599,7 @@ void ata_tf_to_fis(struct ata_taskfile *tf, u8 *fis, u8 pmp)
  *	Inherited from caller.
  */
 
-void ata_tf_from_fis(u8 *fis, struct ata_taskfile *tf)
+void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf)
 {
 	tf->command	= fis[2];	/* status */
 	tf->feature	= fis[3];	/* error */
@@ -845,7 +845,7 @@ static unsigned int ata_devchk(struct ata_port *ap,
  *	the event of failure.
  */
 
-unsigned int ata_dev_classify(struct ata_taskfile *tf)
+unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 {
 	/* Apple's open source Darwin code hints that some devices only
 	 * put a proper signature into the LBA mid/high registers,
@@ -937,7 +937,7 @@ static u8 ata_dev_try_classify(struct ata_port *ap, unsigned int device)
  *	caller.
  */
 
-void ata_dev_id_string(u16 *id, unsigned char *s,
+void ata_dev_id_string(const u16 *id, unsigned char *s,
 		       unsigned int ofs, unsigned int len)
 {
 	unsigned int c;
@@ -1054,7 +1054,7 @@ void ata_dev_select(struct ata_port *ap, unsigned int device,
  *	caller.
  */
 
-static inline void ata_dump_id(struct ata_device *dev)
+static inline void ata_dump_id(const struct ata_device *dev)
 {
 	DPRINTK("49==0x%04x  "
 		"53==0x%04x  "
@@ -1089,7 +1089,7 @@ static inline void ata_dump_id(struct ata_device *dev)
  *	FIXME: pre IDE drive timing (do we care ?). 
  */
 
-static unsigned int ata_pio_modes(struct ata_device *adev)
+static unsigned int ata_pio_modes(const struct ata_device *adev)
 {
 	u16 modes;
 
@@ -1352,7 +1352,7 @@ err_out:
 }
 
 
-static inline u8 ata_dev_knobble(struct ata_port *ap)
+static inline u8 ata_dev_knobble(const struct ata_port *ap)
 {
 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(ap->device->id)));
 }
@@ -1616,7 +1616,7 @@ static const struct ata_timing* ata_timing_find_mode(unsigned short speed)
 	const struct ata_timing *t;
 
 	for (t = ata_timing; t->mode != speed; t++)
-		if (t->mode != 0xFF)
+		if (t->mode == 0xFF)
 			return NULL;
 	return t; 
 }
@@ -1684,7 +1684,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	return 0;
 }
 
-static struct {
+static const struct {
 	unsigned int shift;
 	u8 base;
 } xfer_mode_classes[] = {
@@ -2093,7 +2093,8 @@ err_out:
 	DPRINTK("EXIT\n");
 }
 
-static void ata_pr_blacklisted(struct ata_port *ap, struct ata_device *dev)
+static void ata_pr_blacklisted(const struct ata_port *ap,
+			       const struct ata_device *dev)
 {
 	printk(KERN_WARNING "ata%u: dev %u is on DMA blacklist, disabling DMA\n",
 		ap->id, dev->devno);
@@ -2131,7 +2132,7 @@ static const char * ata_dma_blacklist [] = {
 	"_NEC DV5800A",
 };
 
-static int ata_dma_blacklisted(struct ata_port *ap, struct ata_device *dev)
+static int ata_dma_blacklisted(const struct ata_device *dev)
 {
 	unsigned char model_num[40];
 	char *s;
@@ -2156,9 +2157,9 @@ static int ata_dma_blacklisted(struct ata_port *ap, struct ata_device *dev)
 	return 0;
 }
 
-static unsigned int ata_get_mode_mask(struct ata_port *ap, int shift)
+static unsigned int ata_get_mode_mask(const struct ata_port *ap, int shift)
 {
-	struct ata_device *master, *slave;
+	const struct ata_device *master, *slave;
 	unsigned int mask;
 
 	master = &ap->device[0];
@@ -2170,14 +2171,14 @@ static unsigned int ata_get_mode_mask(struct ata_port *ap, int shift)
 		mask = ap->udma_mask;
 		if (ata_dev_present(master)) {
 			mask &= (master->id[ATA_ID_UDMA_MODES] & 0xff);
-			if (ata_dma_blacklisted(ap, master)) {
+			if (ata_dma_blacklisted(master)) {
 				mask = 0;
 				ata_pr_blacklisted(ap, master);
 			}
 		}
 		if (ata_dev_present(slave)) {
 			mask &= (slave->id[ATA_ID_UDMA_MODES] & 0xff);
-			if (ata_dma_blacklisted(ap, slave)) {
+			if (ata_dma_blacklisted(slave)) {
 				mask = 0;
 				ata_pr_blacklisted(ap, slave);
 			}
@@ -2187,14 +2188,14 @@ static unsigned int ata_get_mode_mask(struct ata_port *ap, int shift)
 		mask = ap->mwdma_mask;
 		if (ata_dev_present(master)) {
 			mask &= (master->id[ATA_ID_MWDMA_MODES] & 0x07);
-			if (ata_dma_blacklisted(ap, master)) {
+			if (ata_dma_blacklisted(master)) {
 				mask = 0;
 				ata_pr_blacklisted(ap, master);
 			}
 		}
 		if (ata_dev_present(slave)) {
 			mask &= (slave->id[ATA_ID_MWDMA_MODES] & 0x07);
-			if (ata_dma_blacklisted(ap, slave)) {
+			if (ata_dma_blacklisted(slave)) {
 				mask = 0;
 				ata_pr_blacklisted(ap, slave);
 			}
@@ -2258,7 +2259,7 @@ static int fgb(u32 bitmap)
  *	Zero on success, negative on error.
  */
 
-static int ata_choose_xfer_mode(struct ata_port *ap,
+static int ata_choose_xfer_mode(const struct ata_port *ap,
 				u8 *xfer_mode_out,
 				unsigned int *xfer_shift_out)
 {
@@ -2700,13 +2701,13 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 
 /**
  *	ata_pio_poll -
- *	@ap:
+ *	@ap: the target ata_port
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
  *
  *	RETURNS:
- *
+ *	timeout value to use
  */
 
 static unsigned long ata_pio_poll(struct ata_port *ap)
@@ -2747,8 +2748,8 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 }
 
 /**
- *	ata_pio_complete -
- *	@ap:
+ *	ata_pio_complete - check if drive is busy or idle
+ *	@ap: the target ata_port
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
@@ -2800,7 +2801,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 
 /**
- *	swap_buf_le16 -
+ *	swap_buf_le16 - swap halves of 16-words in place
  *	@buf:  Buffer to swap
  *	@buf_words:  Number of 16-bit words in buffer.
  *
@@ -2809,6 +2810,7 @@ static int ata_pio_complete (struct ata_port *ap)
  *	vice-versa.
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 void swap_buf_le16(u16 *buf, unsigned int buf_words)
 {
@@ -2831,7 +2833,6 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
@@ -2877,7 +2878,6 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
@@ -2917,7 +2917,6 @@ static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
@@ -3070,7 +3069,6 @@ next_sg:
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void atapi_pio_bytes(struct ata_queued_cmd *qc)
@@ -3106,8 +3104,8 @@ err_out:
 }
 
 /**
- *	ata_pio_sector -
- *	@ap:
+ *	ata_pio_block - start PIO on a block
+ *	@ap: the target ata_port
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
@@ -3119,7 +3117,7 @@ static void ata_pio_block(struct ata_port *ap)
 	u8 status;
 
 	/*
-	 * This is purely hueristic.  This is a fast path.
+	 * This is purely heuristic.  This is a fast path.
 	 * Sometimes when we enter, BSY will be cleared in
 	 * a chk-status or two.  If not, the drive is probably seeking
 	 * or something.  Snooze for a couple msecs, then
@@ -3439,7 +3437,6 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- *
  */
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
@@ -3459,7 +3456,6 @@ void ata_qc_free(struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- *
  */
 
 void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
@@ -3953,7 +3949,6 @@ idle_irq:
  *
  *	RETURNS:
  *	IRQ_NONE or IRQ_HANDLED.
- *
  */
 
 irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
@@ -4065,6 +4060,7 @@ err_out:
  *	May be used as the port_start() entry in ata_port_operations.
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 
 int ata_port_start (struct ata_port *ap)
@@ -4090,6 +4086,7 @@ int ata_port_start (struct ata_port *ap)
  *	May be used as the port_stop() entry in ata_port_operations.
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 
 void ata_port_stop (struct ata_port *ap)
@@ -4112,6 +4109,7 @@ void ata_host_stop (struct ata_host_set *host_set)
  *	@do_unregister: 1 if we fully unregister, 0 to just stop the port
  *
  *	LOCKING:
+ *	Inherited from caller.
  */
 
 static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
@@ -4139,12 +4137,11 @@ static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
  *
  *	LOCKING:
  *	Inherited from caller.
- *
  */
 
 static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 			  struct ata_host_set *host_set,
-			  struct ata_probe_ent *ent, unsigned int port_no)
+			  const struct ata_probe_ent *ent, unsigned int port_no)
 {
 	unsigned int i;
 
@@ -4200,10 +4197,9 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
  *
  *	RETURNS:
  *	New ata_port on success, for NULL on error.
- *
  */
 
-static struct ata_port * ata_host_add(struct ata_probe_ent *ent,
+static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 				      struct ata_host_set *host_set,
 				      unsigned int port_no)
 {
@@ -4248,10 +4244,9 @@ err_out:
  *
  *	RETURNS:
  *	Number of ports registered.  Zero on error (no ports registered).
- *
  */
 
-int ata_device_add(struct ata_probe_ent *ent)
+int ata_device_add(const struct ata_probe_ent *ent)
 {
 	unsigned int count = 0, i;
 	struct device *dev = ent->dev;
@@ -4380,7 +4375,6 @@ err_out:
  *	Inherited from calling layer (may sleep).
  */
 
-
 void ata_host_set_remove(struct ata_host_set *host_set)
 {
 	struct ata_port *ap;
@@ -4470,7 +4464,7 @@ void ata_std_ports(struct ata_ioports *ioaddr)
 }
 
 static struct ata_probe_ent *
-ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
+ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 {
 	struct ata_probe_ent *probe_ent;
 
@@ -4570,7 +4564,6 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, stru
 	if (!probe_ent)
 		return NULL;
 
-	
 	probe_ent->legacy_mode = 1;
 	probe_ent->n_ports = 1;
 	probe_ent->hard_port_no = port_num;
@@ -4614,7 +4607,6 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, stru
  *
  *	RETURNS:
  *	Zero on success, negative on errno-based value on error.
- *
  */
 
 int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
@@ -4762,7 +4754,7 @@ err_out:
  *	@pdev: PCI device that was removed
  *
  *	PCI layer indicates to libata via this hook that
- *	hot-unplug or module unload event has occured.
+ *	hot-unplug or module unload event has occurred.
  *	Handle this by unregistering all objects associated
  *	with this PCI device.  Free those objects.  Then finally
  *	release PCI resources and disable device.
@@ -4783,7 +4775,7 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 }
 
 /* move to PCI subsystem */
-int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits)
+int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits)
 {
 	unsigned long tmp = 0;
 

@@ -12,8 +12,8 @@ struct vm_area_struct;
  * GFP bitmasks..
  */
 /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
-#define __GFP_DMA	0x01u
-#define __GFP_HIGHMEM	0x02u
+#define __GFP_DMA	((__force gfp_t)0x01u)
+#define __GFP_HIGHMEM	((__force gfp_t)0x02u)
 
 /*
  * Action modifiers - doesn't change the zoning
@@ -26,24 +26,24 @@ struct vm_area_struct;
  *
  * __GFP_NORETRY: The VM implementation must not retry indefinitely.
  */
-#define __GFP_WAIT	0x10u	/* Can wait and reschedule? */
-#define __GFP_HIGH	0x20u	/* Should access emergency pools? */
-#define __GFP_IO	0x40u	/* Can start physical IO? */
-#define __GFP_FS	0x80u	/* Can call down to low-level FS? */
-#define __GFP_COLD	0x100u	/* Cache-cold page required */
-#define __GFP_NOWARN	0x200u	/* Suppress page allocation failure warning */
-#define __GFP_REPEAT	0x400u	/* Retry the allocation.  Might fail */
-#define __GFP_NOFAIL	0x800u	/* Retry for ever.  Cannot fail */
-#define __GFP_NORETRY	0x1000u	/* Do not retry.  Might fail */
-#define __GFP_NO_GROW	0x2000u	/* Slab internal usage */
-#define __GFP_COMP	0x4000u	/* Add compound page metadata */
-#define __GFP_ZERO	0x8000u	/* Return zeroed page on success */
-#define __GFP_NOMEMALLOC 0x10000u /* Don't use emergency reserves */
-#define __GFP_NORECLAIM  0x20000u /* No realy zone reclaim during allocation */
-#define __GFP_HARDWALL   0x40000u /* Enforce hardwall cpuset memory allocs */
+#define __GFP_WAIT	((__force gfp_t)0x10u)	/* Can wait and reschedule? */
+#define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
+#define __GFP_IO	((__force gfp_t)0x40u)	/* Can start physical IO? */
+#define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
+#define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
+#define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
+#define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
+#define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
+#define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
+#define __GFP_NO_GROW	((__force gfp_t)0x2000u)/* Slab internal usage */
+#define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
+#define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+#define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+#define __GFP_NORECLAIM  ((__force gfp_t)0x20000u) /* No realy zone reclaim during allocation */
+#define __GFP_HARDWALL   ((__force gfp_t)0x40000u) /* Enforce hardwall cpuset memory allocs */
 
 #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
-#define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
+#define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 /* if you forget to add the bitmask here kernel will crash, period */
 #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
@@ -64,6 +64,7 @@ struct vm_area_struct;
 
 #define GFP_DMA		__GFP_DMA
 
+#define gfp_zone(mask) ((__force int)((mask) & (__force gfp_t)GFP_ZONEMASK))
 
 /*
  * There is only one page-allocator function, and two main namespaces to
@@ -94,7 +95,7 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 		return NULL;
 
 	return __alloc_pages(gfp_mask, order,
-		NODE_DATA(nid)->node_zonelists + (gfp_mask & GFP_ZONEMASK));
+		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
 }
 
 #ifdef CONFIG_NUMA

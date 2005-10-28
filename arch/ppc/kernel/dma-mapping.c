@@ -115,7 +115,7 @@ static struct vm_region consistent_head = {
 };
 
 static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, int gfp)
+vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
@@ -173,7 +173,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
  * virtual and bus address for that space.
  */
 void *
-__dma_alloc_coherent(size_t size, dma_addr_t *handle, int gfp)
+__dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	struct page *page;
 	struct vm_region *c;

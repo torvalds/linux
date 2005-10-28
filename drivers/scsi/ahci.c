@@ -216,7 +216,7 @@ static Scsi_Host_Template ahci_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations ahci_ops = {
+static const struct ata_port_operations ahci_ops = {
 	.port_disable		= ata_port_disable,
 
 	.check_status		= ahci_check_status,

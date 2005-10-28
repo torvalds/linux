@@ -261,7 +261,7 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 1] << 16) |	\
 	  ((u64) (id)[(n) + 0]) )
 
-static inline int ata_id_current_chs_valid(u16 *id)
+static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
 	   has not been issued to the device then the values of 
@@ -273,7 +273,7 @@ static inline int ata_id_current_chs_valid(u16 *id)
 		id[56];    /* sectors in current translation */
 }
 
-static inline int atapi_cdb_len(u16 *dev_id)
+static inline int atapi_cdb_len(const u16 *dev_id)
 {
 	u16 tmp = dev_id[0] & 0x3;
 	switch (tmp) {
@@ -283,7 +283,7 @@ static inline int atapi_cdb_len(u16 *dev_id)
 	}
 }
 
-static inline int is_atapi_taskfile(struct ata_taskfile *tf)
+static inline int is_atapi_taskfile(const struct ata_taskfile *tf)
 {
 	return (tf->protocol == ATA_PROT_ATAPI) ||
 	       (tf->protocol == ATA_PROT_ATAPI_NODATA) ||

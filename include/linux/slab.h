@@ -121,7 +121,7 @@ extern unsigned int ksize(const void *);
 extern void *kmem_cache_alloc_node(kmem_cache_t *, gfp_t flags, int node);
 extern void *kmalloc_node(size_t size, gfp_t flags, int node);
 #else
-static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int node)
+static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int node)
 {
 	return kmem_cache_alloc(cachep, flags);
 }

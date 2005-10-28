@@ -475,6 +475,14 @@ config SGI_IOC3_ETH_HW_TX_CSUM
 	  the moment only acceleration of IPv4 is supported.  This option
 	  enables offloading for checksums on transmit.  If unsure, say Y.
 
+config MIPS_SIM_NET
+	tristate "MIPS simulator Network device (EXPERIMENTAL)"
+	depends on NETDEVICES && MIPS_SIM && EXPERIMENTAL
+	help
+	  The MIPSNET device is a simple Ethernet network device which is
+	  emulated by the MIPS Simulator.
+	  If you are not using a MIPSsim or are unsure, say N.
+
 config SGI_O2MACE_ETH
 	tristate "SGI O2 MACE Fast Ethernet support"
 	depends on NET_ETHERNET && SGI_IP32=y
@@ -2083,6 +2091,7 @@ config SPIDER_NET
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx
+	select PHYLIB
 	help
 	  This driver supports the Gigabit TSEC on the MPC85xx 
 	  family of chips, and the FEC on the 8540
@@ -2242,6 +2251,20 @@ source "drivers/s390/net/Kconfig"
 config ISERIES_VETH
 	tristate "iSeries Virtual Ethernet driver support"
 	depends on PPC_ISERIES
+
+config RIONET
+	tristate "RapidIO Ethernet over messaging driver support"
+	depends on NETDEVICES && RAPIDIO
+
+config RIONET_TX_SIZE
+	int "Number of outbound queue entries"
+	depends on RIONET
+	default "128"
+
+config RIONET_RX_SIZE
+	int "Number of inbound queue entries"
+	depends on RIONET
+	default "128"
 
 config FDDI
 	bool "FDDI driver support"

@@ -1434,7 +1434,7 @@ static int ext3_invalidatepage(struct page *page, unsigned long offset)
 	return journal_invalidatepage(journal, page, offset);
 }
 
-static int ext3_releasepage(struct page *page, int wait)
+static int ext3_releasepage(struct page *page, gfp_t wait)
 {
 	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
 

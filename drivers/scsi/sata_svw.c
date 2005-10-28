@@ -102,7 +102,7 @@ static void k2_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 }
 
 
-static void k2_sata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
+static void k2_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
@@ -297,7 +297,7 @@ static Scsi_Host_Template k2_sata_sht = {
 };
 
 
-static struct ata_port_operations k2_sata_ops = {
+static const struct ata_port_operations k2_sata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= k2_sata_tf_load,
 	.tf_read		= k2_sata_tf_read,

@@ -1972,7 +1972,7 @@ extern struct address_space_operations reiserfs_address_space_operations;
 
 /* fix_nodes.c */
 #ifdef CONFIG_REISERFS_CHECK
-void *reiserfs_kmalloc(size_t size, int flags, struct super_block *s);
+void *reiserfs_kmalloc(size_t size, gfp_t flags, struct super_block *s);
 void reiserfs_kfree(const void *vp, size_t size, struct super_block *s);
 #else
 static inline void *reiserfs_kmalloc(size_t size, int flags,

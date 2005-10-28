@@ -115,7 +115,7 @@ extern unsigned long uml_physmem;
 #define pfn_valid(pfn) ((pfn) < max_mapnr)
 #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
 
-extern struct page *arch_validate(struct page *page, int mask, int order);
+extern struct page *arch_validate(struct page *page, gfp_t mask, int order);
 #define HAVE_ARCH_VALIDATE
 
 extern void arch_free_page(struct page *page, int order);

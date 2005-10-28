@@ -227,7 +227,7 @@ static inline u32 _MGA_READ(u32 *addr)
 #define MGA_EMIT_STATE( dev_priv, dirty )				\
 do {									\
 	if ( (dirty) & ~MGA_UPLOAD_CLIPRECTS ) {			\
-		if ( dev_priv->chipset == MGA_CARD_TYPE_G400 ) {	\
+		if ( dev_priv->chipset >= MGA_CARD_TYPE_G400 ) {	\
 			mga_g400_emit_state( dev_priv );		\
 		} else {						\
 			mga_g200_emit_state( dev_priv );		\
