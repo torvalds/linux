@@ -39,7 +39,7 @@ EXPORT_SYMBOL(input_close_device);
 EXPORT_SYMBOL(input_accept_process);
 EXPORT_SYMBOL(input_flush_device);
 EXPORT_SYMBOL(input_event);
-EXPORT_SYMBOL_GPL(input_dev_class);
+EXPORT_SYMBOL_GPL(input_class);
 
 #define INPUT_DEVICES	256
 
@@ -729,8 +729,8 @@ static void input_dev_release(struct class_device *class_dev)
 	module_put(THIS_MODULE);
 }
 
-struct class input_dev_class = {
-	.name			= "input_dev",
+struct class input_class = {
+	.name			= "input",
 	.release		= input_dev_release,
 };
 
@@ -741,7 +741,7 @@ struct input_dev *input_allocate_device(void)
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
 	if (dev) {
 		dev->dynalloc = 1;
-		dev->cdev.class = &input_dev_class;
+		dev->cdev.class = &input_class;
 		class_device_initialize(&dev->cdev);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
@@ -930,7 +930,7 @@ static int __init input_init(void)
 {
 	int err;
 
-	err = class_register(&input_dev_class);
+	err = class_register(&input_class);
 	if (err) {
 		printk(KERN_ERR "input: unable to register input_dev class\n");
 		return err;
@@ -949,7 +949,7 @@ static int __init input_init(void)
 	return 0;
 
  fail2:	input_proc_exit();
- fail1:	class_unregister(&input_dev_class);
+ fail1:	class_unregister(&input_class);
 	return err;
 }
 
@@ -957,7 +957,7 @@ static void __exit input_exit(void)
 {
 	input_proc_exit();
 	unregister_chrdev(INPUT_MAJOR, "input");
-	class_unregister(&input_dev_class);
+	class_unregister(&input_class);
 }
 
 subsys_initcall(input_init);

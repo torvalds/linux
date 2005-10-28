@@ -409,7 +409,7 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 
 	tsdev_table[minor] = tsdev;
 
-	class_device_create(&input_dev_class, &dev->cdev,
+	class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
 			dev->cdev.dev, "ts%d", minor);
 
@@ -421,7 +421,7 @@ static void tsdev_disconnect(struct input_handle *handle)
 	struct tsdev *tsdev = handle->private;
 	struct tsdev_list *list;
 
-	class_device_destroy(&input_dev_class,
+	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	tsdev->exist = 0;
 
