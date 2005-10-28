@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 #include <linux/list.h>
 
+#include <asm/sizes.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
 
