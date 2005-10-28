@@ -201,4 +201,7 @@
 #define AAEC_GPIO_PINMUX_CODECON	(1 << 2)
 #define AAEC_GPIO_PINMUX_UART3CON	(1 << 3)
 
+/* LCD Controller */
+#define AAEC_CLCD_PHYS	0x80003000
+
 #endif /* __ARM_ARCH_AAEC2000_H */
