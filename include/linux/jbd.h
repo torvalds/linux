@@ -69,7 +69,7 @@ extern int journal_enable_debug;
 #define jbd_debug(f, a...)	/**/
 #endif
 
-extern void * __jbd_kmalloc (const char *where, size_t size, int flags, int retry);
+extern void * __jbd_kmalloc (const char *where, size_t size, gfp_t flags, int retry);
 #define jbd_kmalloc(size, flags) \
 	__jbd_kmalloc(__FUNCTION__, (size), (flags), journal_oom_retry)
 #define jbd_rep_kmalloc(size, flags) \
@@ -890,7 +890,7 @@ extern int	 journal_forget (handle_t *, struct buffer_head *);
 extern void	 journal_sync_buffer (struct buffer_head *);
 extern int	 journal_invalidatepage(journal_t *,
 				struct page *, unsigned long);
-extern int	 journal_try_to_free_buffers(journal_t *, struct page *, int);
+extern int	 journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
 extern int	 journal_stop(handle_t *);
 extern int	 journal_flush (journal_t *);
 extern void	 journal_lock_updates (journal_t *);
@@ -935,7 +935,7 @@ void journal_put_journal_head(struct journal_head *jh);
  */
 extern kmem_cache_t *jbd_handle_cache;
 
-static inline handle_t *jbd_alloc_handle(unsigned int __nocast gfp_flags)
+static inline handle_t *jbd_alloc_handle(gfp_t gfp_flags)
 {
 	return kmem_cache_alloc(jbd_handle_cache, gfp_flags);
 }

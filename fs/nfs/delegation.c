@@ -85,6 +85,10 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	struct nfs_delegation *delegation;
 	int status = 0;
 
+	/* Ensure we first revalidate the attributes and page cache! */
+	if ((nfsi->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATTR)))
+		__nfs_revalidate_inode(NFS_SERVER(inode), inode);
+
 	delegation = nfs_alloc_delegation();
 	if (delegation == NULL)
 		return -ENOMEM;
@@ -138,7 +142,7 @@ static void nfs_msync_inode(struct inode *inode)
 /*
  * Basic procedure for returning a delegation to the server
  */
-int nfs_inode_return_delegation(struct inode *inode)
+int __nfs_inode_return_delegation(struct inode *inode)
 {
 	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);

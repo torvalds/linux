@@ -70,7 +70,7 @@ struct scan_control {
 	unsigned int priority;
 
 	/* This context's GFP mask */
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 
 	int may_writepage;
 
@@ -186,7 +186,7 @@ EXPORT_SYMBOL(remove_shrinker);
  *
  * Returns the number of slab objects which we shrunk.
  */
-static int shrink_slab(unsigned long scanned, unsigned int gfp_mask,
+static int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 			unsigned long lru_pages)
 {
 	struct shrinker *shrinker;
@@ -511,10 +511,11 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		 * PageDirty _after_ making sure that the page is freeable and
 		 * not in use by anybody. 	(pagecache + us == 2)
 		 */
-		if (page_count(page) != 2 || PageDirty(page)) {
-			write_unlock_irq(&mapping->tree_lock);
-			goto keep_locked;
-		}
+		if (unlikely(page_count(page) != 2))
+			goto cannot_free;
+		smp_rmb();
+		if (unlikely(PageDirty(page)))
+			goto cannot_free;
 
 #ifdef CONFIG_SWAP
 		if (PageSwapCache(page)) {
@@ -537,6 +538,10 @@ free_it:
 		if (!pagevec_add(&freed_pvec, page))
 			__pagevec_release_nonlru(&freed_pvec);
 		continue;
+
+cannot_free:
+		write_unlock_irq(&mapping->tree_lock);
+		goto keep_locked;
 
 activate_locked:
 		SetPageActive(page);
@@ -921,7 +926,7 @@ shrink_caches(struct zone **zones, struct scan_control *sc)
  * holds filesystem locks which prevent writeout this might not work, and the
  * allocation attempt will fail.
  */
-int try_to_free_pages(struct zone **zones, unsigned int gfp_mask)
+int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 {
 	int priority;
 	int ret = 0;
@@ -1333,7 +1338,7 @@ module_init(kswapd_init)
 /*
  * Try to free up some pages from this zone through reclaim.
  */
-int zone_reclaim(struct zone *zone, unsigned int gfp_mask, unsigned int order)
+int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 {
 	struct scan_control sc;
 	int nr_pages = 1 << order;

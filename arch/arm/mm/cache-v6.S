@@ -18,6 +18,7 @@
 #define HARVARD_CACHE
 #define CACHE_LINE_SIZE		32
 #define D_CACHE_LINE_SIZE	32
+#define BTB_FLUSH_SIZE		8
 
 /*
  *	v6_flush_cache_all()
@@ -98,7 +99,13 @@ ENTRY(v6_coherent_user_range)
 	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I line
 #endif
 	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
-	add	r0, r0, #CACHE_LINE_SIZE
+	add	r0, r0, #BTB_FLUSH_SIZE
+	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
+	add	r0, r0, #BTB_FLUSH_SIZE
+	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
+	add	r0, r0, #BTB_FLUSH_SIZE
+	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
+	add	r0, r0, #BTB_FLUSH_SIZE
 	cmp	r0, r1
 	blo	1b
 #ifdef HARVARD_CACHE

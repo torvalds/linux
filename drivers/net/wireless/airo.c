@@ -1046,7 +1046,6 @@ static WifiCtlHdr wifictlhdr8023 = {
 	}
 };
 
-#ifdef WIRELESS_EXT
 // Frequency list (map channels to frequencies)
 static const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
 				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
@@ -1067,7 +1066,6 @@ typedef struct wep_key_t {
 
 /* List of Wireless Handlers (new API) */
 static const struct iw_handler_def	airo_handler_def;
-#endif /* WIRELESS_EXT */
 
 static const char version[] = "airo.c 0.6 (Ben Reed & Javier Achirica)";
 
@@ -1110,10 +1108,8 @@ static irqreturn_t airo_interrupt( int irq, void* dev_id, struct pt_regs
 static int airo_thread(void *data);
 static void timer_func( struct net_device *dev );
 static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-#ifdef WIRELESS_EXT
 static struct iw_statistics *airo_get_wireless_stats (struct net_device *dev);
 static void airo_read_wireless_stats (struct airo_info *local);
-#endif /* WIRELESS_EXT */
 #ifdef CISCO_EXT
 static int readrids(struct net_device *dev, aironet_ioctl *comp);
 static int writerids(struct net_device *dev, aironet_ioctl *comp);
@@ -1187,12 +1183,10 @@ struct airo_info {
 		int fid;
 	} xmit, xmit11;
 	struct net_device *wifidev;
-#ifdef WIRELESS_EXT
 	struct iw_statistics	wstats;		// wireless stats
 	unsigned long		scan_timestamp;	/* Time started to scan */
 	struct iw_spy_data	spy_data;
 	struct iw_public_data	wireless_data;
-#endif /* WIRELESS_EXT */
 #ifdef MICSUPPORT
 	/* MIC stuff */
 	struct crypto_tfm	*tfm;
@@ -2527,7 +2521,8 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	unsigned long mem_start, mem_len, aux_start, aux_len;
 	int rc = -1;
 	int i;
-	unsigned char *busaddroff,*vpackoff;
+	dma_addr_t busaddroff;
+	unsigned char *vpackoff;
 	unsigned char __iomem *pciaddroff;
 
 	mem_start = pci_resource_start(pci, 1);
@@ -2570,7 +2565,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	/*
 	 * Setup descriptor RX, TX, CONFIG
 	 */
-	busaddroff = (unsigned char *)ai->shared_dma;
+	busaddroff = ai->shared_dma;
 	pciaddroff = ai->pciaux + AUX_OFFSET;
 	vpackoff   = ai->shared;
 
@@ -2579,7 +2574,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 		ai->rxfids[i].pending = 0;
 		ai->rxfids[i].card_ram_off = pciaddroff;
 		ai->rxfids[i].virtual_host_addr = vpackoff;
-		ai->rxfids[i].rx_desc.host_addr = (dma_addr_t) busaddroff;
+		ai->rxfids[i].rx_desc.host_addr = busaddroff;
 		ai->rxfids[i].rx_desc.valid = 1;
 		ai->rxfids[i].rx_desc.len = PKTSIZE;
 		ai->rxfids[i].rx_desc.rdy = 0;
@@ -2594,7 +2589,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 		ai->txfids[i].card_ram_off = pciaddroff;
 		ai->txfids[i].virtual_host_addr = vpackoff;
 		ai->txfids[i].tx_desc.valid = 1;
-		ai->txfids[i].tx_desc.host_addr = (dma_addr_t) busaddroff;
+		ai->txfids[i].tx_desc.host_addr = busaddroff;
 		memcpy(ai->txfids[i].virtual_host_addr,
 			&wifictlhdr8023, sizeof(wifictlhdr8023));
 
@@ -2607,8 +2602,8 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	/* Rid descriptor setup */
 	ai->config_desc.card_ram_off = pciaddroff;
 	ai->config_desc.virtual_host_addr = vpackoff;
-	ai->config_desc.rid_desc.host_addr = (dma_addr_t) busaddroff;
-	ai->ridbus = (dma_addr_t)busaddroff;
+	ai->config_desc.rid_desc.host_addr = busaddroff;
+	ai->ridbus = busaddroff;
 	ai->config_desc.rid_desc.rid = 0;
 	ai->config_desc.rid_desc.len = RIDSIZE;
 	ai->config_desc.rid_desc.valid = 1;
@@ -2647,9 +2642,7 @@ static void wifi_setup(struct net_device *dev)
 	dev->get_stats = &airo_get_stats;
 	dev->set_mac_address = &airo_set_mac_address;
 	dev->do_ioctl = &airo_ioctl;
-#ifdef WIRELESS_EXT
 	dev->wireless_handlers = &airo_handler_def;
-#endif /* WIRELESS_EXT */
 	dev->change_mtu = &airo_change_mtu;
 	dev->open = &airo_open;
 	dev->stop = &airo_close;
@@ -2675,9 +2668,7 @@ static struct net_device *init_wifidev(struct airo_info *ai,
 	dev->priv = ethdev->priv;
 	dev->irq = ethdev->irq;
 	dev->base_addr = ethdev->base_addr;
-#ifdef WIRELESS_EXT
 	dev->wireless_data = ethdev->wireless_data;
-#endif /* WIRELESS_EXT */
 	memcpy(dev->dev_addr, ethdev->dev_addr, dev->addr_len);
 	err = register_netdev(dev);
 	if (err<0) {
@@ -2755,11 +2746,9 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	dev->set_multicast_list = &airo_set_multicast_list;
 	dev->set_mac_address = &airo_set_mac_address;
 	dev->do_ioctl = &airo_ioctl;
-#ifdef WIRELESS_EXT
 	dev->wireless_handlers = &airo_handler_def;
 	ai->wireless_data.spy_data = &ai->spy_data;
 	dev->wireless_data = &ai->wireless_data;
-#endif /* WIRELESS_EXT */
 	dev->change_mtu = &airo_change_mtu;
 	dev->open = &airo_open;
 	dev->stop = &airo_close;
@@ -5515,12 +5504,13 @@ static int airo_pci_resume(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct airo_info *ai = dev->priv;
 	Resp rsp;
+	pci_power_t prev_state = pdev->current_state;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, ai->power), 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
-	if (ai->power.event > 1) {
+	if (prev_state != PCI_D1) {
 		reset_card(dev, 0);
 		mpi_init_descriptors(ai);
 		setup_card(ai, dev->dev_addr, 0);
@@ -5598,7 +5588,6 @@ static void __exit airo_cleanup_module( void )
 	remove_proc_entry("aironet", proc_root_driver);
 }
 
-#ifdef WIRELESS_EXT
 /*
  * Initial Wireless Extension code for Aironet driver by :
  *	Jean Tourrilhes <jt@hpl.hp.com> - HPL - 17 November 00
@@ -7107,8 +7096,6 @@ static const struct iw_handler_def	airo_handler_def =
 	.get_wireless_stats = airo_get_wireless_stats,
 };
 
-#endif /* WIRELESS_EXT */
-
 /*
  * This defines the configuration part of the Wireless Extensions
  * Note : irq and spinlock protection will occur in the subroutines
@@ -7187,7 +7174,6 @@ static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
-#ifdef WIRELESS_EXT
 /*
  * Get the Wireless stats out of the driver
  * Note : irq and spinlock protection will occur in the subroutines
@@ -7260,7 +7246,6 @@ static struct iw_statistics *airo_get_wireless_stats(struct net_device *dev)
 
 	return &local->wstats;
 }
-#endif /* WIRELESS_EXT */
 
 #ifdef CISCO_EXT
 /*

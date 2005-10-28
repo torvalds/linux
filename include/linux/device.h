@@ -317,6 +317,11 @@ dev_set_drvdata (struct device *dev, void *data)
 	dev->driver_data = data;
 }
 
+static inline int device_is_registered(struct device *dev)
+{
+	return klist_node_attached(&dev->knode_bus);
+}
+
 /*
  * High level routines for use by the bus drivers
  */

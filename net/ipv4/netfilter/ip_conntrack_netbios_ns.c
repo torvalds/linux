@@ -58,7 +58,7 @@ static int help(struct sk_buff **pskb,
 		goto out;
 
 	rcu_read_lock();
-	in_dev = __in_dev_get(rt->u.dst.dev);
+	in_dev = __in_dev_get_rcu(rt->u.dst.dev);
 	if (in_dev != NULL) {
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_broadcast == iph->daddr) {
@@ -91,7 +91,7 @@ static int help(struct sk_buff **pskb,
 	ip_conntrack_expect_related(exp);
 	ip_conntrack_expect_put(exp);
 
-	ip_ct_refresh_acct(ct, ctinfo, NULL, timeout * HZ);
+	ip_ct_refresh(ct, *pskb, timeout * HZ);
 out:
 	return NF_ACCEPT;
 }

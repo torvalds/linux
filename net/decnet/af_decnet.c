@@ -452,7 +452,7 @@ static struct proto dn_proto = {
 	.obj_size = sizeof(struct dn_sock),
 };
 
-static struct sock *dn_alloc_sock(struct socket *sock, int gfp)
+static struct sock *dn_alloc_sock(struct socket *sock, gfp_t gfp)
 {
 	struct dn_scp *scp;
 	struct sock *sk = sk_alloc(PF_DECnet, gfp, &dn_proto, 1);
@@ -719,22 +719,9 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (saddr->sdn_flags & ~SDF_WILD)
 		return -EINVAL;
 
-#if 1
 	if (!capable(CAP_NET_BIND_SERVICE) && (saddr->sdn_objnum ||
 	    (saddr->sdn_flags & SDF_WILD)))
 		return -EACCES;
-#else
-	/*
-	 * Maybe put the default actions in the default security ops for
-	 * dn_prot_sock ? Would be nice if the capable call would go there
-	 * too.
-	 */
-	if (security_dn_prot_sock(saddr) &&
-	    !capable(CAP_NET_BIND_SERVICE) || 
-	    saddr->sdn_objnum || (saddr->sdn_flags & SDF_WILD))
-		return -EACCES;
-#endif
-
 
 	if (!(saddr->sdn_flags & SDF_WILD)) {
 		if (dn_ntohs(saddr->sdn_nodeaddrl)) {
@@ -804,7 +791,7 @@ static int dn_auto_bind(struct socket *sock)
 	return rv;
 }
 
-static int dn_confirm_accept(struct sock *sk, long *timeo, int allocation)
+static int dn_confirm_accept(struct sock *sk, long *timeo, gfp_t allocation)
 {
 	struct dn_scp *scp = DN_SK(sk);
 	DEFINE_WAIT(wait);

@@ -151,7 +151,12 @@ typedef unsigned long sector_t;
  */
 
 #ifdef __CHECKER__
-#define __bitwise __attribute__((bitwise))
+#define __bitwise__ __attribute__((bitwise))
+#else
+#define __bitwise__
+#endif
+#ifdef __CHECK_ENDIAN__
+#define __bitwise __bitwise__
 #else
 #define __bitwise
 #endif
@@ -163,6 +168,10 @@ typedef __u32 __bitwise __be32;
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
 typedef __u64 __bitwise __le64;
 typedef __u64 __bitwise __be64;
+#endif
+
+#ifdef __KERNEL__
+typedef unsigned __bitwise__ gfp_t;
 #endif
 
 struct ustat {

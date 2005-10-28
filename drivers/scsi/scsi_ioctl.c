@@ -205,7 +205,8 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 	unsigned int inlen, outlen, cmdlen;
 	unsigned int needed, buf_needed;
 	int timeout, retries, result;
-	int data_direction, gfp_mask = GFP_KERNEL;
+	int data_direction;
+	gfp_t gfp_mask = GFP_KERNEL;
 
 	if (!sic)
 		return -EINVAL;

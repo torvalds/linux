@@ -31,7 +31,10 @@
 #define SC_START_SYSCALL(sc) do SC_RAX(sc) = -ENOSYS; while(0)
 
 /* This is Page Fault */
-#define SEGV_IS_FIXABLE(fi) ((fi)->trap_no == 14)
+#define SEGV_IS_FIXABLE(fi)	((fi)->trap_no == 14)
+
+/* No broken SKAS API, which doesn't pass trap_no, here. */
+#define SEGV_MAYBE_FIXABLE(fi)	0
 
 extern unsigned long *sc_sigmask(void *sc_ptr);
 

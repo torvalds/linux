@@ -109,7 +109,7 @@ __do_get_xsec:
 	lwz	r6,(CFG_TB_TO_XS+4)(r9)
 	mulhwu	r4,r7,r5
 	mulhwu	r6,r7,r6
-	mullw	r6,r7,r5
+	mullw	r0,r7,r5
 	addc	r6,r6,r0
 
 	/* At this point, we have the scaled xsec value in r4 + XER:CA

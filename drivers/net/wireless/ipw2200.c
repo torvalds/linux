@@ -4904,7 +4904,7 @@ static void ipw_rx(struct ipw_priv *priv)
 {
 	struct ipw_rx_mem_buffer *rxb;
 	struct ipw_rx_packet *pkt;
-	struct ieee80211_hdr *header;
+	struct ieee80211_hdr_4addr *header;
 	u32 r, w, i;
 	u8 network_packet;
 
@@ -4967,8 +4967,9 @@ static void ipw_rx(struct ipw_priv *priv)
 #endif
 
 				header =
-				    (struct ieee80211_hdr *)(rxb->skb->data +
-							     IPW_RX_FRAME_SIZE);
+				    (struct ieee80211_hdr_4addr *)(rxb->skb->
+								   data +
+								   IPW_RX_FRAME_SIZE);
 				/* TODO: Check Ad-Hoc dest/source and make sure
 				 * that we are actually parsing these packets
 				 * correctly -- we should probably use the
@@ -5317,8 +5318,6 @@ static int ipw_wx_set_freq(struct net_device *dev,
 
 	IPW_DEBUG_WX("SET Freq/Channel -> %d \n", fwrq->m);
 	return ipw_set_channel(priv, (u8) fwrq->m);
-
-	return 0;
 }
 
 static int ipw_wx_get_freq(struct net_device *dev,
@@ -6010,12 +6009,12 @@ static int ipw_wx_set_wireless_mode(struct net_device *dev,
 	}
 
 	if (priv->adapter == IPW_2915ABG) {
-		priv->ieee->abg_ture = 1;
+		priv->ieee->abg_true = 1;
 		if (mode & IEEE_A) {
 			band |= IEEE80211_52GHZ_BAND;
 			modulation |= IEEE80211_OFDM_MODULATION;
 		} else
-			priv->ieee->abg_ture = 0;
+			priv->ieee->abg_true = 0;
 	} else {
 		if (mode & IEEE_A) {
 			IPW_WARNING("Attempt to set 2200BG into "
@@ -6023,20 +6022,20 @@ static int ipw_wx_set_wireless_mode(struct net_device *dev,
 			return -EINVAL;
 		}
 
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 	}
 
 	if (mode & IEEE_B) {
 		band |= IEEE80211_24GHZ_BAND;
 		modulation |= IEEE80211_CCK_MODULATION;
 	} else
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 
 	if (mode & IEEE_G) {
 		band |= IEEE80211_24GHZ_BAND;
 		modulation |= IEEE80211_OFDM_MODULATION;
 	} else
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 
 	priv->ieee->mode = mode;
 	priv->ieee->freq_band = band;
@@ -6325,7 +6324,7 @@ we need to heavily modify the ieee80211_skb_to_txb.
 
 static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)
+	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)
 	    txb->fragments[0]->data;
 	int i = 0;
 	struct tfd_frame *tfd;
@@ -6448,7 +6447,7 @@ static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb)
 }
 
 static int ipw_net_hard_start_xmit(struct ieee80211_txb *txb,
-				   struct net_device *dev)
+				   struct net_device *dev, int pri)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	unsigned long flags;
@@ -7108,7 +7107,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_INFO DRV_NAME
 		       ": Detected Intel PRO/Wireless 2915ABG Network "
 		       "Connection\n");
-		priv->ieee->abg_ture = 1;
+		priv->ieee->abg_true = 1;
 		band = IEEE80211_52GHZ_BAND | IEEE80211_24GHZ_BAND;
 		modulation = IEEE80211_OFDM_MODULATION |
 		    IEEE80211_CCK_MODULATION;
@@ -7124,7 +7123,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			       ": Detected Intel PRO/Wireless 2200BG Network "
 			       "Connection\n");
 
-		priv->ieee->abg_ture = 0;
+		priv->ieee->abg_true = 0;
 		band = IEEE80211_24GHZ_BAND;
 		modulation = IEEE80211_OFDM_MODULATION |
 		    IEEE80211_CCK_MODULATION;

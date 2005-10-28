@@ -4,9 +4,9 @@
  * Copyright (C) 2005 Robert Love <rml@novell.com>
  * Copyright (C) 2005 Jesper Juhl <jesper.juhl@gmail.com>
  *
- * The HardDisk Active Protection System (hdaps) is present in the IBM ThinkPad
- * T41, T42, T43, R50, R50p, R51, and X40, at least.  It provides a basic
- * two-axis accelerometer and other data, such as the device's temperature.
+ * The HardDisk Active Protection System (hdaps) is present in IBM ThinkPads
+ * starting with the R40, T41, and X40.  It provides a basic two-axis
+ * accelerometer and other data, such as the device's temperature.
  *
  * This driver is based on the document by Mark A. Smith available at
  * http://www.almaden.ibm.com/cs/people/marksmith/tpaps.html and a lot of trial
@@ -487,24 +487,19 @@ static struct attribute_group hdaps_attribute_group = {
 
 /* Module stuff */
 
-/*
- * XXX: We should be able to return nonzero and halt the detection process.
- * But there is a bug in dmi_check_system() where a nonzero return from the
- * first match will result in a return of failure from dmi_check_system().
- * I fixed this; the patch is 2.6-git.  Once in a released tree, we can make
- * hdaps_dmi_match_invert() return hdaps_dmi_match(), which in turn returns 1.
- */
+/* hdaps_dmi_match - found a match.  return one, short-circuiting the hunt. */
 static int hdaps_dmi_match(struct dmi_system_id *id)
 {
 	printk(KERN_INFO "hdaps: %s detected.\n", id->ident);
-	return 0;
+	return 1;
 }
 
+/* hdaps_dmi_match_invert - found an inverted match. */
 static int hdaps_dmi_match_invert(struct dmi_system_id *id)
 {
 	hdaps_invert = 1;
 	printk(KERN_INFO "hdaps: inverting axis readings.\n");
-	return 0;
+	return hdaps_dmi_match(id);
 }
 
 #define HDAPS_DMI_MATCH_NORMAL(model)	{		\
@@ -534,6 +529,7 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_INVERT("ThinkPad R50p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R50"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R51"),
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad R52"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T41p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T41"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T42p"),
@@ -541,6 +537,7 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T43"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X40"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41 Tablet"),
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41"),
 		{ .ident = NULL }
 	};
 

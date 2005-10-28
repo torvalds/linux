@@ -968,8 +968,6 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	char *page;
 	ssize_t retval = 0;
 	char *s;
-	char *start;
-	size_t n;
 
 	if (!(page = (char *)__get_free_page(GFP_KERNEL)))
 		return -ENOMEM;
@@ -999,14 +997,7 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	*s++ = '\n';
 	*s = '\0';
 
-	/* Do nothing if *ppos is at the eof or beyond the eof. */
-	if (s - page <= *ppos)
-		return 0;
-
-	start = page + *ppos;
-	n = s - start;
-	retval = n - copy_to_user(buf, start, min(n, nbytes));
-	*ppos += retval;
+	retval = simple_read_from_buffer(buf, nbytes, ppos, page, s - page);
 out:
 	free_page((unsigned long)page);
 	return retval;
@@ -1679,7 +1670,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  **/
 
-int cpuset_zone_allowed(struct zone *z, unsigned int __nocast gfp_mask)
+int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 {
 	int node;			/* node that zone z is on */
 	const struct cpuset *cs;	/* current cpuset ancestors */

@@ -242,6 +242,13 @@ static ssize_t show_virtual(struct class_device *class_device, char *buf)
 			fb_info->var.yres_virtual);
 }
 
+static ssize_t show_stride(struct class_device *class_device, char *buf)
+{
+	struct fb_info *fb_info =
+		(struct fb_info *)class_get_devdata(class_device);
+	return snprintf(buf, PAGE_SIZE, "%d\n", fb_info->fix.line_length);
+}
+
 /* Format for cmap is "%02x%c%4x%4x%4x\n" */
 /* %02x entry %c transp %4x red %4x blue %4x green \n */
 /* 256 rows at 16 chars equals 4096, the normal page size */
@@ -432,6 +439,7 @@ static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(pan, S_IRUGO|S_IWUSR, show_pan, store_pan),
 	__ATTR(virtual_size, S_IRUGO|S_IWUSR, show_virtual, store_virtual),
 	__ATTR(name, S_IRUGO, show_name, NULL),
+	__ATTR(stride, S_IRUGO, show_stride, NULL),
 };
 
 int fb_init_class_device(struct fb_info *fb_info)

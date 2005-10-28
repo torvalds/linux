@@ -326,7 +326,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 					usb_settoggle(udev, ep->epnum,
 						      ep->nextpid ==
 						      USB_PID_OUT,
-						      PTD_GET_TOGGLE(ptd) ^ 1);
+						      PTD_GET_TOGGLE(ptd));
+				urb->actual_length += PTD_GET_COUNT(ptd);
 				urb->status = cc_to_error[TD_DATAUNDERRUN];
 				spin_unlock(&urb->lock);
 				continue;
@@ -693,7 +694,7 @@ static int balance(struct isp116x *isp116x, u16 period, u16 load)
 
 static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 			       struct usb_host_endpoint *hep, struct urb *urb,
-			       unsigned mem_flags)
+			       gfp_t mem_flags)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	struct usb_device *udev = urb->dev;

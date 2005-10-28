@@ -318,7 +318,7 @@ static void ibmtr_cleanup_card(struct net_device *dev)
 	if (dev->base_addr) {
 		outb(0,dev->base_addr+ADAPTRESET);
 		
-		schedule_timeout(TR_RST_TIME); /* wait 50ms */
+		schedule_timeout_uninterruptible(TR_RST_TIME); /* wait 50ms */
 
 		outb(0,dev->base_addr+ADAPTRESETREL);
 	}
@@ -531,7 +531,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			if (!time_after(jiffies, timeout)) continue;
 			DPRINTK( "Hardware timeout during initialization.\n");
 			iounmap(t_mmio);
-			kfree(ti);
 			return -ENODEV;
 		}
 		ti->sram_phys =
@@ -645,7 +644,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			DPRINTK("Unknown shared ram paging info %01X\n",
 							ti->shared_ram_paging);
 			iounmap(t_mmio); 
-			kfree(ti);
 			return -ENODEV;
 			break;
 		} /*end switch shared_ram_paging */
@@ -675,7 +673,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			"driver limit (%05x), adapter not started.\n",
 			chk_base, ibmtr_mem_base + IBMTR_SHARED_RAM_SIZE);
 			iounmap(t_mmio);
-			kfree(ti);
 			return -ENODEV;
 		} else { /* seems cool, record what we have figured out */
 			ti->sram_base = new_base >> 12;
@@ -690,7 +687,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		DPRINTK("Could not grab irq %d.  Halting Token Ring driver.\n",
 					irq);
 		iounmap(t_mmio);
-		kfree(ti);
 		return -ENODEV;
 	}
 	/*?? Now, allocate some of the PIO PORTs for this driver.. */
@@ -699,7 +695,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		DPRINTK("Could not grab PIO range. Halting driver.\n");
 		free_irq(dev->irq, dev);
 		iounmap(t_mmio);
-		kfree(ti);
 		return -EBUSY;
 	}
 
@@ -859,8 +854,7 @@ static int tok_init_card(struct net_device *dev)
 	writeb(~INT_ENABLE, ti->mmio + ACA_OFFSET + ACA_RESET + ISRP_EVEN);
 	outb(0, PIOaddr + ADAPTRESET);
 
-	current->state=TASK_UNINTERRUPTIBLE;
-	schedule_timeout(TR_RST_TIME); /* wait 50ms */
+	schedule_timeout_uninterruptible(TR_RST_TIME); /* wait 50ms */
 
 	outb(0, PIOaddr + ADAPTRESETREL);
 #ifdef ENABLE_PAGING
@@ -908,8 +902,8 @@ static int tok_open(struct net_device *dev)
 			DPRINTK("Adapter is up and running\n");
 			return 0;
 		}
-		current->state=TASK_INTERRUPTIBLE;
-		i=schedule_timeout(TR_RETRY_INTERVAL); /* wait 30 seconds */
+		i=schedule_timeout_interruptible(TR_RETRY_INTERVAL);
+							/* wait 30 seconds */
 		if(i!=0) break; /*prob. a signal, like the i>24*HZ case above */
 	}
 	outb(0, dev->base_addr + ADAPTRESET);/* kill pending interrupts*/

@@ -117,6 +117,10 @@ enum ip_conntrack_events
 	/* NAT info */
 	IPCT_NATINFO_BIT = 10,
 	IPCT_NATINFO = (1 << IPCT_NATINFO_BIT),
+
+	/* Counter highest bit has been set */
+	IPCT_COUNTER_FILLING_BIT = 11,
+	IPCT_COUNTER_FILLING = (1 << IPCT_COUNTER_FILLING_BIT),
 };
 
 enum ip_conntrack_expect_events {
@@ -192,8 +196,8 @@ do {									\
 
 struct ip_conntrack_counter
 {
-	u_int64_t packets;
-	u_int64_t bytes;
+	u_int32_t packets;
+	u_int32_t bytes;
 };
 
 struct ip_conntrack_helper;
@@ -332,11 +336,28 @@ extern void need_ip_conntrack(void);
 extern int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 			  const struct ip_conntrack_tuple *orig);
 
+extern void __ip_ct_refresh_acct(struct ip_conntrack *ct,
+			         enum ip_conntrack_info ctinfo,
+			         const struct sk_buff *skb,
+			         unsigned long extra_jiffies,
+				 int do_acct);
+
+/* Refresh conntrack for this many jiffies and do accounting */
+static inline void ip_ct_refresh_acct(struct ip_conntrack *ct, 
+				      enum ip_conntrack_info ctinfo,
+				      const struct sk_buff *skb,
+				      unsigned long extra_jiffies)
+{
+	__ip_ct_refresh_acct(ct, ctinfo, skb, extra_jiffies, 1);
+}
+
 /* Refresh conntrack for this many jiffies */
-extern void ip_ct_refresh_acct(struct ip_conntrack *ct,
-			       enum ip_conntrack_info ctinfo,
-			       const struct sk_buff *skb,
-			       unsigned long extra_jiffies);
+static inline void ip_ct_refresh(struct ip_conntrack *ct,
+				 const struct sk_buff *skb,
+				 unsigned long extra_jiffies)
+{
+	__ip_ct_refresh_acct(ct, 0, skb, extra_jiffies, 0);
+}
 
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */

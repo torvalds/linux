@@ -296,8 +296,7 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 				struct ip_conntrack_tuple *tuple)
 {
 	if (!tb[CTA_PROTO_ICMP_TYPE-1]
-	    || !tb[CTA_PROTO_ICMP_CODE-1]
-	    || !tb[CTA_PROTO_ICMP_ID-1])
+	    || !tb[CTA_PROTO_ICMP_CODE-1])
 		return -1;
 
 	tuple->dst.u.icmp.type = 

@@ -494,7 +494,7 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_prune);
 
 struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
-			    const unsigned int __nocast priority)
+			    const gfp_t priority)
 {
 	struct sock *newsk = sk_clone(sk, priority);
 

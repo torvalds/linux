@@ -318,7 +318,7 @@ struct cs_sound_settings {
 
 static struct cs_sound_settings sound;
 
-static void *CS_Alloc(unsigned int size, int flags);
+static void *CS_Alloc(unsigned int size, gfp_t flags);
 static void CS_Free(void *ptr, unsigned int size);
 static int CS_IrqInit(void);
 #ifdef MODULE
@@ -959,7 +959,7 @@ static TRANS transCSNormalRead = {
 
 /*** Low level stuff *********************************************************/
 
-static void *CS_Alloc(unsigned int size, int flags)
+static void *CS_Alloc(unsigned int size, gfp_t flags)
 {
 	int	order;
 

@@ -188,7 +188,7 @@ struct icmp_err icmp_err_convert[] = {
 
 /* Control parameters for ECHO replies. */
 int sysctl_icmp_echo_ignore_all;
-int sysctl_icmp_echo_ignore_broadcasts;
+int sysctl_icmp_echo_ignore_broadcasts = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
 int sysctl_icmp_ignore_bogus_error_responses;
@@ -1108,11 +1108,8 @@ void __init icmp_init(struct net_proto_family *ops)
 	struct inet_sock *inet;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		int err;
-
-		if (!cpu_possible(i))
-			continue;
 
 		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,
 				       &per_cpu(__icmp_socket, i));

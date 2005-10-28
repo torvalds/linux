@@ -115,7 +115,7 @@ static struct vm_region consistent_head = {
 };
 
 static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, int gfp)
+vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
@@ -173,7 +173,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
  * virtual and bus address for that space.
  */
 void *
-__dma_alloc_coherent(size_t size, dma_addr_t *handle, int gfp)
+__dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	struct page *page;
 	struct vm_region *c;
@@ -401,10 +401,10 @@ EXPORT_SYMBOL(__dma_sync);
 static inline void __dma_sync_page_highmem(struct page *page,
 		unsigned long offset, size_t size, int direction)
 {
-	size_t seg_size = min((size_t)PAGE_SIZE, size) - offset;
+	size_t seg_size = min((size_t)(PAGE_SIZE - offset), size);
 	size_t cur_size = seg_size;
 	unsigned long flags, start, seg_offset = offset;
-	int nr_segs = PAGE_ALIGN(size + (PAGE_SIZE - offset))/PAGE_SIZE;
+	int nr_segs = 1 + ((size - seg_size) + PAGE_SIZE - 1)/PAGE_SIZE;
 	int seg_nr = 0;
 
 	local_irq_save(flags);

@@ -574,6 +574,8 @@ struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
 	return dev;
 }
 
+EXPORT_SYMBOL(dev_getbyhwaddr);
+
 struct net_device *dev_getfirstbyhwtype(unsigned short type)
 {
 	struct net_device *dev;
@@ -1130,7 +1132,7 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 #endif
 
 /* Keep head the same: replace data */
-int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+int __skb_linearize(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	unsigned int size;
 	u8 *data;
@@ -1256,6 +1258,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 	      skb->protocol != htons(ETH_P_IP))))
 	      	if (skb_checksum_help(skb, 0))
 	      		goto out_kfree_skb;
+
+	spin_lock_prefetch(&dev->queue_lock);
 
 	/* Disable soft irqs for various locks below. Also 
 	 * stops preemption for RCU. 

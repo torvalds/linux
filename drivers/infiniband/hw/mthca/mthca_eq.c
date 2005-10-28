@@ -396,20 +396,21 @@ static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr, struct pt_regs 
 		writel(dev->eq_table.clr_mask, dev->eq_table.clr_int);
 
 	ecr = readl(dev->eq_regs.tavor.ecr_base + 4);
-	if (ecr) {
-		writel(ecr, dev->eq_regs.tavor.ecr_base +
-		       MTHCA_ECR_CLR_BASE - MTHCA_ECR_BASE + 4);
+	if (!ecr)
+		return IRQ_NONE;
 
-		for (i = 0; i < MTHCA_NUM_EQ; ++i)
-			if (ecr & dev->eq_table.eq[i].eqn_mask &&
-			    mthca_eq_int(dev, &dev->eq_table.eq[i])) {
+	writel(ecr, dev->eq_regs.tavor.ecr_base +
+	       MTHCA_ECR_CLR_BASE - MTHCA_ECR_BASE + 4);
+
+	for (i = 0; i < MTHCA_NUM_EQ; ++i)
+		if (ecr & dev->eq_table.eq[i].eqn_mask) {
+			if (mthca_eq_int(dev, &dev->eq_table.eq[i]))
 				tavor_set_eq_ci(dev, &dev->eq_table.eq[i],
 						dev->eq_table.eq[i].cons_index);
-				tavor_eq_req_not(dev, dev->eq_table.eq[i].eqn);
-			}
-	}
+			tavor_eq_req_not(dev, dev->eq_table.eq[i].eqn);
+		}
 
-	return IRQ_RETVAL(ecr);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr,
@@ -836,7 +837,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 		dev->eq_table.clr_mask =
 			swab32(1 << (dev->eq_table.inta_pin & 31));
 		dev->eq_table.clr_int  = dev->clr_base +
-			(dev->eq_table.inta_pin < 31 ? 4 : 0);
+			(dev->eq_table.inta_pin < 32 ? 4 : 0);
 	}
 
 	dev->eq_table.arm_mask = 0;

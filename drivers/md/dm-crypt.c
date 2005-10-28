@@ -96,7 +96,7 @@ static kmem_cache_t *_crypt_io_pool;
 /*
  * Mempool alloc and free functions for the page
  */
-static void *mempool_alloc_page(unsigned int __nocast gfp_mask, void *data)
+static void *mempool_alloc_page(gfp_t gfp_mask, void *data)
 {
 	return alloc_page(gfp_mask);
 }
@@ -331,7 +331,7 @@ crypt_alloc_buffer(struct crypt_config *cc, unsigned int size,
 {
 	struct bio *bio;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	int gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
+	gfp_t gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
 	unsigned int i;
 
 	/*

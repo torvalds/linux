@@ -69,7 +69,7 @@ prom_getsibling(int node)
  * Return -1 on error.
  */
 __inline__ int
-prom_getproplen(int node, char *prop)
+prom_getproplen(int node, const char *prop)
 {
 	if((!node) || (!prop)) return -1;
 	return p1275_cmd ("getproplen", 
@@ -83,20 +83,20 @@ prom_getproplen(int node, char *prop)
  * was successful the length will be returned, else -1 is returned.
  */
 __inline__ int
-prom_getproperty(int node, char *prop, char *buffer, int bufsize)
+prom_getproperty(int node, const char *prop, char *buffer, int bufsize)
 {
 	int plen;
 
 	plen = prom_getproplen(node, prop);
-	if((plen > bufsize) || (plen == 0) || (plen == -1))
+	if ((plen > bufsize) || (plen == 0) || (plen == -1)) {
 		return -1;
-	else {
+	} else {
 		/* Ok, things seem all right. */
-		return p1275_cmd ("getprop", 
-				  P1275_ARG(1,P1275_ARG_IN_STRING)|
-				  P1275_ARG(2,P1275_ARG_OUT_BUF)|
-				  P1275_INOUT(4, 1), 
-				  node, prop, buffer, P1275_SIZE(plen));
+		return p1275_cmd(prom_getprop_name, 
+				 P1275_ARG(1,P1275_ARG_IN_STRING)|
+				 P1275_ARG(2,P1275_ARG_OUT_BUF)|
+				 P1275_INOUT(4, 1), 
+				 node, prop, buffer, P1275_SIZE(plen));
 	}
 }
 
@@ -104,7 +104,7 @@ prom_getproperty(int node, char *prop, char *buffer, int bufsize)
  * on failure.
  */
 __inline__ int
-prom_getint(int node, char *prop)
+prom_getint(int node, const char *prop)
 {
 	int intprop;
 
@@ -119,7 +119,7 @@ prom_getint(int node, char *prop)
  */
 
 int
-prom_getintdefault(int node, char *property, int deflt)
+prom_getintdefault(int node, const char *property, int deflt)
 {
 	int retval;
 
@@ -131,7 +131,7 @@ prom_getintdefault(int node, char *property, int deflt)
 
 /* Acquire a boolean property, 1=TRUE 0=FALSE. */
 int
-prom_getbool(int node, char *prop)
+prom_getbool(int node, const char *prop)
 {
 	int retval;
 
@@ -145,7 +145,7 @@ prom_getbool(int node, char *prop)
  * buffer.
  */
 void
-prom_getstring(int node, char *prop, char *user_buf, int ubuf_size)
+prom_getstring(int node, const char *prop, char *user_buf, int ubuf_size)
 {
 	int len;
 
@@ -160,7 +160,7 @@ prom_getstring(int node, char *prop, char *user_buf, int ubuf_size)
  * YES = 1   NO = 0
  */
 int
-prom_nodematch(int node, char *name)
+prom_nodematch(int node, const char *name)
 {
 	char namebuf[128];
 	prom_getproperty(node, "name", namebuf, sizeof(namebuf));
@@ -172,7 +172,7 @@ prom_nodematch(int node, char *name)
  * 'nodename'.  Return node if successful, zero if not.
  */
 int
-prom_searchsiblings(int node_start, char *nodename)
+prom_searchsiblings(int node_start, const char *nodename)
 {
 
 	int thisnode, error;
@@ -294,7 +294,7 @@ prom_firstprop(int node, char *buffer)
  * property types for this node.
  */
 __inline__ char *
-prom_nextprop(int node, char *oprop, char *buffer)
+prom_nextprop(int node, const char *oprop, char *buffer)
 {
 	char buf[32];
 
@@ -314,15 +314,17 @@ prom_nextprop(int node, char *oprop, char *buffer)
 }
 
 int
-prom_finddevice(char *name)
+prom_finddevice(const char *name)
 {
-	if(!name) return 0;
-	return p1275_cmd ("finddevice", P1275_ARG(0,P1275_ARG_IN_STRING)|
-				        P1275_INOUT(1, 1), 
-				        name);
+	if (!name)
+		return 0;
+	return p1275_cmd(prom_finddev_name,
+			 P1275_ARG(0,P1275_ARG_IN_STRING)|
+			 P1275_INOUT(1, 1), 
+			 name);
 }
 
-int prom_node_has_property(int node, char *prop)
+int prom_node_has_property(int node, const char *prop)
 {
 	char buf [32];
         
@@ -339,7 +341,7 @@ int prom_node_has_property(int node, char *prop)
  * of 'size' bytes.  Return the number of bytes the prom accepted.
  */
 int
-prom_setprop(int node, char *pname, char *value, int size)
+prom_setprop(int node, const char *pname, char *value, int size)
 {
 	if(size == 0) return 0;
 	if((pname == 0) || (value == 0)) return 0;
@@ -364,7 +366,7 @@ prom_inst2pkg(int inst)
  * FIXME: Should work for v0 as well
  */
 int
-prom_pathtoinode(char *path)
+prom_pathtoinode(const char *path)
 {
 	int node, inst;
 

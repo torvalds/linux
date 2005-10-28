@@ -62,27 +62,27 @@ static int __dccp_v4_check_established(struct sock *sk, const __u16 lport,
 	const int dif = sk->sk_bound_dev_if;
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
 	const __u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
-	const int hash = inet_ehashfn(daddr, lport, saddr, inet->dport,
-				      dccp_hashinfo.ehash_size);
-	struct inet_ehash_bucket *head = &dccp_hashinfo.ehash[hash];
+	unsigned int hash = inet_ehashfn(daddr, lport, saddr, inet->dport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(&dccp_hashinfo, hash);
 	const struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
 
+	prefetch(head->chain.first);
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
 	sk_for_each(sk2, node, &(head + dccp_hashinfo.ehash_size)->chain) {
 		tw = inet_twsk(sk2);
 
-		if (INET_TW_MATCH(sk2, acookie, saddr, daddr, ports, dif))
+		if (INET_TW_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 	tw = NULL;
 
 	/* And established part... */
 	sk_for_each(sk2, node, &head->chain) {
-		if (INET_MATCH(sk2, acookie, saddr, daddr, ports, dif))
+		if (INET_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 
@@ -90,7 +90,7 @@ static int __dccp_v4_check_established(struct sock *sk, const __u16 lport,
 	 * in hash table socket with a funny identity. */
 	inet->num = lport;
 	inet->sport = htons(lport);
-	sk->sk_hashent = hash;
+	sk->sk_hash = hash;
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
 	sock_prot_inc_use(sk->sk_prot);
@@ -463,6 +463,7 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 	if (skb != NULL) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
+		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,
 					    ireq->opt);
@@ -647,6 +648,7 @@ int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 	if (skb != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
 
+		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk,
 					    inet->saddr, inet->daddr, NULL);
 		if (err == NET_XMIT_CN)

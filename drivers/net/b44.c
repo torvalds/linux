@@ -106,6 +106,29 @@ static int b44_poll(struct net_device *dev, int *budget);
 static void b44_poll_controller(struct net_device *dev);
 #endif
 
+static int dma_desc_align_mask;
+static int dma_desc_sync_size;
+
+static inline void b44_sync_dma_desc_for_device(struct pci_dev *pdev,
+                                                dma_addr_t dma_base,
+                                                unsigned long offset,
+                                                enum dma_data_direction dir)
+{
+	dma_sync_single_range_for_device(&pdev->dev, dma_base,
+	                                 offset & dma_desc_align_mask,
+	                                 dma_desc_sync_size, dir);
+}
+
+static inline void b44_sync_dma_desc_for_cpu(struct pci_dev *pdev,
+                                             dma_addr_t dma_base,
+                                             unsigned long offset,
+                                             enum dma_data_direction dir)
+{
+	dma_sync_single_range_for_cpu(&pdev->dev, dma_base,
+	                              offset & dma_desc_align_mask,
+	                              dma_desc_sync_size, dir);
+}
+
 static inline unsigned long br32(const struct b44 *bp, unsigned long reg)
 {
 	return readl(bp->regs + reg);
@@ -668,6 +691,11 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	dp->ctrl = cpu_to_le32(ctrl);
 	dp->addr = cpu_to_le32((u32) mapping + bp->rx_offset + bp->dma_offset);
 
+	if (bp->flags & B44_FLAG_RX_RING_HACK)
+		b44_sync_dma_desc_for_device(bp->pdev, bp->rx_ring_dma,
+		                             dest_idx * sizeof(dp),
+		                             DMA_BIDIRECTIONAL);
+
 	return RX_PKT_BUF_SZ;
 }
 
@@ -692,6 +720,11 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	pci_unmap_addr_set(dest_map, mapping,
 			   pci_unmap_addr(src_map, mapping));
 
+	if (bp->flags & B44_FLAG_RX_RING_HACK)
+		b44_sync_dma_desc_for_cpu(bp->pdev, bp->rx_ring_dma,
+		                          src_idx * sizeof(src_desc),
+		                          DMA_BIDIRECTIONAL);
+
 	ctrl = src_desc->ctrl;
 	if (dest_idx == (B44_RX_RING_SIZE - 1))
 		ctrl |= cpu_to_le32(DESC_CTRL_EOT);
@@ -700,7 +733,13 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 
 	dest_desc->ctrl = ctrl;
 	dest_desc->addr = src_desc->addr;
+
 	src_map->skb = NULL;
+
+	if (bp->flags & B44_FLAG_RX_RING_HACK)
+		b44_sync_dma_desc_for_device(bp->pdev, bp->rx_ring_dma,
+		                             dest_idx * sizeof(dest_desc),
+		                             DMA_BIDIRECTIONAL);
 
 	pci_dma_sync_single_for_device(bp->pdev, src_desc->addr,
 				       RX_PKT_BUF_SZ,
@@ -959,6 +998,11 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bp->tx_ring[entry].ctrl = cpu_to_le32(ctrl);
 	bp->tx_ring[entry].addr = cpu_to_le32((u32) mapping+bp->dma_offset);
 
+	if (bp->flags & B44_FLAG_TX_RING_HACK)
+		b44_sync_dma_desc_for_device(bp->pdev, bp->tx_ring_dma,
+		                             entry * sizeof(bp->tx_ring[0]),
+		                             DMA_TO_DEVICE);
+
 	entry = NEXT_TX(entry);
 
 	bp->tx_prod = entry;
@@ -1064,6 +1108,16 @@ static void b44_init_rings(struct b44 *bp)
 	memset(bp->rx_ring, 0, B44_RX_RING_BYTES);
 	memset(bp->tx_ring, 0, B44_TX_RING_BYTES);
 
+	if (bp->flags & B44_FLAG_RX_RING_HACK)
+		dma_sync_single_for_device(&bp->pdev->dev, bp->rx_ring_dma,
+		                           DMA_TABLE_BYTES,
+		                           PCI_DMA_BIDIRECTIONAL);
+
+	if (bp->flags & B44_FLAG_TX_RING_HACK)
+		dma_sync_single_for_device(&bp->pdev->dev, bp->tx_ring_dma,
+		                           DMA_TABLE_BYTES,
+		                           PCI_DMA_TODEVICE);
+
 	for (i = 0; i < bp->rx_pending; i++) {
 		if (b44_alloc_rx_skb(bp, -1, i) < 0)
 			break;
@@ -1085,14 +1139,28 @@ static void b44_free_consistent(struct b44 *bp)
 		bp->tx_buffers = NULL;
 	}
 	if (bp->rx_ring) {
-		pci_free_consistent(bp->pdev, DMA_TABLE_BYTES,
-				    bp->rx_ring, bp->rx_ring_dma);
+		if (bp->flags & B44_FLAG_RX_RING_HACK) {
+			dma_unmap_single(&bp->pdev->dev, bp->rx_ring_dma,
+				         DMA_TABLE_BYTES,
+				         DMA_BIDIRECTIONAL);
+			kfree(bp->rx_ring);
+		} else
+			pci_free_consistent(bp->pdev, DMA_TABLE_BYTES,
+					    bp->rx_ring, bp->rx_ring_dma);
 		bp->rx_ring = NULL;
+		bp->flags &= ~B44_FLAG_RX_RING_HACK;
 	}
 	if (bp->tx_ring) {
-		pci_free_consistent(bp->pdev, DMA_TABLE_BYTES,
-				    bp->tx_ring, bp->tx_ring_dma);
+		if (bp->flags & B44_FLAG_TX_RING_HACK) {
+			dma_unmap_single(&bp->pdev->dev, bp->tx_ring_dma,
+				         DMA_TABLE_BYTES,
+				         DMA_TO_DEVICE);
+			kfree(bp->tx_ring);
+		} else
+			pci_free_consistent(bp->pdev, DMA_TABLE_BYTES,
+					    bp->tx_ring, bp->tx_ring_dma);
 		bp->tx_ring = NULL;
+		bp->flags &= ~B44_FLAG_TX_RING_HACK;
 	}
 }
 
@@ -1118,12 +1186,56 @@ static int b44_alloc_consistent(struct b44 *bp)
 
 	size = DMA_TABLE_BYTES;
 	bp->rx_ring = pci_alloc_consistent(bp->pdev, size, &bp->rx_ring_dma);
-	if (!bp->rx_ring)
-		goto out_err;
+	if (!bp->rx_ring) {
+		/* Allocation may have failed due to pci_alloc_consistent
+		   insisting on use of GFP_DMA, which is more restrictive
+		   than necessary...  */
+		struct dma_desc *rx_ring;
+		dma_addr_t rx_ring_dma;
+
+		if (!(rx_ring = (struct dma_desc *)kmalloc(size, GFP_KERNEL)))
+			goto out_err;
+
+		memset(rx_ring, 0, size);
+		rx_ring_dma = dma_map_single(&bp->pdev->dev, rx_ring,
+		                             DMA_TABLE_BYTES,
+		                             DMA_BIDIRECTIONAL);
+
+		if (rx_ring_dma + size > B44_DMA_MASK) {
+			kfree(rx_ring);
+			goto out_err;
+		}
+
+		bp->rx_ring = rx_ring;
+		bp->rx_ring_dma = rx_ring_dma;
+		bp->flags |= B44_FLAG_RX_RING_HACK;
+	}
 
 	bp->tx_ring = pci_alloc_consistent(bp->pdev, size, &bp->tx_ring_dma);
-	if (!bp->tx_ring)
-		goto out_err;
+	if (!bp->tx_ring) {
+		/* Allocation may have failed due to pci_alloc_consistent
+		   insisting on use of GFP_DMA, which is more restrictive
+		   than necessary...  */
+		struct dma_desc *tx_ring;
+		dma_addr_t tx_ring_dma;
+
+		if (!(tx_ring = (struct dma_desc *)kmalloc(size, GFP_KERNEL)))
+			goto out_err;
+
+		memset(tx_ring, 0, size);
+		tx_ring_dma = dma_map_single(&bp->pdev->dev, tx_ring,
+		                             DMA_TABLE_BYTES,
+		                             DMA_TO_DEVICE);
+
+		if (tx_ring_dma + size > B44_DMA_MASK) {
+			kfree(tx_ring);
+			goto out_err;
+		}
+
+		bp->tx_ring = tx_ring;
+		bp->tx_ring_dma = tx_ring_dma;
+		bp->flags |= B44_FLAG_TX_RING_HACK;
+	}
 
 	return 0;
 
@@ -1676,6 +1788,7 @@ static struct ethtool_ops b44_ethtool_ops = {
 	.set_pauseparam		= b44_set_pauseparam,
 	.get_msglevel		= b44_get_msglevel,
 	.set_msglevel		= b44_set_msglevel,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -1718,6 +1831,7 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	bp->dev->dev_addr[3] = eeprom[80];
 	bp->dev->dev_addr[4] = eeprom[83];
 	bp->dev->dev_addr[5] = eeprom[82];
+	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
 
 	bp->phy_addr = eeprom[90] & 0x1f;
 
@@ -1971,6 +2085,12 @@ static struct pci_driver b44_driver = {
 
 static int __init b44_init(void)
 {
+	unsigned int dma_desc_align_size = dma_get_cache_alignment();
+
+	/* Setup paramaters for syncing RX/TX DMA descriptors */
+	dma_desc_align_mask = ~(dma_desc_align_size - 1);
+	dma_desc_sync_size = max(dma_desc_align_size, sizeof(struct dma_desc));
+
 	return pci_module_init(&b44_driver);
 }
 

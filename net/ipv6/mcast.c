@@ -1393,7 +1393,7 @@ static void mld_sendpack(struct sk_buff *skb)
 
 static int grec_size(struct ifmcaddr6 *pmc, int type, int gdel, int sdel)
 {
-	return sizeof(struct mld2_grec) + 4*mld_scount(pmc,type,gdel,sdel);
+	return sizeof(struct mld2_grec) + 16 * mld_scount(pmc,type,gdel,sdel);
 }
 
 static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,

@@ -61,7 +61,9 @@ static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 
 static struct neigh_table *neigh_tables;
+#ifdef CONFIG_PROC_FS
 static struct file_operations neigh_stat_seq_fops;
+#endif
 
 /*
    Neighbour hash table buckets are protected with rwlock tbl->lock.
@@ -173,38 +175,9 @@ static void pneigh_queue_purge(struct sk_buff_head *list)
 	}
 }
 
-void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
+static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 {
 	int i;
-
-	write_lock_bh(&tbl->lock);
-
-	for (i=0; i <= tbl->hash_mask; i++) {
-		struct neighbour *n, **np;
-
-		np = &tbl->hash_buckets[i];
-		while ((n = *np) != NULL) {
-			if (dev && n->dev != dev) {
-				np = &n->next;
-				continue;
-			}
-			*np = n->next;
-			write_lock_bh(&n->lock);
-			n->dead = 1;
-			neigh_del_timer(n);
-			write_unlock_bh(&n->lock);
-			neigh_release(n);
-		}
-	}
-
-        write_unlock_bh(&tbl->lock);
-}
-
-int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
-{
-	int i;
-
-	write_lock_bh(&tbl->lock);
 
 	for (i = 0; i <= tbl->hash_mask; i++) {
 		struct neighbour *n, **np = &tbl->hash_buckets[i];
@@ -241,7 +214,19 @@ int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 			neigh_release(n);
 		}
 	}
+}
 
+void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
+{
+	write_lock_bh(&tbl->lock);
+	neigh_flush_dev(tbl, dev);
+	write_unlock_bh(&tbl->lock);
+}
+
+int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
+{
+	write_lock_bh(&tbl->lock);
+	neigh_flush_dev(tbl, dev);
 	pneigh_ifdown(tbl, dev);
 	write_unlock_bh(&tbl->lock);
 
@@ -725,6 +710,14 @@ static __inline__ int neigh_max_probes(struct neighbour *n)
 		p->ucast_probes + p->app_probes + p->mcast_probes);
 }
 
+static inline void neigh_add_timer(struct neighbour *n, unsigned long when)
+{
+	if (unlikely(mod_timer(&n->timer, when))) {
+		printk("NEIGH: BUG, double timer add, state is %x\n",
+		       n->nud_state);
+		dump_stack();
+	}
+}
 
 /* Called when a timer expires for a neighbour entry. */
 
@@ -806,11 +799,10 @@ static void neigh_timer_handler(unsigned long arg)
 	}
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
-		neigh_hold(neigh);
 		if (time_before(next, jiffies + HZ/2))
 			next = jiffies + HZ/2;
-		neigh->timer.expires = next;
-		add_timer(&neigh->timer);
+		if (!mod_timer(&neigh->timer, next))
+			neigh_hold(neigh);
 	}
 	if (neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) {
 		struct sk_buff *skb = skb_peek(&neigh->arp_queue);
@@ -852,8 +844,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			atomic_set(&neigh->probes, neigh->parms->ucast_probes);
 			neigh->nud_state     = NUD_INCOMPLETE;
 			neigh_hold(neigh);
-			neigh->timer.expires = now + 1;
-			add_timer(&neigh->timer);
+			neigh_add_timer(neigh, now + 1);
 		} else {
 			neigh->nud_state = NUD_FAILED;
 			write_unlock_bh(&neigh->lock);
@@ -866,8 +857,8 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 		NEIGH_PRINTK2("neigh %p is delayed.\n", neigh);
 		neigh_hold(neigh);
 		neigh->nud_state = NUD_DELAY;
-		neigh->timer.expires = jiffies + neigh->parms->delay_probe_time;
-		add_timer(&neigh->timer);
+		neigh_add_timer(neigh,
+				jiffies + neigh->parms->delay_probe_time);
 	}
 
 	if (neigh->nud_state == NUD_INCOMPLETE) {
@@ -1013,10 +1004,10 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		neigh_del_timer(neigh);
 		if (new & NUD_IN_TIMER) {
 			neigh_hold(neigh);
-			neigh->timer.expires = jiffies + 
+			neigh_add_timer(neigh, (jiffies + 
 						((new & NUD_REACHABLE) ? 
-						 neigh->parms->reachable_time : 0);
-			add_timer(&neigh->timer);
+						 neigh->parms->reachable_time :
+						 0)));
 		}
 		neigh->nud_state = new;
 	}
@@ -1634,11 +1625,8 @@ static int neightbl_fill_info(struct neigh_table *tbl, struct sk_buff *skb,
 
 		memset(&ndst, 0, sizeof(ndst));
 
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		for_each_cpu(cpu) {
 			struct neigh_statistics	*st;
-
-			if (!cpu_possible(cpu))
-				continue;
 
 			st = per_cpu_ptr(tbl->stats, cpu);
 			ndst.ndts_allocs		+= st->allocs;

@@ -46,7 +46,7 @@ struct kernel_debug {
 extern struct kernel_debug *linux_dbvec;
 
 /* Use this macro in C-code to enter the debugger. */
-extern __inline__ void sp_enter_debugger(void)
+static inline void sp_enter_debugger(void)
 {
 	__asm__ __volatile__("jmpl %0, %%o7\n\t"
 			     "nop\n\t" : :

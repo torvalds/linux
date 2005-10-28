@@ -181,17 +181,17 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t,
 int sctp_chunk_iif(const struct sctp_chunk *);
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *,
 					     struct sctp_chunk *,
-					     unsigned int __nocast gfp);
+					     gfp_t gfp);
 __u32 sctp_generate_verification_tag(void);
 void sctp_populate_tie_tags(__u8 *cookie, __u32 curTag, __u32 hisTag);
 
 /* Prototypes for chunk-building functions.  */
 struct sctp_chunk *sctp_make_init(const struct sctp_association *,
 			     const struct sctp_bind_addr *,
-			     unsigned int __nocast gfp, int vparam_len);
+			     gfp_t gfp, int vparam_len);
 struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *,
 				 const struct sctp_chunk *,
-				 const unsigned int __nocast gfp,
+				 const gfp_t gfp,
 				 const int unkparam_len);
 struct sctp_chunk *sctp_make_cookie_echo(const struct sctp_association *,
 				    const struct sctp_chunk *);
@@ -265,7 +265,7 @@ int sctp_do_sm(sctp_event_t event_type, sctp_subtype_t subtype,
                struct sctp_endpoint *,
                struct sctp_association *asoc,
                void *event_arg,
-	       unsigned int __nocast gfp);
+	       gfp_t gfp);
 
 /* 2nd level prototypes */
 void sctp_generate_t3_rtx_event(unsigned long peer);
@@ -276,7 +276,7 @@ void sctp_ootb_pkt_free(struct sctp_packet *);
 struct sctp_association *sctp_unpack_cookie(const struct sctp_endpoint *,
 				       const struct sctp_association *,
 				       struct sctp_chunk *,
-				       unsigned int __nocast gfp, int *err,
+				       gfp_t gfp, int *err,
 				       struct sctp_chunk **err_chk_p);
 int sctp_addip_addr_config(struct sctp_association *, sctp_param_t,
 			   struct sockaddr_storage*, int);

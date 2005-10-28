@@ -15,7 +15,7 @@
  * atomic.
  */
 
-extern __inline__ __volatile__ char test_and_set(void *addr)
+static inline __volatile__ char test_and_set(void *addr)
 {
 	char state = 0;
 
@@ -27,7 +27,7 @@ extern __inline__ __volatile__ char test_and_set(void *addr)
 }
 
 /* Initialize a spin-lock. */
-extern __inline__ __volatile__ smp_initlock(void *spinlock)
+static inline __volatile__ smp_initlock(void *spinlock)
 {
 	/* Unset the lock. */
 	*((unsigned char *) spinlock) = 0;
@@ -36,7 +36,7 @@ extern __inline__ __volatile__ smp_initlock(void *spinlock)
 }
 
 /* This routine spins until it acquires the lock at ADDR. */
-extern __inline__ __volatile__ smp_lock(void *addr)
+static inline __volatile__ smp_lock(void *addr)
 {
 	while(test_and_set(addr) == 0xff)
 		;
@@ -46,7 +46,7 @@ extern __inline__ __volatile__ smp_lock(void *addr)
 }
 
 /* This routine releases the lock at ADDR. */
-extern __inline__ __volatile__ smp_unlock(void *addr)
+static inline __volatile__ smp_unlock(void *addr)
 {
 	*((unsigned char *) addr) = 0;
 }

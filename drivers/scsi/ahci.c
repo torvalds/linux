@@ -216,7 +216,7 @@ static Scsi_Host_Template ahci_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations ahci_ops = {
+static const struct ata_port_operations ahci_ops = {
 	.port_disable		= ata_port_disable,
 
 	.check_status		= ahci_check_status,
@@ -407,7 +407,7 @@ static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg_in)
 		return 0xffffffffU;
 	}
 
-	return readl((void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -425,7 +425,7 @@ static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg_in,
 		return;
 	}
 
-	writel(val, (void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void ahci_phy_reset(struct ata_port *ap)
@@ -453,14 +453,14 @@ static void ahci_phy_reset(struct ata_port *ap)
 
 static u8 ahci_check_status(struct ata_port *ap)
 {
-	void *mmio = (void *) ap->ioaddr.cmd_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 
 	return readl(mmio + PORT_TFDATA) & 0xFF;
 }
 
 static u8 ahci_check_err(struct ata_port *ap)
 {
-	void *mmio = (void *) ap->ioaddr.cmd_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 
 	return (readl(mmio + PORT_TFDATA) >> 8) & 0xFF;
 }
@@ -672,17 +672,36 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 
         for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap;
-		u32 tmp;
 
-		VPRINTK("port %u\n", i);
+		if (!(irq_stat & (1 << i)))
+			continue;
+
 		ap = host_set->ports[i];
-		tmp = irq_stat & (1 << i);
-		if (tmp && ap) {
+		if (ap) {
 			struct ata_queued_cmd *qc;
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (ahci_host_intr(ap, qc))
-				irq_ack |= (1 << i);
+			if (!ahci_host_intr(ap, qc))
+				if (ata_ratelimit()) {
+					struct pci_dev *pdev =
+					  to_pci_dev(ap->host_set->dev);
+					printk(KERN_WARNING
+					  "ahci(%s): unhandled interrupt on port %u\n",
+					  pci_name(pdev), i);
+				}
+
+			VPRINTK("port %u\n", i);
+		} else {
+			VPRINTK("port %u (no irq)\n", i);
+			if (ata_ratelimit()) {
+				struct pci_dev *pdev =
+				  to_pci_dev(ap->host_set->dev);
+				printk(KERN_WARNING
+				  "ahci(%s): interrupt on disabled port %u\n",
+				  pci_name(pdev), i);
+			}
 		}
+
+		irq_ack |= (1 << i);
 	}
 
 	if (irq_ack) {

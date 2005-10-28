@@ -162,13 +162,13 @@ typedef struct acct acct_t;
 #ifdef __KERNEL__
 /*
  * Yet another set of HZ to *HZ helper functions.
- * See <linux/times.h> for the original.
+ * See <linux/jiffies.h> for the original.
  */
 
 static inline u32 jiffies_to_AHZ(unsigned long x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / AHZ)) == 0
-	return x / (HZ / USER_HZ);
+	return x / (HZ / AHZ);
 #else
         u64 tmp = (u64)x * TICK_NSEC;
         do_div(tmp, (NSEC_PER_SEC / AHZ));

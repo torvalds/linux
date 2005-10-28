@@ -52,7 +52,7 @@ extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
 extern int qla24xx_load_risc_flash(scsi_qla_host_t *, uint32_t *);
 extern int qla24xx_load_risc_hotplug(scsi_qla_host_t *, uint32_t *);
 
-extern fc_port_t *qla2x00_alloc_fcport(scsi_qla_host_t *, int);
+extern fc_port_t *qla2x00_alloc_fcport(scsi_qla_host_t *, gfp_t);
 
 extern int qla2x00_loop_resync(scsi_qla_host_t *);
 
@@ -277,7 +277,7 @@ extern int qla2x00_fdmi_register(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_rscn.c source file.
  */
-extern fc_port_t *qla2x00_alloc_rscn_fcport(scsi_qla_host_t *, int);
+extern fc_port_t *qla2x00_alloc_rscn_fcport(scsi_qla_host_t *, gfp_t);
 extern int qla2x00_handle_port_rscn(scsi_qla_host_t *, uint32_t, fc_port_t *,
     int);
 extern void qla2x00_process_iodesc(scsi_qla_host_t *, struct mbx_entry *);

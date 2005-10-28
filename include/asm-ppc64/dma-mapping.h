@@ -19,7 +19,7 @@
 extern int dma_supported(struct device *dev, u64 mask);
 extern int dma_set_mask(struct device *dev, u64 dma_mask);
 extern void *dma_alloc_coherent(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, unsigned int __nocast flag);
+		dma_addr_t *dma_handle, gfp_t flag);
 extern void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_handle);
 extern dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
@@ -118,7 +118,7 @@ dma_cache_sync(void *vaddr, size_t size,
  */
 struct dma_mapping_ops {
 	void *		(*alloc_coherent)(struct device *dev, size_t size,
-				dma_addr_t *dma_handle, unsigned int __nocast flag);
+				dma_addr_t *dma_handle, gfp_t flag);
 	void		(*free_coherent)(struct device *dev, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
 	dma_addr_t	(*map_single)(struct device *dev, void *ptr,

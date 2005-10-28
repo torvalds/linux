@@ -1,6 +1,8 @@
 #ifndef _IP_CONNTRACK_TUPLE_H
 #define _IP_CONNTRACK_TUPLE_H
 
+#include <linux/types.h>
+
 /* A `tuple' is a structure containing the information to uniquely
   identify a connection.  ie. if two packets have the same tuple, they
   are in the same connection; if not, they are not.
@@ -17,7 +19,7 @@ union ip_conntrack_manip_proto
 	u_int16_t all;
 
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} tcp;
 	struct {
 		u_int16_t port;
@@ -29,7 +31,7 @@ union ip_conntrack_manip_proto
 		u_int16_t port;
 	} sctp;
 	struct {
-		u_int16_t key;	/* key is 32bit, pptp only uses 16 */
+		__be16 key;	/* key is 32bit, pptp only uses 16 */
 	} gre;
 };
 
@@ -65,7 +67,7 @@ struct ip_conntrack_tuple
 				u_int16_t port;
 			} sctp;
 			struct {
-				u_int16_t key;	/* key is 32bit, 
+				__be16 key;	/* key is 32bit, 
 						 * pptp only uses 16 */
 			} gre;
 		} u;

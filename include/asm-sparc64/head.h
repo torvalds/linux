@@ -12,9 +12,12 @@
 #define __JALAPENO_ID	0x003e0016
 
 #define CHEETAH_MANUF		0x003e
-#define CHEETAH_IMPL		0x0014
-#define CHEETAH_PLUS_IMPL	0x0015
-#define JALAPENO_IMPL		0x0016
+#define CHEETAH_IMPL		0x0014 /* Ultra-III   */
+#define CHEETAH_PLUS_IMPL	0x0015 /* Ultra-III+  */
+#define JALAPENO_IMPL		0x0016 /* Ultra-IIIi  */
+#define JAGUAR_IMPL		0x0018 /* Ultra-IV    */
+#define PANTHER_IMPL		0x0019 /* Ultra-IV+   */
+#define SERRANO_IMPL		0x0022 /* Ultra-IIIi+ */
 
 #define BRANCH_IF_CHEETAH_BASE(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\

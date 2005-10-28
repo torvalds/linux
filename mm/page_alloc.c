@@ -671,7 +671,7 @@ void fastcall free_cold_page(struct page *page)
 	free_hot_cold_page(page, 1);
 }
 
-static inline void prep_zero_page(struct page *page, int order, unsigned int __nocast gfp_flags)
+static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
 {
 	int i;
 
@@ -686,7 +686,7 @@ static inline void prep_zero_page(struct page *page, int order, unsigned int __n
  * or two.
  */
 static struct page *
-buffered_rmqueue(struct zone *zone, int order, unsigned int __nocast gfp_flags)
+buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 {
 	unsigned long flags;
 	struct page *page = NULL;
@@ -734,7 +734,7 @@ buffered_rmqueue(struct zone *zone, int order, unsigned int __nocast gfp_flags)
  * of the allocation.
  */
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-		      int classzone_idx, int can_try_harder, int gfp_high)
+		      int classzone_idx, int can_try_harder, gfp_t gfp_high)
 {
 	/* free_pages my go negative - that's OK */
 	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
@@ -761,7 +761,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 }
 
 static inline int
-should_reclaim_zone(struct zone *z, unsigned int gfp_mask)
+should_reclaim_zone(struct zone *z, gfp_t gfp_mask)
 {
 	if (!z->reclaim_pages)
 		return 0;
@@ -774,10 +774,10 @@ should_reclaim_zone(struct zone *z, unsigned int gfp_mask)
  * This is the 'heart' of the zoned buddy allocator.
  */
 struct page * fastcall
-__alloc_pages(unsigned int __nocast gfp_mask, unsigned int order,
+__alloc_pages(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist)
 {
-	const int wait = gfp_mask & __GFP_WAIT;
+	const gfp_t wait = gfp_mask & __GFP_WAIT;
 	struct zone **zones, *z;
 	struct page *page;
 	struct reclaim_state reclaim_state;
@@ -977,7 +977,7 @@ EXPORT_SYMBOL(__alloc_pages);
 /*
  * Common helper functions.
  */
-fastcall unsigned long __get_free_pages(unsigned int __nocast gfp_mask, unsigned int order)
+fastcall unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
 {
 	struct page * page;
 	page = alloc_pages(gfp_mask, order);
@@ -988,7 +988,7 @@ fastcall unsigned long __get_free_pages(unsigned int __nocast gfp_mask, unsigned
 
 EXPORT_SYMBOL(__get_free_pages);
 
-fastcall unsigned long get_zeroed_page(unsigned int __nocast gfp_mask)
+fastcall unsigned long get_zeroed_page(gfp_t gfp_mask)
 {
 	struct page * page;
 
@@ -996,7 +996,7 @@ fastcall unsigned long get_zeroed_page(unsigned int __nocast gfp_mask)
 	 * get_zeroed_page() returns a 32-bit address, which cannot represent
 	 * a highmem page
 	 */
-	BUG_ON(gfp_mask & __GFP_HIGHMEM);
+	BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
 
 	page = alloc_pages(gfp_mask | __GFP_ZERO, 0);
 	if (page)
@@ -1089,7 +1089,7 @@ static unsigned int nr_free_zone_pages(int offset)
  */
 unsigned int nr_free_buffer_pages(void)
 {
-	return nr_free_zone_pages(GFP_USER & GFP_ZONEMASK);
+	return nr_free_zone_pages(gfp_zone(GFP_USER));
 }
 
 /*
@@ -1097,7 +1097,7 @@ unsigned int nr_free_buffer_pages(void)
  */
 unsigned int nr_free_pagecache_pages(void)
 {
-	return nr_free_zone_pages(GFP_HIGHUSER & GFP_ZONEMASK);
+	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -1428,6 +1428,16 @@ static int __init build_zonelists_node(pg_data_t *pgdat, struct zonelist *zoneli
 	return j;
 }
 
+static inline int highest_zone(int zone_bits)
+{
+	int res = ZONE_NORMAL;
+	if (zone_bits & (__force int)__GFP_HIGHMEM)
+		res = ZONE_HIGHMEM;
+	if (zone_bits & (__force int)__GFP_DMA)
+		res = ZONE_DMA;
+	return res;
+}
+
 #ifdef CONFIG_NUMA
 #define MAX_NODE_LOAD (num_online_nodes())
 static int __initdata node_load[MAX_NUMNODES];
@@ -1524,11 +1534,7 @@ static void __init build_zonelists(pg_data_t *pgdat)
 			zonelist = pgdat->node_zonelists + i;
 			for (j = 0; zonelist->zones[j] != NULL; j++);
 
-			k = ZONE_NORMAL;
-			if (i & __GFP_HIGHMEM)
-				k = ZONE_HIGHMEM;
-			if (i & __GFP_DMA)
-				k = ZONE_DMA;
+			k = highest_zone(i);
 
 	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
 			zonelist->zones[j] = NULL;
@@ -1549,12 +1555,7 @@ static void __init build_zonelists(pg_data_t *pgdat)
 		zonelist = pgdat->node_zonelists + i;
 
 		j = 0;
-		k = ZONE_NORMAL;
-		if (i & __GFP_HIGHMEM)
-			k = ZONE_HIGHMEM;
-		if (i & __GFP_DMA)
-			k = ZONE_DMA;
-
+		k = highest_zone(i);
  		j = build_zonelists_node(pgdat, zonelist, j, k);
  		/*
  		 * Now we build the zonelist so that it contains the zones
@@ -1749,6 +1750,8 @@ static int __devinit zone_batchsize(struct zone *zone)
 inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 {
 	struct per_cpu_pages *pcp;
+
+	memset(p, 0, sizeof(*p));
 
 	pcp = &p->pcp[0];		/* hot */
 	pcp->count = 0;

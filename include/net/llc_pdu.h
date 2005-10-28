@@ -254,8 +254,10 @@ static inline void llc_pdu_decode_sa(struct sk_buff *skb, u8 *sa)
 {
 	if (skb->protocol == ntohs(ETH_P_802_2))
 		memcpy(sa, eth_hdr(skb)->h_source, ETH_ALEN);
-	else if (skb->protocol == ntohs(ETH_P_TR_802_2))
+	else if (skb->protocol == ntohs(ETH_P_TR_802_2)) {
 		memcpy(sa, tr_hdr(skb)->saddr, ETH_ALEN);
+		*sa &= 0x7F;
+	}
 }
 
 /**

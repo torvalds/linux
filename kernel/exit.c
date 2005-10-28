@@ -843,6 +843,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
  		del_timer_sync(&tsk->signal->real_timer);
+		exit_itimers(tsk->signal);
 		acct_process(code);
 	}
 	exit_mm(tsk);
@@ -1203,7 +1204,7 @@ static int wait_task_stopped(task_t *p, int delayed_group_leader, int noreap,
 
 		exit_code = p->exit_code;
 		if (unlikely(!exit_code) ||
-		    unlikely(p->state > TASK_STOPPED))
+		    unlikely(p->state & TASK_TRACED))
 			goto bail_ref;
 		return wait_noreap_copyout(p, pid, uid,
 					   why, (exit_code << 8) | 0x7f,

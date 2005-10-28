@@ -111,11 +111,11 @@ static struct mtd_partition collie_partitions[] = {
 
 static void collie_set_vpp(int vpp)
 {
-	write_scoop_reg(&colliescoop_device.dev, SCOOP_GPCR, read_scoop_reg(SCOOP_GPCR) | COLLIE_SCP_VPEN);
+	write_scoop_reg(&colliescoop_device.dev, SCOOP_GPCR, read_scoop_reg(&colliescoop_device.dev, SCOOP_GPCR) | COLLIE_SCP_VPEN);
 	if (vpp)
-		write_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR, read_scoop_reg(SCOOP_GPWR) | COLLIE_SCP_VPEN);
+		write_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR, read_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR) | COLLIE_SCP_VPEN);
 	else
-		write_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR, read_scoop_reg(SCOOP_GPWR) & ~COLLIE_SCP_VPEN);
+		write_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR, read_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR) & ~COLLIE_SCP_VPEN);
 }
 
 static struct flash_platform_data collie_flash_data = {

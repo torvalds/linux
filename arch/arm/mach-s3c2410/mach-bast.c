@@ -230,7 +230,7 @@ static int chip0_map[] = { 1 };
 static int chip1_map[] = { 2 };
 static int chip2_map[] = { 3 };
 
-struct mtd_partition bast_default_nand_part[] = {
+static struct mtd_partition bast_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
@@ -307,9 +307,9 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 }
 
 static struct s3c2410_platform_nand bast_nand_info = {
-	.tacls		= 40,
-	.twrph0		= 80,
-	.twrph1		= 80,
+	.tacls		= 30,
+	.twrph0		= 60,
+	.twrph1		= 60,
 	.nr_sets	= ARRAY_SIZE(bast_nand_sets),
 	.sets		= bast_nand_sets,
 	.select_chip	= bast_nand_select,
@@ -340,7 +340,7 @@ static struct resource bast_dm9k_resource[] = {
  * better IO routines can be written and tested
 */
 
-struct dm9000_plat_data bast_dm9k_platdata = {
+static struct dm9000_plat_data bast_dm9k_platdata = {
 	.flags		= DM9000_PLATF_16BITONLY
 };
 

@@ -67,7 +67,7 @@ static void impd1_setvco(struct clk *clk, struct icst525_vco vco)
 	}
 	writel(0, impd1->base + IMPD1_LOCK);
 
-#if DEBUG
+#ifdef DEBUG
 	vco.v = val & 0x1ff;
 	vco.r = (val >> 9) & 0x7f;
 	vco.s = (val >> 16) & 7;
@@ -427,17 +427,18 @@ static int impd1_probe(struct lm_device *dev)
 	return ret;
 }
 
+static int impd1_remove_one(struct device *dev, void *data)
+{
+	device_unregister(dev);
+	return 0;
+}
+
 static void impd1_remove(struct lm_device *dev)
 {
 	struct impd1_module *impd1 = lm_get_drvdata(dev);
-	struct list_head *l, *n;
 	int i;
 
-	list_for_each_safe(l, n, &dev->dev.children) {
-		struct device *d = list_to_dev(l);
-
-		device_unregister(d);
-	}
+	device_for_each_child(&dev->dev, NULL, impd1_remove_one);
 
 	for (i = 0; i < ARRAY_SIZE(impd1->vcos); i++)
 		clk_unregister(&impd1->vcos[i]);

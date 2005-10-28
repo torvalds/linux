@@ -570,6 +570,7 @@ void getnstimeofday(struct timespec *tv)
 	tv->tv_sec = x.tv_sec;
 	tv->tv_nsec = x.tv_usec * NSEC_PER_USEC;
 }
+EXPORT_SYMBOL_GPL(getnstimeofday);
 #endif
 
 #if (BITS_PER_LONG < 64)

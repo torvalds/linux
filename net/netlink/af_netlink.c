@@ -740,10 +740,7 @@ int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock, long t
 
 int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol)
 {
-	struct netlink_sock *nlk;
 	int len = skb->len;
-
-	nlk = nlk_sk(sk);
 
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, len);
@@ -758,7 +755,7 @@ void netlink_detachskb(struct sock *sk, struct sk_buff *skb)
 }
 
 static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
-					   unsigned int __nocast allocation)
+					   gfp_t allocation)
 {
 	int delta;
 
@@ -827,7 +824,7 @@ struct netlink_broadcast_data {
 	int failure;
 	int congested;
 	int delivered;
-	unsigned int allocation;
+	gfp_t allocation;
 	struct sk_buff *skb, *skb2;
 };
 
@@ -880,7 +877,7 @@ out:
 }
 
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
-		      u32 group, unsigned int __nocast allocation)
+		      u32 group, gfp_t allocation)
 {
 	struct netlink_broadcast_data info;
 	struct hlist_node *node;

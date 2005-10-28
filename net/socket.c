@@ -1145,8 +1145,11 @@ static int __sock_create(int family, int type, int protocol, struct socket **res
 	if (!try_module_get(net_families[family]->owner))
 		goto out_release;
 
-	if ((err = net_families[family]->create(sock, protocol)) < 0)
+	if ((err = net_families[family]->create(sock, protocol)) < 0) {
+		sock->ops = NULL;
 		goto out_module_put;
+	}
+
 	/*
 	 * Now to bump the refcnt of the [loadable] module that owns this
 	 * socket at sock_release time we decrement its refcnt.
@@ -1360,15 +1363,15 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 	newsock->type = sock->type;
 	newsock->ops = sock->ops;
 
-	err = security_socket_accept(sock, newsock);
-	if (err)
-		goto out_release;
-
 	/*
 	 * We don't need try_module_get here, as the listening socket (sock)
 	 * has the protocol module (sock->ops->owner) held.
 	 */
 	__module_get(newsock->ops->owner);
+
+	err = security_socket_accept(sock, newsock);
+	if (err)
+		goto out_release;
 
 	err = sock->ops->accept(sock, newsock, sock->file->f_flags);
 	if (err < 0)
@@ -1700,7 +1703,9 @@ asmlinkage long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
 	struct socket *sock;
 	char address[MAX_SOCK_ADDR];
 	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
-	unsigned char ctl[sizeof(struct cmsghdr) + 20];	/* 20 is size of ipv6_pktinfo */
+	unsigned char ctl[sizeof(struct cmsghdr) + 20]
+			__attribute__ ((aligned (sizeof(__kernel_size_t))));
+			/* 20 is size of ipv6_pktinfo */
 	unsigned char *ctl_buf = ctl;
 	struct msghdr msg_sys;
 	int err, ctl_len, iov_size, total_len;

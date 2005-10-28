@@ -152,6 +152,7 @@ static int __devinit pci_hp_diva_init(struct pci_dev *dev)
 		rc = 4;
 		break;
 	case PCI_DEVICE_ID_HP_DIVA_POWERBAR:
+	case PCI_DEVICE_ID_HP_DIVA_HURRICANE:
 		rc = 1;
 		break;
 	}
@@ -226,8 +227,10 @@ static int __devinit pci_plx9050_init(struct pci_dev *dev)
 	}
 
 	irq_config = 0x41;
-	if (dev->vendor == PCI_VENDOR_ID_PANACOM)
+	if (dev->vendor == PCI_VENDOR_ID_PANACOM ||
+	    dev->subsystem_vendor == PCI_SUBVENDOR_ID_EXSYS) {
 		irq_config = 0x43;
+	}
 	if ((dev->vendor == PCI_VENDOR_ID_PLX) &&
 	    (dev->device == PCI_DEVICE_ID_PLX_ROMULUS)) {
 		/*
@@ -664,6 +667,15 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_PLX,
 		.device		= PCI_DEVICE_ID_PLX_9050,
+		.subvendor	= PCI_SUBVENDOR_ID_EXSYS,
+		.subdevice	= PCI_SUBDEVICE_ID_EXSYS_4055,
+		.init		= pci_plx9050_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_plx9050_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_PLX,
+		.device		= PCI_DEVICE_ID_PLX_9050,
 		.subvendor	= PCI_SUBVENDOR_ID_KEYSPAN,
 		.subdevice	= PCI_SUBDEVICE_ID_KEYSPAN_SX2,
 		.init		= pci_plx9050_init,
@@ -927,6 +939,7 @@ enum pci_board_num_t {
 	pbn_panacom,
 	pbn_panacom2,
 	pbn_panacom4,
+	pbn_exsys_4055,
 	pbn_plx_romulus,
 	pbn_oxsemi,
 	pbn_intel_i960,
@@ -1290,6 +1303,13 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.base_baud	= 921600,
 		.uart_offset	= 0x400,
 		.reg_shift	= 7,
+	},
+
+	[pbn_exsys_4055] = {
+		.flags		= FL_BASE2,
+		.num_ports	= 4,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
 	},
 
 	/* I think this entry is broken - the first_offset looks wrong --rmk */
@@ -1853,6 +1873,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_SUBVENDOR_ID_CHASE_PCIRAS,
 		PCI_SUBDEVICE_ID_CHASE_PCIRAS8, 0, 0, 
 		pbn_b2_8_460800 },
+	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
+		PCI_SUBVENDOR_ID_EXSYS,
+		PCI_SUBDEVICE_ID_EXSYS_4055, 0, 0,
+		pbn_exsys_4055 },
 	/*
 	 * Megawolf Romulus PCI Serial Card, from Mike Hudson
 	 * (Exoray@isys.ca)

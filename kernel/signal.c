@@ -262,7 +262,7 @@ next_signal(struct sigpending *pending, sigset_t *mask)
 	return sig;
 }
 
-static struct sigqueue *__sigqueue_alloc(struct task_struct *t, unsigned int __nocast flags,
+static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 					 int override_rlimit)
 {
 	struct sigqueue *q = NULL;
@@ -397,20 +397,8 @@ void __exit_signal(struct task_struct *tsk)
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
 		/*
-		 * We are cleaning up the signal_struct here.  We delayed
-		 * calling exit_itimers until after flush_sigqueue, just in
-		 * case our thread-local pending queue contained a queued
-		 * timer signal that would have been cleared in
-		 * exit_itimers.  When that called sigqueue_free, it would
-		 * attempt to re-take the tasklist_lock and deadlock.  This
-		 * can never happen if we ensure that all queues the
-		 * timer's signal might be queued on have been flushed
-		 * first.  The shared_pending queue, and our own pending
-		 * queue are the only queues the timer could be on, since
-		 * there are no other threads left in the group and timer
-		 * signals are constrained to threads inside the group.
+		 * We are cleaning up the signal_struct here.
 		 */
-		exit_itimers(sig);
 		exit_thread_group_keys(sig);
 		kmem_cache_free(signal_cachep, sig);
 	}
@@ -578,7 +566,8 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
  		 * is to alert stop-signal processing code when another
  		 * processor has come along and cleared the flag.
  		 */
- 		tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
+ 		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
+ 			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
  	}
 	if ( signr &&
 	     ((info->si_code & __SI_MASK) == __SI_TIMER) &&
@@ -936,26 +925,23 @@ force_sig_specific(int sig, struct task_struct *t)
  * as soon as they're available, so putting the signal on the shared queue
  * will be equivalent to sending it to one such thread.
  */
-#define wants_signal(sig, p, mask) 			\
-	(!sigismember(&(p)->blocked, sig)		\
-	 && !((p)->state & mask)			\
-	 && !((p)->flags & PF_EXITING)			\
-	 && (task_curr(p) || !signal_pending(p)))
-
+static inline int wants_signal(int sig, struct task_struct *p)
+{
+	if (sigismember(&p->blocked, sig))
+		return 0;
+	if (p->flags & PF_EXITING)
+		return 0;
+	if (sig == SIGKILL)
+		return 1;
+	if (p->state & (TASK_STOPPED | TASK_TRACED))
+		return 0;
+	return task_curr(p) || !signal_pending(p);
+}
 
 static void
 __group_complete_signal(int sig, struct task_struct *p)
 {
-	unsigned int mask;
 	struct task_struct *t;
-
-	/*
-	 * Don't bother traced and stopped tasks (but
-	 * SIGKILL will punch through that).
-	 */
-	mask = TASK_STOPPED | TASK_TRACED;
-	if (sig == SIGKILL)
-		mask = 0;
 
 	/*
 	 * Now find a thread we can wake up to take the signal off the queue.
@@ -963,7 +949,7 @@ __group_complete_signal(int sig, struct task_struct *p)
 	 * If the main thread wants the signal, it gets first crack.
 	 * Probably the least surprising to the average bear.
 	 */
-	if (wants_signal(sig, p, mask))
+	if (wants_signal(sig, p))
 		t = p;
 	else if (thread_group_empty(p))
 		/*
@@ -981,7 +967,7 @@ __group_complete_signal(int sig, struct task_struct *p)
 			t = p->signal->curr_target = p;
 		BUG_ON(t->tgid != p->tgid);
 
-		while (!wants_signal(sig, t, mask)) {
+		while (!wants_signal(sig, t)) {
 			t = next_thread(t);
 			if (t == p->signal->curr_target)
 				/*
@@ -1195,6 +1181,40 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 	return error;
 }
 
+/* like kill_proc_info(), but doesn't use uid/euid of "current" */
+int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
+		      uid_t uid, uid_t euid)
+{
+	int ret = -EINVAL;
+	struct task_struct *p;
+
+	if (!valid_signal(sig))
+		return ret;
+
+	read_lock(&tasklist_lock);
+	p = find_task_by_pid(pid);
+	if (!p) {
+		ret = -ESRCH;
+		goto out_unlock;
+	}
+	if ((!info || ((unsigned long)info != 1 &&
+			(unsigned long)info != 2 && SI_FROMUSER(info)))
+	    && (euid != p->suid) && (euid != p->uid)
+	    && (uid != p->suid) && (uid != p->uid)) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+	if (sig && p->sighand) {
+		unsigned long flags;
+		spin_lock_irqsave(&p->sighand->siglock, flags);
+		ret = __group_send_sig_info(sig, info, p);
+		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+	}
+out_unlock:
+	read_unlock(&tasklist_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kill_proc_info_as_uid);
 
 /*
  * kill_something_info() interprets pid in interesting ways just like kill(2).
@@ -1766,7 +1786,8 @@ do_signal_stop(int signr)
 				 * stop is always done with the siglock held,
 				 * so this check has no races.
 				 */
-				if (t->state < TASK_STOPPED) {
+				if (!t->exit_state &&
+				    !(t->state & (TASK_STOPPED|TASK_TRACED))) {
 					stop_count++;
 					signal_wake_up(t, 0);
 				}

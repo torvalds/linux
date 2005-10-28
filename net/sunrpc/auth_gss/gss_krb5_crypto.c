@@ -139,17 +139,91 @@ buf_to_sg(struct scatterlist *sg, char *ptr, int len) {
 	sg->length = len;
 }
 
+static int
+process_xdr_buf(struct xdr_buf *buf, int offset, int len,
+		int (*actor)(struct scatterlist *, void *), void *data)
+{
+	int i, page_len, thislen, page_offset, ret = 0;
+	struct scatterlist	sg[1];
+
+	if (offset >= buf->head[0].iov_len) {
+		offset -= buf->head[0].iov_len;
+	} else {
+		thislen = buf->head[0].iov_len - offset;
+		if (thislen > len)
+			thislen = len;
+		buf_to_sg(sg, buf->head[0].iov_base + offset, thislen);
+		ret = actor(sg, data);
+		if (ret)
+			goto out;
+		offset = 0;
+		len -= thislen;
+	}
+	if (len == 0)
+		goto out;
+
+	if (offset >= buf->page_len) {
+		offset -= buf->page_len;
+	} else {
+		page_len = buf->page_len - offset;
+		if (page_len > len)
+			page_len = len;
+		len -= page_len;
+		page_offset = (offset + buf->page_base) & (PAGE_CACHE_SIZE - 1);
+		i = (offset + buf->page_base) >> PAGE_CACHE_SHIFT;
+		thislen = PAGE_CACHE_SIZE - page_offset;
+		do {
+			if (thislen > page_len)
+				thislen = page_len;
+			sg->page = buf->pages[i];
+			sg->offset = page_offset;
+			sg->length = thislen;
+			ret = actor(sg, data);
+			if (ret)
+				goto out;
+			page_len -= thislen;
+			i++;
+			page_offset = 0;
+			thislen = PAGE_CACHE_SIZE;
+		} while (page_len != 0);
+		offset = 0;
+	}
+	if (len == 0)
+		goto out;
+
+	if (offset < buf->tail[0].iov_len) {
+		thislen = buf->tail[0].iov_len - offset;
+		if (thislen > len)
+			thislen = len;
+		buf_to_sg(sg, buf->tail[0].iov_base + offset, thislen);
+		ret = actor(sg, data);
+		len -= thislen;
+	}
+	if (len != 0)
+		ret = -EINVAL;
+out:
+	return ret;
+}
+
+static int
+checksummer(struct scatterlist *sg, void *data)
+{
+	struct crypto_tfm *tfm = (struct crypto_tfm *)data;
+
+	crypto_digest_update(tfm, sg, 1);
+
+	return 0;
+}
+
 /* checksum the plaintext data and hdrlen bytes of the token header */
 s32
 make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
-		   struct xdr_netobj *cksum)
+		   int body_offset, struct xdr_netobj *cksum)
 {
 	char                            *cksumname;
 	struct crypto_tfm               *tfm = NULL; /* XXX add to ctx? */
 	struct scatterlist              sg[1];
 	u32                             code = GSS_S_FAILURE;
-	int				len, thislen, offset;
-	int				i;
 
 	switch (cksumtype) {
 		case CKSUMTYPE_RSA_MD5:
@@ -169,33 +243,8 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	crypto_digest_init(tfm);
 	buf_to_sg(sg, header, hdrlen);
 	crypto_digest_update(tfm, sg, 1);
-	if (body->head[0].iov_len) {
-		buf_to_sg(sg, body->head[0].iov_base, body->head[0].iov_len);
-		crypto_digest_update(tfm, sg, 1);
-	}
-
-	len = body->page_len;
-	if (len != 0) {
-		offset = body->page_base & (PAGE_CACHE_SIZE - 1);
-		i = body->page_base >> PAGE_CACHE_SHIFT;
-		thislen = PAGE_CACHE_SIZE - offset;
-		do {
-			if (thislen > len)
-				thislen = len;
-			sg->page = body->pages[i];
-			sg->offset = offset;
-			sg->length = thislen;
-			crypto_digest_update(tfm, sg, 1);
-			len -= thislen;
-			i++;
-			offset = 0;
-			thislen = PAGE_CACHE_SIZE;
-		} while(len != 0);
-	}
-	if (body->tail[0].iov_len) {
-		buf_to_sg(sg, body->tail[0].iov_base, body->tail[0].iov_len);
-		crypto_digest_update(tfm, sg, 1);
-	}
+	process_xdr_buf(body, body_offset, body->len - body_offset,
+			checksummer, tfm);
 	crypto_digest_final(tfm, cksum->data);
 	code = 0;
 out:
@@ -204,3 +253,154 @@ out:
 }
 
 EXPORT_SYMBOL(make_checksum);
+
+struct encryptor_desc {
+	u8 iv[8]; /* XXX hard-coded blocksize */
+	struct crypto_tfm *tfm;
+	int pos;
+	struct xdr_buf *outbuf;
+	struct page **pages;
+	struct scatterlist infrags[4];
+	struct scatterlist outfrags[4];
+	int fragno;
+	int fraglen;
+};
+
+static int
+encryptor(struct scatterlist *sg, void *data)
+{
+	struct encryptor_desc *desc = data;
+	struct xdr_buf *outbuf = desc->outbuf;
+	struct page *in_page;
+	int thislen = desc->fraglen + sg->length;
+	int fraglen, ret;
+	int page_pos;
+
+	/* Worst case is 4 fragments: head, end of page 1, start
+	 * of page 2, tail.  Anything more is a bug. */
+	BUG_ON(desc->fragno > 3);
+	desc->infrags[desc->fragno] = *sg;
+	desc->outfrags[desc->fragno] = *sg;
+
+	page_pos = desc->pos - outbuf->head[0].iov_len;
+	if (page_pos >= 0 && page_pos < outbuf->page_len) {
+		/* pages are not in place: */
+		int i = (page_pos + outbuf->page_base) >> PAGE_CACHE_SHIFT;
+		in_page = desc->pages[i];
+	} else {
+		in_page = sg->page;
+	}
+	desc->infrags[desc->fragno].page = in_page;
+	desc->fragno++;
+	desc->fraglen += sg->length;
+	desc->pos += sg->length;
+
+	fraglen = thislen & 7; /* XXX hardcoded blocksize */
+	thislen -= fraglen;
+
+	if (thislen == 0)
+		return 0;
+
+	ret = crypto_cipher_encrypt_iv(desc->tfm, desc->outfrags, desc->infrags,
+					thislen, desc->iv);
+	if (ret)
+		return ret;
+	if (fraglen) {
+		desc->outfrags[0].page = sg->page;
+		desc->outfrags[0].offset = sg->offset + sg->length - fraglen;
+		desc->outfrags[0].length = fraglen;
+		desc->infrags[0] = desc->outfrags[0];
+		desc->infrags[0].page = in_page;
+		desc->fragno = 1;
+		desc->fraglen = fraglen;
+	} else {
+		desc->fragno = 0;
+		desc->fraglen = 0;
+	}
+	return 0;
+}
+
+int
+gss_encrypt_xdr_buf(struct crypto_tfm *tfm, struct xdr_buf *buf, int offset,
+		struct page **pages)
+{
+	int ret;
+	struct encryptor_desc desc;
+
+	BUG_ON((buf->len - offset) % crypto_tfm_alg_blocksize(tfm) != 0);
+
+	memset(desc.iv, 0, sizeof(desc.iv));
+	desc.tfm = tfm;
+	desc.pos = offset;
+	desc.outbuf = buf;
+	desc.pages = pages;
+	desc.fragno = 0;
+	desc.fraglen = 0;
+
+	ret = process_xdr_buf(buf, offset, buf->len - offset, encryptor, &desc);
+	return ret;
+}
+
+EXPORT_SYMBOL(gss_encrypt_xdr_buf);
+
+struct decryptor_desc {
+	u8 iv[8]; /* XXX hard-coded blocksize */
+	struct crypto_tfm *tfm;
+	struct scatterlist frags[4];
+	int fragno;
+	int fraglen;
+};
+
+static int
+decryptor(struct scatterlist *sg, void *data)
+{
+	struct decryptor_desc *desc = data;
+	int thislen = desc->fraglen + sg->length;
+	int fraglen, ret;
+
+	/* Worst case is 4 fragments: head, end of page 1, start
+	 * of page 2, tail.  Anything more is a bug. */
+	BUG_ON(desc->fragno > 3);
+	desc->frags[desc->fragno] = *sg;
+	desc->fragno++;
+	desc->fraglen += sg->length;
+
+	fraglen = thislen & 7; /* XXX hardcoded blocksize */
+	thislen -= fraglen;
+
+	if (thislen == 0)
+		return 0;
+
+	ret = crypto_cipher_decrypt_iv(desc->tfm, desc->frags, desc->frags,
+					thislen, desc->iv);
+	if (ret)
+		return ret;
+	if (fraglen) {
+		desc->frags[0].page = sg->page;
+		desc->frags[0].offset = sg->offset + sg->length - fraglen;
+		desc->frags[0].length = fraglen;
+		desc->fragno = 1;
+		desc->fraglen = fraglen;
+	} else {
+		desc->fragno = 0;
+		desc->fraglen = 0;
+	}
+	return 0;
+}
+
+int
+gss_decrypt_xdr_buf(struct crypto_tfm *tfm, struct xdr_buf *buf, int offset)
+{
+	struct decryptor_desc desc;
+
+	/* XXXJBF: */
+	BUG_ON((buf->len - offset) % crypto_tfm_alg_blocksize(tfm) != 0);
+
+	memset(desc.iv, 0, sizeof(desc.iv));
+	desc.tfm = tfm;
+	desc.fragno = 0;
+	desc.fraglen = 0;
+	return process_xdr_buf(buf, offset, buf->len - offset, decryptor, &desc);
+}
+
+EXPORT_SYMBOL(gss_decrypt_xdr_buf);

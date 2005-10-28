@@ -763,21 +763,21 @@ static void set_pll(struct bttv *btv)
                 /* no PLL needed */
                 if (btv->pll.pll_current == 0)
                         return;
-		vprintk(KERN_INFO "bttv%d: PLL can sleep, using XTAL (%d).\n",
-			btv->c.nr,btv->pll.pll_ifreq);
+		bttv_printk(KERN_INFO "bttv%d: PLL can sleep, using XTAL (%d).\n",
+                           btv->c.nr,btv->pll.pll_ifreq);
                 btwrite(0x00,BT848_TGCTRL);
                 btwrite(0x00,BT848_PLL_XCI);
                 btv->pll.pll_current = 0;
                 return;
         }
 
-	vprintk(KERN_INFO "bttv%d: PLL: %d => %d ",btv->c.nr,
-		btv->pll.pll_ifreq, btv->pll.pll_ofreq);
+	bttv_printk(KERN_INFO "bttv%d: PLL: %d => %d ",btv->c.nr,
+                   btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 	set_pll_freq(btv, btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 
         for (i=0; i<10; i++) {
 		/*  Let other people run while the PLL stabilizes */
-		vprintk(".");
+		bttv_printk(".");
 		msleep(10);
 
                 if (btread(BT848_DSTATUS) & BT848_DSTATUS_PLOCK) {
@@ -785,12 +785,12 @@ static void set_pll(struct bttv *btv)
                 } else {
                         btwrite(0x08,BT848_TGCTRL);
                         btv->pll.pll_current = btv->pll.pll_ofreq;
-			vprintk(" ok\n");
+			bttv_printk(" ok\n");
                         return;
                 }
         }
         btv->pll.pll_current = -1;
-	vprintk("failed\n");
+	bttv_printk("failed\n");
         return;
 }
 

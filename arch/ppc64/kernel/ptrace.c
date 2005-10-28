@@ -219,6 +219,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
 
 	case PTRACE_SET_DEBUGREG:
 		ret = ptrace_set_debugreg(child, addr, data);
+		break;
 
 	case PTRACE_DETACH:
 		ret = ptrace_detach(child, data);

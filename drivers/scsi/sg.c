@@ -2644,7 +2644,7 @@ static char *
 sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 {
 	char *resp = NULL;
-	int page_mask;
+	gfp_t page_mask;
 	int order, a_size;
 	int resSz = rqSz;
 
@@ -2849,8 +2849,7 @@ sg_proc_init(void)
 	struct proc_dir_entry *pdep;
 	struct sg_proc_leaf * leaf;
 
-	sg_proc_sgp = create_proc_entry(sg_proc_sg_dirname,
-					S_IFDIR | S_IRUGO | S_IXUGO, NULL);
+	sg_proc_sgp = proc_mkdir(sg_proc_sg_dirname, NULL);
 	if (!sg_proc_sgp)
 		return 1;
 	for (k = 0; k < num_leaves; ++k) {

@@ -93,7 +93,7 @@ extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 
 static inline void gpio_line_config(u8 line, u32 direction)
 {
-	if (direction == IXP4XX_GPIO_OUT)
+	if (direction == IXP4XX_GPIO_IN)
 		*IXP4XX_GPIO_GPOER |= (1 << line);
 	else
 		*IXP4XX_GPIO_GPOER &= ~(1 << line);

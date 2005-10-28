@@ -184,8 +184,8 @@ mpc85xx_setup_pci1(struct pci_controller *hose)
 	pci->powar1 = 0x80044000 |
 	   (__ilog2(MPC85XX_PCI1_UPPER_MEM - MPC85XX_PCI1_LOWER_MEM + 1) - 1);
 
-	/* Setup outboud IO windows @ MPC85XX_PCI1_IO_BASE */
-	pci->potar2 = 0x00000000;
+	/* Setup outbound IO windows @ MPC85XX_PCI1_IO_BASE */
+	pci->potar2 = (MPC85XX_PCI1_LOWER_IO >> 12) & 0x000fffff;
 	pci->potear2 = 0x00000000;
 	pci->powbar2 = (MPC85XX_PCI1_IO_BASE >> 12) & 0x000fffff;
 	/* Enable, IO R/W */
@@ -235,8 +235,8 @@ mpc85xx_setup_pci2(struct pci_controller *hose)
 	pci->powar1 = 0x80044000 |
 	   (__ilog2(MPC85XX_PCI2_UPPER_MEM - MPC85XX_PCI2_LOWER_MEM + 1) - 1);
 
-	/* Setup outboud IO windows @ MPC85XX_PCI2_IO_BASE */
-	pci->potar2 = 0x00000000;
+	/* Setup outbound IO windows @ MPC85XX_PCI2_IO_BASE */
+	pci->potar2 = (MPC85XX_PCI2_LOWER_IO >> 12) & 0x000fffff;;
 	pci->potear2 = 0x00000000;
 	pci->powbar2 = (MPC85XX_PCI2_IO_BASE >> 12) & 0x000fffff;
 	/* Enable, IO R/W */

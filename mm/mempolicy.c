@@ -687,7 +687,7 @@ get_vma_policy(struct task_struct *task, struct vm_area_struct *vma, unsigned lo
 }
 
 /* Return a zonelist representing a mempolicy */
-static struct zonelist *zonelist_policy(unsigned int __nocast gfp, struct mempolicy *policy)
+static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 {
 	int nd;
 
@@ -700,7 +700,7 @@ static struct zonelist *zonelist_policy(unsigned int __nocast gfp, struct mempol
 	case MPOL_BIND:
 		/* Lower zones don't get a policy applied */
 		/* Careful: current->mems_allowed might have moved */
-		if ((gfp & GFP_ZONEMASK) >= policy_zone)
+		if (gfp_zone(gfp) >= policy_zone)
 			if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
 				return policy->v.zonelist;
 		/*FALL THROUGH*/
@@ -712,7 +712,7 @@ static struct zonelist *zonelist_policy(unsigned int __nocast gfp, struct mempol
 		nd = 0;
 		BUG();
 	}
-	return NODE_DATA(nd)->node_zonelists + (gfp & GFP_ZONEMASK);
+	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
 }
 
 /* Do dynamic interleaving for a process */
@@ -751,13 +751,13 @@ static unsigned offset_il_node(struct mempolicy *pol,
 
 /* Allocate a page in interleaved policy.
    Own path because it needs to do special accounting. */
-static struct page *alloc_page_interleave(unsigned int __nocast gfp, unsigned order, unsigned nid)
+static struct page *alloc_page_interleave(gfp_t gfp, unsigned order, unsigned nid)
 {
 	struct zonelist *zl;
 	struct page *page;
 
 	BUG_ON(!node_online(nid));
-	zl = NODE_DATA(nid)->node_zonelists + (gfp & GFP_ZONEMASK);
+	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
 	page = __alloc_pages(gfp, order, zl);
 	if (page && page_zone(page) == zl->zones[0]) {
 		zone_pcp(zl->zones[0],get_cpu())->interleave_hit++;
@@ -789,7 +789,7 @@ static struct page *alloc_page_interleave(unsigned int __nocast gfp, unsigned or
  *	Should be called with the mm_sem of the vma hold.
  */
 struct page *
-alloc_page_vma(unsigned int __nocast gfp, struct vm_area_struct *vma, unsigned long addr)
+alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 {
 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
 
@@ -832,7 +832,7 @@ alloc_page_vma(unsigned int __nocast gfp, struct vm_area_struct *vma, unsigned l
  *	1) it's ok to take cpuset_sem (can WAIT), and
  *	2) allocating for current task (not interrupt).
  */
-struct page *alloc_pages_current(unsigned int __nocast gfp, unsigned order)
+struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 {
 	struct mempolicy *pol = current->mempolicy;
 

@@ -32,7 +32,7 @@
 
 #include "pci.h"
 
-static int __initdata s7a_workaround = -1;
+static int __devinitdata s7a_workaround = -1;
 
 #if 0
 void pcibios_name_device(struct pci_dev *dev)
@@ -60,7 +60,7 @@ void pcibios_name_device(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_name_device);
 #endif
 
-static void __init check_s7a(void)
+static void __devinit check_s7a(void)
 {
 	struct device_node *root;
 	char *model;

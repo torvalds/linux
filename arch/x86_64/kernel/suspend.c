@@ -11,6 +11,8 @@
 #include <linux/smp.h>
 #include <linux/suspend.h>
 #include <asm/proto.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
 
 struct saved_context saved_context;
 
@@ -140,4 +142,129 @@ void fix_processor_context(void)
 
 }
 
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/* Defined in arch/x86_64/kernel/suspend_asm.S */
+extern int restore_image(void);
 
+pgd_t *temp_level4_pgt;
+
+static void **pages;
+
+static inline void *__add_page(void)
+{
+	void **c;
+
+	c = (void **)get_usable_page(GFP_ATOMIC);
+	if (c) {
+		*c = pages;
+		pages = c;
+	}
+	return c;
+}
+
+static inline void *__next_page(void)
+{
+	void **c;
+
+	c = pages;
+	if (c) {
+		pages = *c;
+		*c = NULL;
+	}
+	return c;
+}
+
+/*
+ * Try to allocate as many usable pages as needed and daisy chain them.
+ * If one allocation fails, free the pages allocated so far
+ */
+static int alloc_usable_pages(unsigned long n)
+{
+	void *p;
+
+	pages = NULL;
+	do
+		if (!__add_page())
+			break;
+	while (--n);
+	if (n) {
+		p = __next_page();
+		while (p) {
+			free_page((unsigned long)p);
+			p = __next_page();
+		}
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
+{
+	long i, j;
+
+	i = pud_index(address);
+	pud = pud + i;
+	for (; i < PTRS_PER_PUD; pud++, i++) {
+		unsigned long paddr;
+		pmd_t *pmd;
+
+		paddr = address + i*PUD_SIZE;
+		if (paddr >= end)
+			break;
+
+		pmd = (pmd_t *)__next_page();
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+		for (j = 0; j < PTRS_PER_PMD; pmd++, j++, paddr += PMD_SIZE) {
+			unsigned long pe;
+
+			if (paddr >= end)
+				break;
+			pe = _PAGE_NX | _PAGE_PSE | _KERNPG_TABLE | paddr;
+			pe &= __supported_pte_mask;
+			set_pmd(pmd, __pmd(pe));
+		}
+	}
+}
+
+static void set_up_temporary_mappings(void)
+{
+	unsigned long start, end, next;
+
+	temp_level4_pgt = (pgd_t *)__next_page();
+
+	/* It is safe to reuse the original kernel mapping */
+	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
+		init_level4_pgt[pgd_index(__START_KERNEL_map)]);
+
+	/* Set up the direct mapping from scratch */
+	start = (unsigned long)pfn_to_kaddr(0);
+	end = (unsigned long)pfn_to_kaddr(end_pfn);
+
+	for (; start < end; start = next) {
+		pud_t *pud = (pud_t *)__next_page();
+		next = start + PGDIR_SIZE;
+		if (next > end)
+			next = end;
+		res_phys_pud_init(pud, __pa(start), __pa(next));
+		set_pgd(temp_level4_pgt + pgd_index(start),
+			mk_kernel_pgd(__pa(pud)));
+	}
+}
+
+int swsusp_arch_resume(void)
+{
+	unsigned long n;
+
+	n = ((end_pfn << PAGE_SHIFT) + PUD_SIZE - 1) >> PUD_SHIFT;
+	n += (n + PTRS_PER_PUD - 1) / PTRS_PER_PUD + 1;
+	pr_debug("swsusp_arch_resume(): pages needed = %lu\n", n);
+	if (alloc_usable_pages(n)) {
+		free_eaten_memory();
+		return -ENOMEM;
+	}
+	/* We have got enough memory and from now on we cannot recover */
+	set_up_temporary_mappings();
+	restore_image();
+	return 0;
+}
+#endif /* CONFIG_SOFTWARE_SUSPEND */

@@ -48,7 +48,6 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/bitops.h>
@@ -719,7 +718,8 @@ pmac_declare_of_platform_devices(void)
 	if (np) {
 		for (np = np->child; np != NULL; np = np->sibling)
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "uni-n-i2c");
+				of_platform_device_create(np, "uni-n-i2c",
+							  NULL);
 				break;
 			}
 	}
@@ -727,17 +727,18 @@ pmac_declare_of_platform_devices(void)
 	if (np) {
 		for (np = np->child; np != NULL; np = np->sibling)
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c");
+				of_platform_device_create(np, "u3-i2c",
+							  NULL);
 				break;
 			}
 	}
 
 	np = find_devices("valkyrie");
 	if (np)
-		of_platform_device_create(np, "valkyrie");
+		of_platform_device_create(np, "valkyrie", NULL);
 	np = find_devices("platinum");
 	if (np)
-		of_platform_device_create(np, "platinum");
+		of_platform_device_create(np, "platinum", NULL);
 
 	return 0;
 }

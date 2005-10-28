@@ -35,6 +35,7 @@ The driver load creates the following directories under the /sys file system.
 /sys/class/firmware/dell_rbu/data
 /sys/devices/platform/dell_rbu/image_type
 /sys/devices/platform/dell_rbu/data
+/sys/devices/platform/dell_rbu/packet_size
 
 The driver supports two types of update mechanism; monolithic and packetized.
 These update mechanism depends upon the BIOS currently running on the system.
@@ -47,8 +48,26 @@ By default the driver uses monolithic memory for the update type. This can be
 changed to packets during the driver load time by specifying the load
 parameter image_type=packet.  This can also be changed later as below
 echo packet > /sys/devices/platform/dell_rbu/image_type
-Also echoing either mono ,packet or init in to image_type will free up the
-memory allocated by the driver.
+
+In packet update mode the packet size has to be given before any packets can
+be downloaded. It is done as below
+echo XXXX > /sys/devices/platform/dell_rbu/packet_size
+In the packet update mechanism, the user neesd to create a new file having
+packets of data arranged back to back. It can be done as follows
+The user creates packets header, gets the chunk of the BIOS image and
+placs it next to the packetheader; now, the packetheader + BIOS image chunk
+added to geather should match the specified packet_size. This makes one
+packet, the user needs to create more such packets out of the entire BIOS
+image file and then arrange all these packets back to back in to one single
+file.
+This file is then copied to /sys/class/firmware/dell_rbu/data.
+Once this file gets to the driver, the driver extracts packet_size data from
+the file and spreads it accross the physical memory in contiguous packet_sized
+space.
+This method makes sure that all the packets get to the driver in a single operation.
+
+In monolithic update the user simply get the BIOS image (.hdr file) and copies
+to the data file as is without any change to the BIOS image itself.
 
 Do the steps below to download the BIOS image.
 1) echo 1 > /sys/class/firmware/dell_rbu/loading
@@ -58,7 +77,10 @@ Do the steps below to download the BIOS image.
 The /sys/class/firmware/dell_rbu/ entries will remain till the following is
 done.
 echo -1 > /sys/class/firmware/dell_rbu/loading.
-Until this step is completed the drivr cannot be unloaded.
+Until this step is completed the driver cannot be unloaded.
+Also echoing either mono ,packet or init in to image_type will free up the
+memory allocated by the driver.
+
 If an user by accident executes steps 1 and 3 above without executing step 2;
 it will make the /sys/class/firmware/dell_rbu/ entries to disappear.
 The entries can be recreated by doing the following
@@ -66,15 +88,11 @@ echo init > /sys/devices/platform/dell_rbu/image_type
 NOTE: echoing init in image_type does not change it original value.
 
 Also the driver provides /sys/devices/platform/dell_rbu/data readonly file to
-read back the image downloaded. This is useful in case of packet update
-mechanism where the above steps 1,2,3 will repeated for every packet.
-By reading the /sys/devices/platform/dell_rbu/data file all packet data
-downloaded can be verified in a single file.
-The packets are arranged in this file one after the other in a FIFO order.
+read back the image downloaded.
 
 NOTE:
-This driver requires a patch for firmware_class.c which has the addition
-of request_firmware_nowait_nohotplug function to wortk
+This driver requires a patch for firmware_class.c which has the modified
+request_firmware_nowait function.
 Also after updating the BIOS image an user mdoe application neeeds to execute
 code which message the BIOS update request to the BIOS. So on the next reboot
 the BIOS knows about the new image downloaded and it updates it self.

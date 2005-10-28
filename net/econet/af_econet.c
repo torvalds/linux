@@ -406,7 +406,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		unsigned long network = 0;
 
 		rcu_read_lock();
-		idev = __in_dev_get(dev);
+		idev = __in_dev_get_rcu(dev);
 		if (idev) {
 			if (idev->ifa_list)
 				network = ntohl(idev->ifa_list->ifa_address) & 

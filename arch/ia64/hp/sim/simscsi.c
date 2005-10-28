@@ -233,6 +233,23 @@ simscsi_readwrite10 (struct scsi_cmnd *sc, int mode)
 		simscsi_readwrite(sc, mode, offset, ((sc->cmnd[7] << 8) | sc->cmnd[8])*512);
 }
 
+static void simscsi_fillresult(struct scsi_cmnd *sc, char *buf, unsigned len)
+{
+
+	int scatterlen = sc->use_sg;
+	struct scatterlist *slp;
+
+	if (scatterlen == 0)
+		memcpy(sc->request_buffer, buf, len);
+	else for (slp = (struct scatterlist *)sc->buffer; scatterlen-- > 0 && len > 0; slp++) {
+		unsigned thislen = min(len, slp->length);
+
+		memcpy(page_address(slp->page) + slp->offset, buf, thislen);
+		slp++;
+		len -= thislen;
+	}
+}
+
 static int
 simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 {
@@ -240,6 +257,7 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	char fname[MAX_ROOT_LEN+16];
 	size_t disk_size;
 	char *buf;
+	char localbuf[36];
 #if DEBUG_SIMSCSI
 	register long sp asm ("sp");
 
@@ -263,7 +281,7 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 				/* disk doesn't exist... */
 				break;
 			}
-			buf = sc->request_buffer;
+			buf = localbuf;
 			buf[0] = 0;	/* magnetic disk */
 			buf[1] = 0;	/* not a removable medium */
 			buf[2] = 2;	/* SCSI-2 compliant device */
@@ -273,6 +291,7 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			buf[6] = 0;	/* reserved */
 			buf[7] = 0;	/* various flags */
 			memcpy(buf + 8, "HP      SIMULATED DISK  0.00",  28);
+			simscsi_fillresult(sc, buf, 36);
 			sc->result = GOOD;
 			break;
 
@@ -304,16 +323,13 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			simscsi_readwrite10(sc, SSC_WRITE);
 			break;
 
-
 		      case READ_CAPACITY:
 			if (desc[target_id] < 0 || sc->request_bufflen < 8) {
 				break;
 			}
-			buf = sc->request_buffer;
-
+			buf = localbuf;
 			disk_size = simscsi_get_disk_size(desc[target_id]);
 
-			/* pretend to be a 1GB disk (partition table contains real stuff): */
 			buf[0] = (disk_size >> 24) & 0xff;
 			buf[1] = (disk_size >> 16) & 0xff;
 			buf[2] = (disk_size >>  8) & 0xff;
@@ -323,13 +339,14 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			buf[5] = 0;
 			buf[6] = 2;
 			buf[7] = 0;
+			simscsi_fillresult(sc, buf, 8);
 			sc->result = GOOD;
 			break;
 
 		      case MODE_SENSE:
 		      case MODE_SENSE_10:
 			/* sd.c uses this to determine whether disk does write-caching. */
-			memset(sc->request_buffer, 0, 128);
+			simscsi_fillresult(sc, (char *)empty_zero_page, sc->request_bufflen);
 			sc->result = GOOD;
 			break;
 
