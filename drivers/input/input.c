@@ -40,6 +40,7 @@ EXPORT_SYMBOL(input_accept_process);
 EXPORT_SYMBOL(input_flush_device);
 EXPORT_SYMBOL(input_event);
 EXPORT_SYMBOL(input_class);
+EXPORT_SYMBOL_GPL(input_dev_class);
 
 #define INPUT_DEVICES	256
 
@@ -724,7 +725,7 @@ static void input_dev_release(struct class_device *class_dev)
 	module_put(THIS_MODULE);
 }
 
-static struct class input_dev_class = {
+struct class input_dev_class = {
 	.name			= "input_dev",
 	.release		= input_dev_release,
 	.class_dev_attrs	= input_dev_attrs,

@@ -1075,6 +1075,7 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 }
 
 extern struct class *input_class;
+extern struct class input_dev_class;
 
 #endif
 #endif
