@@ -34,6 +34,7 @@
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
 
 #include "generic.h"
@@ -301,6 +302,22 @@ static struct platform_device i2s_device = {
 	.num_resources	= ARRAY_SIZE(i2s_resources),
 };
 
+static u64 pxaficp_dmamask = ~(u32)0;
+
+static struct platform_device pxaficp_device = {
+	.name		= "pxa2xx-ir",
+	.id		= -1,
+	.dev		= {
+		.dma_mask = &pxaficp_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+};
+
+void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
+{
+	pxaficp_device.dev.platform_data = info;
+}
+
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
 	&udc_device,
@@ -308,6 +325,7 @@ static struct platform_device *devices[] __initdata = {
 	&ffuart_device,
 	&btuart_device,
 	&stuart_device,
+	&pxaficp_device,
 	&i2c_device,
 	&i2s_device,
 };

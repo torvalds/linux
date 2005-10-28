@@ -1032,14 +1032,12 @@
 #define ICCR0_LBM	(1 << 1)	/* Loopback mode */
 #define ICCR0_ITR	(1 << 0)	/* IrDA transmission */
 
-#ifdef CONFIG_PXA27x
 #define ICCR2_RXP       (1 << 3)	/* Receive Pin Polarity select */
 #define ICCR2_TXP       (1 << 2)	/* Transmit Pin Polarity select */
 #define ICCR2_TRIG	(3 << 0)	/* Receive FIFO Trigger threshold */
 #define ICCR2_TRIG_8    (0 << 0)	/* 	>= 8 bytes */
 #define ICCR2_TRIG_16   (1 << 0)	/*	>= 16 bytes */
 #define ICCR2_TRIG_32   (2 << 0)	/*	>= 32 bytes */
-#endif
 
 #ifdef CONFIG_PXA27x
 #define ICSR0_EOC	(1 << 6)	/* DMA End of Descriptor Chain */
