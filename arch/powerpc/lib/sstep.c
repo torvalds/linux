@@ -10,13 +10,18 @@
  */
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
+#include <linux/config.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
 
 extern char system_call_common[];
 
+#ifdef CONFIG_PPC64
 /* Bits in SRR1 that are copied from MSR */
 #define MSR_MASK	0xffffffff87c0ffff
+#else
+#define MSR_MASK	0x87c0ffff
+#endif
 
 /*
  * Determine whether a conditional branch instruction would branch.
@@ -66,6 +71,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (branch_taken(instr, regs))
 			regs->nip = imm;
 		return 1;
+#ifdef CONFIG_PPC64
 	case 17:	/* sc */
 		/*
 		 * N.B. this uses knowledge about how the syscall
@@ -79,6 +85,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		regs->nip = (unsigned long) &system_call_common;
 		regs->msr = MSR_KERNEL;
 		return 1;
+#endif
 	case 18:	/* b */
 		imm = instr & 0x03fffffc;
 		if (imm & 0x02000000)
@@ -121,6 +128,15 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			if ((regs->msr & MSR_SF) == 0)
 				regs->nip &= 0xffffffffUL;
 			return 1;
+		case 0x124:	/* mtmsr */
+			imm = regs->gpr[rd];
+			if ((imm & MSR_RI) == 0)
+				/* can't step mtmsr that would clear MSR_RI */
+				return -1;
+			regs->msr = imm;
+			regs->nip += 4;
+			return 1;
+#ifdef CONFIG_PPC64
 		case 0x164:	/* mtmsrd */
 			/* only MSR_EE and MSR_RI get changed if bit 15 set */
 			/* mtmsrd doesn't change MSR_HV and MSR_ME */
@@ -135,6 +151,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			if ((imm & MSR_SF) == 0)
 				regs->nip &= 0xffffffffUL;
 			return 1;
+#endif
 		}
 	}
 	return 0;

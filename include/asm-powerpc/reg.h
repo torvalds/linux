@@ -51,9 +51,17 @@
 #define __MASK(X)	(1UL<<(X))
 #endif
 
+#ifdef CONFIG_PPC64
 #define MSR_SF		__MASK(MSR_SF_LG)	/* Enable 64 bit mode */
 #define MSR_ISF		__MASK(MSR_ISF_LG)	/* Interrupt 64b mode valid on 630 */
 #define MSR_HV 		__MASK(MSR_HV_LG)	/* Hypervisor state */
+#else
+/* so tests for these bits fail on 32-bit */
+#define MSR_SF		0
+#define MSR_ISF		0
+#define MSR_HV		0
+#endif
+
 #define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
 #define MSR_POW		__MASK(MSR_POW_LG)	/* Enable Power Management */
 #define MSR_WE		__MASK(MSR_WE_LG)	/* Wait State Enable */
