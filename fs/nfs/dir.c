@@ -532,6 +532,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	my_entry.eof = 0;
 	my_entry.fh = &fh;
 	my_entry.fattr = &fattr;
+	nfs_fattr_init(&fattr);
 	desc->entry = &my_entry;
 
 	while(!desc->entry->eof) {

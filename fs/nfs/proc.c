@@ -61,7 +61,7 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	int status;
 
 	dprintk("%s: call getattr\n", __FUNCTION__);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call(server->client_sys, NFSPROC_GETATTR, fhandle, fattr, 0);
 	dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
 	if (status)
@@ -93,7 +93,7 @@ nfs_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  getattr\n");
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call(server->client, NFSPROC_GETATTR,
 				fhandle, fattr, 0);
 	dprintk("NFS reply getattr: %d\n", status);
@@ -112,7 +112,7 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	int	status;
 
 	dprintk("NFS call  setattr\n");
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(inode), NFSPROC_SETATTR, &arg, fattr, 0);
 	if (status == 0)
 		nfs_setattr_update_inode(inode, sattr);
@@ -136,7 +136,7 @@ nfs_proc_lookup(struct inode *dir, struct qstr *name,
 	int			status;
 
 	dprintk("NFS call  lookup %s\n", name->name);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_LOOKUP, &arg, &res, 0);
 	dprintk("NFS reply lookup: %d\n", status);
 	return status;
@@ -174,7 +174,7 @@ static int nfs_proc_read(struct nfs_read_data *rdata)
 
 	dprintk("NFS call  read %d @ %Ld\n", rdata->args.count,
 			(long long) rdata->args.offset);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
 	if (status >= 0) {
 		nfs_refresh_inode(inode, fattr);
@@ -203,7 +203,7 @@ static int nfs_proc_write(struct nfs_write_data *wdata)
 
 	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
 			(long long) wdata->args.offset);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
 	if (status >= 0) {
 		nfs_refresh_inode(inode, fattr);
@@ -232,7 +232,7 @@ nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	};
 	int			status;
 
-	fattr.valid = 0;
+	nfs_fattr_init(&fattr);
 	dprintk("NFS call  create %s\n", dentry->d_name.name);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
 	if (status == 0)
@@ -273,12 +273,12 @@ nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		sattr->ia_size = new_encode_dev(rdev);/* get out your barf bag */
 	}
 
-	fattr.valid = 0;
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
 
 	if (status == -EINVAL && S_ISFIFO(mode)) {
 		sattr->ia_mode = mode;
-		fattr.valid = 0;
+		nfs_fattr_init(&fattr);
 		status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
 	}
 	if (status == 0)
@@ -391,7 +391,7 @@ nfs_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 	if (path->len > NFS2_MAXPATHLEN)
 		return -ENAMETOOLONG;
 	dprintk("NFS call  symlink %s -> %s\n", name->name, path->name);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	fhandle->size = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_SYMLINK, &arg, NULL, 0);
 	dprintk("NFS reply symlink: %d\n", status);
@@ -416,7 +416,7 @@ nfs_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	int			status;
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
-	fattr.valid = 0;
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_MKDIR, &arg, &res, 0);
 	if (status == 0)
 		status = nfs_instantiate(dentry, &fhandle, &fattr);
@@ -484,7 +484,7 @@ nfs_proc_statfs(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  statfs\n");
-	stat->fattr->valid = 0;
+	nfs_fattr_init(stat->fattr);
 	status = rpc_call(server->client, NFSPROC_STATFS, fhandle, &fsinfo, 0);
 	dprintk("NFS reply statfs: %d\n", status);
 	if (status)
@@ -507,7 +507,7 @@ nfs_proc_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  fsinfo\n");
-	info->fattr->valid = 0;
+	nfs_fattr_init(info->fattr);
 	status = rpc_call(server->client, NFSPROC_STATFS, fhandle, &fsinfo, 0);
 	dprintk("NFS reply fsinfo: %d\n", status);
 	if (status)

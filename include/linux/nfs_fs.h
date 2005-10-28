@@ -316,6 +316,11 @@ extern void nfs_file_clear_open_context(struct file *filp);
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern u32 root_nfs_parse_addr(char *name); /*__init*/
 
+static inline void nfs_fattr_init(struct nfs_fattr *fattr)
+{
+	fattr->valid = 0;
+}
+
 /*
  * linux/fs/nfs/file.c
  */
