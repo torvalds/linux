@@ -78,15 +78,19 @@ static void pmu_stop(void)
 #ifdef CONFIG_PM
 static int pmu_suspend(struct sys_device *dev, pm_message_t state)
 {
+	down(&pmu_sem);
 	if (pmu_enabled)
-		pmu_stop();
+		pmu_model->stop();
+	up(&pmu_sem);
 	return 0;
 }
 
 static int pmu_resume(struct sys_device *dev)
 {
-	if (pmu_enabled)
-		pmu_start();
+	down(&pmu_sem);
+	if (pmu_enabled && pmu_model->start())
+		pmu_enabled = 0;
+	up(&pmu_sem);
 	return 0;
 }
 
