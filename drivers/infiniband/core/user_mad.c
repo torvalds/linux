@@ -755,7 +755,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (cdev_add(port->dev, base_dev + port->dev_num, 1))
 		goto err_cdev;
 
-	port->class_dev = class_device_create(umad_class, port->dev->dev,
+	port->class_dev = class_device_create(umad_class, NULL, port->dev->dev,
 					      device->dma_device,
 					      "umad%d", port->dev_num);
 	if (IS_ERR(port->class_dev))
@@ -775,7 +775,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (cdev_add(port->sm_dev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
-	port->sm_class_dev = class_device_create(umad_class, port->sm_dev->dev,
+	port->sm_class_dev = class_device_create(umad_class, NULL, port->sm_dev->dev,
 						 device->dma_device,
 						 "issm%d", port->dev_num);
 	if (IS_ERR(port->sm_class_dev))
