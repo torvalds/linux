@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mm/mm-armv.c
  *
- *  Copyright (C) 1998-2002 Russell King
+ *  Copyright (C) 1998-2005 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -305,16 +305,6 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 	set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, prot));
 }
 
-/*
- * Clear any PGD mapping.  On a two-level page table system,
- * the clearance is done by the middle-level functions (pmd)
- * rather than the top-level (pgd) functions.
- */
-static inline void clear_mapping(unsigned long virt)
-{
-	pmd_clear(pmd_off_k(virt));
-}
-
 struct mem_types {
 	unsigned int	prot_pte;
 	unsigned int	prot_l1;
@@ -373,7 +363,7 @@ static struct mem_types mem_types[] __initdata = {
 /*
  * Adjust the PMD section entries according to the CPU in use.
  */
-static void __init build_mem_type_table(void)
+void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
@@ -483,7 +473,7 @@ static void __init build_mem_type_table(void)
  * offsets, and we take full advantage of sections and
  * supersections.
  */
-static void __init create_mapping(struct map_desc *md)
+void __init create_mapping(struct map_desc *md)
 {
 	unsigned long virt, length;
 	int prot_sect, prot_l1, domain;
@@ -599,100 +589,6 @@ void setup_mm_for_reboot(char mode)
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
 		flush_pmd_entry(pmd);
 	}
-}
-
-extern void _stext, _etext;
-
-/*
- * Setup initial mappings.  We use the page we allocated for zero page to hold
- * the mappings, which will get overwritten by the vectors in traps_init().
- * The mappings must be in virtual address order.
- */
-void __init memtable_init(struct meminfo *mi)
-{
-	struct map_desc *init_maps, *p, *q;
-	unsigned long address = 0;
-	int i;
-
-	build_mem_type_table();
-
-	init_maps = p = alloc_bootmem_low_pages(PAGE_SIZE);
-
-#ifdef CONFIG_XIP_KERNEL
-	p->physical   = CONFIG_XIP_PHYS_ADDR & PMD_MASK;
-	p->virtual    = (unsigned long)&_stext & PMD_MASK;
-	p->length     = ((unsigned long)&_etext - p->virtual + ~PMD_MASK) & PMD_MASK;
-	p->type       = MT_ROM;
-	p ++;
-#endif
-
-	for (i = 0; i < mi->nr_banks; i++) {
-		if (mi->bank[i].size == 0)
-			continue;
-
-		p->physical   = mi->bank[i].start;
-		p->virtual    = __phys_to_virt(p->physical);
-		p->length     = mi->bank[i].size;
-		p->type       = MT_MEMORY;
-		p ++;
-	}
-
-#ifdef FLUSH_BASE
-	p->physical   = FLUSH_BASE_PHYS;
-	p->virtual    = FLUSH_BASE;
-	p->length     = PGDIR_SIZE;
-	p->type       = MT_CACHECLEAN;
-	p ++;
-#endif
-
-#ifdef FLUSH_BASE_MINICACHE
-	p->physical   = FLUSH_BASE_PHYS + PGDIR_SIZE;
-	p->virtual    = FLUSH_BASE_MINICACHE;
-	p->length     = PGDIR_SIZE;
-	p->type       = MT_MINICLEAN;
-	p ++;
-#endif
-
-	/*
-	 * Go through the initial mappings, but clear out any
-	 * pgdir entries that are not in the description.
-	 */
-	q = init_maps;
-	do {
-		if (address < q->virtual || q == p) {
-			clear_mapping(address);
-			address += PGDIR_SIZE;
-		} else {
-			create_mapping(q);
-
-			address = q->virtual + q->length;
-			address = (address + PGDIR_SIZE - 1) & PGDIR_MASK;
-
-			q ++;
-		}
-	} while (address != 0);
-
-	/*
-	 * Create a mapping for the machine vectors at the high-vectors
-	 * location (0xffff0000).  If we aren't using high-vectors, also
-	 * create a mapping at the low-vectors virtual address.
-	 */
-	init_maps->physical   = virt_to_phys(init_maps);
-	init_maps->virtual    = 0xffff0000;
-	init_maps->length     = PAGE_SIZE;
-	init_maps->type       = MT_HIGH_VECTORS;
-	create_mapping(init_maps);
-
-	if (!vectors_high()) {
-		init_maps->virtual = 0;
-		init_maps->type = MT_LOW_VECTORS;
-		create_mapping(init_maps);
-	}
-
-	flush_cache_all();
-	local_flush_tlb_all();
-
-	top_pmd = pmd_off_k(0xffff0000);
 }
 
 /*
