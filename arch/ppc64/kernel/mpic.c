@@ -506,8 +506,8 @@ struct mpic * __init mpic_alloc(unsigned long phys_addr,
 	mpic->senses_count = senses_count;
 
 	/* Map the global registers */
-	mpic->gregs = ioremap(phys_addr + MPIC_GREG_BASE, 0x1000);
-	mpic->tmregs = mpic->gregs + (MPIC_TIMER_BASE >> 2);
+	mpic->gregs = ioremap(phys_addr + MPIC_GREG_BASE, 0x2000);
+	mpic->tmregs = mpic->gregs + ((MPIC_TIMER_BASE - MPIC_GREG_BASE) >> 2);
 	BUG_ON(mpic->gregs == NULL);
 
 	/* Reset */
