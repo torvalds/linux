@@ -205,10 +205,11 @@ simscsi_get_disk_size (int fd)
 	char buf[512];
 
 	/*
-	 * This is a bit kludgey: the simulator doesn't provide a direct way of determining
-	 * the disk size, so we do a binary search, assuming a maximum disk size of 4GB.
+	 * This is a bit kludgey: the simulator doesn't provide a
+	 * direct way of determining the disk size, so we do a binary
+	 * search, assuming a maximum disk size of 128GB.
 	 */
-	for (bit = (4UL << 30)/512; bit != 0; bit >>= 1) {
+	for (bit = (128UL << 30)/512; bit != 0; bit >>= 1) {
 		req.addr = __pa(&buf);
 		req.len = sizeof(buf);
 		ia64_ssc(fd, 1, __pa(&req), ((sectors | bit) - 1)*512, SSC_READ);
@@ -225,8 +226,10 @@ simscsi_readwrite10 (struct scsi_cmnd *sc, int mode)
 {
 	unsigned long offset;
 
-	offset = (  (sc->cmnd[2] << 24) | (sc->cmnd[3] << 16)
-		  | (sc->cmnd[4] <<  8) | (sc->cmnd[5] <<  0))*512;
+	offset = (((unsigned long)sc->cmnd[2] << 24) 
+		| ((unsigned long)sc->cmnd[3] << 16)
+		| ((unsigned long)sc->cmnd[4] <<  8) 
+		| ((unsigned long)sc->cmnd[5] <<  0))*512UL;
 	if (sc->use_sg > 0)
 		simscsi_sg_readwrite(sc, mode, offset);
 	else
