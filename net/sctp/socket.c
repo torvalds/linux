@@ -1389,27 +1389,27 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	SCTP_DEBUG_PRINTK("msg_len: %zu, sinfo_flags: 0x%x\n",
 			  msg_len, sinfo_flags);
 
-	/* MSG_EOF or MSG_ABORT cannot be set on a TCP-style socket. */
-	if (sctp_style(sk, TCP) && (sinfo_flags & (MSG_EOF | MSG_ABORT))) {
+	/* SCTP_EOF or SCTP_ABORT cannot be set on a TCP-style socket. */
+	if (sctp_style(sk, TCP) && (sinfo_flags & (SCTP_EOF | SCTP_ABORT))) {
 		err = -EINVAL;
 		goto out_nounlock;
 	}
 
-	/* If MSG_EOF is set, no data can be sent. Disallow sending zero
-	 * length messages when MSG_EOF|MSG_ABORT is not set.
-	 * If MSG_ABORT is set, the message length could be non zero with
+	/* If SCTP_EOF is set, no data can be sent. Disallow sending zero
+	 * length messages when SCTP_EOF|SCTP_ABORT is not set.
+	 * If SCTP_ABORT is set, the message length could be non zero with
 	 * the msg_iov set to the user abort reason.
  	 */
-	if (((sinfo_flags & MSG_EOF) && (msg_len > 0)) ||
-	    (!(sinfo_flags & (MSG_EOF|MSG_ABORT)) && (msg_len == 0))) {
+	if (((sinfo_flags & SCTP_EOF) && (msg_len > 0)) ||
+	    (!(sinfo_flags & (SCTP_EOF|SCTP_ABORT)) && (msg_len == 0))) {
 		err = -EINVAL;
 		goto out_nounlock;
 	}
 
-	/* If MSG_ADDR_OVER is set, there must be an address
+	/* If SCTP_ADDR_OVER is set, there must be an address
 	 * specified in msg_name.
 	 */
-	if ((sinfo_flags & MSG_ADDR_OVER) && (!msg->msg_name)) {
+	if ((sinfo_flags & SCTP_ADDR_OVER) && (!msg->msg_name)) {
 		err = -EINVAL;
 		goto out_nounlock;
 	}
@@ -1458,14 +1458,14 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			goto out_unlock;
 		}
 
-		if (sinfo_flags & MSG_EOF) {
+		if (sinfo_flags & SCTP_EOF) {
 			SCTP_DEBUG_PRINTK("Shutting down association: %p\n",
 					  asoc);
 			sctp_primitive_SHUTDOWN(asoc, NULL);
 			err = 0;
 			goto out_unlock;
 		}
-		if (sinfo_flags & MSG_ABORT) {
+		if (sinfo_flags & SCTP_ABORT) {
 			SCTP_DEBUG_PRINTK("Aborting association: %p\n", asoc);
 			sctp_primitive_ABORT(asoc, msg);
 			err = 0;
@@ -1477,7 +1477,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (!asoc) {
 		SCTP_DEBUG_PRINTK("There is no association yet.\n");
 
-		if (sinfo_flags & (MSG_EOF | MSG_ABORT)) {
+		if (sinfo_flags & (SCTP_EOF | SCTP_ABORT)) {
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -1611,10 +1611,10 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	/* If an address is passed with the sendto/sendmsg call, it is used
 	 * to override the primary destination address in the TCP model, or
-	 * when MSG_ADDR_OVER flag is set in the UDP model.
+	 * when SCTP_ADDR_OVER flag is set in the UDP model.
 	 */
 	if ((sctp_style(sk, TCP) && msg_name) ||
-	    (sinfo_flags & MSG_ADDR_OVER)) {
+	    (sinfo_flags & SCTP_ADDR_OVER)) {
 		chunk_tp = sctp_assoc_lookup_paddr(asoc, &to);
 		if (!chunk_tp) {
 			err = -EINVAL;
@@ -4640,8 +4640,8 @@ SCTP_STATIC int sctp_msghdr_parse(const struct msghdr *msg,
 
 			/* Minimally, validate the sinfo_flags. */
 			if (cmsgs->info->sinfo_flags &
-			    ~(MSG_UNORDERED | MSG_ADDR_OVER |
-			      MSG_ABORT | MSG_EOF))
+			    ~(SCTP_UNORDERED | SCTP_ADDR_OVER |
+			      SCTP_ABORT | SCTP_EOF))
 				return -EINVAL;
 			break;
 
