@@ -689,7 +689,7 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 
 	devfs_mk_cdev(MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
 			S_IFCHR|S_IRUGO|S_IWUSR, "input/event%d", minor);
-	class_device_create(input_class,
+	class_device_create(input_class, NULL,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
 			dev->dev, "event%d", minor);
 

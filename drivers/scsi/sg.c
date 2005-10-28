@@ -1550,7 +1550,7 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	if (sg_sysfs_valid) {
 		struct class_device * sg_class_member;
 
-		sg_class_member = class_device_create(sg_sysfs_class,
+		sg_class_member = class_device_create(sg_sysfs_class, NULL,
 				MKDEV(SCSI_GENERIC_MAJOR, k), 
 				cl_dev->dev, "%s", 
 				disk->disk_name);

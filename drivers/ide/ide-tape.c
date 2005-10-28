@@ -4884,9 +4884,9 @@ static int ide_tape_probe(struct device *dev)
 
 	idetape_setup(drive, tape, minor);
 
-	class_device_create(idetape_sysfs_class,
+	class_device_create(idetape_sysfs_class, NULL,
 			MKDEV(IDETAPE_MAJOR, minor), dev, "%s", tape->name);
-	class_device_create(idetape_sysfs_class,
+	class_device_create(idetape_sysfs_class, NULL,
 			MKDEV(IDETAPE_MAJOR, minor + 128), dev, "n%s", tape->name);
 
 	devfs_mk_cdev(MKDEV(HWIF(drive)->major, minor),

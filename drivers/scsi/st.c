@@ -4375,7 +4375,7 @@ static void do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			class_device_create(st_sysfs_class,
+			class_device_create(st_sysfs_class, NULL,
 					    MKDEV(SCSI_TAPE_MAJOR,
 						  TAPE_MINOR(dev_num, mode, rew)),
 					    &STp->device->sdev_gendev, "%s", name);

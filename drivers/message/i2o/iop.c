@@ -1141,7 +1141,7 @@ int i2o_iop_add(struct i2o_controller *c)
 		goto iop_reset;
 	}
 
-	c->classdev = class_device_create(i2o_controller_class, 0,
+	c->classdev = class_device_create(i2o_controller_class, NULL, MKDEV(0,0),
 			&c->device, "iop%d", c->unit);
 	if (IS_ERR(c->classdev)) {
 		osm_err("%s: could not add controller class\n", c->name);
