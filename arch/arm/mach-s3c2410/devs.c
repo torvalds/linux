@@ -47,7 +47,7 @@ struct platform_device *s3c24xx_uart_devs[3];
 static struct resource s3c_usb_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_USBHOST,
-		.end   = S3C2410_PA_USBHOST + S3C24XX_SZ_USBHOST,
+		.end   = S3C2410_PA_USBHOST + S3C24XX_SZ_USBHOST - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(s3c_device_usb);
 static struct resource s3c_lcd_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_LCD,
-		.end   = S3C2410_PA_LCD + S3C24XX_SZ_LCD,
+		.end   = S3C2410_PA_LCD + S3C24XX_SZ_LCD - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(set_s3c2410fb_info);
 static struct resource s3c_nand_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_NAND,
-		.end   = S3C2410_PA_NAND + S3C24XX_SZ_NAND,
+		.end   = S3C2410_PA_NAND + S3C24XX_SZ_NAND - 1,
 		.flags = IORESOURCE_MEM,
 	}
 };
@@ -136,7 +136,7 @@ EXPORT_SYMBOL(s3c_device_nand);
 static struct resource s3c_usbgadget_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_USBDEV,
-		.end   = S3C2410_PA_USBDEV + S3C24XX_SZ_USBDEV,
+		.end   = S3C2410_PA_USBDEV + S3C24XX_SZ_USBDEV - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -161,7 +161,7 @@ EXPORT_SYMBOL(s3c_device_usbgadget);
 static struct resource s3c_wdt_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_WATCHDOG,
-		.end   = S3C2410_PA_WATCHDOG + S3C24XX_SZ_WATCHDOG,
+		.end   = S3C2410_PA_WATCHDOG + S3C24XX_SZ_WATCHDOG - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -186,7 +186,7 @@ EXPORT_SYMBOL(s3c_device_wdt);
 static struct resource s3c_i2c_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_IIC,
-		.end   = S3C2410_PA_IIC + S3C24XX_SZ_IIC,
+		.end   = S3C2410_PA_IIC + S3C24XX_SZ_IIC - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -211,7 +211,7 @@ EXPORT_SYMBOL(s3c_device_i2c);
 static struct resource s3c_iis_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_IIS,
-		.end   = S3C2410_PA_IIS + S3C24XX_SZ_IIS,
+		.end   = S3C2410_PA_IIS + S3C24XX_SZ_IIS -1,
 		.flags = IORESOURCE_MEM,
 	}
 };
@@ -265,7 +265,7 @@ EXPORT_SYMBOL(s3c_device_rtc);
 static struct resource s3c_adc_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_ADC,
-		.end   = S3C2410_PA_ADC + S3C24XX_SZ_ADC,
+		.end   = S3C2410_PA_ADC + S3C24XX_SZ_ADC - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -288,7 +288,7 @@ struct platform_device s3c_device_adc = {
 static struct resource s3c_sdi_resource[] = {
 	[0] = {
 		.start = S3C2410_PA_SDI,
-		.end   = S3C2410_PA_SDI + S3C24XX_SZ_SDI,
+		.end   = S3C2410_PA_SDI + S3C24XX_SZ_SDI - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -465,7 +465,7 @@ EXPORT_SYMBOL(s3c_device_timer3);
 static struct resource s3c_camif_resource[] = {
 	[0] = {
 		.start = S3C2440_PA_CAMIF,
-		.end   = S3C2440_PA_CAMIF + S3C2440_SZ_CAMIF,
+		.end   = S3C2440_PA_CAMIF + S3C2440_SZ_CAMIF - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
