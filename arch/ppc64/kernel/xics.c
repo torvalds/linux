@@ -28,8 +28,7 @@
 #include <asm/xics.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
-
-#include "i8259.h"
+#include <asm/i8259.h>
 
 static unsigned int xics_startup(unsigned int irq);
 static void xics_enable_irq(unsigned int irq);
@@ -366,7 +365,7 @@ int xics_get_irq(struct pt_regs *regs)
 
 	/* for sanity, this had better be < NR_IRQS - 16 */
 	if (vec == xics_irq_8259_cascade_real) {
-		irq = i8259_irq(cpu);
+		irq = i8259_irq(regs);
 		if (irq == -1) {
 			/* Spurious cascaded interrupt.  Still must ack xics */
 			xics_end_irq(irq_offset_up(xics_irq_8259_cascade));
@@ -589,7 +588,7 @@ static int __init xics_setup_i8259(void)
 				no_action, 0, "8259 cascade", NULL))
 			printk(KERN_ERR "xics_setup_i8259: couldn't get 8259 "
 					"cascade\n");
-		i8259_init(0);
+		i8259_init(0, 0);
 	}
 	return 0;
 }
