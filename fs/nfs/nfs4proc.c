@@ -1614,11 +1614,17 @@ out:
 
 static int _nfs4_proc_remove(struct inode *dir, struct qstr *name)
 {
+	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_remove_arg args = {
 		.fh = NFS_FH(dir),
 		.name = name,
+		.bitmask = server->attr_bitmask,
 	};
-	struct nfs4_change_info	res;
+	struct nfs_fattr dir_attr;
+	struct nfs4_remove_res	res = {
+		.server = server,
+		.dir_attr = &dir_attr,
+	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_REMOVE],
 		.rpc_argp	= &args,
@@ -1626,9 +1632,12 @@ static int _nfs4_proc_remove(struct inode *dir, struct qstr *name)
 	};
 	int			status;
 
-	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	if (status == 0)
-		update_changeattr(dir, &res);
+	nfs_fattr_init(res.dir_attr);
+	status = rpc_call_sync(server->client, &msg, 0);
+	if (status == 0) {
+		update_changeattr(dir, &res.cinfo);
+		nfs_post_op_update_inode(dir, res.dir_attr);
+	}
 	return status;
 }
 
@@ -1646,12 +1655,14 @@ static int nfs4_proc_remove(struct inode *dir, struct qstr *name)
 
 struct unlink_desc {
 	struct nfs4_remove_arg	args;
-	struct nfs4_change_info	res;
+	struct nfs4_remove_res	res;
+	struct nfs_fattr dir_attr;
 };
 
 static int nfs4_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir,
 		struct qstr *name)
 {
+	struct nfs_server *server = NFS_SERVER(dir->d_inode);
 	struct unlink_desc *up;
 
 	up = (struct unlink_desc *) kmalloc(sizeof(*up), GFP_KERNEL);
@@ -1660,6 +1671,9 @@ static int nfs4_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir,
 	
 	up->args.fh = NFS_FH(dir->d_inode);
 	up->args.name = name;
+	up->args.bitmask = server->attr_bitmask;
+	up->res.server = server;
+	up->res.dir_attr = &up->dir_attr;
 	
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_REMOVE];
 	msg->rpc_argp = &up->args;
@@ -1674,7 +1688,8 @@ static int nfs4_proc_unlink_done(struct dentry *dir, struct rpc_task *task)
 	
 	if (msg->rpc_resp != NULL) {
 		up = container_of(msg->rpc_resp, struct unlink_desc, res);
-		update_changeattr(dir->d_inode, &up->res);
+		update_changeattr(dir->d_inode, &up->res.cinfo);
+		nfs_post_op_update_inode(dir->d_inode, up->res.dir_attr);
 		kfree(up);
 		msg->rpc_resp = NULL;
 		msg->rpc_argp = NULL;

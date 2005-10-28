@@ -623,6 +623,13 @@ struct nfs4_readlink {
 struct nfs4_remove_arg {
 	const struct nfs_fh *		fh;
 	const struct qstr *		name;
+	const u32 *			bitmask;
+};
+
+struct nfs4_remove_res {
+	const struct nfs_server *	server;
+	struct nfs4_change_info		cinfo;
+	struct nfs_fattr *		dir_attr;
 };
 
 struct nfs4_rename_arg {

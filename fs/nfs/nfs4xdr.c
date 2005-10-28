@@ -306,10 +306,12 @@ static int nfs_stat_to_errno(int);
 				decode_getfh_maxsz)
 #define NFS4_enc_remove_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_remove_maxsz)
+				encode_remove_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_remove_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 5)
+				op_decode_hdr_maxsz + 5 + \
+				decode_getattr_maxsz)
 #define NFS4_enc_rename_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_savefh_maxsz + \
@@ -1327,14 +1329,18 @@ static int nfs4_xdr_enc_remove(struct rpc_rqst *req, uint32_t *p, const struct n
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 2,
+		.nops = 3,
 	};
 	int status;
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
-	if ((status = encode_putfh(&xdr, args->fh)) == 0)
-		status = encode_remove(&xdr, args->name);
+	if ((status = encode_putfh(&xdr, args->fh)) != 0)
+		goto out;
+	if ((status = encode_remove(&xdr, args->name)) != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
+out:
 	return status;
 }
 
@@ -3512,7 +3518,7 @@ out:
 /*
  * Decode REMOVE response
  */
-static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_change_info *cinfo)
+static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_remove_res *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -3521,8 +3527,11 @@ static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_
 	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
 	if ((status = decode_compound_hdr(&xdr, &hdr)) != 0)
 		goto out;
-	if ((status = decode_putfh(&xdr)) == 0)
-		status = decode_remove(&xdr, cinfo);
+	if ((status = decode_putfh(&xdr)) != 0)
+		goto out;
+	if ((status = decode_remove(&xdr, &res->cinfo)) != 0)
+		goto out;
+	decode_getfattr(&xdr, res->dir_attr, res->server);
 out:
 	return status;
 }
