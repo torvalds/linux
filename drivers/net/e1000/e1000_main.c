@@ -4193,6 +4193,7 @@ e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int
 e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -4289,7 +4290,6 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int
 e1000_resume(struct pci_dev *pdev)
 {
