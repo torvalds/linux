@@ -61,9 +61,22 @@ static int __init parse_tag_acorn(const struct tag *tag)
 __tagtable(ATAG_ACORN, parse_tag_acorn);
 
 static struct map_desc rpc_io_desc[] __initdata = {
- { SCREEN_BASE,	SCREEN_START,	2*1048576, MT_DEVICE }, /* VRAM		*/
- { (u32)IO_BASE, IO_START,	IO_SIZE	 , MT_DEVICE }, /* IO space	*/
- { EASI_BASE,	EASI_START,	EASI_SIZE, MT_DEVICE }  /* EASI space	*/
+ 	{	/* VRAM		*/
+		.virtual	=  SCREEN_BASE,
+		.pfn		= __phys_to_pfn(SCREEN_START),
+		.length		= 	2*1048576,
+		.type		= MT_DEVICE
+	}, {	/* IO space	*/
+		.virtual	=  (u32)IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= 	IO_SIZE	 ,
+		.type		= MT_DEVICE
+	}, {	/* EASI space	*/
+		.virtual	= EASI_BASE,
+		.pfn		= __phys_to_pfn(EASI_START),
+		.length		= EASI_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init rpc_map_io(void)

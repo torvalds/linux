@@ -38,13 +38,17 @@
  * Standard IO mapping for all IOP321 based systems
  */
 static struct map_desc iop321_std_desc[] __initdata = {
- /* virtual     physical      length      type */
-
- /* mem mapped registers */
- { IOP321_VIRT_MEM_BASE,  IOP321_PHYS_MEM_BASE,   0x00002000,  MT_DEVICE },
-
- /* PCI IO space */
- { IOP321_PCI_LOWER_IO_VA,  IOP321_PCI_LOWER_IO_PA,   IOP321_PCI_IO_WINDOW_SIZE,  MT_DEVICE }
+	 {	/* mem mapped registers */
+		.virtual	= IOP321_VIRT_MEM_BASE,
+		.pfn		= __phys_to_pfn(IOP321_PHYS_MEM_BASE),
+		.length		= 0x00002000,
+		.type		= MT_DEVICE
+	 }, {	/* PCI IO space */
+		.virtual	= IOP321_PCI_LOWER_IO_VA,
+		.pfn		= __phys_to_pfn(IOP321_PCI_LOWER_IO_PA),
+		.length		= IOP321_PCI_IO_WINDOW_SIZE,
+		.type		= MT_DEVICE
+	 }
 };
 
 #ifdef CONFIG_ARCH_IQ80321

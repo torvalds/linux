@@ -34,6 +34,7 @@
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
 
 #include "generic.h"
@@ -92,14 +93,42 @@ EXPORT_SYMBOL(pxa_set_cken);
  *         and cache flush area.
  */
 static struct map_desc standard_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-  { 0xf2000000, 0x40000000, 0x02000000, MT_DEVICE }, /* Devs */
-  { 0xf4000000, 0x44000000, 0x00100000, MT_DEVICE }, /* LCD */
-  { 0xf6000000, 0x48000000, 0x00100000, MT_DEVICE }, /* Mem Ctl */
-  { 0xf8000000, 0x4c000000, 0x00100000, MT_DEVICE }, /* USB host */
-  { 0xfa000000, 0x50000000, 0x00100000, MT_DEVICE }, /* Camera */
-  { 0xfe000000, 0x58000000, 0x00100000, MT_DEVICE }, /* IMem ctl */
-  { 0xff000000, 0x00000000, 0x00100000, MT_DEVICE }  /* UNCACHED_PHYS_0 */
+  	{	/* Devs */
+		.virtual	=  0xf2000000,
+		.pfn		= __phys_to_pfn(0x40000000),
+		.length		= 0x02000000,
+		.type		= MT_DEVICE
+	}, {	/* LCD */
+		.virtual	=  0xf4000000,
+		.pfn		= __phys_to_pfn(0x44000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* Mem Ctl */
+		.virtual	=  0xf6000000,
+		.pfn		= __phys_to_pfn(0x48000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* USB host */
+		.virtual	=  0xf8000000,
+		.pfn		= __phys_to_pfn(0x4c000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* Camera */
+		.virtual	=  0xfa000000,
+		.pfn		= __phys_to_pfn(0x50000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* IMem ctl */
+		.virtual	=  0xfe000000,
+		.pfn		= __phys_to_pfn(0x58000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* UNCACHED_PHYS_0 */
+		.virtual	= 0xff000000,
+		.pfn		= __phys_to_pfn(0x00000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init pxa_map_io(void)
@@ -225,6 +254,10 @@ static struct platform_device stuart_device = {
 	.name		= "pxa2xx-uart",
 	.id		= 2,
 };
+static struct platform_device hwuart_device = {
+	.name		= "pxa2xx-uart",
+	.id		= 3,
+};
 
 static struct resource i2c_resources[] = {
 	{
@@ -265,9 +298,25 @@ static struct resource i2s_resources[] = {
 static struct platform_device i2s_device = {
 	.name		= "pxa2xx-i2s",
 	.id		= -1,
-	.resource	= i2c_resources,
+	.resource	= i2s_resources,
 	.num_resources	= ARRAY_SIZE(i2s_resources),
 };
+
+static u64 pxaficp_dmamask = ~(u32)0;
+
+static struct platform_device pxaficp_device = {
+	.name		= "pxa2xx-ir",
+	.id		= -1,
+	.dev		= {
+		.dma_mask = &pxaficp_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+};
+
+void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
+{
+	pxaficp_device.dev.platform_data = info;
+}
 
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
@@ -276,13 +325,26 @@ static struct platform_device *devices[] __initdata = {
 	&ffuart_device,
 	&btuart_device,
 	&stuart_device,
+	&pxaficp_device,
 	&i2c_device,
 	&i2s_device,
 };
 
 static int __init pxa_init(void)
 {
-	return platform_add_devices(devices, ARRAY_SIZE(devices));
+	int cpuid, ret;
+
+	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+	if (ret)
+		return ret;
+
+	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
+	cpuid = read_cpuid(CPUID_ID);
+	if (((cpuid >> 4) & 0xfff) == 0x2d0 ||
+	    ((cpuid >> 4) & 0xfff) == 0x290)
+		ret = platform_device_register(&hwuart_device);
+
+	return ret;
 }
 
 subsys_initcall(pxa_init);

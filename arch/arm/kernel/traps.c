@@ -345,7 +345,9 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if (current->personality != PER_LINUX && thread->exec_domain->handler) {
+	if (current->personality != PER_LINUX &&
+	    current->personality != PER_LINUX_32BIT &&
+	    thread->exec_domain->handler) {
 		thread->exec_domain->handler(n, regs);
 		return regs->ARM_r0;
 	}

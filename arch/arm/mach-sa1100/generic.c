@@ -369,11 +369,27 @@ EXPORT_SYMBOL(sa1100fb_lcd_power);
  */
 
 static struct map_desc standard_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-  { 0xf8000000, 0x80000000, 0x00100000, MT_DEVICE }, /* PCM */
-  { 0xfa000000, 0x90000000, 0x00100000, MT_DEVICE }, /* SCM */
-  { 0xfc000000, 0xa0000000, 0x00100000, MT_DEVICE }, /* MER */
-  { 0xfe000000, 0xb0000000, 0x00200000, MT_DEVICE }  /* LCD + DMA */
+  	{	/* PCM */
+		.virtual	=  0xf8000000,
+		.pfn		= __phys_to_pfn(0x80000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* SCM */
+		.virtual	=  0xfa000000,
+		.pfn		= __phys_to_pfn(0x90000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* MER */
+		.virtual	=  0xfc000000,
+		.pfn		= __phys_to_pfn(0xa0000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* LCD + DMA */
+		.virtual	=  0xfe000000,
+		.pfn		= __phys_to_pfn(0xb0000000),
+		.length		= 0x00200000,
+		.type		= MT_DEVICE
+	},
 };
 
 void __init sa1100_map_io(void)

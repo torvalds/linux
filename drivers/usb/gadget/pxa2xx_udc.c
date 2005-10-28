@@ -422,7 +422,7 @@ static inline void ep0_idle (struct pxa2xx_udc *dev)
 }
 
 static int
-write_packet(volatile unsigned long *uddr, struct pxa2xx_request *req, unsigned max)
+write_packet(volatile u32 *uddr, struct pxa2xx_request *req, unsigned max)
 {
 	u8		*buf;
 	unsigned	length, count;

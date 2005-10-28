@@ -81,10 +81,22 @@ static int __init jornada720_init(void)
 arch_initcall(jornada720_init);
 
 static struct map_desc jornada720_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-  { 0xf0000000, 0x48000000, 0x00100000, MT_DEVICE }, /* Epson registers */
-  { 0xf1000000, 0x48200000, 0x00100000, MT_DEVICE }, /* Epson frame buffer */
-  { 0xf4000000, 0x40000000, 0x00100000, MT_DEVICE }  /* SA-1111 */
+	{	/* Epson registers */
+		.virtual	=  0xf0000000,
+		.pfn		= __phys_to_pfn(0x48000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* Epson frame buffer */
+		.virtual	=  0xf1000000,
+		.pfn		= __phys_to_pfn(0x48200000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* SA-1111 */
+		.virtual	=  0xf4000000,
+		.pfn		= __phys_to_pfn(0x40000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init jornada720_map_io(void)

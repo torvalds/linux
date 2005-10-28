@@ -227,23 +227,79 @@ void __init lh7a40x_init_board_irq (void)
 }
 
 static struct map_desc lpd7a400_io_desc[] __initdata = {
-	{     IO_VIRT,	    IO_PHYS,	    IO_SIZE,	MT_DEVICE },
-	/* Mapping added to work around chip select problems */
-	{ IOBARRIER_VIRT, IOBARRIER_PHYS, IOBARRIER_SIZE, MT_DEVICE },
-	{ CF_VIRT,	CF_PHYS,	CF_SIZE,	MT_DEVICE },
+	{
+		.virtual	=     IO_VIRT,
+		.pfn		= __phys_to_pfn(IO_PHYS),
+		.length		= 	    IO_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* Mapping added to work around chip select problems */
+		.virtual	= IOBARRIER_VIRT,
+		.pfn		= __phys_to_pfn(IOBARRIER_PHYS),
+		.length		= IOBARRIER_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CF_VIRT,
+		.pfn		= __phys_to_pfn(CF_PHYS),
+		.length		= 	CF_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD02_VIRT,
+		.pfn		= __phys_to_pfn(CPLD02_PHYS),
+		.length		= 	CPLD02_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD06_VIRT,
+		.pfn		= __phys_to_pfn(CPLD06_PHYS),
+		.length		= 	CPLD06_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD08_VIRT,
+		.pfn		= __phys_to_pfn(CPLD08_PHYS),
+		.length		= 	CPLD08_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD0C_VIRT,
+		.pfn		= __phys_to_pfn(CPLD0C_PHYS),
+		.length		= 	CPLD0C_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD0E_VIRT,
+		.pfn		= __phys_to_pfn(CPLD0E_PHYS),
+		.length		= 	CPLD0E_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD10_VIRT,
+		.pfn		= __phys_to_pfn(CPLD10_PHYS),
+		.length		= 	CPLD10_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD12_VIRT,
+		.pfn		= __phys_to_pfn(CPLD12_PHYS),
+		.length		= 	CPLD12_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD14_VIRT,
+		.pfn		= __phys_to_pfn(CPLD14_PHYS),
+		.length		= 	CPLD14_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD16_VIRT,
+		.pfn		= __phys_to_pfn(CPLD16_PHYS),
+		.length		= 	CPLD16_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD18_VIRT,
+		.pfn		= __phys_to_pfn(CPLD18_PHYS),
+		.length		= 	CPLD18_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD1A_VIRT,
+		.pfn		= __phys_to_pfn(CPLD1A_PHYS),
+		.length		= 	CPLD1A_SIZE,
+		.type		= MT_DEVICE
+	},
 	/* This mapping is redundant since the smc driver performs another. */
 /*	{ CPLD00_VIRT,  CPLD00_PHYS,	CPLD00_SIZE,	MT_DEVICE }, */
-	{ CPLD02_VIRT,  CPLD02_PHYS,	CPLD02_SIZE,	MT_DEVICE },
-	{ CPLD06_VIRT,  CPLD06_PHYS,	CPLD06_SIZE,	MT_DEVICE },
-	{ CPLD08_VIRT,	CPLD08_PHYS,	CPLD08_SIZE,	MT_DEVICE },
-	{ CPLD0C_VIRT,	CPLD0C_PHYS,	CPLD0C_SIZE,	MT_DEVICE },
-	{ CPLD0E_VIRT,	CPLD0E_PHYS,	CPLD0E_SIZE,	MT_DEVICE },
-	{ CPLD10_VIRT,	CPLD10_PHYS,	CPLD10_SIZE,	MT_DEVICE },
-	{ CPLD12_VIRT,	CPLD12_PHYS,	CPLD12_SIZE,	MT_DEVICE },
-	{ CPLD14_VIRT,	CPLD14_PHYS,	CPLD14_SIZE,	MT_DEVICE },
-	{ CPLD16_VIRT,	CPLD16_PHYS,	CPLD16_SIZE,	MT_DEVICE },
-	{ CPLD18_VIRT,	CPLD18_PHYS,	CPLD18_SIZE,	MT_DEVICE },
-	{ CPLD1A_VIRT,	CPLD1A_PHYS,	CPLD1A_SIZE,	MT_DEVICE },
 };
 
 void __init
