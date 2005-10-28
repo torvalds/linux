@@ -300,7 +300,8 @@ struct dvb_usb_device {
 	int (*fe_init)  (struct dvb_frontend *);
 
 	/* remote control */
-	struct input_dev rc_input_dev;
+	struct input_dev *rc_input_dev;
+	char rc_phys[64];
 	struct work_struct rc_query_work;
 	u32 last_event;
 	int last_state;

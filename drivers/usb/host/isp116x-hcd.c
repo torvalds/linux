@@ -1774,15 +1774,12 @@ static int __init isp116x_probe(struct device *dev)
 /*
   Suspend of platform device
 */
-static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
+static int isp116x_suspend(struct device *dev, pm_message_t state)
 {
 	int ret = 0;
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	VDBG("%s: state %x, phase %x\n", __func__, state, phase);
-
-	if (phase != SUSPEND_DISABLE && phase != SUSPEND_POWER_DOWN)
-		return 0;
+	VDBG("%s: state %x\n", __func__, state);
 
 	ret = usb_suspend_device(hcd->self.root_hub, state);
 	if (!ret) {
@@ -1797,15 +1794,12 @@ static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
 /*
   Resume platform device
 */
-static int isp116x_resume(struct device *dev, u32 phase)
+static int isp116x_resume(struct device *dev)
 {
 	int ret = 0;
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	VDBG("%s:  state %x, phase %x\n", __func__, dev->power.power_state,
-	     phase);
-	if (phase != RESUME_POWER_ON)
-		return 0;
+	VDBG("%s:  state %x\n", __func__, dev->power.power_state);
 
 	ret = usb_resume_device(hcd->self.root_hub);
 	if (!ret) {

@@ -244,4 +244,9 @@ struct pcmcia_device_id {
 #define PCMCIA_DEV_ID_MATCH_FAKE_CIS	0x0200
 #define PCMCIA_DEV_ID_MATCH_ANONYMOUS	0x0400
 
+/* I2C */
+struct i2c_device_id {
+	__u16 id;
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

@@ -27,6 +27,7 @@
 #include <linux/delay.h> /* for udelay */
 #include <linux/device.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/parisc-device.h>
 
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -444,7 +445,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	unsigned long bytecnt;
 	struct uart_port *port;
 
-	status = pdc_iodc_read(&bytecnt, dev->hpa, 0, iodc_data, 32);
+	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
 	if(status != PDC_OK) {
 		printk(KERN_ERR "Serial mux: Unable to read IODC.\n");
 		return 1;
@@ -469,16 +470,18 @@ static int __init mux_probe(struct parisc_device *dev)
 	for(i = 0; i < ports; ++i, ++port_cnt) {
 		port = &mux_ports[port_cnt];
 		port->iobase	= 0;
-		port->mapbase	= dev->hpa + MUX_OFFSET + (i * MUX_LINE_OFFSET);
+		port->mapbase	= dev->hpa.start + MUX_OFFSET +
+						(i * MUX_LINE_OFFSET);
 		port->membase	= ioremap(port->mapbase, MUX_LINE_OFFSET);
 		port->iotype	= SERIAL_IO_MEM;
 		port->type	= PORT_MUX;
-		port->irq	= SERIAL_IRQ_NONE;
+		port->irq	= NO_IRQ;
 		port->uartclk	= 0;
 		port->fifosize	= MUX_FIFO_SIZE;
 		port->ops	= &mux_pops;
 		port->flags	= UPF_BOOT_AUTOCONF;
 		port->line	= port_cnt;
+		spin_lock_init(&port->lock);
 		status = uart_add_one_port(&mux_driver, port);
 		BUG_ON(status);
 	}
@@ -497,7 +500,7 @@ static struct parisc_device_id mux_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, mux_tbl);
 
 static struct parisc_driver serial_mux_driver = {
-	.name =		"Serial MUX",
+	.name =		"serial_mux",
 	.id_table =	mux_tbl,
 	.probe =	mux_probe,
 };

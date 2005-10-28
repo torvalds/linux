@@ -114,7 +114,7 @@ struct psmouse_protocol {
 
 static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
 
 	if (psmouse->pktcnt < psmouse->pktsize)
@@ -333,12 +333,11 @@ static int genius_detect(struct psmouse *psmouse, int set_properties)
 		return -1;
 
 	if (set_properties) {
-		set_bit(BTN_EXTRA, psmouse->dev.keybit);
-		set_bit(BTN_SIDE, psmouse->dev.keybit);
-		set_bit(REL_WHEEL, psmouse->dev.relbit);
+		set_bit(BTN_EXTRA, psmouse->dev->keybit);
+		set_bit(BTN_SIDE, psmouse->dev->keybit);
+		set_bit(REL_WHEEL, psmouse->dev->relbit);
 
 		psmouse->vendor = "Genius";
-		psmouse->name = "Wheel Mouse";
 		psmouse->pktsize = 4;
 	}
 
@@ -365,8 +364,8 @@ static int intellimouse_detect(struct psmouse *psmouse, int set_properties)
 		return -1;
 
 	if (set_properties) {
-		set_bit(BTN_MIDDLE, psmouse->dev.keybit);
-		set_bit(REL_WHEEL, psmouse->dev.relbit);
+		set_bit(BTN_MIDDLE, psmouse->dev->keybit);
+		set_bit(REL_WHEEL, psmouse->dev->relbit);
 
 		if (!psmouse->vendor) psmouse->vendor = "Generic";
 		if (!psmouse->name) psmouse->name = "Wheel Mouse";
@@ -398,10 +397,10 @@ static int im_explorer_detect(struct psmouse *psmouse, int set_properties)
 		return -1;
 
 	if (set_properties) {
-		set_bit(BTN_MIDDLE, psmouse->dev.keybit);
-		set_bit(REL_WHEEL, psmouse->dev.relbit);
-		set_bit(BTN_SIDE, psmouse->dev.keybit);
-		set_bit(BTN_EXTRA, psmouse->dev.keybit);
+		set_bit(BTN_MIDDLE, psmouse->dev->keybit);
+		set_bit(REL_WHEEL, psmouse->dev->relbit);
+		set_bit(BTN_SIDE, psmouse->dev->keybit);
+		set_bit(BTN_EXTRA, psmouse->dev->keybit);
 
 		if (!psmouse->vendor) psmouse->vendor = "Generic";
 		if (!psmouse->name) psmouse->name = "Explorer Mouse";
@@ -433,7 +432,7 @@ static int thinking_detect(struct psmouse *psmouse, int set_properties)
 		return -1;
 
 	if (set_properties) {
-		set_bit(BTN_EXTRA, psmouse->dev.keybit);
+		set_bit(BTN_EXTRA, psmouse->dev->keybit);
 
 		psmouse->vendor = "Kensington";
 		psmouse->name = "ThinkingMouse";
@@ -839,9 +838,9 @@ static void psmouse_disconnect(struct serio *serio)
 
 	psmouse_set_state(psmouse, PSMOUSE_IGNORE);
 
-	input_unregister_device(&psmouse->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(psmouse->dev);
 	kfree(psmouse);
 
 	if (parent)
@@ -852,16 +851,14 @@ static void psmouse_disconnect(struct serio *serio)
 
 static int psmouse_switch_protocol(struct psmouse *psmouse, struct psmouse_protocol *proto)
 {
-	memset(&psmouse->dev, 0, sizeof(struct input_dev));
+	struct input_dev *input_dev = psmouse->dev;
 
-	init_input_dev(&psmouse->dev);
+	input_dev->private = psmouse;
+	input_dev->cdev.dev = &psmouse->ps2dev.serio->dev;
 
-	psmouse->dev.private = psmouse;
-	psmouse->dev.dev = &psmouse->ps2dev.serio->dev;
-
-	psmouse->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	psmouse->dev.keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-	psmouse->dev.relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	input_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
 
 	psmouse->set_rate = psmouse_set_rate;
 	psmouse->set_resolution = psmouse_set_resolution;
@@ -883,12 +880,12 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, struct psmouse_proto
 	sprintf(psmouse->devname, "%s %s %s",
 		psmouse_protocol_by_type(psmouse->type)->name, psmouse->vendor, psmouse->name);
 
-	psmouse->dev.name = psmouse->devname;
-	psmouse->dev.phys = psmouse->phys;
-	psmouse->dev.id.bustype = BUS_I8042;
-	psmouse->dev.id.vendor = 0x0002;
-	psmouse->dev.id.product = psmouse->type;
-	psmouse->dev.id.version = psmouse->model;
+	input_dev->name = psmouse->devname;
+	input_dev->phys = psmouse->phys;
+	input_dev->id.bustype = BUS_I8042;
+	input_dev->id.vendor = 0x0002;
+	input_dev->id.product = psmouse->type;
+	input_dev->id.version = psmouse->model;
 
 	return 0;
 }
@@ -900,7 +897,8 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, struct psmouse_proto
 static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct psmouse *psmouse, *parent = NULL;
-	int retval;
+	struct input_dev *input_dev;
+	int retval = -ENOMEM;
 
 	down(&psmouse_sem);
 
@@ -913,12 +911,13 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		psmouse_deactivate(parent);
 	}
 
-	if (!(psmouse = kzalloc(sizeof(struct psmouse), GFP_KERNEL))) {
-		retval = -ENOMEM;
+	psmouse = kzalloc(sizeof(struct psmouse), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!psmouse || !input_dev)
 		goto out;
-	}
 
 	ps2_init(&psmouse->ps2dev, serio);
+	psmouse->dev = input_dev;
 	sprintf(psmouse->phys, "%s/input0", serio->phys);
 
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
@@ -926,16 +925,11 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, psmouse);
 
 	retval = serio_open(serio, drv);
-	if (retval) {
-		serio_set_drvdata(serio, NULL);
-		kfree(psmouse);
+	if (retval)
 		goto out;
-	}
 
 	if (psmouse_probe(psmouse) < 0) {
 		serio_close(serio);
-		serio_set_drvdata(serio, NULL);
-		kfree(psmouse);
 		retval = -ENODEV;
 		goto out;
 	}
@@ -947,12 +941,10 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 
 	psmouse_switch_protocol(psmouse, NULL);
 
-	input_register_device(&psmouse->dev);
-	printk(KERN_INFO "input: %s on %s\n", psmouse->devname, serio->phys);
-
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
-
 	psmouse_initialize(psmouse);
+
+	input_register_device(psmouse->dev);
 
 	if (parent && parent->pt_activate)
 		parent->pt_activate(parent);
@@ -964,6 +956,12 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	retval = 0;
 
 out:
+	if (retval) {
+		serio_set_drvdata(serio, NULL);
+		input_free_device(input_dev);
+		kfree(psmouse);
+	}
+
 	/* If this is a pass-through port the parent needs to be re-activated */
 	if (parent)
 		psmouse_activate(parent);
@@ -1161,6 +1159,7 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 {
 	struct serio *serio = psmouse->ps2dev.serio;
 	struct psmouse *parent = NULL;
+	struct input_dev *new_dev;
 	struct psmouse_protocol *proto;
 	int retry = 0;
 
@@ -1170,9 +1169,13 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 	if (psmouse->type == proto->type)
 		return count;
 
+	if (!(new_dev = input_allocate_device()))
+		return -ENOMEM;
+
 	while (serio->child) {
 		if (++retry > 3) {
 			printk(KERN_WARNING "psmouse: failed to destroy child port, protocol change aborted.\n");
+			input_free_device(new_dev);
 			return -EIO;
 		}
 
@@ -1182,11 +1185,15 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 		serio_pin_driver_uninterruptible(serio);
 		down(&psmouse_sem);
 
-		if (serio->drv != &psmouse_drv)
+		if (serio->drv != &psmouse_drv) {
+			input_free_device(new_dev);
 			return -ENODEV;
+		}
 
-		if (psmouse->type == proto->type)
+		if (psmouse->type == proto->type) {
+			input_free_device(new_dev);
 			return count; /* switched by other thread */
+		}
 	}
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
@@ -1199,8 +1206,9 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 		psmouse->disconnect(psmouse);
 
 	psmouse_set_state(psmouse, PSMOUSE_IGNORE);
-	input_unregister_device(&psmouse->dev);
+	input_unregister_device(psmouse->dev);
 
+	psmouse->dev = new_dev;
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 
 	if (psmouse_switch_protocol(psmouse, proto) < 0) {
@@ -1212,8 +1220,7 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 	psmouse_initialize(psmouse);
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
 
-	input_register_device(&psmouse->dev);
-	printk(KERN_INFO "input: %s on %s\n", psmouse->devname, serio->phys);
+	input_register_device(psmouse->dev);
 
 	if (parent && parent->pt_activate)
 		parent->pt_activate(parent);

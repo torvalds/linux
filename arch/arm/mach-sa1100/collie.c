@@ -171,9 +171,17 @@ static void __init collie_init(void)
 }
 
 static struct map_desc collie_io_desc[] __initdata = {
-	/* virtual     physical    length      type */
-	{0xe8000000, 0x00000000, 0x02000000, MT_DEVICE},	/* 32M main flash (cs0) */
-	{0xea000000, 0x08000000, 0x02000000, MT_DEVICE},	/* 32M boot flash (cs1) */
+	{	/* 32M main flash (cs0) */
+		.virtual	= 0xe8000000,
+		.pfn		= __phys_to_pfn(0x00000000),
+		.length		= 0x02000000,
+		.type		= MT_DEVICE
+	}, {	/* 32M boot flash (cs1) */
+		.virtual	= 0xea000000,
+		.pfn		= __phys_to_pfn(0x08000000),
+		.length		= 0x02000000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init collie_map_io(void)

@@ -260,7 +260,7 @@ static IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE] = {
 
 struct cx88_IR {
 	struct cx88_core *core;
-	struct input_dev input;
+	struct input_dev *input;
 	struct ir_input_state ir;
 	char name[32];
 	char phys[32];
@@ -315,23 +315,23 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown) {
-			ir_input_keydown(&ir->input, &ir->ir, data, data);
+			ir_input_keydown(ir->input, &ir->ir, data, data);
 		} else {
-			ir_input_nokey(&ir->input, &ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup)) {
-			ir_input_keydown(&ir->input, &ir->ir, data, data);
+			ir_input_keydown(ir->input, &ir->ir, data, data);
 		} else {
-			ir_input_nokey(&ir->input, &ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_input_keydown(&ir->input, &ir->ir, data, data);
-		ir_input_nokey(&ir->input, &ir->ir);
+		ir_input_keydown(ir->input, &ir->ir, data, data);
+		ir_input_nokey(ir->input, &ir->ir);
 	}
 }
 
@@ -357,13 +357,19 @@ static void cx88_ir_work(void *data)
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 {
 	struct cx88_IR *ir;
+	struct input_dev *input_dev;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	int ir_type = IR_TYPE_OTHER;
 
-	ir = kmalloc(sizeof(*ir), GFP_KERNEL);
-	if (NULL == ir)
+	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev) {
+		kfree(ir);
+		input_free_device(input_dev);
 		return -ENOMEM;
-	memset(ir, 0, sizeof(*ir));
+	}
+
+	ir->input = input_dev;
 
 	/* detect & configure */
 	switch (core->board) {
@@ -425,6 +431,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 
 	if (NULL == ir_codes) {
 		kfree(ir);
+		input_free_device(input_dev);
 		return -ENODEV;
 	}
 
@@ -433,19 +440,19 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		 cx88_boards[core->board].name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
-	ir_input_init(&ir->input, &ir->ir, ir_type, ir_codes);
-	ir->input.name = ir->name;
-	ir->input.phys = ir->phys;
-	ir->input.id.bustype = BUS_PCI;
-	ir->input.id.version = 1;
+	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	input_dev->name = ir->name;
+	input_dev->phys = ir->phys;
+	input_dev->id.bustype = BUS_PCI;
+	input_dev->id.version = 1;
 	if (pci->subsystem_vendor) {
-		ir->input.id.vendor = pci->subsystem_vendor;
-		ir->input.id.product = pci->subsystem_device;
+		input_dev->id.vendor = pci->subsystem_vendor;
+		input_dev->id.product = pci->subsystem_device;
 	} else {
-		ir->input.id.vendor = pci->vendor;
-		ir->input.id.product = pci->device;
+		input_dev->id.vendor = pci->vendor;
+		input_dev->id.product = pci->device;
 	}
-	ir->input.dev = &pci->dev;
+	input_dev->cdev.dev = &pci->dev;
 
 	/* record handles to ourself */
 	ir->core = core;
@@ -465,8 +472,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	}
 
 	/* all done */
-	input_register_device(&ir->input);
-	printk("%s: registered IR remote control\n", core->name);
+	input_register_device(ir->input);
 
 	return 0;
 }
@@ -484,7 +490,7 @@ int cx88_ir_fini(struct cx88_core *core)
 		flush_scheduled_work();
 	}
 
-	input_unregister_device(&ir->input);
+	input_unregister_device(ir->input);
 	kfree(ir);
 
 	/* done */
@@ -515,7 +521,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	if (!ir->scount) {
 		/* nothing to sample */
 		if (ir->ir.keypressed && time_after(jiffies, ir->release))
-			ir_input_nokey(&ir->input, &ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		return;
 	}
 
@@ -557,7 +563,7 @@ void cx88_ir_irq(struct cx88_core *core)
 
 		ir_dprintk("Key Code: %x\n", (ircode >> 16) & 0x7f);
 
-		ir_input_keydown(&ir->input, &ir->ir, (ircode >> 16) & 0x7f, (ircode >> 16) & 0xff);
+		ir_input_keydown(ir->input, &ir->ir, (ircode >> 16) & 0x7f, (ircode >> 16) & 0xff);
 		ir->release = jiffies + msecs_to_jiffies(120);
 		break;
 	case CX88_BOARD_HAUPPAUGE:
@@ -566,7 +572,7 @@ void cx88_ir_irq(struct cx88_core *core)
 		ir_dprintk("biphase decoded: %x\n", ircode);
 		if ((ircode & 0xfffff000) != 0x3000)
 			break;
-		ir_input_keydown(&ir->input, &ir->ir, ircode & 0x3f, ircode);
+		ir_input_keydown(ir->input, &ir->ir, ircode & 0x3f, ircode);
 		ir->release = jiffies + msecs_to_jiffies(120);
 		break;
 	}

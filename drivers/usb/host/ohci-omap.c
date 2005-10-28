@@ -455,13 +455,10 @@ static int ohci_hcd_omap_drv_remove(struct device *dev)
 
 #ifdef	CONFIG_PM
 
-static int ohci_omap_suspend(struct device *dev, pm_message_t message, u32 level)
+static int ohci_omap_suspend(struct device *dev, pm_message_t message)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
 	int		status = -EINVAL;
-
-	if (level != SUSPEND_POWER_DOWN)
-		return 0;
 
 	down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
 	status = ohci_hub_suspend(ohci_to_hcd(ohci));
@@ -476,13 +473,10 @@ static int ohci_omap_suspend(struct device *dev, pm_message_t message, u32 level
 	return status;
 }
 
-static int ohci_omap_resume(struct device *dev, u32 level)
+static int ohci_omap_resume(struct device *dev)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
 	int		status = 0;
-
-	if (level != RESUME_POWER_ON)
-		return 0;
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);

@@ -123,11 +123,12 @@ static int blacklist[] = {
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static u16 force_addr = 0;
+static u16 force_addr;
 module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr, "Initialize the base address of the i2c controller");
 
-static unsigned short sis5595_base = 0;
+static struct pci_driver sis5595_driver;
+static unsigned short sis5595_base;
 
 static u8 sis5595_read(u8 reg)
 {
@@ -172,7 +173,8 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 
 	/* NB: We grab just the two SMBus registers here, but this may still
 	 * interfere with ACPI :-(  */
-	if (!request_region(sis5595_base + SMB_INDEX, 2, "sis5595-smbus")) {
+	if (!request_region(sis5595_base + SMB_INDEX, 2,
+			    sis5595_driver.name)) {
 		dev_err(&SIS5595_dev->dev, "SMBus registers 0x%04x-0x%04x already in use!\n",
 			sis5595_base + SMB_INDEX, sis5595_base + SMB_INDEX + 1);
 		return -ENODEV;
@@ -364,7 +366,6 @@ static struct i2c_algorithm smbus_algorithm = {
 static struct i2c_adapter sis5595_adapter = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
-	.name		= "unset",
 	.algo		= &smbus_algorithm,
 };
 
@@ -397,6 +398,7 @@ static void __devexit sis5595_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver sis5595_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "sis5595_smbus",
 	.id_table	= sis5595_ids,
 	.probe		= sis5595_probe,

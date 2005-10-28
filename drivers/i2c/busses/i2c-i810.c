@@ -32,6 +32,7 @@
    i810AB		7123           
    i810E		7125           
    i815			1132           
+   i845G		2562
 */
 
 #include <linux/kernel.h>
@@ -232,6 +233,7 @@ static void __devexit i810_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver i810_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "i810_smbus",
 	.id_table	= i810_ids,
 	.probe		= i810_probe,

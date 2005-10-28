@@ -100,9 +100,9 @@
 #define DBG_RUN_SG(x...)
 #endif
 
-#define CCIO_INLINE	/* inline */
-#define WRITE_U32(value, addr) gsc_writel(value, (u32 *)(addr))
-#define READ_U32(addr) gsc_readl((u32 *)(addr))
+#define CCIO_INLINE	inline
+#define WRITE_U32(value, addr) __raw_writel(value, addr)
+#define READ_U32(addr) __raw_readl(addr)
 
 #define U2_IOA_RUNWAY 0x580
 #define U2_BC_GSC     0x501
@@ -115,28 +115,28 @@
 
 struct ioa_registers {
         /* Runway Supervisory Set */
-        volatile int32_t    unused1[12];
-        volatile uint32_t   io_command;             /* Offset 12 */
-        volatile uint32_t   io_status;              /* Offset 13 */
-        volatile uint32_t   io_control;             /* Offset 14 */
-        volatile int32_t    unused2[1];
+        int32_t    unused1[12];
+        uint32_t   io_command;             /* Offset 12 */
+        uint32_t   io_status;              /* Offset 13 */
+        uint32_t   io_control;             /* Offset 14 */
+        int32_t    unused2[1];
 
         /* Runway Auxiliary Register Set */
-        volatile uint32_t   io_err_resp;            /* Offset  0 */
-        volatile uint32_t   io_err_info;            /* Offset  1 */
-        volatile uint32_t   io_err_req;             /* Offset  2 */
-        volatile uint32_t   io_err_resp_hi;         /* Offset  3 */
-        volatile uint32_t   io_tlb_entry_m;         /* Offset  4 */
-        volatile uint32_t   io_tlb_entry_l;         /* Offset  5 */
-        volatile uint32_t   unused3[1];
-        volatile uint32_t   io_pdir_base;           /* Offset  7 */
-        volatile uint32_t   io_io_low_hv;           /* Offset  8 */
-        volatile uint32_t   io_io_high_hv;          /* Offset  9 */
-        volatile uint32_t   unused4[1];
-        volatile uint32_t   io_chain_id_mask;       /* Offset 11 */
-        volatile uint32_t   unused5[2];
-        volatile uint32_t   io_io_low;              /* Offset 14 */
-        volatile uint32_t   io_io_high;             /* Offset 15 */
+        uint32_t   io_err_resp;            /* Offset  0 */
+        uint32_t   io_err_info;            /* Offset  1 */
+        uint32_t   io_err_req;             /* Offset  2 */
+        uint32_t   io_err_resp_hi;         /* Offset  3 */
+        uint32_t   io_tlb_entry_m;         /* Offset  4 */
+        uint32_t   io_tlb_entry_l;         /* Offset  5 */
+        uint32_t   unused3[1];
+        uint32_t   io_pdir_base;           /* Offset  7 */
+        uint32_t   io_io_low_hv;           /* Offset  8 */
+        uint32_t   io_io_high_hv;          /* Offset  9 */
+        uint32_t   unused4[1];
+        uint32_t   io_chain_id_mask;       /* Offset 11 */
+        uint32_t   unused5[2];
+        uint32_t   io_io_low;              /* Offset 14 */
+        uint32_t   io_io_high;             /* Offset 15 */
 };
 
 /*
@@ -226,7 +226,7 @@ struct ioa_registers {
 */
 
 struct ioc {
-	struct ioa_registers *ioc_hpa;  /* I/O MMU base address */
+	struct ioa_registers __iomem *ioc_regs;  /* I/O MMU base address */
 	u8  *res_map;	                /* resource map, bit == pdir entry */
 	u64 *pdir_base;	                /* physical base address */
 	u32 pdir_size; 			/* bytes, function of IOV Space size */
@@ -595,7 +595,7 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	** Grab virtual index [0:11]
 	** Deposit virt_idx bits into I/O PDIR word
 	*/
-	asm volatile ("lci 0(%%sr1, %1), %0" : "=r" (ci) : "r" (vba));
+	asm volatile ("lci %%r0(%%sr1, %1), %0" : "=r" (ci) : "r" (vba));
 	asm volatile ("extru %1,19,12,%0" : "+r" (ci) : "r" (ci));
 	asm volatile ("depw  %1,15,12,%0" : "+r" (pa) : "r" (ci));
 
@@ -613,7 +613,7 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	** the real mode coherence index generation of U2, the PDIR entry
 	** must be flushed to memory to retain coherence."
 	*/
-	asm volatile("fdc 0(%0)" : : "r" (pdir_ptr));
+	asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr));
 	asm volatile("sync");
 }
 
@@ -636,7 +636,7 @@ ccio_clear_io_tlb(struct ioc *ioc, dma_addr_t iovp, size_t byte_cnt)
 	byte_cnt += chain_size;
 
 	while(byte_cnt > chain_size) {
-		WRITE_U32(CMD_TLB_PURGE | iovp, &ioc->ioc_hpa->io_command);
+		WRITE_U32(CMD_TLB_PURGE | iovp, &ioc->ioc_regs->io_command);
 		iovp += chain_size;
 		byte_cnt -= chain_size;
 	}
@@ -684,7 +684,7 @@ ccio_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 		** Hopefully someone figures out how to patch (NOP) the
 		** FDC/SYNC out at boot time.
 		*/
-		asm volatile("fdc 0(%0)" : : "r" (pdir_ptr[7]));
+		asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr[7]));
 
 		iovp     += IOVP_SIZE;
 		byte_cnt -= IOVP_SIZE;
@@ -1251,7 +1251,7 @@ static struct parisc_device_id ccio_tbl[] = {
 static int ccio_probe(struct parisc_device *dev);
 
 static struct parisc_driver ccio_driver = {
-	.name =		"U2:Uturn",
+	.name =		"ccio",
 	.id_table =	ccio_tbl,
 	.probe =	ccio_probe,
 };
@@ -1314,14 +1314,13 @@ ccio_ioc_init(struct ioc *ioc)
 
 	ioc->pdir_size = (iova_space_size / IOVP_SIZE) * sizeof(u64);
 
-	BUG_ON(ioc->pdir_size >= 4 * 1024 * 1024);   /* max pdir size < 4MB */
+	BUG_ON(ioc->pdir_size > 8 * 1024 * 1024);   /* max pdir size <= 8MB */
 
 	/* Verify it's a power of two */
 	BUG_ON((1 << get_order(ioc->pdir_size)) != (ioc->pdir_size >> PAGE_SHIFT));
 
-	DBG_INIT("%s() hpa 0x%lx mem %luMB IOV %dMB (%d bits)\n",
-			__FUNCTION__,
-			ioc->ioc_hpa,
+	DBG_INIT("%s() hpa 0x%p mem %luMB IOV %dMB (%d bits)\n",
+			__FUNCTION__, ioc->ioc_regs,
 			(unsigned long) num_physpages >> (20 - PAGE_SHIFT),
 			iova_space_size>>20,
 			iov_order + PAGE_SHIFT);
@@ -1329,13 +1328,12 @@ ccio_ioc_init(struct ioc *ioc)
 	ioc->pdir_base = (u64 *)__get_free_pages(GFP_KERNEL, 
 						 get_order(ioc->pdir_size));
 	if(NULL == ioc->pdir_base) {
-		panic("%s:%s() could not allocate I/O Page Table\n", __FILE__,
-		      __FUNCTION__);
+		panic("%s() could not allocate I/O Page Table\n", __FUNCTION__);
 	}
 	memset(ioc->pdir_base, 0, ioc->pdir_size);
 
 	BUG_ON((((unsigned long)ioc->pdir_base) & PAGE_MASK) != (unsigned long)ioc->pdir_base);
-	DBG_INIT(" base %p", ioc->pdir_base);
+	DBG_INIT(" base %p\n", ioc->pdir_base);
 
 	/* resource map size dictated by pdir_size */
  	ioc->res_size = (ioc->pdir_size / sizeof(u64)) >> 3;
@@ -1344,8 +1342,7 @@ ccio_ioc_init(struct ioc *ioc)
 	ioc->res_map = (u8 *)__get_free_pages(GFP_KERNEL, 
 					      get_order(ioc->res_size));
 	if(NULL == ioc->res_map) {
-		panic("%s:%s() could not allocate resource map\n", __FILE__,
-		      __FUNCTION__);
+		panic("%s() could not allocate resource map\n", __FUNCTION__);
 	}
 	memset(ioc->res_map, 0, ioc->res_size);
 
@@ -1366,44 +1363,58 @@ ccio_ioc_init(struct ioc *ioc)
 	** Initialize IOA hardware
 	*/
 	WRITE_U32(CCIO_CHAINID_MASK << ioc->chainid_shift, 
-		  &ioc->ioc_hpa->io_chain_id_mask);
+		  &ioc->ioc_regs->io_chain_id_mask);
 
 	WRITE_U32(virt_to_phys(ioc->pdir_base), 
-		  &ioc->ioc_hpa->io_pdir_base);
+		  &ioc->ioc_regs->io_pdir_base);
 
 	/*
 	** Go to "Virtual Mode"
 	*/
-	WRITE_U32(IOA_NORMAL_MODE, &ioc->ioc_hpa->io_control);
+	WRITE_U32(IOA_NORMAL_MODE, &ioc->ioc_regs->io_control);
 
 	/*
 	** Initialize all I/O TLB entries to 0 (Valid bit off).
 	*/
-	WRITE_U32(0, &ioc->ioc_hpa->io_tlb_entry_m);
-	WRITE_U32(0, &ioc->ioc_hpa->io_tlb_entry_l);
+	WRITE_U32(0, &ioc->ioc_regs->io_tlb_entry_m);
+	WRITE_U32(0, &ioc->ioc_regs->io_tlb_entry_l);
 
 	for(i = 1 << CCIO_CHAINID_SHIFT; i ; i--) {
 		WRITE_U32((CMD_TLB_DIRECT_WRITE | (i << ioc->chainid_shift)),
-			  &ioc->ioc_hpa->io_command);
+			  &ioc->ioc_regs->io_command);
 	}
 }
 
 static void
-ccio_init_resource(struct resource *res, char *name, unsigned long ioaddr)
+ccio_init_resource(struct resource *res, char *name, void __iomem *ioaddr)
 {
 	int result;
 
 	res->parent = NULL;
 	res->flags = IORESOURCE_MEM;
-	res->start = (unsigned long)(signed) __raw_readl(ioaddr) << 16;
-	res->end = (unsigned long)(signed) (__raw_readl(ioaddr + 4) << 16) - 1;
+	/*
+	 * bracing ((signed) ...) are required for 64bit kernel because
+	 * we only want to sign extend the lower 16 bits of the register.
+	 * The upper 16-bits of range registers are hardcoded to 0xffff.
+	 */
+	res->start = (unsigned long)((signed) READ_U32(ioaddr) << 16);
+	res->end = (unsigned long)((signed) (READ_U32(ioaddr + 4) << 16) - 1);
 	res->name = name;
+	/*
+	 * Check if this MMIO range is disable
+	 */
 	if (res->end + 1 == res->start)
 		return;
-	result = request_resource(&iomem_resource, res);
+
+	/* On some platforms (e.g. K-Class), we have already registered
+	 * resources for devices reported by firmware. Some are children
+	 * of ccio.
+	 * "insert" ccio ranges in the mmio hierarchy (/proc/iomem).
+	 */
+	result = insert_resource(&iomem_resource, res);
 	if (result < 0) {
-		printk(KERN_ERR "%s: failed to claim CCIO bus address space (%08lx,%08lx)\n", 
-		       __FILE__, res->start, res->end);
+		printk(KERN_ERR "%s() failed to claim CCIO bus address space (%08lx,%08lx)\n", 
+	 		__FUNCTION__, res->start, res->end);
 	}
 }
 
@@ -1414,9 +1425,8 @@ static void __init ccio_init_resources(struct ioc *ioc)
 
 	sprintf(name, "GSC Bus [%d/]", ioc->hw_path);
 
-	ccio_init_resource(res, name, (unsigned long)&ioc->ioc_hpa->io_io_low);
-	ccio_init_resource(res + 1, name,
-			(unsigned long)&ioc->ioc_hpa->io_io_low_hv);
+	ccio_init_resource(res, name, &ioc->ioc_regs->io_io_low);
+	ccio_init_resource(res + 1, name, &ioc->ioc_regs->io_io_low_hv);
 }
 
 static int new_ioc_area(struct resource *res, unsigned long size,
@@ -1427,7 +1437,12 @@ static int new_ioc_area(struct resource *res, unsigned long size,
 
 	res->start = (max - size + 1) &~ (align - 1);
 	res->end = res->start + size;
-	if (!request_resource(&iomem_resource, res))
+	
+	/* We might be trying to expand the MMIO range to include
+	 * a child device that has already registered it's MMIO space.
+	 * Use "insert" instead of request_resource().
+	 */
+	if (!insert_resource(&iomem_resource, res))
 		return 0;
 
 	return new_ioc_area(res, size, min, max - size, align);
@@ -1486,15 +1501,15 @@ int ccio_allocate_resource(const struct parisc_device *dev,
 
 	if (!expand_ioc_area(parent, size, min, max, align)) {
 		__raw_writel(((parent->start)>>16) | 0xffff0000,
-			     (unsigned long)&(ioc->ioc_hpa->io_io_low));
+			     &ioc->ioc_regs->io_io_low);
 		__raw_writel(((parent->end)>>16) | 0xffff0000,
-			     (unsigned long)&(ioc->ioc_hpa->io_io_high));
+			     &ioc->ioc_regs->io_io_high);
 	} else if (!expand_ioc_area(parent + 1, size, min, max, align)) {
 		parent++;
 		__raw_writel(((parent->start)>>16) | 0xffff0000,
-			     (unsigned long)&(ioc->ioc_hpa->io_io_low_hv));
+			     &ioc->ioc_regs->io_io_low_hv);
 		__raw_writel(((parent->end)>>16) | 0xffff0000,
-			     (unsigned long)&(ioc->ioc_hpa->io_io_high_hv));
+			     &ioc->ioc_regs->io_io_high_hv);
 	} else {
 		return -EBUSY;
 	}
@@ -1521,7 +1536,12 @@ int ccio_request_resource(const struct parisc_device *dev,
 		return -EBUSY;
 	}
 
-	return request_resource(parent, res);
+	/* "transparent" bus bridges need to register MMIO resources
+	 * firmware assigned them. e.g. children of hppb.c (e.g. K-class)
+	 * registered their resources in the PDC "bus walk" (See
+	 * arch/parisc/kernel/inventory.c).
+	 */
+	return insert_resource(parent, res);
 }
 
 /**
@@ -1546,7 +1566,7 @@ static int ccio_probe(struct parisc_device *dev)
 
 	ioc->name = dev->id.hversion == U2_IOA_RUNWAY ? "U2" : "UTurn";
 
-	printk(KERN_INFO "Found %s at 0x%lx\n", ioc->name, dev->hpa);
+	printk(KERN_INFO "Found %s at 0x%lx\n", ioc->name, dev->hpa.start);
 
 	for (i = 0; i < ioc_count; i++) {
 		ioc_p = &(*ioc_p)->next;
@@ -1554,7 +1574,7 @@ static int ccio_probe(struct parisc_device *dev)
 	*ioc_p = ioc;
 
 	ioc->hw_path = dev->hw_path;
-	ioc->ioc_hpa = (struct ioa_registers *)dev->hpa;
+	ioc->ioc_regs = ioremap(dev->hpa.start, 4096);
 	ccio_ioc_init(ioc);
 	ccio_init_resources(ioc);
 	hppa_dma_ops = &ccio_ops;

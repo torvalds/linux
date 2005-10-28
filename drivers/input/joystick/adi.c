@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 #define ADI_MIN_LENGTH		8
 #define ADI_MIN_LEN_LENGTH	10
 #define ADI_MIN_ID_LENGTH	66
-#define ADI_MAX_NAME_LENGTH	48
+#define ADI_MAX_NAME_LENGTH	64
 #define ADI_MAX_CNAME_LENGTH	16
 #define ADI_MAX_PHYS_LENGTH	64
 
@@ -106,7 +106,7 @@ static struct {
  */
 
 struct adi {
-	struct input_dev dev;
+	struct input_dev *dev;
 	int length;
 	int ret;
 	int idx;
@@ -215,7 +215,7 @@ static inline int adi_get_bits(struct adi *adi, int count)
 
 static int adi_decode(struct adi *adi)
 {
-	struct input_dev *dev = &adi->dev;
+	struct input_dev *dev = adi->dev;
 	char *abs = adi->abs;
 	short *key = adi->key;
 	int i, t;
@@ -318,7 +318,8 @@ static void adi_init_digital(struct gameport *gameport)
 
 	for (i = 0; seq[i]; i++) {
 		gameport_trigger(gameport);
-		if (seq[i] > 0) msleep(seq[i]);
+		if (seq[i] > 0)
+			msleep(seq[i]);
 		if (seq[i] < 0) {
 			mdelay(-seq[i]);
 			udelay(-seq[i]*14);	/* It looks like mdelay() is off by approx 1.4% */
@@ -397,42 +398,46 @@ static void adi_id_decode(struct adi *adi, struct adi_port *port)
 	}
 }
 
-static void adi_init_input(struct adi *adi, struct adi_port *port, int half)
+static int adi_init_input(struct adi *adi, struct adi_port *port, int half)
 {
-	int i, t;
+	struct input_dev *input_dev;
 	char buf[ADI_MAX_NAME_LENGTH];
+	int i, t;
 
-	if (!adi->length) return;
-
-	init_input_dev(&adi->dev);
+	adi->dev = input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
 
 	t = adi->id < ADI_ID_MAX ? adi->id : ADI_ID_MAX;
 
 	snprintf(buf, ADI_MAX_PHYS_LENGTH, adi_names[t], adi->id);
-	snprintf(adi->name, ADI_MAX_NAME_LENGTH, "Logitech %s", buf);
+	snprintf(adi->name, ADI_MAX_NAME_LENGTH, "Logitech %s [%s]", buf, adi->cname);
 	snprintf(adi->phys, ADI_MAX_PHYS_LENGTH, "%s/input%d", port->gameport->phys, half);
 
 	adi->abs = adi_abs[t];
 	adi->key = adi_key[t];
 
-	adi->dev.open = adi_open;
-	adi->dev.close = adi_close;
+	input_dev->name = adi->name;
+	input_dev->phys = adi->phys;
+	input_dev->id.bustype = BUS_GAMEPORT;
+	input_dev->id.vendor = GAMEPORT_ID_VENDOR_LOGITECH;
+	input_dev->id.product = adi->id;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &port->gameport->dev;
+	input_dev->private = port;
 
-	adi->dev.name = adi->name;
-	adi->dev.phys = adi->phys;
-	adi->dev.id.bustype = BUS_GAMEPORT;
-	adi->dev.id.vendor = GAMEPORT_ID_VENDOR_LOGITECH;
-	adi->dev.id.product = adi->id;
-	adi->dev.id.version = 0x0100;
+	input_dev->open = adi_open;
+	input_dev->close = adi_close;
 
-	adi->dev.private = port;
-	adi->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	for (i = 0; i < adi->axes10 + adi->axes8 + (adi->hats + (adi->pad != -1)) * 2; i++)
-		set_bit(adi->abs[i], adi->dev.absbit);
+		set_bit(adi->abs[i], input_dev->absbit);
 
 	for (i = 0; i < adi->buttons; i++)
-		set_bit(adi->key[i], adi->dev.keybit);
+		set_bit(adi->key[i], input_dev->keybit);
+
+	return 0;
 }
 
 static void adi_init_center(struct adi *adi)
@@ -445,17 +450,17 @@ static void adi_init_center(struct adi *adi)
 	for (i = 0; i < adi->axes10 + adi->axes8 + (adi->hats + (adi->pad != -1)) * 2; i++) {
 
 		t = adi->abs[i];
-		x = adi->dev.abs[t];
+		x = adi->dev->abs[t];
 
 		if (t == ABS_THROTTLE || t == ABS_RUDDER || adi->id == ADI_ID_WGPE)
 			x = i < adi->axes10 ? 512 : 128;
 
 		if (i < adi->axes10)
-			input_set_abs_params(&adi->dev, t, 64, x * 2 - 64, 2, 16);
+			input_set_abs_params(adi->dev, t, 64, x * 2 - 64, 2, 16);
 		else if (i < adi->axes10 + adi->axes8)
-			input_set_abs_params(&adi->dev, t, 48, x * 2 - 48, 1, 16);
+			input_set_abs_params(adi->dev, t, 48, x * 2 - 48, 1, 16);
 		else
-			input_set_abs_params(&adi->dev, t, -1, 1, 0, 0);
+			input_set_abs_params(adi->dev, t, -1, 1, 0, 0);
 	}
 }
 
@@ -469,7 +474,8 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int i;
 	int err;
 
-	if (!(port = kzalloc(sizeof(struct adi_port), GFP_KERNEL)))
+	port = kzalloc(sizeof(struct adi_port), GFP_KERNEL);
+	if (!port)
 		return -ENOMEM;
 
 	port->gameport = gameport;
@@ -477,10 +483,8 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gameport_set_drvdata(gameport, port);
 
 	err = gameport_open(gameport, drv, GAMEPORT_MODE_RAW);
-	if (err) {
-		kfree(port);
-		return err;
-	}
+	if (err)
+		goto fail1;
 
 	adi_init_digital(gameport);
 	adi_read_packet(port);
@@ -490,13 +494,18 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 	for (i = 0; i < 2; i++) {
 		adi_id_decode(port->adi + i, port);
-		adi_init_input(port->adi + i, port, i);
+
+		if (!port->adi[i].length)
+			continue;
+
+		err = adi_init_input(port->adi + i, port, i);
+		if (err)
+			goto fail2;
 	}
 
 	if (!port->adi[0].length && !port->adi[1].length) {
-		gameport_close(gameport);
-		kfree(port);
-		return -ENODEV;
+		err = -ENODEV;
+		goto fail2;
 	}
 
 	gameport_set_poll_handler(gameport, adi_poll);
@@ -511,12 +520,18 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 	for (i = 0; i < 2; i++)
 		if (port->adi[i].length > 0) {
 			adi_init_center(port->adi + i);
-			input_register_device(&port->adi[i].dev);
-			printk(KERN_INFO "input: %s [%s] on %s\n",
-				port->adi[i].name, port->adi[i].cname, gameport->phys);
+			input_register_device(port->adi[i].dev);
 		}
 
 	return 0;
+
+ fail2:	for (i = 0; i < 2; i++)
+		if (port->adi[i].dev)
+			input_free_device(port->adi[i].dev);
+	gameport_close(gameport);
+ fail1:	gameport_set_drvdata(gameport, NULL);
+	kfree(port);
+	return err;
 }
 
 static void adi_disconnect(struct gameport *gameport)
@@ -526,7 +541,7 @@ static void adi_disconnect(struct gameport *gameport)
 
 	for (i = 0; i < 2; i++)
 		if (port->adi[i].length > 0)
-			input_unregister_device(&port->adi[i].dev);
+			input_unregister_device(port->adi[i].dev);
 	gameport_close(gameport);
 	gameport_set_drvdata(gameport, NULL);
 	kfree(port);

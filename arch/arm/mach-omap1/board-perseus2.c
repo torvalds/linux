@@ -134,8 +134,12 @@ void omap_perseus2_init_irq(void)
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc omap_perseus2_io_desc[] __initdata = {
-	{H2P2_DBG_FPGA_BASE, H2P2_DBG_FPGA_START, H2P2_DBG_FPGA_SIZE,
-	 MT_DEVICE},
+	{
+		.virtual	= H2P2_DBG_FPGA_BASE,
+		.pfn		= __phys_to_pfn(H2P2_DBG_FPGA_START),
+		.length		= H2P2_DBG_FPGA_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init omap_perseus2_map_io(void)

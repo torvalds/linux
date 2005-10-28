@@ -33,8 +33,8 @@ static struct i2c_driver foo_driver = {
 	.command	= &foo_command /* may be NULL */
 }
  
-The name can be chosen freely, and may be upto 40 characters long. Please
-use something descriptive here.
+The name field must match the driver name, including the case. It must not
+contain spaces, and may be up to 31 characters long.
 
 Don't worry about the flags field; just put I2C_DF_NOTIFY into it. This
 means that your driver will be notified when new adapters are found.
@@ -42,9 +42,6 @@ This is almost always what you want.
 
 All other fields are for call-back functions which will be explained 
 below.
-
-There use to be two additional fields in this structure, inc_use et dec_use,
-for module usage count, but these fields were obsoleted and removed.
 
 
 Extra client data
@@ -58,6 +55,7 @@ be very useful.
 An example structure is below.
 
   struct foo_data {
+    struct i2c_client client;
     struct semaphore lock; /* For ISA access in `sensors' drivers. */
     int sysctl_id;         /* To keep the /proc directory entry for 
                               `sensors' drivers. */
@@ -310,22 +308,15 @@ For now, you can ignore the `flags' parameter. It is there for future use.
        client structure, even though we cannot fill it completely yet.
        But it allows us to access several i2c functions safely */
     
-    /* Note that we reserve some space for foo_data too. If you don't
-       need it, remove it. We do it here to help to lessen memory
-       fragmentation. */
-    if (! (new_client = kmalloc(sizeof(struct i2c_client) + 
-                                sizeof(struct foo_data),
-                                GFP_KERNEL))) {
+    if (!(data = kzalloc(sizeof(struct foo_data), GFP_KERNEL))) {
       err = -ENOMEM;
       goto ERROR0;
     }
 
-    /* This is tricky, but it will set the data to the right value. */
-    client->data = new_client + 1;
-    data = (struct foo_data *) (client->data);
+    new_client = &data->client;
+    i2c_set_clientdata(new_client, data);
 
     new_client->addr = address;
-    new_client->data = data;
     new_client->adapter = adapter;
     new_client->driver = &foo_driver;
     new_client->flags = 0;
@@ -451,7 +442,7 @@ much simpler than the attachment code, fortunately!
       release_region(client->addr,LM78_EXTENT);
     /* HYBRID SENSORS CHIP ONLY END */
 
-    kfree(client); /* Frees client data too, if allocated at the same time */
+    kfree(data);
     return 0;
   }
 
@@ -576,12 +567,12 @@ SMBus communication
   extern s32 i2c_smbus_write_block_data(struct i2c_client * client,
                                         u8 command, u8 length,
                                         u8 *values);
+  extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
+                                           u8 command, u8 *values);
 
 These ones were removed in Linux 2.6.10 because they had no users, but could
 be added back later if needed:
 
-  extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
-                                           u8 command, u8 *values);
   extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
                                        u8 command, u8 *values);
   extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,

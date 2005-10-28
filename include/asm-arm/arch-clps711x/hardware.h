@@ -235,4 +235,121 @@
 #define CEIVA_PB0_BLK_BTN	(1<<0)
 #endif // #if defined (CONFIG_ARCH_CEIVA)
 
+#if defined (CONFIG_MACH_MP1000)
+/* NOR FLASH */
+#define MP1000_NIO_BASE		0xf9000000	/* virtual */
+#define MP1000_NIO_START	CS0_PHYS_BASE	/* physical */
+#define MP1000_NIO_SIZE		0x00400000
+
+/* DSP Interface */
+#define MP1000_DSP_BASE		0xfa000000	/* virtual */
+#define MP1000_DSP_START	CS1_PHYS_BASE	/* physical */
+#define MP1000_DSP_SIZE		0x00100000
+
+/* LCD, DAA/DSP, RTC, DAA RW Reg all in CS2 */
+#define MP1000_LIO_BASE		0xfb000000	/* virtual */
+#define MP1000_LIO_START	CS2_PHYS_BASE	/* physical */
+#define MP1000_LIO_SIZE		0x00100000
+
+/* NAND FLASH */
+#define MP1000_FIO_BASE		0xfc000000	/* virtual */
+#define MP1000_FIO_START	CS3_PHYS_BASE	/* physical */
+#define MP1000_FIO_SIZE		0x00800000
+
+/* Ethernet */
+#define MP1000_EIO_BASE		0xfd000000	/* virtual 	*/
+#define MP1000_EIO_START	CS4_PHYS_BASE	/* physical 	*/
+#define MP1000_EIO_SIZE		0x00100000
+
+#define	MP1000_LCD_OFFSET	0x00000000	/* LCD offset in CS2 */
+#define	MP1000_DDD_OFFSET	0x00001000	/* DAA/DAI/DSP sft reset offst*/
+#define	MP1000_RTC_OFFSET	0x00002000	/* RTC offset in CS2 */
+#define	MP1000_DAA_OFFSET	0x00003000	/* DAA RW reg offset in CS2 */
+
+/* IDE */
+#define MP1000_IDE_BASE		0xfe000000      /* virtual */
+#define MP1000_IDE_START	CS5_PHYS_BASE      /* physical */
+#define MP1000_IDE_SIZE		0x00100000      /* actually it's only 0x1000 */
+
+#define IRQ_HARDDISK IRQ_EINT2
+
+/*
+ * IDE registers definition
+ */
+
+#define IDE_CONTROL_BASE		(MP1000_IDE_BASE + 0x1000)
+#define IDE_BASE_OFF			(MP1000_IDE_BASE)
+
+#define IDE_WRITE_DEVICE_DATA		(IDE_BASE_OFF + 0x0)
+#define IDE_FEATURES_REGISTER		(IDE_BASE_OFF + 0x2)
+#define IDE_SECTOR_COUNT_REGISTER	(IDE_BASE_OFF + 0x4)
+#define IDE_SECTOR_NUMBER_REGISTER	(IDE_BASE_OFF + 0x6)
+#define IDE_CYLINDER_LOW_REGISTER	(IDE_BASE_OFF + 0x8)
+#define IDE_CYLINDER_HIGH_REGISTER	(IDE_BASE_OFF + 0xa)
+#define IDE_DEVICE_HEAD_REGISTER	(IDE_BASE_OFF + 0xc)
+#define IDE_COMMAND_DATA_REGISTER	(IDE_BASE_OFF + 0xe)
+#define IDE_DEVICE_CONTROL_REGISTER	(IDE_CONTROL_BASE + 0xc)
+
+#define IDE_IRQ                      IRQ_EINT2
+
+
+#define RTC_PORT(x)	(MP1000_LIO_BASE+0x2000 + (x*2))
+#define RTC_ALWAYS_BCD	0
+
+/*
+// Definitions of the bit fields in the HwPortA register for the
+// MP1000 board.
+*/
+#define HwPortAKeyboardRow1                     0x00000001
+#define HwPortAKeyboardRow2                     0x00000002
+#define HwPortAKeyboardRow3                     0x00000004
+#define HwPortAKeyboardRow4                     0x00000008
+#define HwPortAKeyboardRow5                     0x00000010
+#define HwPortAKeyboardRow6                     0x00000020
+#define HwPortALCDEnable                        0x00000040
+#define HwPortAOffhook	                        0x00000080
+
+/*
+// Definitions of the bit fields in the HwPortB register for the
+// MP1000 board.
+*/
+#define HwPortBL3Mode                           0x00000001
+#define HwPortBL3Clk                            0x00000002
+#define HwPortBSClk                             0x00000001
+#define HwPortBSData                            0x00000002
+#define HwPortBL3Data                           0x00000004
+#define HwPortBMute                             0x00000008
+#define HwPortBQD0                              0x00000010
+#define HwPortBQD1                              0x00000020
+#define HwPortBQD2                              0x00000040
+#define HwPortBQD3                              0x00000080
+
+/*
+// Definitions of the bit fields in the HwPortD register for the
+// MP1000 board.
+*/
+#define HwPortDLED1                             0x00000001
+#define HwPortDLED2                             0x00000002
+#define HwPortDLED3                             0x00000004
+#define HwPortDLED4                             0x00000008
+#define HwPortDLED5                             0x00000010
+#define HwPortDEECS                             0x00000020
+#define HwPortBRTS                              0x00000040
+#define HwPortBRI                               0x00000080
+
+
+/*
+// Definitions of the bit fields in the HwPortE register for the
+// MP1000 board.
+*/
+
+#define HwPortECLE                              0x00000001
+#define HwPortESepromDOut                       0x00000001
+#define HwPortEALE                              0x00000002
+#define HwPortESepromDIn                        0x00000002
+#define HwPortENANDCS                           0x00000004
+#define HwPortESepromCLK                        0x00000004
+
+#endif // #if defined (CONFIG_MACH_MP1000)
+
 #endif

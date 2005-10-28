@@ -40,7 +40,7 @@ struct ps2pp_info {
 
 static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
 
 	if (psmouse->pktcnt < 3)
@@ -257,25 +257,27 @@ static struct ps2pp_info *get_model_info(unsigned char model)
 static void ps2pp_set_model_properties(struct psmouse *psmouse, struct ps2pp_info *model_info,
 				       int using_ps2pp)
 {
+	struct input_dev *input_dev = psmouse->dev;
+
 	if (model_info->features & PS2PP_SIDE_BTN)
-		set_bit(BTN_SIDE, psmouse->dev.keybit);
+		set_bit(BTN_SIDE, input_dev->keybit);
 
 	if (model_info->features & PS2PP_EXTRA_BTN)
-		set_bit(BTN_EXTRA, psmouse->dev.keybit);
+		set_bit(BTN_EXTRA, input_dev->keybit);
 
 	if (model_info->features & PS2PP_TASK_BTN)
-		set_bit(BTN_TASK, psmouse->dev.keybit);
+		set_bit(BTN_TASK, input_dev->keybit);
 
 	if (model_info->features & PS2PP_NAV_BTN) {
-		set_bit(BTN_FORWARD, psmouse->dev.keybit);
-		set_bit(BTN_BACK, psmouse->dev.keybit);
+		set_bit(BTN_FORWARD, input_dev->keybit);
+		set_bit(BTN_BACK, input_dev->keybit);
 	}
 
 	if (model_info->features & PS2PP_WHEEL)
-		set_bit(REL_WHEEL, psmouse->dev.relbit);
+		set_bit(REL_WHEEL, input_dev->relbit);
 
 	if (model_info->features & PS2PP_HWHEEL)
-		set_bit(REL_HWHEEL, psmouse->dev.relbit);
+		set_bit(REL_HWHEEL, input_dev->relbit);
 
 	switch (model_info->kind) {
 		case PS2PP_KIND_WHEEL:
@@ -387,7 +389,7 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 		}
 
 		if (buttons < 3)
-			clear_bit(BTN_MIDDLE, psmouse->dev.keybit);
+			clear_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
 		if (model_info)
 			ps2pp_set_model_properties(psmouse, model_info, use_ps2pp);

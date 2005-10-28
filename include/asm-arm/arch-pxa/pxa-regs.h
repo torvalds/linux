@@ -326,6 +326,25 @@
 #define STDLL		__REG(0x40700000)  /* Divisor Latch Low Register (DLAB = 1) (read/write) */
 #define STDLH		__REG(0x40700004)  /* Divisor Latch High Register (DLAB = 1) (read/write) */
 
+/* Hardware UART (HWUART) */
+#define HWUART		HWRBR
+#define HWRBR		__REG(0x41600000)  /* Receive Buffer Register (read only) */
+#define HWTHR		__REG(0x41600000)  /* Transmit Holding Register (write only) */
+#define HWIER		__REG(0x41600004)  /* Interrupt Enable Register (read/write) */
+#define HWIIR		__REG(0x41600008)  /* Interrupt ID Register (read only) */
+#define HWFCR		__REG(0x41600008)  /* FIFO Control Register (write only) */
+#define HWLCR		__REG(0x4160000C)  /* Line Control Register (read/write) */
+#define HWMCR		__REG(0x41600010)  /* Modem Control Register (read/write) */
+#define HWLSR		__REG(0x41600014)  /* Line Status Register (read only) */
+#define HWMSR		__REG(0x41600018)  /* Modem Status Register (read only) */
+#define HWSPR		__REG(0x4160001C)  /* Scratch Pad Register (read/write) */
+#define HWISR		__REG(0x41600020)  /* Infrared Selection Register (read/write) */
+#define HWFOR		__REG(0x41600024)  /* Receive FIFO Occupancy Register (read only) */
+#define HWABR		__REG(0x41600028)  /* Auto-Baud Control Register (read/write) */
+#define HWACR		__REG(0x4160002C)  /* Auto-Baud Count Register (read only) */
+#define HWDLL		__REG(0x41600000)  /* Divisor Latch Low Register (DLAB = 1) (read/write) */
+#define HWDLH		__REG(0x41600004)  /* Divisor Latch High Register (DLAB = 1) (read/write) */
+
 #define IER_DMAE	(1 << 7)	/* DMA Requests Enable */
 #define IER_UUE		(1 << 6)	/* UART Unit Enable */
 #define IER_NRZE	(1 << 5)	/* NRZ coding Enable */
@@ -1013,14 +1032,12 @@
 #define ICCR0_LBM	(1 << 1)	/* Loopback mode */
 #define ICCR0_ITR	(1 << 0)	/* IrDA transmission */
 
-#ifdef CONFIG_PXA27x
 #define ICCR2_RXP       (1 << 3)	/* Receive Pin Polarity select */
 #define ICCR2_TXP       (1 << 2)	/* Transmit Pin Polarity select */
 #define ICCR2_TRIG	(3 << 0)	/* Receive FIFO Trigger threshold */
 #define ICCR2_TRIG_8    (0 << 0)	/* 	>= 8 bytes */
 #define ICCR2_TRIG_16   (1 << 0)	/*	>= 16 bytes */
 #define ICCR2_TRIG_32   (2 << 0)	/*	>= 32 bytes */
-#endif
 
 #ifdef CONFIG_PXA27x
 #define ICSR0_EOC	(1 << 6)	/* DMA End of Descriptor Chain */
@@ -1250,9 +1267,13 @@
 #define GPIO40_FFDTR		40	/* FFUART data terminal Ready */
 #define GPIO41_FFRTS		41	/* FFUART request to send */
 #define GPIO42_BTRXD		42	/* BTUART receive data */
+#define GPIO42_HWRXD		42	/* HWUART receive data */
 #define GPIO43_BTTXD		43	/* BTUART transmit data */
+#define GPIO43_HWTXD		43	/* HWUART transmit data */
 #define GPIO44_BTCTS		44	/* BTUART clear to send */
+#define GPIO44_HWCTS		44	/* HWUART clear to send */
 #define GPIO45_BTRTS		45	/* BTUART request to send */
+#define GPIO45_HWRTS		45	/* HWUART request to send */
 #define GPIO45_AC97_SYSCLK	45	/* AC97 System Clock */
 #define GPIO46_ICPRXD		46	/* ICP receive data */
 #define GPIO46_STRXD		46	/* STD_UART receive data */
@@ -1378,17 +1399,26 @@
 #define GPIO40_FFDTR_MD		(40 | GPIO_ALT_FN_2_OUT)
 #define GPIO41_FFRTS_MD		(41 | GPIO_ALT_FN_2_OUT)
 #define GPIO42_BTRXD_MD		(42 | GPIO_ALT_FN_1_IN)
+#define GPIO42_HWRXD_MD		(42 | GPIO_ALT_FN_3_IN)
 #define GPIO43_BTTXD_MD		(43 | GPIO_ALT_FN_2_OUT)
+#define GPIO43_HWTXD_MD		(43 | GPIO_ALT_FN_3_OUT)
 #define GPIO44_BTCTS_MD		(44 | GPIO_ALT_FN_1_IN)
+#define GPIO44_HWCTS_MD		(44 | GPIO_ALT_FN_3_IN)
 #define GPIO45_BTRTS_MD		(45 | GPIO_ALT_FN_2_OUT)
+#define GPIO45_HWRTS_MD		(45 | GPIO_ALT_FN_3_OUT)
 #define GPIO45_SYSCLK_AC97_MD		(45 | GPIO_ALT_FN_1_OUT)
 #define GPIO46_ICPRXD_MD	(46 | GPIO_ALT_FN_1_IN)
 #define GPIO46_STRXD_MD		(46 | GPIO_ALT_FN_2_IN)
 #define GPIO47_ICPTXD_MD	(47 | GPIO_ALT_FN_2_OUT)
 #define GPIO47_STTXD_MD		(47 | GPIO_ALT_FN_1_OUT)
 #define GPIO48_nPOE_MD		(48 | GPIO_ALT_FN_2_OUT)
+#define GPIO48_HWTXD_MD         (48 | GPIO_ALT_FN_1_OUT)
+#define GPIO48_nPOE_MD          (48 | GPIO_ALT_FN_2_OUT)
+#define GPIO49_HWRXD_MD		(49 | GPIO_ALT_FN_1_IN)
 #define GPIO49_nPWE_MD		(49 | GPIO_ALT_FN_2_OUT)
 #define GPIO50_nPIOR_MD		(50 | GPIO_ALT_FN_2_OUT)
+#define GPIO50_HWCTS_MD         (50 | GPIO_ALT_FN_1_IN)
+#define GPIO51_HWRTS_MD         (51 | GPIO_ALT_FN_1_OUT)
 #define GPIO51_nPIOW_MD		(51 | GPIO_ALT_FN_2_OUT)
 #define GPIO52_nPCE_1_MD	(52 | GPIO_ALT_FN_2_OUT)
 #define GPIO53_nPCE_2_MD	(53 | GPIO_ALT_FN_2_OUT)
@@ -1763,6 +1793,7 @@
 #define CKEN7_BTUART	(1 << 7)	/* BTUART Unit Clock Enable */
 #define CKEN6_FFUART	(1 << 6)	/* FFUART Unit Clock Enable */
 #define CKEN5_STUART	(1 << 5)	/* STUART Unit Clock Enable */
+#define CKEN4_HWUART	(1 << 4)	/* HWUART Unit Clock Enable */
 #define CKEN4_SSP3	(1 << 4)	/* SSP3 Unit Clock Enable */
 #define CKEN3_SSP	(1 << 3)	/* SSP Unit Clock Enable */
 #define CKEN3_SSP2	(1 << 3)	/* SSP2 Unit Clock Enable */
@@ -2281,5 +2312,12 @@
 #define IMPMSR_PS0_STANDBY_MODE	(0x1 << 0) /*    Standby mode */
 
 #endif
+
+/* PWRMODE register M field values */
+
+#define PWRMODE_IDLE		0x1
+#define PWRMODE_STANDBY		0x2
+#define PWRMODE_SLEEP		0x3
+#define PWRMODE_DEEPSLEEP	0x7
 
 #endif

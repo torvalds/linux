@@ -134,7 +134,7 @@
 					/*  -> Read  = 1		*/
 #define	ALI1535_SMBIO_EN	0x04	/* SMB I/O Space enable		*/
 
-
+static struct pci_driver ali1535_driver;
 static unsigned short ali1535_smba;
 static DECLARE_MUTEX(i2c_ali1535_sem);
 
@@ -162,7 +162,8 @@ static int ali1535_setup(struct pci_dev *dev)
 		goto exit;
 	}
 
-	if (!request_region(ali1535_smba, ALI1535_SMB_IOSIZE, "ali1535-smb")) {
+	if (!request_region(ali1535_smba, ALI1535_SMB_IOSIZE,
+			    ali1535_driver.name)) {
 		dev_err(&dev->dev, "ALI1535_smb region 0x%x already in use!\n",
 			ali1535_smba);
 		goto exit;
@@ -480,7 +481,6 @@ static struct i2c_adapter ali1535_adapter = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id ali1535_ids[] = {
@@ -513,6 +513,7 @@ static void __devexit ali1535_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver ali1535_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "ali1535_smbus",
 	.id_table	= ali1535_ids,
 	.probe		= ali1535_probe,

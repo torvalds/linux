@@ -1013,6 +1013,8 @@ typedef struct ide_tape_obj {
 
 static DECLARE_MUTEX(idetape_ref_sem);
 
+static struct class *idetape_sysfs_class;
+
 #define to_ide_tape(obj) container_of(obj, struct ide_tape_obj, kref)
 
 #define ide_tape_g(disk) \
@@ -4704,6 +4706,10 @@ static void ide_tape_release(struct kref *kref)
 
 	drive->dsc_overlap = 0;
 	drive->driver_data = NULL;
+	class_device_destroy(idetape_sysfs_class,
+			MKDEV(IDETAPE_MAJOR, tape->minor));
+	class_device_destroy(idetape_sysfs_class,
+			MKDEV(IDETAPE_MAJOR, tape->minor + 128));
 	devfs_remove("%s/mt", drive->devfs_name);
 	devfs_remove("%s/mtn", drive->devfs_name);
 	devfs_unregister_tape(g->number);
@@ -4878,6 +4884,11 @@ static int ide_tape_probe(struct device *dev)
 
 	idetape_setup(drive, tape, minor);
 
+	class_device_create(idetape_sysfs_class, NULL,
+			MKDEV(IDETAPE_MAJOR, minor), dev, "%s", tape->name);
+	class_device_create(idetape_sysfs_class, NULL,
+			MKDEV(IDETAPE_MAJOR, minor + 128), dev, "n%s", tape->name);
+
 	devfs_mk_cdev(MKDEV(HWIF(drive)->major, minor),
 			S_IFCHR | S_IRUGO | S_IWUGO,
 			"%s/mt", drive->devfs_name);
@@ -4903,6 +4914,7 @@ MODULE_LICENSE("GPL");
 static void __exit idetape_exit (void)
 {
 	driver_unregister(&idetape_driver.gen_driver);
+	class_destroy(idetape_sysfs_class);
 	unregister_chrdev(IDETAPE_MAJOR, "ht");
 }
 
@@ -4911,11 +4923,33 @@ static void __exit idetape_exit (void)
  */
 static int idetape_init (void)
 {
+	int error = 1;
+	idetape_sysfs_class = class_create(THIS_MODULE, "ide_tape");
+	if (IS_ERR(idetape_sysfs_class)) {
+		idetape_sysfs_class = NULL;
+		printk(KERN_ERR "Unable to create sysfs class for ide tapes\n");
+		error = -EBUSY;
+		goto out;
+	}
+
 	if (register_chrdev(IDETAPE_MAJOR, "ht", &idetape_fops)) {
 		printk(KERN_ERR "ide-tape: Failed to register character device interface\n");
-		return -EBUSY;
+		error = -EBUSY;
+		goto out_free_class;
 	}
-	return driver_register(&idetape_driver.gen_driver);
+
+	error = driver_register(&idetape_driver.gen_driver);
+	if (error)
+		goto out_free_driver;
+
+	return 0;
+
+out_free_driver:
+	driver_unregister(&idetape_driver.gen_driver);
+out_free_class:
+	class_destroy(idetape_sysfs_class);
+out:
+	return error;
 }
 
 module_init(idetape_init);

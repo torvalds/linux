@@ -111,6 +111,7 @@ int hid_tmff_init(struct hid_device *hid)
 	struct tmff_device *private;
 	struct list_head *pos;
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
+	struct input_dev *input_dev = hidinput->input;
 
 	private = kmalloc(sizeof(struct tmff_device), GFP_KERNEL);
 	if (!private)
@@ -155,7 +156,7 @@ int hid_tmff_init(struct hid_device *hid)
 					private->report = report;
 					private->rumble = field;
 
-					set_bit(FF_RUMBLE, hidinput->input.ffbit);
+					set_bit(FF_RUMBLE, input_dev->ffbit);
 					break;
 
 				default:
@@ -164,11 +165,11 @@ int hid_tmff_init(struct hid_device *hid)
 			}
 
 			/* Fallthrough to here only when a valid usage is found */
-			hidinput->input.upload_effect = hid_tmff_upload_effect;
-			hidinput->input.flush = hid_tmff_flush;
+			input_dev->upload_effect = hid_tmff_upload_effect;
+			input_dev->flush = hid_tmff_flush;
 
-			set_bit(EV_FF, hidinput->input.evbit);
-			hidinput->input.ff_effects_max = TMFF_EFFECTS;
+			set_bit(EV_FF, input_dev->evbit);
+			input_dev->ff_effects_max = TMFF_EFFECTS;
 		}
 	}
 

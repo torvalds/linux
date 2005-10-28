@@ -351,7 +351,7 @@ struct saa7134_oss {
 
 /* IR input */
 struct saa7134_ir {
-	struct input_dev           dev;
+	struct input_dev           *dev;
 	struct ir_input_state      ir;
 	char                       name[32];
 	char                       phys[32];

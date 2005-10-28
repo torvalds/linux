@@ -91,8 +91,8 @@ extern struct proc_dir_entry * proc_mckinley_root;
 #define DBG_RES(x...)
 #endif
 
-#if defined(__LP64__) && !defined(CONFIG_PDC_NARROW)
-/* "low end" PA8800 machines use ZX1 chipset */
+#if defined(CONFIG_64BIT)
+/* "low end" PA8800 machines use ZX1 chipset: PAT PDC and only run 64-bit */
 #define ZX1_SUPPORT
 #endif
 
@@ -231,7 +231,7 @@ struct ioc {
 	spinlock_t	res_lock;
 	unsigned int	res_bitshift;	/* from the LEFT! */
 	unsigned int	res_size;	/* size of resource map in bytes */
-#if SBA_HINT_SUPPORT
+#ifdef SBA_HINT_SUPPORT
 /* FIXME : DMA HINTs not used */
 	unsigned long	hint_mask_pdir;	/* bits used for DMA hints */
 	unsigned int	hint_shift_pdir;
@@ -294,7 +294,7 @@ static unsigned long piranha_bad_128k = 0;
 /* Looks nice and keeps the compiler happy */
 #define SBA_DEV(d) ((struct sba_device *) (d))
 
-#if SBA_AGP_SUPPORT
+#ifdef SBA_AGP_SUPPORT
 static int reserve_sba_gart = 1;
 #endif
 
@@ -314,7 +314,7 @@ static int reserve_sba_gart = 1;
 #define WRITE_REG32(val, addr) __raw_writel(cpu_to_le32(val), addr)
 #define WRITE_REG64(val, addr) __raw_writeq(cpu_to_le64(val), addr)
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define READ_REG(addr)		READ_REG64(addr)
 #define WRITE_REG(value, addr)	WRITE_REG64(value, addr)
 #else
@@ -324,7 +324,7 @@ static int reserve_sba_gart = 1;
 
 #ifdef DEBUG_SBA_INIT
 
-/* NOTE: When __LP64__ isn't defined, READ_REG64() is two 32-bit reads */
+/* NOTE: When CONFIG_64BIT isn't defined, READ_REG64() is two 32-bit reads */
 
 /**
  * sba_dump_ranges - debugging only - print ranges assigned to this IOA
@@ -364,7 +364,7 @@ static void sba_dump_tlb(void __iomem *hpa)
 #else
 #define sba_dump_ranges(x)
 #define sba_dump_tlb(x)
-#endif
+#endif	/* DEBUG_SBA_INIT */
 
 
 #ifdef ASSERT_PDIR_SANITY
@@ -674,7 +674,7 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 *
 ***************************************************************/
 
-#if SBA_HINT_SUPPORT
+#ifdef SBA_HINT_SUPPORT
 #define SBA_DMA_HINT(ioc, val) ((val) << (ioc)->hint_shift_pdir)
 #endif
 
@@ -743,9 +743,8 @@ sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	 * (bit #61, big endian), we have to flush and sync every time
 	 * IO-PDIR is changed in Ike/Astro.
 	 */
-	if (ioc_needs_fdc) {
-		asm volatile("fdc 0(%%sr1,%0)\n\tsync" : : "r" (pdir_ptr));
-	}
+	if (ioc_needs_fdc)
+		asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr));
 }
 
 
@@ -769,42 +768,57 @@ static SBA_INLINE void
 sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 {
 	u32 iovp = (u32) SBA_IOVP(ioc,iova);
-
-	/* Even though this is a big-endian machine, the entries
-	** in the iopdir are little endian. That's why we clear the byte
-	** at +7 instead of at +0.
-	*/
-	int off = PDIR_INDEX(iovp)*sizeof(u64)+7;
+	u64 *pdir_ptr = &ioc->pdir_base[PDIR_INDEX(iovp)];
 
 #ifdef ASSERT_PDIR_SANITY
-	/* Assert first pdir entry is set */
-	if (0x80 != (((u8 *) ioc->pdir_base)[off])) {
+	/* Assert first pdir entry is set.
+	**
+	** Even though this is a big-endian machine, the entries
+	** in the iopdir are little endian. That's why we look at
+	** the byte at +7 instead of at +0.
+	*/
+	if (0x80 != (((u8 *) pdir_ptr)[7])) {
 		sba_dump_pdir_entry(ioc,"sba_mark_invalid()", PDIR_INDEX(iovp));
 	}
 #endif
 
-	if (byte_cnt <= IOVP_SIZE)
+	if (byte_cnt > IOVP_SIZE)
 	{
-		iovp |= IOVP_SHIFT;     /* set "size" field for PCOM */
+#if 0
+		unsigned long entries_per_cacheline = ioc_needs_fdc ?
+				L1_CACHE_ALIGN(((unsigned long) pdir_ptr))
+					- (unsigned long) pdir_ptr;
+				: 262144;
+#endif
 
-		/*
-		** clear I/O PDIR entry "valid" bit
-		** Do NOT clear the rest - save it for debugging.
-		** We should only clear bits that have previously
-		** been enabled.
-		*/
-		((u8 *)(ioc->pdir_base))[off] = 0;
-	} else {
-		u32 t = get_order(byte_cnt) + PAGE_SHIFT;
+		/* set "size" field for PCOM */
+		iovp |= get_order(byte_cnt) + PAGE_SHIFT;
 
-		iovp |= t;
 		do {
 			/* clear I/O Pdir entry "valid" bit first */
-			((u8 *)(ioc->pdir_base))[off] = 0;
-			off += sizeof(u64);
+			((u8 *) pdir_ptr)[7] = 0;
+			if (ioc_needs_fdc) {
+				asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr));
+#if 0
+				entries_per_cacheline = L1_CACHE_SHIFT - 3;
+#endif
+			}
+			pdir_ptr++;
 			byte_cnt -= IOVP_SIZE;
-		} while (byte_cnt > 0);
-	}
+		} while (byte_cnt > IOVP_SIZE);
+	} else
+		iovp |= IOVP_SHIFT;     /* set "size" field for PCOM */
+
+	/*
+	** clear I/O PDIR entry "valid" bit.
+	** We have to R/M/W the cacheline regardless how much of the
+	** pdir entry that we clobber.
+	** The rest of the entry would be useful for debugging if we
+	** could dump core on HPMC.
+	*/
+	((u8 *) pdir_ptr)[7] = 0;
+	if (ioc_needs_fdc)
+		asm volatile("fdc %%r0(%0)" : : "r" (pdir_ptr));
 
 	WRITE_REG( SBA_IOVA(ioc, iovp, 0, 0), ioc->ioc_hpa+IOC_PCOM);
 }
@@ -819,18 +833,29 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 static int sba_dma_supported( struct device *dev, u64 mask)
 {
 	struct ioc *ioc;
+
 	if (dev == NULL) {
 		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al not supported\n");
 		BUG();
 		return(0);
 	}
 
+	/* Documentation/DMA-mapping.txt tells drivers to try 64-bit first,
+	 * then fall back to 32-bit if that fails.
+	 * We are just "encouraging" 32-bit DMA masks here since we can
+	 * never allow IOMMU bypass unless we add special support for ZX1.
+	 */
+	if (mask > ~0U)
+		return 0;
+
 	ioc = GET_IOC(dev);
 
-	/* check if mask is > than the largest IO Virt Address */
-
-	return((int) (mask >= (ioc->ibase +
-				(ioc->pdir_size / sizeof(u64) * IOVP_SIZE) )));
+	/*
+	 * check if mask is >= than the current max IO Virt Address
+	 * The max IO Virt address will *always* < 30 bits.
+	 */
+	return((int)(mask >= (ioc->ibase - 1 +
+			(ioc->pdir_size / sizeof(u64) * IOVP_SIZE) )));
 }
 
 
@@ -898,11 +923,17 @@ sba_map_single(struct device *dev, void *addr, size_t size,
 		size -= IOVP_SIZE;
 		pdir_start++;
 	}
-	/* form complete address */
+
+	/* force FDC ops in io_pdir_entry() to be visible to IOMMU */
+	if (ioc_needs_fdc)
+		asm volatile("sync" : : );
+
 #ifdef ASSERT_PDIR_SANITY
 	sba_check_pdir(ioc,"Check after sba_map_single()");
 #endif
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
+
+	/* form complete address */
 	return SBA_IOVA(ioc, iovp, offset, DEFAULT_DMA_HINT_REG);
 }
 
@@ -958,12 +989,19 @@ sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 			d--;
 		}
 		ioc->saved_cnt = 0;
+
 		READ_REG(ioc->ioc_hpa+IOC_PCOM);	/* flush purges */
 	}
 #else /* DELAYED_RESOURCE_CNT == 0 */
 	sba_free_range(ioc, iova, size);
+
+	/* If fdc's were issued, force fdc's to be visible now */
+	if (ioc_needs_fdc)
+		asm volatile("sync" : : );
+
 	READ_REG(ioc->ioc_hpa+IOC_PCOM);	/* flush purges */
 #endif /* DELAYED_RESOURCE_CNT == 0 */
+
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 
 	/* XXX REVISIT for 2.5 Linux - need syncdma for zero-copy support.
@@ -1106,6 +1144,10 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	*/
 	filled = iommu_fill_pdir(ioc, sglist, nents, 0, sba_io_pdir_entry);
 
+	/* force FDC ops in io_pdir_entry() to be visible to IOMMU */
+	if (ioc_needs_fdc)
+		asm volatile("sync" : : );
+
 #ifdef ASSERT_PDIR_SANITY
 	if (sba_check_pdir(ioc,"Check after sba_map_sg()"))
 	{
@@ -1234,8 +1276,10 @@ sba_alloc_pdir(unsigned int pdir_size)
 	unsigned long pdir_order = get_order(pdir_size);
 
 	pdir_base = __get_free_pages(GFP_KERNEL, pdir_order);
-	if (NULL == (void *) pdir_base)
-		panic("sba_ioc_init() could not allocate I/O Page Table\n");
+	if (NULL == (void *) pdir_base)	{
+		panic("%s() could not allocate I/O Page Table\n",
+			__FUNCTION__);
+	}
 
 	/* If this is not PA8700 (PCX-W2)
 	**	OR newer than ver 2.2
@@ -1322,19 +1366,29 @@ sba_alloc_pdir(unsigned int pdir_size)
 	return (void *) pdir_base;
 }
 
-/* setup Mercury or Elroy IBASE/IMASK registers. */
-static void setup_ibase_imask(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
+static struct device *next_device(struct klist_iter *i)
 {
-        /* lba_set_iregs() is in drivers/parisc/lba_pci.c */
+        struct klist_node * n = klist_next(i);
+        return n ? container_of(n, struct device, knode_parent) : NULL;
+}
+
+/* setup Mercury or Elroy IBASE/IMASK registers. */
+static void 
+setup_ibase_imask(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
+{
+	/* lba_set_iregs() is in drivers/parisc/lba_pci.c */
         extern void lba_set_iregs(struct parisc_device *, u32, u32);
 	struct device *dev;
+	struct klist_iter i;
 
-	list_for_each_entry(dev, &sba->dev.children, node) {
+	klist_iter_init(&sba->dev.klist_children, &i);
+	while ((dev = next_device(&i))) {
 		struct parisc_device *lba = to_parisc_device(dev);
-		int rope_num = (lba->hpa >> 13) & 0xf;
+		int rope_num = (lba->hpa.start >> 13) & 0xf;
 		if (rope_num >> 3 == ioc_num)
 			lba_set_iregs(lba, ioc->ibase, ioc->imask);
 	}
+	klist_iter_exit(&i);
 }
 
 static void
@@ -1343,7 +1397,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	u32 iova_space_mask;
 	u32 iova_space_size;
 	int iov_order, tcnfg;
-#if SBA_AGP_SUPPORT
+#ifdef SBA_AGP_SUPPORT
 	int agp_found = 0;
 #endif
 	/*
@@ -1380,7 +1434,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	DBG_INIT("%s() pdir %p size %x\n",
 			__FUNCTION__, ioc->pdir_base, ioc->pdir_size);
 
-#if SBA_HINT_SUPPORT
+#ifdef SBA_HINT_SUPPORT
 	ioc->hint_shift_pdir = iov_order + PAGE_SHIFT;
 	ioc->hint_mask_pdir = ~(0x3 << (iov_order + PAGE_SHIFT));
 
@@ -1404,7 +1458,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	WRITE_REG(ioc->imask, ioc->ioc_hpa + IOC_IMASK);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/*
 	** Setting the upper bits makes checking for bypass addresses
 	** a little faster later on.
@@ -1437,7 +1491,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	*/
 	WRITE_REG(ioc->ibase | 31, ioc->ioc_hpa + IOC_PCOM);
 
-#if SBA_AGP_SUPPORT
+#ifdef SBA_AGP_SUPPORT
 	/*
 	** If an AGP device is present, only use half of the IOV space
 	** for PCI DMA.  Unfortunately we can't know ahead of time
@@ -1489,11 +1543,9 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	if (iova_space_size < (1 << (20 - PAGE_SHIFT))) {
 		iova_space_size = 1 << (20 - PAGE_SHIFT);
 	}
-#ifdef __LP64__
 	else if (iova_space_size > (1 << (30 - PAGE_SHIFT))) {
 		iova_space_size = 1 << (30 - PAGE_SHIFT);
 	}
-#endif
 
 	/*
 	** iova space must be log2() in size.
@@ -1519,7 +1571,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	DBG_INIT("%s() pdir %p size %x\n",
 			__FUNCTION__, ioc->pdir_base, pdir_size);
 
-#if SBA_HINT_SUPPORT
+#ifdef SBA_HINT_SUPPORT
 	/* FIXME : DMA HINTs not used */
 	ioc->hint_shift_pdir = iov_order + PAGE_SHIFT;
 	ioc->hint_mask_pdir = ~(0x3 << (iov_order + PAGE_SHIFT));
@@ -1590,7 +1642,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 static void __iomem *ioc_remap(struct sba_device *sba_dev, int offset)
 {
-	return ioremap(sba_dev->dev->hpa + offset, SBA_FUNC_SIZE);
+	return ioremap(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
 }
 
 static void sba_hw_init(struct sba_device *sba_dev)
@@ -1968,7 +2020,7 @@ sba_driver_callback(struct parisc_device *dev)
 	u32 func_class;
 	int i;
 	char *version;
-	void __iomem *sba_addr = ioremap(dev->hpa, SBA_FUNC_SIZE);
+	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
 
 	sba_dump_ranges(sba_addr);
 
@@ -2010,7 +2062,7 @@ sba_driver_callback(struct parisc_device *dev)
 	}
 
 	printk(KERN_INFO "%s found %s at 0x%lx\n",
-		MODULE_NAME, version, dev->hpa);
+		MODULE_NAME, version, dev->hpa.start);
 
 	sba_dev = kmalloc(sizeof(struct sba_device), GFP_KERNEL);
 	if (!sba_dev) {

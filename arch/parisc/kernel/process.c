@@ -9,7 +9,7 @@
  *    Copyright (C) 2000-2003 Paul Bame <bame at parisc-linux.org>
  *    Copyright (C) 2000 Philipp Rumpf <prumpf with tux.org>
  *    Copyright (C) 2000 David Kennedy <dkennedy with linuxcare.com>
- *    Copyright (C) 2000 Richard Hirst <rhirst with parisc-lixux.org>
+ *    Copyright (C) 2000 Richard Hirst <rhirst with parisc-linux.org>
  *    Copyright (C) 2000 Grant Grundler <grundler with parisc-linux.org>
  *    Copyright (C) 2001 Alan Modra <amodra at parisc-linux.org>
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
@@ -245,7 +245,17 @@ int
 sys_clone(unsigned long clone_flags, unsigned long usp,
 	  struct pt_regs *regs)
 {
-	int __user *user_tid = (int __user *)regs->gr[26];
+  	/* Arugments from userspace are:
+	   r26 = Clone flags.
+	   r25 = Child stack.
+	   r24 = parent_tidptr.
+	   r23 = Is the TLS storage descriptor 
+	   r22 = child_tidptr 
+	   
+	   However, these last 3 args are only examined
+	   if the proper flags are set. */
+	int __user *child_tidptr;
+	int __user *parent_tidptr;
 
 	/* usp must be word aligned.  This also prevents users from
 	 * passing in the value 1 (which is the signal for a special
@@ -253,10 +263,20 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	usp = ALIGN(usp, 4);
 
 	/* A zero value for usp means use the current stack */
-	if(usp == 0)
-		usp = regs->gr[30];
+	if (usp == 0)
+	  usp = regs->gr[30];
 
-	return do_fork(clone_flags, usp, regs, 0, user_tid, NULL);
+	if (clone_flags & CLONE_PARENT_SETTID)
+	  parent_tidptr = (int __user *)regs->gr[24];
+	else
+	  parent_tidptr = NULL;
+	
+	if (clone_flags & (CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID))
+	  child_tidptr = (int __user *)regs->gr[22];
+	else
+	  child_tidptr = NULL;
+
+	return do_fork(clone_flags, usp, regs, 0, parent_tidptr, child_tidptr);
 }
 
 int
@@ -332,6 +352,10 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		} else {
 			cregs->kpc = (unsigned long) &child_return;
 		}
+		/* Setup thread TLS area from the 4th parameter in clone */
+		if (clone_flags & CLONE_SETTLS)
+		  cregs->cr27 = pregs->gr[23];
+	
 	}
 
 	return 0;

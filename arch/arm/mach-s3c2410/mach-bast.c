@@ -32,6 +32,7 @@
  *     25-Jul-2005 BJD  Removed ASIX static mappings
  *     27-Jul-2005 BJD  Ensure maximum frequency of i2c bus
  *     20-Sep-2005 BJD  Added static to non-exported items
+ *     26-Oct-2005 BJD  Added FB platform data
 */
 
 #include <linux/kernel.h>
@@ -61,8 +62,10 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
+
 #include <asm/arch/nand.h>
 #include <asm/arch/iic.h>
+#include <asm/arch/fb.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -399,6 +402,38 @@ static struct s3c2410_platform_i2c bast_i2c_info = {
 	.max_freq	= 130*1000,
 };
 
+
+static struct s3c2410fb_mach_info __initdata bast_lcd_info = {
+	.width		= 640,
+	.height		= 480,
+
+	.xres		= {
+		.min		= 320,
+		.max		= 1024,
+		.defval		= 640,
+	},
+
+	.yres		= {
+		.min		= 240,
+		.max	        = 600,
+		.defval		= 480,
+	},
+
+	.bpp		= {
+		.min		= 4,
+		.max		= 16,
+		.defval		= 8,
+	},
+
+	.regs		= {
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon3	= 0x013a7f13,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
+	}
+};
+
 /* Standard BAST devices */
 
 static struct platform_device *bast_devices[] __initdata = {
@@ -454,6 +489,10 @@ static void __init bast_map_io(void)
 	usb_simtec_init();
 }
 
+static void __init bast_init(void)
+{
+	s3c24xx_fb_set_platdata(&bast_lcd_info);
+}
 
 MACHINE_START(BAST, "Simtec-BAST")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
@@ -463,5 +502,6 @@ MACHINE_START(BAST, "Simtec-BAST")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= bast_map_io,
 	.init_irq	= s3c24xx_init_irq,
+	.init_machine	= bast_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

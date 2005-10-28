@@ -39,7 +39,8 @@
     defined(CONFIG_ARCH_IXP4XX) || \
     defined(CONFIG_ARCH_IXP2000) || \
     defined(CONFIG_ARCH_LH7A40X) || \
-    defined(CONFIG_ARCH_OMAP)
+    defined(CONFIG_ARCH_OMAP) || \
+    defined(CONFIG_MACH_MP1000)
 		.macro	loadsp,	rb
 		addruart \rb
 		.endm
