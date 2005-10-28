@@ -293,7 +293,7 @@ static struct resource i2s_resources[] = {
 static struct platform_device i2s_device = {
 	.name		= "pxa2xx-i2s",
 	.id		= -1,
-	.resource	= i2c_resources,
+	.resource	= i2s_resources,
 	.num_resources	= ARRAY_SIZE(i2s_resources),
 };
 
