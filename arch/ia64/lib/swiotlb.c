@@ -49,6 +49,15 @@
  */
 #define IO_TLB_SHIFT 11
 
+#define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
+
+/*
+ * Minimum IO TLB size to bother booting with.  Systems with mainly
+ * 64bit capable cards will only lightly use the swiotlb.  If we can't
+ * allocate a contiguous 1MB, we're probably in trouble anyway.
+ */
+#define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
+
 int swiotlb_force;
 
 /*
@@ -152,6 +161,99 @@ void
 swiotlb_init (void)
 {
 	swiotlb_init_with_default_size(64 * (1<<20));	/* default to 64MB */
+}
+
+/*
+ * Systems with larger DMA zones (those that don't support ISA) can
+ * initialize the swiotlb later using the slab allocator if needed.
+ * This should be just like above, but with some error catching.
+ */
+int
+swiotlb_late_init_with_default_size (size_t default_size)
+{
+	unsigned long i, req_nslabs = io_tlb_nslabs;
+	unsigned int order;
+
+	if (!io_tlb_nslabs) {
+		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
+		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
+	}
+
+	/*
+	 * Get IO TLB memory from the low pages
+	 */
+	order = get_order(io_tlb_nslabs * (1 << IO_TLB_SHIFT));
+	io_tlb_nslabs = SLABS_PER_PAGE << order;
+
+	while ((SLABS_PER_PAGE << order) > IO_TLB_MIN_SLABS) {
+		io_tlb_start = (char *)__get_free_pages(GFP_DMA | __GFP_NOWARN,
+		                                        order);
+		if (io_tlb_start)
+			break;
+		order--;
+	}
+
+	if (!io_tlb_start)
+		goto cleanup1;
+
+	if (order != get_order(io_tlb_nslabs * (1 << IO_TLB_SHIFT))) {
+		printk(KERN_WARNING "Warning: only able to allocate %ld MB "
+		       "for software IO TLB\n", (PAGE_SIZE << order) >> 20);
+		io_tlb_nslabs = SLABS_PER_PAGE << order;
+	}
+	io_tlb_end = io_tlb_start + io_tlb_nslabs * (1 << IO_TLB_SHIFT);
+	memset(io_tlb_start, 0, io_tlb_nslabs * (1 << IO_TLB_SHIFT));
+
+	/*
+	 * Allocate and initialize the free list array.  This array is used
+	 * to find contiguous free memory regions of size up to IO_TLB_SEGSIZE
+	 * between io_tlb_start and io_tlb_end.
+	 */
+	io_tlb_list = (unsigned int *)__get_free_pages(GFP_KERNEL,
+	                              get_order(io_tlb_nslabs * sizeof(int)));
+	if (!io_tlb_list)
+		goto cleanup2;
+
+	for (i = 0; i < io_tlb_nslabs; i++)
+ 		io_tlb_list[i] = IO_TLB_SEGSIZE - OFFSET(i, IO_TLB_SEGSIZE);
+	io_tlb_index = 0;
+
+	io_tlb_orig_addr = (unsigned char **)__get_free_pages(GFP_KERNEL,
+	                           get_order(io_tlb_nslabs * sizeof(char *)));
+	if (!io_tlb_orig_addr)
+		goto cleanup3;
+
+	memset(io_tlb_orig_addr, 0, io_tlb_nslabs * sizeof(char *));
+
+	/*
+	 * Get the overflow emergency buffer
+	 */
+	io_tlb_overflow_buffer = (void *)__get_free_pages(GFP_DMA,
+	                                          get_order(io_tlb_overflow));
+	if (!io_tlb_overflow_buffer)
+		goto cleanup4;
+
+	printk(KERN_INFO "Placing %ldMB software IO TLB between 0x%lx - "
+	       "0x%lx\n", (io_tlb_nslabs * (1 << IO_TLB_SHIFT)) >> 20,
+	       virt_to_phys(io_tlb_start), virt_to_phys(io_tlb_end));
+
+	return 0;
+
+cleanup4:
+	free_pages((unsigned long)io_tlb_orig_addr, get_order(io_tlb_nslabs *
+	                                                      sizeof(char *)));
+	io_tlb_orig_addr = NULL;
+cleanup3:
+	free_pages((unsigned long)io_tlb_list, get_order(io_tlb_nslabs *
+	                                                 sizeof(int)));
+	io_tlb_list = NULL;
+	io_tlb_end = NULL;
+cleanup2:
+	free_pages((unsigned long)io_tlb_start, order);
+	io_tlb_start = NULL;
+cleanup1:
+	io_tlb_nslabs = req_nslabs;
+	return -ENOMEM;
 }
 
 static inline int
