@@ -241,13 +241,17 @@ static inline int nfs_caches_unstable(struct inode *inode)
 	return atomic_read(&NFS_I(inode)->data_updates) != 0;
 }
 
+static inline void nfs_mark_for_revalidate(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
+}
+
 static inline void NFS_CACHEINV(struct inode *inode)
 {
-	if (!nfs_caches_unstable(inode)) {
-		spin_lock(&inode->i_lock);
-		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
-		spin_unlock(&inode->i_lock);
-	}
+	if (!nfs_caches_unstable(inode))
+		nfs_mark_for_revalidate(inode);
 }
 
 static inline int nfs_server_capable(struct inode *inode, int cap)
@@ -291,6 +295,7 @@ extern void nfs_zap_caches(struct inode *);
 extern struct inode *nfs_fhget(struct super_block *, struct nfs_fh *,
 				struct nfs_fattr *);
 extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
+extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int nfs_permission(struct inode *, int, struct nameidata *);
 extern int nfs_access_get_cached(struct inode *, struct rpc_cred *, struct nfs_access_entry *);

@@ -206,7 +206,7 @@ static int nfs_proc_write(struct nfs_write_data *wdata)
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
 	if (status >= 0) {
-		nfs_refresh_inode(inode, fattr);
+		nfs_post_op_update_inode(inode, fattr);
 		wdata->res.count = wdata->args.count;
 		wdata->verf.committed = NFS_FILE_SYNC;
 	}
@@ -275,6 +275,7 @@ nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 
 	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_CREATE, &arg, &res, 0);
+	nfs_mark_for_revalidate(dir);
 
 	if (status == -EINVAL && S_ISFIFO(mode)) {
 		sattr->ia_mode = mode;
@@ -305,6 +306,7 @@ nfs_proc_remove(struct inode *dir, struct qstr *name)
 
 	dprintk("NFS call  remove %s\n", name->name);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
+	nfs_mark_for_revalidate(dir);
 
 	dprintk("NFS reply remove: %d\n", status);
 	return status;
@@ -331,8 +333,10 @@ nfs_proc_unlink_done(struct dentry *dir, struct rpc_task *task)
 {
 	struct rpc_message *msg = &task->tk_msg;
 	
-	if (msg->rpc_argp)
+	if (msg->rpc_argp) {
+		nfs_mark_for_revalidate(dir->d_inode);
 		kfree(msg->rpc_argp);
+	}
 	return 0;
 }
 
@@ -352,6 +356,8 @@ nfs_proc_rename(struct inode *old_dir, struct qstr *old_name,
 
 	dprintk("NFS call  rename %s -> %s\n", old_name->name, new_name->name);
 	status = rpc_call(NFS_CLIENT(old_dir), NFSPROC_RENAME, &arg, NULL, 0);
+	nfs_mark_for_revalidate(old_dir);
+	nfs_mark_for_revalidate(new_dir);
 	dprintk("NFS reply rename: %d\n", status);
 	return status;
 }
@@ -369,6 +375,7 @@ nfs_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 
 	dprintk("NFS call  link %s\n", name->name);
 	status = rpc_call(NFS_CLIENT(inode), NFSPROC_LINK, &arg, NULL, 0);
+	nfs_mark_for_revalidate(dir);
 	dprintk("NFS reply link: %d\n", status);
 	return status;
 }
@@ -394,6 +401,7 @@ nfs_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 	nfs_fattr_init(fattr);
 	fhandle->size = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_SYMLINK, &arg, NULL, 0);
+	nfs_mark_for_revalidate(dir);
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }
@@ -418,6 +426,7 @@ nfs_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
 	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_MKDIR, &arg, &res, 0);
+	nfs_mark_for_revalidate(dir);
 	if (status == 0)
 		status = nfs_instantiate(dentry, &fhandle, &fattr);
 	dprintk("NFS reply mkdir: %d\n", status);
@@ -436,6 +445,7 @@ nfs_proc_rmdir(struct inode *dir, struct qstr *name)
 
 	dprintk("NFS call  rmdir %s\n", name->name);
 	status = rpc_call(NFS_CLIENT(dir), NFSPROC_RMDIR, &arg, NULL, 0);
+	nfs_mark_for_revalidate(dir);
 	dprintk("NFS reply rmdir: %d\n", status);
 	return status;
 }
@@ -579,7 +589,7 @@ nfs_write_done(struct rpc_task *task)
 	struct nfs_write_data *data = (struct nfs_write_data *) task->tk_calldata;
 
 	if (task->tk_status >= 0)
-		nfs_refresh_inode(data->inode, data->res.fattr);
+		nfs_post_op_update_inode(data->inode, data->res.fattr);
 	nfs_writeback_done(task);
 }
 

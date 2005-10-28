@@ -187,8 +187,11 @@ static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinf
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
+	spin_lock(&inode->i_lock);
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
 	if (cinfo->before == nfsi->change_attr && cinfo->atomic)
 		nfsi->change_attr = cinfo->after;
+	spin_unlock(&inode->i_lock);
 }
 
 /* Helper for asynchronous RPC calls */

@@ -1236,13 +1236,12 @@ void nfs_end_data_update(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	if (!nfs_have_delegation(inode, FMODE_READ)) {
-		/* Mark the attribute cache for revalidation */
-		spin_lock(&inode->i_lock);
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
-		/* Directories and symlinks: invalidate page cache too */
-		if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
+		/* Directories and symlinks: invalidate page cache */
+		if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) {
+			spin_lock(&inode->i_lock);
 			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
-		spin_unlock(&inode->i_lock);
+			spin_unlock(&inode->i_lock);
+		}
 	}
 	nfsi->cache_change_attribute = jiffies;
 	atomic_dec(&nfsi->data_updates);
@@ -1356,6 +1355,33 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	else
 		status = nfs_check_inode_attributes(inode, fattr);
 
+	spin_unlock(&inode->i_lock);
+	return status;
+}
+
+/**
+ * nfs_post_op_update_inode - try to update the inode attribute cache
+ * @inode - pointer to inode
+ * @fattr - updated attributes
+ *
+ * After an operation that has changed the inode metadata, mark the
+ * attribute cache as being invalid, then try to update it.
+ */
+int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	int status = 0;
+
+	spin_lock(&inode->i_lock);
+	if (unlikely((fattr->valid & NFS_ATTR_FATTR) == 0)) {
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+		goto out;
+	}
+	status = nfs_update_inode(inode, fattr, fattr->time_start);
+	if (time_after_eq(fattr->time_start, nfsi->cache_change_attribute))
+		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME|NFS_INO_REVAL_PAGECACHE);
+	nfsi->cache_change_attribute = jiffies;
+out:
 	spin_unlock(&inode->i_lock);
 	return status;
 }
