@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(parisc, lasi700_ids);
 static int __init
 lasi700_probe(struct parisc_device *dev)
 {
-	unsigned long base = dev->hpa + LASI_SCSI_CORE_OFFSET;
+	unsigned long base = dev->hpa.start + LASI_SCSI_CORE_OFFSET;
 	struct NCR_700_Host_Parameters *hostdata;
 	struct Scsi_Host *host;
 
@@ -124,8 +124,6 @@ lasi700_probe(struct parisc_device *dev)
 		hostdata->chip710 = 1;
 		hostdata->dmode_extra = DMODE_FC2;
 	}
-
-	NCR_700_set_mem_mapped(hostdata);
 
 	host = NCR_700_detect(&lasi700_template, hostdata, &dev->dev);
 	if (!host)
@@ -168,7 +166,7 @@ lasi700_driver_remove(struct parisc_device *dev)
 }
 
 static struct parisc_driver lasi700_driver = {
-	.name =		"Lasi SCSI",
+	.name =		"lasi_scsi",
 	.id_table =	lasi700_ids,
 	.probe =	lasi700_probe,
 	.remove =	__devexit_p(lasi700_driver_remove),

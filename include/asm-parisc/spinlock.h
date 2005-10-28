@@ -5,11 +5,6 @@
 #include <asm/processor.h>
 #include <asm/spinlock_types.h>
 
-/* Note that PA-RISC has to use `1' to mean unlocked and `0' to mean locked
- * since it only has load-and-zero. Moreover, at least on some PA processors,
- * the semaphore address has to be 16-byte aligned.
- */
-
 static inline int __raw_spin_is_locked(raw_spinlock_t *x)
 {
 	volatile unsigned int *a = __ldcw_align(x);
