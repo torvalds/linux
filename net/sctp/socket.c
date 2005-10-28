@@ -2384,14 +2384,14 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 static int sctp_setsockopt_adaption_layer(struct sock *sk, char __user *optval,
 					  int optlen)
 {
-	__u32 val;
+	struct sctp_setadaption adaption;
 
-	if (optlen < sizeof(__u32))
+	if (optlen != sizeof(struct sctp_setadaption))
 		return -EINVAL;
-	if (copy_from_user(&val, optval, sizeof(__u32)))
+	if (copy_from_user(&adaption, optval, optlen)) 
 		return -EFAULT;
 
-	sctp_sk(sk)->adaption_ind = val;
+	sctp_sk(sk)->adaption_ind = adaption.ssb_adaption_ind;
 
 	return 0;
 }
@@ -3672,17 +3672,15 @@ static int sctp_getsockopt_primary_addr(struct sock *sk, int len,
 static int sctp_getsockopt_adaption_layer(struct sock *sk, int len,
 				  char __user *optval, int __user *optlen)
 {
-	__u32 val;
+	struct sctp_setadaption adaption;
 
-	if (len < sizeof(__u32))
+	if (len != sizeof(struct sctp_setadaption))
 		return -EINVAL;
 
-	len = sizeof(__u32);
-	val = sctp_sk(sk)->adaption_ind;
-	if (put_user(len, optlen))
+	adaption.ssb_adaption_ind = sctp_sk(sk)->adaption_ind;
+	if (copy_to_user(optval, &adaption, len))
 		return -EFAULT;
-	if (copy_to_user(optval, &val, len))
-		return -EFAULT;
+
 	return 0;
 }
 
