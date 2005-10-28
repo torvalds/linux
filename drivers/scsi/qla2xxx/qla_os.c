@@ -774,7 +774,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		qla_printk(KERN_INFO, ha,
 		    "scsi(%ld:%d:%d): DEVICE RESET SUCCEEDED.\n", ha->host_no,
 		    id, lun);
-
+ eh_dev_reset_done:
 	return ret;
 }
 
