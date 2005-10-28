@@ -103,14 +103,18 @@ struct platform_device s3c_device_lcd = {
 
 EXPORT_SYMBOL(s3c_device_lcd);
 
-static struct s3c2410fb_mach_info s3c2410fb_info;
-
-void __init set_s3c2410fb_info(struct s3c2410fb_mach_info *hard_s3c2410fb_info)
+void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 {
-	memcpy(&s3c2410fb_info,hard_s3c2410fb_info,sizeof(struct s3c2410fb_mach_info));
-	s3c_device_lcd.dev.platform_data = &s3c2410fb_info;
+	struct s3c2410fb_mach_info *npd;
+
+	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	if (npd) {
+		memcpy(npd, pd, sizeof(*npd));
+		s3c_device_lcd.dev.platform_data = npd;
+	} else {
+		printk(KERN_ERR "no memory for LCD platform data\n");
+	}
 }
-EXPORT_SYMBOL(set_s3c2410fb_info);
 
 /* NAND Controller */
 
