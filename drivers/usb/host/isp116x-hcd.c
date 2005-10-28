@@ -1201,11 +1201,14 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 	return ret;
 }
 
+/* Get rid of these declarations later in cleanup */
+static int isp116x_reset(struct usb_hcd *hcd);
+static int isp116x_start(struct usb_hcd *hcd);
+
 static int isp116x_bus_resume(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	u32 val;
-	int ret = -EINPROGRESS;
 
 	msleep(5);
 	spin_lock_irq(&isp116x->lock);
@@ -1219,20 +1222,27 @@ static int isp116x_bus_resume(struct usb_hcd *hcd)
 	case HCCONTROL_USB_RESUME:
 		break;
 	case HCCONTROL_USB_OPER:
+		spin_unlock_irq(&isp116x->lock);
 		/* Without setting power_state here the
 		   SUSPENDED state won't be removed from
 		   sysfs/usbN/power.state as a response to remote
 		   wakeup. Maybe in the future. */
 		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
-		ret = 0;
-		break;
+		return 0;
 	default:
-		ret = -EBUSY;
-	}
-
-	if (ret != -EINPROGRESS) {
+		/* HCCONTROL_USB_RESET: this may happen, when during
+		   suspension the HC lost power. Reinitialize completely */
 		spin_unlock_irq(&isp116x->lock);
-		return ret;
+		DBG("Chip has been reset while suspended. Reinit from scratch.\n");
+		isp116x_reset(hcd);
+		isp116x_start(hcd);
+		isp116x_hub_control(hcd, SetPortFeature,
+				    USB_PORT_FEAT_POWER, 1, NULL, 0);
+		if ((isp116x->rhdesca & RH_A_NDP) == 2)
+			isp116x_hub_control(hcd, SetPortFeature,
+					    USB_PORT_FEAT_POWER, 2, NULL, 0);
+		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
+		return 0;
 	}
 
 	val = isp116x->rhdesca & RH_A_NDP;
