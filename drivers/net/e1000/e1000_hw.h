@@ -57,6 +57,8 @@ typedef enum {
     e1000_82541_rev_2,
     e1000_82547,
     e1000_82547_rev_2,
+    e1000_82571,
+    e1000_82572,
     e1000_82573,
     e1000_num_macs
 } e1000_mac_type;
@@ -478,10 +480,16 @@ uint8_t e1000_arc_subsystem_valid(struct e1000_hw *hw);
 #define E1000_DEV_ID_82546GB_SERDES      0x107B
 #define E1000_DEV_ID_82546GB_PCIE        0x108A
 #define E1000_DEV_ID_82547EI             0x1019
+#define E1000_DEV_ID_82571EB_COPPER      0x105E
+#define E1000_DEV_ID_82571EB_FIBER       0x105F
+#define E1000_DEV_ID_82571EB_SERDES      0x1060
+#define E1000_DEV_ID_82572EI_COPPER      0x107D
+#define E1000_DEV_ID_82572EI_FIBER       0x107E
+#define E1000_DEV_ID_82572EI_SERDES      0x107F
 #define E1000_DEV_ID_82573E              0x108B
 #define E1000_DEV_ID_82573E_IAMT         0x108C
+#define E1000_DEV_ID_82573L              0x109A
 
-#define E1000_DEV_ID_82546GB_QUAD_COPPER 0x1099
 
 #define NODE_ADDRESS_SIZE 6
 #define ETH_LENGTH_OF_ADDRESS 6
@@ -833,6 +841,8 @@ struct e1000_ffvt_entry {
 #define E1000_FFMT_SIZE E1000_FLEXIBLE_FILTER_SIZE_MAX
 #define E1000_FFVT_SIZE E1000_FLEXIBLE_FILTER_SIZE_MAX
 
+#define E1000_DISABLE_SERDES_LOOPBACK   0x0400
+
 /* Register Set. (82543, 82544)
  *
  * Registers are defined to be 32 bits and  should be accessed as 32 bit values.
@@ -853,6 +863,7 @@ struct e1000_ffvt_entry {
 #define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
 #define E1000_FLA      0x0001C  /* Flash Access - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
+#define E1000_SCTL     0x00024  /* SerDes Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
 #define E1000_FCT      0x00030  /* Flow Control Type - RW */
@@ -864,6 +875,12 @@ struct e1000_ffvt_entry {
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
 #define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
+#define E1000_RDTR1    0x02820  /* RX Delay Timer (1) - RW */
+#define E1000_RDBAL1   0x02900  /* RX Descriptor Base Address Low (1) - RW */
+#define E1000_RDBAH1   0x02904  /* RX Descriptor Base Address High (1) - RW */
+#define E1000_RDLEN1   0x02908  /* RX Descriptor Length (1) - RW */
+#define E1000_RDH1     0x02910  /* RX Descriptor Head (1) - RW */
+#define E1000_RDT1     0x02918  /* RX Descriptor Tail (1) - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* TX Configuration Word - RW */
 #define E1000_RXCW     0x00180  /* RX Configuration Word - RO */
@@ -895,6 +912,12 @@ struct e1000_ffvt_entry {
 #define E1000_RDH      0x02810  /* RX Descriptor Head - RW */
 #define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
 #define E1000_RDTR     0x02820  /* RX Delay Timer - RW */
+#define E1000_RDBAL0   E1000_RDBAL /* RX Desc Base Address Low (0) - RW */
+#define E1000_RDBAH0   E1000_RDBAH /* RX Desc Base Address High (0) - RW */
+#define E1000_RDLEN0   E1000_RDLEN /* RX Desc Length (0) - RW */
+#define E1000_RDH0     E1000_RDH   /* RX Desc Head (0) - RW */
+#define E1000_RDT0     E1000_RDT   /* RX Desc Tail (0) - RW */
+#define E1000_RDTR0    E1000_RDTR  /* RX Delay Timer (0) - RW */
 #define E1000_RXDCTL   0x02828  /* RX Descriptor Control - RW */
 #define E1000_RADV     0x0282C  /* RX Interrupt Absolute Delay Timer - RW */
 #define E1000_RSRPD    0x02C00  /* RX Small Packet Detect - RW */
@@ -980,15 +1003,15 @@ struct e1000_ffvt_entry {
 #define E1000_BPTC     0x040F4  /* Broadcast Packets TX Count - R/clr */
 #define E1000_TSCTC    0x040F8  /* TCP Segmentation Context TX - R/clr */
 #define E1000_TSCTFC   0x040FC  /* TCP Segmentation Context TX Fail - R/clr */
-#define E1000_IAC       0x4100  /* Interrupt Assertion Count */
-#define E1000_ICRXPTC   0x4104  /* Interrupt Cause Rx Packet Timer Expire Count */
-#define E1000_ICRXATC   0x4108  /* Interrupt Cause Rx Absolute Timer Expire Count */
-#define E1000_ICTXPTC   0x410C  /* Interrupt Cause Tx Packet Timer Expire Count */
-#define E1000_ICTXATC   0x4110  /* Interrupt Cause Tx Absolute Timer Expire Count */
-#define E1000_ICTXQEC   0x4118  /* Interrupt Cause Tx Queue Empty Count */
-#define E1000_ICTXQMTC  0x411C  /* Interrupt Cause Tx Queue Minimum Threshold Count */
-#define E1000_ICRXDMTC  0x4120  /* Interrupt Cause Rx Descriptor Minimum Threshold Count */
-#define E1000_ICRXOC    0x4124  /* Interrupt Cause Receiver Overrun Count */
+#define E1000_IAC      0x04100  /* Interrupt Assertion Count */
+#define E1000_ICRXPTC  0x04104  /* Interrupt Cause Rx Packet Timer Expire Count */
+#define E1000_ICRXATC  0x04108  /* Interrupt Cause Rx Absolute Timer Expire Count */
+#define E1000_ICTXPTC  0x0410C  /* Interrupt Cause Tx Packet Timer Expire Count */
+#define E1000_ICTXATC  0x04110  /* Interrupt Cause Tx Absolute Timer Expire Count */
+#define E1000_ICTXQEC  0x04118  /* Interrupt Cause Tx Queue Empty Count */
+#define E1000_ICTXQMTC 0x0411C  /* Interrupt Cause Tx Queue Minimum Threshold Count */
+#define E1000_ICRXDMTC 0x04120  /* Interrupt Cause Rx Descriptor Minimum Threshold Count */
+#define E1000_ICRXOC   0x04124  /* Interrupt Cause Receiver Overrun Count */
 #define E1000_RXCSUM   0x05000  /* RX Checksum Control - RW */
 #define E1000_RFCTL    0x05008  /* Receive Filter Control*/
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
@@ -1018,6 +1041,14 @@ struct e1000_ffvt_entry {
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
 #define E1000_FFLT_DBG  0x05F04 /* Debug Register */
 #define E1000_HICR      0x08F00 /* Host Inteface Control */
+
+/* RSS registers */
+#define E1000_CPUVEC    0x02C10 /* CPU Vector Register - RW */
+#define E1000_MRQC      0x05818 /* Multiple Receive Control - RW */
+#define E1000_RETA      0x05C00 /* Redirection Table - RW Array */
+#define E1000_RSSRK     0x05C80 /* RSS Random Key - RW Array */
+#define E1000_RSSIM     0x05864 /* RSS Interrupt Mask */
+#define E1000_RSSIR     0x05868 /* RSS Interrupt Request */
 /* Register Set (82542)
  *
  * Some of the 82542 registers are located at different offsets than they are
@@ -1032,6 +1063,7 @@ struct e1000_ffvt_entry {
 #define E1000_82542_CTRL_EXT E1000_CTRL_EXT
 #define E1000_82542_FLA      E1000_FLA
 #define E1000_82542_MDIC     E1000_MDIC
+#define E1000_82542_SCTL     E1000_SCTL
 #define E1000_82542_FCAL     E1000_FCAL
 #define E1000_82542_FCAH     E1000_FCAH
 #define E1000_82542_FCT      E1000_FCT
@@ -1049,6 +1081,18 @@ struct e1000_ffvt_entry {
 #define E1000_82542_RDLEN    0x00118
 #define E1000_82542_RDH      0x00120
 #define E1000_82542_RDT      0x00128
+#define E1000_82542_RDTR0    E1000_82542_RDTR
+#define E1000_82542_RDBAL0   E1000_82542_RDBAL
+#define E1000_82542_RDBAH0   E1000_82542_RDBAH
+#define E1000_82542_RDLEN0   E1000_82542_RDLEN
+#define E1000_82542_RDH0     E1000_82542_RDH
+#define E1000_82542_RDT0     E1000_82542_RDT
+#define E1000_82542_RDTR1    0x00130
+#define E1000_82542_RDBAL1   0x00138
+#define E1000_82542_RDBAH1   0x0013C
+#define E1000_82542_RDLEN1   0x00140
+#define E1000_82542_RDH1     0x00148
+#define E1000_82542_RDT1     0x00150
 #define E1000_82542_FCRTH    0x00160
 #define E1000_82542_FCRTL    0x00168
 #define E1000_82542_FCTTV    E1000_FCTTV
@@ -1197,6 +1241,13 @@ struct e1000_ffvt_entry {
 #define E1000_82542_ICRXOC      E1000_ICRXOC
 #define E1000_82542_HICR        E1000_HICR
 
+#define E1000_82542_CPUVEC      E1000_CPUVEC
+#define E1000_82542_MRQC        E1000_MRQC
+#define E1000_82542_RETA        E1000_RETA
+#define E1000_82542_RSSRK       E1000_RSSRK
+#define E1000_82542_RSSIM       E1000_RSSIM
+#define E1000_82542_RSSIR       E1000_RSSIR
+
 /* Statistics counters collected by the MAC */
 struct e1000_hw_stats {
     uint64_t crcerrs;
@@ -1336,6 +1387,7 @@ struct e1000_hw {
     boolean_t serdes_link_down;
     boolean_t tbi_compatibility_en;
     boolean_t tbi_compatibility_on;
+    boolean_t laa_is_present;
     boolean_t phy_reset_disable;
     boolean_t fc_send_xon;
     boolean_t fc_strict_ieee;
@@ -1374,6 +1426,7 @@ struct e1000_hw {
 #define E1000_CTRL_BEM32    0x00000400  /* Big Endian 32 mode */
 #define E1000_CTRL_FRCSPD   0x00000800  /* Force Speed */
 #define E1000_CTRL_FRCDPX   0x00001000  /* Force Duplex */
+#define E1000_CTRL_D_UD_EN  0x00002000  /* Dock/Undock enable */
 #define E1000_CTRL_D_UD_POLARITY 0x00004000 /* Defined polarity of Dock/Undock indication in SDP[0] */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
@@ -1491,6 +1544,8 @@ struct e1000_hw {
 #define E1000_CTRL_EXT_WR_WMARK_320   0x01000000
 #define E1000_CTRL_EXT_WR_WMARK_384   0x02000000
 #define E1000_CTRL_EXT_WR_WMARK_448   0x03000000
+#define E1000_CTRL_EXT_CANC           0x04000000  /* Interrupt delay cancellation */
+#define E1000_CTRL_EXT_DRV_LOAD       0x10000000  /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_IAME           0x08000000  /* Interrupt acknowledge Auto-mask */
 #define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000  /* Clear Interrupt timers after IMS clear */
 
@@ -1524,6 +1579,7 @@ struct e1000_hw {
 #define E1000_LEDCTL_LED2_BLINK           0x00800000
 #define E1000_LEDCTL_LED3_MODE_MASK       0x0F000000
 #define E1000_LEDCTL_LED3_MODE_SHIFT      24
+#define E1000_LEDCTL_LED3_BLINK_RATE      0x20000000
 #define E1000_LEDCTL_LED3_IVRT            0x40000000
 #define E1000_LEDCTL_LED3_BLINK           0x80000000
 
@@ -1784,6 +1840,16 @@ struct e1000_hw {
 #define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
 #define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
+/* Multiple Receive Queue Control */
+#define E1000_MRQC_ENABLE_MASK              0x00000003
+#define E1000_MRQC_ENABLE_RSS_2Q            0x00000001
+#define E1000_MRQC_ENABLE_RSS_INT           0x00000004
+#define E1000_MRQC_RSS_FIELD_MASK           0xFFFF0000
+#define E1000_MRQC_RSS_FIELD_IPV4_TCP       0x00010000
+#define E1000_MRQC_RSS_FIELD_IPV4           0x00020000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP       0x00040000
+#define E1000_MRQC_RSS_FIELD_IPV6_EX        0x00080000
+#define E1000_MRQC_RSS_FIELD_IPV6           0x00100000
 
 /* Definitions for power management and wakeup registers */
 /* Wake Up Control */
@@ -1928,6 +1994,7 @@ struct e1000_host_command_info {
 #define E1000_MDALIGN          4096
 
 #define E1000_GCR_BEM32                 0x00400000
+#define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */
 #define E1000_FACTPS_FUNC0_POWER_STATE_MASK         0x00000003
 #define E1000_FACTPS_LAN0_VALID                     0x00000004
@@ -1980,6 +2047,7 @@ struct e1000_host_command_info {
 /* EEPROM Word Offsets */
 #define EEPROM_COMPAT                 0x0003
 #define EEPROM_ID_LED_SETTINGS        0x0004
+#define EEPROM_VERSION                0x0005
 #define EEPROM_SERDES_AMPLITUDE       0x0006 /* For SERDES output amplitude adjustment. */
 #define EEPROM_PHY_CLASS_WORD         0x0007
 #define EEPROM_INIT_CONTROL1_REG      0x000A
@@ -1989,6 +2057,8 @@ struct e1000_host_command_info {
 #define EEPROM_CFG                    0x0012
 #define EEPROM_FLASH_VERSION          0x0032
 #define EEPROM_CHECKSUM_REG           0x003F
+
+#define E1000_EEPROM_CFG_DONE         0x00040000   /* MNG config cycle done */
 
 /* Word definitions for ID LED Settings */
 #define ID_LED_RESERVED_0000 0x0000
@@ -2108,6 +2178,8 @@ struct e1000_host_command_info {
 #define E1000_PBA_22K 0x0016
 #define E1000_PBA_24K 0x0018
 #define E1000_PBA_30K 0x001E
+#define E1000_PBA_32K 0x0020
+#define E1000_PBA_38K 0x0026
 #define E1000_PBA_40K 0x0028
 #define E1000_PBA_48K 0x0030    /* 48KB, default RX allocation */
 
@@ -2592,11 +2664,11 @@ struct e1000_host_command_info {
 
 /* 7 bits (3 Coarse + 4 Fine) --> 128 optional values */
 #define IGP01E1000_AGC_LENGTH_TABLE_SIZE 128
-#define IGP02E1000_AGC_LENGTH_TABLE_SIZE 128
+#define IGP02E1000_AGC_LENGTH_TABLE_SIZE 113
 
 /* The precision error of the cable length is +/- 10 meters */
 #define IGP01E1000_AGC_RANGE    10
-#define IGP02E1000_AGC_RANGE    10
+#define IGP02E1000_AGC_RANGE    15
 
 /* IGP01E1000 PCS Initialization register */
 /* bits 3:6 in the PCS registers stores the channels polarity */

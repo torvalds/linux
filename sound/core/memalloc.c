@@ -190,7 +190,7 @@ static void unmark_pages(struct page *page, int order)
  *
  * Returns the pointer of the buffer, or NULL if no enoguh memory.
  */
-void *snd_malloc_pages(size_t size, unsigned int gfp_flags)
+void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 {
 	int pg;
 	void *res;
@@ -235,7 +235,7 @@ static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *d
 {
 	int pg;
 	void *res;
-	unsigned int gfp_flags;
+	gfp_t gfp_flags;
 
 	snd_assert(size > 0, return NULL);
 	snd_assert(dma != NULL, return NULL);

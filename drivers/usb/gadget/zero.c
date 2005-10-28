@@ -612,7 +612,7 @@ static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
 }
 
 static struct usb_request *
-source_sink_start_ep (struct usb_ep *ep, unsigned gfp_flags)
+source_sink_start_ep (struct usb_ep *ep, gfp_t gfp_flags)
 {
 	struct usb_request	*req;
 	int			status;
@@ -640,7 +640,7 @@ source_sink_start_ep (struct usb_ep *ep, unsigned gfp_flags)
 }
 
 static int
-set_source_sink_config (struct zero_dev *dev, unsigned gfp_flags)
+set_source_sink_config (struct zero_dev *dev, gfp_t gfp_flags)
 {
 	int			result = 0;
 	struct usb_ep		*ep;
@@ -744,7 +744,7 @@ static void loopback_complete (struct usb_ep *ep, struct usb_request *req)
 }
 
 static int
-set_loopback_config (struct zero_dev *dev, unsigned gfp_flags)
+set_loopback_config (struct zero_dev *dev, gfp_t gfp_flags)
 {
 	int			result = 0;
 	struct usb_ep		*ep;
@@ -845,7 +845,7 @@ static void zero_reset_config (struct zero_dev *dev)
  * by limiting configuration choices (like the pxa2xx).
  */
 static int
-zero_set_config (struct zero_dev *dev, unsigned number, unsigned gfp_flags)
+zero_set_config (struct zero_dev *dev, unsigned number, gfp_t gfp_flags)
 {
 	int			result = 0;
 	struct usb_gadget	*gadget = dev->gadget;

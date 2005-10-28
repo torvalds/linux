@@ -397,20 +397,8 @@ void __exit_signal(struct task_struct *tsk)
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
 		/*
-		 * We are cleaning up the signal_struct here.  We delayed
-		 * calling exit_itimers until after flush_sigqueue, just in
-		 * case our thread-local pending queue contained a queued
-		 * timer signal that would have been cleared in
-		 * exit_itimers.  When that called sigqueue_free, it would
-		 * attempt to re-take the tasklist_lock and deadlock.  This
-		 * can never happen if we ensure that all queues the
-		 * timer's signal might be queued on have been flushed
-		 * first.  The shared_pending queue, and our own pending
-		 * queue are the only queues the timer could be on, since
-		 * there are no other threads left in the group and timer
-		 * signals are constrained to threads inside the group.
+		 * We are cleaning up the signal_struct here.
 		 */
-		exit_itimers(sig);
 		exit_thread_group_keys(sig);
 		kmem_cache_free(signal_cachep, sig);
 	}

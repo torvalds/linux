@@ -700,7 +700,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 	case MPOL_BIND:
 		/* Lower zones don't get a policy applied */
 		/* Careful: current->mems_allowed might have moved */
-		if ((gfp & GFP_ZONEMASK) >= policy_zone)
+		if (gfp_zone(gfp) >= policy_zone)
 			if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
 				return policy->v.zonelist;
 		/*FALL THROUGH*/
@@ -712,7 +712,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 		nd = 0;
 		BUG();
 	}
-	return NODE_DATA(nd)->node_zonelists + (gfp & GFP_ZONEMASK);
+	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
 }
 
 /* Do dynamic interleaving for a process */
@@ -757,7 +757,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order, unsigned ni
 	struct page *page;
 
 	BUG_ON(!node_online(nid));
-	zl = NODE_DATA(nid)->node_zonelists + (gfp & GFP_ZONEMASK);
+	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
 	page = __alloc_pages(gfp, order, zl);
 	if (page && page_zone(page) == zl->zones[0]) {
 		zone_pcp(zl->zones[0],get_cpu())->interleave_hit++;

@@ -107,18 +107,18 @@ struct usb_ep_ops {
 	int (*disable) (struct usb_ep *ep);
 
 	struct usb_request *(*alloc_request) (struct usb_ep *ep,
-		unsigned gfp_flags);
+		gfp_t gfp_flags);
 	void (*free_request) (struct usb_ep *ep, struct usb_request *req);
 
 	void *(*alloc_buffer) (struct usb_ep *ep, unsigned bytes,
-		dma_addr_t *dma, unsigned gfp_flags);
+		dma_addr_t *dma, gfp_t gfp_flags);
 	void (*free_buffer) (struct usb_ep *ep, void *buf, dma_addr_t dma,
 		unsigned bytes);
 	// NOTE:  on 2.6, drivers may also use dma_map() and
 	// dma_sync_single_*() to directly manage dma overhead. 
 
 	int (*queue) (struct usb_ep *ep, struct usb_request *req,
-		unsigned gfp_flags);
+		gfp_t gfp_flags);
 	int (*dequeue) (struct usb_ep *ep, struct usb_request *req);
 
 	int (*set_halt) (struct usb_ep *ep, int value);
@@ -214,7 +214,7 @@ usb_ep_disable (struct usb_ep *ep)
  * Returns the request, or null if one could not be allocated.
  */
 static inline struct usb_request *
-usb_ep_alloc_request (struct usb_ep *ep, unsigned gfp_flags)
+usb_ep_alloc_request (struct usb_ep *ep, gfp_t gfp_flags)
 {
 	return ep->ops->alloc_request (ep, gfp_flags);
 }
@@ -254,7 +254,7 @@ usb_ep_free_request (struct usb_ep *ep, struct usb_request *req)
  */
 static inline void *
 usb_ep_alloc_buffer (struct usb_ep *ep, unsigned len, dma_addr_t *dma,
-	unsigned gfp_flags)
+	gfp_t gfp_flags)
 {
 	return ep->ops->alloc_buffer (ep, len, dma, gfp_flags);
 }
@@ -330,7 +330,7 @@ usb_ep_free_buffer (struct usb_ep *ep, void *buf, dma_addr_t dma, unsigned len)
  * reported when the usb peripheral is disconnected.
  */
 static inline int
-usb_ep_queue (struct usb_ep *ep, struct usb_request *req, unsigned gfp_flags)
+usb_ep_queue (struct usb_ep *ep, struct usb_request *req, gfp_t gfp_flags)
 {
 	return ep->ops->queue (ep, req, gfp_flags);
 }

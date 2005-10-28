@@ -1630,7 +1630,7 @@ static void ether1394_complete_cb(void *__ptask)
 /* Transmit a packet (called by kernel) */
 static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 {
-	int kmflags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
+	gfp_t kmflags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 	struct eth1394hdr *eth;
 	struct eth1394_priv *priv = netdev_priv(dev);
 	int proto;

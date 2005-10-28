@@ -90,7 +90,7 @@ static Scsi_Host_Template uli_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations uli_ops = {
+static const struct ata_port_operations uli_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,

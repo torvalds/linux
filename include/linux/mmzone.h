@@ -302,7 +302,7 @@ void get_zone_counts(unsigned long *active, unsigned long *inactive,
 void build_all_zonelists(void);
 void wakeup_kswapd(struct zone *zone, int order);
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-		int alloc_type, int can_try_harder, int gfp_high);
+		int alloc_type, int can_try_harder, gfp_t gfp_high);
 
 #ifdef CONFIG_HAVE_MEMORY_PRESENT
 void memory_present(int nid, unsigned long start, unsigned long end);

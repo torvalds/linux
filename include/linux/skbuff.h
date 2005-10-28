@@ -171,7 +171,6 @@ enum {
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
  *	@prev: Previous buffer in list
- *	@list: List we are on
  *	@sk: Socket we are owned by
  *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
@@ -190,6 +189,7 @@ enum {
  *	@cloned: Head may be cloned (check refcnt to be sure)
  *	@nohdr: Payload reference only, must not modify header
  *	@pkt_type: Packet class
+ *	@fclone: skbuff clone status
  *	@ip_summed: Driver fed us an IP checksum
  *	@priority: Packet queueing priority
  *	@users: User count - see {datagram,tcp}.c
@@ -202,6 +202,7 @@ enum {
  *	@destructor: Destruct function
  *	@nfmark: Can be used for communication between hooks
  *	@nfct: Associated connection, if any
+ *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index

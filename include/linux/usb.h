@@ -933,17 +933,17 @@ static inline void usb_fill_int_urb (struct urb *urb,
 }
 
 extern void usb_init_urb(struct urb *urb);
-extern struct urb *usb_alloc_urb(int iso_packets, unsigned mem_flags);
+extern struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags);
 extern void usb_free_urb(struct urb *urb);
 #define usb_put_urb usb_free_urb
 extern struct urb *usb_get_urb(struct urb *urb);
-extern int usb_submit_urb(struct urb *urb, unsigned mem_flags);
+extern int usb_submit_urb(struct urb *urb, gfp_t mem_flags);
 extern int usb_unlink_urb(struct urb *urb);
 extern void usb_kill_urb(struct urb *urb);
 
 #define HAVE_USB_BUFFERS
 void *usb_buffer_alloc (struct usb_device *dev, size_t size,
-	unsigned mem_flags, dma_addr_t *dma);
+	gfp_t mem_flags, dma_addr_t *dma);
 void usb_buffer_free (struct usb_device *dev, size_t size,
 	void *addr, dma_addr_t dma);
 
@@ -1050,7 +1050,7 @@ int usb_sg_init (
 	struct scatterlist	*sg,
 	int			nents,
 	size_t			length,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 );
 void usb_sg_cancel (struct usb_sg_request *io);
 void usb_sg_wait (struct usb_sg_request *io);

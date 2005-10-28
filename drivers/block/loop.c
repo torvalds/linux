@@ -881,7 +881,7 @@ loop_init_xfer(struct loop_device *lo, struct loop_func_table *xfer,
 static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 {
 	struct file *filp = lo->lo_backing_file;
-	int gfp = lo->old_gfp_mask;
+	gfp_t gfp = lo->old_gfp_mask;
 
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;

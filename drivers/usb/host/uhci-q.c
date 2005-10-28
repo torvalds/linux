@@ -1164,7 +1164,7 @@ static struct urb *uhci_find_urb_ep(struct uhci_hcd *uhci, struct urb *urb)
 
 static int uhci_urb_enqueue(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep,
-		struct urb *urb, unsigned mem_flags)
+		struct urb *urb, gfp_t mem_flags)
 {
 	int ret;
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);

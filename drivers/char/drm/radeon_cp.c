@@ -1133,10 +1133,10 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 		ring_start = (dev_priv->cp_ring->offset
 			      - dev->agp->base
 			      + dev_priv->gart_vm_start);
-       } else
+	} else
 #endif
 		ring_start = (dev_priv->cp_ring->offset
-			      - dev->sg->handle
+			      - (unsigned long)dev->sg->virtual
 			      + dev_priv->gart_vm_start);
 
 	RADEON_WRITE( RADEON_CP_RB_BASE, ring_start );
@@ -1164,7 +1164,8 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 		drm_sg_mem_t *entry = dev->sg;
 		unsigned long tmp_ofs, page_ofs;
 
-		tmp_ofs = dev_priv->ring_rptr->offset - dev->sg->handle;
+		tmp_ofs = dev_priv->ring_rptr->offset -
+				(unsigned long)dev->sg->virtual;
 		page_ofs = tmp_ofs >> PAGE_SHIFT;
 
 		RADEON_WRITE( RADEON_CP_RB_RPTR_ADDR,
@@ -1491,8 +1492,8 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 	else
 #endif
 		dev_priv->gart_buffers_offset = (dev->agp_buffer_map->offset
-						- dev->sg->handle
-						+ dev_priv->gart_vm_start);
+					- (unsigned long)dev->sg->virtual
+					+ dev_priv->gart_vm_start);
 
 	DRM_DEBUG( "dev_priv->gart_size %d\n",
 		   dev_priv->gart_size );

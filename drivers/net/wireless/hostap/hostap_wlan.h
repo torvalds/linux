@@ -552,8 +552,6 @@ struct prism2_helper_functions {
 	 * (hostap_{cs,plx,pci}.c */
 	int (*card_present)(local_info_t *local);
 	void (*cor_sreset)(local_info_t *local);
-	int (*dev_open)(local_info_t *local);
-	int (*dev_close)(local_info_t *local);
 	void (*genesis_reset)(local_info_t *local, int hcr);
 
 	/* the following functions are from hostap_hw.c, but they may have some

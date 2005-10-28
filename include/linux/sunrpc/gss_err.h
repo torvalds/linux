@@ -66,16 +66,6 @@ typedef unsigned int OM_uint32;
 
 
 /*
- * Define the default Quality of Protection for per-message services.  Note
- * that an implementation that offers multiple levels of QOP may either reserve
- * a value (for example zero, as assumed here) to mean "default protection", or
- * alternatively may simply equate GSS_C_QOP_DEFAULT to a specific explicit
- * QOP value.  However a value of 0 should always be interpreted by a GSSAPI
- * implementation as a request for the default protection level.
- */
-#define GSS_C_QOP_DEFAULT 0
-
-/*
  * Expiration time of 2^32-1 seconds means infinite lifetime for a
  * credential or security context
  */

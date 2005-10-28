@@ -146,7 +146,7 @@ struct scsi_cmnd {
 #define SCSI_STATE_MLQUEUE         0x100b
 
 
-extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, int);
+extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);
 extern void scsi_put_command(struct scsi_cmnd *);
 extern void scsi_io_completion(struct scsi_cmnd *, unsigned int, unsigned int);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);

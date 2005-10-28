@@ -296,7 +296,7 @@ struct myri_eth {
 /* We use this to acquire receive skb's that we can DMA directly into. */
 #define ALIGNED_RX_SKB_ADDR(addr) \
         ((((unsigned long)(addr) + (64 - 1)) & ~(64 - 1)) - (unsigned long)(addr))
-static inline struct sk_buff *myri_alloc_skb(unsigned int length, int gfp_flags)
+static inline struct sk_buff *myri_alloc_skb(unsigned int length, gfp_t gfp_flags)
 {
 	struct sk_buff *skb;
 

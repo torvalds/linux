@@ -100,7 +100,7 @@ static void fill_kobj_path(struct kobject *kobj, char *path, int length)
  * @kobj:	kobject in question, with which to build the path
  * @gfp_mask:	the allocation type used to allocate the path
  */
-char *kobject_get_path(struct kobject *kobj, int gfp_mask)
+char *kobject_get_path(struct kobject *kobj, gfp_t gfp_mask)
 {
 	char *path;
 	int len;

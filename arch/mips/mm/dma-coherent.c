@@ -18,7 +18,7 @@
 #include <asm/io.h>
 
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
-	dma_addr_t * dma_handle, int gfp)
+	dma_addr_t * dma_handle, gfp_t gfp)
 {
 	void *ret;
 	/* ignore region specifiers */
@@ -39,7 +39,7 @@ void *dma_alloc_noncoherent(struct device *dev, size_t size,
 EXPORT_SYMBOL(dma_alloc_noncoherent);
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
-	dma_addr_t * dma_handle, int gfp)
+	dma_addr_t * dma_handle, gfp_t gfp)
 	__attribute__((alias("dma_alloc_noncoherent")));
 
 EXPORT_SYMBOL(dma_alloc_coherent);

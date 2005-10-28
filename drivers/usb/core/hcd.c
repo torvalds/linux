@@ -1112,7 +1112,7 @@ static void urb_unlink (struct urb *urb)
  * expects usb_submit_urb() to have sanity checked and conditioned all
  * inputs in the urb
  */
-static int hcd_submit_urb (struct urb *urb, unsigned mem_flags)
+static int hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 {
 	int			status;
 	struct usb_hcd		*hcd = urb->dev->bus->hcpriv;

@@ -65,9 +65,11 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
+#define DRV_VERSION "Version 2.0.9.1"
+
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
-static char s2io_driver_version[] = "Version 2.0.8.1";
+static char s2io_driver_version[] = DRV_VERSION;
 
 static inline int RXD_IS_UP2DT(RxD_t *rxdp)
 {
@@ -307,6 +309,8 @@ static unsigned int indicate_max_pkts;
 #endif
 /* Frequency of Rx desc syncs expressed as power of 2 */
 static unsigned int rxsync_frequency = 3;
+/* Interrupt type. Values can be 0(INTA), 1(MSI), 2(MSI_X) */
+static unsigned int intr_type = 0;
 
 /*
  * S2IO device table.
@@ -1396,8 +1400,13 @@ static int init_nic(struct s2io_nic *nic)
 		writeq(val64, &bar0->rti_data1_mem);
 
 		val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
-		    RTI_DATA2_MEM_RX_UFC_B(0x2) |
-		    RTI_DATA2_MEM_RX_UFC_C(0x40) | RTI_DATA2_MEM_RX_UFC_D(0x80);
+		    RTI_DATA2_MEM_RX_UFC_B(0x2) ;
+		if (nic->intr_type == MSI_X)
+		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x20) | \
+				RTI_DATA2_MEM_RX_UFC_D(0x40));
+		else
+		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x40) | \
+				RTI_DATA2_MEM_RX_UFC_D(0x80));
 		writeq(val64, &bar0->rti_data2_mem);
 
 		for (i = 0; i < config->rx_ring_num; i++) {
@@ -1507,17 +1516,15 @@ static int init_nic(struct s2io_nic *nic)
 #define LINK_UP_DOWN_INTERRUPT		1
 #define MAC_RMAC_ERR_TIMER		2
 
-#if defined(CONFIG_MSI_MODE) || defined(CONFIG_MSIX_MODE)
-#define s2io_link_fault_indication(x) MAC_RMAC_ERR_TIMER
-#else
 int s2io_link_fault_indication(nic_t *nic)
 {
+	if (nic->intr_type != INTA)
+		return MAC_RMAC_ERR_TIMER;
 	if (nic->device_type == XFRAME_II_DEVICE)
 		return LINK_UP_DOWN_INTERRUPT;
 	else
 		return MAC_RMAC_ERR_TIMER;
 }
-#endif
 
 /**
  *  en_dis_able_nic_intrs - Enable or Disable the interrupts
@@ -1941,11 +1948,14 @@ static int start_nic(struct s2io_nic *nic)
 	}
 
 	/*  Enable select interrupts */
-	interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
-	interruptible |= TX_PIC_INTR | RX_PIC_INTR;
-	interruptible |= TX_MAC_INTR | RX_MAC_INTR;
-
-	en_dis_able_nic_intrs(nic, interruptible, ENABLE_INTRS);
+	if (nic->intr_type != INTA)
+		en_dis_able_nic_intrs(nic, ENA_ALL_INTRS, DISABLE_INTRS);
+	else {
+		interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
+		interruptible |= TX_PIC_INTR | RX_PIC_INTR;
+		interruptible |= TX_MAC_INTR | RX_MAC_INTR;
+		en_dis_able_nic_intrs(nic, interruptible, ENABLE_INTRS);
+	}
 
 	/*
 	 * With some switches, link might be already up at this point.
@@ -2633,11 +2643,11 @@ static void tx_intr_handler(fifo_info_t *fifo_data)
 			err = txdlp->Control_1 & TXD_T_CODE;
 			if ((err >> 48) == 0xA) {
 				DBG_PRINT(TX_DBG, "TxD returned due \
-						to loss of link\n");
+to loss of link\n");
 			}
 			else {
 				DBG_PRINT(ERR_DBG, "***TxD error \
-						%llx\n", err);
+%llx\n", err);
 			}
 		}
 
@@ -2854,6 +2864,9 @@ void s2io_reset(nic_t * sp)
 	/* Set swapper to enable I/O register access */
 	s2io_set_swapper(sp);
 
+	/* Restore the MSIX table entries from local variables */
+	restore_xmsi_data(sp);
+
 	/* Clear certain PCI/PCI-X fields after reset */
 	if (sp->device_type == XFRAME_II_DEVICE) {
 		/* Clear parity err detect bit */
@@ -2983,8 +2996,9 @@ int s2io_set_swapper(nic_t * sp)
 		 SWAPPER_CTRL_RXD_W_FE |
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
-		 SWAPPER_CTRL_XMSI_SE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
+	if (sp->intr_type == INTA)
+		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #else
 	/*
@@ -3005,8 +3019,9 @@ int s2io_set_swapper(nic_t * sp)
 		 SWAPPER_CTRL_RXD_W_SE |
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
-		 SWAPPER_CTRL_XMSI_SE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
+	if (sp->intr_type == INTA)
+		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #endif
 	val64 = readq(&bar0->swapper_ctrl);
@@ -3026,6 +3041,201 @@ int s2io_set_swapper(nic_t * sp)
 	}
 
 	return SUCCESS;
+}
+
+int wait_for_msix_trans(nic_t *nic, int i)
+{
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	u64 val64;
+	int ret = 0, cnt = 0;
+
+	do {
+		val64 = readq(&bar0->xmsi_access);
+		if (!(val64 & BIT(15)))
+			break;
+		mdelay(1);
+		cnt++;
+	} while(cnt < 5);
+	if (cnt == 5) {
+		DBG_PRINT(ERR_DBG, "XMSI # %d Access failed\n", i);
+		ret = 1;
+	}
+
+	return ret;
+}
+
+void restore_xmsi_data(nic_t *nic)
+{
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	u64 val64;
+	int i;
+
+	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
+		writeq(nic->msix_info[i].addr, &bar0->xmsi_address);
+		writeq(nic->msix_info[i].data, &bar0->xmsi_data);
+		val64 = (BIT(7) | BIT(15) | vBIT(i, 26, 6));
+		writeq(val64, &bar0->xmsi_access);
+		if (wait_for_msix_trans(nic, i)) {
+			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
+			continue;
+		}
+	}
+}
+
+void store_xmsi_data(nic_t *nic)
+{
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	u64 val64, addr, data;
+	int i;
+
+	/* Store and display */
+	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
+		val64 = (BIT(15) | vBIT(i, 26, 6));
+		writeq(val64, &bar0->xmsi_access);
+		if (wait_for_msix_trans(nic, i)) {
+			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
+			continue;
+		}
+		addr = readq(&bar0->xmsi_address);
+		data = readq(&bar0->xmsi_data);
+		if (addr && data) {
+			nic->msix_info[i].addr = addr;
+			nic->msix_info[i].data = data;
+		}
+	}
+}
+
+int s2io_enable_msi(nic_t *nic)
+{
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	u16 msi_ctrl, msg_val;
+	struct config_param *config = &nic->config;
+	struct net_device *dev = nic->dev;
+	u64 val64, tx_mat, rx_mat;
+	int i, err;
+
+	val64 = readq(&bar0->pic_control);
+	val64 &= ~BIT(1);
+	writeq(val64, &bar0->pic_control);
+
+	err = pci_enable_msi(nic->pdev);
+	if (err) {
+		DBG_PRINT(ERR_DBG, "%s: enabling MSI failed\n",
+			  nic->dev->name);
+		return err;
+	}
+
+	/*
+	 * Enable MSI and use MSI-1 in stead of the standard MSI-0
+	 * for interrupt handling.
+	 */
+	pci_read_config_word(nic->pdev, 0x4c, &msg_val);
+	msg_val ^= 0x1;
+	pci_write_config_word(nic->pdev, 0x4c, msg_val);
+	pci_read_config_word(nic->pdev, 0x4c, &msg_val);
+
+	pci_read_config_word(nic->pdev, 0x42, &msi_ctrl);
+	msi_ctrl |= 0x10;
+	pci_write_config_word(nic->pdev, 0x42, msi_ctrl);
+
+	/* program MSI-1 into all usable Tx_Mat and Rx_Mat fields */
+	tx_mat = readq(&bar0->tx_mat0_n[0]);
+	for (i=0; i<config->tx_fifo_num; i++) {
+		tx_mat |= TX_MAT_SET(i, 1);
+	}
+	writeq(tx_mat, &bar0->tx_mat0_n[0]);
+
+	rx_mat = readq(&bar0->rx_mat);
+	for (i=0; i<config->rx_ring_num; i++) {
+		rx_mat |= RX_MAT_SET(i, 1);
+	}
+	writeq(rx_mat, &bar0->rx_mat);
+
+	dev->irq = nic->pdev->irq;
+	return 0;
+}
+
+int s2io_enable_msi_x(nic_t *nic)
+{
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	u64 tx_mat, rx_mat;
+	u16 msi_control; /* Temp variable */
+	int ret, i, j, msix_indx = 1;
+
+	nic->entries = kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry),
+			       GFP_KERNEL);
+	if (nic->entries == NULL) {
+		DBG_PRINT(ERR_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
+		return -ENOMEM;
+	}
+	memset(nic->entries, 0, MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+
+	nic->s2io_entries =
+		kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry),
+				   GFP_KERNEL);
+	if (nic->s2io_entries == NULL) {
+		DBG_PRINT(ERR_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
+		kfree(nic->entries);
+		return -ENOMEM;
+	}
+	memset(nic->s2io_entries, 0,
+	       MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
+
+	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
+		nic->entries[i].entry = i;
+		nic->s2io_entries[i].entry = i;
+		nic->s2io_entries[i].arg = NULL;
+		nic->s2io_entries[i].in_use = 0;
+	}
+
+	tx_mat = readq(&bar0->tx_mat0_n[0]);
+	for (i=0; i<nic->config.tx_fifo_num; i++, msix_indx++) {
+		tx_mat |= TX_MAT_SET(i, msix_indx);
+		nic->s2io_entries[msix_indx].arg = &nic->mac_control.fifos[i];
+		nic->s2io_entries[msix_indx].type = MSIX_FIFO_TYPE;
+		nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
+	}
+	writeq(tx_mat, &bar0->tx_mat0_n[0]);
+
+	if (!nic->config.bimodal) {
+		rx_mat = readq(&bar0->rx_mat);
+		for (j=0; j<nic->config.rx_ring_num; j++, msix_indx++) {
+			rx_mat |= RX_MAT_SET(j, msix_indx);
+			nic->s2io_entries[msix_indx].arg = &nic->mac_control.rings[j];
+			nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
+			nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
+		}
+		writeq(rx_mat, &bar0->rx_mat);
+	} else {
+		tx_mat = readq(&bar0->tx_mat0_n[7]);
+		for (j=0; j<nic->config.rx_ring_num; j++, msix_indx++) {
+			tx_mat |= TX_MAT_SET(i, msix_indx);
+			nic->s2io_entries[msix_indx].arg = &nic->mac_control.rings[j];
+			nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
+			nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
+		}
+		writeq(tx_mat, &bar0->tx_mat0_n[7]);
+	}
+
+	ret = pci_enable_msix(nic->pdev, nic->entries, MAX_REQUESTED_MSI_X);
+	if (ret) {
+		DBG_PRINT(ERR_DBG, "%s: Enabling MSIX failed\n", nic->dev->name);
+		kfree(nic->entries);
+		kfree(nic->s2io_entries);
+		nic->entries = NULL;
+		nic->s2io_entries = NULL;
+		return -ENOMEM;
+	}
+
+	/*
+	 * To enable MSI-X, MSI also needs to be enabled, due to a bug
+	 * in the herc NIC. (Temp change, needs to be removed later)
+	 */
+	pci_read_config_word(nic->pdev, 0x42, &msi_control);
+	msi_control |= 0x1; /* Enable MSI */
+	pci_write_config_word(nic->pdev, 0x42, msi_control);
+
+	return 0;
 }
 
 /* ********************************************************* *
@@ -3048,6 +3258,8 @@ int s2io_open(struct net_device *dev)
 {
 	nic_t *sp = dev->priv;
 	int err = 0;
+	int i;
+	u16 msi_control; /* Temp variable */
 
 	/*
 	 * Make sure you have link off by default every time
@@ -3064,13 +3276,55 @@ int s2io_open(struct net_device *dev)
 		goto hw_init_failed;
 	}
 
+	/* Store the values of the MSIX table in the nic_t structure */
+	store_xmsi_data(sp);
+
 	/* After proper initialization of H/W, register ISR */
-	err = request_irq((int) sp->pdev->irq, s2io_isr, SA_SHIRQ,
-			  sp->name, dev);
-	if (err) {
-		DBG_PRINT(ERR_DBG, "%s: ISR registration failed\n",
-			  dev->name);
-		goto isr_registration_failed;
+	if (sp->intr_type == MSI) {
+		err = request_irq((int) sp->pdev->irq, s2io_msi_handle, 
+			SA_SHIRQ, sp->name, dev);
+		if (err) {
+			DBG_PRINT(ERR_DBG, "%s: MSI registration \
+failed\n", dev->name);
+			goto isr_registration_failed;
+		}
+	}
+	if (sp->intr_type == MSI_X) {
+		for (i=1; (sp->s2io_entries[i].in_use == MSIX_FLG); i++) {
+			if (sp->s2io_entries[i].type == MSIX_FIFO_TYPE) {
+				sprintf(sp->desc1, "%s:MSI-X-%d-TX",
+					dev->name, i);
+				err = request_irq(sp->entries[i].vector,
+					  s2io_msix_fifo_handle, 0, sp->desc1,
+					  sp->s2io_entries[i].arg);
+				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc1, 
+							sp->msix_info[i].addr);
+			} else {
+				sprintf(sp->desc2, "%s:MSI-X-%d-RX",
+					dev->name, i);
+				err = request_irq(sp->entries[i].vector,
+					  s2io_msix_ring_handle, 0, sp->desc2,
+					  sp->s2io_entries[i].arg);
+				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc2, 
+							sp->msix_info[i].addr);
+			}
+			if (err) {
+				DBG_PRINT(ERR_DBG, "%s: MSI-X-%d registration \
+failed\n", dev->name, i);
+				DBG_PRINT(ERR_DBG, "Returned: %d\n", err);
+				goto isr_registration_failed;
+			}
+			sp->s2io_entries[i].in_use = MSIX_REGISTERED_SUCCESS;
+		}
+	}
+	if (sp->intr_type == INTA) {
+		err = request_irq((int) sp->pdev->irq, s2io_isr, SA_SHIRQ,
+				sp->name, dev);
+		if (err) {
+			DBG_PRINT(ERR_DBG, "%s: ISR registration failed\n",
+				  dev->name);
+			goto isr_registration_failed;
+		}
 	}
 
 	if (s2io_set_mac_addr(dev, dev->dev_addr) == FAILURE) {
@@ -3083,11 +3337,37 @@ int s2io_open(struct net_device *dev)
 	return 0;
 
 setting_mac_address_failed:
-	free_irq(sp->pdev->irq, dev);
+	if (sp->intr_type != MSI_X)
+		free_irq(sp->pdev->irq, dev);
 isr_registration_failed:
 	del_timer_sync(&sp->alarm_timer);
+	if (sp->intr_type == MSI_X) {
+		if (sp->device_type == XFRAME_II_DEVICE) {
+			for (i=1; (sp->s2io_entries[i].in_use == 
+				MSIX_REGISTERED_SUCCESS); i++) {
+				int vector = sp->entries[i].vector;
+				void *arg = sp->s2io_entries[i].arg;
+
+				free_irq(vector, arg);
+			}
+			pci_disable_msix(sp->pdev);
+
+			/* Temp */
+			pci_read_config_word(sp->pdev, 0x42, &msi_control);
+			msi_control &= 0xFFFE; /* Disable MSI */
+			pci_write_config_word(sp->pdev, 0x42, msi_control);
+		}
+	}
+	else if (sp->intr_type == MSI)
+		pci_disable_msi(sp->pdev);
 	s2io_reset(sp);
 hw_init_failed:
+	if (sp->intr_type == MSI_X) {
+		if (sp->entries)
+			kfree(sp->entries);
+		if (sp->s2io_entries)
+			kfree(sp->s2io_entries);
+	}
 	return err;
 }
 
@@ -3107,12 +3387,35 @@ hw_init_failed:
 int s2io_close(struct net_device *dev)
 {
 	nic_t *sp = dev->priv;
+	int i;
+	u16 msi_control;
+
 	flush_scheduled_work();
 	netif_stop_queue(dev);
 	/* Reset card, kill tasklet and free Tx and Rx buffers. */
 	s2io_card_down(sp);
 
-	free_irq(sp->pdev->irq, dev);
+	if (sp->intr_type == MSI_X) {
+		if (sp->device_type == XFRAME_II_DEVICE) {
+			for (i=1; (sp->s2io_entries[i].in_use == 
+					MSIX_REGISTERED_SUCCESS); i++) {
+				int vector = sp->entries[i].vector;
+				void *arg = sp->s2io_entries[i].arg;
+
+				free_irq(vector, arg);
+			}
+			pci_read_config_word(sp->pdev, 0x42, &msi_control);
+			msi_control &= 0xFFFE; /* Disable MSI */
+			pci_write_config_word(sp->pdev, 0x42, msi_control);
+
+			pci_disable_msix(sp->pdev);
+		}
+	}
+	else {
+		free_irq(sp->pdev->irq, dev);
+		if (sp->intr_type == MSI)
+			pci_disable_msi(sp->pdev);
+	}	
 	sp->device_close_flag = TRUE;	/* Device is shut down. */
 	return 0;
 }
@@ -3276,6 +3579,104 @@ s2io_alarm_handle(unsigned long data)
 
 	alarm_intr_handler(sp);
 	mod_timer(&sp->alarm_timer, jiffies + HZ / 2);
+}
+
+static irqreturn_t
+s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs)
+{
+	struct net_device *dev = (struct net_device *) dev_id;
+	nic_t *sp = dev->priv;
+	int i;
+	int ret;
+	mac_info_t *mac_control;
+	struct config_param *config;
+
+	atomic_inc(&sp->isr_cnt);
+	mac_control = &sp->mac_control;
+	config = &sp->config;
+	DBG_PRINT(INTR_DBG, "%s: MSI handler\n", __FUNCTION__);
+
+	/* If Intr is because of Rx Traffic */
+	for (i = 0; i < config->rx_ring_num; i++)
+		rx_intr_handler(&mac_control->rings[i]);
+
+	/* If Intr is because of Tx Traffic */
+	for (i = 0; i < config->tx_fifo_num; i++)
+		tx_intr_handler(&mac_control->fifos[i]);
+
+	/*
+	 * If the Rx buffer count is below the panic threshold then
+	 * reallocate the buffers from the interrupt handler itself,
+	 * else schedule a tasklet to reallocate the buffers.
+	 */
+	for (i = 0; i < config->rx_ring_num; i++) {
+		int rxb_size = atomic_read(&sp->rx_bufs_left[i]);
+		int level = rx_buffer_level(sp, rxb_size, i);
+
+		if ((level == PANIC) && (!TASKLET_IN_USE)) {
+			DBG_PRINT(INTR_DBG, "%s: Rx BD hit ", dev->name);
+			DBG_PRINT(INTR_DBG, "PANIC levels\n");
+			if ((ret = fill_rx_buffers(sp, i)) == -ENOMEM) {
+				DBG_PRINT(ERR_DBG, "%s:Out of memory",
+					  dev->name);
+				DBG_PRINT(ERR_DBG, " in ISR!!\n");
+				clear_bit(0, (&sp->tasklet_status));
+				atomic_dec(&sp->isr_cnt);
+				return IRQ_HANDLED;
+			}
+			clear_bit(0, (&sp->tasklet_status));
+		} else if (level == LOW) {
+			tasklet_schedule(&sp->task);
+		}
+	}
+
+	atomic_dec(&sp->isr_cnt);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t
+s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs)
+{
+	ring_info_t *ring = (ring_info_t *)dev_id;
+	nic_t *sp = ring->nic;
+	int rxb_size, level, rng_n;
+
+	atomic_inc(&sp->isr_cnt);
+	rx_intr_handler(ring);
+
+	rng_n = ring->ring_no;
+	rxb_size = atomic_read(&sp->rx_bufs_left[rng_n]);
+	level = rx_buffer_level(sp, rxb_size, rng_n);
+
+	if ((level == PANIC) && (!TASKLET_IN_USE)) {
+		int ret;
+		DBG_PRINT(INTR_DBG, "%s: Rx BD hit ", __FUNCTION__);
+		DBG_PRINT(INTR_DBG, "PANIC levels\n");
+		if ((ret = fill_rx_buffers(sp, rng_n)) == -ENOMEM) {
+			DBG_PRINT(ERR_DBG, "Out of memory in %s",
+				  __FUNCTION__);
+			clear_bit(0, (&sp->tasklet_status));
+			return IRQ_HANDLED;
+		}
+		clear_bit(0, (&sp->tasklet_status));
+	} else if (level == LOW) {
+		tasklet_schedule(&sp->task);
+	}
+	atomic_dec(&sp->isr_cnt);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t
+s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs)
+{
+	fifo_info_t *fifo = (fifo_info_t *)dev_id;
+	nic_t *sp = fifo->nic;
+
+	atomic_inc(&sp->isr_cnt);
+	tx_intr_handler(fifo);
+	atomic_dec(&sp->isr_cnt);
+	return IRQ_HANDLED;
 }
 
 static void s2io_txpic_intr_handle(nic_t *sp)
@@ -3778,11 +4179,10 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 {
 	nic_t *sp = dev->priv;
 
-	strncpy(info->driver, s2io_driver_name, sizeof(s2io_driver_name));
-	strncpy(info->version, s2io_driver_version,
-		sizeof(s2io_driver_version));
-	strncpy(info->fw_version, "", 32);
-	strncpy(info->bus_info, pci_name(sp->pdev), 32);
+	strncpy(info->driver, s2io_driver_name, sizeof(info->driver));
+	strncpy(info->version, s2io_driver_version, sizeof(info->version));
+	strncpy(info->fw_version, "", sizeof(info->fw_version));
+	strncpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 	info->regdump_len = XENA_REG_SPACE;
 	info->eedump_len = XENA_EEPROM_SPACE;
 	info->testinfo_len = S2IO_TEST_LEN;
@@ -3978,29 +4378,53 @@ static int s2io_ethtool_setpause_data(struct net_device *dev,
  */
 
 #define S2IO_DEV_ID		5
-static int read_eeprom(nic_t * sp, int off, u32 * data)
+static int read_eeprom(nic_t * sp, int off, u64 * data)
 {
 	int ret = -1;
 	u32 exit_cnt = 0;
 	u64 val64;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
-	val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
-	    I2C_CONTROL_BYTE_CNT(0x3) | I2C_CONTROL_READ |
-	    I2C_CONTROL_CNTL_START;
-	SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
+	if (sp->device_type == XFRAME_I_DEVICE) {
+		val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
+		    I2C_CONTROL_BYTE_CNT(0x3) | I2C_CONTROL_READ |
+		    I2C_CONTROL_CNTL_START;
+		SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
 
-	while (exit_cnt < 5) {
-		val64 = readq(&bar0->i2c_control);
-		if (I2C_CONTROL_CNTL_END(val64)) {
-			*data = I2C_CONTROL_GET_DATA(val64);
-			ret = 0;
-			break;
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->i2c_control);
+			if (I2C_CONTROL_CNTL_END(val64)) {
+				*data = I2C_CONTROL_GET_DATA(val64);
+				ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
 		}
-		msleep(50);
-		exit_cnt++;
 	}
 
+	if (sp->device_type == XFRAME_II_DEVICE) {
+		val64 = SPI_CONTROL_KEY(0x9) | SPI_CONTROL_SEL1 |
+			SPI_CONTROL_BYTECNT(0x3) | 
+			SPI_CONTROL_CMD(0x3) | SPI_CONTROL_ADDR(off);
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		val64 |= SPI_CONTROL_REQ;
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->spi_control);
+			if (val64 & SPI_CONTROL_NACK) {
+				ret = 1;
+				break;
+			} else if (val64 & SPI_CONTROL_DONE) {
+				*data = readq(&bar0->spi_data);
+				*data &= 0xffffff;
+				ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
+		}
+	}
 	return ret;
 }
 
@@ -4019,28 +4443,53 @@ static int read_eeprom(nic_t * sp, int off, u32 * data)
  *  0 on success, -1 on failure.
  */
 
-static int write_eeprom(nic_t * sp, int off, u32 data, int cnt)
+static int write_eeprom(nic_t * sp, int off, u64 data, int cnt)
 {
 	int exit_cnt = 0, ret = -1;
 	u64 val64;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
-	val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
-	    I2C_CONTROL_BYTE_CNT(cnt) | I2C_CONTROL_SET_DATA(data) |
-	    I2C_CONTROL_CNTL_START;
-	SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
+	if (sp->device_type == XFRAME_I_DEVICE) {
+		val64 = I2C_CONTROL_DEV_ID(S2IO_DEV_ID) | I2C_CONTROL_ADDR(off) |
+		    I2C_CONTROL_BYTE_CNT(cnt) | I2C_CONTROL_SET_DATA((u32)data) |
+		    I2C_CONTROL_CNTL_START;
+		SPECIAL_REG_WRITE(val64, &bar0->i2c_control, LF);
 
-	while (exit_cnt < 5) {
-		val64 = readq(&bar0->i2c_control);
-		if (I2C_CONTROL_CNTL_END(val64)) {
-			if (!(val64 & I2C_CONTROL_NACK))
-				ret = 0;
-			break;
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->i2c_control);
+			if (I2C_CONTROL_CNTL_END(val64)) {
+				if (!(val64 & I2C_CONTROL_NACK))
+					ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
 		}
-		msleep(50);
-		exit_cnt++;
 	}
 
+	if (sp->device_type == XFRAME_II_DEVICE) {
+		int write_cnt = (cnt == 8) ? 0 : cnt;
+		writeq(SPI_DATA_WRITE(data,(cnt<<3)), &bar0->spi_data);
+
+		val64 = SPI_CONTROL_KEY(0x9) | SPI_CONTROL_SEL1 |
+			SPI_CONTROL_BYTECNT(write_cnt) | 
+			SPI_CONTROL_CMD(0x2) | SPI_CONTROL_ADDR(off);
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		val64 |= SPI_CONTROL_REQ;
+		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
+		while (exit_cnt < 5) {
+			val64 = readq(&bar0->spi_control);
+			if (val64 & SPI_CONTROL_NACK) {
+				ret = 1;
+				break;
+			} else if (val64 & SPI_CONTROL_DONE) {
+				ret = 0;
+				break;
+			}
+			msleep(50);
+			exit_cnt++;
+		}
+	}
 	return ret;
 }
 
@@ -4060,7 +4509,8 @@ static int write_eeprom(nic_t * sp, int off, u32 data, int cnt)
 static int s2io_ethtool_geeprom(struct net_device *dev,
 			 struct ethtool_eeprom *eeprom, u8 * data_buf)
 {
-	u32 data, i, valid;
+	u32 i, valid;
+	u64 data;
 	nic_t *sp = dev->priv;
 
 	eeprom->magic = sp->pdev->vendor | (sp->pdev->device << 16);
@@ -4098,7 +4548,7 @@ static int s2io_ethtool_seeprom(struct net_device *dev,
 				u8 * data_buf)
 {
 	int len = eeprom->len, cnt = 0;
-	u32 valid = 0, data;
+	u64 valid = 0, data;
 	nic_t *sp = dev->priv;
 
 	if (eeprom->magic != (sp->pdev->vendor | (sp->pdev->device << 16))) {
@@ -4146,7 +4596,7 @@ static int s2io_ethtool_seeprom(struct net_device *dev,
 static int s2io_register_test(nic_t * sp, uint64_t * data)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
-	u64 val64 = 0;
+	u64 val64 = 0, exp_val;
 	int fail = 0;
 
 	val64 = readq(&bar0->pif_rd_swapper_fb);
@@ -4162,7 +4612,11 @@ static int s2io_register_test(nic_t * sp, uint64_t * data)
 	}
 
 	val64 = readq(&bar0->rx_queue_cfg);
-	if (val64 != 0x0808080808080808ULL) {
+	if (sp->device_type == XFRAME_II_DEVICE)
+		exp_val = 0x0404040404040404ULL;
+	else
+		exp_val = 0x0808080808080808ULL;
+	if (val64 != exp_val) {
 		fail = 1;
 		DBG_PRINT(INFO_DBG, "Read Test level 3 fails\n");
 	}
@@ -4190,7 +4644,7 @@ static int s2io_register_test(nic_t * sp, uint64_t * data)
 	}
 
 	*data = fail;
-	return 0;
+	return fail;
 }
 
 /**
@@ -4209,58 +4663,83 @@ static int s2io_register_test(nic_t * sp, uint64_t * data)
 static int s2io_eeprom_test(nic_t * sp, uint64_t * data)
 {
 	int fail = 0;
-	u32 ret_data;
+	u64 ret_data, org_4F0, org_7F0;
+	u8 saved_4F0 = 0, saved_7F0 = 0;
+	struct net_device *dev = sp->dev;
 
 	/* Test Write Error at offset 0 */
-	if (!write_eeprom(sp, 0, 0, 3))
-		fail = 1;
+	/* Note that SPI interface allows write access to all areas
+	 * of EEPROM. Hence doing all negative testing only for Xframe I.
+	 */
+	if (sp->device_type == XFRAME_I_DEVICE)
+		if (!write_eeprom(sp, 0, 0, 3))
+			fail = 1;
+
+	/* Save current values at offsets 0x4F0 and 0x7F0 */
+	if (!read_eeprom(sp, 0x4F0, &org_4F0))
+		saved_4F0 = 1;
+	if (!read_eeprom(sp, 0x7F0, &org_7F0))
+		saved_7F0 = 1;
 
 	/* Test Write at offset 4f0 */
-	if (write_eeprom(sp, 0x4F0, 0x01234567, 3))
+	if (write_eeprom(sp, 0x4F0, 0x012345, 3))
 		fail = 1;
 	if (read_eeprom(sp, 0x4F0, &ret_data))
 		fail = 1;
 
-	if (ret_data != 0x01234567)
+	if (ret_data != 0x012345) {
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x4F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
 		fail = 1;
+	}
 
 	/* Reset the EEPROM data go FFFF */
-	write_eeprom(sp, 0x4F0, 0xFFFFFFFF, 3);
+	write_eeprom(sp, 0x4F0, 0xFFFFFF, 3);
 
 	/* Test Write Request Error at offset 0x7c */
-	if (!write_eeprom(sp, 0x07C, 0, 3))
+	if (sp->device_type == XFRAME_I_DEVICE)
+		if (!write_eeprom(sp, 0x07C, 0, 3))
+			fail = 1;
+
+	/* Test Write Request at offset 0x7f0 */
+	if (write_eeprom(sp, 0x7F0, 0x012345, 3))
+		fail = 1;
+	if (read_eeprom(sp, 0x7F0, &ret_data))
 		fail = 1;
 
-	/* Test Write Request at offset 0x7fc */
-	if (write_eeprom(sp, 0x7FC, 0x01234567, 3))
+	if (ret_data != 0x012345) {
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x7F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
 		fail = 1;
-	if (read_eeprom(sp, 0x7FC, &ret_data))
-		fail = 1;
-
-	if (ret_data != 0x01234567)
-		fail = 1;
+	}
 
 	/* Reset the EEPROM data go FFFF */
-	write_eeprom(sp, 0x7FC, 0xFFFFFFFF, 3);
+	write_eeprom(sp, 0x7F0, 0xFFFFFF, 3);
 
-	/* Test Write Error at offset 0x80 */
-	if (!write_eeprom(sp, 0x080, 0, 3))
-		fail = 1;
+	if (sp->device_type == XFRAME_I_DEVICE) {
+		/* Test Write Error at offset 0x80 */
+		if (!write_eeprom(sp, 0x080, 0, 3))
+			fail = 1;
 
-	/* Test Write Error at offset 0xfc */
-	if (!write_eeprom(sp, 0x0FC, 0, 3))
-		fail = 1;
+		/* Test Write Error at offset 0xfc */
+		if (!write_eeprom(sp, 0x0FC, 0, 3))
+			fail = 1;
 
-	/* Test Write Error at offset 0x100 */
-	if (!write_eeprom(sp, 0x100, 0, 3))
-		fail = 1;
+		/* Test Write Error at offset 0x100 */
+		if (!write_eeprom(sp, 0x100, 0, 3))
+			fail = 1;
 
-	/* Test Write Error at offset 4ec */
-	if (!write_eeprom(sp, 0x4EC, 0, 3))
-		fail = 1;
+		/* Test Write Error at offset 4ec */
+		if (!write_eeprom(sp, 0x4EC, 0, 3))
+			fail = 1;
+	}
+
+	/* Restore values at offsets 0x4F0 and 0x7F0 */
+	if (saved_4F0)
+		write_eeprom(sp, 0x4F0, org_4F0, 3);
+	if (saved_7F0)
+		write_eeprom(sp, 0x7F0, org_7F0, 3);
 
 	*data = fail;
-	return 0;
+	return fail;
 }
 
 /**
@@ -4342,7 +4821,7 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	u64 val64;
-	int cnt, iteration = 0, test_pass = 0;
+	int cnt, iteration = 0, test_fail = 0;
 
 	val64 = readq(&bar0->adapter_control);
 	val64 &= ~ADAPTER_ECC_EN;
@@ -4350,7 +4829,7 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 
 	val64 = readq(&bar0->mc_rldram_test_ctrl);
 	val64 |= MC_RLDRAM_TEST_MODE;
-	writeq(val64, &bar0->mc_rldram_test_ctrl);
+	SPECIAL_REG_WRITE(val64, &bar0->mc_rldram_test_ctrl, LF);
 
 	val64 = readq(&bar0->mc_rldram_mrs);
 	val64 |= MC_RLDRAM_QUEUE_SIZE_ENABLE;
@@ -4378,17 +4857,12 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 		}
 		writeq(val64, &bar0->mc_rldram_test_d2);
 
-		val64 = (u64) (0x0000003fffff0000ULL);
+		val64 = (u64) (0x0000003ffffe0100ULL);
 		writeq(val64, &bar0->mc_rldram_test_add);
 
-
-		val64 = MC_RLDRAM_TEST_MODE;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
-
-		val64 |=
-		    MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_WRITE |
-		    MC_RLDRAM_TEST_GO;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
+		val64 = MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_WRITE |
+		    	MC_RLDRAM_TEST_GO;
+		SPECIAL_REG_WRITE(val64, &bar0->mc_rldram_test_ctrl, LF);
 
 		for (cnt = 0; cnt < 5; cnt++) {
 			val64 = readq(&bar0->mc_rldram_test_ctrl);
@@ -4400,11 +4874,8 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 		if (cnt == 5)
 			break;
 
-		val64 = MC_RLDRAM_TEST_MODE;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
-
-		val64 |= MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_GO;
-		writeq(val64, &bar0->mc_rldram_test_ctrl);
+		val64 = MC_RLDRAM_TEST_MODE | MC_RLDRAM_TEST_GO;
+		SPECIAL_REG_WRITE(val64, &bar0->mc_rldram_test_ctrl, LF);
 
 		for (cnt = 0; cnt < 5; cnt++) {
 			val64 = readq(&bar0->mc_rldram_test_ctrl);
@@ -4417,18 +4888,18 @@ static int s2io_rldram_test(nic_t * sp, uint64_t * data)
 			break;
 
 		val64 = readq(&bar0->mc_rldram_test_ctrl);
-		if (val64 & MC_RLDRAM_TEST_PASS)
-			test_pass = 1;
+		if (!(val64 & MC_RLDRAM_TEST_PASS))
+			test_fail = 1;
 
 		iteration++;
 	}
 
-	if (!test_pass)
-		*data = 1;
-	else
-		*data = 0;
+	*data = test_fail;
 
-	return 0;
+	/* Bring the adapter out of test mode */
+	SPECIAL_REG_WRITE(0, &bar0->mc_rldram_test_ctrl, LF);
+
+	return test_fail;
 }
 
 /**
@@ -4932,7 +5403,7 @@ static void s2io_card_down(nic_t * sp)
 
 static int s2io_card_up(nic_t * sp)
 {
-	int i, ret;
+	int i, ret = 0;
 	mac_info_t *mac_control;
 	struct config_param *config;
 	struct net_device *dev = (struct net_device *) sp->dev;
@@ -4942,6 +5413,15 @@ static int s2io_card_up(nic_t * sp)
 		DBG_PRINT(ERR_DBG, "%s: H/W initialization failed\n",
 			  dev->name);
 		return -ENODEV;
+	}
+
+	if (sp->intr_type == MSI)
+		ret = s2io_enable_msi(sp);
+	else if (sp->intr_type == MSI_X)
+		ret = s2io_enable_msi_x(sp);
+	if (ret) {
+		DBG_PRINT(ERR_DBG, "%s: Defaulting to INTA\n", dev->name);
+		sp->intr_type = INTA;
 	}
 
 	/*
@@ -5228,6 +5708,8 @@ static void s2io_init_pci(nic_t * sp)
 
 MODULE_AUTHOR("Raghavendra Koushik <raghavendra.koushik@neterion.com>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
+
 module_param(tx_fifo_num, int, 0);
 module_param(rx_ring_num, int, 0);
 module_param_array(tx_fifo_len, uint, NULL, 0);
@@ -5245,6 +5727,7 @@ module_param(bimodal, bool, 0);
 module_param(indicate_max_pkts, int, 0);
 #endif
 module_param(rxsync_frequency, int, 0);
+module_param(intr_type, int, 0);
 
 /**
  *  s2io_init_nic - Initialization of the adapter .
@@ -5274,9 +5757,16 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	mac_info_t *mac_control;
 	struct config_param *config;
 	int mode;
+	u8 dev_intr_type = intr_type;
 
 #ifdef CONFIG_S2IO_NAPI
-	DBG_PRINT(ERR_DBG, "NAPI support has been enabled\n");
+	if (dev_intr_type != INTA) {
+		DBG_PRINT(ERR_DBG, "NAPI cannot be enabled when MSI/MSI-X \
+is enabled. Defaulting to INTA\n");
+		dev_intr_type = INTA;
+	}
+	else
+		DBG_PRINT(ERR_DBG, "NAPI support has been enabled\n");
 #endif
 
 	if ((ret = pci_enable_device(pdev))) {
@@ -5303,10 +5793,35 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		return -ENOMEM;
 	}
 
-	if (pci_request_regions(pdev, s2io_driver_name)) {
-		DBG_PRINT(ERR_DBG, "Request Regions failed\n"),
-		    pci_disable_device(pdev);
-		return -ENODEV;
+	if ((dev_intr_type == MSI_X) && 
+			((pdev->device != PCI_DEVICE_ID_HERC_WIN) &&
+			(pdev->device != PCI_DEVICE_ID_HERC_UNI))) {
+		DBG_PRINT(ERR_DBG, "Xframe I does not support MSI_X. \
+Defaulting to INTA\n");
+		dev_intr_type = INTA;
+	}
+	if (dev_intr_type != MSI_X) {
+		if (pci_request_regions(pdev, s2io_driver_name)) {
+			DBG_PRINT(ERR_DBG, "Request Regions failed\n"),
+			    pci_disable_device(pdev);
+			return -ENODEV;
+		}
+	}
+	else {
+		if (!(request_mem_region(pci_resource_start(pdev, 0),
+               	         pci_resource_len(pdev, 0), s2io_driver_name))) {
+			DBG_PRINT(ERR_DBG, "bar0 Request Regions failed\n");
+			pci_disable_device(pdev);
+			return -ENODEV;
+		}
+        	if (!(request_mem_region(pci_resource_start(pdev, 2),
+               	         pci_resource_len(pdev, 2), s2io_driver_name))) {
+			DBG_PRINT(ERR_DBG, "bar1 Request Regions failed\n");
+                	release_mem_region(pci_resource_start(pdev, 0),
+                                   pci_resource_len(pdev, 0));
+			pci_disable_device(pdev);
+			return -ENODEV;
+		}
 	}
 
 	dev = alloc_etherdev(sizeof(nic_t));
@@ -5329,6 +5844,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	sp->pdev = pdev;
 	sp->high_dma_flag = dma_flag;
 	sp->device_enabled_once = FALSE;
+	sp->intr_type = dev_intr_type;
 
 	if ((pdev->device == PCI_DEVICE_ID_HERC_WIN) ||
 		(pdev->device == PCI_DEVICE_ID_HERC_UNI))
@@ -5336,6 +5852,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	else
 		sp->device_type = XFRAME_I_DEVICE;
 
+		
 	/* Initialize some PCI/PCI-X fields of the NIC. */
 	s2io_init_pci(sp);
 
@@ -5571,12 +6088,23 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		DBG_PRINT(ERR_DBG, "%s: Neterion Xframe II 10GbE adapter ",
 			  dev->name);
-		DBG_PRINT(ERR_DBG, "(rev %d), %s",
+		DBG_PRINT(ERR_DBG, "(rev %d), Version %s",
 				get_xena_rev_id(sp->pdev),
 				s2io_driver_version);
 #ifdef CONFIG_2BUFF_MODE
 		DBG_PRINT(ERR_DBG, ", Buffer mode %d",2);
 #endif
+		switch(sp->intr_type) {
+			case INTA:
+				DBG_PRINT(ERR_DBG, ", Intr type INTA");
+				break;
+			case MSI:
+				DBG_PRINT(ERR_DBG, ", Intr type MSI");
+				break;
+			case MSI_X:
+				DBG_PRINT(ERR_DBG, ", Intr type MSI-X");
+				break;
+		}
 
 		DBG_PRINT(ERR_DBG, "\nCopyright(c) 2002-2005 Neterion Inc.\n");
 		DBG_PRINT(ERR_DBG, "MAC ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -5595,12 +6123,23 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	} else {
 		DBG_PRINT(ERR_DBG, "%s: Neterion Xframe I 10GbE adapter ",
 			  dev->name);
-		DBG_PRINT(ERR_DBG, "(rev %d), %s",
+		DBG_PRINT(ERR_DBG, "(rev %d), Version %s",
 					get_xena_rev_id(sp->pdev),
 					s2io_driver_version);
 #ifdef CONFIG_2BUFF_MODE
 		DBG_PRINT(ERR_DBG, ", Buffer mode %d",2);
 #endif
+		switch(sp->intr_type) {
+			case INTA:
+				DBG_PRINT(ERR_DBG, ", Intr type INTA");
+				break;
+			case MSI:
+				DBG_PRINT(ERR_DBG, ", Intr type MSI");
+				break;
+			case MSI_X:
+				DBG_PRINT(ERR_DBG, ", Intr type MSI-X");
+				break;
+		}
 		DBG_PRINT(ERR_DBG, "\nCopyright(c) 2002-2005 Neterion Inc.\n");
 		DBG_PRINT(ERR_DBG, "MAC ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			  sp->def_mac_addr[0].mac_addr[0],
@@ -5644,7 +6183,14 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
       mem_alloc_failed:
 	free_shared_mem(sp);
 	pci_disable_device(pdev);
-	pci_release_regions(pdev);
+	if (dev_intr_type != MSI_X)
+		pci_release_regions(pdev);
+	else {
+		release_mem_region(pci_resource_start(pdev, 0),
+			pci_resource_len(pdev, 0));
+		release_mem_region(pci_resource_start(pdev, 2),
+			pci_resource_len(pdev, 2));
+	}
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
@@ -5678,7 +6224,14 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 	iounmap(sp->bar0);
 	iounmap(sp->bar1);
 	pci_disable_device(pdev);
-	pci_release_regions(pdev);
+	if (sp->intr_type != MSI_X)
+		pci_release_regions(pdev);
+	else {
+		release_mem_region(pci_resource_start(pdev, 0),
+			pci_resource_len(pdev, 0));
+		release_mem_region(pci_resource_start(pdev, 2),
+			pci_resource_len(pdev, 2));
+	}
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }

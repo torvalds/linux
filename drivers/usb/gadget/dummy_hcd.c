@@ -470,7 +470,7 @@ static int dummy_disable (struct usb_ep *_ep)
 }
 
 static struct usb_request *
-dummy_alloc_request (struct usb_ep *_ep, unsigned mem_flags)
+dummy_alloc_request (struct usb_ep *_ep, gfp_t mem_flags)
 {
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
@@ -507,7 +507,7 @@ dummy_alloc_buffer (
 	struct usb_ep *_ep,
 	unsigned bytes,
 	dma_addr_t *dma,
-	unsigned mem_flags
+	gfp_t mem_flags
 ) {
 	char			*retval;
 	struct dummy_ep		*ep;
@@ -541,7 +541,7 @@ fifo_complete (struct usb_ep *ep, struct usb_request *req)
 
 static int
 dummy_queue (struct usb_ep *_ep, struct usb_request *_req,
-		unsigned mem_flags)
+		gfp_t mem_flags)
 {
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
@@ -999,7 +999,7 @@ static int dummy_urb_enqueue (
 	struct usb_hcd			*hcd,
 	struct usb_host_endpoint	*ep,
 	struct urb			*urb,
-	unsigned			mem_flags
+	gfp_t				mem_flags
 ) {
 	struct dummy	*dum;
 	struct urbp	*urbp;

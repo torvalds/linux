@@ -81,7 +81,7 @@ static int map_page(unsigned long va, unsigned long pa, pgprot_t prot)
  * portions of the kernel with single large page TLB entries, and
  * still get unique uncached pages for consistent DMA.
  */
-void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle)
+void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 {
 	struct vm_struct *area;
 	unsigned long page, va, pa;

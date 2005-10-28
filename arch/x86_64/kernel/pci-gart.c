@@ -187,7 +187,7 @@ static void flush_gart(struct device *dev)
 
 /* Allocate DMA memory on node near device */
 noinline
-static void *dma_alloc_pages(struct device *dev, unsigned gfp, unsigned order)
+static void *dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
 	struct page *page;
 	int node;
@@ -204,7 +204,7 @@ static void *dma_alloc_pages(struct device *dev, unsigned gfp, unsigned order)
  */
 void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   unsigned gfp)
+		   gfp_t gfp)
 {
 	void *memory;
 	unsigned long dma_mask = 0;

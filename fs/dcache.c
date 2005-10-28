@@ -689,7 +689,7 @@ void shrink_dcache_anon(struct hlist_head *head)
  *
  * In this case we return -1 to tell the caller that we baled.
  */
-static int shrink_dcache_memory(int nr, unsigned int gfp_mask)
+static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
